@@ -74,12 +74,12 @@ static bool vega10_is_smc_ram_running(struct pp_smumgr *smumgr)
 	return false;
 }
 
-/**
-* Check if SMC has responded to previous message.
-*
-* @param    smumgr  the address of the powerplay hardware manager.
-* @return   TRUE    SMC has responded, FALSE otherwise.
-*/
+/*
+ * Check if SMC has responded to previous message.
+ *
+ * @param    smumgr  the address of the powerplay hardware manager.
+ * @return   TRUE    SMC has responded, FALSE otherwise.
+ */
 static uint32_t vega10_wait_for_response(struct pp_smumgr *smumgr)
 {
 	uint32_t reg;
@@ -96,13 +96,12 @@ static uint32_t vega10_wait_for_response(struct pp_smumgr *smumgr)
 	return cgs_read_register(smumgr->device, reg);
 }
 
-/**
-* Send a message to the SMC, and do not wait for its response.
-*
-* @param    smumgr  the address of the powerplay hardware manager.
-* @param    msg the message to send.
-* @return   Always return 0.
-*/
+/*
+ * Send a message to the SMC, and do not wait for its response.
+ * @param    smumgr  the address of the powerplay hardware manager.
+ * @param    msg the message to send.
+ * @return   Always return 0.
+ */
 int vega10_send_msg_to_smc_without_waiting(struct pp_smumgr *smumgr,
 		uint16_t msg)
 {
@@ -118,13 +117,12 @@ int vega10_send_msg_to_smc_without_waiting(struct pp_smumgr *smumgr,
 	return 0;
 }
 
-/**
-* Send a message to the SMC, and wait for its response.
-*
-* @param    smumgr  the address of the powerplay hardware manager.
-* @param    msg the message to send.
-* @return   The response that came from the SMC.
-*/
+/*
+ * Send a message to the SMC, and wait for its response.
+ * @param    smumgr  the address of the powerplay hardware manager.
+ * @param    msg the message to send.
+ * @return   Always return 0.
+ */
 int vega10_send_msg_to_smc(struct pp_smumgr *smumgr, uint16_t msg)
 {
 	uint32_t reg;
@@ -141,17 +139,17 @@ int vega10_send_msg_to_smc(struct pp_smumgr *smumgr, uint16_t msg)
 	vega10_send_msg_to_smc_without_waiting(smumgr, msg);
 
 	if (vega10_wait_for_response(smumgr) != 1)
-		pr_err("Failed to send Message: 0x%x\n.", msg);
+		pr_err("Failed to send message: 0x%x\n", msg);
 
 	return 0;
 }
 
-/**
+/*
  * Send a message to the SMC with parameter
  * @param    smumgr:  the address of the powerplay hardware manager.
  * @param    msg: the message to send.
  * @param    parameter: the parameter to send
- * @return   The response that came from the SMC.
+ * @return   Always return 0.
  */
 int vega10_send_msg_to_smc_with_parameter(struct pp_smumgr *smumgr,
 		uint16_t msg, uint32_t parameter)
@@ -174,20 +172,19 @@ int vega10_send_msg_to_smc_with_parameter(struct pp_smumgr *smumgr,
 	vega10_send_msg_to_smc_without_waiting(smumgr, msg);
 
 	if (vega10_wait_for_response(smumgr) != 1)
-		pr_err("Failed to send Message: 0x%x\n.", msg);
+		pr_err("Failed to send message: 0x%x\n", msg);
 
 	return 0;
 }
 
 
-/**
-* Send a message to the SMC with parameter, do not wait for response
-*
-* @param    smumgr:  the address of the powerplay hardware manager.
-* @param    msg: the message to send.
-* @param    parameter: the parameter to send
-* @return   The response that came from the SMC.
-*/
+/*
+ * Send a message to the SMC with parameter, do not wait for response
+ * @param    smumgr:  the address of the powerplay hardware manager.
+ * @param    msg: the message to send.
+ * @param    parameter: the parameter to send
+ * @return   The response that came from the SMC.
+ */
 int vega10_send_msg_to_smc_with_parameter_without_waiting(
 		struct pp_smumgr *smumgr, uint16_t msg, uint32_t parameter)
 {
@@ -200,13 +197,12 @@ int vega10_send_msg_to_smc_with_parameter_without_waiting(
 	return vega10_send_msg_to_smc_without_waiting(smumgr, msg);
 }
 
-/**
-* Retrieve an argument from SMC.
-*
-* @param    smumgr  the address of the powerplay hardware manager.
-* @param    arg     pointer to store the argument from SMC.
-* @return   Always return 0.
-*/
+/*
+ * Retrieve an argument from SMC.
+ * @param    smumgr  the address of the powerplay hardware manager.
+ * @param    arg     pointer to store the argument from SMC.
+ * @return   Always return 0.
+ */
 int vega10_read_arg_from_smc(struct pp_smumgr *smumgr, uint32_t *arg)
 {
 	uint32_t reg;
@@ -219,11 +215,11 @@ int vega10_read_arg_from_smc(struct pp_smumgr *smumgr, uint32_t *arg)
 	return 0;
 }
 
-/**
-* Copy table from SMC into driver FB
-* @param   smumgr    the address of the SMC manager
-* @param   table_id    the driver's table ID to copy from
-*/
+/*
+ * Copy table from SMC into driver FB
+ * @param   smumgr    the address of the SMC manager
+ * @param   table_id    the driver's table ID to copy from
+ */
 int vega10_copy_table_from_smc(struct pp_smumgr *smumgr,
 		uint8_t *table, int16_t table_id)
 {
@@ -257,11 +253,11 @@ int vega10_copy_table_from_smc(struct pp_smumgr *smumgr,
 	return 0;
 }
 
-/**
-* Copy table from Driver FB into SMC
-* @param   smumgr    the address of the SMC manager
-* @param   table_id    the table to copy from
-*/
+/*
+ * Copy table from Driver FB into SMC
+ * @param   smumgr    the address of the SMC manager
+ * @param   table_id    the table to copy from
+ */
 int vega10_copy_table_to_smc(struct pp_smumgr *smumgr,
 		uint8_t *table, int16_t table_id)
 {
@@ -378,13 +374,6 @@ static int vega10_verify_smc_interface(struct pp_smumgr *smumgr)
 	return 0;
 }
 
-/**
-* Write a 32bit value to the SMC SRAM space.
-* ALL PARAMETERS ARE IN HOST BYTE ORDER.
-* @param    smumgr  the address of the powerplay hardware manager.
-* @param    smc_addr the address in the SMC RAM to access.
-* @param    value to write to the SMC SRAM.
-*/
 static int vega10_smu_init(struct pp_smumgr *smumgr)
 {
 	struct vega10_smumgr *priv;
