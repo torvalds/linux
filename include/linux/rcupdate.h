@@ -46,13 +46,6 @@
 #include <linux/ktime.h>
 #include <linux/irqflags.h>
 
-#include <asm/barrier.h>
-
-#ifndef CONFIG_TINY_RCU
-extern int rcu_expedited; /* for sysctl */
-extern int rcu_normal;    /* also for sysctl */
-#endif /* #ifndef CONFIG_TINY_RCU */
-
 #ifdef CONFIG_TINY_RCU
 /* Tiny RCU doesn't expedite, as its purpose in life is instead to be tiny. */
 static inline bool rcu_gp_is_normal(void)  /* Internal RCU use. */
