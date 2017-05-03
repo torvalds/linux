@@ -40,13 +40,14 @@
 #define BUILD_TIMESTAMP
 #endif
 
-#define DRIVER_VERSION		"0.9.13-370"
-#define DRIVER_MAJOR		0
-#define DRIVER_MINOR		9
-#define DRIVER_RELEASE		13
-#define DRIVER_REVISION		370
+#define DRIVER_VERSION		"1.0.4-100"
+#define DRIVER_MAJOR		1
+#define DRIVER_MINOR		0
+#define DRIVER_RELEASE		4
+#define DRIVER_REVISION		100
 
-#define DRIVER_NAME		"Microsemi PQI Driver (v" DRIVER_VERSION ")"
+#define DRIVER_NAME		"Microsemi PQI Driver (v" \
+				DRIVER_VERSION BUILD_TIMESTAMP ")"
 #define DRIVER_NAME_SHORT	"smartpqi"
 
 #define PQI_EXTRA_SGL_MEMORY	(12 * sizeof(struct pqi_sg_descriptor))
