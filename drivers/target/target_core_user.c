@@ -1560,6 +1560,9 @@ static int unmap_thread_fn(void *data)
 		schedule();
 		finish_wait(&unmap_wait, &__wait);
 
+		if (kthread_should_stop())
+			break;
+
 		mutex_lock(&root_udev_mutex);
 		list_for_each_entry(udev, &root_udev, node) {
 			mutex_lock(&udev->cmdr_lock);
