@@ -453,9 +453,7 @@ static struct brd_device *brd_alloc(int i)
 {
 	struct brd_device *brd;
 	struct gendisk *disk;
-#ifdef CONFIG_BLK_DEV_RAM_DAX
-	struct dax_device *dax_dev;
-#endif
+
 	brd = kzalloc(sizeof(*brd), GFP_KERNEL);
 	if (!brd)
 		goto out;
@@ -497,8 +495,8 @@ static struct brd_device *brd_alloc(int i)
 
 #ifdef CONFIG_BLK_DEV_RAM_DAX
 	queue_flag_set_unlocked(QUEUE_FLAG_DAX, brd->brd_queue);
-	dax_dev = alloc_dax(brd, disk->disk_name, &brd_dax_ops);
-	if (!dax_dev)
+	brd->dax_dev = alloc_dax(brd, disk->disk_name, &brd_dax_ops);
+	if (!brd->dax_dev)
 		goto out_free_inode;
 #endif
 
@@ -507,8 +505,8 @@ static struct brd_device *brd_alloc(int i)
 
 #ifdef CONFIG_BLK_DEV_RAM_DAX
 out_free_inode:
-	kill_dax(dax_dev);
-	put_dax(dax_dev);
+	kill_dax(brd->dax_dev);
+	put_dax(brd->dax_dev);
 #endif
 out_free_queue:
 	blk_cleanup_queue(brd->brd_queue);
