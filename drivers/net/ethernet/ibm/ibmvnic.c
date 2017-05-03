@@ -1428,6 +1428,7 @@ restart_poll:
 
 		skb_put(skb, length);
 		skb->protocol = eth_type_trans(skb, netdev);
+		skb_record_rx_queue(skb, scrq_num);
 
 		if (flags & IBMVNIC_IP_CHKSUM_GOOD &&
 		    flags & IBMVNIC_TCP_UDP_CHKSUM_GOOD) {
