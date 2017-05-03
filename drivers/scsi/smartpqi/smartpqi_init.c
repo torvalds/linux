@@ -2697,6 +2697,7 @@ static void pqi_take_ctrl_offline(struct pqi_ctrl_info *ctrl_info)
 
 	ctrl_info->controller_online = false;
 	dev_err(&ctrl_info->pci_dev->dev, "controller offline\n");
+	sis_shutdown_ctrl(ctrl_info);
 
 	for (i = 0; i < ctrl_info->num_queue_groups; i++) {
 		queue_group = &ctrl_info->queue_groups[i];

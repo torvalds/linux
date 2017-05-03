@@ -34,6 +34,7 @@
 #define SIS_REENABLE_SIS_MODE			0x1
 #define SIS_ENABLE_MSIX				0x40
 #define SIS_SOFT_RESET				0x100
+#define SIS_TRIGGER_SHUTDOWN			0x800000
 #define SIS_CMD_READY				0x200
 #define SIS_CMD_COMPLETE			0x1000
 #define SIS_CLEAR_CTRL_TO_HOST_DOORBELL		0x1000
@@ -339,6 +340,12 @@ void sis_disable_msix(struct pqi_ctrl_info *ctrl_info)
 void sis_soft_reset(struct pqi_ctrl_info *ctrl_info)
 {
 	writel(SIS_SOFT_RESET,
+		&ctrl_info->registers->sis_host_to_ctrl_doorbell);
+}
+
+void sis_shutdown_ctrl(struct pqi_ctrl_info *ctrl_info)
+{
+	writel(SIS_TRIGGER_SHUTDOWN,
 		&ctrl_info->registers->sis_host_to_ctrl_doorbell);
 }
 

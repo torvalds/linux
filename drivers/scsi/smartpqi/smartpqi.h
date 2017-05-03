@@ -933,10 +933,10 @@ struct pqi_ctrl_info {
 	struct Scsi_Host *scsi_host;
 
 	struct mutex	scan_mutex;
+	bool		controller_online : 1;
 	u8		inbound_spanning_supported : 1;
 	u8		outbound_spanning_supported : 1;
 	u8		pqi_mode_enabled : 1;
-	u8		controller_online : 1;
 	u8		heartbeat_timer_started : 1;
 
 	struct list_head scsi_device_list;
