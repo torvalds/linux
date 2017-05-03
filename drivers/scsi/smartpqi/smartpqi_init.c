@@ -1591,11 +1591,8 @@ static void pqi_update_device_list(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_scsi_dev *device;
 	struct pqi_scsi_dev *next;
 	struct pqi_scsi_dev *matching_device;
-	struct list_head add_list;
-	struct list_head delete_list;
-
-	INIT_LIST_HEAD(&add_list);
-	INIT_LIST_HEAD(&delete_list);
+	LIST_HEAD(add_list);
+	LIST_HEAD(delete_list);
 
 	/*
 	 * The idea here is to do as little work as possible while holding the
@@ -1755,7 +1752,7 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 {
 	int i;
 	int rc;
-	struct list_head new_device_list_head;
+	LIST_HEAD(new_device_list_head);
 	struct report_phys_lun_extended *physdev_list = NULL;
 	struct report_log_lun_extended *logdev_list = NULL;
 	struct report_phys_lun_extended_entry *phys_lun_ext_entry;
@@ -1772,8 +1769,6 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 	u8 *scsi3addr;
 	static char *out_of_memory_msg =
 		"failed to allocate memory, device discovery stopped";
-
-	INIT_LIST_HEAD(&new_device_list_head);
 
 	rc = pqi_get_device_lists(ctrl_info, &physdev_list, &logdev_list);
 	if (rc)
