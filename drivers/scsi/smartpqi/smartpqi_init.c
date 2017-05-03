@@ -81,6 +81,15 @@ static struct scsi_transport_template *pqi_sas_transport_template;
 
 static atomic_t pqi_controller_count = ATOMIC_INIT(0);
 
+static unsigned int pqi_supported_event_types[] = {
+	PQI_EVENT_TYPE_HOTPLUG,
+	PQI_EVENT_TYPE_HARDWARE,
+	PQI_EVENT_TYPE_PHYSICAL_DEVICE,
+	PQI_EVENT_TYPE_LOGICAL_DEVICE,
+	PQI_EVENT_TYPE_AIO_STATE_CHANGE,
+	PQI_EVENT_TYPE_AIO_CONFIG_CHANGE,
+};
+
 static int pqi_disable_device_id_wildcards;
 module_param_named(disable_device_id_wildcards,
 	pqi_disable_device_id_wildcards, int, S_IRUGO | S_IWUSR);
@@ -2665,20 +2674,20 @@ static void pqi_event_worker(struct work_struct *work)
 {
 	unsigned int i;
 	struct pqi_ctrl_info *ctrl_info;
-	struct pqi_event *pending_event;
+	struct pqi_event *event;
 	bool got_non_heartbeat_event = false;
 
 	ctrl_info = container_of(work, struct pqi_ctrl_info, event_work);
 
-	pending_event = ctrl_info->pending_events;
+	event = ctrl_info->events;
 	for (i = 0; i < PQI_NUM_SUPPORTED_EVENTS; i++) {
-		if (pending_event->pending) {
-			pending_event->pending = false;
-			pqi_acknowledge_event(ctrl_info, pending_event);
-			if (i != PQI_EVENT_HEARTBEAT)
+		if (event->pending) {
+			event->pending = false;
+			pqi_acknowledge_event(ctrl_info, event);
+			if (i != PQI_EVENT_TYPE_HEARTBEAT)
 				got_non_heartbeat_event = true;
 		}
-		pending_event++;
+		event++;
 	}
 
 	if (got_non_heartbeat_event)
@@ -2742,7 +2751,7 @@ static void pqi_heartbeat_timer_handler(unsigned long data)
 			pqi_take_ctrl_offline(ctrl_info);
 			return;
 		}
-		ctrl_info->pending_events[PQI_EVENT_HEARTBEAT].pending = true;
+		ctrl_info->events[PQI_EVENT_HEARTBEAT].pending = true;
 		schedule_work(&ctrl_info->event_work);
 	} else {
 		ctrl_info->num_heartbeats_requested = 0;
@@ -2773,38 +2782,20 @@ static inline void pqi_stop_heartbeat_timer(struct pqi_ctrl_info *ctrl_info)
 		del_timer_sync(&ctrl_info->heartbeat_timer);
 }
 
-static int pqi_event_type_to_event_index(unsigned int event_type)
+static inline int pqi_event_type_to_event_index(unsigned int event_type)
 {
 	int index;
 
-	switch (event_type) {
-	case PQI_EVENT_TYPE_HEARTBEAT:
-		index = PQI_EVENT_HEARTBEAT;
-		break;
-	case PQI_EVENT_TYPE_HOTPLUG:
-		index = PQI_EVENT_HOTPLUG;
-		break;
-	case PQI_EVENT_TYPE_HARDWARE:
-		index = PQI_EVENT_HARDWARE;
-		break;
-	case PQI_EVENT_TYPE_PHYSICAL_DEVICE:
-		index = PQI_EVENT_PHYSICAL_DEVICE;
-		break;
-	case PQI_EVENT_TYPE_LOGICAL_DEVICE:
-		index = PQI_EVENT_LOGICAL_DEVICE;
-		break;
-	case PQI_EVENT_TYPE_AIO_STATE_CHANGE:
-		index = PQI_EVENT_AIO_STATE_CHANGE;
-		break;
-	case PQI_EVENT_TYPE_AIO_CONFIG_CHANGE:
-		index = PQI_EVENT_AIO_CONFIG_CHANGE;
-		break;
-	default:
-		index = -1;
-		break;
-	}
+	for (index = 0; index < ARRAY_SIZE(pqi_supported_event_types); index++)
+		if (event_type == pqi_supported_event_types[index])
+			return index;
 
-	return index;
+	return -1;
+}
+
+static inline bool pqi_is_supported_event(unsigned int event_type)
+{
+	return pqi_event_type_to_event_index(event_type) != -1;
 }
 
 static unsigned int pqi_process_event_intr(struct pqi_ctrl_info *ctrl_info)
@@ -2814,7 +2805,7 @@ static unsigned int pqi_process_event_intr(struct pqi_ctrl_info *ctrl_info)
 	pqi_index_t oq_ci;
 	struct pqi_event_queue *event_queue;
 	struct pqi_event_response *response;
-	struct pqi_event *pending_event;
+	struct pqi_event *event;
 	bool need_delayed_work;
 	int event_index;
 
@@ -2837,15 +2828,14 @@ static unsigned int pqi_process_event_intr(struct pqi_ctrl_info *ctrl_info)
 
 		if (event_index >= 0) {
 			if (response->request_acknowlege) {
-				pending_event =
-					&ctrl_info->pending_events[event_index];
-				pending_event->event_type =
-					response->event_type;
-				pending_event->event_id = response->event_id;
-				pending_event->additional_event_id =
+				event = &ctrl_info->events[event_index];
+				event->pending = true;
+				event->event_type = response->event_type;
+				event->event_id = response->event_id;
+				event->additional_event_id =
 					response->additional_event_id;
-				if (event_index != PQI_EVENT_HEARTBEAT) {
-					pending_event->pending = true;
+				if (event_index != PQI_EVENT_TYPE_HEARTBEAT) {
+					event->pending = true;
 					need_delayed_work = true;
 				}
 			}
@@ -3899,11 +3889,13 @@ static int pqi_create_queues(struct pqi_ctrl_info *ctrl_info)
 	(offsetof(struct pqi_event_config, descriptors) + \
 	(PQI_MAX_EVENT_DESCRIPTORS * sizeof(struct pqi_event_descriptor)))
 
-static int pqi_configure_events(struct pqi_ctrl_info *ctrl_info)
+static int pqi_configure_events(struct pqi_ctrl_info *ctrl_info,
+	bool enable_events)
 {
 	int rc;
 	unsigned int i;
 	struct pqi_event_config *event_config;
+	struct pqi_event_descriptor *event_descriptor;
 	struct pqi_general_management_request request;
 
 	event_config = kmalloc(PQI_REPORT_EVENT_CONFIG_BUFFER_LENGTH,
@@ -3937,9 +3929,15 @@ static int pqi_configure_events(struct pqi_ctrl_info *ctrl_info)
 	if (rc)
 		goto out;
 
-	for (i = 0; i < event_config->num_event_descriptors; i++)
-		put_unaligned_le16(ctrl_info->event_queue.oq_id,
-			&event_config->descriptors[i].oq_id);
+	for (i = 0; i < event_config->num_event_descriptors; i++) {
+		event_descriptor = &event_config->descriptors[i];
+		if (enable_events &&
+			pqi_is_supported_event(event_descriptor->event_type))
+			put_unaligned_le16(ctrl_info->event_queue.oq_id,
+					&event_descriptor->oq_id);
+		else
+			put_unaligned_le16(0, &event_descriptor->oq_id);
+	}
 
 	memset(&request, 0, sizeof(request));
 
@@ -3968,6 +3966,16 @@ out:
 	kfree(event_config);
 
 	return rc;
+}
+
+static inline int pqi_enable_events(struct pqi_ctrl_info *ctrl_info)
+{
+	return pqi_configure_events(ctrl_info, true);
+}
+
+static inline int pqi_disable_events(struct pqi_ctrl_info *ctrl_info)
+{
+	return pqi_configure_events(ctrl_info, false);
 }
 
 static void pqi_free_all_io_requests(struct pqi_ctrl_info *ctrl_info)
@@ -5413,10 +5421,10 @@ static int pqi_ctrl_init(struct pqi_ctrl_info *ctrl_info)
 
 	sis_enable_msix(ctrl_info);
 
-	rc = pqi_configure_events(ctrl_info);
+	rc = pqi_enable_events(ctrl_info);
 	if (rc) {
 		dev_err(&ctrl_info->pci_dev->dev,
-			"error configuring events\n");
+			"error enabling events\n");
 		return rc;
 	}
 

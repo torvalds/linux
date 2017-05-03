@@ -860,15 +860,8 @@ struct pqi_io_request {
 	struct list_head request_list_entry;
 };
 
-/* for indexing into the pending_events[] field of struct pqi_ctrl_info */
 #define PQI_EVENT_HEARTBEAT		0
-#define PQI_EVENT_HOTPLUG		1
-#define PQI_EVENT_HARDWARE		2
-#define PQI_EVENT_PHYSICAL_DEVICE	3
-#define PQI_EVENT_LOGICAL_DEVICE	4
-#define PQI_EVENT_AIO_STATE_CHANGE	5
-#define PQI_EVENT_AIO_CONFIG_CHANGE	6
-#define PQI_NUM_SUPPORTED_EVENTS	7
+#define PQI_NUM_SUPPORTED_EVENTS	6
 
 struct pqi_event {
 	bool	pending;
@@ -951,7 +944,7 @@ struct pqi_ctrl_info {
 	struct pqi_io_request *io_request_pool;
 	u16		next_io_request_slot;
 
-	struct pqi_event pending_events[PQI_NUM_SUPPORTED_EVENTS];
+	struct pqi_event events[PQI_NUM_SUPPORTED_EVENTS];
 	struct work_struct event_work;
 
 	atomic_t	num_interrupts;
