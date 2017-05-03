@@ -1181,9 +1181,13 @@ static void iwl_mvm_fw_error_dump_wk(struct work_struct *work)
 
 		/* start recording again if the firmware is not crashed */
 		if (!test_bit(STATUS_FW_ERROR, &mvm->trans->status) &&
-		    mvm->fw->dbg_dest_tlv)
+		    mvm->fw->dbg_dest_tlv) {
 			iwl_clear_bits_prph(mvm->trans,
 					    MON_BUFF_SAMPLE_CTL, 0x100);
+			iwl_clear_bits_prph(mvm->trans,
+					    MON_BUFF_SAMPLE_CTL, 0x1);
+			iwl_set_bits_prph(mvm->trans, MON_BUFF_SAMPLE_CTL, 0x1);
+		}
 	} else {
 		u32 in_sample = iwl_read_prph(mvm->trans, DBGC_IN_SAMPLE);
 		u32 out_ctrl = iwl_read_prph(mvm->trans, DBGC_OUT_CTRL);
