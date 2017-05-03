@@ -1429,6 +1429,9 @@ static void dcn10_power_on_fe(
 				pipe_ctx->pipe_idx,
 				pipe_ctx->pix_clk_params.requested_pix_clk,
 				context->bw.dcn.calc_clk.dppclk_div);
+		dc->current_context->bw.dcn.cur_clk.dppclk_div =
+				context->bw.dcn.calc_clk.dppclk_div;
+		context->bw.dcn.cur_clk.dppclk_div = context->bw.dcn.calc_clk.dppclk_div;
 
 		if (dc_surface) {
 			dm_logger_write(dc->ctx->logger, LOG_DC,
@@ -1531,6 +1534,9 @@ static void update_dchubp_dpp(
 		pipe_ctx->pipe_idx,
 		pipe_ctx->pix_clk_params.requested_pix_clk,
 		context->bw.dcn.calc_clk.dppclk_div);
+	dc->current_context->bw.dcn.cur_clk.dppclk_div =
+			context->bw.dcn.calc_clk.dppclk_div;
+	context->bw.dcn.cur_clk.dppclk_div = context->bw.dcn.calc_clk.dppclk_div;
 
 	select_vtg(dc->ctx, pipe_ctx->pipe_idx, pipe_ctx->tg->inst);
 
@@ -1679,16 +1685,16 @@ static void dcn10_pplib_apply_display_requirements(
 
 	pp_display_cfg->all_displays_in_sync = false;/*todo*/
 	pp_display_cfg->nb_pstate_switch_disable = false;
-	pp_display_cfg->min_engine_clock_khz = context->bw.dcn.calc_clk.dcfclk_khz;
-	pp_display_cfg->min_memory_clock_khz = context->bw.dcn.calc_clk.fclk_khz;
-	pp_display_cfg->min_engine_clock_deep_sleep_khz = context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz;
-	pp_display_cfg->min_dcfc_deep_sleep_clock_khz = context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz;
+	pp_display_cfg->min_engine_clock_khz = context->bw.dcn.cur_clk.dcfclk_khz;
+	pp_display_cfg->min_memory_clock_khz = context->bw.dcn.cur_clk.fclk_khz;
+	pp_display_cfg->min_engine_clock_deep_sleep_khz = context->bw.dcn.cur_clk.dcfclk_deep_sleep_khz;
+	pp_display_cfg->min_dcfc_deep_sleep_clock_khz = context->bw.dcn.cur_clk.dcfclk_deep_sleep_khz;
 	pp_display_cfg->avail_mclk_switch_time_us =
-			context->bw.dcn.calc_clk.dram_ccm_us > 0 ? context->bw.dcn.calc_clk.dram_ccm_us : 0;
+			context->bw.dcn.cur_clk.dram_ccm_us > 0 ? context->bw.dcn.cur_clk.dram_ccm_us : 0;
 	pp_display_cfg->avail_mclk_switch_time_in_disp_active_us =
-			context->bw.dcn.calc_clk.min_active_dram_ccm_us > 0 ? context->bw.dcn.calc_clk.min_active_dram_ccm_us : 0;
-	pp_display_cfg->min_dcfclock_khz = context->bw.dcn.calc_clk.dcfclk_khz;
-	pp_display_cfg->disp_clk_khz = context->bw.dcn.calc_clk.dispclk_khz;
+			context->bw.dcn.cur_clk.min_active_dram_ccm_us > 0 ? context->bw.dcn.cur_clk.min_active_dram_ccm_us : 0;
+	pp_display_cfg->min_dcfclock_khz = context->bw.dcn.cur_clk.dcfclk_khz;
+	pp_display_cfg->disp_clk_khz = context->bw.dcn.cur_clk.dispclk_khz;
 	dce110_fill_display_configs(context, pp_display_cfg);
 
 	if (memcmp(&dc->prev_display_config, pp_display_cfg, sizeof(
@@ -1755,22 +1761,51 @@ static void dcn10_set_bandwidth(
 	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
 		return;
 
-	if (decrease_allowed || context->bw.dcn.calc_clk.dispclk_khz > dc->current_context->bw.dcn.calc_clk.dispclk_khz) {
+	if (decrease_allowed || context->bw.dcn.calc_clk.dispclk_khz
+			> dc->current_context->bw.dcn.cur_clk.dispclk_khz) {
 		dc->res_pool->display_clock->funcs->set_clock(
 				dc->res_pool->display_clock,
 				context->bw.dcn.calc_clk.dispclk_khz);
-		dc->current_context->bw.dcn.calc_clk.dispclk_khz = context->bw.dcn.calc_clk.dispclk_khz;
+		dc->current_context->bw.dcn.cur_clk.dispclk_khz =
+				context->bw.dcn.calc_clk.dispclk_khz;
 	}
-	if (decrease_allowed || context->bw.dcn.calc_clk.dcfclk_khz > dc->current_context->bw.dcn.calc_clk.dcfclk_khz) {
+	if (decrease_allowed || context->bw.dcn.calc_clk.dcfclk_khz
+			> dc->current_context->bw.dcn.cur_clk.dcfclk_khz) {
 		clock.clk_type = DM_PP_CLOCK_TYPE_DCFCLK;
 		clock.clocks_in_khz = context->bw.dcn.calc_clk.dcfclk_khz;
 		dm_pp_apply_clock_for_voltage_request(dc->ctx, &clock);
+		dc->current_context->bw.dcn.cur_clk.dcfclk_khz = clock.clocks_in_khz;
+		context->bw.dcn.cur_clk.dcfclk_khz = clock.clocks_in_khz;
 	}
-	if (decrease_allowed || context->bw.dcn.calc_clk.fclk_khz > dc->current_context->bw.dcn.calc_clk.fclk_khz) {
+	if (decrease_allowed || context->bw.dcn.calc_clk.fclk_khz
+			> dc->current_context->bw.dcn.cur_clk.fclk_khz) {
 		clock.clk_type = DM_PP_CLOCK_TYPE_FCLK;
 		clock.clocks_in_khz = context->bw.dcn.calc_clk.fclk_khz;
 		dm_pp_apply_clock_for_voltage_request(dc->ctx, &clock);
 		dc->current_context->bw.dcn.calc_clk.fclk_khz = clock.clocks_in_khz;
+		context->bw.dcn.cur_clk.fclk_khz = clock.clocks_in_khz;
+	}
+	if (decrease_allowed || context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz
+			> dc->current_context->bw.dcn.cur_clk.dcfclk_deep_sleep_khz) {
+		dc->current_context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz =
+				context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz;
+		context->bw.dcn.cur_clk.dcfclk_deep_sleep_khz =
+				context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz;
+	}
+	/* Decrease in freq is increase in period so opposite comparison for dram_ccm */
+	if (decrease_allowed || context->bw.dcn.calc_clk.dram_ccm_us
+			< dc->current_context->bw.dcn.cur_clk.dram_ccm_us) {
+		dc->current_context->bw.dcn.calc_clk.dram_ccm_us =
+				context->bw.dcn.calc_clk.dram_ccm_us;
+		context->bw.dcn.cur_clk.dram_ccm_us =
+				context->bw.dcn.calc_clk.dram_ccm_us;
+	}
+	if (decrease_allowed || context->bw.dcn.calc_clk.min_active_dram_ccm_us
+			< dc->current_context->bw.dcn.cur_clk.min_active_dram_ccm_us) {
+		dc->current_context->bw.dcn.calc_clk.min_active_dram_ccm_us =
+				context->bw.dcn.calc_clk.min_active_dram_ccm_us;
+		context->bw.dcn.cur_clk.min_active_dram_ccm_us =
+				context->bw.dcn.calc_clk.min_active_dram_ccm_us;
 	}
 	dcn10_pplib_apply_display_requirements(dc, context);
 }

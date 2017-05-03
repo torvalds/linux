@@ -1647,24 +1647,38 @@ enum dc_status dce110_apply_ctx_to_hw(
 	apply_min_clocks(dc, context, &clocks_state, true);
 
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-	if (context->bw.dcn.calc_clk.fclk_khz
-			> dc->current_context->bw.dcn.calc_clk.fclk_khz) {
-		struct dm_pp_clock_for_voltage_req clock;
+	if (resource_parse_asic_id(dc->ctx->asic_id) == DCN_VERSION_1_0) {
+		if (context->bw.dcn.calc_clk.fclk_khz
+				> dc->current_context->bw.dcn.cur_clk.fclk_khz) {
+			struct dm_pp_clock_for_voltage_req clock;
 
-		clock.clk_type = DM_PP_CLOCK_TYPE_FCLK;
-		clock.clocks_in_khz = context->bw.dcn.calc_clk.fclk_khz;
-		dm_pp_apply_clock_for_voltage_request(dc->ctx, &clock);
-		dc->current_context->bw.dcn.calc_clk.fclk_khz = clock.clocks_in_khz;
-	}
-	if (context->bw.dcn.calc_clk.dcfclk_khz
-			> dc->current_context->bw.dcn.calc_clk.dcfclk_khz) {
-		struct dm_pp_clock_for_voltage_req clock;
+			clock.clk_type = DM_PP_CLOCK_TYPE_FCLK;
+			clock.clocks_in_khz = context->bw.dcn.calc_clk.fclk_khz;
+			dm_pp_apply_clock_for_voltage_request(dc->ctx, &clock);
+			dc->current_context->bw.dcn.cur_clk.fclk_khz = clock.clocks_in_khz;
+			context->bw.dcn.cur_clk.fclk_khz = clock.clocks_in_khz;
+		}
+		if (context->bw.dcn.calc_clk.dcfclk_khz
+				> dc->current_context->bw.dcn.cur_clk.dcfclk_khz) {
+			struct dm_pp_clock_for_voltage_req clock;
 
-		clock.clk_type = DM_PP_CLOCK_TYPE_DCFCLK;
-		clock.clocks_in_khz = context->bw.dcn.calc_clk.dcfclk_khz;
-		dm_pp_apply_clock_for_voltage_request(dc->ctx, &clock);
-		dc->current_context->bw.dcn.calc_clk.dcfclk_khz = clock.clocks_in_khz;
-	}
+			clock.clk_type = DM_PP_CLOCK_TYPE_DCFCLK;
+			clock.clocks_in_khz = context->bw.dcn.calc_clk.dcfclk_khz;
+			dm_pp_apply_clock_for_voltage_request(dc->ctx, &clock);
+			dc->current_context->bw.dcn.cur_clk.dcfclk_khz = clock.clocks_in_khz;
+			context->bw.dcn.cur_clk.dcfclk_khz = clock.clocks_in_khz;
+		}
+		if (context->bw.dcn.calc_clk.dispclk_khz
+				> dc->current_context->bw.dcn.cur_clk.dispclk_khz) {
+			dc->res_pool->display_clock->funcs->set_clock(
+					dc->res_pool->display_clock,
+					context->bw.dcn.calc_clk.dispclk_khz);
+			dc->current_context->bw.dcn.cur_clk.dispclk_khz =
+					context->bw.dcn.calc_clk.dispclk_khz;
+			context->bw.dcn.cur_clk.dispclk_khz =
+					context->bw.dcn.calc_clk.dispclk_khz;
+		}
+	} else
 #endif
 	if (context->bw.dce.dispclk_khz
 			> dc->current_context->bw.dce.dispclk_khz) {
