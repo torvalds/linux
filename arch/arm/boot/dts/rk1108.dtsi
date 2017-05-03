@@ -222,7 +222,7 @@
 	};
 
 	pinctrl: pinctrl {
-		compatible = "rockchip,rk1108-pinctrl";
+		compatible = "rockchip,rv1108-pinctrl";
 		rockchip,grf = <&grf>;
 		rockchip,pmu = <&pmugrf>;
 		#address-cells = <1>;
