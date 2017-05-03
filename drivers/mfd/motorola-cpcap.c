@@ -23,6 +23,8 @@
 
 #define CPCAP_NR_IRQ_REG_BANKS	6
 #define CPCAP_NR_IRQ_CHIPS	3
+#define CPCAP_REGISTER_SIZE	4
+#define CPCAP_REGISTER_BITS	16
 
 struct cpcap_ddata {
 	struct spi_device *spi;
@@ -31,6 +33,32 @@ struct cpcap_ddata {
 	const struct regmap_config *regmap_conf;
 	struct regmap *regmap;
 };
+
+static int cpcap_sense_irq(struct regmap *regmap, int irq)
+{
+	int regnum = irq / CPCAP_REGISTER_BITS;
+	int mask = BIT(irq % CPCAP_REGISTER_BITS);
+	int reg = CPCAP_REG_INTS1 + (regnum * CPCAP_REGISTER_SIZE);
+	int err, val;
+
+	if (reg < CPCAP_REG_INTS1 || reg > CPCAP_REG_INTS4)
+		return -EINVAL;
+
+	err = regmap_read(regmap, reg, &val);
+	if (err)
+		return err;
+
+	return !!(val & mask);
+}
+
+int cpcap_sense_virq(struct regmap *regmap, int virq)
+{
+	struct regmap_irq_chip_data *d = irq_get_chip_data(virq);
+	int irq_base = regmap_irq_chip_get_base(d);
+
+	return cpcap_sense_irq(regmap, virq - irq_base);
+}
+EXPORT_SYMBOL_GPL(cpcap_sense_virq);
 
 static int cpcap_check_revision(struct cpcap_ddata *cpcap)
 {
@@ -71,6 +99,7 @@ static struct regmap_irq_chip cpcap_irq_chip[CPCAP_NR_IRQ_CHIPS] = {
 		.ack_base = CPCAP_REG_MI1,
 		.mask_base = CPCAP_REG_MIM1,
 		.use_ack = true,
+		.ack_invert = true,
 	},
 	{
 		.name = "cpcap-m2",
@@ -79,6 +108,7 @@ static struct regmap_irq_chip cpcap_irq_chip[CPCAP_NR_IRQ_CHIPS] = {
 		.ack_base = CPCAP_REG_MI2,
 		.mask_base = CPCAP_REG_MIM2,
 		.use_ack = true,
+		.ack_invert = true,
 	},
 	{
 		.name = "cpcap1-4",
@@ -86,8 +116,8 @@ static struct regmap_irq_chip cpcap_irq_chip[CPCAP_NR_IRQ_CHIPS] = {
 		.status_base = CPCAP_REG_INT1,
 		.ack_base = CPCAP_REG_INT1,
 		.mask_base = CPCAP_REG_INTM1,
-		.type_base = CPCAP_REG_INTS1,
 		.use_ack = true,
+		.ack_invert = true,
 	},
 };
 
@@ -126,7 +156,7 @@ static int cpcap_init_irq_chip(struct cpcap_ddata *cpcap, int irq_chip,
 
 	ret = devm_regmap_add_irq_chip(&cpcap->spi->dev, cpcap->regmap,
 				       cpcap->spi->irq,
-				       IRQF_TRIGGER_RISING |
+				       irq_get_trigger_type(cpcap->spi->irq) |
 				       IRQF_SHARED, -1,
 				       chip, &cpcap->irqdata[irq_chip]);
 	if (ret) {

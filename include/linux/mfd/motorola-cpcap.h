@@ -293,3 +293,5 @@ static inline int cpcap_get_vendor(struct device *dev,
 
 	return 0;
 }
+
+extern int cpcap_sense_virq(struct regmap *regmap, int virq);

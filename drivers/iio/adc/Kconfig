@@ -154,6 +154,16 @@ config AT91_SAMA5D2_ADC
 	  To compile this driver as a module, choose M here: the module will be
 	  called at91-sama5d2_adc.
 
+config AXP20X_ADC
+	tristate "X-Powers AXP20X and AXP22X ADC driver"
+	depends on MFD_AXP20X
+	help
+	  Say yes here to have support for X-Powers power management IC (PMIC)
+	  AXP20X and AXP22X ADC devices.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called axp20x_adc.
+
 config AXP288_ADC
 	tristate "X-Powers AXP288 ADC driver"
 	depends on MFD_AXP20X
@@ -228,6 +238,19 @@ config EXYNOS_ADC
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called exynos_adc.
+
+config MXS_LRADC_ADC
+	tristate "Freescale i.MX23/i.MX28 LRADC ADC"
+	depends on MFD_MXS_LRADC
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for the ADC functions of the
+	  i.MX23/i.MX28 LRADC. This includes general-purpose ADC readings,
+	  battery voltage measurement, and die temperature measurement.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called mxs-lradc-adc.
 
 config FSL_MX25_ADC
 	tristate "Freescale MX25 ADC driver"
@@ -410,20 +433,6 @@ config MESON_SARADC
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called meson_saradc.
-
-config MXS_LRADC
-        tristate "Freescale i.MX23/i.MX28 LRADC"
-        depends on (ARCH_MXS || COMPILE_TEST) && HAS_IOMEM
-        depends on INPUT
-        select STMP_DEVICE
-        select IIO_BUFFER
-        select IIO_TRIGGERED_BUFFER
-        help
-          Say yes here to build support for i.MX23/i.MX28 LRADC convertor
-          built into these chips.
-
-          To compile this driver as a module, choose M here: the
-          module will be called mxs-lradc.
 
 config NAU7802
 	tristate "Nuvoton NAU7802 ADC driver"
