@@ -25,7 +25,7 @@
 #ifndef __LINUX_TINY_H
 #define __LINUX_TINY_H
 
-#include <linux/cache.h>
+#include <linux/ktime.h>
 
 struct rcu_dynticks;
 static inline int rcu_dynticks_snap(struct rcu_dynticks *rdtp)
@@ -95,6 +95,12 @@ static inline void kfree_call_rcu(struct rcu_head *head,
 		rcu_sched_qs(); \
 		rcu_note_voluntary_context_switch_lite(current); \
 	} while (0)
+
+static inline int rcu_needs_cpu(u64 basemono, u64 *nextevt)
+{
+	*nextevt = KTIME_MAX;
+	return 0;
+}
 
 /*
  * Take advantage of the fact that there is only one CPU, which
