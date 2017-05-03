@@ -56,8 +56,8 @@ static int context_switch_events[] = {
 
 static int ring_id_to_context_switch_event(int ring_id)
 {
-	if (WARN_ON(ring_id < RCS && ring_id >
-				ARRAY_SIZE(context_switch_events)))
+	if (WARN_ON(ring_id < RCS ||
+		    ring_id >= ARRAY_SIZE(context_switch_events)))
 		return -EINVAL;
 
 	return context_switch_events[ring_id];
@@ -687,9 +687,7 @@ static int submit_context(struct intel_vgpu *vgpu, int ring_id,
 	}
 
 	if (emulate_schedule_in)
-		memcpy(&workload->elsp_dwords,
-				&vgpu->execlist[ring_id].elsp_dwords,
-				sizeof(workload->elsp_dwords));
+		workload->elsp_dwords = vgpu->execlist[ring_id].elsp_dwords;
 
 	gvt_dbg_el("workload %p ring id %d head %x tail %x start %x ctl %x\n",
 			workload, ring_id, head, tail, start, ctl);
@@ -776,7 +774,8 @@ static void init_vgpu_execlist(struct intel_vgpu *vgpu, int ring_id)
 			_EL_OFFSET_STATUS_PTR);
 
 	ctx_status_ptr.dw = vgpu_vreg(vgpu, ctx_status_ptr_reg);
-	ctx_status_ptr.read_ptr = ctx_status_ptr.write_ptr = 0x7;
+	ctx_status_ptr.read_ptr = 0;
+	ctx_status_ptr.write_ptr = 0x7;
 	vgpu_vreg(vgpu, ctx_status_ptr_reg) = ctx_status_ptr.dw;
 }
 

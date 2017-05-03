@@ -255,7 +255,7 @@ do_trap(int trapnr, int signr, char *str, struct pt_regs *regs,
 		pr_info("%s[%d] trap %s ip:%lx sp:%lx error:%lx",
 			tsk->comm, tsk->pid, str,
 			regs->ip, regs->sp, error_code);
-		print_vma_addr(" in ", regs->ip);
+		print_vma_addr(KERN_CONT " in ", regs->ip);
 		pr_cont("\n");
 	}
 
@@ -519,7 +519,7 @@ do_general_protection(struct pt_regs *regs, long error_code)
 		pr_info("%s[%d] general protection ip:%lx sp:%lx error:%lx",
 			tsk->comm, task_pid_nr(tsk),
 			regs->ip, regs->sp, error_code);
-		print_vma_addr(" in ", regs->ip);
+		print_vma_addr(KERN_CONT " in ", regs->ip);
 		pr_cont("\n");
 	}
 

@@ -221,7 +221,8 @@ err_encoder_cleanup:
 int atmel_hlcdc_create_outputs(struct drm_device *dev)
 {
 	struct device_node *remote;
-	int ret, endpoint = 0;
+	int ret = -ENODEV;
+	int endpoint = 0;
 
 	while (true) {
 		/* Loop thru possible multiple connections to the output */
@@ -236,7 +237,5 @@ int atmel_hlcdc_create_outputs(struct drm_device *dev)
 			return ret;
 	}
 
-	if (!endpoint)
-		return -ENODEV;
 	return ret;
 }

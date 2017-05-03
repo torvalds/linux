@@ -112,6 +112,7 @@ static u16 vp_config_vector(struct virtio_pci_device *vp_dev, u16 vector)
 }
 
 static struct virtqueue *setup_vq(struct virtio_pci_device *vp_dev,
+				  struct virtio_pci_vq_info *info,
 				  unsigned index,
 				  void (*callback)(struct virtqueue *vq),
 				  const char *name,
@@ -128,6 +129,8 @@ static struct virtqueue *setup_vq(struct virtio_pci_device *vp_dev,
 	num = ioread16(vp_dev->ioaddr + VIRTIO_PCI_QUEUE_NUM);
 	if (!num || ioread32(vp_dev->ioaddr + VIRTIO_PCI_QUEUE_PFN))
 		return ERR_PTR(-ENOENT);
+
+	info->msix_vector = msix_vec;
 
 	/* create the vring */
 	vq = vring_create_virtqueue(index, num,
@@ -159,13 +162,14 @@ out_deactivate:
 	return ERR_PTR(err);
 }
 
-static void del_vq(struct virtqueue *vq)
+static void del_vq(struct virtio_pci_vq_info *info)
 {
+	struct virtqueue *vq = info->vq;
 	struct virtio_pci_device *vp_dev = to_vp_device(vq->vdev);
 
 	iowrite16(vq->index, vp_dev->ioaddr + VIRTIO_PCI_QUEUE_SEL);
 
-	if (vp_dev->pci_dev->msix_enabled) {
+	if (vp_dev->msix_enabled) {
 		iowrite16(VIRTIO_MSI_NO_VECTOR,
 			  vp_dev->ioaddr + VIRTIO_MSI_QUEUE_VECTOR);
 		/* Flush the write out to device */
