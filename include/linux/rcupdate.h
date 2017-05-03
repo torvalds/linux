@@ -46,8 +46,6 @@
 #include <linux/ktime.h>
 #include <linux/irqflags.h>
 
-#define UINT_CMP_GE(a, b)	(UINT_MAX / 2 >= (a) - (b))
-#define UINT_CMP_LT(a, b)	(UINT_MAX / 2 < (a) - (b))
 #define ULONG_CMP_GE(a, b)	(ULONG_MAX / 2 >= (a) - (b))
 #define ULONG_CMP_LT(a, b)	(ULONG_MAX / 2 < (a) - (b))
 #define ulong2long(a)		(*(long *)(&(a)))
