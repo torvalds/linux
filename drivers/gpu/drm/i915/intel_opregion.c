@@ -1067,7 +1067,7 @@ intel_opregion_get_panel_type(struct drm_i915_private *dev_priv)
 	 * vswing instead. Low vswing results in some display flickers, so
 	 * let's simply ignore the OpRegion panel type on SKL for now.
 	 */
-	if (IS_SKYLAKE(dev_priv)) {
+	if (IS_SKYLAKE(dev_priv) || IS_BROADWELL(dev)) {
 		DRM_DEBUG_KMS("Ignoring OpRegion panel type (%d)\n", ret - 1);
 		return -ENODEV;
 	}
