@@ -1513,6 +1513,8 @@ struct i915_gem_mm {
 	/** LRU list of objects with fence regs on them. */
 	struct list_head fence_list;
 
+	u64 unordered_timeline;
+
 	/* the indicator for dispatch video commands on two BSD rings */
 	atomic_t bsd_engine_dispatch_index;
 
