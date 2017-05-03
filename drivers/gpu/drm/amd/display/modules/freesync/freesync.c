@@ -230,7 +230,7 @@ bool mod_freesync_add_stream(struct mod_freesync *mod_freesync,
 	struct core_stream *core_stream = NULL;
 	struct core_dc *core_dc = NULL;
 	struct core_freesync *core_freesync = NULL;
-	int persistent_freesync_enable, stream_index = 0;
+	int persistent_freesync_enable = 0;
 	struct persistent_data_flag flag;
 	unsigned int nom_refresh_rate_micro_hz;
 	unsigned long long temp;
@@ -249,8 +249,6 @@ bool mod_freesync_add_stream(struct mod_freesync *mod_freesync,
 
 		dc_stream_retain(stream);
 
-		stream_index = map_index_from_stream(core_freesync, stream);
-
 		temp = stream->timing.pix_clk_khz;
 		temp *= 1000ULL * 1000ULL * 1000ULL;
 		temp = div_u64(temp, stream->timing.h_total);
@@ -260,7 +258,7 @@ bool mod_freesync_add_stream(struct mod_freesync *mod_freesync,
 
 		if (core_freesync->opts.min_refresh_from_edid != 0 &&
 				dc_is_embedded_signal(
-					stream[stream_index].sink->sink_signal)) {
+					stream->sink->sink_signal)) {
 			caps->supported = true;
 			caps->min_refresh_in_micro_hz =
 				core_freesync->opts.min_refresh_from_edid *
