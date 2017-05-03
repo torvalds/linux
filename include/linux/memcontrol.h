@@ -35,38 +35,43 @@ struct page;
 struct mm_struct;
 struct kmem_cache;
 
-/*
- * The corresponding mem_cgroup_stat_names is defined in mm/memcontrol.c,
- * These two lists should keep in accord with each other.
- */
-enum mem_cgroup_stat_index {
-	/*
-	 * For MEM_CONTAINER_TYPE_ALL, usage = pagecache + rss.
-	 */
-	MEM_CGROUP_STAT_CACHE,		/* # of pages charged as cache */
-	MEM_CGROUP_STAT_RSS,		/* # of pages charged as anon rss */
-	MEM_CGROUP_STAT_RSS_HUGE,	/* # of pages charged as anon huge */
-	MEM_CGROUP_STAT_SHMEM,		/* # of pages charged as shmem */
-	MEM_CGROUP_STAT_FILE_MAPPED,	/* # of pages charged as file rss */
-	MEM_CGROUP_STAT_DIRTY,          /* # of dirty pages in page cache */
-	MEM_CGROUP_STAT_WRITEBACK,	/* # of pages under writeback */
-	MEM_CGROUP_STAT_SWAP,		/* # of pages, swapped out */
-	MEM_CGROUP_STAT_NSTATS,
-	/* default hierarchy stats */
-	MEMCG_KERNEL_STACK_KB = MEM_CGROUP_STAT_NSTATS,
+/* Cgroup-specific page state, on top of universal node page state */
+enum memcg_stat_item {
+	MEMCG_CACHE = NR_VM_NODE_STAT_ITEMS,
+	MEMCG_RSS,
+	MEMCG_RSS_HUGE,
+	MEMCG_SWAP,
+	MEMCG_SOCK,
+	/* XXX: why are these zone and not node counters? */
+	MEMCG_KERNEL_STACK_KB,
 	MEMCG_SLAB_RECLAIMABLE,
 	MEMCG_SLAB_UNRECLAIMABLE,
-	MEMCG_SOCK,
-	MEMCG_WORKINGSET_REFAULT,
-	MEMCG_WORKINGSET_ACTIVATE,
-	MEMCG_WORKINGSET_NODERECLAIM,
 	MEMCG_NR_STAT,
+};
+
+/* Cgroup-specific events, on top of universal VM events */
+enum memcg_event_item {
+	MEMCG_LOW = NR_VM_EVENT_ITEMS,
+	MEMCG_HIGH,
+	MEMCG_MAX,
+	MEMCG_OOM,
+	MEMCG_NR_EVENTS,
 };
 
 struct mem_cgroup_reclaim_cookie {
 	pg_data_t *pgdat;
 	int priority;
 	unsigned int generation;
+};
+
+#ifdef CONFIG_MEMCG
+
+#define MEM_CGROUP_ID_SHIFT	16
+#define MEM_CGROUP_ID_MAX	USHRT_MAX
+
+struct mem_cgroup_id {
+	int id;
+	atomic_t ref;
 };
 
 /*
@@ -80,25 +85,6 @@ enum mem_cgroup_events_target {
 	MEM_CGROUP_TARGET_SOFTLIMIT,
 	MEM_CGROUP_TARGET_NUMAINFO,
 	MEM_CGROUP_NTARGETS,
-};
-
-#ifdef CONFIG_MEMCG
-
-#define MEM_CGROUP_ID_SHIFT	16
-#define MEM_CGROUP_ID_MAX	USHRT_MAX
-
-struct mem_cgroup_id {
-	int id;
-	atomic_t ref;
-};
-
-/* Cgroup-specific events, on top of universal VM events */
-enum memcg_event_item {
-	MEMCG_LOW = NR_VM_EVENT_ITEMS,
-	MEMCG_HIGH,
-	MEMCG_MAX,
-	MEMCG_OOM,
-	MEMCG_NR_EVENTS,
 };
 
 struct mem_cgroup_stat_cpu {
@@ -487,7 +473,7 @@ void lock_page_memcg(struct page *page);
 void unlock_page_memcg(struct page *page);
 
 static inline unsigned long mem_cgroup_read_stat(struct mem_cgroup *memcg,
-						 enum mem_cgroup_stat_index idx)
+						 enum memcg_stat_item idx)
 {
 	long val = 0;
 	int cpu;
@@ -502,20 +488,20 @@ static inline unsigned long mem_cgroup_read_stat(struct mem_cgroup *memcg,
 }
 
 static inline void mem_cgroup_update_stat(struct mem_cgroup *memcg,
-				   enum mem_cgroup_stat_index idx, int val)
+					  enum memcg_stat_item idx, int val)
 {
 	if (!mem_cgroup_disabled())
 		this_cpu_add(memcg->stat->count[idx], val);
 }
 
 static inline void mem_cgroup_inc_stat(struct mem_cgroup *memcg,
-				   enum mem_cgroup_stat_index idx)
+				       enum memcg_stat_item idx)
 {
 	mem_cgroup_update_stat(memcg, idx, 1);
 }
 
 static inline void mem_cgroup_dec_stat(struct mem_cgroup *memcg,
-				   enum mem_cgroup_stat_index idx)
+				       enum memcg_stat_item idx)
 {
 	mem_cgroup_update_stat(memcg, idx, -1);
 }
@@ -538,20 +524,20 @@ static inline void mem_cgroup_dec_stat(struct mem_cgroup *memcg,
  * Kernel pages are an exception to this, since they'll never move.
  */
 static inline void mem_cgroup_update_page_stat(struct page *page,
-				 enum mem_cgroup_stat_index idx, int val)
+				 enum memcg_stat_item idx, int val)
 {
 	if (page->mem_cgroup)
 		mem_cgroup_update_stat(page->mem_cgroup, idx, val);
 }
 
 static inline void mem_cgroup_inc_page_stat(struct page *page,
-					    enum mem_cgroup_stat_index idx)
+					    enum memcg_stat_item idx)
 {
 	mem_cgroup_update_page_stat(page, idx, 1);
 }
 
 static inline void mem_cgroup_dec_page_stat(struct page *page,
-					    enum mem_cgroup_stat_index idx)
+					    enum memcg_stat_item idx)
 {
 	mem_cgroup_update_page_stat(page, idx, -1);
 }
@@ -760,33 +746,33 @@ static inline unsigned long mem_cgroup_read_stat(struct mem_cgroup *memcg,
 }
 
 static inline void mem_cgroup_update_stat(struct mem_cgroup *memcg,
-				   enum mem_cgroup_stat_index idx, int val)
+					  enum memcg_stat_item idx, int val)
 {
 }
 
 static inline void mem_cgroup_inc_stat(struct mem_cgroup *memcg,
-				   enum mem_cgroup_stat_index idx)
+				       enum memcg_stat_item idx)
 {
 }
 
 static inline void mem_cgroup_dec_stat(struct mem_cgroup *memcg,
-				   enum mem_cgroup_stat_index idx)
+				       enum memcg_stat_item idx)
 {
 }
 
 static inline void mem_cgroup_update_page_stat(struct page *page,
-					       enum mem_cgroup_stat_index idx,
+					       enum memcg_stat_item idx,
 					       int nr)
 {
 }
 
 static inline void mem_cgroup_inc_page_stat(struct page *page,
-					    enum mem_cgroup_stat_index idx)
+					    enum memcg_stat_item idx)
 {
 }
 
 static inline void mem_cgroup_dec_page_stat(struct page *page,
-					    enum mem_cgroup_stat_index idx)
+					    enum memcg_stat_item idx)
 {
 }
 
@@ -906,7 +892,7 @@ static inline int memcg_cache_id(struct mem_cgroup *memcg)
  * @val: number of pages (positive or negative)
  */
 static inline void memcg_kmem_update_page_stat(struct page *page,
-				enum mem_cgroup_stat_index idx, int val)
+				enum memcg_stat_item idx, int val)
 {
 	if (memcg_kmem_enabled() && page->mem_cgroup)
 		this_cpu_add(page->mem_cgroup->stat->count[idx], val);
@@ -935,7 +921,7 @@ static inline void memcg_put_cache_ids(void)
 }
 
 static inline void memcg_kmem_update_page_stat(struct page *page,
-				enum mem_cgroup_stat_index idx, int val)
+				enum memcg_stat_item idx, int val)
 {
 }
 #endif /* CONFIG_MEMCG && !CONFIG_SLOB */

@@ -2046,8 +2046,7 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
 	active = lruvec_lru_size(lruvec, active_lru, sc->reclaim_idx);
 
 	if (memcg)
-		refaults = mem_cgroup_read_stat(memcg,
-						MEMCG_WORKINGSET_ACTIVATE);
+		refaults = mem_cgroup_read_stat(memcg, WORKINGSET_ACTIVATE);
 	else
 		refaults = node_page_state(pgdat, WORKINGSET_ACTIVATE);
 
@@ -2735,7 +2734,7 @@ static void snapshot_refaults(struct mem_cgroup *root_memcg, pg_data_t *pgdat)
 
 		if (memcg)
 			refaults = mem_cgroup_read_stat(memcg,
-						MEMCG_WORKINGSET_ACTIVATE);
+							WORKINGSET_ACTIVATE);
 		else
 			refaults = node_page_state(pgdat, WORKINGSET_ACTIVATE);
 

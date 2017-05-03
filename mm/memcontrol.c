@@ -100,18 +100,7 @@ static bool do_memsw_account(void)
 	return !cgroup_subsys_on_dfl(memory_cgrp_subsys) && do_swap_account;
 }
 
-static const char * const mem_cgroup_stat_names[] = {
-	"cache",
-	"rss",
-	"rss_huge",
-	"shmem",
-	"mapped_file",
-	"dirty",
-	"writeback",
-	"swap",
-};
-
-static const char * const mem_cgroup_lru_names[] = {
+static const char *const mem_cgroup_lru_names[] = {
 	"inactive_anon",
 	"active_anon",
 	"inactive_file",
@@ -583,20 +572,16 @@ static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
 	 * counted as CACHE even if it's on ANON LRU.
 	 */
 	if (PageAnon(page))
-		__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_RSS],
-				nr_pages);
+		__this_cpu_add(memcg->stat->count[MEMCG_RSS], nr_pages);
 	else {
-		__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_CACHE],
-				nr_pages);
+		__this_cpu_add(memcg->stat->count[MEMCG_CACHE], nr_pages);
 		if (PageSwapBacked(page))
-			__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_SHMEM],
-				       nr_pages);
+			__this_cpu_add(memcg->stat->count[NR_SHMEM], nr_pages);
 	}
 
 	if (compound) {
 		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
-		__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_RSS_HUGE],
-				nr_pages);
+		__this_cpu_add(memcg->stat->count[MEMCG_RSS_HUGE], nr_pages);
 	}
 
 	/* pagein of a big page is an event. So, ignore page size */
@@ -1125,6 +1110,28 @@ static bool mem_cgroup_wait_acct_move(struct mem_cgroup *memcg)
 	return false;
 }
 
+unsigned int memcg1_stats[] = {
+	MEMCG_CACHE,
+	MEMCG_RSS,
+	MEMCG_RSS_HUGE,
+	NR_SHMEM,
+	NR_FILE_MAPPED,
+	NR_FILE_DIRTY,
+	NR_WRITEBACK,
+	MEMCG_SWAP,
+};
+
+static const char *const memcg1_stat_names[] = {
+	"cache",
+	"rss",
+	"rss_huge",
+	"shmem",
+	"mapped_file",
+	"dirty",
+	"writeback",
+	"swap",
+};
+
 #define K(x) ((x) << (PAGE_SHIFT-10))
 /**
  * mem_cgroup_print_oom_info: Print OOM information relevant to memory controller.
@@ -1169,11 +1176,11 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
 		pr_cont_cgroup_path(iter->css.cgroup);
 		pr_cont(":");
 
-		for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
-			if (i == MEM_CGROUP_STAT_SWAP && !do_swap_account)
+		for (i = 0; i < ARRAY_SIZE(memcg1_stats); i++) {
+			if (memcg1_stats[i] == MEMCG_SWAP && !do_swap_account)
 				continue;
-			pr_cont(" %s:%luKB", mem_cgroup_stat_names[i],
-				K(mem_cgroup_read_stat(iter, i)));
+			pr_cont(" %s:%luKB", memcg1_stat_names[i],
+				K(mem_cgroup_read_stat(iter, memcg1_stats[i])));
 		}
 
 		for (i = 0; i < NR_LRU_LISTS; i++)
@@ -2362,7 +2369,7 @@ void mem_cgroup_split_huge_fixup(struct page *head)
 	for (i = 1; i < HPAGE_PMD_NR; i++)
 		head[i].mem_cgroup = head->mem_cgroup;
 
-	__this_cpu_sub(head->mem_cgroup->stat->count[MEM_CGROUP_STAT_RSS_HUGE],
+	__this_cpu_sub(head->mem_cgroup->stat->count[MEMCG_RSS_HUGE],
 		       HPAGE_PMD_NR);
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
@@ -2372,7 +2379,7 @@ static void mem_cgroup_swap_statistics(struct mem_cgroup *memcg,
 					 bool charge)
 {
 	int val = (charge) ? 1 : -1;
-	this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_SWAP], val);
+	this_cpu_add(memcg->stat->count[MEMCG_SWAP], val);
 }
 
 /**
@@ -2731,13 +2738,10 @@ static unsigned long mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
 		struct mem_cgroup *iter;
 
 		for_each_mem_cgroup_tree(iter, memcg) {
-			val += mem_cgroup_read_stat(iter,
-					MEM_CGROUP_STAT_CACHE);
-			val += mem_cgroup_read_stat(iter,
-					MEM_CGROUP_STAT_RSS);
+			val += mem_cgroup_read_stat(iter, MEMCG_CACHE);
+			val += mem_cgroup_read_stat(iter, MEMCG_RSS);
 			if (swap)
-				val += mem_cgroup_read_stat(iter,
-						MEM_CGROUP_STAT_SWAP);
+				val += mem_cgroup_read_stat(iter, MEMCG_SWAP);
 		}
 	} else {
 		if (!swap)
@@ -3134,15 +3138,15 @@ static int memcg_stat_show(struct seq_file *m, void *v)
 	struct mem_cgroup *mi;
 	unsigned int i;
 
-	BUILD_BUG_ON(ARRAY_SIZE(mem_cgroup_stat_names) !=
-		     MEM_CGROUP_STAT_NSTATS);
+	BUILD_BUG_ON(ARRAY_SIZE(memcg1_stat_names) != ARRAY_SIZE(memcg1_stats));
 	BUILD_BUG_ON(ARRAY_SIZE(mem_cgroup_lru_names) != NR_LRU_LISTS);
 
-	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
-		if (i == MEM_CGROUP_STAT_SWAP && !do_memsw_account())
+	for (i = 0; i < ARRAY_SIZE(memcg1_stats); i++) {
+		if (memcg1_stats[i] == MEMCG_SWAP && !do_memsw_account())
 			continue;
-		seq_printf(m, "%s %lu\n", mem_cgroup_stat_names[i],
-			   mem_cgroup_read_stat(memcg, i) * PAGE_SIZE);
+		seq_printf(m, "%s %lu\n", memcg1_stat_names[i],
+			   mem_cgroup_read_stat(memcg, memcg1_stats[i]) *
+			   PAGE_SIZE);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(memcg1_events); i++)
@@ -3165,14 +3169,15 @@ static int memcg_stat_show(struct seq_file *m, void *v)
 		seq_printf(m, "hierarchical_memsw_limit %llu\n",
 			   (u64)memsw * PAGE_SIZE);
 
-	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
+	for (i = 0; i < ARRAY_SIZE(memcg1_stats); i++) {
 		unsigned long long val = 0;
 
-		if (i == MEM_CGROUP_STAT_SWAP && !do_memsw_account())
+		if (memcg1_stats[i] == MEMCG_SWAP && !do_memsw_account())
 			continue;
 		for_each_mem_cgroup_tree(mi, memcg)
-			val += mem_cgroup_read_stat(mi, i) * PAGE_SIZE;
-		seq_printf(m, "total_%s %llu\n", mem_cgroup_stat_names[i], val);
+			val += mem_cgroup_read_stat(mi, memcg1_stats[i]) *
+			PAGE_SIZE;
+		seq_printf(m, "total_%s %llu\n", memcg1_stat_names[i], val);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(memcg1_events); i++) {
@@ -3645,10 +3650,10 @@ void mem_cgroup_wb_stats(struct bdi_writeback *wb, unsigned long *pfilepages,
 	struct mem_cgroup *memcg = mem_cgroup_from_css(wb->memcg_css);
 	struct mem_cgroup *parent;
 
-	*pdirty = mem_cgroup_read_stat(memcg, MEM_CGROUP_STAT_DIRTY);
+	*pdirty = mem_cgroup_read_stat(memcg, NR_FILE_DIRTY);
 
 	/* this should eventually include NR_UNSTABLE_NFS */
-	*pwriteback = mem_cgroup_read_stat(memcg, MEM_CGROUP_STAT_WRITEBACK);
+	*pwriteback = mem_cgroup_read_stat(memcg, NR_WRITEBACK);
 	*pfilepages = mem_cgroup_nr_lru_pages(memcg, (1 << LRU_INACTIVE_FILE) |
 						     (1 << LRU_ACTIVE_FILE));
 	*pheadroom = PAGE_COUNTER_MAX;
@@ -4504,10 +4509,8 @@ static int mem_cgroup_move_account(struct page *page,
 	spin_lock_irqsave(&from->move_lock, flags);
 
 	if (!anon && page_mapped(page)) {
-		__this_cpu_sub(from->stat->count[MEM_CGROUP_STAT_FILE_MAPPED],
-			       nr_pages);
-		__this_cpu_add(to->stat->count[MEM_CGROUP_STAT_FILE_MAPPED],
-			       nr_pages);
+		__this_cpu_sub(from->stat->count[NR_FILE_MAPPED], nr_pages);
+		__this_cpu_add(to->stat->count[NR_FILE_MAPPED], nr_pages);
 	}
 
 	/*
@@ -4519,18 +4522,16 @@ static int mem_cgroup_move_account(struct page *page,
 		struct address_space *mapping = page_mapping(page);
 
 		if (mapping_cap_account_dirty(mapping)) {
-			__this_cpu_sub(from->stat->count[MEM_CGROUP_STAT_DIRTY],
+			__this_cpu_sub(from->stat->count[NR_FILE_DIRTY],
 				       nr_pages);
-			__this_cpu_add(to->stat->count[MEM_CGROUP_STAT_DIRTY],
+			__this_cpu_add(to->stat->count[NR_FILE_DIRTY],
 				       nr_pages);
 		}
 	}
 
 	if (PageWriteback(page)) {
-		__this_cpu_sub(from->stat->count[MEM_CGROUP_STAT_WRITEBACK],
-			       nr_pages);
-		__this_cpu_add(to->stat->count[MEM_CGROUP_STAT_WRITEBACK],
-			       nr_pages);
+		__this_cpu_sub(from->stat->count[NR_WRITEBACK], nr_pages);
+		__this_cpu_add(to->stat->count[NR_WRITEBACK], nr_pages);
 	}
 
 	/*
@@ -5190,9 +5191,9 @@ static int memory_stat_show(struct seq_file *m, void *v)
 	tree_events(memcg, events);
 
 	seq_printf(m, "anon %llu\n",
-		   (u64)stat[MEM_CGROUP_STAT_RSS] * PAGE_SIZE);
+		   (u64)stat[MEMCG_RSS] * PAGE_SIZE);
 	seq_printf(m, "file %llu\n",
-		   (u64)stat[MEM_CGROUP_STAT_CACHE] * PAGE_SIZE);
+		   (u64)stat[MEMCG_CACHE] * PAGE_SIZE);
 	seq_printf(m, "kernel_stack %llu\n",
 		   (u64)stat[MEMCG_KERNEL_STACK_KB] * 1024);
 	seq_printf(m, "slab %llu\n",
@@ -5202,13 +5203,13 @@ static int memory_stat_show(struct seq_file *m, void *v)
 		   (u64)stat[MEMCG_SOCK] * PAGE_SIZE);
 
 	seq_printf(m, "shmem %llu\n",
-		   (u64)stat[MEM_CGROUP_STAT_SHMEM] * PAGE_SIZE);
+		   (u64)stat[NR_SHMEM] * PAGE_SIZE);
 	seq_printf(m, "file_mapped %llu\n",
-		   (u64)stat[MEM_CGROUP_STAT_FILE_MAPPED] * PAGE_SIZE);
+		   (u64)stat[NR_FILE_MAPPED] * PAGE_SIZE);
 	seq_printf(m, "file_dirty %llu\n",
-		   (u64)stat[MEM_CGROUP_STAT_DIRTY] * PAGE_SIZE);
+		   (u64)stat[NR_FILE_DIRTY] * PAGE_SIZE);
 	seq_printf(m, "file_writeback %llu\n",
-		   (u64)stat[MEM_CGROUP_STAT_WRITEBACK] * PAGE_SIZE);
+		   (u64)stat[NR_WRITEBACK] * PAGE_SIZE);
 
 	for (i = 0; i < NR_LRU_LISTS; i++) {
 		struct mem_cgroup *mi;
@@ -5231,11 +5232,11 @@ static int memory_stat_show(struct seq_file *m, void *v)
 	seq_printf(m, "pgmajfault %lu\n", events[PGMAJFAULT]);
 
 	seq_printf(m, "workingset_refault %lu\n",
-		   stat[MEMCG_WORKINGSET_REFAULT]);
+		   stat[WORKINGSET_REFAULT]);
 	seq_printf(m, "workingset_activate %lu\n",
-		   stat[MEMCG_WORKINGSET_ACTIVATE]);
+		   stat[WORKINGSET_ACTIVATE]);
 	seq_printf(m, "workingset_nodereclaim %lu\n",
-		   stat[MEMCG_WORKINGSET_NODERECLAIM]);
+		   stat[WORKINGSET_NODERECLAIM]);
 
 	return 0;
 }
@@ -5492,10 +5493,10 @@ static void uncharge_batch(struct mem_cgroup *memcg, unsigned long pgpgout,
 	}
 
 	local_irq_save(flags);
-	__this_cpu_sub(memcg->stat->count[MEM_CGROUP_STAT_RSS], nr_anon);
-	__this_cpu_sub(memcg->stat->count[MEM_CGROUP_STAT_CACHE], nr_file);
-	__this_cpu_sub(memcg->stat->count[MEM_CGROUP_STAT_RSS_HUGE], nr_huge);
-	__this_cpu_sub(memcg->stat->count[MEM_CGROUP_STAT_SHMEM], nr_shmem);
+	__this_cpu_sub(memcg->stat->count[MEMCG_RSS], nr_anon);
+	__this_cpu_sub(memcg->stat->count[MEMCG_CACHE], nr_file);
+	__this_cpu_sub(memcg->stat->count[MEMCG_RSS_HUGE], nr_huge);
+	__this_cpu_sub(memcg->stat->count[NR_SHMEM], nr_shmem);
 	__this_cpu_add(memcg->stat->events[PGPGOUT], pgpgout);
 	__this_cpu_add(memcg->stat->nr_page_events, nr_pages);
 	memcg_check_events(memcg, dummy_page);
