@@ -867,15 +867,6 @@ static inline int rcu_needs_cpu(u64 basemono, u64 *nextevt)
 }
 #endif /* #ifdef CONFIG_TINY_RCU */
 
-#if defined(CONFIG_RCU_NOCB_CPU_ALL)
-static inline bool rcu_is_nocb_cpu(int cpu) { return true; }
-#elif defined(CONFIG_RCU_NOCB_CPU)
-bool rcu_is_nocb_cpu(int cpu);
-#else
-static inline bool rcu_is_nocb_cpu(int cpu) { return false; }
-#endif
-
-
 /* Only for use by adaptive-ticks code. */
 #ifdef CONFIG_NO_HZ_FULL_SYSIDLE
 bool rcu_sys_is_idle(void);

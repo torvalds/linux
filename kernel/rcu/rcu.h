@@ -408,4 +408,12 @@ static inline void srcutorture_get_gp_data(enum rcutorture_type test_type,
 
 #endif
 
+#if defined(CONFIG_RCU_NOCB_CPU_ALL)
+static inline bool rcu_is_nocb_cpu(int cpu) { return true; }
+#elif defined(CONFIG_RCU_NOCB_CPU)
+bool rcu_is_nocb_cpu(int cpu);
+#else
+static inline bool rcu_is_nocb_cpu(int cpu) { return false; }
+#endif
+
 #endif /* __LINUX_RCU_H */
