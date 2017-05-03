@@ -111,6 +111,9 @@ static const struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	{"os2bmc_tx_by_bmc", IXGBE_STAT(stats.b2ospc)},
 	{"os2bmc_tx_by_host", IXGBE_STAT(stats.o2bspc)},
 	{"os2bmc_rx_by_host", IXGBE_STAT(stats.b2ogprc)},
+	{"tx_hwtstamp_timeouts", IXGBE_STAT(tx_hwtstamp_timeouts)},
+	{"tx_hwtstamp_skipped", IXGBE_STAT(tx_hwtstamp_skipped)},
+	{"rx_hwtstamp_cleared", IXGBE_STAT(rx_hwtstamp_cleared)},
 #ifdef IXGBE_FCOE
 	{"fcoe_bad_fccrc", IXGBE_STAT(stats.fccrc)},
 	{"rx_fcoe_dropped", IXGBE_STAT(stats.fcoerpdc)},
