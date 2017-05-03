@@ -48,6 +48,8 @@
 #define DRIVER_NAME		"Microsemi PQI Driver (v" DRIVER_VERSION ")"
 #define DRIVER_NAME_SHORT	"smartpqi"
 
+#define PQI_EXTRA_SGL_MEMORY	(12 * sizeof(struct pqi_sg_descriptor))
+
 MODULE_AUTHOR("Microsemi");
 MODULE_DESCRIPTION("Driver for Microsemi Smart Family Controller version "
 	DRIVER_VERSION);
@@ -3202,6 +3204,8 @@ static int pqi_alloc_operational_queues(struct pqi_ctrl_info *ctrl_info)
 	alloc_length = (size_t)aligned_pointer +
 		PQI_QUEUE_ELEMENT_ARRAY_ALIGNMENT;
 
+	alloc_length += PQI_EXTRA_SGL_MEMORY;
+
 	ctrl_info->queue_memory_base =
 		dma_zalloc_coherent(&ctrl_info->pci_dev->dev,
 			alloc_length,
@@ -4319,7 +4323,8 @@ static void pqi_calculate_io_resources(struct pqi_ctrl_info *ctrl_info)
 	max_transfer_size = (max_sg_entries - 1) * PAGE_SIZE;
 
 	ctrl_info->sg_chain_buffer_length =
-		max_sg_entries * sizeof(struct pqi_sg_descriptor);
+		(max_sg_entries * sizeof(struct pqi_sg_descriptor)) +
+		PQI_EXTRA_SGL_MEMORY;
 	ctrl_info->sg_tablesize = max_sg_entries;
 	ctrl_info->max_sectors = max_transfer_size / 512;
 }
