@@ -726,7 +726,6 @@ struct report_phys_lun_extended_entry {
 };
 
 /* for device_flags field of struct report_phys_lun_extended_entry */
-#define REPORT_PHYS_LUN_DEV_FLAG_NON_DISK	0x1
 #define REPORT_PHYS_LUN_DEV_FLAG_AIO_ENABLED	0x8
 
 struct report_phys_lun_extended {
@@ -786,8 +785,6 @@ struct pqi_scsi_dev {
 	u8	is_physical_device : 1;
 	u8	is_external_raid_device : 1;
 	u8	target_lun_valid : 1;
-	u8	expose_device : 1;
-	u8	no_uld_attach : 1;
 	u8	aio_enabled : 1;	/* only valid for physical disks */
 	u8	device_gone : 1;
 	u8	new_device : 1;
@@ -1033,9 +1030,6 @@ enum pqi_ctrl_mode {
  * assume worst case: SATA queue depth of 31 minus 4 internal firmware commands
  */
 #define PQI_PHYSICAL_DISK_DEFAULT_MAX_QUEUE_DEPTH	27
-
-/* 0 = no limit */
-#define PQI_LOGICAL_DRIVE_DEFAULT_MAX_QUEUE_DEPTH	0
 
 /* CISS commands */
 #define CISS_READ		0xc0
