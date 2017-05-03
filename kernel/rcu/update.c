@@ -576,9 +576,23 @@ module_param(rcu_task_stall_timeout, int, 0644);
 static void rcu_spawn_tasks_kthread(void);
 static struct task_struct *rcu_tasks_kthread_ptr;
 
-/*
- * Post an RCU-tasks callback.  First call must be from process context
- * after the scheduler if fully operational.
+/**
+ * call_rcu_tasks() - Queue an RCU for invocation task-based grace period
+ * @rhp: structure to be used for queueing the RCU updates.
+ * @func: actual callback function to be invoked after the grace period
+ *
+ * The callback function will be invoked some time after a full grace
+ * period elapses, in other words after all currently executing RCU
+ * read-side critical sections have completed. call_rcu_tasks() assumes
+ * that the read-side critical sections end at a voluntary context
+ * switch (not a preemption!), entry into idle, or transition to usermode
+ * execution.  As such, there are no read-side primitives analogous to
+ * rcu_read_lock() and rcu_read_unlock() because this primitive is intended
+ * to determine that all tasks have passed through a safe state, not so
+ * much for data-strcuture synchronization.
+ *
+ * See the description of call_rcu() for more detailed information on
+ * memory ordering guarantees.
  */
 void call_rcu_tasks(struct rcu_head *rhp, rcu_callback_t func)
 {

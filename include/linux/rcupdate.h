@@ -140,115 +140,14 @@ void do_trace_rcu_torture_read(const char *rcutorturename,
 /* Exported common interfaces */
 
 #ifdef CONFIG_PREEMPT_RCU
-
-/**
- * call_rcu() - Queue an RCU callback for invocation after a grace period.
- * @head: structure to be used for queueing the RCU updates.
- * @func: actual callback function to be invoked after the grace period
- *
- * The callback function will be invoked some time after a full grace
- * period elapses, in other words after all pre-existing RCU read-side
- * critical sections have completed.  However, the callback function
- * might well execute concurrently with RCU read-side critical sections
- * that started after call_rcu() was invoked.  RCU read-side critical
- * sections are delimited by rcu_read_lock() and rcu_read_unlock(),
- * and may be nested.
- *
- * Note that all CPUs must agree that the grace period extended beyond
- * all pre-existing RCU read-side critical section.  On systems with more
- * than one CPU, this means that when "func()" is invoked, each CPU is
- * guaranteed to have executed a full memory barrier since the end of its
- * last RCU read-side critical section whose beginning preceded the call
- * to call_rcu().  It also means that each CPU executing an RCU read-side
- * critical section that continues beyond the start of "func()" must have
- * executed a memory barrier after the call_rcu() but before the beginning
- * of that RCU read-side critical section.  Note that these guarantees
- * include CPUs that are offline, idle, or executing in user mode, as
- * well as CPUs that are executing in the kernel.
- *
- * Furthermore, if CPU A invoked call_rcu() and CPU B invoked the
- * resulting RCU callback function "func()", then both CPU A and CPU B are
- * guaranteed to execute a full memory barrier during the time interval
- * between the call to call_rcu() and the invocation of "func()" -- even
- * if CPU A and CPU B are the same CPU (but again only if the system has
- * more than one CPU).
- */
-void call_rcu(struct rcu_head *head,
-	      rcu_callback_t func);
-
+void call_rcu(struct rcu_head *head, rcu_callback_t func);
 #else /* #ifdef CONFIG_PREEMPT_RCU */
-
-/* In classic RCU, call_rcu() is just call_rcu_sched(). */
 #define	call_rcu	call_rcu_sched
-
 #endif /* #else #ifdef CONFIG_PREEMPT_RCU */
 
-/**
- * call_rcu_bh() - Queue an RCU for invocation after a quicker grace period.
- * @head: structure to be used for queueing the RCU updates.
- * @func: actual callback function to be invoked after the grace period
- *
- * The callback function will be invoked some time after a full grace
- * period elapses, in other words after all currently executing RCU
- * read-side critical sections have completed. call_rcu_bh() assumes
- * that the read-side critical sections end on completion of a softirq
- * handler. This means that read-side critical sections in process
- * context must not be interrupted by softirqs. This interface is to be
- * used when most of the read-side critical sections are in softirq context.
- * RCU read-side critical sections are delimited by :
- *  - rcu_read_lock() and  rcu_read_unlock(), if in interrupt context.
- *  OR
- *  - rcu_read_lock_bh() and rcu_read_unlock_bh(), if in process context.
- *  These may be nested.
- *
- * See the description of call_rcu() for more detailed information on
- * memory ordering guarantees.
- */
-void call_rcu_bh(struct rcu_head *head,
-		 rcu_callback_t func);
-
-/**
- * call_rcu_sched() - Queue an RCU for invocation after sched grace period.
- * @head: structure to be used for queueing the RCU updates.
- * @func: actual callback function to be invoked after the grace period
- *
- * The callback function will be invoked some time after a full grace
- * period elapses, in other words after all currently executing RCU
- * read-side critical sections have completed. call_rcu_sched() assumes
- * that the read-side critical sections end on enabling of preemption
- * or on voluntary preemption.
- * RCU read-side critical sections are delimited by :
- *  - rcu_read_lock_sched() and  rcu_read_unlock_sched(),
- *  OR
- *  anything that disables preemption.
- *  These may be nested.
- *
- * See the description of call_rcu() for more detailed information on
- * memory ordering guarantees.
- */
-void call_rcu_sched(struct rcu_head *head,
-		    rcu_callback_t func);
-
+void call_rcu_bh(struct rcu_head *head, rcu_callback_t func);
+void call_rcu_sched(struct rcu_head *head, rcu_callback_t func);
 void synchronize_sched(void);
-
-/**
- * call_rcu_tasks() - Queue an RCU for invocation task-based grace period
- * @head: structure to be used for queueing the RCU updates.
- * @func: actual callback function to be invoked after the grace period
- *
- * The callback function will be invoked some time after a full grace
- * period elapses, in other words after all currently executing RCU
- * read-side critical sections have completed. call_rcu_tasks() assumes
- * that the read-side critical sections end at a voluntary context
- * switch (not a preemption!), entry into idle, or transition to usermode
- * execution.  As such, there are no read-side primitives analogous to
- * rcu_read_lock() and rcu_read_unlock() because this primitive is intended
- * to determine that all tasks have passed through a safe state, not so
- * much for data-strcuture synchronization.
- *
- * See the description of call_rcu() for more detailed information on
- * memory ordering guarantees.
- */
 void call_rcu_tasks(struct rcu_head *head, rcu_callback_t func);
 void synchronize_rcu_tasks(void);
 void rcu_barrier_tasks(void);
@@ -474,18 +373,8 @@ extern struct lockdep_map rcu_bh_lock_map;
 extern struct lockdep_map rcu_sched_lock_map;
 extern struct lockdep_map rcu_callback_map;
 int debug_lockdep_rcu_enabled(void);
-
 int rcu_read_lock_held(void);
 int rcu_read_lock_bh_held(void);
-
-/**
- * rcu_read_lock_sched_held() - might we be in RCU-sched read-side critical section?
- *
- * If CONFIG_DEBUG_LOCK_ALLOC is selected, returns nonzero iff in an
- * RCU-sched read-side critical section.  In absence of
- * CONFIG_DEBUG_LOCK_ALLOC, this assumes we are in an RCU-sched read-side
- * critical section unless it can prove otherwise.
- */
 int rcu_read_lock_sched_held(void);
 
 #else /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */

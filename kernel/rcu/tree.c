@@ -3223,8 +3223,24 @@ __call_rcu(struct rcu_head *head, rcu_callback_t func,
 	local_irq_restore(flags);
 }
 
-/*
- * Queue an RCU-sched callback for invocation after a grace period.
+/**
+ * call_rcu_sched() - Queue an RCU for invocation after sched grace period.
+ * @head: structure to be used for queueing the RCU updates.
+ * @func: actual callback function to be invoked after the grace period
+ *
+ * The callback function will be invoked some time after a full grace
+ * period elapses, in other words after all currently executing RCU
+ * read-side critical sections have completed. call_rcu_sched() assumes
+ * that the read-side critical sections end on enabling of preemption
+ * or on voluntary preemption.
+ * RCU read-side critical sections are delimited by :
+ *  - rcu_read_lock_sched() and rcu_read_unlock_sched(), OR
+ *  - anything that disables preemption.
+ *
+ *  These may be nested.
+ *
+ * See the description of call_rcu() for more detailed information on
+ * memory ordering guarantees.
  */
 void call_rcu_sched(struct rcu_head *head, rcu_callback_t func)
 {
@@ -3232,8 +3248,26 @@ void call_rcu_sched(struct rcu_head *head, rcu_callback_t func)
 }
 EXPORT_SYMBOL_GPL(call_rcu_sched);
 
-/*
- * Queue an RCU callback for invocation after a quicker grace period.
+/**
+ * call_rcu_bh() - Queue an RCU for invocation after a quicker grace period.
+ * @head: structure to be used for queueing the RCU updates.
+ * @func: actual callback function to be invoked after the grace period
+ *
+ * The callback function will be invoked some time after a full grace
+ * period elapses, in other words after all currently executing RCU
+ * read-side critical sections have completed. call_rcu_bh() assumes
+ * that the read-side critical sections end on completion of a softirq
+ * handler. This means that read-side critical sections in process
+ * context must not be interrupted by softirqs. This interface is to be
+ * used when most of the read-side critical sections are in softirq context.
+ * RCU read-side critical sections are delimited by :
+ *  - rcu_read_lock() and  rcu_read_unlock(), if in interrupt context.
+ *  OR
+ *  - rcu_read_lock_bh() and rcu_read_unlock_bh(), if in process context.
+ *  These may be nested.
+ *
+ * See the description of call_rcu() for more detailed information on
+ * memory ordering guarantees.
  */
 void call_rcu_bh(struct rcu_head *head, rcu_callback_t func)
 {
