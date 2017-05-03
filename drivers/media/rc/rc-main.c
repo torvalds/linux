@@ -1663,7 +1663,7 @@ struct rc_dev *devm_rc_allocate_device(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(devm_rc_allocate_device);
 
-static int rc_setup_rx_device(struct rc_dev *dev)
+static int rc_prepare_rx_device(struct rc_dev *dev)
 {
 	int rc;
 	struct rc_map *rc_map;
@@ -1708,10 +1708,22 @@ static int rc_setup_rx_device(struct rc_dev *dev)
 	dev->input_dev->phys = dev->input_phys;
 	dev->input_dev->name = dev->input_name;
 
+	return 0;
+
+out_table:
+	ir_free_table(&dev->rc_map);
+
+	return rc;
+}
+
+static int rc_setup_rx_device(struct rc_dev *dev)
+{
+	int rc;
+
 	/* rc_open will be called here */
 	rc = input_register_device(dev->input_dev);
 	if (rc)
-		goto out_table;
+		return rc;
 
 	/*
 	 * Default delay of 250ms is too short for some protocols, especially
@@ -1729,27 +1741,23 @@ static int rc_setup_rx_device(struct rc_dev *dev)
 	dev->input_dev->rep[REP_PERIOD] = 125;
 
 	return 0;
-
-out_table:
-	ir_free_table(&dev->rc_map);
-
-	return rc;
 }
 
 static void rc_free_rx_device(struct rc_dev *dev)
 {
-	if (!dev || dev->driver_type == RC_DRIVER_IR_RAW_TX)
+	if (!dev)
 		return;
 
-	ir_free_table(&dev->rc_map);
+	if (dev->input_dev) {
+		input_unregister_device(dev->input_dev);
+		dev->input_dev = NULL;
+	}
 
-	input_unregister_device(dev->input_dev);
-	dev->input_dev = NULL;
+	ir_free_table(&dev->rc_map);
 }
 
 int rc_register_device(struct rc_dev *dev)
 {
-	static bool raw_init; /* 'false' default value, raw decoders loaded? */
 	const char *path;
 	int attr = 0;
 	int minor;
@@ -1776,30 +1784,39 @@ int rc_register_device(struct rc_dev *dev)
 		dev->sysfs_groups[attr++] = &rc_dev_wakeup_filter_attr_grp;
 	dev->sysfs_groups[attr++] = NULL;
 
+	if (dev->driver_type == RC_DRIVER_IR_RAW ||
+	    dev->driver_type == RC_DRIVER_IR_RAW_TX) {
+		rc = ir_raw_event_prepare(dev);
+		if (rc < 0)
+			goto out_minor;
+	}
+
+	if (dev->driver_type != RC_DRIVER_IR_RAW_TX) {
+		rc = rc_prepare_rx_device(dev);
+		if (rc)
+			goto out_raw;
+	}
+
 	rc = device_add(&dev->dev);
 	if (rc)
-		goto out_unlock;
+		goto out_rx_free;
 
 	path = kobject_get_path(&dev->dev.kobj, GFP_KERNEL);
 	dev_info(&dev->dev, "%s as %s\n",
 		dev->input_name ?: "Unspecified device", path ?: "N/A");
 	kfree(path);
 
-	if (dev->driver_type == RC_DRIVER_IR_RAW ||
-	    dev->driver_type == RC_DRIVER_IR_RAW_TX) {
-		if (!raw_init) {
-			request_module_nowait("ir-lirc-codec");
-			raw_init = true;
-		}
-		rc = ir_raw_event_register(dev);
-		if (rc < 0)
-			goto out_dev;
-	}
-
 	if (dev->driver_type != RC_DRIVER_IR_RAW_TX) {
 		rc = rc_setup_rx_device(dev);
 		if (rc)
-			goto out_raw;
+			goto out_dev;
+	}
+
+	if (dev->driver_type == RC_DRIVER_IR_RAW ||
+	    dev->driver_type == RC_DRIVER_IR_RAW_TX) {
+		rc = ir_raw_event_register(dev);
+		if (rc < 0)
+			goto out_rx;
 	}
 
 	/* Allow the RC sysfs nodes to be accessible */
@@ -1811,11 +1828,15 @@ int rc_register_device(struct rc_dev *dev)
 
 	return 0;
 
-out_raw:
-	ir_raw_event_unregister(dev);
+out_rx:
+	rc_free_rx_device(dev);
 out_dev:
 	device_del(&dev->dev);
-out_unlock:
+out_rx_free:
+	ir_free_table(&dev->rc_map);
+out_raw:
+	ir_raw_event_free(dev);
+out_minor:
 	ida_simple_remove(&rc_ida, minor);
 	return rc;
 }
