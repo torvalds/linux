@@ -16,6 +16,8 @@
  *
  */
 
+#include <linux/io-64-nonatomic-lo-hi.h>
+
 #if !defined(_SMARTPQI_H)
 #define _SMARTPQI_H
 
@@ -1174,34 +1176,5 @@ struct pqi_scsi_dev *pqi_find_device_by_sas_rphy(
 void pqi_prep_for_scsi_done(struct scsi_cmnd *scmd);
 
 extern struct sas_function_template pqi_sas_transport_functions;
-
-#if !defined(readq)
-#define readq readq
-static inline u64 readq(const volatile void __iomem *addr)
-{
-	u32 lower32;
-	u32 upper32;
-
-	lower32 = readl(addr);
-	upper32 = readl(addr + 4);
-
-	return ((u64)upper32 << 32) | lower32;
-}
-#endif
-
-#if !defined(writeq)
-#define writeq writeq
-static inline void writeq(u64 value, volatile void __iomem *addr)
-{
-	u32 lower32;
-	u32 upper32;
-
-	lower32 = lower_32_bits(value);
-	upper32 = upper_32_bits(value);
-
-	writel(lower32, addr);
-	writel(upper32, addr + 4);
-}
-#endif
 
 #endif /* _SMARTPQI_H */
