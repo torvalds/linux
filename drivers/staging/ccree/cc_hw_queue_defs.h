@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 2012-2017 ARM Limited or its affiliates.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
@@ -124,12 +124,12 @@ typedef enum SetupOp {
 	SETUP_LOAD_STATE2	= 3,
 	SETUP_LOAD_KEY0		= 4,
 	SETUP_LOAD_XEX_KEY	= 5,
-	SETUP_WRITE_STATE0	= 8, 
+	SETUP_WRITE_STATE0	= 8,
 	SETUP_WRITE_STATE1	= 9,
 	SETUP_WRITE_STATE2	= 10,
 	SETUP_WRITE_STATE3	= 11,
 	setupOp_OPTIONTS,
-	setupOp_END = INT32_MAX,	
+	setupOp_END = INT32_MAX,
 }SetupOp_t;
 
 enum AesMacSelector {
@@ -196,7 +196,7 @@ void descriptor_log(HwDesc_s *desc);
 #if defined(HW_DESCRIPTOR_LOG) || defined(HW_DESC_DUMP_HOST_BUF)
 #define LOG_HW_DESC(pDesc) descriptor_log(pDesc)
 #else
-#define LOG_HW_DESC(pDesc) 
+#define LOG_HW_DESC(pDesc)
 #endif
 
 #if (CC_PAL_MAX_LOG_LEVEL >= CC_PAL_LOG_LEVEL_TRACE) || defined(OEMFW_LOG)
@@ -204,8 +204,8 @@ void descriptor_log(HwDesc_s *desc);
 #ifdef UART_PRINTF
 #define CREATE_DETAILED_DUMP(pDesc) createDetailedDump(pDesc)
 #else
-#define CREATE_DETAILED_DUMP(pDesc) 
-#endif 
+#define CREATE_DETAILED_DUMP(pDesc)
+#endif
 
 #define HW_DESC_DUMP(pDesc) do {            			\
 	CC_PAL_LOG_TRACE("\n---------------------------------------------------\n");	\
@@ -226,7 +226,7 @@ void descriptor_log(HwDesc_s *desc);
 
 /*!
  * This macro indicates the end of current HW descriptors flow and release the HW engines.
- * 
+ *
  * \param pDesc pointer HW descriptor struct
  */
 #define HW_DESC_SET_QUEUE_LAST_IND(pDesc) 								\
@@ -236,8 +236,8 @@ void descriptor_log(HwDesc_s *desc);
 
 /*!
  * This macro signs the end of HW descriptors flow by asking for completion ack, and release the HW engines
- * 
- * \param pDesc pointer HW descriptor struct 
+ *
+ * \param pDesc pointer HW descriptor struct
  */
 #define HW_DESC_SET_ACK_LAST(pDesc) 									\
 	do {												\
@@ -250,11 +250,11 @@ void descriptor_log(HwDesc_s *desc);
 
 /*!
  * This macro sets the DIN field of a HW descriptors
- * 
- * \param pDesc pointer HW descriptor struct 
+ *
+ * \param pDesc pointer HW descriptor struct
  * \param dmaMode The DMA mode: NO_DMA, SRAM, DLLI, MLLI, CONSTANT
  * \param dinAdr DIN address
- * \param dinSize Data size in bytes 
+ * \param dinSize Data size in bytes
  * \param axiNs AXI secure bit
  */
 #define HW_DESC_SET_DIN_TYPE(pDesc, dmaMode, dinAdr, dinSize, axiNs)								\
@@ -268,12 +268,12 @@ void descriptor_log(HwDesc_s *desc);
 
 
 /*!
- * This macro sets the DIN field of a HW descriptors to NO DMA mode. Used for NOP descriptor, register patches and 
- * other special modes 
- * 
+ * This macro sets the DIN field of a HW descriptors to NO DMA mode. Used for NOP descriptor, register patches and
+ * other special modes
+ *
  * \param pDesc pointer HW descriptor struct
  * \param dinAdr DIN address
- * \param dinSize Data size in bytes 
+ * \param dinSize Data size in bytes
  */
 #define HW_DESC_SET_DIN_NO_DMA(pDesc, dinAdr, dinSize)									\
 	do {		                                                                                        	\
@@ -282,13 +282,13 @@ void descriptor_log(HwDesc_s *desc);
 	} while (0)
 
 /*!
- * This macro sets the DIN field of a HW descriptors to SRAM mode. 
- * Note: No need to check SRAM alignment since host requests do not use SRAM and 
- * adaptor will enforce alignment check. 
- * 
+ * This macro sets the DIN field of a HW descriptors to SRAM mode.
+ * Note: No need to check SRAM alignment since host requests do not use SRAM and
+ * adaptor will enforce alignment check.
+ *
  * \param pDesc pointer HW descriptor struct
  * \param dinAdr DIN address
- * \param dinSize Data size in bytes 
+ * \param dinSize Data size in bytes
  */
 #define HW_DESC_SET_DIN_SRAM(pDesc, dinAdr, dinSize)									\
 	do {		                                                                                        	\
@@ -297,11 +297,11 @@ void descriptor_log(HwDesc_s *desc);
 		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD1, DIN_SIZE, (pDesc)->word[1], (dinSize));			\
 	} while (0)
 
-/*! This macro sets the DIN field of a HW descriptors to CONST mode 
- * 
+/*! This macro sets the DIN field of a HW descriptors to CONST mode
+ *
  * \param pDesc pointer HW descriptor struct
  * \param val DIN const value
- * \param dinSize Data size in bytes 
+ * \param dinSize Data size in bytes
  */
 #define HW_DESC_SET_DIN_CONST(pDesc, val, dinSize)									\
 	do {		                                                                                        	\
@@ -313,7 +313,7 @@ void descriptor_log(HwDesc_s *desc);
 
 /*!
  * This macro sets the DIN not last input data indicator
- * 
+ *
  * \param pDesc pointer HW descriptor struct
  */
 #define HW_DESC_SET_DIN_NOT_LAST_INDICATION(pDesc)									\
@@ -322,12 +322,12 @@ void descriptor_log(HwDesc_s *desc);
 	} while (0)
 
 /*!
- * This macro sets the DOUT field of a HW descriptors 
- * 
- * \param pDesc pointer HW descriptor struct 
+ * This macro sets the DOUT field of a HW descriptors
+ *
+ * \param pDesc pointer HW descriptor struct
  * \param dmaMode The DMA mode: NO_DMA, SRAM, DLLI, MLLI, CONSTANT
  * \param doutAdr DOUT address
- * \param doutSize Data size in bytes 
+ * \param doutSize Data size in bytes
  * \param axiNs AXI secure bit
  */
 #define HW_DESC_SET_DOUT_TYPE(pDesc, dmaMode, doutAdr, doutSize, axiNs)							\
@@ -340,14 +340,14 @@ void descriptor_log(HwDesc_s *desc);
 	} while (0)
 
 /*!
- * This macro sets the DOUT field of a HW descriptors to DLLI type 
- * The LAST INDICATION is provided by the user 
- * 
- * \param pDesc pointer HW descriptor struct 
+ * This macro sets the DOUT field of a HW descriptors to DLLI type
+ * The LAST INDICATION is provided by the user
+ *
+ * \param pDesc pointer HW descriptor struct
  * \param doutAdr DOUT address
- * \param doutSize Data size in bytes 
+ * \param doutSize Data size in bytes
  * \param lastInd The last indication bit
- * \param axiNs AXI secure bit 
+ * \param axiNs AXI secure bit
  */
 #define HW_DESC_SET_DOUT_DLLI(pDesc, doutAdr, doutSize, axiNs ,lastInd)								\
 	do {		                                                                                        		\
@@ -360,14 +360,14 @@ void descriptor_log(HwDesc_s *desc);
 	} while (0)
 
 /*!
- * This macro sets the DOUT field of a HW descriptors to DLLI type 
- * The LAST INDICATION is provided by the user 
- * 
- * \param pDesc pointer HW descriptor struct 
+ * This macro sets the DOUT field of a HW descriptors to DLLI type
+ * The LAST INDICATION is provided by the user
+ *
+ * \param pDesc pointer HW descriptor struct
  * \param doutAdr DOUT address
- * \param doutSize Data size in bytes 
+ * \param doutSize Data size in bytes
  * \param lastInd The last indication bit
- * \param axiNs AXI secure bit 
+ * \param axiNs AXI secure bit
  */
 #define HW_DESC_SET_DOUT_MLLI(pDesc, doutAdr, doutSize, axiNs ,lastInd)								\
 	do {		                                                                                        		\
@@ -380,12 +380,12 @@ void descriptor_log(HwDesc_s *desc);
 	} while (0)
 
 /*!
- * This macro sets the DOUT field of a HW descriptors to NO DMA mode. Used for NOP descriptor, register patches and 
- * other special modes 
- * 
+ * This macro sets the DOUT field of a HW descriptors to NO DMA mode. Used for NOP descriptor, register patches and
+ * other special modes
+ *
  * \param pDesc pointer HW descriptor struct
  * \param doutAdr DOUT address
- * \param doutSize Data size in bytes  
+ * \param doutSize Data size in bytes
  * \param registerWriteEnable Enables a write operation to a register
  */
 #define HW_DESC_SET_DOUT_NO_DMA(pDesc, doutAdr, doutSize, registerWriteEnable)							\
@@ -396,8 +396,8 @@ void descriptor_log(HwDesc_s *desc);
 	} while (0)
 
 /*!
- * This macro sets the word for the XOR operation. 
- * 
+ * This macro sets the word for the XOR operation.
+ *
  * \param pDesc pointer HW descriptor struct
  * \param xorVal xor data value
  */
@@ -408,7 +408,7 @@ void descriptor_log(HwDesc_s *desc);
 
 /*!
  * This macro sets the XOR indicator bit in the descriptor
- * 
+ *
  * \param pDesc pointer HW descriptor struct
  */
 #define HW_DESC_SET_XOR_ACTIVE(pDesc)											\
@@ -418,7 +418,7 @@ void descriptor_log(HwDesc_s *desc);
 
 /*!
  * This macro selects the AES engine instead of HASH engine when setting up combined mode with AES XCBC MAC
- * 
+ *
  * \param pDesc pointer HW descriptor struct
  */
 #define HW_DESC_SET_AES_NOT_HASH_MODE(pDesc)										\
@@ -428,12 +428,12 @@ void descriptor_log(HwDesc_s *desc);
 
 /*!
  * This macro sets the DOUT field of a HW descriptors to SRAM mode
- * Note: No need to check SRAM alignment since host requests do not use SRAM and 
- * adaptor will enforce alignment check. 
- * 
+ * Note: No need to check SRAM alignment since host requests do not use SRAM and
+ * adaptor will enforce alignment check.
+ *
  * \param pDesc pointer HW descriptor struct
  * \param doutAdr DOUT address
- * \param doutSize Data size in bytes 
+ * \param doutSize Data size in bytes
  */
 #define HW_DESC_SET_DOUT_SRAM(pDesc, doutAdr, doutSize)									\
 	do {		                                                                                        	\
@@ -445,7 +445,7 @@ void descriptor_log(HwDesc_s *desc);
 
 /*!
  * This macro sets the data unit size for XEX mode in data_out_addr[15:0]
- * 
+ *
  * \param pDesc pointer HW descriptor struct
  * \param dataUnitSize data unit size for XEX mode
  */
@@ -588,9 +588,9 @@ void descriptor_log(HwDesc_s *desc);
 	} while (0)
 
 /*!
- * This macro sets the DIN field of a HW descriptors to star/stop monitor descriptor. 
+ * This macro sets the DIN field of a HW descriptors to star/stop monitor descriptor.
  * Used for performance measurements and debug purposes.
- * 
+ *
  * \param pDesc pointer HW descriptor struct
  */
 #define HW_DESC_SET_DIN_MONITOR_CNTR(pDesc)										\

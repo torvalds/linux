@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 2012-2017 ARM Limited or its affiliates.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
@@ -51,7 +51,7 @@
 
 
 /* Value of each ICV_CMP byte (of 8) in case of success */
-#define ICV_VERIF_OK 0x01	
+#define ICV_VERIF_OK 0x01
 
 struct ssi_aead_handle {
 	ssi_sram_addr_t sram_workspace_addr;
@@ -106,13 +106,13 @@ static void ssi_aead_exit(struct crypto_aead *tfm)
 		ctx->enckey_dma_addr = 0;
 		ctx->enckey = NULL;
 	}
-	
+
 	if (ctx->auth_mode == DRV_HASH_XCBC_MAC) { /* XCBC authetication */
 		if (ctx->auth_state.xcbc.xcbc_keys != NULL) {
 			SSI_RESTORE_DMA_ADDR_TO_48BIT(
 				ctx->auth_state.xcbc.xcbc_keys_dma_addr);
 			dma_free_coherent(dev, CC_AES_128_BIT_KEY_SIZE * 3,
-				ctx->auth_state.xcbc.xcbc_keys, 
+				ctx->auth_state.xcbc.xcbc_keys,
 				ctx->auth_state.xcbc.xcbc_keys_dma_addr);
 		}
 		SSI_LOG_DEBUG("Freed xcbc_keys DMA buffer xcbc_keys_dma_addr=0x%llX\n",
@@ -203,14 +203,14 @@ static int ssi_aead_init(struct crypto_aead *tfm)
 			2 * MAX_HMAC_DIGEST_SIZE);
 		SSI_LOG_DEBUG("Allocated authkey buffer in context ctx->authkey=@%p\n",
 			ctx->auth_state.hmac.ipad_opad);
-	
+
 		ctx->auth_state.hmac.padded_authkey = dma_alloc_coherent(dev,
 			MAX_HMAC_BLOCK_SIZE,
 			&ctx->auth_state.hmac.padded_authkey_dma_addr, GFP_KERNEL);
 		if (ctx->auth_state.hmac.padded_authkey == NULL) {
 			SSI_LOG_ERR("failed to allocate padded_authkey\n");
 			goto init_failed;
-		}	
+		}
 		SSI_UPDATE_DMA_ADDR_TO_48BIT(
 			ctx->auth_state.hmac.padded_authkey_dma_addr,
 			MAX_HMAC_BLOCK_SIZE);
@@ -225,7 +225,7 @@ init_failed:
 	ssi_aead_exit(tfm);
 	return -ENOMEM;
 }
- 
+
 
 static void ssi_aead_complete(struct device *dev, void *ssi_req, void __iomem *cc_base)
 {
@@ -313,9 +313,9 @@ static int hmac_setkey(HwDesc_s *desc, struct ssi_aead_ctx *ctx)
 {
 	unsigned int hmacPadConst[2] = { HMAC_IPAD_CONST, HMAC_OPAD_CONST };
 	unsigned int digest_ofs = 0;
-	unsigned int hash_mode = (ctx->auth_mode == DRV_HASH_SHA1) ? 
+	unsigned int hash_mode = (ctx->auth_mode == DRV_HASH_SHA1) ?
 			DRV_HASH_HW_SHA1 : DRV_HASH_HW_SHA256;
-	unsigned int digest_size = (ctx->auth_mode == DRV_HASH_SHA1) ? 
+	unsigned int digest_size = (ctx->auth_mode == DRV_HASH_SHA1) ?
 			CC_SHA1_DIGEST_SIZE : CC_SHA256_DIGEST_SIZE;
 
 	int idx = 0;
@@ -363,7 +363,7 @@ static int hmac_setkey(HwDesc_s *desc, struct ssi_aead_ctx *ctx)
 		/* Get the digset */
 		HW_DESC_INIT(&desc[idx]);
 		HW_DESC_SET_CIPHER_MODE(&desc[idx], hash_mode);
-		HW_DESC_SET_DOUT_DLLI(&desc[idx], 
+		HW_DESC_SET_DOUT_DLLI(&desc[idx],
 				      (ctx->auth_state.hmac.ipad_opad_dma_addr +
 				       digest_ofs),
 				      digest_size, NS_BIT, 0);
@@ -420,7 +420,7 @@ static int validate_keys_sizes(struct ssi_aead_ctx *ctx)
 
 	return 0; /* All tests of keys sizes passed */
 }
-/*This function prepers the user key so it can pass to the hmac processing 
+/*This function prepers the user key so it can pass to the hmac processing
   (copy to intenral buffer or hash in case of key longer than block */
 static int
 ssi_get_plain_hmac_key(struct crypto_aead *tfm, const u8 *key, unsigned int keylen)
@@ -437,7 +437,7 @@ ssi_get_plain_hmac_key(struct crypto_aead *tfm, const u8 *key, unsigned int keyl
 	unsigned int idx = 0;
 	int rc = 0;
 	HwDesc_s desc[MAX_AEAD_SETKEY_SEQ];
-	dma_addr_t padded_authkey_dma_addr = 
+	dma_addr_t padded_authkey_dma_addr =
 		ctx->auth_state.hmac.padded_authkey_dma_addr;
 
 	switch (ctx->auth_mode) { /* auth_key required and >0 */
@@ -469,7 +469,7 @@ ssi_get_plain_hmac_key(struct crypto_aead *tfm, const u8 *key, unsigned int keyl
 			HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_HASH);
 			HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_STATE0);
 			idx++;
-	
+
 			/* Load the hash current length*/
 			HW_DESC_INIT(&desc[idx]);
 			HW_DESC_SET_CIPHER_MODE(&desc[idx], hashmode);
@@ -478,17 +478,17 @@ ssi_get_plain_hmac_key(struct crypto_aead *tfm, const u8 *key, unsigned int keyl
 			HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_HASH);
 			HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_KEY0);
 			idx++;
-	
+
 			HW_DESC_INIT(&desc[idx]);
-			HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI, 
-					     key_dma_addr, 
+			HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI,
+					     key_dma_addr,
 					     keylen, NS_BIT);
 			HW_DESC_SET_FLOW_MODE(&desc[idx], DIN_HASH);
 			idx++;
-	
+
 			/* Get hashed key */
 			HW_DESC_INIT(&desc[idx]);
-			HW_DESC_SET_CIPHER_MODE(&desc[idx], hashmode); 
+			HW_DESC_SET_CIPHER_MODE(&desc[idx], hashmode);
 			HW_DESC_SET_DOUT_DLLI(&desc[idx],
 					 padded_authkey_dma_addr,
 					 digestsize,
@@ -500,32 +500,32 @@ ssi_get_plain_hmac_key(struct crypto_aead *tfm, const u8 *key, unsigned int keyl
 			HW_DESC_SET_CIPHER_CONFIG0(&desc[idx],
 						   HASH_DIGEST_RESULT_LITTLE_ENDIAN);
 			idx++;
-	
+
 			HW_DESC_INIT(&desc[idx]);
 			HW_DESC_SET_DIN_CONST(&desc[idx], 0, (blocksize - digestsize));
 			HW_DESC_SET_FLOW_MODE(&desc[idx], BYPASS);
-			HW_DESC_SET_DOUT_DLLI(&desc[idx], 
+			HW_DESC_SET_DOUT_DLLI(&desc[idx],
 					      (padded_authkey_dma_addr + digestsize),
 					      (blocksize - digestsize),
 					      NS_BIT, 0);
 			idx++;
 		} else {
 			HW_DESC_INIT(&desc[idx]);
-			HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI, 
-					     key_dma_addr, 
+			HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI,
+					     key_dma_addr,
 					     keylen, NS_BIT);
 			HW_DESC_SET_FLOW_MODE(&desc[idx], BYPASS);
-			HW_DESC_SET_DOUT_DLLI(&desc[idx], 
+			HW_DESC_SET_DOUT_DLLI(&desc[idx],
 					      (padded_authkey_dma_addr),
 					      keylen, NS_BIT, 0);
 			idx++;
-	
+
 			if ((blocksize - keylen) != 0) {
 				HW_DESC_INIT(&desc[idx]);
 				HW_DESC_SET_DIN_CONST(&desc[idx], 0,
 						      (blocksize - keylen));
 				HW_DESC_SET_FLOW_MODE(&desc[idx], BYPASS);
-				HW_DESC_SET_DOUT_DLLI(&desc[idx], 
+				HW_DESC_SET_DOUT_DLLI(&desc[idx],
 					(padded_authkey_dma_addr + keylen),
 					(blocksize - keylen),
 					NS_BIT, 0);
@@ -537,7 +537,7 @@ ssi_get_plain_hmac_key(struct crypto_aead *tfm, const u8 *key, unsigned int keyl
 		HW_DESC_SET_DIN_CONST(&desc[idx], 0,
 				      (blocksize - keylen));
 		HW_DESC_SET_FLOW_MODE(&desc[idx], BYPASS);
-		HW_DESC_SET_DOUT_DLLI(&desc[idx], 
+		HW_DESC_SET_DOUT_DLLI(&desc[idx],
 			padded_authkey_dma_addr,
 			blocksize,
 			NS_BIT, 0);
@@ -632,7 +632,7 @@ ssi_aead_setkey(struct crypto_aead *tfm, const u8 *key, unsigned int keylen)
 	}
 
 	END_CYCLE_COUNT(STAT_OP_TYPE_SETKEY, STAT_PHASE_1);
-	
+
 	/* STAT_PHASE_2: Create sequence */
 	START_CYCLE_COUNT();
 
@@ -656,7 +656,7 @@ ssi_aead_setkey(struct crypto_aead *tfm, const u8 *key, unsigned int keylen)
 
 	/* STAT_PHASE_3: Submit sequence to HW */
 	START_CYCLE_COUNT();
-	
+
 	if (seq_len > 0) { /* For CCM there is no sequence to setup the key */
 #ifdef ENABLE_CYCLE_COUNT
 		ssi_req.op_type = STAT_OP_TYPE_SETKEY;
@@ -684,7 +684,7 @@ static int ssi_rfc4309_ccm_setkey(struct crypto_aead *tfm, const u8 *key, unsign
 {
 	struct ssi_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	int rc = 0;
-	
+
 	if (keylen < 3)
 		return -EINVAL;
 
@@ -702,7 +702,7 @@ static int ssi_aead_setauthsize(
 	unsigned int authsize)
 {
 	struct ssi_aead_ctx *ctx = crypto_aead_ctx(authenc);
-	
+
 	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 	/* Unsupported auth. sizes */
 	if ((authsize == 0) ||
@@ -752,11 +752,11 @@ static int ssi_ccm_setauthsize(struct crypto_aead *authenc,
 }
 #endif /*SSI_CC_HAS_AES_CCM*/
 
-static inline void 
+static inline void
 ssi_aead_create_assoc_desc(
-	struct aead_request *areq, 
+	struct aead_request *areq,
 	unsigned int flow_mode,
-	HwDesc_s desc[], 
+	HwDesc_s desc[],
 	unsigned int *seq_size)
 {
 	struct crypto_aead *tfm = crypto_aead_reqtfm(areq);
@@ -769,7 +769,7 @@ ssi_aead_create_assoc_desc(
 	case SSI_DMA_BUF_DLLI:
 		SSI_LOG_DEBUG("ASSOC buffer type DLLI\n");
 		HW_DESC_INIT(&desc[idx]);
-		HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI, 
+		HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI,
 			sg_dma_address(areq->src),
 			areq->assoclen, NS_BIT);
 		HW_DESC_SET_FLOW_MODE(&desc[idx], flow_mode);
@@ -797,9 +797,9 @@ ssi_aead_create_assoc_desc(
 
 static inline void
 ssi_aead_process_authenc_data_desc(
-	struct aead_request *areq, 
+	struct aead_request *areq,
 	unsigned int flow_mode,
-	HwDesc_s desc[], 
+	HwDesc_s desc[],
 	unsigned int *seq_size,
 	int direct)
 {
@@ -814,7 +814,7 @@ ssi_aead_process_authenc_data_desc(
 			(direct == DRV_CRYPTO_DIRECTION_ENCRYPT) ?
 			areq_ctx->dstSgl : areq_ctx->srcSgl;
 
-		unsigned int offset = 
+		unsigned int offset =
 			(direct == DRV_CRYPTO_DIRECTION_ENCRYPT) ?
 			areq_ctx->dstOffset : areq_ctx->srcOffset;
 		SSI_LOG_DEBUG("AUTHENC: SRC/DST buffer type DLLI\n");
@@ -860,9 +860,9 @@ ssi_aead_process_authenc_data_desc(
 
 static inline void
 ssi_aead_process_cipher_data_desc(
-	struct aead_request *areq, 
+	struct aead_request *areq,
 	unsigned int flow_mode,
-	HwDesc_s desc[], 
+	HwDesc_s desc[],
 	unsigned int *seq_size)
 {
 	unsigned int idx = *seq_size;
@@ -926,7 +926,7 @@ static inline void ssi_aead_process_digest_result_desc(
 		HW_DESC_SET_QUEUE_LAST_IND(&desc[idx]);
 		if (ctx->auth_mode == DRV_HASH_XCBC_MAC) {
 			HW_DESC_SET_AES_NOT_HASH_MODE(&desc[idx]);
-			HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_CIPHER_XCBC_MAC); 
+			HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_CIPHER_XCBC_MAC);
 		} else {
 			HW_DESC_SET_CIPHER_CONFIG0(&desc[idx],
 				HASH_DIGEST_RESULT_LITTLE_ENDIAN);
@@ -985,7 +985,7 @@ static inline void ssi_aead_setup_cipher_desc(
 	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_KEY0);
 	HW_DESC_SET_FLOW_MODE(&desc[idx], ctx->flow_mode);
 	if (ctx->flow_mode == S_DIN_to_AES) {
-		HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI, ctx->enckey_dma_addr, 
+		HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI, ctx->enckey_dma_addr,
 			((ctx->enc_keylen == 24) ?
 			 CC_AES_KEY_SIZE_MAX : ctx->enc_keylen), NS_BIT);
 		HW_DESC_SET_KEY_SIZE_AES(&desc[idx], ctx->enc_keylen);
@@ -1035,7 +1035,7 @@ static inline void ssi_aead_hmac_setup_digest_desc(
 	struct ssi_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	unsigned int hash_mode = (ctx->auth_mode == DRV_HASH_SHA1) ?
 				DRV_HASH_HW_SHA1 : DRV_HASH_HW_SHA256;
-	unsigned int digest_size = (ctx->auth_mode == DRV_HASH_SHA1) ? 
+	unsigned int digest_size = (ctx->auth_mode == DRV_HASH_SHA1) ?
 				CC_SHA1_DIGEST_SIZE : CC_SHA256_DIGEST_SIZE;
 	unsigned int idx = *seq_size;
 
@@ -1098,7 +1098,7 @@ static inline void ssi_aead_xcbc_setup_digest_desc(
 	/* Setup XCBC MAC K2 */
 	HW_DESC_INIT(&desc[idx]);
 	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI,
-			     (ctx->auth_state.xcbc.xcbc_keys_dma_addr + 
+			     (ctx->auth_state.xcbc.xcbc_keys_dma_addr +
 			      AES_KEYSIZE_128),
 			     AES_KEYSIZE_128, NS_BIT);
 	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_STATE1);
@@ -1150,7 +1150,7 @@ static inline void ssi_aead_process_digest_scheme_desc(
 	struct ssi_aead_handle *aead_handle = ctx->drvdata->aead_handle;
 	unsigned int hash_mode = (ctx->auth_mode == DRV_HASH_SHA1) ?
 				DRV_HASH_HW_SHA1 : DRV_HASH_HW_SHA256;
-	unsigned int digest_size = (ctx->auth_mode == DRV_HASH_SHA1) ? 
+	unsigned int digest_size = (ctx->auth_mode == DRV_HASH_SHA1) ?
 				CC_SHA1_DIGEST_SIZE : CC_SHA256_DIGEST_SIZE;
 	unsigned int idx = *seq_size;
 
@@ -1284,9 +1284,9 @@ static inline void ssi_aead_hmac_authenc(
 		return;
 	}
 
-	/** 
+	/**
 	 * Double-pass flow
-	 * Fallback for unsupported single-pass modes, 
+	 * Fallback for unsupported single-pass modes,
 	 * i.e. using assoc. data of non-word-multiple */
 	if (direct == DRV_CRYPTO_DIRECTION_ENCRYPT) {
 		/* encrypt first.. */
@@ -1335,9 +1335,9 @@ ssi_aead_xcbc_authenc(
 		return;
 	}
 
-	/** 
+	/**
 	 * Double-pass flow
-	 * Fallback for unsupported single-pass modes, 
+	 * Fallback for unsupported single-pass modes,
 	 * i.e. using assoc. data of non-word-multiple */
 	if (direct == DRV_CRYPTO_DIRECTION_ENCRYPT) {
 		/* encrypt first.. */
@@ -1382,7 +1382,7 @@ static int validate_data_size(struct ssi_aead_ctx *ctx,
 		if (ctx->cipher_mode == DRV_CIPHER_GCTR)
 		{
 			if (areq_ctx->plaintext_authenticate_only == true)
-				areq_ctx->is_single_pass = false; 
+				areq_ctx->is_single_pass = false;
 			break;
 		}
 
@@ -1417,7 +1417,7 @@ static unsigned int format_ccm_a0(uint8_t *pA0Buff, uint32_t headerSize)
 	unsigned int len = 0;
 	if ( headerSize == 0 ) {
 		return 0;
-	} 
+	}
 	if ( headerSize < ((1UL << 16) - (1UL << 8) )) {
 		len = 2;
 
@@ -1477,11 +1477,11 @@ static inline int ssi_aead_ccm(
 	}
 
 	/* load key */
-	HW_DESC_INIT(&desc[idx]);	
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_CIPHER_CTR);	
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI, ctx->enckey_dma_addr, 
-			((ctx->enc_keylen == 24) ? 
-			 CC_AES_KEY_SIZE_MAX : ctx->enc_keylen), 
+	HW_DESC_INIT(&desc[idx]);
+	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_CIPHER_CTR);
+	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI, ctx->enckey_dma_addr,
+			((ctx->enc_keylen == 24) ?
+			 CC_AES_KEY_SIZE_MAX : ctx->enc_keylen),
 			 NS_BIT);
 	HW_DESC_SET_KEY_SIZE_AES(&desc[idx], ctx->enc_keylen);
 	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_KEY0);
@@ -1494,19 +1494,19 @@ static inline int ssi_aead_ccm(
 	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_CIPHER_CTR);
 	HW_DESC_SET_KEY_SIZE_AES(&desc[idx], ctx->enc_keylen);
 	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI,
-			req_ctx->gen_ctx.iv_dma_addr, 
+			req_ctx->gen_ctx.iv_dma_addr,
 			     AES_BLOCK_SIZE, NS_BIT);
-	HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], DESC_DIRECTION_ENCRYPT_ENCRYPT);	
+	HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], DESC_DIRECTION_ENCRYPT_ENCRYPT);
 	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_STATE1);
 	HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_AES);
 	idx++;
 
 	/* load MAC key */
-	HW_DESC_INIT(&desc[idx]);	
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_CIPHER_CBC_MAC);	
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI, ctx->enckey_dma_addr, 
-			((ctx->enc_keylen == 24) ? 
-			 CC_AES_KEY_SIZE_MAX : ctx->enc_keylen), 
+	HW_DESC_INIT(&desc[idx]);
+	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_CIPHER_CBC_MAC);
+	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI, ctx->enckey_dma_addr,
+			((ctx->enc_keylen == 24) ?
+			 CC_AES_KEY_SIZE_MAX : ctx->enc_keylen),
 			 NS_BIT);
 	HW_DESC_SET_KEY_SIZE_AES(&desc[idx], ctx->enc_keylen);
 	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_KEY0);
@@ -1520,9 +1520,9 @@ static inline int ssi_aead_ccm(
 	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_CIPHER_CBC_MAC);
 	HW_DESC_SET_KEY_SIZE_AES(&desc[idx], ctx->enc_keylen);
 	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI,
-			req_ctx->mac_buf_dma_addr, 
+			req_ctx->mac_buf_dma_addr,
 			     AES_BLOCK_SIZE, NS_BIT);
-	HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], DESC_DIRECTION_ENCRYPT_ENCRYPT);	
+	HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], DESC_DIRECTION_ENCRYPT_ENCRYPT);
 	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_STATE0);
 	HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_HASH);
 	HW_DESC_SET_AES_NOT_HASH_MODE(&desc[idx]);
@@ -1534,7 +1534,7 @@ static inline int ssi_aead_ccm(
 		ssi_aead_create_assoc_desc(req, DIN_HASH, desc, &idx);
 	} else {
 		HW_DESC_INIT(&desc[idx]);
-		HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI, 
+		HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI,
 				      sg_dma_address(&req_ctx->ccm_adata_sg),
 				     AES_BLOCK_SIZE + req_ctx->ccm_hdr_size,
 				     NS_BIT);
@@ -1582,7 +1582,7 @@ static inline int ssi_aead_ccm(
 	HW_DESC_SET_DOUT_DLLI(&desc[idx], mac_result , ctx->authsize, NS_BIT, 1);
 	HW_DESC_SET_QUEUE_LAST_IND(&desc[idx]);
 	HW_DESC_SET_FLOW_MODE(&desc[idx], DIN_AES_DOUT);
-	idx++;	
+	idx++;
 
 	*seq_size = idx;
 	return 0;
@@ -1600,9 +1600,9 @@ static int config_ccm_adata(struct aead_request *req) {
 	uint8_t *b0 = req_ctx->ccm_config + CCM_B0_OFFSET;
 	uint8_t *a0 = req_ctx->ccm_config + CCM_A0_OFFSET;
 	uint8_t *ctr_count_0 = req_ctx->ccm_config + CCM_CTR_COUNT_0_OFFSET;
-	unsigned int cryptlen = (req_ctx->gen_ctx.op_type == 
-				 DRV_CRYPTO_DIRECTION_ENCRYPT) ? 
-				req->cryptlen : 
+	unsigned int cryptlen = (req_ctx->gen_ctx.op_type ==
+				 DRV_CRYPTO_DIRECTION_ENCRYPT) ?
+				req->cryptlen :
 				(req->cryptlen - ctx->authsize);
 	int rc;
 	memset(req_ctx->mac_buf, 0, AES_BLOCK_SIZE);
@@ -1622,13 +1622,13 @@ static int config_ccm_adata(struct aead_request *req) {
 	*b0 |= (8 * ((m - 2) / 2));
 	if (req->assoclen > 0)
 		*b0 |= 64;  /* Enable bit 6 if Adata exists. */
-	
+
 	rc = set_msg_len(b0 + 16 - l, cryptlen, l);  /* Write L'. */
 	if (rc != 0) {
 		return rc;
 	}
 	 /* END of "taken from crypto/ccm.c" */
-	
+
 	/* l(a) - size of associated data. */
 	req_ctx->ccm_hdr_size = format_ccm_a0 (a0, req->assoclen);
 
@@ -1654,7 +1654,7 @@ static void ssi_rfc4309_ccm_process(struct aead_request *req)
 	/* In RFC 4309 there is an 11-bytes nonce+IV part, that we build here. */
 	memcpy(areq_ctx->ctr_iv + CCM_BLOCK_NONCE_OFFSET, ctx->ctr_nonce, CCM_BLOCK_NONCE_SIZE);
 	memcpy(areq_ctx->ctr_iv + CCM_BLOCK_IV_OFFSET,    req->iv,        CCM_BLOCK_IV_SIZE);
-	req->iv = areq_ctx->ctr_iv;	
+	req->iv = areq_ctx->ctr_iv;
 	req->assoclen -= CCM_BLOCK_IV_SIZE;
 }
 #endif /*SSI_CC_HAS_AES_CCM*/
@@ -1672,11 +1672,11 @@ static inline void ssi_aead_gcm_setup_ghash_desc(
 	unsigned int idx = *seq_size;
 
 	/* load key to AES*/
-	HW_DESC_INIT(&desc[idx]);	
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_CIPHER_ECB);	
+	HW_DESC_INIT(&desc[idx]);
+	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_CIPHER_ECB);
 	HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], DRV_CRYPTO_DIRECTION_ENCRYPT);
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI, ctx->enckey_dma_addr, 
-			ctx->enc_keylen, NS_BIT); 
+	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI, ctx->enckey_dma_addr,
+			ctx->enc_keylen, NS_BIT);
 	HW_DESC_SET_KEY_SIZE_AES(&desc[idx], ctx->enc_keylen);
 	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_KEY0);
 	HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_AES);
@@ -1688,7 +1688,7 @@ static inline void ssi_aead_gcm_setup_ghash_desc(
 	HW_DESC_SET_DOUT_DLLI(&desc[idx],
 				  req_ctx->hkey_dma_addr,
 				  AES_BLOCK_SIZE,
-				  NS_BIT, 0); 
+				  NS_BIT, 0);
 	HW_DESC_SET_FLOW_MODE(&desc[idx], DIN_AES_DOUT);
 	idx++;
 
@@ -1701,13 +1701,13 @@ static inline void ssi_aead_gcm_setup_ghash_desc(
 	/* Load GHASH subkey */
 	HW_DESC_INIT(&desc[idx]);
 	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI,
-			req_ctx->hkey_dma_addr, 
+			req_ctx->hkey_dma_addr,
 				 AES_BLOCK_SIZE, NS_BIT);
 	HW_DESC_SET_DOUT_NO_DMA(&desc[idx], 0, 0, 1);
 	HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_HASH);
 	HW_DESC_SET_AES_NOT_HASH_MODE(&desc[idx]);
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_HASH_HW_GHASH);	
-	HW_DESC_SET_CIPHER_CONFIG1(&desc[idx], HASH_PADDING_ENABLED);	
+	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_HASH_HW_GHASH);
+	HW_DESC_SET_CIPHER_CONFIG1(&desc[idx], HASH_PADDING_ENABLED);
 	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_KEY0);
 	idx++;
 
@@ -1719,10 +1719,10 @@ static inline void ssi_aead_gcm_setup_ghash_desc(
 	HW_DESC_SET_DOUT_NO_DMA(&desc[idx], 0, 0, 1);
 	HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_HASH);
 	HW_DESC_SET_AES_NOT_HASH_MODE(&desc[idx]);
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_HASH_HW_GHASH);	
+	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_HASH_HW_GHASH);
 	HW_DESC_SET_CIPHER_DO(&desc[idx], 1); //1=AES_SK RKEK
 	HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], DRV_CRYPTO_DIRECTION_ENCRYPT);
-	HW_DESC_SET_CIPHER_CONFIG1(&desc[idx], HASH_PADDING_ENABLED); 
+	HW_DESC_SET_CIPHER_CONFIG1(&desc[idx], HASH_PADDING_ENABLED);
 	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_KEY0);
 	idx++;
 
@@ -1733,7 +1733,7 @@ static inline void ssi_aead_gcm_setup_ghash_desc(
 	HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_HASH);
 	HW_DESC_SET_AES_NOT_HASH_MODE(&desc[idx]);
 	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_HASH_HW_GHASH);
-	HW_DESC_SET_CIPHER_CONFIG1(&desc[idx], HASH_PADDING_ENABLED); 
+	HW_DESC_SET_CIPHER_CONFIG1(&desc[idx], HASH_PADDING_ENABLED);
 	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_STATE0);
 	idx++;
 
@@ -1751,11 +1751,11 @@ static inline void ssi_aead_gcm_setup_gctr_desc(
 	unsigned int idx = *seq_size;
 
 	/* load key to AES*/
-	HW_DESC_INIT(&desc[idx]);	
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_CIPHER_GCTR);	
+	HW_DESC_INIT(&desc[idx]);
+	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_CIPHER_GCTR);
 	HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], DRV_CRYPTO_DIRECTION_ENCRYPT);
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI, ctx->enckey_dma_addr, 
-			ctx->enc_keylen, NS_BIT); 
+	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI, ctx->enckey_dma_addr,
+			ctx->enc_keylen, NS_BIT);
 	HW_DESC_SET_KEY_SIZE_AES(&desc[idx], ctx->enc_keylen);
 	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_KEY0);
 	HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_AES);
@@ -1767,9 +1767,9 @@ static inline void ssi_aead_gcm_setup_gctr_desc(
 		HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_CIPHER_GCTR);
 		HW_DESC_SET_KEY_SIZE_AES(&desc[idx], ctx->enc_keylen);
 		HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI,
-				req_ctx->gcm_iv_inc2_dma_addr, 
+				req_ctx->gcm_iv_inc2_dma_addr,
 					 AES_BLOCK_SIZE, NS_BIT);
-		HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], DRV_CRYPTO_DIRECTION_ENCRYPT);	
+		HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], DRV_CRYPTO_DIRECTION_ENCRYPT);
 		HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_STATE1);
 		HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_AES);
 		idx++;
@@ -1786,7 +1786,7 @@ static inline void ssi_aead_process_gcm_result_desc(
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	struct ssi_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	struct aead_req_ctx *req_ctx = aead_request_ctx(req);
-	dma_addr_t mac_result; 
+	dma_addr_t mac_result;
 	unsigned int idx = *seq_size;
 
 	if (req_ctx->gen_ctx.op_type == DRV_CRYPTO_DIRECTION_DECRYPT) {
@@ -1797,7 +1797,7 @@ static inline void ssi_aead_process_gcm_result_desc(
 
 	/* process(ghash) gcm_block_len */
 	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI, 
+	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI,
 		req_ctx->gcm_block_len_dma_addr,
 		AES_BLOCK_SIZE, NS_BIT);
 	HW_DESC_SET_FLOW_MODE(&desc[idx], DIN_HASH);
@@ -1813,16 +1813,16 @@ static inline void ssi_aead_process_gcm_result_desc(
 	HW_DESC_SET_FLOW_MODE(&desc[idx], S_HASH_to_DOUT);
 	HW_DESC_SET_AES_NOT_HASH_MODE(&desc[idx]);
 
-	idx++; 
+	idx++;
 
 	/* load AES/CTR initial CTR value inc by 1*/
 	HW_DESC_INIT(&desc[idx]);
 	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_CIPHER_GCTR);
 	HW_DESC_SET_KEY_SIZE_AES(&desc[idx], ctx->enc_keylen);
 	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI,
-				 req_ctx->gcm_iv_inc1_dma_addr, 
+				 req_ctx->gcm_iv_inc1_dma_addr,
 				 AES_BLOCK_SIZE, NS_BIT);
-	HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], DRV_CRYPTO_DIRECTION_ENCRYPT);	
+	HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], DRV_CRYPTO_DIRECTION_ENCRYPT);
 	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_STATE1);
 	HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_AES);
 	idx++;
@@ -1842,7 +1842,7 @@ static inline void ssi_aead_process_gcm_result_desc(
 	HW_DESC_SET_DOUT_DLLI(&desc[idx], mac_result, ctx->authsize, NS_BIT, 1);
 	HW_DESC_SET_QUEUE_LAST_IND(&desc[idx]);
 	HW_DESC_SET_FLOW_MODE(&desc[idx], DIN_AES_DOUT);
-	idx++;	
+	idx++;
 
 	*seq_size = idx;
 }
@@ -1864,7 +1864,7 @@ static inline int ssi_aead_gcm(
 
 
 	//in RFC4543 no data to encrypt. just copy data from src to dest.
-	if (req_ctx->plaintext_authenticate_only==true){     
+	if (req_ctx->plaintext_authenticate_only==true){
 		ssi_aead_process_cipher_data_desc(req, BYPASS, desc, seq_size);
 		ssi_aead_gcm_setup_ghash_desc(req, desc, seq_size);
 		/* process(ghash) assoc data */
@@ -1883,7 +1883,7 @@ static inline int ssi_aead_gcm(
 	ssi_aead_gcm_setup_gctr_desc(req, desc, seq_size);
 	/* process(gctr+ghash) */
 	if (req_ctx->cryptlen != 0)
-		ssi_aead_process_cipher_data_desc(req, cipher_flow_mode, desc, seq_size); 
+		ssi_aead_process_cipher_data_desc(req, cipher_flow_mode, desc, seq_size);
 	ssi_aead_process_gcm_result_desc(req, desc, seq_size);
 
 	idx = *seq_size;
@@ -1940,10 +1940,10 @@ static int config_gcm_context(struct aead_request *req) {
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	struct ssi_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	struct aead_req_ctx *req_ctx = aead_request_ctx(req);
-	
-	unsigned int cryptlen = (req_ctx->gen_ctx.op_type == 
-				 DRV_CRYPTO_DIRECTION_ENCRYPT) ? 
-				req->cryptlen : 
+
+	unsigned int cryptlen = (req_ctx->gen_ctx.op_type ==
+				 DRV_CRYPTO_DIRECTION_ENCRYPT) ?
+				req->cryptlen :
 				(req->cryptlen - ctx->authsize);
 	__be32 counter = cpu_to_be32(2);
 
@@ -1988,7 +1988,7 @@ static void ssi_rfc4_gcm_process(struct aead_request *req)
 
 	memcpy(areq_ctx->ctr_iv + GCM_BLOCK_RFC4_NONCE_OFFSET, ctx->ctr_nonce, GCM_BLOCK_RFC4_NONCE_SIZE);
 	memcpy(areq_ctx->ctr_iv + GCM_BLOCK_RFC4_IV_OFFSET,    req->iv, GCM_BLOCK_RFC4_IV_SIZE);
-	req->iv = areq_ctx->ctr_iv;	
+	req->iv = areq_ctx->ctr_iv;
 	req->assoclen -= GCM_BLOCK_RFC4_IV_SIZE;
 }
 
@@ -1999,7 +1999,7 @@ static int ssi_aead_process(struct aead_request *req, enum drv_crypto_direction 
 {
 	int rc = 0;
 	int seq_len = 0;
-	HwDesc_s desc[MAX_AEAD_PROCESS_SEQ]; 
+	HwDesc_s desc[MAX_AEAD_PROCESS_SEQ];
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	struct ssi_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
@@ -2015,7 +2015,7 @@ static int ssi_aead_process(struct aead_request *req, enum drv_crypto_direction 
 
 	/* STAT_PHASE_0: Init and sanity checks */
 	START_CYCLE_COUNT();
-	
+
 	/* Check data length according to mode */
 	if (unlikely(validate_data_size(ctx, direct, req) != 0)) {
 		SSI_LOG_ERR("Unsupported crypt/assoc len %d/%d.\n",
@@ -2041,7 +2041,7 @@ static int ssi_aead_process(struct aead_request *req, enum drv_crypto_direction 
 
 	/* STAT_PHASE_1: Map buffers */
 	START_CYCLE_COUNT();
-	
+
 	if (ctx->cipher_mode == DRV_CIPHER_CTR) {
 		/* Build CTR IV - Copy nonce from last 4 bytes in
 		*  CTR key to first 4 bytes in CTR IV */
@@ -2056,7 +2056,7 @@ static int ssi_aead_process(struct aead_request *req, enum drv_crypto_direction 
 		/* Replace with counter iv */
 		req->iv = areq_ctx->ctr_iv;
 		areq_ctx->hw_iv_size = CTR_RFC3686_BLOCK_SIZE;
-	} else if ((ctx->cipher_mode == DRV_CIPHER_CCM) || 
+	} else if ((ctx->cipher_mode == DRV_CIPHER_CCM) ||
 		   (ctx->cipher_mode == DRV_CIPHER_GCTR) ) {
 		areq_ctx->hw_iv_size = AES_BLOCK_SIZE;
 		if (areq_ctx->ctr_iv != req->iv) {
@@ -2072,23 +2072,23 @@ static int ssi_aead_process(struct aead_request *req, enum drv_crypto_direction 
 		rc = config_ccm_adata(req);
 		if (unlikely(rc != 0)) {
 			SSI_LOG_ERR("config_ccm_adata() returned with a failure %d!", rc);
-			goto exit; 
+			goto exit;
 		}
 	} else {
-		areq_ctx->ccm_hdr_size = ccm_header_size_null;		
+		areq_ctx->ccm_hdr_size = ccm_header_size_null;
 	}
 #else
-	areq_ctx->ccm_hdr_size = ccm_header_size_null;		
+	areq_ctx->ccm_hdr_size = ccm_header_size_null;
 #endif /*SSI_CC_HAS_AES_CCM*/
 
-#if SSI_CC_HAS_AES_GCM 
+#if SSI_CC_HAS_AES_GCM
 	if (ctx->cipher_mode == DRV_CIPHER_GCTR) {
 		rc = config_gcm_context(req);
 		if (unlikely(rc != 0)) {
 			SSI_LOG_ERR("config_gcm_context() returned with a failure %d!", rc);
-			goto exit; 
+			goto exit;
 		}
-	} 
+	}
 #endif /*SSI_CC_HAS_AES_GCM*/
 
 	rc = ssi_buffer_mgr_map_aead_request(ctx->drvdata, req);
@@ -2153,7 +2153,7 @@ static int ssi_aead_process(struct aead_request *req, enum drv_crypto_direction 
 #endif /*SSI_CC_HAS_AES_GCM*/
 			break;
 #endif
-	default:	
+	default:
 		SSI_LOG_ERR("Unsupported authenc (%d)\n", ctx->auth_mode);
 		ssi_buffer_mgr_unmap_aead_request(dev, req);
 		rc = -ENOTSUPP;
@@ -2172,7 +2172,7 @@ static int ssi_aead_process(struct aead_request *req, enum drv_crypto_direction 
 		ssi_buffer_mgr_unmap_aead_request(dev, req);
 	}
 
-	
+
 	END_CYCLE_COUNT(ssi_req.op_type, STAT_PHASE_3);
 exit:
 	return rc;
@@ -2214,9 +2214,9 @@ static int ssi_rfc4309_ccm_encrypt(struct aead_request *req)
 	areq_ctx->backup_iv = req->iv;
 	areq_ctx->backup_giv = NULL;
 	areq_ctx->is_gcm4543 = true;
-	
+
 	ssi_rfc4309_ccm_process(req);
-	
+
 	rc = ssi_aead_process(req, DRV_CRYPTO_DIRECTION_ENCRYPT);
 	if (rc != -EINPROGRESS)
 		req->iv = areq_ctx->backup_iv;
@@ -2261,10 +2261,10 @@ static int ssi_rfc4309_ccm_decrypt(struct aead_request *req)
 	/* No generated IV required */
 	areq_ctx->backup_iv = req->iv;
 	areq_ctx->backup_giv = NULL;
-	
+
 	areq_ctx->is_gcm4543 = true;
 	ssi_rfc4309_ccm_process(req);
-	
+
 	rc = ssi_aead_process(req, DRV_CRYPTO_DIRECTION_DECRYPT);
 	if (rc != -EINPROGRESS)
 		req->iv = areq_ctx->backup_iv;
@@ -2280,7 +2280,7 @@ static int ssi_rfc4106_gcm_setkey(struct crypto_aead *tfm, const u8 *key, unsign
 {
 	struct ssi_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	int rc = 0;
-	
+
 	SSI_LOG_DEBUG("ssi_rfc4106_gcm_setkey()  keylen %d, key %p \n", keylen, key );
 
 	if (keylen < 4)
@@ -2298,7 +2298,7 @@ static int ssi_rfc4543_gcm_setkey(struct crypto_aead *tfm, const u8 *key, unsign
 {
 	struct ssi_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	int rc = 0;
-	
+
 	SSI_LOG_DEBUG("ssi_rfc4543_gcm_setkey()  keylen %d, key %p \n", keylen, key );
 
 	if (keylen < 4)
@@ -2374,7 +2374,7 @@ static int ssi_rfc4106_gcm_encrypt(struct aead_request *req)
 	/* No generated IV required */
 	areq_ctx->backup_iv = req->iv;
 	areq_ctx->backup_giv = NULL;
-	
+
 	areq_ctx->plaintext_authenticate_only = false;
 
 	ssi_rfc4_gcm_process(req);
@@ -2393,14 +2393,14 @@ static int ssi_rfc4543_gcm_encrypt(struct aead_request *req)
 
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
 	int rc;
-	
+
 	//plaintext is not encryped with rfc4543
 	areq_ctx->plaintext_authenticate_only = true;
 
 	/* No generated IV required */
 	areq_ctx->backup_iv = req->iv;
 	areq_ctx->backup_giv = NULL;
-	
+
 	ssi_rfc4_gcm_process(req);
 	areq_ctx->is_gcm4543 = true;
 
@@ -2426,7 +2426,7 @@ static int ssi_rfc4106_gcm_decrypt(struct aead_request *req)
 	/* No generated IV required */
 	areq_ctx->backup_iv = req->iv;
 	areq_ctx->backup_giv = NULL;
-	
+
 	areq_ctx->plaintext_authenticate_only = false;
 
 	ssi_rfc4_gcm_process(req);
@@ -2452,7 +2452,7 @@ static int ssi_rfc4543_gcm_decrypt(struct aead_request *req)
 	/* No generated IV required */
 	areq_ctx->backup_iv = req->iv;
 	areq_ctx->backup_giv = NULL;
-	
+
 	ssi_rfc4_gcm_process(req);
 	areq_ctx->is_gcm4543 = true;
 
@@ -2715,7 +2715,7 @@ static struct ssi_alg_template aead_algs[] = {
 		.cipher_mode = DRV_CIPHER_GCTR,
 		.flow_mode = S_DIN_to_AES,
 		.auth_mode = DRV_HASH_NULL,
-	}, 
+	},
 #endif /*SSI_CC_HAS_AES_GCM*/
 };
 

@@ -1,22 +1,22 @@
 /*
  * Copyright (C) 2012-2017 ARM Limited or its affiliates.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 
 /*!
- * @file 
+ * @file
  * @brief This file contains macro definitions for accessing ARM TrustZone CryptoCell register space.
  */
 
@@ -66,7 +66,7 @@ do {								            \
 	BITFIELD_GET(reg_val, CC_ ## reg_name ## _ ## fld_name ## _BIT_SHIFT, \
 		     CC_ ## reg_name ## _ ## fld_name ## _BIT_SIZE))
 
-/* yael TBD !!! -       				      * 
+/* yael TBD !!! -       				      *
 * all HW includes should start with CC_ and not DX_ !!	      */
 
 

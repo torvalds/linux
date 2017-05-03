@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 2012-2017 ARM Limited or its affiliates.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
@@ -35,10 +35,10 @@
 /* defines for AES GCM configuration buffer */
 #define GCM_BLOCK_LEN_SIZE 8
 
-#define GCM_BLOCK_RFC4_IV_OFFSET    	4  
+#define GCM_BLOCK_RFC4_IV_OFFSET    	4
 #define GCM_BLOCK_RFC4_IV_SIZE  	    8  /* IV size for rfc's */
-#define GCM_BLOCK_RFC4_NONCE_OFFSET 	0  
-#define GCM_BLOCK_RFC4_NONCE_SIZE   	4  
+#define GCM_BLOCK_RFC4_NONCE_OFFSET 	0
+#define GCM_BLOCK_RFC4_NONCE_SIZE   	4
 
 
 
@@ -62,12 +62,12 @@ enum aead_ccm_header_size {
 
 struct aead_req_ctx {
 	/* Allocate cache line although only 4 bytes are needed to
-	*  assure next field falls @ cache line 
+	*  assure next field falls @ cache line
 	*  Used for both: digest HW compare and CCM/GCM MAC value */
 	uint8_t mac_buf[MAX_MAC_SIZE] ____cacheline_aligned;
 	uint8_t ctr_iv[AES_BLOCK_SIZE] ____cacheline_aligned;
 
-	//used in gcm 
+	//used in gcm
 	uint8_t gcm_iv_inc1[AES_BLOCK_SIZE] ____cacheline_aligned;
 	uint8_t gcm_iv_inc2[AES_BLOCK_SIZE] ____cacheline_aligned;
 	uint8_t hkey[AES_BLOCK_SIZE] ____cacheline_aligned;
@@ -85,7 +85,7 @@ struct aead_req_ctx {
 	dma_addr_t ccm_iv0_dma_addr; /* buffer for internal ccm configurations */
 	dma_addr_t icv_dma_addr; /* Phys. address of ICV */
 
-	//used in gcm 
+	//used in gcm
 	dma_addr_t gcm_iv_inc1_dma_addr; /* buffer for internal gcm configurations */
 	dma_addr_t gcm_iv_inc2_dma_addr; /* buffer for internal gcm configurations */
 	dma_addr_t hkey_dma_addr; /* Phys. address of hkey */

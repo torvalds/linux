@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 2012-2017 ARM Limited or its affiliates.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
@@ -48,7 +48,7 @@ struct mlli_params {
 	struct dma_pool *curr_pool;
 	uint8_t *mlli_virt_addr;
 	dma_addr_t mlli_dma_addr;
-	uint32_t mlli_len;  
+	uint32_t mlli_len;
 };
 
 int ssi_buffer_mgr_init(struct ssi_drvdata *drvdata);
@@ -65,7 +65,7 @@ int ssi_buffer_mgr_map_blkcipher_request(
 	struct scatterlist *dst);
 
 void ssi_buffer_mgr_unmap_blkcipher_request(
-	struct device *dev, 
+	struct device *dev,
 	void *ctx,
 	unsigned int ivsize,
 	struct scatterlist *src,

@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 2012-2017 ARM Limited or its affiliates.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
@@ -155,11 +155,11 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 	/* AXI error interrupt */
 	if (unlikely((irr & SSI_AXI_ERR_IRQ_MASK) != 0)) {
 		uint32_t axi_err;
-		
+
 		/* Read the AXI error ID */
 		axi_err = CC_HAL_READ_REGISTER(CC_REG_OFFSET(CRY_KERNEL, AXIM_MON_ERR));
 		SSI_LOG_DEBUG("AXI completion error: axim_mon_err=0x%08X\n", axi_err);
-		
+
 		irr &= ~SSI_AXI_ERR_IRQ_MASK;
 	}
 
@@ -192,7 +192,7 @@ int init_cc_regs(struct ssi_drvdata *drvdata, bool is_probe)
 	/* Unmask relevant interrupt cause */
 	val = (~(SSI_COMP_IRQ_MASK | SSI_AXI_ERR_IRQ_MASK | SSI_GPR0_IRQ_MASK));
 	CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_IMR), val);
-		
+
 #ifdef DX_HOST_IRQ_TIMER_INIT_VAL_REG_OFFSET
 #ifdef DX_IRQ_DELAY
 	/* Set CC IRQ delay */
@@ -266,7 +266,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	}
 	SSI_LOG_DEBUG("CC registers mapped from %pa to 0x%p\n", &new_drvdata->res_mem->start, cc_base);
 	new_drvdata->cc_base = cc_base;
-	
+
 
 	/* Then IRQ */
 	new_drvdata->res_irq = platform_get_resource(plat_dev, IORESOURCE_IRQ, 0);
@@ -396,7 +396,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 
 init_cc_res_err:
 	SSI_LOG_ERR("Freeing CC HW resources!\n");
-	
+
 	if (new_drvdata != NULL) {
 		ssi_aead_free(new_drvdata);
 		ssi_hash_free(new_drvdata);
@@ -410,7 +410,7 @@ init_cc_res_err:
 #ifdef ENABLE_CC_SYSFS
 		ssi_sysfs_fini();
 #endif
-	
+
 		if (req_mem_cc_regs != NULL) {
 			if (irq_registered) {
 				free_irq(new_drvdata->res_irq->start, new_drvdata);
@@ -432,7 +432,7 @@ init_cc_res_err:
 void fini_cc_regs(struct ssi_drvdata *drvdata)
 {
 	/* Mask all interrupts */
-	WRITE_REGISTER(drvdata->cc_base + 
+	WRITE_REGISTER(drvdata->cc_base +
 		       CC_REG_OFFSET(HOST_RGF, HOST_IMR), 0xFFFFFFFF);
 
 }
@@ -505,14 +505,14 @@ static int cc7x_probe(struct platform_device *plat_dev)
 static int cc7x_remove(struct platform_device *plat_dev)
 {
 	SSI_LOG_DEBUG("Releasing cc7x resources...\n");
-	
+
 	cleanup_cc_resources(plat_dev);
 
 	SSI_LOG(KERN_INFO, "ARM cc7x_ree device terminated\n");
 #ifdef ENABLE_CYCLE_COUNT
 	display_all_stat_db();
 #endif
-	
+
 	return 0;
 }
 #if defined (CONFIG_PM_RUNTIME) || defined (CONFIG_PM_SLEEP)

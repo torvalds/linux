@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 2012-2017 ARM Limited or its affiliates.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
@@ -83,7 +83,7 @@ int ssi_power_mgr_runtime_resume(struct device *dev)
 
 	/* must be after the queue resuming as it uses the HW queue*/
 	ssi_hash_init_sram_digest_consts(drvdata);
-	
+
 	ssi_ivgen_init_sram_pool(drvdata);
 	return 0;
 }

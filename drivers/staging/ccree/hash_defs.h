@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 2012-2017 ARM Limited or its affiliates.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
@@ -58,8 +58,8 @@ enum HashCipherDoPadding {
 };
 
 typedef struct SepHashPrivateContext {
-	/* The current length is placed at the end of the context buffer because the hash 
-	   context is used for all HMAC operations as well. HMAC context includes a 64 bytes 
+	/* The current length is placed at the end of the context buffer because the hash
+	   context is used for all HMAC operations as well. HMAC context includes a 64 bytes
 	   K0 field.  The size of struct drv_ctx_hash reserved field is  88/184 bytes depend if t
 	   he SHA512 is supported ( in this case teh context size is 256 bytes).
 	   The size of struct drv_ctx_hash reseved field is 20 or 52 depend if the SHA512 is supported.

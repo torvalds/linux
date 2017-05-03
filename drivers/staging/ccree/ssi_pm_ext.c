@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 2012-2017 ARM Limited or its affiliates.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
@@ -26,9 +26,9 @@
 #include "ssi_pm_ext.h"
 
 /*
-This function should suspend the HW (if possiable), It should be implemented by 
-the driver user. 
-The reference code clears the internal SRAM to imitate lose of state. 
+This function should suspend the HW (if possiable), It should be implemented by
+the driver user.
+The reference code clears the internal SRAM to imitate lose of state.
 */
 void ssi_pm_ext_hw_suspend(struct device *dev)
 {
@@ -50,8 +50,8 @@ void ssi_pm_ext_hw_suspend(struct device *dev)
 }
 
 /*
-This function should resume the HW (if possiable).It should be implemented by 
-the driver user. 
+This function should resume the HW (if possiable).It should be implemented by
+the driver user.
 */
 void ssi_pm_ext_hw_resume(struct device *dev)
 {

@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 2012-2017 ARM Limited or its affiliates.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
@@ -29,7 +29,7 @@ struct ssi_sram_mgr_ctx {
 
 /**
  * ssi_sram_mgr_fini() - Cleanup SRAM pool.
- * 
+ *
  * @drvdata: Associated device driver context
  */
 void ssi_sram_mgr_fini(struct ssi_drvdata *drvdata)
@@ -44,10 +44,10 @@ void ssi_sram_mgr_fini(struct ssi_drvdata *drvdata)
 }
 
 /**
- * ssi_sram_mgr_init() - Initializes SRAM pool. 
+ * ssi_sram_mgr_init() - Initializes SRAM pool.
  *      The pool starts right at the beginning of SRAM.
  *      Returns zero for success, negative value otherwise.
- * 
+ *
  * @drvdata: Associated device driver context
  */
 int ssi_sram_mgr_init(struct ssi_drvdata *drvdata)
@@ -77,12 +77,12 @@ out:
 }
 
 /*!
- * Allocated buffer from SRAM pool. 
- * Note: Caller is responsible to free the LAST allocated buffer. 
- * This function does not taking care of any fragmentation may occur 
- * by the order of calls to alloc/free. 
- * 
- * \param drvdata 
+ * Allocated buffer from SRAM pool.
+ * Note: Caller is responsible to free the LAST allocated buffer.
+ * This function does not taking care of any fragmentation may occur
+ * by the order of calls to alloc/free.
+ *
+ * \param drvdata
  * \param size The requested bytes to allocate
  */
 ssi_sram_addr_t ssi_sram_mgr_alloc(struct ssi_drvdata *drvdata, uint32_t size)
@@ -100,7 +100,7 @@ ssi_sram_addr_t ssi_sram_mgr_alloc(struct ssi_drvdata *drvdata, uint32_t size)
 			size, smgr_ctx->sram_free_offset);
 		return NULL_SRAM_ADDR;
 	}
-	
+
 	p = smgr_ctx->sram_free_offset;
 	smgr_ctx->sram_free_offset += size;
 	SSI_LOG_DEBUG("Allocated %u B @ %u\n", size, (unsigned int)p);
@@ -109,9 +109,9 @@ ssi_sram_addr_t ssi_sram_mgr_alloc(struct ssi_drvdata *drvdata, uint32_t size)
 
 /**
  * ssi_sram_mgr_const2sram_desc() - Create const descriptors sequence to
- *	set values in given array into SRAM. 
+ *	set values in given array into SRAM.
  * Note: each const value can't exceed word size.
- * 
+ *
  * @src:	  A pointer to array of words to set as consts.
  * @dst:	  The target SRAM buffer to set into
  * @nelements:	  The number of words in "src" array

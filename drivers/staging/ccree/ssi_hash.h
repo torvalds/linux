@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 2012-2017 ARM Limited or its affiliates.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
@@ -68,7 +68,7 @@ struct ahash_req_ctx {
 	struct scatterlist *curr_sg;
 	uint32_t in_nents;
 	uint32_t mlli_nents;
-	struct mlli_params mlli_params;	
+	struct mlli_params mlli_params;
 };
 
 int ssi_hash_alloc(struct ssi_drvdata *drvdata);
@@ -77,22 +77,22 @@ int ssi_hash_free(struct ssi_drvdata *drvdata);
 
 /*!
  * Gets the initial digest length
- * 
- * \param drvdata 
+ *
+ * \param drvdata
  * \param mode The Hash mode. Supported modes: MD5/SHA1/SHA224/SHA256/SHA384/SHA512
- * 
+ *
  * \return uint32_t returns the address of the initial digest length in SRAM
  */
 ssi_sram_addr_t
 ssi_ahash_get_initial_digest_len_sram_addr(void *drvdata, uint32_t mode);
 
 /*!
- * Gets the address of the initial digest in SRAM 
+ * Gets the address of the initial digest in SRAM
  * according to the given hash mode
- * 
- * \param drvdata 
+ *
+ * \param drvdata
  * \param mode The Hash mode. Supported modes: MD5/SHA1/SHA224/SHA256/SHA384/SHA512
- * 
+ *
  * \return uint32_t The address of the inital digest in SRAM
  */
 ssi_sram_addr_t ssi_ahash_get_larval_digest_sram_addr(void *drvdata, uint32_t mode);

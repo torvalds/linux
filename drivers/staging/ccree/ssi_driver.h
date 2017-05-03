@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 2012-2017 ARM Limited or its affiliates.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
@@ -89,7 +89,7 @@
 /* Definitions for HW descriptors DIN/DOUT fields */
 #define NS_BIT 1
 #define AXI_ID 0
-/* AXI_ID is not actually the AXI ID of the transaction but the value of AXI_ID 
+/* AXI_ID is not actually the AXI ID of the transaction but the value of AXI_ID
    field in the HW descriptor. The DMA engine +8 that value. */
 
 /* Logging macros */
@@ -213,7 +213,7 @@ void dump_byte_array(const char *name, const uint8_t *the_array, unsigned long s
 #define START_CYCLE_COUNT_AT(_var) do { _var = get_cycles(); } while(0)
 #define END_CYCLE_COUNT_AT(_var, _stat_op_type, _stat_phase) update_host_stat(_stat_op_type, _stat_phase, get_cycles() - _var)
 #else
-#define DECL_CYCLE_COUNT_RESOURCES 
+#define DECL_CYCLE_COUNT_RESOURCES
 #define START_CYCLE_COUNT() do { } while (0)
 #define END_CYCLE_COUNT(_stat_op_type, _stat_phase) do { } while (0)
 #define GET_START_CYCLE_COUNT() 0

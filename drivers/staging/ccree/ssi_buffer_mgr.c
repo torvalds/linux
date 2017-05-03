@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 2012-2017 ARM Limited or its affiliates.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
@@ -102,18 +102,18 @@ dma_addr_t ssi_buff_mgr_update_dma_addr(dma_addr_t orig_addr, uint32_t data_len)
 #ifdef CC_DMA_48BIT_SIM_FULL
 	/* With this code all addresses will be switched to 48 bits. */
 	/* The if condition protects from double expention */
-	if((((orig_addr >> 16) & 0xFFFF) != 0xFFFF) && 
+	if((((orig_addr >> 16) & 0xFFFF) != 0xFFFF) &&
 		(data_len <= CC_MAX_MLLI_ENTRY_SIZE)) {
 #else
-	if((!(((orig_addr >> 16) & 0xFF) % 2)) && 
+	if((!(((orig_addr >> 16) & 0xFF) % 2)) &&
 		(data_len <= CC_MAX_MLLI_ENTRY_SIZE)) {
 #endif
-		tmp_dma_addr = ((orig_addr<<16) | 0xFFFF0000 | 
+		tmp_dma_addr = ((orig_addr<<16) | 0xFFFF0000 |
 				(orig_addr & UINT16_MAX));
 			SSI_LOG_DEBUG("MAP DMA: orig address=0x%llX "
 				    "dma_address=0x%llX\n",
 				     orig_addr, tmp_dma_addr);
-			return tmp_dma_addr;	
+			return tmp_dma_addr;
 	}
 	return orig_addr;
 }
@@ -126,29 +126,29 @@ dma_addr_t ssi_buff_mgr_restore_dma_addr(dma_addr_t orig_addr)
 	/* The if condition protects from double restoring */
 	if((orig_addr >> 32) & 0xFFFF ) {
 #else
-	if(((orig_addr >> 32) & 0xFFFF) && 
+	if(((orig_addr >> 32) & 0xFFFF) &&
 		!(((orig_addr >> 32) & 0xFF) % 2) ) {
 #endif
 		/*return high 16 bits*/
 		tmp_dma_addr = ((orig_addr >> 16));
 		/*clean the 0xFFFF in the lower bits (set in the add expansion)*/
-		tmp_dma_addr &= 0xFFFF0000; 
+		tmp_dma_addr &= 0xFFFF0000;
 		/* Set the original 16 bits */
-		tmp_dma_addr |= (orig_addr & UINT16_MAX); 
+		tmp_dma_addr |= (orig_addr & UINT16_MAX);
 		SSI_LOG_DEBUG("Release DMA: orig address=0x%llX "
 			     "dma_address=0x%llX\n",
 			     orig_addr, tmp_dma_addr);
-			return tmp_dma_addr;	
+			return tmp_dma_addr;
 	}
 	return orig_addr;
 }
 #endif
 /**
  * ssi_buffer_mgr_get_sgl_nents() - Get scatterlist number of entries.
- * 
+ *
  * @sg_list: SG list
  * @nbytes: [IN] Total SGL data bytes.
- * @lbytes: [OUT] Returns the amount of bytes at the last entry 
+ * @lbytes: [OUT] Returns the amount of bytes at the last entry
  */
 static unsigned int ssi_buffer_mgr_get_sgl_nents(
 	struct scatterlist *sg_list, unsigned int nbytes, uint32_t *lbytes, bool *is_chained)
@@ -179,7 +179,7 @@ static unsigned int ssi_buffer_mgr_get_sgl_nents(
 
 /**
  * ssi_buffer_mgr_zero_sgl() - Zero scatter scatter list data.
- * 
+ *
  * @sgl:
  */
 void ssi_buffer_mgr_zero_sgl(struct scatterlist *sgl, uint32_t data_len)
@@ -201,7 +201,7 @@ void ssi_buffer_mgr_zero_sgl(struct scatterlist *sgl, uint32_t data_len)
 /**
  * ssi_buffer_mgr_copy_scatterlist_portion() - Copy scatter list data,
  * from to_skip to end, to dest and vice versa
- * 
+ *
  * @dest:
  * @sg:
  * @to_skip:
@@ -306,7 +306,7 @@ static int ssi_buffer_mgr_generate_mlli(
 		rc =-ENOMEM;
 		goto build_mlli_exit;
 	}
-	SSI_UPDATE_DMA_ADDR_TO_48BIT(mlli_params->mlli_dma_addr, 
+	SSI_UPDATE_DMA_ADDR_TO_48BIT(mlli_params->mlli_dma_addr,
 						(MAX_NUM_OF_TOTAL_MLLI_ENTRIES*
 						LLI_ENTRY_BYTE_SIZE));
 	/* Point to start of MLLI */
@@ -315,7 +315,7 @@ static int ssi_buffer_mgr_generate_mlli(
 	for (i = 0; i < sg_data->num_of_buffers; i++) {
 		if (sg_data->type[i] == DMA_SGL_TYPE)
 			rc = ssi_buffer_mgr_render_scatterlist_to_mlli(
-				sg_data->entry[i].sgl, 
+				sg_data->entry[i].sgl,
 				sg_data->total_data_len[i], sg_data->offset[i], &total_nents,
 				&mlli_p);
 		else /*DMA_BUFF_TYPE*/
@@ -329,9 +329,9 @@ static int ssi_buffer_mgr_generate_mlli(
 
 		/* set last bit in the current table */
 		if (sg_data->mlli_nents[i] != NULL) {
-			/*Calculate the current MLLI table length for the 
+			/*Calculate the current MLLI table length for the
 			length field in the descriptor*/
-			*(sg_data->mlli_nents[i]) += 
+			*(sg_data->mlli_nents[i]) +=
 				(total_nents - prev_total_nents);
 			prev_total_nents = total_nents;
 		}
@@ -440,20 +440,20 @@ static int ssi_buffer_mgr_map_scatterlist(
 		if (unlikely(dma_map_sg(dev, sg, 1, direction) != 1)) {
 			SSI_LOG_ERR("dma_map_sg() single buffer failed\n");
 			return -ENOMEM;
-		} 
+		}
 		SSI_LOG_DEBUG("Mapped sg: dma_address=0x%llX "
 			     "page_link=0x%08lX addr=%pK offset=%u "
 			     "length=%u\n",
-			     (unsigned long long)sg_dma_address(sg), 
-			     sg->page_link, 
-			     sg_virt(sg), 
+			     (unsigned long long)sg_dma_address(sg),
+			     sg->page_link,
+			     sg_virt(sg),
 			     sg->offset, sg->length);
 		*lbytes = nbytes;
 		*nents = 1;
 		*mapped_nents = 1;
 		SSI_UPDATE_DMA_ADDR_TO_48BIT(sg_dma_address(sg), sg_dma_len(sg));
 	} else {  /*sg_is_last*/
-		*nents = ssi_buffer_mgr_get_sgl_nents(sg, nbytes, lbytes, 
+		*nents = ssi_buffer_mgr_get_sgl_nents(sg, nbytes, lbytes,
 						     &is_chained);
 		if (*nents > max_sg_nents) {
 			*nents = 0;
@@ -498,7 +498,7 @@ ssi_aead_handle_config_buf(struct device *dev,
 	SSI_LOG_DEBUG(" handle additional data config set to   DLLI \n");
 	/* create sg for the current buffer */
 	sg_init_one(&areq_ctx->ccm_adata_sg, config_data, AES_BLOCK_SIZE + areq_ctx->ccm_hdr_size);
-	if (unlikely(dma_map_sg(dev, &areq_ctx->ccm_adata_sg, 1, 
+	if (unlikely(dma_map_sg(dev, &areq_ctx->ccm_adata_sg, 1,
 				DMA_TO_DEVICE) != 1)) {
 			SSI_LOG_ERR("dma_map_sg() "
 			   "config buffer failed\n");
@@ -507,16 +507,16 @@ ssi_aead_handle_config_buf(struct device *dev,
 	SSI_LOG_DEBUG("Mapped curr_buff: dma_address=0x%llX "
 		     "page_link=0x%08lX addr=%pK "
 		     "offset=%u length=%u\n",
-		     (unsigned long long)sg_dma_address(&areq_ctx->ccm_adata_sg), 
-		     areq_ctx->ccm_adata_sg.page_link, 
+		     (unsigned long long)sg_dma_address(&areq_ctx->ccm_adata_sg),
+		     areq_ctx->ccm_adata_sg.page_link,
 		     sg_virt(&areq_ctx->ccm_adata_sg),
-		     areq_ctx->ccm_adata_sg.offset, 
+		     areq_ctx->ccm_adata_sg.offset,
 		     areq_ctx->ccm_adata_sg.length);
 	/* prepare for case of MLLI */
 	if (assoclen > 0) {
-		ssi_buffer_mgr_add_scatterlist_entry(sg_data, 1, 
+		ssi_buffer_mgr_add_scatterlist_entry(sg_data, 1,
 						    &areq_ctx->ccm_adata_sg,
-						    (AES_BLOCK_SIZE + 
+						    (AES_BLOCK_SIZE +
 						    areq_ctx->ccm_hdr_size), 0,
 						    false, NULL);
 	}
@@ -542,10 +542,10 @@ static inline int ssi_ahash_handle_curr_buf(struct device *dev,
 	SSI_LOG_DEBUG("Mapped curr_buff: dma_address=0x%llX "
 		     "page_link=0x%08lX addr=%pK "
 		     "offset=%u length=%u\n",
-		     (unsigned long long)sg_dma_address(areq_ctx->buff_sg), 
-		     areq_ctx->buff_sg->page_link, 
+		     (unsigned long long)sg_dma_address(areq_ctx->buff_sg),
+		     areq_ctx->buff_sg->page_link,
 		     sg_virt(areq_ctx->buff_sg),
-		     areq_ctx->buff_sg->offset, 
+		     areq_ctx->buff_sg->offset,
 		     areq_ctx->buff_sg->length);
 	areq_ctx->data_dma_buf_type = SSI_DMA_BUF_DLLI;
 	areq_ctx->curr_sg = areq_ctx->buff_sg;
@@ -566,12 +566,12 @@ void ssi_buffer_mgr_unmap_blkcipher_request(
 	struct blkcipher_req_ctx *req_ctx = (struct blkcipher_req_ctx *)ctx;
 
 	if (likely(req_ctx->gen_ctx.iv_dma_addr != 0)) {
-		SSI_LOG_DEBUG("Unmapped iv: iv_dma_addr=0x%llX iv_size=%u\n", 
+		SSI_LOG_DEBUG("Unmapped iv: iv_dma_addr=0x%llX iv_size=%u\n",
 			(unsigned long long)req_ctx->gen_ctx.iv_dma_addr,
 			ivsize);
 		SSI_RESTORE_DMA_ADDR_TO_48BIT(req_ctx->gen_ctx.iv_dma_addr);
-		dma_unmap_single(dev, req_ctx->gen_ctx.iv_dma_addr, 
-				 ivsize, 
+		dma_unmap_single(dev, req_ctx->gen_ctx.iv_dma_addr,
+				 ivsize,
 				 req_ctx->is_giv ? DMA_BIDIRECTIONAL :
 				 DMA_TO_DEVICE);
 	}
@@ -586,12 +586,12 @@ void ssi_buffer_mgr_unmap_blkcipher_request(
 	SSI_RESTORE_DMA_ADDR_TO_48BIT(sg_dma_address(src));
 	dma_unmap_sg(dev, src, req_ctx->in_nents,
 		DMA_BIDIRECTIONAL);
-	SSI_LOG_DEBUG("Unmapped req->src=%pK\n", 
+	SSI_LOG_DEBUG("Unmapped req->src=%pK\n",
 		     sg_virt(src));
 
 	if (src != dst) {
 		SSI_RESTORE_DMA_ADDR_TO_48BIT(sg_dma_address(dst));
-		dma_unmap_sg(dev, dst, req_ctx->out_nents, 
+		dma_unmap_sg(dev, dst, req_ctx->out_nents,
 			DMA_BIDIRECTIONAL);
 		SSI_LOG_DEBUG("Unmapped req->dst=%pK\n",
 			sg_virt(dst));
@@ -608,7 +608,7 @@ int ssi_buffer_mgr_map_blkcipher_request(
 	struct scatterlist *dst)
 {
 	struct blkcipher_req_ctx *req_ctx = (struct blkcipher_req_ctx *)ctx;
-	struct mlli_params *mlli_params = &req_ctx->mlli_params;	
+	struct mlli_params *mlli_params = &req_ctx->mlli_params;
 	struct buff_mgr_handle *buff_mgr = drvdata->buff_mgr_handle;
 	struct device *dev = &drvdata->plat_dev->dev;
 	struct buffer_array sg_data;
@@ -623,12 +623,12 @@ int ssi_buffer_mgr_map_blkcipher_request(
 	/* Map IV buffer */
 	if (likely(ivsize != 0) ) {
 		dump_byte_array("iv", (uint8_t *)info, ivsize);
-		req_ctx->gen_ctx.iv_dma_addr = 
-			dma_map_single(dev, (void *)info, 
-				       ivsize, 
+		req_ctx->gen_ctx.iv_dma_addr =
+			dma_map_single(dev, (void *)info,
+				       ivsize,
 				       req_ctx->is_giv ? DMA_BIDIRECTIONAL:
 				       DMA_TO_DEVICE);
-		if (unlikely(dma_mapping_error(dev, 
+		if (unlikely(dma_mapping_error(dev,
 					req_ctx->gen_ctx.iv_dma_addr))) {
 			SSI_LOG_ERR("Mapping iv %u B at va=%pK "
 				   "for DMA failed\n", ivsize, info);
@@ -641,7 +641,7 @@ int ssi_buffer_mgr_map_blkcipher_request(
 			(unsigned long long)req_ctx->gen_ctx.iv_dma_addr);
 	} else
 		req_ctx->gen_ctx.iv_dma_addr = 0;
-	
+
 	/* Map the src SGL */
 	rc = ssi_buffer_mgr_map_scatterlist(dev, src,
 		nbytes, DMA_BIDIRECTIONAL, &req_ctx->in_nents,
@@ -681,11 +681,11 @@ int ssi_buffer_mgr_map_blkcipher_request(
 				&req_ctx->in_mlli_nents);
 			ssi_buffer_mgr_add_scatterlist_entry(&sg_data,
 				req_ctx->out_nents, dst,
-				nbytes, 0, true, 
+				nbytes, 0, true,
 				&req_ctx->out_mlli_nents);
 		}
 	}
-	
+
 	if (unlikely(req_ctx->dma_buf_type == SSI_DMA_BUF_MLLI)) {
 		mlli_params->curr_pool = buff_mgr->mlli_buffs_pool;
 		rc = ssi_buffer_mgr_generate_mlli(dev, &sg_data, mlli_params);
@@ -716,7 +716,7 @@ void ssi_buffer_mgr_unmap_aead_request(
 
 	if (areq_ctx->mac_buf_dma_addr != 0) {
 		SSI_RESTORE_DMA_ADDR_TO_48BIT(areq_ctx->mac_buf_dma_addr);
-		dma_unmap_single(dev, areq_ctx->mac_buf_dma_addr, 
+		dma_unmap_single(dev, areq_ctx->mac_buf_dma_addr,
 			MAX_MAC_SIZE, DMA_BIDIRECTIONAL);
 	}
 
@@ -727,22 +727,22 @@ void ssi_buffer_mgr_unmap_aead_request(
 			dma_unmap_single(dev, areq_ctx->hkey_dma_addr,
 					 AES_BLOCK_SIZE, DMA_BIDIRECTIONAL);
 		}
-	
+
 		if (areq_ctx->gcm_block_len_dma_addr != 0) {
 			SSI_RESTORE_DMA_ADDR_TO_48BIT(areq_ctx->gcm_block_len_dma_addr);
 			dma_unmap_single(dev, areq_ctx->gcm_block_len_dma_addr,
 					 AES_BLOCK_SIZE, DMA_TO_DEVICE);
 		}
-	
+
 		if (areq_ctx->gcm_iv_inc1_dma_addr != 0) {
 			SSI_RESTORE_DMA_ADDR_TO_48BIT(areq_ctx->gcm_iv_inc1_dma_addr);
-			dma_unmap_single(dev, areq_ctx->gcm_iv_inc1_dma_addr, 
+			dma_unmap_single(dev, areq_ctx->gcm_iv_inc1_dma_addr,
 				AES_BLOCK_SIZE, DMA_TO_DEVICE);
 		}
-	
+
 		if (areq_ctx->gcm_iv_inc2_dma_addr != 0) {
 			SSI_RESTORE_DMA_ADDR_TO_48BIT(areq_ctx->gcm_iv_inc2_dma_addr);
-			dma_unmap_single(dev, areq_ctx->gcm_iv_inc2_dma_addr, 
+			dma_unmap_single(dev, areq_ctx->gcm_iv_inc2_dma_addr,
 				AES_BLOCK_SIZE, DMA_TO_DEVICE);
 		}
 	}
@@ -751,7 +751,7 @@ void ssi_buffer_mgr_unmap_aead_request(
 	if (areq_ctx->ccm_hdr_size != ccm_header_size_null) {
 		if (areq_ctx->ccm_iv0_dma_addr != 0) {
 			SSI_RESTORE_DMA_ADDR_TO_48BIT(areq_ctx->ccm_iv0_dma_addr);
-			dma_unmap_single(dev, areq_ctx->ccm_iv0_dma_addr, 
+			dma_unmap_single(dev, areq_ctx->ccm_iv0_dma_addr,
 				AES_BLOCK_SIZE, DMA_TO_DEVICE);
 		}
 
@@ -763,10 +763,10 @@ void ssi_buffer_mgr_unmap_aead_request(
 				 hw_iv_size, DMA_BIDIRECTIONAL);
 	}
 
-	/*In case a pool was set, a table was 
+	/*In case a pool was set, a table was
 	  allocated and should be released */
 	if (areq_ctx->mlli_params.curr_pool != NULL) {
-		SSI_LOG_DEBUG("free MLLI buffer: dma=0x%08llX virt=%pK\n", 
+		SSI_LOG_DEBUG("free MLLI buffer: dma=0x%08llX virt=%pK\n",
 			(unsigned long long)areq_ctx->mlli_params.mlli_dma_addr,
 			areq_ctx->mlli_params.mlli_virt_addr);
 		SSI_RESTORE_DMA_ADDR_TO_48BIT(areq_ctx->mlli_params.mlli_dma_addr);
@@ -786,7 +786,7 @@ void ssi_buffer_mgr_unmap_aead_request(
 
 	dma_unmap_sg(dev, req->src, ssi_buffer_mgr_get_sgl_nents(req->src,size_to_unmap,&dummy,&chained) , DMA_BIDIRECTIONAL);
 	if (unlikely(req->src != req->dst)) {
-		SSI_LOG_DEBUG("Unmapping dst sgl: req->dst=%pK\n", 
+		SSI_LOG_DEBUG("Unmapping dst sgl: req->dst=%pK\n",
 			sg_virt(req->dst));
 		SSI_RESTORE_DMA_ADDR_TO_48BIT(sg_dma_address(req->dst));
 		dma_unmap_sg(dev, req->dst, ssi_buffer_mgr_get_sgl_nents(req->dst,size_to_unmap,&dummy,&chained),
@@ -821,12 +821,12 @@ static inline int ssi_buffer_mgr_get_aead_icv_nents(
 	unsigned int icv_required_size = authsize > last_entry_data_size ? (authsize - last_entry_data_size) : authsize;
 	unsigned int nents;
 	unsigned int i;
-	
+
 	if (sgl_nents < MAX_ICV_NENTS_SUPPORTED) {
 		*is_icv_fragmented = false;
 		return 0;
 	}
-	
+
 	for( i = 0 ; i < (sgl_nents - MAX_ICV_NENTS_SUPPORTED) ; i++) {
 		if (sgl == NULL) {
 			break;
@@ -883,12 +883,12 @@ static inline int ssi_buffer_mgr_aead_chain_iv(
 		SSI_LOG_ERR("Mapping iv %u B at va=%pK for DMA failed\n",
 			hw_iv_size, req->iv);
 		rc = -ENOMEM;
-		goto chain_iv_exit; 
+		goto chain_iv_exit;
 	}
 	SSI_UPDATE_DMA_ADDR_TO_48BIT(areq_ctx->gen_ctx.iv_dma_addr, hw_iv_size);
 
 	SSI_LOG_DEBUG("Mapped iv %u B at va=%pK to dma=0x%llX\n",
-		hw_iv_size, req->iv, 
+		hw_iv_size, req->iv,
 		(unsigned long long)areq_ctx->gen_ctx.iv_dma_addr);
 	if (do_chain == true && areq_ctx->plaintext_authenticate_only == true){  // TODO: what about CTR?? ask Ron
 		struct crypto_aead *tfm = crypto_aead_reqtfm(req);
@@ -943,7 +943,7 @@ static inline int ssi_buffer_mgr_aead_chain_assoc(
 	//it is assumed that if we reach here , the sgl is already mapped
 	sg_index = current_sg->length;
 	if (sg_index > size_of_assoc) { //the first entry in the scatter list contains all the associated data
-		mapped_nents++;        
+		mapped_nents++;
 	}
 	else{
 		while (sg_index <= size_of_assoc) {
@@ -1095,7 +1095,7 @@ static inline int ssi_buffer_mgr_prepare_aead_data_mlli(
 				&areq_ctx->srcSgl[areq_ctx->src.nents - 1]) +
 				(*src_last_bytes - authsize);
 			areq_ctx->icv_virt_addr = sg_virt(
-				&areq_ctx->srcSgl[areq_ctx->src.nents - 1]) + 
+				&areq_ctx->srcSgl[areq_ctx->src.nents - 1]) +
 				(*src_last_bytes - authsize);
 		}
 
@@ -1214,8 +1214,8 @@ static inline int ssi_buffer_mgr_aead_chain_data(
 		size_for_map += crypto_aead_ivsize(tfm);
 	}
 
-	size_for_map += (direct == DRV_CRYPTO_DIRECTION_ENCRYPT) ? authsize:0;	
-	src_mapped_nents = ssi_buffer_mgr_get_sgl_nents(req->src,size_for_map,&src_last_bytes, &chained);  
+	size_for_map += (direct == DRV_CRYPTO_DIRECTION_ENCRYPT) ? authsize:0;
+	src_mapped_nents = ssi_buffer_mgr_get_sgl_nents(req->src,size_for_map,&src_last_bytes, &chained);
 	sg_index = areq_ctx->srcSgl->length;
 	//check where the data starts
 	while (sg_index <= size_to_skip) {
@@ -1238,7 +1238,7 @@ static inline int ssi_buffer_mgr_aead_chain_data(
 
 	areq_ctx->src.nents = src_mapped_nents;
 
-	areq_ctx->srcOffset = offset;  
+	areq_ctx->srcOffset = offset;
 
 	if (req->src != req->dst) {
 		size_for_map = req->assoclen +req->cryptlen;
@@ -1253,7 +1253,7 @@ static inline int ssi_buffer_mgr_aead_chain_data(
 						   &dst_mapped_nents);
 		if (unlikely(rc != 0)) {
 			rc = -ENOMEM;
-			goto chain_data_exit; 
+			goto chain_data_exit;
 		}
 	}
 
@@ -1303,10 +1303,10 @@ static void ssi_buffer_mgr_update_aead_mlli_nents( struct ssi_drvdata *drvdata,
 {
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
 	uint32_t curr_mlli_size = 0;
-	
+
 	if (areq_ctx->assoc_buff_type == SSI_DMA_BUF_MLLI) {
 		areq_ctx->assoc.sram_addr = drvdata->mlli_sram_addr;
-		curr_mlli_size = areq_ctx->assoc.mlli_nents * 
+		curr_mlli_size = areq_ctx->assoc.mlli_nents *
 						LLI_ENTRY_BYTE_SIZE;
 	}
 
@@ -1318,31 +1318,31 @@ static void ssi_buffer_mgr_update_aead_mlli_nents( struct ssi_drvdata *drvdata,
 								curr_mlli_size;
 			areq_ctx->dst.sram_addr = areq_ctx->src.sram_addr;
 			if (areq_ctx->is_single_pass == false)
-				areq_ctx->assoc.mlli_nents += 
+				areq_ctx->assoc.mlli_nents +=
 					areq_ctx->src.mlli_nents;
 		} else {
-			if (areq_ctx->gen_ctx.op_type == 
+			if (areq_ctx->gen_ctx.op_type ==
 					DRV_CRYPTO_DIRECTION_DECRYPT) {
-				areq_ctx->src.sram_addr = 
+				areq_ctx->src.sram_addr =
 						drvdata->mlli_sram_addr +
 								curr_mlli_size;
-				areq_ctx->dst.sram_addr = 
-						areq_ctx->src.sram_addr + 
-						areq_ctx->src.mlli_nents * 
+				areq_ctx->dst.sram_addr =
+						areq_ctx->src.sram_addr +
+						areq_ctx->src.mlli_nents *
 						LLI_ENTRY_BYTE_SIZE;
 				if (areq_ctx->is_single_pass == false)
-					areq_ctx->assoc.mlli_nents += 
+					areq_ctx->assoc.mlli_nents +=
 						areq_ctx->src.mlli_nents;
 			} else {
-				areq_ctx->dst.sram_addr = 
+				areq_ctx->dst.sram_addr =
 						drvdata->mlli_sram_addr +
 								curr_mlli_size;
-				areq_ctx->src.sram_addr = 
+				areq_ctx->src.sram_addr =
 						areq_ctx->dst.sram_addr +
-						areq_ctx->dst.mlli_nents * 
+						areq_ctx->dst.mlli_nents *
 						LLI_ENTRY_BYTE_SIZE;
 				if (areq_ctx->is_single_pass == false)
-					areq_ctx->assoc.mlli_nents += 
+					areq_ctx->assoc.mlli_nents +=
 						areq_ctx->dst.mlli_nents;
 			}
 		}
@@ -1387,8 +1387,8 @@ int ssi_buffer_mgr_map_aead_request(
 #endif
 
 	/* cacluate the size for cipher remove ICV in decrypt*/
-	areq_ctx->cryptlen = (areq_ctx->gen_ctx.op_type == 
-				 DRV_CRYPTO_DIRECTION_ENCRYPT) ? 
+	areq_ctx->cryptlen = (areq_ctx->gen_ctx.op_type ==
+				 DRV_CRYPTO_DIRECTION_ENCRYPT) ?
 				req->cryptlen :
 				(req->cryptlen - authsize);
 
@@ -1489,15 +1489,15 @@ int ssi_buffer_mgr_map_aead_request(
 					    LLI_MAX_NUM_OF_ASSOC_DATA_ENTRIES+LLI_MAX_NUM_OF_DATA_ENTRIES, &dummy, &mapped_nents);
 	if (unlikely(rc != 0)) {
 		rc = -ENOMEM;
-		goto aead_map_failure; 
+		goto aead_map_failure;
 	}
 
 	if (likely(areq_ctx->is_single_pass == true)) {
 		/*
-		* Create MLLI table for: 
+		* Create MLLI table for:
 		*   (1) Assoc. data
 		*   (2) Src/Dst SGLs
-		*   Note: IV is contg. buffer (not an SGL) 
+		*   Note: IV is contg. buffer (not an SGL)
 		*/
 		rc = ssi_buffer_mgr_aead_chain_assoc(drvdata, req, &sg_data, true, false);
 		if (unlikely(rc != 0))
@@ -1511,19 +1511,19 @@ int ssi_buffer_mgr_map_aead_request(
 	} else { /* DOUBLE-PASS flow */
 		/*
 		* Prepare MLLI table(s) in this order:
-		*  
+		*
 		* If ENCRYPT/DECRYPT (inplace):
 		*   (1) MLLI table for assoc
 		*   (2) IV entry (chained right after end of assoc)
 		*   (3) MLLI for src/dst (inplace operation)
-		*  
-		* If ENCRYPT (non-inplace) 
+		*
+		* If ENCRYPT (non-inplace)
 		*   (1) MLLI table for assoc
 		*   (2) IV entry (chained right after end of assoc)
 		*   (3) MLLI for dst
 		*   (4) MLLI for src
-		*  
-		* If DECRYPT (non-inplace) 
+		*
+		* If DECRYPT (non-inplace)
 		*   (1) MLLI table for assoc
 		*   (2) IV entry (chained right after end of assoc)
 		*   (3) MLLI for src
@@ -1572,7 +1572,7 @@ int ssi_buffer_mgr_map_hash_request_final(
 			areq_ctx->buff0;
 	uint32_t *curr_buff_cnt = areq_ctx->buff_index ? &areq_ctx->buff1_cnt :
 			&areq_ctx->buff0_cnt;
-	struct mlli_params *mlli_params = &areq_ctx->mlli_params;	
+	struct mlli_params *mlli_params = &areq_ctx->mlli_params;
 	struct buffer_array sg_data;
 	struct buff_mgr_handle *buff_mgr = drvdata->buff_mgr_handle;
 	uint32_t dummy = 0;
@@ -1593,7 +1593,7 @@ int ssi_buffer_mgr_map_hash_request_final(
 		/* nothing to do */
 		return 0;
 	}
-	
+
 	/*TODO: copy data in case that buffer is enough for operation */
 	/* map the previous buffer */
 	if (*curr_buff_cnt != 0 ) {
@@ -1612,7 +1612,7 @@ int ssi_buffer_mgr_map_hash_request_final(
 					  &dummy, &mapped_nents))){
 			goto unmap_curr_buff;
 		}
-		if ( src && (mapped_nents == 1) 
+		if ( src && (mapped_nents == 1)
 		     && (areq_ctx->data_dma_buf_type == SSI_DMA_BUF_NULL) ) {
 			memcpy(areq_ctx->buff_sg,src,
 			       sizeof(struct scatterlist));
@@ -1668,7 +1668,7 @@ int ssi_buffer_mgr_map_hash_request_update(
 			areq_ctx->buff1;
 	uint32_t *next_buff_cnt = areq_ctx->buff_index ? &areq_ctx->buff0_cnt :
 			&areq_ctx->buff1_cnt;
-	struct mlli_params *mlli_params = &areq_ctx->mlli_params;	
+	struct mlli_params *mlli_params = &areq_ctx->mlli_params;
 	unsigned int update_data_len;
 	uint32_t total_in_len = nbytes + *curr_buff_cnt;
 	struct buffer_array sg_data;
@@ -1676,7 +1676,7 @@ int ssi_buffer_mgr_map_hash_request_update(
 	unsigned int swap_index = 0;
 	uint32_t dummy = 0;
 	uint32_t mapped_nents = 0;
-		
+
 	SSI_LOG_DEBUG(" update params : curr_buff=%pK "
 		     "curr_buff_cnt=0x%X nbytes=0x%X "
 		     "src=%pK curr_index=%u \n",
@@ -1694,12 +1694,12 @@ int ssi_buffer_mgr_map_hash_request_update(
 			     "*curr_buff_cnt=0x%X copy_to=%pK\n",
 			curr_buff, *curr_buff_cnt,
 			&curr_buff[*curr_buff_cnt]);
-		areq_ctx->in_nents = 
+		areq_ctx->in_nents =
 			ssi_buffer_mgr_get_sgl_nents(src,
 						    nbytes,
 						    &dummy, NULL);
 		sg_copy_to_buffer(src, areq_ctx->in_nents,
-				  &curr_buff[*curr_buff_cnt], nbytes); 
+				  &curr_buff[*curr_buff_cnt], nbytes);
 		*curr_buff_cnt += nbytes;
 		return 1;
 	}
@@ -1734,7 +1734,7 @@ int ssi_buffer_mgr_map_hash_request_update(
 		/* change the buffer index for next operation */
 		swap_index = 1;
 	}
-	
+
 	if ( update_data_len > *curr_buff_cnt ) {
 		if ( unlikely( ssi_buffer_mgr_map_scatterlist( dev,src,
 					  (update_data_len -*curr_buff_cnt),
@@ -1744,7 +1744,7 @@ int ssi_buffer_mgr_map_hash_request_update(
 					  &dummy, &mapped_nents))){
 			goto unmap_curr_buff;
 		}
-		if ( (mapped_nents == 1) 
+		if ( (mapped_nents == 1)
 		     && (areq_ctx->data_dma_buf_type == SSI_DMA_BUF_NULL) ) {
 			/* only one entry in the SG and no previous data */
 			memcpy(areq_ctx->buff_sg,src,
@@ -1792,10 +1792,10 @@ void ssi_buffer_mgr_unmap_hash_request(
 	uint32_t *prev_len = areq_ctx->buff_index ?  &areq_ctx->buff0_cnt :
 						&areq_ctx->buff1_cnt;
 
-	/*In case a pool was set, a table was 
+	/*In case a pool was set, a table was
 	  allocated and should be released */
 	if (areq_ctx->mlli_params.curr_pool != NULL) {
-		SSI_LOG_DEBUG("free MLLI buffer: dma=0x%llX virt=%pK\n", 
+		SSI_LOG_DEBUG("free MLLI buffer: dma=0x%llX virt=%pK\n",
 			     (unsigned long long)areq_ctx->mlli_params.mlli_dma_addr,
 			     areq_ctx->mlli_params.mlli_virt_addr);
 		SSI_RESTORE_DMA_ADDR_TO_48BIT(areq_ctx->mlli_params.mlli_dma_addr);
@@ -1803,22 +1803,22 @@ void ssi_buffer_mgr_unmap_hash_request(
 			      areq_ctx->mlli_params.mlli_virt_addr,
 			      areq_ctx->mlli_params.mlli_dma_addr);
 	}
-	
+
 	if ((src) && likely(areq_ctx->in_nents != 0)) {
 		SSI_LOG_DEBUG("Unmapped sg src: virt=%pK dma=0x%llX len=0x%X\n",
 			     sg_virt(src),
-			     (unsigned long long)sg_dma_address(src), 
+			     (unsigned long long)sg_dma_address(src),
 			     sg_dma_len(src));
 		SSI_RESTORE_DMA_ADDR_TO_48BIT(sg_dma_address(src));
-		dma_unmap_sg(dev, src, 
+		dma_unmap_sg(dev, src,
 			     areq_ctx->in_nents, DMA_TO_DEVICE);
 	}
 
 	if (*prev_len != 0) {
 		SSI_LOG_DEBUG("Unmapped buffer: areq_ctx->buff_sg=%pK"
-			     "dma=0x%llX len 0x%X\n", 
+			     "dma=0x%llX len 0x%X\n",
 				sg_virt(areq_ctx->buff_sg),
-				(unsigned long long)sg_dma_address(areq_ctx->buff_sg), 
+				(unsigned long long)sg_dma_address(areq_ctx->buff_sg),
 				sg_dma_len(areq_ctx->buff_sg));
 		dma_unmap_sg(dev, areq_ctx->buff_sg, 1, DMA_TO_DEVICE);
 		if (!do_revert) {
@@ -1844,7 +1844,7 @@ int ssi_buffer_mgr_init(struct ssi_drvdata *drvdata)
 
 	buff_mgr_handle->mlli_buffs_pool = dma_pool_create(
 				"dx_single_mlli_tables", dev,
-				MAX_NUM_OF_TOTAL_MLLI_ENTRIES * 
+				MAX_NUM_OF_TOTAL_MLLI_ENTRIES *
 				LLI_ENTRY_BYTE_SIZE,
 				MLLI_TABLE_MIN_ALIGNMENT, 0);
 

@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 2012-2017 ARM Limited or its affiliates.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
@@ -117,7 +117,7 @@ static int validate_data_size(struct ssi_ablkcipher_ctx *ctx_p, unsigned int siz
 		switch (ctx_p->cipher_mode){
 		case DRV_CIPHER_XTS:
 			if ((size >= SSI_MIN_AES_XTS_SIZE) &&
-			    (size <= SSI_MAX_AES_XTS_SIZE) && 
+			    (size <= SSI_MAX_AES_XTS_SIZE) &&
 			    IS_ALIGNED(size, AES_BLOCK_SIZE))
 				return 0;
 			break;
@@ -189,7 +189,7 @@ static int ssi_blkcipher_init(struct crypto_tfm *tfm)
 	int rc = 0;
 	unsigned int max_key_buf_size = get_max_keysize(tfm);
 
-	SSI_LOG_DEBUG("Initializing context @%p for %s\n", ctx_p, 
+	SSI_LOG_DEBUG("Initializing context @%p for %s\n", ctx_p,
 						crypto_tfm_alg_name(tfm));
 
 	CHECK_AND_RETURN_UPON_FIPS_ERROR();
@@ -251,7 +251,7 @@ static void ssi_blkcipher_exit(struct crypto_tfm *tfm)
 	SSI_RESTORE_DMA_ADDR_TO_48BIT(ctx_p->user.key_dma_addr);
 	dma_unmap_single(dev, ctx_p->user.key_dma_addr, max_key_buf_size,
 								DMA_TO_DEVICE);
-	SSI_LOG_DEBUG("Unmapped key buffer key_dma_addr=0x%llX\n", 
+	SSI_LOG_DEBUG("Unmapped key buffer key_dma_addr=0x%llX\n",
 		(unsigned long long)ctx_p->user.key_dma_addr);
 
 	/* Free key buffer in context */
@@ -266,9 +266,9 @@ typedef struct tdes_keys{
         u8      key3[DES_KEY_SIZE];
 }tdes_keys_t;
 
-static const u8 zero_buff[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 
+static const u8 zero_buff[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
                                0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-                               0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 
+                               0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
                                0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 
 /* The function verifies that tdes keys are not weak.*/
@@ -278,7 +278,7 @@ static int ssi_fips_verify_3des_keys(const u8 *key, unsigned int keylen)
         tdes_keys_t *tdes_key = (tdes_keys_t*)key;
 
 	/* verify key1 != key2 and key3 != key2*/
-        if (unlikely( (memcmp((u8*)tdes_key->key1, (u8*)tdes_key->key2, sizeof(tdes_key->key1)) == 0) || 
+        if (unlikely( (memcmp((u8*)tdes_key->key1, (u8*)tdes_key->key2, sizeof(tdes_key->key1)) == 0) ||
 		      (memcmp((u8*)tdes_key->key3, (u8*)tdes_key->key2, sizeof(tdes_key->key3)) == 0) )) {
                 return -ENOEXEC;
         }
@@ -317,8 +317,8 @@ static enum HwCryptoKey hw_key_to_cc_hw_key(int slot_num)
 	return END_OF_KEYS;
 }
 
-static int ssi_blkcipher_setkey(struct crypto_tfm *tfm, 
-				const u8 *key, 
+static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
+				const u8 *key,
 				unsigned int keylen)
 {
 	struct ssi_ablkcipher_ctx *ctx_p = crypto_tfm_ctx(tfm);
@@ -334,7 +334,7 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 
 	SSI_LOG_DEBUG("ssi_blkcipher_setkey: after FIPS check");
-	
+
 	/* STAT_PHASE_0: Init and sanity checks */
 	START_CYCLE_COUNT();
 
@@ -396,13 +396,13 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 			return -EINVAL;
 		}
 	}
-	if ((ctx_p->cipher_mode == DRV_CIPHER_XTS) && 
+	if ((ctx_p->cipher_mode == DRV_CIPHER_XTS) &&
 	    ssi_fips_verify_xts_keys(key, keylen) != 0) {
 		SSI_LOG_DEBUG("ssi_blkcipher_setkey: weak XTS key");
 		return -EINVAL;
 	}
-	if ((ctx_p->flow_mode == S_DIN_to_DES) && 
-	    (keylen == DES3_EDE_KEY_SIZE) && 
+	if ((ctx_p->flow_mode == S_DIN_to_DES) &&
+	    (keylen == DES3_EDE_KEY_SIZE) &&
 	    ssi_fips_verify_3des_keys(key, keylen) != 0) {
 		SSI_LOG_DEBUG("ssi_blkcipher_setkey: weak 3DES key");
 		return -EINVAL;
@@ -414,7 +414,7 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 	/* STAT_PHASE_1: Copy key to ctx */
 	START_CYCLE_COUNT();
 	SSI_RESTORE_DMA_ADDR_TO_48BIT(ctx_p->user.key_dma_addr);
-	dma_sync_single_for_cpu(dev, ctx_p->user.key_dma_addr, 
+	dma_sync_single_for_cpu(dev, ctx_p->user.key_dma_addr,
 					max_key_buf_size, DMA_TO_DEVICE);
 #if SSI_CC_HAS_MULTI2
 	if (ctx_p->flow_mode == S_DIN_to_MULTI2) {
@@ -426,7 +426,7 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 			SSI_LOG_DEBUG("ssi_blkcipher_setkey: SSI_CC_HAS_MULTI2 einval");
 			return -EINVAL;
 		}
-	} else 
+	} else
 #endif /*SSI_CC_HAS_MULTI2*/
 	{
 		memcpy(ctx_p->user.key, key, keylen);
@@ -447,11 +447,11 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 			}
 		}
 	}
-	dma_sync_single_for_device(dev, ctx_p->user.key_dma_addr, 
+	dma_sync_single_for_device(dev, ctx_p->user.key_dma_addr,
 					max_key_buf_size, DMA_TO_DEVICE);
 	SSI_UPDATE_DMA_ADDR_TO_48BIT(ctx_p->user.key_dma_addr ,max_key_buf_size);
 	ctx_p->keylen = keylen;
-	
+
 	END_CYCLE_COUNT(STAT_OP_TYPE_SETKEY, STAT_PHASE_1);
 
 	 SSI_LOG_DEBUG("ssi_blkcipher_setkey: return safely");
@@ -496,7 +496,7 @@ ssi_blkcipher_create_setup_desc(
 		HW_DESC_SET_CIPHER_CONFIG0(&desc[*seq_size], direction);
 		HW_DESC_SET_FLOW_MODE(&desc[*seq_size], flow_mode);
 		HW_DESC_SET_CIPHER_MODE(&desc[*seq_size], cipher_mode);
-		if ((cipher_mode == DRV_CIPHER_CTR) || 
+		if ((cipher_mode == DRV_CIPHER_CTR) ||
 		    (cipher_mode == DRV_CIPHER_OFB) ) {
 			HW_DESC_SET_SETUP_MODE(&desc[*seq_size],
 					       SETUP_LOAD_STATE1);
@@ -517,7 +517,7 @@ ssi_blkcipher_create_setup_desc(
 				HW_DESC_SET_HW_CRYPTO_KEY(&desc[*seq_size], ctx_p->hw.key1_slot);
 			} else {
 				HW_DESC_SET_DIN_TYPE(&desc[*seq_size], DMA_DLLI,
-						     key_dma_addr, 
+						     key_dma_addr,
 						     ((key_len == 24) ? AES_MAX_KEY_SIZE : key_len),
 						     NS_BIT);
 			}
@@ -559,7 +559,7 @@ ssi_blkcipher_create_setup_desc(
 		if (ssi_is_hw_key(tfm)) {
 			HW_DESC_SET_HW_CRYPTO_KEY(&desc[*seq_size], ctx_p->hw.key2_slot);
 		} else {
-			HW_DESC_SET_DIN_TYPE(&desc[*seq_size], DMA_DLLI, 
+			HW_DESC_SET_DIN_TYPE(&desc[*seq_size], DMA_DLLI,
 					     (key_dma_addr+key_len/2), key_len/2,
 					     NS_BIT);
 		}
@@ -568,7 +568,7 @@ ssi_blkcipher_create_setup_desc(
 		HW_DESC_SET_KEY_SIZE_AES(&desc[*seq_size], key_len/2);
 		HW_DESC_SET_SETUP_MODE(&desc[*seq_size], SETUP_LOAD_XEX_KEY);
 		(*seq_size)++;
-	
+
 		/* Set state */
 		HW_DESC_INIT(&desc[*seq_size]);
 		HW_DESC_SET_SETUP_MODE(&desc[*seq_size], SETUP_LOAD_STATE1);
@@ -596,7 +596,7 @@ static inline void ssi_blkcipher_create_multi2_setup_desc(
 	unsigned int *seq_size)
 {
 	struct ssi_ablkcipher_ctx *ctx_p = crypto_tfm_ctx(tfm);
-	
+
 	int direction = req_ctx->gen_ctx.op_type;
 	/* Load system key */
 	HW_DESC_INIT(&desc[*seq_size]);
@@ -611,8 +611,8 @@ static inline void ssi_blkcipher_create_multi2_setup_desc(
 
 	/* load data key */
 	HW_DESC_INIT(&desc[*seq_size]);
-	HW_DESC_SET_DIN_TYPE(&desc[*seq_size], DMA_DLLI, 
-					(ctx_p->user.key_dma_addr + 
+	HW_DESC_SET_DIN_TYPE(&desc[*seq_size], DMA_DLLI,
+					(ctx_p->user.key_dma_addr +
 						CC_MULTI2_SYSTEM_KEY_SIZE),
 				CC_MULTI2_DATA_KEY_SIZE, NS_BIT);
 	HW_DESC_SET_MULTI2_NUM_ROUNDS(&desc[*seq_size],
@@ -622,8 +622,8 @@ static inline void ssi_blkcipher_create_multi2_setup_desc(
 	HW_DESC_SET_CIPHER_CONFIG0(&desc[*seq_size], direction);
 	HW_DESC_SET_SETUP_MODE(&desc[*seq_size], SETUP_LOAD_STATE0 );
 	(*seq_size)++;
-	
-	
+
+
 	/* Set state */
 	HW_DESC_INIT(&desc[*seq_size]);
 	HW_DESC_SET_DIN_TYPE(&desc[*seq_size], DMA_DLLI,
@@ -632,9 +632,9 @@ static inline void ssi_blkcipher_create_multi2_setup_desc(
 	HW_DESC_SET_CIPHER_CONFIG0(&desc[*seq_size], direction);
 	HW_DESC_SET_FLOW_MODE(&desc[*seq_size], ctx_p->flow_mode);
 	HW_DESC_SET_CIPHER_MODE(&desc[*seq_size], ctx_p->cipher_mode);
-	HW_DESC_SET_SETUP_MODE(&desc[*seq_size], SETUP_LOAD_STATE1);	
+	HW_DESC_SET_SETUP_MODE(&desc[*seq_size], SETUP_LOAD_STATE1);
 	(*seq_size)++;
-	
+
 }
 #endif /*SSI_CC_HAS_MULTI2*/
 
@@ -715,7 +715,7 @@ ssi_blkcipher_create_data_desc(
 				     "addr 0x%08X\n",
 			(unsigned int)ctx_p->drvdata->mlli_sram_addr,
 			(unsigned int)ctx_p->drvdata->mlli_sram_addr);
-			HW_DESC_SET_DOUT_MLLI(&desc[*seq_size], 
+			HW_DESC_SET_DOUT_MLLI(&desc[*seq_size],
 			ctx_p->drvdata->mlli_sram_addr,
 					      req_ctx->in_mlli_nents,
 					      NS_BIT,(areq == NULL)? 0:1);
@@ -723,13 +723,13 @@ ssi_blkcipher_create_data_desc(
 			SSI_LOG_DEBUG(" din/dout params "
 				     "addr 0x%08X addr 0x%08X\n",
 				(unsigned int)ctx_p->drvdata->mlli_sram_addr,
-				(unsigned int)ctx_p->drvdata->mlli_sram_addr + 
-				(uint32_t)LLI_ENTRY_BYTE_SIZE * 
+				(unsigned int)ctx_p->drvdata->mlli_sram_addr +
+				(uint32_t)LLI_ENTRY_BYTE_SIZE *
 							req_ctx->in_nents);
-			HW_DESC_SET_DOUT_MLLI(&desc[*seq_size], 
+			HW_DESC_SET_DOUT_MLLI(&desc[*seq_size],
 				(ctx_p->drvdata->mlli_sram_addr +
-				LLI_ENTRY_BYTE_SIZE * 
-						req_ctx->in_mlli_nents), 
+				LLI_ENTRY_BYTE_SIZE *
+						req_ctx->in_mlli_nents),
 				req_ctx->out_mlli_nents, NS_BIT,(areq == NULL)? 0:1);
 		}
 		if (areq != NULL) {
@@ -741,7 +741,7 @@ ssi_blkcipher_create_data_desc(
 }
 
 static int ssi_blkcipher_complete(struct device *dev,
-                                  struct ssi_ablkcipher_ctx *ctx_p, 
+                                  struct ssi_ablkcipher_ctx *ctx_p,
                                   struct blkcipher_req_ctx *req_ctx,
                                   struct scatterlist *dst, struct scatterlist *src,
                                   void *info, //req info
@@ -779,7 +779,7 @@ static int ssi_blkcipher_process(
 	unsigned int nbytes,
 	void *info, //req info
 	unsigned int ivsize,
-	void *areq, 
+	void *areq,
 	enum drv_crypto_direction direction)
 {
 	struct ssi_ablkcipher_ctx *ctx_p = crypto_tfm_ctx(tfm);
@@ -796,7 +796,7 @@ static int ssi_blkcipher_process(
 	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 	/* STAT_PHASE_0: Init and sanity checks */
 	START_CYCLE_COUNT();
-	
+
 	/* TODO: check data length according to mode */
 	if (unlikely(validate_data_size(ctx_p, nbytes))) {
 		SSI_LOG_ERR("Unsupported data size %d.\n", nbytes);
@@ -826,12 +826,12 @@ static int ssi_blkcipher_process(
 
 	/* Setup request context */
 	req_ctx->gen_ctx.op_type = direction;
-	
+
 	END_CYCLE_COUNT(ssi_req.op_type, STAT_PHASE_0);
 
 	/* STAT_PHASE_1: Map buffers */
 	START_CYCLE_COUNT();
-	
+
 	rc = ssi_buffer_mgr_map_blkcipher_request(ctx_p->drvdata, req_ctx, ivsize, nbytes, info, src, dst);
 	if (unlikely(rc != 0)) {
 		SSI_LOG_ERR("map_request() failed\n");
@@ -863,7 +863,7 @@ static int ssi_blkcipher_process(
 	}
 	/* Data processing */
 	ssi_blkcipher_create_data_desc(tfm,
-			      req_ctx, 
+			      req_ctx,
 			      dst, src,
 			      nbytes,
 			      areq,
@@ -880,7 +880,7 @@ static int ssi_blkcipher_process(
 
 	/* STAT_PHASE_3: Lock HW and push sequence */
 	START_CYCLE_COUNT();
-	
+
 	rc = send_request(ctx_p->drvdata, &ssi_req, desc, seq_len, (areq == NULL)? 0:1);
 	if(areq != NULL) {
 		if (unlikely(rc != -EINPROGRESS)) {
@@ -892,17 +892,17 @@ static int ssi_blkcipher_process(
 	} else {
 		if (rc != 0) {
 			ssi_buffer_mgr_unmap_blkcipher_request(dev, req_ctx, ivsize, src, dst);
-			END_CYCLE_COUNT(ssi_req.op_type, STAT_PHASE_3);            
+			END_CYCLE_COUNT(ssi_req.op_type, STAT_PHASE_3);
 		} else {
 			END_CYCLE_COUNT(ssi_req.op_type, STAT_PHASE_3);
 			rc = ssi_blkcipher_complete(dev, ctx_p, req_ctx, dst, src, info, ivsize, NULL, ctx_p->drvdata->cc_base);
-		} 
+		}
 	}
 
 exit_process:
 	if (cts_restore_flag != 0)
 		ctx_p->cipher_mode = DRV_CIPHER_CBC_CTS;
-	
+
 	return rc;
 }
 
@@ -941,7 +941,7 @@ static int ssi_sblkcipher_init(struct crypto_tfm *tfm)
 static void ssi_sblkcipher_exit(struct crypto_tfm *tfm)
 {
 	struct ssi_ablkcipher_ctx *ctx_p = crypto_tfm_ctx(tfm);
-	
+
 	kfree(ctx_p->sync_ctx);
 	SSI_LOG_DEBUG("Free sync ctx buffer in context ctx_p->sync_ctx=@%p\n", ctx_p->sync_ctx);
 
@@ -987,15 +987,15 @@ static int ssi_sblkcipher_decrypt(struct blkcipher_desc *desc,
 static int ssi_ablkcipher_init(struct crypto_tfm *tfm)
 {
 	struct ablkcipher_tfm *ablktfm = &tfm->crt_ablkcipher;
-	
+
 	ablktfm->reqsize = sizeof(struct blkcipher_req_ctx);
 
 	return ssi_blkcipher_init(tfm);
 }
 
 
-static int ssi_ablkcipher_setkey(struct crypto_ablkcipher *tfm, 
-				const u8 *key, 
+static int ssi_ablkcipher_setkey(struct crypto_ablkcipher *tfm,
+				const u8 *key,
 				unsigned int keylen)
 {
 	return ssi_blkcipher_setkey(crypto_ablkcipher_tfm(tfm), key, keylen);
@@ -1383,7 +1383,7 @@ static struct ssi_alg_template blkcipher_algs[] = {
 #endif /*SSI_CC_HAS_MULTI2*/
 };
 
-static 
+static
 struct ssi_crypto_alg *ssi_ablkcipher_create_alg(struct ssi_alg_template *template)
 {
 	struct ssi_crypto_alg *t_alg;
@@ -1405,7 +1405,7 @@ struct ssi_crypto_alg *ssi_ablkcipher_create_alg(struct ssi_alg_template *templa
 	alg->cra_blocksize = template->blocksize;
 	alg->cra_alignmask = 0;
 	alg->cra_ctxsize = sizeof(struct ssi_ablkcipher_ctx);
-	
+
 	alg->cra_init = template->synchronous? ssi_sblkcipher_init:ssi_ablkcipher_init;
 	alg->cra_exit = template->synchronous? ssi_sblkcipher_exit:ssi_blkcipher_exit;
 	alg->cra_type = template->synchronous? &crypto_blkcipher_type:&crypto_ablkcipher_type;
@@ -1428,7 +1428,7 @@ struct ssi_crypto_alg *ssi_ablkcipher_create_alg(struct ssi_alg_template *templa
 int ssi_ablkcipher_free(struct ssi_drvdata *drvdata)
 {
 	struct ssi_crypto_alg *t_alg, *n;
-	struct ssi_blkcipher_handle *blkcipher_handle = 
+	struct ssi_blkcipher_handle *blkcipher_handle =
 						drvdata->blkcipher_handle;
 	struct device *dev;
 	dev = &drvdata->plat_dev->dev;
@@ -1489,9 +1489,9 @@ int ssi_ablkcipher_alloc(struct ssi_drvdata *drvdata)
 			kfree(t_alg);
 			goto fail0;
 		} else {
-			list_add_tail(&t_alg->entry, 
+			list_add_tail(&t_alg->entry,
 				      &ablkcipher_handle->blkcipher_alg_list);
-			SSI_LOG_DEBUG("Registered %s\n", 
+			SSI_LOG_DEBUG("Registered %s\n",
 					t_alg->crypto_alg.cra_driver_name);
 		}
 	}

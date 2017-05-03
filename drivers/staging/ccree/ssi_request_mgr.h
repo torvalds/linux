@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 2012-2017 ARM Limited or its affiliates.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
@@ -27,15 +27,15 @@ int request_mgr_init(struct ssi_drvdata *drvdata);
 
 /*!
  * Enqueue caller request to crypto hardware.
- * 
- * \param drvdata 
+ *
+ * \param drvdata
  * \param ssi_req The request to enqueue
  * \param desc The crypto sequence
  * \param len The crypto sequence length
- * \param is_dout If "true": completion is handled by the caller 
+ * \param is_dout If "true": completion is handled by the caller
  *      	  If "false": this function adds a dummy descriptor completion
  *      	  and waits upon completion signal.
- * 
+ *
  * \return int Returns -EINPROGRESS if "is_dout=ture"; "0" if "is_dout=false"
  */
 int send_request(

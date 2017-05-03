@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 2012-2017 ARM Limited or its affiliates.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
@@ -74,12 +74,12 @@ static enum ssi_fips_error ssi_fips_get_tee_error(struct ssi_drvdata *drvdata)
 	regVal = CC_HAL_READ_REGISTER(CC_REG_OFFSET(HOST_RGF, GPR_HOST));
 	if (regVal == (CC_FIPS_SYNC_TEE_STATUS | CC_FIPS_SYNC_MODULE_OK)) {
 		return CC_REE_FIPS_ERROR_OK;
-	} 
+	}
 	return CC_REE_FIPS_ERROR_FROM_TEE;
 }
 
 
-/* 
+/*
  This function should push the FIPS REE library status towards the TEE library.
  By writing the error state to HOST_GPR0 register. The function is called from  						.
  driver entry point so no need to protect by mutex.
@@ -119,7 +119,7 @@ void ssi_fips_fini(struct ssi_drvdata *drvdata)
 
 void fips_handler(struct ssi_drvdata *drvdata)
 {
-	struct ssi_fips_handle *fips_handle_ptr = 
+	struct ssi_fips_handle *fips_handle_ptr =
 						drvdata->fips_handle;
 #ifdef COMP_IN_WQ
 	queue_delayed_work(fips_handle_ptr->workq, &fips_handle_ptr->fipswork, 0);
@@ -154,11 +154,11 @@ static void fips_dsr(unsigned long devarg)
 		teeFipsError = CC_HAL_READ_REGISTER(CC_REG_OFFSET(HOST_RGF, GPR_HOST));
 		if (teeFipsError != (CC_FIPS_SYNC_TEE_STATUS | CC_FIPS_SYNC_MODULE_OK)) {
 			ssi_fips_set_error(drvdata, CC_REE_FIPS_ERROR_FROM_TEE);
-		} 
+		}
 	}
 
 	/* after verifing that there is nothing to do, Unmask AXI completion interrupt */
-	CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_IMR), 
+	CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_IMR),
 		CC_HAL_READ_REGISTER(
 		CC_REG_OFFSET(HOST_RGF, HOST_IMR)) & ~irq);
 }
@@ -231,11 +231,11 @@ ssi_fips_error_t cc_fips_run_power_up_tests(struct ssi_drvdata *drvdata)
 
 
 
-/* The function checks if FIPS supported and FIPS error exists.* 
+/* The function checks if FIPS supported and FIPS error exists.*
 *  It should be used in every driver API.*/
 int ssi_fips_check_fips_error(void)
 {
-	ssi_fips_state_t fips_state; 
+	ssi_fips_state_t fips_state;
 
 	if (ssi_fips_get_state(&fips_state) != 0) {
 		FIPS_LOG("ssi_fips_get_state FAILED, returning.. \n");
@@ -249,14 +249,14 @@ int ssi_fips_check_fips_error(void)
 }
 
 
-/* The function sets the REE FIPS state.* 
+/* The function sets the REE FIPS state.*
 *  It should be used while driver is being loaded .*/
 int ssi_fips_set_state(ssi_fips_state_t state)
 {
 	return ssi_fips_ext_set_state(state);
 }
 
-/* The function sets the REE FIPS error, and pushes the error to TEE library. * 
+/* The function sets the REE FIPS error, and pushes the error to TEE library. *
 *  It should be used when any of the KAT tests fails .*/
 int ssi_fips_set_error(struct ssi_drvdata *p_drvdata, ssi_fips_error_t err)
 {
@@ -268,7 +268,7 @@ int ssi_fips_set_error(struct ssi_drvdata *p_drvdata, ssi_fips_error_t err)
 	// setting no error is not allowed
 	if (err == CC_REE_FIPS_ERROR_OK) {
                 return -ENOEXEC;
-	} 
+	}
         // If error exists, do not set new error
         if (ssi_fips_get_error(&current_err) != 0) {
                 return -ENOEXEC;
