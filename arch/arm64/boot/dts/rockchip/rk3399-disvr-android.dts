@@ -839,22 +839,22 @@
  * and cpu(cluster1_opp) frequence.
  */
 &gpu_opp_table {
-	opp@200000000 {
+	opp-200000000 {
 		status = "disabled";
 	};
-	opp@297000000 {
+	opp-297000000 {
 		status = "disabled";
 	};
 };
 
 &cluster1_opp {
-	opp@408000000 {
+	opp-408000000 {
 		status = "disabled";
 	};
-	opp@600000000 {
+	opp-600000000 {
 		status = "disabled";
 	};
-	opp@816000000 {
+	opp-816000000 {
 		status = "disabled";
 	};
 };
