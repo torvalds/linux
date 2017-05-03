@@ -884,18 +884,6 @@ static inline void rcu_sysidle_force_exit(void) { }
 
 
 /*
- * Dump the ftrace buffer, but only one time per callsite per boot.
- */
-#define rcu_ftrace_dump(oops_dump_mode) \
-do { \
-	static atomic_t ___rfd_beenhere = ATOMIC_INIT(0); \
-	\
-	if (!atomic_read(&___rfd_beenhere) && \
-	    !atomic_xchg(&___rfd_beenhere, 1)) \
-		ftrace_dump(oops_dump_mode); \
-} while (0)
-
-/*
  * Place this after a lock-acquisition primitive to guarantee that
  * an UNLOCK+LOCK pair acts as a full barrier.  This guarantee applies
  * if the UNLOCK and LOCK are executed by the same CPU or if the

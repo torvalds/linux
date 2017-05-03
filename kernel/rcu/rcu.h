@@ -212,6 +212,18 @@ int rcu_jiffies_till_stall_check(void);
  */
 #define TPS(x)  tracepoint_string(x)
 
+/*
+ * Dump the ftrace buffer, but only one time per callsite per boot.
+ */
+#define rcu_ftrace_dump(oops_dump_mode) \
+do { \
+	static atomic_t ___rfd_beenhere = ATOMIC_INIT(0); \
+	\
+	if (!atomic_read(&___rfd_beenhere) && \
+	    !atomic_xchg(&___rfd_beenhere, 1)) \
+		ftrace_dump(oops_dump_mode); \
+} while (0)
+
 void rcu_early_boot_tests(void);
 void rcu_test_sync_prims(void);
 
