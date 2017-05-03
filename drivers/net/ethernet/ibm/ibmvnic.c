@@ -624,22 +624,10 @@ static int set_real_num_queues(struct net_device *netdev)
 	return rc;
 }
 
-static int ibmvnic_open(struct net_device *netdev)
+static int init_resources(struct ibmvnic_adapter *adapter)
 {
-	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
-	struct device *dev = &adapter->vdev->dev;
-	int rc = 0;
-	int i;
-
-	if (adapter->is_closed) {
-		rc = ibmvnic_init(adapter);
-		if (rc)
-			return rc;
-	}
-
-	rc = ibmvnic_login(netdev);
-	if (rc)
-		return rc;
+	struct net_device *netdev = adapter->netdev;
+	int i, rc;
 
 	rc = set_real_num_queues(netdev);
 	if (rc)
@@ -647,7 +635,7 @@ static int ibmvnic_open(struct net_device *netdev)
 
 	rc = init_sub_crq_irqs(adapter);
 	if (rc) {
-		dev_err(dev, "failed to initialize sub crq irqs\n");
+		netdev_err(netdev, "failed to initialize sub crq irqs\n");
 		return -1;
 	}
 
@@ -659,24 +647,46 @@ static int ibmvnic_open(struct net_device *netdev)
 	adapter->napi = kcalloc(adapter->req_rx_queues,
 				sizeof(struct napi_struct), GFP_KERNEL);
 	if (!adapter->napi)
-		goto ibmvnic_open_fail;
+		return -ENOMEM;
+
 	for (i = 0; i < adapter->req_rx_queues; i++) {
 		netif_napi_add(netdev, &adapter->napi[i], ibmvnic_poll,
 			       NAPI_POLL_WEIGHT);
-		napi_enable(&adapter->napi[i]);
 	}
 
 	send_map_query(adapter);
 
 	rc = init_rx_pools(netdev);
 	if (rc)
-		goto ibmvnic_open_fail;
+		return rc;
 
 	rc = init_tx_pools(netdev);
+	return rc;
+}
+
+static int ibmvnic_open(struct net_device *netdev)
+{
+	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
+	int i, rc;
+
+	if (adapter->is_closed) {
+		rc = ibmvnic_init(adapter);
+		if (rc)
+			return rc;
+	}
+
+	rc = ibmvnic_login(netdev);
 	if (rc)
-		goto ibmvnic_open_fail;
+		return rc;
+
+	rc = init_resources(adapter);
+	if (rc)
+		return rc;
 
 	replenish_pools(adapter);
+
+	for (i = 0; i < adapter->req_rx_queues; i++)
+		napi_enable(&adapter->napi[i]);
 
 	/* We're ready to receive frames, enable the sub-crq interrupts and
 	 * set the logical link state to up
@@ -688,19 +698,16 @@ static int ibmvnic_open(struct net_device *netdev)
 		enable_scrq_irq(adapter, adapter->tx_scrq[i]);
 
 	rc = set_link_state(adapter, IBMVNIC_LOGICAL_LNK_UP);
-	if (rc)
-		goto ibmvnic_open_fail;
+	if (rc) {
+		for (i = 0; i < adapter->req_rx_queues; i++)
+			napi_disable(&adapter->napi[i]);
+		release_resources(adapter);
+	} else {
+		netif_tx_start_all_queues(netdev);
+		adapter->is_closed = false;
+	}
 
-	netif_tx_start_all_queues(netdev);
-	adapter->is_closed = false;
-
-	return 0;
-
-ibmvnic_open_fail:
-	for (i = 0; i < adapter->req_rx_queues; i++)
-		napi_disable(&adapter->napi[i]);
-	release_resources(adapter);
-	return -ENOMEM;
+	return rc;
 }
 
 static void disable_sub_crqs(struct ibmvnic_adapter *adapter)
