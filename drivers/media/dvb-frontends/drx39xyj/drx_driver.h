@@ -450,19 +450,6 @@ MACROS
 			((u8)((((u16)x)>>8)&0xFF))
 
 /**
-* \brief Macro to sign extend signed 9 bit value to signed  16 bit value
-*/
-#define DRX_S9TOS16(x) ((((u16)x)&0x100) ? ((s16)((u16)(x)|0xFF00)) : (x))
-
-/**
-* \brief Macro to sign extend signed 9 bit value to signed  16 bit value
-*/
-#define DRX_S24TODRXFREQ(x) ((((u32) x) & 0x00800000UL) ? \
-				 ((s32) \
-				    (((u32) x) | 0xFF000000)) : \
-				 ((s32) x))
-
-/**
 * \brief Macro to convert 16 bit register value to a s32
 */
 #define DRX_U16TODRXFREQ(x)   ((x & 0x8000) ? \
