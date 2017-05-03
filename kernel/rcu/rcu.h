@@ -319,6 +319,10 @@ void rcu_unexpedite_gp(void);
 void rcupdate_announce_bootup_oddness(void);
 #endif /* #else #ifdef CONFIG_TINY_RCU */
 
+#define RCU_SCHEDULER_INACTIVE	0
+#define RCU_SCHEDULER_INIT	1
+#define RCU_SCHEDULER_RUNNING	2
+
 enum rcutorture_type {
 	RCU_FLAVOR,
 	RCU_BH_FLAVOR,
