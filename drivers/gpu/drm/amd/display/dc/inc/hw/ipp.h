@@ -122,7 +122,9 @@ struct ipp_funcs {
 		struct input_pixel_processor *ipp,
 		const struct pwl_params *params);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	void (*ipp_destroy)(struct input_pixel_processor **ipp);
+#endif
 };
 
 #endif /* __DAL_IPP_H__ */

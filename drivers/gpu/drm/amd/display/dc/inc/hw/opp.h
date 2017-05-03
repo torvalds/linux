@@ -27,7 +27,9 @@
 #define __DAL_OPP_H__
 
 #include "hw_shared.h"
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 #include "dc_hw_types.h"
+#endif
 #include "transform.h"
 
 struct fixed31_32;

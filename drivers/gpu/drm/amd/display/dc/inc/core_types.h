@@ -31,8 +31,10 @@
 #include "dcn_calcs.h"
 #include "ddc_service_types.h"
 #include "dc_bios_types.h"
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 #include "mem_input.h"
 #include "mpc.h"
+#endif
 
 struct core_stream;
 
@@ -256,7 +258,9 @@ struct resource_pool {
 
 	struct abm *abm;
 	struct dmcu *dmcu;
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	struct mpc *mpc;
+#endif
 
 	const struct resource_funcs *funcs;
 	const struct resource_caps *res_cap;
