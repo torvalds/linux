@@ -268,6 +268,8 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 			rc = smb_mnt_get_fsinfo(xid, tcon, (void __user *)arg);
 			break;
 		case CIFS_ENUMERATE_SNAPSHOTS:
+			if (pSMBFile == NULL)
+				break;
 			if (arg == 0) {
 				rc = -EINVAL;
 				goto cifs_ioc_exit;
