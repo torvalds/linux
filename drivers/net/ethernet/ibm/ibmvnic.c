@@ -760,6 +760,34 @@ static void disable_sub_crqs(struct ibmvnic_adapter *adapter)
 	}
 }
 
+static void clean_tx_pools(struct ibmvnic_adapter *adapter)
+{
+	struct ibmvnic_tx_pool *tx_pool;
+	u64 tx_entries;
+	int tx_scrqs;
+	int i, j;
+
+	if (!adapter->tx_pool)
+		return;
+
+	tx_scrqs = be32_to_cpu(adapter->login_rsp_buf->num_txsubm_subcrqs);
+	tx_entries = adapter->req_tx_entries_per_subcrq;
+
+	/* Free any remaining skbs in the tx buffer pools */
+	for (i = 0; i < tx_scrqs; i++) {
+		tx_pool = &adapter->tx_pool[i];
+		if (!tx_pool)
+			continue;
+
+		for (j = 0; j < tx_entries; j++) {
+			if (tx_pool->tx_buff[j].skb) {
+				dev_kfree_skb_any(tx_pool->tx_buff[j].skb);
+				tx_pool->tx_buff[j].skb = NULL;
+			}
+		}
+	}
+}
+
 static int __ibmvnic_close(struct net_device *netdev)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
@@ -768,6 +796,8 @@ static int __ibmvnic_close(struct net_device *netdev)
 
 	adapter->state = VNIC_CLOSING;
 	netif_tx_stop_all_queues(netdev);
+
+	clean_tx_pools(adapter);
 	disable_sub_crqs(adapter);
 
 	if (adapter->napi) {
