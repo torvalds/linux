@@ -1572,7 +1572,8 @@ static int amdgpu_early_init(struct amdgpu_device *adev)
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if ((amdgpu_ip_block_mask & (1 << i)) == 0) {
-			DRM_ERROR("disabled ip block: %d\n", i);
+			DRM_ERROR("disabled ip block: %d <%s>\n",
+				  i, adev->ip_blocks[i].version->funcs->name);
 			adev->ip_blocks[i].status.valid = false;
 		} else {
 			if (adev->ip_blocks[i].version->funcs->early_init) {
