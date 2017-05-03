@@ -420,6 +420,105 @@ static inline void srcutorture_get_gp_data(enum rcutorture_type test_type,
 
 #endif
 
+#ifdef CONFIG_TINY_RCU
+
+/*
+ * Return the number of grace periods started.
+ */
+static inline unsigned long rcu_batches_started(void)
+{
+	return 0;
+}
+
+/*
+ * Return the number of bottom-half grace periods started.
+ */
+static inline unsigned long rcu_batches_started_bh(void)
+{
+	return 0;
+}
+
+/*
+ * Return the number of sched grace periods started.
+ */
+static inline unsigned long rcu_batches_started_sched(void)
+{
+	return 0;
+}
+
+/*
+ * Return the number of grace periods completed.
+ */
+static inline unsigned long rcu_batches_completed(void)
+{
+	return 0;
+}
+
+/*
+ * Return the number of bottom-half grace periods completed.
+ */
+static inline unsigned long rcu_batches_completed_bh(void)
+{
+	return 0;
+}
+
+/*
+ * Return the number of sched grace periods completed.
+ */
+static inline unsigned long rcu_batches_completed_sched(void)
+{
+	return 0;
+}
+
+/*
+ * Return the number of expedited grace periods completed.
+ */
+static inline unsigned long rcu_exp_batches_completed(void)
+{
+	return 0;
+}
+
+/*
+ * Return the number of expedited sched grace periods completed.
+ */
+static inline unsigned long rcu_exp_batches_completed_sched(void)
+{
+	return 0;
+}
+
+static inline void rcu_force_quiescent_state(void)
+{
+}
+
+static inline void rcu_bh_force_quiescent_state(void)
+{
+}
+
+static inline void rcu_sched_force_quiescent_state(void)
+{
+}
+
+static inline void show_rcu_gp_kthreads(void)
+{
+}
+
+#else /* #ifdef CONFIG_TINY_RCU */
+extern unsigned long rcutorture_testseq;
+extern unsigned long rcutorture_vernum;
+unsigned long rcu_batches_started(void);
+unsigned long rcu_batches_started_bh(void);
+unsigned long rcu_batches_started_sched(void);
+unsigned long rcu_batches_completed(void);
+unsigned long rcu_batches_completed_bh(void);
+unsigned long rcu_batches_completed_sched(void);
+unsigned long rcu_exp_batches_completed(void);
+unsigned long rcu_exp_batches_completed_sched(void);
+void show_rcu_gp_kthreads(void);
+void rcu_force_quiescent_state(void);
+void rcu_bh_force_quiescent_state(void);
+void rcu_sched_force_quiescent_state(void);
+#endif /* #else #ifdef CONFIG_TINY_RCU */
+
 #if defined(CONFIG_RCU_NOCB_CPU_ALL)
 static inline bool rcu_is_nocb_cpu(int cpu) { return true; }
 #elif defined(CONFIG_RCU_NOCB_CPU)

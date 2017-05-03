@@ -79,22 +79,6 @@ void cond_synchronize_rcu(unsigned long oldstate);
 unsigned long get_state_synchronize_sched(void);
 void cond_synchronize_sched(unsigned long oldstate);
 
-extern unsigned long rcutorture_testseq;
-extern unsigned long rcutorture_vernum;
-unsigned long rcu_batches_started(void);
-unsigned long rcu_batches_started_bh(void);
-unsigned long rcu_batches_started_sched(void);
-unsigned long rcu_batches_completed(void);
-unsigned long rcu_batches_completed_bh(void);
-unsigned long rcu_batches_completed_sched(void);
-unsigned long rcu_exp_batches_completed(void);
-unsigned long rcu_exp_batches_completed_sched(void);
-void show_rcu_gp_kthreads(void);
-
-void rcu_force_quiescent_state(void);
-void rcu_bh_force_quiescent_state(void);
-void rcu_sched_force_quiescent_state(void);
-
 void rcu_idle_enter(void);
 void rcu_idle_exit(void);
 void rcu_irq_enter(void);
