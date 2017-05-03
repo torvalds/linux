@@ -805,12 +805,11 @@ struct pqi_scsi_dev {
 	u8	bay;
 	u8	box[8];
 	u16	phys_connector[8];
-	int	offload_configured;	/* I/O accel RAID offload configured */
-	int	offload_enabled;	/* I/O accel RAID offload enabled */
-	int	offload_enabled_pending;
-	int	offload_to_mirror;	/* Send next I/O accelerator RAID */
-					/* offload request to mirror drive. */
-	struct raid_map *raid_map;	/* I/O accelerator RAID map */
+	bool	raid_bypass_configured;	/* RAID bypass configured */
+	bool	raid_bypass_enabled;	/* RAID bypass enabled */
+	int	offload_to_mirror;	/* Send next RAID bypass request */
+					/* to mirror drive. */
+	struct raid_map *raid_map;	/* RAID bypass map */
 
 	struct pqi_sas_port *sas_port;
 	struct scsi_device *sdev;
@@ -827,7 +826,7 @@ struct pqi_scsi_dev {
 #define SCSI_VPD_SUPPORTED_PAGES	0x0	/* standard page */
 #define SCSI_VPD_DEVICE_ID		0x83	/* standard page */
 #define CISS_VPD_LV_DEVICE_GEOMETRY	0xc1	/* vendor-specific page */
-#define CISS_VPD_LV_OFFLOAD_STATUS	0xc2	/* vendor-specific page */
+#define CISS_VPD_LV_BYPASS_STATUS	0xc2	/* vendor-specific page */
 #define CISS_VPD_LV_STATUS		0xc3	/* vendor-specific page */
 
 #define VPD_PAGE	(1 << 8)
