@@ -218,8 +218,8 @@ static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
 		tl->seqno = seqno;
 
 		list_for_each_entry(timeline, &i915->gt.timelines, link)
-			memset(timeline->engine[id].sync_seqno, 0,
-			       sizeof(timeline->engine[id].sync_seqno));
+			memset(timeline->engine[id].global_sync, 0,
+			       sizeof(timeline->engine[id].global_sync));
 	}
 
 	return 0;
@@ -715,7 +715,7 @@ i915_gem_request_await_request(struct drm_i915_gem_request *to,
 		return ret < 0 ? ret : 0;
 	}
 
-	if (seqno <= to->timeline->sync_seqno[from->engine->id])
+	if (seqno <= to->timeline->global_sync[from->engine->id])
 		return 0;
 
 	trace_i915_gem_ring_sync_to(to, from);
@@ -733,7 +733,7 @@ i915_gem_request_await_request(struct drm_i915_gem_request *to,
 			return ret;
 	}
 
-	to->timeline->sync_seqno[from->engine->id] = seqno;
+	to->timeline->global_sync[from->engine->id] = seqno;
 	return 0;
 }
 
