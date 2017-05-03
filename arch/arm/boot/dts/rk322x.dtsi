@@ -566,15 +566,38 @@
 		status = "disabled";
 	};
 
-	vop_mmu: iommu@20053f00 {
+	vop: vop@20050000 {
+		compatible = "rockchip,rk322x-vop";
+		reg = <0x20050000 0x1ffc>;
+		reg-names = "regs";
+		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_VOP>, <&cru DCLK_VOP>, <&cru HCLK_VOP>;
+		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
+		resets = <&cru SRST_VOP_A>, <&cru SRST_VOP_H>, <&cru SRST_VOP_D>;
+		reset-names = "axi", "ahb", "dclk";
+		iommus = <&vop_mmu>;
+		status = "disabled";
+
+		vop_out: port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+	};
+
+	vop_mmu: iommu@20050300 {
 		compatible = "rockchip,iommu";
 		reg = <0x20053f00 0x100>;
 		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "vop_mmu";
 		clocks = <&cru ACLK_VOP>, <&cru HCLK_VOP>;
-		clock-names = "aclk", "iface";
-		iommu-cells = <0>;
+		clock-names = "aclk", "hclk";
+		#iommu-cells = <0>;
 		status = "disabled";
+	};
+
+	display-subsystem {
+		compatible = "rockchip,display-subsystem";
+		ports = <&vop_out>;
 	};
 
 	iep_mmu: iommu@20070800 {
