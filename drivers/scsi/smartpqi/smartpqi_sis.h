@@ -21,6 +21,7 @@
 
 int sis_wait_for_ctrl_ready(struct pqi_ctrl_info *ctrl_info);
 bool sis_is_firmware_running(struct pqi_ctrl_info *ctrl_info);
+bool sis_is_kernel_up(struct pqi_ctrl_info *ctrl_info);
 int sis_get_ctrl_properties(struct pqi_ctrl_info *ctrl_info);
 int sis_get_pqi_capabilities(struct pqi_ctrl_info *ctrl_info);
 int sis_init_base_struct_addr(struct pqi_ctrl_info *ctrl_info);

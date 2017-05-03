@@ -127,6 +127,12 @@ bool sis_is_firmware_running(struct pqi_ctrl_info *ctrl_info)
 	return running;
 }
 
+bool sis_is_kernel_up(struct pqi_ctrl_info *ctrl_info)
+{
+	return readl(&ctrl_info->registers->sis_firmware_status) &
+				SIS_CTRL_KERNEL_UP;
+}
+
 /* used for passing command parameters/results when issuing SIS commands */
 struct sis_sync_cmd_params {
 	u32	mailbox[6];	/* mailboxes 0-5 */

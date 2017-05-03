@@ -5245,38 +5245,50 @@ out:
 	return rc;
 }
 
-static int pqi_kdump_init(struct pqi_ctrl_info *ctrl_info)
+/* Switches the controller from PQI mode back into SIS mode. */
+
+static int pqi_revert_to_sis_mode(struct pqi_ctrl_info *ctrl_info)
+{
+	int rc;
+
+	sis_disable_msix(ctrl_info);
+	rc = pqi_reset(ctrl_info);
+	if (rc)
+		return rc;
+	sis_reenable_sis_mode(ctrl_info);
+	pqi_save_ctrl_mode(ctrl_info, SIS_MODE);
+
+	return 0;
+}
+
+/*
+ * If the controller isn't already in SIS mode, this function forces it into
+ * SIS mode.
+ */
+
+static int pqi_force_sis_mode(struct pqi_ctrl_info *ctrl_info)
 {
 	if (!sis_is_firmware_running(ctrl_info))
 		return -ENXIO;
 
-	if (pqi_get_ctrl_mode(ctrl_info) == PQI_MODE) {
-		sis_disable_msix(ctrl_info);
-		if (pqi_reset(ctrl_info) == 0)
-			sis_reenable_sis_mode(ctrl_info);
+	if (pqi_get_ctrl_mode(ctrl_info) == SIS_MODE)
+		return 0;
+
+	if (sis_is_kernel_up(ctrl_info)) {
+		pqi_save_ctrl_mode(ctrl_info, SIS_MODE);
+		return 0;
 	}
 
-	return 0;
+	return pqi_revert_to_sis_mode(ctrl_info);
 }
 
 static int pqi_ctrl_init(struct pqi_ctrl_info *ctrl_info)
 {
 	int rc;
 
-	if (reset_devices) {
-		rc = pqi_kdump_init(ctrl_info);
-		if (rc)
-			return rc;
-	}
-
-	/*
-	 * When the controller comes out of reset, it is always running
-	 * in legacy SIS mode.  This is so that it can be compatible
-	 * with legacy drivers shipped with OSes.  So we have to talk
-	 * to it using SIS commands at first.  Once we are satisified
-	 * that the controller supports PQI, we transition it into PQI
-	 * mode.
-	 */
+	rc = pqi_force_sis_mode(ctrl_info);
+	if (rc)
+		return rc;
 
 	/*
 	 * Wait until the controller is ready to start accepting SIS
@@ -5594,12 +5606,8 @@ static void pqi_remove_ctrl(struct pqi_ctrl_info *ctrl_info)
 	cancel_delayed_work_sync(&ctrl_info->update_time_work);
 	pqi_remove_all_scsi_devices(ctrl_info);
 	pqi_unregister_scsi(ctrl_info);
-
-	if (ctrl_info->pqi_mode_enabled) {
-		sis_disable_msix(ctrl_info);
-		if (pqi_reset(ctrl_info) == 0)
-			sis_reenable_sis_mode(ctrl_info);
-	}
+	if (ctrl_info->pqi_mode_enabled)
+		pqi_revert_to_sis_mode(ctrl_info);
 	pqi_free_ctrl_resources(ctrl_info);
 }
 

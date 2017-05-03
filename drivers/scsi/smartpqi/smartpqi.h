@@ -964,7 +964,7 @@ struct pqi_ctrl_info {
 };
 
 enum pqi_ctrl_mode {
-	UNKNOWN,
+	SIS_MODE = 0,
 	PQI_MODE
 };
 
