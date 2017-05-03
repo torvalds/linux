@@ -249,7 +249,7 @@ static int iwl_pcie_gen2_build_amsdu(struct iwl_trans *trans,
 		IEEE80211_CCMP_HDR_LEN : 0;
 
 	trace_iwlwifi_dev_tx(trans->dev, skb, tfd, sizeof(*tfd),
-			     &dev_cmd->hdr, start_len, NULL, 0);
+			     &dev_cmd->hdr, start_len, 0);
 
 	ip_hdrlen = skb_transport_header(skb) - skb_network_header(skb);
 	snap_ip_tcp_hdrlen = 8 + ip_hdrlen + tcp_hdrlen(skb);
@@ -467,8 +467,7 @@ struct iwl_tfh_tfd *iwl_pcie_gen2_build_tfd(struct iwl_trans *trans,
 	}
 
 	trace_iwlwifi_dev_tx(trans->dev, skb, tfd, sizeof(*tfd), &dev_cmd->hdr,
-			     IWL_FIRST_TB_SIZE + tb1_len,
-			     skb->data + hdr_len, tb2_len);
+			     IWL_FIRST_TB_SIZE + tb1_len, hdr_len);
 	trace_iwlwifi_dev_tx_data(trans->dev, skb, hdr_len);
 
 	return tfd;

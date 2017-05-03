@@ -1978,7 +1978,7 @@ static int iwl_fill_data_tbs(struct iwl_trans *trans, struct sk_buff *skb,
 			     iwl_pcie_get_tfd(trans_pcie, txq, txq->write_ptr),
 			     trans_pcie->tfd_size,
 			     &dev_cmd->hdr, IWL_FIRST_TB_SIZE + tb1_len,
-			     skb->data + hdr_len, tb2_len);
+			     hdr_len);
 	trace_iwlwifi_dev_tx_data(trans->dev, skb, hdr_len);
 	return 0;
 }
@@ -2051,8 +2051,7 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 	trace_iwlwifi_dev_tx(trans->dev, skb,
 			     iwl_pcie_get_tfd(trans_pcie, txq, txq->write_ptr),
 			     trans_pcie->tfd_size,
-			     &dev_cmd->hdr, IWL_FIRST_TB_SIZE + tb1_len,
-			     NULL, 0);
+			     &dev_cmd->hdr, IWL_FIRST_TB_SIZE + tb1_len, 0);
 
 	ip_hdrlen = skb_transport_header(skb) - skb_network_header(skb);
 	snap_ip_tcp_hdrlen = 8 + ip_hdrlen + tcp_hdrlen(skb);
