@@ -5197,9 +5197,9 @@ static inline int igb_maybe_stop_tx(struct igb_ring *tx_ring, const u16 size)
 	return __igb_maybe_stop_tx(tx_ring, size);
 }
 
-static void igb_tx_map(struct igb_ring *tx_ring,
-		       struct igb_tx_buffer *first,
-		       const u8 hdr_len)
+static int igb_tx_map(struct igb_ring *tx_ring,
+		      struct igb_tx_buffer *first,
+		      const u8 hdr_len)
 {
 	struct sk_buff *skb = first->skb;
 	struct igb_tx_buffer *tx_buffer;
@@ -5310,7 +5310,7 @@ static void igb_tx_map(struct igb_ring *tx_ring,
 		 */
 		mmiowb();
 	}
-	return;
+	return 0;
 
 dma_error:
 	dev_err(tx_ring->dev, "TX DMA map failed\n");
@@ -5341,6 +5341,8 @@ dma_error:
 	tx_buffer->skb = NULL;
 
 	tx_ring->next_to_use = i;
+
+	return -1;
 }
 
 netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
@@ -5406,13 +5408,24 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 	else if (!tso)
 		igb_tx_csum(tx_ring, first);
 
-	igb_tx_map(tx_ring, first, hdr_len);
+	if (igb_tx_map(tx_ring, first, hdr_len))
+		goto cleanup_tx_tstamp;
 
 	return NETDEV_TX_OK;
 
 out_drop:
 	dev_kfree_skb_any(first->skb);
 	first->skb = NULL;
+cleanup_tx_tstamp:
+	if (unlikely(tx_flags & IGB_TX_FLAGS_TSTAMP)) {
+		struct igb_adapter *adapter = netdev_priv(tx_ring->netdev);
+
+		dev_kfree_skb_any(adapter->ptp_tx_skb);
+		adapter->ptp_tx_skb = NULL;
+		if (adapter->hw.mac.type == e1000_82576)
+			cancel_work_sync(&adapter->ptp_tx_work);
+		clear_bit_unlock(__IGB_PTP_TX_IN_PROGRESS, &adapter->state);
+	}
 
 	return NETDEV_TX_OK;
 }
