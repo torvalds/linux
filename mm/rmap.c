@@ -1418,8 +1418,12 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 			 * Store the swap location in the pte.
 			 * See handle_pte_fault() ...
 			 */
-			VM_BUG_ON_PAGE(!PageSwapCache(page) && PageSwapBacked(page),
-				page);
+			if (unlikely(PageSwapBacked(page) != PageSwapCache(page))) {
+				WARN_ON_ONCE(1);
+				ret = SWAP_FAIL;
+				page_vma_mapped_walk_done(&pvmw);
+				break;
+			}
 
 			/* MADV_FREE page check */
 			if (!PageSwapBacked(page)) {
