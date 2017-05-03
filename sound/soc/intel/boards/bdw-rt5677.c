@@ -193,13 +193,12 @@ static int bdw_rt5677_init(struct snd_soc_pcm_runtime *rtd)
 			RT5677_CLK_SEL_I2S1_ASRC);
 
 	/* Request rt5677 GPIO for headphone amp control */
-	bdw_rt5677->gpio_hp_en = devm_gpiod_get_index(codec->dev,
-			"headphone-enable", 0, 0);
+	bdw_rt5677->gpio_hp_en = devm_gpiod_get(codec->dev, "headphone-enable",
+						GPIOD_OUT_LOW);
 	if (IS_ERR(bdw_rt5677->gpio_hp_en)) {
 		dev_err(codec->dev, "Can't find HP_AMP_SHDN_L gpio\n");
 		return PTR_ERR(bdw_rt5677->gpio_hp_en);
 	}
-	gpiod_direction_output(bdw_rt5677->gpio_hp_en, 0);
 
 	/* Create and initialize headphone jack */
 	if (!snd_soc_card_jack_new(rtd->card, "Headphone Jack",

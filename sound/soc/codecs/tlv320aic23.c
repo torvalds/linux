@@ -174,10 +174,9 @@ static const struct snd_soc_dapm_route tlv320aic23_intercon[] = {
 	{"ROUT", NULL, "Output Mixer"},
 
 	/* Inputs */
-	{"Line Input", "NULL", "LLINEIN"},
-	{"Line Input", "NULL", "RLINEIN"},
-
-	{"Mic Input", "NULL", "MICIN"},
+	{"Line Input", NULL, "LLINEIN"},
+	{"Line Input", NULL, "RLINEIN"},
+	{"Mic Input", NULL, "MICIN"},
 
 	/* input mux */
 	{"Capture Source", "Line", "Line Input"},

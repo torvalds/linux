@@ -258,7 +258,7 @@ int usX2Y_hwdep_new(struct snd_card *card, struct usb_device* device)
 	hw->ops.mmap = snd_us428ctls_mmap;
 	hw->ops.poll = snd_us428ctls_poll;
 	hw->exclusive = 1;
-	sprintf(hw->name, "/proc/bus/usb/%03d/%03d", device->bus->busnum, device->devnum);
+	sprintf(hw->name, "/dev/bus/usb/%03d/%03d", device->bus->busnum, device->devnum);
 	return 0;
 }
 

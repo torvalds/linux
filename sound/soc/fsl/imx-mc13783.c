@@ -48,7 +48,7 @@ static int imx_mc13783_hifi_hw_params(struct snd_pcm_substream *substream,
 	return snd_soc_dai_set_tdm_slot(cpu_dai, 0x3, 0x3, 2, 16);
 }
 
-static struct snd_soc_ops imx_mc13783_hifi_ops = {
+static const struct snd_soc_ops imx_mc13783_hifi_ops = {
 	.hw_params = imx_mc13783_hifi_hw_params,
 };
 

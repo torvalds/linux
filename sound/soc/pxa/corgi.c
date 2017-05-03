@@ -154,7 +154,7 @@ static int corgi_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops corgi_ops = {
+static const struct snd_soc_ops corgi_ops = {
 	.startup = corgi_startup,
 	.hw_params = corgi_hw_params,
 	.shutdown = corgi_shutdown,
