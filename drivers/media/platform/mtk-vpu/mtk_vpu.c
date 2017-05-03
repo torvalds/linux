@@ -589,7 +589,7 @@ int vpu_load_firmware(struct platform_device *pdev)
 					       );
 	if (ret == 0) {
 		ret = -ETIME;
-		dev_err(dev, "wait vpu initialization timout!\n");
+		dev_err(dev, "wait vpu initialization timeout!\n");
 		goto OUT_LOAD_FW;
 	} else if (-ERESTARTSYS == ret) {
 		dev_err(dev, "wait vpu interrupted by a signal!\n");

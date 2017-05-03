@@ -241,7 +241,7 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 					 pin_reg & BIT(ACTIVE_LEVEL_OFF + 1))
 					active_level = "Active on both|";
 				else
-					active_level = "Unknow Active level|";
+					active_level = "Unknown Active level|";
 
 				if (pin_reg & BIT(LEVEL_TRIG_OFF))
 					level_trig = "Level trigger|";
