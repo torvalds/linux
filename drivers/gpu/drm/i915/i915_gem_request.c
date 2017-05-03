@@ -711,13 +711,15 @@ i915_gem_request_await_request(struct drm_i915_gem_request *to,
 	if (!seqno)
 		goto await_dma_fence;
 
-	if (!i915.semaphores) {
+	if (!to->engine->semaphore.sync_to) {
 		if (!__i915_gem_request_started(from, seqno))
 			goto await_dma_fence;
 
 		if (!__i915_spin_request(from, seqno, TASK_INTERRUPTIBLE, 2))
 			goto await_dma_fence;
 	} else {
+		GEM_BUG_ON(!from->engine->semaphore.signal);
+
 		if (seqno <= to->timeline->global_sync[from->engine->id])
 			return 0;
 
