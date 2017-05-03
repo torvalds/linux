@@ -108,4 +108,10 @@ config LEDS_TRIGGER_CAMERA
 	  This enables direct flash/torch on/off by the driver, kernel space.
 	  If unsure, say Y.
 
+config LEDS_TRIGGER_MULTI_CTRL
+	tristate "LED Multi-Control Trigger"
+	depends on LEDS_TRIGGERS && LEDS_TRIGGER_DEFAULT_ON && LEDS_TRIGGER_TIMER && LEDS_TRIGGER_ONESHOT
+	help
+	  This allows userspace control all the leds at one time by ioctl operation.
+
 endif # LEDS_TRIGGERS

@@ -175,6 +175,26 @@ void led_trigger_set_default(struct led_classdev *led_cdev)
 }
 EXPORT_SYMBOL_GPL(led_trigger_set_default);
 
+#ifdef CONFIG_LEDS_TRIGGER_MULTI_CTRL
+void led_trigger_set_by_name(struct led_classdev *led_cdev, char *trig_name)
+{
+	struct led_trigger *trig;
+
+	if (!trig_name)
+		return;
+
+	down_read(&triggers_list_lock);
+	down_write(&led_cdev->trigger_lock);
+	list_for_each_entry(trig, &trigger_list, next_trig) {
+		if (!strcmp(trig_name, trig->name))
+			led_trigger_set(led_cdev, trig);
+	}
+	up_write(&led_cdev->trigger_lock);
+	up_read(&triggers_list_lock);
+}
+EXPORT_SYMBOL_GPL(led_trigger_set_by_name);
+#endif
+
 void led_trigger_rename_static(const char *name, struct led_trigger *trig)
 {
 	/* new name must be on a temporary string to prevent races */

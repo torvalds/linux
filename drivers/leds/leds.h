@@ -50,4 +50,11 @@ void led_stop_software_blink(struct led_classdev *led_cdev);
 extern struct rw_semaphore leds_list_lock;
 extern struct list_head leds_list;
 
+#ifdef CONFIG_LEDS_TRIGGER_MULTI_CTRL
+void led_trigger_set_by_name(struct led_classdev *led_cdev, char *trig_name);
+#else
+static inline void led_trigger_set_by_name(struct led_classdev *led_cdev,
+					   char *trig_name) {}
+#endif
+
 #endif	/* __LEDS_H_INCLUDED */
