@@ -422,6 +422,10 @@ void sis_soft_reset(struct pqi_ctrl_info *ctrl_info)
 
 void sis_shutdown_ctrl(struct pqi_ctrl_info *ctrl_info)
 {
+	if (readl(&ctrl_info->registers->sis_firmware_status) &
+		SIS_CTRL_KERNEL_PANIC)
+		return;
+
 	writel(SIS_TRIGGER_SHUTDOWN,
 		&ctrl_info->registers->sis_host_to_ctrl_doorbell);
 }

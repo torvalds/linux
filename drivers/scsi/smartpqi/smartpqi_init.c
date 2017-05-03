@@ -267,6 +267,14 @@ static inline void pqi_cancel_rescan_worker(struct pqi_ctrl_info *ctrl_info)
 	cancel_delayed_work_sync(&ctrl_info->rescan_work);
 }
 
+static inline u32 pqi_read_heartbeat_counter(struct pqi_ctrl_info *ctrl_info)
+{
+	if (!ctrl_info->heartbeat_counter)
+		return 0;
+
+	return readl(ctrl_info->heartbeat_counter);
+}
+
 static int pqi_map_single(struct pci_dev *pci_dev,
 	struct pqi_sg_descriptor *sg_descriptor, void *buffer,
 	size_t buffer_length, int data_direction)
@@ -2708,22 +2716,17 @@ static inline unsigned int pqi_num_elements_free(unsigned int pi,
 	return elements_in_queue - num_elements_used - 1;
 }
 
-#define PQI_EVENT_ACK_TIMEOUT	30
-
-static void pqi_start_event_ack(struct pqi_ctrl_info *ctrl_info,
+static void pqi_send_event_ack(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_event_acknowledge_request *iu, size_t iu_length)
 {
 	pqi_index_t iq_pi;
 	pqi_index_t iq_ci;
 	unsigned long flags;
 	void *next_element;
-	unsigned long timeout;
 	struct pqi_queue_group *queue_group;
 
 	queue_group = &ctrl_info->queue_groups[PQI_DEFAULT_QUEUE_GROUP];
 	put_unaligned_le16(queue_group->oq_id, &iu->header.response_queue_id);
-
-	timeout = (PQI_EVENT_ACK_TIMEOUT * HZ) + jiffies;
 
 	while (1) {
 		spin_lock_irqsave(&queue_group->submit_lock[RAID_PATH], flags);
@@ -2738,11 +2741,8 @@ static void pqi_start_event_ack(struct pqi_ctrl_info *ctrl_info,
 		spin_unlock_irqrestore(
 			&queue_group->submit_lock[RAID_PATH], flags);
 
-		if (time_after(jiffies, timeout)) {
-			dev_err(&ctrl_info->pci_dev->dev,
-				"sending event acknowledge timed out\n");
+		if (pqi_ctrl_offline(ctrl_info))
 			return;
-		}
 	}
 
 	next_element = queue_group->iq_element_array[RAID_PATH] +
@@ -2751,7 +2751,6 @@ static void pqi_start_event_ack(struct pqi_ctrl_info *ctrl_info,
 	memcpy(next_element, iu, iu_length);
 
 	iq_pi = (iq_pi + 1) % ctrl_info->num_elements_per_iq;
-
 	queue_group->iq_pi_copy[RAID_PATH] = iq_pi;
 
 	/*
@@ -2777,7 +2776,7 @@ static void pqi_acknowledge_event(struct pqi_ctrl_info *ctrl_info,
 	request.event_id = event->event_id;
 	request.additional_event_id = event->additional_event_id;
 
-	pqi_start_event_ack(ctrl_info, &request, sizeof(request));
+	pqi_send_event_ack(ctrl_info, &request, sizeof(request));
 }
 
 static void pqi_event_worker(struct work_struct *work)
@@ -2785,7 +2784,6 @@ static void pqi_event_worker(struct work_struct *work)
 	unsigned int i;
 	struct pqi_ctrl_info *ctrl_info;
 	struct pqi_event *event;
-	bool got_non_heartbeat_event = false;
 
 	ctrl_info = container_of(work, struct pqi_ctrl_info, event_work);
 
@@ -2797,8 +2795,6 @@ static void pqi_event_worker(struct work_struct *work)
 		if (event->pending) {
 			event->pending = false;
 			pqi_acknowledge_event(ctrl_info, event);
-			if (i != PQI_EVENT_TYPE_HEARTBEAT)
-				got_non_heartbeat_event = true;
 		}
 		event++;
 	}
@@ -2848,57 +2844,58 @@ static void pqi_take_ctrl_offline(struct pqi_ctrl_info *ctrl_info)
 	}
 }
 
-#define PQI_HEARTBEAT_TIMER_INTERVAL	(5 * HZ)
-#define PQI_MAX_HEARTBEAT_REQUESTS	5
+#define PQI_HEARTBEAT_TIMER_INTERVAL	(10 * HZ)
 
 static void pqi_heartbeat_timer_handler(unsigned long data)
 {
 	int num_interrupts;
+	u32 heartbeat_count;
 	struct pqi_ctrl_info *ctrl_info = (struct pqi_ctrl_info *)data;
 
-	if (!ctrl_info->heartbeat_timer_started)
+	pqi_check_ctrl_health(ctrl_info);
+	if (pqi_ctrl_offline(ctrl_info))
 		return;
 
 	num_interrupts = atomic_read(&ctrl_info->num_interrupts);
+	heartbeat_count = pqi_read_heartbeat_counter(ctrl_info);
 
 	if (num_interrupts == ctrl_info->previous_num_interrupts) {
-		ctrl_info->num_heartbeats_requested++;
-		if (ctrl_info->num_heartbeats_requested >
-			PQI_MAX_HEARTBEAT_REQUESTS) {
+		if (heartbeat_count == ctrl_info->previous_heartbeat_count) {
+			dev_err(&ctrl_info->pci_dev->dev,
+				"no heartbeat detected - last heartbeat count: %u\n",
+				heartbeat_count);
 			pqi_take_ctrl_offline(ctrl_info);
 			return;
 		}
-		ctrl_info->events[PQI_EVENT_HEARTBEAT].pending = true;
-		schedule_work(&ctrl_info->event_work);
 	} else {
-		ctrl_info->num_heartbeats_requested = 0;
+		ctrl_info->previous_num_interrupts = num_interrupts;
 	}
 
-	ctrl_info->previous_num_interrupts = num_interrupts;
+	ctrl_info->previous_heartbeat_count = heartbeat_count;
 	mod_timer(&ctrl_info->heartbeat_timer,
 		jiffies + PQI_HEARTBEAT_TIMER_INTERVAL);
 }
 
 static void pqi_start_heartbeat_timer(struct pqi_ctrl_info *ctrl_info)
 {
+	if (!ctrl_info->heartbeat_counter)
+		return;
+
 	ctrl_info->previous_num_interrupts =
 		atomic_read(&ctrl_info->num_interrupts);
+	ctrl_info->previous_heartbeat_count =
+		pqi_read_heartbeat_counter(ctrl_info);
 
-	init_timer(&ctrl_info->heartbeat_timer);
 	ctrl_info->heartbeat_timer.expires =
 		jiffies + PQI_HEARTBEAT_TIMER_INTERVAL;
 	ctrl_info->heartbeat_timer.data = (unsigned long)ctrl_info;
 	ctrl_info->heartbeat_timer.function = pqi_heartbeat_timer_handler;
-	ctrl_info->heartbeat_timer_started = true;
 	add_timer(&ctrl_info->heartbeat_timer);
 }
 
 static inline void pqi_stop_heartbeat_timer(struct pqi_ctrl_info *ctrl_info)
 {
-	if (ctrl_info->heartbeat_timer_started) {
-		ctrl_info->heartbeat_timer_started = false;
-		del_timer_sync(&ctrl_info->heartbeat_timer);
-	}
+	del_timer_sync(&ctrl_info->heartbeat_timer);
 }
 
 static inline int pqi_event_type_to_event_index(unsigned int event_type)
@@ -2925,12 +2922,10 @@ static unsigned int pqi_process_event_intr(struct pqi_ctrl_info *ctrl_info)
 	struct pqi_event_queue *event_queue;
 	struct pqi_event_response *response;
 	struct pqi_event *event;
-	bool need_delayed_work;
 	int event_index;
 
 	event_queue = &ctrl_info->event_queue;
 	num_events = 0;
-	need_delayed_work = false;
 	oq_ci = event_queue->oq_ci_copy;
 
 	while (1) {
@@ -2953,10 +2948,6 @@ static unsigned int pqi_process_event_intr(struct pqi_ctrl_info *ctrl_info)
 				event->event_id = response->event_id;
 				event->additional_event_id =
 					response->additional_event_id;
-				if (event_index != PQI_EVENT_TYPE_HEARTBEAT) {
-					event->pending = true;
-					need_delayed_work = true;
-				}
 			}
 		}
 
@@ -2966,9 +2957,7 @@ static unsigned int pqi_process_event_intr(struct pqi_ctrl_info *ctrl_info)
 	if (num_events) {
 		event_queue->oq_ci_copy = oq_ci;
 		writel(oq_ci, event_queue->oq_ci);
-
-		if (need_delayed_work)
-			schedule_work(&ctrl_info->event_work);
+		schedule_work(&ctrl_info->event_work);
 	}
 
 	return num_events;
@@ -3220,7 +3209,7 @@ static int pqi_alloc_operational_queues(struct pqi_ctrl_info *ctrl_info)
 
 	if (!ctrl_info->queue_memory_base) {
 		dev_err(&ctrl_info->pci_dev->dev,
-			"failed to allocate memory for PQI admin queues\n");
+			"unable to allocate memory for PQI admin queues\n");
 		return -ENOMEM;
 	}
 
@@ -5672,6 +5661,55 @@ out:
 	return rc;
 }
 
+static int pqi_process_config_table(struct pqi_ctrl_info *ctrl_info)
+{
+	u32 table_length;
+	u32 section_offset;
+	void __iomem *table_iomem_addr;
+	struct pqi_config_table *config_table;
+	struct pqi_config_table_section_header *section;
+
+	table_length = ctrl_info->config_table_length;
+
+	config_table = kmalloc(table_length, GFP_KERNEL);
+	if (!config_table) {
+		dev_err(&ctrl_info->pci_dev->dev,
+			"unable to allocate memory for PQI configuration table\n");
+		return -ENOMEM;
+	}
+
+	/*
+	 * Copy the config table contents from I/O memory space into the
+	 * temporary buffer.
+	 */
+	table_iomem_addr = ctrl_info->iomem_base +
+		ctrl_info->config_table_offset;
+	memcpy_fromio(config_table, table_iomem_addr, table_length);
+
+	section_offset =
+		get_unaligned_le32(&config_table->first_section_offset);
+
+	while (section_offset) {
+		section = (void *)config_table + section_offset;
+
+		switch (get_unaligned_le16(&section->section_id)) {
+		case PQI_CONFIG_TABLE_SECTION_HEARTBEAT:
+			ctrl_info->heartbeat_counter = table_iomem_addr +
+				section_offset +
+				offsetof(struct pqi_config_table_heartbeat,
+					heartbeat_counter);
+			break;
+		}
+
+		section_offset =
+			get_unaligned_le16(&section->next_section_offset);
+	}
+
+	kfree(config_table);
+
+	return 0;
+}
+
 /* Switches the controller from PQI mode back into SIS mode. */
 
 static int pqi_revert_to_sis_mode(struct pqi_ctrl_info *ctrl_info)
@@ -5782,6 +5820,10 @@ static int pqi_ctrl_init(struct pqi_ctrl_info *ctrl_info)
 	/* From here on, we are running in PQI mode. */
 	ctrl_info->pqi_mode_enabled = true;
 	pqi_save_ctrl_mode(ctrl_info, PQI_MODE);
+
+	rc = pqi_process_config_table(ctrl_info);
+	if (rc)
+		return rc;
 
 	rc = pqi_alloc_admin_queues(ctrl_info);
 	if (rc) {
@@ -6090,6 +6132,8 @@ static struct pqi_ctrl_info *pqi_alloc_ctrl_info(int numa_node)
 
 	INIT_DELAYED_WORK(&ctrl_info->rescan_work, pqi_rescan_worker);
 	INIT_DELAYED_WORK(&ctrl_info->update_time_work, pqi_update_time_worker);
+
+	init_timer(&ctrl_info->heartbeat_timer);
 
 	sema_init(&ctrl_info->sync_request_sem,
 		PQI_RESERVED_IO_SLOTS_SYNCHRONOUS_REQUESTS);

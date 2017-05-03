@@ -490,7 +490,6 @@ struct pqi_raid_error_info {
 #define PQI_EVENT_TYPE_LOGICAL_DEVICE		0x5
 #define PQI_EVENT_TYPE_AIO_STATE_CHANGE		0xfd
 #define PQI_EVENT_TYPE_AIO_CONFIG_CHANGE	0xfe
-#define PQI_EVENT_TYPE_HEARTBEAT		0xff
 
 #pragma pack()
 
@@ -635,6 +634,58 @@ struct pqi_encryption_info {
 	u32	encrypt_tweak_upper;
 };
 
+#pragma pack(1)
+
+#define PQI_CONFIG_TABLE_SIGNATURE	"CFGTABLE"
+#define PQI_CONFIG_TABLE_MAX_LENGTH	((u16)~0)
+
+/* configuration table section IDs */
+#define PQI_CONFIG_TABLE_SECTION_GENERAL_INFO		0
+#define PQI_CONFIG_TABLE_SECTION_FIRMWARE_FEATURES	1
+#define PQI_CONFIG_TABLE_SECTION_FIRMWARE_ERRATA	2
+#define PQI_CONFIG_TABLE_SECTION_DEBUG			3
+#define PQI_CONFIG_TABLE_SECTION_HEARTBEAT		4
+
+struct pqi_config_table {
+	u8	signature[8];		/* "CFGTABLE" */
+	__le32	first_section_offset;	/* offset in bytes from the base */
+					/* address of this table to the */
+					/* first section */
+};
+
+struct pqi_config_table_section_header {
+	__le16	section_id;		/* as defined by the */
+					/* PQI_CONFIG_TABLE_SECTION_* */
+					/* manifest constants above */
+	__le16	next_section_offset;	/* offset in bytes from base */
+					/* address of the table of the */
+					/* next section or 0 if last entry */
+};
+
+struct pqi_config_table_general_info {
+	struct pqi_config_table_section_header header;
+	__le32	section_length;		/* size of this section in bytes */
+					/* including the section header */
+	__le32	max_outstanding_requests;	/* max. outstanding */
+						/* commands supported by */
+						/* the controller */
+	__le32	max_sg_size;		/* max. transfer size of a single */
+					/* command */
+	__le32	max_sg_per_request;	/* max. number of scatter-gather */
+					/* entries supported in a single */
+					/* command */
+};
+
+struct pqi_config_table_debug {
+	struct pqi_config_table_section_header header;
+	__le32	scratchpad;
+};
+
+struct pqi_config_table_heartbeat {
+	struct pqi_config_table_section_header header;
+	__le32	heartbeat_counter;
+};
+
 #define PQI_MAX_OUTSTANDING_REQUESTS	((u32)~0)
 #define PQI_MAX_TRANSFER_SIZE		(4 * 1024U * 1024U)
 
@@ -644,8 +695,6 @@ struct pqi_encryption_info {
 #define PQI_RAID_VOLUME_BUS		1
 #define PQI_HBA_BUS			2
 #define PQI_MAX_BUS			PQI_HBA_BUS
-
-#pragma pack(1)
 
 struct report_lun_header {
 	__be32	list_length;
@@ -870,7 +919,6 @@ struct pqi_io_request {
 	struct list_head request_list_entry;
 };
 
-#define PQI_EVENT_HEARTBEAT		0
 #define PQI_NUM_SUPPORTED_EVENTS	6
 
 struct pqi_event {
@@ -943,7 +991,6 @@ struct pqi_ctrl_info {
 	u8		inbound_spanning_supported : 1;
 	u8		outbound_spanning_supported : 1;
 	u8		pqi_mode_enabled : 1;
-	u8		heartbeat_timer_started : 1;
 	u8		update_time_worker_scheduled : 1;
 
 	struct list_head scsi_device_list;
@@ -963,7 +1010,8 @@ struct pqi_ctrl_info {
 
 	atomic_t	num_interrupts;
 	int		previous_num_interrupts;
-	unsigned int	num_heartbeats_requested;
+	u32		previous_heartbeat_count;
+	__le32 __iomem	*heartbeat_counter;
 	struct timer_list heartbeat_timer;
 
 	struct semaphore sync_request_sem;
