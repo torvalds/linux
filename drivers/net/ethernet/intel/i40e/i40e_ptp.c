@@ -328,6 +328,36 @@ void i40e_ptp_rx_hang(struct i40e_pf *pf)
 }
 
 /**
+ * i40e_ptp_tx_hang - Detect error case when Tx timestamp register is hung
+ * @pf: The PF private data structure
+ *
+ * This watchdog task is run periodically to make sure that we clear the Tx
+ * timestamp logic if we don't obtain a timestamp in a reasonable amount of
+ * time. It is unexpected in the normal case but if it occurs it results in
+ * permanently prevent timestamps of future packets
+ **/
+void i40e_ptp_tx_hang(struct i40e_pf *pf)
+{
+	if (!(pf->flags & I40E_FLAG_PTP) || !pf->ptp_tx)
+		return;
+
+	/* Nothing to do if we're not already waiting for a timestamp */
+	if (!test_bit(__I40E_PTP_TX_IN_PROGRESS, pf->state))
+		return;
+
+	/* We already have a handler routine which is run when we are notified
+	 * of a Tx timestamp in the hardware. If we don't get an interrupt
+	 * within a second it is reasonable to assume that we never will.
+	 */
+	if (time_is_before_jiffies(pf->ptp_tx_start + HZ)) {
+		dev_kfree_skb_any(pf->ptp_tx_skb);
+		pf->ptp_tx_skb = NULL;
+		clear_bit_unlock(__I40E_PTP_TX_IN_PROGRESS, pf->state);
+		pf->tx_hwtstamp_timeouts++;
+	}
+}
+
+/**
  * i40e_ptp_tx_hwtstamp - Utility function which returns the Tx timestamp
  * @pf: Board private structure
  *

@@ -6373,6 +6373,7 @@ static void i40e_watchdog_subtask(struct i40e_pf *pf)
 	}
 
 	i40e_ptp_rx_hang(pf);
+	i40e_ptp_tx_hang(pf);
 }
 
 /**
