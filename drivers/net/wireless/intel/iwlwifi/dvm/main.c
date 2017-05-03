@@ -1513,7 +1513,7 @@ out_destroy_workqueue:
 out_free_eeprom_blob:
 	kfree(priv->eeprom_blob);
 out_free_eeprom:
-	iwl_free_nvm_data(priv->nvm_data);
+	kfree(priv->nvm_data);
 out_free_hw:
 	ieee80211_free_hw(priv->hw);
 out:
@@ -1532,7 +1532,7 @@ static void iwl_op_mode_dvm_stop(struct iwl_op_mode *op_mode)
 	iwl_tt_exit(priv);
 
 	kfree(priv->eeprom_blob);
-	iwl_free_nvm_data(priv->nvm_data);
+	kfree(priv->nvm_data);
 
 	/*netif_stop_queue(dev); */
 	flush_workqueue(priv->workqueue);
