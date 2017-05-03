@@ -395,13 +395,16 @@ int i2c_mux_add_adapter(struct i2c_mux_core *muxc,
 	if (force_nr) {
 		priv->adap.nr = force_nr;
 		ret = i2c_add_numbered_adapter(&priv->adap);
+		dev_err(&parent->dev,
+			"failed to add mux-adapter %u as bus %u (error=%d)\n",
+			chan_id, force_nr, ret);
 	} else {
 		ret = i2c_add_adapter(&priv->adap);
+		dev_err(&parent->dev,
+			"failed to add mux-adapter %u (error=%d)\n",
+			chan_id, ret);
 	}
 	if (ret < 0) {
-		dev_err(&parent->dev,
-			"failed to add mux-adapter (error=%d)\n",
-			ret);
 		kfree(priv);
 		return ret;
 	}

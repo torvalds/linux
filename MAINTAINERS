@@ -7775,6 +7775,14 @@ S:	Maintained
 F:	Documentation/hwmon/ltc4261
 F:	drivers/hwmon/ltc4261.c
 
+LTC4306 I2C MULTIPLEXER DRIVER
+M:	Michael Hennerich <michael.hennerich@analog.com>
+W:	http://ez.analog.com/community/linux-device-drivers
+L:	linux-i2c@vger.kernel.org
+S:	Supported
+F:	drivers/i2c/muxes/i2c-mux-ltc4306.c
+F:	Documentation/devicetree/bindings/i2c/i2c-mux-ltc4306.txt
+
 LTP (Linux Test Project)
 M:	Mike Frysinger <vapier@gentoo.org>
 M:	Cyril Hrubis <chrubis@suse.cz>

@@ -79,7 +79,7 @@
  * @pm_qos: pm_qos_request used while holding a hardware lock on the bus
  * @acquire_lock: function to acquire a hardware lock on the bus
  * @release_lock: function to release a hardware lock on the bus
- * @pm_runtime_disabled: true if pm runtime is disabled
+ * @pm_disabled: true if power-management should be disabled for this i2c-bus
  *
  * HCNT and LCNT parameters can be used if the platform knows more accurate
  * values than the one computed based only on the input clock frequency.
@@ -128,7 +128,7 @@ struct dw_i2c_dev {
 	struct pm_qos_request	pm_qos;
 	int			(*acquire_lock)(struct dw_i2c_dev *dev);
 	void			(*release_lock)(struct dw_i2c_dev *dev);
-	bool			pm_runtime_disabled;
+	bool			pm_disabled;
 };
 
 #define ACCESS_SWAP		0x00000001
