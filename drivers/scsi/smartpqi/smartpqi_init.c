@@ -1823,19 +1823,25 @@ static void pqi_remove_all_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 {
 	unsigned long flags;
 	struct pqi_scsi_dev *device;
-	struct pqi_scsi_dev *next;
 
-	spin_lock_irqsave(&ctrl_info->scsi_device_list_lock, flags);
+	while (1) {
+		spin_lock_irqsave(&ctrl_info->scsi_device_list_lock, flags);
 
-	list_for_each_entry_safe(device, next, &ctrl_info->scsi_device_list,
-		scsi_device_list_entry) {
+		device = list_first_entry_or_null(&ctrl_info->scsi_device_list,
+			struct pqi_scsi_dev, scsi_device_list_entry);
+		if (device)
+			list_del(&device->scsi_device_list_entry);
+
+		spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock,
+			flags);
+
+		if (!device)
+			break;
+
 		if (device->sdev)
 			pqi_remove_device(ctrl_info, device);
-		list_del(&device->scsi_device_list_entry);
 		pqi_free_device(device);
 	}
-
-	spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
 }
 
 static int pqi_scan_scsi_devices(struct pqi_ctrl_info *ctrl_info)
