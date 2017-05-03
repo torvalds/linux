@@ -4722,6 +4722,7 @@ no_wait:
 
 	igb_spoof_check(adapter);
 	igb_ptp_rx_hang(adapter);
+	igb_ptp_tx_hang(adapter);
 
 	/* Check LVMMC register on i350/i354 only */
 	if ((adapter->hw.mac.type == e1000_i350) ||
