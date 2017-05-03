@@ -1044,6 +1044,9 @@ struct task_struct {
 	/* A live task holds one reference: */
 	atomic_t			stack_refcount;
 #endif
+#ifdef CONFIG_LIVEPATCH
+	int patch_state;
+#endif
 	/* CPU-specific state of this task: */
 	struct thread_struct		thread;
 

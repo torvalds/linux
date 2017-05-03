@@ -720,6 +720,12 @@ config HAVE_STACK_VALIDATION
 	  Architecture supports the 'objtool check' host tool command, which
 	  performs compile-time stack metadata validation.
 
+config HAVE_RELIABLE_STACKTRACE
+	bool
+	help
+	  Architecture has a save_stack_trace_tsk_reliable() function which
+	  only returns a stack trace if it can guarantee the trace is reliable.
+
 config HAVE_ARCH_HASH
 	bool
 	default n
