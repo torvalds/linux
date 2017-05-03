@@ -687,6 +687,7 @@ i915_gem_request_await_request(struct drm_i915_gem_request *to,
 	int ret;
 
 	GEM_BUG_ON(to == from);
+	GEM_BUG_ON(to->timeline == from->timeline);
 
 	if (i915_gem_request_completed(from))
 		return 0;
@@ -698,9 +699,6 @@ i915_gem_request_await_request(struct drm_i915_gem_request *to,
 		if (ret < 0)
 			return ret;
 	}
-
-	if (to->timeline == from->timeline)
-		return 0;
 
 	if (to->engine == from->engine) {
 		ret = i915_sw_fence_await_sw_fence_gfp(&to->submit,
@@ -765,6 +763,14 @@ i915_gem_request_await_dma_fence(struct drm_i915_gem_request *req,
 	do {
 		fence = *child++;
 		if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
+			continue;
+
+		/*
+		 * Requests on the same timeline are explicitly ordered, along
+		 * with their dependencies, by i915_add_request() which ensures
+		 * that requests are submitted in-order through each ring.
+		 */
+		if (fence->context == req->fence.context)
 			continue;
 
 		if (dma_fence_is_i915(fence))
