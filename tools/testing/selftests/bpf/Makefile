@@ -34,6 +34,6 @@ $(BPFOBJ): force
 CLANG ?= clang
 
 %.o: %.c
-	$(CLANG) -I../../../include/uapi -I../../../../samples/bpf/ \
-		-D__x86_64__ -Wno-compare-distinct-pointer-types \
+	$(CLANG) -I. -I../../../include/uapi -I../../../../samples/bpf/ \
+		-Wno-compare-distinct-pointer-types \
 		-O2 -target bpf -c $< -o $@
