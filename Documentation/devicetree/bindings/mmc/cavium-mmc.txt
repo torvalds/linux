@@ -1,0 +1,57 @@
+* Cavium Octeon & ThunderX MMC controller
+
+The highspeed MMC host controller on Caviums SoCs provides an interface
+for MMC and SD types of memory cards.
+
+Supported maximum speeds are the ones of the eMMC standard 4.41 as well
+as the speed of SD standard 4.0. Only 3.3 Volt is supported.
+
+Required properties:
+ - compatible : should be one of:
+   cavium,octeon-6130-mmc
+   cavium,octeon-7890-mmc
+   cavium,thunder-8190-mmc
+   cavium,thunder-8390-mmc
+   mmc-slot
+ - reg : mmc controller base registers
+ - clocks : phandle
+
+Optional properties:
+ - for cd, bus-width and additional generic mmc parameters
+   please refer to mmc.txt within this directory
+ - cavium,cmd-clk-skew : number of coprocessor clocks before sampling command
+ - cavium,dat-clk-skew : number of coprocessor clocks before sampling data
+
+Deprecated properties:
+- spi-max-frequency : use max-frequency instead
+- cavium,bus-max-width : use bus-width instead
+- power-gpios : use vmmc-supply instead
+- cavium,octeon-6130-mmc-slot : use mmc-slot instead
+
+Examples:
+	mmc_1_4: mmc@1,4 {
+		compatible = "cavium,thunder-8390-mmc";
+		reg = <0x0c00 0 0 0 0>;	/* DEVFN = 0x0c (1:4) */
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clocks = <&sclk>;
+
+		mmc-slot@0 {
+			compatible = "mmc-slot";
+			reg = <0>;
+			vmmc-supply = <&mmc_supply_3v3>;
+			max-frequency = <42000000>;
+			bus-width = <4>;
+			cap-sd-highspeed;
+		};
+
+		mmc-slot@1 {
+			compatible = "mmc-slot";
+			reg = <1>;
+			vmmc-supply = <&mmc_supply_3v3>;
+			max-frequency = <42000000>;
+			bus-width = <8>;
+			cap-mmc-highspeed;
+			non-removable;
+		};
+	};
