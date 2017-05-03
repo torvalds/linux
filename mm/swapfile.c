@@ -672,6 +672,9 @@ checks:
 		else
 			goto done;
 	}
+	si->swap_map[offset] = usage;
+	inc_cluster_info_page(si, si->cluster_info, offset);
+	unlock_cluster(ci);
 
 	if (offset == si->lowest_bit)
 		si->lowest_bit++;
@@ -685,9 +688,6 @@ checks:
 		plist_del(&si->avail_list, &swap_avail_head);
 		spin_unlock(&swap_avail_lock);
 	}
-	si->swap_map[offset] = usage;
-	inc_cluster_info_page(si, si->cluster_info, offset);
-	unlock_cluster(ci);
 	si->cluster_next = offset + 1;
 	slots[n_ret++] = swp_entry(si->type, offset);
 
