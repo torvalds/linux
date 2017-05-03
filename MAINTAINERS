@@ -8228,8 +8228,8 @@ M:	Cyrille Pitchen <cyrille.pitchen@wedev4u.fr>
 L:	linux-mtd@lists.infradead.org
 W:	http://www.linux-mtd.infradead.org/
 Q:	http://patchwork.ozlabs.org/project/linux-mtd/list/
-T:	git git://git.infradead.org/linux-mtd.git
-T:	git git://git.infradead.org/l2-mtd.git
+T:	git git://git.infradead.org/linux-mtd.git master
+T:	git git://git.infradead.org/l2-mtd.git master
 S:	Maintained
 F:	Documentation/devicetree/bindings/mtd/
 F:	drivers/mtd/
@@ -8605,7 +8605,8 @@ R:	Richard Weinberger <richard@nod.at>
 L:	linux-mtd@lists.infradead.org
 W:	http://www.linux-mtd.infradead.org/
 Q:	http://patchwork.ozlabs.org/project/linux-mtd/list/
-T:	git git://github.com/linux-nand/linux.git
+T:	git git://git.infradead.org/linux-mtd.git nand/fixes
+T:	git git://git.infradead.org/l2-mtd.git nand/next
 S:	Maintained
 F:	drivers/mtd/nand/
 F:	include/linux/mtd/nand*.h
