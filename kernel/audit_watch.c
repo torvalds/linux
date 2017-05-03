@@ -103,7 +103,7 @@ static inline struct audit_parent *audit_find_parent(struct inode *inode)
 	struct audit_parent *parent = NULL;
 	struct fsnotify_mark *entry;
 
-	entry = fsnotify_find_inode_mark(audit_watch_group, inode);
+	entry = fsnotify_find_mark(&inode->i_fsnotify_marks, audit_watch_group);
 	if (entry)
 		parent = container_of(entry, struct audit_parent, mark);
 
@@ -158,9 +158,9 @@ static struct audit_parent *audit_init_parent(struct path *path)
 
 	INIT_LIST_HEAD(&parent->watches);
 
-	fsnotify_init_mark(&parent->mark, audit_watch_free_mark);
+	fsnotify_init_mark(&parent->mark, audit_watch_group);
 	parent->mark.mask = AUDIT_FS_WATCH;
-	ret = fsnotify_add_mark(&parent->mark, audit_watch_group, inode, NULL, 0);
+	ret = fsnotify_add_mark(&parent->mark, inode, NULL, 0);
 	if (ret < 0) {
 		audit_free_parent(parent);
 		return ERR_PTR(ret);
@@ -473,7 +473,8 @@ static int audit_watch_handle_event(struct fsnotify_group *group,
 				    struct fsnotify_mark *inode_mark,
 				    struct fsnotify_mark *vfsmount_mark,
 				    u32 mask, const void *data, int data_type,
-				    const unsigned char *dname, u32 cookie)
+				    const unsigned char *dname, u32 cookie,
+				    struct fsnotify_iter_info *iter_info)
 {
 	const struct inode *inode;
 	struct audit_parent *parent;
@@ -507,6 +508,7 @@ static int audit_watch_handle_event(struct fsnotify_group *group,
 
 static const struct fsnotify_ops audit_watch_fsnotify_ops = {
 	.handle_event = 	audit_watch_handle_event,
+	.free_mark =		audit_watch_free_mark,
 };
 
 static int __init audit_watch_init(void)
