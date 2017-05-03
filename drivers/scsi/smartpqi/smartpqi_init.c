@@ -2441,13 +2441,43 @@ static void pqi_process_raid_io_error(struct pqi_io_request *io_request)
 	scsi_status = error_info->status;
 	host_byte = DID_OK;
 
-	if (error_info->data_out_result == PQI_DATA_IN_OUT_UNDERFLOW) {
+	switch (error_info->data_out_result) {
+	case PQI_DATA_IN_OUT_GOOD:
+		break;
+	case PQI_DATA_IN_OUT_UNDERFLOW:
 		xfer_count =
 			get_unaligned_le32(&error_info->data_out_transferred);
 		residual_count = scsi_bufflen(scmd) - xfer_count;
 		scsi_set_resid(scmd, residual_count);
 		if (xfer_count < scmd->underflow)
 			host_byte = DID_SOFT_ERROR;
+		break;
+	case PQI_DATA_IN_OUT_UNSOLICITED_ABORT:
+	case PQI_DATA_IN_OUT_ABORTED:
+		host_byte = DID_ABORT;
+		break;
+	case PQI_DATA_IN_OUT_TIMEOUT:
+		host_byte = DID_TIME_OUT;
+		break;
+	case PQI_DATA_IN_OUT_BUFFER_OVERFLOW:
+	case PQI_DATA_IN_OUT_PROTOCOL_ERROR:
+	case PQI_DATA_IN_OUT_BUFFER_ERROR:
+	case PQI_DATA_IN_OUT_BUFFER_OVERFLOW_DESCRIPTOR_AREA:
+	case PQI_DATA_IN_OUT_BUFFER_OVERFLOW_BRIDGE:
+	case PQI_DATA_IN_OUT_ERROR:
+	case PQI_DATA_IN_OUT_HARDWARE_ERROR:
+	case PQI_DATA_IN_OUT_PCIE_FABRIC_ERROR:
+	case PQI_DATA_IN_OUT_PCIE_COMPLETION_TIMEOUT:
+	case PQI_DATA_IN_OUT_PCIE_COMPLETER_ABORT_RECEIVED:
+	case PQI_DATA_IN_OUT_PCIE_UNSUPPORTED_REQUEST_RECEIVED:
+	case PQI_DATA_IN_OUT_PCIE_ECRC_CHECK_FAILED:
+	case PQI_DATA_IN_OUT_PCIE_UNSUPPORTED_REQUEST:
+	case PQI_DATA_IN_OUT_PCIE_ACS_VIOLATION:
+	case PQI_DATA_IN_OUT_PCIE_TLP_PREFIX_BLOCKED:
+	case PQI_DATA_IN_OUT_PCIE_POISONED_MEMORY_READ:
+	default:
+		host_byte = DID_ERROR;
+		break;
 	}
 
 	sense_data_length = get_unaligned_le16(&error_info->sense_data_length);
