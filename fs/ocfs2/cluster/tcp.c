@@ -450,9 +450,8 @@ static struct o2net_sock_container *sc_alloc(struct o2nm_node *node)
 	INIT_WORK(&sc->sc_shutdown_work, o2net_shutdown_sc);
 	INIT_DELAYED_WORK(&sc->sc_keepalive_work, o2net_sc_send_keep_req);
 
-	init_timer(&sc->sc_idle_timeout);
-	sc->sc_idle_timeout.function = o2net_idle_timer;
-	sc->sc_idle_timeout.data = (unsigned long)sc;
+	setup_timer(&sc->sc_idle_timeout, o2net_idle_timer,
+		    (unsigned long)sc);
 
 	sclog(sc, "alloced\n");
 
