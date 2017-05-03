@@ -725,20 +725,10 @@
 			status = "disabled";
 		};
 
-		fixed_5v_hub: regulator@0 {
-			compatible = "regulator-fixed";
-			regulator-name = "fixed_5v_hub";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			regulator-boot-on;
-			gpio = <&gpio0 7 0>;
-			regulator-always-on;
-		};
-
 		usb_phy: usbphy {
 			compatible = "hisilicon,hi6220-usb-phy";
 			#phy-cells = <0>;
-			phy-supply = <&fixed_5v_hub>;
+			phy-supply = <&reg_5v_hub>;
 			hisilicon,peripheral-syscon = <&sys_ctrl>;
 		};
 

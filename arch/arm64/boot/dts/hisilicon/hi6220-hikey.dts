@@ -81,6 +81,16 @@
 		};
 	};
 
+	reg_5v_hub: regulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "5V_HUB";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+		gpio = <&gpio0 7 0>;
+		regulator-always-on;
+	};
+
 	soc {
 		spi0: spi@f7106000 {
 			status = "ok";
