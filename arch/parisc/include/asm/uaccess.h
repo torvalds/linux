@@ -6,7 +6,6 @@
  */
 #include <asm/page.h>
 #include <asm/cache.h>
-#include <asm-generic/uaccess-unaligned.h>
 
 #include <linux/bug.h>
 #include <linux/string.h>
