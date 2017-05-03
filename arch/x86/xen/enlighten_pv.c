@@ -974,6 +974,13 @@ void xen_setup_shared_info(void)
 #endif
 
 	xen_setup_mfn_list_list();
+
+	/*
+	 * Now that shared info is set up we can start using routines that
+	 * point to pvclock area.
+	 */
+	if (system_state == SYSTEM_BOOTING)
+		xen_init_time_ops();
 }
 
 /* This is called once we have the cpu_possible_mask */
@@ -1271,8 +1278,6 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	x86_init.resources.memory_setup = xen_memory_setup;
 	x86_init.oem.arch_setup = xen_arch_setup;
 	x86_init.oem.banner = xen_banner;
-
-	xen_init_time_ops();
 
 	/*
 	 * Set up some pagetable state before starting to set any ptes.
