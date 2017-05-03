@@ -38,6 +38,7 @@
 
 extern struct bus_type i2c_bus_type;
 extern struct device_type i2c_adapter_type;
+extern struct device_type i2c_client_type;
 
 /* --- General options ------------------------------------------------	*/
 
@@ -306,6 +307,8 @@ static inline int i2c_slave_event(struct i2c_client *client,
  * @of_node: pointer to OpenFirmware device node
  * @fwnode: device node supplied by the platform firmware
  * @properties: additional device properties for the device
+ * @resources: resources associated with the device
+ * @num_resources: number of resources in the @resources array
  * @irq: stored in i2c_client.irq
  *
  * I2C doesn't actually support hardware probing, although controllers and
@@ -328,6 +331,8 @@ struct i2c_board_info {
 	struct device_node *of_node;
 	struct fwnode_handle *fwnode;
 	const struct property_entry *properties;
+	const struct resource *resources;
+	unsigned int	num_resources;
 	int		irq;
 };
 

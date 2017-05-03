@@ -143,7 +143,7 @@ config INPUT_PM8941_PWRKEY
 
 config INPUT_PM8XXX_VIBRATOR
 	tristate "Qualcomm PM8XXX vibrator support"
-	depends on MFD_PM8XXX
+	depends on MFD_PM8XXX || MFD_SPMI_PMIC
 	select INPUT_FF_MEMLESS
 	help
 	  This option enables device driver support for the vibrator
