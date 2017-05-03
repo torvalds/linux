@@ -368,8 +368,6 @@ struct pp_hwmgr_func {
 	int (*get_mclk_od)(struct pp_hwmgr *hwmgr);
 	int (*set_mclk_od)(struct pp_hwmgr *hwmgr, uint32_t value);
 	int (*read_sensor)(struct pp_hwmgr *hwmgr, int idx, void *value, int *size);
-	int (*request_firmware)(struct pp_hwmgr *hwmgr);
-	int (*release_firmware)(struct pp_hwmgr *hwmgr);
 	int (*set_power_profile_state)(struct pp_hwmgr *hwmgr,
 			struct amd_pp_profile *request);
 	int (*avfs_control)(struct pp_hwmgr *hwmgr, bool enable);
