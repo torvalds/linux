@@ -992,7 +992,10 @@ static int pqi_validate_raid_map(struct pqi_ctrl_info *ctrl_info,
 	return 0;
 
 bad_raid_map:
-	dev_warn(&ctrl_info->pci_dev->dev, "%s\n", err_msg);
+	dev_warn(&ctrl_info->pci_dev->dev,
+		"scsi %d:%d:%d:%d %s\n",
+		ctrl_info->scsi_host->host_no,
+		device->bus, device->target, device->lun, err_msg);
 
 	return -EINVAL;
 }
@@ -1250,8 +1253,7 @@ static void pqi_show_volume_status(struct pqi_ctrl_info *ctrl_info,
 		status = "Volume undergoing encryption re-keying process";
 		break;
 	case CISS_LV_ENCRYPTED_IN_NON_ENCRYPTED_CONTROLLER:
-		status =
-			"Encrypted volume inaccessible - disabled on ctrl";
+		status = "Volume encrypted but encryption is disabled";
 		break;
 	case CISS_LV_PENDING_ENCRYPTION:
 		status = "Volume pending migration to encrypted state";
@@ -2429,7 +2431,7 @@ static inline void pqi_aio_path_disabled(struct pqi_io_request *io_request)
 	device->offload_enabled = false;
 }
 
-static inline void pqi_take_device_offline(struct scsi_device *sdev)
+static inline void pqi_take_device_offline(struct scsi_device *sdev, char *path)
 {
 	struct pqi_ctrl_info *ctrl_info;
 	struct pqi_scsi_dev *device;
@@ -2439,8 +2441,8 @@ static inline void pqi_take_device_offline(struct scsi_device *sdev)
 		ctrl_info = shost_to_hba(sdev->host);
 		schedule_delayed_work(&ctrl_info->rescan_work, 0);
 		device = sdev->hostdata;
-		dev_err(&ctrl_info->pci_dev->dev, "offlined scsi %d:%d:%d:%d\n",
-			ctrl_info->scsi_host->host_no, device->bus,
+		dev_err(&ctrl_info->pci_dev->dev, "offlined %s scsi %d:%d:%d:%d\n",
+			path, ctrl_info->scsi_host->host_no, device->bus,
 			device->target, device->lun);
 	}
 }
@@ -2487,7 +2489,7 @@ static void pqi_process_raid_io_error(struct pqi_io_request *io_request)
 				sshdr.sense_key == HARDWARE_ERROR &&
 				sshdr.asc == 0x3e &&
 				sshdr.ascq == 0x1) {
-			pqi_take_device_offline(scmd->device);
+			pqi_take_device_offline(scmd->device, "RAID");
 			host_byte = DID_NO_CONNECT;
 		}
 
@@ -2547,7 +2549,7 @@ static void pqi_process_aio_io_error(struct pqi_io_request *io_request)
 		case PQI_AIO_STATUS_NO_PATH_TO_DEVICE:
 		case PQI_AIO_STATUS_INVALID_DEVICE:
 			device_offline = true;
-			pqi_take_device_offline(scmd->device);
+			pqi_take_device_offline(scmd->device, "AIO");
 			host_byte = DID_NO_CONNECT;
 			scsi_status = SAM_STAT_CHECK_CONDITION;
 			break;
@@ -3202,11 +3204,8 @@ static int pqi_alloc_operational_queues(struct pqi_ctrl_info *ctrl_info)
 			alloc_length,
 			&ctrl_info->queue_memory_base_dma_handle, GFP_KERNEL);
 
-	if (!ctrl_info->queue_memory_base) {
-		dev_err(&ctrl_info->pci_dev->dev,
-			"unable to allocate memory for PQI admin queues\n");
+	if (!ctrl_info->queue_memory_base)
 		return -ENOMEM;
-	}
 
 	ctrl_info->queue_memory_length = alloc_length;
 
@@ -3575,7 +3574,6 @@ static int pqi_wait_for_completion_io(struct pqi_ctrl_info *ctrl_info,
 	struct completion *wait)
 {
 	int rc;
-	unsigned int wait_secs = 0;
 
 	while (1) {
 		if (wait_for_completion_io_timeout(wait,
@@ -3589,12 +3587,6 @@ static int pqi_wait_for_completion_io(struct pqi_ctrl_info *ctrl_info,
 			rc = -ENXIO;
 			break;
 		}
-
-		wait_secs += PQI_WAIT_FOR_COMPLETION_IO_TIMEOUT_SECS;
-
-		dev_err(&ctrl_info->pci_dev->dev,
-			"waiting %u seconds for completion\n",
-			wait_secs);
 	}
 
 	return rc;
@@ -5699,7 +5691,7 @@ static int pqi_process_config_table(struct pqi_ctrl_info *ctrl_info)
 	config_table = kmalloc(table_length, GFP_KERNEL);
 	if (!config_table) {
 		dev_err(&ctrl_info->pci_dev->dev,
-			"unable to allocate memory for PQI configuration table\n");
+			"failed to allocate memory for PQI configuration table\n");
 		return -ENOMEM;
 	}
 
@@ -5850,7 +5842,7 @@ static int pqi_ctrl_init(struct pqi_ctrl_info *ctrl_info)
 	rc = pqi_alloc_admin_queues(ctrl_info);
 	if (rc) {
 		dev_err(&ctrl_info->pci_dev->dev,
-			"error allocating admin queues\n");
+			"failed to allocate admin queues\n");
 		return rc;
 	}
 
@@ -5889,8 +5881,11 @@ static int pqi_ctrl_init(struct pqi_ctrl_info *ctrl_info)
 		return rc;
 
 	rc = pqi_alloc_operational_queues(ctrl_info);
-	if (rc)
+	if (rc) {
+		dev_err(&ctrl_info->pci_dev->dev,
+			"failed to allocate operational queues\n");
 		return rc;
+	}
 
 	pqi_init_operational_queues(ctrl_info);
 
@@ -6030,7 +6025,7 @@ static int pqi_ctrl_init_resume(struct pqi_ctrl_info *ctrl_info)
 	rc = pqi_enable_events(ctrl_info);
 	if (rc) {
 		dev_err(&ctrl_info->pci_dev->dev,
-			"error configuring events\n");
+			"error enabling events\n");
 		return rc;
 	}
 
