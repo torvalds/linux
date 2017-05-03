@@ -1053,7 +1053,7 @@ enum pqi_ctrl_mode {
 #define BMIC_WRITE_HOST_WELLNESS		0xa5
 #define BMIC_CACHE_FLUSH			0xc2
 
-#define SA_CACHE_FLUSH				0x01
+#define SA_CACHE_FLUSH				0x1
 
 #define MASKED_DEVICE(lunid)			((lunid)[3] & 0xc0)
 #define CISS_GET_BUS(lunid)			((lunid)[7] & 0x3f)
