@@ -348,7 +348,7 @@ static void release_rx_pools(struct ibmvnic_adapter *adapter)
 		free_long_term_buff(adapter, &rx_pool->long_term_buff);
 
 		if (!rx_pool->rx_buff)
-		continue;
+			continue;
 
 		for (j = 0; j < rx_pool->size; j++) {
 			if (rx_pool->rx_buff[j].skb) {
