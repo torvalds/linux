@@ -1923,11 +1923,9 @@ static void calc_offset(u16 screen_width, u16 width,
 	 * field 0 = even field = bottom field
 	 * field 1 = odd field = top field
 	 */
+	*offset0 = field_offset * screen_width * ps;
 	*offset1 = 0;
-	if (field_offset)
-		*offset0 = *offset1 + field_offset * screen_width * ps;
-	else
-		*offset0 = *offset1;
+
 	*row_inc = pixinc(1 + (y_predecim * screen_width - width * x_predecim) +
 			(fieldmode ? screen_width : 0), ps);
 	if (color_mode == OMAP_DSS_COLOR_YUV2 ||
