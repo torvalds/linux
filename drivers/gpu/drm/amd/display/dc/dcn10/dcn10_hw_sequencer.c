@@ -1689,19 +1689,21 @@ static void dcn10_apply_ctx_for_surface(
 {
 	int i;
 
-	memcpy(context->res_ctx.mpc_tree,
-			dc->current_context->res_ctx.mpc_tree,
-			sizeof(struct mpc_tree_cfg) * dc->res_pool->pipe_count);
-
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
-		if (!pipe_ctx->surface)
+		if (!pipe_ctx->surface || pipe_ctx->surface != surface)
 			continue;
 
+
 		/* looking for top pipe to program */
-		if (!pipe_ctx->top_pipe)
+		if (!pipe_ctx->top_pipe) {
+			memcpy(context->res_ctx.mpc_tree,
+					dc->current_context->res_ctx.mpc_tree,
+					sizeof(struct mpc_tree_cfg) * dc->res_pool->pipe_count);
+
 			program_all_pipe_in_tree(dc, pipe_ctx, context);
+		}
 	}
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
