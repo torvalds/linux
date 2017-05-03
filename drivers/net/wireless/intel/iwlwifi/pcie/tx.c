@@ -1706,7 +1706,7 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
-	u8 group_id = iwl_cmd_groupid(pkt->hdr.group_id);
+	u8 group_id;
 	u32 cmd_id;
 	int txq_id = SEQ_TO_QUEUE(sequence);
 	int index = SEQ_TO_INDEX(sequence);
@@ -1732,6 +1732,7 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 	cmd_index = get_cmd_index(txq, index);
 	cmd = txq->entries[cmd_index].cmd;
 	meta = &txq->entries[cmd_index].meta;
+	group_id = cmd->hdr.group_id;
 	cmd_id = iwl_cmd_id(cmd->hdr.cmd, group_id, 0);
 
 	iwl_pcie_tfd_unmap(trans, meta, txq, index);
