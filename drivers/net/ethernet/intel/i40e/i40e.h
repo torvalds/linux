@@ -506,6 +506,7 @@ struct i40e_pf {
 	struct mutex tmreg_lock; /* Used to protect the SYSTIME registers. */
 	u64 ptp_base_adj;
 	u32 tx_hwtstamp_timeouts;
+	u32 tx_hwtstamp_skipped;
 	u32 rx_hwtstamp_cleared;
 	u32 latch_event_flags;
 	spinlock_t ptp_rx_lock; /* Used to protect Rx timestamp registers. */
