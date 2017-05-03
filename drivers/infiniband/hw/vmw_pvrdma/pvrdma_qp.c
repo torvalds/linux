@@ -533,8 +533,8 @@ int pvrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	cmd->attrs.alt_port_num = attr->alt_port_num;
 	cmd->attrs.alt_timeout = attr->alt_timeout;
 	ib_qp_cap_to_pvrdma(&cmd->attrs.cap, &attr->cap);
-	ib_ah_attr_to_pvrdma(&cmd->attrs.ah_attr, &attr->ah_attr);
-	ib_ah_attr_to_pvrdma(&cmd->attrs.alt_ah_attr, &attr->alt_ah_attr);
+	rdma_ah_attr_to_pvrdma(&cmd->attrs.ah_attr, &attr->ah_attr);
+	rdma_ah_attr_to_pvrdma(&cmd->attrs.alt_ah_attr, &attr->alt_ah_attr);
 
 	ret = pvrdma_cmd_post(dev, &req, &rsp, PVRDMA_CMD_MODIFY_QP_RESP);
 	if (ret < 0) {
@@ -938,8 +938,8 @@ int pvrdma_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	attr->alt_port_num = resp->attrs.alt_port_num;
 	attr->alt_timeout = resp->attrs.alt_timeout;
 	pvrdma_qp_cap_to_ib(&attr->cap, &resp->attrs.cap);
-	pvrdma_ah_attr_to_ib(&attr->ah_attr, &resp->attrs.ah_attr);
-	pvrdma_ah_attr_to_ib(&attr->alt_ah_attr, &resp->attrs.alt_ah_attr);
+	pvrdma_ah_attr_to_rdma(&attr->ah_attr, &resp->attrs.ah_attr);
+	pvrdma_ah_attr_to_rdma(&attr->alt_ah_attr, &resp->attrs.alt_ah_attr);
 
 	qp->state = attr->qp_state;
 

@@ -152,7 +152,7 @@ struct srp_rdma_ch {
 	struct completion	done;
 	int			status;
 
-	struct ib_sa_path_rec	path;
+	struct sa_path_rec	path;
 	struct ib_sa_query     *path_query;
 	int			path_query_id;
 

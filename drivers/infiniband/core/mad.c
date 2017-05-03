@@ -605,7 +605,7 @@ static void unregister_mad_snoop(struct ib_mad_snoop_private *mad_snoop_priv)
 /*
  * ib_unregister_mad_agent - Unregisters a client from using MAD services
  */
-int ib_unregister_mad_agent(struct ib_mad_agent *mad_agent)
+void ib_unregister_mad_agent(struct ib_mad_agent *mad_agent)
 {
 	struct ib_mad_agent_private *mad_agent_priv;
 	struct ib_mad_snoop_private *mad_snoop_priv;
@@ -622,7 +622,6 @@ int ib_unregister_mad_agent(struct ib_mad_agent *mad_agent)
 					      agent);
 		unregister_mad_snoop(mad_snoop_priv);
 	}
-	return 0;
 }
 EXPORT_SYMBOL(ib_unregister_mad_agent);
 
@@ -1834,12 +1833,13 @@ static inline int rcv_has_same_gid(const struct ib_mad_agent_private *mad_agent_
 				   const struct ib_mad_send_wr_private *wr,
 				   const struct ib_mad_recv_wc *rwc )
 {
-	struct ib_ah_attr attr;
+	struct rdma_ah_attr attr;
 	u8 send_resp, rcv_resp;
 	union ib_gid sgid;
 	struct ib_device *device = mad_agent_priv->agent.device;
 	u8 port_num = mad_agent_priv->agent.port_num;
 	u8 lmc;
+	bool has_grh;
 
 	send_resp = ib_response_mad((struct ib_mad_hdr *)wr->send_buf.mad);
 	rcv_resp = ib_response_mad(&rwc->recv_buf.mad->mad_hdr);
@@ -1848,36 +1848,40 @@ static inline int rcv_has_same_gid(const struct ib_mad_agent_private *mad_agent_
 		/* both requests, or both responses. GIDs different */
 		return 0;
 
-	if (ib_query_ah(wr->send_buf.ah, &attr))
+	if (rdma_query_ah(wr->send_buf.ah, &attr))
 		/* Assume not equal, to avoid false positives. */
 		return 0;
 
-	if (!!(attr.ah_flags & IB_AH_GRH) !=
-	    !!(rwc->wc->wc_flags & IB_WC_GRH))
+	has_grh = !!(rdma_ah_get_ah_flags(&attr) & IB_AH_GRH);
+	if (has_grh != !!(rwc->wc->wc_flags & IB_WC_GRH))
 		/* one has GID, other does not.  Assume different */
 		return 0;
 
 	if (!send_resp && rcv_resp) {
 		/* is request/response. */
-		if (!(attr.ah_flags & IB_AH_GRH)) {
+		if (!has_grh) {
 			if (ib_get_cached_lmc(device, port_num, &lmc))
 				return 0;
-			return (!lmc || !((attr.src_path_bits ^
+			return (!lmc || !((rdma_ah_get_path_bits(&attr) ^
 					   rwc->wc->dlid_path_bits) &
 					  ((1 << lmc) - 1)));
 		} else {
+			const struct ib_global_route *grh =
+					rdma_ah_read_grh(&attr);
+
 			if (ib_get_cached_gid(device, port_num,
-					      attr.grh.sgid_index, &sgid, NULL))
+					      grh->sgid_index, &sgid, NULL))
 				return 0;
 			return !memcmp(sgid.raw, rwc->recv_buf.grh->dgid.raw,
 				       16);
 		}
 	}
 
-	if (!(attr.ah_flags & IB_AH_GRH))
-		return attr.dlid == rwc->wc->slid;
+	if (!has_grh)
+		return rdma_ah_get_dlid(&attr) == rwc->wc->slid;
 	else
-		return !memcmp(attr.grh.dgid.raw, rwc->recv_buf.grh->sgid.raw,
+		return !memcmp(rdma_ah_read_grh(&attr)->dgid.raw,
+			       rwc->recv_buf.grh->sgid.raw,
 			       16);
 }
 
