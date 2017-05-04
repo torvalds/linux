@@ -566,7 +566,7 @@ out_err:
 }
 
 static const struct power_supply_desc cpcap_charger_usb_desc = {
-	.name		= "cpcap_usb",
+	.name		= "usb",
 	.type		= POWER_SUPPLY_TYPE_USB,
 	.properties	= cpcap_charger_props,
 	.num_properties	= ARRAY_SIZE(cpcap_charger_props),
