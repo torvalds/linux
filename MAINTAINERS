@@ -8054,11 +8054,11 @@ S:	Supported
 F:	drivers/power/supply/max14577_charger.c
 F:	drivers/power/supply/max77693_charger.c
 
-MAXIM MAX77802 MULTIFUNCTION PMIC DEVICE DRIVERS
-M:	Javier Martinez Canillas <javier@osg.samsung.com>
+MAXIM MAX77802 PMIC REGULATOR DEVICE DRIVER
+M:	Javier Martinez Canillas <javier@dowhile0.org>
 L:	linux-kernel@vger.kernel.org
 S:	Supported
-F:	drivers/*/*max77802*.c
+F:	drivers/regulator/max77802-regulator.c
 F:	Documentation/devicetree/bindings/*/*max77802.txt
 F:	include/dt-bindings/*/*max77802.h
 
