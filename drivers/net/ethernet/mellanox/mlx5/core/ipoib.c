@@ -66,6 +66,10 @@ static void mlx5i_init(struct mlx5_core_dev *mdev,
 
 	mlx5e_build_nic_params(mdev, &priv->channels.params, profile->max_nch(mdev));
 
+	/* Override RQ params as IPoIB supports only LINKED LIST RQ for now */
+	mlx5e_set_rq_type_params(mdev, &priv->channels.params, MLX5_WQ_TYPE_LINKED_LIST);
+	priv->channels.params.lro_en = false;
+
 	mutex_init(&priv->state_lock);
 
 	netdev->hw_features    |= NETIF_F_SG;
