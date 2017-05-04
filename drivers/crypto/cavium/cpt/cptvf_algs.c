@@ -312,10 +312,28 @@ static int cvm_cbc_aes_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 	return cvm_setkey(cipher, key, keylen, AES_CBC);
 }
 
+static int cvm_ecb_aes_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
+			      u32 keylen)
+{
+	return cvm_setkey(cipher, key, keylen, AES_ECB);
+}
+
+static int cvm_cfb_aes_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
+			      u32 keylen)
+{
+	return cvm_setkey(cipher, key, keylen, AES_CFB);
+}
+
 static int cvm_cbc_des3_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 			       u32 keylen)
 {
 	return cvm_setkey(cipher, key, keylen, DES3_CBC);
+}
+
+static int cvm_ecb_des3_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
+			       u32 keylen)
+{
+	return cvm_setkey(cipher, key, keylen, DES3_ECB);
 }
 
 int cvm_enc_dec_init(struct crypto_tfm *tfm)
@@ -377,6 +395,48 @@ struct crypto_alg algs[] = { {
 	.cra_module = THIS_MODULE,
 }, {
 	.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
+	.cra_blocksize = AES_BLOCK_SIZE,
+	.cra_ctxsize = sizeof(struct cvm_enc_ctx),
+	.cra_alignmask = 7,
+	.cra_priority = 4001,
+	.cra_name = "ecb(aes)",
+	.cra_driver_name = "cavium-ecb-aes",
+	.cra_type = &crypto_ablkcipher_type,
+	.cra_u = {
+		.ablkcipher = {
+			.ivsize = AES_BLOCK_SIZE,
+			.min_keysize = AES_MIN_KEY_SIZE,
+			.max_keysize = AES_MAX_KEY_SIZE,
+			.setkey = cvm_ecb_aes_setkey,
+			.encrypt = cvm_encrypt,
+			.decrypt = cvm_decrypt,
+		},
+	},
+	.cra_init = cvm_enc_dec_init,
+	.cra_module = THIS_MODULE,
+}, {
+	.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
+	.cra_blocksize = AES_BLOCK_SIZE,
+	.cra_ctxsize = sizeof(struct cvm_enc_ctx),
+	.cra_alignmask = 7,
+	.cra_priority = 4001,
+	.cra_name = "cfb(aes)",
+	.cra_driver_name = "cavium-cfb-aes",
+	.cra_type = &crypto_ablkcipher_type,
+	.cra_u = {
+		.ablkcipher = {
+			.ivsize = AES_BLOCK_SIZE,
+			.min_keysize = AES_MIN_KEY_SIZE,
+			.max_keysize = AES_MAX_KEY_SIZE,
+			.setkey = cvm_cfb_aes_setkey,
+			.encrypt = cvm_encrypt,
+			.decrypt = cvm_decrypt,
+		},
+	},
+	.cra_init = cvm_enc_dec_init,
+	.cra_module = THIS_MODULE,
+}, {
+	.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
 	.cra_blocksize = DES3_EDE_BLOCK_SIZE,
 	.cra_ctxsize = sizeof(struct cvm_des3_ctx),
 	.cra_alignmask = 7,
@@ -390,6 +450,27 @@ struct crypto_alg algs[] = { {
 			.max_keysize = DES3_EDE_KEY_SIZE,
 			.ivsize = DES_BLOCK_SIZE,
 			.setkey = cvm_cbc_des3_setkey,
+			.encrypt = cvm_encrypt,
+			.decrypt = cvm_decrypt,
+		},
+	},
+	.cra_init = cvm_enc_dec_init,
+	.cra_module = THIS_MODULE,
+}, {
+	.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
+	.cra_blocksize = DES3_EDE_BLOCK_SIZE,
+	.cra_ctxsize = sizeof(struct cvm_des3_ctx),
+	.cra_alignmask = 7,
+	.cra_priority = 4001,
+	.cra_name = "ecb(des3_ede)",
+	.cra_driver_name = "cavium-ecb-des3_ede",
+	.cra_type = &crypto_ablkcipher_type,
+	.cra_u = {
+		.ablkcipher = {
+			.min_keysize = DES3_EDE_KEY_SIZE,
+			.max_keysize = DES3_EDE_KEY_SIZE,
+			.ivsize = DES_BLOCK_SIZE,
+			.setkey = cvm_ecb_des3_setkey,
 			.encrypt = cvm_encrypt,
 			.decrypt = cvm_decrypt,
 		},
