@@ -171,7 +171,7 @@
  * to be exposed to client nodes in DT: include/dt-bindings/clock/gxbb-clkc.h
  */
 #define CLKID_SYS_PLL		  0
-#define CLKID_CPUCLK		  1
+/* ID 1 is unused (it was used by the non-existing CLKID_CPUCLK before) */
 /* CLKID_HDMI_PLL */
 #define CLKID_FIXED_PLL		  3
 /* CLKID_FCLK_DIV2 */
