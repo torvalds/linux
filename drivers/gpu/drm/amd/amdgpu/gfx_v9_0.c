@@ -2982,8 +2982,6 @@ BUG_ON(ib->gpu_addr & 0x3); /* Dword align */
 	amdgpu_ring_write(ring, control);
 }
 
-#define	INDIRECT_BUFFER_VALID                   (1 << 23)
-
 static void gfx_v9_0_ring_emit_ib_compute(struct amdgpu_ring *ring,
                                           struct amdgpu_ib *ib,
                                           unsigned vm_id, bool ctx_switch)

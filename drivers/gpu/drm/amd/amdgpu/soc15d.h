@@ -132,6 +132,7 @@
 		 * 1 - pfp
 		 */
 #define	PACKET3_INDIRECT_BUFFER				0x3F
+#define		INDIRECT_BUFFER_VALID                   (1 << 23)
 #define		INDIRECT_BUFFER_CACHE_POLICY(x)         ((x) << 28)
 		/* 0 - LRU
 		 * 1 - Stream
