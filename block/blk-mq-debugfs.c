@@ -936,7 +936,7 @@ static int blk_mq_debugfs_register_hctx(struct request_queue *q,
 	char name[20];
 	int i;
 
-	snprintf(name, sizeof(name), "%u", hctx->queue_num);
+	snprintf(name, sizeof(name), "hctx%u", hctx->queue_num);
 	hctx_dir = debugfs_create_dir(name, q->mq_debugfs_dir);
 	if (!hctx_dir)
 		return -ENOMEM;
