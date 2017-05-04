@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -655,6 +655,17 @@ static inline u8 iwl_get_dma_hi_addr(dma_addr_t addr)
 {
 	return (sizeof(addr) > sizeof(u32) ? upper_32_bits(addr) : 0) & 0xF;
 }
+
+/**
+ * enum iwl_tfd_tb_hi_n_len - TB hi_n_len bits
+ * @TB_HI_N_LEN_ADDR_HI_MSK: high 4 bits (to make it 36) of DMA address
+ * @TB_HI_N_LEN_LEN_MSK: length of the TB
+ */
+enum iwl_tfd_tb_hi_n_len {
+	TB_HI_N_LEN_ADDR_HI_MSK	= 0xf,
+	TB_HI_N_LEN_LEN_MSK	= 0xfff0,
+};
+
 /**
  * struct iwl_tfd_tb transmit buffer descriptor within transmit frame descriptor
  *
@@ -662,8 +673,7 @@ static inline u8 iwl_get_dma_hi_addr(dma_addr_t addr)
  *
  * @lo: low [31:0] portion of the dma address of TX buffer
  * 	every even is unaligned on 16 bit boundary
- * @hi_n_len 0-3 [35:32] portion of dma
- *	     4-15 length of the tx buffer
+ * @hi_n_len: &enum iwl_tfd_tb_hi_n_len
  */
 struct iwl_tfd_tb {
 	__le32 lo;
