@@ -250,36 +250,40 @@ done:
 	return ret;
 }
 
+void hfi1_user_exp_rcv_grp_free(struct hfi1_ctxtdata *uctxt)
+{
+	struct tid_group *grp, *gptr;
+
+	list_for_each_entry_safe(grp, gptr, &uctxt->tid_group_list.list,
+				 list) {
+		list_del_init(&grp->list);
+		kfree(grp);
+	}
+	hfi1_clear_tids(uctxt);
+}
+
 int hfi1_user_exp_rcv_free(struct hfi1_filedata *fd)
 {
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
-	struct tid_group *grp, *gptr;
 
-	if (!test_bit(HFI1_CTXT_SETUP_DONE, &uctxt->event_flags))
-		return 0;
 	/*
 	 * The notifier would have been removed when the process'es mm
 	 * was freed.
 	 */
-	if (fd->handler)
+	if (fd->handler) {
 		hfi1_mmu_rb_unregister(fd->handler);
-
-	kfree(fd->invalid_tids);
-
-	if (!uctxt->cnt) {
+	} else {
 		if (!EXP_TID_SET_EMPTY(uctxt->tid_full_list))
 			unlock_exp_tids(uctxt, &uctxt->tid_full_list, fd);
 		if (!EXP_TID_SET_EMPTY(uctxt->tid_used_list))
 			unlock_exp_tids(uctxt, &uctxt->tid_used_list, fd);
-		list_for_each_entry_safe(grp, gptr, &uctxt->tid_group_list.list,
-					 list) {
-			list_del_init(&grp->list);
-			kfree(grp);
-		}
-		hfi1_clear_tids(uctxt);
 	}
 
+	kfree(fd->invalid_tids);
+	fd->invalid_tids = NULL;
+
 	kfree(fd->entry_to_rb);
+	fd->entry_to_rb = NULL;
 	return 0;
 }
 

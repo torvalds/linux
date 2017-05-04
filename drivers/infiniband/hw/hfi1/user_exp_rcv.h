@@ -70,6 +70,7 @@
 		(tid) |= EXP_TID_SET(field, (value));			\
 	} while (0)
 
+void hfi1_user_exp_rcv_grp_free(struct hfi1_ctxtdata *uctxt);
 int hfi1_user_exp_rcv_init(struct file *);
 int hfi1_user_exp_rcv_free(struct hfi1_filedata *);
 int hfi1_user_exp_rcv_setup(struct file *, struct hfi1_tid_info *);
