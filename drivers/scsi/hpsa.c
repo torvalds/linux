@@ -3353,6 +3353,11 @@ static void hpsa_get_enclosure_info(struct ctlr_info *h,
 
 	bmic_device_index = GET_BMIC_DRIVE_NUMBER(&rle->lunid[0]);
 
+	if (encl_dev->target == -1 || encl_dev->lun == -1) {
+		rc = IO_OK;
+		goto out;
+	}
+
 	if (bmic_device_index == 0xFF00 || MASKED_DEVICE(&rle->lunid[0])) {
 		rc = IO_OK;
 		goto out;
