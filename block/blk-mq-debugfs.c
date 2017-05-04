@@ -24,15 +24,6 @@
 #include "blk-mq-debugfs.h"
 #include "blk-mq-tag.h"
 
-struct blk_mq_debugfs_attr {
-	const char *name;
-	umode_t mode;
-	int (*show)(void *, struct seq_file *);
-	ssize_t (*write)(void *, const char __user *, size_t, loff_t *);
-	/* Set either .show or .seq_ops. */
-	const struct seq_operations *seq_ops;
-};
-
 static int blk_flags_show(struct seq_file *m, const unsigned long flags,
 			  const char *const *flag_name, int flag_name_count)
 {
@@ -725,6 +716,9 @@ int blk_mq_debugfs_register(struct request_queue *q)
 	queue_for_each_hw_ctx(q, hctx, i) {
 		if (!hctx->debugfs_dir && blk_mq_debugfs_register_hctx(q, hctx))
 			goto err;
+		if (q->elevator && !hctx->sched_debugfs_dir &&
+		    blk_mq_debugfs_register_sched_hctx(q, hctx))
+			goto err;
 	}
 
 	return 0;
@@ -737,6 +731,7 @@ err:
 void blk_mq_debugfs_unregister(struct request_queue *q)
 {
 	debugfs_remove_recursive(q->debugfs_dir);
+	q->sched_debugfs_dir = NULL;
 	q->debugfs_dir = NULL;
 }
 
@@ -791,6 +786,7 @@ err:
 void blk_mq_debugfs_unregister_hctx(struct blk_mq_hw_ctx *hctx)
 {
 	debugfs_remove_recursive(hctx->debugfs_dir);
+	hctx->sched_debugfs_dir = NULL;
 	hctx->debugfs_dir = NULL;
 }
 
@@ -814,4 +810,64 @@ void blk_mq_debugfs_unregister_hctxs(struct request_queue *q)
 
 	queue_for_each_hw_ctx(q, hctx, i)
 		blk_mq_debugfs_unregister_hctx(hctx);
+}
+
+int blk_mq_debugfs_register_sched(struct request_queue *q)
+{
+	struct elevator_type *e = q->elevator->type;
+
+	if (!q->debugfs_dir)
+		return -ENOENT;
+
+	if (!e->queue_debugfs_attrs)
+		return 0;
+
+	q->sched_debugfs_dir = debugfs_create_dir("sched", q->debugfs_dir);
+	if (!q->sched_debugfs_dir)
+		return -ENOMEM;
+
+	if (!debugfs_create_files(q->sched_debugfs_dir, q,
+				  e->queue_debugfs_attrs))
+		goto err;
+
+	return 0;
+
+err:
+	blk_mq_debugfs_unregister_sched(q);
+	return -ENOMEM;
+}
+
+void blk_mq_debugfs_unregister_sched(struct request_queue *q)
+{
+	debugfs_remove_recursive(q->sched_debugfs_dir);
+	q->sched_debugfs_dir = NULL;
+}
+
+int blk_mq_debugfs_register_sched_hctx(struct request_queue *q,
+				       struct blk_mq_hw_ctx *hctx)
+{
+	struct elevator_type *e = q->elevator->type;
+
+	if (!hctx->debugfs_dir)
+		return -ENOENT;
+
+	if (!e->hctx_debugfs_attrs)
+		return 0;
+
+	hctx->sched_debugfs_dir = debugfs_create_dir("sched",
+						     hctx->debugfs_dir);
+	if (!hctx->sched_debugfs_dir)
+		return -ENOMEM;
+
+	if (!debugfs_create_files(hctx->sched_debugfs_dir, hctx,
+				  e->hctx_debugfs_attrs))
+		return -ENOMEM;
+
+	return 0;
+}
+
+void blk_mq_debugfs_unregister_sched_hctx(struct blk_mq_hw_ctx *hctx)
+{
+	debugfs_remove_recursive(hctx->sched_debugfs_dir);
+	hctx->sched_debugfs_dir = NULL;
 }

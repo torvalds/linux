@@ -8,6 +8,9 @@
 
 struct io_cq;
 struct elevator_type;
+#ifdef CONFIG_BLK_DEBUG_FS
+struct blk_mq_debugfs_attr;
+#endif
 
 /*
  * Return values from elevator merger
@@ -144,6 +147,10 @@ struct elevator_type
 	char elevator_name[ELV_NAME_MAX];
 	struct module *elevator_owner;
 	bool uses_mq;
+#ifdef CONFIG_BLK_DEBUG_FS
+	const struct blk_mq_debugfs_attr *queue_debugfs_attrs;
+	const struct blk_mq_debugfs_attr *hctx_debugfs_attrs;
+#endif
 
 	/* managed by elevator core */
 	char icq_cache_name[ELV_NAME_MAX + 5];	/* elvname + "_io_cq" */

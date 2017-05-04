@@ -60,6 +60,7 @@ struct blk_mq_hw_ctx {
 
 #ifdef CONFIG_BLK_DEBUG_FS
 	struct dentry		*debugfs_dir;
+	struct dentry		*sched_debugfs_dir;
 #endif
 };
 
