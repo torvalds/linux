@@ -298,7 +298,6 @@ struct ctlr_info {
 	struct workqueue_struct *resubmit_wq;
 	struct workqueue_struct *rescan_ctlr_wq;
 	atomic_t abort_cmds_available;
-	wait_queue_head_t abort_cmd_wait_queue;
 	wait_queue_head_t event_sync_wait_queue;
 	struct mutex reset_mutex;
 	u8 reset_in_progress;
