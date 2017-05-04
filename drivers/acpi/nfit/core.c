@@ -1512,7 +1512,7 @@ static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
 		}
 
 		if (nfit_mem->bdw && nfit_mem->memdev_pmem)
-			flags |= NDD_ALIASING;
+			set_bit(NDD_ALIASING, &flags);
 
 		/* collate flags across all memdevs for this dimm */
 		list_for_each_entry(nfit_memdev, &acpi_desc->memdevs, list) {
@@ -1527,7 +1527,7 @@ static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
 
 		mem_flags = __to_nfit_memdev(nfit_mem)->flags;
 		if (mem_flags & ACPI_NFIT_MEM_NOT_ARMED)
-			flags |= NDD_UNARMED;
+			set_bit(NDD_UNARMED, &flags);
 
 		rc = acpi_nfit_add_dimm(acpi_desc, nfit_mem, device_handle);
 		if (rc)

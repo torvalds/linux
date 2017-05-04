@@ -222,7 +222,7 @@ int nd_region_to_nstype(struct nd_region *nd_region)
 			struct nd_mapping *nd_mapping = &nd_region->mapping[i];
 			struct nvdimm *nvdimm = nd_mapping->nvdimm;
 
-			if (nvdimm->flags & NDD_ALIASING)
+			if (test_bit(NDD_ALIASING, &nvdimm->flags))
 				alias++;
 		}
 		if (alias)
@@ -881,7 +881,7 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 			return NULL;
 		}
 
-		if (nvdimm->flags & NDD_UNARMED)
+		if (test_bit(NDD_UNARMED, &nvdimm->flags))
 			ro = 1;
 	}
 

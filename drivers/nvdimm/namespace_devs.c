@@ -2240,7 +2240,7 @@ static int init_active_labels(struct nd_region *nd_region)
 		 * being activated if it aliases DPA.
 		 */
 		if (!ndd) {
-			if ((nvdimm->flags & NDD_ALIASING) == 0)
+			if (!test_bit(NDD_ALIASING, &nvdimm->flags))
 				return 0;
 			dev_dbg(&nd_region->dev, "%s: is disabled, failing probe\n",
 					dev_name(&nd_mapping->nvdimm->dev));

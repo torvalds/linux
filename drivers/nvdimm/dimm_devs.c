@@ -34,7 +34,7 @@ int nvdimm_check_config_data(struct device *dev)
 
 	if (!nvdimm->cmd_mask ||
 	    !test_bit(ND_CMD_GET_CONFIG_DATA, &nvdimm->cmd_mask)) {
-		if (nvdimm->flags & NDD_ALIASING)
+		if (test_bit(NDD_ALIASING, &nvdimm->flags))
 			return -ENXIO;
 		else
 			return -ENOTTY;
@@ -188,7 +188,14 @@ void nvdimm_set_aliasing(struct device *dev)
 {
 	struct nvdimm *nvdimm = to_nvdimm(dev);
 
-	nvdimm->flags |= NDD_ALIASING;
+	set_bit(NDD_ALIASING, &nvdimm->flags);
+}
+
+void nvdimm_set_locked(struct device *dev)
+{
+	struct nvdimm *nvdimm = to_nvdimm(dev);
+
+	set_bit(NDD_LOCKED, &nvdimm->flags);
 }
 
 static void nvdimm_release(struct device *dev)
