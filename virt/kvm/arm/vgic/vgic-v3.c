@@ -234,6 +234,50 @@ void vgic_v3_enable(struct kvm_vcpu *vcpu)
 	vgic_v3->vgic_hcr = ICH_HCR_EN;
 }
 
+int vgic_v3_lpi_sync_pending_status(struct kvm *kvm, struct vgic_irq *irq)
+{
+	struct kvm_vcpu *vcpu;
+	int byte_offset, bit_nr;
+	gpa_t pendbase, ptr;
+	bool status;
+	u8 val;
+	int ret;
+
+retry:
+	vcpu = irq->target_vcpu;
+	if (!vcpu)
+		return 0;
+
+	pendbase = GICR_PENDBASER_ADDRESS(vcpu->arch.vgic_cpu.pendbaser);
+
+	byte_offset = irq->intid / BITS_PER_BYTE;
+	bit_nr = irq->intid % BITS_PER_BYTE;
+	ptr = pendbase + byte_offset;
+
+	ret = kvm_read_guest(kvm, ptr, &val, 1);
+	if (ret)
+		return ret;
+
+	status = val & (1 << bit_nr);
+
+	spin_lock(&irq->irq_lock);
+	if (irq->target_vcpu != vcpu) {
+		spin_unlock(&irq->irq_lock);
+		goto retry;
+	}
+	irq->pending_latch = status;
+	vgic_queue_irq_unlock(vcpu->kvm, irq);
+
+	if (status) {
+		/* clear consumed data */
+		val &= ~(1 << bit_nr);
+		ret = kvm_write_guest(kvm, ptr, &val, 1);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+
 /* check for overlapping regions and for regions crossing the end of memory */
 static bool vgic_v3_check_base(struct kvm *kvm)
 {

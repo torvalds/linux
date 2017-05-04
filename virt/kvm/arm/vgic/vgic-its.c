@@ -221,8 +221,6 @@ static struct its_ite *find_ite(struct vgic_its *its, u32 device_id,
  */
 #define BASER_ADDRESS(x)	((x) & GENMASK_ULL(47, 16))
 #define CBASER_ADDRESS(x)	((x) & GENMASK_ULL(47, 12))
-#define PENDBASER_ADDRESS(x)	((x) & GENMASK_ULL(47, 16))
-#define PROPBASER_ADDRESS(x)	((x) & GENMASK_ULL(47, 12))
 
 #define GIC_LPI_OFFSET 8192
 
@@ -257,7 +255,7 @@ static struct its_collection *find_collection(struct vgic_its *its, int coll_id)
 static int update_lpi_config(struct kvm *kvm, struct vgic_irq *irq,
 			     struct kvm_vcpu *filter_vcpu)
 {
-	u64 propbase = PROPBASER_ADDRESS(kvm->arch.vgic.propbaser);
+	u64 propbase = GICR_PROPBASER_ADDRESS(kvm->arch.vgic.propbaser);
 	u8 prop;
 	int ret;
 
@@ -369,7 +367,7 @@ static u32 max_lpis_propbaser(u64 propbaser)
  */
 static int its_sync_lpi_pending_table(struct kvm_vcpu *vcpu)
 {
-	gpa_t pendbase = PENDBASER_ADDRESS(vcpu->arch.vgic_cpu.pendbaser);
+	gpa_t pendbase = GICR_PENDBASER_ADDRESS(vcpu->arch.vgic_cpu.pendbaser);
 	struct vgic_irq *irq;
 	int last_byte_offset = -1;
 	int ret = 0;
