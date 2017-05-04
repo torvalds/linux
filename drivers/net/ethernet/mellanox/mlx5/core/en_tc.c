@@ -251,10 +251,7 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 	}
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
-		err = mlx5_modify_header_alloc(dev, MLX5_FLOW_NAMESPACE_KERNEL,
-					       parse_attr->num_mod_hdr_actions,
-					       parse_attr->mod_hdr_actions,
-					       &attr->mod_hdr_id);
+		err = mlx5e_attach_mod_hdr(priv, flow, parse_attr);
 		flow_act.modify_id = attr->mod_hdr_id;
 		kfree(parse_attr->mod_hdr_actions);
 		if (err) {
@@ -296,8 +293,7 @@ err_add_rule:
 	}
 err_create_ft:
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
-		mlx5_modify_header_dealloc(priv->mdev,
-					   attr->mod_hdr_id);
+		mlx5e_detach_mod_hdr(priv, flow);
 err_create_mod_hdr_id:
 	mlx5_fc_destroy(dev, counter);
 
@@ -320,8 +316,7 @@ static void mlx5e_tc_del_nic_flow(struct mlx5e_priv *priv,
 	}
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
-		mlx5_modify_header_dealloc(priv->mdev,
-					   attr->mod_hdr_id);
+		mlx5e_detach_mod_hdr(priv, flow);
 }
 
 static void mlx5e_detach_encap(struct mlx5e_priv *priv,
