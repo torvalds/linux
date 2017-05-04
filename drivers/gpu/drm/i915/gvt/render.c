@@ -260,7 +260,8 @@ static void restore_mocs(struct intel_vgpu *vgpu, int ring_id)
 
 #define CTX_CONTEXT_CONTROL_VAL	0x03
 
-void intel_gvt_load_render_mmio(struct intel_vgpu *vgpu, int ring_id)
+/* Switch ring mmio values (context) from host to a vgpu. */
+static void switch_mmio_to_vgpu(struct intel_vgpu *vgpu, int ring_id)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	struct render_mmio *mmio;
@@ -312,7 +313,8 @@ void intel_gvt_load_render_mmio(struct intel_vgpu *vgpu, int ring_id)
 	handle_tlb_pending_event(vgpu, ring_id);
 }
 
-void intel_gvt_restore_render_mmio(struct intel_vgpu *vgpu, int ring_id)
+/* Switch ring mmio values (context) from vgpu to host. */
+static void switch_mmio_to_host(struct intel_vgpu *vgpu, int ring_id)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	struct render_mmio *mmio;
@@ -347,4 +349,33 @@ void intel_gvt_restore_render_mmio(struct intel_vgpu *vgpu, int ring_id)
 				i915_mmio_reg_offset(mmio->reg),
 				mmio->value, v);
 	}
+}
+
+/**
+ * intel_gvt_switch_render_mmio - switch mmio context of specific engine
+ * @pre: the last vGPU that own the engine
+ * @next: the vGPU to switch to
+ * @ring_id: specify the engine
+ *
+ * If pre is null indicates that host own the engine. If next is null
+ * indicates that we are switching to host workload.
+ */
+void intel_gvt_switch_mmio(struct intel_vgpu *pre,
+			   struct intel_vgpu *next, int ring_id)
+{
+	if (WARN_ON(!pre && !next))
+		return;
+
+	gvt_dbg_render("switch ring %d from %s to %s\n", ring_id,
+		       pre ? "vGPU" : "host", next ? "vGPU" : "HOST");
+
+	/**
+	 * TODO: Optimize for vGPU to vGPU switch by merging
+	 * switch_mmio_to_host() and switch_mmio_to_vgpu().
+	 */
+	if (pre)
+		switch_mmio_to_host(pre, ring_id);
+
+	if (next)
+		switch_mmio_to_vgpu(next, ring_id);
 }

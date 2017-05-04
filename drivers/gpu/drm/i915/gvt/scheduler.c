@@ -138,21 +138,42 @@ static int shadow_context_status_change(struct notifier_block *nb,
 	struct intel_gvt *gvt = container_of(nb, struct intel_gvt,
 				shadow_ctx_notifier_block[req->engine->id]);
 	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
-	struct intel_vgpu_workload *workload =
-		scheduler->current_workload[req->engine->id];
+	enum intel_engine_id ring_id = req->engine->id;
+	struct intel_vgpu_workload *workload;
 
-	if (!is_gvt_request(req) || unlikely(!workload))
+	if (!is_gvt_request(req)) {
+		spin_lock_bh(&scheduler->mmio_context_lock);
+		if (action == INTEL_CONTEXT_SCHEDULE_IN &&
+		    scheduler->engine_owner[ring_id]) {
+			/* Switch ring from vGPU to host. */
+			intel_gvt_switch_mmio(scheduler->engine_owner[ring_id],
+					      NULL, ring_id);
+			scheduler->engine_owner[ring_id] = NULL;
+		}
+		spin_unlock_bh(&scheduler->mmio_context_lock);
+
+		return NOTIFY_OK;
+	}
+
+	workload = scheduler->current_workload[ring_id];
+	if (unlikely(!workload))
 		return NOTIFY_OK;
 
 	switch (action) {
 	case INTEL_CONTEXT_SCHEDULE_IN:
-		intel_gvt_load_render_mmio(workload->vgpu,
-					   workload->ring_id);
+		spin_lock_bh(&scheduler->mmio_context_lock);
+		if (workload->vgpu != scheduler->engine_owner[ring_id]) {
+			/* Switch ring from host to vGPU or vGPU to vGPU. */
+			intel_gvt_switch_mmio(scheduler->engine_owner[ring_id],
+					      workload->vgpu, ring_id);
+			scheduler->engine_owner[ring_id] = workload->vgpu;
+		} else
+			gvt_dbg_sched("skip ring %d mmio switch for vgpu%d\n",
+				      ring_id, workload->vgpu->id);
+		spin_unlock_bh(&scheduler->mmio_context_lock);
 		atomic_set(&workload->shadow_ctx_active, 1);
 		break;
 	case INTEL_CONTEXT_SCHEDULE_OUT:
-		intel_gvt_restore_render_mmio(workload->vgpu,
-					      workload->ring_id);
 		/* If the status is -EINPROGRESS means this workload
 		 * doesn't meet any issue during dispatching so when
 		 * get the SCHEDULE_OUT set the status to be zero for
