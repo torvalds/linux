@@ -208,9 +208,6 @@ static int (*dss_output_drv_reg_funcs[])(void) __initdata = {
 #ifdef CONFIG_OMAP2_DSS_DSI
 	dsi_init_platform_driver,
 #endif
-#ifdef CONFIG_OMAP2_DSS_RFBI
-	rfbi_init_platform_driver,
-#endif
 #ifdef CONFIG_OMAP2_DSS_VENC
 	venc_init_platform_driver,
 #endif
@@ -231,9 +228,6 @@ static void (*dss_output_drv_unreg_funcs[])(void) = {
 #endif
 #ifdef CONFIG_OMAP2_DSS_VENC
 	venc_uninit_platform_driver,
-#endif
-#ifdef CONFIG_OMAP2_DSS_RFBI
-	rfbi_uninit_platform_driver,
 #endif
 #ifdef CONFIG_OMAP2_DSS_DSI
 	dsi_uninit_platform_driver,

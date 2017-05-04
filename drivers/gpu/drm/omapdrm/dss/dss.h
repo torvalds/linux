@@ -382,10 +382,6 @@ void hdmi4_uninit_platform_driver(void);
 int hdmi5_init_platform_driver(void) __init;
 void hdmi5_uninit_platform_driver(void);
 
-/* RFBI */
-int rfbi_init_platform_driver(void) __init;
-void rfbi_uninit_platform_driver(void);
-
 
 #ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
 static inline void dss_collect_irq_stats(u32 irqstatus, unsigned *irq_arr)
