@@ -250,3 +250,7 @@
 		};
 	};
 };
+
+&u2phy0_host {
+	phy-supply = <&vcc_host>;
+};
