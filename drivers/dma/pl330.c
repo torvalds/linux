@@ -1616,8 +1616,8 @@ static int pl330_update(struct pl330_dmac *pl330)
 	if (pl330->pcfg.num_events < 32
 			&& val & ~((1 << pl330->pcfg.num_events) - 1)) {
 		pl330->dmac_tbd.reset_dmac = true;
-		dev_err(pl330->ddma.dev, "%s:%d Unexpected!\n", __func__,
-			__LINE__);
+		dev_err_ratelimited(pl330->ddma.dev, "%s:%d Unexpected!\n",
+				    __func__, __LINE__);
 		ret = 1;
 		goto updt_exit;
 	}
