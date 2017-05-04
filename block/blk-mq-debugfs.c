@@ -107,14 +107,18 @@ static int blk_queue_flags_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static ssize_t blk_queue_flags_store(struct file *file, const char __user *ubuf,
-				     size_t len, loff_t *offp)
+static ssize_t blk_queue_flags_store(struct file *file, const char __user *buf,
+				     size_t count, loff_t *ppos)
 {
 	struct request_queue *q = file_inode(file)->i_private;
 	char op[16] = { }, *s;
 
-	len = min(len, sizeof(op) - 1);
-	if (copy_from_user(op, ubuf, len))
+	if (count >= sizeof(op)) {
+		pr_err("%s: operation too long\n", __func__);
+		goto inval;
+	}
+
+	if (copy_from_user(op, buf, count))
 		return -EFAULT;
 	s = op;
 	strsep(&s, " \t\n"); /* strip trailing whitespace */
@@ -123,11 +127,12 @@ static ssize_t blk_queue_flags_store(struct file *file, const char __user *ubuf,
 	} else if (strcmp(op, "start") == 0) {
 		blk_mq_start_stopped_hw_queues(q, true);
 	} else {
-		pr_err("%s: unsupported operation %s. Use either 'run' or 'start'\n",
-		       __func__, op);
+		pr_err("%s: unsupported operation '%s'\n", __func__, op);
+inval:
+		pr_err("%s: use either 'run' or 'start'\n", __func__);
 		return -EINVAL;
 	}
-	return len;
+	return count;
 }
 
 static int blk_queue_flags_open(struct inode *inode, struct file *file)
