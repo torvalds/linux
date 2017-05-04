@@ -847,6 +847,25 @@ static const struct tpm_input_header pcrextend_header = {
 	.ordinal = cpu_to_be32(TPM_ORD_PCR_EXTEND)
 };
 
+static int tpm1_pcr_extend(struct tpm_chip *chip, int pcr_idx, const u8 *hash,
+			   char *log_msg)
+{
+	struct tpm_buf buf;
+	int rc;
+
+	rc = tpm_buf_init(&buf, TPM_TAG_RQU_COMMAND, TPM_ORD_PCR_EXTEND);
+	if (rc)
+		return rc;
+
+	tpm_buf_append_u32(&buf, pcr_idx);
+	tpm_buf_append(&buf, hash, TPM_DIGEST_SIZE);
+
+	rc = tpm_transmit_cmd(chip, NULL, buf.data, EXTEND_PCR_RESULT_SIZE,
+			      EXTEND_PCR_RESULT_BODY_SIZE, 0, log_msg);
+	tpm_buf_destroy(&buf);
+	return rc;
+}
+
 /**
  * tpm_pcr_extend - extend pcr value with hash
  * @chip_num:	tpm idx # or AN&
@@ -859,7 +878,6 @@ static const struct tpm_input_header pcrextend_header = {
  */
 int tpm_pcr_extend(u32 chip_num, int pcr_idx, const u8 *hash)
 {
-	struct tpm_cmd_t cmd;
 	int rc;
 	struct tpm_chip *chip;
 	struct tpm2_digest digest_list[ARRAY_SIZE(chip->active_banks)];
@@ -885,13 +903,8 @@ int tpm_pcr_extend(u32 chip_num, int pcr_idx, const u8 *hash)
 		return rc;
 	}
 
-	cmd.header.in = pcrextend_header;
-	cmd.params.pcrextend_in.pcr_idx = cpu_to_be32(pcr_idx);
-	memcpy(cmd.params.pcrextend_in.hash, hash, TPM_DIGEST_SIZE);
-	rc = tpm_transmit_cmd(chip, NULL, &cmd, EXTEND_PCR_RESULT_SIZE,
-			      EXTEND_PCR_RESULT_BODY_SIZE, 0,
-			      "attempting extend a PCR value");
-
+	rc = tpm1_pcr_extend(chip, pcr_idx, hash,
+			     "attempting extend a PCR value");
 	tpm_put_ops(chip);
 	return rc;
 }
@@ -1090,15 +1103,9 @@ int tpm_pm_suspend(struct device *dev)
 	}
 
 	/* for buggy tpm, flush pcrs with extend to selected dummy */
-	if (tpm_suspend_pcr) {
-		cmd.header.in = pcrextend_header;
-		cmd.params.pcrextend_in.pcr_idx = cpu_to_be32(tpm_suspend_pcr);
-		memcpy(cmd.params.pcrextend_in.hash, dummy_hash,
-		       TPM_DIGEST_SIZE);
-		rc = tpm_transmit_cmd(chip, NULL, &cmd, EXTEND_PCR_RESULT_SIZE,
-				      EXTEND_PCR_RESULT_BODY_SIZE, 0,
-				      "extending dummy pcr before suspend");
-	}
+	if (tpm_suspend_pcr)
+		rc = tpm1_pcr_extend(chip, tpm_suspend_pcr, dummy_hash,
+				     "extending dummy pcr before suspend");
 
 	/* now do the actual savestate */
 	for (try = 0; try < TPM_RETRY; try++) {
