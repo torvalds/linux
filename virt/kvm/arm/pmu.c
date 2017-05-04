@@ -480,6 +480,8 @@ static int kvm_arm_pmu_v3_init(struct kvm_vcpu *vcpu)
 		return -EBUSY;
 
 	if (irqchip_in_kernel(vcpu->kvm)) {
+		int ret;
+
 		/*
 		 * If using the PMU with an in-kernel virtual GIC
 		 * implementation, we require the GIC to be already
@@ -490,6 +492,11 @@ static int kvm_arm_pmu_v3_init(struct kvm_vcpu *vcpu)
 
 		if (!kvm_arm_pmu_irq_initialized(vcpu))
 			return -ENXIO;
+
+		ret = kvm_vgic_set_owner(vcpu, vcpu->arch.pmu.irq_num,
+					 &vcpu->arch.pmu);
+		if (ret)
+			return ret;
 	}
 
 	vcpu->arch.pmu.created = true;

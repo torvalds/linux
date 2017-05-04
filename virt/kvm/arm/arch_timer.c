@@ -618,20 +618,22 @@ void kvm_timer_vcpu_terminate(struct kvm_vcpu *vcpu)
 	kvm_vgic_unmap_phys_irq(vcpu, vtimer->irq.irq);
 }
 
-static bool timer_irqs_are_valid(struct kvm *kvm)
+static bool timer_irqs_are_valid(struct kvm_vcpu *vcpu)
 {
-	struct kvm_vcpu *vcpu;
 	int vtimer_irq, ptimer_irq;
-	int i;
+	int i, ret;
 
-	vcpu = kvm_get_vcpu(kvm, 0);
 	vtimer_irq = vcpu_vtimer(vcpu)->irq.irq;
-	ptimer_irq = vcpu_ptimer(vcpu)->irq.irq;
-
-	if (vtimer_irq == ptimer_irq)
+	ret = kvm_vgic_set_owner(vcpu, vtimer_irq, vcpu_vtimer(vcpu));
+	if (ret)
 		return false;
 
-	kvm_for_each_vcpu(i, vcpu, kvm) {
+	ptimer_irq = vcpu_ptimer(vcpu)->irq.irq;
+	ret = kvm_vgic_set_owner(vcpu, ptimer_irq, vcpu_ptimer(vcpu));
+	if (ret)
+		return false;
+
+	kvm_for_each_vcpu(i, vcpu, vcpu->kvm) {
 		if (vcpu_vtimer(vcpu)->irq.irq != vtimer_irq ||
 		    vcpu_ptimer(vcpu)->irq.irq != ptimer_irq)
 			return false;
@@ -659,7 +661,7 @@ int kvm_timer_enable(struct kvm_vcpu *vcpu)
 	if (!vgic_initialized(vcpu->kvm))
 		return -ENODEV;
 
-	if (!timer_irqs_are_valid(vcpu->kvm)) {
+	if (!timer_irqs_are_valid(vcpu)) {
 		kvm_debug("incorrectly configured timer irqs\n");
 		return -EINVAL;
 	}
