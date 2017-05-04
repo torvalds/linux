@@ -151,9 +151,9 @@ TRACE_EVENT(thermal_power_cpu_limit,
 TRACE_EVENT(thermal_power_devfreq_get_power,
 	TP_PROTO(struct thermal_cooling_device *cdev,
 		 struct devfreq_dev_status *status, unsigned long freq,
-		u32 dynamic_power, u32 static_power),
+		u32 dynamic_power, u32 static_power, u32 power),
 
-	TP_ARGS(cdev, status,  freq, dynamic_power, static_power),
+	TP_ARGS(cdev, status,  freq, dynamic_power, static_power, power),
 
 	TP_STRUCT__entry(
 		__string(type,         cdev->type    )
@@ -161,6 +161,7 @@ TRACE_EVENT(thermal_power_devfreq_get_power,
 		__field(u32,           load          )
 		__field(u32,           dynamic_power )
 		__field(u32,           static_power  )
+		__field(u32,           power)
 	),
 
 	TP_fast_assign(
@@ -169,11 +170,13 @@ TRACE_EVENT(thermal_power_devfreq_get_power,
 		__entry->load = (100 * status->busy_time) / status->total_time;
 		__entry->dynamic_power = dynamic_power;
 		__entry->static_power = static_power;
+		__entry->power = power;
 	),
 
-	TP_printk("type=%s freq=%lu load=%u dynamic_power=%u static_power=%u",
+	TP_printk("type=%s freq=%lu load=%u dynamic_power=%u static_power=%u power=%u",
 		__get_str(type), __entry->freq,
-		__entry->load, __entry->dynamic_power, __entry->static_power)
+		__entry->load, __entry->dynamic_power, __entry->static_power,
+		__entry->power)
 );
 
 TRACE_EVENT(thermal_power_devfreq_limit,

@@ -321,7 +321,7 @@ static int devfreq_cooling_get_requested_power(struct thermal_cooling_device *cd
 	}
 
 	trace_thermal_power_devfreq_get_power(cdev, status, freq, dyn_power,
-					      static_power);
+					      static_power, *power);
 
 	return 0;
 fail:
