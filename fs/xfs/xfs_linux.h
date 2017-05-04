@@ -43,7 +43,6 @@ typedef __u32			xfs_nlink_t;
 
 #include "kmem.h"
 #include "mrlock.h"
-#include "uuid.h"
 
 #include <linux/semaphore.h>
 #include <linux/mm.h>
