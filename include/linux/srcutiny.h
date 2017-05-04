@@ -33,9 +33,8 @@ struct srcu_struct {
 	u8 srcu_gp_waiting;		/* GP waiting for readers? */
 	struct swait_queue_head srcu_wq;
 					/* Last srcu_read_unlock() wakes GP. */
-	unsigned long srcu_gp_seq;	/* GP seq # for callback tagging. */
-	struct rcu_segcblist srcu_cblist;
-					/* Pending SRCU callbacks. */
+	struct rcu_head *srcu_cb_head;	/* Pending callbacks: Head. */
+	struct rcu_head **srcu_cb_tail;	/* Pending callbacks: Tail. */
 	struct work_struct srcu_work;	/* For driving grace periods. */
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map dep_map;
@@ -47,7 +46,7 @@ void srcu_drive_gp(struct work_struct *wp);
 #define __SRCU_STRUCT_INIT(name)					\
 {									\
 	.srcu_wq = __SWAIT_QUEUE_HEAD_INITIALIZER(name.srcu_wq),	\
-	.srcu_cblist = RCU_SEGCBLIST_INITIALIZER(name.srcu_cblist),	\
+	.srcu_cb_tail = &name.srcu_cb_head,				\
 	.srcu_work = __WORK_INITIALIZER(name.srcu_work, srcu_drive_gp),	\
 	__SRCU_DEP_MAP_INIT(name)					\
 }

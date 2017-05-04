@@ -398,7 +398,7 @@ static inline void srcutorture_get_gp_data(enum rcutorture_type test_type,
 	if (test_type != SRCU_FLAVOR)
 		return;
 	*flags = 0;
-	*completed = sp->srcu_gp_seq;
+	*completed = sp->srcu_idx;
 	*gpnum = *completed;
 }
 
