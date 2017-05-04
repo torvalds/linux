@@ -4642,24 +4642,43 @@ static void destroy_cfs_bandwidth(struct cfs_bandwidth *cfs_b)
 	hrtimer_cancel(&cfs_b->slack_timer);
 }
 
+/*
+ * Both these cpu hotplug callbacks race against unregister_fair_sched_group()
+ *
+ * The race is harmless, since modifying bandwidth settings of unhooked group
+ * bits doesn't do much.
+ */
+
+/* cpu online calback */
 static void __maybe_unused update_runtime_enabled(struct rq *rq)
 {
-	struct cfs_rq *cfs_rq;
+	struct task_group *tg;
 
-	for_each_leaf_cfs_rq(rq, cfs_rq) {
-		struct cfs_bandwidth *cfs_b = &cfs_rq->tg->cfs_bandwidth;
+	lockdep_assert_held(&rq->lock);
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(tg, &task_groups, list) {
+		struct cfs_bandwidth *cfs_b = &tg->cfs_bandwidth;
+		struct cfs_rq *cfs_rq = tg->cfs_rq[cpu_of(rq)];
 
 		raw_spin_lock(&cfs_b->lock);
 		cfs_rq->runtime_enabled = cfs_b->quota != RUNTIME_INF;
 		raw_spin_unlock(&cfs_b->lock);
 	}
+	rcu_read_unlock();
 }
 
+/* cpu offline callback */
 static void __maybe_unused unthrottle_offline_cfs_rqs(struct rq *rq)
 {
-	struct cfs_rq *cfs_rq;
+	struct task_group *tg;
 
-	for_each_leaf_cfs_rq(rq, cfs_rq) {
+	lockdep_assert_held(&rq->lock);
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(tg, &task_groups, list) {
+		struct cfs_rq *cfs_rq = tg->cfs_rq[cpu_of(rq)];
+
 		if (!cfs_rq->runtime_enabled)
 			continue;
 
@@ -4677,6 +4696,7 @@ static void __maybe_unused unthrottle_offline_cfs_rqs(struct rq *rq)
 		if (cfs_rq_throttled(cfs_rq))
 			unthrottle_cfs_rq(cfs_rq);
 	}
+	rcu_read_unlock();
 }
 
 #else /* CONFIG_CFS_BANDWIDTH */
