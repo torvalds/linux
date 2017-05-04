@@ -496,6 +496,11 @@ struct btc_coexist {
 	enum btc_chip_interface	chip_interface;
 	struct btc_bt_link_info bt_link_info;
 
+	/* boolean variables to replace BT_AUTO_REPORT_ONLY_XXXXY_ZANT
+	 * configuration parameters
+	 */
+	bool auto_report_1ant;
+	bool auto_report_2ant;
 	bool initilized;
 	bool stop_coex_dm;
 	bool manual_control;

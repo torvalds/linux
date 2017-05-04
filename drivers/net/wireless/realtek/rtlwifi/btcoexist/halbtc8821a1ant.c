@@ -2116,6 +2116,7 @@ static void btc8821a1ant_init_hw_config(struct btc_coexist *btcoexist,
 void ex_btc8821a1ant_init_hwconfig(struct btc_coexist *btcoexist, bool wifionly)
 {
 	btc8821a1ant_init_hw_config(btcoexist, true, wifionly);
+	btcoexist->auto_report_1ant = true;
 }
 
 void ex_btc8821a1ant_init_coex_dm(struct btc_coexist *btcoexist)
@@ -2406,9 +2407,8 @@ void ex_btc8821a1ant_display_coex_info(struct btc_coexist *btcoexist)
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
 		 "\r\n %-35s = %d/ %d", "0x774(low-pri rx/tx)",
 		 coex_sta->low_priority_rx, coex_sta->low_priority_tx);
-#if (BT_AUTO_REPORT_ONLY_8821A_1ANT == 1)
-	btc8821a1ant_monitor_bt_ctr(btcoexist);
-#endif
+	if (btcoexist->auto_report_1ant)
+		btc8821a1ant_monitor_bt_ctr(btcoexist);
 	btcoexist->btc_disp_dbg_msg(btcoexist, BTC_DBG_DISP_COEX_STATISTICS);
 }
 
@@ -2964,10 +2964,10 @@ void ex_btc8821a1ant_periodical(struct btc_coexist *btcoexist)
 			 "[BTCoex], ****************************************************************\n");
 	}
 
-#if (BT_AUTO_REPORT_ONLY_8821A_1ANT == 0)
-	btc8821a1ant_query_bt_info(btcoexist);
-	btc8821a1ant_monitor_bt_ctr(btcoexist);
-#else
-	coex_sta->special_pkt_period_cnt++;
-#endif
+	if (!btcoexist->auto_report_1ant) {
+		btc8821a1ant_query_bt_info(btcoexist);
+		btc8821a1ant_monitor_bt_ctr(btcoexist);
+	} else {
+		coex_sta->special_pkt_period_cnt++;
+	}
 }

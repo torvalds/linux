@@ -27,8 +27,6 @@
  * The following is for 8821A 1ANT BT Co-exist definition
  *===========================================
  */
-#define	BT_AUTO_REPORT_ONLY_8821A_1ANT				0
-
 #define	BT_INFO_8821A_1ANT_B_FTP	BIT7
 #define	BT_INFO_8821A_1ANT_B_A2DP	BIT6
 #define	BT_INFO_8821A_1ANT_B_HID	BIT5
