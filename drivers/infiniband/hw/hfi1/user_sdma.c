@@ -372,9 +372,9 @@ static void sdma_kmem_cache_ctor(void *obj)
 	memset(tx, 0, sizeof(*tx));
 }
 
-int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt, struct file *fp)
+int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt,
+				struct hfi1_filedata *fd)
 {
-	struct hfi1_filedata *fd;
 	int ret = 0;
 	char buf[64];
 	struct hfi1_devdata *dd;
@@ -382,12 +382,10 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt, struct file *fp)
 	struct hfi1_user_sdma_pkt_q *pq;
 	unsigned long flags;
 
-	if (!uctxt || !fp) {
+	if (!uctxt || !fd) {
 		ret = -EBADF;
 		goto done;
 	}
-
-	fd = fp->private_data;
 
 	if (!hfi1_sdma_comp_ring_size) {
 		ret = -EINVAL;
@@ -536,11 +534,11 @@ static u8 dlid_to_selector(u16 dlid)
 	return mapping[hash];
 }
 
-int hfi1_user_sdma_process_request(struct file *fp, struct iovec *iovec,
-				   unsigned long dim, unsigned long *count)
+int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
+				   struct iovec *iovec, unsigned long dim,
+				   unsigned long *count)
 {
 	int ret = 0, i;
-	struct hfi1_filedata *fd = fp->private_data;
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct hfi1_user_sdma_pkt_q *pq = fd->pq;
 	struct hfi1_user_sdma_comp_q *cq = fd->cq;

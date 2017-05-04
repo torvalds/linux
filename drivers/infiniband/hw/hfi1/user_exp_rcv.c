@@ -87,7 +87,7 @@ static void unlock_exp_tids(struct hfi1_ctxtdata *uctxt,
 			    struct hfi1_filedata *fd);
 static u32 find_phys_blocks(struct page **pages, unsigned npages,
 			    struct tid_pageset *list);
-static int set_rcvarray_entry(struct file *fp, unsigned long vaddr,
+static int set_rcvarray_entry(struct hfi1_filedata *fd, unsigned long vaddr,
 			      u32 rcventry, struct tid_group *grp,
 			      struct page **pages, unsigned npages);
 static int tid_rb_insert(void *arg, struct mmu_rb_node *node);
@@ -95,12 +95,11 @@ static void cacheless_tid_rb_remove(struct hfi1_filedata *fdata,
 				    struct tid_rb_node *tnode);
 static void tid_rb_remove(void *arg, struct mmu_rb_node *node);
 static int tid_rb_invalidate(void *arg, struct mmu_rb_node *mnode);
-static int program_rcvarray(struct file *fp, unsigned long vaddr,
-			    struct tid_group *grp,
-			    struct tid_pageset *sets,
+static int program_rcvarray(struct hfi1_filedata *fd, unsigned long vaddr,
+			    struct tid_group *grp, struct tid_pageset *sets,
 			    unsigned start, u16 count, struct page **pages,
 			    u32 *tidlist, unsigned *tididx, unsigned *pmapped);
-static int unprogram_rcvarray(struct file *fp, u32 tidinfo,
+static int unprogram_rcvarray(struct hfi1_filedata *fd, u32 tidinfo,
 			      struct tid_group **grp);
 static void clear_tid_node(struct hfi1_filedata *fd, struct tid_rb_node *node);
 
@@ -160,9 +159,8 @@ static inline void tid_group_move(struct tid_group *group,
  * receive caching. This needs to be done after the context has
  * been configured with the eager/expected RcvEntry counts.
  */
-int hfi1_user_exp_rcv_init(struct file *fp)
+int hfi1_user_exp_rcv_init(struct hfi1_filedata *fd)
 {
-	struct hfi1_filedata *fd = fp->private_data;
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct hfi1_devdata *dd = uctxt->dd;
 	unsigned tidbase;
@@ -361,10 +359,10 @@ static inline void rcv_array_wc_fill(struct hfi1_devdata *dd, u32 index)
  *          can fit into the group. If the group becomes fully
  *          used, move it to tid_full_list.
  */
-int hfi1_user_exp_rcv_setup(struct file *fp, struct hfi1_tid_info *tinfo)
+int hfi1_user_exp_rcv_setup(struct hfi1_filedata *fd,
+			    struct hfi1_tid_info *tinfo)
 {
 	int ret = 0, need_group = 0, pinned;
-	struct hfi1_filedata *fd = fp->private_data;
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct hfi1_devdata *dd = uctxt->dd;
 	unsigned npages, ngroups, pageidx = 0, pageset_count, npagesets,
@@ -461,7 +459,7 @@ int hfi1_user_exp_rcv_setup(struct file *fp, struct hfi1_tid_info *tinfo)
 		struct tid_group *grp =
 			tid_group_pop(&uctxt->tid_group_list);
 
-		ret = program_rcvarray(fp, vaddr, grp, pagesets,
+		ret = program_rcvarray(fd, vaddr, grp, pagesets,
 				       pageidx, dd->rcv_entries.group_size,
 				       pages, tidlist, &tididx, &mapped);
 		/*
@@ -507,7 +505,7 @@ int hfi1_user_exp_rcv_setup(struct file *fp, struct hfi1_tid_info *tinfo)
 			unsigned use = min_t(unsigned, pageset_count - pageidx,
 					     grp->size - grp->used);
 
-			ret = program_rcvarray(fp, vaddr, grp, pagesets,
+			ret = program_rcvarray(fd, vaddr, grp, pagesets,
 					       pageidx, use, pages, tidlist,
 					       &tididx, &mapped);
 			if (ret < 0) {
@@ -557,7 +555,7 @@ nomem:
 			 * everything done so far so we don't leak resources.
 			 */
 			tinfo->tidlist = (unsigned long)&tidlist;
-			hfi1_user_exp_rcv_clear(fp, tinfo);
+			hfi1_user_exp_rcv_clear(fd, tinfo);
 			tinfo->tidlist = 0;
 			ret = -EFAULT;
 			goto bail;
@@ -581,10 +579,10 @@ bail:
 	return ret > 0 ? 0 : ret;
 }
 
-int hfi1_user_exp_rcv_clear(struct file *fp, struct hfi1_tid_info *tinfo)
+int hfi1_user_exp_rcv_clear(struct hfi1_filedata *fd,
+			    struct hfi1_tid_info *tinfo)
 {
 	int ret = 0;
-	struct hfi1_filedata *fd = fp->private_data;
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	u32 *tidinfo;
 	unsigned tididx;
@@ -599,7 +597,7 @@ int hfi1_user_exp_rcv_clear(struct file *fp, struct hfi1_tid_info *tinfo)
 
 	mutex_lock(&uctxt->exp_lock);
 	for (tididx = 0; tididx < tinfo->tidcnt; tididx++) {
-		ret = unprogram_rcvarray(fp, tidinfo[tididx], NULL);
+		ret = unprogram_rcvarray(fd, tidinfo[tididx], NULL);
 		if (ret) {
 			hfi1_cdbg(TID, "Failed to unprogram rcv array %d",
 				  ret);
@@ -616,9 +614,9 @@ int hfi1_user_exp_rcv_clear(struct file *fp, struct hfi1_tid_info *tinfo)
 	return ret;
 }
 
-int hfi1_user_exp_rcv_invalid(struct file *fp, struct hfi1_tid_info *tinfo)
+int hfi1_user_exp_rcv_invalid(struct hfi1_filedata *fd,
+			      struct hfi1_tid_info *tinfo)
 {
-	struct hfi1_filedata *fd = fp->private_data;
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	unsigned long *ev = uctxt->dd->events +
 		(((uctxt->ctxt - uctxt->dd->first_dyn_alloc_ctxt) *
@@ -733,7 +731,7 @@ static u32 find_phys_blocks(struct page **pages, unsigned npages,
 
 /**
  * program_rcvarray() - program an RcvArray group with receive buffers
- * @fp: file pointer
+ * @fd: filedata pointer
  * @vaddr: starting user virtual address
  * @grp: RcvArray group
  * @sets: array of struct tid_pageset holding information on physically
@@ -758,13 +756,12 @@ static u32 find_phys_blocks(struct page **pages, unsigned npages,
  * -ENOMEM or -EFAULT on error from set_rcvarray_entry(), or
  * number of RcvArray entries programmed.
  */
-static int program_rcvarray(struct file *fp, unsigned long vaddr,
+static int program_rcvarray(struct hfi1_filedata *fd, unsigned long vaddr,
 			    struct tid_group *grp,
 			    struct tid_pageset *sets,
 			    unsigned start, u16 count, struct page **pages,
 			    u32 *tidlist, unsigned *tididx, unsigned *pmapped)
 {
-	struct hfi1_filedata *fd = fp->private_data;
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct hfi1_devdata *dd = uctxt->dd;
 	u16 idx;
@@ -805,7 +802,7 @@ static int program_rcvarray(struct file *fp, unsigned long vaddr,
 		npages = sets[setidx].count;
 		pageidx = sets[setidx].idx;
 
-		ret = set_rcvarray_entry(fp, vaddr + (pageidx * PAGE_SIZE),
+		ret = set_rcvarray_entry(fd, vaddr + (pageidx * PAGE_SIZE),
 					 rcventry, grp, pages + pageidx,
 					 npages);
 		if (ret)
@@ -827,12 +824,11 @@ static int program_rcvarray(struct file *fp, unsigned long vaddr,
 	return idx;
 }
 
-static int set_rcvarray_entry(struct file *fp, unsigned long vaddr,
+static int set_rcvarray_entry(struct hfi1_filedata *fd, unsigned long vaddr,
 			      u32 rcventry, struct tid_group *grp,
 			      struct page **pages, unsigned npages)
 {
 	int ret;
-	struct hfi1_filedata *fd = fp->private_data;
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct tid_rb_node *node;
 	struct hfi1_devdata *dd = uctxt->dd;
@@ -886,10 +882,9 @@ static int set_rcvarray_entry(struct file *fp, unsigned long vaddr,
 	return 0;
 }
 
-static int unprogram_rcvarray(struct file *fp, u32 tidinfo,
+static int unprogram_rcvarray(struct hfi1_filedata *fd, u32 tidinfo,
 			      struct tid_group **grp)
 {
-	struct hfi1_filedata *fd = fp->private_data;
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct hfi1_devdata *dd = uctxt->dd;
 	struct tid_rb_node *node;
