@@ -854,6 +854,23 @@ void __call_srcu(struct srcu_struct *sp, struct rcu_head *rhp,
 		srcu_funnel_exp_start(sp, sdp->mynode, s);
 }
 
+/**
+ * call_srcu() - Queue a callback for invocation after an SRCU grace period
+ * @sp: srcu_struct in queue the callback
+ * @head: structure to be used for queueing the SRCU callback.
+ * @func: function to be invoked after the SRCU grace period
+ *
+ * The callback function will be invoked some time after a full SRCU
+ * grace period elapses, in other words after all pre-existing SRCU
+ * read-side critical sections have completed.  However, the callback
+ * function might well execute concurrently with other SRCU read-side
+ * critical sections that started after call_srcu() was invoked.  SRCU
+ * read-side critical sections are delimited by srcu_read_lock() and
+ * srcu_read_unlock(), and may be nested.
+ *
+ * The callback will be invoked from process context, but must nevertheless
+ * be fast and must not block.
+ */
 void call_srcu(struct srcu_struct *sp, struct rcu_head *rhp,
 	       rcu_callback_t func)
 {

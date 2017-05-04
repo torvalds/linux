@@ -141,6 +141,5 @@ void process_srcu(struct work_struct *work);
 
 void synchronize_srcu_expedited(struct srcu_struct *sp);
 void srcu_barrier(struct srcu_struct *sp);
-unsigned long srcu_batches_completed(struct srcu_struct *sp);
 
 #endif

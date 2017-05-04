@@ -492,6 +492,11 @@ static inline unsigned long rcu_exp_batches_completed_sched(void)
 	return 0;
 }
 
+static inline unsigned long srcu_batches_completed(struct srcu_struct *sp)
+{
+	return 0;
+}
+
 static inline void rcu_force_quiescent_state(void)
 {
 }
@@ -519,6 +524,7 @@ unsigned long rcu_batches_completed_bh(void);
 unsigned long rcu_batches_completed_sched(void);
 unsigned long rcu_exp_batches_completed(void);
 unsigned long rcu_exp_batches_completed_sched(void);
+unsigned long srcu_batches_completed(struct srcu_struct *sp);
 void show_rcu_gp_kthreads(void);
 void rcu_force_quiescent_state(void);
 void rcu_bh_force_quiescent_state(void);
