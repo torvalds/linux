@@ -544,7 +544,7 @@ static int __init rk_fiq_debugger_init(void) {
 	void __iomem *base;
 	struct device_node *np;
 	unsigned int id, ok = 0;
-	int irq, signal_irq = 0, wake_irq = 0;
+	int irq, signal_irq = -1, wake_irq = -1;
 	unsigned int baudrate = 0, irq_mode = 0;
 	phys_addr_t phy_base = 0;
 	int serial_id;
@@ -571,22 +571,19 @@ static int __init rk_fiq_debugger_init(void) {
 	if (of_property_read_u32(np, "rockchip,irq-mode-enable", &irq_mode))
 		irq_mode = -1;
 
-	if (irq_mode == 1)
+	if (irq_mode == 1) {
 		signal_irq = -1;
-	else if (of_property_read_u32(np, "rockchip,signal-irq", &signal_irq))
-		signal_irq = -1;
+	} else {
+		signal_irq = irq_of_parse_and_map(np, 0);
+		if (!signal_irq)
+			return -EINVAL;
+	}
 
 	if (of_property_read_u32(np, "rockchip,wake-irq", &wake_irq))
 		wake_irq = -1;
 
 	if (of_property_read_u32(np, "rockchip,baudrate", &baudrate))
 		baudrate = -1;
-
-	if (signal_irq > 0) {
-		signal_irq = irq_of_parse_and_map(np, 0);
-		if (!signal_irq)
-			return -EINVAL;
-	}
 
 	np = NULL;
 
