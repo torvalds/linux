@@ -90,7 +90,7 @@ unsigned long dss_feat_get_param_min(enum dss_range_param param);
 unsigned long dss_feat_get_param_max(enum dss_range_param param);
 enum omap_overlay_caps dss_feat_get_overlay_caps(enum omap_plane_id plane);
 bool dss_feat_color_mode_supported(enum omap_plane_id plane,
-		u32 color_mode);
+		u32 fourcc);
 
 u32 dss_feat_get_buffer_size_unit(void);	/* in bytes */
 u32 dss_feat_get_burst_size_unit(void);		/* in bytes */

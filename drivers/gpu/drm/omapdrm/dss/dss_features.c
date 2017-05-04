@@ -808,8 +808,7 @@ enum omap_overlay_caps dss_feat_get_overlay_caps(enum omap_plane_id plane)
 	return omap_current_dss_features->overlay_caps[plane];
 }
 
-bool dss_feat_color_mode_supported(enum omap_plane_id plane,
-		u32 color_mode)
+bool dss_feat_color_mode_supported(enum omap_plane_id plane, u32 fourcc)
 {
 	const u32 *modes;
 	unsigned int i;
@@ -817,7 +816,7 @@ bool dss_feat_color_mode_supported(enum omap_plane_id plane,
 	modes = omap_current_dss_features->supported_color_modes[plane];
 
 	for (i = 0; modes[i]; ++i) {
-		if (modes[i] == color_mode)
+		if (modes[i] == fourcc)
 			return true;
 	}
 

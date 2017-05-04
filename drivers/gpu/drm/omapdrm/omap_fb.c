@@ -132,7 +132,7 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 	struct plane *plane = &omap_fb->planes[0];
 	uint32_t x, y, orient = 0;
 
-	info->color_mode = fb->format->format;
+	info->fourcc = fb->format->format;
 
 	info->pos_x      = win->crtc_x;
 	info->pos_y      = win->crtc_y;

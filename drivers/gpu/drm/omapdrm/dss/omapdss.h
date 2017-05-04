@@ -268,7 +268,7 @@ struct omap_overlay_info {
 	u16 screen_width;
 	u16 width;
 	u16 height;
-	u32 color_mode;
+	u32 fourcc;
 	u8 rotation;
 	enum omap_dss_rotation_type rotation_type;
 	bool mirror;
@@ -316,7 +316,7 @@ struct omap_dss_writeback_info {
 	u16 buf_width;
 	u16 width;
 	u16 height;
-	u32 color_mode;
+	u32 fourcc;
 	u8 rotation;
 	enum omap_dss_rotation_type rotation_type;
 	bool mirror;
