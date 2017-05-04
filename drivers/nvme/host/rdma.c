@@ -80,9 +80,8 @@ struct nvme_rdma_request {
 };
 
 enum nvme_rdma_queue_flags {
-	NVME_RDMA_Q_CONNECTED		= 0,
+	NVME_RDMA_Q_LIVE		= 0,
 	NVME_RDMA_Q_DELETING		= 1,
-	NVME_RDMA_Q_LIVE		= 2,
 };
 
 struct nvme_rdma_queue {
@@ -580,7 +579,6 @@ static int nvme_rdma_init_queue(struct nvme_rdma_ctrl *ctrl,
 	}
 
 	clear_bit(NVME_RDMA_Q_DELETING, &queue->flags);
-	set_bit(NVME_RDMA_Q_CONNECTED, &queue->flags);
 
 	return 0;
 
@@ -798,10 +796,8 @@ static void nvme_rdma_error_recovery_work(struct work_struct *work)
 
 	nvme_stop_keep_alive(&ctrl->ctrl);
 
-	for (i = 0; i < ctrl->queue_count; i++) {
-		clear_bit(NVME_RDMA_Q_CONNECTED, &ctrl->queues[i].flags);
+	for (i = 0; i < ctrl->queue_count; i++)
 		clear_bit(NVME_RDMA_Q_LIVE, &ctrl->queues[i].flags);
-	}
 
 	if (ctrl->queue_count > 1)
 		nvme_stop_queues(&ctrl->ctrl);
@@ -1659,7 +1655,7 @@ static void nvme_rdma_shutdown_ctrl(struct nvme_rdma_ctrl *ctrl)
 		nvme_rdma_free_io_queues(ctrl);
 	}
 
-	if (test_bit(NVME_RDMA_Q_CONNECTED, &ctrl->queues[0].flags))
+	if (test_bit(NVME_RDMA_Q_LIVE, &ctrl->queues[0].flags))
 		nvme_shutdown_ctrl(&ctrl->ctrl);
 
 	blk_mq_stop_hw_queues(ctrl->ctrl.admin_q);
