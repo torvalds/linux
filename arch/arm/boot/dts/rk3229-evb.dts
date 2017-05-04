@@ -58,6 +58,17 @@
 		#clock-cells = <0>;
 	};
 
+	vcc_host: vcc-host-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio3 20 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&host_vbus_drv>;
+		regulator-name = "vcc_host";
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
 	vcc_phy: vcc-phy-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -83,6 +94,22 @@
 	tx_delay = <0x30>;
 	rx_delay = <0x10>;
 	status = "okay";
+};
+
+&pinctrl {
+	usb {
+		host_vbus_drv: host-vbus-drv {
+			rockchip,pins = <3 20 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&u2phy0_host {
+	phy-supply = <&vcc_host>;
+};
+
+&u2phy1_host {
+	phy-supply = <&vcc_host>;
 };
 
 &uart2 {
