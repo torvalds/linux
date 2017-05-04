@@ -29,30 +29,26 @@
  * framebuffer funcs
  */
 
-/* DSS to DRM formats mapping */
-static const struct {
-	u32 dss_format;
-	uint32_t pixel_format;
-} formats[] = {
+static const u32 formats[] = {
 	/* 16bpp [A]RGB: */
-	{ DRM_FORMAT_RGB565,       DRM_FORMAT_RGB565 },   /* RGB16-565 */
-	{ DRM_FORMAT_RGBX4444,      DRM_FORMAT_RGBX4444 }, /* RGB12x-4444 */
-	{ DRM_FORMAT_XRGB4444,      DRM_FORMAT_XRGB4444 }, /* xRGB12-4444 */
-	{ DRM_FORMAT_RGBA4444,      DRM_FORMAT_RGBA4444 }, /* RGBA12-4444 */
-	{ DRM_FORMAT_ARGB4444,      DRM_FORMAT_ARGB4444 }, /* ARGB16-4444 */
-	{ DRM_FORMAT_XRGB1555, DRM_FORMAT_XRGB1555 }, /* xRGB15-1555 */
-	{ DRM_FORMAT_ARGB1555, DRM_FORMAT_ARGB1555 }, /* ARGB16-1555 */
+	DRM_FORMAT_RGB565, /* RGB16-565 */
+	DRM_FORMAT_RGBX4444, /* RGB12x-4444 */
+	DRM_FORMAT_XRGB4444, /* xRGB12-4444 */
+	DRM_FORMAT_RGBA4444, /* RGBA12-4444 */
+	DRM_FORMAT_ARGB4444, /* ARGB16-4444 */
+	DRM_FORMAT_XRGB1555, /* xRGB15-1555 */
+	DRM_FORMAT_ARGB1555, /* ARGB16-1555 */
 	/* 24bpp RGB: */
-	{ DRM_FORMAT_RGB888,      DRM_FORMAT_RGB888 },   /* RGB24-888 */
+	DRM_FORMAT_RGB888,   /* RGB24-888 */
 	/* 32bpp [A]RGB: */
-	{ DRM_FORMAT_RGBX8888,      DRM_FORMAT_RGBX8888 }, /* RGBx24-8888 */
-	{ DRM_FORMAT_XRGB8888,      DRM_FORMAT_XRGB8888 }, /* xRGB24-8888 */
-	{ DRM_FORMAT_RGBA8888,      DRM_FORMAT_RGBA8888 }, /* RGBA32-8888 */
-	{ DRM_FORMAT_ARGB8888,      DRM_FORMAT_ARGB8888 }, /* ARGB32-8888 */
+	DRM_FORMAT_RGBX8888, /* RGBx24-8888 */
+	DRM_FORMAT_XRGB8888, /* xRGB24-8888 */
+	DRM_FORMAT_RGBA8888, /* RGBA32-8888 */
+	DRM_FORMAT_ARGB8888, /* ARGB32-8888 */
 	/* YUV: */
-	{ DRM_FORMAT_NV12,        DRM_FORMAT_NV12 },
-	{ DRM_FORMAT_YUYV,        DRM_FORMAT_YUYV },
-	{ DRM_FORMAT_UYVY,        DRM_FORMAT_UYVY },
+	DRM_FORMAT_NV12,
+	DRM_FORMAT_YUYV,
+	DRM_FORMAT_UYVY,
 };
 
 /* per-plane info for the fb: */
@@ -69,7 +65,6 @@ struct omap_framebuffer {
 	struct drm_framebuffer base;
 	int pin_count;
 	const struct drm_format_info *format;
-	u32 dss_format;
 	struct plane planes[2];
 	/* lock for pinning (pin_count and planes.dma_addr) */
 	struct mutex lock;
@@ -137,7 +132,7 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 	struct plane *plane = &omap_fb->planes[0];
 	uint32_t x, y, orient = 0;
 
-	info->color_mode = omap_fb->dss_format;
+	info->color_mode = fb->format->format;
 
 	info->pos_x      = win->crtc_x;
 	info->pos_y      = win->crtc_y;
@@ -214,7 +209,7 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 	/* convert to pixels: */
 	info->screen_width /= format->cpp[0];
 
-	if (omap_fb->dss_format == DRM_FORMAT_NV12) {
+	if (fb->format->format == DRM_FORMAT_NV12) {
 		plane = &omap_fb->planes[1];
 
 		if (info->rotation_type == OMAP_DSS_ROT_TILER) {
@@ -373,7 +368,6 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 	const struct drm_format_info *format = NULL;
 	struct omap_framebuffer *omap_fb = NULL;
 	struct drm_framebuffer *fb = NULL;
-	u32 dss_format = 0;
 	unsigned int pitch = mode_cmd->pitches[0];
 	int ret, i;
 
@@ -384,13 +378,11 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 	format = drm_format_info(mode_cmd->pixel_format);
 
 	for (i = 0; i < ARRAY_SIZE(formats); i++) {
-		if (formats[i].pixel_format == mode_cmd->pixel_format) {
-			dss_format = formats[i].dss_format;
+		if (formats[i] == mode_cmd->pixel_format)
 			break;
-		}
 	}
 
-	if (!format || !dss_format) {
+	if (!format || i == ARRAY_SIZE(formats)) {
 		dev_dbg(dev->dev, "unsupported pixel format: %4.4s\n",
 			(char *)&mode_cmd->pixel_format);
 		ret = -EINVAL;
@@ -405,7 +397,6 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 
 	fb = &omap_fb->base;
 	omap_fb->format = format;
-	omap_fb->dss_format = dss_format;
 	mutex_init(&omap_fb->lock);
 
 	/*
