@@ -539,6 +539,17 @@
 		status = "disabled";
 	};
 
+	hdmi_phy: hdmi-phy@12030000 {
+		compatible = "rockchip,rk3228-hdmi-phy";
+		reg = <0x12030000 0x10000>;
+		#phy-cells = <0>;
+		clocks = <&cru PCLK_HDMI_PHY>, <&xin24m>;
+		clock-names = "sysclk", "refclk";
+		#clock-cells = <0>;
+		clock-output-names = "hdmiphy_phy";
+		status = "disabled";
+	};
+
 	gpu: gpu@0x20001000 {
 		compatible = "arm,mali400";
 		reg = <0x20001000 0x200>,
@@ -607,6 +618,11 @@
 		vop_out: port {
 			#address-cells = <1>;
 			#size-cells = <0>;
+
+			vop_out_hdmi: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&hdmi_in_vop>;
+			};
 		};
 	};
 
@@ -624,6 +640,30 @@
 	display-subsystem {
 		compatible = "rockchip,display-subsystem";
 		ports = <&vop_out>;
+	};
+
+	hdmi: hdmi@200a0000 {
+		compatible = "rockchip,rk3228-dw-hdmi";
+		reg = <0x200a0000 0x20000>;
+		reg-io-width = <4>;
+		interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_HDMI_HDCP>, <&cru PCLK_HDMI_CTRL>;
+		clock-names = "isfr", "iahb";
+		pinctrl-names = "default";
+		pinctrl-0 = <&hdmii2c_xfer &hdmi_hpd>;
+		resets = <&cru SRST_HDMI_P>;
+		reset-names = "hdmi";
+		phys = <&hdmi_phy>;
+		phy-names = "hdmi_phy";
+		rockchip,grf = <&grf>;
+		status = "disabled";
+
+		port {
+			hdmi_in_vop: endpoint {
+				remote-endpoint = <&vop_out_hdmi>;
+			};
+		};
 	};
 
 	sdmmc: dwmmc@30000000 {
@@ -950,6 +990,17 @@
 			phy_pins: phy-pins {
 				rockchip,pins = <2 14 RK_FUNC_2 &pcfg_pull_none>,
 						<2 8 RK_FUNC_2 &pcfg_pull_none>;
+			};
+		};
+
+		hdmi {
+			hdmi_hpd: hdmi-hpd {
+				rockchip,pins = <0 15 RK_FUNC_1 &pcfg_pull_down>;
+			};
+
+			hdmii2c_xfer: hdmii2c-xfer {
+				rockchip,pins = <0 6 RK_FUNC_2 &pcfg_pull_none>,
+						<0 7 RK_FUNC_2 &pcfg_pull_none>;
 			};
 		};
 
