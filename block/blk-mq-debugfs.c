@@ -53,7 +53,7 @@ static int blk_flags_show(struct seq_file *m, const unsigned long flags,
 		if (!(flags & BIT(i)))
 			continue;
 		if (sep)
-			seq_puts(m, " ");
+			seq_puts(m, "|");
 		sep = true;
 		if (i < flag_name_count && flag_name[i])
 			seq_puts(m, flag_name[i]);
