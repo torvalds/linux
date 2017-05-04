@@ -202,7 +202,7 @@ static int nand_ooblayout_free_lp_hamming(struct mtd_info *mtd, int section,
 	return 0;
 }
 
-const struct mtd_ooblayout_ops nand_ooblayout_lp_hamming_ops = {
+static const struct mtd_ooblayout_ops nand_ooblayout_lp_hamming_ops = {
 	.ecc = nand_ooblayout_ecc_lp_hamming,
 	.free = nand_ooblayout_free_lp_hamming,
 };
