@@ -211,42 +211,6 @@ int hfi1_count_active_units(void)
 }
 
 /*
- * Return count of all units, optionally return in arguments
- * the number of usable (present) units, and the number of
- * ports that are up.
- */
-int hfi1_count_units(int *npresentp, int *nupp)
-{
-	int nunits = 0, npresent = 0, nup = 0;
-	struct hfi1_devdata *dd;
-	unsigned long flags;
-	int pidx;
-	struct hfi1_pportdata *ppd;
-
-	spin_lock_irqsave(&hfi1_devs_lock, flags);
-
-	list_for_each_entry(dd, &hfi1_dev_list, list) {
-		nunits++;
-		if ((dd->flags & HFI1_PRESENT) && dd->kregbase)
-			npresent++;
-		for (pidx = 0; pidx < dd->num_pports; ++pidx) {
-			ppd = dd->pport + pidx;
-			if (ppd->lid && ppd->linkup)
-				nup++;
-		}
-	}
-
-	spin_unlock_irqrestore(&hfi1_devs_lock, flags);
-
-	if (npresentp)
-		*npresentp = npresent;
-	if (nupp)
-		*nupp = nup;
-
-	return nunits;
-}
-
-/*
  * Get address of eager buffer from it's index (allocated in chunks, not
  * contiguous).
  */

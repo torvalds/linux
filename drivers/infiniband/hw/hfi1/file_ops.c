@@ -77,7 +77,7 @@ static unsigned int hfi1_poll(struct file *fp, struct poll_table_struct *pt);
 static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma);
 
 static u64 kvirt_to_phys(void *addr);
-static int assign_ctxt(struct file *fp, struct hfi1_user_info *uinfo);
+static int assign_ctxt(struct hfi1_filedata *fd, struct hfi1_user_info *uinfo);
 static int init_subctxts(struct hfi1_ctxtdata *uctxt,
 			 const struct hfi1_user_info *uinfo);
 static int user_init(struct hfi1_filedata *fd);
@@ -87,8 +87,7 @@ static int get_base_info(struct hfi1_filedata *fd, void __user *ubase,
 			 __u32 len);
 static int setup_ctxt(struct hfi1_filedata *fd);
 static int setup_subctxt(struct hfi1_ctxtdata *uctxt);
-static int get_user_context(struct hfi1_filedata *fd,
-			    struct hfi1_user_info *uinfo, int devno);
+
 static int find_shared_ctxt(struct hfi1_filedata *fd,
 			    const struct hfi1_user_info *uinfo);
 static int allocate_ctxt(struct hfi1_filedata *fd, struct hfi1_devdata *dd,
@@ -181,6 +180,9 @@ static int hfi1_file_open(struct inode *inode, struct file *fp)
 					       struct hfi1_devdata,
 					       user_cdev);
 
+	if (!((dd->flags & HFI1_PRESENT) && dd->kregbase))
+		return -EINVAL;
+
 	if (!atomic_inc_not_zero(&dd->user_refcount))
 		return -ENXIO;
 
@@ -195,6 +197,7 @@ static int hfi1_file_open(struct inode *inode, struct file *fp)
 		fd->rec_cpu_num = -1; /* no cpu affinity by default */
 		fd->mm = current->mm;
 		mmgrab(fd->mm);
+		fd->dd = dd;
 		fp->private_data = fd;
 	} else {
 		fp->private_data = NULL;
@@ -237,7 +240,7 @@ static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
 				   sizeof(uinfo)))
 			return -EFAULT;
 
-		ret = assign_ctxt(fp, &uinfo);
+		ret = assign_ctxt(fd, &uinfo);
 		if (ret < 0)
 			return ret;
 		ret = setup_ctxt(fd);
@@ -847,9 +850,9 @@ static u64 kvirt_to_phys(void *addr)
 	return paddr;
 }
 
-static int assign_ctxt(struct file *fp, struct hfi1_user_info *uinfo)
+static int assign_ctxt(struct hfi1_filedata *fd, struct hfi1_user_info *uinfo)
 {
-	int i_minor, ret = 0;
+	int ret = 0;
 	unsigned int swmajor, swminor;
 
 	swmajor = uinfo->userversion >> 16;
@@ -863,8 +866,6 @@ static int assign_ctxt(struct file *fp, struct hfi1_user_info *uinfo)
 	mutex_lock(&hfi1_mutex);
 	/* First, lets check if we need to setup a shared context? */
 	if (uinfo->subctxt_cnt) {
-		struct hfi1_filedata *fd = fp->private_data;
-
 		ret = find_shared_ctxt(fd, uinfo);
 		if (ret < 0)
 			goto done_unlock;
@@ -878,94 +879,59 @@ static int assign_ctxt(struct file *fp, struct hfi1_user_info *uinfo)
 	 * We execute the following block if we couldn't find a
 	 * shared context or if context sharing is not required.
 	 */
-	if (!ret) {
-		i_minor = iminor(file_inode(fp)) - HFI1_USER_MINOR_BASE;
-		ret = get_user_context(fp->private_data, uinfo, i_minor);
-	}
+	if (!ret)
+		ret = allocate_ctxt(fd, fd->dd, uinfo);
+
 done_unlock:
 	mutex_unlock(&hfi1_mutex);
 done:
 	return ret;
 }
 
-static int get_user_context(struct hfi1_filedata *fd,
-			    struct hfi1_user_info *uinfo, int devno)
-{
-	struct hfi1_devdata *dd = NULL;
-	int devmax, npresent, nup;
-
-	devmax = hfi1_count_units(&npresent, &nup);
-	if (!npresent)
-		return -ENXIO;
-
-	if (!nup)
-		return -ENETDOWN;
-
-	dd = hfi1_lookup(devno);
-	if (!dd)
-		return -ENODEV;
-	else if (!dd->freectxts)
-		return -EBUSY;
-
-	return allocate_ctxt(fd, dd, uinfo);
-}
-
 static int find_shared_ctxt(struct hfi1_filedata *fd,
 			    const struct hfi1_user_info *uinfo)
 {
-	int devmax, ndev, i;
-	int ret = 0;
+	int i;
+	struct hfi1_devdata *dd = fd->dd;
 
-	devmax = hfi1_count_units(NULL, NULL);
+	for (i = dd->first_dyn_alloc_ctxt; i < dd->num_rcv_contexts; i++) {
+		struct hfi1_ctxtdata *uctxt = dd->rcd[i];
 
-	for (ndev = 0; ndev < devmax; ndev++) {
-		struct hfi1_devdata *dd = hfi1_lookup(ndev);
-
-		if (!(dd && (dd->flags & HFI1_PRESENT) && dd->kregbase))
+		/* Skip ctxts which are not yet open */
+		if (!uctxt || !uctxt->cnt)
 			continue;
-		for (i = dd->first_dyn_alloc_ctxt;
-		     i < dd->num_rcv_contexts; i++) {
-			struct hfi1_ctxtdata *uctxt = dd->rcd[i];
 
-			/* Skip ctxts which are not yet open */
-			if (!uctxt || !uctxt->cnt)
-				continue;
+		/* Skip dynamically allocted kernel contexts */
+		if (uctxt->sc && (uctxt->sc->type == SC_KERNEL))
+			continue;
 
-			/* Skip dynamically allocted kernel contexts */
-			if (uctxt->sc && (uctxt->sc->type == SC_KERNEL))
-				continue;
+		/* Skip ctxt if it doesn't match the requested one */
+		if (memcmp(uctxt->uuid, uinfo->uuid,
+			   sizeof(uctxt->uuid)) ||
+		    uctxt->jkey != generate_jkey(current_uid()) ||
+		    uctxt->subctxt_id != uinfo->subctxt_id ||
+		    uctxt->subctxt_cnt != uinfo->subctxt_cnt)
+			continue;
 
-			/* Skip ctxt if it doesn't match the requested one */
-			if (memcmp(uctxt->uuid, uinfo->uuid,
-				   sizeof(uctxt->uuid)) ||
-			    uctxt->jkey != generate_jkey(current_uid()) ||
-			    uctxt->subctxt_id != uinfo->subctxt_id ||
-			    uctxt->subctxt_cnt != uinfo->subctxt_cnt)
-				continue;
-
-			/* Verify the sharing process matches the master */
-			if (uctxt->userversion != uinfo->userversion ||
-			    uctxt->cnt >= uctxt->subctxt_cnt) {
-				ret = -EINVAL;
-				goto done;
-			}
-			fd->uctxt = uctxt;
-			fd->subctxt  = uctxt->cnt++;
-			uctxt->active_slaves |= 1 << fd->subctxt;
-			ret = 1;
-			goto done;
+		/* Verify the sharing process matches the master */
+		if (uctxt->userversion != uinfo->userversion ||
+		    uctxt->cnt >= uctxt->subctxt_cnt) {
+			return -EINVAL;
 		}
+		fd->uctxt = uctxt;
+		fd->subctxt  = uctxt->cnt++;
+		uctxt->active_slaves |= 1 << fd->subctxt;
+		return 1;
 	}
 
-done:
-	return ret;
+	return 0;
 }
 
 static int allocate_ctxt(struct hfi1_filedata *fd, struct hfi1_devdata *dd,
 			 struct hfi1_user_info *uinfo)
 {
 	struct hfi1_ctxtdata *uctxt;
-	unsigned ctxt;
+	unsigned int ctxt;
 	int ret, numa;
 
 	if (dd->flags & HFI1_FROZEN) {
@@ -978,6 +944,14 @@ static int allocate_ctxt(struct hfi1_filedata *fd, struct hfi1_devdata *dd,
 		 */
 		return -EIO;
 	}
+
+	/*
+	 * This check is sort of redundant to the next EBUSY error. It would
+	 * also indicate an inconsistancy in the driver if this value was
+	 * zero, but there were still contexts available.
+	 */
+	if (!dd->freectxts)
+		return -EBUSY;
 
 	for (ctxt = dd->first_dyn_alloc_ctxt;
 	     ctxt < dd->num_rcv_contexts; ctxt++)
