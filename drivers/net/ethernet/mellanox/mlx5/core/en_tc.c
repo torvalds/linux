@@ -69,7 +69,8 @@ struct mlx5e_tc_flow {
 	u64			cookie;
 	u8			flags;
 	struct mlx5_flow_handle *rule;
-	struct list_head	encap; /* flows sharing the same encap */
+	struct list_head	encap;   /* flows sharing the same encap ID */
+	struct list_head	mod_hdr; /* flows sharing the same mod hdr ID */
 	union {
 		struct mlx5_esw_flow_attr esw_attr[0];
 		struct mlx5_nic_flow_attr nic_attr[0];
@@ -89,6 +90,135 @@ enum {
 
 #define MLX5E_TC_TABLE_NUM_ENTRIES 1024
 #define MLX5E_TC_TABLE_NUM_GROUPS 4
+
+struct mod_hdr_key {
+	int num_actions;
+	void *actions;
+};
+
+struct mlx5e_mod_hdr_entry {
+	/* a node of a hash table which keeps all the mod_hdr entries */
+	struct hlist_node mod_hdr_hlist;
+
+	/* flows sharing the same mod_hdr entry */
+	struct list_head flows;
+
+	struct mod_hdr_key key;
+
+	u32 mod_hdr_id;
+};
+
+#define MLX5_MH_ACT_SZ MLX5_UN_SZ_BYTES(set_action_in_add_action_in_auto)
+
+static inline u32 hash_mod_hdr_info(struct mod_hdr_key *key)
+{
+	return jhash(key->actions,
+		     key->num_actions * MLX5_MH_ACT_SZ, 0);
+}
+
+static inline int cmp_mod_hdr_info(struct mod_hdr_key *a,
+				   struct mod_hdr_key *b)
+{
+	if (a->num_actions != b->num_actions)
+		return 1;
+
+	return memcmp(a->actions, b->actions, a->num_actions * MLX5_MH_ACT_SZ);
+}
+
+static int mlx5e_attach_mod_hdr(struct mlx5e_priv *priv,
+				struct mlx5e_tc_flow *flow,
+				struct mlx5e_tc_flow_parse_attr *parse_attr)
+{
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	int num_actions, actions_size, namespace, err;
+	struct mlx5e_mod_hdr_entry *mh;
+	struct mod_hdr_key key;
+	bool found = false;
+	u32 hash_key;
+
+	num_actions  = parse_attr->num_mod_hdr_actions;
+	actions_size = MLX5_MH_ACT_SZ * num_actions;
+
+	key.actions = parse_attr->mod_hdr_actions;
+	key.num_actions = num_actions;
+
+	hash_key = hash_mod_hdr_info(&key);
+
+	if (flow->flags & MLX5E_TC_FLOW_ESWITCH) {
+		namespace = MLX5_FLOW_NAMESPACE_FDB;
+		hash_for_each_possible(esw->offloads.mod_hdr_tbl, mh,
+				       mod_hdr_hlist, hash_key) {
+			if (!cmp_mod_hdr_info(&mh->key, &key)) {
+				found = true;
+				break;
+			}
+		}
+	} else {
+		namespace = MLX5_FLOW_NAMESPACE_KERNEL;
+		hash_for_each_possible(priv->fs.tc.mod_hdr_tbl, mh,
+				       mod_hdr_hlist, hash_key) {
+			if (!cmp_mod_hdr_info(&mh->key, &key)) {
+				found = true;
+				break;
+			}
+		}
+	}
+
+	if (found)
+		goto attach_flow;
+
+	mh = kzalloc(sizeof(*mh) + actions_size, GFP_KERNEL);
+	if (!mh)
+		return -ENOMEM;
+
+	mh->key.actions = (void *)mh + sizeof(*mh);
+	memcpy(mh->key.actions, key.actions, actions_size);
+	mh->key.num_actions = num_actions;
+	INIT_LIST_HEAD(&mh->flows);
+
+	err = mlx5_modify_header_alloc(priv->mdev, namespace,
+				       mh->key.num_actions,
+				       mh->key.actions,
+				       &mh->mod_hdr_id);
+	if (err)
+		goto out_err;
+
+	if (flow->flags & MLX5E_TC_FLOW_ESWITCH)
+		hash_add(esw->offloads.mod_hdr_tbl, &mh->mod_hdr_hlist, hash_key);
+	else
+		hash_add(priv->fs.tc.mod_hdr_tbl, &mh->mod_hdr_hlist, hash_key);
+
+attach_flow:
+	list_add(&flow->mod_hdr, &mh->flows);
+	if (flow->flags & MLX5E_TC_FLOW_ESWITCH)
+		flow->esw_attr->mod_hdr_id = mh->mod_hdr_id;
+	else
+		flow->nic_attr->mod_hdr_id = mh->mod_hdr_id;
+
+	return 0;
+
+out_err:
+	kfree(mh);
+	return err;
+}
+
+static void mlx5e_detach_mod_hdr(struct mlx5e_priv *priv,
+				 struct mlx5e_tc_flow *flow)
+{
+	struct list_head *next = flow->mod_hdr.next;
+
+	list_del(&flow->mod_hdr);
+
+	if (list_empty(next)) {
+		struct mlx5e_mod_hdr_entry *mh;
+
+		mh = list_entry(next, struct mlx5e_mod_hdr_entry, flows);
+
+		mlx5_modify_header_dealloc(priv->mdev, mh->mod_hdr_id);
+		hash_del(&mh->mod_hdr_hlist);
+		kfree(mh);
+	}
+}
 
 static struct mlx5_flow_handle *
 mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
@@ -1938,6 +2068,8 @@ static const struct rhashtable_params mlx5e_tc_flow_ht_params = {
 int mlx5e_tc_init(struct mlx5e_priv *priv)
 {
 	struct mlx5e_tc_table *tc = &priv->fs.tc;
+
+	hash_init(tc->mod_hdr_tbl);
 
 	tc->ht_params = mlx5e_tc_flow_ht_params;
 	return rhashtable_init(&tc->ht, &tc->ht_params);
