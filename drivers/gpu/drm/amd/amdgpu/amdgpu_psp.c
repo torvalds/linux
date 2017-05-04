@@ -230,6 +230,13 @@ static int psp_asd_load(struct psp_context *psp)
 	int ret;
 	struct psp_gfx_cmd_resp *cmd;
 
+	/* If PSP version doesn't match ASD version, asd loading will be failed.
+	 * add workaround to bypass it for sriov now.
+	 * TODO: add version check to make it common
+	 */
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
+
 	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
 	if (!cmd)
 		return -ENOMEM;
