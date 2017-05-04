@@ -40,6 +40,7 @@
 #include <linux/regmap.h>
 #include <linux/of.h>
 #include <linux/component.h>
+#include <drm/drm_fourcc.h>
 
 #include "omapdss.h"
 #include "dss.h"
@@ -158,7 +159,7 @@ enum omap_color_component {
 	 */
 	DISPC_COLOR_COMPONENT_RGB_Y		= 1 << 0,
 	/* used for UV component for
-	 * OMAP_DSS_COLOR_YUV2, OMAP_DSS_COLOR_UYVY, OMAP_DSS_COLOR_NV12
+	 * DRM_FORMAT_YUYV, DRM_FORMAT_UYVY, DRM_FORMAT_NV12
 	 * color formats on OMAP4
 	 */
 	DISPC_COLOR_COMPONENT_UV		= 1 << 1,
@@ -911,64 +912,64 @@ static void dispc_ovl_set_color_mode(enum omap_plane_id plane,
 	u32 m = 0;
 	if (plane != OMAP_DSS_GFX) {
 		switch (color_mode) {
-		case OMAP_DSS_COLOR_NV12:
+		case DRM_FORMAT_NV12:
 			m = 0x0; break;
-		case OMAP_DSS_COLOR_RGBX16:
+		case DRM_FORMAT_XRGB4444:
 			m = 0x1; break;
-		case OMAP_DSS_COLOR_RGBA16:
+		case DRM_FORMAT_RGBA4444:
 			m = 0x2; break;
-		case OMAP_DSS_COLOR_RGB12U:
+		case DRM_FORMAT_RGBX4444:
 			m = 0x4; break;
-		case OMAP_DSS_COLOR_ARGB16:
+		case DRM_FORMAT_ARGB4444:
 			m = 0x5; break;
-		case OMAP_DSS_COLOR_RGB16:
+		case DRM_FORMAT_RGB565:
 			m = 0x6; break;
-		case OMAP_DSS_COLOR_ARGB16_1555:
+		case DRM_FORMAT_ARGB1555:
 			m = 0x7; break;
-		case OMAP_DSS_COLOR_RGB24U:
+		case DRM_FORMAT_XRGB8888:
 			m = 0x8; break;
-		case OMAP_DSS_COLOR_RGB24P:
+		case DRM_FORMAT_RGB888:
 			m = 0x9; break;
-		case OMAP_DSS_COLOR_YUV2:
+		case DRM_FORMAT_YUYV:
 			m = 0xa; break;
-		case OMAP_DSS_COLOR_UYVY:
+		case DRM_FORMAT_UYVY:
 			m = 0xb; break;
-		case OMAP_DSS_COLOR_ARGB32:
+		case DRM_FORMAT_ARGB8888:
 			m = 0xc; break;
-		case OMAP_DSS_COLOR_RGBA32:
+		case DRM_FORMAT_RGBA8888:
 			m = 0xd; break;
-		case OMAP_DSS_COLOR_RGBX32:
+		case DRM_FORMAT_RGBX8888:
 			m = 0xe; break;
-		case OMAP_DSS_COLOR_XRGB16_1555:
+		case DRM_FORMAT_XRGB1555:
 			m = 0xf; break;
 		default:
 			BUG(); return;
 		}
 	} else {
 		switch (color_mode) {
-		case OMAP_DSS_COLOR_RGB12U:
+		case DRM_FORMAT_RGBX4444:
 			m = 0x4; break;
-		case OMAP_DSS_COLOR_ARGB16:
+		case DRM_FORMAT_ARGB4444:
 			m = 0x5; break;
-		case OMAP_DSS_COLOR_RGB16:
+		case DRM_FORMAT_RGB565:
 			m = 0x6; break;
-		case OMAP_DSS_COLOR_ARGB16_1555:
+		case DRM_FORMAT_ARGB1555:
 			m = 0x7; break;
-		case OMAP_DSS_COLOR_RGB24U:
+		case DRM_FORMAT_XRGB8888:
 			m = 0x8; break;
-		case OMAP_DSS_COLOR_RGB24P:
+		case DRM_FORMAT_RGB888:
 			m = 0x9; break;
-		case OMAP_DSS_COLOR_RGBX16:
+		case DRM_FORMAT_XRGB4444:
 			m = 0xa; break;
-		case OMAP_DSS_COLOR_RGBA16:
+		case DRM_FORMAT_RGBA4444:
 			m = 0xb; break;
-		case OMAP_DSS_COLOR_ARGB32:
+		case DRM_FORMAT_ARGB8888:
 			m = 0xc; break;
-		case OMAP_DSS_COLOR_RGBA32:
+		case DRM_FORMAT_RGBA8888:
 			m = 0xd; break;
-		case OMAP_DSS_COLOR_RGBX32:
+		case DRM_FORMAT_RGBX8888:
 			m = 0xe; break;
-		case OMAP_DSS_COLOR_XRGB16_1555:
+		case DRM_FORMAT_XRGB1555:
 			m = 0xf; break;
 		default:
 			BUG(); return;
@@ -981,9 +982,9 @@ static void dispc_ovl_set_color_mode(enum omap_plane_id plane,
 static bool format_is_yuv(u32 color_mode)
 {
 	switch (color_mode) {
-	case OMAP_DSS_COLOR_YUV2:
-	case OMAP_DSS_COLOR_UYVY:
-	case OMAP_DSS_COLOR_NV12:
+	case DRM_FORMAT_YUYV:
+	case DRM_FORMAT_UYVY:
+	case DRM_FORMAT_NV12:
 		return true;
 	default:
 		return false;
@@ -1619,14 +1620,14 @@ static void dispc_ovl_set_accu_uv(enum omap_plane_id plane,
 	}
 
 	switch (color_mode) {
-	case OMAP_DSS_COLOR_NV12:
+	case DRM_FORMAT_NV12:
 		if (ilace)
 			accu_table = accu_nv12_ilace;
 		else
 			accu_table = accu_nv12;
 		break;
-	case OMAP_DSS_COLOR_YUV2:
-	case OMAP_DSS_COLOR_UYVY:
+	case DRM_FORMAT_YUYV:
+	case DRM_FORMAT_UYVY:
 		accu_table = accu_yuv;
 		break;
 	default:
@@ -1727,7 +1728,7 @@ static void dispc_ovl_set_scaling_uv(enum omap_plane_id plane,
 			out_height, ilace, color_mode, rotation);
 
 	switch (color_mode) {
-	case OMAP_DSS_COLOR_NV12:
+	case DRM_FORMAT_NV12:
 		if (chroma_upscale) {
 			/* UV is subsampled by 2 horizontally and vertically */
 			orig_height >>= 1;
@@ -1739,8 +1740,8 @@ static void dispc_ovl_set_scaling_uv(enum omap_plane_id plane,
 		}
 
 		break;
-	case OMAP_DSS_COLOR_YUV2:
-	case OMAP_DSS_COLOR_UYVY:
+	case DRM_FORMAT_YUYV:
+	case DRM_FORMAT_UYVY:
 		/* For YUV422 with 90/270 rotation, we don't upsample chroma */
 		if (rotation == OMAP_DSS_ROT_0 ||
 				rotation == OMAP_DSS_ROT_180) {
@@ -1812,8 +1813,8 @@ static void dispc_ovl_set_rotation_attrs(enum omap_plane_id plane, u8 rotation,
 	bool row_repeat = false;
 	int vidrot = 0;
 
-	if (color_mode == OMAP_DSS_COLOR_YUV2 ||
-			color_mode == OMAP_DSS_COLOR_UYVY) {
+	if (color_mode == DRM_FORMAT_YUYV ||
+			color_mode == DRM_FORMAT_UYVY) {
 
 		if (mirroring) {
 			switch (rotation) {
@@ -1858,7 +1859,7 @@ static void dispc_ovl_set_rotation_attrs(enum omap_plane_id plane, u8 rotation,
 	 * NV12 in 1D mode must use ROTATION=1. Otherwise DSS will fetch extra
 	 * rows beyond the framebuffer, which may cause OCP error.
 	 */
-	if (color_mode == OMAP_DSS_COLOR_NV12 &&
+	if (color_mode == DRM_FORMAT_NV12 &&
 			rotation_type != OMAP_DSS_ROT_TILER)
 		vidrot = 1;
 
@@ -1867,9 +1868,9 @@ static void dispc_ovl_set_rotation_attrs(enum omap_plane_id plane, u8 rotation,
 		REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane),
 			row_repeat ? 1 : 0, 18, 18);
 
-	if (dss_feat_color_mode_supported(plane, OMAP_DSS_COLOR_NV12)) {
+	if (dss_feat_color_mode_supported(plane, DRM_FORMAT_NV12)) {
 		bool doublestride =
-			color_mode == OMAP_DSS_COLOR_NV12 &&
+			color_mode == DRM_FORMAT_NV12 &&
 			rotation_type == OMAP_DSS_ROT_TILER &&
 			(rotation == OMAP_DSS_ROT_0 || rotation == OMAP_DSS_ROT_180);
 
@@ -1881,24 +1882,24 @@ static void dispc_ovl_set_rotation_attrs(enum omap_plane_id plane, u8 rotation,
 static int color_mode_to_bpp(u32 color_mode)
 {
 	switch (color_mode) {
-	case OMAP_DSS_COLOR_NV12:
+	case DRM_FORMAT_NV12:
 		return 8;
-	case OMAP_DSS_COLOR_RGB12U:
-	case OMAP_DSS_COLOR_RGB16:
-	case OMAP_DSS_COLOR_ARGB16:
-	case OMAP_DSS_COLOR_YUV2:
-	case OMAP_DSS_COLOR_UYVY:
-	case OMAP_DSS_COLOR_RGBA16:
-	case OMAP_DSS_COLOR_RGBX16:
-	case OMAP_DSS_COLOR_ARGB16_1555:
-	case OMAP_DSS_COLOR_XRGB16_1555:
+	case DRM_FORMAT_RGBX4444:
+	case DRM_FORMAT_RGB565:
+	case DRM_FORMAT_ARGB4444:
+	case DRM_FORMAT_YUYV:
+	case DRM_FORMAT_UYVY:
+	case DRM_FORMAT_RGBA4444:
+	case DRM_FORMAT_XRGB4444:
+	case DRM_FORMAT_ARGB1555:
+	case DRM_FORMAT_XRGB1555:
 		return 16;
-	case OMAP_DSS_COLOR_RGB24P:
+	case DRM_FORMAT_RGB888:
 		return 24;
-	case OMAP_DSS_COLOR_RGB24U:
-	case OMAP_DSS_COLOR_ARGB32:
-	case OMAP_DSS_COLOR_RGBA32:
-	case OMAP_DSS_COLOR_RGBX32:
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_RGBA8888:
+	case DRM_FORMAT_RGBX8888:
 		return 32;
 	default:
 		BUG();
@@ -1939,8 +1940,8 @@ static void calc_offset(u16 screen_width, u16 width,
 
 	*row_inc = pixinc(1 + (y_predecim * screen_width - width * x_predecim) +
 			(fieldmode ? screen_width : 0), ps);
-	if (color_mode == OMAP_DSS_COLOR_YUV2 ||
-		color_mode == OMAP_DSS_COLOR_UYVY)
+	if (color_mode == DRM_FORMAT_YUYV ||
+		color_mode == DRM_FORMAT_UYVY)
 		*pix_inc = pixinc(x_predecim, 2 * ps);
 	else
 		*pix_inc = pixinc(x_predecim, ps);
@@ -2037,7 +2038,7 @@ static unsigned long calc_core_clk_five_taps(unsigned long pclk,
 		do_div(tmp, out_width);
 		core_clk = max_t(u32, core_clk, tmp);
 
-		if (color_mode == OMAP_DSS_COLOR_RGB24U)
+		if (color_mode == DRM_FORMAT_XRGB8888)
 			core_clk <<= 1;
 	}
 
@@ -2265,7 +2266,7 @@ static int dispc_ovl_calc_scaling_44xx(unsigned long pclk, unsigned long lclk,
 		return -EINVAL;
 	}
 
-	if (*decim_x > 4 && color_mode != OMAP_DSS_COLOR_NV12) {
+	if (*decim_x > 4 && color_mode != DRM_FORMAT_NV12) {
 		/*
 		 * Let's disable all scaling that requires horizontal
 		 * decimation with higher factor than 4, until we have
@@ -2494,7 +2495,7 @@ static int dispc_ovl_setup_common(enum omap_plane_id plane,
 	dispc_ovl_set_ba0(plane, paddr + offset0);
 	dispc_ovl_set_ba1(plane, paddr + offset1);
 
-	if (OMAP_DSS_COLOR_NV12 == color_mode) {
+	if (color_mode == DRM_FORMAT_NV12) {
 		dispc_ovl_set_ba0_uv(plane, p_uv_addr + offset0);
 		dispc_ovl_set_ba1_uv(plane, p_uv_addr + offset1);
 	}
@@ -2585,14 +2586,14 @@ int dispc_wb_setup(const struct omap_dss_writeback_info *wi,
 		replication, vm, mem_to_mem);
 
 	switch (wi->color_mode) {
-	case OMAP_DSS_COLOR_RGB16:
-	case OMAP_DSS_COLOR_RGB24P:
-	case OMAP_DSS_COLOR_ARGB16:
-	case OMAP_DSS_COLOR_RGBA16:
-	case OMAP_DSS_COLOR_RGB12U:
-	case OMAP_DSS_COLOR_ARGB16_1555:
-	case OMAP_DSS_COLOR_XRGB16_1555:
-	case OMAP_DSS_COLOR_RGBX16:
+	case DRM_FORMAT_RGB565:
+	case DRM_FORMAT_RGB888:
+	case DRM_FORMAT_ARGB4444:
+	case DRM_FORMAT_RGBA4444:
+	case DRM_FORMAT_RGBX4444:
+	case DRM_FORMAT_ARGB1555:
+	case DRM_FORMAT_XRGB1555:
+	case DRM_FORMAT_XRGB4444:
 		truncation = true;
 		break;
 	default:
@@ -3918,7 +3919,7 @@ static const struct dispc_errata_i734_data {
 	.ovli = {
 		.screen_width = 1,
 		.width = 1, .height = 1,
-		.color_mode = OMAP_DSS_COLOR_RGB24U,
+		.color_mode = DRM_FORMAT_XRGB8888,
 		.rotation = OMAP_DSS_ROT_0,
 		.rotation_type = OMAP_DSS_ROT_NONE,
 		.mirror = 0,

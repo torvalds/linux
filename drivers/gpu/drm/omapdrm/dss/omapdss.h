@@ -92,21 +92,7 @@ enum omap_channel {
 };
 
 enum omap_color_mode {
-	OMAP_DSS_COLOR_RGB12U	= 1 << 4,  /* RGB12, 16-bit container */
-	OMAP_DSS_COLOR_ARGB16	= 1 << 5,  /* ARGB16 */
-	OMAP_DSS_COLOR_RGB16	= 1 << 6,  /* RGB16 */
-	OMAP_DSS_COLOR_RGB24U	= 1 << 7,  /* RGB24, 32-bit container */
-	OMAP_DSS_COLOR_RGB24P	= 1 << 8,  /* RGB24, 24-bit container */
-	OMAP_DSS_COLOR_YUV2	= 1 << 9,  /* YUV2 4:2:2 co-sited */
-	OMAP_DSS_COLOR_UYVY	= 1 << 10, /* UYVY 4:2:2 co-sited */
-	OMAP_DSS_COLOR_ARGB32	= 1 << 11, /* ARGB32 */
-	OMAP_DSS_COLOR_RGBA32	= 1 << 12, /* RGBA32 */
-	OMAP_DSS_COLOR_RGBX32	= 1 << 13, /* RGBx32 */
-	OMAP_DSS_COLOR_NV12		= 1 << 14, /* NV12 format: YUV 4:2:0 */
-	OMAP_DSS_COLOR_RGBA16		= 1 << 15, /* RGBA16 - 4444 */
-	OMAP_DSS_COLOR_RGBX16		= 1 << 16, /* RGBx16 - 4444 */
-	OMAP_DSS_COLOR_ARGB16_1555	= 1 << 17, /* ARGB16 - 1555 */
-	OMAP_DSS_COLOR_XRGB16_1555	= 1 << 18, /* xRGB16 - 1555 */
+	_UNUSED_,
 };
 
 enum omap_dss_load_mode {
