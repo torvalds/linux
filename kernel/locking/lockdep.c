@@ -30,6 +30,7 @@
 #include <linux/sched.h>
 #include <linux/sched/clock.h>
 #include <linux/sched/task.h>
+#include <linux/sched/mm.h>
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/proc_fs.h>
@@ -2876,6 +2877,8 @@ static void __lockdep_trace_alloc(gfp_t gfp_mask, unsigned long flags)
 	if (unlikely(!debug_locks))
 		return;
 
+	gfp_mask = current_gfp_context(gfp_mask);
+
 	/* no reclaim without waiting on it */
 	if (!(gfp_mask & __GFP_DIRECT_RECLAIM))
 		return;
@@ -2885,13 +2888,17 @@ static void __lockdep_trace_alloc(gfp_t gfp_mask, unsigned long flags)
 		return;
 
 	/* We're only interested __GFP_FS allocations for now */
-	if (!(gfp_mask & __GFP_FS))
+	if (!(gfp_mask & __GFP_FS) || (curr->flags & PF_MEMALLOC_NOFS))
 		return;
 
 	/*
 	 * Oi! Can't be having __GFP_FS allocations with IRQs disabled.
 	 */
 	if (DEBUG_LOCKS_WARN_ON(irqs_disabled_flags(flags)))
+		return;
+
+	/* Disable lockdep if explicitly requested */
+	if (gfp_mask & __GFP_NOLOCKDEP)
 		return;
 
 	mark_held_locks(curr, RECLAIM_FS);
@@ -3947,7 +3954,7 @@ EXPORT_SYMBOL_GPL(lock_unpin_lock);
 
 void lockdep_set_current_reclaim_state(gfp_t gfp_mask)
 {
-	current->lockdep_reclaim_gfp = gfp_mask;
+	current->lockdep_reclaim_gfp = current_gfp_context(gfp_mask);
 }
 EXPORT_SYMBOL_GPL(lockdep_set_current_reclaim_state);
 
