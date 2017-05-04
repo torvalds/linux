@@ -80,7 +80,7 @@ static ssize_t spi_master_##field##_show(struct device *dev,		\
 	return spi_statistics_##field##_show(&master->statistics, buf);	\
 }									\
 static struct device_attribute dev_attr_spi_master_##field = {		\
-	.attr = { .name = file, .mode = S_IRUGO },			\
+	.attr = { .name = file, .mode = 0444 },				\
 	.show = spi_master_##field##_show,				\
 };									\
 static ssize_t spi_device_##field##_show(struct device *dev,		\
@@ -91,7 +91,7 @@ static ssize_t spi_device_##field##_show(struct device *dev,		\
 	return spi_statistics_##field##_show(&spi->statistics, buf);	\
 }									\
 static struct device_attribute dev_attr_spi_device_##field = {		\
-	.attr = { .name = file, .mode = S_IRUGO },			\
+	.attr = { .name = file, .mode = 0444 },				\
 	.show = spi_device_##field##_show,				\
 }
 
