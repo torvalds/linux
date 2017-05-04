@@ -1055,7 +1055,7 @@ static void handle_pio_err(struct hfi1_devdata *dd, u32 unused, u64 reg);
 static void handle_sdma_err(struct hfi1_devdata *dd, u32 unused, u64 reg);
 static void handle_egress_err(struct hfi1_devdata *dd, u32 unused, u64 reg);
 static void handle_txe_err(struct hfi1_devdata *dd, u32 unused, u64 reg);
-static void set_partition_keys(struct hfi1_pportdata *);
+static void set_partition_keys(struct hfi1_pportdata *ppd);
 static const char *link_state_name(u32 state);
 static const char *link_state_reason_name(struct hfi1_pportdata *ppd,
 					  u32 state);
@@ -1068,9 +1068,9 @@ static int wait_logical_linkstate(struct hfi1_pportdata *ppd, u32 state,
 				  int msecs);
 static void read_planned_down_reason_code(struct hfi1_devdata *dd, u8 *pdrrc);
 static void read_link_down_reason(struct hfi1_devdata *dd, u8 *ldr);
-static void handle_temp_err(struct hfi1_devdata *);
-static void dc_shutdown(struct hfi1_devdata *);
-static void dc_start(struct hfi1_devdata *);
+static void handle_temp_err(struct hfi1_devdata *dd);
+static void dc_shutdown(struct hfi1_devdata *dd);
+static void dc_start(struct hfi1_devdata *dd);
 static int qos_rmt_entries(struct hfi1_devdata *dd, unsigned int *mp,
 			   unsigned int *np);
 static void clear_full_mgmt_pkey(struct hfi1_pportdata *ppd);

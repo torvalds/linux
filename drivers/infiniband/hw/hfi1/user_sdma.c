@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015 - 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -280,39 +280,43 @@ struct user_sdma_txreq {
 	hfi1_cdbg(SDMA, "[%u:%u:%u] " fmt, (pq)->dd->unit, (pq)->ctxt, \
 		 (pq)->subctxt, ##__VA_ARGS__)
 
-static int user_sdma_send_pkts(struct user_sdma_request *, unsigned);
-static int num_user_pages(const struct iovec *);
-static void user_sdma_txreq_cb(struct sdma_txreq *, int);
-static inline void pq_update(struct hfi1_user_sdma_pkt_q *);
-static void user_sdma_free_request(struct user_sdma_request *, bool);
-static int pin_vector_pages(struct user_sdma_request *,
-			    struct user_sdma_iovec *);
-static void unpin_vector_pages(struct mm_struct *, struct page **, unsigned,
-			       unsigned);
-static int check_header_template(struct user_sdma_request *,
-				 struct hfi1_pkt_header *, u32, u32);
-static int set_txreq_header(struct user_sdma_request *,
-			    struct user_sdma_txreq *, u32);
-static int set_txreq_header_ahg(struct user_sdma_request *,
-				struct user_sdma_txreq *, u32);
-static inline void set_comp_state(struct hfi1_user_sdma_pkt_q *,
-				  struct hfi1_user_sdma_comp_q *,
-				  u16, enum hfi1_sdma_comp_state, int);
-static inline u32 set_pkt_bth_psn(__be32, u8, u32);
+static int user_sdma_send_pkts(struct user_sdma_request *req,
+			       unsigned maxpkts);
+static int num_user_pages(const struct iovec *iov);
+static void user_sdma_txreq_cb(struct sdma_txreq *txreq, int status);
+static inline void pq_update(struct hfi1_user_sdma_pkt_q *pq);
+static void user_sdma_free_request(struct user_sdma_request *req, bool unpin);
+static int pin_vector_pages(struct user_sdma_request *req,
+			    struct user_sdma_iovec *iovec);
+static void unpin_vector_pages(struct mm_struct *mm, struct page **pages,
+			       unsigned start, unsigned npages);
+static int check_header_template(struct user_sdma_request *req,
+				 struct hfi1_pkt_header *hdr, u32 lrhlen,
+				 u32 datalen);
+static int set_txreq_header(struct user_sdma_request *req,
+			    struct user_sdma_txreq *tx, u32 datalen);
+static int set_txreq_header_ahg(struct user_sdma_request *req,
+				struct user_sdma_txreq *tx, u32 len);
+static inline void set_comp_state(struct hfi1_user_sdma_pkt_q *pq,
+				  struct hfi1_user_sdma_comp_q *cq,
+				  u16 idx, enum hfi1_sdma_comp_state state,
+				  int ret);
+static inline u32 set_pkt_bth_psn(__be32 bthpsn, u8 expct, u32 frags);
 static inline u32 get_lrh_len(struct hfi1_pkt_header, u32 len);
 
 static int defer_packet_queue(
-	struct sdma_engine *,
-	struct iowait *,
-	struct sdma_txreq *,
-	unsigned seq);
-static void activate_packet_queue(struct iowait *, int);
-static bool sdma_rb_filter(struct mmu_rb_node *, unsigned long, unsigned long);
-static int sdma_rb_insert(void *, struct mmu_rb_node *);
+	struct sdma_engine *sde,
+	struct iowait *wait,
+	struct sdma_txreq *txreq,
+	unsigned int seq);
+static void activate_packet_queue(struct iowait *wait, int reason);
+static bool sdma_rb_filter(struct mmu_rb_node *node, unsigned long addr,
+			   unsigned long len);
+static int sdma_rb_insert(void *arg, struct mmu_rb_node *mnode);
 static int sdma_rb_evict(void *arg, struct mmu_rb_node *mnode,
 			 void *arg2, bool *stop);
-static void sdma_rb_remove(void *, struct mmu_rb_node *);
-static int sdma_rb_invalidate(void *, struct mmu_rb_node *);
+static void sdma_rb_remove(void *arg, struct mmu_rb_node *mnode);
+static int sdma_rb_invalidate(void *arg, struct mmu_rb_node *mnode);
 
 static struct mmu_rb_ops sdma_rb_ops = {
 	.filter = sdma_rb_filter,

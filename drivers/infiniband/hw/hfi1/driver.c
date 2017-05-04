@@ -85,8 +85,8 @@ module_param_named(cu, hfi1_cu, uint, S_IRUGO);
 MODULE_PARM_DESC(cu, "Credit return units");
 
 unsigned long hfi1_cap_mask = HFI1_CAP_MASK_DEFAULT;
-static int hfi1_caps_set(const char *, const struct kernel_param *);
-static int hfi1_caps_get(char *, const struct kernel_param *);
+static int hfi1_caps_set(const char *val, const struct kernel_param *kp);
+static int hfi1_caps_get(char *buffer, const struct kernel_param *kp);
 static const struct kernel_param_ops cap_ops = {
 	.set = hfi1_caps_set,
 	.get = hfi1_caps_get

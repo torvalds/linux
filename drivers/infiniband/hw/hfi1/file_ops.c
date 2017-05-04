@@ -70,30 +70,36 @@
 /*
  * File operation functions
  */
-static int hfi1_file_open(struct inode *, struct file *);
-static int hfi1_file_close(struct inode *, struct file *);
-static ssize_t hfi1_write_iter(struct kiocb *, struct iov_iter *);
-static unsigned int hfi1_poll(struct file *, struct poll_table_struct *);
-static int hfi1_file_mmap(struct file *, struct vm_area_struct *);
+static int hfi1_file_open(struct inode *inode, struct file *fp);
+static int hfi1_file_close(struct inode *inode, struct file *fp);
+static ssize_t hfi1_write_iter(struct kiocb *kiocb, struct iov_iter *from);
+static unsigned int hfi1_poll(struct file *fp, struct poll_table_struct *pt);
+static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma);
 
-static u64 kvirt_to_phys(void *);
-static int assign_ctxt(struct file *, struct hfi1_user_info *);
-static int init_subctxts(struct hfi1_ctxtdata *, const struct hfi1_user_info *);
-static int user_init(struct file *);
-static int get_ctxt_info(struct file *, void __user *, __u32);
-static int get_base_info(struct file *, void __user *, __u32);
-static int setup_ctxt(struct file *);
-static int setup_subctxt(struct hfi1_ctxtdata *);
-static int get_user_context(struct file *, struct hfi1_user_info *, int);
-static int find_shared_ctxt(struct file *, const struct hfi1_user_info *);
-static int allocate_ctxt(struct file *, struct hfi1_devdata *,
-			 struct hfi1_user_info *);
-static unsigned int poll_urgent(struct file *, struct poll_table_struct *);
-static unsigned int poll_next(struct file *, struct poll_table_struct *);
-static int user_event_ack(struct hfi1_ctxtdata *, int, unsigned long);
-static int set_ctxt_pkey(struct hfi1_ctxtdata *, unsigned, u16);
-static int manage_rcvq(struct hfi1_ctxtdata *, unsigned, int);
-static int vma_fault(struct vm_fault *);
+static u64 kvirt_to_phys(void *addr);
+static int assign_ctxt(struct file *fp, struct hfi1_user_info *uinfo);
+static int init_subctxts(struct hfi1_ctxtdata *uctxt,
+			 const struct hfi1_user_info *uinfo);
+static int user_init(struct file *fp);
+static int get_ctxt_info(struct file *fp, void __user *ubase, __u32 len);
+static int get_base_info(struct file *fp, void __user *ubase, __u32 len);
+static int setup_ctxt(struct file *fp);
+static int setup_subctxt(struct hfi1_ctxtdata *uctxt);
+static int get_user_context(struct file *fp, struct hfi1_user_info *uinfo,
+			    int devno);
+static int find_shared_ctxt(struct file *fp,
+			    const struct hfi1_user_info *uinfo);
+static int allocate_ctxt(struct file *fp, struct hfi1_devdata *dd,
+			 struct hfi1_user_info *uinfo);
+static unsigned int poll_urgent(struct file *fp, struct poll_table_struct *pt);
+static unsigned int poll_next(struct file *fp, struct poll_table_struct *pt);
+static int user_event_ack(struct hfi1_ctxtdata *uctxt, int subctxt,
+			  unsigned long events);
+static int set_ctxt_pkey(struct hfi1_ctxtdata *uctxt, unsigned subctxt,
+			 u16 pkey);
+static int manage_rcvq(struct hfi1_ctxtdata *uctxt, unsigned subctxt,
+		       int start_stop);
+static int vma_fault(struct vm_fault *vmf);
 static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
 			    unsigned long arg);
 

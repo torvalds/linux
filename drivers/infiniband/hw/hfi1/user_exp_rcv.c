@@ -82,20 +82,26 @@ struct tid_pageset {
 		 (unsigned long)(len) - 1) & PAGE_MASK) -	       \
 	       ((unsigned long)vaddr & PAGE_MASK)) >> PAGE_SHIFT))
 
-static void unlock_exp_tids(struct hfi1_ctxtdata *, struct exp_tid_set *,
-			    struct hfi1_filedata *);
-static u32 find_phys_blocks(struct page **, unsigned, struct tid_pageset *);
-static int set_rcvarray_entry(struct file *, unsigned long, u32,
-			      struct tid_group *, struct page **, unsigned);
-static int tid_rb_insert(void *, struct mmu_rb_node *);
+static void unlock_exp_tids(struct hfi1_ctxtdata *uctxt,
+			    struct exp_tid_set *set,
+			    struct hfi1_filedata *fd);
+static u32 find_phys_blocks(struct page **pages, unsigned npages,
+			    struct tid_pageset *list);
+static int set_rcvarray_entry(struct file *fp, unsigned long vaddr,
+			      u32 rcventry, struct tid_group *grp,
+			      struct page **pages, unsigned npages);
+static int tid_rb_insert(void *arg, struct mmu_rb_node *node);
 static void cacheless_tid_rb_remove(struct hfi1_filedata *fdata,
 				    struct tid_rb_node *tnode);
-static void tid_rb_remove(void *, struct mmu_rb_node *);
-static int tid_rb_invalidate(void *, struct mmu_rb_node *);
-static int program_rcvarray(struct file *, unsigned long, struct tid_group *,
-			    struct tid_pageset *, unsigned, u16, struct page **,
-			    u32 *, unsigned *, unsigned *);
-static int unprogram_rcvarray(struct file *, u32, struct tid_group **);
+static void tid_rb_remove(void *arg, struct mmu_rb_node *node);
+static int tid_rb_invalidate(void *arg, struct mmu_rb_node *mnode);
+static int program_rcvarray(struct file *fp, unsigned long vaddr,
+			    struct tid_group *grp,
+			    struct tid_pageset *sets,
+			    unsigned start, u16 count, struct page **pages,
+			    u32 *tidlist, unsigned *tididx, unsigned *pmapped);
+static int unprogram_rcvarray(struct file *fp, u32 tidinfo,
+			      struct tid_group **grp);
 static void clear_tid_node(struct hfi1_filedata *fd, struct tid_rb_node *node);
 
 static struct mmu_rb_ops tid_rb_ops = {

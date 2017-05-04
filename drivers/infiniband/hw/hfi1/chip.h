@@ -636,7 +636,8 @@ static inline void write_uctxt_csr(struct hfi1_devdata *dd, int ctxt,
 	write_csr(dd, offset0 + (0x1000 * ctxt), value);
 }
 
-u64 create_pbc(struct hfi1_pportdata *ppd, u64, int, u32, u32);
+u64 create_pbc(struct hfi1_pportdata *ppd, u64 flags, int srate_mbs, u32 vl,
+	       u32 dw_len);
 
 /* firmware.c */
 #define SBUS_MASTER_BROADCAST 0xfd
@@ -728,7 +729,8 @@ int bringup_serdes(struct hfi1_pportdata *ppd);
 void set_intr_state(struct hfi1_devdata *dd, u32 enable);
 void apply_link_downgrade_policy(struct hfi1_pportdata *ppd,
 				 int refresh_widths);
-void update_usrhead(struct hfi1_ctxtdata *, u32, u32, u32, u32, u32);
+void update_usrhead(struct hfi1_ctxtdata *rcd, u32 hd, u32 updegr, u32 egrhd,
+		    u32 intr_adjust, u32 npkts);
 int stop_drain_data_vls(struct hfi1_devdata *dd);
 int open_fill_data_vls(struct hfi1_devdata *dd);
 u32 ns_to_cclock(struct hfi1_devdata *dd, u32 ns);
