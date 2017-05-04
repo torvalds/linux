@@ -77,6 +77,11 @@ union encr_ctrl {
 	} e;
 };
 
+struct cvm_cipher {
+	const char *name;
+	u8 value;
+};
+
 struct enc_context {
 	union encr_ctrl enc_ctrl;
 	u8 encr_key[32];
@@ -96,6 +101,8 @@ struct fc_context {
 struct cvm_enc_ctx {
 	u32 key_len;
 	u8 enc_key[MAX_KEY_SIZE];
+	u8 cipher_type:4;
+	u8 key_type:2;
 };
 
 struct cvm_des3_ctx {
