@@ -1521,7 +1521,6 @@ static int nvme_rdma_poll(struct blk_mq_hw_ctx *hctx, unsigned int tag)
 	struct ib_wc wc;
 	int found = 0;
 
-	ib_req_notify_cq(cq, IB_CQ_NEXT_COMP);
 	while (ib_poll_cq(cq, 1, &wc) > 0) {
 		struct ib_cqe *cqe = wc.wr_cqe;
 
