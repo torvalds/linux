@@ -497,7 +497,8 @@ void intel_legacy_submission_resume(struct drm_i915_private *dev_priv);
 
 int __must_check intel_ring_cacheline_align(struct drm_i915_gem_request *req);
 
-u32 __must_check *intel_ring_begin(struct drm_i915_gem_request *req, int n);
+u32 __must_check *intel_ring_begin(struct drm_i915_gem_request *req,
+				   unsigned int n);
 
 static inline void
 intel_ring_advance(struct drm_i915_gem_request *req, u32 *cs)

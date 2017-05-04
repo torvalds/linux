@@ -1656,7 +1656,8 @@ static int ring_request_alloc(struct drm_i915_gem_request *request)
 	return 0;
 }
 
-static int wait_for_space(struct drm_i915_gem_request *req, int bytes)
+static noinline int wait_for_space(struct drm_i915_gem_request *req,
+				   unsigned int bytes)
 {
 	struct intel_ring *ring = req->ring;
 	struct drm_i915_gem_request *target;
@@ -1701,52 +1702,56 @@ static int wait_for_space(struct drm_i915_gem_request *req, int bytes)
 	return 0;
 }
 
-u32 *intel_ring_begin(struct drm_i915_gem_request *req, int num_dwords)
+u32 *intel_ring_begin(struct drm_i915_gem_request *req,
+		      unsigned int num_dwords)
 {
 	struct intel_ring *ring = req->ring;
-	int remain_actual = ring->size - ring->emit;
-	int remain_usable = ring->effective_size - ring->emit;
-	int bytes = num_dwords * sizeof(u32);
-	int total_bytes, wait_bytes;
-	bool need_wrap = false;
+	const unsigned int remain_usable = ring->effective_size - ring->emit;
+	const unsigned int bytes = num_dwords * sizeof(u32);
+	unsigned int need_wrap = 0;
+	unsigned int total_bytes;
 	u32 *cs;
 
 	total_bytes = bytes + req->reserved_space;
+	GEM_BUG_ON(total_bytes > ring->effective_size);
 
-	if (unlikely(bytes > remain_usable)) {
-		/*
-		 * Not enough space for the basic request. So need to flush
-		 * out the remainder and then wait for base + reserved.
-		 */
-		wait_bytes = remain_actual + total_bytes;
-		need_wrap = true;
-	} else if (unlikely(total_bytes > remain_usable)) {
-		/*
-		 * The base request will fit but the reserved space
-		 * falls off the end. So we don't need an immediate wrap
-		 * and only need to effectively wait for the reserved
-		 * size space from the start of ringbuffer.
-		 */
-		wait_bytes = remain_actual + req->reserved_space;
-	} else {
-		/* No wrapping required, just waiting. */
-		wait_bytes = total_bytes;
+	if (unlikely(total_bytes > remain_usable)) {
+		const int remain_actual = ring->size - ring->emit;
+
+		if (bytes > remain_usable) {
+			/*
+			 * Not enough space for the basic request. So need to
+			 * flush out the remainder and then wait for
+			 * base + reserved.
+			 */
+			total_bytes += remain_actual;
+			need_wrap = remain_actual | 1;
+		} else  {
+			/*
+			 * The base request will fit but the reserved space
+			 * falls off the end. So we don't need an immediate
+			 * wrap and only need to effectively wait for the
+			 * reserved size from the start of ringbuffer.
+			 */
+			total_bytes = req->reserved_space + remain_actual;
+		}
 	}
 
-	if (wait_bytes > ring->space) {
-		int ret = wait_for_space(req, wait_bytes);
+	if (unlikely(total_bytes > ring->space)) {
+		int ret = wait_for_space(req, total_bytes);
 		if (unlikely(ret))
 			return ERR_PTR(ret);
 	}
 
 	if (unlikely(need_wrap)) {
-		GEM_BUG_ON(remain_actual > ring->space);
-		GEM_BUG_ON(ring->emit + remain_actual > ring->size);
+		need_wrap &= ~1;
+		GEM_BUG_ON(need_wrap > ring->space);
+		GEM_BUG_ON(ring->emit + need_wrap > ring->size);
 
 		/* Fill the tail with MI_NOOP */
-		memset(ring->vaddr + ring->emit, 0, remain_actual);
+		memset(ring->vaddr + ring->emit, 0, need_wrap);
 		ring->emit = 0;
-		ring->space -= remain_actual;
+		ring->space -= need_wrap;
 	}
 
 	GEM_BUG_ON(ring->emit > ring->size - bytes);
