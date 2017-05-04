@@ -125,10 +125,19 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 	int i, pcnt_width = annotate_browser__pcnt_width(ab);
 	double percent_max = 0.0;
 	char bf[256];
+	bool show_title = false;
 
 	for (i = 0; i < ab->nr_events; i++) {
 		if (bdl->samples[i].percent > percent_max)
 			percent_max = bdl->samples[i].percent;
+	}
+
+	if ((row == 0) && (dl->offset == -1 || percent_max == 0.0)) {
+		if (ab->have_cycles) {
+			if (dl->ipc == 0.0 && dl->cycles == 0)
+				show_title = true;
+		} else
+			show_title = true;
 	}
 
 	if (dl->offset != -1 && percent_max != 0.0) {
@@ -146,18 +155,27 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 		}
 	} else {
 		ui_browser__set_percent_color(browser, 0, current_entry);
-		ui_browser__write_nstring(browser, " ", 7 * ab->nr_events);
+
+		if (!show_title)
+			ui_browser__write_nstring(browser, " ", 7 * ab->nr_events);
+		else
+			ui_browser__printf(browser, "%*s", 7, "Percent");
 	}
 	if (ab->have_cycles) {
 		if (dl->ipc)
 			ui_browser__printf(browser, "%*.2f ", IPC_WIDTH - 1, dl->ipc);
-		else
+		else if (!show_title)
 			ui_browser__write_nstring(browser, " ", IPC_WIDTH);
+		else
+			ui_browser__printf(browser, "%*s ", IPC_WIDTH - 1, "IPC");
+
 		if (dl->cycles)
 			ui_browser__printf(browser, "%*" PRIu64 " ",
 					   CYCLES_WIDTH - 1, dl->cycles);
-		else
+		else if (!show_title)
 			ui_browser__write_nstring(browser, " ", CYCLES_WIDTH);
+		else
+			ui_browser__printf(browser, "%*s ", CYCLES_WIDTH - 1, "Cycle");
 	}
 
 	SLsmg_write_char(' ');
