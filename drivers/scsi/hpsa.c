@@ -5465,7 +5465,7 @@ static void hpsa_command_resubmit_worker(struct work_struct *work)
 		return hpsa_cmd_free_and_done(c->h, c, cmd);
 	}
 	if (c->reset_pending)
-		return hpsa_cmd_resolve_and_free(c->h, c);
+		return hpsa_cmd_free_and_done(c->h, c, cmd);
 	if (c->abort_pending)
 		return hpsa_cmd_abort_and_free(c->h, c, cmd);
 	if (c->cmd_type == CMD_IOACCEL2) {
