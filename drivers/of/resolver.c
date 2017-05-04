@@ -92,7 +92,7 @@ static void adjust_overlay_phandles(struct device_node *overlay,
 		if (phandle == OF_PHANDLE_ILLEGAL)
 			continue;
 
-		*(uint32_t *)prop->value = cpu_to_be32(overlay->phandle);
+		*(__be32 *)prop->value = cpu_to_be32(overlay->phandle);
 	}
 
 	for_each_child_of_node(overlay, child)

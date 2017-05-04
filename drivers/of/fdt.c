@@ -48,8 +48,8 @@ void of_fdt_limit_memory(int limit)
 	const void *val;
 	int nr_address_cells = OF_ROOT_NODE_ADDR_CELLS_DEFAULT;
 	int nr_size_cells = OF_ROOT_NODE_SIZE_CELLS_DEFAULT;
-	const uint32_t *addr_prop;
-	const uint32_t *size_prop;
+	const __be32 *addr_prop;
+	const __be32 *size_prop;
 	int root_offset;
 	int cell_size;
 
