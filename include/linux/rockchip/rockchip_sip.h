@@ -89,6 +89,7 @@
 typedef enum {
 	SHARE_PAGE_TYPE_INVALID = 0,
 	SHARE_PAGE_TYPE_UARTDBG,
+	SHARE_PAGE_TYPE_DDR,
 	SHARE_PAGE_TYPE_MAX,
 } share_page_type_t;
 
