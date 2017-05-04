@@ -493,6 +493,11 @@ static int qede_set_link_ksettings(struct net_device *dev,
 	params.override_flags |= QED_LINK_OVERRIDE_SPEED_ADV_SPEEDS;
 	params.override_flags |= QED_LINK_OVERRIDE_SPEED_AUTONEG;
 	if (base->autoneg == AUTONEG_ENABLE) {
+		if (!(current_link.supported_caps & QED_LM_Autoneg_BIT)) {
+			DP_INFO(edev, "Auto negotiation is not supported\n");
+			return -EOPNOTSUPP;
+		}
+
 		params.autoneg = true;
 		params.forced_speed = 0;
 		QEDE_ETHTOOL_TO_DRV_CAPS(params.adv_speeds, cmd, advertising)
