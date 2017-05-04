@@ -135,9 +135,12 @@ static int parse_readdir(struct orangefs_dir *od,
 
 	count = 1;
 	part = od->part;
-	while (part && part->next) {
-		part = part->next;
+	while (part) {
 		count++;
+		if (part->next)
+			part = part->next;
+		else
+			break;
 	}
 
 	new = (void *)op->downcall.trailer_buf;
