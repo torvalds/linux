@@ -800,6 +800,43 @@ void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 /* when sending, force a reschedule every one of these periods */
 #define SEND_RESCHED_TIMEOUT (5 * HZ)  /* 5s in jiffies */
 
+/**
+ * schedule_send_yield - test for a yield required for QP send engine
+ * @timeout: Final time for timeout slice for jiffies
+ * @qp: a pointer to QP
+ * @ps: a pointer to a structure with commonly lookup values for
+ *      the the send engine progress
+ *
+ * This routine checks if the time slice for the QP has expired
+ * for RC QPs, if so an additional work entry is queued. At this
+ * point, other QPs have an opportunity to be scheduled. It
+ * returns true if a yield is required, otherwise, false
+ * is returned.
+ */
+static bool schedule_send_yield(struct rvt_qp *qp,
+				struct hfi1_pkt_state *ps)
+{
+	if (unlikely(time_after(jiffies, ps->timeout))) {
+		if (!ps->in_thread ||
+		    workqueue_congested(ps->cpu, ps->ppd->hfi1_wq)) {
+			spin_lock_irqsave(&qp->s_lock, ps->flags);
+			qp->s_flags &= ~RVT_S_BUSY;
+			hfi1_schedule_send(qp);
+			spin_unlock_irqrestore(&qp->s_lock, ps->flags);
+			this_cpu_inc(*ps->ppd->dd->send_schedule);
+			trace_hfi1_rc_expired_time_slice(qp, true);
+			return true;
+		}
+
+		cond_resched();
+		this_cpu_inc(*ps->ppd->dd->send_schedule);
+		ps->timeout = jiffies + ps->timeout_int;
+	}
+
+	trace_hfi1_rc_expired_time_slice(qp, false);
+	return false;
+}
+
 void hfi1_do_send_from_rvt(struct rvt_qp *qp)
 {
 	hfi1_do_send(qp, false);
@@ -827,13 +864,13 @@ void hfi1_do_send(struct rvt_qp *qp, bool in_thread)
 	struct hfi1_pkt_state ps;
 	struct hfi1_qp_priv *priv = qp->priv;
 	int (*make_req)(struct rvt_qp *qp, struct hfi1_pkt_state *ps);
-	unsigned long timeout;
-	unsigned long timeout_int;
-	int cpu;
 
 	ps.dev = to_idev(qp->ibqp.device);
 	ps.ibp = to_iport(qp->ibqp.device, qp->port_num);
 	ps.ppd = ppd_from_ibp(ps.ibp);
+	ps.in_thread = in_thread;
+
+	trace_hfi1_rc_do_send(qp, in_thread);
 
 	switch (qp->ibqp.qp_type) {
 	case IB_QPT_RC:
@@ -844,7 +881,7 @@ void hfi1_do_send(struct rvt_qp *qp, bool in_thread)
 			return;
 		}
 		make_req = hfi1_make_rc_req;
-		timeout_int = (qp->timeout_jiffies);
+		ps.timeout_int = qp->timeout_jiffies;
 		break;
 	case IB_QPT_UC:
 		if (!loopback && ((rdma_ah_get_dlid(&qp->remote_ah_attr) &
@@ -854,11 +891,11 @@ void hfi1_do_send(struct rvt_qp *qp, bool in_thread)
 			return;
 		}
 		make_req = hfi1_make_uc_req;
-		timeout_int = SEND_RESCHED_TIMEOUT;
+		ps.timeout_int = SEND_RESCHED_TIMEOUT;
 		break;
 	default:
 		make_req = hfi1_make_ud_req;
-		timeout_int = SEND_RESCHED_TIMEOUT;
+		ps.timeout_int = SEND_RESCHED_TIMEOUT;
 	}
 
 	spin_lock_irqsave(&qp->s_lock, ps.flags);
@@ -871,9 +908,11 @@ void hfi1_do_send(struct rvt_qp *qp, bool in_thread)
 
 	qp->s_flags |= RVT_S_BUSY;
 
-	timeout = jiffies + (timeout_int) / 8;
-	cpu = priv->s_sde ? priv->s_sde->cpu :
+	ps.timeout_int = ps.timeout_int / 8;
+	ps.timeout = jiffies + ps.timeout_int;
+	ps.cpu = priv->s_sde ? priv->s_sde->cpu :
 			cpumask_first(cpumask_of_node(ps.ppd->dd->node));
+
 	/* insure a pre-built packet is handled  */
 	ps.s_txreq = get_waiting_verbs_txreq(qp);
 	do {
@@ -889,28 +928,9 @@ void hfi1_do_send(struct rvt_qp *qp, bool in_thread)
 			/* Record that s_ahg is empty. */
 			qp->s_hdrwords = 0;
 			/* allow other tasks to run */
-			if (unlikely(time_after(jiffies, timeout))) {
-				if (!in_thread ||
-				    workqueue_congested(
-						cpu,
-						ps.ppd->hfi1_wq)) {
-					spin_lock_irqsave(
-						&qp->s_lock,
-						ps.flags);
-					qp->s_flags &= ~RVT_S_BUSY;
-					hfi1_schedule_send(qp);
-					spin_unlock_irqrestore(
-						&qp->s_lock,
-						ps.flags);
-					this_cpu_inc(
-						*ps.ppd->dd->send_schedule);
-					return;
-				}
-				cond_resched();
-				this_cpu_inc(
-					*ps.ppd->dd->send_schedule);
-				timeout = jiffies + (timeout_int) / 8;
-			}
+			if (schedule_send_yield(qp, &ps))
+				return;
+
 			spin_lock_irqsave(&qp->s_lock, ps.flags);
 		}
 	} while (make_req(qp, &ps));

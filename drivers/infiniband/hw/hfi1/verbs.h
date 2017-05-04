@@ -139,6 +139,10 @@ struct hfi1_pkt_state {
 	struct hfi1_pportdata *ppd;
 	struct verbs_txreq *s_txreq;
 	unsigned long flags;
+	unsigned long timeout;
+	unsigned long timeout_int;
+	int cpu;
+	bool in_thread;
 };
 
 #define HFI1_PSN_CREDIT  16

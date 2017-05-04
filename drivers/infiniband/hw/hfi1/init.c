@@ -70,6 +70,7 @@
 #undef pr_fmt
 #define pr_fmt(fmt) DRIVER_NAME ": " fmt
 
+#define HFI1_MAX_ACTIVE_WORKQUEUE_ENTRIES 5
 /*
  * min buffers we want to have per context, after driver
  */
@@ -623,7 +624,7 @@ static int create_workqueues(struct hfi1_devdata *dd)
 				alloc_workqueue(
 				    "hfi%d_%d",
 				    WQ_SYSFS | WQ_HIGHPRI | WQ_CPU_INTENSIVE,
-				    dd->num_sdma,
+				    HFI1_MAX_ACTIVE_WORKQUEUE_ENTRIES,
 				    dd->unit, pidx);
 			if (!ppd->hfi1_wq)
 				goto wq_error;
