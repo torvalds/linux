@@ -104,10 +104,10 @@ static u32 soc15_pcie_rreg(struct amdgpu_device *adev, u32 reg)
 	u32 r;
 	struct nbio_pcie_index_data *nbio_pcie_id;
 
-	if (adev->asic_type == CHIP_VEGA10)
-		nbio_pcie_id = &nbio_v6_1_pcie_index_data;
+	if (adev->flags & AMD_IS_APU)
+		nbio_pcie_id = &nbio_v7_0_pcie_index_data;
 	else
-		BUG();
+		nbio_pcie_id = &nbio_v6_1_pcie_index_data;
 
 	address = nbio_pcie_id->index_offset;
 	data = nbio_pcie_id->data_offset;
@@ -125,10 +125,10 @@ static void soc15_pcie_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 	unsigned long flags, address, data;
 	struct nbio_pcie_index_data *nbio_pcie_id;
 
-	if (adev->asic_type == CHIP_VEGA10)
-		nbio_pcie_id = &nbio_v6_1_pcie_index_data;
+	if (adev->flags & AMD_IS_APU)
+		nbio_pcie_id = &nbio_v7_0_pcie_index_data;
 	else
-		BUG();
+		nbio_pcie_id = &nbio_v6_1_pcie_index_data;
 
 	address = nbio_pcie_id->index_offset;
 	data = nbio_pcie_id->data_offset;
@@ -199,7 +199,10 @@ static void soc15_didt_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 
 static u32 soc15_get_config_memsize(struct amdgpu_device *adev)
 {
-	return nbio_v6_1_get_memsize(adev);
+	if (adev->flags & AMD_IS_APU)
+		return nbio_v7_0_get_memsize(adev);
+	else
+		return nbio_v6_1_get_memsize(adev);
 }
 
 static const u32 vega10_golden_init[] =
@@ -376,7 +379,10 @@ static void soc15_gpu_pci_config_reset(struct amdgpu_device *adev)
 
 	/* wait for asic to come out of reset */
 	for (i = 0; i < adev->usec_timeout; i++) {
-		if (nbio_v6_1_get_memsize(adev) != 0xffffffff)
+		u32 memsize = (adev->flags & AMD_IS_APU) ?
+			nbio_v7_0_get_memsize(adev) :
+			nbio_v6_1_get_memsize(adev);
+		if (memsize != 0xffffffff)
 			break;
 		udelay(1);
 	}
@@ -450,8 +456,12 @@ static void soc15_program_aspm(struct amdgpu_device *adev)
 static void soc15_enable_doorbell_aperture(struct amdgpu_device *adev,
 					bool enable)
 {
-	nbio_v6_1_enable_doorbell_aperture(adev, enable);
-	nbio_v6_1_enable_doorbell_selfring_aperture(adev, enable);
+	if (adev->flags & AMD_IS_APU) {
+		nbio_v7_0_enable_doorbell_aperture(adev, enable);
+	} else {
+		nbio_v6_1_enable_doorbell_aperture(adev, enable);
+		nbio_v6_1_enable_doorbell_selfring_aperture(adev, enable);
+	}
 }
 
 static const struct amdgpu_ip_block_version vega10_common_ip_block =
@@ -506,7 +516,10 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 
 static uint32_t soc15_get_rev_id(struct amdgpu_device *adev)
 {
-	return nbio_v6_1_get_rev_id(adev);
+	if (adev->flags & AMD_IS_APU)
+		return nbio_v7_0_get_rev_id(adev);
+	else
+		return nbio_v6_1_get_rev_id(adev);
 }
 
 
@@ -556,6 +569,9 @@ static int soc15_common_early_init(void *handle)
 	switch(adev->asic_type) {
 	case CHIP_VEGA10:
 		nbio_v6_1_init(adev);
+		break;
+	case CHIP_RAVEN:
+		nbio_v7_0_init(adev);
 		break;
 	default:
 		return -EINVAL;
