@@ -76,7 +76,7 @@
 #define CPCAP_REG_CRM_VCHRG_4V30	CPCAP_REG_CRM_VCHRG(0x8)
 #define CPCAP_REG_CRM_VCHRG_4V32	CPCAP_REG_CRM_VCHRG(0x9)
 #define CPCAP_REG_CRM_VCHRG_4V34	CPCAP_REG_CRM_VCHRG(0xa)
-#define CPCAP_REG_CRM_VCHRG_4V36	CPCAP_REG_CRM_VCHRG(0xb)
+#define CPCAP_REG_CRM_VCHRG_4V35	CPCAP_REG_CRM_VCHRG(0xb)
 #define CPCAP_REG_CRM_VCHRG_4V38	CPCAP_REG_CRM_VCHRG(0xc)
 #define CPCAP_REG_CRM_VCHRG_4V40	CPCAP_REG_CRM_VCHRG(0xd)
 #define CPCAP_REG_CRM_VCHRG_4V42	CPCAP_REG_CRM_VCHRG(0xe)
@@ -433,7 +433,7 @@ static void cpcap_usb_detect(struct work_struct *work)
 			max_current = CPCAP_REG_CRM_ICHRG_0A528;
 
 		error = cpcap_charger_set_state(ddata,
-						CPCAP_REG_CRM_VCHRG_4V20,
+						CPCAP_REG_CRM_VCHRG_4V35,
 						max_current,
 						CPCAP_REG_CRM_TR_0A72);
 		if (error)
