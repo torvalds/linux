@@ -19,6 +19,7 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
+#include <linux/sizes.h>
 
 #define QUADSPI_CR		0x00
 #define CR_EN			BIT(0)
@@ -375,7 +376,7 @@ static ssize_t stm32_qspi_read(struct spi_nor *nor, loff_t from, size_t len,
 	struct stm32_qspi_cmd cmd;
 	int err;
 
-	dev_dbg(qspi->dev, "read(%#.2x): buf:%p from:%#.8x len:%#x\n",
+	dev_dbg(qspi->dev, "read(%#.2x): buf:%p from:%#.8x len:%#zx\n",
 		nor->read_opcode, buf, (u32)from, len);
 
 	memset(&cmd, 0, sizeof(cmd));
@@ -402,7 +403,7 @@ static ssize_t stm32_qspi_write(struct spi_nor *nor, loff_t to, size_t len,
 	struct stm32_qspi_cmd cmd;
 	int err;
 
-	dev_dbg(dev, "write(%#.2x): buf:%p to:%#.8x len:%#x\n",
+	dev_dbg(dev, "write(%#.2x): buf:%p to:%#.8x len:%#zx\n",
 		nor->program_opcode, buf, (u32)to, len);
 
 	memset(&cmd, 0, sizeof(cmd));
