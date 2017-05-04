@@ -1289,7 +1289,7 @@ int hfi1_reset_device(int unit)
 	if (dd->rcd)
 		for (i = dd->first_dyn_alloc_ctxt;
 		     i < dd->num_rcv_contexts; i++) {
-			if (!dd->rcd[i] || !dd->rcd[i]->cnt)
+			if (!dd->rcd[i])
 				continue;
 			spin_unlock_irqrestore(&dd->uctxt_lock, flags);
 			ret = -EBUSY;

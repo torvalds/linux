@@ -228,7 +228,7 @@ struct hfi1_ctxtdata {
 	unsigned ctxt;
 	/*
 	 * non-zero if ctxt can be shared, and defines the maximum number of
-	 * sub contexts allowed.
+	 * sub-contexts for this device context.
 	 */
 	u16 subctxt_cnt;
 	/* non-zero if ctxt is being shared. */
@@ -287,10 +287,10 @@ struct hfi1_ctxtdata {
 	void *subctxt_rcvegrbuf;
 	/* An array of pages for the eager header queue entries * N */
 	void *subctxt_rcvhdr_base;
+	/* Bitmask of in use context(s) */
+	DECLARE_BITMAP(in_use_ctxts, HFI1_MAX_SHARED_CTXTS);
 	/* The version of the library which opened this ctxt */
 	u32 userversion;
-	/* Bitmask of active slaves */
-	u32 active_slaves;
 	/* Type of packets or conditions we want to poll for */
 	u16 poll_type;
 	/* receive packet sequence counter */
@@ -1239,9 +1239,9 @@ struct mmu_rb_handler;
 struct hfi1_filedata {
 	struct hfi1_devdata *dd;
 	struct hfi1_ctxtdata *uctxt;
-	unsigned subctxt;
 	struct hfi1_user_sdma_comp_q *cq;
 	struct hfi1_user_sdma_pkt_q *pq;
+	u16 subctxt;
 	/* for cpu affinity; -1 if none */
 	int rec_cpu_num;
 	u32 tid_n_pinned;

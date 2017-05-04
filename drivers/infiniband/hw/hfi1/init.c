@@ -53,6 +53,7 @@
 #include <linux/module.h>
 #include <linux/printk.h>
 #include <linux/hrtimer.h>
+#include <linux/bitmap.h>
 #include <rdma/rdma_vt.h>
 
 #include "hfi.h"
@@ -222,7 +223,7 @@ struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u32 ctxt,
 		INIT_LIST_HEAD(&rcd->qp_wait_list);
 		rcd->ppd = ppd;
 		rcd->dd = dd;
-		rcd->cnt = 1;
+		__set_bit(0, rcd->in_use_ctxts);
 		rcd->ctxt = ctxt;
 		dd->rcd[ctxt] = rcd;
 		rcd->numa_id = numa;
