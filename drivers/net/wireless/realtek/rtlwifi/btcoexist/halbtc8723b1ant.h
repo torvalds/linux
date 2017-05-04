@@ -25,8 +25,6 @@
 /**********************************************************************
  * The following is for 8723B 1ANT BT Co-exist definition
  **********************************************************************/
-#define	BT_AUTO_REPORT_ONLY_8723B_1ANT			1
-
 #define	BT_INFO_8723B_1ANT_B_FTP			BIT7
 #define	BT_INFO_8723B_1ANT_B_A2DP			BIT6
 #define	BT_INFO_8723B_1ANT_B_HID			BIT5
@@ -138,6 +136,7 @@ struct coex_dm_8723b_1ant {
 };
 
 struct coex_sta_8723b_1ant {
+	bool bt_disabled;
 	bool bt_link_exist;
 	bool sco_exist;
 	bool a2dp_exist;
