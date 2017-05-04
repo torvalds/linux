@@ -435,6 +435,39 @@ int kvm_vgic_unmap_phys_irq(struct kvm_vcpu *vcpu, unsigned int virt_irq)
 }
 
 /**
+ * kvm_vgic_set_owner - Set the owner of an interrupt for a VM
+ *
+ * @vcpu:   Pointer to the VCPU (used for PPIs)
+ * @intid:  The virtual INTID identifying the interrupt (PPI or SPI)
+ * @owner:  Opaque pointer to the owner
+ *
+ * Returns 0 if intid is not already used by another in-kernel device and the
+ * owner is set, otherwise returns an error code.
+ */
+int kvm_vgic_set_owner(struct kvm_vcpu *vcpu, unsigned int intid, void *owner)
+{
+	struct vgic_irq *irq;
+	int ret = 0;
+
+	if (!vgic_initialized(vcpu->kvm))
+		return -EAGAIN;
+
+	/* SGIs and LPIs cannot be wired up to any device */
+	if (!irq_is_ppi(intid) && !vgic_valid_spi(vcpu->kvm, intid))
+		return -EINVAL;
+
+	irq = vgic_get_irq(vcpu->kvm, vcpu, intid);
+	spin_lock(&irq->irq_lock);
+	if (irq->owner && irq->owner != owner)
+		ret = -EEXIST;
+	else
+		irq->owner = owner;
+	spin_unlock(&irq->irq_lock);
+
+	return ret;
+}
+
+/**
  * vgic_prune_ap_list - Remove non-relevant interrupts from the list
  *
  * @vcpu: The VCPU pointer

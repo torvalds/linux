@@ -121,6 +121,9 @@ struct vgic_irq {
 	u8 source;			/* GICv2 SGIs only */
 	u8 priority;
 	enum vgic_irq_config config;	/* Level or edge */
+
+	void *owner;			/* Opaque pointer to reserve an interrupt
+					   for in-kernel devices. */
 };
 
 struct vgic_register_region;
@@ -339,5 +342,7 @@ int kvm_send_userspace_msi(struct kvm *kvm, struct kvm_msi *msi);
  * Setup a default flat gsi routing table mapping all SPIs
  */
 int kvm_vgic_setup_default_irq_routing(struct kvm *kvm);
+
+int kvm_vgic_set_owner(struct kvm_vcpu *vcpu, unsigned int intid, void *owner);
 
 #endif /* __KVM_ARM_VGIC_H */
