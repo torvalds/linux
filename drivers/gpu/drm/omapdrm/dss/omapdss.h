@@ -612,11 +612,6 @@ struct omap_dss_device *omap_dss_get_next_device(struct omap_dss_device *from);
 struct omap_dss_device *omap_dss_find_device(void *data,
 		int (*match)(struct omap_dss_device *dssdev, void *data));
 
-int dss_feat_get_num_mgrs(void);
-int dss_feat_get_num_ovls(void);
-enum omap_color_mode dss_feat_get_supported_color_modes(enum omap_plane_id plane);
-
-
 
 int omap_dss_get_num_overlay_managers(void);
 
