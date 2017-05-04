@@ -102,6 +102,14 @@ static ssize_t queue_state_write(void *data, const char __user *buf,
 	struct request_queue *q = data;
 	char opbuf[16] = { }, *op;
 
+	/*
+	 * The "state" attribute is removed after blk_cleanup_queue() has called
+	 * blk_mq_free_queue(). Return if QUEUE_FLAG_DEAD has been set to avoid
+	 * triggering a use-after-free.
+	 */
+	if (blk_queue_dead(q))
+		return -ENOENT;
+
 	if (count >= sizeof(opbuf)) {
 		pr_err("%s: operation too long\n", __func__);
 		goto inval;
