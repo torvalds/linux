@@ -28,8 +28,6 @@
 /************************************************************************
  * The following is for 8723B 2Ant BT Co-exist definition
  ************************************************************************/
-#define	BT_AUTO_REPORT_ONLY_8723B_2ANT			1
-
 #define	BT_INFO_8723B_2ANT_B_FTP			BIT7
 #define	BT_INFO_8723B_2ANT_B_A2DP			BIT6
 #define	BT_INFO_8723B_2ANT_B_HID			BIT5
