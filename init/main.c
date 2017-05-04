@@ -545,6 +545,11 @@ asmlinkage __visible void __init start_kernel(void)
 	trap_init();
 	mm_init();
 
+	ftrace_init();
+
+	/* trace_printk can be enabled here */
+	early_trace_init();
+
 	/*
 	 * Set up the scheduler prior starting any interrupts (such as the
 	 * timer interrupt). Full topology setup happens at smp_init()
@@ -570,7 +575,7 @@ asmlinkage __visible void __init start_kernel(void)
 
 	rcu_init();
 
-	/* trace_printk() and trace points may be used after this */
+	/* Trace events are available after this */
 	trace_init();
 
 	context_tracking_init();
@@ -669,8 +674,6 @@ asmlinkage __visible void __init start_kernel(void)
 	if (efi_enabled(EFI_RUNTIME_SERVICES)) {
 		efi_free_boot_services();
 	}
-
-	ftrace_init();
 
 	/* Do the rest non-__init'ed, we're now alive */
 	rest_init();
@@ -959,6 +962,7 @@ static int __ref kernel_init(void *unused)
 	kernel_init_freeable();
 	/* need to finish all async __init code before freeing the memory */
 	async_synchronize_full();
+	ftrace_free_init_mem();
 	free_initmem();
 	mark_readonly();
 	system_state = SYSTEM_RUNNING;

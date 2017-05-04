@@ -65,6 +65,7 @@
 #include <linux/page_owner.h>
 #include <linux/kthread.h>
 #include <linux/memcontrol.h>
+#include <linux/ftrace.h>
 
 #include <asm/sections.h>
 #include <asm/tlbflush.h>

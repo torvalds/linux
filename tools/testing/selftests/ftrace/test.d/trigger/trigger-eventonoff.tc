@@ -1,5 +1,6 @@
 #!/bin/sh
 # description: event trigger - test event enable/disable trigger
+# flags: instance
 
 do_reset() {
     reset_trigger

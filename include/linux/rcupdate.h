@@ -97,6 +97,7 @@ void do_trace_rcu_torture_read(const char *rcutorturename,
 			       unsigned long secs,
 			       unsigned long c_old,
 			       unsigned long c);
+bool rcu_irq_enter_disabled(void);
 #else
 static inline void rcutorture_get_gp_data(enum rcutorture_type test_type,
 					  int *flags,
@@ -112,6 +113,10 @@ static inline void rcutorture_record_test_transition(void)
 }
 static inline void rcutorture_record_progress(unsigned long vernum)
 {
+}
+static inline bool rcu_irq_enter_disabled(void)
+{
+	return false;
 }
 #ifdef CONFIG_RCU_TRACE
 void do_trace_rcu_torture_read(const char *rcutorturename,
