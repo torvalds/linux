@@ -2228,7 +2228,7 @@ void nvme_queue_scan(struct nvme_ctrl *ctrl)
 	 * removal.
 	 */
 	if (ctrl->state == NVME_CTRL_LIVE)
-		schedule_work(&ctrl->scan_work);
+		queue_work(nvme_wq, &ctrl->scan_work);
 }
 EXPORT_SYMBOL_GPL(nvme_queue_scan);
 
@@ -2283,7 +2283,7 @@ void nvme_complete_async_event(struct nvme_ctrl *ctrl, __le16 status,
 		/*FALLTHRU*/
 	case NVME_SC_ABORT_REQ:
 		++ctrl->event_limit;
-		schedule_work(&ctrl->async_event_work);
+		queue_work(nvme_wq, &ctrl->async_event_work);
 		break;
 	default:
 		break;
@@ -2306,7 +2306,7 @@ EXPORT_SYMBOL_GPL(nvme_complete_async_event);
 void nvme_queue_async_events(struct nvme_ctrl *ctrl)
 {
 	ctrl->event_limit = NVME_NR_AERS;
-	schedule_work(&ctrl->async_event_work);
+	queue_work(nvme_wq, &ctrl->async_event_work);
 }
 EXPORT_SYMBOL_GPL(nvme_queue_async_events);
 
