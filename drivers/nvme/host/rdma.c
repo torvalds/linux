@@ -725,7 +725,7 @@ static void nvme_rdma_reconnect_ctrl_work(struct work_struct *work)
 	bool changed;
 	int ret;
 
-	++ctrl->ctrl.opts->nr_reconnects;
+	++ctrl->ctrl.nr_reconnects;
 
 	if (ctrl->queue_count > 1) {
 		nvme_rdma_free_io_queues(ctrl);
@@ -769,7 +769,7 @@ static void nvme_rdma_reconnect_ctrl_work(struct work_struct *work)
 
 	changed = nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_LIVE);
 	WARN_ON_ONCE(!changed);
-	ctrl->ctrl.opts->nr_reconnects = 0;
+	ctrl->ctrl.nr_reconnects = 0;
 
 	if (ctrl->queue_count > 1) {
 		nvme_queue_scan(&ctrl->ctrl);
@@ -782,7 +782,7 @@ static void nvme_rdma_reconnect_ctrl_work(struct work_struct *work)
 
 requeue:
 	dev_info(ctrl->ctrl.device, "Failed reconnect attempt %d\n",
-			ctrl->ctrl.opts->nr_reconnects);
+			ctrl->ctrl.nr_reconnects);
 	nvme_rdma_reconnect_or_remove(ctrl);
 }
 

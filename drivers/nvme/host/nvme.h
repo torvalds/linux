@@ -177,6 +177,7 @@ struct nvme_ctrl {
 	u32 iorcsz;
 	u16 icdoff;
 	u16 maxcmd;
+	int nr_reconnects;
 	struct nvmf_ctrl_options *opts;
 };
 
