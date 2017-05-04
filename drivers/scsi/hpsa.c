@@ -2069,10 +2069,13 @@ static int hpsa_slave_configure(struct scsi_device *sdev)
 	sd = sdev->hostdata;
 	sdev->no_uld_attach = !sd || !sd->expose_device;
 
-	if (sd)
-		queue_depth = sd->queue_depth != 0 ?
-			sd->queue_depth : sdev->host->can_queue;
-	else
+	if (sd) {
+		if (sd->external)
+			queue_depth = EXTERNAL_QD;
+		else
+			queue_depth = sd->queue_depth != 0 ?
+					sd->queue_depth : sdev->host->can_queue;
+	} else
 		queue_depth = sdev->host->can_queue;
 
 	scsi_change_queue_depth(sdev, queue_depth);
@@ -3915,6 +3918,9 @@ static int hpsa_update_device_info(struct ctlr_info *h,
 		this_device->queue_depth = h->nr_cmds;
 	}
 
+	if (this_device->external)
+		this_device->queue_depth = EXTERNAL_QD;
+
 	if (is_OBDR_device) {
 		/* See if this is a One-Button-Disaster-Recovery device
 		 * by looking for "$DR-10" at offset 43 in inquiry data.
@@ -4122,14 +4128,6 @@ static void hpsa_get_ioaccel_drive_info(struct ctlr_info *h,
 {
 	int rc;
 	struct ext_report_lun_entry *rle;
-
-	/*
-	 * external targets don't support BMIC
-	 */
-	if (dev->external) {
-		dev->queue_depth = 7;
-		return;
-	}
 
 	rle = &rlep->LUN[rle_index];
 

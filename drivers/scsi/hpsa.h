@@ -57,6 +57,7 @@ struct hpsa_sas_phy {
 	bool added_to_port;
 };
 
+#define EXTERNAL_QD 7
 struct hpsa_scsi_dev_t {
 	unsigned int devtype;
 	int bus, target, lun;		/* as presented to the OS */
