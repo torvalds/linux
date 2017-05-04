@@ -1541,6 +1541,36 @@ static const struct dev_pm_ops rockchip_usb2phy_dev_pm_ops = {
 #define ROCKCHIP_USB2PHY_DEV_PM	NULL
 #endif /* CONFIG_PM_SLEEP */
 
+static const struct rockchip_usb2phy_cfg rk322x_phy_cfgs[] = {
+	{
+		.reg = 0x760,
+		.num_ports	= 2,
+		.clkout_ctl	= { 0x0768, 4, 4, 1, 0 },
+		.port_cfgs	= {
+			[USB2PHY_PORT_HOST] = {
+				.phy_sus	= { 0x0764, 15, 0, 0, 0x1d1 },
+				.ls_det_en	= { 0x0680, 4, 4, 0, 1 },
+				.ls_det_st	= { 0x0690, 4, 4, 0, 1 },
+				.ls_det_clr	= { 0x06a0, 4, 4, 0, 1 }
+			}
+		},
+	},
+	{
+		.reg = 0x800,
+		.num_ports	= 2,
+		.clkout_ctl	= { 0x0808, 4, 4, 1, 0 },
+		.port_cfgs	= {
+			[USB2PHY_PORT_HOST] = {
+				.phy_sus	= { 0x800, 15, 0, 0, 0x1d1 },
+				.ls_det_en	= { 0x0684, 0, 0, 0, 1 },
+				.ls_det_st	= { 0x0694, 0, 0, 0, 1 },
+				.ls_det_clr	= { 0x06a4, 0, 0, 0, 1 }
+			}
+		},
+	},
+	{ /* sentinel */ }
+};
+
 static const struct rockchip_usb2phy_cfg rk3328_phy_cfgs[] = {
 	{
 		.reg = 0x100,
@@ -1718,6 +1748,7 @@ static const struct rockchip_usb2phy_cfg rk3399_phy_cfgs[] = {
 };
 
 static const struct of_device_id rockchip_usb2phy_dt_match[] = {
+	{ .compatible = "rockchip,rk322x-usb2phy", .data = &rk322x_phy_cfgs },
 	{ .compatible = "rockchip,rk3328-usb2phy", .data = &rk3328_phy_cfgs },
 	{ .compatible = "rockchip,rk3366-usb2phy", .data = &rk3366_phy_cfgs },
 	{ .compatible = "rockchip,rk3368-usb2phy", .data = &rk3368_phy_cfgs },
