@@ -3090,7 +3090,7 @@ static int hpsa_do_reset(struct ctlr_info *h, struct hpsa_scsi_dev_t *dev,
 	if (unlikely(rc))
 		atomic_set(&dev->reset_cmds_out, 0);
 	else
-		wait_for_device_to_become_ready(h, scsi3addr, 0);
+		rc = wait_for_device_to_become_ready(h, scsi3addr, 0);
 
 	mutex_unlock(&h->reset_mutex);
 	return rc;
