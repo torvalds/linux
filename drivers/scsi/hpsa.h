@@ -301,6 +301,7 @@ struct ctlr_info {
 	struct mutex reset_mutex;
 	u8 reset_in_progress;
 	struct hpsa_sas_node *sas_host;
+	spinlock_t reset_lock;
 };
 
 struct offline_device_entry {
