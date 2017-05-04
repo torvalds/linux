@@ -103,9 +103,6 @@ struct nvme_rdma_queue {
 };
 
 struct nvme_rdma_ctrl {
-	/* read and written in the hot path */
-	spinlock_t		lock;
-
 	/* read only in the hot path */
 	struct nvme_rdma_queue	*queues;
 	u32			queue_count;
@@ -1921,7 +1918,6 @@ static struct nvme_ctrl *nvme_rdma_create_ctrl(struct device *dev,
 	INIT_WORK(&ctrl->err_work, nvme_rdma_error_recovery_work);
 	INIT_WORK(&ctrl->delete_work, nvme_rdma_del_ctrl_work);
 	INIT_WORK(&ctrl->reset_work, nvme_rdma_reset_ctrl_work);
-	spin_lock_init(&ctrl->lock);
 
 	ctrl->queue_count = opts->nr_io_queues + 1; /* +1 for admin queue */
 	ctrl->ctrl.sqsize = opts->queue_size - 1;
