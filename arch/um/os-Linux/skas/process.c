@@ -21,6 +21,7 @@
 #include <registers.h>
 #include <skas.h>
 #include <sysdep/stub.h>
+#include <linux/threads.h>
 
 int is_skas_winch(int pid, int fd, void *data)
 {
