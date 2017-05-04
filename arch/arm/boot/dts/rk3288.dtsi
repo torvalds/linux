@@ -963,7 +963,6 @@
 				       <150000000>, <75000000>,
 				       <300000000>, <150000000>,
 				       <75000000>;
-		assigned-clock-parents = <&cru PLL_NPLL>, <&cru PLL_GPLL>;
 	};
 
 	grf: syscon@ff770000 {
