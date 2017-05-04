@@ -262,7 +262,7 @@ static int cpcap_charger_set_state(struct cpcap_charger_ddata *ddata,
 	bool enable;
 	int error;
 
-	enable = max_voltage && (charge_current || trickle_current);
+	enable = (charge_current || trickle_current);
 	dev_dbg(ddata->dev, "%s enable: %i\n", __func__, enable);
 
 	if (!enable) {
