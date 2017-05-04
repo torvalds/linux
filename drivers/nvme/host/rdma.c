@@ -480,17 +480,21 @@ static void nvme_rdma_destroy_queue_ib(struct nvme_rdma_queue *queue)
 	nvme_rdma_dev_put(dev);
 }
 
-static int nvme_rdma_create_queue_ib(struct nvme_rdma_queue *queue,
-		struct nvme_rdma_device *dev)
+static int nvme_rdma_create_queue_ib(struct nvme_rdma_queue *queue)
 {
-	struct ib_device *ibdev = dev->dev;
+	struct ib_device *ibdev;
 	const int send_wr_factor = 3;			/* MR, SEND, INV */
 	const int cq_factor = send_wr_factor + 1;	/* + RECV */
 	int comp_vector, idx = nvme_rdma_queue_idx(queue);
-
 	int ret;
 
-	queue->device = dev;
+	queue->device = nvme_rdma_find_get_device(queue->cm_id);
+	if (!queue->device) {
+		dev_err(queue->cm_id->device->dev.parent,
+			"no client data found!\n");
+		return -ECONNREFUSED;
+	}
+	ibdev = queue->device->dev;
 
 	/*
 	 * The admin queue is barely used once the controller is live, so don't
@@ -503,12 +507,12 @@ static int nvme_rdma_create_queue_ib(struct nvme_rdma_queue *queue,
 
 
 	/* +1 for ib_stop_cq */
-	queue->ib_cq = ib_alloc_cq(dev->dev, queue,
-				cq_factor * queue->queue_size + 1, comp_vector,
-				IB_POLL_SOFTIRQ);
+	queue->ib_cq = ib_alloc_cq(ibdev, queue,
+				cq_factor * queue->queue_size + 1,
+				comp_vector, IB_POLL_SOFTIRQ);
 	if (IS_ERR(queue->ib_cq)) {
 		ret = PTR_ERR(queue->ib_cq);
-		goto out;
+		goto out_put_dev;
 	}
 
 	ret = nvme_rdma_create_qp(queue, send_wr_factor);
@@ -529,7 +533,8 @@ out_destroy_qp:
 	ib_destroy_qp(queue->qp);
 out_destroy_ib_cq:
 	ib_free_cq(queue->ib_cq);
-out:
+out_put_dev:
+	nvme_rdma_dev_put(queue->device);
 	return ret;
 }
 
@@ -1275,21 +1280,11 @@ static int nvme_rdma_conn_rejected(struct nvme_rdma_queue *queue,
 
 static int nvme_rdma_addr_resolved(struct nvme_rdma_queue *queue)
 {
-	struct nvme_rdma_device *dev;
 	int ret;
 
-	dev = nvme_rdma_find_get_device(queue->cm_id);
-	if (!dev) {
-		dev_err(queue->cm_id->device->dev.parent,
-			"no client data found!\n");
-		return -ECONNREFUSED;
-	}
-
-	ret = nvme_rdma_create_queue_ib(queue, dev);
-	if (ret) {
-		nvme_rdma_dev_put(dev);
-		goto out;
-	}
+	ret = nvme_rdma_create_queue_ib(queue);
+	if (ret)
+		return ret;
 
 	ret = rdma_resolve_route(queue->cm_id, NVME_RDMA_CONNECT_TIMEOUT_MS);
 	if (ret) {
@@ -1303,7 +1298,6 @@ static int nvme_rdma_addr_resolved(struct nvme_rdma_queue *queue)
 
 out_destroy_queue:
 	nvme_rdma_destroy_queue_ib(queue);
-out:
 	return ret;
 }
 
