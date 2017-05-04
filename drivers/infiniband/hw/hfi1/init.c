@@ -1757,6 +1757,7 @@ int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd)
 			    !HFI1_CAP_KGET_MASK(rcd->flags, MULTI_PKT_EGR)) {
 				dd_dev_err(dd, "ctxt%u: Failed to allocate eager buffers\n",
 					   rcd->ctxt);
+				ret = -ENOMEM;
 				goto bail_rcvegrbuf_phys;
 			}
 
