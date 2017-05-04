@@ -53,7 +53,7 @@
 
 struct tid_group {
 	struct list_head list;
-	unsigned base;
+	u32 base;
 	u8 size;
 	u8 used;
 	u8 map;
@@ -154,6 +154,40 @@ static inline void tid_group_move(struct tid_group *group,
 	tid_group_add_tail(group, s2);
 }
 
+int hfi1_user_exp_rcv_grp_init(struct hfi1_filedata *fd)
+{
+	struct hfi1_ctxtdata *uctxt = fd->uctxt;
+	struct hfi1_devdata *dd = fd->dd;
+	u32 tidbase;
+	u32 i;
+
+	exp_tid_group_init(&uctxt->tid_group_list);
+	exp_tid_group_init(&uctxt->tid_used_list);
+	exp_tid_group_init(&uctxt->tid_full_list);
+
+	tidbase = uctxt->expected_base;
+	for (i = 0; i < uctxt->expected_count /
+		     dd->rcv_entries.group_size; i++) {
+		struct tid_group *grp;
+
+		grp = kzalloc(sizeof(*grp), GFP_KERNEL);
+		if (!grp) {
+			/*
+			 * If we fail here, the groups already
+			 * allocated will be freed by the close
+			 * call.
+			 */
+			return -ENOMEM;
+		}
+		grp->size = dd->rcv_entries.group_size;
+		grp->base = tidbase;
+		tid_group_add_tail(grp, &uctxt->tid_group_list);
+		tidbase += dd->rcv_entries.group_size;
+	}
+
+	return 0;
+}
+
 /*
  * Initialize context and file private data needed for Expected
  * receive caching. This needs to be done after the context has
@@ -163,42 +197,14 @@ int hfi1_user_exp_rcv_init(struct hfi1_filedata *fd)
 {
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct hfi1_devdata *dd = uctxt->dd;
-	unsigned tidbase;
-	int i, ret = 0;
+	int ret = 0;
 
 	spin_lock_init(&fd->tid_lock);
 	spin_lock_init(&fd->invalid_lock);
 
-	if (!uctxt->subctxt_cnt || !fd->subctxt) {
-		exp_tid_group_init(&uctxt->tid_group_list);
-		exp_tid_group_init(&uctxt->tid_used_list);
-		exp_tid_group_init(&uctxt->tid_full_list);
-
-		tidbase = uctxt->expected_base;
-		for (i = 0; i < uctxt->expected_count /
-			     dd->rcv_entries.group_size; i++) {
-			struct tid_group *grp;
-
-			grp = kzalloc(sizeof(*grp), GFP_KERNEL);
-			if (!grp) {
-				/*
-				 * If we fail here, the groups already
-				 * allocated will be freed by the close
-				 * call.
-				 */
-				ret = -ENOMEM;
-				goto done;
-			}
-			grp->size = dd->rcv_entries.group_size;
-			grp->base = tidbase;
-			tid_group_add_tail(grp, &uctxt->tid_group_list);
-			tidbase += dd->rcv_entries.group_size;
-		}
-	}
-
 	fd->entry_to_rb = kcalloc(uctxt->expected_count,
-				     sizeof(struct rb_node *),
-				     GFP_KERNEL);
+				  sizeof(struct rb_node *),
+				  GFP_KERNEL);
 	if (!fd->entry_to_rb)
 		return -ENOMEM;
 
@@ -207,10 +213,11 @@ int hfi1_user_exp_rcv_init(struct hfi1_filedata *fd)
 		fd->invalid_tids = kcalloc(uctxt->expected_count,
 					   sizeof(*fd->invalid_tids),
 					   GFP_KERNEL);
-		if (!fd->invalid_tids) {
-			ret = -ENOMEM;
-			goto done;
-		}
+		/*
+		 * NOTE: If this is an error, shouldn't we cleanup enry_to_rb?
+		 */
+		if (!fd->invalid_tids)
+			return -ENOMEM;
 
 		/*
 		 * Register MMU notifier callbacks. If the registration
@@ -252,7 +259,7 @@ int hfi1_user_exp_rcv_init(struct hfi1_filedata *fd)
 		fd->tid_limit = uctxt->expected_count;
 	}
 	spin_unlock(&fd->tid_lock);
-done:
+
 	return ret;
 }
 
@@ -268,7 +275,7 @@ void hfi1_user_exp_rcv_grp_free(struct hfi1_ctxtdata *uctxt)
 	hfi1_clear_tids(uctxt);
 }
 
-int hfi1_user_exp_rcv_free(struct hfi1_filedata *fd)
+void hfi1_user_exp_rcv_free(struct hfi1_filedata *fd)
 {
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 
@@ -290,7 +297,6 @@ int hfi1_user_exp_rcv_free(struct hfi1_filedata *fd)
 
 	kfree(fd->entry_to_rb);
 	fd->entry_to_rb = NULL;
-	return 0;
 }
 
 /*

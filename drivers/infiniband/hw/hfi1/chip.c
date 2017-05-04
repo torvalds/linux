@@ -12662,7 +12662,7 @@ u8 hfi1_ibphys_portstate(struct hfi1_pportdata *ppd)
 #define SET_STATIC_RATE_CONTROL_SMASK(r) \
 (r |= SEND_CTXT_CHECK_ENABLE_DISALLOW_PBC_STATIC_RATE_CONTROL_SMASK)
 
-int hfi1_init_ctxt(struct send_context *sc)
+void hfi1_init_ctxt(struct send_context *sc)
 {
 	if (sc) {
 		struct hfi1_devdata *dd = sc->dd;
@@ -12679,7 +12679,6 @@ int hfi1_init_ctxt(struct send_context *sc)
 		write_kctxt_csr(dd, sc->hw_context,
 				SEND_CTXT_CHECK_ENABLE, reg);
 	}
-	return 0;
 }
 
 int hfi1_tempsense_rd(struct hfi1_devdata *dd, struct hfi1_temp *temp)

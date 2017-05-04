@@ -176,13 +176,7 @@ int hfi1_create_ctxts(struct hfi1_devdata *dd)
 			goto nomem;
 		}
 
-		ret = hfi1_init_ctxt(rcd->sc);
-		if (ret < 0) {
-			dd_dev_err(dd,
-				   "Failed to setup kernel receive context, failing\n");
-			ret = -EFAULT;
-			goto bail;
-		}
+		hfi1_init_ctxt(rcd->sc);
 	}
 
 	/*
@@ -194,7 +188,7 @@ int hfi1_create_ctxts(struct hfi1_devdata *dd)
 	return 0;
 nomem:
 	ret = -ENOMEM;
-bail:
+
 	if (dd->rcd) {
 		for (i = 0; i < dd->num_rcv_contexts; ++i)
 			hfi1_free_ctxtdata(dd, dd->rcd[i]);

@@ -224,13 +224,12 @@ struct hfi1_ctxtdata {
 	 * (ignoring forks, dup, etc. for now)
 	 */
 	int cnt;
-	/*
-	 * how much space to leave at start of eager TID entries for
-	 * protocol use, on each TID
-	 */
-	/* instead of calculating it */
+	/* Device context index */
 	unsigned ctxt;
-	/* non-zero if ctxt is being shared. */
+	/*
+	 * non-zero if ctxt can be shared, and defines the maximum number of
+	 * sub contexts allowed.
+	 */
 	u16 subctxt_cnt;
 	/* non-zero if ctxt is being shared. */
 	u16 subctxt_id;
@@ -1725,12 +1724,10 @@ struct cc_state *get_cc_state_protected(struct hfi1_pportdata *ppd)
 #define HFI1_PBC_LENGTH_MASK                     ((1 << 11) - 1)
 
 /* ctxt_flag bit offsets */
-		/* context has been setup */
-#define HFI1_CTXT_SETUP_DONE 1
 		/* waiting for a packet to arrive */
 #define HFI1_CTXT_WAITING_RCV   2
 		/* master has not finished initializing */
-#define HFI1_CTXT_MASTER_UNINIT 4
+#define HFI1_CTXT_BASE_UNINIT 4
 		/* waiting for an urgent packet to arrive */
 #define HFI1_CTXT_WAITING_URG 5
 

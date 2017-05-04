@@ -67,9 +67,7 @@ static int setup_vnic_ctxt(struct hfi1_devdata *dd, struct hfi1_ctxtdata *uctxt)
 	unsigned int rcvctrl_ops = 0;
 	int ret;
 
-	ret = hfi1_init_ctxt(uctxt->sc);
-	if (ret)
-		goto done;
+	hfi1_init_ctxt(uctxt->sc);
 
 	uctxt->do_interrupt = &handle_receive_interrupt;
 
@@ -81,8 +79,6 @@ static int setup_vnic_ctxt(struct hfi1_devdata *dd, struct hfi1_ctxtdata *uctxt)
 	ret = hfi1_setup_eagerbufs(uctxt);
 	if (ret)
 		goto done;
-
-	set_bit(HFI1_CTXT_SETUP_DONE, &uctxt->event_flags);
 
 	if (uctxt->rcvhdrtail_kvaddr)
 		clear_rcvhdrtail(uctxt);
