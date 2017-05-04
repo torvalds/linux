@@ -1308,7 +1308,8 @@ static const struct v4l2_subdev_internal_ops ov2659_subdev_internal_ops = {
 static int ov2659_detect(struct v4l2_subdev *sd)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	u8 pid, ver;
+	u8 pid = 0;
+	u8 ver = 0;
 	int ret;
 
 	dev_dbg(&client->dev, "%s:\n", __func__);
