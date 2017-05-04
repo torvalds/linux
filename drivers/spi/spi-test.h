@@ -48,9 +48,8 @@
  *
  * @msg:              a template @spi_message usedfor the default settings
  * @transfers:        array of @spi_transfers that are part of the
- *                    resulting spi_message. The first transfer with len == 0
- *                    signifies the end of the list
- * @transfer_count:   normally computed number of transfers with len > 0
+ *                    resulting spi_message.
+ * @transfer_count:   number of transfers
  *
  * @run_test:         run a specific spi_test - this allows to override
  *                    the default implementation of @spi_test_run_transfer
@@ -62,8 +61,7 @@
  * @expected_return:  the expected return code - in some cases we want to
  *                    test also for error conditions
  *
- * @iterate_len:      list of length to iterate on (in addition to the
- *                    explicitly set @spi_transfer.len)
+ * @iterate_len:      list of length to iterate on
  * @iterate_tx_align: change the alignment of @spi_transfer.tx_buf
  *                    for all values in the below range if set.
  *                    the ranges are:
@@ -77,6 +75,7 @@
  * @fill_option:      define the way how tx_buf is filled
  * @fill_pattern:     fill pattern to apply to the tx_buf
  *                    (used in some of the @fill_options)
+ * @elapsed_time:     elapsed time in nanoseconds
  */
 
 struct spi_test {
@@ -89,7 +88,7 @@ struct spi_test {
 	int (*execute_msg)(struct spi_device *spi, struct spi_test *test,
 			   void *tx, void *rx);
 	int expected_return;
-	/* iterate over all the non-zero values */
+	/* iterate over all values, terminated by a -1 */
 	int iterate_len[SPI_TEST_MAX_ITERATE];
 	int iterate_tx_align;
 	int iterate_rx_align;
@@ -110,6 +109,7 @@ struct spi_test {
 #define FILL_TRANSFER_BYTE_32 11 /* fill with the transfer byte - 32 bit */
 #define FILL_TRANSFER_NUM     16 /* fill with the transfer number */
 	u32 fill_pattern;
+	unsigned long long elapsed_time;
 };
 
 /* default implementation for @spi_test.run_test */
@@ -126,11 +126,12 @@ int spi_test_execute_msg(struct spi_device *spi,
 int spi_test_run_tests(struct spi_device *spi,
 		       struct spi_test *tests);
 
-/* some of the default @spi_transfer.len to test */
-#define ITERATE_LEN 2, 3, 7, 11, 16, 31, 32, 64, 97, 128, 251, 256, \
+#define ITERATE_LEN_LIST 0, 1, 2, 3, 7, 11, 16, 31, 32, 64, 97, 128, 251, 256, \
 		1021, 1024, 1031, 4093, PAGE_SIZE, 4099, 65536, 65537
-
-#define ITERATE_MAX_LEN ITERATE_LEN, SPI_TEST_MAX_SIZE - 1, SPI_TEST_MAX_SIZE
+/* some of the default @spi_transfer.len to test, terminated by a -1 */
+#define ITERATE_LEN ITERATE_LEN_LIST, -1
+#define ITERATE_MAX_LEN ITERATE_LEN_LIST, (SPI_TEST_MAX_SIZE - 1), \
+		SPI_TEST_MAX_SIZE, -1
 
 /* the default alignment to test */
 #define ITERATE_ALIGN sizeof(int)

@@ -402,7 +402,7 @@
 
 #define BGMAC_WEIGHT	64
 
-#define ETHER_MAX_LEN   1518
+#define ETHER_MAX_LEN	(ETH_FRAME_LEN + ETH_FCS_LEN)
 
 /* Feature Flags */
 #define BGMAC_FEAT_TX_MASK_SETUP	BIT(0)
@@ -537,6 +537,8 @@ int bgmac_enet_probe(struct bgmac *bgmac);
 void bgmac_enet_remove(struct bgmac *bgmac);
 void bgmac_adjust_link(struct net_device *net_dev);
 int bgmac_phy_connect_direct(struct bgmac *bgmac);
+int bgmac_enet_suspend(struct bgmac *bgmac);
+int bgmac_enet_resume(struct bgmac *bgmac);
 
 struct mii_bus *bcma_mdio_mii_register(struct bgmac *bgmac);
 void bcma_mdio_mii_unregister(struct mii_bus *mii_bus);

@@ -583,7 +583,7 @@ extern bool try_module_get(struct module *module);
 extern void module_put(struct module *module);
 
 #else /*!CONFIG_MODULE_UNLOAD*/
-static inline int try_module_get(struct module *module)
+static inline bool try_module_get(struct module *module)
 {
 	return !module || module_is_live(module);
 }
@@ -680,9 +680,9 @@ static inline void __module_get(struct module *module)
 {
 }
 
-static inline int try_module_get(struct module *module)
+static inline bool try_module_get(struct module *module)
 {
-	return 1;
+	return true;
 }
 
 static inline void module_put(struct module *module)

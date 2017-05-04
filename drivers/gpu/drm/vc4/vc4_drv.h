@@ -444,8 +444,6 @@ int vc4_bo_stats_debugfs(struct seq_file *m, void *arg);
 
 /* vc4_crtc.c */
 extern struct platform_driver vc4_crtc_driver;
-int vc4_enable_vblank(struct drm_device *dev, unsigned int crtc_id);
-void vc4_disable_vblank(struct drm_device *dev, unsigned int crtc_id);
 bool vc4_event_pending(struct drm_crtc *crtc);
 int vc4_crtc_debugfs_regs(struct seq_file *m, void *arg);
 int vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,

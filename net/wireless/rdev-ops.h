@@ -36,13 +36,13 @@ static inline void rdev_set_wakeup(struct cfg80211_registered_device *rdev,
 static inline struct wireless_dev
 *rdev_add_virtual_intf(struct cfg80211_registered_device *rdev, char *name,
 		       unsigned char name_assign_type,
-		       enum nl80211_iftype type, u32 *flags,
+		       enum nl80211_iftype type,
 		       struct vif_params *params)
 {
 	struct wireless_dev *ret;
 	trace_rdev_add_virtual_intf(&rdev->wiphy, name, type);
 	ret = rdev->ops->add_virtual_intf(&rdev->wiphy, name, name_assign_type,
-					  type, flags, params);
+					  type, params);
 	trace_rdev_return_wdev(&rdev->wiphy, ret);
 	return ret;
 }
@@ -61,12 +61,11 @@ rdev_del_virtual_intf(struct cfg80211_registered_device *rdev,
 static inline int
 rdev_change_virtual_intf(struct cfg80211_registered_device *rdev,
 			 struct net_device *dev, enum nl80211_iftype type,
-			 u32 *flags, struct vif_params *params)
+			 struct vif_params *params)
 {
 	int ret;
 	trace_rdev_change_virtual_intf(&rdev->wiphy, dev, type);
-	ret = rdev->ops->change_virtual_intf(&rdev->wiphy, dev, type, flags,
-					     params);
+	ret = rdev->ops->change_virtual_intf(&rdev->wiphy, dev, type, params);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }
@@ -750,6 +749,18 @@ rdev_set_cqm_rssi_config(struct cfg80211_registered_device *rdev,
 }
 
 static inline int
+rdev_set_cqm_rssi_range_config(struct cfg80211_registered_device *rdev,
+			       struct net_device *dev, s32 low, s32 high)
+{
+	int ret;
+	trace_rdev_set_cqm_rssi_range_config(&rdev->wiphy, dev, low, high);
+	ret = rdev->ops->set_cqm_rssi_range_config(&rdev->wiphy, dev,
+						   low, high);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+	return ret;
+}
+
+static inline int
 rdev_set_cqm_txe_config(struct cfg80211_registered_device *rdev,
 			struct net_device *dev, u32 rate, u32 pkts, u32 intvl)
 {
@@ -802,18 +813,18 @@ rdev_sched_scan_start(struct cfg80211_registered_device *rdev,
 		      struct cfg80211_sched_scan_request *request)
 {
 	int ret;
-	trace_rdev_sched_scan_start(&rdev->wiphy, dev, request);
+	trace_rdev_sched_scan_start(&rdev->wiphy, dev, request->reqid);
 	ret = rdev->ops->sched_scan_start(&rdev->wiphy, dev, request);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }
 
 static inline int rdev_sched_scan_stop(struct cfg80211_registered_device *rdev,
-				       struct net_device *dev)
+				       struct net_device *dev, u64 reqid)
 {
 	int ret;
-	trace_rdev_sched_scan_stop(&rdev->wiphy, dev);
-	ret = rdev->ops->sched_scan_stop(&rdev->wiphy, dev);
+	trace_rdev_sched_scan_stop(&rdev->wiphy, dev, reqid);
+	ret = rdev->ops->sched_scan_stop(&rdev->wiphy, dev, reqid);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }

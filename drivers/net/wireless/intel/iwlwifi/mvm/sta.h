@@ -380,6 +380,7 @@ struct iwl_mvm_rxq_dup_data {
  * @tid_disable_agg: bitmap: if bit(tid) is set, the fw won't send ampdus for
  *	tid.
  * @max_agg_bufsize: the maximal size of the AGG buffer for this station
+ * @sta_type: station type
  * @bt_reduced_txpower: is reduced tx power enabled for this station
  * @next_status_eosp: the next reclaimed packet is a PS-Poll response and
  *	we need to signal the EOSP
@@ -416,6 +417,7 @@ struct iwl_mvm_sta {
 	u32 mac_id_n_color;
 	u16 tid_disable_agg;
 	u8 max_agg_bufsize;
+	enum iwl_sta_type sta_type;
 	bool bt_reduced_txpower;
 	bool next_status_eosp;
 	spinlock_t lock;
@@ -453,10 +455,12 @@ iwl_mvm_sta_from_mac80211(struct ieee80211_sta *sta)
  * struct iwl_mvm_int_sta - representation of an internal station (auxiliary or
  * broadcast)
  * @sta_id: the index of the station in the fw (will be replaced by id_n_color)
+ * @type: station type
  * @tfd_queue_msk: the tfd queues used by the station
  */
 struct iwl_mvm_int_sta {
 	u32 sta_id;
+	enum iwl_sta_type type;
 	u32 tfd_queue_msk;
 };
 
@@ -532,10 +536,14 @@ int iwl_mvm_send_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_send_rm_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_rm_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+int iwl_mvm_add_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+int iwl_mvm_rm_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_allocate_int_sta(struct iwl_mvm *mvm,
 			     struct iwl_mvm_int_sta *sta,
-				    u32 qmask, enum nl80211_iftype iftype);
+				    u32 qmask, enum nl80211_iftype iftype,
+				    enum iwl_sta_type type);
 void iwl_mvm_dealloc_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+void iwl_mvm_dealloc_int_sta(struct iwl_mvm *mvm, struct iwl_mvm_int_sta *sta);
 int iwl_mvm_add_snif_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_rm_snif_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 void iwl_mvm_dealloc_snif_sta(struct iwl_mvm *mvm);

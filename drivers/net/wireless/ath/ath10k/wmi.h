@@ -1038,7 +1038,8 @@ enum wmi_cmd_id {
 	WMI_STA_UAPSD_AUTO_TRIG_CMDID,
 
 	/* STA Keep alive parameter configuration,
-	   Requires WMI_SERVICE_STA_KEEP_ALIVE */
+	 * Requires WMI_SERVICE_STA_KEEP_ALIVE
+	 */
 	WMI_STA_KEEPALIVE_CMD,
 
 	/* misc command group */
@@ -1774,7 +1775,8 @@ static inline const char *ath10k_wmi_phymode_str(enum wmi_phy_mode mode)
 		break;
 
 		/* no default handler to allow compiler to check that the
-		 * enum is fully handled */
+		 * enum is fully handled
+		 */
 	};
 
 	return "<unknown>";
@@ -2974,7 +2976,8 @@ struct wmi_start_scan_arg {
 /* When set, DFS channels will not be scanned */
 #define WMI_SCAN_BYPASS_DFS_CHN 0x40
 /* Different FW scan engine may choose to bail out on errors.
- * Allow the driver to have influence over that. */
+ * Allow the driver to have influence over that.
+ */
 #define WMI_SCAN_CONTINUE_ON_ERROR 0x80
 
 /* WMI_SCAN_CLASS_MASK must be the same value as IEEE80211_SCAN_CLASS_MASK */
@@ -3182,7 +3185,7 @@ struct wmi_10_4_phyerr_event {
 
 struct phyerr_radar_report {
 	__le32 reg0; /* RADAR_REPORT_REG0_* */
-	__le32 reg1; /* REDAR_REPORT_REG1_* */
+	__le32 reg1; /* RADAR_REPORT_REG1_* */
 } __packed;
 
 #define RADAR_REPORT_REG0_PULSE_IS_CHIRP_MASK		0x80000000
@@ -4447,14 +4450,16 @@ enum wmi_vdev_subtype_10_4 {
 /* values for vdev_start_request flags */
 /*
  * Indicates that AP VDEV uses hidden ssid. only valid for
- *  AP/GO */
+ *  AP/GO
+ */
 #define WMI_VDEV_START_HIDDEN_SSID  (1 << 0)
 /*
  * Indicates if robust management frame/management frame
  *  protection is enabled. For GO/AP vdevs, it indicates that
  *  it may support station/client associations with RMF enabled.
  *  For STA/client vdevs, it indicates that sta will
- *  associate with AP with RMF enabled. */
+ *  associate with AP with RMF enabled.
+ */
 #define WMI_VDEV_START_PMF_ENABLED  (1 << 1)
 
 struct wmi_p2p_noa_descriptor {
@@ -4814,7 +4819,8 @@ enum wmi_vdev_param {
 	 * An associated STA is considered unresponsive if there is no recent
 	 * TX/RX activity and downlink frames are buffered for it. Once a STA
 	 * exceeds the maximum unresponsive time, the AP will send a
-	 * WMI_STA_KICKOUT event to the host so the STA can be deleted. */
+	 * WMI_STA_KICKOUT event to the host so the STA can be deleted.
+	 */
 	WMI_VDEV_PARAM_AP_KEEPALIVE_MAX_UNRESPONSIVE_TIME_SECS,
 
 	/* Enable NAWDS : MCAST INSPECT Enable, NAWDS Flag set */
@@ -4941,7 +4947,8 @@ enum wmi_10x_vdev_param {
 	 * An associated STA is considered unresponsive if there is no recent
 	 * TX/RX activity and downlink frames are buffered for it. Once a STA
 	 * exceeds the maximum unresponsive time, the AP will send a
-	 * WMI_10X_STA_KICKOUT event to the host so the STA can be deleted. */
+	 * WMI_10X_STA_KICKOUT event to the host so the STA can be deleted.
+	 */
 	WMI_10X_VDEV_PARAM_AP_KEEPALIVE_MAX_UNRESPONSIVE_TIME_SECS,
 
 	/* Enable NAWDS : MCAST INSPECT Enable, NAWDS Flag set */
@@ -5605,12 +5612,14 @@ struct wmi_tim_info_arg {
 
 struct wmi_p2p_noa_info {
 	/* Bit 0 - Flag to indicate an update in NOA schedule
-	   Bits 7-1 - Reserved */
+	 * Bits 7-1 - Reserved
+	 */
 	u8 changed;
 	/* NOA index */
 	u8 index;
 	/* Bit 0 - Opp PS state of the AP
-	   Bits 1-7 - Ctwindow in TUs */
+	 * Bits 1-7 - Ctwindow in TUs
+	 */
 	u8 ctwindow_oppps;
 	/* Number of NOA descriptors */
 	u8 num_descriptors;
@@ -6000,7 +6009,8 @@ struct wmi_main_peer_assoc_complete_cmd {
 	struct wmi_common_peer_assoc_complete_cmd cmd;
 
 	/* HT Operation Element of the peer. Five bytes packed in 2
-	 *  INT32 array and filled from lsb to msb. */
+	 *  INT32 array and filled from lsb to msb.
+	 */
 	__le32 peer_ht_info[2];
 } __packed;
 
@@ -6335,6 +6345,8 @@ struct wmi_svc_rdy_ev_arg {
 	__le32 num_rf_chains;
 	__le32 eeprom_rd;
 	__le32 num_mem_reqs;
+	__le32 low_5ghz_chan;
+	__le32 high_5ghz_chan;
 	const __le32 *service_map;
 	size_t service_map_len;
 	const struct wlan_host_mem_req *mem_reqs[WMI_MAX_MEM_REQS];

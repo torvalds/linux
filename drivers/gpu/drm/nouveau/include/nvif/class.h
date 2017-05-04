@@ -125,6 +125,7 @@
 #define MAXWELL_B                                     /* cl9097.h */ 0x0000b197
 
 #define PASCAL_A                                      /* cl9097.h */ 0x0000c097
+#define PASCAL_B                                      /* cl9097.h */ 0x0000c197
 
 #define NV74_BSP                                                     0x000074b0
 
@@ -163,6 +164,7 @@
 #define MAXWELL_COMPUTE_A                                            0x0000b0c0
 #define MAXWELL_COMPUTE_B                                            0x0000b1c0
 #define PASCAL_COMPUTE_A                                             0x0000c0c0
+#define PASCAL_COMPUTE_B                                             0x0000c1c0
 
 #define NV74_CIPHER                                                  0x000074c1
 #endif

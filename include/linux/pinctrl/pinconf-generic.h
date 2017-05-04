@@ -42,6 +42,8 @@
  * @PIN_CONFIG_BIAS_PULL_UP: the pin will be pulled up (usually with high
  *	impedance to VDD). If the argument is != 0 pull-up is enabled,
  *	if it is 0, pull-up is total, i.e. the pin is connected to VDD.
+ * @PIN_CONFIG_BIDIRECTIONAL: the pin will be configured to allow simultaneous
+ *	input and output operations.
  * @PIN_CONFIG_DRIVE_OPEN_DRAIN: the pin will be driven with open drain (open
  *	collector) which means it is usually wired with other output ports
  *	which are then pulled up with an external resistor. Setting this
@@ -96,6 +98,7 @@ enum pin_config_param {
 	PIN_CONFIG_BIAS_PULL_DOWN,
 	PIN_CONFIG_BIAS_PULL_PIN_DEFAULT,
 	PIN_CONFIG_BIAS_PULL_UP,
+	PIN_CONFIG_BIDIRECTIONAL,
 	PIN_CONFIG_DRIVE_OPEN_DRAIN,
 	PIN_CONFIG_DRIVE_OPEN_SOURCE,
 	PIN_CONFIG_DRIVE_PUSH_PULL,

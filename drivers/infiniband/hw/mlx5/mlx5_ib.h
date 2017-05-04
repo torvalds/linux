@@ -513,6 +513,7 @@ struct mlx5_ib_mr {
 struct mlx5_ib_mw {
 	struct ib_mw		ibmw;
 	struct mlx5_core_mkey	mmkey;
+	int			ndescs;
 };
 
 struct mlx5_ib_umr_context {
@@ -595,15 +596,16 @@ struct mlx5_ib_resources {
 	struct mutex	mutex;
 };
 
-struct mlx5_ib_q_counters {
+struct mlx5_ib_counters {
 	const char **names;
 	size_t *offsets;
-	u32 num_counters;
+	u32 num_q_counters;
+	u32 num_cong_counters;
 	u16 set_id;
 };
 
 struct mlx5_ib_port {
-	struct mlx5_ib_q_counters q_cnts;
+	struct mlx5_ib_counters cnts;
 };
 
 struct mlx5_roce {
@@ -729,16 +731,6 @@ static inline struct mlx5_ib_mw *to_mmw(struct ib_mw *ibmw)
 	return container_of(ibmw, struct mlx5_ib_mw, ibmw);
 }
 
-struct mlx5_ib_ah {
-	struct ib_ah		ibah;
-	struct mlx5_av		av;
-};
-
-static inline struct mlx5_ib_ah *to_mah(struct ib_ah *ibah)
-{
-	return container_of(ibah, struct mlx5_ib_ah, ibah);
-}
-
 int mlx5_ib_db_map_user(struct mlx5_ib_ucontext *context, unsigned long virt,
 			struct mlx5_db *db);
 void mlx5_ib_db_unmap_user(struct mlx5_ib_ucontext *context, struct mlx5_db *db);
@@ -748,9 +740,9 @@ void mlx5_ib_free_srq_wqe(struct mlx5_ib_srq *srq, int wqe_index);
 int mlx5_MAD_IFC(struct mlx5_ib_dev *dev, int ignore_mkey, int ignore_bkey,
 		 u8 port, const struct ib_wc *in_wc, const struct ib_grh *in_grh,
 		 const void *in_mad, void *response_mad);
-struct ib_ah *mlx5_ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
+struct ib_ah *mlx5_ib_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
 				struct ib_udata *udata);
-int mlx5_ib_query_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr);
+int mlx5_ib_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr);
 int mlx5_ib_destroy_ah(struct ib_ah *ah);
 struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 				  struct ib_srq_init_attr *init_attr,

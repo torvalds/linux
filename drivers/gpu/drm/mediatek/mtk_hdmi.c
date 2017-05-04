@@ -1434,7 +1434,7 @@ static int mtk_hdmi_dt_parse_pdata(struct mtk_hdmi *hdmi,
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
-	struct device_node *cec_np, *port, *ep, *remote, *i2c_np;
+	struct device_node *cec_np, *remote, *i2c_np;
 	struct platform_device *cec_pdev;
 	struct regmap *regmap;
 	struct resource *mem;
@@ -1486,29 +1486,9 @@ static int mtk_hdmi_dt_parse_pdata(struct mtk_hdmi *hdmi,
 	if (IS_ERR(hdmi->regs))
 		return PTR_ERR(hdmi->regs);
 
-	port = of_graph_get_port_by_id(np, 1);
-	if (!port) {
-		dev_err(dev, "Missing output port node\n");
+	remote = of_graph_get_remote_node(np, 1, 0);
+	if (!remote)
 		return -EINVAL;
-	}
-
-	ep = of_get_child_by_name(port, "endpoint");
-	if (!ep) {
-		dev_err(dev, "Missing endpoint node in port %s\n",
-			port->full_name);
-		of_node_put(port);
-		return -EINVAL;
-	}
-	of_node_put(port);
-
-	remote = of_graph_get_remote_port_parent(ep);
-	if (!remote) {
-		dev_err(dev, "Missing connector/bridge node for endpoint %s\n",
-			ep->full_name);
-		of_node_put(ep);
-		return -EINVAL;
-	}
-	of_node_put(ep);
 
 	if (!of_device_is_compatible(remote, "hdmi-connector")) {
 		hdmi->next_bridge = of_drm_find_bridge(remote);

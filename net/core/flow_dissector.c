@@ -113,6 +113,235 @@ __be32 __skb_flow_get_ports(const struct sk_buff *skb, int thoff, u8 ip_proto,
 }
 EXPORT_SYMBOL(__skb_flow_get_ports);
 
+enum flow_dissect_ret {
+	FLOW_DISSECT_RET_OUT_GOOD,
+	FLOW_DISSECT_RET_OUT_BAD,
+	FLOW_DISSECT_RET_OUT_PROTO_AGAIN,
+};
+
+static enum flow_dissect_ret
+__skb_flow_dissect_mpls(const struct sk_buff *skb,
+			struct flow_dissector *flow_dissector,
+			void *target_container, void *data, int nhoff, int hlen)
+{
+	struct flow_dissector_key_keyid *key_keyid;
+	struct mpls_label *hdr, _hdr[2];
+	u32 entry, label;
+
+	if (!dissector_uses_key(flow_dissector,
+				FLOW_DISSECTOR_KEY_MPLS_ENTROPY) &&
+	    !dissector_uses_key(flow_dissector, FLOW_DISSECTOR_KEY_MPLS))
+		return FLOW_DISSECT_RET_OUT_GOOD;
+
+	hdr = __skb_header_pointer(skb, nhoff, sizeof(_hdr), data,
+				   hlen, &_hdr);
+	if (!hdr)
+		return FLOW_DISSECT_RET_OUT_BAD;
+
+	entry = ntohl(hdr[0].entry);
+	label = (entry & MPLS_LS_LABEL_MASK) >> MPLS_LS_LABEL_SHIFT;
+
+	if (dissector_uses_key(flow_dissector, FLOW_DISSECTOR_KEY_MPLS)) {
+		struct flow_dissector_key_mpls *key_mpls;
+
+		key_mpls = skb_flow_dissector_target(flow_dissector,
+						     FLOW_DISSECTOR_KEY_MPLS,
+						     target_container);
+		key_mpls->mpls_label = label;
+		key_mpls->mpls_ttl = (entry & MPLS_LS_TTL_MASK)
+					>> MPLS_LS_TTL_SHIFT;
+		key_mpls->mpls_tc = (entry & MPLS_LS_TC_MASK)
+					>> MPLS_LS_TC_SHIFT;
+		key_mpls->mpls_bos = (entry & MPLS_LS_S_MASK)
+					>> MPLS_LS_S_SHIFT;
+	}
+
+	if (label == MPLS_LABEL_ENTROPY) {
+		key_keyid = skb_flow_dissector_target(flow_dissector,
+						      FLOW_DISSECTOR_KEY_MPLS_ENTROPY,
+						      target_container);
+		key_keyid->keyid = hdr[1].entry & htonl(MPLS_LS_LABEL_MASK);
+	}
+	return FLOW_DISSECT_RET_OUT_GOOD;
+}
+
+static enum flow_dissect_ret
+__skb_flow_dissect_arp(const struct sk_buff *skb,
+		       struct flow_dissector *flow_dissector,
+		       void *target_container, void *data, int nhoff, int hlen)
+{
+	struct flow_dissector_key_arp *key_arp;
+	struct {
+		unsigned char ar_sha[ETH_ALEN];
+		unsigned char ar_sip[4];
+		unsigned char ar_tha[ETH_ALEN];
+		unsigned char ar_tip[4];
+	} *arp_eth, _arp_eth;
+	const struct arphdr *arp;
+	struct arphdr _arp;
+
+	if (!dissector_uses_key(flow_dissector, FLOW_DISSECTOR_KEY_ARP))
+		return FLOW_DISSECT_RET_OUT_GOOD;
+
+	arp = __skb_header_pointer(skb, nhoff, sizeof(_arp), data,
+				   hlen, &_arp);
+	if (!arp)
+		return FLOW_DISSECT_RET_OUT_BAD;
+
+	if (arp->ar_hrd != htons(ARPHRD_ETHER) ||
+	    arp->ar_pro != htons(ETH_P_IP) ||
+	    arp->ar_hln != ETH_ALEN ||
+	    arp->ar_pln != 4 ||
+	    (arp->ar_op != htons(ARPOP_REPLY) &&
+	     arp->ar_op != htons(ARPOP_REQUEST)))
+		return FLOW_DISSECT_RET_OUT_BAD;
+
+	arp_eth = __skb_header_pointer(skb, nhoff + sizeof(_arp),
+				       sizeof(_arp_eth), data,
+				       hlen, &_arp_eth);
+	if (!arp_eth)
+		return FLOW_DISSECT_RET_OUT_BAD;
+
+	key_arp = skb_flow_dissector_target(flow_dissector,
+					    FLOW_DISSECTOR_KEY_ARP,
+					    target_container);
+
+	memcpy(&key_arp->sip, arp_eth->ar_sip, sizeof(key_arp->sip));
+	memcpy(&key_arp->tip, arp_eth->ar_tip, sizeof(key_arp->tip));
+
+	/* Only store the lower byte of the opcode;
+	 * this covers ARPOP_REPLY and ARPOP_REQUEST.
+	 */
+	key_arp->op = ntohs(arp->ar_op) & 0xff;
+
+	ether_addr_copy(key_arp->sha, arp_eth->ar_sha);
+	ether_addr_copy(key_arp->tha, arp_eth->ar_tha);
+
+	return FLOW_DISSECT_RET_OUT_GOOD;
+}
+
+static enum flow_dissect_ret
+__skb_flow_dissect_gre(const struct sk_buff *skb,
+		       struct flow_dissector_key_control *key_control,
+		       struct flow_dissector *flow_dissector,
+		       void *target_container, void *data,
+		       __be16 *p_proto, int *p_nhoff, int *p_hlen,
+		       unsigned int flags)
+{
+	struct flow_dissector_key_keyid *key_keyid;
+	struct gre_base_hdr *hdr, _hdr;
+	int offset = 0;
+	u16 gre_ver;
+
+	hdr = __skb_header_pointer(skb, *p_nhoff, sizeof(_hdr),
+				   data, *p_hlen, &_hdr);
+	if (!hdr)
+		return FLOW_DISSECT_RET_OUT_BAD;
+
+	/* Only look inside GRE without routing */
+	if (hdr->flags & GRE_ROUTING)
+		return FLOW_DISSECT_RET_OUT_GOOD;
+
+	/* Only look inside GRE for version 0 and 1 */
+	gre_ver = ntohs(hdr->flags & GRE_VERSION);
+	if (gre_ver > 1)
+		return FLOW_DISSECT_RET_OUT_GOOD;
+
+	*p_proto = hdr->protocol;
+	if (gre_ver) {
+		/* Version1 must be PPTP, and check the flags */
+		if (!(*p_proto == GRE_PROTO_PPP && (hdr->flags & GRE_KEY)))
+			return FLOW_DISSECT_RET_OUT_GOOD;
+	}
+
+	offset += sizeof(struct gre_base_hdr);
+
+	if (hdr->flags & GRE_CSUM)
+		offset += sizeof(((struct gre_full_hdr *) 0)->csum) +
+			  sizeof(((struct gre_full_hdr *) 0)->reserved1);
+
+	if (hdr->flags & GRE_KEY) {
+		const __be32 *keyid;
+		__be32 _keyid;
+
+		keyid = __skb_header_pointer(skb, *p_nhoff + offset,
+					     sizeof(_keyid),
+					     data, *p_hlen, &_keyid);
+		if (!keyid)
+			return FLOW_DISSECT_RET_OUT_BAD;
+
+		if (dissector_uses_key(flow_dissector,
+				       FLOW_DISSECTOR_KEY_GRE_KEYID)) {
+			key_keyid = skb_flow_dissector_target(flow_dissector,
+							      FLOW_DISSECTOR_KEY_GRE_KEYID,
+							      target_container);
+			if (gre_ver == 0)
+				key_keyid->keyid = *keyid;
+			else
+				key_keyid->keyid = *keyid & GRE_PPTP_KEY_MASK;
+		}
+		offset += sizeof(((struct gre_full_hdr *) 0)->key);
+	}
+
+	if (hdr->flags & GRE_SEQ)
+		offset += sizeof(((struct pptp_gre_header *) 0)->seq);
+
+	if (gre_ver == 0) {
+		if (*p_proto == htons(ETH_P_TEB)) {
+			const struct ethhdr *eth;
+			struct ethhdr _eth;
+
+			eth = __skb_header_pointer(skb, *p_nhoff + offset,
+						   sizeof(_eth),
+						   data, *p_hlen, &_eth);
+			if (!eth)
+				return FLOW_DISSECT_RET_OUT_BAD;
+			*p_proto = eth->h_proto;
+			offset += sizeof(*eth);
+
+			/* Cap headers that we access via pointers at the
+			 * end of the Ethernet header as our maximum alignment
+			 * at that point is only 2 bytes.
+			 */
+			if (NET_IP_ALIGN)
+				*p_hlen = *p_nhoff + offset;
+		}
+	} else { /* version 1, must be PPTP */
+		u8 _ppp_hdr[PPP_HDRLEN];
+		u8 *ppp_hdr;
+
+		if (hdr->flags & GRE_ACK)
+			offset += sizeof(((struct pptp_gre_header *) 0)->ack);
+
+		ppp_hdr = __skb_header_pointer(skb, *p_nhoff + offset,
+					       sizeof(_ppp_hdr),
+					       data, *p_hlen, _ppp_hdr);
+		if (!ppp_hdr)
+			return FLOW_DISSECT_RET_OUT_BAD;
+
+		switch (PPP_PROTOCOL(ppp_hdr)) {
+		case PPP_IP:
+			*p_proto = htons(ETH_P_IP);
+			break;
+		case PPP_IPV6:
+			*p_proto = htons(ETH_P_IPV6);
+			break;
+		default:
+			/* Could probably catch some more like MPLS */
+			break;
+		}
+
+		offset += PPP_HDRLEN;
+	}
+
+	*p_nhoff += offset;
+	key_control->flags |= FLOW_DIS_ENCAPSULATION;
+	if (flags & FLOW_DISSECTOR_F_STOP_AT_ENCAP)
+		return FLOW_DISSECT_RET_OUT_GOOD;
+
+	return FLOW_DISSECT_RET_OUT_PROTO_AGAIN;
+}
+
 /**
  * __skb_flow_dissect - extract the flow_keys struct and return it
  * @skb: sk_buff to extract the flow from, can be NULL if the rest are specified
@@ -138,12 +367,10 @@ bool __skb_flow_dissect(const struct sk_buff *skb,
 	struct flow_dissector_key_control *key_control;
 	struct flow_dissector_key_basic *key_basic;
 	struct flow_dissector_key_addrs *key_addrs;
-	struct flow_dissector_key_arp *key_arp;
 	struct flow_dissector_key_ports *key_ports;
 	struct flow_dissector_key_icmp *key_icmp;
 	struct flow_dissector_key_tags *key_tags;
 	struct flow_dissector_key_vlan *key_vlan;
-	struct flow_dissector_key_keyid *key_keyid;
 	bool skip_vlan = false;
 	u8 ip_proto = 0;
 	bool ret;
@@ -181,7 +408,7 @@ bool __skb_flow_dissect(const struct sk_buff *skb,
 		memcpy(key_eth_addrs, &eth->h_dest, sizeof(*key_eth_addrs));
 	}
 
-again:
+proto_again:
 	switch (proto) {
 	case htons(ETH_P_IP): {
 		const struct iphdr *iph;
@@ -284,7 +511,7 @@ ipv6:
 			proto = vlan->h_vlan_encapsulated_proto;
 			nhoff += sizeof(*vlan);
 			if (skip_vlan)
-				goto again;
+				goto proto_again;
 		}
 
 		skip_vlan = true;
@@ -307,7 +534,7 @@ ipv6:
 			}
 		}
 
-		goto again;
+		goto proto_again;
 	}
 	case htons(ETH_P_PPP_SES): {
 		struct {
@@ -349,31 +576,17 @@ ipv6:
 	}
 
 	case htons(ETH_P_MPLS_UC):
-	case htons(ETH_P_MPLS_MC): {
-		struct mpls_label *hdr, _hdr[2];
+	case htons(ETH_P_MPLS_MC):
 mpls:
-		hdr = __skb_header_pointer(skb, nhoff, sizeof(_hdr), data,
-					   hlen, &_hdr);
-		if (!hdr)
-			goto out_bad;
-
-		if ((ntohl(hdr[0].entry) & MPLS_LS_LABEL_MASK) >>
-		     MPLS_LS_LABEL_SHIFT == MPLS_LABEL_ENTROPY) {
-			if (dissector_uses_key(flow_dissector,
-					       FLOW_DISSECTOR_KEY_MPLS_ENTROPY)) {
-				key_keyid = skb_flow_dissector_target(flow_dissector,
-								      FLOW_DISSECTOR_KEY_MPLS_ENTROPY,
-								      target_container);
-				key_keyid->keyid = hdr[1].entry &
-					htonl(MPLS_LS_LABEL_MASK);
-			}
-
+		switch (__skb_flow_dissect_mpls(skb, flow_dissector,
+						target_container, data,
+						nhoff, hlen)) {
+		case FLOW_DISSECT_RET_OUT_GOOD:
 			goto out_good;
+		case FLOW_DISSECT_RET_OUT_BAD:
+		default:
+			goto out_bad;
 		}
-
-		goto out_good;
-	}
-
 	case htons(ETH_P_FCOE):
 		if ((hlen - nhoff) < FCOE_HEADER_LEN)
 			goto out_bad;
@@ -382,177 +595,33 @@ mpls:
 		goto out_good;
 
 	case htons(ETH_P_ARP):
-	case htons(ETH_P_RARP): {
-		struct {
-			unsigned char ar_sha[ETH_ALEN];
-			unsigned char ar_sip[4];
-			unsigned char ar_tha[ETH_ALEN];
-			unsigned char ar_tip[4];
-		} *arp_eth, _arp_eth;
-		const struct arphdr *arp;
-		struct arphdr _arp;
-
-		arp = __skb_header_pointer(skb, nhoff, sizeof(_arp), data,
-					   hlen, &_arp);
-		if (!arp)
+	case htons(ETH_P_RARP):
+		switch (__skb_flow_dissect_arp(skb, flow_dissector,
+					       target_container, data,
+					       nhoff, hlen)) {
+		case FLOW_DISSECT_RET_OUT_GOOD:
+			goto out_good;
+		case FLOW_DISSECT_RET_OUT_BAD:
+		default:
 			goto out_bad;
-
-		if (arp->ar_hrd != htons(ARPHRD_ETHER) ||
-		    arp->ar_pro != htons(ETH_P_IP) ||
-		    arp->ar_hln != ETH_ALEN ||
-		    arp->ar_pln != 4 ||
-		    (arp->ar_op != htons(ARPOP_REPLY) &&
-		     arp->ar_op != htons(ARPOP_REQUEST)))
-			goto out_bad;
-
-		arp_eth = __skb_header_pointer(skb, nhoff + sizeof(_arp),
-					       sizeof(_arp_eth), data,
-					       hlen,
-					       &_arp_eth);
-		if (!arp_eth)
-			goto out_bad;
-
-		if (dissector_uses_key(flow_dissector,
-				       FLOW_DISSECTOR_KEY_ARP)) {
-
-			key_arp = skb_flow_dissector_target(flow_dissector,
-							    FLOW_DISSECTOR_KEY_ARP,
-							    target_container);
-
-			memcpy(&key_arp->sip, arp_eth->ar_sip,
-			       sizeof(key_arp->sip));
-			memcpy(&key_arp->tip, arp_eth->ar_tip,
-			       sizeof(key_arp->tip));
-
-			/* Only store the lower byte of the opcode;
-			 * this covers ARPOP_REPLY and ARPOP_REQUEST.
-			 */
-			key_arp->op = ntohs(arp->ar_op) & 0xff;
-
-			ether_addr_copy(key_arp->sha, arp_eth->ar_sha);
-			ether_addr_copy(key_arp->tha, arp_eth->ar_tha);
 		}
-
-		goto out_good;
-	}
-
 	default:
 		goto out_bad;
 	}
 
 ip_proto_again:
 	switch (ip_proto) {
-	case IPPROTO_GRE: {
-		struct gre_base_hdr *hdr, _hdr;
-		u16 gre_ver;
-		int offset = 0;
-
-		hdr = __skb_header_pointer(skb, nhoff, sizeof(_hdr), data, hlen, &_hdr);
-		if (!hdr)
-			goto out_bad;
-
-		/* Only look inside GRE without routing */
-		if (hdr->flags & GRE_ROUTING)
-			break;
-
-		/* Only look inside GRE for version 0 and 1 */
-		gre_ver = ntohs(hdr->flags & GRE_VERSION);
-		if (gre_ver > 1)
-			break;
-
-		proto = hdr->protocol;
-		if (gre_ver) {
-			/* Version1 must be PPTP, and check the flags */
-			if (!(proto == GRE_PROTO_PPP && (hdr->flags & GRE_KEY)))
-				break;
-		}
-
-		offset += sizeof(struct gre_base_hdr);
-
-		if (hdr->flags & GRE_CSUM)
-			offset += sizeof(((struct gre_full_hdr *)0)->csum) +
-				  sizeof(((struct gre_full_hdr *)0)->reserved1);
-
-		if (hdr->flags & GRE_KEY) {
-			const __be32 *keyid;
-			__be32 _keyid;
-
-			keyid = __skb_header_pointer(skb, nhoff + offset, sizeof(_keyid),
-						     data, hlen, &_keyid);
-			if (!keyid)
-				goto out_bad;
-
-			if (dissector_uses_key(flow_dissector,
-					       FLOW_DISSECTOR_KEY_GRE_KEYID)) {
-				key_keyid = skb_flow_dissector_target(flow_dissector,
-								      FLOW_DISSECTOR_KEY_GRE_KEYID,
-								      target_container);
-				if (gre_ver == 0)
-					key_keyid->keyid = *keyid;
-				else
-					key_keyid->keyid = *keyid & GRE_PPTP_KEY_MASK;
-			}
-			offset += sizeof(((struct gre_full_hdr *)0)->key);
-		}
-
-		if (hdr->flags & GRE_SEQ)
-			offset += sizeof(((struct pptp_gre_header *)0)->seq);
-
-		if (gre_ver == 0) {
-			if (proto == htons(ETH_P_TEB)) {
-				const struct ethhdr *eth;
-				struct ethhdr _eth;
-
-				eth = __skb_header_pointer(skb, nhoff + offset,
-							   sizeof(_eth),
-							   data, hlen, &_eth);
-				if (!eth)
-					goto out_bad;
-				proto = eth->h_proto;
-				offset += sizeof(*eth);
-
-				/* Cap headers that we access via pointers at the
-				 * end of the Ethernet header as our maximum alignment
-				 * at that point is only 2 bytes.
-				 */
-				if (NET_IP_ALIGN)
-					hlen = (nhoff + offset);
-			}
-		} else { /* version 1, must be PPTP */
-			u8 _ppp_hdr[PPP_HDRLEN];
-			u8 *ppp_hdr;
-
-			if (hdr->flags & GRE_ACK)
-				offset += sizeof(((struct pptp_gre_header *)0)->ack);
-
-			ppp_hdr = __skb_header_pointer(skb, nhoff + offset,
-						     sizeof(_ppp_hdr),
-						     data, hlen, _ppp_hdr);
-			if (!ppp_hdr)
-				goto out_bad;
-
-			switch (PPP_PROTOCOL(ppp_hdr)) {
-			case PPP_IP:
-				proto = htons(ETH_P_IP);
-				break;
-			case PPP_IPV6:
-				proto = htons(ETH_P_IPV6);
-				break;
-			default:
-				/* Could probably catch some more like MPLS */
-				break;
-			}
-
-			offset += PPP_HDRLEN;
-		}
-
-		nhoff += offset;
-		key_control->flags |= FLOW_DIS_ENCAPSULATION;
-		if (flags & FLOW_DISSECTOR_F_STOP_AT_ENCAP)
+	case IPPROTO_GRE:
+		switch (__skb_flow_dissect_gre(skb, key_control, flow_dissector,
+					       target_container, data,
+					       &proto, &nhoff, &hlen, flags)) {
+		case FLOW_DISSECT_RET_OUT_GOOD:
 			goto out_good;
-
-		goto again;
-	}
+		case FLOW_DISSECT_RET_OUT_BAD:
+			goto out_bad;
+		case FLOW_DISSECT_RET_OUT_PROTO_AGAIN:
+			goto proto_again;
+		}
 	case NEXTHDR_HOP:
 	case NEXTHDR_ROUTING:
 	case NEXTHDR_DEST: {

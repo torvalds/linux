@@ -42,7 +42,6 @@ config DEBUG_PAGEALLOC_ENABLE_DEFAULT
 
 config PAGE_POISONING
 	bool "Poison pages after freeing"
-	select PAGE_EXTENSION
 	select PAGE_POISONING_NO_SANITY if HIBERNATION
 	---help---
 	  Fill the pages with poison patterns after free_pages() and verify

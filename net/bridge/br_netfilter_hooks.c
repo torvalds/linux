@@ -997,13 +997,10 @@ int br_nf_hook_thresh(unsigned int hook, struct net *net,
 	if (!elem)
 		return okfn(net, sk, skb);
 
-	/* We may already have this, but read-locks nest anyway */
-	rcu_read_lock();
 	nf_hook_state_init(&state, hook, NFPROTO_BRIDGE, indev, outdev,
 			   sk, net, okfn);
 
 	ret = nf_hook_slow(skb, &state, elem);
-	rcu_read_unlock();
 	if (ret == 1)
 		ret = okfn(net, sk, skb);
 

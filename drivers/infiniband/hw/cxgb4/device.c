@@ -334,7 +334,7 @@ static int qp_release(struct inode *inode, struct file *file)
 {
 	struct c4iw_debugfs_data *qpd = file->private_data;
 	if (!qpd) {
-		printk(KERN_INFO "%s null qpd?\n", __func__);
+		pr_info("%s null qpd?\n", __func__);
 		return 0;
 	}
 	vfree(qpd->buf);
@@ -422,7 +422,7 @@ static int stag_release(struct inode *inode, struct file *file)
 {
 	struct c4iw_debugfs_data *stagd = file->private_data;
 	if (!stagd) {
-		printk(KERN_INFO "%s null stagd?\n", __func__);
+		pr_info("%s null stagd?\n", __func__);
 		return 0;
 	}
 	vfree(stagd->buf);
@@ -796,15 +796,14 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 	 * cqid and qpid range must match for now.
 	 */
 	if (rdev->lldi.udb_density != rdev->lldi.ucq_density) {
-		pr_err(MOD "%s: unsupported udb/ucq densities %u/%u\n",
+		pr_err("%s: unsupported udb/ucq densities %u/%u\n",
 		       pci_name(rdev->lldi.pdev), rdev->lldi.udb_density,
 		       rdev->lldi.ucq_density);
 		return -EINVAL;
 	}
 	if (rdev->lldi.vr->qp.start != rdev->lldi.vr->cq.start ||
 	    rdev->lldi.vr->qp.size != rdev->lldi.vr->cq.size) {
-		pr_err(MOD "%s: unsupported qp and cq id ranges "
-		       "qp start %u size %u cq start %u size %u\n",
+		pr_err("%s: unsupported qp and cq id ranges qp start %u size %u cq start %u size %u\n",
 		       pci_name(rdev->lldi.pdev), rdev->lldi.vr->qp.start,
 		       rdev->lldi.vr->qp.size, rdev->lldi.vr->cq.size,
 		       rdev->lldi.vr->cq.size);
@@ -813,23 +812,20 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 
 	rdev->qpmask = rdev->lldi.udb_density - 1;
 	rdev->cqmask = rdev->lldi.ucq_density - 1;
-	PDBG("%s dev %s stag start 0x%0x size 0x%0x num stags %d "
-	     "pbl start 0x%0x size 0x%0x rq start 0x%0x size 0x%0x "
-	     "qp qid start %u size %u cq qid start %u size %u\n",
-	     __func__, pci_name(rdev->lldi.pdev), rdev->lldi.vr->stag.start,
-	     rdev->lldi.vr->stag.size, c4iw_num_stags(rdev),
-	     rdev->lldi.vr->pbl.start,
-	     rdev->lldi.vr->pbl.size, rdev->lldi.vr->rq.start,
-	     rdev->lldi.vr->rq.size,
-	     rdev->lldi.vr->qp.start,
-	     rdev->lldi.vr->qp.size,
-	     rdev->lldi.vr->cq.start,
-	     rdev->lldi.vr->cq.size);
-	PDBG("udb %pR db_reg %p gts_reg %p "
-	     "qpmask 0x%x cqmask 0x%x\n",
-		&rdev->lldi.pdev->resource[2],
-	     rdev->lldi.db_reg, rdev->lldi.gts_reg,
-	     rdev->qpmask, rdev->cqmask);
+	pr_debug("%s dev %s stag start 0x%0x size 0x%0x num stags %d pbl start 0x%0x size 0x%0x rq start 0x%0x size 0x%0x qp qid start %u size %u cq qid start %u size %u\n",
+		 __func__, pci_name(rdev->lldi.pdev), rdev->lldi.vr->stag.start,
+		 rdev->lldi.vr->stag.size, c4iw_num_stags(rdev),
+		 rdev->lldi.vr->pbl.start,
+		 rdev->lldi.vr->pbl.size, rdev->lldi.vr->rq.start,
+		 rdev->lldi.vr->rq.size,
+		 rdev->lldi.vr->qp.start,
+		 rdev->lldi.vr->qp.size,
+		 rdev->lldi.vr->cq.start,
+		 rdev->lldi.vr->cq.size);
+	pr_debug("udb %pR db_reg %p gts_reg %p qpmask 0x%x cqmask 0x%x\n",
+		 &rdev->lldi.pdev->resource[2],
+		 rdev->lldi.db_reg, rdev->lldi.gts_reg,
+		 rdev->qpmask, rdev->cqmask);
 
 	if (c4iw_num_stags(rdev) == 0)
 		return -EINVAL;
@@ -843,22 +839,22 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 
 	err = c4iw_init_resource(rdev, c4iw_num_stags(rdev), T4_MAX_NUM_PD);
 	if (err) {
-		printk(KERN_ERR MOD "error %d initializing resources\n", err);
+		pr_err("error %d initializing resources\n", err);
 		return err;
 	}
 	err = c4iw_pblpool_create(rdev);
 	if (err) {
-		printk(KERN_ERR MOD "error %d initializing pbl pool\n", err);
+		pr_err("error %d initializing pbl pool\n", err);
 		goto destroy_resource;
 	}
 	err = c4iw_rqtpool_create(rdev);
 	if (err) {
-		printk(KERN_ERR MOD "error %d initializing rqt pool\n", err);
+		pr_err("error %d initializing rqt pool\n", err);
 		goto destroy_pblpool;
 	}
 	err = c4iw_ocqp_pool_create(rdev);
 	if (err) {
-		printk(KERN_ERR MOD "error %d initializing ocqp pool\n", err);
+		pr_err("error %d initializing ocqp pool\n", err);
 		goto destroy_rqtpool;
 	}
 	rdev->status_page = (struct t4_dev_status_page *)
@@ -936,7 +932,7 @@ static void c4iw_dealloc(struct uld_ctx *ctx)
 
 static void c4iw_remove(struct uld_ctx *ctx)
 {
-	PDBG("%s c4iw_dev %p\n", __func__,  ctx->dev);
+	pr_debug("%s c4iw_dev %p\n", __func__,  ctx->dev);
 	c4iw_unregister_device(ctx->dev);
 	c4iw_dealloc(ctx);
 }
@@ -954,25 +950,25 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 	int ret;
 
 	if (!rdma_supported(infop)) {
-		printk(KERN_INFO MOD "%s: RDMA not supported on this device.\n",
-		       pci_name(infop->pdev));
+		pr_info("%s: RDMA not supported on this device\n",
+			pci_name(infop->pdev));
 		return ERR_PTR(-ENOSYS);
 	}
 	if (!ocqp_supported(infop))
-		pr_info("%s: On-Chip Queues not supported on this device.\n",
+		pr_info("%s: On-Chip Queues not supported on this device\n",
 			pci_name(infop->pdev));
 
 	devp = (struct c4iw_dev *)ib_alloc_device(sizeof(*devp));
 	if (!devp) {
-		printk(KERN_ERR MOD "Cannot allocate ib device\n");
+		pr_err("Cannot allocate ib device\n");
 		return ERR_PTR(-ENOMEM);
 	}
 	devp->rdev.lldi = *infop;
 
 	/* init various hw-queue params based on lld info */
-	PDBG("%s: Ing. padding boundary is %d, egrsstatuspagesize = %d\n",
-	     __func__, devp->rdev.lldi.sge_ingpadboundary,
-	     devp->rdev.lldi.sge_egrstatuspagesize);
+	pr_debug("%s: Ing. padding boundary is %d, egrsstatuspagesize = %d\n",
+		 __func__, devp->rdev.lldi.sge_ingpadboundary,
+		 devp->rdev.lldi.sge_egrstatuspagesize);
 
 	devp->rdev.hw_queue.t4_eq_status_entries =
 		devp->rdev.lldi.sge_ingpadboundary > 64 ? 2 : 1;
@@ -1000,7 +996,7 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 		devp->rdev.bar2_kva = ioremap_wc(devp->rdev.bar2_pa,
 			pci_resource_len(devp->rdev.lldi.pdev, 2));
 		if (!devp->rdev.bar2_kva) {
-			pr_err(MOD "Unable to ioremap BAR2\n");
+			pr_err("Unable to ioremap BAR2\n");
 			ib_dealloc_device(&devp->ibdev);
 			return ERR_PTR(-EINVAL);
 		}
@@ -1012,20 +1008,19 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 		devp->rdev.oc_mw_kva = ioremap_wc(devp->rdev.oc_mw_pa,
 			devp->rdev.lldi.vr->ocq.size);
 		if (!devp->rdev.oc_mw_kva) {
-			pr_err(MOD "Unable to ioremap onchip mem\n");
+			pr_err("Unable to ioremap onchip mem\n");
 			ib_dealloc_device(&devp->ibdev);
 			return ERR_PTR(-EINVAL);
 		}
 	}
 
-	PDBG(KERN_INFO MOD "ocq memory: "
-	       "hw_start 0x%x size %u mw_pa 0x%lx mw_kva %p\n",
-	       devp->rdev.lldi.vr->ocq.start, devp->rdev.lldi.vr->ocq.size,
-	       devp->rdev.oc_mw_pa, devp->rdev.oc_mw_kva);
+	pr_debug("ocq memory: hw_start 0x%x size %u mw_pa 0x%lx mw_kva %p\n",
+		 devp->rdev.lldi.vr->ocq.start, devp->rdev.lldi.vr->ocq.size,
+		 devp->rdev.oc_mw_pa, devp->rdev.oc_mw_kva);
 
 	ret = c4iw_rdev_open(&devp->rdev);
 	if (ret) {
-		printk(KERN_ERR MOD "Unable to open CXIO rdev err %d\n", ret);
+		pr_err("Unable to open CXIO rdev err %d\n", ret);
 		ib_dealloc_device(&devp->ibdev);
 		return ERR_PTR(ret);
 	}
@@ -1071,17 +1066,17 @@ static void *c4iw_uld_add(const struct cxgb4_lld_info *infop)
 	}
 	ctx->lldi = *infop;
 
-	PDBG("%s found device %s nchan %u nrxq %u ntxq %u nports %u\n",
-	     __func__, pci_name(ctx->lldi.pdev),
-	     ctx->lldi.nchan, ctx->lldi.nrxq,
-	     ctx->lldi.ntxq, ctx->lldi.nports);
+	pr_debug("%s found device %s nchan %u nrxq %u ntxq %u nports %u\n",
+		 __func__, pci_name(ctx->lldi.pdev),
+		 ctx->lldi.nchan, ctx->lldi.nrxq,
+		 ctx->lldi.ntxq, ctx->lldi.nports);
 
 	mutex_lock(&dev_mutex);
 	list_add_tail(&ctx->entry, &uld_ctx_list);
 	mutex_unlock(&dev_mutex);
 
 	for (i = 0; i < ctx->lldi.nrxq; i++)
-		PDBG("rxqid[%u] %u\n", i, ctx->lldi.rxq_ids[i]);
+		pr_debug("rxqid[%u] %u\n", i, ctx->lldi.rxq_ids[i]);
 out:
 	return ctx;
 }
@@ -1138,8 +1133,7 @@ static inline int recv_rx_pkt(struct c4iw_dev *dev, const struct pkt_gl *gl,
 		goto out;
 
 	if (c4iw_handlers[opcode] == NULL) {
-		pr_info("%s no handler opcode 0x%x...\n", __func__,
-		       opcode);
+		pr_info("%s no handler opcode 0x%x...\n", __func__, opcode);
 		kfree_skb(skb);
 		goto out;
 	}
@@ -1176,13 +1170,11 @@ static int c4iw_uld_rx_handler(void *handle, const __be64 *rsp,
 		if (recv_rx_pkt(dev, gl, rsp))
 			return 0;
 
-		pr_info("%s: unexpected FL contents at %p, " \
-		       "RSS %#llx, FL %#llx, len %u\n",
-		       pci_name(ctx->lldi.pdev), gl->va,
-		       (unsigned long long)be64_to_cpu(*rsp),
-		       (unsigned long long)be64_to_cpu(
-		       *(__force __be64 *)gl->va),
-		       gl->tot_len);
+		pr_info("%s: unexpected FL contents at %p, RSS %#llx, FL %#llx, len %u\n",
+			pci_name(ctx->lldi.pdev), gl->va,
+			be64_to_cpu(*rsp),
+			be64_to_cpu(*(__force __be64 *)gl->va),
+			gl->tot_len);
 
 		return 0;
 	} else {
@@ -1195,8 +1187,7 @@ static int c4iw_uld_rx_handler(void *handle, const __be64 *rsp,
 	if (c4iw_handlers[opcode]) {
 		c4iw_handlers[opcode](dev, skb);
 	} else {
-		pr_info("%s no handler opcode 0x%x...\n", __func__,
-		       opcode);
+		pr_info("%s no handler opcode 0x%x...\n", __func__, opcode);
 		kfree_skb(skb);
 	}
 
@@ -1209,17 +1200,16 @@ static int c4iw_uld_state_change(void *handle, enum cxgb4_state new_state)
 {
 	struct uld_ctx *ctx = handle;
 
-	PDBG("%s new_state %u\n", __func__, new_state);
+	pr_debug("%s new_state %u\n", __func__, new_state);
 	switch (new_state) {
 	case CXGB4_STATE_UP:
-		printk(KERN_INFO MOD "%s: Up\n", pci_name(ctx->lldi.pdev));
+		pr_info("%s: Up\n", pci_name(ctx->lldi.pdev));
 		if (!ctx->dev) {
 			int ret;
 
 			ctx->dev = c4iw_alloc(&ctx->lldi);
 			if (IS_ERR(ctx->dev)) {
-				printk(KERN_ERR MOD
-				       "%s: initialization failed: %ld\n",
+				pr_err("%s: initialization failed: %ld\n",
 				       pci_name(ctx->lldi.pdev),
 				       PTR_ERR(ctx->dev));
 				ctx->dev = NULL;
@@ -1227,22 +1217,19 @@ static int c4iw_uld_state_change(void *handle, enum cxgb4_state new_state)
 			}
 			ret = c4iw_register_device(ctx->dev);
 			if (ret) {
-				printk(KERN_ERR MOD
-				       "%s: RDMA registration failed: %d\n",
+				pr_err("%s: RDMA registration failed: %d\n",
 				       pci_name(ctx->lldi.pdev), ret);
 				c4iw_dealloc(ctx);
 			}
 		}
 		break;
 	case CXGB4_STATE_DOWN:
-		printk(KERN_INFO MOD "%s: Down\n",
-		       pci_name(ctx->lldi.pdev));
+		pr_info("%s: Down\n", pci_name(ctx->lldi.pdev));
 		if (ctx->dev)
 			c4iw_remove(ctx);
 		break;
 	case CXGB4_STATE_START_RECOVERY:
-		printk(KERN_INFO MOD "%s: Fatal Error\n",
-		       pci_name(ctx->lldi.pdev));
+		pr_info("%s: Fatal Error\n", pci_name(ctx->lldi.pdev));
 		if (ctx->dev) {
 			struct ib_event event;
 
@@ -1255,8 +1242,7 @@ static int c4iw_uld_state_change(void *handle, enum cxgb4_state new_state)
 		}
 		break;
 	case CXGB4_STATE_DETACH:
-		printk(KERN_INFO MOD "%s: Detach\n",
-		       pci_name(ctx->lldi.pdev));
+		pr_info("%s: Detach\n", pci_name(ctx->lldi.pdev));
 		if (ctx->dev)
 			c4iw_remove(ctx);
 		break;
@@ -1406,9 +1392,7 @@ static void recover_lost_dbs(struct uld_ctx *ctx, struct qp_list *qp_list)
 					  t4_sq_host_wq_pidx(&qp->wq),
 					  t4_sq_wq_size(&qp->wq));
 		if (ret) {
-			pr_err(MOD "%s: Fatal error - "
-			       "DB overflow recovery failed - "
-			       "error syncing SQ qid %u\n",
+			pr_err("%s: Fatal error - DB overflow recovery failed - error syncing SQ qid %u\n",
 			       pci_name(ctx->lldi.pdev), qp->wq.sq.qid);
 			spin_unlock(&qp->lock);
 			spin_unlock_irq(&qp->rhp->lock);
@@ -1422,9 +1406,7 @@ static void recover_lost_dbs(struct uld_ctx *ctx, struct qp_list *qp_list)
 					  t4_rq_wq_size(&qp->wq));
 
 		if (ret) {
-			pr_err(MOD "%s: Fatal error - "
-			       "DB overflow recovery failed - "
-			       "error syncing RQ qid %u\n",
+			pr_err("%s: Fatal error - DB overflow recovery failed - error syncing RQ qid %u\n",
 			       pci_name(ctx->lldi.pdev), qp->wq.rq.qid);
 			spin_unlock(&qp->lock);
 			spin_unlock_irq(&qp->rhp->lock);
@@ -1455,7 +1437,7 @@ static void recover_queues(struct uld_ctx *ctx)
 	/* flush the SGE contexts */
 	ret = cxgb4_flush_eq_cache(ctx->dev->rdev.lldi.ports[0]);
 	if (ret) {
-		printk(KERN_ERR MOD "%s: Fatal error - DB overflow recovery failed\n",
+		pr_err("%s: Fatal error - DB overflow recovery failed\n",
 		       pci_name(ctx->lldi.pdev));
 		return;
 	}
@@ -1513,8 +1495,8 @@ static int c4iw_uld_control(void *handle, enum cxgb4_control control, ...)
 		mutex_unlock(&ctx->dev->rdev.stats.lock);
 		break;
 	default:
-		printk(KERN_WARNING MOD "%s: unknown control cmd %u\n",
-		       pci_name(ctx->lldi.pdev), control);
+		pr_warn("%s: unknown control cmd %u\n",
+			pci_name(ctx->lldi.pdev), control);
 		break;
 	}
 	return 0;
@@ -1543,8 +1525,7 @@ static int __init c4iw_init_module(void)
 
 	c4iw_debugfs_root = debugfs_create_dir(DRV_NAME, NULL);
 	if (!c4iw_debugfs_root)
-		printk(KERN_WARNING MOD
-		       "could not create debugfs entry, continuing\n");
+		pr_warn("could not create debugfs entry, continuing\n");
 
 	cxgb4_register_uld(CXGB4_ULD_RDMA, &c4iw_uld_info);
 

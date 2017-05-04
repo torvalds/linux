@@ -826,7 +826,7 @@ static u32 ucode_rate_from_rs_rate(struct iwl_mvm *mvm,
 	if (is_siso(rate) && rate->stbc) {
 		/* To enable STBC we need to set both a flag and ANT_AB */
 		ucode_rate |= RATE_MCS_ANT_AB_MSK;
-		ucode_rate |= RATE_MCS_VHT_STBC_MSK;
+		ucode_rate |= RATE_MCS_STBC_MSK;
 	}
 
 	ucode_rate |= rate->bw;
@@ -873,7 +873,7 @@ static int rs_rate_from_ucode_rate(const u32 ucode_rate,
 		rate->sgi = true;
 	if (ucode_rate & RATE_MCS_LDPC_MSK)
 		rate->ldpc = true;
-	if (ucode_rate & RATE_MCS_VHT_STBC_MSK)
+	if (ucode_rate & RATE_MCS_STBC_MSK)
 		rate->stbc = true;
 	if (ucode_rate & RATE_MCS_BF_MSK)
 		rate->bfer = true;
@@ -3641,13 +3641,12 @@ int rs_pretty_print_rate(char *buf, const u32 rate)
 		bw = "BAD BW";
 	}
 
-	return sprintf(buf, "%s | ANT: %s BW: %s MCS: %d NSS: %d %s%s%s%s%s\n",
+	return sprintf(buf, "%s | ANT: %s BW: %s MCS: %d NSS: %d %s%s%s%s\n",
 		       type, rs_pretty_ant(ant), bw, mcs, nss,
 		       (rate & RATE_MCS_SGI_MSK) ? "SGI " : "NGI ",
-		       (rate & RATE_MCS_HT_STBC_MSK) ? "STBC " : "",
+		       (rate & RATE_MCS_STBC_MSK) ? "STBC " : "",
 		       (rate & RATE_MCS_LDPC_MSK) ? "LDPC " : "",
-		       (rate & RATE_MCS_BF_MSK) ? "BF " : "",
-		       (rate & RATE_MCS_ZLF_MSK) ? "ZLF " : "");
+		       (rate & RATE_MCS_BF_MSK) ? "BF " : "");
 }
 
 /**

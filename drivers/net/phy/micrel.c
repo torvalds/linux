@@ -626,8 +626,7 @@ static int ksz8873mll_config_aneg(struct phy_device *phydev)
  * MMD extended PHY registers.
  */
 static int
-ksz9021_rd_mmd_phyreg(struct phy_device *phydev, int ptrad, int devnum,
-		      int regnum)
+ksz9021_rd_mmd_phyreg(struct phy_device *phydev, int devad, u16 regnum)
 {
 	return -1;
 }
@@ -635,10 +634,10 @@ ksz9021_rd_mmd_phyreg(struct phy_device *phydev, int ptrad, int devnum,
 /* This routine does nothing since the Micrel ksz9021 does not support
  * standard IEEE MMD extended PHY registers.
  */
-static void
-ksz9021_wr_mmd_phyreg(struct phy_device *phydev, int ptrad, int devnum,
-		      int regnum, u32 val)
+static int
+ksz9021_wr_mmd_phyreg(struct phy_device *phydev, int devad, u16 regnum, u16 val)
 {
+	return -1;
 }
 
 static int kszphy_get_sset_count(struct phy_device *phydev)
@@ -946,8 +945,8 @@ static struct phy_driver ksphy_driver[] = {
 	.get_stats	= kszphy_get_stats,
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
-	.read_mmd_indirect = ksz9021_rd_mmd_phyreg,
-	.write_mmd_indirect = ksz9021_wr_mmd_phyreg,
+	.read_mmd	= ksz9021_rd_mmd_phyreg,
+	.write_mmd	= ksz9021_wr_mmd_phyreg,
 }, {
 	.phy_id		= PHY_ID_KSZ9031,
 	.phy_id_mask	= MICREL_PHY_ID_MASK,

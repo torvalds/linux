@@ -13,6 +13,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/acpi.h>
 #include <linux/errno.h>
 #include <linux/irq.h>
 #include <linux/init.h>
@@ -188,20 +189,12 @@ static void axp20x_remove_sysfs_group(void *_data)
 	sysfs_remove_group(&dev->kobj, &axp20x_attribute_group);
 }
 
-static int axp20x_pek_probe(struct platform_device *pdev)
+static int axp20x_pek_probe_input_device(struct axp20x_pek *axp20x_pek,
+					 struct platform_device *pdev)
 {
-	struct axp20x_pek *axp20x_pek;
-	struct axp20x_dev *axp20x;
+	struct axp20x_dev *axp20x = axp20x_pek->axp20x;
 	struct input_dev *idev;
 	int error;
-
-	axp20x_pek = devm_kzalloc(&pdev->dev, sizeof(struct axp20x_pek),
-				  GFP_KERNEL);
-	if (!axp20x_pek)
-		return -ENOMEM;
-
-	axp20x_pek->axp20x = dev_get_drvdata(pdev->dev.parent);
-	axp20x = axp20x_pek->axp20x;
 
 	axp20x_pek->irq_dbr = platform_get_irq_byname(pdev, "PEK_DBR");
 	if (axp20x_pek->irq_dbr < 0) {
@@ -239,7 +232,7 @@ static int axp20x_pek_probe(struct platform_device *pdev)
 					     axp20x_pek_irq, 0,
 					     "axp20x-pek-dbr", idev);
 	if (error < 0) {
-		dev_err(axp20x->dev, "Failed to request dbr IRQ#%d: %d\n",
+		dev_err(&pdev->dev, "Failed to request dbr IRQ#%d: %d\n",
 			axp20x_pek->irq_dbr, error);
 		return error;
 	}
@@ -248,14 +241,48 @@ static int axp20x_pek_probe(struct platform_device *pdev)
 					  axp20x_pek_irq, 0,
 					  "axp20x-pek-dbf", idev);
 	if (error < 0) {
-		dev_err(axp20x->dev, "Failed to request dbf IRQ#%d: %d\n",
+		dev_err(&pdev->dev, "Failed to request dbf IRQ#%d: %d\n",
 			axp20x_pek->irq_dbf, error);
 		return error;
 	}
 
+	error = input_register_device(idev);
+	if (error) {
+		dev_err(&pdev->dev, "Can't register input device: %d\n",
+			error);
+		return error;
+	}
+
+	return 0;
+}
+
+static int axp20x_pek_probe(struct platform_device *pdev)
+{
+	struct axp20x_pek *axp20x_pek;
+	int error;
+
+	axp20x_pek = devm_kzalloc(&pdev->dev, sizeof(struct axp20x_pek),
+				  GFP_KERNEL);
+	if (!axp20x_pek)
+		return -ENOMEM;
+
+	axp20x_pek->axp20x = dev_get_drvdata(pdev->dev.parent);
+
+	/*
+	 * Do not register the input device if there is an "INTCFD9"
+	 * gpio button ACPI device, that handles the power button too,
+	 * and otherwise we end up reporting all presses twice.
+	 */
+	if (!acpi_dev_found("INTCFD9") ||
+	    !IS_ENABLED(CONFIG_INPUT_SOC_BUTTON_ARRAY)) {
+		error = axp20x_pek_probe_input_device(axp20x_pek, pdev);
+		if (error)
+			return error;
+	}
+
 	error = sysfs_create_group(&pdev->dev.kobj, &axp20x_attribute_group);
 	if (error) {
-		dev_err(axp20x->dev, "Failed to create sysfs attributes: %d\n",
+		dev_err(&pdev->dev, "Failed to create sysfs attributes: %d\n",
 			error);
 		return error;
 	}
@@ -265,13 +292,6 @@ static int axp20x_pek_probe(struct platform_device *pdev)
 	if (error) {
 		axp20x_remove_sysfs_group(&pdev->dev);
 		dev_err(&pdev->dev, "Failed to add sysfs cleanup action: %d\n",
-			error);
-		return error;
-	}
-
-	error = input_register_device(idev);
-	if (error) {
-		dev_err(axp20x->dev, "Can't register input device: %d\n",
 			error);
 		return error;
 	}

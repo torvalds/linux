@@ -24,7 +24,7 @@
 #define BATADV_DRIVER_DEVICE "batman-adv"
 
 #ifndef BATADV_SOURCE_VERSION
-#define BATADV_SOURCE_VERSION "2017.0"
+#define BATADV_SOURCE_VERSION "2017.1"
 #endif
 
 /* B.A.T.M.A.N. parameters */
@@ -193,6 +193,7 @@ enum batadv_uev_type {
 #include <linux/percpu.h>
 #include <linux/types.h>
 
+#include "packet.h"
 #include "types.h"
 
 struct net_device;
@@ -200,8 +201,19 @@ struct packet_type;
 struct seq_file;
 struct sk_buff;
 
-#define BATADV_PRINT_VID(vid) (((vid) & BATADV_VLAN_HAS_TAG) ? \
-			       (int)((vid) & VLAN_VID_MASK) : -1)
+/**
+ * batadv_print_vid - return printable version of vid information
+ * @vid: the VLAN identifier
+ *
+ * Return: -1 when no VLAN is used, VLAN id otherwise
+ */
+static inline int batadv_print_vid(unsigned short vid)
+{
+	if (vid & BATADV_VLAN_HAS_TAG)
+		return (int)(vid & VLAN_VID_MASK);
+	else
+		return -1;
+}
 
 extern struct list_head batadv_hardif_list;
 

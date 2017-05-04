@@ -30,25 +30,15 @@
 #include <video/imx-ipu-v3.h>
 
 #include "imx-drm.h"
+#include "ipuv3-plane.h"
 
 #define MAX_CRTC	4
 
-struct imx_drm_component {
-	struct device_node *of_node;
-	struct list_head list;
-};
-
 struct imx_drm_device {
 	struct drm_device			*drm;
-	struct imx_drm_crtc			*crtc[MAX_CRTC];
 	unsigned int				pipes;
 	struct drm_fbdev_cma			*fbhelper;
 	struct drm_atomic_state			*state;
-};
-
-struct imx_drm_crtc {
-	struct drm_crtc				*crtc;
-	struct imx_drm_crtc_helper_funcs	imx_drm_helper_funcs;
 };
 
 #if IS_ENABLED(CONFIG_DRM_FBDEV_EMULATION)
@@ -63,48 +53,7 @@ static void imx_drm_driver_lastclose(struct drm_device *drm)
 	drm_fbdev_cma_restore_mode(imxdrm->fbhelper);
 }
 
-static int imx_drm_enable_vblank(struct drm_device *drm, unsigned int pipe)
-{
-	struct imx_drm_device *imxdrm = drm->dev_private;
-	struct imx_drm_crtc *imx_drm_crtc = imxdrm->crtc[pipe];
-	int ret;
-
-	if (!imx_drm_crtc)
-		return -EINVAL;
-
-	if (!imx_drm_crtc->imx_drm_helper_funcs.enable_vblank)
-		return -ENOSYS;
-
-	ret = imx_drm_crtc->imx_drm_helper_funcs.enable_vblank(
-			imx_drm_crtc->crtc);
-
-	return ret;
-}
-
-static void imx_drm_disable_vblank(struct drm_device *drm, unsigned int pipe)
-{
-	struct imx_drm_device *imxdrm = drm->dev_private;
-	struct imx_drm_crtc *imx_drm_crtc = imxdrm->crtc[pipe];
-
-	if (!imx_drm_crtc)
-		return;
-
-	if (!imx_drm_crtc->imx_drm_helper_funcs.disable_vblank)
-		return;
-
-	imx_drm_crtc->imx_drm_helper_funcs.disable_vblank(imx_drm_crtc->crtc);
-}
-
-static const struct file_operations imx_drm_driver_fops = {
-	.owner = THIS_MODULE,
-	.open = drm_open,
-	.release = drm_release,
-	.unlocked_ioctl = drm_ioctl,
-	.mmap = drm_gem_cma_mmap,
-	.poll = drm_poll,
-	.read = drm_read,
-	.llseek = noop_llseek,
-};
+DEFINE_DRM_GEM_CMA_FOPS(imx_drm_driver_fops);
 
 void imx_drm_connector_destroy(struct drm_connector *connector)
 {
@@ -147,6 +96,11 @@ static int imx_drm_atomic_check(struct drm_device *dev,
 	if (ret)
 		return ret;
 
+	/* Assign PRG/PRE channels and check if all constrains are satisfied. */
+	ret = ipu_planes_assign_pre(dev, state);
+	if (ret)
+		return ret;
+
 	return ret;
 }
 
@@ -160,6 +114,10 @@ static const struct drm_mode_config_funcs imx_drm_mode_config_funcs = {
 static void imx_drm_atomic_commit_tail(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
+	struct drm_plane *plane;
+	struct drm_plane_state *old_plane_state;
+	bool plane_disabling = false;
+	int i;
 
 	drm_atomic_helper_commit_modeset_disables(dev, state);
 
@@ -169,78 +127,26 @@ static void imx_drm_atomic_commit_tail(struct drm_atomic_state *state)
 
 	drm_atomic_helper_commit_modeset_enables(dev, state);
 
+	for_each_plane_in_state(state, plane, old_plane_state, i) {
+		if (drm_atomic_plane_disabling(old_plane_state, plane->state))
+			plane_disabling = true;
+	}
+
+	if (plane_disabling) {
+		drm_atomic_helper_wait_for_vblanks(dev, state);
+
+		for_each_plane_in_state(state, plane, old_plane_state, i)
+			ipu_plane_disable_deferred(plane);
+
+	}
+
 	drm_atomic_helper_commit_hw_done(state);
-
-	drm_atomic_helper_wait_for_vblanks(dev, state);
-
-	drm_atomic_helper_cleanup_planes(dev, state);
 }
 
-static struct drm_mode_config_helper_funcs imx_drm_mode_config_helpers = {
+static const struct drm_mode_config_helper_funcs imx_drm_mode_config_helpers = {
 	.atomic_commit_tail = imx_drm_atomic_commit_tail,
 };
 
-/*
- * imx_drm_add_crtc - add a new crtc
- */
-int imx_drm_add_crtc(struct drm_device *drm, struct drm_crtc *crtc,
-		struct imx_drm_crtc **new_crtc, struct drm_plane *primary_plane,
-		const struct imx_drm_crtc_helper_funcs *imx_drm_helper_funcs,
-		struct device_node *port)
-{
-	struct imx_drm_device *imxdrm = drm->dev_private;
-	struct imx_drm_crtc *imx_drm_crtc;
-
-	/*
-	 * The vblank arrays are dimensioned by MAX_CRTC - we can't
-	 * pass IDs greater than this to those functions.
-	 */
-	if (imxdrm->pipes >= MAX_CRTC)
-		return -EINVAL;
-
-	if (imxdrm->drm->open_count)
-		return -EBUSY;
-
-	imx_drm_crtc = kzalloc(sizeof(*imx_drm_crtc), GFP_KERNEL);
-	if (!imx_drm_crtc)
-		return -ENOMEM;
-
-	imx_drm_crtc->imx_drm_helper_funcs = *imx_drm_helper_funcs;
-	imx_drm_crtc->crtc = crtc;
-
-	crtc->port = port;
-
-	imxdrm->crtc[imxdrm->pipes++] = imx_drm_crtc;
-
-	*new_crtc = imx_drm_crtc;
-
-	drm_crtc_helper_add(crtc,
-			imx_drm_crtc->imx_drm_helper_funcs.crtc_helper_funcs);
-
-	drm_crtc_init_with_planes(drm, crtc, primary_plane, NULL,
-			imx_drm_crtc->imx_drm_helper_funcs.crtc_funcs, NULL);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(imx_drm_add_crtc);
-
-/*
- * imx_drm_remove_crtc - remove a crtc
- */
-int imx_drm_remove_crtc(struct imx_drm_crtc *imx_drm_crtc)
-{
-	struct imx_drm_device *imxdrm = imx_drm_crtc->crtc->dev->dev_private;
-	unsigned int pipe = drm_crtc_index(imx_drm_crtc->crtc);
-
-	drm_crtc_cleanup(imx_drm_crtc->crtc);
-
-	imxdrm->crtc[pipe] = NULL;
-
-	kfree(imx_drm_crtc);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(imx_drm_remove_crtc);
 
 int imx_drm_encoder_parse_of(struct drm_device *drm,
 	struct drm_encoder *encoder, struct device_node *np)
@@ -288,9 +194,6 @@ static struct drm_driver imx_drm_driver = {
 	.gem_prime_vmap		= drm_gem_cma_prime_vmap,
 	.gem_prime_vunmap	= drm_gem_cma_prime_vunmap,
 	.gem_prime_mmap		= drm_gem_cma_prime_mmap,
-	.get_vblank_counter	= drm_vblank_no_hw_counter,
-	.enable_vblank		= imx_drm_enable_vblank,
-	.disable_vblank		= imx_drm_disable_vblank,
 	.ioctls			= imx_drm_ioctls,
 	.num_ioctls		= ARRAY_SIZE(imx_drm_ioctls),
 	.fops			= &imx_drm_driver_fops,
@@ -519,7 +422,23 @@ static struct platform_driver imx_drm_pdrv = {
 		.of_match_table = imx_drm_dt_ids,
 	},
 };
-module_platform_driver(imx_drm_pdrv);
+
+static struct platform_driver * const drivers[] = {
+	&imx_drm_pdrv,
+	&ipu_drm_driver,
+};
+
+static int __init imx_drm_init(void)
+{
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
+}
+module_init(imx_drm_init);
+
+static void __exit imx_drm_exit(void)
+{
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
+}
+module_exit(imx_drm_exit);
 
 MODULE_AUTHOR("Sascha Hauer <s.hauer@pengutronix.de>");
 MODULE_DESCRIPTION("i.MX drm driver core");

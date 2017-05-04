@@ -352,6 +352,11 @@ int radeon_bo_pin_restricted(struct radeon_bo *bo, u32 domain, u64 max_offset,
 
 		return 0;
 	}
+	if (bo->prime_shared_count && domain == RADEON_GEM_DOMAIN_VRAM) {
+		/* A BO shared as a dma-buf cannot be sensibly migrated to VRAM */
+		return -EINVAL;
+	}
+
 	radeon_ttm_placement_from_domain(bo, domain);
 	for (i = 0; i < bo->placement.num_placement; i++) {
 		/* force to pin into visible video ram */

@@ -2014,7 +2014,7 @@ static void wm5100_micd_irq(struct wm5100_priv *wm5100)
 
 	ret = regmap_read(wm5100->regmap, WM5100_MIC_DETECT_3, &val);
 	if (ret != 0) {
-		dev_err(wm5100->dev, "Failed to read micropone status: %d\n",
+		dev_err(wm5100->dev, "Failed to read microphone status: %d\n",
 			ret);
 		return;
 	}

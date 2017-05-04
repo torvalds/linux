@@ -53,13 +53,6 @@ struct esw_uc_addr {
 	u32                vport;
 };
 
-/* E-Switch MC FDB table hash node */
-struct esw_mc_addr { /* SRIOV only */
-	struct l2addr_node     node;
-	struct mlx5_flow_handle *uplink_rule; /* Forward to uplink rule */
-	u32                    refcnt;
-};
-
 /* Vport UC/MC hash node */
 struct vport_addr {
 	struct l2addr_node     node;
@@ -337,6 +330,7 @@ esw_fdb_set_vport_promisc_rule(struct mlx5_eswitch *esw, u32 vport)
 static int esw_create_legacy_fdb_table(struct mlx5_eswitch *esw, int nvports)
 {
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
+	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_core_dev *dev = esw->dev;
 	struct mlx5_flow_namespace *root_ns;
 	struct mlx5_flow_table *fdb;
@@ -362,7 +356,9 @@ static int esw_create_legacy_fdb_table(struct mlx5_eswitch *esw, int nvports)
 	memset(flow_group_in, 0, inlen);
 
 	table_size = BIT(MLX5_CAP_ESW_FLOWTABLE_FDB(dev, log_max_ft_size));
-	fdb = mlx5_create_flow_table(root_ns, 0, table_size, 0, 0);
+
+	ft_attr.max_fte = table_size;
+	fdb = mlx5_create_flow_table(root_ns, &ft_attr);
 	if (IS_ERR(fdb)) {
 		err = PTR_ERR(fdb);
 		esw_warn(dev, "Failed to create FDB Table err %d\n", err);
@@ -814,7 +810,7 @@ static void esw_update_vport_mc_promisc(struct mlx5_eswitch *esw, u32 vport_num)
 static void esw_apply_vport_rx_mode(struct mlx5_eswitch *esw, u32 vport_num,
 				    bool promisc, bool mc_promisc)
 {
-	struct esw_mc_addr *allmulti_addr = esw->mc_promisc;
+	struct esw_mc_addr *allmulti_addr = &esw->mc_promisc;
 	struct mlx5_vport *vport = &esw->vports[vport_num];
 
 	if (IS_ERR_OR_NULL(vport->allmulti_rule) != mc_promisc)
@@ -1685,7 +1681,7 @@ void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw)
 	esw_info(esw->dev, "disable SRIOV: active vports(%d) mode(%d)\n",
 		 esw->enabled_vports, esw->mode);
 
-	mc_promisc = esw->mc_promisc;
+	mc_promisc = &esw->mc_promisc;
 	nvports = esw->enabled_vports;
 
 	for (i = 0; i < esw->total_vports; i++)
@@ -1729,7 +1725,6 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 {
 	int l2_table_size = 1 << MLX5_CAP_GEN(dev, log_max_l2_table);
 	int total_vports = MLX5_TOTAL_VPORTS(dev);
-	struct esw_mc_addr *mc_promisc;
 	struct mlx5_eswitch *esw;
 	int vport_num;
 	int err;
@@ -1757,13 +1752,6 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 		goto abort;
 	}
 	esw->l2_table.size = l2_table_size;
-
-	mc_promisc = kzalloc(sizeof(*mc_promisc), GFP_KERNEL);
-	if (!mc_promisc) {
-		err = -ENOMEM;
-		goto abort;
-	}
-	esw->mc_promisc = mc_promisc;
 
 	esw->work_queue = create_singlethread_workqueue("mlx5_esw_wq");
 	if (!esw->work_queue) {
@@ -1803,6 +1791,11 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 	esw->enabled_vports = 0;
 	esw->mode = SRIOV_NONE;
 	esw->offloads.inline_mode = MLX5_INLINE_MODE_NONE;
+	if (MLX5_CAP_ESW_FLOWTABLE_FDB(dev, encap) &&
+	    MLX5_CAP_ESW_FLOWTABLE_FDB(dev, decap))
+		esw->offloads.encap = DEVLINK_ESWITCH_ENCAP_MODE_BASIC;
+	else
+		esw->offloads.encap = DEVLINK_ESWITCH_ENCAP_MODE_NONE;
 
 	dev->priv.eswitch = esw;
 	return 0;
@@ -1827,7 +1820,6 @@ void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw)
 	esw->dev->priv.eswitch = NULL;
 	destroy_workqueue(esw->work_queue);
 	kfree(esw->l2_table.bitmap);
-	kfree(esw->mc_promisc);
 	kfree(esw->offloads.vport_reps);
 	kfree(esw->vports);
 	kfree(esw);

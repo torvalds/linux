@@ -3,7 +3,8 @@
  *
  * Copyright (c) 2008 Marvell Semiconductor
  *
- * Copyright (c) 2016 Vivien Didelot <vivien.didelot@savoirfairelinux.com>
+ * Copyright (c) 2016-2017 Savoir-faire Linux Inc.
+ *	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,6 +41,10 @@ int mv88e6xxx_g2_get_eeprom16(struct mv88e6xxx_chip *chip,
 			      struct ethtool_eeprom *eeprom, u8 *data);
 int mv88e6xxx_g2_set_eeprom16(struct mv88e6xxx_chip *chip,
 			      struct ethtool_eeprom *eeprom, u8 *data);
+
+int mv88e6xxx_g2_pvt_write(struct mv88e6xxx_chip *chip, int src_dev,
+			   int src_port, u16 data);
+int mv88e6xxx_g2_misc_4_bit_port(struct mv88e6xxx_chip *chip);
 
 int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip);
 int mv88e6xxx_g2_irq_setup(struct mv88e6xxx_chip *chip);
@@ -105,6 +110,17 @@ static inline int mv88e6xxx_g2_get_eeprom16(struct mv88e6xxx_chip *chip,
 static inline int mv88e6xxx_g2_set_eeprom16(struct mv88e6xxx_chip *chip,
 					    struct ethtool_eeprom *eeprom,
 					    u8 *data)
+{
+	return -EOPNOTSUPP;
+}
+
+int mv88e6xxx_g2_pvt_write(struct mv88e6xxx_chip *chip, int src_dev,
+			   int src_port, u16 data)
+{
+	return -EOPNOTSUPP;
+}
+
+int mv88e6xxx_g2_misc_4_bit_port(struct mv88e6xxx_chip *chip)
 {
 	return -EOPNOTSUPP;
 }

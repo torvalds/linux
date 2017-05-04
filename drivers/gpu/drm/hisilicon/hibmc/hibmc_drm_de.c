@@ -423,6 +423,24 @@ static void hibmc_crtc_atomic_flush(struct drm_crtc *crtc,
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 }
 
+static int hibmc_crtc_enable_vblank(struct drm_crtc *crtc)
+{
+	struct hibmc_drm_private *priv = crtc->dev->dev_private;
+
+	writel(HIBMC_RAW_INTERRUPT_EN_VBLANK(1),
+	       priv->mmio + HIBMC_RAW_INTERRUPT_EN);
+
+	return 0;
+}
+
+static void hibmc_crtc_disable_vblank(struct drm_crtc *crtc)
+{
+	struct hibmc_drm_private *priv = crtc->dev->dev_private;
+
+	writel(HIBMC_RAW_INTERRUPT_EN_VBLANK(0),
+	       priv->mmio + HIBMC_RAW_INTERRUPT_EN);
+}
+
 static const struct drm_crtc_funcs hibmc_crtc_funcs = {
 	.page_flip = drm_atomic_helper_page_flip,
 	.set_config = drm_atomic_helper_set_config,
@@ -430,6 +448,8 @@ static const struct drm_crtc_funcs hibmc_crtc_funcs = {
 	.reset = drm_atomic_helper_crtc_reset,
 	.atomic_duplicate_state =  drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.enable_vblank = hibmc_crtc_enable_vblank,
+	.disable_vblank = hibmc_crtc_disable_vblank,
 };
 
 static const struct drm_crtc_helper_funcs hibmc_crtc_helper_funcs = {

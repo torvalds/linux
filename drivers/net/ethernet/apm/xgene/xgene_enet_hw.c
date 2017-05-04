@@ -494,7 +494,7 @@ static void xgene_gmac_set_speed(struct xgene_enet_pdata *pdata)
 		break;
 	}
 
-	mc2 |= FULL_DUPLEX2 | PAD_CRC;
+	mc2 |= FULL_DUPLEX2 | PAD_CRC | LENGTH_CHK;
 	xgene_enet_wr_mcx_mac(pdata, MAC_CONFIG_2_ADDR, mc2);
 	xgene_enet_wr_mcx_mac(pdata, INTERFACE_CONTROL_ADDR, intf_ctl);
 	xgene_enet_wr_csr(pdata, RGMII_REG_0_ADDR, rgmii);
@@ -623,6 +623,7 @@ static void xgene_enet_cle_bypass(struct xgene_enet_pdata *pdata,
 	xgene_enet_rd_csr(pdata, CLE_BYPASS_REG0_0_ADDR, &cb);
 	cb |= CFG_CLE_BYPASS_EN0;
 	CFG_CLE_IP_PROTOCOL0_SET(&cb, 3);
+	CFG_CLE_IP_HDR_LEN_SET(&cb, 0);
 	xgene_enet_wr_csr(pdata, CLE_BYPASS_REG0_0_ADDR, cb);
 
 	xgene_enet_rd_csr(pdata, CLE_BYPASS_REG1_0_ADDR, &cb);

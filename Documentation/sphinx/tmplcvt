@@ -7,13 +7,22 @@
 # fix \_
 # title line?
 #
+set -eu
+
+if [ "$#" != "2" ]; then
+	echo "$0 <docbook file> <rst file>"
+	exit
+fi
+
+DIR=$(dirname $0)
 
 in=$1
 rst=$2
 tmp=$rst.tmp
 
 cp $in $tmp
-sed --in-place -f convert_template.sed $tmp
+sed --in-place -f $DIR/convert_template.sed $tmp
 pandoc -s -S -f docbook -t rst -o $rst $tmp
-sed --in-place -f post_convert.sed $rst
+sed --in-place -f $DIR/post_convert.sed $rst
 rm $tmp
+echo "book writen to $rst"

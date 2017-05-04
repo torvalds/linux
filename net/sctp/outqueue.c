@@ -353,6 +353,8 @@ static int sctp_prsctp_prune_sent(struct sctp_association *asoc,
 	struct sctp_chunk *chk, *temp;
 
 	list_for_each_entry_safe(chk, temp, queue, transmitted_list) {
+		struct sctp_stream_out *streamout;
+
 		if (!SCTP_PR_PRIO_ENABLED(chk->sinfo.sinfo_flags) ||
 		    chk->sinfo.sinfo_timetolive <= sinfo->sinfo_timetolive)
 			continue;
@@ -361,8 +363,10 @@ static int sctp_prsctp_prune_sent(struct sctp_association *asoc,
 		sctp_insert_list(&asoc->outqueue.abandoned,
 				 &chk->transmitted_list);
 
+		streamout = &asoc->stream->out[chk->sinfo.sinfo_stream];
 		asoc->sent_cnt_removable--;
 		asoc->abandoned_sent[SCTP_PR_INDEX(PRIO)]++;
+		streamout->abandoned_sent[SCTP_PR_INDEX(PRIO)]++;
 
 		if (!chk->tsn_gap_acked) {
 			if (chk->transport)
@@ -396,6 +400,12 @@ static int sctp_prsctp_prune_unsent(struct sctp_association *asoc,
 		q->out_qlen -= chk->skb->len;
 		asoc->sent_cnt_removable--;
 		asoc->abandoned_unsent[SCTP_PR_INDEX(PRIO)]++;
+		if (chk->sinfo.sinfo_stream < asoc->stream->outcnt) {
+			struct sctp_stream_out *streamout =
+				&asoc->stream->out[chk->sinfo.sinfo_stream];
+
+			streamout->abandoned_unsent[SCTP_PR_INDEX(PRIO)]++;
+		}
 
 		msg_len -= SCTP_DATA_SNDSIZE(chk) +
 			   sizeof(struct sk_buff) +

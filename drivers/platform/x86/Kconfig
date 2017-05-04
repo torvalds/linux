@@ -1019,7 +1019,7 @@ config INTEL_PMC_IPC
 config INTEL_BXTWC_PMIC_TMU
 	tristate "Intel BXT Whiskey Cove TMU Driver"
 	depends on REGMAP
-	depends on INTEL_SOC_PMIC && INTEL_PMC_IPC
+	depends on INTEL_SOC_PMIC_BXTWC && INTEL_PMC_IPC
 	---help---
 	  Select this driver to use Intel BXT Whiskey Cove PMIC TMU feature.
 	  This driver enables the alarm wakeup functionality in the TMU unit

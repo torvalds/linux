@@ -474,6 +474,7 @@ static u32 aarch64_insn_encode_register(enum aarch64_insn_register_type type,
 		shift = 10;
 		break;
 	case AARCH64_INSN_REGTYPE_RM:
+	case AARCH64_INSN_REGTYPE_RS:
 		shift = 16;
 		break;
 	default:
@@ -755,6 +756,111 @@ u32 aarch64_insn_gen_load_store_pair(enum aarch64_insn_register reg1,
 
 	return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_7, insn,
 					     offset >> shift);
+}
+
+u32 aarch64_insn_gen_load_store_ex(enum aarch64_insn_register reg,
+				   enum aarch64_insn_register base,
+				   enum aarch64_insn_register state,
+				   enum aarch64_insn_size_type size,
+				   enum aarch64_insn_ldst_type type)
+{
+	u32 insn;
+
+	switch (type) {
+	case AARCH64_INSN_LDST_LOAD_EX:
+		insn = aarch64_insn_get_load_ex_value();
+		break;
+	case AARCH64_INSN_LDST_STORE_EX:
+		insn = aarch64_insn_get_store_ex_value();
+		break;
+	default:
+		pr_err("%s: unknown load/store exclusive encoding %d\n", __func__, type);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	insn = aarch64_insn_encode_ldst_size(size, insn);
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RT, insn,
+					    reg);
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RN, insn,
+					    base);
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RT2, insn,
+					    AARCH64_INSN_REG_ZR);
+
+	return aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RS, insn,
+					    state);
+}
+
+static u32 aarch64_insn_encode_prfm_imm(enum aarch64_insn_prfm_type type,
+					enum aarch64_insn_prfm_target target,
+					enum aarch64_insn_prfm_policy policy,
+					u32 insn)
+{
+	u32 imm_type = 0, imm_target = 0, imm_policy = 0;
+
+	switch (type) {
+	case AARCH64_INSN_PRFM_TYPE_PLD:
+		break;
+	case AARCH64_INSN_PRFM_TYPE_PLI:
+		imm_type = BIT(0);
+		break;
+	case AARCH64_INSN_PRFM_TYPE_PST:
+		imm_type = BIT(1);
+		break;
+	default:
+		pr_err("%s: unknown prfm type encoding %d\n", __func__, type);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	switch (target) {
+	case AARCH64_INSN_PRFM_TARGET_L1:
+		break;
+	case AARCH64_INSN_PRFM_TARGET_L2:
+		imm_target = BIT(0);
+		break;
+	case AARCH64_INSN_PRFM_TARGET_L3:
+		imm_target = BIT(1);
+		break;
+	default:
+		pr_err("%s: unknown prfm target encoding %d\n", __func__, target);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	switch (policy) {
+	case AARCH64_INSN_PRFM_POLICY_KEEP:
+		break;
+	case AARCH64_INSN_PRFM_POLICY_STRM:
+		imm_policy = BIT(0);
+		break;
+	default:
+		pr_err("%s: unknown prfm policy encoding %d\n", __func__, policy);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	/* In this case, imm5 is encoded into Rt field. */
+	insn &= ~GENMASK(4, 0);
+	insn |= imm_policy | (imm_target << 1) | (imm_type << 3);
+
+	return insn;
+}
+
+u32 aarch64_insn_gen_prefetch(enum aarch64_insn_register base,
+			      enum aarch64_insn_prfm_type type,
+			      enum aarch64_insn_prfm_target target,
+			      enum aarch64_insn_prfm_policy policy)
+{
+	u32 insn = aarch64_insn_get_prfm_value();
+
+	insn = aarch64_insn_encode_ldst_size(AARCH64_INSN_SIZE_64, insn);
+
+	insn = aarch64_insn_encode_prfm_imm(type, target, policy, insn);
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RN, insn,
+					    base);
+
+	return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_12, insn, 0);
 }
 
 u32 aarch64_insn_gen_add_sub_imm(enum aarch64_insn_register dst,

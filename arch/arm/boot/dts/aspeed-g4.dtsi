@@ -42,18 +42,16 @@
 		};
 
 		mac0: ethernet@1e660000 {
-			compatible = "faraday,ftgmac100";
+			compatible = "aspeed,ast2400-mac", "faraday,ftgmac100";
 			reg = <0x1e660000 0x180>;
 			interrupts = <2>;
-			no-hw-checksum;
 			status = "disabled";
 		};
 
 		mac1: ethernet@1e680000 {
-			compatible = "faraday,ftgmac100";
+			compatible = "aspeed,ast2400-mac", "faraday,ftgmac100";
 			reg = <0x1e680000 0x180>;
 			interrupts = <3>;
-			no-hw-checksum;
 			status = "disabled";
 		};
 

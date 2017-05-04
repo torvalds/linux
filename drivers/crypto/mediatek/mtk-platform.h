@@ -38,14 +38,14 @@
  * Ring 2/3 are used by SHA.
  */
 enum {
-	RING0 = 0,
-	RING1,
-	RING2,
-	RING3,
-	RING_MAX,
+	MTK_RING0,
+	MTK_RING1,
+	MTK_RING2,
+	MTK_RING3,
+	MTK_RING_MAX
 };
 
-#define MTK_REC_NUM		(RING_MAX / 2)
+#define MTK_REC_NUM		(MTK_RING_MAX / 2)
 #define MTK_IRQ_NUM		5
 
 /**
@@ -84,11 +84,12 @@ struct mtk_desc {
 /**
  * struct mtk_ring - Descriptor ring
  * @cmd_base:	pointer to command descriptor ring base
+ * @cmd_next:	pointer to the next command descriptor
  * @cmd_dma:	DMA address of command descriptor ring
- * @cmd_pos:	current position in the command descriptor ring
  * @res_base:	pointer to result descriptor ring base
+ * @res_next:	pointer to the next result descriptor
+ * @res_prev:	pointer to the previous result descriptor
  * @res_dma:	DMA address of result descriptor ring
- * @res_pos:	current position in the result descriptor ring
  *
  * A descriptor ring is a circular buffer that is used to manage
  * one or more descriptors. There are two type of descriptor rings;
@@ -96,11 +97,12 @@ struct mtk_desc {
  */
 struct mtk_ring {
 	struct mtk_desc *cmd_base;
+	struct mtk_desc *cmd_next;
 	dma_addr_t cmd_dma;
-	u32 cmd_pos;
 	struct mtk_desc *res_base;
+	struct mtk_desc *res_next;
+	struct mtk_desc *res_prev;
 	dma_addr_t res_dma;
-	u32 res_pos;
 };
 
 /**
@@ -125,9 +127,11 @@ typedef int (*mtk_aes_fn)(struct mtk_cryp *cryp, struct mtk_aes_rec *aes);
 
 /**
  * struct mtk_aes_rec - AES operation record
+ * @cryp:	pointer to Cryptographic device
  * @queue:	crypto request queue
  * @areq:	pointer to async request
- * @task:	the tasklet is use in AES interrupt
+ * @done_task:	the tasklet is use in AES interrupt
+ * @queue_task:	the tasklet is used to dequeue request
  * @ctx:	pointer to current context
  * @src:	the structure that holds source sg list info
  * @dst:	the structure that holds destination sg list info
@@ -136,16 +140,18 @@ typedef int (*mtk_aes_fn)(struct mtk_cryp *cryp, struct mtk_aes_rec *aes);
  * @resume:	pointer to resume function
  * @total:	request buffer length
  * @buf:	pointer to page buffer
- * @id:		record identification
+ * @id:		the current use of ring
  * @flags:	it's describing AES operation state
  * @lock:	the async queue lock
  *
  * Structure used to record AES execution state.
  */
 struct mtk_aes_rec {
+	struct mtk_cryp *cryp;
 	struct crypto_queue queue;
 	struct crypto_async_request *areq;
-	struct tasklet_struct task;
+	struct tasklet_struct done_task;
+	struct tasklet_struct queue_task;
 	struct mtk_aes_base_ctx *ctx;
 	struct mtk_aes_dma src;
 	struct mtk_aes_dma dst;
@@ -166,19 +172,23 @@ struct mtk_aes_rec {
 
 /**
  * struct mtk_sha_rec - SHA operation record
+ * @cryp:	pointer to Cryptographic device
  * @queue:	crypto request queue
  * @req:	pointer to ahash request
- * @task:	the tasklet is use in SHA interrupt
- * @id:		record identification
+ * @done_task:	the tasklet is use in SHA interrupt
+ * @queue_task:	the tasklet is used to dequeue request
+ * @id:		the current use of ring
  * @flags:	it's describing SHA operation state
- * @lock:	the ablkcipher queue lock
+ * @lock:	the async queue lock
  *
  * Structure used to record SHA execution state.
  */
 struct mtk_sha_rec {
+	struct mtk_cryp *cryp;
 	struct crypto_queue queue;
 	struct ahash_request *req;
-	struct tasklet_struct task;
+	struct tasklet_struct done_task;
+	struct tasklet_struct queue_task;
 
 	u8 id;
 	unsigned long flags;
@@ -193,13 +203,11 @@ struct mtk_sha_rec {
  * @clk_ethif:	pointer to ethif clock
  * @clk_cryp:	pointer to crypto clock
  * @irq:	global system and rings IRQ
- * @ring:	pointer to execution state of AES
- * @aes:	pointer to execution state of SHA
- * @sha:	each execution record map to a ring
+ * @ring:	pointer to descriptor rings
+ * @aes:	pointer to operation record of AES
+ * @sha:	pointer to operation record of SHA
  * @aes_list:	device list of AES
  * @sha_list:	device list of SHA
- * @tmp:	pointer to temporary buffer for internal use
- * @tmp_dma:	DMA address of temporary buffer
  * @rec:	it's used to select SHA record for tfm
  *
  * Structure storing cryptographic device information.
@@ -211,15 +219,13 @@ struct mtk_cryp {
 	struct clk *clk_cryp;
 	int irq[MTK_IRQ_NUM];
 
-	struct mtk_ring *ring[RING_MAX];
+	struct mtk_ring *ring[MTK_RING_MAX];
 	struct mtk_aes_rec *aes[MTK_REC_NUM];
 	struct mtk_sha_rec *sha[MTK_REC_NUM];
 
 	struct list_head aes_list;
 	struct list_head sha_list;
 
-	void *tmp;
-	dma_addr_t tmp_dma;
 	bool rec;
 };
 

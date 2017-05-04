@@ -511,7 +511,7 @@ config XPOWER_PMIC_OPREGION
 
 config BXT_WC_PMIC_OPREGION
 	bool "ACPI operation region support for BXT WhiskeyCove PMIC"
-	depends on INTEL_SOC_PMIC
+	depends on INTEL_SOC_PMIC_BXTWC
 	help
 	  This config adds ACPI operation region support for BXT WhiskeyCove PMIC.
 

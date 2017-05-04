@@ -34,6 +34,11 @@
 #define IPC_GLB_REPLY_STATUS_MASK	((0x1 << IPC_GLB_REPLY_STATUS_SHIFT) - 1)
 #define IPC_GLB_REPLY_STATUS(x)		((x) << IPC_GLB_REPLY_STATUS_SHIFT)
 
+#define IPC_GLB_REPLY_TYPE_SHIFT	29
+#define IPC_GLB_REPLY_TYPE_MASK		0x1F
+#define IPC_GLB_REPLY_TYPE(x)		(((x) >> IPC_GLB_REPLY_TYPE_SHIFT) \
+					& IPC_GLB_RPLY_TYPE_MASK)
+
 #define IPC_TIMEOUT_MSECS		3000
 
 #define IPC_EMPTY_LIST_SIZE		8
@@ -387,12 +392,27 @@ static int skl_ipc_process_notification(struct sst_generic_ipc *ipc,
 	return 0;
 }
 
+static int skl_ipc_set_reply_error_code(u32 reply)
+{
+	switch (reply) {
+	case IPC_GLB_REPLY_OUT_OF_MEMORY:
+		return -ENOMEM;
+
+	case IPC_GLB_REPLY_BUSY:
+		return -EBUSY;
+
+	default:
+		return -EINVAL;
+	}
+}
+
 static void skl_ipc_process_reply(struct sst_generic_ipc *ipc,
 		struct skl_ipc_header header)
 {
 	struct ipc_message *msg;
 	u32 reply = header.primary & IPC_GLB_REPLY_STATUS_MASK;
 	u64 *ipc_header = (u64 *)(&header);
+	struct skl_sst *skl = container_of(ipc, struct skl_sst, ipc);
 
 	msg = skl_ipc_reply_get_msg(ipc, *ipc_header);
 	if (msg == NULL) {
@@ -401,33 +421,39 @@ static void skl_ipc_process_reply(struct sst_generic_ipc *ipc,
 	}
 
 	/* first process the header */
-	switch (reply) {
-	case IPC_GLB_REPLY_SUCCESS:
+	if (reply == IPC_GLB_REPLY_SUCCESS) {
 		dev_dbg(ipc->dev, "ipc FW reply %x: success\n", header.primary);
 		/* copy the rx data from the mailbox */
 		sst_dsp_inbox_read(ipc->dsp, msg->rx_data, msg->rx_size);
-		break;
+		switch (IPC_GLB_NOTIFY_MSG_TYPE(header.primary)) {
+		case IPC_GLB_LOAD_MULTIPLE_MODS:
+		case IPC_GLB_LOAD_LIBRARY:
+			skl->mod_load_complete = true;
+			skl->mod_load_status = true;
+			wake_up(&skl->mod_load_wait);
+			break;
 
-	case IPC_GLB_REPLY_OUT_OF_MEMORY:
-		dev_err(ipc->dev, "ipc fw reply: %x: no memory\n", header.primary);
-		msg->errno = -ENOMEM;
-		break;
+		default:
+			break;
 
-	case IPC_GLB_REPLY_BUSY:
-		dev_err(ipc->dev, "ipc fw reply: %x: Busy\n", header.primary);
-		msg->errno = -EBUSY;
-		break;
-
-	default:
-		dev_err(ipc->dev, "Unknown ipc reply: 0x%x\n", reply);
-		msg->errno = -EINVAL;
-		break;
-	}
-
-	if (reply != IPC_GLB_REPLY_SUCCESS) {
+		}
+	} else {
+		msg->errno = skl_ipc_set_reply_error_code(reply);
 		dev_err(ipc->dev, "ipc FW reply: reply=%d\n", reply);
 		dev_err(ipc->dev, "FW Error Code: %u\n",
 			ipc->dsp->fw_ops.get_fw_errcode(ipc->dsp));
+		switch (IPC_GLB_NOTIFY_MSG_TYPE(header.primary)) {
+		case IPC_GLB_LOAD_MULTIPLE_MODS:
+		case IPC_GLB_LOAD_LIBRARY:
+			skl->mod_load_complete = true;
+			skl->mod_load_status = false;
+			wake_up(&skl->mod_load_wait);
+			break;
+
+		default:
+			break;
+
+		}
 	}
 
 	list_del(&msg->list);
@@ -811,8 +837,8 @@ int skl_ipc_load_modules(struct sst_generic_ipc *ipc,
 	header.primary |= IPC_GLB_TYPE(IPC_GLB_LOAD_MULTIPLE_MODS);
 	header.primary |= IPC_LOAD_MODULE_CNT(module_cnt);
 
-	ret = sst_ipc_tx_message_wait(ipc, *ipc_header, data,
-				(sizeof(u16) * module_cnt), NULL, 0);
+	ret = sst_ipc_tx_message_nowait(ipc, *ipc_header, data,
+				(sizeof(u16) * module_cnt));
 	if (ret < 0)
 		dev_err(ipc->dev, "ipc: load modules failed :%d\n", ret);
 
@@ -947,7 +973,7 @@ int skl_ipc_get_large_config(struct sst_generic_ipc *ipc,
 EXPORT_SYMBOL_GPL(skl_ipc_get_large_config);
 
 int skl_sst_ipc_load_library(struct sst_generic_ipc *ipc,
-				u8 dma_id, u8 table_id)
+				u8 dma_id, u8 table_id, bool wait)
 {
 	struct skl_ipc_header header = {0};
 	u64 *ipc_header = (u64 *)(&header);
@@ -959,7 +985,11 @@ int skl_sst_ipc_load_library(struct sst_generic_ipc *ipc,
 	header.primary |= IPC_MOD_INSTANCE_ID(table_id);
 	header.primary |= IPC_MOD_ID(dma_id);
 
-	ret = sst_ipc_tx_message_wait(ipc, *ipc_header, NULL, 0, NULL, 0);
+	if (wait)
+		ret = sst_ipc_tx_message_wait(ipc, *ipc_header,
+					NULL, 0, NULL, 0);
+	else
+		ret = sst_ipc_tx_message_nowait(ipc, *ipc_header, NULL, 0);
 
 	if (ret < 0)
 		dev_err(ipc->dev, "ipc: load lib failed\n");

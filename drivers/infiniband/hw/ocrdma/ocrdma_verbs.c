@@ -914,21 +914,18 @@ static void build_user_pbes(struct ocrdma_dev *dev, struct ocrdma_mr *mr,
 	pbe = (struct ocrdma_pbe *)pbl_tbl->va;
 	pbe_cnt = 0;
 
-	shift = ilog2(umem->page_size);
+	shift = umem->page_shift;
 
 	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
 		pages = sg_dma_len(sg) >> shift;
 		for (pg_cnt = 0; pg_cnt < pages; pg_cnt++) {
 			/* store the page address in pbe */
 			pbe->pa_lo =
-			    cpu_to_le32(sg_dma_address
-					(sg) +
-					(umem->page_size * pg_cnt));
+			    cpu_to_le32(sg_dma_address(sg) +
+					(pg_cnt << shift));
 			pbe->pa_hi =
-			    cpu_to_le32(upper_32_bits
-					((sg_dma_address
-					  (sg) +
-					  umem->page_size * pg_cnt)));
+			    cpu_to_le32(upper_32_bits(sg_dma_address(sg) +
+					 (pg_cnt << shift)));
 			pbe_cnt += 1;
 			total_num_pbes += 1;
 			pbe++;
@@ -978,7 +975,7 @@ struct ib_mr *ocrdma_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 	if (status)
 		goto umem_err;
 
-	mr->hwmr.pbe_size = mr->umem->page_size;
+	mr->hwmr.pbe_size = BIT(mr->umem->page_shift);
 	mr->hwmr.fbo = ib_umem_offset(mr->umem);
 	mr->hwmr.va = usr_addr;
 	mr->hwmr.len = len;
@@ -1601,23 +1598,24 @@ int ocrdma_query_qp(struct ib_qp *ibqp,
 	qp_attr->cap.max_recv_sge = qp->rq.max_sges;
 	qp_attr->cap.max_inline_data = qp->max_inline_data;
 	qp_init_attr->cap = qp_attr->cap;
-	memcpy(&qp_attr->ah_attr.grh.dgid, &params.dgid[0],
-	       sizeof(params.dgid));
-	qp_attr->ah_attr.grh.flow_label = params.rnt_rc_sl_fl &
-	    OCRDMA_QP_PARAMS_FLOW_LABEL_MASK;
-	qp_attr->ah_attr.grh.sgid_index = qp->sgid_idx;
-	qp_attr->ah_attr.grh.hop_limit = (params.hop_lmt_rq_psn &
-					  OCRDMA_QP_PARAMS_HOP_LMT_MASK) >>
-						OCRDMA_QP_PARAMS_HOP_LMT_SHIFT;
-	qp_attr->ah_attr.grh.traffic_class = (params.tclass_sq_psn &
-					      OCRDMA_QP_PARAMS_TCLASS_MASK) >>
-						OCRDMA_QP_PARAMS_TCLASS_SHIFT;
+	qp_attr->ah_attr.type = RDMA_AH_ATTR_TYPE_ROCE;
 
-	qp_attr->ah_attr.ah_flags = IB_AH_GRH;
-	qp_attr->ah_attr.port_num = 1;
-	qp_attr->ah_attr.sl = (params.rnt_rc_sl_fl &
-			       OCRDMA_QP_PARAMS_SL_MASK) >>
-				OCRDMA_QP_PARAMS_SL_SHIFT;
+	rdma_ah_set_grh(&qp_attr->ah_attr, NULL,
+			params.rnt_rc_sl_fl &
+			  OCRDMA_QP_PARAMS_FLOW_LABEL_MASK,
+			qp->sgid_idx,
+			(params.hop_lmt_rq_psn &
+			 OCRDMA_QP_PARAMS_HOP_LMT_MASK) >>
+			 OCRDMA_QP_PARAMS_HOP_LMT_SHIFT,
+			(params.tclass_sq_psn &
+			 OCRDMA_QP_PARAMS_TCLASS_MASK) >>
+			 OCRDMA_QP_PARAMS_TCLASS_SHIFT);
+	rdma_ah_set_dgid_raw(&qp_attr->ah_attr, &params.dgid[0]);
+
+	rdma_ah_set_port_num(&qp_attr->ah_attr, 1);
+	rdma_ah_set_sl(&qp_attr->ah_attr, (params.rnt_rc_sl_fl &
+					   OCRDMA_QP_PARAMS_SL_MASK) >>
+					   OCRDMA_QP_PARAMS_SL_SHIFT);
 	qp_attr->timeout = (params.ack_to_rnr_rtc_dest_qpn &
 			    OCRDMA_QP_PARAMS_ACK_TIMEOUT_MASK) >>
 				OCRDMA_QP_PARAMS_ACK_TIMEOUT_SHIFT;
@@ -1630,8 +1628,8 @@ int ocrdma_query_qp(struct ib_qp *ibqp,
 	qp_attr->min_rnr_timer = 0;
 	qp_attr->pkey_index = 0;
 	qp_attr->port_num = 1;
-	qp_attr->ah_attr.src_path_bits = 0;
-	qp_attr->ah_attr.static_rate = 0;
+	rdma_ah_set_path_bits(&qp_attr->ah_attr, 0);
+	rdma_ah_set_static_rate(&qp_attr->ah_attr, 0);
 	qp_attr->alt_pkey_index = 0;
 	qp_attr->alt_port_num = 0;
 	qp_attr->alt_timeout = 0;

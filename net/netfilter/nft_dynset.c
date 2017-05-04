@@ -133,16 +133,10 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 			priv->invert = true;
 	}
 
-	set = nf_tables_set_lookup(ctx->table, tb[NFTA_DYNSET_SET_NAME],
-				   genmask);
-	if (IS_ERR(set)) {
-		if (tb[NFTA_DYNSET_SET_ID])
-			set = nf_tables_set_lookup_byid(ctx->net,
-							tb[NFTA_DYNSET_SET_ID],
-							genmask);
-		if (IS_ERR(set))
-			return PTR_ERR(set);
-	}
+	set = nft_set_lookup(ctx->net, ctx->table, tb[NFTA_DYNSET_SET_NAME],
+			     tb[NFTA_DYNSET_SET_ID], genmask);
+	if (IS_ERR(set))
+		return PTR_ERR(set);
 
 	if (set->ops->update == NULL)
 		return -EOPNOTSUPP;

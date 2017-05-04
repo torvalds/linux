@@ -30,6 +30,7 @@ config ATMEL_EBI
 	default y
 	depends on ARCH_AT91 && OF
 	select MFD_SYSCON
+	select MFD_ATMEL_SMC
 	help
 	  Driver for Atmel EBI controller.
 	  Used to configure the EBI (external bus interface) when the device-

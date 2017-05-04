@@ -33,9 +33,10 @@
 static int napi_weight = NAPI_POLL_WEIGHT;
 module_param(napi_weight, int, 0444);
 
-static bool csum = true, gso = true;
+static bool csum = true, gso = true, napi_tx;
 module_param(csum, bool, 0444);
 module_param(gso, bool, 0444);
+module_param(napi_tx, bool, 0644);
 
 /* FIXME: MTU in config. */
 #define GOOD_PACKET_LEN (ETH_HLEN + VLAN_HLEN + ETH_DATA_LEN)
@@ -86,6 +87,8 @@ struct send_queue {
 
 	/* Name of the send queue: output.$index */
 	char name[40];
+
+	struct napi_struct napi;
 };
 
 /* Internal representation of a receive virtqueue */
@@ -239,15 +242,39 @@ static struct page *get_a_page(struct receive_queue *rq, gfp_t gfp_mask)
 	return p;
 }
 
+static void virtqueue_napi_schedule(struct napi_struct *napi,
+				    struct virtqueue *vq)
+{
+	if (napi_schedule_prep(napi)) {
+		virtqueue_disable_cb(vq);
+		__napi_schedule(napi);
+	}
+}
+
+static void virtqueue_napi_complete(struct napi_struct *napi,
+				    struct virtqueue *vq, int processed)
+{
+	int opaque;
+
+	opaque = virtqueue_enable_cb_prepare(vq);
+	if (napi_complete_done(napi, processed) &&
+	    unlikely(virtqueue_poll(vq, opaque)))
+		virtqueue_napi_schedule(napi, vq);
+}
+
 static void skb_xmit_done(struct virtqueue *vq)
 {
 	struct virtnet_info *vi = vq->vdev->priv;
+	struct napi_struct *napi = &vi->sq[vq2txq(vq)].napi;
 
 	/* Suppress further interrupts. */
 	virtqueue_disable_cb(vq);
 
-	/* We were probably waiting for more output buffers. */
-	netif_wake_subqueue(vi->dev, vq2txq(vq));
+	if (napi->weight)
+		virtqueue_napi_schedule(napi, vq);
+	else
+		/* We were probably waiting for more output buffers. */
+		netif_wake_subqueue(vi->dev, vq2txq(vq));
 }
 
 static unsigned int mergeable_ctx_to_buf_truesize(unsigned long mrg_ctx)
@@ -936,27 +963,44 @@ static void skb_recv_done(struct virtqueue *rvq)
 	struct virtnet_info *vi = rvq->vdev->priv;
 	struct receive_queue *rq = &vi->rq[vq2rxq(rvq)];
 
-	/* Schedule NAPI, Suppress further interrupts if successful. */
-	if (napi_schedule_prep(&rq->napi)) {
-		virtqueue_disable_cb(rvq);
-		__napi_schedule(&rq->napi);
-	}
+	virtqueue_napi_schedule(&rq->napi, rvq);
 }
 
-static void virtnet_napi_enable(struct receive_queue *rq)
+static void virtnet_napi_enable(struct virtqueue *vq, struct napi_struct *napi)
 {
-	napi_enable(&rq->napi);
+	napi_enable(napi);
 
 	/* If all buffers were filled by other side before we napi_enabled, we
-	 * won't get another interrupt, so process any outstanding packets
-	 * now.  virtnet_poll wants re-enable the queue, so we disable here.
-	 * We synchronize against interrupts via NAPI_STATE_SCHED */
-	if (napi_schedule_prep(&rq->napi)) {
-		virtqueue_disable_cb(rq->vq);
-		local_bh_disable();
-		__napi_schedule(&rq->napi);
-		local_bh_enable();
+	 * won't get another interrupt, so process any outstanding packets now.
+	 * Call local_bh_enable after to trigger softIRQ processing.
+	 */
+	local_bh_disable();
+	virtqueue_napi_schedule(napi, vq);
+	local_bh_enable();
+}
+
+static void virtnet_napi_tx_enable(struct virtnet_info *vi,
+				   struct virtqueue *vq,
+				   struct napi_struct *napi)
+{
+	if (!napi->weight)
+		return;
+
+	/* Tx napi touches cachelines on the cpu handling tx interrupts. Only
+	 * enable the feature if this is likely affine with the transmit path.
+	 */
+	if (!vi->affinity_hint_set) {
+		napi->weight = 0;
+		return;
 	}
+
+	return virtnet_napi_enable(vq, napi);
+}
+
+static void virtnet_napi_tx_disable(struct napi_struct *napi)
+{
+	if (napi->weight)
+		napi_disable(napi);
 }
 
 static void refill_work(struct work_struct *work)
@@ -971,7 +1015,7 @@ static void refill_work(struct work_struct *work)
 
 		napi_disable(&rq->napi);
 		still_empty = !try_fill_recv(vi, rq, GFP_KERNEL);
-		virtnet_napi_enable(rq);
+		virtnet_napi_enable(rq->vq, &rq->napi);
 
 		/* In theory, this can happen: if we don't get any buffers in
 		 * we will *never* try to fill again.
@@ -1007,45 +1051,6 @@ static int virtnet_receive(struct receive_queue *rq, int budget)
 	return received;
 }
 
-static int virtnet_poll(struct napi_struct *napi, int budget)
-{
-	struct receive_queue *rq =
-		container_of(napi, struct receive_queue, napi);
-	unsigned int r, received;
-
-	received = virtnet_receive(rq, budget);
-
-	/* Out of packets? */
-	if (received < budget) {
-		r = virtqueue_enable_cb_prepare(rq->vq);
-		if (napi_complete_done(napi, received)) {
-			if (unlikely(virtqueue_poll(rq->vq, r)) &&
-			    napi_schedule_prep(napi)) {
-				virtqueue_disable_cb(rq->vq);
-				__napi_schedule(napi);
-			}
-		}
-	}
-
-	return received;
-}
-
-static int virtnet_open(struct net_device *dev)
-{
-	struct virtnet_info *vi = netdev_priv(dev);
-	int i;
-
-	for (i = 0; i < vi->max_queue_pairs; i++) {
-		if (i < vi->curr_queue_pairs)
-			/* Make sure we have some buffers: if oom use wq. */
-			if (!try_fill_recv(vi, &vi->rq[i], GFP_KERNEL))
-				schedule_delayed_work(&vi->refill, 0);
-		virtnet_napi_enable(&vi->rq[i]);
-	}
-
-	return 0;
-}
-
 static void free_old_xmit_skbs(struct send_queue *sq)
 {
 	struct sk_buff *skb;
@@ -1074,6 +1079,77 @@ static void free_old_xmit_skbs(struct send_queue *sq)
 	stats->tx_bytes += bytes;
 	stats->tx_packets += packets;
 	u64_stats_update_end(&stats->tx_syncp);
+}
+
+static void virtnet_poll_cleantx(struct receive_queue *rq)
+{
+	struct virtnet_info *vi = rq->vq->vdev->priv;
+	unsigned int index = vq2rxq(rq->vq);
+	struct send_queue *sq = &vi->sq[index];
+	struct netdev_queue *txq = netdev_get_tx_queue(vi->dev, index);
+
+	if (!sq->napi.weight)
+		return;
+
+	if (__netif_tx_trylock(txq)) {
+		free_old_xmit_skbs(sq);
+		__netif_tx_unlock(txq);
+	}
+
+	if (sq->vq->num_free >= 2 + MAX_SKB_FRAGS)
+		netif_tx_wake_queue(txq);
+}
+
+static int virtnet_poll(struct napi_struct *napi, int budget)
+{
+	struct receive_queue *rq =
+		container_of(napi, struct receive_queue, napi);
+	unsigned int received;
+
+	virtnet_poll_cleantx(rq);
+
+	received = virtnet_receive(rq, budget);
+
+	/* Out of packets? */
+	if (received < budget)
+		virtqueue_napi_complete(napi, rq->vq, received);
+
+	return received;
+}
+
+static int virtnet_open(struct net_device *dev)
+{
+	struct virtnet_info *vi = netdev_priv(dev);
+	int i;
+
+	for (i = 0; i < vi->max_queue_pairs; i++) {
+		if (i < vi->curr_queue_pairs)
+			/* Make sure we have some buffers: if oom use wq. */
+			if (!try_fill_recv(vi, &vi->rq[i], GFP_KERNEL))
+				schedule_delayed_work(&vi->refill, 0);
+		virtnet_napi_enable(vi->rq[i].vq, &vi->rq[i].napi);
+		virtnet_napi_tx_enable(vi, vi->sq[i].vq, &vi->sq[i].napi);
+	}
+
+	return 0;
+}
+
+static int virtnet_poll_tx(struct napi_struct *napi, int budget)
+{
+	struct send_queue *sq = container_of(napi, struct send_queue, napi);
+	struct virtnet_info *vi = sq->vq->vdev->priv;
+	struct netdev_queue *txq = netdev_get_tx_queue(vi->dev, vq2txq(sq->vq));
+
+	__netif_tx_lock(txq, raw_smp_processor_id());
+	free_old_xmit_skbs(sq);
+	__netif_tx_unlock(txq);
+
+	virtqueue_napi_complete(napi, sq->vq, 0);
+
+	if (sq->vq->num_free >= 2 + MAX_SKB_FRAGS)
+		netif_tx_wake_queue(txq);
+
+	return 0;
 }
 
 static int xmit_skb(struct send_queue *sq, struct sk_buff *skb)
@@ -1125,9 +1201,13 @@ static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int err;
 	struct netdev_queue *txq = netdev_get_tx_queue(dev, qnum);
 	bool kick = !skb->xmit_more;
+	bool use_napi = sq->napi.weight;
 
 	/* Free up any pending old buffers before queueing new ones. */
 	free_old_xmit_skbs(sq);
+
+	if (use_napi && kick)
+		virtqueue_enable_cb_delayed(sq->vq);
 
 	/* timestamp packet in software */
 	skb_tx_timestamp(skb);
@@ -1147,8 +1227,10 @@ static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/* Don't wait up for transmitted skbs to be freed. */
-	skb_orphan(skb);
-	nf_reset(skb);
+	if (!use_napi) {
+		skb_orphan(skb);
+		nf_reset(skb);
+	}
 
 	/* If running out of space, stop queue to avoid getting packets that we
 	 * are then unable to transmit.
@@ -1162,7 +1244,8 @@ static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	if (sq->vq->num_free < 2+MAX_SKB_FRAGS) {
 		netif_stop_subqueue(dev, qnum);
-		if (unlikely(!virtqueue_enable_cb_delayed(sq->vq))) {
+		if (!use_napi &&
+		    unlikely(!virtqueue_enable_cb_delayed(sq->vq))) {
 			/* More just got used, free them then recheck. */
 			free_old_xmit_skbs(sq);
 			if (sq->vq->num_free >= 2+MAX_SKB_FRAGS) {
@@ -1366,8 +1449,10 @@ static int virtnet_close(struct net_device *dev)
 	/* Make sure refill_work doesn't re-enable napi! */
 	cancel_delayed_work_sync(&vi->refill);
 
-	for (i = 0; i < vi->max_queue_pairs; i++)
+	for (i = 0; i < vi->max_queue_pairs; i++) {
 		napi_disable(&vi->rq[i].napi);
+		virtnet_napi_tx_disable(&vi->sq[i].napi);
+	}
 
 	return 0;
 }
@@ -1636,47 +1721,57 @@ static void virtnet_get_channels(struct net_device *dev,
 }
 
 /* Check if the user is trying to change anything besides speed/duplex */
-static bool virtnet_validate_ethtool_cmd(const struct ethtool_cmd *cmd)
+static bool
+virtnet_validate_ethtool_cmd(const struct ethtool_link_ksettings *cmd)
 {
-	struct ethtool_cmd diff1 = *cmd;
-	struct ethtool_cmd diff2 = {};
+	struct ethtool_link_ksettings diff1 = *cmd;
+	struct ethtool_link_ksettings diff2 = {};
 
 	/* cmd is always set so we need to clear it, validate the port type
 	 * and also without autonegotiation we can ignore advertising
 	 */
-	ethtool_cmd_speed_set(&diff1, 0);
-	diff2.port = PORT_OTHER;
-	diff1.advertising = 0;
-	diff1.duplex = 0;
-	diff1.cmd = 0;
+	diff1.base.speed = 0;
+	diff2.base.port = PORT_OTHER;
+	ethtool_link_ksettings_zero_link_mode(&diff1, advertising);
+	diff1.base.duplex = 0;
+	diff1.base.cmd = 0;
+	diff1.base.link_mode_masks_nwords = 0;
 
-	return !memcmp(&diff1, &diff2, sizeof(diff1));
+	return !memcmp(&diff1.base, &diff2.base, sizeof(diff1.base)) &&
+		bitmap_empty(diff1.link_modes.supported,
+			     __ETHTOOL_LINK_MODE_MASK_NBITS) &&
+		bitmap_empty(diff1.link_modes.advertising,
+			     __ETHTOOL_LINK_MODE_MASK_NBITS) &&
+		bitmap_empty(diff1.link_modes.lp_advertising,
+			     __ETHTOOL_LINK_MODE_MASK_NBITS);
 }
 
-static int virtnet_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int virtnet_set_link_ksettings(struct net_device *dev,
+				      const struct ethtool_link_ksettings *cmd)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
 	u32 speed;
 
-	speed = ethtool_cmd_speed(cmd);
+	speed = cmd->base.speed;
 	/* don't allow custom speed and duplex */
 	if (!ethtool_validate_speed(speed) ||
-	    !ethtool_validate_duplex(cmd->duplex) ||
+	    !ethtool_validate_duplex(cmd->base.duplex) ||
 	    !virtnet_validate_ethtool_cmd(cmd))
 		return -EINVAL;
 	vi->speed = speed;
-	vi->duplex = cmd->duplex;
+	vi->duplex = cmd->base.duplex;
 
 	return 0;
 }
 
-static int virtnet_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int virtnet_get_link_ksettings(struct net_device *dev,
+				      struct ethtool_link_ksettings *cmd)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
 
-	ethtool_cmd_speed_set(cmd, vi->speed);
-	cmd->duplex = vi->duplex;
-	cmd->port = PORT_OTHER;
+	cmd->base.speed = vi->speed;
+	cmd->base.duplex = vi->duplex;
+	cmd->base.port = PORT_OTHER;
 
 	return 0;
 }
@@ -1696,8 +1791,8 @@ static const struct ethtool_ops virtnet_ethtool_ops = {
 	.set_channels = virtnet_set_channels,
 	.get_channels = virtnet_get_channels,
 	.get_ts_info = ethtool_op_get_ts_info,
-	.get_settings = virtnet_get_settings,
-	.set_settings = virtnet_set_settings,
+	.get_link_ksettings = virtnet_get_link_ksettings,
+	.set_link_ksettings = virtnet_set_link_ksettings,
 };
 
 static void virtnet_freeze_down(struct virtio_device *vdev)
@@ -1712,8 +1807,10 @@ static void virtnet_freeze_down(struct virtio_device *vdev)
 	cancel_delayed_work_sync(&vi->refill);
 
 	if (netif_running(vi->dev)) {
-		for (i = 0; i < vi->max_queue_pairs; i++)
+		for (i = 0; i < vi->max_queue_pairs; i++) {
 			napi_disable(&vi->rq[i].napi);
+			virtnet_napi_tx_disable(&vi->sq[i].napi);
+		}
 	}
 }
 
@@ -1736,8 +1833,11 @@ static int virtnet_restore_up(struct virtio_device *vdev)
 			if (!try_fill_recv(vi, &vi->rq[i], GFP_KERNEL))
 				schedule_delayed_work(&vi->refill, 0);
 
-		for (i = 0; i < vi->max_queue_pairs; i++)
-			virtnet_napi_enable(&vi->rq[i]);
+		for (i = 0; i < vi->max_queue_pairs; i++) {
+			virtnet_napi_enable(vi->rq[i].vq, &vi->rq[i].napi);
+			virtnet_napi_tx_enable(vi, vi->sq[i].vq,
+					       &vi->sq[i].napi);
+		}
 	}
 
 	netif_device_attach(vi->dev);
@@ -1778,7 +1878,8 @@ err:
 	return ret;
 }
 
-static int virtnet_xdp_set(struct net_device *dev, struct bpf_prog *prog)
+static int virtnet_xdp_set(struct net_device *dev, struct bpf_prog *prog,
+			   struct netlink_ext_ack *extack)
 {
 	unsigned long int max_sz = PAGE_SIZE - sizeof(struct padded_vnet_hdr);
 	struct virtnet_info *vi = netdev_priv(dev);
@@ -1790,16 +1891,17 @@ static int virtnet_xdp_set(struct net_device *dev, struct bpf_prog *prog)
 	    virtio_has_feature(vi->vdev, VIRTIO_NET_F_GUEST_TSO6) ||
 	    virtio_has_feature(vi->vdev, VIRTIO_NET_F_GUEST_ECN) ||
 	    virtio_has_feature(vi->vdev, VIRTIO_NET_F_GUEST_UFO)) {
-		netdev_warn(dev, "can't set XDP while host is implementing LRO, disable LRO first\n");
+		NL_SET_ERR_MSG(extack, "can't set XDP while host is implementing LRO, disable LRO first");
 		return -EOPNOTSUPP;
 	}
 
 	if (vi->mergeable_rx_bufs && !vi->any_header_sg) {
-		netdev_warn(dev, "XDP expects header/data in single page, any_header_sg required\n");
+		NL_SET_ERR_MSG(extack, "XDP expects header/data in single page, any_header_sg required");
 		return -EINVAL;
 	}
 
 	if (dev->mtu > max_sz) {
+		NL_SET_ERR_MSG(extack, "MTU too large to enable XDP");
 		netdev_warn(dev, "XDP requires MTU less than %lu\n", max_sz);
 		return -EINVAL;
 	}
@@ -1810,6 +1912,7 @@ static int virtnet_xdp_set(struct net_device *dev, struct bpf_prog *prog)
 
 	/* XDP requires extra queues for XDP_TX */
 	if (curr_qp + xdp_qp > vi->max_queue_pairs) {
+		NL_SET_ERR_MSG(extack, "Too few free TX rings available");
 		netdev_warn(dev, "request %i queues but max is %i\n",
 			    curr_qp + xdp_qp, vi->max_queue_pairs);
 		return -ENOMEM;
@@ -1871,7 +1974,7 @@ static int virtnet_xdp(struct net_device *dev, struct netdev_xdp *xdp)
 {
 	switch (xdp->command) {
 	case XDP_SETUP_PROG:
-		return virtnet_xdp_set(dev, xdp->prog);
+		return virtnet_xdp_set(dev, xdp->prog, xdp->extack);
 	case XDP_QUERY_PROG:
 		xdp->prog_attached = virtnet_xdp_query(dev);
 		return 0;
@@ -1942,6 +2045,7 @@ static void virtnet_free_queues(struct virtnet_info *vi)
 	for (i = 0; i < vi->max_queue_pairs; i++) {
 		napi_hash_del(&vi->rq[i].napi);
 		netif_napi_del(&vi->rq[i].napi);
+		netif_napi_del(&vi->sq[i].napi);
 	}
 
 	/* We called napi_hash_del() before netif_napi_del(),
@@ -2127,6 +2231,8 @@ static int virtnet_alloc_queues(struct virtnet_info *vi)
 		vi->rq[i].pages = NULL;
 		netif_napi_add(vi->dev, &vi->rq[i].napi, virtnet_poll,
 			       napi_weight);
+		netif_tx_napi_add(vi->dev, &vi->sq[i].napi, virtnet_poll_tx,
+				  napi_tx ? napi_weight : 0);
 
 		sg_init_table(vi->rq[i].sg, ARRAY_SIZE(vi->rq[i].sg));
 		ewma_pkt_len_init(&vi->rq[i].mrg_avg_pkt_len);

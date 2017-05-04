@@ -126,19 +126,19 @@ static int mwifiex_cmd_802_11_snmp_mib(struct mwifiex_private *priv,
 	if (cmd_action == HostCmd_ACT_GEN_GET) {
 		snmp_mib->query_type = cpu_to_le16(HostCmd_ACT_GEN_GET);
 		snmp_mib->buf_size = cpu_to_le16(MAX_SNMP_BUF_SIZE);
-		le16_add_cpu(&cmd->size, MAX_SNMP_BUF_SIZE);
+		le16_unaligned_add_cpu(&cmd->size, MAX_SNMP_BUF_SIZE);
 	} else if (cmd_action == HostCmd_ACT_GEN_SET) {
 		snmp_mib->query_type = cpu_to_le16(HostCmd_ACT_GEN_SET);
 		snmp_mib->buf_size = cpu_to_le16(sizeof(u16));
-		*((__le16 *) (snmp_mib->value)) = cpu_to_le16(*ul_temp);
-		le16_add_cpu(&cmd->size, sizeof(u16));
+		put_unaligned_le16(*ul_temp, snmp_mib->value);
+		le16_unaligned_add_cpu(&cmd->size, sizeof(u16));
 	}
 
 	mwifiex_dbg(priv->adapter, CMD,
 		    "cmd: SNMP_CMD: Action=0x%x, OID=0x%x,\t"
 		    "OIDSize=0x%x, Value=0x%x\n",
 		    cmd_action, cmd_oid, le16_to_cpu(snmp_mib->buf_size),
-		    le16_to_cpu(*(__le16 *)snmp_mib->value));
+		    get_unaligned_le16(snmp_mib->value));
 	return 0;
 }
 
@@ -1357,8 +1357,9 @@ mwifiex_cmd_802_11_subsc_evt(struct mwifiex_private *priv,
 			    subsc_evt_cfg->bcn_l_rssi_cfg.evt_freq);
 
 		pos += sizeof(struct mwifiex_ie_types_rssi_threshold);
-		le16_add_cpu(&cmd->size,
-			     sizeof(struct mwifiex_ie_types_rssi_threshold));
+		le16_unaligned_add_cpu(&cmd->size,
+				       sizeof(
+				       struct mwifiex_ie_types_rssi_threshold));
 	}
 
 	if (event_bitmap & BITMASK_BCN_RSSI_HIGH) {
@@ -1378,8 +1379,9 @@ mwifiex_cmd_802_11_subsc_evt(struct mwifiex_private *priv,
 			    subsc_evt_cfg->bcn_h_rssi_cfg.evt_freq);
 
 		pos += sizeof(struct mwifiex_ie_types_rssi_threshold);
-		le16_add_cpu(&cmd->size,
-			     sizeof(struct mwifiex_ie_types_rssi_threshold));
+		le16_unaligned_add_cpu(&cmd->size,
+				       sizeof(
+				       struct mwifiex_ie_types_rssi_threshold));
 	}
 
 	return 0;
@@ -1398,7 +1400,7 @@ mwifiex_cmd_append_rpn_expression(struct mwifiex_private *priv,
 		filter = &mef_entry->filter[i];
 		if (!filter->filt_type)
 			break;
-		*(__le32 *)stack_ptr = cpu_to_le32((u32)filter->repeat);
+		put_unaligned_le32((u32)filter->repeat, stack_ptr);
 		stack_ptr += 4;
 		*stack_ptr = TYPE_DNUM;
 		stack_ptr += 1;
@@ -1410,8 +1412,7 @@ mwifiex_cmd_append_rpn_expression(struct mwifiex_private *priv,
 		stack_ptr += 1;
 		*stack_ptr = TYPE_BYTESEQ;
 		stack_ptr += 1;
-
-		*(__le32 *)stack_ptr = cpu_to_le32((u32)filter->offset);
+		put_unaligned_le32((u32)filter->offset, stack_ptr);
 		stack_ptr += 4;
 		*stack_ptr = TYPE_DNUM;
 		stack_ptr += 1;
@@ -1683,14 +1684,15 @@ mwifiex_cmd_coalesce_cfg(struct mwifiex_private *priv,
 					       sizeof(u8) + sizeof(u8));
 
 		/* Add the rule length to the command size*/
-		le16_add_cpu(&cmd->size, le16_to_cpu(rule->header.len) +
-			     sizeof(struct mwifiex_ie_types_header));
+		le16_unaligned_add_cpu(&cmd->size,
+				       le16_to_cpu(rule->header.len) +
+				       sizeof(struct mwifiex_ie_types_header));
 
 		rule = (void *)((u8 *)rule->params + length);
 	}
 
 	/* Add sizeof action, num_of_rules to total command length */
-	le16_add_cpu(&cmd->size, sizeof(u16) + sizeof(u16));
+	le16_unaligned_add_cpu(&cmd->size, sizeof(u16) + sizeof(u16));
 
 	return 0;
 }
@@ -1708,7 +1710,7 @@ mwifiex_cmd_tdls_config(struct mwifiex_private *priv,
 	cmd->command = cpu_to_le16(HostCmd_CMD_TDLS_CONFIG);
 	cmd->size = cpu_to_le16(S_DS_GEN);
 	tdls_config->tdls_action = cpu_to_le16(cmd_action);
-	le16_add_cpu(&cmd->size, sizeof(tdls_config->tdls_action));
+	le16_unaligned_add_cpu(&cmd->size, sizeof(tdls_config->tdls_action));
 
 	switch (cmd_action) {
 	case ACT_TDLS_CS_ENABLE_CONFIG:
@@ -1735,7 +1737,7 @@ mwifiex_cmd_tdls_config(struct mwifiex_private *priv,
 		return -ENOTSUPP;
 	}
 
-	le16_add_cpu(&cmd->size, len);
+	le16_unaligned_add_cpu(&cmd->size, len);
 	return 0;
 }
 
@@ -1759,7 +1761,8 @@ mwifiex_cmd_tdls_oper(struct mwifiex_private *priv,
 
 	cmd->command = cpu_to_le16(HostCmd_CMD_TDLS_OPER);
 	cmd->size = cpu_to_le16(S_DS_GEN);
-	le16_add_cpu(&cmd->size, sizeof(struct host_cmd_ds_tdls_oper));
+	le16_unaligned_add_cpu(&cmd->size,
+			       sizeof(struct host_cmd_ds_tdls_oper));
 
 	tdls_oper->reason = 0;
 	memcpy(tdls_oper->peer_mac, oper->peer_mac, ETH_ALEN);
@@ -1783,7 +1786,7 @@ mwifiex_cmd_tdls_oper(struct mwifiex_private *priv,
 			return -ENODATA;
 		}
 
-		*(__le16 *)pos = cpu_to_le16(params->capability);
+		put_unaligned_le16(params->capability, pos);
 		config_len += sizeof(params->capability);
 
 		qos_info = params->uapsd_queues | (params->max_sp << 5);
@@ -1861,7 +1864,7 @@ mwifiex_cmd_tdls_oper(struct mwifiex_private *priv,
 		return -ENOTSUPP;
 	}
 
-	le16_add_cpu(&cmd->size, config_len);
+	le16_unaligned_add_cpu(&cmd->size, config_len);
 
 	return 0;
 }
@@ -2032,7 +2035,7 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 	case HostCmd_CMD_VERSION_EXT:
 		cmd_ptr->command = cpu_to_le16(cmd_no);
 		cmd_ptr->params.verext.version_str_sel =
-			(u8) (*((u32 *) data_buf));
+			(u8)(get_unaligned((u32 *)data_buf));
 		memcpy(&cmd_ptr->params, data_buf,
 		       sizeof(struct host_cmd_ds_version_ext));
 		cmd_ptr->size =
@@ -2043,7 +2046,8 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 	case HostCmd_CMD_MGMT_FRAME_REG:
 		cmd_ptr->command = cpu_to_le16(cmd_no);
 		cmd_ptr->params.reg_mask.action = cpu_to_le16(cmd_action);
-		cmd_ptr->params.reg_mask.mask = cpu_to_le32(*(u32 *)data_buf);
+		cmd_ptr->params.reg_mask.mask = cpu_to_le32(
+						get_unaligned((u32 *)data_buf));
 		cmd_ptr->size =
 			cpu_to_le16(sizeof(struct host_cmd_ds_mgmt_frame_reg) +
 				    S_DS_GEN);
@@ -2063,7 +2067,8 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 	case HostCmd_CMD_P2P_MODE_CFG:
 		cmd_ptr->command = cpu_to_le16(cmd_no);
 		cmd_ptr->params.mode_cfg.action = cpu_to_le16(cmd_action);
-		cmd_ptr->params.mode_cfg.mode = cpu_to_le16(*(u16 *)data_buf);
+		cmd_ptr->params.mode_cfg.mode = cpu_to_le16(
+						get_unaligned((u16 *)data_buf));
 		cmd_ptr->size =
 			cpu_to_le16(sizeof(struct host_cmd_ds_p2p_mode_cfg) +
 				    S_DS_GEN);
@@ -2359,8 +2364,7 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
 	if (ret)
 		return -1;
 
-	if (!disable_auto_ds &&
-	    first_sta && priv->adapter->iface_type != MWIFIEX_USB &&
+	if (!disable_auto_ds && first_sta &&
 	    priv->bss_type != MWIFIEX_BSS_TYPE_UAP) {
 		/* Enable auto deep sleep */
 		auto_ds.auto_ds = DEEP_SLEEP_ON;

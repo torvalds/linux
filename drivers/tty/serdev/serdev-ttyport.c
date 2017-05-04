@@ -14,6 +14,7 @@
 #include <linux/serdev.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
+#include <linux/poll.h>
 
 #define SERPORT_ACTIVE		1
 
@@ -46,11 +47,11 @@ static void ttyport_write_wakeup(struct tty_port *port)
 	struct serdev_controller *ctrl = port->client_data;
 	struct serport *serport = serdev_controller_get_drvdata(ctrl);
 
-	if (!test_and_clear_bit(TTY_DO_WRITE_WAKEUP, &port->tty->flags))
-		return;
-
-	if (test_bit(SERPORT_ACTIVE, &serport->flags))
+	if (test_and_clear_bit(TTY_DO_WRITE_WAKEUP, &port->tty->flags) &&
+	    test_bit(SERPORT_ACTIVE, &serport->flags))
 		serdev_controller_write_wakeup(ctrl);
+
+	wake_up_interruptible_poll(&port->tty->write_wait, POLLOUT);
 }
 
 static const struct tty_port_client_operations client_ops = {
@@ -167,6 +168,36 @@ static void ttyport_set_flow_control(struct serdev_controller *ctrl, bool enable
 	tty_set_termios(tty, &ktermios);
 }
 
+static void ttyport_wait_until_sent(struct serdev_controller *ctrl, long timeout)
+{
+	struct serport *serport = serdev_controller_get_drvdata(ctrl);
+	struct tty_struct *tty = serport->tty;
+
+	tty_wait_until_sent(tty, timeout);
+}
+
+static int ttyport_get_tiocm(struct serdev_controller *ctrl)
+{
+	struct serport *serport = serdev_controller_get_drvdata(ctrl);
+	struct tty_struct *tty = serport->tty;
+
+	if (!tty->ops->tiocmget)
+		return -ENOTSUPP;
+
+	return tty->driver->ops->tiocmget(tty);
+}
+
+static int ttyport_set_tiocm(struct serdev_controller *ctrl, unsigned int set, unsigned int clear)
+{
+	struct serport *serport = serdev_controller_get_drvdata(ctrl);
+	struct tty_struct *tty = serport->tty;
+
+	if (!tty->ops->tiocmset)
+		return -ENOTSUPP;
+
+	return tty->driver->ops->tiocmset(tty, set, clear);
+}
+
 static const struct serdev_controller_ops ctrl_ops = {
 	.write_buf = ttyport_write_buf,
 	.write_flush = ttyport_write_flush,
@@ -175,6 +206,9 @@ static const struct serdev_controller_ops ctrl_ops = {
 	.close = ttyport_close,
 	.set_flow_control = ttyport_set_flow_control,
 	.set_baudrate = ttyport_set_baudrate,
+	.wait_until_sent = ttyport_wait_until_sent,
+	.get_tiocm = ttyport_get_tiocm,
+	.set_tiocm = ttyport_set_tiocm,
 };
 
 struct device *serdev_tty_port_register(struct tty_port *port,

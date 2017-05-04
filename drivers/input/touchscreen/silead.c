@@ -580,12 +580,25 @@ static const struct acpi_device_id silead_ts_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, silead_ts_acpi_match);
 #endif
 
+#ifdef CONFIG_OF
+static const struct of_device_id silead_ts_of_match[] = {
+	{ .compatible = "silead,gsl1680" },
+	{ .compatible = "silead,gsl1688" },
+	{ .compatible = "silead,gsl3670" },
+	{ .compatible = "silead,gsl3675" },
+	{ .compatible = "silead,gsl3692" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, silead_ts_of_match);
+#endif
+
 static struct i2c_driver silead_ts_driver = {
 	.probe = silead_ts_probe,
 	.id_table = silead_ts_id,
 	.driver = {
 		.name = SILEAD_TS_NAME,
 		.acpi_match_table = ACPI_PTR(silead_ts_acpi_match),
+		.of_match_table = of_match_ptr(silead_ts_of_match),
 		.pm = &silead_ts_pm,
 	},
 };

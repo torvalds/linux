@@ -437,10 +437,12 @@ int ef4_setup_tc(struct net_device *net_dev, u32 handle, __be16 proto,
 	if (ntc->type != TC_SETUP_MQPRIO)
 		return -EINVAL;
 
-	num_tc = ntc->tc;
+	num_tc = ntc->mqprio->num_tc;
 
 	if (ef4_nic_rev(efx) < EF4_REV_FALCON_B0 || num_tc > EF4_MAX_TX_TC)
 		return -EINVAL;
+
+	ntc->mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
 
 	if (num_tc == net_dev->num_tc)
 		return 0;

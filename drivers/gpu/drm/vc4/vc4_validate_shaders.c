@@ -24,16 +24,21 @@
 /**
  * DOC: Shader validator for VC4.
  *
- * The VC4 has no IOMMU between it and system memory, so a user with
- * access to execute shaders could escalate privilege by overwriting
- * system memory (using the VPM write address register in the
- * general-purpose DMA mode) or reading system memory it shouldn't
- * (reading it as a texture, or uniform data, or vertex data).
+ * Since the VC4 has no IOMMU between it and system memory, a user
+ * with access to execute shaders could escalate privilege by
+ * overwriting system memory (using the VPM write address register in
+ * the general-purpose DMA mode) or reading system memory it shouldn't
+ * (reading it as a texture, uniform data, or direct-addressed TMU
+ * lookup).
  *
- * This walks over a shader BO, ensuring that its accesses are
- * appropriately bounded, and recording how many texture accesses are
- * made and where so that we can do relocations for them in the
+ * The shader validator walks over a shader's BO, ensuring that its
+ * accesses are appropriately bounded, and recording where texture
+ * accesses are made so that we can do relocations for them in the
  * uniform stream.
+ *
+ * Shader BO are immutable for their lifetimes (enforced by not
+ * allowing mmaps, GEM prime export, or rendering to from a CL), so
+ * this validation is only performed at BO creation time.
  */
 
 #include "vc4_drv.h"

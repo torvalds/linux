@@ -35,7 +35,8 @@ static inline int vlan_validate_qos_map(struct nlattr *attr)
 {
 	if (!attr)
 		return 0;
-	return nla_validate_nested(attr, IFLA_VLAN_QOS_MAX, vlan_map_policy);
+	return nla_validate_nested(attr, IFLA_VLAN_QOS_MAX, vlan_map_policy,
+				   NULL);
 }
 
 static int vlan_validate(struct nlattr *tb[], struct nlattr *data[])

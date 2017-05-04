@@ -647,6 +647,9 @@ enum bcm_sysport_stat_type {
 	.reg_offset = ofs, \
 }
 
+/* TX bytes and packets */
+#define NUM_SYSPORT_TXQ_STAT	2
+
 struct bcm_sysport_stats {
 	char stat_string[ETH_GSTRING_LEN];
 	int stat_sizeof;
@@ -690,6 +693,8 @@ struct bcm_sysport_tx_ring {
 	struct bcm_sysport_cb *cbs;	/* Transmit control blocks */
 	struct dma_desc	*desc_cpu;	/* CPU view of the descriptor */
 	struct bcm_sysport_priv *priv;	/* private context backpointer */
+	unsigned long	packets;	/* packets statistics */
+	unsigned long	bytes;		/* bytes statistics */
 };
 
 /* Driver private structure */

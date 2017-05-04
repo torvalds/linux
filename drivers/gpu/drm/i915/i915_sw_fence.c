@@ -395,10 +395,10 @@ static void timer_i915_sw_fence_wake(unsigned long data)
 {
 	struct i915_sw_dma_fence_cb *cb = (struct i915_sw_dma_fence_cb *)data;
 
-	printk(KERN_WARNING "asynchronous wait on fence %s:%s:%x timed out\n",
-	       cb->dma->ops->get_driver_name(cb->dma),
-	       cb->dma->ops->get_timeline_name(cb->dma),
-	       cb->dma->seqno);
+	pr_warn("asynchronous wait on fence %s:%s:%x timed out\n",
+		cb->dma->ops->get_driver_name(cb->dma),
+		cb->dma->ops->get_timeline_name(cb->dma),
+		cb->dma->seqno);
 	dma_fence_put(cb->dma);
 	cb->dma = NULL;
 

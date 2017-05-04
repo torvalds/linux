@@ -49,6 +49,8 @@
 
 int ip6_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
+	void (*edemux)(struct sk_buff *skb);
+
 	/* if ingress device is enslaved to an L3 master device pass the
 	 * skb to its handler for processing
 	 */
@@ -60,8 +62,8 @@ int ip6_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 		const struct inet6_protocol *ipprot;
 
 		ipprot = rcu_dereference(inet6_protos[ipv6_hdr(skb)->nexthdr]);
-		if (ipprot && ipprot->early_demux)
-			ipprot->early_demux(skb);
+		if (ipprot && (edemux = READ_ONCE(ipprot->early_demux)))
+			edemux(skb);
 	}
 	if (!skb_valid_dst(skb))
 		ip6_route_input(skb);

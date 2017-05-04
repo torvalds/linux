@@ -1345,7 +1345,7 @@ static void i40iw_copy_user_pgaddrs(struct i40iw_mr *iwmr,
 {
 	struct ib_umem *region = iwmr->region;
 	struct i40iw_pbl *iwpbl = &iwmr->iwpbl;
-	int chunk_pages, entry, pg_shift, i;
+	int chunk_pages, entry, i;
 	struct i40iw_pble_alloc *palloc = &iwpbl->pble_alloc;
 	struct i40iw_pble_info *pinfo;
 	struct scatterlist *sg;
@@ -1354,14 +1354,14 @@ static void i40iw_copy_user_pgaddrs(struct i40iw_mr *iwmr,
 
 	pinfo = (level == I40IW_LEVEL_1) ? NULL : palloc->level2.leaf;
 
-	pg_shift = ffs(region->page_size) - 1;
 	for_each_sg(region->sg_head.sgl, sg, region->nmap, entry) {
-		chunk_pages = sg_dma_len(sg) >> pg_shift;
+		chunk_pages = sg_dma_len(sg) >> region->page_shift;
 		if ((iwmr->type == IW_MEMREG_TYPE_QP) &&
 		    !iwpbl->qp_mr.sq_page)
 			iwpbl->qp_mr.sq_page = sg_page(sg);
 		for (i = 0; i < chunk_pages; i++) {
-			pg_addr = sg_dma_address(sg) + region->page_size * i;
+			pg_addr = sg_dma_address(sg) +
+				(i << region->page_shift);
 
 			if ((entry + i) == 0)
 				*pbl = cpu_to_le64(pg_addr & iwmr->page_msk);
@@ -1847,7 +1847,7 @@ static struct ib_mr *i40iw_reg_user_mr(struct ib_pd *pd,
 	iwmr->ibmr.device = pd->device;
 	ucontext = to_ucontext(pd->uobject->context);
 
-	iwmr->page_size = region->page_size;
+	iwmr->page_size = PAGE_SIZE;
 	iwmr->page_msk = PAGE_MASK;
 
 	if (region->hugetlb && (req.reg_type == IW_MEMREG_TYPE_MEM))
@@ -2696,7 +2696,7 @@ static int i40iw_query_pkey(struct ib_device *ibdev,
  * @ah_attr: address handle attributes
  */
 static struct ib_ah *i40iw_create_ah(struct ib_pd *ibpd,
-				     struct ib_ah_attr *attr,
+				     struct rdma_ah_attr *attr,
 				     struct ib_udata *udata)
 
 {

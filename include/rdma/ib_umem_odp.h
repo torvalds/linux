@@ -84,7 +84,8 @@ struct ib_umem_odp {
 
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 
-int ib_umem_odp_get(struct ib_ucontext *context, struct ib_umem *umem);
+int ib_umem_odp_get(struct ib_ucontext *context, struct ib_umem *umem,
+		    int access);
 struct ib_umem *ib_alloc_odp_umem(struct ib_ucontext *context,
 				  unsigned long addr,
 				  size_t size);
@@ -154,7 +155,8 @@ static inline int ib_umem_mmu_notifier_retry(struct ib_umem *item,
 #else /* CONFIG_INFINIBAND_ON_DEMAND_PAGING */
 
 static inline int ib_umem_odp_get(struct ib_ucontext *context,
-				  struct ib_umem *umem)
+				  struct ib_umem *umem,
+				  int access)
 {
 	return -EINVAL;
 }

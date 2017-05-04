@@ -935,15 +935,6 @@ omap_hsmmc_start_command(struct omap_hsmmc_host *host, struct mmc_command *cmd,
 	OMAP_HSMMC_WRITE(host->base, CMD, cmdreg);
 }
 
-static int
-omap_hsmmc_get_dma_dir(struct omap_hsmmc_host *host, struct mmc_data *data)
-{
-	if (data->flags & MMC_DATA_WRITE)
-		return DMA_TO_DEVICE;
-	else
-		return DMA_FROM_DEVICE;
-}
-
 static struct dma_chan *omap_hsmmc_get_dma_chan(struct omap_hsmmc_host *host,
 	struct mmc_data *data)
 {
@@ -1055,7 +1046,7 @@ static void omap_hsmmc_dma_cleanup(struct omap_hsmmc_host *host, int errno)
 		dmaengine_terminate_all(chan);
 		dma_unmap_sg(chan->device->dev,
 			host->data->sg, host->data->sg_len,
-			omap_hsmmc_get_dma_dir(host, host->data));
+			mmc_get_dma_dir(host->data));
 
 		host->data->host_cookie = 0;
 	}
@@ -1350,7 +1341,7 @@ static void omap_hsmmc_dma_callback(void *param)
 	if (!data->host_cookie)
 		dma_unmap_sg(chan->device->dev,
 			     data->sg, data->sg_len,
-			     omap_hsmmc_get_dma_dir(host, data));
+			     mmc_get_dma_dir(data));
 
 	req_in_progress = host->req_in_progress;
 	host->dma_ch = -1;
@@ -1383,7 +1374,7 @@ static int omap_hsmmc_pre_dma_transfer(struct omap_hsmmc_host *host,
 	/* Check if next job is already prepared */
 	if (next || data->host_cookie != host->next_data.cookie) {
 		dma_len = dma_map_sg(chan->device->dev, data->sg, data->sg_len,
-				     omap_hsmmc_get_dma_dir(host, data));
+				     mmc_get_dma_dir(data));
 
 	} else {
 		dma_len = host->next_data.dma_len;
@@ -1569,7 +1560,7 @@ static void omap_hsmmc_post_req(struct mmc_host *mmc, struct mmc_request *mrq,
 		struct dma_chan *c = omap_hsmmc_get_dma_chan(host, data);
 
 		dma_unmap_sg(c->device->dev, data->sg, data->sg_len,
-			     omap_hsmmc_get_dma_dir(host, data));
+			     mmc_get_dma_dir(data));
 		data->host_cookie = 0;
 	}
 }
@@ -1770,8 +1761,8 @@ static int omap_hsmmc_configure_wake_irq(struct omap_hsmmc_host *host)
 	 */
 	if (host->pdata->controller_flags & OMAP_HSMMC_SWAKEUP_MISSING) {
 		struct pinctrl *p = devm_pinctrl_get(host->dev);
-		if (!p) {
-			ret = -ENODEV;
+		if (IS_ERR(p)) {
+			ret = PTR_ERR(p);
 			goto err_free_irq;
 		}
 		if (IS_ERR(pinctrl_lookup_state(p, PINCTRL_STATE_DEFAULT))) {

@@ -11,11 +11,14 @@ Core utilities
 .. toctree::
    :maxdepth: 1
 
+   kernel-api
    assoc_array
    atomic_ops
    cpu_hotplug
    local_ops
    workqueue
+   genericirq
+   flexible-arrays
 
 Interfaces for kernel debugging
 ===============================

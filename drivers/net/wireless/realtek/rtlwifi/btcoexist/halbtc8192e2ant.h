@@ -116,7 +116,7 @@ struct coex_dm_8192e_2ant {
 
 	u32 backup_arfr_cnt1;	/* Auto Rate Fallback Retry cnt */
 	u32 backup_arfr_cnt2;	/* Auto Rate Fallback Retry cnt */
-	u16 backup_retrylimit;
+	u16 backup_retry_limit;
 	u8 backup_ampdu_maxtime;
 
 	/* algorithm related */
@@ -125,18 +125,18 @@ struct coex_dm_8192e_2ant {
 	u8 bt_status;
 	u8 wifi_chnl_info[3];
 
-	u8 pre_sstype;
-	u8 cur_sstype;
+	u8 pre_ss_type;
+	u8 cur_ss_type;
 
-	u32 prera_mask;
-	u32 curra_mask;
-	u8 curra_masktype;
-	u8 pre_arfrtype;
-	u8 cur_arfrtype;
-	u8 pre_retrylimit_type;
-	u8 cur_retrylimit_type;
-	u8 pre_ampdutime_type;
-	u8 cur_ampdutime_type;
+	u32 pre_ra_mask;
+	u32 cur_ra_mask;
+	u8 cur_ra_mask_type;
+	u8 pre_arfr_type;
+	u8 cur_arfr_type;
+	u8 pre_retry_limit_type;
+	u8 cur_retry_limit_type;
+	u8 pre_ampdu_time_type;
+	u8 cur_ampdu_time_type;
 };
 
 struct coex_sta_8192e_2ant {

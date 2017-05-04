@@ -283,6 +283,8 @@ bool unwind_next_frame(struct unwind_state *state)
 	return true;
 
 bad_address:
+	state->error = true;
+
 	/*
 	 * When unwinding a non-current task, the task might actually be
 	 * running on another CPU, in which case it could be modifying its

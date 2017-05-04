@@ -641,6 +641,8 @@ struct lbtf_private *lbtf_add_card(void *card, struct device *dmdev)
 		BIT(NL80211_IFTYPE_ADHOC);
 	skb_queue_head_init(&priv->bc_ps_buf);
 
+	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
+
 	SET_IEEE80211_DEV(hw, dmdev);
 
 	INIT_WORK(&priv->cmd_work, lbtf_cmd_work);

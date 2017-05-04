@@ -17,6 +17,7 @@
 #include <linux/mmc/core.h>
 #include <linux/mmc/card.h>
 #include <linux/mmc/pm.h>
+#include <linux/dma-direction.h>
 
 struct mmc_ios {
 	unsigned int	clock;			/* clock rate */
@@ -497,6 +498,11 @@ static inline void mmc_retune_needed(struct mmc_host *host)
 static inline bool mmc_can_retune(struct mmc_host *host)
 {
 	return host->can_retune == 1;
+}
+
+static inline enum dma_data_direction mmc_get_dma_dir(struct mmc_data *data)
+{
+	return data->flags & MMC_DATA_WRITE ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
 }
 
 int mmc_send_tuning(struct mmc_host *host, u32 opcode, int *cmd_error);

@@ -50,9 +50,20 @@ struct key;
 struct key_type;
 union key_payload;
 
-extern int restrict_link_by_signature(struct key *trust_keyring,
+extern int restrict_link_by_signature(struct key *dest_keyring,
 				      const struct key_type *type,
-				      const union key_payload *payload);
+				      const union key_payload *payload,
+				      struct key *trust_keyring);
+
+extern int restrict_link_by_key_or_keyring(struct key *dest_keyring,
+					   const struct key_type *type,
+					   const union key_payload *payload,
+					   struct key *trusted);
+
+extern int restrict_link_by_key_or_keyring_chain(struct key *trust_keyring,
+						 const struct key_type *type,
+						 const union key_payload *payload,
+						 struct key *trusted);
 
 extern int verify_signature(const struct key *key,
 			    const struct public_key_signature *sig);

@@ -83,6 +83,8 @@ static cpumask_t cpu_thread_map(unsigned int cpu)
 	return mask;
 }
 
+#define TOPOLOGY_CORE_BITS	64
+
 static void add_cpus_to_mask(struct topology_core *tl_core,
 			     struct mask_info *drawer,
 			     struct mask_info *book,
@@ -91,7 +93,7 @@ static void add_cpus_to_mask(struct topology_core *tl_core,
 	struct cpu_topology_s390 *topo;
 	unsigned int core;
 
-	for_each_set_bit(core, &tl_core->mask[0], TOPOLOGY_CORE_BITS) {
+	for_each_set_bit(core, &tl_core->mask, TOPOLOGY_CORE_BITS) {
 		unsigned int rcore;
 		int lcpu, i;
 
@@ -244,7 +246,7 @@ static void update_cpu_masks(void)
 
 void store_topology(struct sysinfo_15_1_x *info)
 {
-	stsi(info, 15, 1, min(topology_max_mnest, 4));
+	stsi(info, 15, 1, topology_mnest_limit());
 }
 
 static int __arch_update_cpu_topology(void)

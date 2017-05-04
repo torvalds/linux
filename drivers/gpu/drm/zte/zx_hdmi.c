@@ -50,7 +50,6 @@ struct zx_hdmi {
 	struct clk *xclk;
 	bool sink_is_hdmi;
 	bool sink_has_audio;
-	const struct vou_inf *inf;
 	struct platform_device *audio_pdev;
 };
 

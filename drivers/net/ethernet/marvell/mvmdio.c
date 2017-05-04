@@ -53,7 +53,7 @@
 struct orion_mdio_dev {
 	struct mutex lock;
 	void __iomem *regs;
-	struct clk *clk;
+	struct clk *clk[3];
 	/*
 	 * If we have access to the error interrupt pin (which is
 	 * somewhat misnamed as it not only reflects internal errors
@@ -187,7 +187,7 @@ static int orion_mdio_probe(struct platform_device *pdev)
 	struct resource *r;
 	struct mii_bus *bus;
 	struct orion_mdio_dev *dev;
-	int ret;
+	int i, ret;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
@@ -216,11 +216,20 @@ static int orion_mdio_probe(struct platform_device *pdev)
 
 	init_waitqueue_head(&dev->smi_busy_wait);
 
-	dev->clk = devm_clk_get(&pdev->dev, NULL);
-	if (!IS_ERR(dev->clk))
-		clk_prepare_enable(dev->clk);
+	for (i = 0; i < ARRAY_SIZE(dev->clk); i++) {
+		dev->clk[i] = of_clk_get(pdev->dev.of_node, i);
+		if (IS_ERR(dev->clk[i]))
+			break;
+		clk_prepare_enable(dev->clk[i]);
+	}
 
 	dev->err_interrupt = platform_get_irq(pdev, 0);
+	if (dev->err_interrupt > 0 &&
+	    resource_size(r) < MVMDIO_ERR_INT_MASK + 4) {
+		dev_err(&pdev->dev,
+			"disabling interrupt, resource size is too small\n");
+		dev->err_interrupt = 0;
+	}
 	if (dev->err_interrupt > 0) {
 		ret = devm_request_irq(&pdev->dev, dev->err_interrupt,
 					orion_mdio_err_irq,
@@ -251,8 +260,16 @@ static int orion_mdio_probe(struct platform_device *pdev)
 	return 0;
 
 out_mdio:
-	if (!IS_ERR(dev->clk))
-		clk_disable_unprepare(dev->clk);
+	if (dev->err_interrupt > 0)
+		writel(0, dev->regs + MVMDIO_ERR_INT_MASK);
+
+	for (i = 0; i < ARRAY_SIZE(dev->clk); i++) {
+		if (IS_ERR(dev->clk[i]))
+			break;
+		clk_disable_unprepare(dev->clk[i]);
+		clk_put(dev->clk[i]);
+	}
+
 	return ret;
 }
 
@@ -260,11 +277,18 @@ static int orion_mdio_remove(struct platform_device *pdev)
 {
 	struct mii_bus *bus = platform_get_drvdata(pdev);
 	struct orion_mdio_dev *dev = bus->priv;
+	int i;
 
-	writel(0, dev->regs + MVMDIO_ERR_INT_MASK);
+	if (dev->err_interrupt > 0)
+		writel(0, dev->regs + MVMDIO_ERR_INT_MASK);
 	mdiobus_unregister(bus);
-	if (!IS_ERR(dev->clk))
-		clk_disable_unprepare(dev->clk);
+
+	for (i = 0; i < ARRAY_SIZE(dev->clk); i++) {
+		if (IS_ERR(dev->clk[i]))
+			break;
+		clk_disable_unprepare(dev->clk[i]);
+		clk_put(dev->clk[i]);
+	}
 
 	return 0;
 }

@@ -96,31 +96,23 @@ static int PROTOCOL_OVERRIDE = -1;
 
 static s32 vmci_transport_error_to_vsock_error(s32 vmci_error)
 {
-	int err;
-
 	switch (vmci_error) {
 	case VMCI_ERROR_NO_MEM:
-		err = ENOMEM;
-		break;
+		return -ENOMEM;
 	case VMCI_ERROR_DUPLICATE_ENTRY:
 	case VMCI_ERROR_ALREADY_EXISTS:
-		err = EADDRINUSE;
-		break;
+		return -EADDRINUSE;
 	case VMCI_ERROR_NO_ACCESS:
-		err = EPERM;
-		break;
+		return -EPERM;
 	case VMCI_ERROR_NO_RESOURCES:
-		err = ENOBUFS;
-		break;
+		return -ENOBUFS;
 	case VMCI_ERROR_INVALID_RESOURCE:
-		err = EHOSTUNREACH;
-		break;
+		return -EHOSTUNREACH;
 	case VMCI_ERROR_INVALID_ARGS:
 	default:
-		err = EINVAL;
+		break;
 	}
-
-	return err > 0 ? -err : err;
+	return -EINVAL;
 }
 
 static u32 vmci_transport_peer_rid(u32 peer_cid)

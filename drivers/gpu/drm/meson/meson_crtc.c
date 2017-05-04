@@ -33,6 +33,7 @@
 
 #include "meson_crtc.h"
 #include "meson_plane.h"
+#include "meson_venc.h"
 #include "meson_vpp.h"
 #include "meson_viu.h"
 #include "meson_registers.h"
@@ -48,6 +49,24 @@ struct meson_crtc {
 
 /* CRTC */
 
+static int meson_crtc_enable_vblank(struct drm_crtc *crtc)
+{
+	struct meson_crtc *meson_crtc = to_meson_crtc(crtc);
+	struct meson_drm *priv = meson_crtc->priv;
+
+	meson_venc_enable_vsync(priv);
+
+	return 0;
+}
+
+static void meson_crtc_disable_vblank(struct drm_crtc *crtc)
+{
+	struct meson_crtc *meson_crtc = to_meson_crtc(crtc);
+	struct meson_drm *priv = meson_crtc->priv;
+
+	meson_venc_disable_vsync(priv);
+}
+
 static const struct drm_crtc_funcs meson_crtc_funcs = {
 	.atomic_destroy_state	= drm_atomic_helper_crtc_destroy_state,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
@@ -55,16 +74,26 @@ static const struct drm_crtc_funcs meson_crtc_funcs = {
 	.page_flip		= drm_atomic_helper_page_flip,
 	.reset			= drm_atomic_helper_crtc_reset,
 	.set_config             = drm_atomic_helper_set_config,
+	.enable_vblank		= meson_crtc_enable_vblank,
+	.disable_vblank		= meson_crtc_disable_vblank,
+
 };
 
 static void meson_crtc_enable(struct drm_crtc *crtc)
 {
 	struct meson_crtc *meson_crtc = to_meson_crtc(crtc);
-	struct drm_plane *plane = meson_crtc->priv->primary_plane;
+	struct drm_crtc_state *crtc_state = crtc->state;
 	struct meson_drm *priv = meson_crtc->priv;
 
+	DRM_DEBUG_DRIVER("\n");
+
+	if (!crtc_state) {
+		DRM_ERROR("Invalid crtc_state\n");
+		return;
+	}
+
 	/* Enable VPP Postblend */
-	writel(plane->state->crtc_w,
+	writel(crtc_state->mode.hdisplay,
 	       priv->io_base + _REG(VPP_POSTBLEND_H_SIZE));
 
 	writel_bits_relaxed(VPP_POSTBLEND_ENABLE, VPP_POSTBLEND_ENABLE,
@@ -79,6 +108,7 @@ static void meson_crtc_disable(struct drm_crtc *crtc)
 	struct meson_drm *priv = meson_crtc->priv;
 
 	priv->viu.osd1_enabled = false;
+	priv->viu.osd1_commit = false;
 
 	/* Disable VPP Postblend */
 	writel_bits_relaxed(VPP_POSTBLEND_ENABLE, 0,
@@ -115,8 +145,7 @@ static void meson_crtc_atomic_flush(struct drm_crtc *crtc,
 	struct meson_crtc *meson_crtc = to_meson_crtc(crtc);
 	struct meson_drm *priv = meson_crtc->priv;
 
-	if (priv->viu.osd1_enabled)
-		priv->viu.osd1_commit = true;
+	priv->viu.osd1_commit = true;
 }
 
 static const struct drm_crtc_helper_funcs meson_crtc_helper_funcs = {

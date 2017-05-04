@@ -28,7 +28,6 @@ struct mdp5_hw_pipe {
 	const char *name;
 	enum mdp5_pipe pipe;
 
-	spinlock_t pipe_lock;     /* protect REG_MDP5_PIPE_* registers */
 	uint32_t reg_offset;
 	uint32_t caps;
 

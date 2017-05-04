@@ -119,7 +119,8 @@ static struct nfc_dev *__get_device_from_cb(struct netlink_callback *cb)
 	u32 idx;
 
 	rc = nlmsg_parse(cb->nlh, GENL_HDRLEN + nfc_genl_family.hdrsize,
-			 attrbuf, nfc_genl_family.maxattr, nfc_genl_policy);
+			 attrbuf, nfc_genl_family.maxattr, nfc_genl_policy,
+			 NULL);
 	if (rc < 0)
 		return ERR_PTR(rc);
 
@@ -303,6 +304,17 @@ free_msg:
 	return -EMSGSIZE;
 }
 
+static int nfc_genl_setup_device_added(struct nfc_dev *dev, struct sk_buff *msg)
+{
+	if (nla_put_string(msg, NFC_ATTR_DEVICE_NAME, nfc_device_name(dev)) ||
+	    nla_put_u32(msg, NFC_ATTR_DEVICE_INDEX, dev->idx) ||
+	    nla_put_u32(msg, NFC_ATTR_PROTOCOLS, dev->supported_protocols) ||
+	    nla_put_u8(msg, NFC_ATTR_DEVICE_POWERED, dev->dev_up) ||
+	    nla_put_u8(msg, NFC_ATTR_RF_MODE, dev->rf_mode))
+		return -1;
+	return 0;
+}
+
 int nfc_genl_device_added(struct nfc_dev *dev)
 {
 	struct sk_buff *msg;
@@ -317,10 +329,7 @@ int nfc_genl_device_added(struct nfc_dev *dev)
 	if (!hdr)
 		goto free_msg;
 
-	if (nla_put_string(msg, NFC_ATTR_DEVICE_NAME, nfc_device_name(dev)) ||
-	    nla_put_u32(msg, NFC_ATTR_DEVICE_INDEX, dev->idx) ||
-	    nla_put_u32(msg, NFC_ATTR_PROTOCOLS, dev->supported_protocols) ||
-	    nla_put_u8(msg, NFC_ATTR_DEVICE_POWERED, dev->dev_up))
+	if (nfc_genl_setup_device_added(dev, msg))
 		goto nla_put_failure;
 
 	genlmsg_end(msg, hdr);
@@ -596,11 +605,7 @@ static int nfc_genl_send_device(struct sk_buff *msg, struct nfc_dev *dev,
 	if (cb)
 		genl_dump_check_consistent(cb, hdr, &nfc_genl_family);
 
-	if (nla_put_string(msg, NFC_ATTR_DEVICE_NAME, nfc_device_name(dev)) ||
-	    nla_put_u32(msg, NFC_ATTR_DEVICE_INDEX, dev->idx) ||
-	    nla_put_u32(msg, NFC_ATTR_PROTOCOLS, dev->supported_protocols) ||
-	    nla_put_u8(msg, NFC_ATTR_DEVICE_POWERED, dev->dev_up) ||
-	    nla_put_u8(msg, NFC_ATTR_RF_MODE, dev->rf_mode))
+	if (nfc_genl_setup_device_added(dev, msg))
 		goto nla_put_failure;
 
 	genlmsg_end(msg, hdr);
@@ -918,7 +923,7 @@ static int nfc_genl_activate_target(struct sk_buff *skb, struct genl_info *info)
 	rc = nfc_activate_target(dev, target_idx, protocol);
 
 	nfc_put_device(dev);
-	return 0;
+	return rc;
 }
 
 static int nfc_genl_dep_link_up(struct sk_buff *skb, struct genl_info *info)
@@ -1161,7 +1166,7 @@ static int nfc_genl_llc_sdreq(struct sk_buff *skb, struct genl_info *info)
 
 	nla_for_each_nested(attr, info->attrs[NFC_ATTR_LLC_SDP], rem) {
 		rc = nla_parse_nested(sdp_attrs, NFC_SDP_ATTR_MAX, attr,
-				      nfc_sdp_genl_policy);
+				      nfc_sdp_genl_policy, info->extack);
 
 		if (rc != 0) {
 			rc = -EINVAL;

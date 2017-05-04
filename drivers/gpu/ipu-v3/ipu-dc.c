@@ -112,8 +112,6 @@ struct ipu_dc_priv {
 	struct ipu_dc		channels[IPU_DC_NUM_CHANNELS];
 	struct mutex		mutex;
 	struct completion	comp;
-	int			dc_irq;
-	int			dp_irq;
 	int			use_count;
 };
 
@@ -262,47 +260,13 @@ void ipu_dc_enable_channel(struct ipu_dc *dc)
 }
 EXPORT_SYMBOL_GPL(ipu_dc_enable_channel);
 
-static irqreturn_t dc_irq_handler(int irq, void *dev_id)
-{
-	struct ipu_dc *dc = dev_id;
-	u32 reg;
-
-	reg = readl(dc->base + DC_WR_CH_CONF);
-	reg &= ~DC_WR_CH_CONF_PROG_TYPE_MASK;
-	writel(reg, dc->base + DC_WR_CH_CONF);
-
-	/* The Freescale BSP kernel clears DIx_COUNTER_RELEASE here */
-
-	complete(&dc->priv->comp);
-	return IRQ_HANDLED;
-}
-
 void ipu_dc_disable_channel(struct ipu_dc *dc)
 {
-	struct ipu_dc_priv *priv = dc->priv;
-	int irq;
-	unsigned long ret;
 	u32 val;
 
-	/* TODO: Handle MEM_FG_SYNC differently from MEM_BG_SYNC */
-	if (dc->chno == 1)
-		irq = priv->dc_irq;
-	else if (dc->chno == 5)
-		irq = priv->dp_irq;
-	else
-		return;
-
-	init_completion(&priv->comp);
-	enable_irq(irq);
-	ret = wait_for_completion_timeout(&priv->comp, msecs_to_jiffies(50));
-	disable_irq(irq);
-	if (ret == 0) {
-		dev_warn(priv->dev, "DC stop timeout after 50 ms\n");
-
-		val = readl(dc->base + DC_WR_CH_CONF);
-		val &= ~DC_WR_CH_CONF_PROG_TYPE_MASK;
-		writel(val, dc->base + DC_WR_CH_CONF);
-	}
+	val = readl(dc->base + DC_WR_CH_CONF);
+	val &= ~DC_WR_CH_CONF_PROG_TYPE_MASK;
+	writel(val, dc->base + DC_WR_CH_CONF);
 }
 EXPORT_SYMBOL_GPL(ipu_dc_disable_channel);
 
@@ -389,7 +353,7 @@ int ipu_dc_init(struct ipu_soc *ipu, struct device *dev,
 	struct ipu_dc_priv *priv;
 	static int channel_offsets[] = { 0, 0x1c, 0x38, 0x54, 0x58, 0x5c,
 		0x78, 0, 0x94, 0xb4};
-	int i, ret;
+	int i;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -409,23 +373,6 @@ int ipu_dc_init(struct ipu_soc *ipu, struct device *dev,
 		priv->channels[i].priv = priv;
 		priv->channels[i].base = priv->dc_reg + channel_offsets[i];
 	}
-
-	priv->dc_irq = ipu_map_irq(ipu, IPU_IRQ_DC_FC_1);
-	if (!priv->dc_irq)
-		return -EINVAL;
-	ret = devm_request_irq(dev, priv->dc_irq, dc_irq_handler, 0, NULL,
-			       &priv->channels[1]);
-	if (ret < 0)
-		return ret;
-	disable_irq(priv->dc_irq);
-	priv->dp_irq = ipu_map_irq(ipu, IPU_IRQ_DP_SF_END);
-	if (!priv->dp_irq)
-		return -EINVAL;
-	ret = devm_request_irq(dev, priv->dp_irq, dc_irq_handler, 0, NULL,
-			       &priv->channels[5]);
-	if (ret < 0)
-		return ret;
-	disable_irq(priv->dp_irq);
 
 	writel(DC_WR_CH_CONF_WORD_SIZE_24 | DC_WR_CH_CONF_DISP_ID_PARALLEL(1) |
 			DC_WR_CH_CONF_PROG_DI_ID,

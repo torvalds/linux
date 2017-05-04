@@ -33,7 +33,6 @@ static unsigned int help(struct sk_buff *skb,
 {
 	char buffer[sizeof("65535")];
 	u_int16_t port;
-	unsigned int ret;
 
 	/* Connection comes from client. */
 	exp->saved_proto.tcp.port = exp->tuple.dst.u.tcp.port;
@@ -63,14 +62,14 @@ static unsigned int help(struct sk_buff *skb,
 	}
 
 	sprintf(buffer, "%u", port);
-	ret = nf_nat_mangle_udp_packet(skb, exp->master, ctinfo,
-				       protoff, matchoff, matchlen,
-				       buffer, strlen(buffer));
-	if (ret != NF_ACCEPT) {
+	if (!nf_nat_mangle_udp_packet(skb, exp->master, ctinfo,
+				      protoff, matchoff, matchlen,
+				      buffer, strlen(buffer))) {
 		nf_ct_helper_log(skb, exp->master, "cannot mangle packet");
 		nf_ct_unexpect_related(exp);
+		return NF_DROP;
 	}
-	return ret;
+	return NF_ACCEPT;
 }
 
 static void __exit nf_nat_amanda_fini(void)

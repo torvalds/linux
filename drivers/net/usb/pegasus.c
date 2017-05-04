@@ -501,13 +501,13 @@ static void read_bulk_callback(struct urb *urb)
 	if (rx_status & 0x1e) {
 		netif_dbg(pegasus, rx_err, net,
 			  "RX packet error %x\n", rx_status);
-		pegasus->stats.rx_errors++;
+		net->stats.rx_errors++;
 		if (rx_status & 0x06)	/* long or runt	*/
-			pegasus->stats.rx_length_errors++;
+			net->stats.rx_length_errors++;
 		if (rx_status & 0x08)
-			pegasus->stats.rx_crc_errors++;
+			net->stats.rx_crc_errors++;
 		if (rx_status & 0x10)	/* extra bits	*/
-			pegasus->stats.rx_frame_errors++;
+			net->stats.rx_frame_errors++;
 		goto goon;
 	}
 	if (pegasus->chip == 0x8513) {
@@ -535,8 +535,8 @@ static void read_bulk_callback(struct urb *urb)
 	skb_put(pegasus->rx_skb, pkt_len);
 	pegasus->rx_skb->protocol = eth_type_trans(pegasus->rx_skb, net);
 	netif_rx(pegasus->rx_skb);
-	pegasus->stats.rx_packets++;
-	pegasus->stats.rx_bytes += pkt_len;
+	net->stats.rx_packets++;
+	net->stats.rx_bytes += pkt_len;
 
 	if (pegasus->flags & PEGASUS_UNPLUG)
 		return;
@@ -670,13 +670,13 @@ static void intr_callback(struct urb *urb)
 		/* byte 0 == tx_status1, reg 2B */
 		if (d[0] & (TX_UNDERRUN|EXCESSIVE_COL
 					|LATE_COL|JABBER_TIMEOUT)) {
-			pegasus->stats.tx_errors++;
+			net->stats.tx_errors++;
 			if (d[0] & TX_UNDERRUN)
-				pegasus->stats.tx_fifo_errors++;
+				net->stats.tx_fifo_errors++;
 			if (d[0] & (EXCESSIVE_COL | JABBER_TIMEOUT))
-				pegasus->stats.tx_aborted_errors++;
+				net->stats.tx_aborted_errors++;
 			if (d[0] & LATE_COL)
-				pegasus->stats.tx_window_errors++;
+				net->stats.tx_window_errors++;
 		}
 
 		/* d[5].LINK_STATUS lies on some adapters.
@@ -685,7 +685,7 @@ static void intr_callback(struct urb *urb)
 		 */
 
 		/* bytes 3-4 == rx_lostpkt, reg 2E/2F */
-		pegasus->stats.rx_missed_errors += ((d[3] & 0x7f) << 8) | d[4];
+		net->stats.rx_missed_errors += ((d[3] & 0x7f) << 8) | d[4];
 	}
 
 	res = usb_submit_urb(urb, GFP_ATOMIC);
@@ -701,7 +701,7 @@ static void pegasus_tx_timeout(struct net_device *net)
 	pegasus_t *pegasus = netdev_priv(net);
 	netif_warn(pegasus, timer, net, "tx timeout\n");
 	usb_unlink_urb(pegasus->tx_urb);
-	pegasus->stats.tx_errors++;
+	net->stats.tx_errors++;
 }
 
 static netdev_tx_t pegasus_start_xmit(struct sk_buff *skb,
@@ -731,21 +731,16 @@ static netdev_tx_t pegasus_start_xmit(struct sk_buff *skb,
 			netif_device_detach(pegasus->net);
 			break;
 		default:
-			pegasus->stats.tx_errors++;
+			net->stats.tx_errors++;
 			netif_start_queue(net);
 		}
 	} else {
-		pegasus->stats.tx_packets++;
-		pegasus->stats.tx_bytes += skb->len;
+		net->stats.tx_packets++;
+		net->stats.tx_bytes += skb->len;
 	}
 	dev_kfree_skb(skb);
 
 	return NETDEV_TX_OK;
-}
-
-static struct net_device_stats *pegasus_netdev_stats(struct net_device *dev)
-{
-	return &((pegasus_t *) netdev_priv(dev))->stats;
 }
 
 static inline void disable_net_traffic(pegasus_t *pegasus)
@@ -953,20 +948,22 @@ static inline void pegasus_reset_wol(struct net_device *dev)
 }
 
 static int
-pegasus_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
+pegasus_get_link_ksettings(struct net_device *dev,
+			   struct ethtool_link_ksettings *ecmd)
 {
 	pegasus_t *pegasus;
 
 	pegasus = netdev_priv(dev);
-	mii_ethtool_gset(&pegasus->mii, ecmd);
+	mii_ethtool_get_link_ksettings(&pegasus->mii, ecmd);
 	return 0;
 }
 
 static int
-pegasus_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
+pegasus_set_link_ksettings(struct net_device *dev,
+			   const struct ethtool_link_ksettings *ecmd)
 {
 	pegasus_t *pegasus = netdev_priv(dev);
-	return mii_ethtool_sset(&pegasus->mii, ecmd);
+	return mii_ethtool_set_link_ksettings(&pegasus->mii, ecmd);
 }
 
 static int pegasus_nway_reset(struct net_device *dev)
@@ -995,14 +992,14 @@ static void pegasus_set_msglevel(struct net_device *dev, u32 v)
 
 static const struct ethtool_ops ops = {
 	.get_drvinfo = pegasus_get_drvinfo,
-	.get_settings = pegasus_get_settings,
-	.set_settings = pegasus_set_settings,
 	.nway_reset = pegasus_nway_reset,
 	.get_link = pegasus_get_link,
 	.get_msglevel = pegasus_get_msglevel,
 	.set_msglevel = pegasus_set_msglevel,
 	.get_wol = pegasus_get_wol,
 	.set_wol = pegasus_set_wol,
+	.get_link_ksettings = pegasus_get_link_ksettings,
+	.set_link_ksettings = pegasus_set_link_ksettings,
 };
 
 static int pegasus_ioctl(struct net_device *net, struct ifreq *rq, int cmd)
@@ -1292,7 +1289,6 @@ static const struct net_device_ops pegasus_netdev_ops = {
 	.ndo_do_ioctl =			pegasus_ioctl,
 	.ndo_start_xmit =		pegasus_start_xmit,
 	.ndo_set_rx_mode =		pegasus_set_multicast,
-	.ndo_get_stats =		pegasus_netdev_stats,
 	.ndo_tx_timeout =		pegasus_tx_timeout,
 	.ndo_set_mac_address =		eth_mac_addr,
 	.ndo_validate_addr =		eth_validate_addr,

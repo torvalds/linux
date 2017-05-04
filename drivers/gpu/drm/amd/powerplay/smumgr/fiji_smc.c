@@ -1721,6 +1721,73 @@ static int fiji_init_arb_table_index(struct pp_smumgr *smumgr)
 			smu_data->smu7_data.arb_table_start,  tmp, SMC_RAM_END);
 }
 
+static int fiji_save_default_power_profile(struct pp_hwmgr *hwmgr)
+{
+	struct fiji_smumgr *data = (struct fiji_smumgr *)(hwmgr->smumgr->backend);
+	struct SMU73_Discrete_GraphicsLevel *levels =
+				data->smc_state_table.GraphicsLevel;
+	unsigned min_level = 1;
+
+	hwmgr->default_gfx_power_profile.activity_threshold =
+			be16_to_cpu(levels[0].ActivityLevel);
+	hwmgr->default_gfx_power_profile.up_hyst = levels[0].UpHyst;
+	hwmgr->default_gfx_power_profile.down_hyst = levels[0].DownHyst;
+	hwmgr->default_gfx_power_profile.type = AMD_PP_GFX_PROFILE;
+
+	hwmgr->default_compute_power_profile = hwmgr->default_gfx_power_profile;
+	hwmgr->default_compute_power_profile.type = AMD_PP_COMPUTE_PROFILE;
+
+	/* Workaround compute SDMA instability: disable lowest SCLK
+	 * DPM level. Optimize compute power profile: Use only highest
+	 * 2 power levels (if more than 2 are available), Hysteresis:
+	 * 0ms up, 5ms down
+	 */
+	if (data->smc_state_table.GraphicsDpmLevelCount > 2)
+		min_level = data->smc_state_table.GraphicsDpmLevelCount - 2;
+	else if (data->smc_state_table.GraphicsDpmLevelCount == 2)
+		min_level = 1;
+	else
+		min_level = 0;
+	hwmgr->default_compute_power_profile.min_sclk =
+			be32_to_cpu(levels[min_level].SclkFrequency);
+	hwmgr->default_compute_power_profile.up_hyst = 0;
+	hwmgr->default_compute_power_profile.down_hyst = 5;
+
+	hwmgr->gfx_power_profile = hwmgr->default_gfx_power_profile;
+	hwmgr->compute_power_profile = hwmgr->default_compute_power_profile;
+
+	return 0;
+}
+
+static int fiji_setup_dpm_led_config(struct pp_hwmgr *hwmgr)
+{
+	pp_atomctrl_voltage_table param_led_dpm;
+	int result = 0;
+	u32 mask = 0;
+
+	result = atomctrl_get_voltage_table_v3(hwmgr,
+					       VOLTAGE_TYPE_LEDDPM, VOLTAGE_OBJ_GPIO_LUT,
+					       &param_led_dpm);
+	if (result == 0) {
+		int i, j;
+		u32 tmp = param_led_dpm.mask_low;
+
+		for (i = 0, j = 0; i < 32; i++) {
+			if (tmp & 1) {
+				mask |= (i << (8 * j));
+				if (++j >= 3)
+					break;
+			}
+			tmp >>= 1;
+		}
+	}
+	if (mask)
+		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+						    PPSMC_MSG_LedConfig,
+						    mask);
+	return 0;
+}
+
 /**
 * Initializes the SMC table and uploads it
 *
@@ -1934,6 +2001,13 @@ int fiji_init_smc_table(struct pp_hwmgr *hwmgr)
 	result = fiji_populate_pm_fuses(hwmgr);
 	PP_ASSERT_WITH_CODE(0 == result,
 			"Failed to  populate PM fuses to SMC memory!", return result);
+
+	result = fiji_setup_dpm_led_config(hwmgr);
+	PP_ASSERT_WITH_CODE(0 == result,
+			    "Failed to setup dpm led config", return result);
+
+	fiji_save_default_power_profile(hwmgr);
+
 	return 0;
 }
 
@@ -2131,7 +2205,7 @@ uint32_t fiji_get_offsetof(uint32_t type, uint32_t member)
 			return offsetof(SMU73_Discrete_DpmTable, LowSclkInterruptThreshold);
 		}
 	}
-	pr_warning("can't get the offset of type %x member %x\n", type, member);
+	pr_warn("can't get the offset of type %x member %x\n", type, member);
 	return 0;
 }
 
@@ -2156,7 +2230,7 @@ uint32_t fiji_get_mac_definition(uint32_t value)
 		return SMU73_MAX_LEVELS_MVDD;
 	}
 
-	pr_warning("can't get the mac of %x\n", value);
+	pr_warn("can't get the mac of %x\n", value);
 	return 0;
 }
 
@@ -2377,4 +2451,29 @@ bool fiji_is_dpm_running(struct pp_hwmgr *hwmgr)
 	return (1 == PHM_READ_INDIRECT_FIELD(hwmgr->device,
 			CGS_IND_REG__SMC, FEATURE_STATUS, VOLTAGE_CONTROLLER_ON))
 			? true : false;
+}
+
+int fiji_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
+		struct amd_pp_profile *request)
+{
+	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)
+			(hwmgr->smumgr->backend);
+	struct SMU73_Discrete_GraphicsLevel *levels =
+			smu_data->smc_state_table.GraphicsLevel;
+	uint32_t array = smu_data->smu7_data.dpm_table_start +
+			offsetof(SMU73_Discrete_DpmTable, GraphicsLevel);
+	uint32_t array_size = sizeof(struct SMU73_Discrete_GraphicsLevel) *
+			SMU73_MAX_LEVELS_GRAPHICS;
+	uint32_t i;
+
+	for (i = 0; i < smu_data->smc_state_table.GraphicsDpmLevelCount; i++) {
+		levels[i].ActivityLevel =
+				cpu_to_be16(request->activity_threshold);
+		levels[i].EnabledForActivity = 1;
+		levels[i].UpHyst = request->up_hyst;
+		levels[i].DownHyst = request->down_hyst;
+	}
+
+	return smu7_copy_bytes_to_smc(hwmgr->smumgr, array, (uint8_t *)levels,
+				array_size, SMC_RAM_END);
 }

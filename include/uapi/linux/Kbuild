@@ -477,6 +477,7 @@ header-y += virtio_types.h
 header-y += virtio_vsock.h
 header-y += virtio_crypto.h
 header-y += vm_sockets.h
+header-y += vsockmon.h
 header-y += vt.h
 header-y += vtpm_proxy.h
 header-y += wait.h

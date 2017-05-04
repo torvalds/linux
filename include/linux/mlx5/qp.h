@@ -295,6 +295,16 @@ struct mlx5_av {
 	u8	rgid[16];
 };
 
+struct mlx5_ib_ah {
+	struct ib_ah		ibah;
+	struct mlx5_av		av;
+};
+
+static inline struct mlx5_ib_ah *to_mah(struct ib_ah *ibah)
+{
+	return container_of(ibah, struct mlx5_ib_ah, ibah);
+}
+
 struct mlx5_wqe_datagram_seg {
 	struct mlx5_av	av;
 };

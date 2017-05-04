@@ -57,7 +57,7 @@ static int check_parent(struct ib_umem_odp *odp,
 {
 	struct mlx5_ib_mr *mr = odp->private;
 
-	return mr && mr->parent == parent;
+	return mr && mr->parent == parent && !odp->dying;
 }
 
 static struct ib_umem_odp *odp_next(struct ib_umem_odp *odp)
@@ -158,13 +158,6 @@ static void mr_leaf_free_action(struct work_struct *work)
 	mr->parent = NULL;
 	synchronize_srcu(&mr->dev->mr_srcu);
 
-	if (!READ_ONCE(odp->dying)) {
-		mr->parent = imr;
-		if (atomic_dec_and_test(&imr->num_leaf_free))
-			wake_up(&imr->q_leaf_free);
-		return;
-	}
-
 	ib_umem_release(odp->umem);
 	if (imr->live)
 		mlx5_ib_update_xlt(imr, idx, 1, 0,
@@ -206,8 +199,8 @@ void mlx5_ib_invalidate_range(struct ib_umem *umem, unsigned long start,
 	 * but they will write 0s as well, so no difference in the end result.
 	 */
 
-	for (addr = start; addr < end; addr += (u64)umem->page_size) {
-		idx = (addr - ib_umem_start(umem)) / PAGE_SIZE;
+	for (addr = start; addr < end; addr += BIT(umem->page_shift)) {
+		idx = (addr - ib_umem_start(umem)) >> umem->page_shift;
 		/*
 		 * Strive to write the MTTs in chunks, but avoid overwriting
 		 * non-existing MTTs. The huristic here can be improved to
@@ -225,8 +218,7 @@ void mlx5_ib_invalidate_range(struct ib_umem *umem, unsigned long start,
 
 			if (in_block && umr_offset == 0) {
 				mlx5_ib_update_xlt(mr, blk_start_idx,
-						   idx - blk_start_idx,
-						   PAGE_SHIFT,
+						   idx - blk_start_idx, 0,
 						   MLX5_IB_UPD_XLT_ZAP |
 						   MLX5_IB_UPD_XLT_ATOMIC);
 				in_block = 0;
@@ -235,8 +227,7 @@ void mlx5_ib_invalidate_range(struct ib_umem *umem, unsigned long start,
 	}
 	if (in_block)
 		mlx5_ib_update_xlt(mr, blk_start_idx,
-				   idx - blk_start_idx + 1,
-				   PAGE_SHIFT,
+				   idx - blk_start_idx + 1, 0,
 				   MLX5_IB_UPD_XLT_ZAP |
 				   MLX5_IB_UPD_XLT_ATOMIC);
 	/*
@@ -295,24 +286,6 @@ void mlx5_ib_internal_fill_odp_caps(struct mlx5_ib_dev *dev)
 		caps->general_caps |= IB_ODP_SUPPORT_IMPLICIT;
 
 	return;
-}
-
-static struct mlx5_ib_mr *mlx5_ib_odp_find_mr_lkey(struct mlx5_ib_dev *dev,
-						   u32 key)
-{
-	u32 base_key = mlx5_base_mkey(key);
-	struct mlx5_core_mkey *mmkey = __mlx5_mr_lookup(dev->mdev, base_key);
-	struct mlx5_ib_mr *mr;
-
-	if (!mmkey || mmkey->key != key || mmkey->type != MLX5_MKEY_MR)
-		return NULL;
-
-	mr = container_of(mmkey, struct mlx5_ib_mr, mmkey);
-
-	if (!mr->live)
-		return NULL;
-
-	return container_of(mmkey, struct mlx5_ib_mr, mmkey);
 }
 
 static void mlx5_ib_page_fault_resume(struct mlx5_ib_dev *dev,
@@ -436,8 +409,6 @@ next_mr:
 		nentries++;
 	}
 
-	odp->dying = 0;
-
 	/* Return first odp if region not covered by single one */
 	if (likely(!result))
 		result = odp;
@@ -522,77 +493,38 @@ void mlx5_ib_free_implicit_mr(struct mlx5_ib_mr *imr)
 	wait_event(imr->q_leaf_free, !atomic_read(&imr->num_leaf_free));
 }
 
-/*
- * Handle a single data segment in a page-fault WQE or RDMA region.
- *
- * Returns number of pages retrieved on success. The caller may continue to
- * the next data segment.
- * Can return the following error codes:
- * -EAGAIN to designate a temporary error. The caller will abort handling the
- *  page fault and resolve it.
- * -EFAULT when there's an error mapping the requested pages. The caller will
- *  abort the page fault handling.
- */
-static int pagefault_single_data_segment(struct mlx5_ib_dev *dev,
-					 u32 key, u64 io_virt, size_t bcnt,
-					 u32 *bytes_committed,
-					 u32 *bytes_mapped)
+static int pagefault_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr,
+			u64 io_virt, size_t bcnt, u32 *bytes_mapped)
 {
-	int srcu_key;
-	unsigned int current_seq = 0;
-	u64 start_idx;
-	int npages = 0, ret = 0;
-	struct mlx5_ib_mr *mr;
 	u64 access_mask = ODP_READ_ALLOWED_BIT;
+	int npages = 0, page_shift, np;
+	u64 start_idx, page_mask;
 	struct ib_umem_odp *odp;
-	int implicit = 0;
+	int current_seq;
 	size_t size;
-
-	srcu_key = srcu_read_lock(&dev->mr_srcu);
-	mr = mlx5_ib_odp_find_mr_lkey(dev, key);
-	/*
-	 * If we didn't find the MR, it means the MR was closed while we were
-	 * handling the ODP event. In this case we return -EFAULT so that the
-	 * QP will be closed.
-	 */
-	if (!mr || !mr->ibmr.pd) {
-		mlx5_ib_dbg(dev, "Failed to find relevant mr for lkey=0x%06x, probably the MR was destroyed\n",
-			    key);
-		ret = -EFAULT;
-		goto srcu_unlock;
-	}
-	if (!mr->umem->odp_data) {
-		mlx5_ib_dbg(dev, "skipping non ODP MR (lkey=0x%06x) in page fault handler.\n",
-			    key);
-		if (bytes_mapped)
-			*bytes_mapped +=
-				(bcnt - *bytes_committed);
-		goto srcu_unlock;
-	}
-
-	/*
-	 * Avoid branches - this code will perform correctly
-	 * in all iterations (in iteration 2 and above,
-	 * bytes_committed == 0).
-	 */
-	io_virt += *bytes_committed;
-	bcnt -= *bytes_committed;
+	int ret;
 
 	if (!mr->umem->odp_data->page_list) {
 		odp = implicit_mr_get_data(mr, io_virt, bcnt);
 
-		if (IS_ERR(odp)) {
-			ret = PTR_ERR(odp);
-			goto srcu_unlock;
-		}
+		if (IS_ERR(odp))
+			return PTR_ERR(odp);
 		mr = odp->private;
-		implicit = 1;
 
 	} else {
 		odp = mr->umem->odp_data;
 	}
 
 next_mr:
+	size = min_t(size_t, bcnt, ib_umem_end(odp->umem) - io_virt);
+
+	page_shift = mr->umem->page_shift;
+	page_mask = ~(BIT(page_shift) - 1);
+	start_idx = (io_virt - (mr->mmkey.iova & page_mask)) >> page_shift;
+
+	if (mr->umem->writable)
+		access_mask |= ODP_WRITE_ALLOWED_BIT;
+
 	current_seq = READ_ONCE(odp->notifiers_seq);
 	/*
 	 * Ensure the sequence number is valid for some time before we call
@@ -600,51 +532,43 @@ next_mr:
 	 */
 	smp_rmb();
 
-	size = min_t(size_t, bcnt, ib_umem_end(odp->umem) - io_virt);
-	start_idx = (io_virt - (mr->mmkey.iova & PAGE_MASK)) >> PAGE_SHIFT;
-
-	if (mr->umem->writable)
-		access_mask |= ODP_WRITE_ALLOWED_BIT;
-
 	ret = ib_umem_odp_map_dma_pages(mr->umem, io_virt, size,
 					access_mask, current_seq);
 
 	if (ret < 0)
-		goto srcu_unlock;
+		goto out;
 
-	if (ret > 0) {
-		int np = ret;
+	np = ret;
 
-		mutex_lock(&odp->umem_mutex);
-		if (!ib_umem_mmu_notifier_retry(mr->umem, current_seq)) {
-			/*
-			 * No need to check whether the MTTs really belong to
-			 * this MR, since ib_umem_odp_map_dma_pages already
-			 * checks this.
-			 */
-			ret = mlx5_ib_update_xlt(mr, start_idx, np,
-						 PAGE_SHIFT,
-						 MLX5_IB_UPD_XLT_ATOMIC);
-		} else {
-			ret = -EAGAIN;
-		}
-		mutex_unlock(&odp->umem_mutex);
-		if (ret < 0) {
-			if (ret != -EAGAIN)
-				mlx5_ib_err(dev, "Failed to update mkey page tables\n");
-			goto srcu_unlock;
-		}
+	mutex_lock(&odp->umem_mutex);
+	if (!ib_umem_mmu_notifier_retry(mr->umem, current_seq)) {
+		/*
+		 * No need to check whether the MTTs really belong to
+		 * this MR, since ib_umem_odp_map_dma_pages already
+		 * checks this.
+		 */
+		ret = mlx5_ib_update_xlt(mr, start_idx, np,
+					 page_shift, MLX5_IB_UPD_XLT_ATOMIC);
+	} else {
+		ret = -EAGAIN;
+	}
+	mutex_unlock(&odp->umem_mutex);
 
-		if (bytes_mapped) {
-			u32 new_mappings = np * PAGE_SIZE -
-				(io_virt - round_down(io_virt, PAGE_SIZE));
-			*bytes_mapped += min_t(u32, new_mappings, size);
-		}
-
-		npages += np;
+	if (ret < 0) {
+		if (ret != -EAGAIN)
+			mlx5_ib_err(dev, "Failed to update mkey page tables\n");
+		goto out;
 	}
 
+	if (bytes_mapped) {
+		u32 new_mappings = (np << page_shift) -
+			(io_virt - round_down(io_virt, 1 << page_shift));
+		*bytes_mapped += min_t(u32, new_mappings, size);
+	}
+
+	npages += np << (page_shift - PAGE_SHIFT);
 	bcnt -= size;
+
 	if (unlikely(bcnt)) {
 		struct ib_umem_odp *next;
 
@@ -653,17 +577,18 @@ next_mr:
 		if (unlikely(!next || next->umem->address != io_virt)) {
 			mlx5_ib_dbg(dev, "next implicit leaf removed at 0x%llx. got %p\n",
 				    io_virt, next);
-			ret = -EAGAIN;
-			goto srcu_unlock_no_wait;
+			return -EAGAIN;
 		}
 		odp = next;
 		mr = odp->private;
 		goto next_mr;
 	}
 
-srcu_unlock:
+	return npages;
+
+out:
 	if (ret == -EAGAIN) {
-		if (implicit || !odp->dying) {
+		if (mr->parent || !odp->dying) {
 			unsigned long timeout =
 				msecs_to_jiffies(MMU_NOTIFIER_TIMEOUT);
 
@@ -679,7 +604,155 @@ srcu_unlock:
 		}
 	}
 
-srcu_unlock_no_wait:
+	return ret;
+}
+
+struct pf_frame {
+	struct pf_frame *next;
+	u32 key;
+	u64 io_virt;
+	size_t bcnt;
+	int depth;
+};
+
+/*
+ * Handle a single data segment in a page-fault WQE or RDMA region.
+ *
+ * Returns number of OS pages retrieved on success. The caller may continue to
+ * the next data segment.
+ * Can return the following error codes:
+ * -EAGAIN to designate a temporary error. The caller will abort handling the
+ *  page fault and resolve it.
+ * -EFAULT when there's an error mapping the requested pages. The caller will
+ *  abort the page fault handling.
+ */
+static int pagefault_single_data_segment(struct mlx5_ib_dev *dev,
+					 u32 key, u64 io_virt, size_t bcnt,
+					 u32 *bytes_committed,
+					 u32 *bytes_mapped)
+{
+	int npages = 0, srcu_key, ret, i, outlen, cur_outlen = 0, depth = 0;
+	struct pf_frame *head = NULL, *frame;
+	struct mlx5_core_mkey *mmkey;
+	struct mlx5_ib_mw *mw;
+	struct mlx5_ib_mr *mr;
+	struct mlx5_klm *pklm;
+	u32 *out = NULL;
+	size_t offset;
+
+	srcu_key = srcu_read_lock(&dev->mr_srcu);
+
+	io_virt += *bytes_committed;
+	bcnt -= *bytes_committed;
+
+next_mr:
+	mmkey = __mlx5_mr_lookup(dev->mdev, mlx5_base_mkey(key));
+	if (!mmkey || mmkey->key != key) {
+		mlx5_ib_dbg(dev, "failed to find mkey %x\n", key);
+		ret = -EFAULT;
+		goto srcu_unlock;
+	}
+
+	switch (mmkey->type) {
+	case MLX5_MKEY_MR:
+		mr = container_of(mmkey, struct mlx5_ib_mr, mmkey);
+		if (!mr->live || !mr->ibmr.pd) {
+			mlx5_ib_dbg(dev, "got dead MR\n");
+			ret = -EFAULT;
+			goto srcu_unlock;
+		}
+
+		ret = pagefault_mr(dev, mr, io_virt, bcnt, bytes_mapped);
+		if (ret < 0)
+			goto srcu_unlock;
+
+		npages += ret;
+		ret = 0;
+		break;
+
+	case MLX5_MKEY_MW:
+		mw = container_of(mmkey, struct mlx5_ib_mw, mmkey);
+
+		if (depth >= MLX5_CAP_GEN(dev->mdev, max_indirection)) {
+			mlx5_ib_dbg(dev, "indirection level exceeded\n");
+			ret = -EFAULT;
+			goto srcu_unlock;
+		}
+
+		outlen = MLX5_ST_SZ_BYTES(query_mkey_out) +
+			sizeof(*pklm) * (mw->ndescs - 2);
+
+		if (outlen > cur_outlen) {
+			kfree(out);
+			out = kzalloc(outlen, GFP_KERNEL);
+			if (!out) {
+				ret = -ENOMEM;
+				goto srcu_unlock;
+			}
+			cur_outlen = outlen;
+		}
+
+		pklm = (struct mlx5_klm *)MLX5_ADDR_OF(query_mkey_out, out,
+						       bsf0_klm0_pas_mtt0_1);
+
+		ret = mlx5_core_query_mkey(dev->mdev, &mw->mmkey, out, outlen);
+		if (ret)
+			goto srcu_unlock;
+
+		offset = io_virt - MLX5_GET64(query_mkey_out, out,
+					      memory_key_mkey_entry.start_addr);
+
+		for (i = 0; bcnt && i < mw->ndescs; i++, pklm++) {
+			if (offset >= be32_to_cpu(pklm->bcount)) {
+				offset -= be32_to_cpu(pklm->bcount);
+				continue;
+			}
+
+			frame = kzalloc(sizeof(*frame), GFP_KERNEL);
+			if (!frame) {
+				ret = -ENOMEM;
+				goto srcu_unlock;
+			}
+
+			frame->key = be32_to_cpu(pklm->key);
+			frame->io_virt = be64_to_cpu(pklm->va) + offset;
+			frame->bcnt = min_t(size_t, bcnt,
+					    be32_to_cpu(pklm->bcount) - offset);
+			frame->depth = depth + 1;
+			frame->next = head;
+			head = frame;
+
+			bcnt -= frame->bcnt;
+		}
+		break;
+
+	default:
+		mlx5_ib_dbg(dev, "wrong mkey type %d\n", mmkey->type);
+		ret = -EFAULT;
+		goto srcu_unlock;
+	}
+
+	if (head) {
+		frame = head;
+		head = frame->next;
+
+		key = frame->key;
+		io_virt = frame->io_virt;
+		bcnt = frame->bcnt;
+		depth = frame->depth;
+		kfree(frame);
+
+		goto next_mr;
+	}
+
+srcu_unlock:
+	while (head) {
+		frame = head;
+		head = frame->next;
+		kfree(frame);
+	}
+	kfree(out);
+
 	srcu_read_unlock(&dev->mr_srcu, srcu_key);
 	*bytes_committed = 0;
 	return ret ? ret : npages;
@@ -997,9 +1070,6 @@ static void mlx5_ib_mr_wqe_pfault_handler(struct mlx5_ib_dev *dev,
 		resume_with_error = 0;
 		goto resolve_page_fault;
 	} else if (ret < 0 || total_wqe_bytes > bytes_mapped) {
-		if (ret != -ENOENT)
-			mlx5_ib_err(dev, "PAGE FAULT error: %d. QP 0x%x. type: 0x%x\n",
-				    ret, pfault->wqe.wq_num, pfault->type);
 		goto resolve_page_fault;
 	}
 
@@ -1059,8 +1129,8 @@ static void mlx5_ib_mr_rdma_pfault_handler(struct mlx5_ib_dev *dev,
 	} else if (ret < 0 || pages_in_range(address, length) > ret) {
 		mlx5_ib_page_fault_resume(dev, pfault, 1);
 		if (ret != -ENOENT)
-			mlx5_ib_warn(dev, "PAGE FAULT error %d. QP 0x%x, type: 0x%x\n",
-				     ret, pfault->token, pfault->type);
+			mlx5_ib_dbg(dev, "PAGE FAULT error %d. QP 0x%x, type: 0x%x\n",
+				    ret, pfault->token, pfault->type);
 		return;
 	}
 
@@ -1081,8 +1151,8 @@ static void mlx5_ib_mr_rdma_pfault_handler(struct mlx5_ib_dev *dev,
 						    prefetch_len,
 						    &bytes_committed, NULL);
 		if (ret < 0 && ret != -EAGAIN) {
-			mlx5_ib_warn(dev, "Prefetch failed. ret: %d, QP 0x%x, address: 0x%.16llx, length = 0x%.16x\n",
-				     ret, pfault->token, address, prefetch_len);
+			mlx5_ib_dbg(dev, "Prefetch failed. ret: %d, QP 0x%x, address: 0x%.16llx, length = 0x%.16x\n",
+				    ret, pfault->token, address, prefetch_len);
 		}
 	}
 }

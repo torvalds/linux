@@ -53,7 +53,7 @@ EXPORT_SYMBOL(net_ratelimit);
 
 __be32 in_aton(const char *str)
 {
-	unsigned long l;
+	unsigned int l;
 	unsigned int val;
 	int i;
 
