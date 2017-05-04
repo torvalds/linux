@@ -13121,8 +13121,16 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 
 	drm_atomic_helper_commit_hw_done(state);
 
-	if (intel_state->modeset)
+	if (intel_state->modeset) {
+		/* As one of the primary mmio accessors, KMS has a high
+		 * likelihood of triggering bugs in unclaimed access. After we
+		 * finish modesetting, see if an error has been flagged, and if
+		 * so enable debugging for the next modeset - and hope we catch
+		 * the culprit.
+		 */
+		intel_uncore_arm_unclaimed_mmio_detection(dev_priv);
 		intel_display_power_put(dev_priv, POWER_DOMAIN_MODESET);
+	}
 
 	mutex_lock(&dev->struct_mutex);
 	drm_atomic_helper_cleanup_planes(dev, state);
@@ -13131,19 +13139,6 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 	drm_atomic_helper_commit_cleanup_done(state);
 
 	drm_atomic_state_put(state);
-
-	/* As one of the primary mmio accessors, KMS has a high likelihood
-	 * of triggering bugs in unclaimed access. After we finish
-	 * modesetting, see if an error has been flagged, and if so
-	 * enable debugging for the next modeset - and hope we catch
-	 * the culprit.
-	 *
-	 * XXX note that we assume display power is on at this point.
-	 * This might hold true now but we need to add pm helper to check
-	 * unclaimed only when the hardware is on, as atomic commits
-	 * can happen also when the device is completely off.
-	 */
-	intel_uncore_arm_unclaimed_mmio_detection(dev_priv);
 
 	intel_atomic_helper_free_state(dev_priv);
 }
