@@ -60,7 +60,7 @@ struct abm_backlight_registers {
 static struct abm_backlight_registers stored_backlight_registers = {0};
 
 
-static unsigned int get_current_backlight(struct dce_abm *abm_dce)
+static unsigned int get_current_backlight_16_bit(struct dce_abm *abm_dce)
 {
 	uint64_t current_backlight;
 	uint32_t round_result;
@@ -252,7 +252,7 @@ static void dmcu_set_backlight_level(
 static void dce_abm_init(struct abm *abm)
 {
 	struct dce_abm *abm_dce = TO_DCE_ABM(abm);
-	unsigned int backlight = get_current_backlight(abm_dce);
+	unsigned int backlight = get_current_backlight_16_bit(abm_dce);
 
 	REG_WRITE(DC_ABM1_HG_SAMPLE_RATE, 0x103);
 	REG_WRITE(DC_ABM1_HG_SAMPLE_RATE, 0x101);
@@ -287,6 +287,14 @@ static void dce_abm_init(struct abm *abm)
 			ABM1_HG_REG_READ_MISSED_FRAME_CLEAR, 1,
 			ABM1_LS_REG_READ_MISSED_FRAME_CLEAR, 1,
 			ABM1_BL_REG_READ_MISSED_FRAME_CLEAR, 1);
+}
+
+static unsigned int dce_abm_get_current_backlight_8_bit(struct abm *abm)
+{
+	struct dce_abm *abm_dce = TO_DCE_ABM(abm);
+	unsigned int backlight = REG_READ(BL1_PWM_CURRENT_ABM_LEVEL);
+
+	return (backlight >> 8);
 }
 
 static bool dce_abm_set_level(struct abm *abm, uint32_t level)
@@ -405,6 +413,7 @@ static const struct abm_funcs dce_funcs = {
 	.set_abm_level = dce_abm_set_level,
 	.init_backlight = dce_abm_init_backlight,
 	.set_backlight_level = dce_abm_set_backlight_level,
+	.get_current_backlight_8_bit = dce_abm_get_current_backlight_8_bit,
 	.is_dmcu_initialized = is_dmcu_initialized
 };
 
