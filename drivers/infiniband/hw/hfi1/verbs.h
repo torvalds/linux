@@ -125,7 +125,6 @@ struct hfi1_qp_priv {
 	struct sdma_engine *s_sde;                /* current sde */
 	struct send_context *s_sendcontext;       /* current sendcontext */
 	u8 s_sc;		                  /* SC[0..4] for next packet */
-	u8 r_adefered;                            /* number of acks defered */
 	struct iowait s_iowait;
 	struct rvt_qp *owner;
 };
