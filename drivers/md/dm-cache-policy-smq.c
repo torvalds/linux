@@ -1120,28 +1120,30 @@ static bool clean_target_met(struct smq_policy *mq, bool idle)
 	 * Cache entries may not be populated.  So we cannot rely on the
 	 * size of the clean queue.
 	 */
-	unsigned nr_clean = from_cblock(mq->cache_size) - q_size(&mq->dirty);
+	unsigned nr_clean;
 
-	if (idle)
+	if (idle) {
 		/*
 		 * We'd like to clean everything.
 		 */
 		return q_size(&mq->dirty) == 0u;
-	else
-		return (nr_clean + btracker_nr_writebacks_queued(mq->bg_work)) >=
-		       percent_to_target(mq, CLEAN_TARGET);
+	}
+
+	nr_clean = from_cblock(mq->cache_size) - q_size(&mq->dirty);
+	return (nr_clean + btracker_nr_writebacks_queued(mq->bg_work)) >=
+		percent_to_target(mq, CLEAN_TARGET);
 }
 
 static bool free_target_met(struct smq_policy *mq, bool idle)
 {
-	unsigned nr_free = from_cblock(mq->cache_size) -
-			   mq->cache_alloc.nr_allocated;
+	unsigned nr_free;
 
-	if (idle)
-		return (nr_free + btracker_nr_demotions_queued(mq->bg_work)) >=
-		       percent_to_target(mq, FREE_TARGET);
-	else
+	if (!idle)
 		return true;
+
+	nr_free = from_cblock(mq->cache_size) - mq->cache_alloc.nr_allocated;
+	return (nr_free + btracker_nr_demotions_queued(mq->bg_work)) >=
+		percent_to_target(mq, FREE_TARGET);
 }
 
 /*----------------------------------------------------------------*/
