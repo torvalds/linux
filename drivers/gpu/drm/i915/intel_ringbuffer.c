@@ -52,9 +52,14 @@ static unsigned int __intel_ring_space(unsigned int head,
 	return (head - tail - CACHELINE_BYTES) & (size - 1);
 }
 
-void intel_ring_update_space(struct intel_ring *ring)
+unsigned int intel_ring_update_space(struct intel_ring *ring)
 {
-	ring->space = __intel_ring_space(ring->head, ring->emit, ring->size);
+	unsigned int space;
+
+	space = __intel_ring_space(ring->head, ring->emit, ring->size);
+
+	ring->space = space;
+	return space;
 }
 
 static int
@@ -1659,8 +1664,7 @@ static int wait_for_space(struct drm_i915_gem_request *req, int bytes)
 
 	lockdep_assert_held(&req->i915->drm.struct_mutex);
 
-	intel_ring_update_space(ring);
-	if (ring->space >= bytes)
+	if (intel_ring_update_space(ring) >= bytes)
 		return 0;
 
 	/*
