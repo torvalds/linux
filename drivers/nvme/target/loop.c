@@ -45,7 +45,6 @@ struct nvme_loop_iod {
 };
 
 struct nvme_loop_ctrl {
-	spinlock_t		lock;
 	struct nvme_loop_queue	*queues;
 	u32			queue_count;
 
@@ -634,8 +633,6 @@ static struct nvme_ctrl *nvme_loop_create_ctrl(struct device *dev,
 				0 /* no quirks, we're perfect! */);
 	if (ret)
 		goto out_put_ctrl;
-
-	spin_lock_init(&ctrl->lock);
 
 	ret = -ENOMEM;
 
