@@ -1362,7 +1362,7 @@ int hfi1_set_ib_cfg(struct hfi1_pportdata *ppd, int which, u32 val);
 int hfi1_set_ctxt_jkey(struct hfi1_devdata *dd, unsigned ctxt, u16 jkey);
 int hfi1_clear_ctxt_jkey(struct hfi1_devdata *dd, unsigned ctxt);
 int hfi1_set_ctxt_pkey(struct hfi1_devdata *dd, unsigned ctxt, u16 pkey);
-int hfi1_clear_ctxt_pkey(struct hfi1_devdata *dd, unsigned ctxt);
+int hfi1_clear_ctxt_pkey(struct hfi1_devdata *dd, struct hfi1_ctxtdata *ctxt);
 void hfi1_read_link_quality(struct hfi1_devdata *dd, u8 *link_quality);
 void hfi1_init_vnic_rsm(struct hfi1_devdata *dd);
 void hfi1_deinit_vnic_rsm(struct hfi1_devdata *dd);

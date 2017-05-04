@@ -810,7 +810,7 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 	dd->rcd[uctxt->ctxt] = NULL;
 
 	hfi1_user_exp_rcv_grp_free(uctxt);
-	hfi1_clear_ctxt_pkey(dd, uctxt->ctxt);
+	hfi1_clear_ctxt_pkey(dd, uctxt);
 
 	uctxt->rcvwait_to = 0;
 	uctxt->piowait_to = 0;

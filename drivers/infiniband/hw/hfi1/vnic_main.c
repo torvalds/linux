@@ -209,7 +209,7 @@ static void deallocate_vnic_ctxt(struct hfi1_devdata *dd,
 	uctxt->event_flags = 0;
 
 	hfi1_clear_tids(uctxt);
-	hfi1_clear_ctxt_pkey(dd, uctxt->ctxt);
+	hfi1_clear_ctxt_pkey(dd, uctxt);
 
 	hfi1_stats.sps_ctxts--;
 	hfi1_free_ctxtdata(dd, uctxt);

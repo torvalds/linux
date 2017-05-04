@@ -14528,30 +14528,24 @@ done:
 	return ret;
 }
 
-int hfi1_clear_ctxt_pkey(struct hfi1_devdata *dd, unsigned ctxt)
+int hfi1_clear_ctxt_pkey(struct hfi1_devdata *dd, struct hfi1_ctxtdata *ctxt)
 {
-	struct hfi1_ctxtdata *rcd;
-	unsigned sctxt;
-	int ret = 0;
+	u8 hw_ctxt;
 	u64 reg;
 
-	if (ctxt < dd->num_rcv_contexts) {
-		rcd = dd->rcd[ctxt];
-	} else {
-		ret = -EINVAL;
-		goto done;
-	}
-	if (!rcd || !rcd->sc) {
-		ret = -EINVAL;
-		goto done;
-	}
-	sctxt = rcd->sc->hw_context;
-	reg = read_kctxt_csr(dd, sctxt, SEND_CTXT_CHECK_ENABLE);
+	if (!ctxt || !ctxt->sc)
+		return -EINVAL;
+
+	if (ctxt->ctxt >= dd->num_rcv_contexts)
+		return -EINVAL;
+
+	hw_ctxt = ctxt->sc->hw_context;
+	reg = read_kctxt_csr(dd, hw_ctxt, SEND_CTXT_CHECK_ENABLE);
 	reg &= ~SEND_CTXT_CHECK_ENABLE_CHECK_PARTITION_KEY_SMASK;
-	write_kctxt_csr(dd, sctxt, SEND_CTXT_CHECK_ENABLE, reg);
-	write_kctxt_csr(dd, sctxt, SEND_CTXT_CHECK_PARTITION_KEY, 0);
-done:
-	return ret;
+	write_kctxt_csr(dd, hw_ctxt, SEND_CTXT_CHECK_ENABLE, reg);
+	write_kctxt_csr(dd, hw_ctxt, SEND_CTXT_CHECK_PARTITION_KEY, 0);
+
+	return 0;
 }
 
 /*
