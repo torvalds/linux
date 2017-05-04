@@ -21,7 +21,7 @@
 #include "vgic.h"
 
 #define CREATE_TRACE_POINTS
-#include "../trace.h"
+#include "trace.h"
 
 #ifdef CONFIG_DEBUG_SPINLOCK
 #define DEBUG_SPINLOCK_BUG_ON(p) BUG_ON(p)
