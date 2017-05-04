@@ -111,17 +111,16 @@ static ssize_t blk_queue_flags_store(struct file *file, const char __user *buf,
 				     size_t count, loff_t *ppos)
 {
 	struct request_queue *q = file_inode(file)->i_private;
-	char op[16] = { }, *s;
+	char opbuf[16] = { }, *op;
 
-	if (count >= sizeof(op)) {
+	if (count >= sizeof(opbuf)) {
 		pr_err("%s: operation too long\n", __func__);
 		goto inval;
 	}
 
-	if (copy_from_user(op, buf, count))
+	if (copy_from_user(opbuf, buf, count))
 		return -EFAULT;
-	s = op;
-	strsep(&s, " \t\n"); /* strip trailing whitespace */
+	op = strstrip(opbuf);
 	if (strcmp(op, "run") == 0) {
 		blk_mq_run_hw_queues(q, true);
 	} else if (strcmp(op, "start") == 0) {
