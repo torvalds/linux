@@ -2289,7 +2289,7 @@ qla2x00_chip_diag(scsi_qla_host_t *vha)
 		goto chip_diag_failed;
 
 	/* Check product ID of chip */
-	ql_dbg(ql_dbg_init, vha, 0x007d, "Checking product Id of chip.\n");
+	ql_dbg(ql_dbg_init, vha, 0x007d, "Checking product ID of chip.\n");
 
 	mb[1] = RD_MAILBOX_REG(ha, reg, 1);
 	mb[2] = RD_MAILBOX_REG(ha, reg, 2);

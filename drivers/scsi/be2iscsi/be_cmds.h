@@ -1,18 +1,15 @@
-/**
- * Copyright (C) 2005 - 2016 Broadcom
- * All rights reserved.
+/*
+ * Copyright 2017 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Limited and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.  The full GNU General
+ * as published by the Free Software Foundation. The full GNU General
  * Public License is included in this distribution in the file called COPYING.
  *
  * Contact Information:
  * linux-drivers@broadcom.com
  *
- * Emulex
- * 3333 Susan Street
- * Costa Mesa, CA 92626
  */
 
 #ifndef BEISCSI_CMDS_H
@@ -1145,24 +1142,49 @@ struct tcp_connect_and_offload_out {
 #define DB_DEF_PDU_EVENT_SHIFT		15
 #define DB_DEF_PDU_CQPROC_SHIFT		16
 
-struct dmsg_cqe {
-	u32 dw[4];
+struct be_invalidate_connection_params_in {
+	struct be_cmd_req_hdr hdr;
+	u32 session_handle;
+	u16 cid;
+	u16 unused;
+#define BE_CLEANUP_TYPE_INVALIDATE	0x8001
+#define BE_CLEANUP_TYPE_ISSUE_TCP_RST	0x8002
+	u16 cleanup_type;
+	u16 save_cfg;
 } __packed;
 
-struct tcp_upload_params_in {
+struct be_invalidate_connection_params_out {
+	u32 session_handle;
+	u16 cid;
+	u16 unused;
+} __packed;
+
+union be_invalidate_connection_params {
+	struct be_invalidate_connection_params_in req;
+	struct be_invalidate_connection_params_out resp;
+} __packed;
+
+struct be_tcp_upload_params_in {
 	struct be_cmd_req_hdr hdr;
 	u16 id;
+#define BE_UPLOAD_TYPE_GRACEFUL		1
+/* abortive upload with reset */
+#define BE_UPLOAD_TYPE_ABORT_RESET	2
+/* abortive upload without reset */
+#define BE_UPLOAD_TYPE_ABORT		3
+/* abortive upload with reset, sequence number by driver */
+#define BE_UPLOAD_TYPE_ABORT_WITH_SEQ	4
 	u16 upload_type;
 	u32 reset_seq;
 } __packed;
 
-struct tcp_upload_params_out {
+struct be_tcp_upload_params_out {
 	u32 dw[32];
 } __packed;
 
-union tcp_upload_params {
-	struct tcp_upload_params_in request;
-	struct tcp_upload_params_out response;
+union be_tcp_upload_params {
+	struct be_tcp_upload_params_in request;
+	struct be_tcp_upload_params_out response;
 } __packed;
 
 struct be_ulp_fw_cfg {
@@ -1243,10 +1265,7 @@ struct be_cmd_get_port_name {
 #define OPCODE_COMMON_WRITE_FLASH		96
 #define OPCODE_COMMON_READ_FLASH		97
 
-/* --- CMD_ISCSI_INVALIDATE_CONNECTION_TYPE --- */
 #define CMD_ISCSI_COMMAND_INVALIDATE		1
-#define CMD_ISCSI_CONNECTION_INVALIDATE		0x8001
-#define CMD_ISCSI_CONNECTION_ISSUE_TCP_RST	0x8002
 
 #define INI_WR_CMD			1	/* Initiator write command */
 #define INI_TMF_CMD			2	/* Initiator TMF command */
@@ -1269,27 +1288,6 @@ struct be_cmd_get_port_name {
 						 *  preparedby
 						 * driver should not be touched
 						 */
-/* --- CMD_CHUTE_TYPE --- */
-#define CMD_CONNECTION_CHUTE_0		1
-#define CMD_CONNECTION_CHUTE_1		2
-#define CMD_CONNECTION_CHUTE_2		3
-
-#define EQ_MAJOR_CODE_COMPLETION	0
-
-#define CMD_ISCSI_SESSION_DEL_CFG_FROM_FLASH 0
-#define CMD_ISCSI_SESSION_SAVE_CFG_ON_FLASH 1
-
-/* --- CONNECTION_UPLOAD_PARAMS --- */
-/* These parameters are used to define the type of upload desired.  */
-#define CONNECTION_UPLOAD_GRACEFUL      1	/* Graceful upload  */
-#define CONNECTION_UPLOAD_ABORT_RESET   2	/* Abortive upload with
-						 * reset
-						 */
-#define CONNECTION_UPLOAD_ABORT		3	/* Abortive upload without
-						 * reset
-						 */
-#define CONNECTION_UPLOAD_ABORT_WITH_SEQ 4	/* Abortive upload with reset,
-						 * sequence number by driver  */
 
 /* Returns the number of items in the field array. */
 #define BE_NUMBER_OF_FIELD(_type_, _field_)	\

@@ -464,14 +464,15 @@ static int osd_probe(struct device *dev)
 	/* hold one more reference to the scsi_device that will get released
 	 * in __release, in case a logout is happening while fs is mounted
 	 */
-	scsi_device_get(scsi_device);
+	if (scsi_device_get(scsi_device))
+		goto err_put_disk;
 	osd_dev_init(&oud->od, scsi_device);
 
 	/* Detect the OSD Version */
 	error = __detect_osd(oud);
 	if (error) {
 		OSD_ERR("osd detection failed, non-compatible OSD device\n");
-		goto err_put_disk;
+		goto err_put_sdev;
 	}
 
 	/* init the char-device for communication with user-mode */
@@ -508,8 +509,9 @@ static int osd_probe(struct device *dev)
 
 err_put_cdev:
 	cdev_del(&oud->cdev);
-err_put_disk:
+err_put_sdev:
 	scsi_device_put(scsi_device);
+err_put_disk:
 	put_disk(disk);
 err_free_osd:
 	dev_set_drvdata(dev, NULL);
@@ -524,10 +526,9 @@ static int osd_remove(struct device *dev)
 	struct scsi_device *scsi_device = to_scsi_device(dev);
 	struct osd_uld_device *oud = dev_get_drvdata(dev);
 
-	if (!oud || (oud->od.scsi_device != scsi_device)) {
-		OSD_ERR("Half cooked osd-device %p,%p || %p!=%p",
-			dev, oud, oud ? oud->od.scsi_device : NULL,
-			scsi_device);
+	if (oud->od.scsi_device != scsi_device) {
+		OSD_ERR("Half cooked osd-device %p, || %p!=%p",
+			dev, oud->od.scsi_device, scsi_device);
 	}
 
 	device_unregister(&oud->class_dev);
