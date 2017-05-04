@@ -441,6 +441,14 @@ early_idt_ripmsg:
 	.balign	PAGE_SIZE; \
 GLOBAL(name)
 
+#ifdef CONFIG_KAISER
+#define NEXT_PGD_PAGE(name) \
+	.balign 2 * PAGE_SIZE; \
+GLOBAL(name)
+#else
+#define NEXT_PGD_PAGE(name) NEXT_PAGE(name)
+#endif
+
 /* Automate the creation of 1 to 1 mapping pmd entries */
 #define PMDS(START, PERM, COUNT)			\
 	i = 0 ;						\
@@ -450,7 +458,7 @@ GLOBAL(name)
 	.endr
 
 	__INITDATA
-NEXT_PAGE(early_level4_pgt)
+NEXT_PGD_PAGE(early_level4_pgt)
 	.fill	511,8,0
 	.quad	level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE
 
@@ -460,10 +468,10 @@ NEXT_PAGE(early_dynamic_pgts)
 	.data
 
 #ifndef CONFIG_XEN
-NEXT_PAGE(init_level4_pgt)
-	.fill	512,8,0
+NEXT_PGD_PAGE(init_level4_pgt)
+	.fill	2*512,8,0
 #else
-NEXT_PAGE(init_level4_pgt)
+NEXT_PGD_PAGE(init_level4_pgt)
 	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE
 	.org    init_level4_pgt + L4_PAGE_OFFSET*8, 0
 	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE

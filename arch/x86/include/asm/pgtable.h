@@ -856,6 +856,10 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm,
 static inline void clone_pgd_range(pgd_t *dst, pgd_t *src, int count)
 {
        memcpy(dst, src, count * sizeof(pgd_t));
+#ifdef CONFIG_KAISER
+	// clone the shadow pgd part as well
+	memcpy(native_get_shadow_pgd(dst), native_get_shadow_pgd(src), count * sizeof(pgd_t));
+#endif
 }
 
 #define PTE_SHIFT ilog2(PTRS_PER_PTE)

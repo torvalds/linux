@@ -35,6 +35,7 @@
 #include <asm/asm.h>
 #include <asm/smap.h>
 #include <asm/pgtable_types.h>
+#include <asm/kaiser.h>
 #include <linux/err.h>
 
 /* Avoid __ASSEMBLER__'ifying <linux/audit.h> just for this.  */
@@ -135,6 +136,7 @@ ENTRY(entry_SYSCALL_64)
 	 * it is too small to ever cause noticeable irq latency.
 	 */
 	SWAPGS_UNSAFE_STACK
+	SWITCH_KERNEL_CR3_NO_STACK
 	/*
 	 * A hypervisor implementation might want to use a label
 	 * after the swapgs, so that it can do the swapgs
@@ -207,9 +209,10 @@ entry_SYSCALL_64_fastpath:
 	testl	$_TIF_ALLWORK_MASK, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
 	jnz	int_ret_from_sys_call_irqs_off	/* Go to the slow path */
 
-	RESTORE_C_REGS_EXCEPT_RCX_R11
 	movq	RIP(%rsp), %rcx
 	movq	EFLAGS(%rsp), %r11
+	RESTORE_C_REGS_EXCEPT_RCX_R11
+	SWITCH_USER_CR3
 	movq	RSP(%rsp), %rsp
 	/*
 	 * 64-bit SYSRET restores rip from rcx,
@@ -347,10 +350,12 @@ GLOBAL(int_ret_from_sys_call)
 syscall_return_via_sysret:
 	/* rcx and r11 are already restored (see code above) */
 	RESTORE_C_REGS_EXCEPT_RCX_R11
+	SWITCH_USER_CR3
 	movq	RSP(%rsp), %rsp
 	USERGS_SYSRET64
 
 opportunistic_sysret_failed:
+	SWITCH_USER_CR3
 	SWAPGS
 	jmp	restore_c_regs_and_iret
 END(entry_SYSCALL_64)
@@ -509,6 +514,7 @@ END(irq_entries_start)
 	 * tracking that we're in kernel mode.
 	 */
 	SWAPGS
+	SWITCH_KERNEL_CR3
 
 	/*
 	 * We need to tell lockdep that IRQs are off.  We can't do this until
@@ -568,6 +574,7 @@ GLOBAL(retint_user)
 	mov	%rsp,%rdi
 	call	prepare_exit_to_usermode
 	TRACE_IRQS_IRETQ
+	SWITCH_USER_CR3
 	SWAPGS
 	jmp	restore_regs_and_iret
 
@@ -625,6 +632,7 @@ native_irq_return_ldt:
 	pushq	%rax
 	pushq	%rdi
 	SWAPGS
+	SWITCH_KERNEL_CR3
 	movq	PER_CPU_VAR(espfix_waddr), %rdi
 	movq	%rax, (0*8)(%rdi)		/* RAX */
 	movq	(2*8)(%rsp), %rax		/* RIP */
@@ -640,6 +648,7 @@ native_irq_return_ldt:
 	andl	$0xffff0000, %eax
 	popq	%rdi
 	orq	PER_CPU_VAR(espfix_stack), %rax
+	SWITCH_USER_CR3
 	SWAPGS
 	movq	%rax, %rsp
 	popq	%rax
@@ -1007,6 +1016,7 @@ ENTRY(paranoid_entry)
 	testl	%edx, %edx
 	js	1f				/* negative -> in kernel */
 	SWAPGS
+	SWITCH_KERNEL_CR3
 	xorl	%ebx, %ebx
 1:	ret
 END(paranoid_entry)
@@ -1029,6 +1039,7 @@ ENTRY(paranoid_exit)
 	testl	%ebx, %ebx			/* swapgs needed? */
 	jnz	paranoid_exit_no_swapgs
 	TRACE_IRQS_IRETQ
+	SWITCH_USER_CR3_NO_STACK
 	SWAPGS_UNSAFE_STACK
 	jmp	paranoid_exit_restore
 paranoid_exit_no_swapgs:
@@ -1058,6 +1069,7 @@ ENTRY(error_entry)
 	 * from user mode due to an IRET fault.
 	 */
 	SWAPGS
+	SWITCH_KERNEL_CR3
 
 .Lerror_entry_from_usermode_after_swapgs:
 	/*
@@ -1110,7 +1122,7 @@ ENTRY(error_entry)
 	 * Switch to kernel gsbase:
 	 */
 	SWAPGS
-
+	SWITCH_KERNEL_CR3
 	/*
 	 * Pretend that the exception came from user mode: set up pt_regs
 	 * as if we faulted immediately after IRET and clear EBX so that
@@ -1210,6 +1222,7 @@ ENTRY(nmi)
 	 */
 
 	SWAPGS_UNSAFE_STACK
+	SWITCH_KERNEL_CR3_NO_STACK
 	cld
 	movq	%rsp, %rdx
 	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
@@ -1250,6 +1263,7 @@ ENTRY(nmi)
 	 * work, because we don't want to enable interrupts.  Fortunately,
 	 * do_nmi doesn't modify pt_regs.
 	 */
+	SWITCH_USER_CR3
 	SWAPGS
 	jmp	restore_c_regs_and_iret
 
@@ -1461,6 +1475,7 @@ end_repeat_nmi:
 	testl	%ebx, %ebx			/* swapgs needed? */
 	jnz	nmi_restore
 nmi_swapgs:
+	SWITCH_USER_CR3_NO_STACK
 	SWAPGS_UNSAFE_STACK
 nmi_restore:
 	RESTORE_EXTRA_REGS

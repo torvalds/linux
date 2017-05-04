@@ -41,6 +41,7 @@
 #include <asm/pgalloc.h>
 #include <asm/setup.h>
 #include <asm/espfix.h>
+#include <asm/kaiser.h>
 
 /*
  * Note: we only need 6*8 = 48 bytes for the espfix stack, but round
@@ -126,6 +127,11 @@ void __init init_espfix_bsp(void)
 	/* Install the espfix pud into the kernel page directory */
 	pgd_p = &init_level4_pgt[pgd_index(ESPFIX_BASE_ADDR)];
 	pgd_populate(&init_mm, pgd_p, (pud_t *)espfix_pud_page);
+#ifdef CONFIG_KAISER
+	// add the esp stack pud to the shadow mapping here.
+	// This can be done directly, because the fixup stack has its own pud
+	set_pgd(native_get_shadow_pgd(pgd_p), __pgd(_PAGE_TABLE | __pa((pud_t *)espfix_pud_page)));
+#endif
 
 	/* Randomize the locations */
 	init_espfix_random();

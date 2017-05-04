@@ -106,9 +106,30 @@ static inline void native_pud_clear(pud_t *pud)
 	native_set_pud(pud, native_make_pud(0));
 }
 
+#ifdef CONFIG_KAISER
+static inline pgd_t * native_get_shadow_pgd(pgd_t *pgdp) {
+	return (pgd_t *)(void*)((unsigned long)(void*)pgdp | (unsigned long)PAGE_SIZE);
+}
+
+static inline pgd_t * native_get_normal_pgd(pgd_t *pgdp) {
+	return (pgd_t *)(void*)((unsigned long)(void*)pgdp &  ~(unsigned long)PAGE_SIZE);
+}
+#endif /* CONFIG_KAISER */
+
 static inline void native_set_pgd(pgd_t *pgdp, pgd_t pgd)
 {
+#ifdef CONFIG_KAISER
+	// We know that a pgd is page aligned.
+	// Therefore the lower indices have to be mapped to user space.
+	// These pages are mapped to the shadow mapping.
+	if ((((unsigned long)pgdp) % PAGE_SIZE) < (PAGE_SIZE / 2)) {
+		native_get_shadow_pgd(pgdp)->pgd = pgd.pgd;
+	}
+
+	pgdp->pgd = pgd.pgd & ~_PAGE_USER;
+#else /* CONFIG_KAISER */
 	*pgdp = pgd;
+#endif
 }
 
 static inline void native_pgd_clear(pgd_t *pgd)

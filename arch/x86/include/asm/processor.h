@@ -305,7 +305,7 @@ struct tss_struct {
 
 } ____cacheline_aligned;
 
-DECLARE_PER_CPU_SHARED_ALIGNED(struct tss_struct, cpu_tss);
+DECLARE_PER_CPU_SHARED_ALIGNED_USER_MAPPED(struct tss_struct, cpu_tss);
 
 #ifdef CONFIG_X86_32
 DECLARE_PER_CPU(unsigned long, cpu_current_top_of_stack);
@@ -331,6 +331,11 @@ union irq_stack_union {
 	struct {
 		char gs_base[40];
 		unsigned long stack_canary;
+	};
+
+	struct {
+		char irq_stack_pointer[64];
+		char unused[IRQ_STACK_SIZE - 64];
 	};
 };
 

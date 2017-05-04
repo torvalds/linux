@@ -342,12 +342,38 @@ static inline void _pgd_free(pgd_t *pgd)
 #else
 static inline pgd_t *_pgd_alloc(void)
 {
+#ifdef CONFIG_KAISER
+	// Instead of one PML4, we aquire two PML4s and, thus, an 8kb-aligned memory
+	// block. Therefore, we have to allocate at least 3 pages. However, the
+	// __get_free_pages returns us 4 pages. Hence, we store the base pointer at
+	// the beginning of the page of our 8kb-aligned memory block in order to
+	// correctly free it afterwars.
+
+	unsigned long pages = __get_free_pages(PGALLOC_GFP, get_order(4*PAGE_SIZE));
+
+	if(native_get_normal_pgd((pgd_t*) pages) == (pgd_t*) pages)
+	{
+		*((unsigned long*)(pages + 2 * PAGE_SIZE)) = pages;
+		return (pgd_t *) pages;
+	}
+	else
+	{
+		*((unsigned long*)(pages + 3 * PAGE_SIZE)) = pages;
+		return (pgd_t *) (pages + PAGE_SIZE);
+	}
+#else
 	return (pgd_t *)__get_free_page(PGALLOC_GFP);
+#endif
 }
 
 static inline void _pgd_free(pgd_t *pgd)
 {
+#ifdef CONFIG_KAISER
+  unsigned long pages = *((unsigned long*) ((char*) pgd + 2 * PAGE_SIZE));
+	free_pages(pages, get_order(4*PAGE_SIZE));
+#else
 	free_page((unsigned long)pgd);
+#endif
 }
 #endif /* CONFIG_X86_PAE */
 
