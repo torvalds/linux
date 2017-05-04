@@ -184,14 +184,29 @@ static int xlat_bus_status(void *buf, unsigned int cmd, u32 status)
 	return 0;
 }
 
+static int xlat_nvdimm_status(void *buf, unsigned int cmd, u32 status)
+{
+	switch (cmd) {
+	case ND_CMD_GET_CONFIG_SIZE:
+		if (status >> 16 & ND_CONFIG_LOCKED)
+			return -EACCES;
+		break;
+	default:
+		break;
+	}
+
+	/* all other non-zero status results in an error */
+	if (status)
+		return -EIO;
+	return 0;
+}
+
 static int xlat_status(struct nvdimm *nvdimm, void *buf, unsigned int cmd,
 		u32 status)
 {
 	if (!nvdimm)
 		return xlat_bus_status(buf, cmd, status);
-	if (status)
-		return -EIO;
-	return 0;
+	return xlat_nvdimm_status(buf, cmd, status);
 }
 
 int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc, struct nvdimm *nvdimm,
