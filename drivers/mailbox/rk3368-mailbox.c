@@ -165,7 +165,6 @@ static irqreturn_t rk3368_mbox_isr(int irq, void *dev_id)
 			       msg->rx_size);
 
 		mbox_chan_received_data(&mb->mbox.chans[idx], msg);
-		mb->chans[idx].msg = NULL;
 
 		dev_dbg(mb->mbox.dev, "Chan[%d]: B2A message, cmd 0x%08x\n",
 			idx, msg->cmd);
