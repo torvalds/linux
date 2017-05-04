@@ -651,14 +651,6 @@ config LEDS_SYSCON
 	  devices. This will only work with device tree enabled
 	  devices.
 
-config LEDS_VERSATILE
-	tristate "LED support for the ARM Versatile and RealView"
-	depends on ARCH_REALVIEW || ARCH_VERSATILE
-	depends on LEDS_CLASS
-	help
-	  This option enabled support for the LEDs on the ARM Versatile
-	  and RealView boards. Say Y to enabled these.
-
 config LEDS_PM8058
 	tristate "LED Support for the Qualcomm PM8058 PMIC"
 	depends on MFD_PM8XXX
