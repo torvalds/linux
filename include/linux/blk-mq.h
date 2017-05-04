@@ -57,6 +57,10 @@ struct blk_mq_hw_ctx {
 	unsigned long		poll_considered;
 	unsigned long		poll_invoked;
 	unsigned long		poll_success;
+
+#ifdef CONFIG_BLK_DEBUG_FS
+	struct dentry		*debugfs_dir;
+#endif
 };
 
 struct blk_mq_tag_set {

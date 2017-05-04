@@ -579,7 +579,6 @@ struct request_queue {
 
 #ifdef CONFIG_BLK_DEBUG_FS
 	struct dentry		*debugfs_dir;
-	struct dentry		*mq_debugfs_dir;
 #endif
 
 	bool			mq_sysfs_init_done;
