@@ -7,7 +7,7 @@
 #include "camsys_soc_priv.h"
 #include "ext_flashled_drv/rk_ext_fshled_ctl.h"
 
-unsigned int camsys_debug = 1;
+unsigned int camsys_debug = 0;
 module_param(camsys_debug, int, S_IRUGO|S_IWUSR);
 static int drv_version = CAMSYS_DRIVER_VERSION;
 module_param(drv_version, int, S_IRUGO);
