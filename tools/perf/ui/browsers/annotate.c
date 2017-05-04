@@ -132,21 +132,17 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 	}
 
 	if (dl->offset != -1 && percent_max != 0.0) {
-		if (percent_max != 0.0) {
-			for (i = 0; i < ab->nr_events; i++) {
-				ui_browser__set_percent_color(browser,
-							bdl->samples[i].percent,
-							current_entry);
-				if (annotate_browser__opts.show_total_period) {
-					ui_browser__printf(browser, "%6" PRIu64 " ",
-							   bdl->samples[i].nr);
-				} else {
-					ui_browser__printf(browser, "%6.2f ",
-							   bdl->samples[i].percent);
-				}
+		for (i = 0; i < ab->nr_events; i++) {
+			ui_browser__set_percent_color(browser,
+						bdl->samples[i].percent,
+						current_entry);
+			if (annotate_browser__opts.show_total_period) {
+				ui_browser__printf(browser, "%6" PRIu64 " ",
+						   bdl->samples[i].nr);
+			} else {
+				ui_browser__printf(browser, "%6.2f ",
+						   bdl->samples[i].percent);
 			}
-		} else {
-			ui_browser__write_nstring(browser, " ", 7 * ab->nr_events);
 		}
 	} else {
 		ui_browser__set_percent_color(browser, 0, current_entry);
