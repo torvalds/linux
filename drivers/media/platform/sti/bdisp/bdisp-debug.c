@@ -104,7 +104,7 @@ static void bdisp_dbg_dump_ins(struct seq_file *s, u32 val)
 	if (val & BLT_INS_IRQ)
 		seq_puts(s, "IRQ - ");
 
-	seq_puts(s, "\n");
+	seq_putc(s, '\n');
 }
 
 static void bdisp_dbg_dump_tty(struct seq_file *s, u32 val)
@@ -153,7 +153,7 @@ static void bdisp_dbg_dump_tty(struct seq_file *s, u32 val)
 	if (val & BLT_TTY_BIG_END)
 		seq_puts(s, "BigEndian - ");
 
-	seq_puts(s, "\n");
+	seq_putc(s, '\n');
 }
 
 static void bdisp_dbg_dump_xy(struct seq_file *s, u32 val, char *name)
@@ -230,7 +230,7 @@ static void bdisp_dbg_dump_sty(struct seq_file *s,
 		seq_puts(s, "BigEndian - ");
 
 done:
-	seq_puts(s, "\n");
+	seq_putc(s, '\n');
 }
 
 static void bdisp_dbg_dump_fctl(struct seq_file *s, u32 val)
@@ -247,7 +247,7 @@ static void bdisp_dbg_dump_fctl(struct seq_file *s, u32 val)
 	else if ((val & BLT_FCTL_HV_SCALE) == BLT_FCTL_HV_SAMPLE)
 		seq_puts(s, "Sample Chroma");
 
-	seq_puts(s, "\n");
+	seq_putc(s, '\n');
 }
 
 static void bdisp_dbg_dump_rsf(struct seq_file *s, u32 val, char *name)
@@ -266,7 +266,7 @@ static void bdisp_dbg_dump_rsf(struct seq_file *s, u32 val, char *name)
 	seq_printf(s, "V: %d(6.10) / scale~%dx0.1", inc, 1024 * 10 / inc);
 
 done:
-	seq_puts(s, "\n");
+	seq_putc(s, '\n');
 }
 
 static void bdisp_dbg_dump_rzi(struct seq_file *s, u32 val, char *name)
@@ -281,7 +281,7 @@ static void bdisp_dbg_dump_rzi(struct seq_file *s, u32 val, char *name)
 	seq_printf(s, "V: init=%d repeat=%d", val & 0x3FF, (val >> 12) & 7);
 
 done:
-	seq_puts(s, "\n");
+	seq_putc(s, '\n');
 }
 
 static void bdisp_dbg_dump_ivmx(struct seq_file *s,
@@ -293,7 +293,7 @@ static void bdisp_dbg_dump_ivmx(struct seq_file *s,
 	seq_printf(s, "IVMX3\t0x%08X\t", c3);
 
 	if (!c0 && !c1 && !c2 && !c3) {
-		seq_puts(s, "\n");
+		seq_putc(s, '\n');
 		return;
 	}
 
