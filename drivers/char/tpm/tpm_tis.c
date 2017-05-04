@@ -336,7 +336,7 @@ static int tpm_tis_plat_probe(struct platform_device *pdev)
 	if (res) {
 		tpm_info.irq = res->start;
 	} else {
-		if (pdev == force_pdev)
+		if (pdev != force_pdev)
 			tpm_info.irq = -1;
 		else
 			/* When forcing auto probe the IRQ */
