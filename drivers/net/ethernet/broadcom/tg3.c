@@ -11729,10 +11729,6 @@ static int tg3_close(struct net_device *dev)
 
 	tg3_stop(tp);
 
-	/* Clear stats across close / open calls */
-	memset(&tp->net_stats_prev, 0, sizeof(tp->net_stats_prev));
-	memset(&tp->estats_prev, 0, sizeof(tp->estats_prev));
-
 	if (pci_device_is_present(tp->pdev)) {
 		tg3_power_down_prepare(tp);
 

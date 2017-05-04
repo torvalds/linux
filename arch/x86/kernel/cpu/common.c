@@ -1149,7 +1149,6 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 	detect_ht(c);
 #endif
 
-	init_hypervisor(c);
 	x86_init_rdrand(c);
 	x86_init_cache_qos(c);
 	setup_pku(c);

@@ -320,21 +320,21 @@ static void fill_lpm_trie(void)
 	assert(!r);
 }
 
-static void fixup_map(struct bpf_map_def *map, const char *name, int idx)
+static void fixup_map(struct bpf_map_data *map, int idx)
 {
 	int i;
 
-	if (!strcmp("inner_lru_hash_map", name)) {
+	if (!strcmp("inner_lru_hash_map", map->name)) {
 		inner_lru_hash_idx = idx;
-		inner_lru_hash_size = map->max_entries;
+		inner_lru_hash_size = map->def.max_entries;
 	}
 
-	if (!strcmp("array_of_lru_hashs", name)) {
+	if (!strcmp("array_of_lru_hashs", map->name)) {
 		if (inner_lru_hash_idx == -1) {
 			printf("inner_lru_hash_map must be defined before array_of_lru_hashs\n");
 			exit(1);
 		}
-		map->inner_map_idx = inner_lru_hash_idx;
+		map->def.inner_map_idx = inner_lru_hash_idx;
 		array_of_lru_hashs_idx = idx;
 	}
 
@@ -345,9 +345,9 @@ static void fixup_map(struct bpf_map_def *map, const char *name, int idx)
 
 	/* Only change the max_entries for the enabled test(s) */
 	for (i = 0; i < NR_TESTS; i++) {
-		if (!strcmp(test_map_names[i], name) &&
+		if (!strcmp(test_map_names[i], map->name) &&
 		    (check_test_flags(i))) {
-			map->max_entries = num_map_entries;
+			map->def.max_entries = num_map_entries;
 		}
 	}
 }

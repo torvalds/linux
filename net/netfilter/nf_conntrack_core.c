@@ -1853,7 +1853,7 @@ EXPORT_SYMBOL_GPL(nf_conntrack_set_hashsize);
 module_param_call(hashsize, nf_conntrack_set_hashsize, param_get_uint,
 		  &nf_conntrack_htable_size, 0600);
 
-static unsigned int total_extension_size(void)
+static __always_inline unsigned int total_extension_size(void)
 {
 	/* remember to add new extensions below */
 	BUILD_BUG_ON(NF_CT_EXT_NUM > 9);

@@ -59,17 +59,6 @@ static int exar_set_direction(struct gpio_chip *chip, int direction,
 	return 0;
 }
 
-static int exar_direction_output(struct gpio_chip *chip, unsigned int offset,
-				 int value)
-{
-	return exar_set_direction(chip, 0, offset);
-}
-
-static int exar_direction_input(struct gpio_chip *chip, unsigned int offset)
-{
-	return exar_set_direction(chip, 1, offset);
-}
-
 static int exar_get(struct gpio_chip *chip, unsigned int reg)
 {
 	struct exar_gpio_chip *exar_gpio = gpiochip_get_data(chip);
@@ -114,6 +103,18 @@ static void exar_set_value(struct gpio_chip *chip, unsigned int offset,
 
 	addr = bank ? EXAR_OFFSET_MPIOLVL_HI : EXAR_OFFSET_MPIOLVL_LO;
 	exar_update(chip, addr, value, offset % 8);
+}
+
+static int exar_direction_output(struct gpio_chip *chip, unsigned int offset,
+				 int value)
+{
+	exar_set_value(chip, offset, value);
+	return exar_set_direction(chip, 0, offset);
+}
+
+static int exar_direction_input(struct gpio_chip *chip, unsigned int offset)
+{
+	return exar_set_direction(chip, 1, offset);
 }
 
 static int gpio_exar_probe(struct platform_device *pdev)

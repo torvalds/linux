@@ -508,6 +508,8 @@ static void setup_itct_v1_hw(struct hisi_hba *hisi_hba,
 	struct device *dev = &hisi_hba->pdev->dev;
 	u64 qw0, device_id = sas_dev->device_id;
 	struct hisi_sas_itct *itct = &hisi_hba->itct[device_id];
+	struct asd_sas_port *sas_port = device->port;
+	struct hisi_sas_port *port = to_hisi_sas_port(sas_port);
 
 	memset(itct, 0, sizeof(*itct));
 
@@ -528,7 +530,7 @@ static void setup_itct_v1_hw(struct hisi_hba *hisi_hba,
 		(1 << ITCT_HDR_AWT_CONTROL_OFF) |
 		(device->max_linkrate << ITCT_HDR_MAX_CONN_RATE_OFF) |
 		(1 << ITCT_HDR_VALID_LINK_NUM_OFF) |
-		(device->port->id << ITCT_HDR_PORT_ID_OFF));
+		(port->id << ITCT_HDR_PORT_ID_OFF));
 	itct->qw0 = cpu_to_le64(qw0);
 
 	/* qw1 */
@@ -1275,7 +1277,7 @@ static void slot_err_v1_hw(struct hisi_hba *hisi_hba,
 }
 
 static int slot_complete_v1_hw(struct hisi_hba *hisi_hba,
-			       struct hisi_sas_slot *slot, int abort)
+			       struct hisi_sas_slot *slot)
 {
 	struct sas_task *task = slot->task;
 	struct hisi_sas_device *sas_dev;
@@ -1286,6 +1288,7 @@ static int slot_complete_v1_hw(struct hisi_hba *hisi_hba,
 	struct hisi_sas_complete_v1_hdr *complete_queue =
 			hisi_hba->complete_hdr[slot->cmplt_queue];
 	struct hisi_sas_complete_v1_hdr *complete_hdr;
+	unsigned long flags;
 	u32 cmplt_hdr_data;
 
 	complete_hdr = &complete_queue[slot->cmplt_queue_slot];
@@ -1298,16 +1301,17 @@ static int slot_complete_v1_hw(struct hisi_hba *hisi_hba,
 	device = task->dev;
 	sas_dev = device->lldd_dev;
 
+	spin_lock_irqsave(&task->task_state_lock, flags);
 	task->task_state_flags &=
 		~(SAS_TASK_STATE_PENDING | SAS_TASK_AT_INITIATOR);
 	task->task_state_flags |= SAS_TASK_STATE_DONE;
+	spin_unlock_irqrestore(&task->task_state_lock, flags);
 
 	memset(ts, 0, sizeof(*ts));
 	ts->resp = SAS_TASK_COMPLETE;
 
-	if (unlikely(!sas_dev || abort)) {
-		if (!sas_dev)
-			dev_dbg(dev, "slot complete: port has not device\n");
+	if (unlikely(!sas_dev)) {
+		dev_dbg(dev, "slot complete: port has no device\n");
 		ts->stat = SAS_PHY_DOWN;
 		goto out;
 	}
@@ -1620,7 +1624,7 @@ static irqreturn_t cq_interrupt_v1_hw(int irq, void *p)
 		 */
 		slot->cmplt_queue_slot = rd_point;
 		slot->cmplt_queue = queue;
-		slot_complete_v1_hw(hisi_hba, slot, 0);
+		slot_complete_v1_hw(hisi_hba, slot);
 
 		if (++rd_point >= HISI_SAS_QUEUE_SLOTS)
 			rd_point = 0;
@@ -1845,8 +1849,6 @@ static int hisi_sas_v1_init(struct hisi_hba *hisi_hba)
 	if (rc)
 		return rc;
 
-	phys_init_v1_hw(hisi_hba);
-
 	return 0;
 }
 
@@ -1860,6 +1862,7 @@ static const struct hisi_sas_hw hisi_sas_v1_hw = {
 	.get_free_slot = get_free_slot_v1_hw,
 	.start_delivery = start_delivery_v1_hw,
 	.slot_complete = slot_complete_v1_hw,
+	.phys_init = phys_init_v1_hw,
 	.phy_enable = enable_phy_v1_hw,
 	.phy_disable = disable_phy_v1_hw,
 	.phy_hard_reset = phy_hard_reset_v1_hw,

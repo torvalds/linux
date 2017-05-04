@@ -169,7 +169,7 @@ static int gpio_mockup_irqchip_setup(struct device *dev,
 	struct gpio_chip *gc = &chip->gc;
 	int irq_base, i;
 
-	irq_base = irq_alloc_descs(-1, 0, gc->ngpio, 0);
+	irq_base = devm_irq_alloc_descs(dev, -1, 0, gc->ngpio, 0);
 	if (irq_base < 0)
 		return irq_base;
 
@@ -372,25 +372,11 @@ static int gpio_mockup_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int gpio_mockup_remove(struct platform_device *pdev)
-{
-	struct gpio_mockup_chip *chips;
-	int i;
-
-	chips = platform_get_drvdata(pdev);
-
-	for (i = 0; i < gpio_mockup_params_nr >> 1; i++)
-		irq_free_descs(chips[i].gc.irq_base, chips[i].gc.ngpio);
-
-	return 0;
-}
-
 static struct platform_driver gpio_mockup_driver = {
 	.driver = {
 		.name = GPIO_MOCKUP_NAME,
 	},
 	.probe = gpio_mockup_probe,
-	.remove = gpio_mockup_remove,
 };
 
 static struct platform_device *pdev;

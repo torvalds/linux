@@ -1,20 +1,15 @@
-/**
- * Copyright (C) 2005 - 2016 Broadcom
- * All rights reserved.
+/*
+ * Copyright 2017 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Limited and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.  The full GNU General
+ * as published by the Free Software Foundation. The full GNU General
  * Public License is included in this distribution in the file called COPYING.
- *
- * Written by: Jayamohan Kallickal (jayamohan.kallickal@broadcom.com)
  *
  * Contact Information:
  * linux-drivers@broadcom.com
  *
- * Emulex
- * 3333 Susan Street
- * Costa Mesa, CA 92626
  */
 
 #include <scsi/libiscsi.h>
@@ -1263,31 +1258,58 @@ static void beiscsi_flush_cq(struct beiscsi_hba *phba)
 }
 
 /**
- * beiscsi_close_conn - Upload the  connection
+ * beiscsi_conn_close - Invalidate and upload connection
  * @ep: The iscsi endpoint
- * @flag: The type of connection closure
+ *
+ * Returns 0 on success,  -1 on failure.
  */
-static int beiscsi_close_conn(struct  beiscsi_endpoint *beiscsi_ep, int flag)
+static int beiscsi_conn_close(struct beiscsi_endpoint *beiscsi_ep)
 {
-	int ret = 0;
-	unsigned int tag;
 	struct beiscsi_hba *phba = beiscsi_ep->phba;
+	unsigned int tag, attempts;
+	int ret;
 
-	tag = mgmt_upload_connection(phba, beiscsi_ep->ep_cid, flag);
-	if (!tag) {
-		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
-			    "BS_%d : upload failed for cid 0x%x\n",
-			    beiscsi_ep->ep_cid);
-
-		ret = -EAGAIN;
+	/**
+	 * Without successfully invalidating and uploading connection
+	 * driver can't reuse the CID so attempt more than once.
+	 */
+	attempts = 0;
+	while (attempts++ < 3) {
+		tag = beiscsi_invalidate_cxn(phba, beiscsi_ep);
+		if (tag) {
+			ret = beiscsi_mccq_compl_wait(phba, tag, NULL, NULL);
+			if (!ret)
+				break;
+			beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
+				    "BS_%d : invalidate conn failed cid %d\n",
+				    beiscsi_ep->ep_cid);
+		}
 	}
 
-	ret = beiscsi_mccq_compl_wait(phba, tag, NULL, NULL);
-
-	/* Flush the CQ entries */
+	/* wait for all completions to arrive, then process them */
+	msleep(250);
+	/* flush CQ entries */
 	beiscsi_flush_cq(phba);
 
-	return ret;
+	if (attempts > 3)
+		return -1;
+
+	attempts = 0;
+	while (attempts++ < 3) {
+		tag = beiscsi_upload_cxn(phba, beiscsi_ep);
+		if (tag) {
+			ret = beiscsi_mccq_compl_wait(phba, tag, NULL, NULL);
+			if (!ret)
+				break;
+			beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
+				    "BS_%d : upload conn failed cid %d\n",
+				    beiscsi_ep->ep_cid);
+		}
+	}
+	if (attempts > 3)
+		return -1;
+
+	return 0;
 }
 
 /**
@@ -1298,12 +1320,9 @@ static int beiscsi_close_conn(struct  beiscsi_endpoint *beiscsi_ep, int flag)
  */
 void beiscsi_ep_disconnect(struct iscsi_endpoint *ep)
 {
-	struct beiscsi_conn *beiscsi_conn;
 	struct beiscsi_endpoint *beiscsi_ep;
+	struct beiscsi_conn *beiscsi_conn;
 	struct beiscsi_hba *phba;
-	unsigned int tag;
-	uint8_t mgmt_invalidate_flag, tcp_upload_flag;
-	unsigned short savecfg_flag = CMD_ISCSI_SESSION_SAVE_CFG_ON_FLASH;
 	uint16_t cri_index;
 
 	beiscsi_ep = ep->dd_data;
@@ -1324,39 +1343,27 @@ void beiscsi_ep_disconnect(struct iscsi_endpoint *ep)
 	if (beiscsi_ep->conn) {
 		beiscsi_conn = beiscsi_ep->conn;
 		iscsi_suspend_queue(beiscsi_conn->conn);
-		mgmt_invalidate_flag = ~BEISCSI_NO_RST_ISSUE;
-		tcp_upload_flag = CONNECTION_UPLOAD_GRACEFUL;
-	} else {
-		mgmt_invalidate_flag = BEISCSI_NO_RST_ISSUE;
-		tcp_upload_flag = CONNECTION_UPLOAD_ABORT;
 	}
 
 	if (!beiscsi_hba_is_online(phba)) {
 		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
 			    "BS_%d : HBA in error 0x%lx\n", phba->state);
-		goto free_ep;
+	} else {
+		/**
+		 * Make CID available even if close fails.
+		 * If not freed, FW might fail open using the CID.
+		 */
+		if (beiscsi_conn_close(beiscsi_ep) < 0)
+			__beiscsi_log(phba, KERN_ERR,
+				      "BS_%d : close conn failed cid %d\n",
+				      beiscsi_ep->ep_cid);
 	}
 
-	tag = mgmt_invalidate_connection(phba, beiscsi_ep,
-					  beiscsi_ep->ep_cid,
-					  mgmt_invalidate_flag,
-					  savecfg_flag);
-	if (!tag) {
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : mgmt_invalidate_connection Failed for cid=%d\n",
-			    beiscsi_ep->ep_cid);
-	}
-
-	beiscsi_mccq_compl_wait(phba, tag, NULL, NULL);
-	beiscsi_close_conn(beiscsi_ep, tcp_upload_flag);
-free_ep:
-	msleep(BEISCSI_LOGOUT_SYNC_DELAY);
 	beiscsi_free_ep(beiscsi_ep);
 	if (!phba->conn_table[cri_index])
 		__beiscsi_log(phba, KERN_ERR,
-				"BS_%d : conn_table empty at %u: cid %u\n",
-				cri_index,
-				beiscsi_ep->ep_cid);
+			      "BS_%d : conn_table empty at %u: cid %u\n",
+			      cri_index, beiscsi_ep->ep_cid);
 	phba->conn_table[cri_index] = NULL;
 	iscsi_destroy_endpoint(beiscsi_ep->openiscsi_ep);
 }

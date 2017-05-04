@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/seq_file.h>
 
 #include <linux/mfd/arizona/core.h>
@@ -41,12 +42,37 @@ static int arizona_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
 	struct arizona_gpio *arizona_gpio = gpiochip_get_data(chip);
 	struct arizona *arizona = arizona_gpio->arizona;
-	unsigned int val;
+	unsigned int reg, val;
 	int ret;
 
-	ret = regmap_read(arizona->regmap, ARIZONA_GPIO1_CTRL + offset, &val);
+	reg = ARIZONA_GPIO1_CTRL + offset;
+	ret = regmap_read(arizona->regmap, reg, &val);
 	if (ret < 0)
 		return ret;
+
+	/* Resume to read actual registers for input pins */
+	if (val & ARIZONA_GPN_DIR) {
+		ret = pm_runtime_get_sync(chip->parent);
+		if (ret < 0) {
+			dev_err(chip->parent, "Failed to resume: %d\n", ret);
+			return ret;
+		}
+
+		/* Register is cached, drop it to ensure a physical read */
+		ret = regcache_drop_region(arizona->regmap, reg, reg);
+		if (ret < 0) {
+			dev_err(chip->parent, "Failed to drop cache: %d\n",
+				ret);
+			return ret;
+		}
+
+		ret = regmap_read(arizona->regmap, reg, &val);
+		if (ret < 0)
+			return ret;
+
+		pm_runtime_mark_last_busy(chip->parent);
+		pm_runtime_put_autosuspend(chip->parent);
+	}
 
 	if (val & ARIZONA_GPN_LVL)
 		return 1;

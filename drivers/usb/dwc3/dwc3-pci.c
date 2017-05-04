@@ -125,8 +125,10 @@ static int dwc3_pci_quirks(struct dwc3_pci *dwc)
 		if (pdev->device == PCI_DEVICE_ID_INTEL_BYT) {
 			struct gpio_desc *gpio;
 
-			acpi_dev_add_driver_gpios(ACPI_COMPANION(&pdev->dev),
+			ret = devm_acpi_dev_add_driver_gpios(&pdev->dev,
 					acpi_dwc3_byt_gpios);
+			if (ret)
+				dev_dbg(&pdev->dev, "failed to add mapping table\n");
 
 			/*
 			 * These GPIOs will turn on the USB2 PHY. Note that we have to
@@ -242,7 +244,6 @@ static void dwc3_pci_remove(struct pci_dev *pci)
 
 	device_init_wakeup(&pci->dev, false);
 	pm_runtime_get(&pci->dev);
-	acpi_dev_remove_driver_gpios(ACPI_COMPANION(&pci->dev));
 	platform_device_unregister(dwc->dwc3);
 }
 
