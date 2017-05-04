@@ -10315,6 +10315,8 @@ F:	include/linux/pwm.h
 F:	drivers/pwm/
 F:	drivers/video/backlight/pwm_bl.c
 F:	include/linux/pwm_backlight.h
+F:	drivers/gpio/gpio-mvebu.c
+F:	Documentation/devicetree/bindings/gpio/gpio-mvebu.txt
 
 PXA2xx/PXA3xx SUPPORT
 M:	Daniel Mack <daniel@zonque.org>
