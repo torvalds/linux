@@ -42,6 +42,8 @@
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
 
+static struct platform_device *vgem_platform;
+
 static void vgem_gem_free_object(struct drm_gem_object *obj)
 {
 	struct drm_vgem_gem_object *vgem_obj = to_vgem_bo(obj);
@@ -335,10 +337,19 @@ static int __init vgem_init(void)
 	int ret;
 
 	vgem_device = drm_dev_alloc(&vgem_driver, NULL);
-	if (IS_ERR(vgem_device)) {
-		ret = PTR_ERR(vgem_device);
+	if (IS_ERR(vgem_device))
+		return PTR_ERR(vgem_device);
+
+	vgem_platform = platform_device_register_simple("vgem",
+					-1, NULL, 0);
+
+	if (!vgem_platform) {
+		ret = -ENODEV;
 		goto out;
 	}
+
+	dma_coerce_mask_and_coherent(&vgem_platform->dev,
+					DMA_BIT_MASK(64));
 
 	ret  = drm_dev_register(vgem_device, 0);
 	if (ret)
@@ -347,13 +358,15 @@ static int __init vgem_init(void)
 	return 0;
 
 out_unref:
-	drm_dev_unref(vgem_device);
+	platform_device_unregister(vgem_platform);
 out:
+	drm_dev_unref(vgem_device);
 	return ret;
 }
 
 static void __exit vgem_exit(void)
 {
+	platform_device_unregister(vgem_platform);
 	drm_dev_unregister(vgem_device);
 	drm_dev_unref(vgem_device);
 }
