@@ -10233,7 +10233,7 @@ static int goto_offline(struct hfi1_pportdata *ppd, u8 rem_reason)
 	if (pstate == PLS_OFFLINE) {
 		do_transition = 0;	/* in right state */
 		do_wait = 0;		/* ...no need to wait */
-	} else if ((pstate & 0xff) == PLS_OFFLINE) {
+	} else if ((pstate & 0xf0) == PLS_OFFLINE) {
 		do_transition = 0;	/* in an offline transient state */
 		do_wait = 1;		/* ...wait for it to settle */
 	} else {
