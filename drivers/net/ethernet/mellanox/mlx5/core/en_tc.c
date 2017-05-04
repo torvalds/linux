@@ -344,10 +344,7 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	}
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
-		err = mlx5_modify_header_alloc(priv->mdev, MLX5_FLOW_NAMESPACE_FDB,
-					       parse_attr->num_mod_hdr_actions,
-					       parse_attr->mod_hdr_actions,
-					       &attr->mod_hdr_id);
+		err = mlx5e_attach_mod_hdr(priv, flow, parse_attr);
 		kfree(parse_attr->mod_hdr_actions);
 		if (err) {
 			rule = ERR_PTR(err);
@@ -363,8 +360,7 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 
 err_add_rule:
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
-		mlx5_modify_header_dealloc(priv->mdev,
-					   attr->mod_hdr_id);
+		mlx5e_detach_mod_hdr(priv, flow);
 err_mod_hdr:
 	mlx5_eswitch_del_vlan_action(esw, attr);
 err_add_vlan:
@@ -392,8 +388,7 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 	}
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
-		mlx5_modify_header_dealloc(priv->mdev,
-					   attr->mod_hdr_id);
+		mlx5e_detach_mod_hdr(priv, flow);
 }
 
 void mlx5e_tc_encap_flows_add(struct mlx5e_priv *priv,
