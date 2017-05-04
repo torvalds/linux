@@ -2536,6 +2536,9 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		DP_NOTICE(p_hwfn, "Unknown Speed in 0x%08x\n", link_temp);
 	}
 
+	p_hwfn->mcp_info->link_capabilities.default_speed_autoneg =
+		link->speed.autoneg;
+
 	link_temp &= NVM_CFG1_PORT_DRV_FLOW_CONTROL_MASK;
 	link_temp >>= NVM_CFG1_PORT_DRV_FLOW_CONTROL_OFFSET;
 	link->pause.autoneg = !!(link_temp &
