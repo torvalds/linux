@@ -2023,7 +2023,7 @@
 		uart3 {
 			uart3_xfer: uart3-xfer {
 				rockchip,pins = <3 29 RK_FUNC_2 &pcfg_pull_up>,
-						<3 30 RK_FUNC_3 &pcfg_pull_none>;
+						<3 30 RK_FUNC_2 &pcfg_pull_none>;
 			};
 
 			uart3_cts: uart3-cts {
