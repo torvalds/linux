@@ -54,7 +54,8 @@ amdgpu-y += \
 # add PSP block
 amdgpu-y += \
 	amdgpu_psp.o \
-	psp_v3_1.o
+	psp_v3_1.o \
+	psp_v10_0.o
 
 # add SMC block
 amdgpu-y += \
