@@ -17,17 +17,6 @@
 #define CACHELINE_BYTES 64
 #define CACHELINE_DWORDS (CACHELINE_BYTES / sizeof(uint32_t))
 
-/*
- * Gen2 BSpec "1. Programming Environment" / 1.4.4.6 "Ring Buffer Use"
- * Gen3 BSpec "vol1c Memory Interface Functions" / 2.3.4.5 "Ring Buffer Use"
- * Gen4+ BSpec "vol1c Memory Interface and Command Stream" / 5.3.4.5 "Ring Buffer Use"
- *
- * "If the Ring Buffer Head Pointer and the Tail Pointer are on the same
- * cacheline, the Head Pointer must not be greater than the Tail
- * Pointer."
- */
-#define I915_RING_FREE_SPACE 64
-
 struct intel_hw_status_page {
 	struct i915_vma *vma;
 	u32 *page_addr;
@@ -145,9 +134,9 @@ struct intel_ring {
 	u32 tail;
 	u32 emit;
 
-	int space;
-	int size;
-	int effective_size;
+	u32 space;
+	u32 size;
+	u32 effective_size;
 };
 
 struct i915_gem_context;
@@ -548,6 +537,25 @@ assert_ring_tail_valid(const struct intel_ring *ring, unsigned int tail)
 	 */
 	GEM_BUG_ON(!IS_ALIGNED(tail, 8));
 	GEM_BUG_ON(tail >= ring->size);
+
+	/*
+	 * "Ring Buffer Use"
+	 *	Gen2 BSpec "1. Programming Environment" / 1.4.4.6
+	 *	Gen3 BSpec "1c Memory Interface Functions" / 2.3.4.5
+	 *	Gen4+ BSpec "1c Memory Interface and Command Stream" / 5.3.4.5
+	 * "If the Ring Buffer Head Pointer and the Tail Pointer are on the
+	 * same cacheline, the Head Pointer must not be greater than the Tail
+	 * Pointer."
+	 *
+	 * We use ring->head as the last known location of the actual RING_HEAD,
+	 * it may have advanced but in the worst case it is equally the same
+	 * as ring->head and so we should never program RING_TAIL to advance
+	 * into the same cacheline as ring->head.
+	 */
+#define cacheline(a) round_down(a, CACHELINE_BYTES)
+	GEM_BUG_ON(cacheline(tail) == cacheline(ring->head) &&
+		   tail < ring->head);
+#undef cacheline
 }
 
 static inline unsigned int

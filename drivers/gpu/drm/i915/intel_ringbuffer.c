@@ -39,12 +39,17 @@
  */
 #define LEGACY_REQUEST_SIZE 200
 
-static int __intel_ring_space(int head, int tail, int size)
+static unsigned int __intel_ring_space(unsigned int head,
+				       unsigned int tail,
+				       unsigned int size)
 {
-	int space = head - tail;
-	if (space <= 0)
-		space += size;
-	return space - I915_RING_FREE_SPACE;
+	/*
+	 * "If the Ring Buffer Head Pointer and the Tail Pointer are on the
+	 * same cacheline, the Head Pointer must not be greater than the Tail
+	 * Pointer."
+	 */
+	GEM_BUG_ON(!is_power_of_2(size));
+	return (head - tail - CACHELINE_BYTES) & (size - 1);
 }
 
 void intel_ring_update_space(struct intel_ring *ring)
@@ -1670,12 +1675,9 @@ static int wait_for_space(struct drm_i915_gem_request *req, int bytes)
 	GEM_BUG_ON(!req->reserved_space);
 
 	list_for_each_entry(target, &ring->request_list, ring_link) {
-		unsigned space;
-
 		/* Would completion of this request free enough space? */
-		space = __intel_ring_space(target->postfix, ring->emit,
-					   ring->size);
-		if (space >= bytes)
+		if (bytes <= __intel_ring_space(target->postfix,
+						ring->emit, ring->size))
 			break;
 	}
 
@@ -1744,11 +1746,11 @@ u32 *intel_ring_begin(struct drm_i915_gem_request *req, int num_dwords)
 	}
 
 	GEM_BUG_ON(ring->emit > ring->size - bytes);
+	GEM_BUG_ON(ring->space < bytes);
 	cs = ring->vaddr + ring->emit;
 	GEM_DEBUG_EXEC(memset(cs, POISON_INUSE, bytes));
 	ring->emit += bytes;
 	ring->space -= bytes;
-	GEM_BUG_ON(ring->space < 0);
 
 	return cs;
 }
