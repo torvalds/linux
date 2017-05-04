@@ -1387,6 +1387,11 @@ static void ipv4_dst_destroy(struct dst_entry *dst)
 {
 	struct rtable *rt = (struct rtable *) dst;
 
+	if (rt->fi) {
+		fib_info_put(rt->fi);
+		rt->fi = NULL;
+	}
+
 	if (!list_empty(&rt->rt_uncached)) {
 		struct uncached_list *ul = rt->rt_uncached_list;
 
@@ -1424,6 +1429,16 @@ static bool rt_cache_valid(const struct rtable *rt)
 		!rt_is_expired(rt);
 }
 
+static void rt_init_metrics(struct rtable *rt, struct fib_info *fi)
+{
+	if (fi->fib_metrics != (u32 *)dst_default_metrics) {
+		fib_info_hold(fi);
+		rt->fi = fi;
+	}
+
+	dst_init_metrics(&rt->dst, fi->fib_metrics, true);
+}
+
 static void rt_set_nexthop(struct rtable *rt, __be32 daddr,
 			   const struct fib_result *res,
 			   struct fib_nh_exception *fnhe,
@@ -1438,7 +1453,7 @@ static void rt_set_nexthop(struct rtable *rt, __be32 daddr,
 			rt->rt_gateway = nh->nh_gw;
 			rt->rt_uses_gateway = 1;
 		}
-		dst_init_metrics(&rt->dst, fi->fib_metrics, true);
+		rt_init_metrics(rt, fi);
 #ifdef CONFIG_IP_ROUTE_CLASSID
 		rt->dst.tclassid = nh->nh_tclassid;
 #endif
@@ -1490,6 +1505,7 @@ struct rtable *rt_dst_alloc(struct net_device *dev,
 		rt->rt_gateway = 0;
 		rt->rt_uses_gateway = 0;
 		rt->rt_table_id = 0;
+		rt->fi = NULL;
 		INIT_LIST_HEAD(&rt->rt_uncached);
 
 		rt->dst.output = ip_output;

@@ -69,6 +69,7 @@ struct rtable {
 
 	struct list_head	rt_uncached;
 	struct uncached_list	*rt_uncached_list;
+	struct fib_info		*fi; /* for refcnt to shared metrics */
 };
 
 static inline bool rt_is_input_route(const struct rtable *rt)
