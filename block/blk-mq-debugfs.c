@@ -267,7 +267,7 @@ static const char *const rqf_name[] = {
 };
 #undef RQF_NAME
 
-static int blk_mq_debugfs_rq_show(struct seq_file *m, void *v)
+int blk_mq_debugfs_rq_show(struct seq_file *m, void *v)
 {
 	struct request *rq = list_entry_rq(v);
 	const struct blk_mq_ops *const mq_ops = rq->q->mq_ops;
@@ -291,6 +291,7 @@ static int blk_mq_debugfs_rq_show(struct seq_file *m, void *v)
 	seq_puts(m, "}\n");
 	return 0;
 }
+EXPORT_SYMBOL_GPL(blk_mq_debugfs_rq_show);
 
 static void *hctx_dispatch_start(struct seq_file *m, loff_t *pos)
 	__acquires(&hctx->lock)
