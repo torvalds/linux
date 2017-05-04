@@ -434,8 +434,7 @@ static void cpcap_usb_detect(struct work_struct *work)
 
 		error = cpcap_charger_set_state(ddata,
 						CPCAP_REG_CRM_VCHRG_4V35,
-						max_current,
-						CPCAP_REG_CRM_TR_0A72);
+						max_current, 0);
 		if (error)
 			goto out_err;
 	} else {
