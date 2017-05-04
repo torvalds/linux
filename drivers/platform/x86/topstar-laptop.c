@@ -113,14 +113,12 @@ static int acpi_topstar_init_hkey(struct topstar_hkey *hkey)
 	error = input_register_device(input);
 	if (error) {
 		pr_err("Unable to register input device\n");
-		goto err_free_keymap;
+		goto err_free_dev;
 	}
 
 	hkey->inputdev = input;
 	return 0;
 
- err_free_keymap:
-	sparse_keymap_free(input);
  err_free_dev:
 	input_free_device(input);
 	return error;
@@ -157,7 +155,6 @@ static int acpi_topstar_remove(struct acpi_device *device)
 
 	acpi_topstar_fncx_switch(device, false);
 
-	sparse_keymap_free(tps_hkey->inputdev);
 	input_unregister_device(tps_hkey->inputdev);
 	kfree(tps_hkey);
 

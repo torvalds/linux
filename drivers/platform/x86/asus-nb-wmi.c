@@ -111,6 +111,10 @@ static struct quirk_entry quirk_asus_x550lb = {
 	.xusb2pr = 0x01D9,
 };
 
+static struct quirk_entry quirk_asus_ux330uak = {
+	.wmi_force_als_set = true,
+};
+
 static int dmi_matched(const struct dmi_system_id *dmi)
 {
 	pr_info("Identified laptop model '%s'\n", dmi->ident);
@@ -140,6 +144,15 @@ static const struct dmi_system_id asus_quirks[] = {
 		 * machines need quirk_asus_x55u / wmi_backlight_power but
 		 * here acpi-video seems to work fine for backlight control.
 		 */
+		.driver_data = &quirk_asus_wapf4,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "ASUSTeK COMPUTER INC. X302UA",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "X302UA"),
+		},
 		.driver_data = &quirk_asus_wapf4,
 	},
 	{
@@ -366,6 +379,15 @@ static const struct dmi_system_id asus_quirks[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "UX303UB"),
 		},
 		.driver_data = &quirk_asus_ux303ub,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "ASUSTeK COMPUTER INC. UX330UAK",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "UX330UAK"),
+		},
+		.driver_data = &quirk_asus_ux330uak,
 	},
 	{
 		.callback = dmi_matched,
