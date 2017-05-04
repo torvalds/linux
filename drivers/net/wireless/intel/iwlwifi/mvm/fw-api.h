@@ -554,9 +554,26 @@ enum iwl_regulatory_and_nvm_subcmd_ids {
 	NVM_GET_INFO = 0x2,
 };
 
+/**
+ * enum iwl_debug_cmds - debug commands
+ */
 enum iwl_debug_cmds {
+	/**
+	 * @LMAC_RD_WR:
+	 * LMAC memory read/write, using &struct iwl_dbg_mem_access_cmd and
+	 * &struct iwl_dbg_mem_access_rsp
+	 */
 	LMAC_RD_WR = 0x0,
+	/**
+	 * @UMAC_RD_WR:
+	 * UMAC memory read/write, using &struct iwl_dbg_mem_access_cmd and
+	 * &struct iwl_dbg_mem_access_rsp
+	 */
 	UMAC_RD_WR = 0x1,
+	/**
+	 * @MFU_ASSERT_DUMP_NTF:
+	 * &struct iwl_mfu_assert_dump_notif
+	 */
 	MFU_ASSERT_DUMP_NTF = 0xFE,
 };
 
