@@ -80,10 +80,10 @@ struct nvme_rdma_request {
 };
 
 enum nvme_rdma_queue_flags {
-	NVME_RDMA_Q_CONNECTED = (1 << 0),
-	NVME_RDMA_IB_QUEUE_ALLOCATED = (1 << 1),
-	NVME_RDMA_Q_DELETING = (1 << 2),
-	NVME_RDMA_Q_LIVE = (1 << 3),
+	NVME_RDMA_Q_CONNECTED		= 0,
+	NVME_RDMA_IB_QUEUE_ALLOCATED	= 1,
+	NVME_RDMA_Q_DELETING		= 2,
+	NVME_RDMA_Q_LIVE		= 3,
 };
 
 struct nvme_rdma_queue {
