@@ -31,7 +31,7 @@
 
 /* DSS to DRM formats mapping */
 static const struct {
-	enum omap_color_mode dss_format;
+	u32 dss_format;
 	uint32_t pixel_format;
 } formats[] = {
 	/* 16bpp [A]RGB: */
@@ -57,7 +57,7 @@ static const struct {
 
 /* convert from overlay's pixel formats bitmask to an array of fourcc's */
 uint32_t omap_framebuffer_get_formats(uint32_t *pixel_formats,
-		uint32_t max_formats, const enum omap_color_mode *supported_modes)
+		uint32_t max_formats, const u32 *supported_modes)
 {
 	uint32_t nformats = 0;
 	int i = 0;
@@ -91,7 +91,7 @@ struct omap_framebuffer {
 	struct drm_framebuffer base;
 	int pin_count;
 	const struct drm_format_info *format;
-	enum omap_color_mode dss_format;
+	u32 dss_format;
 	struct plane planes[2];
 	/* lock for pinning (pin_count and planes.dma_addr) */
 	struct mutex lock;
@@ -395,7 +395,7 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 	const struct drm_format_info *format = NULL;
 	struct omap_framebuffer *omap_fb = NULL;
 	struct drm_framebuffer *fb = NULL;
-	enum omap_color_mode dss_format = 0;
+	u32 dss_format = 0;
 	unsigned int pitch = mode_cmd->pitches[0];
 	int ret, i;
 

@@ -282,7 +282,7 @@ struct omap_overlay_info {
 	u16 screen_width;
 	u16 width;
 	u16 height;
-	enum omap_color_mode color_mode;
+	u32 color_mode;
 	u8 rotation;
 	enum omap_dss_rotation_type rotation_type;
 	bool mirror;
@@ -330,7 +330,7 @@ struct omap_dss_writeback_info {
 	u16 buf_width;
 	u16 width;
 	u16 height;
-	enum omap_color_mode color_mode;
+	u32 color_mode;
 	u8 rotation;
 	enum omap_dss_rotation_type rotation_type;
 	bool mirror;
@@ -734,7 +734,7 @@ struct dispc_ops {
 			const struct videomode *vm, bool mem_to_mem,
 			enum omap_channel channel);
 
-	const enum omap_color_mode *(*ovl_get_color_modes)(enum omap_plane_id plane);
+	const u32 *(*ovl_get_color_modes)(enum omap_plane_id plane);
 };
 
 void dispc_set_ops(const struct dispc_ops *o);

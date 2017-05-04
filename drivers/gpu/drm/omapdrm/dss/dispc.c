@@ -77,7 +77,7 @@ struct dispc_features {
 	int (*calc_scaling) (unsigned long pclk, unsigned long lclk,
 		const struct videomode *vm,
 		u16 width, u16 height, u16 out_width, u16 out_height,
-		enum omap_color_mode color_mode, bool *five_taps,
+		u32 color_mode, bool *five_taps,
 		int *x_predecim, int *y_predecim, int *decim_x, int *decim_y,
 		u16 pos_x, unsigned long *core_clk, bool mem_to_mem);
 	unsigned long (*calc_core_clk) (unsigned long pclk,
@@ -906,7 +906,7 @@ static void dispc_ovl_set_row_inc(enum omap_plane_id plane, s32 inc)
 }
 
 static void dispc_ovl_set_color_mode(enum omap_plane_id plane,
-		enum omap_color_mode color_mode)
+		u32 color_mode)
 {
 	u32 m = 0;
 	if (plane != OMAP_DSS_GFX) {
@@ -978,7 +978,7 @@ static void dispc_ovl_set_color_mode(enum omap_plane_id plane,
 	REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane), m, 4, 1);
 }
 
-static bool format_is_yuv(enum omap_color_mode color_mode)
+static bool format_is_yuv(u32 color_mode)
 {
 	switch (color_mode) {
 	case OMAP_DSS_COLOR_YUV2:
@@ -1140,7 +1140,7 @@ static u32 dispc_ovl_get_burst_size(enum omap_plane_id plane)
 	return unit * 8;
 }
 
-static const enum omap_color_mode *dispc_ovl_get_color_modes(enum omap_plane_id plane)
+static const u32 *dispc_ovl_get_color_modes(enum omap_plane_id plane)
 {
 	return dss_feat_get_supported_color_modes(plane);
 }
@@ -1562,7 +1562,7 @@ static void dispc_ovl_set_scale_param(enum omap_plane_id plane,
 
 static void dispc_ovl_set_accu_uv(enum omap_plane_id plane,
 		u16 orig_width,	u16 orig_height, u16 out_width, u16 out_height,
-		bool ilace, enum omap_color_mode color_mode, u8 rotation)
+		bool ilace, u32 color_mode, u8 rotation)
 {
 	int h_accu2_0, h_accu2_1;
 	int v_accu2_0, v_accu2_1;
@@ -1652,7 +1652,7 @@ static void dispc_ovl_set_scaling_common(enum omap_plane_id plane,
 		u16 orig_width, u16 orig_height,
 		u16 out_width, u16 out_height,
 		bool ilace, bool five_taps,
-		bool fieldmode, enum omap_color_mode color_mode,
+		bool fieldmode, u32 color_mode,
 		u8 rotation)
 {
 	int accu0 = 0;
@@ -1706,7 +1706,7 @@ static void dispc_ovl_set_scaling_uv(enum omap_plane_id plane,
 		u16 orig_width, u16 orig_height,
 		u16 out_width, u16 out_height,
 		bool ilace, bool five_taps,
-		bool fieldmode, enum omap_color_mode color_mode,
+		bool fieldmode, u32 color_mode,
 		u8 rotation)
 {
 	int scale_x = out_width != orig_width;
@@ -1785,7 +1785,7 @@ static void dispc_ovl_set_scaling(enum omap_plane_id plane,
 		u16 orig_width, u16 orig_height,
 		u16 out_width, u16 out_height,
 		bool ilace, bool five_taps,
-		bool fieldmode, enum omap_color_mode color_mode,
+		bool fieldmode, u32 color_mode,
 		u8 rotation)
 {
 	BUG_ON(plane == OMAP_DSS_GFX);
@@ -1807,7 +1807,7 @@ static void dispc_ovl_set_scaling(enum omap_plane_id plane,
 
 static void dispc_ovl_set_rotation_attrs(enum omap_plane_id plane, u8 rotation,
 		enum omap_dss_rotation_type rotation_type,
-		bool mirroring, enum omap_color_mode color_mode)
+		bool mirroring, u32 color_mode)
 {
 	bool row_repeat = false;
 	int vidrot = 0;
@@ -1878,7 +1878,7 @@ static void dispc_ovl_set_rotation_attrs(enum omap_plane_id plane, u8 rotation,
 	}
 }
 
-static int color_mode_to_bpp(enum omap_color_mode color_mode)
+static int color_mode_to_bpp(u32 color_mode)
 {
 	switch (color_mode) {
 	case OMAP_DSS_COLOR_NV12:
@@ -1920,7 +1920,7 @@ static s32 pixinc(int pixels, u8 ps)
 }
 
 static void calc_offset(u16 screen_width, u16 width,
-		enum omap_color_mode color_mode, bool fieldmode,
+		u32 color_mode, bool fieldmode,
 		unsigned int field_offset, unsigned *offset0, unsigned *offset1,
 		s32 *row_inc, s32 *pix_inc, int x_predecim, int y_predecim)
 {
@@ -2007,7 +2007,7 @@ static int check_horiz_timing_omap3(unsigned long pclk, unsigned long lclk,
 static unsigned long calc_core_clk_five_taps(unsigned long pclk,
 		const struct videomode *vm, u16 width,
 		u16 height, u16 out_width, u16 out_height,
-		enum omap_color_mode color_mode)
+		u32 color_mode)
 {
 	u32 core_clk = 0;
 	u64 tmp;
@@ -2100,7 +2100,7 @@ static unsigned long calc_core_clk_44xx(unsigned long pclk, u16 width,
 static int dispc_ovl_calc_scaling_24xx(unsigned long pclk, unsigned long lclk,
 		const struct videomode *vm,
 		u16 width, u16 height, u16 out_width, u16 out_height,
-		enum omap_color_mode color_mode, bool *five_taps,
+		u32 color_mode, bool *five_taps,
 		int *x_predecim, int *y_predecim, int *decim_x, int *decim_y,
 		u16 pos_x, unsigned long *core_clk, bool mem_to_mem)
 {
@@ -2146,7 +2146,7 @@ static int dispc_ovl_calc_scaling_24xx(unsigned long pclk, unsigned long lclk,
 static int dispc_ovl_calc_scaling_34xx(unsigned long pclk, unsigned long lclk,
 		const struct videomode *vm,
 		u16 width, u16 height, u16 out_width, u16 out_height,
-		enum omap_color_mode color_mode, bool *five_taps,
+		u32 color_mode, bool *five_taps,
 		int *x_predecim, int *y_predecim, int *decim_x, int *decim_y,
 		u16 pos_x, unsigned long *core_clk, bool mem_to_mem)
 {
@@ -2231,7 +2231,7 @@ again:
 static int dispc_ovl_calc_scaling_44xx(unsigned long pclk, unsigned long lclk,
 		const struct videomode *vm,
 		u16 width, u16 height, u16 out_width, u16 out_height,
-		enum omap_color_mode color_mode, bool *five_taps,
+		u32 color_mode, bool *five_taps,
 		int *x_predecim, int *y_predecim, int *decim_x, int *decim_y,
 		u16 pos_x, unsigned long *core_clk, bool mem_to_mem)
 {
@@ -2296,7 +2296,7 @@ static int dispc_ovl_calc_scaling(unsigned long pclk, unsigned long lclk,
 		enum omap_overlay_caps caps,
 		const struct videomode *vm,
 		u16 width, u16 height, u16 out_width, u16 out_height,
-		enum omap_color_mode color_mode, bool *five_taps,
+		u32 color_mode, bool *five_taps,
 		int *x_predecim, int *y_predecim, u16 pos_x,
 		enum omap_dss_rotation_type rotation_type, bool mem_to_mem)
 {
@@ -2371,7 +2371,7 @@ static int dispc_ovl_calc_scaling(unsigned long pclk, unsigned long lclk,
 static int dispc_ovl_setup_common(enum omap_plane_id plane,
 		enum omap_overlay_caps caps, u32 paddr, u32 p_uv_addr,
 		u16 screen_width, int pos_x, int pos_y, u16 width, u16 height,
-		u16 out_width, u16 out_height, enum omap_color_mode color_mode,
+		u16 out_width, u16 out_height, u32 color_mode,
 		u8 rotation, bool mirror, u8 zorder, u8 pre_mult_alpha,
 		u8 global_alpha, enum omap_dss_rotation_type rotation_type,
 		bool replication, const struct videomode *vm,

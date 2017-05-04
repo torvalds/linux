@@ -47,7 +47,7 @@ struct omap_dss_features {
 	const int num_ovls;
 	const enum omap_display_type *supported_displays;
 	const enum omap_dss_output_id *supported_outputs;
-	const enum omap_color_mode **supported_color_modes;
+	const u32 **supported_color_modes;
 	const enum omap_overlay_caps *overlay_caps;
 	const struct dss_param_range *dss_params;
 
@@ -229,9 +229,9 @@ static const enum omap_dss_output_id omap5_dss_supported_outputs[] = {
 	OMAP_DSS_OUTPUT_DSI2,
 };
 
-#define COLOR_ARRAY(arr...) (const enum omap_color_mode[]) { arr, 0 }
+#define COLOR_ARRAY(arr...) (const u32[]) { arr, 0 }
 
-static const enum omap_color_mode *omap2_dss_supported_color_modes[] = {
+static const u32 *omap2_dss_supported_color_modes[] = {
 
 	/* OMAP_DSS_GFX */
 	COLOR_ARRAY(
@@ -251,7 +251,7 @@ static const enum omap_color_mode *omap2_dss_supported_color_modes[] = {
 	OMAP_DSS_COLOR_UYVY),
 };
 
-static const enum omap_color_mode *omap3_dss_supported_color_modes[] = {
+static const u32 *omap3_dss_supported_color_modes[] = {
 	/* OMAP_DSS_GFX */
 	COLOR_ARRAY(
 	OMAP_DSS_COLOR_RGB12U, OMAP_DSS_COLOR_ARGB16,
@@ -274,7 +274,7 @@ static const enum omap_color_mode *omap3_dss_supported_color_modes[] = {
 	OMAP_DSS_COLOR_RGBA32, OMAP_DSS_COLOR_RGBX32),
 };
 
-static const enum omap_color_mode *omap4_dss_supported_color_modes[] = {
+static const u32 *omap4_dss_supported_color_modes[] = {
 	/* OMAP_DSS_GFX */
 	COLOR_ARRAY(
 	OMAP_DSS_COLOR_RGB12U, OMAP_DSS_COLOR_ARGB16,
@@ -797,7 +797,7 @@ enum omap_dss_output_id dss_feat_get_supported_outputs(enum omap_channel channel
 	return omap_current_dss_features->supported_outputs[channel];
 }
 
-const enum omap_color_mode *dss_feat_get_supported_color_modes(enum omap_plane_id plane)
+const u32 *dss_feat_get_supported_color_modes(enum omap_plane_id plane)
 {
 	return omap_current_dss_features->supported_color_modes[plane];
 }
@@ -808,9 +808,9 @@ enum omap_overlay_caps dss_feat_get_overlay_caps(enum omap_plane_id plane)
 }
 
 bool dss_feat_color_mode_supported(enum omap_plane_id plane,
-		enum omap_color_mode color_mode)
+		u32 color_mode)
 {
-	const enum omap_color_mode *modes;
+	const u32 *modes;
 	unsigned int i;
 
 	modes = omap_current_dss_features->supported_color_modes[plane];
