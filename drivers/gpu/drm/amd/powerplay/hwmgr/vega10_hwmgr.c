@@ -4189,55 +4189,56 @@ static int vega10_force_clock_level(struct pp_hwmgr *hwmgr,
 
 	switch (type) {
 	case PP_SCLK:
-		if (data->registry_data.sclk_dpm_key_disabled)
-			break;
-
 		for (i = 0; i < 32; i++) {
 			if (mask & (1 << i))
 				break;
 		}
+		data->smc_state_table.gfx_boot_level = i;
 
-		PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc_with_parameter(
-				hwmgr->smumgr,
-				PPSMC_MSG_SetSoftMinGfxclkByIndex,
-				i),
-				"Failed to set soft min sclk index!",
-				return -1);
+		for (i = 31; i >= 0; i--) {
+			if (mask & (1 << i))
+				break;
+		}
+		data->smc_state_table.gfx_max_level = i;
+
+		PP_ASSERT_WITH_CODE(!vega10_upload_dpm_bootup_level(hwmgr),
+			"Failed to upload boot level to lowest!",
+			return -EINVAL);
+
+		PP_ASSERT_WITH_CODE(!vega10_upload_dpm_max_level(hwmgr),
+			"Failed to upload dpm max level to highest!",
+			return -EINVAL);
 		break;
 
 	case PP_MCLK:
-		if (data->registry_data.mclk_dpm_key_disabled)
-			break;
-
 		for (i = 0; i < 32; i++) {
 			if (mask & (1 << i))
 				break;
 		}
 
-		PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc_with_parameter(
-				hwmgr->smumgr,
-				PPSMC_MSG_SetSoftMinUclkByIndex,
-				i),
-				"Failed to set soft min mclk index!",
-				return -1);
+		for (i = 0; i < 32; i++) {
+			if (mask & (1 << i))
+				break;
+		}
+		data->smc_state_table.mem_boot_level = i;
+
+		for (i = 31; i >= 0; i--) {
+			if (mask & (1 << i))
+				break;
+		}
+		data->smc_state_table.mem_max_level = i;
+
+		PP_ASSERT_WITH_CODE(!vega10_upload_dpm_bootup_level(hwmgr),
+			"Failed to upload boot level to lowest!",
+			return -EINVAL);
+
+		PP_ASSERT_WITH_CODE(!vega10_upload_dpm_max_level(hwmgr),
+			"Failed to upload dpm max level to highest!",
+			return -EINVAL);
+
 		break;
 
 	case PP_PCIE:
-		if (data->registry_data.pcie_dpm_key_disabled)
-			break;
-
-		for (i = 0; i < 32; i++) {
-			if (mask & (1 << i))
-				break;
-		}
-
-		PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc_with_parameter(
-				hwmgr->smumgr,
-				PPSMC_MSG_SetMinLinkDpmByIndex,
-				i),
-				"Failed to set min pcie index!",
-				return -1);
-		break;
 	default:
 		break;
 	}
