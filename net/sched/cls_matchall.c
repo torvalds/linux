@@ -203,8 +203,7 @@ static int mall_change(struct net *net, struct sk_buff *in_skb,
 
 	*arg = (unsigned long) head;
 	rcu_assign_pointer(tp->root, new);
-	if (head)
-		call_rcu(&head->rcu, mall_destroy_rcu);
+	call_rcu(&head->rcu, mall_destroy_rcu);
 	return 0;
 
 err_replace_hw_filter:

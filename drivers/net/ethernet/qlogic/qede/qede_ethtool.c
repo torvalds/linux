@@ -493,6 +493,11 @@ static int qede_set_link_ksettings(struct net_device *dev,
 	params.override_flags |= QED_LINK_OVERRIDE_SPEED_ADV_SPEEDS;
 	params.override_flags |= QED_LINK_OVERRIDE_SPEED_AUTONEG;
 	if (base->autoneg == AUTONEG_ENABLE) {
+		if (!(current_link.supported_caps & QED_LM_Autoneg_BIT)) {
+			DP_INFO(edev, "Auto negotiation is not supported\n");
+			return -EOPNOTSUPP;
+		}
+
 		params.autoneg = true;
 		params.forced_speed = 0;
 		QEDE_ETHTOOL_TO_DRV_CAPS(params.adv_speeds, cmd, advertising)
@@ -706,8 +711,7 @@ static int qede_set_coalesce(struct net_device *dev,
 {
 	struct qede_dev *edev = netdev_priv(dev);
 	int i, rc = 0;
-	u16 rxc, txc;
-	u8 sb_id;
+	u16 rxc, txc, sb_id;
 
 	if (!netif_running(dev)) {
 		DP_INFO(edev, "Interface is down\n");
@@ -729,7 +733,7 @@ static int qede_set_coalesce(struct net_device *dev,
 	for_each_queue(i) {
 		sb_id = edev->fp_array[i].sb_info->igu_sb_id;
 		rc = edev->ops->common->set_coalesce(edev->cdev, rxc, txc,
-						     (u8)i, sb_id);
+						     (u16)i, sb_id);
 		if (rc) {
 			DP_INFO(edev, "Set coalesce error, rc = %d\n", rc);
 			return rc;

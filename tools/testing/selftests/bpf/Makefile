@@ -13,7 +13,7 @@ LDLIBS += -lcap -lelf
 
 TEST_GEN_PROGS = test_verifier test_tag test_maps test_lru_map test_lpm_map test_progs
 
-TEST_GEN_FILES = test_pkt_access.o test_xdp.o test_l4lb.o
+TEST_GEN_FILES = test_pkt_access.o test_xdp.o test_l4lb.o test_tcp_estats.o
 
 TEST_PROGS := test_kmod.sh
 
@@ -34,6 +34,6 @@ $(BPFOBJ): force
 CLANG ?= clang
 
 %.o: %.c
-	$(CLANG) -I../../../include/uapi -I../../../../samples/bpf/ \
-		-D__x86_64__ -Wno-compare-distinct-pointer-types \
+	$(CLANG) -I. -I../../../include/uapi -I../../../../samples/bpf/ \
+		-Wno-compare-distinct-pointer-types \
 		-O2 -target bpf -c $< -o $@

@@ -454,7 +454,7 @@ int qed_final_cleanup(struct qed_hwfn *p_hwfn,
  * @return int
  */
 int qed_set_rxq_coalesce(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
-			 u16 coalesce, u8 qid, u16 sb_id);
+			 u16 coalesce, u16 qid, u16 sb_id);
 
 /**
  * @brief qed_set_txq_coalesce - Configure coalesce parameters for a Tx queue
@@ -471,7 +471,7 @@ int qed_set_rxq_coalesce(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
  * @return int
  */
 int qed_set_txq_coalesce(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
-			 u16 coalesce, u8 qid, u16 sb_id);
+			 u16 coalesce, u16 qid, u16 sb_id);
 
 const char *qed_hw_get_resc_name(enum qed_resources res_id);
 #endif

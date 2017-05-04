@@ -2532,11 +2532,11 @@ nfp_net_check_config(struct nfp_net *nn, struct nfp_net_dp *dp,
 	if (!dp->xdp_prog)
 		return 0;
 	if (dp->fl_bufsz > PAGE_SIZE) {
-		NL_MOD_TRY_SET_ERR_MSG(extack, "MTU too large w/ XDP enabled");
+		NL_SET_ERR_MSG_MOD(extack, "MTU too large w/ XDP enabled");
 		return -EINVAL;
 	}
 	if (dp->num_tx_rings > nn->max_tx_rings) {
-		NL_MOD_TRY_SET_ERR_MSG(extack, "Insufficient number of TX rings w/ XDP enabled");
+		NL_SET_ERR_MSG_MOD(extack, "Insufficient number of TX rings w/ XDP enabled");
 		return -EINVAL;
 	}
 
