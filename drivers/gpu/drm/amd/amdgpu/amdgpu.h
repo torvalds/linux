@@ -1004,10 +1004,10 @@ struct amdgpu_ngg_buf {
 };
 
 enum {
-	PRIM = 0,
-	POS,
-	CNTL,
-	PARAM,
+	NGG_PRIM = 0,
+	NGG_POS,
+	NGG_CNTL,
+	NGG_PARAM,
 	NGG_BUF_MAX
 };
 

@@ -890,7 +890,7 @@ static int gfx_v9_0_ngg_init(struct amdgpu_device *adev)
 	adev->gfx.ngg.gds_reserve_addr += adev->gds.mem.gfx_partition_size;
 
 	/* Primitive Buffer */
-	r = gfx_v9_0_ngg_create_buf(adev, &adev->gfx.ngg.buf[PRIM],
+	r = gfx_v9_0_ngg_create_buf(adev, &adev->gfx.ngg.buf[NGG_PRIM],
 				    amdgpu_prim_buf_per_se,
 				    64 * 1024);
 	if (r) {
@@ -899,7 +899,7 @@ static int gfx_v9_0_ngg_init(struct amdgpu_device *adev)
 	}
 
 	/* Position Buffer */
-	r = gfx_v9_0_ngg_create_buf(adev, &adev->gfx.ngg.buf[POS],
+	r = gfx_v9_0_ngg_create_buf(adev, &adev->gfx.ngg.buf[NGG_POS],
 				    amdgpu_pos_buf_per_se,
 				    256 * 1024);
 	if (r) {
@@ -908,7 +908,7 @@ static int gfx_v9_0_ngg_init(struct amdgpu_device *adev)
 	}
 
 	/* Control Sideband */
-	r = gfx_v9_0_ngg_create_buf(adev, &adev->gfx.ngg.buf[CNTL],
+	r = gfx_v9_0_ngg_create_buf(adev, &adev->gfx.ngg.buf[NGG_CNTL],
 				    amdgpu_cntl_sb_buf_per_se,
 				    256);
 	if (r) {
@@ -920,7 +920,7 @@ static int gfx_v9_0_ngg_init(struct amdgpu_device *adev)
 	if (amdgpu_param_buf_per_se <= 0)
 		goto out;
 
-	r = gfx_v9_0_ngg_create_buf(adev, &adev->gfx.ngg.buf[PARAM],
+	r = gfx_v9_0_ngg_create_buf(adev, &adev->gfx.ngg.buf[NGG_PARAM],
 				    amdgpu_param_buf_per_se,
 				    512 * 1024);
 	if (r) {
@@ -949,45 +949,45 @@ static int gfx_v9_0_ngg_en(struct amdgpu_device *adev)
 
 	/* Program buffer size */
 	data = 0;
-	size = adev->gfx.ngg.buf[PRIM].size / 256;
+	size = adev->gfx.ngg.buf[NGG_PRIM].size / 256;
 	data = REG_SET_FIELD(data, WD_BUF_RESOURCE_1, INDEX_BUF_SIZE, size);
 
-	size = adev->gfx.ngg.buf[POS].size / 256;
+	size = adev->gfx.ngg.buf[NGG_POS].size / 256;
 	data = REG_SET_FIELD(data, WD_BUF_RESOURCE_1, POS_BUF_SIZE, size);
 
 	WREG32_SOC15(GC, 0, mmWD_BUF_RESOURCE_1, data);
 
 	data = 0;
-	size = adev->gfx.ngg.buf[CNTL].size / 256;
+	size = adev->gfx.ngg.buf[NGG_CNTL].size / 256;
 	data = REG_SET_FIELD(data, WD_BUF_RESOURCE_2, CNTL_SB_BUF_SIZE, size);
 
-	size = adev->gfx.ngg.buf[PARAM].size / 1024;
+	size = adev->gfx.ngg.buf[NGG_PARAM].size / 1024;
 	data = REG_SET_FIELD(data, WD_BUF_RESOURCE_2, PARAM_BUF_SIZE, size);
 
 	WREG32_SOC15(GC, 0, mmWD_BUF_RESOURCE_2, data);
 
 	/* Program buffer base address */
-	base = lower_32_bits(adev->gfx.ngg.buf[PRIM].gpu_addr);
+	base = lower_32_bits(adev->gfx.ngg.buf[NGG_PRIM].gpu_addr);
 	data = REG_SET_FIELD(0, WD_INDEX_BUF_BASE, BASE, base);
 	WREG32_SOC15(GC, 0, mmWD_INDEX_BUF_BASE, data);
 
-	base = upper_32_bits(adev->gfx.ngg.buf[PRIM].gpu_addr);
+	base = upper_32_bits(adev->gfx.ngg.buf[NGG_PRIM].gpu_addr);
 	data = REG_SET_FIELD(0, WD_INDEX_BUF_BASE_HI, BASE_HI, base);
 	WREG32_SOC15(GC, 0, mmWD_INDEX_BUF_BASE_HI, data);
 
-	base = lower_32_bits(adev->gfx.ngg.buf[POS].gpu_addr);
+	base = lower_32_bits(adev->gfx.ngg.buf[NGG_POS].gpu_addr);
 	data = REG_SET_FIELD(0, WD_POS_BUF_BASE, BASE, base);
 	WREG32_SOC15(GC, 0, mmWD_POS_BUF_BASE, data);
 
-	base = upper_32_bits(adev->gfx.ngg.buf[POS].gpu_addr);
+	base = upper_32_bits(adev->gfx.ngg.buf[NGG_POS].gpu_addr);
 	data = REG_SET_FIELD(0, WD_POS_BUF_BASE_HI, BASE_HI, base);
 	WREG32_SOC15(GC, 0, mmWD_POS_BUF_BASE_HI, data);
 
-	base = lower_32_bits(adev->gfx.ngg.buf[CNTL].gpu_addr);
+	base = lower_32_bits(adev->gfx.ngg.buf[NGG_CNTL].gpu_addr);
 	data = REG_SET_FIELD(0, WD_CNTL_SB_BUF_BASE, BASE, base);
 	WREG32_SOC15(GC, 0, mmWD_CNTL_SB_BUF_BASE, data);
 
-	base = upper_32_bits(adev->gfx.ngg.buf[CNTL].gpu_addr);
+	base = upper_32_bits(adev->gfx.ngg.buf[NGG_CNTL].gpu_addr);
 	data = REG_SET_FIELD(0, WD_CNTL_SB_BUF_BASE_HI, BASE_HI, base);
 	WREG32_SOC15(GC, 0, mmWD_CNTL_SB_BUF_BASE_HI, data);
 
