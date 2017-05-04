@@ -1491,7 +1491,7 @@ static int palmas_dt_to_pdata(struct device *dev,
 	}
 
 	for (idx = 0; idx < ddata->max_reg; idx++) {
-		static struct of_regulator_match *match;
+		struct of_regulator_match *match;
 		struct palmas_reg_init *rinit;
 		struct device_node *np;
 
