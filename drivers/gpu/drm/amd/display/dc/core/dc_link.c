@@ -1225,7 +1225,7 @@ static enum dc_status enable_link_dp(struct pipe_ctx *pipe_ctx)
 		status = DC_OK;
 	}
 	else
-		status = DC_ERROR_UNEXPECTED;
+		status = DC_FAIL_DP_LINK_TRAINING;
 
 	enable_stream_features(pipe_ctx);
 
@@ -1833,9 +1833,22 @@ void core_link_enable_stream(struct pipe_ctx *pipe_ctx)
 {
 	struct core_dc *core_dc = DC_TO_CORE(pipe_ctx->stream->ctx->dc);
 
-	if (DC_OK != enable_link(pipe_ctx)) {
-			BREAK_TO_DEBUGGER();
-			return;
+	enum dc_status status = enable_link(pipe_ctx);
+
+	if (status != DC_OK) {
+			dm_logger_write(pipe_ctx->stream->ctx->logger,
+			LOG_WARNING, "enabling link %u failed: %d\n",
+			pipe_ctx->stream->sink->link->public.link_index,
+			status);
+
+			/* Abort stream enable *unless* the failure was due to
+			 * DP link training - some DP monitors will recover and
+			 * show the stream anyway.
+			 */
+			if (status != DC_FAIL_DP_LINK_TRAINING) {
+				BREAK_TO_DEBUGGER();
+				return;
+			}
 	}
 
 	/* turn off otg test pattern if enable */
