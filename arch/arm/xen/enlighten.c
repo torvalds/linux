@@ -191,20 +191,24 @@ static int xen_dying_cpu(unsigned int cpu)
 	return 0;
 }
 
-static void xen_restart(enum reboot_mode reboot_mode, const char *cmd)
+void xen_reboot(int reason)
 {
-	struct sched_shutdown r = { .reason = SHUTDOWN_reboot };
+	struct sched_shutdown r = { .reason = reason };
 	int rc;
+
 	rc = HYPERVISOR_sched_op(SCHEDOP_shutdown, &r);
 	BUG_ON(rc);
 }
 
+static void xen_restart(enum reboot_mode reboot_mode, const char *cmd)
+{
+	xen_reboot(SHUTDOWN_reboot);
+}
+
+
 static void xen_power_off(void)
 {
-	struct sched_shutdown r = { .reason = SHUTDOWN_poweroff };
-	int rc;
-	rc = HYPERVISOR_sched_op(SCHEDOP_shutdown, &r);
-	BUG_ON(rc);
+	xen_reboot(SHUTDOWN_poweroff);
 }
 
 static irqreturn_t xen_arm_callback(int irq, void *arg)

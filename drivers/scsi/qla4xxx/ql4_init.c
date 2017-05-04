@@ -389,7 +389,7 @@ void qla4xxx_alloc_fw_dump(struct scsi_qla_host *ha)
 		goto alloc_cleanup;
 
 	DEBUG2(ql4_printk(KERN_INFO, ha,
-			  "Minidump Tempalate Size = 0x%x KB\n",
+			  "Minidump Template Size = 0x%x KB\n",
 			  ha->fw_dump_tmplt_size));
 	DEBUG2(ql4_printk(KERN_INFO, ha,
 			  "Total Minidump size = 0x%x KB\n", ha->fw_dump_size));

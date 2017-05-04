@@ -103,6 +103,7 @@ ettus	NI Ettus Research
 eukrea  Eukréa Electromatique
 everest	Everest Semiconductor Co. Ltd.
 everspin	Everspin Technologies, Inc.
+exar	Exar Corporation
 excito	Excito
 ezchip	EZchip Semiconductor
 faraday	Faraday Technology Corporation

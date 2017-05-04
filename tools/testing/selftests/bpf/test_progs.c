@@ -268,6 +268,21 @@ out:
 	bpf_object__close(obj);
 }
 
+static void test_tcp_estats(void)
+{
+	const char *file = "./test_tcp_estats.o";
+	int err, prog_fd;
+	struct bpf_object *obj;
+	__u32 duration = 0;
+
+	err = bpf_prog_load(file, BPF_PROG_TYPE_TRACEPOINT, &obj, &prog_fd);
+	CHECK(err, "", "err %d errno %d\n", err, errno);
+	if (err)
+		return;
+
+	bpf_object__close(obj);
+}
+
 int main(void)
 {
 	struct rlimit rinf = { RLIM_INFINITY, RLIM_INFINITY };
@@ -277,6 +292,7 @@ int main(void)
 	test_pkt_access();
 	test_xdp();
 	test_l4lb();
+	test_tcp_estats();
 
 	printf("Summary: %d PASSED, %d FAILED\n", pass_cnt, error_cnt);
 	return 0;

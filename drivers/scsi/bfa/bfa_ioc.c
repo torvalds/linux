@@ -5822,12 +5822,6 @@ bfa_phy_intr(void *phyarg, struct bfi_mbmsg_s *msg)
 }
 
 /*
- *	DCONF module specific
- */
-
-BFA_MODULE(dconf);
-
-/*
  * DCONF state machine events
  */
 enum bfa_dconf_event {
@@ -6073,7 +6067,7 @@ bfa_dconf_sm_iocdown_dirty(struct bfa_dconf_mod_s *dconf,
 /*
  * Compute and return memory needed by DRV_CFG module.
  */
-static void
+void
 bfa_dconf_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *meminfo,
 		  struct bfa_s *bfa)
 {
@@ -6087,9 +6081,8 @@ bfa_dconf_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *meminfo,
 				sizeof(struct bfa_dconf_s));
 }
 
-static void
-bfa_dconf_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
-		struct bfa_pcidev_s *pcidev)
+void
+bfa_dconf_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg)
 {
 	struct bfa_dconf_mod_s *dconf = BFA_DCONF_MOD(bfa);
 
@@ -6134,31 +6127,18 @@ bfa_dconf_modinit(struct bfa_s *bfa)
 	struct bfa_dconf_mod_s *dconf = BFA_DCONF_MOD(bfa);
 	bfa_sm_send_event(dconf, BFA_DCONF_SM_INIT);
 }
-static void
-bfa_dconf_start(struct bfa_s *bfa)
-{
-}
-
-static void
-bfa_dconf_stop(struct bfa_s *bfa)
-{
-}
 
 static void bfa_dconf_timer(void *cbarg)
 {
 	struct bfa_dconf_mod_s *dconf = cbarg;
 	bfa_sm_send_event(dconf, BFA_DCONF_SM_TIMEOUT);
 }
-static void
+
+void
 bfa_dconf_iocdisable(struct bfa_s *bfa)
 {
 	struct bfa_dconf_mod_s *dconf = BFA_DCONF_MOD(bfa);
 	bfa_sm_send_event(dconf, BFA_DCONF_SM_IOCDISABLE);
-}
-
-static void
-bfa_dconf_detach(struct bfa_s *bfa)
-{
 }
 
 static bfa_status_t

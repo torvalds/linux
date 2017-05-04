@@ -257,7 +257,7 @@ unsigned long long ns2usecs(u64 nsec)
 
 /* trace_flags that are default zero for instances */
 #define ZEROED_TRACE_FLAGS \
-	TRACE_ITER_EVENT_FORK
+	(TRACE_ITER_EVENT_FORK | TRACE_ITER_FUNC_FORK)
 
 /*
  * The global_trace is the descriptor that holds the top-level tracing
@@ -757,7 +757,7 @@ __trace_buffer_lock_reserve(struct ring_buffer *buffer,
 	return event;
 }
 
-static void tracer_tracing_on(struct trace_array *tr)
+void tracer_tracing_on(struct trace_array *tr)
 {
 	if (tr->trace_buffer.buffer)
 		ring_buffer_record_on(tr->trace_buffer.buffer);
@@ -894,23 +894,8 @@ int __trace_bputs(unsigned long ip, const char *str)
 EXPORT_SYMBOL_GPL(__trace_bputs);
 
 #ifdef CONFIG_TRACER_SNAPSHOT
-/**
- * trace_snapshot - take a snapshot of the current buffer.
- *
- * This causes a swap between the snapshot buffer and the current live
- * tracing buffer. You can use this to take snapshots of the live
- * trace when some condition is triggered, but continue to trace.
- *
- * Note, make sure to allocate the snapshot with either
- * a tracing_snapshot_alloc(), or by doing it manually
- * with: echo 1 > /sys/kernel/debug/tracing/snapshot
- *
- * If the snapshot buffer is not allocated, it will stop tracing.
- * Basically making a permanent snapshot.
- */
-void tracing_snapshot(void)
+static void tracing_snapshot_instance(struct trace_array *tr)
 {
-	struct trace_array *tr = &global_trace;
 	struct tracer *tracer = tr->current_trace;
 	unsigned long flags;
 
@@ -937,6 +922,27 @@ void tracing_snapshot(void)
 	local_irq_save(flags);
 	update_max_tr(tr, current, smp_processor_id());
 	local_irq_restore(flags);
+}
+
+/**
+ * trace_snapshot - take a snapshot of the current buffer.
+ *
+ * This causes a swap between the snapshot buffer and the current live
+ * tracing buffer. You can use this to take snapshots of the live
+ * trace when some condition is triggered, but continue to trace.
+ *
+ * Note, make sure to allocate the snapshot with either
+ * a tracing_snapshot_alloc(), or by doing it manually
+ * with: echo 1 > /sys/kernel/debug/tracing/snapshot
+ *
+ * If the snapshot buffer is not allocated, it will stop tracing.
+ * Basically making a permanent snapshot.
+ */
+void tracing_snapshot(void)
+{
+	struct trace_array *tr = &global_trace;
+
+	tracing_snapshot_instance(tr);
 }
 EXPORT_SYMBOL_GPL(tracing_snapshot);
 
@@ -1039,7 +1045,7 @@ void tracing_snapshot_alloc(void)
 EXPORT_SYMBOL_GPL(tracing_snapshot_alloc);
 #endif /* CONFIG_TRACER_SNAPSHOT */
 
-static void tracer_tracing_off(struct trace_array *tr)
+void tracer_tracing_off(struct trace_array *tr)
 {
 	if (tr->trace_buffer.buffer)
 		ring_buffer_record_off(tr->trace_buffer.buffer);
@@ -1424,6 +1430,28 @@ static int wait_on_pipe(struct trace_iterator *iter, bool full)
 }
 
 #ifdef CONFIG_FTRACE_STARTUP_TEST
+static bool selftests_can_run;
+
+struct trace_selftests {
+	struct list_head		list;
+	struct tracer			*type;
+};
+
+static LIST_HEAD(postponed_selftests);
+
+static int save_selftest(struct tracer *type)
+{
+	struct trace_selftests *selftest;
+
+	selftest = kmalloc(sizeof(*selftest), GFP_KERNEL);
+	if (!selftest)
+		return -ENOMEM;
+
+	selftest->type = type;
+	list_add(&selftest->list, &postponed_selftests);
+	return 0;
+}
+
 static int run_tracer_selftest(struct tracer *type)
 {
 	struct trace_array *tr = &global_trace;
@@ -1432,6 +1460,14 @@ static int run_tracer_selftest(struct tracer *type)
 
 	if (!type->selftest || tracing_selftest_disabled)
 		return 0;
+
+	/*
+	 * If a tracer registers early in boot up (before scheduling is
+	 * initialized and such), then do not run its selftests yet.
+	 * Instead, run it a little later in the boot process.
+	 */
+	if (!selftests_can_run)
+		return save_selftest(type);
 
 	/*
 	 * Run a selftest on this tracer.
@@ -1482,6 +1518,47 @@ static int run_tracer_selftest(struct tracer *type)
 	printk(KERN_CONT "PASSED\n");
 	return 0;
 }
+
+static __init int init_trace_selftests(void)
+{
+	struct trace_selftests *p, *n;
+	struct tracer *t, **last;
+	int ret;
+
+	selftests_can_run = true;
+
+	mutex_lock(&trace_types_lock);
+
+	if (list_empty(&postponed_selftests))
+		goto out;
+
+	pr_info("Running postponed tracer tests:\n");
+
+	list_for_each_entry_safe(p, n, &postponed_selftests, list) {
+		ret = run_tracer_selftest(p->type);
+		/* If the test fails, then warn and remove from available_tracers */
+		if (ret < 0) {
+			WARN(1, "tracer: %s failed selftest, disabling\n",
+			     p->type->name);
+			last = &trace_types;
+			for (t = trace_types; t; t = t->next) {
+				if (t == p->type) {
+					*last = t->next;
+					break;
+				}
+				last = &t->next;
+			}
+		}
+		list_del(&p->list);
+		kfree(p);
+	}
+
+ out:
+	mutex_unlock(&trace_types_lock);
+
+	return 0;
+}
+early_initcall(init_trace_selftests);
 #else
 static inline int run_tracer_selftest(struct tracer *type)
 {
@@ -1926,6 +2003,18 @@ void tracing_record_cmdline(struct task_struct *tsk)
 	if (trace_save_cmdline(tsk))
 		__this_cpu_write(trace_cmdline_save, false);
 }
+
+/*
+ * Several functions return TRACE_TYPE_PARTIAL_LINE if the trace_seq
+ * overflowed, and TRACE_TYPE_HANDLED otherwise. This helper function
+ * simplifies those functions and keeps them in sync.
+ */
+enum print_line_t trace_handle_return(struct trace_seq *s)
+{
+	return trace_seq_has_overflowed(s) ?
+		TRACE_TYPE_PARTIAL_LINE : TRACE_TYPE_HANDLED;
+}
+EXPORT_SYMBOL_GPL(trace_handle_return);
 
 void
 tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
@@ -4122,6 +4211,9 @@ int set_tracer_flag(struct trace_array *tr, unsigned int mask, int enabled)
 	if (mask == TRACE_ITER_EVENT_FORK)
 		trace_event_follow_fork(tr, enabled);
 
+	if (mask == TRACE_ITER_FUNC_FORK)
+		ftrace_pid_follow_fork(tr, enabled);
+
 	if (mask == TRACE_ITER_OVERWRITE) {
 		ring_buffer_change_overwrite(tr->trace_buffer.buffer, enabled);
 #ifdef CONFIG_TRACER_MAX_TRACE
@@ -5962,6 +6054,7 @@ static int tracing_clock_open(struct inode *inode, struct file *file)
 struct ftrace_buffer_info {
 	struct trace_iterator	iter;
 	void			*spare;
+	unsigned int		spare_cpu;
 	unsigned int		read;
 };
 
@@ -6291,9 +6384,11 @@ tracing_buffers_read(struct file *filp, char __user *ubuf,
 		return -EBUSY;
 #endif
 
-	if (!info->spare)
+	if (!info->spare) {
 		info->spare = ring_buffer_alloc_read_page(iter->trace_buffer->buffer,
 							  iter->cpu_file);
+		info->spare_cpu = iter->cpu_file;
+	}
 	if (!info->spare)
 		return -ENOMEM;
 
@@ -6353,7 +6448,8 @@ static int tracing_buffers_release(struct inode *inode, struct file *file)
 	__trace_array_put(iter->tr);
 
 	if (info->spare)
-		ring_buffer_free_read_page(iter->trace_buffer->buffer, info->spare);
+		ring_buffer_free_read_page(iter->trace_buffer->buffer,
+					   info->spare_cpu, info->spare);
 	kfree(info);
 
 	mutex_unlock(&trace_types_lock);
@@ -6364,6 +6460,7 @@ static int tracing_buffers_release(struct inode *inode, struct file *file)
 struct buffer_ref {
 	struct ring_buffer	*buffer;
 	void			*page;
+	int			cpu;
 	int			ref;
 };
 
@@ -6375,7 +6472,7 @@ static void buffer_pipe_buf_release(struct pipe_inode_info *pipe,
 	if (--ref->ref)
 		return;
 
-	ring_buffer_free_read_page(ref->buffer, ref->page);
+	ring_buffer_free_read_page(ref->buffer, ref->cpu, ref->page);
 	kfree(ref);
 	buf->private = 0;
 }
@@ -6409,7 +6506,7 @@ static void buffer_spd_release(struct splice_pipe_desc *spd, unsigned int i)
 	if (--ref->ref)
 		return;
 
-	ring_buffer_free_read_page(ref->buffer, ref->page);
+	ring_buffer_free_read_page(ref->buffer, ref->cpu, ref->page);
 	kfree(ref);
 	spd->partial[i].private = 0;
 }
@@ -6473,11 +6570,13 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 			kfree(ref);
 			break;
 		}
+		ref->cpu = iter->cpu_file;
 
 		r = ring_buffer_read_page(ref->buffer, &ref->page,
 					  len, iter->cpu_file, 1);
 		if (r < 0) {
-			ring_buffer_free_read_page(ref->buffer, ref->page);
+			ring_buffer_free_read_page(ref->buffer, ref->cpu,
+						   ref->page);
 			kfree(ref);
 			break;
 		}
@@ -6648,41 +6747,87 @@ static const struct file_operations tracing_dyn_info_fops = {
 
 #if defined(CONFIG_TRACER_SNAPSHOT) && defined(CONFIG_DYNAMIC_FTRACE)
 static void
-ftrace_snapshot(unsigned long ip, unsigned long parent_ip, void **data)
+ftrace_snapshot(unsigned long ip, unsigned long parent_ip,
+		struct trace_array *tr, struct ftrace_probe_ops *ops,
+		void *data)
 {
-	tracing_snapshot();
+	tracing_snapshot_instance(tr);
 }
 
 static void
-ftrace_count_snapshot(unsigned long ip, unsigned long parent_ip, void **data)
+ftrace_count_snapshot(unsigned long ip, unsigned long parent_ip,
+		      struct trace_array *tr, struct ftrace_probe_ops *ops,
+		      void *data)
 {
-	unsigned long *count = (long *)data;
+	struct ftrace_func_mapper *mapper = data;
+	long *count = NULL;
 
-	if (!*count)
-		return;
+	if (mapper)
+		count = (long *)ftrace_func_mapper_find_ip(mapper, ip);
 
-	if (*count != -1)
+	if (count) {
+
+		if (*count <= 0)
+			return;
+
 		(*count)--;
+	}
 
-	tracing_snapshot();
+	tracing_snapshot_instance(tr);
 }
 
 static int
 ftrace_snapshot_print(struct seq_file *m, unsigned long ip,
 		      struct ftrace_probe_ops *ops, void *data)
 {
-	long count = (long)data;
+	struct ftrace_func_mapper *mapper = data;
+	long *count = NULL;
 
 	seq_printf(m, "%ps:", (void *)ip);
 
 	seq_puts(m, "snapshot");
 
-	if (count == -1)
-		seq_puts(m, ":unlimited\n");
+	if (mapper)
+		count = (long *)ftrace_func_mapper_find_ip(mapper, ip);
+
+	if (count)
+		seq_printf(m, ":count=%ld\n", *count);
 	else
-		seq_printf(m, ":count=%ld\n", count);
+		seq_puts(m, ":unlimited\n");
 
 	return 0;
+}
+
+static int
+ftrace_snapshot_init(struct ftrace_probe_ops *ops, struct trace_array *tr,
+		     unsigned long ip, void *init_data, void **data)
+{
+	struct ftrace_func_mapper *mapper = *data;
+
+	if (!mapper) {
+		mapper = allocate_ftrace_func_mapper();
+		if (!mapper)
+			return -ENOMEM;
+		*data = mapper;
+	}
+
+	return ftrace_func_mapper_add_ip(mapper, ip, init_data);
+}
+
+static void
+ftrace_snapshot_free(struct ftrace_probe_ops *ops, struct trace_array *tr,
+		     unsigned long ip, void *data)
+{
+	struct ftrace_func_mapper *mapper = data;
+
+	if (!ip) {
+		if (!mapper)
+			return;
+		free_ftrace_func_mapper(mapper, NULL);
+		return;
+	}
+
+	ftrace_func_mapper_remove_ip(mapper, ip);
 }
 
 static struct ftrace_probe_ops snapshot_probe_ops = {
@@ -6693,10 +6838,12 @@ static struct ftrace_probe_ops snapshot_probe_ops = {
 static struct ftrace_probe_ops snapshot_count_probe_ops = {
 	.func			= ftrace_count_snapshot,
 	.print			= ftrace_snapshot_print,
+	.init			= ftrace_snapshot_init,
+	.free			= ftrace_snapshot_free,
 };
 
 static int
-ftrace_trace_snapshot_callback(struct ftrace_hash *hash,
+ftrace_trace_snapshot_callback(struct trace_array *tr, struct ftrace_hash *hash,
 			       char *glob, char *cmd, char *param, int enable)
 {
 	struct ftrace_probe_ops *ops;
@@ -6710,10 +6857,8 @@ ftrace_trace_snapshot_callback(struct ftrace_hash *hash,
 
 	ops = param ? &snapshot_count_probe_ops :  &snapshot_probe_ops;
 
-	if (glob[0] == '!') {
-		unregister_ftrace_function_probe_func(glob+1, ops);
-		return 0;
-	}
+	if (glob[0] == '!')
+		return unregister_ftrace_function_probe_func(glob+1, tr, ops);
 
 	if (!param)
 		goto out_reg;
@@ -6732,11 +6877,11 @@ ftrace_trace_snapshot_callback(struct ftrace_hash *hash,
 		return ret;
 
  out_reg:
-	ret = alloc_snapshot(&global_trace);
+	ret = alloc_snapshot(tr);
 	if (ret < 0)
 		goto out;
 
-	ret = register_ftrace_function_probe(glob, ops, count);
+	ret = register_ftrace_function_probe(glob, tr, ops, count);
 
  out:
 	return ret < 0 ? ret : 0;
@@ -7346,6 +7491,8 @@ static int instance_mkdir(const char *name)
 		tracefs_remove_recursive(tr->dir);
 		goto out_free_tr;
 	}
+
+	ftrace_init_trace_array(tr);
 
 	init_tracer_tracefs(tr, tr->dir);
 	init_trace_flags_index(tr);
@@ -7967,6 +8114,9 @@ __init static int tracer_alloc_buffers(void)
 
 	register_tracer(&nop_trace);
 
+	/* Function tracing may start here (via kernel command line) */
+	init_function_trace();
+
 	/* All seems OK, enable tracing */
 	tracing_disabled = 0;
 
@@ -8001,7 +8151,7 @@ out:
 	return ret;
 }
 
-void __init trace_init(void)
+void __init early_trace_init(void)
 {
 	if (tracepoint_printk) {
 		tracepoint_print_iter =
@@ -8012,6 +8162,10 @@ void __init trace_init(void)
 			static_key_enable(&tracepoint_printk_key.key);
 	}
 	tracer_alloc_buffers();
+}
+
+void __init trace_init(void)
+{
 	trace_event_init();
 }
 

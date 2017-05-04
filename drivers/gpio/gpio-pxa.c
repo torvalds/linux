@@ -601,7 +601,7 @@ static int pxa_gpio_probe_dt(struct platform_device *pdev,
 	nr_gpios = gpio_id->gpio_nums;
 	pxa_last_gpio = nr_gpios - 1;
 
-	irq_base = irq_alloc_descs(-1, 0, nr_gpios, 0);
+	irq_base = devm_irq_alloc_descs(&pdev->dev, -1, 0, nr_gpios, 0);
 	if (irq_base < 0) {
 		dev_err(&pdev->dev, "Failed to allocate IRQ numbers\n");
 		return irq_base;

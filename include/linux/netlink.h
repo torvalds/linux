@@ -86,19 +86,16 @@ struct netlink_ext_ack {
  * Currently string formatting is not supported (due
  * to the lack of an output buffer.)
  */
-#define NL_SET_ERR_MSG(extack, msg) do {	\
-	static const char _msg[] = (msg);	\
-						\
-	(extack)->_msg = _msg;			\
+#define NL_SET_ERR_MSG(extack, msg) do {		\
+	static const char __msg[] = (msg);		\
+	struct netlink_ext_ack *__extack = (extack);	\
+							\
+	if (__extack)					\
+		__extack->_msg = __msg;			\
 } while (0)
 
-#define NL_MOD_TRY_SET_ERR_MSG(extack, msg) do {		\
-	static const char _msg[] = KBUILD_MODNAME ": " msg;	\
-	struct netlink_ext_ack *_extack = (extack);		\
-								\
-	if (_extack)						\
-		_extack->_msg = _msg;				\
-} while (0)
+#define NL_SET_ERR_MSG_MOD(extack, msg)			\
+	NL_SET_ERR_MSG((extack), KBUILD_MODNAME ": " msg)
 
 extern void netlink_kernel_release(struct sock *sk);
 extern int __netlink_change_ngroups(struct sock *sk, unsigned int groups);
