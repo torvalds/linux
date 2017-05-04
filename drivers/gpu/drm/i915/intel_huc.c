@@ -251,24 +251,6 @@ fail:
 }
 
 /**
- * intel_huc_fini() - clean up resources allocated for HuC
- * @dev_priv: the drm_i915_private device
- *
- * Cleans up by releasing the huc firmware GEM obj.
- */
-void intel_huc_fini(struct drm_i915_private *dev_priv)
-{
-	struct intel_uc_fw *huc_fw = &dev_priv->huc.fw;
-	struct drm_i915_gem_object *obj;
-
-	obj = fetch_and_zero(&huc_fw->obj);
-	if (obj)
-		i915_gem_object_put(obj);
-
-	huc_fw->fetch_status = INTEL_UC_FIRMWARE_NONE;
-}
-
-/**
  * intel_guc_auth_huc() - authenticate ucode
  * @dev_priv: the drm_i915_device
  *

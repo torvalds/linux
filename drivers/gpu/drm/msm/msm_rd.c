@@ -322,7 +322,7 @@ void msm_rd_dump_submit(struct msm_gem_submit *submit)
 	}
 
 	for (i = 0; i < submit->nr_cmds; i++) {
-		uint32_t iova = submit->cmd[i].iova;
+		uint64_t iova = submit->cmd[i].iova;
 		uint32_t szd  = submit->cmd[i].size; /* in dwords */
 
 		/* snapshot cmdstream bo's (if we haven't already): */
@@ -341,7 +341,7 @@ void msm_rd_dump_submit(struct msm_gem_submit *submit)
 		case MSM_SUBMIT_CMD_CTX_RESTORE_BUF:
 		case MSM_SUBMIT_CMD_BUF:
 			rd_write_section(rd, RD_CMDSTREAM_ADDR,
-					(uint32_t[2]){ iova, szd }, 8);
+				(uint32_t[3]){ iova, szd, iova >> 32 }, 12);
 			break;
 		}
 	}

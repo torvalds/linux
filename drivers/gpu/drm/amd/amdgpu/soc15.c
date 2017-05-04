@@ -106,6 +106,8 @@ static u32 soc15_pcie_rreg(struct amdgpu_device *adev, u32 reg)
 
 	if (adev->asic_type == CHIP_VEGA10)
 		nbio_pcie_id = &nbio_v6_1_pcie_index_data;
+	else
+		BUG();
 
 	address = nbio_pcie_id->index_offset;
 	data = nbio_pcie_id->data_offset;
@@ -125,6 +127,8 @@ static void soc15_pcie_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 
 	if (adev->asic_type == CHIP_VEGA10)
 		nbio_pcie_id = &nbio_v6_1_pcie_index_data;
+	else
+		BUG();
 
 	address = nbio_pcie_id->index_offset;
 	data = nbio_pcie_id->data_offset;
@@ -493,7 +497,8 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_ip_block_add(adev, &mmhub_v1_0_ip_block);
 		amdgpu_ip_block_add(adev, &gmc_v9_0_ip_block);
 		amdgpu_ip_block_add(adev, &vega10_ih_ip_block);
-		amdgpu_ip_block_add(adev, &psp_v3_1_ip_block);
+		if (amdgpu_fw_load_type == 2 || amdgpu_fw_load_type == -1)
+			amdgpu_ip_block_add(adev, &psp_v3_1_ip_block);
 		if (!amdgpu_sriov_vf(adev))
 			amdgpu_ip_block_add(adev, &amdgpu_pp_ip_block);
 		if (adev->enable_virtual_display || amdgpu_sriov_vf(adev))
@@ -558,6 +563,7 @@ static int soc15_common_early_init(void *handle)
 
 	if (amdgpu_sriov_vf(adev)) {
 		amdgpu_virt_init_setting(adev);
+		xgpu_ai_mailbox_set_irq_funcs(adev);
 	}
 
 	/*
@@ -610,8 +616,23 @@ static int soc15_common_early_init(void *handle)
 	return 0;
 }
 
+static int soc15_common_late_init(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (amdgpu_sriov_vf(adev))
+		xgpu_ai_mailbox_get_irq(adev);
+
+	return 0;
+}
+
 static int soc15_common_sw_init(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (amdgpu_sriov_vf(adev))
+		xgpu_ai_mailbox_add_irq_id(adev);
+
 	return 0;
 }
 
@@ -642,6 +663,8 @@ static int soc15_common_hw_fini(void *handle)
 
 	/* disable the doorbell aperture */
 	soc15_enable_doorbell_aperture(adev, false);
+	if (amdgpu_sriov_vf(adev))
+		xgpu_ai_mailbox_put_irq(adev);
 
 	return 0;
 }
@@ -855,7 +878,7 @@ static int soc15_common_set_powergating_state(void *handle,
 const struct amd_ip_funcs soc15_common_ip_funcs = {
 	.name = "soc15_common",
 	.early_init = soc15_common_early_init,
-	.late_init = NULL,
+	.late_init = soc15_common_late_init,
 	.sw_init = soc15_common_sw_init,
 	.sw_fini = soc15_common_sw_fini,
 	.hw_init = soc15_common_hw_init,

@@ -499,6 +499,7 @@ struct radeon_bo {
 	u32				tiling_flags;
 	u32				pitch;
 	int				surface_reg;
+	unsigned			prime_shared_count;
 	/* list of all virtual address to which this bo
 	 * is associated to
 	 */

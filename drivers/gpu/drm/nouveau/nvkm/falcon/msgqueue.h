@@ -101,9 +101,11 @@ struct nvkm_msgqueue_init_func {
  * struct nvkm_msgqueue_acr_func - msgqueue functions related to ACR
  *
  * @boot_falcon:	build and send the command to reset a given falcon
+ * @boot_multiple_falcons: build and send the command to reset several falcons
  */
 struct nvkm_msgqueue_acr_func {
 	int (*boot_falcon)(struct nvkm_msgqueue *, enum nvkm_secboot_falcon);
+	int (*boot_multiple_falcons)(struct nvkm_msgqueue *, unsigned long);
 };
 
 struct nvkm_msgqueue_func {
@@ -201,7 +203,11 @@ int nvkm_msgqueue_post(struct nvkm_msgqueue *, enum msgqueue_msg_priority,
 void nvkm_msgqueue_process_msgs(struct nvkm_msgqueue *,
 				struct nvkm_msgqueue_queue *);
 
-int msgqueue_0137c63d_new(struct nvkm_falcon *, struct nvkm_msgqueue **);
-int msgqueue_0148cdec_new(struct nvkm_falcon *, struct nvkm_msgqueue **);
+int msgqueue_0137c63d_new(struct nvkm_falcon *, const struct nvkm_secboot *,
+			  struct nvkm_msgqueue **);
+int msgqueue_0137bca5_new(struct nvkm_falcon *, const struct nvkm_secboot *,
+			  struct nvkm_msgqueue **);
+int msgqueue_0148cdec_new(struct nvkm_falcon *, const struct nvkm_secboot *,
+			  struct nvkm_msgqueue **);
 
 #endif

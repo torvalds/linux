@@ -12,6 +12,7 @@
 
 #include <linux/component.h>
 #include <linux/of_graph.h>
+#include <linux/of_reserved_mem.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
@@ -20,10 +21,9 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_of.h>
 
-#include "sun4i_crtc.h"
 #include "sun4i_drv.h"
 #include "sun4i_framebuffer.h"
-#include "sun4i_layer.h"
+#include "sun4i_tcon.h"
 
 DEFINE_DRM_GEM_CMA_FOPS(sun4i_drv_fops);
 
@@ -92,30 +92,25 @@ static int sun4i_drv_bind(struct device *dev)
 	}
 	drm->dev_private = drv;
 
-	drm_vblank_init(drm, 1);
+	ret = of_reserved_mem_device_init(dev);
+	if (ret && ret != -ENODEV) {
+		dev_err(drm->dev, "Couldn't claim our memory region\n");
+		goto free_drm;
+	}
+
+	/* drm_vblank_init calls kcalloc, which can fail */
+	ret = drm_vblank_init(drm, 1);
+	if (ret)
+		goto free_mem_region;
+
 	drm_mode_config_init(drm);
 
 	ret = component_bind_all(drm->dev, drm);
 	if (ret) {
 		dev_err(drm->dev, "Couldn't bind all pipelines components\n");
-		goto free_drm;
+		goto cleanup_mode_config;
 	}
 
-	/* Create our layers */
-	drv->layers = sun4i_layers_init(drm);
-	if (IS_ERR(drv->layers)) {
-		dev_err(drm->dev, "Couldn't create the planes\n");
-		ret = PTR_ERR(drv->layers);
-		goto free_drm;
-	}
-
-	/* Create our CRTC */
-	drv->crtc = sun4i_crtc_init(drm);
-	if (!drv->crtc) {
-		dev_err(drm->dev, "Couldn't create the CRTC\n");
-		ret = -EINVAL;
-		goto free_drm;
-	}
 	drm->irq_enabled = true;
 
 	/* Remove early framebuffers (ie. simplefb) */
@@ -126,7 +121,7 @@ static int sun4i_drv_bind(struct device *dev)
 	if (IS_ERR(drv->fbdev)) {
 		dev_err(drm->dev, "Couldn't create our framebuffer\n");
 		ret = PTR_ERR(drv->fbdev);
-		goto free_drm;
+		goto cleanup_mode_config;
 	}
 
 	/* Enable connectors polling */
@@ -134,10 +129,18 @@ static int sun4i_drv_bind(struct device *dev)
 
 	ret = drm_dev_register(drm, 0);
 	if (ret)
-		goto free_drm;
+		goto finish_poll;
 
 	return 0;
 
+finish_poll:
+	drm_kms_helper_poll_fini(drm);
+	sun4i_framebuffer_free(drm);
+cleanup_mode_config:
+	drm_mode_config_cleanup(drm);
+	drm_vblank_cleanup(drm);
+free_mem_region:
+	of_reserved_mem_device_release(dev);
 free_drm:
 	drm_dev_unref(drm);
 	return ret;
@@ -150,7 +153,9 @@ static void sun4i_drv_unbind(struct device *dev)
 	drm_dev_unregister(drm);
 	drm_kms_helper_poll_fini(drm);
 	sun4i_framebuffer_free(drm);
+	drm_mode_config_cleanup(drm);
 	drm_vblank_cleanup(drm);
+	of_reserved_mem_device_release(dev);
 	drm_dev_unref(drm);
 }
 

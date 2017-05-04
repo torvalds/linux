@@ -102,15 +102,15 @@ nvkm_secboot_falcon_name[] = {
  * nvkm_secboot_reset() - reset specified falcon
  */
 int
-nvkm_secboot_reset(struct nvkm_secboot *sb, enum nvkm_secboot_falcon falcon)
+nvkm_secboot_reset(struct nvkm_secboot *sb, unsigned long falcon_mask)
 {
 	/* Unmanaged falcon? */
-	if (!(BIT(falcon) & sb->acr->managed_falcons)) {
+	if ((falcon_mask | sb->acr->managed_falcons) != sb->acr->managed_falcons) {
 		nvkm_error(&sb->subdev, "cannot reset unmanaged falcon!\n");
 		return -EINVAL;
 	}
 
-	return sb->acr->func->reset(sb->acr, sb, falcon);
+	return sb->acr->func->reset(sb->acr, sb, falcon_mask);
 }
 
 /**

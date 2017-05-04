@@ -465,16 +465,10 @@ static int ipu_drm_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver ipu_drm_driver = {
+struct platform_driver ipu_drm_driver = {
 	.driver = {
 		.name = "imx-ipuv3-crtc",
 	},
 	.probe = ipu_drm_probe,
 	.remove = ipu_drm_remove,
 };
-module_platform_driver(ipu_drm_driver);
-
-MODULE_AUTHOR("Sascha Hauer <s.hauer@pengutronix.de>");
-MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:imx-ipuv3-crtc");

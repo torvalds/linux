@@ -32,7 +32,7 @@
 #include <linux/wait.h>
 #include <linux/list.h>
 #include <linux/kref.h>
-#include <linux/interval_tree.h>
+#include <linux/rbtree.h>
 #include <linux/hashtable.h>
 #include <linux/dma-fence.h>
 
@@ -121,14 +121,6 @@ extern int amdgpu_param_buf_per_se;
 
 /* max number of IP instances */
 #define AMDGPU_MAX_SDMA_INSTANCES		2
-
-/* max number of VMHUB */
-#define AMDGPU_MAX_VMHUBS			2
-#define AMDGPU_MMHUB				0
-#define AMDGPU_GFXHUB				1
-
-/* hardcode that limit for now */
-#define AMDGPU_VA_RESERVED_SIZE			(8 << 20)
 
 /* hard reset data */
 #define AMDGPU_ASIC_RESET_DATA                  0x39d5e86b
@@ -312,12 +304,9 @@ struct amdgpu_gart_funcs {
 	/* set pte flags based per asic */
 	uint64_t (*get_vm_pte_flags)(struct amdgpu_device *adev,
 				     uint32_t flags);
-};
-
-/* provided by the mc block */
-struct amdgpu_mc_funcs {
 	/* adjust mc addr in fb for APU case */
 	u64 (*adjust_mc_addr)(struct amdgpu_device *adev, u64 addr);
+	uint32_t (*get_invalidate_req)(unsigned int vm_id);
 };
 
 /* provided by the ih block */
@@ -379,7 +368,10 @@ struct amdgpu_bo_list_entry {
 
 struct amdgpu_bo_va_mapping {
 	struct list_head		list;
-	struct interval_tree_node	it;
+	struct rb_node			rb;
+	uint64_t			start;
+	uint64_t			last;
+	uint64_t			__subtree_last;
 	uint64_t			offset;
 	uint64_t			flags;
 };
@@ -579,8 +571,6 @@ struct amdgpu_vmhub {
 	uint32_t	vm_context0_cntl;
 	uint32_t	vm_l2_pro_fault_status;
 	uint32_t	vm_l2_pro_fault_cntl;
-	uint32_t	(*get_invalidate_req)(unsigned int vm_id);
-	uint32_t	(*get_vm_protection_bits)(void);
 };
 
 /*
@@ -618,7 +608,6 @@ struct amdgpu_mc {
 	u64					private_aperture_end;
 	/* protects concurrent invalidation */
 	spinlock_t		invalidate_lock;
-	const struct amdgpu_mc_funcs *mc_funcs;
 };
 
 /*
@@ -1712,6 +1701,12 @@ void amdgpu_mm_wdoorbell64(struct amdgpu_device *adev, u32 index, u64 v);
 #define WREG32_FIELD(reg, field, val)	\
 	WREG32(mm##reg, (RREG32(mm##reg) & ~REG_FIELD_MASK(reg, field)) | (val) << REG_FIELD_SHIFT(reg, field))
 
+#define WREG32_FIELD_OFFSET(reg, offset, field, val)	\
+	WREG32(mm##reg + offset, (RREG32(mm##reg + offset) & ~REG_FIELD_MASK(reg, field)) | (val) << REG_FIELD_SHIFT(reg, field))
+
+#define WREG32_FIELD15(ip, idx, reg, field, val)	\
+	WREG32(SOC15_REG_OFFSET(ip, idx, mm##reg), (RREG32(SOC15_REG_OFFSET(ip, idx, mm##reg)) & ~REG_FIELD_MASK(reg, field)) | (val) << REG_FIELD_SHIFT(reg, field))
+
 /*
  * BIOS helpers.
  */
@@ -1887,12 +1882,14 @@ void amdgpu_unregister_atpx_handler(void);
 bool amdgpu_has_atpx_dgpu_power_cntl(void);
 bool amdgpu_is_atpx_hybrid(void);
 bool amdgpu_atpx_dgpu_req_power_for_displays(void);
+bool amdgpu_has_atpx(void);
 #else
 static inline void amdgpu_register_atpx_handler(void) {}
 static inline void amdgpu_unregister_atpx_handler(void) {}
 static inline bool amdgpu_has_atpx_dgpu_power_cntl(void) { return false; }
 static inline bool amdgpu_is_atpx_hybrid(void) { return false; }
 static inline bool amdgpu_atpx_dgpu_req_power_for_displays(void) { return false; }
+static inline bool amdgpu_has_atpx(void) { return false; }
 #endif
 
 /*

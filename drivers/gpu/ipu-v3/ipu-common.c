@@ -1401,7 +1401,8 @@ static int ipu_probe(struct platform_device *pdev)
 
 	ipu->id = of_alias_get_id(np, "ipu");
 
-	if (of_device_is_compatible(np, "fsl,imx6qp-ipu")) {
+	if (of_device_is_compatible(np, "fsl,imx6qp-ipu") &&
+	    IS_ENABLED(CONFIG_DRM)) {
 		ipu->prg_priv = ipu_prg_lookup_by_phandle(&pdev->dev,
 							  "fsl,prg", ipu->id);
 		if (!ipu->prg_priv)
@@ -1538,8 +1539,10 @@ static struct platform_driver imx_ipu_driver = {
 };
 
 static struct platform_driver * const drivers[] = {
+#if IS_ENABLED(CONFIG_DRM)
 	&ipu_pre_drv,
 	&ipu_prg_drv,
+#endif
 	&imx_ipu_driver,
 };
 

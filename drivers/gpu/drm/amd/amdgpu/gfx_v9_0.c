@@ -1288,9 +1288,7 @@ static void gfx_v9_0_gpu_init(struct amdgpu_device *adev)
 	u32 tmp;
 	int i;
 
-	tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmGRBM_CNTL));
-	tmp = REG_SET_FIELD(tmp, GRBM_CNTL, READ_TIMEOUT, 0xff);
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmGRBM_CNTL), tmp);
+	WREG32_FIELD15(GC, 0, GRBM_CNTL, READ_TIMEOUT, 0xff);
 
 	gfx_v9_0_tiling_mode_table_init(adev);
 
@@ -1395,13 +1393,9 @@ void gfx_v9_0_rlc_stop(struct amdgpu_device *adev)
 
 static void gfx_v9_0_rlc_reset(struct amdgpu_device *adev)
 {
-	u32 tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmGRBM_SOFT_RESET));
-
-	tmp = REG_SET_FIELD(tmp, GRBM_SOFT_RESET, SOFT_RESET_RLC, 1);
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmGRBM_SOFT_RESET), tmp);
+	WREG32_FIELD15(GC, 0, GRBM_SOFT_RESET, SOFT_RESET_RLC, 1);
 	udelay(50);
-	tmp = REG_SET_FIELD(tmp, GRBM_SOFT_RESET, SOFT_RESET_RLC, 0);
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmGRBM_SOFT_RESET), tmp);
+	WREG32_FIELD15(GC, 0, GRBM_SOFT_RESET, SOFT_RESET_RLC, 0);
 	udelay(50);
 }
 
@@ -1410,10 +1404,8 @@ static void gfx_v9_0_rlc_start(struct amdgpu_device *adev)
 #ifdef AMDGPU_RLC_DEBUG_RETRY
 	u32 rlc_ucode_ver;
 #endif
-	u32 tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_CNTL));
 
-	tmp = REG_SET_FIELD(tmp, RLC_CNTL, RLC_ENABLE_F32, 1);
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_CNTL), tmp);
+	WREG32_FIELD15(GC, 0, RLC_CNTL, RLC_ENABLE_F32, 1);
 
 	/* carrizo do enable cp interrupt after cp inited */
 	if (!(adev->flags & AMD_IS_APU))
@@ -1497,14 +1489,10 @@ static void gfx_v9_0_cp_gfx_enable(struct amdgpu_device *adev, bool enable)
 	int i;
 	u32 tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_ME_CNTL));
 
-	if (enable) {
-		tmp = REG_SET_FIELD(tmp, CP_ME_CNTL, ME_HALT, 0);
-		tmp = REG_SET_FIELD(tmp, CP_ME_CNTL, PFP_HALT, 0);
-		tmp = REG_SET_FIELD(tmp, CP_ME_CNTL, CE_HALT, 0);
-	} else {
-		tmp = REG_SET_FIELD(tmp, CP_ME_CNTL, ME_HALT, 1);
-		tmp = REG_SET_FIELD(tmp, CP_ME_CNTL, PFP_HALT, 1);
-		tmp = REG_SET_FIELD(tmp, CP_ME_CNTL, CE_HALT, 1);
+	tmp = REG_SET_FIELD(tmp, CP_ME_CNTL, ME_HALT, enable ? 0 : 1);
+	tmp = REG_SET_FIELD(tmp, CP_ME_CNTL, PFP_HALT, enable ? 0 : 1);
+	tmp = REG_SET_FIELD(tmp, CP_ME_CNTL, CE_HALT, enable ? 0 : 1);
+	if (!enable) {
 		for (i = 0; i < adev->gfx.num_gfx_rings; i++)
 			adev->gfx.gfx_ring[i].ready = false;
 	}
@@ -2020,13 +2008,10 @@ static int gfx_v9_0_kiq_init_register(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct v9_mqd *mqd = ring->mqd_ptr;
-	uint32_t tmp;
 	int j;
 
 	/* disable wptr polling */
-	tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_PQ_WPTR_POLL_CNTL));
-	tmp = REG_SET_FIELD(tmp, CP_PQ_WPTR_POLL_CNTL, EN, 0);
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmCP_PQ_WPTR_POLL_CNTL), tmp);
+	WREG32_FIELD15(GC, 0, CP_PQ_WPTR_POLL_CNTL, EN, 0);
 
 	WREG32(SOC15_REG_OFFSET(GC, 0, mmCP_HQD_EOP_BASE_ADDR),
 	       mqd->cp_hqd_eop_base_addr_lo);
@@ -2118,11 +2103,8 @@ static int gfx_v9_0_kiq_init_register(struct amdgpu_ring *ring)
 	WREG32(SOC15_REG_OFFSET(GC, 0, mmCP_HQD_ACTIVE),
 	       mqd->cp_hqd_active);
 
-	if (ring->use_doorbell) {
-		tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_PQ_STATUS));
-		tmp = REG_SET_FIELD(tmp, CP_PQ_STATUS, DOORBELL_ENABLE, 1);
-		WREG32(SOC15_REG_OFFSET(GC, 0, mmCP_PQ_STATUS), tmp);
-	}
+	if (ring->use_doorbell)
+		WREG32_FIELD15(GC, 0, CP_PQ_STATUS, DOORBELL_ENABLE, 1);
 
 	return 0;
 }
@@ -2366,177 +2348,6 @@ static int gfx_v9_0_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
-static void gfx_v9_0_print_status(void *handle)
-{
-	int i;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	dev_info(adev->dev, "GFX 9.x registers\n");
-	dev_info(adev->dev, "  GRBM_STATUS=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmGRBM_STATUS)));
-	dev_info(adev->dev, "  GRBM_STATUS2=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmGRBM_STATUS2)));
-	dev_info(adev->dev, "  GRBM_STATUS_SE0=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmGRBM_STATUS_SE0)));
-	dev_info(adev->dev, "  GRBM_STATUS_SE1=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmGRBM_STATUS_SE1)));
-	dev_info(adev->dev, "  GRBM_STATUS_SE2=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmGRBM_STATUS_SE2)));
-	dev_info(adev->dev, "  GRBM_STATUS_SE3=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmGRBM_STATUS_SE3)));
-	dev_info(adev->dev, "  CP_STAT = 0x%08x\n", RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_STAT)));
-	dev_info(adev->dev, "  CP_STALLED_STAT1 = 0x%08x\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_STALLED_STAT1)));
-	dev_info(adev->dev, "  CP_STALLED_STAT2 = 0x%08x\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_STALLED_STAT2)));
-	dev_info(adev->dev, "  CP_STALLED_STAT3 = 0x%08x\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_STALLED_STAT3)));
-	dev_info(adev->dev, "  CP_CPF_BUSY_STAT = 0x%08x\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_CPF_BUSY_STAT)));
-	dev_info(adev->dev, "  CP_CPF_STALLED_STAT1 = 0x%08x\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_CPF_STALLED_STAT1)));
-	dev_info(adev->dev, "  CP_CPF_STATUS = 0x%08x\n", RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_CPF_STATUS)));
-	dev_info(adev->dev, "  CP_CPC_BUSY_STAT = 0x%08x\n", RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_CPC_BUSY_STAT)));
-	dev_info(adev->dev, "  CP_CPC_STALLED_STAT1 = 0x%08x\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_CPC_STALLED_STAT1)));
-	dev_info(adev->dev, "  CP_CPC_STATUS = 0x%08x\n", RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_CPC_STATUS)));
-
-	for (i = 0; i < 32; i++) {
-		dev_info(adev->dev, "  GB_TILE_MODE%d=0x%08X\n",
-			 i, RREG32(SOC15_REG_OFFSET(GC, 0, mmGB_TILE_MODE0 ) + i*4));
-	}
-	for (i = 0; i < 16; i++) {
-		dev_info(adev->dev, "  GB_MACROTILE_MODE%d=0x%08X\n",
-			 i, RREG32(SOC15_REG_OFFSET(GC, 0, mmGB_MACROTILE_MODE0) + i*4));
-	}
-	for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
-		dev_info(adev->dev, "  se: %d\n", i);
-		gfx_v9_0_select_se_sh(adev, i, 0xffffffff, 0xffffffff);
-		dev_info(adev->dev, "  PA_SC_RASTER_CONFIG=0x%08X\n",
-			 RREG32(SOC15_REG_OFFSET(GC, 0, mmPA_SC_RASTER_CONFIG)));
-		dev_info(adev->dev, "  PA_SC_RASTER_CONFIG_1=0x%08X\n",
-			 RREG32(SOC15_REG_OFFSET(GC, 0, mmPA_SC_RASTER_CONFIG_1)));
-	}
-	gfx_v9_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
-
-	dev_info(adev->dev, "  GB_ADDR_CONFIG=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmGB_ADDR_CONFIG)));
-
-	dev_info(adev->dev, "  CP_MEQ_THRESHOLDS=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_MEQ_THRESHOLDS)));
-	dev_info(adev->dev, "  SX_DEBUG_1=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmSX_DEBUG_1)));
-	dev_info(adev->dev, "  TA_CNTL_AUX=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmTA_CNTL_AUX)));
-	dev_info(adev->dev, "  SPI_CONFIG_CNTL=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmSPI_CONFIG_CNTL)));
-	dev_info(adev->dev, "  SQ_CONFIG=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmSQ_CONFIG)));
-	dev_info(adev->dev, "  DB_DEBUG=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmDB_DEBUG)));
-	dev_info(adev->dev, "  DB_DEBUG2=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmDB_DEBUG2)));
-	dev_info(adev->dev, "  DB_DEBUG3=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmDB_DEBUG3)));
-	dev_info(adev->dev, "  CB_HW_CONTROL=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCB_HW_CONTROL)));
-	dev_info(adev->dev, "  SPI_CONFIG_CNTL_1=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmSPI_CONFIG_CNTL_1)));
-	dev_info(adev->dev, "  PA_SC_FIFO_SIZE=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmPA_SC_FIFO_SIZE)));
-	dev_info(adev->dev, "  VGT_NUM_INSTANCES=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmVGT_NUM_INSTANCES)));
-	dev_info(adev->dev, "  CP_PERFMON_CNTL=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_PERFMON_CNTL)));
-	dev_info(adev->dev, "  PA_SC_FORCE_EOV_MAX_CNTS=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmPA_SC_FORCE_EOV_MAX_CNTS)));
-	dev_info(adev->dev, "  VGT_CACHE_INVALIDATION=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmVGT_CACHE_INVALIDATION)));
-	dev_info(adev->dev, "  VGT_GS_VERTEX_REUSE=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmVGT_GS_VERTEX_REUSE)));
-	dev_info(adev->dev, "  PA_SC_LINE_STIPPLE_STATE=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmPA_SC_LINE_STIPPLE_STATE)));
-	dev_info(adev->dev, "  PA_CL_ENHANCE=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmPA_CL_ENHANCE)));
-	dev_info(adev->dev, "  PA_SC_ENHANCE=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmPA_SC_ENHANCE)));
-
-	dev_info(adev->dev, "  CP_ME_CNTL=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_ME_CNTL)));
-	dev_info(adev->dev, "  CP_MAX_CONTEXT=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_MAX_CONTEXT)));
-	dev_info(adev->dev, "  CP_DEVICE_ID=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_DEVICE_ID)));
-
-	dev_info(adev->dev, "  CP_SEM_WAIT_TIMER=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_SEM_WAIT_TIMER)));
-
-	dev_info(adev->dev, "  CP_RB_WPTR_DELAY=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_RB_WPTR_DELAY)));
-	dev_info(adev->dev, "  CP_RB_VMID=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_RB_VMID)));
-	dev_info(adev->dev, "  CP_RB0_CNTL=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_RB0_CNTL)));
-	dev_info(adev->dev, "  CP_RB0_WPTR=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_RB0_WPTR)));
-	dev_info(adev->dev, "  CP_RB0_RPTR_ADDR=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_RB0_RPTR_ADDR)));
-	dev_info(adev->dev, "  CP_RB0_RPTR_ADDR_HI=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_RB0_RPTR_ADDR_HI)));
-	dev_info(adev->dev, "  CP_RB0_CNTL=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_RB0_CNTL)));
-	dev_info(adev->dev, "  CP_RB0_BASE=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_RB0_BASE)));
-	dev_info(adev->dev, "  CP_RB0_BASE_HI=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_RB0_BASE_HI)));
-	dev_info(adev->dev, "  CP_MEC_CNTL=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_MEC_CNTL)));
-
-	dev_info(adev->dev, "  SCRATCH_ADDR=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmSCRATCH_ADDR)));
-	dev_info(adev->dev, "  SCRATCH_UMSK=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmSCRATCH_UMSK)));
-
-	dev_info(adev->dev, "  CP_INT_CNTL_RING0=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_INT_CNTL_RING0)));
-	dev_info(adev->dev, "  RLC_LB_CNTL=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_LB_CNTL)));
-	dev_info(adev->dev, "  RLC_CNTL=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_CNTL)));
-	dev_info(adev->dev, "  RLC_CGCG_CGLS_CTRL=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_CGCG_CGLS_CTRL)));
-	dev_info(adev->dev, "  RLC_LB_CNTR_INIT=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_LB_CNTR_INIT)));
-	dev_info(adev->dev, "  RLC_LB_CNTR_MAX=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_LB_CNTR_MAX)));
-	dev_info(adev->dev, "  RLC_LB_INIT_CU_MASK=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_LB_INIT_CU_MASK)));
-	dev_info(adev->dev, "  RLC_LB_PARAMS=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_LB_PARAMS)));
-	dev_info(adev->dev, "  RLC_LB_CNTL=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_LB_CNTL)));
-	dev_info(adev->dev, "  RLC_UCODE_CNTL=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_UCODE_CNTL)));
-
-	dev_info(adev->dev, "  RLC_GPM_GENERAL_6=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_GPM_GENERAL_6)));
-	dev_info(adev->dev, "  RLC_GPM_GENERAL_12=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_GPM_GENERAL_12)));
-	dev_info(adev->dev, "  RLC_GPM_TIMER_INT_3=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_GPM_TIMER_INT_3)));
-	mutex_lock(&adev->srbm_mutex);
-	for (i = 0; i < 16; i++) {
-		soc15_grbm_select(adev, 0, 0, 0, i);
-		dev_info(adev->dev, "  VM %d:\n", i);
-		dev_info(adev->dev, "  SH_MEM_CONFIG=0x%08X\n",
-			 RREG32(SOC15_REG_OFFSET(GC, 0, mmSH_MEM_CONFIG)));
-		dev_info(adev->dev, "  SH_MEM_BASES=0x%08X\n",
-			 RREG32(SOC15_REG_OFFSET(GC, 0, mmSH_MEM_BASES)));
-	}
-	soc15_grbm_select(adev, 0, 0, 0, 0);
-	mutex_unlock(&adev->srbm_mutex);
-}
-
 static int gfx_v9_0_soft_reset(void *handle)
 {
 	u32 grbm_soft_reset = 0;
@@ -2569,8 +2380,7 @@ static int gfx_v9_0_soft_reset(void *handle)
 						GRBM_SOFT_RESET, SOFT_RESET_RLC, 1);
 
 
-	if (grbm_soft_reset ) {
-		gfx_v9_0_print_status((void *)adev);
+	if (grbm_soft_reset) {
 		/* stop the rlc */
 		gfx_v9_0_rlc_stop(adev);
 
@@ -2596,7 +2406,6 @@ static int gfx_v9_0_soft_reset(void *handle)
 
 		/* Wait a little for things to settle down */
 		udelay(50);
-		gfx_v9_0_print_status((void *)adev);
 	}
 	return 0;
 }
@@ -3148,6 +2957,7 @@ static void gfx_v9_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 					unsigned vm_id, uint64_t pd_addr)
 {
 	int usepfp = (ring->funcs->type == AMDGPU_RING_TYPE_GFX);
+	uint32_t req = ring->adev->gart.gart_funcs->get_invalidate_req(vm_id);
 	unsigned eng = ring->idx;
 	unsigned i;
 
@@ -3157,7 +2967,6 @@ static void gfx_v9_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 
 	for (i = 0; i < AMDGPU_MAX_VMHUBS; ++i) {
 		struct amdgpu_vmhub *hub = &ring->adev->vmhub[i];
-		uint32_t req = hub->get_invalidate_req(vm_id);
 
 		gfx_v9_0_write_data_to_reg(ring, usepfp, true,
 					   hub->ctx0_ptb_addr_lo32
@@ -3376,21 +3185,12 @@ static void gfx_v9_0_ring_emit_wreg(struct amdgpu_ring *ring, uint32_t reg,
 static void gfx_v9_0_set_gfx_eop_interrupt_state(struct amdgpu_device *adev,
 						 enum amdgpu_interrupt_state state)
 {
-	u32 cp_int_cntl;
-
 	switch (state) {
 	case AMDGPU_IRQ_STATE_DISABLE:
-		cp_int_cntl = RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_INT_CNTL_RING0));
-		cp_int_cntl = REG_SET_FIELD(cp_int_cntl, CP_INT_CNTL_RING0,
-					    TIME_STAMP_INT_ENABLE, 0);
-		WREG32(SOC15_REG_OFFSET(GC, 0, mmCP_INT_CNTL_RING0), cp_int_cntl);
-		break;
 	case AMDGPU_IRQ_STATE_ENABLE:
-		cp_int_cntl = RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_INT_CNTL_RING0));
-		cp_int_cntl =
-			REG_SET_FIELD(cp_int_cntl, CP_INT_CNTL_RING0,
-				      TIME_STAMP_INT_ENABLE, 1);
-		WREG32(SOC15_REG_OFFSET(GC, 0, mmCP_INT_CNTL_RING0), cp_int_cntl);
+		WREG32_FIELD15(GC, 0, CP_INT_CNTL_RING0,
+			       TIME_STAMP_INT_ENABLE,
+			       state == AMDGPU_IRQ_STATE_ENABLE ? 1 : 0);
 		break;
 	default:
 		break;
@@ -3446,20 +3246,12 @@ static int gfx_v9_0_set_priv_reg_fault_state(struct amdgpu_device *adev,
 					     unsigned type,
 					     enum amdgpu_interrupt_state state)
 {
-	u32 cp_int_cntl;
-
 	switch (state) {
 	case AMDGPU_IRQ_STATE_DISABLE:
-		cp_int_cntl = RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_INT_CNTL_RING0));
-		cp_int_cntl = REG_SET_FIELD(cp_int_cntl, CP_INT_CNTL_RING0,
-					    PRIV_REG_INT_ENABLE, 0);
-		WREG32(SOC15_REG_OFFSET(GC, 0, mmCP_INT_CNTL_RING0), cp_int_cntl);
-		break;
 	case AMDGPU_IRQ_STATE_ENABLE:
-		cp_int_cntl = RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_INT_CNTL_RING0));
-		cp_int_cntl = REG_SET_FIELD(cp_int_cntl, CP_INT_CNTL_RING0,
-					    PRIV_REG_INT_ENABLE, 1);
-		WREG32(SOC15_REG_OFFSET(GC, 0, mmCP_INT_CNTL_RING0), cp_int_cntl);
+		WREG32_FIELD15(GC, 0, CP_INT_CNTL_RING0,
+			       PRIV_REG_INT_ENABLE,
+			       state == AMDGPU_IRQ_STATE_ENABLE ? 1 : 0);
 		break;
 	default:
 		break;
@@ -3473,21 +3265,12 @@ static int gfx_v9_0_set_priv_inst_fault_state(struct amdgpu_device *adev,
 					      unsigned type,
 					      enum amdgpu_interrupt_state state)
 {
-	u32 cp_int_cntl;
-
 	switch (state) {
 	case AMDGPU_IRQ_STATE_DISABLE:
-		cp_int_cntl = RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_INT_CNTL_RING0));
-		cp_int_cntl = REG_SET_FIELD(cp_int_cntl, CP_INT_CNTL_RING0,
-					    PRIV_INSTR_INT_ENABLE, 0);
-		WREG32(SOC15_REG_OFFSET(GC, 0, mmCP_INT_CNTL_RING0), cp_int_cntl);
-		break;
 	case AMDGPU_IRQ_STATE_ENABLE:
-		cp_int_cntl = RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_INT_CNTL_RING0));
-		cp_int_cntl = REG_SET_FIELD(cp_int_cntl, CP_INT_CNTL_RING0,
-					    PRIV_INSTR_INT_ENABLE, 1);
-		WREG32(SOC15_REG_OFFSET(GC, 0, mmCP_INT_CNTL_RING0), cp_int_cntl);
-		break;
+		WREG32_FIELD15(GC, 0, CP_INT_CNTL_RING0,
+			       PRIV_INSTR_INT_ENABLE,
+			       state == AMDGPU_IRQ_STATE_ENABLE ? 1 : 0);
 	default:
 		break;
 	}
@@ -3759,8 +3542,6 @@ static const struct amdgpu_ring_funcs gfx_v9_0_ring_funcs_kiq = {
 	.emit_ib_size =	4, /* gfx_v9_0_ring_emit_ib_compute */
 	.emit_ib = gfx_v9_0_ring_emit_ib_compute,
 	.emit_fence = gfx_v9_0_ring_emit_fence_kiq,
-	.emit_hdp_flush = gfx_v9_0_ring_emit_hdp_flush,
-	.emit_hdp_invalidate = gfx_v9_0_ring_emit_hdp_invalidate,
 	.test_ring = gfx_v9_0_ring_test_ring,
 	.test_ib = gfx_v9_0_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
@@ -3975,9 +3756,7 @@ static int gfx_v9_0_init_queue(struct amdgpu_ring *ring)
 			       ring->pipe,
 			       ring->queue, 0);
 	/* disable wptr polling */
-	tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_PQ_WPTR_POLL_CNTL));
-	tmp = REG_SET_FIELD(tmp, CP_PQ_WPTR_POLL_CNTL, EN, 0);
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmCP_PQ_WPTR_POLL_CNTL), tmp);
+	WREG32_FIELD15(GC, 0, CP_PQ_WPTR_POLL_CNTL, EN, 0);
 
 	/* write the EOP addr */
 	BUG_ON(ring->me != 1 || ring->pipe != 0); /* can't handle other cases eop address */
@@ -4121,11 +3900,8 @@ static int gfx_v9_0_init_queue(struct amdgpu_ring *ring)
 	amdgpu_bo_kunmap(ring->mqd_obj);
 	amdgpu_bo_unreserve(ring->mqd_obj);
 
-	if (use_doorbell) {
-		tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_PQ_STATUS));
-		tmp = REG_SET_FIELD(tmp, CP_PQ_STATUS, DOORBELL_ENABLE, 1);
-		WREG32(SOC15_REG_OFFSET(GC, 0, mmCP_PQ_STATUS), tmp);
-	}
+	if (use_doorbell)
+		WREG32_FIELD15(GC, 0, CP_PQ_STATUS, DOORBELL_ENABLE, 1);
 
 	return 0;
 }

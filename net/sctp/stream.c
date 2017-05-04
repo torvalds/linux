@@ -35,33 +35,60 @@
 #include <net/sctp/sctp.h>
 #include <net/sctp/sm.h>
 
-struct sctp_stream *sctp_stream_new(__u16 incnt, __u16 outcnt, gfp_t gfp)
+int sctp_stream_new(struct sctp_association *asoc, gfp_t gfp)
 {
 	struct sctp_stream *stream;
 	int i;
 
 	stream = kzalloc(sizeof(*stream), gfp);
 	if (!stream)
-		return NULL;
+		return -ENOMEM;
 
-	stream->outcnt = outcnt;
+	stream->outcnt = asoc->c.sinit_num_ostreams;
 	stream->out = kcalloc(stream->outcnt, sizeof(*stream->out), gfp);
 	if (!stream->out) {
 		kfree(stream);
-		return NULL;
+		return -ENOMEM;
 	}
 	for (i = 0; i < stream->outcnt; i++)
 		stream->out[i].state = SCTP_STREAM_OPEN;
 
-	stream->incnt = incnt;
+	asoc->stream = stream;
+
+	return 0;
+}
+
+int sctp_stream_init(struct sctp_association *asoc, gfp_t gfp)
+{
+	struct sctp_stream *stream = asoc->stream;
+	int i;
+
+	/* Initial stream->out size may be very big, so free it and alloc
+	 * a new one with new outcnt to save memory.
+	 */
+	kfree(stream->out);
+	stream->outcnt = asoc->c.sinit_num_ostreams;
+	stream->out = kcalloc(stream->outcnt, sizeof(*stream->out), gfp);
+	if (!stream->out)
+		goto nomem;
+
+	for (i = 0; i < stream->outcnt; i++)
+		stream->out[i].state = SCTP_STREAM_OPEN;
+
+	stream->incnt = asoc->c.sinit_max_instreams;
 	stream->in = kcalloc(stream->incnt, sizeof(*stream->in), gfp);
 	if (!stream->in) {
 		kfree(stream->out);
-		kfree(stream);
-		return NULL;
+		goto nomem;
 	}
 
-	return stream;
+	return 0;
+
+nomem:
+	asoc->stream = NULL;
+	kfree(stream);
+
+	return -ENOMEM;
 }
 
 void sctp_stream_free(struct sctp_stream *stream)

@@ -55,10 +55,11 @@ struct nvkm_secboot {
 #define nvkm_secboot(p) container_of((p), struct nvkm_secboot, subdev)
 
 bool nvkm_secboot_is_managed(struct nvkm_secboot *, enum nvkm_secboot_falcon);
-int nvkm_secboot_reset(struct nvkm_secboot *, enum nvkm_secboot_falcon);
+int nvkm_secboot_reset(struct nvkm_secboot *, unsigned long);
 
 int gm200_secboot_new(struct nvkm_device *, int, struct nvkm_secboot **);
 int gm20b_secboot_new(struct nvkm_device *, int, struct nvkm_secboot **);
 int gp102_secboot_new(struct nvkm_device *, int, struct nvkm_secboot **);
+int gp10b_secboot_new(struct nvkm_device *, int, struct nvkm_secboot **);
 
 #endif

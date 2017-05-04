@@ -316,9 +316,10 @@ int amdgpu_irq_add_id(struct amdgpu_device *adev,
 		return -EINVAL;
 
 	if (!adev->irq.client[client_id].sources) {
-		adev->irq.client[client_id].sources = kcalloc(AMDGPU_MAX_IRQ_SRC_ID,
-							      sizeof(struct amdgpu_irq_src),
-							      GFP_KERNEL);
+		adev->irq.client[client_id].sources =
+			kcalloc(AMDGPU_MAX_IRQ_SRC_ID,
+				sizeof(struct amdgpu_irq_src *),
+				GFP_KERNEL);
 		if (!adev->irq.client[client_id].sources)
 			return -ENOMEM;
 	}

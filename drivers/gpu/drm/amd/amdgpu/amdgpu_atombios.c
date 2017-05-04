@@ -754,6 +754,35 @@ union igp_info {
 	struct _ATOM_INTEGRATED_SYSTEM_INFO_V1_9 info_9;
 };
 
+/*
+ * Return vram width from integrated system info table, if available,
+ * or 0 if not.
+ */
+int amdgpu_atombios_get_vram_width(struct amdgpu_device *adev)
+{
+	struct amdgpu_mode_info *mode_info = &adev->mode_info;
+	int index = GetIndexIntoMasterTable(DATA, IntegratedSystemInfo);
+	u16 data_offset, size;
+	union igp_info *igp_info;
+	u8 frev, crev;
+
+	/* get any igp specific overrides */
+	if (amdgpu_atom_parse_data_header(mode_info->atom_context, index, &size,
+				   &frev, &crev, &data_offset)) {
+		igp_info = (union igp_info *)
+			(mode_info->atom_context->bios + data_offset);
+		switch (crev) {
+		case 8:
+		case 9:
+			return igp_info->info_8.ucUMAChannelNumber * 64;
+		default:
+			return 0;
+		}
+	}
+
+	return 0;
+}
+
 static void amdgpu_atombios_get_igp_ss_overrides(struct amdgpu_device *adev,
 						 struct amdgpu_atom_ss *ss,
 						 int id)

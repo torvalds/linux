@@ -326,7 +326,7 @@ static u64 execlists_update_context(struct drm_i915_gem_request *rq)
 		rq->ctx->ppgtt ?: rq->i915->mm.aliasing_ppgtt;
 	u32 *reg_state = ce->lrc_reg_state;
 
-	GEM_BUG_ON(!IS_ALIGNED(rq->tail, 8));
+	assert_ring_tail_valid(rq->ring, rq->tail);
 	reg_state[CTX_RING_TAIL+1] = rq->tail;
 
 	/* True 32b PPGTT with dynamic page allocation: update PDP
@@ -399,21 +399,8 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_request *last;
 	struct execlist_port *port = engine->execlist_port;
-	unsigned long flags;
 	struct rb_node *rb;
 	bool submit = false;
-
-	/* After execlist_first is updated, the tasklet will be rescheduled.
-	 *
-	 * If we are currently running (inside the tasklet) and a third
-	 * party queues a request and so updates engine->execlist_first under
-	 * the spinlock (which we have elided), it will atomically set the
-	 * TASKLET_SCHED flag causing the us to be re-executed and pick up
-	 * the change in state (the update to TASKLET_SCHED incurs a memory
-	 * barrier making this cross-cpu checking safe).
-	 */
-	if (!READ_ONCE(engine->execlist_first))
-		return;
 
 	last = port->request;
 	if (last)
@@ -448,7 +435,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 	 * and context switches) submission.
 	 */
 
-	spin_lock_irqsave(&engine->timeline->lock, flags);
+	spin_lock_irq(&engine->timeline->lock);
 	rb = engine->execlist_first;
 	while (rb) {
 		struct drm_i915_gem_request *cursor =
@@ -500,7 +487,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 		i915_gem_request_assign(&port->request, last);
 		engine->execlist_first = rb;
 	}
-	spin_unlock_irqrestore(&engine->timeline->lock, flags);
+	spin_unlock_irq(&engine->timeline->lock);
 
 	if (submit)
 		execlists_submit_ports(engine);
@@ -530,24 +517,36 @@ static void intel_lrc_irq_handler(unsigned long data)
 
 	intel_uncore_forcewake_get(dev_priv, engine->fw_domains);
 
-	while (test_and_clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted)) {
+	/* Prefer doing test_and_clear_bit() as a two stage operation to avoid
+	 * imposing the cost of a locked atomic transaction when submitting a
+	 * new request (outside of the context-switch interrupt).
+	 */
+	while (test_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted)) {
 		u32 __iomem *csb_mmio =
 			dev_priv->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_PTR(engine));
 		u32 __iomem *buf =
 			dev_priv->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_BUF_LO(engine, 0));
-		unsigned int csb, head, tail;
+		unsigned int head, tail;
 
-		csb = readl(csb_mmio);
-		head = GEN8_CSB_READ_PTR(csb);
-		tail = GEN8_CSB_WRITE_PTR(csb);
-		if (head == tail)
-			break;
+		/* The write will be ordered by the uncached read (itself
+		 * a memory barrier), so we do not need another in the form
+		 * of a locked instruction. The race between the interrupt
+		 * handler and the split test/clear is harmless as we order
+		 * our clear before the CSB read. If the interrupt arrived
+		 * first between the test and the clear, we read the updated
+		 * CSB and clear the bit. If the interrupt arrives as we read
+		 * the CSB or later (i.e. after we had cleared the bit) the bit
+		 * is set and we do a new loop.
+		 */
+		__clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
+		head = readl(csb_mmio);
+		tail = GEN8_CSB_WRITE_PTR(head);
+		head = GEN8_CSB_READ_PTR(head);
+		while (head != tail) {
+			unsigned int status;
 
-		if (tail < head)
-			tail += GEN8_CSB_ENTRIES;
-		do {
-			unsigned int idx = ++head % GEN8_CSB_ENTRIES;
-			unsigned int status = readl(buf + 2 * idx);
+			if (++head == GEN8_CSB_ENTRIES)
+				head = 0;
 
 			/* We are flying near dragons again.
 			 *
@@ -566,11 +565,12 @@ static void intel_lrc_irq_handler(unsigned long data)
 			 * status notifier.
 			 */
 
+			status = readl(buf + 2 * head);
 			if (!(status & GEN8_CTX_STATUS_COMPLETED_MASK))
 				continue;
 
 			/* Check the context/desc id for this event matches */
-			GEM_DEBUG_BUG_ON(readl(buf + 2 * idx + 1) !=
+			GEM_DEBUG_BUG_ON(readl(buf + 2 * head + 1) !=
 					 port[0].context_id);
 
 			GEM_BUG_ON(port[0].count == 0);
@@ -588,10 +588,9 @@ static void intel_lrc_irq_handler(unsigned long data)
 
 			GEM_BUG_ON(port[0].count == 0 &&
 				   !(status & GEN8_CTX_STATUS_ACTIVE_IDLE));
-		} while (head < tail);
+		}
 
-		writel(_MASKED_FIELD(GEN8_CSB_READ_PTR_MASK,
-				     GEN8_CSB_WRITE_PTR(csb) << 8),
+		writel(_MASKED_FIELD(GEN8_CSB_READ_PTR_MASK, head << 8),
 		       csb_mmio);
 	}
 
@@ -647,15 +646,14 @@ static void execlists_submit_request(struct drm_i915_gem_request *request)
 static struct intel_engine_cs *
 pt_lock_engine(struct i915_priotree *pt, struct intel_engine_cs *locked)
 {
-	struct intel_engine_cs *engine;
+	struct intel_engine_cs *engine =
+		container_of(pt, struct drm_i915_gem_request, priotree)->engine;
 
-	engine = container_of(pt,
-			      struct drm_i915_gem_request,
-			      priotree)->engine;
+	GEM_BUG_ON(!locked);
+
 	if (engine != locked) {
-		if (locked)
-			spin_unlock_irq(&locked->timeline->lock);
-		spin_lock_irq(&engine->timeline->lock);
+		spin_unlock(&locked->timeline->lock);
+		spin_lock(&engine->timeline->lock);
 	}
 
 	return engine;
@@ -663,7 +661,7 @@ pt_lock_engine(struct i915_priotree *pt, struct intel_engine_cs *locked)
 
 static void execlists_schedule(struct drm_i915_gem_request *request, int prio)
 {
-	struct intel_engine_cs *engine = NULL;
+	struct intel_engine_cs *engine;
 	struct i915_dependency *dep, *p;
 	struct i915_dependency stack;
 	LIST_HEAD(dfs);
@@ -697,25 +695,22 @@ static void execlists_schedule(struct drm_i915_gem_request *request, int prio)
 	list_for_each_entry_safe(dep, p, &dfs, dfs_link) {
 		struct i915_priotree *pt = dep->signaler;
 
-		list_for_each_entry(p, &pt->signalers_list, signal_link)
+		/* Within an engine, there can be no cycle, but we may
+		 * refer to the same dependency chain multiple times
+		 * (redundant dependencies are not eliminated) and across
+		 * engines.
+		 */
+		list_for_each_entry(p, &pt->signalers_list, signal_link) {
+			GEM_BUG_ON(p->signaler->priority < pt->priority);
 			if (prio > READ_ONCE(p->signaler->priority))
 				list_move_tail(&p->dfs_link, &dfs);
+		}
 
 		list_safe_reset_next(dep, p, dfs_link);
-		if (!RB_EMPTY_NODE(&pt->node))
-			continue;
-
-		engine = pt_lock_engine(pt, engine);
-
-		/* If it is not already in the rbtree, we can update the
-		 * priority inplace and skip over it (and its dependencies)
-		 * if it is referenced *again* as we descend the dfs.
-		 */
-		if (prio > pt->priority && RB_EMPTY_NODE(&pt->node)) {
-			pt->priority = prio;
-			list_del_init(&dep->dfs_link);
-		}
 	}
+
+	engine = request->engine;
+	spin_lock_irq(&engine->timeline->lock);
 
 	/* Fifo and depth-first replacement ensure our deps execute before us */
 	list_for_each_entry_safe_reverse(dep, p, &dfs, dfs_link) {
@@ -728,16 +723,15 @@ static void execlists_schedule(struct drm_i915_gem_request *request, int prio)
 		if (prio <= pt->priority)
 			continue;
 
-		GEM_BUG_ON(RB_EMPTY_NODE(&pt->node));
-
 		pt->priority = prio;
-		rb_erase(&pt->node, &engine->execlist_queue);
-		if (insert_request(pt, &engine->execlist_queue))
-			engine->execlist_first = &pt->node;
+		if (!RB_EMPTY_NODE(&pt->node)) {
+			rb_erase(&pt->node, &engine->execlist_queue);
+			if (insert_request(pt, &engine->execlist_queue))
+				engine->execlist_first = &pt->node;
+		}
 	}
 
-	if (engine)
-		spin_unlock_irq(&engine->timeline->lock);
+	spin_unlock_irq(&engine->timeline->lock);
 
 	/* XXX Do we need to preempt to make room for us and our deps? */
 }
@@ -1255,7 +1249,6 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 	ce->lrc_reg_state[CTX_RING_HEAD+1] = request->postfix;
 
 	request->ring->head = request->postfix;
-	request->ring->last_retired_head = -1;
 	intel_ring_update_space(request->ring);
 
 	/* Catch up with any missed context-switch interrupts */
@@ -1268,8 +1261,10 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 	GEM_BUG_ON(request->ctx != port[0].request->ctx);
 
 	/* Reset WaIdleLiteRestore:bdw,skl as well */
-	request->tail = request->wa_tail - WA_TAIL_DWORDS * sizeof(u32);
-	GEM_BUG_ON(!IS_ALIGNED(request->tail, 8));
+	request->tail =
+		intel_ring_wrap(request->ring,
+				request->wa_tail - WA_TAIL_DWORDS*sizeof(u32));
+	assert_ring_tail_valid(request->ring, request->tail);
 }
 
 static int intel_logical_ring_emit_pdps(struct drm_i915_gem_request *req)
@@ -1480,7 +1475,7 @@ static void gen8_emit_breadcrumb(struct drm_i915_gem_request *request, u32 *cs)
 	*cs++ = MI_USER_INTERRUPT;
 	*cs++ = MI_NOOP;
 	request->tail = intel_ring_offset(request, cs);
-	GEM_BUG_ON(!IS_ALIGNED(request->tail, 8));
+	assert_ring_tail_valid(request->ring, request->tail);
 
 	gen8_emit_wa_tail(request, cs);
 }
@@ -1508,7 +1503,7 @@ static void gen8_emit_breadcrumb_render(struct drm_i915_gem_request *request,
 	*cs++ = MI_USER_INTERRUPT;
 	*cs++ = MI_NOOP;
 	request->tail = intel_ring_offset(request, cs);
-	GEM_BUG_ON(!IS_ALIGNED(request->tail, 8));
+	assert_ring_tail_valid(request->ring, request->tail);
 
 	gen8_emit_wa_tail(request, cs);
 }
@@ -1575,6 +1570,7 @@ static void execlists_set_default_submission(struct intel_engine_cs *engine)
 {
 	engine->submit_request = execlists_submit_request;
 	engine->schedule = execlists_schedule;
+	engine->irq_tasklet.func = intel_lrc_irq_handler;
 }
 
 static void
@@ -2041,7 +2037,6 @@ void intel_lr_context_resume(struct drm_i915_private *dev_priv)
 			i915_gem_object_unpin_map(ce->state->obj);
 
 			ce->ring->head = ce->ring->tail = 0;
-			ce->ring->last_retired_head = -1;
 			intel_ring_update_space(ce->ring);
 		}
 	}

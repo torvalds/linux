@@ -235,7 +235,6 @@ static void hang_fini(struct hang *h)
 	i915_gem_object_put(h->hws);
 
 	i915_gem_wait_for_idle(h->i915, I915_WAIT_LOCKED);
-	i915_gem_retire_requests(h->i915);
 }
 
 static int igt_hang_sanitycheck(void *arg)

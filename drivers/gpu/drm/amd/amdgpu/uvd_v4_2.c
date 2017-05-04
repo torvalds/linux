@@ -135,12 +135,9 @@ static int uvd_v4_2_sw_fini(void *handle)
 	if (r)
 		return r;
 
-	r = amdgpu_uvd_sw_fini(adev);
-	if (r)
-		return r;
-
-	return r;
+	return amdgpu_uvd_sw_fini(adev);
 }
+
 static void uvd_v4_2_enable_mgcg(struct amdgpu_device *adev,
 				 bool enable);
 /**
@@ -230,11 +227,7 @@ static int uvd_v4_2_suspend(void *handle)
 	if (r)
 		return r;
 
-	r = amdgpu_uvd_suspend(adev);
-	if (r)
-		return r;
-
-	return r;
+	return amdgpu_uvd_suspend(adev);
 }
 
 static int uvd_v4_2_resume(void *handle)
@@ -246,11 +239,7 @@ static int uvd_v4_2_resume(void *handle)
 	if (r)
 		return r;
 
-	r = uvd_v4_2_hw_init(adev);
-	if (r)
-		return r;
-
-	return r;
+	return uvd_v4_2_hw_init(adev);
 }
 
 /**

@@ -28,6 +28,7 @@
 void acr_r367_fixup_hs_desc(struct acr_r352 *, struct nvkm_secboot *, void *);
 
 struct ls_ucode_img *acr_r367_ls_ucode_img_load(const struct acr_r352 *,
+						const struct nvkm_secboot *,
 						enum nvkm_secboot_falcon);
 int acr_r367_ls_fill_headers(struct acr_r352 *, struct list_head *);
 int acr_r367_ls_write_wpr(struct acr_r352 *, struct list_head *,

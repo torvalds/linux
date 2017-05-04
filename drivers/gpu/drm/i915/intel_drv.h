@@ -398,6 +398,9 @@ struct intel_plane_state {
 		int x, y;
 	} aux;
 
+	/* plane control register */
+	u32 ctl;
+
 	/*
 	 * scaler_id
 	 *    = -1 : not using a scaler
@@ -729,6 +732,12 @@ struct intel_crtc_state {
 
 	/* bitmask of visible planes (enum plane_id) */
 	u8 active_planes;
+
+	/* HDMI scrambling status */
+	bool hdmi_scrambling;
+
+	/* HDMI High TMDS char rate ratio */
+	bool hdmi_high_tmds_clock_ratio;
 };
 
 struct intel_crtc {
@@ -1220,12 +1229,9 @@ void intel_crt_init(struct drm_i915_private *dev_priv);
 void intel_crt_reset(struct drm_encoder *encoder);
 
 /* intel_ddi.c */
-void intel_ddi_clk_select(struct intel_encoder *encoder,
-			  struct intel_shared_dpll *pll);
 void intel_ddi_fdi_post_disable(struct intel_encoder *intel_encoder,
 				struct intel_crtc_state *old_crtc_state,
 				struct drm_connector_state *old_conn_state);
-void intel_prepare_dp_ddi_buffers(struct intel_encoder *encoder);
 void hsw_fdi_link_train(struct intel_crtc *crtc,
 			const struct intel_crtc_state *crtc_state);
 void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port);
@@ -1236,8 +1242,8 @@ void intel_ddi_disable_transcoder_func(struct drm_i915_private *dev_priv,
 				       enum transcoder cpu_transcoder);
 void intel_ddi_enable_pipe_clock(const struct intel_crtc_state *crtc_state);
 void intel_ddi_disable_pipe_clock(const  struct intel_crtc_state *crtc_state);
-bool intel_ddi_pll_select(struct intel_crtc *crtc,
-			  struct intel_crtc_state *crtc_state);
+struct intel_encoder *
+intel_ddi_get_crtc_new_encoder(struct intel_crtc_state *crtc_state);
 void intel_ddi_set_pipe_settings(const struct intel_crtc_state *crtc_state);
 void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp);
 bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector);
@@ -1246,7 +1252,6 @@ bool intel_ddi_is_audio_enabled(struct drm_i915_private *dev_priv,
 void intel_ddi_get_config(struct intel_encoder *encoder,
 			  struct intel_crtc_state *pipe_config);
 
-void intel_ddi_init_dp_buf_reg(struct intel_encoder *encoder);
 void intel_ddi_clock_get(struct intel_encoder *encoder,
 			 struct intel_crtc_state *pipe_config);
 void intel_ddi_set_vc_payload_alloc(const struct intel_crtc_state *crtc_state,
@@ -1445,12 +1450,12 @@ static inline u32 intel_plane_ggtt_offset(const struct intel_plane_state *state)
 	return i915_ggtt_offset(state->vma);
 }
 
-u32 skl_plane_ctl_format(uint32_t pixel_format);
-u32 skl_plane_ctl_tiling(uint64_t fb_modifier);
-u32 skl_plane_ctl_rotation(unsigned int rotation);
+u32 skl_plane_ctl(const struct intel_crtc_state *crtc_state,
+		  const struct intel_plane_state *plane_state);
 u32 skl_plane_stride(const struct drm_framebuffer *fb, int plane,
 		     unsigned int rotation);
 int skl_check_plane_surface(struct intel_plane_state *plane_state);
+int i9xx_check_plane_surface(struct intel_plane_state *plane_state);
 
 /* intel_csr.c */
 void intel_csr_ucode_init(struct drm_i915_private *);
@@ -1620,6 +1625,10 @@ struct intel_hdmi *enc_to_intel_hdmi(struct drm_encoder *encoder);
 bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 			       struct intel_crtc_state *pipe_config,
 			       struct drm_connector_state *conn_state);
+void intel_hdmi_handle_sink_scrambling(struct intel_encoder *intel_encoder,
+				       struct drm_connector *connector,
+				       bool high_tmds_clock_ratio,
+				       bool scrambling);
 void intel_dp_dual_mode_set_tmds_output(struct intel_hdmi *hdmi, bool enable);
 
 

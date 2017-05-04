@@ -765,36 +765,54 @@ static bool is_pointer_value(struct bpf_verifier_env *env, int regno)
 	}
 }
 
-static int check_ptr_alignment(struct bpf_verifier_env *env,
-			       struct bpf_reg_state *reg, int off, int size)
+static int check_pkt_ptr_alignment(const struct bpf_reg_state *reg,
+				   int off, int size)
 {
-	if (reg->type != PTR_TO_PACKET && reg->type != PTR_TO_MAP_VALUE_ADJ) {
-		if (off % size != 0) {
-			verbose("misaligned access off %d size %d\n",
-				off, size);
-			return -EACCES;
-		} else {
-			return 0;
-		}
-	}
-
-	if (IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS))
-		/* misaligned access to packet is ok on x86,arm,arm64 */
-		return 0;
-
 	if (reg->id && size != 1) {
-		verbose("Unknown packet alignment. Only byte-sized access allowed\n");
+		verbose("Unknown alignment. Only byte-sized access allowed in packet access.\n");
 		return -EACCES;
 	}
 
 	/* skb->data is NET_IP_ALIGN-ed */
-	if (reg->type == PTR_TO_PACKET &&
-	    (NET_IP_ALIGN + reg->off + off) % size != 0) {
+	if ((NET_IP_ALIGN + reg->off + off) % size != 0) {
 		verbose("misaligned packet access off %d+%d+%d size %d\n",
 			NET_IP_ALIGN, reg->off, off, size);
 		return -EACCES;
 	}
+
 	return 0;
+}
+
+static int check_val_ptr_alignment(const struct bpf_reg_state *reg,
+				   int size)
+{
+	if (size != 1) {
+		verbose("Unknown alignment. Only byte-sized access allowed in value access.\n");
+		return -EACCES;
+	}
+
+	return 0;
+}
+
+static int check_ptr_alignment(const struct bpf_reg_state *reg,
+			       int off, int size)
+{
+	switch (reg->type) {
+	case PTR_TO_PACKET:
+		return IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) ? 0 :
+		       check_pkt_ptr_alignment(reg, off, size);
+	case PTR_TO_MAP_VALUE_ADJ:
+		return IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) ? 0 :
+		       check_val_ptr_alignment(reg, size);
+	default:
+		if (off % size != 0) {
+			verbose("misaligned access off %d size %d\n",
+				off, size);
+			return -EACCES;
+		}
+
+		return 0;
+	}
 }
 
 /* check whether memory at (regno + off) is accessible for t = (read | write)
@@ -818,7 +836,7 @@ static int check_mem_access(struct bpf_verifier_env *env, u32 regno, int off,
 	if (size < 0)
 		return size;
 
-	err = check_ptr_alignment(env, reg, off, size);
+	err = check_ptr_alignment(reg, off, size);
 	if (err)
 		return err;
 
@@ -1925,6 +1943,7 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 		 * register as unknown.
 		 */
 		if (env->allow_ptr_leaks &&
+		    BPF_CLASS(insn->code) == BPF_ALU64 && opcode == BPF_ADD &&
 		    (dst_reg->type == PTR_TO_MAP_VALUE ||
 		     dst_reg->type == PTR_TO_MAP_VALUE_ADJ))
 			dst_reg->type = PTR_TO_MAP_VALUE_ADJ;
@@ -1973,14 +1992,15 @@ static void find_good_pkt_pointers(struct bpf_verifier_state *state,
 
 	for (i = 0; i < MAX_BPF_REG; i++)
 		if (regs[i].type == PTR_TO_PACKET && regs[i].id == dst_reg->id)
-			regs[i].range = dst_reg->off;
+			/* keep the maximum range already checked */
+			regs[i].range = max(regs[i].range, dst_reg->off);
 
 	for (i = 0; i < MAX_BPF_STACK; i += BPF_REG_SIZE) {
 		if (state->stack_slot_type[i] != STACK_SPILL)
 			continue;
 		reg = &state->spilled_regs[i / BPF_REG_SIZE];
 		if (reg->type == PTR_TO_PACKET && reg->id == dst_reg->id)
-			reg->range = dst_reg->off;
+			reg->range = max(reg->range, dst_reg->off);
 	}
 }
 

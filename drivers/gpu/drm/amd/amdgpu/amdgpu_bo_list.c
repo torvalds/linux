@@ -237,7 +237,7 @@ int amdgpu_bo_list_ioctl(struct drm_device *dev, void *data,
 	struct amdgpu_fpriv *fpriv = filp->driver_priv;
 	union drm_amdgpu_bo_list *args = data;
 	uint32_t handle = args->in.list_handle;
-	const void __user *uptr = (const void*)(long)args->in.bo_info_ptr;
+	const void __user *uptr = (const void*)(uintptr_t)args->in.bo_info_ptr;
 
 	struct drm_amdgpu_bo_list_entry *info;
 	struct amdgpu_bo_list *list;

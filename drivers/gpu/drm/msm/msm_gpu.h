@@ -64,6 +64,7 @@ struct msm_gpu_funcs {
 struct msm_gpu {
 	const char *name;
 	struct drm_device *dev;
+	struct platform_device *pdev;
 	const struct msm_gpu_funcs *funcs;
 
 	/* performance counters (hw & sw): */
@@ -88,9 +89,8 @@ struct msm_gpu {
 	/* fencing: */
 	struct msm_fence_context *fctx;
 
-	/* is gpu powered/active? */
-	int active_cnt;
-	bool inactive;
+	/* does gpu need hw_init? */
+	bool needs_hw_init;
 
 	/* worker for handling active-list retiring: */
 	struct work_struct retire_work;
@@ -103,8 +103,10 @@ struct msm_gpu {
 
 	/* Power Control: */
 	struct regulator *gpu_reg, *gpu_cx;
-	struct clk *ebi1_clk, *grp_clks[6];
-	uint32_t fast_rate, slow_rate, bus_freq;
+	struct clk **grp_clks;
+	int nr_clocks;
+	struct clk *ebi1_clk, *core_clk, *rbbmtimer_clk;
+	uint32_t fast_rate, bus_freq;
 
 #ifdef DOWNSTREAM_CONFIG_MSM_BUS_SCALING
 	struct msm_bus_scale_pdata *bus_scale_table;
@@ -114,9 +116,7 @@ struct msm_gpu {
 	/* Hang and Inactivity Detection:
 	 */
 #define DRM_MSM_INACTIVE_PERIOD   66 /* in ms (roughly four frames) */
-#define DRM_MSM_INACTIVE_JIFFIES  msecs_to_jiffies(DRM_MSM_INACTIVE_PERIOD)
-	struct timer_list inactive_timer;
-	struct work_struct inactive_work;
+
 #define DRM_MSM_HANGCHECK_PERIOD 500 /* in ms */
 #define DRM_MSM_HANGCHECK_JIFFIES msecs_to_jiffies(DRM_MSM_HANGCHECK_PERIOD)
 	struct timer_list hangcheck_timer;
@@ -195,6 +195,8 @@ static inline void gpu_write64(struct msm_gpu *gpu, u32 lo, u32 hi, u64 val)
 
 int msm_gpu_pm_suspend(struct msm_gpu *gpu);
 int msm_gpu_pm_resume(struct msm_gpu *gpu);
+
+int msm_gpu_hw_init(struct msm_gpu *gpu);
 
 void msm_gpu_perfcntr_start(struct msm_gpu *gpu);
 void msm_gpu_perfcntr_stop(struct msm_gpu *gpu);

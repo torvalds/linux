@@ -247,7 +247,8 @@ msgqueue_0148cdec_func = {
 };
 
 int
-msgqueue_0148cdec_new(struct nvkm_falcon *falcon, struct nvkm_msgqueue **queue)
+msgqueue_0148cdec_new(struct nvkm_falcon *falcon, const struct nvkm_secboot *sb,
+		      struct nvkm_msgqueue **queue)
 {
 	struct msgqueue_0148cdec *ret;
 

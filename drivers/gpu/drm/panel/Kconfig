@@ -7,6 +7,16 @@ config DRM_PANEL
 menu "Display Panels"
 	depends on DRM && DRM_PANEL
 
+config DRM_PANEL_LVDS
+	tristate "Generic LVDS panel driver"
+	depends on OF
+	depends on BACKLIGHT_CLASS_DEVICE
+	select VIDEOMODE_HELPERS
+	help
+	  This driver supports LVDS panels that don't require device-specific
+	  handling of power supplies or control signals. It implements automatic
+	  backlight handling if the panel is attached to a backlight controller.
+
 config DRM_PANEL_SIMPLE
 	tristate "support for simple panels"
 	depends on OF
@@ -52,6 +62,12 @@ config DRM_PANEL_PANASONIC_VVX10F034N00
 	  WUXGA (1920x1200) Novatek NT1397-based DSI panel as found in some
 	  Xperia Z2 tablets
 
+config DRM_PANEL_SAMSUNG_S6E3HA2
+	tristate "Samsung S6E3HA2 DSI video mode panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	select VIDEOMODE_HELPERS
+
 config DRM_PANEL_SAMSUNG_S6E8AA0
 	tristate "Samsung S6E8AA0 DSI video mode panel"
 	depends on OF
@@ -80,5 +96,12 @@ config DRM_PANEL_SHARP_LS043T1LE01
 	help
 	  Say Y here if you want to enable support for Sharp LS043T1LE01 qHD
 	  (540x960) DSI panel as found on the Qualcomm APQ8074 Dragonboard
+
+config DRM_PANEL_SITRONIX_ST7789V
+	tristate "Sitronix ST7789V panel"
+	depends on OF && SPI
+	help
+	  Say Y here if you want to enable support for the Sitronix
+	  ST7789V controller for 240x320 LCD panels
 
 endmenu

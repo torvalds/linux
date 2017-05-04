@@ -655,6 +655,29 @@ static unsigned long intel_calculate_wm(unsigned long clock_in_khz,
 	return wm_size;
 }
 
+static bool intel_wm_plane_visible(const struct intel_crtc_state *crtc_state,
+				   const struct intel_plane_state *plane_state)
+{
+	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+
+	/* FIXME check the 'enable' instead */
+	if (!crtc_state->base.active)
+		return false;
+
+	/*
+	 * Treat cursor with fb as always visible since cursor updates
+	 * can happen faster than the vrefresh rate, and the current
+	 * watermark code doesn't handle that correctly. Cursor updates
+	 * which set/clear the fb or change the cursor size are going
+	 * to get throttled by intel_legacy_cursor_update() to work
+	 * around this problem with the watermark code.
+	 */
+	if (plane->id == PLANE_CURSOR)
+		return plane_state->base.fb != NULL;
+	else
+		return plane_state->base.visible;
+}
+
 static struct intel_crtc *single_enabled_crtc(struct drm_i915_private *dev_priv)
 {
 	struct intel_crtc *crtc, *enabled = NULL;
@@ -1961,7 +1984,7 @@ static uint32_t ilk_compute_pri_wm(const struct intel_crtc_state *cstate,
 	uint32_t method1, method2;
 	int cpp;
 
-	if (!cstate->base.active || !pstate->base.visible)
+	if (!intel_wm_plane_visible(cstate, pstate))
 		return 0;
 
 	cpp = pstate->base.fb->format->cpp[0];
@@ -1990,7 +2013,7 @@ static uint32_t ilk_compute_spr_wm(const struct intel_crtc_state *cstate,
 	uint32_t method1, method2;
 	int cpp;
 
-	if (!cstate->base.active || !pstate->base.visible)
+	if (!intel_wm_plane_visible(cstate, pstate))
 		return 0;
 
 	cpp = pstate->base.fb->format->cpp[0];
@@ -2013,15 +2036,7 @@ static uint32_t ilk_compute_cur_wm(const struct intel_crtc_state *cstate,
 {
 	int cpp;
 
-	/*
-	 * Treat cursor with fb as always visible since cursor updates
-	 * can happen faster than the vrefresh rate, and the current
-	 * watermark code doesn't handle that correctly. Cursor updates
-	 * which set/clear the fb or change the cursor size are going
-	 * to get throttled by intel_legacy_cursor_update() to work
-	 * around this problem with the watermark code.
-	 */
-	if (!cstate->base.active || !pstate->base.fb)
+	if (!intel_wm_plane_visible(cstate, pstate))
 		return 0;
 
 	cpp = pstate->base.fb->format->cpp[0];
@@ -2038,7 +2053,7 @@ static uint32_t ilk_compute_fbc_wm(const struct intel_crtc_state *cstate,
 {
 	int cpp;
 
-	if (!cstate->base.active || !pstate->base.visible)
+	if (!intel_wm_plane_visible(cstate, pstate))
 		return 0;
 
 	cpp = pstate->base.fb->format->cpp[0];
@@ -3346,19 +3361,29 @@ void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
  * Caller should take care of dividing & rounding off the value.
  */
 static uint32_t
-skl_plane_downscale_amount(const struct intel_plane_state *pstate)
+skl_plane_downscale_amount(const struct intel_crtc_state *cstate,
+			   const struct intel_plane_state *pstate)
 {
+	struct intel_plane *plane = to_intel_plane(pstate->base.plane);
 	uint32_t downscale_h, downscale_w;
 	uint32_t src_w, src_h, dst_w, dst_h;
 
-	if (WARN_ON(!pstate->base.visible))
+	if (WARN_ON(!intel_wm_plane_visible(cstate, pstate)))
 		return DRM_PLANE_HELPER_NO_SCALING;
 
 	/* n.b., src is 16.16 fixed point, dst is whole integer */
-	src_w = drm_rect_width(&pstate->base.src);
-	src_h = drm_rect_height(&pstate->base.src);
-	dst_w = drm_rect_width(&pstate->base.dst);
-	dst_h = drm_rect_height(&pstate->base.dst);
+	if (plane->id == PLANE_CURSOR) {
+		src_w = pstate->base.src_w;
+		src_h = pstate->base.src_h;
+		dst_w = pstate->base.crtc_w;
+		dst_h = pstate->base.crtc_h;
+	} else {
+		src_w = drm_rect_width(&pstate->base.src);
+		src_h = drm_rect_height(&pstate->base.src);
+		dst_w = drm_rect_width(&pstate->base.dst);
+		dst_h = drm_rect_height(&pstate->base.dst);
+	}
+
 	if (drm_rotation_90_or_270(pstate->base.rotation))
 		swap(dst_w, dst_h);
 
@@ -3374,6 +3399,7 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *cstate,
 			     const struct drm_plane_state *pstate,
 			     int y)
 {
+	struct intel_plane *plane = to_intel_plane(pstate->plane);
 	struct intel_plane_state *intel_pstate = to_intel_plane_state(pstate);
 	uint32_t down_scale_amount, data_rate;
 	uint32_t width = 0, height = 0;
@@ -3386,7 +3412,7 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *cstate,
 	fb = pstate->fb;
 	format = fb->format->format;
 
-	if (pstate->plane->type == DRM_PLANE_TYPE_CURSOR)
+	if (plane->id == PLANE_CURSOR)
 		return 0;
 	if (y && format != DRM_FORMAT_NV12)
 		return 0;
@@ -3410,7 +3436,7 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *cstate,
 		data_rate = width * height * fb->format->cpp[0];
 	}
 
-	down_scale_amount = skl_plane_downscale_amount(intel_pstate);
+	down_scale_amount = skl_plane_downscale_amount(cstate, intel_pstate);
 
 	return (uint64_t)data_rate * down_scale_amount >> 16;
 }
@@ -3702,7 +3728,7 @@ static uint32_t skl_adjusted_plane_pixel_rate(const struct intel_crtc_state *cst
 	uint64_t pixel_rate;
 
 	/* Shouldn't reach here on disabled planes... */
-	if (WARN_ON(!pstate->base.visible))
+	if (WARN_ON(!intel_wm_plane_visible(cstate, pstate)))
 		return 0;
 
 	/*
@@ -3710,7 +3736,7 @@ static uint32_t skl_adjusted_plane_pixel_rate(const struct intel_crtc_state *cst
 	 * with additional adjustments for plane-specific scaling.
 	 */
 	adjusted_pixel_rate = cstate->pixel_rate;
-	downscale_amount = skl_plane_downscale_amount(pstate);
+	downscale_amount = skl_plane_downscale_amount(cstate, pstate);
 
 	pixel_rate = adjusted_pixel_rate * downscale_amount >> 16;
 	WARN_ON(pixel_rate != clamp_t(uint32_t, pixel_rate, 0, ~0));
@@ -3727,6 +3753,7 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 				uint8_t *out_lines, /* out */
 				bool *enabled /* out */)
 {
+	struct intel_plane *plane = to_intel_plane(intel_pstate->base.plane);
 	struct drm_plane_state *pstate = &intel_pstate->base;
 	struct drm_framebuffer *fb = pstate->fb;
 	uint32_t latency = dev_priv->wm.skl_latency[level];
@@ -3746,7 +3773,8 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	bool apply_memory_bw_wa = skl_needs_memory_bw_wa(state);
 	bool y_tiled, x_tiled;
 
-	if (latency == 0 || !cstate->base.active || !intel_pstate->base.visible) {
+	if (latency == 0 ||
+	    !intel_wm_plane_visible(cstate, intel_pstate)) {
 		*enabled = false;
 		return 0;
 	}
@@ -3762,8 +3790,13 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	if (apply_memory_bw_wa && x_tiled)
 		latency += 15;
 
-	width = drm_rect_width(&intel_pstate->base.src) >> 16;
-	height = drm_rect_height(&intel_pstate->base.src) >> 16;
+	if (plane->id == PLANE_CURSOR) {
+		width = intel_pstate->base.crtc_w;
+		height = intel_pstate->base.crtc_h;
+	} else {
+		width = drm_rect_width(&intel_pstate->base.src) >> 16;
+		height = drm_rect_height(&intel_pstate->base.src) >> 16;
+	}
 
 	if (drm_rotation_90_or_270(pstate->rotation))
 		swap(width, height);
@@ -8055,7 +8088,7 @@ static inline int gen6_check_mailbox_status(struct drm_i915_private *dev_priv)
 	case GEN6_PCODE_TIMEOUT:
 		return -ETIMEDOUT;
 	default:
-		MISSING_CASE(flags)
+		MISSING_CASE(flags);
 		return 0;
 	}
 }
@@ -8355,6 +8388,7 @@ static u64 vlv_residency_raw(struct drm_i915_private *dev_priv,
 			     const i915_reg_t reg)
 {
 	u32 lower, upper, tmp;
+	int loop = 2;
 
 	/* The register accessed do not need forcewake. We borrow
 	 * uncore lock to prevent concurrent access to range reg.
@@ -8383,7 +8417,7 @@ static u64 vlv_residency_raw(struct drm_i915_private *dev_priv,
 		I915_WRITE_FW(VLV_COUNTER_CONTROL,
 			      _MASKED_BIT_ENABLE(VLV_COUNT_RANGE_HIGH));
 		upper = I915_READ_FW(reg);
-	} while (upper != tmp);
+	} while (upper != tmp && --loop);
 
 	/* Everywhere else we always use VLV_COUNTER_CONTROL with the
 	 * VLV_COUNT_RANGE_HIGH bit set - so it is safe to leave it set

@@ -35,7 +35,7 @@ mock_request(struct intel_engine_cs *engine,
 
 	/* NB the i915->requests slab cache is enlarged to fit mock_request */
 	request = i915_gem_request_alloc(engine, context);
-	if (!request)
+	if (IS_ERR(request))
 		return NULL;
 
 	mock = container_of(request, typeof(*mock), base);

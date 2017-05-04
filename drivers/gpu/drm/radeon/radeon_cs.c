@@ -164,6 +164,16 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 			p->relocs[i].allowed_domains = domain;
 		}
 
+		/* Objects shared as dma-bufs cannot be moved to VRAM */
+		if (p->relocs[i].robj->prime_shared_count) {
+			p->relocs[i].allowed_domains &= ~RADEON_GEM_DOMAIN_VRAM;
+			if (!p->relocs[i].allowed_domains) {
+				DRM_ERROR("BO associated with dma-buf cannot "
+					  "be moved to VRAM\n");
+				return -EINVAL;
+			}
+		}
+
 		p->relocs[i].tv.bo = &p->relocs[i].robj->tbo;
 		p->relocs[i].tv.shared = !r->write_domain;
 

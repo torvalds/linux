@@ -1742,8 +1742,8 @@ static void gen9_guc_irq_handler(struct drm_i915_private *dev_priv, u32 gt_iir)
 			I915_WRITE(SOFT_SCRATCH(15), msg & ~flush);
 
 			/* Handle flush interrupt in bottom half */
-			queue_work(dev_priv->guc.log.flush_wq,
-				   &dev_priv->guc.log.flush_work);
+			queue_work(dev_priv->guc.log.runtime.flush_wq,
+				   &dev_priv->guc.log.runtime.flush_work);
 
 			dev_priv->guc.log.flush_interrupt_count++;
 		} else {
@@ -4252,12 +4252,12 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	dev_priv->rps.pm_intrmsk_mbz = 0;
 
 	/*
-	 * SNB,IVB can while VLV,CHV may hard hang on looping batchbuffer
+	 * SNB,IVB,HSW can while VLV,CHV may hard hang on looping batchbuffer
 	 * if GEN6_PM_UP_EI_EXPIRED is masked.
 	 *
 	 * TODO: verify if this can be reproduced on VLV,CHV.
 	 */
-	if (INTEL_INFO(dev_priv)->gen <= 7 && !IS_HASWELL(dev_priv))
+	if (INTEL_INFO(dev_priv)->gen <= 7)
 		dev_priv->rps.pm_intrmsk_mbz |= GEN6_PM_RP_UP_EI_EXPIRED;
 
 	if (INTEL_INFO(dev_priv)->gen >= 8)

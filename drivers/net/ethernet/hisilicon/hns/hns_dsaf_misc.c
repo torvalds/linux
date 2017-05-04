@@ -461,6 +461,32 @@ int hns_mac_get_sfp_prsnt(struct hns_mac_cb *mac_cb, int *sfp_prsnt)
 	return 0;
 }
 
+int hns_mac_get_sfp_prsnt_acpi(struct hns_mac_cb *mac_cb, int *sfp_prsnt)
+{
+	union acpi_object *obj;
+	union acpi_object obj_args, argv4;
+
+	obj_args.integer.type = ACPI_TYPE_INTEGER;
+	obj_args.integer.value = mac_cb->mac_id;
+
+	argv4.type = ACPI_TYPE_PACKAGE,
+	argv4.package.count = 1,
+	argv4.package.elements = &obj_args,
+
+	obj = acpi_evaluate_dsm(ACPI_HANDLE(mac_cb->dev),
+				hns_dsaf_acpi_dsm_uuid, 0,
+				HNS_OP_GET_SFP_STAT_FUNC, &argv4);
+
+	if (!obj || obj->type != ACPI_TYPE_INTEGER)
+		return -ENODEV;
+
+	*sfp_prsnt = obj->integer.value;
+
+	ACPI_FREE(obj);
+
+	return 0;
+}
+
 /**
  * hns_mac_config_sds_loopback - set loop back for serdes
  * @mac_cb: mac control block
@@ -592,7 +618,7 @@ struct dsaf_misc_op *hns_misc_op_get(struct dsaf_device *dsaf_dev)
 		misc_op->hns_dsaf_roce_srst = hns_dsaf_roce_srst_acpi;
 
 		misc_op->get_phy_if = hns_mac_get_phy_if_acpi;
-		misc_op->get_sfp_prsnt = hns_mac_get_sfp_prsnt;
+		misc_op->get_sfp_prsnt = hns_mac_get_sfp_prsnt_acpi;
 
 		misc_op->cfg_serdes_loopback = hns_mac_config_sds_loopback_acpi;
 	} else {

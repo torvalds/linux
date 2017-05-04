@@ -549,6 +549,7 @@ static const struct vga_switcheroo_client_ops i915_switcheroo_ops = {
 static void i915_gem_fini(struct drm_i915_private *dev_priv)
 {
 	mutex_lock(&dev_priv->drm.struct_mutex);
+	intel_uc_fini_hw(dev_priv);
 	i915_gem_cleanup_engines(dev_priv);
 	i915_gem_context_fini(dev_priv);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
@@ -609,7 +610,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	ret = i915_gem_init(dev_priv);
 	if (ret)
-		goto cleanup_irq;
+		goto cleanup_uc;
 
 	intel_modeset_gem_init(dev);
 
@@ -631,9 +632,9 @@ cleanup_gem:
 	if (i915_gem_suspend(dev_priv))
 		DRM_ERROR("failed to idle hardware; continuing to unload!\n");
 	i915_gem_fini(dev_priv);
+cleanup_uc:
+	intel_uc_fini_fw(dev_priv);
 cleanup_irq:
-	intel_guc_fini(dev_priv);
-	intel_huc_fini(dev_priv);
 	drm_irq_uninstall(dev);
 	intel_teardown_gmbus(dev_priv);
 cleanup_csr:
@@ -1351,9 +1352,8 @@ void i915_driver_unload(struct drm_device *dev)
 	/* Flush any outstanding unpin_work. */
 	drain_workqueue(dev_priv->wq);
 
-	intel_guc_fini(dev_priv);
-	intel_huc_fini(dev_priv);
 	i915_gem_fini(dev_priv);
+	intel_uc_fini_fw(dev_priv);
 	intel_fbc_cleanup_cfb(dev_priv);
 
 	intel_power_domains_fini(dev_priv);
@@ -1468,8 +1468,6 @@ static int i915_drm_suspend(struct drm_device *dev)
 			"GEM idle failed, resume might fail\n");
 		goto out;
 	}
-
-	intel_guc_suspend(dev_priv);
 
 	intel_display_suspend(dev);
 
@@ -2177,6 +2175,20 @@ static void vlv_restore_gunit_s0ix_state(struct drm_i915_private *dev_priv)
 	I915_WRITE(VLV_GUNIT_CLOCK_GATE2,	s->clock_gate_dis2);
 }
 
+static int vlv_wait_for_pw_status(struct drm_i915_private *dev_priv,
+				  u32 mask, u32 val)
+{
+	/* The HW does not like us polling for PW_STATUS frequently, so
+	 * use the sleeping loop rather than risk the busy spin within
+	 * intel_wait_for_register().
+	 *
+	 * Transitioning between RC6 states should be at most 2ms (see
+	 * valleyview_enable_rps) so use a 3ms timeout.
+	 */
+	return wait_for((I915_READ_NOTRACE(VLV_GTLC_PW_STATUS) & mask) == val,
+			3);
+}
+
 int vlv_force_gfx_clock(struct drm_i915_private *dev_priv, bool force_on)
 {
 	u32 val;
@@ -2205,8 +2217,9 @@ int vlv_force_gfx_clock(struct drm_i915_private *dev_priv, bool force_on)
 
 static int vlv_allow_gt_wake(struct drm_i915_private *dev_priv, bool allow)
 {
+	u32 mask;
 	u32 val;
-	int err = 0;
+	int err;
 
 	val = I915_READ(VLV_GTLC_WAKE_CTRL);
 	val &= ~VLV_GTLC_ALLOWWAKEREQ;
@@ -2215,45 +2228,32 @@ static int vlv_allow_gt_wake(struct drm_i915_private *dev_priv, bool allow)
 	I915_WRITE(VLV_GTLC_WAKE_CTRL, val);
 	POSTING_READ(VLV_GTLC_WAKE_CTRL);
 
-	err = intel_wait_for_register(dev_priv,
-				      VLV_GTLC_PW_STATUS,
-				      VLV_GTLC_ALLOWWAKEACK,
-				      allow,
-				      1);
+	mask = VLV_GTLC_ALLOWWAKEACK;
+	val = allow ? mask : 0;
+
+	err = vlv_wait_for_pw_status(dev_priv, mask, val);
 	if (err)
 		DRM_ERROR("timeout disabling GT waking\n");
 
 	return err;
 }
 
-static int vlv_wait_for_gt_wells(struct drm_i915_private *dev_priv,
-				 bool wait_for_on)
+static void vlv_wait_for_gt_wells(struct drm_i915_private *dev_priv,
+				  bool wait_for_on)
 {
 	u32 mask;
 	u32 val;
-	int err;
 
 	mask = VLV_GTLC_PW_MEDIA_STATUS_MASK | VLV_GTLC_PW_RENDER_STATUS_MASK;
 	val = wait_for_on ? mask : 0;
-	if ((I915_READ(VLV_GTLC_PW_STATUS) & mask) == val)
-		return 0;
-
-	DRM_DEBUG_KMS("waiting for GT wells to go %s (%08x)\n",
-		      onoff(wait_for_on),
-		      I915_READ(VLV_GTLC_PW_STATUS));
 
 	/*
 	 * RC6 transitioning can be delayed up to 2 msec (see
 	 * valleyview_enable_rps), use 3 msec for safety.
 	 */
-	err = intel_wait_for_register(dev_priv,
-				      VLV_GTLC_PW_STATUS, mask, val,
-				      3);
-	if (err)
+	if (vlv_wait_for_pw_status(dev_priv, mask, val))
 		DRM_ERROR("timeout waiting for GT wells to go %s\n",
 			  onoff(wait_for_on));
-
-	return err;
 }
 
 static void vlv_check_no_gt_access(struct drm_i915_private *dev_priv)
@@ -2274,7 +2274,7 @@ static int vlv_suspend_complete(struct drm_i915_private *dev_priv)
 	 * Bspec defines the following GT well on flags as debug only, so
 	 * don't treat them as hard failures.
 	 */
-	(void)vlv_wait_for_gt_wells(dev_priv, false);
+	vlv_wait_for_gt_wells(dev_priv, false);
 
 	mask = VLV_GTLC_RENDER_CTX_EXISTS | VLV_GTLC_MEDIA_CTX_EXISTS;
 	WARN_ON((I915_READ(VLV_GTLC_WAKE_CTRL) & mask) != mask);

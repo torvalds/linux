@@ -242,26 +242,21 @@ int elevator_init(struct request_queue *q, char *name)
 		}
 	}
 
-	if (e->uses_mq) {
-		err = blk_mq_sched_setup(q);
-		if (!err)
-			err = e->ops.mq.init_sched(q, e);
-	} else
+	if (e->uses_mq)
+		err = blk_mq_init_sched(q, e);
+	else
 		err = e->ops.sq.elevator_init_fn(q, e);
-	if (err) {
-		if (e->uses_mq)
-			blk_mq_sched_teardown(q);
+	if (err)
 		elevator_put(e);
-	}
 	return err;
 }
 EXPORT_SYMBOL(elevator_init);
 
-void elevator_exit(struct elevator_queue *e)
+void elevator_exit(struct request_queue *q, struct elevator_queue *e)
 {
 	mutex_lock(&e->sysfs_lock);
 	if (e->uses_mq && e->type->ops.mq.exit_sched)
-		e->type->ops.mq.exit_sched(e);
+		blk_mq_exit_sched(q, e);
 	else if (!e->uses_mq && e->type->ops.sq.elevator_exit_fn)
 		e->type->ops.sq.elevator_exit_fn(e);
 	mutex_unlock(&e->sysfs_lock);
@@ -946,6 +941,45 @@ void elv_unregister(struct elevator_type *e)
 }
 EXPORT_SYMBOL_GPL(elv_unregister);
 
+static int elevator_switch_mq(struct request_queue *q,
+			      struct elevator_type *new_e)
+{
+	int ret;
+
+	blk_mq_freeze_queue(q);
+	blk_mq_quiesce_queue(q);
+
+	if (q->elevator) {
+		if (q->elevator->registered)
+			elv_unregister_queue(q);
+		ioc_clear_queue(q);
+		elevator_exit(q, q->elevator);
+	}
+
+	ret = blk_mq_init_sched(q, new_e);
+	if (ret)
+		goto out;
+
+	if (new_e) {
+		ret = elv_register_queue(q);
+		if (ret) {
+			elevator_exit(q, q->elevator);
+			goto out;
+		}
+	}
+
+	if (new_e)
+		blk_add_trace_msg(q, "elv switch: %s", new_e->elevator_name);
+	else
+		blk_add_trace_msg(q, "elv switch: none");
+
+out:
+	blk_mq_unfreeze_queue(q);
+	blk_mq_start_stopped_hw_queues(q, true);
+	return ret;
+
+}
+
 /*
  * switch to new_e io scheduler. be careful not to introduce deadlocks -
  * we don't free the old io scheduler, before we have allocated what we
@@ -958,10 +992,8 @@ static int elevator_switch(struct request_queue *q, struct elevator_type *new_e)
 	bool old_registered = false;
 	int err;
 
-	if (q->mq_ops) {
-		blk_mq_freeze_queue(q);
-		blk_mq_quiesce_queue(q);
-	}
+	if (q->mq_ops)
+		return elevator_switch_mq(q, new_e);
 
 	/*
 	 * Turn on BYPASS and drain all requests w/ elevator private data.
@@ -973,11 +1005,7 @@ static int elevator_switch(struct request_queue *q, struct elevator_type *new_e)
 	if (old) {
 		old_registered = old->registered;
 
-		if (old->uses_mq)
-			blk_mq_sched_teardown(q);
-
-		if (!q->mq_ops)
-			blk_queue_bypass_start(q);
+		blk_queue_bypass_start(q);
 
 		/* unregister and clear all auxiliary data of the old elevator */
 		if (old_registered)
@@ -987,56 +1015,32 @@ static int elevator_switch(struct request_queue *q, struct elevator_type *new_e)
 	}
 
 	/* allocate, init and register new elevator */
-	if (new_e) {
-		if (new_e->uses_mq) {
-			err = blk_mq_sched_setup(q);
-			if (!err)
-				err = new_e->ops.mq.init_sched(q, new_e);
-		} else
-			err = new_e->ops.sq.elevator_init_fn(q, new_e);
-		if (err)
-			goto fail_init;
+	err = new_e->ops.sq.elevator_init_fn(q, new_e);
+	if (err)
+		goto fail_init;
 
-		err = elv_register_queue(q);
-		if (err)
-			goto fail_register;
-	} else
-		q->elevator = NULL;
+	err = elv_register_queue(q);
+	if (err)
+		goto fail_register;
 
 	/* done, kill the old one and finish */
 	if (old) {
-		elevator_exit(old);
-		if (!q->mq_ops)
-			blk_queue_bypass_end(q);
+		elevator_exit(q, old);
+		blk_queue_bypass_end(q);
 	}
 
-	if (q->mq_ops) {
-		blk_mq_unfreeze_queue(q);
-		blk_mq_start_stopped_hw_queues(q, true);
-	}
-
-	if (new_e)
-		blk_add_trace_msg(q, "elv switch: %s", new_e->elevator_name);
-	else
-		blk_add_trace_msg(q, "elv switch: none");
+	blk_add_trace_msg(q, "elv switch: %s", new_e->elevator_name);
 
 	return 0;
 
 fail_register:
-	if (q->mq_ops)
-		blk_mq_sched_teardown(q);
-	elevator_exit(q->elevator);
+	elevator_exit(q, q->elevator);
 fail_init:
 	/* switch failed, restore and re-register old elevator */
 	if (old) {
 		q->elevator = old;
 		elv_register_queue(q);
-		if (!q->mq_ops)
-			blk_queue_bypass_end(q);
-	}
-	if (q->mq_ops) {
-		blk_mq_unfreeze_queue(q);
-		blk_mq_start_stopped_hw_queues(q, true);
+		blk_queue_bypass_end(q);
 	}
 
 	return err;

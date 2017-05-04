@@ -191,7 +191,8 @@ void msm_gem_unmap_vma(struct msm_gem_address_space *aspace,
 int msm_gem_map_vma(struct msm_gem_address_space *aspace,
 		struct msm_gem_vma *vma, struct sg_table *sgt, int npages);
 
-void msm_gem_address_space_destroy(struct msm_gem_address_space *aspace);
+void msm_gem_address_space_put(struct msm_gem_address_space *aspace);
+
 struct msm_gem_address_space *
 msm_gem_address_space_create(struct device *dev, struct iommu_domain *domain,
 		const char *name);

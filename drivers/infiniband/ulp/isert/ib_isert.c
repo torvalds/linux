@@ -817,6 +817,7 @@ isert_post_recvm(struct isert_conn *isert_conn, u32 count)
 		rx_wr->sg_list = &rx_desc->rx_sg;
 		rx_wr->num_sge = 1;
 		rx_wr->next = rx_wr + 1;
+		rx_desc->in_use = false;
 	}
 	rx_wr--;
 	rx_wr->next = NULL; /* mark end of work requests list */
@@ -835,6 +836,15 @@ isert_post_recv(struct isert_conn *isert_conn, struct iser_rx_desc *rx_desc)
 	struct ib_recv_wr *rx_wr_failed, rx_wr;
 	int ret;
 
+	if (!rx_desc->in_use) {
+		/*
+		 * if the descriptor is not in-use we already reposted it
+		 * for recv, so just silently return
+		 */
+		return 0;
+	}
+
+	rx_desc->in_use = false;
 	rx_wr.wr_cqe = &rx_desc->rx_cqe;
 	rx_wr.sg_list = &rx_desc->rx_sg;
 	rx_wr.num_sge = 1;
@@ -1397,6 +1407,8 @@ isert_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		return;
 	}
 
+	rx_desc->in_use = true;
+
 	ib_dma_sync_single_for_cpu(ib_dev, rx_desc->dma_addr,
 			ISER_RX_PAYLOAD_SIZE, DMA_FROM_DEVICE);
 
@@ -1659,10 +1671,23 @@ isert_rdma_write_done(struct ib_cq *cq, struct ib_wc *wc)
 	ret = isert_check_pi_status(cmd, isert_cmd->rw.sig->sig_mr);
 	isert_rdma_rw_ctx_destroy(isert_cmd, isert_conn);
 
-	if (ret)
-		transport_send_check_condition_and_sense(cmd, cmd->pi_err, 0);
-	else
-		isert_put_response(isert_conn->conn, isert_cmd->iscsi_cmd);
+	if (ret) {
+		/*
+		 * transport_generic_request_failure() expects to have
+		 * plus two references to handle queue-full, so re-add
+		 * one here as target-core will have already dropped
+		 * it after the first isert_put_datain() callback.
+		 */
+		kref_get(&cmd->cmd_kref);
+		transport_generic_request_failure(cmd, cmd->pi_err);
+	} else {
+		/*
+		 * XXX: isert_put_response() failure is not retried.
+		 */
+		ret = isert_put_response(isert_conn->conn, isert_cmd->iscsi_cmd);
+		if (ret)
+			pr_warn_ratelimited("isert_put_response() ret: %d\n", ret);
+	}
 }
 
 static void
@@ -1699,13 +1724,15 @@ isert_rdma_read_done(struct ib_cq *cq, struct ib_wc *wc)
 	cmd->i_state = ISTATE_RECEIVED_LAST_DATAOUT;
 	spin_unlock_bh(&cmd->istate_lock);
 
-	if (ret) {
-		target_put_sess_cmd(se_cmd);
-		transport_send_check_condition_and_sense(se_cmd,
-							 se_cmd->pi_err, 0);
-	} else {
+	/*
+	 * transport_generic_request_failure() will drop the extra
+	 * se_cmd->cmd_kref reference after T10-PI error, and handle
+	 * any non-zero ->queue_status() callback error retries.
+	 */
+	if (ret)
+		transport_generic_request_failure(se_cmd, se_cmd->pi_err);
+	else
 		target_execute_cmd(se_cmd);
-	}
 }
 
 static void
@@ -2171,26 +2198,28 @@ isert_put_datain(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
 		chain_wr = &isert_cmd->tx_desc.send_wr;
 	}
 
-	isert_rdma_rw_ctx_post(isert_cmd, isert_conn, cqe, chain_wr);
-	isert_dbg("Cmd: %p posted RDMA_WRITE for iSER Data READ\n", isert_cmd);
-	return 1;
+	rc = isert_rdma_rw_ctx_post(isert_cmd, isert_conn, cqe, chain_wr);
+	isert_dbg("Cmd: %p posted RDMA_WRITE for iSER Data READ rc: %d\n",
+		  isert_cmd, rc);
+	return rc;
 }
 
 static int
 isert_get_dataout(struct iscsi_conn *conn, struct iscsi_cmd *cmd, bool recovery)
 {
 	struct isert_cmd *isert_cmd = iscsit_priv_cmd(cmd);
+	int ret;
 
 	isert_dbg("Cmd: %p RDMA_READ data_length: %u write_data_done: %u\n",
 		 isert_cmd, cmd->se_cmd.data_length, cmd->write_data_done);
 
 	isert_cmd->tx_desc.tx_cqe.done = isert_rdma_read_done;
-	isert_rdma_rw_ctx_post(isert_cmd, conn->context,
-			&isert_cmd->tx_desc.tx_cqe, NULL);
+	ret = isert_rdma_rw_ctx_post(isert_cmd, conn->context,
+				     &isert_cmd->tx_desc.tx_cqe, NULL);
 
-	isert_dbg("Cmd: %p posted RDMA_READ memory for ISER Data WRITE\n",
-		 isert_cmd);
-	return 0;
+	isert_dbg("Cmd: %p posted RDMA_READ memory for ISER Data WRITE rc: %d\n",
+		 isert_cmd, ret);
+	return ret;
 }
 
 static int

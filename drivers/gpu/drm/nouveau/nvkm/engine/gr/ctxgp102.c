@@ -29,7 +29,7 @@
  * PGRAPH context implementation
  ******************************************************************************/
 
-static void
+void
 gp102_grctx_generate_attrib(struct gf100_grctx *info)
 {
 	struct gf100_gr *gr = info->gr;

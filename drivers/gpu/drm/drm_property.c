@@ -476,7 +476,7 @@ int drm_mode_getproperty_ioctl(struct drm_device *dev,
 	    drm_property_type_is(property, DRM_MODE_PROP_BITMASK)) {
 		list_for_each_entry(prop_enum, &property->enum_list, head) {
 			enum_count++;
-			if (out_resp->count_enum_blobs <= enum_count)
+			if (out_resp->count_enum_blobs < enum_count)
 				continue;
 
 			if (copy_to_user(&enum_ptr[copied].value,

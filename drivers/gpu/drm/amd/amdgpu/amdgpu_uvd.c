@@ -741,10 +741,10 @@ static int amdgpu_uvd_cs_pass2(struct amdgpu_uvd_cs_ctx *ctx)
 
 	start = amdgpu_bo_gpu_offset(bo);
 
-	end = (mapping->it.last + 1 - mapping->it.start);
+	end = (mapping->last + 1 - mapping->start);
 	end = end * AMDGPU_GPU_PAGE_SIZE + start;
 
-	addr -= ((uint64_t)mapping->it.start) * AMDGPU_GPU_PAGE_SIZE;
+	addr -= mapping->start * AMDGPU_GPU_PAGE_SIZE;
 	start += addr;
 
 	amdgpu_set_ib_value(ctx->parser, ctx->ib_idx, ctx->data0,
