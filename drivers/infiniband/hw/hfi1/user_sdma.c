@@ -374,40 +374,24 @@ static void sdma_kmem_cache_ctor(void *obj)
 int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt,
 				struct hfi1_filedata *fd)
 {
-	int ret = 0;
+	int ret = -ENOMEM;
 	char buf[64];
 	struct hfi1_devdata *dd;
 	struct hfi1_user_sdma_comp_q *cq;
 	struct hfi1_user_sdma_pkt_q *pq;
 	unsigned long flags;
 
-	if (!uctxt || !fd) {
-		ret = -EBADF;
-		goto done;
-	}
+	if (!uctxt || !fd)
+		return -EBADF;
 
-	if (!hfi1_sdma_comp_ring_size) {
-		ret = -EINVAL;
-		goto done;
-	}
+	if (!hfi1_sdma_comp_ring_size)
+		return -EINVAL;
 
 	dd = uctxt->dd;
 
 	pq = kzalloc(sizeof(*pq), GFP_KERNEL);
 	if (!pq)
-		goto pq_nomem;
-
-	pq->reqs = kcalloc(hfi1_sdma_comp_ring_size,
-			   sizeof(*pq->reqs),
-			   GFP_KERNEL);
-	if (!pq->reqs)
-		goto pq_reqs_nomem;
-
-	pq->req_in_use = kcalloc(BITS_TO_LONGS(hfi1_sdma_comp_ring_size),
-				 sizeof(*pq->req_in_use),
-				 GFP_KERNEL);
-	if (!pq->req_in_use)
-		goto pq_reqs_no_in_use;
+		return -ENOMEM;
 
 	INIT_LIST_HEAD(&pq->list);
 	pq->dd = dd;
@@ -423,10 +407,23 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt,
 	iowait_init(&pq->busy, 0, NULL, defer_packet_queue,
 		    activate_packet_queue, NULL);
 	pq->reqidx = 0;
+
+	pq->reqs = kcalloc(hfi1_sdma_comp_ring_size,
+			   sizeof(*pq->reqs),
+			   GFP_KERNEL);
+	if (!pq->reqs)
+		goto pq_reqs_nomem;
+
+	pq->req_in_use = kcalloc(BITS_TO_LONGS(hfi1_sdma_comp_ring_size),
+				 sizeof(*pq->req_in_use),
+				 GFP_KERNEL);
+	if (!pq->req_in_use)
+		goto pq_reqs_no_in_use;
+
 	snprintf(buf, 64, "txreq-kmem-cache-%u-%u-%u", dd->unit, uctxt->ctxt,
 		 fd->subctxt);
 	pq->txreq_cache = kmem_cache_create(buf,
-			       sizeof(struct user_sdma_txreq),
+					    sizeof(struct user_sdma_txreq),
 					    L1_CACHE_BYTES,
 					    SLAB_HWCACHE_ALIGN,
 					    sdma_kmem_cache_ctor);
@@ -435,7 +432,7 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt,
 			   uctxt->ctxt);
 		goto pq_txreq_nomem;
 	}
-	fd->pq = pq;
+
 	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
 	if (!cq)
 		goto cq_nomem;
@@ -446,20 +443,25 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt,
 		goto cq_comps_nomem;
 
 	cq->nentries = hfi1_sdma_comp_ring_size;
-	fd->cq = cq;
 
 	ret = hfi1_mmu_rb_register(pq, pq->mm, &sdma_rb_ops, dd->pport->hfi1_wq,
 				   &pq->handler);
 	if (ret) {
 		dd_dev_err(dd, "Failed to register with MMU %d", ret);
-		goto done;
+		goto pq_mmu_fail;
 	}
+
+	fd->pq = pq;
+	fd->cq = cq;
 
 	spin_lock_irqsave(&uctxt->sdma_qlock, flags);
 	list_add(&pq->list, &uctxt->sdma_queues);
 	spin_unlock_irqrestore(&uctxt->sdma_qlock, flags);
-	goto done;
 
+	return 0;
+
+pq_mmu_fail:
+	vfree(cq->comps);
 cq_comps_nomem:
 	kfree(cq);
 cq_nomem:
@@ -470,10 +472,7 @@ pq_reqs_no_in_use:
 	kfree(pq->reqs);
 pq_reqs_nomem:
 	kfree(pq);
-	fd->pq = NULL;
-pq_nomem:
-	ret = -ENOMEM;
-done:
+
 	return ret;
 }
 

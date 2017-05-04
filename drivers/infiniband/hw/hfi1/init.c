@@ -964,7 +964,6 @@ void hfi1_free_ctxtdata(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 	kfree(rcd->egrbufs.buffers);
 
 	sc_free(rcd->sc);
-	vfree(rcd->user_event_mask);
 	vfree(rcd->subctxt_uregbase);
 	vfree(rcd->subctxt_rcvegrbuf);
 	vfree(rcd->subctxt_rcvhdr_base);
@@ -1683,8 +1682,6 @@ bail_free:
 	dd_dev_err(dd,
 		   "attempt to allocate 1 page for ctxt %u rcvhdrqtailaddr failed\n",
 		   rcd->ctxt);
-	vfree(rcd->user_event_mask);
-	rcd->user_event_mask = NULL;
 	dma_free_coherent(&dd->pcidev->dev, amt, rcd->rcvhdrq,
 			  rcd->rcvhdrq_dma);
 	rcd->rcvhdrq = NULL;
@@ -1851,7 +1848,7 @@ int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd)
 			  "ctxt%u: current Eager buffer size is invalid %u\n",
 			  rcd->ctxt, rcd->egrbufs.rcvtid_size);
 		ret = -EINVAL;
-		goto bail;
+		goto bail_rcvegrbuf_phys;
 	}
 
 	for (idx = 0; idx < rcd->egrbufs.alloced; idx++) {
@@ -1859,7 +1856,8 @@ int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd)
 			     rcd->egrbufs.rcvtids[idx].dma, order);
 		cond_resched();
 	}
-	goto bail;
+
+	return 0;
 
 bail_rcvegrbuf_phys:
 	for (idx = 0; idx < rcd->egrbufs.alloced &&
@@ -1873,6 +1871,6 @@ bail_rcvegrbuf_phys:
 		rcd->egrbufs.buffers[idx].dma = 0;
 		rcd->egrbufs.buffers[idx].len = 0;
 	}
-bail:
+
 	return ret;
 }

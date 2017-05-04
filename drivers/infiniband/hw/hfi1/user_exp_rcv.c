@@ -160,6 +160,7 @@ int hfi1_user_exp_rcv_grp_init(struct hfi1_filedata *fd)
 	struct hfi1_devdata *dd = fd->dd;
 	u32 tidbase;
 	u32 i;
+	struct tid_group *grp, *gptr;
 
 	exp_tid_group_init(&uctxt->tid_group_list);
 	exp_tid_group_init(&uctxt->tid_used_list);
@@ -168,17 +169,10 @@ int hfi1_user_exp_rcv_grp_init(struct hfi1_filedata *fd)
 	tidbase = uctxt->expected_base;
 	for (i = 0; i < uctxt->expected_count /
 		     dd->rcv_entries.group_size; i++) {
-		struct tid_group *grp;
-
 		grp = kzalloc(sizeof(*grp), GFP_KERNEL);
-		if (!grp) {
-			/*
-			 * If we fail here, the groups already
-			 * allocated will be freed by the close
-			 * call.
-			 */
-			return -ENOMEM;
-		}
+		if (!grp)
+			goto grp_failed;
+
 		grp->size = dd->rcv_entries.group_size;
 		grp->base = tidbase;
 		tid_group_add_tail(grp, &uctxt->tid_group_list);
@@ -186,6 +180,15 @@ int hfi1_user_exp_rcv_grp_init(struct hfi1_filedata *fd)
 	}
 
 	return 0;
+
+grp_failed:
+	list_for_each_entry_safe(grp, gptr, &uctxt->tid_group_list.list,
+				 list) {
+		list_del_init(&grp->list);
+		kfree(grp);
+	}
+
+	return -ENOMEM;
 }
 
 /*
@@ -213,11 +216,11 @@ int hfi1_user_exp_rcv_init(struct hfi1_filedata *fd)
 		fd->invalid_tids = kcalloc(uctxt->expected_count,
 					   sizeof(*fd->invalid_tids),
 					   GFP_KERNEL);
-		/*
-		 * NOTE: If this is an error, shouldn't we cleanup enry_to_rb?
-		 */
-		if (!fd->invalid_tids)
+		if (!fd->invalid_tids) {
+			kfree(fd->entry_to_rb);
+			fd->entry_to_rb = NULL;
 			return -ENOMEM;
+		}
 
 		/*
 		 * Register MMU notifier callbacks. If the registration

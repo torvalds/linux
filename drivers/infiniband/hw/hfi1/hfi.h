@@ -196,12 +196,6 @@ struct hfi1_ctxtdata {
 	void *rcvhdrq;
 	/* kernel virtual address where hdrqtail is updated */
 	volatile __le64 *rcvhdrtail_kvaddr;
-	/*
-	 * Shared page for kernel to signal user processes that send buffers
-	 * need disarming.  The process should call HFI1_CMD_DISARM_BUFS
-	 * or HFI1_CMD_ACK_EVENT with IPATH_EVENT_DISARM_BUFS set.
-	 */
-	unsigned long *user_event_mask;
 	/* when waiting for rcv or pioavail */
 	wait_queue_head_t wait;
 	/* rcvhdrq size (for freeing) */
@@ -1724,12 +1718,14 @@ struct cc_state *get_cc_state_protected(struct hfi1_pportdata *ppd)
 #define HFI1_PBC_LENGTH_MASK                     ((1 << 11) - 1)
 
 /* ctxt_flag bit offsets */
+		/* base context has not finished initializing */
+#define HFI1_CTXT_BASE_UNINIT 1
+		/* base context initaliation failed */
+#define HFI1_CTXT_BASE_FAILED 2
 		/* waiting for a packet to arrive */
-#define HFI1_CTXT_WAITING_RCV   2
-		/* master has not finished initializing */
-#define HFI1_CTXT_BASE_UNINIT 4
+#define HFI1_CTXT_WAITING_RCV 3
 		/* waiting for an urgent packet to arrive */
-#define HFI1_CTXT_WAITING_URG 5
+#define HFI1_CTXT_WAITING_URG 4
 
 /* free up any allocated data at closes */
 struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
