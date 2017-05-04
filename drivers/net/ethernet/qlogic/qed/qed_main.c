@@ -1521,7 +1521,7 @@ static void qed_get_coalesce(struct qed_dev *cdev, u16 *rx_coal, u16 *tx_coal)
 }
 
 static int qed_set_coalesce(struct qed_dev *cdev, u16 rx_coal, u16 tx_coal,
-			    u8 qid, u16 sb_id)
+			    u16 qid, u16 sb_id)
 {
 	struct qed_hwfn *hwfn;
 	struct qed_ptt *ptt;

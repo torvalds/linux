@@ -706,8 +706,7 @@ static int qede_set_coalesce(struct net_device *dev,
 {
 	struct qede_dev *edev = netdev_priv(dev);
 	int i, rc = 0;
-	u16 rxc, txc;
-	u8 sb_id;
+	u16 rxc, txc, sb_id;
 
 	if (!netif_running(dev)) {
 		DP_INFO(edev, "Interface is down\n");
@@ -729,7 +728,7 @@ static int qede_set_coalesce(struct net_device *dev,
 	for_each_queue(i) {
 		sb_id = edev->fp_array[i].sb_info->igu_sb_id;
 		rc = edev->ops->common->set_coalesce(edev->cdev, rxc, txc,
-						     (u8)i, sb_id);
+						     (u16)i, sb_id);
 		if (rc) {
 			DP_INFO(edev, "Set coalesce error, rc = %d\n", rc);
 			return rc;
