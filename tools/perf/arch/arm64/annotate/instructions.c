@@ -50,7 +50,7 @@ static int arm64__annotate_init(struct arch *arch)
 	arch->initialized = true;
 	arch->priv	  = arm;
 	arch->associate_instruction_ops   = arm64__associate_instruction_ops;
-	arch->objdump.comment_char	  = ';';
+	arch->objdump.comment_char	  = '/';
 	arch->objdump.skip_functions_char = '+';
 	return 0;
 
