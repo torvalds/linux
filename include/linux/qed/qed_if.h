@@ -635,7 +635,7 @@ struct qed_common_ops {
  * @return 0 on success, error otherwise.
  */
 	int (*set_coalesce)(struct qed_dev *cdev, u16 rx_coal, u16 tx_coal,
-			    u8 qid, u16 sb_id);
+			    u16 qid, u16 sb_id);
 
 /**
  * @brief set_led - Configure LED mode
