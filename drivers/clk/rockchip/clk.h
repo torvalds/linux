@@ -313,6 +313,7 @@ struct clk *rockchip_clk_register_mmc(const char *name,
  */
 #define ROCKCHIP_DDRCLK_SIP		0x01
 #define ROCKCHIP_DDRCLK_SCPI		0x02
+#define ROCKCHIP_DDRCLK_SIP_V2		0x03
 
 struct clk *rockchip_clk_register_ddrclk(const char *name, int flags,
 					 const char *const *parent_names,
