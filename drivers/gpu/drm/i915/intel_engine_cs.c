@@ -469,6 +469,7 @@ static void intel_engine_cleanup_scratch(struct intel_engine_cs *engine)
  */
 int intel_engine_init_common(struct intel_engine_cs *engine)
 {
+	struct intel_ring *ring;
 	int ret;
 
 	engine->set_default_submission(engine);
@@ -480,9 +481,9 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 	 * be available. To avoid this we always pin the default
 	 * context.
 	 */
-	ret = engine->context_pin(engine, engine->i915->kernel_context);
-	if (ret)
-		return ret;
+	ring = engine->context_pin(engine, engine->i915->kernel_context);
+	if (IS_ERR(ring))
+		return PTR_ERR(ring);
 
 	ret = intel_engine_init_breadcrumbs(engine);
 	if (ret)

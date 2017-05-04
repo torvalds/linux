@@ -744,6 +744,7 @@ static int oa_get_render_ctx_id(struct i915_perf_stream *stream)
 {
 	struct drm_i915_private *dev_priv = stream->dev_priv;
 	struct intel_engine_cs *engine = dev_priv->engine[RCS];
+	struct intel_ring *ring;
 	int ret;
 
 	ret = i915_mutex_lock_interruptible(&dev_priv->drm);
@@ -755,9 +756,10 @@ static int oa_get_render_ctx_id(struct i915_perf_stream *stream)
 	 *
 	 * NB: implied RCS engine...
 	 */
-	ret = engine->context_pin(engine, stream->ctx);
-	if (ret)
-		goto unlock;
+	ring = engine->context_pin(engine, stream->ctx);
+	mutex_unlock(&dev_priv->drm.struct_mutex);
+	if (IS_ERR(ring))
+		return PTR_ERR(ring);
 
 	/* Explicitly track the ID (instead of calling i915_ggtt_offset()
 	 * on the fly) considering the difference with gen8+ and
@@ -766,10 +768,7 @@ static int oa_get_render_ctx_id(struct i915_perf_stream *stream)
 	dev_priv->perf.oa.specific_ctx_id =
 		i915_ggtt_offset(stream->ctx->engine[engine->id].state);
 
-unlock:
-	mutex_unlock(&dev_priv->drm.struct_mutex);
-
-	return ret;
+	return 0;
 }
 
 /**

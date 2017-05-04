@@ -1475,16 +1475,17 @@ alloc_context_vma(struct intel_engine_cs *engine)
 	return vma;
 }
 
-static int intel_ring_context_pin(struct intel_engine_cs *engine,
-				  struct i915_gem_context *ctx)
+static struct intel_ring *
+intel_ring_context_pin(struct intel_engine_cs *engine,
+		       struct i915_gem_context *ctx)
 {
 	struct intel_context *ce = &ctx->engine[engine->id];
 	int ret;
 
 	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
 
-	if (ce->pin_count++)
-		return 0;
+	if (likely(ce->pin_count++))
+		goto out;
 	GEM_BUG_ON(!ce->pin_count); /* no overflow please! */
 
 	if (!ce->state && engine->context_size) {
@@ -1493,7 +1494,7 @@ static int intel_ring_context_pin(struct intel_engine_cs *engine,
 		vma = alloc_context_vma(engine);
 		if (IS_ERR(vma)) {
 			ret = PTR_ERR(vma);
-			goto error;
+			goto err;
 		}
 
 		ce->state = vma;
@@ -1502,7 +1503,7 @@ static int intel_ring_context_pin(struct intel_engine_cs *engine,
 	if (ce->state) {
 		ret = context_pin(ctx);
 		if (ret)
-			goto error;
+			goto err;
 
 		ce->state->obj->mm.dirty = true;
 	}
@@ -1518,11 +1519,14 @@ static int intel_ring_context_pin(struct intel_engine_cs *engine,
 		ce->initialised = true;
 
 	i915_gem_context_get(ctx);
-	return 0;
 
-error:
+out:
+	/* One ringbuffer to rule them all */
+	return engine->buffer;
+
+err:
 	ce->pin_count = 0;
-	return ret;
+	return ERR_PTR(ret);
 }
 
 static void intel_ring_context_unpin(struct intel_engine_cs *engine,
@@ -1633,9 +1637,6 @@ static int ring_request_alloc(struct drm_i915_gem_request *request)
 	 * have to repeat work.
 	 */
 	request->reserved_space += LEGACY_REQUEST_SIZE;
-
-	GEM_BUG_ON(!request->engine->buffer);
-	request->ring = request->engine->buffer;
 
 	cs = intel_ring_begin(request, 0);
 	if (IS_ERR(cs))

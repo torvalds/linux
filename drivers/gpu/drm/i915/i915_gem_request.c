@@ -551,6 +551,7 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 	struct drm_i915_gem_request *req;
+	struct intel_ring *ring;
 	int ret;
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
@@ -565,9 +566,10 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	 * GGTT space, so do this first before we reserve a seqno for
 	 * ourselves.
 	 */
-	ret = engine->context_pin(engine, ctx);
-	if (ret)
-		return ERR_PTR(ret);
+	ring = engine->context_pin(engine, ctx);
+	if (IS_ERR(ring))
+		return ERR_CAST(ring);
+	GEM_BUG_ON(!ring);
 
 	ret = reserve_seqno(engine);
 	if (ret)
@@ -633,6 +635,7 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	req->i915 = dev_priv;
 	req->engine = engine;
 	req->ctx = ctx;
+	req->ring = ring;
 
 	/* No zalloc, must clear what we need by hand */
 	req->global_seqno = 0;

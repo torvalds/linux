@@ -740,8 +740,9 @@ static void execlists_schedule(struct drm_i915_gem_request *request, int prio)
 	/* XXX Do we need to preempt to make room for us and our deps? */
 }
 
-static int execlists_context_pin(struct intel_engine_cs *engine,
-				 struct i915_gem_context *ctx)
+static struct intel_ring *
+execlists_context_pin(struct intel_engine_cs *engine,
+		      struct i915_gem_context *ctx)
 {
 	struct intel_context *ce = &ctx->engine[engine->id];
 	unsigned int flags;
@@ -750,8 +751,8 @@ static int execlists_context_pin(struct intel_engine_cs *engine,
 
 	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
 
-	if (ce->pin_count++)
-		return 0;
+	if (likely(ce->pin_count++))
+		goto out;
 	GEM_BUG_ON(!ce->pin_count); /* no overflow please! */
 
 	if (!ce->state) {
@@ -788,7 +789,8 @@ static int execlists_context_pin(struct intel_engine_cs *engine,
 	ce->state->obj->mm.dirty = true;
 
 	i915_gem_context_get(ctx);
-	return 0;
+out:
+	return ce->ring;
 
 unpin_map:
 	i915_gem_object_unpin_map(ce->state->obj);
@@ -796,7 +798,7 @@ unpin_vma:
 	__i915_vma_unpin(ce->state);
 err:
 	ce->pin_count = 0;
-	return ret;
+	return ERR_PTR(ret);
 }
 
 static void execlists_context_unpin(struct intel_engine_cs *engine,
@@ -832,9 +834,6 @@ static int execlists_request_alloc(struct drm_i915_gem_request *request)
 	 * have to repeat work.
 	 */
 	request->reserved_space += EXECLISTS_REQUEST_SIZE;
-
-	GEM_BUG_ON(!ce->ring);
-	request->ring = ce->ring;
 
 	if (i915.enable_guc_submission) {
 		/*

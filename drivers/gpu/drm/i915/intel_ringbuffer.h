@@ -271,8 +271,8 @@ struct intel_engine_cs {
 
 	void		(*set_default_submission)(struct intel_engine_cs *engine);
 
-	int		(*context_pin)(struct intel_engine_cs *engine,
-				       struct i915_gem_context *ctx);
+	struct intel_ring *(*context_pin)(struct intel_engine_cs *engine,
+					  struct i915_gem_context *ctx);
 	void		(*context_unpin)(struct intel_engine_cs *engine,
 					 struct i915_gem_context *ctx);
 	int		(*request_alloc)(struct drm_i915_gem_request *req);

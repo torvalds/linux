@@ -180,6 +180,7 @@ static int dispatch_workload(struct intel_vgpu_workload *workload)
 	struct intel_engine_cs *engine = dev_priv->engine[ring_id];
 	struct drm_i915_gem_request *rq;
 	struct intel_vgpu *vgpu = workload->vgpu;
+	struct intel_ring *ring;
 	int ret;
 
 	gvt_dbg_sched("ring id %d prepare to dispatch workload %p\n",
@@ -198,8 +199,9 @@ static int dispatch_workload(struct intel_vgpu_workload *workload)
 	 * shadow_ctx pages invalid. So gvt need to pin itself. After update
 	 * the guest context, gvt can unpin the shadow_ctx safely.
 	 */
-	ret = engine->context_pin(engine, shadow_ctx);
-	if (ret) {
+	ring = engine->context_pin(engine, shadow_ctx);
+	if (IS_ERR(ring)) {
+		ret = PTR_ERR(ring);
 		gvt_vgpu_err("fail to pin shadow context\n");
 		workload->status = ret;
 		mutex_unlock(&dev_priv->drm.struct_mutex);

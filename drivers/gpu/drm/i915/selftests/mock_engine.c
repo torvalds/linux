@@ -52,11 +52,12 @@ static void hw_delay_complete(unsigned long data)
 	spin_unlock(&engine->hw_lock);
 }
 
-static int mock_context_pin(struct intel_engine_cs *engine,
-			    struct i915_gem_context *ctx)
+static struct intel_ring *
+mock_context_pin(struct intel_engine_cs *engine,
+		 struct i915_gem_context *ctx)
 {
 	i915_gem_context_get(ctx);
-	return 0;
+	return engine->buffer;
 }
 
 static void mock_context_unpin(struct intel_engine_cs *engine,
@@ -72,7 +73,6 @@ static int mock_request_alloc(struct drm_i915_gem_request *request)
 	INIT_LIST_HEAD(&mock->link);
 	mock->delay = 0;
 
-	request->ring = request->engine->buffer;
 	return 0;
 }
 
