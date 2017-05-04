@@ -689,6 +689,10 @@
 	status = "okay";
 };
 
+&route_mipi {
+	status = "okay";
+};
+
 &tsadc {
 	tsadc-supply = <&syr827>;
 	status = "okay";
