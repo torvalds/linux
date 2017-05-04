@@ -1140,7 +1140,7 @@ static u32 dispc_ovl_get_burst_size(enum omap_plane_id plane)
 	return unit * 8;
 }
 
-static enum omap_color_mode dispc_ovl_get_color_modes(enum omap_plane_id plane)
+static const enum omap_color_mode *dispc_ovl_get_color_modes(enum omap_plane_id plane)
 {
 	return dss_feat_get_supported_color_modes(plane);
 }

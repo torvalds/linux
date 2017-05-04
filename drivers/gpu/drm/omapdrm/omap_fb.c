@@ -57,14 +57,22 @@ static const struct {
 
 /* convert from overlay's pixel formats bitmask to an array of fourcc's */
 uint32_t omap_framebuffer_get_formats(uint32_t *pixel_formats,
-		uint32_t max_formats, enum omap_color_mode supported_modes)
+		uint32_t max_formats, const enum omap_color_mode *supported_modes)
 {
 	uint32_t nformats = 0;
 	int i = 0;
 
-	for (i = 0; i < ARRAY_SIZE(formats) && nformats < max_formats; i++)
-		if (formats[i].dss_format & supported_modes)
+	for (i = 0; i < ARRAY_SIZE(formats) && nformats < max_formats; i++) {
+		unsigned int t;
+
+		for (t = 0; supported_modes[t]; ++t) {
+			if (supported_modes[t] != formats[i].dss_format)
+				continue;
+
 			pixel_formats[nformats++] = formats[i].pixel_format;
+			break;
+		}
+	}
 
 	return nformats;
 }
