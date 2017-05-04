@@ -566,10 +566,10 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	 */
 	error = pci_alloc_irq_vectors(pdev, VMCI_MAX_INTRS, VMCI_MAX_INTRS,
 			PCI_IRQ_MSIX);
-	if (error) {
+	if (error < 0) {
 		error = pci_alloc_irq_vectors(pdev, 1, 1,
 				PCI_IRQ_MSIX | PCI_IRQ_MSI | PCI_IRQ_LEGACY);
-		if (error)
+		if (error < 0)
 			goto err_remove_bitmap;
 	} else {
 		vmci_dev->exclusive_vectors = true;

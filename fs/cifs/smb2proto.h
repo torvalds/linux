@@ -48,6 +48,10 @@ extern struct mid_q_entry *smb2_setup_request(struct cifs_ses *ses,
 			      struct smb_rqst *rqst);
 extern struct mid_q_entry *smb2_setup_async_request(
 			struct TCP_Server_Info *server, struct smb_rqst *rqst);
+extern struct cifs_ses *smb2_find_smb_ses(struct TCP_Server_Info *server,
+					   __u64 ses_id);
+extern struct cifs_tcon *smb2_find_smb_tcon(struct TCP_Server_Info *server,
+						__u64 ses_id, __u32  tid);
 extern int smb2_calc_signature(struct smb_rqst *rqst,
 				struct TCP_Server_Info *server);
 extern int smb3_calc_signature(struct smb_rqst *rqst,
@@ -164,6 +168,9 @@ extern int SMB2_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
 extern int SMB2_oplock_break(const unsigned int xid, struct cifs_tcon *tcon,
 			     const u64 persistent_fid, const u64 volatile_fid,
 			     const __u8 oplock_level);
+extern int smb2_handle_cancelled_mid(char *buffer,
+					struct TCP_Server_Info *server);
+void smb2_cancelled_close_fid(struct work_struct *work);
 extern int SMB2_QFS_info(const unsigned int xid, struct cifs_tcon *tcon,
 			 u64 persistent_file_id, u64 volatile_file_id,
 			 struct kstatfs *FSData);

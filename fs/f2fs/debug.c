@@ -196,6 +196,7 @@ static void update_mem_info(struct f2fs_sb_info *sbi)
 	si->base_mem += (NM_I(sbi)->nat_bits_blocks << F2FS_BLKSIZE_BITS);
 	si->base_mem += NM_I(sbi)->nat_blocks * NAT_ENTRY_BITMAP_SIZE;
 	si->base_mem += NM_I(sbi)->nat_blocks / 8;
+	si->base_mem += NM_I(sbi)->nat_blocks * sizeof(unsigned short);
 
 get_cache:
 	si->cache_mem = 0;

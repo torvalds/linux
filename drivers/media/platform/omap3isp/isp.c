@@ -1943,29 +1943,12 @@ static void isp_detach_iommu(struct isp_device *isp)
 {
 	arm_iommu_release_mapping(isp->mapping);
 	isp->mapping = NULL;
-	iommu_group_remove_device(isp->dev);
 }
 
 static int isp_attach_iommu(struct isp_device *isp)
 {
 	struct dma_iommu_mapping *mapping;
-	struct iommu_group *group;
 	int ret;
-
-	/* Create a device group and add the device to it. */
-	group = iommu_group_alloc();
-	if (IS_ERR(group)) {
-		dev_err(isp->dev, "failed to allocate IOMMU group\n");
-		return PTR_ERR(group);
-	}
-
-	ret = iommu_group_add_device(group, isp->dev);
-	iommu_group_put(group);
-
-	if (ret < 0) {
-		dev_err(isp->dev, "failed to add device to IPMMU group\n");
-		return ret;
-	}
 
 	/*
 	 * Create the ARM mapping, used by the ARM DMA mapping core to allocate

@@ -1373,20 +1373,25 @@ enum dev_dma_attr acpi_get_dma_attr(struct acpi_device *adev)
  * @dev: The pointer to the device
  * @attr: device dma attributes
  */
-void acpi_dma_configure(struct device *dev, enum dev_dma_attr attr)
+int acpi_dma_configure(struct device *dev, enum dev_dma_attr attr)
 {
 	const struct iommu_ops *iommu;
+	u64 size;
 
 	iort_set_dma_mask(dev);
 
 	iommu = iort_iommu_configure(dev);
+	if (IS_ERR(iommu))
+		return PTR_ERR(iommu);
 
+	size = max(dev->coherent_dma_mask, dev->coherent_dma_mask + 1);
 	/*
 	 * Assume dma valid range starts at 0 and covers the whole
 	 * coherent_dma_mask.
 	 */
-	arch_setup_dma_ops(dev, 0, dev->coherent_dma_mask + 1, iommu,
-			   attr == DEV_DMA_COHERENT);
+	arch_setup_dma_ops(dev, 0, size, iommu, attr == DEV_DMA_COHERENT);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(acpi_dma_configure);
 
@@ -1857,14 +1862,19 @@ static void acpi_bus_attach(struct acpi_device *device)
 		return;
 
 	device->flags.match_driver = true;
-	if (!ret) {
-		ret = device_attach(&device->dev);
-		if (ret < 0)
-			return;
-
-		if (!ret && device->pnp.type.platform_id)
-			acpi_default_enumeration(device);
+	if (ret > 0) {
+		acpi_device_set_enumerated(device);
+		goto ok;
 	}
+
+	ret = device_attach(&device->dev);
+	if (ret < 0)
+		return;
+
+	if (ret > 0 || !device->pnp.type.platform_id)
+		acpi_device_set_enumerated(device);
+	else
+		acpi_default_enumeration(device);
 
  ok:
 	list_for_each_entry(child, &device->children, node)

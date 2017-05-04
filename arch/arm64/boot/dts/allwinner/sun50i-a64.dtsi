@@ -179,8 +179,10 @@
 		usbphy: phy@01c19400 {
 			compatible = "allwinner,sun50i-a64-usb-phy";
 			reg = <0x01c19400 0x14>,
+			      <0x01c1a800 0x4>,
 			      <0x01c1b800 0x4>;
 			reg-names = "phy_ctrl",
+				    "pmu0",
 				    "pmu1";
 			clocks = <&ccu CLK_USB_PHY0>,
 				 <&ccu CLK_USB_PHY1>;

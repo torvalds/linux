@@ -21,6 +21,7 @@
 #include <asm/cpu-features.h>
 #include <asm/fpu_emulator.h>
 #include <asm/hazards.h>
+#include <asm/ptrace.h>
 #include <asm/processor.h>
 #include <asm/current.h>
 #include <asm/msa.h>

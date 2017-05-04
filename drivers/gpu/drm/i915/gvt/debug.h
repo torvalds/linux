@@ -27,6 +27,14 @@
 #define gvt_err(fmt, args...) \
 	DRM_ERROR("gvt: "fmt, ##args)
 
+#define gvt_vgpu_err(fmt, args...)					\
+do {									\
+	if (IS_ERR_OR_NULL(vgpu))					\
+		DRM_DEBUG_DRIVER("gvt: "fmt, ##args);			\
+	else								\
+		DRM_DEBUG_DRIVER("gvt: vgpu %d: "fmt, vgpu->id, ##args);\
+} while (0)
+
 #define gvt_dbg_core(fmt, args...) \
 	DRM_DEBUG_DRIVER("gvt: core: "fmt, ##args)
 

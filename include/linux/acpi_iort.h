@@ -52,7 +52,4 @@ const struct iommu_ops *iort_iommu_configure(struct device *dev)
 { return NULL; }
 #endif
 
-#define IORT_ACPI_DECLARE(name, table_id, fn)		\
-	ACPI_DECLARE_PROBE_ENTRY(iort, name, table_id, 0, NULL, 0, fn)
-
 #endif /* __ACPI_IORT_H__ */

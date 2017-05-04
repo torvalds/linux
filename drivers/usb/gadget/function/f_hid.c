@@ -367,7 +367,7 @@ try_again:
 	count  = min_t(unsigned, count, hidg->report_length);
 
 	spin_unlock_irqrestore(&hidg->write_spinlock, flags);
-	status = copy_from_user(hidg->req->buf, buffer, count);
+	status = copy_from_user(req->buf, buffer, count);
 
 	if (status != 0) {
 		ERROR(hidg->func.config->cdev,
@@ -378,9 +378,9 @@ try_again:
 
 	spin_lock_irqsave(&hidg->write_spinlock, flags);
 
-	/* we our function has been disabled by host */
+	/* when our function has been disabled by host */
 	if (!hidg->req) {
-		free_ep_req(hidg->in_ep, hidg->req);
+		free_ep_req(hidg->in_ep, req);
 		/*
 		 * TODO
 		 * Should we fail with error here?
@@ -394,7 +394,7 @@ try_again:
 	req->complete = f_hidg_req_complete;
 	req->context  = hidg;
 
-	status = usb_ep_queue(hidg->in_ep, hidg->req, GFP_ATOMIC);
+	status = usb_ep_queue(hidg->in_ep, req, GFP_ATOMIC);
 	if (status < 0) {
 		ERROR(hidg->func.config->cdev,
 			"usb_ep_queue error on int endpoint %zd\n", status);

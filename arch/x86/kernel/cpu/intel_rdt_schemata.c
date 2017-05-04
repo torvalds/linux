@@ -200,11 +200,11 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 	}
 
 out:
-	rdtgroup_kn_unlock(of->kn);
 	for_each_enabled_rdt_resource(r) {
 		kfree(r->tmp_cbms);
 		r->tmp_cbms = NULL;
 	}
+	rdtgroup_kn_unlock(of->kn);
 	return ret ?: nbytes;
 }
 

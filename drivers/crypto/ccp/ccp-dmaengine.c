@@ -10,6 +10,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/dmaengine.h>
 #include <linux/spinlock.h>
@@ -24,6 +25,37 @@
 	u64 mask = _mask + 1;		\
 	(mask == 0) ? 64 : fls64(mask);	\
 })
+
+/* The CCP as a DMA provider can be configured for public or private
+ * channels. Default is specified in the vdata for the device (PCI ID).
+ * This module parameter will override for all channels on all devices:
+ *   dma_chan_attr = 0x2 to force all channels public
+ *                 = 0x1 to force all channels private
+ *                 = 0x0 to defer to the vdata setting
+ *                 = any other value: warning, revert to 0x0
+ */
+static unsigned int dma_chan_attr = CCP_DMA_DFLT;
+module_param(dma_chan_attr, uint, 0444);
+MODULE_PARM_DESC(dma_chan_attr, "Set DMA channel visibility: 0 (default) = device defaults, 1 = make private, 2 = make public");
+
+unsigned int ccp_get_dma_chan_attr(struct ccp_device *ccp)
+{
+	switch (dma_chan_attr) {
+	case CCP_DMA_DFLT:
+		return ccp->vdata->dma_chan_attr;
+
+	case CCP_DMA_PRIV:
+		return DMA_PRIVATE;
+
+	case CCP_DMA_PUB:
+		return 0;
+
+	default:
+		dev_info_once(ccp->dev, "Invalid value for dma_chan_attr: %d\n",
+			      dma_chan_attr);
+		return ccp->vdata->dma_chan_attr;
+	}
+}
 
 static void ccp_free_cmd_resources(struct ccp_device *ccp,
 				   struct list_head *list)
@@ -390,6 +422,7 @@ static struct ccp_dma_desc *ccp_create_desc(struct dma_chan *dma_chan,
 			goto err;
 
 		ccp_cmd = &cmd->ccp_cmd;
+		ccp_cmd->ccp = chan->ccp;
 		ccp_pt = &ccp_cmd->u.passthru_nomap;
 		ccp_cmd->flags = CCP_CMD_MAY_BACKLOG;
 		ccp_cmd->flags |= CCP_CMD_PASSTHRU_NO_DMA_MAP;
@@ -673,6 +706,15 @@ int ccp_dmaengine_register(struct ccp_device *ccp)
 	dma_cap_set(DMA_MEMCPY, dma_dev->cap_mask);
 	dma_cap_set(DMA_SG, dma_dev->cap_mask);
 	dma_cap_set(DMA_INTERRUPT, dma_dev->cap_mask);
+
+	/* The DMA channels for this device can be set to public or private,
+	 * and overridden by the module parameter dma_chan_attr.
+	 * Default: according to the value in vdata (dma_chan_attr=0)
+	 * dma_chan_attr=0x1: all channels private (override vdata)
+	 * dma_chan_attr=0x2: all channels public (override vdata)
+	 */
+	if (ccp_get_dma_chan_attr(ccp) == DMA_PRIVATE)
+		dma_cap_set(DMA_PRIVATE, dma_dev->cap_mask);
 
 	INIT_LIST_HEAD(&dma_dev->channels);
 	for (i = 0; i < ccp->cmd_q_count; i++) {

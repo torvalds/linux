@@ -165,6 +165,10 @@ static unsigned int ipv4_conntrack_local(void *priv,
 	if (skb->len < sizeof(struct iphdr) ||
 	    ip_hdrlen(skb) < sizeof(struct iphdr))
 		return NF_ACCEPT;
+
+	if (ip_is_fragment(ip_hdr(skb))) /* IP_NODEFRAG setsockopt set */
+		return NF_ACCEPT;
+
 	return nf_conntrack_in(state->net, PF_INET, state->hook, skb);
 }
 

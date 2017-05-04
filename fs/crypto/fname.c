@@ -350,7 +350,7 @@ int fscrypt_setup_filename(struct inode *dir, const struct qstr *iname,
 		fname->disk_name.len = iname->len;
 		return 0;
 	}
-	ret = fscrypt_get_crypt_info(dir);
+	ret = fscrypt_get_encryption_info(dir);
 	if (ret && ret != -EOPNOTSUPP)
 		return ret;
 

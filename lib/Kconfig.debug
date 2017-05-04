@@ -1103,9 +1103,6 @@ config PROVE_LOCKING
 
 	 For more details, see Documentation/locking/lockdep-design.txt.
 
-config PROVE_LOCKING_SMALL
-	bool
-
 config LOCKDEP
 	bool
 	depends on DEBUG_KERNEL && TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
@@ -1113,6 +1110,9 @@ config LOCKDEP
 	select FRAME_POINTER if !MIPS && !PPC && !ARM_UNWIND && !S390 && !MICROBLAZE && !ARC && !SCORE
 	select KALLSYMS
 	select KALLSYMS_ALL
+
+config LOCKDEP_SMALL
+	bool
 
 config LOCK_STAT
 	bool "Lock usage statistics"

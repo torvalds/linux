@@ -142,10 +142,10 @@ int intel_vgpu_emulate_mmio_read(struct intel_vgpu *vgpu, uint64_t pa,
 			ret = intel_gvt_hypervisor_read_gpa(vgpu, pa,
 					p_data, bytes);
 			if (ret) {
-				gvt_err("vgpu%d: guest page read error %d, "
+				gvt_vgpu_err("guest page read error %d, "
 					"gfn 0x%lx, pa 0x%llx, var 0x%x, len %d\n",
-					vgpu->id, ret,
-					gp->gfn, pa, *(u32 *)p_data, bytes);
+					ret, gp->gfn, pa, *(u32 *)p_data,
+					bytes);
 			}
 			mutex_unlock(&gvt->lock);
 			return ret;
@@ -200,14 +200,13 @@ int intel_vgpu_emulate_mmio_read(struct intel_vgpu *vgpu, uint64_t pa,
 		ret = intel_vgpu_default_mmio_read(vgpu, offset, p_data, bytes);
 
 		if (!vgpu->mmio.disable_warn_untrack) {
-			gvt_err("vgpu%d: read untracked MMIO %x(%dB) val %x\n",
-				vgpu->id, offset, bytes, *(u32 *)p_data);
+			gvt_vgpu_err("read untracked MMIO %x(%dB) val %x\n",
+				offset, bytes, *(u32 *)p_data);
 
 			if (offset == 0x206c) {
-				gvt_err("------------------------------------------\n");
-				gvt_err("vgpu%d: likely triggers a gfx reset\n",
-					vgpu->id);
-				gvt_err("------------------------------------------\n");
+				gvt_vgpu_err("------------------------------------------\n");
+				gvt_vgpu_err("likely triggers a gfx reset\n");
+				gvt_vgpu_err("------------------------------------------\n");
 				vgpu->mmio.disable_warn_untrack = true;
 			}
 		}
@@ -220,8 +219,8 @@ int intel_vgpu_emulate_mmio_read(struct intel_vgpu *vgpu, uint64_t pa,
 	mutex_unlock(&gvt->lock);
 	return 0;
 err:
-	gvt_err("vgpu%d: fail to emulate MMIO read %08x len %d\n",
-			vgpu->id, offset, bytes);
+	gvt_vgpu_err("fail to emulate MMIO read %08x len %d\n",
+			offset, bytes);
 	mutex_unlock(&gvt->lock);
 	return ret;
 }
@@ -259,10 +258,11 @@ int intel_vgpu_emulate_mmio_write(struct intel_vgpu *vgpu, uint64_t pa,
 		if (gp) {
 			ret = gp->handler(gp, pa, p_data, bytes);
 			if (ret) {
-				gvt_err("vgpu%d: guest page write error %d, "
-					"gfn 0x%lx, pa 0x%llx, var 0x%x, len %d\n",
-					vgpu->id, ret,
-					gp->gfn, pa, *(u32 *)p_data, bytes);
+				gvt_err("guest page write error %d, "
+					"gfn 0x%lx, pa 0x%llx, "
+					"var 0x%x, len %d\n",
+					ret, gp->gfn, pa,
+					*(u32 *)p_data, bytes);
 			}
 			mutex_unlock(&gvt->lock);
 			return ret;
@@ -329,8 +329,8 @@ int intel_vgpu_emulate_mmio_write(struct intel_vgpu *vgpu, uint64_t pa,
 
 			/* all register bits are RO. */
 			if (ro_mask == ~(u64)0) {
-				gvt_err("vgpu%d: try to write RO reg %x\n",
-						vgpu->id, offset);
+				gvt_vgpu_err("try to write RO reg %x\n",
+					offset);
 				ret = 0;
 				goto out;
 			}
@@ -360,8 +360,8 @@ out:
 	mutex_unlock(&gvt->lock);
 	return 0;
 err:
-	gvt_err("vgpu%d: fail to emulate MMIO write %08x len %d\n",
-			vgpu->id, offset, bytes);
+	gvt_vgpu_err("fail to emulate MMIO write %08x len %d\n", offset,
+		     bytes);
 	mutex_unlock(&gvt->lock);
 	return ret;
 }

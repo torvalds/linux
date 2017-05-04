@@ -66,12 +66,6 @@
 			opp-microvolt = <1200000>;
 			clock-latency-ns = <244144>; /* 8 32k periods */
 		};
-
-		opp@1200000000 {
-			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <1320000>;
-			clock-latency-ns = <244144>; /* 8 32k periods */
-		};
 	};
 
 	cpus {
@@ -81,16 +75,22 @@
 			operating-points-v2 = <&cpu0_opp_table>;
 		};
 
+		cpu@1 {
+			operating-points-v2 = <&cpu0_opp_table>;
+		};
+
 		cpu@2 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
 			reg = <2>;
+			operating-points-v2 = <&cpu0_opp_table>;
 		};
 
 		cpu@3 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
 			reg = <3>;
+			operating-points-v2 = <&cpu0_opp_table>;
 		};
 	};
 
@@ -113,8 +113,8 @@
 		simple-audio-card,mclk-fs = <512>;
 		simple-audio-card,aux-devs = <&codec_analog>;
 		simple-audio-card,routing =
-			"Left DAC", "Digital Left DAC",
-			"Right DAC", "Digital Right DAC";
+			"Left DAC", "AIF1 Slot 0 Left",
+			"Right DAC", "AIF1 Slot 0 Right";
 		status = "disabled";
 
 		simple-audio-card,cpu {

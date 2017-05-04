@@ -186,16 +186,22 @@ get_static_power(struct devfreq_cooling_device *dfc, unsigned long freq)
 		return 0;
 
 	opp = dev_pm_opp_find_freq_exact(dev, freq, true);
-	if (IS_ERR(opp) && (PTR_ERR(opp) == -ERANGE))
+	if (PTR_ERR(opp) == -ERANGE)
 		opp = dev_pm_opp_find_freq_exact(dev, freq, false);
+
+	if (IS_ERR(opp)) {
+		dev_err_ratelimited(dev, "Failed to find OPP for frequency %lu: %ld\n",
+				    freq, PTR_ERR(opp));
+		return 0;
+	}
 
 	voltage = dev_pm_opp_get_voltage(opp) / 1000; /* mV */
 	dev_pm_opp_put(opp);
 
 	if (voltage == 0) {
-		dev_warn_ratelimited(dev,
-				     "Failed to get voltage for frequency %lu: %ld\n",
-				     freq, IS_ERR(opp) ? PTR_ERR(opp) : 0);
+		dev_err_ratelimited(dev,
+				    "Failed to get voltage for frequency %lu\n",
+				    freq);
 		return 0;
 	}
 

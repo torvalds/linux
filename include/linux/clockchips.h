@@ -229,7 +229,7 @@ static inline void tick_setup_hrtimer_broadcast(void) { }
 
 #ifdef CONFIG_CLKEVT_PROBE
 extern int clockevent_probe(void);
-#els
+#else
 static inline int clockevent_probe(void) { return 0; }
 #endif
 

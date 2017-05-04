@@ -1854,6 +1854,10 @@ static struct rt6_info *ip6_route_info_create(struct fib6_config *cfg)
 	int addr_type;
 	int err = -EINVAL;
 
+	/* RTF_PCPU is an internal flag; can not be set by userspace */
+	if (cfg->fc_flags & RTF_PCPU)
+		goto out;
+
 	if (cfg->fc_dst_len > 128 || cfg->fc_src_len > 128)
 		goto out;
 #ifndef CONFIG_IPV6_SUBTREES
@@ -3423,6 +3427,8 @@ static int rt6_fill_node(struct net *net,
 	}
 	else if (rt->rt6i_flags & RTF_LOCAL)
 		rtm->rtm_type = RTN_LOCAL;
+	else if (rt->rt6i_flags & RTF_ANYCAST)
+		rtm->rtm_type = RTN_ANYCAST;
 	else if (rt->dst.dev && (rt->dst.dev->flags & IFF_LOOPBACK))
 		rtm->rtm_type = RTN_LOCAL;
 	else
