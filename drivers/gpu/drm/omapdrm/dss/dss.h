@@ -219,7 +219,6 @@ struct seq_file;
 struct platform_device;
 
 /* core */
-struct platform_device *dss_get_core_pdev(void);
 int dss_dsi_enable_pads(int dsi_id, unsigned lane_mask);
 void dss_dsi_disable_pads(int dsi_id, unsigned lane_mask);
 int dss_set_min_bus_tput(struct device *dev, unsigned long tput);

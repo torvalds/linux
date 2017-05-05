@@ -62,11 +62,6 @@ enum omapdss_version omapdss_get_version(void)
 }
 EXPORT_SYMBOL(omapdss_get_version);
 
-struct platform_device *dss_get_core_pdev(void)
-{
-	return core.pdev;
-}
-
 int dss_dsi_enable_pads(int dsi_id, unsigned lane_mask)
 {
 	struct omap_dss_board_info *board_data = core.pdev->dev.platform_data;
