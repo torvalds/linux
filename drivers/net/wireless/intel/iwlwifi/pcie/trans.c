@@ -448,9 +448,9 @@ static void iwl_pcie_apm_lp_xtal_enable(struct iwl_trans *trans)
 				 ~SHR_APMG_XTAL_CFG_XTAL_ON_REQ);
 }
 
-int iwl_pcie_apm_stop_master(struct iwl_trans *trans)
+void iwl_pcie_apm_stop_master(struct iwl_trans *trans)
 {
-	int ret = 0;
+	int ret;
 
 	/* stop device's busmaster DMA activity */
 	iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
@@ -462,8 +462,6 @@ int iwl_pcie_apm_stop_master(struct iwl_trans *trans)
 		IWL_WARN(trans, "Master Disable Timed Out, 100 usec\n");
 
 	IWL_DEBUG_INFO(trans, "stop master\n");
-
-	return ret;
 }
 
 static void iwl_pcie_apm_stop(struct iwl_trans *trans, bool op_mode_leave)
