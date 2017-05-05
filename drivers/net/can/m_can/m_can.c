@@ -621,10 +621,8 @@ static int __m_can_get_berr_counter(const struct net_device *dev,
 	return 0;
 }
 
-static int m_can_get_berr_counter(const struct net_device *dev,
-				  struct can_berr_counter *bec)
+static int m_can_clk_start(struct m_can_priv *priv)
 {
-	struct m_can_priv *priv = netdev_priv(dev);
 	int err;
 
 	err = clk_prepare_enable(priv->hclk);
@@ -632,15 +630,31 @@ static int m_can_get_berr_counter(const struct net_device *dev,
 		return err;
 
 	err = clk_prepare_enable(priv->cclk);
-	if (err) {
+	if (err)
 		clk_disable_unprepare(priv->hclk);
+
+	return err;
+}
+
+static void m_can_clk_stop(struct m_can_priv *priv)
+{
+	clk_disable_unprepare(priv->cclk);
+	clk_disable_unprepare(priv->hclk);
+}
+
+static int m_can_get_berr_counter(const struct net_device *dev,
+				  struct can_berr_counter *bec)
+{
+	struct m_can_priv *priv = netdev_priv(dev);
+	int err;
+
+	err = m_can_clk_start(priv);
+	if (err)
 		return err;
-	}
 
 	__m_can_get_berr_counter(dev, bec);
 
-	clk_disable_unprepare(priv->cclk);
-	clk_disable_unprepare(priv->hclk);
+	m_can_clk_stop(priv);
 
 	return 0;
 }
@@ -1276,19 +1290,15 @@ static int m_can_open(struct net_device *dev)
 	struct m_can_priv *priv = netdev_priv(dev);
 	int err;
 
-	err = clk_prepare_enable(priv->hclk);
+	err = m_can_clk_start(priv);
 	if (err)
 		return err;
-
-	err = clk_prepare_enable(priv->cclk);
-	if (err)
-		goto exit_disable_hclk;
 
 	/* open the can device */
 	err = open_candev(dev);
 	if (err) {
 		netdev_err(dev, "failed to open can device\n");
-		goto exit_disable_cclk;
+		goto exit_disable_clks;
 	}
 
 	/* register interrupt handler */
@@ -1310,10 +1320,8 @@ static int m_can_open(struct net_device *dev)
 
 exit_irq_fail:
 	close_candev(dev);
-exit_disable_cclk:
-	clk_disable_unprepare(priv->cclk);
-exit_disable_hclk:
-	clk_disable_unprepare(priv->hclk);
+exit_disable_clks:
+	m_can_clk_stop(priv);
 	return err;
 }
 
@@ -1335,8 +1343,7 @@ static int m_can_close(struct net_device *dev)
 	netif_stop_queue(dev);
 	napi_disable(&priv->napi);
 	m_can_stop(dev);
-	clk_disable_unprepare(priv->hclk);
-	clk_disable_unprepare(priv->cclk);
+	m_can_clk_stop(priv);
 	free_irq(dev->irq, dev);
 	close_candev(dev);
 	can_led_event(dev, CAN_LED_EVENT_STOP);
