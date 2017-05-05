@@ -535,9 +535,6 @@ static void mv_xor_v2_issue_pending(struct dma_chan *chan)
 	mv_xor_v2_add_desc_to_desq(xor_dev, xor_dev->npendings);
 	xor_dev->npendings = 0;
 
-	/* Activate the channel */
-	writel(0, xor_dev->dma_base + MV_XOR_V2_DMA_DESQ_STOP_OFF);
-
 	spin_unlock_bh(&xor_dev->lock);
 }
 
