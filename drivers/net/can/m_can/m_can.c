@@ -1324,9 +1324,6 @@ static void m_can_stop(struct net_device *dev)
 	/* disable all interrupts */
 	m_can_disable_all_interrupts(priv);
 
-	clk_disable_unprepare(priv->hclk);
-	clk_disable_unprepare(priv->cclk);
-
 	/* set the state as STOPPED */
 	priv->can.state = CAN_STATE_STOPPED;
 }
@@ -1338,6 +1335,8 @@ static int m_can_close(struct net_device *dev)
 	netif_stop_queue(dev);
 	napi_disable(&priv->napi);
 	m_can_stop(dev);
+	clk_disable_unprepare(priv->hclk);
+	clk_disable_unprepare(priv->cclk);
 	free_irq(dev->irq, dev);
 	close_candev(dev);
 	can_led_event(dev, CAN_LED_EVENT_STOP);
