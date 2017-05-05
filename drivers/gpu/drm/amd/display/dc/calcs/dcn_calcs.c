@@ -236,6 +236,7 @@ static void pipe_ctx_to_e2e_pipe_params (
 		break;
 	case DC_SW_64KB_S:
 	case DC_SW_64KB_S_X:
+	case DC_SW_64KB_S_T:
 		input->src.is_display_sw = 0;
 		input->src.macro_tile_size = dm_64k_tile;
 		break;
@@ -253,6 +254,7 @@ static void pipe_ctx_to_e2e_pipe_params (
 		break;
 	case DC_SW_64KB_D:
 	case DC_SW_64KB_D_X:
+	case DC_SW_64KB_D_T:
 		input->src.is_display_sw = 1;
 		input->src.macro_tile_size = dm_64k_tile;
 		break;
