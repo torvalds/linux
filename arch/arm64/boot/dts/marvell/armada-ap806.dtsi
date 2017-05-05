@@ -159,6 +159,7 @@
 				reg = <0x400000 0x1000>,
 				      <0x410000 0x1000>;
 				msi-parent = <&gic_v2m0>;
+				clocks = <&ap_syscon 3>;
 				dma-coherent;
 			};
 
@@ -167,6 +168,7 @@
 				reg = <0x420000 0x1000>,
 				      <0x430000 0x1000>;
 				msi-parent = <&gic_v2m0>;
+				clocks = <&ap_syscon 3>;
 				dma-coherent;
 			};
 
@@ -175,6 +177,7 @@
 				reg = <0x440000 0x1000>,
 				      <0x450000 0x1000>;
 				msi-parent = <&gic_v2m0>;
+				clocks = <&ap_syscon 3>;
 				dma-coherent;
 			};
 
@@ -183,6 +186,7 @@
 				reg = <0x460000 0x1000>,
 				      <0x470000 0x1000>;
 				msi-parent = <&gic_v2m0>;
+				clocks = <&ap_syscon 3>;
 				dma-coherent;
 			};
 
