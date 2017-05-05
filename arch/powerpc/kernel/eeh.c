@@ -22,7 +22,6 @@
  */
 
 #include <linux/delay.h>
-#include <linux/debugfs.h>
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/list.h>
@@ -37,7 +36,7 @@
 #include <linux/of.h>
 
 #include <linux/atomic.h>
-#include <asm/debug.h>
+#include <asm/debugfs.h>
 #include <asm/eeh.h>
 #include <asm/eeh_event.h>
 #include <asm/io.h>

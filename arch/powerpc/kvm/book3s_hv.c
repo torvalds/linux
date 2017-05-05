@@ -35,6 +35,15 @@
 #include <linux/srcu.h>
 #include <linux/miscdevice.h>
 #include <linux/debugfs.h>
+#include <linux/gfp.h>
+#include <linux/vmalloc.h>
+#include <linux/highmem.h>
+#include <linux/hugetlb.h>
+#include <linux/kvm_irqfd.h>
+#include <linux/irqbypass.h>
+#include <linux/module.h>
+#include <linux/compiler.h>
+#include <linux/of.h>
 
 #include <asm/reg.h>
 #include <asm/cputable.h>
@@ -58,15 +67,6 @@
 #include <asm/mmu.h>
 #include <asm/opal.h>
 #include <asm/xics.h>
-#include <linux/gfp.h>
-#include <linux/vmalloc.h>
-#include <linux/highmem.h>
-#include <linux/hugetlb.h>
-#include <linux/kvm_irqfd.h>
-#include <linux/irqbypass.h>
-#include <linux/module.h>
-#include <linux/compiler.h>
-#include <linux/of.h>
 
 #include "book3s.h"
 

@@ -5310,6 +5310,7 @@ M:	Scott Wood <oss@buserror.net>
 L:	linuxppc-dev@lists.ozlabs.org
 L:	linux-arm-kernel@lists.infradead.org
 S:	Maintained
+F:	Documentation/devicetree/bindings/powerpc/fsl/
 F:	drivers/soc/fsl/
 F:	include/linux/fsl/
 
@@ -7568,7 +7569,7 @@ Q:	http://patchwork.ozlabs.org/project/linuxppc-dev/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/powerpc/linux.git
 S:	Supported
 F:	Documentation/ABI/stable/sysfs-firmware-opal-*
-F:	Documentation/devicetree/bindings/powerpc/opal/
+F:	Documentation/devicetree/bindings/powerpc/
 F:	Documentation/devicetree/bindings/rtc/rtc-opal.txt
 F:	Documentation/devicetree/bindings/i2c/i2c-opal.txt
 F:	Documentation/powerpc/

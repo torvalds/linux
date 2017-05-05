@@ -29,7 +29,9 @@
 #include <linux/nmi.h>
 #include <linux/ctype.h>
 
+#include <asm/debugfs.h>
 #include <asm/ptrace.h>
+#include <asm/smp.h>
 #include <asm/string.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>
@@ -48,7 +50,7 @@
 #include <asm/reg.h>
 #include <asm/debug.h>
 #include <asm/hw_breakpoint.h>
-
+#include <asm/xive.h>
 #include <asm/opal.h>
 #include <asm/firmware.h>
 
@@ -76,6 +78,7 @@ static int xmon_gate;
 #endif /* CONFIG_SMP */
 
 static unsigned long in_xmon __read_mostly = 0;
+static int xmon_on = IS_ENABLED(CONFIG_XMON_DEFAULT);
 
 static unsigned long adrs;
 static int size = 1;
@@ -184,8 +187,6 @@ static void dump_tlb_44x(void);
 static void dump_tlb_book3e(void);
 #endif
 
-static int xmon_no_auto_backtrace;
-
 #ifdef CONFIG_PPC64
 #define REG		"%.16lx"
 #else
@@ -232,7 +233,13 @@ Commands:\n\
   "\
   dr	dump stream of raw bytes\n\
   dt	dump the tracing buffers (uses printk)\n\
-  e	print exception information\n\
+"
+#ifdef CONFIG_PPC_POWERNV
+"  dx#   dump xive on CPU #\n\
+  dxi#  dump xive irq state #\n\
+  dxa   dump xive on all CPUs\n"
+#endif
+"  e	print exception information\n\
   f	flush cache\n\
   la	lookup symbol+offset of specified address\n\
   ls	lookup address of specified symbol\n\
@@ -411,7 +418,22 @@ int cpus_are_in_xmon(void)
 {
 	return !cpumask_empty(&cpus_in_xmon);
 }
-#endif
+
+static bool wait_for_other_cpus(int ncpus)
+{
+	unsigned long timeout;
+
+	/* We wait for 2s, which is a metric "little while" */
+	for (timeout = 20000; timeout != 0; --timeout) {
+		if (cpumask_weight(&cpus_in_xmon) >= ncpus)
+			return true;
+		udelay(100);
+		barrier();
+	}
+
+	return false;
+}
+#endif /* CONFIG_SMP */
 
 static inline int unrecoverable_excp(struct pt_regs *regs)
 {
@@ -433,7 +455,6 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 #ifdef CONFIG_SMP
 	int cpu;
 	int secondary;
-	unsigned long timeout;
 #endif
 
 	local_irq_save(flags);
@@ -520,13 +541,17 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 		xmon_owner = cpu;
 		mb();
 		if (ncpus > 1) {
-			smp_send_debugger_break();
-			/* wait for other cpus to come in */
-			for (timeout = 100000000; timeout != 0; --timeout) {
-				if (cpumask_weight(&cpus_in_xmon) >= ncpus)
-					break;
-				barrier();
-			}
+			/*
+			 * A system reset (trap == 0x100) can be triggered on
+			 * all CPUs, so when we come in via 0x100 try waiting
+			 * for the other CPUs to come in before we send the
+			 * debugger break (IPI). This is similar to
+			 * crash_kexec_secondary().
+			 */
+			if (TRAP(regs) != 0x100 || !wait_for_other_cpus(ncpus))
+				smp_send_debugger_break();
+
+			wait_for_other_cpus(ncpus);
 		}
 		remove_bpts();
 		disable_surveillance();
@@ -884,10 +909,7 @@ cmds(struct pt_regs *excp)
 	last_cmd = NULL;
 	xmon_regs = excp;
 
-	if (!xmon_no_auto_backtrace) {
-		xmon_no_auto_backtrace = 1;
-		xmon_show_stack(excp->gpr[1], excp->link, excp->nip);
-	}
+	xmon_show_stack(excp->gpr[1], excp->link, excp->nip);
 
 	for(;;) {
 #ifdef CONFIG_SMP
@@ -1347,9 +1369,19 @@ const char *getvecname(unsigned long vec)
 	case 0x100:	ret = "(System Reset)"; break;
 	case 0x200:	ret = "(Machine Check)"; break;
 	case 0x300:	ret = "(Data Access)"; break;
-	case 0x380:	ret = "(Data SLB Access)"; break;
+	case 0x380:
+		if (radix_enabled())
+			ret = "(Data Access Out of Range)";
+		else
+			ret = "(Data SLB Access)";
+		break;
 	case 0x400:	ret = "(Instruction Access)"; break;
-	case 0x480:	ret = "(Instruction SLB Access)"; break;
+	case 0x480:
+		if (radix_enabled())
+			ret = "(Instruction Access Out of Range)";
+		else
+			ret = "(Instruction SLB Access)";
+		break;
 	case 0x500:	ret = "(Hardware Interrupt)"; break;
 	case 0x600:	ret = "(Alignment)"; break;
 	case 0x700:	ret = "(Program Check)"; break;
@@ -2231,7 +2263,9 @@ static void dump_one_paca(int cpu)
 	DUMP(p, kernel_msr, "lx");
 	DUMP(p, emergency_sp, "p");
 #ifdef CONFIG_PPC_BOOK3S_64
+	DUMP(p, nmi_emergency_sp, "p");
 	DUMP(p, mc_emergency_sp, "p");
+	DUMP(p, in_nmi, "x");
 	DUMP(p, in_mce, "x");
 	DUMP(p, hmi_event_available, "x");
 #endif
@@ -2338,6 +2372,81 @@ static void dump_pacas(void)
 }
 #endif
 
+#ifdef CONFIG_PPC_POWERNV
+static void dump_one_xive(int cpu)
+{
+	unsigned int hwid = get_hard_smp_processor_id(cpu);
+
+	opal_xive_dump(XIVE_DUMP_TM_HYP, hwid);
+	opal_xive_dump(XIVE_DUMP_TM_POOL, hwid);
+	opal_xive_dump(XIVE_DUMP_TM_OS, hwid);
+	opal_xive_dump(XIVE_DUMP_TM_USER, hwid);
+	opal_xive_dump(XIVE_DUMP_VP, hwid);
+	opal_xive_dump(XIVE_DUMP_EMU_STATE, hwid);
+
+	if (setjmp(bus_error_jmp) != 0) {
+		catch_memory_errors = 0;
+		printf("*** Error dumping xive on cpu %d\n", cpu);
+		return;
+	}
+
+	catch_memory_errors = 1;
+	sync();
+	xmon_xive_do_dump(cpu);
+	sync();
+	__delay(200);
+	catch_memory_errors = 0;
+}
+
+static void dump_all_xives(void)
+{
+	int cpu;
+
+	if (num_possible_cpus() == 0) {
+		printf("No possible cpus, use 'dx #' to dump individual cpus\n");
+		return;
+	}
+
+	for_each_possible_cpu(cpu)
+		dump_one_xive(cpu);
+}
+
+static void dump_one_xive_irq(u32 num)
+{
+	s64 rc;
+	__be64 vp;
+	u8 prio;
+	__be32 lirq;
+
+	rc = opal_xive_get_irq_config(num, &vp, &prio, &lirq);
+	xmon_printf("IRQ 0x%x config: vp=0x%llx prio=%d lirq=0x%x (rc=%lld)\n",
+		    num, be64_to_cpu(vp), prio, be32_to_cpu(lirq), rc);
+}
+
+static void dump_xives(void)
+{
+	unsigned long num;
+	int c;
+
+	c = inchar();
+	if (c == 'a') {
+		dump_all_xives();
+		return;
+	} else if (c == 'i') {
+		if (scanhex(&num))
+			dump_one_xive_irq(num);
+		return;
+	}
+
+	termch = c;	/* Put c back, it wasn't 'a' */
+
+	if (scanhex(&num))
+		dump_one_xive(num);
+	else
+		dump_one_xive(xmon_owner);
+}
+#endif /* CONFIG_PPC_POWERNV */
+
 static void dump_by_size(unsigned long addr, long count, int size)
 {
 	unsigned char temp[16];
@@ -2382,6 +2491,14 @@ dump(void)
 	if (c == 'p') {
 		xmon_start_pagination();
 		dump_pacas();
+		xmon_end_pagination();
+		return;
+	}
+#endif
+#ifdef CONFIG_PPC_POWERNV
+	if (c == 'x') {
+		xmon_start_pagination();
+		dump_xives();
 		xmon_end_pagination();
 		return;
 	}
@@ -3070,23 +3187,28 @@ void dump_segments(void)
 	for (i = 0; i < mmu_slb_size; i++) {
 		asm volatile("slbmfee  %0,%1" : "=r" (esid) : "r" (i));
 		asm volatile("slbmfev  %0,%1" : "=r" (vsid) : "r" (i));
-		if (esid || vsid) {
-			printf("%02d %016lx %016lx", i, esid, vsid);
-			if (esid & SLB_ESID_V) {
-				llp = vsid & SLB_VSID_LLP;
-				if (vsid & SLB_VSID_B_1T) {
-					printf("  1T  ESID=%9lx  VSID=%13lx LLP:%3lx \n",
-						GET_ESID_1T(esid),
-						(vsid & ~SLB_VSID_B) >> SLB_VSID_SHIFT_1T,
-						llp);
-				} else {
-					printf(" 256M ESID=%9lx  VSID=%13lx LLP:%3lx \n",
-						GET_ESID(esid),
-						(vsid & ~SLB_VSID_B) >> SLB_VSID_SHIFT,
-						llp);
-				}
-			} else
-				printf("\n");
+
+		if (!esid && !vsid)
+			continue;
+
+		printf("%02d %016lx %016lx", i, esid, vsid);
+
+		if (!(esid & SLB_ESID_V)) {
+			printf("\n");
+			continue;
+		}
+
+		llp = vsid & SLB_VSID_LLP;
+		if (vsid & SLB_VSID_B_1T) {
+			printf("  1T  ESID=%9lx  VSID=%13lx LLP:%3lx \n",
+				GET_ESID_1T(esid),
+				(vsid & ~SLB_VSID_B) >> SLB_VSID_SHIFT_1T,
+				llp);
+		} else {
+			printf(" 256M ESID=%9lx  VSID=%13lx LLP:%3lx \n",
+				GET_ESID(esid),
+				(vsid & ~SLB_VSID_B) >> SLB_VSID_SHIFT,
+				llp);
 		}
 	}
 }
@@ -3302,6 +3424,8 @@ static void sysrq_handle_xmon(int key)
 	/* ensure xmon is enabled */
 	xmon_init(1);
 	debugger(get_irq_regs());
+	if (!xmon_on)
+		xmon_init(0);
 }
 
 static struct sysrq_key_op sysrq_xmon_op = {
@@ -3315,10 +3439,37 @@ static int __init setup_xmon_sysrq(void)
 	register_sysrq_key('x', &sysrq_xmon_op);
 	return 0;
 }
-__initcall(setup_xmon_sysrq);
+device_initcall(setup_xmon_sysrq);
 #endif /* CONFIG_MAGIC_SYSRQ */
 
-static int __initdata xmon_early, xmon_off;
+#ifdef CONFIG_DEBUG_FS
+static int xmon_dbgfs_set(void *data, u64 val)
+{
+	xmon_on = !!val;
+	xmon_init(xmon_on);
+
+	return 0;
+}
+
+static int xmon_dbgfs_get(void *data, u64 *val)
+{
+	*val = xmon_on;
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(xmon_dbgfs_ops, xmon_dbgfs_get,
+			xmon_dbgfs_set, "%llu\n");
+
+static int __init setup_xmon_dbgfs(void)
+{
+	debugfs_create_file("xmon", 0600, powerpc_debugfs_root, NULL,
+				&xmon_dbgfs_ops);
+	return 0;
+}
+device_initcall(setup_xmon_dbgfs);
+#endif /* CONFIG_DEBUG_FS */
+
+static int xmon_early __initdata;
 
 static int __init early_parse_xmon(char *p)
 {
@@ -3326,12 +3477,12 @@ static int __init early_parse_xmon(char *p)
 		/* just "xmon" is equivalent to "xmon=early" */
 		xmon_init(1);
 		xmon_early = 1;
-	} else if (strncmp(p, "on", 2) == 0)
+		xmon_on = 1;
+	} else if (strncmp(p, "on", 2) == 0) {
 		xmon_init(1);
-	else if (strncmp(p, "off", 3) == 0)
-		xmon_off = 1;
-	else if (strncmp(p, "nobt", 4) == 0)
-		xmon_no_auto_backtrace = 1;
+		xmon_on = 1;
+	} else if (strncmp(p, "off", 3) == 0)
+		xmon_on = 0;
 	else
 		return 1;
 
@@ -3341,10 +3492,8 @@ early_param("xmon", early_parse_xmon);
 
 void __init xmon_setup(void)
 {
-#ifdef CONFIG_XMON_DEFAULT
-	if (!xmon_off)
+	if (xmon_on)
 		xmon_init(1);
-#endif
 	if (xmon_early)
 		debugger(NULL);
 }

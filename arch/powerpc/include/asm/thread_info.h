@@ -10,15 +10,7 @@
 
 #ifdef __KERNEL__
 
-/* We have 8k stacks on ppc32 and 16k on ppc64 */
-
-#if defined(CONFIG_PPC64)
-#define THREAD_SHIFT		14
-#elif defined(CONFIG_PPC_256K_PAGES)
-#define THREAD_SHIFT		15
-#else
-#define THREAD_SHIFT		13
-#endif
+#define THREAD_SHIFT		CONFIG_THREAD_SHIFT
 
 #define THREAD_SIZE		(1 << THREAD_SHIFT)
 

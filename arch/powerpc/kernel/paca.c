@@ -245,3 +245,24 @@ void __init free_unused_pacas(void)
 
 	free_lppacas();
 }
+
+void copy_mm_to_paca(struct mm_struct *mm)
+{
+#ifdef CONFIG_PPC_BOOK3S
+	mm_context_t *context = &mm->context;
+
+	get_paca()->mm_ctx_id = context->id;
+#ifdef CONFIG_PPC_MM_SLICES
+	VM_BUG_ON(!mm->context.addr_limit);
+	get_paca()->addr_limit = mm->context.addr_limit;
+	get_paca()->mm_ctx_low_slices_psize = context->low_slices_psize;
+	memcpy(&get_paca()->mm_ctx_high_slices_psize,
+	       &context->high_slices_psize, TASK_SLICE_ARRAY_SZ(mm));
+#else /* CONFIG_PPC_MM_SLICES */
+	get_paca()->mm_ctx_user_psize = context->user_psize;
+	get_paca()->mm_ctx_sllp = context->sllp;
+#endif
+#else /* CONFIG_PPC_BOOK3S */
+	return;
+#endif
+}

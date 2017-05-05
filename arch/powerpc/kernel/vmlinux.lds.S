@@ -77,6 +77,8 @@ SECTIONS
 #endif
 	} :kernel
 
+	__head_end = .;
+
 	/*
 	 * If the build dies here, it's likely code in head_64.S is referencing
 	 * labels it can't reach, and the linker inserting stubs without the
