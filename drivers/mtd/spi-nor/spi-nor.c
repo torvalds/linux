@@ -1389,8 +1389,9 @@ static int macronix_quad_enable(struct spi_nor *nor)
 
 	write_sr(nor, val | SR_QUAD_EN_MX);
 
-	if (spi_nor_wait_till_ready(nor))
-		return 1;
+	ret = spi_nor_wait_till_ready(nor);
+	if (ret)
+		return ret;
 
 	ret = read_sr(nor);
 	if (!(ret > 0 && (ret & SR_QUAD_EN_MX))) {
