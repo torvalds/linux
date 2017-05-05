@@ -692,8 +692,7 @@ static int hdmi_dbg_show(struct seq_file *s, void *data)
 	DBGFS_DUMP_DI(HDMI_SW_DI_N_PKT_WORD4, HDMI_IFRAME_SLOT_AVI);
 	DBGFS_DUMP_DI(HDMI_SW_DI_N_PKT_WORD5, HDMI_IFRAME_SLOT_AVI);
 	DBGFS_DUMP_DI(HDMI_SW_DI_N_PKT_WORD6, HDMI_IFRAME_SLOT_AVI);
-	seq_puts(s, "\n");
-	seq_printf(s, "\n AUDIO Infoframe (Data Island slot N=%d):",
+	seq_printf(s, "\n\n AUDIO Infoframe (Data Island slot N=%d):",
 		   HDMI_IFRAME_SLOT_AUDIO);
 	DBGFS_DUMP_DI(HDMI_SW_DI_N_HEAD_WORD, HDMI_IFRAME_SLOT_AUDIO);
 	DBGFS_DUMP_DI(HDMI_SW_DI_N_PKT_WORD0, HDMI_IFRAME_SLOT_AUDIO);
@@ -703,8 +702,7 @@ static int hdmi_dbg_show(struct seq_file *s, void *data)
 	DBGFS_DUMP_DI(HDMI_SW_DI_N_PKT_WORD4, HDMI_IFRAME_SLOT_AUDIO);
 	DBGFS_DUMP_DI(HDMI_SW_DI_N_PKT_WORD5, HDMI_IFRAME_SLOT_AUDIO);
 	DBGFS_DUMP_DI(HDMI_SW_DI_N_PKT_WORD6, HDMI_IFRAME_SLOT_AUDIO);
-	seq_puts(s, "\n");
-	seq_printf(s, "\n VENDOR SPECIFIC Infoframe (Data Island slot N=%d):",
+	seq_printf(s, "\n\n VENDOR SPECIFIC Infoframe (Data Island slot N=%d):",
 		   HDMI_IFRAME_SLOT_VENDOR);
 	DBGFS_DUMP_DI(HDMI_SW_DI_N_HEAD_WORD, HDMI_IFRAME_SLOT_VENDOR);
 	DBGFS_DUMP_DI(HDMI_SW_DI_N_PKT_WORD0, HDMI_IFRAME_SLOT_VENDOR);
