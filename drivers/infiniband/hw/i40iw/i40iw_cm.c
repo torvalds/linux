@@ -784,7 +784,6 @@ static void i40iw_build_mpa_v2(struct i40iw_cm_node *cm_node,
 	}
 
 	ctrl_ird |= IETF_PEER_TO_PEER;
-	ctrl_ird |= IETF_FLPDU_ZERO_LEN;
 
 	switch (mpa_key) {
 	case MPA_KEY_REQUEST:
