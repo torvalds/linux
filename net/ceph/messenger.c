@@ -2228,10 +2228,18 @@ static void process_ack(struct ceph_connection *con)
 	struct ceph_msg *m;
 	u64 ack = le64_to_cpu(con->in_temp_ack);
 	u64 seq;
+	bool reconnect = (con->in_tag == CEPH_MSGR_TAG_SEQ);
+	struct list_head *list = reconnect ? &con->out_queue : &con->out_sent;
 
-	while (!list_empty(&con->out_sent)) {
-		m = list_first_entry(&con->out_sent, struct ceph_msg,
-				     list_head);
+	/*
+	 * In the reconnect case, con_fault() has requeued messages
+	 * in out_sent. We should cleanup old messages according to
+	 * the reconnect seq.
+	 */
+	while (!list_empty(list)) {
+		m = list_first_entry(list, struct ceph_msg, list_head);
+		if (reconnect && m->needs_out_seq)
+			break;
 		seq = le64_to_cpu(m->hdr.seq);
 		if (seq > ack)
 			break;
@@ -2240,6 +2248,7 @@ static void process_ack(struct ceph_connection *con)
 		m->ack_stamp = jiffies;
 		ceph_msg_remove(m);
 	}
+
 	prepare_read_tag(con);
 }
 
