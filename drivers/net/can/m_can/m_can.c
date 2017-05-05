@@ -1489,11 +1489,23 @@ static int register_m_can_dev(struct net_device *dev)
 	return register_candev(dev);
 }
 
+static void m_can_init_ram(struct m_can_priv *priv)
+{
+	int end, i, start;
+
+	/* initialize the entire Message RAM in use to avoid possible
+	 * ECC/parity checksum errors when reading an uninitialized buffer
+	 */
+	start = priv->mcfg[MRAM_SIDF].off;
+	end = priv->mcfg[MRAM_TXB].off +
+		priv->mcfg[MRAM_TXB].num * TXB_ELEMENT_SIZE;
+	for (i = start; i < end; i += 4)
+		writel(0x0, priv->mram_base + i);
+}
+
 static void m_can_of_parse_mram(struct m_can_priv *priv,
 				const u32 *mram_config_vals)
 {
-	int i, start, end;
-
 	priv->mcfg[MRAM_SIDF].off = mram_config_vals[0];
 	priv->mcfg[MRAM_SIDF].num = mram_config_vals[1];
 	priv->mcfg[MRAM_XIDF].off = priv->mcfg[MRAM_SIDF].off +
@@ -1529,15 +1541,7 @@ static void m_can_of_parse_mram(struct m_can_priv *priv,
 		priv->mcfg[MRAM_TXE].off, priv->mcfg[MRAM_TXE].num,
 		priv->mcfg[MRAM_TXB].off, priv->mcfg[MRAM_TXB].num);
 
-	/* initialize the entire Message RAM in use to avoid possible
-	 * ECC/parity checksum errors when reading an uninitialized buffer
-	 */
-	start = priv->mcfg[MRAM_SIDF].off;
-	end = priv->mcfg[MRAM_TXB].off +
-		priv->mcfg[MRAM_TXB].num * TXB_ELEMENT_SIZE;
-	for (i = start; i < end; i += 4)
-		writel(0x0, priv->mram_base + i);
-
+	m_can_init_ram(priv);
 }
 
 static int m_can_plat_probe(struct platform_device *pdev)
