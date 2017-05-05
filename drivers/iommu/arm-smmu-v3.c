@@ -408,6 +408,7 @@
 
 /* High-level queue structures */
 #define ARM_SMMU_POLL_TIMEOUT_US	100
+#define ARM_SMMU_CMDQ_DRAIN_TIMEOUT_US	1000000 /* 1s! */
 
 #define MSI_IOVA_BASE			0x8000000
 #define MSI_IOVA_LENGTH			0x100000
@@ -737,7 +738,13 @@ static void queue_inc_prod(struct arm_smmu_queue *q)
  */
 static int queue_poll_cons(struct arm_smmu_queue *q, bool drain, bool wfe)
 {
-	ktime_t timeout = ktime_add_us(ktime_get(), ARM_SMMU_POLL_TIMEOUT_US);
+	ktime_t timeout;
+	unsigned int delay = 1;
+
+	/* Wait longer if it's queue drain */
+	timeout = ktime_add_us(ktime_get(), drain ?
+					    ARM_SMMU_CMDQ_DRAIN_TIMEOUT_US :
+					    ARM_SMMU_POLL_TIMEOUT_US);
 
 	while (queue_sync_cons(q), (drain ? !queue_empty(q) : queue_full(q))) {
 		if (ktime_compare(ktime_get(), timeout) > 0)
@@ -747,7 +754,8 @@ static int queue_poll_cons(struct arm_smmu_queue *q, bool drain, bool wfe)
 			wfe();
 		} else {
 			cpu_relax();
-			udelay(1);
+			udelay(delay);
+			delay *= 2;
 		}
 	}
 
