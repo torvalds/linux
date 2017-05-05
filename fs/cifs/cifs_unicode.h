@@ -57,6 +57,7 @@
  * not conflict (although almost does) with the mapping above.
  */
 
+#define SFM_DOUBLEQUOTE ((__u16) 0xF020)
 #define SFM_ASTERISK    ((__u16) 0xF021)
 #define SFM_QUESTION    ((__u16) 0xF025)
 #define SFM_COLON       ((__u16) 0xF022)
