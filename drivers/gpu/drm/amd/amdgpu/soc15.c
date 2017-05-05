@@ -604,7 +604,9 @@ static int soc15_common_early_init(void *handle)
 			AMD_CG_SUPPORT_DRM_LS |
 			AMD_CG_SUPPORT_ROM_MGCG |
 			AMD_CG_SUPPORT_MC_MGCG |
-			AMD_CG_SUPPORT_MC_LS;
+			AMD_CG_SUPPORT_MC_LS |
+			AMD_CG_SUPPORT_SDMA_MGCG |
+			AMD_CG_SUPPORT_SDMA_LS;
 		adev->pg_flags = 0;
 		adev->external_rev_id = 0x1;
 		break;
