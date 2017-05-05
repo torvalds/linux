@@ -580,8 +580,8 @@ int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
 	/* directly mapped flags for ieee80211_rx_status */
 	rs->enc_flags |=
 		(ads.ds_rxstatus3 & AR_GI) ? RX_ENC_FLAG_SHORT_GI : 0;
-	rs->enc_flags |=
-		(ads.ds_rxstatus3 & AR_2040) ? RX_ENC_FLAG_40MHZ : 0;
+	rs->bw = (ads.ds_rxstatus3 & AR_2040) ? RATE_INFO_BW_40 :
+						RATE_INFO_BW_20;
 	if (AR_SREV_9280_20_OR_LATER(ah))
 		rs->enc_flags |=
 			(ads.ds_rxstatus3 & AR_STBC) ?

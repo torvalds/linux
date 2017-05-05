@@ -1141,7 +1141,6 @@ enum mac80211_rx_flags {
  * enum mac80211_rx_encoding_flags - MCS & bandwidth flags
  *
  * @RX_ENC_FLAG_SHORTPRE: Short preamble was used for this frame
- * @RX_ENC_FLAG_40MHZ: HT40 (40 MHz) was used
  * @RX_ENC_FLAG_SHORT_GI: Short guard interval was used
  * @RX_ENC_FLAG_HT_GF: This frame was received in a HT-greenfield transmission,
  *	if the driver fills this value it should add
@@ -1153,7 +1152,6 @@ enum mac80211_rx_flags {
  */
 enum mac80211_rx_encoding_flags {
 	RX_ENC_FLAG_SHORTPRE		= BIT(0),
-	RX_ENC_FLAG_40MHZ		= BIT(1),
 	RX_ENC_FLAG_SHORT_GI		= BIT(2),
 	RX_ENC_FLAG_HT_GF		= BIT(3),
 	RX_ENC_FLAG_STBC_MASK		= BIT(4) | BIT(5),
