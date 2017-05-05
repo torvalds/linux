@@ -197,9 +197,10 @@ int r8712_generate_ie(struct registry_priv *pregistrypriv)
 				  pdev_network->rates, &sz);
 		ie = r8712_set_ie(ie, _EXT_SUPPORTEDRATES_IE_, (rateLen - 8),
 				  (pdev_network->rates + 8), &sz);
-	} else
+	} else {
 		ie = r8712_set_ie(ie, _SUPPORTEDRATES_IE_,
 				  rateLen, pdev_network->rates, &sz);
+	}
 	/*DS parameter set*/
 	ie = r8712_set_ie(ie, _DSSET_IE_, 1,
 			  (u8 *)&pdev_network->Configuration.DSConfig, &sz);
