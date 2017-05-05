@@ -21,12 +21,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 #include <errno.h>
 
 #include "../perf.h"
 #include "util.h"
 #include "trace-event.h"
+
+#include "sane_ctype.h"
 
 static int get_common_field(struct scripting_context *context,
 			    int *offset, int *size, const char *type)

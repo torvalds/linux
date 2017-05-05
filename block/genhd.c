@@ -1060,8 +1060,19 @@ static struct attribute *disk_attrs[] = {
 	NULL
 };
 
+static umode_t disk_visible(struct kobject *kobj, struct attribute *a, int n)
+{
+	struct device *dev = container_of(kobj, typeof(*dev), kobj);
+	struct gendisk *disk = dev_to_disk(dev);
+
+	if (a == &dev_attr_badblocks.attr && !disk->bb)
+		return 0;
+	return a->mode;
+}
+
 static struct attribute_group disk_attr_group = {
 	.attrs = disk_attrs,
+	.is_visible = disk_visible,
 };
 
 static const struct attribute_group *disk_attr_groups[] = {
@@ -1352,7 +1363,7 @@ struct kobject *get_disk(struct gendisk *disk)
 	owner = disk->fops->owner;
 	if (owner && !try_module_get(owner))
 		return NULL;
-	kobj = kobject_get(&disk_to_dev(disk)->kobj);
+	kobj = kobject_get_unless_zero(&disk_to_dev(disk)->kobj);
 	if (kobj == NULL) {
 		module_put(owner);
 		return NULL;

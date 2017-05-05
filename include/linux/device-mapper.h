@@ -255,6 +255,12 @@ struct dm_target {
 	unsigned num_write_same_bios;
 
 	/*
+	 * The number of WRITE ZEROES bios that will be submitted to the target.
+	 * The bio number can be accessed with dm_bio_get_target_bio_nr.
+	 */
+	unsigned num_write_zeroes_bios;
+
+	/*
 	 * The minimum number of extra bytes allocated in each io for the
 	 * target to use.
 	 */
@@ -290,11 +296,6 @@ struct dm_target {
 	 * on max_io_len boundary.
 	 */
 	bool split_discard_bios:1;
-
-	/*
-	 * Set if this target does not return zeroes on discarded blocks.
-	 */
-	bool discard_zeroes_data_unsupported:1;
 };
 
 /* Each target can link one of these into the table */

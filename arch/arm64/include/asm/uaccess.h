@@ -28,38 +28,12 @@
 #include <linux/bitops.h>
 #include <linux/kasan-checks.h>
 #include <linux/string.h>
-#include <linux/thread_info.h>
 
 #include <asm/cpufeature.h>
 #include <asm/ptrace.h>
-#include <asm/errno.h>
 #include <asm/memory.h>
 #include <asm/compiler.h>
-
-#define VERIFY_READ 0
-#define VERIFY_WRITE 1
-
-/*
- * The exception table consists of pairs of relative offsets: the first
- * is the relative offset to an instruction that is allowed to fault,
- * and the second is the relative offset at which the program should
- * continue. No registers are modified, so it is entirely up to the
- * continuation code to figure out what to do.
- *
- * All the routines below use bits of fixup code that are out of line
- * with the main instruction path.  This means when everything is well,
- * we don't even have to jump over them.  Further, they do not intrude
- * on our cache or tlb entries.
- */
-
-struct exception_table_entry
-{
-	int insn, fixup;
-};
-
-#define ARCH_HAS_RELATIVE_EXTABLE
-
-extern int fixup_exception(struct pt_regs *regs);
+#include <asm/extable.h>
 
 #define KERNEL_DS	(-1UL)
 #define get_ds()	(KERNEL_DS)
@@ -357,58 +331,13 @@ do {									\
 })
 
 extern unsigned long __must_check __arch_copy_from_user(void *to, const void __user *from, unsigned long n);
+#define raw_copy_from_user __arch_copy_from_user
 extern unsigned long __must_check __arch_copy_to_user(void __user *to, const void *from, unsigned long n);
-extern unsigned long __must_check __copy_in_user(void __user *to, const void __user *from, unsigned long n);
+#define raw_copy_to_user __arch_copy_to_user
+extern unsigned long __must_check raw_copy_in_user(void __user *to, const void __user *from, unsigned long n);
 extern unsigned long __must_check __clear_user(void __user *addr, unsigned long n);
-
-static inline unsigned long __must_check __copy_from_user(void *to, const void __user *from, unsigned long n)
-{
-	kasan_check_write(to, n);
-	check_object_size(to, n, false);
-	return __arch_copy_from_user(to, from, n);
-}
-
-static inline unsigned long __must_check __copy_to_user(void __user *to, const void *from, unsigned long n)
-{
-	kasan_check_read(from, n);
-	check_object_size(from, n, true);
-	return __arch_copy_to_user(to, from, n);
-}
-
-static inline unsigned long __must_check copy_from_user(void *to, const void __user *from, unsigned long n)
-{
-	unsigned long res = n;
-	kasan_check_write(to, n);
-	check_object_size(to, n, false);
-
-	if (access_ok(VERIFY_READ, from, n)) {
-		res = __arch_copy_from_user(to, from, n);
-	}
-	if (unlikely(res))
-		memset(to + (n - res), 0, res);
-	return res;
-}
-
-static inline unsigned long __must_check copy_to_user(void __user *to, const void *from, unsigned long n)
-{
-	kasan_check_read(from, n);
-	check_object_size(from, n, true);
-
-	if (access_ok(VERIFY_WRITE, to, n)) {
-		n = __arch_copy_to_user(to, from, n);
-	}
-	return n;
-}
-
-static inline unsigned long __must_check copy_in_user(void __user *to, const void __user *from, unsigned long n)
-{
-	if (access_ok(VERIFY_READ, from, n) && access_ok(VERIFY_WRITE, to, n))
-		n = __copy_in_user(to, from, n);
-	return n;
-}
-
-#define __copy_to_user_inatomic __copy_to_user
-#define __copy_from_user_inatomic __copy_from_user
+#define INLINE_COPY_TO_USER
+#define INLINE_COPY_FROM_USER
 
 static inline unsigned long __must_check clear_user(void __user *to, unsigned long n)
 {

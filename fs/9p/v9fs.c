@@ -333,10 +333,6 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 		goto err_names;
 	init_rwsem(&v9ses->rename_sem);
 
-	rc = bdi_setup_and_register(&v9ses->bdi, "9p");
-	if (rc)
-		goto err_names;
-
 	v9ses->uid = INVALID_UID;
 	v9ses->dfltuid = V9FS_DEFUID;
 	v9ses->dfltgid = V9FS_DEFGID;
@@ -345,7 +341,7 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 	if (IS_ERR(v9ses->clnt)) {
 		rc = PTR_ERR(v9ses->clnt);
 		p9_debug(P9_DEBUG_ERROR, "problem initializing 9p client\n");
-		goto err_bdi;
+		goto err_names;
 	}
 
 	v9ses->flags = V9FS_ACCESS_USER;
@@ -415,8 +411,6 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 
 err_clnt:
 	p9_client_destroy(v9ses->clnt);
-err_bdi:
-	bdi_destroy(&v9ses->bdi);
 err_names:
 	kfree(v9ses->uname);
 	kfree(v9ses->aname);
@@ -444,8 +438,6 @@ void v9fs_session_close(struct v9fs_session_info *v9ses)
 #endif
 	kfree(v9ses->uname);
 	kfree(v9ses->aname);
-
-	bdi_destroy(&v9ses->bdi);
 
 	spin_lock(&v9fs_sessionlist_lock);
 	list_del(&v9ses->slist);

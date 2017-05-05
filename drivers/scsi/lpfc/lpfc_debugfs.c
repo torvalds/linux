@@ -745,73 +745,102 @@ lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
 {
 	struct lpfc_hba   *phba = vport->phba;
 	struct lpfc_nvmet_tgtport *tgtp;
+	struct lpfc_nvmet_rcv_ctx *ctxp, *next_ctxp;
 	int len = 0;
+	int cnt;
 
 	if (phba->nvmet_support) {
 		if (!phba->targetport)
 			return len;
 		tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
-		len += snprintf(buf+len, size-len,
+		len += snprintf(buf + len, size - len,
 				"\nNVME Targetport Statistics\n");
 
-		len += snprintf(buf+len, size-len,
+		len += snprintf(buf + len, size - len,
 				"LS: Rcv %08x Drop %08x Abort %08x\n",
 				atomic_read(&tgtp->rcv_ls_req_in),
 				atomic_read(&tgtp->rcv_ls_req_drop),
 				atomic_read(&tgtp->xmt_ls_abort));
 		if (atomic_read(&tgtp->rcv_ls_req_in) !=
 		    atomic_read(&tgtp->rcv_ls_req_out)) {
-			len += snprintf(buf+len, size-len,
+			len += snprintf(buf + len, size - len,
 					"Rcv LS: in %08x != out %08x\n",
 					atomic_read(&tgtp->rcv_ls_req_in),
 					atomic_read(&tgtp->rcv_ls_req_out));
 		}
 
-		len += snprintf(buf+len, size-len,
+		len += snprintf(buf + len, size - len,
 				"LS: Xmt %08x Drop %08x Cmpl %08x Err %08x\n",
 				atomic_read(&tgtp->xmt_ls_rsp),
 				atomic_read(&tgtp->xmt_ls_drop),
 				atomic_read(&tgtp->xmt_ls_rsp_cmpl),
 				atomic_read(&tgtp->xmt_ls_rsp_error));
 
-		len += snprintf(buf+len, size-len,
+		len += snprintf(buf + len, size - len,
 				"FCP: Rcv %08x Drop %08x\n",
 				atomic_read(&tgtp->rcv_fcp_cmd_in),
 				atomic_read(&tgtp->rcv_fcp_cmd_drop));
 
 		if (atomic_read(&tgtp->rcv_fcp_cmd_in) !=
 		    atomic_read(&tgtp->rcv_fcp_cmd_out)) {
-			len += snprintf(buf+len, size-len,
+			len += snprintf(buf + len, size - len,
 					"Rcv FCP: in %08x != out %08x\n",
 					atomic_read(&tgtp->rcv_fcp_cmd_in),
 					atomic_read(&tgtp->rcv_fcp_cmd_out));
 		}
 
-		len += snprintf(buf+len, size-len,
-				"FCP Rsp: read %08x readrsp %08x write %08x rsp %08x\n",
+		len += snprintf(buf + len, size - len,
+				"FCP Rsp: read %08x readrsp %08x "
+				"write %08x rsp %08x\n",
 				atomic_read(&tgtp->xmt_fcp_read),
 				atomic_read(&tgtp->xmt_fcp_read_rsp),
 				atomic_read(&tgtp->xmt_fcp_write),
 				atomic_read(&tgtp->xmt_fcp_rsp));
 
-		len += snprintf(buf+len, size-len,
+		len += snprintf(buf + len, size - len,
 				"FCP Rsp: abort %08x drop %08x\n",
 				atomic_read(&tgtp->xmt_fcp_abort),
 				atomic_read(&tgtp->xmt_fcp_drop));
 
-		len += snprintf(buf+len, size-len,
+		len += snprintf(buf + len, size - len,
 				"FCP Rsp Cmpl: %08x err %08x drop %08x\n",
 				atomic_read(&tgtp->xmt_fcp_rsp_cmpl),
 				atomic_read(&tgtp->xmt_fcp_rsp_error),
 				atomic_read(&tgtp->xmt_fcp_rsp_drop));
 
-		len += snprintf(buf+len, size-len,
+		len += snprintf(buf + len, size - len,
 				"ABORT: Xmt %08x Err %08x Cmpl %08x",
 				atomic_read(&tgtp->xmt_abort_rsp),
 				atomic_read(&tgtp->xmt_abort_rsp_error),
 				atomic_read(&tgtp->xmt_abort_cmpl));
 
-		len +=  snprintf(buf+len, size-len, "\n");
+		len +=  snprintf(buf + len, size - len, "\n");
+
+		cnt = 0;
+		spin_lock(&phba->sli4_hba.abts_nvme_buf_list_lock);
+		list_for_each_entry_safe(ctxp, next_ctxp,
+				&phba->sli4_hba.lpfc_abts_nvmet_ctx_list,
+				list) {
+			cnt++;
+		}
+		spin_unlock(&phba->sli4_hba.abts_nvme_buf_list_lock);
+		if (cnt) {
+			len += snprintf(buf + len, size - len,
+					"ABORT: %d ctx entries\n", cnt);
+			spin_lock(&phba->sli4_hba.abts_nvme_buf_list_lock);
+			list_for_each_entry_safe(ctxp, next_ctxp,
+				    &phba->sli4_hba.lpfc_abts_nvmet_ctx_list,
+				    list) {
+				if (len >= (size - LPFC_DEBUG_OUT_LINE_SZ))
+					break;
+				len += snprintf(buf + len, size - len,
+						"Entry: oxid %x state %x "
+						"flag %x\n",
+						ctxp->oxid, ctxp->state,
+						ctxp->flag);
+			}
+			spin_unlock(&phba->sli4_hba.abts_nvme_buf_list_lock);
+		}
 	} else {
 		if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME))
 			return len;
@@ -3128,8 +3157,6 @@ __lpfc_idiag_print_rqpair(struct lpfc_queue *qp, struct lpfc_queue *datqp,
 			datqp->queue_id, datqp->entry_count,
 			datqp->entry_size, datqp->host_index,
 			datqp->hba_index);
-	len +=  snprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len, "\n");
-
 	return len;
 }
 
@@ -5700,10 +5727,8 @@ lpfc_debugfs_terminate(struct lpfc_vport *vport)
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	struct lpfc_hba   *phba = vport->phba;
 
-	if (vport->disc_trc) {
-		kfree(vport->disc_trc);
-		vport->disc_trc = NULL;
-	}
+	kfree(vport->disc_trc);
+	vport->disc_trc = NULL;
 
 	debugfs_remove(vport->debug_disc_trc); /* discovery_trace */
 	vport->debug_disc_trc = NULL;
@@ -5770,10 +5795,8 @@ lpfc_debugfs_terminate(struct lpfc_vport *vport)
 		debugfs_remove(phba->debug_readRef); /* readRef */
 		phba->debug_readRef = NULL;
 
-		if (phba->slow_ring_trc) {
-			kfree(phba->slow_ring_trc);
-			phba->slow_ring_trc = NULL;
-		}
+		kfree(phba->slow_ring_trc);
+		phba->slow_ring_trc = NULL;
 
 		/* slow_ring_trace */
 		debugfs_remove(phba->debug_slow_ring_trc);

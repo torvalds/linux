@@ -58,7 +58,7 @@
 #include <asm/mmu_context.h>
 #include <asm/setup.h>
 #include <asm/paravirt.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/linkage.h>
 #include <asm/page.h>
 #include <asm/init.h>
@@ -535,40 +535,41 @@ static pgd_t *xen_get_user_pgd(pgd_t *pgd)
 	return user_ptr;
 }
 
-static void __xen_set_pgd_hyper(pgd_t *ptr, pgd_t val)
+static void __xen_set_p4d_hyper(p4d_t *ptr, p4d_t val)
 {
 	struct mmu_update u;
 
 	u.ptr = virt_to_machine(ptr).maddr;
-	u.val = pgd_val_ma(val);
+	u.val = p4d_val_ma(val);
 	xen_extend_mmu_update(&u);
 }
 
 /*
- * Raw hypercall-based set_pgd, intended for in early boot before
+ * Raw hypercall-based set_p4d, intended for in early boot before
  * there's a page structure.  This implies:
  *  1. The only existing pagetable is the kernel's
  *  2. It is always pinned
  *  3. It has no user pagetable attached to it
  */
-static void __init xen_set_pgd_hyper(pgd_t *ptr, pgd_t val)
+static void __init xen_set_p4d_hyper(p4d_t *ptr, p4d_t val)
 {
 	preempt_disable();
 
 	xen_mc_batch();
 
-	__xen_set_pgd_hyper(ptr, val);
+	__xen_set_p4d_hyper(ptr, val);
 
 	xen_mc_issue(PARAVIRT_LAZY_MMU);
 
 	preempt_enable();
 }
 
-static void xen_set_pgd(pgd_t *ptr, pgd_t val)
+static void xen_set_p4d(p4d_t *ptr, p4d_t val)
 {
-	pgd_t *user_ptr = xen_get_user_pgd(ptr);
+	pgd_t *user_ptr = xen_get_user_pgd((pgd_t *)ptr);
+	pgd_t pgd_val;
 
-	trace_xen_mmu_set_pgd(ptr, user_ptr, val);
+	trace_xen_mmu_set_p4d(ptr, (p4d_t *)user_ptr, val);
 
 	/* If page is not pinned, we can just update the entry
 	   directly */
@@ -576,7 +577,8 @@ static void xen_set_pgd(pgd_t *ptr, pgd_t val)
 		*ptr = val;
 		if (user_ptr) {
 			WARN_ON(xen_page_pinned(user_ptr));
-			*user_ptr = val;
+			pgd_val.pgd = p4d_val_ma(val);
+			*user_ptr = pgd_val;
 		}
 		return;
 	}
@@ -585,13 +587,71 @@ static void xen_set_pgd(pgd_t *ptr, pgd_t val)
 	   user updates together. */
 	xen_mc_batch();
 
-	__xen_set_pgd_hyper(ptr, val);
+	__xen_set_p4d_hyper(ptr, val);
 	if (user_ptr)
-		__xen_set_pgd_hyper(user_ptr, val);
+		__xen_set_p4d_hyper((p4d_t *)user_ptr, val);
 
 	xen_mc_issue(PARAVIRT_LAZY_MMU);
 }
 #endif	/* CONFIG_PGTABLE_LEVELS == 4 */
+
+static int xen_pmd_walk(struct mm_struct *mm, pmd_t *pmd,
+		int (*func)(struct mm_struct *mm, struct page *, enum pt_level),
+		bool last, unsigned long limit)
+{
+	int i, nr, flush = 0;
+
+	nr = last ? pmd_index(limit) + 1 : PTRS_PER_PMD;
+	for (i = 0; i < nr; i++) {
+		if (!pmd_none(pmd[i]))
+			flush |= (*func)(mm, pmd_page(pmd[i]), PT_PTE);
+	}
+	return flush;
+}
+
+static int xen_pud_walk(struct mm_struct *mm, pud_t *pud,
+		int (*func)(struct mm_struct *mm, struct page *, enum pt_level),
+		bool last, unsigned long limit)
+{
+	int i, nr, flush = 0;
+
+	nr = last ? pud_index(limit) + 1 : PTRS_PER_PUD;
+	for (i = 0; i < nr; i++) {
+		pmd_t *pmd;
+
+		if (pud_none(pud[i]))
+			continue;
+
+		pmd = pmd_offset(&pud[i], 0);
+		if (PTRS_PER_PMD > 1)
+			flush |= (*func)(mm, virt_to_page(pmd), PT_PMD);
+		flush |= xen_pmd_walk(mm, pmd, func,
+				last && i == nr - 1, limit);
+	}
+	return flush;
+}
+
+static int xen_p4d_walk(struct mm_struct *mm, p4d_t *p4d,
+		int (*func)(struct mm_struct *mm, struct page *, enum pt_level),
+		bool last, unsigned long limit)
+{
+	int i, nr, flush = 0;
+
+	nr = last ? p4d_index(limit) + 1 : PTRS_PER_P4D;
+	for (i = 0; i < nr; i++) {
+		pud_t *pud;
+
+		if (p4d_none(p4d[i]))
+			continue;
+
+		pud = pud_offset(&p4d[i], 0);
+		if (PTRS_PER_PUD > 1)
+			flush |= (*func)(mm, virt_to_page(pud), PT_PUD);
+		flush |= xen_pud_walk(mm, pud, func,
+				last && i == nr - 1, limit);
+	}
+	return flush;
+}
 
 /*
  * (Yet another) pagetable walker.  This one is intended for pinning a
@@ -613,10 +673,8 @@ static int __xen_pgd_walk(struct mm_struct *mm, pgd_t *pgd,
 				      enum pt_level),
 			  unsigned long limit)
 {
-	int flush = 0;
+	int i, nr, flush = 0;
 	unsigned hole_low, hole_high;
-	unsigned pgdidx_limit, pudidx_limit, pmdidx_limit;
-	unsigned pgdidx, pudidx, pmdidx;
 
 	/* The limit is the last byte to be touched */
 	limit--;
@@ -633,65 +691,22 @@ static int __xen_pgd_walk(struct mm_struct *mm, pgd_t *pgd,
 	hole_low = pgd_index(USER_LIMIT);
 	hole_high = pgd_index(PAGE_OFFSET);
 
-	pgdidx_limit = pgd_index(limit);
-#if PTRS_PER_PUD > 1
-	pudidx_limit = pud_index(limit);
-#else
-	pudidx_limit = 0;
-#endif
-#if PTRS_PER_PMD > 1
-	pmdidx_limit = pmd_index(limit);
-#else
-	pmdidx_limit = 0;
-#endif
+	nr = pgd_index(limit) + 1;
+	for (i = 0; i < nr; i++) {
+		p4d_t *p4d;
 
-	for (pgdidx = 0; pgdidx <= pgdidx_limit; pgdidx++) {
-		pud_t *pud;
-
-		if (pgdidx >= hole_low && pgdidx < hole_high)
+		if (i >= hole_low && i < hole_high)
 			continue;
 
-		if (!pgd_val(pgd[pgdidx]))
+		if (pgd_none(pgd[i]))
 			continue;
 
-		pud = pud_offset(&pgd[pgdidx], 0);
-
-		if (PTRS_PER_PUD > 1) /* not folded */
-			flush |= (*func)(mm, virt_to_page(pud), PT_PUD);
-
-		for (pudidx = 0; pudidx < PTRS_PER_PUD; pudidx++) {
-			pmd_t *pmd;
-
-			if (pgdidx == pgdidx_limit &&
-			    pudidx > pudidx_limit)
-				goto out;
-
-			if (pud_none(pud[pudidx]))
-				continue;
-
-			pmd = pmd_offset(&pud[pudidx], 0);
-
-			if (PTRS_PER_PMD > 1) /* not folded */
-				flush |= (*func)(mm, virt_to_page(pmd), PT_PMD);
-
-			for (pmdidx = 0; pmdidx < PTRS_PER_PMD; pmdidx++) {
-				struct page *pte;
-
-				if (pgdidx == pgdidx_limit &&
-				    pudidx == pudidx_limit &&
-				    pmdidx > pmdidx_limit)
-					goto out;
-
-				if (pmd_none(pmd[pmdidx]))
-					continue;
-
-				pte = pmd_page(pmd[pmdidx]);
-				flush |= (*func)(mm, pte, PT_PTE);
-			}
-		}
+		p4d = p4d_offset(&pgd[i], 0);
+		if (PTRS_PER_P4D > 1)
+			flush |= (*func)(mm, virt_to_page(p4d), PT_P4D);
+		flush |= xen_p4d_walk(mm, p4d, func, i == nr - 1, limit);
 	}
 
-out:
 	/* Do the top level last, so that the callbacks can use it as
 	   a cue to do final things like tlb flushes. */
 	flush |= (*func)(mm, virt_to_page(pgd), PT_PGD);
@@ -1150,57 +1165,97 @@ static void __init xen_cleanmfnmap_free_pgtbl(void *pgtbl, bool unpin)
 	xen_free_ro_pages(pa, PAGE_SIZE);
 }
 
+static void __init xen_cleanmfnmap_pmd(pmd_t *pmd, bool unpin)
+{
+	unsigned long pa;
+	pte_t *pte_tbl;
+	int i;
+
+	if (pmd_large(*pmd)) {
+		pa = pmd_val(*pmd) & PHYSICAL_PAGE_MASK;
+		xen_free_ro_pages(pa, PMD_SIZE);
+		return;
+	}
+
+	pte_tbl = pte_offset_kernel(pmd, 0);
+	for (i = 0; i < PTRS_PER_PTE; i++) {
+		if (pte_none(pte_tbl[i]))
+			continue;
+		pa = pte_pfn(pte_tbl[i]) << PAGE_SHIFT;
+		xen_free_ro_pages(pa, PAGE_SIZE);
+	}
+	set_pmd(pmd, __pmd(0));
+	xen_cleanmfnmap_free_pgtbl(pte_tbl, unpin);
+}
+
+static void __init xen_cleanmfnmap_pud(pud_t *pud, bool unpin)
+{
+	unsigned long pa;
+	pmd_t *pmd_tbl;
+	int i;
+
+	if (pud_large(*pud)) {
+		pa = pud_val(*pud) & PHYSICAL_PAGE_MASK;
+		xen_free_ro_pages(pa, PUD_SIZE);
+		return;
+	}
+
+	pmd_tbl = pmd_offset(pud, 0);
+	for (i = 0; i < PTRS_PER_PMD; i++) {
+		if (pmd_none(pmd_tbl[i]))
+			continue;
+		xen_cleanmfnmap_pmd(pmd_tbl + i, unpin);
+	}
+	set_pud(pud, __pud(0));
+	xen_cleanmfnmap_free_pgtbl(pmd_tbl, unpin);
+}
+
+static void __init xen_cleanmfnmap_p4d(p4d_t *p4d, bool unpin)
+{
+	unsigned long pa;
+	pud_t *pud_tbl;
+	int i;
+
+	if (p4d_large(*p4d)) {
+		pa = p4d_val(*p4d) & PHYSICAL_PAGE_MASK;
+		xen_free_ro_pages(pa, P4D_SIZE);
+		return;
+	}
+
+	pud_tbl = pud_offset(p4d, 0);
+	for (i = 0; i < PTRS_PER_PUD; i++) {
+		if (pud_none(pud_tbl[i]))
+			continue;
+		xen_cleanmfnmap_pud(pud_tbl + i, unpin);
+	}
+	set_p4d(p4d, __p4d(0));
+	xen_cleanmfnmap_free_pgtbl(pud_tbl, unpin);
+}
+
 /*
  * Since it is well isolated we can (and since it is perhaps large we should)
  * also free the page tables mapping the initial P->M table.
  */
 static void __init xen_cleanmfnmap(unsigned long vaddr)
 {
-	unsigned long va = vaddr & PMD_MASK;
-	unsigned long pa;
-	pgd_t *pgd = pgd_offset_k(va);
-	pud_t *pud_page = pud_offset(pgd, 0);
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *pte;
+	pgd_t *pgd;
+	p4d_t *p4d;
 	unsigned int i;
 	bool unpin;
 
 	unpin = (vaddr == 2 * PGDIR_SIZE);
-	set_pgd(pgd, __pgd(0));
-	do {
-		pud = pud_page + pud_index(va);
-		if (pud_none(*pud)) {
-			va += PUD_SIZE;
-		} else if (pud_large(*pud)) {
-			pa = pud_val(*pud) & PHYSICAL_PAGE_MASK;
-			xen_free_ro_pages(pa, PUD_SIZE);
-			va += PUD_SIZE;
-		} else {
-			pmd = pmd_offset(pud, va);
-			if (pmd_large(*pmd)) {
-				pa = pmd_val(*pmd) & PHYSICAL_PAGE_MASK;
-				xen_free_ro_pages(pa, PMD_SIZE);
-			} else if (!pmd_none(*pmd)) {
-				pte = pte_offset_kernel(pmd, va);
-				set_pmd(pmd, __pmd(0));
-				for (i = 0; i < PTRS_PER_PTE; ++i) {
-					if (pte_none(pte[i]))
-						break;
-					pa = pte_pfn(pte[i]) << PAGE_SHIFT;
-					xen_free_ro_pages(pa, PAGE_SIZE);
-				}
-				xen_cleanmfnmap_free_pgtbl(pte, unpin);
-			}
-			va += PMD_SIZE;
-			if (pmd_index(va))
-				continue;
-			set_pud(pud, __pud(0));
-			xen_cleanmfnmap_free_pgtbl(pmd, unpin);
-		}
-
-	} while (pud_index(va) || pmd_index(va));
-	xen_cleanmfnmap_free_pgtbl(pud_page, unpin);
+	vaddr &= PMD_MASK;
+	pgd = pgd_offset_k(vaddr);
+	p4d = p4d_offset(pgd, 0);
+	for (i = 0; i < PTRS_PER_P4D; i++) {
+		if (p4d_none(p4d[i]))
+			continue;
+		xen_cleanmfnmap_p4d(p4d + i, unpin);
+	}
+	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
+		set_pgd(pgd, __pgd(0));
+		xen_cleanmfnmap_free_pgtbl(p4d, unpin);
+	}
 }
 
 static void __init xen_pagetable_p2m_free(void)
@@ -1538,7 +1593,6 @@ static int xen_pgd_alloc(struct mm_struct *mm)
 		BUG_ON(PagePinned(virt_to_page(xen_get_user_pgd(pgd))));
 	}
 #endif
-
 	return ret;
 }
 
@@ -1730,7 +1784,7 @@ static void xen_release_pmd(unsigned long pfn)
 	xen_release_ptpage(pfn, PT_PMD);
 }
 
-#if CONFIG_PGTABLE_LEVELS == 4
+#if CONFIG_PGTABLE_LEVELS >= 4
 static void xen_alloc_pud(struct mm_struct *mm, unsigned long pfn)
 {
 	xen_alloc_ptpage(mm, pfn, PT_PUD);
@@ -2071,21 +2125,27 @@ static phys_addr_t __init xen_early_virt_to_phys(unsigned long vaddr)
  */
 void __init xen_relocate_p2m(void)
 {
-	phys_addr_t size, new_area, pt_phys, pmd_phys, pud_phys;
+	phys_addr_t size, new_area, pt_phys, pmd_phys, pud_phys, p4d_phys;
 	unsigned long p2m_pfn, p2m_pfn_end, n_frames, pfn, pfn_end;
-	int n_pte, n_pt, n_pmd, n_pud, idx_pte, idx_pt, idx_pmd, idx_pud;
+	int n_pte, n_pt, n_pmd, n_pud, n_p4d, idx_pte, idx_pt, idx_pmd, idx_pud, idx_p4d;
 	pte_t *pt;
 	pmd_t *pmd;
 	pud_t *pud;
+	p4d_t *p4d = NULL;
 	pgd_t *pgd;
 	unsigned long *new_p2m;
+	int save_pud;
 
 	size = PAGE_ALIGN(xen_start_info->nr_pages * sizeof(unsigned long));
 	n_pte = roundup(size, PAGE_SIZE) >> PAGE_SHIFT;
 	n_pt = roundup(size, PMD_SIZE) >> PMD_SHIFT;
 	n_pmd = roundup(size, PUD_SIZE) >> PUD_SHIFT;
-	n_pud = roundup(size, PGDIR_SIZE) >> PGDIR_SHIFT;
-	n_frames = n_pte + n_pt + n_pmd + n_pud;
+	n_pud = roundup(size, P4D_SIZE) >> P4D_SHIFT;
+	if (PTRS_PER_P4D > 1)
+		n_p4d = roundup(size, PGDIR_SIZE) >> PGDIR_SHIFT;
+	else
+		n_p4d = 0;
+	n_frames = n_pte + n_pt + n_pmd + n_pud + n_p4d;
 
 	new_area = xen_find_free_area(PFN_PHYS(n_frames));
 	if (!new_area) {
@@ -2101,55 +2161,76 @@ void __init xen_relocate_p2m(void)
 	 * To avoid any possible virtual address collision, just use
 	 * 2 * PUD_SIZE for the new area.
 	 */
-	pud_phys = new_area;
+	p4d_phys = new_area;
+	pud_phys = p4d_phys + PFN_PHYS(n_p4d);
 	pmd_phys = pud_phys + PFN_PHYS(n_pud);
 	pt_phys = pmd_phys + PFN_PHYS(n_pmd);
 	p2m_pfn = PFN_DOWN(pt_phys) + n_pt;
 
 	pgd = __va(read_cr3());
 	new_p2m = (unsigned long *)(2 * PGDIR_SIZE);
-	for (idx_pud = 0; idx_pud < n_pud; idx_pud++) {
-		pud = early_memremap(pud_phys, PAGE_SIZE);
-		clear_page(pud);
-		for (idx_pmd = 0; idx_pmd < min(n_pmd, PTRS_PER_PUD);
-		     idx_pmd++) {
-			pmd = early_memremap(pmd_phys, PAGE_SIZE);
-			clear_page(pmd);
-			for (idx_pt = 0; idx_pt < min(n_pt, PTRS_PER_PMD);
-			     idx_pt++) {
-				pt = early_memremap(pt_phys, PAGE_SIZE);
-				clear_page(pt);
-				for (idx_pte = 0;
-				     idx_pte < min(n_pte, PTRS_PER_PTE);
-				     idx_pte++) {
-					set_pte(pt + idx_pte,
-						pfn_pte(p2m_pfn, PAGE_KERNEL));
-					p2m_pfn++;
-				}
-				n_pte -= PTRS_PER_PTE;
-				early_memunmap(pt, PAGE_SIZE);
-				make_lowmem_page_readonly(__va(pt_phys));
-				pin_pagetable_pfn(MMUEXT_PIN_L1_TABLE,
-						  PFN_DOWN(pt_phys));
-				set_pmd(pmd + idx_pt,
-					__pmd(_PAGE_TABLE | pt_phys));
-				pt_phys += PAGE_SIZE;
-			}
-			n_pt -= PTRS_PER_PMD;
-			early_memunmap(pmd, PAGE_SIZE);
-			make_lowmem_page_readonly(__va(pmd_phys));
-			pin_pagetable_pfn(MMUEXT_PIN_L2_TABLE,
-					  PFN_DOWN(pmd_phys));
-			set_pud(pud + idx_pmd, __pud(_PAGE_TABLE | pmd_phys));
-			pmd_phys += PAGE_SIZE;
+	idx_p4d = 0;
+	save_pud = n_pud;
+	do {
+		if (n_p4d > 0) {
+			p4d = early_memremap(p4d_phys, PAGE_SIZE);
+			clear_page(p4d);
+			n_pud = min(save_pud, PTRS_PER_P4D);
 		}
-		n_pmd -= PTRS_PER_PUD;
-		early_memunmap(pud, PAGE_SIZE);
-		make_lowmem_page_readonly(__va(pud_phys));
-		pin_pagetable_pfn(MMUEXT_PIN_L3_TABLE, PFN_DOWN(pud_phys));
-		set_pgd(pgd + 2 + idx_pud, __pgd(_PAGE_TABLE | pud_phys));
-		pud_phys += PAGE_SIZE;
-	}
+		for (idx_pud = 0; idx_pud < n_pud; idx_pud++) {
+			pud = early_memremap(pud_phys, PAGE_SIZE);
+			clear_page(pud);
+			for (idx_pmd = 0; idx_pmd < min(n_pmd, PTRS_PER_PUD);
+				 idx_pmd++) {
+				pmd = early_memremap(pmd_phys, PAGE_SIZE);
+				clear_page(pmd);
+				for (idx_pt = 0; idx_pt < min(n_pt, PTRS_PER_PMD);
+					 idx_pt++) {
+					pt = early_memremap(pt_phys, PAGE_SIZE);
+					clear_page(pt);
+					for (idx_pte = 0;
+						 idx_pte < min(n_pte, PTRS_PER_PTE);
+						 idx_pte++) {
+						set_pte(pt + idx_pte,
+								pfn_pte(p2m_pfn, PAGE_KERNEL));
+						p2m_pfn++;
+					}
+					n_pte -= PTRS_PER_PTE;
+					early_memunmap(pt, PAGE_SIZE);
+					make_lowmem_page_readonly(__va(pt_phys));
+					pin_pagetable_pfn(MMUEXT_PIN_L1_TABLE,
+							PFN_DOWN(pt_phys));
+					set_pmd(pmd + idx_pt,
+							__pmd(_PAGE_TABLE | pt_phys));
+					pt_phys += PAGE_SIZE;
+				}
+				n_pt -= PTRS_PER_PMD;
+				early_memunmap(pmd, PAGE_SIZE);
+				make_lowmem_page_readonly(__va(pmd_phys));
+				pin_pagetable_pfn(MMUEXT_PIN_L2_TABLE,
+						PFN_DOWN(pmd_phys));
+				set_pud(pud + idx_pmd, __pud(_PAGE_TABLE | pmd_phys));
+				pmd_phys += PAGE_SIZE;
+			}
+			n_pmd -= PTRS_PER_PUD;
+			early_memunmap(pud, PAGE_SIZE);
+			make_lowmem_page_readonly(__va(pud_phys));
+			pin_pagetable_pfn(MMUEXT_PIN_L3_TABLE, PFN_DOWN(pud_phys));
+			if (n_p4d > 0)
+				set_p4d(p4d + idx_pud, __p4d(_PAGE_TABLE | pud_phys));
+			else
+				set_pgd(pgd + 2 + idx_pud, __pgd(_PAGE_TABLE | pud_phys));
+			pud_phys += PAGE_SIZE;
+		}
+		if (n_p4d > 0) {
+			save_pud -= PTRS_PER_P4D;
+			early_memunmap(p4d, PAGE_SIZE);
+			make_lowmem_page_readonly(__va(p4d_phys));
+			pin_pagetable_pfn(MMUEXT_PIN_L4_TABLE, PFN_DOWN(p4d_phys));
+			set_pgd(pgd + 2 + idx_p4d, __pgd(_PAGE_TABLE | p4d_phys));
+			p4d_phys += PAGE_SIZE;
+		}
+	} while (++idx_p4d < n_p4d);
 
 	/* Now copy the old p2m info to the new area. */
 	memcpy(new_p2m, xen_p2m_addr, size);
@@ -2326,6 +2407,7 @@ static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
 #endif
 	case FIX_TEXT_POKE0:
 	case FIX_TEXT_POKE1:
+	case FIX_GDT_REMAP_BEGIN ... FIX_GDT_REMAP_END:
 		/* All local page mappings */
 		pte = pfn_pte(phys, prot);
 		break;
@@ -2378,8 +2460,8 @@ static void __init xen_post_allocator_init(void)
 	pv_mmu_ops.set_pte = xen_set_pte;
 	pv_mmu_ops.set_pmd = xen_set_pmd;
 	pv_mmu_ops.set_pud = xen_set_pud;
-#if CONFIG_PGTABLE_LEVELS == 4
-	pv_mmu_ops.set_pgd = xen_set_pgd;
+#if CONFIG_PGTABLE_LEVELS >= 4
+	pv_mmu_ops.set_p4d = xen_set_p4d;
 #endif
 
 	/* This will work as long as patching hasn't happened yet
@@ -2388,7 +2470,7 @@ static void __init xen_post_allocator_init(void)
 	pv_mmu_ops.alloc_pmd = xen_alloc_pmd;
 	pv_mmu_ops.release_pte = xen_release_pte;
 	pv_mmu_ops.release_pmd = xen_release_pmd;
-#if CONFIG_PGTABLE_LEVELS == 4
+#if CONFIG_PGTABLE_LEVELS >= 4
 	pv_mmu_ops.alloc_pud = xen_alloc_pud;
 	pv_mmu_ops.release_pud = xen_release_pud;
 #endif
@@ -2454,10 +2536,10 @@ static const struct pv_mmu_ops xen_mmu_ops __initconst = {
 	.make_pmd = PV_CALLEE_SAVE(xen_make_pmd),
 	.pmd_val = PV_CALLEE_SAVE(xen_pmd_val),
 
-#if CONFIG_PGTABLE_LEVELS == 4
+#if CONFIG_PGTABLE_LEVELS >= 4
 	.pud_val = PV_CALLEE_SAVE(xen_pud_val),
 	.make_pud = PV_CALLEE_SAVE(xen_make_pud),
-	.set_pgd = xen_set_pgd_hyper,
+	.set_p4d = xen_set_p4d_hyper,
 
 	.alloc_pud = xen_alloc_pmd_init,
 	.release_pud = xen_release_pmd_init,

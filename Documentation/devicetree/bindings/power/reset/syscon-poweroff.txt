@@ -3,13 +3,20 @@ Generic SYSCON mapped register poweroff driver
 This is a generic poweroff driver using syscon to map the poweroff register.
 The poweroff is generally performed with a write to the poweroff register
 defined by the register map pointed by syscon reference plus the offset
-with the mask defined in the poweroff node.
+with the value and mask defined in the poweroff node.
 
 Required properties:
 - compatible: should contain "syscon-poweroff"
 - regmap: this is phandle to the register map node
 - offset: offset in the register map for the poweroff register (in bytes)
-- mask: the poweroff value written to the poweroff register (32 bit access)
+- value: the poweroff value written to the poweroff register (32 bit access)
+
+Optional properties:
+- mask: update only the register bits defined by the mask (32 bit)
+
+Legacy usage:
+If a node doesn't contain a value property but contains a mask property, the
+mask property is used as the value.
 
 Default will be little endian mode, 32 bit access only.
 

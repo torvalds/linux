@@ -439,6 +439,35 @@ int sysfs__read_str(const char *entry, char **buf, size_t *sizep)
 	return filename__read_str(path, buf, sizep);
 }
 
+int sysfs__read_bool(const char *entry, bool *value)
+{
+	char *buf;
+	size_t size;
+	int ret;
+
+	ret = sysfs__read_str(entry, &buf, &size);
+	if (ret < 0)
+		return ret;
+
+	switch (buf[0]) {
+	case '1':
+	case 'y':
+	case 'Y':
+		*value = true;
+		break;
+	case '0':
+	case 'n':
+	case 'N':
+		*value = false;
+		break;
+	default:
+		ret = -1;
+	}
+
+	free(buf);
+
+	return ret;
+}
 int sysctl__read_int(const char *sysctl, int *value)
 {
 	char path[PATH_MAX];

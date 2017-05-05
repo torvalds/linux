@@ -318,10 +318,6 @@ static int rrpc_move_valid_pages(struct rrpc *rrpc, struct rrpc_block *rblk)
 	}
 
 	page = mempool_alloc(rrpc->page_pool, GFP_NOIO);
-	if (!page) {
-		bio_put(bio);
-		return -ENOMEM;
-	}
 
 	while ((slot = find_first_zero_bit(rblk->invalid_pages,
 					    nr_sec_per_blk)) < nr_sec_per_blk) {
@@ -414,7 +410,6 @@ static void rrpc_block_gc(struct work_struct *work)
 	struct rrpc *rrpc = gcb->rrpc;
 	struct rrpc_block *rblk = gcb->rblk;
 	struct rrpc_lun *rlun = rblk->rlun;
-	struct nvm_tgt_dev *dev = rrpc->dev;
 	struct ppa_addr ppa;
 
 	mempool_free(gcb, rrpc->gcb_pool);
@@ -430,7 +425,7 @@ static void rrpc_block_gc(struct work_struct *work)
 	ppa.g.lun = rlun->bppa.g.lun;
 	ppa.g.blk = rblk->id;
 
-	if (nvm_erase_blk(dev, &ppa, 0))
+	if (nvm_erase_sync(rrpc->dev, &ppa, 1))
 		goto put_back;
 
 	rrpc_put_blk(rrpc, rblk);
@@ -822,7 +817,7 @@ static int rrpc_read_ppalist_rq(struct rrpc *rrpc, struct bio *bio,
 
 	for (i = 0; i < npages; i++) {
 		/* We assume that mapping occurs at 4KB granularity */
-		BUG_ON(!(laddr + i >= 0 && laddr + i < rrpc->nr_sects));
+		BUG_ON(!(laddr + i < rrpc->nr_sects));
 		gp = &rrpc->trans_map[laddr + i];
 
 		if (gp->rblk) {
@@ -851,7 +846,7 @@ static int rrpc_read_rq(struct rrpc *rrpc, struct bio *bio, struct nvm_rq *rqd,
 	if (!is_gc && rrpc_lock_rq(rrpc, bio, rqd))
 		return NVM_IO_REQUEUE;
 
-	BUG_ON(!(laddr >= 0 && laddr < rrpc->nr_sects));
+	BUG_ON(!(laddr < rrpc->nr_sects));
 	gp = &rrpc->trans_map[laddr];
 
 	if (gp->rblk) {
@@ -1007,11 +1002,6 @@ static blk_qc_t rrpc_make_rq(struct request_queue *q, struct bio *bio)
 	}
 
 	rqd = mempool_alloc(rrpc->rq_pool, GFP_KERNEL);
-	if (!rqd) {
-		pr_err_ratelimited("rrpc: not able to queue bio.");
-		bio_io_error(bio);
-		return BLK_QC_T_NONE;
-	}
 	memset(rqd, 0, sizeof(struct nvm_rq));
 
 	err = rrpc_submit_io(rrpc, bio, rqd, NVM_IOTYPE_NONE);
@@ -1275,8 +1265,10 @@ static int rrpc_bb_discovery(struct nvm_tgt_dev *dev, struct rrpc_lun *rlun)
 	}
 
 	nr_blks = nvm_bb_tbl_fold(dev->parent, blks, nr_blks);
-	if (nr_blks < 0)
-		return nr_blks;
+	if (nr_blks < 0) {
+		ret = nr_blks;
+		goto out;
+	}
 
 	for (i = 0; i < nr_blks; i++) {
 		if (blks[i] == NVM_BLK_T_FREE)
@@ -1514,7 +1506,8 @@ err:
 
 static struct nvm_tgt_type tt_rrpc;
 
-static void *rrpc_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk)
+static void *rrpc_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk,
+		       int flags)
 {
 	struct request_queue *bqueue = dev->q;
 	struct request_queue *tqueue = tdisk->queue;

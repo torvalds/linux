@@ -35,7 +35,7 @@
 
 #include <asm/setup.h>
 #include <asm/page.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/proto.h>
@@ -47,7 +47,7 @@
 #include <asm/pgalloc.h>
 
 /*
- * We allocate runtime services regions bottom-up, starting from -4G, i.e.
+ * We allocate runtime services regions top-down, starting from -4G, i.e.
  * 0xffff_ffff_0000_0000 and limit EFI VA mapping space to 64G.
  */
 static u64 efi_va = EFI_VA_START;
@@ -135,6 +135,7 @@ static pgd_t *efi_pgd;
 int __init efi_alloc_page_tables(void)
 {
 	pgd_t *pgd;
+	p4d_t *p4d;
 	pud_t *pud;
 	gfp_t gfp_mask;
 
@@ -147,14 +148,19 @@ int __init efi_alloc_page_tables(void)
 		return -ENOMEM;
 
 	pgd = efi_pgd + pgd_index(EFI_VA_END);
-
-	pud = pud_alloc_one(NULL, 0);
-	if (!pud) {
+	p4d = p4d_alloc(&init_mm, pgd, EFI_VA_END);
+	if (!p4d) {
 		free_page((unsigned long)efi_pgd);
 		return -ENOMEM;
 	}
 
-	pgd_populate(NULL, pgd, pud);
+	pud = pud_alloc(&init_mm, p4d, EFI_VA_END);
+	if (!pud) {
+		if (CONFIG_PGTABLE_LEVELS > 4)
+			free_page((unsigned long) pgd_page_vaddr(*pgd));
+		free_page((unsigned long)efi_pgd);
+		return -ENOMEM;
+	}
 
 	return 0;
 }
@@ -166,6 +172,7 @@ void efi_sync_low_kernel_mappings(void)
 {
 	unsigned num_entries;
 	pgd_t *pgd_k, *pgd_efi;
+	p4d_t *p4d_k, *p4d_efi;
 	pud_t *pud_k, *pud_efi;
 
 	if (efi_enabled(EFI_OLD_MEMMAP))
@@ -190,23 +197,37 @@ void efi_sync_low_kernel_mappings(void)
 	memcpy(pgd_efi, pgd_k, sizeof(pgd_t) * num_entries);
 
 	/*
+	 * As with PGDs, we share all P4D entries apart from the one entry
+	 * that covers the EFI runtime mapping space.
+	 */
+	BUILD_BUG_ON(p4d_index(EFI_VA_END) != p4d_index(MODULES_END));
+	BUILD_BUG_ON((EFI_VA_START & P4D_MASK) != (EFI_VA_END & P4D_MASK));
+
+	pgd_efi = efi_pgd + pgd_index(EFI_VA_END);
+	pgd_k = pgd_offset_k(EFI_VA_END);
+	p4d_efi = p4d_offset(pgd_efi, 0);
+	p4d_k = p4d_offset(pgd_k, 0);
+
+	num_entries = p4d_index(EFI_VA_END);
+	memcpy(p4d_efi, p4d_k, sizeof(p4d_t) * num_entries);
+
+	/*
 	 * We share all the PUD entries apart from those that map the
 	 * EFI regions. Copy around them.
 	 */
 	BUILD_BUG_ON((EFI_VA_START & ~PUD_MASK) != 0);
 	BUILD_BUG_ON((EFI_VA_END & ~PUD_MASK) != 0);
 
-	pgd_efi = efi_pgd + pgd_index(EFI_VA_END);
-	pud_efi = pud_offset(pgd_efi, 0);
-
-	pgd_k = pgd_offset_k(EFI_VA_END);
-	pud_k = pud_offset(pgd_k, 0);
+	p4d_efi = p4d_offset(pgd_efi, EFI_VA_END);
+	p4d_k = p4d_offset(pgd_k, EFI_VA_END);
+	pud_efi = pud_offset(p4d_efi, 0);
+	pud_k = pud_offset(p4d_k, 0);
 
 	num_entries = pud_index(EFI_VA_END);
 	memcpy(pud_efi, pud_k, sizeof(pud_t) * num_entries);
 
-	pud_efi = pud_offset(pgd_efi, EFI_VA_START);
-	pud_k = pud_offset(pgd_k, EFI_VA_START);
+	pud_efi = pud_offset(p4d_efi, EFI_VA_START);
+	pud_k = pud_offset(p4d_k, EFI_VA_START);
 
 	num_entries = PTRS_PER_PUD - pud_index(EFI_VA_START);
 	memcpy(pud_efi, pud_k, sizeof(pud_t) * num_entries);

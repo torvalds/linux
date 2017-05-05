@@ -287,7 +287,7 @@ static void ide_pio_datablock(ide_drive_t *drive, struct ide_cmd *cmd,
 	u8 saved_io_32bit = drive->io_32bit;
 
 	if (cmd->tf_flags & IDE_TFLAG_FS)
-		cmd->rq->errors = 0;
+		scsi_req(cmd->rq)->result = 0;
 
 	if (cmd->tf_flags & IDE_TFLAG_IO_16BIT)
 		drive->io_32bit = 0;
@@ -329,7 +329,7 @@ void ide_finish_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat)
 	u8 set_xfer = !!(cmd->tf_flags & IDE_TFLAG_SET_XFER);
 
 	ide_complete_cmd(drive, cmd, stat, err);
-	rq->errors = err;
+	scsi_req(rq)->result = err;
 
 	if (err == 0 && set_xfer) {
 		ide_set_xfer_rate(drive, nsect);
@@ -452,8 +452,8 @@ int ide_raw_taskfile(ide_drive_t *drive, struct ide_cmd *cmd, u8 *buf,
 	rq->special = cmd;
 	cmd->rq = rq;
 
-	error = blk_execute_rq(drive->queue, NULL, rq, 0);
-
+	blk_execute_rq(drive->queue, NULL, rq, 0);
+	error = scsi_req(rq)->result ? -EIO : 0;
 put_req:
 	blk_put_request(rq);
 	return error;

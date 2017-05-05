@@ -8,8 +8,9 @@ Overview
 --------
 These events are similar to tracepoint based events. Instead of Tracepoint,
 this is based on kprobes (kprobe and kretprobe). So it can probe wherever
-kprobes can probe (this means, all functions body except for __kprobes
-functions). Unlike the Tracepoint based event, this can be added and removed
+kprobes can probe (this means, all functions except those with
+__kprobes/nokprobe_inline annotation and those marked NOKPROBE_SYMBOL).
+Unlike the Tracepoint based event, this can be added and removed
 dynamically, on the fly.
 
 To enable this feature, build your kernel with CONFIG_KPROBE_EVENTS=y.

@@ -660,6 +660,7 @@ look_up_lock_class(struct lockdep_map *lock, unsigned int subclass)
 	struct lockdep_subclass_key *key;
 	struct hlist_head *hash_head;
 	struct lock_class *class;
+	bool is_static = false;
 
 	if (unlikely(subclass >= MAX_LOCKDEP_SUBCLASSES)) {
 		debug_locks_off();
@@ -673,10 +674,23 @@ look_up_lock_class(struct lockdep_map *lock, unsigned int subclass)
 
 	/*
 	 * Static locks do not have their class-keys yet - for them the key
-	 * is the lock object itself:
+	 * is the lock object itself. If the lock is in the per cpu area,
+	 * the canonical address of the lock (per cpu offset removed) is
+	 * used.
 	 */
-	if (unlikely(!lock->key))
-		lock->key = (void *)lock;
+	if (unlikely(!lock->key)) {
+		unsigned long can_addr, addr = (unsigned long)lock;
+
+		if (__is_kernel_percpu_address(addr, &can_addr))
+			lock->key = (void *)can_addr;
+		else if (__is_module_percpu_address(addr, &can_addr))
+			lock->key = (void *)can_addr;
+		else if (static_obj(lock))
+			lock->key = (void *)lock;
+		else
+			return ERR_PTR(-EINVAL);
+		is_static = true;
+	}
 
 	/*
 	 * NOTE: the class-key must be unique. For dynamic locks, a static
@@ -708,7 +722,7 @@ look_up_lock_class(struct lockdep_map *lock, unsigned int subclass)
 		}
 	}
 
-	return NULL;
+	return is_static || static_obj(lock->key) ? NULL : ERR_PTR(-EINVAL);
 }
 
 /*
@@ -726,19 +740,18 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
 	DEBUG_LOCKS_WARN_ON(!irqs_disabled());
 
 	class = look_up_lock_class(lock, subclass);
-	if (likely(class))
+	if (likely(!IS_ERR_OR_NULL(class)))
 		goto out_set_class_cache;
 
 	/*
 	 * Debug-check: all keys must be persistent!
- 	 */
-	if (!static_obj(lock->key)) {
+	 */
+	if (IS_ERR(class)) {
 		debug_locks_off();
 		printk("INFO: trying to register non-static key.\n");
 		printk("the code is fine but needs lockdep annotation.\n");
 		printk("turning off the locking correctness validator.\n");
 		dump_stack();
-
 		return NULL;
 	}
 
@@ -3419,7 +3432,7 @@ static int match_held_lock(struct held_lock *hlock, struct lockdep_map *lock)
 		 * Clearly if the lock hasn't been acquired _ever_, we're not
 		 * holding it either, so report failure.
 		 */
-		if (!class)
+		if (IS_ERR_OR_NULL(class))
 			return 0;
 
 		/*
@@ -3437,13 +3450,67 @@ static int match_held_lock(struct held_lock *hlock, struct lockdep_map *lock)
 	return 0;
 }
 
+/* @depth must not be zero */
+static struct held_lock *find_held_lock(struct task_struct *curr,
+					struct lockdep_map *lock,
+					unsigned int depth, int *idx)
+{
+	struct held_lock *ret, *hlock, *prev_hlock;
+	int i;
+
+	i = depth - 1;
+	hlock = curr->held_locks + i;
+	ret = hlock;
+	if (match_held_lock(hlock, lock))
+		goto out;
+
+	ret = NULL;
+	for (i--, prev_hlock = hlock--;
+	     i >= 0;
+	     i--, prev_hlock = hlock--) {
+		/*
+		 * We must not cross into another context:
+		 */
+		if (prev_hlock->irq_context != hlock->irq_context) {
+			ret = NULL;
+			break;
+		}
+		if (match_held_lock(hlock, lock)) {
+			ret = hlock;
+			break;
+		}
+	}
+
+out:
+	*idx = i;
+	return ret;
+}
+
+static int reacquire_held_locks(struct task_struct *curr, unsigned int depth,
+			      int idx)
+{
+	struct held_lock *hlock;
+
+	for (hlock = curr->held_locks + idx; idx < depth; idx++, hlock++) {
+		if (!__lock_acquire(hlock->instance,
+				    hlock_class(hlock)->subclass,
+				    hlock->trylock,
+				    hlock->read, hlock->check,
+				    hlock->hardirqs_off,
+				    hlock->nest_lock, hlock->acquire_ip,
+				    hlock->references, hlock->pin_count))
+			return 1;
+	}
+	return 0;
+}
+
 static int
 __lock_set_class(struct lockdep_map *lock, const char *name,
 		 struct lock_class_key *key, unsigned int subclass,
 		 unsigned long ip)
 {
 	struct task_struct *curr = current;
-	struct held_lock *hlock, *prev_hlock;
+	struct held_lock *hlock;
 	struct lock_class *class;
 	unsigned int depth;
 	int i;
@@ -3456,21 +3523,10 @@ __lock_set_class(struct lockdep_map *lock, const char *name,
 	if (DEBUG_LOCKS_WARN_ON(!depth))
 		return 0;
 
-	prev_hlock = NULL;
-	for (i = depth-1; i >= 0; i--) {
-		hlock = curr->held_locks + i;
-		/*
-		 * We must not cross into another context:
-		 */
-		if (prev_hlock && prev_hlock->irq_context != hlock->irq_context)
-			break;
-		if (match_held_lock(hlock, lock))
-			goto found_it;
-		prev_hlock = hlock;
-	}
-	return print_unlock_imbalance_bug(curr, lock, ip);
+	hlock = find_held_lock(curr, lock, depth, &i);
+	if (!hlock)
+		return print_unlock_imbalance_bug(curr, lock, ip);
 
-found_it:
 	lockdep_init_map(lock, name, key, 0);
 	class = register_lock_class(lock, subclass, 0);
 	hlock->class_idx = class - lock_classes + 1;
@@ -3478,15 +3534,46 @@ found_it:
 	curr->lockdep_depth = i;
 	curr->curr_chain_key = hlock->prev_chain_key;
 
-	for (; i < depth; i++) {
-		hlock = curr->held_locks + i;
-		if (!__lock_acquire(hlock->instance,
-			hlock_class(hlock)->subclass, hlock->trylock,
-				hlock->read, hlock->check, hlock->hardirqs_off,
-				hlock->nest_lock, hlock->acquire_ip,
-				hlock->references, hlock->pin_count))
-			return 0;
-	}
+	if (reacquire_held_locks(curr, depth, i))
+		return 0;
+
+	/*
+	 * I took it apart and put it back together again, except now I have
+	 * these 'spare' parts.. where shall I put them.
+	 */
+	if (DEBUG_LOCKS_WARN_ON(curr->lockdep_depth != depth))
+		return 0;
+	return 1;
+}
+
+static int __lock_downgrade(struct lockdep_map *lock, unsigned long ip)
+{
+	struct task_struct *curr = current;
+	struct held_lock *hlock;
+	unsigned int depth;
+	int i;
+
+	depth = curr->lockdep_depth;
+	/*
+	 * This function is about (re)setting the class of a held lock,
+	 * yet we're not actually holding any locks. Naughty user!
+	 */
+	if (DEBUG_LOCKS_WARN_ON(!depth))
+		return 0;
+
+	hlock = find_held_lock(curr, lock, depth, &i);
+	if (!hlock)
+		return print_unlock_imbalance_bug(curr, lock, ip);
+
+	curr->lockdep_depth = i;
+	curr->curr_chain_key = hlock->prev_chain_key;
+
+	WARN(hlock->read, "downgrading a read lock");
+	hlock->read = 1;
+	hlock->acquire_ip = ip;
+
+	if (reacquire_held_locks(curr, depth, i))
+		return 0;
 
 	/*
 	 * I took it apart and put it back together again, except now I have
@@ -3508,7 +3595,7 @@ static int
 __lock_release(struct lockdep_map *lock, int nested, unsigned long ip)
 {
 	struct task_struct *curr = current;
-	struct held_lock *hlock, *prev_hlock;
+	struct held_lock *hlock;
 	unsigned int depth;
 	int i;
 
@@ -3527,21 +3614,10 @@ __lock_release(struct lockdep_map *lock, int nested, unsigned long ip)
 	 * Check whether the lock exists in the current stack
 	 * of held locks:
 	 */
-	prev_hlock = NULL;
-	for (i = depth-1; i >= 0; i--) {
-		hlock = curr->held_locks + i;
-		/*
-		 * We must not cross into another context:
-		 */
-		if (prev_hlock && prev_hlock->irq_context != hlock->irq_context)
-			break;
-		if (match_held_lock(hlock, lock))
-			goto found_it;
-		prev_hlock = hlock;
-	}
-	return print_unlock_imbalance_bug(curr, lock, ip);
+	hlock = find_held_lock(curr, lock, depth, &i);
+	if (!hlock)
+		return print_unlock_imbalance_bug(curr, lock, ip);
 
-found_it:
 	if (hlock->instance == lock)
 		lock_release_holdtime(hlock);
 
@@ -3568,15 +3644,8 @@ found_it:
 	curr->lockdep_depth = i;
 	curr->curr_chain_key = hlock->prev_chain_key;
 
-	for (i++; i < depth; i++) {
-		hlock = curr->held_locks + i;
-		if (!__lock_acquire(hlock->instance,
-			hlock_class(hlock)->subclass, hlock->trylock,
-				hlock->read, hlock->check, hlock->hardirqs_off,
-				hlock->nest_lock, hlock->acquire_ip,
-				hlock->references, hlock->pin_count))
-			return 0;
-	}
+	if (reacquire_held_locks(curr, depth, i + 1))
+		return 0;
 
 	/*
 	 * We had N bottles of beer on the wall, we drank one, but now
@@ -3741,6 +3810,23 @@ void lock_set_class(struct lockdep_map *lock, const char *name,
 }
 EXPORT_SYMBOL_GPL(lock_set_class);
 
+void lock_downgrade(struct lockdep_map *lock, unsigned long ip)
+{
+	unsigned long flags;
+
+	if (unlikely(current->lockdep_recursion))
+		return;
+
+	raw_local_irq_save(flags);
+	current->lockdep_recursion = 1;
+	check_flags(flags);
+	if (__lock_downgrade(lock, ip))
+		check_chain_key(current);
+	current->lockdep_recursion = 0;
+	raw_local_irq_restore(flags);
+}
+EXPORT_SYMBOL_GPL(lock_downgrade);
+
 /*
  * We are not always called with irqs disabled - do that here,
  * and also avoid lockdep recursion:
@@ -3903,7 +3989,7 @@ static void
 __lock_contended(struct lockdep_map *lock, unsigned long ip)
 {
 	struct task_struct *curr = current;
-	struct held_lock *hlock, *prev_hlock;
+	struct held_lock *hlock;
 	struct lock_class_stats *stats;
 	unsigned int depth;
 	int i, contention_point, contending_point;
@@ -3916,22 +4002,12 @@ __lock_contended(struct lockdep_map *lock, unsigned long ip)
 	if (DEBUG_LOCKS_WARN_ON(!depth))
 		return;
 
-	prev_hlock = NULL;
-	for (i = depth-1; i >= 0; i--) {
-		hlock = curr->held_locks + i;
-		/*
-		 * We must not cross into another context:
-		 */
-		if (prev_hlock && prev_hlock->irq_context != hlock->irq_context)
-			break;
-		if (match_held_lock(hlock, lock))
-			goto found_it;
-		prev_hlock = hlock;
+	hlock = find_held_lock(curr, lock, depth, &i);
+	if (!hlock) {
+		print_lock_contention_bug(curr, lock, ip);
+		return;
 	}
-	print_lock_contention_bug(curr, lock, ip);
-	return;
 
-found_it:
 	if (hlock->instance != lock)
 		return;
 
@@ -3955,7 +4031,7 @@ static void
 __lock_acquired(struct lockdep_map *lock, unsigned long ip)
 {
 	struct task_struct *curr = current;
-	struct held_lock *hlock, *prev_hlock;
+	struct held_lock *hlock;
 	struct lock_class_stats *stats;
 	unsigned int depth;
 	u64 now, waittime = 0;
@@ -3969,22 +4045,12 @@ __lock_acquired(struct lockdep_map *lock, unsigned long ip)
 	if (DEBUG_LOCKS_WARN_ON(!depth))
 		return;
 
-	prev_hlock = NULL;
-	for (i = depth-1; i >= 0; i--) {
-		hlock = curr->held_locks + i;
-		/*
-		 * We must not cross into another context:
-		 */
-		if (prev_hlock && prev_hlock->irq_context != hlock->irq_context)
-			break;
-		if (match_held_lock(hlock, lock))
-			goto found_it;
-		prev_hlock = hlock;
+	hlock = find_held_lock(curr, lock, depth, &i);
+	if (!hlock) {
+		print_lock_contention_bug(curr, lock, _RET_IP_);
+		return;
 	}
-	print_lock_contention_bug(curr, lock, _RET_IP_);
-	return;
 
-found_it:
 	if (hlock->instance != lock)
 		return;
 
@@ -4172,7 +4238,7 @@ void lockdep_reset_lock(struct lockdep_map *lock)
 		 * If the class exists we look it up and zap it:
 		 */
 		class = look_up_lock_class(lock, j);
-		if (class)
+		if (!IS_ERR_OR_NULL(class))
 			zap_class(class);
 	}
 	/*

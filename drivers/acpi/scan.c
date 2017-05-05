@@ -30,12 +30,6 @@ extern struct acpi_device *acpi_root;
 
 #define INVALID_ACPI_HANDLE	((acpi_handle)empty_zero_page)
 
-/*
- * If set, devices will be hot-removed even if they cannot be put offline
- * gracefully (from the kernel's standpoint).
- */
-bool acpi_force_hot_remove;
-
 static const char *dummy_hid = "device";
 
 static LIST_HEAD(acpi_dep_list);
@@ -170,9 +164,6 @@ static acpi_status acpi_bus_offline(acpi_handle handle, u32 lvl, void *data,
 			pn->put_online = false;
 		}
 		ret = device_offline(pn->dev);
-		if (acpi_force_hot_remove)
-			continue;
-
 		if (ret >= 0) {
 			pn->put_online = !ret;
 		} else {
@@ -241,11 +232,11 @@ static int acpi_scan_try_to_offline(struct acpi_device *device)
 		acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
 				    NULL, acpi_bus_offline, (void *)true,
 				    (void **)&errdev);
-		if (!errdev || acpi_force_hot_remove)
+		if (!errdev)
 			acpi_bus_offline(handle, 0, (void *)true,
 					 (void **)&errdev);
 
-		if (errdev && !acpi_force_hot_remove) {
+		if (errdev) {
 			dev_warn(errdev, "Offline failed.\n");
 			acpi_bus_online(handle, 0, NULL, NULL);
 			acpi_walk_namespace(ACPI_TYPE_ANY, handle,
@@ -263,8 +254,7 @@ static int acpi_scan_hot_remove(struct acpi_device *device)
 	unsigned long long sta;
 	acpi_status status;
 
-	if (device->handler && device->handler->hotplug.demand_offline
-	    && !acpi_force_hot_remove) {
+	if (device->handler && device->handler->hotplug.demand_offline) {
 		if (!acpi_scan_is_offline(device, true))
 			return -EBUSY;
 	} else {
@@ -1850,6 +1840,8 @@ static void acpi_bus_attach(struct acpi_device *device)
 			device->flags.power_manageable = 0;
 
 		device->flags.initialized = true;
+	} else if (device->flags.visited) {
+		goto ok;
 	}
 
 	ret = acpi_scan_attach_handler(device);
@@ -1866,10 +1858,10 @@ static void acpi_bus_attach(struct acpi_device *device)
 	if (ret < 0)
 		return;
 
-	if (ret > 0 || !device->pnp.type.platform_id)
-		acpi_device_set_enumerated(device);
-	else
+	if (device->pnp.type.platform_id)
 		acpi_default_enumeration(device);
+	else
+		acpi_device_set_enumerated(device);
 
  ok:
 	list_for_each_entry(child, &device->children, node)

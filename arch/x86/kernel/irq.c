@@ -394,6 +394,9 @@ int check_irq_vectors_for_cpu_disable(void)
 		    !cpumask_subset(&affinity_new, &online_new))
 			this_count++;
 	}
+	/* No need to check any further. */
+	if (!this_count)
+		return 0;
 
 	count = 0;
 	for_each_online_cpu(cpu) {
@@ -411,8 +414,10 @@ int check_irq_vectors_for_cpu_disable(void)
 		for (vector = FIRST_EXTERNAL_VECTOR;
 		     vector < first_system_vector; vector++) {
 			if (!test_bit(vector, used_vectors) &&
-			    IS_ERR_OR_NULL(per_cpu(vector_irq, cpu)[vector]))
-			    count++;
+			    IS_ERR_OR_NULL(per_cpu(vector_irq, cpu)[vector])) {
+				if (++count == this_count)
+					return 0;
+			}
 		}
 	}
 

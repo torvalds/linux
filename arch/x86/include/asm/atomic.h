@@ -186,6 +186,12 @@ static __always_inline int atomic_cmpxchg(atomic_t *v, int old, int new)
 	return cmpxchg(&v->counter, old, new);
 }
 
+#define atomic_try_cmpxchg atomic_try_cmpxchg
+static __always_inline bool atomic_try_cmpxchg(atomic_t *v, int *old, int new)
+{
+	return try_cmpxchg(&v->counter, old, new);
+}
+
 static inline int atomic_xchg(atomic_t *v, int new)
 {
 	return xchg(&v->counter, new);
@@ -201,16 +207,12 @@ static inline void atomic_##op(int i, atomic_t *v)			\
 }
 
 #define ATOMIC_FETCH_OP(op, c_op)					\
-static inline int atomic_fetch_##op(int i, atomic_t *v)		\
+static inline int atomic_fetch_##op(int i, atomic_t *v)			\
 {									\
-	int old, val = atomic_read(v);					\
-	for (;;) {							\
-		old = atomic_cmpxchg(v, val, val c_op i);		\
-		if (old == val)						\
-			break;						\
-		val = old;						\
-	}								\
-	return old;							\
+	int val = atomic_read(v);					\
+	do {								\
+	} while (!atomic_try_cmpxchg(v, &val, val c_op i));		\
+	return val;							\
 }
 
 #define ATOMIC_OPS(op, c_op)						\
@@ -236,16 +238,11 @@ ATOMIC_OPS(xor, ^)
  */
 static __always_inline int __atomic_add_unless(atomic_t *v, int a, int u)
 {
-	int c, old;
-	c = atomic_read(v);
-	for (;;) {
-		if (unlikely(c == (u)))
+	int c = atomic_read(v);
+	do {
+		if (unlikely(c == u))
 			break;
-		old = atomic_cmpxchg((v), c, c + (a));
-		if (likely(old == c))
-			break;
-		c = old;
-	}
+	} while (!atomic_try_cmpxchg(v, &c, c + a));
 	return c;
 }
 

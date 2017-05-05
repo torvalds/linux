@@ -1,5 +1,7 @@
 #include "xyarray.h"
 #include "util.h"
+#include <stdlib.h>
+#include <string.h>
 
 struct xyarray *xyarray__new(int xlen, int ylen, size_t entry_size)
 {

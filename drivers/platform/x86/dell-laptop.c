@@ -29,6 +29,7 @@
 #include <linux/mm.h>
 #include <linux/i8042.h>
 #include <linux/debugfs.h>
+#include <linux/dell-led.h>
 #include <linux/seq_file.h>
 #include <acpi/video.h>
 #include "dell-rbtn.h"
@@ -42,6 +43,8 @@
 #define KBD_LED_AUTO_50_TOKEN 0x02EB
 #define KBD_LED_AUTO_75_TOKEN 0x02EC
 #define KBD_LED_AUTO_100_TOKEN 0x02F6
+#define GLOBAL_MIC_MUTE_ENABLE 0x0364
+#define GLOBAL_MIC_MUTE_DISABLE 0x0365
 
 struct quirk_entry {
 	u8 touchpad_led;
@@ -1977,6 +1980,31 @@ static void kbd_led_exit(void)
 	kbd_led.brightness_set = brightness_set_exit;
 	led_classdev_unregister(&kbd_led);
 }
+
+int dell_micmute_led_set(int state)
+{
+	struct calling_interface_buffer *buffer;
+	struct calling_interface_token *token;
+
+	if (state == 0)
+		token = dell_smbios_find_token(GLOBAL_MIC_MUTE_DISABLE);
+	else if (state == 1)
+		token = dell_smbios_find_token(GLOBAL_MIC_MUTE_ENABLE);
+	else
+		return -EINVAL;
+
+	if (!token)
+		return -ENODEV;
+
+	buffer = dell_smbios_get_buffer();
+	buffer->input[0] = token->location;
+	buffer->input[1] = token->value;
+	dell_smbios_send_request(1, 0);
+	dell_smbios_release_buffer();
+
+	return state;
+}
+EXPORT_SYMBOL_GPL(dell_micmute_led_set);
 
 static int __init dell_init(void)
 {

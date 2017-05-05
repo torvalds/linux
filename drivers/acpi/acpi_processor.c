@@ -388,11 +388,6 @@ static int acpi_processor_add(struct acpi_device *device,
 	if (result) /* Processor is not physically present or unavailable */
 		return 0;
 
-#ifdef CONFIG_SMP
-	if (pr->id >= setup_max_cpus && pr->id != 0)
-		return 0;
-#endif
-
 	BUG_ON(pr->id >= nr_cpu_ids);
 
 	/*

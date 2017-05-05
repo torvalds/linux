@@ -81,7 +81,7 @@ xfs_zero_extent(
 	return blkdev_issue_zeroout(xfs_find_bdev_for_inode(VFS_I(ip)),
 		block << (mp->m_super->s_blocksize_bits - 9),
 		count_fsb << (mp->m_super->s_blocksize_bits - 9),
-		GFP_NOFS, true);
+		GFP_NOFS, 0);
 }
 
 int

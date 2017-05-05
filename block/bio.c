@@ -30,6 +30,7 @@
 #include <linux/cgroup.h>
 
 #include <trace/events/block.h>
+#include "blk.h"
 
 /*
  * Test patch to inline a certain number of bi_io_vec's inside the bio
@@ -427,7 +428,8 @@ static void punt_bios_to_rescuer(struct bio_set *bs)
  *   RETURNS:
  *   Pointer to new bio on success, NULL on failure.
  */
-struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
+struct bio *bio_alloc_bioset(gfp_t gfp_mask, unsigned int nr_iovecs,
+			     struct bio_set *bs)
 {
 	gfp_t saved_gfp = gfp_mask;
 	unsigned front_pad;
@@ -1824,6 +1826,11 @@ static inline bool bio_remaining_done(struct bio *bio)
  *   bio_endio() will end I/O on the whole bio. bio_endio() is the preferred
  *   way to end I/O on a bio. No one should call bi_end_io() directly on a
  *   bio unless they own it and thus know that it has an end_io function.
+ *
+ *   bio_endio() can be called several times on a bio that has been chained
+ *   using bio_chain().  The ->bi_end_io() function will only be called the
+ *   last time.  At this point the BLK_TA_COMPLETE tracing event will be
+ *   generated if BIO_TRACE_COMPLETION is set.
  **/
 void bio_endio(struct bio *bio)
 {
@@ -1844,6 +1851,13 @@ again:
 		goto again;
 	}
 
+	if (bio->bi_bdev && bio_flagged(bio, BIO_TRACE_COMPLETION)) {
+		trace_block_bio_complete(bdev_get_queue(bio->bi_bdev),
+					 bio, bio->bi_error);
+		bio_clear_flag(bio, BIO_TRACE_COMPLETION);
+	}
+
+	blk_throtl_bio_endio(bio);
 	if (bio->bi_end_io)
 		bio->bi_end_io(bio);
 }
@@ -1881,6 +1895,9 @@ struct bio *bio_split(struct bio *bio, int sectors,
 		bio_integrity_trim(split, 0, sectors);
 
 	bio_advance(bio, split->bi_iter.bi_size);
+
+	if (bio_flagged(bio, BIO_TRACE_COMPLETION))
+		bio_set_flag(bio, BIO_TRACE_COMPLETION);
 
 	return split;
 }

@@ -85,11 +85,13 @@ struct perf_stat_output_ctx {
 	void *ctx;
 	print_metric_t print_metric;
 	new_line_t new_line;
+	bool force_header;
 };
 
 void perf_stat__print_shadow_stats(struct perf_evsel *evsel,
 				   double avg, int cpu,
 				   struct perf_stat_output_ctx *out);
+void perf_stat__collect_metric_expr(struct perf_evlist *);
 
 int perf_evlist__alloc_stats(struct perf_evlist *evlist, bool alloc_raw);
 void perf_evlist__free_stats(struct perf_evlist *evlist);

@@ -581,7 +581,7 @@ sg_write(struct file *filp, const char __user *buf, size_t count, loff_t * ppos)
 	sg_io_hdr_t *hp;
 	unsigned char cmnd[SG_MAX_CDB_SIZE];
 
-	if (unlikely(segment_eq(get_fs(), KERNEL_DS)))
+	if (unlikely(uaccess_kernel()))
 		return -EINVAL;
 
 	if ((!(sfp = (Sg_fd *) filp->private_data)) || (!(sdp = sfp->parentdp)))
@@ -1300,7 +1300,7 @@ sg_rq_end_io(struct request *rq, int uptodate)
 		pr_info("%s: device detaching\n", __func__);
 
 	sense = req->sense;
-	result = rq->errors;
+	result = req->result;
 	resid = req->resid_len;
 
 	SCSI_LOG_TIMEOUT(4, sg_printk(KERN_INFO, sdp,
@@ -1718,7 +1718,7 @@ sg_start_req(Sg_request *srp, unsigned char *cmd)
 
 	srp->rq = rq;
 	rq->end_io_data = srp;
-	rq->retries = SG_DEFAULT_RETRIES;
+	req->retries = SG_DEFAULT_RETRIES;
 
 	if ((dxfer_len <= 0) || (dxfer_dir == SG_DXFER_NONE))
 		return 0;

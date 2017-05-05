@@ -88,6 +88,7 @@ acpi_evaluate_dsm_typed(acpi_handle handle, const u8 *uuid, u64 rev, u64 func,
 	}
 
 bool acpi_dev_found(const char *hid);
+bool acpi_dev_present(const char *hid, const char *uid, s64 hrv);
 
 #ifdef CONFIG_ACPI
 
@@ -386,6 +387,7 @@ struct acpi_data_node {
 	const char *name;
 	acpi_handle handle;
 	struct fwnode_handle fwnode;
+	struct fwnode_handle *parent;
 	struct acpi_device_data data;
 	struct list_head sibling;
 	struct kobject kobj;

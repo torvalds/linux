@@ -18,10 +18,13 @@
 #include "util/data.h"
 #include "util/auxtrace.h"
 #include "util/jit.h"
+#include "util/thread.h"
 
 #include <subcmd/parse-options.h>
 
 #include <linux/list.h>
+#include <errno.h>
+#include <signal.h>
 
 struct perf_inject {
 	struct perf_tool	tool;
@@ -328,6 +331,18 @@ static int perf_event__repipe_comm(struct perf_tool *tool,
 	int err;
 
 	err = perf_event__process_comm(tool, event, sample, machine);
+	perf_event__repipe(tool, event, sample, machine);
+
+	return err;
+}
+
+static int perf_event__repipe_namespaces(struct perf_tool *tool,
+					 union perf_event *event,
+					 struct perf_sample *sample,
+					 struct machine *machine)
+{
+	int err = perf_event__process_namespaces(tool, event, sample, machine);
+
 	perf_event__repipe(tool, event, sample, machine);
 
 	return err;
@@ -660,6 +675,7 @@ static int __cmd_inject(struct perf_inject *inject)
 		session->itrace_synth_opts = &inject->itrace_synth_opts;
 		inject->itrace_synth_opts.inject = true;
 		inject->tool.comm	    = perf_event__repipe_comm;
+		inject->tool.namespaces	    = perf_event__repipe_namespaces;
 		inject->tool.exit	    = perf_event__repipe_exit;
 		inject->tool.id_index	    = perf_event__repipe_id_index;
 		inject->tool.auxtrace_info  = perf_event__process_auxtrace_info;
@@ -681,6 +697,8 @@ static int __cmd_inject(struct perf_inject *inject)
 		lseek(fd, output_data_offset, SEEK_SET);
 
 	ret = perf_session__process_events(session);
+	if (ret)
+		return ret;
 
 	if (!file_out->is_pipe) {
 		if (inject->build_ids)
@@ -725,7 +743,7 @@ static int __cmd_inject(struct perf_inject *inject)
 	return ret;
 }
 
-int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_inject(int argc, const char **argv)
 {
 	struct perf_inject inject = {
 		.tool = {

@@ -1,5 +1,10 @@
+#include <errno.h>
+#include <inttypes.h>
 #include <api/fs/tracing_path.h>
 #include <linux/err.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include "thread_map.h"
 #include "evsel.h"
 #include "debug.h"

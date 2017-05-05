@@ -157,6 +157,7 @@ struct lpfc_node_rrq {
 #define NLP_LOGO_SND       0x00000100	/* sent LOGO request for this entry */
 #define NLP_RNID_SND       0x00000400	/* sent RNID request for this entry */
 #define NLP_ELS_SND_MASK   0x000007e0	/* sent ELS request for this entry */
+#define NLP_NVMET_RECOV    0x00001000   /* NVMET auditing node for recovery. */
 #define NLP_DEFER_RM       0x00010000	/* Remove this ndlp if no longer used */
 #define NLP_DELAY_TMO      0x00020000	/* delay timeout is running for node */
 #define NLP_NPR_2B_DISC    0x00040000	/* node is included in num_disc_nodes */

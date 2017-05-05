@@ -88,10 +88,10 @@ else
         KBUILD_CFLAGS += -m64
 
         # Align jump targets to 1 byte, not the default 16 bytes:
-        KBUILD_CFLAGS += -falign-jumps=1
+        KBUILD_CFLAGS += $(call cc-option,-falign-jumps=1)
 
         # Pack loops tightly as well:
-        KBUILD_CFLAGS += -falign-loops=1
+        KBUILD_CFLAGS += $(call cc-option,-falign-loops=1)
 
         # Don't autogenerate traditional x87 instructions
         KBUILD_CFLAGS += $(call cc-option,-mno-80387)

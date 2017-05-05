@@ -76,6 +76,7 @@
 #include <asm/mwait.h>
 #include <asm/pci_x86.h>
 #include <asm/cpu.h>
+#include <asm/e820/api.h> 
 
 #ifdef CONFIG_ACPI
 #include <linux/acpi.h>
@@ -710,7 +711,7 @@ static void load_TLS_descriptor(struct thread_struct *t,
 
 	*shadow = t->tls_array[i];
 
-	gdt = get_cpu_gdt_table(cpu);
+	gdt = get_cpu_gdt_rw(cpu);
 	maddr = arbitrary_virt_to_machine(&gdt[GDT_ENTRY_TLS_MIN+i]);
 	mc = __xen_mc_entry(0);
 
@@ -1595,7 +1596,6 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	/* set up basic CPUID stuff */
 	cpu_detect(&new_cpu_data);
 	set_cpu_cap(&new_cpu_data, X86_FEATURE_FPU);
-	new_cpu_data.wp_works_ok = 1;
 	new_cpu_data.x86_capability[CPUID_1_EDX] = cpuid_edx(1);
 #endif
 
@@ -1690,34 +1690,32 @@ static void __init init_pvh_bootparams(void)
 
 	memset(&pvh_bootparams, 0, sizeof(pvh_bootparams));
 
-	memmap.nr_entries = ARRAY_SIZE(pvh_bootparams.e820_map);
-	set_xen_guest_handle(memmap.buffer, pvh_bootparams.e820_map);
+	memmap.nr_entries = ARRAY_SIZE(pvh_bootparams.e820_table);
+	set_xen_guest_handle(memmap.buffer, pvh_bootparams.e820_table);
 	rc = HYPERVISOR_memory_op(XENMEM_memory_map, &memmap);
 	if (rc) {
 		xen_raw_printk("XENMEM_memory_map failed (%d)\n", rc);
 		BUG();
 	}
 
-	if (memmap.nr_entries < E820MAX - 1) {
-		pvh_bootparams.e820_map[memmap.nr_entries].addr =
+	if (memmap.nr_entries < E820_MAX_ENTRIES_ZEROPAGE - 1) {
+		pvh_bootparams.e820_table[memmap.nr_entries].addr =
 			ISA_START_ADDRESS;
-		pvh_bootparams.e820_map[memmap.nr_entries].size =
+		pvh_bootparams.e820_table[memmap.nr_entries].size =
 			ISA_END_ADDRESS - ISA_START_ADDRESS;
-		pvh_bootparams.e820_map[memmap.nr_entries].type =
-			E820_RESERVED;
+		pvh_bootparams.e820_table[memmap.nr_entries].type =
+			E820_TYPE_RESERVED;
 		memmap.nr_entries++;
 	} else
 		xen_raw_printk("Warning: Can fit ISA range into e820\n");
 
-	sanitize_e820_map(pvh_bootparams.e820_map,
-			  ARRAY_SIZE(pvh_bootparams.e820_map),
-			  &memmap.nr_entries);
-
 	pvh_bootparams.e820_entries = memmap.nr_entries;
 	for (i = 0; i < pvh_bootparams.e820_entries; i++)
-		e820_add_region(pvh_bootparams.e820_map[i].addr,
-				pvh_bootparams.e820_map[i].size,
-				pvh_bootparams.e820_map[i].type);
+		e820__range_add(pvh_bootparams.e820_table[i].addr,
+				pvh_bootparams.e820_table[i].size,
+				pvh_bootparams.e820_table[i].type);
+
+	e820__update_table(e820_table);
 
 	pvh_bootparams.hdr.cmd_line_ptr =
 		pvh_start_info.cmdline_paddr;

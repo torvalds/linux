@@ -192,6 +192,8 @@ SECTIONS {
 		CONSTRUCTORS
 	}
 
+	BUG_TABLE
+
 	. = ALIGN(16);	/* gp must be 16-byte aligned for exc. table */
 	.got : AT(ADDR(.got) - LOAD_OFFSET) {
 		*(.got.plt)

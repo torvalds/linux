@@ -26,8 +26,8 @@
 	.type	cheetah_patch_copyops,#function
 cheetah_patch_copyops:
 	ULTRA3_DO_PATCH(memcpy, U3memcpy)
-	ULTRA3_DO_PATCH(___copy_from_user, U3copy_from_user)
-	ULTRA3_DO_PATCH(___copy_to_user, U3copy_to_user)
+	ULTRA3_DO_PATCH(raw_copy_from_user, U3copy_from_user)
+	ULTRA3_DO_PATCH(raw_copy_to_user, U3copy_to_user)
 	retl
 	 nop
 	.size	cheetah_patch_copyops,.-cheetah_patch_copyops

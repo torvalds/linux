@@ -154,7 +154,7 @@ static int parse_config_arg(char *arg, char **var, char **value)
 	return 0;
 }
 
-int cmd_config(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_config(int argc, const char **argv)
 {
 	int i, ret = 0;
 	struct perf_config_set *set;

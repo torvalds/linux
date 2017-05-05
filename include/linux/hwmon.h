@@ -337,7 +337,7 @@ struct hwmon_ops {
 	int (*read)(struct device *dev, enum hwmon_sensor_types type,
 		    u32 attr, int channel, long *val);
 	int (*read_string)(struct device *dev, enum hwmon_sensor_types type,
-		    u32 attr, int channel, char **str);
+		    u32 attr, int channel, const char **str);
 	int (*write)(struct device *dev, enum hwmon_sensor_types type,
 		     u32 attr, int channel, long val);
 };

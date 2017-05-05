@@ -138,7 +138,12 @@ cifs_read_super(struct super_block *sb)
 	sb->s_magic = CIFS_MAGIC_NUMBER;
 	sb->s_op = &cifs_super_ops;
 	sb->s_xattr = cifs_xattr_handlers;
-	sb->s_bdi = &cifs_sb->bdi;
+	rc = super_setup_bdi(sb);
+	if (rc)
+		goto out_no_root;
+	/* tune readahead according to rsize */
+	sb->s_bdi->ra_pages = cifs_sb->rsize / PAGE_SIZE;
+
 	sb->s_blocksize = CIFS_MAX_MSGSIZE;
 	sb->s_blocksize_bits = 14;	/* default 2**14 = CIFS_MAX_MSGSIZE */
 	inode = cifs_root_iget(sb);

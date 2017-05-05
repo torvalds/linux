@@ -298,9 +298,14 @@ static void dm_done(struct request *clone, int error, bool mapped)
 			r = rq_end_io(tio->ti, clone, error, &tio->info);
 	}
 
-	if (unlikely(r == -EREMOTEIO && (req_op(clone) == REQ_OP_WRITE_SAME) &&
-		     !clone->q->limits.max_write_same_sectors))
-		disable_write_same(tio->md);
+	if (unlikely(r == -EREMOTEIO)) {
+		if (req_op(clone) == REQ_OP_WRITE_SAME &&
+		    !clone->q->limits.max_write_same_sectors)
+			disable_write_same(tio->md);
+		if (req_op(clone) == REQ_OP_WRITE_ZEROES &&
+		    !clone->q->limits.max_write_zeroes_sectors)
+			disable_write_zeroes(tio->md);
+	}
 
 	if (r <= 0)
 		/* The target wants to complete the I/O */
@@ -358,7 +363,7 @@ static void dm_complete_request(struct request *rq, int error)
 	if (!rq->q->mq_ops)
 		blk_complete_request(rq);
 	else
-		blk_mq_complete_request(rq, error);
+		blk_mq_complete_request(rq);
 }
 
 /*
@@ -762,7 +767,7 @@ static int dm_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 	return BLK_MQ_RQ_QUEUE_OK;
 }
 
-static struct blk_mq_ops dm_mq_ops = {
+static const struct blk_mq_ops dm_mq_ops = {
 	.queue_rq = dm_mq_queue_rq,
 	.complete = dm_softirq_done,
 	.init_request = dm_mq_init_request,

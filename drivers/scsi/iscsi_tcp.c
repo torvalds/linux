@@ -387,7 +387,7 @@ static int iscsi_sw_tcp_pdu_xmit(struct iscsi_task *task)
 		rc = 0;
 	}
 
-	tsk_restore_flags(current, pflags, PF_MEMALLOC);
+	current_restore_flags(pflags, PF_MEMALLOC);
 	return rc;
 }
 

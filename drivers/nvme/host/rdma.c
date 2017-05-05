@@ -34,7 +34,7 @@
 #include "fabrics.h"
 
 
-#define NVME_RDMA_CONNECT_TIMEOUT_MS	1000		/* 1 second */
+#define NVME_RDMA_CONNECT_TIMEOUT_MS	3000		/* 3 second */
 
 #define NVME_RDMA_MAX_SEGMENT_SIZE	0xffffff	/* 24-bit SGL field */
 
@@ -118,7 +118,6 @@ struct nvme_rdma_ctrl {
 
 	struct nvme_rdma_qe	async_event_sqe;
 
-	int			reconnect_delay;
 	struct delayed_work	reconnect_work;
 
 	struct list_head	list;
@@ -129,14 +128,8 @@ struct nvme_rdma_ctrl {
 	u64			cap;
 	u32			max_fr_pages;
 
-	union {
-		struct sockaddr addr;
-		struct sockaddr_in addr_in;
-	};
-	union {
-		struct sockaddr src_addr;
-		struct sockaddr_in src_addr_in;
-	};
+	struct sockaddr_storage addr;
+	struct sockaddr_storage src_addr;
 
 	struct nvme_ctrl	ctrl;
 };
@@ -569,11 +562,12 @@ static int nvme_rdma_init_queue(struct nvme_rdma_ctrl *ctrl,
 		return PTR_ERR(queue->cm_id);
 	}
 
-	queue->cm_error = -ETIMEDOUT;
 	if (ctrl->ctrl.opts->mask & NVMF_OPT_HOST_TRADDR)
-		src_addr = &ctrl->src_addr;
+		src_addr = (struct sockaddr *)&ctrl->src_addr;
 
-	ret = rdma_resolve_addr(queue->cm_id, src_addr, &ctrl->addr,
+	queue->cm_error = -ETIMEDOUT;
+	ret = rdma_resolve_addr(queue->cm_id, src_addr,
+			(struct sockaddr *)&ctrl->addr,
 			NVME_RDMA_CONNECT_TIMEOUT_MS);
 	if (ret) {
 		dev_info(ctrl->ctrl.device,
@@ -712,12 +706,34 @@ free_ctrl:
 	kfree(ctrl);
 }
 
+static void nvme_rdma_reconnect_or_remove(struct nvme_rdma_ctrl *ctrl)
+{
+	/* If we are resetting/deleting then do nothing */
+	if (ctrl->ctrl.state != NVME_CTRL_RECONNECTING) {
+		WARN_ON_ONCE(ctrl->ctrl.state == NVME_CTRL_NEW ||
+			ctrl->ctrl.state == NVME_CTRL_LIVE);
+		return;
+	}
+
+	if (nvmf_should_reconnect(&ctrl->ctrl)) {
+		dev_info(ctrl->ctrl.device, "Reconnecting in %d seconds...\n",
+			ctrl->ctrl.opts->reconnect_delay);
+		queue_delayed_work(nvme_rdma_wq, &ctrl->reconnect_work,
+				ctrl->ctrl.opts->reconnect_delay * HZ);
+	} else {
+		dev_info(ctrl->ctrl.device, "Removing controller...\n");
+		queue_work(nvme_rdma_wq, &ctrl->delete_work);
+	}
+}
+
 static void nvme_rdma_reconnect_ctrl_work(struct work_struct *work)
 {
 	struct nvme_rdma_ctrl *ctrl = container_of(to_delayed_work(work),
 			struct nvme_rdma_ctrl, reconnect_work);
 	bool changed;
 	int ret;
+
+	++ctrl->ctrl.opts->nr_reconnects;
 
 	if (ctrl->queue_count > 1) {
 		nvme_rdma_free_io_queues(ctrl);
@@ -763,6 +779,7 @@ static void nvme_rdma_reconnect_ctrl_work(struct work_struct *work)
 
 	changed = nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_LIVE);
 	WARN_ON_ONCE(!changed);
+	ctrl->ctrl.opts->nr_reconnects = 0;
 
 	if (ctrl->queue_count > 1) {
 		nvme_start_queues(&ctrl->ctrl);
@@ -777,13 +794,9 @@ static void nvme_rdma_reconnect_ctrl_work(struct work_struct *work)
 stop_admin_q:
 	blk_mq_stop_hw_queues(ctrl->ctrl.admin_q);
 requeue:
-	/* Make sure we are not resetting/deleting */
-	if (ctrl->ctrl.state == NVME_CTRL_RECONNECTING) {
-		dev_info(ctrl->ctrl.device,
-			"Failed reconnect attempt, requeueing...\n");
-		queue_delayed_work(nvme_rdma_wq, &ctrl->reconnect_work,
-					ctrl->reconnect_delay * HZ);
-	}
+	dev_info(ctrl->ctrl.device, "Failed reconnect attempt %d\n",
+			ctrl->ctrl.opts->nr_reconnects);
+	nvme_rdma_reconnect_or_remove(ctrl);
 }
 
 static void nvme_rdma_error_recovery_work(struct work_struct *work)
@@ -810,11 +823,7 @@ static void nvme_rdma_error_recovery_work(struct work_struct *work)
 	blk_mq_tagset_busy_iter(&ctrl->admin_tag_set,
 				nvme_cancel_request, &ctrl->ctrl);
 
-	dev_info(ctrl->ctrl.device, "reconnecting in %d seconds\n",
-		ctrl->reconnect_delay);
-
-	queue_delayed_work(nvme_rdma_wq, &ctrl->reconnect_work,
-				ctrl->reconnect_delay * HZ);
+	nvme_rdma_reconnect_or_remove(ctrl);
 }
 
 static void nvme_rdma_error_recovery(struct nvme_rdma_ctrl *ctrl)
@@ -1169,8 +1178,7 @@ static int nvme_rdma_process_nvme_rsp(struct nvme_rdma_queue *queue,
 	    wc->ex.invalidate_rkey == req->mr->rkey)
 		req->mr->need_inval = false;
 
-	req->req.result = cqe->result;
-	blk_mq_complete_request(rq, le16_to_cpu(cqe->status) >> 1);
+	nvme_end_request(rq, cqe->status, cqe->result);
 	return ret;
 }
 
@@ -1407,7 +1415,7 @@ nvme_rdma_timeout(struct request *rq, bool reserved)
 	nvme_rdma_error_recovery(req->queue->ctrl);
 
 	/* fail with DNR on cmd timeout */
-	rq->errors = NVME_SC_ABORT_REQ | NVME_SC_DNR;
+	nvme_req(rq)->status = NVME_SC_ABORT_REQ | NVME_SC_DNR;
 
 	return BLK_EH_HANDLED;
 }
@@ -1509,27 +1517,12 @@ static int nvme_rdma_poll(struct blk_mq_hw_ctx *hctx, unsigned int tag)
 static void nvme_rdma_complete_rq(struct request *rq)
 {
 	struct nvme_rdma_request *req = blk_mq_rq_to_pdu(rq);
-	struct nvme_rdma_queue *queue = req->queue;
-	int error = 0;
 
-	nvme_rdma_unmap_data(queue, rq);
-
-	if (unlikely(rq->errors)) {
-		if (nvme_req_needs_retry(rq, rq->errors)) {
-			nvme_requeue_req(rq);
-			return;
-		}
-
-		if (blk_rq_is_passthrough(rq))
-			error = rq->errors;
-		else
-			error = nvme_error_status(rq->errors);
-	}
-
-	blk_mq_end_request(rq, error);
+	nvme_rdma_unmap_data(req->queue, rq);
+	nvme_complete_rq(rq);
 }
 
-static struct blk_mq_ops nvme_rdma_mq_ops = {
+static const struct blk_mq_ops nvme_rdma_mq_ops = {
 	.queue_rq	= nvme_rdma_queue_rq,
 	.complete	= nvme_rdma_complete_rq,
 	.init_request	= nvme_rdma_init_request,
@@ -1540,7 +1533,7 @@ static struct blk_mq_ops nvme_rdma_mq_ops = {
 	.timeout	= nvme_rdma_timeout,
 };
 
-static struct blk_mq_ops nvme_rdma_admin_mq_ops = {
+static const struct blk_mq_ops nvme_rdma_admin_mq_ops = {
 	.queue_rq	= nvme_rdma_queue_rq,
 	.complete	= nvme_rdma_complete_rq,
 	.init_request	= nvme_rdma_init_admin_request,
@@ -1857,27 +1850,13 @@ out_free_io_queues:
 	return ret;
 }
 
-static int nvme_rdma_parse_ipaddr(struct sockaddr_in *in_addr, char *p)
-{
-	u8 *addr = (u8 *)&in_addr->sin_addr.s_addr;
-	size_t buflen = strlen(p);
-
-	/* XXX: handle IPv6 addresses */
-
-	if (buflen > INET_ADDRSTRLEN)
-		return -EINVAL;
-	if (in4_pton(p, buflen, addr, '\0', NULL) == 0)
-		return -EINVAL;
-	in_addr->sin_family = AF_INET;
-	return 0;
-}
-
 static struct nvme_ctrl *nvme_rdma_create_ctrl(struct device *dev,
 		struct nvmf_ctrl_options *opts)
 {
 	struct nvme_rdma_ctrl *ctrl;
 	int ret;
 	bool changed;
+	char *port;
 
 	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
@@ -1885,32 +1864,26 @@ static struct nvme_ctrl *nvme_rdma_create_ctrl(struct device *dev,
 	ctrl->ctrl.opts = opts;
 	INIT_LIST_HEAD(&ctrl->list);
 
-	ret = nvme_rdma_parse_ipaddr(&ctrl->addr_in, opts->traddr);
+	if (opts->mask & NVMF_OPT_TRSVCID)
+		port = opts->trsvcid;
+	else
+		port = __stringify(NVME_RDMA_IP_PORT);
+
+	ret = inet_pton_with_scope(&init_net, AF_UNSPEC,
+			opts->traddr, port, &ctrl->addr);
 	if (ret) {
-		pr_err("malformed IP address passed: %s\n", opts->traddr);
+		pr_err("malformed address passed: %s:%s\n", opts->traddr, port);
 		goto out_free_ctrl;
 	}
 
 	if (opts->mask & NVMF_OPT_HOST_TRADDR) {
-		ret = nvme_rdma_parse_ipaddr(&ctrl->src_addr_in,
-				opts->host_traddr);
+		ret = inet_pton_with_scope(&init_net, AF_UNSPEC,
+			opts->host_traddr, NULL, &ctrl->src_addr);
 		if (ret) {
-			pr_err("malformed src IP address passed: %s\n",
+			pr_err("malformed src address passed: %s\n",
 			       opts->host_traddr);
 			goto out_free_ctrl;
 		}
-	}
-
-	if (opts->mask & NVMF_OPT_TRSVCID) {
-		u16 port;
-
-		ret = kstrtou16(opts->trsvcid, 0, &port);
-		if (ret)
-			goto out_free_ctrl;
-
-		ctrl->addr_in.sin_port = cpu_to_be16(port);
-	} else {
-		ctrl->addr_in.sin_port = cpu_to_be16(NVME_RDMA_IP_PORT);
 	}
 
 	ret = nvme_init_ctrl(&ctrl->ctrl, dev, &nvme_rdma_ctrl_ops,
@@ -1918,7 +1891,6 @@ static struct nvme_ctrl *nvme_rdma_create_ctrl(struct device *dev,
 	if (ret)
 		goto out_free_ctrl;
 
-	ctrl->reconnect_delay = opts->reconnect_delay;
 	INIT_DELAYED_WORK(&ctrl->reconnect_work,
 			nvme_rdma_reconnect_ctrl_work);
 	INIT_WORK(&ctrl->err_work, nvme_rdma_error_recovery_work);
@@ -1977,7 +1949,7 @@ static struct nvme_ctrl *nvme_rdma_create_ctrl(struct device *dev,
 	changed = nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_LIVE);
 	WARN_ON_ONCE(!changed);
 
-	dev_info(ctrl->ctrl.device, "new ctrl: NQN \"%s\", addr %pISp\n",
+	dev_info(ctrl->ctrl.device, "new ctrl: NQN \"%s\", addr %pISpcs\n",
 		ctrl->ctrl.opts->subsysnqn, &ctrl->addr);
 
 	kref_get(&ctrl->ctrl.kref);
@@ -2013,7 +1985,7 @@ static struct nvmf_transport_ops nvme_rdma_transport = {
 	.name		= "rdma",
 	.required_opts	= NVMF_OPT_TRADDR,
 	.allowed_opts	= NVMF_OPT_TRSVCID | NVMF_OPT_RECONNECT_DELAY |
-			  NVMF_OPT_HOST_TRADDR,
+			  NVMF_OPT_HOST_TRADDR | NVMF_OPT_CTRL_LOSS_TMO,
 	.create_ctrl	= nvme_rdma_create_ctrl,
 };
 
@@ -2055,12 +2027,20 @@ static int __init nvme_rdma_init_module(void)
 		return -ENOMEM;
 
 	ret = ib_register_client(&nvme_rdma_ib_client);
-	if (ret) {
-		destroy_workqueue(nvme_rdma_wq);
-		return ret;
-	}
+	if (ret)
+		goto err_destroy_wq;
 
-	return nvmf_register_transport(&nvme_rdma_transport);
+	ret = nvmf_register_transport(&nvme_rdma_transport);
+	if (ret)
+		goto err_unreg_client;
+
+	return 0;
+
+err_unreg_client:
+	ib_unregister_client(&nvme_rdma_ib_client);
+err_destroy_wq:
+	destroy_workqueue(nvme_rdma_wq);
+	return ret;
 }
 
 static void __exit nvme_rdma_cleanup_module(void)

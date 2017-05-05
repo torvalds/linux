@@ -361,8 +361,12 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	case  NLP_STE_PRLI_ISSUE:
 	case  NLP_STE_UNMAPPED_NODE:
 	case  NLP_STE_MAPPED_NODE:
-		/* lpfc_plogi_confirm_nport skips fabric did, handle it here */
-		if (!(ndlp->nlp_type & NLP_FABRIC)) {
+		/* For initiators, lpfc_plogi_confirm_nport skips fabric did.
+		 * For target mode, execute implicit logo.
+		 * Fabric nodes go into NPR.
+		 */
+		if (!(ndlp->nlp_type & NLP_FABRIC) &&
+		    !(phba->nvmet_support)) {
 			lpfc_els_rsp_acc(vport, ELS_CMD_PLOGI, cmdiocb,
 					 ndlp, NULL);
 			return 1;

@@ -12,6 +12,8 @@
 #include <linux/efi.h>
 #include <asm/efi.h>
 
+#include "efistub.h"
+
 /* BIOS variables */
 static const efi_guid_t efi_variable_guid = EFI_GLOBAL_VARIABLE_GUID;
 static const efi_char16_t const efi_SecureBoot_name[] = {

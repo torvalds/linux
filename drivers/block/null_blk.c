@@ -117,6 +117,10 @@ static bool use_lightnvm;
 module_param(use_lightnvm, bool, S_IRUGO);
 MODULE_PARM_DESC(use_lightnvm, "Register as a LightNVM device");
 
+static bool blocking;
+module_param(blocking, bool, S_IRUGO);
+MODULE_PARM_DESC(blocking, "Register as a blocking blk-mq driver device");
+
 static int irqmode = NULL_IRQ_SOFTIRQ;
 
 static int null_set_irqmode(const char *str, const struct kernel_param *kp)
@@ -277,7 +281,7 @@ static inline void null_handle_cmd(struct nullb_cmd *cmd)
 	case NULL_IRQ_SOFTIRQ:
 		switch (queue_mode)  {
 		case NULL_Q_MQ:
-			blk_mq_complete_request(cmd->rq, cmd->rq->errors);
+			blk_mq_complete_request(cmd->rq);
 			break;
 		case NULL_Q_RQ:
 			blk_complete_request(cmd->rq);
@@ -357,6 +361,8 @@ static int null_queue_rq(struct blk_mq_hw_ctx *hctx,
 {
 	struct nullb_cmd *cmd = blk_mq_rq_to_pdu(bd->rq);
 
+	might_sleep_if(hctx->flags & BLK_MQ_F_BLOCKING);
+
 	if (irqmode == NULL_IRQ_TIMER) {
 		hrtimer_init(&cmd->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 		cmd->timer.function = null_cmd_timer_expired;
@@ -392,7 +398,7 @@ static int null_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
 	return 0;
 }
 
-static struct blk_mq_ops null_mq_ops = {
+static const struct blk_mq_ops null_mq_ops = {
 	.queue_rq       = null_queue_rq,
 	.init_hctx	= null_init_hctx,
 	.complete	= null_softirq_done_fn,
@@ -437,14 +443,7 @@ static int null_lnvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 	if (IS_ERR(rq))
 		return -ENOMEM;
 
-	rq->__sector = bio->bi_iter.bi_sector;
-	rq->ioprio = bio_prio(bio);
-
-	if (bio_has_data(bio))
-		rq->nr_phys_segments = bio_phys_segments(q, bio);
-
-	rq->__data_len = bio->bi_iter.bi_size;
-	rq->bio = rq->biotail = bio;
+	blk_init_request_from_bio(rq, bio);
 
 	rq->end_io_data = rqd;
 
@@ -723,6 +722,9 @@ static int null_add_dev(void)
 		nullb->tag_set.cmd_size	= sizeof(struct nullb_cmd);
 		nullb->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
 		nullb->tag_set.driver_data = nullb;
+
+		if (blocking)
+			nullb->tag_set.flags |= BLK_MQ_F_BLOCKING;
 
 		rv = blk_mq_alloc_tag_set(&nullb->tag_set);
 		if (rv)
