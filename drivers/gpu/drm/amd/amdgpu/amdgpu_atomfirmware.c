@@ -88,6 +88,19 @@ void amdgpu_atomfirmware_scratch_regs_restore(struct amdgpu_device *adev)
 		WREG32(adev->bios_scratch_reg_offset + i, adev->bios_scratch[i]);
 }
 
+void amdgpu_atomfirmware_scratch_regs_engine_hung(struct amdgpu_device *adev,
+						  bool hung)
+{
+	u32 tmp = RREG32(adev->bios_scratch_reg_offset + 3);
+
+	if (hung)
+		tmp |= ATOM_S3_ASIC_GUI_ENGINE_HUNG;
+	else
+		tmp &= ~ATOM_S3_ASIC_GUI_ENGINE_HUNG;
+
+	WREG32(adev->bios_scratch_reg_offset + 3, tmp);
+}
+
 int amdgpu_atomfirmware_allocate_fb_scratch(struct amdgpu_device *adev)
 {
 	struct atom_context *ctx = adev->mode_info.atom_context;
