@@ -14,12 +14,12 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mfd/syscon.h>
-#include <linux/mfd/syscon/exynos5-pmu.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
+#include <linux/soc/samsung/exynos-regs-pmu.h>
 
 struct exynos_dp_video_phy_drvdata {
 	u32 phy_ctrl_offset;
@@ -36,7 +36,7 @@ static int exynos_dp_video_phy_power_on(struct phy *phy)
 
 	/* Disable power isolation on DP-PHY */
 	return regmap_update_bits(state->regs, state->drvdata->phy_ctrl_offset,
-				  EXYNOS5_PHY_ENABLE, EXYNOS5_PHY_ENABLE);
+				  EXYNOS4_PHY_ENABLE, EXYNOS4_PHY_ENABLE);
 }
 
 static int exynos_dp_video_phy_power_off(struct phy *phy)
@@ -45,7 +45,7 @@ static int exynos_dp_video_phy_power_off(struct phy *phy)
 
 	/* Enable power isolation on DP-PHY */
 	return regmap_update_bits(state->regs, state->drvdata->phy_ctrl_offset,
-				  EXYNOS5_PHY_ENABLE, 0);
+				  EXYNOS4_PHY_ENABLE, 0);
 }
 
 static const struct phy_ops exynos_dp_video_phy_ops = {

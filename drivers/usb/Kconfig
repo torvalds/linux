@@ -35,7 +35,6 @@ config USB_COMMON
 config USB_ARCH_HAS_HCD
 	def_bool y
 
-# ARM SA1111 chips have a non-PCI based "OHCI-compatible" USB host interface.
 config USB
 	tristate "Support for Host-side USB"
 	depends on USB_ARCH_HAS_HCD
@@ -72,6 +71,17 @@ config USB
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called usbcore.
+
+config USB_PCI
+	bool "PCI based USB host interface"
+	depends on PCI
+	default y
+	---help---
+	  A lot of embeded system SOC (e.g. freescale T2080) have both
+	  PCI and USB modules. But USB module is controlled by registers
+	  directly, it have no relationship with PCI module.
+
+	  When say N here it will not build PCI related code in USB driver.
 
 if USB
 
@@ -151,6 +161,8 @@ endif # USB
 source "drivers/usb/phy/Kconfig"
 
 source "drivers/usb/gadget/Kconfig"
+
+source "drivers/usb/typec/Kconfig"
 
 config USB_LED_TRIG
 	bool "USB LED Triggers"

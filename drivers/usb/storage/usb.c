@@ -737,13 +737,11 @@ static void get_protocol(struct us_data *us)
 /* Get the pipe settings */
 static int get_pipes(struct us_data *us)
 {
-	struct usb_host_interface *altsetting =
-		us->pusb_intf->cur_altsetting;
-	int i;
-	struct usb_endpoint_descriptor *ep;
-	struct usb_endpoint_descriptor *ep_in = NULL;
-	struct usb_endpoint_descriptor *ep_out = NULL;
-	struct usb_endpoint_descriptor *ep_int = NULL;
+	struct usb_host_interface *alt = us->pusb_intf->cur_altsetting;
+	struct usb_endpoint_descriptor *ep_in;
+	struct usb_endpoint_descriptor *ep_out;
+	struct usb_endpoint_descriptor *ep_int;
+	int res;
 
 	/*
 	 * Find the first endpoint of each type we need.
@@ -751,28 +749,16 @@ static int get_pipes(struct us_data *us)
 	 * An optional interrupt-in is OK (necessary for CBI protocol).
 	 * We will ignore any others.
 	 */
-	for (i = 0; i < altsetting->desc.bNumEndpoints; i++) {
-		ep = &altsetting->endpoint[i].desc;
-
-		if (usb_endpoint_xfer_bulk(ep)) {
-			if (usb_endpoint_dir_in(ep)) {
-				if (!ep_in)
-					ep_in = ep;
-			} else {
-				if (!ep_out)
-					ep_out = ep;
-			}
-		}
-
-		else if (usb_endpoint_is_int_in(ep)) {
-			if (!ep_int)
-				ep_int = ep;
-		}
+	res = usb_find_common_endpoints(alt, &ep_in, &ep_out, NULL, NULL);
+	if (res) {
+		usb_stor_dbg(us, "bulk endpoints not found\n");
+		return res;
 	}
 
-	if (!ep_in || !ep_out || (us->protocol == USB_PR_CBI && !ep_int)) {
-		usb_stor_dbg(us, "Endpoint sanity check failed! Rejecting dev.\n");
-		return -EIO;
+	res = usb_find_int_in_endpoint(alt, &ep_int);
+	if (res && us->protocol == USB_PR_CBI) {
+		usb_stor_dbg(us, "interrupt endpoint not found\n");
+		return res;
 	}
 
 	/* Calculate and store the pipe values */

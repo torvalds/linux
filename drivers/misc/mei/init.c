@@ -146,17 +146,8 @@ int mei_reset(struct mei_device *dev)
 	/* fall through and remove the sw state even if hw reset has failed */
 
 	/* no need to clean up software state in case of power up */
-	if (state != MEI_DEV_INITIALIZING &&
-	    state != MEI_DEV_POWER_UP) {
-
-		/* remove all waiting requests */
+	if (state != MEI_DEV_INITIALIZING && state != MEI_DEV_POWER_UP)
 		mei_cl_all_disconnect(dev);
-
-		/* remove entry if already in list */
-		dev_dbg(dev->dev, "remove iamthif from the file list.\n");
-		mei_cl_unlink(&dev->iamthif_cl);
-		mei_amthif_reset_params(dev);
-	}
 
 	mei_hbm_reset(dev);
 
@@ -400,9 +391,6 @@ void mei_device_init(struct mei_device *dev,
 	INIT_DELAYED_WORK(&dev->timer_work, mei_timer);
 	INIT_WORK(&dev->reset_work, mei_reset_work);
 	INIT_WORK(&dev->bus_rescan_work, mei_cl_bus_rescan_work);
-
-	INIT_LIST_HEAD(&dev->iamthif_cl.link);
-	INIT_LIST_HEAD(&dev->amthif_cmd_list);
 
 	bitmap_zero(dev->host_clients_map, MEI_CLIENTS_MAX);
 	dev->open_handle_count = 0;

@@ -230,9 +230,6 @@ struct extcon_cable {
 };
 
 static struct class *extcon_class;
-#if defined(CONFIG_ANDROID)
-static struct class_compat *switch_class;
-#endif /* CONFIG_ANDROID */
 
 static LIST_HEAD(extcon_dev_list);
 static DEFINE_MUTEX(extcon_dev_list_lock);
@@ -380,7 +377,7 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 	for (i = 0; i < edev->max_supported; i++) {
 		count += sprintf(buf + count, "%s=%d\n",
 				extcon_info[edev->supported_cable[i]].name,
-				 !!(edev->state & (1 << i)));
+				 !!(edev->state & BIT(i)));
 	}
 
 	return count;
@@ -1032,12 +1029,6 @@ static int create_extcon_class(void)
 		if (IS_ERR(extcon_class))
 			return PTR_ERR(extcon_class);
 		extcon_class->dev_groups = extcon_groups;
-
-#if defined(CONFIG_ANDROID)
-		switch_class = class_compat_register("switch");
-		if (WARN(!switch_class, "cannot allocate"))
-			return -ENOMEM;
-#endif /* CONFIG_ANDROID */
 	}
 
 	return 0;
@@ -1259,10 +1250,6 @@ int extcon_dev_register(struct extcon_dev *edev)
 		put_device(&edev->dev);
 		goto err_dev;
 	}
-#if defined(CONFIG_ANDROID)
-	if (switch_class)
-		ret = class_compat_create_link(switch_class, &edev->dev, NULL);
-#endif /* CONFIG_ANDROID */
 
 	spin_lock_init(&edev->lock);
 
@@ -1350,10 +1337,6 @@ void extcon_dev_unregister(struct extcon_dev *edev)
 		kfree(edev->cables);
 	}
 
-#if defined(CONFIG_ANDROID)
-	if (switch_class)
-		class_compat_remove_link(switch_class, &edev->dev, NULL);
-#endif
 	put_device(&edev->dev);
 }
 EXPORT_SYMBOL_GPL(extcon_dev_unregister);
@@ -1424,9 +1407,6 @@ module_init(extcon_class_init);
 
 static void __exit extcon_class_exit(void)
 {
-#if defined(CONFIG_ANDROID)
-	class_compat_unregister(switch_class);
-#endif
 	class_destroy(extcon_class);
 }
 module_exit(extcon_class_exit);

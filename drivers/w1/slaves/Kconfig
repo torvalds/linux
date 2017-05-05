@@ -86,6 +86,12 @@ config W1_SLAVE_DS2433_CRC
 	  Each block has 30 bytes of data and a two byte CRC16.
 	  Full block writes are only allowed if the CRC is valid.
 
+config W1_SLAVE_DS2438
+	tristate "DS2438 Smart Battery Monitor 0x26 family support"
+	help
+	  Say Y here if you want to use a 1-wire
+	  DS2438 Smart Battery Monitor device support
+
 config W1_SLAVE_DS2760
 	tristate "Dallas 2760 battery monitor chip (HP iPAQ & others)"
 	help

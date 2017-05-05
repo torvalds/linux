@@ -134,7 +134,6 @@ static int oti6858_chars_in_buffer(struct tty_struct *tty);
 static int oti6858_tiocmget(struct tty_struct *tty);
 static int oti6858_tiocmset(struct tty_struct *tty,
 				unsigned int set, unsigned int clear);
-static int oti6858_attach(struct usb_serial *serial);
 static int oti6858_port_probe(struct usb_serial_port *port);
 static int oti6858_port_remove(struct usb_serial_port *port);
 
@@ -146,6 +145,9 @@ static struct usb_serial_driver oti6858_device = {
 	},
 	.id_table =		id_table,
 	.num_ports =		1,
+	.num_bulk_in =		1,
+	.num_bulk_out =		1,
+	.num_interrupt_in =	1,
 	.open =			oti6858_open,
 	.close =		oti6858_close,
 	.write =		oti6858_write,
@@ -159,7 +161,6 @@ static struct usb_serial_driver oti6858_device = {
 	.write_bulk_callback =	oti6858_write_bulk_callback,
 	.write_room =		oti6858_write_room,
 	.chars_in_buffer =	oti6858_chars_in_buffer,
-	.attach =		oti6858_attach,
 	.port_probe =		oti6858_port_probe,
 	.port_remove =		oti6858_port_remove,
 };
@@ -324,20 +325,6 @@ static void send_data(struct work_struct *work)
 	}
 
 	usb_serial_port_softint(port);
-}
-
-static int oti6858_attach(struct usb_serial *serial)
-{
-	unsigned char num_ports = serial->num_ports;
-
-	if (serial->num_bulk_in < num_ports ||
-			serial->num_bulk_out < num_ports ||
-			serial->num_interrupt_in < num_ports) {
-		dev_err(&serial->interface->dev, "missing endpoints\n");
-		return -ENODEV;
-	}
-
-	return 0;
 }
 
 static int oti6858_port_probe(struct usb_serial_port *port)
