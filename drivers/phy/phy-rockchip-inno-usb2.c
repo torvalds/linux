@@ -1547,12 +1547,42 @@ static const struct rockchip_usb2phy_cfg rk322x_phy_cfgs[] = {
 		.num_ports	= 2,
 		.clkout_ctl	= { 0x0768, 4, 4, 1, 0 },
 		.port_cfgs	= {
+			[USB2PHY_PORT_OTG] = {
+				.phy_sus	= { 0x0760, 15, 0, 0, 0x1d1 },
+				.bvalid_det_en	= { 0x0680, 3, 3, 0, 1 },
+				.bvalid_det_st	= { 0x0690, 3, 3, 0, 1 },
+				.bvalid_det_clr	= { 0x06a0, 3, 3, 0, 1 },
+				.idfall_det_en	= { 0x0680, 6, 6, 0, 1 },
+				.idfall_det_st	= { 0x0690, 6, 6, 0, 1 },
+				.idfall_det_clr	= { 0x06a0, 6, 6, 0, 1 },
+				.idrise_det_en	= { 0x0680, 5, 5, 0, 1 },
+				.idrise_det_st	= { 0x0690, 5, 5, 0, 1 },
+				.idrise_det_clr	= { 0x06a0, 5, 5, 0, 1 },
+				.ls_det_en	= { 0x0680, 2, 2, 0, 1 },
+				.ls_det_st	= { 0x0690, 2, 2, 0, 1 },
+				.ls_det_clr	= { 0x06a0, 2, 2, 0, 1 },
+				.utmi_bvalid	= { 0x0480, 4, 4, 0, 1 },
+				.utmi_iddig	= { 0x0480, 1, 1, 0, 1 },
+				.utmi_ls	= { 0x0480, 3, 2, 0, 1 },
+			},
 			[USB2PHY_PORT_HOST] = {
 				.phy_sus	= { 0x0764, 15, 0, 0, 0x1d1 },
 				.ls_det_en	= { 0x0680, 4, 4, 0, 1 },
 				.ls_det_st	= { 0x0690, 4, 4, 0, 1 },
 				.ls_det_clr	= { 0x06a0, 4, 4, 0, 1 }
 			}
+		},
+		.chg_det = {
+			.opmode		= { 0x0760, 3, 0, 5, 1 },
+			.cp_det		= { 0x0884, 4, 4, 0, 1 },
+			.dcp_det	= { 0x0884, 3, 3, 0, 1 },
+			.dp_det		= { 0x0884, 5, 5, 0, 1 },
+			.idm_sink_en	= { 0x0768, 8, 8, 0, 1 },
+			.idp_sink_en	= { 0x0768, 7, 7, 0, 1 },
+			.idp_src_en	= { 0x0768, 9, 9, 0, 1 },
+			.rdm_pdwn_en	= { 0x0768, 10, 10, 0, 1 },
+			.vdm_src_en	= { 0x0768, 12, 12, 0, 1 },
+			.vdp_src_en	= { 0x0768, 11, 11, 0, 1 },
 		},
 	},
 	{
