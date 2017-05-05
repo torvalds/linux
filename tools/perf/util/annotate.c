@@ -1429,7 +1429,7 @@ int symbol__disassemble(struct symbol *sym, struct map *map, const char *arch_na
 	snprintf(command, sizeof(command),
 		 "%s %s%s --start-address=0x%016" PRIx64
 		 " --stop-address=0x%016" PRIx64
-		 " -l -d %s %s -C %s 2>/dev/null|grep -v %s:|expand",
+		 " -l -d %s %s -C \"%s\" 2>/dev/null|grep -v \"%s:\"|expand",
 		 objdump_path ? objdump_path : "objdump",
 		 disassembler_style ? "-M " : "",
 		 disassembler_style ? disassembler_style : "",
