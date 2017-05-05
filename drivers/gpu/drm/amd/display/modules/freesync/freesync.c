@@ -422,12 +422,14 @@ static void calc_freesync_range(struct core_freesync *core_freesync,
 
 	/* In case of 4k free sync monitor, vmin or vmax cannot be less than vtotal */
 	if (state->freesync_range.vmin < vtotal) {
-		ASSERT(false);
+		/* Error of 1 is permissible */
+		ASSERT((state->freesync_range.vmin + 1) >= vtotal);
 		state->freesync_range.vmin = vtotal;
 	}
 
 	if (state->freesync_range.vmax < vtotal) {
-		ASSERT(false);
+		/* Error of 1 is permissible */
+		ASSERT((state->freesync_range.vmax + 1) >= vtotal);
 		state->freesync_range.vmax = vtotal;
 	}
 
