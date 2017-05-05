@@ -426,7 +426,7 @@ static const struct bios_registers bios_regs = {
 };
 
 static const struct resource_caps res_cap = {
-		.num_timing_generator = 3,
+		.num_timing_generator = 6,
 		.num_audio = 7,
 		.num_stream_encoder = 6,
 		.num_pll = 6,
@@ -909,7 +909,7 @@ static bool construct(
 	pool->base.funcs = &dce120_res_pool_funcs;
 
 	/* TODO: Fill more data from GreenlandAsicCapability.cpp */
-	pool->base.pipe_count = 6;
+	pool->base.pipe_count = res_cap.num_timing_generator;
 	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
 
 	dc->public.caps.max_downscale_ratio = 200;
