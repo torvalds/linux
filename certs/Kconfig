@@ -91,4 +91,20 @@ config EFI_SIGNATURE_LIST_PARSER
 	  This option provides support for parsing EFI signature lists for
 	  X.509 certificates and turning them into keys.
 
+config LOAD_UEFI_KEYS
+	bool "Load certs and blacklist from UEFI db for module checking"
+	depends on SYSTEM_BLACKLIST_KEYRING
+	depends on SECONDARY_TRUSTED_KEYRING
+	depends on EFI
+	depends on EFI_SIGNATURE_LIST_PARSER
+	help
+	  If the kernel is booted in secure boot mode, this option will cause
+	  the kernel to load the certificates from the UEFI db and MokListRT
+	  into the secondary trusted keyring.  It will also load any X.509
+	  SHA256 hashes in the dbx list into the blacklist.
+
+	  The effect of this is that, if the kernel is booted in secure boot
+	  mode, modules signed with UEFI-stored keys will be permitted to be
+	  loaded and keys that match the blacklist will be rejected.
+
 endmenu
