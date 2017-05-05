@@ -74,6 +74,7 @@ struct btrfs_device {
 	int missing;
 	int can_discard;
 	int is_tgtdev_for_dev_replace;
+	int last_flush_error;
 
 #ifdef __BTRFS_NEED_DEVICE_DATA_ORDERED
 	seqcount_t data_seqcount;
