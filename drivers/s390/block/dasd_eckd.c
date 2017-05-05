@@ -3779,9 +3779,9 @@ static struct dasd_ccw_req *dasd_eckd_build_cp(struct dasd_device *startdev,
 	return cqr;
 }
 
-static struct dasd_ccw_req *dasd_raw_build_cp(struct dasd_device *startdev,
-					       struct dasd_block *block,
-					       struct request *req)
+static struct dasd_ccw_req *dasd_eckd_build_cp_raw(struct dasd_device *startdev,
+						   struct dasd_block *block,
+						   struct request *req)
 {
 	unsigned long *idaws;
 	struct dasd_device *basedev;
@@ -4033,7 +4033,7 @@ static struct dasd_ccw_req *dasd_eckd_build_alias_cp(struct dasd_device *base,
 	spin_lock_irqsave(get_ccwdev_lock(startdev->cdev), flags);
 	private->count++;
 	if ((base->features & DASD_FEATURE_USERAW))
-		cqr = dasd_raw_build_cp(startdev, block, req);
+		cqr = dasd_eckd_build_cp_raw(startdev, block, req);
 	else
 		cqr = dasd_eckd_build_cp(startdev, block, req);
 	if (IS_ERR(cqr))
