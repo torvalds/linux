@@ -3921,32 +3921,36 @@ static int vega10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 
 static int vega10_set_fan_control_mode(struct pp_hwmgr *hwmgr, uint32_t mode)
 {
-	if (mode) {
-		/* stop auto-manage */
-		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-				PHM_PlatformCaps_MicrocodeFanControl))
-			vega10_fan_ctrl_stop_smc_fan_control(hwmgr);
-		vega10_fan_ctrl_set_static_mode(hwmgr, mode);
-	} else
-		/* restart auto-manage */
-		vega10_fan_ctrl_reset_fan_speed_to_default(hwmgr);
+	int result = 0;
 
-	return 0;
+	switch (mode) {
+	case AMD_FAN_CTRL_NONE:
+		result = vega10_fan_ctrl_set_fan_speed_percent(hwmgr, 100);
+		break;
+	case AMD_FAN_CTRL_MANUAL:
+		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_MicrocodeFanControl))
+			result = vega10_fan_ctrl_stop_smc_fan_control(hwmgr);
+		break;
+	case AMD_FAN_CTRL_AUTO:
+		result = vega10_fan_ctrl_set_static_mode(hwmgr, mode);
+		if (!result)
+			result = vega10_fan_ctrl_start_smc_fan_control(hwmgr);
+		break;
+	default:
+		break;
+	}
+	return result;
 }
 
 static int vega10_get_fan_control_mode(struct pp_hwmgr *hwmgr)
 {
-	uint32_t reg;
+	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
 
-	if (hwmgr->fan_ctrl_is_in_default_mode) {
-		return hwmgr->fan_ctrl_default_mode;
-	} else {
-		reg = soc15_get_register_offset(THM_HWID, 0,
-			mmCG_FDO_CTRL2_BASE_IDX, mmCG_FDO_CTRL2);
-		return (cgs_read_register(hwmgr->device, reg) &
-				CG_FDO_CTRL2__FDO_PWM_MODE_MASK) >>
-				CG_FDO_CTRL2__FDO_PWM_MODE__SHIFT;
-	}
+	if (data->smu_features[GNLD_FAN_CONTROL].enabled == false)
+		return AMD_FAN_CTRL_MANUAL;
+	else
+		return AMD_FAN_CTRL_AUTO;
 }
 
 static int vega10_get_dal_power_level(struct pp_hwmgr *hwmgr,
