@@ -1127,6 +1127,14 @@ int drm_dev_set_unique(struct drm_device *dev, const char *fmt, ...);
 
 struct drm_minor *drm_minor_acquire(unsigned int minor_id);
 void drm_minor_release(struct drm_minor *minor);
+#ifdef CONFIG_DRM
+struct drm_device *drm_device_get_by_name(const char *name);
+#else
+static inline struct drm_device *drm_device_get_by_name(const char *name)
+{
+	return NULL;
+}
+#endif
 
 /*@}*/
 
