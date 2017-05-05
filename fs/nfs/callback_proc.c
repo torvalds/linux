@@ -131,10 +131,11 @@ restart:
 			if (!inode)
 				continue;
 			if (!nfs_sb_active(inode->i_sb)) {
-				rcu_read_lock();
+				rcu_read_unlock();
 				spin_unlock(&clp->cl_lock);
 				iput(inode);
 				spin_lock(&clp->cl_lock);
+				rcu_read_lock();
 				goto restart;
 			}
 			return inode;
@@ -170,10 +171,11 @@ restart:
 			if (!inode)
 				continue;
 			if (!nfs_sb_active(inode->i_sb)) {
-				rcu_read_lock();
+				rcu_read_unlock();
 				spin_unlock(&clp->cl_lock);
 				iput(inode);
 				spin_lock(&clp->cl_lock);
+				rcu_read_lock();
 				goto restart;
 			}
 			return inode;
