@@ -693,6 +693,10 @@ static int mv_xor_v2_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, xor_dev);
 
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(40));
+	if (ret)
+		return ret;
+
 	xor_dev->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(xor_dev->clk) && PTR_ERR(xor_dev->clk) == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
