@@ -1872,12 +1872,39 @@ static int amdgpu_sriov_reinit_late(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int amdgpu_resume(struct amdgpu_device *adev)
+static int amdgpu_resume_phase1(struct amdgpu_device *adev)
 {
 	int i, r;
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if (!adev->ip_blocks[i].status.valid)
+			continue;
+		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_COMMON ||
+				adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GMC ||
+				adev->ip_blocks[i].version->type ==
+				AMD_IP_BLOCK_TYPE_IH) {
+			r = adev->ip_blocks[i].version->funcs->resume(adev);
+			if (r) {
+				DRM_ERROR("resume of IP block <%s> failed %d\n",
+					  adev->ip_blocks[i].version->funcs->name, r);
+				return r;
+			}
+		}
+	}
+
+	return 0;
+}
+
+static int amdgpu_resume_phase2(struct amdgpu_device *adev)
+{
+	int i, r;
+
+	for (i = 0; i < adev->num_ip_blocks; i++) {
+		if (!adev->ip_blocks[i].status.valid)
+			continue;
+		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_COMMON ||
+				adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GMC ||
+				adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_IH )
 			continue;
 		r = adev->ip_blocks[i].version->funcs->resume(adev);
 		if (r) {
@@ -1888,6 +1915,18 @@ static int amdgpu_resume(struct amdgpu_device *adev)
 	}
 
 	return 0;
+}
+
+static int amdgpu_resume(struct amdgpu_device *adev)
+{
+	int r;
+
+	r = amdgpu_resume_phase1(adev);
+	if (r)
+		return r;
+	r = amdgpu_resume_phase2(adev);
+
+	return r;
 }
 
 static void amdgpu_device_detect_sriov_bios(struct amdgpu_device *adev)
@@ -2753,16 +2792,20 @@ retry:
 
 		if (!r) {
 			dev_info(adev->dev, "GPU reset succeeded, trying to resume\n");
-			r = amdgpu_resume(adev);
-		}
-	}
-	if (!r) {
-		amdgpu_irq_gpu_reset_resume_helper(adev);
-		if (need_full_reset && amdgpu_need_backup(adev)) {
+			r = amdgpu_resume_phase1(adev);
+			if (r)
+				goto out;
 			r = amdgpu_ttm_recover_gart(adev);
 			if (r)
-				DRM_ERROR("gart recovery failed!!!\n");
+				goto out;
+			r = amdgpu_resume_phase2(adev);
+			if (r)
+				goto out;
 		}
+	}
+out:
+	if (!r) {
+		amdgpu_irq_gpu_reset_resume_helper(adev);
 		r = amdgpu_ib_ring_tests(adev);
 		if (r) {
 			dev_err(adev->dev, "ib ring test failed (%d).\n", r);
