@@ -140,11 +140,8 @@ static void handle_rpc_func_cmd_wait(struct optee_msg_arg *arg)
 
 	msec_to_wait = arg->params[0].u.value.a;
 
-	/* set task's state to interruptible sleep */
-	set_current_state(TASK_INTERRUPTIBLE);
-
-	/* take a nap */
-	msleep(msec_to_wait);
+	/* Go to interruptible sleep */
+	msleep_interruptible(msec_to_wait);
 
 	arg->ret = TEEC_SUCCESS;
 	return;
