@@ -69,6 +69,7 @@
 #include "iwl-debug.h"
 #include "iwl-io.h"
 #include "iwl-prph.h"
+#include "iwl-csr.h"
 #include "fw-dbg.h"
 #include "mvm.h"
 #include "fw-api-rs.h"
@@ -497,6 +498,7 @@ static void iwl_mvm_dump_lmac_error_log(struct iwl_mvm *mvm, u32 base)
 {
 	struct iwl_trans *trans = mvm->trans;
 	struct iwl_error_event_table table;
+	u32 val;
 
 	if (mvm->cur_ucode == IWL_UCODE_INIT) {
 		if (!base)
@@ -513,6 +515,36 @@ static void iwl_mvm_dump_lmac_error_log(struct iwl_mvm *mvm, u32 base)
 			(mvm->cur_ucode == IWL_UCODE_INIT)
 					? "Init" : "RT");
 		return;
+	}
+
+	/* check if there is a HW error */
+	val = iwl_trans_read_mem32(trans, base);
+	if (((val & ~0xf) == 0xa5a5a5a0) || ((val & ~0xf) == 0x5a5a5a50)) {
+		int err;
+
+		IWL_ERR(trans, "HW error, resetting before reading\n");
+
+		/* reset the device */
+		iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
+		usleep_range(1000, 2000);
+
+		/* set INIT_DONE flag */
+		iwl_set_bit(trans, CSR_GP_CNTRL,
+			    CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+
+		/* and wait for clock stabilization */
+		if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000)
+			udelay(2);
+
+		err = iwl_poll_bit(trans, CSR_GP_CNTRL,
+				   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
+				   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
+				   25000);
+		if (err < 0) {
+			IWL_DEBUG_INFO(trans,
+				       "Failed to reset the card for the dump\n");
+			return;
+		}
 	}
 
 	iwl_trans_read_mem_bytes(trans, base, &table, sizeof(table));
