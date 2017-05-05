@@ -1004,7 +1004,7 @@ out_nfserr:
 	else
 		err = nfserrno(host_err);
 	if (test_bit(RQ_LOCAL, &rqstp->rq_flags))
-		tsk_restore_flags(current, pflags, PF_LESS_THROTTLE);
+		current_restore_flags(pflags, PF_LESS_THROTTLE);
 	return err;
 }
 

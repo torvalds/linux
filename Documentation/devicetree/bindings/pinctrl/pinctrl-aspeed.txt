@@ -34,13 +34,28 @@ Documentation/devicetree/bindings/mfd/syscon.txt
 Subnode Format
 ==============
 
-The required properties of child nodes are (as defined in pinctrl-bindings):
-- function
-- groups
+The required properties of pinmux child nodes are:
+- function: the mux function to select
+- groups  : the list of groups to select with this function
 
-Each function has only one associated pin group. Each group is named by its
-function. The following values for the function and groups properties are
-supported:
+Required properties of pinconf child nodes are:
+- groups: A list of groups to select (either this or "pins" must be
+          specified)
+- pins  : A list of ball names as strings, eg "D14" (either this or "groups"
+          must be specified)
+
+Optional properties of pinconf child nodes are:
+- bias-disable  : disable any pin bias
+- bias-pull-down: pull down the pin
+- drive-strength: sink or source at most X mA
+
+Definitions are as specified in
+Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt, with any
+further limitations as described above.
+
+For pinmux, each mux function has only one associated pin group. Each group is
+named by its function. The following values for the function and groups
+properties are supported:
 
 aspeed,ast2400-pinctrl, aspeed,g4-pinctrl:
 
@@ -90,6 +105,11 @@ syscon: scu@1e6e2000 {
 			function = "I2C3";
 			groups = "I2C3";
 		};
+
+		pinctrl_gpioh0_unbiased_default: gpioh0 {
+			pins = "A8";
+			bias-disable;
+		};
 	};
 };
 
@@ -109,6 +129,11 @@ ahb {
 				pinctrl_i2c3_default: i2c3_default {
 					function = "I2C3";
 					groups = "I2C3";
+				};
+
+				pinctrl_gpioh0_unbiased_default: gpioh0 {
+					pins = "A18";
+					bias-disable;
 				};
 			};
 		};
@@ -143,6 +168,3 @@ ahb {
 		};
 	};
 };
-
-Please refer to pinctrl-bindings.txt in this directory for details of the
-common pinctrl bindings used by client devices.

@@ -155,9 +155,9 @@ Code Example For Use of Operational State Memory With SHASH
         char ctx[];
     };
 
-    static struct sdescinit_sdesc(struct crypto_shash *alg)
+    static struct sdesc init_sdesc(struct crypto_shash *alg)
     {
-        struct sdescsdesc;
+        struct sdesc sdesc;
         int size;
 
         size = sizeof(struct shash_desc) + crypto_shash_descsize(alg);
@@ -172,7 +172,7 @@ Code Example For Use of Operational State Memory With SHASH
     static int calc_hash(struct crypto_shashalg,
                  const unsigned chardata, unsigned int datalen,
                  unsigned chardigest) {
-        struct sdescsdesc;
+        struct sdesc sdesc;
         int ret;
 
         sdesc = init_sdesc(alg);

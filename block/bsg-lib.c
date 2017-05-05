@@ -37,7 +37,7 @@ static void bsg_destroy_job(struct kref *kref)
 	struct bsg_job *job = container_of(kref, struct bsg_job, kref);
 	struct request *rq = job->req;
 
-	blk_end_request_all(rq, rq->errors);
+	blk_end_request_all(rq, scsi_req(rq)->result);
 
 	put_device(job->dev);	/* release reference for the request */
 
@@ -74,7 +74,7 @@ void bsg_job_done(struct bsg_job *job, int result,
 	struct scsi_request *rq = scsi_req(req);
 	int err;
 
-	err = job->req->errors = result;
+	err = scsi_req(job->req)->result = result;
 	if (err < 0)
 		/* we're only returning the result field in the reply */
 		rq->sense_len = sizeof(u32);
@@ -177,7 +177,7 @@ failjob_rls_job:
  * @q: request queue to manage
  *
  * On error the create_bsg_job function should return a -Exyz error value
- * that will be set to the req->errors.
+ * that will be set to ->result.
  *
  * Drivers/subsys should pass this to the queue init function.
  */
@@ -201,7 +201,7 @@ static void bsg_request_fn(struct request_queue *q)
 
 		ret = bsg_create_job(dev, req);
 		if (ret) {
-			req->errors = ret;
+			scsi_req(req)->result = ret;
 			blk_end_request_all(req, ret);
 			spin_lock_irq(q->queue_lock);
 			continue;

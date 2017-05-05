@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015 - 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -60,6 +60,8 @@
 #include "trace.h"
 #include "qp.h"
 #include "verbs_txreq.h"
+#include "debugfs.h"
+#include "vnic.h"
 
 static unsigned int hfi1_lkey_table_size = 16;
 module_param_named(lkey_table_size, hfi1_lkey_table_size, uint,
@@ -297,6 +299,22 @@ static inline bool wss_exceeds_threshold(void)
 }
 
 /*
+ * Translate ib_wr_opcode into ib_wc_opcode.
+ */
+const enum ib_wc_opcode ib_hfi1_wc_opcode[] = {
+	[IB_WR_RDMA_WRITE] = IB_WC_RDMA_WRITE,
+	[IB_WR_RDMA_WRITE_WITH_IMM] = IB_WC_RDMA_WRITE,
+	[IB_WR_SEND] = IB_WC_SEND,
+	[IB_WR_SEND_WITH_IMM] = IB_WC_SEND,
+	[IB_WR_RDMA_READ] = IB_WC_RDMA_READ,
+	[IB_WR_ATOMIC_CMP_AND_SWP] = IB_WC_COMP_SWAP,
+	[IB_WR_ATOMIC_FETCH_AND_ADD] = IB_WC_FETCH_ADD,
+	[IB_WR_SEND_WITH_INV] = IB_WC_SEND,
+	[IB_WR_LOCAL_INV] = IB_WC_LOCAL_INV,
+	[IB_WR_REG_MR] = IB_WC_REG_MR
+};
+
+/*
  * Length of header by opcode, 0 --> not supported
  */
 const u8 hdr_len_by_opcode[256] = {
@@ -501,6 +519,35 @@ static inline opcode_handler qp_ok(int opcode, struct hfi1_packet *packet)
 	return NULL;
 }
 
+static u64 hfi1_fault_tx(struct rvt_qp *qp, u8 opcode, u64 pbc)
+{
+#ifdef CONFIG_FAULT_INJECTION
+	if ((opcode & IB_OPCODE_MSP) == IB_OPCODE_MSP)
+		/*
+		 * In order to drop non-IB traffic we
+		 * set PbcInsertHrc to NONE (0x2).
+		 * The packet will still be delivered
+		 * to the receiving node but a
+		 * KHdrHCRCErr (KDETH packet with a bad
+		 * HCRC) will be triggered and the
+		 * packet will not be delivered to the
+		 * correct context.
+		 */
+		pbc |= (u64)PBC_IHCRC_NONE << PBC_INSERT_HCRC_SHIFT;
+	else
+		/*
+		 * In order to drop regular verbs
+		 * traffic we set the PbcTestEbp
+		 * flag. The packet will still be
+		 * delivered to the receiving node but
+		 * a 'late ebp error' will be
+		 * triggered and will be dropped.
+		 */
+		pbc |= PBC_TEST_EBP;
+#endif
+	return pbc;
+}
+
 /**
  * hfi1_ib_rcv - process an incoming packet
  * @packet: data packet information
@@ -525,7 +572,7 @@ void hfi1_ib_rcv(struct hfi1_packet *packet)
 	u16 lid;
 
 	/* Check for GRH */
-	lnh = be16_to_cpu(hdr->lrh[0]) & 3;
+	lnh = ib_get_lnh(hdr);
 	if (lnh == HFI1_LRH_BTH) {
 		packet->ohdr = &hdr->u.oth;
 	} else if (lnh == HFI1_LRH_GRH) {
@@ -544,12 +591,12 @@ void hfi1_ib_rcv(struct hfi1_packet *packet)
 
 	trace_input_ibhdr(rcd->dd, hdr);
 
-	opcode = (be32_to_cpu(packet->ohdr->bth[0]) >> 24);
+	opcode = ib_bth_get_opcode(packet->ohdr);
 	inc_opstats(tlen, &rcd->opstats->stats[opcode]);
 
 	/* Get the destination QP number. */
 	qp_num = be32_to_cpu(packet->ohdr->bth[1]) & RVT_QPN_MASK;
-	lid = be16_to_cpu(hdr->lrh[1]);
+	lid = ib_get_dlid(hdr);
 	if (unlikely((lid >= be16_to_cpu(IB_MULTICAST_LID_BASE)) &&
 		     (lid != be16_to_cpu(IB_LID_PERMISSIVE)))) {
 		struct rvt_mcast *mcast;
@@ -557,7 +604,7 @@ void hfi1_ib_rcv(struct hfi1_packet *packet)
 
 		if (lnh != HFI1_LRH_GRH)
 			goto drop;
-		mcast = rvt_mcast_find(&ibp->rvp, &hdr->u.l.grh.dgid);
+		mcast = rvt_mcast_find(&ibp->rvp, &hdr->u.l.grh.dgid, lid);
 		if (!mcast)
 			goto drop;
 		list_for_each_entry_rcu(p, &mcast->qp_list, list) {
@@ -580,6 +627,11 @@ void hfi1_ib_rcv(struct hfi1_packet *packet)
 		rcu_read_lock();
 		packet->qp = rvt_lookup_qpn(rdi, &ibp->rvp, qp_num);
 		if (!packet->qp) {
+			rcu_read_unlock();
+			goto drop;
+		}
+		if (unlikely(hfi1_dbg_fault_opcode(packet->qp, opcode,
+						   true))) {
 			rcu_read_unlock();
 			goto drop;
 		}
@@ -781,7 +833,6 @@ static int build_verbs_tx_desc(
 		if (ret)
 			goto bail_txadd;
 	}
-
 	/* add the ulp payload - if any. tx->ss can be NULL for acks */
 	if (tx->ss)
 		ret = build_verbs_ulp_payload(sde, length, tx);
@@ -800,7 +851,6 @@ int hfi1_verbs_send_dma(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 	struct hfi1_ibdev *dev = ps->dev;
 	struct hfi1_pportdata *ppd = ps->ppd;
 	struct verbs_txreq *tx;
-	u64 pbc_flags = 0;
 	u8 sc5 = priv->s_sc;
 
 	int ret;
@@ -809,12 +859,16 @@ int hfi1_verbs_send_dma(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 	if (!sdma_txreq_built(&tx->txreq)) {
 		if (likely(pbc == 0)) {
 			u32 vl = sc_to_vlt(dd_from_ibdev(qp->ibqp.device), sc5);
+			u8 opcode = get_opcode(&tx->phdr.hdr);
+
 			/* No vl15 here */
 			/* set PBC_DC_INFO bit (aka SC[4]) in pbc_flags */
-			pbc_flags |= (!!(sc5 & 0x10)) << PBC_DC_INFO_SHIFT;
+			pbc |= (!!(sc5 & 0x10)) << PBC_DC_INFO_SHIFT;
 
+			if (unlikely(hfi1_dbg_fault_opcode(qp, opcode, false)))
+				pbc = hfi1_fault_tx(qp, opcode, pbc);
 			pbc = create_pbc(ppd,
-					 pbc_flags,
+					 pbc,
 					 qp->srate_mbps,
 					 vl,
 					 plen);
@@ -917,7 +971,6 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 	u32 plen = hdrwords + dwords + 2; /* includes pbc */
 	struct hfi1_pportdata *ppd = ps->ppd;
 	u32 *hdr = (u32 *)&ps->s_txreq->phdr.hdr;
-	u64 pbc_flags = 0;
 	u8 sc5;
 	unsigned long flags = 0;
 	struct send_context *sc;
@@ -942,9 +995,14 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 
 	if (likely(pbc == 0)) {
 		u8 vl = sc_to_vlt(dd_from_ibdev(qp->ibqp.device), sc5);
+		struct verbs_txreq *tx = ps->s_txreq;
+		u8 opcode = get_opcode(&tx->phdr.hdr);
+
 		/* set PBC_DC_INFO bit (aka SC[4]) in pbc_flags */
-		pbc_flags |= (!!(sc5 & 0x10)) << PBC_DC_INFO_SHIFT;
-		pbc = create_pbc(ppd, pbc_flags, qp->srate_mbps, vl, plen);
+		pbc |= (!!(sc5 & 0x10)) << PBC_DC_INFO_SHIFT;
+		if (unlikely(hfi1_dbg_fault_opcode(qp, opcode, false)))
+			pbc = hfi1_fault_tx(qp, opcode, pbc);
+		pbc = create_pbc(ppd, pbc, qp->srate_mbps, vl, plen);
 	}
 	if (cb)
 		iowait_pio_inc(&priv->s_iowait);
@@ -1173,7 +1231,7 @@ int hfi1_verbs_send(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 
 	hdr = &ps->s_txreq->phdr.hdr;
 	/* locate the pkey within the headers */
-	lnh = be16_to_cpu(hdr->lrh[0]) & 3;
+	lnh = ib_get_lnh(hdr);
 	if (lnh == HFI1_LRH_GRH)
 		ohdr = &hdr->u.l.oth;
 	else
@@ -1220,17 +1278,20 @@ int hfi1_verbs_send(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 static void hfi1_fill_device_attr(struct hfi1_devdata *dd)
 {
 	struct rvt_dev_info *rdi = &dd->verbs_dev.rdi;
-	u16 ver = dd->dc8051_ver;
+	u32 ver = dd->dc8051_ver;
 
 	memset(&rdi->dparms.props, 0, sizeof(rdi->dparms.props));
 
-	rdi->dparms.props.fw_ver = ((u64)(dc8051_ver_maj(ver)) << 16) |
-				    (u64)dc8051_ver_min(ver);
+	rdi->dparms.props.fw_ver = ((u64)(dc8051_ver_maj(ver)) << 32) |
+		((u64)(dc8051_ver_min(ver)) << 16) |
+		(u64)dc8051_ver_patch(ver);
+
 	rdi->dparms.props.device_cap_flags = IB_DEVICE_BAD_PKEY_CNTR |
 			IB_DEVICE_BAD_QKEY_CNTR | IB_DEVICE_SHUTDOWN_PORT |
 			IB_DEVICE_SYS_IMAGE_GUID | IB_DEVICE_RC_RNR_NAK_GEN |
 			IB_DEVICE_PORT_ACTIVE_EVENT | IB_DEVICE_SRQ_RESIZE |
-			IB_DEVICE_MEM_MGT_EXTENSIONS;
+			IB_DEVICE_MEM_MGT_EXTENSIONS |
+			IB_DEVICE_RDMA_NETDEV_OPA_VNIC;
 	rdi->dparms.props.page_size_cap = PAGE_SIZE;
 	rdi->dparms.props.vendor_id = dd->oui1 << 16 | dd->oui2 << 8 | dd->oui3;
 	rdi->dparms.props.vendor_part_id = dd->pcidev->device;
@@ -1398,14 +1459,14 @@ static int hfi1_get_guid_be(struct rvt_dev_info *rdi, struct rvt_ibport *rvp,
 /*
  * convert ah port,sl to sc
  */
-u8 ah_to_sc(struct ib_device *ibdev, struct ib_ah_attr *ah)
+u8 ah_to_sc(struct ib_device *ibdev, struct rdma_ah_attr *ah)
 {
-	struct hfi1_ibport *ibp = to_iport(ibdev, ah->port_num);
+	struct hfi1_ibport *ibp = to_iport(ibdev, rdma_ah_get_port_num(ah));
 
-	return ibp->sl_to_sc[ah->sl];
+	return ibp->sl_to_sc[rdma_ah_get_sl(ah)];
 }
 
-static int hfi1_check_ah(struct ib_device *ibdev, struct ib_ah_attr *ah_attr)
+static int hfi1_check_ah(struct ib_device *ibdev, struct rdma_ah_attr *ah_attr)
 {
 	struct hfi1_ibport *ibp;
 	struct hfi1_pportdata *ppd;
@@ -1413,9 +1474,9 @@ static int hfi1_check_ah(struct ib_device *ibdev, struct ib_ah_attr *ah_attr)
 	u8 sc5;
 
 	/* test the mapping for validity */
-	ibp = to_iport(ibdev, ah_attr->port_num);
+	ibp = to_iport(ibdev, rdma_ah_get_port_num(ah_attr));
 	ppd = ppd_from_ibp(ibp);
-	sc5 = ibp->sl_to_sc[ah_attr->sl];
+	sc5 = ibp->sl_to_sc[rdma_ah_get_sl(ah_attr)];
 	dd = dd_from_ppd(ppd);
 	if (sc_to_vlt(dd, sc5) > num_vls && sc_to_vlt(dd, sc5) != 0xf)
 		return -EINVAL;
@@ -1423,7 +1484,7 @@ static int hfi1_check_ah(struct ib_device *ibdev, struct ib_ah_attr *ah_attr)
 }
 
 static void hfi1_notify_new_ah(struct ib_device *ibdev,
-			       struct ib_ah_attr *ah_attr,
+			       struct rdma_ah_attr *ah_attr,
 			       struct rvt_ah *ah)
 {
 	struct hfi1_ibport *ibp;
@@ -1436,9 +1497,9 @@ static void hfi1_notify_new_ah(struct ib_device *ibdev,
 	 * done being setup. We can however modify things which we need to set.
 	 */
 
-	ibp = to_iport(ibdev, ah_attr->port_num);
+	ibp = to_iport(ibdev, rdma_ah_get_port_num(ah_attr));
 	ppd = ppd_from_ibp(ibp);
-	sc5 = ibp->sl_to_sc[ah->attr.sl];
+	sc5 = ibp->sl_to_sc[rdma_ah_get_sl(&ah->attr)];
 	dd = dd_from_ppd(ppd);
 	ah->vl = sc_to_vlt(dd, sc5);
 	if (ah->vl < num_vls || ah->vl == 15)
@@ -1447,17 +1508,21 @@ static void hfi1_notify_new_ah(struct ib_device *ibdev,
 
 struct ib_ah *hfi1_create_qp0_ah(struct hfi1_ibport *ibp, u16 dlid)
 {
-	struct ib_ah_attr attr;
+	struct rdma_ah_attr attr;
 	struct ib_ah *ah = ERR_PTR(-EINVAL);
 	struct rvt_qp *qp0;
+	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
+	struct hfi1_devdata *dd = dd_from_ppd(ppd);
+	u8 port_num = ppd->port;
 
 	memset(&attr, 0, sizeof(attr));
-	attr.dlid = dlid;
-	attr.port_num = ppd_from_ibp(ibp)->port;
+	attr.type = rdma_ah_find_type(&dd->verbs_dev.rdi.ibdev, port_num);
+	rdma_ah_set_dlid(&attr, dlid);
+	rdma_ah_set_port_num(&attr, ppd_from_ibp(ibp)->port);
 	rcu_read_lock();
 	qp0 = rcu_dereference(ibp->rvp.qp[0]);
 	if (qp0)
-		ah = ib_create_ah(qp0->ibqp.pd, &attr);
+		ah = rdma_create_ah(qp0->ibqp.pd, &attr);
 	rcu_read_unlock();
 	return ah;
 }
@@ -1504,10 +1569,10 @@ static void hfi1_get_dev_fw_str(struct ib_device *ibdev, char *str,
 {
 	struct rvt_dev_info *rdi = ib_to_rvt(ibdev);
 	struct hfi1_ibdev *dev = dev_from_rdi(rdi);
-	u16 ver = dd_from_dev(dev)->dc8051_ver;
+	u32 ver = dd_from_dev(dev)->dc8051_ver;
 
-	snprintf(str, str_len, "%u.%u", dc8051_ver_maj(ver),
-		 dc8051_ver_min(ver));
+	snprintf(str, str_len, "%u.%u.%u", dc8051_ver_maj(ver),
+		 dc8051_ver_min(ver), dc8051_ver_patch(ver));
 }
 
 static const char * const driver_cntr_names[] = {
@@ -1524,6 +1589,7 @@ static const char * const driver_cntr_names[] = {
 	"DRIVER_EgrHdrFull"
 };
 
+static DEFINE_MUTEX(cntr_names_lock); /* protects the *_cntr_names bufers */
 static const char **dev_cntr_names;
 static const char **port_cntr_names;
 static int num_driver_cntrs = ARRAY_SIZE(driver_cntr_names);
@@ -1578,6 +1644,7 @@ static struct rdma_hw_stats *alloc_hw_stats(struct ib_device *ibdev,
 {
 	int i, err;
 
+	mutex_lock(&cntr_names_lock);
 	if (!cntr_names_initialized) {
 		struct hfi1_devdata *dd = dd_from_ibdev(ibdev);
 
@@ -1586,8 +1653,10 @@ static struct rdma_hw_stats *alloc_hw_stats(struct ib_device *ibdev,
 				      num_driver_cntrs,
 				      &num_dev_cntrs,
 				      &dev_cntr_names);
-		if (err)
+		if (err) {
+			mutex_unlock(&cntr_names_lock);
 			return NULL;
+		}
 
 		for (i = 0; i < num_driver_cntrs; i++)
 			dev_cntr_names[num_dev_cntrs + i] =
@@ -1601,10 +1670,12 @@ static struct rdma_hw_stats *alloc_hw_stats(struct ib_device *ibdev,
 		if (err) {
 			kfree(dev_cntr_names);
 			dev_cntr_names = NULL;
+			mutex_unlock(&cntr_names_lock);
 			return NULL;
 		}
 		cntr_names_initialized = 1;
 	}
+	mutex_unlock(&cntr_names_lock);
 
 	if (!port_num)
 		return rdma_alloc_hw_stats_struct(
@@ -1707,6 +1778,8 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	ibdev->modify_device = modify_device;
 	ibdev->alloc_hw_stats = alloc_hw_stats;
 	ibdev->get_hw_stats = get_hw_stats;
+	ibdev->alloc_rdma_netdev = hfi1_vnic_alloc_rn;
+	ibdev->free_rdma_netdev = hfi1_vnic_free_rn;
 
 	/* keep process mad in the driver */
 	ibdev->process_mad = hfi1_process_mad;
@@ -1751,7 +1824,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	dd->verbs_dev.rdi.driver_f.qp_priv_free = qp_priv_free;
 	dd->verbs_dev.rdi.driver_f.free_all_qps = free_all_qps;
 	dd->verbs_dev.rdi.driver_f.notify_qp_reset = notify_qp_reset;
-	dd->verbs_dev.rdi.driver_f.do_send = hfi1_do_send;
+	dd->verbs_dev.rdi.driver_f.do_send = hfi1_do_send_from_rvt;
 	dd->verbs_dev.rdi.driver_f.schedule_send = hfi1_schedule_send;
 	dd->verbs_dev.rdi.driver_f.schedule_send_no_lock = _hfi1_schedule_send;
 	dd->verbs_dev.rdi.driver_f.get_pmtu_from_attr = get_pmtu_from_attr;
@@ -1823,9 +1896,13 @@ void hfi1_unregister_ib_device(struct hfi1_devdata *dd)
 	del_timer_sync(&dev->mem_timer);
 	verbs_txreq_exit(dev);
 
+	mutex_lock(&cntr_names_lock);
 	kfree(dev_cntr_names);
 	kfree(port_cntr_names);
+	dev_cntr_names = NULL;
+	port_cntr_names = NULL;
 	cntr_names_initialized = 0;
+	mutex_unlock(&cntr_names_lock);
 }
 
 void hfi1_cnp_rcv(struct hfi1_packet *packet)
@@ -1840,12 +1917,12 @@ void hfi1_cnp_rcv(struct hfi1_packet *packet)
 
 	switch (packet->qp->ibqp.qp_type) {
 	case IB_QPT_UC:
-		rlid = qp->remote_ah_attr.dlid;
+		rlid = rdma_ah_get_dlid(&qp->remote_ah_attr);
 		rqpn = qp->remote_qpn;
 		svc_type = IB_CC_SVCTYPE_UC;
 		break;
 	case IB_QPT_RC:
-		rlid = qp->remote_ah_attr.dlid;
+		rlid = rdma_ah_get_dlid(&qp->remote_ah_attr);
 		rqpn = qp->remote_qpn;
 		svc_type = IB_CC_SVCTYPE_RC;
 		break;
@@ -1859,7 +1936,7 @@ void hfi1_cnp_rcv(struct hfi1_packet *packet)
 		return;
 	}
 
-	sc5 = hdr2sc(hdr, packet->rhf);
+	sc5 = hfi1_9B_get_sc5(hdr, packet->rhf);
 	sl = ibp->sc_to_sl[sc5];
 	lqpn = qp->ibqp.qp_num;
 

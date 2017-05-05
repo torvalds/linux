@@ -51,6 +51,7 @@ brcm	Broadcom Corporation
 buffalo	Buffalo, Inc.
 calxeda	Calxeda
 capella	Capella Microsystems, Inc
+cascoda	Cascoda, Ltd.
 cavium	Cavium, Inc.
 cdns	Cadence Design Systems Inc.
 ceva	Ceva, Inc.
@@ -102,6 +103,7 @@ ettus	NI Ettus Research
 eukrea  Eukréa Electromatique
 everest	Everest Semiconductor Co. Ltd.
 everspin	Everspin Technologies, Inc.
+exar	Exar Corporation
 excito	Excito
 ezchip	EZchip Semiconductor
 faraday	Faraday Technology Corporation
@@ -178,6 +180,7 @@ maxim	Maxim Integrated Products
 mcube	mCube
 meas	Measurement Specialties
 mediatek	MediaTek Inc.
+megachips	MegaChips
 melexis	Melexis N.V.
 melfas	MELFAS Inc.
 memsic	MEMSIC Inc.
@@ -265,6 +268,7 @@ sbs	Smart Battery System
 schindler	Schindler
 seagate	Seagate Technology PLC
 semtech	Semtech Corporation
+sensirion	Sensirion AG
 sgx	SGX Sensortech
 sharp	Sharp Corporation
 si-en	Si-En Technology Ltd.
@@ -335,6 +339,7 @@ wd	Western Digital Corp.
 wetek	WeTek Electronics, limited.
 wexler	Wexler
 winbond Winbond Electronics corp.
+winstar	Winstar Display Corp.
 wlf	Wolfson Microelectronics
 wm	Wondermedia Technologies, Inc.
 x-powers	X-Powers

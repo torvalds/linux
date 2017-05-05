@@ -60,12 +60,20 @@
 #define KEYCTL_INVALIDATE		21	/* invalidate a key */
 #define KEYCTL_GET_PERSISTENT		22	/* get a user's persistent keyring */
 #define KEYCTL_DH_COMPUTE		23	/* Compute Diffie-Hellman values */
+#define KEYCTL_RESTRICT_KEYRING		29	/* Restrict keys allowed to link to a keyring */
 
 /* keyctl structures */
 struct keyctl_dh_params {
 	__s32 private;
 	__s32 prime;
 	__s32 base;
+};
+
+struct keyctl_kdf_params {
+	char *hashname;
+	char *otherinfo;
+	__u32 otherinfolen;
+	__u32 __spare[8];
 };
 
 #endif /*  _LINUX_KEYCTL_H */

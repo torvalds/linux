@@ -478,15 +478,23 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
     - set the power.last_busy field to the current time
 
   void pm_runtime_use_autosuspend(struct device *dev);
-    - set the power.use_autosuspend flag, enabling autosuspend delays
+    - set the power.use_autosuspend flag, enabling autosuspend delays; call
+      pm_runtime_get_sync if the flag was previously cleared and
+      power.autosuspend_delay is negative
 
   void pm_runtime_dont_use_autosuspend(struct device *dev);
-    - clear the power.use_autosuspend flag, disabling autosuspend delays
+    - clear the power.use_autosuspend flag, disabling autosuspend delays;
+      decrement the device's usage counter if the flag was previously set and
+      power.autosuspend_delay is negative; call pm_runtime_idle
 
   void pm_runtime_set_autosuspend_delay(struct device *dev, int delay);
     - set the power.autosuspend_delay value to 'delay' (expressed in
       milliseconds); if 'delay' is negative then runtime suspends are
-      prevented
+      prevented; if power.use_autosuspend is set, pm_runtime_get_sync may be
+      called or the device's usage counter may be decremented and
+      pm_runtime_idle called depending on if power.autosuspend_delay is
+      changed to or from a negative value; if power.use_autosuspend is clear,
+      pm_runtime_idle is called
 
   unsigned long pm_runtime_autosuspend_expiration(struct device *dev);
     - calculate the time when the current autosuspend delay period will expire,
@@ -836,9 +844,8 @@ of the non-autosuspend counterparts:
 	Instead of: pm_runtime_put_sync   use: pm_runtime_put_sync_autosuspend.
 
 Drivers may also continue to use the non-autosuspend helper functions; they
-will behave normally, not taking the autosuspend delay into account.
-Similarly, if the power.use_autosuspend field isn't set then the autosuspend
-helper functions will behave just like the non-autosuspend counterparts.
+will behave normally, which means sometimes taking the autosuspend delay into
+account (see pm_runtime_idle).
 
 Under some circumstances a driver or subsystem may want to prevent a device
 from autosuspending immediately, even though the usage counter is zero and the

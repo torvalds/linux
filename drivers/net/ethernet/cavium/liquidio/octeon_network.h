@@ -28,6 +28,12 @@
 #define LIO_MAX_MTU_SIZE (OCTNET_MAX_FRM_SIZE - OCTNET_FRM_HEADER_SIZE)
 #define LIO_MIN_MTU_SIZE ETH_MIN_MTU
 
+/* Bit mask values for lio->ifstate */
+#define   LIO_IFSTATE_DROQ_OPS             0x01
+#define   LIO_IFSTATE_REGISTERED           0x02
+#define   LIO_IFSTATE_RUNNING              0x04
+#define   LIO_IFSTATE_RX_TIMESTAMP_ENABLED 0x08
+
 struct oct_nic_stats_resp {
 	u64     rh;
 	struct oct_link_stats stats;
@@ -123,6 +129,9 @@ struct lio {
 	/* work queue for  txq status */
 	struct cavium_wq	txq_status_wq;
 
+	/* work queue for  rxq oom status */
+	struct cavium_wq	rxq_status_wq;
+
 	/* work queue for  link status */
 	struct cavium_wq	link_status_wq;
 
@@ -132,10 +141,6 @@ struct lio {
 #define LIO_SIZE         (sizeof(struct lio))
 #define GET_LIO(netdev)  ((struct lio *)netdev_priv(netdev))
 
-#define CIU3_WDOG(c)                 (0x1010000020000ULL + ((c) << 3))
-#define CIU3_WDOG_MASK               12ULL
-#define LIO_MONITOR_WDOG_EXPIRE      1
-#define LIO_MONITOR_CORE_STUCK_MSGD  2
 #define LIO_MAX_CORES                12
 
 /**
@@ -145,6 +150,10 @@ struct lio {
  * @param param1    Parameter to command
  */
 int liquidio_set_feature(struct net_device *netdev, int cmd, u16 param1);
+
+int setup_rx_oom_poll_fn(struct net_device *netdev);
+
+void cleanup_rx_oom_poll_fn(struct net_device *netdev);
 
 /**
  * \brief Link control command completion callback
@@ -436,6 +445,36 @@ static inline void octeon_fast_packet_next(struct octeon_droq *droq,
 {
 	memcpy(skb_put(nicbuf, copy_len),
 	       get_rbd(droq->recv_buf_list[idx].buffer), copy_len);
+}
+
+/**
+ * \brief check interface state
+ * @param lio per-network private data
+ * @param state_flag flag state to check
+ */
+static inline int ifstate_check(struct lio *lio, int state_flag)
+{
+	return atomic_read(&lio->ifstate) & state_flag;
+}
+
+/**
+ * \brief set interface state
+ * @param lio per-network private data
+ * @param state_flag flag state to set
+ */
+static inline void ifstate_set(struct lio *lio, int state_flag)
+{
+	atomic_set(&lio->ifstate, (atomic_read(&lio->ifstate) | state_flag));
+}
+
+/**
+ * \brief clear interface state
+ * @param lio per-network private data
+ * @param state_flag flag state to clear
+ */
+static inline void ifstate_reset(struct lio *lio, int state_flag)
+{
+	atomic_set(&lio->ifstate, (atomic_read(&lio->ifstate) & ~(state_flag)));
 }
 
 #endif

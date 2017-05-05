@@ -108,7 +108,7 @@ static struct stmmac_axi *stmmac_axi_setup(struct platform_device *pdev)
 	if (!np)
 		return NULL;
 
-	axi = kzalloc(sizeof(*axi), GFP_KERNEL);
+	axi = devm_kzalloc(&pdev->dev, sizeof(*axi), GFP_KERNEL);
 	if (!axi) {
 		of_node_put(np);
 		return ERR_PTR(-ENOMEM);
@@ -129,6 +129,155 @@ static struct stmmac_axi *stmmac_axi_setup(struct platform_device *pdev)
 	of_node_put(np);
 
 	return axi;
+}
+
+/**
+ * stmmac_mtl_setup - parse DT parameters for multiple queues configuration
+ * @pdev: platform device
+ */
+static void stmmac_mtl_setup(struct platform_device *pdev,
+			     struct plat_stmmacenet_data *plat)
+{
+	struct device_node *q_node;
+	struct device_node *rx_node;
+	struct device_node *tx_node;
+	u8 queue = 0;
+
+	/* For backwards-compatibility with device trees that don't have any
+	 * snps,mtl-rx-config or snps,mtl-tx-config properties, we fall back
+	 * to one RX and TX queues each.
+	 */
+	plat->rx_queues_to_use = 1;
+	plat->tx_queues_to_use = 1;
+
+	rx_node = of_parse_phandle(pdev->dev.of_node, "snps,mtl-rx-config", 0);
+	if (!rx_node)
+		return;
+
+	tx_node = of_parse_phandle(pdev->dev.of_node, "snps,mtl-tx-config", 0);
+	if (!tx_node) {
+		of_node_put(rx_node);
+		return;
+	}
+
+	/* Processing RX queues common config */
+	if (of_property_read_u8(rx_node, "snps,rx-queues-to-use",
+				&plat->rx_queues_to_use))
+		plat->rx_queues_to_use = 1;
+
+	if (of_property_read_bool(rx_node, "snps,rx-sched-sp"))
+		plat->rx_sched_algorithm = MTL_RX_ALGORITHM_SP;
+	else if (of_property_read_bool(rx_node, "snps,rx-sched-wsp"))
+		plat->rx_sched_algorithm = MTL_RX_ALGORITHM_WSP;
+	else
+		plat->rx_sched_algorithm = MTL_RX_ALGORITHM_SP;
+
+	/* Processing individual RX queue config */
+	for_each_child_of_node(rx_node, q_node) {
+		if (queue >= plat->rx_queues_to_use)
+			break;
+
+		if (of_property_read_bool(q_node, "snps,dcb-algorithm"))
+			plat->rx_queues_cfg[queue].mode_to_use = MTL_QUEUE_DCB;
+		else if (of_property_read_bool(q_node, "snps,avb-algorithm"))
+			plat->rx_queues_cfg[queue].mode_to_use = MTL_QUEUE_AVB;
+		else
+			plat->rx_queues_cfg[queue].mode_to_use = MTL_QUEUE_DCB;
+
+		if (of_property_read_u8(q_node, "snps,map-to-dma-channel",
+					&plat->rx_queues_cfg[queue].chan))
+			plat->rx_queues_cfg[queue].chan = queue;
+		/* TODO: Dynamic mapping to be included in the future */
+
+		if (of_property_read_u32(q_node, "snps,priority",
+					&plat->rx_queues_cfg[queue].prio)) {
+			plat->rx_queues_cfg[queue].prio = 0;
+			plat->rx_queues_cfg[queue].use_prio = false;
+		} else {
+			plat->rx_queues_cfg[queue].use_prio = true;
+		}
+
+		/* RX queue specific packet type routing */
+		if (of_property_read_bool(q_node, "snps,route-avcp"))
+			plat->rx_queues_cfg[queue].pkt_route = PACKET_AVCPQ;
+		else if (of_property_read_bool(q_node, "snps,route-ptp"))
+			plat->rx_queues_cfg[queue].pkt_route = PACKET_PTPQ;
+		else if (of_property_read_bool(q_node, "snps,route-dcbcp"))
+			plat->rx_queues_cfg[queue].pkt_route = PACKET_DCBCPQ;
+		else if (of_property_read_bool(q_node, "snps,route-up"))
+			plat->rx_queues_cfg[queue].pkt_route = PACKET_UPQ;
+		else if (of_property_read_bool(q_node, "snps,route-multi-broad"))
+			plat->rx_queues_cfg[queue].pkt_route = PACKET_MCBCQ;
+		else
+			plat->rx_queues_cfg[queue].pkt_route = 0x0;
+
+		queue++;
+	}
+
+	/* Processing TX queues common config */
+	if (of_property_read_u8(tx_node, "snps,tx-queues-to-use",
+				&plat->tx_queues_to_use))
+		plat->tx_queues_to_use = 1;
+
+	if (of_property_read_bool(tx_node, "snps,tx-sched-wrr"))
+		plat->tx_sched_algorithm = MTL_TX_ALGORITHM_WRR;
+	else if (of_property_read_bool(tx_node, "snps,tx-sched-wfq"))
+		plat->tx_sched_algorithm = MTL_TX_ALGORITHM_WFQ;
+	else if (of_property_read_bool(tx_node, "snps,tx-sched-dwrr"))
+		plat->tx_sched_algorithm = MTL_TX_ALGORITHM_DWRR;
+	else if (of_property_read_bool(tx_node, "snps,tx-sched-sp"))
+		plat->tx_sched_algorithm = MTL_TX_ALGORITHM_SP;
+	else
+		plat->tx_sched_algorithm = MTL_TX_ALGORITHM_SP;
+
+	queue = 0;
+
+	/* Processing individual TX queue config */
+	for_each_child_of_node(tx_node, q_node) {
+		if (queue >= plat->tx_queues_to_use)
+			break;
+
+		if (of_property_read_u8(q_node, "snps,weight",
+					&plat->tx_queues_cfg[queue].weight))
+			plat->tx_queues_cfg[queue].weight = 0x10 + queue;
+
+		if (of_property_read_bool(q_node, "snps,dcb-algorithm")) {
+			plat->tx_queues_cfg[queue].mode_to_use = MTL_QUEUE_DCB;
+		} else if (of_property_read_bool(q_node,
+						 "snps,avb-algorithm")) {
+			plat->tx_queues_cfg[queue].mode_to_use = MTL_QUEUE_AVB;
+
+			/* Credit Base Shaper parameters used by AVB */
+			if (of_property_read_u32(q_node, "snps,send_slope",
+				&plat->tx_queues_cfg[queue].send_slope))
+				plat->tx_queues_cfg[queue].send_slope = 0x0;
+			if (of_property_read_u32(q_node, "snps,idle_slope",
+				&plat->tx_queues_cfg[queue].idle_slope))
+				plat->tx_queues_cfg[queue].idle_slope = 0x0;
+			if (of_property_read_u32(q_node, "snps,high_credit",
+				&plat->tx_queues_cfg[queue].high_credit))
+				plat->tx_queues_cfg[queue].high_credit = 0x0;
+			if (of_property_read_u32(q_node, "snps,low_credit",
+				&plat->tx_queues_cfg[queue].low_credit))
+				plat->tx_queues_cfg[queue].low_credit = 0x0;
+		} else {
+			plat->tx_queues_cfg[queue].mode_to_use = MTL_QUEUE_DCB;
+		}
+
+		if (of_property_read_u32(q_node, "snps,priority",
+					&plat->tx_queues_cfg[queue].prio)) {
+			plat->tx_queues_cfg[queue].prio = 0;
+			plat->tx_queues_cfg[queue].use_prio = false;
+		} else {
+			plat->tx_queues_cfg[queue].use_prio = true;
+		}
+
+		queue++;
+	}
+
+	of_node_put(rx_node);
+	of_node_put(tx_node);
+	of_node_put(q_node);
 }
 
 /**
@@ -340,6 +489,8 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 
 	plat->axi = stmmac_axi_setup(pdev);
 
+	stmmac_mtl_setup(pdev, plat);
+
 	/* clock setup */
 	plat->stmmac_clk = devm_clk_get(&pdev->dev,
 					STMMAC_RESOURCE_NAME);
@@ -359,13 +510,12 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 	clk_prepare_enable(plat->pclk);
 
 	/* Fall-back to main clock in case of no PTP ref is passed */
-	plat->clk_ptp_ref = devm_clk_get(&pdev->dev, "clk_ptp_ref");
+	plat->clk_ptp_ref = devm_clk_get(&pdev->dev, "ptp_ref");
 	if (IS_ERR(plat->clk_ptp_ref)) {
 		plat->clk_ptp_rate = clk_get_rate(plat->stmmac_clk);
 		plat->clk_ptp_ref = NULL;
 		dev_warn(&pdev->dev, "PTP uses main clock\n");
 	} else {
-		clk_prepare_enable(plat->clk_ptp_ref);
 		plat->clk_ptp_rate = clk_get_rate(plat->clk_ptp_ref);
 		dev_dbg(&pdev->dev, "PTP rate %d\n", plat->clk_ptp_rate);
 	}

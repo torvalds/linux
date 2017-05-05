@@ -76,7 +76,7 @@ static int drr_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 	if (!opt)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_DRR_MAX, opt, drr_policy);
+	err = nla_parse_nested(tb, TCA_DRR_MAX, opt, drr_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -117,6 +117,8 @@ static int drr_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 					       &pfifo_qdisc_ops, classid);
 	if (cl->qdisc == NULL)
 		cl->qdisc = &noop_qdisc;
+	else
+		qdisc_hash_add(cl->qdisc, true);
 
 	if (tca[TCA_RATE]) {
 		err = gen_replace_estimator(&cl->bstats, NULL, &cl->rate_est,

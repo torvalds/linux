@@ -1020,10 +1020,10 @@ static const struct dma_buf_ops dma_buf_ops = {
 	.release = ion_dma_buf_release,
 	.begin_cpu_access = ion_dma_buf_begin_cpu_access,
 	.end_cpu_access = ion_dma_buf_end_cpu_access,
-	.kmap_atomic = ion_dma_buf_kmap,
-	.kunmap_atomic = ion_dma_buf_kunmap,
-	.kmap = ion_dma_buf_kmap,
-	.kunmap = ion_dma_buf_kunmap,
+	.map_atomic = ion_dma_buf_kmap,
+	.unmap_atomic = ion_dma_buf_kunmap,
+	.map = ion_dma_buf_kmap,
+	.unmap = ion_dma_buf_kunmap,
 };
 
 struct dma_buf *ion_share_dma_buf(struct ion_client *client,

@@ -137,10 +137,7 @@ static enum power_supply_property sbs_properties[] = {
 
 static bool sbs_readable_reg(struct device *dev, unsigned int reg)
 {
-	if (reg < SBS_CHARGER_REG_SPEC_INFO)
-		return false;
-	else
-		return true;
+	return reg >= SBS_CHARGER_REG_SPEC_INFO;
 }
 
 static bool sbs_volatile_reg(struct device *dev, unsigned int reg)

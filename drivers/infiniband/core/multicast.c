@@ -720,7 +720,7 @@ int ib_init_ah_from_mcmember(struct ib_device *device, u8 port_num,
 			     struct ib_sa_mcmember_rec *rec,
 			     struct net_device *ndev,
 			     enum ib_gid_type gid_type,
-			     struct ib_ah_attr *ah_attr)
+			     struct rdma_ah_attr *ah_attr)
 {
 	int ret;
 	u16 gid_index;
@@ -743,19 +743,18 @@ int ib_init_ah_from_mcmember(struct ib_device *device, u8 port_num,
 		return ret;
 
 	memset(ah_attr, 0, sizeof *ah_attr);
-	ah_attr->dlid = be16_to_cpu(rec->mlid);
-	ah_attr->sl = rec->sl;
-	ah_attr->port_num = port_num;
-	ah_attr->static_rate = rec->rate;
+	ah_attr->type = rdma_ah_find_type(device, port_num);
 
-	ah_attr->ah_flags = IB_AH_GRH;
-	ah_attr->grh.dgid = rec->mgid;
+	rdma_ah_set_dlid(ah_attr, be16_to_cpu(rec->mlid));
+	rdma_ah_set_sl(ah_attr, rec->sl);
+	rdma_ah_set_port_num(ah_attr, port_num);
+	rdma_ah_set_static_rate(ah_attr, rec->rate);
 
-	ah_attr->grh.sgid_index = (u8) gid_index;
-	ah_attr->grh.flow_label = be32_to_cpu(rec->flow_label);
-	ah_attr->grh.hop_limit = rec->hop_limit;
-	ah_attr->grh.traffic_class = rec->traffic_class;
-
+	rdma_ah_set_grh(ah_attr, &rec->mgid,
+			be32_to_cpu(rec->flow_label),
+			(u8)gid_index,
+			rec->hop_limit,
+			rec->traffic_class);
 	return 0;
 }
 EXPORT_SYMBOL(ib_init_ah_from_mcmember);

@@ -491,7 +491,7 @@ static void qat_dh_clear_ctx(struct device *dev, struct qat_dh_ctx *ctx)
 	ctx->g2 = false;
 }
 
-static int qat_dh_set_secret(struct crypto_kpp *tfm, void *buf,
+static int qat_dh_set_secret(struct crypto_kpp *tfm, const void *buf,
 			     unsigned int len)
 {
 	struct qat_dh_ctx *ctx = kpp_tfm_ctx(tfm);

@@ -9,7 +9,9 @@
 
 #include <linux/efi.h>
 #include <linux/pci.h>
+
 #include <asm/efi.h>
+#include <asm/e820/types.h>
 #include <asm/setup.h>
 #include <asm/desc.h>
 
@@ -729,7 +731,7 @@ static void add_e820ext(struct boot_params *params,
 	unsigned long size;
 
 	e820ext->type = SETUP_E820_EXT;
-	e820ext->len = nr_entries * sizeof(struct e820entry);
+	e820ext->len = nr_entries * sizeof(struct boot_e820_entry);
 	e820ext->next = 0;
 
 	data = (struct setup_data *)(unsigned long)params->hdr.setup_data;
@@ -746,9 +748,9 @@ static void add_e820ext(struct boot_params *params,
 static efi_status_t setup_e820(struct boot_params *params,
 			       struct setup_data *e820ext, u32 e820ext_size)
 {
-	struct e820entry *e820_map = &params->e820_map[0];
+	struct boot_e820_entry *entry = params->e820_table;
 	struct efi_info *efi = &params->efi_info;
-	struct e820entry *prev = NULL;
+	struct boot_e820_entry *prev = NULL;
 	u32 nr_entries;
 	u32 nr_desc;
 	int i;
@@ -773,15 +775,15 @@ static efi_status_t setup_e820(struct boot_params *params,
 		case EFI_MEMORY_MAPPED_IO:
 		case EFI_MEMORY_MAPPED_IO_PORT_SPACE:
 		case EFI_PAL_CODE:
-			e820_type = E820_RESERVED;
+			e820_type = E820_TYPE_RESERVED;
 			break;
 
 		case EFI_UNUSABLE_MEMORY:
-			e820_type = E820_UNUSABLE;
+			e820_type = E820_TYPE_UNUSABLE;
 			break;
 
 		case EFI_ACPI_RECLAIM_MEMORY:
-			e820_type = E820_ACPI;
+			e820_type = E820_TYPE_ACPI;
 			break;
 
 		case EFI_LOADER_CODE:
@@ -789,15 +791,15 @@ static efi_status_t setup_e820(struct boot_params *params,
 		case EFI_BOOT_SERVICES_CODE:
 		case EFI_BOOT_SERVICES_DATA:
 		case EFI_CONVENTIONAL_MEMORY:
-			e820_type = E820_RAM;
+			e820_type = E820_TYPE_RAM;
 			break;
 
 		case EFI_ACPI_MEMORY_NVS:
-			e820_type = E820_NVS;
+			e820_type = E820_TYPE_NVS;
 			break;
 
 		case EFI_PERSISTENT_MEMORY:
-			e820_type = E820_PMEM;
+			e820_type = E820_TYPE_PMEM;
 			break;
 
 		default:
@@ -811,26 +813,26 @@ static efi_status_t setup_e820(struct boot_params *params,
 			continue;
 		}
 
-		if (nr_entries == ARRAY_SIZE(params->e820_map)) {
-			u32 need = (nr_desc - i) * sizeof(struct e820entry) +
+		if (nr_entries == ARRAY_SIZE(params->e820_table)) {
+			u32 need = (nr_desc - i) * sizeof(struct e820_entry) +
 				   sizeof(struct setup_data);
 
 			if (!e820ext || e820ext_size < need)
 				return EFI_BUFFER_TOO_SMALL;
 
 			/* boot_params map full, switch to e820 extended */
-			e820_map = (struct e820entry *)e820ext->data;
+			entry = (struct boot_e820_entry *)e820ext->data;
 		}
 
-		e820_map->addr = d->phys_addr;
-		e820_map->size = d->num_pages << PAGE_SHIFT;
-		e820_map->type = e820_type;
-		prev = e820_map++;
+		entry->addr = d->phys_addr;
+		entry->size = d->num_pages << PAGE_SHIFT;
+		entry->type = e820_type;
+		prev = entry++;
 		nr_entries++;
 	}
 
-	if (nr_entries > ARRAY_SIZE(params->e820_map)) {
-		u32 nr_e820ext = nr_entries - ARRAY_SIZE(params->e820_map);
+	if (nr_entries > ARRAY_SIZE(params->e820_table)) {
+		u32 nr_e820ext = nr_entries - ARRAY_SIZE(params->e820_table);
 
 		add_e820ext(params, e820ext, nr_e820ext);
 		nr_entries -= nr_e820ext;
@@ -848,7 +850,7 @@ static efi_status_t alloc_e820ext(u32 nr_desc, struct setup_data **e820ext,
 	unsigned long size;
 
 	size = sizeof(struct setup_data) +
-		sizeof(struct e820entry) * nr_desc;
+		sizeof(struct e820_entry) * nr_desc;
 
 	if (*e820ext) {
 		efi_call_early(free_pool, *e820ext);
@@ -884,9 +886,9 @@ static efi_status_t exit_boot_func(efi_system_table_t *sys_table_arg,
 
 	if (first) {
 		nr_desc = *map->buff_size / *map->desc_size;
-		if (nr_desc > ARRAY_SIZE(p->boot_params->e820_map)) {
+		if (nr_desc > ARRAY_SIZE(p->boot_params->e820_table)) {
 			u32 nr_e820ext = nr_desc -
-					ARRAY_SIZE(p->boot_params->e820_map);
+					ARRAY_SIZE(p->boot_params->e820_table);
 
 			status = alloc_e820ext(nr_e820ext, &p->e820ext,
 					       &p->e820ext_size);

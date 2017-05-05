@@ -181,7 +181,7 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 				wwn_to_u64(vport->fc_nodename.u.wwn),
 				phba->targetport->port_id);
 
-		len += snprintf(buf + len, PAGE_SIZE,
+		len += snprintf(buf + len, PAGE_SIZE - len,
 				"\nNVME Target: Statistics\n");
 		tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
 		len += snprintf(buf+len, PAGE_SIZE-len,
@@ -326,7 +326,7 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 	}
 	spin_unlock_irq(shost->host_lock);
 
-	len += snprintf(buf + len, PAGE_SIZE, "\nNVME Statistics\n");
+	len += snprintf(buf + len, PAGE_SIZE - len, "\nNVME Statistics\n");
 	len += snprintf(buf+len, PAGE_SIZE-len,
 			"LS: Xmt %016llx Cmpl %016llx\n",
 			phba->fc4NvmeLsRequests,
@@ -2292,6 +2292,8 @@ lpfc_soft_wwn_enable_store(struct device *dev, struct device_attribute *attr,
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
 	unsigned int cnt = count;
+	uint8_t vvvl = vport->fc_sparam.cmn.valid_vendor_ver_level;
+	u32 *fawwpn_key = (uint32_t *)&vport->fc_sparam.un.vendorVersion[0];
 
 	/*
 	 * We're doing a simple sanity check for soft_wwpn setting.
@@ -2305,6 +2307,12 @@ lpfc_soft_wwn_enable_store(struct device *dev, struct device_attribute *attr,
 	 * here. The intent is to protect against the random user or
 	 * application that is just writing attributes.
 	 */
+	if (vvvl == 1 && cpu_to_be32(*fawwpn_key) == FAPWWN_KEY_VENDOR) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				 "0051 "LPFC_DRIVER_NAME" soft wwpn can not"
+				 " be enabled: fawwpn is enabled\n");
+		return -EINVAL;
+	}
 
 	/* count may include a LF at end of string */
 	if (buf[cnt-1] == '\n')
@@ -3335,7 +3343,7 @@ LPFC_ATTR_R(enable_fc4_type, LPFC_ENABLE_FCP,
  * percentage will go to NVME.
  */
 LPFC_ATTR_R(xri_split, 50, 10, 90,
-	     "Division of XRI resources between SCSI and NVME");
+	    "Division of XRI resources between SCSI and NVME");
 
 /*
 # lpfc_log_verbose: Only turn this flag on if you are willing to risk being

@@ -50,7 +50,7 @@ static struct page *page_idle_get_page(unsigned long pfn)
 	return page;
 }
 
-static int page_idle_clear_pte_refs_one(struct page *page,
+static bool page_idle_clear_pte_refs_one(struct page *page,
 					struct vm_area_struct *vma,
 					unsigned long addr, void *arg)
 {
@@ -84,7 +84,7 @@ static int page_idle_clear_pte_refs_one(struct page *page,
 		 */
 		set_page_young(page);
 	}
-	return SWAP_AGAIN;
+	return true;
 }
 
 static void page_idle_clear_pte_refs(struct page *page)

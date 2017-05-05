@@ -366,7 +366,7 @@ static int ide_tape_callback(ide_drive_t *drive, int dsc)
 			err = pc->error;
 		}
 	}
-	rq->errors = err;
+	scsi_req(rq)->result = err;
 
 	return uptodate;
 }
@@ -879,7 +879,7 @@ static int idetape_queue_rw_tail(ide_drive_t *drive, int cmd, int size)
 		tape->valid = 0;
 
 	ret = size;
-	if (rq->errors == IDE_DRV_ERROR_GENERAL)
+	if (scsi_req(rq)->result == IDE_DRV_ERROR_GENERAL)
 		ret = -EIO;
 out_put:
 	blk_put_request(rq);

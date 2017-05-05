@@ -193,8 +193,8 @@ int do_sys_settimeofday64(const struct timespec64 *tv, const struct timezone *tz
 SYSCALL_DEFINE2(settimeofday, struct timeval __user *, tv,
 		struct timezone __user *, tz)
 {
+	struct timespec64 new_ts;
 	struct timeval user_tv;
-	struct timespec	new_ts;
 	struct timezone new_tz;
 
 	if (tv) {
@@ -212,7 +212,7 @@ SYSCALL_DEFINE2(settimeofday, struct timeval __user *, tv,
 			return -EFAULT;
 	}
 
-	return do_sys_settimeofday(tv ? &new_ts : NULL, tz ? &new_tz : NULL);
+	return do_sys_settimeofday64(tv ? &new_ts : NULL, tz ? &new_tz : NULL);
 }
 
 SYSCALL_DEFINE1(adjtimex, struct timex __user *, txc_p)

@@ -181,6 +181,15 @@ qed_sp_iscsi_func_start(struct qed_hwfn *p_hwfn,
 	p_params = &p_hwfn->pf_params.iscsi_pf_params;
 	p_queue = &p_init->q_params;
 
+	/* Sanity */
+	if (p_params->num_queues > p_hwfn->hw_info.feat_num[QED_ISCSI_CQ]) {
+		DP_ERR(p_hwfn,
+		       "Cannot satisfy CQ amount. Queues requested %d, CQs available %d. Aborting function start\n",
+		       p_params->num_queues,
+		       p_hwfn->hw_info.resc_num[QED_ISCSI_CQ]);
+		return -EINVAL;
+	}
+
 	SET_FIELD(p_init->hdr.flags,
 		  ISCSI_SLOW_PATH_HDR_LAYER_CODE, ISCSI_SLOW_PATH_LAYER_CODE);
 	p_init->hdr.op_code = ISCSI_RAMROD_CMD_ID_INIT_FUNC;
@@ -216,7 +225,7 @@ qed_sp_iscsi_func_start(struct qed_hwfn *p_hwfn,
 		p_queue->cq_cmdq_sb_num_arr[i] = cpu_to_le16(val);
 	}
 
-	p_queue->bdq_resource_id = ISCSI_BDQ_ID(p_hwfn->port_id);
+	p_queue->bdq_resource_id = (u8)RESC_START(p_hwfn, QED_BDQ);
 
 	DMA_REGPAIR_LE(p_queue->bdq_pbl_base_address[BDQ_ID_RQ],
 		       p_params->bdq_pbl_base_addr[BDQ_ID_RQ]);
@@ -270,11 +279,10 @@ static int qed_sp_iscsi_conn_offload(struct qed_hwfn *p_hwfn,
 	struct tcp_offload_params *p_tcp = NULL;
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
-	union qed_qm_pq_params pq_params;
-	u16 pq0_id = 0, pq1_id = 0;
 	dma_addr_t r2tq_pbl_addr;
 	dma_addr_t xhq_pbl_addr;
 	dma_addr_t uhq_pbl_addr;
+	u16 physical_q;
 	int rc = 0;
 	u32 dval;
 	u16 wval;
@@ -297,16 +305,14 @@ static int qed_sp_iscsi_conn_offload(struct qed_hwfn *p_hwfn,
 	p_ramrod = &p_ent->ramrod.iscsi_conn_offload;
 
 	/* Transmission PQ is the first of the PF */
-	memset(&pq_params, 0, sizeof(pq_params));
-	pq0_id = qed_get_qm_pq(p_hwfn, PROTOCOLID_ISCSI, &pq_params);
-	p_conn->physical_q0 = cpu_to_le16(pq0_id);
-	p_ramrod->iscsi.physical_q0 = cpu_to_le16(pq0_id);
+	physical_q = qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_OFLD);
+	p_conn->physical_q0 = cpu_to_le16(physical_q);
+	p_ramrod->iscsi.physical_q0 = cpu_to_le16(physical_q);
 
 	/* iSCSI Pure-ACK PQ */
-	pq_params.iscsi.q_idx = 1;
-	pq1_id = qed_get_qm_pq(p_hwfn, PROTOCOLID_ISCSI, &pq_params);
-	p_conn->physical_q1 = cpu_to_le16(pq1_id);
-	p_ramrod->iscsi.physical_q1 = cpu_to_le16(pq1_id);
+	physical_q = qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_ACK);
+	p_conn->physical_q1 = cpu_to_le16(physical_q);
+	p_ramrod->iscsi.physical_q1 = cpu_to_le16(physical_q);
 
 	p_ramrod->hdr.op_code = ISCSI_RAMROD_CMD_ID_OFFLOAD_CONN;
 	SET_FIELD(p_ramrod->hdr.flags, ISCSI_SLOW_PATH_HDR_LAYER_CODE,
@@ -593,21 +599,31 @@ static void __iomem *qed_iscsi_get_db_addr(struct qed_hwfn *p_hwfn, u32 cid)
 static void __iomem *qed_iscsi_get_primary_bdq_prod(struct qed_hwfn *p_hwfn,
 						    u8 bdq_id)
 {
-	u8 bdq_function_id = ISCSI_BDQ_ID(p_hwfn->port_id);
-
-	return (u8 __iomem *)p_hwfn->regview + GTT_BAR0_MAP_REG_MSDM_RAM +
-			     MSTORM_SCSI_BDQ_EXT_PROD_OFFSET(bdq_function_id,
-							     bdq_id);
+	if (RESC_NUM(p_hwfn, QED_BDQ)) {
+		return (u8 __iomem *)p_hwfn->regview +
+		       GTT_BAR0_MAP_REG_MSDM_RAM +
+		       MSTORM_SCSI_BDQ_EXT_PROD_OFFSET(RESC_START(p_hwfn,
+								  QED_BDQ),
+						       bdq_id);
+	} else {
+		DP_NOTICE(p_hwfn, "BDQ is not allocated!\n");
+		return NULL;
+	}
 }
 
 static void __iomem *qed_iscsi_get_secondary_bdq_prod(struct qed_hwfn *p_hwfn,
 						      u8 bdq_id)
 {
-	u8 bdq_function_id = ISCSI_BDQ_ID(p_hwfn->port_id);
-
-	return (u8 __iomem *)p_hwfn->regview + GTT_BAR0_MAP_REG_TSDM_RAM +
-			     TSTORM_SCSI_BDQ_EXT_PROD_OFFSET(bdq_function_id,
-							     bdq_id);
+	if (RESC_NUM(p_hwfn, QED_BDQ)) {
+		return (u8 __iomem *)p_hwfn->regview +
+		       GTT_BAR0_MAP_REG_TSDM_RAM +
+		       TSTORM_SCSI_BDQ_EXT_PROD_OFFSET(RESC_START(p_hwfn,
+								  QED_BDQ),
+						       bdq_id);
+	} else {
+		DP_NOTICE(p_hwfn, "BDQ is not allocated!\n");
+		return NULL;
+	}
 }
 
 static int qed_iscsi_setup_connection(struct qed_hwfn *p_hwfn,
@@ -857,6 +873,8 @@ static void _qed_iscsi_get_tstats(struct qed_hwfn *p_hwfn,
 	    HILO_64_REGPAIR(tstats.iscsi_rx_bytes_cnt);
 	p_stats->iscsi_rx_packet_cnt =
 	    HILO_64_REGPAIR(tstats.iscsi_rx_packet_cnt);
+	p_stats->iscsi_rx_new_ooo_isle_events_cnt =
+	    HILO_64_REGPAIR(tstats.iscsi_rx_new_ooo_isle_events_cnt);
 	p_stats->iscsi_cmdq_threshold_cnt =
 	    le32_to_cpu(tstats.iscsi_cmdq_threshold_cnt);
 	p_stats->iscsi_rq_threshold_cnt =
@@ -1002,6 +1020,8 @@ static int qed_fill_iscsi_dev_info(struct qed_dev *cdev,
 	    qed_iscsi_get_primary_bdq_prod(hwfn, BDQ_ID_RQ);
 	info->secondary_bdq_rq_addr =
 	    qed_iscsi_get_secondary_bdq_prod(hwfn, BDQ_ID_RQ);
+
+	info->num_cqs = FEAT_NUM(hwfn, QED_ISCSI_CQ);
 
 	return rc;
 }
@@ -1302,6 +1322,26 @@ static int qed_iscsi_destroy_conn(struct qed_dev *cdev,
 static int qed_iscsi_stats(struct qed_dev *cdev, struct qed_iscsi_stats *stats)
 {
 	return qed_iscsi_get_stats(QED_LEADING_HWFN(cdev), stats);
+}
+
+void qed_get_protocol_stats_iscsi(struct qed_dev *cdev,
+				  struct qed_mcp_iscsi_stats *stats)
+{
+	struct qed_iscsi_stats proto_stats;
+
+	/* Retrieve FW statistics */
+	memset(&proto_stats, 0, sizeof(proto_stats));
+	if (qed_iscsi_stats(cdev, &proto_stats)) {
+		DP_VERBOSE(cdev, QED_MSG_STORAGE,
+			   "Failed to collect ISCSI statistics\n");
+		return;
+	}
+
+	/* Translate FW statistics into struct */
+	stats->rx_pdus = proto_stats.iscsi_rx_total_pdu_cnt;
+	stats->tx_pdus = proto_stats.iscsi_tx_total_pdu_cnt;
+	stats->rx_bytes = proto_stats.iscsi_rx_bytes_cnt;
+	stats->tx_bytes = proto_stats.iscsi_tx_bytes_cnt;
 }
 
 static const struct qed_iscsi_ops qed_iscsi_ops_pass = {

@@ -1,6 +1,7 @@
 config SUNXI_CCU
 	bool "Clock support for Allwinner SoCs"
 	depends on ARCH_SUNXI || COMPILE_TEST
+	select RESET_CONTROLLER
 	default ARCH_SUNXI
 
 if SUNXI_CCU
@@ -15,7 +16,7 @@ config SUNXI_CCU_FRAC
 	bool
 
 config SUNXI_CCU_GATE
-	bool
+	def_bool y
 
 config SUNXI_CCU_MUX
 	bool
@@ -135,6 +136,7 @@ config SUN8I_V3S_CCU
 config SUN9I_A80_CCU
 	bool "Support for the Allwinner A80 CCU"
 	select SUNXI_CCU_DIV
+	select SUNXI_CCU_MULT
 	select SUNXI_CCU_GATE
 	select SUNXI_CCU_NKMP
 	select SUNXI_CCU_NM

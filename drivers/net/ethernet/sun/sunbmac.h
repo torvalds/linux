@@ -311,7 +311,6 @@ struct bigmac {
 	enum bigmac_timer_state	timer_state;
 	unsigned int		timer_ticks;
 
-	struct net_device_stats	enet_stats;
 	struct platform_device	*qec_op;
 	struct platform_device	*bigmac_op;
 	struct net_device	*dev;

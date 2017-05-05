@@ -137,6 +137,13 @@ MODULE_PARM_DESC(tx_timeout, "The Tx timeout in ms");
 /* L4 Type field: TCP */
 #define FM_L4_PARSE_RESULT_TCP	0x20
 
+/* FD status field indicating whether the FM Parser has attempted to validate
+ * the L4 csum of the frame.
+ * Note that having this bit set doesn't necessarily imply that the checksum
+ * is valid. One would have to check the parse results to find that out.
+ */
+#define FM_FD_STAT_L4CV         0x00000004
+
 #define DPAA_SGT_MAX_ENTRIES 16 /* maximum number of entries in SG Table */
 #define DPAA_BUFF_RELEASE_MAX 8 /* maximum number of buffers released at once */
 
@@ -235,6 +242,7 @@ static int dpaa_netdev_init(struct net_device *net_dev,
 	 * For conformity, we'll still declare GSO explicitly.
 	 */
 	net_dev->features |= NETIF_F_GSO;
+	net_dev->features |= NETIF_F_RXCSUM;
 
 	net_dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 	/* we do not want shared skbs on TX */
@@ -332,6 +340,45 @@ static void dpaa_get_stats64(struct net_device *net_dev,
 		for (j = 0; j < numstats; j++)
 			netstats[j] += cpustats[j];
 	}
+}
+
+static int dpaa_setup_tc(struct net_device *net_dev, u32 handle, __be16 proto,
+			 struct tc_to_netdev *tc)
+{
+	struct dpaa_priv *priv = netdev_priv(net_dev);
+	u8 num_tc;
+	int i;
+
+	if (tc->type != TC_SETUP_MQPRIO)
+		return -EINVAL;
+
+	tc->mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
+	num_tc = tc->mqprio->num_tc;
+
+	if (num_tc == priv->num_tc)
+		return 0;
+
+	if (!num_tc) {
+		netdev_reset_tc(net_dev);
+		goto out;
+	}
+
+	if (num_tc > DPAA_TC_NUM) {
+		netdev_err(net_dev, "Too many traffic classes: max %d supported.\n",
+			   DPAA_TC_NUM);
+		return -EINVAL;
+	}
+
+	netdev_set_num_tc(net_dev, num_tc);
+
+	for (i = 0; i < num_tc; i++)
+		netdev_set_tc_queue(net_dev, i, DPAA_TC_TXQ_NUM,
+				    i * DPAA_TC_TXQ_NUM);
+
+out:
+	priv->num_tc = num_tc ? : 1;
+	netif_set_real_num_tx_queues(net_dev, priv->num_tc * DPAA_TC_TXQ_NUM);
+	return 0;
 }
 
 static struct mac_device *dpaa_mac_dev_get(struct platform_device *pdev)
@@ -557,16 +604,18 @@ static void dpaa_bps_free(struct dpaa_priv *priv)
 
 /* Use multiple WQs for FQ assignment:
  *	- Tx Confirmation queues go to WQ1.
- *	- Rx Error and Tx Error queues go to WQ2 (giving them a better chance
- *	  to be scheduled, in case there are many more FQs in WQ3).
- *	- Rx Default and Tx queues go to WQ3 (no differentiation between
- *	  Rx and Tx traffic).
+ *	- Rx Error and Tx Error queues go to WQ5 (giving them a better chance
+ *	  to be scheduled, in case there are many more FQs in WQ6).
+ *	- Rx Default goes to WQ6.
+ *	- Tx queues go to different WQs depending on their priority. Equal
+ *	  chunks of NR_CPUS queues go to WQ6 (lowest priority), WQ2, WQ1 and
+ *	  WQ0 (highest priority).
  * This ensures that Tx-confirmed buffers are timely released. In particular,
  * it avoids congestion on the Tx Confirm FQs, which can pile up PFDRs if they
  * are greatly outnumbered by other FQs in the system, while
  * dequeue scheduling is round-robin.
  */
-static inline void dpaa_assign_wq(struct dpaa_fq *fq)
+static inline void dpaa_assign_wq(struct dpaa_fq *fq, int idx)
 {
 	switch (fq->fq_type) {
 	case FQ_TYPE_TX_CONFIRM:
@@ -575,11 +624,33 @@ static inline void dpaa_assign_wq(struct dpaa_fq *fq)
 		break;
 	case FQ_TYPE_RX_ERROR:
 	case FQ_TYPE_TX_ERROR:
-		fq->wq = 2;
+		fq->wq = 5;
 		break;
 	case FQ_TYPE_RX_DEFAULT:
+		fq->wq = 6;
+		break;
 	case FQ_TYPE_TX:
-		fq->wq = 3;
+		switch (idx / DPAA_TC_TXQ_NUM) {
+		case 0:
+			/* Low priority (best effort) */
+			fq->wq = 6;
+			break;
+		case 1:
+			/* Medium priority */
+			fq->wq = 2;
+			break;
+		case 2:
+			/* High priority */
+			fq->wq = 1;
+			break;
+		case 3:
+			/* Very high priority */
+			fq->wq = 0;
+			break;
+		default:
+			WARN(1, "Too many TX FQs: more than %d!\n",
+			     DPAA_ETH_TXQ_NUM);
+		}
 		break;
 	default:
 		WARN(1, "Invalid FQ type %d for FQID %d!\n",
@@ -607,7 +678,7 @@ static struct dpaa_fq *dpaa_fq_alloc(struct device *dev,
 	}
 
 	for (i = 0; i < count; i++)
-		dpaa_assign_wq(dpaa_fq + i);
+		dpaa_assign_wq(dpaa_fq + i, i);
 
 	return dpaa_fq;
 }
@@ -903,7 +974,7 @@ static int dpaa_fq_init(struct dpaa_fq *dpaa_fq, bool td_enable)
 		 * Tx Confirmation FQs.
 		 */
 		if (dpaa_fq->fq_type == FQ_TYPE_TX_CONFIRM)
-			initfq.fqd.fq_ctrl |= cpu_to_be16(QM_FQCTRL_HOLDACTIVE);
+			initfq.fqd.fq_ctrl |= cpu_to_be16(QM_FQCTRL_AVOIDBLOCK);
 
 		/* FQ placement */
 		initfq.we_mask |= cpu_to_be16(QM_INITFQ_WE_DESTWQ);
@@ -985,7 +1056,8 @@ static int dpaa_fq_init(struct dpaa_fq *dpaa_fq, bool td_enable)
 		/* Initialization common to all ingress queues */
 		if (dpaa_fq->flags & QMAN_FQ_FLAG_NO_ENQUEUE) {
 			initfq.we_mask |= cpu_to_be16(QM_INITFQ_WE_CONTEXTA);
-			initfq.fqd.fq_ctrl |= cpu_to_be16(QM_FQCTRL_HOLDACTIVE);
+			initfq.fqd.fq_ctrl |= cpu_to_be16(QM_FQCTRL_HOLDACTIVE |
+						QM_FQCTRL_CTXASTASHING);
 			initfq.fqd.context_a.stashing.exclusive =
 				QM_STASHING_EXCL_DATA | QM_STASHING_EXCL_CTX |
 				QM_STASHING_EXCL_ANNOTATION;
@@ -1055,9 +1127,9 @@ static int dpaa_fq_free(struct device *dev, struct list_head *list)
 	return err;
 }
 
-static void dpaa_eth_init_tx_port(struct fman_port *port, struct dpaa_fq *errq,
-				  struct dpaa_fq *defq,
-				  struct dpaa_buffer_layout *buf_layout)
+static int dpaa_eth_init_tx_port(struct fman_port *port, struct dpaa_fq *errq,
+				 struct dpaa_fq *defq,
+				 struct dpaa_buffer_layout *buf_layout)
 {
 	struct fman_buffer_prefix_content buf_prefix_content;
 	struct fman_port_params params;
@@ -1076,23 +1148,29 @@ static void dpaa_eth_init_tx_port(struct fman_port *port, struct dpaa_fq *errq,
 	params.specific_params.non_rx_params.dflt_fqid = defq->fqid;
 
 	err = fman_port_config(port, &params);
-	if (err)
+	if (err) {
 		pr_err("%s: fman_port_config failed\n", __func__);
+		return err;
+	}
 
 	err = fman_port_cfg_buf_prefix_content(port, &buf_prefix_content);
-	if (err)
+	if (err) {
 		pr_err("%s: fman_port_cfg_buf_prefix_content failed\n",
 		       __func__);
+		return err;
+	}
 
 	err = fman_port_init(port);
 	if (err)
 		pr_err("%s: fm_port_init failed\n", __func__);
+
+	return err;
 }
 
-static void dpaa_eth_init_rx_port(struct fman_port *port, struct dpaa_bp **bps,
-				  size_t count, struct dpaa_fq *errq,
-				  struct dpaa_fq *defq,
-				  struct dpaa_buffer_layout *buf_layout)
+static int dpaa_eth_init_rx_port(struct fman_port *port, struct dpaa_bp **bps,
+				 size_t count, struct dpaa_fq *errq,
+				 struct dpaa_fq *defq,
+				 struct dpaa_buffer_layout *buf_layout)
 {
 	struct fman_buffer_prefix_content buf_prefix_content;
 	struct fman_port_rx_params *rx_p;
@@ -1120,32 +1198,44 @@ static void dpaa_eth_init_rx_port(struct fman_port *port, struct dpaa_bp **bps,
 	}
 
 	err = fman_port_config(port, &params);
-	if (err)
+	if (err) {
 		pr_err("%s: fman_port_config failed\n", __func__);
+		return err;
+	}
 
 	err = fman_port_cfg_buf_prefix_content(port, &buf_prefix_content);
-	if (err)
+	if (err) {
 		pr_err("%s: fman_port_cfg_buf_prefix_content failed\n",
 		       __func__);
+		return err;
+	}
 
 	err = fman_port_init(port);
 	if (err)
 		pr_err("%s: fm_port_init failed\n", __func__);
+
+	return err;
 }
 
-static void dpaa_eth_init_ports(struct mac_device *mac_dev,
-				struct dpaa_bp **bps, size_t count,
-				struct fm_port_fqs *port_fqs,
-				struct dpaa_buffer_layout *buf_layout,
-				struct device *dev)
+static int dpaa_eth_init_ports(struct mac_device *mac_dev,
+			       struct dpaa_bp **bps, size_t count,
+			       struct fm_port_fqs *port_fqs,
+			       struct dpaa_buffer_layout *buf_layout,
+			       struct device *dev)
 {
 	struct fman_port *rxport = mac_dev->port[RX];
 	struct fman_port *txport = mac_dev->port[TX];
+	int err;
 
-	dpaa_eth_init_tx_port(txport, port_fqs->tx_errq,
-			      port_fqs->tx_defq, &buf_layout[TX]);
-	dpaa_eth_init_rx_port(rxport, bps, count, port_fqs->rx_errq,
-			      port_fqs->rx_defq, &buf_layout[RX]);
+	err = dpaa_eth_init_tx_port(txport, port_fqs->tx_errq,
+				    port_fqs->tx_defq, &buf_layout[TX]);
+	if (err)
+		return err;
+
+	err = dpaa_eth_init_rx_port(rxport, bps, count, port_fqs->rx_errq,
+				    port_fqs->rx_defq, &buf_layout[RX]);
+
+	return err;
 }
 
 static int dpaa_bman_release(const struct dpaa_bp *dpaa_bp,
@@ -1526,6 +1616,23 @@ static struct sk_buff *dpaa_cleanup_tx_fd(const struct dpaa_priv *priv,
 	return skb;
 }
 
+static u8 rx_csum_offload(const struct dpaa_priv *priv, const struct qm_fd *fd)
+{
+	/* The parser has run and performed L4 checksum validation.
+	 * We know there were no parser errors (and implicitly no
+	 * L4 csum error), otherwise we wouldn't be here.
+	 */
+	if ((priv->net_dev->features & NETIF_F_RXCSUM) &&
+	    (be32_to_cpu(fd->status) & FM_FD_STAT_L4CV))
+		return CHECKSUM_UNNECESSARY;
+
+	/* We're here because either the parser didn't run or the L4 checksum
+	 * was not verified. This may include the case of a UDP frame with
+	 * checksum zero or an L4 proto other than TCP/UDP
+	 */
+	return CHECKSUM_NONE;
+}
+
 /* Build a linear skb around the received buffer.
  * We are guaranteed there is enough room at the end of the data buffer to
  * accommodate the shared info area of the skb.
@@ -1556,7 +1663,7 @@ static struct sk_buff *contig_fd_to_skb(const struct dpaa_priv *priv,
 	skb_reserve(skb, fd_off);
 	skb_put(skb, qm_fd_get_length(fd));
 
-	skb->ip_summed = CHECKSUM_NONE;
+	skb->ip_summed = rx_csum_offload(priv, fd);
 
 	return skb;
 
@@ -1616,7 +1723,7 @@ static struct sk_buff *sg_fd_to_skb(const struct dpaa_priv *priv,
 			if (WARN_ON(unlikely(!skb)))
 				goto free_buffers;
 
-			skb->ip_summed = CHECKSUM_NONE;
+			skb->ip_summed = rx_csum_offload(priv, fd);
 
 			/* Make sure forwarded skbs will have enough space
 			 * on Tx, if extra headers are added.
@@ -2093,7 +2200,7 @@ static enum qman_cb_dqrr_result rx_default_dqrr(struct qman_portal *portal,
 	dma_addr_t addr = qm_fd_addr(fd);
 	enum qm_fd_format fd_format;
 	struct net_device *net_dev;
-	u32 fd_status = fd->status;
+	u32 fd_status;
 	struct dpaa_bp *dpaa_bp;
 	struct dpaa_priv *priv;
 	unsigned int skb_len;
@@ -2350,6 +2457,7 @@ static const struct net_device_ops dpaa_ops = {
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_set_rx_mode = dpaa_set_rx_mode,
 	.ndo_do_ioctl = dpaa_ioctl,
+	.ndo_setup_tc = dpaa_setup_tc,
 };
 
 static int dpaa_napi_add(struct net_device *net_dev)
@@ -2624,8 +2732,10 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 	priv->rx_headroom = dpaa_get_headroom(&priv->buf_layout[RX]);
 
 	/* All real interfaces need their ports initialized */
-	dpaa_eth_init_ports(mac_dev, dpaa_bps, DPAA_BPS_NUM, &port_fqs,
-			    &priv->buf_layout[0], dev);
+	err = dpaa_eth_init_ports(mac_dev, dpaa_bps, DPAA_BPS_NUM, &port_fqs,
+				  &priv->buf_layout[0], dev);
+	if (err)
+		goto init_ports_failed;
 
 	priv->percpu_priv = devm_alloc_percpu(dev, *priv->percpu_priv);
 	if (!priv->percpu_priv) {
@@ -2637,6 +2747,9 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 		percpu_priv = per_cpu_ptr(priv->percpu_priv, i);
 		memset(percpu_priv, 0, sizeof(*percpu_priv));
 	}
+
+	priv->num_tc = 1;
+	netif_set_real_num_tx_queues(net_dev, priv->num_tc * DPAA_TC_TXQ_NUM);
 
 	/* Initialize NAPI */
 	err = dpaa_napi_add(net_dev);
@@ -2658,6 +2771,7 @@ netdev_init_failed:
 napi_add_failed:
 	dpaa_napi_del(net_dev);
 alloc_percpu_failed:
+init_ports_failed:
 	dpaa_fq_free(dev, &priv->dpaa_fq_list);
 fq_alloc_failed:
 	qman_delete_cgr_safe(&priv->ingress_cgr);

@@ -221,7 +221,7 @@ struct qxl_bo *qxl_bo_ref(struct qxl_bo *bo)
 	return bo;
 }
 
-int qxl_bo_pin(struct qxl_bo *bo, u32 domain, u64 *gpu_addr)
+int __qxl_bo_pin(struct qxl_bo *bo, u32 domain, u64 *gpu_addr)
 {
 	struct drm_device *ddev = bo->gem_base.dev;
 	int r;
@@ -244,7 +244,7 @@ int qxl_bo_pin(struct qxl_bo *bo, u32 domain, u64 *gpu_addr)
 	return r;
 }
 
-int qxl_bo_unpin(struct qxl_bo *bo)
+int __qxl_bo_unpin(struct qxl_bo *bo)
 {
 	struct drm_device *ddev = bo->gem_base.dev;
 	int r, i;
@@ -261,6 +261,43 @@ int qxl_bo_unpin(struct qxl_bo *bo)
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
 	if (unlikely(r != 0))
 		dev_err(ddev->dev, "%p validate failed for unpin\n", bo);
+	return r;
+}
+
+
+/*
+ * Reserve the BO before pinning the object.  If the BO was reserved
+ * beforehand, use the internal version directly __qxl_bo_pin.
+ *
+ */
+int qxl_bo_pin(struct qxl_bo *bo, u32 domain, u64 *gpu_addr)
+{
+	int r;
+
+	r = qxl_bo_reserve(bo, false);
+	if (r)
+		return r;
+
+	r = __qxl_bo_pin(bo, bo->type, NULL);
+	qxl_bo_unreserve(bo);
+	return r;
+}
+
+/*
+ * Reserve the BO before pinning the object.  If the BO was reserved
+ * beforehand, use the internal version directly __qxl_bo_unpin.
+ *
+ */
+int qxl_bo_unpin(struct qxl_bo *bo)
+{
+	int r;
+
+	r = qxl_bo_reserve(bo, false);
+	if (r)
+		return r;
+
+	r = __qxl_bo_unpin(bo);
+	qxl_bo_unreserve(bo);
 	return r;
 }
 

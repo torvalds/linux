@@ -12,6 +12,7 @@
 #include "event.h"
 #include "perf_regs.h"
 #include "callchain.h"
+#include "util.h"
 
 static char *debuginfo_path;
 

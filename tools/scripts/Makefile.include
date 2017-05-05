@@ -43,6 +43,15 @@ ifneq ($(CC), clang)
 EXTRA_WARNINGS += -Wstrict-aliasing=3
 endif
 
+# Hack to avoid type-punned warnings on old systems such as RHEL5:
+# We should be changing CFLAGS and checking gcc version, but this
+# will do for now and keep the above -Wstrict-aliasing=3 in place
+# in newer systems.
+# Needed for the __raw_cmpxchg in tools/arch/x86/include/asm/cmpxchg.h
+ifneq ($(filter 3.%,$(MAKE_VERSION)),)  # make-3
+EXTRA_WARNINGS += -fno-strict-aliasing
+endif
+
 ifneq ($(findstring $(MAKEFLAGS), w),w)
 PRINT_DIR = --no-print-directory
 else

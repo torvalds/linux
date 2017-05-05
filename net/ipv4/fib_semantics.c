@@ -57,7 +57,6 @@ static unsigned int fib_info_cnt;
 static struct hlist_head fib_info_devhash[DEVINDEX_HASHSIZE];
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
-u32 fib_multipath_secret __read_mostly;
 
 #define for_nexthops(fi) {						\
 	int nhsel; const struct fib_nh *nh;				\
@@ -576,9 +575,6 @@ static void fib_rebalance(struct fib_info *fi)
 
 		atomic_set(&nexthop_nh->nh_upper_bound, upper_bound);
 	} endfor_nexthops(fi);
-
-	net_get_random_once(&fib_multipath_secret,
-			    sizeof(fib_multipath_secret));
 }
 
 static inline void fib_add_weight(struct fib_info *fi,
@@ -1641,7 +1637,7 @@ void fib_select_multipath(struct fib_result *res, int hash)
 #endif
 
 void fib_select_path(struct net *net, struct fib_result *res,
-		     struct flowi4 *fl4, int mp_hash)
+		     struct flowi4 *fl4, const struct sk_buff *skb)
 {
 	bool oif_check;
 
@@ -1650,10 +1646,9 @@ void fib_select_path(struct net *net, struct fib_result *res,
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	if (res->fi->fib_nhs > 1 && oif_check) {
-		if (mp_hash < 0)
-			mp_hash = get_hash_from_flowi4(fl4) >> 1;
+		int h = fib_multipath_hash(res->fi, fl4, skb);
 
-		fib_select_multipath(res, mp_hash);
+		fib_select_multipath(res, h);
 	}
 	else
 #endif

@@ -34,8 +34,9 @@ format-specific subdirectories under ``Documentation/output``.
 
 To generate documentation, Sphinx (``sphinx-build``) must obviously be
 installed. For prettier HTML output, the Read the Docs Sphinx theme
-(``sphinx_rtd_theme``) is used if available. For PDF output, ``rst2pdf`` is also
-needed. All of these are widely available and packaged in distributions.
+(``sphinx_rtd_theme``) is used if available. For PDF output you'll also need
+``XeLaTeX`` and ``convert(1)`` from ImageMagick (https://www.imagemagick.org).
+All of these are widely available and packaged in distributions.
 
 To pass extra options to Sphinx, you can use the ``SPHINXOPTS`` make
 variable. For example, use ``make SPHINXOPTS=-v htmldocs`` to get more verbose
@@ -73,7 +74,16 @@ Specific guidelines for the kernel documentation
 
 Here are some specific guidelines for the kernel documentation:
 
-* Please don't go overboard with reStructuredText markup. Keep it simple.
+* Please don't go overboard with reStructuredText markup. Keep it
+  simple. For the most part the documentation should be plain text with
+  just enough consistency in formatting that it can be converted to
+  other formats.
+
+* Please keep the formatting changes minimal when converting existing
+  documentation to reStructuredText.
+
+* Also update the content, not just the formatting, when converting
+  documentation.
 
 * Please stick to this order of heading adornments:
 
@@ -102,6 +112,12 @@ Here are some specific guidelines for the kernel documentation:
   number and order of section title adornment styles, the order enforced will be
   the order as encountered."), having the higher levels the same overall makes
   it easier to follow the documents.
+
+* For inserting fixed width text blocks (for code examples, use case
+  examples, etc.), use ``::`` for anything that doesn't really benefit
+  from syntax highlighting, especially short snippets. Use
+  ``.. code-block:: <language>`` for longer code blocks that benefit
+  from highlighting.
 
 
 the C domain
@@ -217,3 +233,96 @@ Rendered as:
       * .. _`last row`:
 
         - column 3
+
+
+Figures & Images
+================
+
+If you want to add an image, you should use the ``kernel-figure`` and
+``kernel-image`` directives. E.g. to insert a figure with a scalable
+image format use SVG (:ref:`svg_image_example`)::
+
+    .. kernel-figure::  svg_image.svg
+       :alt:    simple SVG image
+
+       SVG image example
+
+.. _svg_image_example:
+
+.. kernel-figure::  svg_image.svg
+   :alt:    simple SVG image
+
+   SVG image example
+
+The kernel figure (and image) directive support **DOT** formated files, see
+
+* DOT: http://graphviz.org/pdf/dotguide.pdf
+* Graphviz: http://www.graphviz.org/content/dot-language
+
+A simple example (:ref:`hello_dot_file`)::
+
+  .. kernel-figure::  hello.dot
+     :alt:    hello world
+
+     DOT's hello world example
+
+.. _hello_dot_file:
+
+.. kernel-figure::  hello.dot
+   :alt:    hello world
+
+   DOT's hello world example
+
+Embed *render* markups (or languages) like Graphviz's **DOT** is provided by the
+``kernel-render`` directives.::
+
+  .. kernel-render:: DOT
+     :alt: foobar digraph
+     :caption: Embedded **DOT** (Graphviz) code
+
+     digraph foo {
+      "bar" -> "baz";
+     }
+
+How this will be rendered depends on the installed tools. If Graphviz is
+installed, you will see an vector image. If not the raw markup is inserted as
+*literal-block* (:ref:`hello_dot_render`).
+
+.. _hello_dot_render:
+
+.. kernel-render:: DOT
+   :alt: foobar digraph
+   :caption: Embedded **DOT** (Graphviz) code
+
+   digraph foo {
+      "bar" -> "baz";
+   }
+
+The *render* directive has all the options known from the *figure* directive,
+plus option ``caption``.  If ``caption`` has a value, a *figure* node is
+inserted. If not, a *image* node is inserted. A ``caption`` is also needed, if
+you want to refer it (:ref:`hello_svg_render`).
+
+Embedded **SVG**::
+
+  .. kernel-render:: SVG
+     :caption: Embedded **SVG** markup
+     :alt: so-nw-arrow
+
+     <?xml version="1.0" encoding="UTF-8"?>
+     <svg xmlns="http://www.w3.org/2000/svg" version="1.1" ...>
+        ...
+     </svg>
+
+.. _hello_svg_render:
+
+.. kernel-render:: SVG
+   :caption: Embedded **SVG** markup
+   :alt: so-nw-arrow
+
+   <?xml version="1.0" encoding="UTF-8"?>
+   <svg xmlns="http://www.w3.org/2000/svg"
+     version="1.1" baseProfile="full" width="70px" height="40px" viewBox="0 0 700 400">
+   <line x1="180" y1="370" x2="500" y2="50" stroke="black" stroke-width="15px"/>
+   <polygon points="585 0 525 25 585 50" transform="rotate(135 525 25)"/>
+   </svg>

@@ -37,7 +37,7 @@ static int noinline arc_get_timer_clk(struct device_node *node)
 
 	clk = of_clk_get(node, 0);
 	if (IS_ERR(clk)) {
-		pr_err("timer missing clk");
+		pr_err("timer missing clk\n");
 		return PTR_ERR(clk);
 	}
 
@@ -89,7 +89,7 @@ static int __init arc_cs_setup_gfrc(struct device_node *node)
 
 	READ_BCR(ARC_REG_MCIP_BCR, mp);
 	if (!mp.gfrc) {
-		pr_warn("Global-64-bit-Ctr clocksource not detected");
+		pr_warn("Global-64-bit-Ctr clocksource not detected\n");
 		return -ENXIO;
 	}
 
@@ -140,13 +140,13 @@ static int __init arc_cs_setup_rtc(struct device_node *node)
 
 	READ_BCR(ARC_REG_TIMERS_BCR, timer);
 	if (!timer.rtc) {
-		pr_warn("Local-64-bit-Ctr clocksource not detected");
+		pr_warn("Local-64-bit-Ctr clocksource not detected\n");
 		return -ENXIO;
 	}
 
 	/* Local to CPU hence not usable in SMP */
 	if (IS_ENABLED(CONFIG_SMP)) {
-		pr_warn("Local-64-bit-Ctr not usable in SMP");
+		pr_warn("Local-64-bit-Ctr not usable in SMP\n");
 		return -EINVAL;
 	}
 
@@ -290,13 +290,13 @@ static int __init arc_clockevent_setup(struct device_node *node)
 
 	arc_timer_irq = irq_of_parse_and_map(node, 0);
 	if (arc_timer_irq <= 0) {
-		pr_err("clockevent: missing irq");
+		pr_err("clockevent: missing irq\n");
 		return -EINVAL;
 	}
 
 	ret = arc_get_timer_clk(node);
 	if (ret) {
-		pr_err("clockevent: missing clk");
+		pr_err("clockevent: missing clk\n");
 		return ret;
 	}
 
@@ -313,7 +313,7 @@ static int __init arc_clockevent_setup(struct device_node *node)
 				arc_timer_starting_cpu,
 				arc_timer_dying_cpu);
 	if (ret) {
-		pr_err("Failed to setup hotplug state");
+		pr_err("Failed to setup hotplug state\n");
 		return ret;
 	}
 	return 0;

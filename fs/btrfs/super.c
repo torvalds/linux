@@ -1136,6 +1136,13 @@ static int btrfs_fill_super(struct super_block *sb,
 #endif
 	sb->s_flags |= MS_I_VERSION;
 	sb->s_iflags |= SB_I_CGROUPWB;
+
+	err = super_setup_bdi(sb);
+	if (err) {
+		btrfs_err(fs_info, "super_setup_bdi failed");
+		return err;
+	}
+
 	err = open_ctree(sb, fs_devices, (char *)data);
 	if (err) {
 		btrfs_err(fs_info, "open_ctree failed");

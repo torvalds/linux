@@ -891,6 +891,7 @@ static void msg_written_handler(struct ssif_info *ssif_info, int result,
 		 * for details on the intricacies of this.
 		 */
 		int left;
+		unsigned char *data_to_send;
 
 		ssif_inc_stat(ssif_info, sent_messages_parts);
 
@@ -899,6 +900,7 @@ static void msg_written_handler(struct ssif_info *ssif_info, int result,
 			left = 32;
 		/* Length byte. */
 		ssif_info->multi_data[ssif_info->multi_pos] = left;
+		data_to_send = ssif_info->multi_data + ssif_info->multi_pos;
 		ssif_info->multi_pos += left;
 		if (left < 32)
 			/*
@@ -912,7 +914,7 @@ static void msg_written_handler(struct ssif_info *ssif_info, int result,
 		rv = ssif_i2c_send(ssif_info, msg_written_handler,
 				  I2C_SMBUS_WRITE,
 				  SSIF_IPMI_MULTI_PART_REQUEST_MIDDLE,
-				  ssif_info->multi_data + ssif_info->multi_pos,
+				  data_to_send,
 				  I2C_SMBUS_BLOCK_DATA);
 		if (rv < 0) {
 			/* request failed, just return the error. */
@@ -1642,9 +1644,8 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	spin_lock_init(&ssif_info->lock);
 	ssif_info->ssif_state = SSIF_NORMAL;
-	init_timer(&ssif_info->retry_timer);
-	ssif_info->retry_timer.data = (unsigned long) ssif_info;
-	ssif_info->retry_timer.function = retry_timeout;
+	setup_timer(&ssif_info->retry_timer, retry_timeout,
+		    (unsigned long)ssif_info);
 
 	for (i = 0; i < SSIF_NUM_STATS; i++)
 		atomic_set(&ssif_info->stats[i], 0);

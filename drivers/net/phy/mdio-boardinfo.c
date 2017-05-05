@@ -24,10 +24,12 @@ static DEFINE_MUTEX(mdio_board_lock);
  * @mdiodev: MDIO device pointer
  * Context: can sleep
  */
-void mdiobus_setup_mdiodev_from_board_info(struct mii_bus *bus)
+void mdiobus_setup_mdiodev_from_board_info(struct mii_bus *bus,
+					   int (*cb)
+					   (struct mii_bus *bus,
+					    struct mdio_board_info *bi))
 {
 	struct mdio_board_entry *be;
-	struct mdio_device *mdiodev;
 	struct mdio_board_info *bi;
 	int ret;
 
@@ -38,23 +40,14 @@ void mdiobus_setup_mdiodev_from_board_info(struct mii_bus *bus)
 		if (strcmp(bus->id, bi->bus_id))
 			continue;
 
-		mdiodev = mdio_device_create(bus, bi->mdio_addr);
-		if (IS_ERR(mdiodev))
+		ret = cb(bus, bi);
+		if (ret)
 			continue;
 
-		strncpy(mdiodev->modalias, bi->modalias,
-			sizeof(mdiodev->modalias));
-		mdiodev->bus_match = mdio_device_bus_match;
-		mdiodev->dev.platform_data = (void *)bi->platform_data;
-
-		ret = mdio_device_register(mdiodev);
-		if (ret) {
-			mdio_device_free(mdiodev);
-			continue;
-		}
 	}
 	mutex_unlock(&mdio_board_lock);
 }
+EXPORT_SYMBOL(mdiobus_setup_mdiodev_from_board_info);
 
 /**
  * mdio_register_board_info - register MDIO devices for a given board

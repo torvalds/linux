@@ -58,7 +58,9 @@ union mci {
 		u64 ie :  1; /* 32 indirect storage error */
 		u64 ar :  1; /* 33 access register validity */
 		u64 da :  1; /* 34 delayed access exception */
-		u64    :  7; /* 35-41 */
+		u64    :  1; /* 35 */
+		u64 gs :  1; /* 36 guarded storage registers */
+		u64    :  5; /* 37-41 */
 		u64 pr :  1; /* 42 tod programmable register validity */
 		u64 fc :  1; /* 43 fp control register validity */
 		u64 ap :  1; /* 44 ancillary report */
@@ -67,6 +69,14 @@ union mci {
 		u64 cc :  1; /* 47 clock comparator validity */
 		u64    : 16; /* 47-63 */
 	};
+};
+
+#define MCESA_ORIGIN_MASK	(~0x3ffUL)
+#define MCESA_LC_MASK		(0xfUL)
+
+struct mcesa {
+	u8 vector_save_area[1024];
+	u8 guarded_storage_save_area[32];
 };
 
 struct pt_regs;

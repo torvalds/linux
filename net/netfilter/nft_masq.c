@@ -46,10 +46,6 @@ int nft_masq_init(const struct nft_ctx *ctx,
 	struct nft_masq *priv = nft_expr_priv(expr);
 	int err;
 
-	err = nft_masq_validate(ctx, expr, NULL);
-	if (err)
-		return err;
-
 	if (tb[NFTA_MASQ_FLAGS]) {
 		priv->flags = ntohl(nla_get_be32(tb[NFTA_MASQ_FLAGS]));
 		if (priv->flags & ~NF_NAT_RANGE_MASK)

@@ -249,53 +249,49 @@ static void linear_make_request(struct mddev *mddev, struct bio *bio)
 {
 	char b[BDEVNAME_SIZE];
 	struct dev_info *tmp_dev;
-	struct bio *split;
 	sector_t start_sector, end_sector, data_offset;
+	sector_t bio_sector = bio->bi_iter.bi_sector;
 
 	if (unlikely(bio->bi_opf & REQ_PREFLUSH)) {
 		md_flush_request(mddev, bio);
 		return;
 	}
 
-	do {
-		sector_t bio_sector = bio->bi_iter.bi_sector;
-		tmp_dev = which_dev(mddev, bio_sector);
-		start_sector = tmp_dev->end_sector - tmp_dev->rdev->sectors;
-		end_sector = tmp_dev->end_sector;
-		data_offset = tmp_dev->rdev->data_offset;
-		bio->bi_bdev = tmp_dev->rdev->bdev;
+	tmp_dev = which_dev(mddev, bio_sector);
+	start_sector = tmp_dev->end_sector - tmp_dev->rdev->sectors;
+	end_sector = tmp_dev->end_sector;
+	data_offset = tmp_dev->rdev->data_offset;
 
-		if (unlikely(bio_sector >= end_sector ||
-			     bio_sector < start_sector))
-			goto out_of_bounds;
+	if (unlikely(bio_sector >= end_sector ||
+		     bio_sector < start_sector))
+		goto out_of_bounds;
 
-		if (unlikely(bio_end_sector(bio) > end_sector)) {
-			/* This bio crosses a device boundary, so we have to
-			 * split it.
-			 */
-			split = bio_split(bio, end_sector - bio_sector,
-					  GFP_NOIO, fs_bio_set);
-			bio_chain(split, bio);
-		} else {
-			split = bio;
-		}
+	if (unlikely(bio_end_sector(bio) > end_sector)) {
+		/* This bio crosses a device boundary, so we have to split it */
+		struct bio *split = bio_split(bio, end_sector - bio_sector,
+					      GFP_NOIO, mddev->bio_set);
+		bio_chain(split, bio);
+		generic_make_request(bio);
+		bio = split;
+	}
 
-		split->bi_iter.bi_sector = split->bi_iter.bi_sector -
-			start_sector + data_offset;
+	bio->bi_bdev = tmp_dev->rdev->bdev;
+	bio->bi_iter.bi_sector = bio->bi_iter.bi_sector -
+		start_sector + data_offset;
 
-		if (unlikely((bio_op(split) == REQ_OP_DISCARD) &&
-			 !blk_queue_discard(bdev_get_queue(split->bi_bdev)))) {
-			/* Just ignore it */
-			bio_endio(split);
-		} else {
-			if (mddev->gendisk)
-				trace_block_bio_remap(bdev_get_queue(split->bi_bdev),
-						      split, disk_devt(mddev->gendisk),
-						      bio_sector);
-			mddev_check_writesame(mddev, split);
-			generic_make_request(split);
-		}
-	} while (split != bio);
+	if (unlikely((bio_op(bio) == REQ_OP_DISCARD) &&
+		     !blk_queue_discard(bdev_get_queue(bio->bi_bdev)))) {
+		/* Just ignore it */
+		bio_endio(bio);
+	} else {
+		if (mddev->gendisk)
+			trace_block_bio_remap(bdev_get_queue(bio->bi_bdev),
+					      bio, disk_devt(mddev->gendisk),
+					      bio_sector);
+		mddev_check_writesame(mddev, bio);
+		mddev_check_write_zeroes(mddev, bio);
+		generic_make_request(bio);
+	}
 	return;
 
 out_of_bounds:

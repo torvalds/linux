@@ -229,6 +229,7 @@ static void usage(void)
 {
 	printf("Usage: bpf_jit_disasm [...]\n");
 	printf("       -o          Also display related opcodes (default: off).\n");
+	printf("       -O <file>   Write binary image of code to file, don't disassemble to stdout.\n");
 	printf("       -f <file>   Read last image dump from file or stdin (default: klog).\n");
 	printf("       -h          Display this help.\n");
 }
@@ -238,11 +239,18 @@ int main(int argc, char **argv)
 	unsigned int len, klen, opt, opcodes = 0;
 	static uint8_t image[32768];
 	char *kbuff, *file = NULL;
+	char *ofile = NULL;
+	int ofd;
+	ssize_t nr;
+	uint8_t *pos;
 
-	while ((opt = getopt(argc, argv, "of:")) != -1) {
+	while ((opt = getopt(argc, argv, "of:O:")) != -1) {
 		switch (opt) {
 		case 'o':
 			opcodes = 1;
+			break;
+		case 'O':
+			ofile = optarg;
 			break;
 		case 'f':
 			file = optarg;
@@ -263,11 +271,35 @@ int main(int argc, char **argv)
 	}
 
 	len = get_last_jit_image(kbuff, klen, image, sizeof(image));
-	if (len > 0)
-		get_asm_insns(image, len, opcodes);
-	else
+	if (len <= 0) {
 		fprintf(stderr, "No JIT image found!\n");
+		goto done;
+	}
+	if (!ofile) {
+		get_asm_insns(image, len, opcodes);
+		goto done;
+	}
 
+	ofd = open(ofile, O_WRONLY | O_CREAT | O_TRUNC, DEFFILEMODE);
+	if (ofd < 0) {
+		fprintf(stderr, "Could not open file %s for writing: ", ofile);
+		perror(NULL);
+		goto done;
+	}
+	pos = image;
+	do {
+		nr = write(ofd, pos, len);
+		if (nr < 0) {
+			fprintf(stderr, "Could not write data to %s: ", ofile);
+			perror(NULL);
+			goto done;
+		}
+		len -= nr;
+		pos += nr;
+	} while (len);
+	close(ofd);
+
+done:
 	put_log_buff(kbuff);
 	return 0;
 }

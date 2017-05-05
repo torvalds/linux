@@ -25,7 +25,6 @@ Required Properties:
     - "nxp,pcf8574": For the NXP PCF8574
     - "nxp,pcf8574a": For the NXP PCF8574A
     - "nxp,pcf8575": For the NXP PCF8575
-    - "ti,tca9554": For the TI TCA9554
 
   - reg: I2C slave address.
 

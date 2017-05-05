@@ -169,6 +169,25 @@ static bool mtip_check_surprise_removal(struct pci_dev *pdev)
 	return false; /* device present */
 }
 
+/* we have to use runtime tag to setup command header */
+static void mtip_init_cmd_header(struct request *rq)
+{
+	struct driver_data *dd = rq->q->queuedata;
+	struct mtip_cmd *cmd = blk_mq_rq_to_pdu(rq);
+	u32 host_cap_64 = readl(dd->mmio + HOST_CAP) & HOST_CAP_64;
+
+	/* Point the command headers at the command tables. */
+	cmd->command_header = dd->port->command_list +
+				(sizeof(struct mtip_cmd_hdr) * rq->tag);
+	cmd->command_header_dma = dd->port->command_list_dma +
+				(sizeof(struct mtip_cmd_hdr) * rq->tag);
+
+	if (host_cap_64)
+		cmd->command_header->ctbau = __force_bit2int cpu_to_le32((cmd->command_dma >> 16) >> 16);
+
+	cmd->command_header->ctba = __force_bit2int cpu_to_le32(cmd->command_dma & 0xFFFFFFFF);
+}
+
 static struct mtip_cmd *mtip_get_int_command(struct driver_data *dd)
 {
 	struct request *rq;
@@ -179,6 +198,9 @@ static struct mtip_cmd *mtip_get_int_command(struct driver_data *dd)
 	rq = blk_mq_alloc_request(dd->queue, 0, BLK_MQ_REQ_RESERVED);
 	if (IS_ERR(rq))
 		return NULL;
+
+	/* Internal cmd isn't submitted via .queue_rq */
+	mtip_init_cmd_header(rq);
 
 	return blk_mq_rq_to_pdu(rq);
 }
@@ -241,7 +263,8 @@ static void mtip_async_complete(struct mtip_port *port,
 
 	rq = mtip_rq_from_tag(dd, tag);
 
-	blk_mq_complete_request(rq, status);
+	cmd->status = status;
+	blk_mq_complete_request(rq);
 }
 
 /*
@@ -2910,18 +2933,19 @@ static void mtip_softirq_done_fn(struct request *rq)
 	if (unlikely(cmd->unaligned))
 		up(&dd->port->cmd_slot_unal);
 
-	blk_mq_end_request(rq, rq->errors);
+	blk_mq_end_request(rq, cmd->status);
 }
 
 static void mtip_abort_cmd(struct request *req, void *data,
 							bool reserved)
 {
+	struct mtip_cmd *cmd = blk_mq_rq_to_pdu(req);
 	struct driver_data *dd = data;
 
 	dbg_printk(MTIP_DRV_NAME " Aborting request, tag = %d\n", req->tag);
 
 	clear_bit(req->tag, dd->port->cmds_to_issue);
-	req->errors = -EIO;
+	cmd->status = -EIO;
 	mtip_softirq_done_fn(req);
 }
 
@@ -3807,6 +3831,8 @@ static int mtip_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct request *rq = bd->rq;
 	int ret;
 
+	mtip_init_cmd_header(rq);
+
 	if (unlikely(mtip_check_unal_depth(hctx, rq)))
 		return BLK_MQ_RQ_QUEUE_BUSY;
 
@@ -3816,7 +3842,6 @@ static int mtip_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if (likely(!ret))
 		return BLK_MQ_RQ_QUEUE_OK;
 
-	rq->errors = ret;
 	return BLK_MQ_RQ_QUEUE_ERROR;
 }
 
@@ -3838,7 +3863,6 @@ static int mtip_init_cmd(void *data, struct request *rq, unsigned int hctx_idx,
 {
 	struct driver_data *dd = data;
 	struct mtip_cmd *cmd = blk_mq_rq_to_pdu(rq);
-	u32 host_cap_64 = readl(dd->mmio + HOST_CAP) & HOST_CAP_64;
 
 	/*
 	 * For flush requests, request_idx starts at the end of the
@@ -3854,17 +3878,6 @@ static int mtip_init_cmd(void *data, struct request *rq, unsigned int hctx_idx,
 		return -ENOMEM;
 
 	memset(cmd->command, 0, CMD_DMA_ALLOC_SZ);
-
-	/* Point the command headers at the command tables. */
-	cmd->command_header = dd->port->command_list +
-				(sizeof(struct mtip_cmd_hdr) * request_idx);
-	cmd->command_header_dma = dd->port->command_list_dma +
-				(sizeof(struct mtip_cmd_hdr) * request_idx);
-
-	if (host_cap_64)
-		cmd->command_header->ctbau = __force_bit2int cpu_to_le32((cmd->command_dma >> 16) >> 16);
-
-	cmd->command_header->ctba = __force_bit2int cpu_to_le32(cmd->command_dma & 0xFFFFFFFF);
 
 	sg_init_table(cmd->sg, MTIP_MAX_SG);
 	return 0;
@@ -3889,7 +3902,7 @@ exit_handler:
 	return BLK_EH_RESET_TIMER;
 }
 
-static struct blk_mq_ops mtip_mq_ops = {
+static const struct blk_mq_ops mtip_mq_ops = {
 	.queue_rq	= mtip_queue_rq,
 	.init_request	= mtip_init_cmd,
 	.exit_request	= mtip_free_cmd,
@@ -3969,7 +3982,7 @@ static int mtip_block_initialize(struct driver_data *dd)
 	dd->tags.reserved_tags = 1;
 	dd->tags.cmd_size = sizeof(struct mtip_cmd);
 	dd->tags.numa_node = dd->numa_node;
-	dd->tags.flags = BLK_MQ_F_SHOULD_MERGE;
+	dd->tags.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_NO_SCHED;
 	dd->tags.driver_data = dd;
 	dd->tags.timeout = MTIP_NCQ_CMD_TIMEOUT_MS;
 
@@ -4025,7 +4038,6 @@ skip_create_disk:
 		dd->queue->limits.discard_granularity = 4096;
 		blk_queue_max_discard_sectors(dd->queue,
 			MTIP_MAX_TRIM_ENTRY_LEN * MTIP_MAX_TRIM_ENTRIES);
-		dd->queue->limits.discard_zeroes_data = 0;
 	}
 
 	/* Set the capacity of the device in 512 byte sectors. */
@@ -4107,9 +4119,11 @@ static void mtip_no_dev_cleanup(struct request *rq, void *data, bool reserv)
 	struct driver_data *dd = (struct driver_data *)data;
 	struct mtip_cmd *cmd;
 
-	if (likely(!reserv))
-		blk_mq_complete_request(rq, -ENODEV);
-	else if (test_bit(MTIP_PF_IC_ACTIVE_BIT, &dd->port->flags)) {
+	if (likely(!reserv)) {
+		cmd = blk_mq_rq_to_pdu(rq);
+		cmd->status = -ENODEV;
+		blk_mq_complete_request(rq);
+	} else if (test_bit(MTIP_PF_IC_ACTIVE_BIT, &dd->port->flags)) {
 
 		cmd = mtip_cmd_from_tag(dd, MTIP_TAG_INTERNAL);
 		if (cmd->comp_func)
@@ -4162,7 +4176,7 @@ static int mtip_block_remove(struct driver_data *dd)
 		dev_info(&dd->pdev->dev, "device %s surprise removal\n",
 						dd->disk->disk_name);
 
-	blk_mq_freeze_queue_start(dd->queue);
+	blk_freeze_queue_start(dd->queue);
 	blk_mq_stop_hw_queues(dd->queue);
 	blk_mq_tagset_busy_iter(&dd->tags, mtip_no_dev_cleanup, dd);
 

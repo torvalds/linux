@@ -98,7 +98,6 @@ config X86
 	select HAVE_ACPI_APEI_NMI		if ACPI
 	select HAVE_ALIGNED_STRUCT_PAGE		if SLUB
 	select HAVE_ARCH_AUDITSYSCALL
-	select HAVE_ARCH_HARDENED_USERCOPY
 	select HAVE_ARCH_HUGE_VMAP		if X86_64 || X86_PAE
 	select HAVE_ARCH_JUMP_LABEL
 	select HAVE_ARCH_KASAN			if X86_64 && SPARSEMEM_VMEMMAP
@@ -106,6 +105,7 @@ config X86
 	select HAVE_ARCH_KMEMCHECK
 	select HAVE_ARCH_MMAP_RND_BITS		if MMU
 	select HAVE_ARCH_MMAP_RND_COMPAT_BITS	if MMU && COMPAT
+	select HAVE_ARCH_COMPAT_MMAP_BASES	if MMU && COMPAT
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
@@ -127,7 +127,7 @@ config X86
 	select HAVE_EBPF_JIT			if X86_64
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
 	select HAVE_EXIT_THREAD
-	select HAVE_FENTRY			if X86_64
+	select HAVE_FENTRY			if X86_64 || DYNAMIC_FTRACE
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER
@@ -160,6 +160,7 @@ config X86
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_REGS_AND_STACK_ACCESS_API
+	select HAVE_RELIABLE_STACKTRACE		if X86_64 && FRAME_POINTER && STACK_VALIDATION
 	select HAVE_STACK_VALIDATION		if X86_64
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_UNSTABLE_SCHED_CLOCK
@@ -290,6 +291,7 @@ config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 config KASAN_SHADOW_OFFSET
 	hex
 	depends on KASAN
+	default 0xdff8000000000000 if X86_5LEVEL
 	default 0xdffffc0000000000
 
 config HAVE_INTEL_TXT
@@ -1043,6 +1045,14 @@ config X86_MCE
 	  The action the kernel takes depends on the severity of the problem,
 	  ranging from warning messages to halting the machine.
 
+config X86_MCELOG_LEGACY
+	bool "Support for deprecated /dev/mcelog character device"
+	depends on X86_MCE
+	---help---
+	  Enable support for /dev/mcelog which is needed by the old mcelog
+	  userspace logging daemon. Consider switching to the new generation
+	  rasdaemon solution.
+
 config X86_MCE_INTEL
 	def_bool y
 	prompt "Intel MCE features"
@@ -1072,7 +1082,7 @@ config X86_MCE_THRESHOLD
 	def_bool y
 
 config X86_MCE_INJECT
-	depends on X86_MCE && X86_LOCAL_APIC
+	depends on X86_MCE && X86_LOCAL_APIC && X86_MCELOG_LEGACY
 	tristate "Machine check injector support"
 	---help---
 	  Provide support for injecting machine checks for testing purposes.
@@ -1966,7 +1976,7 @@ config RELOCATABLE
 config RANDOMIZE_BASE
 	bool "Randomize the address of the kernel image (KASLR)"
 	depends on RELOCATABLE
-	default n
+	default y
 	---help---
 	  In support of Kernel Address Space Layout Randomization (KASLR),
 	  this randomizes the physical address at which the kernel image
@@ -1996,7 +2006,7 @@ config RANDOMIZE_BASE
 	  theoretically possible, but the implementations are further
 	  limited due to memory layouts.
 
-	  If unsure, say N.
+	  If unsure, say Y.
 
 # Relocation on x86 needs some additional build support
 config X86_NEED_RELOCS
@@ -2045,7 +2055,7 @@ config RANDOMIZE_MEMORY
 	   configuration have in average 30,000 different possible virtual
 	   addresses for each memory section.
 
-	   If unsure, say N.
+	   If unsure, say Y.
 
 config RANDOMIZE_MEMORY_PHYSICAL_PADDING
 	hex "Physical memory mapping padding" if EXPERT

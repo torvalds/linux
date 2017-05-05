@@ -170,6 +170,32 @@ struct s5p_aes_ctx {
 	int				keylen;
 };
 
+/**
+ * struct s5p_aes_dev - Crypto device state container
+ * @dev:	Associated device
+ * @clk:	Clock for accessing hardware
+ * @ioaddr:	Mapped IO memory region
+ * @aes_ioaddr:	Per-varian offset for AES block IO memory
+ * @irq_fc:	Feed control interrupt line
+ * @req:	Crypto request currently handled by the device
+ * @ctx:	Configuration for currently handled crypto request
+ * @sg_src:	Scatter list with source data for currently handled block
+ *		in device.  This is DMA-mapped into device.
+ * @sg_dst:	Scatter list with destination data for currently handled block
+ *		in device. This is DMA-mapped into device.
+ * @sg_src_cpy:	In case of unaligned access, copied scatter list
+ *		with source data.
+ * @sg_dst_cpy:	In case of unaligned access, copied scatter list
+ *		with destination data.
+ * @tasklet:	New request scheduling jib
+ * @queue:	Crypto queue
+ * @busy:	Indicates whether the device is currently handling some request
+ *		thus it uses some of the fields from this state, like:
+ *		req, ctx, sg_src/dst (and copies).  This essentially
+ *		protects against concurrent access to these fields.
+ * @lock:	Lock for protecting both access to device hardware registers
+ *		and fields related to current request (including the busy field).
+ */
 struct s5p_aes_dev {
 	struct device			*dev;
 	struct clk			*clk;
@@ -182,7 +208,6 @@ struct s5p_aes_dev {
 	struct scatterlist		*sg_src;
 	struct scatterlist		*sg_dst;
 
-	/* In case of unaligned access: */
 	struct scatterlist		*sg_src_cpy;
 	struct scatterlist		*sg_dst_cpy;
 
@@ -190,8 +215,6 @@ struct s5p_aes_dev {
 	struct crypto_queue		queue;
 	bool				busy;
 	spinlock_t			lock;
-
-	struct samsung_aes_variant	*variant;
 };
 
 static struct s5p_aes_dev *s5p_dev;
@@ -287,7 +310,6 @@ static void s5p_sg_done(struct s5p_aes_dev *dev)
 static void s5p_aes_complete(struct s5p_aes_dev *dev, int err)
 {
 	dev->req->base.complete(&dev->req->base, err);
-	dev->busy = false;
 }
 
 static void s5p_unset_outdata(struct s5p_aes_dev *dev)
@@ -462,7 +484,7 @@ static irqreturn_t s5p_aes_interrupt(int irq, void *dev_id)
 		spin_unlock_irqrestore(&dev->lock, flags);
 
 		s5p_aes_complete(dev, 0);
-		dev->busy = true;
+		/* Device is still busy */
 		tasklet_schedule(&dev->tasklet);
 	} else {
 		/*
@@ -483,6 +505,7 @@ static irqreturn_t s5p_aes_interrupt(int irq, void *dev_id)
 
 error:
 	s5p_sg_done(dev);
+	dev->busy = false;
 	spin_unlock_irqrestore(&dev->lock, flags);
 	s5p_aes_complete(dev, err);
 
@@ -634,6 +657,7 @@ outdata_error:
 
 indata_error:
 	s5p_sg_done(dev);
+	dev->busy = false;
 	spin_unlock_irqrestore(&dev->lock, flags);
 	s5p_aes_complete(dev, err);
 }
@@ -851,7 +875,6 @@ static int s5p_aes_probe(struct platform_device *pdev)
 	}
 
 	pdata->busy = false;
-	pdata->variant = variant;
 	pdata->dev = dev;
 	platform_set_drvdata(pdev, pdata);
 	s5p_dev = pdata;

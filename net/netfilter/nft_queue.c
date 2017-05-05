@@ -197,7 +197,7 @@ nft_queue_select_ops(const struct nft_ctx *ctx,
 
 static struct nft_expr_type nft_queue_type __read_mostly = {
 	.name		= "queue",
-	.select_ops	= &nft_queue_select_ops,
+	.select_ops	= nft_queue_select_ops,
 	.policy		= nft_queue_policy,
 	.maxattr	= NFTA_QUEUE_MAX,
 	.owner		= THIS_MODULE,

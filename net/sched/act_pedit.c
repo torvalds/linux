@@ -72,7 +72,7 @@ static struct tcf_pedit_key_ex *tcf_pedit_keys_ex_parse(struct nlattr *nla,
 		}
 
 		err = nla_parse_nested(tb, TCA_PEDIT_KEY_EX_MAX, ka,
-				       pedit_key_ex_policy);
+				       pedit_key_ex_policy, NULL);
 		if (err)
 			goto err_out;
 
@@ -147,7 +147,7 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 	if (nla == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_PEDIT_MAX, nla, pedit_policy);
+	err = nla_parse_nested(tb, TCA_PEDIT_MAX, nla, pedit_policy, NULL);
 	if (err < 0)
 		return err;
 

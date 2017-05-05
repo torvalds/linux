@@ -2338,6 +2338,10 @@ int cxgb4_create_server_filter(const struct net_device *dev, unsigned int stid,
 	f->locked = 1;
 	f->fs.rpttid = 1;
 
+	/* Save the actual tid. We need this to get the corresponding
+	 * filter entry structure in filter_rpl.
+	 */
+	f->tid = stid + adap->tids.ftid_base;
 	ret = set_filter_wr(adap, stid);
 	if (ret) {
 		clear_filter(adap, f);
@@ -3809,6 +3813,15 @@ static int adap_init0(struct adapter *adap)
 	}
 	if (caps_cmd.cryptocaps) {
 		/* Should query params here...TODO */
+		params[0] = FW_PARAM_PFVF(NCRYPTO_LOOKASIDE);
+		ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 2,
+				      params, val);
+		if (ret < 0) {
+			if (ret != -EINVAL)
+				goto bye;
+		} else {
+			adap->vres.ncrypto_fc = val[0];
+		}
 		adap->params.crypto |= ULP_CRYPTO_LOOKASIDE;
 		adap->num_uld += 1;
 	}

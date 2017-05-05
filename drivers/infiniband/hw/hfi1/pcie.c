@@ -583,7 +583,7 @@ pci_mmio_enabled(struct pci_dev *pdev)
 		if (words == ~0ULL)
 			ret = PCI_ERS_RESULT_NEED_RESET;
 		dd_dev_info(dd,
-			    "HFI1 mmio_enabled function called, read wordscntr %Lx, returning %d\n",
+			    "HFI1 mmio_enabled function called, read wordscntr %llx, returning %d\n",
 			    words, ret);
 	}
 	return  ret;

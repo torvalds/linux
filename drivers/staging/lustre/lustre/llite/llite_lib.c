@@ -863,15 +863,6 @@ void ll_lli_init(struct ll_inode_info *lli)
 	mutex_init(&lli->lli_layout_mutex);
 }
 
-static inline int ll_bdi_register(struct backing_dev_info *bdi)
-{
-	static atomic_t ll_bdi_num = ATOMIC_INIT(0);
-
-	bdi->name = "lustre";
-	return bdi_register(bdi, NULL, "lustre-%d",
-			    atomic_inc_return(&ll_bdi_num));
-}
-
 int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 {
 	struct lustre_profile *lprof = NULL;
@@ -881,6 +872,7 @@ int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 	char  *profilenm = get_profile_name(sb);
 	struct config_llog_instance *cfg;
 	int    err;
+	static atomic_t ll_bdi_num = ATOMIC_INIT(0);
 
 	CDEBUG(D_VFSTRACE, "VFS Op: sb %p\n", sb);
 
@@ -903,16 +895,11 @@ int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 	if (err)
 		goto out_free;
 
-	err = bdi_init(&lsi->lsi_bdi);
-	if (err)
-		goto out_free;
-	lsi->lsi_flags |= LSI_BDI_INITIALIZED;
-	lsi->lsi_bdi.capabilities = 0;
-	err = ll_bdi_register(&lsi->lsi_bdi);
+	err = super_setup_bdi_name(sb, "lustre-%d",
+				   atomic_inc_return(&ll_bdi_num));
 	if (err)
 		goto out_free;
 
-	sb->s_bdi = &lsi->lsi_bdi;
 	/* kernel >= 2.6.38 store dentry operations in sb->s_d_op. */
 	sb->s_d_op = &ll_d_ops;
 
@@ -1032,11 +1019,6 @@ void ll_put_super(struct super_block *sb)
 
 	if (profilenm)
 		class_del_profile(profilenm);
-
-	if (lsi->lsi_flags & LSI_BDI_INITIALIZED) {
-		bdi_destroy(&lsi->lsi_bdi);
-		lsi->lsi_flags &= ~LSI_BDI_INITIALIZED;
-	}
 
 	ll_free_sbi(sb);
 	lsi->lsi_llsbi = NULL;

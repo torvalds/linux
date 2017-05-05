@@ -996,7 +996,7 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	unsigned int hash;
 	struct unix_address *addr;
 	struct hlist_head *list;
-	struct path path = { NULL, NULL };
+	struct path path = { };
 
 	err = -EINVAL;
 	if (sunaddr->sun_family != AF_UNIX)

@@ -64,8 +64,8 @@ static u32 secure_tcpv6_ts_off(const __be32 *saddr, const __be32 *daddr)
 		       &ts_secret);
 }
 
-u32 secure_tcpv6_sequence_number(const __be32 *saddr, const __be32 *daddr,
-				 __be16 sport, __be16 dport, u32 *tsoff)
+u32 secure_tcpv6_seq_and_tsoff(const __be32 *saddr, const __be32 *daddr,
+			       __be16 sport, __be16 dport, u32 *tsoff)
 {
 	const struct {
 		struct in6_addr saddr;
@@ -85,7 +85,7 @@ u32 secure_tcpv6_sequence_number(const __be32 *saddr, const __be32 *daddr,
 	*tsoff = secure_tcpv6_ts_off(saddr, daddr);
 	return seq_scale(hash);
 }
-EXPORT_SYMBOL(secure_tcpv6_sequence_number);
+EXPORT_SYMBOL(secure_tcpv6_seq_and_tsoff);
 
 u32 secure_ipv6_port_ephemeral(const __be32 *saddr, const __be32 *daddr,
 			       __be16 dport)
@@ -116,14 +116,13 @@ static u32 secure_tcp_ts_off(__be32 saddr, __be32 daddr)
 			    &ts_secret);
 }
 
-/* secure_tcp_sequence_number(a, b, 0, d) == secure_ipv4_port_ephemeral(a, b, d),
+/* secure_tcp_seq_and_tsoff(a, b, 0, d) == secure_ipv4_port_ephemeral(a, b, d),
  * but fortunately, `sport' cannot be 0 in any circumstances. If this changes,
  * it would be easy enough to have the former function use siphash_4u32, passing
  * the arguments as separate u32.
  */
-
-u32 secure_tcp_sequence_number(__be32 saddr, __be32 daddr,
-			       __be16 sport, __be16 dport, u32 *tsoff)
+u32 secure_tcp_seq_and_tsoff(__be32 saddr, __be32 daddr,
+			     __be16 sport, __be16 dport, u32 *tsoff)
 {
 	u64 hash;
 	net_secret_init();

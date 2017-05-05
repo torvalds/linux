@@ -592,9 +592,8 @@ static int p9_check_zc_errors(struct p9_client *c, struct p9_req_t *req,
 		ename = &req->rc->sdata[req->rc->offset];
 		if (len > inline_len) {
 			/* We have error in external buffer */
-			err = copy_from_iter(ename + inline_len,
-					     len - inline_len, uidata);
-			if (err != len - inline_len) {
+			if (!copy_from_iter_full(ename + inline_len,
+					     len - inline_len, uidata)) {
 				err = -EFAULT;
 				goto out_err;
 			}
@@ -2100,6 +2099,10 @@ int p9_client_readdir(struct p9_fid *fid, char *data, u32 count, u64 offset)
 	if (err) {
 		trace_9p_protocol_dump(clnt, req->rc);
 		goto free_and_error;
+	}
+	if (rsize < count) {
+		pr_err("bogus RREADDIR count (%d > %d)\n", count, rsize);
+		count = rsize;
 	}
 
 	p9_debug(P9_DEBUG_9P, "<<< RREADDIR count %d\n", count);

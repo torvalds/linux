@@ -79,15 +79,15 @@ void sbitmap_resize(struct sbitmap *sb, unsigned int depth)
 }
 EXPORT_SYMBOL_GPL(sbitmap_resize);
 
-static int __sbitmap_get_word(struct sbitmap_word *word, unsigned int hint,
-			      bool wrap)
+static int __sbitmap_get_word(unsigned long *word, unsigned long depth,
+			      unsigned int hint, bool wrap)
 {
 	unsigned int orig_hint = hint;
 	int nr;
 
 	while (1) {
-		nr = find_next_zero_bit(&word->word, word->depth, hint);
-		if (unlikely(nr >= word->depth)) {
+		nr = find_next_zero_bit(word, depth, hint);
+		if (unlikely(nr >= depth)) {
 			/*
 			 * We started with an offset, and we didn't reset the
 			 * offset to 0 in a failure case, so start from 0 to
@@ -100,11 +100,11 @@ static int __sbitmap_get_word(struct sbitmap_word *word, unsigned int hint,
 			return -1;
 		}
 
-		if (!test_and_set_bit(nr, &word->word))
+		if (!test_and_set_bit(nr, word))
 			break;
 
 		hint = nr + 1;
-		if (hint >= word->depth - 1)
+		if (hint >= depth - 1)
 			hint = 0;
 	}
 
@@ -119,7 +119,8 @@ int sbitmap_get(struct sbitmap *sb, unsigned int alloc_hint, bool round_robin)
 	index = SB_NR_TO_INDEX(sb, alloc_hint);
 
 	for (i = 0; i < sb->map_nr; i++) {
-		nr = __sbitmap_get_word(&sb->map[index],
+		nr = __sbitmap_get_word(&sb->map[index].word,
+					sb->map[index].depth,
 					SB_NR_TO_BIT(sb, alloc_hint),
 					!round_robin);
 		if (nr != -1) {
@@ -140,6 +141,37 @@ int sbitmap_get(struct sbitmap *sb, unsigned int alloc_hint, bool round_robin)
 	return nr;
 }
 EXPORT_SYMBOL_GPL(sbitmap_get);
+
+int sbitmap_get_shallow(struct sbitmap *sb, unsigned int alloc_hint,
+			unsigned long shallow_depth)
+{
+	unsigned int i, index;
+	int nr = -1;
+
+	index = SB_NR_TO_INDEX(sb, alloc_hint);
+
+	for (i = 0; i < sb->map_nr; i++) {
+		nr = __sbitmap_get_word(&sb->map[index].word,
+					min(sb->map[index].depth, shallow_depth),
+					SB_NR_TO_BIT(sb, alloc_hint), true);
+		if (nr != -1) {
+			nr += index << sb->shift;
+			break;
+		}
+
+		/* Jump to next index. */
+		index++;
+		alloc_hint = index << sb->shift;
+
+		if (index >= sb->map_nr) {
+			index = 0;
+			alloc_hint = 0;
+		}
+	}
+
+	return nr;
+}
+EXPORT_SYMBOL_GPL(sbitmap_get_shallow);
 
 bool sbitmap_any_bit_set(const struct sbitmap *sb)
 {
@@ -341,6 +373,35 @@ int __sbitmap_queue_get(struct sbitmap_queue *sbq)
 	return nr;
 }
 EXPORT_SYMBOL_GPL(__sbitmap_queue_get);
+
+int __sbitmap_queue_get_shallow(struct sbitmap_queue *sbq,
+				unsigned int shallow_depth)
+{
+	unsigned int hint, depth;
+	int nr;
+
+	hint = this_cpu_read(*sbq->alloc_hint);
+	depth = READ_ONCE(sbq->sb.depth);
+	if (unlikely(hint >= depth)) {
+		hint = depth ? prandom_u32() % depth : 0;
+		this_cpu_write(*sbq->alloc_hint, hint);
+	}
+	nr = sbitmap_get_shallow(&sbq->sb, hint, shallow_depth);
+
+	if (nr == -1) {
+		/* If the map is full, a hint won't do us much good. */
+		this_cpu_write(*sbq->alloc_hint, 0);
+	} else if (nr == hint || unlikely(sbq->round_robin)) {
+		/* Only update the hint if we used it. */
+		hint = nr + 1;
+		if (hint >= depth - 1)
+			hint = 0;
+		this_cpu_write(*sbq->alloc_hint, hint);
+	}
+
+	return nr;
+}
+EXPORT_SYMBOL_GPL(__sbitmap_queue_get_shallow);
 
 static struct sbq_wait_state *sbq_wake_ptr(struct sbitmap_queue *sbq)
 {

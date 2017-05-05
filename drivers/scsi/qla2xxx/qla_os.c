@@ -423,7 +423,6 @@ static void qla2x00_free_req_que(struct qla_hw_data *ha, struct req_que *req)
 		kfree(req->outstanding_cmds);
 
 	kfree(req);
-	req = NULL;
 }
 
 static void qla2x00_free_rsp_que(struct qla_hw_data *ha, struct rsp_que *rsp)
@@ -439,7 +438,6 @@ static void qla2x00_free_rsp_que(struct qla_hw_data *ha, struct rsp_que *rsp)
 		rsp->ring, rsp->dma);
 	}
 	kfree(rsp);
-	rsp = NULL;
 }
 
 static void qla2x00_free_queues(struct qla_hw_data *ha)
@@ -653,7 +651,6 @@ qla2x00_sp_free_dma(void *ptr)
 		ha->gbl_dsd_inuse -= ctx1->dsd_use_cnt;
 		ha->gbl_dsd_avail += ctx1->dsd_use_cnt;
 		mempool_free(ctx1, ha->ctx_mempool);
-		ctx1 = NULL;
 	}
 
 	CMD_SP(cmd) = NULL;
@@ -3256,7 +3253,6 @@ iospace_config_failed:
 	}
 	pci_release_selected_regions(ha->pdev, ha->bars);
 	kfree(ha);
-	ha = NULL;
 
 probe_out:
 	pci_disable_device(pdev);
@@ -3504,7 +3500,6 @@ qla2x00_remove_one(struct pci_dev *pdev)
 
 	pci_release_selected_regions(ha->pdev, ha->bars);
 	kfree(ha);
-	ha = NULL;
 
 	pci_disable_pcie_error_reporting(pdev);
 
@@ -3568,7 +3563,6 @@ void qla2x00_free_fcports(struct scsi_qla_host *vha)
 		list_del(&fcport->list);
 		qla2x00_clear_loop_id(fcport);
 		kfree(fcport);
-		fcport = NULL;
 	}
 }
 

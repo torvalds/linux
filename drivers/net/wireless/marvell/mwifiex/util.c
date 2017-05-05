@@ -274,13 +274,13 @@ int mwifiex_debug_info_to_buffer(struct mwifiex_private *priv, char *buf,
 				val = *((u8 *)addr);
 				break;
 			case 2:
-				val = *((u16 *)addr);
+				val = get_unaligned((u16 *)addr);
 				break;
 			case 4:
-				val = *((u32 *)addr);
+				val = get_unaligned((u32 *)addr);
 				break;
 			case 8:
-				val = *((long long *)addr);
+				val = get_unaligned((long long *)addr);
 				break;
 			default:
 				val = -1;

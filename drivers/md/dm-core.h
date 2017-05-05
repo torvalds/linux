@@ -47,7 +47,7 @@ struct mapped_device {
 	struct request_queue *queue;
 	int numa_node_id;
 
-	unsigned type;
+	enum dm_queue_mode type;
 	/* Protect queue and type against concurrent access. */
 	struct mutex type_lock;
 
@@ -132,6 +132,7 @@ void dm_init_md_queue(struct mapped_device *md);
 void dm_init_normal_md_queue(struct mapped_device *md);
 int md_in_flight(struct mapped_device *md);
 void disable_write_same(struct mapped_device *md);
+void disable_write_zeroes(struct mapped_device *md);
 
 static inline struct completion *dm_get_completion_from_kobject(struct kobject *kobj)
 {

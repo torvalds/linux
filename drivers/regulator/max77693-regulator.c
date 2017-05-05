@@ -150,7 +150,7 @@ static const struct regulator_ops max77693_safeout_ops = {
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 };
 
-static struct regulator_ops max77693_charger_ops = {
+static const struct regulator_ops max77693_charger_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,

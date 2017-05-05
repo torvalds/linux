@@ -8,8 +8,9 @@ Overview
 --------
 These events are similar to tracepoint based events. Instead of Tracepoint,
 this is based on kprobes (kprobe and kretprobe). So it can probe wherever
-kprobes can probe (this means, all functions body except for __kprobes
-functions). Unlike the Tracepoint based event, this can be added and removed
+kprobes can probe (this means, all functions except those with
+__kprobes/nokprobe_inline annotation and those marked NOKPROBE_SYMBOL).
+Unlike the Tracepoint based event, this can be added and removed
 dynamically, on the fly.
 
 To enable this feature, build your kernel with CONFIG_KPROBE_EVENTS=y.
@@ -23,7 +24,7 @@ current_tracer. Instead of that, add probe points via
 Synopsis of kprobe_events
 -------------------------
   p[:[GRP/]EVENT] [MOD:]SYM[+offs]|MEMADDR [FETCHARGS]	: Set a probe
-  r[:[GRP/]EVENT] [MOD:]SYM[+0] [FETCHARGS]		: Set a return probe
+  r[MAXACTIVE][:[GRP/]EVENT] [MOD:]SYM[+0] [FETCHARGS]	: Set a return probe
   -:[GRP/]EVENT						: Clear a probe
 
  GRP		: Group name. If omitted, use "kprobes" for it.
@@ -32,6 +33,9 @@ Synopsis of kprobe_events
  MOD		: Module name which has given SYM.
  SYM[+offs]	: Symbol+offset where the probe is inserted.
  MEMADDR	: Address where the probe is inserted.
+ MAXACTIVE	: Maximum number of instances of the specified function that
+		  can be probed simultaneously, or 0 for the default value
+		  as defined in Documentation/kprobes.txt section 1.3.1.
 
  FETCHARGS	: Arguments. Each probe can have up to 128 args.
   %REG		: Fetch register REG

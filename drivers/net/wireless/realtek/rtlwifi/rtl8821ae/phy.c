@@ -358,6 +358,107 @@ bool rtl8821ae_phy_rf_config(struct ieee80211_hw *hw)
 	return rtl8821ae_phy_rf6052_config(hw);
 }
 
+static void _rtl8812ae_phy_set_rfe_reg_24g(struct ieee80211_hw *hw)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
+	u8 tmp;
+
+	switch (rtlhal->rfe_type) {
+	case 3:
+		rtl_set_bbreg(hw, RA_RFE_PINMUX, BMASKDWORD, 0x54337770);
+		rtl_set_bbreg(hw, RB_RFE_PINMUX, BMASKDWORD, 0x54337770);
+		rtl_set_bbreg(hw, RA_RFE_INV, BMASKRFEINV, 0x010);
+		rtl_set_bbreg(hw, RB_RFE_INV, BMASKRFEINV, 0x010);
+		rtl_set_bbreg(hw, 0x900, 0x00000303, 0x1);
+		break;
+	case 4:
+		rtl_set_bbreg(hw, RA_RFE_PINMUX, BMASKDWORD, 0x77777777);
+		rtl_set_bbreg(hw, RB_RFE_PINMUX, BMASKDWORD, 0x77777777);
+		rtl_set_bbreg(hw, RA_RFE_INV, BMASKRFEINV, 0x001);
+		rtl_set_bbreg(hw, RB_RFE_INV, BMASKRFEINV, 0x001);
+		break;
+	case 5:
+		rtl_write_byte(rtlpriv, RA_RFE_PINMUX + 2, 0x77);
+		rtl_set_bbreg(hw, RB_RFE_PINMUX, BMASKDWORD, 0x77777777);
+		tmp = rtl_read_byte(rtlpriv, RA_RFE_INV + 3);
+		rtl_write_byte(rtlpriv, RA_RFE_INV + 3, tmp & ~0x1);
+		rtl_set_bbreg(hw, RB_RFE_INV, BMASKRFEINV, 0x000);
+		break;
+	case 1:
+		if (rtlpriv->btcoexist.bt_coexistence) {
+			rtl_set_bbreg(hw, RA_RFE_PINMUX, 0xffffff, 0x777777);
+			rtl_set_bbreg(hw, RB_RFE_PINMUX, BMASKDWORD,
+				      0x77777777);
+			rtl_set_bbreg(hw, RA_RFE_INV, 0x33f00000, 0x000);
+			rtl_set_bbreg(hw, RB_RFE_INV, BMASKRFEINV, 0x000);
+			break;
+		}
+	case 0:
+	case 2:
+	default:
+		rtl_set_bbreg(hw, RA_RFE_PINMUX, BMASKDWORD, 0x77777777);
+		rtl_set_bbreg(hw, RB_RFE_PINMUX, BMASKDWORD, 0x77777777);
+		rtl_set_bbreg(hw, RA_RFE_INV, BMASKRFEINV, 0x000);
+		rtl_set_bbreg(hw, RB_RFE_INV, BMASKRFEINV, 0x000);
+		break;
+	}
+}
+
+static void _rtl8812ae_phy_set_rfe_reg_5g(struct ieee80211_hw *hw)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
+	u8 tmp;
+
+	switch (rtlhal->rfe_type) {
+	case 0:
+		rtl_set_bbreg(hw, RA_RFE_PINMUX, BMASKDWORD, 0x77337717);
+		rtl_set_bbreg(hw, RB_RFE_PINMUX, BMASKDWORD, 0x77337717);
+		rtl_set_bbreg(hw, RA_RFE_INV, BMASKRFEINV, 0x010);
+		rtl_set_bbreg(hw, RB_RFE_INV, BMASKRFEINV, 0x010);
+		break;
+	case 1:
+		if (rtlpriv->btcoexist.bt_coexistence) {
+			rtl_set_bbreg(hw, RA_RFE_PINMUX, 0xffffff, 0x337717);
+			rtl_set_bbreg(hw, RB_RFE_PINMUX, BMASKDWORD,
+				      0x77337717);
+			rtl_set_bbreg(hw, RA_RFE_INV, 0x33f00000, 0x000);
+			rtl_set_bbreg(hw, RB_RFE_INV, BMASKRFEINV, 0x000);
+		} else {
+			rtl_set_bbreg(hw, RA_RFE_PINMUX, BMASKDWORD,
+				      0x77337717);
+			rtl_set_bbreg(hw, RB_RFE_PINMUX, BMASKDWORD,
+				      0x77337717);
+			rtl_set_bbreg(hw, RA_RFE_INV, BMASKRFEINV, 0x000);
+			rtl_set_bbreg(hw, RB_RFE_INV, BMASKRFEINV, 0x000);
+		}
+		break;
+	case 3:
+		rtl_set_bbreg(hw, RA_RFE_PINMUX, BMASKDWORD, 0x54337717);
+		rtl_set_bbreg(hw, RB_RFE_PINMUX, BMASKDWORD, 0x54337717);
+		rtl_set_bbreg(hw, RA_RFE_INV, BMASKRFEINV, 0x010);
+		rtl_set_bbreg(hw, RB_RFE_INV, BMASKRFEINV, 0x010);
+		rtl_set_bbreg(hw, 0x900, 0x00000303, 0x1);
+		break;
+	case 5:
+		rtl_write_byte(rtlpriv, RA_RFE_PINMUX + 2, 0x33);
+		rtl_set_bbreg(hw, RB_RFE_PINMUX, BMASKDWORD, 0x77337777);
+		tmp = rtl_read_byte(rtlpriv, RA_RFE_INV + 3);
+		rtl_write_byte(rtlpriv, RA_RFE_INV + 3, tmp | 0x1);
+		rtl_set_bbreg(hw, RB_RFE_INV, BMASKRFEINV, 0x010);
+		break;
+	case 2:
+	case 4:
+	default:
+		rtl_set_bbreg(hw, RA_RFE_PINMUX, BMASKDWORD, 0x77337777);
+		rtl_set_bbreg(hw, RB_RFE_PINMUX, BMASKDWORD, 0x77337777);
+		rtl_set_bbreg(hw, RA_RFE_INV, BMASKRFEINV, 0x010);
+		rtl_set_bbreg(hw, RB_RFE_INV, BMASKRFEINV, 0x010);
+		break;
+	}
+}
+
 u32 phy_get_tx_swing_8812A(struct ieee80211_hw *hw, u8	band,
 			   u8 rf_path)
 {
@@ -552,14 +653,9 @@ void rtl8821ae_phy_switch_wirelessband(struct ieee80211_hw *hw, u8 band)
 			/* 0x82C[1:0] = 2b'00 */
 			rtl_set_bbreg(hw, 0x82c, 0x3, 0);
 		}
-		if (rtlhal->hw_type == HARDWARE_TYPE_RTL8812AE) {
-			rtl_set_bbreg(hw, RA_RFE_PINMUX, BMASKDWORD,
-				      0x77777777);
-			rtl_set_bbreg(hw, RB_RFE_PINMUX, BMASKDWORD,
-				      0x77777777);
-			rtl_set_bbreg(hw, RA_RFE_INV, 0x3ff00000, 0x000);
-			rtl_set_bbreg(hw, RB_RFE_INV, 0x3ff00000, 0x000);
-		}
+
+		if (rtlhal->hw_type == HARDWARE_TYPE_RTL8812AE)
+			_rtl8812ae_phy_set_rfe_reg_24g(hw);
 
 		rtl_set_bbreg(hw, RTXPATH, 0xf0, 0x1);
 		rtl_set_bbreg(hw, RCCK_RX, 0x0f000000, 0x1);
@@ -614,14 +710,8 @@ void rtl8821ae_phy_switch_wirelessband(struct ieee80211_hw *hw, u8 band)
 			/* 0x82C[1:0] = 2'b00 */
 			rtl_set_bbreg(hw, 0x82c, 0x3, 1);
 
-		if (rtlhal->hw_type == HARDWARE_TYPE_RTL8812AE) {
-			rtl_set_bbreg(hw, RA_RFE_PINMUX, BMASKDWORD,
-				      0x77337777);
-			rtl_set_bbreg(hw, RB_RFE_PINMUX, BMASKDWORD,
-				      0x77337777);
-			rtl_set_bbreg(hw, RA_RFE_INV, 0x3ff00000, 0x010);
-			rtl_set_bbreg(hw, RB_RFE_INV, 0x3ff00000, 0x010);
-		}
+		if (rtlhal->hw_type == HARDWARE_TYPE_RTL8812AE)
+			_rtl8812ae_phy_set_rfe_reg_5g(hw);
 
 		rtl_set_bbreg(hw, RTXPATH, 0xf0, 0);
 		rtl_set_bbreg(hw, RCCK_RX, 0x0f000000, 0xf);
@@ -658,6 +748,88 @@ void rtl8821ae_phy_switch_wirelessband(struct ieee80211_hw *hw, u8 band)
 	RT_TRACE(rtlpriv, COMP_SCAN, DBG_TRACE,
 		 "<==rtl8821ae_phy_switch_wirelessband():Switch Band OK.\n");
 	return;
+}
+
+static bool _rtl8821ae_check_positive(struct ieee80211_hw *hw,
+				      const u32 condition1,
+				      const u32 condition2)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
+	u32 cut_ver = ((rtlhal->version & CHIP_VER_RTL_MASK)
+					>> CHIP_VER_RTL_SHIFT);
+	u32 intf = (rtlhal->interface == INTF_USB ? BIT(1) : BIT(0));
+
+	u8  board_type = ((rtlhal->board_type & BIT(4)) >> 4) << 0 | /* _GLNA */
+			 ((rtlhal->board_type & BIT(3)) >> 3) << 1 | /* _GPA  */
+			 ((rtlhal->board_type & BIT(7)) >> 7) << 2 | /* _ALNA */
+			 ((rtlhal->board_type & BIT(6)) >> 6) << 3 | /* _APA  */
+			 ((rtlhal->board_type & BIT(2)) >> 2) << 4;  /* _BT   */
+
+	u32 cond1 = condition1, cond2 = condition2;
+	u32 driver1 = cut_ver << 24 |	/* CUT ver */
+		      0 << 20 |			/* interface 2/2 */
+		      0x04 << 16 |		/* platform */
+		      rtlhal->package_type << 12 |
+		      intf << 8 |			/* interface 1/2 */
+		      board_type;
+
+	u32 driver2 = rtlhal->type_glna <<  0 |
+		      rtlhal->type_gpa  <<  8 |
+		      rtlhal->type_alna << 16 |
+		      rtlhal->type_apa  << 24;
+
+	RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
+		 "===> [8812A] CheckPositive (cond1, cond2) = (0x%X 0x%X)\n",
+		 cond1, cond2);
+	RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
+		 "===> [8812A] CheckPositive (driver1, driver2) = (0x%X 0x%X)\n",
+		 driver1, driver2);
+
+	RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
+		 "	(Platform, Interface) = (0x%X, 0x%X)\n", 0x04, intf);
+	RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
+		 "	(Board, Package) = (0x%X, 0x%X)\n",
+		 rtlhal->board_type, rtlhal->package_type);
+
+	/*============== Value Defined Check ===============*/
+	/*QFN Type [15:12] and Cut Version [27:24] need to do value check*/
+
+	if (((cond1 & 0x0000F000) != 0) && ((cond1 & 0x0000F000) !=
+		(driver1 & 0x0000F000)))
+		return false;
+	if (((cond1 & 0x0F000000) != 0) && ((cond1 & 0x0F000000) !=
+		(driver1 & 0x0F000000)))
+		return false;
+
+	/*=============== Bit Defined Check ================*/
+	/* We don't care [31:28] */
+
+	cond1   &= 0x00FF0FFF;
+	driver1 &= 0x00FF0FFF;
+
+	if ((cond1 & driver1) == cond1) {
+		u32 mask = 0;
+
+		if ((cond1 & 0x0F) == 0) /* BoardType is DONTCARE*/
+			return true;
+
+		if ((cond1 & BIT(0)) != 0) /*GLNA*/
+			mask |= 0x000000FF;
+		if ((cond1 & BIT(1)) != 0) /*GPA*/
+			mask |= 0x0000FF00;
+		if ((cond1 & BIT(2)) != 0) /*ALNA*/
+			mask |= 0x00FF0000;
+		if ((cond1 & BIT(3)) != 0) /*APA*/
+			mask |= 0xFF000000;
+
+		/* BoardType of each RF path is matched*/
+		if ((cond2 & mask) == (driver2 & mask))
+			return true;
+		else
+			return false;
+	} else
+		return false;
 }
 
 static bool _rtl8821ae_check_condition(struct ieee80211_hw *hw,
@@ -1695,55 +1867,78 @@ static bool _rtl8821ae_phy_bb8821a_config_parafile(struct ieee80211_hw *hw)
 	return true;
 }
 
+static bool
+__rtl8821ae_phy_config_with_headerfile(struct ieee80211_hw *hw,
+				       u32 *array_table, u16 arraylen,
+				       void (*set_reg)(struct ieee80211_hw *hw,
+						       u32 regaddr, u32 data))
+{
+	#define COND_ELSE  2
+	#define COND_ENDIF 3
+
+	int i = 0;
+	u8 cond;
+	bool matched = true, skipped = false;
+
+	while ((i + 1) < arraylen) {
+		u32 v1 = array_table[i];
+		u32 v2 = array_table[i + 1];
+
+		if (v1 & (BIT(31) | BIT(30))) {/*positive & negative condition*/
+			if (v1 & BIT(31)) {/* positive condition*/
+				cond  = (u8)((v1 & (BIT(29) | BIT(28))) >> 28);
+				if (cond == COND_ENDIF) {/*end*/
+					matched = true;
+					skipped = false;
+				} else if (cond == COND_ELSE) /*else*/
+					matched = skipped ? false : true;
+				else {/*if , else if*/
+					if (skipped) {
+						matched = false;
+					} else {
+						if (_rtl8821ae_check_positive(
+								hw, v1, v2)) {
+							matched = true;
+							skipped = true;
+						} else {
+							matched = false;
+							skipped = false;
+						}
+					}
+				}
+			} else if (v1 & BIT(30)) { /*negative condition*/
+			/*do nothing*/
+			}
+		} else {
+			if (matched)
+				set_reg(hw, v1, v2);
+		}
+		i = i + 2;
+	}
+
+	return true;
+}
+
 static bool _rtl8821ae_phy_config_mac_with_headerfile(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
-	u32 i, v1, v2;
 	u32 arraylength;
 	u32 *ptrarray;
 
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE, "Read MAC_REG_Array\n");
 	if (rtlhal->hw_type == HARDWARE_TYPE_RTL8821AE) {
-		arraylength = RTL8821AEMAC_1T_ARRAYLEN;
+		arraylength = RTL8821AE_MAC_1T_ARRAYLEN;
 		ptrarray = RTL8821AE_MAC_REG_ARRAY;
 	} else {
-		arraylength = RTL8812AEMAC_1T_ARRAYLEN;
+		arraylength = RTL8812AE_MAC_1T_ARRAYLEN;
 		ptrarray = RTL8812AE_MAC_REG_ARRAY;
 	}
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
 		 "Img: MAC_REG_ARRAY LEN %d\n", arraylength);
-	for (i = 0; i < arraylength; i += 2) {
-		v1 = ptrarray[i];
-		v2 = (u8)ptrarray[i + 1];
-		if (v1 < 0xCDCDCDCD) {
-			rtl_write_byte(rtlpriv, v1, (u8)v2);
-			continue;
-		} else {
-			if (!_rtl8821ae_check_condition(hw, v1)) {
-				/*Discard the following (offset, data) pairs*/
-				READ_NEXT_PAIR(ptrarray, v1, v2, i);
-				while (v2 != 0xDEAD &&
-				       v2 != 0xCDEF &&
-				       v2 != 0xCDCD && i < arraylength - 2) {
-					READ_NEXT_PAIR(ptrarray, v1, v2, i);
-				}
-				i -= 2; /* prevent from for-loop += 2*/
-			} else {/*Configure matched pairs and skip to end of if-else.*/
-				READ_NEXT_PAIR(ptrarray, v1, v2, i);
-				while (v2 != 0xDEAD &&
-				       v2 != 0xCDEF &&
-				       v2 != 0xCDCD && i < arraylength - 2) {
-					rtl_write_byte(rtlpriv, v1, v2);
-					READ_NEXT_PAIR(ptrarray, v1, v2, i);
-				}
 
-				while (v2 != 0xDEAD && i < arraylength - 2)
-					READ_NEXT_PAIR(ptrarray, v1, v2, i);
-			}
-		}
-	}
-	return true;
+	return __rtl8821ae_phy_config_with_headerfile(hw,
+			ptrarray, arraylength, rtl_write_byte_with_val32);
 }
 
 static bool _rtl8821ae_phy_config_bb_with_headerfile(struct ieee80211_hw *hw,
@@ -1751,111 +1946,33 @@ static bool _rtl8821ae_phy_config_bb_with_headerfile(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
-	int i;
 	u32 *array_table;
 	u16 arraylen;
-	u32 v1 = 0, v2 = 0;
 
 	if (configtype == BASEBAND_CONFIG_PHY_REG) {
 		if (rtlhal->hw_type == HARDWARE_TYPE_RTL8812AE) {
-			arraylen = RTL8812AEPHY_REG_1TARRAYLEN;
+			arraylen = RTL8812AE_PHY_REG_1TARRAYLEN;
 			array_table = RTL8812AE_PHY_REG_ARRAY;
 		} else {
-			arraylen = RTL8821AEPHY_REG_1TARRAYLEN;
+			arraylen = RTL8821AE_PHY_REG_1TARRAYLEN;
 			array_table = RTL8821AE_PHY_REG_ARRAY;
 		}
 
-		for (i = 0; i < arraylen; i += 2) {
-			v1 = array_table[i];
-			v2 = array_table[i + 1];
-			if (v1 < 0xCDCDCDCD) {
-				_rtl8821ae_config_bb_reg(hw, v1, v2);
-				continue;
-			} else {/*This line is the start line of branch.*/
-				if (!_rtl8821ae_check_condition(hw, v1)) {
-					/*Discard the following (offset, data) pairs*/
-					READ_NEXT_PAIR(array_table, v1, v2, i);
-					while (v2 != 0xDEAD &&
-					       v2 != 0xCDEF &&
-					       v2 != 0xCDCD &&
-					       i < arraylen - 2) {
-						READ_NEXT_PAIR(array_table, v1,
-								v2, i);
-					}
-
-					i -= 2; /* prevent from for-loop += 2*/
-				} else {/*Configure matched pairs and skip to end of if-else.*/
-					READ_NEXT_PAIR(array_table, v1, v2, i);
-					while (v2 != 0xDEAD &&
-					       v2 != 0xCDEF &&
-					       v2 != 0xCDCD &&
-					       i < arraylen - 2) {
-						_rtl8821ae_config_bb_reg(hw, v1,
-									 v2);
-						READ_NEXT_PAIR(array_table, v1,
-							       v2, i);
-					}
-
-					while (v2 != 0xDEAD &&
-					       i < arraylen - 2) {
-						READ_NEXT_PAIR(array_table, v1,
-							       v2, i);
-					}
-				}
-			}
-		}
+		return __rtl8821ae_phy_config_with_headerfile(hw,
+				array_table, arraylen,
+				_rtl8821ae_config_bb_reg);
 	} else if (configtype == BASEBAND_CONFIG_AGC_TAB) {
 		if (rtlhal->hw_type == HARDWARE_TYPE_RTL8812AE) {
-			arraylen = RTL8812AEAGCTAB_1TARRAYLEN;
+			arraylen = RTL8812AE_AGC_TAB_1TARRAYLEN;
 			array_table = RTL8812AE_AGC_TAB_ARRAY;
 		} else {
-			arraylen = RTL8821AEAGCTAB_1TARRAYLEN;
+			arraylen = RTL8821AE_AGC_TAB_1TARRAYLEN;
 			array_table = RTL8821AE_AGC_TAB_ARRAY;
 		}
 
-		for (i = 0; i < arraylen; i = i + 2) {
-			v1 = array_table[i];
-			v2 = array_table[i+1];
-			if (v1 < 0xCDCDCDCD) {
-				rtl_set_bbreg(hw, v1, MASKDWORD, v2);
-				udelay(1);
-				continue;
-			} else {/*This line is the start line of branch.*/
-				if (!_rtl8821ae_check_condition(hw, v1)) {
-					/*Discard the following (offset, data) pairs*/
-					READ_NEXT_PAIR(array_table, v1, v2, i);
-					while (v2 != 0xDEAD &&
-					       v2 != 0xCDEF &&
-					       v2 != 0xCDCD &&
-					       i < arraylen - 2) {
-						READ_NEXT_PAIR(array_table, v1,
-								v2, i);
-					}
-					i -= 2; /* prevent from for-loop += 2*/
-				} else {/*Configure matched pairs and skip to end of if-else.*/
-					READ_NEXT_PAIR(array_table, v1, v2, i);
-					while (v2 != 0xDEAD &&
-					       v2 != 0xCDEF &&
-					       v2 != 0xCDCD &&
-					       i < arraylen - 2) {
-						rtl_set_bbreg(hw, v1, MASKDWORD,
-							      v2);
-						udelay(1);
-						READ_NEXT_PAIR(array_table, v1,
-							       v2, i);
-					}
-
-					while (v2 != 0xDEAD &&
-						i < arraylen - 2) {
-						READ_NEXT_PAIR(array_table, v1,
-								v2, i);
-					}
-				}
-				RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-					 "The agctab_array_table[0] is %x Rtl818EEPHY_REGArray[1] is %x\n",
-					  array_table[i],  array_table[i + 1]);
-			}
-		}
+		return __rtl8821ae_phy_config_with_headerfile(hw,
+				array_table, arraylen,
+				rtl_set_bbreg_with_dwmask);
 	}
 	return true;
 }
@@ -1913,10 +2030,10 @@ static bool _rtl8821ae_phy_config_bb_with_pgheaderfile(struct ieee80211_hw *hw,
 	u32 v1, v2, v3, v4, v5, v6;
 
 	if (rtlhal->hw_type == HARDWARE_TYPE_RTL8812AE) {
-		arraylen = RTL8812AEPHY_REG_ARRAY_PGLEN;
+		arraylen = RTL8812AE_PHY_REG_ARRAY_PGLEN;
 		array = RTL8812AE_PHY_REG_ARRAY_PG;
 	} else {
-		arraylen = RTL8821AEPHY_REG_ARRAY_PGLEN;
+		arraylen = RTL8821AE_PHY_REG_ARRAY_PGLEN;
 		array = RTL8821AE_PHY_REG_ARRAY_PG;
 	}
 
@@ -1980,12 +2097,10 @@ static bool _rtl8821ae_phy_config_bb_with_pgheaderfile(struct ieee80211_hw *hw,
 bool rtl8812ae_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 					     enum radio_path rfpath)
 {
-	int i;
 	bool rtstatus = true;
 	u32 *radioa_array_table_a, *radioa_array_table_b;
 	u16 radioa_arraylen_a, radioa_arraylen_b;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u32 v1 = 0, v2 = 0;
 
 	radioa_arraylen_a = RTL8812AE_RADIOA_1TARRAYLEN;
 	radioa_array_table_a = RTL8812AE_RADIOA_ARRAY;
@@ -1997,69 +2112,14 @@ bool rtl8812ae_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 	rtstatus = true;
 	switch (rfpath) {
 	case RF90_PATH_A:
-		for (i = 0; i < radioa_arraylen_a; i = i + 2) {
-			v1 = radioa_array_table_a[i];
-			v2 = radioa_array_table_a[i+1];
-			if (v1 < 0xcdcdcdcd) {
-				_rtl8821ae_config_rf_radio_a(hw, v1, v2);
-				continue;
-			} else{/*This line is the start line of branch.*/
-				if (!_rtl8821ae_check_condition(hw, v1)) {
-					/*Discard the following (offset, data) pairs*/
-					READ_NEXT_PAIR(radioa_array_table_a, v1, v2, i);
-					while (v2 != 0xDEAD &&
-					       v2 != 0xCDEF &&
-					       v2 != 0xCDCD && i < radioa_arraylen_a-2)
-						READ_NEXT_PAIR(radioa_array_table_a, v1, v2, i);
-
-					i -= 2; /* prevent from for-loop += 2*/
-				} else {/*Configure matched pairs and skip to end of if-else.*/
-					READ_NEXT_PAIR(radioa_array_table_a, v1, v2, i);
-					while (v2 != 0xDEAD &&
-					       v2 != 0xCDEF &&
-					       v2 != 0xCDCD && i < radioa_arraylen_a - 2) {
-						_rtl8821ae_config_rf_radio_a(hw, v1, v2);
-						READ_NEXT_PAIR(radioa_array_table_a, v1, v2, i);
-					}
-
-					while (v2 != 0xDEAD && i < radioa_arraylen_a-2)
-						READ_NEXT_PAIR(radioa_array_table_a, v1, v2, i);
-
-				}
-			}
-		}
+		return __rtl8821ae_phy_config_with_headerfile(hw,
+				radioa_array_table_a, radioa_arraylen_a,
+				_rtl8821ae_config_rf_radio_a);
 		break;
 	case RF90_PATH_B:
-		for (i = 0; i < radioa_arraylen_b; i = i + 2) {
-			v1 = radioa_array_table_b[i];
-			v2 = radioa_array_table_b[i+1];
-			if (v1 < 0xcdcdcdcd) {
-				_rtl8821ae_config_rf_radio_b(hw, v1, v2);
-				continue;
-			} else{/*This line is the start line of branch.*/
-				if (!_rtl8821ae_check_condition(hw, v1)) {
-					/*Discard the following (offset, data) pairs*/
-					READ_NEXT_PAIR(radioa_array_table_b, v1, v2, i);
-					while (v2 != 0xDEAD &&
-					       v2 != 0xCDEF &&
-					       v2 != 0xCDCD && i < radioa_arraylen_b-2)
-						READ_NEXT_PAIR(radioa_array_table_b, v1, v2, i);
-
-					i -= 2; /* prevent from for-loop += 2*/
-				} else {/*Configure matched pairs and skip to end of if-else.*/
-					READ_NEXT_PAIR(radioa_array_table_b, v1, v2, i);
-					while (v2 != 0xDEAD &&
-					       v2 != 0xCDEF &&
-					       v2 != 0xCDCD && i < radioa_arraylen_b-2) {
-						_rtl8821ae_config_rf_radio_b(hw, v1, v2);
-						READ_NEXT_PAIR(radioa_array_table_b, v1, v2, i);
-					}
-
-					while (v2 != 0xDEAD && i < radioa_arraylen_b-2)
-						READ_NEXT_PAIR(radioa_array_table_b, v1, v2, i);
-				}
-			}
-		}
+		return __rtl8821ae_phy_config_with_headerfile(hw,
+				radioa_array_table_b, radioa_arraylen_b,
+				_rtl8821ae_config_rf_radio_b);
 		break;
 	case RF90_PATH_C:
 	case RF90_PATH_D:
@@ -2072,21 +2132,10 @@ bool rtl8812ae_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 bool rtl8821ae_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 						enum radio_path rfpath)
 {
-	#define READ_NEXT_RF_PAIR(v1, v2, i) \
-	do { \
-		i += 2; \
-		v1 = radioa_array_table[i]; \
-		v2 = radioa_array_table[i+1]; \
-	} \
-	while (0)
-
-	int i;
 	bool rtstatus = true;
 	u32 *radioa_array_table;
 	u16 radioa_arraylen;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	/* struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw)); */
-	u32 v1 = 0, v2 = 0;
 
 	radioa_arraylen = RTL8821AE_RADIOA_1TARRAYLEN;
 	radioa_array_table = RTL8821AE_RADIOA_ARRAY;
@@ -2096,35 +2145,9 @@ bool rtl8821ae_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 	rtstatus = true;
 	switch (rfpath) {
 	case RF90_PATH_A:
-		for (i = 0; i < radioa_arraylen; i = i + 2) {
-			v1 = radioa_array_table[i];
-			v2 = radioa_array_table[i+1];
-			if (v1 < 0xcdcdcdcd)
-				_rtl8821ae_config_rf_radio_a(hw, v1, v2);
-			else{/*This line is the start line of branch.*/
-				if (!_rtl8821ae_check_condition(hw, v1)) {
-					/*Discard the following (offset, data) pairs*/
-					READ_NEXT_RF_PAIR(v1, v2, i);
-					while (v2 != 0xDEAD &&
-						v2 != 0xCDEF &&
-						v2 != 0xCDCD && i < radioa_arraylen - 2)
-						READ_NEXT_RF_PAIR(v1, v2, i);
-
-					i -= 2; /* prevent from for-loop += 2*/
-				} else {/*Configure matched pairs and skip to end of if-else.*/
-					READ_NEXT_RF_PAIR(v1, v2, i);
-					while (v2 != 0xDEAD &&
-					       v2 != 0xCDEF &&
-					       v2 != 0xCDCD && i < radioa_arraylen - 2) {
-						_rtl8821ae_config_rf_radio_a(hw, v1, v2);
-						READ_NEXT_RF_PAIR(v1, v2, i);
-					}
-
-					while (v2 != 0xDEAD && i < radioa_arraylen - 2)
-						READ_NEXT_RF_PAIR(v1, v2, i);
-				}
-			}
-		}
+		return __rtl8821ae_phy_config_with_headerfile(hw,
+			radioa_array_table, radioa_arraylen,
+			_rtl8821ae_config_rf_radio_a);
 		break;
 
 	case RF90_PATH_B:

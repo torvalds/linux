@@ -1463,25 +1463,27 @@ gf100_gr_init_ctxctl_ext(struct gf100_gr *gr)
 	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_secboot *sb = device->secboot;
-	int ret = 0;
+	u32 secboot_mask = 0;
 
 	/* load fuc microcode */
 	nvkm_mc_unk260(device, 0);
 
 	/* securely-managed falcons must be reset using secure boot */
 	if (nvkm_secboot_is_managed(sb, NVKM_SECBOOT_FALCON_FECS))
-		ret = nvkm_secboot_reset(sb, NVKM_SECBOOT_FALCON_FECS);
+		secboot_mask |= BIT(NVKM_SECBOOT_FALCON_FECS);
 	else
 		gf100_gr_init_fw(gr->fecs, &gr->fuc409c, &gr->fuc409d);
-	if (ret)
-		return ret;
 
 	if (nvkm_secboot_is_managed(sb, NVKM_SECBOOT_FALCON_GPCCS))
-		ret = nvkm_secboot_reset(sb, NVKM_SECBOOT_FALCON_GPCCS);
+		secboot_mask |= BIT(NVKM_SECBOOT_FALCON_GPCCS);
 	else
 		gf100_gr_init_fw(gr->gpccs, &gr->fuc41ac, &gr->fuc41ad);
-	if (ret)
-		return ret;
+
+	if (secboot_mask != 0) {
+		int ret = nvkm_secboot_reset(sb, secboot_mask);
+		if (ret)
+			return ret;
+	}
 
 	nvkm_mc_unk260(device, 1);
 
@@ -1647,8 +1649,18 @@ static int
 gf100_gr_oneinit(struct nvkm_gr *base)
 {
 	struct gf100_gr *gr = gf100_gr(base);
-	struct nvkm_device *device = gr->base.engine.subdev.device;
+	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	int i, j;
+	int ret;
+
+	ret = nvkm_falcon_v1_new(subdev, "FECS", 0x409000, &gr->fecs);
+	if (ret)
+		return ret;
+
+	ret = nvkm_falcon_v1_new(subdev, "GPCCS", 0x41a000, &gr->gpccs);
+	if (ret)
+		return ret;
 
 	nvkm_pmu_pgob(device->pmu, false);
 
@@ -1856,24 +1868,13 @@ int
 gf100_gr_ctor(const struct gf100_gr_func *func, struct nvkm_device *device,
 	      int index, struct gf100_gr *gr)
 {
-	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
-	int ret;
-
 	gr->func = func;
 	gr->firmware = nvkm_boolopt(device->cfgopt, "NvGrUseFW",
 				    func->fecs.ucode == NULL);
 
-	ret = nvkm_gr_ctor(&gf100_gr_, device, index,
-			   gr->firmware || func->fecs.ucode != NULL,
-			   &gr->base);
-	if (ret)
-		return ret;
-
-	ret = nvkm_falcon_v1_new(subdev, "FECS", 0x409000, &gr->fecs);
-	if (ret)
-		return ret;
-
-	return nvkm_falcon_v1_new(subdev, "GPCCS", 0x41a000, &gr->gpccs);
+	return nvkm_gr_ctor(&gf100_gr_, device, index,
+			    gr->firmware || func->fecs.ucode != NULL,
+			    &gr->base);
 }
 
 int

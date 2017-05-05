@@ -29,6 +29,7 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/mdio.h>
+#include <linux/phy.h>
 #include <net/ip6_checksum.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
@@ -1952,10 +1953,10 @@ static int lan8835_fixup(struct phy_device *phydev)
 	struct lan78xx_net *dev = netdev_priv(phydev->attached_dev);
 
 	/* LED2/PME_N/IRQ_N/RGMII_ID pin to IRQ_N mode */
-	buf = phy_read_mmd_indirect(phydev, 0x8010, 3);
+	buf = phy_read_mmd(phydev, MDIO_MMD_PCS, 0x8010);
 	buf &= ~0x1800;
 	buf |= 0x0800;
-	phy_write_mmd_indirect(phydev, 0x8010, 3, buf);
+	phy_write_mmd(phydev, MDIO_MMD_PCS, 0x8010, buf);
 
 	/* RGMII MAC TXC Delay Enable */
 	ret = lan78xx_write_reg(dev, MAC_RGMII_ID,
@@ -1975,11 +1976,11 @@ static int ksz9031rnx_fixup(struct phy_device *phydev)
 
 	/* Micrel9301RNX PHY configuration */
 	/* RGMII Control Signal Pad Skew */
-	phy_write_mmd_indirect(phydev, 4, 2, 0x0077);
+	phy_write_mmd(phydev, MDIO_MMD_WIS, 4, 0x0077);
 	/* RGMII RX Data Pad Skew */
-	phy_write_mmd_indirect(phydev, 5, 2, 0x7777);
+	phy_write_mmd(phydev, MDIO_MMD_WIS, 5, 0x7777);
 	/* RGMII RX Clock Pad Skew */
-	phy_write_mmd_indirect(phydev, 8, 2, 0x1FF);
+	phy_write_mmd(phydev, MDIO_MMD_WIS, 8, 0x1FF);
 
 	dev->interface = PHY_INTERFACE_MODE_RGMII_RXID;
 
@@ -2607,14 +2608,9 @@ static struct sk_buff *lan78xx_tx_prep(struct lan78xx_net *dev,
 {
 	u32 tx_cmd_a, tx_cmd_b;
 
-	if (skb_headroom(skb) < TX_OVERHEAD) {
-		struct sk_buff *skb2;
-
-		skb2 = skb_copy_expand(skb, TX_OVERHEAD, 0, flags);
+	if (skb_cow_head(skb, TX_OVERHEAD)) {
 		dev_kfree_skb_any(skb);
-		skb = skb2;
-		if (!skb)
-			return NULL;
+		return NULL;
 	}
 
 	if (lan78xx_linearize(skb) < 0)

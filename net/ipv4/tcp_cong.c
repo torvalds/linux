@@ -168,12 +168,8 @@ void tcp_assign_congestion_control(struct sock *sk)
 	}
 out:
 	rcu_read_unlock();
+	memset(icsk->icsk_ca_priv, 0, sizeof(icsk->icsk_ca_priv));
 
-	/* Clear out private data before diag gets it and
-	 * the ca has not been initialized.
-	 */
-	if (ca->get_info)
-		memset(icsk->icsk_ca_priv, 0, sizeof(icsk->icsk_ca_priv));
 	if (ca->flags & TCP_CONG_NEEDS_ECN)
 		INET_ECN_xmit(sk);
 	else
@@ -200,11 +196,10 @@ static void tcp_reinit_congestion_control(struct sock *sk,
 	tcp_cleanup_congestion_control(sk);
 	icsk->icsk_ca_ops = ca;
 	icsk->icsk_ca_setsockopt = 1;
+	memset(icsk->icsk_ca_priv, 0, sizeof(icsk->icsk_ca_priv));
 
-	if (sk->sk_state != TCP_CLOSE) {
-		memset(icsk->icsk_ca_priv, 0, sizeof(icsk->icsk_ca_priv));
+	if (sk->sk_state != TCP_CLOSE)
 		tcp_init_congestion_control(sk);
-	}
 }
 
 /* Manage refcounts on socket close. */

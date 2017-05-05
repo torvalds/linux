@@ -77,7 +77,7 @@ There are three groups of locks for managing the device:
  3.1.2 RESYNCING: informs other nodes that a resync is initiated or
    ended so that each node may suspend or resume the region.  Each
    RESYNCING message identifies a range of the devices that the
-   sending node is about to resync. This over-rides any pervious
+   sending node is about to resync. This overrides any previous
    notification from that node: only one ranged can be resynced at a
    time per-node.
 
@@ -321,4 +321,4 @@ The algorithm is:
 
 There are somethings which are not supported by cluster MD yet.
 
-- update size and change array_sectors.
+- change array_sectors.

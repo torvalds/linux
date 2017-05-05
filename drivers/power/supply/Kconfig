@@ -117,6 +117,12 @@ config BATTERY_DS2782
 	  Say Y here to enable support for the DS2782/DS2786 standalone battery
 	  gas-gauge.
 
+config BATTERY_LEGO_EV3
+	tristate "LEGO MINDSTORMS EV3 battery"
+	depends on OF && IIO && GPIOLIB
+	help
+	  Say Y here to enable support for the LEGO MINDSTORMS EV3 battery.
+
 config BATTERY_PMU
 	tristate "Apple PMU battery"
 	depends on PPC32 && ADB_PMU
@@ -317,6 +323,14 @@ config BATTERY_RX51
 	  Say Y here to enable support for battery information on Nokia
 	  RX-51, also known as N900 tablet.
 
+config CHARGER_CPCAP
+	tristate "CPCAP PMIC Charger Driver"
+	depends on MFD_CPCAP && IIO
+	default MFD_CPCAP
+	help
+	  Say Y to enable support for CPCAP PMIC charger driver for Motorola
+	  mobile devices such as Droid 4.
+
 config CHARGER_ISP1704
 	tristate "ISP1704 USB Charger Detection"
 	depends on USB_PHY
@@ -438,6 +452,7 @@ config CHARGER_BQ2415X
 config CHARGER_BQ24190
 	tristate "TI BQ24190 battery charger driver"
 	depends on I2C
+	depends on EXTCON
 	depends on GPIOLIB || COMPILE_TEST
 	help
 	  Say Y to enable support for the TI BQ24190 battery charger.

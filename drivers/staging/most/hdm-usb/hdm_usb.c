@@ -490,7 +490,7 @@ static void hdm_write_completion(struct urb *urb)
  * disconnect.  In the interval before the hub driver starts disconnect
  * processing, devices may receive such fault reports for every request.
  *
- * See <https://www.kernel.org/doc/Documentation/usb/error-codes.txt>
+ * See <https://www.kernel.org/doc/Documentation/driver-api/usb/error-codes.rst>
  */
 static void hdm_read_completion(struct urb *urb)
 {

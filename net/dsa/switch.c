@@ -1,7 +1,8 @@
 /*
  * Handling of a single switch chip, part of a switch fabric
  *
- * Copyright (c) 2017 Vivien Didelot <vivien.didelot@savoirfairelinux.com>
+ * Copyright (c) 2017 Savoir-faire Linux Inc.
+ *	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,9 +20,9 @@ static int dsa_switch_bridge_join(struct dsa_switch *ds,
 	if (ds->index == info->sw_index && ds->ops->port_bridge_join)
 		return ds->ops->port_bridge_join(ds, info->port, info->br);
 
-	if (ds->index != info->sw_index)
-		dev_dbg(ds->dev, "crosschip DSA port %d.%d bridged to %s\n",
-			info->sw_index, info->port, netdev_name(info->br));
+	if (ds->index != info->sw_index && ds->ops->crosschip_bridge_join)
+		return ds->ops->crosschip_bridge_join(ds, info->sw_index,
+						      info->port, info->br);
 
 	return 0;
 }
@@ -32,9 +33,9 @@ static int dsa_switch_bridge_leave(struct dsa_switch *ds,
 	if (ds->index == info->sw_index && ds->ops->port_bridge_leave)
 		ds->ops->port_bridge_leave(ds, info->port, info->br);
 
-	if (ds->index != info->sw_index)
-		dev_dbg(ds->dev, "crosschip DSA port %d.%d unbridged from %s\n",
-			info->sw_index, info->port, netdev_name(info->br));
+	if (ds->index != info->sw_index && ds->ops->crosschip_bridge_leave)
+		ds->ops->crosschip_bridge_leave(ds, info->sw_index, info->port,
+						info->br);
 
 	return 0;
 }

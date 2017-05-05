@@ -103,6 +103,7 @@ struct cppc_perf_caps {
 	u32 highest_perf;
 	u32 nominal_perf;
 	u32 lowest_perf;
+	u32 lowest_nonlinear_perf;
 };
 
 struct cppc_perf_ctrls {
@@ -115,7 +116,7 @@ struct cppc_perf_fb_ctrs {
 	u64 reference;
 	u64 delivered;
 	u64 reference_perf;
-	u64 ctr_wrap_time;
+	u64 wraparound_time;
 };
 
 /* Per CPU container for runtime CPPC management. */

@@ -110,10 +110,10 @@ Installation
   - Install a Linux kernel with NFS/RDMA
 
     The NFS/RDMA client and server are both included in the mainline Linux
-    kernel version 2.6.25 and later. This and other versions of the 2.6 Linux
+    kernel version 2.6.25 and later. This and other versions of the Linux
     kernel can be found at:
 
-    ftp://ftp.kernel.org/pub/linux/kernel/v2.6/
+    https://www.kernel.org/pub/linux/kernel/
 
     Download the sources and place them in an appropriate location.
 

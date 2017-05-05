@@ -905,9 +905,8 @@ static inline void REGISTER_WRITE8(struct drm_device *dev,
 #define PSB_RSGX32(_offs)						\
 ({									\
 	if (inl(dev_priv->apm_base + PSB_APM_STS) & 0x3) {		\
-		printk(KERN_ERR						\
-			"access sgx when it's off!! (READ) %s, %d\n",	\
-	       __FILE__, __LINE__);					\
+		pr_err("access sgx when it's off!! (READ) %s, %d\n",	\
+		       __FILE__, __LINE__);				\
 		melay(1000);						\
 	}								\
 	ioread32(dev_priv->sgx_reg + (_offs));				\

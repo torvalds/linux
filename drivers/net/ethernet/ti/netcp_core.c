@@ -1134,7 +1134,6 @@ netcp_tx_map_skb(struct sk_buff *skb, struct netcp_intf *netcp)
 		u32 buf_len = skb_frag_size(frag);
 		dma_addr_t desc_dma;
 		u32 desc_dma_32;
-		u32 pkt_info;
 
 		dma_addr = dma_map_page(dev, page, page_offset, buf_len,
 					DMA_TO_DEVICE);
@@ -1151,9 +1150,6 @@ netcp_tx_map_skb(struct sk_buff *skb, struct netcp_intf *netcp)
 		}
 
 		desc_dma = knav_pool_desc_virt_to_dma(netcp->tx_pool, ndesc);
-		pkt_info =
-			(netcp->tx_compl_qid & KNAV_DMA_DESC_RETQ_MASK) <<
-				KNAV_DMA_DESC_RETQ_SHIFT;
 		set_pkt_info(dma_addr, buf_len, 0, ndesc);
 		desc_dma_32 = (u32)desc_dma;
 		set_words(&desc_dma_32, 1, &pdesc->next_desc);
@@ -1882,6 +1878,7 @@ static u16 netcp_select_queue(struct net_device *dev, struct sk_buff *skb,
 static int netcp_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
 			  struct tc_to_netdev *tc)
 {
+	u8 num_tc;
 	int i;
 
 	/* setup tc must be called under rtnl lock */
@@ -1890,15 +1887,18 @@ static int netcp_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
 	if (tc->type != TC_SETUP_MQPRIO)
 		return -EINVAL;
 
+	tc->mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
+	num_tc = tc->mqprio->num_tc;
+
 	/* Sanity-check the number of traffic classes requested */
 	if ((dev->real_num_tx_queues <= 1) ||
-	    (dev->real_num_tx_queues < tc->tc))
+	    (dev->real_num_tx_queues < num_tc))
 		return -EINVAL;
 
 	/* Configure traffic class to queue mappings */
-	if (tc->tc) {
-		netdev_set_num_tc(dev, tc->tc);
-		for (i = 0; i < tc->tc; i++)
+	if (num_tc) {
+		netdev_set_num_tc(dev, num_tc);
+		for (i = 0; i < num_tc; i++)
 			netdev_set_tc_queue(dev, i, 1, i);
 	} else {
 		netdev_reset_tc(dev);

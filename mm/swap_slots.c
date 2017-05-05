@@ -241,8 +241,10 @@ int enable_swap_slots_cache(void)
 
 	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "swap_slots_cache",
 				alloc_swap_slot_cache, free_slot_cache);
-	if (ret < 0)
+	if (WARN_ONCE(ret < 0, "Cache allocation failed (%s), operating "
+			       "without swap slots cache.\n", __func__))
 		goto out_unlock;
+
 	swap_slot_cache_initialized = true;
 	__reenable_swap_slots_cache();
 out_unlock:

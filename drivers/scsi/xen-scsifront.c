@@ -434,7 +434,7 @@ static int map_data_for_request(struct vscsifrnt_info *info,
 
 	if (seg_grants) {
 		page = virt_to_page(seg);
-		off = (unsigned long)seg & ~PAGE_MASK;
+		off = offset_in_page(seg);
 		len = sizeof(struct scsiif_request_segment) * data_grants;
 		while (len > 0) {
 			bytes = min_t(unsigned int, len, PAGE_SIZE - off);

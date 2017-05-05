@@ -166,13 +166,13 @@ static int xway_gphy_config_init(struct phy_device *phydev)
 	/* Clear all pending interrupts */
 	phy_read(phydev, XWAY_MDIO_ISTAT);
 
-	phy_write_mmd_indirect(phydev, XWAY_MMD_LEDCH, MDIO_MMD_VEND2,
-			       XWAY_MMD_LEDCH_NACS_NONE |
-			       XWAY_MMD_LEDCH_SBF_F02HZ |
-			       XWAY_MMD_LEDCH_FBF_F16HZ);
-	phy_write_mmd_indirect(phydev, XWAY_MMD_LEDCL, MDIO_MMD_VEND2,
-			       XWAY_MMD_LEDCH_CBLINK_NONE |
-			       XWAY_MMD_LEDCH_SCAN_NONE);
+	phy_write_mmd(phydev, MDIO_MMD_VEND2, XWAY_MMD_LEDCH,
+		      XWAY_MMD_LEDCH_NACS_NONE |
+		      XWAY_MMD_LEDCH_SBF_F02HZ |
+		      XWAY_MMD_LEDCH_FBF_F16HZ);
+	phy_write_mmd(phydev, MDIO_MMD_VEND2, XWAY_MMD_LEDCL,
+		      XWAY_MMD_LEDCH_CBLINK_NONE |
+		      XWAY_MMD_LEDCH_SCAN_NONE);
 
 	/**
 	 * In most cases only one LED is connected to this phy, so
@@ -183,12 +183,12 @@ static int xway_gphy_config_init(struct phy_device *phydev)
 	ledxh = XWAY_MMD_LEDxH_BLINKF_NONE | XWAY_MMD_LEDxH_CON_LINK10XX;
 	ledxl = XWAY_MMD_LEDxL_PULSE_TXACT | XWAY_MMD_LEDxL_PULSE_RXACT |
 		XWAY_MMD_LEDxL_BLINKS_NONE;
-	phy_write_mmd_indirect(phydev, XWAY_MMD_LED0H, MDIO_MMD_VEND2, ledxh);
-	phy_write_mmd_indirect(phydev, XWAY_MMD_LED0L, MDIO_MMD_VEND2, ledxl);
-	phy_write_mmd_indirect(phydev, XWAY_MMD_LED1H, MDIO_MMD_VEND2, ledxh);
-	phy_write_mmd_indirect(phydev, XWAY_MMD_LED1L, MDIO_MMD_VEND2, ledxl);
-	phy_write_mmd_indirect(phydev, XWAY_MMD_LED2H, MDIO_MMD_VEND2, ledxh);
-	phy_write_mmd_indirect(phydev, XWAY_MMD_LED2L, MDIO_MMD_VEND2, ledxl);
+	phy_write_mmd(phydev, MDIO_MMD_VEND2, XWAY_MMD_LED0H, ledxh);
+	phy_write_mmd(phydev, MDIO_MMD_VEND2, XWAY_MMD_LED0L, ledxl);
+	phy_write_mmd(phydev, MDIO_MMD_VEND2, XWAY_MMD_LED1H, ledxh);
+	phy_write_mmd(phydev, MDIO_MMD_VEND2, XWAY_MMD_LED1L, ledxl);
+	phy_write_mmd(phydev, MDIO_MMD_VEND2, XWAY_MMD_LED2H, ledxh);
+	phy_write_mmd(phydev, MDIO_MMD_VEND2, XWAY_MMD_LED2L, ledxl);
 
 	return 0;
 }

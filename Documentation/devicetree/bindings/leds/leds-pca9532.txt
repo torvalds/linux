@@ -17,6 +17,8 @@ Optional sub-node properties:
 	- label: see Documentation/devicetree/bindings/leds/common.txt
 	- type: Output configuration, see dt-bindings/leds/leds-pca9532.h (default NONE)
 	- linux,default-trigger: see Documentation/devicetree/bindings/leds/common.txt
+	- default-state: see Documentation/devicetree/bindings/leds/common.txt
+	  This property is only valid for sub-nodes of type <PCA9532_TYPE_LED>.
 
 Example:
   #include <dt-bindings/leds/leds-pca9532.h>
@@ -32,6 +34,14 @@ Example:
     green-power {
       label = "pca:green:power";
       type = <PCA9532_TYPE_LED>;
+    };
+    kernel-booting {
+      type = <PCA9532_TYPE_LED>;
+      default-state = "on";
+    };
+    sys-stat {
+      type = <PCA9532_TYPE_LED>;
+      default-state = "keep"; // don't touch, was set by U-Boot
     };
   };
 

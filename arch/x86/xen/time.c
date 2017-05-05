@@ -209,7 +209,9 @@ static const struct clock_event_device xen_timerop_clockevent = {
 	.features		= CLOCK_EVT_FEAT_ONESHOT,
 
 	.max_delta_ns		= 0xffffffff,
+	.max_delta_ticks	= 0xffffffff,
 	.min_delta_ns		= TIMER_SLOP,
+	.min_delta_ticks	= TIMER_SLOP,
 
 	.mult			= 1,
 	.shift			= 0,
@@ -268,7 +270,9 @@ static const struct clock_event_device xen_vcpuop_clockevent = {
 	.features = CLOCK_EVT_FEAT_ONESHOT,
 
 	.max_delta_ns = 0xffffffff,
+	.max_delta_ticks = 0xffffffff,
 	.min_delta_ns = TIMER_SLOP,
+	.min_delta_ticks = TIMER_SLOP,
 
 	.mult = 1,
 	.shift = 0,
@@ -432,6 +436,14 @@ static void xen_hvm_setup_cpu_clockevents(void)
 
 void __init xen_hvm_init_time_ops(void)
 {
+	/*
+	 * vector callback is needed otherwise we cannot receive interrupts
+	 * on cpu > 0 and at this point we don't know how many cpus are
+	 * available.
+	 */
+	if (!xen_have_vector_callback)
+		return;
+
 	if (!xen_feature(XENFEAT_hvm_safe_pvclock)) {
 		printk(KERN_INFO "Xen doesn't support pvclock on HVM,"
 				"disable pv timer\n");

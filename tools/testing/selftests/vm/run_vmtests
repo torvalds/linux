@@ -95,7 +95,7 @@ echo "      hugetlb regression testing."
 echo "--------------------"
 echo "running userfaultfd"
 echo "--------------------"
-./userfaultfd 128 32
+./userfaultfd anon 128 32
 if [ $? -ne 0 ]; then
 	echo "[FAIL]"
 	exitcode=1
@@ -107,7 +107,7 @@ echo "----------------------------"
 echo "running userfaultfd_hugetlb"
 echo "----------------------------"
 # 258MB total huge pages == 128MB src and 128MB dst
-./userfaultfd_hugetlb 128 32 $mnt/ufd_test_file
+./userfaultfd hugetlb 128 32 $mnt/ufd_test_file
 if [ $? -ne 0 ]; then
 	echo "[FAIL]"
 	exitcode=1
@@ -119,7 +119,7 @@ rm -f $mnt/ufd_test_file
 echo "----------------------------"
 echo "running userfaultfd_shmem"
 echo "----------------------------"
-./userfaultfd_shmem 128 32
+./userfaultfd shmem 128 32
 if [ $? -ne 0 ]; then
 	echo "[FAIL]"
 	exitcode=1

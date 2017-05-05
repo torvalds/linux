@@ -74,7 +74,6 @@
 static DEFINE_MUTEX(core_lock);
 static DEFINE_IDR(i2c_adapter_idr);
 
-static struct device_type i2c_client_type;
 static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver);
 
 static struct static_key i2c_trace_msg = STATIC_KEY_INIT_FALSE;
@@ -112,6 +111,8 @@ struct i2c_acpi_lookup {
 	acpi_handle adapter_handle;
 	acpi_handle device_handle;
 	acpi_handle search_handle;
+	int n;
+	int index;
 	u32 speed;
 	u32 min_speed;
 };
@@ -128,6 +129,9 @@ static int i2c_acpi_fill_info(struct acpi_resource *ares, void *data)
 
 	sb = &ares->data.i2c_serial_bus;
 	if (sb->type != ACPI_RESOURCE_SERIAL_TYPE_I2C)
+		return 1;
+
+	if (lookup->index != -1 && lookup->n++ != lookup->index)
 		return 1;
 
 	status = acpi_get_handle(lookup->device_handle,
@@ -182,6 +186,7 @@ static int i2c_acpi_get_info(struct acpi_device *adev,
 
 	memset(&lookup, 0, sizeof(lookup));
 	lookup.info = info;
+	lookup.index = -1;
 
 	ret = i2c_acpi_do_lookup(adev, &lookup);
 	if (ret)
@@ -328,6 +333,7 @@ u32 i2c_acpi_find_bus_speed(struct device *dev)
 	lookup.search_handle = ACPI_HANDLE(dev);
 	lookup.min_speed = UINT_MAX;
 	lookup.info = &dummy;
+	lookup.index = -1;
 
 	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
 				     I2C_ACPI_MAX_SCAN_DEPTH,
@@ -414,6 +420,55 @@ static int i2c_acpi_notify(struct notifier_block *nb, unsigned long value,
 static struct notifier_block i2c_acpi_notifier = {
 	.notifier_call = i2c_acpi_notify,
 };
+
+/**
+ * i2c_acpi_new_device - Create i2c-client for the Nth I2cSerialBus resource
+ * @dev:     Device owning the ACPI resources to get the client from
+ * @index:   Index of ACPI resource to get
+ * @info:    describes the I2C device; note this is modified (addr gets set)
+ * Context: can sleep
+ *
+ * By default the i2c subsys creates an i2c-client for the first I2cSerialBus
+ * resource of an acpi_device, but some acpi_devices have multiple I2cSerialBus
+ * resources, in that case this function can be used to create an i2c-client
+ * for other I2cSerialBus resources in the Current Resource Settings table.
+ *
+ * Also see i2c_new_device, which this function calls to create the i2c-client.
+ *
+ * Returns a pointer to the new i2c-client, or NULL if the adapter is not found.
+ */
+struct i2c_client *i2c_acpi_new_device(struct device *dev, int index,
+				       struct i2c_board_info *info)
+{
+	struct i2c_acpi_lookup lookup;
+	struct i2c_adapter *adapter;
+	struct acpi_device *adev;
+	LIST_HEAD(resource_list);
+	int ret;
+
+	adev = ACPI_COMPANION(dev);
+	if (!adev)
+		return NULL;
+
+	memset(&lookup, 0, sizeof(lookup));
+	lookup.info = info;
+	lookup.device_handle = acpi_device_handle(adev);
+	lookup.index = index;
+
+	ret = acpi_dev_get_resources(adev, &resource_list,
+				     i2c_acpi_fill_info, &lookup);
+	acpi_dev_free_resource_list(&resource_list);
+
+	if (ret < 0 || !info->addr)
+		return NULL;
+
+	adapter = i2c_acpi_find_adapter_by_handle(lookup.adapter_handle);
+	if (!adapter)
+		return NULL;
+
+	return i2c_new_device(adapter, info);
+}
+EXPORT_SYMBOL_GPL(i2c_acpi_new_device);
 #else /* CONFIG_ACPI */
 static inline void i2c_acpi_register_devices(struct i2c_adapter *adap) { }
 extern struct notifier_block i2c_acpi_notifier;
@@ -929,7 +984,9 @@ static int i2c_device_probe(struct device *dev)
 	if (!client)
 		return 0;
 
-	if (!client->irq) {
+	driver = to_i2c_driver(dev->driver);
+
+	if (!client->irq && !driver->disable_i2c_core_irq_mapping) {
 		int irq = -ENOENT;
 
 		if (client->flags & I2C_CLIENT_HOST_NOTIFY) {
@@ -950,8 +1007,6 @@ static int i2c_device_probe(struct device *dev)
 
 		client->irq = irq;
 	}
-
-	driver = to_i2c_driver(dev->driver);
 
 	/*
 	 * An I2C ID table is not mandatory, if and only if, a suitable Device
@@ -1097,11 +1152,12 @@ struct bus_type i2c_bus_type = {
 };
 EXPORT_SYMBOL_GPL(i2c_bus_type);
 
-static struct device_type i2c_client_type = {
+struct device_type i2c_client_type = {
 	.groups		= i2c_dev_groups,
 	.uevent		= i2c_device_uevent,
 	.release	= i2c_client_dev_release,
 };
+EXPORT_SYMBOL_GPL(i2c_client_type);
 
 
 /**
@@ -1278,6 +1334,32 @@ static void i2c_dev_set_name(struct i2c_adapter *adap,
 		     i2c_encode_flags_to_addr(client));
 }
 
+static int i2c_dev_irq_from_resources(const struct resource *resources,
+				      unsigned int num_resources)
+{
+	struct irq_data *irqd;
+	int i;
+
+	for (i = 0; i < num_resources; i++) {
+		const struct resource *r = &resources[i];
+
+		if (resource_type(r) != IORESOURCE_IRQ)
+			continue;
+
+		if (r->flags & IORESOURCE_BITS) {
+			irqd = irq_get_irq_data(r->start);
+			if (!irqd)
+				break;
+
+			irqd_set_trigger_type(irqd, r->flags & IORESOURCE_BITS);
+		}
+
+		return r->start;
+	}
+
+	return 0;
+}
+
 /**
  * i2c_new_device - instantiate an i2c device
  * @adap: the adapter managing the device
@@ -1313,7 +1395,11 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 
 	client->flags = info->flags;
 	client->addr = info->addr;
+
 	client->irq = info->irq;
+	if (!client->irq)
+		client->irq = i2c_dev_irq_from_resources(info->resources,
+							 info->num_resources);
 
 	strlcpy(client->name, info->type, sizeof(client->name));
 

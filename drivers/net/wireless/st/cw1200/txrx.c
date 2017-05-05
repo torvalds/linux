@@ -1085,7 +1085,7 @@ void cw1200_rx_cb(struct cw1200_common *priv,
 			hdr->band);
 
 	if (arg->rx_rate >= 14) {
-		hdr->flag |= RX_FLAG_HT;
+		hdr->encoding = RX_ENC_HT;
 		hdr->rate_idx = arg->rx_rate - 14;
 	} else if (arg->rx_rate >= 4) {
 		hdr->rate_idx = arg->rx_rate - 2;

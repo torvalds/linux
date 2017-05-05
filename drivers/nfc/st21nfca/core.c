@@ -959,10 +959,8 @@ int st21nfca_hci_probe(void *phy_id, struct nfc_phy_ops *phy_ops,
 	unsigned long quirks = 0;
 
 	info = kzalloc(sizeof(struct st21nfca_hci_info), GFP_KERNEL);
-	if (!info) {
-		r = -ENOMEM;
-		goto err_alloc_hdev;
-	}
+	if (!info)
+		return -ENOMEM;
 
 	info->phy_ops = phy_ops;
 	info->phy_id = phy_id;
@@ -978,8 +976,10 @@ int st21nfca_hci_probe(void *phy_id, struct nfc_phy_ops *phy_ops,
 	 * persistent info to discriminate 2 identical chips
 	 */
 	dev_num = find_first_zero_bit(dev_mask, ST21NFCA_NUM_DEVICES);
-	if (dev_num >= ST21NFCA_NUM_DEVICES)
-		return -ENODEV;
+	if (dev_num >= ST21NFCA_NUM_DEVICES) {
+		r = -ENODEV;
+		goto err_alloc_hdev;
+	}
 
 	set_bit(dev_num, dev_mask);
 

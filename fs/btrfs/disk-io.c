@@ -1808,21 +1808,6 @@ static int btrfs_congested_fn(void *congested_data, int bdi_bits)
 	return ret;
 }
 
-static int setup_bdi(struct btrfs_fs_info *info, struct backing_dev_info *bdi)
-{
-	int err;
-
-	err = bdi_setup_and_register(bdi, "btrfs");
-	if (err)
-		return err;
-
-	bdi->ra_pages = VM_MAX_READAHEAD * 1024 / PAGE_SIZE;
-	bdi->congested_fn	= btrfs_congested_fn;
-	bdi->congested_data	= info;
-	bdi->capabilities |= BDI_CAP_CGROUP_WRITEBACK;
-	return 0;
-}
-
 /*
  * called by the kthread helper functions to finally call the bio end_io
  * functions.  This is where read checksum verification actually happens
@@ -2601,16 +2586,10 @@ int open_ctree(struct super_block *sb,
 		goto fail;
 	}
 
-	ret = setup_bdi(fs_info, &fs_info->bdi);
-	if (ret) {
-		err = ret;
-		goto fail_srcu;
-	}
-
 	ret = percpu_counter_init(&fs_info->dirty_metadata_bytes, 0, GFP_KERNEL);
 	if (ret) {
 		err = ret;
-		goto fail_bdi;
+		goto fail_srcu;
 	}
 	fs_info->dirty_metadata_batch = PAGE_SIZE *
 					(1 + ilog2(nr_cpu_ids));
@@ -2718,7 +2697,6 @@ int open_ctree(struct super_block *sb,
 
 	sb->s_blocksize = 4096;
 	sb->s_blocksize_bits = blksize_bits(4096);
-	sb->s_bdi = &fs_info->bdi;
 
 	btrfs_init_btree_inode(fs_info);
 
@@ -2915,9 +2893,12 @@ int open_ctree(struct super_block *sb,
 		goto fail_sb_buffer;
 	}
 
-	fs_info->bdi.ra_pages *= btrfs_super_num_devices(disk_super);
-	fs_info->bdi.ra_pages = max(fs_info->bdi.ra_pages,
-				    SZ_4M / PAGE_SIZE);
+	sb->s_bdi->congested_fn = btrfs_congested_fn;
+	sb->s_bdi->congested_data = fs_info;
+	sb->s_bdi->capabilities |= BDI_CAP_CGROUP_WRITEBACK;
+	sb->s_bdi->ra_pages = VM_MAX_READAHEAD * 1024 / PAGE_SIZE;
+	sb->s_bdi->ra_pages *= btrfs_super_num_devices(disk_super);
+	sb->s_bdi->ra_pages = max(sb->s_bdi->ra_pages, SZ_4M / PAGE_SIZE);
 
 	sb->s_blocksize = sectorsize;
 	sb->s_blocksize_bits = blksize_bits(sectorsize);
@@ -3285,8 +3266,6 @@ fail_delalloc_bytes:
 	percpu_counter_destroy(&fs_info->delalloc_bytes);
 fail_dirty_metadata_bytes:
 	percpu_counter_destroy(&fs_info->dirty_metadata_bytes);
-fail_bdi:
-	bdi_destroy(&fs_info->bdi);
 fail_srcu:
 	cleanup_srcu_struct(&fs_info->subvol_srcu);
 fail:
@@ -4007,7 +3986,6 @@ void close_ctree(struct btrfs_fs_info *fs_info)
 	percpu_counter_destroy(&fs_info->dirty_metadata_bytes);
 	percpu_counter_destroy(&fs_info->delalloc_bytes);
 	percpu_counter_destroy(&fs_info->bio_counter);
-	bdi_destroy(&fs_info->bdi);
 	cleanup_srcu_struct(&fs_info->subvol_srcu);
 
 	btrfs_free_stripe_hash_table(fs_info);

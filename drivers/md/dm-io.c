@@ -312,9 +312,12 @@ static void do_region(int op, int op_flags, unsigned region,
 	 */
 	if (op == REQ_OP_DISCARD)
 		special_cmd_max_sectors = q->limits.max_discard_sectors;
+	else if (op == REQ_OP_WRITE_ZEROES)
+		special_cmd_max_sectors = q->limits.max_write_zeroes_sectors;
 	else if (op == REQ_OP_WRITE_SAME)
 		special_cmd_max_sectors = q->limits.max_write_same_sectors;
-	if ((op == REQ_OP_DISCARD || op == REQ_OP_WRITE_SAME) &&
+	if ((op == REQ_OP_DISCARD || op == REQ_OP_WRITE_ZEROES ||
+	     op == REQ_OP_WRITE_SAME)  &&
 	    special_cmd_max_sectors == 0) {
 		dec_count(io, region, -EOPNOTSUPP);
 		return;
@@ -328,11 +331,18 @@ static void do_region(int op, int op_flags, unsigned region,
 		/*
 		 * Allocate a suitably sized-bio.
 		 */
-		if ((op == REQ_OP_DISCARD) || (op == REQ_OP_WRITE_SAME))
+		switch (op) {
+		case REQ_OP_DISCARD:
+		case REQ_OP_WRITE_ZEROES:
+			num_bvecs = 0;
+			break;
+		case REQ_OP_WRITE_SAME:
 			num_bvecs = 1;
-		else
+			break;
+		default:
 			num_bvecs = min_t(int, BIO_MAX_PAGES,
 					  dm_sector_div_up(remaining, (PAGE_SIZE >> SECTOR_SHIFT)));
+		}
 
 		bio = bio_alloc_bioset(GFP_NOIO, num_bvecs, io->client->bios);
 		bio->bi_iter.bi_sector = where->sector + (where->count - remaining);
@@ -341,7 +351,7 @@ static void do_region(int op, int op_flags, unsigned region,
 		bio_set_op_attrs(bio, op, op_flags);
 		store_io_and_region_in_bio(bio, io, region);
 
-		if (op == REQ_OP_DISCARD) {
+		if (op == REQ_OP_DISCARD || op == REQ_OP_WRITE_ZEROES) {
 			num_sectors = min_t(sector_t, special_cmd_max_sectors, remaining);
 			bio->bi_iter.bi_size = num_sectors << SECTOR_SHIFT;
 			remaining -= num_sectors;

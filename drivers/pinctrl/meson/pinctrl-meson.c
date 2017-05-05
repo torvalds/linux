@@ -555,22 +555,10 @@ static int meson_gpiolib_register(struct meson_pinctrl *pc)
 	if (ret) {
 		dev_err(pc->dev, "can't add gpio chip %s\n",
 			pc->data->name);
-		goto fail;
-	}
-
-	ret = gpiochip_add_pin_range(&pc->chip, dev_name(pc->dev),
-				     0, pc->data->pin_base,
-				     pc->chip.ngpio);
-	if (ret) {
-		dev_err(pc->dev, "can't add pin range\n");
-		goto fail;
+		return ret;
 	}
 
 	return 0;
-fail:
-	gpiochip_remove(&pc->chip);
-
-	return ret;
 }
 
 static struct regmap_config meson_regmap_config = {

@@ -77,6 +77,7 @@ enum {
 	POS_FIX_POSBUF,
 	POS_FIX_VIACOMBO,
 	POS_FIX_COMBO,
+	POS_FIX_SKL,
 };
 
 /* Defines for ATI HD Audio support in SB450 south bridge */
@@ -148,7 +149,7 @@ module_param_array(model, charp, NULL, 0444);
 MODULE_PARM_DESC(model, "Use the given board model.");
 module_param_array(position_fix, int, NULL, 0444);
 MODULE_PARM_DESC(position_fix, "DMA pointer read method."
-		 "(-1 = system default, 0 = auto, 1 = LPIB, 2 = POSBUF, 3 = VIACOMBO, 4 = COMBO).");
+		 "(-1 = system default, 0 = auto, 1 = LPIB, 2 = POSBUF, 3 = VIACOMBO, 4 = COMBO, 5 = SKL+).");
 module_param_array(bdl_pos_adj, int, NULL, 0644);
 MODULE_PARM_DESC(bdl_pos_adj, "BDL position adjustment offset.");
 module_param_array(probe_mask, int, NULL, 0444);
@@ -369,8 +370,10 @@ enum {
 #define IS_KBL_LP(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0x9d71)
 #define IS_KBL_H(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0xa2f0)
 #define IS_BXT(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0x5a98)
+#define IS_GLK(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0x3198)
 #define IS_SKL_PLUS(pci) (IS_SKL(pci) || IS_SKL_LP(pci) || IS_BXT(pci)) || \
-			IS_KBL(pci) || IS_KBL_LP(pci) || IS_KBL_H(pci)
+			IS_KBL(pci) || IS_KBL_LP(pci) || IS_KBL_H(pci)	|| \
+			IS_GLK(pci)
 
 static char *driver_short_names[] = {
 	[AZX_DRIVER_ICH] = "HDA Intel",
@@ -534,9 +537,101 @@ static void bxt_reduce_dma_latency(struct azx *chip)
 {
 	u32 val;
 
-	val = azx_readl(chip, SKL_EM4L);
+	val = azx_readl(chip, VS_EM4L);
 	val &= (0x3 << 20);
-	azx_writel(chip, SKL_EM4L, val);
+	azx_writel(chip, VS_EM4L, val);
+}
+
+/*
+ * ML_LCAP bits:
+ *  bit 0: 6 MHz Supported
+ *  bit 1: 12 MHz Supported
+ *  bit 2: 24 MHz Supported
+ *  bit 3: 48 MHz Supported
+ *  bit 4: 96 MHz Supported
+ *  bit 5: 192 MHz Supported
+ */
+static int intel_get_lctl_scf(struct azx *chip)
+{
+	struct hdac_bus *bus = azx_bus(chip);
+	static int preferred_bits[] = { 2, 3, 1, 4, 5 };
+	u32 val, t;
+	int i;
+
+	val = readl(bus->mlcap + AZX_ML_BASE + AZX_REG_ML_LCAP);
+
+	for (i = 0; i < ARRAY_SIZE(preferred_bits); i++) {
+		t = preferred_bits[i];
+		if (val & (1 << t))
+			return t;
+	}
+
+	dev_warn(chip->card->dev, "set audio clock frequency to 6MHz");
+	return 0;
+}
+
+static int intel_ml_lctl_set_power(struct azx *chip, int state)
+{
+	struct hdac_bus *bus = azx_bus(chip);
+	u32 val;
+	int timeout;
+
+	/*
+	 * the codecs are sharing the first link setting by default
+	 * If other links are enabled for stream, they need similar fix
+	 */
+	val = readl(bus->mlcap + AZX_ML_BASE + AZX_REG_ML_LCTL);
+	val &= ~AZX_MLCTL_SPA;
+	val |= state << AZX_MLCTL_SPA_SHIFT;
+	writel(val, bus->mlcap + AZX_ML_BASE + AZX_REG_ML_LCTL);
+	/* wait for CPA */
+	timeout = 50;
+	while (timeout) {
+		if (((readl(bus->mlcap + AZX_ML_BASE + AZX_REG_ML_LCTL)) &
+		    AZX_MLCTL_CPA) == (state << AZX_MLCTL_CPA_SHIFT))
+			return 0;
+		timeout--;
+		udelay(10);
+	}
+
+	return -1;
+}
+
+static void intel_init_lctl(struct azx *chip)
+{
+	struct hdac_bus *bus = azx_bus(chip);
+	u32 val;
+	int ret;
+
+	/* 0. check lctl register value is correct or not */
+	val = readl(bus->mlcap + AZX_ML_BASE + AZX_REG_ML_LCTL);
+	/* if SCF is already set, let's use it */
+	if ((val & ML_LCTL_SCF_MASK) != 0)
+		return;
+
+	/*
+	 * Before operating on SPA, CPA must match SPA.
+	 * Any deviation may result in undefined behavior.
+	 */
+	if (((val & AZX_MLCTL_SPA) >> AZX_MLCTL_SPA_SHIFT) !=
+		((val & AZX_MLCTL_CPA) >> AZX_MLCTL_CPA_SHIFT))
+		return;
+
+	/* 1. turn link down: set SPA to 0 and wait CPA to 0 */
+	ret = intel_ml_lctl_set_power(chip, 0);
+	udelay(100);
+	if (ret)
+		goto set_spa;
+
+	/* 2. update SCF to select a properly audio clock*/
+	val &= ~ML_LCTL_SCF_MASK;
+	val |= intel_get_lctl_scf(chip);
+	writel(val, bus->mlcap + AZX_ML_BASE + AZX_REG_ML_LCTL);
+
+set_spa:
+	/* 4. turn link up: set SPA to 1 and wait CPA to 1 */
+	intel_ml_lctl_set_power(chip, 1);
+	udelay(100);
 }
 
 static void hda_intel_init_chip(struct azx *chip, bool full_reset)
@@ -564,6 +659,9 @@ static void hda_intel_init_chip(struct azx *chip, bool full_reset)
 	/* reduce dma latency to avoid noise */
 	if (IS_BXT(pci))
 		bxt_reduce_dma_latency(chip);
+
+	if (bus->mlcap != NULL)
+		intel_init_lctl(chip);
 }
 
 /* calculate runtime delay from LPIB */
@@ -813,6 +911,31 @@ static unsigned int azx_via_get_position(struct azx *chip,
 
 	/* Calculate real DMA position we want */
 	return bound_pos + mod_dma_pos;
+}
+
+static unsigned int azx_skl_get_dpib_pos(struct azx *chip,
+					 struct azx_dev *azx_dev)
+{
+	return _snd_hdac_chip_readl(azx_bus(chip),
+				    AZX_REG_VS_SDXDPIB_XBASE +
+				    (AZX_REG_VS_SDXDPIB_XINTERVAL *
+				     azx_dev->core.index));
+}
+
+/* get the current DMA position with correction on SKL+ chips */
+static unsigned int azx_get_pos_skl(struct azx *chip, struct azx_dev *azx_dev)
+{
+	/* DPIB register gives a more accurate position for playback */
+	if (azx_dev->core.substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		return azx_skl_get_dpib_pos(chip, azx_dev);
+
+	/* For capture, we need to read posbuf, but it requires a delay
+	 * for the possible boundary overlap; the read of DPIB fetches the
+	 * actual posbuf
+	 */
+	udelay(20);
+	azx_skl_get_dpib_pos(chip, azx_dev);
+	return azx_get_pos_posbuf(chip, azx_dev);
 }
 
 #ifdef CONFIG_PM
@@ -1351,6 +1474,7 @@ static int check_position_fix(struct azx *chip, int fix)
 	case POS_FIX_POSBUF:
 	case POS_FIX_VIACOMBO:
 	case POS_FIX_COMBO:
+	case POS_FIX_SKL:
 		return fix;
 	}
 
@@ -1371,6 +1495,10 @@ static int check_position_fix(struct azx *chip, int fix)
 		dev_dbg(chip->card->dev, "Using LPIB position fix\n");
 		return POS_FIX_LPIB;
 	}
+	if (IS_SKL_PLUS(chip->pci)) {
+		dev_dbg(chip->card->dev, "Using SKL position fix\n");
+		return POS_FIX_SKL;
+	}
 	return POS_FIX_AUTO;
 }
 
@@ -1382,6 +1510,7 @@ static void assign_position_fix(struct azx *chip, int fix)
 		[POS_FIX_POSBUF] = azx_get_pos_posbuf,
 		[POS_FIX_VIACOMBO] = azx_via_get_position,
 		[POS_FIX_COMBO] = azx_get_pos_lpib,
+		[POS_FIX_SKL] = azx_get_pos_skl,
 	};
 
 	chip->get_position[0] = chip->get_position[1] = callbacks[fix];
@@ -1390,7 +1519,7 @@ static void assign_position_fix(struct azx *chip, int fix)
 	if (fix == POS_FIX_COMBO)
 		chip->get_position[1] = NULL;
 
-	if (fix == POS_FIX_POSBUF &&
+	if ((fix == POS_FIX_POSBUF || fix == POS_FIX_SKL) &&
 	    (chip->driver_caps & AZX_DCAPS_COUNT_LPIB_DELAY)) {
 		chip->get_delay[0] = chip->get_delay[1] =
 			azx_get_delay_from_lpib;

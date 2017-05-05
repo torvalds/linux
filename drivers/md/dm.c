@@ -810,7 +810,6 @@ static void dec_pending(struct dm_io *io, int error)
 			queue_io(md, bio);
 		} else {
 			/* done with normal IO or empty flush */
-			trace_block_bio_complete(md->queue, bio, io_error);
 			bio->bi_error = io_error;
 			bio_endio(bio);
 		}
@@ -823,6 +822,14 @@ void disable_write_same(struct mapped_device *md)
 
 	/* device doesn't really support WRITE SAME, disable it */
 	limits->max_write_same_sectors = 0;
+}
+
+void disable_write_zeroes(struct mapped_device *md)
+{
+	struct queue_limits *limits = dm_get_queue_limits(md);
+
+	/* device doesn't really support WRITE ZEROES, disable it */
+	limits->max_write_zeroes_sectors = 0;
 }
 
 static void clone_endio(struct bio *bio)
@@ -851,9 +858,14 @@ static void clone_endio(struct bio *bio)
 		}
 	}
 
-	if (unlikely(r == -EREMOTEIO && (bio_op(bio) == REQ_OP_WRITE_SAME) &&
-		     !bdev_get_queue(bio->bi_bdev)->limits.max_write_same_sectors))
-		disable_write_same(md);
+	if (unlikely(r == -EREMOTEIO)) {
+		if (bio_op(bio) == REQ_OP_WRITE_SAME &&
+		    !bdev_get_queue(bio->bi_bdev)->limits.max_write_same_sectors)
+			disable_write_same(md);
+		if (bio_op(bio) == REQ_OP_WRITE_ZEROES &&
+		    !bdev_get_queue(bio->bi_bdev)->limits.max_write_zeroes_sectors)
+			disable_write_zeroes(md);
+	}
 
 	free_tio(tio);
 	dec_pending(io, error);
@@ -1092,8 +1104,18 @@ static int clone_bio(struct dm_target_io *tio, struct bio *bio,
 
 	__bio_clone_fast(clone, bio);
 
-	if (bio_integrity(bio)) {
-		int r = bio_integrity_clone(clone, bio, GFP_NOIO);
+	if (unlikely(bio_integrity(bio) != NULL)) {
+		int r;
+
+		if (unlikely(!dm_target_has_integrity(tio->ti->type) &&
+			     !dm_target_passes_integrity(tio->ti->type))) {
+			DMWARN("%s: the target %s doesn't support integrity data.",
+				dm_device_name(tio->io->md),
+				tio->ti->type->name);
+			return -EIO;
+		}
+
+		r = bio_integrity_clone(clone, bio, GFP_NOIO);
 		if (r < 0)
 			return r;
 	}
@@ -1101,7 +1123,7 @@ static int clone_bio(struct dm_target_io *tio, struct bio *bio,
 	bio_advance(clone, to_bytes(sector - clone->bi_iter.bi_sector));
 	clone->bi_iter.bi_size = to_bytes(len);
 
-	if (bio_integrity(bio))
+	if (unlikely(bio_integrity(bio) != NULL))
 		bio_integrity_trim(clone, 0, len);
 
 	return 0;
@@ -1202,6 +1224,11 @@ static unsigned get_num_write_same_bios(struct dm_target *ti)
 	return ti->num_write_same_bios;
 }
 
+static unsigned get_num_write_zeroes_bios(struct dm_target *ti)
+{
+	return ti->num_write_zeroes_bios;
+}
+
 typedef bool (*is_split_required_fn)(struct dm_target *ti);
 
 static bool is_split_required_for_discard(struct dm_target *ti)
@@ -1256,6 +1283,11 @@ static int __send_write_same(struct clone_info *ci)
 	return __send_changing_extent_only(ci, get_num_write_same_bios, NULL);
 }
 
+static int __send_write_zeroes(struct clone_info *ci)
+{
+	return __send_changing_extent_only(ci, get_num_write_zeroes_bios, NULL);
+}
+
 /*
  * Select the correct strategy for processing a non-flush bio.
  */
@@ -1270,6 +1302,8 @@ static int __split_and_process_non_flush(struct clone_info *ci)
 		return __send_discard(ci);
 	else if (unlikely(bio_op(bio) == REQ_OP_WRITE_SAME))
 		return __send_write_same(ci);
+	else if (unlikely(bio_op(bio) == REQ_OP_WRITE_ZEROES))
+		return __send_write_zeroes(ci);
 
 	ti = dm_table_find_target(ci->map, ci->sector);
 	if (!dm_target_is_valid(ti))
@@ -1691,6 +1725,8 @@ static void event_callback(void *context)
  */
 static void __set_size(struct mapped_device *md, sector_t size)
 {
+	lockdep_assert_held(&md->suspend_lock);
+
 	set_capacity(md->disk, size);
 
 	i_size_write(md->bdev->bd_inode, (loff_t)size << SECTOR_SHIFT);
@@ -1798,13 +1834,13 @@ void dm_unlock_md_type(struct mapped_device *md)
 	mutex_unlock(&md->type_lock);
 }
 
-void dm_set_md_type(struct mapped_device *md, unsigned type)
+void dm_set_md_type(struct mapped_device *md, enum dm_queue_mode type)
 {
 	BUG_ON(!mutex_is_locked(&md->type_lock));
 	md->type = type;
 }
 
-unsigned dm_get_md_type(struct mapped_device *md)
+enum dm_queue_mode dm_get_md_type(struct mapped_device *md)
 {
 	return md->type;
 }
@@ -1831,7 +1867,7 @@ EXPORT_SYMBOL_GPL(dm_get_queue_limits);
 int dm_setup_md_queue(struct mapped_device *md, struct dm_table *t)
 {
 	int r;
-	unsigned type = dm_get_md_type(md);
+	enum dm_queue_mode type = dm_get_md_type(md);
 
 	switch (type) {
 	case DM_TYPE_REQUEST_BASED:
@@ -1861,6 +1897,9 @@ int dm_setup_md_queue(struct mapped_device *md, struct dm_table *t)
 
 		if (type == DM_TYPE_DAX_BIO_BASED)
 			queue_flag_set_unlocked(QUEUE_FLAG_DAX, md->queue);
+		break;
+	case DM_TYPE_NONE:
+		WARN_ON_ONCE(true);
 		break;
 	}
 
@@ -2140,8 +2179,6 @@ static void unlock_fs(struct mapped_device *md)
  * If __dm_suspend returns 0, the device is completely quiescent
  * now. There is no request-processing activity. All new requests
  * are being added to md->deferred list.
- *
- * Caller must hold md->suspend_lock
  */
 static int __dm_suspend(struct mapped_device *md, struct dm_table *map,
 			unsigned suspend_flags, long task_state,
@@ -2159,6 +2196,8 @@ static int __dm_suspend(struct mapped_device *md, struct dm_table *map,
 	 */
 	if (noflush)
 		set_bit(DMF_NOFLUSH_SUSPENDING, &md->flags);
+	else
+		pr_debug("%s: suspending with flush\n", dm_device_name(md));
 
 	/*
 	 * This gets reverted if there's an error later and the targets
@@ -2357,6 +2396,8 @@ static void __dm_internal_suspend(struct mapped_device *md, unsigned suspend_fla
 {
 	struct dm_table *map = NULL;
 
+	lockdep_assert_held(&md->suspend_lock);
+
 	if (md->internal_suspend_count++)
 		return; /* nested internal suspend */
 
@@ -2547,7 +2588,7 @@ int dm_noflush_suspending(struct dm_target *ti)
 }
 EXPORT_SYMBOL_GPL(dm_noflush_suspending);
 
-struct dm_md_mempools *dm_alloc_md_mempools(struct mapped_device *md, unsigned type,
+struct dm_md_mempools *dm_alloc_md_mempools(struct mapped_device *md, enum dm_queue_mode type,
 					    unsigned integrity, unsigned per_io_data_size)
 {
 	struct dm_md_mempools *pools = kzalloc_node(sizeof(*pools), GFP_KERNEL, md->numa_node_id);

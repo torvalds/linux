@@ -10,6 +10,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include <dirent.h>
+#include <errno.h>
 #include <unistd.h>
 #include "builtin.h"
 #include "perf.h"
@@ -21,6 +22,7 @@
 #include "util/build-id.h"
 #include "util/session.h"
 #include "util/symbol.h"
+#include "util/time-utils.h"
 
 static int build_id_cache__kcore_buildid(const char *proc_dir, char *sbuildid)
 {
@@ -276,8 +278,7 @@ static int build_id_cache__update_file(const char *filename)
 	return err;
 }
 
-int cmd_buildid_cache(int argc, const char **argv,
-		      const char *prefix __maybe_unused)
+int cmd_buildid_cache(int argc, const char **argv)
 {
 	struct strlist *list;
 	struct str_node *pos;

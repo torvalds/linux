@@ -1,9 +1,11 @@
 The PDC driver manages data transfer to and from various offload engines
 on some Broadcom SoCs. An SoC may have multiple PDC hardware blocks. There is
-one device tree entry per block.
+one device tree entry per block.  On some chips, the PDC functionality is
+handled by the FA2 (Northstar Plus).
 
 Required properties:
-- compatible : Should be "brcm,iproc-pdc-mbox".
+- compatible : Should be "brcm,iproc-pdc-mbox" or "brcm,iproc-fa2-mbox" for
+  FA2/Northstar Plus.
 - reg: Should contain PDC registers location and length.
 - interrupts: Should contain the IRQ line for the PDC.
 - #mbox-cells: 1

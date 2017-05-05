@@ -804,40 +804,6 @@ static const struct file_operations tegra_drm_fops = {
 	.llseek = noop_llseek,
 };
 
-static u32 tegra_drm_get_vblank_counter(struct drm_device *drm,
-					unsigned int pipe)
-{
-	struct drm_crtc *crtc = drm_crtc_from_index(drm, pipe);
-	struct tegra_dc *dc = to_tegra_dc(crtc);
-
-	if (!crtc)
-		return 0;
-
-	return tegra_dc_get_vblank_counter(dc);
-}
-
-static int tegra_drm_enable_vblank(struct drm_device *drm, unsigned int pipe)
-{
-	struct drm_crtc *crtc = drm_crtc_from_index(drm, pipe);
-	struct tegra_dc *dc = to_tegra_dc(crtc);
-
-	if (!crtc)
-		return -ENODEV;
-
-	tegra_dc_enable_vblank(dc);
-
-	return 0;
-}
-
-static void tegra_drm_disable_vblank(struct drm_device *drm, unsigned int pipe)
-{
-	struct drm_crtc *crtc = drm_crtc_from_index(drm, pipe);
-	struct tegra_dc *dc = to_tegra_dc(crtc);
-
-	if (crtc)
-		tegra_dc_disable_vblank(dc);
-}
-
 static void tegra_drm_preclose(struct drm_device *drm, struct drm_file *file)
 {
 	struct tegra_drm_file *fpriv = file->driver_priv;
@@ -904,10 +870,6 @@ static struct drm_driver tegra_drm_driver = {
 	.open = tegra_drm_open,
 	.preclose = tegra_drm_preclose,
 	.lastclose = tegra_drm_lastclose,
-
-	.get_vblank_counter = tegra_drm_get_vblank_counter,
-	.enable_vblank = tegra_drm_enable_vblank,
-	.disable_vblank = tegra_drm_disable_vblank,
 
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = tegra_debugfs_init,

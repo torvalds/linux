@@ -3,8 +3,10 @@
  *
  * Builtin regression testing command: ever growing number of sanity tests
  */
+#include <errno.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/wait.h>
 #include "builtin.h"
 #include "hist.h"
 #include "intlist.h"
@@ -13,6 +15,7 @@
 #include "color.h"
 #include <subcmd/parse-options.h>
 #include "symbol.h"
+#include <linux/kernel.h>
 
 static bool dont_fork;
 
@@ -42,6 +45,10 @@ static struct test generic_tests[] = {
 	{
 		.desc = "Parse event definition strings",
 		.func = test__parse_events,
+	},
+	{
+		.desc = "Simple expression parser",
+		.func = test__expr,
 	},
 	{
 		.desc = "PERF_RECORD_* events & perf_sample fields",
@@ -460,7 +467,7 @@ static int perf_test__list(int argc, const char **argv)
 	return 0;
 }
 
-int cmd_test(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_test(int argc, const char **argv)
 {
 	const char *test_usage[] = {
 	"perf test [<options>] [{list <test-name-fragment>|[<test-name-fragments>|<test-numbers>]}]",

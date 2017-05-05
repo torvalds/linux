@@ -193,7 +193,7 @@
 /* CLKID_I2C */
 /* #define CLKID_SAR_ADC */
 #define CLKID_SMART_CARD	  24
-#define CLKID_RNG0		  25
+/* CLKID_RNG0 */
 #define CLKID_UART0		  26
 #define CLKID_SDHC		  27
 #define CLKID_STREAM		  28

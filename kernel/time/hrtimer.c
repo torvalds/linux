@@ -987,7 +987,7 @@ EXPORT_SYMBOL_GPL(hrtimer_start_range_ns);
  * Returns:
  *  0 when the timer was not active
  *  1 when the timer was active
- * -1 when the timer is currently excuting the callback function and
+ * -1 when the timer is currently executing the callback function and
  *    cannot be stopped
  */
 int hrtimer_try_to_cancel(struct hrtimer *timer)
@@ -1368,10 +1368,7 @@ retry:
 		    ktime_to_ns(delta));
 }
 
-/*
- * local version of hrtimer_peek_ahead_timers() called with interrupts
- * disabled.
- */
+/* called with interrupts disabled */
 static inline void __hrtimer_peek_ahead_timers(void)
 {
 	struct tick_device *td;
@@ -1506,7 +1503,7 @@ out:
 	return ret;
 }
 
-long hrtimer_nanosleep(struct timespec *rqtp, struct timespec __user *rmtp,
+long hrtimer_nanosleep(struct timespec64 *rqtp, struct timespec __user *rmtp,
 		       const enum hrtimer_mode mode, const clockid_t clockid)
 {
 	struct restart_block *restart;
@@ -1519,7 +1516,7 @@ long hrtimer_nanosleep(struct timespec *rqtp, struct timespec __user *rmtp,
 		slack = 0;
 
 	hrtimer_init_on_stack(&t.timer, clockid, mode);
-	hrtimer_set_expires_range_ns(&t.timer, timespec_to_ktime(*rqtp), slack);
+	hrtimer_set_expires_range_ns(&t.timer, timespec64_to_ktime(*rqtp), slack);
 	if (do_nanosleep(&t, mode))
 		goto out;
 
@@ -1550,15 +1547,17 @@ out:
 SYSCALL_DEFINE2(nanosleep, struct timespec __user *, rqtp,
 		struct timespec __user *, rmtp)
 {
+	struct timespec64 tu64;
 	struct timespec tu;
 
 	if (copy_from_user(&tu, rqtp, sizeof(tu)))
 		return -EFAULT;
 
-	if (!timespec_valid(&tu))
+	tu64 = timespec_to_timespec64(tu);
+	if (!timespec64_valid(&tu64))
 		return -EINVAL;
 
-	return hrtimer_nanosleep(&tu, rmtp, HRTIMER_MODE_REL, CLOCK_MONOTONIC);
+	return hrtimer_nanosleep(&tu64, rmtp, HRTIMER_MODE_REL, CLOCK_MONOTONIC);
 }
 
 /*

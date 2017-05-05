@@ -122,8 +122,9 @@ static void dce_virtual_stop_mc_access(struct amdgpu_device *adev,
 		break;
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
-	case CHIP_POLARIS11:
 	case CHIP_POLARIS10:
+	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
 		dce_v11_0_disable_dce(adev);
 		break;
 	case CHIP_TOPAZ:
@@ -164,7 +165,8 @@ static void dce_virtual_bandwidth_update(struct amdgpu_device *adev)
 }
 
 static int dce_virtual_crtc_gamma_set(struct drm_crtc *crtc, u16 *red,
-				      u16 *green, u16 *blue, uint32_t size)
+				      u16 *green, u16 *blue, uint32_t size,
+				      struct drm_modeset_acquire_ctx *ctx)
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	int i;
@@ -202,6 +204,9 @@ static void dce_virtual_crtc_dpms(struct drm_crtc *crtc, int mode)
 	struct amdgpu_device *adev = dev->dev_private;
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	unsigned type;
+
+	if (amdgpu_sriov_vf(adev))
+		return;
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
@@ -463,7 +468,7 @@ static int dce_virtual_sw_init(void *handle)
 	int r, i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	r = amdgpu_irq_add_id(adev, 229, &adev->crtc_irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 229, &adev->crtc_irq);
 	if (r)
 		return r;
 

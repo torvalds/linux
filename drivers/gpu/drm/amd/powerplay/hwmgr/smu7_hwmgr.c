@@ -89,6 +89,7 @@ enum DPM_EVENT_SRC {
 	DPM_EVENT_SRC_DIGITAL_OR_EXTERNAL = 4
 };
 
+static int smu7_avfs_control(struct pp_hwmgr *hwmgr, bool enable);
 static const unsigned long PhwVIslands_Magic = (unsigned long)(PHM_VIslands_Magic);
 static int smu7_force_clock_level(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, uint32_t mask);
@@ -1309,11 +1310,9 @@ int smu7_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE((tmp_result == 0),
 			"Failed to disable thermal auto throttle!", result = tmp_result);
 
-	if (1 == PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, FEATURE_STATUS, AVS_ON)) {
-		PP_ASSERT_WITH_CODE((0 == smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_DisableAvfs)),
-					"Failed to disable AVFS!",
-					return -EINVAL);
-	}
+	tmp_result = smu7_avfs_control(hwmgr, false);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to disable AVFS!", result = tmp_result);
 
 	tmp_result = smu7_stop_dpm(hwmgr);
 	PP_ASSERT_WITH_CODE((tmp_result == 0),
@@ -1544,7 +1543,7 @@ static int smu7_get_evv_voltages(struct pp_hwmgr *hwmgr)
 					if (vddc >= 2000 || vddc == 0)
 						return -EINVAL;
 				} else {
-					pr_warning("failed to retrieving EVV voltage!\n");
+					pr_warn("failed to retrieving EVV voltage!\n");
 					continue;
 				}
 
@@ -3289,22 +3288,60 @@ static int smu7_get_pp_table_entry(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static int smu7_read_sensor(struct pp_hwmgr *hwmgr, int idx, int32_t *value)
+static int smu7_get_gpu_power(struct pp_hwmgr *hwmgr,
+		struct pp_gpu_power *query)
+{
+	PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr->smumgr,
+			PPSMC_MSG_PmStatusLogStart),
+			"Failed to start pm status log!",
+			return -1);
+
+	msleep_interruptible(20);
+
+	PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr->smumgr,
+			PPSMC_MSG_PmStatusLogSample),
+			"Failed to sample pm status log!",
+			return -1);
+
+	query->vddc_power = cgs_read_ind_register(hwmgr->device,
+			CGS_IND_REG__SMC,
+			ixSMU_PM_STATUS_40);
+	query->vddci_power = cgs_read_ind_register(hwmgr->device,
+			CGS_IND_REG__SMC,
+			ixSMU_PM_STATUS_49);
+	query->max_gpu_power = cgs_read_ind_register(hwmgr->device,
+			CGS_IND_REG__SMC,
+			ixSMU_PM_STATUS_94);
+	query->average_gpu_power = cgs_read_ind_register(hwmgr->device,
+			CGS_IND_REG__SMC,
+			ixSMU_PM_STATUS_95);
+
+	return 0;
+}
+
+static int smu7_read_sensor(struct pp_hwmgr *hwmgr, int idx,
+			    void *value, int *size)
 {
 	uint32_t sclk, mclk, activity_percent;
 	uint32_t offset;
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
+	/* size must be at least 4 bytes for all sensors */
+	if (*size < 4)
+		return -EINVAL;
+
 	switch (idx) {
 	case AMDGPU_PP_SENSOR_GFX_SCLK:
 		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_API_GetSclkFrequency);
 		sclk = cgs_read_register(hwmgr->device, mmSMC_MSG_ARG_0);
-		*value = sclk;
+		*((uint32_t *)value) = sclk;
+		*size = 4;
 		return 0;
 	case AMDGPU_PP_SENSOR_GFX_MCLK:
 		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_API_GetMclkFrequency);
 		mclk = cgs_read_register(hwmgr->device, mmSMC_MSG_ARG_0);
-		*value = mclk;
+		*((uint32_t *)value) = mclk;
+		*size = 4;
 		return 0;
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
 		offset = data->soft_regs_start + smum_get_offsetof(hwmgr->smumgr,
@@ -3314,17 +3351,26 @@ static int smu7_read_sensor(struct pp_hwmgr *hwmgr, int idx, int32_t *value)
 		activity_percent = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset);
 		activity_percent += 0x80;
 		activity_percent >>= 8;
-		*value = activity_percent > 100 ? 100 : activity_percent;
+		*((uint32_t *)value) = activity_percent > 100 ? 100 : activity_percent;
+		*size = 4;
 		return 0;
 	case AMDGPU_PP_SENSOR_GPU_TEMP:
-		*value = smu7_thermal_get_temperature(hwmgr);
+		*((uint32_t *)value) = smu7_thermal_get_temperature(hwmgr);
+		*size = 4;
 		return 0;
 	case AMDGPU_PP_SENSOR_UVD_POWER:
-		*value = data->uvd_power_gated ? 0 : 1;
+		*((uint32_t *)value) = data->uvd_power_gated ? 0 : 1;
+		*size = 4;
 		return 0;
 	case AMDGPU_PP_SENSOR_VCE_POWER:
-		*value = data->vce_power_gated ? 0 : 1;
+		*((uint32_t *)value) = data->vce_power_gated ? 0 : 1;
+		*size = 4;
 		return 0;
+	case AMDGPU_PP_SENSOR_GPU_POWER:
+		if (*size < sizeof(struct pp_gpu_power))
+			return -EINVAL;
+		*size = sizeof(struct pp_gpu_power);
+		return smu7_get_gpu_power(hwmgr, (struct pp_gpu_power *)value);
 	default:
 		return -EINVAL;
 	}
@@ -4502,6 +4548,102 @@ static int smu7_release_firmware(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+static void smu7_find_min_clock_masks(struct pp_hwmgr *hwmgr,
+		uint32_t *sclk_mask, uint32_t *mclk_mask,
+		uint32_t min_sclk, uint32_t min_mclk)
+{
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+	struct smu7_dpm_table *dpm_table = &(data->dpm_table);
+	uint32_t i;
+
+	for (i = 0; i < dpm_table->sclk_table.count; i++) {
+		if (dpm_table->sclk_table.dpm_levels[i].enabled &&
+			dpm_table->sclk_table.dpm_levels[i].value >= min_sclk)
+			*sclk_mask |= 1 << i;
+	}
+
+	for (i = 0; i < dpm_table->mclk_table.count; i++) {
+		if (dpm_table->mclk_table.dpm_levels[i].enabled &&
+			dpm_table->mclk_table.dpm_levels[i].value >= min_mclk)
+			*mclk_mask |= 1 << i;
+	}
+}
+
+static int smu7_set_power_profile_state(struct pp_hwmgr *hwmgr,
+		struct amd_pp_profile *request)
+{
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+	int tmp_result, result = 0;
+	uint32_t sclk_mask = 0, mclk_mask = 0;
+
+	if (hwmgr->chip_id == CHIP_FIJI) {
+		if (request->type == AMD_PP_GFX_PROFILE)
+			smu7_enable_power_containment(hwmgr);
+		else if (request->type == AMD_PP_COMPUTE_PROFILE)
+			smu7_disable_power_containment(hwmgr);
+	}
+
+	if (hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_AUTO)
+		return -EINVAL;
+
+	tmp_result = smu7_freeze_sclk_mclk_dpm(hwmgr);
+	PP_ASSERT_WITH_CODE(!tmp_result,
+			"Failed to freeze SCLK MCLK DPM!",
+			result = tmp_result);
+
+	tmp_result = smum_populate_requested_graphic_levels(hwmgr, request);
+	PP_ASSERT_WITH_CODE(!tmp_result,
+			"Failed to populate requested graphic levels!",
+			result = tmp_result);
+
+	tmp_result = smu7_unfreeze_sclk_mclk_dpm(hwmgr);
+	PP_ASSERT_WITH_CODE(!tmp_result,
+			"Failed to unfreeze SCLK MCLK DPM!",
+			result = tmp_result);
+
+	smu7_find_min_clock_masks(hwmgr, &sclk_mask, &mclk_mask,
+			request->min_sclk, request->min_mclk);
+
+	if (sclk_mask) {
+		if (!data->sclk_dpm_key_disabled)
+			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+				PPSMC_MSG_SCLKDPM_SetEnabledMask,
+				data->dpm_level_enable_mask.
+				sclk_dpm_enable_mask &
+				sclk_mask);
+	}
+
+	if (mclk_mask) {
+		if (!data->mclk_dpm_key_disabled)
+			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+				PPSMC_MSG_MCLKDPM_SetEnabledMask,
+				data->dpm_level_enable_mask.
+				mclk_dpm_enable_mask &
+				mclk_mask);
+	}
+
+	return result;
+}
+
+static int smu7_avfs_control(struct pp_hwmgr *hwmgr, bool enable)
+{
+	if (enable) {
+		if (!PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device,
+				CGS_IND_REG__SMC, FEATURE_STATUS, AVS_ON))
+			PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(
+					hwmgr->smumgr, PPSMC_MSG_EnableAvfs),
+					"Failed to enable AVFS!",
+					return -EINVAL);
+	} else if (PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device,
+			CGS_IND_REG__SMC, FEATURE_STATUS, AVS_ON))
+		PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(
+				hwmgr->smumgr, PPSMC_MSG_DisableAvfs),
+				"Failed to disable AVFS!",
+				return -EINVAL);
+
+	return 0;
+}
+
 static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.backend_init = &smu7_hwmgr_backend_init,
 	.backend_fini = &smu7_hwmgr_backend_fini,
@@ -4551,6 +4693,8 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.dynamic_state_management_disable = smu7_disable_dpm_tasks,
 	.request_firmware = smu7_request_firmware,
 	.release_firmware = smu7_release_firmware,
+	.set_power_profile_state = smu7_set_power_profile_state,
+	.avfs_control = smu7_avfs_control,
 };
 
 uint8_t smu7_get_sleep_divider_id_from_clock(uint32_t clock,

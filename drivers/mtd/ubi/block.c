@@ -347,7 +347,7 @@ static int ubiblock_init_request(void *data, struct request *req,
 	return 0;
 }
 
-static struct blk_mq_ops ubiblock_mq_ops = {
+static const struct blk_mq_ops ubiblock_mq_ops = {
 	.queue_rq       = ubiblock_queue_rq,
 	.init_request	= ubiblock_init_request,
 };

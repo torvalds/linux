@@ -19,7 +19,7 @@
 #include <linux/etherdevice.h>
 #include <linux/firmware.h>
 #include <linux/bitops.h>
-#include <linux/soc/qcom/smd.h>
+#include <linux/rpmsg.h>
 #include "smd.h"
 
 struct wcn36xx_cfg_val {
@@ -254,7 +254,7 @@ static int wcn36xx_smd_send_and_wait(struct wcn36xx *wcn, size_t len)
 
 	init_completion(&wcn->hal_rsp_compl);
 	start = jiffies;
-	ret = qcom_smd_send(wcn->smd_channel, wcn->hal_buf, len);
+	ret = rpmsg_send(wcn->smd_channel, wcn->hal_buf, len);
 	if (ret) {
 		wcn36xx_err("HAL TX failed\n");
 		goto out;
@@ -2205,11 +2205,11 @@ out:
 	return ret;
 }
 
-int wcn36xx_smd_rsp_process(struct qcom_smd_channel *channel,
-			    const void *buf, size_t len)
+int wcn36xx_smd_rsp_process(struct rpmsg_device *rpdev,
+			    void *buf, int len, void *priv, u32 addr)
 {
 	const struct wcn36xx_hal_msg_header *msg_header = buf;
-	struct ieee80211_hw *hw = qcom_smd_get_drvdata(channel);
+	struct ieee80211_hw *hw = priv;
 	struct wcn36xx *wcn = hw->priv;
 	struct wcn36xx_hal_ind_msg *msg_ind;
 	wcn36xx_dbg_dump(WCN36XX_DBG_SMD_DUMP, "SMD <<< ", buf, len);

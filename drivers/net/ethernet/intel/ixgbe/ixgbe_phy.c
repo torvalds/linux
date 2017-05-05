@@ -792,7 +792,8 @@ s32 ixgbe_setup_phy_link_speed_generic(struct ixgbe_hw *hw,
 		hw->phy.autoneg_advertised |= IXGBE_LINK_SPEED_10_FULL;
 
 	/* Setup link based on the new speed settings */
-	hw->phy.ops.setup_link(hw);
+	if (hw->phy.ops.setup_link)
+		hw->phy.ops.setup_link(hw);
 
 	return 0;
 }

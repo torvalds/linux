@@ -254,7 +254,6 @@ static struct dm_block_validator sb_validator = {
  * Low level metadata handling
  *--------------------------------------------------------------*/
 #define DM_ERA_METADATA_BLOCK_SIZE 4096
-#define DM_ERA_METADATA_CACHE_SIZE 64
 #define ERA_MAX_CONCURRENT_LOCKS 5
 
 struct era_metadata {
@@ -615,7 +614,6 @@ static int create_persistent_data_objects(struct era_metadata *md,
 	int r;
 
 	md->bm = dm_block_manager_create(md->bdev, DM_ERA_METADATA_BLOCK_SIZE,
-					 DM_ERA_METADATA_CACHE_SIZE,
 					 ERA_MAX_CONCURRENT_LOCKS);
 	if (IS_ERR(md->bm)) {
 		DMERR("could not create block manager");
@@ -961,15 +959,15 @@ static int metadata_commit(struct era_metadata *md)
 		}
 	}
 
-	r = save_sm_root(md);
-	if (r) {
-		DMERR("%s: save_sm_root failed", __func__);
-		return r;
-	}
-
 	r = dm_tm_pre_commit(md->tm);
 	if (r) {
 		DMERR("%s: pre commit failed", __func__);
+		return r;
+	}
+
+	r = save_sm_root(md);
+	if (r) {
+		DMERR("%s: save_sm_root failed", __func__);
 		return r;
 	}
 

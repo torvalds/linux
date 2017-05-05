@@ -548,8 +548,8 @@
 		"SUB	%1,	%1,	D0Ar2\n"			\
 		"SUB	%3, %3, D1Ar1\n")
 
-unsigned long __copy_user(void __user *pdst, const void *psrc,
-			  unsigned long n)
+unsigned long raw_copy_to_user(void __user *pdst, const void *psrc,
+			       unsigned long n)
 {
 	register char __user *dst asm ("A0.2") = pdst;
 	register const char *src asm ("A1.2") = psrc;
@@ -654,7 +654,7 @@ unsigned long __copy_user(void __user *pdst, const void *psrc,
 	 */
 	return retn;
 }
-EXPORT_SYMBOL(__copy_user);
+EXPORT_SYMBOL(raw_copy_to_user);
 
 #define __asm_copy_from_user_1(to, from, ret) \
 	__asm_copy_user_cont(to, from, ret,	\

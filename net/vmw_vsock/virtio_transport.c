@@ -144,6 +144,8 @@ virtio_transport_send_pkt_work(struct work_struct *work)
 		list_del_init(&pkt->list);
 		spin_unlock_bh(&vsock->send_pkt_list_lock);
 
+		virtio_transport_deliver_tap_pkt(pkt);
+
 		reply = pkt->reply;
 
 		sg_init_one(&hdr, &pkt->hdr, sizeof(pkt->hdr));
@@ -370,6 +372,7 @@ static void virtio_transport_rx_work(struct work_struct *work)
 			}
 
 			pkt->len = len - sizeof(pkt->hdr);
+			virtio_transport_deliver_tap_pkt(pkt);
 			virtio_transport_recv_pkt(pkt);
 		}
 	} while (!virtqueue_enable_cb(vq));

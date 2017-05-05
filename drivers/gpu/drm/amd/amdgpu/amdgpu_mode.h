@@ -590,11 +590,13 @@ int amdgpu_align_pitch(struct amdgpu_device *adev, int width, int bpp, bool tile
 /* amdgpu_display.c */
 void amdgpu_print_display_setup(struct drm_device *dev);
 int amdgpu_modeset_create_props(struct amdgpu_device *adev);
-int amdgpu_crtc_set_config(struct drm_mode_set *set);
+int amdgpu_crtc_set_config(struct drm_mode_set *set,
+			   struct drm_modeset_acquire_ctx *ctx);
 int amdgpu_crtc_page_flip_target(struct drm_crtc *crtc,
 				 struct drm_framebuffer *fb,
 				 struct drm_pending_vblank_event *event,
-				 uint32_t page_flip_flags, uint32_t target);
+				 uint32_t page_flip_flags, uint32_t target,
+				 struct drm_modeset_acquire_ctx *ctx);
 void amdgpu_crtc_cleanup_flip_ctx(struct amdgpu_flip_work *work,
 				  struct amdgpu_bo *new_abo);
 int amdgpu_crtc_prepare_flip(struct drm_crtc *crtc,

@@ -29,12 +29,6 @@
 #include <asm/ftrace.h>
 #include <asm/nops.h>
 
-#if defined(CONFIG_FUNCTION_GRAPH_TRACER) && \
-	!defined(CC_USING_FENTRY) && \
-	!defined(CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE)
-# error The following combination is not supported: ((compiler missing -mfentry) || (CONFIG_X86_32 and !CONFIG_DYNAMIC_FTRACE)) && CONFIG_FUNCTION_GRAPH_TRACER && CONFIG_CC_OPTIMIZE_FOR_SIZE
-#endif
-
 #ifdef CONFIG_DYNAMIC_FTRACE
 
 int ftrace_arch_code_modify_prepare(void)
@@ -539,7 +533,13 @@ static void do_sync_core(void *data)
 
 static void run_sync(void)
 {
-	int enable_irqs = irqs_disabled();
+	int enable_irqs;
+
+	/* No need to sync if there's only one CPU */
+	if (num_online_cpus() == 1)
+		return;
+
+	enable_irqs = irqs_disabled();
 
 	/* We may be called with interrupts disabled (on bootup). */
 	if (enable_irqs)
@@ -988,6 +988,18 @@ void prepare_ftrace_return(unsigned long self_addr, unsigned long *parent,
 	struct ftrace_graph_ent trace;
 	unsigned long return_hooker = (unsigned long)
 				&return_to_handler;
+
+	/*
+	 * When resuming from suspend-to-ram, this function can be indirectly
+	 * called from early CPU startup code while the CPU is in real mode,
+	 * which would fail miserably.  Make sure the stack pointer is a
+	 * virtual address.
+	 *
+	 * This check isn't as accurate as virt_addr_valid(), but it should be
+	 * good enough for this purpose, and it's fast.
+	 */
+	if (unlikely((long)__builtin_frame_address(0) >= 0))
+		return;
 
 	if (unlikely(ftrace_graph_is_dead()))
 		return;

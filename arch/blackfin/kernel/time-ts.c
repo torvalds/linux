@@ -230,7 +230,9 @@ static void __init bfin_gptmr0_clockevent_init(struct clock_event_device *evt)
 	clock_tick = get_sclk();
 	evt->mult = div_sc(clock_tick, NSEC_PER_SEC, evt->shift);
 	evt->max_delta_ns = clockevent_delta2ns(-1, evt);
+	evt->max_delta_ticks = (unsigned long)-1;
 	evt->min_delta_ns = clockevent_delta2ns(100, evt);
+	evt->min_delta_ticks = 100;
 
 	evt->cpumask = cpumask_of(0);
 
@@ -344,7 +346,9 @@ void bfin_coretmr_clockevent_init(void)
 	clock_tick = get_cclk() / TIME_SCALE;
 	evt->mult = div_sc(clock_tick, NSEC_PER_SEC, evt->shift);
 	evt->max_delta_ns = clockevent_delta2ns(-1, evt);
+	evt->max_delta_ticks = (unsigned long)-1;
 	evt->min_delta_ns = clockevent_delta2ns(100, evt);
+	evt->min_delta_ticks = 100;
 
 	evt->cpumask = cpumask_of(cpu);
 

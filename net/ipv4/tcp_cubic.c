@@ -72,7 +72,7 @@ MODULE_PARM_DESC(tcp_friendliness, "turn on/off tcp friendliness");
 module_param(hystart, int, 0644);
 MODULE_PARM_DESC(hystart, "turn on/off hybrid slow start algorithm");
 module_param(hystart_detect, int, 0644);
-MODULE_PARM_DESC(hystart_detect, "hyrbrid slow start detection mechanisms"
+MODULE_PARM_DESC(hystart_detect, "hybrid slow start detection mechanisms"
 		 " 1: packet-train 2: delay 3: both packet-train and delay");
 module_param(hystart_low_window, int, 0644);
 MODULE_PARM_DESC(hystart_low_window, "lower bound cwnd for hybrid slow start");

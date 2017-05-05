@@ -6,17 +6,36 @@
 #include <linux/spinlock.h>
 #include <linux/kernel.h>
 
+/**
+ * refcount_t - variant of atomic_t specialized for reference counts
+ * @refs: atomic_t counter field
+ *
+ * The counter saturates at UINT_MAX and will not move once
+ * there. This avoids wrapping the counter and causing 'spurious'
+ * use-after-free bugs.
+ */
 typedef struct refcount_struct {
 	atomic_t refs;
 } refcount_t;
 
 #define REFCOUNT_INIT(n)	{ .refs = ATOMIC_INIT(n), }
 
+/**
+ * refcount_set - set a refcount's value
+ * @r: the refcount
+ * @n: value to which the refcount will be set
+ */
 static inline void refcount_set(refcount_t *r, unsigned int n)
 {
 	atomic_set(&r->refs, n);
 }
 
+/**
+ * refcount_read - get a refcount's value
+ * @r: the refcount
+ *
+ * Return: the refcount's value
+ */
 static inline unsigned int refcount_read(const refcount_t *r)
 {
 	return atomic_read(&r->refs);

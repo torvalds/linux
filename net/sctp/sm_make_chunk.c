@@ -1512,14 +1512,12 @@ int sctp_user_addto_chunk(struct sctp_chunk *chunk, int len,
 			  struct iov_iter *from)
 {
 	void *target;
-	ssize_t copied;
 
 	/* Make room in chunk for data.  */
 	target = skb_put(chunk->skb, len);
 
 	/* Copy data (whole iovec) into chunk */
-	copied = copy_from_iter(target, len, from);
-	if (copied != len)
+	if (!copy_from_iter_full(target, len, from))
 		return -EFAULT;
 
 	/* Adjust the chunk length field.  */

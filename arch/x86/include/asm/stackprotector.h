@@ -87,7 +87,7 @@ static inline void setup_stack_canary_segment(int cpu)
 {
 #ifdef CONFIG_X86_32
 	unsigned long canary = (unsigned long)&per_cpu(stack_canary, cpu);
-	struct desc_struct *gdt_table = get_cpu_gdt_table(cpu);
+	struct desc_struct *gdt_table = get_cpu_gdt_rw(cpu);
 	struct desc_struct desc;
 
 	desc = gdt_table[GDT_ENTRY_STACK_CANARY];

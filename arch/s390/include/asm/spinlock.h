@@ -10,18 +10,13 @@
 #define __ASM_SPINLOCK_H
 
 #include <linux/smp.h>
+#include <asm/atomic_ops.h>
 #include <asm/barrier.h>
 #include <asm/processor.h>
 
 #define SPINLOCK_LOCKVAL (S390_lowcore.spinlock_lockval)
 
 extern int spin_retry;
-
-static inline int
-_raw_compare_and_swap(unsigned int *lock, unsigned int old, unsigned int new)
-{
-	return __sync_bool_compare_and_swap(lock, old, new);
-}
 
 #ifndef CONFIG_SMP
 static inline bool arch_vcpu_is_preempted(int cpu) { return false; }
@@ -40,7 +35,7 @@ bool arch_vcpu_is_preempted(int cpu);
  * (the type definitions are in asm/spinlock_types.h)
  */
 
-void arch_lock_relax(unsigned int cpu);
+void arch_lock_relax(int cpu);
 
 void arch_spin_lock_wait(arch_spinlock_t *);
 int arch_spin_trylock_retry(arch_spinlock_t *);
@@ -70,7 +65,7 @@ static inline int arch_spin_trylock_once(arch_spinlock_t *lp)
 {
 	barrier();
 	return likely(arch_spin_value_unlocked(*lp) &&
-		      _raw_compare_and_swap(&lp->lock, 0, SPINLOCK_LOCKVAL));
+		      __atomic_cmpxchg_bool(&lp->lock, 0, SPINLOCK_LOCKVAL));
 }
 
 static inline void arch_spin_lock(arch_spinlock_t *lp)
@@ -95,7 +90,7 @@ static inline int arch_spin_trylock(arch_spinlock_t *lp)
 
 static inline void arch_spin_unlock(arch_spinlock_t *lp)
 {
-	typecheck(unsigned int, lp->lock);
+	typecheck(int, lp->lock);
 	asm volatile(
 		"st	%1,%0\n"
 		: "+Q" (lp->lock)
@@ -141,16 +136,16 @@ extern int _raw_write_trylock_retry(arch_rwlock_t *lp);
 
 static inline int arch_read_trylock_once(arch_rwlock_t *rw)
 {
-	unsigned int old = ACCESS_ONCE(rw->lock);
-	return likely((int) old >= 0 &&
-		      _raw_compare_and_swap(&rw->lock, old, old + 1));
+	int old = ACCESS_ONCE(rw->lock);
+	return likely(old >= 0 &&
+		      __atomic_cmpxchg_bool(&rw->lock, old, old + 1));
 }
 
 static inline int arch_write_trylock_once(arch_rwlock_t *rw)
 {
-	unsigned int old = ACCESS_ONCE(rw->lock);
+	int old = ACCESS_ONCE(rw->lock);
 	return likely(old == 0 &&
-		      _raw_compare_and_swap(&rw->lock, 0, 0x80000000));
+		      __atomic_cmpxchg_bool(&rw->lock, 0, 0x80000000));
 }
 
 #ifdef CONFIG_HAVE_MARCH_Z196_FEATURES
@@ -161,9 +156,9 @@ static inline int arch_write_trylock_once(arch_rwlock_t *rw)
 
 #define __RAW_LOCK(ptr, op_val, op_string)		\
 ({							\
-	unsigned int old_val;				\
+	int old_val;					\
 							\
-	typecheck(unsigned int *, ptr);			\
+	typecheck(int *, ptr);				\
 	asm volatile(					\
 		op_string "	%0,%2,%1\n"		\
 		"bcr	14,0\n"				\
@@ -175,9 +170,9 @@ static inline int arch_write_trylock_once(arch_rwlock_t *rw)
 
 #define __RAW_UNLOCK(ptr, op_val, op_string)		\
 ({							\
-	unsigned int old_val;				\
+	int old_val;					\
 							\
-	typecheck(unsigned int *, ptr);			\
+	typecheck(int *, ptr);				\
 	asm volatile(					\
 		op_string "	%0,%2,%1\n"		\
 		: "=d" (old_val), "+Q" (*ptr)		\
@@ -187,14 +182,14 @@ static inline int arch_write_trylock_once(arch_rwlock_t *rw)
 })
 
 extern void _raw_read_lock_wait(arch_rwlock_t *lp);
-extern void _raw_write_lock_wait(arch_rwlock_t *lp, unsigned int prev);
+extern void _raw_write_lock_wait(arch_rwlock_t *lp, int prev);
 
 static inline void arch_read_lock(arch_rwlock_t *rw)
 {
-	unsigned int old;
+	int old;
 
 	old = __RAW_LOCK(&rw->lock, 1, __RAW_OP_ADD);
-	if ((int) old < 0)
+	if (old < 0)
 		_raw_read_lock_wait(rw);
 }
 
@@ -205,7 +200,7 @@ static inline void arch_read_unlock(arch_rwlock_t *rw)
 
 static inline void arch_write_lock(arch_rwlock_t *rw)
 {
-	unsigned int old;
+	int old;
 
 	old = __RAW_LOCK(&rw->lock, 0x80000000, __RAW_OP_OR);
 	if (old != 0)
@@ -232,11 +227,11 @@ static inline void arch_read_lock(arch_rwlock_t *rw)
 
 static inline void arch_read_unlock(arch_rwlock_t *rw)
 {
-	unsigned int old;
+	int old;
 
 	do {
 		old = ACCESS_ONCE(rw->lock);
-	} while (!_raw_compare_and_swap(&rw->lock, old, old - 1));
+	} while (!__atomic_cmpxchg_bool(&rw->lock, old, old - 1));
 }
 
 static inline void arch_write_lock(arch_rwlock_t *rw)
@@ -248,7 +243,7 @@ static inline void arch_write_lock(arch_rwlock_t *rw)
 
 static inline void arch_write_unlock(arch_rwlock_t *rw)
 {
-	typecheck(unsigned int, rw->lock);
+	typecheck(int, rw->lock);
 
 	rw->owner = 0;
 	asm volatile(

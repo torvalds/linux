@@ -299,13 +299,13 @@ static int __init integrator_cp_of_init(struct device_node *np)
 
 	base = of_iomap(np, 0);
 	if (!base) {
-		pr_err("Failed to iomap");
+		pr_err("Failed to iomap\n");
 		return -ENXIO;
 	}
 
 	clk = of_clk_get(np, 0);
 	if (IS_ERR(clk)) {
-		pr_err("Failed to get clock");
+		pr_err("Failed to get clock\n");
 		return PTR_ERR(clk);
 	}
 

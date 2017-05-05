@@ -9,7 +9,9 @@
 #include <bpf/libbpf.h>
 #include <bpf/bpf.h>
 #include <linux/err.h>
+#include <linux/kernel.h>
 #include <linux/string.h>
+#include <errno.h>
 #include "perf.h"
 #include "debug.h"
 #include "bpf-loader.h"
@@ -17,6 +19,7 @@
 #include "probe-event.h"
 #include "probe-finder.h" // for MAX_PROBES
 #include "parse-events.h"
+#include "strfilter.h"
 #include "llvm-utils.h"
 #include "c++/clang-c.h"
 

@@ -316,7 +316,7 @@ void smc_lgr_terminate(struct smc_link_group *lgr)
 		smc = container_of(conn, struct smc_sock, conn);
 		sock_hold(&smc->sk);
 		__smc_lgr_unregister_conn(conn);
-		smc_close_active_abort(smc);
+		schedule_work(&conn->close_work);
 		sock_put(&smc->sk);
 		node = rb_first(&lgr->conns_all);
 	}

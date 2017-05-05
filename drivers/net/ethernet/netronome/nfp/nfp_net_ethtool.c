@@ -40,6 +40,7 @@
  *          Brad Petrus <brad.petrus@netronome.com>
  */
 
+#include <linux/bitfield.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -48,6 +49,7 @@
 #include <linux/ethtool.h>
 
 #include "nfpcore/nfp.h"
+#include "nfpcore/nfp_nsp.h"
 #include "nfp_net_ctrl.h"
 #include "nfp_net.h"
 
@@ -126,9 +128,9 @@ static const struct _nfp_net_et_stats nfp_net_et_stats[] = {
 };
 
 #define NN_ET_GLOBAL_STATS_LEN ARRAY_SIZE(nfp_net_et_stats)
-#define NN_ET_RVEC_STATS_LEN (nn->num_r_vecs * 3)
+#define NN_ET_RVEC_STATS_LEN (nn->dp.num_r_vecs * 3)
 #define NN_ET_RVEC_GATHER_STATS 7
-#define NN_ET_QUEUE_STATS_LEN ((nn->num_tx_rings + nn->num_rx_rings) * 2)
+#define NN_ET_QUEUE_STATS_LEN ((nn->dp.num_tx_rings + nn->dp.num_rx_rings) * 2)
 #define NN_ET_STATS_LEN (NN_ET_GLOBAL_STATS_LEN + NN_ET_RVEC_GATHER_STATS + \
 			 NN_ET_RVEC_STATS_LEN + NN_ET_QUEUE_STATS_LEN)
 
@@ -172,6 +174,119 @@ static void nfp_net_get_drvinfo(struct net_device *netdev,
 	drvinfo->regdump_len = NFP_NET_CFG_BAR_SZ;
 }
 
+/**
+ * nfp_net_get_link_ksettings - Get Link Speed settings
+ * @netdev:	network interface device structure
+ * @cmd:	ethtool command
+ *
+ * Reports speed settings based on info in the BAR provided by the fw.
+ */
+static int
+nfp_net_get_link_ksettings(struct net_device *netdev,
+			   struct ethtool_link_ksettings *cmd)
+{
+	static const u32 ls_to_ethtool[] = {
+		[NFP_NET_CFG_STS_LINK_RATE_UNSUPPORTED]	= 0,
+		[NFP_NET_CFG_STS_LINK_RATE_UNKNOWN]	= SPEED_UNKNOWN,
+		[NFP_NET_CFG_STS_LINK_RATE_1G]		= SPEED_1000,
+		[NFP_NET_CFG_STS_LINK_RATE_10G]		= SPEED_10000,
+		[NFP_NET_CFG_STS_LINK_RATE_25G]		= SPEED_25000,
+		[NFP_NET_CFG_STS_LINK_RATE_40G]		= SPEED_40000,
+		[NFP_NET_CFG_STS_LINK_RATE_50G]		= SPEED_50000,
+		[NFP_NET_CFG_STS_LINK_RATE_100G]	= SPEED_100000,
+	};
+	struct nfp_net *nn = netdev_priv(netdev);
+	u32 sts, ls;
+
+	ethtool_link_ksettings_add_link_mode(cmd, supported, FIBRE);
+	cmd->base.port = PORT_OTHER;
+	cmd->base.speed = SPEED_UNKNOWN;
+	cmd->base.duplex = DUPLEX_UNKNOWN;
+
+	if (nn->eth_port)
+		cmd->base.autoneg = nn->eth_port->aneg != NFP_ANEG_DISABLED ?
+			AUTONEG_ENABLE : AUTONEG_DISABLE;
+
+	if (!netif_carrier_ok(netdev))
+		return 0;
+
+	/* Use link speed from ETH table if available, otherwise try the BAR */
+	if (nn->eth_port) {
+		int err;
+
+		if (nfp_net_link_changed_read_clear(nn)) {
+			err = nfp_net_refresh_eth_port(nn);
+			if (err)
+				return err;
+		}
+
+		cmd->base.port = nn->eth_port->port_type;
+		cmd->base.speed = nn->eth_port->speed;
+		cmd->base.duplex = DUPLEX_FULL;
+		return 0;
+	}
+
+	sts = nn_readl(nn, NFP_NET_CFG_STS);
+
+	ls = FIELD_GET(NFP_NET_CFG_STS_LINK_RATE, sts);
+	if (ls == NFP_NET_CFG_STS_LINK_RATE_UNSUPPORTED)
+		return -EOPNOTSUPP;
+
+	if (ls == NFP_NET_CFG_STS_LINK_RATE_UNKNOWN ||
+	    ls >= ARRAY_SIZE(ls_to_ethtool))
+		return 0;
+
+	cmd->base.speed = ls_to_ethtool[sts];
+	cmd->base.duplex = DUPLEX_FULL;
+
+	return 0;
+}
+
+static int
+nfp_net_set_link_ksettings(struct net_device *netdev,
+			   const struct ethtool_link_ksettings *cmd)
+{
+	struct nfp_net *nn = netdev_priv(netdev);
+	struct nfp_nsp *nsp;
+	int err;
+
+	if (!nn->eth_port)
+		return -EOPNOTSUPP;
+
+	if (netif_running(netdev)) {
+		nn_warn(nn, "Changing settings not allowed on an active interface. It may cause the port to be disabled until reboot.\n");
+		return -EBUSY;
+	}
+
+	nsp = nfp_eth_config_start(nn->cpp, nn->eth_port->index);
+	if (IS_ERR(nsp))
+		return PTR_ERR(nsp);
+
+	err = __nfp_eth_set_aneg(nsp, cmd->base.autoneg == AUTONEG_ENABLE ?
+				 NFP_ANEG_AUTO : NFP_ANEG_DISABLED);
+	if (err)
+		goto err_bad_set;
+	if (cmd->base.speed != SPEED_UNKNOWN) {
+		u32 speed = cmd->base.speed / nn->eth_port->lanes;
+
+		err = __nfp_eth_set_speed(nsp, speed);
+		if (err)
+			goto err_bad_set;
+	}
+
+	err = nfp_eth_config_commit_end(nsp);
+	if (err > 0)
+		return 0; /* no change */
+
+	nfp_net_refresh_port_table(nn);
+
+	return err;
+
+err_bad_set:
+	nfp_eth_config_cleanup_end(nsp);
+	return err;
+}
+
 static void nfp_net_get_ringparam(struct net_device *netdev,
 				  struct ethtool_ringparam *ring)
 {
@@ -179,30 +294,22 @@ static void nfp_net_get_ringparam(struct net_device *netdev,
 
 	ring->rx_max_pending = NFP_NET_MAX_RX_DESCS;
 	ring->tx_max_pending = NFP_NET_MAX_TX_DESCS;
-	ring->rx_pending = nn->rxd_cnt;
-	ring->tx_pending = nn->txd_cnt;
+	ring->rx_pending = nn->dp.rxd_cnt;
+	ring->tx_pending = nn->dp.txd_cnt;
 }
 
 static int nfp_net_set_ring_size(struct nfp_net *nn, u32 rxd_cnt, u32 txd_cnt)
 {
-	struct nfp_net_ring_set *reconfig_rx = NULL, *reconfig_tx = NULL;
-	struct nfp_net_ring_set rx = {
-		.n_rings = nn->num_rx_rings,
-		.mtu = nn->netdev->mtu,
-		.dcnt = rxd_cnt,
-	};
-	struct nfp_net_ring_set tx = {
-		.n_rings = nn->num_tx_rings,
-		.dcnt = txd_cnt,
-	};
+	struct nfp_net_dp *dp;
 
-	if (nn->rxd_cnt != rxd_cnt)
-		reconfig_rx = &rx;
-	if (nn->txd_cnt != txd_cnt)
-		reconfig_tx = &tx;
+	dp = nfp_net_clone_dp(nn);
+	if (!dp)
+		return -ENOMEM;
 
-	return nfp_net_ring_reconfig(nn, &nn->xdp_prog,
-				     reconfig_rx, reconfig_tx);
+	dp->rxd_cnt = rxd_cnt;
+	dp->txd_cnt = txd_cnt;
+
+	return nfp_net_ring_reconfig(nn, dp, NULL);
 }
 
 static int nfp_net_set_ringparam(struct net_device *netdev,
@@ -223,11 +330,11 @@ static int nfp_net_set_ringparam(struct net_device *netdev,
 	    txd_cnt < NFP_NET_MIN_TX_DESCS || txd_cnt > NFP_NET_MAX_TX_DESCS)
 		return -EINVAL;
 
-	if (nn->rxd_cnt == rxd_cnt && nn->txd_cnt == txd_cnt)
+	if (nn->dp.rxd_cnt == rxd_cnt && nn->dp.txd_cnt == txd_cnt)
 		return 0;
 
 	nn_dbg(nn, "Change ring size: RxQ %u->%u, TxQ %u->%u\n",
-	       nn->rxd_cnt, rxd_cnt, nn->txd_cnt, txd_cnt);
+	       nn->dp.rxd_cnt, rxd_cnt, nn->dp.txd_cnt, txd_cnt);
 
 	return nfp_net_set_ring_size(nn, rxd_cnt, txd_cnt);
 }
@@ -245,7 +352,7 @@ static void nfp_net_get_strings(struct net_device *netdev,
 			memcpy(p, nfp_net_et_stats[i].name, ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
-		for (i = 0; i < nn->num_r_vecs; i++) {
+		for (i = 0; i < nn->dp.num_r_vecs; i++) {
 			sprintf(p, "rvec_%u_rx_pkts", i);
 			p += ETH_GSTRING_LEN;
 			sprintf(p, "rvec_%u_tx_pkts", i);
@@ -267,13 +374,13 @@ static void nfp_net_get_strings(struct net_device *netdev,
 		p += ETH_GSTRING_LEN;
 		strncpy(p, "tx_lso", ETH_GSTRING_LEN);
 		p += ETH_GSTRING_LEN;
-		for (i = 0; i < nn->num_tx_rings; i++) {
+		for (i = 0; i < nn->dp.num_tx_rings; i++) {
 			sprintf(p, "txq_%u_pkts", i);
 			p += ETH_GSTRING_LEN;
 			sprintf(p, "txq_%u_bytes", i);
 			p += ETH_GSTRING_LEN;
 		}
-		for (i = 0; i < nn->num_rx_rings; i++) {
+		for (i = 0; i < nn->dp.num_rx_rings; i++) {
 			sprintf(p, "rxq_%u_pkts", i);
 			p += ETH_GSTRING_LEN;
 			sprintf(p, "rxq_%u_bytes", i);
@@ -306,12 +413,12 @@ static void nfp_net_get_stats(struct net_device *netdev,
 			break;
 
 		case NFP_NET_DEV_ET_STATS:
-			io_p = nn->ctrl_bar + nfp_net_et_stats[i].off;
+			io_p = nn->dp.ctrl_bar + nfp_net_et_stats[i].off;
 			data[i] = readq(io_p);
 			break;
 		}
 	}
-	for (j = 0; j < nn->num_r_vecs; j++) {
+	for (j = 0; j < nn->dp.num_r_vecs; j++) {
 		unsigned int start;
 
 		do {
@@ -337,16 +444,16 @@ static void nfp_net_get_stats(struct net_device *netdev,
 	}
 	for (j = 0; j < NN_ET_RVEC_GATHER_STATS; j++)
 		data[i++] = gathered_stats[j];
-	for (j = 0; j < nn->num_tx_rings; j++) {
-		io_p = nn->ctrl_bar + NFP_NET_CFG_TXR_STATS(j);
+	for (j = 0; j < nn->dp.num_tx_rings; j++) {
+		io_p = nn->dp.ctrl_bar + NFP_NET_CFG_TXR_STATS(j);
 		data[i++] = readq(io_p);
-		io_p = nn->ctrl_bar + NFP_NET_CFG_TXR_STATS(j) + 8;
+		io_p = nn->dp.ctrl_bar + NFP_NET_CFG_TXR_STATS(j) + 8;
 		data[i++] = readq(io_p);
 	}
-	for (j = 0; j < nn->num_rx_rings; j++) {
-		io_p = nn->ctrl_bar + NFP_NET_CFG_RXR_STATS(j);
+	for (j = 0; j < nn->dp.num_rx_rings; j++) {
+		io_p = nn->dp.ctrl_bar + NFP_NET_CFG_RXR_STATS(j);
 		data[i++] = readq(io_p);
-		io_p = nn->ctrl_bar + NFP_NET_CFG_RXR_STATS(j) + 8;
+		io_p = nn->dp.ctrl_bar + NFP_NET_CFG_RXR_STATS(j) + 8;
 		data[i++] = readq(io_p);
 	}
 }
@@ -410,7 +517,7 @@ static int nfp_net_get_rxnfc(struct net_device *netdev,
 
 	switch (cmd->cmd) {
 	case ETHTOOL_GRXRINGS:
-		cmd->data = nn->num_rx_rings;
+		cmd->data = nn->dp.num_rx_rings;
 		return 0;
 	case ETHTOOL_GRXFH:
 		return nfp_net_get_rss_hash_opts(nn, cmd);
@@ -454,13 +561,13 @@ static int nfp_net_set_rss_hash_opt(struct nfp_net *nn,
 		return -EINVAL;
 	}
 
-	new_rss_cfg |= NFP_NET_CFG_RSS_TOEPLITZ;
+	new_rss_cfg |= FIELD_PREP(NFP_NET_CFG_RSS_HFUNC, nn->rss_hfunc);
 	new_rss_cfg |= NFP_NET_CFG_RSS_MASK;
 
 	if (new_rss_cfg == nn->rss_cfg)
 		return 0;
 
-	writel(new_rss_cfg, nn->ctrl_bar + NFP_NET_CFG_RSS_CTRL);
+	writel(new_rss_cfg, nn->dp.ctrl_bar + NFP_NET_CFG_RSS_CTRL);
 	err = nfp_net_reconfig(nn, NFP_NET_CFG_UPDATE_RSS);
 	if (err)
 		return err;
@@ -496,7 +603,12 @@ static u32 nfp_net_get_rxfh_indir_size(struct net_device *netdev)
 
 static u32 nfp_net_get_rxfh_key_size(struct net_device *netdev)
 {
-	return NFP_NET_CFG_RSS_KEY_SZ;
+	struct nfp_net *nn = netdev_priv(netdev);
+
+	if (!(nn->cap & NFP_NET_CFG_CTRL_RSS))
+		return -EOPNOTSUPP;
+
+	return nfp_net_rss_key_sz(nn);
 }
 
 static int nfp_net_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
@@ -512,9 +624,12 @@ static int nfp_net_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 		for (i = 0; i < ARRAY_SIZE(nn->rss_itbl); i++)
 			indir[i] = nn->rss_itbl[i];
 	if (key)
-		memcpy(key, nn->rss_key, NFP_NET_CFG_RSS_KEY_SZ);
-	if (hfunc)
-		*hfunc = ETH_RSS_HASH_TOP;
+		memcpy(key, nn->rss_key, nfp_net_rss_key_sz(nn));
+	if (hfunc) {
+		*hfunc = nn->rss_hfunc;
+		if (*hfunc >= 1 << ETH_RSS_HASH_FUNCS_COUNT)
+			*hfunc = ETH_RSS_HASH_UNKNOWN;
+	}
 
 	return 0;
 }
@@ -527,14 +642,14 @@ static int nfp_net_set_rxfh(struct net_device *netdev,
 	int i;
 
 	if (!(nn->cap & NFP_NET_CFG_CTRL_RSS) ||
-	    !(hfunc == ETH_RSS_HASH_NO_CHANGE || hfunc == ETH_RSS_HASH_TOP))
+	    !(hfunc == ETH_RSS_HASH_NO_CHANGE || hfunc == nn->rss_hfunc))
 		return -EOPNOTSUPP;
 
 	if (!key && !indir)
 		return 0;
 
 	if (key) {
-		memcpy(nn->rss_key, key, NFP_NET_CFG_RSS_KEY_SZ);
+		memcpy(nn->rss_key, key, nfp_net_rss_key_sz(nn));
 		nfp_net_rss_write_key(nn);
 	}
 	if (indir) {
@@ -564,7 +679,7 @@ static void nfp_net_get_regs(struct net_device *netdev,
 	regs->version = nn_readl(nn, NFP_NET_CFG_VERSION);
 
 	for (i = 0; i < NFP_NET_CFG_BAR_SZ / sizeof(u32); i++)
-		regs_buf[i] = readl(nn->ctrl_bar + (i * sizeof(u32)));
+		regs_buf[i] = readl(nn->dp.ctrl_bar + (i * sizeof(u32)));
 }
 
 static int nfp_net_get_coalesce(struct net_device *netdev,
@@ -676,7 +791,7 @@ static int nfp_net_set_coalesce(struct net_device *netdev,
 	    ec->tx_coalesce_usecs_high ||
 	    ec->tx_max_coalesced_frames_high ||
 	    ec->rate_sample_interval)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	/* Compute factor used to convert coalesce '_usecs' parameters to
 	 * ME timestamp ticks.  There are 16 ME clock cycles for each timestamp
@@ -736,16 +851,16 @@ static void nfp_net_get_channels(struct net_device *netdev,
 	struct nfp_net *nn = netdev_priv(netdev);
 	unsigned int num_tx_rings;
 
-	num_tx_rings = nn->num_tx_rings;
-	if (nn->xdp_prog)
-		num_tx_rings -= nn->num_rx_rings;
+	num_tx_rings = nn->dp.num_tx_rings;
+	if (nn->dp.xdp_prog)
+		num_tx_rings -= nn->dp.num_rx_rings;
 
 	channel->max_rx = min(nn->max_rx_rings, nn->max_r_vecs);
 	channel->max_tx = min(nn->max_tx_rings, nn->max_r_vecs);
 	channel->max_combined = min(channel->max_rx, channel->max_tx);
 	channel->max_other = NFP_NET_NON_Q_VECTORS;
-	channel->combined_count = min(nn->num_rx_rings, num_tx_rings);
-	channel->rx_count = nn->num_rx_rings - channel->combined_count;
+	channel->combined_count = min(nn->dp.num_rx_rings, num_tx_rings);
+	channel->rx_count = nn->dp.num_rx_rings - channel->combined_count;
 	channel->tx_count = num_tx_rings - channel->combined_count;
 	channel->other_count = NFP_NET_NON_Q_VECTORS;
 }
@@ -753,29 +868,19 @@ static void nfp_net_get_channels(struct net_device *netdev,
 static int nfp_net_set_num_rings(struct nfp_net *nn, unsigned int total_rx,
 				 unsigned int total_tx)
 {
-	struct nfp_net_ring_set *reconfig_rx = NULL, *reconfig_tx = NULL;
-	struct nfp_net_ring_set rx = {
-		.n_rings = total_rx,
-		.mtu = nn->netdev->mtu,
-		.dcnt = nn->rxd_cnt,
-	};
-	struct nfp_net_ring_set tx = {
-		.n_rings = total_tx,
-		.dcnt = nn->txd_cnt,
-	};
+	struct nfp_net_dp *dp;
 
-	if (nn->num_rx_rings != total_rx)
-		reconfig_rx = &rx;
-	if (nn->num_stack_tx_rings != total_tx ||
-	    (nn->xdp_prog && reconfig_rx))
-		reconfig_tx = &tx;
+	dp = nfp_net_clone_dp(nn);
+	if (!dp)
+		return -ENOMEM;
 
-	/* nfp_net_check_config() will catch tx.n_rings > nn->max_tx_rings */
-	if (nn->xdp_prog)
-		tx.n_rings += total_rx;
+	dp->num_rx_rings = total_rx;
+	dp->num_tx_rings = total_tx;
+	/* nfp_net_check_config() will catch num_tx_rings > nn->max_tx_rings */
+	if (dp->xdp_prog)
+		dp->num_tx_rings += total_rx;
 
-	return nfp_net_ring_reconfig(nn, &nn->xdp_prog,
-				     reconfig_rx, reconfig_tx);
+	return nfp_net_ring_reconfig(nn, dp, NULL);
 }
 
 static int nfp_net_set_channels(struct net_device *netdev,
@@ -823,6 +928,8 @@ static const struct ethtool_ops nfp_net_ethtool_ops = {
 	.set_coalesce           = nfp_net_set_coalesce,
 	.get_channels		= nfp_net_get_channels,
 	.set_channels		= nfp_net_set_channels,
+	.get_link_ksettings	= nfp_net_get_link_ksettings,
+	.set_link_ksettings	= nfp_net_set_link_ksettings,
 };
 
 void nfp_net_set_ethtool_ops(struct net_device *netdev)

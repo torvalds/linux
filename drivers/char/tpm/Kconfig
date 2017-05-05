@@ -6,6 +6,7 @@ menuconfig TCG_TPM
 	tristate "TPM Hardware Support"
 	depends on HAS_IOMEM
 	select SECURITYFS
+	select CRYPTO
 	select CRYPTO_HASH_INFO
 	---help---
 	  If you have a TPM security chip in your system, which
@@ -135,7 +136,7 @@ config TCG_XEN
 
 config TCG_CRB
 	tristate "TPM 2.0 CRB Interface"
-	depends on X86 && ACPI
+	depends on ACPI
 	---help---
 	  If you have a TPM security chip that is compliant with the
 	  TCG CRB 2.0 TPM specification say Yes and it will be accessible

@@ -947,6 +947,17 @@ struct ib_uverbs_flow_spec_action_tag {
 	__u32			      reserved1;
 };
 
+struct ib_uverbs_flow_spec_action_drop {
+	union {
+		struct ib_uverbs_flow_spec_hdr hdr;
+		struct {
+			__u32 type;
+			__u16 size;
+			__u16 reserved;
+		};
+	};
+};
+
 struct ib_uverbs_flow_tunnel_filter {
 	__be32 tunnel_id;
 };

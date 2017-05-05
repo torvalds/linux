@@ -123,10 +123,8 @@ static int tegra_snd_trimslice_probe(struct platform_device *pdev)
 
 	trimslice = devm_kzalloc(&pdev->dev, sizeof(struct tegra_trimslice),
 				 GFP_KERNEL);
-	if (!trimslice) {
-		dev_err(&pdev->dev, "Can't allocate tegra_trimslice\n");
+	if (!trimslice)
 		return -ENOMEM;
-	}
 
 	card->dev = &pdev->dev;
 	platform_set_drvdata(pdev, card);

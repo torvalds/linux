@@ -19,9 +19,13 @@
 #include <linux/ccp.h>
 #include <crypto/algapi.h>
 #include <crypto/aes.h>
+#include <crypto/internal/aead.h>
+#include <crypto/aead.h>
 #include <crypto/ctr.h>
 #include <crypto/hash.h>
 #include <crypto/sha.h>
+
+#define	CCP_LOG_LEVEL	KERN_INFO
 
 #define CCP_CRA_PRIORITY	300
 
@@ -31,6 +35,14 @@ struct ccp_crypto_ablkcipher_alg {
 	u32 mode;
 
 	struct crypto_alg alg;
+};
+
+struct ccp_crypto_aead {
+	struct list_head entry;
+
+	u32 mode;
+
+	struct aead_alg alg;
 };
 
 struct ccp_crypto_ahash_alg {
@@ -95,6 +107,9 @@ struct ccp_aes_req_ctx {
 	struct scatterlist iv_sg;
 	u8 iv[AES_BLOCK_SIZE];
 
+	struct scatterlist tag_sg;
+	u8 tag[AES_BLOCK_SIZE];
+
 	/* Fields used for RFC3686 requests */
 	u8 *rfc3686_info;
 	u8 rfc3686_iv[AES_BLOCK_SIZE];
@@ -137,9 +152,29 @@ struct ccp_aes_cmac_exp_ctx {
 	u8 buf[AES_BLOCK_SIZE];
 };
 
-/***** SHA related defines *****/
-#define MAX_SHA_CONTEXT_SIZE	SHA256_DIGEST_SIZE
-#define MAX_SHA_BLOCK_SIZE	SHA256_BLOCK_SIZE
+/***** 3DES related defines *****/
+struct ccp_des3_ctx {
+	enum ccp_engine engine;
+	enum ccp_des3_type type;
+	enum ccp_des3_mode mode;
+
+	struct scatterlist key_sg;
+	unsigned int key_len;
+	u8 key[AES_MAX_KEY_SIZE];
+};
+
+struct ccp_des3_req_ctx {
+	struct scatterlist iv_sg;
+	u8 iv[AES_BLOCK_SIZE];
+
+	struct ccp_cmd cmd;
+};
+
+/* SHA-related defines
+ * These values must be large enough to accommodate any variant
+ */
+#define MAX_SHA_CONTEXT_SIZE	SHA512_DIGEST_SIZE
+#define MAX_SHA_BLOCK_SIZE	SHA512_BLOCK_SIZE
 
 struct ccp_sha_ctx {
 	struct scatterlist opad_sg;
@@ -199,6 +234,7 @@ struct ccp_ctx {
 	union {
 		struct ccp_aes_ctx aes;
 		struct ccp_sha_ctx sha;
+		struct ccp_des3_ctx des3;
 	} u;
 };
 
@@ -210,6 +246,8 @@ struct scatterlist *ccp_crypto_sg_table_add(struct sg_table *table,
 int ccp_register_aes_algs(struct list_head *head);
 int ccp_register_aes_cmac_algs(struct list_head *head);
 int ccp_register_aes_xts_algs(struct list_head *head);
+int ccp_register_aes_aeads(struct list_head *head);
 int ccp_register_sha_algs(struct list_head *head);
+int ccp_register_des3_algs(struct list_head *head);
 
 #endif

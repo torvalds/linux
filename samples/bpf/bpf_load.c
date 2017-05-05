@@ -14,6 +14,7 @@
 #include <linux/perf_event.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
+#include <linux/types.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/syscall.h>
@@ -21,6 +22,7 @@
 #include <sys/mman.h>
 #include <poll.h>
 #include <ctype.h>
+#include <assert.h>
 #include "libbpf.h"
 #include "bpf_load.h"
 #include "perf-sys.h"
@@ -37,13 +39,8 @@ int event_fd[MAX_PROGS];
 int prog_cnt;
 int prog_array_fd = -1;
 
-struct bpf_map_def {
-	unsigned int type;
-	unsigned int key_size;
-	unsigned int value_size;
-	unsigned int max_entries;
-	unsigned int map_flags;
-};
+struct bpf_map_data map_data[MAX_MAPS];
+int map_data_count = 0;
 
 static int populate_prog_array(const char *event, int prog_fd)
 {
@@ -192,24 +189,45 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 	return 0;
 }
 
-static int load_maps(struct bpf_map_def *maps, int len)
+static int load_maps(struct bpf_map_data *maps, int nr_maps,
+		     fixup_map_cb fixup_map)
 {
 	int i;
 
-	for (i = 0; i < len / sizeof(struct bpf_map_def); i++) {
+	for (i = 0; i < nr_maps; i++) {
+		if (fixup_map) {
+			fixup_map(&maps[i], i);
+			/* Allow userspace to assign map FD prior to creation */
+			if (maps[i].fd != -1) {
+				map_fd[i] = maps[i].fd;
+				continue;
+			}
+		}
 
-		map_fd[i] = bpf_create_map(maps[i].type,
-					   maps[i].key_size,
-					   maps[i].value_size,
-					   maps[i].max_entries,
-					   maps[i].map_flags);
+		if (maps[i].def.type == BPF_MAP_TYPE_ARRAY_OF_MAPS ||
+		    maps[i].def.type == BPF_MAP_TYPE_HASH_OF_MAPS) {
+			int inner_map_fd = map_fd[maps[i].def.inner_map_idx];
+
+			map_fd[i] = bpf_create_map_in_map(maps[i].def.type,
+							maps[i].def.key_size,
+							inner_map_fd,
+							maps[i].def.max_entries,
+							maps[i].def.map_flags);
+		} else {
+			map_fd[i] = bpf_create_map(maps[i].def.type,
+						   maps[i].def.key_size,
+						   maps[i].def.value_size,
+						   maps[i].def.max_entries,
+						   maps[i].def.map_flags);
+		}
 		if (map_fd[i] < 0) {
 			printf("failed to create a map: %d %s\n",
 			       errno, strerror(errno));
 			return 1;
 		}
+		maps[i].fd = map_fd[i];
 
-		if (maps[i].type == BPF_MAP_TYPE_PROG_ARRAY)
+		if (maps[i].def.type == BPF_MAP_TYPE_PROG_ARRAY)
 			prog_array_fd = map_fd[i];
 	}
 	return 0;
@@ -239,7 +257,8 @@ static int get_sec(Elf *elf, int i, GElf_Ehdr *ehdr, char **shname,
 }
 
 static int parse_relo_and_apply(Elf_Data *data, Elf_Data *symbols,
-				GElf_Shdr *shdr, struct bpf_insn *insn)
+				GElf_Shdr *shdr, struct bpf_insn *insn,
+				struct bpf_map_data *maps, int nr_maps)
 {
 	int i, nrels;
 
@@ -249,6 +268,8 @@ static int parse_relo_and_apply(Elf_Data *data, Elf_Data *symbols,
 		GElf_Sym sym;
 		GElf_Rel rel;
 		unsigned int insn_idx;
+		bool match = false;
+		int j, map_idx;
 
 		gelf_getrel(data, i, &rel);
 
@@ -262,20 +283,157 @@ static int parse_relo_and_apply(Elf_Data *data, Elf_Data *symbols,
 			return 1;
 		}
 		insn[insn_idx].src_reg = BPF_PSEUDO_MAP_FD;
-		insn[insn_idx].imm = map_fd[sym.st_value / sizeof(struct bpf_map_def)];
+
+		/* Match FD relocation against recorded map_data[] offset */
+		for (map_idx = 0; map_idx < nr_maps; map_idx++) {
+			if (maps[map_idx].elf_offset == sym.st_value) {
+				match = true;
+				break;
+			}
+		}
+		if (match) {
+			insn[insn_idx].imm = maps[map_idx].fd;
+		} else {
+			printf("invalid relo for insn[%d] no map_data match\n",
+			       insn_idx);
+			return 1;
+		}
 	}
 
 	return 0;
 }
 
-int load_bpf_file(char *path)
+static int cmp_symbols(const void *l, const void *r)
 {
-	int fd, i;
+	const GElf_Sym *lsym = (const GElf_Sym *)l;
+	const GElf_Sym *rsym = (const GElf_Sym *)r;
+
+	if (lsym->st_value < rsym->st_value)
+		return -1;
+	else if (lsym->st_value > rsym->st_value)
+		return 1;
+	else
+		return 0;
+}
+
+static int load_elf_maps_section(struct bpf_map_data *maps, int maps_shndx,
+				 Elf *elf, Elf_Data *symbols, int strtabidx)
+{
+	int map_sz_elf, map_sz_copy;
+	bool validate_zero = false;
+	Elf_Data *data_maps;
+	int i, nr_maps;
+	GElf_Sym *sym;
+	Elf_Scn *scn;
+	int copy_sz;
+
+	if (maps_shndx < 0)
+		return -EINVAL;
+	if (!symbols)
+		return -EINVAL;
+
+	/* Get data for maps section via elf index */
+	scn = elf_getscn(elf, maps_shndx);
+	if (scn)
+		data_maps = elf_getdata(scn, NULL);
+	if (!scn || !data_maps) {
+		printf("Failed to get Elf_Data from maps section %d\n",
+		       maps_shndx);
+		return -EINVAL;
+	}
+
+	/* For each map get corrosponding symbol table entry */
+	sym = calloc(MAX_MAPS+1, sizeof(GElf_Sym));
+	for (i = 0, nr_maps = 0; i < symbols->d_size / sizeof(GElf_Sym); i++) {
+		assert(nr_maps < MAX_MAPS+1);
+		if (!gelf_getsym(symbols, i, &sym[nr_maps]))
+			continue;
+		if (sym[nr_maps].st_shndx != maps_shndx)
+			continue;
+		/* Only increment iif maps section */
+		nr_maps++;
+	}
+
+	/* Align to map_fd[] order, via sort on offset in sym.st_value */
+	qsort(sym, nr_maps, sizeof(GElf_Sym), cmp_symbols);
+
+	/* Keeping compatible with ELF maps section changes
+	 * ------------------------------------------------
+	 * The program size of struct bpf_map_def is known by loader
+	 * code, but struct stored in ELF file can be different.
+	 *
+	 * Unfortunately sym[i].st_size is zero.  To calculate the
+	 * struct size stored in the ELF file, assume all struct have
+	 * the same size, and simply divide with number of map
+	 * symbols.
+	 */
+	map_sz_elf = data_maps->d_size / nr_maps;
+	map_sz_copy = sizeof(struct bpf_map_def);
+	if (map_sz_elf < map_sz_copy) {
+		/*
+		 * Backward compat, loading older ELF file with
+		 * smaller struct, keeping remaining bytes zero.
+		 */
+		map_sz_copy = map_sz_elf;
+	} else if (map_sz_elf > map_sz_copy) {
+		/*
+		 * Forward compat, loading newer ELF file with larger
+		 * struct with unknown features. Assume zero means
+		 * feature not used.  Thus, validate rest of struct
+		 * data is zero.
+		 */
+		validate_zero = true;
+	}
+
+	/* Memcpy relevant part of ELF maps data to loader maps */
+	for (i = 0; i < nr_maps; i++) {
+		unsigned char *addr, *end;
+		struct bpf_map_def *def;
+		const char *map_name;
+		size_t offset;
+
+		map_name = elf_strptr(elf, strtabidx, sym[i].st_name);
+		maps[i].name = strdup(map_name);
+		if (!maps[i].name) {
+			printf("strdup(%s): %s(%d)\n", map_name,
+			       strerror(errno), errno);
+			free(sym);
+			return -errno;
+		}
+
+		/* Symbol value is offset into ELF maps section data area */
+		offset = sym[i].st_value;
+		def = (struct bpf_map_def *)(data_maps->d_buf + offset);
+		maps[i].elf_offset = offset;
+		memset(&maps[i].def, 0, sizeof(struct bpf_map_def));
+		memcpy(&maps[i].def, def, map_sz_copy);
+
+		/* Verify no newer features were requested */
+		if (validate_zero) {
+			addr = (unsigned char*) def + map_sz_copy;
+			end  = (unsigned char*) def + map_sz_elf;
+			for (; addr < end; addr++) {
+				if (*addr != 0) {
+					free(sym);
+					return -EFBIG;
+				}
+			}
+		}
+	}
+
+	free(sym);
+	return nr_maps;
+}
+
+static int do_load_bpf_file(const char *path, fixup_map_cb fixup_map)
+{
+	int fd, i, ret, maps_shndx = -1, strtabidx = -1;
 	Elf *elf;
 	GElf_Ehdr ehdr;
 	GElf_Shdr shdr, shdr_prog;
-	Elf_Data *data, *data_prog, *symbols = NULL;
+	Elf_Data *data, *data_prog, *data_maps = NULL, *symbols = NULL;
 	char *shname, *shname_prog;
+	int nr_maps = 0;
 
 	/* reset global variables */
 	kern_version = 0;
@@ -323,12 +481,39 @@ int load_bpf_file(char *path)
 			}
 			memcpy(&kern_version, data->d_buf, sizeof(int));
 		} else if (strcmp(shname, "maps") == 0) {
-			processed_sec[i] = true;
-			if (load_maps(data->d_buf, data->d_size))
-				return 1;
+			int j;
+
+			maps_shndx = i;
+			data_maps = data;
+			for (j = 0; j < MAX_MAPS; j++)
+				map_data[j].fd = -1;
 		} else if (shdr.sh_type == SHT_SYMTAB) {
+			strtabidx = shdr.sh_link;
 			symbols = data;
 		}
+	}
+
+	ret = 1;
+
+	if (!symbols) {
+		printf("missing SHT_SYMTAB section\n");
+		goto done;
+	}
+
+	if (data_maps) {
+		nr_maps = load_elf_maps_section(map_data, maps_shndx,
+						elf, symbols, strtabidx);
+		if (nr_maps < 0) {
+			printf("Error: Failed loading ELF maps (errno:%d):%s\n",
+			       nr_maps, strerror(-nr_maps));
+			ret = 1;
+			goto done;
+		}
+		if (load_maps(map_data, nr_maps, fixup_map))
+			goto done;
+		map_data_count = nr_maps;
+
+		processed_sec[maps_shndx] = true;
 	}
 
 	/* load programs that need map fixup (relocations) */
@@ -354,7 +539,8 @@ int load_bpf_file(char *path)
 			processed_sec[shdr.sh_info] = true;
 			processed_sec[i] = true;
 
-			if (parse_relo_and_apply(data, symbols, &shdr, insns))
+			if (parse_relo_and_apply(data, symbols, &shdr, insns,
+						 map_data, nr_maps))
 				continue;
 
 			if (memcmp(shname_prog, "kprobe/", 7) == 0 ||
@@ -387,8 +573,20 @@ int load_bpf_file(char *path)
 			load_and_attach(shname, data->d_buf, data->d_size);
 	}
 
+	ret = 0;
+done:
 	close(fd);
-	return 0;
+	return ret;
+}
+
+int load_bpf_file(char *path)
+{
+	return do_load_bpf_file(path, NULL);
+}
+
+int load_bpf_file_fixup_map(const char *path, fixup_map_cb fixup_map)
+{
+	return do_load_bpf_file(path, fixup_map);
 }
 
 void read_trace_pipe(void)
@@ -473,7 +671,7 @@ struct ksym *ksym_search(long key)
 	return &syms[0];
 }
 
-int set_link_xdp_fd(int ifindex, int fd)
+int set_link_xdp_fd(int ifindex, int fd, __u32 flags)
 {
 	struct sockaddr_nl sa;
 	int sock, seq = 0, len, ret = -1;
@@ -509,15 +707,28 @@ int set_link_xdp_fd(int ifindex, int fd)
 	req.nh.nlmsg_seq = ++seq;
 	req.ifinfo.ifi_family = AF_UNSPEC;
 	req.ifinfo.ifi_index = ifindex;
+
+	/* started nested attribute for XDP */
 	nla = (struct nlattr *)(((char *)&req)
 				+ NLMSG_ALIGN(req.nh.nlmsg_len));
 	nla->nla_type = NLA_F_NESTED | 43/*IFLA_XDP*/;
+	nla->nla_len = NLA_HDRLEN;
 
-	nla_xdp = (struct nlattr *)((char *)nla + NLA_HDRLEN);
+	/* add XDP fd */
+	nla_xdp = (struct nlattr *)((char *)nla + nla->nla_len);
 	nla_xdp->nla_type = 1/*IFLA_XDP_FD*/;
 	nla_xdp->nla_len = NLA_HDRLEN + sizeof(int);
 	memcpy((char *)nla_xdp + NLA_HDRLEN, &fd, sizeof(fd));
-	nla->nla_len = NLA_HDRLEN + nla_xdp->nla_len;
+	nla->nla_len += nla_xdp->nla_len;
+
+	/* if user passed in any flags, add those too */
+	if (flags) {
+		nla_xdp = (struct nlattr *)((char *)nla + nla->nla_len);
+		nla_xdp->nla_type = 3/*IFLA_XDP_FLAGS*/;
+		nla_xdp->nla_len = NLA_HDRLEN + sizeof(flags);
+		memcpy((char *)nla_xdp + NLA_HDRLEN, &flags, sizeof(flags));
+		nla->nla_len += nla_xdp->nla_len;
+	}
 
 	req.nh.nlmsg_len += NLA_ALIGN(nla->nla_len);
 

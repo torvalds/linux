@@ -4,5 +4,6 @@ config SCSI_HISI_SAS
 	depends on ARM64 || COMPILE_TEST
 	select SCSI_SAS_LIBSAS
 	select BLK_DEV_INTEGRITY
+	depends on ATA
 	help
 		This driver supports HiSilicon's SAS HBA

@@ -332,14 +332,6 @@ static void i810_write_entry(dma_addr_t addr, unsigned int entry,
 	writel_relaxed(addr | pte_flags, intel_private.gtt + entry);
 }
 
-static const struct aper_size_info_fixed intel_fake_agp_sizes[] = {
-	{32, 8192, 3},
-	{64, 16384, 4},
-	{128, 32768, 5},
-	{256, 65536, 6},
-	{512, 131072, 7},
-};
-
 static unsigned int intel_gtt_stolen_size(void)
 {
 	u16 gmch_ctrl;
@@ -670,6 +662,14 @@ static int intel_gtt_init(void)
 }
 
 #if IS_ENABLED(CONFIG_AGP_INTEL)
+static const struct aper_size_info_fixed intel_fake_agp_sizes[] = {
+	{32, 8192, 3},
+	{64, 16384, 4},
+	{128, 32768, 5},
+	{256, 65536, 6},
+	{512, 131072, 7},
+};
+
 static int intel_fake_agp_fetch_size(void)
 {
 	int num_sizes = ARRAY_SIZE(intel_fake_agp_sizes);

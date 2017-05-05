@@ -1244,7 +1244,6 @@ static const struct regmap_config tc_regmap_config = {
 static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
-	struct device_node *ep;
 	struct tc_data *tc;
 	int ret;
 
@@ -1255,29 +1254,9 @@ static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	tc->dev = dev;
 
 	/* port@2 is the output port */
-	ep = of_graph_get_endpoint_by_regs(dev->of_node, 2, -1);
-	if (ep) {
-		struct device_node *remote;
-
-		remote = of_graph_get_remote_port_parent(ep);
-		if (!remote) {
-			dev_warn(dev, "endpoint %s not connected\n",
-				 ep->full_name);
-			of_node_put(ep);
-			return -ENODEV;
-		}
-		of_node_put(ep);
-		tc->panel = of_drm_find_panel(remote);
-		if (tc->panel) {
-			dev_dbg(dev, "found panel %s\n", remote->full_name);
-		} else {
-			dev_dbg(dev, "waiting for panel %s\n",
-				remote->full_name);
-			of_node_put(remote);
-			return -EPROBE_DEFER;
-		}
-		of_node_put(remote);
-	}
+	ret = drm_of_find_panel_or_bridge(dev->of_node, 2, 0, &tc->panel, NULL);
+	if (ret)
+		return ret;
 
 	/* Shut down GPIO is optional */
 	tc->sd_gpio = devm_gpiod_get_optional(dev, "shutdown", GPIOD_OUT_HIGH);

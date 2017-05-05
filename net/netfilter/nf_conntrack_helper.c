@@ -187,8 +187,7 @@ nf_ct_helper_ext_add(struct nf_conn *ct,
 {
 	struct nf_conn_help *help;
 
-	help = nf_ct_ext_add_length(ct, NF_CT_EXT_HELPER,
-				    helper->data_len, gfp);
+	help = nf_ct_ext_add(ct, NF_CT_EXT_HELPER, gfp);
 	if (help)
 		INIT_HLIST_HEAD(&help->expectations);
 	else
@@ -386,17 +385,36 @@ int nf_conntrack_helper_register(struct nf_conntrack_helper *me)
 	struct nf_conntrack_tuple_mask mask = { .src.u.all = htons(0xFFFF) };
 	unsigned int h = helper_hash(&me->tuple);
 	struct nf_conntrack_helper *cur;
-	int ret = 0;
+	int ret = 0, i;
 
 	BUG_ON(me->expect_policy == NULL);
 	BUG_ON(me->expect_class_max >= NF_CT_MAX_EXPECT_CLASSES);
 	BUG_ON(strlen(me->name) > NF_CT_HELPER_NAME_LEN - 1);
 
+	if (me->expect_policy->max_expected > NF_CT_EXPECT_MAX_CNT)
+		return -EINVAL;
+
 	mutex_lock(&nf_ct_helper_mutex);
-	hlist_for_each_entry(cur, &nf_ct_helper_hash[h], hnode) {
-		if (nf_ct_tuple_src_mask_cmp(&cur->tuple, &me->tuple, &mask)) {
-			ret = -EEXIST;
-			goto out;
+	for (i = 0; i < nf_ct_helper_hsize; i++) {
+		hlist_for_each_entry(cur, &nf_ct_helper_hash[i], hnode) {
+			if (!strcmp(cur->name, me->name) &&
+			    (cur->tuple.src.l3num == NFPROTO_UNSPEC ||
+			     cur->tuple.src.l3num == me->tuple.src.l3num) &&
+			    cur->tuple.dst.protonum == me->tuple.dst.protonum) {
+				ret = -EEXIST;
+				goto out;
+			}
+		}
+	}
+
+	/* avoid unpredictable behaviour for auto_assign_helper */
+	if (!(me->flags & NF_CT_HELPER_F_USERSPACE)) {
+		hlist_for_each_entry(cur, &nf_ct_helper_hash[h], hnode) {
+			if (nf_ct_tuple_src_mask_cmp(&cur->tuple, &me->tuple,
+						     &mask)) {
+				ret = -EEXIST;
+				goto out;
+			}
 		}
 	}
 	hlist_add_head_rcu(&me->hnode, &nf_ct_helper_hash[h]);
@@ -455,11 +473,8 @@ void nf_conntrack_helper_unregister(struct nf_conntrack_helper *me)
 			if ((rcu_dereference_protected(
 					help->helper,
 					lockdep_is_held(&nf_conntrack_expect_lock)
-					) == me || exp->helper == me) &&
-			    del_timer(&exp->timeout)) {
-				nf_ct_unlink_expect(exp);
-				nf_ct_expect_put(exp);
-			}
+					) == me || exp->helper == me))
+				nf_ct_remove_expect(exp);
 		}
 	}
 	spin_unlock_bh(&nf_conntrack_expect_lock);
@@ -491,7 +506,7 @@ void nf_ct_helper_init(struct nf_conntrack_helper *helper,
 		       u16 l3num, u16 protonum, const char *name,
 		       u16 default_port, u16 spec_port, u32 id,
 		       const struct nf_conntrack_expect_policy *exp_pol,
-		       u32 expect_class_max, u32 data_len,
+		       u32 expect_class_max,
 		       int (*help)(struct sk_buff *skb, unsigned int protoff,
 				   struct nf_conn *ct,
 				   enum ip_conntrack_info ctinfo),
@@ -504,7 +519,6 @@ void nf_ct_helper_init(struct nf_conntrack_helper *helper,
 	helper->tuple.src.u.all = htons(spec_port);
 	helper->expect_policy = exp_pol;
 	helper->expect_class_max = expect_class_max;
-	helper->data_len = data_len;
 	helper->help = help;
 	helper->from_nlattr = from_nlattr;
 	helper->me = module;
@@ -544,7 +558,7 @@ void nf_conntrack_helpers_unregister(struct nf_conntrack_helper *helper,
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_helpers_unregister);
 
-static struct nf_ct_ext_type helper_extend __read_mostly = {
+static const struct nf_ct_ext_type helper_extend = {
 	.len	= sizeof(struct nf_conn_help),
 	.align	= __alignof__(struct nf_conn_help),
 	.id	= NF_CT_EXT_HELPER,

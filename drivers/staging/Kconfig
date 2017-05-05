@@ -104,4 +104,6 @@ source "drivers/staging/vc04_services/Kconfig"
 
 source "drivers/staging/bcm2835-audio/Kconfig"
 
+source "drivers/staging/typec/Kconfig"
+
 endif # STAGING

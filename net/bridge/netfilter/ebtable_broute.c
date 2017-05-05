@@ -65,13 +65,13 @@ static int ebt_broute(struct sk_buff *skb)
 
 static int __net_init broute_net_init(struct net *net)
 {
-	net->xt.broute_table = ebt_register_table(net, &broute_table);
+	net->xt.broute_table = ebt_register_table(net, &broute_table, NULL);
 	return PTR_ERR_OR_ZERO(net->xt.broute_table);
 }
 
 static void __net_exit broute_net_exit(struct net *net)
 {
-	ebt_unregister_table(net, net->xt.broute_table);
+	ebt_unregister_table(net, net->xt.broute_table, NULL);
 }
 
 static struct pernet_operations broute_net_ops = {

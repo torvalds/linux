@@ -1,3 +1,7 @@
+#include <dirent.h>
+#include <errno.h>
+#include <inttypes.h>
+#include <regex.h>
 #include "callchain.h"
 #include "debug.h"
 #include "event.h"
@@ -10,9 +14,15 @@
 #include "thread.h"
 #include "vdso.h"
 #include <stdbool.h>
-#include <symbol/kallsyms.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include "unwind.h"
 #include "linux/hash.h"
+#include "asm/bug.h"
+
+#include "sane_ctype.h"
+#include <symbol/kallsyms.h>
 
 static void __machine__remove_thread(struct machine *machine, struct thread *th, bool lock);
 
@@ -493,6 +503,37 @@ int machine__process_comm_event(struct machine *machine, union perf_event *event
 	if (thread == NULL ||
 	    __thread__set_comm(thread, event->comm.comm, sample->time, exec)) {
 		dump_printf("problem processing PERF_RECORD_COMM, skipping event.\n");
+		err = -1;
+	}
+
+	thread__put(thread);
+
+	return err;
+}
+
+int machine__process_namespaces_event(struct machine *machine __maybe_unused,
+				      union perf_event *event,
+				      struct perf_sample *sample __maybe_unused)
+{
+	struct thread *thread = machine__findnew_thread(machine,
+							event->namespaces.pid,
+							event->namespaces.tid);
+	int err = 0;
+
+	WARN_ONCE(event->namespaces.nr_namespaces > NR_NAMESPACES,
+		  "\nWARNING: kernel seems to support more namespaces than perf"
+		  " tool.\nTry updating the perf tool..\n\n");
+
+	WARN_ONCE(event->namespaces.nr_namespaces < NR_NAMESPACES,
+		  "\nWARNING: perf tool seems to support more namespaces than"
+		  " the kernel.\nTry updating the kernel..\n\n");
+
+	if (dump_trace)
+		perf_event__fprintf_namespaces(event, stdout);
+
+	if (thread == NULL ||
+	    thread__set_namespaces(thread, sample->time, &event->namespaces)) {
+		dump_printf("problem processing PERF_RECORD_NAMESPACES, skipping event.\n");
 		err = -1;
 	}
 
@@ -1439,7 +1480,7 @@ static void __machine__remove_thread(struct machine *machine, struct thread *th,
 	if (machine->last_match == th)
 		machine->last_match = NULL;
 
-	BUG_ON(atomic_read(&th->refcnt) == 0);
+	BUG_ON(refcount_read(&th->refcnt) == 0);
 	if (lock)
 		pthread_rwlock_wrlock(&machine->threads_lock);
 	rb_erase_init(&th->rb_node, &machine->threads);
@@ -1538,6 +1579,8 @@ int machine__process_event(struct machine *machine, union perf_event *event,
 		ret = machine__process_comm_event(machine, event, sample); break;
 	case PERF_RECORD_MMAP:
 		ret = machine__process_mmap_event(machine, event, sample); break;
+	case PERF_RECORD_NAMESPACES:
+		ret = machine__process_namespaces_event(machine, event, sample); break;
 	case PERF_RECORD_MMAP2:
 		ret = machine__process_mmap2_event(machine, event, sample); break;
 	case PERF_RECORD_FORK:

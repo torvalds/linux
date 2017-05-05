@@ -897,6 +897,7 @@ static int create_kernel_qp(struct mlx5_ib_dev *dev,
 	if (init_attr->create_flags & ~(IB_QP_CREATE_SIGNATURE_EN |
 					IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK |
 					IB_QP_CREATE_IPOIB_UD_LSO |
+					IB_QP_CREATE_NETIF_QP |
 					mlx5_ib_create_qp_sqpn_qp1()))
 		return -EINVAL;
 
@@ -2205,63 +2206,65 @@ static int modify_raw_packet_tx_affinity(struct mlx5_core_dev *dev,
 }
 
 static int mlx5_set_path(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
-			 const struct ib_ah_attr *ah,
+			 const struct rdma_ah_attr *ah,
 			 struct mlx5_qp_path *path, u8 port, int attr_mask,
 			 u32 path_flags, const struct ib_qp_attr *attr,
 			 bool alt)
 {
-	enum rdma_link_layer ll = rdma_port_get_link_layer(&dev->ib_dev, port);
+	const struct ib_global_route *grh = rdma_ah_read_grh(ah);
 	int err;
 	enum ib_gid_type gid_type;
+	u8 ah_flags = rdma_ah_get_ah_flags(ah);
+	u8 sl = rdma_ah_get_sl(ah);
 
 	if (attr_mask & IB_QP_PKEY_INDEX)
 		path->pkey_index = cpu_to_be16(alt ? attr->alt_pkey_index :
 						     attr->pkey_index);
 
-	if (ah->ah_flags & IB_AH_GRH) {
-		if (ah->grh.sgid_index >=
+	if (ah_flags & IB_AH_GRH) {
+		if (grh->sgid_index >=
 		    dev->mdev->port_caps[port - 1].gid_table_len) {
 			pr_err("sgid_index (%u) too large. max is %d\n",
-			       ah->grh.sgid_index,
+			       grh->sgid_index,
 			       dev->mdev->port_caps[port - 1].gid_table_len);
 			return -EINVAL;
 		}
 	}
 
-	if (ll == IB_LINK_LAYER_ETHERNET) {
-		if (!(ah->ah_flags & IB_AH_GRH))
+	if (ah->type == RDMA_AH_ATTR_TYPE_ROCE) {
+		if (!(ah_flags & IB_AH_GRH))
 			return -EINVAL;
-		err = mlx5_get_roce_gid_type(dev, port, ah->grh.sgid_index,
+		err = mlx5_get_roce_gid_type(dev, port, grh->sgid_index,
 					     &gid_type);
 		if (err)
 			return err;
-		memcpy(path->rmac, ah->dmac, sizeof(ah->dmac));
+		memcpy(path->rmac, ah->roce.dmac, sizeof(ah->roce.dmac));
 		path->udp_sport = mlx5_get_roce_udp_sport(dev, port,
-							  ah->grh.sgid_index);
-		path->dci_cfi_prio_sl = (ah->sl & 0x7) << 4;
+							  grh->sgid_index);
+		path->dci_cfi_prio_sl = (sl & 0x7) << 4;
 		if (gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP)
-			path->ecn_dscp = (ah->grh.traffic_class >> 2) & 0x3f;
+			path->ecn_dscp = (grh->traffic_class >> 2) & 0x3f;
 	} else {
 		path->fl_free_ar = (path_flags & MLX5_PATH_FLAG_FL) ? 0x80 : 0;
 		path->fl_free_ar |=
 			(path_flags & MLX5_PATH_FLAG_FREE_AR) ? 0x40 : 0;
-		path->rlid = cpu_to_be16(ah->dlid);
-		path->grh_mlid = ah->src_path_bits & 0x7f;
-		if (ah->ah_flags & IB_AH_GRH)
+		path->rlid = cpu_to_be16(rdma_ah_get_dlid(ah));
+		path->grh_mlid = rdma_ah_get_path_bits(ah) & 0x7f;
+		if (ah_flags & IB_AH_GRH)
 			path->grh_mlid	|= 1 << 7;
-		path->dci_cfi_prio_sl = ah->sl & 0xf;
+		path->dci_cfi_prio_sl = sl & 0xf;
 	}
 
-	if (ah->ah_flags & IB_AH_GRH) {
-		path->mgid_index = ah->grh.sgid_index;
-		path->hop_limit  = ah->grh.hop_limit;
+	if (ah_flags & IB_AH_GRH) {
+		path->mgid_index = grh->sgid_index;
+		path->hop_limit  = grh->hop_limit;
 		path->tclass_flowlabel =
-			cpu_to_be32((ah->grh.traffic_class << 20) |
-				    (ah->grh.flow_label));
-		memcpy(path->rgid, ah->grh.dgid.raw, 16);
+			cpu_to_be32((grh->traffic_class << 20) |
+				    (grh->flow_label));
+		memcpy(path->rgid, grh->dgid.raw, 16);
 	}
 
-	err = ib_rate_to_mlx5(dev, ah->static_rate);
+	err = ib_rate_to_mlx5(dev, rdma_ah_get_static_rate(ah));
 	if (err < 0)
 		return err;
 	path->static_rate = err;
@@ -2273,7 +2276,7 @@ static int mlx5_set_path(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	if ((qp->ibqp.qp_type == IB_QPT_RAW_PACKET) && qp->sq.wqe_cnt)
 		return modify_raw_packet_eth_prio(dev->mdev,
 						  &qp->raw_packet_qp.sq,
-						  ah->sl & 0xf);
+						  sl & 0xf);
 
 	return 0;
 }
@@ -2798,7 +2801,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 			       qp->port) - 1;
 		mibport = &dev->port[port_num];
 		context->qp_counter_set_usr_page |=
-			cpu_to_be32((u32)(mibport->q_cnts.set_id) << 24);
+			cpu_to_be32((u32)(mibport->cnts.set_id) << 24);
 	}
 
 	if (!ibqp->uobject && cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT)
@@ -2826,7 +2829,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 
 		raw_qp_param.operation = op;
 		if (cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT) {
-			raw_qp_param.rq_q_ctr_id = mibport->q_cnts.set_id;
+			raw_qp_param.rq_q_ctr_id = mibport->cnts.set_id;
 			raw_qp_param.set_mask |= MLX5_RAW_QP_MOD_SET_RQ_Q_CTR_ID;
 		}
 
@@ -4248,33 +4251,36 @@ static int to_ib_qp_access_flags(int mlx5_flags)
 	return ib_flags;
 }
 
-static void to_ib_ah_attr(struct mlx5_ib_dev *ibdev, struct ib_ah_attr *ib_ah_attr,
-				struct mlx5_qp_path *path)
+static void to_rdma_ah_attr(struct mlx5_ib_dev *ibdev,
+			    struct rdma_ah_attr *ah_attr,
+			    struct mlx5_qp_path *path)
 {
 	struct mlx5_core_dev *dev = ibdev->mdev;
 
-	memset(ib_ah_attr, 0, sizeof(*ib_ah_attr));
-	ib_ah_attr->port_num	  = path->port;
+	memset(ah_attr, 0, sizeof(*ah_attr));
 
-	if (ib_ah_attr->port_num == 0 ||
-	    ib_ah_attr->port_num > MLX5_CAP_GEN(dev, num_ports))
+	ah_attr->type = rdma_ah_find_type(&ibdev->ib_dev, path->port);
+	rdma_ah_set_port_num(ah_attr, path->port);
+	if (rdma_ah_get_port_num(ah_attr) == 0 ||
+	    rdma_ah_get_port_num(ah_attr) > MLX5_CAP_GEN(dev, num_ports))
 		return;
 
-	ib_ah_attr->sl = path->dci_cfi_prio_sl & 0xf;
+	rdma_ah_set_port_num(ah_attr, path->port);
+	rdma_ah_set_sl(ah_attr, path->dci_cfi_prio_sl & 0xf);
 
-	ib_ah_attr->dlid	  = be16_to_cpu(path->rlid);
-	ib_ah_attr->src_path_bits = path->grh_mlid & 0x7f;
-	ib_ah_attr->static_rate   = path->static_rate ? path->static_rate - 5 : 0;
-	ib_ah_attr->ah_flags      = (path->grh_mlid & (1 << 7)) ? IB_AH_GRH : 0;
-	if (ib_ah_attr->ah_flags) {
-		ib_ah_attr->grh.sgid_index = path->mgid_index;
-		ib_ah_attr->grh.hop_limit  = path->hop_limit;
-		ib_ah_attr->grh.traffic_class =
-			(be32_to_cpu(path->tclass_flowlabel) >> 20) & 0xff;
-		ib_ah_attr->grh.flow_label =
-			be32_to_cpu(path->tclass_flowlabel) & 0xfffff;
-		memcpy(ib_ah_attr->grh.dgid.raw,
-		       path->rgid, sizeof(ib_ah_attr->grh.dgid.raw));
+	rdma_ah_set_dlid(ah_attr, be16_to_cpu(path->rlid));
+	rdma_ah_set_path_bits(ah_attr, path->grh_mlid & 0x7f);
+	rdma_ah_set_static_rate(ah_attr,
+				path->static_rate ? path->static_rate - 5 : 0);
+	if (path->grh_mlid & (1 << 7)) {
+		u32 tc_fl = be32_to_cpu(path->tclass_flowlabel);
+
+		rdma_ah_set_grh(ah_attr, NULL,
+				tc_fl & 0xfffff,
+				path->mgid_index,
+				path->hop_limit,
+				(tc_fl >> 20) & 0xff);
+		rdma_ah_set_dgid_raw(ah_attr, path->rgid);
 	}
 }
 
@@ -4439,11 +4445,12 @@ static int query_qp_attr(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 		to_ib_qp_access_flags(be32_to_cpu(context->params2));
 
 	if (qp->ibqp.qp_type == IB_QPT_RC || qp->ibqp.qp_type == IB_QPT_UC) {
-		to_ib_ah_attr(dev, &qp_attr->ah_attr, &context->pri_path);
-		to_ib_ah_attr(dev, &qp_attr->alt_ah_attr, &context->alt_path);
+		to_rdma_ah_attr(dev, &qp_attr->ah_attr, &context->pri_path);
+		to_rdma_ah_attr(dev, &qp_attr->alt_ah_attr, &context->alt_path);
 		qp_attr->alt_pkey_index =
 			be16_to_cpu(context->alt_path.pkey_index);
-		qp_attr->alt_port_num	= qp_attr->alt_ah_attr.port_num;
+		qp_attr->alt_port_num	=
+			rdma_ah_get_port_num(&qp_attr->alt_ah_attr);
 	}
 
 	qp_attr->pkey_index = be16_to_cpu(context->pri_path.pkey_index);
@@ -4964,7 +4971,8 @@ int mlx5_ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *wq_attr,
 		if (MLX5_CAP_GEN(dev->mdev, modify_rq_counter_set_id)) {
 			MLX5_SET64(modify_rq_in, in, modify_bitmask,
 				   MLX5_MODIFY_RQ_IN_MODIFY_BITMASK_RQ_COUNTER_SET_ID);
-			MLX5_SET(rqc, rqc, counter_set_id, dev->port->q_cnts.set_id);
+			MLX5_SET(rqc, rqc, counter_set_id,
+				 dev->port->cnts.set_id);
 		} else
 			pr_info_once("%s: Receive WQ counters are not supported on current FW\n",
 				     dev->ib_dev.name);

@@ -839,6 +839,8 @@ struct txq_info {
 struct ieee80211_if_mntr {
 	u32 flags;
 	u8 mu_follow_addr[ETH_ALEN] __aligned(2);
+
+	struct list_head list;
 };
 
 /**
@@ -997,21 +999,6 @@ static inline void
 sdata_assert_lock(struct ieee80211_sub_if_data *sdata)
 {
 	lockdep_assert_held(&sdata->wdev.mtx);
-}
-
-static inline enum nl80211_band
-ieee80211_get_sdata_band(struct ieee80211_sub_if_data *sdata)
-{
-	enum nl80211_band band = NL80211_BAND_2GHZ;
-	struct ieee80211_chanctx_conf *chanctx_conf;
-
-	rcu_read_lock();
-	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
-	if (!WARN_ON(!chanctx_conf))
-		band = chanctx_conf->def.chan->band;
-	rcu_read_unlock();
-
-	return band;
 }
 
 static inline int
@@ -1259,6 +1246,7 @@ struct ieee80211_local {
 
 	/* see iface.c */
 	struct list_head interfaces;
+	struct list_head mon_list; /* only that are IFF_UP && !cooked */
 	struct mutex iflist_mtx;
 
 	/*
@@ -1418,6 +1406,27 @@ IEEE80211_WDEV_TO_SUB_IF(struct wireless_dev *wdev)
 	return container_of(wdev, struct ieee80211_sub_if_data, wdev);
 }
 
+static inline struct ieee80211_supported_band *
+ieee80211_get_sband(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	enum nl80211_band band;
+
+	rcu_read_lock();
+	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+
+	if (WARN_ON(!chanctx_conf)) {
+		rcu_read_unlock();
+		return NULL;
+	}
+
+	band = chanctx_conf->def.chan->band;
+	rcu_read_unlock();
+
+	return local->hw.wiphy->bands[band];
+}
+
 /* this struct represents 802.11n's RA/TID combination */
 struct ieee80211_ra_tid {
 	u8 ra[ETH_ALEN];
@@ -1474,6 +1483,7 @@ struct ieee802_11_elems {
 	const u8 *opmode_notif;
 	const struct ieee80211_sec_chan_offs_ie *sec_chan_offs;
 	const struct ieee80211_mesh_chansw_params_ie *mesh_chansw_params_ie;
+	const struct ieee80211_bss_max_idle_period_ie *max_idle_period_ie;
 
 	/* length of them, respectively */
 	u8 ext_capab_len;
@@ -1527,9 +1537,9 @@ ieee80211_have_rx_timestamp(struct ieee80211_rx_status *status)
 		     status->flag & RX_FLAG_MACTIME_END);
 	if (status->flag & (RX_FLAG_MACTIME_START | RX_FLAG_MACTIME_END))
 		return true;
-	/* can't handle HT/VHT preamble yet */
+	/* can't handle non-legacy preamble yet */
 	if (status->flag & RX_FLAG_MACTIME_PLCP_START &&
-	    !(status->flag & (RX_FLAG_HT | RX_FLAG_VHT)))
+	    status->encoding != RX_ENC_LEGACY)
 		return true;
 	return false;
 }

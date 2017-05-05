@@ -188,11 +188,10 @@ unsigned long __copy_user(void __user *pdst, const void *psrc, unsigned long pn)
 }
 EXPORT_SYMBOL(__copy_user);
 
-/* Copy from user to kernel, zeroing the bytes that were inaccessible in
-   userland.  The return-value is the number of bytes that were
+/* Copy from user to kernel.  The return-value is the number of bytes that were
    inaccessible.  */
 
-unsigned long __copy_user_zeroing(void *pdst, const void __user *psrc,
+unsigned long __copy_user_in(void *pdst, const void __user *psrc,
 				  unsigned long pn)
 {
   /* We want the parameters put in special registers.
@@ -217,19 +216,17 @@ unsigned long __copy_user_zeroing(void *pdst, const void __user *psrc,
     {
       __asm_copy_from_user_1 (dst, src, retn);
       n--;
+      if (retn)
+         goto exception;
     }
 
     if (((unsigned long) src & 2) && n >= 2)
     {
       __asm_copy_from_user_2 (dst, src, retn);
       n -= 2;
+      if (retn)
+         goto exception;
     }
-
-    /* We only need one check after the unalignment-adjustments, because
-       if both adjustments were done, either both or neither reference
-       had an exception.  */
-    if (retn != 0)
-      goto copy_exception_bytes;
   }
 
   /* Decide which copying method to use. */
@@ -328,7 +325,7 @@ unsigned long __copy_user_zeroing(void *pdst, const void __user *psrc,
     n -= 4;
 
     if (retn)
-      goto copy_exception_bytes;
+      goto exception;
   }
 
   /* If we get here, there were no memory read faults.  */
@@ -356,20 +353,10 @@ unsigned long __copy_user_zeroing(void *pdst, const void __user *psrc,
      bytes.  */
   return retn;
 
-copy_exception_bytes:
-  /* We already have "retn" bytes cleared, and need to clear the
-     remaining "n" bytes.  A non-optimized simple byte-for-byte in-line
-     memset is preferred here, since this isn't speed-critical code and
-     we'd rather have this a leaf-function than calling memset.  */
-  {
-    char *endp;
-    for (endp = dst + n; dst < endp; dst++)
-      *dst = 0;
-  }
-
+exception:
   return retn + n;
 }
-EXPORT_SYMBOL(__copy_user_zeroing);
+EXPORT_SYMBOL(__copy_user_in);
 
 /* Zero userspace.  */
 unsigned long __do_clear_user(void __user *pto, unsigned long pn)
