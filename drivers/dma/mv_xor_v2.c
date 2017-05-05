@@ -389,6 +389,8 @@ mv_xor_v2_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest,
 		__func__, len, &src, &dest, flags);
 
 	sw_desc = mv_xor_v2_prep_sw_desc(xor_dev);
+	if (!sw_desc)
+		return NULL;
 
 	sw_desc->async_tx.flags = flags;
 
@@ -443,6 +445,8 @@ mv_xor_v2_prep_dma_xor(struct dma_chan *chan, dma_addr_t dest, dma_addr_t *src,
 		__func__, src_cnt, len, &dest, flags);
 
 	sw_desc = mv_xor_v2_prep_sw_desc(xor_dev);
+	if (!sw_desc)
+		return NULL;
 
 	sw_desc->async_tx.flags = flags;
 
@@ -491,6 +495,8 @@ mv_xor_v2_prep_dma_interrupt(struct dma_chan *chan, unsigned long flags)
 		container_of(chan, struct mv_xor_v2_device, dmachan);
 
 	sw_desc = mv_xor_v2_prep_sw_desc(xor_dev);
+	if (!sw_desc)
+		return NULL;
 
 	/* set the HW descriptor */
 	hw_descriptor = &sw_desc->hw_desc;
