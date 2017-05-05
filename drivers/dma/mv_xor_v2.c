@@ -161,6 +161,7 @@ struct mv_xor_v2_device {
 	struct mv_xor_v2_sw_desc *sw_desq;
 	int desc_size;
 	unsigned int npendings;
+	unsigned int hw_queue_idx;
 };
 
 /**
@@ -211,18 +212,6 @@ static void mv_xor_v2_set_data_buffers(struct mv_xor_v2_device *xor_dev,
 		desc->data_buff_addr[arr_index + 2] |=
 			(upper_32_bits(src) & 0xFFFF) << 16;
 	}
-}
-
-/*
- * Return the next available index in the DESQ.
- */
-static int mv_xor_v2_get_desq_write_ptr(struct mv_xor_v2_device *xor_dev)
-{
-	/* read the index for the next available descriptor in the DESQ */
-	u32 reg = readl(xor_dev->dma_base + MV_XOR_V2_DMA_DESQ_ALLOC_OFF);
-
-	return ((reg >> MV_XOR_V2_DMA_DESQ_ALLOC_WRPTR_SHIFT)
-		& MV_XOR_V2_DMA_DESQ_ALLOC_WRPTR_MASK);
 }
 
 /*
@@ -306,7 +295,6 @@ static irqreturn_t mv_xor_v2_interrupt_handler(int irq, void *data)
 static dma_cookie_t
 mv_xor_v2_tx_submit(struct dma_async_tx_descriptor *tx)
 {
-	int desq_ptr;
 	void *dest_hw_desc;
 	dma_cookie_t cookie;
 	struct mv_xor_v2_sw_desc *sw_desc =
@@ -322,15 +310,15 @@ mv_xor_v2_tx_submit(struct dma_async_tx_descriptor *tx)
 	spin_lock_bh(&xor_dev->lock);
 	cookie = dma_cookie_assign(tx);
 
-	/* get the next available slot in the DESQ */
-	desq_ptr = mv_xor_v2_get_desq_write_ptr(xor_dev);
-
 	/* copy the HW descriptor from the SW descriptor to the DESQ */
-	dest_hw_desc = xor_dev->hw_desq_virt + desq_ptr;
+	dest_hw_desc = xor_dev->hw_desq_virt + xor_dev->hw_queue_idx;
 
 	memcpy(dest_hw_desc, &sw_desc->hw_desc, xor_dev->desc_size);
 
 	xor_dev->npendings++;
+	xor_dev->hw_queue_idx++;
+	if (xor_dev->hw_queue_idx >= MV_XOR_V2_DESC_NUM)
+		xor_dev->hw_queue_idx = 0;
 
 	spin_unlock_bh(&xor_dev->lock);
 
