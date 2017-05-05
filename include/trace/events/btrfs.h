@@ -1410,42 +1410,6 @@ DEFINE_EVENT(btrfs__workqueue_done, btrfs_workqueue_destroy,
 	TP_ARGS(wq)
 );
 
-DECLARE_EVENT_CLASS(btrfs__qgroup_data_map,
-
-	TP_PROTO(struct inode *inode, u64 free_reserved),
-
-	TP_ARGS(inode, free_reserved),
-
-	TP_STRUCT__entry_btrfs(
-		__field(	u64,		rootid		)
-		__field(	unsigned long,	ino		)
-		__field(	u64,		free_reserved	)
-	),
-
-	TP_fast_assign_btrfs(btrfs_sb(inode->i_sb),
-		__entry->rootid		=	BTRFS_I(inode)->root->objectid;
-		__entry->ino		=	inode->i_ino;
-		__entry->free_reserved	=	free_reserved;
-	),
-
-	TP_printk_btrfs("rootid=%llu ino=%lu free_reserved=%llu",
-		  __entry->rootid, __entry->ino, __entry->free_reserved)
-);
-
-DEFINE_EVENT(btrfs__qgroup_data_map, btrfs_qgroup_init_data_rsv_map,
-
-	TP_PROTO(struct inode *inode, u64 free_reserved),
-
-	TP_ARGS(inode, free_reserved)
-);
-
-DEFINE_EVENT(btrfs__qgroup_data_map, btrfs_qgroup_free_data_rsv_map,
-
-	TP_PROTO(struct inode *inode, u64 free_reserved),
-
-	TP_ARGS(inode, free_reserved)
-);
-
 #define BTRFS_QGROUP_OPERATIONS				\
 	{ QGROUP_RESERVE,	"reserve"	},	\
 	{ QGROUP_RELEASE,	"release"	},	\
