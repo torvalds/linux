@@ -92,7 +92,7 @@ struct btrfs_inode;
 struct btrfs_io_bio;
 struct io_failure_record;
 
-typedef	int (extent_submit_bio_hook_t)(struct inode *inode, struct bio *bio,
+typedef	int (extent_submit_bio_hook_t)(void *private_data, struct bio *bio,
 				       int mirror_num, unsigned long bio_flags,
 				       u64 bio_offset);
 struct extent_io_ops {
@@ -108,32 +108,36 @@ struct extent_io_ops {
 			      size_t size, struct bio *bio,
 			      unsigned long bio_flags);
 	int (*readpage_io_failed_hook)(struct page *page, int failed_mirror);
+	struct btrfs_fs_info *(*tree_fs_info)(void *private_data);
+	void (*set_range_writeback)(void *private_data, u64 start, u64 end);
 
 	/*
 	 * Optional hooks, called if the pointer is not NULL
 	 */
-	int (*fill_delalloc)(struct inode *inode, struct page *locked_page,
+	int (*fill_delalloc)(void *private_data, struct page *locked_page,
 			     u64 start, u64 end, int *page_started,
 			     unsigned long *nr_written);
 
 	int (*writepage_start_hook)(struct page *page, u64 start, u64 end);
 	void (*writepage_end_io_hook)(struct page *page, u64 start, u64 end,
 				      struct extent_state *state, int uptodate);
-	void (*set_bit_hook)(struct inode *inode, struct extent_state *state,
+	void (*set_bit_hook)(void *private_data, struct extent_state *state,
 			     unsigned *bits);
-	void (*clear_bit_hook)(struct btrfs_inode *inode,
+	void (*clear_bit_hook)(void *private_data,
 			struct extent_state *state,
 			unsigned *bits);
-	void (*merge_extent_hook)(struct inode *inode,
+	void (*merge_extent_hook)(void *private_data,
 				  struct extent_state *new,
 				  struct extent_state *other);
-	void (*split_extent_hook)(struct inode *inode,
+	void (*split_extent_hook)(void *private_data,
 				  struct extent_state *orig, u64 split);
+	void (*check_extent_io_range)(void *private_data, const char *caller,
+				      u64 start, u64 end);
 };
 
 struct extent_io_tree {
 	struct rb_root state;
-	struct address_space *mapping;
+	void *private_data;
 	u64 dirty_bytes;
 	int track_uptodate;
 	spinlock_t lock;
@@ -230,8 +234,7 @@ typedef struct extent_map *(get_extent_t)(struct btrfs_inode *inode,
 					  u64 start, u64 len,
 					  int create);
 
-void extent_io_tree_init(struct extent_io_tree *tree,
-			 struct address_space *mapping);
+void extent_io_tree_init(struct extent_io_tree *tree, void *private_data);
 int try_release_extent_mapping(struct extent_map_tree *map,
 			       struct extent_io_tree *tree, struct page *page,
 			       gfp_t mask);
