@@ -158,7 +158,7 @@ struct usb_ext_prop_desc {
  * |-----+-----------------------+------+-------------------------------------|
  * |   0 | bFirstInterfaceNumber | U8   | index of the interface or of the 1st|
  * |     |                       |      | interface in an IAD group           |
- * |   1 | Reserved              | U8   | 0                                   |
+ * |   1 | Reserved              | U8   | 1                                   |
  * |   2 | CompatibleID          | U8[8]| compatible ID string                |
  * |  10 | SubCompatibleID       | U8[8]| subcompatible ID string             |
  * |  18 | Reserved              | U8[6]| 0                                   |
