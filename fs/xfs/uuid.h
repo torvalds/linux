@@ -19,6 +19,5 @@
 #define __XFS_SUPPORT_UUID_H__
 
 extern int uuid_is_nil(uuid_t *uuid);
-extern void uuid_getnodeuniq(uuid_t *uuid, int fsid [2]);
 
 #endif	/* __XFS_SUPPORT_UUID_H__ */
