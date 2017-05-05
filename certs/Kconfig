@@ -83,4 +83,12 @@ config SYSTEM_BLACKLIST_HASH_LIST
 	  wrapper to incorporate the list into the kernel.  Each <hash> should
 	  be a string of hex digits.
 
+config EFI_SIGNATURE_LIST_PARSER
+	bool "EFI signature list parser"
+	depends on EFI
+	select X509_CERTIFICATE_PARSER
+	help
+	  This option provides support for parsing EFI signature lists for
+	  X.509 certificates and turning them into keys.
+
 endmenu
