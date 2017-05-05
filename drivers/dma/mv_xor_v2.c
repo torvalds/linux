@@ -696,6 +696,27 @@ static int mv_xor_v2_descq_init(struct mv_xor_v2_device *xor_dev)
 	return 0;
 }
 
+static int mv_xor_v2_suspend(struct platform_device *dev, pm_message_t state)
+{
+	struct mv_xor_v2_device *xor_dev = platform_get_drvdata(dev);
+
+	/* Set this bit to disable to stop the XOR unit. */
+	writel(0x1, xor_dev->dma_base + MV_XOR_V2_DMA_DESQ_STOP_OFF);
+
+	return 0;
+}
+
+static int mv_xor_v2_resume(struct platform_device *dev)
+{
+	struct mv_xor_v2_device *xor_dev = platform_get_drvdata(dev);
+
+	mv_xor_v2_set_desc_size(xor_dev);
+	mv_xor_v2_enable_imsg_thrd(xor_dev);
+	mv_xor_v2_descq_init(xor_dev);
+
+	return 0;
+}
+
 static int mv_xor_v2_probe(struct platform_device *pdev)
 {
 	struct mv_xor_v2_device *xor_dev;
@@ -877,6 +898,8 @@ MODULE_DEVICE_TABLE(of, mv_xor_v2_dt_ids);
 
 static struct platform_driver mv_xor_v2_driver = {
 	.probe		= mv_xor_v2_probe,
+	.suspend	= mv_xor_v2_suspend,
+	.resume		= mv_xor_v2_resume,
 	.remove		= mv_xor_v2_remove,
 	.driver		= {
 		.name	= "mv_xor_v2",
