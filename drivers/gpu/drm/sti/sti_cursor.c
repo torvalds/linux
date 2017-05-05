@@ -33,7 +33,7 @@
 #define STI_CURS_MAX_SIZE   128
 
 /*
- * pixmap dma buffer stucture
+ * pixmap dma buffer structure
  *
  * @paddr:  physical address
  * @size:   buffer size
