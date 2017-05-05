@@ -2,6 +2,7 @@
 
 Required properties:
 - compatible: Should be one of the following.
+- "rockchip,pm-rk3288" - for RK3288 SOCs.
 - "rockchip,pm-rk3368" - for RK3368 SoCs.
 - "rockchip,pm-rk3399" - for RK3399 SoCs.
 
@@ -14,6 +15,29 @@ Required properties:
 - rockchip,pwm-regulator-config: the pwm regulator name.
 
 Example:
+	rockchip_suspend: rockchip-suspend {
+		compatible = "rockchip,pm-rk3288";
+		status = "disabled";
+		rockchip,sleep-mode-config = <
+			(0
+			|RKPM_CTR_PWR_DMNS
+			|RKPM_CTR_GTCLKS
+			|RKPM_CTR_PLLS
+			|RKPM_CTR_ARMOFF_LPMD
+			)
+		>;
+		rockchip,wakeup-config = <
+			(0
+			| RKPM_GPIO_WKUP_EN
+			)
+		>;
+		rockchip,pwm-regulator-config = <
+			(0
+			| PWM2_REGULATOR_EN
+			)
+		>;
+	};
+
 	rockchip_suspend: rockchip-suspend {
 		compatible = "rockchip,pm-rk3368";
 		status = "disabled";
