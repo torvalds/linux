@@ -225,7 +225,7 @@ static struct acpi_iort_node *iort_scan_node(enum acpi_iort_node_type type,
 
 		if (iort_node->type == type &&
 		    ACPI_SUCCESS(callback(iort_node, context)))
-				return iort_node;
+			return iort_node;
 
 		iort_node = ACPI_ADD_PTR(struct acpi_iort_node, iort_node,
 					 iort_node->length);
@@ -253,17 +253,15 @@ static acpi_status iort_match_node_callback(struct acpi_iort_node *node,
 					    void *context)
 {
 	struct device *dev = context;
-	acpi_status status;
+	acpi_status status = AE_NOT_FOUND;
 
 	if (node->type == ACPI_IORT_NODE_NAMED_COMPONENT) {
 		struct acpi_buffer buf = { ACPI_ALLOCATE_BUFFER, NULL };
 		struct acpi_device *adev = to_acpi_device_node(dev->fwnode);
 		struct acpi_iort_named_component *ncomp;
 
-		if (!adev) {
-			status = AE_NOT_FOUND;
+		if (!adev)
 			goto out;
-		}
 
 		status = acpi_get_name(adev->handle, ACPI_FULL_PATHNAME, &buf);
 		if (ACPI_FAILURE(status)) {
@@ -289,8 +287,6 @@ static acpi_status iort_match_node_callback(struct acpi_iort_node *node,
 		 */
 		status = pci_rc->pci_segment_number == pci_domain_nr(bus) ?
 							AE_OK : AE_NOT_FOUND;
-	} else {
-		status = AE_NOT_FOUND;
 	}
 out:
 	return status;
@@ -322,8 +318,7 @@ static int iort_id_map(struct acpi_iort_id_mapping *map, u8 type, u32 rid_in,
 
 static
 struct acpi_iort_node *iort_node_get_id(struct acpi_iort_node *node,
-					u32 *id_out, u8 type_mask,
-					int index)
+					u32 *id_out, int index)
 {
 	struct acpi_iort_node *parent;
 	struct acpi_iort_id_mapping *map;
@@ -345,9 +340,6 @@ struct acpi_iort_node *iort_node_get_id(struct acpi_iort_node *node,
 	parent = ACPI_ADD_PTR(struct acpi_iort_node, iort_table,
 			       map->output_reference);
 
-	if (!(IORT_TYPE_MASK(parent->type) & type_mask))
-		return NULL;
-
 	if (map->flags & ACPI_IORT_ID_SINGLE_MAPPING) {
 		if (node->type == ACPI_IORT_NODE_NAMED_COMPONENT ||
 		    node->type == ACPI_IORT_NODE_PCI_ROOT_COMPLEX) {
@@ -359,11 +351,11 @@ struct acpi_iort_node *iort_node_get_id(struct acpi_iort_node *node,
 	return NULL;
 }
 
-static struct acpi_iort_node *iort_node_map_rid(struct acpi_iort_node *node,
-						u32 rid_in, u32 *rid_out,
-						u8 type_mask)
+static struct acpi_iort_node *iort_node_map_id(struct acpi_iort_node *node,
+					       u32 id_in, u32 *id_out,
+					       u8 type_mask)
 {
-	u32 rid = rid_in;
+	u32 id = id_in;
 
 	/* Parse the ID mapping tree to find specified node type */
 	while (node) {
@@ -371,8 +363,8 @@ static struct acpi_iort_node *iort_node_map_rid(struct acpi_iort_node *node,
 		int i;
 
 		if (IORT_TYPE_MASK(node->type) & type_mask) {
-			if (rid_out)
-				*rid_out = rid;
+			if (id_out)
+				*id_out = id;
 			return node;
 		}
 
@@ -389,9 +381,9 @@ static struct acpi_iort_node *iort_node_map_rid(struct acpi_iort_node *node,
 			goto fail_map;
 		}
 
-		/* Do the RID translation */
+		/* Do the ID translation */
 		for (i = 0; i < node->mapping_count; i++, map++) {
-			if (!iort_id_map(map, node->type, rid, &rid))
+			if (!iort_id_map(map, node->type, id, &id))
 				break;
 		}
 
@@ -403,11 +395,39 @@ static struct acpi_iort_node *iort_node_map_rid(struct acpi_iort_node *node,
 	}
 
 fail_map:
-	/* Map input RID to output RID unchanged on mapping failure*/
-	if (rid_out)
-		*rid_out = rid_in;
+	/* Map input ID to output ID unchanged on mapping failure */
+	if (id_out)
+		*id_out = id_in;
 
 	return NULL;
+}
+
+static
+struct acpi_iort_node *iort_node_map_platform_id(struct acpi_iort_node *node,
+						 u32 *id_out, u8 type_mask,
+						 int index)
+{
+	struct acpi_iort_node *parent;
+	u32 id;
+
+	/* step 1: retrieve the initial dev id */
+	parent = iort_node_get_id(node, &id, index);
+	if (!parent)
+		return NULL;
+
+	/*
+	 * optional step 2: map the initial dev id if its parent is not
+	 * the target type we want, map it again for the use cases such
+	 * as NC (named component) -> SMMU -> ITS. If the type is matched,
+	 * return the initial dev id and its parent pointer directly.
+	 */
+	if (!(IORT_TYPE_MASK(parent->type) & type_mask))
+		parent = iort_node_map_id(parent, id, id_out, type_mask);
+	else
+		if (id_out)
+			*id_out = id;
+
+	return parent;
 }
 
 static struct acpi_iort_node *iort_find_dev_node(struct device *dev)
@@ -443,13 +463,38 @@ u32 iort_msi_map_rid(struct device *dev, u32 req_id)
 	if (!node)
 		return req_id;
 
-	iort_node_map_rid(node, req_id, &dev_id, IORT_MSI_TYPE);
+	iort_node_map_id(node, req_id, &dev_id, IORT_MSI_TYPE);
 	return dev_id;
+}
+
+/**
+ * iort_pmsi_get_dev_id() - Get the device id for a device
+ * @dev: The device for which the mapping is to be done.
+ * @dev_id: The device ID found.
+ *
+ * Returns: 0 for successful find a dev id, -ENODEV on error
+ */
+int iort_pmsi_get_dev_id(struct device *dev, u32 *dev_id)
+{
+	int i;
+	struct acpi_iort_node *node;
+
+	node = iort_find_dev_node(dev);
+	if (!node)
+		return -ENODEV;
+
+	for (i = 0; i < node->mapping_count; i++) {
+		if (iort_node_map_platform_id(node, dev_id, IORT_MSI_TYPE, i))
+			return 0;
+	}
+
+	return -ENODEV;
 }
 
 /**
  * iort_dev_find_its_id() - Find the ITS identifier for a device
  * @dev: The device.
+ * @req_id: Device's requester ID
  * @idx: Index of the ITS identifier list.
  * @its_id: ITS identifier.
  *
@@ -465,7 +510,7 @@ static int iort_dev_find_its_id(struct device *dev, u32 req_id,
 	if (!node)
 		return -ENXIO;
 
-	node = iort_node_map_rid(node, req_id, NULL, IORT_MSI_TYPE);
+	node = iort_node_map_id(node, req_id, NULL, IORT_MSI_TYPE);
 	if (!node)
 		return -ENXIO;
 
@@ -501,6 +546,56 @@ struct irq_domain *iort_get_device_domain(struct device *dev, u32 req_id)
 		return NULL;
 
 	return irq_find_matching_fwnode(handle, DOMAIN_BUS_PCI_MSI);
+}
+
+/**
+ * iort_get_platform_device_domain() - Find MSI domain related to a
+ * platform device
+ * @dev: the dev pointer associated with the platform device
+ *
+ * Returns: the MSI domain for this device, NULL otherwise
+ */
+static struct irq_domain *iort_get_platform_device_domain(struct device *dev)
+{
+	struct acpi_iort_node *node, *msi_parent;
+	struct fwnode_handle *iort_fwnode;
+	struct acpi_iort_its_group *its;
+	int i;
+
+	/* find its associated iort node */
+	node = iort_scan_node(ACPI_IORT_NODE_NAMED_COMPONENT,
+			      iort_match_node_callback, dev);
+	if (!node)
+		return NULL;
+
+	/* then find its msi parent node */
+	for (i = 0; i < node->mapping_count; i++) {
+		msi_parent = iort_node_map_platform_id(node, NULL,
+						       IORT_MSI_TYPE, i);
+		if (msi_parent)
+			break;
+	}
+
+	if (!msi_parent)
+		return NULL;
+
+	/* Move to ITS specific data */
+	its = (struct acpi_iort_its_group *)msi_parent->node_data;
+
+	iort_fwnode = iort_find_domain_token(its->identifiers[0]);
+	if (!iort_fwnode)
+		return NULL;
+
+	return irq_find_matching_fwnode(iort_fwnode, DOMAIN_BUS_PLATFORM_MSI);
+}
+
+void acpi_configure_pmsi_domain(struct device *dev)
+{
+	struct irq_domain *msi_domain;
+
+	msi_domain = iort_get_platform_device_domain(dev);
+	if (msi_domain)
+		dev_set_msi_domain(dev, msi_domain);
 }
 
 static int __get_pci_rid(struct pci_dev *pdev, u16 alias, void *data)
@@ -594,8 +689,8 @@ const struct iommu_ops *iort_iommu_configure(struct device *dev)
 		if (!node)
 			return NULL;
 
-		parent = iort_node_map_rid(node, rid, &streamid,
-					   IORT_IOMMU_TYPE);
+		parent = iort_node_map_id(node, rid, &streamid,
+					  IORT_IOMMU_TYPE);
 
 		ops = iort_iommu_xlate(dev, parent, streamid);
 
@@ -607,14 +702,15 @@ const struct iommu_ops *iort_iommu_configure(struct device *dev)
 		if (!node)
 			return NULL;
 
-		parent = iort_node_get_id(node, &streamid,
-					  IORT_IOMMU_TYPE, i++);
+		parent = iort_node_map_platform_id(node, &streamid,
+						   IORT_IOMMU_TYPE, i++);
 
 		while (parent) {
 			ops = iort_iommu_xlate(dev, parent, streamid);
 
-			parent = iort_node_get_id(node, &streamid,
-						  IORT_IOMMU_TYPE, i++);
+			parent = iort_node_map_platform_id(node, &streamid,
+							   IORT_IOMMU_TYPE,
+							   i++);
 		}
 	}
 
