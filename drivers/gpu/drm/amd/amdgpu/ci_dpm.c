@@ -1267,30 +1267,33 @@ static int ci_dpm_set_fan_speed_percent(struct amdgpu_device *adev,
 
 static void ci_dpm_set_fan_control_mode(struct amdgpu_device *adev, u32 mode)
 {
-	if (mode) {
-		/* stop auto-manage */
+	switch (mode) {
+	case AMD_FAN_CTRL_NONE:
 		if (adev->pm.dpm.fan.ucode_fan_control)
 			ci_fan_ctrl_stop_smc_fan_control(adev);
-		ci_fan_ctrl_set_static_mode(adev, mode);
-	} else {
-		/* restart auto-manage */
+		ci_dpm_set_fan_speed_percent(adev, 100);
+		break;
+	case AMD_FAN_CTRL_MANUAL:
+		if (adev->pm.dpm.fan.ucode_fan_control)
+			ci_fan_ctrl_stop_smc_fan_control(adev);
+		break;
+	case AMD_FAN_CTRL_AUTO:
 		if (adev->pm.dpm.fan.ucode_fan_control)
 			ci_thermal_start_smc_fan_control(adev);
-		else
-			ci_fan_ctrl_set_default_mode(adev);
+		break;
+	default:
+		break;
 	}
 }
 
 static u32 ci_dpm_get_fan_control_mode(struct amdgpu_device *adev)
 {
 	struct ci_power_info *pi = ci_get_pi(adev);
-	u32 tmp;
 
 	if (pi->fan_is_controlled_by_smc)
-		return 0;
-
-	tmp = RREG32_SMC(ixCG_FDO_CTRL2) & CG_FDO_CTRL2__FDO_PWM_MODE_MASK;
-	return (tmp >> CG_FDO_CTRL2__FDO_PWM_MODE__SHIFT);
+		return AMD_FAN_CTRL_AUTO;
+	else
+		return AMD_FAN_CTRL_MANUAL;
 }
 
 #if 0
