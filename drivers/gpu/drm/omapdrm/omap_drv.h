@@ -21,7 +21,6 @@
 #define __OMAP_DRV_H__
 
 #include <linux/module.h>
-#include <linux/platform_data/omap_drm.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
 

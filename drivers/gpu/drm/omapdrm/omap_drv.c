@@ -17,6 +17,8 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/sys_soc.h>
+
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
@@ -518,9 +520,17 @@ static struct drm_driver omap_drm_driver = {
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
+static const struct soc_device_attribute omapdrm_soc_devices[] = {
+	{ .family = "OMAP3", .data = (void *)0x3430 },
+	{ .family = "OMAP4", .data = (void *)0x4430 },
+	{ .family = "OMAP5", .data = (void *)0x5430 },
+	{ .family = "DRA7",  .data = (void *)0x0752 },
+	{ /* sentinel */ }
+};
+
 static int pdev_probe(struct platform_device *pdev)
 {
-	struct omap_drm_platform_data *pdata = pdev->dev.platform_data;
+	const struct soc_device_attribute *soc;
 	struct omap_drm_private *priv;
 	struct drm_device *ddev;
 	unsigned int i;
@@ -546,7 +556,8 @@ static int pdev_probe(struct platform_device *pdev)
 
 	priv->dispc_ops = dispc_get_ops();
 
-	priv->omaprev = pdata->omaprev;
+	soc = soc_device_match(omapdrm_soc_devices);
+	priv->omaprev = soc ? (unsigned int)soc->data : 0;
 	priv->wq = alloc_ordered_workqueue("omapdrm", 0);
 
 	spin_lock_init(&priv->list_lock);
