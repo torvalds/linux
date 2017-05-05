@@ -2766,8 +2766,11 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 		vmx->nested.nested_vmx_ept_caps |= VMX_EPT_EXTENT_GLOBAL_BIT |
 			VMX_EPT_EXTENT_CONTEXT_BIT | VMX_EPT_2MB_PAGE_BIT |
 			VMX_EPT_1GB_PAGE_BIT;
-	       if (enable_ept_ad_bits)
+		if (enable_ept_ad_bits) {
+			vmx->nested.nested_vmx_secondary_ctls_high |=
+				SECONDARY_EXEC_ENABLE_PML;
 		       vmx->nested.nested_vmx_ept_caps |= VMX_EPT_AD_BIT;
+		}
 	} else
 		vmx->nested.nested_vmx_ept_caps = 0;
 
@@ -8129,7 +8132,7 @@ static bool nested_vmx_exit_handled(struct kvm_vcpu *vcpu)
 	case EXIT_REASON_PREEMPTION_TIMER:
 		return false;
 	case EXIT_REASON_PML_FULL:
-		/* We don't expose PML support to L1. */
+		/* We emulate PML support to L1. */
 		return false;
 	default:
 		return true;
@@ -9924,7 +9927,7 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 			  bool from_vmentry, u32 *entry_failure_code)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	u32 exec_control;
+	u32 exec_control, vmcs12_exec_ctrl;
 
 	vmcs_write16(GUEST_ES_SELECTOR, vmcs12->guest_es_selector);
 	vmcs_write16(GUEST_CS_SELECTOR, vmcs12->guest_cs_selector);
@@ -10055,8 +10058,11 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 				  SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY |
 				  SECONDARY_EXEC_APIC_REGISTER_VIRT);
 		if (nested_cpu_has(vmcs12,
-				CPU_BASED_ACTIVATE_SECONDARY_CONTROLS))
-			exec_control |= vmcs12->secondary_vm_exec_control;
+				   CPU_BASED_ACTIVATE_SECONDARY_CONTROLS)) {
+			vmcs12_exec_ctrl = vmcs12->secondary_vm_exec_control &
+				~SECONDARY_EXEC_ENABLE_PML;
+			exec_control |= vmcs12_exec_ctrl;
+		}
 
 		if (exec_control & SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY) {
 			vmcs_write64(EOI_EXIT_BITMAP0,
