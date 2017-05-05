@@ -1668,6 +1668,8 @@ failed_ret:
 	return ret;
 }
 
+/* TODO: runtime PM with power down or sleep mode  */
+
 static __maybe_unused int m_can_suspend(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
@@ -1676,9 +1678,9 @@ static __maybe_unused int m_can_suspend(struct device *dev)
 	if (netif_running(ndev)) {
 		netif_stop_queue(ndev);
 		netif_device_detach(ndev);
+		m_can_stop(ndev);
+		m_can_clk_stop(priv);
 	}
-
-	/* TODO: enter low power */
 
 	priv->can.state = CAN_STATE_SLEEPING;
 
@@ -1690,11 +1692,18 @@ static __maybe_unused int m_can_resume(struct device *dev)
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct m_can_priv *priv = netdev_priv(ndev);
 
-	/* TODO: exit low power */
+	m_can_init_ram(priv);
 
 	priv->can.state = CAN_STATE_ERROR_ACTIVE;
 
 	if (netif_running(ndev)) {
+		int ret;
+
+		ret = m_can_clk_start(priv);
+		if (ret)
+			return ret;
+
+		m_can_start(ndev);
 		netif_device_attach(ndev);
 		netif_start_queue(ndev);
 	}
