@@ -18,6 +18,7 @@
 #include <keys/asymmetric-type.h>
 #include <keys/system_keyring.h>
 #include <crypto/pkcs7.h>
+#include "internal.h"
 
 static struct key *builtin_trusted_keys;
 #ifdef CONFIG_SECONDARY_TRUSTED_KEYRING
@@ -266,3 +267,35 @@ error:
 EXPORT_SYMBOL_GPL(verify_pkcs7_signature);
 
 #endif /* CONFIG_SYSTEM_DATA_VERIFICATION */
+
+#ifdef CONFIG_SECONDARY_TRUSTED_KEYRING
+/**
+ * add_trusted_secondary_key - Add to secondary keyring with no validation
+ * @source: Source of key
+ * @data: The blob holding the key
+ * @len: The length of the data blob
+ *
+ * Add a key to the secondary keyring without checking its trust chain.  This
+ * is available only during kernel initialisation.
+ */
+void __init add_trusted_secondary_key(const char *source,
+				      const void *data, size_t len)
+{
+	key_ref_t key;
+
+	key = key_create_or_update(make_key_ref(secondary_trusted_keys, 1),
+				   "asymmetric",
+				   NULL, data, len,
+				   (KEY_POS_ALL & ~KEY_POS_SETATTR) |
+				   KEY_USR_VIEW,
+				   KEY_ALLOC_NOT_IN_QUOTA |
+				   KEY_ALLOC_BYPASS_RESTRICTION);
+
+	if (IS_ERR(key))
+		pr_err("Problem loading %s X.509 certificate (%ld)\n",
+		       source, PTR_ERR(key));
+	else
+		pr_notice("Loaded %s cert '%s' linked to secondary sys keyring\n",
+			  source, key_ref_to_ptr(key)->description);
+}
+#endif /* CONFIG_SECONDARY_TRUSTED_KEYRING */
