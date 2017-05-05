@@ -83,6 +83,10 @@
 &u2phy0 {
 	status = "okay";
 
+	u2phy0_otg: otg-port {
+		status = "okay";
+	};
+
 	u2phy0_host: host-port {
 		status = "okay";
 	};
@@ -121,5 +125,9 @@
 };
 
 &usb_host2_ohci {
+	status = "okay";
+};
+
+&usb_otg {
 	status = "okay";
 };
