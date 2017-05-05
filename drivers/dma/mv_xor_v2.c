@@ -246,22 +246,6 @@ static int mv_xor_v2_set_desc_size(struct mv_xor_v2_device *xor_dev)
 	return MV_XOR_V2_EXT_DESC_SIZE;
 }
 
-/*
- * Set the IMSG threshold
- */
-static inline
-void mv_xor_v2_set_imsg_thrd(struct mv_xor_v2_device *xor_dev, int thrd_val)
-{
-	u32 reg;
-
-	reg = readl(xor_dev->dma_base + MV_XOR_V2_DMA_IMSG_THRD_OFF);
-
-	reg &= (~MV_XOR_V2_DMA_IMSG_THRD_MASK << MV_XOR_V2_DMA_IMSG_THRD_SHIFT);
-	reg |= (thrd_val << MV_XOR_V2_DMA_IMSG_THRD_SHIFT);
-
-	writel(reg, xor_dev->dma_base + MV_XOR_V2_DMA_IMSG_THRD_OFF);
-}
-
 static irqreturn_t mv_xor_v2_interrupt_handler(int irq, void *data)
 {
 	struct mv_xor_v2_device *xor_dev = data;
@@ -276,12 +260,6 @@ static irqreturn_t mv_xor_v2_interrupt_handler(int irq, void *data)
 	/* No descriptors to process */
 	if (!ndescs)
 		return IRQ_NONE;
-
-	/*
-	 * Update IMSG threshold, to disable new IMSG interrupts until
-	 * end of the tasklet
-	 */
-	mv_xor_v2_set_imsg_thrd(xor_dev, MV_XOR_V2_DESC_NUM);
 
 	/* schedule a tasklet to handle descriptors callbacks */
 	tasklet_schedule(&xor_dev->irq_tasklet);
@@ -607,9 +585,6 @@ static void mv_xor_v2_tasklet(unsigned long data)
 		/* free the descriptores */
 		mv_xor_v2_free_desc_from_desq(xor_dev, num_of_pending);
 	}
-
-	/* Update IMSG threshold, to enable new IMSG interrupts */
-	mv_xor_v2_set_imsg_thrd(xor_dev, 0);
 }
 
 /*
