@@ -37,6 +37,7 @@
 
 static int vcn_v1_0_start(struct amdgpu_device *adev);
 static int vcn_v1_0_stop(struct amdgpu_device *adev);
+static void vcn_v1_0_set_dec_ring_funcs(struct amdgpu_device *adev);
 
 /**
  * vcn_v1_0_early_init - set function pointers
@@ -47,6 +48,10 @@ static int vcn_v1_0_stop(struct amdgpu_device *adev);
  */
 static int vcn_v1_0_early_init(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	vcn_v1_0_set_dec_ring_funcs(adev);
+
 	return 0;
 }
 
@@ -439,6 +444,236 @@ static int vcn_v1_0_set_clockgating_state(void *handle,
 	return 0;
 }
 
+/**
+ * vcn_v1_0_dec_ring_get_rptr - get read pointer
+ *
+ * @ring: amdgpu_ring pointer
+ *
+ * Returns the current hardware read pointer
+ */
+static uint64_t vcn_v1_0_dec_ring_get_rptr(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+
+	return RREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_RBC_RB_RPTR));
+}
+
+/**
+ * vcn_v1_0_dec_ring_get_wptr - get write pointer
+ *
+ * @ring: amdgpu_ring pointer
+ *
+ * Returns the current hardware write pointer
+ */
+static uint64_t vcn_v1_0_dec_ring_get_wptr(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+
+	return RREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_RBC_RB_WPTR));
+}
+
+/**
+ * vcn_v1_0_dec_ring_set_wptr - set write pointer
+ *
+ * @ring: amdgpu_ring pointer
+ *
+ * Commits the write pointer to the hardware
+ */
+static void vcn_v1_0_dec_ring_set_wptr(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+
+	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_RBC_RB_WPTR), lower_32_bits(ring->wptr));
+}
+
+/**
+ * vcn_v1_0_dec_ring_emit_fence - emit an fence & trap command
+ *
+ * @ring: amdgpu_ring pointer
+ * @fence: fence to emit
+ *
+ * Write a fence and a trap command to the ring.
+ */
+static void vcn_v1_0_dec_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 seq,
+				     unsigned flags)
+{
+	WARN_ON(flags & AMDGPU_FENCE_FLAG_64BIT);
+
+	amdgpu_ring_write(ring,
+		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_CONTEXT_ID), 0));
+	amdgpu_ring_write(ring, seq);
+	amdgpu_ring_write(ring,
+		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_DATA0), 0));
+	amdgpu_ring_write(ring, addr & 0xffffffff);
+	amdgpu_ring_write(ring,
+		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_DATA1), 0));
+	amdgpu_ring_write(ring, upper_32_bits(addr) & 0xff);
+	amdgpu_ring_write(ring,
+		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_CMD), 0));
+	amdgpu_ring_write(ring, 0);
+
+	amdgpu_ring_write(ring,
+		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_DATA0), 0));
+	amdgpu_ring_write(ring, 0);
+	amdgpu_ring_write(ring,
+		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_DATA1), 0));
+	amdgpu_ring_write(ring, 0);
+	amdgpu_ring_write(ring,
+		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_CMD), 0));
+	amdgpu_ring_write(ring, 2);
+}
+
+/**
+ * vcn_v1_0_dec_ring_hdp_invalidate - emit an hdp invalidate
+ *
+ * @ring: amdgpu_ring pointer
+ *
+ * Emits an hdp invalidate.
+ */
+static void vcn_v1_0_dec_ring_emit_hdp_invalidate(struct amdgpu_ring *ring)
+{
+	amdgpu_ring_write(ring, PACKET0(SOC15_REG_OFFSET(HDP, 0, mmHDP_DEBUG0), 0));
+	amdgpu_ring_write(ring, 1);
+}
+
+/**
+ * vcn_v1_0_dec_ring_test_ring - register write test
+ *
+ * @ring: amdgpu_ring pointer
+ *
+ * Test if we can successfully write to the context register
+ */
+static int vcn_v1_0_dec_ring_test_ring(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+	uint32_t tmp = 0;
+	unsigned i;
+	int r;
+
+	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_CONTEXT_ID), 0xCAFEDEAD);
+	r = amdgpu_ring_alloc(ring, 3);
+	if (r) {
+		DRM_ERROR("amdgpu: cp failed to lock ring %d (%d).\n",
+			  ring->idx, r);
+		return r;
+	}
+	amdgpu_ring_write(ring,
+		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_CONTEXT_ID), 0));
+	amdgpu_ring_write(ring, 0xDEADBEEF);
+	amdgpu_ring_commit(ring);
+	for (i = 0; i < adev->usec_timeout; i++) {
+		tmp = RREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_CONTEXT_ID));
+		if (tmp == 0xDEADBEEF)
+			break;
+		DRM_UDELAY(1);
+	}
+
+	if (i < adev->usec_timeout) {
+		DRM_INFO("ring test on %d succeeded in %d usecs\n",
+			 ring->idx, i);
+	} else {
+		DRM_ERROR("amdgpu: ring %d test failed (0x%08X)\n",
+			  ring->idx, tmp);
+		r = -EINVAL;
+	}
+	return r;
+}
+
+/**
+ * vcn_v1_0_dec_ring_emit_ib - execute indirect buffer
+ *
+ * @ring: amdgpu_ring pointer
+ * @ib: indirect buffer to execute
+ *
+ * Write ring commands to execute the indirect buffer
+ */
+static void vcn_v1_0_dec_ring_emit_ib(struct amdgpu_ring *ring,
+				  struct amdgpu_ib *ib,
+				  unsigned vm_id, bool ctx_switch)
+{
+	amdgpu_ring_write(ring,
+		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_RBC_IB_VMID), 0));
+	amdgpu_ring_write(ring, vm_id);
+
+	amdgpu_ring_write(ring,
+		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_RBC_IB_64BIT_BAR_LOW), 0));
+	amdgpu_ring_write(ring, lower_32_bits(ib->gpu_addr));
+	amdgpu_ring_write(ring,
+		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_RBC_IB_64BIT_BAR_HIGH), 0));
+	amdgpu_ring_write(ring, upper_32_bits(ib->gpu_addr));
+	amdgpu_ring_write(ring,
+		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_RBC_IB_SIZE), 0));
+	amdgpu_ring_write(ring, ib->length_dw);
+}
+
+static void vcn_v1_0_dec_vm_reg_write(struct amdgpu_ring *ring,
+				uint32_t data0, uint32_t data1)
+{
+	amdgpu_ring_write(ring,
+		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_DATA0), 0));
+	amdgpu_ring_write(ring, data0);
+	amdgpu_ring_write(ring,
+		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_DATA1), 0));
+	amdgpu_ring_write(ring, data1);
+	amdgpu_ring_write(ring,
+		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_CMD), 0));
+	amdgpu_ring_write(ring, 8);
+}
+
+static void vcn_v1_0_dec_vm_reg_wait(struct amdgpu_ring *ring,
+				uint32_t data0, uint32_t data1, uint32_t mask)
+{
+	amdgpu_ring_write(ring,
+		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_DATA0), 0));
+	amdgpu_ring_write(ring, data0);
+	amdgpu_ring_write(ring,
+		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_DATA1), 0));
+	amdgpu_ring_write(ring, data1);
+	amdgpu_ring_write(ring,
+		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GP_SCRATCH8), 0));
+	amdgpu_ring_write(ring, mask);
+	amdgpu_ring_write(ring,
+		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_CMD), 0));
+	amdgpu_ring_write(ring, 12);
+}
+
+static void vcn_v1_0_dec_ring_emit_vm_flush(struct amdgpu_ring *ring,
+					unsigned vm_id, uint64_t pd_addr)
+{
+	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
+	uint32_t req = ring->adev->gart.gart_funcs->get_invalidate_req(vm_id);
+	uint32_t data0, data1, mask;
+	unsigned eng = ring->vm_inv_eng;
+
+	pd_addr = pd_addr | 0x1; /* valid bit */
+	/* now only use physical base address of PDE and valid */
+	BUG_ON(pd_addr & 0xFFFF00000000003EULL);
+
+	data0 = (hub->ctx0_ptb_addr_hi32 + vm_id * 2) << 2;
+	data1 = upper_32_bits(pd_addr);
+	vcn_v1_0_dec_vm_reg_write(ring, data0, data1);
+
+	data0 = (hub->ctx0_ptb_addr_lo32 + vm_id * 2) << 2;
+	data1 = lower_32_bits(pd_addr);
+	vcn_v1_0_dec_vm_reg_write(ring, data0, data1);
+
+	data0 = (hub->ctx0_ptb_addr_lo32 + vm_id * 2) << 2;
+	data1 = lower_32_bits(pd_addr);
+	mask = 0xffffffff;
+	vcn_v1_0_dec_vm_reg_wait(ring, data0, data1, mask);
+
+	/* flush TLB */
+	data0 = (hub->vm_inv_eng0_req + eng) << 2;
+	data1 = req;
+	vcn_v1_0_dec_vm_reg_write(ring, data0, data1);
+
+	/* wait for flush */
+	data0 = (hub->vm_inv_eng0_ack + eng) << 2;
+	data1 = 1 << vm_id;
+	mask =  1 << vm_id;
+	vcn_v1_0_dec_vm_reg_wait(ring, data0, data1, mask);
+}
+
 static const struct amd_ip_funcs vcn_v1_0_ip_funcs = {
 	.name = "vcn_v1_0",
 	.early_init = vcn_v1_0_early_init,
@@ -458,3 +693,34 @@ static const struct amd_ip_funcs vcn_v1_0_ip_funcs = {
 	.set_clockgating_state = vcn_v1_0_set_clockgating_state,
 	.set_powergating_state = NULL /* vcn_v1_0_set_powergating_state */,
 };
+
+static const struct amdgpu_ring_funcs vcn_v1_0_dec_ring_vm_funcs = {
+	.type = AMDGPU_RING_TYPE_VCN_DEC,
+	.align_mask = 0xf,
+	.nop = PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_NO_OP), 0),
+	.support_64bit_ptrs = false,
+	.get_rptr = vcn_v1_0_dec_ring_get_rptr,
+	.get_wptr = vcn_v1_0_dec_ring_get_wptr,
+	.set_wptr = vcn_v1_0_dec_ring_set_wptr,
+	.emit_frame_size =
+		2 + /* vcn_v1_0_dec_ring_emit_hdp_invalidate */
+		34 * AMDGPU_MAX_VMHUBS + /* vcn_v1_0_dec_ring_emit_vm_flush */
+		14 + 14, /* vcn_v1_0_dec_ring_emit_fence x2 vm fence */
+	.emit_ib_size = 8, /* vcn_v1_0_dec_ring_emit_ib */
+	.emit_ib = vcn_v1_0_dec_ring_emit_ib,
+	.emit_fence = vcn_v1_0_dec_ring_emit_fence,
+	.emit_vm_flush = vcn_v1_0_dec_ring_emit_vm_flush,
+	.emit_hdp_invalidate = vcn_v1_0_dec_ring_emit_hdp_invalidate,
+	.test_ring = vcn_v1_0_dec_ring_test_ring,
+	.test_ib = amdgpu_vcn_dec_ring_test_ib,
+	.insert_nop = amdgpu_ring_insert_nop,
+	.pad_ib = amdgpu_ring_generic_pad_ib,
+	.begin_use = amdgpu_vcn_ring_begin_use,
+	.end_use = amdgpu_vcn_ring_end_use,
+};
+
+static void vcn_v1_0_set_dec_ring_funcs(struct amdgpu_device *adev)
+{
+	adev->vcn.ring_dec.funcs = &vcn_v1_0_dec_ring_vm_funcs;
+	DRM_INFO("VCN decode is enabled in VM mode\n");
+}
