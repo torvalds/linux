@@ -137,9 +137,9 @@ static inline unsigned long long cycles_2_ns(unsigned long long cyc)
 	return ns;
 }
 
-static void set_cyc2ns_scale(unsigned long khz, int cpu)
+static void __set_cyc2ns_scale(unsigned long khz, int cpu, unsigned long long tsc_now)
 {
-	unsigned long long tsc_now, ns_now;
+	unsigned long long ns_now;
 	struct cyc2ns_data data;
 	struct cyc2ns *c2n;
 	unsigned long flags;
@@ -150,7 +150,6 @@ static void set_cyc2ns_scale(unsigned long khz, int cpu)
 	if (!khz)
 		goto done;
 
-	tsc_now = rdtsc();
 	ns_now = cycles_2_ns(tsc_now);
 
 	/*
@@ -186,6 +185,12 @@ done:
 	sched_clock_idle_wakeup_event(0);
 	local_irq_restore(flags);
 }
+
+static void set_cyc2ns_scale(unsigned long khz, int cpu)
+{
+	__set_cyc2ns_scale(khz, cpu, rdtsc());
+}
+
 /*
  * Scheduler clock - returns current time in nanosec units.
  */
@@ -1251,7 +1256,7 @@ device_initcall(init_tsc_clocksource);
 
 void __init tsc_init(void)
 {
-	u64 lpj;
+	u64 lpj, cyc;
 	int cpu;
 
 	if (!boot_cpu_has(X86_FEATURE_TSC)) {
@@ -1291,9 +1296,10 @@ void __init tsc_init(void)
 	 * speed as the bootup CPU. (cpufreq notifiers will fix this
 	 * up if their speed diverges)
 	 */
+	cyc = rdtsc();
 	for_each_possible_cpu(cpu) {
 		cyc2ns_init(cpu);
-		set_cyc2ns_scale(tsc_khz, cpu);
+		__set_cyc2ns_scale(tsc_khz, cpu, cyc);
 	}
 
 	if (tsc_disabled > 0)
