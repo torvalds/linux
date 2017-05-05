@@ -625,8 +625,7 @@ static int hqvdp_dbg_show(struct seq_file *s, void *data)
 		hqvdp_dbg_dump_cmd(s, (struct sti_hqvdp_cmd *)virt);
 	}
 
-	seq_puts(s, "\n");
-
+	seq_putc(s, '\n');
 	return 0;
 }
 

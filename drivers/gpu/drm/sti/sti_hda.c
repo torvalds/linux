@@ -354,8 +354,7 @@ static int hda_dbg_show(struct seq_file *s, void *data)
 	hda_dbg_awg_microcode(s, hda->regs + HDA_SYNC_AWGI);
 	if (hda->video_dacs_ctrl)
 		hda_dbg_video_dacs_ctrl(s, hda->video_dacs_ctrl);
-	seq_puts(s, "\n");
-
+	seq_putc(s, '\n');
 	return 0;
 }
 

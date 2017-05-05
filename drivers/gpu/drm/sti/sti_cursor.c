@@ -121,8 +121,7 @@ static int cursor_dbg_show(struct seq_file *s, void *data)
 	cursor_dbg_cml(s, cursor, readl(cursor->regs + CUR_CML));
 	DBGFS_DUMP(CUR_AWS);
 	DBGFS_DUMP(CUR_AWE);
-	seq_puts(s, "\n");
-
+	seq_putc(s, '\n');
 	return 0;
 }
 
