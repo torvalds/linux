@@ -306,12 +306,12 @@ static inline int security_filter_rule_match(u32 secid, u32 field, u32 op,
 {
 	return -EINVAL;
 }
-#endif /* CONFIG_IMA_TRUSTED_KEYRING */
+#endif /* CONFIG_IMA_LSM_RULES */
 
 #ifdef	CONFIG_IMA_READ_POLICY
 #define	POLICY_FILE_FLAGS	(S_IWUSR | S_IRUSR)
 #else
 #define	POLICY_FILE_FLAGS	S_IWUSR
-#endif /* CONFIG_IMA_WRITE_POLICY */
+#endif /* CONFIG_IMA_READ_POLICY */
 
 #endif /* __LINUX_IMA_H */
