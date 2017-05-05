@@ -560,7 +560,6 @@ static void mv_xor_v2_tasklet(unsigned long data)
 {
 	struct mv_xor_v2_device *xor_dev = (struct mv_xor_v2_device *) data;
 	int pending_ptr, num_of_pending, i;
-	struct mv_xor_v2_descriptor *next_pending_hw_desc = NULL;
 	struct mv_xor_v2_sw_desc *next_pending_sw_desc = NULL;
 
 	dev_dbg(xor_dev->dmadev.dev, "%s %d\n", __func__, __LINE__);
@@ -568,17 +567,10 @@ static void mv_xor_v2_tasklet(unsigned long data)
 	/* get the pending descriptors parameters */
 	num_of_pending = mv_xor_v2_get_pending_params(xor_dev, &pending_ptr);
 
-	/* next HW descriptor */
-	next_pending_hw_desc = xor_dev->hw_desq_virt + pending_ptr;
-
 	/* loop over free descriptors */
 	for (i = 0; i < num_of_pending; i++) {
-
-		if (pending_ptr > MV_XOR_V2_DESC_NUM)
-			pending_ptr = 0;
-
-		if (next_pending_sw_desc != NULL)
-			next_pending_hw_desc++;
+		struct mv_xor_v2_descriptor *next_pending_hw_desc =
+			xor_dev->hw_desq_virt + pending_ptr;
 
 		/* get the SW descriptor related to the HW descriptor */
 		next_pending_sw_desc =
@@ -614,6 +606,8 @@ static void mv_xor_v2_tasklet(unsigned long data)
 
 		/* increment the next descriptor */
 		pending_ptr++;
+		if (pending_ptr >= MV_XOR_V2_DESC_NUM)
+			pending_ptr = 0;
 	}
 
 	if (num_of_pending != 0) {
