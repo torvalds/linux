@@ -15,6 +15,23 @@ menuconfig THERMAL
 
 if THERMAL
 
+config THERMAL_EMERGENCY_POWEROFF_DELAY_MS
+	int "Emergency poweroff delay in milli-seconds"
+	depends on THERMAL
+	default 0
+	help
+	  Thermal subsystem will issue a graceful shutdown when
+	  critical temperatures are reached using orderly_poweroff(). In
+	  case of failure of an orderly_poweroff(), the thermal emergency
+	  poweroff kicks in after a delay has elapsed and shuts down the system.
+	  This config is number of milliseconds to delay before emergency
+	  poweroff kicks in. Similarly to the critical trip point,
+	  the delay should be carefully profiled so as to give adequate
+	  time for orderly_poweroff() to finish on regular execution.
+	  If set to 0 emergency poweroff will not be supported.
+
+	  In doubt, leave as 0.
+
 config THERMAL_HWMON
 	bool
 	prompt "Expose thermal sensors as hwmon device"
