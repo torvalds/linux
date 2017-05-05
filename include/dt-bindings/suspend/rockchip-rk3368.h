@@ -18,15 +18,19 @@
 #define __DT_BINDINGS_ROCKCHIP_PM_H__
 /******************************bits ops************************************/
 
-#define RKPM_SLP_WFI					BIT(0)
-#define RKPM_SLP_ARMPD				BIT(1)
-#define RKPM_SLP_ARMOFF				BIT(2)
+#ifndef BIT
+#define BIT(nr)				(1 << (nr))
+#endif
+
+#define RKPM_SLP_WFI			BIT(0)
+#define RKPM_SLP_ARMPD			BIT(1)
+#define RKPM_SLP_ARMOFF			BIT(2)
 #define RKPM_SLP_ARMOFF_LOGPD		BIT(3)
 #define RKPM_SLP_ARMOFF_LOGOFF		BIT(4)
 #define RKPM_RUNNING_ARMMODE		BIT(5)
 
 /* func ctrl by pmu auto ctr */
-#define RKPM_SLP_PMU_PLLS_PWRDN	BIT(8) /* all plls except ddr's pll*/
+#define RKPM_SLP_PMU_PLLS_PWRDN		BIT(8) /* all plls except ddr's pll*/
 #define RKPM_SLP_PMU_PMUALIVE_32K	BIT(9)
 #define RKPM_SLP_PMU_DIS_OSC		BIT(10)
 
