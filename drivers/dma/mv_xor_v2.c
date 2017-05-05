@@ -344,6 +344,7 @@ static struct mv_xor_v2_sw_desc	*
 mv_xor_v2_prep_sw_desc(struct mv_xor_v2_device *xor_dev)
 {
 	struct mv_xor_v2_sw_desc *sw_desc;
+	bool found = false;
 
 	/* Lock the channel */
 	spin_lock_bh(&xor_dev->lock);
@@ -355,18 +356,22 @@ mv_xor_v2_prep_sw_desc(struct mv_xor_v2_device *xor_dev)
 		return NULL;
 	}
 
-	/* get a free SW descriptor from the SW DESQ */
-	sw_desc = list_first_entry(&xor_dev->free_sw_desc,
-				   struct mv_xor_v2_sw_desc, free_list);
+	list_for_each_entry(sw_desc, &xor_dev->free_sw_desc, free_list) {
+		if (async_tx_test_ack(&sw_desc->async_tx)) {
+			found = true;
+			break;
+		}
+	}
+
+	if (!found) {
+		spin_unlock_bh(&xor_dev->lock);
+		return NULL;
+	}
+
 	list_del(&sw_desc->free_list);
 
 	/* Release the channel */
 	spin_unlock_bh(&xor_dev->lock);
-
-	/* set the async tx descriptor */
-	dma_async_tx_descriptor_init(&sw_desc->async_tx, &xor_dev->dmachan);
-	sw_desc->async_tx.tx_submit = mv_xor_v2_tx_submit;
-	async_tx_ack(&sw_desc->async_tx);
 
 	return sw_desc;
 }
@@ -785,8 +790,15 @@ static int mv_xor_v2_probe(struct platform_device *pdev)
 
 	/* add all SW descriptors to the free list */
 	for (i = 0; i < MV_XOR_V2_DESC_NUM; i++) {
-		xor_dev->sw_desq[i].idx = i;
-		list_add(&xor_dev->sw_desq[i].free_list,
+		struct mv_xor_v2_sw_desc *sw_desc =
+			xor_dev->sw_desq + i;
+		sw_desc->idx = i;
+		dma_async_tx_descriptor_init(&sw_desc->async_tx,
+					     &xor_dev->dmachan);
+		sw_desc->async_tx.tx_submit = mv_xor_v2_tx_submit;
+		async_tx_ack(&sw_desc->async_tx);
+
+		list_add(&sw_desc->free_list,
 			 &xor_dev->free_sw_desc);
 	}
 
