@@ -3593,8 +3593,6 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 		xdr_truncate_encode(xdr, starting_len);
 
 out:
-	if (file)
-		fput(file);
 	return nfserr;
 }
 
@@ -3838,8 +3836,6 @@ nfsd4_do_encode_secinfo(struct xdr_stream *xdr,
 	*flavorsp = htonl(supported);
 	nfserr = 0;
 out:
-	if (exp)
-		exp_put(exp);
 	return nfserr;
 }
 
@@ -4172,7 +4168,6 @@ nfsd4_encode_getdeviceinfo(struct nfsd4_compoundres *resp, __be32 nfserr,
 
 	nfserr = 0;
 out:
-	kfree(gdev->gd_device);
 	dprintk("%s: done: %d\n", __func__, be32_to_cpu(nfserr));
 	return nfserr;
 
@@ -4221,7 +4216,6 @@ nfsd4_encode_layoutget(struct nfsd4_compoundres *resp, __be32 nfserr,
 	ops = nfsd4_layout_ops[lgp->lg_layout_type];
 	nfserr = ops->encode_layoutget(xdr, lgp);
 out:
-	kfree(lgp->lg_content);
 	return nfserr;
 }
 
@@ -4452,6 +4446,7 @@ nfsd4_encode_operation(struct nfsd4_compoundres *resp, struct nfsd4_op *op)
 	struct xdr_stream *xdr = &resp->xdr;
 	struct nfs4_stateowner *so = resp->cstate.replay_owner;
 	struct svc_rqst *rqstp = resp->rqstp;
+	const struct nfsd4_operation *opdesc = op->opdesc;
 	int post_err_offset;
 	nfsd4_enc encoder;
 	__be32 *p;
@@ -4470,6 +4465,8 @@ nfsd4_encode_operation(struct nfsd4_compoundres *resp, struct nfsd4_op *op)
 	       !nfsd4_enc_ops[op->opnum]);
 	encoder = nfsd4_enc_ops[op->opnum];
 	op->status = encoder(resp, op->status, &op->u);
+	if (opdesc && opdesc->op_release)
+		opdesc->op_release(&op->u);
 	xdr_commit_encode(xdr);
 
 	/* nfsd4_check_resp_size guarantees enough room for error status */

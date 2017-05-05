@@ -783,6 +783,7 @@ enum nfsd4_op_flags {
 struct nfsd4_operation {
 	__be32 (*op_func)(struct svc_rqst *, struct nfsd4_compound_state *,
 			union nfsd4_op_u *);
+	void (*op_release)(union nfsd4_op_u *);
 	u32 op_flags;
 	char *op_name;
 	/* Try to get response size before operation */

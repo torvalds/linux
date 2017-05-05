@@ -784,6 +784,14 @@ out:
 	return status;
 }
 
+
+static void
+nfsd4_read_release(union nfsd4_op_u *u)
+{
+	if (u->read.rd_filp)
+		fput(u->read.rd_filp);
+}
+
 static __be32
 nfsd4_readdir(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	      union nfsd4_op_u *u)
@@ -910,6 +918,13 @@ nfsd4_secinfo_no_name(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstat
 	u->secinfo_no_name.sin_exp = exp_get(cstate->current_fh.fh_export);
 	fh_put(&cstate->current_fh);
 	return nfs_ok;
+}
+
+static void
+nfsd4_secinfo_release(union nfsd4_op_u *u)
+{
+	if (u->secinfo.si_exp)
+		exp_put(u->secinfo.si_exp);
 }
 
 static __be32
@@ -1335,6 +1350,12 @@ out:
 	return nfserr;
 }
 
+static void
+nfsd4_getdeviceinfo_release(union nfsd4_op_u *u)
+{
+	kfree(u->getdeviceinfo.gd_device);
+}
+
 static __be32
 nfsd4_layoutget(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *cstate, union nfsd4_op_u *u)
@@ -1413,6 +1434,12 @@ out_put_stid:
 	nfs4_put_stid(&ls->ls_stid);
 out:
 	return nfserr;
+}
+
+static void
+nfsd4_layoutget_release(union nfsd4_op_u *u)
+{
+	kfree(u->layoutget.lg_content);
 }
 
 static __be32
@@ -2192,6 +2219,7 @@ static const struct nfsd4_operation nfsd4_ops[] = {
 	},
 	[OP_READ] = {
 		.op_func = nfsd4_read,
+		.op_release = nfsd4_read_release,
 		.op_name = "OP_READ",
 		.op_rsize_bop = nfsd4_read_rsize,
 		.op_get_currentstateid = nfsd4_get_readstateid,
@@ -2241,6 +2269,7 @@ static const struct nfsd4_operation nfsd4_ops[] = {
 	},
 	[OP_SECINFO] = {
 		.op_func = nfsd4_secinfo,
+		.op_release = nfsd4_secinfo_release,
 		.op_flags = OP_HANDLES_WRONGSEC,
 		.op_name = "OP_SECINFO",
 		.op_rsize_bop = nfsd4_secinfo_rsize,
@@ -2342,6 +2371,7 @@ static const struct nfsd4_operation nfsd4_ops[] = {
 	},
 	[OP_SECINFO_NO_NAME] = {
 		.op_func = nfsd4_secinfo_no_name,
+		.op_release = nfsd4_secinfo_release,
 		.op_flags = OP_HANDLES_WRONGSEC,
 		.op_name = "OP_SECINFO_NO_NAME",
 		.op_rsize_bop = nfsd4_secinfo_rsize,
@@ -2362,12 +2392,14 @@ static const struct nfsd4_operation nfsd4_ops[] = {
 #ifdef CONFIG_NFSD_PNFS
 	[OP_GETDEVICEINFO] = {
 		.op_func = nfsd4_getdeviceinfo,
+		.op_release = nfsd4_getdeviceinfo_release,
 		.op_flags = ALLOWED_WITHOUT_FH,
 		.op_name = "OP_GETDEVICEINFO",
 		.op_rsize_bop = nfsd4_getdeviceinfo_rsize,
 	},
 	[OP_LAYOUTGET] = {
 		.op_func = nfsd4_layoutget,
+		.op_release = nfsd4_layoutget_release,
 		.op_flags = OP_MODIFIES_SOMETHING,
 		.op_name = "OP_LAYOUTGET",
 		.op_rsize_bop = nfsd4_layoutget_rsize,
