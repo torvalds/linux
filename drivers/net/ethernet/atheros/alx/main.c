@@ -838,7 +838,7 @@ static int alx_enable_msix(struct alx_priv *alx)
 
 	err = pci_alloc_irq_vectors(alx->hw.pdev, num_vec, num_vec,
 			PCI_IRQ_MSIX);
-	if (err) {
+	if (err < 0) {
 		netdev_warn(alx->dev, "Enabling MSI-X interrupts failed!\n");
 		return err;
 	}
@@ -904,7 +904,7 @@ static int alx_init_intr(struct alx_priv *alx)
 
 	ret = pci_alloc_irq_vectors(alx->hw.pdev, 1, 1,
 			PCI_IRQ_MSI | PCI_IRQ_LEGACY);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	alx->num_vec = 1;
