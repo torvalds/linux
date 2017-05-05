@@ -151,8 +151,13 @@ void release_thread(struct task_struct *);
 
 #ifdef __powerpc64__
 
+#ifdef CONFIG_PPC_BOOK3S_64
 /* Limit stack to 128TB */
 #define STACK_TOP_USER64 TASK_SIZE_128TB
+#else
+#define STACK_TOP_USER64 TASK_SIZE_USER64
+#endif
+
 #define STACK_TOP_USER32 TASK_SIZE_USER32
 
 #define STACK_TOP (is_32bit_task() ? \
