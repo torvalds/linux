@@ -19,6 +19,7 @@
 #define __XFS_LINUX__
 
 #include <linux/types.h>
+#include <linux/uuid.h>
 
 /*
  * Kernel specific type declarations for XFS
@@ -37,6 +38,8 @@ typedef unsigned long long	xfs_ino_t;	/* <inode> type */
 typedef __s64			xfs_daddr_t;	/* <disk address> type */
 typedef __u32			xfs_dev_t;
 typedef __u32			xfs_nlink_t;
+
+typedef uuid_be			uuid_t;
 
 #include "xfs_types.h"
 
