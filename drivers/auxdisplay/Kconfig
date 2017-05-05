@@ -13,7 +13,21 @@ menuconfig AUXDISPLAY
 
 	  If you say N, all options in this submenu will be skipped and disabled.
 
+config CHARLCD
+	tristate "Character LCD core support" if COMPILE_TEST
+
 if AUXDISPLAY
+
+config HD44780
+	tristate "HD44780 Character LCD support"
+	depends on GPIOLIB || COMPILE_TEST
+	select CHARLCD
+	---help---
+	  Enable support for Character LCDs using a HD44780 controller.
+	  The LCD is accessible through the /dev/lcd char device (10, 156).
+	  This code can either be compiled as a module, or linked into the
+	  kernel and started at boot.
+	  If you don't understand what all this is about, say N.
 
 config KS0108
 	tristate "KS0108 LCD Controller"

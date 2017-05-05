@@ -16,6 +16,7 @@
 #include <linux/blkpg.h>
 #include <linux/bio.h>
 #include <linux/mempool.h>
+#include <linux/dax.h>
 #include <linux/slab.h>
 #include <linux/idr.h>
 #include <linux/hdreg.h>
@@ -629,6 +630,7 @@ static int open_table_device(struct table_device *td, dev_t dev,
 	}
 
 	td->dm_dev.bdev = bdev;
+	td->dm_dev.dax_dev = dax_get_by_host(bdev->bd_disk->disk_name);
 	return 0;
 }
 
@@ -642,7 +644,9 @@ static void close_table_device(struct table_device *td, struct mapped_device *md
 
 	bd_unlink_disk_holder(td->dm_dev.bdev, dm_disk(md));
 	blkdev_put(td->dm_dev.bdev, td->dm_dev.mode | FMODE_EXCL);
+	put_dax(td->dm_dev.dax_dev);
 	td->dm_dev.bdev = NULL;
+	td->dm_dev.dax_dev = NULL;
 }
 
 static struct table_device *find_table_device(struct list_head *l, dev_t dev,
@@ -908,31 +912,49 @@ int dm_set_target_max_io_len(struct dm_target *ti, sector_t len)
 }
 EXPORT_SYMBOL_GPL(dm_set_target_max_io_len);
 
-static long dm_blk_direct_access(struct block_device *bdev, sector_t sector,
-				 void **kaddr, pfn_t *pfn, long size)
+static struct dm_target *dm_dax_get_live_target(struct mapped_device *md,
+		sector_t sector, int *srcu_idx)
 {
-	struct mapped_device *md = bdev->bd_disk->private_data;
 	struct dm_table *map;
 	struct dm_target *ti;
-	int srcu_idx;
-	long len, ret = -EIO;
 
-	map = dm_get_live_table(md, &srcu_idx);
+	map = dm_get_live_table(md, srcu_idx);
 	if (!map)
-		goto out;
+		return NULL;
 
 	ti = dm_table_find_target(map, sector);
 	if (!dm_target_is_valid(ti))
+		return NULL;
+
+	return ti;
+}
+
+static long dm_dax_direct_access(struct dax_device *dax_dev, pgoff_t pgoff,
+		long nr_pages, void **kaddr, pfn_t *pfn)
+{
+	struct mapped_device *md = dax_get_private(dax_dev);
+	sector_t sector = pgoff * PAGE_SECTORS;
+	struct dm_target *ti;
+	long len, ret = -EIO;
+	int srcu_idx;
+
+	ti = dm_dax_get_live_target(md, sector, &srcu_idx);
+
+	if (!ti)
 		goto out;
-
-	len = max_io_len(sector, ti) << SECTOR_SHIFT;
-	size = min(len, size);
-
+	if (!ti->type->direct_access)
+		goto out;
+	len = max_io_len(sector, ti) / PAGE_SECTORS;
+	if (len < 1)
+		goto out;
+	nr_pages = min(len, nr_pages);
 	if (ti->type->direct_access)
-		ret = ti->type->direct_access(ti, sector, kaddr, pfn, size);
-out:
+		ret = ti->type->direct_access(ti, pgoff, nr_pages, kaddr, pfn);
+
+ out:
 	dm_put_live_table(md, srcu_idx);
-	return min(ret, size);
+
+	return ret;
 }
 
 /*
@@ -1437,6 +1459,7 @@ static int next_free_minor(int *minor)
 }
 
 static const struct block_device_operations dm_blk_dops;
+static const struct dax_operations dm_dax_ops;
 
 static void dm_wq_work(struct work_struct *work);
 
@@ -1483,6 +1506,12 @@ static void cleanup_mapped_device(struct mapped_device *md)
 	if (md->bs)
 		bioset_free(md->bs);
 
+	if (md->dax_dev) {
+		kill_dax(md->dax_dev);
+		put_dax(md->dax_dev);
+		md->dax_dev = NULL;
+	}
+
 	if (md->disk) {
 		spin_lock(&_minor_lock);
 		md->disk->private_data = NULL;
@@ -1510,6 +1539,7 @@ static void cleanup_mapped_device(struct mapped_device *md)
 static struct mapped_device *alloc_dev(int minor)
 {
 	int r, numa_node_id = dm_get_numa_node();
+	struct dax_device *dax_dev;
 	struct mapped_device *md;
 	void *old_md;
 
@@ -1574,6 +1604,12 @@ static struct mapped_device *alloc_dev(int minor)
 	md->disk->queue = md->queue;
 	md->disk->private_data = md;
 	sprintf(md->disk->disk_name, "dm-%d", minor);
+
+	dax_dev = alloc_dax(md, md->disk->disk_name, &dm_dax_ops);
+	if (!dax_dev)
+		goto bad;
+	md->dax_dev = dax_dev;
+
 	add_disk(md->disk);
 	format_dev_t(md->name, MKDEV(_major, minor));
 
@@ -2775,10 +2811,13 @@ static const struct block_device_operations dm_blk_dops = {
 	.open = dm_blk_open,
 	.release = dm_blk_close,
 	.ioctl = dm_blk_ioctl,
-	.direct_access = dm_blk_direct_access,
 	.getgeo = dm_blk_getgeo,
 	.pr_ops = &dm_pr_ops,
 	.owner = THIS_MODULE
+};
+
+static const struct dax_operations dm_dax_ops = {
+	.direct_access = dm_dax_direct_access,
 };
 
 /*

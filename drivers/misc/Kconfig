@@ -495,6 +495,7 @@ config VEXPRESS_SYSCFG
 config PANEL
 	tristate "Parallel port LCD/Keypad Panel support"
 	depends on PARPORT
+	select CHARLCD
 	---help---
 	  Say Y here if you have an HD44780 or KS-0074 LCD connected to your
 	  parallel port. This driver also features 4 and 6-key keypads. The LCD
@@ -770,6 +771,14 @@ config PANEL_BOOT_MESSAGE
 	  printf()-formatted message is valid with newline and escape codes.
 
 endif # PANEL
+
+config ASPEED_LPC_CTRL
+	depends on (ARCH_ASPEED || COMPILE_TEST) && REGMAP && MFD_SYSCON
+	tristate "Aspeed ast2400/2500 HOST LPC to BMC bridge control"
+	---help---
+	  Control Aspeed ast2400/2500 HOST LPC to BMC mappings through
+	  ioctl()s, the driver also provides a read/write interface to a BMC ram
+	  region where the host LPC read/write region can be buffered.
 
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"

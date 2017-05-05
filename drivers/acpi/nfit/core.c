@@ -1849,8 +1849,7 @@ static int acpi_nfit_blk_single_io(struct nfit_blk *nfit_blk,
 				mmio_flush_range((void __force *)
 					mmio->addr.aperture + offset, c);
 
-			memcpy_from_pmem(iobuf + copied,
-					mmio->addr.aperture + offset, c);
+			memcpy(iobuf + copied, mmio->addr.aperture + offset, c);
 		}
 
 		copied += c;

@@ -70,6 +70,7 @@ enum fpga_mgr_states {
  */
 #define FPGA_MGR_PARTIAL_RECONFIG	BIT(0)
 #define FPGA_MGR_EXTERNAL_CONFIG	BIT(1)
+#define FPGA_MGR_ENCRYPTED_BITSTREAM	BIT(2)
 
 /**
  * struct fpga_image_info - information specific to a FPGA image

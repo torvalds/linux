@@ -337,8 +337,9 @@ static int child_regions_with_firmware(struct device_node *overlay)
  * The overlay must add either firmware-name or external-fpga-config property
  * to the FPGA Region.
  *
- *   firmware-name        : program the FPGA
- *   external-fpga-config : FPGA is already programmed
+ *   firmware-name         : program the FPGA
+ *   external-fpga-config  : FPGA is already programmed
+ *   encrypted-fpga-config : FPGA bitstream is encrypted
  *
  * The overlay can add other FPGA regions, but child FPGA regions cannot have a
  * firmware-name property since those regions don't exist yet.
@@ -372,6 +373,9 @@ static int fpga_region_notify_pre_apply(struct fpga_region *region,
 
 	if (of_property_read_bool(nd->overlay, "external-fpga-config"))
 		info->flags |= FPGA_MGR_EXTERNAL_CONFIG;
+
+	if (of_property_read_bool(nd->overlay, "encrypted-fpga-config"))
+		info->flags |= FPGA_MGR_ENCRYPTED_BITSTREAM;
 
 	of_property_read_string(nd->overlay, "firmware-name", &firmware_name);
 

@@ -128,13 +128,15 @@ typedef int (*dm_busy_fn) (struct dm_target *ti);
  *  < 0 : error
  * >= 0 : the number of bytes accessible at the address
  */
-typedef long (*dm_direct_access_fn) (struct dm_target *ti, sector_t sector,
-				     void **kaddr, pfn_t *pfn, long size);
+typedef long (*dm_dax_direct_access_fn) (struct dm_target *ti, pgoff_t pgoff,
+		long nr_pages, void **kaddr, pfn_t *pfn);
+#define PAGE_SECTORS (PAGE_SIZE / 512)
 
 void dm_error(const char *message);
 
 struct dm_dev {
 	struct block_device *bdev;
+	struct dax_device *dax_dev;
 	fmode_t mode;
 	char name[16];
 };
@@ -176,7 +178,7 @@ struct target_type {
 	dm_busy_fn busy;
 	dm_iterate_devices_fn iterate_devices;
 	dm_io_hints_fn io_hints;
-	dm_direct_access_fn direct_access;
+	dm_dax_direct_access_fn direct_access;
 
 	/* For internal device-mapper use. */
 	struct list_head list;
