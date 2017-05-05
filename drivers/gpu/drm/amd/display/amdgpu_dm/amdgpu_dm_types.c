@@ -1622,9 +1622,7 @@ static void dm_plane_helper_cleanup_fb(
 		amdgpu_bo_unpin(rbo);
 		amdgpu_bo_unreserve(rbo);
 		amdgpu_bo_unref(&rbo);
-	}
-
-	afb->address = 0;
+	};
 }
 
 int dm_create_validation_set_for_connector(struct drm_connector *connector,
