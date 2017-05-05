@@ -5161,7 +5161,6 @@ F:	include/uapi/linux/firewire*.h
 F:	tools/firewire/
 
 FIRMWARE LOADER (request_firmware)
-M:	Ming Lei <ming.lei@canonical.com>
 M:	Luis R. Rodriguez <mcgrof@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
@@ -5191,13 +5190,15 @@ F:	include/linux/ipmi-fru.h
 K:	fmc_d.*register
 
 FPGA MANAGER FRAMEWORK
-M:	Alan Tull <atull@opensource.altera.com>
+M:	Alan Tull <atull@kernel.org>
 R:	Moritz Fischer <moritz.fischer@ettus.com>
 L:	linux-fpga@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/atull/linux-fpga.git
+F:	Documentation/fpga/
+F:	Documentation/devicetree/bindings/fpga/
 F:	drivers/fpga/
-F:	include/linux/fpga/fpga-mgr.h
+F:	include/linux/fpga/
 W:	http://www.rocketboards.org
 
 FPU EMULATOR
@@ -9131,7 +9132,6 @@ F:	drivers/nvme/target/fcloop.c
 
 NVMEM FRAMEWORK
 M:	Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
-M:	Maxime Ripard <maxime.ripard@free-electrons.com>
 S:	Maintained
 F:	drivers/nvmem/
 F:	Documentation/devicetree/bindings/nvmem/

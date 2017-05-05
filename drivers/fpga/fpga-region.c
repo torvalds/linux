@@ -245,7 +245,8 @@ static int fpga_region_program_fpga(struct fpga_region *region,
 	mgr = fpga_region_get_manager(region);
 	if (IS_ERR(mgr)) {
 		pr_err("failed to get fpga region manager\n");
-		return PTR_ERR(mgr);
+		ret = PTR_ERR(mgr);
+		goto err_put_region;
 	}
 
 	ret = fpga_region_get_bridges(region, overlay);
@@ -281,6 +282,7 @@ err_put_br:
 	fpga_bridges_put(&region->bridge_list);
 err_put_mgr:
 	fpga_mgr_put(mgr);
+err_put_region:
 	fpga_region_put(region);
 
 	return ret;
@@ -337,8 +339,9 @@ static int child_regions_with_firmware(struct device_node *overlay)
  * The overlay must add either firmware-name or external-fpga-config property
  * to the FPGA Region.
  *
- *   firmware-name        : program the FPGA
- *   external-fpga-config : FPGA is already programmed
+ *   firmware-name         : program the FPGA
+ *   external-fpga-config  : FPGA is already programmed
+ *   encrypted-fpga-config : FPGA bitstream is encrypted
  *
  * The overlay can add other FPGA regions, but child FPGA regions cannot have a
  * firmware-name property since those regions don't exist yet.
@@ -373,6 +376,9 @@ static int fpga_region_notify_pre_apply(struct fpga_region *region,
 	if (of_property_read_bool(nd->overlay, "external-fpga-config"))
 		info->flags |= FPGA_MGR_EXTERNAL_CONFIG;
 
+	if (of_property_read_bool(nd->overlay, "encrypted-fpga-config"))
+		info->flags |= FPGA_MGR_ENCRYPTED_BITSTREAM;
+
 	of_property_read_string(nd->overlay, "firmware-name", &firmware_name);
 
 	of_property_read_u32(nd->overlay, "region-unfreeze-timeout-us",
@@ -380,6 +386,9 @@ static int fpga_region_notify_pre_apply(struct fpga_region *region,
 
 	of_property_read_u32(nd->overlay, "region-freeze-timeout-us",
 			     &info->disable_timeout_us);
+
+	of_property_read_u32(nd->overlay, "config-complete-timeout-us",
+			     &info->config_complete_timeout_us);
 
 	/* If FPGA was externally programmed, don't specify firmware */
 	if ((info->flags & FPGA_MGR_EXTERNAL_CONFIG) && firmware_name) {

@@ -36,7 +36,6 @@
 
 #include "../w1.h"
 #include "../w1_int.h"
-#include "../w1_log.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Evgeniy Polyakov <zbr@ioremap.net>");
@@ -157,9 +156,6 @@ static int matrox_w1_probe(struct pci_dev *pdev, const struct pci_device_id *ent
 	struct matrox_device *dev;
 	int err;
 
-	assert(pdev != NULL);
-	assert(ent != NULL);
-
 	if (pdev->vendor != PCI_VENDOR_ID_MATROX || pdev->device != PCI_DEVICE_ID_MATROX_G400)
 		return -ENODEV;
 
@@ -223,8 +219,6 @@ err_out_free_device:
 static void matrox_w1_remove(struct pci_dev *pdev)
 {
 	struct matrox_device *dev = pci_get_drvdata(pdev);
-
-	assert(dev != NULL);
 
 	if (dev->found) {
 		w1_remove_master_device(dev->bus_master);

@@ -28,6 +28,7 @@
 #define FREEZE_CSR_REG_VERSION			12
 
 #define FREEZE_CSR_SUPPORTED_VERSION		2
+#define FREEZE_CSR_OFFICIAL_VERSION		0xad000003
 
 #define FREEZE_CSR_STATUS_FREEZE_REQ_DONE	BIT(0)
 #define FREEZE_CSR_STATUS_UNFREEZE_REQ_DONE	BIT(1)
@@ -203,7 +204,7 @@ static int altera_freeze_br_enable_show(struct fpga_bridge *bridge)
 	return priv->enable;
 }
 
-static struct fpga_bridge_ops altera_freeze_br_br_ops = {
+static const struct fpga_bridge_ops altera_freeze_br_br_ops = {
 	.enable_set = altera_freeze_br_enable_set,
 	.enable_show = altera_freeze_br_enable_show,
 };
@@ -218,6 +219,7 @@ static int altera_freeze_br_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = pdev->dev.of_node;
+	void __iomem *base_addr;
 	struct altera_freeze_br_data *priv;
 	struct resource *res;
 	u32 status, revision;
@@ -225,26 +227,32 @@ static int altera_freeze_br_probe(struct platform_device *pdev)
 	if (!np)
 		return -ENODEV;
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	base_addr = devm_ioremap_resource(dev, res);
+	if (IS_ERR(base_addr))
+		return PTR_ERR(base_addr);
+
+	revision = readl(base_addr + FREEZE_CSR_REG_VERSION);
+	if ((revision != FREEZE_CSR_SUPPORTED_VERSION) &&
+	    (revision != FREEZE_CSR_OFFICIAL_VERSION)) {
+		dev_err(dev,
+			"%s unexpected revision 0x%x != 0x%x != 0x%x\n",
+			__func__, revision, FREEZE_CSR_SUPPORTED_VERSION,
+			FREEZE_CSR_OFFICIAL_VERSION);
+		return -EINVAL;
+	}
+
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
 	priv->dev = dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->base_addr = devm_ioremap_resource(dev, res);
-	if (IS_ERR(priv->base_addr))
-		return PTR_ERR(priv->base_addr);
-
-	status = readl(priv->base_addr + FREEZE_CSR_STATUS_OFFSET);
+	status = readl(base_addr + FREEZE_CSR_STATUS_OFFSET);
 	if (status & FREEZE_CSR_STATUS_UNFREEZE_REQ_DONE)
 		priv->enable = 1;
 
-	revision = readl(priv->base_addr + FREEZE_CSR_REG_VERSION);
-	if (revision != FREEZE_CSR_SUPPORTED_VERSION)
-		dev_warn(dev,
-			 "%s Freeze Controller unexpected revision %d != %d\n",
-			 __func__, revision, FREEZE_CSR_SUPPORTED_VERSION);
+	priv->base_addr = base_addr;
 
 	return fpga_bridge_register(dev, FREEZE_BRIDGE_NAME,
 				    &altera_freeze_br_br_ops, priv);
