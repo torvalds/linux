@@ -1972,11 +1972,10 @@ int free_io_failure(struct btrfs_inode *inode, struct io_failure_record *rec)
  * currently, there can be no more than two copies of every data bit. thus,
  * exactly one rewrite is required.
  */
-int repair_io_failure(struct btrfs_inode *inode, u64 start, u64 length,
-		u64 logical, struct page *page,
-		unsigned int pg_offset, int mirror_num)
+int repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
+		      u64 length, u64 logical, struct page *page,
+		      unsigned int pg_offset, int mirror_num)
 {
-	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct bio *bio;
 	struct btrfs_device *dev;
 	u64 map_length = 0;
@@ -2048,7 +2047,7 @@ int repair_io_failure(struct btrfs_inode *inode, u64 start, u64 length,
 
 	btrfs_info_rl_in_rcu(fs_info,
 		"read error corrected: ino %llu off %llu (dev %s sector %llu)",
-				  btrfs_ino(inode), start,
+				  ino, start,
 				  rcu_str_deref(dev->name), sector);
 	btrfs_bio_counter_dec(fs_info);
 	bio_put(bio);
@@ -2068,8 +2067,7 @@ int repair_eb_io_failure(struct btrfs_fs_info *fs_info,
 	for (i = 0; i < num_pages; i++) {
 		struct page *p = eb->pages[i];
 
-		ret = repair_io_failure(BTRFS_I(fs_info->btree_inode), start,
-					PAGE_SIZE, start, p,
+		ret = repair_io_failure(fs_info, 0, start, PAGE_SIZE, start, p,
 					start - page_offset(p), mirror_num);
 		if (ret)
 			break;
@@ -2127,8 +2125,8 @@ int clean_io_failure(struct btrfs_inode *inode, u64 start, struct page *page,
 		num_copies = btrfs_num_copies(fs_info, failrec->logical,
 					      failrec->len);
 		if (num_copies > 1)  {
-			repair_io_failure(inode, start, failrec->len,
-					  failrec->logical, page,
+			repair_io_failure(fs_info, btrfs_ino(inode), start,
+					  failrec->len, failrec->logical, page,
 					  pg_offset, failrec->failed_mirror);
 		}
 	}

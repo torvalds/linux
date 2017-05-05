@@ -471,9 +471,9 @@ struct bio *btrfs_bio_clone(struct bio *bio, gfp_t gfp_mask);
 struct btrfs_fs_info;
 struct btrfs_inode;
 
-int repair_io_failure(struct btrfs_inode *inode, u64 start, u64 length,
-		u64 logical, struct page *page,
-		unsigned int pg_offset, int mirror_num);
+int repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
+		      u64 length, u64 logical, struct page *page,
+		      unsigned int pg_offset, int mirror_num);
 int clean_io_failure(struct btrfs_inode *inode, u64 start,
 		struct page *page, unsigned int pg_offset);
 void end_extent_writepage(struct page *page, int err, u64 start, u64 end);
