@@ -394,20 +394,13 @@ affs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
 	return affs_add_entry(dir, inode, dentry, ST_LINKFILE);
 }
 
-int
+static int
 affs_rename(struct inode *old_dir, struct dentry *old_dentry,
-	    struct inode *new_dir, struct dentry *new_dentry,
-	    unsigned int flags)
+	    struct inode *new_dir, struct dentry *new_dentry)
 {
 	struct super_block *sb = old_dir->i_sb;
 	struct buffer_head *bh = NULL;
 	int retval;
-
-	if (flags & ~RENAME_NOREPLACE)
-		return -EINVAL;
-
-	pr_debug("%s(old=%lu,\"%pd\" to new=%lu,\"%pd\")\n", __func__,
-		 old_dir->i_ino, old_dentry, new_dir->i_ino, new_dentry);
 
 	retval = affs_check_name(new_dentry->d_name.name,
 				 new_dentry->d_name.len,
@@ -446,6 +439,20 @@ done:
 	mark_buffer_dirty_inode(bh, retval ? old_dir : new_dir);
 	affs_brelse(bh);
 	return retval;
+}
+
+int affs_rename2(struct inode *old_dir, struct dentry *old_dentry,
+			struct inode *new_dir, struct dentry *new_dentry,
+			unsigned int flags)
+{
+
+	if (flags & ~RENAME_NOREPLACE)
+		return -EINVAL;
+
+	pr_debug("%s(old=%lu,\"%pd\" to new=%lu,\"%pd\")\n", __func__,
+		 old_dir->i_ino, old_dentry, new_dir->i_ino, new_dentry);
+
+	return affs_rename(old_dir, old_dentry, new_dir, new_dentry);
 }
 
 static struct dentry *affs_get_parent(struct dentry *child)
