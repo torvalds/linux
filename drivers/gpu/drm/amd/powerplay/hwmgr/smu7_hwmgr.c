@@ -4334,26 +4334,31 @@ static int smu7_print_clock_levels(struct pp_hwmgr *hwmgr,
 
 static int smu7_set_fan_control_mode(struct pp_hwmgr *hwmgr, uint32_t mode)
 {
-	if (mode) {
-		/* stop auto-manage */
-		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-				PHM_PlatformCaps_MicrocodeFanControl))
-			smu7_fan_ctrl_stop_smc_fan_control(hwmgr);
-		smu7_fan_ctrl_set_static_mode(hwmgr, mode);
-	} else
-		/* restart auto-manage */
-		smu7_fan_ctrl_reset_fan_speed_to_default(hwmgr);
+	int result = 0;
 
-	return 0;
+	switch (mode) {
+	case AMD_FAN_CTRL_NONE:
+		result = smu7_fan_ctrl_set_fan_speed_percent(hwmgr, 100);
+		break;
+	case AMD_FAN_CTRL_MANUAL:
+		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_MicrocodeFanControl))
+			result = smu7_fan_ctrl_stop_smc_fan_control(hwmgr);
+		break;
+	case AMD_FAN_CTRL_AUTO:
+		result = smu7_fan_ctrl_set_static_mode(hwmgr, mode);
+		if (!result)
+			result = smu7_fan_ctrl_start_smc_fan_control(hwmgr);
+		break;
+	default:
+		break;
+	}
+	return result;
 }
 
 static int smu7_get_fan_control_mode(struct pp_hwmgr *hwmgr)
 {
-	if (hwmgr->fan_ctrl_is_in_default_mode)
-		return hwmgr->fan_ctrl_default_mode;
-	else
-		return PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
-				CG_FDO_CTRL2, FDO_PWM_MODE);
+	return hwmgr->fan_ctrl_enabled ? AMD_FAN_CTRL_AUTO : AMD_FAN_CTRL_MANUAL;
 }
 
 static int smu7_get_sclk_od(struct pp_hwmgr *hwmgr)
