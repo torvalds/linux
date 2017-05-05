@@ -2867,10 +2867,11 @@ out:
 	drm_helper_resume_force_mode(adev->ddev);
 
 	ttm_bo_unlock_delayed_workqueue(&adev->mman.bdev, resched);
-	if (r) {
+	if (r)
 		/* bad news, how to tell it to userspace ? */
 		dev_info(adev->dev, "GPU reset failed\n");
-	}
+	else
+		dev_info(adev->dev, "GPU reset successed!\n");
 
 	return r;
 }
