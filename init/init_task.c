@@ -33,6 +33,7 @@ static struct signal_struct init_signals = {
 	},
 #endif
 	INIT_CPU_TIMERS(init_signals)
+	.leader_pid = &init_struct_pid,
 	INIT_PREV_CPUTIME(init_signals)
 };
 
