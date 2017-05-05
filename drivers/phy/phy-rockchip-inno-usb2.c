@@ -492,7 +492,7 @@ static int rockchip_usb2phy_init(struct phy *phy)
 			}
 
 			schedule_delayed_work(&rport->otg_sm_work,
-					      OTG_SCHEDULE_DELAY);
+					      OTG_SCHEDULE_DELAY * 3);
 		} else {
 			/* If OTG works in host only mode, do nothing. */
 			dev_dbg(&rport->phy->dev, "mode %d\n", rport->mode);
