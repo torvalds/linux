@@ -22,6 +22,7 @@
  */
 
 #include "amdgpu.h"
+#define MAX_KIQ_REG_WAIT	100000
 
 int amdgpu_allocate_static_csa(struct amdgpu_device *adev)
 {
@@ -128,10 +129,12 @@ uint32_t amdgpu_virt_kiq_rreg(struct amdgpu_device *adev, uint32_t reg)
 	amdgpu_ring_commit(ring);
 	mutex_unlock(&kiq->ring_mutex);
 
-	r = dma_fence_wait(f, false);
-	if (r)
-		DRM_ERROR("wait for kiq fence error: %ld.\n", r);
+	r = dma_fence_wait_timeout(f, false, msecs_to_jiffies(MAX_KIQ_REG_WAIT));
 	dma_fence_put(f);
+	if (r < 1) {
+		DRM_ERROR("wait for kiq fence error: %ld.\n", r);
+		return ~0;
+	}
 
 	val = adev->wb.wb[adev->virt.reg_val_offs];
 
@@ -154,8 +157,8 @@ void amdgpu_virt_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v)
 	amdgpu_ring_commit(ring);
 	mutex_unlock(&kiq->ring_mutex);
 
-	r = dma_fence_wait(f, false);
-	if (r)
+	r = dma_fence_wait_timeout(f, false, msecs_to_jiffies(MAX_KIQ_REG_WAIT));
+	if (r < 1)
 		DRM_ERROR("wait for kiq fence error: %ld.\n", r);
 	dma_fence_put(f);
 }
