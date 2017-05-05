@@ -236,6 +236,8 @@ void ovl_workdir_cleanup(struct inode *dir, struct vfsmount *mnt,
 
 /* inode.c */
 int ovl_setattr(struct dentry *dentry, struct iattr *attr);
+int ovl_getattr(const struct path *path, struct kstat *stat,
+		u32 request_mask, unsigned int flags);
 int ovl_permission(struct inode *inode, int mask);
 int ovl_xattr_set(struct dentry *dentry, const char *name, const void *value,
 		  size_t size, int flags);

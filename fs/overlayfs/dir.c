@@ -138,65 +138,6 @@ static int ovl_set_opaque(struct dentry *dentry, struct dentry *upperdentry)
 	return err;
 }
 
-static int ovl_dir_getattr(const struct path *path, struct kstat *stat,
-			   u32 request_mask, unsigned int flags)
-{
-	struct dentry *dentry = path->dentry;
-	int err;
-	enum ovl_path_type type;
-	struct path realpath;
-	const struct cred *old_cred;
-
-	type = ovl_path_real(dentry, &realpath);
-	old_cred = ovl_override_creds(dentry->d_sb);
-	err = vfs_getattr(&realpath, stat, request_mask, flags);
-	if (err)
-		goto out;
-
-	/*
-	 * When all layers are on the same fs, use the copy-up-origin st_ino,
-	 * which is persistent, unique and constant across copy up.
-	 *
-	 * Otherwise the pair {real st_ino; overlay st_dev} is not unique, so
-	 * use the non persistent overlay st_ino.
-	 */
-	if (ovl_same_sb(dentry->d_sb)) {
-		if (OVL_TYPE_ORIGIN(type)) {
-			struct kstat lowerstat;
-
-			ovl_path_lower(dentry, &realpath);
-			err = vfs_getattr(&realpath, &lowerstat,
-					  STATX_INO, flags);
-			if (err)
-				goto out;
-
-			WARN_ON_ONCE(stat->dev != lowerstat.dev);
-			stat->ino = lowerstat.ino;
-		}
-	} else {
-		stat->ino = dentry->d_inode->i_ino;
-	}
-
-	/*
-	 * Always use the overlay st_dev for directories, so 'find -xdev' will
-	 * scan the entire overlay mount and won't cross the overlay mount
-	 * boundaries.
-	 */
-	stat->dev = dentry->d_sb->s_dev;
-
-	/*
-	 * It's probably not worth it to count subdirs to get the
-	 * correct link count.  nlink=1 seems to pacify 'find' and
-	 * other utilities.
-	 */
-	if (OVL_TYPE_MERGE(type))
-		stat->nlink = 1;
-out:
-	revert_creds(old_cred);
-
-	return err;
-}
-
 /* Common operations required to be done after creation of file on upper */
 static void ovl_instantiate(struct dentry *dentry, struct inode *inode,
 			    struct dentry *newdentry, bool hardlink)
@@ -1099,7 +1040,7 @@ const struct inode_operations ovl_dir_inode_operations = {
 	.create		= ovl_create,
 	.mknod		= ovl_mknod,
 	.permission	= ovl_permission,
-	.getattr	= ovl_dir_getattr,
+	.getattr	= ovl_getattr,
 	.listxattr	= ovl_listxattr,
 	.get_acl	= ovl_get_acl,
 	.update_time	= ovl_update_time,
