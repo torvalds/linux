@@ -416,6 +416,8 @@ static const unsigned int i2s_ao_clk_out_ao_pins[] = { PIN(GPIOAO_9, AO_OFF) };
 static const unsigned int i2s_lr_clk_out_ao_pins[] = { PIN(GPIOAO_10, AO_OFF) };
 static const unsigned int i2s_out_ch01_ao_pins[] = { PIN(GPIOAO_11, AO_OFF) };
 
+static const unsigned int hdmi_cec_ao_pins[] = { PIN(GPIOAO_12, AO_OFF) };
+
 static struct meson_pmx_group meson8_cbus_groups[] = {
 	GPIO_GROUP(GPIOX_0, 0),
 	GPIO_GROUP(GPIOX_1, 0),
@@ -769,6 +771,8 @@ static struct meson_pmx_group meson8_aobus_groups[] = {
 	GROUP(i2s_ao_clk_out_ao,	0,	29),
 	GROUP(i2s_lr_clk_out_ao,	0,	28),
 	GROUP(i2s_out_ch01_ao,		0,	27),
+
+	GROUP(hdmi_cec_ao,		0,	17),
 };
 
 static const char * const gpio_groups[] = {
@@ -985,6 +989,10 @@ static const char * const i2s_ao_groups[] = {
 	"i2s_out_ch01_ao"
 };
 
+static const char * const hdmi_cec_ao_groups[] = {
+	"hdmi_cec_ao"
+};
+
 static struct meson_pmx_func meson8_cbus_functions[] = {
 	FUNCTION(gpio),
 	FUNCTION(sd_a),
@@ -1029,6 +1037,7 @@ static struct meson_pmx_func meson8_aobus_functions[] = {
 	FUNCTION(i2c_mst_ao),
 	FUNCTION(pwm_f_ao),
 	FUNCTION(i2s_ao),
+	FUNCTION(hdmi_cec_ao),
 };
 
 static struct meson_bank meson8_cbus_banks[] = {
