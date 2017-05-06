@@ -2886,12 +2886,22 @@ static void reweight_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
 		if (cfs_rq->curr == se)
 			update_curr(cfs_rq);
 		account_entity_dequeue(cfs_rq, se);
+		dequeue_runnable_load_avg(cfs_rq, se);
 	}
+	dequeue_load_avg(cfs_rq, se);
 
 	update_load_set(&se->load, weight);
 
-	if (se->on_rq)
+#ifdef CONFIG_SMP
+	se->avg.load_avg = div_u64(se_weight(se) * se->avg.load_sum,
+				   LOAD_AVG_MAX - 1024 + se->avg.period_contrib);
+#endif
+
+	enqueue_load_avg(cfs_rq, se);
+	if (se->on_rq) {
 		account_entity_enqueue(cfs_rq, se);
+		enqueue_runnable_load_avg(cfs_rq, se);
+	}
 }
 
 static inline int throttled_hierarchy(struct cfs_rq *cfs_rq);
