@@ -258,10 +258,8 @@ int tee_supp_init(struct tee *tee)
 		return -ENOMEM;
 	}
 
-	rpc->datafromuser = (struct semaphore)
-	    __SEMAPHORE_INITIALIZER(rpc->datafromuser, 0);
-	rpc->datatouser = (struct semaphore)
-	    __SEMAPHORE_INITIALIZER(rpc->datatouser, 0);
+	sema_init(&rpc->datafromuser, 0);
+	sema_init(&rpc->datatouser, 0);
 	mutex_init(&rpc->thrd_mutex);
 	mutex_init(&rpc->outsync);
 	mutex_init(&rpc->insync);
