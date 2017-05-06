@@ -354,7 +354,10 @@ static int osc_io_iter_init(const struct lu_env *env,
 
 	spin_lock(&imp->imp_lock);
 	if (likely(!imp->imp_invalid)) {
+		struct osc_io *oio = osc_env_io(env);
+
 		atomic_inc(&osc->oo_nr_ios);
+		oio->oi_is_active = 1;
 		rc = 0;
 	}
 	spin_unlock(&imp->imp_lock);
@@ -368,10 +371,7 @@ static int osc_io_write_iter_init(const struct lu_env *env,
 	struct cl_io *io = ios->cis_io;
 	struct osc_io *oio = osc_env_io(env);
 	struct osc_object *osc = cl2osc(ios->cis_obj);
-	struct client_obd *cli = osc_cli(osc);
-	unsigned long c;
 	unsigned long npages;
-	unsigned long max_pages;
 
 	if (cl_io_is_append(io))
 		return osc_io_iter_init(env, ios);
@@ -380,31 +380,7 @@ static int osc_io_write_iter_init(const struct lu_env *env,
 	if (io->u.ci_rw.crw_pos & ~PAGE_MASK)
 		++npages;
 
-	max_pages = cli->cl_max_pages_per_rpc * cli->cl_max_rpcs_in_flight;
-	if (npages > max_pages)
-		npages = max_pages;
-
-	c = atomic_long_read(cli->cl_lru_left);
-	if (c < npages && osc_lru_reclaim(cli, npages) > 0)
-		c = atomic_long_read(cli->cl_lru_left);
-	while (c >= npages) {
-		if (c == atomic_long_cmpxchg(cli->cl_lru_left, c, c - npages)) {
-			oio->oi_lru_reserved = npages;
-			break;
-		}
-		c = atomic_long_read(cli->cl_lru_left);
-	}
-	if (atomic_long_read(cli->cl_lru_left) < max_pages) {
-		/*
-		 * If there aren't enough pages in the per-OSC LRU then
-		 * wake up the LRU thread to try and clear out space, so
-		 * we don't block if pages are being dirtied quickly.
-		 */
-		CDEBUG(D_CACHE, "%s: queue LRU, left: %lu/%ld.\n",
-		       cli_name(cli), atomic_long_read(cli->cl_lru_left),
-		       max_pages);
-		(void)ptlrpcd_queue_work(cli->cl_lru_work);
-	}
+	oio->oi_lru_reserved = osc_lru_reserve(osc_cli(osc), npages);
 
 	return osc_io_iter_init(env, ios);
 }
@@ -412,11 +388,16 @@ static int osc_io_write_iter_init(const struct lu_env *env,
 static void osc_io_iter_fini(const struct lu_env *env,
 			     const struct cl_io_slice *ios)
 {
-	struct osc_object *osc = cl2osc(ios->cis_obj);
+	struct osc_io *oio = osc_env_io(env);
 
-	LASSERT(atomic_read(&osc->oo_nr_ios) > 0);
-	if (atomic_dec_and_test(&osc->oo_nr_ios))
-		wake_up_all(&osc->oo_io_waitq);
+	if (oio->oi_is_active) {
+		struct osc_object *osc = cl2osc(ios->cis_obj);
+
+		oio->oi_is_active = 0;
+		LASSERT(atomic_read(&osc->oo_nr_ios) > 0);
+		if (atomic_dec_and_test(&osc->oo_nr_ios))
+			wake_up_all(&osc->oo_io_waitq);
+	}
 }
 
 static void osc_io_write_iter_fini(const struct lu_env *env,
@@ -424,10 +405,9 @@ static void osc_io_write_iter_fini(const struct lu_env *env,
 {
 	struct osc_io *oio = osc_env_io(env);
 	struct osc_object *osc = cl2osc(ios->cis_obj);
-	struct client_obd *cli = osc_cli(osc);
 
 	if (oio->oi_lru_reserved > 0) {
-		atomic_long_add(oio->oi_lru_reserved, cli->cl_lru_left);
+		osc_lru_unreserve(osc_cli(osc), oio->oi_lru_reserved);
 		oio->oi_lru_reserved = 0;
 	}
 	oio->oi_write_osclock = NULL;

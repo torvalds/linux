@@ -346,7 +346,7 @@ static s32 rtw_dump_xframe(struct adapter *adapt, struct xmit_frame *pxmitframe)
 	struct xmit_buf *pxmitbuf = pxmitframe->pxmitbuf;
 	struct pkt_attrib *pattrib = &pxmitframe->attrib;
 	struct xmit_priv *pxmitpriv = &adapt->xmitpriv;
-	struct security_priv *psecuritypriv = &adapt->securitypriv;
+
 	if ((pxmitframe->frame_tag == DATA_FRAMETAG) &&
 	    (pxmitframe->attrib.ether_type != 0x0806) &&
 	    (pxmitframe->attrib.ether_type != 0x888e) &&
@@ -365,7 +365,7 @@ static s32 rtw_dump_xframe(struct adapter *adapt, struct xmit_frame *pxmitframe)
 			RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_, ("pattrib->nr_frags=%d\n", pattrib->nr_frags));
 
 			sz = pxmitpriv->frag_len;
-			sz = sz - 4 - (psecuritypriv->sw_encrypt ? 0 : pattrib->icv_len);
+			sz = sz - 4 - pattrib->icv_len;
 		} else {
 			/* no frag */
 			sz = pattrib->last_txcmdsz;

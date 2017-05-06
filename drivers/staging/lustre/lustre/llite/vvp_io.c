@@ -219,6 +219,7 @@ static int vvp_io_one_lock_index(const struct lu_env *env, struct cl_io *io,
 	if (vio->vui_fd && (vio->vui_fd->fd_flags & LL_FILE_GROUP_LOCKED)) {
 		descr->cld_mode = CLM_GROUP;
 		descr->cld_gid  = vio->vui_fd->fd_grouplock.lg_gid;
+		enqflags |= CEF_LOCK_MATCH;
 	} else {
 		descr->cld_mode  = mode;
 	}
@@ -449,6 +450,7 @@ static void vvp_io_advance(const struct lu_env *env,
 {
 	struct cl_object *obj = ios->cis_io->ci_obj;
 	struct vvp_io	 *vio = cl2vvp_io(env, ios);
+
 	CLOBINVRNT(env, obj, vvp_object_invariant(obj));
 
 	vio->vui_tot_count -= nob;

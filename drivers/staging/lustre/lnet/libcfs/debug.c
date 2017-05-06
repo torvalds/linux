@@ -80,7 +80,7 @@ static int libcfs_param_debug_mb_set(const char *val,
  * it needs quite a bunch of extra processing, so we define special
  * debugmb parameter type with corresponding methods to handle this case
  */
-static struct kernel_param_ops param_ops_debugmb = {
+static const struct kernel_param_ops param_ops_debugmb = {
 	.set = libcfs_param_debug_mb_set,
 	.get = param_get_uint,
 };
@@ -138,7 +138,7 @@ static int param_set_console_max_delay(const char *val,
 				      libcfs_console_min_delay, INT_MAX);
 }
 
-static struct kernel_param_ops param_ops_console_max_delay = {
+static const struct kernel_param_ops param_ops_console_max_delay = {
 	.set = param_set_console_max_delay,
 	.get = param_get_delay,
 };
@@ -156,7 +156,7 @@ static int param_set_console_min_delay(const char *val,
 				      1, libcfs_console_max_delay);
 }
 
-static struct kernel_param_ops param_ops_console_min_delay = {
+static const struct kernel_param_ops param_ops_console_min_delay = {
 	.set = param_set_console_min_delay,
 	.get = param_get_delay,
 };
@@ -188,7 +188,7 @@ static int param_set_uintpos(const char *val, const struct kernel_param *kp)
 	return param_set_uint_minmax(val, kp, 1, -1);
 }
 
-static struct kernel_param_ops param_ops_uintpos = {
+static const struct kernel_param_ops param_ops_uintpos = {
 	.set = param_set_uintpos,
 	.get = param_get_uint,
 };

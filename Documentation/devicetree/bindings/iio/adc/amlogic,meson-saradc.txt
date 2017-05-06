@@ -7,6 +7,7 @@ Required properties:
 			- "amlogic,meson-gxm-saradc" for GXM
 		along with the generic "amlogic,meson-saradc"
 - reg:		the physical base address and length of the registers
+- interrupts:	the interrupt indicating end of sampling
 - clocks:	phandle and clock identifier (see clock-names)
 - clock-names:	mandatory clocks:
 			- "clkin" for the reference clock (typically XTAL)
@@ -23,6 +24,7 @@ Example:
 		compatible = "amlogic,meson-gxl-saradc", "amlogic,meson-saradc";
 		#io-channel-cells = <1>;
 		reg = <0x0 0x8680 0x0 0x34>;
+		interrupts = <GIC_SPI 73 IRQ_TYPE_EDGE_RISING>;
 		clocks = <&xtal>,
 			 <&clkc CLKID_SAR_ADC>,
 			 <&clkc CLKID_SANA>,

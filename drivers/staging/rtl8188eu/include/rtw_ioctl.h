@@ -58,12 +58,6 @@
 #define OID_MP_SEG3		0xFF818700
 #define OID_MP_SEG4		0xFF011100
 
-#define DEBUG_OID(dbg, str)						\
-	if ((!dbg)) {							\
-		RT_TRACE(_module_rtl871x_ioctl_c_, _drv_info_,		\
-			 ("%s(%d): %s", __func__, __line__, str));	\
-	}
-
 enum oid_type {
 	QUERY_OID,
 	SET_OID

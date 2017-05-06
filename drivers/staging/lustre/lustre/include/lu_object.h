@@ -147,9 +147,9 @@ struct lu_device_operations {
 				     struct lu_device *);
 
 	/**
-	 * initialize local objects for device. this method called after layer has
-	 * been initialized (after LCFG_SETUP stage) and before it starts serving
-	 * user requests.
+	 * initialize local objects for device. this method called after layer
+	 * has been initialized (after LCFG_SETUP stage) and before it starts
+	 * serving user requests.
 	 */
 
 	int (*ldo_prepare)(const struct lu_env *,
@@ -791,7 +791,7 @@ int lu_cdebug_printer(const struct lu_env *env,
 #define LU_OBJECT_DEBUG(mask, env, object, format, ...)		   \
 do {								      \
 	if (cfs_cdebug_show(mask, DEBUG_SUBSYSTEM)) {		     \
-		LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, mask, NULL);		\
+		LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, mask, NULL);	\
 		lu_object_print(env, &msgdata, lu_cdebug_printer, object);\
 		CDEBUG(mask, format "\n", ## __VA_ARGS__);		    \
 	}								 \
@@ -803,7 +803,7 @@ do {								      \
 #define LU_OBJECT_HEADER(mask, env, object, format, ...)		\
 do {								    \
 	if (cfs_cdebug_show(mask, DEBUG_SUBSYSTEM)) {		   \
-		LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, mask, NULL);		\
+		LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, mask, NULL);	\
 		lu_object_header_print(env, &msgdata, lu_cdebug_printer,\
 				       (object)->lo_header);	    \
 		lu_cdebug_printer(env, &msgdata, "\n");		 \

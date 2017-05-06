@@ -38,7 +38,7 @@
 #include <asm/page.h>
 #include "o2iblnd.h"
 
-static lnd_t the_o2iblnd;
+static struct lnet_lnd the_o2iblnd;
 
 struct kib_data kiblnd_data;
 
@@ -174,7 +174,7 @@ static int kiblnd_unpack_rd(struct kib_msg *msg, int flip)
 	return 0;
 }
 
-void kiblnd_pack_msg(lnet_ni_t *ni, struct kib_msg *msg, int version,
+void kiblnd_pack_msg(struct lnet_ni *ni, struct kib_msg *msg, int version,
 		     int credits, lnet_nid_t dstnid, __u64 dststamp)
 {
 	struct kib_net *net = ni->ni_data;
@@ -313,7 +313,8 @@ int kiblnd_unpack_msg(struct kib_msg *msg, int nob)
 	return 0;
 }
 
-int kiblnd_create_peer(lnet_ni_t *ni, struct kib_peer **peerp, lnet_nid_t nid)
+int kiblnd_create_peer(struct lnet_ni *ni, struct kib_peer **peerp,
+		       lnet_nid_t nid)
 {
 	struct kib_peer *peer;
 	struct kib_net *net = ni->ni_data;
@@ -412,7 +413,7 @@ void kiblnd_unlink_peer_locked(struct kib_peer *peer)
 	kiblnd_peer_decref(peer);
 }
 
-static int kiblnd_get_peer_info(lnet_ni_t *ni, int index,
+static int kiblnd_get_peer_info(struct lnet_ni *ni, int index,
 				lnet_nid_t *nidp, int *count)
 {
 	struct kib_peer *peer;
@@ -468,7 +469,7 @@ static void kiblnd_del_peer_locked(struct kib_peer *peer)
 	 */
 }
 
-static int kiblnd_del_peer(lnet_ni_t *ni, lnet_nid_t nid)
+static int kiblnd_del_peer(struct lnet_ni *ni, lnet_nid_t nid)
 {
 	LIST_HEAD(zombies);
 	struct list_head *ptmp;
@@ -520,7 +521,7 @@ static int kiblnd_del_peer(lnet_ni_t *ni, lnet_nid_t nid)
 	return rc;
 }
 
-static struct kib_conn *kiblnd_get_conn_by_idx(lnet_ni_t *ni, int index)
+static struct kib_conn *kiblnd_get_conn_by_idx(struct lnet_ni *ni, int index)
 {
 	struct kib_peer *peer;
 	struct list_head *ptmp;
@@ -947,7 +948,7 @@ int kiblnd_close_stale_conns_locked(struct kib_peer *peer,
 	return count;
 }
 
-static int kiblnd_close_matching_conns(lnet_ni_t *ni, lnet_nid_t nid)
+static int kiblnd_close_matching_conns(struct lnet_ni *ni, lnet_nid_t nid)
 {
 	struct kib_peer *peer;
 	struct list_head *ptmp;
@@ -992,7 +993,7 @@ static int kiblnd_close_matching_conns(lnet_ni_t *ni, lnet_nid_t nid)
 	return !count ? -ENOENT : 0;
 }
 
-static int kiblnd_ctl(lnet_ni_t *ni, unsigned int cmd, void *arg)
+static int kiblnd_ctl(struct lnet_ni *ni, unsigned int cmd, void *arg)
 {
 	struct libcfs_ioctl_data *data = arg;
 	int rc = -EINVAL;
@@ -1045,7 +1046,8 @@ static int kiblnd_ctl(lnet_ni_t *ni, unsigned int cmd, void *arg)
 	return rc;
 }
 
-static void kiblnd_query(lnet_ni_t *ni, lnet_nid_t nid, unsigned long *when)
+static void kiblnd_query(struct lnet_ni *ni, lnet_nid_t nid,
+			 unsigned long *when)
 {
 	unsigned long last_alive = 0;
 	unsigned long now = cfs_time_current();
@@ -1279,27 +1281,6 @@ static void kiblnd_map_tx_pool(struct kib_tx_pool *tpo)
 			LASSERT(ipage <= txpgs->ibp_npages);
 		}
 	}
-}
-
-struct ib_mr *kiblnd_find_rd_dma_mr(struct lnet_ni *ni, struct kib_rdma_desc *rd,
-				    int negotiated_nfrags)
-{
-	struct kib_net *net = ni->ni_data;
-	struct kib_hca_dev *hdev = net->ibn_dev->ibd_hdev;
-	struct lnet_ioctl_config_o2iblnd_tunables *tunables;
-	__u16 nfrags;
-	int mod;
-
-	tunables = &ni->ni_lnd_tunables->lt_tun_u.lt_o2ib;
-	mod = tunables->lnd_map_on_demand;
-	nfrags = (negotiated_nfrags != -1) ? negotiated_nfrags : mod;
-
-	LASSERT(hdev->ibh_mrs);
-
-	if (mod > 0 && nfrags <= rd->rd_nfrags)
-		return NULL;
-
-	return hdev->ibh_mrs;
 }
 
 static void kiblnd_destroy_fmr_pool(struct kib_fmr_pool *fpo)
@@ -2058,7 +2039,7 @@ static int kiblnd_create_tx_pool(struct kib_poolset *ps, int size,
 	tpo->tpo_tx_descs = NULL;
 	tpo->tpo_tx_pages = NULL;
 
-	npg = (size * IBLND_MSG_SIZE + PAGE_SIZE - 1) / PAGE_SIZE;
+	npg = DIV_ROUND_UP(size * IBLND_MSG_SIZE, PAGE_SIZE);
 	if (kiblnd_alloc_pages(&tpo->tpo_tx_pages, ps->ps_cpt, npg)) {
 		CERROR("Can't allocate tx pages: %d\n", npg);
 		LIBCFS_FREE(tpo, sizeof(*tpo));
@@ -2164,24 +2145,15 @@ static void kiblnd_net_fini_pools(struct kib_net *net)
 	}
 }
 
-static int kiblnd_net_init_pools(struct kib_net *net, lnet_ni_t *ni, __u32 *cpts,
-				 int ncpts)
+static int kiblnd_net_init_pools(struct kib_net *net, struct lnet_ni *ni,
+				 __u32 *cpts, int ncpts)
 {
 	struct lnet_ioctl_config_o2iblnd_tunables *tunables;
-	unsigned long flags;
 	int cpt;
 	int rc;
 	int i;
 
 	tunables = &ni->ni_lnd_tunables->lt_tun_u.lt_o2ib;
-
-	read_lock_irqsave(&kiblnd_data.kib_global_lock, flags);
-	if (!tunables->lnd_map_on_demand) {
-		read_unlock_irqrestore(&kiblnd_data.kib_global_lock, flags);
-		goto create_tx_pool;
-	}
-
-	read_unlock_irqrestore(&kiblnd_data.kib_global_lock, flags);
 
 	if (tunables->lnd_fmr_pool_size < *kiblnd_tunables.kib_ntx / 4) {
 		CERROR("Can't set fmr pool size (%d) < ntx / 4(%d)\n",
@@ -2227,7 +2199,6 @@ static int kiblnd_net_init_pools(struct kib_net *net, lnet_ni_t *ni, __u32 *cpts
 	if (i > 0)
 		LASSERT(i == ncpts);
 
- create_tx_pool:
 	/*
 	 * cfs_precpt_alloc is creating an array of struct kib_tx_poolset
 	 * The number of struct kib_tx_poolsets create is equal to the
@@ -2283,20 +2254,8 @@ static int kiblnd_hdev_get_attr(struct kib_hca_dev *hdev)
 	return -EINVAL;
 }
 
-static void kiblnd_hdev_cleanup_mrs(struct kib_hca_dev *hdev)
-{
-	if (!hdev->ibh_mrs)
-		return;
-
-	ib_dereg_mr(hdev->ibh_mrs);
-
-	hdev->ibh_mrs = NULL;
-}
-
 void kiblnd_hdev_destroy(struct kib_hca_dev *hdev)
 {
-	kiblnd_hdev_cleanup_mrs(hdev);
-
 	if (hdev->ibh_pd)
 		ib_dealloc_pd(hdev->ibh_pd);
 
@@ -2304,28 +2263,6 @@ void kiblnd_hdev_destroy(struct kib_hca_dev *hdev)
 		rdma_destroy_id(hdev->ibh_cmid);
 
 	LIBCFS_FREE(hdev, sizeof(*hdev));
-}
-
-static int kiblnd_hdev_setup_mrs(struct kib_hca_dev *hdev)
-{
-	struct ib_mr *mr;
-	int rc;
-	int acflags = IB_ACCESS_LOCAL_WRITE | IB_ACCESS_REMOTE_WRITE;
-
-	rc = kiblnd_hdev_get_attr(hdev);
-	if (rc)
-		return rc;
-
-	mr = ib_get_dma_mr(hdev->ibh_pd, acflags);
-	if (IS_ERR(mr)) {
-		CERROR("Failed ib_get_dma_mr : %ld\n", PTR_ERR(mr));
-		kiblnd_hdev_cleanup_mrs(hdev);
-		return PTR_ERR(mr);
-	}
-
-	hdev->ibh_mrs = mr;
-
-	return 0;
 }
 
 /* DUMMY */
@@ -2482,9 +2419,9 @@ int kiblnd_dev_failover(struct kib_dev *dev)
 		goto out;
 	}
 
-	rc = kiblnd_hdev_setup_mrs(hdev);
+	rc = kiblnd_hdev_get_attr(hdev);
 	if (rc) {
-		CERROR("Can't setup device: %d\n", rc);
+		CERROR("Can't get device attributes: %d\n", rc);
 		goto out;
 	}
 
@@ -2652,7 +2589,7 @@ static void kiblnd_base_shutdown(void)
 	module_put(THIS_MODULE);
 }
 
-static void kiblnd_shutdown(lnet_ni_t *ni)
+static void kiblnd_shutdown(struct lnet_ni *ni)
 {
 	struct kib_net *net = ni->ni_data;
 	rwlock_t *g_lock = &kiblnd_data.kib_global_lock;
@@ -2909,7 +2846,7 @@ static struct kib_dev *kiblnd_dev_search(char *ifname)
 	return alias;
 }
 
-static int kiblnd_startup(lnet_ni_t *ni)
+static int kiblnd_startup(struct lnet_ni *ni)
 {
 	char *ifname;
 	struct kib_dev *ibdev = NULL;
@@ -3003,7 +2940,7 @@ net_failed:
 	return -ENETDOWN;
 }
 
-static lnd_t the_o2iblnd = {
+static struct lnet_lnd the_o2iblnd = {
 	.lnd_type	= O2IBLND,
 	.lnd_startup	= kiblnd_startup,
 	.lnd_shutdown	= kiblnd_shutdown,
@@ -3021,12 +2958,12 @@ static void __exit ko2iblnd_exit(void)
 static int __init ko2iblnd_init(void)
 {
 	BUILD_BUG_ON(sizeof(struct kib_msg) > IBLND_MSG_SIZE);
-	BUILD_BUG_ON(!offsetof(struct kib_msg,
+	BUILD_BUG_ON(offsetof(struct kib_msg,
 			  ibm_u.get.ibgm_rd.rd_frags[IBLND_MAX_RDMA_FRAGS])
-			  <= IBLND_MSG_SIZE);
-	BUILD_BUG_ON(!offsetof(struct kib_msg,
+			  > IBLND_MSG_SIZE);
+	BUILD_BUG_ON(offsetof(struct kib_msg,
 			  ibm_u.putack.ibpam_rd.rd_frags[IBLND_MAX_RDMA_FRAGS])
-			  <= IBLND_MSG_SIZE);
+			  > IBLND_MSG_SIZE);
 
 	kiblnd_tunables_init();
 

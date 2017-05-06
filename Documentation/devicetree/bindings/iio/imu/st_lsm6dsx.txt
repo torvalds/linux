@@ -3,6 +3,8 @@
 Required properties:
 - compatible: must be one of:
   "st,lsm6ds3"
+  "st,lsm6ds3h"
+  "st,lsm6dsl"
   "st,lsm6dsm"
 - reg: i2c address of the sensor / spi cs line
 

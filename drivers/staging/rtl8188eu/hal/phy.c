@@ -1005,6 +1005,7 @@ static void phy_iq_calibrate(struct adapter *adapt, s32 result[][8],
 					      rFPGA0_XB_RFInterfaceOE, rFPGA0_RFMOD};
 
 	u32 retry_count = 9;
+
 	if (*(dm_odm->mp_mode) == 1)
 		retry_count = 9;
 	else

@@ -210,6 +210,7 @@ void rtl8188e_set_FwMediaStatus_cmd(struct adapter *adapt, __le16 mstatus_rpt)
 {
 	u8 opmode, macid;
 	u16 mst_rpt = le16_to_cpu(mstatus_rpt);
+
 	opmode = (u8)mst_rpt;
 	macid = (u8)(mst_rpt >> 8);
 
