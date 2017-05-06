@@ -642,6 +642,7 @@ static int __init populate_rootfs(void)
 			free_initrd();
 		}
 	done:
+		/* empty statement */;
 #else
 		printk(KERN_INFO "Unpacking initramfs...\n");
 		err = unpack_to_rootfs((char *)initrd_start,
