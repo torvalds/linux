@@ -778,6 +778,8 @@ enum nfsd4_op_flags {
 	 * These are ops which clear current state id.
 	 */
 	OP_CLEAR_STATEID = 1 << 7,
+	/* Most ops return only an error on failure; some may do more: */
+	OP_NONTRIVIAL_ERROR_ENCODE = 1 << 8,
 };
 
 struct nfsd4_operation {
