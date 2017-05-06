@@ -191,7 +191,7 @@ static const int mt8173_bank_data[MT8173_NUM_ZONES][3] = {
 };
 
 static const int mt8173_msr[MT8173_NUM_SENSORS_PER_ZONE] = {
-	TEMP_MSR0, TEMP_MSR1, TEMP_MSR2, TEMP_MSR2
+	TEMP_MSR0, TEMP_MSR1, TEMP_MSR2, TEMP_MSR3
 };
 
 static const int mt8173_adcpnp[MT8173_NUM_SENSORS_PER_ZONE] = {
