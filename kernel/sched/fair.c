@@ -2694,9 +2694,12 @@ account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 # ifdef CONFIG_SMP
-static long calc_cfs_shares(struct cfs_rq *cfs_rq, struct task_group *tg)
+static long calc_cfs_shares(struct cfs_rq *cfs_rq)
 {
-	long tg_weight, load, shares;
+	long tg_weight, tg_shares, load, shares;
+	struct task_group *tg = cfs_rq->tg;
+
+	tg_shares = READ_ONCE(tg->shares);
 
 	/*
 	 * This really should be: cfs_rq->avg.load_avg, but instead we use
@@ -2711,7 +2714,7 @@ static long calc_cfs_shares(struct cfs_rq *cfs_rq, struct task_group *tg)
 	tg_weight -= cfs_rq->tg_load_avg_contrib;
 	tg_weight += load;
 
-	shares = (tg->shares * load);
+	shares = (tg_shares * load);
 	if (tg_weight)
 		shares /= tg_weight;
 
@@ -2727,17 +2730,7 @@ static long calc_cfs_shares(struct cfs_rq *cfs_rq, struct task_group *tg)
 	 * case no task is runnable on a CPU MIN_SHARES=2 should be returned
 	 * instead of 0.
 	 */
-	if (shares < MIN_SHARES)
-		shares = MIN_SHARES;
-	if (shares > tg->shares)
-		shares = tg->shares;
-
-	return shares;
-}
-# else /* CONFIG_SMP */
-static inline long calc_cfs_shares(struct cfs_rq *cfs_rq, struct task_group *tg)
-{
-	return tg->shares;
+	return clamp_t(long, shares, MIN_SHARES, tg_shares);
 }
 # endif /* CONFIG_SMP */
 
@@ -2762,7 +2755,6 @@ static inline int throttled_hierarchy(struct cfs_rq *cfs_rq);
 static void update_cfs_shares(struct sched_entity *se)
 {
 	struct cfs_rq *cfs_rq = group_cfs_rq(se);
-	struct task_group *tg;
 	long shares;
 
 	if (!cfs_rq)
@@ -2771,13 +2763,14 @@ static void update_cfs_shares(struct sched_entity *se)
 	if (throttled_hierarchy(cfs_rq))
 		return;
 
-	tg = cfs_rq->tg;
-
 #ifndef CONFIG_SMP
-	if (likely(se->load.weight == tg->shares))
+	shares = READ_ONCE(cfs_rq->tg->shares);
+
+	if (likely(se->load.weight == shares))
 		return;
+#else
+	shares = calc_cfs_shares(cfs_rq);
 #endif
-	shares = calc_cfs_shares(cfs_rq, tg);
 
 	reweight_entity(cfs_rq_of(se), se, shares);
 }
