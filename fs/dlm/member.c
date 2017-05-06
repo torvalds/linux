@@ -318,7 +318,7 @@ static int dlm_add_member(struct dlm_ls *ls, struct dlm_config_node *node)
 	struct dlm_member *memb;
 	int error;
 
-	memb = kzalloc(sizeof(struct dlm_member), GFP_NOFS);
+	memb = kzalloc(sizeof(*memb), GFP_NOFS);
 	if (!memb)
 		return -ENOMEM;
 
@@ -674,7 +674,7 @@ int dlm_ls_start(struct dlm_ls *ls)
 	struct dlm_config_node *nodes;
 	int error, count;
 
-	rv = kzalloc(sizeof(struct dlm_recover), GFP_NOFS);
+	rv = kzalloc(sizeof(*rv), GFP_NOFS);
 	if (!rv)
 		return -ENOMEM;
 
