@@ -70,7 +70,7 @@ computer.
 Make
 ----
 
-You will need GNU make 3.80 or later to build the kernel.
+You will need GNU make 3.81 or later to build the kernel.
 
 Binutils
 --------
