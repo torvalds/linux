@@ -718,6 +718,9 @@ CIFSSMBEcho(struct TCP_Server_Info *server)
 	if (rc)
 		return rc;
 
+	if (server->capabilities & CAP_UNICODE)
+		smb->hdr.Flags2 |= SMBFLG2_UNICODE;
+
 	/* set up echo request */
 	smb->hdr.Tid = 0xffff;
 	smb->hdr.WordCount = 1;

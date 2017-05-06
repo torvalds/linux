@@ -499,7 +499,7 @@ smb2_tcon_has_lease(struct cifs_tcon *tcon, struct smb2_lease_break *rsp,
 		else
 			cfile->oplock_break_cancelled = true;
 
-		queue_work(cifsiod_wq, &cfile->oplock_break);
+		queue_work(cifsoplockd_wq, &cfile->oplock_break);
 		kfree(lw);
 		return true;
 	}
@@ -643,7 +643,8 @@ smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 					   CIFS_INODE_DOWNGRADE_OPLOCK_TO_L2,
 					   &cinode->flags);
 				spin_unlock(&cfile->file_info_lock);
-				queue_work(cifsiod_wq, &cfile->oplock_break);
+				queue_work(cifsoplockd_wq,
+					   &cfile->oplock_break);
 
 				spin_unlock(&tcon->open_file_lock);
 				spin_unlock(&cifs_tcp_ses_lock);
