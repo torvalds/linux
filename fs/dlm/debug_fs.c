@@ -435,7 +435,7 @@ static void *table_seq_start(struct seq_file *seq, loff_t *pos)
 	if (bucket >= ls->ls_rsbtbl_size)
 		return NULL;
 
-	ri = kzalloc(sizeof(struct rsbtbl_iter), GFP_NOFS);
+	ri = kzalloc(sizeof(*ri), GFP_NOFS);
 	if (!ri)
 		return NULL;
 	if (n == 0)
