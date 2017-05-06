@@ -30,7 +30,7 @@ you probably needn't concern yourself with isdn4k-utils.
         Program        Minimal version       Command to check the version
 ====================== ===============  ========================================
 GNU C                  3.2              gcc --version
-GNU make               3.80             make --version
+GNU make               3.81             make --version
 binutils               2.12             ld -v
 util-linux             2.10o            fdformat --version
 module-init-tools      0.9.10           depmod -V
