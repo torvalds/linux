@@ -910,6 +910,9 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 			break;
 		}
 		pos += ret;
+
+		if (iov_iter_rw(iter) == READ && pos >= dio->i_size)
+			break;
 	} while ((count = iov_iter_count(iter)) > 0);
 	blk_finish_plug(&plug);
 

@@ -508,7 +508,7 @@ xfs_iread(
 
 	/* even unallocated inodes are verified */
 	if (!xfs_dinode_verify(mp, ip->i_ino, dip)) {
-		xfs_alert(mp, "%s: validation failed for inode %lld failed",
+		xfs_alert(mp, "%s: validation failed for inode %lld",
 				__func__, ip->i_ino);
 
 		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, dip);
