@@ -176,8 +176,9 @@ int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 		 * keeping a extra list for uploaded keys.
 		 */
 
-		priv->used_rxkeys = kzalloc(BITS_TO_LONGS(
-			priv->rx_keycache_size), GFP_KERNEL);
+		priv->used_rxkeys = kcalloc(BITS_TO_LONGS(priv->rx_keycache_size),
+					    sizeof(long),
+					    GFP_KERNEL);
 
 		if (!priv->used_rxkeys)
 			return -ENOMEM;
