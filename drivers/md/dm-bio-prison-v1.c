@@ -116,7 +116,7 @@ static int __bio_detain(struct dm_bio_prison *prison,
 
 	while (*new) {
 		struct dm_bio_prison_cell *cell =
-			container_of(*new, struct dm_bio_prison_cell, node);
+			rb_entry(*new, struct dm_bio_prison_cell, node);
 
 		r = cmp_keys(key, &cell->key);
 
