@@ -405,8 +405,7 @@ static void make_member_array(struct dlm_ls *ls)
 	}
 
 	ls->ls_total_weight = total;
-
-	array = kmalloc(sizeof(int) * total, GFP_NOFS);
+	array = kmalloc_array(total, sizeof(*array), GFP_NOFS);
 	if (!array)
 		return;
 
