@@ -8854,7 +8854,7 @@ lpfc_sli4_queue_unset(struct lpfc_hba *phba)
 		lpfc_wq_destroy(phba, phba->sli4_hba.nvmels_wq);
 
 	/* Unset ELS work queue */
-	if (phba->sli4_hba.els_cq)
+	if (phba->sli4_hba.els_wq)
 		lpfc_wq_destroy(phba, phba->sli4_hba.els_wq);
 
 	/* Unset unsolicited receive queue */
