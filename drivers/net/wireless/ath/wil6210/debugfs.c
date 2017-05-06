@@ -795,15 +795,11 @@ static ssize_t wil_write_file_txmgmt(struct file *file, const char __user *buf,
 	struct wireless_dev *wdev = wil_to_wdev(wil);
 	struct cfg80211_mgmt_tx_params params;
 	int rc;
-	void *frame = kmalloc(len, GFP_KERNEL);
+	void *frame;
 
-	if (!frame)
-		return -ENOMEM;
-
-	if (copy_from_user(frame, buf, len)) {
-		kfree(frame);
-		return -EIO;
-	}
+	frame = memdup_user(buf, len);
+	if (IS_ERR(frame))
+		return PTR_ERR(frame);
 
 	params.buf = frame;
 	params.len = len;
