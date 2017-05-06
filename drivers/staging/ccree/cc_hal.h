@@ -26,7 +26,8 @@
 #define READ_REGISTER(_addr) ioread32((_addr))
 #define WRITE_REGISTER(_addr, _data)  iowrite32((_data), (_addr))
 
-#define CC_HAL_WRITE_REGISTER(offset, val) WRITE_REGISTER(cc_base + offset, val)
-#define CC_HAL_READ_REGISTER(offset) READ_REGISTER(cc_base + offset)
+#define CC_HAL_WRITE_REGISTER(offset, val) \
+	WRITE_REGISTER(cc_base + (offset), val)
+#define CC_HAL_READ_REGISTER(offset) READ_REGISTER(cc_base + (offset))
 
 #endif
