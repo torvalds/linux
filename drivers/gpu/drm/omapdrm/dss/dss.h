@@ -314,9 +314,6 @@ void dsi_irq_handler(void);
 #endif
 
 /* DPI */
-int dpi_init_platform_driver(void) __init;
-void dpi_uninit_platform_driver(void);
-
 #ifdef CONFIG_OMAP2_DSS_DPI
 int dpi_init_port(struct platform_device *pdev, struct device_node *port);
 void dpi_uninit_port(struct device_node *port);
