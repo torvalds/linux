@@ -588,7 +588,6 @@ static struct platform_driver mtk_crypto_driver = {
 	.remove = mtk_crypto_remove,
 	.driver = {
 		   .name = "mtk-crypto",
-		   .owner = THIS_MODULE,
 		   .of_match_table = of_crypto_id,
 	},
 };
