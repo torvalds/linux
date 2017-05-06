@@ -68,7 +68,7 @@ static void print_format1_lock(struct seq_file *s, struct dlm_lkb *lkb,
 	if (lkb->lkb_wait_type)
 		seq_printf(s, " wait_type: %d", lkb->lkb_wait_type);
 
-	seq_puts(s, "\n");
+	seq_putc(s, '\n');
 }
 
 static void print_format1(struct dlm_rsb *res, struct seq_file *s)
@@ -111,7 +111,7 @@ static void print_format1(struct dlm_rsb *res, struct seq_file *s)
 		}
 		if (rsb_flag(res, RSB_VALNOTVALID))
 			seq_puts(s, " (INVALID)");
-		seq_puts(s, "\n");
+		seq_putc(s, '\n');
 		if (seq_has_overflowed(s))
 			goto out;
 	}
@@ -156,7 +156,7 @@ static void print_format1(struct dlm_rsb *res, struct seq_file *s)
 			   lkb->lkb_id, print_lockmode(lkb->lkb_rqmode));
 		if (lkb->lkb_wait_type)
 			seq_printf(s, " wait_type: %d", lkb->lkb_wait_type);
-		seq_puts(s, "\n");
+		seq_putc(s, '\n');
 		if (seq_has_overflowed(s))
 			goto out;
 	}
@@ -287,7 +287,7 @@ static void print_format3(struct dlm_rsb *r, struct seq_file *s)
 		else
 			seq_printf(s, " %02x", (unsigned char)r->res_name[i]);
 	}
-	seq_puts(s, "\n");
+	seq_putc(s, '\n');
 	if (seq_has_overflowed(s))
 		goto out;
 
@@ -298,7 +298,7 @@ static void print_format3(struct dlm_rsb *r, struct seq_file *s)
 
 	for (i = 0; i < lvblen; i++)
 		seq_printf(s, " %02x", (unsigned char)r->res_lvbptr[i]);
-	seq_puts(s, "\n");
+	seq_putc(s, '\n');
 	if (seq_has_overflowed(s))
 		goto out;
 
@@ -361,8 +361,7 @@ static void print_format4(struct dlm_rsb *r, struct seq_file *s)
 		else
 			seq_printf(s, " %02x", (unsigned char)r->res_name[i]);
 	}
-	seq_puts(s, "\n");
-
+	seq_putc(s, '\n');
 	unlock_rsb(r);
 }
 
