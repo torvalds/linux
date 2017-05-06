@@ -395,6 +395,7 @@ static const unsigned int uart_cts_ao_a_pins[] = { PIN(GPIOAO_2, AO_OFF) };
 static const unsigned int uart_rts_ao_a_pins[] = { PIN(GPIOAO_3, AO_OFF) };
 
 static const unsigned int remote_input_pins[] = { PIN(GPIOAO_7, AO_OFF) };
+static const unsigned int remote_output_ao_pins[] = { PIN(GPIOAO_13, AO_OFF) };
 
 static const unsigned int i2c_slave_sck_ao_pins[] = { PIN(GPIOAO_4, AO_OFF) };
 static const unsigned int i2c_slave_sda_ao_pins[] = { PIN(GPIOAO_5, AO_OFF) };
@@ -748,6 +749,7 @@ static struct meson_pmx_group meson8_aobus_groups[] = {
 	GROUP(uart_rts_ao_a,		0,	9),
 
 	GROUP(remote_input,		0,	0),
+	GROUP(remote_output_ao,		0,	31),
 
 	GROUP(i2c_slave_sck_ao,		0,	2),
 	GROUP(i2c_slave_sda_ao,		0,	1),
@@ -959,7 +961,7 @@ static const char * const uart_ao_groups[] = {
 };
 
 static const char * const remote_groups[] = {
-	"remote_input"
+	"remote_input", "remote_output_ao"
 };
 
 static const char * const i2c_slave_ao_groups[] = {
