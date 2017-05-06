@@ -741,7 +741,7 @@ void dlm_delete_debug_file(struct dlm_ls *ls)
 
 int dlm_create_debug_file(struct dlm_ls *ls)
 {
-	char name[DLM_LOCKSPACE_LEN+8];
+	char name[DLM_LOCKSPACE_LEN + 8];
 
 	/* format 1 */
 
@@ -756,7 +756,7 @@ int dlm_create_debug_file(struct dlm_ls *ls)
 	/* format 2 */
 
 	memset(name, 0, sizeof(name));
-	snprintf(name, DLM_LOCKSPACE_LEN+8, "%s_locks", ls->ls_name);
+	snprintf(name, DLM_LOCKSPACE_LEN + 8, "%s_locks", ls->ls_name);
 
 	ls->ls_debug_locks_dentry = debugfs_create_file(name,
 							S_IFREG | S_IRUGO,
@@ -769,7 +769,7 @@ int dlm_create_debug_file(struct dlm_ls *ls)
 	/* format 3 */
 
 	memset(name, 0, sizeof(name));
-	snprintf(name, DLM_LOCKSPACE_LEN+8, "%s_all", ls->ls_name);
+	snprintf(name, DLM_LOCKSPACE_LEN + 8, "%s_all", ls->ls_name);
 
 	ls->ls_debug_all_dentry = debugfs_create_file(name,
 						      S_IFREG | S_IRUGO,
@@ -782,7 +782,7 @@ int dlm_create_debug_file(struct dlm_ls *ls)
 	/* format 4 */
 
 	memset(name, 0, sizeof(name));
-	snprintf(name, DLM_LOCKSPACE_LEN+8, "%s_toss", ls->ls_name);
+	snprintf(name, DLM_LOCKSPACE_LEN + 8, "%s_toss", ls->ls_name);
 
 	ls->ls_debug_toss_dentry = debugfs_create_file(name,
 						       S_IFREG | S_IRUGO,
@@ -793,7 +793,7 @@ int dlm_create_debug_file(struct dlm_ls *ls)
 		goto fail;
 
 	memset(name, 0, sizeof(name));
-	snprintf(name, DLM_LOCKSPACE_LEN+8, "%s_waiters", ls->ls_name);
+	snprintf(name, DLM_LOCKSPACE_LEN + 8, "%s_waiters", ls->ls_name);
 
 	ls->ls_debug_waiters_dentry = debugfs_create_file(name,
 							  S_IFREG | S_IRUGO,
