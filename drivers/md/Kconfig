@@ -503,13 +503,24 @@ config DM_LOG_WRITES
 	  If unsure, say N.
 
 config DM_INTEGRITY
-	tristate "Integrity target"
+	tristate "Integrity target support"
 	depends on BLK_DEV_DM
 	select BLK_DEV_INTEGRITY
 	select DM_BUFIO
 	select CRYPTO
 	select ASYNC_XOR
 	---help---
-	   This is the integrity target.
+	  This device-mapper target emulates a block device that has
+	  additional per-sector tags that can be used for storing
+	  integrity information.
+
+	  This integrity target is used with the dm-crypt target to
+	  provide authenticated disk encryption or it can be used
+	  standalone.
+
+	  To compile this code as a module, choose M here: the module will
+	  be called dm-integrity.
+
+	  If unsure, say N.
 
 endif # MD
