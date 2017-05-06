@@ -670,7 +670,7 @@ int dlm_ls_stop(struct dlm_ls *ls)
 
 int dlm_ls_start(struct dlm_ls *ls)
 {
-	struct dlm_recover *rv = NULL, *rv_old;
+	struct dlm_recover *rv, *rv_old;
 	struct dlm_config_node *nodes;
 	int error, count;
 
