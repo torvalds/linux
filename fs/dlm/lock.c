@@ -5120,10 +5120,8 @@ void dlm_recover_waiters_pre(struct dlm_ls *ls)
 	int dir_nodeid;
 
 	ms_stub = kmalloc(sizeof(*ms_stub), GFP_KERNEL);
-	if (!ms_stub) {
-		log_error(ls, "dlm_recover_waiters_pre no mem");
+	if (!ms_stub)
 		return;
-	}
 
 	mutex_lock(&ls->ls_waiters_mutex);
 
