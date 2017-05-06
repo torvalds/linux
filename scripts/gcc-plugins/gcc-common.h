@@ -953,4 +953,9 @@ static inline void debug_gimple_stmt(const_gimple s)
 	get_inner_reference(exp, pbitsize, pbitpos, poffset, pmode, punsignedp, preversep, pvolatilep)
 #endif
 
+#if BUILDING_GCC_VERSION < 7000
+#define SET_DECL_ALIGN(decl, align)	DECL_ALIGN(decl) = (align)
+#define SET_DECL_MODE(decl, mode)	DECL_MODE(decl) = (mode)
+#endif
+
 #endif
