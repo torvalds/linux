@@ -72,17 +72,16 @@ struct check {
 #define CHECK(_nm, _fn, _d, ...) \
 	CHECK_ENTRY(_nm, _fn, _d, false, false, __VA_ARGS__)
 
-#ifdef __GNUC__
-static inline void check_msg(struct check *c, const char *fmt, ...) __attribute__((format (printf, 2, 3)));
-#endif
-static inline void check_msg(struct check *c, const char *fmt, ...)
+static inline void  PRINTF(3, 4) check_msg(struct check *c, struct dt_info *dti,
+					   const char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
 
 	if ((c->warn && (quiet < 1))
 	    || (c->error && (quiet < 2))) {
-		fprintf(stderr, "%s (%s): ",
+		fprintf(stderr, "%s: %s (%s): ",
+			strcmp(dti->outname, "-") ? dti->outname : "<stdout>",
 			(c->error) ? "ERROR" : "Warning", c->name);
 		vfprintf(stderr, fmt, ap);
 		fprintf(stderr, "\n");
@@ -90,11 +89,11 @@ static inline void check_msg(struct check *c, const char *fmt, ...)
 	va_end(ap);
 }
 
-#define FAIL(c, ...) \
-	do { \
-		TRACE((c), "\t\tFAILED at %s:%d", __FILE__, __LINE__); \
-		(c)->status = FAILED; \
-		check_msg((c), __VA_ARGS__); \
+#define FAIL(c, dti, ...)						\
+	do {								\
+		TRACE((c), "\t\tFAILED at %s:%d", __FILE__, __LINE__);	\
+		(c)->status = FAILED;					\
+		check_msg((c), dti, __VA_ARGS__);			\
 	} while (0)
 
 static void check_nodes_props(struct check *c, struct dt_info *dti, struct node *node)
@@ -127,7 +126,7 @@ static bool run_check(struct check *c, struct dt_info *dti)
 		error = error || run_check(prq, dti);
 		if (prq->status != PASSED) {
 			c->status = PREREQ;
-			check_msg(c, "Failed prerequisite '%s'",
+			check_msg(c, dti, "Failed prerequisite '%s'",
 				  c->prereq[i]->name);
 		}
 	}
@@ -157,7 +156,7 @@ out:
 static inline void check_always_fail(struct check *c, struct dt_info *dti,
 				     struct node *node)
 {
-	FAIL(c, "always_fail check");
+	FAIL(c, dti, "always_fail check");
 }
 CHECK(always_fail, check_always_fail, NULL);
 
@@ -172,7 +171,7 @@ static void check_is_string(struct check *c, struct dt_info *dti,
 		return; /* Not present, assumed ok */
 
 	if (!data_is_one_string(prop->val))
-		FAIL(c, "\"%s\" property in %s is not a string",
+		FAIL(c, dti, "\"%s\" property in %s is not a string",
 		     propname, node->fullpath);
 }
 #define WARNING_IF_NOT_STRING(nm, propname) \
@@ -191,7 +190,7 @@ static void check_is_cell(struct check *c, struct dt_info *dti,
 		return; /* Not present, assumed ok */
 
 	if (prop->val.len != sizeof(cell_t))
-		FAIL(c, "\"%s\" property in %s is not a single cell",
+		FAIL(c, dti, "\"%s\" property in %s is not a single cell",
 		     propname, node->fullpath);
 }
 #define WARNING_IF_NOT_CELL(nm, propname) \
@@ -213,7 +212,7 @@ static void check_duplicate_node_names(struct check *c, struct dt_info *dti,
 		     child2;
 		     child2 = child2->next_sibling)
 			if (streq(child->name, child2->name))
-				FAIL(c, "Duplicate node name %s",
+				FAIL(c, dti, "Duplicate node name %s",
 				     child->fullpath);
 }
 ERROR(duplicate_node_names, check_duplicate_node_names, NULL);
@@ -228,7 +227,7 @@ static void check_duplicate_property_names(struct check *c, struct dt_info *dti,
 			if (prop2->deleted)
 				continue;
 			if (streq(prop->name, prop2->name))
-				FAIL(c, "Duplicate property name %s in %s",
+				FAIL(c, dti, "Duplicate property name %s in %s",
 				     prop->name, node->fullpath);
 		}
 	}
@@ -239,6 +238,7 @@ ERROR(duplicate_property_names, check_duplicate_property_names, NULL);
 #define UPPERCASE	"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 #define DIGITS		"0123456789"
 #define PROPNODECHARS	LOWERCASE UPPERCASE DIGITS ",._+*#?-"
+#define PROPNODECHARSSTRICT	LOWERCASE UPPERCASE DIGITS ",-"
 
 static void check_node_name_chars(struct check *c, struct dt_info *dti,
 				  struct node *node)
@@ -246,16 +246,27 @@ static void check_node_name_chars(struct check *c, struct dt_info *dti,
 	int n = strspn(node->name, c->data);
 
 	if (n < strlen(node->name))
-		FAIL(c, "Bad character '%c' in node %s",
+		FAIL(c, dti, "Bad character '%c' in node %s",
 		     node->name[n], node->fullpath);
 }
 ERROR(node_name_chars, check_node_name_chars, PROPNODECHARS "@");
+
+static void check_node_name_chars_strict(struct check *c, struct dt_info *dti,
+					 struct node *node)
+{
+	int n = strspn(node->name, c->data);
+
+	if (n < node->basenamelen)
+		FAIL(c, dti, "Character '%c' not recommended in node %s",
+		     node->name[n], node->fullpath);
+}
+CHECK(node_name_chars_strict, check_node_name_chars_strict, PROPNODECHARSSTRICT);
 
 static void check_node_name_format(struct check *c, struct dt_info *dti,
 				   struct node *node)
 {
 	if (strchr(get_unitname(node), '@'))
-		FAIL(c, "Node %s has multiple '@' characters in name",
+		FAIL(c, dti, "Node %s has multiple '@' characters in name",
 		     node->fullpath);
 }
 ERROR(node_name_format, check_node_name_format, NULL, &node_name_chars);
@@ -274,11 +285,11 @@ static void check_unit_address_vs_reg(struct check *c, struct dt_info *dti,
 
 	if (prop) {
 		if (!unitname[0])
-			FAIL(c, "Node %s has a reg or ranges property, but no unit name",
+			FAIL(c, dti, "Node %s has a reg or ranges property, but no unit name",
 			    node->fullpath);
 	} else {
 		if (unitname[0])
-			FAIL(c, "Node %s has a unit name, but no reg property",
+			FAIL(c, dti, "Node %s has a unit name, but no reg property",
 			    node->fullpath);
 	}
 }
@@ -293,11 +304,43 @@ static void check_property_name_chars(struct check *c, struct dt_info *dti,
 		int n = strspn(prop->name, c->data);
 
 		if (n < strlen(prop->name))
-			FAIL(c, "Bad character '%c' in property name \"%s\", node %s",
+			FAIL(c, dti, "Bad character '%c' in property name \"%s\", node %s",
 			     prop->name[n], prop->name, node->fullpath);
 	}
 }
 ERROR(property_name_chars, check_property_name_chars, PROPNODECHARS);
+
+static void check_property_name_chars_strict(struct check *c,
+					     struct dt_info *dti,
+					     struct node *node)
+{
+	struct property *prop;
+
+	for_each_property(node, prop) {
+		const char *name = prop->name;
+		int n = strspn(name, c->data);
+
+		if (n == strlen(prop->name))
+			continue;
+
+		/* Certain names are whitelisted */
+		if (streq(name, "device_type"))
+			continue;
+
+		/*
+		 * # is only allowed at the beginning of property names not counting
+		 * the vendor prefix.
+		 */
+		if (name[n] == '#' && ((n == 0) || (name[n-1] == ','))) {
+			name += n + 1;
+			n = strspn(name, c->data);
+		}
+		if (n < strlen(name))
+			FAIL(c, dti, "Character '%c' not recommended in property name \"%s\", node %s",
+			     name[n], prop->name, node->fullpath);
+	}
+}
+CHECK(property_name_chars_strict, check_property_name_chars_strict, PROPNODECHARSSTRICT);
 
 #define DESCLABEL_FMT	"%s%s%s%s%s"
 #define DESCLABEL_ARGS(node,prop,mark)		\
@@ -327,7 +370,7 @@ static void check_duplicate_label(struct check *c, struct dt_info *dti,
 		return;
 
 	if ((othernode != node) || (otherprop != prop) || (othermark != mark))
-		FAIL(c, "Duplicate label '%s' on " DESCLABEL_FMT
+		FAIL(c, dti, "Duplicate label '%s' on " DESCLABEL_FMT
 		     " and " DESCLABEL_FMT,
 		     label, DESCLABEL_ARGS(node, prop, mark),
 		     DESCLABEL_ARGS(othernode, otherprop, othermark));
@@ -367,7 +410,7 @@ static cell_t check_phandle_prop(struct check *c, struct dt_info *dti,
 		return 0;
 
 	if (prop->val.len != sizeof(cell_t)) {
-		FAIL(c, "%s has bad length (%d) %s property",
+		FAIL(c, dti, "%s has bad length (%d) %s property",
 		     node->fullpath, prop->val.len, prop->name);
 		return 0;
 	}
@@ -379,7 +422,7 @@ static cell_t check_phandle_prop(struct check *c, struct dt_info *dti,
 			/* "Set this node's phandle equal to some
 			 * other node's phandle".  That's nonsensical
 			 * by construction. */ {
-			FAIL(c, "%s in %s is a reference to another node",
+			FAIL(c, dti, "%s in %s is a reference to another node",
 			     prop->name, node->fullpath);
 		}
 		/* But setting this node's phandle equal to its own
@@ -393,7 +436,7 @@ static cell_t check_phandle_prop(struct check *c, struct dt_info *dti,
 	phandle = propval_cell(prop);
 
 	if ((phandle == 0) || (phandle == -1)) {
-		FAIL(c, "%s has bad value (0x%x) in %s property",
+		FAIL(c, dti, "%s has bad value (0x%x) in %s property",
 		     node->fullpath, phandle, prop->name);
 		return 0;
 	}
@@ -420,7 +463,7 @@ static void check_explicit_phandles(struct check *c, struct dt_info *dti,
 		return;
 
 	if (linux_phandle && phandle && (phandle != linux_phandle))
-		FAIL(c, "%s has mismatching 'phandle' and 'linux,phandle'"
+		FAIL(c, dti, "%s has mismatching 'phandle' and 'linux,phandle'"
 		     " properties", node->fullpath);
 
 	if (linux_phandle && !phandle)
@@ -428,7 +471,7 @@ static void check_explicit_phandles(struct check *c, struct dt_info *dti,
 
 	other = get_node_by_phandle(root, phandle);
 	if (other && (other != node)) {
-		FAIL(c, "%s has duplicated phandle 0x%x (seen before at %s)",
+		FAIL(c, dti, "%s has duplicated phandle 0x%x (seen before at %s)",
 		     node->fullpath, phandle, other->fullpath);
 		return;
 	}
@@ -453,7 +496,7 @@ static void check_name_properties(struct check *c, struct dt_info *dti,
 
 	if ((prop->val.len != node->basenamelen+1)
 	    || (memcmp(prop->val.val, node->name, node->basenamelen) != 0)) {
-		FAIL(c, "\"name\" property in %s is incorrect (\"%s\" instead"
+		FAIL(c, dti, "\"name\" property in %s is incorrect (\"%s\" instead"
 		     " of base node name)", node->fullpath, prop->val.val);
 	} else {
 		/* The name property is correct, and therefore redundant.
@@ -488,16 +531,16 @@ static void fixup_phandle_references(struct check *c, struct dt_info *dti,
 			refnode = get_node_by_ref(dt, m->ref);
 			if (! refnode) {
 				if (!(dti->dtsflags & DTSF_PLUGIN))
-					FAIL(c, "Reference to non-existent node or "
+					FAIL(c, dti, "Reference to non-existent node or "
 							"label \"%s\"\n", m->ref);
 				else /* mark the entry as unresolved */
-					*((cell_t *)(prop->val.val + m->offset)) =
+					*((fdt32_t *)(prop->val.val + m->offset)) =
 						cpu_to_fdt32(0xffffffff);
 				continue;
 			}
 
 			phandle = get_node_phandle(dt, refnode);
-			*((cell_t *)(prop->val.val + m->offset)) = cpu_to_fdt32(phandle);
+			*((fdt32_t *)(prop->val.val + m->offset)) = cpu_to_fdt32(phandle);
 		}
 	}
 }
@@ -520,7 +563,7 @@ static void fixup_path_references(struct check *c, struct dt_info *dti,
 
 			refnode = get_node_by_ref(dt, m->ref);
 			if (!refnode) {
-				FAIL(c, "Reference to non-existent node or label \"%s\"\n",
+				FAIL(c, dti, "Reference to non-existent node or label \"%s\"\n",
 				     m->ref);
 				continue;
 			}
@@ -579,19 +622,19 @@ static void check_reg_format(struct check *c, struct dt_info *dti,
 		return; /* No "reg", that's fine */
 
 	if (!node->parent) {
-		FAIL(c, "Root node has a \"reg\" property");
+		FAIL(c, dti, "Root node has a \"reg\" property");
 		return;
 	}
 
 	if (prop->val.len == 0)
-		FAIL(c, "\"reg\" property in %s is empty", node->fullpath);
+		FAIL(c, dti, "\"reg\" property in %s is empty", node->fullpath);
 
 	addr_cells = node_addr_cells(node->parent);
 	size_cells = node_size_cells(node->parent);
 	entrylen = (addr_cells + size_cells) * sizeof(cell_t);
 
 	if (!entrylen || (prop->val.len % entrylen) != 0)
-		FAIL(c, "\"reg\" property in %s has invalid length (%d bytes) "
+		FAIL(c, dti, "\"reg\" property in %s has invalid length (%d bytes) "
 		     "(#address-cells == %d, #size-cells == %d)",
 		     node->fullpath, prop->val.len, addr_cells, size_cells);
 }
@@ -608,7 +651,7 @@ static void check_ranges_format(struct check *c, struct dt_info *dti,
 		return;
 
 	if (!node->parent) {
-		FAIL(c, "Root node has a \"ranges\" property");
+		FAIL(c, dti, "Root node has a \"ranges\" property");
 		return;
 	}
 
@@ -620,23 +663,246 @@ static void check_ranges_format(struct check *c, struct dt_info *dti,
 
 	if (prop->val.len == 0) {
 		if (p_addr_cells != c_addr_cells)
-			FAIL(c, "%s has empty \"ranges\" property but its "
+			FAIL(c, dti, "%s has empty \"ranges\" property but its "
 			     "#address-cells (%d) differs from %s (%d)",
 			     node->fullpath, c_addr_cells, node->parent->fullpath,
 			     p_addr_cells);
 		if (p_size_cells != c_size_cells)
-			FAIL(c, "%s has empty \"ranges\" property but its "
+			FAIL(c, dti, "%s has empty \"ranges\" property but its "
 			     "#size-cells (%d) differs from %s (%d)",
 			     node->fullpath, c_size_cells, node->parent->fullpath,
 			     p_size_cells);
 	} else if ((prop->val.len % entrylen) != 0) {
-		FAIL(c, "\"ranges\" property in %s has invalid length (%d bytes) "
+		FAIL(c, dti, "\"ranges\" property in %s has invalid length (%d bytes) "
 		     "(parent #address-cells == %d, child #address-cells == %d, "
 		     "#size-cells == %d)", node->fullpath, prop->val.len,
 		     p_addr_cells, c_addr_cells, c_size_cells);
 	}
 }
 WARNING(ranges_format, check_ranges_format, NULL, &addr_size_cells);
+
+static const struct bus_type pci_bus = {
+	.name = "PCI",
+};
+
+static void check_pci_bridge(struct check *c, struct dt_info *dti, struct node *node)
+{
+	struct property *prop;
+	cell_t *cells;
+
+	prop = get_property(node, "device_type");
+	if (!prop || !streq(prop->val.val, "pci"))
+		return;
+
+	node->bus = &pci_bus;
+
+	if (!strneq(node->name, "pci", node->basenamelen) &&
+	    !strneq(node->name, "pcie", node->basenamelen))
+		FAIL(c, dti, "Node %s node name is not \"pci\" or \"pcie\"",
+			     node->fullpath);
+
+	prop = get_property(node, "ranges");
+	if (!prop)
+		FAIL(c, dti, "Node %s missing ranges for PCI bridge (or not a bridge)",
+			     node->fullpath);
+
+	if (node_addr_cells(node) != 3)
+		FAIL(c, dti, "Node %s incorrect #address-cells for PCI bridge",
+			     node->fullpath);
+	if (node_size_cells(node) != 2)
+		FAIL(c, dti, "Node %s incorrect #size-cells for PCI bridge",
+			     node->fullpath);
+
+	prop = get_property(node, "bus-range");
+	if (!prop) {
+		FAIL(c, dti, "Node %s missing bus-range for PCI bridge",
+			     node->fullpath);
+		return;
+	}
+	if (prop->val.len != (sizeof(cell_t) * 2)) {
+		FAIL(c, dti, "Node %s bus-range must be 2 cells",
+			     node->fullpath);
+		return;
+	}
+	cells = (cell_t *)prop->val.val;
+	if (fdt32_to_cpu(cells[0]) > fdt32_to_cpu(cells[1]))
+		FAIL(c, dti, "Node %s bus-range 1st cell must be less than or equal to 2nd cell",
+			     node->fullpath);
+	if (fdt32_to_cpu(cells[1]) > 0xff)
+		FAIL(c, dti, "Node %s bus-range maximum bus number must be less than 256",
+			     node->fullpath);
+}
+WARNING(pci_bridge, check_pci_bridge, NULL,
+	&device_type_is_string, &addr_size_cells);
+
+static void check_pci_device_bus_num(struct check *c, struct dt_info *dti, struct node *node)
+{
+	struct property *prop;
+	unsigned int bus_num, min_bus, max_bus;
+	cell_t *cells;
+
+	if (!node->parent || (node->parent->bus != &pci_bus))
+		return;
+
+	prop = get_property(node, "reg");
+	if (!prop)
+		return;
+
+	cells = (cell_t *)prop->val.val;
+	bus_num = (fdt32_to_cpu(cells[0]) & 0x00ff0000) >> 16;
+
+	prop = get_property(node->parent, "bus-range");
+	if (!prop) {
+		min_bus = max_bus = 0;
+	} else {
+		cells = (cell_t *)prop->val.val;
+		min_bus = fdt32_to_cpu(cells[0]);
+		max_bus = fdt32_to_cpu(cells[0]);
+	}
+	if ((bus_num < min_bus) || (bus_num > max_bus))
+		FAIL(c, dti, "Node %s PCI bus number %d out of range, expected (%d - %d)",
+		     node->fullpath, bus_num, min_bus, max_bus);
+}
+WARNING(pci_device_bus_num, check_pci_device_bus_num, NULL, &reg_format, &pci_bridge);
+
+static void check_pci_device_reg(struct check *c, struct dt_info *dti, struct node *node)
+{
+	struct property *prop;
+	const char *unitname = get_unitname(node);
+	char unit_addr[5];
+	unsigned int dev, func, reg;
+	cell_t *cells;
+
+	if (!node->parent || (node->parent->bus != &pci_bus))
+		return;
+
+	prop = get_property(node, "reg");
+	if (!prop) {
+		FAIL(c, dti, "Node %s missing PCI reg property", node->fullpath);
+		return;
+	}
+
+	cells = (cell_t *)prop->val.val;
+	if (cells[1] || cells[2])
+		FAIL(c, dti, "Node %s PCI reg config space address cells 2 and 3 must be 0",
+			     node->fullpath);
+
+	reg = fdt32_to_cpu(cells[0]);
+	dev = (reg & 0xf800) >> 11;
+	func = (reg & 0x700) >> 8;
+
+	if (reg & 0xff000000)
+		FAIL(c, dti, "Node %s PCI reg address is not configuration space",
+			     node->fullpath);
+	if (reg & 0x000000ff)
+		FAIL(c, dti, "Node %s PCI reg config space address register number must be 0",
+			     node->fullpath);
+
+	if (func == 0) {
+		snprintf(unit_addr, sizeof(unit_addr), "%x", dev);
+		if (streq(unitname, unit_addr))
+			return;
+	}
+
+	snprintf(unit_addr, sizeof(unit_addr), "%x,%x", dev, func);
+	if (streq(unitname, unit_addr))
+		return;
+
+	FAIL(c, dti, "Node %s PCI unit address format error, expected \"%s\"",
+	     node->fullpath, unit_addr);
+}
+WARNING(pci_device_reg, check_pci_device_reg, NULL, &reg_format, &pci_bridge);
+
+static const struct bus_type simple_bus = {
+	.name = "simple-bus",
+};
+
+static bool node_is_compatible(struct node *node, const char *compat)
+{
+	struct property *prop;
+	const char *str, *end;
+
+	prop = get_property(node, "compatible");
+	if (!prop)
+		return false;
+
+	for (str = prop->val.val, end = str + prop->val.len; str < end;
+	     str += strnlen(str, end - str) + 1) {
+		if (strneq(str, compat, end - str))
+			return true;
+	}
+	return false;
+}
+
+static void check_simple_bus_bridge(struct check *c, struct dt_info *dti, struct node *node)
+{
+	if (node_is_compatible(node, "simple-bus"))
+		node->bus = &simple_bus;
+}
+WARNING(simple_bus_bridge, check_simple_bus_bridge, NULL, &addr_size_cells);
+
+static void check_simple_bus_reg(struct check *c, struct dt_info *dti, struct node *node)
+{
+	struct property *prop;
+	const char *unitname = get_unitname(node);
+	char unit_addr[17];
+	unsigned int size;
+	uint64_t reg = 0;
+	cell_t *cells = NULL;
+
+	if (!node->parent || (node->parent->bus != &simple_bus))
+		return;
+
+	prop = get_property(node, "reg");
+	if (prop)
+		cells = (cell_t *)prop->val.val;
+	else {
+		prop = get_property(node, "ranges");
+		if (prop && prop->val.len)
+			/* skip of child address */
+			cells = ((cell_t *)prop->val.val) + node_addr_cells(node);
+	}
+
+	if (!cells) {
+		if (node->parent->parent && !(node->bus == &simple_bus))
+			FAIL(c, dti, "Node %s missing or empty reg/ranges property", node->fullpath);
+		return;
+	}
+
+	size = node_addr_cells(node->parent);
+	while (size--)
+		reg = (reg << 32) | fdt32_to_cpu(*(cells++));
+
+	snprintf(unit_addr, sizeof(unit_addr), "%lx", reg);
+	if (!streq(unitname, unit_addr))
+		FAIL(c, dti, "Node %s simple-bus unit address format error, expected \"%s\"",
+		     node->fullpath, unit_addr);
+}
+WARNING(simple_bus_reg, check_simple_bus_reg, NULL, &reg_format, &simple_bus_bridge);
+
+static void check_unit_address_format(struct check *c, struct dt_info *dti,
+				      struct node *node)
+{
+	const char *unitname = get_unitname(node);
+
+	if (node->parent && node->parent->bus)
+		return;
+
+	if (!unitname[0])
+		return;
+
+	if (!strncmp(unitname, "0x", 2)) {
+		FAIL(c, dti, "Node %s unit name should not have leading \"0x\"",
+		    node->fullpath);
+		/* skip over 0x for next test */
+		unitname += 2;
+	}
+	if (unitname[0] == '0' && isxdigit(unitname[1]))
+		FAIL(c, dti, "Node %s unit name should not have leading 0s",
+		    node->fullpath);
+}
+WARNING(unit_address_format, check_unit_address_format, NULL,
+	&node_name_format, &pci_bridge, &simple_bus_bridge);
 
 /*
  * Style checks
@@ -656,11 +922,11 @@ static void check_avoid_default_addr_size(struct check *c, struct dt_info *dti,
 		return;
 
 	if (node->parent->addr_cells == -1)
-		FAIL(c, "Relying on default #address-cells value for %s",
+		FAIL(c, dti, "Relying on default #address-cells value for %s",
 		     node->fullpath);
 
 	if (node->parent->size_cells == -1)
-		FAIL(c, "Relying on default #size-cells value for %s",
+		FAIL(c, dti, "Relying on default #size-cells value for %s",
 		     node->fullpath);
 }
 WARNING(avoid_default_addr_size, check_avoid_default_addr_size, NULL,
@@ -684,7 +950,7 @@ static void check_obsolete_chosen_interrupt_controller(struct check *c,
 
 	prop = get_property(chosen, "interrupt-controller");
 	if (prop)
-		FAIL(c, "/chosen has obsolete \"interrupt-controller\" "
+		FAIL(c, dti, "/chosen has obsolete \"interrupt-controller\" "
 		     "property");
 }
 WARNING(obsolete_chosen_interrupt_controller,
@@ -703,9 +969,20 @@ static struct check *check_table[] = {
 	&address_cells_is_cell, &size_cells_is_cell, &interrupt_cells_is_cell,
 	&device_type_is_string, &model_is_string, &status_is_string,
 
+	&property_name_chars_strict,
+	&node_name_chars_strict,
+
 	&addr_size_cells, &reg_format, &ranges_format,
 
 	&unit_address_vs_reg,
+	&unit_address_format,
+
+	&pci_bridge,
+	&pci_device_reg,
+	&pci_device_bus_num,
+
+	&simple_bus_bridge,
+	&simple_bus_reg,
 
 	&avoid_default_addr_size,
 	&obsolete_chosen_interrupt_controller,
