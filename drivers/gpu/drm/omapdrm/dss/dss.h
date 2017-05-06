@@ -280,9 +280,6 @@ bool dss_div_calc(unsigned long pck, unsigned long fck_min,
 		dss_div_calc_func func, void *data);
 
 /* SDI */
-int sdi_init_platform_driver(void) __init;
-void sdi_uninit_platform_driver(void);
-
 #ifdef CONFIG_OMAP2_DSS_SDI
 int sdi_init_port(struct platform_device *pdev, struct device_node *port);
 void sdi_uninit_port(struct device_node *port);
