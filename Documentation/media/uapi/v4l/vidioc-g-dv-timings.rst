@@ -146,8 +146,20 @@ EBUSY
       - ``flags``
       - Several flags giving more information about the format. See
 	:ref:`dv-bt-flags` for a description of the flags.
-    * - __u32
-      - ``reserved[14]``
+    * - struct :c:type:`v4l2_fract`
+      - ``picture_aspect``
+      - The picture aspect if the pixels are not square. Only valid if the
+        ``V4L2_DV_FL_HAS_PICTURE_ASPECT`` flag is set.
+    * - __u8
+      - ``cea861_vic``
+      - The Video Identification Code according to the CEA-861 standard.
+        Only valid if the ``V4L2_DV_FL_HAS_CEA861_VIC`` flag is set.
+    * - __u8
+      - ``hdmi_vic``
+      - The Video Identification Code according to the HDMI standard.
+        Only valid if the ``V4L2_DV_FL_HAS_HDMI_VIC`` flag is set.
+    * - __u8
+      - ``reserved[46]``
       - Reserved for future extensions. Drivers and applications must set
 	the array to zero.
 

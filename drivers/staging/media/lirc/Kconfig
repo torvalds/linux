@@ -12,18 +12,6 @@ menuconfig LIRC_STAGING
 
 if LIRC_STAGING
 
-config LIRC_SASEM
-	tristate "Sasem USB IR Remote"
-	depends on LIRC && USB
-	help
-	  Driver for the Sasem OnAir Remocon-V or Dign HV5 HTPC IR/VFD Module
-
-config LIRC_SIR
-	tristate "Built-in SIR IrDA port"
-	depends on RC_CORE
-	help
-	  Driver for the SIR IrDA port
-
 config LIRC_ZILOG
 	tristate "Zilog/Hauppauge IR Transmitter"
 	depends on LIRC && I2C

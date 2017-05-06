@@ -1213,7 +1213,7 @@ static const struct v4l2_ctrl_ops rj54n1_ctrl_ops = {
 	.s_ctrl = rj54n1_s_ctrl,
 };
 
-static struct v4l2_subdev_core_ops rj54n1_subdev_core_ops = {
+static const struct v4l2_subdev_core_ops rj54n1_subdev_core_ops = {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register	= rj54n1_g_register,
 	.s_register	= rj54n1_s_register,
@@ -1251,7 +1251,7 @@ static int rj54n1_s_mbus_config(struct v4l2_subdev *sd,
 		return reg_write(client, RJ54N1_OUT_SIGPO, 0);
 }
 
-static struct v4l2_subdev_video_ops rj54n1_subdev_video_ops = {
+static const struct v4l2_subdev_video_ops rj54n1_subdev_video_ops = {
 	.s_stream	= rj54n1_s_stream,
 	.g_mbus_config	= rj54n1_g_mbus_config,
 	.s_mbus_config	= rj54n1_s_mbus_config,
@@ -1265,7 +1265,7 @@ static const struct v4l2_subdev_pad_ops rj54n1_subdev_pad_ops = {
 	.set_fmt	= rj54n1_set_fmt,
 };
 
-static struct v4l2_subdev_ops rj54n1_subdev_ops = {
+static const struct v4l2_subdev_ops rj54n1_subdev_ops = {
 	.core	= &rj54n1_subdev_core_ops,
 	.video	= &rj54n1_subdev_video_ops,
 	.pad	= &rj54n1_subdev_pad_ops,

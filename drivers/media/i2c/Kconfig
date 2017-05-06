@@ -209,7 +209,6 @@ config VIDEO_ADV7604
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
 	depends on GPIOLIB || COMPILE_TEST
 	select HDMI
-	select MEDIA_CEC_EDID
 	---help---
 	  Support for the Analog Devices ADV7604 video decoder.
 
@@ -221,7 +220,7 @@ config VIDEO_ADV7604
 
 config VIDEO_ADV7604_CEC
 	bool "Enable Analog Devices ADV7604 CEC support"
-	depends on VIDEO_ADV7604 && MEDIA_CEC_SUPPORT
+	depends on VIDEO_ADV7604 && CEC_CORE
 	---help---
 	  When selected the adv7604 will support the optional
 	  HDMI CEC feature.
@@ -230,7 +229,6 @@ config VIDEO_ADV7842
 	tristate "Analog Devices ADV7842 decoder"
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
 	select HDMI
-	select MEDIA_CEC_EDID
 	---help---
 	  Support for the Analog Devices ADV7842 video decoder.
 
@@ -242,7 +240,7 @@ config VIDEO_ADV7842
 
 config VIDEO_ADV7842_CEC
 	bool "Enable Analog Devices ADV7842 CEC support"
-	depends on VIDEO_ADV7842 && MEDIA_CEC_SUPPORT
+	depends on VIDEO_ADV7842 && CEC_CORE
 	---help---
 	  When selected the adv7842 will support the optional
 	  HDMI CEC feature.
@@ -470,7 +468,6 @@ config VIDEO_ADV7511
 	tristate "Analog Devices ADV7511 encoder"
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
 	select HDMI
-	select MEDIA_CEC_EDID
 	---help---
 	  Support for the Analog Devices ADV7511 video encoder.
 
@@ -481,7 +478,7 @@ config VIDEO_ADV7511
 
 config VIDEO_ADV7511_CEC
 	bool "Enable Analog Devices ADV7511 CEC support"
-	depends on VIDEO_ADV7511 && MEDIA_CEC_SUPPORT
+	depends on VIDEO_ADV7511 && CEC_CORE
 	---help---
 	  When selected the adv7511 will support the optional
 	  HDMI CEC feature.
@@ -520,6 +517,17 @@ config VIDEO_APTINA_PLL
 config VIDEO_SMIAPP_PLL
 	tristate
 
+config VIDEO_OV2640
+	tristate "OmniVision OV2640 sensor support"
+	depends on VIDEO_V4L2 && I2C
+	depends on MEDIA_CAMERA_SUPPORT
+	help
+	  This is a Video4Linux2 sensor-level driver for the OmniVision
+	  OV2640 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov2640.
+
 config VIDEO_OV2659
 	tristate "OmniVision OV2659 sensor support"
 	depends on VIDEO_V4L2 && I2C
@@ -530,6 +538,29 @@ config VIDEO_OV2659
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov2659.
+
+config VIDEO_OV5645
+	tristate "OmniVision OV5645 sensor support"
+	depends on OF
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the OmniVision
+	  OV5645 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov5645.
+
+config VIDEO_OV5647
+	tristate "OmniVision OV5647 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the OmniVision
+	  OV5647 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov5647.
 
 config VIDEO_OV7640
 	tristate "OmniVision OV7640 sensor support"

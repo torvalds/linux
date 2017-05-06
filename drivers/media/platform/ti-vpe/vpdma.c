@@ -801,17 +801,17 @@ static void dump_dtd(struct vpdma_dtd *dtd)
  * flags: VPDMA flags to configure some descriptor fileds
  */
 void vpdma_add_out_dtd(struct vpdma_desc_list *list, int width,
-		const struct v4l2_rect *c_rect,
+		int stride, const struct v4l2_rect *c_rect,
 		const struct vpdma_data_format *fmt, dma_addr_t dma_addr,
 		int max_w, int max_h, enum vpdma_channel chan, u32 flags)
 {
-	vpdma_rawchan_add_out_dtd(list, width, c_rect, fmt, dma_addr,
+	vpdma_rawchan_add_out_dtd(list, width, stride, c_rect, fmt, dma_addr,
 				  max_w, max_h, chan_info[chan].num, flags);
 }
 EXPORT_SYMBOL(vpdma_add_out_dtd);
 
 void vpdma_rawchan_add_out_dtd(struct vpdma_desc_list *list, int width,
-		const struct v4l2_rect *c_rect,
+		int stride, const struct v4l2_rect *c_rect,
 		const struct vpdma_data_format *fmt, dma_addr_t dma_addr,
 		int max_w, int max_h, int raw_vpdma_chan, u32 flags)
 {
@@ -821,7 +821,6 @@ void vpdma_rawchan_add_out_dtd(struct vpdma_desc_list *list, int width,
 	int channel, next_chan;
 	struct v4l2_rect rect = *c_rect;
 	int depth = fmt->depth;
-	int stride;
 	struct vpdma_dtd *dtd;
 
 	channel = next_chan = raw_vpdma_chan;
@@ -832,8 +831,6 @@ void vpdma_rawchan_add_out_dtd(struct vpdma_desc_list *list, int width,
 		rect.top >>= 1;
 		depth = 8;
 	}
-
-	stride = ALIGN((depth * width) >> 3, VPDMA_STRIDE_ALIGN);
 
 	dma_addr += rect.top * stride + (rect.left * depth >> 3);
 
@@ -882,7 +879,7 @@ EXPORT_SYMBOL(vpdma_rawchan_add_out_dtd);
  *			contribute to the client)
  */
 void vpdma_add_in_dtd(struct vpdma_desc_list *list, int width,
-		const struct v4l2_rect *c_rect,
+		int stride, const struct v4l2_rect *c_rect,
 		const struct vpdma_data_format *fmt, dma_addr_t dma_addr,
 		enum vpdma_channel chan, int field, u32 flags, int frame_width,
 		int frame_height, int start_h, int start_v)
@@ -892,7 +889,6 @@ void vpdma_add_in_dtd(struct vpdma_desc_list *list, int width,
 	int depth = fmt->depth;
 	int channel, next_chan;
 	struct v4l2_rect rect = *c_rect;
-	int stride;
 	struct vpdma_dtd *dtd;
 
 	channel = next_chan = chan_info[chan].num;
@@ -903,8 +899,6 @@ void vpdma_add_in_dtd(struct vpdma_desc_list *list, int width,
 		rect.top >>= 1;
 		depth = 8;
 	}
-
-	stride = ALIGN((depth * width) >> 3, VPDMA_STRIDE_ALIGN);
 
 	dma_addr += rect.top * stride + (rect.left * depth >> 3);
 

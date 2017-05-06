@@ -258,13 +258,13 @@ static void ir_raw_disable_protocols(struct rc_dev *dev, u64 protocols)
  */
 int ir_raw_gen_manchester(struct ir_raw_event **ev, unsigned int max,
 			  const struct ir_raw_timings_manchester *timings,
-			  unsigned int n, unsigned int data)
+			  unsigned int n, u64 data)
 {
 	bool need_pulse;
-	unsigned int i;
+	u64 i;
 	int ret = -ENOBUFS;
 
-	i = 1 << (n - 1);
+	i = BIT_ULL(n - 1);
 
 	if (timings->leader) {
 		if (!max--)

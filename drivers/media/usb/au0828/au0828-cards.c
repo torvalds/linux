@@ -153,7 +153,7 @@ static void hauppauge_eeprom(struct au0828_dev *dev, u8 *eeprom_data)
 {
 	struct tveeprom tv;
 
-	tveeprom_hauppauge_analog(&dev->i2c_client, &tv, eeprom_data);
+	tveeprom_hauppauge_analog(&tv, eeprom_data);
 	dev->board.tuner_type = tv.tuner_type;
 
 	/* Make sure we support the board model */

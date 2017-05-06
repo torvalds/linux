@@ -174,7 +174,7 @@ this colorspace:
 The xvYCC 709 encoding (``V4L2_YCBCR_ENC_XV709``, :ref:`xvycc`) is
 similar to the Rec. 709 encoding, but it allows for R', G' and B' values
 that are outside the range [0…1]. The resulting Y', Cb and Cr values are
-scaled and offset:
+scaled and offset according to the limited range formula:
 
 .. math::
 
@@ -187,7 +187,7 @@ scaled and offset:
 The xvYCC 601 encoding (``V4L2_YCBCR_ENC_XV601``, :ref:`xvycc`) is
 similar to the BT.601 encoding, but it allows for R', G' and B' values
 that are outside the range [0…1]. The resulting Y', Cb and Cr values are
-scaled and offset:
+scaled and offset according to the limited range formula:
 
 .. math::
 
@@ -198,9 +198,14 @@ scaled and offset:
     Cr = \frac{224}{256} * (0.5R' - 0.4187G' - 0.0813B')
 
 Y' is clamped to the range [0…1] and Cb and Cr are clamped to the range
-[-0.5…0.5]. The non-standard xvYCC 709 or xvYCC 601 encodings can be
+[-0.5…0.5] and quantized without further scaling or offsets.
+The non-standard xvYCC 709 or xvYCC 601 encodings can be
 used by selecting ``V4L2_YCBCR_ENC_XV709`` or ``V4L2_YCBCR_ENC_XV601``.
-The xvYCC encodings always use full range quantization.
+As seen by the xvYCC formulas these encodings always use limited range quantization,
+there is no full range variant. The whole point of these extended gamut encodings
+is that values outside the limited range are still valid, although they
+map to R', G' and B' values outside the [0…1] range and are therefore outside
+the Rec. 709 colorspace gamut.
 
 
 .. _col-srgb:

@@ -59,12 +59,15 @@ enum cec_state {
 	STATE_ERROR
 };
 
+struct cec_notifier;
+
 struct s5p_cec_dev {
 	struct cec_adapter	*adap;
 	struct clk		*clk;
 	struct device		*dev;
 	struct mutex		lock;
 	struct regmap           *pmu;
+	struct cec_notifier	*notifier;
 	int			irq;
 	void __iomem		*reg;
 

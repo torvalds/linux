@@ -236,6 +236,9 @@ specification the ioctl returns an ``EINVAL`` error code.
     * - ``V4L2_CAP_SDR_OUTPUT``
       - 0x00400000
       - The device supports the :ref:`SDR Output <sdr>` interface.
+    * - ``V4L2_CAP_META_CAPTURE``
+      - 0x00800000
+      - The device supports the :ref:`metadata` capture interface.
     * - ``V4L2_CAP_READWRITE``
       - 0x01000000
       - The device supports the :ref:`read() <rw>` and/or
