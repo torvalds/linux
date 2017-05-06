@@ -834,9 +834,6 @@ struct nand_manufacturer_ops {
  *			structure which is shared among multiple independent
  *			devices.
  * @priv:		[OPTIONAL] pointer to private chip data
- * @errstat:		[OPTIONAL] hardware specific function to perform
- *			additional error status checks (determine if errors are
- *			correctable).
  * @manufacturer:	[INTERN] Contains manufacturer information
  */
 
@@ -860,8 +857,6 @@ struct nand_chip {
 	int(*waitfunc)(struct mtd_info *mtd, struct nand_chip *this);
 	int (*erase)(struct mtd_info *mtd, int page);
 	int (*scan_bbt)(struct mtd_info *mtd);
-	int (*errstat)(struct mtd_info *mtd, struct nand_chip *this, int state,
-			int status, int page);
 	int (*onfi_set_features)(struct mtd_info *mtd, struct nand_chip *chip,
 			int feature_addr, uint8_t *subfeature_para);
 	int (*onfi_get_features)(struct mtd_info *mtd, struct nand_chip *chip,

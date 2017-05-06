@@ -2753,14 +2753,6 @@ static int nand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	if (nand_standard_page_accessors(&chip->ecc))
 		chip->cmdfunc(mtd, NAND_CMD_PAGEPROG, -1, -1);
 	status = chip->waitfunc(mtd, chip);
-	/*
-	 * See if operation failed and additional status checks are
-	 * available.
-	 */
-	if ((status & NAND_STATUS_FAIL) && (chip->errstat))
-		status = chip->errstat(mtd, chip, FL_WRITING, status,
-				       page);
-
 	if (status & NAND_STATUS_FAIL)
 		return -EIO;
 
@@ -3219,14 +3211,6 @@ int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
 			chip->pagebuf = -1;
 
 		status = chip->erase(mtd, page & chip->pagemask);
-
-		/*
-		 * See if operation failed and additional status checks are
-		 * available
-		 */
-		if ((status & NAND_STATUS_FAIL) && (chip->errstat))
-			status = chip->errstat(mtd, chip, FL_ERASING,
-					       status, page);
 
 		/* See if block erase succeeded */
 		if (status & NAND_STATUS_FAIL) {
