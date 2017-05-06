@@ -1541,49 +1541,6 @@ static inline void nfsd4_increment_op_stats(u32 opnum)
 		nfsdstats.nfs4_opcount[opnum]++;
 }
 
-enum nfsd4_op_flags {
-	ALLOWED_WITHOUT_FH = 1 << 0,	/* No current filehandle required */
-	ALLOWED_ON_ABSENT_FS = 1 << 1,	/* ops processed on absent fs */
-	ALLOWED_AS_FIRST_OP = 1 << 2,	/* ops reqired first in compound */
-	/* For rfc 5661 section 2.6.3.1.1: */
-	OP_HANDLES_WRONGSEC = 1 << 3,
-	OP_IS_PUTFH_LIKE = 1 << 4,
-	/*
-	 * These are the ops whose result size we estimate before
-	 * encoding, to avoid performing an op then not being able to
-	 * respond or cache a response.  This includes writes and setattrs
-	 * as well as the operations usually called "nonidempotent":
-	 */
-	OP_MODIFIES_SOMETHING = 1 << 5,
-	/*
-	 * Cache compounds containing these ops in the xid-based drc:
-	 * We use the DRC for compounds containing non-idempotent
-	 * operations, *except* those that are 4.1-specific (since
-	 * sessions provide their own EOS), and except for stateful
-	 * operations other than setclientid and setclientid_confirm
-	 * (since sequence numbers provide EOS for open, lock, etc in
-	 * the v4.0 case).
-	 */
-	OP_CACHEME = 1 << 6,
-	/*
-	 * These are ops which clear current state id.
-	 */
-	OP_CLEAR_STATEID = 1 << 7,
-};
-
-struct nfsd4_operation {
-	__be32 (*op_func)(struct svc_rqst *, struct nfsd4_compound_state *,
-			union nfsd4_op_u *);
-	u32 op_flags;
-	char *op_name;
-	/* Try to get response size before operation */
-	u32 (*op_rsize_bop)(struct svc_rqst *, struct nfsd4_op *);
-	void (*op_get_currentstateid)(struct nfsd4_compound_state *,
-			union nfsd4_op_u *);
-	void (*op_set_currentstateid)(struct nfsd4_compound_state *,
-			union nfsd4_op_u *);
-};
-
 static const struct nfsd4_operation nfsd4_ops[];
 
 static const char *nfsd4_op_name(unsigned opnum);
