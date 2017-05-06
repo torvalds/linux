@@ -49,6 +49,7 @@
 #include <linux/notifier.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
+#include <net/inet_sock.h>
 
 struct idletimer_tg_attr {
 	struct attribute attr;
@@ -355,7 +356,7 @@ static void reset_timer(const struct idletimer_tg_info *info,
 		/* Stores the uid resposible for waking up the radio */
 		if (skb && (skb->sk)) {
 			timer->uid = from_kuid_munged(current_user_ns(),
-						sock_i_uid(skb->sk));
+					sock_i_uid(skb_to_full_sk(skb)));
 		}
 
 		/* checks if there is a pending inactive notification*/
@@ -456,6 +457,7 @@ static void idletimer_tg_destroy(const struct xt_tgdtor_param *par)
 		del_timer_sync(&info->timer->timer);
 		sysfs_remove_file(idletimer_tg_kobj, &info->timer->attr.attr);
 		unregister_pm_notifier(&info->timer->pm_nb);
+		cancel_work_sync(&info->timer->work);
 		kfree(info->timer->attr.attr.name);
 		kfree(info->timer);
 	} else {

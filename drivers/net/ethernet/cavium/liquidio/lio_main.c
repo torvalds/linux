@@ -2823,7 +2823,7 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 		if (!g) {
 			netif_info(lio, tx_err, lio->netdev,
 				   "Transmit scatter gather: glist null!\n");
-			goto lio_xmit_failed;
+			goto lio_xmit_dma_failed;
 		}
 
 		cmdsetup.s.gather = 1;
@@ -2894,7 +2894,7 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 	else
 		status = octnet_send_nic_data_pkt(oct, &ndata, xmit_more);
 	if (status == IQ_SEND_FAILED)
-		goto lio_xmit_failed;
+		goto lio_xmit_dma_failed;
 
 	netif_info(lio, tx_queued, lio->netdev, "Transmit queued successfully\n");
 
@@ -2908,12 +2908,13 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	return NETDEV_TX_OK;
 
+lio_xmit_dma_failed:
+	dma_unmap_single(&oct->pci_dev->dev, ndata.cmd.dptr,
+			 ndata.datasize, DMA_TO_DEVICE);
 lio_xmit_failed:
 	stats->tx_dropped++;
 	netif_info(lio, tx_err, lio->netdev, "IQ%d Transmit dropped:%llu\n",
 		   iq_no, stats->tx_dropped);
-	dma_unmap_single(&oct->pci_dev->dev, ndata.cmd.dptr,
-			 ndata.datasize, DMA_TO_DEVICE);
 	recv_buffer_free(skb);
 	return NETDEV_TX_OK;
 }

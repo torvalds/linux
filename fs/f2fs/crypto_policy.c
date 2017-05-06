@@ -149,6 +149,11 @@ int f2fs_is_child_context_consistent_with_parent(struct inode *parent,
 		BUG_ON(1);
 	}
 
+	/* No restrictions on file types which are never encrypted */
+	if (!S_ISREG(child->i_mode) && !S_ISDIR(child->i_mode) &&
+	    !S_ISLNK(child->i_mode))
+		return 1;
+
 	/* no restrictions if the parent directory is not encrypted */
 	if (!f2fs_encrypted_inode(parent))
 		return 1;

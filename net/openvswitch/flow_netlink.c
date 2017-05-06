@@ -588,7 +588,7 @@ static int ip_tun_from_nlattr(const struct nlattr *attr,
 			ipv4 = true;
 			break;
 		case OVS_TUNNEL_KEY_ATTR_IPV6_SRC:
-			SW_FLOW_KEY_PUT(match, tun_key.u.ipv6.dst,
+			SW_FLOW_KEY_PUT(match, tun_key.u.ipv6.src,
 					nla_get_in6_addr(a), is_mask);
 			ipv6 = true;
 			break;

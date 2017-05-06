@@ -889,7 +889,7 @@ err_alloc:
 	bus_unregister(&hv_bus);
 
 err_cleanup:
-	hv_cleanup();
+	hv_cleanup(false);
 
 	return ret;
 }
@@ -1254,7 +1254,7 @@ static void hv_kexec_handler(void)
 	vmbus_initiate_unload();
 	for_each_online_cpu(cpu)
 		smp_call_function_single(cpu, hv_synic_cleanup, NULL, 1);
-	hv_cleanup();
+	hv_cleanup(false);
 };
 
 static void hv_crash_handler(struct pt_regs *regs)
@@ -1266,7 +1266,7 @@ static void hv_crash_handler(struct pt_regs *regs)
 	 * for kdump.
 	 */
 	hv_synic_cleanup(NULL);
-	hv_cleanup();
+	hv_cleanup(true);
 };
 
 static int __init hv_acpi_init(void)
@@ -1330,7 +1330,7 @@ static void __exit vmbus_exit(void)
 						 &hyperv_panic_block);
 	}
 	bus_unregister(&hv_bus);
-	hv_cleanup();
+	hv_cleanup(false);
 	for_each_online_cpu(cpu) {
 		tasklet_kill(hv_context.event_dpc[cpu]);
 		smp_call_function_single(cpu, hv_synic_cleanup, NULL, 1);

@@ -346,6 +346,34 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 		      DMI_MATCH(DMI_PRODUCT_NAME, "XPS 13 9343"),
 		},
 	},
+	{
+	 .callback = dmi_enable_rev_override,
+	 .ident = "DELL Precision 5520",
+	 .matches = {
+		      DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+		      DMI_MATCH(DMI_PRODUCT_NAME, "Precision 5520"),
+		},
+	},
+	{
+	 .callback = dmi_enable_rev_override,
+	 .ident = "DELL Precision 3520",
+	 .matches = {
+		      DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+		      DMI_MATCH(DMI_PRODUCT_NAME, "Precision 3520"),
+		},
+	},
+	/*
+	 * Resolves a quirk with the Dell Latitude 3350 that
+	 * causes the ethernet adapter to not function.
+	 */
+	{
+	 .callback = dmi_enable_rev_override,
+	 .ident = "DELL Latitude 3350",
+	 .matches = {
+		      DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+		      DMI_MATCH(DMI_PRODUCT_NAME, "Latitude 3350"),
+		},
+	},
 #endif
 	{}
 };

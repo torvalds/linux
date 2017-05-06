@@ -115,6 +115,12 @@ static inline bool is_userdebug(void)
 	return !strncmp(buildvariant, typeuserdebug, sizeof(typeuserdebug));
 }
 
+static inline bool is_unlocked(void)
+{
+	static const char unlocked[] = "orange";
+
+	return !strncmp(verifiedbootstate, unlocked, sizeof(unlocked));
+}
 
 static int table_extract_mpi_array(struct public_key_signature *pks,
 				const void *data, size_t len)
@@ -585,6 +591,8 @@ static int verify_verity_signature(char *key_id,
 
 	if (IS_ERR(pks)) {
 		DMERR("hashing failed");
+		retval = PTR_ERR(pks);
+		pks = NULL;
 		goto error;
 	}
 
@@ -648,6 +656,28 @@ static int add_as_linear_device(struct dm_target *ti, char *dev)
 	return err;
 }
 
+static int create_linear_device(struct dm_target *ti, dev_t dev,
+				char *target_device)
+{
+	u64 device_size = 0;
+	int err = find_size(dev, &device_size);
+
+	if (err) {
+		DMERR("error finding bdev size");
+		handle_error();
+		return err;
+	}
+
+	ti->len = device_size;
+	err = add_as_linear_device(ti, target_device);
+	if (err) {
+		handle_error();
+		return err;
+	}
+	verity_enabled = false;
+	return 0;
+}
+
 /*
  * Target parameters:
  *	<key id>	Key id of the public key in the system keyring.
@@ -671,7 +701,6 @@ static int android_verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	struct fec_ecc_metadata uninitialized_var(ecc);
 	char buf[FEC_ARG_LENGTH], *buf_ptr;
 	unsigned long long tmpll;
-	u64  uninitialized_var(device_size);
 
 	if (argc == 1) {
 		/* Use the default keyid */
@@ -699,23 +728,8 @@ static int android_verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		return -EINVAL;
 	}
 
-	if (is_eng()) {
-		err = find_size(dev, &device_size);
-		if (err) {
-			DMERR("error finding bdev size");
-			handle_error();
-			return err;
-		}
-
-		ti->len = device_size;
-		err = add_as_linear_device(ti, target_device);
-		if (err) {
-			handle_error();
-			return err;
-		}
-		verity_enabled = false;
-		return 0;
-	}
+	if (is_eng())
+		return create_linear_device(ti, dev, target_device);
 
 	strreplace(key_id, '#', ' ');
 
@@ -730,6 +744,11 @@ static int android_verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	err = extract_metadata(dev, &fec, &metadata, &verity_enabled);
 
 	if (err) {
+		/* Allow invalid metadata when the device is unlocked */
+		if (is_unlocked()) {
+			DMWARN("Allow invalid metadata when unlocked");
+			return create_linear_device(ti, dev, target_device);
+		}
 		DMERR("Error while extracting metadata");
 		handle_error();
 		goto free_metadata;

@@ -27,6 +27,12 @@ static bool xen_pvspin = true;
 
 static void xen_qlock_kick(int cpu)
 {
+	int irq = per_cpu(lock_kicker_irq, cpu);
+
+	/* Don't kick if the target's kicker interrupt is not initialized. */
+	if (irq == -1)
+		return;
+
 	xen_send_IPI_one(cpu, XEN_SPIN_UNLOCK_VECTOR);
 }
 

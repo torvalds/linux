@@ -23,27 +23,31 @@
 #define AID_APP_END          19999 /* last app user */
 #define AID_CACHE_GID_START  20000 /* start of gids for apps to mark cached data */
 #define AID_EXT_GID_START    30000 /* start of gids for apps to mark external data */
+#define AID_EXT_CACHE_GID_START 40000 /* start of gids for apps to mark external cached data */
+#define AID_EXT_CACHE_GID_END 49999   /* end of gids for apps to mark external cached data */
 #define AID_SHARED_GID_START 50000 /* start of gids for apps in each user to share */
 
 typedef uid_t userid_t;
 typedef uid_t appid_t;
 
-static inline uid_t multiuser_get_uid(userid_t user_id, appid_t app_id) {
-    return (user_id * AID_USER_OFFSET) + (app_id % AID_USER_OFFSET);
+static inline uid_t multiuser_get_uid(userid_t user_id, appid_t app_id)
+{
+	return (user_id * AID_USER_OFFSET) + (app_id % AID_USER_OFFSET);
 }
 
-static inline gid_t multiuser_get_cache_gid(userid_t user_id, appid_t app_id) {
-    if (app_id >= AID_APP_START && app_id <= AID_APP_END) {
-        return multiuser_get_uid(user_id, (app_id - AID_APP_START) + AID_CACHE_GID_START);
-    } else {
-        return -1;
-    }
+static inline bool uid_is_app(uid_t uid)
+{
+	appid_t appid = uid % AID_USER_OFFSET;
+
+	return appid >= AID_APP_START && appid <= AID_APP_END;
 }
 
-static inline gid_t multiuser_get_ext_gid(userid_t user_id, appid_t app_id) {
-    if (app_id >= AID_APP_START && app_id <= AID_APP_END) {
-        return multiuser_get_uid(user_id, (app_id - AID_APP_START) + AID_EXT_GID_START);
-    } else {
-        return -1;
-    }
+static inline gid_t multiuser_get_ext_cache_gid(uid_t uid)
+{
+	return uid - AID_APP_START + AID_EXT_CACHE_GID_START;
+}
+
+static inline gid_t multiuser_get_ext_gid(uid_t uid)
+{
+	return uid - AID_APP_START + AID_EXT_GID_START;
 }

@@ -44,7 +44,8 @@ static void ext4_dir_crypt_complete(struct crypto_async_request *req, int res)
 
 bool ext4_valid_filenames_enc_mode(uint32_t mode)
 {
-	return (mode == EXT4_ENCRYPTION_MODE_AES_256_CTS);
+	return (mode == EXT4_ENCRYPTION_MODE_AES_256_CTS ||
+		mode == EXT4_ENCRYPTION_MODE_AES_256_HEH);
 }
 
 static unsigned max_name_len(struct inode *inode)

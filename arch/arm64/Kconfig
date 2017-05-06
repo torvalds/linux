@@ -141,6 +141,18 @@ config ARCH_MMAP_RND_COMPAT_BITS_MIN
 config ARCH_MMAP_RND_COMPAT_BITS_MAX
        default 16
 
+config ARM64_PAGE_SHIFT
+	int
+	default 16 if ARM64_64K_PAGES
+	default 14 if ARM64_16K_PAGES
+	default 12
+
+config ARM64_CONT_SHIFT
+	int
+	default 5 if ARM64_64K_PAGES
+	default 7 if ARM64_16K_PAGES
+	default 4
+
 config NO_IOPORT_MAP
 	def_bool y if !PCI
 
@@ -933,6 +945,26 @@ config BUILD_ARM64_APPENDED_DTB_IMAGE
 	  Enabling this option will cause a concatenated Image.gz and list of
 	  DTBs to be built by default (instead of a standalone Image.gz.)
 	  The image will built in arch/arm64/boot/Image.gz-dtb
+
+choice
+	prompt "Appended DTB Kernel Image name"
+	depends on BUILD_ARM64_APPENDED_DTB_IMAGE
+	help
+	  Enabling this option will cause a specific kernel image Image or
+	  Image.gz to be used for final image creation.
+	  The image will built in arch/arm64/boot/IMAGE-NAME-dtb
+
+	config IMG_GZ_DTB
+		bool "Image.gz-dtb"
+	config IMG_DTB
+		bool "Image-dtb"
+endchoice
+
+config BUILD_ARM64_APPENDED_KERNEL_IMAGE_NAME
+	string
+	depends on BUILD_ARM64_APPENDED_DTB_IMAGE
+	default "Image.gz-dtb" if IMG_GZ_DTB
+	default "Image-dtb" if IMG_DTB
 
 config BUILD_ARM64_APPENDED_DTB_IMAGE_NAMES
 	string "Default dtb names"

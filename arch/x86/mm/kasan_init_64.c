@@ -1,3 +1,4 @@
+#define DISABLE_BRANCH_PROFILING
 #define pr_fmt(fmt) "kasan: " fmt
 #include <linux/bootmem.h>
 #include <linux/kasan.h>

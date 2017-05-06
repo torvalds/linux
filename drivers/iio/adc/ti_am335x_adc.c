@@ -151,7 +151,9 @@ static irqreturn_t tiadc_irq_h(int irq, void *private)
 {
 	struct iio_dev *indio_dev = private;
 	struct tiadc_device *adc_dev = iio_priv(indio_dev);
-	unsigned int status, config;
+	unsigned int status, config, adc_fsm;
+	unsigned short count = 0;
+
 	status = tiadc_readl(adc_dev, REG_IRQSTATUS);
 
 	/*
@@ -165,6 +167,15 @@ static irqreturn_t tiadc_irq_h(int irq, void *private)
 		tiadc_writel(adc_dev, REG_CTRL, config);
 		tiadc_writel(adc_dev, REG_IRQSTATUS, IRQENB_FIFO1OVRRUN
 				| IRQENB_FIFO1UNDRFLW | IRQENB_FIFO1THRES);
+
+		/* wait for idle state.
+		 * ADC needs to finish the current conversion
+		 * before disabling the module
+		 */
+		do {
+			adc_fsm = tiadc_readl(adc_dev, REG_ADCFSM);
+		} while (adc_fsm != 0x10 && count++ < 100);
+
 		tiadc_writel(adc_dev, REG_CTRL, (config | CNTRLREG_TSCSSENB));
 		return IRQ_HANDLED;
 	} else if (status & IRQENB_FIFO1THRES) {

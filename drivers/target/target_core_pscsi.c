@@ -154,7 +154,7 @@ static void pscsi_tape_read_blocksize(struct se_device *dev,
 
 	buf = kzalloc(12, GFP_KERNEL);
 	if (!buf)
-		return;
+		goto out_free;
 
 	memset(cdb, 0, MAX_COMMAND_SIZE);
 	cdb[0] = MODE_SENSE;
@@ -169,9 +169,10 @@ static void pscsi_tape_read_blocksize(struct se_device *dev,
 	 * If MODE_SENSE still returns zero, set the default value to 1024.
 	 */
 	sdev->sector_size = (buf[9] << 16) | (buf[10] << 8) | (buf[11]);
+out_free:
 	if (!sdev->sector_size)
 		sdev->sector_size = 1024;
-out_free:
+
 	kfree(buf);
 }
 
@@ -314,9 +315,10 @@ static int pscsi_add_device_to_list(struct se_device *dev,
 				sd->lun, sd->queue_depth);
 	}
 
-	dev->dev_attrib.hw_block_size = sd->sector_size;
+	dev->dev_attrib.hw_block_size =
+		min_not_zero((int)sd->sector_size, 512);
 	dev->dev_attrib.hw_max_sectors =
-		min_t(int, sd->host->max_sectors, queue_max_hw_sectors(q));
+		min_not_zero(sd->host->max_sectors, queue_max_hw_sectors(q));
 	dev->dev_attrib.hw_queue_depth = sd->queue_depth;
 
 	/*
@@ -339,8 +341,10 @@ static int pscsi_add_device_to_list(struct se_device *dev,
 	/*
 	 * For TYPE_TAPE, attempt to determine blocksize with MODE_SENSE.
 	 */
-	if (sd->type == TYPE_TAPE)
+	if (sd->type == TYPE_TAPE) {
 		pscsi_tape_read_blocksize(dev, sd);
+		dev->dev_attrib.hw_block_size = sd->sector_size;
+	}
 	return 0;
 }
 
@@ -406,7 +410,7 @@ static int pscsi_create_type_disk(struct se_device *dev, struct scsi_device *sd)
 /*
  * Called with struct Scsi_Host->host_lock called.
  */
-static int pscsi_create_type_rom(struct se_device *dev, struct scsi_device *sd)
+static int pscsi_create_type_nondisk(struct se_device *dev, struct scsi_device *sd)
 	__releases(sh->host_lock)
 {
 	struct pscsi_hba_virt *phv = dev->se_hba->hba_ptr;
@@ -430,28 +434,6 @@ static int pscsi_create_type_rom(struct se_device *dev, struct scsi_device *sd)
 		phv->phv_host_id, scsi_device_type(sd->type), sh->host_no,
 		sd->channel, sd->id, sd->lun);
 
-	return 0;
-}
-
-/*
- * Called with struct Scsi_Host->host_lock called.
- */
-static int pscsi_create_type_other(struct se_device *dev,
-		struct scsi_device *sd)
-	__releases(sh->host_lock)
-{
-	struct pscsi_hba_virt *phv = dev->se_hba->hba_ptr;
-	struct Scsi_Host *sh = sd->host;
-	int ret;
-
-	spin_unlock_irq(sh->host_lock);
-	ret = pscsi_add_device_to_list(dev, sd);
-	if (ret)
-		return ret;
-
-	pr_debug("CORE_PSCSI[%d] - Added Type: %s for %d:%d:%d:%llu\n",
-		phv->phv_host_id, scsi_device_type(sd->type), sh->host_no,
-		sd->channel, sd->id, sd->lun);
 	return 0;
 }
 
@@ -542,11 +524,8 @@ static int pscsi_configure_device(struct se_device *dev)
 		case TYPE_DISK:
 			ret = pscsi_create_type_disk(dev, sd);
 			break;
-		case TYPE_ROM:
-			ret = pscsi_create_type_rom(dev, sd);
-			break;
 		default:
-			ret = pscsi_create_type_other(dev, sd);
+			ret = pscsi_create_type_nondisk(dev, sd);
 			break;
 		}
 
@@ -611,8 +590,7 @@ static void pscsi_free_device(struct se_device *dev)
 		else if (pdv->pdv_lld_host)
 			scsi_host_put(pdv->pdv_lld_host);
 
-		if ((sd->type == TYPE_DISK) || (sd->type == TYPE_ROM))
-			scsi_device_put(sd);
+		scsi_device_put(sd);
 
 		pdv->pdv_sd = NULL;
 	}
@@ -1088,7 +1066,6 @@ static sector_t pscsi_get_blocks(struct se_device *dev)
 	if (pdv->pdv_bd && pdv->pdv_bd->bd_part)
 		return pdv->pdv_bd->bd_part->nr_sects;
 
-	dump_stack();
 	return 0;
 }
 

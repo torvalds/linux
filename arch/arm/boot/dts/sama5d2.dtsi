@@ -856,6 +856,13 @@
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xf801c000 0x100>;
 				interrupts = <24 IRQ_TYPE_LEVEL_HIGH 7>;
+				dmas = <&dma0
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
+					 AT91_XDMAC_DT_PERID(35))>,
+				       <&dma0
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
+					 AT91_XDMAC_DT_PERID(36))>;
+				dma-names = "tx", "rx";
 				clocks = <&uart0_clk>;
 				clock-names = "usart";
 				status = "disabled";
@@ -865,6 +872,13 @@
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xf8020000 0x100>;
 				interrupts = <25 IRQ_TYPE_LEVEL_HIGH 7>;
+				dmas = <&dma0
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
+					 AT91_XDMAC_DT_PERID(37))>,
+				       <&dma0
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
+					 AT91_XDMAC_DT_PERID(38))>;
+				dma-names = "tx", "rx";
 				clocks = <&uart1_clk>;
 				clock-names = "usart";
 				status = "disabled";
@@ -874,6 +888,13 @@
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xf8024000 0x100>;
 				interrupts = <26 IRQ_TYPE_LEVEL_HIGH 7>;
+				dmas = <&dma0
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
+					 AT91_XDMAC_DT_PERID(39))>,
+				       <&dma0
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
+					 AT91_XDMAC_DT_PERID(40))>;
+				dma-names = "tx", "rx";
 				clocks = <&uart2_clk>;
 				clock-names = "usart";
 				status = "disabled";
@@ -985,6 +1006,13 @@
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xfc008000 0x100>;
 				interrupts = <27 IRQ_TYPE_LEVEL_HIGH 7>;
+				dmas = <&dma0
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
+					 AT91_XDMAC_DT_PERID(41))>,
+				       <&dma0
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
+					 AT91_XDMAC_DT_PERID(42))>;
+				dma-names = "tx", "rx";
 				clocks = <&uart3_clk>;
 				clock-names = "usart";
 				status = "disabled";
@@ -993,6 +1021,13 @@
 			uart4: serial@fc00c000 {
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xfc00c000 0x100>;
+				dmas = <&dma0
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
+					 AT91_XDMAC_DT_PERID(43))>,
+				       <&dma0
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
+					 AT91_XDMAC_DT_PERID(44))>;
+				dma-names = "tx", "rx";
 				interrupts = <28 IRQ_TYPE_LEVEL_HIGH 7>;
 				clocks = <&uart4_clk>;
 				clock-names = "usart";

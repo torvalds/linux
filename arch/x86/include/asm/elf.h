@@ -278,7 +278,7 @@ struct task_struct;
 
 #define	ARCH_DLINFO_IA32						\
 do {									\
-	if (vdso32_enabled) {						\
+	if (VDSO_CURRENT_BASE) {					\
 		NEW_AUX_ENT(AT_SYSINFO,	VDSO_ENTRY);			\
 		NEW_AUX_ENT(AT_SYSINFO_EHDR, VDSO_CURRENT_BASE);	\
 	}								\

@@ -515,16 +515,27 @@ config DM_LOG_WRITES
 
 	  If unsure, say N.
 
-config DM_ANDROID_VERITY
-	tristate "Android verity target support"
+config DM_VERITY_AVB
+	tristate "Support AVB specific verity error behavior"
 	depends on DM_VERITY
+	---help---
+	  Enables Android Verified Boot platform-specific error
+	  behavior. In particular, it will modify the vbmeta partition
+	  specified on the kernel command-line when non-transient error
+	  occurs (followed by a panic).
+
+	  If unsure, say N.
+
+config DM_ANDROID_VERITY
+	bool "Android verity target support"
+	depends on DM_VERITY=y
 	depends on X509_CERTIFICATE_PARSER
 	depends on SYSTEM_TRUSTED_KEYRING
 	depends on PUBLIC_KEY_ALGO_RSA
 	depends on KEYS
 	depends on ASYMMETRIC_KEY_TYPE
 	depends on ASYMMETRIC_PUBLIC_KEY_SUBTYPE
-	depends on MD_LINEAR
+	depends on MD_LINEAR=y
 	select DM_VERITY_HASH_PREFETCH_MIN_SIZE_128
 	---help---
 	  This device-mapper target is virtually a VERITY target. This

@@ -528,6 +528,9 @@ int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_h
 	if (!(radar_info->pulse_bw_info & SPECTRAL_SCAN_BITMASK))
 		return 0;
 
+	if (!spec_priv->rfs_chan_spec_scan)
+		return 1;
+
 	/* Output buffers are full, no need to process anything
 	 * since there is no space to put the result anyway
 	 */
@@ -1072,7 +1075,7 @@ static struct rchan_callbacks rfs_spec_scan_cb = {
 
 void ath9k_cmn_spectral_deinit_debug(struct ath_spec_scan_priv *spec_priv)
 {
-	if (config_enabled(CONFIG_ATH9K_DEBUGFS)) {
+	if (config_enabled(CONFIG_ATH9K_DEBUGFS) && spec_priv->rfs_chan_spec_scan) {
 		relay_close(spec_priv->rfs_chan_spec_scan);
 		spec_priv->rfs_chan_spec_scan = NULL;
 	}
@@ -1086,6 +1089,9 @@ void ath9k_cmn_spectral_init_debug(struct ath_spec_scan_priv *spec_priv,
 					    debugfs_phy,
 					    1024, 256, &rfs_spec_scan_cb,
 					    NULL);
+	if (!spec_priv->rfs_chan_spec_scan)
+		return;
+
 	debugfs_create_file("spectral_scan_ctl",
 			    S_IRUSR | S_IWUSR,
 			    debugfs_phy, spec_priv,

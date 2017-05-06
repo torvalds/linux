@@ -211,7 +211,7 @@ int notify_change2(struct vfsmount *mnt, struct dentry * dentry, struct iattr * 
 			return -EPERM;
 
 		if (!inode_owner_or_capable(inode)) {
-			error = inode_permission(inode, MAY_WRITE);
+			error = inode_permission2(mnt, inode, MAY_WRITE);
 			if (error)
 				return error;
 		}

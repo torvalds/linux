@@ -1759,6 +1759,10 @@ static struct rt6_info *ip6_route_info_create(struct fib6_config *cfg)
 	int addr_type;
 	int err = -EINVAL;
 
+	/* RTF_PCPU is an internal flag; can not be set by userspace */
+	if (cfg->fc_flags & RTF_PCPU)
+		goto out;
+
 	if (cfg->fc_dst_len > 128 || cfg->fc_src_len > 128)
 		goto out;
 #ifndef CONFIG_IPV6_SUBTREES
@@ -2084,6 +2088,8 @@ static int ip6_route_del(struct fib6_config *cfg)
 			    !ipv6_addr_equal(&cfg->fc_gateway, &rt->rt6i_gateway))
 				continue;
 			if (cfg->fc_metric && cfg->fc_metric != rt->rt6i_metric)
+				continue;
+			if (cfg->fc_protocol && cfg->fc_protocol != rt->rt6i_protocol)
 				continue;
 			dst_hold(&rt->dst);
 			read_unlock_bh(&table->tb6_lock);

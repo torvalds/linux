@@ -410,6 +410,9 @@ static void intel_pmu_lbr_read_32(struct cpu_hw_events *cpuc)
 		cpuc->lbr_entries[i].to		= msr_lastbranch.to;
 		cpuc->lbr_entries[i].mispred	= 0;
 		cpuc->lbr_entries[i].predicted	= 0;
+		cpuc->lbr_entries[i].in_tx	= 0;
+		cpuc->lbr_entries[i].abort	= 0;
+		cpuc->lbr_entries[i].cycles	= 0;
 		cpuc->lbr_entries[i].reserved	= 0;
 	}
 	cpuc->lbr_stack.nr = i;

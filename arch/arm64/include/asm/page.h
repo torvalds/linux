@@ -23,16 +23,8 @@
 
 /* PAGE_SHIFT determines the page size */
 /* CONT_SHIFT determines the number of pages which can be tracked together  */
-#ifdef CONFIG_ARM64_64K_PAGES
-#define PAGE_SHIFT		16
-#define CONT_SHIFT		5
-#elif defined(CONFIG_ARM64_16K_PAGES)
-#define PAGE_SHIFT		14
-#define CONT_SHIFT		7
-#else
-#define PAGE_SHIFT		12
-#define CONT_SHIFT		4
-#endif
+#define PAGE_SHIFT		CONFIG_ARM64_PAGE_SHIFT
+#define CONT_SHIFT		CONFIG_ARM64_CONT_SHIFT
 #define PAGE_SIZE		(_AC(1, UL) << PAGE_SHIFT)
 #define PAGE_MASK		(~(PAGE_SIZE-1))
 

@@ -683,6 +683,14 @@ void shash_free_instance(struct crypto_instance *inst)
 }
 EXPORT_SYMBOL_GPL(shash_free_instance);
 
+int crypto_grab_shash(struct crypto_shash_spawn *spawn,
+		      const char *name, u32 type, u32 mask)
+{
+	spawn->base.frontend = &crypto_shash_type;
+	return crypto_grab_spawn(&spawn->base, name, type, mask);
+}
+EXPORT_SYMBOL_GPL(crypto_grab_shash);
+
 int crypto_init_shash_spawn(struct crypto_shash_spawn *spawn,
 			    struct shash_alg *alg,
 			    struct crypto_instance *inst)
