@@ -1697,9 +1697,8 @@ static void loop_queue_work(struct kthread_work *work)
 	loop_handle_cmd(cmd);
 }
 
-static int loop_init_request(void *data, struct request *rq,
-		unsigned int hctx_idx, unsigned int request_idx,
-		unsigned int numa_node)
+static int loop_init_request(struct blk_mq_tag_set *set, struct request *rq,
+		unsigned int hctx_idx, unsigned int numa_node)
 {
 	struct loop_cmd *cmd = blk_mq_rq_to_pdu(rq);
 

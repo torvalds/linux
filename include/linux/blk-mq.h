@@ -57,6 +57,11 @@ struct blk_mq_hw_ctx {
 	unsigned long		poll_considered;
 	unsigned long		poll_invoked;
 	unsigned long		poll_success;
+
+#ifdef CONFIG_BLK_DEBUG_FS
+	struct dentry		*debugfs_dir;
+	struct dentry		*sched_debugfs_dir;
+#endif
 };
 
 struct blk_mq_tag_set {
@@ -86,9 +91,9 @@ typedef int (queue_rq_fn)(struct blk_mq_hw_ctx *, const struct blk_mq_queue_data
 typedef enum blk_eh_timer_return (timeout_fn)(struct request *, bool);
 typedef int (init_hctx_fn)(struct blk_mq_hw_ctx *, void *, unsigned int);
 typedef void (exit_hctx_fn)(struct blk_mq_hw_ctx *, unsigned int);
-typedef int (init_request_fn)(void *, struct request *, unsigned int,
+typedef int (init_request_fn)(struct blk_mq_tag_set *set, struct request *,
 		unsigned int, unsigned int);
-typedef void (exit_request_fn)(void *, struct request *, unsigned int,
+typedef void (exit_request_fn)(struct blk_mq_tag_set *set, struct request *,
 		unsigned int);
 typedef int (reinit_request_fn)(void *, struct request *);
 
