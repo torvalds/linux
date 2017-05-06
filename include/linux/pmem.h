@@ -31,12 +31,6 @@ static inline void arch_memcpy_to_pmem(void *dst, const void *src, size_t n)
 	BUG();
 }
 
-static inline int arch_memcpy_from_pmem(void *dst, const void *src, size_t n)
-{
-	BUG();
-	return -EFAULT;
-}
-
 static inline size_t arch_copy_from_iter_pmem(void *addr, size_t bytes,
 		struct iov_iter *i)
 {
@@ -63,23 +57,6 @@ static inline void arch_invalidate_pmem(void *addr, size_t size)
 static inline bool arch_has_pmem_api(void)
 {
 	return IS_ENABLED(CONFIG_ARCH_HAS_PMEM_API);
-}
-
-/*
- * memcpy_from_pmem - read from persistent memory with error handling
- * @dst: destination buffer
- * @src: source buffer
- * @size: transfer length
- *
- * Returns 0 on success negative error code on failure.
- */
-static inline int memcpy_from_pmem(void *dst, void const *src, size_t size)
-{
-	if (arch_has_pmem_api())
-		return arch_memcpy_from_pmem(dst, src, size);
-	else
-		memcpy(dst, src, size);
-	return 0;
 }
 
 /**

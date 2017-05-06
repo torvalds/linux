@@ -222,7 +222,7 @@ int nd_region_to_nstype(struct nd_region *nd_region)
 			struct nd_mapping *nd_mapping = &nd_region->mapping[i];
 			struct nvdimm *nvdimm = nd_mapping->nvdimm;
 
-			if (nvdimm->flags & NDD_ALIASING)
+			if (test_bit(NDD_ALIASING, &nvdimm->flags))
 				alias++;
 		}
 		if (alias)
@@ -254,6 +254,35 @@ static ssize_t size_show(struct device *dev,
 	return sprintf(buf, "%llu\n", size);
 }
 static DEVICE_ATTR_RO(size);
+
+static ssize_t deep_flush_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nd_region *nd_region = to_nd_region(dev);
+
+	/*
+	 * NOTE: in the nvdimm_has_flush() error case this attribute is
+	 * not visible.
+	 */
+	return sprintf(buf, "%d\n", nvdimm_has_flush(nd_region));
+}
+
+static ssize_t deep_flush_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t len)
+{
+	bool flush;
+	int rc = strtobool(buf, &flush);
+	struct nd_region *nd_region = to_nd_region(dev);
+
+	if (rc)
+		return rc;
+	if (!flush)
+		return -EINVAL;
+	nvdimm_flush(nd_region);
+
+	return len;
+}
+static DEVICE_ATTR_RW(deep_flush);
 
 static ssize_t mappings_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -448,6 +477,25 @@ static ssize_t read_only_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(read_only);
 
+static ssize_t region_badblocks_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nd_region *nd_region = to_nd_region(dev);
+
+	return badblocks_show(&nd_region->bb, buf, 0);
+}
+
+static DEVICE_ATTR(badblocks, 0444, region_badblocks_show, NULL);
+
+static ssize_t resource_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nd_region *nd_region = to_nd_region(dev);
+
+	return sprintf(buf, "%#llx\n", nd_region->ndr_start);
+}
+static DEVICE_ATTR_RO(resource);
+
 static struct attribute *nd_region_attributes[] = {
 	&dev_attr_size.attr,
 	&dev_attr_nstype.attr,
@@ -455,11 +503,14 @@ static struct attribute *nd_region_attributes[] = {
 	&dev_attr_btt_seed.attr,
 	&dev_attr_pfn_seed.attr,
 	&dev_attr_dax_seed.attr,
+	&dev_attr_deep_flush.attr,
 	&dev_attr_read_only.attr,
 	&dev_attr_set_cookie.attr,
 	&dev_attr_available_size.attr,
 	&dev_attr_namespace_seed.attr,
 	&dev_attr_init_namespaces.attr,
+	&dev_attr_badblocks.attr,
+	&dev_attr_resource.attr,
 	NULL,
 };
 
@@ -475,6 +526,23 @@ static umode_t region_visible(struct kobject *kobj, struct attribute *a, int n)
 
 	if (!is_nd_pmem(dev) && a == &dev_attr_dax_seed.attr)
 		return 0;
+
+	if (!is_nd_pmem(dev) && a == &dev_attr_badblocks.attr)
+		return 0;
+
+	if (!is_nd_pmem(dev) && a == &dev_attr_resource.attr)
+		return 0;
+
+	if (a == &dev_attr_deep_flush.attr) {
+		int has_flush = nvdimm_has_flush(nd_region);
+
+		if (has_flush == 1)
+			return a->mode;
+		else if (has_flush == 0)
+			return 0444;
+		else
+			return 0;
+	}
 
 	if (a != &dev_attr_set_cookie.attr
 			&& a != &dev_attr_available_size.attr)
@@ -813,7 +881,7 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 			return NULL;
 		}
 
-		if (nvdimm->flags & NDD_UNARMED)
+		if (test_bit(NDD_UNARMED, &nvdimm->flags))
 			ro = 1;
 	}
 
@@ -968,17 +1036,20 @@ EXPORT_SYMBOL_GPL(nvdimm_flush);
  */
 int nvdimm_has_flush(struct nd_region *nd_region)
 {
-	struct nd_region_data *ndrd = dev_get_drvdata(&nd_region->dev);
 	int i;
 
 	/* no nvdimm == flushing capability unknown */
 	if (nd_region->ndr_mappings == 0)
 		return -ENXIO;
 
-	for (i = 0; i < nd_region->ndr_mappings; i++)
-		/* flush hints present, flushing required */
-		if (ndrd_get_flush_wpq(ndrd, i, 0))
+	for (i = 0; i < nd_region->ndr_mappings; i++) {
+		struct nd_mapping *nd_mapping = &nd_region->mapping[i];
+		struct nvdimm *nvdimm = nd_mapping->nvdimm;
+
+		/* flush hints present / available */
+		if (nvdimm->num_flush)
 			return 1;
+	}
 
 	/*
 	 * The platform defines dimm devices without hints, assume

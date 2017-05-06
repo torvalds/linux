@@ -37,7 +37,7 @@
 
 #define ACPI_NFIT_MEM_FAILED_MASK (ACPI_NFIT_MEM_SAVE_FAILED \
 		| ACPI_NFIT_MEM_RESTORE_FAILED | ACPI_NFIT_MEM_FLUSH_FAILED \
-		| ACPI_NFIT_MEM_NOT_ARMED)
+		| ACPI_NFIT_MEM_NOT_ARMED | ACPI_NFIT_MEM_MAP_FAILED)
 
 enum nfit_uuids {
 	/* for simplicity alias the uuid index with the family id */
@@ -163,6 +163,7 @@ struct acpi_nfit_desc {
 	unsigned int scrub_count;
 	unsigned int scrub_mode;
 	unsigned int cancel:1;
+	unsigned int init_complete:1;
 	unsigned long dimm_cmd_force_en;
 	unsigned long bus_cmd_force_en;
 	int (*blk_do_io)(struct nd_blk_region *ndbr, resource_size_t dpa,
@@ -238,6 +239,7 @@ static inline struct acpi_nfit_desc *to_acpi_desc(
 
 const u8 *to_nfit_uuid(enum nfit_uuids id);
 int acpi_nfit_init(struct acpi_nfit_desc *acpi_desc, void *nfit, acpi_size sz);
+void acpi_nfit_shutdown(void *data);
 void __acpi_nfit_notify(struct device *dev, acpi_handle handle, u32 event);
 void __acpi_nvdimm_notify(struct device *dev, u32 event);
 int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc, struct nvdimm *nvdimm,
