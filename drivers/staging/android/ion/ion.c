@@ -221,7 +221,7 @@ struct ion_dma_buf_attachment {
 };
 
 static int ion_dma_buf_attach(struct dma_buf *dmabuf, struct device *dev,
-				struct dma_buf_attachment *attachment)
+			      struct dma_buf_attachment *attachment)
 {
 	struct ion_dma_buf_attachment *a;
 	struct sg_table *table;
@@ -263,7 +263,6 @@ static void ion_dma_buf_detatch(struct dma_buf *dmabuf,
 
 	kfree(a);
 }
-
 
 static struct sg_table *ion_map_dma_buf(struct dma_buf_attachment *attachment,
 					enum dma_data_direction direction)
@@ -354,11 +353,10 @@ static int ion_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 		mutex_unlock(&buffer->lock);
 	}
 
-
 	mutex_lock(&buffer->lock);
 	list_for_each_entry(a, &buffer->attachments, list) {
 		dma_sync_sg_for_cpu(a->dev, a->table->sgl, a->table->nents,
-					DMA_BIDIRECTIONAL);
+				    DMA_BIDIRECTIONAL);
 	}
 	mutex_unlock(&buffer->lock);
 
@@ -380,7 +378,7 @@ static int ion_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 	mutex_lock(&buffer->lock);
 	list_for_each_entry(a, &buffer->attachments, list) {
 		dma_sync_sg_for_device(a->dev, a->table->sgl, a->table->nents,
-					DMA_BIDIRECTIONAL);
+				       DMA_BIDIRECTIONAL);
 	}
 	mutex_unlock(&buffer->lock);
 
