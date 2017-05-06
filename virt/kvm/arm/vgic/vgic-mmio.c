@@ -231,23 +231,21 @@ static void vgic_mmio_change_active(struct kvm_vcpu *vcpu, struct vgic_irq *irq,
  * be migrated while we don't hold the IRQ locks and we don't want to be
  * chasing moving targets.
  *
- * For private interrupts, we only have to make sure the single and only VCPU
- * that can potentially queue the IRQ is stopped.
+ * For private interrupts we don't have to do anything because userspace
+ * accesses to the VGIC state already require all VCPUs to be stopped, and
+ * only the VCPU itself can modify its private interrupts active state, which
+ * guarantees that the VCPU is not running.
  */
 static void vgic_change_active_prepare(struct kvm_vcpu *vcpu, u32 intid)
 {
-	if (intid < VGIC_NR_PRIVATE_IRQS)
-		kvm_arm_halt_vcpu(vcpu);
-	else
+	if (intid > VGIC_NR_PRIVATE_IRQS)
 		kvm_arm_halt_guest(vcpu->kvm);
 }
 
 /* See vgic_change_active_prepare */
 static void vgic_change_active_finish(struct kvm_vcpu *vcpu, u32 intid)
 {
-	if (intid < VGIC_NR_PRIVATE_IRQS)
-		kvm_arm_resume_vcpu(vcpu);
-	else
+	if (intid > VGIC_NR_PRIVATE_IRQS)
 		kvm_arm_resume_guest(vcpu->kvm);
 }
 
@@ -271,11 +269,13 @@ void vgic_mmio_write_cactive(struct kvm_vcpu *vcpu,
 {
 	u32 intid = VGIC_ADDR_TO_INTID(addr, 1);
 
+	mutex_lock(&vcpu->kvm->lock);
 	vgic_change_active_prepare(vcpu, intid);
 
 	__vgic_mmio_write_cactive(vcpu, addr, len, val);
 
 	vgic_change_active_finish(vcpu, intid);
+	mutex_unlock(&vcpu->kvm->lock);
 }
 
 void vgic_mmio_uaccess_write_cactive(struct kvm_vcpu *vcpu,
@@ -305,11 +305,13 @@ void vgic_mmio_write_sactive(struct kvm_vcpu *vcpu,
 {
 	u32 intid = VGIC_ADDR_TO_INTID(addr, 1);
 
+	mutex_lock(&vcpu->kvm->lock);
 	vgic_change_active_prepare(vcpu, intid);
 
 	__vgic_mmio_write_sactive(vcpu, addr, len, val);
 
 	vgic_change_active_finish(vcpu, intid);
+	mutex_unlock(&vcpu->kvm->lock);
 }
 
 void vgic_mmio_uaccess_write_sactive(struct kvm_vcpu *vcpu,
