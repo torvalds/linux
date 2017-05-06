@@ -14,7 +14,9 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-/* pseudo cc_hal.h for cc7x_perf_test_driver (to be able to include code from CC drivers) */
+/* pseudo cc_hal.h for cc7x_perf_test_driver (to be able to include code from
+ * CC drivers).
+ */
 
 #ifndef __CC_HAL_H__
 #define __CC_HAL_H__
