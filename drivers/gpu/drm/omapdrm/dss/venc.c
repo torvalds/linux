@@ -869,17 +869,9 @@ static int venc_bind(struct device *dev, struct device *master, void *data)
 	venc.wss_data = 0;
 
 	venc_mem = platform_get_resource(venc.pdev, IORESOURCE_MEM, 0);
-	if (!venc_mem) {
-		DSSERR("can't get IORESOURCE_MEM VENC\n");
-		return -EINVAL;
-	}
-
-	venc.base = devm_ioremap(&pdev->dev, venc_mem->start,
-				 resource_size(venc_mem));
-	if (!venc.base) {
-		DSSERR("can't ioremap VENC\n");
-		return -ENOMEM;
-	}
+	venc.base = devm_ioremap_resource(&pdev->dev, venc_mem);
+	if (IS_ERR(venc.base))
+		return PTR_ERR(venc.base);
 
 	r = venc_get_clocks(pdev);
 	if (r)

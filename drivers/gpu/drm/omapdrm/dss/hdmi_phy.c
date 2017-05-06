@@ -233,16 +233,9 @@ int hdmi_phy_init(struct platform_device *pdev, struct hdmi_phy_data *phy)
 		return r;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "phy");
-	if (!res) {
-		DSSERR("can't get PHY mem resource\n");
-		return -EINVAL;
-	}
-
 	phy->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(phy->base)) {
-		DSSERR("can't ioremap TX PHY\n");
+	if (IS_ERR(phy->base))
 		return PTR_ERR(phy->base);
-	}
 
 	return 0;
 }

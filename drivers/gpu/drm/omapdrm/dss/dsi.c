@@ -5326,12 +5326,9 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 
 	dsi_mem = res;
 
-	dsi->proto_base = devm_ioremap(&dsidev->dev, res->start,
-		resource_size(res));
-	if (!dsi->proto_base) {
-		DSSERR("can't ioremap DSI protocol engine\n");
-		return -ENOMEM;
-	}
+	dsi->proto_base = devm_ioremap_resource(&dsidev->dev, res);
+	if (IS_ERR(dsi->proto_base))
+		return PTR_ERR(dsi->proto_base);
 
 	res = platform_get_resource_byname(dsidev, IORESOURCE_MEM, "phy");
 	if (!res) {
@@ -5346,12 +5343,9 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 		res = &temp_res;
 	}
 
-	dsi->phy_base = devm_ioremap(&dsidev->dev, res->start,
-		resource_size(res));
-	if (!dsi->phy_base) {
-		DSSERR("can't ioremap DSI PHY\n");
-		return -ENOMEM;
-	}
+	dsi->phy_base = devm_ioremap_resource(&dsidev->dev, res);
+	if (IS_ERR(dsi->phy_base))
+		return PTR_ERR(dsi->phy_base);
 
 	res = platform_get_resource_byname(dsidev, IORESOURCE_MEM, "pll");
 	if (!res) {
@@ -5366,12 +5360,9 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 		res = &temp_res;
 	}
 
-	dsi->pll_base = devm_ioremap(&dsidev->dev, res->start,
-		resource_size(res));
-	if (!dsi->pll_base) {
-		DSSERR("can't ioremap DSI PLL\n");
-		return -ENOMEM;
-	}
+	dsi->pll_base = devm_ioremap_resource(&dsidev->dev, res);
+	if (IS_ERR(dsi->pll_base))
+		return PTR_ERR(dsi->pll_base);
 
 	dsi->irq = platform_get_irq(dsi->pdev, 0);
 	if (dsi->irq < 0) {

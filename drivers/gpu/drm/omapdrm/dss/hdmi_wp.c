@@ -287,17 +287,11 @@ int hdmi_wp_init(struct platform_device *pdev, struct hdmi_wp_data *wp)
 	struct resource *res;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "wp");
-	if (!res) {
-		DSSERR("can't get WP mem resource\n");
-		return -EINVAL;
-	}
-	wp->phys_base = res->start;
-
 	wp->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(wp->base)) {
-		DSSERR("can't ioremap HDMI WP\n");
+	if (IS_ERR(wp->base))
 		return PTR_ERR(wp->base);
-	}
+
+	wp->phys_base = res->start;
 
 	return 0;
 }

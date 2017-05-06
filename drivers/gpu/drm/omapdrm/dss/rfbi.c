@@ -965,17 +965,9 @@ static int rfbi_bind(struct device *dev, struct device *master, void *data)
 	sema_init(&rfbi.bus_lock, 1);
 
 	rfbi_mem = platform_get_resource(rfbi.pdev, IORESOURCE_MEM, 0);
-	if (!rfbi_mem) {
-		DSSERR("can't get IORESOURCE_MEM RFBI\n");
-		return -EINVAL;
-	}
-
-	rfbi.base = devm_ioremap(&pdev->dev, rfbi_mem->start,
-				 resource_size(rfbi_mem));
-	if (!rfbi.base) {
-		DSSERR("can't ioremap RFBI\n");
-		return -ENOMEM;
-	}
+	rfbi.base = devm_ioremap_resource(&pdev->dev, rfbi_mem);
+	if (IS_ERR(rfbi.base))
+		return PTR_ERR(rfbi.base);
 
 	clk = clk_get(&pdev->dev, "ick");
 	if (IS_ERR(clk)) {

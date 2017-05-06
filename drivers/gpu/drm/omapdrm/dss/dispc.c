@@ -4405,17 +4405,9 @@ static int dispc_bind(struct device *dev, struct device *master, void *data)
 		return r;
 
 	dispc_mem = platform_get_resource(dispc.pdev, IORESOURCE_MEM, 0);
-	if (!dispc_mem) {
-		DSSERR("can't get IORESOURCE_MEM DISPC\n");
-		return -EINVAL;
-	}
-
-	dispc.base = devm_ioremap(&pdev->dev, dispc_mem->start,
-				  resource_size(dispc_mem));
-	if (!dispc.base) {
-		DSSERR("can't ioremap DISPC\n");
-		return -ENOMEM;
-	}
+	dispc.base = devm_ioremap_resource(&pdev->dev, dispc_mem);
+	if (IS_ERR(dispc.base))
+		return PTR_ERR(dispc.base);
 
 	dispc.irq = platform_get_irq(dispc.pdev, 0);
 	if (dispc.irq < 0) {
