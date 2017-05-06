@@ -853,19 +853,12 @@ static ssize_t display_crc_ctl_write(struct file *file, const char __user *ubuf,
 		return -E2BIG;
 	}
 
-	tmpbuf = kmalloc(len + 1, GFP_KERNEL);
-	if (!tmpbuf)
-		return -ENOMEM;
-
-	if (copy_from_user(tmpbuf, ubuf, len)) {
-		ret = -EFAULT;
-		goto out;
-	}
-	tmpbuf[len] = '\0';
+	tmpbuf = memdup_user_nul(ubuf, len);
+	if (IS_ERR(tmpbuf))
+		return PTR_ERR(tmpbuf);
 
 	ret = display_crc_ctl_parse(dev_priv, tmpbuf, len);
 
-out:
 	kfree(tmpbuf);
 	if (ret < 0)
 		return ret;
