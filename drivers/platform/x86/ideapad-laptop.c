@@ -453,7 +453,8 @@ static ssize_t touchpad_store(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR_RW(touchpad);
+/* Switch to RO for now: It might be revisited in the future */
+static DEVICE_ATTR_RO(touchpad);
 
 static struct attribute *ideapad_attributes[] = {
 	&dev_attr_camera_power.attr,
