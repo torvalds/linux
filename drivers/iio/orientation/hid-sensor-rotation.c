@@ -241,6 +241,9 @@ static int hid_dev_rot_probe(struct platform_device *pdev)
 	case HID_USAGE_SENSOR_RELATIVE_ORIENTATION:
 		name = "relative_orientation";
 		break;
+	case HID_USAGE_SENSOR_GEOMAGNETIC_ORIENTATION:
+		name = "geomagnetic_orientation";
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -338,6 +341,10 @@ static const struct platform_device_id hid_dev_rot_ids[] = {
 	{
 		/* Relative orientation(AG) sensor */
 		.name = "HID-SENSOR-20008e",
+	},
+	{
+		/* Geomagnetic orientation(AM) sensor */
+		.name = "HID-SENSOR-2000c1",
 	},
 	{ /* sentinel */ }
 };
