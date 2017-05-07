@@ -21,17 +21,29 @@
 
 #include "cc_bitops.h"
 
-/* Max DLLI size */
-#define DLLI_SIZE_BIT_SIZE	0x18	// DX_DSCRPTR_QUEUE_WORD1_DIN_SIZE_BIT_SIZE
+/* Max DLLI size
+ *  AKA DX_DSCRPTR_QUEUE_WORD1_DIN_SIZE_BIT_SIZE
+ */
+#define DLLI_SIZE_BIT_SIZE	0x18
 
 #define CC_MAX_MLLI_ENTRY_SIZE 0x10000
 
-#define LLI_SET_ADDR(lli_p, addr) \
-		BITFIELD_SET(((u32 *)(lli_p))[LLI_WORD0_OFFSET], LLI_LADDR_BIT_OFFSET, LLI_LADDR_BIT_SIZE, (addr & U32_MAX)); \
-		BITFIELD_SET(((u32 *)(lli_p))[LLI_WORD1_OFFSET], LLI_HADDR_BIT_OFFSET, LLI_HADDR_BIT_SIZE, MSB64(addr));
+#define LLI_SET_ADDR(__lli_p, __addr) do {				\
+		u32 *lli_p = (u32 *)__lli_p;				\
+		typeof(__addr) addr = __addr;				\
+									\
+		BITFIELD_SET(lli_p[LLI_WORD0_OFFSET],			\
+			LLI_LADDR_BIT_OFFSET,				\
+			LLI_LADDR_BIT_SIZE, (addr & U32_MAX));		\
+									\
+		BITFIELD_SET(lli_p[LLI_WORD1_OFFSET],			\
+			LLI_HADDR_BIT_OFFSET,				\
+			LLI_HADDR_BIT_SIZE, MSB64(addr));		\
+	} while (0)
 
-#define LLI_SET_SIZE(lli_p, size) \
-		BITFIELD_SET(((u32 *)(lli_p))[LLI_WORD1_OFFSET], LLI_SIZE_BIT_OFFSET, LLI_SIZE_BIT_SIZE, size)
+#define LLI_SET_SIZE(lli_p, size)					\
+		BITFIELD_SET(((u32 *)(lli_p))[LLI_WORD1_OFFSET],	\
+		LLI_SIZE_BIT_OFFSET, LLI_SIZE_BIT_SIZE, size)
 
 /* Size of entry */
 #define LLI_ENTRY_WORD_SIZE 2
