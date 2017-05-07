@@ -32,9 +32,6 @@
 #define CC_REG_BIT_SHIFT(reg_name, field_name)               \
 	(DX_ ## reg_name ## _ ## field_name ## _BIT_SHIFT)
 
-/* Register Offset macros (from registers base address in host) */
-#include "dx_reg_base_host.h"
-
 /* Read-Modify-Write a field of a register */
 #define MODIFY_REGISTER_FLD(unitName, regName, fldName, fldVal)         \
 do {								            \
@@ -43,14 +40,6 @@ do {								            \
 	CC_REG_FLD_SET(unitName, regName, fldName, regVal, fldVal); \
 	WRITE_REGISTER(CC_REG_ADDR(unitName, regName), regVal);       \
 } while (0)
-
-/* Registers address macros for ENV registers (development FPGA only) */
-#ifdef DX_BASE_ENV_REGS
-
-/* This offset should be added to mapping address of DX_BASE_ENV_REGS */
-#define CC_ENV_REG_OFFSET(reg_name) (DX_ENV_ ## reg_name ## _REG_OFFSET)
-
-#endif /*DX_BASE_ENV_REGS*/
 
 /*! Bit fields get */
 #define CC_REG_FLD_GET(unit_name, reg_name, fld_name, reg_val)	      \

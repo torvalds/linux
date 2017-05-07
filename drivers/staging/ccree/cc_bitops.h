@@ -32,31 +32,4 @@
 		(((new_val) & BITMASK(bit_size)) << (bit_offset));  \
 } while (0)
 
-/* Is val aligned to "align" ("align" must be power of 2) */
-#ifndef IS_ALIGNED
-#define IS_ALIGNED(val, align)		\
-	(((uintptr_t)(val) & ((align) - 1)) == 0)
-#endif
-
-#define SWAP_ENDIAN(word)		\
-	(((word) >> 24) | (((word) & 0x00FF0000) >> 8) | \
-	(((word) & 0x0000FF00) << 8) | (((word) & 0x000000FF) << 24))
-
-#ifdef BIG__ENDIAN
-#define SWAP_TO_LE(word) SWAP_ENDIAN(word)
-#define SWAP_TO_BE(word) word
-#else
-#define SWAP_TO_LE(word) word
-#define SWAP_TO_BE(word) SWAP_ENDIAN(word)
-#endif
-
-
-
-/* Is val a multiple of "mult" ("mult" must be power of 2) */
-#define IS_MULT(val, mult)              \
-	(((val) & ((mult) - 1)) == 0)
-
-#define IS_NULL_ADDR(adr)		\
-	(!(adr))
-
 #endif /*_CC_BITOPS_H_*/

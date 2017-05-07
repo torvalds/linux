@@ -136,9 +136,6 @@ struct ssi_drvdata {
 	struct resource *res_mem;
 	struct resource *res_irq;
 	void __iomem *cc_base;
-#ifdef DX_BASE_ENV_REGS
-	void __iomem *env_base; /* ARM CryptoCell development FPGAs only */
-#endif
 	unsigned int irq;
 	uint32_t irq_mask;
 	uint32_t fw_ver;

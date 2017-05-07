@@ -17,7 +17,6 @@
 #ifndef __CC_HW_QUEUE_DEFS_H__
 #define __CC_HW_QUEUE_DEFS_H__
 
-#include "cc_pal_log.h"
 #include "cc_regs.h"
 #include "dx_crys_kernel.h"
 
@@ -188,41 +187,6 @@ typedef enum HwDesKeySize {
 	(pDesc)->word[4] = 0;     \
 	(pDesc)->word[5] = 0;     \
 } while (0)
-
-/* HW descriptor debug functions */
-int createDetailedDump(HwDesc_s *pDesc);
-void descriptor_log(HwDesc_s *desc);
-
-#if defined(HW_DESCRIPTOR_LOG) || defined(HW_DESC_DUMP_HOST_BUF)
-#define LOG_HW_DESC(pDesc) descriptor_log(pDesc)
-#else
-#define LOG_HW_DESC(pDesc)
-#endif
-
-#if (CC_PAL_MAX_LOG_LEVEL >= CC_PAL_LOG_LEVEL_TRACE) || defined(OEMFW_LOG)
-
-#ifdef UART_PRINTF
-#define CREATE_DETAILED_DUMP(pDesc) createDetailedDump(pDesc)
-#else
-#define CREATE_DETAILED_DUMP(pDesc)
-#endif
-
-#define HW_DESC_DUMP(pDesc) do {            			\
-	CC_PAL_LOG_TRACE("\n---------------------------------------------------\n");	\
-	CREATE_DETAILED_DUMP(pDesc); 				\
-	CC_PAL_LOG_TRACE("0x%08X, ", (unsigned int)(pDesc)->word[0]);  	\
-	CC_PAL_LOG_TRACE("0x%08X, ", (unsigned int)(pDesc)->word[1]);  	\
-	CC_PAL_LOG_TRACE("0x%08X, ", (unsigned int)(pDesc)->word[2]);  	\
-	CC_PAL_LOG_TRACE("0x%08X, ", (unsigned int)(pDesc)->word[3]);  	\
-	CC_PAL_LOG_TRACE("0x%08X, ", (unsigned int)(pDesc)->word[4]);  	\
-	CC_PAL_LOG_TRACE("0x%08X\n", (unsigned int)(pDesc)->word[5]);  	\
-	CC_PAL_LOG_TRACE("---------------------------------------------------\n\n");    \
-} while (0)
-
-#else
-#define HW_DESC_DUMP(pDesc) do {} while (0)
-#endif
-
 
 /*!
  * This macro indicates the end of current HW descriptors flow and release the HW engines.
