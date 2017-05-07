@@ -177,6 +177,7 @@ err_create_mod_hdr_id:
 static void mlx5e_tc_del_nic_flow(struct mlx5e_priv *priv,
 				  struct mlx5e_tc_flow *flow)
 {
+	struct mlx5_nic_flow_attr *attr = flow->nic_attr;
 	struct mlx5_fc *counter = NULL;
 
 	counter = mlx5_flow_rule_counter(flow->rule);
@@ -188,9 +189,9 @@ static void mlx5e_tc_del_nic_flow(struct mlx5e_priv *priv,
 		priv->fs.tc.t = NULL;
 	}
 
-	if (flow->nic_attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
+	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
 		mlx5_modify_header_dealloc(priv->mdev,
-					   flow->nic_attr->mod_hdr_id);
+					   attr->mod_hdr_id);
 }
 
 static void mlx5e_detach_encap(struct mlx5e_priv *priv,
@@ -231,7 +232,7 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	return rule;
 
 err_add_rule:
-	if (flow->esw_attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
+	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
 		mlx5_modify_header_dealloc(priv->mdev,
 					   attr->mod_hdr_id);
 err_mod_hdr:
@@ -250,17 +251,17 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 
 	if (flow->flags & MLX5E_TC_FLOW_OFFLOADED) {
 		flow->flags &= ~MLX5E_TC_FLOW_OFFLOADED;
-		mlx5_eswitch_del_offloaded_rule(esw, flow->rule, flow->esw_attr);
+		mlx5_eswitch_del_offloaded_rule(esw, flow->rule, attr);
 	}
 
-	mlx5_eswitch_del_vlan_action(esw, flow->esw_attr);
+	mlx5_eswitch_del_vlan_action(esw, attr);
 
-	if (flow->esw_attr->action & MLX5_FLOW_CONTEXT_ACTION_ENCAP) {
+	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_ENCAP) {
 		mlx5e_detach_encap(priv, flow);
-		kvfree(flow->esw_attr->parse_attr);
+		kvfree(attr->parse_attr);
 	}
 
-	if (flow->esw_attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
+	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
 		mlx5_modify_header_dealloc(priv->mdev,
 					   attr->mod_hdr_id);
 }
