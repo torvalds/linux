@@ -16,11 +16,9 @@
 
 #ifndef _CC_LLI_DEFS_H_
 #define _CC_LLI_DEFS_H_
-#ifdef __KERNEL__
+
 #include <linux/types.h>
-#else
-#include <stdint.h>
-#endif
+
 #include "cc_bitops.h"
 
 /* Max DLLI size */
