@@ -218,7 +218,7 @@ static int dev_rot_parse_report(struct platform_device *pdev,
 static int hid_dev_rot_probe(struct platform_device *pdev)
 {
 	int ret;
-	static char *name = "dev_rotation";
+	static char *name;
 	struct iio_dev *indio_dev;
 	struct dev_rot_state *rot_state;
 	struct hid_sensor_hub_device *hsdev = pdev->dev.platform_data;
@@ -234,8 +234,18 @@ static int hid_dev_rot_probe(struct platform_device *pdev)
 	rot_state->common_attributes.hsdev = hsdev;
 	rot_state->common_attributes.pdev = pdev;
 
-	ret = hid_sensor_parse_common_attributes(hsdev,
-				HID_USAGE_SENSOR_DEVICE_ORIENTATION,
+	switch (hsdev->usage) {
+	case HID_USAGE_SENSOR_DEVICE_ORIENTATION:
+		name = "dev_rotation";
+		break;
+	case HID_USAGE_SENSOR_RELATIVE_ORIENTATION:
+		name = "relative_orientation";
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ret = hid_sensor_parse_common_attributes(hsdev, hsdev->usage,
 				&rot_state->common_attributes);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to setup common attributes\n");
@@ -252,8 +262,7 @@ static int hid_dev_rot_probe(struct platform_device *pdev)
 
 	ret = dev_rot_parse_report(pdev, hsdev,
 				   (struct iio_chan_spec *)indio_dev->channels,
-				   HID_USAGE_SENSOR_DEVICE_ORIENTATION,
-				   rot_state);
+					hsdev->usage, rot_state);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to setup attributes\n");
 		return ret;
@@ -288,8 +297,7 @@ static int hid_dev_rot_probe(struct platform_device *pdev)
 	rot_state->callbacks.send_event = dev_rot_proc_event;
 	rot_state->callbacks.capture_sample = dev_rot_capture_sample;
 	rot_state->callbacks.pdev = pdev;
-	ret = sensor_hub_register_callback(hsdev,
-					HID_USAGE_SENSOR_DEVICE_ORIENTATION,
+	ret = sensor_hub_register_callback(hsdev, hsdev->usage,
 					&rot_state->callbacks);
 	if (ret) {
 		dev_err(&pdev->dev, "callback reg failed\n");
@@ -314,7 +322,7 @@ static int hid_dev_rot_remove(struct platform_device *pdev)
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct dev_rot_state *rot_state = iio_priv(indio_dev);
 
-	sensor_hub_remove_callback(hsdev, HID_USAGE_SENSOR_DEVICE_ORIENTATION);
+	sensor_hub_remove_callback(hsdev, hsdev->usage);
 	iio_device_unregister(indio_dev);
 	hid_sensor_remove_trigger(&rot_state->common_attributes);
 	iio_triggered_buffer_cleanup(indio_dev);
@@ -326,6 +334,10 @@ static const struct platform_device_id hid_dev_rot_ids[] = {
 	{
 		/* Format: HID-SENSOR-usage_id_in_hex_lowercase */
 		.name = "HID-SENSOR-20008a",
+	},
+	{
+		/* Relative orientation(AG) sensor */
+		.name = "HID-SENSOR-20008e",
 	},
 	{ /* sentinel */ }
 };
