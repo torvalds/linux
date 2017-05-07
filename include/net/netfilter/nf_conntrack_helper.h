@@ -9,6 +9,7 @@
 
 #ifndef _NF_CONNTRACK_HELPER_H
 #define _NF_CONNTRACK_HELPER_H
+#include <linux/refcount.h>
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_extend.h>
 #include <net/netfilter/nf_conntrack_expect.h>
@@ -26,6 +27,7 @@ struct nf_conntrack_helper {
 	struct hlist_node hnode;	/* Internal use. */
 
 	char name[NF_CT_HELPER_NAME_LEN]; /* name of the module */
+	refcount_t refcnt;
 	struct module *me;		/* pointer to self */
 	const struct nf_conntrack_expect_policy *expect_policy;
 
