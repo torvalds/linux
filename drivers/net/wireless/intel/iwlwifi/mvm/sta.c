@@ -758,7 +758,7 @@ static int iwl_mvm_sta_alloc_queue(struct iwl_mvm *mvm,
 	bool using_inactive_queue = false, same_sta = false;
 	unsigned long disable_agg_tids = 0;
 	enum iwl_mvm_agg_state queue_state;
-	bool shared_queue = false;
+	bool shared_queue = false, inc_ssn;
 	int ssn;
 	unsigned long tfd_queue_mask;
 	int ret;
@@ -885,8 +885,12 @@ static int iwl_mvm_sta_alloc_queue(struct iwl_mvm *mvm,
 	}
 
 	ssn = IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
-	iwl_mvm_enable_txq(mvm, queue, mac_queue, ssn, &cfg,
-			   wdg_timeout);
+	inc_ssn = iwl_mvm_enable_txq(mvm, queue, mac_queue,
+				     ssn, &cfg, wdg_timeout);
+	if (inc_ssn) {
+		ssn = (ssn + 1) & IEEE80211_SCTL_SEQ;
+		le16_add_cpu(&hdr->seq_ctrl, 0x10);
+	}
 
 	/*
 	 * Mark queue as shared in transport if shared
@@ -898,6 +902,13 @@ static int iwl_mvm_sta_alloc_queue(struct iwl_mvm *mvm,
 		iwl_trans_txq_set_shared_mode(mvm->trans, queue, true);
 
 	spin_lock_bh(&mvmsta->lock);
+	/*
+	 * This looks racy, but it is not. We have only one packet for
+	 * this ra/tid in our Tx path since we stop the Qdisc when we
+	 * need to allocate a new TFD queue.
+	 */
+	if (inc_ssn)
+		mvmsta->tid_data[tid].seq_number += 0x10;
 	mvmsta->tid_data[tid].txq_id = queue;
 	mvmsta->tid_data[tid].is_tid_active = true;
 	mvmsta->tfd_queue_msk |= BIT(queue);

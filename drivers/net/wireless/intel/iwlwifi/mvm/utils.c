@@ -757,35 +757,39 @@ int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm, int mac80211_queue,
 	return queue;
 }
 
-void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
+bool iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 			u16 ssn, const struct iwl_trans_txq_scd_cfg *cfg,
 			unsigned int wdg_timeout)
 {
+	struct iwl_scd_txq_cfg_cmd cmd = {
+		.scd_queue = queue,
+		.action = SCD_CFG_ENABLE_QUEUE,
+		.window = cfg->frame_limit,
+		.sta_id = cfg->sta_id,
+		.ssn = cpu_to_le16(ssn),
+		.tx_fifo = cfg->fifo,
+		.aggregate = cfg->aggregate,
+		.tid = cfg->tid,
+	};
+	bool inc_ssn;
+
 	if (WARN_ON(iwl_mvm_has_new_tx_api(mvm)))
-		return;
+		return false;
 
 	/* Send the enabling command if we need to */
-	if (iwl_mvm_update_txq_mapping(mvm, queue, mac80211_queue,
-				       cfg->sta_id, cfg->tid)) {
-		struct iwl_scd_txq_cfg_cmd cmd = {
-			.scd_queue = queue,
-			.action = SCD_CFG_ENABLE_QUEUE,
-			.window = cfg->frame_limit,
-			.sta_id = cfg->sta_id,
-			.ssn = cpu_to_le16(ssn),
-			.tx_fifo = cfg->fifo,
-			.aggregate = cfg->aggregate,
-			.tid = cfg->tid,
-		};
+	if (!iwl_mvm_update_txq_mapping(mvm, queue, mac80211_queue,
+					cfg->sta_id, cfg->tid))
+		return false;
 
-		iwl_trans_txq_enable_cfg(mvm->trans, queue, ssn, NULL,
-					 wdg_timeout);
-		WARN(iwl_mvm_send_cmd_pdu(mvm, SCD_QUEUE_CFG, 0,
-					  sizeof(struct iwl_scd_txq_cfg_cmd),
-					  &cmd),
-		     "Failed to configure queue %d on FIFO %d\n", queue,
-		     cfg->fifo);
-	}
+	inc_ssn = iwl_trans_txq_enable_cfg(mvm->trans, queue, ssn,
+					   NULL, wdg_timeout);
+	if (inc_ssn)
+		le16_add_cpu(&cmd.ssn, 1);
+
+	WARN(iwl_mvm_send_cmd_pdu(mvm, SCD_QUEUE_CFG, 0, sizeof(cmd), &cmd),
+	     "Failed to configure queue %d on FIFO %d\n", queue, cfg->fifo);
+
+	return inc_ssn;
 }
 
 int iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,

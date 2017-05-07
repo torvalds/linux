@@ -1277,13 +1277,14 @@ static int iwl_pcie_txq_set_ratid_map(struct iwl_trans *trans, u16 ra_tid,
  * combined with Traffic ID (QOS priority), in format used by Tx Scheduler */
 #define BUILD_RAxTID(sta_id, tid)	(((sta_id) << 4) + (tid))
 
-void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, u16 ssn,
+bool iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, u16 ssn,
 			       const struct iwl_trans_txq_scd_cfg *cfg,
 			       unsigned int wdg_timeout)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_txq *txq = trans_pcie->txq[txq_id];
 	int fifo = -1;
+	bool scd_bug = false;
 
 	if (test_and_set_bit(txq_id, trans_pcie->queue_used))
 		WARN_ONCE(1, "queue %d already used - expect issues", txq_id);
@@ -1324,6 +1325,23 @@ void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, u16 ssn,
 
 			ssn = txq->read_ptr;
 		}
+	} else {
+		/*
+		 * If we need to move the SCD write pointer by steps of
+		 * 0x40, 0x80 or 0xc0, it gets stuck. Avoids this and let
+		 * the op_mode know by returning true later.
+		 * Do this only in case cfg is NULL since this trick can
+		 * be done only if we have DQA enabled which is true for mvm
+		 * only. And mvm never sets a cfg pointer.
+		 * This is really ugly, but this is the easiest way out for
+		 * this sad hardware issue.
+		 * This bug has been fixed on devices 9000 and up.
+		 */
+		scd_bug = !trans->cfg->mq_rx_supported &&
+			!((ssn - txq->write_ptr) & 0x3f) &&
+			(ssn != txq->write_ptr);
+		if (scd_bug)
+			ssn++;
 	}
 
 	/* Place first TFD at index corresponding to start sequence number.
@@ -1367,6 +1385,8 @@ void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, u16 ssn,
 				    "Activate queue %d WrPtr: %d\n",
 				    txq_id, ssn & 0xff);
 	}
+
+	return scd_bug;
 }
 
 void iwl_trans_pcie_txq_set_shared_mode(struct iwl_trans *trans, u32 txq_id,

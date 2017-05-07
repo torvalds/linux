@@ -516,7 +516,7 @@ int iwl_pcie_gen2_tx_init(struct iwl_trans *trans);
 void iwl_pcie_tx_start(struct iwl_trans *trans, u32 scd_base_addr);
 int iwl_pcie_tx_stop(struct iwl_trans *trans);
 void iwl_pcie_tx_free(struct iwl_trans *trans);
-void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int queue, u16 ssn,
+bool iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int queue, u16 ssn,
 			       const struct iwl_trans_txq_scd_cfg *cfg,
 			       unsigned int wdg_timeout);
 void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int queue,
