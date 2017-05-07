@@ -172,14 +172,7 @@ typedef enum HwDesKeySize {
 
 #define GET_HW_Q_DESC_WORD_IDX(descWordIdx) (CC_REG_OFFSET(CRY_KERNEL, DSCRPTR_QUEUE_WORD ## descWordIdx) )
 
-#define HW_DESC_INIT(pDesc)  do { \
-	(pDesc)->word[0] = 0;     \
-	(pDesc)->word[1] = 0;     \
-	(pDesc)->word[2] = 0;     \
-	(pDesc)->word[3] = 0;     \
-	(pDesc)->word[4] = 0;     \
-	(pDesc)->word[5] = 0;     \
-} while (0)
+#define HW_DESC_INIT(pDesc)  memset(pDesc, 0, sizeof(HwDesc_s))
 
 /*!
  * This macro indicates the end of current HW descriptors flow and release the HW engines.
