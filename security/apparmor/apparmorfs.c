@@ -494,7 +494,7 @@ static int aa_fs_seq_hash_show(struct seq_file *seq, void *v)
 	if (profile->hash) {
 		for (i = 0; i < size; i++)
 			seq_printf(seq, "%.2x", profile->hash[i]);
-		seq_puts(seq, "\n");
+		seq_putc(seq, '\n');
 	}
 	aa_put_profile(profile);
 
@@ -602,7 +602,7 @@ static int aa_fs_seq_raw_hash_show(struct seq_file *seq, void *v)
 	if (profile->rawdata->hash) {
 		for (i = 0; i < size; i++)
 			seq_printf(seq, "%.2x", profile->rawdata->hash[i]);
-		seq_puts(seq, "\n");
+		seq_putc(seq, '\n');
 	}
 	aa_put_profile(profile);
 
