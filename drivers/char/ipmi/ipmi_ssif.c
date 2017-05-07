@@ -1419,8 +1419,7 @@ static int find_slave_address(struct i2c_client *client, int slave_addr)
 	list_for_each_entry(info, &ssif_infos, link) {
 		if (info->binfo.addr != client->addr)
 			continue;
-		if (info->adapter_name && client->adapter->name &&
-		    strcmp_nospace(info->adapter_name,
+		if (info->adapter_name && strcmp_nospace(info->adapter_name,
 				   client->adapter->name))
 			continue;
 		if (info->slave_addr) {
