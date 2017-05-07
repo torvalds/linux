@@ -572,10 +572,9 @@ static int aa_fs_seq_raw_abi_show(struct seq_file *seq, void *v)
 	struct aa_proxy *proxy = seq->private;
 	struct aa_profile *profile = aa_get_profile_rcu(&proxy->profile);
 
-	if (profile->rawdata->abi) {
-		seq_printf(seq, "v%d", profile->rawdata->abi);
-		seq_puts(seq, "\n");
-	}
+	if (profile->rawdata->abi)
+		seq_printf(seq, "v%d\n", profile->rawdata->abi);
+
 	aa_put_profile(profile);
 
 	return 0;
