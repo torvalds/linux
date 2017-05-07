@@ -193,8 +193,10 @@ static void dvb_ca_private_put(struct dvb_ca_private *ca)
 }
 
 static void dvb_ca_en50221_thread_wakeup(struct dvb_ca_private *ca);
-static int dvb_ca_en50221_read_data(struct dvb_ca_private *ca, int slot, u8 * ebuf, int ecount);
-static int dvb_ca_en50221_write_data(struct dvb_ca_private *ca, int slot, u8 * ebuf, int ecount);
+static int dvb_ca_en50221_read_data(struct dvb_ca_private *ca, int slot,
+				    u8 *ebuf, int ecount);
+static int dvb_ca_en50221_write_data(struct dvb_ca_private *ca, int slot,
+				     u8 *ebuf, int ecount);
 
 
 /**
@@ -206,7 +208,7 @@ static int dvb_ca_en50221_write_data(struct dvb_ca_private *ca, int slot, u8 * e
  * @nlen: Number of bytes in needle.
  * @return Pointer into haystack needle was found at, or NULL if not found.
  */
-static char *findstr(char * haystack, int hlen, char * needle, int nlen)
+static char *findstr(char *haystack, int hlen, char *needle, int nlen)
 {
 	int i;
 
@@ -390,7 +392,8 @@ static int dvb_ca_en50221_link_init(struct dvb_ca_private *ca, int slot)
  * @return 0 on success, nonzero on error.
  */
 static int dvb_ca_en50221_read_tuple(struct dvb_ca_private *ca, int slot,
-				     int *address, int *tupleType, int *tupleLength, u8 * tuple)
+				     int *address, int *tupleType,
+				     int *tupleLength, u8 *tuple)
 {
 	int i;
 	int _tupleType;
@@ -621,7 +624,8 @@ static int dvb_ca_en50221_set_configoption(struct dvb_ca_private *ca, int slot)
  *
  * @return Number of bytes read, or < 0 on error
  */
-static int dvb_ca_en50221_read_data(struct dvb_ca_private *ca, int slot, u8 * ebuf, int ecount)
+static int dvb_ca_en50221_read_data(struct dvb_ca_private *ca, int slot,
+				    u8 *ebuf, int ecount)
 {
 	int bytes_read;
 	int status;
@@ -745,7 +749,8 @@ exit:
  *
  * @return Number of bytes written, or < 0 on error.
  */
-static int dvb_ca_en50221_write_data(struct dvb_ca_private *ca, int slot, u8 * buf, int bytes_write)
+static int dvb_ca_en50221_write_data(struct dvb_ca_private *ca, int slot,
+				     u8 *buf, int bytes_write)
 {
 	int status;
 	int i;
@@ -1345,7 +1350,8 @@ static long dvb_ca_en50221_io_ioctl(struct file *file,
  * @return Number of bytes read, or <0 on error.
  */
 static ssize_t dvb_ca_en50221_io_write(struct file *file,
-				       const char __user * buf, size_t count, loff_t * ppos)
+				       const char __user *buf, size_t count,
+				       loff_t *ppos)
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct dvb_ca_private *ca = dvbdev->priv;
@@ -1485,8 +1491,8 @@ nextslot:
  *
  * @return Number of bytes read, or <0 on error.
  */
-static ssize_t dvb_ca_en50221_io_read(struct file *file, char __user * buf,
-				      size_t count, loff_t * ppos)
+static ssize_t dvb_ca_en50221_io_read(struct file *file, char __user *buf,
+				      size_t count, loff_t *ppos)
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct dvb_ca_private *ca = dvbdev->priv;
@@ -1664,7 +1670,7 @@ static int dvb_ca_en50221_io_release(struct inode *inode, struct file *file)
  *
  * @return Standard poll mask.
  */
-static unsigned int dvb_ca_en50221_io_poll(struct file *file, poll_table * wait)
+static unsigned int dvb_ca_en50221_io_poll(struct file *file, poll_table *wait)
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct dvb_ca_private *ca = dvbdev->priv;
