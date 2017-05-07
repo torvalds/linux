@@ -845,7 +845,6 @@ exit:
 exitnowrite:
 	return status;
 }
-EXPORT_SYMBOL(dvb_ca_en50221_camchange_irq);
 
 
 
@@ -854,7 +853,7 @@ EXPORT_SYMBOL(dvb_ca_en50221_camchange_irq);
 
 
 /**
- * dvb_ca_en50221_camready_irq - A CAM has been removed => shut it down.
+ * dvb_ca_en50221_slot_shutdown - A CAM has been removed => shut it down.
  *
  * @ca: CA instance.
  * @slot: Slot to shut down.
@@ -875,11 +874,10 @@ static int dvb_ca_en50221_slot_shutdown(struct dvb_ca_private *ca, int slot)
 	/* success */
 	return 0;
 }
-EXPORT_SYMBOL(dvb_ca_en50221_camready_irq);
 
 
 /**
- * dvb_ca_en50221_camready_irq - A CAMCHANGE IRQ has occurred.
+ * dvb_ca_en50221_camchange_irq - A CAMCHANGE IRQ has occurred.
  *
  * @ca: CA instance.
  * @slot: Slot concerned.
@@ -904,7 +902,7 @@ void dvb_ca_en50221_camchange_irq(struct dvb_ca_en50221 *pubca, int slot, int ch
 	atomic_inc(&ca->slot_info[slot].camchange_count);
 	dvb_ca_en50221_thread_wakeup(ca);
 }
-EXPORT_SYMBOL(dvb_ca_en50221_frda_irq);
+EXPORT_SYMBOL(dvb_ca_en50221_camchange_irq);
 
 
 /**
@@ -924,10 +922,11 @@ void dvb_ca_en50221_camready_irq(struct dvb_ca_en50221 *pubca, int slot)
 		dvb_ca_en50221_thread_wakeup(ca);
 	}
 }
+EXPORT_SYMBOL(dvb_ca_en50221_camready_irq);
 
 
 /**
- * An FR or DA IRQ has occurred.
+ * dvb_ca_en50221_frda_irq - An FR or DA IRQ has occurred.
  *
  * @ca: CA instance.
  * @slot: Slot concerned.
@@ -954,7 +953,7 @@ void dvb_ca_en50221_frda_irq(struct dvb_ca_en50221 *pubca, int slot)
 		break;
 	}
 }
-
+EXPORT_SYMBOL(dvb_ca_en50221_frda_irq);
 
 
 /* ******************************************************************************** */
