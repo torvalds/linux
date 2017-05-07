@@ -40,10 +40,10 @@ int request_mgr_init(struct ssi_drvdata *drvdata);
  */
 int send_request(
 	struct ssi_drvdata *drvdata, struct ssi_crypto_req *ssi_req,
-	HwDesc_s *desc, unsigned int len, bool is_dout);
+	struct cc_hw_desc *desc, unsigned int len, bool is_dout);
 
 int send_request_init(
-	struct ssi_drvdata *drvdata, HwDesc_s *desc, unsigned int len);
+	struct ssi_drvdata *drvdata, struct cc_hw_desc *desc, unsigned int len);
 
 void complete_request(struct ssi_drvdata *drvdata);
 

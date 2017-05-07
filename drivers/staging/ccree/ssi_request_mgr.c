@@ -72,7 +72,7 @@ do { \
 #define CC_CYCLE_DESC_TAIL(cc_base_addr, desc_p, is_monitored) \
 do { \
 	if ((is_monitored) == true) { \
-		HwDesc_s barrier_desc; \
+		struct cc_hw_desc barrier_desc; \
 		HW_DESC_INIT(&barrier_desc); \
 		HW_DESC_SET_DIN_NO_DMA(&barrier_desc, 0, 0xfffff0); \
 		HW_DESC_SET_DOUT_NO_DMA(&barrier_desc, 0, 0, 1); \
@@ -116,10 +116,10 @@ struct ssi_request_mgr_handle {
 	u32 axi_completed;
 	u32 q_free_slots;
 	spinlock_t hw_lock;
-	HwDesc_s compl_desc;
+	struct cc_hw_desc compl_desc;
 	u8 *dummy_comp_buff;
 	dma_addr_t dummy_comp_buff_dma;
-	HwDesc_s monitor_desc;
+	struct cc_hw_desc monitor_desc;
 	volatile unsigned long monitor_lock;
 #ifdef COMP_IN_WQ
 	struct workqueue_struct *workq;
@@ -170,7 +170,7 @@ void request_mgr_fini(struct ssi_drvdata *drvdata)
 int request_mgr_init(struct ssi_drvdata *drvdata)
 {
 #ifdef CC_CYCLE_COUNT
-	HwDesc_s monitor_desc[2];
+	struct cc_hw_desc monitor_desc[2];
 	struct ssi_crypto_req monitor_req = {0};
 #endif
 	struct ssi_request_mgr_handle *req_mgr_h;
@@ -259,7 +259,7 @@ req_mgr_init_err:
 
 static inline void enqueue_seq(
 	void __iomem *cc_base,
-	HwDesc_s seq[], unsigned int seq_len)
+	struct cc_hw_desc seq[], unsigned int seq_len)
 {
 	int i;
 
@@ -357,14 +357,14 @@ static inline int request_mgr_queues_status_check(
  */
 int send_request(
 	struct ssi_drvdata *drvdata, struct ssi_crypto_req *ssi_req,
-	HwDesc_s *desc, unsigned int len, bool is_dout)
+	struct cc_hw_desc *desc, unsigned int len, bool is_dout)
 {
 	void __iomem *cc_base = drvdata->cc_base;
 	struct ssi_request_mgr_handle *req_mgr_h = drvdata->request_mgr_handle;
 	unsigned int used_sw_slots;
 	unsigned int iv_seq_len = 0;
 	unsigned int total_seq_len = len; /*initial sequence length*/
-	HwDesc_s iv_seq[SSI_IVPOOL_SEQ_LEN];
+	struct cc_hw_desc iv_seq[SSI_IVPOOL_SEQ_LEN];
 	int rc;
 	unsigned int max_required_seq_len = (total_seq_len +
 					((ssi_req->ivgen_dma_addr_len == 0) ? 0 :
@@ -503,7 +503,7 @@ int send_request(
  * \return int Returns "0" upon success
  */
 int send_request_init(
-	struct ssi_drvdata *drvdata, HwDesc_s *desc, unsigned int len)
+	struct ssi_drvdata *drvdata, struct cc_hw_desc *desc, unsigned int len)
 {
 	void __iomem *cc_base = drvdata->cc_base;
 	struct ssi_request_mgr_handle *req_mgr_h = drvdata->request_mgr_handle;

@@ -40,29 +40,28 @@
 *				TYPE DEFINITIONS
 ******************************************************************************/
 
-typedef struct HwDesc {
+struct cc_hw_desc {
 	u32 word[HW_DESC_SIZE_WORDS];
-} HwDesc_s;
+};
 
-typedef enum DescDirection {
+enum cc_desc_direction {
 	DESC_DIRECTION_ILLEGAL = -1,
 	DESC_DIRECTION_ENCRYPT_ENCRYPT = 0,
 	DESC_DIRECTION_DECRYPT_DECRYPT = 1,
 	DESC_DIRECTION_DECRYPT_ENCRYPT = 3,
 	DESC_DIRECTION_END = S32_MAX,
-}DescDirection_t;
+};
 
-typedef enum DmaMode {
+enum cc_dma_mode {
 	DMA_MODE_NULL		= -1,
 	NO_DMA 			= 0,
 	DMA_SRAM		= 1,
 	DMA_DLLI		= 2,
 	DMA_MLLI		= 3,
-	DmaMode_OPTIONTS,
-	DmaMode_END 		= S32_MAX,
-}DmaMode_t;
+	DMA_MODE_END 		= S32_MAX,
+};
 
-typedef enum FlowMode {
+enum cc_flow_mode {
 	FLOW_MODE_NULL		= -1,
 	/* data flows */
  	BYPASS			= 0,
@@ -97,19 +96,17 @@ typedef enum FlowMode {
 	S_DES_to_DOUT		= 42,
 	S_HASH_to_DOUT		= 43,
 	SET_FLOW_ID		= 44,
-	FlowMode_OPTIONTS,
-	FlowMode_END = S32_MAX,
-}FlowMode_t;
+	FLOW_MODE_END = S32_MAX,
+};
 
-typedef enum TunnelOp {
+enum cc_tunnel_op {
 	TUNNEL_OP_INVALID = -1,
 	TUNNEL_OFF = 0,
 	TUNNEL_ON = 1,
-	TunnelOp_OPTIONS,
-	TunnelOp_END = S32_MAX,
-} TunnelOp_t;
+	TUNNEL_OP_END = S32_MAX,
+};
 
-typedef enum SetupOp {
+enum cc_setup_op {
 	SETUP_LOAD_NOP		= 0,
 	SETUP_LOAD_STATE0	= 1,
 	SETUP_LOAD_STATE1	= 2,
@@ -120,15 +117,14 @@ typedef enum SetupOp {
 	SETUP_WRITE_STATE1	= 9,
 	SETUP_WRITE_STATE2	= 10,
 	SETUP_WRITE_STATE3	= 11,
-	setupOp_OPTIONTS,
-	setupOp_END = S32_MAX,
-}SetupOp_t;
+	SETUP_OP_END = S32_MAX,
+};
 
-enum AesMacSelector {
+enum cc_aes_mac_selector {
 	AES_SK = 1,
 	AES_CMAC_INIT = 2,
 	AES_CMAC_SIZE0 = 3,
-	AesMacEnd = S32_MAX,
+	AES_MAC_END = S32_MAX,
 };
 
 #define HW_KEY_MASK_CIPHER_DO 	  0x3
@@ -137,7 +133,7 @@ enum AesMacSelector {
 
 /* HwCryptoKey[1:0] is mapped to cipher_do[1:0] */
 /* HwCryptoKey[2:3] is mapped to cipher_config2[1:0] */
-typedef enum HwCryptoKey {
+enum cc_hw_crypto_key {
 	USER_KEY = 0,			/* 0x0000 */
 	ROOT_KEY = 1,			/* 0x0001 */
 	PROVISIONING_KEY = 2,		/* 0x0010 */ /* ==KCP */
@@ -150,21 +146,21 @@ typedef enum HwCryptoKey {
 	KFDE2_KEY = 10,			/* 0x1010 */
 	KFDE3_KEY = 11,			/* 0x1011 */
 	END_OF_KEYS = S32_MAX,
-}HwCryptoKey_t;
+};
 
-typedef enum HwAesKeySize {
+enum cc_hw_aes_key_size {
 	AES_128_KEY = 0,
 	AES_192_KEY = 1,
 	AES_256_KEY = 2,
 	END_OF_AES_KEYS = S32_MAX,
-}HwAesKeySize_t;
+};
 
-typedef enum HwDesKeySize {
+enum cc_hw_des_key_size {
 	DES_ONE_KEY = 0,
 	DES_TWO_KEYS = 1,
 	DES_THREE_KEYS = 2,
 	END_OF_DES_KEYS = S32_MAX,
-}HwDesKeySize_t;
+};
 
 /*****************************/
 /* Descriptor packing macros */
@@ -172,7 +168,7 @@ typedef enum HwDesKeySize {
 
 #define GET_HW_Q_DESC_WORD_IDX(descWordIdx) (CC_REG_OFFSET(CRY_KERNEL, DSCRPTR_QUEUE_WORD ## descWordIdx) )
 
-#define HW_DESC_INIT(pDesc)  memset(pDesc, 0, sizeof(HwDesc_s))
+#define HW_DESC_INIT(pDesc)  memset(pDesc, 0, sizeof(struct cc_hw_desc))
 
 /*!
  * This macro indicates the end of current HW descriptors flow and release the HW engines.

@@ -314,7 +314,7 @@ ssi_cipher_fips_run_test(struct ssi_drvdata *drvdata,
 
 	int rc;
 	struct ssi_crypto_req ssi_req = {0};
-	HwDesc_s desc[FIPS_CIPHER_MAX_SEQ_LEN];
+	struct cc_hw_desc desc[FIPS_CIPHER_MAX_SEQ_LEN];
 	int idx = 0;
 	int s_flow_mode = is_aes ? S_DIN_to_AES : S_DIN_to_DES;
 
@@ -495,7 +495,7 @@ ssi_cmac_fips_run_test(struct ssi_drvdata *drvdata,
 
 	int rc;
 	struct ssi_crypto_req ssi_req = {0};
-	HwDesc_s desc[FIPS_CMAC_MAX_SEQ_LEN];
+	struct cc_hw_desc desc[FIPS_CMAC_MAX_SEQ_LEN];
 	int idx = 0;
 
 	/* Setup CMAC Key */
@@ -640,7 +640,7 @@ ssi_hash_fips_run_test(struct ssi_drvdata *drvdata,
 
 	int rc;
 	struct ssi_crypto_req ssi_req = {0};
-	HwDesc_s desc[FIPS_HASH_MAX_SEQ_LEN];
+	struct cc_hw_desc desc[FIPS_HASH_MAX_SEQ_LEN];
 	int idx = 0;
 
 	/* Load initial digest */
@@ -823,7 +823,7 @@ ssi_hmac_fips_run_test(struct ssi_drvdata *drvdata,
 
 	int rc;
 	struct ssi_crypto_req ssi_req = {0};
-	HwDesc_s desc[FIPS_HMAC_MAX_SEQ_LEN];
+	struct cc_hw_desc desc[FIPS_HMAC_MAX_SEQ_LEN];
 	int idx = 0;
 	int i;
 	/* calc the hash opad first and ipad only afterwards (unlike the flow in ssi_hash.c) */
@@ -1131,7 +1131,7 @@ ssi_ccm_fips_run_test(struct ssi_drvdata *drvdata,
 
 	int rc;
 	struct ssi_crypto_req ssi_req = {0};
-	HwDesc_s desc[FIPS_CCM_MAX_SEQ_LEN];
+	struct cc_hw_desc desc[FIPS_CCM_MAX_SEQ_LEN];
 	unsigned int idx = 0;
 	unsigned int cipher_flow_mode;
 
@@ -1358,7 +1358,7 @@ ssi_gcm_fips_run_test(struct ssi_drvdata *drvdata,
 
 	int rc;
 	struct ssi_crypto_req ssi_req = {0};
-	HwDesc_s desc[FIPS_GCM_MAX_SEQ_LEN];
+	struct cc_hw_desc desc[FIPS_GCM_MAX_SEQ_LEN];
 	unsigned int idx = 0;
 	unsigned int cipher_flow_mode;
 

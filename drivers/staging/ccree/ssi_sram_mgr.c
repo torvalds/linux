@@ -121,7 +121,7 @@ ssi_sram_addr_t ssi_sram_mgr_alloc(struct ssi_drvdata *drvdata, u32 size)
 void ssi_sram_mgr_const2sram_desc(
 	const u32 *src, ssi_sram_addr_t dst,
 	unsigned int nelement,
-	HwDesc_s *seq, unsigned int *seq_len)
+	struct cc_hw_desc *seq, unsigned int *seq_len)
 {
 	u32 i;
 	unsigned int idx = *seq_len;

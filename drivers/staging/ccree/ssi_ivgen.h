@@ -66,7 +66,7 @@ int ssi_ivgen_getiv(
 	dma_addr_t iv_out_dma[],
 	unsigned int iv_out_dma_len,
 	unsigned int iv_out_size,
-	HwDesc_s iv_seq[],
+	struct cc_hw_desc iv_seq[],
 	unsigned int *iv_seq_len);
 
 #endif /*__SSI_IVGEN_H__*/

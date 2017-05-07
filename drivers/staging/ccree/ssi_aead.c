@@ -79,7 +79,7 @@ struct ssi_aead_ctx {
 	unsigned int auth_keylen;
 	unsigned int authsize; /* Actual (reduced?) size of the MAC/ICv */
 	enum drv_cipher_mode cipher_mode;
-	enum FlowMode flow_mode;
+	enum cc_flow_mode flow_mode;
 	enum drv_hash_mode auth_mode;
 };
 
@@ -274,7 +274,7 @@ static void ssi_aead_complete(struct device *dev, void *ssi_req, void __iomem *c
 	aead_request_complete(areq, err);
 }
 
-static int xcbc_setkey(HwDesc_s *desc, struct ssi_aead_ctx *ctx)
+static int xcbc_setkey(struct cc_hw_desc *desc, struct ssi_aead_ctx *ctx)
 {
 	/* Load the AES key */
 	HW_DESC_INIT(&desc[0]);
@@ -309,7 +309,7 @@ static int xcbc_setkey(HwDesc_s *desc, struct ssi_aead_ctx *ctx)
 	return 4;
 }
 
-static int hmac_setkey(HwDesc_s *desc, struct ssi_aead_ctx *ctx)
+static int hmac_setkey(struct cc_hw_desc *desc, struct ssi_aead_ctx *ctx)
 {
 	unsigned int hmacPadConst[2] = { HMAC_IPAD_CONST, HMAC_OPAD_CONST };
 	unsigned int digest_ofs = 0;
@@ -436,7 +436,7 @@ ssi_get_plain_hmac_key(struct crypto_aead *tfm, const u8 *key, unsigned int keyl
 	unsigned int hashmode;
 	unsigned int idx = 0;
 	int rc = 0;
-	HwDesc_s desc[MAX_AEAD_SETKEY_SEQ];
+	struct cc_hw_desc desc[MAX_AEAD_SETKEY_SEQ];
 	dma_addr_t padded_authkey_dma_addr =
 		ctx->auth_state.hmac.padded_authkey_dma_addr;
 
@@ -568,7 +568,7 @@ ssi_aead_setkey(struct crypto_aead *tfm, const u8 *key, unsigned int keylen)
 	struct rtattr *rta = (struct rtattr *)key;
 	struct ssi_crypto_req ssi_req = {};
 	struct crypto_authenc_key_param *param;
-	HwDesc_s desc[MAX_AEAD_SETKEY_SEQ];
+	struct cc_hw_desc desc[MAX_AEAD_SETKEY_SEQ];
 	int seq_len = 0, rc = -EINVAL;
 	DECL_CYCLE_COUNT_RESOURCES;
 
@@ -756,7 +756,7 @@ static inline void
 ssi_aead_create_assoc_desc(
 	struct aead_request *areq,
 	unsigned int flow_mode,
-	HwDesc_s desc[],
+	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
 {
 	struct crypto_aead *tfm = crypto_aead_reqtfm(areq);
@@ -799,7 +799,7 @@ static inline void
 ssi_aead_process_authenc_data_desc(
 	struct aead_request *areq,
 	unsigned int flow_mode,
-	HwDesc_s desc[],
+	struct cc_hw_desc desc[],
 	unsigned int *seq_size,
 	int direct)
 {
@@ -862,7 +862,7 @@ static inline void
 ssi_aead_process_cipher_data_desc(
 	struct aead_request *areq,
 	unsigned int flow_mode,
-	HwDesc_s desc[],
+	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
 {
 	unsigned int idx = *seq_size;
@@ -905,7 +905,7 @@ ssi_aead_process_cipher_data_desc(
 
 static inline void ssi_aead_process_digest_result_desc(
 	struct aead_request *req,
-	HwDesc_s desc[],
+	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
 {
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
@@ -955,7 +955,7 @@ static inline void ssi_aead_process_digest_result_desc(
 
 static inline void ssi_aead_setup_cipher_desc(
 	struct aead_request *req,
-	HwDesc_s desc[],
+	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
 {
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
@@ -1002,7 +1002,7 @@ static inline void ssi_aead_setup_cipher_desc(
 
 static inline void ssi_aead_process_cipher(
 	struct aead_request *req,
-	HwDesc_s desc[],
+	struct cc_hw_desc desc[],
 	unsigned int *seq_size,
 	unsigned int data_flow_mode)
 {
@@ -1028,7 +1028,7 @@ static inline void ssi_aead_process_cipher(
 
 static inline void ssi_aead_hmac_setup_digest_desc(
 	struct aead_request *req,
-	HwDesc_s desc[],
+	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
 {
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
@@ -1064,7 +1064,7 @@ static inline void ssi_aead_hmac_setup_digest_desc(
 
 static inline void ssi_aead_xcbc_setup_digest_desc(
 	struct aead_request *req,
-	HwDesc_s desc[],
+	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
 {
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
@@ -1128,7 +1128,7 @@ static inline void ssi_aead_xcbc_setup_digest_desc(
 
 static inline void ssi_aead_process_digest_header_desc(
 	struct aead_request *req,
-	HwDesc_s desc[],
+	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
 {
 	unsigned int idx = *seq_size;
@@ -1142,7 +1142,7 @@ static inline void ssi_aead_process_digest_header_desc(
 
 static inline void ssi_aead_process_digest_scheme_desc(
 	struct aead_request *req,
-	HwDesc_s desc[],
+	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
 {
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
@@ -1206,7 +1206,7 @@ static inline void ssi_aead_process_digest_scheme_desc(
 
 static inline void ssi_aead_load_mlli_to_sram(
 	struct aead_request *req,
-	HwDesc_s desc[],
+	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
 {
 	struct aead_req_ctx *req_ctx = aead_request_ctx(req);
@@ -1233,12 +1233,12 @@ static inline void ssi_aead_load_mlli_to_sram(
 	}
 }
 
-static inline enum FlowMode ssi_aead_get_data_flow_mode(
+static inline enum cc_flow_mode ssi_aead_get_data_flow_mode(
 	enum drv_crypto_direction direct,
-	enum FlowMode setup_flow_mode,
+	enum cc_flow_mode setup_flow_mode,
 	bool is_single_pass)
 {
-	enum FlowMode data_flow_mode;
+	enum cc_flow_mode data_flow_mode;
 
 	if (direct == DRV_CRYPTO_DIRECTION_ENCRYPT) {
 		if (setup_flow_mode == S_DIN_to_AES)
@@ -1261,7 +1261,7 @@ static inline enum FlowMode ssi_aead_get_data_flow_mode(
 
 static inline void ssi_aead_hmac_authenc(
 	struct aead_request *req,
-	HwDesc_s desc[],
+	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
 {
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
@@ -1313,7 +1313,7 @@ static inline void ssi_aead_hmac_authenc(
 static inline void
 ssi_aead_xcbc_authenc(
 	struct aead_request *req,
-	HwDesc_s desc[],
+	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
 {
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
@@ -1457,7 +1457,7 @@ static int set_msg_len(u8 *block, unsigned int msglen, unsigned int csize)
 
 static inline int ssi_aead_ccm(
 	struct aead_request *req,
-	HwDesc_s desc[],
+	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
 {
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
@@ -1663,7 +1663,7 @@ static void ssi_rfc4309_ccm_process(struct aead_request *req)
 
 static inline void ssi_aead_gcm_setup_ghash_desc(
 	struct aead_request *req,
-	HwDesc_s desc[],
+	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
 {
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
@@ -1742,7 +1742,7 @@ static inline void ssi_aead_gcm_setup_ghash_desc(
 
 static inline void ssi_aead_gcm_setup_gctr_desc(
 	struct aead_request *req,
-	HwDesc_s desc[],
+	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
 {
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
@@ -1780,7 +1780,7 @@ static inline void ssi_aead_gcm_setup_gctr_desc(
 
 static inline void ssi_aead_process_gcm_result_desc(
 	struct aead_request *req,
-	HwDesc_s desc[],
+	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
 {
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
@@ -1849,7 +1849,7 @@ static inline void ssi_aead_process_gcm_result_desc(
 
 static inline int ssi_aead_gcm(
 	struct aead_request *req,
-	HwDesc_s desc[],
+	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
 {
 	struct aead_req_ctx *req_ctx = aead_request_ctx(req);
@@ -1999,7 +1999,7 @@ static int ssi_aead_process(struct aead_request *req, enum drv_crypto_direction 
 {
 	int rc = 0;
 	int seq_len = 0;
-	HwDesc_s desc[MAX_AEAD_PROCESS_SEQ];
+	struct cc_hw_desc desc[MAX_AEAD_PROCESS_SEQ];
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	struct ssi_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);

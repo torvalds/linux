@@ -49,8 +49,8 @@ struct cc_user_key_info {
 	dma_addr_t key_dma_addr;
 };
 struct cc_hw_key_info {
-	enum HwCryptoKey key1_slot;
-	enum HwCryptoKey key2_slot;
+	enum cc_hw_crypto_key key1_slot;
+	enum cc_hw_crypto_key key2_slot;
 };
 
 struct ssi_ablkcipher_ctx {
@@ -302,7 +302,7 @@ static int ssi_fips_verify_xts_keys(const u8 *key, unsigned int keylen)
         return 0;
 }
 
-static enum HwCryptoKey hw_key_to_cc_hw_key(int slot_num)
+static enum cc_hw_crypto_key hw_key_to_cc_hw_key(int slot_num)
 {
 	switch (slot_num) {
 	case 0:
@@ -464,7 +464,7 @@ ssi_blkcipher_create_setup_desc(
 	struct blkcipher_req_ctx *req_ctx,
 	unsigned int ivsize,
 	unsigned int nbytes,
-	HwDesc_s desc[],
+	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
 {
 	struct ssi_ablkcipher_ctx *ctx_p = crypto_tfm_ctx(tfm);
@@ -592,7 +592,7 @@ static inline void ssi_blkcipher_create_multi2_setup_desc(
 	struct crypto_tfm *tfm,
 	struct blkcipher_req_ctx *req_ctx,
 	unsigned int ivsize,
-	HwDesc_s desc[],
+	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
 {
 	struct ssi_ablkcipher_ctx *ctx_p = crypto_tfm_ctx(tfm);
@@ -645,7 +645,7 @@ ssi_blkcipher_create_data_desc(
 	struct scatterlist *dst, struct scatterlist *src,
 	unsigned int nbytes,
 	void *areq,
-	HwDesc_s desc[],
+	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
 {
 	struct ssi_ablkcipher_ctx *ctx_p = crypto_tfm_ctx(tfm);
@@ -784,7 +784,7 @@ static int ssi_blkcipher_process(
 {
 	struct ssi_ablkcipher_ctx *ctx_p = crypto_tfm_ctx(tfm);
 	struct device *dev = &ctx_p->drvdata->plat_dev->dev;
-	HwDesc_s desc[MAX_ABLKCIPHER_SEQ_LEN];
+	struct cc_hw_desc desc[MAX_ABLKCIPHER_SEQ_LEN];
 	struct ssi_crypto_req ssi_req = {};
 	int rc, seq_len = 0,cts_restore_flag = 0;
 	DECL_CYCLE_COUNT_RESOURCES;

@@ -58,7 +58,7 @@ struct ssi_ivgen_ctx {
  */
 static int ssi_ivgen_generate_pool(
 	struct ssi_ivgen_ctx *ivgen_ctx,
-	HwDesc_s iv_seq[],
+	struct cc_hw_desc iv_seq[],
 	unsigned int *iv_seq_len)
 {
 	unsigned int idx = *iv_seq_len;
@@ -120,7 +120,7 @@ static int ssi_ivgen_generate_pool(
 int ssi_ivgen_init_sram_pool(struct ssi_drvdata *drvdata)
 {
 	struct ssi_ivgen_ctx *ivgen_ctx = drvdata->ivgen_handle;
-	HwDesc_s iv_seq[SSI_IVPOOL_SEQ_LEN];
+	struct cc_hw_desc iv_seq[SSI_IVPOOL_SEQ_LEN];
 	unsigned int iv_seq_len = 0;
 	int rc;
 
@@ -243,7 +243,7 @@ int ssi_ivgen_getiv(
 	dma_addr_t iv_out_dma[],
 	unsigned int iv_out_dma_len,
 	unsigned int iv_out_size,
-	HwDesc_s iv_seq[],
+	struct cc_hw_desc iv_seq[],
 	unsigned int *iv_seq_len)
 {
 	struct ssi_ivgen_ctx *ivgen_ctx = drvdata->ivgen_handle;

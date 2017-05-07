@@ -67,11 +67,11 @@ static const u64 sha512_init[] = {
 
 static void ssi_hash_create_xcbc_setup(
 	struct ahash_request *areq,
-	HwDesc_s desc[],
+	struct cc_hw_desc desc[],
 	unsigned int *seq_size);
 
 static void ssi_hash_create_cmac_setup(struct ahash_request *areq,
-				  HwDesc_s desc[],
+				  struct cc_hw_desc desc[],
 				  unsigned int *seq_size);
 
 struct ssi_hash_alg {
@@ -116,11 +116,11 @@ static const struct crypto_type crypto_shash_type;
 static void ssi_hash_create_data_desc(
 	struct ahash_req_ctx *areq_ctx,
 	struct ssi_hash_ctx *ctx,
-	unsigned int flow_mode,HwDesc_s desc[],
+	unsigned int flow_mode,struct cc_hw_desc desc[],
 	bool is_not_last_data,
 	unsigned int *seq_size);
 
-static inline void ssi_set_hash_endianity(u32 mode, HwDesc_s *desc)
+static inline void ssi_set_hash_endianity(u32 mode, struct cc_hw_desc *desc)
 {
 	if (unlikely((mode == DRV_HASH_MD5) ||
 		(mode == DRV_HASH_SHA384) ||
@@ -162,7 +162,7 @@ static int ssi_hash_map_request(struct device *dev,
 	ssi_sram_addr_t larval_digest_addr = ssi_ahash_get_larval_digest_sram_addr(
 					ctx->drvdata, ctx->hash_mode);
 	struct ssi_crypto_req ssi_req = {};
-	HwDesc_s desc;
+	struct cc_hw_desc desc;
 	int rc = -ENOMEM;
 
 	state->buff0 = kzalloc(SSI_MAX_HASH_BLCK_SIZE ,GFP_KERNEL|GFP_DMA);
@@ -450,7 +450,7 @@ static int ssi_hash_digest(struct ahash_req_ctx *state,
 	struct device *dev = &ctx->drvdata->plat_dev->dev;
 	bool is_hmac = ctx->is_hmac;
 	struct ssi_crypto_req ssi_req = {};
-	HwDesc_s desc[SSI_MAX_AHASH_SEQ_LEN];
+	struct cc_hw_desc desc[SSI_MAX_AHASH_SEQ_LEN];
 	ssi_sram_addr_t larval_digest_addr = ssi_ahash_get_larval_digest_sram_addr(
 					ctx->drvdata, ctx->hash_mode);
 	int idx = 0;
@@ -610,7 +610,7 @@ static int ssi_hash_update(struct ahash_req_ctx *state,
 {
 	struct device *dev = &ctx->drvdata->plat_dev->dev;
 	struct ssi_crypto_req ssi_req = {};
-	HwDesc_s desc[SSI_MAX_AHASH_SEQ_LEN];
+	struct cc_hw_desc desc[SSI_MAX_AHASH_SEQ_LEN];
 	u32 idx = 0;
 	int rc;
 
@@ -708,7 +708,7 @@ static int ssi_hash_finup(struct ahash_req_ctx *state,
 	struct device *dev = &ctx->drvdata->plat_dev->dev;
 	bool is_hmac = ctx->is_hmac;
 	struct ssi_crypto_req ssi_req = {};
-	HwDesc_s desc[SSI_MAX_AHASH_SEQ_LEN];
+	struct cc_hw_desc desc[SSI_MAX_AHASH_SEQ_LEN];
 	int idx = 0;
 	int rc;
 
@@ -839,7 +839,7 @@ static int ssi_hash_final(struct ahash_req_ctx *state,
 	struct device *dev = &ctx->drvdata->plat_dev->dev;
 	bool is_hmac = ctx->is_hmac;
 	struct ssi_crypto_req ssi_req = {};
-	HwDesc_s desc[SSI_MAX_AHASH_SEQ_LEN];
+	struct cc_hw_desc desc[SSI_MAX_AHASH_SEQ_LEN];
 	int idx = 0;
 	int rc;
 
@@ -1007,7 +1007,7 @@ static int ssi_hash_setkey(void *hash,
 	int blocksize = 0;
 	int digestsize = 0;
 	int i, idx = 0, rc = 0;
-	HwDesc_s desc[SSI_MAX_AHASH_SEQ_LEN];
+	struct cc_hw_desc desc[SSI_MAX_AHASH_SEQ_LEN];
 	ssi_sram_addr_t larval_addr;
 
 	 SSI_LOG_DEBUG("ssi_hash_setkey: start keylen: %d", keylen);
@@ -1218,7 +1218,7 @@ static int ssi_xcbc_setkey(struct crypto_ahash *ahash,
 	struct ssi_crypto_req ssi_req = {};
 	struct ssi_hash_ctx *ctx = crypto_ahash_ctx(ahash);
 	int idx = 0, rc = 0;
-	HwDesc_s desc[SSI_MAX_AHASH_SEQ_LEN];
+	struct cc_hw_desc desc[SSI_MAX_AHASH_SEQ_LEN];
 
 	SSI_LOG_DEBUG("===== setkey (%d) ====\n", keylen);
 	CHECK_AND_RETURN_UPON_FIPS_ERROR();
@@ -1471,7 +1471,7 @@ static int ssi_mac_update(struct ahash_request *req)
 	struct device *dev = &ctx->drvdata->plat_dev->dev;
 	unsigned int block_size = crypto_tfm_alg_blocksize(&tfm->base);
 	struct ssi_crypto_req ssi_req = {};
-	HwDesc_s desc[SSI_MAX_AHASH_SEQ_LEN];
+	struct cc_hw_desc desc[SSI_MAX_AHASH_SEQ_LEN];
 	int rc;
 	u32 idx = 0;
 
@@ -1533,7 +1533,7 @@ static int ssi_mac_final(struct ahash_request *req)
 	struct ssi_hash_ctx *ctx = crypto_ahash_ctx(tfm);
 	struct device *dev = &ctx->drvdata->plat_dev->dev;
 	struct ssi_crypto_req ssi_req = {};
-	HwDesc_s desc[SSI_MAX_AHASH_SEQ_LEN];
+	struct cc_hw_desc desc[SSI_MAX_AHASH_SEQ_LEN];
 	int idx = 0;
 	int rc = 0;
 	u32 keySize, keyLen;
@@ -1647,7 +1647,7 @@ static int ssi_mac_finup(struct ahash_request *req)
 	struct ssi_hash_ctx *ctx = crypto_ahash_ctx(tfm);
 	struct device *dev = &ctx->drvdata->plat_dev->dev;
 	struct ssi_crypto_req ssi_req = {};
-	HwDesc_s desc[SSI_MAX_AHASH_SEQ_LEN];
+	struct cc_hw_desc desc[SSI_MAX_AHASH_SEQ_LEN];
 	int idx = 0;
 	int rc = 0;
 	u32 key_len = 0;
@@ -1721,7 +1721,7 @@ static int ssi_mac_digest(struct ahash_request *req)
 	struct device *dev = &ctx->drvdata->plat_dev->dev;
 	u32 digestsize = crypto_ahash_digestsize(tfm);
 	struct ssi_crypto_req ssi_req = {};
-	HwDesc_s desc[SSI_MAX_AHASH_SEQ_LEN];
+	struct cc_hw_desc desc[SSI_MAX_AHASH_SEQ_LEN];
 	u32 keyLen;
 	int idx = 0;
 	int rc;
@@ -2284,7 +2284,7 @@ int ssi_hash_init_sram_digest_consts(struct ssi_drvdata *drvdata)
 	struct ssi_hash_handle *hash_handle = drvdata->hash_handle;
 	ssi_sram_addr_t sram_buff_ofs = hash_handle->digest_len_sram_addr;
 	unsigned int larval_seq_len = 0;
-	HwDesc_s larval_seq[CC_DIGEST_SIZE_MAX/sizeof(u32)];
+	struct cc_hw_desc larval_seq[CC_DIGEST_SIZE_MAX/sizeof(u32)];
 	int rc = 0;
 #if (DX_DEV_SHA_MAX > 256)
 	int i;
@@ -2543,7 +2543,7 @@ int ssi_hash_free(struct ssi_drvdata *drvdata)
 }
 
 static void ssi_hash_create_xcbc_setup(struct ahash_request *areq,
-				  HwDesc_s desc[],
+				  struct cc_hw_desc desc[],
 				  unsigned int *seq_size) {
 	unsigned int idx = *seq_size;
 	struct ahash_req_ctx *state = ahash_request_ctx(areq);
@@ -2599,7 +2599,7 @@ static void ssi_hash_create_xcbc_setup(struct ahash_request *areq,
 }
 
 static void ssi_hash_create_cmac_setup(struct ahash_request *areq,
-				  HwDesc_s desc[],
+				  struct cc_hw_desc desc[],
 				  unsigned int *seq_size)
 {
 	unsigned int idx = *seq_size;
@@ -2633,7 +2633,7 @@ static void ssi_hash_create_cmac_setup(struct ahash_request *areq,
 static void ssi_hash_create_data_desc(struct ahash_req_ctx *areq_ctx,
 				      struct ssi_hash_ctx *ctx,
 				      unsigned int flow_mode,
-				      HwDesc_s desc[],
+				      struct cc_hw_desc desc[],
 				      bool is_not_last_data,
 				      unsigned int *seq_size)
 {
