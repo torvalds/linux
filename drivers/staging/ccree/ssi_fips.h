@@ -17,12 +17,6 @@
 #ifndef __SSI_FIPS_H__
 #define __SSI_FIPS_H__
 
-
-#ifndef INT32_MAX /* Missing in Linux kernel */
-#define INT32_MAX 0x7FFFFFFFL
-#endif
-
-
 /*!
 @file
 @brief This file contains FIPS related defintions and APIs.
@@ -32,7 +26,7 @@ typedef enum ssi_fips_state {
         CC_FIPS_STATE_NOT_SUPPORTED = 0,
         CC_FIPS_STATE_SUPPORTED,
         CC_FIPS_STATE_ERROR,
-        CC_FIPS_STATE_RESERVE32B = INT32_MAX
+        CC_FIPS_STATE_RESERVE32B = S32_MAX
 } ssi_fips_state_t;
 
 
@@ -58,7 +52,7 @@ typedef enum ssi_fips_error {
 	CC_REE_FIPS_ERROR_HMAC_SHA256_PUT,
 	CC_REE_FIPS_ERROR_HMAC_SHA512_PUT,
 	CC_REE_FIPS_ERROR_ROM_CHECKSUM,
-	CC_REE_FIPS_ERROR_RESERVE32B = INT32_MAX
+	CC_REE_FIPS_ERROR_RESERVE32B = S32_MAX
 } ssi_fips_error_t;
 
 

@@ -85,7 +85,7 @@ out:
  * \param drvdata
  * \param size The requested bytes to allocate
  */
-ssi_sram_addr_t ssi_sram_mgr_alloc(struct ssi_drvdata *drvdata, uint32_t size)
+ssi_sram_addr_t ssi_sram_mgr_alloc(struct ssi_drvdata *drvdata, u32 size)
 {
 	struct ssi_sram_mgr_ctx *smgr_ctx = drvdata->sram_mgr_handle;
 	ssi_sram_addr_t p;
@@ -119,17 +119,17 @@ ssi_sram_addr_t ssi_sram_mgr_alloc(struct ssi_drvdata *drvdata, uint32_t size)
  * @seq_len:	  A pointer to the given IN/OUT sequence length
  */
 void ssi_sram_mgr_const2sram_desc(
-	const uint32_t *src, ssi_sram_addr_t dst,
+	const u32 *src, ssi_sram_addr_t dst,
 	unsigned int nelement,
 	HwDesc_s *seq, unsigned int *seq_len)
 {
-	uint32_t i;
+	u32 i;
 	unsigned int idx = *seq_len;
 
 	for (i = 0; i < nelement; i++, idx++) {
 		HW_DESC_INIT(&seq[idx]);
-		HW_DESC_SET_DIN_CONST(&seq[idx], src[i], sizeof(uint32_t));
-		HW_DESC_SET_DOUT_SRAM(&seq[idx], dst + (i * sizeof(uint32_t)), sizeof(uint32_t));
+		HW_DESC_SET_DIN_CONST(&seq[idx], src[i], sizeof(u32));
+		HW_DESC_SET_DOUT_SRAM(&seq[idx], dst + (i * sizeof(u32)), sizeof(u32));
 		HW_DESC_SET_FLOW_MODE(&seq[idx], BYPASS);
 	}
 

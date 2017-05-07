@@ -48,26 +48,26 @@ struct aeshash_state {
 
 /* ahash state */
 struct ahash_req_ctx {
-	uint8_t* buff0;
-	uint8_t* buff1;
-	uint8_t* digest_result_buff;
+	u8* buff0;
+	u8* buff1;
+	u8* digest_result_buff;
 	struct async_gen_req_ctx gen_ctx;
 	enum ssi_req_dma_buf_type data_dma_buf_type;
-	uint8_t *digest_buff;
-	uint8_t *opad_digest_buff;
-	uint8_t *digest_bytes_len;
+	u8 *digest_buff;
+	u8 *opad_digest_buff;
+	u8 *digest_bytes_len;
 	dma_addr_t opad_digest_dma_addr;
 	dma_addr_t digest_buff_dma_addr;
 	dma_addr_t digest_bytes_len_dma_addr;
 	dma_addr_t digest_result_dma_addr;
-	uint32_t buff0_cnt;
-	uint32_t buff1_cnt;
-	uint32_t buff_index;
-	uint32_t xcbc_count; /* count xcbc update operatations */
+	u32 buff0_cnt;
+	u32 buff1_cnt;
+	u32 buff_index;
+	u32 xcbc_count; /* count xcbc update operatations */
 	struct scatterlist buff_sg[2];
 	struct scatterlist *curr_sg;
-	uint32_t in_nents;
-	uint32_t mlli_nents;
+	u32 in_nents;
+	u32 mlli_nents;
 	struct mlli_params mlli_params;
 };
 
@@ -81,10 +81,10 @@ int ssi_hash_free(struct ssi_drvdata *drvdata);
  * \param drvdata
  * \param mode The Hash mode. Supported modes: MD5/SHA1/SHA224/SHA256/SHA384/SHA512
  *
- * \return uint32_t returns the address of the initial digest length in SRAM
+ * \return u32 returns the address of the initial digest length in SRAM
  */
 ssi_sram_addr_t
-ssi_ahash_get_initial_digest_len_sram_addr(void *drvdata, uint32_t mode);
+ssi_ahash_get_initial_digest_len_sram_addr(void *drvdata, u32 mode);
 
 /*!
  * Gets the address of the initial digest in SRAM
@@ -93,9 +93,9 @@ ssi_ahash_get_initial_digest_len_sram_addr(void *drvdata, uint32_t mode);
  * \param drvdata
  * \param mode The Hash mode. Supported modes: MD5/SHA1/SHA224/SHA256/SHA384/SHA512
  *
- * \return uint32_t The address of the inital digest in SRAM
+ * \return u32 The address of the inital digest in SRAM
  */
-ssi_sram_addr_t ssi_ahash_get_larval_digest_sram_addr(void *drvdata, uint32_t mode);
+ssi_sram_addr_t ssi_ahash_get_larval_digest_sram_addr(void *drvdata, u32 mode);
 
 #endif /*__SSI_HASH_H__*/
 

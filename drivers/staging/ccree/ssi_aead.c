@@ -60,18 +60,18 @@ struct ssi_aead_handle {
 
 struct ssi_aead_ctx {
 	struct ssi_drvdata *drvdata;
-	uint8_t ctr_nonce[MAX_NONCE_SIZE]; /* used for ctr3686 iv and aes ccm */
-	uint8_t *enckey;
+	u8 ctr_nonce[MAX_NONCE_SIZE]; /* used for ctr3686 iv and aes ccm */
+	u8 *enckey;
 	dma_addr_t enckey_dma_addr;
 	union {
 		struct {
-			uint8_t *padded_authkey;
-			uint8_t *ipad_opad; /* IPAD, OPAD*/
+			u8 *padded_authkey;
+			u8 *ipad_opad; /* IPAD, OPAD*/
 			dma_addr_t padded_authkey_dma_addr;
 			dma_addr_t ipad_opad_dma_addr;
 		} hmac;
 		struct {
-			uint8_t *xcbc_keys; /* K1,K2,K3 */
+			u8 *xcbc_keys; /* K1,K2,K3 */
 			dma_addr_t xcbc_keys_dma_addr;
 		} xcbc;
 	} auth_state;
@@ -428,7 +428,7 @@ ssi_get_plain_hmac_key(struct crypto_aead *tfm, const u8 *key, unsigned int keyl
 	dma_addr_t key_dma_addr = 0;
 	struct ssi_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	struct device *dev = &ctx->drvdata->plat_dev->dev;
-	uint32_t larval_addr = ssi_ahash_get_larval_digest_sram_addr(
+	u32 larval_addr = ssi_ahash_get_larval_digest_sram_addr(
 					ctx->drvdata, ctx->auth_mode);
 	struct ssi_crypto_req ssi_req = {};
 	unsigned int blocksize;
@@ -831,7 +831,7 @@ ssi_aead_process_authenc_data_desc(
 		 * assoc. + iv + data -compact in one table
 		 * if assoclen is ZERO only IV perform */
 		ssi_sram_addr_t mlli_addr = areq_ctx->assoc.sram_addr;
-		uint32_t mlli_nents = areq_ctx->assoc.mlli_nents;
+		u32 mlli_nents = areq_ctx->assoc.mlli_nents;
 
 		if (likely(areq_ctx->is_single_pass == true)) {
 			if (direct == DRV_CRYPTO_DIRECTION_ENCRYPT){
@@ -1386,11 +1386,11 @@ static int validate_data_size(struct ssi_aead_ctx *ctx,
 			break;
 		}
 
-		if (!IS_ALIGNED(assoclen, sizeof(uint32_t)))
+		if (!IS_ALIGNED(assoclen, sizeof(u32)))
 			areq_ctx->is_single_pass = false;
 
 		if ((ctx->cipher_mode == DRV_CIPHER_CTR) &&
-		    !IS_ALIGNED(cipherlen, sizeof(uint32_t)))
+		    !IS_ALIGNED(cipherlen, sizeof(u32)))
 			areq_ctx->is_single_pass = false;
 
 		break;
@@ -1412,7 +1412,7 @@ data_size_err:
 }
 
 #if SSI_CC_HAS_AES_CCM
-static unsigned int format_ccm_a0(uint8_t *pA0Buff, uint32_t headerSize)
+static unsigned int format_ccm_a0(u8 *pA0Buff, u32 headerSize)
 {
 	unsigned int len = 0;
 	if ( headerSize == 0 ) {
@@ -1597,9 +1597,9 @@ static int config_ccm_adata(struct aead_request *req) {
 	/* Note: The code assume that req->iv[0] already contains the value of L' of RFC3610 */
 	unsigned int l = lp + 1;  /* This is L' of RFC 3610. */
 	unsigned int m = ctx->authsize;  /* This is M' of RFC 3610. */
-	uint8_t *b0 = req_ctx->ccm_config + CCM_B0_OFFSET;
-	uint8_t *a0 = req_ctx->ccm_config + CCM_A0_OFFSET;
-	uint8_t *ctr_count_0 = req_ctx->ccm_config + CCM_CTR_COUNT_0_OFFSET;
+	u8 *b0 = req_ctx->ccm_config + CCM_B0_OFFSET;
+	u8 *a0 = req_ctx->ccm_config + CCM_A0_OFFSET;
+	u8 *ctr_count_0 = req_ctx->ccm_config + CCM_CTR_COUNT_0_OFFSET;
 	unsigned int cryptlen = (req_ctx->gen_ctx.op_type ==
 				 DRV_CRYPTO_DIRECTION_ENCRYPT) ?
 				req->cryptlen :

@@ -42,25 +42,25 @@ struct ssi_hash_handle {
 	struct completion init_comp;
 };
 
-static const uint32_t digest_len_init[] = {
+static const u32 digest_len_init[] = {
 	0x00000040, 0x00000000, 0x00000000, 0x00000000 };
-static const uint32_t md5_init[] = {
+static const u32 md5_init[] = {
 	SHA1_H3, SHA1_H2, SHA1_H1, SHA1_H0 };
-static const uint32_t sha1_init[] = {
+static const u32 sha1_init[] = {
 	SHA1_H4, SHA1_H3, SHA1_H2, SHA1_H1, SHA1_H0 };
-static const uint32_t sha224_init[] = {
+static const u32 sha224_init[] = {
 	SHA224_H7, SHA224_H6, SHA224_H5, SHA224_H4,
 	SHA224_H3, SHA224_H2, SHA224_H1, SHA224_H0 };
-static const uint32_t sha256_init[] = {
+static const u32 sha256_init[] = {
 	SHA256_H7, SHA256_H6, SHA256_H5, SHA256_H4,
 	SHA256_H3, SHA256_H2, SHA256_H1, SHA256_H0 };
 #if (DX_DEV_SHA_MAX > 256)
-static const uint32_t digest_len_sha512_init[] = {
+static const u32 digest_len_sha512_init[] = {
 	0x00000080, 0x00000000, 0x00000000, 0x00000000 };
-static const uint64_t sha384_init[] = {
+static const u64 sha384_init[] = {
 	SHA384_H7, SHA384_H6, SHA384_H5, SHA384_H4,
 	SHA384_H3, SHA384_H2, SHA384_H1, SHA384_H0 };
-static const uint64_t sha512_init[] = {
+static const u64 sha512_init[] = {
 	SHA512_H7, SHA512_H6, SHA512_H5, SHA512_H4,
 	SHA512_H3, SHA512_H2, SHA512_H1, SHA512_H0 };
 #endif
@@ -89,7 +89,7 @@ struct ssi_hash_alg {
 
 
 struct hash_key_req_ctx {
-	uint32_t keylen;
+	u32 keylen;
 	dma_addr_t key_dma_addr;
 };
 
@@ -98,8 +98,8 @@ struct ssi_hash_ctx {
 	struct ssi_drvdata *drvdata;
 	/* holds the origin digest; the digest after "setkey" if HMAC,*
 	   the initial digest if HASH. */
-	uint8_t digest_buff[SSI_MAX_HASH_DIGEST_SIZE]  ____cacheline_aligned;
-	uint8_t opad_tmp_keys_buff[SSI_MAX_HASH_OPAD_TMP_KEYS_SIZE]  ____cacheline_aligned;
+	u8 digest_buff[SSI_MAX_HASH_DIGEST_SIZE]  ____cacheline_aligned;
+	u8 opad_tmp_keys_buff[SSI_MAX_HASH_OPAD_TMP_KEYS_SIZE]  ____cacheline_aligned;
 	dma_addr_t opad_tmp_keys_dma_addr  ____cacheline_aligned;
 	dma_addr_t digest_buff_dma_addr;
 	/* use for hmac with key large then mode block size */
@@ -120,7 +120,7 @@ static void ssi_hash_create_data_desc(
 	bool is_not_last_data,
 	unsigned int *seq_size);
 
-static inline void ssi_set_hash_endianity(uint32_t mode, HwDesc_s *desc)
+static inline void ssi_set_hash_endianity(u32 mode, HwDesc_s *desc)
 {
 	if (unlikely((mode == DRV_HASH_MD5) ||
 		(mode == DRV_HASH_SHA384) ||
@@ -414,7 +414,7 @@ static void ssi_hash_digest_complete(struct device *dev, void *ssi_req, void __i
 	struct ahash_req_ctx *state = ahash_request_ctx(req);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct ssi_hash_ctx *ctx = crypto_ahash_ctx(tfm);
-	uint32_t digestsize = crypto_ahash_digestsize(tfm);
+	u32 digestsize = crypto_ahash_digestsize(tfm);
 
 	SSI_LOG_DEBUG("req=%pK\n", req);
 
@@ -430,7 +430,7 @@ static void ssi_hash_complete(struct device *dev, void *ssi_req, void __iomem *c
 	struct ahash_req_ctx *state = ahash_request_ctx(req);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct ssi_hash_ctx *ctx = crypto_ahash_ctx(tfm);
-	uint32_t digestsize = crypto_ahash_digestsize(tfm);
+	u32 digestsize = crypto_ahash_digestsize(tfm);
 
 	SSI_LOG_DEBUG("req=%pK\n", req);
 
@@ -611,7 +611,7 @@ static int ssi_hash_update(struct ahash_req_ctx *state,
 	struct device *dev = &ctx->drvdata->plat_dev->dev;
 	struct ssi_crypto_req ssi_req = {};
 	HwDesc_s desc[SSI_MAX_AHASH_SEQ_LEN];
-	uint32_t idx = 0;
+	u32 idx = 0;
 	int rc;
 
 	SSI_LOG_DEBUG("===== %s-update (%d) ====\n", ctx->is_hmac ?
@@ -1473,7 +1473,7 @@ static int ssi_mac_update(struct ahash_request *req)
 	struct ssi_crypto_req ssi_req = {};
 	HwDesc_s desc[SSI_MAX_AHASH_SEQ_LEN];
 	int rc;
-	uint32_t idx = 0;
+	u32 idx = 0;
 
 	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 	if (req->nbytes == 0) {
@@ -1536,10 +1536,10 @@ static int ssi_mac_final(struct ahash_request *req)
 	HwDesc_s desc[SSI_MAX_AHASH_SEQ_LEN];
 	int idx = 0;
 	int rc = 0;
-	uint32_t keySize, keyLen;
-	uint32_t digestsize = crypto_ahash_digestsize(tfm);
+	u32 keySize, keyLen;
+	u32 digestsize = crypto_ahash_digestsize(tfm);
 
-	uint32_t rem_cnt = state->buff_index ? state->buff1_cnt :
+	u32 rem_cnt = state->buff_index ? state->buff1_cnt :
 			state->buff0_cnt;
 
 
@@ -1650,8 +1650,8 @@ static int ssi_mac_finup(struct ahash_request *req)
 	HwDesc_s desc[SSI_MAX_AHASH_SEQ_LEN];
 	int idx = 0;
 	int rc = 0;
-	uint32_t key_len = 0;
-	uint32_t digestsize = crypto_ahash_digestsize(tfm);
+	u32 key_len = 0;
+	u32 digestsize = crypto_ahash_digestsize(tfm);
 
 	SSI_LOG_DEBUG("===== finup xcbc(%d) ====\n", req->nbytes);
 	CHECK_AND_RETURN_UPON_FIPS_ERROR();
@@ -1719,10 +1719,10 @@ static int ssi_mac_digest(struct ahash_request *req)
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct ssi_hash_ctx *ctx = crypto_ahash_ctx(tfm);
 	struct device *dev = &ctx->drvdata->plat_dev->dev;
-	uint32_t digestsize = crypto_ahash_digestsize(tfm);
+	u32 digestsize = crypto_ahash_digestsize(tfm);
 	struct ssi_crypto_req ssi_req = {};
 	HwDesc_s desc[SSI_MAX_AHASH_SEQ_LEN];
-	uint32_t keyLen;
+	u32 keyLen;
 	int idx = 0;
 	int rc;
 
@@ -1798,7 +1798,7 @@ static int ssi_shash_digest(struct shash_desc *desc,
 	struct ahash_req_ctx *state = shash_desc_ctx(desc);
 	struct crypto_shash *tfm = desc->tfm;
 	struct ssi_hash_ctx *ctx = crypto_shash_ctx(tfm);
-	uint32_t digestsize = crypto_shash_digestsize(tfm);
+	u32 digestsize = crypto_shash_digestsize(tfm);
 	struct scatterlist src;
 
 	if (len == 0) {
@@ -1817,7 +1817,7 @@ static int ssi_shash_update(struct shash_desc *desc,
 	struct ahash_req_ctx *state = shash_desc_ctx(desc);
 	struct crypto_shash *tfm = desc->tfm;
 	struct ssi_hash_ctx *ctx = crypto_shash_ctx(tfm);
-	uint32_t blocksize = crypto_tfm_alg_blocksize(&tfm->base);
+	u32 blocksize = crypto_tfm_alg_blocksize(&tfm->base);
 	struct scatterlist src;
 
 	sg_init_one(&src, (const void *)data, len);
@@ -1831,7 +1831,7 @@ static int ssi_shash_finup(struct shash_desc *desc,
 	struct ahash_req_ctx *state = shash_desc_ctx(desc);
 	struct crypto_shash *tfm = desc->tfm;
 	struct ssi_hash_ctx *ctx = crypto_shash_ctx(tfm);
-	uint32_t digestsize = crypto_shash_digestsize(tfm);
+	u32 digestsize = crypto_shash_digestsize(tfm);
 	struct scatterlist src;
 
 	sg_init_one(&src, (const void *)data, len);
@@ -1844,7 +1844,7 @@ static int ssi_shash_final(struct shash_desc *desc, u8 *out)
 	struct ahash_req_ctx *state = shash_desc_ctx(desc);
 	struct crypto_shash *tfm = desc->tfm;
 	struct ssi_hash_ctx *ctx = crypto_shash_ctx(tfm);
-	uint32_t digestsize = crypto_shash_digestsize(tfm);
+	u32 digestsize = crypto_shash_digestsize(tfm);
 
 	return ssi_hash_final(state, ctx, digestsize, NULL, 0, out, NULL);
 }
@@ -1890,7 +1890,7 @@ static int ssi_ahash_digest(struct ahash_request *req)
 	struct ahash_req_ctx *state = ahash_request_ctx(req);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct ssi_hash_ctx *ctx = crypto_ahash_ctx(tfm);
-	uint32_t digestsize = crypto_ahash_digestsize(tfm);
+	u32 digestsize = crypto_ahash_digestsize(tfm);
 
 	return ssi_hash_digest(state, ctx, digestsize, req->src, req->nbytes, req->result, (void *)req);
 }
@@ -1910,7 +1910,7 @@ static int ssi_ahash_finup(struct ahash_request *req)
 	struct ahash_req_ctx *state = ahash_request_ctx(req);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct ssi_hash_ctx *ctx = crypto_ahash_ctx(tfm);
-	uint32_t digestsize = crypto_ahash_digestsize(tfm);
+	u32 digestsize = crypto_ahash_digestsize(tfm);
 
 	return ssi_hash_finup(state, ctx, digestsize, req->src, req->nbytes, req->result, (void *)req);
 }
@@ -1920,7 +1920,7 @@ static int ssi_ahash_final(struct ahash_request *req)
 	struct ahash_req_ctx *state = ahash_request_ctx(req);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct ssi_hash_ctx *ctx = crypto_ahash_ctx(tfm);
-	uint32_t digestsize = crypto_ahash_digestsize(tfm);
+	u32 digestsize = crypto_ahash_digestsize(tfm);
 
 	return ssi_hash_final(state, ctx, digestsize, req->src, req->nbytes, req->result, (void *)req);
 }
@@ -2284,7 +2284,7 @@ int ssi_hash_init_sram_digest_consts(struct ssi_drvdata *drvdata)
 	struct ssi_hash_handle *hash_handle = drvdata->hash_handle;
 	ssi_sram_addr_t sram_buff_ofs = hash_handle->digest_len_sram_addr;
 	unsigned int larval_seq_len = 0;
-	HwDesc_s larval_seq[CC_DIGEST_SIZE_MAX/sizeof(uint32_t)];
+	HwDesc_s larval_seq[CC_DIGEST_SIZE_MAX/sizeof(u32)];
 	int rc = 0;
 #if (DX_DEV_SHA_MAX > 256)
 	int i;
@@ -2351,15 +2351,15 @@ int ssi_hash_init_sram_digest_consts(struct ssi_drvdata *drvdata)
 #if (DX_DEV_SHA_MAX > 256)
 	/* We are forced to swap each double-word larval before copying to sram */
 	for (i = 0; i < ARRAY_SIZE(sha384_init); i++) {
-		const uint32_t const0 = ((uint32_t *)((uint64_t *)&sha384_init[i]))[1];
-		const uint32_t const1 = ((uint32_t *)((uint64_t *)&sha384_init[i]))[0];
+		const u32 const0 = ((u32 *)((u64 *)&sha384_init[i]))[1];
+		const u32 const1 = ((u32 *)((u64 *)&sha384_init[i]))[0];
 
 		ssi_sram_mgr_const2sram_desc(&const0, sram_buff_ofs, 1,
 			larval_seq, &larval_seq_len);
-		sram_buff_ofs += sizeof(uint32_t);
+		sram_buff_ofs += sizeof(u32);
 		ssi_sram_mgr_const2sram_desc(&const1, sram_buff_ofs, 1,
 			larval_seq, &larval_seq_len);
-		sram_buff_ofs += sizeof(uint32_t);
+		sram_buff_ofs += sizeof(u32);
 	}
 	rc = send_request_init(drvdata, larval_seq, larval_seq_len);
 	if (unlikely(rc != 0)) {
@@ -2369,15 +2369,15 @@ int ssi_hash_init_sram_digest_consts(struct ssi_drvdata *drvdata)
 	larval_seq_len = 0;
 
 	for (i = 0; i < ARRAY_SIZE(sha512_init); i++) {
-		const uint32_t const0 = ((uint32_t *)((uint64_t *)&sha512_init[i]))[1];
-		const uint32_t const1 = ((uint32_t *)((uint64_t *)&sha512_init[i]))[0];
+		const u32 const0 = ((u32 *)((u64 *)&sha512_init[i]))[1];
+		const u32 const1 = ((u32 *)((u64 *)&sha512_init[i]))[0];
 
 		ssi_sram_mgr_const2sram_desc(&const0, sram_buff_ofs, 1,
 			larval_seq, &larval_seq_len);
-		sram_buff_ofs += sizeof(uint32_t);
+		sram_buff_ofs += sizeof(u32);
 		ssi_sram_mgr_const2sram_desc(&const1, sram_buff_ofs, 1,
 			larval_seq, &larval_seq_len);
-		sram_buff_ofs += sizeof(uint32_t);
+		sram_buff_ofs += sizeof(u32);
 	}
 	rc = send_request_init(drvdata, larval_seq, larval_seq_len);
 	if (unlikely(rc != 0)) {
@@ -2394,7 +2394,7 @@ int ssi_hash_alloc(struct ssi_drvdata *drvdata)
 {
 	struct ssi_hash_handle *hash_handle;
 	ssi_sram_addr_t sram_buff;
-	uint32_t sram_size_to_alloc;
+	u32 sram_size_to_alloc;
 	int rc = 0;
 	int alg;
 
@@ -2686,9 +2686,9 @@ static void ssi_hash_create_data_desc(struct ahash_req_ctx *areq_ctx,
  * \param drvdata
  * \param mode The Hash mode. Supported modes: MD5/SHA1/SHA224/SHA256
  *
- * \return uint32_t The address of the inital digest in SRAM
+ * \return u32 The address of the inital digest in SRAM
  */
-ssi_sram_addr_t ssi_ahash_get_larval_digest_sram_addr(void *drvdata, uint32_t mode)
+ssi_sram_addr_t ssi_ahash_get_larval_digest_sram_addr(void *drvdata, u32 mode)
 {
 	struct ssi_drvdata *_drvdata = (struct ssi_drvdata *)drvdata;
 	struct ssi_hash_handle *hash_handle = _drvdata->hash_handle;
@@ -2734,7 +2734,7 @@ ssi_sram_addr_t ssi_ahash_get_larval_digest_sram_addr(void *drvdata, uint32_t mo
 }
 
 ssi_sram_addr_t
-ssi_ahash_get_initial_digest_len_sram_addr(void *drvdata, uint32_t mode)
+ssi_ahash_get_initial_digest_len_sram_addr(void *drvdata, u32 mode)
 {
 	struct ssi_drvdata *_drvdata = (struct ssi_drvdata *)drvdata;
 	struct ssi_hash_handle *hash_handle = _drvdata->hash_handle;

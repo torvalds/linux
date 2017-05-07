@@ -37,10 +37,6 @@
 #include <crypto/hash.h>
 #include <linux/version.h>
 
-#ifndef INT32_MAX /* Missing in Linux kernel */
-#define INT32_MAX 0x7FFFFFFFL
-#endif
-
 /* Registers definitions from shared/hw/ree_include */
 #include "dx_reg_base_host.h"
 #include "dx_host.h"
@@ -137,11 +133,11 @@ struct ssi_drvdata {
 	struct resource *res_irq;
 	void __iomem *cc_base;
 	unsigned int irq;
-	uint32_t irq_mask;
-	uint32_t fw_ver;
+	u32 irq_mask;
+	u32 fw_ver;
 	/* Calibration time of start/stop
 	*  monitor descriptors */
-	uint32_t monitor_null_cycles;
+	u32 monitor_null_cycles;
 	struct platform_device *plat_dev;
 	ssi_sram_addr_t mlli_sram_addr;
 	struct completion icache_setup_completion;
@@ -157,7 +153,7 @@ struct ssi_drvdata {
 #ifdef ENABLE_CYCLE_COUNT
 	cycles_t isr_exit_cycles; /* Save for isr-to-tasklet latency */
 #endif
-	uint32_t inflight_counter;
+	u32 inflight_counter;
 
 };
 
@@ -196,7 +192,7 @@ struct async_gen_req_ctx {
 };
 
 #ifdef DX_DUMP_BYTES
-void dump_byte_array(const char *name, const uint8_t *the_array, unsigned long size);
+void dump_byte_array(const char *name, const u8 *the_array, unsigned long size);
 #else
 #define dump_byte_array(name, array, size) do {	\
 } while (0);

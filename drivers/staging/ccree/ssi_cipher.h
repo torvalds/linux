@@ -40,11 +40,11 @@
 struct blkcipher_req_ctx {
 	struct async_gen_req_ctx gen_ctx;
 	enum ssi_req_dma_buf_type dma_buf_type;
-	uint32_t in_nents;
-	uint32_t in_mlli_nents;
-	uint32_t out_nents;
-	uint32_t out_mlli_nents;
-	uint8_t *backup_info; /*store iv for generated IV flow*/
+	u32 in_nents;
+	u32 in_mlli_nents;
+	u32 out_nents;
+	u32 out_mlli_nents;
+	u8 *backup_info; /*store iv for generated IV flow*/
 	bool is_giv;
 	struct mlli_params mlli_params;
 };

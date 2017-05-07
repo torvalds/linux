@@ -35,7 +35,7 @@
 /* Read-Modify-Write a field of a register */
 #define MODIFY_REGISTER_FLD(unitName, regName, fldName, fldVal)         \
 do {								            \
-	uint32_t regVal;						    \
+	u32 regVal;						    \
 	regVal = READ_REGISTER(CC_REG_ADDR(unitName, regName));       \
 	CC_REG_FLD_SET(unitName, regName, fldName, regVal, fldVal); \
 	WRITE_REGISTER(CC_REG_ADDR(unitName, regName), regVal);       \
@@ -86,7 +86,7 @@ do {                                                                     \
 } while (0)
 
 /* Usage example:
-   uint32_t reg_shadow = READ_REGISTER(CC_REG_ADDR(CRY_KERNEL,AES_CONTROL));
+   u32 reg_shadow = READ_REGISTER(CC_REG_ADDR(CRY_KERNEL,AES_CONTROL));
    CC_REG_FLD_SET(CRY_KERNEL,AES_CONTROL,NK_KEY0,reg_shadow, 3);
    CC_REG_FLD_SET(CRY_KERNEL,AES_CONTROL,NK_KEY1,reg_shadow, 1);
    WRITE_REGISTER(CC_REG_ADDR(CRY_KERNEL,AES_CONTROL), reg_shadow);

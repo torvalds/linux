@@ -73,10 +73,10 @@
 
 
 #ifdef DX_DUMP_BYTES
-void dump_byte_array(const char *name, const uint8_t *the_array, unsigned long size)
+void dump_byte_array(const char *name, const u8 *the_array, unsigned long size)
 {
 	int i , line_offset = 0, ret = 0;
-	const uint8_t *cur_byte;
+	const u8 *cur_byte;
 	char line_buf[80];
 
 	if (the_array == NULL) {
@@ -116,8 +116,8 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 {
 	struct ssi_drvdata *drvdata = (struct ssi_drvdata *)dev_id;
 	void __iomem *cc_base = drvdata->cc_base;
-	uint32_t irr;
-	uint32_t imr;
+	u32 irr;
+	u32 imr;
 	DECL_CYCLE_COUNT_RESOURCES;
 
 	/* STAT_OP_TYPE_GENERIC STAT_PHASE_0: Interrupt */
@@ -154,7 +154,7 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 #endif
 	/* AXI error interrupt */
 	if (unlikely((irr & SSI_AXI_ERR_IRQ_MASK) != 0)) {
-		uint32_t axi_err;
+		u32 axi_err;
 
 		/* Read the AXI error ID */
 		axi_err = CC_HAL_READ_REGISTER(CC_REG_OFFSET(CRY_KERNEL, AXIM_MON_ERR));
@@ -224,7 +224,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	void __iomem *cc_base = NULL;
 	bool irq_registered = false;
 	struct ssi_drvdata *new_drvdata = kzalloc(sizeof(struct ssi_drvdata), GFP_KERNEL);
-	uint32_t signature_val;
+	u32 signature_val;
 	int rc = 0;
 
 	if (unlikely(new_drvdata == NULL)) {
@@ -304,7 +304,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	signature_val = CC_HAL_READ_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_SIGNATURE));
 	if (signature_val != DX_DEV_SIGNATURE) {
 		SSI_LOG_ERR("Invalid CC signature: SIGNATURE=0x%08X != expected=0x%08X\n",
-			signature_val, (uint32_t)DX_DEV_SIGNATURE);
+			signature_val, (u32)DX_DEV_SIGNATURE);
 		rc = -EINVAL;
 		goto init_cc_res_err;
 	}
@@ -479,7 +479,7 @@ static int cc7x_probe(struct platform_device *plat_dev)
 {
 	int rc;
 #if defined(CONFIG_ARM) && defined(CC_DEBUG)
-	uint32_t ctr, cacheline_size;
+	u32 ctr, cacheline_size;
 
 	asm volatile("mrc p15, 0, %0, c0, c0, 1" : "=r" (ctr));
 	cacheline_size =  4 << ((ctr >> 16) & 0xf);

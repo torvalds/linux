@@ -43,8 +43,8 @@ struct ssi_ivgen_ctx {
 	ssi_sram_addr_t pool;
 	ssi_sram_addr_t ctr_key;
 	ssi_sram_addr_t ctr_iv;
-	uint32_t next_iv_ofs;
-	uint8_t *pool_meta;
+	u32 next_iv_ofs;
+	u8 *pool_meta;
 	dma_addr_t pool_meta_dma;
 };
 

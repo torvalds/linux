@@ -57,30 +57,30 @@ enum aead_ccm_header_size {
 	ccm_header_size_zero = 0,
 	ccm_header_size_2 = 2,
 	ccm_header_size_6 = 6,
-	ccm_header_size_max = INT32_MAX
+	ccm_header_size_max = S32_MAX
 };
 
 struct aead_req_ctx {
 	/* Allocate cache line although only 4 bytes are needed to
 	*  assure next field falls @ cache line
 	*  Used for both: digest HW compare and CCM/GCM MAC value */
-	uint8_t mac_buf[MAX_MAC_SIZE] ____cacheline_aligned;
-	uint8_t ctr_iv[AES_BLOCK_SIZE] ____cacheline_aligned;
+	u8 mac_buf[MAX_MAC_SIZE] ____cacheline_aligned;
+	u8 ctr_iv[AES_BLOCK_SIZE] ____cacheline_aligned;
 
 	//used in gcm
-	uint8_t gcm_iv_inc1[AES_BLOCK_SIZE] ____cacheline_aligned;
-	uint8_t gcm_iv_inc2[AES_BLOCK_SIZE] ____cacheline_aligned;
-	uint8_t hkey[AES_BLOCK_SIZE] ____cacheline_aligned;
+	u8 gcm_iv_inc1[AES_BLOCK_SIZE] ____cacheline_aligned;
+	u8 gcm_iv_inc2[AES_BLOCK_SIZE] ____cacheline_aligned;
+	u8 hkey[AES_BLOCK_SIZE] ____cacheline_aligned;
 	struct {
-		uint8_t lenA[GCM_BLOCK_LEN_SIZE] ____cacheline_aligned;
-		uint8_t lenC[GCM_BLOCK_LEN_SIZE] ;
+		u8 lenA[GCM_BLOCK_LEN_SIZE] ____cacheline_aligned;
+		u8 lenC[GCM_BLOCK_LEN_SIZE] ;
 	} gcm_len_block;
 
-	uint8_t ccm_config[CCM_CONFIG_BUF_SIZE] ____cacheline_aligned;
+	u8 ccm_config[CCM_CONFIG_BUF_SIZE] ____cacheline_aligned;
 	unsigned int hw_iv_size ____cacheline_aligned; /*HW actual size input*/
-	uint8_t backup_mac[MAX_MAC_SIZE]; /*used to prevent cache coherence problem*/
-	uint8_t *backup_iv; /*store iv for generated IV flow*/
-	uint8_t *backup_giv; /*store iv for rfc3686(ctr) flow*/
+	u8 backup_mac[MAX_MAC_SIZE]; /*used to prevent cache coherence problem*/
+	u8 *backup_iv; /*store iv for generated IV flow*/
+	u8 *backup_giv; /*store iv for rfc3686(ctr) flow*/
 	dma_addr_t mac_buf_dma_addr; /* internal ICV DMA buffer */
 	dma_addr_t ccm_iv0_dma_addr; /* buffer for internal ccm configurations */
 	dma_addr_t icv_dma_addr; /* Phys. address of ICV */
@@ -92,7 +92,7 @@ struct aead_req_ctx {
 	dma_addr_t gcm_block_len_dma_addr; /* Phys. address of gcm block len */
 	bool is_gcm4543;
 
-	uint8_t *icv_virt_addr; /* Virt. address of ICV */
+	u8 *icv_virt_addr; /* Virt. address of ICV */
 	struct async_gen_req_ctx gen_ctx;
 	struct ssi_mlli assoc;
 	struct ssi_mlli src;

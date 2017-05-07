@@ -17,17 +17,10 @@
 #ifndef __CC_HW_QUEUE_DEFS_H__
 #define __CC_HW_QUEUE_DEFS_H__
 
+#include <linux/types.h>
+
 #include "cc_regs.h"
 #include "dx_crys_kernel.h"
-
-#ifdef __KERNEL__
-#include <linux/types.h>
-#define UINT32_MAX 0xFFFFFFFFL
-#define INT32_MAX  0x7FFFFFFFL
-#define UINT16_MAX 0xFFFFL
-#else
-#include <stdint.h>
-#endif
 
 /******************************************************************************
 *                        	DEFINITIONS
@@ -48,7 +41,7 @@
 ******************************************************************************/
 
 typedef struct HwDesc {
-	uint32_t word[HW_DESC_SIZE_WORDS];
+	u32 word[HW_DESC_SIZE_WORDS];
 } HwDesc_s;
 
 typedef enum DescDirection {
@@ -56,7 +49,7 @@ typedef enum DescDirection {
 	DESC_DIRECTION_ENCRYPT_ENCRYPT = 0,
 	DESC_DIRECTION_DECRYPT_DECRYPT = 1,
 	DESC_DIRECTION_DECRYPT_ENCRYPT = 3,
-	DESC_DIRECTION_END = INT32_MAX,
+	DESC_DIRECTION_END = S32_MAX,
 }DescDirection_t;
 
 typedef enum DmaMode {
@@ -66,7 +59,7 @@ typedef enum DmaMode {
 	DMA_DLLI		= 2,
 	DMA_MLLI		= 3,
 	DmaMode_OPTIONTS,
-	DmaMode_END 		= INT32_MAX,
+	DmaMode_END 		= S32_MAX,
 }DmaMode_t;
 
 typedef enum FlowMode {
@@ -105,7 +98,7 @@ typedef enum FlowMode {
 	S_HASH_to_DOUT		= 43,
 	SET_FLOW_ID		= 44,
 	FlowMode_OPTIONTS,
-	FlowMode_END = INT32_MAX,
+	FlowMode_END = S32_MAX,
 }FlowMode_t;
 
 typedef enum TunnelOp {
@@ -113,7 +106,7 @@ typedef enum TunnelOp {
 	TUNNEL_OFF = 0,
 	TUNNEL_ON = 1,
 	TunnelOp_OPTIONS,
-	TunnelOp_END = INT32_MAX,
+	TunnelOp_END = S32_MAX,
 } TunnelOp_t;
 
 typedef enum SetupOp {
@@ -128,14 +121,14 @@ typedef enum SetupOp {
 	SETUP_WRITE_STATE2	= 10,
 	SETUP_WRITE_STATE3	= 11,
 	setupOp_OPTIONTS,
-	setupOp_END = INT32_MAX,
+	setupOp_END = S32_MAX,
 }SetupOp_t;
 
 enum AesMacSelector {
 	AES_SK = 1,
 	AES_CMAC_INIT = 2,
 	AES_CMAC_SIZE0 = 3,
-	AesMacEnd = INT32_MAX,
+	AesMacEnd = S32_MAX,
 };
 
 #define HW_KEY_MASK_CIPHER_DO 	  0x3
@@ -156,21 +149,21 @@ typedef enum HwCryptoKey {
 	KFDE1_KEY = 9,			/* 0x1001 */
 	KFDE2_KEY = 10,			/* 0x1010 */
 	KFDE3_KEY = 11,			/* 0x1011 */
-	END_OF_KEYS = INT32_MAX,
+	END_OF_KEYS = S32_MAX,
 }HwCryptoKey_t;
 
 typedef enum HwAesKeySize {
 	AES_128_KEY = 0,
 	AES_192_KEY = 1,
 	AES_256_KEY = 2,
-	END_OF_AES_KEYS = INT32_MAX,
+	END_OF_AES_KEYS = S32_MAX,
 }HwAesKeySize_t;
 
 typedef enum HwDesKeySize {
 	DES_ONE_KEY = 0,
 	DES_TWO_KEYS = 1,
 	DES_THREE_KEYS = 2,
-	END_OF_DES_KEYS = INT32_MAX,
+	END_OF_DES_KEYS = S32_MAX,
 }HwDesKeySize_t;
 
 /*****************************/
@@ -210,7 +203,7 @@ typedef enum HwDesKeySize {
 	} while (0)
 
 
-#define MSB64(_addr) (sizeof(_addr) == 4 ? 0 : ((_addr) >> 32)&UINT16_MAX)
+#define MSB64(_addr) (sizeof(_addr) == 4 ? 0 : ((_addr) >> 32)&U16_MAX)
 
 /*!
  * This macro sets the DIN field of a HW descriptors
@@ -223,7 +216,7 @@ typedef enum HwDesKeySize {
  */
 #define HW_DESC_SET_DIN_TYPE(pDesc, dmaMode, dinAdr, dinSize, axiNs)								\
 	do {		                                                                                        		\
-		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD0, VALUE, (pDesc)->word[0], (dinAdr)&UINT32_MAX );			\
+		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD0, VALUE, (pDesc)->word[0], (dinAdr)&U32_MAX );			\
 		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD5, DIN_ADDR_HIGH, (pDesc)->word[5], MSB64(dinAdr) );		\
 		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD1, DIN_DMA_MODE, (pDesc)->word[1], (dmaMode));			\
 		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD1, DIN_SIZE, (pDesc)->word[1], (dinSize));				\
@@ -241,7 +234,7 @@ typedef enum HwDesKeySize {
  */
 #define HW_DESC_SET_DIN_NO_DMA(pDesc, dinAdr, dinSize)									\
 	do {		                                                                                        	\
-		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD0, VALUE, (pDesc)->word[0], (uint32_t)(dinAdr));		\
+		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD0, VALUE, (pDesc)->word[0], (u32)(dinAdr));		\
 		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD1, DIN_SIZE, (pDesc)->word[1], (dinSize));			\
 	} while (0)
 
@@ -256,7 +249,7 @@ typedef enum HwDesKeySize {
  */
 #define HW_DESC_SET_DIN_SRAM(pDesc, dinAdr, dinSize)									\
 	do {		                                                                                        	\
-		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD0, VALUE, (pDesc)->word[0], (uint32_t)(dinAdr));		\
+		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD0, VALUE, (pDesc)->word[0], (u32)(dinAdr));		\
 		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD1, DIN_DMA_MODE, (pDesc)->word[1], DMA_SRAM);		\
 		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD1, DIN_SIZE, (pDesc)->word[1], (dinSize));			\
 	} while (0)
@@ -269,7 +262,7 @@ typedef enum HwDesKeySize {
  */
 #define HW_DESC_SET_DIN_CONST(pDesc, val, dinSize)									\
 	do {		                                                                                        	\
-		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD0, VALUE, (pDesc)->word[0], (uint32_t)(val));		\
+		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD0, VALUE, (pDesc)->word[0], (u32)(val));		\
 		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD1, DIN_CONST_VALUE, (pDesc)->word[1], 1);			\
 		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD1, DIN_DMA_MODE, (pDesc)->word[1], DMA_SRAM);		\
 		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD1, DIN_SIZE, (pDesc)->word[1], (dinSize));			\
@@ -296,7 +289,7 @@ typedef enum HwDesKeySize {
  */
 #define HW_DESC_SET_DOUT_TYPE(pDesc, dmaMode, doutAdr, doutSize, axiNs)							\
 	do {		                                                                                        	\
-		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD2, VALUE, (pDesc)->word[2], (doutAdr)&UINT32_MAX );		\
+		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD2, VALUE, (pDesc)->word[2], (doutAdr)&U32_MAX );		\
 		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD5, DOUT_ADDR_HIGH, (pDesc)->word[5], MSB64(doutAdr) );	\
 		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD3, DOUT_DMA_MODE, (pDesc)->word[3], (dmaMode));		\
 		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD3, DOUT_SIZE, (pDesc)->word[3], (doutSize));		\
@@ -315,7 +308,7 @@ typedef enum HwDesKeySize {
  */
 #define HW_DESC_SET_DOUT_DLLI(pDesc, doutAdr, doutSize, axiNs ,lastInd)								\
 	do {		                                                                                        		\
-		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD2, VALUE, (pDesc)->word[2], (doutAdr)&UINT32_MAX );		\
+		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD2, VALUE, (pDesc)->word[2], (doutAdr)&U32_MAX );		\
 		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD5, DOUT_ADDR_HIGH, (pDesc)->word[5], MSB64(doutAdr) );	\
 		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD3, DOUT_DMA_MODE, (pDesc)->word[3], DMA_DLLI);			\
 		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD3, DOUT_SIZE, (pDesc)->word[3], (doutSize));			\
@@ -335,7 +328,7 @@ typedef enum HwDesKeySize {
  */
 #define HW_DESC_SET_DOUT_MLLI(pDesc, doutAdr, doutSize, axiNs ,lastInd)								\
 	do {		                                                                                        		\
-		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD2, VALUE, (pDesc)->word[2], (doutAdr)&UINT32_MAX );		\
+		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD2, VALUE, (pDesc)->word[2], (doutAdr)&U32_MAX );		\
 		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD5, DOUT_ADDR_HIGH, (pDesc)->word[5], MSB64(doutAdr) );	\
 		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD3, DOUT_DMA_MODE, (pDesc)->word[3], DMA_MLLI);			\
 		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD3, DOUT_SIZE, (pDesc)->word[3], (doutSize));			\
@@ -354,7 +347,7 @@ typedef enum HwDesKeySize {
  */
 #define HW_DESC_SET_DOUT_NO_DMA(pDesc, doutAdr, doutSize, registerWriteEnable)							\
 	do {		                                                                                        		\
-		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD2, VALUE, (pDesc)->word[2], (uint32_t)(doutAdr));			\
+		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD2, VALUE, (pDesc)->word[2], (u32)(doutAdr));			\
 		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD3, DOUT_SIZE, (pDesc)->word[3], (doutSize));			\
 		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD3, DOUT_LAST_IND, (pDesc)->word[3], (registerWriteEnable));	\
 	} while (0)
@@ -367,7 +360,7 @@ typedef enum HwDesKeySize {
  */
 #define HW_DESC_SET_XOR_VAL(pDesc, xorVal)										\
 	do {		                                                                                        	\
-		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD2, VALUE, (pDesc)->word[2], (uint32_t)(xorVal));		\
+		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD2, VALUE, (pDesc)->word[2], (u32)(xorVal));		\
 	} while (0)
 
 /*!
@@ -401,7 +394,7 @@ typedef enum HwDesKeySize {
  */
 #define HW_DESC_SET_DOUT_SRAM(pDesc, doutAdr, doutSize)									\
 	do {		                                                                                        	\
-		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD2, VALUE, (pDesc)->word[2], (uint32_t)(doutAdr));		\
+		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD2, VALUE, (pDesc)->word[2], (u32)(doutAdr));		\
 		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD3, DOUT_DMA_MODE, (pDesc)->word[3], DMA_SRAM);		\
 		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD3, DOUT_SIZE, (pDesc)->word[3], (doutSize));		\
 	} while (0)
@@ -415,7 +408,7 @@ typedef enum HwDesKeySize {
  */
 #define HW_DESC_SET_XEX_DATA_UNIT_SIZE(pDesc, dataUnitSize)								\
 	do {														\
-		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD2, VALUE, (pDesc)->word[2], (uint32_t)(dataUnitSize));	\
+		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD2, VALUE, (pDesc)->word[2], (u32)(dataUnitSize));	\
 	} while (0)
 
 /*!
@@ -426,7 +419,7 @@ typedef enum HwDesKeySize {
 */
 #define HW_DESC_SET_MULTI2_NUM_ROUNDS(pDesc, numRounds)									\
 	do {														\
-		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD2, VALUE, (pDesc)->word[2], (uint32_t)(numRounds));	\
+		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_QUEUE_WORD2, VALUE, (pDesc)->word[2], (u32)(numRounds));	\
 	} while (0)
 
 /*!

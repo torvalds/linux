@@ -45,7 +45,7 @@ struct ssi_blkcipher_handle {
 };
 
 struct cc_user_key_info {
-	uint8_t *key;
+	u8 *key;
 	dma_addr_t key_dma_addr;
 };
 struct cc_hw_key_info {
@@ -69,7 +69,7 @@ struct ssi_ablkcipher_ctx {
 static void ssi_ablkcipher_complete(struct device *dev, void *ssi_req, void __iomem *cc_base);
 
 
-static int validate_keys_sizes(struct ssi_ablkcipher_ctx *ctx_p, uint32_t size) {
+static int validate_keys_sizes(struct ssi_ablkcipher_ctx *ctx_p, u32 size) {
 	switch (ctx_p->flow_mode){
 	case S_DIN_to_AES:
 		switch (size){
@@ -329,7 +329,7 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 
 	SSI_LOG_DEBUG("Setting key in context @%p for %s. keylen=%u\n",
 		ctx_p, crypto_tfm_alg_name(tfm), keylen);
-	dump_byte_array("key", (uint8_t *)key, keylen);
+	dump_byte_array("key", (u8 *)key, keylen);
 
 	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 
@@ -724,7 +724,7 @@ ssi_blkcipher_create_data_desc(
 				     "addr 0x%08X addr 0x%08X\n",
 				(unsigned int)ctx_p->drvdata->mlli_sram_addr,
 				(unsigned int)ctx_p->drvdata->mlli_sram_addr +
-				(uint32_t)LLI_ENTRY_BYTE_SIZE *
+				(u32)LLI_ENTRY_BYTE_SIZE *
 							req_ctx->in_nents);
 			HW_DESC_SET_DOUT_MLLI(&desc[*seq_size],
 				(ctx_p->drvdata->mlli_sram_addr +
@@ -750,7 +750,7 @@ static int ssi_blkcipher_complete(struct device *dev,
                                   void __iomem *cc_base)
 {
 	int completion_error = 0;
-	uint32_t inflight_counter;
+	u32 inflight_counter;
 	DECL_CYCLE_COUNT_RESOURCES;
 
 	START_CYCLE_COUNT();

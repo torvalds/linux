@@ -29,18 +29,18 @@
 
 #define CC_MAX_MLLI_ENTRY_SIZE 0x10000
 
-#define MSB64(_addr) (sizeof(_addr) == 4 ? 0 : ((_addr) >> 32)&UINT16_MAX)
+#define MSB64(_addr) (sizeof(_addr) == 4 ? 0 : ((_addr) >> 32)&U16_MAX)
 
 #define LLI_SET_ADDR(lli_p, addr) \
-		BITFIELD_SET(((uint32_t *)(lli_p))[LLI_WORD0_OFFSET], LLI_LADDR_BIT_OFFSET, LLI_LADDR_BIT_SIZE, (addr & UINT32_MAX)); \
-		BITFIELD_SET(((uint32_t *)(lli_p))[LLI_WORD1_OFFSET], LLI_HADDR_BIT_OFFSET, LLI_HADDR_BIT_SIZE, MSB64(addr));
+		BITFIELD_SET(((u32 *)(lli_p))[LLI_WORD0_OFFSET], LLI_LADDR_BIT_OFFSET, LLI_LADDR_BIT_SIZE, (addr & U32_MAX)); \
+		BITFIELD_SET(((u32 *)(lli_p))[LLI_WORD1_OFFSET], LLI_HADDR_BIT_OFFSET, LLI_HADDR_BIT_SIZE, MSB64(addr));
 
 #define LLI_SET_SIZE(lli_p, size) \
-		BITFIELD_SET(((uint32_t *)(lli_p))[LLI_WORD1_OFFSET], LLI_SIZE_BIT_OFFSET, LLI_SIZE_BIT_SIZE, size)
+		BITFIELD_SET(((u32 *)(lli_p))[LLI_WORD1_OFFSET], LLI_SIZE_BIT_OFFSET, LLI_SIZE_BIT_SIZE, size)
 
 /* Size of entry */
 #define LLI_ENTRY_WORD_SIZE 2
-#define LLI_ENTRY_BYTE_SIZE (LLI_ENTRY_WORD_SIZE * sizeof(uint32_t))
+#define LLI_ENTRY_BYTE_SIZE (LLI_ENTRY_WORD_SIZE * sizeof(u32))
 
 /* Word0[31:0] = ADDR[31:0] */
 #define LLI_WORD0_OFFSET 0

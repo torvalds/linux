@@ -28,17 +28,17 @@ that executes the KAT.
 #include "ssi_request_mgr.h"
 
 
-static const uint32_t digest_len_init[] = {
+static const u32 digest_len_init[] = {
 	0x00000040, 0x00000000, 0x00000000, 0x00000000 };
-static const uint32_t sha1_init[] = {
+static const u32 sha1_init[] = {
 	SHA1_H4, SHA1_H3, SHA1_H2, SHA1_H1, SHA1_H0 };
-static const uint32_t sha256_init[] = {
+static const u32 sha256_init[] = {
 	SHA256_H7, SHA256_H6, SHA256_H5, SHA256_H4,
 	SHA256_H3, SHA256_H2, SHA256_H1, SHA256_H0 };
 #if (CC_SUPPORT_SHA > 256)
-static const uint32_t digest_len_sha512_init[] = {
+static const u32 digest_len_sha512_init[] = {
 	0x00000080, 0x00000000, 0x00000000, 0x00000000 };
-static const uint64_t sha512_init[] = {
+static const u64 sha512_init[] = {
 	SHA512_H7, SHA512_H6, SHA512_H5, SHA512_H4,
 	SHA512_H3, SHA512_H2, SHA512_H1, SHA512_H0 };
 #endif
@@ -47,128 +47,128 @@ static const uint64_t sha512_init[] = {
 #define NIST_CIPHER_AES_MAX_VECTOR_SIZE      32
 
 struct fips_cipher_ctx {
-	uint8_t iv[CC_AES_IV_SIZE];
-	uint8_t key[AES_512_BIT_KEY_SIZE];
-	uint8_t din[NIST_CIPHER_AES_MAX_VECTOR_SIZE];
-	uint8_t dout[NIST_CIPHER_AES_MAX_VECTOR_SIZE];
+	u8 iv[CC_AES_IV_SIZE];
+	u8 key[AES_512_BIT_KEY_SIZE];
+	u8 din[NIST_CIPHER_AES_MAX_VECTOR_SIZE];
+	u8 dout[NIST_CIPHER_AES_MAX_VECTOR_SIZE];
 };
 
 typedef struct _FipsCipherData {
-	uint8_t                   isAes;
-	uint8_t                   key[AES_512_BIT_KEY_SIZE];
+	u8                   isAes;
+	u8                   key[AES_512_BIT_KEY_SIZE];
 	size_t                    keySize;
-	uint8_t                   iv[CC_AES_IV_SIZE];
+	u8                   iv[CC_AES_IV_SIZE];
 	enum drv_crypto_direction direction;
 	enum drv_cipher_mode      oprMode;
-	uint8_t                   dataIn[NIST_CIPHER_AES_MAX_VECTOR_SIZE];
-	uint8_t                   dataOut[NIST_CIPHER_AES_MAX_VECTOR_SIZE];
+	u8                   dataIn[NIST_CIPHER_AES_MAX_VECTOR_SIZE];
+	u8                   dataOut[NIST_CIPHER_AES_MAX_VECTOR_SIZE];
 	size_t                    dataInSize;
 } FipsCipherData;
 
 
 struct fips_cmac_ctx {
-	uint8_t key[AES_256_BIT_KEY_SIZE];
-	uint8_t din[NIST_CIPHER_AES_MAX_VECTOR_SIZE];
-	uint8_t mac_res[CC_DIGEST_SIZE_MAX];
+	u8 key[AES_256_BIT_KEY_SIZE];
+	u8 din[NIST_CIPHER_AES_MAX_VECTOR_SIZE];
+	u8 mac_res[CC_DIGEST_SIZE_MAX];
 };
 
 typedef struct _FipsCmacData {
 	enum drv_crypto_direction direction;
-	uint8_t                   key[AES_256_BIT_KEY_SIZE];
+	u8                   key[AES_256_BIT_KEY_SIZE];
 	size_t                    key_size;
-	uint8_t                   data_in[NIST_CIPHER_AES_MAX_VECTOR_SIZE];
+	u8                   data_in[NIST_CIPHER_AES_MAX_VECTOR_SIZE];
 	size_t                    data_in_size;
-	uint8_t                   mac_res[CC_DIGEST_SIZE_MAX];
+	u8                   mac_res[CC_DIGEST_SIZE_MAX];
 	size_t                    mac_res_size;
 } FipsCmacData;
 
 
 struct fips_hash_ctx {
-	uint8_t initial_digest[CC_DIGEST_SIZE_MAX];
-	uint8_t din[NIST_SHA_MSG_SIZE];
-	uint8_t mac_res[CC_DIGEST_SIZE_MAX];
+	u8 initial_digest[CC_DIGEST_SIZE_MAX];
+	u8 din[NIST_SHA_MSG_SIZE];
+	u8 mac_res[CC_DIGEST_SIZE_MAX];
 };
 
 typedef struct _FipsHashData {
 	enum drv_hash_mode    hash_mode;
-	uint8_t               data_in[NIST_SHA_MSG_SIZE];
+	u8               data_in[NIST_SHA_MSG_SIZE];
 	size_t                data_in_size;
-	uint8_t               mac_res[CC_DIGEST_SIZE_MAX];
+	u8               mac_res[CC_DIGEST_SIZE_MAX];
 } FipsHashData;
 
 
 /* note that the hmac key length must be equal or less than block size (block size is 64 up to sha256 and 128 for sha384/512) */
 struct fips_hmac_ctx {
-	uint8_t initial_digest[CC_DIGEST_SIZE_MAX];
-	uint8_t key[CC_HMAC_BLOCK_SIZE_MAX];
-	uint8_t k0[CC_HMAC_BLOCK_SIZE_MAX];
-	uint8_t digest_bytes_len[HASH_LEN_SIZE];
-	uint8_t tmp_digest[CC_DIGEST_SIZE_MAX];
-	uint8_t din[NIST_HMAC_MSG_SIZE];
-	uint8_t mac_res[CC_DIGEST_SIZE_MAX];
+	u8 initial_digest[CC_DIGEST_SIZE_MAX];
+	u8 key[CC_HMAC_BLOCK_SIZE_MAX];
+	u8 k0[CC_HMAC_BLOCK_SIZE_MAX];
+	u8 digest_bytes_len[HASH_LEN_SIZE];
+	u8 tmp_digest[CC_DIGEST_SIZE_MAX];
+	u8 din[NIST_HMAC_MSG_SIZE];
+	u8 mac_res[CC_DIGEST_SIZE_MAX];
 };
 
 typedef struct _FipsHmacData {
 	enum drv_hash_mode    hash_mode;
-	uint8_t               key[CC_HMAC_BLOCK_SIZE_MAX];
+	u8               key[CC_HMAC_BLOCK_SIZE_MAX];
 	size_t                key_size;
-	uint8_t               data_in[NIST_HMAC_MSG_SIZE];
+	u8               data_in[NIST_HMAC_MSG_SIZE];
 	size_t                data_in_size;
-	uint8_t               mac_res[CC_DIGEST_SIZE_MAX];
+	u8               mac_res[CC_DIGEST_SIZE_MAX];
 } FipsHmacData;
 
 
 #define FIPS_CCM_B0_A0_ADATA_SIZE   (NIST_AESCCM_IV_SIZE + NIST_AESCCM_IV_SIZE + NIST_AESCCM_ADATA_SIZE)
 
 struct fips_ccm_ctx {
-	uint8_t b0_a0_adata[FIPS_CCM_B0_A0_ADATA_SIZE];
-	uint8_t iv[NIST_AESCCM_IV_SIZE];
-	uint8_t ctr_cnt_0[NIST_AESCCM_IV_SIZE];
-	uint8_t key[CC_AES_KEY_SIZE_MAX];
-	uint8_t din[NIST_AESCCM_TEXT_SIZE];
-	uint8_t dout[NIST_AESCCM_TEXT_SIZE];
-	uint8_t mac_res[NIST_AESCCM_TAG_SIZE];
+	u8 b0_a0_adata[FIPS_CCM_B0_A0_ADATA_SIZE];
+	u8 iv[NIST_AESCCM_IV_SIZE];
+	u8 ctr_cnt_0[NIST_AESCCM_IV_SIZE];
+	u8 key[CC_AES_KEY_SIZE_MAX];
+	u8 din[NIST_AESCCM_TEXT_SIZE];
+	u8 dout[NIST_AESCCM_TEXT_SIZE];
+	u8 mac_res[NIST_AESCCM_TAG_SIZE];
 };
 
 typedef struct _FipsCcmData {
 	enum drv_crypto_direction direction;
-	uint8_t                   key[CC_AES_KEY_SIZE_MAX];
+	u8                   key[CC_AES_KEY_SIZE_MAX];
 	size_t                    keySize;
-	uint8_t                   nonce[NIST_AESCCM_NONCE_SIZE];
-	uint8_t                   adata[NIST_AESCCM_ADATA_SIZE];
+	u8                   nonce[NIST_AESCCM_NONCE_SIZE];
+	u8                   adata[NIST_AESCCM_ADATA_SIZE];
 	size_t                    adataSize;
-	uint8_t                   dataIn[NIST_AESCCM_TEXT_SIZE];
+	u8                   dataIn[NIST_AESCCM_TEXT_SIZE];
 	size_t                    dataInSize;
-	uint8_t                   dataOut[NIST_AESCCM_TEXT_SIZE];
-	uint8_t                   tagSize;
-	uint8_t                   macResOut[NIST_AESCCM_TAG_SIZE];
+	u8                   dataOut[NIST_AESCCM_TEXT_SIZE];
+	u8                   tagSize;
+	u8                   macResOut[NIST_AESCCM_TAG_SIZE];
 } FipsCcmData;
 
 
 struct fips_gcm_ctx {
-	uint8_t adata[NIST_AESGCM_ADATA_SIZE];
-	uint8_t key[CC_AES_KEY_SIZE_MAX];
-	uint8_t hkey[CC_AES_KEY_SIZE_MAX];
-	uint8_t din[NIST_AESGCM_TEXT_SIZE];
-	uint8_t dout[NIST_AESGCM_TEXT_SIZE];
-	uint8_t mac_res[NIST_AESGCM_TAG_SIZE];
-	uint8_t len_block[AES_BLOCK_SIZE];
-	uint8_t iv_inc1[AES_BLOCK_SIZE];
-	uint8_t iv_inc2[AES_BLOCK_SIZE];
+	u8 adata[NIST_AESGCM_ADATA_SIZE];
+	u8 key[CC_AES_KEY_SIZE_MAX];
+	u8 hkey[CC_AES_KEY_SIZE_MAX];
+	u8 din[NIST_AESGCM_TEXT_SIZE];
+	u8 dout[NIST_AESGCM_TEXT_SIZE];
+	u8 mac_res[NIST_AESGCM_TAG_SIZE];
+	u8 len_block[AES_BLOCK_SIZE];
+	u8 iv_inc1[AES_BLOCK_SIZE];
+	u8 iv_inc2[AES_BLOCK_SIZE];
 };
 
 typedef struct _FipsGcmData {
 	enum drv_crypto_direction direction;
-	uint8_t                   key[CC_AES_KEY_SIZE_MAX];
+	u8                   key[CC_AES_KEY_SIZE_MAX];
 	size_t                    keySize;
-	uint8_t                   iv[NIST_AESGCM_IV_SIZE];
-	uint8_t                   adata[NIST_AESGCM_ADATA_SIZE];
+	u8                   iv[NIST_AESGCM_IV_SIZE];
+	u8                   adata[NIST_AESGCM_ADATA_SIZE];
 	size_t                    adataSize;
-	uint8_t                   dataIn[NIST_AESGCM_TEXT_SIZE];
+	u8                   dataIn[NIST_AESGCM_TEXT_SIZE];
 	size_t                    dataInSize;
-	uint8_t                   dataOut[NIST_AESGCM_TEXT_SIZE];
-	uint8_t                   tagSize;
-	uint8_t                   macResOut[NIST_AESGCM_TAG_SIZE];
+	u8                   dataOut[NIST_AESGCM_TEXT_SIZE];
+	u8                   tagSize;
+	u8                   macResOut[NIST_AESGCM_TAG_SIZE];
 } FipsGcmData;
 
 

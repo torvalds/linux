@@ -68,7 +68,7 @@ extern size_t ssi_fips_max_mem_alloc_size(void);
 /* The function called once at driver entry point to check whether TEE FIPS error occured.*/
 static enum ssi_fips_error ssi_fips_get_tee_error(struct ssi_drvdata *drvdata)
 {
-	uint32_t regVal;
+	u32 regVal;
 	void __iomem *cc_base = drvdata->cc_base;
 
 	regVal = CC_HAL_READ_REGISTER(CC_REG_OFFSET(HOST_RGF, GPR_HOST));
@@ -145,8 +145,8 @@ static void fips_dsr(unsigned long devarg)
 {
 	struct ssi_drvdata *drvdata = (struct ssi_drvdata *)devarg;
 	void __iomem *cc_base = drvdata->cc_base;
-	uint32_t irq;
-	uint32_t teeFipsError = 0;
+	u32 irq;
+	u32 teeFipsError = 0;
 
 	irq = (drvdata->irq & (SSI_GPR0_IRQ_MASK));
 

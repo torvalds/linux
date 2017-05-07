@@ -95,7 +95,7 @@ struct sys_dir {
 	struct kobject *sys_dir_kobj;
 	struct attribute_group sys_dir_attr_group;
 	struct attribute **sys_dir_attr_list;
-	uint32_t num_of_attrs;
+	u32 num_of_attrs;
 	struct ssi_drvdata *drvdata; /* Associated driver context */
 };
 
@@ -137,12 +137,12 @@ static void update_db(struct stat_item *item, unsigned int result)
 static void display_db(struct stat_item item[MAX_STAT_OP_TYPES][MAX_STAT_PHASES])
 {
 	unsigned int i, j;
-	uint64_t avg;
+	u64 avg;
 
 	for (i=STAT_OP_TYPE_ENCODE; i<MAX_STAT_OP_TYPES; i++) {
 		for (j=0; j<MAX_STAT_PHASES; j++) {
 			if (item[i][j].count > 0) {
-				avg = (uint64_t)item[i][j].sum;
+				avg = (u64)item[i][j].sum;
 				do_div(avg, item[i][j].count);
 				SSI_LOG_ERR("%s, %s: min=%d avg=%d max=%d sum=%lld count=%d\n",
 					stat_name_db[i].op_type_name, stat_name_db[i].stat_phase_name[j],
@@ -176,8 +176,8 @@ static ssize_t ssi_sys_stat_host_db_show(struct kobject *kobj,
 {
 	int i, j ;
 	char line[512];
-	uint32_t min_cyc, max_cyc;
-	uint64_t avg;
+	u32 min_cyc, max_cyc;
+	u64 avg;
 	ssize_t buf_len, tmp_len=0;
 
 	buf_len = scnprintf(buf,PAGE_SIZE,
@@ -187,7 +187,7 @@ static ssize_t ssi_sys_stat_host_db_show(struct kobject *kobj,
 	for (i=STAT_OP_TYPE_ENCODE; i<MAX_STAT_OP_TYPES; i++) {
 		for (j=0; j<MAX_STAT_PHASES-1; j++) {
 			if (stat_host_db[i][j].count > 0) {
-				avg = (uint64_t)stat_host_db[i][j].sum;
+				avg = (u64)stat_host_db[i][j].sum;
 				do_div(avg, stat_host_db[i][j].count);
 				min_cyc = stat_host_db[i][j].min;
 				max_cyc = stat_host_db[i][j].max;
@@ -216,8 +216,8 @@ static ssize_t ssi_sys_stat_cc_db_show(struct kobject *kobj,
 {
 	int i;
 	char line[256];
-	uint32_t min_cyc, max_cyc;
-	uint64_t avg;
+	u32 min_cyc, max_cyc;
+	u64 avg;
 	ssize_t buf_len,tmp_len=0;
 
 	buf_len = scnprintf(buf,PAGE_SIZE,
@@ -226,7 +226,7 @@ static ssize_t ssi_sys_stat_cc_db_show(struct kobject *kobj,
 		return buf_len;
 	for (i=STAT_OP_TYPE_ENCODE; i<MAX_STAT_OP_TYPES; i++) {
 		if (stat_cc_db[i][STAT_PHASE_6].count > 0) {
-			avg = (uint64_t)stat_cc_db[i][STAT_PHASE_6].sum;
+			avg = (u64)stat_cc_db[i][STAT_PHASE_6].sum;
 			do_div(avg, stat_cc_db[i][STAT_PHASE_6].count);
 			min_cyc = stat_cc_db[i][STAT_PHASE_6].min;
 			max_cyc = stat_cc_db[i][STAT_PHASE_6].max;
@@ -284,7 +284,7 @@ static ssize_t ssi_sys_regdump_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
 	struct ssi_drvdata *drvdata = sys_get_drvdata();
-	uint32_t register_value;
+	u32 register_value;
 	void __iomem* cc_base = drvdata->cc_base;
 	int offset = 0;
 
@@ -333,7 +333,7 @@ struct sys_dir {
 	struct kobject *sys_dir_kobj;
 	struct attribute_group sys_dir_attr_group;
 	struct attribute **sys_dir_attr_list;
-	uint32_t num_of_attrs;
+	u32 num_of_attrs;
 	struct ssi_drvdata *drvdata; /* Associated driver context */
 };
 
@@ -361,7 +361,7 @@ static struct ssi_drvdata *sys_get_drvdata(void)
 
 static int sys_init_dir(struct sys_dir *sys_dir, struct ssi_drvdata *drvdata,
 		 struct kobject *parent_dir_kobj, const char *dir_name,
-		 struct kobj_attribute *attrs, uint32_t num_of_attrs)
+		 struct kobj_attribute *attrs, u32 num_of_attrs)
 {
 	int i;
 

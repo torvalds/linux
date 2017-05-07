@@ -87,7 +87,7 @@ do { \
  */
 #define END_CC_MONITOR_COUNT(cc_base_addr, stat_op_type, stat_phase, monitor_null_cycles, lock_p, is_monitored) \
 do { \
-	uint32_t elapsed_cycles; \
+	u32 elapsed_cycles; \
 	if ((is_monitored) == true) { \
 		elapsed_cycles = READ_REGISTER((cc_base_addr) + CC_REG_OFFSET(CRY_KERNEL, DSCRPTR_MEASURE_CNTR)); \
 		clear_bit(MONITOR_CNTR_BIT, (lock_p)); \
@@ -111,13 +111,13 @@ struct ssi_request_mgr_handle {
 	unsigned int min_free_hw_slots;
 	unsigned int max_used_sw_slots;
 	struct ssi_crypto_req req_queue[MAX_REQUEST_QUEUE_SIZE];
-	uint32_t req_queue_head;
-	uint32_t req_queue_tail;
-	uint32_t axi_completed;
-	uint32_t q_free_slots;
+	u32 req_queue_head;
+	u32 req_queue_tail;
+	u32 axi_completed;
+	u32 q_free_slots;
 	spinlock_t hw_lock;
 	HwDesc_s compl_desc;
-	uint8_t *dummy_comp_buff;
+	u8 *dummy_comp_buff;
 	dma_addr_t dummy_comp_buff_dma;
 	HwDesc_s monitor_desc;
 	volatile unsigned long monitor_lock;
@@ -147,7 +147,7 @@ void request_mgr_fini(struct ssi_drvdata *drvdata)
 	if (req_mgr_h->dummy_comp_buff_dma != 0) {
 		SSI_RESTORE_DMA_ADDR_TO_48BIT(req_mgr_h->dummy_comp_buff_dma);
 		dma_free_coherent(&drvdata->plat_dev->dev,
-				  sizeof(uint32_t), req_mgr_h->dummy_comp_buff,
+				  sizeof(u32), req_mgr_h->dummy_comp_buff,
 				  req_mgr_h->dummy_comp_buff_dma);
 	}
 
@@ -213,22 +213,22 @@ int request_mgr_init(struct ssi_drvdata *drvdata)
 
 	/* Allocate DMA word for "dummy" completion descriptor use */
 	req_mgr_h->dummy_comp_buff = dma_alloc_coherent(&drvdata->plat_dev->dev,
-		sizeof(uint32_t), &req_mgr_h->dummy_comp_buff_dma, GFP_KERNEL);
+		sizeof(u32), &req_mgr_h->dummy_comp_buff_dma, GFP_KERNEL);
 	if (!req_mgr_h->dummy_comp_buff) {
 		SSI_LOG_ERR("Not enough memory to allocate DMA (%zu) dropped "
-			   "buffer\n", sizeof(uint32_t));
+			   "buffer\n", sizeof(u32));
 		rc = -ENOMEM;
 		goto req_mgr_init_err;
 	}
 	SSI_UPDATE_DMA_ADDR_TO_48BIT(req_mgr_h->dummy_comp_buff_dma,
-							     sizeof(uint32_t));
+							     sizeof(u32));
 
 	/* Init. "dummy" completion descriptor */
 	HW_DESC_INIT(&req_mgr_h->compl_desc);
-	HW_DESC_SET_DIN_CONST(&req_mgr_h->compl_desc, 0, sizeof(uint32_t));
+	HW_DESC_SET_DIN_CONST(&req_mgr_h->compl_desc, 0, sizeof(u32));
 	HW_DESC_SET_DOUT_DLLI(&req_mgr_h->compl_desc,
 		req_mgr_h->dummy_comp_buff_dma,
-		sizeof(uint32_t), NS_BIT, 1);
+		sizeof(u32), NS_BIT, 1);
 	HW_DESC_SET_FLOW_MODE(&req_mgr_h->compl_desc, BYPASS);
 	HW_DESC_SET_QUEUE_LAST_IND(&req_mgr_h->compl_desc);
 
@@ -581,7 +581,7 @@ static void proc_completions(struct ssi_drvdata *drvdata)
 #ifdef COMPLETION_DELAY
 		/* Delay */
 		{
-			uint32_t axi_err;
+			u32 axi_err;
 			int i;
 			SSI_LOG_INFO("Delay\n");
 			for (i=0;i<1000000;i++) {
@@ -615,7 +615,7 @@ static void comp_handler(unsigned long devarg)
 	struct ssi_request_mgr_handle * request_mgr_handle =
 						drvdata->request_mgr_handle;
 
-	uint32_t irq;
+	u32 irq;
 
 	DECL_CYCLE_COUNT_RESOURCES;
 

@@ -92,11 +92,11 @@ struct buffer_array {
 	int total_data_len[MAX_NUM_OF_BUFFERS_IN_MLLI];
 	enum dma_buffer_type type[MAX_NUM_OF_BUFFERS_IN_MLLI];
 	bool is_last[MAX_NUM_OF_BUFFERS_IN_MLLI];
-	uint32_t * mlli_nents[MAX_NUM_OF_BUFFERS_IN_MLLI];
+	u32 * mlli_nents[MAX_NUM_OF_BUFFERS_IN_MLLI];
 };
 
 #ifdef CC_DMA_48BIT_SIM
-dma_addr_t ssi_buff_mgr_update_dma_addr(dma_addr_t orig_addr, uint32_t data_len)
+dma_addr_t ssi_buff_mgr_update_dma_addr(dma_addr_t orig_addr, u32 data_len)
 {
 	dma_addr_t tmp_dma_addr;
 #ifdef CC_DMA_48BIT_SIM_FULL
@@ -109,7 +109,7 @@ dma_addr_t ssi_buff_mgr_update_dma_addr(dma_addr_t orig_addr, uint32_t data_len)
 		(data_len <= CC_MAX_MLLI_ENTRY_SIZE)) {
 #endif
 		tmp_dma_addr = ((orig_addr<<16) | 0xFFFF0000 |
-				(orig_addr & UINT16_MAX));
+				(orig_addr & U16_MAX));
 			SSI_LOG_DEBUG("MAP DMA: orig address=0x%llX "
 				    "dma_address=0x%llX\n",
 				     orig_addr, tmp_dma_addr);
@@ -134,7 +134,7 @@ dma_addr_t ssi_buff_mgr_restore_dma_addr(dma_addr_t orig_addr)
 		/*clean the 0xFFFF in the lower bits (set in the add expansion)*/
 		tmp_dma_addr &= 0xFFFF0000;
 		/* Set the original 16 bits */
-		tmp_dma_addr |= (orig_addr & UINT16_MAX);
+		tmp_dma_addr |= (orig_addr & U16_MAX);
 		SSI_LOG_DEBUG("Release DMA: orig address=0x%llX "
 			     "dma_address=0x%llX\n",
 			     orig_addr, tmp_dma_addr);
@@ -151,7 +151,7 @@ dma_addr_t ssi_buff_mgr_restore_dma_addr(dma_addr_t orig_addr)
  * @lbytes: [OUT] Returns the amount of bytes at the last entry
  */
 static unsigned int ssi_buffer_mgr_get_sgl_nents(
-	struct scatterlist *sg_list, unsigned int nbytes, uint32_t *lbytes, bool *is_chained)
+	struct scatterlist *sg_list, unsigned int nbytes, u32 *lbytes, bool *is_chained)
 {
 	unsigned int nents = 0;
 	while (nbytes != 0) {
@@ -182,7 +182,7 @@ static unsigned int ssi_buffer_mgr_get_sgl_nents(
  *
  * @sgl:
  */
-void ssi_buffer_mgr_zero_sgl(struct scatterlist *sgl, uint32_t data_len)
+void ssi_buffer_mgr_zero_sgl(struct scatterlist *sgl, u32 data_len)
 {
 	struct scatterlist *current_sg = sgl;
 	int sg_index = 0;
@@ -210,21 +210,21 @@ void ssi_buffer_mgr_zero_sgl(struct scatterlist *sgl, uint32_t data_len)
  */
 void ssi_buffer_mgr_copy_scatterlist_portion(
 	u8 *dest, struct scatterlist *sg,
-	uint32_t to_skip,  uint32_t end,
+	u32 to_skip,  u32 end,
 	enum ssi_sg_cpy_direct direct)
 {
-	uint32_t nents, lbytes;
+	u32 nents, lbytes;
 
 	nents = ssi_buffer_mgr_get_sgl_nents(sg, end, &lbytes, NULL);
 	sg_copy_buffer(sg, nents, (void *)dest, (end - to_skip), 0, (direct == SSI_SG_TO_BUF));
 }
 
 static inline int ssi_buffer_mgr_render_buff_to_mlli(
-	dma_addr_t buff_dma, uint32_t buff_size, uint32_t *curr_nents,
-	uint32_t **mlli_entry_pp)
+	dma_addr_t buff_dma, u32 buff_size, u32 *curr_nents,
+	u32 **mlli_entry_pp)
 {
-	uint32_t *mlli_entry_p = *mlli_entry_pp;
-	uint32_t new_nents;;
+	u32 *mlli_entry_p = *mlli_entry_pp;
+	u32 new_nents;;
 
 	/* Verify there is no memory overflow*/
 	new_nents = (*curr_nents + buff_size/CC_MAX_MLLI_ENTRY_SIZE + 1);
@@ -261,16 +261,16 @@ static inline int ssi_buffer_mgr_render_buff_to_mlli(
 
 
 static inline int ssi_buffer_mgr_render_scatterlist_to_mlli(
-	struct scatterlist *sgl, uint32_t sgl_data_len, uint32_t sglOffset, uint32_t *curr_nents,
-	uint32_t **mlli_entry_pp)
+	struct scatterlist *sgl, u32 sgl_data_len, u32 sglOffset, u32 *curr_nents,
+	u32 **mlli_entry_pp)
 {
 	struct scatterlist *curr_sgl = sgl;
-	uint32_t *mlli_entry_p = *mlli_entry_pp;
-	int32_t rc = 0;
+	u32 *mlli_entry_p = *mlli_entry_pp;
+	s32 rc = 0;
 
 	for ( ; (curr_sgl != NULL) && (sgl_data_len != 0);
 	      curr_sgl = sg_next(curr_sgl)) {
-		uint32_t entry_data_len =
+		u32 entry_data_len =
 			(sgl_data_len > sg_dma_len(curr_sgl) - sglOffset) ?
 				sg_dma_len(curr_sgl) - sglOffset : sgl_data_len ;
 		sgl_data_len -= entry_data_len;
@@ -291,8 +291,8 @@ static int ssi_buffer_mgr_generate_mlli(
 	struct buffer_array *sg_data,
 	struct mlli_params *mlli_params)
 {
-	uint32_t *mlli_p;
-	uint32_t total_nents = 0,prev_total_nents = 0;
+	u32 *mlli_p;
+	u32 total_nents = 0,prev_total_nents = 0;
 	int rc = 0, i;
 
 	SSI_LOG_DEBUG("NUM of SG's = %d\n", sg_data->num_of_buffers);
@@ -310,7 +310,7 @@ static int ssi_buffer_mgr_generate_mlli(
 						(MAX_NUM_OF_TOTAL_MLLI_ENTRIES*
 						LLI_ENTRY_BYTE_SIZE));
 	/* Point to start of MLLI */
-	mlli_p = (uint32_t *)mlli_params->mlli_virt_addr;
+	mlli_p = (u32 *)mlli_params->mlli_virt_addr;
 	/* go over all SG's and link it to one MLLI table */
 	for (i = 0; i < sg_data->num_of_buffers; i++) {
 		if (sg_data->type[i] == DMA_SGL_TYPE)
@@ -353,7 +353,7 @@ build_mlli_exit:
 static inline void ssi_buffer_mgr_add_buffer_entry(
 	struct buffer_array *sgl_data,
 	dma_addr_t buffer_dma, unsigned int buffer_len,
-	bool is_last_entry, uint32_t *mlli_nents)
+	bool is_last_entry, u32 *mlli_nents)
 {
 	unsigned int index = sgl_data->num_of_buffers;
 
@@ -379,7 +379,7 @@ static inline void ssi_buffer_mgr_add_scatterlist_entry(
 	unsigned int data_len,
 	unsigned int data_offset,
 	bool is_last_table,
-	uint32_t *mlli_nents)
+	u32 *mlli_nents)
 {
 	unsigned int index = sgl_data->num_of_buffers;
 
@@ -398,10 +398,10 @@ static inline void ssi_buffer_mgr_add_scatterlist_entry(
 }
 
 static int
-ssi_buffer_mgr_dma_map_sg(struct device *dev, struct scatterlist *sg, uint32_t nents,
+ssi_buffer_mgr_dma_map_sg(struct device *dev, struct scatterlist *sg, u32 nents,
 			 enum dma_data_direction direction)
 {
-	uint32_t i , j;
+	u32 i , j;
 	struct scatterlist *l_sg = sg;
 	for (i = 0; i < nents; i++) {
 		if (l_sg == NULL) {
@@ -430,8 +430,8 @@ err:
 static int ssi_buffer_mgr_map_scatterlist(
 	struct device *dev, struct scatterlist *sg,
 	unsigned int nbytes, int direction,
-	uint32_t *nents, uint32_t max_sg_nents,
-	uint32_t *lbytes, uint32_t *mapped_nents)
+	u32 *nents, u32 max_sg_nents,
+	u32 *lbytes, u32 *mapped_nents)
 {
 	bool is_chained = false;
 
@@ -491,7 +491,7 @@ static int ssi_buffer_mgr_map_scatterlist(
 static inline int
 ssi_aead_handle_config_buf(struct device *dev,
 	struct aead_req_ctx *areq_ctx,
-	uint8_t* config_data,
+	u8* config_data,
 	struct buffer_array *sg_data,
 	unsigned int assoclen)
 {
@@ -526,8 +526,8 @@ ssi_aead_handle_config_buf(struct device *dev,
 
 static inline int ssi_ahash_handle_curr_buf(struct device *dev,
 					   struct ahash_req_ctx *areq_ctx,
-					   uint8_t* curr_buff,
-					   uint32_t curr_buff_cnt,
+					   u8* curr_buff,
+					   u32 curr_buff_cnt,
 					   struct buffer_array *sg_data)
 {
 	SSI_LOG_DEBUG(" handle curr buff %x set to   DLLI \n", curr_buff_cnt);
@@ -612,9 +612,9 @@ int ssi_buffer_mgr_map_blkcipher_request(
 	struct buff_mgr_handle *buff_mgr = drvdata->buff_mgr_handle;
 	struct device *dev = &drvdata->plat_dev->dev;
 	struct buffer_array sg_data;
-	uint32_t dummy = 0;
+	u32 dummy = 0;
 	int rc = 0;
-	uint32_t mapped_nents = 0;
+	u32 mapped_nents = 0;
 
 	req_ctx->dma_buf_type = SSI_DMA_BUF_DLLI;
 	mlli_params->curr_pool = NULL;
@@ -622,7 +622,7 @@ int ssi_buffer_mgr_map_blkcipher_request(
 
 	/* Map IV buffer */
 	if (likely(ivsize != 0) ) {
-		dump_byte_array("iv", (uint8_t *)info, ivsize);
+		dump_byte_array("iv", (u8 *)info, ivsize);
 		req_ctx->gen_ctx.iv_dma_addr =
 			dma_map_single(dev, (void *)info,
 				       ivsize,
@@ -710,9 +710,9 @@ void ssi_buffer_mgr_unmap_aead_request(
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
 	unsigned int hw_iv_size = areq_ctx->hw_iv_size;
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
-	uint32_t dummy;
+	u32 dummy;
 	bool chained;
-	uint32_t size_to_unmap = 0;
+	u32 size_to_unmap = 0;
 
 	if (areq_ctx->mac_buf_dma_addr != 0) {
 		SSI_RESTORE_DMA_ADDR_TO_48BIT(areq_ctx->mac_buf_dma_addr);
@@ -796,7 +796,7 @@ void ssi_buffer_mgr_unmap_aead_request(
 	if ((areq_ctx->gen_ctx.op_type == DRV_CRYPTO_DIRECTION_DECRYPT) &&
 	    likely(req->src == req->dst))
 	{
-		uint32_t size_to_skip = req->assoclen;
+		u32 size_to_skip = req->assoclen;
 		if (areq_ctx->is_gcm4543) {
 			size_to_skip += crypto_aead_ivsize(tfm);
 		}
@@ -814,7 +814,7 @@ static inline int ssi_buffer_mgr_get_aead_icv_nents(
 	struct scatterlist *sgl,
 	unsigned int sgl_nents,
 	unsigned int authsize,
-	uint32_t last_entry_data_size,
+	u32 last_entry_data_size,
 	bool *is_icv_fragmented)
 {
 	unsigned int icv_max_size = 0;
@@ -914,11 +914,11 @@ static inline int ssi_buffer_mgr_aead_chain_assoc(
 {
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
 	int rc = 0;
-	uint32_t mapped_nents = 0;
+	u32 mapped_nents = 0;
 	struct scatterlist *current_sg = req->src;
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	unsigned int sg_index = 0;
-	uint32_t size_of_assoc = req->assoclen;
+	u32 size_of_assoc = req->assoclen;
 
 	if (areq_ctx->is_gcm4543) {
 		size_of_assoc += crypto_aead_ivsize(tfm);
@@ -1004,7 +1004,7 @@ chain_assoc_exit:
 
 static inline void ssi_buffer_mgr_prepare_aead_data_dlli(
 	struct aead_request *req,
-	uint32_t *src_last_bytes, uint32_t *dst_last_bytes)
+	u32 *src_last_bytes, u32 *dst_last_bytes)
 {
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
 	enum drv_crypto_direction direct = areq_ctx->gen_ctx.op_type;
@@ -1042,7 +1042,7 @@ static inline int ssi_buffer_mgr_prepare_aead_data_mlli(
 	struct ssi_drvdata *drvdata,
 	struct aead_request *req,
 	struct buffer_array *sg_data,
-	uint32_t *src_last_bytes, uint32_t *dst_last_bytes,
+	u32 *src_last_bytes, u32 *dst_last_bytes,
 	bool is_last_table)
 {
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
@@ -1075,7 +1075,7 @@ static inline int ssi_buffer_mgr_prepare_aead_data_mlli(
 				/* In ACP platform we already copying ICV
 				   for any INPLACE-DECRYPT operation, hence
 				   we must neglect this code. */
-				uint32_t size_to_skip = req->assoclen;
+				u32 size_to_skip = req->assoclen;
 				if (areq_ctx->is_gcm4543) {
 					size_to_skip += crypto_aead_ivsize(tfm);
 				}
@@ -1122,7 +1122,7 @@ static inline int ssi_buffer_mgr_prepare_aead_data_mlli(
 			/* Backup happens only when ICV is fragmented, ICV
 			   verification is made by CPU compare in order to simplify
 			   MAC verification upon request completion */
-			  uint32_t size_to_skip = req->assoclen;
+			  u32 size_to_skip = req->assoclen;
 			  if (areq_ctx->is_gcm4543) {
 				  size_to_skip += crypto_aead_ivsize(tfm);
 			  }
@@ -1190,14 +1190,14 @@ static inline int ssi_buffer_mgr_aead_chain_data(
 	unsigned int authsize = areq_ctx->req_authsize;
 	int src_last_bytes = 0, dst_last_bytes = 0;
 	int rc = 0;
-	uint32_t src_mapped_nents = 0, dst_mapped_nents = 0;
-	uint32_t offset = 0;
+	u32 src_mapped_nents = 0, dst_mapped_nents = 0;
+	u32 offset = 0;
 	unsigned int size_for_map = req->assoclen +req->cryptlen; /*non-inplace mode*/
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
-	uint32_t sg_index = 0;
+	u32 sg_index = 0;
 	bool chained = false;
 	bool is_gcm4543 = areq_ctx->is_gcm4543;
-	uint32_t size_to_skip = req->assoclen;
+	u32 size_to_skip = req->assoclen;
 	if (is_gcm4543) {
 		size_to_skip += crypto_aead_ivsize(tfm);
 	}
@@ -1302,7 +1302,7 @@ static void ssi_buffer_mgr_update_aead_mlli_nents( struct ssi_drvdata *drvdata,
 					   struct aead_request *req)
 {
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
-	uint32_t curr_mlli_size = 0;
+	u32 curr_mlli_size = 0;
 
 	if (areq_ctx->assoc_buff_type == SSI_DMA_BUF_MLLI) {
 		areq_ctx->assoc.sram_addr = drvdata->mlli_sram_addr;
@@ -1362,9 +1362,9 @@ int ssi_buffer_mgr_map_aead_request(
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	bool is_gcm4543 = areq_ctx->is_gcm4543;
 
-	uint32_t mapped_nents = 0;
-	uint32_t dummy = 0; /*used for the assoc data fragments */
-	uint32_t size_to_map = 0;
+	u32 mapped_nents = 0;
+	u32 dummy = 0; /*used for the assoc data fragments */
+	u32 size_to_map = 0;
 
 	mlli_params->curr_pool = NULL;
 	sg_data.num_of_buffers = 0;
@@ -1373,7 +1373,7 @@ int ssi_buffer_mgr_map_aead_request(
 	if ((areq_ctx->gen_ctx.op_type == DRV_CRYPTO_DIRECTION_DECRYPT) &&
 	    likely(req->src == req->dst))
 	{
-		uint32_t size_to_skip = req->assoclen;
+		u32 size_to_skip = req->assoclen;
 		if (is_gcm4543) {
 			size_to_skip += crypto_aead_ivsize(tfm);
 		}
@@ -1568,15 +1568,15 @@ int ssi_buffer_mgr_map_hash_request_final(
 {
 	struct ahash_req_ctx *areq_ctx = (struct ahash_req_ctx *)ctx;
 	struct device *dev = &drvdata->plat_dev->dev;
-	uint8_t* curr_buff = areq_ctx->buff_index ? areq_ctx->buff1 :
+	u8* curr_buff = areq_ctx->buff_index ? areq_ctx->buff1 :
 			areq_ctx->buff0;
-	uint32_t *curr_buff_cnt = areq_ctx->buff_index ? &areq_ctx->buff1_cnt :
+	u32 *curr_buff_cnt = areq_ctx->buff_index ? &areq_ctx->buff1_cnt :
 			&areq_ctx->buff0_cnt;
 	struct mlli_params *mlli_params = &areq_ctx->mlli_params;
 	struct buffer_array sg_data;
 	struct buff_mgr_handle *buff_mgr = drvdata->buff_mgr_handle;
-	uint32_t dummy = 0;
-	uint32_t mapped_nents = 0;
+	u32 dummy = 0;
+	u32 mapped_nents = 0;
 
 	SSI_LOG_DEBUG(" final params : curr_buff=%pK "
 		     "curr_buff_cnt=0x%X nbytes = 0x%X "
@@ -1660,22 +1660,22 @@ int ssi_buffer_mgr_map_hash_request_update(
 {
 	struct ahash_req_ctx *areq_ctx = (struct ahash_req_ctx *)ctx;
 	struct device *dev = &drvdata->plat_dev->dev;
-	uint8_t* curr_buff = areq_ctx->buff_index ? areq_ctx->buff1 :
+	u8* curr_buff = areq_ctx->buff_index ? areq_ctx->buff1 :
 			areq_ctx->buff0;
-	uint32_t *curr_buff_cnt = areq_ctx->buff_index ? &areq_ctx->buff1_cnt :
+	u32 *curr_buff_cnt = areq_ctx->buff_index ? &areq_ctx->buff1_cnt :
 			&areq_ctx->buff0_cnt;
-	uint8_t* next_buff = areq_ctx->buff_index ? areq_ctx->buff0 :
+	u8* next_buff = areq_ctx->buff_index ? areq_ctx->buff0 :
 			areq_ctx->buff1;
-	uint32_t *next_buff_cnt = areq_ctx->buff_index ? &areq_ctx->buff0_cnt :
+	u32 *next_buff_cnt = areq_ctx->buff_index ? &areq_ctx->buff0_cnt :
 			&areq_ctx->buff1_cnt;
 	struct mlli_params *mlli_params = &areq_ctx->mlli_params;
 	unsigned int update_data_len;
-	uint32_t total_in_len = nbytes + *curr_buff_cnt;
+	u32 total_in_len = nbytes + *curr_buff_cnt;
 	struct buffer_array sg_data;
 	struct buff_mgr_handle *buff_mgr = drvdata->buff_mgr_handle;
 	unsigned int swap_index = 0;
-	uint32_t dummy = 0;
-	uint32_t mapped_nents = 0;
+	u32 dummy = 0;
+	u32 mapped_nents = 0;
 
 	SSI_LOG_DEBUG(" update params : curr_buff=%pK "
 		     "curr_buff_cnt=0x%X nbytes=0x%X "
@@ -1789,7 +1789,7 @@ void ssi_buffer_mgr_unmap_hash_request(
 	struct device *dev, void *ctx, struct scatterlist *src, bool do_revert)
 {
 	struct ahash_req_ctx *areq_ctx = (struct ahash_req_ctx *)ctx;
-	uint32_t *prev_len = areq_ctx->buff_index ?  &areq_ctx->buff0_cnt :
+	u32 *prev_len = areq_ctx->buff_index ?  &areq_ctx->buff0_cnt :
 						&areq_ctx->buff1_cnt;
 
 	/*In case a pool was set, a table was

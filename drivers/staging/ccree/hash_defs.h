@@ -48,13 +48,13 @@ enum HashConfig1Padding {
 	HASH_PADDING_DISABLED = 0,
 	HASH_PADDING_ENABLED = 1,
 	HASH_DIGEST_RESULT_LITTLE_ENDIAN = 2,
-	HASH_CONFIG1_PADDING_RESERVE32 = INT32_MAX,
+	HASH_CONFIG1_PADDING_RESERVE32 = S32_MAX,
 };
 
 enum HashCipherDoPadding {
 	DO_NOT_PAD = 0,
 	DO_PAD = 1,
-	HASH_CIPHER_DO_PADDING_RESERVE32 = INT32_MAX,
+	HASH_CIPHER_DO_PADDING_RESERVE32 = S32_MAX,
 };
 
 typedef struct SepHashPrivateContext {
@@ -66,11 +66,11 @@ typedef struct SepHashPrivateContext {
 	   This means that this structure size (without the reserved field can be up to 20 bytes ,
 	   in case sha512 is not suppported it is 20 bytes (SEP_HASH_LENGTH_WORDS define to 2 ) and in the other
 	   case it is 28 (SEP_HASH_LENGTH_WORDS define to 4) */
-	uint32_t reserved[(sizeof(struct drv_ctx_hash)/sizeof(uint32_t)) - SEP_HASH_LENGTH_WORDS - 3];
-	uint32_t CurrentDigestedLength[SEP_HASH_LENGTH_WORDS];
-	uint32_t KeyType;
-	uint32_t dataCompleted;
-	uint32_t hmacFinalization;
+	u32 reserved[(sizeof(struct drv_ctx_hash)/sizeof(u32)) - SEP_HASH_LENGTH_WORDS - 3];
+	u32 CurrentDigestedLength[SEP_HASH_LENGTH_WORDS];
+	u32 KeyType;
+	u32 dataCompleted;
+	u32 hmacFinalization;
 	/* no space left */
 } SepHashPrivateContext_s;
 

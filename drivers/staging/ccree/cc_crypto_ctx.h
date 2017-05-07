@@ -18,12 +18,7 @@
 #ifndef _CC_CRYPTO_CTX_H_
 #define _CC_CRYPTO_CTX_H_
 
-#ifdef __KERNEL__
 #include <linux/types.h>
-#define INT32_MAX 0x7FFFFFFFL
-#else
-#include <stdint.h>
-#endif
 
 
 #ifndef max
@@ -113,7 +108,7 @@ enum drv_engine_type {
 	DRV_ENGINE_HASH = 3,
 	DRV_ENGINE_RC4 = 4,
 	DRV_ENGINE_DOUT = 5,
-	DRV_ENGINE_RESERVE32B = INT32_MAX,
+	DRV_ENGINE_RESERVE32B = S32_MAX,
 };
 
 enum drv_crypto_alg {
@@ -126,7 +121,7 @@ enum drv_crypto_alg {
 	DRV_CRYPTO_ALG_AEAD = 5,
 	DRV_CRYPTO_ALG_BYPASS = 6,
 	DRV_CRYPTO_ALG_NUM = 7,
-	DRV_CRYPTO_ALG_RESERVE32B = INT32_MAX
+	DRV_CRYPTO_ALG_RESERVE32B = S32_MAX
 };
 
 enum drv_crypto_direction {
@@ -134,7 +129,7 @@ enum drv_crypto_direction {
 	DRV_CRYPTO_DIRECTION_ENCRYPT = 0,
 	DRV_CRYPTO_DIRECTION_DECRYPT = 1,
 	DRV_CRYPTO_DIRECTION_DECRYPT_ENCRYPT = 3,
-	DRV_CRYPTO_DIRECTION_RESERVE32B = INT32_MAX
+	DRV_CRYPTO_DIRECTION_RESERVE32B = S32_MAX
 };
 
 enum drv_cipher_mode {
@@ -152,7 +147,7 @@ enum drv_cipher_mode {
 	DRV_CIPHER_GCTR = 12,
 	DRV_CIPHER_ESSIV = 13,
 	DRV_CIPHER_BITLOCKER = 14,
-	DRV_CIPHER_RESERVE32B = INT32_MAX
+	DRV_CIPHER_RESERVE32B = S32_MAX
 };
 
 enum drv_hash_mode {
@@ -167,7 +162,7 @@ enum drv_hash_mode {
 	DRV_HASH_XCBC_MAC = 7,
 	DRV_HASH_CMAC = 8,
 	DRV_HASH_MODE_NUM = 9,
-	DRV_HASH_RESERVE32B = INT32_MAX
+	DRV_HASH_RESERVE32B = S32_MAX
 };
 
 enum drv_hash_hw_mode {
@@ -178,7 +173,7 @@ enum drv_hash_hw_mode {
 	DRV_HASH_HW_SHA512 = 4,
 	DRV_HASH_HW_SHA384 = 12,
 	DRV_HASH_HW_GHASH = 6,
-	DRV_HASH_HW_RESERVE32B = INT32_MAX
+	DRV_HASH_HW_RESERVE32B = S32_MAX
 };
 
 enum drv_multi2_mode {
@@ -186,7 +181,7 @@ enum drv_multi2_mode {
 	DRV_MULTI2_ECB = 0,
 	DRV_MULTI2_CBC = 1,
 	DRV_MULTI2_OFB = 2,
-	DRV_MULTI2_RESERVE32B = INT32_MAX
+	DRV_MULTI2_RESERVE32B = S32_MAX
 };
 
 
@@ -201,13 +196,13 @@ enum drv_crypto_key_type {
 	DRV_APPLET_KEY = 4,		/* NA */
 	DRV_PLATFORM_KEY = 5,		/* 0x101 */
 	DRV_CUSTOMER_KEY = 6,		/* 0x110 */
-	DRV_END_OF_KEYS = INT32_MAX,
+	DRV_END_OF_KEYS = S32_MAX,
 };
 
 enum drv_crypto_padding_type {
 	DRV_PADDING_NONE = 0,
 	DRV_PADDING_PKCS7 = 1,
-	DRV_PADDING_RESERVE32B = INT32_MAX
+	DRV_PADDING_RESERVE32B = S32_MAX
 };
 
 /*******************************************************************/
@@ -223,9 +218,9 @@ struct drv_ctx_generic {
 struct drv_ctx_hash {
 	enum drv_crypto_alg alg; /* DRV_CRYPTO_ALG_HASH */
 	enum drv_hash_mode mode;
-	uint8_t digest[CC_DIGEST_SIZE_MAX];
+	u8 digest[CC_DIGEST_SIZE_MAX];
 	/* reserve to end of allocated context size */
-	uint8_t reserved[CC_CTX_SIZE - 2 * sizeof(uint32_t) -
+	u8 reserved[CC_CTX_SIZE - 2 * sizeof(u32) -
 			CC_DIGEST_SIZE_MAX];
 };
 
@@ -234,11 +229,11 @@ struct drv_ctx_hash {
 struct drv_ctx_hmac {
 	enum drv_crypto_alg alg; /* DRV_CRYPTO_ALG_HMAC */
 	enum drv_hash_mode mode;
-	uint8_t digest[CC_DIGEST_SIZE_MAX];
-	uint32_t k0[CC_HMAC_BLOCK_SIZE_MAX/sizeof(uint32_t)];
-	uint32_t k0_size;
+	u8 digest[CC_DIGEST_SIZE_MAX];
+	u32 k0[CC_HMAC_BLOCK_SIZE_MAX/sizeof(u32)];
+	u32 k0_size;
 	/* reserve to end of allocated context size */
-	uint8_t reserved[CC_CTX_SIZE - 3 * sizeof(uint32_t) -
+	u8 reserved[CC_CTX_SIZE - 3 * sizeof(u32) -
 			CC_DIGEST_SIZE_MAX - CC_HMAC_BLOCK_SIZE_MAX];
 };
 
@@ -248,19 +243,19 @@ struct drv_ctx_cipher {
 	enum drv_crypto_direction direction;
 	enum drv_crypto_key_type crypto_key_type;
 	enum drv_crypto_padding_type padding_type;
-	uint32_t key_size; /* numeric value in bytes   */
-	uint32_t data_unit_size; /* required for XTS */
+	u32 key_size; /* numeric value in bytes   */
+	u32 data_unit_size; /* required for XTS */
 	/* block_state is the AES engine block state.
 	*  It is used by the host to pass IV or counter at initialization.
 	*  It is used by SeP for intermediate block chaining state and for
 	*  returning MAC algorithms results.           */
-	uint8_t block_state[CC_AES_BLOCK_SIZE];
-	uint8_t key[CC_AES_KEY_SIZE_MAX];
-	uint8_t xex_key[CC_AES_KEY_SIZE_MAX];
+	u8 block_state[CC_AES_BLOCK_SIZE];
+	u8 key[CC_AES_KEY_SIZE_MAX];
+	u8 xex_key[CC_AES_KEY_SIZE_MAX];
 	/* reserve to end of allocated context size */
-	uint32_t reserved[CC_DRV_CTX_SIZE_WORDS - 7 -
-		CC_AES_BLOCK_SIZE/sizeof(uint32_t) - 2 *
-		(CC_AES_KEY_SIZE_MAX/sizeof(uint32_t))];
+	u32 reserved[CC_DRV_CTX_SIZE_WORDS - 7 -
+		CC_AES_BLOCK_SIZE/sizeof(u32) - 2 *
+		(CC_AES_KEY_SIZE_MAX/sizeof(u32))];
 };
 
 /* authentication and encryption with associated data class */
@@ -268,20 +263,20 @@ struct drv_ctx_aead {
 	enum drv_crypto_alg alg; /* DRV_CRYPTO_ALG_AES */
 	enum drv_cipher_mode mode;
 	enum drv_crypto_direction direction;
-	uint32_t key_size; /* numeric value in bytes   */
-	uint32_t nonce_size; /* nonce size (octets) */
-	uint32_t header_size; /* finit additional data size (octets) */
-	uint32_t text_size; /* finit text data size (octets) */
-	uint32_t tag_size; /* mac size, element of {4, 6, 8, 10, 12, 14, 16} */
+	u32 key_size; /* numeric value in bytes   */
+	u32 nonce_size; /* nonce size (octets) */
+	u32 header_size; /* finit additional data size (octets) */
+	u32 text_size; /* finit text data size (octets) */
+	u32 tag_size; /* mac size, element of {4, 6, 8, 10, 12, 14, 16} */
 	/* block_state1/2 is the AES engine block state */
-	uint8_t block_state[CC_AES_BLOCK_SIZE];
-	uint8_t mac_state[CC_AES_BLOCK_SIZE]; /* MAC result */
-	uint8_t nonce[CC_AES_BLOCK_SIZE]; /* nonce buffer */
-	uint8_t key[CC_AES_KEY_SIZE_MAX];
+	u8 block_state[CC_AES_BLOCK_SIZE];
+	u8 mac_state[CC_AES_BLOCK_SIZE]; /* MAC result */
+	u8 nonce[CC_AES_BLOCK_SIZE]; /* nonce buffer */
+	u8 key[CC_AES_KEY_SIZE_MAX];
 	/* reserve to end of allocated context size */
-	uint32_t reserved[CC_DRV_CTX_SIZE_WORDS - 8 -
-		3 * (CC_AES_BLOCK_SIZE/sizeof(uint32_t)) -
-		CC_AES_KEY_SIZE_MAX/sizeof(uint32_t)];
+	u32 reserved[CC_DRV_CTX_SIZE_WORDS - 8 -
+		3 * (CC_AES_BLOCK_SIZE/sizeof(u32)) -
+		CC_AES_KEY_SIZE_MAX/sizeof(u32)];
 };
 
 /*******************************************************************/
