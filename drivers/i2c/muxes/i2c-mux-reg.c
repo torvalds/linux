@@ -196,20 +196,25 @@ static int i2c_mux_reg_probe(struct platform_device *pdev)
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		mux->data.reg_size = resource_size(res);
 		mux->data.reg = devm_ioremap_resource(&pdev->dev, res);
-		if (IS_ERR(mux->data.reg))
-			return PTR_ERR(mux->data.reg);
+		if (IS_ERR(mux->data.reg)) {
+			ret = PTR_ERR(mux->data.reg);
+			goto err_put_parent;
+		}
 	}
 
 	if (mux->data.reg_size != 4 && mux->data.reg_size != 2 &&
 	    mux->data.reg_size != 1) {
 		dev_err(&pdev->dev, "Invalid register size\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_put_parent;
 	}
 
 	muxc = i2c_mux_alloc(parent, &pdev->dev, mux->data.n_values, 0, 0,
 			     i2c_mux_reg_select, NULL);
-	if (!muxc)
-		return -ENOMEM;
+	if (!muxc) {
+		ret = -ENOMEM;
+		goto err_put_parent;
+	}
 	muxc->priv = mux;
 
 	platform_set_drvdata(pdev, muxc);
@@ -233,6 +238,8 @@ static int i2c_mux_reg_probe(struct platform_device *pdev)
 
 add_adapter_failed:
 	i2c_mux_del_adapters(muxc);
+err_put_parent:
+	i2c_put_adapter(parent);
 
 	return ret;
 }
