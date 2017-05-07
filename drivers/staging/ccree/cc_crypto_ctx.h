@@ -20,12 +20,6 @@
 
 #include <linux/types.h>
 
-
-#ifndef max
-#define max(a, b) ((a) > (b) ? (a) : (b))
-#define min(a, b) ((a) < (b) ? (a) : (b))
-#endif
-
 /* context size */
 #ifndef CC_CTX_SIZE_LOG2
 #if (CC_SUPPORT_SHA > 256)
