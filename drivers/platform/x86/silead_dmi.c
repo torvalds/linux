@@ -80,6 +80,19 @@ static const struct silead_ts_dmi_data surftab_wintron70_st70416_6_data = {
 	.properties	= surftab_wintron70_st70416_6_props,
 };
 
+static const struct property_entry gp_electronic_t701_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 960),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 640),
+	PROPERTY_ENTRY_STRING("firmware-name",
+			      "gsl1680-gp-electronic-t701.fw"),
+	{ }
+};
+
+static const struct silead_ts_dmi_data gp_electronic_t701_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= gp_electronic_t701_props,
+};
+
 static const struct dmi_system_id silead_ts_dmi_table[] = {
 	{
 		/* CUBE iwork8 Air */
@@ -115,6 +128,15 @@ static const struct dmi_system_id silead_ts_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "ST70416-6"),
 			/* Exact match, different versions need different fw */
 			DMI_MATCH(DMI_BIOS_VERSION, "TREK.G.WI71C.JGBMRBA04"),
+		},
+	},
+	{
+		/* GP-electronic T701 */
+		.driver_data = (void *)&gp_electronic_t701_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "T701"),
+			DMI_MATCH(DMI_BIOS_VERSION, "BYT70A.YNCHENG.WIN.007"),
 		},
 	},
 	{ },
