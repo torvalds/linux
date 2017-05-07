@@ -14,7 +14,6 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-
 #ifndef _CC_LLI_DEFS_H_
 #define _CC_LLI_DEFS_H_
 #ifdef __KERNEL__
@@ -29,7 +28,7 @@
 
 #define CC_MAX_MLLI_ENTRY_SIZE 0x10000
 
-#define MSB64(_addr) (sizeof(_addr) == 4 ? 0 : ((_addr) >> 32)&U16_MAX)
+#define MSB64(_addr) (sizeof(_addr) == 4 ? 0 : ((_addr) >> 32) & U16_MAX)
 
 #define LLI_SET_ADDR(lli_p, addr) \
 		BITFIELD_SET(((u32 *)(lli_p))[LLI_WORD0_OFFSET], LLI_LADDR_BIT_OFFSET, LLI_LADDR_BIT_SIZE, (addr & U32_MAX)); \
@@ -52,6 +51,5 @@
 #define LLI_SIZE_BIT_SIZE 16
 #define LLI_HADDR_BIT_OFFSET 16
 #define LLI_HADDR_BIT_SIZE 16
-
 
 #endif /*_CC_LLI_DEFS_H_*/
