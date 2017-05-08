@@ -2286,6 +2286,34 @@ static int vega10_avfs_enable(struct pp_hwmgr *hwmgr, bool enable)
 	return 0;
 }
 
+static int vega10_save_default_power_profile(struct pp_hwmgr *hwmgr)
+{
+	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_single_dpm_table *dpm_table = &(data->dpm_table.gfx_table);
+	uint32_t min_level;
+
+	hwmgr->default_gfx_power_profile.type = AMD_PP_GFX_PROFILE;
+	hwmgr->default_compute_power_profile.type = AMD_PP_COMPUTE_PROFILE;
+
+	/* Optimize compute power profile: Use only highest
+	 * 2 power levels (if more than 2 are available)
+	 */
+	if (dpm_table->count > 2)
+		min_level = dpm_table->count - 2;
+	else if (dpm_table->count == 2)
+		min_level = 1;
+	else
+		min_level = 0;
+
+	hwmgr->default_compute_power_profile.min_sclk =
+			dpm_table->dpm_levels[min_level].value;
+
+	hwmgr->gfx_power_profile = hwmgr->default_gfx_power_profile;
+	hwmgr->compute_power_profile = hwmgr->default_compute_power_profile;
+
+	return 0;
+}
+
 /**
 * Initializes the SMC table and uploads it
 *
@@ -2419,6 +2447,8 @@ static int vega10_init_smc_table(struct pp_hwmgr *hwmgr)
 	result = vega10_avfs_enable(hwmgr, true);
 	PP_ASSERT_WITH_CODE(!result, "Attempt to enable AVFS feature Failed!",
 					return result);
+
+	vega10_save_default_power_profile(hwmgr);
 
 	return 0;
 }
@@ -4483,6 +4513,67 @@ static int vega10_power_off_asic(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
+static void vega10_find_min_clock_index(struct pp_hwmgr *hwmgr,
+		uint32_t *sclk_idx, uint32_t *mclk_idx,
+		uint32_t min_sclk, uint32_t min_mclk)
+{
+	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_dpm_table *dpm_table = &(data->dpm_table);
+	uint32_t i;
+
+	for (i = 0; i < dpm_table->gfx_table.count; i++) {
+		if (dpm_table->gfx_table.dpm_levels[i].enabled &&
+			dpm_table->gfx_table.dpm_levels[i].value >= min_sclk) {
+			*sclk_idx = i;
+			break;
+		}
+	}
+
+	for (i = 0; i < dpm_table->mem_table.count; i++) {
+		if (dpm_table->mem_table.dpm_levels[i].enabled &&
+			dpm_table->mem_table.dpm_levels[i].value >= min_mclk) {
+			*mclk_idx = i;
+			break;
+		}
+	}
+}
+
+static int vega10_set_power_profile_state(struct pp_hwmgr *hwmgr,
+		struct amd_pp_profile *request)
+{
+	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	uint32_t sclk_idx = 0, mclk_idx = 0;
+
+	if (hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_AUTO)
+		return -EINVAL;
+
+	vega10_find_min_clock_index(hwmgr, &sclk_idx, &mclk_idx,
+			request->min_sclk, request->min_mclk);
+
+	if (sclk_idx) {
+		if (!data->registry_data.sclk_dpm_key_disabled)
+			PP_ASSERT_WITH_CODE(
+					!smum_send_msg_to_smc_with_parameter(
+					hwmgr->smumgr,
+					PPSMC_MSG_SetSoftMinGfxclkByIndex,
+					sclk_idx),
+					"Failed to set soft min sclk index!",
+					return -EINVAL);
+	}
+
+	if (mclk_idx) {
+		if (!data->registry_data.mclk_dpm_key_disabled)
+			PP_ASSERT_WITH_CODE(
+					!smum_send_msg_to_smc_with_parameter(
+					hwmgr->smumgr,
+					PPSMC_MSG_SetSoftMinUclkByIndex,
+					mclk_idx),
+					"Failed to set soft min mclk index!",
+					return -EINVAL);
+	}
+
+	return 0;
+}
 
 static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.backend_init = vega10_hwmgr_backend_init,
@@ -4531,6 +4622,7 @@ static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 			vega10_check_smc_update_required_for_display_configuration,
 	.power_off_asic = vega10_power_off_asic,
 	.disable_smc_firmware_ctf = vega10_thermal_disable_alert,
+	.set_power_profile_state = vega10_set_power_profile_state,
 };
 
 int vega10_hwmgr_init(struct pp_hwmgr *hwmgr)
