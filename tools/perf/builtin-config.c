@@ -204,31 +204,33 @@ int cmd_config(int argc, const char **argv)
 		}
 		break;
 	default:
-		if (argc) {
-			for (i = 0; argv[i]; i++) {
-				char *var, *value;
-				char *arg = strdup(argv[i]);
-
-				if (!arg) {
-					pr_err("%s: strdup failed\n", __func__);
-					ret = -1;
-					break;
-				}
-
-				if (parse_config_arg(arg, &var, &value) < 0) {
-					free(arg);
-					ret = -1;
-					break;
-				}
-
-				if (value == NULL)
-					ret = show_spec_config(set, var);
-				else
-					ret = set_config(set, config_filename, var, value);
-				free(arg);
-			}
-		} else
+		if (!argc) {
 			usage_with_options(config_usage, config_options);
+			break;
+		}
+
+		for (i = 0; argv[i]; i++) {
+			char *var, *value;
+			char *arg = strdup(argv[i]);
+
+			if (!arg) {
+				pr_err("%s: strdup failed\n", __func__);
+				ret = -1;
+				break;
+			}
+
+			if (parse_config_arg(arg, &var, &value) < 0) {
+				free(arg);
+				ret = -1;
+				break;
+			}
+
+			if (value == NULL)
+				ret = show_spec_config(set, var);
+			else
+				ret = set_config(set, config_filename, var, value);
+			free(arg);
+		}
 	}
 
 	perf_config_set__delete(set);
