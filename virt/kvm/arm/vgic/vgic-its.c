@@ -1613,13 +1613,20 @@ static int vgic_its_create(struct kvm_device *dev, u32 type)
 	return vgic_its_set_abi(its, NR_ITS_ABIS - 1);
 }
 
+static void vgic_its_free_device(struct kvm *kvm, struct its_device *dev)
+{
+	struct its_ite *ite, *tmp;
+
+	list_for_each_entry_safe(ite, tmp, &dev->itt_head, ite_list)
+		its_free_ite(kvm, ite);
+	list_del(&dev->dev_list);
+	kfree(dev);
+}
+
 static void vgic_its_destroy(struct kvm_device *kvm_dev)
 {
 	struct kvm *kvm = kvm_dev->kvm;
 	struct vgic_its *its = kvm_dev->private;
-	struct its_device *dev;
-	struct its_ite *ite;
-	struct list_head *dev_cur, *dev_temp;
 	struct list_head *cur, *temp;
 
 	/*
@@ -1630,19 +1637,19 @@ static void vgic_its_destroy(struct kvm_device *kvm_dev)
 		return;
 
 	mutex_lock(&its->its_lock);
-	list_for_each_safe(dev_cur, dev_temp, &its->device_list) {
-		dev = container_of(dev_cur, struct its_device, dev_list);
-		list_for_each_safe(cur, temp, &dev->itt_head) {
-			ite = (container_of(cur, struct its_ite, ite_list));
-			its_free_ite(kvm, ite);
-		}
-		list_del(dev_cur);
-		kfree(dev);
+	list_for_each_safe(cur, temp, &its->device_list) {
+		struct its_device *dev;
+
+		dev = list_entry(cur, struct its_device, dev_list);
+		vgic_its_free_device(kvm, dev);
 	}
 
 	list_for_each_safe(cur, temp, &its->collection_list) {
+		struct its_collection *coll;
+
+		coll = list_entry(cur, struct its_collection, coll_list);
 		list_del(cur);
-		kfree(container_of(cur, struct its_collection, coll_list));
+		kfree(coll);
 	}
 	mutex_unlock(&its->its_lock);
 
@@ -2012,8 +2019,10 @@ static int vgic_its_restore_dte(struct vgic_its *its, u32 id,
 		return PTR_ERR(dev);
 
 	ret = vgic_its_restore_itt(its, dev);
-	if (ret)
+	if (ret) {
+		vgic_its_free_device(its->dev->kvm, dev);
 		return ret;
+	}
 
 	return offset;
 }
