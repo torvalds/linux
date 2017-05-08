@@ -531,8 +531,9 @@ out:
 
 static int nlm_xdr_dec_testres(struct rpc_rqst *req,
 			       struct xdr_stream *xdr,
-			       struct nlm_res *result)
+			       void *data)
 {
+	struct nlm_res *result = data;
 	int error;
 
 	error = decode_cookie(xdr, &result->cookie);
@@ -551,8 +552,9 @@ out:
  */
 static int nlm_xdr_dec_res(struct rpc_rqst *req,
 			   struct xdr_stream *xdr,
-			   struct nlm_res *result)
+			   void *data)
 {
+	struct nlm_res *result = data;
 	int error;
 
 	error = decode_cookie(xdr, &result->cookie);
@@ -573,7 +575,7 @@ out:
 [NLMPROC_##proc] = {							\
 	.p_proc      = NLMPROC_##proc,					\
 	.p_encode    = nlm_xdr_enc_##argtype,		\
-	.p_decode    = (kxdrdproc_t)nlm_xdr_dec_##restype,		\
+	.p_decode    = nlm_xdr_dec_##restype,				\
 	.p_arglen    = NLM_##argtype##_sz,				\
 	.p_replen    = NLM_##restype##_sz,				\
 	.p_statidx   = NLMPROC_##proc,					\
