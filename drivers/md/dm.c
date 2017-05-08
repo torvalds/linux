@@ -1384,6 +1384,10 @@ static void __split_and_process_bio(struct mapped_device *md,
 		ci.sector_count = 0;
 		error = __send_empty_flush(&ci);
 		/* dec_pending submits any data associated with flush */
+	} else if (bio_op(bio) == REQ_OP_ZONE_RESET) {
+		ci.bio = bio;
+		ci.sector_count = 0;
+		error = __split_and_process_non_flush(&ci);
 	} else {
 		ci.bio = bio;
 		ci.sector_count = bio_sectors(bio);
