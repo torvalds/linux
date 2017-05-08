@@ -223,13 +223,13 @@ static int nfs3svc_encode_setaclres(struct svc_rqst *rqstp, __be32 *p,
 /*
  * XDR release functions
  */
-static int nfs3svc_release_getacl(struct svc_rqst *rqstp, __be32 *p,
-		struct nfsd3_getaclres *resp)
+static void nfs3svc_release_getacl(struct svc_rqst *rqstp)
 {
+	struct nfsd3_getaclres *resp = rqstp->rq_resp;
+
 	fh_put(&resp->fh);
 	posix_acl_release(resp->acl_access);
 	posix_acl_release(resp->acl_default);
-	return 1;
 }
 
 #define nfs3svc_decode_voidargs		NULL
@@ -243,7 +243,7 @@ struct nfsd3_voidargs { int dummy; };
 	.pc_func	= nfsd3_proc_##name,				\
 	.pc_decode	= (kxdrproc_t) nfs3svc_decode_##argt##args,	\
 	.pc_encode	= (kxdrproc_t) nfs3svc_encode_##rest##res,	\
-	.pc_release	= (kxdrproc_t) nfs3svc_release_##relt,		\
+	.pc_release	= nfs3svc_release_##relt,			\
 	.pc_argsize	= sizeof(struct nfsd3_##argt##args),		\
 	.pc_ressize	= sizeof(struct nfsd3_##rest##res),		\
 	.pc_cachetype	= cache,					\

@@ -1287,12 +1287,12 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 		if (*statp == rpc_drop_reply ||
 		    test_bit(RQ_DROPME, &rqstp->rq_flags)) {
 			if (procp->pc_release)
-				procp->pc_release(rqstp, NULL, rqstp->rq_resp);
+				procp->pc_release(rqstp);
 			goto dropit;
 		}
 		if (*statp == rpc_autherr_badcred) {
 			if (procp->pc_release)
-				procp->pc_release(rqstp, NULL, rqstp->rq_resp);
+				procp->pc_release(rqstp);
 			goto err_bad_auth;
 		}
 		if (*statp == rpc_success &&
@@ -1307,7 +1307,7 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 		if (!versp->vs_dispatch(rqstp, statp)) {
 			/* Release reply info */
 			if (procp->pc_release)
-				procp->pc_release(rqstp, NULL, rqstp->rq_resp);
+				procp->pc_release(rqstp);
 			goto dropit;
 		}
 	}
@@ -1318,7 +1318,7 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 
 	/* Release reply info */
 	if (procp->pc_release)
-		procp->pc_release(rqstp, NULL, rqstp->rq_resp);
+		procp->pc_release(rqstp);
 
 	if (procp->pc_encode == NULL)
 		goto dropit;
