@@ -110,7 +110,7 @@ static void sync_print_fence(struct seq_file *s,
 		}
 	}
 
-	seq_puts(s, "\n");
+	seq_putc(s, '\n');
 }
 
 static void sync_print_obj(struct seq_file *s, struct sync_timeline *obj)
@@ -161,7 +161,7 @@ static int sync_debugfs_show(struct seq_file *s, void *unused)
 				     sync_timeline_list);
 
 		sync_print_obj(s, obj);
-		seq_puts(s, "\n");
+		seq_putc(s, '\n');
 	}
 	spin_unlock_irqrestore(&sync_timeline_list_lock, flags);
 
@@ -173,7 +173,7 @@ static int sync_debugfs_show(struct seq_file *s, void *unused)
 			container_of(pos, struct sync_file, sync_file_list);
 
 		sync_print_sync_file(s, sync_file);
-		seq_puts(s, "\n");
+		seq_putc(s, '\n');
 	}
 	spin_unlock_irqrestore(&sync_file_list_lock, flags);
 	return 0;
