@@ -20,13 +20,21 @@ extern void nfsd4_set_closestateid(struct nfsd4_compound_state *,
 /*
  * functions to consume current state id
  */
-extern void nfsd4_get_opendowngradestateid(struct nfsd4_compound_state *cstate, struct nfsd4_open_downgrade *);
-extern void nfsd4_get_delegreturnstateid(struct nfsd4_compound_state *, struct nfsd4_delegreturn *);
-extern void nfsd4_get_freestateid(struct nfsd4_compound_state *, struct nfsd4_free_stateid *);
-extern void nfsd4_get_setattrstateid(struct nfsd4_compound_state *, struct nfsd4_setattr *);
-extern void nfsd4_get_closestateid(struct nfsd4_compound_state *, struct nfsd4_close *);
-extern void nfsd4_get_lockustateid(struct nfsd4_compound_state *, struct nfsd4_locku *);
-extern void nfsd4_get_readstateid(struct nfsd4_compound_state *, struct nfsd4_read *);
-extern void nfsd4_get_writestateid(struct nfsd4_compound_state *, struct nfsd4_write *);
+extern void nfsd4_get_opendowngradestateid(struct nfsd4_compound_state *,
+		union nfsd4_op_u *);
+extern void nfsd4_get_delegreturnstateid(struct nfsd4_compound_state *,
+		union nfsd4_op_u *);
+extern void nfsd4_get_freestateid(struct nfsd4_compound_state *,
+		union nfsd4_op_u *);
+extern void nfsd4_get_setattrstateid(struct nfsd4_compound_state *,
+		union nfsd4_op_u *);
+extern void nfsd4_get_closestateid(struct nfsd4_compound_state *,
+		union nfsd4_op_u *);
+extern void nfsd4_get_lockustateid(struct nfsd4_compound_state *,
+		union nfsd4_op_u *);
+extern void nfsd4_get_readstateid(struct nfsd4_compound_state *,
+		union nfsd4_op_u *);
+extern void nfsd4_get_writestateid(struct nfsd4_compound_state *,
+		union nfsd4_op_u *);
 
 #endif   /* _NFSD4_CURRENT_STATE_H */
