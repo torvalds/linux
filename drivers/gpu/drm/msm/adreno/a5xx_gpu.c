@@ -287,7 +287,7 @@ static int a5xx_me_init(struct msm_gpu *gpu)
 
 	gpu->funcs->flush(gpu);
 
-	return gpu->funcs->idle(gpu) ? 0 : -EINVAL;
+	return a5xx_idle(gpu) ? 0 : -EINVAL;
 }
 
 static struct drm_gem_object *a5xx_ucode_load_bo(struct msm_gpu *gpu,
@@ -638,7 +638,7 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 		OUT_RING(gpu->rb, 0x0F);
 
 		gpu->funcs->flush(gpu);
-		if (!gpu->funcs->idle(gpu))
+		if (!a5xx_idle(gpu))
 			return -EINVAL;
 	}
 
@@ -655,7 +655,7 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 		OUT_RING(gpu->rb, 0x00000000);
 
 		gpu->funcs->flush(gpu);
-		if (!gpu->funcs->idle(gpu))
+		if (!a5xx_idle(gpu))
 			return -EINVAL;
 	} else {
 		/* Print a warning so if we die, we know why */
@@ -732,7 +732,7 @@ static inline bool _a5xx_check_idle(struct msm_gpu *gpu)
 		A5XX_RBBM_INT_0_MASK_MISC_HANG_DETECT);
 }
 
-static bool a5xx_idle(struct msm_gpu *gpu)
+bool a5xx_idle(struct msm_gpu *gpu)
 {
 	/* wait for CP to drain ringbuffer: */
 	if (!adreno_idle(gpu))
@@ -1037,7 +1037,6 @@ static const struct adreno_gpu_funcs funcs = {
 		.last_fence = adreno_last_fence,
 		.submit = a5xx_submit,
 		.flush = adreno_flush,
-		.idle = a5xx_idle,
 		.irq = a5xx_irq,
 		.destroy = a5xx_destroy,
 #ifdef CONFIG_DEBUG_FS

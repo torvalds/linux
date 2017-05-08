@@ -194,7 +194,7 @@ static int a5xx_gpmu_init(struct msm_gpu *gpu)
 
 	gpu->funcs->flush(gpu);
 
-	if (!gpu->funcs->idle(gpu)) {
+	if (!a5xx_idle(gpu)) {
 		DRM_ERROR("%s: Unable to load GPMU firmware. GPMU will not be active\n",
 			gpu->name);
 		return -EINVAL;
