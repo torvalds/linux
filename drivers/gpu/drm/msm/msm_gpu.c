@@ -562,7 +562,7 @@ static int get_clocks(struct platform_device *pdev, struct msm_gpu *gpu)
 
 int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		struct msm_gpu *gpu, const struct msm_gpu_funcs *funcs,
-		const char *name, const char *ioname, const char *irqname, int ringsz)
+		const char *name, struct msm_gpu_config *config)
 {
 	struct iommu_domain *iommu;
 	int ret;
@@ -593,14 +593,14 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 
 
 	/* Map registers: */
-	gpu->mmio = msm_ioremap(pdev, ioname, name);
+	gpu->mmio = msm_ioremap(pdev, config->ioname, name);
 	if (IS_ERR(gpu->mmio)) {
 		ret = PTR_ERR(gpu->mmio);
 		goto fail;
 	}
 
 	/* Get Interrupt: */
-	gpu->irq = platform_get_irq_byname(pdev, irqname);
+	gpu->irq = platform_get_irq_byname(pdev, config->irqname);
 	if (gpu->irq < 0) {
 		ret = gpu->irq;
 		dev_err(drm->dev, "failed to get irq: %d\n", ret);
@@ -640,9 +640,8 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	 */
 	iommu = iommu_domain_alloc(&platform_bus_type);
 	if (iommu) {
-		/* TODO 32b vs 64b address space.. */
-		iommu->geometry.aperture_start = SZ_16M;
-		iommu->geometry.aperture_end = 0xffffffff;
+		iommu->geometry.aperture_start = config->va_start;
+		iommu->geometry.aperture_end = config->va_end;
 
 		dev_info(drm->dev, "%s: using IOMMU\n", name);
 		gpu->aspace = msm_gem_address_space_create(&pdev->dev,
@@ -663,7 +662,7 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 
 	/* Create ringbuffer: */
 	mutex_lock(&drm->struct_mutex);
-	gpu->rb = msm_ringbuffer_new(gpu, ringsz);
+	gpu->rb = msm_ringbuffer_new(gpu, config->ringsz);
 	mutex_unlock(&drm->struct_mutex);
 	if (IS_ERR(gpu->rb)) {
 		ret = PTR_ERR(gpu->rb);

@@ -342,6 +342,7 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		struct adreno_gpu *adreno_gpu, const struct adreno_gpu_funcs *funcs)
 {
 	struct adreno_platform_config *config = pdev->dev.platform_data;
+	struct msm_gpu_config adreno_gpu_config  = { 0 };
 	struct msm_gpu *gpu = &adreno_gpu->base;
 	int ret;
 
@@ -360,9 +361,16 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	DBG("fast_rate=%u, slow_rate=27000000, bus_freq=%u",
 			gpu->fast_rate, gpu->bus_freq);
 
+	adreno_gpu_config.ioname = "kgsl_3d0_reg_memory";
+	adreno_gpu_config.irqname = "kgsl_3d0_irq";
+
+	adreno_gpu_config.va_start = SZ_16M;
+	adreno_gpu_config.va_end = 0xffffffff;
+
+	adreno_gpu_config.ringsz = RB_SIZE;
+
 	ret = msm_gpu_init(drm, pdev, &adreno_gpu->base, &funcs->base,
-			adreno_gpu->info->name, "kgsl_3d0_reg_memory", "kgsl_3d0_irq",
-			RB_SIZE);
+			adreno_gpu->info->name, &adreno_gpu_config);
 	if (ret)
 		return ret;
 
