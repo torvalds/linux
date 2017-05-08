@@ -2213,8 +2213,7 @@ sub process {
 			}
 			#next;
 		}
-		if ($rawline=~/^\@\@ -\d+(?:,\d+)? \+(\d+)(,(\d+))? \@\@(.*)/) {
-			my $context = $4;
+		if ($rawline =~ /^\@\@ -\d+(?:,\d+)? \+(\d+)(,(\d+))? \@\@/) {
 			$realline=$1-1;
 			if (defined $2) {
 				$realcnt=$3+1;
@@ -2222,12 +2221,6 @@ sub process {
 				$realcnt=1+1;
 			}
 			$in_comment = 0;
-
-			if ($context =~ /\b(\w+)\s*\(/) {
-				$context_function = $1;
-			} else {
-				undef $context_function;
-			}
 
 			# Guestimate if this is a continuing comment.  Run
 			# the context looking for a comment "edge".  If this
@@ -2299,7 +2292,8 @@ sub process {
 
 #extract the line range in the file after the patch is applied
 		if (!$in_commit_log &&
-		    $line =~ /^\@\@ -\d+(?:,\d+)? \+(\d+)(,(\d+))? \@\@/) {
+		    $line =~ /^\@\@ -\d+(?:,\d+)? \+(\d+)(,(\d+))? \@\@(.*)/) {
+			my $context = $4;
 			$is_patch = 1;
 			$first_line = $linenr + 1;
 			$realline=$1-1;
@@ -2315,6 +2309,11 @@ sub process {
 			%suppress_whiletrailers = ();
 			%suppress_export = ();
 			$suppress_statement = 0;
+			if ($context =~ /\b(\w+)\s*\(/) {
+				$context_function = $1;
+			} else {
+				undef $context_function;
+			}
 			next;
 
 # track the line number as we move through the hunk, note that
