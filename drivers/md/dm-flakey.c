@@ -275,7 +275,7 @@ static void flakey_map_bio(struct dm_target *ti, struct bio *bio)
 	struct flakey_c *fc = ti->private;
 
 	bio->bi_bdev = fc->dev->bdev;
-	if (bio_sectors(bio))
+	if (bio_sectors(bio) || bio_op(bio) == REQ_OP_ZONE_RESET)
 		bio->bi_iter.bi_sector =
 			flakey_map_sector(ti, bio->bi_iter.bi_sector);
 }
@@ -305,6 +305,14 @@ static int flakey_map(struct dm_target *ti, struct bio *bio)
 	unsigned elapsed;
 	struct per_bio_data *pb = dm_per_bio_data(bio, sizeof(struct per_bio_data));
 	pb->bio_submitted = false;
+
+	/* Do not fail reset zone */
+	if (bio_op(bio) == REQ_OP_ZONE_RESET)
+		goto map_bio;
+
+	/* We need to remap reported zones, so remember the BIO iter */
+	if (bio_op(bio) == REQ_OP_ZONE_REPORT)
+		goto map_bio;
 
 	/* Are we alive ? */
 	elapsed = (jiffies - fc->start_time) / HZ;
@@ -359,10 +367,18 @@ map_bio:
 }
 
 static int flakey_end_io(struct dm_target *ti, struct bio *bio,
-		blk_status_t *error)
+			 blk_status_t *error)
 {
 	struct flakey_c *fc = ti->private;
 	struct per_bio_data *pb = dm_per_bio_data(bio, sizeof(struct per_bio_data));
+
+	if (bio_op(bio) == REQ_OP_ZONE_RESET)
+		return DM_ENDIO_DONE;
+
+	if (bio_op(bio) == REQ_OP_ZONE_REPORT) {
+		dm_remap_zone_report(ti, bio, fc->start);
+		return DM_ENDIO_DONE;
+	}
 
 	if (!*error && pb->bio_submitted && (bio_data_dir(bio) == READ)) {
 		if (fc->corrupt_bio_byte && (fc->corrupt_bio_rw == READ) &&
@@ -446,7 +462,8 @@ static int flakey_iterate_devices(struct dm_target *ti, iterate_devices_callout_
 
 static struct target_type flakey_target = {
 	.name   = "flakey",
-	.version = {1, 4, 0},
+	.version = {1, 5, 0},
+	.features = DM_TARGET_ZONED_HM,
 	.module = THIS_MODULE,
 	.ctr    = flakey_ctr,
 	.dtr    = flakey_dtr,
