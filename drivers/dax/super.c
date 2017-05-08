@@ -21,10 +21,6 @@
 #include <linux/dax.h>
 #include <linux/fs.h>
 
-static int nr_dax = CONFIG_NR_DEV_DAX;
-module_param(nr_dax, int, S_IRUGO);
-MODULE_PARM_DESC(nr_dax, "max number of dax device instances");
-
 static dev_t dax_devt;
 DEFINE_STATIC_SRCU(dax_srcu);
 static struct vfsmount *dax_mnt;
@@ -331,7 +327,7 @@ struct dax_device *alloc_dax(void *private, const char *__host,
 	if (__host && !host)
 		return NULL;
 
-	minor = ida_simple_get(&dax_minor_ida, 0, nr_dax, GFP_KERNEL);
+	minor = ida_simple_get(&dax_minor_ida, 0, MINORMASK+1, GFP_KERNEL);
 	if (minor < 0)
 		goto err_minor;
 
@@ -475,8 +471,7 @@ static int __init dax_fs_init(void)
 	if (rc)
 		return rc;
 
-	nr_dax = max(nr_dax, 256);
-	rc = alloc_chrdev_region(&dax_devt, 0, nr_dax, "dax");
+	rc = alloc_chrdev_region(&dax_devt, 0, MINORMASK+1, "dax");
 	if (rc)
 		__dax_fs_exit();
 	return rc;
@@ -484,7 +479,7 @@ static int __init dax_fs_init(void)
 
 static void __exit dax_fs_exit(void)
 {
-	unregister_chrdev_region(dax_devt, nr_dax);
+	unregister_chrdev_region(dax_devt, MINORMASK+1);
 	ida_destroy(&dax_minor_ida);
 	__dax_fs_exit();
 }
