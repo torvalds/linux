@@ -920,6 +920,10 @@ bool dcn_validate_bandwidth(
 		calc_wm_sets_and_perf_params(context, v);
 		context->bw.dcn.calc_clk.fclk_khz = (int)(bw_consumed * 1000000 /
 				(ddr4_dram_factor_single_Channel * v->number_of_channels));
+		if (bw_consumed == v->fabric_and_dram_bandwidth_vmin0p65) {
+			context->bw.dcn.calc_clk.fclk_khz = (int)(bw_consumed * 1000000 / 32);
+		}
+
 		context->bw.dcn.calc_clk.dram_ccm_us = (int)(v->dram_clock_change_margin);
 		context->bw.dcn.calc_clk.min_active_dram_ccm_us = (int)(v->min_active_dram_clock_change_margin);
 		context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz = (int)(v->dcf_clk_deep_sleep * 1000);
@@ -1178,8 +1182,7 @@ void dcn_bw_update_from_pplib(struct core_dc *dc)
 			ctx, DM_PP_CLOCK_TYPE_FCLK, &clks) &&
 			clks.num_levels != 0) {
 		ASSERT(clks.num_levels >= 3);
-		dc->dcn_soc.fabric_and_dram_bandwidth_vmin0p65 = dc->dcn_soc.number_of_channels *
-			(clks.data[0].clocks_in_khz / 1000.0) * ddr4_dram_factor_single_Channel / 1000.0;
+		dc->dcn_soc.fabric_and_dram_bandwidth_vmin0p65 = 32 * (clks.data[0].clocks_in_khz / 1000.0) / 1000.0;
 		if (clks.num_levels > 2) {
 			dc->dcn_soc.fabric_and_dram_bandwidth_vmid0p72 = dc->dcn_soc.number_of_channels *
 					(clks.data[clks.num_levels - 3].clocks_in_khz / 1000.0) * ddr4_dram_factor_single_Channel / 1000.0;
@@ -1240,7 +1243,7 @@ void dcn_bw_notify_pplib_of_wm_ranges(struct core_dc *dc)
 	kernel_fpu_begin();
 	max_fclk_khz = dc->dcn_soc.fabric_and_dram_bandwidth_vmax0p9 * 1000000 / factor;
 	nom_fclk_khz = dc->dcn_soc.fabric_and_dram_bandwidth_vnom0p8 * 1000000 / factor;
-	min_fclk_khz = dc->dcn_soc.fabric_and_dram_bandwidth_vmin0p65 * 1000000 / factor;
+	min_fclk_khz = dc->dcn_soc.fabric_and_dram_bandwidth_vmin0p65 * 1000000 / 32;
 	max_dcfclk_khz = dc->dcn_soc.dcfclkv_max0p9 * 1000;
 	nom_dcfclk_khz = dc->dcn_soc.dcfclkv_nom0p8 * 1000;
 	min_dcfclk_khz = dc->dcn_soc.dcfclkv_min0p65 * 1000;
