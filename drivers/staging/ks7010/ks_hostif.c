@@ -147,7 +147,7 @@ int get_current_ap(struct ks_wlan_private *priv, struct link_ap_info_t *ap_info)
 	/* noise */
 	ap->noise = ap_info->noise;
 	/* capability */
-	ap->capability = ap_info->capability;
+	ap->capability = le16_to_cpu(ap_info->capability);
 	/* rsn */
 	if ((ap_info->rsn_mode & RSN_MODE_WPA2) &&
 	    (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2)) {
@@ -233,12 +233,12 @@ int get_ap_information(struct ks_wlan_private *priv, struct ap_info_t *ap_info,
 	/* noise */
 	ap->noise = ap_info->noise;
 	/* capability */
-	ap->capability = ap_info->capability;
+	ap->capability = le16_to_cpu(ap_info->capability);
 	/* channel */
 	ap->channel = ap_info->ch_info;
 
 	bp = ap_info->body;
-	bsize = ap_info->body_size;
+	bsize = le16_to_cpu(ap_info->body_size);
 	offset = 0;
 
 	while (bsize > offset) {
@@ -948,18 +948,18 @@ void hostif_associate_indication(struct ks_wlan_private *priv)
 	wrqu.data.length += sizeof(associnfo_leader0) - 1;
 	pbuf += sizeof(associnfo_leader0) - 1;
 
-	for (i = 0; i < assoc_req->req_ies_size; i++)
+	for (i = 0; i < le16_to_cpu(assoc_req->req_ies_size); i++)
 		pbuf += sprintf(pbuf, "%02x", *(pb + i));
-	wrqu.data.length += (assoc_req->req_ies_size) * 2;
+	wrqu.data.length += (le16_to_cpu(assoc_req->req_ies_size)) * 2;
 
 	memcpy(pbuf, associnfo_leader1, sizeof(associnfo_leader1) - 1);
 	wrqu.data.length += sizeof(associnfo_leader1) - 1;
 	pbuf += sizeof(associnfo_leader1) - 1;
 
 	pb += assoc_req->req_ies_size;
-	for (i = 0; i < assoc_resp->resp_ies_size; i++)
+	for (i = 0; i < le16_to_cpu(assoc_resp->resp_ies_size); i++)
 		pbuf += sprintf(pbuf, "%02x", *(pb + i));
-	wrqu.data.length += (assoc_resp->resp_ies_size) * 2;
+	wrqu.data.length += (le16_to_cpu(assoc_resp->resp_ies_size)) * 2;
 
 	pbuf += sprintf(pbuf, ")");
 	wrqu.data.length += 1;
