@@ -274,15 +274,22 @@ struct ipuv3_channel *ipu_idmac_get(struct ipu_soc *ipu, unsigned num)
 
 	mutex_lock(&ipu->channel_lock);
 
-	channel = &ipu->channel[num];
+	list_for_each_entry(channel, &ipu->channels, list) {
+		if (channel->num == num) {
+			channel = ERR_PTR(-EBUSY);
+			goto out;
+		}
+	}
 
-	if (channel->busy) {
-		channel = ERR_PTR(-EBUSY);
+	channel = kzalloc(sizeof(*channel), GFP_KERNEL);
+	if (!channel) {
+		channel = ERR_PTR(-ENOMEM);
 		goto out;
 	}
 
-	channel->busy = true;
 	channel->num = num;
+	channel->ipu = ipu;
+	list_add(&channel->list, &ipu->channels);
 
 out:
 	mutex_unlock(&ipu->channel_lock);
@@ -299,7 +306,8 @@ void ipu_idmac_put(struct ipuv3_channel *channel)
 
 	mutex_lock(&ipu->channel_lock);
 
-	channel->busy = false;
+	list_del(&channel->list);
+	kfree(channel);
 
 	mutex_unlock(&ipu->channel_lock);
 }
@@ -1376,7 +1384,7 @@ static int ipu_probe(struct platform_device *pdev)
 	struct ipu_soc *ipu;
 	struct resource *res;
 	unsigned long ipu_base;
-	int i, ret, irq_sync, irq_err;
+	int ret, irq_sync, irq_err;
 	const struct ipu_devtype *devtype;
 
 	devtype = of_device_get_match_data(&pdev->dev);
@@ -1409,13 +1417,12 @@ static int ipu_probe(struct platform_device *pdev)
 			return -EPROBE_DEFER;
 	}
 
-	for (i = 0; i < 64; i++)
-		ipu->channel[i].ipu = ipu;
 	ipu->devtype = devtype;
 	ipu->ipu_type = devtype->type;
 
 	spin_lock_init(&ipu->lock);
 	mutex_init(&ipu->channel_lock);
+	INIT_LIST_HEAD(&ipu->channels);
 
 	dev_dbg(&pdev->dev, "cm_reg:   0x%08lx\n",
 			ipu_base + devtype->cm_ofs);
