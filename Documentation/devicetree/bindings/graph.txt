@@ -34,7 +34,7 @@ remote device, an 'endpoint' child node must be provided for each link.
 If more than one port is present in a device node or there is more than one
 endpoint at a port, or a port node needs to be associated with a selected
 hardware interface, a common scheme using '#address-cells', '#size-cells'
-and 'reg' properties is used number the nodes.
+and 'reg' properties is used to number the nodes.
 
 device {
         ...
@@ -89,9 +89,9 @@ Links between endpoints
 
 Each endpoint should contain a 'remote-endpoint' phandle property that points
 to the corresponding endpoint in the port of the remote device. In turn, the
-remote endpoint should contain a 'remote-endpoint' property. If it has one,
-it must not point to another than the local endpoint. Two endpoints with their
-'remote-endpoint' phandles pointing at each other form a link between the
+remote endpoint should contain a 'remote-endpoint' property. If it has one, it
+must not point to anything other than the local endpoint. Two endpoints with
+their 'remote-endpoint' phandles pointing at each other form a link between the
 containing ports.
 
 device-1 {
@@ -110,13 +110,12 @@ device-2 {
         };
 };
 
-
 Required properties
 -------------------
 
 If there is more than one 'port' or more than one 'endpoint' node or 'reg'
-property is present in port and/or endpoint nodes the following properties
-are required in a relevant parent node:
+property present in the port and/or endpoint nodes then the following
+properties are required in a relevant parent node:
 
  - #address-cells : number of cells required to define port/endpoint
                     identifier, should be 1.
