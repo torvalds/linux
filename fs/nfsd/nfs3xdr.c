@@ -634,16 +634,17 @@ nfs3svc_decode_commitargs(struct svc_rqst *rqstp, __be32 *p)
  * will work properly.
  */
 int
-nfs3svc_encode_voidres(struct svc_rqst *rqstp, __be32 *p, void *dummy)
+nfs3svc_encode_voidres(struct svc_rqst *rqstp, __be32 *p)
 {
 	return xdr_ressize_check(rqstp, p);
 }
 
 /* GETATTR */
 int
-nfs3svc_encode_attrstat(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_attrstat *resp)
+nfs3svc_encode_attrstat(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_attrstat *resp = rqstp->rq_resp;
+
 	if (resp->status == 0) {
 		lease_get_mtime(d_inode(resp->fh.fh_dentry),
 				&resp->stat.mtime);
@@ -654,18 +655,20 @@ nfs3svc_encode_attrstat(struct svc_rqst *rqstp, __be32 *p,
 
 /* SETATTR, REMOVE, RMDIR */
 int
-nfs3svc_encode_wccstat(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_attrstat *resp)
+nfs3svc_encode_wccstat(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_attrstat *resp = rqstp->rq_resp;
+
 	p = encode_wcc_data(rqstp, p, &resp->fh);
 	return xdr_ressize_check(rqstp, p);
 }
 
 /* LOOKUP */
 int
-nfs3svc_encode_diropres(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_diropres *resp)
+nfs3svc_encode_diropres(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_diropres *resp = rqstp->rq_resp;
+
 	if (resp->status == 0) {
 		p = encode_fh(p, &resp->fh);
 		p = encode_post_op_attr(rqstp, p, &resp->fh);
@@ -676,9 +679,10 @@ nfs3svc_encode_diropres(struct svc_rqst *rqstp, __be32 *p,
 
 /* ACCESS */
 int
-nfs3svc_encode_accessres(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_accessres *resp)
+nfs3svc_encode_accessres(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_accessres *resp = rqstp->rq_resp;
+
 	p = encode_post_op_attr(rqstp, p, &resp->fh);
 	if (resp->status == 0)
 		*p++ = htonl(resp->access);
@@ -687,9 +691,10 @@ nfs3svc_encode_accessres(struct svc_rqst *rqstp, __be32 *p,
 
 /* READLINK */
 int
-nfs3svc_encode_readlinkres(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_readlinkres *resp)
+nfs3svc_encode_readlinkres(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_readlinkres *resp = rqstp->rq_resp;
+
 	p = encode_post_op_attr(rqstp, p, &resp->fh);
 	if (resp->status == 0) {
 		*p++ = htonl(resp->len);
@@ -708,9 +713,10 @@ nfs3svc_encode_readlinkres(struct svc_rqst *rqstp, __be32 *p,
 
 /* READ */
 int
-nfs3svc_encode_readres(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_readres *resp)
+nfs3svc_encode_readres(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_readres *resp = rqstp->rq_resp;
+
 	p = encode_post_op_attr(rqstp, p, &resp->fh);
 	if (resp->status == 0) {
 		*p++ = htonl(resp->count);
@@ -732,9 +738,9 @@ nfs3svc_encode_readres(struct svc_rqst *rqstp, __be32 *p,
 
 /* WRITE */
 int
-nfs3svc_encode_writeres(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_writeres *resp)
+nfs3svc_encode_writeres(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_writeres *resp = rqstp->rq_resp;
 	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
 
 	p = encode_wcc_data(rqstp, p, &resp->fh);
@@ -749,9 +755,10 @@ nfs3svc_encode_writeres(struct svc_rqst *rqstp, __be32 *p,
 
 /* CREATE, MKDIR, SYMLINK, MKNOD */
 int
-nfs3svc_encode_createres(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_diropres *resp)
+nfs3svc_encode_createres(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_diropres *resp = rqstp->rq_resp;
+
 	if (resp->status == 0) {
 		*p++ = xdr_one;
 		p = encode_fh(p, &resp->fh);
@@ -763,9 +770,10 @@ nfs3svc_encode_createres(struct svc_rqst *rqstp, __be32 *p,
 
 /* RENAME */
 int
-nfs3svc_encode_renameres(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_renameres *resp)
+nfs3svc_encode_renameres(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_renameres *resp = rqstp->rq_resp;
+
 	p = encode_wcc_data(rqstp, p, &resp->ffh);
 	p = encode_wcc_data(rqstp, p, &resp->tfh);
 	return xdr_ressize_check(rqstp, p);
@@ -773,9 +781,10 @@ nfs3svc_encode_renameres(struct svc_rqst *rqstp, __be32 *p,
 
 /* LINK */
 int
-nfs3svc_encode_linkres(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_linkres *resp)
+nfs3svc_encode_linkres(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_linkres *resp = rqstp->rq_resp;
+
 	p = encode_post_op_attr(rqstp, p, &resp->fh);
 	p = encode_wcc_data(rqstp, p, &resp->tfh);
 	return xdr_ressize_check(rqstp, p);
@@ -783,9 +792,10 @@ nfs3svc_encode_linkres(struct svc_rqst *rqstp, __be32 *p,
 
 /* READDIR */
 int
-nfs3svc_encode_readdirres(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_readdirres *resp)
+nfs3svc_encode_readdirres(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_readdirres *resp = rqstp->rq_resp;
+
 	p = encode_post_op_attr(rqstp, p, &resp->fh);
 
 	if (resp->status == 0) {
@@ -1033,9 +1043,9 @@ nfs3svc_encode_entry_plus(void *cd, const char *name,
 
 /* FSSTAT */
 int
-nfs3svc_encode_fsstatres(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_fsstatres *resp)
+nfs3svc_encode_fsstatres(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_fsstatres *resp = rqstp->rq_resp;
 	struct kstatfs	*s = &resp->stats;
 	u64		bs = s->f_bsize;
 
@@ -1055,9 +1065,10 @@ nfs3svc_encode_fsstatres(struct svc_rqst *rqstp, __be32 *p,
 
 /* FSINFO */
 int
-nfs3svc_encode_fsinfores(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_fsinfores *resp)
+nfs3svc_encode_fsinfores(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_fsinfores *resp = rqstp->rq_resp;
+
 	*p++ = xdr_zero;	/* no post_op_attr */
 
 	if (resp->status == 0) {
@@ -1079,9 +1090,10 @@ nfs3svc_encode_fsinfores(struct svc_rqst *rqstp, __be32 *p,
 
 /* PATHCONF */
 int
-nfs3svc_encode_pathconfres(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_pathconfres *resp)
+nfs3svc_encode_pathconfres(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_pathconfres *resp = rqstp->rq_resp;
+
 	*p++ = xdr_zero;	/* no post_op_attr */
 
 	if (resp->status == 0) {
@@ -1098,9 +1110,9 @@ nfs3svc_encode_pathconfres(struct svc_rqst *rqstp, __be32 *p,
 
 /* COMMIT */
 int
-nfs3svc_encode_commitres(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_commitres *resp)
+nfs3svc_encode_commitres(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_commitres *resp = rqstp->rq_resp;
 	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
 
 	p = encode_wcc_data(rqstp, p, &resp->fh);

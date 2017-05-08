@@ -2519,7 +2519,7 @@ struct nfsd4_voidargs { int dummy; };
 static struct svc_procedure		nfsd_procedures4[2] = {
 	[NFSPROC4_NULL] = {
 		.pc_func = nfsd4_proc_null,
-		.pc_encode = (kxdrproc_t) nfs4svc_encode_voidres,
+		.pc_encode = nfs4svc_encode_voidres,
 		.pc_argsize = sizeof(struct nfsd4_voidargs),
 		.pc_ressize = sizeof(struct nfsd4_voidres),
 		.pc_cachetype = RC_NOCACHE,
@@ -2528,7 +2528,7 @@ static struct svc_procedure		nfsd_procedures4[2] = {
 	[NFSPROC4_COMPOUND] = {
 		.pc_func = nfsd4_proc_compound,
 		.pc_decode = nfs4svc_decode_compoundargs,
-		.pc_encode = (kxdrproc_t) nfs4svc_encode_compoundres,
+		.pc_encode = nfs4svc_encode_compoundres,
 		.pc_argsize = sizeof(struct nfsd4_compoundargs),
 		.pc_ressize = sizeof(struct nfsd4_compoundres),
 		.pc_release = nfsd4_release_compoundargs,

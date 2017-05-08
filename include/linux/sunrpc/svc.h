@@ -424,7 +424,8 @@ struct svc_procedure {
 	__be32			(*pc_func)(struct svc_rqst *);
 	/* XDR decode args: */
 	int			(*pc_decode)(struct svc_rqst *, __be32 *data);
-	kxdrproc_t		pc_encode;	/* XDR encode result */
+	/* XDR encode result: */
+	int			(*pc_encode)(struct svc_rqst *, __be32 *data);
 	/* XDR free result: */
 	void			(*pc_release)(struct svc_rqst *);
 	unsigned int		pc_argsize;	/* argument struct size */

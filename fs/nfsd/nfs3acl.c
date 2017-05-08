@@ -168,9 +168,9 @@ static int nfs3svc_decode_setaclargs(struct svc_rqst *rqstp, __be32 *p)
  */
 
 /* GETACL */
-static int nfs3svc_encode_getaclres(struct svc_rqst *rqstp, __be32 *p,
-		struct nfsd3_getaclres *resp)
+static int nfs3svc_encode_getaclres(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_getaclres *resp = rqstp->rq_resp;
 	struct dentry *dentry = resp->fh.fh_dentry;
 
 	p = nfs3svc_encode_post_op_attr(rqstp, p, &resp->fh);
@@ -213,9 +213,10 @@ static int nfs3svc_encode_getaclres(struct svc_rqst *rqstp, __be32 *p,
 }
 
 /* SETACL */
-static int nfs3svc_encode_setaclres(struct svc_rqst *rqstp, __be32 *p,
-		struct nfsd3_attrstat *resp)
+static int nfs3svc_encode_setaclres(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_attrstat *resp = rqstp->rq_resp;
+
 	p = nfs3svc_encode_post_op_attr(rqstp, p, &resp->fh);
 
 	return xdr_ressize_check(rqstp, p);
@@ -243,7 +244,7 @@ struct nfsd3_voidargs { int dummy; };
 {									\
 	.pc_func	= nfsd3_proc_##name,				\
 	.pc_decode	= nfs3svc_decode_##argt##args,			\
-	.pc_encode	= (kxdrproc_t) nfs3svc_encode_##rest##res,	\
+	.pc_encode	= nfs3svc_encode_##rest##res,			\
 	.pc_release	= nfs3svc_release_##relt,			\
 	.pc_argsize	= sizeof(struct nfsd3_##argt##args),		\
 	.pc_ressize	= sizeof(struct nfsd3_##rest##res),		\
