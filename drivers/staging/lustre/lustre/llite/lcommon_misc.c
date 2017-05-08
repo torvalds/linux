@@ -124,7 +124,7 @@ int cl_get_grouplock(struct cl_object *obj, unsigned long gid, int nonblock,
 	struct cl_lock	 *lock;
 	struct cl_lock_descr   *descr;
 	__u32		   enqflags;
-	int		     refcheck;
+	u16 refcheck;
 	int		     rc;
 
 	env = cl_env_get(&refcheck);

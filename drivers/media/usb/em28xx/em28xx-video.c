@@ -43,7 +43,6 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-clk.h>
 #include <media/drv-intf/msp3400.h>
 #include <media/tuner.h>
 
@@ -116,6 +115,11 @@ static struct em28xx_fmt format[] = {
 		.fourcc   = V4L2_PIX_FMT_RGB565,
 		.depth    = 16,
 		.reg      = EM28XX_OUTFMT_RGB_16_656,
+	}, {
+		.name     = "8 bpp Bayer RGRG..GBGB",
+		.fourcc   = V4L2_PIX_FMT_SRGGB8,
+		.depth    = 8,
+		.reg      = EM28XX_OUTFMT_RGB_8_RGRG,
 	}, {
 		.name     = "8 bpp Bayer BGBG..GRGR",
 		.fourcc   = V4L2_PIX_FMT_SBGGR8,
@@ -2140,11 +2144,6 @@ static int em28xx_v4l2_fini(struct em28xx *dev)
 	v4l2_ctrl_handler_free(&v4l2->ctrl_handler);
 	v4l2_device_unregister(&v4l2->v4l2_dev);
 
-	if (v4l2->clk) {
-		v4l2_clk_unregister_fixed(v4l2->clk);
-		v4l2->clk = NULL;
-	}
-
 	kref_put(&v4l2->ref, em28xx_free_v4l2);
 
 	mutex_unlock(&dev->lock);
@@ -2465,7 +2464,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	/*
 	 * Default format, used for tvp5150 or saa711x output formats
 	 */
-	v4l2->vinmode = 0x10;
+	v4l2->vinmode = EM28XX_VINMODE_YUV422_CbYCrY;
 	v4l2->vinctl  = EM28XX_VINCTRL_INTERLACED |
 			EM28XX_VINCTRL_CCIR656_ENABLE;
 

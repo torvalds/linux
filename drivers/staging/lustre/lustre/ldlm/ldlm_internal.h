@@ -108,9 +108,7 @@ extern unsigned int ldlm_cancel_unused_locks_before_replay;
 
 /* ldlm_resource.c */
 int ldlm_resource_putref_locked(struct ldlm_resource *res);
-void ldlm_namespace_free_prior(struct ldlm_namespace *ns,
-			       struct obd_import *imp, int force);
-void ldlm_namespace_free_post(struct ldlm_namespace *ns);
+
 /* ldlm_lock.c */
 
 struct ldlm_cb_set_arg {
@@ -156,6 +154,7 @@ int ldlm_bl_to_thread_list(struct ldlm_namespace *ns,
 			   struct ldlm_lock_desc *ld,
 			   struct list_head *cancels, int count,
 			   enum ldlm_cancel_flags cancel_flags);
+int ldlm_bl_thread_wakeup(void);
 
 void ldlm_handle_bl_callback(struct ldlm_namespace *ns,
 			     struct ldlm_lock_desc *ld, struct ldlm_lock *lock);

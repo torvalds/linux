@@ -403,6 +403,7 @@ static int mt9v022_get_fmt(struct v4l2_subdev *sd,
 }
 
 static int mt9v022_s_fmt(struct v4l2_subdev *sd,
+			 const struct mt9v022_datafmt *fmt,
 			 struct v4l2_mbus_framefmt *mf)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -441,9 +442,8 @@ static int mt9v022_s_fmt(struct v4l2_subdev *sd,
 	if (!ret) {
 		mf->width	= mt9v022->rect.width;
 		mf->height	= mt9v022->rect.height;
-		mt9v022->fmt	= mt9v022_find_datafmt(mf->code,
-					mt9v022->fmts, mt9v022->num_fmts);
-		mf->colorspace	= mt9v022->fmt->colorspace;
+		mt9v022->fmt	= fmt;
+		mf->colorspace	= fmt->colorspace;
 	}
 
 	return ret;
@@ -478,7 +478,7 @@ static int mt9v022_set_fmt(struct v4l2_subdev *sd,
 	mf->colorspace	= fmt->colorspace;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
-		return mt9v022_s_fmt(sd, mf);
+		return mt9v022_s_fmt(sd, fmt, mf);
 	cfg->try_fmt = *mf;
 	return 0;
 }
@@ -770,7 +770,7 @@ static const struct v4l2_ctrl_ops mt9v022_ctrl_ops = {
 	.s_ctrl = mt9v022_s_ctrl,
 };
 
-static struct v4l2_subdev_core_ops mt9v022_subdev_core_ops = {
+static const struct v4l2_subdev_core_ops mt9v022_subdev_core_ops = {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register	= mt9v022_g_register,
 	.s_register	= mt9v022_s_register,
@@ -858,7 +858,7 @@ static int mt9v022_s_mbus_config(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static struct v4l2_subdev_video_ops mt9v022_subdev_video_ops = {
+static const struct v4l2_subdev_video_ops mt9v022_subdev_video_ops = {
 	.s_stream	= mt9v022_s_stream,
 	.g_mbus_config	= mt9v022_g_mbus_config,
 	.s_mbus_config	= mt9v022_s_mbus_config,
@@ -876,7 +876,7 @@ static const struct v4l2_subdev_pad_ops mt9v022_subdev_pad_ops = {
 	.set_fmt	= mt9v022_set_fmt,
 };
 
-static struct v4l2_subdev_ops mt9v022_subdev_ops = {
+static const struct v4l2_subdev_ops mt9v022_subdev_ops = {
 	.core	= &mt9v022_subdev_core_ops,
 	.video	= &mt9v022_subdev_video_ops,
 	.sensor	= &mt9v022_subdev_sensor_ops,

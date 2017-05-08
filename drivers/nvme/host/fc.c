@@ -1172,12 +1172,12 @@ __nvme_fc_exit_request(struct nvme_fc_ctrl *ctrl,
 }
 
 static void
-nvme_fc_exit_request(void *data, struct request *rq,
-				unsigned int hctx_idx, unsigned int rq_idx)
+nvme_fc_exit_request(struct blk_mq_tag_set *set, struct request *rq,
+		unsigned int hctx_idx)
 {
 	struct nvme_fc_fcp_op *op = blk_mq_rq_to_pdu(rq);
 
-	return __nvme_fc_exit_request(data, op);
+	return __nvme_fc_exit_request(set->driver_data, op);
 }
 
 static int
@@ -1434,11 +1434,10 @@ out_on_error:
 }
 
 static int
-nvme_fc_init_request(void *data, struct request *rq,
-				unsigned int hctx_idx, unsigned int rq_idx,
-				unsigned int numa_node)
+nvme_fc_init_request(struct blk_mq_tag_set *set, struct request *rq,
+		unsigned int hctx_idx, unsigned int numa_node)
 {
-	struct nvme_fc_ctrl *ctrl = data;
+	struct nvme_fc_ctrl *ctrl = set->driver_data;
 	struct nvme_fc_fcp_op *op = blk_mq_rq_to_pdu(rq);
 	struct nvme_fc_queue *queue = &ctrl->queues[hctx_idx+1];
 
@@ -1446,11 +1445,10 @@ nvme_fc_init_request(void *data, struct request *rq,
 }
 
 static int
-nvme_fc_init_admin_request(void *data, struct request *rq,
-				unsigned int hctx_idx, unsigned int rq_idx,
-				unsigned int numa_node)
+nvme_fc_init_admin_request(struct blk_mq_tag_set *set, struct request *rq,
+		unsigned int hctx_idx, unsigned int numa_node)
 {
-	struct nvme_fc_ctrl *ctrl = data;
+	struct nvme_fc_ctrl *ctrl = set->driver_data;
 	struct nvme_fc_fcp_op *op = blk_mq_rq_to_pdu(rq);
 	struct nvme_fc_queue *queue = &ctrl->queues[0];
 

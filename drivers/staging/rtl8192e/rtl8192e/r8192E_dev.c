@@ -17,7 +17,7 @@
  *
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
-******************************************************************************/
+ *****************************************************************************/
 #include "rtl_core.h"
 #include "r8192E_phy.h"
 #include "r8192E_phyreg.h"
@@ -135,7 +135,7 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 	{
 		u32	RegRCR, Type;
 
-		Type = ((u8 *)(val))[0];
+		Type = val[0];
 		RegRCR = rtl92e_readl(dev, RCR);
 		priv->ReceiveConfig = RegRCR;
 
@@ -161,7 +161,7 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 	{
 		u32 regTmp;
 
-		priv->short_preamble = (bool)(*(u8 *)val);
+		priv->short_preamble = (bool)*val;
 		regTmp = priv->basic_rate;
 		if (priv->short_preamble)
 			regTmp |= BRSR_AckShortPmb;
@@ -175,7 +175,7 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 
 	case HW_VAR_AC_PARAM:
 	{
-		u8	pAcParam = *((u8 *)val);
+		u8	pAcParam = *val;
 		u32	eACI = pAcParam;
 		u8		u1bAIFS;
 		u32		u4bAcParam;
@@ -221,7 +221,7 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 			break;
 		}
 		priv->rtllib->SetHwRegHandler(dev, HW_VAR_ACM_CTRL,
-					      (u8 *)(&pAcParam));
+					      &pAcParam);
 		break;
 	}
 
@@ -229,7 +229,7 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 	{
 		struct rtllib_qos_parameters *qos_parameters =
 			 &priv->rtllib->current_network.qos_data.parameters;
-		u8 pAcParam = *((u8 *)val);
+		u8 pAcParam = *val;
 		u32 eACI = pAcParam;
 		union aci_aifsn *pAciAifsn = (union aci_aifsn *) &
 					      (qos_parameters->aifs[0]);
@@ -293,7 +293,7 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 
 	case HW_VAR_RF_TIMING:
 	{
-		u8 Rf_Timing = *((u8 *)val);
+		u8 Rf_Timing = *val;
 
 		rtl92e_writeb(dev, rFPGA0_RFTiming1, Rf_Timing);
 		break;
@@ -372,7 +372,7 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 	if (!priv->AutoloadFailFlag) {
 		for (i = 0; i < 6; i += 2) {
 			usValue = rtl92e_eeprom_read(dev,
-				 (u16)((EEPROM_NODE_ADDRESS_BYTE_0 + i) >> 1));
+				 (EEPROM_NODE_ADDRESS_BYTE_0 + i) >> 1);
 			*(u16 *)(&dev->dev_addr[i]) = usValue;
 		}
 	} else {
@@ -436,8 +436,7 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 			for (i = 0; i < 14; i += 2) {
 				if (!priv->AutoloadFailFlag)
 					usValue = rtl92e_eeprom_read(dev,
-						  (u16)((EEPROM_TxPwIndex_CCK +
-						  i) >> 1));
+						  (EEPROM_TxPwIndex_CCK + i) >> 1);
 				else
 					usValue = EEPROM_Default_TxPower;
 				*((u16 *)(&priv->EEPROMTxPowerLevelCCK[i])) =
@@ -452,8 +451,7 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 			for (i = 0; i < 14; i += 2) {
 				if (!priv->AutoloadFailFlag)
 					usValue = rtl92e_eeprom_read(dev,
-						(u16)((EEPROM_TxPwIndex_OFDM_24G
-						+ i) >> 1));
+						(EEPROM_TxPwIndex_OFDM_24G + i) >> 1);
 				else
 					usValue = EEPROM_Default_TxPower;
 				*((u16 *)(&priv->EEPROMTxPowerLevelOFDM24G[i]))
@@ -1650,15 +1648,11 @@ static void _rtl92e_query_rxphystatus(
 			evm = rtl92e_evm_db_to_percent(rx_evmX);
 			if (bpacket_match_bssid) {
 				if (i == 0) {
-					pstats->SignalQuality = (u8)(evm &
-								 0xff);
-					precord_stats->SignalQuality = (u8)(evm
-									& 0xff);
+					pstats->SignalQuality = evm & 0xff;
+					precord_stats->SignalQuality = evm & 0xff;
 				}
-				pstats->RxMIMOSignalQuality[i] = (u8)(evm &
-								 0xff);
-				precord_stats->RxMIMOSignalQuality[i] = (u8)(evm
-									& 0xff);
+				pstats->RxMIMOSignalQuality[i] = evm & 0xff;
+				precord_stats->RxMIMOSignalQuality[i] = evm & 0xff;
 			}
 		}
 

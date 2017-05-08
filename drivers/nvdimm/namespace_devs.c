@@ -2236,14 +2236,21 @@ static int init_active_labels(struct nd_region *nd_region)
 		int count, j;
 
 		/*
-		 * If the dimm is disabled then prevent the region from
-		 * being activated if it aliases DPA.
+		 * If the dimm is disabled then we may need to prevent
+		 * the region from being activated.
 		 */
 		if (!ndd) {
-			if ((nvdimm->flags & NDD_ALIASING) == 0)
+			if (test_bit(NDD_LOCKED, &nvdimm->flags))
+				/* fail, label data may be unreadable */;
+			else if (test_bit(NDD_ALIASING, &nvdimm->flags))
+				/* fail, labels needed to disambiguate dpa */;
+			else
 				return 0;
-			dev_dbg(&nd_region->dev, "%s: is disabled, failing probe\n",
-					dev_name(&nd_mapping->nvdimm->dev));
+
+			dev_err(&nd_region->dev, "%s: is %s, failing probe\n",
+					dev_name(&nd_mapping->nvdimm->dev),
+					test_bit(NDD_LOCKED, &nvdimm->flags)
+					? "locked" : "disabled");
 			return -ENXIO;
 		}
 		nd_mapping->ndd = ndd;

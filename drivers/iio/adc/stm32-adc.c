@@ -60,6 +60,8 @@
 #define STM32F4_EOC			BIT(1)
 
 /* STM32F4_ADC_CR1 - bit fields */
+#define STM32F4_RES_SHIFT		24
+#define STM32F4_RES_MASK		GENMASK(25, 24)
 #define STM32F4_SCAN			BIT(8)
 #define STM32F4_EOCIE			BIT(5)
 
@@ -141,6 +143,7 @@ struct stm32_adc_regs {
  * @lock:		spinlock
  * @bufi:		data buffer index
  * @num_conv:		expected number of scan conversions
+ * @res:		data resolution (e.g. RES bitfield value)
  * @trigger_polarity:	external trigger polarity (e.g. exten)
  * @dma_chan:		dma channel
  * @rx_buf:		dma rx buffer cpu address
@@ -157,6 +160,7 @@ struct stm32_adc {
 	spinlock_t		lock;		/* interrupt lock */
 	unsigned int		bufi;
 	unsigned int		num_conv;
+	u32			res;
 	u32			trigger_polarity;
 	struct dma_chan		*dma_chan;
 	u8			*rx_buf;
@@ -194,6 +198,11 @@ static const struct stm32_adc_chan_spec stm32f4_adc123_channels[] = {
 	{ IIO_VOLTAGE, 13, "in13" },
 	{ IIO_VOLTAGE, 14, "in14" },
 	{ IIO_VOLTAGE, 15, "in15" },
+};
+
+static const unsigned int stm32f4_adc_resolutions[] = {
+	/* sorted values so the index matches RES[1:0] in STM32F4_ADC_CR1 */
+	12, 10, 8, 6,
 };
 
 /**
@@ -300,6 +309,14 @@ static void stm32_adc_conv_irq_enable(struct stm32_adc *adc)
 static void stm32_adc_conv_irq_disable(struct stm32_adc *adc)
 {
 	stm32_adc_clr_bits(adc, STM32F4_ADC_CR1, STM32F4_EOCIE);
+}
+
+static void stm32_adc_set_res(struct stm32_adc *adc)
+{
+	u32 val = stm32_adc_readl(adc, STM32F4_ADC_CR1);
+
+	val = (val & ~STM32F4_RES_MASK) | (adc->res << STM32F4_RES_SHIFT);
+	stm32_adc_writel(adc, STM32F4_ADC_CR1, val);
 }
 
 /**
@@ -870,11 +887,37 @@ static const struct iio_chan_spec_ext_info stm32_adc_ext_info[] = {
 	{},
 };
 
+static int stm32_adc_of_get_resolution(struct iio_dev *indio_dev)
+{
+	struct device_node *node = indio_dev->dev.of_node;
+	struct stm32_adc *adc = iio_priv(indio_dev);
+	unsigned int i;
+	u32 res;
+
+	if (of_property_read_u32(node, "assigned-resolution-bits", &res))
+		res = stm32f4_adc_resolutions[0];
+
+	for (i = 0; i < ARRAY_SIZE(stm32f4_adc_resolutions); i++)
+		if (res == stm32f4_adc_resolutions[i])
+			break;
+	if (i >= ARRAY_SIZE(stm32f4_adc_resolutions)) {
+		dev_err(&indio_dev->dev, "Bad resolution: %u bits\n", res);
+		return -EINVAL;
+	}
+
+	dev_dbg(&indio_dev->dev, "Using %u bits resolution\n", res);
+	adc->res = i;
+
+	return 0;
+}
+
 static void stm32_adc_chan_init_one(struct iio_dev *indio_dev,
 				    struct iio_chan_spec *chan,
 				    const struct stm32_adc_chan_spec *channel,
 				    int scan_index)
 {
+	struct stm32_adc *adc = iio_priv(indio_dev);
+
 	chan->type = channel->type;
 	chan->channel = channel->channel;
 	chan->datasheet_name = channel->name;
@@ -883,7 +926,7 @@ static void stm32_adc_chan_init_one(struct iio_dev *indio_dev,
 	chan->info_mask_separate = BIT(IIO_CHAN_INFO_RAW);
 	chan->info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE);
 	chan->scan_type.sign = 'u';
-	chan->scan_type.realbits = 12;
+	chan->scan_type.realbits = stm32f4_adc_resolutions[adc->res];
 	chan->scan_type.storagebits = 16;
 	chan->ext_info = stm32_adc_ext_info;
 }
@@ -1021,6 +1064,11 @@ static int stm32_adc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "clk enable failed\n");
 		return ret;
 	}
+
+	ret = stm32_adc_of_get_resolution(indio_dev);
+	if (ret < 0)
+		goto err_clk_disable;
+	stm32_adc_set_res(adc);
 
 	ret = stm32_adc_chan_of_init(indio_dev);
 	if (ret < 0)

@@ -894,38 +894,15 @@ static int ov772x_get_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ov772x_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
-{
-	struct ov772x_priv *priv = to_ov772x(sd);
-	const struct ov772x_color_format *cfmt;
-	const struct ov772x_win_size *win;
-	int ret;
-
-	ov772x_select_params(mf, &cfmt, &win);
-
-	ret = ov772x_set_params(priv, cfmt, win);
-	if (ret < 0)
-		return ret;
-
-	priv->win = win;
-	priv->cfmt = cfmt;
-
-	mf->code = cfmt->code;
-	mf->width = win->rect.width;
-	mf->height = win->rect.height;
-	mf->field = V4L2_FIELD_NONE;
-	mf->colorspace = cfmt->colorspace;
-
-	return 0;
-}
-
 static int ov772x_set_fmt(struct v4l2_subdev *sd,
 		struct v4l2_subdev_pad_config *cfg,
 		struct v4l2_subdev_format *format)
 {
+	struct ov772x_priv *priv = to_ov772x(sd);
 	struct v4l2_mbus_framefmt *mf = &format->format;
 	const struct ov772x_color_format *cfmt;
 	const struct ov772x_win_size *win;
+	int ret;
 
 	if (format->pad)
 		return -EINVAL;
@@ -938,9 +915,17 @@ static int ov772x_set_fmt(struct v4l2_subdev *sd,
 	mf->field = V4L2_FIELD_NONE;
 	mf->colorspace = cfmt->colorspace;
 
-	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
-		return ov772x_s_fmt(sd, mf);
-	cfg->try_fmt = *mf;
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
+		cfg->try_fmt = *mf;
+		return 0;
+	}
+
+	ret = ov772x_set_params(priv, cfmt, win);
+	if (ret < 0)
+		return ret;
+
+	priv->win = win;
+	priv->cfmt = cfmt;
 	return 0;
 }
 
@@ -993,7 +978,7 @@ static const struct v4l2_ctrl_ops ov772x_ctrl_ops = {
 	.s_ctrl = ov772x_s_ctrl,
 };
 
-static struct v4l2_subdev_core_ops ov772x_subdev_core_ops = {
+static const struct v4l2_subdev_core_ops ov772x_subdev_core_ops = {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register	= ov772x_g_register,
 	.s_register	= ov772x_s_register,
@@ -1027,7 +1012,7 @@ static int ov772x_g_mbus_config(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static struct v4l2_subdev_video_ops ov772x_subdev_video_ops = {
+static const struct v4l2_subdev_video_ops ov772x_subdev_video_ops = {
 	.s_stream	= ov772x_s_stream,
 	.g_mbus_config	= ov772x_g_mbus_config,
 };
@@ -1039,7 +1024,7 @@ static const struct v4l2_subdev_pad_ops ov772x_subdev_pad_ops = {
 	.set_fmt	= ov772x_set_fmt,
 };
 
-static struct v4l2_subdev_ops ov772x_subdev_ops = {
+static const struct v4l2_subdev_ops ov772x_subdev_ops = {
 	.core	= &ov772x_subdev_core_ops,
 	.video	= &ov772x_subdev_video_ops,
 	.pad	= &ov772x_subdev_pad_ops,

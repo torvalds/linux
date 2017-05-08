@@ -55,7 +55,6 @@
 #include <asm/kexec.h>
 #include <asm/opal.h>
 #include <asm/fadump.h>
-#include <asm/debug.h>
 #include <asm/epapr_hcalls.h>
 #include <asm/firmware.h>
 

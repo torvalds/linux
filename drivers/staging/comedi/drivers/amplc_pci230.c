@@ -376,8 +376,11 @@
 #define CLK_1KHZ	5	/* internal 1 kHz clock */
 #define CLK_OUTNM1	6	/* output of channel-1 modulo total */
 #define CLK_EXT		7	/* external clock */
-/* Macro to construct clock input configuration register value. */
-#define CLK_CONFIG(chan, src)	((((chan) & 3) << 3) | ((src) & 7))
+
+static unsigned int pci230_clk_config(unsigned int chan, unsigned int src)
+{
+	return ((chan & 3) << 3) | (src & 7);
+}
 
 /*
  * Counter/timer gate input configuration sources.
@@ -387,8 +390,7 @@
 #define GAT_EXT		2	/* external gate input (PPCn on PCI230) */
 #define GAT_NOUTNM2	3	/* inverted output of channel-2 modulo total */
 
-static inline unsigned int pci230_gat_config(unsigned int chan,
-					     unsigned int src)
+static unsigned int pci230_gat_config(unsigned int chan, unsigned int src)
 {
 	return ((chan & 3) << 3) | (src & 7);
 }
@@ -698,7 +700,7 @@ static void pci230_ct_setup_ns_mode(struct comedi_device *dev, unsigned int ct,
 	/* Determine clock source and count. */
 	clk_src = pci230_choose_clk_count(ns, &count, flags);
 	/* Program clock source. */
-	outb(CLK_CONFIG(ct, clk_src), dev->iobase + PCI230_ZCLK_SCE);
+	outb(pci230_clk_config(ct, clk_src), dev->iobase + PCI230_ZCLK_SCE);
 	/* Set initial count. */
 	if (count >= 65536)
 		count = 0;

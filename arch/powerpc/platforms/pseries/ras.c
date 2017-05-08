@@ -386,6 +386,10 @@ int pSeries_system_reset_exception(struct pt_regs *regs)
 		}
 		fwnmi_release_errinfo();
 	}
+
+	if (smp_handle_nmi_ipi(regs))
+		return 1;
+
 	return 0; /* need to perform reset */
 }
 

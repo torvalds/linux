@@ -133,8 +133,6 @@ struct security_priv {
 	u8	busetkipkey;
 	u8	bcheck_grpkey;
 	u8	bgrpkey_handshake;
-	s32	sw_encrypt;/* from registry_priv */
-	s32	sw_decrypt;/* from registry_priv */
 	s32	hw_decrypted;/* if the rx packets is hw_decrypted==false,i
 			      * it means the hw has not been ready. */
 

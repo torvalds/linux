@@ -184,9 +184,9 @@ static const struct iio_chan_spec_ext_info ad7303_ext_info[] = {
 	.address = (chan),					\
 	.scan_type = {						\
 		.sign = 'u',					\
-		.realbits = '8',				\
-		.storagebits = '8',				\
-		.shift = '0',					\
+		.realbits = 8,					\
+		.storagebits = 8,				\
+		.shift = 0,					\
 	},							\
 	.ext_info = ad7303_ext_info,				\
 }

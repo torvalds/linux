@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/nd.h>
+#include "nd-core.h"
 #include "nd.h"
 
 static int nd_region_probe(struct device *dev)
@@ -51,6 +52,17 @@ static int nd_region_probe(struct device *dev)
 
 	if (rc && err && rc == err)
 		return -ENODEV;
+
+	if (is_nd_pmem(&nd_region->dev)) {
+		struct resource ndr_res;
+
+		if (devm_init_badblocks(dev, &nd_region->bb))
+			return -ENODEV;
+		ndr_res.start = nd_region->ndr_start;
+		ndr_res.end = nd_region->ndr_start + nd_region->ndr_size - 1;
+		nvdimm_badblocks_populate(nd_region,
+				&nd_region->bb, &ndr_res);
+	}
 
 	nd_region->btt_seed = nd_btt_create(nd_region);
 	nd_region->pfn_seed = nd_pfn_create(nd_region);
@@ -104,6 +116,18 @@ static int child_notify(struct device *dev, void *data)
 
 static void nd_region_notify(struct device *dev, enum nvdimm_event event)
 {
+	if (event == NVDIMM_REVALIDATE_POISON) {
+		struct nd_region *nd_region = to_nd_region(dev);
+		struct resource res;
+
+		if (is_nd_pmem(&nd_region->dev)) {
+			res.start = nd_region->ndr_start;
+			res.end = nd_region->ndr_start +
+				nd_region->ndr_size - 1;
+			nvdimm_badblocks_populate(nd_region,
+					&nd_region->bb, &res);
+		}
+	}
 	device_for_each_child(dev, &event, child_notify);
 }
 

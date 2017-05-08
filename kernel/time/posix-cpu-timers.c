@@ -1318,7 +1318,7 @@ static int posix_cpu_nsleep(const clockid_t which_clock, int flags,
 	 */
 	if (CPUCLOCK_PERTHREAD(which_clock) &&
 	    (CPUCLOCK_PID(which_clock) == 0 ||
-	     CPUCLOCK_PID(which_clock) == current->pid))
+	     CPUCLOCK_PID(which_clock) == task_pid_vnr(current)))
 		return -EINVAL;
 
 	error = do_cpu_nanosleep(which_clock, flags, rqtp, &it);

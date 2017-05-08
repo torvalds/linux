@@ -1490,7 +1490,7 @@ int rtsx_write_register(struct rtsx_chip *chip, u16 addr, u8 mask, u8 data)
 
 	for (i = 0; i < MAX_RW_REG_CNT; i++) {
 		val = rtsx_readl(chip, RTSX_HAIMR);
-		if ((val & (1 << 31)) == 0) {
+		if ((val & BIT(31)) == 0) {
 			if (data != (u8)val) {
 				rtsx_trace(chip);
 				return STATUS_FAIL;
@@ -1518,7 +1518,7 @@ int rtsx_read_register(struct rtsx_chip *chip, u16 addr, u8 *data)
 
 	for (i = 0; i < MAX_RW_REG_CNT; i++) {
 		val = rtsx_readl(chip, RTSX_HAIMR);
-		if ((val & (1 << 31)) == 0)
+		if ((val & BIT(31)) == 0)
 			break;
 	}
 

@@ -484,7 +484,7 @@ int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns)
 	dev_dbg(dev, "%s: pfn: %s\n", __func__,
 			rc == 0 ? dev_name(pfn_dev) : "<none>");
 	if (rc < 0) {
-		__nd_detach_ndns(pfn_dev, &nd_pfn->ndns);
+		nd_detach_ndns(pfn_dev, &nd_pfn->ndns);
 		put_device(pfn_dev);
 	} else
 		__nd_device_register(pfn_dev);
@@ -538,7 +538,8 @@ static struct vmem_altmap *__nvdimm_setup_pfn(struct nd_pfn *nd_pfn,
 		nd_pfn->npfns = le64_to_cpu(pfn_sb->npfns);
 		altmap = NULL;
 	} else if (nd_pfn->mode == PFN_MODE_PMEM) {
-		nd_pfn->npfns = (resource_size(res) - offset) / PAGE_SIZE;
+		nd_pfn->npfns = PFN_SECTION_ALIGN_UP((resource_size(res)
+					- offset) / PAGE_SIZE);
 		if (le64_to_cpu(nd_pfn->pfn_sb->npfns) > nd_pfn->npfns)
 			dev_info(&nd_pfn->dev,
 					"number of pfns truncated from %lld to %ld\n",
@@ -625,7 +626,8 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 	 */
 	start += start_pad;
 	size = resource_size(&nsio->res);
-	npfns = (size - start_pad - end_trunc - SZ_8K) / SZ_4K;
+	npfns = PFN_SECTION_ALIGN_UP((size - start_pad - end_trunc - SZ_8K)
+			/ PAGE_SIZE);
 	if (nd_pfn->mode == PFN_MODE_PMEM) {
 		/*
 		 * vmemmap_populate_hugepages() allocates the memmap array in

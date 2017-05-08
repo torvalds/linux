@@ -2600,6 +2600,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM28178_BOARD_TERRATEC_T2_STICK_HD },
 	{ USB_DEVICE(0x3275, 0x0085),
 			.driver_info = EM28178_BOARD_PLEX_PX_BCUD },
+	{ USB_DEVICE(0xeb1a, 0x5051), /* Ion Video 2 PC MKII / Startech svid2usb23 / Raygo R12-41373 */
+			.driver_info = EM2860_BOARD_TVP5150_REFERENCE_DESIGN },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, em28xx_id_table);
@@ -2917,7 +2919,9 @@ static void em28xx_card_setup(struct em28xx *dev)
 	 * If sensor is not found, then it isn't a webcam.
 	 */
 	if (dev->board.is_webcam) {
-		if (em28xx_detect_sensor(dev) < 0)
+		em28xx_detect_sensor(dev);
+		if (dev->em28xx_sensor == EM28XX_NOSENSOR)
+			/* NOTE: error/unknown sensor/no sensor */
 			dev->board.is_webcam = 0;
 	}
 
@@ -2974,8 +2978,7 @@ static void em28xx_card_setup(struct em28xx *dev)
 #endif
 		/* Call first TVeeprom */
 
-		dev->i2c_client[dev->def_i2c_bus].addr = 0xa0 >> 1;
-		tveeprom_hauppauge_analog(&dev->i2c_client[dev->def_i2c_bus], &tv, dev->eedata);
+		tveeprom_hauppauge_analog(&tv, dev->eedata);
 
 		dev->tuner_type = tv.tuner_type;
 
@@ -3666,9 +3669,11 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		try_bulk = usb_xfer_mode > 0;
 	}
 
-	/* Disable V4L2 if the device doesn't have a decoder */
+	/* Disable V4L2 if the device doesn't have a decoder or image sensor */
 	if (has_video &&
-	    dev->board.decoder == EM28XX_NODECODER && !dev->board.is_webcam) {
+	    dev->board.decoder == EM28XX_NODECODER &&
+	    dev->em28xx_sensor == EM28XX_NOSENSOR) {
+
 		dev_err(&interface->dev,
 			"Currently, V4L2 is not supported on this model\n");
 		has_video = false;

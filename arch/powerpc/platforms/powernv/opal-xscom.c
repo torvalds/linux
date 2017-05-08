@@ -73,25 +73,32 @@ static int opal_xscom_err_xlate(int64_t rc)
 
 static u64 opal_scom_unmangle(u64 addr)
 {
+	u64 tmp;
+
 	/*
-	 * XSCOM indirect addresses have the top bit set. Additionally
-	 * the rest of the top 3 nibbles is always 0.
+	 * XSCOM addresses use the top nibble to set indirect mode and
+	 * its form.  Bits 4-11 are always 0.
 	 *
 	 * Because the debugfs interface uses signed offsets and shifts
 	 * the address left by 3, we basically cannot use the top 4 bits
 	 * of the 64-bit address, and thus cannot use the indirect bit.
 	 *
-	 * To deal with that, we support the indirect bit being in bit
-	 * 4 (IBM notation) instead of bit 0 in this API, we do the
-	 * conversion here. To leave room for further xscom address
-	 * expansion, we only clear out the top byte
+	 * To deal with that, we support the indirect bits being in
+	 * bits 4-7 (IBM notation) instead of bit 0-3 in this API, we
+	 * do the conversion here.
 	 *
-	 * For in-kernel use, we also support the real indirect bit, so
-	 * we test for any of the top 5 bits
+	 * For in-kernel use, we don't need to do this mangling.  In
+	 * kernel won't have bits 4-7 set.
 	 *
+	 * So:
+	 *   debugfs will always   set 0-3 = 0 and clear 4-7
+	 *    kernel will always clear 0-3 = 0 and   set 4-7
 	 */
-	if (addr & (0x1full << 59))
-		addr = (addr & ~(0xffull << 56)) | (1ull << 63);
+	tmp = addr;
+	tmp  &= 0x0f00000000000000;
+	addr &= 0xf0ffffffffffffff;
+	addr |= tmp << 4;
+
 	return addr;
 }
 

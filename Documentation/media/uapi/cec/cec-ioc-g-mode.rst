@@ -249,3 +249,15 @@ Return Value
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
+
+The :ref:`ioctl CEC_S_MODE <CEC_S_MODE>` can return the following
+error codes:
+
+EINVAL
+    The requested mode is invalid.
+
+EPERM
+    Monitor mode is requested without having root permissions
+
+EBUSY
+    Someone else is already an exclusive follower or initiator.

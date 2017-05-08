@@ -216,7 +216,6 @@ void hostapd_mode_unload(struct adapter *padapter);
 extern unsigned char WPA_TKIP_CIPHER[4];
 extern unsigned char RSN_TKIP_CIPHER[4];
 extern unsigned char REALTEK_96B_IE[];
-extern unsigned char	MCS_rate_2R[16];
 extern unsigned char	MCS_rate_1R[16];
 
 void rtw_joinbss_event_prehandle(struct adapter *adapter, u8 *pbuf);

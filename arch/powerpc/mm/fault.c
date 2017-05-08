@@ -120,8 +120,6 @@ static int do_sigbus(struct pt_regs *regs, unsigned long address,
 	siginfo_t info;
 	unsigned int lsb = 0;
 
-	up_read(&current->mm->mmap_sem);
-
 	if (!user_mode(regs))
 		return MM_FAULT_ERR(SIGBUS);
 
@@ -154,13 +152,6 @@ static int mm_fault_error(struct pt_regs *regs, unsigned long addr, int fault)
 	 * continue the pagefault.
 	 */
 	if (fatal_signal_pending(current)) {
-		/*
-		 * If we have retry set, the mmap semaphore will have
-		 * alrady been released in __lock_page_or_retry(). Else
-		 * we release it now.
-		 */
-		if (!(fault & VM_FAULT_RETRY))
-			up_read(&current->mm->mmap_sem);
 		/* Coming from kernel, we need to deal with uaccess fixups */
 		if (user_mode(regs))
 			return MM_FAULT_RETURN;
@@ -173,8 +164,6 @@ static int mm_fault_error(struct pt_regs *regs, unsigned long addr, int fault)
 
 	/* Out of memory */
 	if (fault & VM_FAULT_OOM) {
-		up_read(&current->mm->mmap_sem);
-
 		/*
 		 * We ran out of memory, or some other thing happened to us that
 		 * made us unable to handle the page fault gracefully.
@@ -298,7 +287,7 @@ int do_page_fault(struct pt_regs *regs, unsigned long address,
 	 * can result in fault, which will cause a deadlock when called with
 	 * mmap_sem held
 	 */
-	if (user_mode(regs))
+	if (!is_exec && user_mode(regs))
 		store_update_sp = store_updates_sp(regs);
 
 	if (user_mode(regs))
@@ -458,9 +447,30 @@ good_area:
 	 * the fault.
 	 */
 	fault = handle_mm_fault(vma, address, flags);
+
+	/*
+	 * Handle the retry right now, the mmap_sem has been released in that
+	 * case.
+	 */
+	if (unlikely(fault & VM_FAULT_RETRY)) {
+		/* We retry only once */
+		if (flags & FAULT_FLAG_ALLOW_RETRY) {
+			/*
+			 * Clear FAULT_FLAG_ALLOW_RETRY to avoid any risk
+			 * of starvation.
+			 */
+			flags &= ~FAULT_FLAG_ALLOW_RETRY;
+			flags |= FAULT_FLAG_TRIED;
+			if (!fatal_signal_pending(current))
+				goto retry;
+		}
+		/* We will enter mm_fault_error() below */
+	} else
+		up_read(&current->mm->mmap_sem);
+
 	if (unlikely(fault & (VM_FAULT_RETRY|VM_FAULT_ERROR))) {
 		if (fault & VM_FAULT_SIGSEGV)
-			goto bad_area;
+			goto bad_area_nosemaphore;
 		rc = mm_fault_error(regs, address, fault);
 		if (rc >= MM_FAULT_RETURN)
 			goto bail;
@@ -469,41 +479,29 @@ good_area:
 	}
 
 	/*
-	 * Major/minor page fault accounting is only done on the
-	 * initial attempt. If we go through a retry, it is extremely
-	 * likely that the page will be found in page cache at that point.
+	 * Major/minor page fault accounting.
 	 */
-	if (flags & FAULT_FLAG_ALLOW_RETRY) {
-		if (fault & VM_FAULT_MAJOR) {
-			current->maj_flt++;
-			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1,
-				      regs, address);
+	if (fault & VM_FAULT_MAJOR) {
+		current->maj_flt++;
+		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1,
+			      regs, address);
 #ifdef CONFIG_PPC_SMLPAR
-			if (firmware_has_feature(FW_FEATURE_CMO)) {
-				u32 page_ins;
+		if (firmware_has_feature(FW_FEATURE_CMO)) {
+			u32 page_ins;
 
-				preempt_disable();
-				page_ins = be32_to_cpu(get_lppaca()->page_ins);
-				page_ins += 1 << PAGE_FACTOR;
-				get_lppaca()->page_ins = cpu_to_be32(page_ins);
-				preempt_enable();
-			}
+			preempt_disable();
+			page_ins = be32_to_cpu(get_lppaca()->page_ins);
+			page_ins += 1 << PAGE_FACTOR;
+			get_lppaca()->page_ins = cpu_to_be32(page_ins);
+			preempt_enable();
+		}
 #endif /* CONFIG_PPC_SMLPAR */
-		} else {
-			current->min_flt++;
-			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1,
-				      regs, address);
-		}
-		if (fault & VM_FAULT_RETRY) {
-			/* Clear FAULT_FLAG_ALLOW_RETRY to avoid any risk
-			 * of starvation. */
-			flags &= ~FAULT_FLAG_ALLOW_RETRY;
-			flags |= FAULT_FLAG_TRIED;
-			goto retry;
-		}
+	} else {
+		current->min_flt++;
+		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1,
+			      regs, address);
 	}
 
-	up_read(&mm->mmap_sem);
 	goto bail;
 
 bad_area:

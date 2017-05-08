@@ -139,7 +139,7 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
 	}
 
 	if (!dev->tx_ir) {
-		ret = -ENOSYS;
+		ret = -EINVAL;
 		goto out;
 	}
 
@@ -221,19 +221,19 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 	/* TX settings */
 	case LIRC_SET_TRANSMITTER_MASK:
 		if (!dev->s_tx_mask)
-			return -ENOSYS;
+			return -ENOTTY;
 
 		return dev->s_tx_mask(dev, val);
 
 	case LIRC_SET_SEND_CARRIER:
 		if (!dev->s_tx_carrier)
-			return -ENOSYS;
+			return -ENOTTY;
 
 		return dev->s_tx_carrier(dev, val);
 
 	case LIRC_SET_SEND_DUTY_CYCLE:
 		if (!dev->s_tx_duty_cycle)
-			return -ENOSYS;
+			return -ENOTTY;
 
 		if (val <= 0 || val >= 100)
 			return -EINVAL;
@@ -243,7 +243,7 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 	/* RX settings */
 	case LIRC_SET_REC_CARRIER:
 		if (!dev->s_rx_carrier_range)
-			return -ENOSYS;
+			return -ENOTTY;
 
 		if (val <= 0)
 			return -EINVAL;
@@ -253,6 +253,9 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 					       val);
 
 	case LIRC_SET_REC_CARRIER_RANGE:
+		if (!dev->s_rx_carrier_range)
+			return -ENOTTY;
+
 		if (val <= 0)
 			return -EINVAL;
 
@@ -260,37 +263,40 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 		return 0;
 
 	case LIRC_GET_REC_RESOLUTION:
+		if (!dev->rx_resolution)
+			return -ENOTTY;
+
 		val = dev->rx_resolution;
 		break;
 
 	case LIRC_SET_WIDEBAND_RECEIVER:
 		if (!dev->s_learning_mode)
-			return -ENOSYS;
+			return -ENOTTY;
 
 		return dev->s_learning_mode(dev, !!val);
 
 	case LIRC_SET_MEASURE_CARRIER_MODE:
 		if (!dev->s_carrier_report)
-			return -ENOSYS;
+			return -ENOTTY;
 
 		return dev->s_carrier_report(dev, !!val);
 
 	/* Generic timeout support */
 	case LIRC_GET_MIN_TIMEOUT:
 		if (!dev->max_timeout)
-			return -ENOSYS;
+			return -ENOTTY;
 		val = DIV_ROUND_UP(dev->min_timeout, 1000);
 		break;
 
 	case LIRC_GET_MAX_TIMEOUT:
 		if (!dev->max_timeout)
-			return -ENOSYS;
+			return -ENOTTY;
 		val = dev->max_timeout / 1000;
 		break;
 
 	case LIRC_SET_REC_TIMEOUT:
 		if (!dev->max_timeout)
-			return -ENOSYS;
+			return -ENOTTY;
 
 		tmp = val * 1000;
 
@@ -305,6 +311,9 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 		break;
 
 	case LIRC_SET_REC_TIMEOUT_REPORTS:
+		if (!dev->timeout)
+			return -ENOTTY;
+
 		lirc->send_timeout_reports = !!val;
 		break;
 
@@ -361,8 +370,11 @@ static int ir_lirc_register(struct rc_dev *dev)
 	if (rc)
 		goto rbuf_init_failed;
 
-	if (dev->driver_type != RC_DRIVER_IR_RAW_TX)
+	if (dev->driver_type != RC_DRIVER_IR_RAW_TX) {
 		features |= LIRC_CAN_REC_MODE2;
+		if (dev->rx_resolution)
+			features |= LIRC_CAN_GET_REC_RESOLUTION;
+	}
 	if (dev->tx_ir) {
 		features |= LIRC_CAN_SEND_PULSE;
 		if (dev->s_tx_mask)

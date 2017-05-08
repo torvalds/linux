@@ -213,6 +213,7 @@ name:
 	USE_TEXT_SECTION();					\
 	.balign IFETCH_ALIGN_BYTES;				\
 	.global name;						\
+	_ASM_NOKPROBE_SYMBOL(name);				\
 	DEFINE_FIXED_SYMBOL(name);				\
 name:
 

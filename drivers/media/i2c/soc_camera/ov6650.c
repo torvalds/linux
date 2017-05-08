@@ -885,7 +885,7 @@ static const struct v4l2_ctrl_ops ov6550_ctrl_ops = {
 	.s_ctrl = ov6550_s_ctrl,
 };
 
-static struct v4l2_subdev_core_ops ov6650_core_ops = {
+static const struct v4l2_subdev_core_ops ov6650_core_ops = {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register		= ov6650_get_register,
 	.s_register		= ov6650_set_register,
@@ -942,7 +942,7 @@ static int ov6650_s_mbus_config(struct v4l2_subdev *sd,
 	return ret;
 }
 
-static struct v4l2_subdev_video_ops ov6650_video_ops = {
+static const struct v4l2_subdev_video_ops ov6650_video_ops = {
 	.s_stream	= ov6650_s_stream,
 	.g_parm		= ov6650_g_parm,
 	.s_parm		= ov6650_s_parm,
@@ -958,7 +958,7 @@ static const struct v4l2_subdev_pad_ops ov6650_pad_ops = {
 	.set_fmt	= ov6650_set_fmt,
 };
 
-static struct v4l2_subdev_ops ov6650_subdev_ops = {
+static const struct v4l2_subdev_ops ov6650_subdev_ops = {
 	.core	= &ov6650_core_ops,
 	.video	= &ov6650_video_ops,
 	.pad	= &ov6650_pad_ops,
@@ -1033,7 +1033,7 @@ static int ov6650_probe(struct i2c_client *client,
 	priv->code	  = MEDIA_BUS_FMT_YUYV8_2X8;
 	priv->colorspace  = V4L2_COLORSPACE_JPEG;
 
-	priv->clk = v4l2_clk_get(&client->dev, "mclk");
+	priv->clk = v4l2_clk_get(&client->dev, NULL);
 	if (IS_ERR(priv->clk)) {
 		ret = PTR_ERR(priv->clk);
 		goto eclkget;

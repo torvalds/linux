@@ -315,10 +315,14 @@ struct s5p_mfc_hw_ops {
 
 void s5p_mfc_init_hw_ops(struct s5p_mfc_dev *dev);
 void s5p_mfc_init_regs(struct s5p_mfc_dev *dev);
-int s5p_mfc_alloc_priv_buf(struct device *dev, dma_addr_t base,
-					struct s5p_mfc_priv_buf *b);
-void s5p_mfc_release_priv_buf(struct device *dev,
-					struct s5p_mfc_priv_buf *b);
+int s5p_mfc_alloc_priv_buf(struct s5p_mfc_dev *dev, unsigned int mem_ctx,
+			   struct s5p_mfc_priv_buf *b);
+void s5p_mfc_release_priv_buf(struct s5p_mfc_dev *dev,
+			      struct s5p_mfc_priv_buf *b);
+int s5p_mfc_alloc_generic_buf(struct s5p_mfc_dev *dev, unsigned int mem_ctx,
+			   struct s5p_mfc_priv_buf *b);
+void s5p_mfc_release_generic_buf(struct s5p_mfc_dev *dev,
+			      struct s5p_mfc_priv_buf *b);
 
 
 #endif /* S5P_MFC_OPR_H_ */

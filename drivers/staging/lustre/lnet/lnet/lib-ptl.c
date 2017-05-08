@@ -39,7 +39,7 @@ module_param(portal_rotor, int, 0644);
 MODULE_PARM_DESC(portal_rotor, "redirect PUTs to different cpu-partitions");
 
 static int
-lnet_ptl_match_type(unsigned int index, lnet_process_id_t match_id,
+lnet_ptl_match_type(unsigned int index, struct lnet_process_id match_id,
 		    __u64 mbits, __u64 ignore_bits)
 {
 	struct lnet_portal *ptl = the_lnet.ln_portals[index];
@@ -131,7 +131,7 @@ lnet_ptl_disable_mt(struct lnet_portal *ptl, int cpt)
 }
 
 static int
-lnet_try_match_md(lnet_libmd_t *md,
+lnet_try_match_md(struct lnet_libmd *md,
 		  struct lnet_match_info *info, struct lnet_msg *msg)
 {
 	/*
@@ -140,7 +140,7 @@ lnet_try_match_md(lnet_libmd_t *md,
 	 */
 	unsigned int offset;
 	unsigned int mlength;
-	lnet_me_t *me = md->md_me;
+	struct lnet_me *me = md->md_me;
 
 	/* MD exhausted */
 	if (lnet_md_exhausted(md))
@@ -212,7 +212,7 @@ lnet_try_match_md(lnet_libmd_t *md,
 }
 
 static struct lnet_match_table *
-lnet_match2mt(struct lnet_portal *ptl, lnet_process_id_t id, __u64 mbits)
+lnet_match2mt(struct lnet_portal *ptl, struct lnet_process_id id, __u64 mbits)
 {
 	if (LNET_CPT_NUMBER == 1)
 		return ptl->ptl_mtables[0]; /* the only one */
@@ -223,8 +223,8 @@ lnet_match2mt(struct lnet_portal *ptl, lnet_process_id_t id, __u64 mbits)
 }
 
 struct lnet_match_table *
-lnet_mt_of_attach(unsigned int index, lnet_process_id_t id,
-		  __u64 mbits, __u64 ignore_bits, lnet_ins_pos_t pos)
+lnet_mt_of_attach(unsigned int index, struct lnet_process_id id,
+		  __u64 mbits, __u64 ignore_bits, enum lnet_ins_pos pos)
 {
 	struct lnet_portal *ptl;
 	struct lnet_match_table	*mtable;
@@ -334,7 +334,7 @@ lnet_mt_test_exhausted(struct lnet_match_table *mtable, int pos)
 	bmap = &mtable->mt_exhausted[pos >> LNET_MT_BITS_U64];
 	pos &= (1 << LNET_MT_BITS_U64) - 1;
 
-	return (*bmap & (1ULL << pos));
+	return (*bmap & BIT(pos));
 }
 
 static void
@@ -357,7 +357,7 @@ lnet_mt_set_exhausted(struct lnet_match_table *mtable, int pos, int exhausted)
 
 struct list_head *
 lnet_mt_match_head(struct lnet_match_table *mtable,
-		   lnet_process_id_t id, __u64 mbits)
+		   struct lnet_process_id id, __u64 mbits)
 {
 	struct lnet_portal *ptl = the_lnet.ln_portals[mtable->mt_portal];
 	unsigned long hash = mbits;
@@ -376,8 +376,8 @@ lnet_mt_match_md(struct lnet_match_table *mtable,
 		 struct lnet_match_info *info, struct lnet_msg *msg)
 {
 	struct list_head *head;
-	lnet_me_t *me;
-	lnet_me_t *tmp;
+	struct lnet_me *me;
+	struct lnet_me *tmp;
 	int exhausted = 0;
 	int rc;
 
@@ -641,7 +641,7 @@ lnet_ptl_match_md(struct lnet_match_info *info, struct lnet_msg *msg)
 }
 
 void
-lnet_ptl_detach_md(lnet_me_t *me, lnet_libmd_t *md)
+lnet_ptl_detach_md(struct lnet_me *me, struct lnet_libmd *md)
 {
 	LASSERT(me->me_md == md && md->md_me == me);
 
@@ -651,14 +651,14 @@ lnet_ptl_detach_md(lnet_me_t *me, lnet_libmd_t *md)
 
 /* called with lnet_res_lock held */
 void
-lnet_ptl_attach_md(lnet_me_t *me, lnet_libmd_t *md,
+lnet_ptl_attach_md(struct lnet_me *me, struct lnet_libmd *md,
 		   struct list_head *matches, struct list_head *drops)
 {
 	struct lnet_portal *ptl = the_lnet.ln_portals[me->me_portal];
 	struct lnet_match_table	*mtable;
 	struct list_head *head;
-	lnet_msg_t *tmp;
-	lnet_msg_t *msg;
+	struct lnet_msg *tmp;
+	struct lnet_msg *msg;
 	int exhausted = 0;
 	int cpt;
 
@@ -756,7 +756,7 @@ lnet_ptl_cleanup(struct lnet_portal *ptl)
 	LASSERT(list_empty(&ptl->ptl_msg_stealing));
 	cfs_percpt_for_each(mtable, i, ptl->ptl_mtables) {
 		struct list_head *mhash;
-		lnet_me_t *me;
+		struct lnet_me *me;
 		int j;
 
 		if (!mtable->mt_mhash) /* uninitialized match-table */
@@ -767,7 +767,7 @@ lnet_ptl_cleanup(struct lnet_portal *ptl)
 		for (j = 0; j < LNET_MT_HASH_SIZE + 1; j++) {
 			while (!list_empty(&mhash[j])) {
 				me = list_entry(mhash[j].next,
-						lnet_me_t, me_list);
+						struct lnet_me, me_list);
 				CERROR("Active ME %p on exit\n", me);
 				list_del(&me->me_list);
 				lnet_me_free(me);

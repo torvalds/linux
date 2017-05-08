@@ -124,8 +124,8 @@ static int max11100_probe(struct spi_device *spi)
 	indio_dev->name = "max11100";
 	indio_dev->info = &max11100_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->channels = max11100_channels,
-	indio_dev->num_channels = ARRAY_SIZE(max11100_channels),
+	indio_dev->channels = max11100_channels;
+	indio_dev->num_channels = ARRAY_SIZE(max11100_channels);
 
 	state->vref_reg = devm_regulator_get(&spi->dev, "vref");
 	if (IS_ERR(state->vref_reg))
@@ -167,7 +167,6 @@ MODULE_DEVICE_TABLE(of, max11100_ids);
 static struct spi_driver max11100_driver = {
 	.driver = {
 		.name	= "max11100",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(max11100_ids),
 	},
 	.probe		= max11100_probe,

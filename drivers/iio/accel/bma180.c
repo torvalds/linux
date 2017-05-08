@@ -18,6 +18,7 @@
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/of_device.h>
 #include <linux/of.h>
 #include <linux/bitops.h>
 #include <linux/slab.h>
@@ -32,7 +33,7 @@
 #define BMA180_DRV_NAME "bma180"
 #define BMA180_IRQ_NAME "bma180_event"
 
-enum {
+enum chip_ids {
 	BMA180,
 	BMA250,
 };
@@ -41,11 +42,11 @@ struct bma180_data;
 
 struct bma180_part_info {
 	const struct iio_chan_spec *channels;
-	unsigned num_channels;
+	unsigned int num_channels;
 	const int *scale_table;
-	unsigned num_scales;
+	unsigned int num_scales;
 	const int *bw_table;
-	unsigned num_bw;
+	unsigned int num_bw;
 
 	u8 int_reset_reg, int_reset_mask;
 	u8 sleep_reg, sleep_mask;
@@ -408,7 +409,7 @@ err:
 	dev_err(&data->client->dev, "failed to disable the chip\n");
 }
 
-static ssize_t bma180_show_avail(char *buf, const int *vals, unsigned n,
+static ssize_t bma180_show_avail(char *buf, const int *vals, unsigned int n,
 				 bool micros)
 {
 	size_t len = 0;
@@ -707,6 +708,7 @@ static int bma180_probe(struct i2c_client *client,
 {
 	struct bma180_data *data;
 	struct iio_dev *indio_dev;
+	enum chip_ids chip;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
@@ -716,7 +718,11 @@ static int bma180_probe(struct i2c_client *client,
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
-	data->part_info = &bma180_part_info[id->driver_data];
+	if (client->dev.of_node)
+		chip = (enum chip_ids)of_device_get_match_data(&client->dev);
+	else
+		chip = id->driver_data;
+	data->part_info = &bma180_part_info[chip];
 
 	ret = data->part_info->chip_config(data);
 	if (ret < 0)
@@ -844,10 +850,24 @@ static struct i2c_device_id bma180_ids[] = {
 
 MODULE_DEVICE_TABLE(i2c, bma180_ids);
 
+static const struct of_device_id bma180_of_match[] = {
+	{
+		.compatible = "bosch,bma180",
+		.data = (void *)BMA180
+	},
+	{
+		.compatible = "bosch,bma250",
+		.data = (void *)BMA250
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, bma180_of_match);
+
 static struct i2c_driver bma180_driver = {
 	.driver = {
 		.name	= "bma180",
 		.pm	= BMA180_PM_OPS,
+		.of_match_table = bma180_of_match,
 	},
 	.probe		= bma180_probe,
 	.remove		= bma180_remove,

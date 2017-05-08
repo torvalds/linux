@@ -35,9 +35,8 @@
 #include <linux/memblock.h>
 #include <linux/context_tracking.h>
 #include <linux/libfdt.h>
-#include <linux/debugfs.h>
 
-#include <asm/debug.h>
+#include <asm/debugfs.h>
 #include <asm/processor.h>
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
@@ -927,11 +926,6 @@ static void __init htab_initialize(void)
 	}
 #endif /* CONFIG_DEBUG_PAGEALLOC */
 
-	/* On U3 based machines, we need to reserve the DART area and
-	 * _NOT_ map it to avoid cache paradoxes as it's remapped non
-	 * cacheable later on
-	 */
-
 	/* create bolted the linear mapping in the hash table */
 	for_each_memblock(memory, reg) {
 		base = (unsigned long)__va(reg->base);
@@ -981,6 +975,19 @@ void __init hash__early_init_devtree(void)
 
 void __init hash__early_init_mmu(void)
 {
+	/*
+	 * We have code in __hash_page_64K() and elsewhere, which assumes it can
+	 * do the following:
+	 *   new_pte |= (slot << H_PAGE_F_GIX_SHIFT) & (H_PAGE_F_SECOND | H_PAGE_F_GIX);
+	 *
+	 * Where the slot number is between 0-15, and values of 8-15 indicate
+	 * the secondary bucket. For that code to work H_PAGE_F_SECOND and
+	 * H_PAGE_F_GIX must occupy four contiguous bits in the PTE, and
+	 * H_PAGE_F_SECOND must be placed above H_PAGE_F_GIX. Assert that here
+	 * with a BUILD_BUG_ON().
+	 */
+	BUILD_BUG_ON(H_PAGE_F_SECOND != (1ul  << (H_PAGE_F_GIX_SHIFT + 3)));
+
 	htab_init_page_sizes();
 
 	/*
@@ -1120,7 +1127,7 @@ void demote_segment_4k(struct mm_struct *mm, unsigned long addr)
 	copro_flush_all_slbs(mm);
 	if ((get_paca_psize(addr) != MMU_PAGE_4K) && (current->mm == mm)) {
 
-		copy_mm_to_paca(&mm->context);
+		copy_mm_to_paca(mm);
 		slb_flush_and_rebolt();
 	}
 }
@@ -1192,7 +1199,7 @@ static void check_paca_psize(unsigned long ea, struct mm_struct *mm,
 {
 	if (user_region) {
 		if (psize != get_paca_psize(ea)) {
-			copy_mm_to_paca(&mm->context);
+			copy_mm_to_paca(mm);
 			slb_flush_and_rebolt();
 		}
 	} else if (get_paca()->vmalloc_sllp !=
@@ -1855,5 +1862,4 @@ static int __init hash64_debugfs(void)
 	return 0;
 }
 machine_device_initcall(pseries, hash64_debugfs);
-
 #endif /* CONFIG_DEBUG_FS */
