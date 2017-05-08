@@ -5174,14 +5174,16 @@ sub process {
 			     "break quoted strings at a space character\n" . $hereprev);
 		}
 
-#check for an embedded function name in a string when the function is known
-# as part of a diff.  This does not work for -f --file checking as it
-#depends on patch context providing the function name
+# check for an embedded function name in a string when the function is known
+# This does not work very well for -f --file checking as it depends on patch
+# context providing the function name or a single line form for in-file
+# function declarations
 		if ($line =~ /^\+.*$String/ &&
 		    defined($context_function) &&
-		    get_quoted_string($line, $rawline) =~ /\b$context_function\b/) {
+		    get_quoted_string($line, $rawline) =~ /\b$context_function\b/ &&
+		    length(get_quoted_string($line, $rawline)) != (length($context_function) + 2)) {
 			WARN("EMBEDDED_FUNCTION_NAME",
-			     "Prefer using \"%s\", __func__ to embedded function names\n" . $herecurr);
+			     "Prefer using '\"%s...\", __func__' to using '$context_function', this function's name, in a string\n" . $herecurr);
 		}
 
 # check for spaces before a quoted newline
