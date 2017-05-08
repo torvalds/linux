@@ -790,8 +790,9 @@ done:
 
 int gssx_dec_accept_sec_context(struct rpc_rqst *rqstp,
 				struct xdr_stream *xdr,
-				struct gssx_res_accept_sec_context *res)
+				void *data)
 {
+	struct gssx_res_accept_sec_context *res = data;
 	u32 value_follows;
 	int err;
 	struct page *scratch;
