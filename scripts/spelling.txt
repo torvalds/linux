@@ -179,6 +179,7 @@ bakup||backup
 baloon||balloon
 baloons||balloons
 bandwith||bandwidth
+banlance||balance
 batery||battery
 beacuse||because
 becasue||because
@@ -375,6 +376,8 @@ dictionnary||dictionary
 didnt||didn't
 diferent||different
 differrence||difference
+diffrent||different
+diffrentiate||differentiate
 difinition||definition
 diplay||display
 direectly||directly

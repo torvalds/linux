@@ -625,7 +625,7 @@ int qed_iov_hw_info(struct qed_hwfn *p_hwfn)
 	 *  - If !ARI, VFs would start on next device.
 	 *    so offset - (256 - pf_id) would provide the number.
 	 * Utilize the fact that (256 - pf_id) is achieved only by later
-	 * to diffrentiate between the two.
+	 * to differentiate between the two.
 	 */
 
 	if (p_hwfn->cdev->p_iov_info->offset < (256 - p_hwfn->abs_pf_id)) {
