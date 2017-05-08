@@ -148,7 +148,6 @@ struct vgic_its {
 	gpa_t			vgic_its_base;
 
 	bool			enabled;
-	bool			initialized;
 	struct vgic_io_device	iodev;
 	struct kvm_device	*dev;
 

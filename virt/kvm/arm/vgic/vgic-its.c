@@ -1545,9 +1545,6 @@ static int vgic_register_its_iodev(struct kvm *kvm, struct vgic_its *its)
 	struct vgic_io_device *iodev = &its->iodev;
 	int ret;
 
-	if (!its->initialized)
-		return -EBUSY;
-
 	if (IS_VGIC_ADDR_UNDEF(its->vgic_its_base))
 		return -ENXIO;
 
@@ -1597,7 +1594,6 @@ static int vgic_its_create(struct kvm_device *dev, u32 type)
 	INIT_LIST_HEAD(&its->collection_list);
 
 	dev->kvm->arch.vgic.has_its = true;
-	its->initialized = false;
 	its->enabled = false;
 	its->dev = dev;
 
@@ -2397,8 +2393,7 @@ static int vgic_its_set_attr(struct kvm_device *dev,
 
 		switch (attr->attr) {
 		case KVM_DEV_ARM_VGIC_CTRL_INIT:
-			its->initialized = true;
-
+			/* Nothing to do */
 			return 0;
 		case KVM_DEV_ARM_ITS_SAVE_TABLES:
 			return abi->save_tables(its);
