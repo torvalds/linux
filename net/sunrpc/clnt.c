@@ -2476,7 +2476,8 @@ out_overflow:
 	goto out_garbage;
 }
 
-static void rpcproc_encode_null(void *rqstp, struct xdr_stream *xdr, void *obj)
+static void rpcproc_encode_null(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
+		const void *obj)
 {
 }
 
