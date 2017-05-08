@@ -480,9 +480,8 @@ void amdgpu_doorbell_get_kfd_info(struct amdgpu_device *adev,
 
 /*
  * amdgpu_wb_*()
- * Writeback is the the method by which the the GPU updates special pages
- * in memory with the status of certain GPU events (fences, ring pointers,
- * etc.).
+ * Writeback is the method by which GPU updates special pages in memory
+ * with the status of certain GPU events (fences, ring pointers,etc.).
  */
 
 /**
@@ -508,7 +507,7 @@ static void amdgpu_wb_fini(struct amdgpu_device *adev)
  *
  * @adev: amdgpu_device pointer
  *
- * Disables Writeback and frees the Writeback memory (all asics).
+ * Initialize writeback and allocates writeback memory (all asics).
  * Used at driver startup.
  * Returns 0 on success or an -error on failure.
  */
