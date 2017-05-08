@@ -357,8 +357,9 @@ static int decode_fhandle(struct xdr_stream *xdr, struct mountres *res)
 
 static int mnt_xdr_dec_mountres(struct rpc_rqst *req,
 				struct xdr_stream *xdr,
-				struct mountres *res)
+				void *data)
 {
+	struct mountres *res = data;
 	int status;
 
 	status = decode_status(xdr, res);
@@ -449,8 +450,9 @@ static int decode_auth_flavors(struct xdr_stream *xdr, struct mountres *res)
 
 static int mnt_xdr_dec_mountres3(struct rpc_rqst *req,
 				 struct xdr_stream *xdr,
-				 struct mountres *res)
+				 void *data)
 {
+	struct mountres *res = data;
 	int status;
 
 	status = decode_fhs_status(xdr, res);
@@ -468,7 +470,7 @@ static struct rpc_procinfo mnt_procedures[] = {
 	[MOUNTPROC_MNT] = {
 		.p_proc		= MOUNTPROC_MNT,
 		.p_encode	= mnt_xdr_enc_dirpath,
-		.p_decode	= (kxdrdproc_t)mnt_xdr_dec_mountres,
+		.p_decode	= mnt_xdr_dec_mountres,
 		.p_arglen	= MNT_enc_dirpath_sz,
 		.p_replen	= MNT_dec_mountres_sz,
 		.p_statidx	= MOUNTPROC_MNT,
@@ -487,7 +489,7 @@ static struct rpc_procinfo mnt3_procedures[] = {
 	[MOUNTPROC3_MNT] = {
 		.p_proc		= MOUNTPROC3_MNT,
 		.p_encode	= mnt_xdr_enc_dirpath,
-		.p_decode	= (kxdrdproc_t)mnt_xdr_dec_mountres3,
+		.p_decode	= mnt_xdr_dec_mountres3,
 		.p_arglen	= MNT_enc_dirpath_sz,
 		.p_replen	= MNT_dec_mountres3_sz,
 		.p_statidx	= MOUNTPROC3_MNT,
