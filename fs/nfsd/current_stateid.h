@@ -8,10 +8,14 @@ extern void clear_current_stateid(struct nfsd4_compound_state *cstate);
 /*
  * functions to set current state id
  */
-extern void nfsd4_set_opendowngradestateid(struct nfsd4_compound_state *cstate, struct nfsd4_open_downgrade *);
-extern void nfsd4_set_openstateid(struct nfsd4_compound_state *, struct nfsd4_open *);
-extern void nfsd4_set_lockstateid(struct nfsd4_compound_state *, struct nfsd4_lock *);
-extern void nfsd4_set_closestateid(struct nfsd4_compound_state *, struct nfsd4_close *);
+extern void nfsd4_set_opendowngradestateid(struct nfsd4_compound_state *,
+		union nfsd4_op_u *);
+extern void nfsd4_set_openstateid(struct nfsd4_compound_state *,
+		union nfsd4_op_u *);
+extern void nfsd4_set_lockstateid(struct nfsd4_compound_state *,
+		union nfsd4_op_u *);
+extern void nfsd4_set_closestateid(struct nfsd4_compound_state *,
+		union nfsd4_op_u *);
 
 /*
  * functions to consume current state id
