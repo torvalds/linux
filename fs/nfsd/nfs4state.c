@@ -7103,27 +7103,31 @@ clear_current_stateid(struct nfsd4_compound_state *cstate)
  * functions to set current state id
  */
 void
-nfsd4_set_opendowngradestateid(struct nfsd4_compound_state *cstate, struct nfsd4_open_downgrade *odp)
+nfsd4_set_opendowngradestateid(struct nfsd4_compound_state *cstate,
+		union nfsd4_op_u *u)
 {
-	put_stateid(cstate, &odp->od_stateid);
+	put_stateid(cstate, &u->open_downgrade.od_stateid);
 }
 
 void
-nfsd4_set_openstateid(struct nfsd4_compound_state *cstate, struct nfsd4_open *open)
+nfsd4_set_openstateid(struct nfsd4_compound_state *cstate,
+		union nfsd4_op_u *u)
 {
-	put_stateid(cstate, &open->op_stateid);
+	put_stateid(cstate, &u->open.op_stateid);
 }
 
 void
-nfsd4_set_closestateid(struct nfsd4_compound_state *cstate, struct nfsd4_close *close)
+nfsd4_set_closestateid(struct nfsd4_compound_state *cstate,
+		union nfsd4_op_u *u)
 {
-	put_stateid(cstate, &close->cl_stateid);
+	put_stateid(cstate, &u->close.cl_stateid);
 }
 
 void
-nfsd4_set_lockstateid(struct nfsd4_compound_state *cstate, struct nfsd4_lock *lock)
+nfsd4_set_lockstateid(struct nfsd4_compound_state *cstate,
+		union nfsd4_op_u *u)
 {
-	put_stateid(cstate, &lock->lk_resp_stateid);
+	put_stateid(cstate, &u->lock.lk_resp_stateid);
 }
 
 /*

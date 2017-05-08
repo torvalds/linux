@@ -539,7 +539,7 @@ struct nfsd4_seek {
 struct nfsd4_op {
 	int					opnum;
 	__be32					status;
-	union {
+	union nfsd4_op_u {
 		struct nfsd4_access		access;
 		struct nfsd4_close		close;
 		struct nfsd4_commit		commit;

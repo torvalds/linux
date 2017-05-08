@@ -1525,7 +1525,6 @@ typedef __be32(*nfsd4op_func)(struct svc_rqst *, struct nfsd4_compound_state *,
 			      void *);
 typedef u32(*nfsd4op_rsize)(struct svc_rqst *, struct nfsd4_op *op);
 
-typedef void(*stateid_setter)(struct nfsd4_compound_state *, void *);
 typedef void(*stateid_getter)(struct nfsd4_compound_state *, void *);
 
 enum nfsd4_op_flags {
@@ -1565,7 +1564,8 @@ struct nfsd4_operation {
 	/* Try to get response size before operation */
 	nfsd4op_rsize op_rsize_bop;
 	stateid_getter op_get_currentstateid;
-	stateid_setter op_set_currentstateid;
+	void (*op_set_currentstateid)(struct nfsd4_compound_state *,
+			union nfsd4_op_u *);
 };
 
 static struct nfsd4_operation nfsd4_ops[];
@@ -2104,7 +2104,7 @@ static struct nfsd4_operation nfsd4_ops[] = {
 		.op_name = "OP_CLOSE",
 		.op_rsize_bop = (nfsd4op_rsize)nfsd4_status_stateid_rsize,
 		.op_get_currentstateid = (stateid_getter)nfsd4_get_closestateid,
-		.op_set_currentstateid = (stateid_setter)nfsd4_set_closestateid,
+		.op_set_currentstateid = nfsd4_set_closestateid,
 	},
 	[OP_COMMIT] = {
 		.op_func = (nfsd4op_func)nfsd4_commit,
@@ -2148,7 +2148,7 @@ static struct nfsd4_operation nfsd4_ops[] = {
 		.op_flags = OP_MODIFIES_SOMETHING,
 		.op_name = "OP_LOCK",
 		.op_rsize_bop = (nfsd4op_rsize)nfsd4_lock_rsize,
-		.op_set_currentstateid = (stateid_setter)nfsd4_set_lockstateid,
+		.op_set_currentstateid = nfsd4_set_lockstateid,
 	},
 	[OP_LOCKT] = {
 		.op_func = (nfsd4op_func)nfsd4_lockt,
@@ -2184,7 +2184,7 @@ static struct nfsd4_operation nfsd4_ops[] = {
 		.op_flags = OP_HANDLES_WRONGSEC | OP_MODIFIES_SOMETHING,
 		.op_name = "OP_OPEN",
 		.op_rsize_bop = (nfsd4op_rsize)nfsd4_open_rsize,
-		.op_set_currentstateid = (stateid_setter)nfsd4_set_openstateid,
+		.op_set_currentstateid = nfsd4_set_openstateid,
 	},
 	[OP_OPEN_CONFIRM] = {
 		.op_func = (nfsd4op_func)nfsd4_open_confirm,
@@ -2198,7 +2198,7 @@ static struct nfsd4_operation nfsd4_ops[] = {
 		.op_name = "OP_OPEN_DOWNGRADE",
 		.op_rsize_bop = (nfsd4op_rsize)nfsd4_status_stateid_rsize,
 		.op_get_currentstateid = (stateid_getter)nfsd4_get_opendowngradestateid,
-		.op_set_currentstateid = (stateid_setter)nfsd4_set_opendowngradestateid,
+		.op_set_currentstateid = nfsd4_set_opendowngradestateid,
 	},
 	[OP_PUTFH] = {
 		.op_func = (nfsd4op_func)nfsd4_putfh,
