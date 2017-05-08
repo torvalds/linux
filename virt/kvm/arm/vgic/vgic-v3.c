@@ -329,18 +329,29 @@ int vgic_v3_save_pending_tables(struct kvm *kvm)
 	return 0;
 }
 
-/* check for overlapping regions and for regions crossing the end of memory */
-static bool vgic_v3_check_base(struct kvm *kvm)
+/*
+ * Check for overlapping regions and for regions crossing the end of memory
+ * for base addresses which have already been set.
+ */
+bool vgic_v3_check_base(struct kvm *kvm)
 {
 	struct vgic_dist *d = &kvm->arch.vgic;
 	gpa_t redist_size = KVM_VGIC_V3_REDIST_SIZE;
 
 	redist_size *= atomic_read(&kvm->online_vcpus);
 
-	if (d->vgic_dist_base + KVM_VGIC_V3_DIST_SIZE < d->vgic_dist_base)
+	if (!IS_VGIC_ADDR_UNDEF(d->vgic_dist_base) &&
+	    d->vgic_dist_base + KVM_VGIC_V3_DIST_SIZE < d->vgic_dist_base)
 		return false;
-	if (d->vgic_redist_base + redist_size < d->vgic_redist_base)
+
+	if (!IS_VGIC_ADDR_UNDEF(d->vgic_redist_base) &&
+	    d->vgic_redist_base + redist_size < d->vgic_redist_base)
 		return false;
+
+	/* Both base addresses must be set to check if they overlap */
+	if (IS_VGIC_ADDR_UNDEF(d->vgic_dist_base) ||
+	    IS_VGIC_ADDR_UNDEF(d->vgic_redist_base))
+		return true;
 
 	if (d->vgic_dist_base + KVM_VGIC_V3_DIST_SIZE <= d->vgic_redist_base)
 		return true;
