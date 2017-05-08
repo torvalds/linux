@@ -378,10 +378,12 @@ static struct svc_procedure		nfsd_acl_procedures2[] = {
   PROC(access,	access,		access,		access,   RC_NOCACHE, ST+AT+1),
 };
 
+static unsigned int nfsd_acl_count2[ARRAY_SIZE(nfsd_acl_procedures2)];
 struct svc_version	nfsd_acl_version2 = {
 		.vs_vers	= 2,
 		.vs_nproc	= 5,
 		.vs_proc	= nfsd_acl_procedures2,
+		.vs_count	= nfsd_acl_count2,
 		.vs_dispatch	= nfsd_dispatch,
 		.vs_xdrsize	= NFS3_SVC_XDRSIZE,
 };

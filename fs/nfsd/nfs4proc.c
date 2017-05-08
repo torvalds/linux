@@ -2553,10 +2553,12 @@ static struct svc_procedure		nfsd_procedures4[2] = {
 	},
 };
 
+static unsigned int nfsd_count3[ARRAY_SIZE(nfsd_procedures4)];
 struct svc_version	nfsd_version4 = {
 	.vs_vers		= 4,
 	.vs_nproc		= 2,
 	.vs_proc		= nfsd_procedures4,
+	.vs_count		= nfsd_count3,
 	.vs_dispatch		= nfsd_dispatch,
 	.vs_xdrsize		= NFS4_SVC_XDRSIZE,
 	.vs_rpcb_optnl		= true,

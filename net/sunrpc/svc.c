@@ -1261,7 +1261,7 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 	svc_putnl(resv, RPC_SUCCESS);
 
 	/* Bump per-procedure stats counter */
-	procp->pc_count++;
+	versp->vs_count[proc]++;
 
 	/* Initialize storage for argp and resp */
 	memset(rqstp->rq_argp, 0, procp->pc_argsize);

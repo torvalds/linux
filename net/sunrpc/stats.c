@@ -77,9 +77,9 @@ static const struct file_operations rpc_proc_fops = {
 /*
  * Get RPC server stats
  */
-void svc_seq_show(struct seq_file *seq, const struct svc_stat *statp) {
+void svc_seq_show(struct seq_file *seq, const struct svc_stat *statp)
+{
 	const struct svc_program *prog = statp->program;
-	const struct svc_procedure *proc;
 	const struct svc_version *vers;
 	unsigned int i, j;
 
@@ -98,11 +98,12 @@ void svc_seq_show(struct seq_file *seq, const struct svc_stat *statp) {
 			statp->rpcbadclnt);
 
 	for (i = 0; i < prog->pg_nvers; i++) {
-		if (!(vers = prog->pg_vers[i]) || !(proc = vers->vs_proc))
+		vers = prog->pg_vers[i];
+		if (!vers)
 			continue;
 		seq_printf(seq, "proc%d %u", i, vers->vs_nproc);
-		for (j = 0; j < vers->vs_nproc; j++, proc++)
-			seq_printf(seq, " %u", proc->pc_count);
+		for (j = 0; j < vers->vs_nproc; j++)
+			seq_printf(seq, " %u", vers->vs_count[j]);
 		seq_putc(seq, '\n');
 	}
 }
