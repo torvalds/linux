@@ -345,17 +345,17 @@ static int nfsaclsvc_release_access(struct svc_rqst *rqstp, __be32 *p,
 #define nfsd3_voidres		nfsd3_voidargs
 struct nfsd3_voidargs { int dummy; };
 
-#define PROC(name, argt, rest, relt, cache, respsize)	\
- { (svc_procfunc) nfsacld_proc_##name,		\
-   (kxdrproc_t) nfsaclsvc_decode_##argt##args,	\
-   (kxdrproc_t) nfsaclsvc_encode_##rest##res,	\
-   (kxdrproc_t) nfsaclsvc_release_##relt,		\
-   sizeof(struct nfsd3_##argt##args),		\
-   sizeof(struct nfsd3_##rest##res),		\
-   0,						\
-   cache,					\
-   respsize,					\
- }
+#define PROC(name, argt, rest, relt, cache, respsize)			\
+{									\
+	.pc_func	= (svc_procfunc) nfsacld_proc_##name,		\
+	.pc_decode	= (kxdrproc_t) nfsaclsvc_decode_##argt##args,	\
+	.pc_encode	= (kxdrproc_t) nfsaclsvc_encode_##rest##res,	\
+	.pc_release	= (kxdrproc_t) nfsaclsvc_release_##relt,	\
+	.pc_argsize	= sizeof(struct nfsd3_##argt##args),		\
+	.pc_ressize	= sizeof(struct nfsd3_##rest##res),		\
+	.pc_cachetype	= cache,					\
+	.pc_xdrressize	= respsize,					\
+}
 
 #define ST 1		/* status*/
 #define AT 21		/* attributes */
