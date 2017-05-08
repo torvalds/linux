@@ -2628,8 +2628,8 @@ sub process {
 # Check if it's the start of a commit log
 # (not a header line and we haven't seen the patch filename)
 		if ($in_header_lines && $realfile =~ /^$/ &&
-		    !($rawline =~ /^\s+\S/ ||
-		      $rawline =~ /^(commit\b|from\b|[\w-]+:).*$/i)) {
+		    !($rawline =~ /^\s+(?:\S|$)/ ||
+		      $rawline =~ /^(?:commit\b|from\b|[\w-]+:)/i)) {
 			$in_header_lines = 0;
 			$in_commit_log = 1;
 			$has_commit_log = 1;
