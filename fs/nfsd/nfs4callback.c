@@ -705,6 +705,7 @@ static struct rpc_procinfo nfs4_cb_procedures[] = {
 	PROC(CB_NOTIFY_LOCK,	COMPOUND,	cb_notify_lock,	cb_notify_lock),
 };
 
+static unsigned int nfs4_cb_counts[ARRAY_SIZE(nfs4_cb_procedures)];
 static struct rpc_version nfs_cb_version4 = {
 /*
  * Note on the callback rpc program version number: despite language in rfc
@@ -715,7 +716,8 @@ static struct rpc_version nfs_cb_version4 = {
  */
 	.number			= 1,
 	.nrprocs		= ARRAY_SIZE(nfs4_cb_procedures),
-	.procs			= nfs4_cb_procedures
+	.procs			= nfs4_cb_procedures,
+	.counts			= nfs4_cb_counts,
 };
 
 static const struct rpc_version *nfs_cb_version[] = {

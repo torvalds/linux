@@ -600,16 +600,20 @@ static struct rpc_procinfo	nlm_procedures[] = {
 	PROC(GRANTED_RES,	res,		norep),
 };
 
+static unsigned int nlm_version1_counts[ARRAY_SIZE(nlm_procedures)];
 static const struct rpc_version	nlm_version1 = {
 	.number		= 1,
 	.nrprocs	= ARRAY_SIZE(nlm_procedures),
 	.procs		= nlm_procedures,
+	.counts		= nlm_version1_counts,
 };
 
+static unsigned int nlm_version3_counts[ARRAY_SIZE(nlm_procedures)];
 static const struct rpc_version	nlm_version3 = {
 	.number		= 3,
 	.nrprocs	= ARRAY_SIZE(nlm_procedures),
 	.procs		= nlm_procedures,
+	.counts		= nlm_version3_counts,
 };
 
 static const struct rpc_version	*nlm_versions[] = {

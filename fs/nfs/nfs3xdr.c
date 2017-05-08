@@ -2578,10 +2578,12 @@ struct rpc_procinfo	nfs3_procedures[] = {
 	PROC(COMMIT,		commit,		commit,		5),
 };
 
+static unsigned int nfs_version3_counts[ARRAY_SIZE(nfs3_procedures)];
 const struct rpc_version nfs_version3 = {
 	.number			= 3,
 	.nrprocs		= ARRAY_SIZE(nfs3_procedures),
-	.procs			= nfs3_procedures
+	.procs			= nfs3_procedures,
+	.counts			= nfs_version3_counts,
 };
 
 #ifdef CONFIG_NFS_V3_ACL
@@ -2606,10 +2608,12 @@ static struct rpc_procinfo	nfs3_acl_procedures[] = {
 	},
 };
 
+static unsigned int nfs3_acl_counts[ARRAY_SIZE(nfs3_acl_procedures)];
 const struct rpc_version nfsacl_version3 = {
 	.number			= 3,
 	.nrprocs		= sizeof(nfs3_acl_procedures)/
 				  sizeof(nfs3_acl_procedures[0]),
 	.procs			= nfs3_acl_procedures,
+	.counts			= nfs3_acl_counts,
 };
 #endif  /* CONFIG_NFS_V3_ACL */
