@@ -113,6 +113,21 @@
  */
 #define MAKE_PC_FROM_RA(ra,sp)    (((ra) & 0x3fffffff) | ((sp) & 0xc0000000))
 
+/* Spill slot location for the register reg in the spill area under the stack
+ * pointer sp. reg must be in the range [0..4).
+ */
+#define SPILL_SLOT(sp, reg) (*(((unsigned long *)(sp)) - 4 + (reg)))
+
+/* Spill slot location for the register reg in the spill area under the stack
+ * pointer sp for the call8. reg must be in the range [4..8).
+ */
+#define SPILL_SLOT_CALL8(sp, reg) (*(((unsigned long *)(sp)) - 12 + (reg)))
+
+/* Spill slot location for the register reg in the spill area under the stack
+ * pointer sp for the call12. reg must be in the range [4..12).
+ */
+#define SPILL_SLOT_CALL12(sp, reg) (*(((unsigned long *)(sp)) - 16 + (reg)))
+
 typedef struct {
 	unsigned long seg;
 } mm_segment_t;

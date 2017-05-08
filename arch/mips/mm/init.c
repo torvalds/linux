@@ -348,7 +348,7 @@ void maar_init(void)
 		upper = ((upper & MIPS_MAAR_ADDR) << 4) | 0xffff;
 
 		pr_info("  [%d]: ", i / 2);
-		if (!(attr & MIPS_MAAR_V)) {
+		if (!(attr & MIPS_MAAR_VL)) {
 			pr_cont("disabled\n");
 			continue;
 		}

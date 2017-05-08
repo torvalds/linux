@@ -84,9 +84,6 @@ module_param_named(eptad, enable_ept_ad_bits, bool, S_IRUGO);
 static bool __read_mostly emulate_invalid_guest_state = true;
 module_param(emulate_invalid_guest_state, bool, S_IRUGO);
 
-static bool __read_mostly vmm_exclusive = 1;
-module_param(vmm_exclusive, bool, S_IRUGO);
-
 static bool __read_mostly fasteoi = 1;
 module_param(fasteoi, bool, S_IRUGO);
 
@@ -615,10 +612,6 @@ struct vcpu_vmx {
 	int vpid;
 	bool emulation_required;
 
-	/* Support for vnmi-less CPUs */
-	int soft_vnmi_blocked;
-	ktime_t entry_time;
-	s64 vnmi_blocked_time;
 	u32 exit_reason;
 
 	/* Posted interrupt descriptor */
@@ -914,8 +907,6 @@ static void nested_release_page_clean(struct page *page)
 
 static unsigned long nested_ept_get_cr3(struct kvm_vcpu *vcpu);
 static u64 construct_eptp(unsigned long root_hpa);
-static void kvm_cpu_vmxon(u64 addr);
-static void kvm_cpu_vmxoff(void);
 static bool vmx_xsaves_supported(void);
 static int vmx_set_tss_addr(struct kvm *kvm, unsigned int addr);
 static void vmx_set_segment(struct kvm_vcpu *vcpu,
@@ -1287,11 +1278,6 @@ static inline bool cpu_has_vmx_invpcid(void)
 {
 	return vmcs_config.cpu_based_2nd_exec_ctrl &
 		SECONDARY_EXEC_ENABLE_INVPCID;
-}
-
-static inline bool cpu_has_virtual_nmis(void)
-{
-	return vmcs_config.pin_based_exec_ctrl & PIN_BASED_VIRTUAL_NMIS;
 }
 
 static inline bool cpu_has_vmx_wbinvd_exit(void)
@@ -2238,15 +2224,10 @@ static void decache_tsc_multiplier(struct vcpu_vmx *vmx)
 static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	u64 phys_addr = __pa(per_cpu(vmxarea, cpu));
 	bool already_loaded = vmx->loaded_vmcs->cpu == cpu;
 
-	if (!vmm_exclusive)
-		kvm_cpu_vmxon(phys_addr);
-	else if (!already_loaded)
-		loaded_vmcs_clear(vmx->loaded_vmcs);
-
 	if (!already_loaded) {
+		loaded_vmcs_clear(vmx->loaded_vmcs);
 		local_irq_disable();
 		crash_disable_local_vmclear(cpu);
 
@@ -2324,11 +2305,6 @@ static void vmx_vcpu_put(struct kvm_vcpu *vcpu)
 	vmx_vcpu_pi_put(vcpu);
 
 	__vmx_load_host_state(to_vmx(vcpu));
-	if (!vmm_exclusive) {
-		__loaded_vmcs_clear(to_vmx(vcpu)->loaded_vmcs);
-		vcpu->cpu = -1;
-		kvm_cpu_vmxoff();
-	}
 }
 
 static void vmx_decache_cr0_guest_bits(struct kvm_vcpu *vcpu);
@@ -2752,6 +2728,7 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 		vmx->nested.nested_vmx_secondary_ctls_high);
 	vmx->nested.nested_vmx_secondary_ctls_low = 0;
 	vmx->nested.nested_vmx_secondary_ctls_high &=
+		SECONDARY_EXEC_RDRAND | SECONDARY_EXEC_RDSEED |
 		SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES |
 		SECONDARY_EXEC_RDTSCP |
 		SECONDARY_EXEC_DESC |
@@ -2766,14 +2743,16 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 		vmx->nested.nested_vmx_secondary_ctls_high |=
 			SECONDARY_EXEC_ENABLE_EPT;
 		vmx->nested.nested_vmx_ept_caps = VMX_EPT_PAGE_WALK_4_BIT |
-			 VMX_EPTP_WB_BIT | VMX_EPT_2MB_PAGE_BIT |
-			 VMX_EPT_INVEPT_BIT;
+			 VMX_EPTP_WB_BIT | VMX_EPT_INVEPT_BIT;
 		if (cpu_has_vmx_ept_execute_only())
 			vmx->nested.nested_vmx_ept_caps |=
 				VMX_EPT_EXECUTE_ONLY_BIT;
 		vmx->nested.nested_vmx_ept_caps &= vmx_capability.ept;
 		vmx->nested.nested_vmx_ept_caps |= VMX_EPT_EXTENT_GLOBAL_BIT |
-			VMX_EPT_EXTENT_CONTEXT_BIT;
+			VMX_EPT_EXTENT_CONTEXT_BIT | VMX_EPT_2MB_PAGE_BIT |
+			VMX_EPT_1GB_PAGE_BIT;
+	       if (enable_ept_ad_bits)
+		       vmx->nested.nested_vmx_ept_caps |= VMX_EPT_AD_BIT;
 	} else
 		vmx->nested.nested_vmx_ept_caps = 0;
 
@@ -3420,6 +3399,7 @@ static __init int vmx_disabled_by_bios(void)
 
 static void kvm_cpu_vmxon(u64 addr)
 {
+	cr4_set_bits(X86_CR4_VMXE);
 	intel_pt_handle_vmx(1);
 
 	asm volatile (ASM_VMX_VMXON_RAX
@@ -3462,12 +3442,8 @@ static int hardware_enable(void)
 		/* enable and lock */
 		wrmsrl(MSR_IA32_FEATURE_CONTROL, old | test_bits);
 	}
-	cr4_set_bits(X86_CR4_VMXE);
-
-	if (vmm_exclusive) {
-		kvm_cpu_vmxon(phys_addr);
-		ept_sync_global();
-	}
+	kvm_cpu_vmxon(phys_addr);
+	ept_sync_global();
 
 	return 0;
 }
@@ -3491,15 +3467,13 @@ static void kvm_cpu_vmxoff(void)
 	asm volatile (__ex(ASM_VMX_VMXOFF) : : : "cc");
 
 	intel_pt_handle_vmx(0);
+	cr4_clear_bits(X86_CR4_VMXE);
 }
 
 static void hardware_disable(void)
 {
-	if (vmm_exclusive) {
-		vmclear_local_loaded_vmcss();
-		kvm_cpu_vmxoff();
-	}
-	cr4_clear_bits(X86_CR4_VMXE);
+	vmclear_local_loaded_vmcss();
+	kvm_cpu_vmxoff();
 }
 
 static __init int adjust_vmx_controls(u32 ctl_min, u32 ctl_opt,
@@ -3549,10 +3523,12 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 	      CPU_BASED_USE_IO_BITMAPS |
 	      CPU_BASED_MOV_DR_EXITING |
 	      CPU_BASED_USE_TSC_OFFSETING |
-	      CPU_BASED_MWAIT_EXITING |
-	      CPU_BASED_MONITOR_EXITING |
 	      CPU_BASED_INVLPG_EXITING |
 	      CPU_BASED_RDPMC_EXITING;
+
+	if (!kvm_mwait_in_guest())
+		min |= CPU_BASED_MWAIT_EXITING |
+			CPU_BASED_MONITOR_EXITING;
 
 	opt = CPU_BASED_TPR_SHADOW |
 	      CPU_BASED_USE_MSR_BITMAPS |
@@ -3619,9 +3595,9 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 				&_vmexit_control) < 0)
 		return -EIO;
 
-	min = PIN_BASED_EXT_INTR_MASK | PIN_BASED_NMI_EXITING;
-	opt = PIN_BASED_VIRTUAL_NMIS | PIN_BASED_POSTED_INTR |
-		 PIN_BASED_VMX_PREEMPTION_TIMER;
+	min = PIN_BASED_EXT_INTR_MASK | PIN_BASED_NMI_EXITING |
+		PIN_BASED_VIRTUAL_NMIS;
+	opt = PIN_BASED_POSTED_INTR | PIN_BASED_VMX_PREEMPTION_TIMER;
 	if (adjust_vmx_controls(min, opt, MSR_IA32_VMX_PINBASED_CTLS,
 				&_pin_based_exec_control) < 0)
 		return -EIO;
@@ -4013,11 +3989,12 @@ static void exit_lmode(struct kvm_vcpu *vcpu)
 
 static inline void __vmx_flush_tlb(struct kvm_vcpu *vcpu, int vpid)
 {
-	vpid_sync_context(vpid);
 	if (enable_ept) {
 		if (!VALID_PAGE(vcpu->arch.mmu.root_hpa))
 			return;
 		ept_sync_context(construct_eptp(vcpu->arch.mmu.root_hpa));
+	} else {
+		vpid_sync_context(vpid);
 	}
 }
 
@@ -5293,8 +5270,6 @@ static void vmx_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 
 	vmx->rmode.vm86_active = 0;
 
-	vmx->soft_vnmi_blocked = 0;
-
 	vmx->vcpu.arch.regs[VCPU_REGS_RDX] = get_rdx_init_val();
 	kvm_set_cr8(vcpu, 0);
 
@@ -5414,8 +5389,7 @@ static void enable_irq_window(struct kvm_vcpu *vcpu)
 
 static void enable_nmi_window(struct kvm_vcpu *vcpu)
 {
-	if (!cpu_has_virtual_nmis() ||
-	    vmcs_read32(GUEST_INTERRUPTIBILITY_INFO) & GUEST_INTR_STATE_STI) {
+	if (vmcs_read32(GUEST_INTERRUPTIBILITY_INFO) & GUEST_INTR_STATE_STI) {
 		enable_irq_window(vcpu);
 		return;
 	}
@@ -5456,19 +5430,6 @@ static void vmx_inject_nmi(struct kvm_vcpu *vcpu)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
 	if (!is_guest_mode(vcpu)) {
-		if (!cpu_has_virtual_nmis()) {
-			/*
-			 * Tracking the NMI-blocked state in software is built upon
-			 * finding the next open IRQ window. This, in turn, depends on
-			 * well-behaving guests: They have to keep IRQs disabled at
-			 * least as long as the NMI handler runs. Otherwise we may
-			 * cause NMI nesting, maybe breaking the guest. But as this is
-			 * highly unlikely, we can live with the residual risk.
-			 */
-			vmx->soft_vnmi_blocked = 1;
-			vmx->vnmi_blocked_time = 0;
-		}
-
 		++vcpu->stat.nmi_injections;
 		vmx->nmi_known_unmasked = false;
 	}
@@ -5485,8 +5446,6 @@ static void vmx_inject_nmi(struct kvm_vcpu *vcpu)
 
 static bool vmx_get_nmi_mask(struct kvm_vcpu *vcpu)
 {
-	if (!cpu_has_virtual_nmis())
-		return to_vmx(vcpu)->soft_vnmi_blocked;
 	if (to_vmx(vcpu)->nmi_known_unmasked)
 		return false;
 	return vmcs_read32(GUEST_INTERRUPTIBILITY_INFO)	& GUEST_INTR_STATE_NMI;
@@ -5496,28 +5455,18 @@ static void vmx_set_nmi_mask(struct kvm_vcpu *vcpu, bool masked)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	if (!cpu_has_virtual_nmis()) {
-		if (vmx->soft_vnmi_blocked != masked) {
-			vmx->soft_vnmi_blocked = masked;
-			vmx->vnmi_blocked_time = 0;
-		}
-	} else {
-		vmx->nmi_known_unmasked = !masked;
-		if (masked)
-			vmcs_set_bits(GUEST_INTERRUPTIBILITY_INFO,
-				      GUEST_INTR_STATE_NMI);
-		else
-			vmcs_clear_bits(GUEST_INTERRUPTIBILITY_INFO,
-					GUEST_INTR_STATE_NMI);
-	}
+	vmx->nmi_known_unmasked = !masked;
+	if (masked)
+		vmcs_set_bits(GUEST_INTERRUPTIBILITY_INFO,
+			      GUEST_INTR_STATE_NMI);
+	else
+		vmcs_clear_bits(GUEST_INTERRUPTIBILITY_INFO,
+				GUEST_INTR_STATE_NMI);
 }
 
 static int vmx_nmi_allowed(struct kvm_vcpu *vcpu)
 {
 	if (to_vmx(vcpu)->nested.nested_run_pending)
-		return 0;
-
-	if (!cpu_has_virtual_nmis() && to_vmx(vcpu)->soft_vnmi_blocked)
 		return 0;
 
 	return	!(vmcs_read32(GUEST_INTERRUPTIBILITY_INFO) &
@@ -6240,21 +6189,18 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 	unsigned long exit_qualification;
 	gpa_t gpa;
 	u32 error_code;
-	int gla_validity;
 
 	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 
-	gla_validity = (exit_qualification >> 7) & 0x3;
-	if (gla_validity == 0x2) {
-		printk(KERN_ERR "EPT: Handling EPT violation failed!\n");
-		printk(KERN_ERR "EPT: GPA: 0x%lx, GVA: 0x%lx\n",
-			(long unsigned int)vmcs_read64(GUEST_PHYSICAL_ADDRESS),
-			vmcs_readl(GUEST_LINEAR_ADDRESS));
-		printk(KERN_ERR "EPT: Exit qualification is 0x%lx\n",
-			(long unsigned int)exit_qualification);
-		vcpu->run->exit_reason = KVM_EXIT_UNKNOWN;
-		vcpu->run->hw.hardware_exit_reason = EXIT_REASON_EPT_VIOLATION;
-		return 0;
+	if (is_guest_mode(vcpu)
+	    && !(exit_qualification & EPT_VIOLATION_GVA_TRANSLATED)) {
+		/*
+		 * Fix up exit_qualification according to whether guest
+		 * page table accesses are reads or writes.
+		 */
+		u64 eptp = nested_ept_get_cr3(vcpu);
+		if (!(eptp & VMX_EPT_AD_ENABLE_BIT))
+			exit_qualification &= ~EPT_VIOLATION_ACC_WRITE;
 	}
 
 	/*
@@ -6264,7 +6210,6 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 	 * AAK134, BY25.
 	 */
 	if (!(to_vmx(vcpu)->idt_vectoring_info & VECTORING_INFO_VALID_MASK) &&
-			cpu_has_virtual_nmis() &&
 			(exit_qualification & INTR_INFO_UNBLOCK_NMI))
 		vmcs_set_bits(GUEST_INTERRUPTIBILITY_INFO, GUEST_INTR_STATE_NMI);
 
@@ -6350,7 +6295,7 @@ static int handle_invalid_guest_state(struct kvm_vcpu *vcpu)
 		if (intr_window_requested && vmx_interrupt_allowed(vcpu))
 			return handle_interrupt_window(&vmx->vcpu);
 
-		if (test_bit(KVM_REQ_EVENT, &vcpu->requests))
+		if (kvm_test_request(KVM_REQ_EVENT, vcpu))
 			return 1;
 
 		err = emulate_instruction(vcpu, EMULTYPE_NO_REEXECUTE);
@@ -7103,31 +7048,21 @@ out_msr_bitmap:
 static int handle_vmon(struct kvm_vcpu *vcpu)
 {
 	int ret;
-	struct kvm_segment cs;
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	const u64 VMXON_NEEDED_FEATURES = FEATURE_CONTROL_LOCKED
 		| FEATURE_CONTROL_VMXON_ENABLED_OUTSIDE_SMX;
 
-	/* The Intel VMX Instruction Reference lists a bunch of bits that
-	 * are prerequisite to running VMXON, most notably cr4.VMXE must be
-	 * set to 1 (see vmx_set_cr4() for when we allow the guest to set this).
-	 * Otherwise, we should fail with #UD. We test these now:
+	/*
+	 * The Intel VMX Instruction Reference lists a bunch of bits that are
+	 * prerequisite to running VMXON, most notably cr4.VMXE must be set to
+	 * 1 (see vmx_set_cr4() for when we allow the guest to set this).
+	 * Otherwise, we should fail with #UD.  But most faulting conditions
+	 * have already been checked by hardware, prior to the VM-exit for
+	 * VMXON.  We do test guest cr4.VMXE because processor CR4 always has
+	 * that bit set to 1 in non-root mode.
 	 */
-	if (!kvm_read_cr4_bits(vcpu, X86_CR4_VMXE) ||
-	    !kvm_read_cr0_bits(vcpu, X86_CR0_PE) ||
-	    (vmx_get_rflags(vcpu) & X86_EFLAGS_VM)) {
+	if (!kvm_read_cr4_bits(vcpu, X86_CR4_VMXE)) {
 		kvm_queue_exception(vcpu, UD_VECTOR);
-		return 1;
-	}
-
-	vmx_get_segment(vcpu, &cs, VCPU_SREG_CS);
-	if (is_long_mode(vcpu) && !cs.l) {
-		kvm_queue_exception(vcpu, UD_VECTOR);
-		return 1;
-	}
-
-	if (vmx_get_cpl(vcpu)) {
-		kvm_inject_gp(vcpu, 0);
 		return 1;
 	}
 
@@ -7157,29 +7092,15 @@ static int handle_vmon(struct kvm_vcpu *vcpu)
  * Intel's VMX Instruction Reference specifies a common set of prerequisites
  * for running VMX instructions (except VMXON, whose prerequisites are
  * slightly different). It also specifies what exception to inject otherwise.
+ * Note that many of these exceptions have priority over VM exits, so they
+ * don't have to be checked again here.
  */
 static int nested_vmx_check_permission(struct kvm_vcpu *vcpu)
 {
-	struct kvm_segment cs;
-	struct vcpu_vmx *vmx = to_vmx(vcpu);
-
-	if (!vmx->nested.vmxon) {
+	if (!to_vmx(vcpu)->nested.vmxon) {
 		kvm_queue_exception(vcpu, UD_VECTOR);
 		return 0;
 	}
-
-	vmx_get_segment(vcpu, &cs, VCPU_SREG_CS);
-	if ((vmx_get_rflags(vcpu) & X86_EFLAGS_VM) ||
-	    (is_long_mode(vcpu) && !cs.l)) {
-		kvm_queue_exception(vcpu, UD_VECTOR);
-		return 0;
-	}
-
-	if (vmx_get_cpl(vcpu)) {
-		kvm_inject_gp(vcpu, 0);
-		return 0;
-	}
-
 	return 1;
 }
 
@@ -7523,7 +7444,7 @@ static int handle_vmread(struct kvm_vcpu *vcpu)
 		if (get_vmx_mem_address(vcpu, exit_qualification,
 				vmx_instruction_info, true, &gva))
 			return 1;
-		/* _system ok, as nested_vmx_check_permission verified cpl=0 */
+		/* _system ok, as hardware has verified cpl=0 */
 		kvm_write_guest_virt_system(&vcpu->arch.emulate_ctxt, gva,
 			     &field_value, (is_long_mode(vcpu) ? 8 : 4), NULL);
 	}
@@ -7656,7 +7577,7 @@ static int handle_vmptrst(struct kvm_vcpu *vcpu)
 	if (get_vmx_mem_address(vcpu, exit_qualification,
 			vmx_instruction_info, true, &vmcs_gva))
 		return 1;
-	/* ok to use *_system, as nested_vmx_check_permission verified cpl=0 */
+	/* ok to use *_system, as hardware has verified cpl=0 */
 	if (kvm_write_guest_virt_system(&vcpu->arch.emulate_ctxt, vmcs_gva,
 				 (void *)&to_vmx(vcpu)->nested.current_vmptr,
 				 sizeof(u64), &e)) {
@@ -7688,11 +7609,6 @@ static int handle_invept(struct kvm_vcpu *vcpu)
 
 	if (!nested_vmx_check_permission(vcpu))
 		return 1;
-
-	if (!kvm_read_cr0_bits(vcpu, X86_CR0_PE)) {
-		kvm_queue_exception(vcpu, UD_VECTOR);
-		return 1;
-	}
 
 	vmx_instruction_info = vmcs_read32(VMX_INSTRUCTION_INFO);
 	type = kvm_register_readl(vcpu, (vmx_instruction_info >> 28) & 0xf);
@@ -7815,7 +7731,6 @@ static int handle_pml_full(struct kvm_vcpu *vcpu)
 	 * "blocked by NMI" bit has to be set before next VM entry.
 	 */
 	if (!(to_vmx(vcpu)->idt_vectoring_info & VECTORING_INFO_VALID_MASK) &&
-			cpu_has_virtual_nmis() &&
 			(exit_qualification & INTR_INFO_UNBLOCK_NMI))
 		vmcs_set_bits(GUEST_INTERRUPTIBILITY_INFO,
 				GUEST_INTR_STATE_NMI);
@@ -8117,6 +8032,10 @@ static bool nested_vmx_exit_handled(struct kvm_vcpu *vcpu)
 		return nested_cpu_has(vmcs12, CPU_BASED_INVLPG_EXITING);
 	case EXIT_REASON_RDPMC:
 		return nested_cpu_has(vmcs12, CPU_BASED_RDPMC_EXITING);
+	case EXIT_REASON_RDRAND:
+		return nested_cpu_has2(vmcs12, SECONDARY_EXEC_RDRAND);
+	case EXIT_REASON_RDSEED:
+		return nested_cpu_has2(vmcs12, SECONDARY_EXEC_RDSEED);
 	case EXIT_REASON_RDTSC: case EXIT_REASON_RDTSCP:
 		return nested_cpu_has(vmcs12, CPU_BASED_RDTSC_EXITING);
 	case EXIT_REASON_VMCALL: case EXIT_REASON_VMCLEAR:
@@ -8490,26 +8409,6 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 		return 0;
 	}
 
-	if (unlikely(!cpu_has_virtual_nmis() && vmx->soft_vnmi_blocked &&
-	    !(is_guest_mode(vcpu) && nested_cpu_has_virtual_nmis(
-					get_vmcs12(vcpu))))) {
-		if (vmx_interrupt_allowed(vcpu)) {
-			vmx->soft_vnmi_blocked = 0;
-		} else if (vmx->vnmi_blocked_time > 1000000000LL &&
-			   vcpu->arch.nmi_pending) {
-			/*
-			 * This CPU don't support us in finding the end of an
-			 * NMI-blocked window if the guest runs with IRQs
-			 * disabled. So we pull the trigger after 1 s of
-			 * futile waiting, but inform the user about this.
-			 */
-			printk(KERN_WARNING "%s: Breaking out of NMI-blocked "
-			       "state on VCPU %d after 1 s timeout\n",
-			       __func__, vcpu->vcpu_id);
-			vmx->soft_vnmi_blocked = 0;
-		}
-	}
-
 	if (exit_reason < kvm_vmx_max_exit_handlers
 	    && kvm_vmx_exit_handlers[exit_reason])
 		return kvm_vmx_exit_handlers[exit_reason](vcpu);
@@ -8785,37 +8684,33 @@ static void vmx_recover_nmi_blocking(struct vcpu_vmx *vmx)
 
 	idtv_info_valid = vmx->idt_vectoring_info & VECTORING_INFO_VALID_MASK;
 
-	if (cpu_has_virtual_nmis()) {
-		if (vmx->nmi_known_unmasked)
-			return;
-		/*
-		 * Can't use vmx->exit_intr_info since we're not sure what
-		 * the exit reason is.
-		 */
-		exit_intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
-		unblock_nmi = (exit_intr_info & INTR_INFO_UNBLOCK_NMI) != 0;
-		vector = exit_intr_info & INTR_INFO_VECTOR_MASK;
-		/*
-		 * SDM 3: 27.7.1.2 (September 2008)
-		 * Re-set bit "block by NMI" before VM entry if vmexit caused by
-		 * a guest IRET fault.
-		 * SDM 3: 23.2.2 (September 2008)
-		 * Bit 12 is undefined in any of the following cases:
-		 *  If the VM exit sets the valid bit in the IDT-vectoring
-		 *   information field.
-		 *  If the VM exit is due to a double fault.
-		 */
-		if ((exit_intr_info & INTR_INFO_VALID_MASK) && unblock_nmi &&
-		    vector != DF_VECTOR && !idtv_info_valid)
-			vmcs_set_bits(GUEST_INTERRUPTIBILITY_INFO,
-				      GUEST_INTR_STATE_NMI);
-		else
-			vmx->nmi_known_unmasked =
-				!(vmcs_read32(GUEST_INTERRUPTIBILITY_INFO)
-				  & GUEST_INTR_STATE_NMI);
-	} else if (unlikely(vmx->soft_vnmi_blocked))
-		vmx->vnmi_blocked_time +=
-			ktime_to_ns(ktime_sub(ktime_get(), vmx->entry_time));
+	if (vmx->nmi_known_unmasked)
+		return;
+	/*
+	 * Can't use vmx->exit_intr_info since we're not sure what
+	 * the exit reason is.
+	 */
+	exit_intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
+	unblock_nmi = (exit_intr_info & INTR_INFO_UNBLOCK_NMI) != 0;
+	vector = exit_intr_info & INTR_INFO_VECTOR_MASK;
+	/*
+	 * SDM 3: 27.7.1.2 (September 2008)
+	 * Re-set bit "block by NMI" before VM entry if vmexit caused by
+	 * a guest IRET fault.
+	 * SDM 3: 23.2.2 (September 2008)
+	 * Bit 12 is undefined in any of the following cases:
+	 *  If the VM exit sets the valid bit in the IDT-vectoring
+	 *   information field.
+	 *  If the VM exit is due to a double fault.
+	 */
+	if ((exit_intr_info & INTR_INFO_VALID_MASK) && unblock_nmi &&
+	    vector != DF_VECTOR && !idtv_info_valid)
+		vmcs_set_bits(GUEST_INTERRUPTIBILITY_INFO,
+			      GUEST_INTR_STATE_NMI);
+	else
+		vmx->nmi_known_unmasked =
+			!(vmcs_read32(GUEST_INTERRUPTIBILITY_INFO)
+			  & GUEST_INTR_STATE_NMI);
 }
 
 static void __vmx_complete_interrupts(struct kvm_vcpu *vcpu,
@@ -8931,10 +8826,6 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	unsigned long debugctlmsr, cr4;
-
-	/* Record the guest's net vcpu time for enforced NMI injections. */
-	if (unlikely(!cpu_has_virtual_nmis() && vmx->soft_vnmi_blocked))
-		vmx->entry_time = ktime_get();
 
 	/* Don't enter VMX if guest state is invalid, let the exit handler
 	   start emulation until we arrive back to a valid state */
@@ -9143,16 +9034,16 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	vmx_complete_interrupts(vmx);
 }
 
-static void vmx_load_vmcs01(struct kvm_vcpu *vcpu)
+static void vmx_switch_vmcs(struct kvm_vcpu *vcpu, struct loaded_vmcs *vmcs)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	int cpu;
 
-	if (vmx->loaded_vmcs == &vmx->vmcs01)
+	if (vmx->loaded_vmcs == vmcs)
 		return;
 
 	cpu = get_cpu();
-	vmx->loaded_vmcs = &vmx->vmcs01;
+	vmx->loaded_vmcs = vmcs;
 	vmx_vcpu_put(vcpu);
 	vmx_vcpu_load(vcpu, cpu);
 	vcpu->cpu = cpu;
@@ -9170,7 +9061,7 @@ static void vmx_free_vcpu_nested(struct kvm_vcpu *vcpu)
 
        r = vcpu_load(vcpu);
        BUG_ON(r);
-       vmx_load_vmcs01(vcpu);
+       vmx_switch_vmcs(vcpu, &vmx->vmcs01);
        free_nested(vmx);
        vcpu_put(vcpu);
 }
@@ -9231,11 +9122,7 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 	vmx->loaded_vmcs->shadow_vmcs = NULL;
 	if (!vmx->loaded_vmcs->vmcs)
 		goto free_msrs;
-	if (!vmm_exclusive)
-		kvm_cpu_vmxon(__pa(per_cpu(vmxarea, raw_smp_processor_id())));
 	loaded_vmcs_init(vmx->loaded_vmcs);
-	if (!vmm_exclusive)
-		kvm_cpu_vmxoff();
 
 	cpu = get_cpu();
 	vmx_vcpu_load(&vmx->vcpu, cpu);
@@ -9495,17 +9382,26 @@ static unsigned long nested_ept_get_cr3(struct kvm_vcpu *vcpu)
 	return get_vmcs12(vcpu)->ept_pointer;
 }
 
-static void nested_ept_init_mmu_context(struct kvm_vcpu *vcpu)
+static int nested_ept_init_mmu_context(struct kvm_vcpu *vcpu)
 {
+	u64 eptp;
+
 	WARN_ON(mmu_is_nested(vcpu));
+	eptp = nested_ept_get_cr3(vcpu);
+	if ((eptp & VMX_EPT_AD_ENABLE_BIT) && !enable_ept_ad_bits)
+		return 1;
+
+	kvm_mmu_unload(vcpu);
 	kvm_init_shadow_ept_mmu(vcpu,
 			to_vmx(vcpu)->nested.nested_vmx_ept_caps &
-			VMX_EPT_EXECUTE_ONLY_BIT);
+			VMX_EPT_EXECUTE_ONLY_BIT,
+			eptp & VMX_EPT_AD_ENABLE_BIT);
 	vcpu->arch.mmu.set_cr3           = vmx_set_cr3;
 	vcpu->arch.mmu.get_cr3           = nested_ept_get_cr3;
 	vcpu->arch.mmu.inject_page_fault = nested_ept_inject_page_fault;
 
 	vcpu->arch.walk_mmu              = &vcpu->arch.nested_mmu;
+	return 0;
 }
 
 static void nested_ept_uninit_mmu_context(struct kvm_vcpu *vcpu)
@@ -10279,8 +10175,10 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 	}
 
 	if (nested_cpu_has_ept(vmcs12)) {
-		kvm_mmu_unload(vcpu);
-		nested_ept_init_mmu_context(vcpu);
+		if (nested_ept_init_mmu_context(vcpu)) {
+			*entry_failure_code = ENTRY_FAIL_DEFAULT;
+			return 1;
+		}
 	} else if (nested_cpu_has2(vmcs12,
 				   SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES)) {
 		vmx_flush_tlb_ept_only(vcpu);
@@ -10353,9 +10251,10 @@ static int check_vmentry_prereqs(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 	if (!vmx_control_verify(vmcs12->cpu_based_vm_exec_control,
 				vmx->nested.nested_vmx_procbased_ctls_low,
 				vmx->nested.nested_vmx_procbased_ctls_high) ||
-	    !vmx_control_verify(vmcs12->secondary_vm_exec_control,
-				vmx->nested.nested_vmx_secondary_ctls_low,
-				vmx->nested.nested_vmx_secondary_ctls_high) ||
+	    (nested_cpu_has(vmcs12, CPU_BASED_ACTIVATE_SECONDARY_CONTROLS) &&
+	     !vmx_control_verify(vmcs12->secondary_vm_exec_control,
+				 vmx->nested.nested_vmx_secondary_ctls_low,
+				 vmx->nested.nested_vmx_secondary_ctls_high)) ||
 	    !vmx_control_verify(vmcs12->pin_based_vm_exec_control,
 				vmx->nested.nested_vmx_pinbased_ctls_low,
 				vmx->nested.nested_vmx_pinbased_ctls_high) ||
@@ -10434,7 +10333,6 @@ static int enter_vmx_non_root_mode(struct kvm_vcpu *vcpu, bool from_vmentry)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
 	struct loaded_vmcs *vmcs02;
-	int cpu;
 	u32 msr_entry_idx;
 	u32 exit_qual;
 
@@ -10447,18 +10345,12 @@ static int enter_vmx_non_root_mode(struct kvm_vcpu *vcpu, bool from_vmentry)
 	if (!(vmcs12->vm_entry_controls & VM_ENTRY_LOAD_DEBUG_CONTROLS))
 		vmx->nested.vmcs01_debugctl = vmcs_read64(GUEST_IA32_DEBUGCTL);
 
-	cpu = get_cpu();
-	vmx->loaded_vmcs = vmcs02;
-	vmx_vcpu_put(vcpu);
-	vmx_vcpu_load(vcpu, cpu);
-	vcpu->cpu = cpu;
-	put_cpu();
-
+	vmx_switch_vmcs(vcpu, vmcs02);
 	vmx_segment_cache_clear(vmx);
 
 	if (prepare_vmcs02(vcpu, vmcs12, from_vmentry, &exit_qual)) {
 		leave_guest_mode(vcpu);
-		vmx_load_vmcs01(vcpu);
+		vmx_switch_vmcs(vcpu, &vmx->vmcs01);
 		nested_vmx_entry_failure(vcpu, vmcs12,
 					 EXIT_REASON_INVALID_STATE, exit_qual);
 		return 1;
@@ -10471,7 +10363,7 @@ static int enter_vmx_non_root_mode(struct kvm_vcpu *vcpu, bool from_vmentry)
 					    vmcs12->vm_entry_msr_load_count);
 	if (msr_entry_idx) {
 		leave_guest_mode(vcpu);
-		vmx_load_vmcs01(vcpu);
+		vmx_switch_vmcs(vcpu, &vmx->vmcs01);
 		nested_vmx_entry_failure(vcpu, vmcs12,
 				EXIT_REASON_MSR_LOAD_FAIL, msr_entry_idx);
 		return 1;
@@ -11039,7 +10931,7 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 	if (unlikely(vmx->fail))
 		vm_inst_error = vmcs_read32(VM_INSTRUCTION_ERROR);
 
-	vmx_load_vmcs01(vcpu);
+	vmx_switch_vmcs(vcpu, &vmx->vmcs01);
 
 	if ((exit_reason == EXIT_REASON_EXTERNAL_INTERRUPT)
 	    && nested_exit_intr_ack_set(vcpu)) {

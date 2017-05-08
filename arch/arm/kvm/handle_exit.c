@@ -160,6 +160,14 @@ int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	case ARM_EXCEPTION_DATA_ABORT:
 		kvm_inject_vabt(vcpu);
 		return 1;
+	case ARM_EXCEPTION_HYP_GONE:
+		/*
+		 * HYP has been reset to the hyp-stub. This happens
+		 * when a guest is pre-empted by kvm_reboot()'s
+		 * shutdown call.
+		 */
+		run->exit_reason = KVM_EXIT_FAIL_ENTRY;
+		return 0;
 	default:
 		kvm_pr_unimpl("Unsupported exception type: %d",
 			      exception_index);

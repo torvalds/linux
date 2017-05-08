@@ -86,10 +86,13 @@ tmon: FORCE
 freefall: FORCE
 	$(call descend,laptop/$@)
 
+kvm_stat: FORCE
+	$(call descend,kvm/$@)
+
 all: acpi cgroup cpupower gpio hv firewire lguest \
 		perf selftests turbostat usb \
 		virtio vm net x86_energy_perf_policy \
-		tmon freefall objtool
+		tmon freefall objtool kvm_stat
 
 acpi_install:
 	$(call descend,power/$(@:_install=),install)

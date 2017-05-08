@@ -1524,7 +1524,8 @@ static int handle_hva_to_gpa(struct kvm *kvm,
 			     unsigned long start,
 			     unsigned long end,
 			     int (*handler)(struct kvm *kvm,
-					    gpa_t gpa, void *data),
+					    gpa_t gpa, u64 size,
+					    void *data),
 			     void *data)
 {
 	struct kvm_memslots *slots;
@@ -1536,7 +1537,7 @@ static int handle_hva_to_gpa(struct kvm *kvm,
 	/* we only care about the pages that the guest sees */
 	kvm_for_each_memslot(memslot, slots) {
 		unsigned long hva_start, hva_end;
-		gfn_t gfn, gfn_end;
+		gfn_t gpa;
 
 		hva_start = max(start, memslot->userspace_addr);
 		hva_end = min(end, memslot->userspace_addr +
@@ -1544,25 +1545,16 @@ static int handle_hva_to_gpa(struct kvm *kvm,
 		if (hva_start >= hva_end)
 			continue;
 
-		/*
-		 * {gfn(page) | page intersects with [hva_start, hva_end)} =
-		 * {gfn_start, gfn_start+1, ..., gfn_end-1}.
-		 */
-		gfn = hva_to_gfn_memslot(hva_start, memslot);
-		gfn_end = hva_to_gfn_memslot(hva_end + PAGE_SIZE - 1, memslot);
-
-		for (; gfn < gfn_end; ++gfn) {
-			gpa_t gpa = gfn << PAGE_SHIFT;
-			ret |= handler(kvm, gpa, data);
-		}
+		gpa = hva_to_gfn_memslot(hva_start, memslot) << PAGE_SHIFT;
+		ret |= handler(kvm, gpa, (u64)(hva_end - hva_start), data);
 	}
 
 	return ret;
 }
 
-static int kvm_unmap_hva_handler(struct kvm *kvm, gpa_t gpa, void *data)
+static int kvm_unmap_hva_handler(struct kvm *kvm, gpa_t gpa, u64 size, void *data)
 {
-	unmap_stage2_range(kvm, gpa, PAGE_SIZE);
+	unmap_stage2_range(kvm, gpa, size);
 	return 0;
 }
 
@@ -1589,10 +1581,11 @@ int kvm_unmap_hva_range(struct kvm *kvm,
 	return 0;
 }
 
-static int kvm_set_spte_handler(struct kvm *kvm, gpa_t gpa, void *data)
+static int kvm_set_spte_handler(struct kvm *kvm, gpa_t gpa, u64 size, void *data)
 {
 	pte_t *pte = (pte_t *)data;
 
+	WARN_ON(size != PAGE_SIZE);
 	/*
 	 * We can always call stage2_set_pte with KVM_S2PTE_FLAG_LOGGING_ACTIVE
 	 * flag clear because MMU notifiers will have unmapped a huge PMD before
@@ -1618,11 +1611,12 @@ void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte)
 	handle_hva_to_gpa(kvm, hva, end, &kvm_set_spte_handler, &stage2_pte);
 }
 
-static int kvm_age_hva_handler(struct kvm *kvm, gpa_t gpa, void *data)
+static int kvm_age_hva_handler(struct kvm *kvm, gpa_t gpa, u64 size, void *data)
 {
 	pmd_t *pmd;
 	pte_t *pte;
 
+	WARN_ON(size != PAGE_SIZE && size != PMD_SIZE);
 	pmd = stage2_get_pmd(kvm, NULL, gpa);
 	if (!pmd || pmd_none(*pmd))	/* Nothing there */
 		return 0;
@@ -1637,11 +1631,12 @@ static int kvm_age_hva_handler(struct kvm *kvm, gpa_t gpa, void *data)
 	return stage2_ptep_test_and_clear_young(pte);
 }
 
-static int kvm_test_age_hva_handler(struct kvm *kvm, gpa_t gpa, void *data)
+static int kvm_test_age_hva_handler(struct kvm *kvm, gpa_t gpa, u64 size, void *data)
 {
 	pmd_t *pmd;
 	pte_t *pte;
 
+	WARN_ON(size != PAGE_SIZE && size != PMD_SIZE);
 	pmd = stage2_get_pmd(kvm, NULL, gpa);
 	if (!pmd || pmd_none(*pmd))	/* Nothing there */
 		return 0;
@@ -1684,11 +1679,6 @@ phys_addr_t kvm_mmu_get_httbr(void)
 phys_addr_t kvm_get_idmap_vector(void)
 {
 	return hyp_idmap_vector;
-}
-
-phys_addr_t kvm_get_idmap_start(void)
-{
-	return hyp_idmap_start;
 }
 
 static int kvm_map_idmap_text(pgd_t *pgd)

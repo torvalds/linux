@@ -21,45 +21,6 @@
 
 #include "vgic.h"
 
-void vgic_v3_process_maintenance(struct kvm_vcpu *vcpu)
-{
-	struct vgic_v3_cpu_if *cpuif = &vcpu->arch.vgic_cpu.vgic_v3;
-	u32 model = vcpu->kvm->arch.vgic.vgic_model;
-
-	if (cpuif->vgic_misr & ICH_MISR_EOI) {
-		unsigned long eisr_bmap = cpuif->vgic_eisr;
-		int lr;
-
-		for_each_set_bit(lr, &eisr_bmap, kvm_vgic_global_state.nr_lr) {
-			u32 intid;
-			u64 val = cpuif->vgic_lr[lr];
-
-			if (model == KVM_DEV_TYPE_ARM_VGIC_V3)
-				intid = val & ICH_LR_VIRTUAL_ID_MASK;
-			else
-				intid = val & GICH_LR_VIRTUALID;
-
-			WARN_ON(cpuif->vgic_lr[lr] & ICH_LR_STATE);
-
-			/* Only SPIs require notification */
-			if (vgic_valid_spi(vcpu->kvm, intid))
-				kvm_notify_acked_irq(vcpu->kvm, 0,
-						     intid - VGIC_NR_PRIVATE_IRQS);
-		}
-
-		/*
-		 * In the next iterations of the vcpu loop, if we sync
-		 * the vgic state after flushing it, but before
-		 * entering the guest (this happens for pending
-		 * signals and vmid rollovers), then make sure we
-		 * don't pick up any old maintenance interrupts here.
-		 */
-		cpuif->vgic_eisr = 0;
-	}
-
-	cpuif->vgic_hcr &= ~ICH_HCR_UIE;
-}
-
 void vgic_v3_set_underflow(struct kvm_vcpu *vcpu)
 {
 	struct vgic_v3_cpu_if *cpuif = &vcpu->arch.vgic_cpu.vgic_v3;
@@ -67,13 +28,22 @@ void vgic_v3_set_underflow(struct kvm_vcpu *vcpu)
 	cpuif->vgic_hcr |= ICH_HCR_UIE;
 }
 
+static bool lr_signals_eoi_mi(u64 lr_val)
+{
+	return !(lr_val & ICH_LR_STATE) && (lr_val & ICH_LR_EOI) &&
+	       !(lr_val & ICH_LR_HW);
+}
+
 void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu)
 {
-	struct vgic_v3_cpu_if *cpuif = &vcpu->arch.vgic_cpu.vgic_v3;
+	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
+	struct vgic_v3_cpu_if *cpuif = &vgic_cpu->vgic_v3;
 	u32 model = vcpu->kvm->arch.vgic.vgic_model;
 	int lr;
 
-	for (lr = 0; lr < vcpu->arch.vgic_cpu.used_lrs; lr++) {
+	cpuif->vgic_hcr &= ~ICH_HCR_UIE;
+
+	for (lr = 0; lr < vgic_cpu->used_lrs; lr++) {
 		u64 val = cpuif->vgic_lr[lr];
 		u32 intid;
 		struct vgic_irq *irq;
@@ -82,6 +52,12 @@ void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu)
 			intid = val & ICH_LR_VIRTUAL_ID_MASK;
 		else
 			intid = val & GICH_LR_VIRTUALID;
+
+		/* Notify fds when the guest EOI'ed a level-triggered IRQ */
+		if (lr_signals_eoi_mi(val) && vgic_valid_spi(vcpu->kvm, intid))
+			kvm_notify_acked_irq(vcpu->kvm, 0,
+					     intid - VGIC_NR_PRIVATE_IRQS);
+
 		irq = vgic_get_irq(vcpu->kvm, vcpu, intid);
 		if (!irq)	/* An LPI could have been unmapped. */
 			continue;
@@ -117,6 +93,8 @@ void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu)
 		spin_unlock(&irq->irq_lock);
 		vgic_put_irq(vcpu->kvm, irq);
 	}
+
+	vgic_cpu->used_lrs = 0;
 }
 
 /* Requires the irq to be locked already */
@@ -173,6 +151,7 @@ void vgic_v3_clear_lr(struct kvm_vcpu *vcpu, int lr)
 
 void vgic_v3_set_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcrp)
 {
+	struct vgic_v3_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v3;
 	u32 vmcr;
 
 	/*
@@ -188,12 +167,15 @@ void vgic_v3_set_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcrp)
 	vmcr |= (vmcrp->grpen0 << ICH_VMCR_ENG0_SHIFT) & ICH_VMCR_ENG0_MASK;
 	vmcr |= (vmcrp->grpen1 << ICH_VMCR_ENG1_SHIFT) & ICH_VMCR_ENG1_MASK;
 
-	vcpu->arch.vgic_cpu.vgic_v3.vgic_vmcr = vmcr;
+	cpu_if->vgic_vmcr = vmcr;
 }
 
 void vgic_v3_get_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcrp)
 {
-	u32 vmcr = vcpu->arch.vgic_cpu.vgic_v3.vgic_vmcr;
+	struct vgic_v3_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v3;
+	u32 vmcr;
+
+	vmcr = cpu_if->vgic_vmcr;
 
 	/*
 	 * Ignore the FIQen bit, because GIC emulation always implies
@@ -385,4 +367,25 @@ int vgic_v3_probe(const struct gic_kvm_info *info)
 	kvm_vgic_global_state.max_gic_vcpus = VGIC_V3_MAX_CPUS;
 
 	return 0;
+}
+
+void vgic_v3_load(struct kvm_vcpu *vcpu)
+{
+	struct vgic_v3_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v3;
+
+	/*
+	 * If dealing with a GICv2 emulation on GICv3, VMCR_EL2.VFIQen
+	 * is dependent on ICC_SRE_EL1.SRE, and we have to perform the
+	 * VMCR_EL2 save/restore in the world switch.
+	 */
+	if (likely(cpu_if->vgic_sre))
+		kvm_call_hyp(__vgic_v3_write_vmcr, cpu_if->vgic_vmcr);
+}
+
+void vgic_v3_put(struct kvm_vcpu *vcpu)
+{
+	struct vgic_v3_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v3;
+
+	if (likely(cpu_if->vgic_sre))
+		cpu_if->vgic_vmcr = kvm_call_hyp(__vgic_v3_read_vmcr);
 }

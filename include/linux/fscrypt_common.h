@@ -46,17 +46,6 @@ struct fscrypt_symlink_data {
 	char encrypted_path[1];
 } __packed;
 
-/**
- * This function is used to calculate the disk space required to
- * store a filename of length l in encrypted symlink format.
- */
-static inline u32 fscrypt_symlink_data_len(u32 l)
-{
-	if (l < FS_CRYPTO_BLOCK_SIZE)
-		l = FS_CRYPTO_BLOCK_SIZE;
-	return (l + sizeof(struct fscrypt_symlink_data) - 1);
-}
-
 struct fscrypt_str {
 	unsigned char *name;
 	u32 len;

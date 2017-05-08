@@ -165,6 +165,24 @@ void vcpu_put(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(vcpu_put);
 
+/* TODO: merge with kvm_arch_vcpu_should_kick */
+static bool kvm_request_needs_ipi(struct kvm_vcpu *vcpu, unsigned req)
+{
+	int mode = kvm_vcpu_exiting_guest_mode(vcpu);
+
+	/*
+	 * We need to wait for the VCPU to reenable interrupts and get out of
+	 * READING_SHADOW_PAGE_TABLES mode.
+	 */
+	if (req & KVM_REQUEST_WAIT)
+		return mode != OUTSIDE_GUEST_MODE;
+
+	/*
+	 * Need to kick a running VCPU, but otherwise there is nothing to do.
+	 */
+	return mode == IN_GUEST_MODE;
+}
+
 static void ack_flush(void *_completed)
 {
 }
@@ -174,6 +192,7 @@ bool kvm_make_all_cpus_request(struct kvm *kvm, unsigned int req)
 	int i, cpu, me;
 	cpumask_var_t cpus;
 	bool called = true;
+	bool wait = req & KVM_REQUEST_WAIT;
 	struct kvm_vcpu *vcpu;
 
 	zalloc_cpumask_var(&cpus, GFP_ATOMIC);
@@ -183,17 +202,17 @@ bool kvm_make_all_cpus_request(struct kvm *kvm, unsigned int req)
 		kvm_make_request(req, vcpu);
 		cpu = vcpu->cpu;
 
-		/* Set ->requests bit before we read ->mode. */
-		smp_mb__after_atomic();
+		if (!(req & KVM_REQUEST_NO_WAKEUP) && kvm_vcpu_wake_up(vcpu))
+			continue;
 
 		if (cpus != NULL && cpu != -1 && cpu != me &&
-		      kvm_vcpu_exiting_guest_mode(vcpu) != OUTSIDE_GUEST_MODE)
+		    kvm_request_needs_ipi(vcpu, req))
 			cpumask_set_cpu(cpu, cpus);
 	}
 	if (unlikely(cpus == NULL))
-		smp_call_function_many(cpu_online_mask, ack_flush, NULL, 1);
+		smp_call_function_many(cpu_online_mask, ack_flush, NULL, wait);
 	else if (!cpumask_empty(cpus))
-		smp_call_function_many(cpus, ack_flush, NULL, 1);
+		smp_call_function_many(cpus, ack_flush, NULL, wait);
 	else
 		called = false;
 	put_cpu();
@@ -1019,8 +1038,6 @@ int __kvm_set_memory_region(struct kvm *kvm,
 
 		old_memslots = install_new_memslots(kvm, as_id, slots);
 
-		/* slot was deleted or moved, clear iommu mapping */
-		kvm_iommu_unmap_pages(kvm, &old);
 		/* From this point no new shadow pages pointing to a deleted,
 		 * or moved, memslot will be created.
 		 *
@@ -1055,21 +1072,6 @@ int __kvm_set_memory_region(struct kvm *kvm,
 
 	kvm_free_memslot(kvm, &old, &new);
 	kvfree(old_memslots);
-
-	/*
-	 * IOMMU mapping:  New slots need to be mapped.  Old slots need to be
-	 * un-mapped and re-mapped if their base changes.  Since base change
-	 * unmapping is handled above with slot deletion, mapping alone is
-	 * needed here.  Anything else the iommu might care about for existing
-	 * slots (size changes, userspace addr changes and read-only flag
-	 * changes) is disallowed above, so any other attribute changes getting
-	 * here can be skipped.
-	 */
-	if (as_id == 0 && (change == KVM_MR_CREATE || change == KVM_MR_MOVE)) {
-		r = kvm_iommu_map_pages(kvm, &new);
-		return r;
-	}
-
 	return 0;
 
 out_slots:
@@ -1973,18 +1975,18 @@ static int __kvm_gfn_to_hva_cache_init(struct kvm_memslots *slots,
 	return 0;
 }
 
-int kvm_vcpu_gfn_to_hva_cache_init(struct kvm_vcpu *vcpu, struct gfn_to_hva_cache *ghc,
+int kvm_gfn_to_hva_cache_init(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
 			      gpa_t gpa, unsigned long len)
 {
-	struct kvm_memslots *slots = kvm_vcpu_memslots(vcpu);
+	struct kvm_memslots *slots = kvm_memslots(kvm);
 	return __kvm_gfn_to_hva_cache_init(slots, ghc, gpa, len);
 }
-EXPORT_SYMBOL_GPL(kvm_vcpu_gfn_to_hva_cache_init);
+EXPORT_SYMBOL_GPL(kvm_gfn_to_hva_cache_init);
 
-int kvm_vcpu_write_guest_offset_cached(struct kvm_vcpu *vcpu, struct gfn_to_hva_cache *ghc,
-				       void *data, int offset, unsigned long len)
+int kvm_write_guest_offset_cached(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
+			   void *data, int offset, unsigned long len)
 {
-	struct kvm_memslots *slots = kvm_vcpu_memslots(vcpu);
+	struct kvm_memslots *slots = kvm_memslots(kvm);
 	int r;
 	gpa_t gpa = ghc->gpa + offset;
 
@@ -1994,7 +1996,7 @@ int kvm_vcpu_write_guest_offset_cached(struct kvm_vcpu *vcpu, struct gfn_to_hva_
 		__kvm_gfn_to_hva_cache_init(slots, ghc, ghc->gpa, ghc->len);
 
 	if (unlikely(!ghc->memslot))
-		return kvm_vcpu_write_guest(vcpu, gpa, data, len);
+		return kvm_write_guest(kvm, gpa, data, len);
 
 	if (kvm_is_error_hva(ghc->hva))
 		return -EFAULT;
@@ -2006,19 +2008,19 @@ int kvm_vcpu_write_guest_offset_cached(struct kvm_vcpu *vcpu, struct gfn_to_hva_
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(kvm_vcpu_write_guest_offset_cached);
+EXPORT_SYMBOL_GPL(kvm_write_guest_offset_cached);
 
-int kvm_vcpu_write_guest_cached(struct kvm_vcpu *vcpu, struct gfn_to_hva_cache *ghc,
-			       void *data, unsigned long len)
+int kvm_write_guest_cached(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
+			   void *data, unsigned long len)
 {
-	return kvm_vcpu_write_guest_offset_cached(vcpu, ghc, data, 0, len);
+	return kvm_write_guest_offset_cached(kvm, ghc, data, 0, len);
 }
-EXPORT_SYMBOL_GPL(kvm_vcpu_write_guest_cached);
+EXPORT_SYMBOL_GPL(kvm_write_guest_cached);
 
-int kvm_vcpu_read_guest_cached(struct kvm_vcpu *vcpu, struct gfn_to_hva_cache *ghc,
-			       void *data, unsigned long len)
+int kvm_read_guest_cached(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
+			   void *data, unsigned long len)
 {
-	struct kvm_memslots *slots = kvm_vcpu_memslots(vcpu);
+	struct kvm_memslots *slots = kvm_memslots(kvm);
 	int r;
 
 	BUG_ON(len > ghc->len);
@@ -2027,7 +2029,7 @@ int kvm_vcpu_read_guest_cached(struct kvm_vcpu *vcpu, struct gfn_to_hva_cache *g
 		__kvm_gfn_to_hva_cache_init(slots, ghc, ghc->gpa, ghc->len);
 
 	if (unlikely(!ghc->memslot))
-		return kvm_vcpu_read_guest(vcpu, ghc->gpa, data, len);
+		return kvm_read_guest(kvm, ghc->gpa, data, len);
 
 	if (kvm_is_error_hva(ghc->hva))
 		return -EFAULT;
@@ -2038,7 +2040,7 @@ int kvm_vcpu_read_guest_cached(struct kvm_vcpu *vcpu, struct gfn_to_hva_cache *g
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(kvm_vcpu_read_guest_cached);
+EXPORT_SYMBOL_GPL(kvm_read_guest_cached);
 
 int kvm_clear_guest_page(struct kvm *kvm, gfn_t gfn, int offset, int len)
 {
@@ -2212,8 +2214,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_block);
 
-#ifndef CONFIG_S390
-void kvm_vcpu_wake_up(struct kvm_vcpu *vcpu)
+bool kvm_vcpu_wake_up(struct kvm_vcpu *vcpu)
 {
 	struct swait_queue_head *wqp;
 
@@ -2221,11 +2222,14 @@ void kvm_vcpu_wake_up(struct kvm_vcpu *vcpu)
 	if (swait_active(wqp)) {
 		swake_up(wqp);
 		++vcpu->stat.halt_wakeup;
+		return true;
 	}
 
+	return false;
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_wake_up);
 
+#ifndef CONFIG_S390
 /*
  * Kick a sleeping VCPU, or a guest VCPU in guest mode, into host kernel mode.
  */
@@ -2234,7 +2238,9 @@ void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
 	int me;
 	int cpu = vcpu->cpu;
 
-	kvm_vcpu_wake_up(vcpu);
+	if (kvm_vcpu_wake_up(vcpu))
+		return;
+
 	me = get_cpu();
 	if (cpu != me && (unsigned)cpu < nr_cpu_ids && cpu_online(cpu))
 		if (kvm_arch_vcpu_should_kick(vcpu))
@@ -2366,7 +2372,7 @@ static int kvm_vcpu_fault(struct vm_fault *vmf)
 	else if (vmf->pgoff == KVM_PIO_PAGE_OFFSET)
 		page = virt_to_page(vcpu->arch.pio_data);
 #endif
-#ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
+#ifdef CONFIG_KVM_MMIO
 	else if (vmf->pgoff == KVM_COALESCED_MMIO_PAGE_OFFSET)
 		page = virt_to_page(vcpu->kvm->coalesced_mmio_ring);
 #endif
@@ -2935,6 +2941,10 @@ static long kvm_vm_ioctl_check_extension_generic(struct kvm *kvm, long arg)
 	case KVM_CAP_IOEVENTFD_ANY_LENGTH:
 	case KVM_CAP_CHECK_EXTENSION_VM:
 		return 1;
+#ifdef CONFIG_KVM_MMIO
+	case KVM_CAP_COALESCED_MMIO:
+		return KVM_COALESCED_MMIO_PAGE_OFFSET;
+#endif
 #ifdef CONFIG_HAVE_KVM_IRQ_ROUTING
 	case KVM_CAP_IRQ_ROUTING:
 		return KVM_MAX_IRQ_ROUTES;
@@ -2984,7 +2994,7 @@ static long kvm_vm_ioctl(struct file *filp,
 		r = kvm_vm_ioctl_get_dirty_log(kvm, &log);
 		break;
 	}
-#ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
+#ifdef CONFIG_KVM_MMIO
 	case KVM_REGISTER_COALESCED_MMIO: {
 		struct kvm_coalesced_mmio_zone zone;
 
@@ -3067,6 +3077,8 @@ static long kvm_vm_ioctl(struct file *filp,
 		if (copy_from_user(&routing, argp, sizeof(routing)))
 			goto out;
 		r = -EINVAL;
+		if (!kvm_arch_can_set_irq_routing(kvm))
+			goto out;
 		if (routing.nr > KVM_MAX_IRQ_ROUTES)
 			goto out;
 		if (routing.flags)
@@ -3176,7 +3188,7 @@ static int kvm_dev_ioctl_create_vm(unsigned long type)
 	kvm = kvm_create_vm(type);
 	if (IS_ERR(kvm))
 		return PTR_ERR(kvm);
-#ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
+#ifdef CONFIG_KVM_MMIO
 	r = kvm_coalesced_mmio_init(kvm);
 	if (r < 0) {
 		kvm_put_kvm(kvm);
@@ -3229,7 +3241,7 @@ static long kvm_dev_ioctl(struct file *filp,
 #ifdef CONFIG_X86
 		r += PAGE_SIZE;    /* pio data page */
 #endif
-#ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
+#ifdef CONFIG_KVM_MMIO
 		r += PAGE_SIZE;    /* coalesced mmio ring page */
 #endif
 		break;

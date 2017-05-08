@@ -177,6 +177,7 @@
 			compatible = "arm,cortex-a9";
 			reg = <0>;
 			clock-frequency = <400000000>;
+			next-level-cache = <&L2>;
 		};
 	};
 
@@ -366,6 +367,16 @@
 		interrupt-controller;
 		reg = <0xe8201000 0x1000>,
 			<0xe8202000 0x1000>;
+	};
+
+	L2: cache-controller@3ffff000 {
+		compatible = "arm,pl310-cache";
+		reg = <0x3ffff000 0x1000>;
+		interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+		arm,early-bresp-disable;
+		arm,full-line-zero-disable;
+		cache-unified;
+		cache-level = <2>;
 	};
 
 	i2c0: i2c@fcfee000 {
