@@ -925,6 +925,7 @@ static int dax_insert_mapping(struct address_space *mapping,
 		return PTR_ERR(ret);
 	*entryp = ret;
 
+	trace_dax_insert_mapping(mapping->host, vmf, ret);
 	return vm_insert_mixed(vma, vaddr, pfn);
 }
 
