@@ -89,7 +89,7 @@ static void linear_map_bio(struct dm_target *ti, struct bio *bio)
 	struct linear_c *lc = ti->private;
 
 	bio->bi_bdev = lc->dev->bdev;
-	if (bio_sectors(bio))
+	if (bio_sectors(bio) || bio_op(bio) == REQ_OP_ZONE_RESET)
 		bio->bi_iter.bi_sector =
 			linear_map_sector(ti, bio->bi_iter.bi_sector);
 }
@@ -99,6 +99,17 @@ static int linear_map(struct dm_target *ti, struct bio *bio)
 	linear_map_bio(ti, bio);
 
 	return DM_MAPIO_REMAPPED;
+}
+
+static int linear_end_io(struct dm_target *ti, struct bio *bio,
+			 blk_status_t *error)
+{
+	struct linear_c *lc = ti->private;
+
+	if (!*error && bio_op(bio) == REQ_OP_ZONE_REPORT)
+		dm_remap_zone_report(ti, bio, lc->start);
+
+	return DM_ENDIO_DONE;
 }
 
 static void linear_status(struct dm_target *ti, status_type_t type,
@@ -161,12 +172,13 @@ static long linear_dax_direct_access(struct dm_target *ti, pgoff_t pgoff,
 
 static struct target_type linear_target = {
 	.name   = "linear",
-	.version = {1, 3, 0},
-	.features = DM_TARGET_PASSES_INTEGRITY,
+	.version = {1, 4, 0},
+	.features = DM_TARGET_PASSES_INTEGRITY | DM_TARGET_ZONED_HM,
 	.module = THIS_MODULE,
 	.ctr    = linear_ctr,
 	.dtr    = linear_dtr,
 	.map    = linear_map,
+	.end_io = linear_end_io,
 	.status = linear_status,
 	.prepare_ioctl = linear_prepare_ioctl,
 	.iterate_devices = linear_iterate_devices,
