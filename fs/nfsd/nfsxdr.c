@@ -543,10 +543,10 @@ nfssvc_encode_entry(void *ccdv, const char *name,
 /*
  * XDR release functions
  */
-int
-nfssvc_release_fhandle(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd_fhandle *resp)
+void
+nfssvc_release_fhandle(struct svc_rqst *rqstp)
 {
+	struct nfsd_fhandle *resp = rqstp->rq_resp;
+
 	fh_put(&resp->fh);
-	return 1;
 }

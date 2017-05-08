@@ -743,7 +743,7 @@ extern __be32
 nfsd4_release_lockowner(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *,
 		struct nfsd4_release_lockowner *rlockowner);
-extern int nfsd4_release_compoundargs(void *rq, __be32 *p, void *resp);
+extern void nfsd4_release_compoundargs(struct svc_rqst *rqstp);
 extern __be32 nfsd4_delegreturn(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *, struct nfsd4_delegreturn *dr);
 extern __be32 nfsd4_renew(struct svc_rqst *rqstp,

@@ -330,10 +330,8 @@ int nfs3svc_encode_pathconfres(struct svc_rqst *, __be32 *,
 int nfs3svc_encode_commitres(struct svc_rqst *, __be32 *,
 				struct nfsd3_commitres *);
 
-int nfs3svc_release_fhandle(struct svc_rqst *, __be32 *,
-				struct nfsd3_attrstat *);
-int nfs3svc_release_fhandle2(struct svc_rqst *, __be32 *,
-				struct nfsd3_fhandle_pair *);
+void nfs3svc_release_fhandle(struct svc_rqst *);
+void nfs3svc_release_fhandle2(struct svc_rqst *);
 int nfs3svc_encode_entry(void *, const char *name,
 				int namlen, loff_t offset, u64 ino,
 				unsigned int);

@@ -1103,19 +1103,19 @@ nfs3svc_encode_commitres(struct svc_rqst *rqstp, __be32 *p,
 /*
  * XDR release functions
  */
-int
-nfs3svc_release_fhandle(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_attrstat *resp)
+void
+nfs3svc_release_fhandle(struct svc_rqst *rqstp)
 {
+	struct nfsd3_attrstat *resp = rqstp->rq_resp;
+
 	fh_put(&resp->fh);
-	return 1;
 }
 
-int
-nfs3svc_release_fhandle2(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_fhandle_pair *resp)
+void
+nfs3svc_release_fhandle2(struct svc_rqst *rqstp)
 {
+	struct nfsd3_fhandle_pair *resp = rqstp->rq_resp;
+
 	fh_put(&resp->fh1);
 	fh_put(&resp->fh2);
-	return 1;
 }

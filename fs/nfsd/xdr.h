@@ -164,7 +164,7 @@ int nfssvc_encode_readdirres(struct svc_rqst *, __be32 *, struct nfsd_readdirres
 int nfssvc_encode_entry(void *, const char *name,
 			int namlen, loff_t offset, u64 ino, unsigned int);
 
-int nfssvc_release_fhandle(struct svc_rqst *, __be32 *, struct nfsd_fhandle *);
+void nfssvc_release_fhandle(struct svc_rqst *);
 
 /* Helper functions for NFSv2 ACL code */
 __be32 *nfs2svc_encode_fattr(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *fhp, struct kstat *stat);
