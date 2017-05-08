@@ -2527,7 +2527,7 @@ static struct svc_procedure		nfsd_procedures4[2] = {
 	},
 	[NFSPROC4_COMPOUND] = {
 		.pc_func = nfsd4_proc_compound,
-		.pc_decode = (kxdrproc_t) nfs4svc_decode_compoundargs,
+		.pc_decode = nfs4svc_decode_compoundargs,
 		.pc_encode = (kxdrproc_t) nfs4svc_encode_compoundres,
 		.pc_argsize = sizeof(struct nfsd4_compoundargs),
 		.pc_ressize = sizeof(struct nfsd4_compoundres),

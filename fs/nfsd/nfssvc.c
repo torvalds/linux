@@ -801,9 +801,8 @@ nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 	 */
 	rqstp->rq_cachetype = proc->pc_cachetype;
 	/* Decode arguments */
-	xdr = proc->pc_decode;
-	if (xdr && !xdr(rqstp, (__be32*)rqstp->rq_arg.head[0].iov_base,
-			rqstp->rq_argp)) {
+	if (proc->pc_decode &&
+	    !proc->pc_decode(rqstp, (__be32*)rqstp->rq_arg.head[0].iov_base)) {
 		dprintk("nfsd: failed to decode arguments!\n");
 		*statp = rpc_garbage_args;
 		return 1;

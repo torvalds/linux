@@ -685,7 +685,7 @@ static struct svc_procedure		nfsd_procedures3[22] = {
 	},
 	[NFS3PROC_GETATTR] = {
 		.pc_func = nfsd3_proc_getattr,
-		.pc_decode = (kxdrproc_t) nfs3svc_decode_fhandleargs,
+		.pc_decode = nfs3svc_decode_fhandleargs,
 		.pc_encode = (kxdrproc_t) nfs3svc_encode_attrstatres,
 		.pc_release = nfs3svc_release_fhandle,
 		.pc_argsize = sizeof(struct nfsd3_fhandleargs),
@@ -695,7 +695,7 @@ static struct svc_procedure		nfsd_procedures3[22] = {
 	},
 	[NFS3PROC_SETATTR] = {
 		.pc_func = nfsd3_proc_setattr,
-		.pc_decode = (kxdrproc_t) nfs3svc_decode_sattrargs,
+		.pc_decode = nfs3svc_decode_sattrargs,
 		.pc_encode = (kxdrproc_t) nfs3svc_encode_wccstatres,
 		.pc_release = nfs3svc_release_fhandle,
 		.pc_argsize = sizeof(struct nfsd3_sattrargs),
@@ -705,7 +705,7 @@ static struct svc_procedure		nfsd_procedures3[22] = {
 	},
 	[NFS3PROC_LOOKUP] = {
 		.pc_func = nfsd3_proc_lookup,
-		.pc_decode = (kxdrproc_t) nfs3svc_decode_diropargs,
+		.pc_decode = nfs3svc_decode_diropargs,
 		.pc_encode = (kxdrproc_t) nfs3svc_encode_diropres,
 		.pc_release = nfs3svc_release_fhandle2,
 		.pc_argsize = sizeof(struct nfsd3_diropargs),
@@ -715,7 +715,7 @@ static struct svc_procedure		nfsd_procedures3[22] = {
 	},
 	[NFS3PROC_ACCESS] = {
 		.pc_func = nfsd3_proc_access,
-		.pc_decode = (kxdrproc_t) nfs3svc_decode_accessargs,
+		.pc_decode = nfs3svc_decode_accessargs,
 		.pc_encode = (kxdrproc_t) nfs3svc_encode_accessres,
 		.pc_release = nfs3svc_release_fhandle,
 		.pc_argsize = sizeof(struct nfsd3_accessargs),
@@ -725,7 +725,7 @@ static struct svc_procedure		nfsd_procedures3[22] = {
 	},
 	[NFS3PROC_READLINK] = {
 		.pc_func = nfsd3_proc_readlink,
-		.pc_decode = (kxdrproc_t) nfs3svc_decode_readlinkargs,
+		.pc_decode = nfs3svc_decode_readlinkargs,
 		.pc_encode = (kxdrproc_t) nfs3svc_encode_readlinkres,
 		.pc_release = nfs3svc_release_fhandle,
 		.pc_argsize = sizeof(struct nfsd3_readlinkargs),
@@ -735,7 +735,7 @@ static struct svc_procedure		nfsd_procedures3[22] = {
 	},
 	[NFS3PROC_READ] = {
 		.pc_func = nfsd3_proc_read,
-		.pc_decode = (kxdrproc_t) nfs3svc_decode_readargs,
+		.pc_decode = nfs3svc_decode_readargs,
 		.pc_encode = (kxdrproc_t) nfs3svc_encode_readres,
 		.pc_release = nfs3svc_release_fhandle,
 		.pc_argsize = sizeof(struct nfsd3_readargs),
@@ -745,7 +745,7 @@ static struct svc_procedure		nfsd_procedures3[22] = {
 	},
 	[NFS3PROC_WRITE] = {
 		.pc_func = nfsd3_proc_write,
-		.pc_decode = (kxdrproc_t) nfs3svc_decode_writeargs,
+		.pc_decode = nfs3svc_decode_writeargs,
 		.pc_encode = (kxdrproc_t) nfs3svc_encode_writeres,
 		.pc_release = nfs3svc_release_fhandle,
 		.pc_argsize = sizeof(struct nfsd3_writeargs),
@@ -755,7 +755,7 @@ static struct svc_procedure		nfsd_procedures3[22] = {
 	},
 	[NFS3PROC_CREATE] = {
 		.pc_func = nfsd3_proc_create,
-		.pc_decode = (kxdrproc_t) nfs3svc_decode_createargs,
+		.pc_decode = nfs3svc_decode_createargs,
 		.pc_encode = (kxdrproc_t) nfs3svc_encode_createres,
 		.pc_release = nfs3svc_release_fhandle2,
 		.pc_argsize = sizeof(struct nfsd3_createargs),
@@ -765,7 +765,7 @@ static struct svc_procedure		nfsd_procedures3[22] = {
 	},
 	[NFS3PROC_MKDIR] = {
 		.pc_func = nfsd3_proc_mkdir,
-		.pc_decode = (kxdrproc_t) nfs3svc_decode_mkdirargs,
+		.pc_decode = nfs3svc_decode_mkdirargs,
 		.pc_encode = (kxdrproc_t) nfs3svc_encode_createres,
 		.pc_release = nfs3svc_release_fhandle2,
 		.pc_argsize = sizeof(struct nfsd3_mkdirargs),
@@ -775,7 +775,7 @@ static struct svc_procedure		nfsd_procedures3[22] = {
 	},
 	[NFS3PROC_SYMLINK] = {
 		.pc_func = nfsd3_proc_symlink,
-		.pc_decode = (kxdrproc_t) nfs3svc_decode_symlinkargs,
+		.pc_decode = nfs3svc_decode_symlinkargs,
 		.pc_encode = (kxdrproc_t) nfs3svc_encode_createres,
 		.pc_release = nfs3svc_release_fhandle2,
 		.pc_argsize = sizeof(struct nfsd3_symlinkargs),
@@ -785,7 +785,7 @@ static struct svc_procedure		nfsd_procedures3[22] = {
 	},
 	[NFS3PROC_MKNOD] = {
 		.pc_func = nfsd3_proc_mknod,
-		.pc_decode = (kxdrproc_t) nfs3svc_decode_mknodargs,
+		.pc_decode = nfs3svc_decode_mknodargs,
 		.pc_encode = (kxdrproc_t) nfs3svc_encode_createres,
 		.pc_release = nfs3svc_release_fhandle2,
 		.pc_argsize = sizeof(struct nfsd3_mknodargs),
@@ -795,7 +795,7 @@ static struct svc_procedure		nfsd_procedures3[22] = {
 	},
 	[NFS3PROC_REMOVE] = {
 		.pc_func = nfsd3_proc_remove,
-		.pc_decode = (kxdrproc_t) nfs3svc_decode_diropargs,
+		.pc_decode = nfs3svc_decode_diropargs,
 		.pc_encode = (kxdrproc_t) nfs3svc_encode_wccstatres,
 		.pc_release = nfs3svc_release_fhandle,
 		.pc_argsize = sizeof(struct nfsd3_diropargs),
@@ -805,7 +805,7 @@ static struct svc_procedure		nfsd_procedures3[22] = {
 	},
 	[NFS3PROC_RMDIR] = {
 		.pc_func = nfsd3_proc_rmdir,
-		.pc_decode = (kxdrproc_t) nfs3svc_decode_diropargs,
+		.pc_decode = nfs3svc_decode_diropargs,
 		.pc_encode = (kxdrproc_t) nfs3svc_encode_wccstatres,
 		.pc_release = nfs3svc_release_fhandle,
 		.pc_argsize = sizeof(struct nfsd3_diropargs),
@@ -815,7 +815,7 @@ static struct svc_procedure		nfsd_procedures3[22] = {
 	},
 	[NFS3PROC_RENAME] = {
 		.pc_func = nfsd3_proc_rename,
-		.pc_decode = (kxdrproc_t) nfs3svc_decode_renameargs,
+		.pc_decode = nfs3svc_decode_renameargs,
 		.pc_encode = (kxdrproc_t) nfs3svc_encode_renameres,
 		.pc_release = nfs3svc_release_fhandle2,
 		.pc_argsize = sizeof(struct nfsd3_renameargs),
@@ -825,7 +825,7 @@ static struct svc_procedure		nfsd_procedures3[22] = {
 	},
 	[NFS3PROC_LINK] = {
 		.pc_func = nfsd3_proc_link,
-		.pc_decode = (kxdrproc_t) nfs3svc_decode_linkargs,
+		.pc_decode = nfs3svc_decode_linkargs,
 		.pc_encode = (kxdrproc_t) nfs3svc_encode_linkres,
 		.pc_release = nfs3svc_release_fhandle2,
 		.pc_argsize = sizeof(struct nfsd3_linkargs),
@@ -835,7 +835,7 @@ static struct svc_procedure		nfsd_procedures3[22] = {
 	},
 	[NFS3PROC_READDIR] = {
 		.pc_func = nfsd3_proc_readdir,
-		.pc_decode = (kxdrproc_t) nfs3svc_decode_readdirargs,
+		.pc_decode = nfs3svc_decode_readdirargs,
 		.pc_encode = (kxdrproc_t) nfs3svc_encode_readdirres,
 		.pc_release = nfs3svc_release_fhandle,
 		.pc_argsize = sizeof(struct nfsd3_readdirargs),
@@ -844,7 +844,7 @@ static struct svc_procedure		nfsd_procedures3[22] = {
 	},
 	[NFS3PROC_READDIRPLUS] = {
 		.pc_func = nfsd3_proc_readdirplus,
-		.pc_decode = (kxdrproc_t) nfs3svc_decode_readdirplusargs,
+		.pc_decode = nfs3svc_decode_readdirplusargs,
 		.pc_encode = (kxdrproc_t) nfs3svc_encode_readdirres,
 		.pc_release = nfs3svc_release_fhandle,
 		.pc_argsize = sizeof(struct nfsd3_readdirplusargs),
@@ -853,7 +853,7 @@ static struct svc_procedure		nfsd_procedures3[22] = {
 	},
 	[NFS3PROC_FSSTAT] = {
 		.pc_func = nfsd3_proc_fsstat,
-		.pc_decode = (kxdrproc_t) nfs3svc_decode_fhandleargs,
+		.pc_decode = nfs3svc_decode_fhandleargs,
 		.pc_encode = (kxdrproc_t) nfs3svc_encode_fsstatres,
 		.pc_argsize = sizeof(struct nfsd3_fhandleargs),
 		.pc_ressize = sizeof(struct nfsd3_fsstatres),
@@ -862,7 +862,7 @@ static struct svc_procedure		nfsd_procedures3[22] = {
 	},
 	[NFS3PROC_FSINFO] = {
 		.pc_func = nfsd3_proc_fsinfo,
-		.pc_decode = (kxdrproc_t) nfs3svc_decode_fhandleargs,
+		.pc_decode = nfs3svc_decode_fhandleargs,
 		.pc_encode = (kxdrproc_t) nfs3svc_encode_fsinfores,
 		.pc_argsize = sizeof(struct nfsd3_fhandleargs),
 		.pc_ressize = sizeof(struct nfsd3_fsinfores),
@@ -871,7 +871,7 @@ static struct svc_procedure		nfsd_procedures3[22] = {
 	},
 	[NFS3PROC_PATHCONF] = {
 		.pc_func = nfsd3_proc_pathconf,
-		.pc_decode = (kxdrproc_t) nfs3svc_decode_fhandleargs,
+		.pc_decode = nfs3svc_decode_fhandleargs,
 		.pc_encode = (kxdrproc_t) nfs3svc_encode_pathconfres,
 		.pc_argsize = sizeof(struct nfsd3_fhandleargs),
 		.pc_ressize = sizeof(struct nfsd3_pathconfres),
@@ -880,7 +880,7 @@ static struct svc_procedure		nfsd_procedures3[22] = {
 	},
 	[NFS3PROC_COMMIT] = {
 		.pc_func = nfsd3_proc_commit,
-		.pc_decode = (kxdrproc_t) nfs3svc_decode_commitargs,
+		.pc_decode = nfs3svc_decode_commitargs,
 		.pc_encode = (kxdrproc_t) nfs3svc_encode_commitres,
 		.pc_release = nfs3svc_release_fhandle,
 		.pc_argsize = sizeof(struct nfsd3_commitargs),

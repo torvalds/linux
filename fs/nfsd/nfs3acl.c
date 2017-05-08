@@ -124,9 +124,10 @@ out:
 /*
  * XDR decode functions
  */
-static int nfs3svc_decode_getaclargs(struct svc_rqst *rqstp, __be32 *p,
-		struct nfsd3_getaclargs *args)
+static int nfs3svc_decode_getaclargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_getaclargs *args = rqstp->rq_argp;
+
 	p = nfs3svc_decode_fh(p, &args->fh);
 	if (!p)
 		return 0;
@@ -136,9 +137,9 @@ static int nfs3svc_decode_getaclargs(struct svc_rqst *rqstp, __be32 *p,
 }
 
 
-static int nfs3svc_decode_setaclargs(struct svc_rqst *rqstp, __be32 *p,
-		struct nfsd3_setaclargs *args)
+static int nfs3svc_decode_setaclargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_setaclargs *args = rqstp->rq_argp;
 	struct kvec *head = rqstp->rq_arg.head;
 	unsigned int base;
 	int n;
@@ -241,7 +242,7 @@ struct nfsd3_voidargs { int dummy; };
 #define PROC(name, argt, rest, relt, cache, respsize)			\
 {									\
 	.pc_func	= nfsd3_proc_##name,				\
-	.pc_decode	= (kxdrproc_t) nfs3svc_decode_##argt##args,	\
+	.pc_decode	= nfs3svc_decode_##argt##args,			\
 	.pc_encode	= (kxdrproc_t) nfs3svc_encode_##rest##res,	\
 	.pc_release	= nfs3svc_release_##relt,			\
 	.pc_argsize	= sizeof(struct nfsd3_##argt##args),		\

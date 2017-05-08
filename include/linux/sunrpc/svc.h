@@ -422,7 +422,8 @@ struct svc_version {
 struct svc_procedure {
 	/* process the request: */
 	__be32			(*pc_func)(struct svc_rqst *);
-	kxdrproc_t		pc_decode;	/* XDR decode args */
+	/* XDR decode args: */
+	int			(*pc_decode)(struct svc_rqst *, __be32 *data);
 	kxdrproc_t		pc_encode;	/* XDR encode result */
 	/* XDR free result: */
 	void			(*pc_release)(struct svc_rqst *);

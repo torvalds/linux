@@ -206,14 +206,16 @@ __be32 *nfs2svc_encode_fattr(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *f
  * XDR decode functions
  */
 int
-nfssvc_decode_void(struct svc_rqst *rqstp, __be32 *p, void *dummy)
+nfssvc_decode_void(struct svc_rqst *rqstp, __be32 *p)
 {
 	return xdr_argsize_check(rqstp, p);
 }
 
 int
-nfssvc_decode_fhandle(struct svc_rqst *rqstp, __be32 *p, struct nfsd_fhandle *args)
+nfssvc_decode_fhandle(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd_fhandle *args = rqstp->rq_argp;
+
 	p = decode_fh(p, &args->fh);
 	if (!p)
 		return 0;
@@ -221,9 +223,10 @@ nfssvc_decode_fhandle(struct svc_rqst *rqstp, __be32 *p, struct nfsd_fhandle *ar
 }
 
 int
-nfssvc_decode_sattrargs(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd_sattrargs *args)
+nfssvc_decode_sattrargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd_sattrargs *args = rqstp->rq_argp;
+
 	p = decode_fh(p, &args->fh);
 	if (!p)
 		return 0;
@@ -233,9 +236,10 @@ nfssvc_decode_sattrargs(struct svc_rqst *rqstp, __be32 *p,
 }
 
 int
-nfssvc_decode_diropargs(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd_diropargs *args)
+nfssvc_decode_diropargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd_diropargs *args = rqstp->rq_argp;
+
 	if (!(p = decode_fh(p, &args->fh))
 	 || !(p = decode_filename(p, &args->name, &args->len)))
 		return 0;
@@ -244,9 +248,9 @@ nfssvc_decode_diropargs(struct svc_rqst *rqstp, __be32 *p,
 }
 
 int
-nfssvc_decode_readargs(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd_readargs *args)
+nfssvc_decode_readargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd_readargs *args = rqstp->rq_argp;
 	unsigned int len;
 	int v;
 	p = decode_fh(p, &args->fh);
@@ -276,9 +280,9 @@ nfssvc_decode_readargs(struct svc_rqst *rqstp, __be32 *p,
 }
 
 int
-nfssvc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd_writeargs *args)
+nfssvc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd_writeargs *args = rqstp->rq_argp;
 	unsigned int len, hdr, dlen;
 	struct kvec *head = rqstp->rq_arg.head;
 	int v;
@@ -332,9 +336,10 @@ nfssvc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p,
 }
 
 int
-nfssvc_decode_createargs(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd_createargs *args)
+nfssvc_decode_createargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd_createargs *args = rqstp->rq_argp;
+
 	if (   !(p = decode_fh(p, &args->fh))
 	    || !(p = decode_filename(p, &args->name, &args->len)))
 		return 0;
@@ -344,9 +349,10 @@ nfssvc_decode_createargs(struct svc_rqst *rqstp, __be32 *p,
 }
 
 int
-nfssvc_decode_renameargs(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd_renameargs *args)
+nfssvc_decode_renameargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd_renameargs *args = rqstp->rq_argp;
+
 	if (!(p = decode_fh(p, &args->ffh))
 	 || !(p = decode_filename(p, &args->fname, &args->flen))
 	 || !(p = decode_fh(p, &args->tfh))
@@ -357,8 +363,10 @@ nfssvc_decode_renameargs(struct svc_rqst *rqstp, __be32 *p,
 }
 
 int
-nfssvc_decode_readlinkargs(struct svc_rqst *rqstp, __be32 *p, struct nfsd_readlinkargs *args)
+nfssvc_decode_readlinkargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd_readlinkargs *args = rqstp->rq_argp;
+
 	p = decode_fh(p, &args->fh);
 	if (!p)
 		return 0;
@@ -368,9 +376,10 @@ nfssvc_decode_readlinkargs(struct svc_rqst *rqstp, __be32 *p, struct nfsd_readli
 }
 
 int
-nfssvc_decode_linkargs(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd_linkargs *args)
+nfssvc_decode_linkargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd_linkargs *args = rqstp->rq_argp;
+
 	if (!(p = decode_fh(p, &args->ffh))
 	 || !(p = decode_fh(p, &args->tfh))
 	 || !(p = decode_filename(p, &args->tname, &args->tlen)))
@@ -380,9 +389,10 @@ nfssvc_decode_linkargs(struct svc_rqst *rqstp, __be32 *p,
 }
 
 int
-nfssvc_decode_symlinkargs(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd_symlinkargs *args)
+nfssvc_decode_symlinkargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd_symlinkargs *args = rqstp->rq_argp;
+
 	if (   !(p = decode_fh(p, &args->ffh))
 	    || !(p = decode_filename(p, &args->fname, &args->flen))
 	    || !(p = decode_pathname(p, &args->tname, &args->tlen)))
@@ -393,9 +403,10 @@ nfssvc_decode_symlinkargs(struct svc_rqst *rqstp, __be32 *p,
 }
 
 int
-nfssvc_decode_readdirargs(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd_readdirargs *args)
+nfssvc_decode_readdirargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd_readdirargs *args = rqstp->rq_argp;
+
 	p = decode_fh(p, &args->fh);
 	if (!p)
 		return 0;

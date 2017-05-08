@@ -58,7 +58,7 @@ static __be32 nfs4_callback_null(struct svc_rqst *rqstp)
 	return htonl(NFS4_OK);
 }
 
-static int nfs4_decode_void(struct svc_rqst *rqstp, __be32 *p, void *dummy)
+static int nfs4_decode_void(struct svc_rqst *rqstp, __be32 *p)
 {
 	return xdr_argsize_check(rqstp, p);
 }
@@ -998,7 +998,7 @@ static struct callback_op callback_ops[] = {
 static struct svc_procedure nfs4_callback_procedures1[] = {
 	[CB_NULL] = {
 		.pc_func = nfs4_callback_null,
-		.pc_decode = (kxdrproc_t)nfs4_decode_void,
+		.pc_decode = nfs4_decode_void,
 		.pc_encode = (kxdrproc_t)nfs4_encode_void,
 		.pc_xdrressize = 1,
 	},

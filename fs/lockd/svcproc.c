@@ -538,7 +538,7 @@ struct nlm_void			{ int dummy; };
 
 #define PROC(name, xargt, xrest, argt, rest, respsize)	\
  { .pc_func	= nlmsvc_proc_##name,			\
-   .pc_decode	= (kxdrproc_t) nlmsvc_decode_##xargt,	\
+   .pc_decode	= nlmsvc_decode_##xargt,		\
    .pc_encode	= (kxdrproc_t) nlmsvc_encode_##xrest,	\
    .pc_release	= NULL,					\
    .pc_argsize	= sizeof(struct nlm_##argt),		\

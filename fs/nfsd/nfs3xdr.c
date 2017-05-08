@@ -273,8 +273,10 @@ void fill_post_wcc(struct svc_fh *fhp)
  * XDR decode functions
  */
 int
-nfs3svc_decode_fhandle(struct svc_rqst *rqstp, __be32 *p, struct nfsd_fhandle *args)
+nfs3svc_decode_fhandle(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd_fhandle *args = rqstp->rq_argp;
+
 	p = decode_fh(p, &args->fh);
 	if (!p)
 		return 0;
@@ -282,9 +284,10 @@ nfs3svc_decode_fhandle(struct svc_rqst *rqstp, __be32 *p, struct nfsd_fhandle *a
 }
 
 int
-nfs3svc_decode_sattrargs(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_sattrargs *args)
+nfs3svc_decode_sattrargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_sattrargs *args = rqstp->rq_argp;
+
 	p = decode_fh(p, &args->fh);
 	if (!p)
 		return 0;
@@ -300,9 +303,10 @@ nfs3svc_decode_sattrargs(struct svc_rqst *rqstp, __be32 *p,
 }
 
 int
-nfs3svc_decode_diropargs(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_diropargs *args)
+nfs3svc_decode_diropargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_diropargs *args = rqstp->rq_argp;
+
 	if (!(p = decode_fh(p, &args->fh))
 	 || !(p = decode_filename(p, &args->name, &args->len)))
 		return 0;
@@ -311,9 +315,10 @@ nfs3svc_decode_diropargs(struct svc_rqst *rqstp, __be32 *p,
 }
 
 int
-nfs3svc_decode_accessargs(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_accessargs *args)
+nfs3svc_decode_accessargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_accessargs *args = rqstp->rq_argp;
+
 	p = decode_fh(p, &args->fh);
 	if (!p)
 		return 0;
@@ -323,9 +328,9 @@ nfs3svc_decode_accessargs(struct svc_rqst *rqstp, __be32 *p,
 }
 
 int
-nfs3svc_decode_readargs(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_readargs *args)
+nfs3svc_decode_readargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_readargs *args = rqstp->rq_argp;
 	unsigned int len;
 	int v;
 	u32 max_blocksize = svc_max_payload(rqstp);
@@ -353,9 +358,9 @@ nfs3svc_decode_readargs(struct svc_rqst *rqstp, __be32 *p,
 }
 
 int
-nfs3svc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_writeargs *args)
+nfs3svc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_writeargs *args = rqstp->rq_argp;
 	unsigned int len, v, hdr, dlen;
 	u32 max_blocksize = svc_max_payload(rqstp);
 	struct kvec *head = rqstp->rq_arg.head;
@@ -413,9 +418,10 @@ nfs3svc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p,
 }
 
 int
-nfs3svc_decode_createargs(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_createargs *args)
+nfs3svc_decode_createargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_createargs *args = rqstp->rq_argp;
+
 	if (!(p = decode_fh(p, &args->fh))
 	 || !(p = decode_filename(p, &args->name, &args->len)))
 		return 0;
@@ -435,10 +441,12 @@ nfs3svc_decode_createargs(struct svc_rqst *rqstp, __be32 *p,
 
 	return xdr_argsize_check(rqstp, p);
 }
+
 int
-nfs3svc_decode_mkdirargs(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_createargs *args)
+nfs3svc_decode_mkdirargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_createargs *args = rqstp->rq_argp;
+
 	if (!(p = decode_fh(p, &args->fh)) ||
 	    !(p = decode_filename(p, &args->name, &args->len)))
 		return 0;
@@ -448,9 +456,9 @@ nfs3svc_decode_mkdirargs(struct svc_rqst *rqstp, __be32 *p,
 }
 
 int
-nfs3svc_decode_symlinkargs(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_symlinkargs *args)
+nfs3svc_decode_symlinkargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_symlinkargs *args = rqstp->rq_argp;
 	unsigned int len, avail;
 	char *old, *new;
 	struct kvec *vec;
@@ -500,9 +508,10 @@ nfs3svc_decode_symlinkargs(struct svc_rqst *rqstp, __be32 *p,
 }
 
 int
-nfs3svc_decode_mknodargs(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_mknodargs *args)
+nfs3svc_decode_mknodargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_mknodargs *args = rqstp->rq_argp;
+
 	if (!(p = decode_fh(p, &args->fh))
 	 || !(p = decode_filename(p, &args->name, &args->len)))
 		return 0;
@@ -522,9 +531,10 @@ nfs3svc_decode_mknodargs(struct svc_rqst *rqstp, __be32 *p,
 }
 
 int
-nfs3svc_decode_renameargs(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_renameargs *args)
+nfs3svc_decode_renameargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_renameargs *args = rqstp->rq_argp;
+
 	if (!(p = decode_fh(p, &args->ffh))
 	 || !(p = decode_filename(p, &args->fname, &args->flen))
 	 || !(p = decode_fh(p, &args->tfh))
@@ -535,9 +545,10 @@ nfs3svc_decode_renameargs(struct svc_rqst *rqstp, __be32 *p,
 }
 
 int
-nfs3svc_decode_readlinkargs(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_readlinkargs *args)
+nfs3svc_decode_readlinkargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_readlinkargs *args = rqstp->rq_argp;
+
 	p = decode_fh(p, &args->fh);
 	if (!p)
 		return 0;
@@ -547,9 +558,10 @@ nfs3svc_decode_readlinkargs(struct svc_rqst *rqstp, __be32 *p,
 }
 
 int
-nfs3svc_decode_linkargs(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_linkargs *args)
+nfs3svc_decode_linkargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_linkargs *args = rqstp->rq_argp;
+
 	if (!(p = decode_fh(p, &args->ffh))
 	 || !(p = decode_fh(p, &args->tfh))
 	 || !(p = decode_filename(p, &args->tname, &args->tlen)))
@@ -559,9 +571,9 @@ nfs3svc_decode_linkargs(struct svc_rqst *rqstp, __be32 *p,
 }
 
 int
-nfs3svc_decode_readdirargs(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_readdirargs *args)
+nfs3svc_decode_readdirargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_readdirargs *args = rqstp->rq_argp;
 	p = decode_fh(p, &args->fh);
 	if (!p)
 		return 0;
@@ -576,9 +588,9 @@ nfs3svc_decode_readdirargs(struct svc_rqst *rqstp, __be32 *p,
 }
 
 int
-nfs3svc_decode_readdirplusargs(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_readdirargs *args)
+nfs3svc_decode_readdirplusargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_readdirargs *args = rqstp->rq_argp;
 	int len;
 	u32 max_blocksize = svc_max_payload(rqstp);
 
@@ -602,9 +614,9 @@ nfs3svc_decode_readdirplusargs(struct svc_rqst *rqstp, __be32 *p,
 }
 
 int
-nfs3svc_decode_commitargs(struct svc_rqst *rqstp, __be32 *p,
-					struct nfsd3_commitargs *args)
+nfs3svc_decode_commitargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_commitargs *args = rqstp->rq_argp;
 	p = decode_fh(p, &args->fh);
 	if (!p)
 		return 0;
