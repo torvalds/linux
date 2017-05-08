@@ -88,7 +88,7 @@ static struct table_header *unpack_table(char *blob, size_t bsize)
 	if (bsize < tsize)
 		goto out;
 
-	table = kvzalloc(tsize);
+	table = kvzalloc(tsize, GFP_KERNEL);
 	if (table) {
 		table->td_id = th.td_id;
 		table->td_flags = th.td_flags;
