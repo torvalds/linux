@@ -194,6 +194,38 @@ DEFINE_PTE_FAULT_EVENT(dax_pfn_mkwrite_no_entry);
 DEFINE_PTE_FAULT_EVENT(dax_pfn_mkwrite);
 DEFINE_PTE_FAULT_EVENT(dax_load_hole);
 
+DECLARE_EVENT_CLASS(dax_writeback_range_class,
+	TP_PROTO(struct inode *inode, pgoff_t start_index, pgoff_t end_index),
+	TP_ARGS(inode, start_index, end_index),
+	TP_STRUCT__entry(
+		__field(unsigned long, ino)
+		__field(pgoff_t, start_index)
+		__field(pgoff_t, end_index)
+		__field(dev_t, dev)
+	),
+	TP_fast_assign(
+		__entry->dev = inode->i_sb->s_dev;
+		__entry->ino = inode->i_ino;
+		__entry->start_index = start_index;
+		__entry->end_index = end_index;
+	),
+	TP_printk("dev %d:%d ino %#lx pgoff %#lx-%#lx",
+		MAJOR(__entry->dev),
+		MINOR(__entry->dev),
+		__entry->ino,
+		__entry->start_index,
+		__entry->end_index
+	)
+)
+
+#define DEFINE_WRITEBACK_RANGE_EVENT(name) \
+DEFINE_EVENT(dax_writeback_range_class, name, \
+	TP_PROTO(struct inode *inode, pgoff_t start_index, pgoff_t end_index),\
+	TP_ARGS(inode, start_index, end_index))
+
+DEFINE_WRITEBACK_RANGE_EVENT(dax_writeback_range);
+DEFINE_WRITEBACK_RANGE_EVENT(dax_writeback_range_done);
+
 #endif /* _TRACE_FS_DAX_H */
 
 /* This part must be outside protection */
