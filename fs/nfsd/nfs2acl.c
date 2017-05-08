@@ -182,9 +182,10 @@ static __be32 nfsacld_proc_access(struct svc_rqst *rqstp)
 /*
  * XDR decode functions
  */
-static int nfsaclsvc_decode_getaclargs(struct svc_rqst *rqstp, __be32 *p,
-		struct nfsd3_getaclargs *argp)
+static int nfsaclsvc_decode_getaclargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_getaclargs *argp = rqstp->rq_argp;
+
 	p = nfs2svc_decode_fh(p, &argp->fh);
 	if (!p)
 		return 0;
@@ -194,9 +195,9 @@ static int nfsaclsvc_decode_getaclargs(struct svc_rqst *rqstp, __be32 *p,
 }
 
 
-static int nfsaclsvc_decode_setaclargs(struct svc_rqst *rqstp, __be32 *p,
-		struct nfsd3_setaclargs *argp)
+static int nfsaclsvc_decode_setaclargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_setaclargs *argp = rqstp->rq_argp;
 	struct kvec *head = rqstp->rq_arg.head;
 	unsigned int base;
 	int n;
@@ -220,18 +221,20 @@ static int nfsaclsvc_decode_setaclargs(struct svc_rqst *rqstp, __be32 *p,
 	return (n > 0);
 }
 
-static int nfsaclsvc_decode_fhandleargs(struct svc_rqst *rqstp, __be32 *p,
-		struct nfsd_fhandle *argp)
+static int nfsaclsvc_decode_fhandleargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd_fhandle *argp = rqstp->rq_argp;
+
 	p = nfs2svc_decode_fh(p, &argp->fh);
 	if (!p)
 		return 0;
 	return xdr_argsize_check(rqstp, p);
 }
 
-static int nfsaclsvc_decode_accessargs(struct svc_rqst *rqstp, __be32 *p,
-		struct nfsd3_accessargs *argp)
+static int nfsaclsvc_decode_accessargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_accessargs *argp = rqstp->rq_argp;
+
 	p = nfs2svc_decode_fh(p, &argp->fh);
 	if (!p)
 		return 0;
@@ -351,7 +354,7 @@ struct nfsd3_voidargs { int dummy; };
 #define PROC(name, argt, rest, relt, cache, respsize)			\
 {									\
 	.pc_func	= nfsacld_proc_##name,				\
-	.pc_decode	= (kxdrproc_t) nfsaclsvc_decode_##argt##args,	\
+	.pc_decode	= nfsaclsvc_decode_##argt##args,		\
 	.pc_encode	= (kxdrproc_t) nfsaclsvc_encode_##rest##res,	\
 	.pc_release	= nfsaclsvc_release_##relt,	\
 	.pc_argsize	= sizeof(struct nfsd3_##argt##args),		\

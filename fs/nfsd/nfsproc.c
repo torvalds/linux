@@ -576,7 +576,7 @@ struct nfsd_void { int dummy; };
 static struct svc_procedure		nfsd_procedures2[18] = {
 	[NFSPROC_NULL] = {
 		.pc_func = nfsd_proc_null,
-		.pc_decode = (kxdrproc_t) nfssvc_decode_void,
+		.pc_decode = nfssvc_decode_void,
 		.pc_encode = (kxdrproc_t) nfssvc_encode_void,
 		.pc_argsize = sizeof(struct nfsd_void),
 		.pc_ressize = sizeof(struct nfsd_void),
@@ -585,7 +585,7 @@ static struct svc_procedure		nfsd_procedures2[18] = {
 	},
 	[NFSPROC_GETATTR] = {
 		.pc_func = nfsd_proc_getattr,
-		.pc_decode = (kxdrproc_t) nfssvc_decode_fhandle,
+		.pc_decode = nfssvc_decode_fhandle,
 		.pc_encode = (kxdrproc_t) nfssvc_encode_attrstat,
 		.pc_release = nfssvc_release_fhandle,
 		.pc_argsize = sizeof(struct nfsd_fhandle),
@@ -595,7 +595,7 @@ static struct svc_procedure		nfsd_procedures2[18] = {
 	},
 	[NFSPROC_SETATTR] = {
 		.pc_func = nfsd_proc_setattr,
-		.pc_decode = (kxdrproc_t) nfssvc_decode_sattrargs,
+		.pc_decode = nfssvc_decode_sattrargs,
 		.pc_encode = (kxdrproc_t) nfssvc_encode_attrstat,
 		.pc_release = nfssvc_release_fhandle,
 		.pc_argsize = sizeof(struct nfsd_sattrargs),
@@ -604,7 +604,7 @@ static struct svc_procedure		nfsd_procedures2[18] = {
 		.pc_xdrressize = ST+AT,
 	},
 	[NFSPROC_ROOT] = {
-		.pc_decode = (kxdrproc_t) nfssvc_decode_void,
+		.pc_decode = nfssvc_decode_void,
 		.pc_encode = (kxdrproc_t) nfssvc_encode_void,
 		.pc_argsize = sizeof(struct nfsd_void),
 		.pc_ressize = sizeof(struct nfsd_void),
@@ -613,7 +613,7 @@ static struct svc_procedure		nfsd_procedures2[18] = {
 	},
 	[NFSPROC_LOOKUP] = {
 		.pc_func = nfsd_proc_lookup,
-		.pc_decode = (kxdrproc_t) nfssvc_decode_diropargs,
+		.pc_decode = nfssvc_decode_diropargs,
 		.pc_encode = (kxdrproc_t) nfssvc_encode_diropres,
 		.pc_release = nfssvc_release_fhandle,
 		.pc_argsize = sizeof(struct nfsd_diropargs),
@@ -623,7 +623,7 @@ static struct svc_procedure		nfsd_procedures2[18] = {
 	},
 	[NFSPROC_READLINK] = {
 		.pc_func = nfsd_proc_readlink,
-		.pc_decode = (kxdrproc_t) nfssvc_decode_readlinkargs,
+		.pc_decode = nfssvc_decode_readlinkargs,
 		.pc_encode = (kxdrproc_t) nfssvc_encode_readlinkres,
 		.pc_argsize = sizeof(struct nfsd_readlinkargs),
 		.pc_ressize = sizeof(struct nfsd_readlinkres),
@@ -632,7 +632,7 @@ static struct svc_procedure		nfsd_procedures2[18] = {
 	},
 	[NFSPROC_READ] = {
 		.pc_func = nfsd_proc_read,
-		.pc_decode = (kxdrproc_t) nfssvc_decode_readargs,
+		.pc_decode = nfssvc_decode_readargs,
 		.pc_encode = (kxdrproc_t) nfssvc_encode_readres,
 		.pc_release = nfssvc_release_fhandle,
 		.pc_argsize = sizeof(struct nfsd_readargs),
@@ -641,7 +641,7 @@ static struct svc_procedure		nfsd_procedures2[18] = {
 		.pc_xdrressize = ST+AT+1+NFSSVC_MAXBLKSIZE_V2/4,
 	},
 	[NFSPROC_WRITECACHE] = {
-		.pc_decode = (kxdrproc_t) nfssvc_decode_void,
+		.pc_decode = nfssvc_decode_void,
 		.pc_encode = (kxdrproc_t) nfssvc_encode_void,
 		.pc_argsize = sizeof(struct nfsd_void),
 		.pc_ressize = sizeof(struct nfsd_void),
@@ -650,7 +650,7 @@ static struct svc_procedure		nfsd_procedures2[18] = {
 	},
 	[NFSPROC_WRITE] = {
 		.pc_func = nfsd_proc_write,
-		.pc_decode = (kxdrproc_t) nfssvc_decode_writeargs,
+		.pc_decode = nfssvc_decode_writeargs,
 		.pc_encode = (kxdrproc_t) nfssvc_encode_attrstat,
 		.pc_release = nfssvc_release_fhandle,
 		.pc_argsize = sizeof(struct nfsd_writeargs),
@@ -660,7 +660,7 @@ static struct svc_procedure		nfsd_procedures2[18] = {
 	},
 	[NFSPROC_CREATE] = {
 		.pc_func = nfsd_proc_create,
-		.pc_decode = (kxdrproc_t) nfssvc_decode_createargs,
+		.pc_decode = nfssvc_decode_createargs,
 		.pc_encode = (kxdrproc_t) nfssvc_encode_diropres,
 		.pc_release = nfssvc_release_fhandle,
 		.pc_argsize = sizeof(struct nfsd_createargs),
@@ -670,7 +670,7 @@ static struct svc_procedure		nfsd_procedures2[18] = {
 	},
 	[NFSPROC_REMOVE] = {
 		.pc_func = nfsd_proc_remove,
-		.pc_decode = (kxdrproc_t) nfssvc_decode_diropargs,
+		.pc_decode = nfssvc_decode_diropargs,
 		.pc_encode = (kxdrproc_t) nfssvc_encode_void,
 		.pc_argsize = sizeof(struct nfsd_diropargs),
 		.pc_ressize = sizeof(struct nfsd_void),
@@ -679,7 +679,7 @@ static struct svc_procedure		nfsd_procedures2[18] = {
 	},
 	[NFSPROC_RENAME] = {
 		.pc_func = nfsd_proc_rename,
-		.pc_decode = (kxdrproc_t) nfssvc_decode_renameargs,
+		.pc_decode = nfssvc_decode_renameargs,
 		.pc_encode = (kxdrproc_t) nfssvc_encode_void,
 		.pc_argsize = sizeof(struct nfsd_renameargs),
 		.pc_ressize = sizeof(struct nfsd_void),
@@ -688,7 +688,7 @@ static struct svc_procedure		nfsd_procedures2[18] = {
 	},
 	[NFSPROC_LINK] = {
 		.pc_func = nfsd_proc_link,
-		.pc_decode = (kxdrproc_t) nfssvc_decode_linkargs,
+		.pc_decode = nfssvc_decode_linkargs,
 		.pc_encode = (kxdrproc_t) nfssvc_encode_void,
 		.pc_argsize = sizeof(struct nfsd_linkargs),
 		.pc_ressize = sizeof(struct nfsd_void),
@@ -697,7 +697,7 @@ static struct svc_procedure		nfsd_procedures2[18] = {
 	},
 	[NFSPROC_SYMLINK] = {
 		.pc_func = nfsd_proc_symlink,
-		.pc_decode = (kxdrproc_t) nfssvc_decode_symlinkargs,
+		.pc_decode = nfssvc_decode_symlinkargs,
 		.pc_encode = (kxdrproc_t) nfssvc_encode_void,
 		.pc_argsize = sizeof(struct nfsd_symlinkargs),
 		.pc_ressize = sizeof(struct nfsd_void),
@@ -706,7 +706,7 @@ static struct svc_procedure		nfsd_procedures2[18] = {
 	},
 	[NFSPROC_MKDIR] = {
 		.pc_func = nfsd_proc_mkdir,
-		.pc_decode = (kxdrproc_t) nfssvc_decode_createargs,
+		.pc_decode = nfssvc_decode_createargs,
 		.pc_encode = (kxdrproc_t) nfssvc_encode_diropres,
 		.pc_release = nfssvc_release_fhandle,
 		.pc_argsize = sizeof(struct nfsd_createargs),
@@ -716,7 +716,7 @@ static struct svc_procedure		nfsd_procedures2[18] = {
 	},
 	[NFSPROC_RMDIR] = {
 		.pc_func = nfsd_proc_rmdir,
-		.pc_decode = (kxdrproc_t) nfssvc_decode_diropargs,
+		.pc_decode = nfssvc_decode_diropargs,
 		.pc_encode = (kxdrproc_t) nfssvc_encode_void,
 		.pc_argsize = sizeof(struct nfsd_diropargs),
 		.pc_ressize = sizeof(struct nfsd_void),
@@ -725,7 +725,7 @@ static struct svc_procedure		nfsd_procedures2[18] = {
 	},
 	[NFSPROC_READDIR] = {
 		.pc_func = nfsd_proc_readdir,
-		.pc_decode = (kxdrproc_t) nfssvc_decode_readdirargs,
+		.pc_decode = nfssvc_decode_readdirargs,
 		.pc_encode = (kxdrproc_t) nfssvc_encode_readdirres,
 		.pc_argsize = sizeof(struct nfsd_readdirargs),
 		.pc_ressize = sizeof(struct nfsd_readdirres),
@@ -733,7 +733,7 @@ static struct svc_procedure		nfsd_procedures2[18] = {
 	},
 	[NFSPROC_STATFS] = {
 		.pc_func = nfsd_proc_statfs,
-		.pc_decode = (kxdrproc_t) nfssvc_decode_fhandle,
+		.pc_decode = nfssvc_decode_fhandle,
 		.pc_encode = (kxdrproc_t) nfssvc_encode_statfsres,
 		.pc_argsize = sizeof(struct nfsd_fhandle),
 		.pc_ressize = sizeof(struct nfsd_statfsres),

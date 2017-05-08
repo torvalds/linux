@@ -1276,9 +1276,12 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 
 	/* Call the function that processes the request. */
 	if (!versp->vs_dispatch) {
-		/* Decode arguments */
-		xdr = procp->pc_decode;
-		if (xdr && !xdr(rqstp, argv->iov_base, rqstp->rq_argp))
+		/*
+		 * Decode arguments
+		 * XXX: why do we ignore the return value?
+		 */
+		if (procp->pc_decode &&
+		    !procp->pc_decode(rqstp, argv->iov_base))
 			goto err_garbage;
 
 		*statp = procp->pc_func(rqstp);
