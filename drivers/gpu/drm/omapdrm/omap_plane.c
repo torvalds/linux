@@ -41,8 +41,6 @@ struct omap_plane {
 
 struct omap_plane_state {
 	struct drm_plane_state base;
-
-	unsigned int zorder;
 };
 
 static inline struct omap_plane_state *
@@ -73,7 +71,6 @@ static void omap_plane_atomic_update(struct drm_plane *plane,
 	struct omap_drm_private *priv = plane->dev->dev_private;
 	struct omap_plane *omap_plane = to_omap_plane(plane);
 	struct drm_plane_state *state = plane->state;
-	struct omap_plane_state *omap_state = to_omap_plane_state(state);
 	struct omap_overlay_info info;
 	struct omap_drm_window win;
 	int ret;
@@ -85,7 +82,7 @@ static void omap_plane_atomic_update(struct drm_plane *plane,
 	info.rotation = OMAP_DSS_ROT_0;
 	info.global_alpha = 0xff;
 	info.mirror = 0;
-	info.zorder = omap_state->zorder;
+	info.zorder = state->zpos;
 
 	memset(&win, 0, sizeof(win));
 	win.rotation = state->rotation;
@@ -138,11 +135,10 @@ static void omap_plane_atomic_disable(struct drm_plane *plane,
 				      struct drm_plane_state *old_state)
 {
 	struct omap_drm_private *priv = plane->dev->dev_private;
-	struct omap_plane_state *omap_state = to_omap_plane_state(plane->state);
 	struct omap_plane *omap_plane = to_omap_plane(plane);
 
 	plane->state->rotation = DRM_MODE_ROTATE_0;
-	omap_state->zorder = plane->type == DRM_PLANE_TYPE_PRIMARY
+	plane->state->zpos = plane->type == DRM_PLANE_TYPE_PRIMARY
 			   ? 0 : omap_plane->id;
 
 	priv->dispc_ops->ovl_enable(omap_plane->id, false);
@@ -268,11 +264,11 @@ static void omap_plane_reset(struct drm_plane *plane)
 		return;
 
 	/*
-	 * Set defaults depending on whether we are a primary or overlay
+	 * Set the zpos default depending on whether we are a primary or overlay
 	 * plane.
 	 */
-	omap_state->zorder = plane->type == DRM_PLANE_TYPE_PRIMARY
-			   ? 0 : omap_plane->id;
+	omap_state->base.zpos = plane->type == DRM_PLANE_TYPE_PRIMARY
+			      ? 0 : omap_plane->id;
 	omap_state->base.rotation = DRM_MODE_ROTATE_0;
 
 	plane->state = &omap_state->base;
@@ -285,10 +281,9 @@ static int omap_plane_atomic_set_property(struct drm_plane *plane,
 					  uint64_t val)
 {
 	struct omap_drm_private *priv = plane->dev->dev_private;
-	struct omap_plane_state *omap_state = to_omap_plane_state(state);
 
 	if (property == priv->zorder_prop)
-		omap_state->zorder = val;
+		state->zpos = val;
 	else
 		return -EINVAL;
 
@@ -301,11 +296,9 @@ static int omap_plane_atomic_get_property(struct drm_plane *plane,
 					  uint64_t *val)
 {
 	struct omap_drm_private *priv = plane->dev->dev_private;
-	const struct omap_plane_state *omap_state =
-		container_of(state, const struct omap_plane_state, base);
 
 	if (property == priv->zorder_prop)
-		*val = omap_state->zorder;
+		*val = state->zpos;
 	else
 		return -EINVAL;
 
