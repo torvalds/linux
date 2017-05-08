@@ -1728,10 +1728,11 @@ config TEST_LIST_SORT
 	  If unsure, say N.
 
 config TEST_SORT
-	bool "Array-based sort test"
-	depends on DEBUG_KERNEL
+	tristate "Array-based sort test"
+	depends on DEBUG_KERNEL || m
 	help
-	  This option enables the self-test function of 'sort()' at boot.
+	  This option enables the self-test function of 'sort()' at boot,
+	  or at module load time.
 
 	  If unsure, say N.
 
