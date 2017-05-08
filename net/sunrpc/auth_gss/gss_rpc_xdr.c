@@ -44,7 +44,7 @@ static int gssx_dec_bool(struct xdr_stream *xdr, u32 *v)
 }
 
 static int gssx_enc_buffer(struct xdr_stream *xdr,
-			   gssx_buffer *buf)
+			   const gssx_buffer *buf)
 {
 	__be32 *p;
 
@@ -56,7 +56,7 @@ static int gssx_enc_buffer(struct xdr_stream *xdr,
 }
 
 static int gssx_enc_in_token(struct xdr_stream *xdr,
-			     struct gssp_in_token *in)
+			     const struct gssp_in_token *in)
 {
 	__be32 *p;
 
@@ -130,7 +130,7 @@ static int gssx_dec_option(struct xdr_stream *xdr,
 }
 
 static int dummy_enc_opt_array(struct xdr_stream *xdr,
-				struct gssx_option_array *oa)
+				const struct gssx_option_array *oa)
 {
 	__be32 *p;
 
@@ -348,7 +348,7 @@ static int gssx_dec_status(struct xdr_stream *xdr,
 }
 
 static int gssx_enc_call_ctx(struct xdr_stream *xdr,
-			     struct gssx_call_ctx *ctx)
+			     const struct gssx_call_ctx *ctx)
 {
 	struct gssx_option opt;
 	__be32 *p;
@@ -733,8 +733,9 @@ static int gssx_enc_cb(struct xdr_stream *xdr, struct gssx_cb *cb)
 
 void gssx_enc_accept_sec_context(struct rpc_rqst *req,
 				 struct xdr_stream *xdr,
-				 struct gssx_arg_accept_sec_context *arg)
+				 const void *data)
 {
+	const struct gssx_arg_accept_sec_context *arg = data;
 	int err;
 
 	err = gssx_enc_call_ctx(xdr, &arg->call_ctx);

@@ -55,7 +55,7 @@ enum {
 #define PROC(proc, name)				\
 [GSSX_##proc] = {					\
 	.p_proc   = GSSX_##proc,			\
-	.p_encode = (kxdreproc_t)gssx_enc_##name,	\
+	.p_encode = gssx_enc_##name,	\
 	.p_decode = (kxdrdproc_t)gssx_dec_##name,	\
 	.p_arglen = GSSX_ARG_##name##_sz,		\
 	.p_replen = GSSX_RES_##name##_sz, 		\
