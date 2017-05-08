@@ -312,10 +312,10 @@ static int __init maybe_link(void)
 
 static void __init clean_path(char *path, umode_t fmode)
 {
-	struct stat st;
+	struct kstat st;
 
-	if (!sys_newlstat(path, &st) && (st.st_mode ^ fmode) & S_IFMT) {
-		if (S_ISDIR(st.st_mode))
+	if (!vfs_lstat(path, &st) && (st.mode ^ fmode) & S_IFMT) {
+		if (S_ISDIR(st.mode))
 			sys_rmdir(path);
 		else
 			sys_unlink(path);
@@ -581,13 +581,13 @@ static void __init clean_rootfs(void)
 	num = sys_getdents64(fd, dirp, BUF_SIZE);
 	while (num > 0) {
 		while (num > 0) {
-			struct stat st;
+			struct kstat st;
 			int ret;
 
-			ret = sys_newlstat(dirp->d_name, &st);
+			ret = vfs_lstat(dirp->d_name, &st);
 			WARN_ON_ONCE(ret);
 			if (!ret) {
-				if (S_ISDIR(st.st_mode))
+				if (S_ISDIR(st.mode))
 					sys_rmdir(dirp->d_name);
 				else
 					sys_unlink(dirp->d_name);
