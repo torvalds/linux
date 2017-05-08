@@ -3665,6 +3665,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
 						struct alloc_context *ac)
 {
 	bool can_direct_reclaim = gfp_mask & __GFP_DIRECT_RECLAIM;
+	const bool costly_order = order > PAGE_ALLOC_COSTLY_ORDER;
 	struct page *page = NULL;
 	unsigned int alloc_flags;
 	unsigned long did_some_progress;
@@ -3732,12 +3733,17 @@ retry_cpuset:
 
 	/*
 	 * For costly allocations, try direct compaction first, as it's likely
-	 * that we have enough base pages and don't need to reclaim. Don't try
-	 * that for allocations that are allowed to ignore watermarks, as the
-	 * ALLOC_NO_WATERMARKS attempt didn't yet happen.
+	 * that we have enough base pages and don't need to reclaim. For non-
+	 * movable high-order allocations, do that as well, as compaction will
+	 * try prevent permanent fragmentation by migrating from blocks of the
+	 * same migratetype.
+	 * Don't try this for allocations that are allowed to ignore
+	 * watermarks, as the ALLOC_NO_WATERMARKS attempt didn't yet happen.
 	 */
-	if (can_direct_reclaim && order > PAGE_ALLOC_COSTLY_ORDER &&
-		!gfp_pfmemalloc_allowed(gfp_mask)) {
+	if (can_direct_reclaim &&
+			(costly_order ||
+			   (order > 0 && ac->migratetype != MIGRATE_MOVABLE))
+			&& !gfp_pfmemalloc_allowed(gfp_mask)) {
 		page = __alloc_pages_direct_compact(gfp_mask, order,
 						alloc_flags, ac,
 						INIT_COMPACT_PRIORITY,
@@ -3749,7 +3755,7 @@ retry_cpuset:
 		 * Checks for costly allocations with __GFP_NORETRY, which
 		 * includes THP page fault allocations
 		 */
-		if (gfp_mask & __GFP_NORETRY) {
+		if (costly_order && (gfp_mask & __GFP_NORETRY)) {
 			/*
 			 * If compaction is deferred for high-order allocations,
 			 * it is because sync compaction recently failed. If
@@ -3830,7 +3836,7 @@ retry:
 	 * Do not retry costly high order allocations unless they are
 	 * __GFP_REPEAT
 	 */
-	if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
+	if (costly_order && !(gfp_mask & __GFP_REPEAT))
 		goto nopage;
 
 	if (should_reclaim_retry(gfp_mask, order, ac, alloc_flags,

@@ -986,10 +986,17 @@ isolate_migratepages_range(struct compact_control *cc, unsigned long start_pfn,
 static bool suitable_migration_source(struct compact_control *cc,
 							struct page *page)
 {
-	if (cc->mode != MIGRATE_ASYNC)
+	int block_mt;
+
+	if ((cc->mode != MIGRATE_ASYNC) || !cc->direct_compaction)
 		return true;
 
-	return is_migrate_movable(get_pageblock_migratetype(page));
+	block_mt = get_pageblock_migratetype(page);
+
+	if (cc->migratetype == MIGRATE_MOVABLE)
+		return is_migrate_movable(block_mt);
+	else
+		return block_mt == cc->migratetype;
 }
 
 /* Returns true if the page is within a block suitable for migration to */
