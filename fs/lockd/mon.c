@@ -553,9 +553,9 @@ static struct rpc_procinfo	nsm_procedures[] = {
 };
 
 static const struct rpc_version nsm_version1 = {
-		.number		= 1,
-		.nrprocs	= ARRAY_SIZE(nsm_procedures),
-		.procs		= nsm_procedures
+	.number		= 1,
+	.nrprocs	= ARRAY_SIZE(nsm_procedures),
+	.procs		= nsm_procedures
 };
 
 static const struct rpc_version *nsm_version[] = {
@@ -565,9 +565,9 @@ static const struct rpc_version *nsm_version[] = {
 static struct rpc_stat		nsm_stats;
 
 static const struct rpc_program nsm_program = {
-		.name		= "statd",
-		.number		= NSM_PROGRAM,
-		.nrvers		= ARRAY_SIZE(nsm_version),
-		.version	= nsm_version,
-		.stats		= &nsm_stats
+	.name		= "statd",
+	.number		= NSM_PROGRAM,
+	.nrvers		= ARRAY_SIZE(nsm_version),
+	.version	= nsm_version,
+	.stats		= &nsm_stats
 };

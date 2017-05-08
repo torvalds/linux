@@ -601,15 +601,15 @@ static struct rpc_procinfo	nlm_procedures[] = {
 };
 
 static const struct rpc_version	nlm_version1 = {
-		.number		= 1,
-		.nrprocs	= ARRAY_SIZE(nlm_procedures),
-		.procs		= nlm_procedures,
+	.number		= 1,
+	.nrprocs	= ARRAY_SIZE(nlm_procedures),
+	.procs		= nlm_procedures,
 };
 
 static const struct rpc_version	nlm_version3 = {
-		.number		= 3,
-		.nrprocs	= ARRAY_SIZE(nlm_procedures),
-		.procs		= nlm_procedures,
+	.number		= 3,
+	.nrprocs	= ARRAY_SIZE(nlm_procedures),
+	.procs		= nlm_procedures,
 };
 
 static const struct rpc_version	*nlm_versions[] = {
@@ -623,9 +623,9 @@ static const struct rpc_version	*nlm_versions[] = {
 static struct rpc_stat		nlm_rpc_stats;
 
 const struct rpc_program	nlm_program = {
-		.name		= "lockd",
-		.number		= NLM_PROGRAM,
-		.nrvers		= ARRAY_SIZE(nlm_versions),
-		.version	= nlm_versions,
-		.stats		= &nlm_rpc_stats,
+	.name		= "lockd",
+	.number		= NLM_PROGRAM,
+	.nrvers		= ARRAY_SIZE(nlm_versions),
+	.version	= nlm_versions,
+	.stats		= &nlm_rpc_stats,
 };
