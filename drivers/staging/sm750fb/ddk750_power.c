@@ -24,7 +24,6 @@ static unsigned int get_power_mode(void)
 	return peek32(POWER_MODE_CTRL) & POWER_MODE_CTRL_MODE_MASK;
 }
 
-
 /*
  * SM50x can operate in one of three modes: 0, 1 or Sleep.
  * On hardware reset, power mode 0 is default.
@@ -79,8 +78,6 @@ void sm750_set_current_gate(unsigned int gate)
 	else
 		poke32(MODE0_GATE, gate);
 }
-
-
 
 /*
  * This function enable/disable the 2D engine.
@@ -145,5 +142,3 @@ void sm750_enable_i2c(unsigned int enable)
 
 	sm750_set_current_gate(gate);
 }
-
-

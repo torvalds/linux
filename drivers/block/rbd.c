@@ -4307,9 +4307,8 @@ out:
 	return ret;
 }
 
-static int rbd_init_request(void *data, struct request *rq,
-		unsigned int hctx_idx, unsigned int request_idx,
-		unsigned int numa_node)
+static int rbd_init_request(struct blk_mq_tag_set *set, struct request *rq,
+		unsigned int hctx_idx, unsigned int numa_node)
 {
 	struct work_struct *work = blk_mq_rq_to_pdu(rq);
 

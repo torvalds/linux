@@ -119,9 +119,6 @@ static void flush_context(unsigned int cpu)
 
 	/* Queue a TLB invalidate and flush the I-cache if necessary. */
 	cpumask_setall(&tlb_flush_pending);
-
-	if (icache_is_aivivt())
-		__flush_icache_all();
 }
 
 static bool check_update_reserved_asid(u64 asid, u64 newasid)

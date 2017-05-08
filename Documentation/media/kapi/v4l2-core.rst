@@ -1,4 +1,4 @@
-Video2Linux devices
+Video4Linux devices
 -------------------
 
 .. toctree::

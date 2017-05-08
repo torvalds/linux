@@ -80,6 +80,7 @@ denx	Denx Software Engineering
 devantech	Devantech, Ltd.
 digi	Digi International Inc.
 digilent	Diglent, Inc.
+dioo	Dioo Microcircuit Co., Ltd
 dlg	Dialog Semiconductor
 dlink	D-Link Corporation
 dmo	Data Modul AG
@@ -215,6 +216,7 @@ newhaven	Newhaven Display International
 ni	National Instruments
 nintendo	Nintendo
 nokia	Nokia
+nordic	Nordic Semiconductor
 nuvoton	Nuvoton Technology Corporation
 nvd	New Vision Display
 nvidia	NVIDIA
@@ -261,6 +263,7 @@ richtek	Richtek Technology Corporation
 ricoh	Ricoh Co. Ltd.
 rikomagic	Rikomagic Tech Corp. Ltd
 rockchip	Fuzhou Rockchip Electronics Co., Ltd
+rohm	ROHM Semiconductor Co., Ltd
 samsung	Samsung Semiconductor
 samtec	Samtec/Softing company
 sandisk	Sandisk Corporation

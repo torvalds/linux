@@ -40,7 +40,6 @@
 #include "../include/obd_support.h"
 #include "../include/lustre_dlm.h"
 #include "../include/lustre_ver.h"
-#include "../include/lustre_eacl.h"
 
 #include "llite_internal.h"
 
@@ -427,7 +426,7 @@ static ssize_t ll_getxattr_lov(struct inode *inode, void *buf, size_t buf_size)
 			.cl_buf.lb_len = buf_size,
 		};
 		struct lu_env *env;
-		int refcheck;
+		u16 refcheck;
 
 		if (!obj)
 			return -ENODATA;

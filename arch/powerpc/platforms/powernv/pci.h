@@ -7,6 +7,9 @@
 
 struct pci_dn;
 
+/* Maximum possible number of ATSD MMIO registers per NPU */
+#define NV_NMMU_ATSD_REGS 8
+
 enum pnv_phb_type {
 	PNV_PHB_IODA1	= 0,
 	PNV_PHB_IODA2	= 1,
@@ -174,6 +177,16 @@ struct pnv_phb {
 		struct OpalIoP7IOCErrorData 	hub_diag;
 	} diag;
 
+	/* Nvlink2 data */
+	struct npu {
+		int index;
+		__be64 *mmio_atsd_regs[NV_NMMU_ATSD_REGS];
+		unsigned int mmio_atsd_count;
+
+		/* Bitmask for MMIO register usage */
+		unsigned long mmio_atsd_usage;
+	} npu;
+
 #ifdef CONFIG_CXL_BASE
 	struct cxl_afu *cxl_afu;
 #endif
@@ -229,14 +242,14 @@ extern void pe_level_printk(const struct pnv_ioda_pe *pe, const char *level,
 
 /* Nvlink functions */
 extern void pnv_npu_try_dma_set_bypass(struct pci_dev *gpdev, bool bypass);
-extern void pnv_pci_phb3_tce_invalidate_entire(struct pnv_phb *phb, bool rm);
+extern void pnv_pci_ioda2_tce_invalidate_entire(struct pnv_phb *phb, bool rm);
 extern struct pnv_ioda_pe *pnv_pci_npu_setup_iommu(struct pnv_ioda_pe *npe);
 extern long pnv_npu_set_window(struct pnv_ioda_pe *npe, int num,
 		struct iommu_table *tbl);
 extern long pnv_npu_unset_window(struct pnv_ioda_pe *npe, int num);
 extern void pnv_npu_take_ownership(struct pnv_ioda_pe *npe);
 extern void pnv_npu_release_ownership(struct pnv_ioda_pe *npe);
-
+extern int pnv_npu2_init(struct pnv_phb *phb);
 
 /* cxl functions */
 extern bool pnv_cxl_enable_device_hook(struct pci_dev *dev);

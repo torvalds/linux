@@ -106,18 +106,9 @@ xfs_trans_ail_update(
 	xfs_trans_ail_update_bulk(ailp, NULL, &lip, 1, lsn);
 }
 
-void	xfs_trans_ail_delete_bulk(struct xfs_ail *ailp,
-				struct xfs_log_item **log_items, int nr_items,
-				int shutdown_type)
-				__releases(ailp->xa_lock);
-static inline void
-xfs_trans_ail_delete(
-	struct xfs_ail	*ailp,
-	xfs_log_item_t	*lip,
-	int		shutdown_type) __releases(ailp->xa_lock)
-{
-	xfs_trans_ail_delete_bulk(ailp, &lip, 1, shutdown_type);
-}
+bool xfs_ail_delete_one(struct xfs_ail *ailp, struct xfs_log_item *lip);
+void xfs_trans_ail_delete(struct xfs_ail *ailp, struct xfs_log_item *lip,
+		int shutdown_type) __releases(ailp->xa_lock);
 
 static inline void
 xfs_trans_ail_remove(

@@ -6,6 +6,8 @@
  *
  * This file is released under the GPLv2.
  */
+
+#include <linux/acpi_iort.h>
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/list.h>
@@ -14,6 +16,7 @@
 #include <linux/rwsem.h>
 #include <linux/acpi.h>
 #include <linux/dma-mapping.h>
+#include <linux/platform_device.h>
 
 #include "internal.h"
 
@@ -321,6 +324,9 @@ static int acpi_platform_notify(struct device *dev)
 	adev = ACPI_COMPANION(dev);
 	if (!adev)
 		goto out;
+
+	if (dev->bus == &platform_bus_type)
+		acpi_configure_pmsi_domain(dev);
 
 	if (type && type->setup)
 		type->setup(dev);

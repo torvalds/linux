@@ -49,9 +49,9 @@
 #define _IO_CMDMASK_	(0x1F80)
 
 /*
-	For prompt mode accessing, caller shall free io_req
-	Otherwise, io_handler will free io_req
-*/
+ *	For prompt mode accessing, caller shall free io_req
+ *	Otherwise, io_handler will free io_req
+ */
 /* IO STATUS TYPE */
 #define _IO_ERR_		BIT(2)
 #define _IO_SUCCESS_	BIT(1)
@@ -69,8 +69,8 @@
 #define IO_WR16_ASYNC	(_IO_WRITE_ | _IO_HW_)
 #define IO_WR8_ASYNC	(_IO_WRITE_ | _IO_BYTE_)
 /*
-	Only Sync. burst accessing is provided.
-*/
+ *	Only Sync. burst accessing is provided.
+ */
 #define IO_WR_BURST(x)		(IO_WRITE_ | _IO_SYNC_ | _IO_BURST_ | \
 				((x) & _IOSZ_MASK_))
 #define IO_RD_BURST(x)		(_IO_SYNC_ | _IO_BURST_ | ((x) & _IOSZ_MASK_))
@@ -218,8 +218,8 @@ struct reg_protocol_wt {
 };
 
 /*
-Below is the data structure used by _io_handler
-*/
+ * Below is the data structure used by _io_handler
+ */
 
 struct io_queue {
 	spinlock_t lock;

@@ -1906,12 +1906,13 @@ xfs_inactive(
 		 * force is true because we are evicting an inode from the
 		 * cache. Post-eof blocks must be freed, lest we end up with
 		 * broken free space accounting.
+		 *
+		 * Note: don't bother with iolock here since lockdep complains
+		 * about acquiring it in reclaim context. We have the only
+		 * reference to the inode at this point anyways.
 		 */
-		if (xfs_can_free_eofblocks(ip, true)) {
-			xfs_ilock(ip, XFS_IOLOCK_EXCL);
+		if (xfs_can_free_eofblocks(ip, true))
 			xfs_free_eofblocks(ip);
-			xfs_iunlock(ip, XFS_IOLOCK_EXCL);
-		}
 
 		return;
 	}

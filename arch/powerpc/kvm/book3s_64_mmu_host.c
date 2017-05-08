@@ -229,6 +229,7 @@ void kvmppc_mmu_unmap_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *pte)
 
 static struct kvmppc_sid_map *create_sid_map(struct kvm_vcpu *vcpu, u64 gvsid)
 {
+	unsigned long vsid_bits = VSID_BITS_65_256M;
 	struct kvmppc_sid_map *map;
 	struct kvmppc_vcpu_book3s *vcpu_book3s = to_book3s(vcpu);
 	u16 sid_map_mask;
@@ -257,7 +258,12 @@ static struct kvmppc_sid_map *create_sid_map(struct kvm_vcpu *vcpu, u64 gvsid)
 		kvmppc_mmu_pte_flush(vcpu, 0, 0);
 		kvmppc_mmu_flush_segments(vcpu);
 	}
-	map->host_vsid = vsid_scramble(vcpu_book3s->proto_vsid_next++, 256M);
+
+	if (mmu_has_feature(MMU_FTR_68_BIT_VA))
+		vsid_bits = VSID_BITS_256M;
+
+	map->host_vsid = vsid_scramble(vcpu_book3s->proto_vsid_next++,
+				       VSID_MULTIPLIER_256M, vsid_bits);
 
 	map->guest_vsid = gvsid;
 	map->valid = true;
@@ -390,7 +396,7 @@ int kvmppc_mmu_init(struct kvm_vcpu *vcpu)
 	struct kvmppc_vcpu_book3s *vcpu3s = to_book3s(vcpu);
 	int err;
 
-	err = __init_new_context();
+	err = hash__alloc_context_id();
 	if (err < 0)
 		return -1;
 	vcpu3s->context_id[0] = err;

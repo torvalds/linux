@@ -81,7 +81,7 @@ struct page *new_iommu_non_cma_page(struct page *page, unsigned long private,
 	gfp_t gfp_mask = GFP_USER;
 	struct page *new_page;
 
-	if (PageHuge(page) || PageTransHuge(page) || PageCompound(page))
+	if (PageCompound(page))
 		return NULL;
 
 	if (PageHighMem(page))
@@ -100,7 +100,7 @@ static int mm_iommu_move_page_from_cma(struct page *page)
 	LIST_HEAD(cma_migrate_pages);
 
 	/* Ignore huge pages for now */
-	if (PageHuge(page) || PageTransHuge(page) || PageCompound(page))
+	if (PageCompound(page))
 		return -EBUSY;
 
 	lru_add_drain();
@@ -314,6 +314,25 @@ struct mm_iommu_table_group_mem_t *mm_iommu_lookup(struct mm_struct *mm,
 }
 EXPORT_SYMBOL_GPL(mm_iommu_lookup);
 
+struct mm_iommu_table_group_mem_t *mm_iommu_lookup_rm(struct mm_struct *mm,
+		unsigned long ua, unsigned long size)
+{
+	struct mm_iommu_table_group_mem_t *mem, *ret = NULL;
+
+	list_for_each_entry_lockless(mem, &mm->context.iommu_group_mem_list,
+			next) {
+		if ((mem->ua <= ua) &&
+				(ua + size <= mem->ua +
+				 (mem->entries << PAGE_SHIFT))) {
+			ret = mem;
+			break;
+		}
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(mm_iommu_lookup_rm);
+
 struct mm_iommu_table_group_mem_t *mm_iommu_find(struct mm_struct *mm,
 		unsigned long ua, unsigned long entries)
 {
@@ -344,6 +363,26 @@ long mm_iommu_ua_to_hpa(struct mm_iommu_table_group_mem_t *mem,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mm_iommu_ua_to_hpa);
+
+long mm_iommu_ua_to_hpa_rm(struct mm_iommu_table_group_mem_t *mem,
+		unsigned long ua, unsigned long *hpa)
+{
+	const long entry = (ua - mem->ua) >> PAGE_SHIFT;
+	void *va = &mem->hpas[entry];
+	unsigned long *pa;
+
+	if (entry >= mem->entries)
+		return -EFAULT;
+
+	pa = (void *) vmalloc_to_phys(va);
+	if (!pa)
+		return -EFAULT;
+
+	*hpa = *pa | (ua & ~PAGE_MASK);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mm_iommu_ua_to_hpa_rm);
 
 long mm_iommu_mapped_inc(struct mm_iommu_table_group_mem_t *mem)
 {

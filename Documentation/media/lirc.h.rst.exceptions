@@ -35,7 +35,6 @@ ignore define PULSE_MASK
 
 ignore define LIRC_MODE2_SPACE
 ignore define LIRC_MODE2_PULSE
-ignore define LIRC_MODE2_TIMEOUT
 
 ignore define LIRC_VALUE_MASK
 ignore define LIRC_MODE2_MASK

@@ -448,10 +448,9 @@ xfs_getbmap_adjust_shared(
 	next_map->br_blockcount = 0;
 
 	/* Only written data blocks can be shared. */
-	if (!xfs_is_reflink_inode(ip) || whichfork != XFS_DATA_FORK ||
-	    map->br_startblock == DELAYSTARTBLOCK ||
-	    map->br_startblock == HOLESTARTBLOCK ||
-	    ISUNWRITTEN(map))
+	if (!xfs_is_reflink_inode(ip) ||
+	    whichfork != XFS_DATA_FORK ||
+	    !xfs_bmap_is_real_extent(map))
 		return 0;
 
 	agno = XFS_FSB_TO_AGNO(mp, map->br_startblock);
@@ -904,9 +903,9 @@ xfs_can_free_eofblocks(struct xfs_inode *ip, bool force)
 }
 
 /*
- * This is called by xfs_inactive to free any blocks beyond eof
- * when the link count isn't zero and by xfs_dm_punch_hole() when
- * punching a hole to EOF.
+ * This is called to free any blocks beyond eof. The caller must hold
+ * IOLOCK_EXCL unless we are in the inode reclaim path and have the only
+ * reference to the inode.
  */
 int
 xfs_free_eofblocks(
@@ -920,8 +919,6 @@ xfs_free_eofblocks(
 	int			nimaps;
 	struct xfs_bmbt_irec	imap;
 	struct xfs_mount	*mp = ip->i_mount;
-
-	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
 
 	/*
 	 * Figure out if there are any blocks beyond the end
@@ -1209,11 +1206,8 @@ xfs_adjust_extent_unmap_boundaries(
 		return error;
 
 	if (nimap && imap.br_startblock != HOLESTARTBLOCK) {
-		xfs_daddr_t	block;
-
 		ASSERT(imap.br_startblock != DELAYSTARTBLOCK);
-		block = imap.br_startblock;
-		mod = do_div(block, mp->m_sb.sb_rextsize);
+		mod = do_mod(imap.br_startblock, mp->m_sb.sb_rextsize);
 		if (mod)
 			*startoffset_fsb += mp->m_sb.sb_rextsize - mod;
 	}

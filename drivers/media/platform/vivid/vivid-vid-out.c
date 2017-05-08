@@ -390,22 +390,28 @@ int vivid_try_fmt_vid_out(struct file *file, void *priv,
 
 	/* This driver supports custom bytesperline values */
 
-	/* Calculate the minimum supported bytesperline value */
-	bytesperline = (mp->width * fmt->bit_depth[0]) >> 3;
-	/* Calculate the maximum supported bytesperline value */
-	max_bpl = (MAX_ZOOM * MAX_WIDTH * fmt->bit_depth[0]) >> 3;
 	mp->num_planes = fmt->buffers;
-	for (p = 0; p < mp->num_planes; p++) {
+	for (p = 0; p < fmt->buffers; p++) {
+		/* Calculate the minimum supported bytesperline value */
+		bytesperline = (mp->width * fmt->bit_depth[p]) >> 3;
+		/* Calculate the maximum supported bytesperline value */
+		max_bpl = (MAX_ZOOM * MAX_WIDTH * fmt->bit_depth[p]) >> 3;
+
 		if (pfmt[p].bytesperline > max_bpl)
 			pfmt[p].bytesperline = max_bpl;
 		if (pfmt[p].bytesperline < bytesperline)
 			pfmt[p].bytesperline = bytesperline;
-		pfmt[p].sizeimage = pfmt[p].bytesperline * mp->height;
+
+		pfmt[p].sizeimage = (pfmt[p].bytesperline * mp->height) /
+					fmt->vdownsampling[p];
+
 		memset(pfmt[p].reserved, 0, sizeof(pfmt[p].reserved));
 	}
 	for (p = fmt->buffers; p < fmt->planes; p++)
-		pfmt[0].sizeimage += (pfmt[0].bytesperline * fmt->bit_depth[p]) /
-				     (fmt->bit_depth[0] * fmt->vdownsampling[p]);
+		pfmt[0].sizeimage += (pfmt[0].bytesperline * mp->height *
+			(fmt->bit_depth[p] / fmt->vdownsampling[p])) /
+			(fmt->bit_depth[0] / fmt->vdownsampling[0]);
+
 	mp->xfer_func = V4L2_XFER_FUNC_DEFAULT;
 	mp->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
 	mp->quantization = V4L2_QUANTIZATION_DEFAULT;
@@ -1172,14 +1178,12 @@ int vidioc_subscribe_event(struct v4l2_fh *fh,
 			const struct v4l2_event_subscription *sub)
 {
 	switch (sub->type) {
-	case V4L2_EVENT_CTRL:
-		return v4l2_ctrl_subscribe_event(fh, sub);
 	case V4L2_EVENT_SOURCE_CHANGE:
 		if (fh->vdev->vfl_dir == VFL_DIR_RX)
 			return v4l2_src_change_event_subscribe(fh, sub);
 		break;
 	default:
-		break;
+		return v4l2_ctrl_subscribe_event(fh, sub);
 	}
 	return -EINVAL;
 }

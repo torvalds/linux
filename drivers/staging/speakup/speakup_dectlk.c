@@ -130,9 +130,10 @@ static struct spk_synth synth_dectlk = {
 	.vars = vars,
 	.default_pitch = ap_defaults,
 	.default_vol = g5_defaults,
+	.io_ops = &spk_serial_io_ops,
 	.probe = spk_serial_synth_probe,
 	.release = spk_serial_release,
-	.synth_immediate = spk_synth_immediate,
+	.synth_immediate = spk_serial_synth_immediate,
 	.catch_up = do_catch_up,
 	.flush = synth_flush,
 	.is_alive = spk_synth_is_alive_restart,
@@ -239,6 +240,7 @@ static void do_catch_up(struct spk_synth *synth)
 			synth->flush(synth);
 			continue;
 		}
+		synth_buffer_skip_nonlatin1();
 		if (synth_buffer_empty()) {
 			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 			break;
@@ -250,7 +252,7 @@ static void do_catch_up(struct spk_synth *synth)
 		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 		if (ch == '\n')
 			ch = 0x0D;
-		if (synth_full_val || !spk_serial_out(ch)) {
+		if (synth_full_val || !synth->io_ops->synth_out(synth, ch)) {
 			schedule_timeout(msecs_to_jiffies(delay_time_val));
 			continue;
 		}
@@ -258,16 +260,16 @@ static void do_catch_up(struct spk_synth *synth)
 		spin_lock_irqsave(&speakup_info.spinlock, flags);
 		synth_buffer_getc();
 		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
-		if (ch == '[')
+		if (ch == '[') {
 			in_escape = 1;
-		else if (ch == ']')
+		} else if (ch == ']') {
 			in_escape = 0;
-		else if (ch <= SPACE) {
+		} else if (ch <= SPACE) {
 			if (!in_escape && strchr(",.!?;:", last))
-				spk_serial_out(PROCSPEECH);
+				synth->io_ops->synth_out(synth, PROCSPEECH);
 			if (time_after_eq(jiffies, jiff_max)) {
 				if (!in_escape)
-					spk_serial_out(PROCSPEECH);
+					synth->io_ops->synth_out(synth, PROCSPEECH);
 				spin_lock_irqsave(&speakup_info.spinlock,
 						flags);
 				jiffy_delta_val = jiffy_delta->u.n.value;
@@ -282,17 +284,17 @@ static void do_catch_up(struct spk_synth *synth)
 		last = ch;
 	}
 	if (!in_escape)
-		spk_serial_out(PROCSPEECH);
+		synth->io_ops->synth_out(synth, PROCSPEECH);
 }
 
 static void synth_flush(struct spk_synth *synth)
 {
 	if (in_escape)
 		/* if in command output ']' so we don't get an error */
-		spk_serial_out(']');
+		synth->io_ops->synth_out(synth, ']');
 	in_escape = 0;
 	is_flushing = 1;
-	spk_serial_out(SYNTH_CLEAR);
+	synth->io_ops->synth_out(synth, SYNTH_CLEAR);
 }
 
 module_param_named(ser, synth_dectlk.ser, int, 0444);

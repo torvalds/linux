@@ -1734,7 +1734,7 @@ static void SwLedControlMode6(struct _adapter *padapter,
 	case LED_CTL_LINK:	/*solid blue*/
 	case LED_CTL_SITE_SURVEY:
 		if (IS_LED_WPS_BLINKING(pLed))
-				return;
+			return;
 		pLed->CurrLedState = LED_STATE_ON;
 		pLed->BlinkingLedState = LED_STATE_ON;
 		pLed->bLedBlinkInProgress = false;

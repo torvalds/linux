@@ -88,11 +88,6 @@
 #include <asm/nohash/pte-book3e.h>
 #include <asm/pte-common.h>
 
-#ifdef CONFIG_PPC_MM_SLICES
-#define HAVE_ARCH_UNMAPPED_AREA
-#define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
-#endif /* CONFIG_PPC_MM_SLICES */
-
 #ifndef __ASSEMBLY__
 /* pte_clear moved to later in this file */
 

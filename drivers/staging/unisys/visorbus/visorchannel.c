@@ -29,8 +29,9 @@
 #define MYDRVNAME "visorchannel"
 
 #define SPAR_CONSOLEVIDEO_CHANNEL_PROTOCOL_GUID \
-	UUID_LE(0x3cd6e705, 0xd6a2, 0x4aa5,           \
+	UUID_LE(0x3cd6e705, 0xd6a2, 0x4aa5, \
 		0xad, 0x5c, 0x7b, 0x8, 0x88, 0x9d, 0xff, 0xe2)
+
 static const uuid_le spar_video_guid = SPAR_CONSOLEVIDEO_CHANNEL_PROTOCOL_GUID;
 
 struct visorchannel {
@@ -153,10 +154,10 @@ visorchannel_write(struct visorchannel *channel, ulong offset,
 	return 0;
 }
 
-void __iomem  *
+void *
 visorchannel_get_header(struct visorchannel *channel)
 {
-	return (void __iomem *)&channel->chan_hdr;
+	return &channel->chan_hdr;
 }
 
 /*
@@ -173,17 +174,17 @@ visorchannel_get_header(struct visorchannel *channel)
  */
 #define SIG_DATA_OFFSET(chan_hdr, q, sig_hdr, slot) \
 	(SIG_QUEUE_OFFSET(chan_hdr, q) + (sig_hdr)->sig_base_offset + \
-	    ((slot) * (sig_hdr)->signal_size))
+	 ((slot) * (sig_hdr)->signal_size))
 
 /*
  * Write the contents of a specific field within a SIGNAL_QUEUE_HEADER back
  * into host memory
  */
-#define SIG_WRITE_FIELD(channel, queue, sig_hdr, FIELD)			 \
-	visorchannel_write(channel,					 \
-			   SIG_QUEUE_OFFSET(&channel->chan_hdr, queue) +\
+#define SIG_WRITE_FIELD(channel, queue, sig_hdr, FIELD) \
+	visorchannel_write(channel, \
+			   SIG_QUEUE_OFFSET(&channel->chan_hdr, queue) + \
 			   offsetof(struct signal_queue_header, FIELD), \
-			   &((sig_hdr)->FIELD),			 \
+			   &((sig_hdr)->FIELD), \
 			   sizeof((sig_hdr)->FIELD))
 
 static int
@@ -199,7 +200,7 @@ sig_read_header(struct visorchannel *channel, u32 queue,
 				 sig_hdr, sizeof(struct signal_queue_header));
 }
 
-static inline int
+static int
 sig_read_data(struct visorchannel *channel, u32 queue,
 	      struct signal_queue_header *sig_hdr, u32 slot, void *data)
 {
@@ -210,7 +211,7 @@ sig_read_data(struct visorchannel *channel, u32 queue,
 				 data, sig_hdr->signal_size);
 }
 
-static inline int
+static int
 sig_write_data(struct visorchannel *channel, u32 queue,
 	       struct signal_queue_header *sig_hdr, u32 slot, void *data)
 {
@@ -286,16 +287,6 @@ visorchannel_signalremove(struct visorchannel *channel, u32 queue, void *msg)
 }
 EXPORT_SYMBOL_GPL(visorchannel_signalremove);
 
-/**
- * visorchannel_signalempty() - checks if the designated channel/queue
- *                              contains any messages
- * @channel: the channel to query
- * @queue:   the queue in the channel to query
- *
- * Return: boolean indicating whether any messages in the designated
- *         channel/queue are present
- */
-
 static bool
 queue_empty(struct visorchannel *channel, u32 queue)
 {
@@ -307,6 +298,15 @@ queue_empty(struct visorchannel *channel, u32 queue)
 	return (sig_hdr.head == sig_hdr.tail);
 }
 
+/**
+ * visorchannel_signalempty() - checks if the designated channel/queue
+ *                              contains any messages
+ * @channel: the channel to query
+ * @queue:   the queue in the channel to query
+ *
+ * Return: boolean indicating whether any messages in the designated
+ *         channel/queue are present
+ */
 bool
 visorchannel_signalempty(struct visorchannel *channel, u32 queue)
 {
@@ -328,27 +328,24 @@ static int
 signalinsert_inner(struct visorchannel *channel, u32 queue, void *msg)
 {
 	struct signal_queue_header sig_hdr;
-	int error;
+	int err;
 
-	error = sig_read_header(channel, queue, &sig_hdr);
-	if (error)
-		return error;
+	err = sig_read_header(channel, queue, &sig_hdr);
+	if (err)
+		return err;
 
 	sig_hdr.head = (sig_hdr.head + 1) % sig_hdr.max_slots;
 	if (sig_hdr.head == sig_hdr.tail) {
 		sig_hdr.num_overflows++;
-		visorchannel_write(channel,
-				   SIG_QUEUE_OFFSET(&channel->chan_hdr, queue) +
-				   offsetof(struct signal_queue_header,
-					    num_overflows),
-				   &sig_hdr.num_overflows,
-				   sizeof(sig_hdr.num_overflows));
+		err = SIG_WRITE_FIELD(channel, queue, &sig_hdr, num_overflows);
+		if (err)
+			return err;
 		return -EIO;
 	}
 
-	error = sig_write_data(channel, queue, &sig_hdr, sig_hdr.head, msg);
-	if (error)
-		return error;
+	err = sig_write_data(channel, queue, &sig_hdr, sig_hdr.head, msg);
+	if (err)
+		return err;
 
 	sig_hdr.num_sent++;
 
@@ -358,17 +355,17 @@ signalinsert_inner(struct visorchannel *channel, u32 queue, void *msg)
 	 */
 	mb(); /* required for channel synch */
 
-	error = SIG_WRITE_FIELD(channel, queue, &sig_hdr, head);
-	if (error)
-		return error;
-	error = SIG_WRITE_FIELD(channel, queue, &sig_hdr, num_sent);
-	if (error)
-		return error;
+	err = SIG_WRITE_FIELD(channel, queue, &sig_hdr, head);
+	if (err)
+		return err;
+	err = SIG_WRITE_FIELD(channel, queue, &sig_hdr, num_sent);
+	if (err)
+		return err;
 
 	return 0;
 }
 
-/**
+/*
  * visorchannel_create_guts() - creates the struct visorchannel abstraction
  *                              for a data area in memory, but does NOT modify
  *                              this data area
@@ -418,12 +415,9 @@ visorchannel_create_guts(u64 physaddr, unsigned long channel_bytes,
 	 * release later on.
 	 */
 	channel->requested = request_mem_region(physaddr, size, MYDRVNAME);
-	if (!channel->requested) {
-		if (uuid_le_cmp(guid, spar_video_guid)) {
-			/* Not the video channel we care about this */
-			goto err_destroy_channel;
-		}
-	}
+	if (!channel->requested && uuid_le_cmp(guid, spar_video_guid))
+		/* we only care about errors if this is not the video channel */
+		goto err_destroy_channel;
 
 	channel->mapped = memremap(physaddr, size, MEMREMAP_WB);
 	if (!channel->mapped) {
@@ -451,12 +445,9 @@ visorchannel_create_guts(u64 physaddr, unsigned long channel_bytes,
 	channel->mapped = NULL;
 	channel->requested = request_mem_region(channel->physaddr,
 						channel_bytes, MYDRVNAME);
-	if (!channel->requested) {
-		if (uuid_le_cmp(guid, spar_video_guid)) {
-			/* Different we care about this */
-			goto err_destroy_channel;
-		}
-	}
+	if (!channel->requested && uuid_le_cmp(guid, spar_video_guid))
+		/* we only care about errors if this is not the video channel */
+		goto err_destroy_channel;
 
 	channel->mapped = memremap(channel->physaddr, channel_bytes,
 			MEMREMAP_WB);

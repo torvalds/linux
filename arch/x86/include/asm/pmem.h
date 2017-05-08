@@ -44,11 +44,6 @@ static inline void arch_memcpy_to_pmem(void *dst, const void *src, size_t n)
 		BUG();
 }
 
-static inline int arch_memcpy_from_pmem(void *dst, const void *src, size_t n)
-{
-	return memcpy_mcsafe(dst, src, n);
-}
-
 /**
  * arch_wb_cache_pmem - write back a cache range with CLWB
  * @vaddr:	virtual start address

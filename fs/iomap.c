@@ -360,7 +360,8 @@ static int iomap_dax_zero(loff_t pos, unsigned offset, unsigned bytes,
 	sector_t sector = iomap->blkno +
 		(((pos & ~(PAGE_SIZE - 1)) - iomap->offset) >> 9);
 
-	return __dax_zero_page_range(iomap->bdev, sector, offset, bytes);
+	return __dax_zero_page_range(iomap->bdev, iomap->dax_dev, sector,
+			offset, bytes);
 }
 
 static loff_t
@@ -909,6 +910,9 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 			break;
 		}
 		pos += ret;
+
+		if (iov_iter_rw(iter) == READ && pos >= dio->i_size)
+			break;
 	} while ((count = iov_iter_count(iter)) > 0);
 	blk_finish_plug(&plug);
 

@@ -30,6 +30,8 @@
 #include "vsp1_clu.h"
 #include "vsp1_dl.h"
 #include "vsp1_drm.h"
+#include "vsp1_hgo.h"
+#include "vsp1_hgt.h"
 #include "vsp1_hsit.h"
 #include "vsp1_lif.h"
 #include "vsp1_lut.h"
@@ -105,7 +107,9 @@ static int vsp1_create_sink_links(struct vsp1_device *vsp1,
 		if (source->type == sink->type)
 			continue;
 
-		if (source->type == VSP1_ENTITY_LIF ||
+		if (source->type == VSP1_ENTITY_HGO ||
+		    source->type == VSP1_ENTITY_HGT ||
+		    source->type == VSP1_ENTITY_LIF ||
 		    source->type == VSP1_ENTITY_WPF)
 			continue;
 
@@ -148,6 +152,26 @@ static int vsp1_uapi_create_links(struct vsp1_device *vsp1)
 			return ret;
 	}
 
+	if (vsp1->hgo) {
+		ret = media_create_pad_link(&vsp1->hgo->histo.entity.subdev.entity,
+					    HISTO_PAD_SOURCE,
+					    &vsp1->hgo->histo.video.entity, 0,
+					    MEDIA_LNK_FL_ENABLED |
+					    MEDIA_LNK_FL_IMMUTABLE);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (vsp1->hgt) {
+		ret = media_create_pad_link(&vsp1->hgt->histo.entity.subdev.entity,
+					    HISTO_PAD_SOURCE,
+					    &vsp1->hgt->histo.video.entity, 0,
+					    MEDIA_LNK_FL_ENABLED |
+					    MEDIA_LNK_FL_IMMUTABLE);
+		if (ret < 0)
+			return ret;
+	}
+
 	if (vsp1->lif) {
 		ret = media_create_pad_link(&vsp1->wpf[0]->entity.subdev.entity,
 					    RWPF_PAD_SOURCE,
@@ -170,7 +194,8 @@ static int vsp1_uapi_create_links(struct vsp1_device *vsp1)
 	}
 
 	for (i = 0; i < vsp1->info->wpf_count; ++i) {
-		/* Connect the video device to the WPF. All connections are
+		/*
+		 * Connect the video device to the WPF. All connections are
 		 * immutable.
 		 */
 		struct vsp1_rwpf *wpf = vsp1->wpf[i];
@@ -227,7 +252,8 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 	media_device_init(mdev);
 
 	vsp1->media_ops.link_setup = vsp1_entity_link_setup;
-	/* Don't perform link validation when the userspace API is disabled as
+	/*
+	 * Don't perform link validation when the userspace API is disabled as
 	 * the pipeline is configured internally by the driver in that case, and
 	 * its configuration can thus be trusted.
 	 */
@@ -279,7 +305,30 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 
 	list_add_tail(&vsp1->hst->entity.list_dev, &vsp1->entities);
 
-	/* The LIF is only supported when used in conjunction with the DU, in
+	if (vsp1->info->features & VSP1_HAS_HGO && vsp1->info->uapi) {
+		vsp1->hgo = vsp1_hgo_create(vsp1);
+		if (IS_ERR(vsp1->hgo)) {
+			ret = PTR_ERR(vsp1->hgo);
+			goto done;
+		}
+
+		list_add_tail(&vsp1->hgo->histo.entity.list_dev,
+			      &vsp1->entities);
+	}
+
+	if (vsp1->info->features & VSP1_HAS_HGT && vsp1->info->uapi) {
+		vsp1->hgt = vsp1_hgt_create(vsp1);
+		if (IS_ERR(vsp1->hgt)) {
+			ret = PTR_ERR(vsp1->hgt);
+			goto done;
+		}
+
+		list_add_tail(&vsp1->hgt->histo.entity.list_dev,
+			      &vsp1->entities);
+	}
+
+	/*
+	 * The LIF is only supported when used in conjunction with the DU, in
 	 * which case the userspace API is disabled. If the userspace API is
 	 * enabled skip the LIF, even when present.
 	 */
@@ -391,7 +440,8 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 	if (ret < 0)
 		goto done;
 
-	/* Register subdev nodes if the userspace API is enabled or initialize
+	/*
+	 * Register subdev nodes if the userspace API is enabled or initialize
 	 * the DRM pipeline otherwise.
 	 */
 	if (vsp1->info->uapi) {
@@ -562,8 +612,9 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.version = VI6_IP_VERSION_MODEL_VSPS_H2,
 		.model = "VSP1-S",
 		.gen = 2,
-		.features = VSP1_HAS_BRU | VSP1_HAS_CLU | VSP1_HAS_LUT
-			  | VSP1_HAS_SRU | VSP1_HAS_WPF_VFLIP,
+		.features = VSP1_HAS_BRU | VSP1_HAS_CLU | VSP1_HAS_HGO
+			  | VSP1_HAS_HGT | VSP1_HAS_LUT | VSP1_HAS_SRU
+			  | VSP1_HAS_WPF_VFLIP,
 		.rpf_count = 5,
 		.uds_count = 3,
 		.wpf_count = 4,
@@ -583,7 +634,8 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.version = VI6_IP_VERSION_MODEL_VSPD_GEN2,
 		.model = "VSP1-D",
 		.gen = 2,
-		.features = VSP1_HAS_BRU | VSP1_HAS_LIF | VSP1_HAS_LUT,
+		.features = VSP1_HAS_BRU | VSP1_HAS_HGO | VSP1_HAS_LIF
+			  | VSP1_HAS_LUT,
 		.rpf_count = 4,
 		.uds_count = 1,
 		.wpf_count = 1,
@@ -593,8 +645,9 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.version = VI6_IP_VERSION_MODEL_VSPS_M2,
 		.model = "VSP1-S",
 		.gen = 2,
-		.features = VSP1_HAS_BRU | VSP1_HAS_CLU | VSP1_HAS_LUT
-			  | VSP1_HAS_SRU | VSP1_HAS_WPF_VFLIP,
+		.features = VSP1_HAS_BRU | VSP1_HAS_CLU | VSP1_HAS_HGO
+			  | VSP1_HAS_HGT | VSP1_HAS_LUT | VSP1_HAS_SRU
+			  | VSP1_HAS_WPF_VFLIP,
 		.rpf_count = 5,
 		.uds_count = 1,
 		.wpf_count = 4,
@@ -626,8 +679,9 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.version = VI6_IP_VERSION_MODEL_VSPI_GEN3,
 		.model = "VSP2-I",
 		.gen = 3,
-		.features = VSP1_HAS_CLU | VSP1_HAS_LUT | VSP1_HAS_SRU
-			  | VSP1_HAS_WPF_HFLIP | VSP1_HAS_WPF_VFLIP,
+		.features = VSP1_HAS_CLU | VSP1_HAS_HGO | VSP1_HAS_HGT
+			  | VSP1_HAS_LUT | VSP1_HAS_SRU | VSP1_HAS_WPF_HFLIP
+			  | VSP1_HAS_WPF_VFLIP,
 		.rpf_count = 1,
 		.uds_count = 1,
 		.wpf_count = 1,
@@ -645,8 +699,8 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.version = VI6_IP_VERSION_MODEL_VSPBC_GEN3,
 		.model = "VSP2-BC",
 		.gen = 3,
-		.features = VSP1_HAS_BRU | VSP1_HAS_CLU | VSP1_HAS_LUT
-			  | VSP1_HAS_WPF_VFLIP,
+		.features = VSP1_HAS_BRU | VSP1_HAS_CLU | VSP1_HAS_HGO
+			  | VSP1_HAS_LUT | VSP1_HAS_WPF_VFLIP,
 		.rpf_count = 5,
 		.wpf_count = 1,
 		.num_bru_inputs = 5,

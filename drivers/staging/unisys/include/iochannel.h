@@ -50,17 +50,17 @@
 #define ULTRA_VNIC_CHANNEL_PROTOCOL_VERSIONID 2
 #define ULTRA_VSWITCH_CHANNEL_PROTOCOL_VERSIONID 1
 
-#define SPAR_VHBA_CHANNEL_OK_CLIENT(ch)			\
-	(spar_check_channel_client(ch, spar_vhba_channel_protocol_uuid, \
-				   "vhba", MIN_IO_CHANNEL_SIZE,	\
-				   ULTRA_VHBA_CHANNEL_PROTOCOL_VERSIONID, \
-				   ULTRA_VHBA_CHANNEL_PROTOCOL_SIGNATURE))
+#define SPAR_VHBA_CHANNEL_OK_CLIENT(ch) \
+	(spar_check_channel(ch, spar_vhba_channel_protocol_uuid, \
+			    "vhba", MIN_IO_CHANNEL_SIZE,	\
+			    ULTRA_VHBA_CHANNEL_PROTOCOL_VERSIONID, \
+			    ULTRA_VHBA_CHANNEL_PROTOCOL_SIGNATURE))
 
-#define SPAR_VNIC_CHANNEL_OK_CLIENT(ch)			\
-	(spar_check_channel_client(ch, spar_vnic_channel_protocol_uuid, \
-				   "vnic", MIN_IO_CHANNEL_SIZE,	\
-				   ULTRA_VNIC_CHANNEL_PROTOCOL_VERSIONID, \
-				   ULTRA_VNIC_CHANNEL_PROTOCOL_SIGNATURE))
+#define SPAR_VNIC_CHANNEL_OK_CLIENT(ch) \
+	(spar_check_channel(ch, spar_vnic_channel_protocol_uuid, \
+			    "vnic", MIN_IO_CHANNEL_SIZE,	\
+			    ULTRA_VNIC_CHANNEL_PROTOCOL_VERSIONID, \
+			    ULTRA_VNIC_CHANNEL_PROTOCOL_SIGNATURE))
 
 /*
  * Everything necessary to handle SCSI & NIC traffic between Guest Partition and
@@ -92,11 +92,11 @@ enum net_types {
 				 */
 	/* visornic -> uisnic */
 	NET_RCV,		/* incoming packet received */
-	/* uisnic -> virtpci */
+	/* uisnic -> visornic */
 	NET_XMIT,		/* for outgoing net packets */
 	/* visornic -> uisnic */
 	NET_XMIT_DONE,		/* outgoing packet xmitted */
-	/* uisnic -> virtpci */
+	/* uisnic -> visornic */
 	NET_RCV_ENBDIS,		/* enable/disable packet reception */
 	/* visornic -> uisnic */
 	NET_RCV_ENBDIS_ACK,	/* acknowledge enable/disable packet */
@@ -200,7 +200,7 @@ struct uiscmdrsp_scsi {
 	int linuxstat;		/* original Linux status used by Linux vdisk */
 	u8 scsistat;		/* the scsi status */
 	u8 addlstat;		/* non-scsi status */
-#define ADDL_SEL_TIMEOUT	4
+#define ADDL_SEL_TIMEOUT 4
 
 	/* The following fields are need to determine the result of command. */
 	 u8 sensebuf[MAX_SENSE_SIZE];	/* sense info in case cmd failed; */
@@ -308,8 +308,8 @@ struct net_pkt_xmt {
 		u8 valid;	/* 1 = struct is valid - else ignore */
 		u8 hrawoffv;	/* 1 = hwrafoff is valid */
 		u8 nhrawoffv;	/* 1 = nhwrafoff is valid */
-		u16 protocol;	/* specifies packet protocol */
-		u32 csum;	/* value used to set skb->csum at IOPart */
+		__be16 protocol;	/* specifies packet protocol */
+		__wsum csum;	/* value used to set skb->csum at IOPart */
 		u32 hrawoff;	/* value used to set skb->h.raw at IOPart */
 		/* hrawoff points to the start of the TRANSPORT LAYER HEADER */
 		u32 nhrawoff;	/* value used to set skb->nh.raw at IOPart */
@@ -340,7 +340,7 @@ struct net_pkt_xmtdone {
 #define RCVPOST_BUF_SIZE 4032
 #define MAX_NET_RCV_CHAIN \
 	((VISOR_ETH_MAX_MTU + ETH_HLEN + RCVPOST_BUF_SIZE - 1) \
-	/ RCVPOST_BUF_SIZE)
+	 / RCVPOST_BUF_SIZE)
 
 /*
  * rcv buf size must be large enough to include ethernet data len + ethernet
@@ -441,7 +441,7 @@ struct uiscmdrsp_scsitaskmgmt {
 	/* Result of taskmgmt command - set by IOPart - values are: */
 	char result;
 
-#define TASK_MGMT_FAILED  0
+#define TASK_MGMT_FAILED 0
 } __packed;
 
 /* Used by uissd to send disk add/remove notifications to Guest. */
@@ -496,11 +496,11 @@ struct uiscmdrsp {
 	char cmdtype;
 
 /* Describes what type of information is in the struct */
-#define CMD_SCSI_TYPE		1
-#define CMD_NET_TYPE		2
-#define CMD_SCSITASKMGMT_TYPE	3
-#define CMD_NOTIFYGUEST_TYPE	4
-#define CMD_VDISKMGMT_TYPE	5
+#define CMD_SCSI_TYPE	      1
+#define CMD_NET_TYPE	      2
+#define CMD_SCSITASKMGMT_TYPE 3
+#define CMD_NOTIFYGUEST_TYPE  4
+#define CMD_VDISKMGMT_TYPE    5
 	union {
 		struct uiscmdrsp_scsi scsi;
 		struct uiscmdrsp_net net;
@@ -548,44 +548,7 @@ struct spar_io_channel_protocol {
 #define SIZEOF_CMDRSP (COVER(sizeof(struct uiscmdrsp), 64))
 
 /* Use 4K page sizes when passing page info between Guest and IOPartition. */
-#define PI_PAGE_SIZE  0x1000
-#define PI_PAGE_MASK  0x0FFF
-
-/* Returns next non-zero index on success or 0 on failure (i.e. out of room). */
-static inline u16
-add_physinfo_entries(u64 inp_pfn, u16 inp_off, u32 inp_len, u16 index,
-		     u16 max_pi_arr_entries, struct phys_info pi_arr[])
-{
-	u32 len;
-	u16 i, firstlen;
-
-	firstlen = PI_PAGE_SIZE - inp_off;
-	if (inp_len <= firstlen) {
-		/* The input entry spans only one page - add as is. */
-		if (index >= max_pi_arr_entries)
-			return 0;
-		pi_arr[index].pi_pfn = inp_pfn;
-		pi_arr[index].pi_off = (u16)inp_off;
-		pi_arr[index].pi_len = (u16)inp_len;
-		return index + 1;
-	}
-
-	/* This entry spans multiple pages. */
-	for (len = inp_len, i = 0; len;
-		len -= pi_arr[index + i].pi_len, i++) {
-		if (index + i >= max_pi_arr_entries)
-			return 0;
-		pi_arr[index + i].pi_pfn = inp_pfn + i;
-		if (i == 0) {
-			pi_arr[index].pi_off = inp_off;
-			pi_arr[index].pi_len = firstlen;
-		} else {
-			pi_arr[index + i].pi_off = 0;
-			pi_arr[index + i].pi_len =
-			    (u16)MINNUM(len, (u32)PI_PAGE_SIZE);
-		}
-	}
-	return index + i;
-}
+#define PI_PAGE_SIZE 0x1000
+#define PI_PAGE_MASK 0x0FFF
 
 #endif /* __IOCHANNEL_H__ */

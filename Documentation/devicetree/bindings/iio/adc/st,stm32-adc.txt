@@ -57,6 +57,9 @@ Optional properties:
 - dmas: Phandle to dma channel for this ADC instance.
   See ../../dma/dma.txt for details.
 - dma-names: Must be "rx" when dmas property is being used.
+- assigned-resolution-bits: Resolution (bits) to use for conversions. Must
+  match device available resolutions (e.g. can be 6, 8, 10 or 12 on stm32f4).
+  Default is maximum resolution if unset.
 
 Example:
 	adc: adc@40012000 {
@@ -84,6 +87,7 @@ Example:
 			st,adc-channels = <8>;
 			dmas = <&dma2 0 0 0x400 0x0>;
 			dma-names = "rx";
+			assigned-resolution-bits = <8>;
 		};
 		...
 		other adc child nodes follow...

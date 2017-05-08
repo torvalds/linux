@@ -21,7 +21,55 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include "meter.h"
-#include "ade7759.h"
+
+#define ADE7759_WAVEFORM  0x01
+#define ADE7759_AENERGY   0x02
+#define ADE7759_RSTENERGY 0x03
+#define ADE7759_STATUS    0x04
+#define ADE7759_RSTSTATUS 0x05
+#define ADE7759_MODE      0x06
+#define ADE7759_CFDEN     0x07
+#define ADE7759_CH1OS     0x08
+#define ADE7759_CH2OS     0x09
+#define ADE7759_GAIN      0x0A
+#define ADE7759_APGAIN    0x0B
+#define ADE7759_PHCAL     0x0C
+#define ADE7759_APOS      0x0D
+#define ADE7759_ZXTOUT    0x0E
+#define ADE7759_SAGCYC    0x0F
+#define ADE7759_IRQEN     0x10
+#define ADE7759_SAGLVL    0x11
+#define ADE7759_TEMP      0x12
+#define ADE7759_LINECYC   0x13
+#define ADE7759_LENERGY   0x14
+#define ADE7759_CFNUM     0x15
+#define ADE7759_CHKSUM    0x1E
+#define ADE7759_DIEREV    0x1F
+
+#define ADE7759_READ_REG(a)    a
+#define ADE7759_WRITE_REG(a) ((a) | 0x80)
+
+#define ADE7759_MAX_TX    6
+#define ADE7759_MAX_RX    6
+#define ADE7759_STARTUP_DELAY 1000
+
+#define ADE7759_SPI_SLOW	(u32)(300 * 1000)
+#define ADE7759_SPI_BURST	(u32)(1000 * 1000)
+#define ADE7759_SPI_FAST	(u32)(2000 * 1000)
+
+/**
+ * struct ade7759_state - device instance specific data
+ * @us:			actual spi_device
+ * @buf_lock:		mutex to protect tx and rx
+ * @tx:			transmit buffer
+ * @rx:			receive buffer
+ **/
+struct ade7759_state {
+	struct spi_device	*us;
+	struct mutex		buf_lock;
+	u8			tx[ADE7759_MAX_TX] ____cacheline_aligned;
+	u8			rx[ADE7759_MAX_RX];
+};
 
 static int ade7759_spi_write_reg_8(struct device *dev,
 		u8 reg_address,
@@ -231,49 +279,49 @@ static int ade7759_reset(struct device *dev)
 }
 
 static IIO_DEV_ATTR_AENERGY(ade7759_read_40bit, ADE7759_AENERGY);
-static IIO_DEV_ATTR_CFDEN(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_CFDEN(0644,
 		ade7759_read_16bit,
 		ade7759_write_16bit,
 		ADE7759_CFDEN);
-static IIO_DEV_ATTR_CFNUM(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_CFNUM(0644,
 		ade7759_read_8bit,
 		ade7759_write_8bit,
 		ADE7759_CFNUM);
 static IIO_DEV_ATTR_CHKSUM(ade7759_read_8bit, ADE7759_CHKSUM);
-static IIO_DEV_ATTR_PHCAL(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_PHCAL(0644,
 		ade7759_read_16bit,
 		ade7759_write_16bit,
 		ADE7759_PHCAL);
-static IIO_DEV_ATTR_APOS(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_APOS(0644,
 		ade7759_read_16bit,
 		ade7759_write_16bit,
 		ADE7759_APOS);
-static IIO_DEV_ATTR_SAGCYC(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_SAGCYC(0644,
 		ade7759_read_8bit,
 		ade7759_write_8bit,
 		ADE7759_SAGCYC);
-static IIO_DEV_ATTR_SAGLVL(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_SAGLVL(0644,
 		ade7759_read_8bit,
 		ade7759_write_8bit,
 		ADE7759_SAGLVL);
-static IIO_DEV_ATTR_LINECYC(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_LINECYC(0644,
 		ade7759_read_8bit,
 		ade7759_write_8bit,
 		ADE7759_LINECYC);
 static IIO_DEV_ATTR_LENERGY(ade7759_read_40bit, ADE7759_LENERGY);
-static IIO_DEV_ATTR_PGA_GAIN(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_PGA_GAIN(0644,
 		ade7759_read_8bit,
 		ade7759_write_8bit,
 		ADE7759_GAIN);
-static IIO_DEV_ATTR_ACTIVE_POWER_GAIN(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_ACTIVE_POWER_GAIN(0644,
 		ade7759_read_16bit,
 		ade7759_write_16bit,
 		ADE7759_APGAIN);
-static IIO_DEV_ATTR_CH_OFF(1, S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_CH_OFF(1, 0644,
 		ade7759_read_8bit,
 		ade7759_write_8bit,
 		ADE7759_CH1OS);
-static IIO_DEV_ATTR_CH_OFF(2, S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_CH_OFF(2, 0644,
 		ade7759_read_8bit,
 		ade7759_write_8bit,
 		ADE7759_CH2OS);
@@ -410,7 +458,7 @@ static IIO_DEV_ATTR_TEMP_RAW(ade7759_read_8bit);
 static IIO_CONST_ATTR(in_temp_offset, "70 C");
 static IIO_CONST_ATTR(in_temp_scale, "1 C");
 
-static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_SAMP_FREQ(0644,
 		ade7759_read_frequency,
 		ade7759_write_frequency);
 

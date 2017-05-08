@@ -813,6 +813,7 @@ W:	http://wiki.analog.com/
 W:	http://ez.analog.com/community/linux-device-drivers
 S:	Supported
 F:	drivers/iio/*/ad*
+F:	drivers/iio/adc/ltc2497*
 X:	drivers/iio/*/adjd*
 F:	drivers/staging/iio/*/ad*
 F:	drivers/staging/iio/trigger/iio-trig-bfin-timer.c
@@ -983,6 +984,7 @@ F:	arch/arm*/include/asm/perf_event.h
 F:	drivers/perf/*
 F:	include/linux/perf/arm_pmu.h
 F:	Documentation/devicetree/bindings/arm/pmu.txt
+F:	Documentation/devicetree/bindings/perf/
 
 ARM PORT
 M:	Russell King <linux@armlinux.org.uk>
@@ -2233,7 +2235,7 @@ ATMEL ISI DRIVER
 M:	Ludovic Desroches <ludovic.desroches@microchip.com>
 L:	linux-media@vger.kernel.org
 S:	Supported
-F:	drivers/media/platform/soc_camera/atmel-isi.c
+F:	drivers/media/platform/atmel/atmel-isi.c
 F:	include/media/atmel-isi.h
 
 ATMEL LCDFB DRIVER
@@ -3049,7 +3051,6 @@ CAPELLA MICROSYSTEMS LIGHT SENSOR DRIVER
 M:	Kevin Tsai <ktsai@capellamicro.com>
 S:	Maintained
 F:	drivers/iio/light/cm*
-F:	Documentation/devicetree/bindings/i2c/trivial-admin-guide/devices.rst
 
 CAVIUM THUNDERX2 ARM64 SOC
 M:	Jayachandran C <jnair@caviumnetworks.com>
@@ -3099,7 +3100,7 @@ F:	drivers/net/ieee802154/cc2520.c
 F:	include/linux/spi/cc2520.h
 F:	Documentation/devicetree/bindings/net/ieee802154/cc2520.txt
 
-CEC DRIVER
+CEC FRAMEWORK
 M:	Hans Verkuil <hans.verkuil@cisco.com>
 L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
@@ -3108,10 +3109,9 @@ S:	Supported
 F:	Documentation/media/kapi/cec-core.rst
 F:	Documentation/media/uapi/cec
 F:	drivers/media/cec/
-F:	drivers/media/cec-edid.c
 F:	drivers/media/rc/keymaps/rc-cec.c
 F:	include/media/cec.h
-F:	include/media/cec-edid.h
+F:	include/media/cec-notifier.h
 F:	include/uapi/linux/cec.h
 F:	include/uapi/linux/cec-funcs.h
 
@@ -3886,6 +3886,12 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/balbi/usb.git
 S:	Maintained
 F:	drivers/usb/dwc3/
 
+DEVANTECH SRF ULTRASONIC RANGER IIO DRIVER
+M:	Andreas Klinger <ak@it-klinger.de>
+L:	linux-iio@vger.kernel.org
+S:	Maintained
+F:	drivers/iio/proximity/srf*.c
+
 DEVICE COREDUMP (DEV_COREDUMP)
 M:	Johannes Berg <johannes@sipsolutions.net>
 L:	linux-kernel@vger.kernel.org
@@ -4130,6 +4136,18 @@ L:	blinux-list@redhat.com
 S:	Maintained
 F:	drivers/char/dtlk.c
 F:	include/linux/dtlk.h
+
+DPAA2 DATAPATH I/O (DPIO) DRIVER
+M:	Roy Pledge <Roy.Pledge@nxp.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	drivers/staging/fsl-mc/bus/dpio
+
+DPAA2 ETHERNET DRIVER
+M:	Ioana Radulescu <ruxandra.radulescu@nxp.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	drivers/staging/fsl-dpaa2/ethernet
 
 DPT_I2O SCSI RAID DRIVER
 M:	Adaptec OEM Raid Solutions <aacraid@adaptec.com>
@@ -5310,6 +5328,7 @@ M:	Scott Wood <oss@buserror.net>
 L:	linuxppc-dev@lists.ozlabs.org
 L:	linux-arm-kernel@lists.infradead.org
 S:	Maintained
+F:	Documentation/devicetree/bindings/powerpc/fsl/
 F:	drivers/soc/fsl/
 F:	include/linux/fsl/
 
@@ -6841,6 +6860,8 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/joro/iommu.git
 S:	Maintained
 F:	Documentation/devicetree/bindings/iommu/
 F:	drivers/iommu/
+F:	include/linux/iommu.h
+F:	include/linux/iova.h
 
 IP MASQUERADING
 M:	Juanjo Ciarlante <jjciarla@raiz.uncu.edu.ar>
@@ -7568,7 +7589,7 @@ Q:	http://patchwork.ozlabs.org/project/linuxppc-dev/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/powerpc/linux.git
 S:	Supported
 F:	Documentation/ABI/stable/sysfs-firmware-opal-*
-F:	Documentation/devicetree/bindings/powerpc/opal/
+F:	Documentation/devicetree/bindings/powerpc/
 F:	Documentation/devicetree/bindings/rtc/rtc-opal.txt
 F:	Documentation/devicetree/bindings/i2c/i2c-opal.txt
 F:	Documentation/powerpc/
@@ -8169,6 +8190,7 @@ W:	https://linuxtv.org
 Q:	http://patchwork.kernel.org/project/linux-media/list/
 T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
+F:	Documentation/devicetree/bindings/media/
 F:	Documentation/media/
 F:	drivers/media/
 F:	drivers/staging/media/
@@ -8188,6 +8210,13 @@ M:	John Crispin <blogic@openwrt.org>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/mediatek/
+
+MEDIATEK JPEG DRIVER
+M:	Rick Chang <rick.chang@mediatek.com>
+M:	Bin Liu <bin.liu@mediatek.com>
+S:	Supported
+F:	drivers/media/platform/mtk-jpeg/
+F:	Documentation/devicetree/bindings/media/mediatek-jpeg-decoder.txt
 
 MEDIATEK MEDIA DRIVER
 M:	Tiffany Lin <tiffany.lin@mediatek.com>
@@ -9363,12 +9392,20 @@ M:	Harald Welte <laforge@gnumonks.org>
 S:	Maintained
 F:	drivers/char/pcmcia/cm4040_cs.*
 
+OMNIVISION OV5647 SENSOR DRIVER
+M:	Ramiro Oliveira <roliveir@synopsys.com>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/i2c/ov5647.c
+
 OMNIVISION OV7670 SENSOR DRIVER
 M:	Jonathan Corbet <corbet@lwn.net>
 L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/i2c/ov7670.c
+F:	Documentation/devicetree/bindings/media/i2c/ov7670.txt
 
 ONENAND FLASH DRIVER
 M:	Kyungmin Park <kyungmin.park@samsung.com>
@@ -10554,6 +10591,13 @@ M:	Paul Mackerras <paulus@samba.org>
 L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/fbdev/aty/aty128fb.c
+
+RAINSHADOW-CEC DRIVER
+M:	Hans Verkuil <hverkuil@xs4all.nl>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/usb/rainshadow-cec/*
 
 RALINK MIPS ARCHITECTURE
 M:	John Crispin <john@phrozen.org>
@@ -13550,6 +13594,14 @@ T:	git git://linuxtv.org/media_tree.git
 W:	https://linuxtv.org
 S:	Maintained
 F:	drivers/media/platform/vivid/*
+
+VIMC VIRTUAL MEDIA CONTROLLER DRIVER
+M:	Helen Koike <helen.koike@collabora.com>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+W:	https://linuxtv.org
+S:	Maintained
+F:	drivers/media/platform/vimc/*
 
 VLYNQ BUS
 M:	Florian Fainelli <f.fainelli@gmail.com>

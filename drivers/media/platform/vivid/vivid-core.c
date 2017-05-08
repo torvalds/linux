@@ -30,6 +30,7 @@
 #include <linux/videodev2.h>
 #include <linux/v4l2-dv-timings.h>
 #include <media/videobuf2-vmalloc.h>
+#include <media/videobuf2-dma-contig.h>
 #include <media/v4l2-dv-timings.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-fh.h>
@@ -150,6 +151,12 @@ MODULE_PARM_DESC(vivid_debug, " activates debug info");
 static bool no_error_inj;
 module_param(no_error_inj, bool, 0444);
 MODULE_PARM_DESC(no_error_inj, " if set disable the error injecting controls");
+
+static unsigned int allocators[VIVID_MAX_DEVS] = { [0 ... (VIVID_MAX_DEVS - 1)] = 0 };
+module_param_array(allocators, uint, NULL, 0444);
+MODULE_PARM_DESC(allocators, " memory allocator selection, default is 0.\n"
+			     "\t\t    0 == vmalloc\n"
+			     "\t\t    1 == dma-contig");
 
 static struct vivid_dev *vivid_devs[VIVID_MAX_DEVS];
 
@@ -636,6 +643,10 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 {
 	static const struct v4l2_dv_timings def_dv_timings =
 					V4L2_DV_BT_CEA_1280X720P60;
+	static const struct vb2_mem_ops * const vivid_mem_ops[2] = {
+		&vb2_vmalloc_memops,
+		&vb2_dma_contig_memops,
+	};
 	unsigned in_type_counter[4] = { 0, 0, 0, 0 };
 	unsigned out_type_counter[4] = { 0, 0, 0, 0 };
 	int ccs_cap = ccs_cap_mode[inst];
@@ -646,6 +657,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	struct video_device *vfd;
 	struct vb2_queue *q;
 	unsigned node_type = node_types[inst];
+	unsigned int allocator = allocators[inst];
 	v4l2_std_id tvnorms_cap = 0, tvnorms_out = 0;
 	int ret;
 	int i;
@@ -1039,6 +1051,11 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		goto unreg_dev;
 	}
 
+	if (allocator == 1)
+		dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	else if (allocator >= ARRAY_SIZE(vivid_mem_ops))
+		allocator = 0;
+
 	/* start creating the vb2 queues */
 	if (dev->has_vid_cap) {
 		/* initialize vid_cap queue */
@@ -1049,10 +1066,11 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		q->drv_priv = dev;
 		q->buf_struct_size = sizeof(struct vivid_buffer);
 		q->ops = &vivid_vid_cap_qops;
-		q->mem_ops = &vb2_vmalloc_memops;
+		q->mem_ops = vivid_mem_ops[allocator];
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->min_buffers_needed = 2;
 		q->lock = &dev->mutex;
+		q->dev = dev->v4l2_dev.dev;
 
 		ret = vb2_queue_init(q);
 		if (ret)
@@ -1068,10 +1086,11 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		q->drv_priv = dev;
 		q->buf_struct_size = sizeof(struct vivid_buffer);
 		q->ops = &vivid_vid_out_qops;
-		q->mem_ops = &vb2_vmalloc_memops;
+		q->mem_ops = vivid_mem_ops[allocator];
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->min_buffers_needed = 2;
 		q->lock = &dev->mutex;
+		q->dev = dev->v4l2_dev.dev;
 
 		ret = vb2_queue_init(q);
 		if (ret)
@@ -1087,10 +1106,11 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		q->drv_priv = dev;
 		q->buf_struct_size = sizeof(struct vivid_buffer);
 		q->ops = &vivid_vbi_cap_qops;
-		q->mem_ops = &vb2_vmalloc_memops;
+		q->mem_ops = vivid_mem_ops[allocator];
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->min_buffers_needed = 2;
 		q->lock = &dev->mutex;
+		q->dev = dev->v4l2_dev.dev;
 
 		ret = vb2_queue_init(q);
 		if (ret)
@@ -1106,10 +1126,11 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		q->drv_priv = dev;
 		q->buf_struct_size = sizeof(struct vivid_buffer);
 		q->ops = &vivid_vbi_out_qops;
-		q->mem_ops = &vb2_vmalloc_memops;
+		q->mem_ops = vivid_mem_ops[allocator];
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->min_buffers_needed = 2;
 		q->lock = &dev->mutex;
+		q->dev = dev->v4l2_dev.dev;
 
 		ret = vb2_queue_init(q);
 		if (ret)
@@ -1124,10 +1145,11 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		q->drv_priv = dev;
 		q->buf_struct_size = sizeof(struct vivid_buffer);
 		q->ops = &vivid_sdr_cap_qops;
-		q->mem_ops = &vb2_vmalloc_memops;
+		q->mem_ops = vivid_mem_ops[allocator];
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->min_buffers_needed = 8;
 		q->lock = &dev->mutex;
+		q->dev = dev->v4l2_dev.dev;
 
 		ret = vb2_queue_init(q);
 		if (ret)

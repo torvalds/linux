@@ -279,7 +279,8 @@ config PPC_ICSWX
 
 	  This option enables kernel support for the PowerPC Initiate
 	  Coprocessor Store Word (icswx) coprocessor instruction on POWER7
-	  or newer processors.
+	  and POWER8 processors. POWER9 uses new copy/paste instructions
+	  to invoke the coprocessor.
 
 	  This option is only useful if you have a processor that supports
 	  the icswx coprocessor instruction. It does not have any effect
@@ -359,7 +360,7 @@ config PPC_BOOK3E_MMU
 
 config PPC_MM_SLICES
 	bool
-	default y if (!PPC_FSL_BOOK3E && PPC64 && HUGETLB_PAGE) || (PPC_STD_MMU_64 && PPC_64K_PAGES)
+	default y if PPC_STD_MMU_64
 	default n
 
 config PPC_HAVE_PMU_SUPPORT
@@ -371,9 +372,16 @@ config PPC_PERF_CTRS
        help
          This enables the powerpc-specific perf_event back-end.
 
+config FORCE_SMP
+	# Allow platforms to force SMP=y by selecting this
+	bool
+	default n
+	select SMP
+
 config SMP
 	depends on PPC_BOOK3S || PPC_BOOK3E || FSL_BOOKE || PPC_47x
-	bool "Symmetric multi-processing support"
+	select GENERIC_IRQ_MIGRATION
+	bool "Symmetric multi-processing support" if !FORCE_SMP
 	---help---
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, say N. If you have a system with more

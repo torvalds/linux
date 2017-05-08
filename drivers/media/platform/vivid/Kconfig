@@ -1,13 +1,14 @@
 config VIDEO_VIVID
 	tristate "Virtual Video Test Driver"
 	depends on VIDEO_DEV && VIDEO_V4L2 && !SPARC32 && !SPARC64 && FB
+	depends on HAS_DMA
 	select FONT_SUPPORT
 	select FONT_8x16
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	select MEDIA_CEC_EDID
 	select VIDEOBUF2_VMALLOC
+	select VIDEOBUF2_DMA_CONTIG
 	select VIDEO_V4L2_TPG
 	default n
 	---help---
@@ -25,7 +26,7 @@ config VIDEO_VIVID
 
 config VIDEO_VIVID_CEC
 	bool "Enable CEC emulation support"
-	depends on VIDEO_VIVID && MEDIA_CEC_SUPPORT
+	depends on VIDEO_VIVID && CEC_CORE
 	---help---
 	  When selected the vivid module will emulate the optional
 	  HDMI CEC feature.

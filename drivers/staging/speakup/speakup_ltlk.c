@@ -111,9 +111,10 @@ static struct spk_synth synth_ltlk = {
 	.startup = SYNTH_START,
 	.checkval = SYNTH_CHECK,
 	.vars = vars,
+	.io_ops = &spk_serial_io_ops,
 	.probe = synth_probe,
 	.release = spk_serial_release,
-	.synth_immediate = spk_synth_immediate,
+	.synth_immediate = spk_serial_synth_immediate,
 	.catch_up = spk_do_catch_up,
 	.flush = spk_synth_flush,
 	.is_alive = spk_synth_is_alive_restart,
@@ -138,13 +139,13 @@ static void synth_interrogate(struct spk_synth *synth)
 	unsigned char *t, i;
 	unsigned char buf[50], rom_v[20];
 
-	spk_synth_immediate(synth, "\x18\x01?");
+	synth->synth_immediate(synth, "\x18\x01?");
 	for (i = 0; i < 50; i++) {
 		buf[i] = spk_serial_in();
 		if (i > 2 && buf[i] == 0x7f)
 			break;
 	}
-	t = buf+2;
+	t = buf + 2;
 	for (i = 0; *t != '\r'; t++) {
 		rom_v[i] = *t;
 		if (++i >= 19)

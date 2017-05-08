@@ -230,18 +230,19 @@ static int nvme_loop_init_iod(struct nvme_loop_ctrl *ctrl,
 	return 0;
 }
 
-static int nvme_loop_init_request(void *data, struct request *req,
-				unsigned int hctx_idx, unsigned int rq_idx,
-				unsigned int numa_node)
+static int nvme_loop_init_request(struct blk_mq_tag_set *set,
+		struct request *req, unsigned int hctx_idx,
+		unsigned int numa_node)
 {
-	return nvme_loop_init_iod(data, blk_mq_rq_to_pdu(req), hctx_idx + 1);
+	return nvme_loop_init_iod(set->driver_data, blk_mq_rq_to_pdu(req),
+			hctx_idx + 1);
 }
 
-static int nvme_loop_init_admin_request(void *data, struct request *req,
-				unsigned int hctx_idx, unsigned int rq_idx,
-				unsigned int numa_node)
+static int nvme_loop_init_admin_request(struct blk_mq_tag_set *set,
+		struct request *req, unsigned int hctx_idx,
+		unsigned int numa_node)
 {
-	return nvme_loop_init_iod(data, blk_mq_rq_to_pdu(req), 0);
+	return nvme_loop_init_iod(set->driver_data, blk_mq_rq_to_pdu(req), 0);
 }
 
 static int nvme_loop_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,

@@ -29,6 +29,7 @@
 
 #define DRV_VERSION "2.6"
 #define SOFTSYNTH_MINOR 26 /* might as well give it one more than /dev/synth */
+#define SOFTSYNTHU_MINOR 27 /* might as well give it one more than /dev/synth */
 #define PROCSPEECH 0x0d
 #define CLEAR_SYNTH 0x18
 
@@ -37,7 +38,7 @@ static void softsynth_release(void);
 static int softsynth_is_alive(struct spk_synth *synth);
 static unsigned char get_index(void);
 
-static struct miscdevice synth_device;
+static struct miscdevice synth_device, synthu_device;
 static int init_pos;
 static int misc_registered;
 
@@ -130,6 +131,7 @@ static struct spk_synth synth_soft = {
 	.startup = SYNTH_START,
 	.checkval = SYNTH_CHECK,
 	.vars = vars,
+	.io_ops = NULL,
 	.probe = softsynth_probe,
 	.release = softsynth_release,
 	.synth_immediate = NULL,
@@ -199,13 +201,13 @@ static int softsynth_close(struct inode *inode, struct file *fp)
 	return 0;
 }
 
-static ssize_t softsynth_read(struct file *fp, char __user *buf, size_t count,
-			      loff_t *pos)
+static ssize_t softsynthx_read(struct file *fp, char __user *buf, size_t count,
+			       loff_t *pos, int unicode)
 {
 	int chars_sent = 0;
 	char __user *cp;
 	char *init;
-	char ch;
+	u16 ch;
 	int empty;
 	unsigned long flags;
 	DEFINE_WAIT(wait);
@@ -213,6 +215,8 @@ static ssize_t softsynth_read(struct file *fp, char __user *buf, size_t count,
 	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	while (1) {
 		prepare_to_wait(&speakup_event, &wait, TASK_INTERRUPTIBLE);
+		if (!unicode)
+			synth_buffer_skip_nonlatin1();
 		if (!synth_buffer_empty() || speakup_info.flushing)
 			break;
 		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
@@ -231,23 +235,57 @@ static ssize_t softsynth_read(struct file *fp, char __user *buf, size_t count,
 
 	cp = buf;
 	init = get_initstring();
-	while (chars_sent < count) {
+
+	/* Keep 3 bytes available for a 16bit UTF-8-encoded character */
+	while (chars_sent <= count - 3) {
 		if (speakup_info.flushing) {
 			speakup_info.flushing = 0;
 			ch = '\x18';
-		} else if (synth_buffer_empty()) {
-			break;
 		} else if (init[init_pos]) {
 			ch = init[init_pos++];
 		} else {
+			if (!unicode)
+				synth_buffer_skip_nonlatin1();
+			if (synth_buffer_empty())
+				break;
 			ch = synth_buffer_getc();
 		}
 		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
-		if (copy_to_user(cp, &ch, 1))
-			return -EFAULT;
+
+		if ((!unicode && ch < 0x100) || (unicode && ch < 0x80)) {
+			u_char c = ch;
+
+			if (copy_to_user(cp, &c, 1))
+				return -EFAULT;
+
+			chars_sent++;
+			cp++;
+		} else if (unicode && ch < 0x800) {
+			u_char s[2] = {
+				0xc0 | (ch >> 6),
+				0x80 | (ch & 0x3f)
+			};
+
+			if (copy_to_user(cp, s, sizeof(s)))
+				return -EFAULT;
+
+			chars_sent += sizeof(s);
+			cp += sizeof(s);
+		} else if (unicode) {
+			u_char s[3] = {
+				0xe0 | (ch >> 12),
+				0x80 | ((ch >> 6) & 0x3f),
+				0x80 | (ch & 0x3f)
+			};
+
+			if (copy_to_user(cp, s, sizeof(s)))
+				return -EFAULT;
+
+			chars_sent += sizeof(s);
+			cp += sizeof(s);
+		}
+
 		spin_lock_irqsave(&speakup_info.spinlock, flags);
-		chars_sent++;
-		cp++;
 	}
 	*pos += chars_sent;
 	empty = synth_buffer_empty();
@@ -257,6 +295,18 @@ static ssize_t softsynth_read(struct file *fp, char __user *buf, size_t count,
 		*pos = 0;
 	}
 	return chars_sent;
+}
+
+static ssize_t softsynth_read(struct file *fp, char __user *buf, size_t count,
+			      loff_t *pos)
+{
+	return softsynthx_read(fp, buf, count, pos, 0);
+}
+
+static ssize_t softsynthu_read(struct file *fp, char __user *buf, size_t count,
+			       loff_t *pos)
+{
+	return softsynthx_read(fp, buf, count, pos, 1);
 }
 
 static int last_index;
@@ -308,6 +358,15 @@ static const struct file_operations softsynth_fops = {
 	.release = softsynth_close,
 };
 
+static const struct file_operations softsynthu_fops = {
+	.owner = THIS_MODULE,
+	.poll = softsynth_poll,
+	.read = softsynthu_read,
+	.write = softsynth_write,
+	.open = softsynth_open,
+	.release = softsynth_close,
+};
+
 static int softsynth_probe(struct spk_synth *synth)
 {
 	if (misc_registered != 0)
@@ -321,16 +380,28 @@ static int softsynth_probe(struct spk_synth *synth)
 		return -ENODEV;
 	}
 
+	memset(&synthu_device, 0, sizeof(synthu_device));
+	synthu_device.minor = SOFTSYNTHU_MINOR;
+	synthu_device.name = "softsynthu";
+	synthu_device.fops = &softsynthu_fops;
+	if (misc_register(&synthu_device)) {
+		pr_warn("Couldn't initialize miscdevice /dev/softsynth.\n");
+		return -ENODEV;
+	}
+
 	misc_registered = 1;
 	pr_info("initialized device: /dev/softsynth, node (MAJOR 10, MINOR 26)\n");
+	pr_info("initialized device: /dev/softsynthu, node (MAJOR 10, MINOR 27)\n");
 	return 0;
 }
 
 static void softsynth_release(void)
 {
 	misc_deregister(&synth_device);
+	misc_deregister(&synthu_device);
 	misc_registered = 0;
 	pr_info("unregistered /dev/softsynth\n");
+	pr_info("unregistered /dev/softsynthu\n");
 }
 
 static int softsynth_is_alive(struct spk_synth *synth)

@@ -82,6 +82,7 @@ static inline unsigned long iova_pfn(struct iova_domain *iovad, dma_addr_t iova)
 	return iova >> iova_shift(iovad);
 }
 
+#if IS_ENABLED(CONFIG_IOMMU_IOVA)
 int iova_cache_get(void);
 void iova_cache_put(void);
 
@@ -106,5 +107,95 @@ void put_iova_domain(struct iova_domain *iovad);
 struct iova *split_and_remove_iova(struct iova_domain *iovad,
 	struct iova *iova, unsigned long pfn_lo, unsigned long pfn_hi);
 void free_cpu_cached_iovas(unsigned int cpu, struct iova_domain *iovad);
+#else
+static inline int iova_cache_get(void)
+{
+	return -ENOTSUPP;
+}
+
+static inline void iova_cache_put(void)
+{
+}
+
+static inline struct iova *alloc_iova_mem(void)
+{
+	return NULL;
+}
+
+static inline void free_iova_mem(struct iova *iova)
+{
+}
+
+static inline void free_iova(struct iova_domain *iovad, unsigned long pfn)
+{
+}
+
+static inline void __free_iova(struct iova_domain *iovad, struct iova *iova)
+{
+}
+
+static inline struct iova *alloc_iova(struct iova_domain *iovad,
+				      unsigned long size,
+				      unsigned long limit_pfn,
+				      bool size_aligned)
+{
+	return NULL;
+}
+
+static inline void free_iova_fast(struct iova_domain *iovad,
+				  unsigned long pfn,
+				  unsigned long size)
+{
+}
+
+static inline unsigned long alloc_iova_fast(struct iova_domain *iovad,
+					    unsigned long size,
+					    unsigned long limit_pfn)
+{
+	return 0;
+}
+
+static inline struct iova *reserve_iova(struct iova_domain *iovad,
+					unsigned long pfn_lo,
+					unsigned long pfn_hi)
+{
+	return NULL;
+}
+
+static inline void copy_reserved_iova(struct iova_domain *from,
+				      struct iova_domain *to)
+{
+}
+
+static inline void init_iova_domain(struct iova_domain *iovad,
+				    unsigned long granule,
+				    unsigned long start_pfn,
+				    unsigned long pfn_32bit)
+{
+}
+
+static inline struct iova *find_iova(struct iova_domain *iovad,
+				     unsigned long pfn)
+{
+	return NULL;
+}
+
+static inline void put_iova_domain(struct iova_domain *iovad)
+{
+}
+
+static inline struct iova *split_and_remove_iova(struct iova_domain *iovad,
+						 struct iova *iova,
+						 unsigned long pfn_lo,
+						 unsigned long pfn_hi)
+{
+	return NULL;
+}
+
+static inline void free_cpu_cached_iovas(unsigned int cpu,
+					 struct iova_domain *iovad)
+{
+}
+#endif
 
 #endif

@@ -18,6 +18,7 @@
 #include "dim2_errors.h"
 #include "dim2_reg.h"
 #include <linux/stddef.h>
+#include <linux/kernel.h>
 
 /*
  * Size factor for isochronous DBR buffer.
@@ -49,7 +50,7 @@
 #define DBR_SIZE  (16 * 1024) /* specified by IP */
 #define DBR_BLOCK_SIZE  (DBR_SIZE / 32 / DBR_MAP_SIZE)
 
-#define ROUND_UP_TO(x, d)  (((x) + (d) - 1) / (d) * (d))
+#define ROUND_UP_TO(x, d)  (DIV_ROUND_UP(x, (d)) * (d))
 
 /* -------------------------------------------------------------------------- */
 /* generic helper functions and macros */
@@ -117,7 +118,7 @@ static int alloc_dbr(u16 size)
 		return DBR_SIZE; /* out of memory */
 
 	for (i = 0; i < DBR_MAP_SIZE; i++) {
-		u32 const blocks = (size + DBR_BLOCK_SIZE - 1) / DBR_BLOCK_SIZE;
+		u32 const blocks = DIV_ROUND_UP(size, DBR_BLOCK_SIZE);
 		u32 mask = ~((~(u32)0) << blocks);
 
 		do {
@@ -137,7 +138,7 @@ static int alloc_dbr(u16 size)
 static void free_dbr(int offs, int size)
 {
 	int block_idx = offs / DBR_BLOCK_SIZE;
-	u32 const blocks = (size + DBR_BLOCK_SIZE - 1) / DBR_BLOCK_SIZE;
+	u32 const blocks = DIV_ROUND_UP(size, DBR_BLOCK_SIZE);
 	u32 mask = ~((~(u32)0) << blocks);
 
 	mask <<= block_idx % 32;

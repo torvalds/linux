@@ -185,7 +185,7 @@ struct ir_raw_timings_manchester {
 
 int ir_raw_gen_manchester(struct ir_raw_event **ev, unsigned int max,
 			  const struct ir_raw_timings_manchester *timings,
-			  unsigned int n, unsigned int data);
+			  unsigned int n, u64 data);
 
 /**
  * ir_raw_gen_pulse_space() - generate pulse and space raw events.

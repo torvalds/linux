@@ -138,7 +138,7 @@ static const char *guess_type_by_name(const char *fname, const char *fallback)
 static const char *guess_input_format(const char *fname, const char *fallback)
 {
 	struct stat statbuf;
-	uint32_t magic;
+	fdt32_t magic;
 	FILE *f;
 
 	if (stat(fname, &statbuf) != 0)
@@ -159,8 +159,7 @@ static const char *guess_input_format(const char *fname, const char *fallback)
 	}
 	fclose(f);
 
-	magic = fdt32_to_cpu(magic);
-	if (magic == FDT_MAGIC)
+	if (fdt32_to_cpu(magic) == FDT_MAGIC)
 		return "dtb";
 
 	return guess_type_by_name(fname, fallback);
@@ -216,7 +215,7 @@ int main(int argc, char *argv[])
 			alignsize = strtol(optarg, NULL, 0);
 			if (!is_power_of_2(alignsize))
 				die("Invalid argument \"%d\" to -a option\n",
-				    optarg);
+				    alignsize);
 			break;
 		case 'f':
 			force = true;
@@ -308,6 +307,8 @@ int main(int argc, char *argv[])
 		dti = dt_from_blob(arg);
 	else
 		die("Unknown input format \"%s\"\n", inform);
+
+	dti->outname = outname;
 
 	if (depfile) {
 		fputc('\n', depfile);

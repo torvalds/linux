@@ -28,8 +28,9 @@ static int mn88472_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	struct i2c_client *client = fe->demodulator_priv;
 	struct mn88472_dev *dev = i2c_get_clientdata(client);
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	int ret;
-	unsigned int utmp;
+	int ret, i, stmp;
+	unsigned int utmp, utmp1, utmp2;
+	u8 buf[5];
 
 	if (!dev->active) {
 		ret = -EAGAIN;
@@ -75,6 +76,127 @@ static int mn88472_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	default:
 		ret = -EINVAL;
 		goto err;
+	}
+
+	/* Signal strength */
+	if (*status & FE_HAS_SIGNAL) {
+		for (i = 0; i < 2; i++) {
+			ret = regmap_bulk_read(dev->regmap[2], 0x8e + i,
+					       &buf[i], 1);
+			if (ret)
+				goto err;
+		}
+
+		utmp1 = buf[0] << 8 | buf[1] << 0 | buf[0] >> 2;
+		dev_dbg(&client->dev, "strength=%u\n", utmp1);
+
+		c->strength.stat[0].scale = FE_SCALE_RELATIVE;
+		c->strength.stat[0].uvalue = utmp1;
+	} else {
+		c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	}
+
+	/* CNR */
+	if (*status & FE_HAS_VITERBI && c->delivery_system == SYS_DVBT) {
+		/* DVB-T CNR */
+		ret = regmap_bulk_read(dev->regmap[0], 0x9c, buf, 2);
+		if (ret)
+			goto err;
+
+		utmp = buf[0] << 8 | buf[1] << 0;
+		if (utmp) {
+			/* CNR[dB]: 10 * log10(65536 / value) + 2 */
+			/* log10(65536) = 80807124, 0.2 = 3355443 */
+			stmp = ((u64)80807124 - intlog10(utmp) + 3355443)
+			       * 10000 >> 24;
+
+			dev_dbg(&client->dev, "cnr=%d value=%u\n", stmp, utmp);
+		} else {
+			stmp = 0;
+		}
+
+		c->cnr.stat[0].svalue = stmp;
+		c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+	} else if (*status & FE_HAS_VITERBI &&
+		   c->delivery_system == SYS_DVBT2) {
+		/* DVB-T2 CNR */
+		for (i = 0; i < 3; i++) {
+			ret = regmap_bulk_read(dev->regmap[2], 0xbc + i,
+					       &buf[i], 1);
+			if (ret)
+				goto err;
+		}
+
+		utmp = buf[1] << 8 | buf[2] << 0;
+		utmp1 = (buf[0] >> 2) & 0x01; /* 0=SISO, 1=MISO */
+		if (utmp) {
+			if (utmp1) {
+				/* CNR[dB]: 10 * log10(16384 / value) - 6 */
+				/* log10(16384) = 70706234, 0.6 = 10066330 */
+				stmp = ((u64)70706234 - intlog10(utmp)
+				       - 10066330) * 10000 >> 24;
+				dev_dbg(&client->dev, "cnr=%d value=%u MISO\n",
+					stmp, utmp);
+			} else {
+				/* CNR[dB]: 10 * log10(65536 / value) + 2 */
+				/* log10(65536) = 80807124, 0.2 = 3355443 */
+				stmp = ((u64)80807124 - intlog10(utmp)
+				       + 3355443) * 10000 >> 24;
+
+				dev_dbg(&client->dev, "cnr=%d value=%u SISO\n",
+					stmp, utmp);
+			}
+		} else {
+			stmp = 0;
+		}
+
+		c->cnr.stat[0].svalue = stmp;
+		c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+	} else if (*status & FE_HAS_VITERBI &&
+		   c->delivery_system == SYS_DVBC_ANNEX_A) {
+		/* DVB-C CNR */
+		ret = regmap_bulk_read(dev->regmap[1], 0xa1, buf, 4);
+		if (ret)
+			goto err;
+
+		utmp1 = buf[0] << 8 | buf[1] << 0; /* signal */
+		utmp2 = buf[2] << 8 | buf[3] << 0; /* noise */
+		if (utmp1 && utmp2) {
+			/* CNR[dB]: 10 * log10(8 * (signal / noise)) */
+			/* log10(8) = 15151336 */
+			stmp = ((u64)15151336 + intlog10(utmp1)
+			       - intlog10(utmp2)) * 10000 >> 24;
+
+			dev_dbg(&client->dev, "cnr=%d signal=%u noise=%u\n",
+				stmp, utmp1, utmp2);
+		} else {
+			stmp = 0;
+		}
+
+		c->cnr.stat[0].svalue = stmp;
+		c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+	} else {
+		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	}
+
+	/* PER */
+	if (*status & FE_HAS_SYNC) {
+		ret = regmap_bulk_read(dev->regmap[0], 0xe1, buf, 4);
+		if (ret)
+			goto err;
+
+		utmp1 = buf[0] << 8 | buf[1] << 0;
+		utmp2 = buf[2] << 8 | buf[3] << 0;
+		dev_dbg(&client->dev, "block_error=%u block_count=%u\n",
+			utmp1, utmp2);
+
+		c->block_error.stat[0].scale = FE_SCALE_COUNTER;
+		c->block_error.stat[0].uvalue += utmp1;
+		c->block_count.stat[0].scale = FE_SCALE_COUNTER;
+		c->block_count.stat[0].uvalue += utmp2;
+	} else {
+		c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	}
 
 	return 0;
@@ -462,6 +584,7 @@ static int mn88472_probe(struct i2c_client *client,
 {
 	struct mn88472_config *pdata = client->dev.platform_data;
 	struct mn88472_dev *dev;
+	struct dtv_frontend_properties *c;
 	int ret;
 	unsigned int utmp;
 	static const struct regmap_config regmap_config = {
@@ -546,6 +669,13 @@ static int mn88472_probe(struct i2c_client *client,
 	dev->fe.demodulator_priv = client;
 	*pdata->fe = &dev->fe;
 	i2c_set_clientdata(client, dev);
+
+	/* Init stats to indicate which stats are supported */
+	c = &dev->fe.dtv_property_cache;
+	c->strength.len = 1;
+	c->cnr.len = 1;
+	c->block_error.len = 1;
+	c->block_count.len = 1;
 
 	/* Setup callbacks */
 	pdata->get_dvb_frontend = mn88472_get_dvb_frontend;

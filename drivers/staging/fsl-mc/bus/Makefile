@@ -17,4 +17,8 @@ mc-bus-driver-objs := fsl-mc-bus.o \
 		      fsl-mc-msi.o \
 		      irq-gic-v3-its-fsl-mc-msi.o \
 		      dpmcp.o \
-		      dpbp.o
+		      dpbp.o \
+		      dpcon.o
+
+# MC DPIO driver
+obj-$(CONFIG_FSL_MC_DPIO) += dpio/

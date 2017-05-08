@@ -150,7 +150,7 @@ static int ll_page_mkwrite0(struct vm_area_struct *vma, struct page *vmpage,
 	struct cl_io	    *io;
 	struct vvp_io	   *vio;
 	int		      result;
-	int refcheck;
+	u16 refcheck;
 	sigset_t	     set;
 	struct inode	     *inode;
 	struct ll_inode_info     *lli;
@@ -268,7 +268,7 @@ static int ll_fault0(struct vm_area_struct *vma, struct vm_fault *vmf)
 	unsigned long	    ra_flags;
 	int		      result = 0;
 	int		      fault_ret = 0;
-	int refcheck;
+	u16 refcheck;
 
 	env = cl_env_get(&refcheck);
 	if (IS_ERR(env))

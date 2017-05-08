@@ -28,7 +28,7 @@ Optional properties:
   - memory-region : from reserved memory binding: phandles to two reserved
 	memory regions, first is for "left" mfc memory bus interfaces,
 	second if for the "right" mfc memory bus, used when no SYSMMU
-	support is available
+	support is available; used only by MFC v5 present in Exynos4 SoCs
 
 Obsolete properties:
   - samsung,mfc-r, samsung,mfc-l : support removed, please use memory-region

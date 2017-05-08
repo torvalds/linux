@@ -30,17 +30,16 @@
 #include <linux/string.h>
 #include <linux/memblock.h>
 #include <linux/delay.h>
-#include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/crash_dump.h>
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 
+#include <asm/debugfs.h>
 #include <asm/page.h>
 #include <asm/prom.h>
 #include <asm/rtas.h>
 #include <asm/fadump.h>
-#include <asm/debug.h>
 #include <asm/setup.h>
 
 static struct fw_dump fw_dump;
@@ -319,15 +318,34 @@ int __init fadump_reserve_mem(void)
 		pr_debug("fadumphdr_addr = %p\n",
 				(void *) fw_dump.fadumphdr_addr);
 	} else {
-		/* Reserve the memory at the top of memory. */
 		size = get_fadump_area_size();
-		base = memory_boundary - size;
-		memblock_reserve(base, size);
-		printk(KERN_INFO "Reserved %ldMB of memory at %ldMB "
-				"for firmware-assisted dump\n",
-				(unsigned long)(size >> 20),
-				(unsigned long)(base >> 20));
+
+		/*
+		 * Reserve memory at an offset closer to bottom of the RAM to
+		 * minimize the impact of memory hot-remove operation. We can't
+		 * use memblock_find_in_range() here since it doesn't allocate
+		 * from bottom to top.
+		 */
+		for (base = fw_dump.boot_memory_size;
+		     base <= (memory_boundary - size);
+		     base += size) {
+			if (memblock_is_region_memory(base, size) &&
+			    !memblock_is_region_reserved(base, size))
+				break;
+		}
+		if ((base > (memory_boundary - size)) ||
+		    memblock_reserve(base, size)) {
+			pr_err("Failed to reserve memory\n");
+			return 0;
+		}
+
+		pr_info("Reserved %ldMB of memory at %ldMB for firmware-"
+			"assisted dump (System RAM: %ldMB)\n",
+			(unsigned long)(size >> 20),
+			(unsigned long)(base >> 20),
+			(unsigned long)(memblock_phys_mem_size() >> 20));
 	}
+
 	fw_dump.reserve_dump_area_start = base;
 	fw_dump.reserve_dump_area_size = size;
 	return 1;

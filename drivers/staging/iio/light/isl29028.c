@@ -3,6 +3,7 @@
  * ISL29028 is Concurrent Ambient Light and Proximity Sensor
  *
  * Copyright (c) 2012, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2016-2017 Brian Masney <masneyb@onstation.org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -63,6 +64,9 @@
 
 #define ISL29028_POWER_OFF_DELAY_MS		2000
 
+static const unsigned int isl29028_prox_sleep_time[] = {800, 400, 200, 100, 75,
+							50, 12, 0};
+
 enum isl29028_als_ir_mode {
 	ISL29028_MODE_NONE = 0,
 	ISL29028_MODE_ALS,
@@ -78,22 +82,29 @@ struct isl29028_chip {
 	enum isl29028_als_ir_mode	als_ir_mode;
 };
 
+static int isl29028_find_prox_sleep_time_index(int sampling)
+{
+	unsigned int period = DIV_ROUND_UP(1000, sampling);
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(isl29028_prox_sleep_time); ++i) {
+		if (period >= isl29028_prox_sleep_time[i])
+			break;
+	}
+
+	return i;
+}
+
 static int isl29028_set_proxim_sampling(struct isl29028_chip *chip,
 					unsigned int sampling)
 {
 	struct device *dev = regmap_get_device(chip->regmap);
-	static unsigned int prox_period[] = {800, 400, 200, 100, 75, 50, 12, 0};
-	unsigned int period = DIV_ROUND_UP(1000, sampling);
-	int sel, ret;
+	int sleep_index, ret;
 
-	for (sel = 0; sel < ARRAY_SIZE(prox_period); ++sel) {
-		if (period >= prox_period[sel])
-			break;
-	}
-
+	sleep_index = isl29028_find_prox_sleep_time_index(sampling);
 	ret = regmap_update_bits(chip->regmap, ISL29028_REG_CONFIGURE,
 				 ISL29028_CONF_PROX_SLP_MASK,
-				 sel << ISL29028_CONF_PROX_SLP_SH);
+				 sleep_index << ISL29028_CONF_PROX_SLP_SH);
 
 	if (ret < 0) {
 		dev_err(dev, "%s(): Error %d setting the proximity sampling\n",
@@ -108,7 +119,7 @@ static int isl29028_set_proxim_sampling(struct isl29028_chip *chip,
 
 static int isl29028_enable_proximity(struct isl29028_chip *chip)
 {
-	int ret;
+	int sleep_index, ret;
 
 	ret = isl29028_set_proxim_sampling(chip, chip->prox_sampling);
 	if (ret < 0)
@@ -121,7 +132,8 @@ static int isl29028_enable_proximity(struct isl29028_chip *chip)
 		return ret;
 
 	/* Wait for conversion to be complete for first sample */
-	mdelay(DIV_ROUND_UP(1000, chip->prox_sampling));
+	sleep_index = isl29028_find_prox_sleep_time_index(chip->prox_sampling);
+	msleep(isl29028_prox_sleep_time[sleep_index]);
 
 	return 0;
 }
@@ -192,7 +204,7 @@ static int isl29028_set_als_ir_mode(struct isl29028_chip *chip,
 		return ret;
 
 	/* Need to wait for conversion time if ALS/IR mode enabled */
-	mdelay(ISL29028_CONV_TIME_MS);
+	msleep(ISL29028_CONV_TIME_MS);
 
 	chip->als_ir_mode = mode;
 
@@ -645,7 +657,8 @@ static int __maybe_unused isl29028_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops isl29028_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(isl29028_suspend, isl29028_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 	SET_RUNTIME_PM_OPS(isl29028_suspend, isl29028_resume, NULL)
 };
 

@@ -1,396 +1,404 @@
 /*
- * (C) 2001 Clemson University and The University of Chicago
- *
- * See COPYING in top-level directory.
+ * Copyright 2017 Omnibond Systems, L.L.C.
  */
 
 #include "protocol.h"
 #include "orangefs-kernel.h"
 #include "orangefs-bufmap.h"
 
-/*
- * decode routine used by kmod to deal with the blob sent from
- * userspace for readdirs. The blob contains zero or more of these
- * sub-blobs:
- *   __u32 - represents length of the character string that follows.
- *   string - between 1 and ORANGEFS_NAME_MAX bytes long.
- *   padding - (if needed) to cause the __u32 plus the string to be
- *             eight byte aligned.
- *   khandle - sizeof(khandle) bytes.
- */
-static long decode_dirents(char *ptr, size_t size,
-                           struct orangefs_readdir_response_s *readdir)
-{
-	int i;
-	struct orangefs_readdir_response_s *rd =
-		(struct orangefs_readdir_response_s *) ptr;
-	char *buf = ptr;
-	int khandle_size = sizeof(struct orangefs_khandle);
-	size_t offset = offsetof(struct orangefs_readdir_response_s,
-				dirent_array);
-	/* 8 reflects eight byte alignment */
-	int smallest_blob = khandle_size + 8;
-	__u32 len;
-	int aligned_len;
-	int sizeof_u32 = sizeof(__u32);
-	long ret;
+struct orangefs_dir_part {
+	struct orangefs_dir_part *next;
+	size_t len;
+};
 
-	gossip_debug(GOSSIP_DIR_DEBUG, "%s: size:%zu:\n", __func__, size);
+struct orangefs_dir {
+	__u64 token;
+	struct orangefs_dir_part *part;
+	loff_t end;
+	int error;
+};
 
-	/* size is = offset on empty dirs, > offset on non-empty dirs... */
-	if (size < offset) {
-		gossip_err("%s: size:%zu: offset:%zu:\n",
-			   __func__,
-			   size,
-			   offset);
-		ret = -EINVAL;
-		goto out;
-	}
-
-        if ((size == offset) && (readdir->orangefs_dirent_outcount != 0)) {
-		gossip_err("%s: size:%zu: dirent_outcount:%d:\n",
-			   __func__,
-			   size,
-			   readdir->orangefs_dirent_outcount);
-		ret = -EINVAL;
-		goto out;
-	}
-
-	readdir->token = rd->token;
-	readdir->orangefs_dirent_outcount = rd->orangefs_dirent_outcount;
-	readdir->dirent_array = kcalloc(readdir->orangefs_dirent_outcount,
-					sizeof(*readdir->dirent_array),
-					GFP_KERNEL);
-	if (readdir->dirent_array == NULL) {
-		gossip_err("%s: kcalloc failed.\n", __func__);
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	buf += offset;
-	size -= offset;
-
-	for (i = 0; i < readdir->orangefs_dirent_outcount; i++) {
-		if (size < smallest_blob) {
-			gossip_err("%s: size:%zu: smallest_blob:%d:\n",
-				   __func__,
-				   size,
-				   smallest_blob);
-			ret = -EINVAL;
-			goto free;
-		}
-
-		len = *(__u32 *)buf;
-		if ((len < 1) || (len > ORANGEFS_NAME_MAX)) {
-			gossip_err("%s: len:%d:\n", __func__, len);
-			ret = -EINVAL;
-			goto free;
-		}
-
-		gossip_debug(GOSSIP_DIR_DEBUG,
-			     "%s: size:%zu: len:%d:\n",
-			     __func__,
-			     size,
-			     len);
-
-		readdir->dirent_array[i].d_name = buf + sizeof_u32;
-		readdir->dirent_array[i].d_length = len;
-
-		/*
-		 * Calculate "aligned" length of this string and its
-		 * associated __u32 descriptor.
-		 */
-		aligned_len = ((sizeof_u32 + len + 1) + 7) & ~7;
-		gossip_debug(GOSSIP_DIR_DEBUG,
-			     "%s: aligned_len:%d:\n",
-			     __func__,
-			     aligned_len);
-
-		/*
-		 * The end of the blob should coincide with the end
-		 * of the last sub-blob.
-		 */
-		if (size < aligned_len + khandle_size) {
-			gossip_err("%s: ran off the end of the blob.\n",
-				   __func__);
-			ret = -EINVAL;
-			goto free;
-		}
-		size -= aligned_len + khandle_size;
-
-		buf += aligned_len;
-
-		readdir->dirent_array[i].khandle =
-			*(struct orangefs_khandle *) buf;
-		buf += khandle_size;
-	}
-	ret = buf - ptr;
-	gossip_debug(GOSSIP_DIR_DEBUG, "%s: returning:%ld:\n", __func__, ret);
-	goto out;
-
-free:
-	kfree(readdir->dirent_array);
-	readdir->dirent_array = NULL;
-
-out:
-	return ret;
-}
+#define PART_SHIFT (24)
+#define PART_SIZE (1<<24)
+#define PART_MASK (~(PART_SIZE - 1))
 
 /*
- * Read directory entries from an instance of an open directory.
+ * There can be up to 512 directory entries.  Each entry is encoded as
+ * follows:
+ * 4 bytes: string size (n)
+ * n bytes: string
+ * 1 byte: trailing zero
+ * padding to 8 bytes
+ * 16 bytes: khandle
+ * padding to 8 bytes
+ *
+ * The trailer_buf starts with a struct orangefs_readdir_response_s
+ * which must be skipped to get to the directory data.
+ *
+ * The data which is received from the userspace daemon is termed a
+ * part and is stored in a linked list in case more than one part is
+ * needed for a large directory.
+ *
+ * The position pointer (ctx->pos) encodes the part and offset on which
+ * to begin reading at.  Bits above PART_SHIFT encode the part and bits
+ * below PART_SHIFT encode the offset.  Parts are stored in a linked
+ * list which grows as data is received from the server.  The overhead
+ * associated with managing the list is presumed to be small compared to
+ * the overhead of communicating with the server.
+ *
+ * As data is received from the server, it is placed at the end of the
+ * part list.  Data is parsed from the current position as it is needed.
+ * When data is determined to be corrupt, it is either because the
+ * userspace component has sent back corrupt data or because the file
+ * pointer has been moved to an invalid location.  Since the two cannot
+ * be differentiated, return EIO.
+ *
+ * Part zero is synthesized to contains `.' and `..'.  Part one is the
+ * first part of the part list.
  */
-static int orangefs_readdir(struct file *file, struct dir_context *ctx)
+
+static int do_readdir(struct orangefs_inode_s *oi,
+    struct orangefs_dir *od, struct dentry *dentry,
+    struct orangefs_kernel_op_s *op)
 {
-	int ret = 0;
-	int buffer_index;
-	/*
-	 * ptoken supports Orangefs' distributed directory logic, added
-	 * in 2.9.2.
-	 */
-	__u64 *ptoken = file->private_data;
-	__u64 pos = 0;
-	ino_t ino = 0;
-	struct dentry *dentry = file->f_path.dentry;
-	struct orangefs_kernel_op_s *new_op = NULL;
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(dentry->d_inode);
-	struct orangefs_readdir_response_s readdir_response;
-	void *dents_buf;
-	int i = 0;
-	int len = 0;
-	ino_t current_ino = 0;
-	char *current_entry = NULL;
-	long bytes_decoded;
-
-	gossip_debug(GOSSIP_DIR_DEBUG,
-		     "%s: ctx->pos:%lld, ptoken = %llu\n",
-		     __func__,
-		     lld(ctx->pos),
-		     llu(*ptoken));
-
-	pos = (__u64) ctx->pos;
-
-	/* are we done? */
-	if (pos == ORANGEFS_READDIR_END) {
-		gossip_debug(GOSSIP_DIR_DEBUG,
-			     "Skipping to termination path\n");
-		return 0;
-	}
-
-	gossip_debug(GOSSIP_DIR_DEBUG,
-		     "orangefs_readdir called on %pd (pos=%llu)\n",
-		     dentry, llu(pos));
-
-	memset(&readdir_response, 0, sizeof(readdir_response));
-
-	new_op = op_alloc(ORANGEFS_VFS_OP_READDIR);
-	if (!new_op)
-		return -ENOMEM;
+	struct orangefs_readdir_response_s *resp;
+	int bufi, r;
 
 	/*
-	 * Only the indices are shared. No memory is actually shared, but the
-	 * mechanism is used.
+	 * Despite the badly named field, readdir does not use shared
+	 * memory.  However, there are a limited number of readdir
+	 * slots, which must be allocated here.  This flag simply tells
+	 * the op scheduler to return the op here for retry.
 	 */
-	new_op->uses_shared_memory = 1;
-	new_op->upcall.req.readdir.refn = orangefs_inode->refn;
-	new_op->upcall.req.readdir.max_dirent_count =
+	op->uses_shared_memory = 1;
+	op->upcall.req.readdir.refn = oi->refn;
+	op->upcall.req.readdir.token = od->token;
+	op->upcall.req.readdir.max_dirent_count =
 	    ORANGEFS_MAX_DIRENT_COUNT_READDIR;
 
-	gossip_debug(GOSSIP_DIR_DEBUG,
-		     "%s: upcall.req.readdir.refn.khandle: %pU\n",
-		     __func__,
-		     &new_op->upcall.req.readdir.refn.khandle);
-
-	new_op->upcall.req.readdir.token = *ptoken;
-
-get_new_buffer_index:
-	buffer_index = orangefs_readdir_index_get();
-	if (buffer_index < 0) {
-		ret = buffer_index;
-		gossip_lerr("orangefs_readdir: orangefs_readdir_index_get() failure (%d)\n",
-			    ret);
-		goto out_free_op;
-	}
-	new_op->upcall.req.readdir.buf_index = buffer_index;
-
-	ret = service_operation(new_op,
-				"orangefs_readdir",
-				get_interruptible_flag(dentry->d_inode));
-
-	gossip_debug(GOSSIP_DIR_DEBUG,
-		     "Readdir downcall status is %d.  ret:%d\n",
-		     new_op->downcall.status,
-		     ret);
-
-	orangefs_readdir_index_put(buffer_index);
-
-	if (ret == -EAGAIN && op_state_purged(new_op)) {
-		/* Client-core indices are invalid after it restarted. */
-		gossip_debug(GOSSIP_DIR_DEBUG,
-			"%s: Getting new buffer_index for retry of readdir..\n",
-			 __func__);
-		goto get_new_buffer_index;
+again:
+	bufi = orangefs_readdir_index_get();
+	if (bufi < 0) {
+		od->error = bufi;
+		return bufi;
 	}
 
-	if (ret == -EIO && op_state_purged(new_op)) {
-		gossip_err("%s: Client is down. Aborting readdir call.\n",
-			__func__);
-		goto out_free_op;
+	op->upcall.req.readdir.buf_index = bufi;
+
+	r = service_operation(op, "orangefs_readdir",
+	    get_interruptible_flag(dentry->d_inode));
+
+	orangefs_readdir_index_put(bufi);
+
+	if (op_state_purged(op)) {
+		if (r == -EAGAIN) {
+			vfree(op->downcall.trailer_buf);
+			goto again;
+		} else if (r == -EIO) {
+			vfree(op->downcall.trailer_buf);
+			od->error = r;
+			return r;
+		}
 	}
 
-	if (ret < 0 || new_op->downcall.status != 0) {
-		gossip_debug(GOSSIP_DIR_DEBUG,
-			     "Readdir request failed.  Status:%d\n",
-			     new_op->downcall.status);
-		if (ret >= 0)
-			ret = new_op->downcall.status;
-		goto out_free_op;
-	}
-
-	dents_buf = new_op->downcall.trailer_buf;
-	if (dents_buf == NULL) {
-		gossip_err("Invalid NULL buffer in readdir response\n");
-		ret = -ENOMEM;
-		goto out_free_op;
-	}
-
-	bytes_decoded = decode_dirents(dents_buf, new_op->downcall.trailer_size,
-					&readdir_response);
-	if (bytes_decoded < 0) {
-		ret = bytes_decoded;
-		gossip_err("Could not decode readdir from buffer %d\n", ret);
-		goto out_vfree;
-	}
-
-	if (bytes_decoded != new_op->downcall.trailer_size) {
-		gossip_err("orangefs_readdir: # bytes decoded (%ld) "
-			   "!= trailer size (%ld)\n",
-			   bytes_decoded,
-			   (long)new_op->downcall.trailer_size);
-		ret = -EINVAL;
-		goto out_destroy_handle;
+	if (r < 0) {
+		vfree(op->downcall.trailer_buf);
+		od->error = r;
+		return r;
+	} else if (op->downcall.status) {
+		vfree(op->downcall.trailer_buf);
+		od->error = op->downcall.status;
+		return op->downcall.status;
 	}
 
 	/*
-	 *  orangefs doesn't actually store dot and dot-dot, but
-	 *  we need to have them represented.
+	 * The maximum size is size per entry times the 512 entries plus
+	 * the header.  This is well under the limit.
 	 */
-	if (pos == 0) {
-		ino = get_ino_from_khandle(dentry->d_inode);
-		gossip_debug(GOSSIP_DIR_DEBUG,
-			     "%s: calling dir_emit of \".\" with pos = %llu\n",
-			     __func__,
-			     llu(pos));
-		ret = dir_emit(ctx, ".", 1, ino, DT_DIR);
-		pos += 1;
+	if (op->downcall.trailer_size > PART_SIZE) {
+		vfree(op->downcall.trailer_buf);
+		od->error = -EIO;
+		return -EIO;
 	}
 
-	if (pos == 1) {
-		ino = get_parent_ino_from_dentry(dentry);
-		gossip_debug(GOSSIP_DIR_DEBUG,
-			     "%s: calling dir_emit of \"..\" with pos = %llu\n",
-			     __func__,
-			     llu(pos));
-		ret = dir_emit(ctx, "..", 2, ino, DT_DIR);
-		pos += 1;
-	}
+	resp = (struct orangefs_readdir_response_s *)
+	    op->downcall.trailer_buf;
+	od->token = resp->token;
+	return 0;
+}
 
-	/*
-	 * we stored ORANGEFS_ITERATE_NEXT in ctx->pos last time around
-	 * to prevent "finding" dot and dot-dot on any iteration
-	 * other than the first.
-	 */
-	if (ctx->pos == ORANGEFS_ITERATE_NEXT)
-		ctx->pos = 0;
+static int parse_readdir(struct orangefs_dir *od,
+    struct orangefs_kernel_op_s *op)
+{
+	struct orangefs_dir_part *part, *new;
+	size_t count;
 
-	gossip_debug(GOSSIP_DIR_DEBUG,
-		     "%s: dirent_outcount:%d:\n",
-		     __func__,
-		     readdir_response.orangefs_dirent_outcount);
-	for (i = ctx->pos;
-	     i < readdir_response.orangefs_dirent_outcount;
-	     i++) {
-		len = readdir_response.dirent_array[i].d_length;
-		current_entry = readdir_response.dirent_array[i].d_name;
-		current_ino = orangefs_khandle_to_ino(
-			&readdir_response.dirent_array[i].khandle);
-
-		gossip_debug(GOSSIP_DIR_DEBUG,
-			     "calling dir_emit for %s with len %d"
-			     ", ctx->pos %ld\n",
-			     current_entry,
-			     len,
-			     (unsigned long)ctx->pos);
-		/*
-		 * type is unknown. We don't return object type
-		 * in the dirent_array. This leaves getdents
-		 * clueless about type.
-		 */
-		ret =
-		    dir_emit(ctx, current_entry, len, current_ino, DT_UNKNOWN);
-		if (!ret)
+	count = 1;
+	part = od->part;
+	while (part) {
+		count++;
+		if (part->next)
+			part = part->next;
+		else
 			break;
+	}
+
+	new = (void *)op->downcall.trailer_buf;
+	new->next = NULL;
+	new->len = op->downcall.trailer_size -
+	    sizeof(struct orangefs_readdir_response_s);
+	if (!od->part)
+		od->part = new;
+	else
+		part->next = new;
+	count++;
+	od->end = count << PART_SHIFT;
+
+	return 0;
+}
+
+static int orangefs_dir_more(struct orangefs_inode_s *oi,
+    struct orangefs_dir *od, struct dentry *dentry)
+{
+	struct orangefs_kernel_op_s *op;
+	int r;
+
+	op = op_alloc(ORANGEFS_VFS_OP_READDIR);
+	if (!op) {
+		od->error = -ENOMEM;
+		return -ENOMEM;
+	}
+	r = do_readdir(oi, od, dentry, op);
+	if (r) {
+		od->error = r;
+		goto out;
+	}
+	r = parse_readdir(od, op);
+	if (r) {
+		od->error = r;
+		goto out;
+	}
+
+	od->error = 0;
+out:
+	op_release(op);
+	return od->error;
+}
+
+static int fill_from_part(struct orangefs_dir_part *part,
+    struct dir_context *ctx)
+{
+	const int offset = sizeof(struct orangefs_readdir_response_s);
+	struct orangefs_khandle *khandle;
+	__u32 *len, padlen;
+	loff_t i;
+	char *s;
+	i = ctx->pos & ~PART_MASK;
+
+	/* The file offset from userspace is too large. */
+	if (i > part->len)
+		return 1;
+
+	/*
+	 * If the seek pointer is positioned just before an entry it
+	 * should find the next entry.
+	 */
+	if (i % 8)
+		i = i + (8 - i%8)%8;
+
+	while (i < part->len) {
+		if (part->len < i + sizeof *len)
+			break;
+		len = (void *)part + offset + i;
+		/*
+		 * len is the size of the string itself.  padlen is the
+		 * total size of the encoded string.
+		 */
+		padlen = (sizeof *len + *len + 1) +
+		    (8 - (sizeof *len + *len + 1)%8)%8;
+		if (part->len < i + padlen + sizeof *khandle)
+			goto next;
+		s = (void *)part + offset + i + sizeof *len;
+		if (s[*len] != 0)
+			goto next;
+		khandle = (void *)part + offset + i + padlen;
+		if (!dir_emit(ctx, s, *len,
+		    orangefs_khandle_to_ino(khandle),
+		    DT_UNKNOWN))
+			return 0;
+		i += padlen + sizeof *khandle;
+		i = i + (8 - i%8)%8;
+		BUG_ON(i > part->len);
+		ctx->pos = (ctx->pos & PART_MASK) | i;
+		continue;
+next:
+		i += 8;
+	}
+	return 1;
+}
+
+static int orangefs_dir_fill(struct orangefs_inode_s *oi,
+    struct orangefs_dir *od, struct dentry *dentry,
+    struct dir_context *ctx)
+{
+	struct orangefs_dir_part *part;
+	size_t count;
+
+	count = ((ctx->pos & PART_MASK) >> PART_SHIFT) - 1;
+
+	part = od->part;
+	while (part->next && count) {
+		count--;
+		part = part->next;
+	}
+	/* This means the userspace file offset is invalid. */
+	if (count) {
+		od->error = -EIO;
+		return -EIO;
+	}
+
+	while (part && part->len) {
+		int r;
+		r = fill_from_part(part, ctx);
+		if (r < 0) {
+			od->error = r;
+			return r;
+		} else if (r == 0) {
+			/* Userspace buffer is full. */
+			break;
+		} else {
+			/*
+			 * The part ran out of data.  Move to the next
+			 * part. */
+			ctx->pos = (ctx->pos & PART_MASK) +
+			    (1 << PART_SHIFT);
+			part = part->next;
+		}
+	}
+	return 0;
+}
+
+static loff_t orangefs_dir_llseek(struct file *file, loff_t offset,
+    int whence)
+{
+	struct orangefs_dir *od = file->private_data;
+	/*
+	 * Delete the stored data so userspace sees new directory
+	 * entries.
+	 */
+	if (!whence && offset < od->end) {
+		struct orangefs_dir_part *part = od->part;
+		while (part) {
+			struct orangefs_dir_part *next = part->next;
+			vfree(part);
+			part = next;
+		}
+		od->token = ORANGEFS_ITERATE_START;
+		od->part = NULL;
+		od->end = 1 << PART_SHIFT;
+	}
+	return default_llseek(file, offset, whence);
+}
+
+static int orangefs_dir_iterate(struct file *file,
+    struct dir_context *ctx)
+{
+	struct orangefs_inode_s *oi;
+	struct orangefs_dir *od;
+	struct dentry *dentry;
+	int r;
+
+	dentry = file->f_path.dentry;
+	oi = ORANGEFS_I(dentry->d_inode);
+	od = file->private_data;
+
+	if (od->error)
+		return od->error;
+
+	if (ctx->pos == 0) {
+		if (!dir_emit_dot(file, ctx))
+			return 0;
 		ctx->pos++;
-		gossip_debug(GOSSIP_DIR_DEBUG,
-			      "%s: ctx->pos:%lld\n",
-			      __func__,
-			      lld(ctx->pos));
-
+	}
+	if (ctx->pos == 1) {
+		if (!dir_emit_dotdot(file, ctx))
+			return 0;
+		ctx->pos = 1 << PART_SHIFT;
 	}
 
 	/*
-	 * we ran all the way through the last batch, set up for
-	 * getting another batch...
+	 * The seek position is in the first synthesized part but is not
+	 * valid.
 	 */
-	if (ret) {
-		*ptoken = readdir_response.token;
-		ctx->pos = ORANGEFS_ITERATE_NEXT;
-	}
+	if ((ctx->pos & PART_MASK) == 0)
+		return -EIO;
+
+	r = 0;
 
 	/*
-	 * Did we hit the end of the directory?
+	 * Must read more if the user has sought past what has been read
+	 * so far.  Stop a user who has sought past the end.
 	 */
-	if (readdir_response.token == ORANGEFS_READDIR_END) {
-		gossip_debug(GOSSIP_DIR_DEBUG,
-		"End of dir detected; setting ctx->pos to ORANGEFS_READDIR_END.\n");
-		ctx->pos = ORANGEFS_READDIR_END;
+	while (od->token != ORANGEFS_ITERATE_END &&
+	    ctx->pos > od->end) {
+		r = orangefs_dir_more(oi, od, dentry);
+		if (r)
+			return r;
+	}
+	if (od->token == ORANGEFS_ITERATE_END && ctx->pos > od->end)
+		return -EIO;
+
+	/* Then try to fill if there's any left in the buffer. */
+	if (ctx->pos < od->end) {
+		r = orangefs_dir_fill(oi, od, dentry, ctx);
+		if (r)
+			return r;
 	}
 
-out_destroy_handle:
-	/* kfree(NULL) is safe */
-	kfree(readdir_response.dirent_array);
-out_vfree:
-	gossip_debug(GOSSIP_DIR_DEBUG, "vfree %p\n", dents_buf);
-	vfree(dents_buf);
-out_free_op:
-	op_release(new_op);
-	gossip_debug(GOSSIP_DIR_DEBUG, "orangefs_readdir returning %d\n", ret);
-	return ret;
+	/* Finally get some more and try to fill. */
+	if (od->token != ORANGEFS_ITERATE_END) {
+		r = orangefs_dir_more(oi, od, dentry);
+		if (r)
+			return r;
+		r = orangefs_dir_fill(oi, od, dentry, ctx);
+	}
+
+	return r;
 }
 
 static int orangefs_dir_open(struct inode *inode, struct file *file)
 {
-	__u64 *ptoken;
-
-	file->private_data = kmalloc(sizeof(__u64), GFP_KERNEL);
+	struct orangefs_dir *od;
+	file->private_data = kmalloc(sizeof(struct orangefs_dir),
+	    GFP_KERNEL);
 	if (!file->private_data)
 		return -ENOMEM;
-
-	ptoken = file->private_data;
-	*ptoken = ORANGEFS_READDIR_START;
+	od = file->private_data;
+	od->token = ORANGEFS_ITERATE_START;
+	od->part = NULL;
+	od->end = 1 << PART_SHIFT;
+	od->error = 0;
 	return 0;
 }
 
 static int orangefs_dir_release(struct inode *inode, struct file *file)
 {
+	struct orangefs_dir *od = file->private_data;
+	struct orangefs_dir_part *part = od->part;
 	orangefs_flush_inode(inode);
-	kfree(file->private_data);
+	while (part) {
+		struct orangefs_dir_part *next = part->next;
+		vfree(part);
+		part = next;
+	}
+	kfree(od);
 	return 0;
 }
 
-/** ORANGEFS implementation of VFS directory operations */
 const struct file_operations orangefs_dir_operations = {
+	.llseek = orangefs_dir_llseek,
 	.read = generic_read_dir,
-	.iterate = orangefs_readdir,
+	.iterate = orangefs_dir_iterate,
 	.open = orangefs_dir_open,
-	.release = orangefs_dir_release,
+	.release = orangefs_dir_release
 };
