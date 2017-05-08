@@ -226,6 +226,30 @@ DEFINE_EVENT(dax_writeback_range_class, name, \
 DEFINE_WRITEBACK_RANGE_EVENT(dax_writeback_range);
 DEFINE_WRITEBACK_RANGE_EVENT(dax_writeback_range_done);
 
+TRACE_EVENT(dax_writeback_one,
+	TP_PROTO(struct inode *inode, pgoff_t pgoff, pgoff_t pglen),
+	TP_ARGS(inode, pgoff, pglen),
+	TP_STRUCT__entry(
+		__field(unsigned long, ino)
+		__field(pgoff_t, pgoff)
+		__field(pgoff_t, pglen)
+		__field(dev_t, dev)
+	),
+	TP_fast_assign(
+		__entry->dev = inode->i_sb->s_dev;
+		__entry->ino = inode->i_ino;
+		__entry->pgoff = pgoff;
+		__entry->pglen = pglen;
+	),
+	TP_printk("dev %d:%d ino %#lx pgoff %#lx pglen %#lx",
+		MAJOR(__entry->dev),
+		MINOR(__entry->dev),
+		__entry->ino,
+		__entry->pgoff,
+		__entry->pglen
+	)
+)
+
 #endif /* _TRACE_FS_DAX_H */
 
 /* This part must be outside protection */
