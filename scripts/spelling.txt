@@ -891,6 +891,7 @@ registerd||registered
 registeresd||registered
 registes||registers
 registraration||registration
+regsiter||register
 regster||register
 regualar||regular
 reguator||regulator

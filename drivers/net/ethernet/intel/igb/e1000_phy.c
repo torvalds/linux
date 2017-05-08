@@ -127,7 +127,7 @@ out:
  *  @offset: register offset to be read
  *  @data: pointer to the read data
  *
- *  Reads the MDI control regsiter in the PHY at offset and stores the
+ *  Reads the MDI control register in the PHY at offset and stores the
  *  information read to data.
  **/
 s32 igb_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data)

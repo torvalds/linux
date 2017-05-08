@@ -95,7 +95,7 @@ static DEFINE_PER_CPU(struct cpc_desc *, cpc_desc_ptr);
 /* pcc mapped address + header size + offset within PCC subspace */
 #define GET_PCC_VADDR(offs) (pcc_data.pcc_comm_addr + 0x8 + (offs))
 
-/* Check if a CPC regsiter is in PCC */
+/* Check if a CPC register is in PCC */
 #define CPC_IN_PCC(cpc) ((cpc)->type == ACPI_TYPE_BUFFER &&		\
 				(cpc)->cpc_entry.reg.space_id ==	\
 				ACPI_ADR_SPACE_PLATFORM_COMM)
