@@ -419,9 +419,9 @@ struct svc_version {
 /*
  * RPC procedure info
  */
-typedef __be32	(*svc_procfunc)(struct svc_rqst *, void *argp, void *resp);
 struct svc_procedure {
-	svc_procfunc		pc_func;	/* process the request */
+	/* process the request: */
+	__be32			(*pc_func)(struct svc_rqst *);
 	kxdrproc_t		pc_decode;	/* XDR decode args */
 	kxdrproc_t		pc_encode;	/* XDR encode result */
 	kxdrproc_t		pc_release;	/* XDR free result */

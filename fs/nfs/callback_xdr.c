@@ -53,7 +53,7 @@ struct callback_op {
 
 static struct callback_op callback_ops[];
 
-static __be32 nfs4_callback_null(struct svc_rqst *rqstp, void *argp, void *resp)
+static __be32 nfs4_callback_null(struct svc_rqst *rqstp)
 {
 	return htonl(NFS4_OK);
 }
@@ -880,7 +880,7 @@ encode_hdr:
 /*
  * Decode, process and encode a COMPOUND
  */
-static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *resp)
+static __be32 nfs4_callback_compound(struct svc_rqst *rqstp)
 {
 	struct cb_compound_hdr_arg hdr_arg = { 0 };
 	struct cb_compound_hdr_res hdr_res = { NULL };
@@ -916,7 +916,8 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *r
 
 	while (status == 0 && nops != hdr_arg.nops) {
 		status = process_op(nops, rqstp, &xdr_in,
-				    argp, &xdr_out, resp, &cps);
+				    rqstp->rq_argp, &xdr_out, rqstp->rq_resp,
+				    &cps);
 		nops++;
 	}
 

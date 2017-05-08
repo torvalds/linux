@@ -18,7 +18,7 @@
  * NULL call.
  */
 static __be32
-nfsd3_proc_null(struct svc_rqst *rqstp, void *argp, void *resp)
+nfsd3_proc_null(struct svc_rqst *rqstp)
 {
 	return nfs_ok;
 }
@@ -26,9 +26,10 @@ nfsd3_proc_null(struct svc_rqst *rqstp, void *argp, void *resp)
 /*
  * Get the Access and/or Default ACL of a file.
  */
-static __be32 nfsd3_proc_getacl(struct svc_rqst * rqstp,
-		struct nfsd3_getaclargs *argp, struct nfsd3_getaclres *resp)
+static __be32 nfsd3_proc_getacl(struct svc_rqst *rqstp)
 {
+	struct nfsd3_getaclargs *argp = rqstp->rq_argp;
+	struct nfsd3_getaclres *resp = rqstp->rq_resp;
 	struct posix_acl *acl;
 	struct inode *inode;
 	svc_fh *fh;
@@ -80,10 +81,10 @@ fail:
 /*
  * Set the Access and/or Default ACL of a file.
  */
-static __be32 nfsd3_proc_setacl(struct svc_rqst * rqstp,
-		struct nfsd3_setaclargs *argp,
-		struct nfsd3_attrstat *resp)
+static __be32 nfsd3_proc_setacl(struct svc_rqst *rqstp)
 {
+	struct nfsd3_setaclargs *argp = rqstp->rq_argp;
+	struct nfsd3_attrstat *resp = rqstp->rq_resp;
 	struct inode *inode;
 	svc_fh *fh;
 	__be32 nfserr = 0;
@@ -239,7 +240,7 @@ struct nfsd3_voidargs { int dummy; };
 
 #define PROC(name, argt, rest, relt, cache, respsize)			\
 {									\
-	.pc_func	= (svc_procfunc) nfsd3_proc_##name,		\
+	.pc_func	= nfsd3_proc_##name,				\
 	.pc_decode	= (kxdrproc_t) nfs3svc_decode_##argt##args,	\
 	.pc_encode	= (kxdrproc_t) nfs3svc_encode_##rest##res,	\
 	.pc_release	= (kxdrproc_t) nfs3svc_release_##relt,		\

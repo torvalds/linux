@@ -1281,7 +1281,7 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 		if (xdr && !xdr(rqstp, argv->iov_base, rqstp->rq_argp))
 			goto err_garbage;
 
-		*statp = procp->pc_func(rqstp, rqstp->rq_argp, rqstp->rq_resp);
+		*statp = procp->pc_func(rqstp);
 
 		/* Encode reply */
 		if (*statp == rpc_drop_reply ||

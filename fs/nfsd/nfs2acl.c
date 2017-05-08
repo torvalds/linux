@@ -19,7 +19,7 @@
  * NULL call.
  */
 static __be32
-nfsacld_proc_null(struct svc_rqst *rqstp, void *argp, void *resp)
+nfsacld_proc_null(struct svc_rqst *rqstp)
 {
 	return nfs_ok;
 }
@@ -27,9 +27,10 @@ nfsacld_proc_null(struct svc_rqst *rqstp, void *argp, void *resp)
 /*
  * Get the Access and/or Default ACL of a file.
  */
-static __be32 nfsacld_proc_getacl(struct svc_rqst * rqstp,
-		struct nfsd3_getaclargs *argp, struct nfsd3_getaclres *resp)
+static __be32 nfsacld_proc_getacl(struct svc_rqst *rqstp)
 {
+	struct nfsd3_getaclargs *argp = rqstp->rq_argp;
+	struct nfsd3_getaclres *resp = rqstp->rq_resp;
 	struct posix_acl *acl;
 	struct inode *inode;
 	svc_fh *fh;
@@ -87,10 +88,10 @@ fail:
 /*
  * Set the Access and/or Default ACL of a file.
  */
-static __be32 nfsacld_proc_setacl(struct svc_rqst * rqstp,
-		struct nfsd3_setaclargs *argp,
-		struct nfsd_attrstat *resp)
+static __be32 nfsacld_proc_setacl(struct svc_rqst *rqstp)
 {
+	struct nfsd3_setaclargs *argp = rqstp->rq_argp;
+	struct nfsd_attrstat *resp = rqstp->rq_resp;
 	struct inode *inode;
 	svc_fh *fh;
 	__be32 nfserr = 0;
@@ -141,9 +142,10 @@ out_errno:
 /*
  * Check file attributes
  */
-static __be32 nfsacld_proc_getattr(struct svc_rqst * rqstp,
-		struct nfsd_fhandle *argp, struct nfsd_attrstat *resp)
+static __be32 nfsacld_proc_getattr(struct svc_rqst *rqstp)
 {
+	struct nfsd_fhandle *argp = rqstp->rq_argp;
+	struct nfsd_attrstat *resp = rqstp->rq_resp;
 	__be32 nfserr;
 	dprintk("nfsd: GETATTR  %s\n", SVCFH_fmt(&argp->fh));
 
@@ -158,9 +160,10 @@ static __be32 nfsacld_proc_getattr(struct svc_rqst * rqstp,
 /*
  * Check file access
  */
-static __be32 nfsacld_proc_access(struct svc_rqst *rqstp, struct nfsd3_accessargs *argp,
-		struct nfsd3_accessres *resp)
+static __be32 nfsacld_proc_access(struct svc_rqst *rqstp)
 {
+	struct nfsd3_accessargs *argp = rqstp->rq_argp;
+	struct nfsd3_accessres *resp = rqstp->rq_resp;
 	__be32 nfserr;
 
 	dprintk("nfsd: ACCESS(2acl)   %s 0x%x\n",
@@ -347,7 +350,7 @@ struct nfsd3_voidargs { int dummy; };
 
 #define PROC(name, argt, rest, relt, cache, respsize)			\
 {									\
-	.pc_func	= (svc_procfunc) nfsacld_proc_##name,		\
+	.pc_func	= nfsacld_proc_##name,				\
 	.pc_decode	= (kxdrproc_t) nfsaclsvc_decode_##argt##args,	\
 	.pc_encode	= (kxdrproc_t) nfsaclsvc_encode_##rest##res,	\
 	.pc_release	= (kxdrproc_t) nfsaclsvc_release_##relt,	\

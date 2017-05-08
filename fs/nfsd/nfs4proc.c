@@ -1510,7 +1510,7 @@ out:
  * NULL call.
  */
 static __be32
-nfsd4_proc_null(struct svc_rqst *rqstp, void *argp, void *resp)
+nfsd4_proc_null(struct svc_rqst *rqstp)
 {
 	return nfs_ok;
 }
@@ -1524,6 +1524,7 @@ static inline void nfsd4_increment_op_stats(u32 opnum)
 typedef __be32(*nfsd4op_func)(struct svc_rqst *, struct nfsd4_compound_state *,
 			      void *);
 typedef u32(*nfsd4op_rsize)(struct svc_rqst *, struct nfsd4_op *op);
+
 typedef void(*stateid_setter)(struct nfsd4_compound_state *, void *);
 typedef void(*stateid_getter)(struct nfsd4_compound_state *, void *);
 
@@ -1673,10 +1674,10 @@ static void svcxdr_init_encode(struct svc_rqst *rqstp,
  * COMPOUND call.
  */
 static __be32
-nfsd4_proc_compound(struct svc_rqst *rqstp, void *arg, void *res)
+nfsd4_proc_compound(struct svc_rqst *rqstp)
 {
-	struct nfsd4_compoundargs *args = arg;
-	struct nfsd4_compoundres *resp = res;
+	struct nfsd4_compoundargs *args = rqstp->rq_argp;
+	struct nfsd4_compoundres *resp = rqstp->rq_resp;
 	struct nfsd4_op	*op;
 	struct nfsd4_operation *opdesc;
 	struct nfsd4_compound_state *cstate = &resp->cstate;
