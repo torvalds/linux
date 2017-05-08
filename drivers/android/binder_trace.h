@@ -24,7 +24,7 @@ struct binder_buffer;
 struct binder_node;
 struct binder_proc;
 struct binder_alloc;
-struct binder_ref;
+struct binder_ref_data;
 struct binder_thread;
 struct binder_transaction;
 
@@ -147,8 +147,8 @@ TRACE_EVENT(binder_transaction_received,
 
 TRACE_EVENT(binder_transaction_node_to_ref,
 	TP_PROTO(struct binder_transaction *t, struct binder_node *node,
-		 struct binder_ref *ref),
-	TP_ARGS(t, node, ref),
+		 struct binder_ref_data *rdata),
+	TP_ARGS(t, node, rdata),
 
 	TP_STRUCT__entry(
 		__field(int, debug_id)
@@ -161,8 +161,8 @@ TRACE_EVENT(binder_transaction_node_to_ref,
 		__entry->debug_id = t->debug_id;
 		__entry->node_debug_id = node->debug_id;
 		__entry->node_ptr = node->ptr;
-		__entry->ref_debug_id = ref->debug_id;
-		__entry->ref_desc = ref->desc;
+		__entry->ref_debug_id = rdata->debug_id;
+		__entry->ref_desc = rdata->desc;
 	),
 	TP_printk("transaction=%d node=%d src_ptr=0x%016llx ==> dest_ref=%d dest_desc=%d",
 		  __entry->debug_id, __entry->node_debug_id,
@@ -171,8 +171,9 @@ TRACE_EVENT(binder_transaction_node_to_ref,
 );
 
 TRACE_EVENT(binder_transaction_ref_to_node,
-	TP_PROTO(struct binder_transaction *t, struct binder_ref *ref),
-	TP_ARGS(t, ref),
+	TP_PROTO(struct binder_transaction *t, struct binder_node *node,
+		 struct binder_ref_data *rdata),
+	TP_ARGS(t, node, rdata),
 
 	TP_STRUCT__entry(
 		__field(int, debug_id)
@@ -183,10 +184,10 @@ TRACE_EVENT(binder_transaction_ref_to_node,
 	),
 	TP_fast_assign(
 		__entry->debug_id = t->debug_id;
-		__entry->ref_debug_id = ref->debug_id;
-		__entry->ref_desc = ref->desc;
-		__entry->node_debug_id = ref->node->debug_id;
-		__entry->node_ptr = ref->node->ptr;
+		__entry->ref_debug_id = rdata->debug_id;
+		__entry->ref_desc = rdata->desc;
+		__entry->node_debug_id = node->debug_id;
+		__entry->node_ptr = node->ptr;
 	),
 	TP_printk("transaction=%d node=%d src_ref=%d src_desc=%d ==> dest_ptr=0x%016llx",
 		  __entry->debug_id, __entry->node_debug_id,
@@ -195,9 +196,10 @@ TRACE_EVENT(binder_transaction_ref_to_node,
 );
 
 TRACE_EVENT(binder_transaction_ref_to_ref,
-	TP_PROTO(struct binder_transaction *t, struct binder_ref *src_ref,
-		 struct binder_ref *dest_ref),
-	TP_ARGS(t, src_ref, dest_ref),
+	TP_PROTO(struct binder_transaction *t, struct binder_node *node,
+		 struct binder_ref_data *src_ref,
+		 struct binder_ref_data *dest_ref),
+	TP_ARGS(t, node, src_ref, dest_ref),
 
 	TP_STRUCT__entry(
 		__field(int, debug_id)
@@ -209,7 +211,7 @@ TRACE_EVENT(binder_transaction_ref_to_ref,
 	),
 	TP_fast_assign(
 		__entry->debug_id = t->debug_id;
-		__entry->node_debug_id = src_ref->node->debug_id;
+		__entry->node_debug_id = node->debug_id;
 		__entry->src_ref_debug_id = src_ref->debug_id;
 		__entry->src_ref_desc = src_ref->desc;
 		__entry->dest_ref_debug_id = dest_ref->debug_id;
