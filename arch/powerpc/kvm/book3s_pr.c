@@ -349,7 +349,7 @@ static void kvmppc_set_msr_pr(struct kvm_vcpu *vcpu, u64 msr)
 	if (msr & MSR_POW) {
 		if (!vcpu->arch.pending_exceptions) {
 			kvm_vcpu_block(vcpu);
-			clear_bit(KVM_REQ_UNHALT, &vcpu->requests);
+			kvm_clear_request(KVM_REQ_UNHALT, vcpu);
 			vcpu->stat.halt_wakeup++;
 
 			/* Unset POW bit after we woke up */
@@ -537,8 +537,7 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	int r = RESUME_GUEST;
 	int relocated;
 	int page_found = 0;
-	struct kvmppc_pte pte;
-	bool is_mmio = false;
+	struct kvmppc_pte pte = { 0 };
 	bool dr = (kvmppc_get_msr(vcpu) & MSR_DR) ? true : false;
 	bool ir = (kvmppc_get_msr(vcpu) & MSR_IR) ? true : false;
 	u64 vsid;
@@ -616,8 +615,7 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		/* Page not found in guest SLB */
 		kvmppc_set_dar(vcpu, kvmppc_get_fault_dar(vcpu));
 		kvmppc_book3s_queue_irqprio(vcpu, vec + 0x80);
-	} else if (!is_mmio &&
-		   kvmppc_visible_gpa(vcpu, pte.raddr)) {
+	} else if (kvmppc_visible_gpa(vcpu, pte.raddr)) {
 		if (data && !(vcpu->arch.fault_dsisr & DSISR_NOHPTE)) {
 			/*
 			 * There is already a host HPTE there, presumably
@@ -627,7 +625,11 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			kvmppc_mmu_unmap_page(vcpu, &pte);
 		}
 		/* The guest's PTE is not mapped yet. Map on the host */
-		kvmppc_mmu_map_page(vcpu, &pte, iswrite);
+		if (kvmppc_mmu_map_page(vcpu, &pte, iswrite) == -EIO) {
+			/* Exit KVM if mapping failed */
+			run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+			return RESUME_HOST;
+		}
 		if (data)
 			vcpu->stat.sp_storage++;
 		else if (vcpu->arch.mmu.is_dcbz32(vcpu) &&

@@ -9,6 +9,9 @@
 #include <linux/types.h>
 #include <linux/ioctl.h>
 
+#define KVM_PIO_PAGE_OFFSET 1
+#define KVM_COALESCED_MMIO_PAGE_OFFSET 2
+
 #define DE_VECTOR 0
 #define DB_VECTOR 1
 #define BP_VECTOR 3

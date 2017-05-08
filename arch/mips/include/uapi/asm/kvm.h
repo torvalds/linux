@@ -21,6 +21,8 @@
 
 #define __KVM_HAVE_READONLY_MEM
 
+#define KVM_COALESCED_MMIO_PAGE_OFFSET 1
+
 /*
  * for KVM_GET_REGS and KVM_SET_REGS
  *
@@ -54,9 +56,14 @@ struct kvm_fpu {
  * Register set = 0: GP registers from kvm_regs (see definitions below).
  *
  * Register set = 1: CP0 registers.
- *  bits[15..8]  - Must be zero.
- *  bits[7..3]   - Register 'rd'  index.
- *  bits[2..0]   - Register 'sel' index.
+ *  bits[15..8]  - COP0 register set.
+ *
+ *  COP0 register set = 0: Main CP0 registers.
+ *   bits[7..3]   - Register 'rd'  index.
+ *   bits[2..0]   - Register 'sel' index.
+ *
+ *  COP0 register set = 1: MAARs.
+ *   bits[7..0]   - MAAR index.
  *
  * Register set = 2: KVM specific registers (see definitions below).
  *
@@ -112,6 +119,15 @@ struct kvm_fpu {
 #define KVM_REG_MIPS_HI		(KVM_REG_MIPS_GP | KVM_REG_SIZE_U64 | 32)
 #define KVM_REG_MIPS_LO		(KVM_REG_MIPS_GP | KVM_REG_SIZE_U64 | 33)
 #define KVM_REG_MIPS_PC		(KVM_REG_MIPS_GP | KVM_REG_SIZE_U64 | 34)
+
+
+/*
+ * KVM_REG_MIPS_CP0 - Coprocessor 0 registers.
+ */
+
+#define KVM_REG_MIPS_MAAR	(KVM_REG_MIPS_CP0 | (1 << 8))
+#define KVM_REG_MIPS_CP0_MAAR(n)	(KVM_REG_MIPS_MAAR | \
+					 KVM_REG_SIZE_U64 | (n))
 
 
 /*

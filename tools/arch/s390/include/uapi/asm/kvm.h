@@ -131,7 +131,8 @@ struct kvm_s390_vm_cpu_subfunc {
 	__u8 kmo[16];		/* with MSA4 */
 	__u8 pcc[16];		/* with MSA4 */
 	__u8 ppno[16];		/* with MSA5 */
-	__u8 reserved[1824];
+	__u8 kma[16];		/* with MSA8 */
+	__u8 reserved[1808];
 };
 
 /* kvm attributes for crypto */

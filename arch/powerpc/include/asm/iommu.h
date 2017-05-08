@@ -296,11 +296,21 @@ static inline void iommu_restore(void)
 #endif
 
 /* The API to support IOMMU operations for VFIO */
-extern int iommu_tce_clear_param_check(struct iommu_table *tbl,
-		unsigned long ioba, unsigned long tce_value,
-		unsigned long npages);
-extern int iommu_tce_put_param_check(struct iommu_table *tbl,
-		unsigned long ioba, unsigned long tce);
+extern int iommu_tce_check_ioba(unsigned long page_shift,
+		unsigned long offset, unsigned long size,
+		unsigned long ioba, unsigned long npages);
+extern int iommu_tce_check_gpa(unsigned long page_shift,
+		unsigned long gpa);
+
+#define iommu_tce_clear_param_check(tbl, ioba, tce_value, npages) \
+		(iommu_tce_check_ioba((tbl)->it_page_shift,       \
+				(tbl)->it_offset, (tbl)->it_size, \
+				(ioba), (npages)) || (tce_value))
+#define iommu_tce_put_param_check(tbl, ioba, gpa)                 \
+		(iommu_tce_check_ioba((tbl)->it_page_shift,       \
+				(tbl)->it_offset, (tbl)->it_size, \
+				(ioba), 1) ||                     \
+		iommu_tce_check_gpa((tbl)->it_page_shift, (gpa)))
 
 extern void iommu_flush_tce(struct iommu_table *tbl);
 extern int iommu_take_ownership(struct iommu_table *tbl);

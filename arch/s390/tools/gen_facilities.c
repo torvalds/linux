@@ -82,6 +82,7 @@ static struct facility_def facility_defs[] = {
 			78, /* enhanced-DAT 2 */
 			130, /* instruction-execution-protection */
 			131, /* enhanced-SOP 2 and side-effect */
+			146, /* msa extension 8 */
 			-1  /* END */
 		}
 	},

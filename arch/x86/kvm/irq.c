@@ -60,7 +60,7 @@ static int kvm_cpu_has_extint(struct kvm_vcpu *v)
 		if (irqchip_split(v->kvm))
 			return pending_userspace_extint(v);
 		else
-			return pic_irqchip(v->kvm)->output;
+			return v->kvm->arch.vpic->output;
 	} else
 		return 0;
 }

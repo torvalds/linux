@@ -3624,11 +3624,9 @@ static int kvmppc_clr_passthru_irq(struct kvm *kvm, int host_irq, int guest_gsi)
 		return -EIO;
 
 	mutex_lock(&kvm->lock);
+	if (!kvm->arch.pimap)
+		goto unlock;
 
-	if (kvm->arch.pimap == NULL) {
-		mutex_unlock(&kvm->lock);
-		return 0;
-	}
 	pimap = kvm->arch.pimap;
 
 	for (i = 0; i < pimap->n_mapped; i++) {
@@ -3650,7 +3648,7 @@ static int kvmppc_clr_passthru_irq(struct kvm *kvm, int host_irq, int guest_gsi)
 	 * We don't free this structure even when the count goes to
 	 * zero. The structure is freed when we destroy the VM.
 	 */
-
+ unlock:
 	mutex_unlock(&kvm->lock);
 	return 0;
 }
