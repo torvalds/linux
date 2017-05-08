@@ -156,7 +156,7 @@ static void vxcan_setup(struct net_device *dev)
 	dev->tx_queue_len	= 0;
 	dev->flags		= (IFF_NOARP|IFF_ECHO);
 	dev->netdev_ops		= &vxcan_netdev_ops;
-	dev->destructor		= free_netdev;
+	dev->needs_free_netdev	= true;
 }
 
 /* forward declaration for rtnl_create_link() */

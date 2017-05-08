@@ -1348,7 +1348,7 @@ static void vrf_setup(struct net_device *dev)
 	dev->netdev_ops = &vrf_netdev_ops;
 	dev->l3mdev_ops = &vrf_l3mdev_ops;
 	dev->ethtool_ops = &vrf_ethtool_ops;
-	dev->destructor = free_netdev;
+	dev->needs_free_netdev = true;
 
 	/* Fill in device structure with ethernet-generic values. */
 	eth_hw_addr_random(dev);

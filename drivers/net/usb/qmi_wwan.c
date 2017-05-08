@@ -123,7 +123,7 @@ static void qmimux_setup(struct net_device *dev)
 	dev->addr_len        = 0;
 	dev->flags           = IFF_POINTOPOINT | IFF_NOARP | IFF_MULTICAST;
 	dev->netdev_ops      = &qmimux_netdev_ops;
-	dev->destructor      = free_netdev;
+	dev->needs_free_netdev = true;
 }
 
 static struct net_device *qmimux_find_dev(struct usbnet *dev, u8 mux_id)
