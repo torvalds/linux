@@ -428,12 +428,9 @@ static int max8997_set_voltage_charger_cv(struct regulator_dev *rdev,
 	if (max_uV < 4000000 || min_uV > 4350000)
 		return -EINVAL;
 
-	if (min_uV <= 4000000) {
-		if (max_uV >= 4000000)
-			return -EINVAL;
-		else
-			val = 0x1;
-	} else if (min_uV <= 4200000 && max_uV >= 4200000)
+	if (min_uV <= 4000000)
+		val = 0x1;
+	else if (min_uV <= 4200000 && max_uV >= 4200000)
 		val = 0x0;
 	else {
 		lb = (min_uV - 4000001) / 20000 + 2;
