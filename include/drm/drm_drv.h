@@ -104,23 +104,6 @@ struct drm_driver {
 	int (*open) (struct drm_device *, struct drm_file *);
 
 	/**
-	 * @preclose:
-	 *
-	 * One of the driver callbacks when a new &struct drm_file is closed.
-	 * Useful for tearing down driver-private data structures allocated in
-	 * @open like buffer allocators, execution contexts or similar things.
-	 *
-	 * Since the display/modeset side of DRM can only be owned by exactly
-	 * one &struct drm_file (see &drm_file.is_master and &drm_device.master)
-	 * there should never be a need to tear down any modeset related
-	 * resources in this callback. Doing so would be a driver design bug.
-	 *
-	 * FIXME: It is not really clear why there's both @preclose and
-	 * @postclose. Without a really good reason, use @postclose only.
-	 */
-	void (*preclose) (struct drm_device *, struct drm_file *file_priv);
-
-	/**
 	 * @postclose:
 	 *
 	 * One of the driver callbacks when a new &struct drm_file is closed.
@@ -131,9 +114,6 @@ struct drm_driver {
 	 * one &struct drm_file (see &drm_file.is_master and &drm_device.master)
 	 * there should never be a need to tear down any modeset related
 	 * resources in this callback. Doing so would be a driver design bug.
-	 *
-	 * FIXME: It is not really clear why there's both @preclose and
-	 * @postclose. Without a really good reason, use @postclose only.
 	 */
 	void (*postclose) (struct drm_device *, struct drm_file *);
 
@@ -150,7 +130,7 @@ struct drm_driver {
 	 * state changes, e.g. in conjunction with the :ref:`vga_switcheroo`
 	 * infrastructure.
 	 *
-	 * This is called after @preclose and @postclose have been called.
+	 * This is called after @postclose hook has been called.
 	 *
 	 * NOTE:
 	 *
@@ -516,6 +496,7 @@ struct drm_driver {
 	/* List of devices hanging off this driver with stealth attach. */
 	struct list_head legacy_dev_list;
 	int (*firstopen) (struct drm_device *);
+	void (*preclose) (struct drm_device *, struct drm_file *file_priv);
 	int (*dma_ioctl) (struct drm_device *dev, void *data, struct drm_file *file_priv);
 	int (*dma_quiescent) (struct drm_device *);
 	int (*context_dtor) (struct drm_device *dev, int context);
