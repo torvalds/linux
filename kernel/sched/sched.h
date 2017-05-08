@@ -448,18 +448,19 @@ struct cfs_rq {
 #ifndef CONFIG_64BIT
 	u64 load_last_update_time_copy;
 #endif
-#ifdef CONFIG_FAIR_GROUP_SCHED
-	unsigned long tg_load_avg_contrib;
-	unsigned long propagate_avg;
-#endif
 	struct {
 		raw_spinlock_t	lock ____cacheline_aligned;
 		int		nr;
 		unsigned long	load_avg;
 		unsigned long	util_avg;
+		unsigned long	runnable_sum;
 	} removed;
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
+	unsigned long tg_load_avg_contrib;
+	long propagate;
+	long prop_runnable_sum;
+
 	/*
 	 *   h_load = weight * f(tg)
 	 *
