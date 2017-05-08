@@ -6090,11 +6090,11 @@ sub process {
 		}
 
 # check for various structs that are normally const (ops, kgdb, device_tree)
+# and avoid what seem like struct definitions 'struct foo {'
 		if ($line !~ /\bconst\b/ &&
-		    $line =~ /\bstruct\s+($const_structs)\b/) {
+		    $line =~ /\bstruct\s+($const_structs)\b(?!\s*\{)/) {
 			WARN("CONST_STRUCT",
-			     "struct $1 should normally be const\n" .
-				$herecurr);
+			     "struct $1 should normally be const\n" . $herecurr);
 		}
 
 # use of NR_CPUS is usually wrong
