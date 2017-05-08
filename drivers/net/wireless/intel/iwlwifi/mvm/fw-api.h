@@ -2130,7 +2130,7 @@ struct ct_kill_notif {
 * enum ctdp_cmd_operation - CTDP command operations
 * @CTDP_CMD_OPERATION_START: update the current budget
 * @CTDP_CMD_OPERATION_STOP: stop ctdp
-* @CTDP_CMD_OPERATION_REPORT: get the avgerage budget
+* @CTDP_CMD_OPERATION_REPORT: get the average budget
 */
 enum iwl_mvm_ctdp_cmd_operation {
 	CTDP_CMD_OPERATION_START	= 0x1,
