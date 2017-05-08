@@ -251,15 +251,15 @@ static int nfsaclsvc_decode_accessargs(struct svc_rqst *rqstp, __be32 *p)
  * There must be an encoding function for void results so svc_process
  * will work properly.
  */
-static int nfsaclsvc_encode_voidres(struct svc_rqst *rqstp, __be32 *p, void *dummy)
+static int nfsaclsvc_encode_voidres(struct svc_rqst *rqstp, __be32 *p)
 {
 	return xdr_ressize_check(rqstp, p);
 }
 
 /* GETACL */
-static int nfsaclsvc_encode_getaclres(struct svc_rqst *rqstp, __be32 *p,
-		struct nfsd3_getaclres *resp)
+static int nfsaclsvc_encode_getaclres(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_getaclres *resp = rqstp->rq_resp;
 	struct dentry *dentry = resp->fh.fh_dentry;
 	struct inode *inode;
 	struct kvec *head = rqstp->rq_res.head;
@@ -302,17 +302,19 @@ static int nfsaclsvc_encode_getaclres(struct svc_rqst *rqstp, __be32 *p,
 	return (n > 0);
 }
 
-static int nfsaclsvc_encode_attrstatres(struct svc_rqst *rqstp, __be32 *p,
-		struct nfsd_attrstat *resp)
+static int nfsaclsvc_encode_attrstatres(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd_attrstat *resp = rqstp->rq_resp;
+
 	p = nfs2svc_encode_fattr(rqstp, p, &resp->fh, &resp->stat);
 	return xdr_ressize_check(rqstp, p);
 }
 
 /* ACCESS */
-static int nfsaclsvc_encode_accessres(struct svc_rqst *rqstp, __be32 *p,
-		struct nfsd3_accessres *resp)
+static int nfsaclsvc_encode_accessres(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd3_accessres *resp = rqstp->rq_resp;
+
 	p = nfs2svc_encode_fattr(rqstp, p, &resp->fh, &resp->stat);
 	*p++ = htonl(resp->access);
 	return xdr_ressize_check(rqstp, p);
@@ -355,7 +357,7 @@ struct nfsd3_voidargs { int dummy; };
 {									\
 	.pc_func	= nfsacld_proc_##name,				\
 	.pc_decode	= nfsaclsvc_decode_##argt##args,		\
-	.pc_encode	= (kxdrproc_t) nfsaclsvc_encode_##rest##res,	\
+	.pc_encode	= nfsaclsvc_encode_##rest##res,			\
 	.pc_release	= nfsaclsvc_release_##relt,	\
 	.pc_argsize	= sizeof(struct nfsd3_##argt##args),		\
 	.pc_ressize	= sizeof(struct nfsd3_##rest##res),		\

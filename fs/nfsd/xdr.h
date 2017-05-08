@@ -143,13 +143,13 @@ int nfssvc_decode_readlinkargs(struct svc_rqst *, __be32 *);
 int nfssvc_decode_linkargs(struct svc_rqst *, __be32 *);
 int nfssvc_decode_symlinkargs(struct svc_rqst *, __be32 *);
 int nfssvc_decode_readdirargs(struct svc_rqst *, __be32 *);
-int nfssvc_encode_void(struct svc_rqst *, __be32 *, void *);
-int nfssvc_encode_attrstat(struct svc_rqst *, __be32 *, struct nfsd_attrstat *);
-int nfssvc_encode_diropres(struct svc_rqst *, __be32 *, struct nfsd_diropres *);
-int nfssvc_encode_readlinkres(struct svc_rqst *, __be32 *, struct nfsd_readlinkres *);
-int nfssvc_encode_readres(struct svc_rqst *, __be32 *, struct nfsd_readres *);
-int nfssvc_encode_statfsres(struct svc_rqst *, __be32 *, struct nfsd_statfsres *);
-int nfssvc_encode_readdirres(struct svc_rqst *, __be32 *, struct nfsd_readdirres *);
+int nfssvc_encode_void(struct svc_rqst *, __be32 *);
+int nfssvc_encode_attrstat(struct svc_rqst *, __be32 *);
+int nfssvc_encode_diropres(struct svc_rqst *, __be32 *);
+int nfssvc_encode_readlinkres(struct svc_rqst *, __be32 *);
+int nfssvc_encode_readres(struct svc_rqst *, __be32 *);
+int nfssvc_encode_statfsres(struct svc_rqst *, __be32 *);
+int nfssvc_encode_readdirres(struct svc_rqst *, __be32 *);
 
 int nfssvc_encode_entry(void *, const char *name,
 			int namlen, loff_t offset, u64 ino, unsigned int);

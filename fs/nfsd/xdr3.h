@@ -285,35 +285,22 @@ int nfs3svc_decode_symlinkargs(struct svc_rqst *, __be32 *);
 int nfs3svc_decode_readdirargs(struct svc_rqst *, __be32 *);
 int nfs3svc_decode_readdirplusargs(struct svc_rqst *, __be32 *);
 int nfs3svc_decode_commitargs(struct svc_rqst *, __be32 *);
-int nfs3svc_encode_voidres(struct svc_rqst *, __be32 *, void *);
-int nfs3svc_encode_attrstat(struct svc_rqst *, __be32 *,
-				struct nfsd3_attrstat *);
-int nfs3svc_encode_wccstat(struct svc_rqst *, __be32 *,
-				struct nfsd3_attrstat *);
-int nfs3svc_encode_diropres(struct svc_rqst *, __be32 *,
-				struct nfsd3_diropres *);
-int nfs3svc_encode_accessres(struct svc_rqst *, __be32 *,
-				struct nfsd3_accessres *);
-int nfs3svc_encode_readlinkres(struct svc_rqst *, __be32 *,
-				struct nfsd3_readlinkres *);
-int nfs3svc_encode_readres(struct svc_rqst *, __be32 *, struct nfsd3_readres *);
-int nfs3svc_encode_writeres(struct svc_rqst *, __be32 *, struct nfsd3_writeres *);
-int nfs3svc_encode_createres(struct svc_rqst *, __be32 *,
-				struct nfsd3_diropres *);
-int nfs3svc_encode_renameres(struct svc_rqst *, __be32 *,
-				struct nfsd3_renameres *);
-int nfs3svc_encode_linkres(struct svc_rqst *, __be32 *,
-				struct nfsd3_linkres *);
-int nfs3svc_encode_readdirres(struct svc_rqst *, __be32 *,
-				struct nfsd3_readdirres *);
-int nfs3svc_encode_fsstatres(struct svc_rqst *, __be32 *,
-				struct nfsd3_fsstatres *);
-int nfs3svc_encode_fsinfores(struct svc_rqst *, __be32 *,
-				struct nfsd3_fsinfores *);
-int nfs3svc_encode_pathconfres(struct svc_rqst *, __be32 *,
-				struct nfsd3_pathconfres *);
-int nfs3svc_encode_commitres(struct svc_rqst *, __be32 *,
-				struct nfsd3_commitres *);
+int nfs3svc_encode_voidres(struct svc_rqst *, __be32 *);
+int nfs3svc_encode_attrstat(struct svc_rqst *, __be32 *);
+int nfs3svc_encode_wccstat(struct svc_rqst *, __be32 *);
+int nfs3svc_encode_diropres(struct svc_rqst *, __be32 *);
+int nfs3svc_encode_accessres(struct svc_rqst *, __be32 *);
+int nfs3svc_encode_readlinkres(struct svc_rqst *, __be32 *);
+int nfs3svc_encode_readres(struct svc_rqst *, __be32 *);
+int nfs3svc_encode_writeres(struct svc_rqst *, __be32 *);
+int nfs3svc_encode_createres(struct svc_rqst *, __be32 *);
+int nfs3svc_encode_renameres(struct svc_rqst *, __be32 *);
+int nfs3svc_encode_linkres(struct svc_rqst *, __be32 *);
+int nfs3svc_encode_readdirres(struct svc_rqst *, __be32 *);
+int nfs3svc_encode_fsstatres(struct svc_rqst *, __be32 *);
+int nfs3svc_encode_fsinfores(struct svc_rqst *, __be32 *);
+int nfs3svc_encode_pathconfres(struct svc_rqst *, __be32 *);
+int nfs3svc_encode_commitres(struct svc_rqst *, __be32 *);
 
 void nfs3svc_release_fhandle(struct svc_rqst *);
 void nfs3svc_release_fhandle2(struct svc_rqst *);
