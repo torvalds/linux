@@ -97,8 +97,8 @@ Groups:
 The following ordering must be followed when restoring the GIC and the ITS:
 a) restore all guest memory and create vcpus
 b) restore all redistributors
-c) initialize the ITS and then provide its base address
-   (KVM_DEV_ARM_VGIC_CTRL_INIT, KVM_DEV_ARM_VGIC_GRP_ADDR)
+c) provide the its base address
+   (KVM_DEV_ARM_VGIC_GRP_ADDR)
 d) restore the ITS in the following order:
    1. Restore GITS_CBASER
    2. Restore all other GITS_ registers, except GITS_CTLR!
@@ -110,12 +110,14 @@ Then vcpus can be started.
  ITS Table ABI REV0:
  -------------------
 
- Revision 0 of the ABI only supports physical LPIs.
+ Revision 0 of the ABI only supports the features of a virtual GICv3, and does
+ not support a virtual GICv4 with support for direct injection of virtual
+ interrupts for nested hypervisors.
 
- The device table and ITT are indexed by the deviceid and eventid,
- respectively. The collection table is not indexed by collectionid:
- CTEs are written in the table in the order of collection creation. All
- entries are 8 bytes.
+ The device table and ITT are indexed by the DeviceID and EventID,
+ respectively. The collection table is not indexed by CollectionID, and the
+ entries in the collection are listed in no particular order.
+ All entries are 8 bytes.
 
  Device Table Entry (DTE):
 
@@ -126,10 +128,10 @@ Then vcpus can be started.
  - V indicates whether the entry is valid. If not, other fields
    are not meaningful.
  - next: equals to 0 if this entry is the last one; otherwise it
-   corresponds to the deviceid offset to the next DTE, capped by
+   corresponds to the DeviceID offset to the next DTE, capped by
    2^14 -1.
  - ITT_addr matches bits [51:8] of the ITT address (256 Byte aligned).
- - Size specifies the supported number of bits for the eventid,
+ - Size specifies the supported number of bits for the EventID,
    minus one
 
  Collection Table Entry (CTE):
@@ -151,8 +153,7 @@ Then vcpus can be started.
 
  where:
  - next: equals to 0 if this entry is the last one; otherwise it corresponds
-   to the eventid offset to the next ITE capped by 2^16 -1.
+   to the EventID offset to the next ITE capped by 2^16 -1.
  - pINTID is the physical LPI ID; if zero, it means the entry is not valid
    and other fields are not meaningful.
  - ICID is the collection ID
-
