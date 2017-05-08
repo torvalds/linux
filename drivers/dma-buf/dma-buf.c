@@ -559,7 +559,7 @@ struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
 		return ERR_PTR(-EINVAL);
 
 	attach = kzalloc(sizeof(*attach), GFP_KERNEL);
-	if (attach == NULL)
+	if (!attach)
 		return ERR_PTR(-ENOMEM);
 
 	attach->dev = dev;
