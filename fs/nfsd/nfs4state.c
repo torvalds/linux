@@ -7135,49 +7135,57 @@ nfsd4_set_lockstateid(struct nfsd4_compound_state *cstate,
  */
 
 void
-nfsd4_get_opendowngradestateid(struct nfsd4_compound_state *cstate, struct nfsd4_open_downgrade *odp)
+nfsd4_get_opendowngradestateid(struct nfsd4_compound_state *cstate,
+		union nfsd4_op_u *u)
 {
-	get_stateid(cstate, &odp->od_stateid);
+	get_stateid(cstate, &u->open_downgrade.od_stateid);
 }
 
 void
-nfsd4_get_delegreturnstateid(struct nfsd4_compound_state *cstate, struct nfsd4_delegreturn *drp)
+nfsd4_get_delegreturnstateid(struct nfsd4_compound_state *cstate,
+		union nfsd4_op_u *u)
 {
-	get_stateid(cstate, &drp->dr_stateid);
+	get_stateid(cstate, &u->delegreturn.dr_stateid);
 }
 
 void
-nfsd4_get_freestateid(struct nfsd4_compound_state *cstate, struct nfsd4_free_stateid *fsp)
+nfsd4_get_freestateid(struct nfsd4_compound_state *cstate,
+		union nfsd4_op_u *u)
 {
-	get_stateid(cstate, &fsp->fr_stateid);
+	get_stateid(cstate, &u->free_stateid.fr_stateid);
 }
 
 void
-nfsd4_get_setattrstateid(struct nfsd4_compound_state *cstate, struct nfsd4_setattr *setattr)
+nfsd4_get_setattrstateid(struct nfsd4_compound_state *cstate,
+		union nfsd4_op_u *u)
 {
-	get_stateid(cstate, &setattr->sa_stateid);
+	get_stateid(cstate, &u->setattr.sa_stateid);
 }
 
 void
-nfsd4_get_closestateid(struct nfsd4_compound_state *cstate, struct nfsd4_close *close)
+nfsd4_get_closestateid(struct nfsd4_compound_state *cstate,
+		union nfsd4_op_u *u)
 {
-	get_stateid(cstate, &close->cl_stateid);
+	get_stateid(cstate, &u->close.cl_stateid);
 }
 
 void
-nfsd4_get_lockustateid(struct nfsd4_compound_state *cstate, struct nfsd4_locku *locku)
+nfsd4_get_lockustateid(struct nfsd4_compound_state *cstate,
+		union nfsd4_op_u *u)
 {
-	get_stateid(cstate, &locku->lu_stateid);
+	get_stateid(cstate, &u->locku.lu_stateid);
 }
 
 void
-nfsd4_get_readstateid(struct nfsd4_compound_state *cstate, struct nfsd4_read *read)
+nfsd4_get_readstateid(struct nfsd4_compound_state *cstate,
+		union nfsd4_op_u *u)
 {
-	get_stateid(cstate, &read->rd_stateid);
+	get_stateid(cstate, &u->read.rd_stateid);
 }
 
 void
-nfsd4_get_writestateid(struct nfsd4_compound_state *cstate, struct nfsd4_write *write)
+nfsd4_get_writestateid(struct nfsd4_compound_state *cstate,
+		union nfsd4_op_u *u)
 {
-	get_stateid(cstate, &write->wr_stateid);
+	get_stateid(cstate, &u->write.wr_stateid);
 }
