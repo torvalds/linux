@@ -397,12 +397,6 @@ int vgic_v3_map_resources(struct kvm *kvm)
 		goto out;
 	}
 
-	ret = vgic_register_redist_iodevs(kvm);
-	if (ret) {
-		kvm_err("Unable to register VGICv3 redist MMIO regions\n");
-		goto out;
-	}
-
 	if (vgic_has_its(kvm)) {
 		ret = vgic_register_its_iodevs(kvm);
 		if (ret) {

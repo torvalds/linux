@@ -86,8 +86,13 @@ int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write)
 		break;
 	case KVM_VGIC_V3_ADDR_TYPE_REDIST:
 		r = vgic_check_type(kvm, KVM_DEV_TYPE_ARM_VGIC_V3);
+		if (r)
+			break;
+		if (write) {
+			r = vgic_v3_set_redist_base(kvm, *addr);
+			goto out;
+		}
 		addr_ptr = &vgic->vgic_redist_base;
-		alignment = SZ_64K;
 		break;
 	default:
 		r = -ENODEV;
