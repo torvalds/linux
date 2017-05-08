@@ -3363,7 +3363,10 @@ static int ip6_route_dev_notify(struct notifier_block *this,
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct net *net = dev_net(dev);
 
-	if (event == NETDEV_REGISTER && (dev->flags & IFF_LOOPBACK)) {
+	if (!(dev->flags & IFF_LOOPBACK))
+		return NOTIFY_OK;
+
+	if (event == NETDEV_REGISTER) {
 		net->ipv6.ip6_null_entry->dst.dev = dev;
 		net->ipv6.ip6_null_entry->rt6i_idev = in6_dev_get(dev);
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
@@ -3371,6 +3374,12 @@ static int ip6_route_dev_notify(struct notifier_block *this,
 		net->ipv6.ip6_prohibit_entry->rt6i_idev = in6_dev_get(dev);
 		net->ipv6.ip6_blk_hole_entry->dst.dev = dev;
 		net->ipv6.ip6_blk_hole_entry->rt6i_idev = in6_dev_get(dev);
+#endif
+	 } else if (event == NETDEV_UNREGISTER) {
+		in6_dev_put(net->ipv6.ip6_null_entry->rt6i_idev);
+#ifdef CONFIG_IPV6_MULTIPLE_TABLES
+		in6_dev_put(net->ipv6.ip6_prohibit_entry->rt6i_idev);
+		in6_dev_put(net->ipv6.ip6_blk_hole_entry->rt6i_idev);
 #endif
 	}
 
@@ -3678,7 +3687,7 @@ static struct pernet_operations ip6_route_net_late_ops = {
 
 static struct notifier_block ip6_route_dev_notifier = {
 	.notifier_call = ip6_route_dev_notify,
-	.priority = 0,
+	.priority = ADDRCONF_NOTIFY_PRIORITY - 10,
 };
 
 void __init ip6_route_init_special_entries(void)
