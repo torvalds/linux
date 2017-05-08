@@ -405,7 +405,7 @@ struct mac_driver {
 };
 
 struct mac_stats_string {
-	char desc[ETH_GSTRING_LEN];
+	const char desc[ETH_GSTRING_LEN];
 	unsigned long offset;
 };
 

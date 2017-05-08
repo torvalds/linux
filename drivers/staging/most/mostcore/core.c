@@ -82,7 +82,7 @@ struct most_inst_obj {
 
 static const struct {
 	int most_ch_data_type;
-	char *name;
+	const char *name;
 } ch_data_type[] = {
 	{ MOST_CH_CONTROL, "control\n" },
 	{ MOST_CH_ASYNC, "async\n" },
