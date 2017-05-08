@@ -492,10 +492,12 @@
 
 &iep {
 	status = "okay";
+	/delete-property/ iommus;
 	allocator = <0>;
 };
 
 &iep_mmu {
+	dbgname = "iep";
 	compatible = "rockchip,iep_mmu";
 	status = "okay";
 };
