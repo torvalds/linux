@@ -23,7 +23,7 @@
 #include <linux/module.h>
 #include <linux/platform_data/omap_drm.h>
 #include <linux/types.h>
-#include <linux/wait.h>
+#include <linux/workqueue.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
@@ -93,13 +93,6 @@ struct omap_drm_private {
 	spinlock_t wait_lock;		/* protects the wait_list */
 	struct list_head wait_list;	/* list of omap_irq_wait */
 	uint32_t irq_mask;		/* enabled irqs in addition to wait_list */
-
-	/* atomic commit */
-	struct {
-		wait_queue_head_t wait;
-		u32 pending;
-		spinlock_t lock;	/* Protects commit.pending */
-	} commit;
 };
 
 
