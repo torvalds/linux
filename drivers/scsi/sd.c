@@ -948,6 +948,10 @@ static int sd_setup_write_same_cmnd(struct scsi_cmnd *cmd)
 	rq->__data_len = sdp->sector_size;
 	ret = scsi_init_io(cmd);
 	rq->__data_len = nr_bytes;
+
+	if (sd_is_zoned(sdkp) && ret != BLKPREP_OK)
+		sd_zbc_write_unlock_zone(cmd);
+
 	return ret;
 }
 
