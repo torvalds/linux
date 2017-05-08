@@ -804,7 +804,7 @@ static const struct file_operations tegra_drm_fops = {
 	.llseek = noop_llseek,
 };
 
-static void tegra_drm_preclose(struct drm_device *drm, struct drm_file *file)
+static void tegra_drm_postclose(struct drm_device *drm, struct drm_file *file)
 {
 	struct tegra_drm_file *fpriv = file->driver_priv;
 	struct tegra_drm_context *context, *tmp;
@@ -868,7 +868,7 @@ static struct drm_driver tegra_drm_driver = {
 	.load = tegra_drm_load,
 	.unload = tegra_drm_unload,
 	.open = tegra_drm_open,
-	.preclose = tegra_drm_preclose,
+	.postclose = tegra_drm_postclose,
 	.lastclose = tegra_drm_lastclose,
 
 #if defined(CONFIG_DEBUG_FS)
