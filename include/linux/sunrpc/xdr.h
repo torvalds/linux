@@ -35,13 +35,6 @@ struct xdr_netobj {
 };
 
 /*
- * This is the legacy generic XDR function. rqstp is either a rpc_rqst
- * (client side) or svc_rqst pointer (server side).
- * Encode functions always assume there's enough room in the buffer.
- */
-typedef int	(*kxdrproc_t)(void *rqstp, __be32 *data, void *obj);
-
-/*
  * Basic structure for transmission/reception of a client XDR message.
  * Features a header (for a linear buffer containing RPC headers
  * and the data payload for short messages), and then an array of
