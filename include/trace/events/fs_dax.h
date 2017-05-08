@@ -192,6 +192,7 @@ DEFINE_PTE_FAULT_EVENT(dax_pte_fault);
 DEFINE_PTE_FAULT_EVENT(dax_pte_fault_done);
 DEFINE_PTE_FAULT_EVENT(dax_pfn_mkwrite_no_entry);
 DEFINE_PTE_FAULT_EVENT(dax_pfn_mkwrite);
+DEFINE_PTE_FAULT_EVENT(dax_load_hole);
 
 #endif /* _TRACE_FS_DAX_H */
 

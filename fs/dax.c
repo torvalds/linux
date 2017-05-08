@@ -509,21 +509,25 @@ int dax_invalidate_mapping_entry_sync(struct address_space *mapping,
 static int dax_load_hole(struct address_space *mapping, void **entry,
 			 struct vm_fault *vmf)
 {
+	struct inode *inode = mapping->host;
 	struct page *page;
 	int ret;
 
 	/* Hole page already exists? Return it...  */
 	if (!radix_tree_exceptional_entry(*entry)) {
 		page = *entry;
-		goto out;
+		goto finish_fault;
 	}
 
 	/* This will replace locked radix tree entry with a hole page */
 	page = find_or_create_page(mapping, vmf->pgoff,
 				   vmf->gfp_mask | __GFP_ZERO);
-	if (!page)
-		return VM_FAULT_OOM;
- out:
+	if (!page) {
+		ret = VM_FAULT_OOM;
+		goto out;
+	}
+
+finish_fault:
 	vmf->page = page;
 	ret = finish_fault(vmf);
 	vmf->page = NULL;
@@ -531,8 +535,10 @@ static int dax_load_hole(struct address_space *mapping, void **entry,
 	if (!ret) {
 		/* Grab reference for PTE that is now referencing the page */
 		get_page(page);
-		return VM_FAULT_NOPAGE;
+		ret = VM_FAULT_NOPAGE;
 	}
+out:
+	trace_dax_load_hole(inode, vmf, ret);
 	return ret;
 }
 
