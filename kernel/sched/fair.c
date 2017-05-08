@@ -3501,36 +3501,47 @@ static inline void set_tg_cfs_propagate(struct cfs_rq *cfs_rq) {}
 static inline int
 update_cfs_rq_load_avg(u64 now, struct cfs_rq *cfs_rq)
 {
+	unsigned long removed_load = 0, removed_util = 0;
 	struct sched_avg *sa = &cfs_rq->avg;
-	int decayed, removed_load = 0, removed_util = 0;
+	int decayed = 0;
 
-	if (atomic_long_read(&cfs_rq->removed_load_avg)) {
-		s64 r = atomic_long_xchg(&cfs_rq->removed_load_avg, 0);
+	if (cfs_rq->removed.nr) {
+		unsigned long r;
+
+		raw_spin_lock(&cfs_rq->removed.lock);
+		swap(cfs_rq->removed.util_avg, removed_util);
+		swap(cfs_rq->removed.load_avg, removed_load);
+		cfs_rq->removed.nr = 0;
+		raw_spin_unlock(&cfs_rq->removed.lock);
+
+		/*
+		 * The LOAD_AVG_MAX for _sum is a slight over-estimate,
+		 * which is safe due to sub_positive() clipping at 0.
+		 */
+		r = removed_load;
 		sub_positive(&sa->load_avg, r);
 		sub_positive(&sa->load_sum, r * LOAD_AVG_MAX);
-		removed_load = 1;
-		set_tg_cfs_propagate(cfs_rq);
-	}
 
-	if (atomic_long_read(&cfs_rq->removed_util_avg)) {
-		long r = atomic_long_xchg(&cfs_rq->removed_util_avg, 0);
+		r = removed_util;
 		sub_positive(&sa->util_avg, r);
 		sub_positive(&sa->util_sum, r * LOAD_AVG_MAX);
-		removed_util = 1;
+
 		set_tg_cfs_propagate(cfs_rq);
+
+		decayed = 1;
 	}
 
-	decayed = __update_load_avg_cfs_rq(now, cpu_of(rq_of(cfs_rq)), cfs_rq);
+	decayed |= __update_load_avg_cfs_rq(now, cpu_of(rq_of(cfs_rq)), cfs_rq);
 
 #ifndef CONFIG_64BIT
 	smp_wmb();
 	cfs_rq->load_last_update_time_copy = sa->last_update_time;
 #endif
 
-	if (decayed || removed_util)
+	if (decayed)
 		cfs_rq_util_change(cfs_rq);
 
-	return decayed || removed_load;
+	return decayed;
 }
 
 /**
@@ -3645,6 +3656,7 @@ void sync_entity_load_avg(struct sched_entity *se)
 void remove_entity_load_avg(struct sched_entity *se)
 {
 	struct cfs_rq *cfs_rq = cfs_rq_of(se);
+	unsigned long flags;
 
 	/*
 	 * tasks cannot exit without having gone through wake_up_new_task() ->
@@ -3654,11 +3666,19 @@ void remove_entity_load_avg(struct sched_entity *se)
 	 * Similarly for groups, they will have passed through
 	 * post_init_entity_util_avg() before unregister_sched_fair_group()
 	 * calls this.
+	 *
+	 * XXX in case entity_is_task(se) && task_of(se)->on_rq == MIGRATING
+	 * we could actually get the right time, since we're called with
+	 * rq->lock held, see detach_task().
 	 */
 
 	sync_entity_load_avg(se);
-	atomic_long_add(se->avg.load_avg, &cfs_rq->removed_load_avg);
-	atomic_long_add(se->avg.util_avg, &cfs_rq->removed_util_avg);
+
+	raw_spin_lock_irqsave(&cfs_rq->removed.lock, flags);
+	++cfs_rq->removed.nr;
+	cfs_rq->removed.util_avg	+= se->avg.util_avg;
+	cfs_rq->removed.load_avg	+= se->avg.load_avg;
+	raw_spin_unlock_irqrestore(&cfs_rq->removed.lock, flags);
 }
 
 static inline unsigned long cfs_rq_runnable_load_avg(struct cfs_rq *cfs_rq)
@@ -9449,8 +9469,7 @@ void init_cfs_rq(struct cfs_rq *cfs_rq)
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	cfs_rq->propagate_avg = 0;
 #endif
-	atomic_long_set(&cfs_rq->removed_load_avg, 0);
-	atomic_long_set(&cfs_rq->removed_util_avg, 0);
+	raw_spin_lock_init(&cfs_rq->removed.lock);
 #endif
 }
 

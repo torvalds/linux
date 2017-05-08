@@ -445,14 +445,19 @@ struct cfs_rq {
 	struct sched_avg avg;
 	u64 runnable_load_sum;
 	unsigned long runnable_load_avg;
+#ifndef CONFIG_64BIT
+	u64 load_last_update_time_copy;
+#endif
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	unsigned long tg_load_avg_contrib;
 	unsigned long propagate_avg;
 #endif
-	atomic_long_t removed_load_avg, removed_util_avg;
-#ifndef CONFIG_64BIT
-	u64 load_last_update_time_copy;
-#endif
+	struct {
+		raw_spinlock_t	lock ____cacheline_aligned;
+		int		nr;
+		unsigned long	load_avg;
+		unsigned long	util_avg;
+	} removed;
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	/*
