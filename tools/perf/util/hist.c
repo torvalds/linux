@@ -1759,6 +1759,8 @@ void perf_evsel__output_resort(struct perf_evsel *evsel, struct ui_progress *pro
 	else
 		use_callchain = symbol_conf.use_callchain;
 
+	use_callchain |= symbol_conf.show_branchflag_count;
+
 	output_resort(evsel__hists(evsel), prog, use_callchain, NULL);
 }
 

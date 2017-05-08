@@ -1010,11 +1010,11 @@ int sample__resolve_callchain(struct perf_sample *sample,
 			      struct perf_evsel *evsel, struct addr_location *al,
 			      int max_stack)
 {
-	if (sample->callchain == NULL)
+	if (sample->callchain == NULL && !symbol_conf.show_branchflag_count)
 		return 0;
 
 	if (symbol_conf.use_callchain || symbol_conf.cumulate_callchain ||
-	    perf_hpp_list.parent) {
+	    perf_hpp_list.parent || symbol_conf.show_branchflag_count) {
 		return thread__resolve_callchain(al->thread, cursor, evsel, sample,
 						 parent, al, max_stack);
 	}
@@ -1023,7 +1023,8 @@ int sample__resolve_callchain(struct perf_sample *sample,
 
 int hist_entry__append_callchain(struct hist_entry *he, struct perf_sample *sample)
 {
-	if (!symbol_conf.use_callchain || sample->callchain == NULL)
+	if ((!symbol_conf.use_callchain || sample->callchain == NULL) &&
+		!symbol_conf.show_branchflag_count)
 		return 0;
 	return callchain_append(he->callchain, &callchain_cursor, sample->period);
 }

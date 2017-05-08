@@ -1902,12 +1902,15 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 {
 	struct branch_stack *branch = sample->branch_stack;
 	struct ip_callchain *chain = sample->callchain;
-	int chain_nr = chain->nr;
+	int chain_nr = 0;
 	u8 cpumode = PERF_RECORD_MISC_USER;
 	int i, j, err, nr_entries;
 	int skip_idx = -1;
 	int first_call = 0;
 	int nr_loop_iter;
+
+	if (chain)
+		chain_nr = chain->nr;
 
 	if (perf_evsel__has_branch_callstack(evsel)) {
 		err = resolve_lbr_callchain_sample(thread, cursor, sample, parent,
@@ -1946,6 +1949,10 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 		for (i = 0; i < nr; i++) {
 			if (callchain_param.order == ORDER_CALLEE) {
 				be[i] = branch->entries[i];
+
+				if (chain == NULL)
+					continue;
+
 				/*
 				 * Check for overlap into the callchain.
 				 * The return address is one off compared to
@@ -2000,6 +2007,10 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 			if (err)
 				return err;
 		}
+
+		if (chain_nr == 0)
+			return 0;
+
 		chain_nr -= nr;
 	}
 
