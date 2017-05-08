@@ -39,16 +39,6 @@ struct omap_plane {
 	uint32_t formats[32];
 };
 
-struct omap_plane_state {
-	struct drm_plane_state base;
-};
-
-static inline struct omap_plane_state *
-to_omap_plane_state(struct drm_plane_state *state)
-{
-	return container_of(state, struct omap_plane_state, base);
-}
-
 static int omap_plane_prepare_fb(struct drm_plane *plane,
 				 struct drm_plane_state *new_state)
 {
@@ -223,56 +213,20 @@ void omap_plane_install_properties(struct drm_plane *plane,
 	drm_object_attach_property(obj, priv->zorder_prop, 0);
 }
 
-static struct drm_plane_state *
-omap_plane_atomic_duplicate_state(struct drm_plane *plane)
-{
-	struct omap_plane_state *state;
-	struct omap_plane_state *copy;
-
-	if (WARN_ON(!plane->state))
-		return NULL;
-
-	state = to_omap_plane_state(plane->state);
-	copy = kmemdup(state, sizeof(*state), GFP_KERNEL);
-	if (copy == NULL)
-		return NULL;
-
-	__drm_atomic_helper_plane_duplicate_state(plane, &copy->base);
-
-	return &copy->base;
-}
-
-static void omap_plane_atomic_destroy_state(struct drm_plane *plane,
-					    struct drm_plane_state *state)
-{
-	__drm_atomic_helper_plane_destroy_state(state);
-	kfree(to_omap_plane_state(state));
-}
-
 static void omap_plane_reset(struct drm_plane *plane)
 {
 	struct omap_plane *omap_plane = to_omap_plane(plane);
-	struct omap_plane_state *omap_state;
 
-	if (plane->state) {
-		omap_plane_atomic_destroy_state(plane, plane->state);
-		plane->state = NULL;
-	}
-
-	omap_state = kzalloc(sizeof(*omap_state), GFP_KERNEL);
-	if (omap_state == NULL)
+	drm_atomic_helper_plane_reset(plane);
+	if (!plane->state)
 		return;
 
 	/*
 	 * Set the zpos default depending on whether we are a primary or overlay
 	 * plane.
 	 */
-	omap_state->base.zpos = plane->type == DRM_PLANE_TYPE_PRIMARY
-			      ? 0 : omap_plane->id;
-	omap_state->base.rotation = DRM_MODE_ROTATE_0;
-
-	plane->state = &omap_state->base;
-	plane->state->plane = plane;
+	plane->state->zpos = plane->type == DRM_PLANE_TYPE_PRIMARY
+			   ? 0 : omap_plane->id;
 }
 
 static int omap_plane_atomic_set_property(struct drm_plane *plane,
@@ -311,8 +265,8 @@ static const struct drm_plane_funcs omap_plane_funcs = {
 	.reset = omap_plane_reset,
 	.destroy = omap_plane_destroy,
 	.set_property = drm_atomic_helper_plane_set_property,
-	.atomic_duplicate_state = omap_plane_atomic_duplicate_state,
-	.atomic_destroy_state = omap_plane_atomic_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 	.atomic_set_property = omap_plane_atomic_set_property,
 	.atomic_get_property = omap_plane_atomic_get_property,
 };
