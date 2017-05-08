@@ -365,53 +365,6 @@ static int ioctl_gem_new(struct drm_device *dev, void *data,
 				   &args->handle);
 }
 
-static int ioctl_gem_cpu_prep(struct drm_device *dev, void *data,
-		struct drm_file *file_priv)
-{
-	struct drm_omap_gem_cpu_prep *args = data;
-	struct drm_gem_object *obj;
-	int ret;
-
-	VERB("%p:%p: handle=%d, op=%x", dev, file_priv, args->handle, args->op);
-
-	obj = drm_gem_object_lookup(file_priv, args->handle);
-	if (!obj)
-		return -ENOENT;
-
-	ret = omap_gem_op_sync(obj, args->op);
-
-	if (!ret)
-		ret = omap_gem_op_start(obj, args->op);
-
-	drm_gem_object_unreference_unlocked(obj);
-
-	return ret;
-}
-
-static int ioctl_gem_cpu_fini(struct drm_device *dev, void *data,
-		struct drm_file *file_priv)
-{
-	struct drm_omap_gem_cpu_fini *args = data;
-	struct drm_gem_object *obj;
-	int ret;
-
-	VERB("%p:%p: handle=%d", dev, file_priv, args->handle);
-
-	obj = drm_gem_object_lookup(file_priv, args->handle);
-	if (!obj)
-		return -ENOENT;
-
-	/* XXX flushy, flushy */
-	ret = 0;
-
-	if (!ret)
-		ret = omap_gem_op_finish(obj, args->op);
-
-	drm_gem_object_unreference_unlocked(obj);
-
-	return ret;
-}
-
 static int ioctl_gem_info(struct drm_device *dev, void *data,
 		struct drm_file *file_priv)
 {
@@ -440,9 +393,11 @@ static const struct drm_ioctl_desc ioctls[DRM_COMMAND_END - DRM_COMMAND_BASE] = 
 			  DRM_AUTH | DRM_MASTER | DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(OMAP_GEM_NEW, ioctl_gem_new,
 			  DRM_AUTH | DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(OMAP_GEM_CPU_PREP, ioctl_gem_cpu_prep,
+	/* Deprecated, to be removed. */
+	DRM_IOCTL_DEF_DRV(OMAP_GEM_CPU_PREP, drm_noop,
 			  DRM_AUTH | DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(OMAP_GEM_CPU_FINI, ioctl_gem_cpu_fini,
+	/* Deprecated, to be removed. */
+	DRM_IOCTL_DEF_DRV(OMAP_GEM_CPU_FINI, drm_noop,
 			  DRM_AUTH | DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(OMAP_GEM_INFO, ioctl_gem_info,
 			  DRM_AUTH | DRM_RENDER_ALLOW),
