@@ -72,16 +72,6 @@ static void omap_gem_unmap_dma_buf(struct dma_buf_attachment *attachment,
 	kfree(sg);
 }
 
-static void omap_gem_dmabuf_release(struct dma_buf *buffer)
-{
-	struct drm_gem_object *obj = buffer->priv;
-	/* release reference that was taken when dmabuf was exported
-	 * in omap_gem_prime_set()..
-	 */
-	drm_gem_object_unreference_unlocked(obj);
-}
-
-
 static int omap_gem_dmabuf_begin_cpu_access(struct dma_buf *buffer,
 		enum dma_data_direction dir)
 {
@@ -157,7 +147,7 @@ static int omap_gem_dmabuf_mmap(struct dma_buf *buffer,
 static struct dma_buf_ops omap_dmabuf_ops = {
 	.map_dma_buf = omap_gem_map_dma_buf,
 	.unmap_dma_buf = omap_gem_unmap_dma_buf,
-	.release = omap_gem_dmabuf_release,
+	.release = drm_gem_dmabuf_release,
 	.begin_cpu_access = omap_gem_dmabuf_begin_cpu_access,
 	.end_cpu_access = omap_gem_dmabuf_end_cpu_access,
 	.map_atomic = omap_gem_dmabuf_kmap_atomic,
@@ -177,7 +167,7 @@ struct dma_buf *omap_gem_prime_export(struct drm_device *dev,
 	exp_info.flags = flags;
 	exp_info.priv = obj;
 
-	return dma_buf_export(&exp_info);
+	return drm_gem_dmabuf_export(dev, &exp_info);
 }
 
 /* -----------------------------------------------------------------------------
