@@ -42,7 +42,10 @@
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
 
-static struct platform_device *vgem_platform;
+static struct vgem_device {
+	struct drm_device drm;
+	struct platform_device *platform;
+} *vgem_device;
 
 static void vgem_gem_free_object(struct drm_gem_object *obj)
 {
@@ -307,7 +310,9 @@ static struct sg_table *vgem_prime_get_sg_table(struct drm_gem_object *obj)
 static struct drm_gem_object* vgem_prime_import(struct drm_device *dev,
 						struct dma_buf *dma_buf)
 {
-	return drm_gem_prime_import_dev(dev, dma_buf, &vgem_platform->dev);
+	struct vgem_device *vgem = container_of(dev, typeof(*vgem), drm);
+
+	return drm_gem_prime_import_dev(dev, dma_buf, &vgem->platform->dev);
 }
 
 static struct drm_gem_object *vgem_prime_import_sg_table(struct drm_device *dev,
@@ -377,8 +382,19 @@ static int vgem_prime_mmap(struct drm_gem_object *obj,
 	return 0;
 }
 
+static void vgem_release(struct drm_device *dev)
+{
+	struct vgem_device *vgem = container_of(dev, typeof(*vgem), drm);
+
+	platform_device_unregister(vgem->platform);
+	drm_dev_fini(&vgem->drm);
+
+	kfree(vgem);
+}
+
 static struct drm_driver vgem_driver = {
 	.driver_features		= DRIVER_GEM | DRIVER_PRIME,
+	.release			= vgem_release,
 	.open				= vgem_open,
 	.postclose			= vgem_postclose,
 	.gem_free_object_unlocked	= vgem_gem_free_object,
@@ -408,45 +424,48 @@ static struct drm_driver vgem_driver = {
 	.minor	= DRIVER_MINOR,
 };
 
-static struct drm_device *vgem_device;
-
 static int __init vgem_init(void)
 {
 	int ret;
 
-	vgem_device = drm_dev_alloc(&vgem_driver, NULL);
-	if (IS_ERR(vgem_device))
-		return PTR_ERR(vgem_device);
+	vgem_device = kzalloc(sizeof(*vgem_device), GFP_KERNEL);
+	if (!vgem_device)
+		return -ENOMEM;
 
-	vgem_platform = platform_device_register_simple("vgem",
-					-1, NULL, 0);
+	ret = drm_dev_init(&vgem_device->drm, &vgem_driver, NULL);
+	if (ret)
+		goto out_free;
 
-	if (!vgem_platform) {
+	vgem_device->platform =
+		platform_device_register_simple("vgem", -1, NULL, 0);
+	if (!vgem_device->platform) {
 		ret = -ENODEV;
-		goto out;
+		goto out_fini;
 	}
 
-	dma_coerce_mask_and_coherent(&vgem_platform->dev,
-					DMA_BIT_MASK(64));
+	dma_coerce_mask_and_coherent(&vgem_device->platform->dev,
+				     DMA_BIT_MASK(64));
 
-	ret  = drm_dev_register(vgem_device, 0);
+	/* Final step: expose the device/driver to userspace */
+	ret  = drm_dev_register(&vgem_device->drm, 0);
 	if (ret)
-		goto out_unref;
+		goto out_unregister;
 
 	return 0;
 
-out_unref:
-	platform_device_unregister(vgem_platform);
-out:
-	drm_dev_unref(vgem_device);
+out_unregister:
+	platform_device_unregister(vgem_device->platform);
+out_fini:
+	drm_dev_fini(&vgem_device->drm);
+out_free:
+	kfree(vgem_device);
 	return ret;
 }
 
 static void __exit vgem_exit(void)
 {
-	platform_device_unregister(vgem_platform);
-	drm_dev_unregister(vgem_device);
-	drm_dev_unref(vgem_device);
+	drm_dev_unregister(&vgem_device->drm);
+	drm_dev_unref(&vgem_device->drm);
 }
 
 module_init(vgem_init);
