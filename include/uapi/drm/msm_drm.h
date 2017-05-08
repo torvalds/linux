@@ -104,10 +104,14 @@ struct drm_msm_gem_new {
 	__u32 handle;         /* out */
 };
 
+#define MSM_INFO_IOVA	0x01
+
+#define MSM_INFO_FLAGS (MSM_INFO_IOVA)
+
 struct drm_msm_gem_info {
 	__u32 handle;         /* in */
-	__u32 pad;
-	__u64 offset;         /* out, offset to pass to mmap() */
+	__u32 flags;	      /* in - combination of MSM_INFO_* flags */
+	__u64 offset;         /* out, mmap() offset or iova */
 };
 
 #define MSM_PREP_READ        0x01
