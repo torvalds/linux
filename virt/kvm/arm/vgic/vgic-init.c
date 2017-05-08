@@ -226,11 +226,7 @@ static int kvm_vgic_dist_init(struct kvm *kvm, unsigned int nr_spis)
 	return 0;
 }
 
-/**
- * kvm_vgic_vcpu_init() - Enable the VCPU interface
- * @vcpu: the VCPU which's VGIC should be enabled
- */
-static void kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)
+static void kvm_vgic_vcpu_enable(struct kvm_vcpu *vcpu)
 {
 	if (kvm_vgic_global_state.type == VGIC_V2)
 		vgic_v2_enable(vcpu);
@@ -269,7 +265,7 @@ int vgic_init(struct kvm *kvm)
 		dist->msis_require_devid = true;
 
 	kvm_for_each_vcpu(i, vcpu, kvm)
-		kvm_vgic_vcpu_init(vcpu);
+		kvm_vgic_vcpu_enable(vcpu);
 
 	ret = kvm_vgic_setup_default_irq_routing(kvm);
 	if (ret)
