@@ -839,6 +839,25 @@ static void tm_reclaim_thread(struct thread_struct *thr,
 	if (!MSR_TM_SUSPENDED(mfmsr()))
 		return;
 
+	/*
+	 * If we are in a transaction and FP is off then we can't have
+	 * used FP inside that transaction. Hence the checkpointed
+	 * state is the same as the live state. We need to copy the
+	 * live state to the checkpointed state so that when the
+	 * transaction is restored, the checkpointed state is correct
+	 * and the aborted transaction sees the correct state. We use
+	 * ckpt_regs.msr here as that's what tm_reclaim will use to
+	 * determine if it's going to write the checkpointed state or
+	 * not. So either this will write the checkpointed registers,
+	 * or reclaim will. Similarly for VMX.
+	 */
+	if ((thr->ckpt_regs.msr & MSR_FP) == 0)
+		memcpy(&thr->ckfp_state, &thr->fp_state,
+		       sizeof(struct thread_fp_state));
+	if ((thr->ckpt_regs.msr & MSR_VEC) == 0)
+		memcpy(&thr->ckvr_state, &thr->vr_state,
+		       sizeof(struct thread_vr_state));
+
 	giveup_all(container_of(thr, struct task_struct, thread));
 
 	tm_reclaim(thr, thr->ckpt_regs.msr, cause);
