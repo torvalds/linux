@@ -226,7 +226,8 @@ struct xdr_stream {
  */
 typedef void	(*kxdreproc_t)(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
 		const void *obj);
-typedef int	(*kxdrdproc_t)(void *rqstp, struct xdr_stream *xdr, void *obj);
+typedef int	(*kxdrdproc_t)(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
+		void *obj);
 
 extern void xdr_init_encode(struct xdr_stream *xdr, struct xdr_buf *buf, __be32 *p);
 extern __be32 *xdr_reserve_space(struct xdr_stream *xdr, size_t nbytes);
