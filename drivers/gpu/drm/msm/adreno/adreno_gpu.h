@@ -87,7 +87,6 @@ const struct adreno_info *adreno_info(struct adreno_rev rev);
 
 struct adreno_rbmemptrs {
 	volatile uint32_t rptr;
-	volatile uint32_t wptr;
 	volatile uint32_t fence;
 };
 
