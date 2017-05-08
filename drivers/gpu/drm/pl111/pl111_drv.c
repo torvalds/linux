@@ -50,8 +50,8 @@
  * - Read back hardware state at boot to skip reprogramming the
  *   hardware when doing a no-op modeset.
  *
- * - Use the internal clock divisor to reduce power consumption by
- *   using HCLK (apb_pclk) when appropriate.
+ * - Use the CLKSEL bit to support switching between the two external
+ *   clock parents.
  */
 
 #include <linux/amba/bus.h>
@@ -194,13 +194,6 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 	amba_set_drvdata(amba_dev, drm);
 	priv->drm = drm;
 	drm->dev_private = priv;
-
-	priv->clk = devm_clk_get(dev, "clcdclk");
-	if (IS_ERR(priv->clk)) {
-		dev_err(dev, "CLCD: unable to get clk.\n");
-		ret = PTR_ERR(priv->clk);
-		goto dev_unref;
-	}
 
 	priv->regs = devm_ioremap_resource(dev, &amba_dev->res);
 	if (!priv->regs) {

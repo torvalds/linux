@@ -39,12 +39,17 @@
 #define CLCD_PALL 		0x00000200
 #define CLCD_PALETTE		0x00000200
 
+#define TIM2_PCD_LO_MASK	GENMASK(4, 0)
+#define TIM2_PCD_LO_BITS	5
 #define TIM2_CLKSEL		(1 << 5)
 #define TIM2_IVS		(1 << 11)
 #define TIM2_IHS		(1 << 12)
 #define TIM2_IPC		(1 << 13)
 #define TIM2_IOE		(1 << 14)
 #define TIM2_BCD		(1 << 26)
+#define TIM2_PCD_HI_MASK	GENMASK(31, 27)
+#define TIM2_PCD_HI_BITS	5
+#define TIM2_PCD_HI_SHIFT	27
 
 #define CNTL_LCDEN		(1 << 0)
 #define CNTL_LCDBPP1		(0 << 1)

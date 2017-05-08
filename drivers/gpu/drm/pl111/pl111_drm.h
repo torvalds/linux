@@ -21,6 +21,7 @@
 
 #include <drm/drm_gem.h>
 #include <drm/drm_simple_kms_helper.h>
+#include <linux/clk-provider.h>
 
 #define CLCD_IRQ_NEXTBASE_UPDATE BIT(2)
 
@@ -37,7 +38,14 @@ struct pl111_drm_dev_private {
 	struct drm_fbdev_cma *fbdev;
 
 	void *regs;
+	/* The pixel clock (a reference to our clock divider off of CLCDCLK). */
 	struct clk *clk;
+	/* pl111's internal clock divider. */
+	struct clk_hw clk_div;
+	/* Lock to sync access to CLCD_TIM2 between the common clock
+	 * subsystem and pl111_display_enable().
+	 */
+	spinlock_t tim2_lock;
 };
 
 #define to_pl111_connector(x) \
