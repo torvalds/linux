@@ -2308,20 +2308,12 @@ static int vgic_its_restore_tables_v0(struct vgic_its *its)
 		goto out;
 
 	ret = vgic_its_restore_device_tables(its);
-
 out:
 	unlock_all_vcpus(kvm);
 	mutex_unlock(&its->its_lock);
 	mutex_unlock(&kvm->lock);
 
-	if (ret)
-		return ret;
-
-	/*
-	 * On restore path, MSI injections can happen before the
-	 * first VCPU run so let's complete the GIC init here.
-	 */
-	return kvm_vgic_map_resources(its->dev->kvm);
+	return ret;
 }
 
 static int vgic_its_commit_v0(struct vgic_its *its)
