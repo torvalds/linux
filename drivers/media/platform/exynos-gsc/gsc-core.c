@@ -568,9 +568,9 @@ int gsc_try_crop(struct gsc_ctx *ctx, struct v4l2_crop *cr)
 	}
 	pr_debug("user put w: %d, h: %d", cr->c.width, cr->c.height);
 
-	if (cr->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+	if (cr->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		f = &ctx->d_frame;
-	else if (cr->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
+	else if (cr->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
 		f = &ctx->s_frame;
 	else
 		return -EINVAL;

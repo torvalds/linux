@@ -2145,6 +2145,47 @@ static int v4l_try_ext_ctrls(const struct v4l2_ioctl_ops *ops,
 					-EINVAL;
 }
 
+/*
+ * The selection API specified originally that the _MPLANE buffer types
+ * shouldn't be used. The reasons for this are lost in the mists of time
+ * (or just really crappy memories). Regardless, this is really annoying
+ * for userspace. So to keep things simple we map _MPLANE buffer types
+ * to their 'regular' counterparts before calling the driver. And we
+ * restore it afterwards. This way applications can use either buffer
+ * type and drivers don't need to check for both.
+ */
+static int v4l_g_selection(const struct v4l2_ioctl_ops *ops,
+			   struct file *file, void *fh, void *arg)
+{
+	struct v4l2_selection *p = arg;
+	u32 old_type = p->type;
+	int ret;
+
+	if (p->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+		p->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	else if (p->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
+		p->type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+	ret = ops->vidioc_g_selection(file, fh, p);
+	p->type = old_type;
+	return ret;
+}
+
+static int v4l_s_selection(const struct v4l2_ioctl_ops *ops,
+			   struct file *file, void *fh, void *arg)
+{
+	struct v4l2_selection *p = arg;
+	u32 old_type = p->type;
+	int ret;
+
+	if (p->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+		p->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	else if (p->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
+		p->type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+	ret = ops->vidioc_s_selection(file, fh, p);
+	p->type = old_type;
+	return ret;
+}
+
 static int v4l_g_crop(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
@@ -2164,7 +2205,7 @@ static int v4l_g_crop(const struct v4l2_ioctl_ops *ops,
 	else
 		s.target = V4L2_SEL_TGT_CROP_ACTIVE;
 
-	ret = ops->vidioc_g_selection(file, fh, &s);
+	ret = v4l_g_selection(ops, file, fh, &s);
 
 	/* copying results to old structure on success */
 	if (!ret)
@@ -2191,7 +2232,7 @@ static int v4l_s_crop(const struct v4l2_ioctl_ops *ops,
 	else
 		s.target = V4L2_SEL_TGT_CROP_ACTIVE;
 
-	return ops->vidioc_s_selection(file, fh, &s);
+	return v4l_s_selection(ops, file, fh, &s);
 }
 
 static int v4l_cropcap(const struct v4l2_ioctl_ops *ops,
@@ -2233,7 +2274,7 @@ static int v4l_cropcap(const struct v4l2_ioctl_ops *ops,
 	else
 		s.target = V4L2_SEL_TGT_CROP_BOUNDS;
 
-	ret = ops->vidioc_g_selection(file, fh, &s);
+	ret = v4l_g_selection(ops, file, fh, &s);
 	if (ret)
 		return ret;
 	p->bounds = s.r;
@@ -2244,7 +2285,7 @@ static int v4l_cropcap(const struct v4l2_ioctl_ops *ops,
 	else
 		s.target = V4L2_SEL_TGT_CROP_DEFAULT;
 
-	ret = ops->vidioc_g_selection(file, fh, &s);
+	ret = v4l_g_selection(ops, file, fh, &s);
 	if (ret)
 		return ret;
 	p->defrect = s.r;
@@ -2556,8 +2597,8 @@ static struct v4l2_ioctl_info v4l2_ioctls[] = {
 	IOCTL_INFO_FNC(VIDIOC_CROPCAP, v4l_cropcap, v4l_print_cropcap, INFO_FL_CLEAR(v4l2_cropcap, type)),
 	IOCTL_INFO_FNC(VIDIOC_G_CROP, v4l_g_crop, v4l_print_crop, INFO_FL_CLEAR(v4l2_crop, type)),
 	IOCTL_INFO_FNC(VIDIOC_S_CROP, v4l_s_crop, v4l_print_crop, INFO_FL_PRIO),
-	IOCTL_INFO_STD(VIDIOC_G_SELECTION, vidioc_g_selection, v4l_print_selection, INFO_FL_CLEAR(v4l2_selection, r)),
-	IOCTL_INFO_STD(VIDIOC_S_SELECTION, vidioc_s_selection, v4l_print_selection, INFO_FL_PRIO | INFO_FL_CLEAR(v4l2_selection, r)),
+	IOCTL_INFO_FNC(VIDIOC_G_SELECTION, v4l_g_selection, v4l_print_selection, INFO_FL_CLEAR(v4l2_selection, r)),
+	IOCTL_INFO_FNC(VIDIOC_S_SELECTION, v4l_s_selection, v4l_print_selection, INFO_FL_PRIO | INFO_FL_CLEAR(v4l2_selection, r)),
 	IOCTL_INFO_STD(VIDIOC_G_JPEGCOMP, vidioc_g_jpegcomp, v4l_print_jpegcompression, 0),
 	IOCTL_INFO_STD(VIDIOC_S_JPEGCOMP, vidioc_s_jpegcomp, v4l_print_jpegcompression, INFO_FL_PRIO),
 	IOCTL_INFO_FNC(VIDIOC_QUERYSTD, v4l_querystd, v4l_print_std, 0),
