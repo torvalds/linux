@@ -1673,10 +1673,10 @@ static void svcxdr_init_encode(struct svc_rqst *rqstp,
  * COMPOUND call.
  */
 static __be32
-nfsd4_proc_compound(struct svc_rqst *rqstp,
-		    struct nfsd4_compoundargs *args,
-		    struct nfsd4_compoundres *resp)
+nfsd4_proc_compound(struct svc_rqst *rqstp, void *arg, void *res)
 {
+	struct nfsd4_compoundargs *args = arg;
+	struct nfsd4_compoundres *resp = res;
 	struct nfsd4_op	*op;
 	struct nfsd4_operation *opdesc;
 	struct nfsd4_compound_state *cstate = &resp->cstate;
@@ -2517,7 +2517,7 @@ struct nfsd4_voidargs { int dummy; };
 
 static struct svc_procedure		nfsd_procedures4[2] = {
 	[NFSPROC4_NULL] = {
-		.pc_func = (svc_procfunc) nfsd4_proc_null,
+		.pc_func = nfsd4_proc_null,
 		.pc_encode = (kxdrproc_t) nfs4svc_encode_voidres,
 		.pc_argsize = sizeof(struct nfsd4_voidargs),
 		.pc_ressize = sizeof(struct nfsd4_voidres),
@@ -2525,7 +2525,7 @@ static struct svc_procedure		nfsd_procedures4[2] = {
 		.pc_xdrressize = 1,
 	},
 	[NFSPROC4_COMPOUND] = {
-		.pc_func = (svc_procfunc) nfsd4_proc_compound,
+		.pc_func = nfsd4_proc_compound,
 		.pc_decode = (kxdrproc_t) nfs4svc_decode_compoundargs,
 		.pc_encode = (kxdrproc_t) nfs4svc_encode_compoundres,
 		.pc_argsize = sizeof(struct nfsd4_compoundargs),
