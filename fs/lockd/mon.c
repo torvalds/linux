@@ -552,10 +552,12 @@ static struct rpc_procinfo	nsm_procedures[] = {
 	},
 };
 
+static unsigned int nsm_version1_counts[ARRAY_SIZE(nsm_procedures)];
 static const struct rpc_version nsm_version1 = {
 	.number		= 1,
 	.nrprocs	= ARRAY_SIZE(nsm_procedures),
-	.procs		= nsm_procedures
+	.procs		= nsm_procedures,
+	.counts		= nsm_version1_counts,
 };
 
 static const struct rpc_version *nsm_version[] = {

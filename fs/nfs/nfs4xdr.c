@@ -7661,10 +7661,12 @@ struct rpc_procinfo	nfs4_procedures[] = {
 #endif /* CONFIG_NFS_V4_2 */
 };
 
+static unsigned int nfs_version4_counts[ARRAY_SIZE(nfs4_procedures)];
 const struct rpc_version nfs_version4 = {
 	.number			= 4,
 	.nrprocs		= ARRAY_SIZE(nfs4_procedures),
-	.procs			= nfs4_procedures
+	.procs			= nfs4_procedures,
+	.counts			= nfs_version4_counts,
 };
 
 /*

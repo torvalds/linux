@@ -1517,14 +1517,16 @@ static void
 call_start(struct rpc_task *task)
 {
 	struct rpc_clnt	*clnt = task->tk_client;
+	int idx = task->tk_msg.rpc_proc->p_statidx;
 
 	dprintk("RPC: %5u call_start %s%d proc %s (%s)\n", task->tk_pid,
 			clnt->cl_program->name, clnt->cl_vers,
 			rpc_proc_name(task),
 			(RPC_IS_ASYNC(task) ? "async" : "sync"));
 
-	/* Increment call count */
-	task->tk_msg.rpc_proc->p_count++;
+	/* Increment call count (version might not be valid for ping) */
+	if (clnt->cl_program->version[clnt->cl_vers])
+		clnt->cl_program->version[clnt->cl_vers]->counts[idx]++;
 	clnt->cl_stats->rpccnt++;
 	task->tk_action = call_reserve;
 }

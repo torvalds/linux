@@ -88,6 +88,7 @@ struct rpc_version {
 	u32			number;		/* version number */
 	unsigned int		nrprocs;	/* number of procs */
 	struct rpc_procinfo *	procs;		/* procedure array */
+	unsigned int		*counts;	/* call counts */
 };
 
 /*
@@ -99,7 +100,6 @@ struct rpc_procinfo {
 	kxdrdproc_t		p_decode;	/* XDR decode function */
 	unsigned int		p_arglen;	/* argument hdr length (u32) */
 	unsigned int		p_replen;	/* reply hdr length (u32) */
-	unsigned int		p_count;	/* call count */
 	unsigned int		p_timer;	/* Which RTT timer to use */
 	u32			p_statidx;	/* Which procedure to account */
 	const char *		p_name;		/* name of procedure */

@@ -1117,22 +1117,28 @@ static const struct rpcb_info rpcb_next_version6[] = {
 	},
 };
 
+static unsigned int rpcb_version2_counts[ARRAY_SIZE(rpcb_procedures2)];
 static const struct rpc_version rpcb_version2 = {
 	.number		= RPCBVERS_2,
 	.nrprocs	= ARRAY_SIZE(rpcb_procedures2),
-	.procs		= rpcb_procedures2
+	.procs		= rpcb_procedures2,
+	.counts		= rpcb_version2_counts,
 };
 
+static unsigned int rpcb_version3_counts[ARRAY_SIZE(rpcb_procedures3)];
 static const struct rpc_version rpcb_version3 = {
 	.number		= RPCBVERS_3,
 	.nrprocs	= ARRAY_SIZE(rpcb_procedures3),
-	.procs		= rpcb_procedures3
+	.procs		= rpcb_procedures3,
+	.counts		= rpcb_version3_counts,
 };
 
+static unsigned int rpcb_version4_counts[ARRAY_SIZE(rpcb_procedures4)];
 static const struct rpc_version rpcb_version4 = {
 	.number		= RPCBVERS_4,
 	.nrprocs	= ARRAY_SIZE(rpcb_procedures4),
-	.procs		= rpcb_procedures4
+	.procs		= rpcb_procedures4,
+	.counts		= rpcb_version4_counts,
 };
 
 static const struct rpc_version *rpcb_version[] = {

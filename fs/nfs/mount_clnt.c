@@ -504,17 +504,20 @@ static struct rpc_procinfo mnt3_procedures[] = {
 	},
 };
 
-
+static unsigned int mnt_counts[ARRAY_SIZE(mnt_procedures)];
 static const struct rpc_version mnt_version1 = {
 	.number		= 1,
 	.nrprocs	= ARRAY_SIZE(mnt_procedures),
 	.procs		= mnt_procedures,
+	.counts		= mnt_counts,
 };
 
+static unsigned int mnt3_counts[ARRAY_SIZE(mnt_procedures)];
 static const struct rpc_version mnt_version3 = {
 	.number		= 3,
 	.nrprocs	= ARRAY_SIZE(mnt3_procedures),
 	.procs		= mnt3_procedures,
+	.counts		= mnt3_counts,
 };
 
 static const struct rpc_version *mnt_version[] = {
