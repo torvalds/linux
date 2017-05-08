@@ -1584,7 +1584,7 @@ struct nfsd4_operation {
 			union nfsd4_op_u *);
 };
 
-static struct nfsd4_operation nfsd4_ops[];
+static const struct nfsd4_operation nfsd4_ops[];
 
 static const char *nfsd4_op_name(unsigned opnum);
 
@@ -1621,7 +1621,7 @@ static __be32 nfs41_check_op_ordering(struct nfsd4_compoundargs *args)
 	return nfs_ok;
 }
 
-static inline struct nfsd4_operation *OPDESC(struct nfsd4_op *op)
+static inline const struct nfsd4_operation *OPDESC(struct nfsd4_op *op)
 {
 	return &nfsd4_ops[op->opnum];
 }
@@ -1639,10 +1639,9 @@ static bool need_wrongsec_check(struct svc_rqst *rqstp)
 	struct nfsd4_compoundargs *argp = rqstp->rq_argp;
 	struct nfsd4_op *this = &argp->ops[resp->opcnt - 1];
 	struct nfsd4_op *next = &argp->ops[resp->opcnt];
-	struct nfsd4_operation *thisd;
-	struct nfsd4_operation *nextd;
+	const struct nfsd4_operation *thisd = OPDESC(this);
+	const struct nfsd4_operation *nextd;
 
-	thisd = OPDESC(this);
 	/*
 	 * Most ops check wronsec on our own; only the putfh-like ops
 	 * have special rules.
@@ -1695,7 +1694,7 @@ nfsd4_proc_compound(struct svc_rqst *rqstp)
 	struct nfsd4_compoundargs *args = rqstp->rq_argp;
 	struct nfsd4_compoundres *resp = rqstp->rq_resp;
 	struct nfsd4_op	*op;
-	struct nfsd4_operation *opdesc;
+	const struct nfsd4_operation *opdesc;
 	struct nfsd4_compound_state *cstate = &resp->cstate;
 	struct svc_fh *current_fh = &cstate->current_fh;
 	struct svc_fh *save_fh = &cstate->save_fh;
@@ -2108,7 +2107,7 @@ static inline u32 nfsd4_seek_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
 	return (op_encode_hdr_size + 3) * sizeof(__be32);
 }
 
-static struct nfsd4_operation nfsd4_ops[] = {
+static const struct nfsd4_operation nfsd4_ops[] = {
 	[OP_ACCESS] = {
 		.op_func = nfsd4_access,
 		.op_name = "OP_ACCESS",
