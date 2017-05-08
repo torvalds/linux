@@ -291,6 +291,7 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 		u32 possible_crtcs)
 {
 	struct omap_drm_private *priv = dev->dev_private;
+	unsigned int num_planes = priv->dispc_ops->get_num_ovls();
 	struct drm_plane *plane;
 	struct omap_plane *omap_plane;
 	enum omap_plane_id id;
@@ -324,6 +325,7 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 	drm_plane_helper_add(plane, &omap_plane_helper_funcs);
 
 	omap_plane_install_properties(plane, &plane->base);
+	drm_plane_create_zpos_property(plane, 0, 0, num_planes - 1);
 
 	return plane;
 
