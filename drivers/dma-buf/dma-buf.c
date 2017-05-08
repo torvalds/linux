@@ -1122,9 +1122,7 @@ static int dma_buf_debug_show(struct seq_file *s, void *unused)
 		attach_count = 0;
 
 		list_for_each_entry(attach_obj, &buf_obj->attachments, node) {
-			seq_puts(s, "\t");
-
-			seq_printf(s, "%s\n", dev_name(attach_obj->dev));
+			seq_printf(s, "\t%s\n", dev_name(attach_obj->dev));
 			attach_count++;
 		}
 
