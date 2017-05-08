@@ -52,6 +52,7 @@
 #include "xfs_reflink.h"
 
 #include <linux/namei.h>
+#include <linux/dax.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/mount.h>

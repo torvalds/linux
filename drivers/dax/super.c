@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/mount.h>
 #include <linux/magic.h>
+#include <linux/genhd.h>
 #include <linux/cdev.h>
 #include <linux/hash.h>
 #include <linux/slab.h>
@@ -46,6 +47,75 @@ void dax_read_unlock(int id)
 	srcu_read_unlock(&dax_srcu, id);
 }
 EXPORT_SYMBOL_GPL(dax_read_unlock);
+
+int bdev_dax_pgoff(struct block_device *bdev, sector_t sector, size_t size,
+		pgoff_t *pgoff)
+{
+	phys_addr_t phys_off = (get_start_sect(bdev) + sector) * 512;
+
+	if (pgoff)
+		*pgoff = PHYS_PFN(phys_off);
+	if (phys_off % PAGE_SIZE || size % PAGE_SIZE)
+		return -EINVAL;
+	return 0;
+}
+EXPORT_SYMBOL(bdev_dax_pgoff);
+
+/**
+ * __bdev_dax_supported() - Check if the device supports dax for filesystem
+ * @sb: The superblock of the device
+ * @blocksize: The block size of the device
+ *
+ * This is a library function for filesystems to check if the block device
+ * can be mounted with dax option.
+ *
+ * Return: negative errno if unsupported, 0 if supported.
+ */
+int __bdev_dax_supported(struct super_block *sb, int blocksize)
+{
+	struct block_device *bdev = sb->s_bdev;
+	struct dax_device *dax_dev;
+	pgoff_t pgoff;
+	int err, id;
+	void *kaddr;
+	pfn_t pfn;
+	long len;
+
+	if (blocksize != PAGE_SIZE) {
+		pr_err("VFS (%s): error: unsupported blocksize for dax\n",
+				sb->s_id);
+		return -EINVAL;
+	}
+
+	err = bdev_dax_pgoff(bdev, 0, PAGE_SIZE, &pgoff);
+	if (err) {
+		pr_err("VFS (%s): error: unaligned partition for dax\n",
+				sb->s_id);
+		return err;
+	}
+
+	dax_dev = dax_get_by_host(bdev->bd_disk->disk_name);
+	if (!dax_dev) {
+		pr_err("VFS (%s): error: device does not support dax\n",
+				sb->s_id);
+		return -EOPNOTSUPP;
+	}
+
+	id = dax_read_lock();
+	len = dax_direct_access(dax_dev, pgoff, 1, &kaddr, &pfn);
+	dax_read_unlock(id);
+
+	put_dax(dax_dev);
+
+	if (len < 1) {
+		pr_err("VFS (%s): error: dax access failed (%ld)",
+				sb->s_id, len);
+		return len < 0 ? len : -EIO;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(__bdev_dax_supported);
 
 /**
  * struct dax_device - anchor object for dax services

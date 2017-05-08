@@ -32,6 +32,7 @@
 #include <linux/log2.h>
 #include <linux/quotaops.h>
 #include <linux/uaccess.h>
+#include <linux/dax.h>
 #include "ext2.h"
 #include "xattr.h"
 #include "acl.h"

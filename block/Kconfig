@@ -6,7 +6,6 @@ menuconfig BLOCK
        default y
        select SBITMAP
        select SRCU
-       select DAX
        help
 	 Provide block layer support for the kernel.
 
