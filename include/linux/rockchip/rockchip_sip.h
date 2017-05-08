@@ -99,6 +99,7 @@ typedef enum {
  * a0: error code(0: success, !0: error);
  * a1~a3: data
  */
+#ifdef CONFIG_ROCKCHIP_SIP
 struct arm_smccc_res sip_smc_get_atf_version(void);
 struct arm_smccc_res sip_smc_get_sip_version(void);
 struct arm_smccc_res sip_smc_dram(u32 arg0, u32 arg1, u32 arg2);
@@ -108,13 +109,10 @@ struct arm_smccc_res sip_smc_mcu_el3fiq(u32 arg0, u32 arg1, u32 arg2);
 
 int sip_smc_set_suspend_mode(u32 ctrl, u32 config1, u32 config2);
 int sip_smc_virtual_poweroff(void);
-#ifdef CONFIG_ROCKCHIP_SIP
+
 int sip_smc_secure_reg_write(u32 addr_phy, u32 val);
 u32 sip_smc_secure_reg_read(u32 addr_phy);
-#else
-u32 sip_smc_secure_reg_read(u32 addr_phy) { return 0; }
-int sip_smc_secure_reg_write(u32 addr_phy, u32 val) { return 0; }
-#endif
+
 /***************************fiq debugger **************************************/
 void sip_fiq_debugger_enable_fiq(bool enable, uint32_t tgt_cpu);
 void sip_fiq_debugger_enable_debug(bool enable);
@@ -124,6 +122,70 @@ int sip_fiq_debugger_request_share_memory(void);
 int sip_fiq_debugger_get_target_cpu(void);
 int sip_fiq_debugger_switch_cpu(u32 cpu);
 int sip_fiq_debugger_is_enabled(void);
+#else
+static inline struct arm_smccc_res sip_smc_get_atf_version(void)
+{
+	struct arm_smccc_res tmp = {0};
+	return tmp;
+}
+
+static inline struct arm_smccc_res sip_smc_get_sip_version(void)
+{
+	struct arm_smccc_res tmp = {0};
+	return tmp;
+}
+
+static inline struct arm_smccc_res sip_smc_dram(u32 arg0, u32 arg1, u32 arg2)
+{
+	struct arm_smccc_res tmp = {0};
+	return tmp;
+}
+
+static inline struct arm_smccc_res sip_smc_request_share_mem
+			(u32 page_num, share_page_type_t page_type)
+{
+	struct arm_smccc_res tmp = {0};
+	return tmp;
+}
+
+static inline struct arm_smccc_res sip_smc_mcu_el3fiq
+			(u32 arg0, u32 arg1, u32 arg2)
+{
+	struct arm_smccc_res tmp = {0};
+	return tmp;
+}
+
+static inline int sip_smc_set_suspend_mode(u32 ctrl, u32 config1, u32 config2)
+{
+	return 0;
+}
+
+static inline int sip_smc_virtual_poweroff(void) { return 0; }
+static inline u32 sip_smc_secure_reg_read(u32 addr_phy) { return 0; }
+static inline int sip_smc_secure_reg_write(u32 addr_phy, u32 val) { return 0; }
+
+/***************************fiq debugger **************************************/
+static inline void sip_fiq_debugger_enable_fiq
+			(bool enable, uint32_t tgt_cpu) { return; }
+
+static inline void sip_fiq_debugger_enable_debug(bool enable) { return; }
+static inline int sip_fiq_debugger_uart_irq_tf_init(u32 irq_id,
+						    void *callback_fn)
+{
+	return 0;
+}
+
+static inline int sip_fiq_debugger_set_print_port(u32 port_phyaddr,
+						  u32 baudrate)
+{
+	return 0;
+}
+
+static inline int sip_fiq_debugger_request_share_memory(void) { return 0; }
+static inline int sip_fiq_debugger_get_target_cpu(void) { return 0; }
+static inline int sip_fiq_debugger_switch_cpu(u32 cpu) { return 0; }
+static inline int sip_fiq_debugger_is_enabled(void) { return 0; }
+#endif
 
 /* optee cpu_context */
 struct sm_nsec_ctx {
