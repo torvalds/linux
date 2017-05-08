@@ -1540,14 +1540,19 @@ void vgic_enable_lpis(struct kvm_vcpu *vcpu)
 		its_sync_lpi_pending_table(vcpu);
 }
 
-static int vgic_register_its_iodev(struct kvm *kvm, struct vgic_its *its)
+static int vgic_register_its_iodev(struct kvm *kvm, struct vgic_its *its,
+				   u64 addr)
 {
 	struct vgic_io_device *iodev = &its->iodev;
 	int ret;
 
-	if (IS_VGIC_ADDR_UNDEF(its->vgic_its_base))
-		return -ENXIO;
+	mutex_lock(&kvm->slots_lock);
+	if (!IS_VGIC_ADDR_UNDEF(its->vgic_its_base)) {
+		ret = -EBUSY;
+		goto out;
+	}
 
+	its->vgic_its_base = addr;
 	iodev->regions = its_registers;
 	iodev->nr_regions = ARRAY_SIZE(its_registers);
 	kvm_iodevice_init(&iodev->dev, &kvm_io_gic_ops);
@@ -1555,9 +1560,9 @@ static int vgic_register_its_iodev(struct kvm *kvm, struct vgic_its *its)
 	iodev->base_addr = its->vgic_its_base;
 	iodev->iodev_type = IODEV_ITS;
 	iodev->its = its;
-	mutex_lock(&kvm->slots_lock);
 	ret = kvm_io_bus_register_dev(kvm, KVM_MMIO_BUS, iodev->base_addr,
 				      KVM_VGIC_V3_ITS_SIZE, &iodev->dev);
+out:
 	mutex_unlock(&kvm->slots_lock);
 
 	return ret;
@@ -2384,9 +2389,7 @@ static int vgic_its_set_attr(struct kvm_device *dev,
 		if (ret)
 			return ret;
 
-		its->vgic_its_base = addr;
-
-		return 0;
+		return vgic_register_its_iodev(dev->kvm, its, addr);
 	}
 	case KVM_DEV_ARM_VGIC_GRP_CTRL: {
 		const struct vgic_its_abi *abi = vgic_its_get_abi(its);
@@ -2461,31 +2464,4 @@ int kvm_vgic_register_its_device(void)
 {
 	return kvm_register_device_ops(&kvm_arm_vgic_its_ops,
 				       KVM_DEV_TYPE_ARM_VGIC_ITS);
-}
-
-/*
- * Registers all ITSes with the kvm_io_bus framework.
- * To follow the existing VGIC initialization sequence, this has to be
- * done as late as possible, just before the first VCPU runs.
- */
-int vgic_register_its_iodevs(struct kvm *kvm)
-{
-	struct kvm_device *dev;
-	int ret = 0;
-
-	list_for_each_entry(dev, &kvm->devices, vm_node) {
-		if (dev->ops != &kvm_arm_vgic_its_ops)
-			continue;
-
-		ret = vgic_register_its_iodev(kvm, dev->private);
-		if (ret)
-			return ret;
-		/*
-		 * We don't need to care about tearing down previously
-		 * registered ITSes, as the kvm_io_bus framework removes
-		 * them for us if the VM gets destroyed.
-		 */
-	}
-
-	return ret;
 }
