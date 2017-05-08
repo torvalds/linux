@@ -927,6 +927,7 @@ int dax_pfn_mkwrite(struct vm_fault *vmf)
 {
 	struct file *file = vmf->vma->vm_file;
 	struct address_space *mapping = file->f_mapping;
+	struct inode *inode = mapping->host;
 	void *entry, **slot;
 	pgoff_t index = vmf->pgoff;
 
@@ -936,6 +937,7 @@ int dax_pfn_mkwrite(struct vm_fault *vmf)
 		if (entry)
 			put_unlocked_mapping_entry(mapping, index, entry);
 		spin_unlock_irq(&mapping->tree_lock);
+		trace_dax_pfn_mkwrite_no_entry(inode, vmf, VM_FAULT_NOPAGE);
 		return VM_FAULT_NOPAGE;
 	}
 	radix_tree_tag_set(&mapping->page_tree, index, PAGECACHE_TAG_DIRTY);
@@ -948,6 +950,7 @@ int dax_pfn_mkwrite(struct vm_fault *vmf)
 	 */
 	finish_mkwrite_fault(vmf);
 	put_locked_mapping_entry(mapping, index, entry);
+	trace_dax_pfn_mkwrite(inode, vmf, VM_FAULT_NOPAGE);
 	return VM_FAULT_NOPAGE;
 }
 EXPORT_SYMBOL_GPL(dax_pfn_mkwrite);
