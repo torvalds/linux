@@ -1236,7 +1236,7 @@ void blk_mq_stop_hw_queue(struct blk_mq_hw_ctx *hctx)
 }
 EXPORT_SYMBOL(blk_mq_stop_hw_queue);
 
-void __blk_mq_stop_hw_queues(struct request_queue *q, bool sync)
+static void __blk_mq_stop_hw_queues(struct request_queue *q, bool sync)
 {
 	struct blk_mq_hw_ctx *hctx;
 	int i;
