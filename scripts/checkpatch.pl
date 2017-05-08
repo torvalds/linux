@@ -55,6 +55,7 @@ my $spelling_file = "$D/spelling.txt";
 my $codespell = 0;
 my $codespellfile = "/usr/share/codespell/dictionary.txt";
 my $conststructsfile = "$D/const_structs.checkpatch";
+my $typedefsfile = "";
 my $color = 1;
 my $allow_c99_comments = 1;
 
@@ -113,6 +114,7 @@ Options:
   --codespell                Use the codespell dictionary for spelling/typos
                              (default:/usr/share/codespell/dictionary.txt)
   --codespellfile            Use this codespell dictionary
+  --typedefsfile             Read additional types from this file
   --color                    Use colors when output is STDOUT (default: on)
   -h, --help, --version      display this help and exit
 
@@ -208,6 +210,7 @@ GetOptions(
 	'test-only=s'	=> \$tst_only,
 	'codespell!'	=> \$codespell,
 	'codespellfile=s'	=> \$codespellfile,
+	'typedefsfile=s'	=> \$typedefsfile,
 	'color!'	=> \$color,
 	'h|help'	=> \$help,
 	'version'	=> \$help
@@ -629,28 +632,43 @@ if ($codespell) {
 
 $misspellings = join("|", sort keys %spelling_fix) if keys %spelling_fix;
 
-my $const_structs = "";
-if (open(my $conststructs, '<', $conststructsfile)) {
-	while (<$conststructs>) {
-		my $line = $_;
+sub read_words {
+	my ($wordsRef, $file) = @_;
 
-		$line =~ s/\s*\n?$//g;
-		$line =~ s/^\s*//g;
+	if (open(my $words, '<', $file)) {
+		while (<$words>) {
+			my $line = $_;
 
-		next if ($line =~ m/^\s*#/);
-		next if ($line =~ m/^\s*$/);
-		if ($line =~ /\s/) {
-			print("$conststructsfile: '$line' invalid - ignored\n");
-			next;
+			$line =~ s/\s*\n?$//g;
+			$line =~ s/^\s*//g;
+
+			next if ($line =~ m/^\s*#/);
+			next if ($line =~ m/^\s*$/);
+			if ($line =~ /\s/) {
+				print("$file: '$line' invalid - ignored\n");
+				next;
+			}
+
+			$$wordsRef .= '|' if ($$wordsRef ne "");
+			$$wordsRef .= $line;
 		}
-
-		$const_structs .= '|' if ($const_structs ne "");
-		$const_structs .= $line;
+		close($file);
+		return 1;
 	}
-	close($conststructsfile);
-} else {
-	warn "No structs that should be const will be found - file '$conststructsfile': $!\n";
+
+	return 0;
 }
+
+my $const_structs = "";
+read_words(\$const_structs, $conststructsfile)
+    or warn "No structs that should be const will be found - file '$conststructsfile': $!\n";
+
+my $typeOtherTypedefs = "";
+if (length($typedefsfile)) {
+	read_words(\$typeOtherTypedefs, $typedefsfile)
+	    or warn "No additional types will be considered - file '$typedefsfile': $!\n";
+}
+$typeTypedefs .= '|' . $typeOtherTypedefs if ($typeOtherTypedefs ne "");
 
 sub build_types {
 	my $mods = "(?x:  \n" . join("|\n  ", (@modifierList, @modifierListFile)) . "\n)";
