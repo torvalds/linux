@@ -101,6 +101,10 @@ static bool use_dma; /* default to 0 */
 module_param(use_dma, bool, 0644);
 MODULE_PARM_DESC(use_dma, "Using DMA engine to measure performance");
 
+static bool on_node = true; /* default to 1 */
+module_param(on_node, bool, 0644);
+MODULE_PARM_DESC(on_node, "Run threads only on NTB device node (default: true)");
+
 struct perf_mw {
 	phys_addr_t	phys_addr;
 	resource_size_t	phys_size;
@@ -345,6 +349,10 @@ static int perf_move_data(struct pthr_ctx *pctx, char __iomem *dst, char *src,
 
 static bool perf_dma_filter_fn(struct dma_chan *chan, void *node)
 {
+	/* Is the channel required to be on the same node as the device? */
+	if (!on_node)
+		return true;
+
 	return dev_to_node(&chan->dev->device) == (int)(unsigned long)node;
 }
 
@@ -362,7 +370,7 @@ static int ntb_perf_thread(void *data)
 
 	pr_debug("kthread %s starting...\n", current->comm);
 
-	node = dev_to_node(&pdev->dev);
+	node = on_node ? dev_to_node(&pdev->dev) : NUMA_NO_NODE;
 
 	if (use_dma && !pctx->dma_chan) {
 		dma_cap_mask_t dma_mask;
@@ -682,7 +690,8 @@ static ssize_t debugfs_run_write(struct file *filp, const char __user *ubuf,
 		pr_info("Fix run_order to %u\n", run_order);
 	}
 
-	node = dev_to_node(&perf->ntb->pdev->dev);
+	node = on_node ? dev_to_node(&perf->ntb->pdev->dev)
+		       : NUMA_NO_NODE;
 	atomic_set(&perf->tdone, 0);
 
 	/* launch kernel thread */
@@ -779,8 +788,7 @@ static int perf_probe(struct ntb_client *client, struct ntb_dev *ntb)
 	if (ntb_peer_port_count(ntb) != NTB_DEF_PEER_CNT)
 		dev_warn(&ntb->dev, "Multi-port NTB devices unsupported\n");
 
-	node = dev_to_node(&pdev->dev);
-
+	node = on_node ? dev_to_node(&pdev->dev) : NUMA_NO_NODE;
 	perf = kzalloc_node(sizeof(*perf), GFP_KERNEL, node);
 	if (!perf) {
 		rc = -ENOMEM;
