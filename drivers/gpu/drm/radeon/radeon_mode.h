@@ -691,6 +691,9 @@ struct atom_voltage_table
 };
 
 /* Driver internal use only flags of radeon_get_crtc_scanoutpos() */
+#define DRM_SCANOUTPOS_VALID        (1 << 0)
+#define DRM_SCANOUTPOS_IN_VBLANK    (1 << 1)
+#define DRM_SCANOUTPOS_ACCURATE     (1 << 2)
 #define USE_REAL_VBLANKSTART 		(1 << 30)
 #define GET_DISTANCE_TO_VBLANKSTART	(1 << 31)
 

@@ -265,16 +265,8 @@ struct drm_driver {
 	 *
 	 * Returns:
 	 *
-	 * Flags, or'ed together as follows:
-	 *
-	 * DRM_SCANOUTPOS_VALID:
-	 *     Query successful.
-	 * DRM_SCANOUTPOS_INVBL:
-	 *     Inside vblank.
-	 * DRM_SCANOUTPOS_ACCURATE: Returned position is accurate. A lack of
-	 *     this flag means that returned position may be offset by a
-	 *     constant but unknown small number of scanlines wrt. real scanout
-	 *     position.
+	 * True on success, false if a reliable scanout position counter could
+	 * not be read out.
 	 *
 	 * FIXME:
 	 *
@@ -282,10 +274,10 @@ struct drm_driver {
 	 * move it to &struct drm_crtc_helper_funcs, like all the other
 	 * helper-internal hooks.
 	 */
-	int (*get_scanout_position) (struct drm_device *dev, unsigned int pipe,
-				     unsigned int flags, int *vpos, int *hpos,
-				     ktime_t *stime, ktime_t *etime,
-				     const struct drm_display_mode *mode);
+	bool (*get_scanout_position) (struct drm_device *dev, unsigned int pipe,
+				      bool in_vblank_irq, int *vpos, int *hpos,
+				      ktime_t *stime, ktime_t *etime,
+				      const struct drm_display_mode *mode);
 
 	/**
 	 * @get_vblank_timestamp:

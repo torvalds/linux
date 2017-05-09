@@ -827,10 +827,10 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 	return (position + crtc->scanline_offset) % vtotal;
 }
 
-static int i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
-				    unsigned int flags, int *vpos, int *hpos,
-				    ktime_t *stime, ktime_t *etime,
-				    const struct drm_display_mode *mode)
+static bool i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
+				     bool in_vblank_irq, int *vpos, int *hpos,
+				     ktime_t *stime, ktime_t *etime,
+				     const struct drm_display_mode *mode)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = intel_get_crtc_for_pipe(dev_priv,
@@ -838,13 +838,12 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 	int position;
 	int vbl_start, vbl_end, hsync_start, htotal, vtotal;
 	bool in_vbl = true;
-	int ret = 0;
 	unsigned long irqflags;
 
 	if (WARN_ON(!mode->crtc_clock)) {
 		DRM_DEBUG_DRIVER("trying to get scanoutpos for disabled "
 				 "pipe %c\n", pipe_name(pipe));
-		return 0;
+		return false;
 	}
 
 	htotal = mode->crtc_htotal;
@@ -858,8 +857,6 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 		vbl_end /= 2;
 		vtotal /= 2;
 	}
-
-	ret |= DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_ACCURATE;
 
 	/*
 	 * Lock uncore.lock, as we will do multiple timing critical raw
@@ -944,11 +941,7 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 		*hpos = position - (*vpos * htotal);
 	}
 
-	/* In vblank? */
-	if (in_vbl)
-		ret |= DRM_SCANOUTPOS_IN_VBLANK;
-
-	return ret;
+	return true;
 }
 
 int intel_get_crtc_scanline(struct intel_crtc *crtc)
@@ -962,37 +955,6 @@ int intel_get_crtc_scanline(struct intel_crtc *crtc)
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 
 	return position;
-}
-
-static bool i915_get_vblank_timestamp(struct drm_device *dev, unsigned int pipe,
-			      int *max_error,
-			      struct timeval *vblank_time,
-			      bool in_vblank_irq)
-{
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *crtc;
-
-	if (pipe >= INTEL_INFO(dev_priv)->num_pipes) {
-		DRM_ERROR("Invalid crtc %u\n", pipe);
-		return false;
-	}
-
-	/* Get drm_crtc to timestamp: */
-	crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
-	if (crtc == NULL) {
-		DRM_ERROR("Invalid crtc %u\n", pipe);
-		return false;
-	}
-
-	if (!crtc->base.hwmode.crtc_clock) {
-		DRM_DEBUG_KMS("crtc %u is disabled\n", pipe);
-		return false;
-	}
-
-	/* Helper routine in DRM core does all the work: */
-	return drm_calc_vbltimestamp_from_scanoutpos(dev, pipe, max_error,
-						     vblank_time, in_vblank_irq,
-						     &crtc->base.hwmode);
 }
 
 static void ironlake_rps_change_irq_handler(struct drm_i915_private *dev_priv)
@@ -4294,7 +4256,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 
 	dev_priv->hotplug.hpd_storm_threshold = HPD_STORM_DEFAULT_THRESHOLD;
 
-	dev->driver->get_vblank_timestamp = i915_get_vblank_timestamp;
+	dev->driver->get_vblank_timestamp = drm_calc_vbltimestamp_from_scanoutpos;
 	dev->driver->get_scanout_position = i915_get_crtc_scanoutpos;
 
 	if (IS_CHERRYVIEW(dev_priv)) {

@@ -684,6 +684,7 @@ void drm_calc_timestamping_constants(struct drm_crtc *crtc,
 
 	vblank->linedur_ns  = linedur_ns;
 	vblank->framedur_ns = framedur_ns;
+	vblank->hwmode = *mode;
 
 	DRM_DEBUG("crtc %u: hwmode: htotal %d, vtotal %d, vdisplay %d\n",
 		  crtc->base.id, mode->crtc_htotal,
@@ -704,7 +705,6 @@ EXPORT_SYMBOL(drm_calc_timestamping_constants);
  *     True when called from drm_crtc_handle_vblank().  Some drivers
  *     need to apply some workarounds for gpu-specific vblank irq quirks
  *     if flag is set.
- * @mode: mode which defines the scanout timings
  *
  * Implements calculation of exact vblank timestamps from given drm_display_mode
  * timings and current video scanout position of a CRTC. This can be called from
@@ -724,6 +724,13 @@ EXPORT_SYMBOL(drm_calc_timestamping_constants);
  * returns as no operation if a doublescan or interlaced video mode is
  * active. Higher level code is expected to handle this.
  *
+ * This function can be used to implement the &drm_driver.get_vblank_timestamp
+ * directly, if the driver implements the &drm_driver.get_scanout_position hook.
+ *
+ * Note that atomic drivers must call drm_calc_timestamping_constants() before
+ * enabling a CRTC. The atomic helpers already take care of that in
+ * drm_atomic_helper_update_legacy_modeset_state().
+ *
  * Returns:
  *
  * Returns true on success, and false on failure, i.e. when no accurate
@@ -733,17 +740,23 @@ bool drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 					   unsigned int pipe,
 					   int *max_error,
 					   struct timeval *vblank_time,
-					   bool in_vblank_irq,
-					   const struct drm_display_mode *mode)
+					   bool in_vblank_irq)
 {
 	struct timeval tv_etime;
 	ktime_t stime, etime;
-	unsigned int vbl_status;
+	bool vbl_status;
+	struct drm_crtc *crtc;
+	const struct drm_display_mode *mode;
+	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 	int vpos, hpos, i;
 	int delta_ns, duration_ns;
-	unsigned flags = in_vblank_irq ? DRM_CALLED_FROM_VBLIRQ : 0;
 
-	if (pipe >= dev->num_crtcs) {
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return false;
+
+	crtc = drm_crtc_from_index(dev, pipe);
+
+	if (pipe >= dev->num_crtcs || !crtc) {
 		DRM_ERROR("Invalid crtc %u\n", pipe);
 		return false;
 	}
@@ -753,6 +766,11 @@ bool drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 		DRM_ERROR("Called from driver w/o get_scanout_position()!?\n");
 		return false;
 	}
+
+	if (drm_drv_uses_atomic_modeset(dev))
+		mode = &vblank->hwmode;
+	else
+		mode = &crtc->hwmode;
 
 	/* If mode timing undefined, just return as no-op:
 	 * Happens during initial modesetting of a crtc.
@@ -774,15 +792,16 @@ bool drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 		 * Get vertical and horizontal scanout position vpos, hpos,
 		 * and bounding timestamps stime, etime, pre/post query.
 		 */
-		vbl_status = dev->driver->get_scanout_position(dev, pipe, flags,
+		vbl_status = dev->driver->get_scanout_position(dev, pipe,
+							       in_vblank_irq,
 							       &vpos, &hpos,
 							       &stime, &etime,
 							       mode);
 
 		/* Return as no-op if scanout query unsupported or failed. */
-		if (!(vbl_status & DRM_SCANOUTPOS_VALID)) {
-			DRM_DEBUG("crtc %u : scanoutpos query failed [0x%x].\n",
-				  pipe, vbl_status);
+		if (!vbl_status) {
+			DRM_DEBUG("crtc %u : scanoutpos query failed.\n",
+				  pipe);
 			return false;
 		}
 
@@ -821,8 +840,8 @@ bool drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 	etime = ktime_sub_ns(etime, delta_ns);
 	*vblank_time = ktime_to_timeval(etime);
 
-	DRM_DEBUG_VBL("crtc %u : v 0x%x p(%d,%d)@ %ld.%ld -> %ld.%ld [e %d us, %d rep]\n",
-		      pipe, vbl_status, hpos, vpos,
+	DRM_DEBUG_VBL("crtc %u : v p(%d,%d)@ %ld.%ld -> %ld.%ld [e %d us, %d rep]\n",
+		      pipe, hpos, vpos,
 		      (long)tv_etime.tv_sec, (long)tv_etime.tv_usec,
 		      (long)vblank_time->tv_sec, (long)vblank_time->tv_usec,
 		      duration_ns/1000, i);
