@@ -981,12 +981,9 @@ out:
 static ssize_t uevent_store(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
-	enum kobject_action action;
+	if (kobject_synth_uevent(&dev->kobj, buf, count))
+		dev_err(dev, "uevent: failed to send synthetic uevent\n");
 
-	if (kobject_action_type(buf, count, &action) == 0)
-		kobject_uevent(&dev->kobj, action);
-	else
-		dev_err(dev, "uevent: unknown action-string\n");
 	return count;
 }
 static DEVICE_ATTR_RW(uevent);

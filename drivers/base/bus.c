@@ -648,10 +648,7 @@ static void remove_probe_files(struct bus_type *bus)
 static ssize_t uevent_store(struct device_driver *drv, const char *buf,
 			    size_t count)
 {
-	enum kobject_action action;
-
-	if (kobject_action_type(buf, count, &action) == 0)
-		kobject_uevent(&drv->p->kobj, action);
+	kobject_synth_uevent(&drv->p->kobj, buf, count);
 	return count;
 }
 static DRIVER_ATTR_WO(uevent);
@@ -868,10 +865,7 @@ static void klist_devices_put(struct klist_node *n)
 static ssize_t bus_uevent_store(struct bus_type *bus,
 				const char *buf, size_t count)
 {
-	enum kobject_action action;
-
-	if (kobject_action_type(buf, count, &action) == 0)
-		kobject_uevent(&bus->p->subsys.kobj, action);
+	kobject_synth_uevent(&bus->p->subsys.kobj, buf, count);
 	return count;
 }
 static BUS_ATTR(uevent, S_IWUSR, NULL, bus_uevent_store);
