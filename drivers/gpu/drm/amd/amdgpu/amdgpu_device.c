@@ -55,6 +55,7 @@
 #include <linux/firmware.h>
 
 MODULE_FIRMWARE("amdgpu/vega10_gpu_info.bin");
+MODULE_FIRMWARE("amdgpu/raven_gpu_info.bin");
 
 static int amdgpu_debugfs_regs_init(struct amdgpu_device *adev);
 static void amdgpu_debugfs_regs_cleanup(struct amdgpu_device *adev);
@@ -1429,6 +1430,9 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 		return 0;
 	case CHIP_VEGA10:
 		chip_name = "vega10";
+		break;
+	case CHIP_RAVEN:
+		chip_name = "raven";
 		break;
 	}
 
