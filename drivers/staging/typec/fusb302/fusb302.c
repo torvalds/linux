@@ -1787,11 +1787,13 @@ static const struct of_device_id fusb302_dt_match[] = {
 	{.compatible = "fcs,fusb302"},
 	{},
 };
+MODULE_DEVICE_TABLE(of, fusb302_dt_match);
 
 static const struct i2c_device_id fusb302_i2c_device_id[] = {
 	{"typec_fusb302", 0},
 	{},
 };
+MODULE_DEVICE_TABLE(i2c, fusb302_i2c_device_id);
 
 static const struct dev_pm_ops fusb302_pm_ops = {
 	.suspend = fusb302_pm_suspend,
