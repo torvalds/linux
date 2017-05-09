@@ -92,4 +92,10 @@
 	__T;								\
 })
 
+#define __mask_next_bit(mask) ({					\
+	int __idx = ffs(mask) - 1;					\
+	mask &= ~BIT(__idx);						\
+	__idx;								\
+})
+
 #endif /* !__I915_UTILS_H */

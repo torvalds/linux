@@ -801,6 +801,18 @@ unclaimed_reg_debug(struct drm_i915_private *dev_priv,
 	__unclaimed_reg_debug(dev_priv, reg, read, before);
 }
 
+enum decoupled_power_domain {
+	GEN9_DECOUPLED_PD_BLITTER = 0,
+	GEN9_DECOUPLED_PD_RENDER,
+	GEN9_DECOUPLED_PD_MEDIA,
+	GEN9_DECOUPLED_PD_ALL
+};
+
+enum decoupled_ops {
+	GEN9_DECOUPLED_OP_WRITE = 0,
+	GEN9_DECOUPLED_OP_READ
+};
+
 static const enum decoupled_power_domain fw2dpd_domain[] = {
 	GEN9_DECOUPLED_PD_RENDER,
 	GEN9_DECOUPLED_PD_BLITTER,
