@@ -563,6 +563,23 @@ static const struct net_device_ops qede_netdev_ops = {
 #endif
 };
 
+static const struct net_device_ops qede_netdev_vf_ops = {
+	.ndo_open = qede_open,
+	.ndo_stop = qede_close,
+	.ndo_start_xmit = qede_start_xmit,
+	.ndo_set_rx_mode = qede_set_rx_mode,
+	.ndo_set_mac_address = qede_set_mac_addr,
+	.ndo_validate_addr = eth_validate_addr,
+	.ndo_change_mtu = qede_change_mtu,
+	.ndo_vlan_rx_add_vid = qede_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid = qede_vlan_rx_kill_vid,
+	.ndo_set_features = qede_set_features,
+	.ndo_get_stats64 = qede_get_stats64,
+	.ndo_udp_tunnel_add = qede_udp_tunnel_add,
+	.ndo_udp_tunnel_del = qede_udp_tunnel_del,
+	.ndo_features_check = qede_features_check,
+};
+
 /* -------------------------------------------------------------------------
  * START OF PROBE / REMOVE
  * -------------------------------------------------------------------------
@@ -622,7 +639,10 @@ static void qede_init_ndev(struct qede_dev *edev)
 
 	ndev->watchdog_timeo = TX_TIMEOUT;
 
-	ndev->netdev_ops = &qede_netdev_ops;
+	if (IS_VF(edev))
+		ndev->netdev_ops = &qede_netdev_vf_ops;
+	else
+		ndev->netdev_ops = &qede_netdev_ops;
 
 	qede_set_ethtool_ops(ndev);
 
@@ -1312,6 +1332,9 @@ static void qede_free_mem_fp(struct qede_dev *edev, struct qede_fastpath *fp)
 
 	if (fp->type & QEDE_FASTPATH_RX)
 		qede_free_mem_rxq(edev, fp->rxq);
+
+	if (fp->type & QEDE_FASTPATH_XDP)
+		qede_free_mem_txq(edev, fp->xdp_tx);
 
 	if (fp->type & QEDE_FASTPATH_TX)
 		qede_free_mem_txq(edev, fp->txq);
