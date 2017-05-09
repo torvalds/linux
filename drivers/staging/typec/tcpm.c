@@ -252,6 +252,8 @@ struct tcpm_port {
 	unsigned int nr_src_pdo;
 	u32 snk_pdo[PDO_MAX_OBJECTS];
 	unsigned int nr_snk_pdo;
+	u32 snk_vdo[VDO_MAX_OBJECTS];
+	unsigned int nr_snk_vdo;
 
 	unsigned int max_snk_mv;
 	unsigned int max_snk_ma;
@@ -998,6 +1000,7 @@ static int tcpm_pd_svdm(struct tcpm_port *port, const __le32 *payload, int cnt,
 	struct pd_mode_data *modep;
 	int rlen = 0;
 	u16 svid;
+	int i;
 
 	tcpm_log(port, "Rx VDM cmd 0x%x type %d cmd %d len %d",
 		 p0, cmd_type, cmd, cnt);
@@ -1008,6 +1011,14 @@ static int tcpm_pd_svdm(struct tcpm_port *port, const __le32 *payload, int cnt,
 	case CMDT_INIT:
 		switch (cmd) {
 		case CMD_DISCOVER_IDENT:
+			/* 6.4.4.3.1: Only respond as UFP (device) */
+			if (port->data_role == TYPEC_DEVICE &&
+			    port->nr_snk_vdo) {
+				for (i = 0; i <  port->nr_snk_vdo; i++)
+					response[i + 1]
+						= cpu_to_le32(port->snk_vdo[i]);
+				rlen = port->nr_snk_vdo + 1;
+			}
 			break;
 		case CMD_DISCOVER_SVID:
 			break;
@@ -3320,6 +3331,20 @@ static int tcpm_copy_pdos(u32 *dest_pdo, const u32 *src_pdo,
 	return nr_pdo;
 }
 
+static int tcpm_copy_vdos(u32 *dest_vdo, const u32 *src_vdo,
+			  unsigned int nr_vdo)
+{
+	unsigned int i;
+
+	if (nr_vdo > VDO_MAX_OBJECTS)
+		nr_vdo = VDO_MAX_OBJECTS;
+
+	for (i = 0; i < nr_vdo; i++)
+		dest_vdo[i] = src_vdo[i];
+
+	return nr_vdo;
+}
+
 void tcpm_update_source_capabilities(struct tcpm_port *port, const u32 *pdo,
 				     unsigned int nr_pdo)
 {
@@ -3410,6 +3435,8 @@ struct tcpm_port *tcpm_register_port(struct device *dev, struct tcpc_dev *tcpc)
 					  tcpc->config->nr_src_pdo);
 	port->nr_snk_pdo = tcpm_copy_pdos(port->snk_pdo, tcpc->config->snk_pdo,
 					  tcpc->config->nr_snk_pdo);
+	port->nr_snk_vdo = tcpm_copy_vdos(port->snk_vdo, tcpc->config->snk_vdo,
+					  tcpc->config->nr_snk_vdo);
 
 	port->max_snk_mv = tcpc->config->max_snk_mv;
 	port->max_snk_ma = tcpc->config->max_snk_ma;
