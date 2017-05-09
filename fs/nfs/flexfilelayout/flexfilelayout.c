@@ -2361,10 +2361,21 @@ ff_layout_prepare_layoutstats(struct nfs42_layoutstat_args *args)
 	return 0;
 }
 
+static int
+ff_layout_set_layoutdriver(struct nfs_server *server,
+		const struct nfs_fh *dummy)
+{
+#if IS_ENABLED(CONFIG_NFS_V4_2)
+	server->caps |= NFS_CAP_LAYOUTSTATS;
+#endif
+	return 0;
+}
+
 static struct pnfs_layoutdriver_type flexfilelayout_type = {
 	.id			= LAYOUT_FLEX_FILES,
 	.name			= "LAYOUT_FLEX_FILES",
 	.owner			= THIS_MODULE,
+	.set_layoutdriver	= ff_layout_set_layoutdriver,
 	.alloc_layout_hdr	= ff_layout_alloc_layout_hdr,
 	.free_layout_hdr	= ff_layout_free_layout_hdr,
 	.alloc_lseg		= ff_layout_alloc_lseg,
