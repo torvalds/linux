@@ -118,6 +118,10 @@
 	status = "okay";
 };
 
+&esdhc {
+	status = "okay";
+};
+
 &sata {
 	status = "okay";
 };
