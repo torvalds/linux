@@ -737,6 +737,10 @@ static int perf_debugfs_setup(struct perf_ctx *perf)
 	struct dentry *debugfs_node_dir;
 	struct dentry *debugfs_run;
 	struct dentry *debugfs_threads;
+	struct dentry *debugfs_seg_order;
+	struct dentry *debugfs_run_order;
+	struct dentry *debugfs_use_dma;
+	struct dentry *debugfs_on_node;
 
 	if (!debugfs_initialized())
 		return -ENODEV;
@@ -762,6 +766,30 @@ static int perf_debugfs_setup(struct perf_ctx *perf)
 					    debugfs_node_dir,
 					    &perf->perf_threads);
 	if (!debugfs_threads)
+		return -ENODEV;
+
+	debugfs_seg_order = debugfs_create_u32("seg_order", 0600,
+					       debugfs_node_dir,
+					       &seg_order);
+	if (!debugfs_seg_order)
+		return -ENODEV;
+
+	debugfs_run_order = debugfs_create_u32("run_order", 0600,
+					       debugfs_node_dir,
+					       &run_order);
+	if (!debugfs_run_order)
+		return -ENODEV;
+
+	debugfs_use_dma = debugfs_create_bool("use_dma", 0600,
+					       debugfs_node_dir,
+					       &use_dma);
+	if (!debugfs_use_dma)
+		return -ENODEV;
+
+	debugfs_on_node = debugfs_create_bool("on_node", 0600,
+					      debugfs_node_dir,
+					      &on_node);
+	if (!debugfs_on_node)
 		return -ENODEV;
 
 	return 0;
