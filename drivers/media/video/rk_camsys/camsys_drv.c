@@ -803,7 +803,12 @@ static int camsys_open(struct inode *inode, struct file *file)
 		}
 	}
 	spin_unlock(&camsys_devs.lock);
-
+	if (atomic_read(&camsys_dev->refcount) >= 1) {
+		camsys_err("%s has been opened!",
+			dev_name(camsys_dev->miscdev.this_device));
+		err = -EBUSY;
+		goto end;
+	}
 	INIT_LIST_HEAD(&camsys_dev->extdevs.active);
 
 	if (camsys_dev->mipiphy != NULL) {
@@ -822,6 +827,7 @@ static int camsys_open(struct inode *inode, struct file *file)
 		err = -ENODEV;
 		goto end;
 	} else {
+		atomic_inc(&camsys_dev->refcount);
 		camsys_trace(1,
 			"%s(%p) is opened!",
 			dev_name(camsys_dev->miscdev.this_device), camsys_dev);
@@ -847,7 +853,7 @@ static int camsys_release(struct inode *inode, struct file *file)
 			}
 		}
 	}
-
+	atomic_dec(&camsys_dev->refcount);
 	camsys_trace(1,
 		"%s(%p) is closed",
 		dev_name(camsys_dev->miscdev.this_device),

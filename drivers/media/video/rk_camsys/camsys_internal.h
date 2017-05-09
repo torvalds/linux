@@ -162,8 +162,10 @@
 *v0.0x21.0xe
 	1) correct mipiphy_hsfreqrange of 3368.
 	2) add csi-phy timing setting for 3368.
+*v0.0x21.0xf:
+	1) add reference count for marvin.
 */
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x21, 0xe)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x21, 0xf)
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"
 #define CAMSYS_PLATFORM_MARVIN_NAME             "Platform_MarvinDev"
@@ -323,7 +325,7 @@ typedef struct camsys_dev_s {
 	unsigned long         rk_grf_base;
 	unsigned long         rk_cru_base;
 	unsigned long         rk_isp_base;
-
+	atomic_t              refcount;
 	struct iommu_domain *domain;
 	camsys_dma_buf_t dma_buf[CAMSYS_DMA_BUF_MAX_NUM];
 	int dma_buf_cnt;
