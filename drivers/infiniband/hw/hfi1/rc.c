@@ -727,10 +727,9 @@ void hfi1_send_rc_ack(struct hfi1_ctxtdata *rcd, struct rvt_qp *qp,
 	struct ib_header hdr;
 	struct ib_other_headers *ohdr;
 	unsigned long flags;
-	struct hfi1_qp_priv *priv = qp->priv;
 
 	/* clear the defer count */
-	priv->r_adefered = 0;
+	qp->r_adefered = 0;
 
 	/* Don't send ACK or NAK if a RDMA read or atomic is pending. */
 	if (qp->s_flags & RVT_S_RESP_PENDING)
@@ -1604,9 +1603,7 @@ static inline void rc_defered_ack(struct hfi1_ctxtdata *rcd,
 
 static inline void rc_cancel_ack(struct rvt_qp *qp)
 {
-	struct hfi1_qp_priv *priv = qp->priv;
-
-	priv->r_adefered = 0;
+	qp->r_adefered = 0;
 	if (list_empty(&qp->rspwait))
 		return;
 	list_del_init(&qp->rspwait);
@@ -2314,13 +2311,11 @@ send_last:
 	qp->r_nak_state = 0;
 	/* Send an ACK if requested or required. */
 	if (psn & IB_BTH_REQ_ACK) {
-		struct hfi1_qp_priv *priv = qp->priv;
-
 		if (packet->numpkt == 0) {
 			rc_cancel_ack(qp);
 			goto send_ack;
 		}
-		if (priv->r_adefered >= HFI1_PSN_CREDIT) {
+		if (qp->r_adefered >= HFI1_PSN_CREDIT) {
 			rc_cancel_ack(qp);
 			goto send_ack;
 		}
@@ -2328,7 +2323,7 @@ send_last:
 			rc_cancel_ack(qp);
 			goto send_ack;
 		}
-		priv->r_adefered++;
+		qp->r_adefered++;
 		rc_defered_ack(rcd, qp);
 	}
 	return;

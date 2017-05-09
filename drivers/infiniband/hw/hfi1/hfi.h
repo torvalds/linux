@@ -196,12 +196,6 @@ struct hfi1_ctxtdata {
 	void *rcvhdrq;
 	/* kernel virtual address where hdrqtail is updated */
 	volatile __le64 *rcvhdrtail_kvaddr;
-	/*
-	 * Shared page for kernel to signal user processes that send buffers
-	 * need disarming.  The process should call HFI1_CMD_DISARM_BUFS
-	 * or HFI1_CMD_ACK_EVENT with IPATH_EVENT_DISARM_BUFS set.
-	 */
-	unsigned long *user_event_mask;
 	/* when waiting for rcv or pioavail */
 	wait_queue_head_t wait;
 	/* rcvhdrq size (for freeing) */
@@ -224,13 +218,12 @@ struct hfi1_ctxtdata {
 	 * (ignoring forks, dup, etc. for now)
 	 */
 	int cnt;
-	/*
-	 * how much space to leave at start of eager TID entries for
-	 * protocol use, on each TID
-	 */
-	/* instead of calculating it */
+	/* Device context index */
 	unsigned ctxt;
-	/* non-zero if ctxt is being shared. */
+	/*
+	 * non-zero if ctxt can be shared, and defines the maximum number of
+	 * sub-contexts for this device context.
+	 */
 	u16 subctxt_cnt;
 	/* non-zero if ctxt is being shared. */
 	u16 subctxt_id;
@@ -288,10 +281,10 @@ struct hfi1_ctxtdata {
 	void *subctxt_rcvegrbuf;
 	/* An array of pages for the eager header queue entries * N */
 	void *subctxt_rcvhdr_base;
+	/* Bitmask of in use context(s) */
+	DECLARE_BITMAP(in_use_ctxts, HFI1_MAX_SHARED_CTXTS);
 	/* The version of the library which opened this ctxt */
 	u32 userversion;
-	/* Bitmask of active slaves */
-	u32 active_slaves;
 	/* Type of packets or conditions we want to poll for */
 	u16 poll_type;
 	/* receive packet sequence counter */
@@ -1238,10 +1231,11 @@ struct mmu_rb_handler;
 
 /* Private data for file operations */
 struct hfi1_filedata {
+	struct hfi1_devdata *dd;
 	struct hfi1_ctxtdata *uctxt;
-	unsigned subctxt;
 	struct hfi1_user_sdma_comp_q *cq;
 	struct hfi1_user_sdma_pkt_q *pq;
+	u16 subctxt;
 	/* for cpu affinity; -1 if none */
 	int rec_cpu_num;
 	u32 tid_n_pinned;
@@ -1263,27 +1257,27 @@ struct hfi1_devdata *hfi1_lookup(int unit);
 extern u32 hfi1_cpulist_count;
 extern unsigned long *hfi1_cpulist;
 
-int hfi1_init(struct hfi1_devdata *, int);
-int hfi1_count_units(int *npresentp, int *nupp);
+int hfi1_init(struct hfi1_devdata *dd, int reinit);
 int hfi1_count_active_units(void);
 
-int hfi1_diag_add(struct hfi1_devdata *);
-void hfi1_diag_remove(struct hfi1_devdata *);
+int hfi1_diag_add(struct hfi1_devdata *dd);
+void hfi1_diag_remove(struct hfi1_devdata *dd);
 void handle_linkup_change(struct hfi1_devdata *dd, u32 linkup);
 
 void handle_user_interrupt(struct hfi1_ctxtdata *rcd);
 
-int hfi1_create_rcvhdrq(struct hfi1_devdata *, struct hfi1_ctxtdata *);
-int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *);
+int hfi1_create_rcvhdrq(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd);
+int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd);
 int hfi1_create_ctxts(struct hfi1_devdata *dd);
-struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *, u32, int);
-void hfi1_init_pportdata(struct pci_dev *, struct hfi1_pportdata *,
-			 struct hfi1_devdata *, u8, u8);
-void hfi1_free_ctxtdata(struct hfi1_devdata *, struct hfi1_ctxtdata *);
+struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u32 ctxt,
+					   int numa);
+void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
+			 struct hfi1_devdata *dd, u8 hw_pidx, u8 port);
+void hfi1_free_ctxtdata(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd);
 
-int handle_receive_interrupt(struct hfi1_ctxtdata *, int);
-int handle_receive_interrupt_nodma_rtail(struct hfi1_ctxtdata *, int);
-int handle_receive_interrupt_dma_rtail(struct hfi1_ctxtdata *, int);
+int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread);
+int handle_receive_interrupt_nodma_rtail(struct hfi1_ctxtdata *rcd, int thread);
+int handle_receive_interrupt_dma_rtail(struct hfi1_ctxtdata *rcd, int thread);
 void set_all_slowpath(struct hfi1_devdata *dd);
 void hfi1_vnic_synchronize_irq(struct hfi1_devdata *dd);
 void hfi1_set_vnic_msix_info(struct hfi1_ctxtdata *rcd);
@@ -1580,7 +1574,7 @@ bad:
 
 u32 lrh_max_header_bytes(struct hfi1_devdata *dd);
 int mtu_to_enum(u32 mtu, int default_if_bad);
-u16 enum_to_mtu(int);
+u16 enum_to_mtu(int mtu);
 static inline int valid_ib_mtu(unsigned int mtu)
 {
 	return mtu == 256 || mtu == 512 ||
@@ -1594,15 +1588,15 @@ static inline int valid_opa_max_mtu(unsigned int mtu)
 		(valid_ib_mtu(mtu) || mtu == 8192 || mtu == 10240);
 }
 
-int set_mtu(struct hfi1_pportdata *);
+int set_mtu(struct hfi1_pportdata *ppd);
 
-int hfi1_set_lid(struct hfi1_pportdata *, u32, u8);
-void hfi1_disable_after_error(struct hfi1_devdata *);
-int hfi1_set_uevent_bits(struct hfi1_pportdata *, const int);
-int hfi1_rcvbuf_validate(u32, u8, u16 *);
+int hfi1_set_lid(struct hfi1_pportdata *ppd, u32 lid, u8 lmc);
+void hfi1_disable_after_error(struct hfi1_devdata *dd);
+int hfi1_set_uevent_bits(struct hfi1_pportdata *ppd, const int evtbit);
+int hfi1_rcvbuf_validate(u32 size, u8 type, u16 *encode);
 
-int fm_get_table(struct hfi1_pportdata *, int, void *);
-int fm_set_table(struct hfi1_pportdata *, int, void *);
+int fm_get_table(struct hfi1_pportdata *ppd, int which, void *t);
+int fm_set_table(struct hfi1_pportdata *ppd, int which, void *t);
 
 void set_up_vl15(struct hfi1_devdata *dd, u8 vau, u16 vl15buf);
 void reset_link_credits(struct hfi1_devdata *dd);
@@ -1724,19 +1718,19 @@ struct cc_state *get_cc_state_protected(struct hfi1_pportdata *ppd)
 #define HFI1_PBC_LENGTH_MASK                     ((1 << 11) - 1)
 
 /* ctxt_flag bit offsets */
-		/* context has been setup */
-#define HFI1_CTXT_SETUP_DONE 1
+		/* base context has not finished initializing */
+#define HFI1_CTXT_BASE_UNINIT 1
+		/* base context initaliation failed */
+#define HFI1_CTXT_BASE_FAILED 2
 		/* waiting for a packet to arrive */
-#define HFI1_CTXT_WAITING_RCV   2
-		/* master has not finished initializing */
-#define HFI1_CTXT_MASTER_UNINIT 4
+#define HFI1_CTXT_WAITING_RCV 3
 		/* waiting for an urgent packet to arrive */
-#define HFI1_CTXT_WAITING_URG 5
+#define HFI1_CTXT_WAITING_URG 4
 
 /* free up any allocated data at closes */
-struct hfi1_devdata *hfi1_init_dd(struct pci_dev *,
-				  const struct pci_device_id *);
-void hfi1_free_devdata(struct hfi1_devdata *);
+struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
+				  const struct pci_device_id *ent);
+void hfi1_free_devdata(struct hfi1_devdata *dd);
 struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev, size_t extra);
 
 /* LED beaconing functions */
@@ -1811,23 +1805,24 @@ static inline u32 get_rcvhdrtail(const struct hfi1_ctxtdata *rcd)
 
 extern const char ib_hfi1_version[];
 
-int hfi1_device_create(struct hfi1_devdata *);
-void hfi1_device_remove(struct hfi1_devdata *);
+int hfi1_device_create(struct hfi1_devdata *dd);
+void hfi1_device_remove(struct hfi1_devdata *dd);
 
 int hfi1_create_port_files(struct ib_device *ibdev, u8 port_num,
 			   struct kobject *kobj);
-int hfi1_verbs_register_sysfs(struct hfi1_devdata *);
-void hfi1_verbs_unregister_sysfs(struct hfi1_devdata *);
+int hfi1_verbs_register_sysfs(struct hfi1_devdata *dd);
+void hfi1_verbs_unregister_sysfs(struct hfi1_devdata *dd);
 /* Hook for sysfs read of QSFP */
 int qsfp_dump(struct hfi1_pportdata *ppd, char *buf, int len);
 
-int hfi1_pcie_init(struct pci_dev *, const struct pci_device_id *);
-void hfi1_pcie_cleanup(struct pci_dev *);
-int hfi1_pcie_ddinit(struct hfi1_devdata *, struct pci_dev *);
+int hfi1_pcie_init(struct pci_dev *pdev, const struct pci_device_id *ent);
+void hfi1_pcie_cleanup(struct pci_dev *pdev);
+int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev);
 void hfi1_pcie_ddcleanup(struct hfi1_devdata *);
-int pcie_speeds(struct hfi1_devdata *);
-void request_msix(struct hfi1_devdata *, u32 *, struct hfi1_msix_entry *);
-void hfi1_enable_intx(struct pci_dev *);
+int pcie_speeds(struct hfi1_devdata *dd);
+void request_msix(struct hfi1_devdata *dd, u32 *nent,
+		  struct hfi1_msix_entry *entry);
+void hfi1_enable_intx(struct pci_dev *pdev);
 void restore_pci_variables(struct hfi1_devdata *dd);
 int do_pcie_gen3_transition(struct hfi1_devdata *dd);
 int parse_platform_config(struct hfi1_devdata *dd);

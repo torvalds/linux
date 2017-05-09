@@ -47,6 +47,7 @@
 
 #include <linux/pci.h>
 #include <linux/delay.h>
+#include <linux/bitmap.h>
 
 #include "hfi.h"
 #include "common.h"
@@ -189,7 +190,7 @@ void handle_user_interrupt(struct hfi1_ctxtdata *rcd)
 	unsigned long flags;
 
 	spin_lock_irqsave(&dd->uctxt_lock, flags);
-	if (!rcd->cnt)
+	if (bitmap_empty(rcd->in_use_ctxts, HFI1_MAX_SHARED_CTXTS))
 		goto done;
 
 	if (test_and_clear_bit(HFI1_CTXT_WAITING_RCV, &rcd->event_flags)) {

@@ -368,7 +368,7 @@ int rxe_mem_copy(struct rxe_mem *mem, u64 iova, void *addr, int length,
 			((void *)(uintptr_t)iova) : addr;
 
 		if (crcp)
-			crc = rxe_crc32(to_rdev(mem->pd->ibpd.device),
+			*crcp = rxe_crc32(to_rdev(mem->pd->ibpd.device),
 					*crcp, src, length);
 
 		memcpy(dest, src, length);

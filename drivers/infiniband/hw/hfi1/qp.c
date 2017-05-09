@@ -731,9 +731,7 @@ void quiesce_qp(struct rvt_qp *qp)
 
 void notify_qp_reset(struct rvt_qp *qp)
 {
-	struct hfi1_qp_priv *priv = qp->priv;
-
-	priv->r_adefered = 0;
+	qp->r_adefered = 0;
 	clear_ahg(qp);
 }
 
