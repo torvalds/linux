@@ -462,9 +462,9 @@ int amd_sched_job_init(struct amd_sched_job *job,
 	job->sched = sched;
 	job->s_entity = entity;
 	job->s_fence = amd_sched_fence_create(entity, owner);
-	job->id = atomic64_inc_return(&sched->job_id_count);
 	if (!job->s_fence)
 		return -ENOMEM;
+	job->id = atomic64_inc_return(&sched->job_id_count);
 
 	INIT_WORK(&job->finish_work, amd_sched_job_finish);
 	INIT_LIST_HEAD(&job->node);
