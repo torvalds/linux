@@ -3631,22 +3631,20 @@ ftrace_match_record(struct dyn_ftrace *rec, struct ftrace_glob *func_g,
 		/* blank module name to match all modules */
 		if (!mod_g->len) {
 			/* blank module globbing: modname xor exclude_mod */
-			if ((!exclude_mod) != (!modname))
+			if (!exclude_mod != !modname)
 				goto func_match;
 			return 0;
 		}
 
-		/* not matching the module */
-		if (!modname || !mod_matches) {
-			if (exclude_mod)
-				goto func_match;
-			else
-				return 0;
-		}
-
-		if (mod_matches && exclude_mod)
+		/*
+		 * exclude_mod is set to trace everything but the given
+		 * module. If it is set and the module matches, then
+		 * return 0. If it is not set, and the module doesn't match
+		 * also return 0. Otherwise, check the function to see if
+		 * that matches.
+		 */
+		if (!mod_matches == !exclude_mod)
 			return 0;
-
 func_match:
 		/* blank search means to match all funcs in the mod */
 		if (!func_g->len)
