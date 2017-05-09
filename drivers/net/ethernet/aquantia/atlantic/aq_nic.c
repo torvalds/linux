@@ -755,7 +755,7 @@ void aq_nic_get_stats(struct aq_nic_s *self, u64 *data)
 	count = 0U;
 
 	for (i = 0U, aq_vec = self->aq_vec[0];
-		self->aq_vecs > i; ++i, aq_vec = self->aq_vec[i]) {
+		aq_vec && self->aq_vecs > i; ++i, aq_vec = self->aq_vec[i]) {
 		data += count;
 		aq_vec_get_sw_stats(aq_vec, data, &count);
 	}
@@ -959,8 +959,10 @@ void aq_nic_free_hot_resources(struct aq_nic_s *self)
 		goto err_exit;
 
 	for (i = AQ_DIMOF(self->aq_vec); i--;) {
-		if (self->aq_vec[i])
+		if (self->aq_vec[i]) {
 			aq_vec_free(self->aq_vec[i]);
+			self->aq_vec[i] = NULL;
+		}
 	}
 
 err_exit:;

@@ -1666,7 +1666,7 @@ struct cfg80211_bss_select_adjust {
  * 	(others are filtered out).
  *	If ommited, all results are passed.
  * @n_match_sets: number of match sets
- * @results_wk: worker for processing results notification.
+ * @report_results: indicates that results were reported for this request
  * @wiphy: the wiphy this was for
  * @dev: the interface
  * @scan_start: start time of the scheduled scan

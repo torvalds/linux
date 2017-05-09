@@ -311,7 +311,7 @@ static inline int mlx4_grant_resource(struct mlx4_dev *dev, int slave,
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct resource_allocator *res_alloc =
 		&priv->mfunc.master.res_tracker.res_alloc[res_type];
-	int err = -EINVAL;
+	int err = -EDQUOT;
 	int allocated, free, reserved, guaranteed, from_free;
 	int from_rsvd;
 
