@@ -283,12 +283,13 @@ static int xt_obj_to_user(u16 __user *psize, u16 size,
 		       &U->u.user.revision, K->u.kernel.TYPE->revision)
 
 int xt_data_to_user(void __user *dst, const void *src,
-		    int usersize, int size)
+		    int usersize, int size, int aligned_size)
 {
 	usersize = usersize ? : size;
 	if (copy_to_user(dst, src, usersize))
 		return -EFAULT;
-	if (usersize != size && clear_user(dst + usersize, size - usersize))
+	if (usersize != aligned_size &&
+	    clear_user(dst + usersize, aligned_size - usersize))
 		return -EFAULT;
 
 	return 0;
@@ -298,7 +299,9 @@ EXPORT_SYMBOL_GPL(xt_data_to_user);
 #define XT_DATA_TO_USER(U, K, TYPE, C_SIZE)				\
 	xt_data_to_user(U->data, K->data,				\
 			K->u.kernel.TYPE->usersize,			\
-			C_SIZE ? : K->u.kernel.TYPE->TYPE##size)
+			C_SIZE ? : K->u.kernel.TYPE->TYPE##size,	\
+			C_SIZE ? COMPAT_XT_ALIGN(C_SIZE) :		\
+				 XT_ALIGN(K->u.kernel.TYPE->TYPE##size))
 
 int xt_match_to_user(const struct xt_entry_match *m,
 		     struct xt_entry_match __user *u)
