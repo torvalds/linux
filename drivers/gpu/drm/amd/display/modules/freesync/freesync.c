@@ -1130,6 +1130,7 @@ void mod_freesync_notify_mode_change(struct mod_freesync *mod_freesync,
 	unsigned int stream_index, map_index;
 	struct freesync_state *state;
 	struct core_freesync *core_freesync = NULL;
+	struct dc_static_screen_events triggers = {0};
 
 	if (mod_freesync == NULL)
 		return;
@@ -1157,6 +1158,7 @@ void mod_freesync_notify_mode_change(struct mod_freesync *mod_freesync,
 			/* Update the stream */
 			update_stream(core_freesync, streams[stream_index]);
 
+
 			/* Calculate vmin/vmax and refresh rate for
 			 * current mode
 			 */
@@ -1164,6 +1166,14 @@ void mod_freesync_notify_mode_change(struct mod_freesync *mod_freesync,
 				core_freesync->map[map_index].caps->
 				min_refresh_in_micro_hz,
 				state->nominal_refresh_rate_in_micro_hz);
+
+			/* Update mask */
+			triggers.overlay_update = true;
+			triggers.surface_update = true;
+
+			core_freesync->dc->stream_funcs.set_static_screen_events(
+				core_freesync->dc, streams, num_streams,
+				&triggers);
 		}
 	}
 
