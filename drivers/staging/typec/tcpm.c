@@ -1738,8 +1738,7 @@ static int tcpm_pd_build_request(struct tcpm_port *port, u32 *rdo)
 	}
 	ma = min(ma, port->max_snk_ma);
 
-	/* XXX: Any other flags need to be set? */
-	flags = 0;
+	flags = RDO_USB_COMM | RDO_NO_SUSPEND;
 
 	/* Set mismatch bit if offered power is less than operating power */
 	mw = ma * mv / 1000;
