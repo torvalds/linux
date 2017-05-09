@@ -133,8 +133,7 @@ struct cca_pvt_ext_CRT_sec {
  *
  * Returns the size of the key area or -EFAULT
  */
-static inline int zcrypt_type6_mex_key_de(struct ica_rsa_modexpo *mex,
-					  void *p, int big_endian)
+static inline int zcrypt_type6_mex_key_de(struct ica_rsa_modexpo *mex, void *p)
 {
 	static struct cca_token_hdr static_pvt_me_hdr = {
 		.token_identifier	=  0x1E,
@@ -162,13 +161,8 @@ static inline int zcrypt_type6_mex_key_de(struct ica_rsa_modexpo *mex,
 
 	memset(key, 0, sizeof(*key));
 
-	if (big_endian) {
-		key->t6_hdr.blen = cpu_to_be16(0x189);
-		key->t6_hdr.ulen = cpu_to_be16(0x189 - 2);
-	} else {
-		key->t6_hdr.blen = cpu_to_le16(0x189);
-		key->t6_hdr.ulen = cpu_to_le16(0x189 - 2);
-	}
+	key->t6_hdr.blen = 0x189;
+	key->t6_hdr.ulen = 0x189 - 2;
 	key->pvtMeHdr = static_pvt_me_hdr;
 	key->pvtMeSec = static_pvt_me_sec;
 	key->pubMeSec = static_pub_me_sec;
@@ -205,8 +199,7 @@ static inline int zcrypt_type6_mex_key_de(struct ica_rsa_modexpo *mex,
  *
  * Returns the size of the key area or -EFAULT
  */
-static inline int zcrypt_type6_mex_key_en(struct ica_rsa_modexpo *mex,
-					  void *p, int big_endian)
+static inline int zcrypt_type6_mex_key_en(struct ica_rsa_modexpo *mex, void *p)
 {
 	static struct cca_token_hdr static_pub_hdr = {
 		.token_identifier	=  0x1E,
@@ -251,13 +244,8 @@ static inline int zcrypt_type6_mex_key_en(struct ica_rsa_modexpo *mex,
 					2*mex->inputdatalength - i;
 	key->pubHdr.token_length =
 		key->pubSec.section_length + sizeof(key->pubHdr);
-	if (big_endian) {
-		key->t6_hdr.ulen = cpu_to_be16(key->pubHdr.token_length + 4);
-		key->t6_hdr.blen = cpu_to_be16(key->pubHdr.token_length + 6);
-	} else {
-		key->t6_hdr.ulen = cpu_to_le16(key->pubHdr.token_length + 4);
-		key->t6_hdr.blen = cpu_to_le16(key->pubHdr.token_length + 6);
-	}
+	key->t6_hdr.ulen = key->pubHdr.token_length + 4;
+	key->t6_hdr.blen = key->pubHdr.token_length + 6;
 	return sizeof(*key) + 2*mex->inputdatalength - i;
 }
 
@@ -271,8 +259,7 @@ static inline int zcrypt_type6_mex_key_en(struct ica_rsa_modexpo *mex,
  *
  * Returns the size of the key area or -EFAULT
  */
-static inline int zcrypt_type6_crt_key(struct ica_rsa_modexpo_crt *crt,
-				       void *p, int big_endian)
+static inline int zcrypt_type6_crt_key(struct ica_rsa_modexpo_crt *crt, void *p)
 {
 	static struct cca_public_sec static_cca_pub_sec = {
 		.section_identifier = 4,
@@ -298,13 +285,8 @@ static inline int zcrypt_type6_crt_key(struct ica_rsa_modexpo_crt *crt,
 	size = sizeof(*key) + key_len + sizeof(*pub) + 3;
 
 	/* parameter block.key block */
-	if (big_endian) {
-		key->t6_hdr.blen = cpu_to_be16(size);
-		key->t6_hdr.ulen = cpu_to_be16(size - 2);
-	} else {
-		key->t6_hdr.blen = cpu_to_le16(size);
-		key->t6_hdr.ulen = cpu_to_le16(size - 2);
-	}
+	key->t6_hdr.blen = size;
+	key->t6_hdr.ulen = size - 2;
 
 	/* key token header */
 	key->token.token_identifier = CCA_TKN_HDR_ID_EXT;
