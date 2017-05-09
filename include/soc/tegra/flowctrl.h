@@ -1,7 +1,5 @@
 /*
- * arch/arm/mach-tegra/flowctrl.h
- *
- * functions and macros to control the flowcontroller
+ * Functions and macros to control the flowcontroller
  *
  * Copyright (c) 2010-2012, NVIDIA Corporation. All rights reserved.
  *
@@ -18,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __MACH_TEGRA_FLOWCTRL_H
-#define __MACH_TEGRA_FLOWCTRL_H
+#ifndef __SOC_TEGRA_FLOWCTRL_H__
+#define __SOC_TEGRA_FLOWCTRL_H__
 
 #define FLOW_CTRL_HALT_CPU0_EVENTS	0x0
 #define FLOW_CTRL_WAITEVENT		(2 << 29)
@@ -53,14 +51,32 @@
 #define TEGRA30_FLOW_CTRL_CSR_WFI_BITMAP	(0xF << 8)
 
 #ifndef __ASSEMBLY__
+#ifdef CONFIG_SOC_TEGRA_FLOWCTRL
 u32 flowctrl_read_cpu_csr(unsigned int cpuid);
 void flowctrl_write_cpu_csr(unsigned int cpuid, u32 value);
 void flowctrl_write_cpu_halt(unsigned int cpuid, u32 value);
 
 void flowctrl_cpu_suspend_enter(unsigned int cpuid);
 void flowctrl_cpu_suspend_exit(unsigned int cpuid);
+#else
+static inline u32 flowctrl_read_cpu_csr(unsigned int cpuid)
+{
+	return 0;
+}
 
-void tegra_flowctrl_init(void);
-#endif
+static inline void flowctrl_write_cpu_csr(unsigned int cpuid, u32 value)
+{
+}
 
-#endif
+static inline void flowctrl_write_cpu_halt(unsigned int cpuid, u32 value) {}
+
+static inline void flowctrl_cpu_suspend_enter(unsigned int cpuid)
+{
+}
+
+static inline void flowctrl_cpu_suspend_exit(unsigned int cpuid)
+{
+}
+#endif /* CONFIG_SOC_TEGRA_FLOWCTRL */
+#endif /* __ASSEMBLY */
+#endif /* __SOC_TEGRA_FLOWCTRL_H__ */

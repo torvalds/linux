@@ -1,6 +1,4 @@
 /*
- *  arch/arm/include/asm/hardware/icst.h
- *
  *  Copyright (C) 2003 Deep Blue Solutions, Ltd, All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -11,8 +9,8 @@
  *  clock generators.  See http://www.idt.com/ for more information
  *  on these devices.
  */
-#ifndef ASMARM_HARDWARE_ICST_H
-#define ASMARM_HARDWARE_ICST_H
+#ifndef ICST_H
+#define ICST_H
 
 struct icst_params {
 	unsigned long	ref;
