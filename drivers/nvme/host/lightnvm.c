@@ -367,7 +367,8 @@ static int nvme_nvm_get_l2p_tbl(struct nvm_dev *nvmdev, u64 slba, u32 nlb,
 
 		if (unlikely(elba > nvmdev->total_secs)) {
 			pr_err("nvm: L2P data from device is out of bounds!\n");
-			return -EINVAL;
+			ret = -EINVAL;
+			goto out;
 		}
 
 		/* Transform physical address to target address space */
