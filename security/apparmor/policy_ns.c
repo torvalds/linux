@@ -99,6 +99,7 @@ static struct aa_ns *alloc_ns(const char *prefix, const char *name)
 		goto fail_ns;
 
 	INIT_LIST_HEAD(&ns->sub_ns);
+	INIT_LIST_HEAD(&ns->rawdata_list);
 	mutex_init(&ns->lock);
 
 	/* released by aa_free_ns() */

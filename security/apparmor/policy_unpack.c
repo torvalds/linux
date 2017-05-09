@@ -122,14 +122,71 @@ static int audit_iface(struct aa_profile *new, const char *ns_name,
 	return aa_audit(AUDIT_APPARMOR_STATUS, profile, &sa, audit_cb);
 }
 
+void __aa_loaddata_update(struct aa_loaddata *data, long revision)
+{
+	AA_BUG(!data);
+	AA_BUG(!data->ns);
+	AA_BUG(!data->dents[AAFS_LOADDATA_REVISION]);
+	AA_BUG(!mutex_is_locked(&data->ns->lock));
+	AA_BUG(data->revision > revision);
+
+	data->revision = revision;
+	d_inode(data->dents[AAFS_LOADDATA_DIR])->i_mtime =
+		current_time(d_inode(data->dents[AAFS_LOADDATA_DIR]));
+	d_inode(data->dents[AAFS_LOADDATA_REVISION])->i_mtime =
+		current_time(d_inode(data->dents[AAFS_LOADDATA_REVISION]));
+}
+
+bool aa_rawdata_eq(struct aa_loaddata *l, struct aa_loaddata *r)
+{
+	if (l->size != r->size)
+		return false;
+	if (aa_g_hash_policy && memcmp(l->hash, r->hash, aa_hash_size()) != 0)
+		return false;
+	return memcmp(l->data, r->data, r->size) == 0;
+}
+
+/*
+ * need to take the ns mutex lock which is NOT safe most places that
+ * put_loaddata is called, so we have to delay freeing it
+ */
+static void do_loaddata_free(struct work_struct *work)
+{
+	struct aa_loaddata *d = container_of(work, struct aa_loaddata, work);
+	struct aa_ns *ns = aa_get_ns(d->ns);
+
+	if (ns) {
+		mutex_lock(&ns->lock);
+		__aa_fs_remove_rawdata(d);
+		mutex_unlock(&ns->lock);
+		aa_put_ns(ns);
+	}
+
+	kzfree(d->hash);
+	kfree(d->name);
+	kvfree(d);
+}
+
 void aa_loaddata_kref(struct kref *kref)
 {
 	struct aa_loaddata *d = container_of(kref, struct aa_loaddata, count);
 
 	if (d) {
-		kzfree(d->hash);
-		kvfree(d);
+		INIT_WORK(&d->work, do_loaddata_free);
+		schedule_work(&d->work);
 	}
+}
+
+struct aa_loaddata *aa_loaddata_alloc(size_t size)
+{
+	struct aa_loaddata *d = kvzalloc(sizeof(*d) + size, GFP_KERNEL);
+
+	if (d == NULL)
+		return ERR_PTR(-ENOMEM);
+	kref_init(&d->count);
+	INIT_LIST_HEAD(&d->list);
+
+	return d;
 }
 
 /* test if read will be in packed data bounds */

@@ -98,14 +98,11 @@ static struct aa_loaddata *aa_simple_write_to_buffer(const char __user *userbuf,
 		return ERR_PTR(-ESPIPE);
 
 	/* freed by caller to simple_write_to_buffer */
-	data = kvmalloc(sizeof(*data) + alloc_size, GFP_KERNEL);
-	if (data == NULL)
-		return ERR_PTR(-ENOMEM);
-	kref_init(&data->count);
-	data->size = copy_size;
-	data->hash = NULL;
-	data->abi = 0;
+	data = aa_loaddata_alloc(alloc_size);
+	if (IS_ERR(data))
+		return data;
 
+	data->size = copy_size;
 	if (copy_from_user(data->data, userbuf, copy_size)) {
 		kvfree(data);
 		return ERR_PTR(-EFAULT);
@@ -212,6 +209,11 @@ static const struct file_operations aa_fs_profile_remove = {
 	.write = profile_remove,
 	.llseek = default_llseek,
 };
+
+void __aa_bump_ns_revision(struct aa_ns *ns)
+{
+	ns->revision++;
+}
 
 /**
  * query_data - queries a policy and writes its data to buf
@@ -559,68 +561,88 @@ static const struct file_operations aa_fs_ns_name = {
 	.release	= single_release,
 };
 
-static int rawdata_release(struct inode *inode, struct file *file)
+
+/* policy/raw_data/ * file ops */
+
+#define SEQ_RAWDATA_FOPS(NAME)						      \
+static int seq_rawdata_ ##NAME ##_open(struct inode *inode, struct file *file)\
+{									      \
+	return seq_rawdata_open(inode, file, seq_rawdata_ ##NAME ##_show);    \
+}									      \
+									      \
+static const struct file_operations seq_rawdata_ ##NAME ##_fops = {	      \
+	.owner		= THIS_MODULE,					      \
+	.open		= seq_rawdata_ ##NAME ##_open,			      \
+	.read		= seq_read,					      \
+	.llseek		= seq_lseek,					      \
+	.release	= seq_rawdata_release,				      \
+}									      \
+
+static int seq_rawdata_open(struct inode *inode, struct file *file,
+			    int (*show)(struct seq_file *, void *))
 {
-	/* TODO: switch to loaddata when profile switched to symlink */
-	aa_put_loaddata(file->private_data);
+	struct aa_loaddata *data = __aa_get_loaddata(inode->i_private);
+	int error;
+
+	if (!data)
+		/* lost race this ent is being reaped */
+		return -ENOENT;
+
+	error = single_open(file, show, data);
+	if (error) {
+		AA_BUG(file->private_data &&
+		       ((struct seq_file *)file->private_data)->private);
+		aa_put_loaddata(data);
+	}
+
+	return error;
+}
+
+static int seq_rawdata_release(struct inode *inode, struct file *file)
+{
+	struct seq_file *seq = (struct seq_file *) file->private_data;
+
+	if (seq)
+		aa_put_loaddata(seq->private);
+
+	return single_release(inode, file);
+}
+
+static int seq_rawdata_abi_show(struct seq_file *seq, void *v)
+{
+	struct aa_loaddata *data = seq->private;
+
+	seq_printf(seq, "v%d\n", data->abi);
 
 	return 0;
 }
 
-static int aa_fs_seq_raw_abi_show(struct seq_file *seq, void *v)
+static int seq_rawdata_revision_show(struct seq_file *seq, void *v)
 {
-	struct aa_proxy *proxy = seq->private;
-	struct aa_profile *profile = aa_get_profile_rcu(&proxy->profile);
+	struct aa_loaddata *data = seq->private;
 
-	if (profile->rawdata->abi)
-		seq_printf(seq, "v%d\n", profile->rawdata->abi);
-
-	aa_put_profile(profile);
+	seq_printf(seq, "%ld\n", data->revision);
 
 	return 0;
 }
 
-static int aa_fs_seq_raw_abi_open(struct inode *inode, struct file *file)
+static int seq_rawdata_hash_show(struct seq_file *seq, void *v)
 {
-	return aa_fs_seq_profile_open(inode, file, aa_fs_seq_raw_abi_show);
-}
-
-static const struct file_operations aa_fs_seq_raw_abi_fops = {
-	.owner		= THIS_MODULE,
-	.open		= aa_fs_seq_raw_abi_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= aa_fs_seq_profile_release,
-};
-
-static int aa_fs_seq_raw_hash_show(struct seq_file *seq, void *v)
-{
-	struct aa_proxy *proxy = seq->private;
-	struct aa_profile *profile = aa_get_profile_rcu(&proxy->profile);
+	struct aa_loaddata *data = seq->private;
 	unsigned int i, size = aa_hash_size();
 
-	if (profile->rawdata->hash) {
+	if (data->hash) {
 		for (i = 0; i < size; i++)
-			seq_printf(seq, "%.2x", profile->rawdata->hash[i]);
+			seq_printf(seq, "%.2x", data->hash[i]);
 		seq_putc(seq, '\n');
 	}
-	aa_put_profile(profile);
 
 	return 0;
 }
 
-static int aa_fs_seq_raw_hash_open(struct inode *inode, struct file *file)
-{
-	return aa_fs_seq_profile_open(inode, file, aa_fs_seq_raw_hash_show);
-}
-
-static const struct file_operations aa_fs_seq_raw_hash_fops = {
-	.owner		= THIS_MODULE,
-	.open		= aa_fs_seq_raw_hash_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= aa_fs_seq_profile_release,
-};
+SEQ_RAWDATA_FOPS(abi);
+SEQ_RAWDATA_FOPS(revision);
+SEQ_RAWDATA_FOPS(hash);
 
 static ssize_t rawdata_read(struct file *file, char __user *buf, size_t size,
 			    loff_t *ppos)
@@ -631,26 +653,119 @@ static ssize_t rawdata_read(struct file *file, char __user *buf, size_t size,
 				       rawdata->size);
 }
 
-static int rawdata_open(struct inode *inode, struct file *file)
+static int rawdata_release(struct inode *inode, struct file *file)
 {
-	struct aa_proxy *proxy = inode->i_private;
-	struct aa_profile *profile;
-
-	if (!policy_view_capable(NULL))
-		return -EACCES;
-	profile = aa_get_profile_rcu(&proxy->profile);
-	file->private_data = aa_get_loaddata(profile->rawdata);
-	aa_put_profile(profile);
+	aa_put_loaddata(file->private_data);
 
 	return 0;
 }
 
-static const struct file_operations aa_fs_rawdata_fops = {
+static int rawdata_open(struct inode *inode, struct file *file)
+{
+	if (!policy_view_capable(NULL))
+		return -EACCES;
+	file->private_data = __aa_get_loaddata(inode->i_private);
+	if (!file->private_data)
+		/* lost race: this entry is being reaped */
+		return -ENOENT;
+
+	return 0;
+}
+
+static const struct file_operations rawdata_fops = {
 	.open = rawdata_open,
 	.read = rawdata_read,
 	.llseek = generic_file_llseek,
 	.release = rawdata_release,
 };
+
+static void remove_rawdata_dents(struct aa_loaddata *rawdata)
+{
+	int i;
+
+	for (i = 0; i < AAFS_LOADDATA_NDENTS; i++) {
+		if (!IS_ERR_OR_NULL(rawdata->dents[i])) {
+			/* no refcounts on i_private */
+			securityfs_remove(rawdata->dents[i]);
+			rawdata->dents[i] = NULL;
+		}
+	}
+}
+
+void __aa_fs_remove_rawdata(struct aa_loaddata *rawdata)
+{
+	AA_BUG(rawdata->ns && !mutex_is_locked(&rawdata->ns->lock));
+
+	if (rawdata->ns) {
+		remove_rawdata_dents(rawdata);
+		list_del_init(&rawdata->list);
+		aa_put_ns(rawdata->ns);
+		rawdata->ns = NULL;
+	}
+}
+
+int __aa_fs_create_rawdata(struct aa_ns *ns, struct aa_loaddata *rawdata)
+{
+	struct dentry *dent, *dir;
+
+	AA_BUG(!ns);
+	AA_BUG(!rawdata);
+	AA_BUG(!mutex_is_locked(&ns->lock));
+	AA_BUG(!ns_subdata_dir(ns));
+
+	/*
+	 * just use ns revision dir was originally created at. This is
+	 * under ns->lock and if load is successful revision will be
+	 * bumped and is guaranteed to be unique
+	 */
+	rawdata->name = kasprintf(GFP_KERNEL, "%ld", ns->revision);
+	if (!rawdata->name)
+		return -ENOMEM;
+
+	dir = securityfs_create_dir(rawdata->name, ns_subdata_dir(ns));
+	if (IS_ERR(dir))
+		/* ->name freed when rawdata freed */
+		return PTR_ERR(dir);
+	rawdata->dents[AAFS_LOADDATA_DIR] = dir;
+
+	dent = securityfs_create_file("abi", S_IFREG | 0444, dir, rawdata,
+				      &seq_rawdata_abi_fops);
+	if (IS_ERR(dent))
+		goto fail;
+	rawdata->dents[AAFS_LOADDATA_ABI] = dent;
+
+	dent = securityfs_create_file("revision", S_IFREG | 0444, dir, rawdata,
+				      &seq_rawdata_revision_fops);
+	if (IS_ERR(dent))
+		goto fail;
+	rawdata->dents[AAFS_LOADDATA_REVISION] = dent;
+
+	if (aa_g_hash_policy) {
+		dent = securityfs_create_file("sha1", S_IFREG | 0444, dir,
+					      rawdata, &seq_rawdata_hash_fops);
+		if (IS_ERR(dent))
+			goto fail;
+		rawdata->dents[AAFS_LOADDATA_HASH] = dent;
+	}
+
+	dent = securityfs_create_file("raw_data", S_IFREG | 0444,
+				      dir, rawdata, &rawdata_fops);
+	if (IS_ERR(dent))
+		goto fail;
+	rawdata->dents[AAFS_LOADDATA_DATA] = dent;
+	d_inode(dent)->i_size = rawdata->size;
+
+	rawdata->ns = aa_get_ns(ns);
+	list_add(&rawdata->list, &ns->rawdata_list);
+	/* no refcount on inode rawdata */
+
+	return 0;
+
+fail:
+	remove_rawdata_dents(rawdata);
+
+	return PTR_ERR(dent);
+}
 
 /** fns to setup dynamic per profile/namespace files **/
 void __aa_fs_profile_rmdir(struct aa_profile *profile)
@@ -703,7 +818,41 @@ static struct dentry *create_profile_file(struct dentry *dir, const char *name,
 	return dent;
 }
 
-/* requires lock be held */
+static int profile_depth(struct aa_profile *profile)
+{
+	int depth = 0;
+
+	rcu_read_lock();
+	for (depth = 0; profile; profile = rcu_access_pointer(profile->parent))
+		depth++;
+	rcu_read_unlock();
+
+	return depth;
+}
+
+static int gen_symlink_name(char *buffer, size_t bsize, int depth,
+			    const char *dirname, const char *fname)
+{
+	int error;
+
+	for (; depth > 0; depth--) {
+		if (bsize < 7)
+			return -ENAMETOOLONG;
+		strcpy(buffer, "../../");
+		buffer += 6;
+		bsize -= 6;
+	}
+
+	error = snprintf(buffer, bsize, "raw_data/%s/%s", dirname, fname);
+	if (error >= bsize || error < 0)
+		return -ENAMETOOLONG;
+
+	return 0;
+}
+
+/*
+ * Requires: @profile->ns->lock held
+ */
 int __aa_fs_profile_mkdir(struct aa_profile *profile, struct dentry *parent)
 {
 	struct aa_profile *child;
@@ -766,26 +915,35 @@ int __aa_fs_profile_mkdir(struct aa_profile *profile, struct dentry *parent)
 	}
 
 	if (profile->rawdata) {
-		dent = create_profile_file(dir, "raw_sha1", profile,
-					   &aa_fs_seq_raw_hash_fops);
+		char target[64];
+		int depth = profile_depth(profile);
+
+		error = gen_symlink_name(target, sizeof(target), depth,
+					 profile->rawdata->name, "sha1");
+		if (error < 0)
+			goto fail2;
+		dent = securityfs_create_symlink("raw_sha1", dir, target, NULL);
 		if (IS_ERR(dent))
 			goto fail;
 		profile->dents[AAFS_PROF_RAW_HASH] = dent;
 
-		dent = create_profile_file(dir, "raw_abi", profile,
-					   &aa_fs_seq_raw_abi_fops);
+		error = gen_symlink_name(target, sizeof(target), depth,
+					 profile->rawdata->name, "abi");
+		if (error < 0)
+			goto fail2;
+		dent = securityfs_create_symlink("raw_abi", dir, target, NULL);
 		if (IS_ERR(dent))
 			goto fail;
 		profile->dents[AAFS_PROF_RAW_ABI] = dent;
 
-		dent = securityfs_create_file("raw_data", S_IFREG | 0444, dir,
-					      profile->proxy,
-					      &aa_fs_rawdata_fops);
+		error = gen_symlink_name(target, sizeof(target), depth,
+					 profile->rawdata->name, "raw_data");
+		if (error < 0)
+			goto fail2;
+		dent = securityfs_create_symlink("raw_data", dir, target, NULL);
 		if (IS_ERR(dent))
 			goto fail;
 		profile->dents[AAFS_PROF_RAW_DATA] = dent;
-		d_inode(dent)->i_size = profile->rawdata->size;
-		aa_get_proxy(profile->proxy);
 	}
 
 	list_for_each_entry(child, &profile->base.profiles, base.list) {
@@ -805,6 +963,16 @@ fail2:
 	return error;
 }
 
+static void __aa_fs_list_remove_rawdata(struct aa_ns *ns)
+{
+	struct aa_loaddata *ent, *tmp;
+
+	AA_BUG(!mutex_is_locked(&ns->lock));
+
+	list_for_each_entry_safe(ent, tmp, &ns->rawdata_list, list)
+		__aa_fs_remove_rawdata(ent);
+}
+
 void __aa_fs_ns_rmdir(struct aa_ns *ns)
 {
 	struct aa_ns *sub;
@@ -822,6 +990,8 @@ void __aa_fs_ns_rmdir(struct aa_ns *ns)
 		__aa_fs_ns_rmdir(sub);
 		mutex_unlock(&sub->lock);
 	}
+
+	__aa_fs_list_remove_rawdata(ns);
 
 	if (ns_subns_dir(ns)) {
 		sub = d_inode(ns_subns_dir(ns))->i_private;

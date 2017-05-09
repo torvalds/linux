@@ -68,6 +68,9 @@ struct aa_ns {
 	atomic_t uniq_null;
 	long uniq_id;
 	int level;
+	long revision;
+
+	struct list_head rawdata_list;
 
 	struct dentry *dents[AAFS_NS_SIZEOF];
 };

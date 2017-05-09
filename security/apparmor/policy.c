@@ -840,10 +840,13 @@ ssize_t aa_replace_profiles(struct aa_ns *view, struct aa_profile *profile,
 	const char *ns_name, *info = NULL;
 	struct aa_ns *ns = NULL;
 	struct aa_load_ent *ent, *tmp;
+	struct aa_loaddata *rawdata_ent;
 	const char *op = OP_PROF_REPL;
 	ssize_t count, error;
+
 	LIST_HEAD(lh);
 
+	aa_get_loaddata(udata);
 	/* released below */
 	error = aa_unpack(udata, &lh, &ns_name);
 	if (error)
@@ -887,9 +890,24 @@ ssize_t aa_replace_profiles(struct aa_ns *view, struct aa_profile *profile,
 		ns = aa_get_ns(view);
 
 	mutex_lock(&ns->lock);
+	/* check for duplicate rawdata blobs: space and file dedup */
+	list_for_each_entry(rawdata_ent, &ns->rawdata_list, list) {
+		if (aa_rawdata_eq(rawdata_ent, udata)) {
+			struct aa_loaddata *tmp;
+
+			tmp = __aa_get_loaddata(rawdata_ent);
+			/* check we didn't fail the race */
+			if (tmp) {
+				aa_put_loaddata(udata);
+				udata = tmp;
+				break;
+			}
+		}
+	}
 	/* setup parent and ns info */
 	list_for_each_entry(ent, &lh, list) {
 		struct aa_policy *policy;
+
 		ent->new->rawdata = aa_get_loaddata(udata);
 		error = __lookup_replace(ns, ent->new->base.hname, noreplace,
 					 &ent->old, &info);
@@ -929,6 +947,14 @@ ssize_t aa_replace_profiles(struct aa_ns *view, struct aa_profile *profile,
 	}
 
 	/* create new fs entries for introspection if needed */
+	if (!udata->dents[AAFS_LOADDATA_DIR]) {
+		error = __aa_fs_create_rawdata(ns, udata);
+		if (error) {
+			info = "failed to create raw_data dir and files";
+			ent = NULL;
+			goto fail_lock;
+		}
+	}
 	list_for_each_entry(ent, &lh, list) {
 		if (ent->old) {
 			/* inherit old interface files */
@@ -955,10 +981,24 @@ ssize_t aa_replace_profiles(struct aa_ns *view, struct aa_profile *profile,
 	}
 
 	/* Done with checks that may fail - do actual replacement */
+	__aa_bump_ns_revision(ns);
+	__aa_loaddata_update(udata, ns->revision);
 	list_for_each_entry_safe(ent, tmp, &lh, list) {
 		list_del_init(&ent->list);
 		op = (!ent->old && !ent->rename) ? OP_PROF_LOAD : OP_PROF_REPL;
 
+		if (ent->old && ent->old->rawdata == ent->new->rawdata) {
+			/* dedup actual profile replacement */
+			audit_policy(profile, op, ns_name, ent->new->base.hname,
+				     "same as current profile, skipping",
+				     error);
+			goto skip;
+		}
+
+		/*
+		 * TODO: finer dedup based on profile range in data. Load set
+		 * can differ but profile may remain unchanged
+		 */
 		audit_policy(profile, op, NULL, ent->new->base.hname,
 			     NULL, error);
 
@@ -998,12 +1038,14 @@ ssize_t aa_replace_profiles(struct aa_ns *view, struct aa_profile *profile,
 					   aa_get_profile(ent->new));
 			__list_add_profile(&ns->base.profiles, ent->new);
 		}
+	skip:
 		aa_load_ent_free(ent);
 	}
 	mutex_unlock(&ns->lock);
 
 out:
 	aa_put_ns(ns);
+	aa_put_loaddata(udata);
 
 	if (error)
 		return error;
@@ -1013,7 +1055,7 @@ fail_lock:
 	mutex_unlock(&ns->lock);
 
 	/* audit cause of failure */
-	op = (!ent->old) ? OP_PROF_LOAD : OP_PROF_REPL;
+	op = (ent && !ent->old) ? OP_PROF_LOAD : OP_PROF_REPL;
 fail:
 	audit_policy(profile, op, ns_name, ent ? ent->new->base.hname : NULL,
 		     info, error);
@@ -1085,6 +1127,7 @@ ssize_t aa_remove_profiles(struct aa_ns *view, struct aa_profile *subj,
 		/* remove namespace - can only happen if fqname[0] == ':' */
 		mutex_lock(&ns->parent->lock);
 		__aa_remove_ns(ns);
+		__aa_bump_ns_revision(ns);
 		mutex_unlock(&ns->parent->lock);
 	} else {
 		/* remove profile */
@@ -1097,6 +1140,7 @@ ssize_t aa_remove_profiles(struct aa_ns *view, struct aa_profile *subj,
 		}
 		name = profile->base.hname;
 		__remove_profile(profile);
+		__aa_bump_ns_revision(ns);
 		mutex_unlock(&ns->lock);
 	}
 
