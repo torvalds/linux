@@ -186,25 +186,6 @@
 	};
 };
 
-&pinctrl {
-	clearfog_dsa0_clk_pins: clearfog-dsa0-clk-pins {
-		marvell,pins = "mpp46";
-		marvell,function = "ref";
-	};
-	clearfog_dsa0_pins: clearfog-dsa0-pins {
-		marvell,pins = "mpp23", "mpp41";
-		marvell,function = "gpio";
-	};
-	clearfog_spi1_cs_pins: spi1-cs-pins {
-		marvell,pins = "mpp55";
-		marvell,function = "spi1";
-	};
-	rear_button_pins: rear-button-pins {
-		marvell,pins = "mpp34";
-		marvell,function = "gpio";
-	};
-};
-
 &mdio {
 	status = "okay";
 
@@ -265,6 +246,25 @@
 				};
 			};
 		};
+	};
+};
+
+&pinctrl {
+	clearfog_dsa0_clk_pins: clearfog-dsa0-clk-pins {
+		marvell,pins = "mpp46";
+		marvell,function = "ref";
+	};
+	clearfog_dsa0_pins: clearfog-dsa0-pins {
+		marvell,pins = "mpp23", "mpp41";
+		marvell,function = "gpio";
+	};
+	clearfog_spi1_cs_pins: spi1-cs-pins {
+		marvell,pins = "mpp55";
+		marvell,function = "spi1";
+	};
+	rear_button_pins: rear-button-pins {
+		marvell,pins = "mpp34";
+		marvell,function = "gpio";
 	};
 };
 

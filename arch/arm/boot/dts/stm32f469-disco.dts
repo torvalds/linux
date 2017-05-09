@@ -68,6 +68,15 @@
 	soc {
 		dma-ranges = <0xc0000000 0x0 0x10000000>;
 	};
+
+	/* This turns on vbus for otg for host mode (dwc2) */
+	vcc5v_otg: vcc5v-otg-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpiob 2 0>;
+		regulator-name = "vcc5_host1";
+		regulator-always-on;
+	};
 };
 
 &rcc {
@@ -112,6 +121,13 @@
 
 &usart3 {
 	pinctrl-0 = <&usart3_pins_a>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&usbotg_fs {
+	dr_mode = "host";
+	pinctrl-0 = <&usbotg_fs_pins_a>;
 	pinctrl-names = "default";
 	status = "okay";
 };

@@ -14,7 +14,7 @@
 
 / {
 	cpus {
-		cpu@0 {
+		cpu: cpu@0 {
 			/* OMAP343x/OMAP35xx variants OPP1-5 */
 			operating-points = <
 				/* kHz    uV */
@@ -56,11 +56,15 @@
 			};
 		};
 
-		bandgap@48002524 {
+		bandgap: bandgap@48002524 {
 			reg = <0x48002524 0x4>;
 			compatible = "ti,omap34xx-bandgap";
 			#thermal-sensor-cells = <0>;
 		};
+	};
+
+	thermal_zones: thermal-zones {
+		#include "omap3-cpu-thermal.dtsi"
 	};
 };
 

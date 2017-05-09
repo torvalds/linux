@@ -93,6 +93,11 @@
 			reg = <0x43f00000 0x100000>;
 			ranges;
 
+			aips1: bridge@43f00000 {
+				compatible = "fsl,imx25-aips";
+				reg = <0x43f00000 0x4000>;
+			};
+
 			i2c1: i2c@43f80000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -342,6 +347,11 @@
 			reg = <0x53f00000 0x100000>;
 			ranges;
 
+			aips2: bridge@53f00000 {
+				compatible = "fsl,imx25-aips";
+				reg = <0x53f00000 0x4000>;
+			};
+
 			clks: ccm@53f80000 {
 				compatible = "fsl,imx25-ccm";
 				reg = <0x53f80000 0x4000>;
@@ -544,6 +554,8 @@
 				clock-names = "ipg", "ahb", "per";
 				fsl,usbmisc = <&usbmisc 0>;
 				fsl,usbphy = <&usbphy0>;
+				phy_type = "utmi";
+				dr_mode = "otg";
 				status = "disabled";
 			};
 

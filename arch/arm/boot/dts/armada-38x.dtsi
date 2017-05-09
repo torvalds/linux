@@ -82,7 +82,7 @@
 			reg = <MBUS_ID(0x01, 0x1d) 0 0x200000>;
 		};
 
-		devbus-bootcs {
+		devbus_bootcs: devbus-bootcs {
 			compatible = "marvell,mvebu-devbus";
 			reg = <MBUS_ID(0xf0, 0x01) 0x10400 0x8>;
 			ranges = <0 MBUS_ID(0x01, 0x2f) 0 0xffffffff>;
@@ -92,7 +92,7 @@
 			status = "disabled";
 		};
 
-		devbus-cs0 {
+		devbus_cs0: devbus-cs0 {
 			compatible = "marvell,mvebu-devbus";
 			reg = <MBUS_ID(0xf0, 0x01) 0x10408 0x8>;
 			ranges = <0 MBUS_ID(0x01, 0x3e) 0 0xffffffff>;
@@ -102,7 +102,7 @@
 			status = "disabled";
 		};
 
-		devbus-cs1 {
+		devbus_cs1: devbus-cs1 {
 			compatible = "marvell,mvebu-devbus";
 			reg = <MBUS_ID(0xf0, 0x01) 0x10410 0x8>;
 			ranges = <0 MBUS_ID(0x01, 0x3d) 0 0xffffffff>;
@@ -112,7 +112,7 @@
 			status = "disabled";
 		};
 
-		devbus-cs2 {
+		devbus_cs2: devbus-cs2 {
 			compatible = "marvell,mvebu-devbus";
 			reg = <MBUS_ID(0xf0, 0x01) 0x10418 0x8>;
 			ranges = <0 MBUS_ID(0x01, 0x3b) 0 0xffffffff>;
@@ -122,7 +122,7 @@
 			status = "disabled";
 		};
 
-		devbus-cs3 {
+		devbus_cs3: devbus-cs3 {
 			compatible = "marvell,mvebu-devbus";
 			reg = <MBUS_ID(0xf0, 0x01) 0x10420 0x8>;
 			ranges = <0 MBUS_ID(0x01, 0x37) 0 0xffffffff>;
@@ -339,7 +339,7 @@
 					     <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
-			system-controller@18200 {
+			systemc: system-controller@18200 {
 				compatible = "marvell,armada-380-system-controller",
 					     "marvell,armada-370-xp-system-controller";
 				reg = <0x18200 0x100>;
@@ -360,7 +360,8 @@
 
 			mbusc: mbus-controller@20000 {
 				compatible = "marvell,mbus-controller";
-				reg = <0x20000 0x100>, <0x20180 0x20>;
+				reg = <0x20000 0x100>, <0x20180 0x20>,
+				      <0x20250 0x8>;
 			};
 
 			mpic: interrupt-controller@20a00 {
@@ -373,7 +374,7 @@
 				interrupts = <GIC_PPI 15 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
-			timer@20300 {
+			timer: timer@20300 {
 				compatible = "marvell,armada-380-timer",
 					     "marvell,armada-xp-timer";
 				reg = <0x20300 0x30>, <0x21040 0x30>;
@@ -387,14 +388,14 @@
 				clock-names = "nbclk", "fixed";
 			};
 
-			watchdog@20300 {
+			watchdog: watchdog@20300 {
 				compatible = "marvell,armada-380-wdt";
 				reg = <0x20300 0x34>, <0x20704 0x4>, <0x18260 0x4>;
 				clocks = <&coreclk 2>, <&refclk>;
 				clock-names = "nbclk", "fixed";
 			};
 
-			cpurst@20800 {
+			cpurst: cpurst@20800 {
 				compatible = "marvell,armada-370-cpu-reset";
 				reg = <0x20800 0x10>;
 			};
@@ -404,12 +405,12 @@
 				reg = <0x20d20 0x6c>;
 			};
 
-			coherency-fabric@21010 {
+			coherencyfab: coherency-fabric@21010 {
 				compatible = "marvell,armada-380-coherency-fabric";
 				reg = <0x21010 0x1c>;
 			};
 
-			pmsu@22000 {
+			pmsu: pmsu@22000 {
 				compatible = "marvell,armada-380-pmsu";
 				reg = <0x22000 0x1000>;
 			};
@@ -451,7 +452,7 @@
 				status = "disabled";
 			};
 
-			usb@58000 {
+			usb0: usb@58000 {
 				compatible = "marvell,orion-ehci";
 				reg = <0x58000 0x500>;
 				interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
@@ -459,7 +460,7 @@
 				status = "disabled";
 			};
 
-			xor@60800 {
+			xor0: xor@60800 {
 				compatible = "marvell,armada-380-xor", "marvell,orion-xor";
 				reg = <0x60800 0x100
 				       0x60a00 0x100>;
@@ -479,7 +480,7 @@
 				};
 			};
 
-			xor@60900 {
+			xor1: xor@60900 {
 				compatible = "marvell,armada-380-xor", "marvell,orion-xor";
 				reg = <0x60900 0x100
 				       0x60b00 0x100>;
@@ -507,7 +508,7 @@
 				clocks = <&gateclk 4>;
 			};
 
-			crypto@90000 {
+			cesa: crypto@90000 {
 				compatible = "marvell,armada-38x-crypto";
 				reg = <0x90000 0x10000>;
 				reg-names = "regs";
@@ -522,14 +523,14 @@
 				marvell,crypto-sram-size = <0x800>;
 			};
 
-			rtc@a3800 {
+			rtc: rtc@a3800 {
 				compatible = "marvell,armada-380-rtc";
 				reg = <0xa3800 0x20>, <0x184a0 0x0c>;
 				reg-names = "rtc", "rtc-soc";
 				interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
-			sata@a8000 {
+			ahci0: sata@a8000 {
 				compatible = "marvell,armada-380-ahci";
 				reg = <0xa8000 0x2000>;
 				interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
@@ -545,7 +546,7 @@
 				status = "disabled";
 			};
 
-			sata@e0000 {
+			ahci1: sata@e0000 {
 				compatible = "marvell,armada-380-ahci";
 				reg = <0xe0000 0x2000>;
 				interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
@@ -561,13 +562,13 @@
 				clock-output-names = "nand";
 			};
 
-			thermal@e8078 {
+			thermal: thermal@e8078 {
 				compatible = "marvell,armada380-thermal";
 				reg = <0xe4078 0x4>, <0xe4074 0x4>;
 				status = "okay";
 			};
 
-			flash@d0000 {
+			nand: flash@d0000 {
 				compatible = "marvell,armada370-nand";
 				reg = <0xd0000 0x54>;
 				#address-cells = <1>;
@@ -577,7 +578,7 @@
 				status = "disabled";
 			};
 
-			sdhci@d8000 {
+			sdhci: sdhci@d8000 {
 				compatible = "marvell,armada-380-sdhci";
 				reg-names = "sdhci", "mbus", "conf-sdio3";
 				reg = <0xd8000 0x1000>,
@@ -589,7 +590,7 @@
 				status = "disabled";
 			};
 
-			usb3@f0000 {
+			usb3_0: usb3@f0000 {
 				compatible = "marvell,armada-380-xhci";
 				reg = <0xf0000 0x4000>,<0xf4000 0x4000>;
 				interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
@@ -597,7 +598,7 @@
 				status = "disabled";
 			};
 
-			usb3@f8000 {
+			usb3_1: usb3@f8000 {
 				compatible = "marvell,armada-380-xhci";
 				reg = <0xf8000 0x4000>,<0xfc000 0x4000>;
 				interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;

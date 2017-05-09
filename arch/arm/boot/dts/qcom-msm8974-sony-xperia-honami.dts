@@ -413,14 +413,6 @@
 	dma-controller@f9944000 {
 		qcom,controlled-remotely;
 	};
-
-	usb-phy@f9a55000 {
-		status = "ok";
-	};
-
-	usb@f9a55000 {
-		status = "ok";
-	};
 };
 
 &spmi_bus {
