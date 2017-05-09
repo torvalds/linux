@@ -1,6 +1,7 @@
 /*
- * dtsi file for Broadcom (BRCM) Vulcan processor
+ * dtsi file for Cavium ThunderX2 CN99XX processor
  *
+ * Copyright (c) 2017 Cavium Inc.
  * Copyright (c) 2013-2016 Broadcom
  * Author: Zi Shen Lim <zlim@broadcom.com>
  *
@@ -13,8 +14,8 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
 / {
-	model = "Broadcom Vulcan";
-	compatible = "brcm,vulcan-soc";
+	model = "Cavium ThunderX2 CN99XX";
+	compatible = "cavium,thunderx2-cn9900", "brcm,vulcan-soc";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
@@ -26,28 +27,28 @@
 
 		cpu@0 {
 			device_type = "cpu";
-			compatible = "brcm,vulcan", "arm,armv8";
+			compatible = "cavium,thunder2", "brcm,vulcan", "arm,armv8";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
 		};
 
 		cpu@1 {
 			device_type = "cpu";
-			compatible = "brcm,vulcan", "arm,armv8";
+			compatible = "cavium,thunder2", "brcm,vulcan", "arm,armv8";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
 		};
 
 		cpu@2 {
 			device_type = "cpu";
-			compatible = "brcm,vulcan", "arm,armv8";
+			compatible = "cavium,thunder2", "brcm,vulcan", "arm,armv8";
 			reg = <0x0 0x2>;
 			enable-method = "psci";
 		};
 
 		cpu@3 {
 			device_type = "cpu";
-			compatible = "brcm,vulcan", "arm,armv8";
+			compatible = "cavium,thunder2", "brcm,vulcan", "arm,armv8";
 			reg = <0x0 0x3>;
 			enable-method = "psci";
 		};

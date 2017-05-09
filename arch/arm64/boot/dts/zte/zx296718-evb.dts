@@ -57,6 +57,34 @@
 		reg = <0x40000000 0x40000000>;
 	};
 
+	sound0 {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "zx_snd_spdif0";
+
+		simple-audio-card,cpu {
+			sound-dai = <&spdif0>;
+		};
+
+		simple-audio-card,codec {
+			sound-dai = <&hdmi>;
+		};
+	};
+};
+
+&emmc {
+	status = "okay";
+};
+
+&hdmi {
+	status = "okay";
+};
+
+&sd1 {
+	status = "okay";
+};
+
+&spdif0 {
+	status = "okay";
 };
 
 &uart0 {
