@@ -238,6 +238,7 @@ struct tcpm_port {
 	unsigned int hard_reset_count;
 	bool pd_capable;
 	bool explicit_contract;
+	unsigned int rx_msgid;
 
 	/* Partner capabilities/requests */
 	u32 sink_request;
@@ -1415,6 +1416,7 @@ static void tcpm_pd_ctrl_request(struct tcpm_port *port,
 			break;
 		case SOFT_RESET_SEND:
 			port->message_id = 0;
+			port->rx_msgid = -1;
 			if (port->pwr_role == TYPEC_SOURCE)
 				next_state = SRC_SEND_CAPABILITIES;
 			else
@@ -1503,6 +1505,22 @@ static void tcpm_pd_rx_handler(struct work_struct *work)
 		 port->attached);
 
 	if (port->attached) {
+		enum pd_ctrl_msg_type type = pd_header_type_le(msg->header);
+		unsigned int msgid = pd_header_msgid_le(msg->header);
+
+		/*
+		 * USB PD standard, 6.6.1.2:
+		 * "... if MessageID value in a received Message is the
+		 * same as the stored value, the receiver shall return a
+		 * GoodCRC Message with that MessageID value and drop
+		 * the Message (this is a retry of an already received
+		 * Message). Note: this shall not apply to the Soft_Reset
+		 * Message which always has a MessageID value of zero."
+		 */
+		if (msgid == port->rx_msgid && type != PD_CTRL_SOFT_RESET)
+			goto done;
+		port->rx_msgid = msgid;
+
 		/*
 		 * If both ends believe to be DFP/host, we have a data role
 		 * mismatch.
@@ -1520,6 +1538,7 @@ static void tcpm_pd_rx_handler(struct work_struct *work)
 		}
 	}
 
+done:
 	mutex_unlock(&port->lock);
 	kfree(event);
 }
@@ -1957,6 +1976,12 @@ static void tcpm_reset_port(struct tcpm_port *port)
 	port->attached = false;
 	port->pd_capable = false;
 
+	/*
+	 * First Rx ID should be 0; set this to a sentinel of -1 so that
+	 * we can check tcpm_pd_rx_handler() if we had seen it before.
+	 */
+	port->rx_msgid = -1;
+
 	port->tcpc->set_pd_rx(port->tcpc, false);
 	tcpm_init_vbus(port);	/* also disables charging */
 	tcpm_init_vconn(port);
@@ -2170,6 +2195,7 @@ static void run_state_machine(struct tcpm_port *port)
 		port->pwr_opmode = TYPEC_PWR_MODE_USB;
 		port->caps_count = 0;
 		port->message_id = 0;
+		port->rx_msgid = -1;
 		port->explicit_contract = false;
 		tcpm_set_state(port, SRC_SEND_CAPABILITIES, 0);
 		break;
@@ -2329,6 +2355,7 @@ static void run_state_machine(struct tcpm_port *port)
 		typec_set_pwr_opmode(port->typec_port, TYPEC_PWR_MODE_USB);
 		port->pwr_opmode = TYPEC_PWR_MODE_USB;
 		port->message_id = 0;
+		port->rx_msgid = -1;
 		port->explicit_contract = false;
 		tcpm_set_state(port, SNK_DISCOVERY, 0);
 		break;
@@ -2496,6 +2523,7 @@ static void run_state_machine(struct tcpm_port *port)
 	/* Soft_Reset states */
 	case SOFT_RESET:
 		port->message_id = 0;
+		port->rx_msgid = -1;
 		tcpm_pd_send_control(port, PD_CTRL_ACCEPT);
 		if (port->pwr_role == TYPEC_SOURCE)
 			tcpm_set_state(port, SRC_SEND_CAPABILITIES, 0);
@@ -2504,6 +2532,7 @@ static void run_state_machine(struct tcpm_port *port)
 		break;
 	case SOFT_RESET_SEND:
 		port->message_id = 0;
+		port->rx_msgid = -1;
 		if (tcpm_pd_send_control(port, PD_CTRL_SOFT_RESET))
 			tcpm_set_state_cond(port, hard_reset_state(port), 0);
 		else
