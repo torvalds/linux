@@ -153,11 +153,11 @@ void drm_crtc_vblank_on(struct drm_crtc *crtc);
 void drm_vblank_cleanup(struct drm_device *dev);
 u32 drm_accurate_vblank_count(struct drm_crtc *crtc);
 
-int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
-					  unsigned int pipe, int *max_error,
-					  struct timeval *vblank_time,
-					  unsigned flags,
-					  const struct drm_display_mode *mode);
+bool drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
+					   unsigned int pipe, int *max_error,
+					   struct timeval *vblank_time,
+					   unsigned flags,
+					   const struct drm_display_mode *mode);
 void drm_calc_timestamping_constants(struct drm_crtc *crtc,
 				     const struct drm_display_mode *mode);
 

@@ -724,43 +724,32 @@ EXPORT_SYMBOL(drm_calc_timestamping_constants);
  * active. Higher level code is expected to handle this.
  *
  * Returns:
- * Negative value on error, failure or if not supported in current
- * video mode:
  *
- * -EINVAL    Invalid CRTC.
- * -EAGAIN    Temporary unavailable, e.g., called before initial modeset.
- * -ENOTSUPP  Function not supported in current display mode.
- * -EIO       Failed, e.g., due to failed scanout position query.
- *
- * Returns or'ed positive status flags on success:
- *
- * DRM_VBLANKTIME_SCANOUTPOS_METHOD - Signal this method used for timestamping.
- * DRM_VBLANKTIME_INVBL - Timestamp taken while scanout was in vblank interval.
- *
+ * Returns true on success, and false on failure, i.e. when no accurate
+ * timestamp could be acquired.
  */
-int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
-					  unsigned int pipe,
-					  int *max_error,
-					  struct timeval *vblank_time,
-					  unsigned flags,
-					  const struct drm_display_mode *mode)
+bool drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
+					   unsigned int pipe,
+					   int *max_error,
+					   struct timeval *vblank_time,
+					   unsigned flags,
+					   const struct drm_display_mode *mode)
 {
 	struct timeval tv_etime;
 	ktime_t stime, etime;
 	unsigned int vbl_status;
-	int ret = DRM_VBLANKTIME_SCANOUTPOS_METHOD;
 	int vpos, hpos, i;
 	int delta_ns, duration_ns;
 
 	if (pipe >= dev->num_crtcs) {
 		DRM_ERROR("Invalid crtc %u\n", pipe);
-		return -EINVAL;
+		return false;
 	}
 
 	/* Scanout position query not supported? Should not happen. */
 	if (!dev->driver->get_scanout_position) {
 		DRM_ERROR("Called from driver w/o get_scanout_position()!?\n");
-		return -EIO;
+		return false;
 	}
 
 	/* If mode timing undefined, just return as no-op:
@@ -768,7 +757,7 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 	 */
 	if (mode->crtc_clock == 0) {
 		DRM_DEBUG("crtc %u: Noop due to uninitialized mode.\n", pipe);
-		return -EAGAIN;
+		return false;
 	}
 
 	/* Get current scanout position with system timestamp.
@@ -792,7 +781,7 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 		if (!(vbl_status & DRM_SCANOUTPOS_VALID)) {
 			DRM_DEBUG("crtc %u : scanoutpos query failed [0x%x].\n",
 				  pipe, vbl_status);
-			return -EIO;
+			return false;
 		}
 
 		/* Compute uncertainty in timestamp of scanout position query. */
@@ -836,7 +825,7 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 		      (long)vblank_time->tv_sec, (long)vblank_time->tv_usec,
 		      duration_ns/1000, i);
 
-	return ret;
+	return true;
 }
 EXPORT_SYMBOL(drm_calc_vbltimestamp_from_scanoutpos);
 
@@ -872,25 +861,23 @@ static bool
 drm_get_last_vbltimestamp(struct drm_device *dev, unsigned int pipe,
 			  struct timeval *tvblank, unsigned flags)
 {
-	int ret;
+	bool ret = false;
 
 	/* Define requested maximum error on timestamps (nanoseconds). */
 	int max_error = (int) drm_timestamp_precision * 1000;
 
 	/* Query driver if possible and precision timestamping enabled. */
-	if (dev->driver->get_vblank_timestamp && (max_error > 0)) {
+	if (dev->driver->get_vblank_timestamp && (max_error > 0))
 		ret = dev->driver->get_vblank_timestamp(dev, pipe, &max_error,
 							tvblank, flags);
-		if (ret > 0)
-			return true;
-	}
 
 	/* GPU high precision timestamp query unsupported or failed.
 	 * Return current monotonic/gettimeofday timestamp as best estimate.
 	 */
-	*tvblank = get_drm_timestamp();
+	if (!ret)
+		*tvblank = get_drm_timestamp();
 
-	return false;
+	return ret;
 }
 
 /**

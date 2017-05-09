@@ -964,7 +964,7 @@ int intel_get_crtc_scanline(struct intel_crtc *crtc)
 	return position;
 }
 
-static int i915_get_vblank_timestamp(struct drm_device *dev, unsigned int pipe,
+static bool i915_get_vblank_timestamp(struct drm_device *dev, unsigned int pipe,
 			      int *max_error,
 			      struct timeval *vblank_time,
 			      unsigned flags)
@@ -974,19 +974,19 @@ static int i915_get_vblank_timestamp(struct drm_device *dev, unsigned int pipe,
 
 	if (pipe >= INTEL_INFO(dev_priv)->num_pipes) {
 		DRM_ERROR("Invalid crtc %u\n", pipe);
-		return -EINVAL;
+		return false;
 	}
 
 	/* Get drm_crtc to timestamp: */
 	crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
 	if (crtc == NULL) {
 		DRM_ERROR("Invalid crtc %u\n", pipe);
-		return -EINVAL;
+		return false;
 	}
 
 	if (!crtc->base.hwmode.crtc_clock) {
 		DRM_DEBUG_KMS("crtc %u is disabled\n", pipe);
-		return -EBUSY;
+		return false;
 	}
 
 	/* Helper routine in DRM core does all the work: */

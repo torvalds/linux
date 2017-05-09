@@ -945,19 +945,19 @@ void amdgpu_disable_vblank_kms(struct drm_device *dev, unsigned int pipe)
  *
  * Gets the timestamp on the requested crtc based on the
  * scanout position.  (all asics).
- * Returns postive status flags on success, negative error on failure.
+ * Returns true on success, false on failure.
  */
-int amdgpu_get_vblank_timestamp_kms(struct drm_device *dev, unsigned int pipe,
-				    int *max_error,
-				    struct timeval *vblank_time,
-				    unsigned flags)
+bool amdgpu_get_vblank_timestamp_kms(struct drm_device *dev, unsigned int pipe,
+				     int *max_error,
+				     struct timeval *vblank_time,
+				     unsigned flags)
 {
 	struct drm_crtc *crtc;
 	struct amdgpu_device *adev = dev->dev_private;
 
 	if (pipe >= dev->num_crtcs) {
 		DRM_ERROR("Invalid crtc %u\n", pipe);
-		return -EINVAL;
+		return false;
 	}
 
 	/* Get associated drm_crtc: */
@@ -966,7 +966,7 @@ int amdgpu_get_vblank_timestamp_kms(struct drm_device *dev, unsigned int pipe,
 		/* This can occur on driver load if some component fails to
 		 * initialize completely and driver is unloaded */
 		DRM_ERROR("Uninitialized crtc %d\n", pipe);
-		return -EINVAL;
+		return false;
 	}
 
 	/* Helper routine in DRM core does all the work: */

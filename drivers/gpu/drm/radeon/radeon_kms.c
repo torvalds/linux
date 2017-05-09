@@ -869,25 +869,25 @@ void radeon_disable_vblank_kms(struct drm_device *dev, int crtc)
  *
  * Gets the timestamp on the requested crtc based on the
  * scanout position.  (all asics).
- * Returns postive status flags on success, negative error on failure.
+ * Returns true on success, false on failure.
  */
-int radeon_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
-				    int *max_error,
-				    struct timeval *vblank_time,
-				    unsigned flags)
+bool radeon_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
+				     int *max_error,
+				     struct timeval *vblank_time,
+				     unsigned flags)
 {
 	struct drm_crtc *drmcrtc;
 	struct radeon_device *rdev = dev->dev_private;
 
 	if (crtc < 0 || crtc >= dev->num_crtcs) {
 		DRM_ERROR("Invalid crtc %d\n", crtc);
-		return -EINVAL;
+		return false;
 	}
 
 	/* Get associated drm_crtc: */
 	drmcrtc = &rdev->mode_info.crtcs[crtc]->base;
 	if (!drmcrtc)
-		return -EINVAL;
+		return false;
 
 	/* Helper routine in DRM core does all the work: */
 	return drm_calc_vbltimestamp_from_scanoutpos(dev, crtc, max_error,

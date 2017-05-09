@@ -156,7 +156,7 @@ nouveau_display_scanoutpos(struct drm_device *dev, unsigned int pipe,
 	return 0;
 }
 
-int
+bool
 nouveau_display_vblstamp(struct drm_device *dev, unsigned int pipe,
 			 int *max_error, struct timeval *time, unsigned flags)
 {
@@ -174,7 +174,7 @@ nouveau_display_vblstamp(struct drm_device *dev, unsigned int pipe,
 		}
 	}
 
-	return -EINVAL;
+	return false;
 }
 
 static void

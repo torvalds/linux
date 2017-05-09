@@ -71,8 +71,8 @@ void nouveau_display_vblank_disable(struct drm_device *, unsigned int);
 int  nouveau_display_scanoutpos(struct drm_device *, unsigned int,
 				unsigned int, int *, int *, ktime_t *,
 				ktime_t *, const struct drm_display_mode *);
-int  nouveau_display_vblstamp(struct drm_device *, unsigned int, int *,
-			      struct timeval *, unsigned);
+bool  nouveau_display_vblstamp(struct drm_device *, unsigned int, int *,
+			       struct timeval *, unsigned);
 
 int  nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 			    struct drm_pending_vblank_event *event,

@@ -316,11 +316,10 @@ struct drm_driver {
 	 *
 	 * Returns:
 	 *
-	 * Zero if timestamping isn't supported in current display mode or a
-	 * negative number on failure. A positive status code on success,
-	 * which describes how the vblank_time timestamp was computed.
+	 * True on success, false on failure, which means the core should
+	 * fallback to a simple timestamp taken in drm_crtc_handle_vblank().
 	 */
-	int (*get_vblank_timestamp) (struct drm_device *dev, unsigned int pipe,
+	bool (*get_vblank_timestamp) (struct drm_device *dev, unsigned int pipe,
 				     int *max_error,
 				     struct timeval *vblank_time,
 				     unsigned flags);

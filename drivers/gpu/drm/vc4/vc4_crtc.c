@@ -270,7 +270,7 @@ int vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 	return ret;
 }
 
-int vc4_crtc_get_vblank_timestamp(struct drm_device *dev, unsigned int crtc_id,
+bool vc4_crtc_get_vblank_timestamp(struct drm_device *dev, unsigned int crtc_id,
 				  int *max_error, struct timeval *vblank_time,
 				  unsigned flags)
 {
