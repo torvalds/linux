@@ -98,7 +98,7 @@ static struct aa_loaddata *aa_simple_write_to_buffer(const char __user *userbuf,
 		return ERR_PTR(-ESPIPE);
 
 	/* freed by caller to simple_write_to_buffer */
-	data = kvmalloc(sizeof(*data) + alloc_size);
+	data = kvmalloc(sizeof(*data) + alloc_size, GFP_KERNEL);
 	if (data == NULL)
 		return ERR_PTR(-ENOMEM);
 	kref_init(&data->count);
@@ -1357,7 +1357,7 @@ static int aa_mk_null_file(struct dentry *parent)
 
 	inode->i_ino = get_next_ino();
 	inode->i_mode = S_IFCHR | S_IRUGO | S_IWUGO;
-	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
 	init_special_inode(inode, S_IFCHR | S_IRUGO | S_IWUGO,
 			   MKDEV(MEM_MAJOR, 3));
 	d_instantiate(dentry, inode);

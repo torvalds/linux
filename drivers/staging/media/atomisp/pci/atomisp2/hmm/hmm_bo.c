@@ -36,11 +36,12 @@
 #include <linux/string.h>
 #include <linux/list.h>
 #include <linux/errno.h>
-#include <asm/cacheflush.h>
 #include <linux/io.h>
 #include <asm/current.h>
 #include <linux/sched/signal.h>
 #include <linux/file.h>
+
+#include <asm/set_memory.h>
 
 #include "atomisp_internal.h"
 #include "hmm/hmm_common.h"

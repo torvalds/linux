@@ -30,12 +30,15 @@
 #include <linux/slab.h>		/* for kmalloc */
 #include <linux/list.h>
 #include <linux/io.h>
-#include <asm/cacheflush.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/sizes.h>
+
+#ifdef CONFIG_X86
+#include <asm/set_memory.h>
+#endif
 
 #include "atomisp_internal.h"
 #include "mmu/isp_mmu.h"

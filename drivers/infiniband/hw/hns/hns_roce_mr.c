@@ -205,7 +205,7 @@ int hns_roce_mtt_init(struct hns_roce_dev *hr_dev, int npages, int page_shift,
 		return 0;
 	}
 
-	/* Note: if page_shift is zero, FAST memory regsiter */
+	/* Note: if page_shift is zero, FAST memory register */
 	mtt->page_shift = page_shift;
 
 	/* Compute MTT entry necessary */

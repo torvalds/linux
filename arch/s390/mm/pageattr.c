@@ -8,6 +8,7 @@
 #include <asm/facility.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
+#include <asm/set_memory.h>
 
 static inline unsigned long sske_frame(unsigned long addr, unsigned char skey)
 {

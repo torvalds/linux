@@ -1,8 +1,5 @@
-#ifndef _S390_CACHEFLUSH_H
-#define _S390_CACHEFLUSH_H
-
-/* Caches aren't brain-dead on the s390. */
-#include <asm-generic/cacheflush.h>
+#ifndef _ASMS390_SET_MEMORY_H
+#define _ASMS390_SET_MEMORY_H
 
 #define SET_MEMORY_RO	1UL
 #define SET_MEMORY_RW	2UL
@@ -31,4 +28,4 @@ static inline int set_memory_x(unsigned long addr, int numpages)
 	return __set_memory(addr, numpages, SET_MEMORY_X);
 }
 
-#endif /* _S390_CACHEFLUSH_H */
+#endif
