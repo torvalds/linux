@@ -2836,10 +2836,6 @@ static struct kvm_device_ops *kvm_device_ops_table[KVM_DEV_TYPE_MAX] = {
 	[KVM_DEV_TYPE_FSL_MPIC_20]	= &kvm_mpic_ops,
 	[KVM_DEV_TYPE_FSL_MPIC_42]	= &kvm_mpic_ops,
 #endif
-
-#ifdef CONFIG_KVM_XICS
-	[KVM_DEV_TYPE_XICS]		= &kvm_xics_ops,
-#endif
 };
 
 int kvm_register_device_ops(struct kvm_device_ops *ops, u32 type)
