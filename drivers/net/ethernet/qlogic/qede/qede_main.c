@@ -1313,6 +1313,9 @@ static void qede_free_mem_fp(struct qede_dev *edev, struct qede_fastpath *fp)
 	if (fp->type & QEDE_FASTPATH_RX)
 		qede_free_mem_rxq(edev, fp->rxq);
 
+	if (fp->type & QEDE_FASTPATH_XDP)
+		qede_free_mem_txq(edev, fp->xdp_tx);
+
 	if (fp->type & QEDE_FASTPATH_TX)
 		qede_free_mem_txq(edev, fp->txq);
 }
