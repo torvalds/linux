@@ -156,7 +156,7 @@ u32 drm_accurate_vblank_count(struct drm_crtc *crtc);
 bool drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 					   unsigned int pipe, int *max_error,
 					   struct timeval *vblank_time,
-					   unsigned flags,
+					   bool in_vblank_irq,
 					   const struct drm_display_mode *mode);
 void drm_calc_timestamping_constants(struct drm_crtc *crtc,
 				     const struct drm_display_mode *mode);

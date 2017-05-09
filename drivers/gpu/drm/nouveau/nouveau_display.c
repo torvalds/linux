@@ -158,7 +158,7 @@ nouveau_display_scanoutpos(struct drm_device *dev, unsigned int pipe,
 
 bool
 nouveau_display_vblstamp(struct drm_device *dev, unsigned int pipe,
-			 int *max_error, struct timeval *time, unsigned flags)
+			 int *max_error, struct timeval *time, bool in_vblank_irq)
 {
 	struct drm_crtc *crtc;
 
@@ -170,7 +170,8 @@ nouveau_display_vblstamp(struct drm_device *dev, unsigned int pipe,
 			else
 				mode = &crtc->hwmode;
 			return drm_calc_vbltimestamp_from_scanoutpos(dev,
-					pipe, max_error, time, flags, mode);
+					pipe, max_error, time, in_vblank_irq,
+					mode);
 		}
 	}
 

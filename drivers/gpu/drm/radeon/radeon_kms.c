@@ -874,7 +874,7 @@ void radeon_disable_vblank_kms(struct drm_device *dev, int crtc)
 bool radeon_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
 				     int *max_error,
 				     struct timeval *vblank_time,
-				     unsigned flags)
+				     bool in_vblank_irq)
 {
 	struct drm_crtc *drmcrtc;
 	struct radeon_device *rdev = dev->dev_private;
@@ -891,7 +891,7 @@ bool radeon_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
 
 	/* Helper routine in DRM core does all the work: */
 	return drm_calc_vbltimestamp_from_scanoutpos(dev, crtc, max_error,
-						     vblank_time, flags,
+						     vblank_time, in_vblank_irq,
 						     &drmcrtc->hwmode);
 }
 

@@ -595,7 +595,7 @@ static int mdp5_get_scanoutpos(struct drm_device *dev, unsigned int pipe,
 static bool mdp5_get_vblank_timestamp(struct drm_device *dev, unsigned int pipe,
 				      int *max_error,
 				      struct timeval *vblank_time,
-				      unsigned flags)
+				      bool in_vblank_irq)
 {
 	struct msm_drm_private *priv = dev->dev_private;
 	struct drm_crtc *crtc;
@@ -612,7 +612,7 @@ static bool mdp5_get_vblank_timestamp(struct drm_device *dev, unsigned int pipe,
 	}
 
 	return drm_calc_vbltimestamp_from_scanoutpos(dev, pipe, max_error,
-						     vblank_time, flags,
+						     vblank_time, in_vblank_irq,
 						     &crtc->mode);
 }
 

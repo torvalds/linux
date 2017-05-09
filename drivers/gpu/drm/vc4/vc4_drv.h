@@ -495,7 +495,7 @@ int vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 			    const struct drm_display_mode *mode);
 bool vc4_crtc_get_vblank_timestamp(struct drm_device *dev, unsigned int crtc_id,
 				  int *max_error, struct timeval *vblank_time,
-				  unsigned flags);
+				  bool in_vblank_irq);
 
 /* vc4_debugfs.c */
 int vc4_debugfs_init(struct drm_minor *minor);

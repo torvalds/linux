@@ -118,7 +118,7 @@ void radeon_disable_vblank_kms(struct drm_device *dev, unsigned int pipe);
 bool radeon_get_vblank_timestamp_kms(struct drm_device *dev, unsigned int pipe,
 				     int *max_error,
 				     struct timeval *vblank_time,
-				     unsigned flags);
+				     bool in_vblank_irq);
 void radeon_driver_irq_preinstall_kms(struct drm_device *dev);
 int radeon_driver_irq_postinstall_kms(struct drm_device *dev);
 void radeon_driver_irq_uninstall_kms(struct drm_device *dev);

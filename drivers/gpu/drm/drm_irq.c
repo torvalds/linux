@@ -54,7 +54,7 @@
 
 static bool
 drm_get_last_vbltimestamp(struct drm_device *dev, unsigned int pipe,
-			  struct timeval *tvblank, unsigned flags);
+			  struct timeval *tvblank, bool in_vblank_irq);
 
 static unsigned int drm_timestamp_precision = 20;  /* Default to 20 usecs. */
 
@@ -138,7 +138,7 @@ static void drm_reset_vblank_timestamp(struct drm_device *dev, unsigned int pipe
 	 */
 	do {
 		cur_vblank = __get_vblank_counter(dev, pipe);
-		rc = drm_get_last_vbltimestamp(dev, pipe, &t_vblank, 0);
+		rc = drm_get_last_vbltimestamp(dev, pipe, &t_vblank, false);
 	} while (cur_vblank != __get_vblank_counter(dev, pipe) && --count > 0);
 
 	/*
@@ -171,7 +171,7 @@ static void drm_reset_vblank_timestamp(struct drm_device *dev, unsigned int pipe
  * device vblank fields.
  */
 static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe,
-				    unsigned long flags)
+				    bool in_vblank_irq)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 	u32 cur_vblank, diff;
@@ -194,7 +194,7 @@ static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe,
 	 */
 	do {
 		cur_vblank = __get_vblank_counter(dev, pipe);
-		rc = drm_get_last_vbltimestamp(dev, pipe, &t_vblank, flags);
+		rc = drm_get_last_vbltimestamp(dev, pipe, &t_vblank, in_vblank_irq);
 	} while (cur_vblank != __get_vblank_counter(dev, pipe) && --count > 0);
 
 	if (dev->max_vblank_count != 0) {
@@ -214,13 +214,13 @@ static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe,
 		 */
 		diff = DIV_ROUND_CLOSEST_ULL(diff_ns, framedur_ns);
 
-		if (diff == 0 && flags & DRM_CALLED_FROM_VBLIRQ)
+		if (diff == 0 && in_vblank_irq)
 			DRM_DEBUG_VBL("crtc %u: Redundant vblirq ignored."
 				      " diff_ns = %lld, framedur_ns = %d)\n",
 				      pipe, (long long) diff_ns, framedur_ns);
 	} else {
 		/* some kind of default for drivers w/o accurate vbl timestamping */
-		diff = (flags & DRM_CALLED_FROM_VBLIRQ) != 0;
+		diff = in_vblank_irq ? 1 : 0;
 	}
 
 	/*
@@ -253,7 +253,7 @@ static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe,
 	 * Otherwise reinitialize delayed at next vblank interrupt and assign 0
 	 * for now, to mark the vblanktimestamp as invalid.
 	 */
-	if (!rc && (flags & DRM_CALLED_FROM_VBLIRQ) == 0)
+	if (!rc && in_vblank_irq)
 		t_vblank = (struct timeval) {0, 0};
 
 	store_vblank(dev, pipe, diff, &t_vblank, cur_vblank);
@@ -291,7 +291,7 @@ u32 drm_accurate_vblank_count(struct drm_crtc *crtc)
 
 	spin_lock_irqsave(&dev->vblank_time_lock, flags);
 
-	drm_update_vblank_count(dev, pipe, 0);
+	drm_update_vblank_count(dev, pipe, false);
 	vblank = drm_vblank_count(dev, pipe);
 
 	spin_unlock_irqrestore(&dev->vblank_time_lock, flags);
@@ -349,7 +349,7 @@ static void vblank_disable_and_save(struct drm_device *dev, unsigned int pipe)
 	 * this time. This makes the count account for the entire time
 	 * between drm_crtc_vblank_on() and drm_crtc_vblank_off().
 	 */
-	drm_update_vblank_count(dev, pipe, 0);
+	drm_update_vblank_count(dev, pipe, false);
 
 	spin_unlock_irqrestore(&dev->vblank_time_lock, irqflags);
 }
@@ -700,9 +700,10 @@ EXPORT_SYMBOL(drm_calc_timestamping_constants);
  * @max_error: Desired maximum allowable error in timestamps (nanosecs)
  *             On return contains true maximum error of timestamp
  * @vblank_time: Pointer to struct timeval which should receive the timestamp
- * @flags: Flags to pass to driver:
- *         0 = Default,
- *         DRM_CALLED_FROM_VBLIRQ = If function is called from vbl IRQ handler
+ * @in_vblank_irq:
+ *     True when called from drm_crtc_handle_vblank().  Some drivers
+ *     need to apply some workarounds for gpu-specific vblank irq quirks
+ *     if flag is set.
  * @mode: mode which defines the scanout timings
  *
  * Implements calculation of exact vblank timestamps from given drm_display_mode
@@ -732,7 +733,7 @@ bool drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 					   unsigned int pipe,
 					   int *max_error,
 					   struct timeval *vblank_time,
-					   unsigned flags,
+					   bool in_vblank_irq,
 					   const struct drm_display_mode *mode)
 {
 	struct timeval tv_etime;
@@ -740,6 +741,7 @@ bool drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 	unsigned int vbl_status;
 	int vpos, hpos, i;
 	int delta_ns, duration_ns;
+	unsigned flags = in_vblank_irq ? DRM_CALLED_FROM_VBLIRQ : 0;
 
 	if (pipe >= dev->num_crtcs) {
 		DRM_ERROR("Invalid crtc %u\n", pipe);
@@ -843,9 +845,10 @@ static struct timeval get_drm_timestamp(void)
  * @dev: DRM device
  * @pipe: index of CRTC whose vblank timestamp to retrieve
  * @tvblank: Pointer to target struct timeval which should receive the timestamp
- * @flags: Flags to pass to driver:
- *         0 = Default,
- *         DRM_CALLED_FROM_VBLIRQ = If function is called from vbl IRQ handler
+ * @in_vblank_irq:
+ *     True when called from drm_crtc_handle_vblank().  Some drivers
+ *     need to apply some workarounds for gpu-specific vblank irq quirks
+ *     if flag is set.
  *
  * Fetches the system timestamp corresponding to the time of the most recent
  * vblank interval on specified CRTC. May call into kms-driver to
@@ -859,7 +862,7 @@ static struct timeval get_drm_timestamp(void)
  */
 static bool
 drm_get_last_vbltimestamp(struct drm_device *dev, unsigned int pipe,
-			  struct timeval *tvblank, unsigned flags)
+			  struct timeval *tvblank, bool in_vblank_irq)
 {
 	bool ret = false;
 
@@ -869,7 +872,7 @@ drm_get_last_vbltimestamp(struct drm_device *dev, unsigned int pipe,
 	/* Query driver if possible and precision timestamping enabled. */
 	if (dev->driver->get_vblank_timestamp && (max_error > 0))
 		ret = dev->driver->get_vblank_timestamp(dev, pipe, &max_error,
-							tvblank, flags);
+							tvblank, in_vblank_irq);
 
 	/* GPU high precision timestamp query unsupported or failed.
 	 * Return current monotonic/gettimeofday timestamp as best estimate.
@@ -1747,7 +1750,7 @@ bool drm_handle_vblank(struct drm_device *dev, unsigned int pipe)
 		return false;
 	}
 
-	drm_update_vblank_count(dev, pipe, DRM_CALLED_FROM_VBLIRQ);
+	drm_update_vblank_count(dev, pipe, true);
 
 	spin_unlock(&dev->vblank_time_lock);
 

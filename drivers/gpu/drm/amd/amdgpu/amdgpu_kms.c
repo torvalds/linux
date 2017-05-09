@@ -941,7 +941,7 @@ void amdgpu_disable_vblank_kms(struct drm_device *dev, unsigned int pipe)
  * @crtc: crtc to get the timestamp for
  * @max_error: max error
  * @vblank_time: time value
- * @flags: flags passed to the driver
+ * @in_vblank_irq: called from drm_handle_vblank()
  *
  * Gets the timestamp on the requested crtc based on the
  * scanout position.  (all asics).
@@ -950,7 +950,7 @@ void amdgpu_disable_vblank_kms(struct drm_device *dev, unsigned int pipe)
 bool amdgpu_get_vblank_timestamp_kms(struct drm_device *dev, unsigned int pipe,
 				     int *max_error,
 				     struct timeval *vblank_time,
-				     unsigned flags)
+				     bool in_vblank_irq)
 {
 	struct drm_crtc *crtc;
 	struct amdgpu_device *adev = dev->dev_private;
@@ -971,7 +971,7 @@ bool amdgpu_get_vblank_timestamp_kms(struct drm_device *dev, unsigned int pipe,
 
 	/* Helper routine in DRM core does all the work: */
 	return drm_calc_vbltimestamp_from_scanoutpos(dev, pipe, max_error,
-						     vblank_time, flags,
+						     vblank_time, in_vblank_irq,
 						     &crtc->hwmode);
 }
 

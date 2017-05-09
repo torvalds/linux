@@ -1913,7 +1913,7 @@ void amdgpu_disable_vblank_kms(struct drm_device *dev, unsigned int pipe);
 bool amdgpu_get_vblank_timestamp_kms(struct drm_device *dev, unsigned int pipe,
 				     int *max_error,
 				     struct timeval *vblank_time,
-				     unsigned flags);
+				     bool in_vblank_irq);
 long amdgpu_kms_compat_ioctl(struct file *filp, unsigned int cmd,
 			     unsigned long arg);
 
