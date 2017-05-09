@@ -40,7 +40,8 @@ struct read_info_sccb {
 	u8	fac85;			/* 85 */
 	u8	_pad_86[91 - 86];	/* 86-90 */
 	u8	flags;			/* 91 */
-	u8	_pad_92[99 - 92];	/* 92-98 */
+	u8	_pad_92[98 - 92];	/* 92-97 */
+	u8	fac98;			/* 98 */
 	u8	hamaxpow;		/* 99 */
 	u32	rnsize2;		/* 100-103 */
 	u64	rnmax2;			/* 104-111 */
@@ -99,6 +100,7 @@ static void __init sclp_early_facilities_detect(struct read_info_sccb *sccb)
 	sclp.has_pfmfi = !!(sccb->fac117 & 0x40);
 	sclp.has_ibs = !!(sccb->fac117 & 0x20);
 	sclp.has_hvs = !!(sccb->fac119 & 0x80);
+	sclp.has_kss = !!(sccb->fac98 & 0x01);
 	if (sccb->fac85 & 0x02)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_ESOP;
 	sclp.rnmax = sccb->rnmax ? sccb->rnmax : sccb->rnmax2;

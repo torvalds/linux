@@ -7332,18 +7332,6 @@ static void ixgbe_watchdog_flush_tx(struct ixgbe_adapter *adapter)
 }
 
 #ifdef CONFIG_PCI_IOV
-static inline void ixgbe_issue_vf_flr(struct ixgbe_adapter *adapter,
-				      struct pci_dev *vfdev)
-{
-	if (!pci_wait_for_pending_transaction(vfdev))
-		e_dev_warn("Issuing VFLR with pending transactions\n");
-
-	e_dev_err("Issuing VFLR for VF %s\n", pci_name(vfdev));
-	pcie_capability_set_word(vfdev, PCI_EXP_DEVCTL, PCI_EXP_DEVCTL_BCR_FLR);
-
-	msleep(100);
-}
-
 static void ixgbe_check_for_bad_vf(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -7376,7 +7364,7 @@ static void ixgbe_check_for_bad_vf(struct ixgbe_adapter *adapter)
 		pci_read_config_word(vfdev, PCI_STATUS, &status_reg);
 		if (status_reg != IXGBE_FAILED_READ_CFG_WORD &&
 		    status_reg & PCI_STATUS_REC_MASTER_ABORT)
-			ixgbe_issue_vf_flr(adapter, vfdev);
+			pcie_flr(vfdev);
 	}
 }
 
@@ -10602,7 +10590,7 @@ static pci_ers_result_t ixgbe_io_error_detected(struct pci_dev *pdev,
 		 * VFLR.  Just clean up the AER in that case.
 		 */
 		if (vfdev) {
-			ixgbe_issue_vf_flr(adapter, vfdev);
+			pcie_flr(vfdev);
 			/* Free device reference count */
 			pci_dev_put(vfdev);
 		}

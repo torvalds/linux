@@ -231,6 +231,7 @@ static int maxim_thermocouple_probe(struct spi_device *spi)
 	indio_dev->available_scan_masks = chip->scan_masks;
 	indio_dev->num_channels = chip->num_channels;
 	indio_dev->modes = INDIO_DIRECT_MODE;
+	indio_dev->dev.parent = &spi->dev;
 
 	data = iio_priv(indio_dev);
 	data->spi = spi;

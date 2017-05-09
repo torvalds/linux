@@ -309,14 +309,13 @@ void *dma_common_contiguous_remap(struct page *page, size_t size,
 	int i;
 	struct page **pages;
 	void *ptr;
-	unsigned long pfn;
 
 	pages = kmalloc(sizeof(struct page *) << get_order(size), GFP_KERNEL);
 	if (!pages)
 		return NULL;
 
-	for (i = 0, pfn = page_to_pfn(page); i < (size >> PAGE_SHIFT); i++)
-		pages[i] = pfn_to_page(pfn + i);
+	for (i = 0; i < (size >> PAGE_SHIFT); i++)
+		pages[i] = nth_page(page, i);
 
 	ptr = dma_common_pages_remap(pages, size, vm_flags, prot, caller);
 

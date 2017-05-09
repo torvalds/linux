@@ -75,8 +75,6 @@ static void hv_signal_on_write(u32 old_write, struct vmbus_channel *channel)
 	 */
 	if (old_write == READ_ONCE(rbi->ring_buffer->read_index))
 		vmbus_setevent(channel);
-
-	return;
 }
 
 /* Get the next write location for the specified ring buffer. */
@@ -210,6 +208,7 @@ void hv_ringbuffer_get_debuginfo(const struct hv_ring_buffer_info *ring_info,
 			ring_info->ring_buffer->interrupt_mask;
 	}
 }
+EXPORT_SYMBOL_GPL(hv_ringbuffer_get_debuginfo);
 
 /* Initialize the ring buffer. */
 int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info,
@@ -269,14 +268,13 @@ void hv_ringbuffer_cleanup(struct hv_ring_buffer_info *ring_info)
 int hv_ringbuffer_write(struct vmbus_channel *channel,
 			const struct kvec *kv_list, u32 kv_count)
 {
-	int i = 0;
+	int i;
 	u32 bytes_avail_towrite;
-	u32 totalbytes_towrite = 0;
-
+	u32 totalbytes_towrite = sizeof(u64);
 	u32 next_write_location;
 	u32 old_write;
-	u64 prev_indices = 0;
-	unsigned long flags = 0;
+	u64 prev_indices;
+	unsigned long flags;
 	struct hv_ring_buffer_info *outring_info = &channel->outbound;
 
 	if (channel->rescind)
@@ -284,8 +282,6 @@ int hv_ringbuffer_write(struct vmbus_channel *channel,
 
 	for (i = 0; i < kv_count; i++)
 		totalbytes_towrite += kv_list[i].iov_len;
-
-	totalbytes_towrite += sizeof(u64);
 
 	spin_lock_irqsave(&outring_info->ring_lock, flags);
 
@@ -349,17 +345,15 @@ int hv_ringbuffer_read(struct vmbus_channel *channel,
 		       u64 *requestid, bool raw)
 {
 	u32 bytes_avail_toread;
-	u32 next_read_location = 0;
+	u32 next_read_location;
 	u64 prev_indices = 0;
 	struct vmpacket_descriptor desc;
 	u32 offset;
 	u32 packetlen;
-	int ret = 0;
 	struct hv_ring_buffer_info *inring_info = &channel->inbound;
 
 	if (buflen <= 0)
 		return -EINVAL;
-
 
 	*buffer_actual_len = 0;
 	*requestid = 0;
@@ -371,7 +365,7 @@ int hv_ringbuffer_read(struct vmbus_channel *channel,
 		 * No error is set when there is even no header, drivers are
 		 * supposed to analyze buffer_actual_len.
 		 */
-		return ret;
+		return 0;
 	}
 
 	init_cached_read_index(inring_info);
@@ -417,7 +411,7 @@ int hv_ringbuffer_read(struct vmbus_channel *channel,
 
 	hv_signal_on_read(channel);
 
-	return ret;
+	return 0;
 }
 
 /*

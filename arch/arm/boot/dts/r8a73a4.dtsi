@@ -32,18 +32,16 @@
 			next-level-cache = <&L2_CA15>;
 		};
 
-		L2_CA15: cache-controller@0 {
+		L2_CA15: cache-controller-0 {
 			compatible = "cache";
-			reg = <0>;
 			clocks = <&cpg_clocks R8A73A4_CLK_Z>;
 			power-domains = <&pd_a3sm>;
 			cache-unified;
 			cache-level = <2>;
 		};
 
-		L2_CA7: cache-controller@100 {
+		L2_CA7: cache-controller-1 {
 			compatible = "cache";
-			reg = <0x100>;
 			clocks = <&cpg_clocks R8A73A4_CLK_Z2>;
 			power-domains = <&pd_a3km>;
 			cache-unified;
@@ -469,6 +467,9 @@
 			<0 0xf1004000 0 0x2000>,
 			<0 0xf1006000 0 0x2000>;
 		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
+		clocks = <&mstp4_clks R8A73A4_CLK_INTC_SYS>;
+		clock-names = "clk";
+		power-domains = <&pd_c4>;
 	};
 
 	bsc: bus@fec10000 {
@@ -727,16 +728,18 @@
 		mstp4_clks: mstp4_clks@e6150140 {
 			compatible = "renesas,r8a73a4-mstp-clocks", "renesas,cpg-mstp-clocks";
 			reg = <0 0xe6150140 0 4>, <0 0xe615004c 0 4>;
-			clocks = <&main_div2_clk>, <&main_div2_clk>,
+			clocks = <&main_div2_clk>, <&cpg_clocks R8A73A4_CLK_ZS>,
+				 <&main_div2_clk>,
 				 <&cpg_clocks R8A73A4_CLK_HP>,
 				 <&cpg_clocks R8A73A4_CLK_HP>;
 			#clock-cells = <1>;
 			clock-indices = <
-				R8A73A4_CLK_IRQC R8A73A4_CLK_IIC5
-				R8A73A4_CLK_IIC4 R8A73A4_CLK_IIC3
+				R8A73A4_CLK_IRQC R8A73A4_CLK_INTC_SYS
+				R8A73A4_CLK_IIC5 R8A73A4_CLK_IIC4
+				R8A73A4_CLK_IIC3
 			>;
 			clock-output-names =
-				"irqc", "iic5", "iic4", "iic3";
+				"irqc", "intc-sys", "iic5", "iic4", "iic3";
 		};
 		mstp5_clks: mstp5_clks@e6150144 {
 			compatible = "renesas,r8a73a4-mstp-clocks", "renesas,cpg-mstp-clocks";

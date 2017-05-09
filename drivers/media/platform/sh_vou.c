@@ -813,8 +813,8 @@ static u32 sh_vou_ntsc_mode(enum sh_vou_bus_fmt bus_fmt)
 {
 	switch (bus_fmt) {
 	default:
-		pr_warning("%s(): Invalid bus-format code %d, using default 8-bit\n",
-			   __func__, bus_fmt);
+		pr_warn("%s(): Invalid bus-format code %d, using default 8-bit\n",
+			__func__, bus_fmt);
 	case SH_VOU_BUS_8BIT:
 		return 1;
 	case SH_VOU_BUS_16BIT:

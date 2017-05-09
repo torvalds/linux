@@ -21,6 +21,16 @@ config INITRAMFS_SOURCE
 
 	  If you are not sure, leave it blank.
 
+config INITRAMFS_FORCE
+	bool "Ignore the initramfs passed by the bootloader"
+	depends on CMDLINE_EXTEND || CMDLINE_FORCE
+	help
+	  This option causes the kernel to ignore the initramfs image
+	  (or initrd image) passed to it by the bootloader. This is
+	  analogous to CMDLINE_FORCE, which is found on some architectures,
+	  and is useful if you cannot or don't want to change the image
+	  your bootloader passes to the kernel.
+
 config INITRAMFS_ROOT_UID
 	int "User ID to map to 0 (user root)"
 	depends on INITRAMFS_SOURCE!=""

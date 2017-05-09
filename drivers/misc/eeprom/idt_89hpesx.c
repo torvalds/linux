@@ -1541,12 +1541,69 @@ static const struct i2c_device_id idt_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, idt_ids);
 
+static const struct of_device_id idt_of_match[] = {
+	{ .compatible = "idt,89hpes8nt2", },
+	{ .compatible = "idt,89hpes12nt3", },
+
+	{ .compatible = "idt,89hpes24nt6ag2", },
+	{ .compatible = "idt,89hpes32nt8ag2", },
+	{ .compatible = "idt,89hpes32nt8bg2", },
+	{ .compatible = "idt,89hpes12nt12g2", },
+	{ .compatible = "idt,89hpes16nt16g2", },
+	{ .compatible = "idt,89hpes24nt24g2", },
+	{ .compatible = "idt,89hpes32nt24ag2", },
+	{ .compatible = "idt,89hpes32nt24bg2", },
+
+	{ .compatible = "idt,89hpes12n3", },
+	{ .compatible = "idt,89hpes12n3a", },
+	{ .compatible = "idt,89hpes24n3", },
+	{ .compatible = "idt,89hpes24n3a", },
+
+	{ .compatible = "idt,89hpes32h8", },
+	{ .compatible = "idt,89hpes32h8g2", },
+	{ .compatible = "idt,89hpes48h12", },
+	{ .compatible = "idt,89hpes48h12g2", },
+	{ .compatible = "idt,89hpes48h12ag2", },
+	{ .compatible = "idt,89hpes16h16", },
+	{ .compatible = "idt,89hpes22h16", },
+	{ .compatible = "idt,89hpes22h16g2", },
+	{ .compatible = "idt,89hpes34h16", },
+	{ .compatible = "idt,89hpes34h16g2", },
+	{ .compatible = "idt,89hpes64h16", },
+	{ .compatible = "idt,89hpes64h16g2", },
+	{ .compatible = "idt,89hpes64h16ag2", },
+
+	{ .compatible = "idt,89hpes12t3g2", },
+	{ .compatible = "idt,89hpes24t3g2", },
+
+	{ .compatible = "idt,89hpes16t4", },
+	{ .compatible = "idt,89hpes4t4g2", },
+	{ .compatible = "idt,89hpes10t4g2", },
+	{ .compatible = "idt,89hpes16t4g2", },
+	{ .compatible = "idt,89hpes16t4ag2", },
+	{ .compatible = "idt,89hpes5t5", },
+	{ .compatible = "idt,89hpes6t5", },
+	{ .compatible = "idt,89hpes8t5", },
+	{ .compatible = "idt,89hpes8t5a", },
+	{ .compatible = "idt,89hpes24t6", },
+	{ .compatible = "idt,89hpes6t6g2", },
+	{ .compatible = "idt,89hpes24t6g2", },
+	{ .compatible = "idt,89hpes16t7", },
+	{ .compatible = "idt,89hpes32t8", },
+	{ .compatible = "idt,89hpes32t8g2", },
+	{ .compatible = "idt,89hpes48t12", },
+	{ .compatible = "idt,89hpes48t12g2", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, idt_of_match);
+
 /*
  * idt_driver - IDT 89HPESx driver structure
  */
 static struct i2c_driver idt_driver = {
 	.driver = {
 		.name = IDT_NAME,
+		.of_match_table = idt_of_match,
 	},
 	.probe = idt_probe,
 	.remove = idt_remove,

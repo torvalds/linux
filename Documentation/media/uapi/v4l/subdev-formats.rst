@@ -1890,10 +1890,10 @@ organization is given as an example for the first pixel only.
       -
       -
       -
-      - -
-      - -
-      - -
-      - -
+      -
+      -
+      -
+      -
       - b\ :sub:`7`
       - b\ :sub:`6`
       - b\ :sub:`5`
@@ -1911,10 +1911,10 @@ organization is given as an example for the first pixel only.
       -
       -
       -
-      - -
-      - -
-      - -
-      - -
+      -
+      -
+      -
+      -
       - g\ :sub:`7`
       - g\ :sub:`6`
       - g\ :sub:`5`
@@ -1932,10 +1932,10 @@ organization is given as an example for the first pixel only.
       -
       -
       -
-      - -
-      - -
-      - -
-      - -
+      -
+      -
+      -
+      -
       - g\ :sub:`7`
       - g\ :sub:`6`
       - g\ :sub:`5`
@@ -1953,10 +1953,10 @@ organization is given as an example for the first pixel only.
       -
       -
       -
-      - -
-      - -
-      - -
-      - -
+      -
+      -
+      -
+      -
       - r\ :sub:`7`
       - r\ :sub:`6`
       - r\ :sub:`5`
@@ -1974,10 +1974,10 @@ organization is given as an example for the first pixel only.
       -
       -
       -
-      - -
-      - -
-      - -
-      - -
+      -
+      -
+      -
+      -
       - b\ :sub:`7`
       - b\ :sub:`6`
       - b\ :sub:`5`
@@ -1995,10 +1995,10 @@ organization is given as an example for the first pixel only.
       -
       -
       -
-      - -
-      - -
-      - -
-      - -
+      -
+      -
+      -
+      -
       - g\ :sub:`7`
       - g\ :sub:`6`
       - g\ :sub:`5`
@@ -2016,10 +2016,10 @@ organization is given as an example for the first pixel only.
       -
       -
       -
-      - -
-      - -
-      - -
-      - -
+      -
+      -
+      -
+      -
       - g\ :sub:`7`
       - g\ :sub:`6`
       - g\ :sub:`5`
@@ -2037,10 +2037,10 @@ organization is given as an example for the first pixel only.
       -
       -
       -
-      - -
-      - -
-      - -
-      - -
+      -
+      -
+      -
+      -
       - r\ :sub:`7`
       - r\ :sub:`6`
       - r\ :sub:`5`
@@ -2058,10 +2058,10 @@ organization is given as an example for the first pixel only.
       -
       -
       -
-      - -
-      - -
-      - -
-      - -
+      -
+      -
+      -
+      -
       - b\ :sub:`7`
       - b\ :sub:`6`
       - b\ :sub:`5`
@@ -2079,10 +2079,10 @@ organization is given as an example for the first pixel only.
       -
       -
       -
-      - -
-      - -
-      - -
-      - -
+      -
+      -
+      -
+      -
       - g\ :sub:`7`
       - g\ :sub:`6`
       - g\ :sub:`5`
@@ -2100,10 +2100,10 @@ organization is given as an example for the first pixel only.
       -
       -
       -
-      - -
-      - -
-      - -
-      - -
+      -
+      -
+      -
+      -
       - g\ :sub:`7`
       - g\ :sub:`6`
       - g\ :sub:`5`
@@ -2121,10 +2121,10 @@ organization is given as an example for the first pixel only.
       -
       -
       -
-      - -
-      - -
-      - -
-      - -
+      -
+      -
+      -
+      -
       - r\ :sub:`7`
       - r\ :sub:`6`
       - r\ :sub:`5`
@@ -2142,10 +2142,10 @@ organization is given as an example for the first pixel only.
       -
       -
       -
-      - -
-      - -
-      - -
-      - -
+      -
+      -
+      -
+      -
       - 0
       - 0
       - 0
@@ -2161,10 +2161,10 @@ organization is given as an example for the first pixel only.
       -
       -
       -
-      - -
-      - -
-      - -
-      - -
+      -
+      -
+      -
+      -
       - b\ :sub:`7`
       - b\ :sub:`6`
       - b\ :sub:`5`
@@ -2182,10 +2182,10 @@ organization is given as an example for the first pixel only.
       -
       -
       -
-      - -
-      - -
-      - -
-      - -
+      -
+      -
+      -
+      -
       - b\ :sub:`7`
       - b\ :sub:`6`
       - b\ :sub:`5`
@@ -2201,10 +2201,10 @@ organization is given as an example for the first pixel only.
       -
       -
       -
-      - -
-      - -
-      - -
-      - -
+      -
+      -
+      -
+      -
       - 0
       - 0
       - 0
@@ -2222,10 +2222,10 @@ organization is given as an example for the first pixel only.
       -
       -
       -
-      - -
-      - -
-      - -
-      - -
+      -
+      -
+      -
+      -
       - b\ :sub:`9`
       - b\ :sub:`8`
       - b\ :sub:`7`
@@ -2241,10 +2241,10 @@ organization is given as an example for the first pixel only.
       -
       -
       -
-      - -
-      - -
-      - -
-      - -
+      -
+      -
+      -
+      -
       - b\ :sub:`1`
       - b\ :sub:`0`
       - 0
@@ -2262,10 +2262,10 @@ organization is given as an example for the first pixel only.
       -
       -
       -
-      - -
-      - -
-      - -
-      - -
+      -
+      -
+      -
+      -
       - b\ :sub:`1`
       - b\ :sub:`0`
       - 0
@@ -2281,10 +2281,10 @@ organization is given as an example for the first pixel only.
       -
       -
       -
-      - -
-      - -
-      - -
-      - -
+      -
+      -
+      -
+      -
       - b\ :sub:`9`
       - b\ :sub:`8`
       - b\ :sub:`7`
@@ -2300,10 +2300,10 @@ organization is given as an example for the first pixel only.
       -
       -
       -
-      - -
-      - -
-      - -
-      - -
+      -
+      -
+      -
+      -
       - b\ :sub:`9`
       - b\ :sub:`8`
       - b\ :sub:`7`
@@ -2321,10 +2321,10 @@ organization is given as an example for the first pixel only.
       -
       -
       -
-      - -
-      - -
-      - -
-      - -
+      -
+      -
+      -
+      -
       - g\ :sub:`9`
       - g\ :sub:`8`
       - g\ :sub:`7`
@@ -2342,10 +2342,10 @@ organization is given as an example for the first pixel only.
       -
       -
       -
-      - -
-      - -
-      - -
-      - -
+      -
+      -
+      -
+      -
       - g\ :sub:`9`
       - g\ :sub:`8`
       - g\ :sub:`7`
@@ -2363,10 +2363,10 @@ organization is given as an example for the first pixel only.
       -
       -
       -
-      - -
-      - -
-      - -
-      - -
+      -
+      -
+      -
+      -
       - r\ :sub:`9`
       - r\ :sub:`8`
       - r\ :sub:`7`
@@ -2382,10 +2382,10 @@ organization is given as an example for the first pixel only.
       - MEDIA_BUS_FMT_SBGGR12_1X12
       - 0x3008
       -
-      - -
-      - -
-      - -
-      - -
+      -
+      -
+      -
+      -
       - b\ :sub:`11`
       - b\ :sub:`10`
       - b\ :sub:`9`
@@ -2403,10 +2403,10 @@ organization is given as an example for the first pixel only.
       - MEDIA_BUS_FMT_SGBRG12_1X12
       - 0x3010
       -
-      - -
-      - -
-      - -
-      - -
+      -
+      -
+      -
+      -
       - g\ :sub:`11`
       - g\ :sub:`10`
       - g\ :sub:`9`
@@ -2424,10 +2424,10 @@ organization is given as an example for the first pixel only.
       - MEDIA_BUS_FMT_SGRBG12_1X12
       - 0x3011
       -
-      - -
-      - -
-      - -
-      - -
+      -
+      -
+      -
+      -
       - g\ :sub:`11`
       - g\ :sub:`10`
       - g\ :sub:`9`
@@ -2445,10 +2445,10 @@ organization is given as an example for the first pixel only.
       - MEDIA_BUS_FMT_SRGGB12_1X12
       - 0x3012
       -
-      - -
-      - -
-      - -
-      - -
+      -
+      -
+      -
+      -
       - r\ :sub:`11`
       - r\ :sub:`10`
       - r\ :sub:`9`
@@ -2466,8 +2466,8 @@ organization is given as an example for the first pixel only.
       - MEDIA_BUS_FMT_SBGGR14_1X14
       - 0x3019
       -
-      - -
-      - -
+      -
+      -
       - b\ :sub:`13`
       - b\ :sub:`12`
       - b\ :sub:`11`
@@ -2487,8 +2487,8 @@ organization is given as an example for the first pixel only.
       - MEDIA_BUS_FMT_SGBRG14_1X14
       - 0x301a
       -
-      - -
-      - -
+      -
+      -
       - g\ :sub:`13`
       - g\ :sub:`12`
       - g\ :sub:`11`
@@ -2508,8 +2508,8 @@ organization is given as an example for the first pixel only.
       - MEDIA_BUS_FMT_SGRBG14_1X14
       - 0x301b
       -
-      - -
-      - -
+      -
+      -
       - g\ :sub:`13`
       - g\ :sub:`12`
       - g\ :sub:`11`
@@ -2529,8 +2529,8 @@ organization is given as an example for the first pixel only.
       - MEDIA_BUS_FMT_SRGGB14_1X14
       - 0x301c
       -
-      - -
-      - -
+      -
+      -
       - r\ :sub:`13`
       - r\ :sub:`12`
       - r\ :sub:`11`

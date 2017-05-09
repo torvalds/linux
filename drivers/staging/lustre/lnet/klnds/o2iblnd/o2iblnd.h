@@ -172,7 +172,6 @@ struct kib_hca_dev {
 	__u64              ibh_page_mask;       /* page mask of current HCA */
 	int                ibh_mr_shift;        /* bits shift of max MR size */
 	__u64              ibh_mr_size;         /* size of MR */
-	struct ib_mr	   *ibh_mrs;		/* global MR */
 	struct ib_pd       *ibh_pd;             /* PD */
 	struct kib_dev	   *ibh_dev;		/* owner */
 	atomic_t           ibh_ref;             /* refcount */
@@ -491,7 +490,7 @@ struct kib_tx {					/* transmit message */
 	int                   tx_status;      /* LNET completion status */
 	unsigned long         tx_deadline;    /* completion deadline */
 	__u64                 tx_cookie;      /* completion cookie */
-	lnet_msg_t *tx_lntmsg[2]; /* lnet msgs to finalize on completion */
+	struct lnet_msg		*tx_lntmsg[2];	/* lnet msgs to finalize on completion */
 	struct kib_msg	      *tx_msg;        /* message buffer (host vaddr) */
 	__u64                 tx_msgaddr;     /* message buffer (I/O addr) */
 	DECLARE_PCI_UNMAP_ADDR(tx_msgunmap);  /* for dma_unmap_single() */
@@ -567,7 +566,7 @@ struct kib_conn {
 struct kib_peer {
 	struct list_head ibp_list;        /* stash on global peer list */
 	lnet_nid_t       ibp_nid;         /* who's on the other end(s) */
-	lnet_ni_t        *ibp_ni;         /* LNet interface */
+	struct lnet_ni	*ibp_ni;         /* LNet interface */
 	struct list_head ibp_conns;       /* all active connections */
 	struct list_head ibp_tx_queue;    /* msgs waiting for a conn */
 	__u64            ibp_incarnation; /* incarnation of peer */
@@ -764,7 +763,7 @@ static inline int
 kiblnd_need_noop(struct kib_conn *conn)
 {
 	struct lnet_ioctl_config_o2iblnd_tunables *tunables;
-	lnet_ni_t *ni = conn->ibc_peer->ibp_ni;
+	struct lnet_ni *ni = conn->ibc_peer->ibp_ni;
 
 	LASSERT(conn->ibc_state >= IBLND_CONN_ESTABLISHED);
 	tunables = &ni->ni_lnd_tunables->lt_tun_u.lt_o2ib;
@@ -978,8 +977,6 @@ static inline unsigned int kiblnd_sg_dma_len(struct ib_device *dev,
 #define KIBLND_CONN_PARAM(e)     ((e)->param.conn.private_data)
 #define KIBLND_CONN_PARAM_LEN(e) ((e)->param.conn.private_data_len)
 
-struct ib_mr *kiblnd_find_rd_dma_mr(struct lnet_ni *ni, struct kib_rdma_desc *rd,
-				    int negotiated_nfrags);
 void kiblnd_map_rx_descs(struct kib_conn *conn);
 void kiblnd_unmap_rx_descs(struct kib_conn *conn);
 void kiblnd_pool_free_node(struct kib_pool *pool, struct list_head *node);
@@ -1005,7 +1002,8 @@ int  kiblnd_cm_callback(struct rdma_cm_id *cmid,
 int  kiblnd_translate_mtu(int value);
 
 int  kiblnd_dev_failover(struct kib_dev *dev);
-int  kiblnd_create_peer(lnet_ni_t *ni, struct kib_peer **peerp, lnet_nid_t nid);
+int kiblnd_create_peer(struct lnet_ni *ni, struct kib_peer **peerp,
+		       lnet_nid_t nid);
 void kiblnd_destroy_peer(struct kib_peer *peer);
 bool kiblnd_reconnect_peer(struct kib_peer *peer);
 void kiblnd_destroy_dev(struct kib_dev *dev);
@@ -1022,19 +1020,19 @@ void kiblnd_destroy_conn(struct kib_conn *conn, bool free_conn);
 void kiblnd_close_conn(struct kib_conn *conn, int error);
 void kiblnd_close_conn_locked(struct kib_conn *conn, int error);
 
-void kiblnd_launch_tx(lnet_ni_t *ni, struct kib_tx *tx, lnet_nid_t nid);
-void kiblnd_txlist_done(lnet_ni_t *ni, struct list_head *txlist,
+void kiblnd_launch_tx(struct lnet_ni *ni, struct kib_tx *tx, lnet_nid_t nid);
+void kiblnd_txlist_done(struct lnet_ni *ni, struct list_head *txlist,
 			int status);
 
 void kiblnd_qp_event(struct ib_event *event, void *arg);
 void kiblnd_cq_event(struct ib_event *event, void *arg);
 void kiblnd_cq_completion(struct ib_cq *cq, void *arg);
 
-void kiblnd_pack_msg(lnet_ni_t *ni, struct kib_msg *msg, int version,
+void kiblnd_pack_msg(struct lnet_ni *ni, struct kib_msg *msg, int version,
 		     int credits, lnet_nid_t dstnid, __u64 dststamp);
 int  kiblnd_unpack_msg(struct kib_msg *msg, int nob);
 int  kiblnd_post_rx(struct kib_rx *rx, int credit);
 
-int  kiblnd_send(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg);
-int  kiblnd_recv(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg, int delayed,
-		 struct iov_iter *to, unsigned int rlen);
+int kiblnd_send(struct lnet_ni *ni, void *private, struct lnet_msg *lntmsg);
+int kiblnd_recv(struct lnet_ni *ni, void *private, struct lnet_msg *lntmsg,
+		int delayed, struct iov_iter *to, unsigned int rlen);

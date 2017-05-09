@@ -12,6 +12,7 @@
 #include <linux/filter.h>
 #include <linux/if_vlan.h>
 #include <asm/cacheflush.h>
+#include <asm/set_memory.h>
 #include <linux/bpf.h>
 
 int bpf_jit_enable __read_mostly;

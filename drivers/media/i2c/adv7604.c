@@ -2050,7 +2050,7 @@ static void adv76xx_cec_isr(struct v4l2_subdev *sd, bool *handled)
 
 static int adv76xx_cec_adap_enable(struct cec_adapter *adap, bool enable)
 {
-	struct adv76xx_state *state = adap->priv;
+	struct adv76xx_state *state = cec_get_drvdata(adap);
 	struct v4l2_subdev *sd = &state->sd;
 
 	if (!state->cec_enabled_adap && enable) {
@@ -2080,7 +2080,7 @@ static int adv76xx_cec_adap_enable(struct cec_adapter *adap, bool enable)
 
 static int adv76xx_cec_adap_log_addr(struct cec_adapter *adap, u8 addr)
 {
-	struct adv76xx_state *state = adap->priv;
+	struct adv76xx_state *state = cec_get_drvdata(adap);
 	struct v4l2_subdev *sd = &state->sd;
 	unsigned int i, free_idx = ADV76XX_MAX_ADDRS;
 
@@ -2135,7 +2135,7 @@ static int adv76xx_cec_adap_log_addr(struct cec_adapter *adap, u8 addr)
 static int adv76xx_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 				     u32 signal_free_time, struct cec_msg *msg)
 {
-	struct adv76xx_state *state = adap->priv;
+	struct adv76xx_state *state = cec_get_drvdata(adap);
 	struct v4l2_subdev *sd = &state->sd;
 	u8 len = msg->len;
 	unsigned int i;

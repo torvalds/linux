@@ -444,6 +444,7 @@ config ARC_HAS_PAE40
 	bool "Support for the 40-bit Physical Address Extension"
 	default n
 	depends on ISA_ARCV2
+	select HIGHMEM
 	help
 	  Enable access to physical memory beyond 4G, only supported on
 	  ARC cores with 40 bit Physical Addressing support

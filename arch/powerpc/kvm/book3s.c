@@ -20,6 +20,10 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/miscdevice.h>
+#include <linux/gfp.h>
+#include <linux/sched.h>
+#include <linux/vmalloc.h>
+#include <linux/highmem.h>
 
 #include <asm/reg.h>
 #include <asm/cputable.h>
@@ -31,10 +35,6 @@
 #include <asm/kvm_book3s.h>
 #include <asm/mmu_context.h>
 #include <asm/page.h>
-#include <linux/gfp.h>
-#include <linux/sched.h>
-#include <linux/vmalloc.h>
-#include <linux/highmem.h>
 
 #include "book3s.h"
 #include "trace.h"
@@ -196,6 +196,24 @@ void kvmppc_core_queue_program(struct kvm_vcpu *vcpu, ulong flags)
 	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_PROGRAM, flags);
 }
 EXPORT_SYMBOL_GPL(kvmppc_core_queue_program);
+
+void kvmppc_core_queue_fpunavail(struct kvm_vcpu *vcpu)
+{
+	/* might as well deliver this straight away */
+	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_FP_UNAVAIL, 0);
+}
+
+void kvmppc_core_queue_vec_unavail(struct kvm_vcpu *vcpu)
+{
+	/* might as well deliver this straight away */
+	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_ALTIVEC, 0);
+}
+
+void kvmppc_core_queue_vsx_unavail(struct kvm_vcpu *vcpu)
+{
+	/* might as well deliver this straight away */
+	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_VSX, 0);
+}
 
 void kvmppc_core_queue_dec(struct kvm_vcpu *vcpu)
 {

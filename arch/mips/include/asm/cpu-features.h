@@ -444,6 +444,10 @@
 # define cpu_has_msa		0
 #endif
 
+#ifndef cpu_has_ufr
+# define cpu_has_ufr		(cpu_data[0].options & MIPS_CPU_UFR)
+#endif
+
 #ifndef cpu_has_fre
 # define cpu_has_fre		(cpu_data[0].options & MIPS_CPU_FRE)
 #endif
@@ -528,6 +532,9 @@
 #ifndef cpu_guest_has_htw
 #define cpu_guest_has_htw	(cpu_data[0].guest.options & MIPS_CPU_HTW)
 #endif
+#ifndef cpu_guest_has_mvh
+#define cpu_guest_has_mvh	(cpu_data[0].guest.options & MIPS_CPU_MVH)
+#endif
 #ifndef cpu_guest_has_msa
 #define cpu_guest_has_msa	(cpu_data[0].guest.ases & MIPS_ASE_MSA)
 #endif
@@ -542,6 +549,9 @@
 #endif
 #ifndef cpu_guest_has_maar
 #define cpu_guest_has_maar	(cpu_data[0].guest.options & MIPS_CPU_MAAR)
+#endif
+#ifndef cpu_guest_has_userlocal
+#define cpu_guest_has_userlocal	(cpu_data[0].guest.options & MIPS_CPU_ULRI)
 #endif
 
 /*

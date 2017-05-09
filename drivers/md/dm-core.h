@@ -58,6 +58,7 @@ struct mapped_device {
 	struct target_type *immutable_target_type;
 
 	struct gendisk *disk;
+	struct dax_device *dax_dev;
 	char name[16];
 
 	void *interface_ptr;

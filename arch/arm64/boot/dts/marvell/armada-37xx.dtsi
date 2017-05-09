@@ -112,6 +112,8 @@
 			i2c0: i2c@11000 {
 				compatible = "marvell,armada-3700-i2c";
 				reg = <0x11000 0x24>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&nb_periph_clk 10>;
 				interrupts = <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
 				mrvl,i2c-fast-mode;
@@ -121,6 +123,8 @@
 			i2c1: i2c@11080 {
 				compatible = "marvell,armada-3700-i2c";
 				reg = <0x11080 0x24>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&nb_periph_clk 9>;
 				interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
 				mrvl,i2c-fast-mode;
@@ -196,7 +200,15 @@
 				compatible = "marvell,armada3700-xhci",
 				"generic-xhci";
 				reg = <0x58000 0x4000>;
-				interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&sb_periph_clk 12>;
+				status = "disabled";
+			};
+
+			usb2: usb@5e000 {
+				compatible = "marvell,armada-3700-ehci";
+				reg = <0x5e000 0x2000>;
+				interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
 			};
 
@@ -211,6 +223,17 @@
 				xor11 {
 					interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
 				};
+			};
+
+			sdhci0: sdhci@d8000 {
+				compatible = "marvell,armada-3700-sdhci",
+				"marvell,sdhci-xenon";
+				reg = <0xd8000 0x300
+				       0x17808 0x4>;
+				interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&nb_periph_clk 0>;
+				clock-names = "core";
+				status = "disabled";
 			};
 
 			sata: sata@e0000 {

@@ -7,6 +7,7 @@
 #include <linux/string.h>
 #include <linux/scatterlist.h>
 #include <asm/io.h>
+#include <asm/pat.h>
 #include <asm/x86_init.h>
 
 #ifdef __KERNEL__
@@ -102,10 +103,8 @@ int pcibios_set_irq_routing(struct pci_dev *dev, int pin, int irq);
 
 
 #define HAVE_PCI_MMAP
-extern int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
-			       enum pci_mmap_state mmap_state,
-			       int write_combine);
-
+#define arch_can_pci_mmap_wc()	pat_enabled()
+#define ARCH_GENERIC_PCI_MMAP_RESOURCE
 
 #ifdef CONFIG_PCI
 extern void early_quirks(void);

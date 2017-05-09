@@ -145,8 +145,8 @@ dev_hint
 
    A camera is specified by its type (the number from the camera model,
    like PCA645, PCVC750VC, etc) and optionally the serial number (visible
-   in /proc/bus/usb/devices). A hint consists of a string with the following
-   format::
+   in /sys/kernel/debug/usb/devices). A hint consists of a string with the
+   following format::
 
       [type[.serialnumber]:]node
 

@@ -221,6 +221,8 @@ static void machine_check_process_queued_event(struct irq_work *work)
 {
 	int index;
 
+	add_taint(TAINT_MACHINE_CHECK, LOCKDEP_NOW_UNRELIABLE);
+
 	/*
 	 * For now just print it to console.
 	 * TODO: log this error event to FSP or nvram.
@@ -228,12 +230,13 @@ static void machine_check_process_queued_event(struct irq_work *work)
 	while (__this_cpu_read(mce_queue_count) > 0) {
 		index = __this_cpu_read(mce_queue_count) - 1;
 		machine_check_print_event_info(
-				this_cpu_ptr(&mce_event_queue[index]));
+				this_cpu_ptr(&mce_event_queue[index]), false);
 		__this_cpu_dec(mce_queue_count);
 	}
 }
 
-void machine_check_print_event_info(struct machine_check_event *evt)
+void machine_check_print_event_info(struct machine_check_event *evt,
+				    bool user_mode)
 {
 	const char *level, *sevstr, *subtype;
 	static const char *mc_ue_types[] = {
@@ -310,7 +313,16 @@ void machine_check_print_event_info(struct machine_check_event *evt)
 
 	printk("%s%s Machine check interrupt [%s]\n", level, sevstr,
 	       evt->disposition == MCE_DISPOSITION_RECOVERED ?
-	       "Recovered" : "[Not recovered");
+	       "Recovered" : "Not recovered");
+
+	if (user_mode) {
+		printk("%s  NIP: [%016llx] PID: %d Comm: %s\n", level,
+			evt->srr0, current->pid, current->comm);
+	} else {
+		printk("%s  NIP [%016llx]: %pS\n", level, evt->srr0,
+		       (void *)evt->srr0);
+	}
+
 	printk("%s  Initiator: %s\n", level,
 	       evt->initiator == MCE_INITIATOR_CPU ? "CPU" : "Unknown");
 	switch (evt->error_type) {

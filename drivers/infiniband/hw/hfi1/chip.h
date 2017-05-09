@@ -636,7 +636,8 @@ static inline void write_uctxt_csr(struct hfi1_devdata *dd, int ctxt,
 	write_csr(dd, offset0 + (0x1000 * ctxt), value);
 }
 
-u64 create_pbc(struct hfi1_pportdata *ppd, u64, int, u32, u32);
+u64 create_pbc(struct hfi1_pportdata *ppd, u64 flags, int srate_mbs, u32 vl,
+	       u32 dw_len);
 
 /* firmware.c */
 #define SBUS_MASTER_BROADCAST 0xfd
@@ -728,7 +729,8 @@ int bringup_serdes(struct hfi1_pportdata *ppd);
 void set_intr_state(struct hfi1_devdata *dd, u32 enable);
 void apply_link_downgrade_policy(struct hfi1_pportdata *ppd,
 				 int refresh_widths);
-void update_usrhead(struct hfi1_ctxtdata *, u32, u32, u32, u32, u32);
+void update_usrhead(struct hfi1_ctxtdata *rcd, u32 hd, u32 updegr, u32 egrhd,
+		    u32 intr_adjust, u32 npkts);
 int stop_drain_data_vls(struct hfi1_devdata *dd);
 int open_fill_data_vls(struct hfi1_devdata *dd);
 u32 ns_to_cclock(struct hfi1_devdata *dd, u32 ns);
@@ -1347,7 +1349,7 @@ void hfi1_start_cleanup(struct hfi1_devdata *dd);
 void hfi1_clear_tids(struct hfi1_ctxtdata *rcd);
 struct ib_header *hfi1_get_msgheader(
 				struct hfi1_devdata *dd, __le32 *rhf_addr);
-int hfi1_init_ctxt(struct send_context *sc);
+void hfi1_init_ctxt(struct send_context *sc);
 void hfi1_put_tid(struct hfi1_devdata *dd, u32 index,
 		  u32 type, unsigned long pa, u16 order);
 void hfi1_quiet_serdes(struct hfi1_pportdata *ppd);
@@ -1360,7 +1362,7 @@ int hfi1_set_ib_cfg(struct hfi1_pportdata *ppd, int which, u32 val);
 int hfi1_set_ctxt_jkey(struct hfi1_devdata *dd, unsigned ctxt, u16 jkey);
 int hfi1_clear_ctxt_jkey(struct hfi1_devdata *dd, unsigned ctxt);
 int hfi1_set_ctxt_pkey(struct hfi1_devdata *dd, unsigned ctxt, u16 pkey);
-int hfi1_clear_ctxt_pkey(struct hfi1_devdata *dd, unsigned ctxt);
+int hfi1_clear_ctxt_pkey(struct hfi1_devdata *dd, struct hfi1_ctxtdata *ctxt);
 void hfi1_read_link_quality(struct hfi1_devdata *dd, u8 *link_quality);
 void hfi1_init_vnic_rsm(struct hfi1_devdata *dd);
 void hfi1_deinit_vnic_rsm(struct hfi1_devdata *dd);

@@ -83,34 +83,6 @@ extern int blk_mq_sysfs_register(struct request_queue *q);
 extern void blk_mq_sysfs_unregister(struct request_queue *q);
 extern void blk_mq_hctx_kobj_init(struct blk_mq_hw_ctx *hctx);
 
-/*
- * debugfs helpers
- */
-#ifdef CONFIG_BLK_DEBUG_FS
-int blk_mq_debugfs_register(struct request_queue *q);
-void blk_mq_debugfs_unregister(struct request_queue *q);
-int blk_mq_debugfs_register_mq(struct request_queue *q);
-void blk_mq_debugfs_unregister_mq(struct request_queue *q);
-#else
-static inline int blk_mq_debugfs_register(struct request_queue *q)
-{
-	return 0;
-}
-
-static inline void blk_mq_debugfs_unregister(struct request_queue *q)
-{
-}
-
-static inline int blk_mq_debugfs_register_mq(struct request_queue *q)
-{
-	return 0;
-}
-
-static inline void blk_mq_debugfs_unregister_mq(struct request_queue *q)
-{
-}
-#endif
-
 extern void blk_mq_rq_timed_out(struct request *req, bool reserved);
 
 void blk_mq_release(struct request_queue *q);

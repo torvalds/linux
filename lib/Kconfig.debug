@@ -1719,19 +1719,21 @@ config LKDTM
 	Documentation/fault-injection/provoke-crashes.txt
 
 config TEST_LIST_SORT
-	bool "Linked list sorting test"
-	depends on DEBUG_KERNEL
+	tristate "Linked list sorting test"
+	depends on DEBUG_KERNEL || m
 	help
 	  Enable this to turn on 'list_sort()' function test. This test is
-	  executed only once during system boot, so affects only boot time.
+	  executed only once during system boot (so affects only boot time),
+	  or at module load time.
 
 	  If unsure, say N.
 
 config TEST_SORT
-	bool "Array-based sort test"
-	depends on DEBUG_KERNEL
+	tristate "Array-based sort test"
+	depends on DEBUG_KERNEL || m
 	help
-	  This option enables the self-test function of 'sort()' at boot.
+	  This option enables the self-test function of 'sort()' at boot,
+	  or at module load time.
 
 	  If unsure, say N.
 

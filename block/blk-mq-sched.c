@@ -11,6 +11,7 @@
 
 #include "blk.h"
 #include "blk-mq.h"
+#include "blk-mq-debugfs.h"
 #include "blk-mq-sched.h"
 #include "blk-mq-tag.h"
 #include "blk-wbt.h"
@@ -82,11 +83,7 @@ struct request *blk_mq_sched_get_request(struct request_queue *q,
 	if (likely(!data->hctx))
 		data->hctx = blk_mq_map_queue(q, data->ctx->cpu);
 
-	/*
-	 * For a reserved tag, allocate a normal request since we might
-	 * have driver dependencies on the value of the internal tag.
-	 */
-	if (e && !(data->flags & BLK_MQ_REQ_RESERVED)) {
+	if (e) {
 		data->flags |= BLK_MQ_REQ_INTERNAL;
 
 		/*
@@ -476,6 +473,8 @@ int blk_mq_sched_init_hctx(struct request_queue *q, struct blk_mq_hw_ctx *hctx,
 		}
 	}
 
+	blk_mq_debugfs_register_sched_hctx(q, hctx);
+
 	return 0;
 }
 
@@ -486,6 +485,8 @@ void blk_mq_sched_exit_hctx(struct request_queue *q, struct blk_mq_hw_ctx *hctx,
 
 	if (!e)
 		return;
+
+	blk_mq_debugfs_unregister_sched_hctx(hctx);
 
 	if (e->type->ops.mq.exit_hctx && hctx->sched_data) {
 		e->type->ops.mq.exit_hctx(hctx, hctx_idx);
@@ -523,8 +524,10 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 	if (ret)
 		goto err;
 
-	if (e->ops.mq.init_hctx) {
-		queue_for_each_hw_ctx(q, hctx, i) {
+	blk_mq_debugfs_register_sched(q);
+
+	queue_for_each_hw_ctx(q, hctx, i) {
+		if (e->ops.mq.init_hctx) {
 			ret = e->ops.mq.init_hctx(hctx, i);
 			if (ret) {
 				eq = q->elevator;
@@ -533,6 +536,7 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 				return ret;
 			}
 		}
+		blk_mq_debugfs_register_sched_hctx(q, hctx);
 	}
 
 	return 0;
@@ -548,14 +552,14 @@ void blk_mq_exit_sched(struct request_queue *q, struct elevator_queue *e)
 	struct blk_mq_hw_ctx *hctx;
 	unsigned int i;
 
-	if (e->type->ops.mq.exit_hctx) {
-		queue_for_each_hw_ctx(q, hctx, i) {
-			if (hctx->sched_data) {
-				e->type->ops.mq.exit_hctx(hctx, i);
-				hctx->sched_data = NULL;
-			}
+	queue_for_each_hw_ctx(q, hctx, i) {
+		blk_mq_debugfs_unregister_sched_hctx(hctx);
+		if (e->type->ops.mq.exit_hctx && hctx->sched_data) {
+			e->type->ops.mq.exit_hctx(hctx, i);
+			hctx->sched_data = NULL;
 		}
 	}
+	blk_mq_debugfs_unregister_sched(q);
 	if (e->type->ops.mq.exit_sched)
 		e->type->ops.mq.exit_sched(e);
 	blk_mq_sched_tags_teardown(q);

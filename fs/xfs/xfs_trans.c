@@ -263,6 +263,28 @@ xfs_trans_alloc(
 }
 
 /*
+ * Create an empty transaction with no reservation.  This is a defensive
+ * mechanism for routines that query metadata without actually modifying
+ * them -- if the metadata being queried is somehow cross-linked (think a
+ * btree block pointer that points higher in the tree), we risk deadlock.
+ * However, blocks grabbed as part of a transaction can be re-grabbed.
+ * The verifiers will notice the corrupt block and the operation will fail
+ * back to userspace without deadlocking.
+ *
+ * Note the zero-length reservation; this transaction MUST be cancelled
+ * without any dirty data.
+ */
+int
+xfs_trans_alloc_empty(
+	struct xfs_mount		*mp,
+	struct xfs_trans		**tpp)
+{
+	struct xfs_trans_res		resv = {0};
+
+	return xfs_trans_alloc(mp, &resv, 0, 0, XFS_TRANS_NO_WRITECOUNT, tpp);
+}
+
+/*
  * Record the indicated change to the given field for application
  * to the file system's superblock when the transaction commits.
  * For now, just store the change in the transaction structure.
@@ -1012,16 +1034,13 @@ xfs_trans_cancel(
  * chunk we've been working on and get a new transaction to continue.
  */
 int
-__xfs_trans_roll(
+xfs_trans_roll(
 	struct xfs_trans	**tpp,
-	struct xfs_inode	*dp,
-	int			*committed)
+	struct xfs_inode	*dp)
 {
 	struct xfs_trans	*trans;
 	struct xfs_trans_res	tres;
 	int			error;
-
-	*committed = 0;
 
 	/*
 	 * Ensure that the inode is always logged.
@@ -1048,7 +1067,6 @@ __xfs_trans_roll(
 	if (error)
 		return error;
 
-	*committed = 1;
 	trans = *tpp;
 
 	/*
@@ -1070,13 +1088,4 @@ __xfs_trans_roll(
 	if (dp)
 		xfs_trans_ijoin(trans, dp, 0);
 	return 0;
-}
-
-int
-xfs_trans_roll(
-	struct xfs_trans	**tpp,
-	struct xfs_inode	*dp)
-{
-	int			committed;
-	return __xfs_trans_roll(tpp, dp, &committed);
 }

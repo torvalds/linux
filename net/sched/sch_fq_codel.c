@@ -446,27 +446,13 @@ static int fq_codel_change(struct Qdisc *sch, struct nlattr *opt)
 	return 0;
 }
 
-static void *fq_codel_zalloc(size_t sz)
-{
-	void *ptr = kzalloc(sz, GFP_KERNEL | __GFP_NOWARN);
-
-	if (!ptr)
-		ptr = vzalloc(sz);
-	return ptr;
-}
-
-static void fq_codel_free(void *addr)
-{
-	kvfree(addr);
-}
-
 static void fq_codel_destroy(struct Qdisc *sch)
 {
 	struct fq_codel_sched_data *q = qdisc_priv(sch);
 
 	tcf_destroy_chain(&q->filter_list);
-	fq_codel_free(q->backlogs);
-	fq_codel_free(q->flows);
+	kvfree(q->backlogs);
+	kvfree(q->flows);
 }
 
 static int fq_codel_init(struct Qdisc *sch, struct nlattr *opt)
@@ -493,13 +479,13 @@ static int fq_codel_init(struct Qdisc *sch, struct nlattr *opt)
 	}
 
 	if (!q->flows) {
-		q->flows = fq_codel_zalloc(q->flows_cnt *
-					   sizeof(struct fq_codel_flow));
+		q->flows = kvzalloc(q->flows_cnt *
+					   sizeof(struct fq_codel_flow), GFP_KERNEL);
 		if (!q->flows)
 			return -ENOMEM;
-		q->backlogs = fq_codel_zalloc(q->flows_cnt * sizeof(u32));
+		q->backlogs = kvzalloc(q->flows_cnt * sizeof(u32), GFP_KERNEL);
 		if (!q->backlogs) {
-			fq_codel_free(q->flows);
+			kvfree(q->flows);
 			return -ENOMEM;
 		}
 		for (i = 0; i < q->flows_cnt; i++) {

@@ -85,3 +85,14 @@ This means that there's a blackout-period of about one month where feature work
 can't be merged. The recommended way to deal with that is having a -next tree
 that's always open, but making sure to not feed it into linux-next during the
 blackout period. As an example, drm-misc works like that.
+
+Code of Conduct
+---------------
+
+As a freedesktop.org project, dri-devel, and the DRM community, follows the
+Contributor Covenant, found at: https://www.freedesktop.org/wiki/CodeOfConduct
+
+Please conduct yourself in a respectful and civilised manner when
+interacting with community members on mailing lists, IRC, or bug
+trackers. The community represents the project as a whole, and abusive
+or bullying behaviour is not tolerated by the project.

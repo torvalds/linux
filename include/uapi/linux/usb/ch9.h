@@ -224,7 +224,8 @@ struct usb_ctrlrequest {
  * through the Linux-USB APIs, they are not converted to cpu byte
  * order; it is the responsibility of the client code to do this.
  * The single exception is when device and configuration descriptors (but
- * not other descriptors) are read from usbfs (i.e. /proc/bus/usb/BBB/DDD);
+ * not other descriptors) are read from character devices
+ * (i.e. /dev/bus/usb/BBB/DDD);
  * in this case the fields are converted to host endianness by the kernel.
  */
 

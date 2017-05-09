@@ -60,7 +60,7 @@
 	};
 };
 
-/* USB 2/3 support needed to be complete */
+/* USB 3 support needed to be complete */
 
 &amac0 {
 	status = "okay";
@@ -71,6 +71,10 @@
 };
 
 &amac2 {
+	status = "okay";
+};
+
+&ehci0 {
 	status = "okay";
 };
 
@@ -110,6 +114,10 @@
 			reg = <0x04000000 0x3c000000>;
 		};
 	};
+};
+
+&ohci0 {
+	status = "okay";
 };
 
 &pcie0 {

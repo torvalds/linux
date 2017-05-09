@@ -88,8 +88,8 @@
 			};
 
 			ldo7_reg: ldo7 {
-				regulator-min-microvolt = <1200000>;
-				regulator-max-microvolt = <3600000>;
+				regulator-min-microvolt = <2750000>;
+				regulator-max-microvolt = <2750000>;
 			};
 
 			ldo8_reg: ldo8 {

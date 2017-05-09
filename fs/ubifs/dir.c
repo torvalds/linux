@@ -121,7 +121,7 @@ struct inode *ubifs_new_inode(struct ubifs_info *c, struct inode *dir,
 
 	inode_init_owner(inode, dir, mode);
 	inode->i_mtime = inode->i_atime = inode->i_ctime =
-			 ubifs_current_time(inode);
+			 current_time(inode);
 	inode->i_mapping->nrpages = 0;
 
 	switch (mode & S_IFMT) {
@@ -285,6 +285,15 @@ static struct dentry *ubifs_lookup(struct inode *dir, struct dentry *dentry,
 		goto out_dent;
 	}
 
+	if (ubifs_crypt_is_encrypted(dir) &&
+	    (S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode)) &&
+	    !fscrypt_has_permitted_context(dir, inode)) {
+		ubifs_warn(c, "Inconsistent encryption contexts: %lu/%lu",
+			   dir->i_ino, inode->i_ino);
+		err = -EPERM;
+		goto out_inode;
+	}
+
 done:
 	kfree(dent);
 	fscrypt_free_filename(&nm);
@@ -295,6 +304,8 @@ done:
 	d_add(dentry, inode);
 	return NULL;
 
+out_inode:
+	iput(inode);
 out_dent:
 	kfree(dent);
 out_fname:
@@ -755,7 +766,7 @@ static int ubifs_link(struct dentry *old_dentry, struct inode *dir,
 
 	inc_nlink(inode);
 	ihold(inode);
-	inode->i_ctime = ubifs_current_time(inode);
+	inode->i_ctime = current_time(inode);
 	dir->i_size += sz_change;
 	dir_ui->ui_size = dir->i_size;
 	dir->i_mtime = dir->i_ctime = inode->i_ctime;
@@ -830,7 +841,7 @@ static int ubifs_unlink(struct inode *dir, struct dentry *dentry)
 	}
 
 	lock_2_inodes(dir, inode);
-	inode->i_ctime = ubifs_current_time(dir);
+	inode->i_ctime = current_time(dir);
 	drop_nlink(inode);
 	dir->i_size -= sz_change;
 	dir_ui->ui_size = dir->i_size;
@@ -934,7 +945,7 @@ static int ubifs_rmdir(struct inode *dir, struct dentry *dentry)
 	}
 
 	lock_2_inodes(dir, inode);
-	inode->i_ctime = ubifs_current_time(dir);
+	inode->i_ctime = current_time(dir);
 	clear_nlink(inode);
 	drop_nlink(dir);
 	dir->i_size -= sz_change;
@@ -1411,7 +1422,7 @@ static int do_rename(struct inode *old_dir, struct dentry *old_dentry,
 	 * Like most other Unix systems, set the @i_ctime for inodes on a
 	 * rename.
 	 */
-	time = ubifs_current_time(old_dir);
+	time = current_time(old_dir);
 	old_inode->i_ctime = time;
 
 	/* We must adjust parent link count when renaming directories */
@@ -1584,7 +1595,7 @@ static int ubifs_xrename(struct inode *old_dir, struct dentry *old_dentry,
 
 	lock_4_inodes(old_dir, new_dir, NULL, NULL);
 
-	time = ubifs_current_time(old_dir);
+	time = current_time(old_dir);
 	fst_inode->i_ctime = time;
 	snd_inode->i_ctime = time;
 	old_dir->i_mtime = old_dir->i_ctime = time;

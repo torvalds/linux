@@ -821,10 +821,7 @@ static ssize_t mem_rw(struct file *file, char __user *buf,
 	if (!mmget_not_zero(mm))
 		goto free;
 
-	/* Maybe we should limit FOLL_FORCE to actual ptrace users? */
-	flags = FOLL_FORCE;
-	if (write)
-		flags |= FOLL_WRITE;
+	flags = write ? FOLL_WRITE : 0;
 
 	while (count > 0) {
 		int this_len = min_t(int, count, PAGE_SIZE);

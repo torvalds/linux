@@ -74,7 +74,7 @@ static int nvm_reserve_luns(struct nvm_dev *dev, int lun_begin, int lun_end)
 
 	return 0;
 err:
-	while (--i > lun_begin)
+	while (--i >= lun_begin)
 		clear_bit(i, dev->lun_map);
 
 	return -EBUSY;
@@ -211,7 +211,7 @@ static struct nvm_tgt_dev *nvm_create_tgt_dev(struct nvm_dev *dev,
 
 	return tgt_dev;
 err_ch:
-	while (--i > 0)
+	while (--i >= 0)
 		kfree(dev_map->chnls[i].lun_offs);
 	kfree(luns);
 err_luns:

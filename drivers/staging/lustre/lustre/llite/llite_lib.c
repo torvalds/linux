@@ -1454,17 +1454,17 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 
 	/* We mark all of the fields "set" so MDS/OST does not re-set them */
 	if (attr->ia_valid & ATTR_CTIME) {
-		attr->ia_ctime = CURRENT_TIME;
+		attr->ia_ctime = current_time(inode);
 		attr->ia_valid |= ATTR_CTIME_SET;
 	}
 	if (!(attr->ia_valid & ATTR_ATIME_SET) &&
 	    (attr->ia_valid & ATTR_ATIME)) {
-		attr->ia_atime = CURRENT_TIME;
+		attr->ia_atime = current_time(inode);
 		attr->ia_valid |= ATTR_ATIME_SET;
 	}
 	if (!(attr->ia_valid & ATTR_MTIME_SET) &&
 	    (attr->ia_valid & ATTR_MTIME)) {
-		attr->ia_mtime = CURRENT_TIME;
+		attr->ia_mtime = current_time(inode);
 		attr->ia_valid |= ATTR_MTIME_SET;
 	}
 
@@ -1486,8 +1486,6 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 		goto out;
 	}
 
-	op_data->op_attr = *attr;
-
 	if (!hsm_import && attr->ia_valid & ATTR_SIZE) {
 		/*
 		 * If we are changing file size, file content is
@@ -1495,7 +1493,10 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 		 */
 		attr->ia_valid |= MDS_OPEN_OWNEROVERRIDE;
 		op_data->op_bias |= MDS_DATA_MODIFIED;
+		clear_bit(LLIF_DATA_MODIFIED, &lli->lli_flags);
 	}
+
+	op_data->op_attr = *attr;
 
 	rc = ll_md_setattr(dentry, op_data);
 	if (rc)
@@ -1542,8 +1543,15 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 		int rc2;
 
 		rc2 = ll_hsm_state_set(inode, &hss);
+		/*
+		 * truncate and write can happen at the same time, so that
+		 * the file can be set modified even though the file is not
+		 * restored from released state, and ll_hsm_state_set() is
+		 * not applicable for the file, and rc2 < 0 is normal in this
+		 * case.
+		 */
 		if (rc2 < 0)
-			CERROR(DFID "HSM set dirty failed: rc2 = %d\n",
+			CDEBUG(D_INFO, DFID "HSM set dirty failed: rc2 = %d\n",
 			       PFID(ll_inode2fid(inode)), rc2);
 	}
 
@@ -2486,7 +2494,7 @@ no_kbuf:
 void ll_compute_rootsquash_state(struct ll_sb_info *sbi)
 {
 	struct root_squash_info *squash = &sbi->ll_squash;
-	lnet_process_id_t id;
+	struct lnet_process_id id;
 	bool matched;
 	int i;
 

@@ -25,3 +25,4 @@ obj-$(CONFIG_VIDEO_USBTV) += usbtv/
 obj-$(CONFIG_VIDEO_GO7007) += go7007/
 obj-$(CONFIG_DVB_AS102) += as102/
 obj-$(CONFIG_USB_PULSE8_CEC) += pulse8-cec/
+obj-$(CONFIG_USB_RAINSHADOW_CEC) += rainshadow-cec/

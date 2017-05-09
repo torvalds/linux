@@ -17,7 +17,7 @@
 
 #define USB_DEBUG_MAX_PACKET_SIZE	8
 #define USB_DEBUG_BRK_SIZE		8
-static char USB_DEBUG_BRK[USB_DEBUG_BRK_SIZE] = {
+static const char USB_DEBUG_BRK[USB_DEBUG_BRK_SIZE] = {
 	0x00,
 	0xff,
 	0x01,

@@ -2321,11 +2321,10 @@ inline void nfs_initialise_sb(struct super_block *sb)
 /*
  * Finish setting up an NFS2/3 superblock
  */
-int nfs_fill_super(struct super_block *sb, struct nfs_mount_info *mount_info)
+void nfs_fill_super(struct super_block *sb, struct nfs_mount_info *mount_info)
 {
 	struct nfs_parsed_mount_data *data = mount_info->parsed;
 	struct nfs_server *server = NFS_SB(sb);
-	int ret;
 
 	sb->s_blocksize_bits = 0;
 	sb->s_blocksize = 0;
@@ -2343,21 +2342,13 @@ int nfs_fill_super(struct super_block *sb, struct nfs_mount_info *mount_info)
 	}
 
  	nfs_initialise_sb(sb);
-
-	ret = super_setup_bdi_name(sb, "%u:%u", MAJOR(server->s_dev),
-				   MINOR(server->s_dev));
-	if (ret)
-		return ret;
-	sb->s_bdi->ra_pages = server->rpages * NFS_MAX_READAHEAD;
-	return 0;
-
 }
 EXPORT_SYMBOL_GPL(nfs_fill_super);
 
 /*
  * Finish setting up a cloned NFS2/3/4 superblock
  */
-int nfs_clone_super(struct super_block *sb, struct nfs_mount_info *mount_info)
+void nfs_clone_super(struct super_block *sb, struct nfs_mount_info *mount_info)
 {
 	const struct super_block *old_sb = mount_info->cloned->sb;
 	struct nfs_server *server = NFS_SB(sb);
@@ -2377,10 +2368,6 @@ int nfs_clone_super(struct super_block *sb, struct nfs_mount_info *mount_info)
 	}
 
  	nfs_initialise_sb(sb);
-
-	sb->s_bdi = bdi_get(old_sb->s_bdi);
-
-	return 0;
 }
 
 static int nfs_compare_mount_options(const struct super_block *s, const struct nfs_server *b, int flags)
@@ -2600,14 +2587,19 @@ struct dentry *nfs_fs_mount_common(struct nfs_server *server,
 		nfs_free_server(server);
 		server = NULL;
 	} else {
+		error = super_setup_bdi_name(s, "%u:%u", MAJOR(server->s_dev),
+					     MINOR(server->s_dev));
+		if (error) {
+			mntroot = ERR_PTR(error);
+			goto error_splat_super;
+		}
+		s->s_bdi->ra_pages = server->rpages * NFS_MAX_READAHEAD;
 		server->super = s;
 	}
 
 	if (!s->s_root) {
 		/* initial superblock/root creation */
-		error = mount_info->fill_super(s, mount_info);
-		if (error)
-			goto error_splat_super;
+		mount_info->fill_super(s, mount_info);
 		nfs_get_cache_cookie(s, mount_info->parsed, mount_info->cloned);
 	}
 

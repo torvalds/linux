@@ -74,7 +74,7 @@ static const struct file_operations __fops = {				\
 	.release = simple_attr_release,					\
 	.read	 = debugfs_attr_read,					\
 	.write	 = debugfs_attr_write,					\
-	.llseek  = generic_file_llseek,					\
+	.llseek  = no_llseek,						\
 }
 
 #if defined(CONFIG_DEBUG_FS)

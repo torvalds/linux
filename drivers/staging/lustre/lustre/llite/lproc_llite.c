@@ -386,7 +386,7 @@ static ssize_t ll_max_cached_mb_seq_write(struct file *file,
 	struct lu_env *env;
 	long diff = 0;
 	long nrpages = 0;
-	int refcheck;
+	u16 refcheck;
 	long pages_number;
 	int mult;
 	long rc;
@@ -1308,7 +1308,7 @@ static void ll_display_extents_info(struct ll_rw_extents_info *io_extents,
 			   r, pct(r, read_tot), pct(read_cum, read_tot),
 			   w, pct(w, write_tot), pct(write_cum, write_tot));
 		start = end;
-		if (start == 1 << 10) {
+		if (start == 1024) {
 			start = 1;
 			units += 10;
 			unitp++;

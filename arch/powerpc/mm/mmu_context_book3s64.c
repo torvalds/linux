@@ -30,17 +30,16 @@
 static DEFINE_SPINLOCK(mmu_context_lock);
 static DEFINE_IDA(mmu_context_ida);
 
-int __init_new_context(void)
+static int alloc_context_id(int min_id, int max_id)
 {
-	int index;
-	int err;
+	int index, err;
 
 again:
 	if (!ida_pre_get(&mmu_context_ida, GFP_KERNEL))
 		return -ENOMEM;
 
 	spin_lock(&mmu_context_lock);
-	err = ida_get_new_above(&mmu_context_ida, 1, &index);
+	err = ida_get_new_above(&mmu_context_ida, min_id, &index);
 	spin_unlock(&mmu_context_lock);
 
 	if (err == -EAGAIN)
@@ -48,7 +47,7 @@ again:
 	else if (err)
 		return err;
 
-	if (index > MAX_USER_CONTEXT) {
+	if (index > max_id) {
 		spin_lock(&mmu_context_lock);
 		ida_remove(&mmu_context_ida, index);
 		spin_unlock(&mmu_context_lock);
@@ -57,48 +56,105 @@ again:
 
 	return index;
 }
-EXPORT_SYMBOL_GPL(__init_new_context);
-static int radix__init_new_context(struct mm_struct *mm, int index)
+
+void hash__reserve_context_id(int id)
+{
+	int rc, result = 0;
+
+	do {
+		if (!ida_pre_get(&mmu_context_ida, GFP_KERNEL))
+			break;
+
+		spin_lock(&mmu_context_lock);
+		rc = ida_get_new_above(&mmu_context_ida, id, &result);
+		spin_unlock(&mmu_context_lock);
+	} while (rc == -EAGAIN);
+
+	WARN(result != id, "mmu: Failed to reserve context id %d (rc %d)\n", id, result);
+}
+
+int hash__alloc_context_id(void)
+{
+	unsigned long max;
+
+	if (mmu_has_feature(MMU_FTR_68_BIT_VA))
+		max = MAX_USER_CONTEXT;
+	else
+		max = MAX_USER_CONTEXT_65BIT_VA;
+
+	return alloc_context_id(MIN_USER_CONTEXT, max);
+}
+EXPORT_SYMBOL_GPL(hash__alloc_context_id);
+
+static int hash__init_new_context(struct mm_struct *mm)
+{
+	int index;
+
+	index = hash__alloc_context_id();
+	if (index < 0)
+		return index;
+
+	/*
+	 * We do switch_slb() early in fork, even before we setup the
+	 * mm->context.addr_limit. Default to max task size so that we copy the
+	 * default values to paca which will help us to handle slb miss early.
+	 */
+	mm->context.addr_limit = TASK_SIZE_128TB;
+
+	/*
+	 * The old code would re-promote on fork, we don't do that when using
+	 * slices as it could cause problem promoting slices that have been
+	 * forced down to 4K.
+	 *
+	 * For book3s we have MMU_NO_CONTEXT set to be ~0. Hence check
+	 * explicitly against context.id == 0. This ensures that we properly
+	 * initialize context slice details for newly allocated mm's (which will
+	 * have id == 0) and don't alter context slice inherited via fork (which
+	 * will have id != 0).
+	 *
+	 * We should not be calling init_new_context() on init_mm. Hence a
+	 * check against 0 is OK.
+	 */
+	if (mm->context.id == 0)
+		slice_set_user_psize(mm, mmu_virtual_psize);
+
+	subpage_prot_init_new_context(mm);
+
+	return index;
+}
+
+static int radix__init_new_context(struct mm_struct *mm)
 {
 	unsigned long rts_field;
+	int index;
+
+	index = alloc_context_id(1, PRTB_ENTRIES - 1);
+	if (index < 0)
+		return index;
 
 	/*
 	 * set the process table entry,
 	 */
 	rts_field = radix__get_tree_size();
 	process_tb[index].prtb0 = cpu_to_be64(rts_field | __pa(mm->pgd) | RADIX_PGD_INDEX_SIZE);
-	return 0;
+
+	mm->context.npu_context = NULL;
+
+	return index;
 }
 
 int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 {
 	int index;
 
-	index = __init_new_context();
+	if (radix_enabled())
+		index = radix__init_new_context(mm);
+	else
+		index = hash__init_new_context(mm);
+
 	if (index < 0)
 		return index;
 
-	if (radix_enabled()) {
-		radix__init_new_context(mm, index);
-	} else {
-
-		/* The old code would re-promote on fork, we don't do that
-		 * when using slices as it could cause problem promoting slices
-		 * that have been forced down to 4K
-		 *
-		 * For book3s we have MMU_NO_CONTEXT set to be ~0. Hence check
-		 * explicitly against context.id == 0. This ensures that we
-		 * properly initialize context slice details for newly allocated
-		 * mm's (which will have id == 0) and don't alter context slice
-		 * inherited via fork (which will have id != 0).
-		 *
-		 * We should not be calling init_new_context() on init_mm. Hence a
-		 * check against 0 is ok.
-		 */
-		if (mm->context.id == 0)
-			slice_set_user_psize(mm, mmu_virtual_psize);
-		subpage_prot_init_new_context(mm);
-	}
 	mm->context.id = index;
 #ifdef CONFIG_PPC_ICSWX
 	mm->context.cop_lockp = kmalloc(sizeof(spinlock_t), GFP_KERNEL);

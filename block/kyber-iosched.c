@@ -26,6 +26,7 @@
 
 #include "blk.h"
 #include "blk-mq.h"
+#include "blk-mq-debugfs.h"
 #include "blk-mq-sched.h"
 #include "blk-mq-tag.h"
 #include "blk-stat.h"
@@ -683,6 +684,131 @@ static struct elv_fs_entry kyber_sched_attrs[] = {
 };
 #undef KYBER_LAT_ATTR
 
+#ifdef CONFIG_BLK_DEBUG_FS
+#define KYBER_DEBUGFS_DOMAIN_ATTRS(domain, name)			\
+static int kyber_##name##_tokens_show(void *data, struct seq_file *m)	\
+{									\
+	struct request_queue *q = data;					\
+	struct kyber_queue_data *kqd = q->elevator->elevator_data;	\
+									\
+	sbitmap_queue_show(&kqd->domain_tokens[domain], m);		\
+	return 0;							\
+}									\
+									\
+static void *kyber_##name##_rqs_start(struct seq_file *m, loff_t *pos)	\
+	__acquires(&khd->lock)						\
+{									\
+	struct blk_mq_hw_ctx *hctx = m->private;			\
+	struct kyber_hctx_data *khd = hctx->sched_data;			\
+									\
+	spin_lock(&khd->lock);						\
+	return seq_list_start(&khd->rqs[domain], *pos);			\
+}									\
+									\
+static void *kyber_##name##_rqs_next(struct seq_file *m, void *v,	\
+				     loff_t *pos)			\
+{									\
+	struct blk_mq_hw_ctx *hctx = m->private;			\
+	struct kyber_hctx_data *khd = hctx->sched_data;			\
+									\
+	return seq_list_next(v, &khd->rqs[domain], pos);		\
+}									\
+									\
+static void kyber_##name##_rqs_stop(struct seq_file *m, void *v)	\
+	__releases(&khd->lock)						\
+{									\
+	struct blk_mq_hw_ctx *hctx = m->private;			\
+	struct kyber_hctx_data *khd = hctx->sched_data;			\
+									\
+	spin_unlock(&khd->lock);					\
+}									\
+									\
+static const struct seq_operations kyber_##name##_rqs_seq_ops = {	\
+	.start	= kyber_##name##_rqs_start,				\
+	.next	= kyber_##name##_rqs_next,				\
+	.stop	= kyber_##name##_rqs_stop,				\
+	.show	= blk_mq_debugfs_rq_show,				\
+};									\
+									\
+static int kyber_##name##_waiting_show(void *data, struct seq_file *m)	\
+{									\
+	struct blk_mq_hw_ctx *hctx = data;				\
+	struct kyber_hctx_data *khd = hctx->sched_data;			\
+	wait_queue_t *wait = &khd->domain_wait[domain];			\
+									\
+	seq_printf(m, "%d\n", !list_empty_careful(&wait->task_list));	\
+	return 0;							\
+}
+KYBER_DEBUGFS_DOMAIN_ATTRS(KYBER_READ, read)
+KYBER_DEBUGFS_DOMAIN_ATTRS(KYBER_SYNC_WRITE, sync_write)
+KYBER_DEBUGFS_DOMAIN_ATTRS(KYBER_OTHER, other)
+#undef KYBER_DEBUGFS_DOMAIN_ATTRS
+
+static int kyber_async_depth_show(void *data, struct seq_file *m)
+{
+	struct request_queue *q = data;
+	struct kyber_queue_data *kqd = q->elevator->elevator_data;
+
+	seq_printf(m, "%u\n", kqd->async_depth);
+	return 0;
+}
+
+static int kyber_cur_domain_show(void *data, struct seq_file *m)
+{
+	struct blk_mq_hw_ctx *hctx = data;
+	struct kyber_hctx_data *khd = hctx->sched_data;
+
+	switch (khd->cur_domain) {
+	case KYBER_READ:
+		seq_puts(m, "READ\n");
+		break;
+	case KYBER_SYNC_WRITE:
+		seq_puts(m, "SYNC_WRITE\n");
+		break;
+	case KYBER_OTHER:
+		seq_puts(m, "OTHER\n");
+		break;
+	default:
+		seq_printf(m, "%u\n", khd->cur_domain);
+		break;
+	}
+	return 0;
+}
+
+static int kyber_batching_show(void *data, struct seq_file *m)
+{
+	struct blk_mq_hw_ctx *hctx = data;
+	struct kyber_hctx_data *khd = hctx->sched_data;
+
+	seq_printf(m, "%u\n", khd->batching);
+	return 0;
+}
+
+#define KYBER_QUEUE_DOMAIN_ATTRS(name)	\
+	{#name "_tokens", 0400, kyber_##name##_tokens_show}
+static const struct blk_mq_debugfs_attr kyber_queue_debugfs_attrs[] = {
+	KYBER_QUEUE_DOMAIN_ATTRS(read),
+	KYBER_QUEUE_DOMAIN_ATTRS(sync_write),
+	KYBER_QUEUE_DOMAIN_ATTRS(other),
+	{"async_depth", 0400, kyber_async_depth_show},
+	{},
+};
+#undef KYBER_QUEUE_DOMAIN_ATTRS
+
+#define KYBER_HCTX_DOMAIN_ATTRS(name)					\
+	{#name "_rqs", 0400, .seq_ops = &kyber_##name##_rqs_seq_ops},	\
+	{#name "_waiting", 0400, kyber_##name##_waiting_show}
+static const struct blk_mq_debugfs_attr kyber_hctx_debugfs_attrs[] = {
+	KYBER_HCTX_DOMAIN_ATTRS(read),
+	KYBER_HCTX_DOMAIN_ATTRS(sync_write),
+	KYBER_HCTX_DOMAIN_ATTRS(other),
+	{"cur_domain", 0400, kyber_cur_domain_show},
+	{"batching", 0400, kyber_batching_show},
+	{},
+};
+#undef KYBER_HCTX_DOMAIN_ATTRS
+#endif
+
 static struct elevator_type kyber_sched = {
 	.ops.mq = {
 		.init_sched = kyber_init_sched,
@@ -696,6 +822,10 @@ static struct elevator_type kyber_sched = {
 		.has_work = kyber_has_work,
 	},
 	.uses_mq = true,
+#ifdef CONFIG_BLK_DEBUG_FS
+	.queue_debugfs_attrs = kyber_queue_debugfs_attrs,
+	.hctx_debugfs_attrs = kyber_hctx_debugfs_attrs,
+#endif
 	.elevator_attrs = kyber_sched_attrs,
 	.elevator_name = "kyber",
 	.elevator_owner = THIS_MODULE,

@@ -936,7 +936,7 @@ static struct snd_soc_component *soc_find_component(
  *
  * @dlc: name of the DAI and optional component info to match
  *
- * This function will search all regsitered components and their DAIs to
+ * This function will search all registered components and their DAIs to
  * find the DAI of the same name. The component's of_node and name
  * should also match if being specified.
  *
