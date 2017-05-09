@@ -1194,7 +1194,7 @@ static struct miscdevice pkey_dev = {
 /*
  * Module init
  */
-int __init pkey_init(void)
+static int __init pkey_init(void)
 {
 	cpacf_mask_t pckmo_functions;
 
