@@ -1182,17 +1182,15 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 	}
 
 	/* Sanity checks for a reconnected import. */
-	if (!(imp->imp_replayable) != !(msg_flags & MSG_CONNECT_REPLAYABLE)) {
+	if (!(imp->imp_replayable) != !(msg_flags & MSG_CONNECT_REPLAYABLE))
 		CERROR("imp_replayable flag does not match server after reconnect. We should LBUG right here.\n");
-	}
 
 	if (lustre_msg_get_last_committed(request->rq_repmsg) > 0 &&
 	    lustre_msg_get_last_committed(request->rq_repmsg) <
-	    aa->pcaa_peer_committed) {
+	    aa->pcaa_peer_committed)
 		CERROR("%s went back in time (transno %lld was previously committed, server now claims %lld)!  See https://bugzilla.lustre.org/show_bug.cgi?id=9646\n",
 		       obd2cli_tgt(imp->imp_obd), aa->pcaa_peer_committed,
 		       lustre_msg_get_last_committed(request->rq_repmsg));
-	}
 
 finish:
 	ptlrpc_prepare_replay(imp);
@@ -1437,20 +1435,17 @@ int ptlrpc_import_recovery_state_machine(struct obd_import *imp)
 		rc = 0;
 	}
 
-	if (imp->imp_state == LUSTRE_IMP_REPLAY_LOCKS) {
+	if (imp->imp_state == LUSTRE_IMP_REPLAY_LOCKS)
 		if (atomic_read(&imp->imp_replay_inflight) == 0) {
 			IMPORT_SET_STATE(imp, LUSTRE_IMP_REPLAY_WAIT);
 			rc = signal_completed_replay(imp);
 			if (rc)
 				goto out;
 		}
-	}
 
-	if (imp->imp_state == LUSTRE_IMP_REPLAY_WAIT) {
-		if (atomic_read(&imp->imp_replay_inflight) == 0) {
+	if (imp->imp_state == LUSTRE_IMP_REPLAY_WAIT)
+		if (atomic_read(&imp->imp_replay_inflight) == 0)
 			IMPORT_SET_STATE(imp, LUSTRE_IMP_RECOVER);
-		}
-	}
 
 	if (imp->imp_state == LUSTRE_IMP_RECOVER) {
 		CDEBUG(D_HA, "reconnected to %s@%s\n",

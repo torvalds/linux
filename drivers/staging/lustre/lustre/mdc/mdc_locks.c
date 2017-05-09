@@ -911,13 +911,13 @@ static int mdc_finish_intent_lock(struct obd_export *exp,
 		OBD_FAIL_TIMEOUT(OBD_FAIL_MDC_ENQUEUE_PAUSE, obd_timeout);
 	}
 
-	if (it->it_op & IT_CREAT) {
+	if (it->it_op & IT_CREAT)
 		/* XXX this belongs in ll_create_it */
-	} else if (it->it_op == IT_OPEN) {
+		;
+	else if (it->it_op == IT_OPEN)
 		LASSERT(!it_disposition(it, DISP_OPEN_CREATE));
-	} else {
+	else
 		LASSERT(it->it_op & (IT_GETATTR | IT_LOOKUP | IT_LAYOUT));
-	}
 
 	/* If we already have a matching lock, then cancel the new
 	 * one.  We have to set the data here instead of in

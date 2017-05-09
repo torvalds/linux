@@ -2413,9 +2413,8 @@ static int lmv_read_page(struct obd_export *exp, struct md_op_data *op_data,
 	if (rc)
 		return rc;
 
-	if (unlikely(lsm)) {
+	if (unlikely(lsm))
 		return lmv_read_striped_page(exp, op_data, cb_op, offset, ppage);
-	}
 
 	tgt = lmv_find_target(lmv, &op_data->op_fid1);
 	if (IS_ERR(tgt))
@@ -3107,9 +3106,8 @@ static int lmv_quotactl(struct obd_device *unused, struct obd_export *exp,
 		return -EIO;
 	}
 
-	if (oqctl->qc_cmd != Q_GETOQUOTA) {
+	if (oqctl->qc_cmd != Q_GETOQUOTA)
 		return obd_quotactl(tgt->ltd_exp, oqctl);
-	}
 
 	for (i = 0; i < lmv->desc.ld_tgt_count; i++) {
 		int err;

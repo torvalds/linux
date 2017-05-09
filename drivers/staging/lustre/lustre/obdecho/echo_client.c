@@ -1646,9 +1646,8 @@ static int echo_client_connect(const struct lu_env *env,
 	struct lustre_handle conn = { 0 };
 
 	rc = class_connect(&conn, src, cluuid);
-	if (rc == 0) {
+	if (rc == 0)
 		*exp = class_conn2export(&conn);
-	}
 
 	return rc;
 }

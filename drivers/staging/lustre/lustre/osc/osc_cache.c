@@ -1406,9 +1406,8 @@ static void osc_release_write_grant(struct client_obd *cli,
 				    struct brw_page *pga)
 {
 	assert_spin_locked(&cli->cl_loi_list_lock);
-	if (!(pga->flag & OBD_BRW_FROM_GRANT)) {
+	if (!(pga->flag & OBD_BRW_FROM_GRANT))
 		return;
-	}
 
 	pga->flag &= ~OBD_BRW_FROM_GRANT;
 	atomic_long_dec(&obd_dirty_pages);

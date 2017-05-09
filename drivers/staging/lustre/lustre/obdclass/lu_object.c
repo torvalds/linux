@@ -918,9 +918,8 @@ static unsigned long lu_htable_order(struct lu_device *top)
 	cache_size = cache_size / 100 * lu_cache_percent *
 		(PAGE_SIZE / 1024);
 
-	for (bits = 1; (1 << bits) < cache_size; ++bits) {
+	for (bits = 1; (1 << bits) < cache_size; ++bits)
 		;
-	}
 	return clamp_t(typeof(bits), bits, LU_SITE_BITS_MIN, bits_max);
 }
 
