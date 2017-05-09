@@ -1169,6 +1169,8 @@ static struct ibmvscsis_cmd *ibmvscsis_get_free_cmd(struct scsi_info *vscsi)
 		cmd = list_first_entry_or_null(&vscsi->free_cmd,
 					       struct ibmvscsis_cmd, list);
 		if (cmd) {
+			if (cmd->abort_cmd)
+				cmd->abort_cmd = NULL;
 			cmd->flags &= ~(DELAY_SEND);
 			list_del(&cmd->list);
 			cmd->iue = iue;
@@ -1773,6 +1775,7 @@ static void ibmvscsis_send_messages(struct scsi_info *vscsi)
 				if (cmd->abort_cmd) {
 					retry = true;
 					cmd->abort_cmd->flags &= ~(DELAY_SEND);
+					cmd->abort_cmd = NULL;
 				}
 
 				/*
