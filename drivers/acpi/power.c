@@ -864,6 +864,16 @@ void acpi_resume_power_resources(void)
 
 		mutex_unlock(&resource->resource_lock);
 	}
+
+	mutex_unlock(&power_resource_list_lock);
+}
+
+void acpi_turn_off_unused_power_resources(void)
+{
+	struct acpi_power_resource *resource;
+
+	mutex_lock(&power_resource_list_lock);
+
 	list_for_each_entry_reverse(resource, &acpi_power_resource_list, list_node) {
 		int result, state;
 

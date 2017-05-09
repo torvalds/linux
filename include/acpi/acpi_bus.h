@@ -587,6 +587,15 @@ struct acpi_pci_root *acpi_pci_find_root(acpi_handle handle);
 int acpi_enable_wakeup_device_power(struct acpi_device *dev, int state);
 int acpi_disable_wakeup_device_power(struct acpi_device *dev);
 
+#ifdef CONFIG_X86
+bool acpi_device_always_present(struct acpi_device *adev);
+#else
+static inline bool acpi_device_always_present(struct acpi_device *adev)
+{
+	return false;
+}
+#endif
+
 #ifdef CONFIG_PM
 acpi_status acpi_add_pm_notifier(struct acpi_device *adev, struct device *dev,
 				 void (*work_func)(struct work_struct *work));
