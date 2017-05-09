@@ -554,7 +554,7 @@ static ssize_t rd_set_configfs_dev_params(struct se_device *dev,
 	struct rd_dev *rd_dev = RD_DEV(dev);
 	char *orig, *ptr, *opts;
 	substring_t args[MAX_OPT_ARGS];
-	int ret = 0, arg, token;
+	int arg, token;
 
 	opts = kstrdup(page, GFP_KERNEL);
 	if (!opts)
@@ -589,7 +589,7 @@ static ssize_t rd_set_configfs_dev_params(struct se_device *dev,
 	}
 
 	kfree(orig);
-	return (!ret) ? count : ret;
+	return count;
 }
 
 static ssize_t rd_show_configfs_dev_params(struct se_device *dev, char *b)
