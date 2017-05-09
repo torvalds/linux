@@ -384,7 +384,7 @@ static void mlx5e_detach_encap(struct mlx5e_priv *priv,
 		if (e->flags & MLX5_ENCAP_ENTRY_VALID)
 			mlx5_encap_dealloc(priv->mdev, e->encap_id);
 
-		hlist_del_rcu(&e->encap_hlist);
+		hash_del_rcu(&e->encap_hlist);
 		kfree(e->encap_header);
 		kfree(e);
 	}
