@@ -4,7 +4,7 @@
  *  Copyright (C) 2006 Savin Zlobec
  *
  * AT91SAM9 support:
- *  Copyright (C) 2007 Anti Sullin <anti.sullin@artecdesign.ee
+ *  Copyright (C) 2007 Anti Sullin <anti.sullin@artecdesign.ee>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -14,6 +14,7 @@
 #include <linux/linkage.h>
 #include <linux/clk/at91_pmc.h>
 #include "pm.h"
+#include "generated/at91_pm_data-offsets.h"
 
 #define	SRAMC_SELF_FRESH_ACTIVE		0x01
 #define	SRAMC_SELF_FRESH_EXIT		0x00
@@ -72,13 +73,9 @@ tmp2	.req	r5
 	.arm
 
 /*
- * void at91_pm_suspend_in_sram(void __iomem *pmc, void __iomem *sdramc,
- *			void __iomem *ramc1, int memctrl)
+ * void at91_suspend_sram_fn(struct at91_pm_data*)
  * @input param:
- * 	@r0: base address of AT91_PMC
- *  	@r1: base address of SDRAM Controller (SDRAM, DDRSDR, or AT91_SYS)
- *	@r2: base address of second SDRAM Controller or 0 if not present
- *	@r3: pm information
+ * 	@r0: base address of struct at91_pm_data
  */
 /* at91_pm_suspend_in_sram must be 8-byte aligned per the requirements of fncpy() */
 	.align 3
@@ -90,16 +87,16 @@ ENTRY(at91_pm_suspend_in_sram)
 	mov	tmp1, #0
 	mcr	p15, 0, tmp1, c7, c10, 4
 
-	str	r0, .pmc_base
-	str	r1, .sramc_base
-	str	r2, .sramc1_base
-
-	and	r0, r3, #AT91_PM_MEMTYPE_MASK
-	str	r0, .memtype
-
-	lsr	r0, r3, #AT91_PM_MODE_OFFSET
-	and	r0, r0, #AT91_PM_MODE_MASK
-	str	r0, .pm_mode
+	ldr	tmp1, [r0, #PM_DATA_PMC]
+	str	tmp1, .pmc_base
+	ldr	tmp1, [r0, #PM_DATA_RAMC0]
+	str	tmp1, .sramc_base
+	ldr	tmp1, [r0, #PM_DATA_RAMC1]
+	str	tmp1, .sramc1_base
+	ldr	tmp1, [r0, #PM_DATA_MEMCTRL]
+	str	tmp1, .memtype
+	ldr	tmp1, [r0, #PM_DATA_MODE]
+	str	tmp1, .pm_mode
 
 	/* Active the self-refresh mode */
 	mov	r0, #SRAMC_SELF_FRESH_ACTIVE
