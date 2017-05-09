@@ -315,45 +315,58 @@ static int __init dasd_parse_range(const char *range)
 	char *features_str = NULL;
 	char *from_str = NULL;
 	char *to_str = NULL;
-	size_t len = strlen(range) + 1;
-	char tmp[len];
+	int rc = 0;
+	char *tmp;
 
-	strlcpy(tmp, range, len);
+	tmp = kstrdup(range, GFP_KERNEL);
+	if (!tmp)
+		return -ENOMEM;
 
-	if (dasd_evaluate_range_param(tmp, &from_str, &to_str, &features_str))
-		goto out_err;
+	if (dasd_evaluate_range_param(tmp, &from_str, &to_str, &features_str)) {
+		rc = -EINVAL;
+		goto out;
+	}
 
-	if (dasd_busid(from_str, &from_id0, &from_id1, &from))
-		goto out_err;
+	if (dasd_busid(from_str, &from_id0, &from_id1, &from)) {
+		rc = -EINVAL;
+		goto out;
+	}
 
 	to = from;
 	to_id0 = from_id0;
 	to_id1 = from_id1;
 	if (to_str) {
-		if (dasd_busid(to_str, &to_id0, &to_id1, &to))
-			goto out_err;
+		if (dasd_busid(to_str, &to_id0, &to_id1, &to)) {
+			rc = -EINVAL;
+			goto out;
+		}
 		if (from_id0 != to_id0 || from_id1 != to_id1 || from > to) {
 			pr_err("%s is not a valid device range\n", range);
-			goto out_err;
+			rc = -EINVAL;
+			goto out;
 		}
 	}
 
 	features = dasd_feature_list(features_str);
-	if (features < 0)
-		goto out_err;
+	if (features < 0) {
+		rc = -EINVAL;
+		goto out;
+	}
 	/* each device in dasd= parameter should be set initially online */
 	features |= DASD_FEATURE_INITIAL_ONLINE;
 	while (from <= to) {
 		sprintf(bus_id, "%01x.%01x.%04x", from_id0, from_id1, from++);
 		devmap = dasd_add_busid(bus_id, features);
-		if (IS_ERR(devmap))
-			return PTR_ERR(devmap);
+		if (IS_ERR(devmap)) {
+			rc = PTR_ERR(devmap);
+			goto out;
+		}
 	}
 
-	return 0;
+out:
+	kfree(tmp);
 
-out_err:
-	return -EINVAL;
+	return rc;
 }
 
 /*
