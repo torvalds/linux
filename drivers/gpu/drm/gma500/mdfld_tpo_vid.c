@@ -32,53 +32,20 @@ static struct drm_display_mode *tpo_vid_get_config_mode(struct drm_device *dev)
 	struct drm_display_mode *mode;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct oaktrail_timing_info *ti = &dev_priv->gct_data.DTD;
-	bool use_gct = false;
 
 	mode = kzalloc(sizeof(*mode), GFP_KERNEL);
 	if (!mode)
 		return NULL;
 
-	if (use_gct) {
-		mode->hdisplay = (ti->hactive_hi << 8) | ti->hactive_lo;
-		mode->vdisplay = (ti->vactive_hi << 8) | ti->vactive_lo;
-		mode->hsync_start = mode->hdisplay +
-				((ti->hsync_offset_hi << 8) |
-				ti->hsync_offset_lo);
-		mode->hsync_end = mode->hsync_start +
-				((ti->hsync_pulse_width_hi << 8) |
-				ti->hsync_pulse_width_lo);
-		mode->htotal = mode->hdisplay + ((ti->hblank_hi << 8) |
-								ti->hblank_lo);
-		mode->vsync_start =
-			mode->vdisplay + ((ti->vsync_offset_hi << 8) |
-						ti->vsync_offset_lo);
-		mode->vsync_end =
-			mode->vsync_start + ((ti->vsync_pulse_width_hi << 8) |
-						ti->vsync_pulse_width_lo);
-		mode->vtotal = mode->vdisplay +
-				((ti->vblank_hi << 8) | ti->vblank_lo);
-		mode->clock = ti->pixel_clock * 10;
-
-		dev_dbg(dev->dev, "hdisplay is %d\n", mode->hdisplay);
-		dev_dbg(dev->dev, "vdisplay is %d\n", mode->vdisplay);
-		dev_dbg(dev->dev, "HSS is %d\n", mode->hsync_start);
-		dev_dbg(dev->dev, "HSE is %d\n", mode->hsync_end);
-		dev_dbg(dev->dev, "htotal is %d\n", mode->htotal);
-		dev_dbg(dev->dev, "VSS is %d\n", mode->vsync_start);
-		dev_dbg(dev->dev, "VSE is %d\n", mode->vsync_end);
-		dev_dbg(dev->dev, "vtotal is %d\n", mode->vtotal);
-		dev_dbg(dev->dev, "clock is %d\n", mode->clock);
-	} else {
-		mode->hdisplay = 864;
-		mode->vdisplay = 480;
-		mode->hsync_start = 873;
-		mode->hsync_end = 876;
-		mode->htotal = 887;
-		mode->vsync_start = 487;
-		mode->vsync_end = 490;
-		mode->vtotal = 499;
-		mode->clock = 33264;
-	}
+	mode->hdisplay = 864;
+	mode->vdisplay = 480;
+	mode->hsync_start = 873;
+	mode->hsync_end = 876;
+	mode->htotal = 887;
+	mode->vsync_start = 487;
+	mode->vsync_end = 490;
+	mode->vtotal = 499;
+	mode->clock = 33264;
 
 	drm_mode_set_name(mode);
 	drm_mode_set_crtcinfo(mode, 0);
