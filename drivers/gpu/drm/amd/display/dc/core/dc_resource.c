@@ -1283,9 +1283,12 @@ static void update_stream_signal(struct core_stream *stream)
 		stream->signal = stream->public.output_signal;
 	}
 
-	if (stream->signal == SIGNAL_TYPE_DVI_SINGLE_LINK &&
-		stream->public.timing.pix_clk_khz > TMDS_MAX_PIXEL_CLOCK_IN_KHZ)
-		stream->signal = SIGNAL_TYPE_DVI_DUAL_LINK;
+	if (dc_is_dvi_signal(stream->signal)) {
+		if (stream->public.timing.pix_clk_khz > TMDS_MAX_PIXEL_CLOCK_IN_KHZ)
+			stream->signal = SIGNAL_TYPE_DVI_DUAL_LINK;
+		else
+			stream->signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
+	}
 }
 
 bool resource_is_stream_unchanged(
