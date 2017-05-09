@@ -790,6 +790,8 @@ void iov_iter_revert(struct iov_iter *i, size_t unroll)
 {
 	if (!unroll)
 		return;
+	if (WARN_ON(unroll > MAX_RW_COUNT))
+		return;
 	i->count += unroll;
 	if (unlikely(i->type & ITER_PIPE)) {
 		struct pipe_inode_info *pipe = i->pipe;

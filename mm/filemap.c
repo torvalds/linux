@@ -2050,7 +2050,7 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 			iocb->ki_pos += retval;
 			count -= retval;
 		}
-		iov_iter_revert(iter, iov_iter_count(iter) - count);
+		iov_iter_revert(iter, count - iov_iter_count(iter));
 
 		/*
 		 * Btrfs can have a short DIO read if we encounter
