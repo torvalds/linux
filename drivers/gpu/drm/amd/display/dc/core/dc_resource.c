@@ -431,6 +431,7 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 	const struct dc_surface *surface = &pipe_ctx->surface->public;
 	const struct dc_stream *stream = &pipe_ctx->stream->public;
 	struct scaler_data *data = &pipe_ctx->scl_data;
+	struct rect surf_src = surface->src_rect;
 	struct rect clip = { 0 };
 	int vpc_div = (data->format == PIXEL_FORMAT_420BPP12
 			|| data->format == PIXEL_FORMAT_420BPP15) ? 2 : 1;
@@ -444,6 +445,11 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 		pri_split = false;
 		sec_split = false;
 	}
+
+	if (pipe_ctx->surface->public.rotation == ROTATION_ANGLE_90 ||
+			pipe_ctx->surface->public.rotation == ROTATION_ANGLE_270)
+		rect_swap_helper(&surf_src);
+
 	/* The actual clip is an intersection between stream
 	 * source and surface clip
 	 */
@@ -463,18 +469,18 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 			stream->src.y + stream->src.height - clip.y :
 			surface->clip_rect.y + surface->clip_rect.height - clip.y ;
 
-	/* offset = src.ofs + (clip.ofs - surface->dst_rect.ofs) * scl_ratio
+	/* offset = surf_src.ofs + (clip.ofs - surface->dst_rect.ofs) * scl_ratio
 	 * num_pixels = clip.num_pix * scl_ratio
 	 */
-	data->viewport.x = surface->src_rect.x + (clip.x - surface->dst_rect.x) *
-			surface->src_rect.width / surface->dst_rect.width;
+	data->viewport.x = surf_src.x + (clip.x - surface->dst_rect.x) *
+			surf_src.width / surface->dst_rect.width;
 	data->viewport.width = clip.width *
-			surface->src_rect.width / surface->dst_rect.width;
+			surf_src.width / surface->dst_rect.width;
 
-	data->viewport.y = surface->src_rect.y + (clip.y - surface->dst_rect.y) *
-			surface->src_rect.height / surface->dst_rect.height;
+	data->viewport.y = surf_src.y + (clip.y - surface->dst_rect.y) *
+			surf_src.height / surface->dst_rect.height;
 	data->viewport.height = clip.height *
-			surface->src_rect.height / surface->dst_rect.height;
+			surf_src.height / surface->dst_rect.height;
 
 	/* Round down, compensate in init */
 	data->viewport_c.x = data->viewport.x / vpc_div;
@@ -523,16 +529,21 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip
 {
 	const struct dc_surface *surface = &pipe_ctx->surface->public;
 	struct core_stream *stream = pipe_ctx->stream;
-	struct rect clip = surface->clip_rect;
+	struct rect surf_src = surface->src_rect;
+	struct rect surf_clip = surface->clip_rect;
 	int recout_full_x, recout_full_y;
 
+	if (pipe_ctx->surface->public.rotation == ROTATION_ANGLE_90 ||
+			pipe_ctx->surface->public.rotation == ROTATION_ANGLE_270)
+		rect_swap_helper(&surf_src);
+
 	pipe_ctx->scl_data.recout.x = stream->public.dst.x;
-	if (stream->public.src.x < clip.x)
-		pipe_ctx->scl_data.recout.x += (clip.x
+	if (stream->public.src.x < surf_clip.x)
+		pipe_ctx->scl_data.recout.x += (surf_clip.x
 			- stream->public.src.x) * stream->public.dst.width
 						/ stream->public.src.width;
 
-	pipe_ctx->scl_data.recout.width = clip.width *
+	pipe_ctx->scl_data.recout.width = surf_clip.width *
 			stream->public.dst.width / stream->public.src.width;
 	if (pipe_ctx->scl_data.recout.width + pipe_ctx->scl_data.recout.x >
 			stream->public.dst.x + stream->public.dst.width)
@@ -541,12 +552,12 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip
 						- pipe_ctx->scl_data.recout.x;
 
 	pipe_ctx->scl_data.recout.y = stream->public.dst.y;
-	if (stream->public.src.y < clip.y)
-		pipe_ctx->scl_data.recout.y += (clip.y
+	if (stream->public.src.y < surf_clip.y)
+		pipe_ctx->scl_data.recout.y += (surf_clip.y
 			- stream->public.src.y) * stream->public.dst.height
 						/ stream->public.src.height;
 
-	pipe_ctx->scl_data.recout.height = clip.height *
+	pipe_ctx->scl_data.recout.height = surf_clip.height *
 			stream->public.dst.height / stream->public.src.height;
 	if (pipe_ctx->scl_data.recout.height + pipe_ctx->scl_data.recout.y >
 			stream->public.dst.y + stream->public.dst.height)
@@ -569,7 +580,7 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip
 			pipe_ctx->scl_data.recout.width += pipe_ctx->scl_data.recout.width % 2;
 		}
 	} else if (pipe_ctx->bottom_pipe &&
-			   pipe_ctx->bottom_pipe->surface == pipe_ctx->surface) {
+			pipe_ctx->bottom_pipe->surface == pipe_ctx->surface) {
 		if (stream->public.timing.timing_3d_format ==
 			TIMING_3D_FORMAT_TOP_AND_BOTTOM)
 			pipe_ctx->scl_data.recout.height /= 2;
@@ -577,17 +588,17 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip
 			pipe_ctx->scl_data.recout.width /= 2;
 	}
 
-	/* Unclipped recout offset = stream dst offset + ((surf dst offset - stream src offset)
-	 * 				* 1/ stream scaling ratio) - (surf src offset * 1/ full scl
+	/* Unclipped recout offset = stream dst offset + ((surf dst offset - stream surf_src offset)
+	 * 				* 1/ stream scaling ratio) - (surf surf_src offset * 1/ full scl
 	 * 				ratio)
 	 */
 	recout_full_x = stream->public.dst.x + (surface->dst_rect.x -  stream->public.src.x)
 					* stream->public.dst.width / stream->public.src.width -
-			surface->src_rect.x * surface->dst_rect.width / surface->src_rect.width
+			surf_src.x * surface->dst_rect.width / surf_src.width
 					* stream->public.dst.width / stream->public.src.width;
 	recout_full_y = stream->public.dst.y + (surface->dst_rect.y -  stream->public.src.y)
 					* stream->public.dst.height / stream->public.src.height -
-			surface->src_rect.y * surface->dst_rect.height / surface->src_rect.height
+			surf_src.y * surface->dst_rect.height / surf_src.height
 					* stream->public.dst.height / stream->public.src.height;
 
 	recout_skip->width = pipe_ctx->scl_data.recout.x - recout_full_x;
@@ -598,16 +609,21 @@ static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
 {
 	const struct dc_surface *surface = &pipe_ctx->surface->public;
 	struct core_stream *stream = pipe_ctx->stream;
+	struct rect surf_src = surface->src_rect;
 	const int in_w = stream->public.src.width;
 	const int in_h = stream->public.src.height;
 	const int out_w = stream->public.dst.width;
 	const int out_h = stream->public.dst.height;
 
+	if (pipe_ctx->surface->public.rotation == ROTATION_ANGLE_90 ||
+			pipe_ctx->surface->public.rotation == ROTATION_ANGLE_270)
+		rect_swap_helper(&surf_src);
+
 	pipe_ctx->scl_data.ratios.horz = dal_fixed31_32_from_fraction(
-					surface->src_rect.width,
+					surf_src.width,
 					surface->dst_rect.width);
 	pipe_ctx->scl_data.ratios.vert = dal_fixed31_32_from_fraction(
-					surface->src_rect.height,
+					surf_src.height,
 					surface->dst_rect.height);
 
 	if (surface->stereo_format == PLANE_STEREO_FORMAT_SIDE_BY_SIDE)
@@ -637,8 +653,10 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 	int vpc_div = (data->format == PIXEL_FORMAT_420BPP12
 			|| data->format == PIXEL_FORMAT_420BPP15) ? 2 : 1;
 
+
 	if (pipe_ctx->surface->public.rotation == ROTATION_ANGLE_90 ||
 			pipe_ctx->surface->public.rotation == ROTATION_ANGLE_270) {
+		rect_swap_helper(&src);
 		rect_swap_helper(&data->viewport_c);
 		rect_swap_helper(&data->viewport);
 	}

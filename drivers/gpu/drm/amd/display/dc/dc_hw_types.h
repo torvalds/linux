@@ -99,15 +99,15 @@ struct dc_plane_address {
 };
 
 struct dc_size {
-	uint32_t width;
-	uint32_t height;
+	int width;
+	int height;
 };
 
 struct rect {
 	int x;
 	int y;
-	uint32_t width;
-	uint32_t height;
+	int width;
+	int height;
 };
 
 union plane_size {
@@ -123,7 +123,7 @@ union plane_size {
 		 * In LINEAR_GENERAL mode, pitch
 		 * is 32 pixel aligned.
 		 */
-		uint32_t surface_pitch;
+		int surface_pitch;
 	} grph;
 
 	struct {
@@ -132,14 +132,14 @@ union plane_size {
 		 * In LINEAR_GENERAL mode, pitch is
 		 * 32 pixel aligned.
 		 */
-		uint32_t luma_pitch;
+		int luma_pitch;
 
 		struct rect chroma_size;
 		/* Graphic surface pitch in pixels.
 		 * In LINEAR_GENERAL mode, pitch is
 		 * 32 pixel aligned.
 		 */
-		uint32_t chroma_pitch;
+		int chroma_pitch;
 	} video;
 };
 
@@ -148,15 +148,15 @@ struct dc_plane_dcc_param {
 
 	union {
 		struct {
-			uint32_t meta_pitch;
+			int meta_pitch;
 			bool independent_64b_blks;
 		} grph;
 
 		struct {
-			uint32_t meta_pitch_l;
+			int meta_pitch_l;
 			bool independent_64b_blks_l;
 
-			uint32_t meta_pitch_c;
+			int meta_pitch_c;
 			bool independent_64b_blks_c;
 		} video;
 	};
