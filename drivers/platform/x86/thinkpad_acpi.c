@@ -9664,6 +9664,7 @@ module_param_named(enable, alsa_enable, bool, 0444);
 MODULE_PARM_DESC(enable, "Enable the ALSA interface for the ACPI EC Mixer");
 #endif /* CONFIG_THINKPAD_ACPI_ALSA_SUPPORT */
 
+/* The module parameter can't be read back, that's why 0 is used here */
 #define TPACPI_PARAM(feature) \
 	module_param_call(feature, set_ibm_param, NULL, NULL, 0); \
 	MODULE_PARM_DESC(feature, "Simulates thinkpad-acpi procfs command at module load, see documentation")
