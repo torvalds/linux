@@ -926,7 +926,7 @@ static int offload_pedit_fields(struct pedit_headers *masks,
 				struct mlx5e_tc_flow_parse_attr *parse_attr)
 {
 	struct pedit_headers *set_masks, *add_masks, *set_vals, *add_vals;
-	int i, action_size, nactions, max_actions, first, last;
+	int i, action_size, nactions, max_actions, first, last, first_z;
 	void *s_masks_p, *a_masks_p, *vals_p;
 	u32 s_mask, a_mask, val;
 	struct mlx5_fields *f;
@@ -985,9 +985,10 @@ static int offload_pedit_fields(struct pedit_headers *masks,
 		memcpy(&val, vals_p, f->size);
 
 		field_bsize = f->size * BITS_PER_BYTE;
+		first_z = find_first_zero_bit(&mask, field_bsize);
 		first = find_first_bit(&mask, field_bsize);
 		last  = find_last_bit(&mask, field_bsize);
-		if (first > 0 || last != (field_bsize - 1)) {
+		if (first > 0 || last != (field_bsize - 1) || first_z < last) {
 			printk(KERN_WARNING "mlx5: partial rewrite (mask %lx) is currently not offloaded\n",
 			       mask);
 			return -EOPNOTSUPP;
