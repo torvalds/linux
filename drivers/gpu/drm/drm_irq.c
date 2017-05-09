@@ -777,6 +777,8 @@ bool drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 	 */
 	if (mode->crtc_clock == 0) {
 		DRM_DEBUG("crtc %u: Noop due to uninitialized mode.\n", pipe);
+		WARN_ON_ONCE(drm_drv_uses_atomic_modeset(dev));
+
 		return false;
 	}
 
@@ -1338,6 +1340,10 @@ void drm_crtc_vblank_off(struct drm_crtc *crtc)
 		send_vblank_event(dev, e, seq, &now);
 	}
 	spin_unlock_irqrestore(&dev->event_lock, irqflags);
+
+	/* Will be reset by the modeset helpers when re-enabling the crtc by
+	 * calling drm_calc_timestamping_constants(). */
+	vblank->hwmode.crtc_clock = 0;
 }
 EXPORT_SYMBOL(drm_crtc_vblank_off);
 
