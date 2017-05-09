@@ -250,7 +250,7 @@ static void __do_user_fault(struct task_struct *tsk, unsigned long addr,
 			tsk->comm, task_pid_nr(tsk), inf->name, sig,
 			addr, esr);
 		show_pte(tsk->mm, addr);
-		show_regs(regs);
+		__show_regs(regs);
 	}
 
 	tsk->thread.fault_address = addr;
