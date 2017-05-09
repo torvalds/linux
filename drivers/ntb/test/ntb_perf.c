@@ -140,9 +140,6 @@ struct perf_ctx {
 	bool			link_is_up;
 	struct delayed_work	link_work;
 	wait_queue_head_t	link_wq;
-	struct dentry		*debugfs_node_dir;
-	struct dentry		*debugfs_run;
-	struct dentry		*debugfs_threads;
 	u8			perf_threads;
 	/* mutex ensures only one set of threads run at once */
 	struct mutex		run_mutex;
@@ -737,6 +734,9 @@ static const struct file_operations ntb_perf_debugfs_run = {
 static int perf_debugfs_setup(struct perf_ctx *perf)
 {
 	struct pci_dev *pdev = perf->ntb->pdev;
+	struct dentry *debugfs_node_dir;
+	struct dentry *debugfs_run;
+	struct dentry *debugfs_threads;
 
 	if (!debugfs_initialized())
 		return -ENODEV;
@@ -747,21 +747,21 @@ static int perf_debugfs_setup(struct perf_ctx *perf)
 			return -ENODEV;
 	}
 
-	perf->debugfs_node_dir = debugfs_create_dir(pci_name(pdev),
-						    perf_debugfs_dir);
-	if (!perf->debugfs_node_dir)
+	debugfs_node_dir = debugfs_create_dir(pci_name(pdev),
+					      perf_debugfs_dir);
+	if (!debugfs_node_dir)
 		return -ENODEV;
 
-	perf->debugfs_run = debugfs_create_file("run", S_IRUSR | S_IWUSR,
-						perf->debugfs_node_dir, perf,
-						&ntb_perf_debugfs_run);
-	if (!perf->debugfs_run)
+	debugfs_run = debugfs_create_file("run", S_IRUSR | S_IWUSR,
+					  debugfs_node_dir, perf,
+					  &ntb_perf_debugfs_run);
+	if (!debugfs_run)
 		return -ENODEV;
 
-	perf->debugfs_threads = debugfs_create_u8("threads", S_IRUSR | S_IWUSR,
-						  perf->debugfs_node_dir,
-						  &perf->perf_threads);
-	if (!perf->debugfs_threads)
+	debugfs_threads = debugfs_create_u8("threads", S_IRUSR | S_IWUSR,
+					    debugfs_node_dir,
+					    &perf->perf_threads);
+	if (!debugfs_threads)
 		return -ENODEV;
 
 	return 0;
