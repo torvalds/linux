@@ -899,6 +899,9 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	data->dev = dev;
 	platform_set_drvdata(pdev, data);
 
+	if (rockchip_drm_register_notifier_to_dmc(data->devfreq))
+		dev_err(dev, "drm fail to register notifier to dmc\n");
+
 	if (rockchip_pm_register_notify_to_dmc(data->devfreq))
 		dev_err(dev, "pd fail to register notify to dmc\n");
 
