@@ -71,34 +71,6 @@
 		ethernet0 = &gmac1;
 	};
 
-	leds {
-		compatible = "gpio-leds";
-
-		hps_led0 {
-			label = "hps:green:led0";	/* ALIVE_LED_GR */
-			gpios = <&portb 19 0>;	/* HPS_GPIO48 */
-			linux,default-trigger = "heartbeat";
-		};
-
-		hps_led1 {
-			label = "hps:red:led0";		/* ALIVE_LED_RD */
-			gpios = <&portb 24 0>;	/* HPS_GPIO53 */
-			linux,default-trigger = "none";
-		};
-
-		hps_led2 {
-			label = "hps:green:led1";	/* LINK2HOST_LED_GR */
-			gpios = <&portb 25 0>;	/* HPS_GPIO54 */
-			linux,default-trigger = "heartbeat";
-		};
-
-		hps_led3 {
-			label = "hps:red:led1";		/* LINK2HOST_LED_RD */
-			gpios = <&portc 7 0>;	/* HPS_GPIO65 */
-			linux,default-trigger = "none";
-		};
-	};
-
 	gpio-keys {
 		compatible = "gpio-keys";
 
