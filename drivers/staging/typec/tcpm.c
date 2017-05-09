@@ -2607,6 +2607,14 @@ static void run_state_machine(struct tcpm_port *port)
 		break;
 	case PR_SWAP_SRC_SNK_SOURCE_OFF:
 		tcpm_set_cc(port, TYPEC_CC_RD);
+		/*
+		 * USB-PD standard, 6.2.1.4, Port Power Role:
+		 * "During the Power Role Swap Sequence, for the initial Source
+		 * Port, the Port Power Role field shall be set to Sink in the
+		 * PS_RDY Message indicating that the initial Source’s power
+		 * supply is turned off"
+		 */
+		tcpm_set_pwr_role(port, TYPEC_SINK);
 		if (tcpm_pd_send_control(port, PD_CTRL_PS_RDY)) {
 			tcpm_set_state(port, ERROR_RECOVERY, 0);
 			break;
@@ -2614,7 +2622,6 @@ static void run_state_machine(struct tcpm_port *port)
 		tcpm_set_state_cond(port, SNK_UNATTACHED, PD_T_PS_SOURCE_ON);
 		break;
 	case PR_SWAP_SRC_SNK_SINK_ON:
-		tcpm_set_pwr_role(port, TYPEC_SINK);
 		tcpm_swap_complete(port, 0);
 		tcpm_set_state(port, SNK_STARTUP, 0);
 		break;
@@ -2626,8 +2633,15 @@ static void run_state_machine(struct tcpm_port *port)
 	case PR_SWAP_SNK_SRC_SOURCE_ON:
 		tcpm_set_cc(port, tcpm_rp_cc(port));
 		tcpm_set_vbus(port, true);
-		tcpm_pd_send_control(port, PD_CTRL_PS_RDY);
+		/*
+		 * USB PD standard, 6.2.1.4:
+		 * "Subsequent Messages initiated by the Policy Engine,
+		 * such as the PS_RDY Message sent to indicate that Vbus
+		 * is ready, will have the Port Power Role field set to
+		 * Source."
+		 */
 		tcpm_set_pwr_role(port, TYPEC_SOURCE);
+		tcpm_pd_send_control(port, PD_CTRL_PS_RDY);
 		tcpm_swap_complete(port, 0);
 		tcpm_set_state(port, SRC_STARTUP, 0);
 		break;
