@@ -19,6 +19,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_plane_helper.h>
 
+#include <linux/devfreq.h>
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -209,8 +210,13 @@ struct vop {
 	/* vop dclk reset */
 	struct reset_control *dclk_rst;
 
+	struct devfreq *devfreq;
+	struct notifier_block dmc_nb;
+
 	struct vop_win win[];
 };
+
+struct vop *dmc_vop;
 
 static inline void vop_writel(struct vop *vop, uint32_t offset, uint32_t v)
 {
@@ -2444,6 +2450,30 @@ out:
 }
 EXPORT_SYMBOL(rockchip_drm_wait_line_flag);
 
+static int dmc_notifier_call(struct notifier_block *nb, unsigned long event,
+			     void *data)
+{
+	if (event == DEVFREQ_PRECHANGE)
+		mutex_lock(&dmc_vop->vop_lock);
+	else if (event == DEVFREQ_POSTCHANGE)
+		mutex_unlock(&dmc_vop->vop_lock);
+
+	return NOTIFY_OK;
+}
+
+int rockchip_drm_register_notifier_to_dmc(struct devfreq *devfreq)
+{
+	if (!dmc_vop)
+		return -ENOMEM;
+
+	dmc_vop->devfreq = devfreq;
+	dmc_vop->dmc_nb.notifier_call = dmc_notifier_call;
+	devfreq_register_notifier(dmc_vop->devfreq, &dmc_vop->dmc_nb,
+				  DEVFREQ_TRANSITION_NOTIFIER);
+	return 0;
+}
+EXPORT_SYMBOL(rockchip_drm_register_notifier_to_dmc);
+
 static int vop_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -2533,6 +2563,9 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 
 	pm_runtime_enable(&pdev->dev);
+
+	dmc_vop = vop;
+
 	return 0;
 }
 
