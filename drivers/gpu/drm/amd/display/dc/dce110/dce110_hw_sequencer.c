@@ -631,7 +631,6 @@ static bool dce110_translate_regamma_to_hw_format(const struct dc_transfer_func
 
 static bool dce110_set_output_transfer_func(
 	struct pipe_ctx *pipe_ctx,
-	const struct core_surface *surface, /* Surface - To be removed */
 	const struct core_stream *stream)
 {
 	struct output_pixel_processor *opp = pipe_ctx->opp;

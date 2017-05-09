@@ -1301,10 +1301,12 @@ static bool dcn10_translate_regamma_to_hw_format(const struct dc_transfer_func
 
 static bool dcn10_set_output_transfer_func(
 	struct pipe_ctx *pipe_ctx,
-	const struct core_surface *surface,
 	const struct core_stream *stream)
 {
 	struct output_pixel_processor *opp = pipe_ctx->opp;
+
+	if (opp == NULL)
+		return false;
 
 	opp->regamma_params.hw_points_num = GAMMA_HW_POINTS_NUM;
 

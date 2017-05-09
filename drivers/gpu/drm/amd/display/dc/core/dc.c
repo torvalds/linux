@@ -201,11 +201,10 @@ static bool stream_get_crtc_position(struct dc *dc,
 	return ret;
 }
 
-static bool set_gamut_remap(struct dc *dc,
-			const struct dc_stream **stream, int num_streams)
+static bool set_gamut_remap(struct dc *dc, const struct dc_stream *stream)
 {
 	struct core_dc *core_dc = DC_TO_CORE(dc);
-	struct core_stream *core_stream = DC_STREAM_TO_CORE(stream[0]);
+	struct core_stream *core_stream = DC_STREAM_TO_CORE(stream);
 	int i = 0;
 	bool ret = false;
 	struct pipe_ctx *pipes;
@@ -1182,7 +1181,6 @@ static enum surface_update_type det_surface_update(
 		overall_type = type;
 
 	if (u->in_transfer_func ||
-		u->out_transfer_func ||
 		u->hdr_static_metadata) {
 		if (overall_type < UPDATE_TYPE_MED)
 			overall_type = UPDATE_TYPE_MED;
@@ -1279,8 +1277,28 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 
 	/* update current stream with the new updates */
 	if (stream_update) {
-		stream->public.src = stream_update->src;
-		stream->public.dst = stream_update->dst;
+		if ((stream_update->src.height != 0) &&
+				(stream_update->src.width != 0))
+			stream->public.src = stream_update->src;
+
+		if ((stream_update->dst.height != 0) &&
+				(stream_update->dst.width != 0))
+			stream->public.dst = stream_update->dst;
+
+		if (stream_update->out_transfer_func &&
+				stream_update->out_transfer_func !=
+				dc_stream->out_transfer_func) {
+			if (stream_update->out_transfer_func->type !=
+					TF_TYPE_UNKNOWN) {
+				if (dc_stream->out_transfer_func != NULL)
+					dc_transfer_func_release
+					(dc_stream->out_transfer_func);
+				dc_transfer_func_retain(stream_update->
+					out_transfer_func);
+				stream->public.out_transfer_func =
+					stream_update->out_transfer_func;
+			}
+		}
 	}
 
 	/* save update parameters into surface */
@@ -1361,13 +1379,6 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 					srf_updates[i].in_transfer_func;
 		}
 
-		if (srf_updates[i].out_transfer_func &&
-			srf_updates[i].out_transfer_func != dc_stream->out_transfer_func) {
-			if (dc_stream->out_transfer_func != NULL)
-				dc_transfer_func_release(dc_stream->out_transfer_func);
-			dc_transfer_func_retain(srf_updates[i].out_transfer_func);
-			stream->public.out_transfer_func = srf_updates[i].out_transfer_func;
-		}
 		if (srf_updates[i].hdr_static_metadata)
 			surface->public.hdr_static_ctx =
 				*(srf_updates[i].hdr_static_metadata);
@@ -1436,11 +1447,12 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 						pipe_ctx, pipe_ctx->surface);
 
 			if (is_new_pipe_surface ||
-					srf_updates[i].out_transfer_func)
+				(stream_update != NULL &&
+					stream_update->out_transfer_func !=
+							NULL)) {
 				core_dc->hwss.set_output_transfer_func(
-						pipe_ctx,
-						pipe_ctx->surface,
-						pipe_ctx->stream);
+						pipe_ctx, pipe_ctx->stream);
+			}
 
 			if (srf_updates[i].hdr_static_metadata) {
 				resource_build_info_frame(pipe_ctx);

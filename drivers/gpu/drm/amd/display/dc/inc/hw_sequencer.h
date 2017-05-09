@@ -80,7 +80,6 @@ struct hw_sequencer_funcs {
 
 	bool (*set_output_transfer_func)(
 				struct pipe_ctx *pipe_ctx,
-				const struct core_surface *surface,
 				const struct core_stream *stream);
 
 	void (*power_down)(struct core_dc *dc);

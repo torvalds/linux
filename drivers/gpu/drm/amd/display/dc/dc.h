@@ -122,7 +122,7 @@ struct dc_stream_funcs {
 			const struct rect *dst);
 
 	bool (*set_gamut_remap)(struct dc *dc,
-			const struct dc_stream **stream, int num_streams);
+			const struct dc_stream *stream);
 
 	void (*set_static_screen_events)(struct dc *dc,
 			const struct dc_stream **stream,
@@ -265,7 +265,8 @@ struct dc_hdr_static_metadata {
 enum dc_transfer_func_type {
 	TF_TYPE_PREDEFINED,
 	TF_TYPE_DISTRIBUTED_POINTS,
-	TF_TYPE_BYPASS
+	TF_TYPE_BYPASS,
+	TF_TYPE_UNKNOWN
 };
 
 struct dc_transfer_func_distributed_points {
@@ -349,11 +350,8 @@ struct dc_surface_update {
 	 */
 	/* gamma TO BE REMOVED */
 	struct dc_gamma *gamma;
-	struct dc_hdr_static_metadata *hdr_static_metadata;
 	struct dc_transfer_func *in_transfer_func;
-	struct dc_transfer_func *out_transfer_func;
-
-
+	struct dc_hdr_static_metadata *hdr_static_metadata;
 };
 /*
  * This structure is filled in by dc_surface_get_status and contains
@@ -473,11 +471,9 @@ struct dc_stream {
 };
 
 struct dc_stream_update {
-
 	struct rect src;
-
 	struct rect dst;
-
+	struct dc_transfer_func *out_transfer_func;
 };
 
 
