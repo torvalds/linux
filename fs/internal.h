@@ -126,8 +126,6 @@ static inline bool atime_needs_update_rcu(const struct path *path,
 	return __atime_needs_update(path, inode, true);
 }
 
-extern bool atime_needs_update_rcu(const struct path *, struct inode *);
-
 /*
  * fs-writeback.c
  */
