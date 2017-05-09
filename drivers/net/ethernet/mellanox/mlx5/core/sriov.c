@@ -175,15 +175,20 @@ int mlx5_core_sriov_configure(struct pci_dev *pdev, int num_vfs)
 	if (!mlx5_core_is_pf(dev))
 		return -EPERM;
 
-	if (num_vfs && mlx5_lag_is_active(dev)) {
-		mlx5_core_warn(dev, "can't turn sriov on while LAG is active");
-		return -EINVAL;
+	if (num_vfs) {
+		int ret;
+
+		ret = mlx5_lag_forbid(dev);
+		if (ret && (ret != -ENODEV))
+			return ret;
 	}
 
-	if (num_vfs)
+	if (num_vfs) {
 		err = mlx5_sriov_enable(pdev, num_vfs);
-	else
+	} else {
 		mlx5_sriov_disable(pdev);
+		mlx5_lag_allow(dev);
+	}
 
 	return err ? err : num_vfs;
 }

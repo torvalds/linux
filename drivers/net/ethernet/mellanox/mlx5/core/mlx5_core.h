@@ -167,4 +167,7 @@ static inline int mlx5_lag_is_lacp_owner(struct mlx5_core_dev *dev)
 		    MLX5_CAP_GEN(dev, lag_master);
 }
 
+int mlx5_lag_allow(struct mlx5_core_dev *dev);
+int mlx5_lag_forbid(struct mlx5_core_dev *dev);
+
 #endif /* __MLX5_CORE_H__ */
