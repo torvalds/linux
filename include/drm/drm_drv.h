@@ -276,6 +276,11 @@ struct drm_driver {
 	 *     constant but unknown small number of scanlines wrt. real scanout
 	 *     position.
 	 *
+	 * FIXME:
+	 *
+	 * Since this is a helper to implement @get_vblank_timestamp, we should
+	 * move it to &struct drm_crtc_helper_funcs, like all the other
+	 * helper-internal hooks.
 	 */
 	int (*get_scanout_position) (struct drm_device *dev, unsigned int pipe,
 				     unsigned int flags, int *vpos, int *hpos,
@@ -319,6 +324,11 @@ struct drm_driver {
 	 *
 	 * True on success, false on failure, which means the core should
 	 * fallback to a simple timestamp taken in drm_crtc_handle_vblank().
+	 *
+	 * FIXME:
+	 *
+	 * We should move this hook to &struct drm_crtc_funcs like all the other
+	 * vblank hooks.
 	 */
 	bool (*get_vblank_timestamp) (struct drm_device *dev, unsigned int pipe,
 				     int *max_error,
