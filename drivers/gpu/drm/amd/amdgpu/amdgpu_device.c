@@ -480,7 +480,7 @@ void amdgpu_doorbell_get_kfd_info(struct amdgpu_device *adev,
 
 /*
  * amdgpu_wb_*()
- * Writeback is the method by which GPU updates special pages in memory
+ * Writeback is the method by which the GPU updates special pages in memory
  * with the status of certain GPU events (fences, ring pointers,etc.).
  */
 
@@ -507,7 +507,7 @@ static void amdgpu_wb_fini(struct amdgpu_device *adev)
  *
  * @adev: amdgpu_device pointer
  *
- * Initialize writeback and allocates writeback memory (all asics).
+ * Initializes writeback and allocates writeback memory (all asics).
  * Used at driver startup.
  * Returns 0 on success or an -error on failure.
  */
@@ -615,7 +615,7 @@ void amdgpu_wb_free_64bit(struct amdgpu_device *adev, u32 wb)
  * @mc: memory controller structure holding memory informations
  * @base: base address at which to put VRAM
  *
- * Function will place try to place VRAM at base address provided
+ * Function will try to place VRAM at base address provided
  * as parameter (which is so far either PCI aperture address or
  * for IGP TOM base address).
  *
@@ -637,7 +637,7 @@ void amdgpu_wb_free_64bit(struct amdgpu_device *adev, u32 wb)
  * ones)
  *
  * Note: IGP TOM addr should be the same as the aperture addr, we don't
- * explicitly check for that thought.
+ * explicitly check for that though.
  *
  * FIXME: when reducing VRAM size align new size on power of 2.
  */
