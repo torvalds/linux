@@ -855,6 +855,15 @@ void zpci_stop_device(struct zpci_dev *zdev)
 }
 EXPORT_SYMBOL_GPL(zpci_stop_device);
 
+void zpci_remove_device(struct zpci_dev *zdev)
+{
+	if (!zdev->bus)
+		return;
+
+	pci_stop_root_bus(zdev->bus);
+	pci_remove_root_bus(zdev->bus);
+}
+
 int zpci_report_error(struct pci_dev *pdev,
 		      struct zpci_report_error_header *report)
 {
