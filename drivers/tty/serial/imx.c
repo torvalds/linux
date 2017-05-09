@@ -719,6 +719,27 @@ out:
 	return IRQ_HANDLED;
 }
 
+static void imx_disable_rx_int(struct imx_port *sport)
+{
+	unsigned long temp;
+
+	sport->dma_is_rxing = 1;
+
+	/* disable the receiver ready and aging timer interrupts */
+	temp = readl(sport->port.membase + UCR1);
+	temp &= ~(UCR1_RRDYEN);
+	writel(temp, sport->port.membase + UCR1);
+
+	temp = readl(sport->port.membase + UCR2);
+	temp &= ~(UCR2_ATEN);
+	writel(temp, sport->port.membase + UCR2);
+
+	/* disable the rx errors interrupts */
+	temp = readl(sport->port.membase + UCR4);
+	temp &= ~UCR4_OREN;
+	writel(temp, sport->port.membase + UCR4);
+}
+
 static void clear_rx_errors(struct imx_port *sport);
 static int start_rx_dma(struct imx_port *sport);
 /*
@@ -734,21 +755,8 @@ static void imx_dma_rxint(struct imx_port *sport)
 
 	temp = readl(sport->port.membase + USR2);
 	if ((temp & USR2_RDR) && !sport->dma_is_rxing) {
-		sport->dma_is_rxing = 1;
 
-		/* disable the receiver ready and aging timer interrupts */
-		temp = readl(sport->port.membase + UCR1);
-		temp &= ~(UCR1_RRDYEN);
-		writel(temp, sport->port.membase + UCR1);
-
-		temp = readl(sport->port.membase + UCR2);
-		temp &= ~(UCR2_ATEN);
-		writel(temp, sport->port.membase + UCR2);
-
-		/* disable the rx errors interrupts */
-		temp = readl(sport->port.membase + UCR4);
-		temp &= ~UCR4_OREN;
-		writel(temp, sport->port.membase + UCR4);
+		imx_disable_rx_int(sport);
 
 		/* tell the DMA to receive the data. */
 		start_rx_dma(sport);
@@ -1317,19 +1325,10 @@ static int imx_startup(struct uart_port *port)
 	if (!is_imx1_uart(sport)) {
 		temp = readl(sport->port.membase + UCR3);
 
-		/*
-		 * The effect of RI and DCD differs depending on the UFCR_DCEDTE
-		 * bit. In DCE mode they control the outputs, in DTE mode they
-		 * enable the respective irqs. At least the DCD irq cannot be
-		 * cleared on i.MX25 at least, so it's not usable and must be
-		 * disabled. I don't have test hardware to check if RI has the
-		 * same problem but I consider this likely so it's disabled for
-		 * now, too.
-		 */
-		temp |= IMX21_UCR3_RXDMUXSEL | UCR3_ADNIMP |
-			UCR3_DTRDEN | UCR3_RI | UCR3_DCD;
+		temp |= UCR3_DTRDEN | UCR3_RI | UCR3_DCD;
 
 		if (sport->dte_mode)
+			/* disable broken interrupts */
 			temp &= ~(UCR3_RI | UCR3_DCD);
 
 		writel(temp, sport->port.membase + UCR3);
@@ -1339,6 +1338,33 @@ static int imx_startup(struct uart_port *port)
 	 * Enable modem status interrupts
 	 */
 	imx_enable_ms(&sport->port);
+
+	/*
+	 * If the serial port is opened for reading start RX DMA immediately
+	 * instead of waiting for RX FIFO interrupts. In our iMX53 the average
+	 * delay for the first reception dropped from approximately 35000
+	 * microseconds to 1000 microseconds.
+	 */
+	if (sport->dma_is_enabled) {
+		struct tty_struct *tty = sport->port.state->port.tty;
+		struct tty_file_private *file_priv;
+		int readcnt = 0;
+
+		spin_lock(&tty->files_lock);
+
+		if (!list_empty(&tty->tty_files))
+			list_for_each_entry(file_priv, &tty->tty_files, list)
+				if (!(file_priv->file->f_flags & O_WRONLY))
+					readcnt++;
+
+		spin_unlock(&tty->files_lock);
+
+		if (readcnt > 0) {
+			imx_disable_rx_int(sport);
+			start_rx_dma(sport);
+		}
+	}
+
 	spin_unlock_irqrestore(&sport->port.lock, flags);
 
 	return 0;
@@ -1584,8 +1610,6 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	ufcr = readl(sport->port.membase + UFCR);
 	ufcr = (ufcr & (~UFCR_RFDIV)) | UFCR_RFDIV_REG(div);
-	if (sport->dte_mode)
-		ufcr |= UFCR_DCEDTE;
 	writel(ufcr, sport->port.membase + UFCR);
 
 	writel(num, sport->port.membase + UBIR);
@@ -2152,6 +2176,27 @@ static int serial_imx_probe(struct platform_device *pdev)
 	reg &= ~(UCR1_ADEN | UCR1_TRDYEN | UCR1_IDEN | UCR1_RRDYEN |
 		 UCR1_TXMPTYEN | UCR1_RTSDEN);
 	writel_relaxed(reg, sport->port.membase + UCR1);
+
+	if (!is_imx1_uart(sport) && sport->dte_mode) {
+		/*
+		 * The DCEDTE bit changes the direction of DSR, DCD, DTR and RI
+		 * and influences if UCR3_RI and UCR3_DCD changes the level of RI
+		 * and DCD (when they are outputs) or enables the respective
+		 * irqs. So set this bit early, i.e. before requesting irqs.
+		 */
+		writel(UFCR_DCEDTE, sport->port.membase + UFCR);
+
+		/*
+		 * Disable UCR3_RI and UCR3_DCD irqs. They are also not
+		 * enabled later because they cannot be cleared
+		 * (confirmed on i.MX25) which makes them unusable.
+		 */
+		writel(IMX21_UCR3_RXDMUXSEL | UCR3_ADNIMP | UCR3_DSR,
+		       sport->port.membase + UCR3);
+
+	} else {
+		writel(0, sport->port.membase + UFCR);
+	}
 
 	clk_disable_unprepare(sport->clk_ipg);
 

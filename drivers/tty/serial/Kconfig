@@ -630,6 +630,15 @@ config SERIAL_UARTLITE_CONSOLE
 	  console (the system console is the device which receives all kernel
 	  messages and warnings and which allows logins in single user mode).
 
+config SERIAL_UARTLITE_NR_UARTS
+	int "Maximum number of uartlite serial ports"
+	depends on SERIAL_UARTLITE
+	range 1 256
+	default 1
+	help
+	  Set this to the number of uartlites in your system, or the number
+	  you think you might implement.
+
 config SERIAL_SUNCORE
 	bool
 	depends on SPARC
@@ -1343,6 +1352,7 @@ config SERIAL_ALTERA_JTAGUART_CONSOLE
 	bool "Altera JTAG UART console support"
 	depends on SERIAL_ALTERA_JTAGUART=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	help
 	  Enable a Altera JTAG UART port to be the system console.
 
@@ -1382,6 +1392,7 @@ config SERIAL_ALTERA_UART_CONSOLE
 	bool "Altera UART console support"
 	depends on SERIAL_ALTERA_UART=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	help
 	  Enable a Altera UART port to be the system console.
 

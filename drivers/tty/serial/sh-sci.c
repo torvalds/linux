@@ -683,24 +683,37 @@ static void sci_init_pins(struct uart_port *port, unsigned int cflag)
 	}
 
 	if (port->type == PORT_SCIFA || port->type == PORT_SCIFB) {
+		u16 data = serial_port_in(port, SCPDR);
 		u16 ctrl = serial_port_in(port, SCPCR);
 
 		/* Enable RXD and TXD pin functions */
 		ctrl &= ~(SCPCR_RXDC | SCPCR_TXDC);
 		if (to_sci_port(port)->has_rtscts) {
-			/* RTS# is output, driven 1 */
-			ctrl |= SCPCR_RTSC;
-			serial_port_out(port, SCPDR,
-				serial_port_in(port, SCPDR) | SCPDR_RTSD);
+			/* RTS# is output, active low, unless autorts */
+			if (!(port->mctrl & TIOCM_RTS)) {
+				ctrl |= SCPCR_RTSC;
+				data |= SCPDR_RTSD;
+			} else if (!s->autorts) {
+				ctrl |= SCPCR_RTSC;
+				data &= ~SCPDR_RTSD;
+			} else {
+				/* Enable RTS# pin function */
+				ctrl &= ~SCPCR_RTSC;
+			}
 			/* Enable CTS# pin function */
 			ctrl &= ~SCPCR_CTSC;
 		}
+		serial_port_out(port, SCPDR, data);
 		serial_port_out(port, SCPCR, ctrl);
 	} else if (sci_getreg(port, SCSPTR)->size) {
 		u16 status = serial_port_in(port, SCSPTR);
 
-		/* RTS# is output, driven 1 */
-		status |= SCSPTR_RTSIO | SCSPTR_RTSDT;
+		/* RTS# is always output; and active low, unless autorts */
+		status |= SCSPTR_RTSIO;
+		if (!(port->mctrl & TIOCM_RTS))
+			status |= SCSPTR_RTSDT;
+		else if (!s->autorts)
+			status &= ~SCSPTR_RTSDT;
 		/* CTS# and SCK are inputs */
 		status &= ~(SCSPTR_CTSIO | SCSPTR_SCKIO);
 		serial_port_out(port, SCSPTR, status);
@@ -1985,11 +1998,13 @@ static int sci_startup(struct uart_port *port)
 
 	dev_dbg(port->dev, "%s(%d)\n", __func__, port->line);
 
-	ret = sci_request_irq(s);
-	if (unlikely(ret < 0))
-		return ret;
-
 	sci_request_dma(port);
+
+	ret = sci_request_irq(s);
+	if (unlikely(ret < 0)) {
+		sci_free_dma(port);
+		return ret;
+	}
 
 	return 0;
 }
@@ -2021,8 +2036,8 @@ static void sci_shutdown(struct uart_port *port)
 	}
 #endif
 
-	sci_free_dma(port);
 	sci_free_irq(s);
+	sci_free_dma(port);
 }
 
 static int sci_sck_calc(struct sci_port *s, unsigned int bps,
@@ -2156,10 +2171,6 @@ static void sci_reset(struct uart_port *port)
 	const struct plat_sci_reg *reg;
 	unsigned int status;
 	struct sci_port *s = to_sci_port(port);
-
-	do {
-		status = serial_port_in(port, SCxSR);
-	} while (!(status & SCxSR_TEND(port)));
 
 	serial_port_out(port, SCSCR, 0x00);	/* TE=0, RE=0, CKE1=0 */
 
@@ -2373,6 +2384,10 @@ done:
 		ctrl &= ~(SCFCR_RFRST | SCFCR_TFRST);
 
 		serial_port_out(port, SCFCR, ctrl);
+	}
+	if (port->flags & UPF_HARD_FLOW) {
+		/* Refresh (Auto) RTS */
+		sci_set_mctrl(port, port->mctrl);
 	}
 
 	scr_val |= SCSCR_RE | SCSCR_TE |
