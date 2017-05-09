@@ -178,9 +178,9 @@ static inline void prep_xcrb(struct ica_xcRB *pxcrb,
 	pxcrb->user_defined = (cardnr == 0xFFFF ? AUTOSELECT : cardnr);
 	pxcrb->request_control_blk_length =
 		preqcblk->cprb_len + preqcblk->req_parml;
-	pxcrb->request_control_blk_addr = (void *) preqcblk;
+	pxcrb->request_control_blk_addr = (void __user *) preqcblk;
 	pxcrb->reply_control_blk_length = preqcblk->rpl_msgbl;
-	pxcrb->reply_control_blk_addr = (void *) prepcblk;
+	pxcrb->reply_control_blk_addr = (void __user *) prepcblk;
 }
 
 /*
