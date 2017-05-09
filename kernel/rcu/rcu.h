@@ -303,6 +303,59 @@ static inline void rcu_init_levelspread(int *levelspread, const int *levelcnt)
 	     cpu <= rnp->grphi; \
 	     cpu = cpumask_next((cpu), cpu_possible_mask))
 
+/*
+ * Wrappers for the rcu_node::lock acquire and release.
+ *
+ * Because the rcu_nodes form a tree, the tree traversal locking will observe
+ * different lock values, this in turn means that an UNLOCK of one level
+ * followed by a LOCK of another level does not imply a full memory barrier;
+ * and most importantly transitivity is lost.
+ *
+ * In order to restore full ordering between tree levels, augment the regular
+ * lock acquire functions with smp_mb__after_unlock_lock().
+ *
+ * As ->lock of struct rcu_node is a __private field, therefore one should use
+ * these wrappers rather than directly call raw_spin_{lock,unlock}* on ->lock.
+ */
+#define raw_spin_lock_rcu_node(p)					\
+do {									\
+	raw_spin_lock(&ACCESS_PRIVATE(p, lock));			\
+	smp_mb__after_unlock_lock();					\
+} while (0)
+
+#define raw_spin_unlock_rcu_node(p) raw_spin_unlock(&ACCESS_PRIVATE(p, lock))
+
+#define raw_spin_lock_irq_rcu_node(p)					\
+do {									\
+	raw_spin_lock_irq(&ACCESS_PRIVATE(p, lock));			\
+	smp_mb__after_unlock_lock();					\
+} while (0)
+
+#define raw_spin_unlock_irq_rcu_node(p)					\
+	raw_spin_unlock_irq(&ACCESS_PRIVATE(p, lock))
+
+#define raw_spin_lock_irqsave_rcu_node(rnp, flags)			\
+do {									\
+	typecheck(unsigned long, flags);				\
+	raw_spin_lock_irqsave(&ACCESS_PRIVATE(rnp, lock), flags);	\
+	smp_mb__after_unlock_lock();					\
+} while (0)
+
+#define raw_spin_unlock_irqrestore_rcu_node(rnp, flags)			\
+do {									\
+	typecheck(unsigned long, flags);				\
+	raw_spin_unlock_irqrestore(&ACCESS_PRIVATE(rnp, lock), flags);	\
+} while (0)
+
+#define raw_spin_trylock_rcu_node(p)					\
+({									\
+	bool ___locked = raw_spin_trylock(&ACCESS_PRIVATE(p, lock));	\
+									\
+	if (___locked)							\
+		smp_mb__after_unlock_lock();				\
+	___locked;							\
+})
+
 #endif /* #if defined(SRCU) || !defined(TINY_RCU) */
 
 #ifdef CONFIG_TINY_RCU
