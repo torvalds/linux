@@ -45,15 +45,6 @@ EXPORT_SYMBOL(libcfs_kvzalloc);
 void *libcfs_kvzalloc_cpt(struct cfs_cpt_table *cptab, int cpt, size_t size,
 			  gfp_t flags)
 {
-	void *ret;
-
-	ret = kzalloc_node(size, flags | __GFP_NOWARN,
-			   cfs_cpt_spread_node(cptab, cpt));
-	if (!ret) {
-		WARN_ON(!(flags & (__GFP_FS | __GFP_HIGH)));
-		ret = vmalloc_node(size, cfs_cpt_spread_node(cptab, cpt));
-	}
-
-	return ret;
+	return kvzalloc_node(size, flags, cfs_cpt_spread_node(cptab, cpt));
 }
 EXPORT_SYMBOL(libcfs_kvzalloc_cpt);

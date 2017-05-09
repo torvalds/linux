@@ -23,7 +23,7 @@
  */
 
 #define DRV_VERSION	"1.39"
-static const char *version = "tc35815.c:v" DRV_VERSION "\n";
+static const char version[] = "tc35815.c:v" DRV_VERSION "\n";
 #define MODNAME			"tc35815"
 
 #include <linux/module.h>

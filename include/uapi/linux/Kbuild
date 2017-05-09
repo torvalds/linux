@@ -333,6 +333,7 @@ header-y += parport.h
 header-y += patchkey.h
 header-y += pci.h
 header-y += pci_regs.h
+header-y += pcitest.h
 header-y += perf_event.h
 header-y += personality.h
 header-y += pfkeyv2.h

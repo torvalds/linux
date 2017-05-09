@@ -93,10 +93,13 @@
 			#clock-cells = <1>;
 			reg = <0x7e101000 0x2000>;
 
-			/* CPRMAN derives everything from the platform's
-			 * oscillator.
+			/* CPRMAN derives almost everything from the
+			 * platform's oscillator.  However, the DSI
+			 * pixel clocks come from the DSI analog PHY.
 			 */
-			clocks = <&clk_osc>;
+			clocks = <&clk_osc>,
+				<&dsi0 0>, <&dsi0 1>, <&dsi0 2>,
+				<&dsi1 0>, <&dsi1 1>, <&dsi1 2>;
 		};
 
 		rng@7e104000 {
@@ -347,6 +350,16 @@
 			arm,primecell-periphid = <0x00241011>;
 		};
 
+		sdhost: mmc@7e202000 {
+			compatible = "brcm,bcm2835-sdhost";
+			reg = <0x7e202000 0x100>;
+			interrupts = <2 24>;
+			clocks = <&clocks BCM2835_CLOCK_VPU>;
+			dmas = <&dma 13>;
+			dma-names = "rx-tx";
+			status = "disabled";
+		};
+
 		i2s: i2s@7e203000 {
 			compatible = "brcm,bcm2835-i2s";
 			reg = <0x7e203000 0x20>,
@@ -388,6 +401,25 @@
 			compatible = "brcm,bcm2835-pixelvalve1";
 			reg = <0x7e207000 0x100>;
 			interrupts = <2 14>; /* pwa1 */
+		};
+
+		dsi0: dsi@7e209000 {
+			compatible = "brcm,bcm2835-dsi0";
+			reg = <0x7e209000 0x78>;
+			interrupts = <2 4>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			#clock-cells = <1>;
+
+			clocks = <&clocks BCM2835_PLLA_DSI0>,
+				 <&clocks BCM2835_CLOCK_DSI0E>,
+				 <&clocks BCM2835_CLOCK_DSI0P>;
+			clock-names = "phy", "escape", "pixel";
+
+			clock-output-names = "dsi0_byte",
+					     "dsi0_ddr2",
+					     "dsi0_ddr";
+
 		};
 
 		thermal: thermal@7e212000 {
@@ -456,6 +488,26 @@
 			interrupts = <2 1>;
 		};
 
+		dsi1: dsi@7e700000 {
+			compatible = "brcm,bcm2835-dsi1";
+			reg = <0x7e700000 0x8c>;
+			interrupts = <2 12>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			#clock-cells = <1>;
+
+			clocks = <&clocks BCM2835_PLLD_DSI1>,
+				 <&clocks BCM2835_CLOCK_DSI1E>,
+				 <&clocks BCM2835_CLOCK_DSI1P>;
+			clock-names = "phy", "escape", "pixel";
+
+			clock-output-names = "dsi1_byte",
+					     "dsi1_ddr2",
+					     "dsi1_ddr";
+
+			status = "disabled";
+		};
+
 		i2c1: i2c@7e804000 {
 			compatible = "brcm,bcm2835-i2c";
 			reg = <0x7e804000 0x1000>;
@@ -499,6 +551,8 @@
 			clocks = <&clocks BCM2835_PLLH_PIX>,
 				 <&clocks BCM2835_CLOCK_HSM>;
 			clock-names = "pixel", "hdmi";
+			dmas = <&dma 17>;
+			dma-names = "audio-rx";
 			status = "disabled";
 		};
 

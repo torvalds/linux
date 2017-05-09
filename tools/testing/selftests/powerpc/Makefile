@@ -60,12 +60,13 @@ override define EMIT_TESTS
 	done;
 endef
 
-clean:
+override define CLEAN
 	@for TARGET in $(SUB_DIRS); do \
 		BUILD_TARGET=$(OUTPUT)/$$TARGET;	\
 		$(MAKE) OUTPUT=$$BUILD_TARGET -C $$TARGET clean; \
 	done;
 	rm -f tags
+endef
 
 tags:
 	find . -name '*.c' -o -name '*.h' | xargs ctags

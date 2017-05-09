@@ -109,15 +109,18 @@ static void soc_release(struct device *dev)
 	kfree(soc_dev);
 }
 
+static struct soc_device_attribute *early_soc_dev_attr;
+
 struct soc_device *soc_device_register(struct soc_device_attribute *soc_dev_attr)
 {
 	struct soc_device *soc_dev;
 	int ret;
 
 	if (!soc_bus_type.p) {
-		ret = bus_register(&soc_bus_type);
-		if (ret)
-			goto out1;
+		if (early_soc_dev_attr)
+			return ERR_PTR(-EBUSY);
+		early_soc_dev_attr = soc_dev_attr;
+		return NULL;
 	}
 
 	soc_dev = kzalloc(sizeof(*soc_dev), GFP_KERNEL);
@@ -159,43 +162,51 @@ void soc_device_unregister(struct soc_device *soc_dev)
 	ida_simple_remove(&soc_ida, soc_dev->soc_dev_num);
 
 	device_unregister(&soc_dev->dev);
+	early_soc_dev_attr = NULL;
 }
 
 static int __init soc_bus_register(void)
 {
-	if (soc_bus_type.p)
-		return 0;
+	int ret;
 
-	return bus_register(&soc_bus_type);
+	ret = bus_register(&soc_bus_type);
+	if (ret)
+		return ret;
+
+	if (early_soc_dev_attr)
+		return PTR_ERR(soc_device_register(early_soc_dev_attr));
+
+	return 0;
 }
 core_initcall(soc_bus_register);
+
+static int soc_device_match_attr(const struct soc_device_attribute *attr,
+				 const struct soc_device_attribute *match)
+{
+	if (match->machine &&
+	    (!attr->machine || !glob_match(match->machine, attr->machine)))
+		return 0;
+
+	if (match->family &&
+	    (!attr->family || !glob_match(match->family, attr->family)))
+		return 0;
+
+	if (match->revision &&
+	    (!attr->revision || !glob_match(match->revision, attr->revision)))
+		return 0;
+
+	if (match->soc_id &&
+	    (!attr->soc_id || !glob_match(match->soc_id, attr->soc_id)))
+		return 0;
+
+	return 1;
+}
 
 static int soc_device_match_one(struct device *dev, void *arg)
 {
 	struct soc_device *soc_dev = container_of(dev, struct soc_device, dev);
-	const struct soc_device_attribute *match = arg;
 
-	if (match->machine &&
-	    (!soc_dev->attr->machine ||
-	     !glob_match(match->machine, soc_dev->attr->machine)))
-		return 0;
-
-	if (match->family &&
-	    (!soc_dev->attr->family ||
-	     !glob_match(match->family, soc_dev->attr->family)))
-		return 0;
-
-	if (match->revision &&
-	    (!soc_dev->attr->revision ||
-	     !glob_match(match->revision, soc_dev->attr->revision)))
-		return 0;
-
-	if (match->soc_id &&
-	    (!soc_dev->attr->soc_id ||
-	     !glob_match(match->soc_id, soc_dev->attr->soc_id)))
-		return 0;
-
-	return 1;
+	return soc_device_match_attr(soc_dev->attr, arg);
 }
 
 /*
@@ -230,6 +241,11 @@ const struct soc_device_attribute *soc_device_match(
 			break;
 		ret = bus_for_each_dev(&soc_bus_type, NULL, (void *)matches,
 				       soc_device_match_one);
+		if (ret < 0 && early_soc_dev_attr)
+			ret = soc_device_match_attr(early_soc_dev_attr,
+						    matches);
+		if (ret < 0)
+			return NULL;
 		if (!ret)
 			matches++;
 		else

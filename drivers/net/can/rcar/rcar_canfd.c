@@ -413,7 +413,7 @@
 /* RSCFDnRPGACCr */
 #define RCANFD_C_RPGACC(r)		(0x1900 + (0x04 * (r)))
 
-/* CAN FD mode specific regsiter map */
+/* CAN FD mode specific register map */
 
 /* RSCFDnCFDCmXXX -> RCANFD_F_XXX(m) */
 #define RCANFD_F_DCFG(m)		(0x0500 + (0x20 * (m)))

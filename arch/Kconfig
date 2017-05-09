@@ -2,7 +2,11 @@
 # General architecture dependent options
 #
 
+config CRASH_CORE
+	bool
+
 config KEXEC_CORE
+	select CRASH_CORE
 	bool
 
 config HAVE_IMA_KEXEC

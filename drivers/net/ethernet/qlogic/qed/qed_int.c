@@ -3058,7 +3058,7 @@ int qed_int_igu_read_cam(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 
 	/* There's a possibility the igu_sb_cnt_iov doesn't properly reflect
 	 * the number of VF SBs [especially for first VF on engine, as we can't
-	 * diffrentiate between empty entries and its entries].
+	 * differentiate between empty entries and its entries].
 	 * Since we don't really support more SBs than VFs today, prevent any
 	 * such configuration by sanitizing the number of SBs to equal the
 	 * number of VFs.

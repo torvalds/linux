@@ -419,7 +419,7 @@ typedef struct elf64_shdr {
 #define NT_METAG_CBUF	0x500		/* Metag catch buffer registers */
 #define NT_METAG_RPIPE	0x501		/* Metag read pipeline state */
 #define NT_METAG_TLS	0x502		/* Metag TLS pointer */
-
+#define NT_ARC_V2	0x600		/* ARCv2 accumulator/extra registers */
 
 /* Note header in a PT_NOTE section */
 typedef struct elf32_note {
