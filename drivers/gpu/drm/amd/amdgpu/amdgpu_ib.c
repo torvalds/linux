@@ -121,6 +121,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_ib *ib = &ibs[0];
+	struct dma_fence *tmp;
 	bool skip_preamble, need_ctx_switch;
 	unsigned patch_offset = ~0;
 	struct amdgpu_vm *vm;
@@ -160,8 +161,13 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		dev_err(adev->dev, "scheduling IB failed (%d).\n", r);
 		return r;
 	}
-	if (ring->funcs->emit_pipeline_sync && job && job->need_pipeline_sync)
+
+	if (ring->funcs->emit_pipeline_sync && job &&
+	    (tmp = amdgpu_sync_get_fence(&job->sched_sync))) {
+		job->need_pipeline_sync = true;
 		amdgpu_ring_emit_pipeline_sync(ring);
+		dma_fence_put(tmp);
+	}
 
 	if (vm) {
 		r = amdgpu_vm_flush(ring, job);
