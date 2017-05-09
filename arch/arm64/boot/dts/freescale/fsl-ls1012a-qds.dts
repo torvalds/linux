@@ -97,6 +97,14 @@
 	status = "okay";
 };
 
+&esdhc0 {
+	status = "okay";
+};
+
+&esdhc1 {
+	status = "okay";
+};
+
 &i2c0 {
 	status = "okay";
 
