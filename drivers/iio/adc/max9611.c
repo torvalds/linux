@@ -438,10 +438,10 @@ static ssize_t max9611_shunt_resistor_show(struct device *dev,
 	struct max9611_dev *max9611 = iio_priv(dev_to_iio_dev(dev));
 	unsigned int i, r;
 
-	i = max9611->shunt_resistor_uohm / 1000;
-	r = max9611->shunt_resistor_uohm % 1000;
+	i = max9611->shunt_resistor_uohm / 1000000;
+	r = max9611->shunt_resistor_uohm % 1000000;
 
-	return sprintf(buf, "%u.%03u\n", i, r);
+	return sprintf(buf, "%u.%06u\n", i, r);
 }
 
 static IIO_DEVICE_ATTR(in_power_shunt_resistor, 0444,
