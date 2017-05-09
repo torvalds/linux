@@ -103,7 +103,7 @@ static inline size_t arch_copy_from_iter_pmem(void *addr, size_t bytes,
 
 		if (bytes < 8) {
 			if (!IS_ALIGNED(dest, 4) || (bytes != 4))
-				arch_wb_cache_pmem(addr, 1);
+				arch_wb_cache_pmem(addr, bytes);
 		} else {
 			if (!IS_ALIGNED(dest, 8)) {
 				dest = ALIGN(dest, boot_cpu_data.x86_clflush_size);
