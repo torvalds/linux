@@ -160,6 +160,8 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		dev_err(adev->dev, "scheduling IB failed (%d).\n", r);
 		return r;
 	}
+	if (ring->funcs->emit_pipeline_sync && job && job->need_pipeline_sync)
+		amdgpu_ring_emit_pipeline_sync(ring);
 
 	if (vm) {
 		r = amdgpu_vm_flush(ring, job);
