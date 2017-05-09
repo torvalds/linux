@@ -935,3 +935,9 @@ ENTRY(__retl_o1)
 	retl
 	 mov	%o1, %o0
 ENDPROC(__retl_o1)
+
+ENTRY(__retl_o1_asi)
+	wr      %o5, 0x0, %asi
+	retl
+	 mov    %o1, %o0
+ENDPROC(__retl_o1_asi)

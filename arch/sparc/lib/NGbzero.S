@@ -8,7 +8,7 @@
 98:	x,y;			\
 	.section __ex_table,"a";\
 	.align 4;		\
-	.word 98b, __retl_o1;	\
+	.word 98b, __retl_o1_asi;\
 	.text;			\
 	.align 4;
 
