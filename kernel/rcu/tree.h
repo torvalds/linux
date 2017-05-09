@@ -580,27 +580,22 @@ static inline void rcu_nocb_q_lengths(struct rcu_data *rdp, long *ql, long *qll)
  * As ->lock of struct rcu_node is a __private field, therefore one should use
  * these wrappers rather than directly call raw_spin_{lock,unlock}* on ->lock.
  */
-static inline void raw_spin_lock_rcu_node(struct rcu_node *rnp)
-{
-	raw_spin_lock(&ACCESS_PRIVATE(rnp, lock));
-	smp_mb__after_unlock_lock();
-}
+#define raw_spin_lock_rcu_node(p)					\
+do {									\
+	raw_spin_lock(&ACCESS_PRIVATE(p, lock));			\
+	smp_mb__after_unlock_lock();					\
+} while (0)
 
-static inline void raw_spin_unlock_rcu_node(struct rcu_node *rnp)
-{
-	raw_spin_unlock(&ACCESS_PRIVATE(rnp, lock));
-}
+#define raw_spin_unlock_rcu_node(p) raw_spin_unlock(&ACCESS_PRIVATE(p, lock))
 
-static inline void raw_spin_lock_irq_rcu_node(struct rcu_node *rnp)
-{
-	raw_spin_lock_irq(&ACCESS_PRIVATE(rnp, lock));
-	smp_mb__after_unlock_lock();
-}
+#define raw_spin_lock_irq_rcu_node(p)					\
+do {									\
+	raw_spin_lock_irq(&ACCESS_PRIVATE(p, lock));			\
+	smp_mb__after_unlock_lock();					\
+} while (0)
 
-static inline void raw_spin_unlock_irq_rcu_node(struct rcu_node *rnp)
-{
-	raw_spin_unlock_irq(&ACCESS_PRIVATE(rnp, lock));
-}
+#define raw_spin_unlock_irq_rcu_node(p)					\
+	raw_spin_unlock_irq(&ACCESS_PRIVATE(p, lock))
 
 #define raw_spin_lock_irqsave_rcu_node(rnp, flags)			\
 do {									\
@@ -615,11 +610,11 @@ do {									\
 	raw_spin_unlock_irqrestore(&ACCESS_PRIVATE(rnp, lock), flags);	\
 } while (0)
 
-static inline bool raw_spin_trylock_rcu_node(struct rcu_node *rnp)
-{
-	bool locked = raw_spin_trylock(&ACCESS_PRIVATE(rnp, lock));
-
-	if (locked)
-		smp_mb__after_unlock_lock();
-	return locked;
-}
+#define raw_spin_trylock_rcu_node(p)					\
+({									\
+	bool ___locked = raw_spin_trylock(&ACCESS_PRIVATE(p, lock));	\
+									\
+	if (___locked)							\
+		smp_mb__after_unlock_lock();				\
+	___locked;							\
+})
