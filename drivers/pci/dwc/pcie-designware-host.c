@@ -56,24 +56,25 @@ static struct irq_chip dw_msi_irq_chip = {
 /* MSI int handler */
 irqreturn_t dw_handle_msi_irq(struct pcie_port *pp)
 {
-	unsigned long val;
+	u32 val;
 	int i, pos, irq;
 	irqreturn_t ret = IRQ_NONE;
 
 	for (i = 0; i < MAX_MSI_CTRLS; i++) {
 		dw_pcie_rd_own_conf(pp, PCIE_MSI_INTR0_STATUS + i * 12, 4,
-				    (u32 *)&val);
-		if (val) {
-			ret = IRQ_HANDLED;
-			pos = 0;
-			while ((pos = find_next_bit(&val, 32, pos)) != 32) {
-				irq = irq_find_mapping(pp->irq_domain,
-						       i * 32 + pos);
-				dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_STATUS +
-						    i * 12, 4, 1 << pos);
-				generic_handle_irq(irq);
-				pos++;
-			}
+				    &val);
+		if (!val)
+			continue;
+
+		ret = IRQ_HANDLED;
+		pos = 0;
+		while ((pos = find_next_bit((unsigned long *) &val, 32,
+					    pos)) != 32) {
+			irq = irq_find_mapping(pp->irq_domain, i * 32 + pos);
+			dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_STATUS + i * 12,
+					    4, 1 << pos);
+			generic_handle_irq(irq);
+			pos++;
 		}
 	}
 
@@ -338,8 +339,9 @@ int dw_pcie_host_init(struct pcie_port *pp)
 	}
 
 	if (!pci->dbi_base) {
-		pci->dbi_base = devm_ioremap(dev, pp->cfg->start,
-					resource_size(pp->cfg));
+		pci->dbi_base = devm_pci_remap_cfgspace(dev,
+						pp->cfg->start,
+						resource_size(pp->cfg));
 		if (!pci->dbi_base) {
 			dev_err(dev, "error with ioremap\n");
 			ret = -ENOMEM;
@@ -350,8 +352,8 @@ int dw_pcie_host_init(struct pcie_port *pp)
 	pp->mem_base = pp->mem->start;
 
 	if (!pp->va_cfg0_base) {
-		pp->va_cfg0_base = devm_ioremap(dev, pp->cfg0_base,
-						pp->cfg0_size);
+		pp->va_cfg0_base = devm_pci_remap_cfgspace(dev,
+					pp->cfg0_base, pp->cfg0_size);
 		if (!pp->va_cfg0_base) {
 			dev_err(dev, "error with ioremap in function\n");
 			ret = -ENOMEM;
@@ -360,7 +362,8 @@ int dw_pcie_host_init(struct pcie_port *pp)
 	}
 
 	if (!pp->va_cfg1_base) {
-		pp->va_cfg1_base = devm_ioremap(dev, pp->cfg1_base,
+		pp->va_cfg1_base = devm_pci_remap_cfgspace(dev,
+						pp->cfg1_base,
 						pp->cfg1_size);
 		if (!pp->va_cfg1_base) {
 			dev_err(dev, "error with ioremap\n");

@@ -298,7 +298,7 @@ void __pci_write_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 {
 	struct pci_dev *dev = msi_desc_to_pci_dev(entry);
 
-	if (dev->current_state != PCI_D0) {
+	if (dev->current_state != PCI_D0 || pci_dev_is_disconnected(dev)) {
 		/* Don't touch the hardware now */
 	} else if (entry->msi_attrib.is_msix) {
 		void __iomem *base = pci_msix_desc_addr(entry);
@@ -541,7 +541,8 @@ msi_setup_entry(struct pci_dev *dev, int nvec, const struct irq_affinity *affd)
 	if (affd) {
 		masks = irq_create_affinity_masks(nvec, affd);
 		if (!masks)
-			pr_err("Unable to allocate affinity masks, ignoring\n");
+			dev_err(&dev->dev, "can't allocate MSI affinity masks for %d vectors\n",
+				nvec);
 	}
 
 	/* MSI Entry Initialization */
@@ -681,7 +682,8 @@ static int msix_setup_entries(struct pci_dev *dev, void __iomem *base,
 	if (affd) {
 		masks = irq_create_affinity_masks(nvec, affd);
 		if (!masks)
-			pr_err("Unable to allocate affinity masks, ignoring\n");
+			dev_err(&dev->dev, "can't allocate MSI-X affinity masks for %d vectors\n",
+				nvec);
 	}
 
 	for (i = 0, curmsk = masks; i < nvec; i++) {
@@ -882,7 +884,7 @@ int pci_msi_vec_count(struct pci_dev *dev)
 }
 EXPORT_SYMBOL(pci_msi_vec_count);
 
-void pci_msi_shutdown(struct pci_dev *dev)
+static void pci_msi_shutdown(struct pci_dev *dev)
 {
 	struct msi_desc *desc;
 	u32 mask;
@@ -973,12 +975,17 @@ static int __pci_enable_msix(struct pci_dev *dev, struct msix_entry *entries,
 	return msix_capability_init(dev, entries, nvec, affd);
 }
 
-void pci_msix_shutdown(struct pci_dev *dev)
+static void pci_msix_shutdown(struct pci_dev *dev)
 {
 	struct msi_desc *entry;
 
 	if (!pci_msi_enable || !dev || !dev->msix_enabled)
 		return;
+
+	if (pci_dev_is_disconnected(dev)) {
+		dev->msix_enabled = 0;
+		return;
+	}
 
 	/* Return the device with MSI-X masked as initial states */
 	for_each_pci_msi_entry(entry, dev) {

@@ -629,7 +629,7 @@ void pci_vpd_release(struct pci_dev *dev)
  *
  * When access is locked, any userspace reads or writes to config
  * space and concurrent lock requests will sleep until access is
- * allowed via pci_cfg_access_unlocked again.
+ * allowed via pci_cfg_access_unlock() again.
  */
 void pci_cfg_access_lock(struct pci_dev *dev)
 {
@@ -700,7 +700,8 @@ static bool pcie_downstream_port(const struct pci_dev *dev)
 	int type = pci_pcie_type(dev);
 
 	return type == PCI_EXP_TYPE_ROOT_PORT ||
-	       type == PCI_EXP_TYPE_DOWNSTREAM;
+	       type == PCI_EXP_TYPE_DOWNSTREAM ||
+	       type == PCI_EXP_TYPE_PCIE_BRIDGE;
 }
 
 bool pcie_cap_has_lnkctl(const struct pci_dev *dev)
@@ -890,3 +891,59 @@ int pcie_capability_clear_and_set_dword(struct pci_dev *dev, int pos,
 	return ret;
 }
 EXPORT_SYMBOL(pcie_capability_clear_and_set_dword);
+
+int pci_read_config_byte(const struct pci_dev *dev, int where, u8 *val)
+{
+	if (pci_dev_is_disconnected(dev)) {
+		*val = ~0;
+		return -ENODEV;
+	}
+	return pci_bus_read_config_byte(dev->bus, dev->devfn, where, val);
+}
+EXPORT_SYMBOL(pci_read_config_byte);
+
+int pci_read_config_word(const struct pci_dev *dev, int where, u16 *val)
+{
+	if (pci_dev_is_disconnected(dev)) {
+		*val = ~0;
+		return -ENODEV;
+	}
+	return pci_bus_read_config_word(dev->bus, dev->devfn, where, val);
+}
+EXPORT_SYMBOL(pci_read_config_word);
+
+int pci_read_config_dword(const struct pci_dev *dev, int where,
+					u32 *val)
+{
+	if (pci_dev_is_disconnected(dev)) {
+		*val = ~0;
+		return -ENODEV;
+	}
+	return pci_bus_read_config_dword(dev->bus, dev->devfn, where, val);
+}
+EXPORT_SYMBOL(pci_read_config_dword);
+
+int pci_write_config_byte(const struct pci_dev *dev, int where, u8 val)
+{
+	if (pci_dev_is_disconnected(dev))
+		return -ENODEV;
+	return pci_bus_write_config_byte(dev->bus, dev->devfn, where, val);
+}
+EXPORT_SYMBOL(pci_write_config_byte);
+
+int pci_write_config_word(const struct pci_dev *dev, int where, u16 val)
+{
+	if (pci_dev_is_disconnected(dev))
+		return -ENODEV;
+	return pci_bus_write_config_word(dev->bus, dev->devfn, where, val);
+}
+EXPORT_SYMBOL(pci_write_config_word);
+
+int pci_write_config_dword(const struct pci_dev *dev, int where,
+					 u32 val)
+{
+	if (pci_dev_is_disconnected(dev))
+		return -ENODEV;
+	return pci_bus_write_config_dword(dev->bus, dev->devfn, where, val);
+}
+EXPORT_SYMBOL(pci_write_config_dword);

@@ -1825,7 +1825,6 @@ int hfi1_pcie_init(struct pci_dev *, const struct pci_device_id *);
 void hfi1_pcie_cleanup(struct pci_dev *);
 int hfi1_pcie_ddinit(struct hfi1_devdata *, struct pci_dev *);
 void hfi1_pcie_ddcleanup(struct hfi1_devdata *);
-void hfi1_pcie_flr(struct hfi1_devdata *);
 int pcie_speeds(struct hfi1_devdata *);
 void request_msix(struct hfi1_devdata *, u32 *, struct hfi1_msix_entry *);
 void hfi1_enable_intx(struct pci_dev *);

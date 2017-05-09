@@ -13841,14 +13841,14 @@ static void init_chip(struct hfi1_devdata *dd)
 		dd_dev_info(dd, "Resetting CSRs with FLR\n");
 
 		/* do the FLR, the DC reset will remain */
-		hfi1_pcie_flr(dd);
+		pcie_flr(dd->pcidev);
 
 		/* restore command and BARs */
 		restore_pci_variables(dd);
 
 		if (is_ax(dd)) {
 			dd_dev_info(dd, "Resetting CSRs with FLR\n");
-			hfi1_pcie_flr(dd);
+			pcie_flr(dd->pcidev);
 			restore_pci_variables(dd);
 		}
 	} else {
