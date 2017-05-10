@@ -1170,12 +1170,12 @@ static int vega10_setup_default_pcie_table(struct pp_hwmgr *hwmgr)
 					bios_pcie_table->entries[i].gen_speed;
 
 		if (data->registry_data.pcieLaneOverride)
-			pcie_table->pcie_lane[i] =
-					data->registry_data.pcieLaneOverride;
+			pcie_table->pcie_lane[i] = (uint8_t)encode_pcie_lane_width(
+					data->registry_data.pcieLaneOverride);
 		else
-			pcie_table->pcie_lane[i] =
-					bios_pcie_table->entries[i].lane_width;
-
+			pcie_table->pcie_lane[i] = (uint8_t)encode_pcie_lane_width(
+							bios_pcie_table->entries[i].lane_width);
+		printk("pcie_table->pcie_lane[%d] is %d  %d\n", i, pcie_table->pcie_lane[i], bios_pcie_table->entries[i].lane_width);
 		if (data->registry_data.pcieClockOverride)
 			pcie_table->lclk[i] =
 					data->registry_data.pcieClockOverride;
