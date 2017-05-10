@@ -2892,11 +2892,10 @@ static bool intel_sdvo_create_enhance_property(struct intel_sdvo *intel_sdvo,
 
 	BUILD_BUG_ON(sizeof(enhancements) != 2);
 
-	enhancements.response = 0;
-	intel_sdvo_get_value(intel_sdvo,
-			     SDVO_CMD_GET_SUPPORTED_ENHANCEMENTS,
-			     &enhancements, sizeof(enhancements));
-	if (enhancements.response == 0) {
+	if (!intel_sdvo_get_value(intel_sdvo,
+				  SDVO_CMD_GET_SUPPORTED_ENHANCEMENTS,
+				  &enhancements, sizeof(enhancements)) ||
+	    enhancements.response == 0) {
 		DRM_DEBUG_KMS("No enhancement is supported\n");
 		return true;
 	}
