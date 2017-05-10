@@ -704,22 +704,10 @@ static void aac_send_iop_reset(struct aac_dev *dev, int bled)
 				    0, 0, 0, 0, 0, 0, &var,
 				    &reset_mask, NULL, NULL, NULL);
 
-	if ((bled || var != 0x00000001) && !dev->doorbell_mask)
-		bled = -EINVAL;
-	else if (dev->doorbell_mask) {
-		reset_mask = dev->doorbell_mask;
-		bled = 0;
-		var = 0x00000001;
-	}
-
 	aac_set_intx_mode(dev);
 
-	if (!bled && (dev->supplement_adapter_info.supported_options2 &
-	    AAC_OPTION_DOORBELL_RESET)) {
-		src_writel(dev, MUnit.IDR, reset_mask);
-	} else {
-		src_writel(dev, MUnit.IDR, 0x100);
-	}
+	src_writel(dev, MUnit.IDR, IOP_SRC_RESET_MASK);
+
 	msleep(30000);
 }
 

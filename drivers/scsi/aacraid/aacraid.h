@@ -2378,6 +2378,7 @@ struct revision
 #define SOFT_RESET_TIME			60
 
 
+
 struct aac_common
 {
 	/*
@@ -2488,7 +2489,9 @@ struct aac_hba_info {
 #define IOP_RESET_FW_FIB_DUMP		0x00000034
 #define IOP_RESET			0x00001000
 #define IOP_RESET_ALWAYS		0x00001001
-#define RE_INIT_ADAPTER			0x000000ee
+#define RE_INIT_ADAPTER		0x000000ee
+
+#define IOP_SRC_RESET_MASK		0x00000100
 
 /*
  *	Adapter Status Register
