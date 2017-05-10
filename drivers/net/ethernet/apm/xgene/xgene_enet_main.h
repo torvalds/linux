@@ -221,6 +221,7 @@ struct xgene_enet_pdata {
 	struct xgene_enet_cle cle;
 	struct rtnl_link_stats64 stats;
 	const struct xgene_mac_ops *mac_ops;
+	spinlock_t mac_lock; /* mac lock */
 	const struct xgene_port_ops *port_ops;
 	struct xgene_ring_ops *ring_ops;
 	const struct xgene_cle_ops *cle_ops;

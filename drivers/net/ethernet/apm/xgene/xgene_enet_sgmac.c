@@ -54,41 +54,6 @@ static void xgene_enet_wr_mcx_csr(struct xgene_enet_pdata *pdata,
 	iowrite32(val, addr);
 }
 
-static bool xgene_enet_wr_indirect(struct xgene_indirect_ctl *ctl,
-				   u32 wr_addr, u32 wr_data)
-{
-	int i;
-
-	iowrite32(wr_addr, ctl->addr);
-	iowrite32(wr_data, ctl->ctl);
-	iowrite32(XGENE_ENET_WR_CMD, ctl->cmd);
-
-	/* wait for write command to complete */
-	for (i = 0; i < 10; i++) {
-		if (ioread32(ctl->cmd_done)) {
-			iowrite32(0, ctl->cmd);
-			return true;
-		}
-		udelay(1);
-	}
-
-	return false;
-}
-
-static void xgene_enet_wr_mac(struct xgene_enet_pdata *p,
-			      u32 wr_addr, u32 wr_data)
-{
-	struct xgene_indirect_ctl ctl = {
-		.addr = p->mcx_mac_addr + MAC_ADDR_REG_OFFSET,
-		.ctl = p->mcx_mac_addr + MAC_WRITE_REG_OFFSET,
-		.cmd = p->mcx_mac_addr + MAC_COMMAND_REG_OFFSET,
-		.cmd_done = p->mcx_mac_addr + MAC_COMMAND_DONE_REG_OFFSET
-	};
-
-	if (!xgene_enet_wr_indirect(&ctl, wr_addr, wr_data))
-		netdev_err(p->ndev, "mac write failed, addr: %04x\n", wr_addr);
-}
-
 static u32 xgene_enet_rd_csr(struct xgene_enet_pdata *p, u32 offset)
 {
 	return ioread32(p->eth_csr_addr + offset);
@@ -102,42 +67,6 @@ static u32 xgene_enet_rd_diag_csr(struct xgene_enet_pdata *p, u32 offset)
 static u32 xgene_enet_rd_mcx_csr(struct xgene_enet_pdata *p, u32 offset)
 {
 	return ioread32(p->mcx_mac_csr_addr + offset);
-}
-
-static u32 xgene_enet_rd_indirect(struct xgene_indirect_ctl *ctl, u32 rd_addr)
-{
-	u32 rd_data;
-	int i;
-
-	iowrite32(rd_addr, ctl->addr);
-	iowrite32(XGENE_ENET_RD_CMD, ctl->cmd);
-
-	/* wait for read command to complete */
-	for (i = 0; i < 10; i++) {
-		if (ioread32(ctl->cmd_done)) {
-			rd_data = ioread32(ctl->ctl);
-			iowrite32(0, ctl->cmd);
-
-			return rd_data;
-		}
-		udelay(1);
-	}
-
-	pr_err("%s: mac read failed, addr: %04x\n", __func__, rd_addr);
-
-	return 0;
-}
-
-static u32 xgene_enet_rd_mac(struct xgene_enet_pdata *p, u32 rd_addr)
-{
-	struct xgene_indirect_ctl ctl = {
-		.addr = p->mcx_mac_addr + MAC_ADDR_REG_OFFSET,
-		.ctl = p->mcx_mac_addr + MAC_READ_REG_OFFSET,
-		.cmd = p->mcx_mac_addr + MAC_COMMAND_REG_OFFSET,
-		.cmd_done = p->mcx_mac_addr + MAC_COMMAND_DONE_REG_OFFSET
-	};
-
-	return xgene_enet_rd_indirect(&ctl, rd_addr);
 }
 
 static int xgene_enet_ecc_init(struct xgene_enet_pdata *p)

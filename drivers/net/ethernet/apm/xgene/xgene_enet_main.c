@@ -2055,6 +2055,7 @@ static int xgene_enet_probe(struct platform_device *pdev)
 		goto err;
 
 	xgene_enet_setup_ops(pdata);
+	spin_lock_init(&pdata->mac_lock);
 
 	if (pdata->phy_mode == PHY_INTERFACE_MODE_XGMII) {
 		ndev->features |= NETIF_F_TSO | NETIF_F_RXCSUM;

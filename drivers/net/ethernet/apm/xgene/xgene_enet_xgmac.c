@@ -71,21 +71,6 @@ static bool xgene_enet_wr_indirect(void __iomem *addr, void __iomem *wr,
 	return true;
 }
 
-static void xgene_enet_wr_mac(struct xgene_enet_pdata *pdata,
-			      u32 wr_addr, u32 wr_data)
-{
-	void __iomem *addr, *wr, *cmd, *cmd_done;
-
-	addr = pdata->mcx_mac_addr + MAC_ADDR_REG_OFFSET;
-	wr = pdata->mcx_mac_addr + MAC_WRITE_REG_OFFSET;
-	cmd = pdata->mcx_mac_addr + MAC_COMMAND_REG_OFFSET;
-	cmd_done = pdata->mcx_mac_addr + MAC_COMMAND_DONE_REG_OFFSET;
-
-	if (!xgene_enet_wr_indirect(addr, wr, cmd, cmd_done, wr_addr, wr_data))
-		netdev_err(pdata->ndev, "MCX mac write failed, addr: %04x\n",
-			   wr_addr);
-}
-
 static void xgene_enet_wr_pcs(struct xgene_enet_pdata *pdata,
 			      u32 wr_addr, u32 wr_data)
 {
@@ -146,21 +131,6 @@ static bool xgene_enet_rd_indirect(void __iomem *addr, void __iomem *rd,
 	iowrite32(0, cmd);
 
 	return true;
-}
-
-static void xgene_enet_rd_mac(struct xgene_enet_pdata *pdata,
-			      u32 rd_addr, u32 *rd_data)
-{
-	void __iomem *addr, *rd, *cmd, *cmd_done;
-
-	addr = pdata->mcx_mac_addr + MAC_ADDR_REG_OFFSET;
-	rd = pdata->mcx_mac_addr + MAC_READ_REG_OFFSET;
-	cmd = pdata->mcx_mac_addr + MAC_COMMAND_REG_OFFSET;
-	cmd_done = pdata->mcx_mac_addr + MAC_COMMAND_DONE_REG_OFFSET;
-
-	if (!xgene_enet_rd_indirect(addr, rd, cmd, cmd_done, rd_addr, rd_data))
-		netdev_err(pdata->ndev, "MCX mac read failed, addr: %04x\n",
-			   rd_addr);
 }
 
 static bool xgene_enet_rd_pcs(struct xgene_enet_pdata *pdata,
@@ -300,7 +270,7 @@ static void xgene_xgmac_flowctl_tx(struct xgene_enet_pdata *pdata, bool enable)
 {
 	u32 data;
 
-	xgene_enet_rd_mac(pdata, AXGMAC_CONFIG_1, &data);
+	data = xgene_enet_rd_mac(pdata, AXGMAC_CONFIG_1);
 
 	if (enable)
 		data |= HSTTCTLEN;
@@ -316,7 +286,7 @@ static void xgene_xgmac_flowctl_rx(struct xgene_enet_pdata *pdata, bool enable)
 {
 	u32 data;
 
-	xgene_enet_rd_mac(pdata, AXGMAC_CONFIG_1, &data);
+	data = xgene_enet_rd_mac(pdata, AXGMAC_CONFIG_1);
 
 	if (enable)
 		data |= HSTRCTLEN;
@@ -332,7 +302,7 @@ static void xgene_xgmac_init(struct xgene_enet_pdata *pdata)
 
 	xgene_xgmac_reset(pdata);
 
-	xgene_enet_rd_mac(pdata, AXGMAC_CONFIG_1, &data);
+	data = xgene_enet_rd_mac(pdata, AXGMAC_CONFIG_1);
 	data |= HSTPPEN;
 	data &= ~HSTLENCHK;
 	xgene_enet_wr_mac(pdata, AXGMAC_CONFIG_1, data);
@@ -379,7 +349,7 @@ static void xgene_xgmac_rx_enable(struct xgene_enet_pdata *pdata)
 {
 	u32 data;
 
-	xgene_enet_rd_mac(pdata, AXGMAC_CONFIG_1, &data);
+	data = xgene_enet_rd_mac(pdata, AXGMAC_CONFIG_1);
 	xgene_enet_wr_mac(pdata, AXGMAC_CONFIG_1, data | HSTRFEN);
 }
 
@@ -387,7 +357,7 @@ static void xgene_xgmac_tx_enable(struct xgene_enet_pdata *pdata)
 {
 	u32 data;
 
-	xgene_enet_rd_mac(pdata, AXGMAC_CONFIG_1, &data);
+	data = xgene_enet_rd_mac(pdata, AXGMAC_CONFIG_1);
 	xgene_enet_wr_mac(pdata, AXGMAC_CONFIG_1, data | HSTTFEN);
 }
 
@@ -395,7 +365,7 @@ static void xgene_xgmac_rx_disable(struct xgene_enet_pdata *pdata)
 {
 	u32 data;
 
-	xgene_enet_rd_mac(pdata, AXGMAC_CONFIG_1, &data);
+	data = xgene_enet_rd_mac(pdata, AXGMAC_CONFIG_1);
 	xgene_enet_wr_mac(pdata, AXGMAC_CONFIG_1, data & ~HSTRFEN);
 }
 
@@ -403,7 +373,7 @@ static void xgene_xgmac_tx_disable(struct xgene_enet_pdata *pdata)
 {
 	u32 data;
 
-	xgene_enet_rd_mac(pdata, AXGMAC_CONFIG_1, &data);
+	data = xgene_enet_rd_mac(pdata, AXGMAC_CONFIG_1);
 	xgene_enet_wr_mac(pdata, AXGMAC_CONFIG_1, data & ~HSTTFEN);
 }
 

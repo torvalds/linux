@@ -388,6 +388,9 @@ void xgene_enet_mdio_remove(struct xgene_enet_pdata *pdata);
 bool xgene_ring_mgr_init(struct xgene_enet_pdata *p);
 int xgene_enet_phy_connect(struct net_device *ndev);
 void xgene_enet_phy_disconnect(struct xgene_enet_pdata *pdata);
+u32 xgene_enet_rd_mac(struct xgene_enet_pdata *pdata, u32 rd_addr);
+void xgene_enet_wr_mac(struct xgene_enet_pdata *pdata, u32 wr_addr,
+		       u32 wr_data);
 
 extern const struct xgene_mac_ops xgene_gmac_ops;
 extern const struct xgene_port_ops xgene_gport_ops;
