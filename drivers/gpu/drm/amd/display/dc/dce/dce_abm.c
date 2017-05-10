@@ -366,6 +366,16 @@ static bool dce_abm_init_backlight(struct abm *abm)
 	return true;
 }
 
+static bool is_dmcu_initialized(struct abm *abm)
+{
+	struct dce_abm *abm_dce = TO_DCE_ABM(abm);
+	unsigned int dmcu_uc_reset;
+
+	REG_GET(DMCU_STATUS, UC_IN_RESET, &dmcu_uc_reset);
+
+	return !dmcu_uc_reset;
+}
+
 static bool dce_abm_set_backlight_level(
 		struct abm *abm,
 		unsigned int backlight_level,
@@ -373,23 +383,19 @@ static bool dce_abm_set_backlight_level(
 		unsigned int controller_id)
 {
 	struct dce_abm *abm_dce = TO_DCE_ABM(abm);
-	unsigned int dmcu_uc_reset;
 
 	dm_logger_write(abm->ctx->logger, LOG_BACKLIGHT,
 			"New Backlight level: %d (0x%X)\n",
 			backlight_level, backlight_level);
 
-	REG_GET(DMCU_STATUS, UC_IN_RESET, &dmcu_uc_reset);
-
 	/* If DMCU is in reset state, DMCU is uninitialized */
-	if (dmcu_uc_reset) {
-		driver_set_backlight_level(abm_dce, backlight_level);
-	} else {
+	if (is_dmcu_initialized(abm))
 		dmcu_set_backlight_level(abm_dce,
 				backlight_level,
 				frame_ramp,
 				controller_id);
-	}
+	else
+		driver_set_backlight_level(abm_dce, backlight_level);
 
 	return true;
 }
@@ -398,7 +404,8 @@ static const struct abm_funcs dce_funcs = {
 	.abm_init = dce_abm_init,
 	.set_abm_level = dce_abm_set_level,
 	.init_backlight = dce_abm_init_backlight,
-	.set_backlight_level = dce_abm_set_backlight_level
+	.set_backlight_level = dce_abm_set_backlight_level,
+	.is_dmcu_initialized = is_dmcu_initialized
 };
 
 static void dce_abm_construct(

@@ -46,14 +46,6 @@
 #include "dce/dce_11_0_enum.h"
 #include "dce/dce_11_0_sh_mask.h"
 
-#ifndef mmDMCU_STATUS__UC_IN_RESET__SHIFT
-#define mmDMCU_STATUS__UC_IN_RESET__SHIFT 0x0
-#endif
-
-#ifndef mmDMCU_STATUS__UC_IN_RESET_MASK
-#define mmDMCU_STATUS__UC_IN_RESET_MASK 0x00000001L
-#endif
-
 #define LINK_INFO(...) \
 	dm_logger_write(dc_ctx->logger, LOG_HW_HOTPLUG, \
 		__VA_ARGS__)

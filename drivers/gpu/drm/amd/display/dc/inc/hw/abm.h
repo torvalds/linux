@@ -40,6 +40,7 @@ struct abm_funcs {
 			unsigned int backlight_level,
 			unsigned int frame_ramp,
 			unsigned int controller_id);
+	bool (*is_dmcu_initialized)(struct abm *abm);
 };
 
 #endif

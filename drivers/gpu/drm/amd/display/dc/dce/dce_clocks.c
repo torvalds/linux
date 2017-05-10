@@ -29,10 +29,14 @@
 #include "fixed32_32.h"
 #include "bios_parser_interface.h"
 #include "dc.h"
+#include "core_dc.h"
+#include "dce_abm.h"
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 #include "dcn_calcs.h"
 #include "core_dc.h"
 #endif
+
+
 
 #define TO_DCE_CLOCKS(clocks)\
 	container_of(clocks, struct dce_disp_clk, base)
@@ -374,6 +378,8 @@ static void dce112_set_clock(
 	struct dce_disp_clk *clk_dce = TO_DCE_CLOCKS(clk);
 	struct bp_set_dce_clock_parameters dce_clk_params;
 	struct dc_bios *bp = clk->ctx->dc_bios;
+	struct core_dc *core_dc = DC_TO_CORE(clk->ctx->dc);
+	struct abm *abm =  core_dc->res_pool->abm;
 
 	/* Prepare to program display clock*/
 	memset(&dce_clk_params, 0, sizeof(dce_clk_params));
@@ -404,9 +410,8 @@ static void dce112_set_clock(
 
 	bp->funcs->set_dce_clock(bp, &dce_clk_params);
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-	dce_psr_wait_loop(clk_dce, requested_clk_khz);
-#endif
+	if (abm->funcs->is_dmcu_initialized(abm))
+		dce_psr_wait_loop(clk_dce, requested_clk_khz);
 
 }
 
