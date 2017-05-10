@@ -31,7 +31,7 @@ void f2fs_stop_checkpoint(struct f2fs_sb_info *sbi, bool end_io)
 	set_ckpt_flags(sbi, CP_ERROR_FLAG);
 	sbi->sb->s_flags |= MS_RDONLY;
 	if (!end_io)
-		f2fs_flush_merged_bios(sbi);
+		f2fs_flush_merged_writes(sbi);
 }
 
 /*
@@ -248,13 +248,13 @@ static int f2fs_write_meta_page(struct page *page,
 	dec_page_count(sbi, F2FS_DIRTY_META);
 
 	if (wbc->for_reclaim)
-		f2fs_submit_merged_bio_cond(sbi, page->mapping->host,
-						0, page->index, META, WRITE);
+		f2fs_submit_merged_write_cond(sbi, page->mapping->host,
+						0, page->index, META);
 
 	unlock_page(page);
 
 	if (unlikely(f2fs_cp_error(sbi)))
-		f2fs_submit_merged_bio(sbi, META, WRITE);
+		f2fs_submit_merged_write(sbi, META);
 
 	return 0;
 
@@ -357,7 +357,7 @@ continue_unlock:
 	}
 stop:
 	if (nwritten)
-		f2fs_submit_merged_bio(sbi, type, WRITE);
+		f2fs_submit_merged_write(sbi, type);
 
 	blk_finish_plug(&plug);
 
@@ -905,7 +905,7 @@ retry:
 		 * We should submit bio, since it exists several
 		 * wribacking dentry pages in the freeing inode.
 		 */
-		f2fs_submit_merged_bio(sbi, DATA, WRITE);
+		f2fs_submit_merged_write(sbi, DATA);
 		cond_resched();
 	}
 	goto retry;
@@ -1294,7 +1294,7 @@ int write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 
 	trace_f2fs_write_checkpoint(sbi->sb, cpc->reason, "finish block_ops");
 
-	f2fs_flush_merged_bios(sbi);
+	f2fs_flush_merged_writes(sbi);
 
 	/* this is the case of multiple fstrims without any changes */
 	if (cpc->reason & CP_DISCARD) {

@@ -328,8 +328,7 @@ static int __commit_inmem_pages(struct inode *inode,
 	}
 
 	if (last_idx != ULONG_MAX)
-		f2fs_submit_merged_bio_cond(sbi, inode, 0, last_idx,
-							DATA, WRITE);
+		f2fs_submit_merged_write_cond(sbi, inode, 0, last_idx, DATA);
 
 	if (!err)
 		__revoke_inmem_pages(inode, revoke_list, false, false);
@@ -2229,7 +2228,7 @@ reallocate:
 					&fio->new_blkaddr, sum, type);
 
 	/* writeout dirty page into bdev */
-	err = f2fs_submit_page_mbio(fio);
+	err = f2fs_submit_page_write(fio);
 	if (err == -EAGAIN) {
 		fio->old_blkaddr = fio->new_blkaddr;
 		goto reallocate;
@@ -2256,7 +2255,7 @@ void write_meta_page(struct f2fs_sb_info *sbi, struct page *page)
 		fio.op_flags &= ~REQ_META;
 
 	set_page_writeback(page);
-	f2fs_submit_page_mbio(&fio);
+	f2fs_submit_page_write(&fio);
 }
 
 void write_node_page(unsigned int nid, struct f2fs_io_info *fio)
@@ -2375,8 +2374,8 @@ void f2fs_wait_on_page_writeback(struct page *page,
 	if (PageWriteback(page)) {
 		struct f2fs_sb_info *sbi = F2FS_P_SB(page);
 
-		f2fs_submit_merged_bio_cond(sbi, page->mapping->host,
-						0, page->index, type, WRITE);
+		f2fs_submit_merged_write_cond(sbi, page->mapping->host,
+						0, page->index, type);
 		if (ordered)
 			wait_on_page_writeback(page);
 		else
