@@ -260,9 +260,36 @@ void intel_uc_fini_fw(struct drm_i915_private *dev_priv)
 	__intel_uc_fw_fini(&dev_priv->huc.fw);
 }
 
+static inline i915_reg_t guc_send_reg(struct intel_guc *guc, u32 i)
+{
+	GEM_BUG_ON(!guc->send_regs.base);
+	GEM_BUG_ON(!guc->send_regs.count);
+	GEM_BUG_ON(i >= guc->send_regs.count);
+
+	return _MMIO(guc->send_regs.base + 4 * i);
+}
+
+static void guc_init_send_regs(struct intel_guc *guc)
+{
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	enum forcewake_domains fw_domains = 0;
+	unsigned int i;
+
+	guc->send_regs.base = i915_mmio_reg_offset(SOFT_SCRATCH(0));
+	guc->send_regs.count = SOFT_SCRATCH_COUNT - 1;
+
+	for (i = 0; i < guc->send_regs.count; i++) {
+		fw_domains |= intel_uncore_forcewake_for_reg(dev_priv,
+					guc_send_reg(guc, i),
+					FW_REG_READ | FW_REG_WRITE);
+	}
+	guc->send_regs.fw_domains = fw_domains;
+}
+
 static int guc_enable_communication(struct intel_guc *guc)
 {
 	/* XXX: placeholder for alternate setup */
+	guc_init_send_regs(guc);
 	guc->send = intel_guc_send_mmio;
 	return 0;
 }
@@ -407,19 +434,19 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len)
 	int i;
 	int ret;
 
-	if (WARN_ON(len < 1 || len > 15))
-		return -EINVAL;
+	GEM_BUG_ON(!len);
+	GEM_BUG_ON(len > guc->send_regs.count);
 
 	mutex_lock(&guc->send_mutex);
-	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_BLITTER);
+	intel_uncore_forcewake_get(dev_priv, guc->send_regs.fw_domains);
 
 	dev_priv->guc.action_count += 1;
 	dev_priv->guc.action_cmd = action[0];
 
 	for (i = 0; i < len; i++)
-		I915_WRITE(SOFT_SCRATCH(i), action[i]);
+		I915_WRITE(guc_send_reg(guc, i), action[i]);
 
-	POSTING_READ(SOFT_SCRATCH(i - 1));
+	POSTING_READ(guc_send_reg(guc, i - 1));
 
 	intel_guc_notify(guc);
 
@@ -428,7 +455,7 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len)
 	 * Fast commands should still complete in 10us.
 	 */
 	ret = __intel_wait_for_register_fw(dev_priv,
-					   SOFT_SCRATCH(0),
+					   guc_send_reg(guc, 0),
 					   INTEL_GUC_RECV_MASK,
 					   INTEL_GUC_RECV_MASK,
 					   10, 10, &status);
@@ -450,7 +477,7 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len)
 	}
 	dev_priv->guc.action_status = status;
 
-	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_BLITTER);
+	intel_uncore_forcewake_put(dev_priv, guc->send_regs.fw_domains);
 	mutex_unlock(&guc->send_mutex);
 
 	return ret;

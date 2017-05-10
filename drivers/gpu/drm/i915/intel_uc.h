@@ -205,6 +205,13 @@ struct intel_guc {
 	uint64_t submissions[I915_NUM_ENGINES];
 	uint32_t last_seqno[I915_NUM_ENGINES];
 
+	/* GuC's FW specific registers used in MMIO send */
+	struct {
+		u32 base;
+		unsigned int count;
+		enum forcewake_domains fw_domains;
+	} send_regs;
+
 	/* To serialize the intel_guc_send actions */
 	struct mutex send_mutex;
 
