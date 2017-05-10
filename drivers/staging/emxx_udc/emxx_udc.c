@@ -526,12 +526,13 @@ static void _nbu2ss_dma_unmap_single(
 			if (direct == USB_DIR_OUT)
 				memcpy(req->req.buf, ep->virt_buf,
 				       req->req.actual & 0xfffffffc);
-		} else
+		} else {
 			dma_unmap_single(udc->gadget.dev.parent,
 					 req->req.dma, req->req.length,
 				(direct == USB_DIR_IN)
 				? DMA_TO_DEVICE
 				: DMA_FROM_DEVICE);
+		}
 		req->req.dma = DMA_ADDR_INVALID;
 		req->mapped = 0;
 	} else {
