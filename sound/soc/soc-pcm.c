@@ -2746,8 +2746,6 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 		rtd->ops.copy_user	= platform->driver->ops->copy_user;
 		rtd->ops.copy_kernel	= platform->driver->ops->copy_kernel;
 		rtd->ops.fill_silence	= platform->driver->ops->fill_silence;
-		rtd->ops.copy		= platform->driver->ops->copy;
-		rtd->ops.silence	= platform->driver->ops->silence;
 		rtd->ops.page		= platform->driver->ops->page;
 		rtd->ops.mmap		= platform->driver->ops->mmap;
 	}
