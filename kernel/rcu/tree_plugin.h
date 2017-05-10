@@ -109,11 +109,11 @@ static void __init rcu_bootup_announce_oddness(void)
 		pr_info("\tKick kthreads if too-long grace period.\n");
 	if (IS_ENABLED(CONFIG_DEBUG_OBJECTS_RCU_HEAD))
 		pr_info("\tRCU callback double-/use-after-free debug enabled.\n");
-	if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_SLOW_PREINIT))
+	if (gp_preinit_delay)
 		pr_info("\tRCU debug GP pre-init slowdown %d jiffies.\n", gp_preinit_delay);
-	if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_SLOW_INIT))
+	if (gp_init_delay)
 		pr_info("\tRCU debug GP init slowdown %d jiffies.\n", gp_init_delay);
-	if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_SLOW_CLEANUP))
+	if (gp_cleanup_delay)
 		pr_info("\tRCU debug GP init slowdown %d jiffies.\n", gp_cleanup_delay);
 	if (IS_ENABLED(CONFIG_RCU_EQS_DEBUG))
 		pr_info("\tRCU debug extended QS entry/exit.\n");

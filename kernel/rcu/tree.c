@@ -177,26 +177,12 @@ module_param(kthread_prio, int, 0644);
 
 /* Delay in jiffies for grace-period initialization delays, debug only. */
 
-#ifdef CONFIG_RCU_TORTURE_TEST_SLOW_PREINIT
-static int gp_preinit_delay = CONFIG_RCU_TORTURE_TEST_SLOW_PREINIT_DELAY;
-module_param(gp_preinit_delay, int, 0644);
-#else /* #ifdef CONFIG_RCU_TORTURE_TEST_SLOW_PREINIT */
-static const int gp_preinit_delay;
-#endif /* #else #ifdef CONFIG_RCU_TORTURE_TEST_SLOW_PREINIT */
-
-#ifdef CONFIG_RCU_TORTURE_TEST_SLOW_INIT
-static int gp_init_delay = CONFIG_RCU_TORTURE_TEST_SLOW_INIT_DELAY;
-module_param(gp_init_delay, int, 0644);
-#else /* #ifdef CONFIG_RCU_TORTURE_TEST_SLOW_INIT */
-static const int gp_init_delay;
-#endif /* #else #ifdef CONFIG_RCU_TORTURE_TEST_SLOW_INIT */
-
-#ifdef CONFIG_RCU_TORTURE_TEST_SLOW_CLEANUP
-static int gp_cleanup_delay = CONFIG_RCU_TORTURE_TEST_SLOW_CLEANUP_DELAY;
-module_param(gp_cleanup_delay, int, 0644);
-#else /* #ifdef CONFIG_RCU_TORTURE_TEST_SLOW_CLEANUP */
-static const int gp_cleanup_delay;
-#endif /* #else #ifdef CONFIG_RCU_TORTURE_TEST_SLOW_CLEANUP */
+static int gp_preinit_delay;
+module_param(gp_preinit_delay, int, 0444);
+static int gp_init_delay;
+module_param(gp_init_delay, int, 0444);
+static int gp_cleanup_delay;
+module_param(gp_cleanup_delay, int, 0444);
 
 /*
  * Number of grace periods between delays, normalized by the duration of

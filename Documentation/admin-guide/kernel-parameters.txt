@@ -3229,21 +3229,17 @@
 
 	rcutree.gp_cleanup_delay=	[KNL]
 			Set the number of jiffies to delay each step of
-			RCU grace-period cleanup.  This only has effect
-			when CONFIG_RCU_TORTURE_TEST_SLOW_CLEANUP is set.
+			RCU grace-period cleanup.
 
 	rcutree.gp_init_delay=	[KNL]
 			Set the number of jiffies to delay each step of
-			RCU grace-period initialization.  This only has
-			effect when CONFIG_RCU_TORTURE_TEST_SLOW_INIT
-			is set.
+			RCU grace-period initialization.
 
 	rcutree.gp_preinit_delay=	[KNL]
 			Set the number of jiffies to delay each step of
 			RCU grace-period pre-initialization, that is,
 			the propagation of recent CPU-hotplug changes up
-			the rcu_node combining tree.  This only has effect
-			when CONFIG_RCU_TORTURE_TEST_SLOW_PREINIT is set.
+			the rcu_node combining tree.
 
 	rcutree.rcu_fanout_exact= [KNL]
 			Disable autobalancing of the rcu_node combining
