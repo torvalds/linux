@@ -1513,6 +1513,7 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 	struct scsi_cmnd *command_list;
 	int jafo = 0;
 	int bled;
+	u64 dmamask;
 
 	/*
 	 * Assumptions:
@@ -1580,21 +1581,27 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 	aac_free_irq(aac);
 	kfree(aac->fsa_dev);
 	aac->fsa_dev = NULL;
+
+	dmamask = DMA_BIT_MASK(32);
 	quirks = aac_get_driver_ident(index)->quirks;
-	if (quirks & AAC_QUIRK_31BIT) {
-		if (((retval = pci_set_dma_mask(aac->pdev, DMA_BIT_MASK(31)))) ||
-		  ((retval = pci_set_consistent_dma_mask(aac->pdev, DMA_BIT_MASK(31)))))
-			goto out;
-	} else {
-		if (((retval = pci_set_dma_mask(aac->pdev, DMA_BIT_MASK(32)))) ||
-		  ((retval = pci_set_consistent_dma_mask(aac->pdev, DMA_BIT_MASK(32)))))
-			goto out;
+	if (quirks & AAC_QUIRK_31BIT)
+		retval = pci_set_dma_mask(aac->pdev, dmamask);
+	else if (!(quirks & AAC_QUIRK_SRC))
+		retval = pci_set_dma_mask(aac->pdev, dmamask);
+	else
+		retval = pci_set_consistent_dma_mask(aac->pdev, dmamask);
+
+	if (quirks & AAC_QUIRK_31BIT && !retval) {
+		dmamask = DMA_BIT_MASK(31);
+		retval = pci_set_consistent_dma_mask(aac->pdev, dmamask);
 	}
+
+	if (retval)
+		goto out;
+
 	if ((retval = (*(aac_get_driver_ident(index)->init))(aac)))
 		goto out;
-	if (quirks & AAC_QUIRK_31BIT)
-		if ((retval = pci_set_dma_mask(aac->pdev, DMA_BIT_MASK(32))))
-			goto out;
+
 	if (jafo) {
 		aac->thread = kthread_run(aac_command_thread, aac, "%s",
 					  aac->name);

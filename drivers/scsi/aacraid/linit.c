@@ -1403,6 +1403,7 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	int error = -ENODEV;
 	int unique_id = 0;
 	u64 dmamask;
+	int mask_bits = 0;
 	extern int aac_sync_mode;
 
 	/*
@@ -1426,18 +1427,32 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out;
 	error = -ENODEV;
 
+	if (!(aac_drivers[index].quirks & AAC_QUIRK_SRC)) {
+		error = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		if (error) {
+			dev_err(&pdev->dev, "PCI 32 BIT dma mask set failed");
+			goto out_disable_pdev;
+		}
+	}
+
 	/*
 	 * If the quirk31 bit is set, the adapter needs adapter
 	 * to driver communication memory to be allocated below 2gig
 	 */
-	if (aac_drivers[index].quirks & AAC_QUIRK_31BIT)
+	if (aac_drivers[index].quirks & AAC_QUIRK_31BIT) {
 		dmamask = DMA_BIT_MASK(31);
-	else
+		mask_bits = 31;
+	} else {
 		dmamask = DMA_BIT_MASK(32);
+		mask_bits = 32;
+	}
 
-	if (pci_set_dma_mask(pdev, dmamask) ||
-			pci_set_consistent_dma_mask(pdev, dmamask))
+	error = pci_set_consistent_dma_mask(pdev, dmamask);
+	if (error) {
+		dev_err(&pdev->dev, "PCI %d B consistent dma mask set failed\n"
+				, mask_bits);
 		goto out_disable_pdev;
+	}
 
 	pci_set_master(pdev);
 
@@ -1500,15 +1515,6 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		aac->thread = NULL;
 		goto out_deinit;
 	}
-
-	/*
-	 * If we had set a smaller DMA mask earlier, set it to 4gig
-	 * now since the adapter can dma data to at least a 4gig
-	 * address space.
-	 */
-	if (aac_drivers[index].quirks & AAC_QUIRK_31BIT)
-		if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)))
-			goto out_deinit;
 
 	aac->maximum_num_channels = aac_drivers[index].channels;
 	error = aac_get_adapter_info(aac);
