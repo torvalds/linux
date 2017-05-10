@@ -83,6 +83,12 @@ TRACE_DEFINE_ENUM(CP_TRIMMED);
 		{ REQ_META | REQ_PRIO,	"(MP)" },			\
 		{ 0, " \b" })
 
+#define show_block_temp(temp)						\
+	__print_symbolic(temp,						\
+		{ HOT,		"HOT" },				\
+		{ WARM,		"WARM" },				\
+		{ COLD,		"COLD" })
+
 #define show_data_type(type)						\
 	__print_symbolic(type,						\
 		{ CURSEG_HOT_DATA, 	"Hot DATA" },			\
@@ -748,6 +754,7 @@ DECLARE_EVENT_CLASS(f2fs__submit_page_bio,
 		__field(block_t, new_blkaddr)
 		__field(int, op)
 		__field(int, op_flags)
+		__field(int, temp)
 		__field(int, type)
 	),
 
@@ -759,16 +766,18 @@ DECLARE_EVENT_CLASS(f2fs__submit_page_bio,
 		__entry->new_blkaddr	= fio->new_blkaddr;
 		__entry->op		= fio->op;
 		__entry->op_flags	= fio->op_flags;
+		__entry->temp		= fio->temp;
 		__entry->type		= fio->type;
 	),
 
 	TP_printk("dev = (%d,%d), ino = %lu, page_index = 0x%lx, "
-		"oldaddr = 0x%llx, newaddr = 0x%llx rw = %s%s, type = %s",
+		"oldaddr = 0x%llx, newaddr = 0x%llx, rw = %s(%s), type = %s_%s",
 		show_dev_ino(__entry),
 		(unsigned long)__entry->index,
 		(unsigned long long)__entry->old_blkaddr,
 		(unsigned long long)__entry->new_blkaddr,
 		show_bio_type(__entry->op, __entry->op_flags),
+		show_block_temp(__entry->temp),
 		show_block_type(__entry->type))
 );
 
