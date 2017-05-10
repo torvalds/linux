@@ -2475,7 +2475,7 @@ int aac_command_thread(void *data)
 		if ((time_before(next_check_jiffies,next_jiffies))
 		 && ((difference = next_check_jiffies - jiffies) <= 0)) {
 			next_check_jiffies = next_jiffies;
-			if (aac_check_health(dev) == 0) {
+			if (aac_adapter_check_health(dev) == 0) {
 				difference = ((long)(unsigned)check_interval)
 					   * HZ;
 				next_check_jiffies = jiffies + difference;
@@ -2488,7 +2488,7 @@ int aac_command_thread(void *data)
 			int ret;
 
 			/* Don't even try to talk to adapter if its sick */
-			ret = aac_check_health(dev);
+			ret = aac_adapter_check_health(dev);
 			if (ret || !dev->queues)
 				break;
 			next_check_jiffies = jiffies
