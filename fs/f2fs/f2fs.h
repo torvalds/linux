@@ -879,7 +879,6 @@ struct f2fs_sb_info {
 	struct f2fs_sm_info *sm_info;		/* segment manager */
 
 	/* for bio operations */
-	struct f2fs_bio_info read_io;			/* for read bios */
 	struct f2fs_bio_info write_io[NR_PAGE_TYPE];	/* for write bios */
 	struct mutex wio_mutex[NODE + 1];	/* bio ordering for NODE/DATA */
 	int write_io_size_bits;			/* Write IO size bits */
@@ -2325,14 +2324,13 @@ void destroy_checkpoint_caches(void);
 /*
  * data.c
  */
-void f2fs_submit_merged_bio(struct f2fs_sb_info *sbi, enum page_type type,
-			int rw);
-void f2fs_submit_merged_bio_cond(struct f2fs_sb_info *sbi,
+void f2fs_submit_merged_write(struct f2fs_sb_info *sbi, enum page_type type);
+void f2fs_submit_merged_write_cond(struct f2fs_sb_info *sbi,
 				struct inode *inode, nid_t ino, pgoff_t idx,
-				enum page_type type, int rw);
-void f2fs_flush_merged_bios(struct f2fs_sb_info *sbi);
+				enum page_type type);
+void f2fs_flush_merged_writes(struct f2fs_sb_info *sbi);
 int f2fs_submit_page_bio(struct f2fs_io_info *fio);
-int f2fs_submit_page_mbio(struct f2fs_io_info *fio);
+int f2fs_submit_page_write(struct f2fs_io_info *fio);
 struct block_device *f2fs_target_device(struct f2fs_sb_info *sbi,
 			block_t blk_addr, struct bio *bio);
 int f2fs_target_device_index(struct f2fs_sb_info *sbi, block_t blkaddr);

@@ -790,7 +790,7 @@ DEFINE_EVENT_CONDITION(f2fs__submit_page_bio, f2fs_submit_page_bio,
 	TP_CONDITION(page->mapping)
 );
 
-DEFINE_EVENT_CONDITION(f2fs__submit_page_bio, f2fs_submit_page_mbio,
+DEFINE_EVENT_CONDITION(f2fs__submit_page_bio, f2fs_submit_page_write,
 
 	TP_PROTO(struct page *page, struct f2fs_io_info *fio),
 
