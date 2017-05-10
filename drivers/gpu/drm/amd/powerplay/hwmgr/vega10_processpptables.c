@@ -566,7 +566,7 @@ static int get_gfxclk_voltage_dependency_table(
 		clk_table->entries[i].clk =
 				le32_to_cpu(clk_dep_table->entries[i].ulClk);
 		clk_table->entries[i].cks_enable =
-				(((clk_dep_table->entries[i].usCKSVOffsetandDisable & 0x80)
+				(((clk_dep_table->entries[i].usCKSVOffsetandDisable & 0x8000)
 						>> 15) == 0) ? 1 : 0;
 		clk_table->entries[i].cks_voffset =
 				(clk_dep_table->entries[i].usCKSVOffsetandDisable & 0x7F);
