@@ -670,8 +670,12 @@ static void writepages_finish(struct ceph_osd_request *req)
 	bool remove_page;
 
 	dout("writepages_finish %p rc %d\n", inode, rc);
-	if (rc < 0)
+	if (rc < 0) {
 		mapping_set_error(mapping, rc);
+		ceph_set_error_write(ci);
+	} else {
+		ceph_clear_error_write(ci);
+	}
 
 	/*
 	 * We lost the cache cap, need to truncate the page before
@@ -702,9 +706,6 @@ static void writepages_finish(struct ceph_osd_request *req)
 					fsc->mount_options->congestion_kb))
 				clear_bdi_congested(inode_to_bdi(inode),
 						    BLK_RW_ASYNC);
-
-			if (rc < 0)
-				SetPageError(page);
 
 			ceph_put_snap_context(page_snap_context(page));
 			page->private = 0;
@@ -1892,6 +1893,7 @@ static int __ceph_pool_perm_get(struct ceph_inode_info *ci,
 	err = ceph_osdc_start_request(&fsc->client->osdc, rd_req, false);
 
 	wr_req->r_mtime = ci->vfs_inode.i_mtime;
+	wr_req->r_abort_on_full = true;
 	err2 = ceph_osdc_start_request(&fsc->client->osdc, wr_req, false);
 
 	if (!err)
