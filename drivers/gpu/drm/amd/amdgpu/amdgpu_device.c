@@ -61,6 +61,7 @@ MODULE_FIRMWARE("amdgpu/raven_gpu_info.bin");
 
 static int amdgpu_debugfs_regs_init(struct amdgpu_device *adev);
 static void amdgpu_debugfs_regs_cleanup(struct amdgpu_device *adev);
+static int amdgpu_debugfs_test_ib_ring_init(struct amdgpu_device *adev);
 
 static const char *amdgpu_asic_name[] = {
 	"TAHITI",
@@ -2227,6 +2228,10 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	if (r)
 		DRM_ERROR("registering register debugfs failed (%d).\n", r);
 
+	r = amdgpu_debugfs_test_ib_ring_init(adev);
+	if (r)
+		DRM_ERROR("registering register test ib ring debugfs failed (%d).\n", r);
+
 	r = amdgpu_debugfs_firmware_init(adev);
 	if (r)
 		DRM_ERROR("registering firmware debugfs failed (%d).\n", r);
@@ -3743,11 +3748,60 @@ static void amdgpu_debugfs_regs_cleanup(struct amdgpu_device *adev)
 	}
 }
 
+static int amdgpu_debugfs_test_ib(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct amdgpu_device *adev = dev->dev_private;
+	int r = 0, i;
+
+	/* hold on the scheduler */
+	for (i = 0; i < AMDGPU_MAX_RINGS; i++) {
+		struct amdgpu_ring *ring = adev->rings[i];
+
+		if (!ring || !ring->sched.thread)
+			continue;
+		kthread_park(ring->sched.thread);
+	}
+
+	seq_printf(m, "run ib test:\n");
+	r = amdgpu_ib_ring_tests(adev);
+	if (r)
+		seq_printf(m, "ib ring tests failed (%d).\n", r);
+	else
+		seq_printf(m, "ib ring tests passed.\n");
+
+	/* go on the scheduler */
+	for (i = 0; i < AMDGPU_MAX_RINGS; i++) {
+		struct amdgpu_ring *ring = adev->rings[i];
+
+		if (!ring || !ring->sched.thread)
+			continue;
+		kthread_unpark(ring->sched.thread);
+	}
+
+	return 0;
+}
+
+static const struct drm_info_list amdgpu_debugfs_test_ib_ring_list[] = {
+	{"amdgpu_test_ib", &amdgpu_debugfs_test_ib}
+};
+
+static int amdgpu_debugfs_test_ib_ring_init(struct amdgpu_device *adev)
+{
+	return amdgpu_debugfs_add_files(adev,
+					amdgpu_debugfs_test_ib_ring_list, 1);
+}
+
 int amdgpu_debugfs_init(struct drm_minor *minor)
 {
 	return 0;
 }
 #else
+static int amdgpu_debugfs_test_ib_init(struct amdgpu_device *adev)
+{
+	return 0;
+}
 static int amdgpu_debugfs_regs_init(struct amdgpu_device *adev)
 {
 	return 0;
