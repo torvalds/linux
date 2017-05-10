@@ -1416,10 +1416,7 @@ static void __aac_shutdown(struct aac_dev * aac)
 		kthread_stop(aac->thread);
 	}
 	aac_adapter_disable_int(aac);
-	if (aac->pdev->device == PMC_DEVICE_S6 ||
-	    aac->pdev->device == PMC_DEVICE_S7 ||
-	    aac->pdev->device == PMC_DEVICE_S8 ||
-	    aac->pdev->device == PMC_DEVICE_S9) {
+	if (aac_is_src(aac)) {
 		if (aac->max_msix > 1) {
 			for (i = 0; i < aac->max_msix; i++) {
 				free_irq(pci_irq_vector(aac->pdev, i),
@@ -1684,9 +1681,7 @@ static int aac_acquire_resources(struct aac_dev *dev)
 	aac_adapter_enable_int(dev);
 
 
-	if ((dev->pdev->device == PMC_DEVICE_S7 ||
-	     dev->pdev->device == PMC_DEVICE_S8 ||
-	     dev->pdev->device == PMC_DEVICE_S9))
+	if (aac_is_src(dev))
 		aac_define_int_mode(dev);
 
 	if (dev->msi_enabled)

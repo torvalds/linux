@@ -2591,10 +2591,7 @@ void aac_free_irq(struct aac_dev *dev)
 	int cpu;
 
 	cpu = cpumask_first(cpu_online_mask);
-	if (dev->pdev->device == PMC_DEVICE_S6 ||
-	    dev->pdev->device == PMC_DEVICE_S7 ||
-	    dev->pdev->device == PMC_DEVICE_S8 ||
-	    dev->pdev->device == PMC_DEVICE_S9) {
+	if (aac_is_src(dev)) {
 		if (dev->max_msix > 1) {
 			for (i = 0; i < dev->max_msix; i++)
 				free_irq(pci_irq_vector(dev->pdev, i),

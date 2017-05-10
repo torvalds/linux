@@ -424,7 +424,6 @@ struct aac_ciss_identify_pd {
 #define PMC_DEVICE_S6	0x28b
 #define PMC_DEVICE_S7	0x28c
 #define PMC_DEVICE_S8	0x28d
-#define PMC_DEVICE_S9	0x28f
 
 #define aac_phys_to_logical(x)  ((x)+1)
 #define aac_logical_to_phys(x)  ((x)?(x)-1:0)
@@ -2689,6 +2688,18 @@ int aac_probe_container(struct aac_dev *dev, int cid);
 int _aac_rx_init(struct aac_dev *dev);
 int aac_rx_select_comm(struct aac_dev *dev, int comm);
 int aac_rx_deliver_producer(struct fib * fib);
+
+static inline int aac_is_src(struct aac_dev *dev)
+{
+	u16 device = dev->pdev->device;
+
+	if (device == PMC_DEVICE_S6 ||
+		device == PMC_DEVICE_S7 ||
+		device == PMC_DEVICE_S8)
+		return 1;
+	return 0;
+}
+
 char * get_container_type(unsigned type);
 extern int numacb;
 extern char aac_driver_version[];
