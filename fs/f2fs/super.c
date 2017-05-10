@@ -768,6 +768,7 @@ static void destroy_device_list(struct f2fs_sb_info *sbi)
 static void f2fs_put_super(struct super_block *sb)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
+	int i;
 
 	if (sbi->s_proc) {
 		remove_proc_entry("segment_info", sbi->s_proc);
@@ -838,6 +839,8 @@ static void f2fs_put_super(struct super_block *sb)
 	destroy_device_list(sbi);
 	mempool_destroy(sbi->write_io_dummy);
 	destroy_percpu_info(sbi);
+	for (i = 0; i < NR_PAGE_TYPE; i++)
+		kfree(sbi->write_io[i]);
 	kfree(sbi);
 }
 
@@ -1967,9 +1970,19 @@ try_onemore:
 	spin_lock_init(&sbi->stat_lock);
 
 	for (i = 0; i < NR_PAGE_TYPE; i++) {
-		init_rwsem(&sbi->write_io[i].io_rwsem);
-		sbi->write_io[i].sbi = sbi;
-		sbi->write_io[i].bio = NULL;
+		int n = (i == META) ? 1: NR_TEMP_TYPE;
+		int j;
+
+		sbi->write_io[i] = kmalloc(n * sizeof(struct f2fs_bio_info),
+								GFP_KERNEL);
+		if (!sbi->write_io[i])
+			goto free_options;
+
+		for (j = HOT; j < n; j++) {
+			init_rwsem(&sbi->write_io[i][j].io_rwsem);
+			sbi->write_io[i][j].sbi = sbi;
+			sbi->write_io[i][j].bio = NULL;
+		}
 	}
 
 	init_rwsem(&sbi->cp_rwsem);
@@ -2215,6 +2228,8 @@ free_meta_inode:
 free_io_dummy:
 	mempool_destroy(sbi->write_io_dummy);
 free_options:
+	for (i = 0; i < NR_PAGE_TYPE; i++)
+		kfree(sbi->write_io[i]);
 	destroy_percpu_info(sbi);
 	kfree(options);
 free_sb_buf:
