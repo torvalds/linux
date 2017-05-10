@@ -1027,14 +1027,21 @@ static int qeth_l2_stop(struct net_device *dev)
 	return 0;
 }
 
+static const struct device_type qeth_l2_devtype = {
+	.name = "qeth_layer2",
+	.groups = qeth_l2_attr_groups,
+};
+
 static int qeth_l2_probe_device(struct ccwgroup_device *gdev)
 {
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
 	int rc;
 
-	rc = qeth_l2_create_device_attributes(&gdev->dev);
-	if (rc)
-		return rc;
+	if (gdev->dev.type == &qeth_generic_devtype) {
+		rc = qeth_l2_create_device_attributes(&gdev->dev);
+		if (rc)
+			return rc;
+	}
 	INIT_LIST_HEAD(&card->vid_list);
 	hash_init(card->mac_htable);
 	card->options.layer2 = 1;
@@ -1046,7 +1053,8 @@ static void qeth_l2_remove_device(struct ccwgroup_device *cgdev)
 {
 	struct qeth_card *card = dev_get_drvdata(&cgdev->dev);
 
-	qeth_l2_remove_device_attributes(&cgdev->dev);
+	if (cgdev->dev.type == &qeth_generic_devtype)
+		qeth_l2_remove_device_attributes(&cgdev->dev);
 	qeth_set_allowed_threads(card, 0, 1);
 	wait_event(card->wait_q, qeth_threads_running(card, 0xffffffff) == 0);
 
@@ -1432,6 +1440,7 @@ static int qeth_l2_control_event(struct qeth_card *card,
 }
 
 struct qeth_discipline qeth_l2_discipline = {
+	.devtype = &qeth_l2_devtype,
 	.start_poll = qeth_qdio_start_poll,
 	.input_handler = (qdio_handler_t *) qeth_qdio_input_handler,
 	.output_handler = (qdio_handler_t *) qeth_qdio_output_handler,
