@@ -4789,7 +4789,7 @@ i915_gem_load_init(struct drm_i915_private *dev_priv)
 	dev_priv->requests = KMEM_CACHE(drm_i915_gem_request,
 					SLAB_HWCACHE_ALIGN |
 					SLAB_RECLAIM_ACCOUNT |
-					SLAB_DESTROY_BY_RCU);
+					SLAB_TYPESAFE_BY_RCU);
 	if (!dev_priv->requests)
 		goto err_vmas;
 
