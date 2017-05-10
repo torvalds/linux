@@ -1129,16 +1129,15 @@ static int vdm_send_discoveryid(struct fusb30x_chip *chip, int evt)
 		if (chip->vdm_send_state != 2)
 			break;
 	default:
-		if (evt & EVENT_TIMER_STATE) {
+		if (chip->vdm_id) {
+			chip->vdm_send_state = 0;
+			return 0;
+		} else if (evt & EVENT_TIMER_STATE) {
 			dev_warn(chip->dev, "VDM_DISCOVERY_ID time out\n");
 			chip->vdm_state = 0xff;
 			chip->work_continue = 1;
 		}
-
-		if (!chip->vdm_id)
-			break;
-		chip->vdm_send_state = 0;
-		return 0;
+		break;
 	}
 	return -EINPROGRESS;
 }
@@ -1170,16 +1169,15 @@ static int vdm_send_discoverysvid(struct fusb30x_chip *chip, int evt)
 		if (chip->vdm_send_state != 2)
 			break;
 	default:
-		if (evt & EVENT_TIMER_STATE) {
+		if (chip->vdm_svid_num) {
+			chip->vdm_send_state = 0;
+			return 0;
+		} else if (evt & EVENT_TIMER_STATE) {
 			dev_warn(chip->dev, "VDM_DISCOVERY_SVIDS time out\n");
 			chip->vdm_state = 0xff;
 			chip->work_continue = 1;
 		}
-
-		if (!chip->vdm_svid_num)
-			break;
-		chip->vdm_send_state = 0;
-		return 0;
+		break;
 	}
 	return -EINPROGRESS;
 }
@@ -1211,19 +1209,17 @@ static int vdm_send_discoverymodes(struct fusb30x_chip *chip, int evt)
 			if (chip->vdm_send_state != 2)
 				break;
 		default:
-			if (evt & EVENT_TIMER_STATE) {
+			if (chip->val_tmp & 1) {
+				chip->val_tmp &= 0xfe;
+				chip->val_tmp += 2;
+				chip->vdm_send_state = 0;
+				chip->work_continue = 1;
+			} else if (evt & EVENT_TIMER_STATE) {
 				dev_warn(chip->dev,
 					 "VDM_DISCOVERY_MODES time out\n");
 				chip->vdm_state = 0xff;
 				chip->work_continue = 1;
 			}
-
-			if (!(chip->val_tmp & 1))
-				break;
-			chip->val_tmp &= 0xfe;
-			chip->val_tmp += 2;
-			chip->vdm_send_state = 0;
-			chip->work_continue = 1;
 			break;
 		}
 	} else {
@@ -1260,17 +1256,16 @@ static int vdm_send_entermode(struct fusb30x_chip *chip, int evt)
 		if (chip->vdm_send_state != 2)
 			break;
 	default:
-		if (evt & EVENT_TIMER_STATE) {
+		if (chip->val_tmp) {
+			chip->val_tmp = 0;
+			chip->vdm_send_state = 0;
+			return 0;
+		} else if (evt & EVENT_TIMER_STATE) {
 			dev_warn(chip->dev, "VDM_ENTER_MODE time out\n");
 			chip->vdm_state = 0xff;
 			chip->work_continue = 1;
 		}
-
-		if (!chip->val_tmp)
-			break;
-		chip->val_tmp = 0;
-		chip->vdm_send_state = 0;
-		return 0;
+		break;
 	}
 	return -EINPROGRESS;
 }
@@ -1301,17 +1296,16 @@ static int vdm_send_getdpstatus(struct fusb30x_chip *chip, int evt)
 		if (chip->vdm_send_state != 2)
 			break;
 	default:
-		if (evt & EVENT_TIMER_STATE) {
+		if (chip->val_tmp) {
+			chip->val_tmp = 0;
+			chip->vdm_send_state = 0;
+			return 0;
+		} else if (evt & EVENT_TIMER_STATE) {
 			dev_warn(chip->dev, "VDM_DP_STATUS_UPDATE time out\n");
 			chip->vdm_state = 0xff;
 			chip->work_continue = 1;
 		}
-
-		if (!chip->val_tmp)
-			break;
-		chip->val_tmp = 0;
-		chip->vdm_send_state = 0;
-		return 0;
+		break;
 	}
 	return -EINPROGRESS;
 }
@@ -1341,17 +1335,16 @@ static int vdm_send_dpconfig(struct fusb30x_chip *chip, int evt)
 		if (chip->vdm_send_state != 2)
 			break;
 	default:
-		if (evt & EVENT_TIMER_STATE) {
+		if (chip->val_tmp) {
+			chip->val_tmp = 0;
+			chip->vdm_send_state = 0;
+			return 0;
+		} else if (evt & EVENT_TIMER_STATE) {
 			dev_warn(chip->dev, "vdm_send_dpconfig time out\n");
 			chip->vdm_state = 0xff;
 			chip->work_continue = 1;
 		}
-
-		if (!chip->val_tmp)
-			break;
-		chip->val_tmp = 0;
-		chip->vdm_send_state = 0;
-		return 0;
+		break;
 	}
 	return -EINPROGRESS;
 }
