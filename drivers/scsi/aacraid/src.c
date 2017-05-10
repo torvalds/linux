@@ -694,6 +694,37 @@ static void aac_dump_fw_fib_iop_reset(struct aac_dev *dev)
 			0, 0, 0,  0, 0, 0, NULL, NULL, NULL, NULL, NULL);
 }
 
+static bool aac_is_ctrl_up_and_running(struct aac_dev *dev)
+{
+	bool ctrl_up = true;
+	unsigned long status, start;
+	bool is_up = false;
+
+	start = jiffies;
+	do {
+		schedule();
+		status = src_readl(dev, MUnit.OMR);
+
+		if (status == 0xffffffff)
+			status = 0;
+
+		if (status & KERNEL_BOOTING) {
+			start = jiffies;
+			continue;
+		}
+
+		if (time_after(jiffies, start+HZ*SOFT_RESET_TIME)) {
+			ctrl_up = false;
+			break;
+		}
+
+		is_up = status & KERNEL_UP_AND_RUNNING;
+
+	} while (!is_up);
+
+	return ctrl_up;
+}
+
 static void aac_notify_fw_of_iop_reset(struct aac_dev *dev)
 {
 	aac_adapter_sync_cmd(dev, IOP_RESET_ALWAYS, 0, 0, 0, 0, 0, 0, NULL,
@@ -709,8 +740,6 @@ static void aac_send_iop_reset(struct aac_dev *dev)
 	aac_set_intx_mode(dev);
 
 	src_writel(dev, MUnit.IDR, IOP_SRC_RESET_MASK);
-
-	msleep(30000);
 }
 
 static void aac_send_hardware_soft_reset(struct aac_dev *dev)
@@ -726,6 +755,7 @@ static void aac_send_hardware_soft_reset(struct aac_dev *dev)
 static int aac_src_restart_adapter(struct aac_dev *dev, int bled, u8 reset_type)
 {
 	unsigned long status, start;
+	bool is_ctrl_up;
 
 	if (bled < 0)
 		goto invalid_out;
@@ -745,6 +775,16 @@ static int aac_src_restart_adapter(struct aac_dev *dev, int bled, u8 reset_type)
 	switch (reset_type) {
 	case IOP_HWSOFT_RESET:
 		aac_send_iop_reset(dev);
+
+		/*
+		 * Creates a delay or wait till up and running comes thru
+		 */
+		is_ctrl_up = aac_is_ctrl_up_and_running(dev);
+		if (!is_ctrl_up)
+			dev_err(&dev->pdev->dev, "IOP reset failed\n");
+		else
+			goto set_startup;
+
 		/*
 		 * Check to see if KERNEL_UP_AND_RUNNING
 		 * Wait for the adapter to be up and running.
@@ -780,6 +820,7 @@ invalid_out:
 	if (src_readl(dev, MUnit.OMR) & KERNEL_PANIC)
 		return -ENODEV;
 
+set_startup:
 	if (startup_timeout < 300)
 		startup_timeout = 300;
 
