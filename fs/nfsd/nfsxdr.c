@@ -257,6 +257,9 @@ nfssvc_decode_readargs(struct svc_rqst *rqstp, __be32 *p,
 	len = args->count     = ntohl(*p++);
 	p++; /* totalcount - unused */
 
+	if (!xdr_argsize_check(rqstp, p))
+		return 0;
+
 	len = min_t(unsigned int, len, NFSSVC_MAXBLKSIZE_V2);
 
 	/* set up somewhere to store response.
@@ -272,7 +275,7 @@ nfssvc_decode_readargs(struct svc_rqst *rqstp, __be32 *p,
 		v++;
 	}
 	args->vlen = v;
-	return xdr_argsize_check(rqstp, p);
+	return 1;
 }
 
 int
@@ -362,9 +365,11 @@ nfssvc_decode_readlinkargs(struct svc_rqst *rqstp, __be32 *p, struct nfsd_readli
 	p = decode_fh(p, &args->fh);
 	if (!p)
 		return 0;
+	if (!xdr_argsize_check(rqstp, p))
+		return 0;
 	args->buffer = page_address(*(rqstp->rq_next_page++));
 
-	return xdr_argsize_check(rqstp, p);
+	return 1;
 }
 
 int
@@ -402,9 +407,11 @@ nfssvc_decode_readdirargs(struct svc_rqst *rqstp, __be32 *p,
 	args->cookie = ntohl(*p++);
 	args->count  = ntohl(*p++);
 	args->count  = min_t(u32, args->count, PAGE_SIZE);
+	if (!xdr_argsize_check(rqstp, p))
+		return 0;
 	args->buffer = page_address(*(rqstp->rq_next_page++));
 
-	return xdr_argsize_check(rqstp, p);
+	return 1;
 }
 
 /*
