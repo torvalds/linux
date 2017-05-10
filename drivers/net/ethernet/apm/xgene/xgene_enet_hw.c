@@ -626,6 +626,8 @@ static void xgene_gmac_get_drop_cnt(struct xgene_enet_pdata *pdata,
 	xgene_enet_rd_mcx_csr(pdata, ICM_ECM_DROP_COUNT_REG0_ADDR, &count);
 	*rx = ICM_DROP_COUNT(count);
 	*tx = ECM_DROP_COUNT(count);
+	/* Errata: 10GE_4 - Fix ICM_ECM_DROP_COUNT not clear-on-read */
+	xgene_enet_rd_mcx_csr(pdata, ECM_CONFIG0_REG_0_ADDR, &count);
 }
 
 static void xgene_enet_config_ring_if_assoc(struct xgene_enet_pdata *pdata)

@@ -106,6 +106,11 @@ static void xgene_sgmac_get_drop_cnt(struct xgene_enet_pdata *pdata,
 	count = xgene_enet_rd_mcx_csr(pdata, addr);
 	*rx = ICM_DROP_COUNT(count);
 	*tx = ECM_DROP_COUNT(count);
+	/* Errata: 10GE_4 - ICM_ECM_DROP_COUNT not clear-on-read */
+	addr = (pdata->enet_id != XGENE_ENET1) ?
+		XG_MCX_ECM_CONFIG0_REG_0_ADDR :
+		ECM_CONFIG0_REG_0_ADDR + pdata->port_id * OFFSET_4;
+	xgene_enet_rd_mcx_csr(pdata, addr);
 }
 
 static void xgene_enet_config_ring_if_assoc(struct xgene_enet_pdata *p)
