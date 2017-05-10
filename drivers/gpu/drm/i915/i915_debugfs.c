@@ -2494,6 +2494,22 @@ static void i915_guc_client_info(struct seq_file *m,
 	seq_printf(m, "\tTotal: %llu\n", tot);
 }
 
+static bool check_guc_submission(struct seq_file *m)
+{
+	struct drm_i915_private *dev_priv = node_to_i915(m->private);
+	const struct intel_guc *guc = &dev_priv->guc;
+
+	if (!guc->execbuf_client) {
+		seq_printf(m, "GuC submission %s\n",
+			   HAS_GUC_SCHED(dev_priv) ?
+			   "disabled" :
+			   "not supported");
+		return false;
+	}
+
+	return true;
+}
+
 static int i915_guc_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
@@ -2502,13 +2518,8 @@ static int i915_guc_info(struct seq_file *m, void *data)
 	enum intel_engine_id id;
 	u64 total;
 
-	if (!guc->execbuf_client) {
-		seq_printf(m, "GuC submission %s\n",
-			   HAS_GUC_SCHED(dev_priv) ?
-			   "disabled" :
-			   "not supported");
+	if (!check_guc_submission(m))
 		return 0;
-	}
 
 	seq_printf(m, "Doorbell map:\n");
 	seq_printf(m, "\t%*pb\n", GUC_NUM_DOORBELLS, guc->doorbell_bitmap);
@@ -2536,6 +2547,60 @@ static int i915_guc_info(struct seq_file *m, void *data)
 	i915_guc_log_info(m, dev_priv);
 
 	/* Add more as required ... */
+
+	return 0;
+}
+
+static int i915_guc_stage_pool(struct seq_file *m, void *data)
+{
+	struct drm_i915_private *dev_priv = node_to_i915(m->private);
+	const struct intel_guc *guc = &dev_priv->guc;
+	struct guc_stage_desc *desc = guc->stage_desc_pool_vaddr;
+	struct i915_guc_client *client = guc->execbuf_client;
+	unsigned int tmp;
+	int index;
+
+	if (!check_guc_submission(m))
+		return 0;
+
+	for (index = 0; index < GUC_MAX_STAGE_DESCRIPTORS; index++, desc++) {
+		struct intel_engine_cs *engine;
+
+		if (!(desc->attribute & GUC_STAGE_DESC_ATTR_ACTIVE))
+			continue;
+
+		seq_printf(m, "GuC stage descriptor %u:\n", index);
+		seq_printf(m, "\tIndex: %u\n", desc->stage_id);
+		seq_printf(m, "\tAttribute: 0x%x\n", desc->attribute);
+		seq_printf(m, "\tPriority: %d\n", desc->priority);
+		seq_printf(m, "\tDoorbell id: %d\n", desc->db_id);
+		seq_printf(m, "\tEngines used: 0x%x\n",
+			   desc->engines_used);
+		seq_printf(m, "\tDoorbell trigger phy: 0x%llx, cpu: 0x%llx, uK: 0x%x\n",
+			   desc->db_trigger_phy,
+			   desc->db_trigger_cpu,
+			   desc->db_trigger_uk);
+		seq_printf(m, "\tProcess descriptor: 0x%x\n",
+			   desc->process_desc);
+		seq_printf(m, "\tWorkqueue adddress: 0x%x, size: 0x%x\n",
+			   desc->wq_addr, desc->wq_size);
+		seq_putc(m, '\n');
+
+		for_each_engine_masked(engine, dev_priv, client->engines, tmp) {
+			u32 guc_engine_id = engine->guc_id;
+			struct guc_execlist_context *lrc =
+						&desc->lrc[guc_engine_id];
+
+			seq_printf(m, "\t%s LRC:\n", engine->name);
+			seq_printf(m, "\t\tContext desc: 0x%x\n",
+				   lrc->context_desc);
+			seq_printf(m, "\t\tContext id: 0x%x\n", lrc->context_id);
+			seq_printf(m, "\t\tLRCA: 0x%x\n", lrc->ring_lrca);
+			seq_printf(m, "\t\tRing begin: 0x%x\n", lrc->ring_begin);
+			seq_printf(m, "\t\tRing end: 0x%x\n", lrc->ring_end);
+			seq_putc(m, '\n');
+		}
+	}
 
 	return 0;
 }
@@ -4746,6 +4811,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_guc_info", i915_guc_info, 0},
 	{"i915_guc_load_status", i915_guc_load_status_info, 0},
 	{"i915_guc_log_dump", i915_guc_log_dump, 0},
+	{"i915_guc_stage_pool", i915_guc_stage_pool, 0},
 	{"i915_huc_load_status", i915_huc_load_status_info, 0},
 	{"i915_frequency_info", i915_frequency_info, 0},
 	{"i915_hangcheck_info", i915_hangcheck_info, 0},
