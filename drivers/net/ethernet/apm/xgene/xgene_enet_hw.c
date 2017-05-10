@@ -277,6 +277,13 @@ void xgene_enet_wr_mac(struct xgene_enet_pdata *pdata, u32 wr_addr, u32 wr_data)
 	u8 wait = 10;
 	u32 done;
 
+	if (pdata->mdio_driver && ndev->phydev &&
+	    pdata->phy_mode == PHY_INTERFACE_MODE_RGMII) {
+		struct mii_bus *bus = ndev->phydev->mdio.bus;
+
+		return xgene_mdio_wr_mac(bus->priv, wr_addr, wr_data);
+	}
+
 	addr = pdata->mcx_mac_addr + MAC_ADDR_REG_OFFSET;
 	wr = pdata->mcx_mac_addr + MAC_WRITE_REG_OFFSET;
 	cmd = pdata->mcx_mac_addr + MAC_COMMAND_REG_OFFSET;
@@ -327,6 +334,13 @@ u32 xgene_enet_rd_mac(struct xgene_enet_pdata *pdata, u32 rd_addr)
 	void __iomem *addr, *rd, *cmd, *cmd_done;
 	u32 done, rd_data;
 	u8 wait = 10;
+
+	if (pdata->mdio_driver && pdata->ndev->phydev &&
+	    pdata->phy_mode == PHY_INTERFACE_MODE_RGMII) {
+		struct mii_bus *bus = pdata->ndev->phydev->mdio.bus;
+
+		return xgene_mdio_rd_mac(bus->priv, rd_addr);
+	}
 
 	addr = pdata->mcx_mac_addr + MAC_ADDR_REG_OFFSET;
 	rd = pdata->mcx_mac_addr + MAC_READ_REG_OFFSET;
