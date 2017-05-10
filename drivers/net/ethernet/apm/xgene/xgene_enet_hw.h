@@ -192,6 +192,10 @@ enum xgene_enet_rm {
 #define CFG_CLE_NXTFPSEL0(val)		(((val) << 20) & GENMASK(23, 20))
 #define ICM_CONFIG0_REG_0_ADDR		0x0400
 #define ICM_CONFIG2_REG_0_ADDR		0x0410
+#define ECM_CONFIG0_REG_0_ADDR		0x0500
+#define ECM_CONFIG0_REG_1_ADDR		0x0504
+#define ICM_ECM_DROP_COUNT_REG0_ADDR	0x0508
+#define ICM_ECM_DROP_COUNT_REG1_ADDR	0x050c
 #define RX_DV_GATE_REG_0_ADDR		0x05fc
 #define TX_DV_GATE_EN0			BIT(2)
 #define RX_DV_GATE_EN0			BIT(1)
@@ -267,6 +271,10 @@ enum xgene_enet_rm {
 #define TOVR_ADDR	0x49
 #define TUND_ADDR	0x4a
 #define TFRG_ADDR	0x4b
+#define DUMP_ADDR	0x27
+
+#define ECM_DROP_COUNT(src)	xgene_get_bits(src, 0, 15)
+#define ICM_DROP_COUNT(src)	xgene_get_bits(src, 16, 31)
 
 #define TSO_IPPROTO_TCP			1
 

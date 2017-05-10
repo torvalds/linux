@@ -71,6 +71,7 @@ static const struct xgene_gstrings_stats gstrings_extd_stats[] = {
 	XGENE_EXTD_STAT(rx_fragments_cntr, RFRG, 16),
 	XGENE_EXTD_STAT(rx_jabber_cntr, RJBR, 16),
 	XGENE_EXTD_STAT(rx_dropped_pkt_cntr, RDRP, 16),
+	XGENE_EXTD_STAT(rx_overrun_cntr, DUMP, 0),
 	XGENE_EXTD_STAT(tx_multicast_pkt_cntr, TMCA, 31),
 	XGENE_EXTD_STAT(tx_broadcast_pkt_cntr, TBCA, 31),
 	XGENE_EXTD_STAT(tx_pause_ctrl_frame_cntr, TXPF, 16),
@@ -88,11 +89,14 @@ static const struct xgene_gstrings_stats gstrings_extd_stats[] = {
 	XGENE_EXTD_STAT(tx_ctrl_frame_cntr, TXCF, 12),
 	XGENE_EXTD_STAT(tx_oversize_frame_cntr, TOVR, 12),
 	XGENE_EXTD_STAT(tx_undersize_frame_cntr, TUND, 12),
-	XGENE_EXTD_STAT(tx_fragments_cntr, TFRG, 12)
+	XGENE_EXTD_STAT(tx_fragments_cntr, TFRG, 12),
+	XGENE_EXTD_STAT(tx_underrun_cntr, DUMP, 0)
 };
 
 #define XGENE_STATS_LEN		ARRAY_SIZE(gstrings_stats)
 #define XGENE_EXTD_STATS_LEN	ARRAY_SIZE(gstrings_extd_stats)
+#define RX_OVERRUN_IDX		22
+#define TX_UNDERRUN_IDX		41
 
 static void xgene_get_drvinfo(struct net_device *ndev,
 			      struct ethtool_drvinfo *info)
@@ -211,14 +215,20 @@ static int xgene_get_sset_count(struct net_device *ndev, int sset)
 
 static void xgene_get_extd_stats(struct xgene_enet_pdata *pdata)
 {
+	u32 rx_drop, tx_drop;
 	u32 tmp;
 	int i;
 
 	for (i = 0; i < XGENE_EXTD_STATS_LEN; i++) {
 		tmp = xgene_enet_rd_stat(pdata, gstrings_extd_stats[i].addr);
-		pdata->extd_stats[i] += tmp &
-			GENMASK(gstrings_extd_stats[i].mask - 1, 0);
+		if (gstrings_extd_stats[i].mask)
+			pdata->extd_stats[i] += tmp &
+				GENMASK(gstrings_extd_stats[i].mask - 1, 0);
 	}
+
+	pdata->mac_ops->get_drop_cnt(pdata, &rx_drop, &tx_drop);
+	pdata->extd_stats[RX_OVERRUN_IDX] += rx_drop;
+	pdata->extd_stats[TX_UNDERRUN_IDX] += tx_drop;
 }
 
 int xgene_extd_stats_init(struct xgene_enet_pdata *pdata)

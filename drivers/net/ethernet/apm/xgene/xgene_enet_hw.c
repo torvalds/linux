@@ -618,6 +618,16 @@ static void xgene_gmac_init(struct xgene_enet_pdata *pdata)
 	xgene_enet_wr_csr(pdata, CFG_BYPASS_ADDR, RESUME_TX);
 }
 
+static void xgene_gmac_get_drop_cnt(struct xgene_enet_pdata *pdata,
+				    u32 *rx, u32 *tx)
+{
+	u32 count;
+
+	xgene_enet_rd_mcx_csr(pdata, ICM_ECM_DROP_COUNT_REG0_ADDR, &count);
+	*rx = ICM_DROP_COUNT(count);
+	*tx = ECM_DROP_COUNT(count);
+}
+
 static void xgene_enet_config_ring_if_assoc(struct xgene_enet_pdata *pdata)
 {
 	u32 val = 0xffffffff;
@@ -1027,6 +1037,7 @@ const struct xgene_mac_ops xgene_gmac_ops = {
 	.tx_enable = xgene_gmac_tx_enable,
 	.rx_disable = xgene_gmac_rx_disable,
 	.tx_disable = xgene_gmac_tx_disable,
+	.get_drop_cnt = xgene_gmac_get_drop_cnt,
 	.set_speed = xgene_gmac_set_speed,
 	.set_mac_addr = xgene_gmac_set_mac_addr,
 	.set_framesize = xgene_enet_set_frame_size,

@@ -157,6 +157,7 @@ struct xgene_mac_ops {
 	void (*rx_enable)(struct xgene_enet_pdata *pdata);
 	void (*tx_disable)(struct xgene_enet_pdata *pdata);
 	void (*rx_disable)(struct xgene_enet_pdata *pdata);
+	void (*get_drop_cnt)(struct xgene_enet_pdata *pdata, u32 *rx, u32 *tx);
 	void (*set_speed)(struct xgene_enet_pdata *pdata);
 	void (*set_mac_addr)(struct xgene_enet_pdata *pdata);
 	void (*set_framesize)(struct xgene_enet_pdata *pdata, int framesize);

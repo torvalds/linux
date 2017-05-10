@@ -95,6 +95,19 @@ static int xgene_enet_ecc_init(struct xgene_enet_pdata *p)
 	return -ENODEV;
 }
 
+static void xgene_sgmac_get_drop_cnt(struct xgene_enet_pdata *pdata,
+				     u32 *rx, u32 *tx)
+{
+	u32 addr, count;
+
+	addr = (pdata->enet_id != XGENE_ENET1) ?
+		XG_MCX_ICM_ECM_DROP_COUNT_REG0_ADDR :
+		ICM_ECM_DROP_COUNT_REG0_ADDR + pdata->port_id * OFFSET_4;
+	count = xgene_enet_rd_mcx_csr(pdata, addr);
+	*rx = ICM_DROP_COUNT(count);
+	*tx = ECM_DROP_COUNT(count);
+}
+
 static void xgene_enet_config_ring_if_assoc(struct xgene_enet_pdata *p)
 {
 	u32 val;
@@ -600,6 +613,7 @@ const struct xgene_mac_ops xgene_sgmac_ops = {
 	.tx_enable	= xgene_sgmac_tx_enable,
 	.rx_disable	= xgene_sgmac_rx_disable,
 	.tx_disable	= xgene_sgmac_tx_disable,
+	.get_drop_cnt   = xgene_sgmac_get_drop_cnt,
 	.set_speed	= xgene_sgmac_set_speed,
 	.set_mac_addr	= xgene_sgmac_set_mac_addr,
 	.set_framesize  = xgene_sgmac_set_frame_size,
