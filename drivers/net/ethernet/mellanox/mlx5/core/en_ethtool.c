@@ -311,7 +311,7 @@ static void mlx5e_get_ethtool_stats(struct net_device *dev,
 
 	mutex_lock(&priv->state_lock);
 	if (test_bit(MLX5E_STATE_OPENED, &priv->state))
-		mlx5e_update_stats(priv);
+		mlx5e_update_stats(priv, true);
 	channels = &priv->channels;
 	mutex_unlock(&priv->state_lock);
 
