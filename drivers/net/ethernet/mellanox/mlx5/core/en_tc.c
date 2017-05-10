@@ -43,6 +43,7 @@
 #include <net/tc_act/tc_vlan.h>
 #include <net/tc_act/tc_tunnel_key.h>
 #include <net/tc_act/tc_pedit.h>
+#include <net/tc_act/tc_csum.h>
 #include <net/vxlan.h>
 #include <net/arp.h>
 #include "en.h"
@@ -1109,6 +1110,28 @@ out_err:
 	return err;
 }
 
+static bool csum_offload_supported(struct mlx5e_priv *priv, u32 action, u32 update_flags)
+{
+	u32 prot_flags = TCA_CSUM_UPDATE_FLAG_IPV4HDR | TCA_CSUM_UPDATE_FLAG_TCP |
+			 TCA_CSUM_UPDATE_FLAG_UDP;
+
+	/*  The HW recalcs checksums only if re-writing headers */
+	if (!(action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)) {
+		netdev_warn(priv->netdev,
+			    "TC csum action is only offloaded with pedit\n");
+		return false;
+	}
+
+	if (update_flags & ~prot_flags) {
+		netdev_warn(priv->netdev,
+			    "can't offload TC csum action for some header/s - flags %#x\n",
+			    update_flags);
+		return false;
+	}
+
+	return true;
+}
+
 static int parse_tc_nic_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 				struct mlx5e_tc_flow_parse_attr *parse_attr,
 				struct mlx5e_tc_flow *flow)
@@ -1147,6 +1170,14 @@ static int parse_tc_nic_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 			attr->action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR |
 					MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 			continue;
+		}
+
+		if (is_tcf_csum(a)) {
+			if (csum_offload_supported(priv, attr->action,
+						   tcf_csum_update_flags(a)))
+				continue;
+
+			return -EOPNOTSUPP;
 		}
 
 		if (is_tcf_skbedit_mark(a)) {
@@ -1649,6 +1680,14 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 
 			attr->action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
 			continue;
+		}
+
+		if (is_tcf_csum(a)) {
+			if (csum_offload_supported(priv, attr->action,
+						   tcf_csum_update_flags(a)))
+				continue;
+
+			return -EOPNOTSUPP;
 		}
 
 		if (is_tcf_mirred_egress_redirect(a)) {
