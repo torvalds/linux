@@ -111,6 +111,7 @@ struct pmic_arb_ver_ops;
  * @ee:			the current Execution Environment
  * @min_apid:		minimum APID (used for bounding IRQ search)
  * @max_apid:		maximum APID
+ * @max_periph:		maximum number of PMIC peripherals supported by HW.
  * @mapping_table:	in-memory copy of PPID -> APID mapping table.
  * @domain:		irq domain object for PMIC IRQ domain
  * @spmic:		SPMI controller object
@@ -132,6 +133,7 @@ struct spmi_pmic_arb_dev {
 	u8			ee;
 	u16			min_apid;
 	u16			max_apid;
+	u16			max_periph;
 	u32			*mapping_table;
 	DECLARE_BITMAP(mapping_table_valid, PMIC_ARB_MAX_PERIPHS);
 	struct irq_domain	*domain;
@@ -140,11 +142,13 @@ struct spmi_pmic_arb_dev {
 	const struct pmic_arb_ver_ops *ver_ops;
 	u16			*ppid_to_chan;
 	u16			last_channel;
+	u8			*chan_to_owner;
 };
 
 /**
  * pmic_arb_ver: version dependent functionality.
  *
+ * @mode:	access rights to specified pmic peripheral.
  * @non_data_cmd:	on v1 issues an spmi non-data command.
  *			on v2 no HW support, returns -EOPNOTSUPP.
  * @offset:		on v1 offset of per-ee channel.
@@ -160,6 +164,8 @@ struct spmi_pmic_arb_dev {
  *			on v2 offset of SPMI_PIC_IRQ_CLEARn.
  */
 struct pmic_arb_ver_ops {
+	int (*mode)(struct spmi_pmic_arb_dev *dev, u8 sid, u16 addr,
+			mode_t *mode);
 	/* spmi commands (read_cmd, write_cmd, cmd) functionality */
 	int (*offset)(struct spmi_pmic_arb_dev *dev, u8 sid, u16 addr,
 		      u32 *offset);
@@ -313,10 +319,22 @@ static int pmic_arb_read_cmd(struct spmi_controller *ctrl, u8 opc, u8 sid,
 	u32 cmd;
 	int rc;
 	u32 offset;
+	mode_t mode;
 
 	rc = pmic_arb->ver_ops->offset(pmic_arb, sid, addr, &offset);
 	if (rc)
 		return rc;
+
+	rc = pmic_arb->ver_ops->mode(pmic_arb, sid, addr, &mode);
+	if (rc)
+		return rc;
+
+	if (!(mode & S_IRUSR)) {
+		dev_err(&pmic_arb->spmic->dev,
+			"error: impermissible read from peripheral sid:%d addr:0x%x\n",
+			sid, addr);
+		return -EPERM;
+	}
 
 	if (bc >= PMIC_ARB_MAX_TRANS_BYTES) {
 		dev_err(&ctrl->dev,
@@ -364,10 +382,22 @@ static int pmic_arb_write_cmd(struct spmi_controller *ctrl, u8 opc, u8 sid,
 	u32 cmd;
 	int rc;
 	u32 offset;
+	mode_t mode;
 
 	rc = pmic_arb->ver_ops->offset(pmic_arb, sid, addr, &offset);
 	if (rc)
 		return rc;
+
+	rc = pmic_arb->ver_ops->mode(pmic_arb, sid, addr, &mode);
+	if (rc)
+		return rc;
+
+	if (!(mode & S_IWUSR)) {
+		dev_err(&pmic_arb->spmic->dev,
+			"error: impermissible write to peripheral sid:%d addr:0x%x\n",
+			sid, addr);
+		return -EPERM;
+	}
 
 	if (bc >= PMIC_ARB_MAX_TRANS_BYTES) {
 		dev_err(&ctrl->dev,
@@ -727,6 +757,13 @@ static int qpnpint_irq_domain_map(struct irq_domain *d,
 	return 0;
 }
 
+static int
+pmic_arb_mode_v1(struct spmi_pmic_arb_dev *pa, u8 sid, u16 addr, mode_t *mode)
+{
+	*mode = S_IRUSR | S_IWUSR;
+	return 0;
+}
+
 /* v1 offset per ee */
 static int
 pmic_arb_offset_v1(struct spmi_pmic_arb_dev *pa, u8 sid, u16 addr, u32 *offset)
@@ -745,7 +782,11 @@ static u16 pmic_arb_find_chan(struct spmi_pmic_arb_dev *pa, u16 ppid)
 	 * PMIC_ARB_REG_CHNL is a table in HW mapping channel to ppid.
 	 * ppid_to_chan is an in-memory invert of that table.
 	 */
-	for (chan = pa->last_channel; ; chan++) {
+	for (chan = pa->last_channel; chan < pa->max_periph; chan++) {
+		regval = readl_relaxed(pa->cnfg +
+				      SPMI_OWNERSHIP_TABLE_REG(chan));
+		pa->chan_to_owner[chan] = SPMI_OWNERSHIP_PERIPH2OWNER(regval);
+
 		offset = PMIC_ARB_REG_CHNL(chan);
 		if (offset >= pa->core_size)
 			break;
@@ -766,6 +807,27 @@ static u16 pmic_arb_find_chan(struct spmi_pmic_arb_dev *pa, u16 ppid)
 	return chan;
 }
 
+
+static int
+pmic_arb_mode_v2(struct spmi_pmic_arb_dev *pa, u8 sid, u16 addr, mode_t *mode)
+{
+	u16 ppid = (sid << 8) | (addr >> 8);
+	u16 chan;
+	u8 owner;
+
+	chan = pa->ppid_to_chan[ppid];
+	if (!(chan & PMIC_ARB_CHAN_VALID))
+		return -ENODEV;
+
+	*mode = 0;
+	*mode |= S_IRUSR;
+
+	chan &= ~PMIC_ARB_CHAN_VALID;
+	owner = pa->chan_to_owner[chan];
+	if (owner == pa->ee)
+		*mode |= S_IWUSR;
+	return 0;
+}
 
 /* v2 offset per ppid (chan) and per ee */
 static int
@@ -836,6 +898,7 @@ static u32 pmic_arb_irq_clear_v2(u8 n)
 }
 
 static const struct pmic_arb_ver_ops pmic_arb_v1 = {
+	.mode			= pmic_arb_mode_v1,
 	.non_data_cmd		= pmic_arb_non_data_cmd_v1,
 	.offset			= pmic_arb_offset_v1,
 	.fmt_cmd		= pmic_arb_fmt_cmd_v1,
@@ -846,6 +909,7 @@ static const struct pmic_arb_ver_ops pmic_arb_v1 = {
 };
 
 static const struct pmic_arb_ver_ops pmic_arb_v2 = {
+	.mode			= pmic_arb_mode_v2,
 	.non_data_cmd		= pmic_arb_non_data_cmd_v2,
 	.offset			= pmic_arb_offset_v2,
 	.fmt_cmd		= pmic_arb_fmt_cmd_v2,
@@ -879,6 +943,12 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "core");
 	pa->core_size = resource_size(res);
+	if (pa->core_size <= 0x800) {
+		dev_err(&pdev->dev, "core_size is smaller than 0x800. Failing Probe\n");
+		err = -EINVAL;
+		goto err_put_ctrl;
+	}
+
 	core = devm_ioremap_resource(&ctrl->dev, res);
 	if (IS_ERR(core)) {
 		err = PTR_ERR(core);
@@ -898,6 +968,9 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 	} else {
 		pa->core = core;
 		pa->ver_ops = &pmic_arb_v2;
+
+		/* the apid to ppid table starts at PMIC_ARB_REG_CHNL(0) */
+		pa->max_periph =  (pa->core_size - PMIC_ARB_REG_CHNL(0)) / 4;
 
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						   "obsrvr");
@@ -920,6 +993,15 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 						sizeof(*pa->ppid_to_chan),
 						GFP_KERNEL);
 		if (!pa->ppid_to_chan) {
+			err = -ENOMEM;
+			goto err_put_ctrl;
+		}
+
+		pa->chan_to_owner = devm_kcalloc(&ctrl->dev,
+						 pa->max_periph,
+						 sizeof(*pa->chan_to_owner),
+						 GFP_KERNEL);
+		if (!pa->chan_to_owner) {
 			err = -ENOMEM;
 			goto err_put_ctrl;
 		}
