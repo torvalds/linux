@@ -577,18 +577,18 @@ static int ep0_out_pio(struct nbu2ss_udc *udc, u8 *buf, u32 length)
 static int ep0_out_overbytes(struct nbu2ss_udc *udc, u8 *pBuf, u32 length)
 {
 	u32		i;
-	u32		iReadSize = 0;
-	union usb_reg_access  Temp32;
-	union usb_reg_access  *pBuf32 = (union usb_reg_access *)pBuf;
+	u32		i_read_size = 0;
+	union usb_reg_access  temp_32;
+	union usb_reg_access  *p_buf_32 = (union usb_reg_access *)pBuf;
 
 	if ((length > 0) && (length < sizeof(u32))) {
-		Temp32.dw = _nbu2ss_readl(&udc->p_regs->EP0_READ);
+		temp_32.dw = _nbu2ss_readl(&udc->p_regs->EP0_READ);
 		for (i = 0 ; i < length ; i++)
-			pBuf32->byte.DATA[i] = Temp32.byte.DATA[i];
-		iReadSize += length;
+			p_buf_32->byte.DATA[i] = temp_32.byte.DATA[i];
+		i_read_size += length;
 	}
 
-	return iReadSize;
+	return i_read_size;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -596,43 +596,43 @@ static int ep0_out_overbytes(struct nbu2ss_udc *udc, u8 *pBuf, u32 length)
 static int EP0_in_PIO(struct nbu2ss_udc *udc, u8 *pBuf, u32 length)
 {
 	u32		i;
-	u32		iMaxLength   = EP0_PACKETSIZE;
-	u32		iWordLength  = 0;
-	u32		iWriteLength = 0;
-	union usb_reg_access  *pBuf32 = (union usb_reg_access *)pBuf;
+	u32		i_max_length   = EP0_PACKETSIZE;
+	u32		i_word_length  = 0;
+	u32		i_write_length = 0;
+	union usb_reg_access  *p_buf_32 = (union usb_reg_access *)pBuf;
 
 	/*------------------------------------------------------------*/
 	/* Transfer Length */
-	if (iMaxLength < length)
-		iWordLength = iMaxLength / sizeof(u32);
+	if (i_max_length < length)
+		i_word_length = i_max_length / sizeof(u32);
 	else
-		iWordLength = length / sizeof(u32);
+		i_word_length = length / sizeof(u32);
 
 	/*------------------------------------------------------------*/
 	/* PIO */
-	for (i = 0; i < iWordLength; i++) {
-		_nbu2ss_writel(&udc->p_regs->EP0_WRITE, pBuf32->dw);
-		pBuf32++;
-		iWriteLength += sizeof(u32);
+	for (i = 0; i < i_word_length; i++) {
+		_nbu2ss_writel(&udc->p_regs->EP0_WRITE, p_buf_32->dw);
+		p_buf_32++;
+		i_write_length += sizeof(u32);
 	}
 
-	return iWriteLength;
+	return i_write_length;
 }
 
 /*-------------------------------------------------------------------------*/
 /* Endpoint 0 IN Transfer (PIO, OverBytes) */
-static int ep0_in_overbytes(struct nbu2ss_udc *udc, u8 *pBuf, u32 iRemainSize)
+static int ep0_in_overbytes(struct nbu2ss_udc *udc, u8 *pBuf, u32 i_remain_size)
 {
 	u32		i;
-	union usb_reg_access  Temp32;
-	union usb_reg_access  *pBuf32 = (union usb_reg_access *)pBuf;
+	union usb_reg_access  temp_32;
+	union usb_reg_access  *p_buf_32 = (union usb_reg_access *)pBuf;
 
-	if ((iRemainSize > 0) && (iRemainSize < sizeof(u32))) {
-		for (i = 0 ; i < iRemainSize ; i++)
-			Temp32.byte.DATA[i] = pBuf32->byte.DATA[i];
-		_nbu2ss_ep_in_end(udc, 0, Temp32.dw, iRemainSize);
+	if ((i_remain_size > 0) && (i_remain_size < sizeof(u32))) {
+		for (i = 0 ; i < i_remain_size ; i++)
+			temp_32.byte.DATA[i] = p_buf_32->byte.DATA[i];
+		_nbu2ss_ep_in_end(udc, 0, temp_32.dw, i_remain_size);
 
-		return iRemainSize;
+		return i_remain_size;
 	}
 
 	return 0;
@@ -680,9 +680,9 @@ static int _nbu2ss_ep0_in_transfer(
 	struct nbu2ss_req *req
 )
 {
-	u8		*pBuffer;			/* IN Data Buffer */
+	u8		*p_buffer;			/* IN Data Buffer */
 	u32		data;
-	u32		iRemainSize = 0;
+	u32		i_remain_size = 0;
 	int		result = 0;
 
 	/*-------------------------------------------------------------*/
@@ -706,25 +706,25 @@ static int _nbu2ss_ep0_in_transfer(
 	data &= ~(u32)EP0_INAK;
 	_nbu2ss_writel(&udc->p_regs->EP0_CONTROL, data);
 
-	iRemainSize = req->req.length - req->req.actual;
-	pBuffer = (u8 *)req->req.buf;
-	pBuffer += req->req.actual;
+	i_remain_size = req->req.length - req->req.actual;
+	p_buffer = (u8 *)req->req.buf;
+	p_buffer += req->req.actual;
 
 	/*-------------------------------------------------------------*/
 	/* Data transfer */
-	result = EP0_in_PIO(udc, pBuffer, iRemainSize);
+	result = EP0_in_PIO(udc, p_buffer, i_remain_size);
 
 	req->div_len = result;
-	iRemainSize -= result;
+	i_remain_size -= result;
 
-	if (iRemainSize == 0) {
+	if (i_remain_size == 0) {
 		EP0_send_NULL(udc, FALSE);
 		return result;
 	}
 
-	if ((iRemainSize < sizeof(u32)) && (result != EP0_PACKETSIZE)) {
-		pBuffer += result;
-		result += ep0_in_overbytes(udc, pBuffer, iRemainSize);
+	if ((i_remain_size < sizeof(u32)) && (result != EP0_PACKETSIZE)) {
+		p_buffer += result;
+		result += ep0_in_overbytes(udc, p_buffer, i_remain_size);
 		req->div_len = result;
 	}
 
@@ -737,40 +737,40 @@ static int _nbu2ss_ep0_out_transfer(
 	struct nbu2ss_req *req
 )
 {
-	u8		*pBuffer;
-	u32		iRemainSize;
-	u32		iRecvLength;
+	u8		*p_buffer;
+	u32		i_remain_size;
+	u32		i_recv_length;
 	int		result = 0;
-	int		fRcvZero;
+	int		f_rcv_zero;
 
 	/*-------------------------------------------------------------*/
 	/* Receive data confirmation */
-	iRecvLength = _nbu2ss_readl(&udc->p_regs->EP0_LENGTH) & EP0_LDATA;
-	if (iRecvLength != 0) {
-		fRcvZero = 0;
+	i_recv_length = _nbu2ss_readl(&udc->p_regs->EP0_LENGTH) & EP0_LDATA;
+	if (i_recv_length != 0) {
+		f_rcv_zero = 0;
 
-		iRemainSize = req->req.length - req->req.actual;
-		pBuffer = (u8 *)req->req.buf;
-		pBuffer += req->req.actual;
+		i_remain_size = req->req.length - req->req.actual;
+		p_buffer = (u8 *)req->req.buf;
+		p_buffer += req->req.actual;
 
-		result = ep0_out_pio(udc, pBuffer
-					, min(iRemainSize, iRecvLength));
+		result = ep0_out_pio(udc, p_buffer
+					, min(i_remain_size, i_recv_length));
 		if (result < 0)
 			return result;
 
 		req->req.actual += result;
-		iRecvLength -= result;
+		i_recv_length -= result;
 
-		if ((iRecvLength > 0) && (iRecvLength < sizeof(u32))) {
-			pBuffer += result;
-			iRemainSize -= result;
+		if ((i_recv_length > 0) && (i_recv_length < sizeof(u32))) {
+			p_buffer += result;
+			i_remain_size -= result;
 
-			result = ep0_out_overbytes(udc, pBuffer
-					, min(iRemainSize, iRecvLength));
+			result = ep0_out_overbytes(udc, p_buffer
+					, min(i_remain_size, i_recv_length));
 			req->req.actual += result;
 		}
 	} else {
-		fRcvZero = 1;
+		f_rcv_zero = 1;
 	}
 
 	/*-------------------------------------------------------------*/
@@ -795,9 +795,9 @@ static int _nbu2ss_ep0_out_transfer(
 		return -EOVERFLOW;
 	}
 
-	if (fRcvZero != 0) {
-		iRemainSize = _nbu2ss_readl(&udc->p_regs->EP0_CONTROL);
-		if (iRemainSize & EP0_ONAK) {
+	if (f_rcv_zero != 0) {
+		i_remain_size = _nbu2ss_readl(&udc->p_regs->EP0_CONTROL);
+		if (i_remain_size & EP0_ONAK) {
 			/*---------------------------------------------------*/
 			/* NACK release */
 			_nbu2ss_bitclr(&udc->p_regs->EP0_CONTROL, EP0_ONAK);
@@ -816,7 +816,7 @@ static int _nbu2ss_out_dma(
 	u32		length
 )
 {
-	dma_addr_t	pBuffer;
+	dma_addr_t	p_buffer;
 	u32		mpkt;
 	u32		lmpkt;
 	u32		dmacnt;
@@ -829,11 +829,11 @@ static int _nbu2ss_out_dma(
 		return 1;		/* DMA is forwarded */
 
 	req->dma_flag = TRUE;
-	pBuffer = req->req.dma;
-	pBuffer += req->req.actual;
+	p_buffer = req->req.dma;
+	p_buffer += req->req.actual;
 
 	/* DMA Address */
-	_nbu2ss_writel(&preg->EP_DCR[num].EP_TADR, (u32)pBuffer);
+	_nbu2ss_writel(&preg->EP_DCR[num].EP_TADR, (u32)p_buffer);
 
 	/* Number of transfer packets */
 	mpkt = _nbu2ss_readl(&preg->EP_REGS[num].EP_PCKT_ADRS) & EPN_MPKT;
@@ -879,12 +879,12 @@ static int _nbu2ss_epn_out_pio(
 	u32		length
 )
 {
-	u8		*pBuffer;
+	u8		*p_buffer;
 	u32		i;
 	u32		data;
-	u32		iWordLength;
-	union usb_reg_access	Temp32;
-	union usb_reg_access	*pBuf32;
+	u32		i_word_length;
+	union usb_reg_access	temp_32;
+	union usb_reg_access	*p_buf_32;
 	int		result = 0;
 	struct fc_regs	*preg = udc->p_regs;
 
@@ -894,28 +894,28 @@ static int _nbu2ss_epn_out_pio(
 	if (length == 0)
 		return 0;
 
-	pBuffer = (u8 *)req->req.buf;
-	pBuf32 = (union usb_reg_access *)(pBuffer + req->req.actual);
+	p_buffer = (u8 *)req->req.buf;
+	p_buf_32 = (union usb_reg_access *)(p_buffer + req->req.actual);
 
-	iWordLength = length / sizeof(u32);
-	if (iWordLength > 0) {
+	i_word_length = length / sizeof(u32);
+	if (i_word_length > 0) {
 		/*---------------------------------------------------------*/
 		/* Copy of every four bytes */
-		for (i = 0; i < iWordLength; i++) {
-			pBuf32->dw =
+		for (i = 0; i < i_word_length; i++) {
+			p_buf_32->dw =
 			_nbu2ss_readl(&preg->EP_REGS[ep->epnum - 1].EP_READ);
-			pBuf32++;
+			p_buf_32++;
 		}
-		result = iWordLength * sizeof(u32);
+		result = i_word_length * sizeof(u32);
 	}
 
 	data = length - result;
 	if (data > 0) {
 		/*---------------------------------------------------------*/
 		/* Copy of fraction byte */
-		Temp32.dw = _nbu2ss_readl(&preg->EP_REGS[ep->epnum - 1].EP_READ);
+		temp_32.dw = _nbu2ss_readl(&preg->EP_REGS[ep->epnum - 1].EP_READ);
 		for (i = 0 ; i < data ; i++)
-			pBuf32->byte.DATA[i] = Temp32.byte.DATA[i];
+			p_buf_32->byte.DATA[i] = temp_32.byte.DATA[i];
 		result += data;
 	}
 
@@ -938,7 +938,7 @@ static int _nbu2ss_epn_out_data(
 )
 {
 	u32		num;
-	u32		iBufSize;
+	u32		i_buf_size;
 	int		nret = 1;
 
 	if (ep->epnum == 0)
@@ -946,14 +946,14 @@ static int _nbu2ss_epn_out_data(
 
 	num = ep->epnum - 1;
 
-	iBufSize = min((req->req.length - req->req.actual), data_size);
+	i_buf_size = min((req->req.length - req->req.actual), data_size);
 
 	if ((ep->ep_type != USB_ENDPOINT_XFER_INT) && (req->req.dma != 0) &&
-	    (iBufSize  >= sizeof(u32))) {
-		nret = _nbu2ss_out_dma(udc, req, num, iBufSize);
+	    (i_buf_size  >= sizeof(u32))) {
+		nret = _nbu2ss_out_dma(udc, req, num, i_buf_size);
 	} else {
-		iBufSize = min_t(u32, iBufSize, ep->ep.maxpacket);
-		nret = _nbu2ss_epn_out_pio(udc, ep, req, iBufSize);
+		i_buf_size = min_t(u32, i_buf_size, ep->ep.maxpacket);
+		nret = _nbu2ss_epn_out_pio(udc, ep, req, i_buf_size);
 	}
 
 	return nret;
@@ -967,7 +967,7 @@ static int _nbu2ss_epn_out_transfer(
 )
 {
 	u32		num;
-	u32		iRecvLength;
+	u32		i_recv_length;
 	int		result = 1;
 	struct fc_regs	*preg = udc->p_regs;
 
@@ -978,13 +978,13 @@ static int _nbu2ss_epn_out_transfer(
 
 	/*-------------------------------------------------------------*/
 	/* Receive Length */
-	iRecvLength
+	i_recv_length
 		= _nbu2ss_readl(&preg->EP_REGS[num].EP_LEN_DCNT) & EPN_LDATA;
 
-	if (iRecvLength != 0) {
-		result = _nbu2ss_epn_out_data(udc, ep, req, iRecvLength);
-		if (iRecvLength < ep->ep.maxpacket) {
-			if (iRecvLength == result) {
+	if (i_recv_length != 0) {
+		result = _nbu2ss_epn_out_data(udc, ep, req, i_recv_length);
+		if (i_recv_length < ep->ep.maxpacket) {
+			if (i_recv_length == result) {
 				req->req.actual += result;
 				result = 0;
 			}
@@ -1024,11 +1024,11 @@ static int _nbu2ss_in_dma(
 	u32		length
 )
 {
-	dma_addr_t	pBuffer;
+	dma_addr_t	p_buffer;
 	u32		mpkt;		/* MaxPacketSize */
 	u32		lmpkt;		/* Last Packet Data Size */
 	u32		dmacnt;		/* IN Data Size */
-	u32		iWriteLength;
+	u32		i_write_length;
 	u32		data;
 	int		result = -EINVAL;
 	struct fc_regs	*preg = udc->p_regs;
@@ -1046,15 +1046,15 @@ static int _nbu2ss_in_dma(
 	mpkt = _nbu2ss_readl(&preg->EP_REGS[num].EP_PCKT_ADRS) & EPN_MPKT;
 
 	if ((DMA_MAX_COUNT * mpkt) < length)
-		iWriteLength = DMA_MAX_COUNT * mpkt;
+		i_write_length = DMA_MAX_COUNT * mpkt;
 	else
-		iWriteLength = length;
+		i_write_length = length;
 
 	/*------------------------------------------------------------*/
 	/* Number of transmission packets */
-	if (mpkt < iWriteLength) {
-		dmacnt = iWriteLength / mpkt;
-		lmpkt  = (iWriteLength % mpkt) & ~(u32)0x3;
+	if (mpkt < i_write_length) {
+		dmacnt = i_write_length / mpkt;
+		lmpkt  = (i_write_length % mpkt) & ~(u32)0x3;
 		if (lmpkt != 0)
 			dmacnt++;
 		else
@@ -1062,7 +1062,7 @@ static int _nbu2ss_in_dma(
 
 	} else {
 		dmacnt = 1;
-		lmpkt  = iWriteLength & ~(u32)0x3;
+		lmpkt  = i_write_length & ~(u32)0x3;
 	}
 
 	/* Packet setting */
@@ -1070,9 +1070,9 @@ static int _nbu2ss_in_dma(
 	_nbu2ss_writel(&preg->EP_DCR[num].EP_DCR2, data);
 
 	/* Address setting */
-	pBuffer = req->req.dma;
-	pBuffer += req->req.actual;
-	_nbu2ss_writel(&preg->EP_DCR[num].EP_TADR, (u32)pBuffer);
+	p_buffer = req->req.dma;
+	p_buffer += req->req.actual;
+	_nbu2ss_writel(&preg->EP_DCR[num].EP_TADR, (u32)p_buffer);
 
 	/* Packet and DMA setting */
 	data = ((dmacnt & 0xff) << 16) | DCR1_EPN_REQEN;
@@ -1085,7 +1085,7 @@ static int _nbu2ss_in_dma(
 	/*DMA setting of EPC */
 	_nbu2ss_bitset(&preg->EP_REGS[num].EP_DMA_CTRL, EPN_DMA_EN);
 
-	result = iWriteLength & ~(u32)0x3;
+	result = i_write_length & ~(u32)0x3;
 	req->div_len = result;
 
 	return result;
@@ -1099,12 +1099,12 @@ static int _nbu2ss_epn_in_pio(
 	u32		length
 )
 {
-	u8		*pBuffer;
+	u8		*p_buffer;
 	u32		i;
 	u32		data;
-	u32		iWordLength;
-	union usb_reg_access	Temp32;
-	union usb_reg_access	*pBuf32 = NULL;
+	u32		i_word_length;
+	union usb_reg_access	temp_32;
+	union usb_reg_access	*p_buf_32 = NULL;
 	int		result = 0;
 	struct fc_regs	*preg = udc->p_regs;
 
@@ -1112,30 +1112,30 @@ static int _nbu2ss_epn_in_pio(
 		return 1;		/* DMA is forwarded */
 
 	if (length > 0) {
-		pBuffer = (u8 *)req->req.buf;
-		pBuf32 = (union usb_reg_access *)(pBuffer + req->req.actual);
+		p_buffer = (u8 *)req->req.buf;
+		p_buf_32 = (union usb_reg_access *)(p_buffer + req->req.actual);
 
-		iWordLength = length / sizeof(u32);
-		if (iWordLength > 0) {
-			for (i = 0; i < iWordLength; i++) {
+		i_word_length = length / sizeof(u32);
+		if (i_word_length > 0) {
+			for (i = 0; i < i_word_length; i++) {
 				_nbu2ss_writel(
 					&preg->EP_REGS[ep->epnum - 1].EP_WRITE
-					, pBuf32->dw
+					, p_buf_32->dw
 				);
 
-				pBuf32++;
+				p_buf_32++;
 			}
-			result = iWordLength * sizeof(u32);
+			result = i_word_length * sizeof(u32);
 		}
 	}
 
 	if (result != ep->ep.maxpacket) {
 		data = length - result;
-		Temp32.dw = 0;
+		temp_32.dw = 0;
 		for (i = 0 ; i < data ; i++)
-			Temp32.byte.DATA[i] = pBuf32->byte.DATA[i];
+			temp_32.byte.DATA[i] = p_buf_32->byte.DATA[i];
 
-		_nbu2ss_ep_in_end(udc, ep->epnum, Temp32.dw, data);
+		_nbu2ss_ep_in_end(udc, ep->epnum, temp_32.dw, data);
 		result += data;
 	}
 
@@ -1179,7 +1179,7 @@ static int _nbu2ss_epn_in_transfer(
 )
 {
 	u32		num;
-	u32		iBufSize;
+	u32		i_buf_size;
 	int		result = 0;
 	u32		status;
 
@@ -1203,9 +1203,9 @@ static int _nbu2ss_epn_in_transfer(
 
 	/*-------------------------------------------------------------*/
 	/* Start transfer */
-	iBufSize = req->req.length - req->req.actual;
-	if (iBufSize > 0)
-		result = _nbu2ss_epn_in_data(udc, ep, req, iBufSize);
+	i_buf_size = req->req.length - req->req.actual;
+	if (i_buf_size > 0)
+		result = _nbu2ss_epn_in_data(udc, ep, req, i_buf_size);
 	else if (req->req.length == 0)
 		_nbu2ss_zero_len_pkt(udc, ep->epnum);
 
@@ -1652,7 +1652,7 @@ static int std_req_set_address(struct nbu2ss_udc *udc)
 /*-------------------------------------------------------------------------*/
 static int std_req_set_configuration(struct nbu2ss_udc *udc)
 {
-	u32 ConfigValue = (u32)(udc->ctrl.wValue & 0x00ff);
+	u32 config_value = (u32)(udc->ctrl.wValue & 0x00ff);
 
 	if ((udc->ctrl.wIndex != 0x0000)	||
 	    (udc->ctrl.wLength != 0x0000)	||
@@ -1660,9 +1660,9 @@ static int std_req_set_configuration(struct nbu2ss_udc *udc)
 		return -EINVAL;
 	}
 
-	udc->curr_config = ConfigValue;
+	udc->curr_config = config_value;
 
-	if (ConfigValue > 0) {
+	if (config_value > 0) {
 		_nbu2ss_bitset(&udc->p_regs->USB_CONTROL, CONF);
 		udc->devstate = USB_STATE_CONFIGURED;
 
