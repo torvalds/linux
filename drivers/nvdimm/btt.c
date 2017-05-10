@@ -57,6 +57,14 @@ static int btt_info_write(struct arena_info *arena, struct btt_sb *super)
 {
 	int ret;
 
+	/*
+	 * infooff and info2off should always be at least 512B aligned.
+	 * We rely on that to make sure rw_bytes does error clearing
+	 * correctly, so make sure that is the case.
+	 */
+	WARN_ON_ONCE(!IS_ALIGNED(arena->infooff, 512));
+	WARN_ON_ONCE(!IS_ALIGNED(arena->info2off, 512));
+
 	ret = arena_write_bytes(arena, arena->info2off, super,
 			sizeof(struct btt_sb), 0);
 	if (ret)
@@ -394,9 +402,17 @@ static int btt_map_init(struct arena_info *arena)
 	if (!zerobuf)
 		return -ENOMEM;
 
+	/*
+	 * mapoff should always be at least 512B  aligned. We rely on that to
+	 * make sure rw_bytes does error clearing correctly, so make sure that
+	 * is the case.
+	 */
+	WARN_ON_ONCE(!IS_ALIGNED(arena->mapoff, 512));
+
 	while (mapsize) {
 		size_t size = min(mapsize, chunk_size);
 
+		WARN_ON_ONCE(size < 512);
 		ret = arena_write_bytes(arena, arena->mapoff + offset, zerobuf,
 				size, 0);
 		if (ret)
@@ -418,11 +434,36 @@ static int btt_map_init(struct arena_info *arena)
  */
 static int btt_log_init(struct arena_info *arena)
 {
+	size_t logsize = arena->info2off - arena->logoff;
+	size_t chunk_size = SZ_4K, offset = 0;
+	struct log_entry log;
+	void *zerobuf;
 	int ret;
 	u32 i;
-	struct log_entry log, zerolog;
 
-	memset(&zerolog, 0, sizeof(zerolog));
+	zerobuf = kzalloc(chunk_size, GFP_KERNEL);
+	if (!zerobuf)
+		return -ENOMEM;
+	/*
+	 * logoff should always be at least 512B  aligned. We rely on that to
+	 * make sure rw_bytes does error clearing correctly, so make sure that
+	 * is the case.
+	 */
+	WARN_ON_ONCE(!IS_ALIGNED(arena->logoff, 512));
+
+	while (logsize) {
+		size_t size = min(logsize, chunk_size);
+
+		WARN_ON_ONCE(size < 512);
+		ret = arena_write_bytes(arena, arena->logoff + offset, zerobuf,
+				size, 0);
+		if (ret)
+			goto free;
+
+		offset += size;
+		logsize -= size;
+		cond_resched();
+	}
 
 	for (i = 0; i < arena->nfree; i++) {
 		log.lba = cpu_to_le32(i);
@@ -431,13 +472,12 @@ static int btt_log_init(struct arena_info *arena)
 		log.seq = cpu_to_le32(LOG_SEQ_INIT);
 		ret = __btt_log_write(arena, i, 0, &log, 0);
 		if (ret)
-			return ret;
-		ret = __btt_log_write(arena, i, 1, &zerolog, 0);
-		if (ret)
-			return ret;
+			goto free;
 	}
 
-	return 0;
+ free:
+	kfree(zerobuf);
+	return ret;
 }
 
 static int btt_freelist_init(struct arena_info *arena)
