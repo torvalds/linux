@@ -2307,10 +2307,11 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 	/* Place limits on the number of roothub ports so that the hub
 	 * descriptors aren't longer than the USB core will allocate.
 	 */
-	if (xhci->num_usb3_ports > 15) {
+	if (xhci->num_usb3_ports > USB_SS_MAXPORTS) {
 		xhci_dbg_trace(xhci, trace_xhci_dbg_init,
-				"Limiting USB 3.0 roothub ports to 15.");
-		xhci->num_usb3_ports = 15;
+				"Limiting USB 3.0 roothub ports to %u.",
+				USB_SS_MAXPORTS);
+		xhci->num_usb3_ports = USB_SS_MAXPORTS;
 	}
 	if (xhci->num_usb2_ports > USB_MAXCHILDREN) {
 		xhci_dbg_trace(xhci, trace_xhci_dbg_init,
