@@ -588,17 +588,6 @@ static void qpnpint_irq_unmask(struct irq_data *d)
 	qpnpint_spmi_write(d, QPNPINT_REG_EN_CLR, &data, 1);
 }
 
-static void qpnpint_irq_enable(struct irq_data *d)
-{
-	u8 irq  = d->hwirq >> 8;
-	u8 data;
-
-	qpnpint_irq_unmask(d);
-
-	data = BIT(irq);
-	qpnpint_spmi_write(d, QPNPINT_REG_LATCHED_CLR, &data, 1);
-}
-
 static int qpnpint_irq_set_type(struct irq_data *d, unsigned int flow_type)
 {
 	struct spmi_pmic_arb_qpnpint_type type;
@@ -647,7 +636,6 @@ static int qpnpint_get_irqchip_state(struct irq_data *d,
 
 static struct irq_chip pmic_arb_irqchip = {
 	.name		= "pmic_arb",
-	.irq_enable	= qpnpint_irq_enable,
 	.irq_ack	= qpnpint_irq_ack,
 	.irq_mask	= qpnpint_irq_mask,
 	.irq_unmask	= qpnpint_irq_unmask,
@@ -655,12 +643,6 @@ static struct irq_chip pmic_arb_irqchip = {
 	.irq_get_irqchip_state	= qpnpint_get_irqchip_state,
 	.flags		= IRQCHIP_MASK_ON_SUSPEND
 			| IRQCHIP_SKIP_SET_WAKE,
-};
-
-struct spmi_pmic_arb_irq_spec {
-	unsigned slave:4;
-	unsigned per:8;
-	unsigned irq:3;
 };
 
 static int qpnpint_irq_domain_dt_translate(struct irq_domain *d,
@@ -671,7 +653,6 @@ static int qpnpint_irq_domain_dt_translate(struct irq_domain *d,
 					   unsigned int *out_type)
 {
 	struct spmi_pmic_arb *pa = d->host_data;
-	struct spmi_pmic_arb_irq_spec spec;
 	int rc;
 	u8 apid;
 
@@ -685,10 +666,6 @@ static int qpnpint_irq_domain_dt_translate(struct irq_domain *d,
 		return -EINVAL;
 	if (intspec[0] > 0xF || intspec[1] > 0xFF || intspec[2] > 0x7)
 		return -EINVAL;
-
-	spec.slave = intspec[0];
-	spec.per   = intspec[1];
-	spec.irq   = intspec[2];
 
 	rc = pa->ver_ops->ppid_to_apid(pa, intspec[0],
 			(intspec[1] << 8), &apid);
@@ -705,9 +682,9 @@ static int qpnpint_irq_domain_dt_translate(struct irq_domain *d,
 	if (apid < pa->min_apid)
 		pa->min_apid = apid;
 
-	*out_hwirq = spec.slave << 24
-		   | spec.per   << 16
-		   | spec.irq   << 8
+	*out_hwirq = (intspec[0] & 0xF) << 24
+		   | (intspec[1] & 0xFF) << 16
+		   | (intspec[2] & 0x7) << 8
 		   | apid;
 	*out_type  = intspec[3] & IRQ_TYPE_SENSE_MASK;
 
