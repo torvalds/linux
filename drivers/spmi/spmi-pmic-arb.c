@@ -625,6 +625,12 @@ static int qpnpint_irq_set_type(struct irq_data *d, unsigned int flow_type)
 	}
 
 	qpnpint_spmi_write(d, QPNPINT_REG_SET_TYPE, &type, sizeof(type));
+
+	if (flow_type & IRQ_TYPE_EDGE_BOTH)
+		irq_set_handler_locked(d, handle_edge_irq);
+	else
+		irq_set_handler_locked(d, handle_level_irq);
+
 	return 0;
 }
 
