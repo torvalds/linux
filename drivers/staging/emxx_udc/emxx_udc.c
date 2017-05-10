@@ -574,12 +574,12 @@ static int ep0_out_pio(struct nbu2ss_udc *udc, u8 *buf, u32 length)
 
 /*-------------------------------------------------------------------------*/
 /* Endpoint 0 OUT Transfer (PIO, OverBytes) */
-static int ep0_out_overbytes(struct nbu2ss_udc *udc, u8 *pBuf, u32 length)
+static int ep0_out_overbytes(struct nbu2ss_udc *udc, u8 *p_buf, u32 length)
 {
 	u32		i;
 	u32		i_read_size = 0;
 	union usb_reg_access  temp_32;
-	union usb_reg_access  *p_buf_32 = (union usb_reg_access *)pBuf;
+	union usb_reg_access  *p_buf_32 = (union usb_reg_access *)p_buf;
 
 	if ((length > 0) && (length < sizeof(u32))) {
 		temp_32.dw = _nbu2ss_readl(&udc->p_regs->EP0_READ);
@@ -593,13 +593,13 @@ static int ep0_out_overbytes(struct nbu2ss_udc *udc, u8 *pBuf, u32 length)
 
 /*-------------------------------------------------------------------------*/
 /* Endpoint 0 IN Transfer (PIO) */
-static int EP0_in_PIO(struct nbu2ss_udc *udc, u8 *pBuf, u32 length)
+static int EP0_in_PIO(struct nbu2ss_udc *udc, u8 *p_buf, u32 length)
 {
 	u32		i;
 	u32		i_max_length   = EP0_PACKETSIZE;
 	u32		i_word_length  = 0;
 	u32		i_write_length = 0;
-	union usb_reg_access  *p_buf_32 = (union usb_reg_access *)pBuf;
+	union usb_reg_access  *p_buf_32 = (union usb_reg_access *)p_buf;
 
 	/*------------------------------------------------------------*/
 	/* Transfer Length */
@@ -621,11 +621,11 @@ static int EP0_in_PIO(struct nbu2ss_udc *udc, u8 *pBuf, u32 length)
 
 /*-------------------------------------------------------------------------*/
 /* Endpoint 0 IN Transfer (PIO, OverBytes) */
-static int ep0_in_overbytes(struct nbu2ss_udc *udc, u8 *pBuf, u32 i_remain_size)
+static int ep0_in_overbytes(struct nbu2ss_udc *udc, u8 *p_buf, u32 i_remain_size)
 {
 	u32		i;
 	union usb_reg_access  temp_32;
-	union usb_reg_access  *p_buf_32 = (union usb_reg_access *)pBuf;
+	union usb_reg_access  *p_buf_32 = (union usb_reg_access *)p_buf;
 
 	if ((i_remain_size > 0) && (i_remain_size < sizeof(u32))) {
 		for (i = 0 ; i < i_remain_size ; i++)
