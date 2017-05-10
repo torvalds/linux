@@ -1502,7 +1502,7 @@ static void get_ctl_amp_tlv(struct snd_kcontrol *kcontrol, unsigned int *tlv)
 }
 
 /**
- * snd_hda_mixer_amp_volume_put - TLV callback for a standard AMP mixer volume
+ * snd_hda_mixer_amp_tlv - TLV callback for a standard AMP mixer volume
  * @kcontrol: ctl element
  * @op_flag: operation flag
  * @size: byte size of input TLV
