@@ -30,6 +30,7 @@
 #include <linux/percpu-rwsem.h>
 #include <linux/workqueue.h>
 #include <linux/delayed_call.h>
+#include <linux/uuid.h>
 
 #include <asm/byteorder.h>
 #include <uapi/linux/fs.h>
@@ -1328,8 +1329,8 @@ struct super_block {
 
 	struct sb_writers	s_writers;
 
-	char s_id[32];				/* Informational name */
-	u8 s_uuid[16];				/* UUID */
+	char			s_id[32];	/* Informational name */
+	uuid_t			s_uuid;		/* UUID */
 
 	void 			*s_fs_info;	/* Filesystem private info */
 	unsigned int		s_max_links;

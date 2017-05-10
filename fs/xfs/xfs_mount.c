@@ -74,8 +74,7 @@ xfs_uuid_mount(
 	int			hole, i;
 
 	/* Publish UUID in struct super_block */
-	BUILD_BUG_ON(sizeof(mp->m_super->s_uuid) != sizeof(uuid_t));
-	memcpy(&mp->m_super->s_uuid, uuid, sizeof(uuid_t));
+	uuid_copy(&mp->m_super->s_uuid, uuid);
 
 	if (mp->m_flags & XFS_MOUNT_NOUUID)
 		return 0;
