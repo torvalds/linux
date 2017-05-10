@@ -181,20 +181,6 @@ void snd_pcm_stream_unlock_irqrestore(struct snd_pcm_substream *substream,
 }
 EXPORT_SYMBOL_GPL(snd_pcm_stream_unlock_irqrestore);
 
-static inline mm_segment_t snd_enter_user(void)
-{
-	mm_segment_t fs = get_fs();
-	set_fs(get_ds());
-	return fs;
-}
-
-static inline void snd_leave_user(mm_segment_t fs)
-{
-	set_fs(fs);
-}
-
-
-
 int snd_pcm_info(struct snd_pcm_substream *substream, struct snd_pcm_info *info)
 {
 	struct snd_pcm_runtime *runtime;
@@ -1081,11 +1067,19 @@ static const struct action_ops snd_pcm_action_start = {
  * @substream: the PCM substream instance
  *
  * Return: Zero if successful, or a negative error code.
+ * The stream lock must be acquired before calling this function.
  */
 int snd_pcm_start(struct snd_pcm_substream *substream)
 {
 	return snd_pcm_action(&snd_pcm_action_start, substream,
 			      SNDRV_PCM_STATE_RUNNING);
+}
+
+/* take the stream lock and start the streams */
+static int snd_pcm_start_lock_irq(struct snd_pcm_substream *substream)
+{
+	return snd_pcm_action_lock_irq(&snd_pcm_action_start, substream,
+				       SNDRV_PCM_STATE_RUNNING);
 }
 
 /*
@@ -2575,8 +2569,7 @@ static int snd_pcm_hwsync(struct snd_pcm_substream *substream)
 	return err;
 }
 		
-static int snd_pcm_delay(struct snd_pcm_substream *substream,
-			 snd_pcm_sframes_t __user *res)
+static snd_pcm_sframes_t snd_pcm_delay(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
@@ -2592,10 +2585,7 @@ static int snd_pcm_delay(struct snd_pcm_substream *substream,
 		n += runtime->delay;
 	}
 	snd_pcm_stream_unlock_irq(substream);
-	if (!err)
-		if (put_user(n, res))
-			err = -EFAULT;
-	return err;
+	return err < 0 ? err : n;
 }
 		
 static int snd_pcm_sync_ptr(struct snd_pcm_substream *substream,
@@ -2683,7 +2673,7 @@ static int snd_pcm_common_ioctl1(struct file *file,
 	case SNDRV_PCM_IOCTL_RESET:
 		return snd_pcm_reset(substream);
 	case SNDRV_PCM_IOCTL_START:
-		return snd_pcm_action_lock_irq(&snd_pcm_action_start, substream, SNDRV_PCM_STATE_RUNNING);
+		return snd_pcm_start_lock_irq(substream);
 	case SNDRV_PCM_IOCTL_LINK:
 		return snd_pcm_link(substream, (int)(unsigned long) arg);
 	case SNDRV_PCM_IOCTL_UNLINK:
@@ -2695,7 +2685,16 @@ static int snd_pcm_common_ioctl1(struct file *file,
 	case SNDRV_PCM_IOCTL_HWSYNC:
 		return snd_pcm_hwsync(substream);
 	case SNDRV_PCM_IOCTL_DELAY:
-		return snd_pcm_delay(substream, arg);
+	{
+		snd_pcm_sframes_t delay = snd_pcm_delay(substream);
+		snd_pcm_sframes_t __user *res = arg;
+
+		if (delay < 0)
+			return delay;
+		if (put_user(delay, res))
+			return -EFAULT;
+		return 0;
+	}
 	case SNDRV_PCM_IOCTL_SYNC_PTR:
 		return snd_pcm_sync_ptr(substream, arg);
 #ifdef CONFIG_SND_SUPPORT_OLD_API
@@ -2909,30 +2908,55 @@ static long snd_pcm_capture_ioctl(struct file *file, unsigned int cmd,
 				      (void __user *)arg);
 }
 
+/**
+ * snd_pcm_kernel_ioctl - Execute PCM ioctl in the kernel-space
+ * @substream: PCM substream
+ * @cmd: IOCTL cmd
+ * @arg: IOCTL argument
+ *
+ * The function is provided primarily for OSS layer and USB gadget drivers,
+ * and it allows only the limited set of ioctls (hw_params, sw_params,
+ * prepare, start, drain, drop, forward).
+ */
 int snd_pcm_kernel_ioctl(struct snd_pcm_substream *substream,
 			 unsigned int cmd, void *arg)
 {
-	mm_segment_t fs;
-	int result;
+	snd_pcm_uframes_t *frames = arg;
+	snd_pcm_sframes_t result;
 	
-	fs = snd_enter_user();
-	switch (substream->stream) {
-	case SNDRV_PCM_STREAM_PLAYBACK:
-		result = snd_pcm_playback_ioctl1(NULL, substream, cmd,
-						 (void __user *)arg);
-		break;
-	case SNDRV_PCM_STREAM_CAPTURE:
-		result = snd_pcm_capture_ioctl1(NULL, substream, cmd,
-						(void __user *)arg);
-		break;
-	default:
-		result = -EINVAL;
-		break;
+	switch (cmd) {
+	case SNDRV_PCM_IOCTL_FORWARD:
+	{
+		/* provided only for OSS; capture-only and no value returned */
+		if (substream->stream != SNDRV_PCM_STREAM_CAPTURE)
+			return -EINVAL;
+		result = snd_pcm_capture_forward(substream, *frames);
+		return result < 0 ? result : 0;
 	}
-	snd_leave_user(fs);
-	return result;
+	case SNDRV_PCM_IOCTL_HW_PARAMS:
+		return snd_pcm_hw_params(substream, arg);
+	case SNDRV_PCM_IOCTL_SW_PARAMS:
+		return snd_pcm_sw_params(substream, arg);
+	case SNDRV_PCM_IOCTL_PREPARE:
+		return snd_pcm_prepare(substream, NULL);
+	case SNDRV_PCM_IOCTL_START:
+		return snd_pcm_start_lock_irq(substream);
+	case SNDRV_PCM_IOCTL_DRAIN:
+		return snd_pcm_drain(substream, NULL);
+	case SNDRV_PCM_IOCTL_DROP:
+		return snd_pcm_drop(substream);
+	case SNDRV_PCM_IOCTL_DELAY:
+	{
+		result = snd_pcm_delay(substream);
+		if (result < 0)
+			return result;
+		*frames = result;
+		return 0;
+	}
+	default:
+		return -EINVAL;
+	}
 }
-
 EXPORT_SYMBOL(snd_pcm_kernel_ioctl);
 
 static ssize_t snd_pcm_read(struct file *file, char __user *buf, size_t count,
