@@ -580,12 +580,22 @@ static void qpnpint_irq_unmask(struct irq_data *d)
 	struct spmi_pmic_arb *pa = irq_data_get_irq_chip_data(d);
 	u8 irq  = d->hwirq >> 8;
 	u8 apid = d->hwirq;
-	u8 data = BIT(irq);
+	u8 buf[2];
 
 	writel_relaxed(SPMI_PIC_ACC_ENABLE_BIT,
 		pa->intr + pa->ver_ops->acc_enable(apid));
 
-	qpnpint_spmi_write(d, QPNPINT_REG_EN_CLR, &data, 1);
+	qpnpint_spmi_read(d, QPNPINT_REG_EN_SET, &buf[0], 1);
+	if (!(buf[0] & BIT(irq))) {
+		/*
+		 * Since the interrupt is currently disabled, write to both the
+		 * LATCHED_CLR and EN_SET registers so that a spurious interrupt
+		 * cannot be triggered when the interrupt is enabled
+		 */
+		buf[0] = BIT(irq);
+		buf[1] = BIT(irq);
+		qpnpint_spmi_write(d, QPNPINT_REG_LATCHED_CLR, &buf, 2);
+	}
 }
 
 static int qpnpint_irq_set_type(struct irq_data *d, unsigned int flow_type)
