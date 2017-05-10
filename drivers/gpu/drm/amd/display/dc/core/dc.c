@@ -1051,8 +1051,13 @@ static bool is_surface_in_context(
 static unsigned int pixel_format_to_bpp(enum surface_pixel_format format)
 {
 	switch (format) {
+	case SURFACE_PIXEL_FORMAT_VIDEO_420_YCbCr:
+	case SURFACE_PIXEL_FORMAT_VIDEO_420_YCrCb:
+		return 12;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB1555:
 	case SURFACE_PIXEL_FORMAT_GRPH_RGB565:
+	case SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCbCr:
+	case SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCrCb:
 		return 16;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB8888:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR8888:
