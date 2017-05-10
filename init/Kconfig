@@ -697,37 +697,6 @@ config RCU_BOOST
 	  Say Y here if you are working with real-time apps or heavy loads
 	  Say N here if you are unsure.
 
-config RCU_KTHREAD_PRIO
-	int "Real-time priority to use for RCU worker threads"
-	range 1 99 if RCU_BOOST
-	range 0 99 if !RCU_BOOST
-	default 1 if RCU_BOOST
-	default 0 if !RCU_BOOST
-	depends on RCU_EXPERT
-	help
-	  This option specifies the SCHED_FIFO priority value that will be
-	  assigned to the rcuc/n and rcub/n threads and is also the value
-	  used for RCU_BOOST (if enabled). If you are working with a
-	  real-time application that has one or more CPU-bound threads
-	  running at a real-time priority level, you should set
-	  RCU_KTHREAD_PRIO to a priority higher than the highest-priority
-	  real-time CPU-bound application thread.  The default RCU_KTHREAD_PRIO
-	  value of 1 is appropriate in the common case, which is real-time
-	  applications that do not have any CPU-bound threads.
-
-	  Some real-time applications might not have a single real-time
-	  thread that saturates a given CPU, but instead might have
-	  multiple real-time threads that, taken together, fully utilize
-	  that CPU.  In this case, you should set RCU_KTHREAD_PRIO to
-	  a priority higher than the lowest-priority thread that is
-	  conspiring to prevent the CPU from running any non-real-time
-	  tasks.  For example, if one thread at priority 10 and another
-	  thread at priority 5 are between themselves fully consuming
-	  the CPU time on a given CPU, then RCU_KTHREAD_PRIO should be
-	  set to priority 6 or higher.
-
-	  Specify the real-time priority, or take the default if unsure.
-
 config RCU_BOOST_DELAY
 	int "Milliseconds to delay boosting after RCU grace-period start"
 	range 0 3000
