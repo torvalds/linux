@@ -827,6 +827,7 @@ static int aac_eh_reset(struct scsi_cmnd* cmd)
 	int count;
 	u32 bus, cid;
 	int ret = FAILED;
+	int status = 0;
 
 	bus = aac_logical_to_phys(scmd_channel(cmd));
 	cid = scmd_id(cmd);
@@ -920,6 +921,14 @@ static int aac_eh_reset(struct scsi_cmnd* cmd)
 
 		pr_err("%s: Host adapter reset request. SCSI hang ?\n",
 					AAC_DRIVERNAME);
+
+		/*
+		 * Check the health of the controller
+		 */
+		status = aac_adapter_check_health(aac);
+		if (status)
+			dev_err(&aac->pdev->dev, "Adapter health - %d\n",
+									status);
 
 		count = get_num_of_incomplete_fibs(aac);
 		if (count == 0)
