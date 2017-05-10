@@ -574,7 +574,7 @@ static int ep0_out_pio(struct nbu2ss_udc *udc, u8 *buf, u32 length)
 
 /*-------------------------------------------------------------------------*/
 /* Endpoint 0 OUT Transfer (PIO, OverBytes) */
-static int EP0_out_OverBytes(struct nbu2ss_udc *udc, u8 *pBuf, u32 length)
+static int ep0_out_overbytes(struct nbu2ss_udc *udc, u8 *pBuf, u32 length)
 {
 	u32		i;
 	u32		iReadSize = 0;
@@ -621,7 +621,7 @@ static int EP0_in_PIO(struct nbu2ss_udc *udc, u8 *pBuf, u32 length)
 
 /*-------------------------------------------------------------------------*/
 /* Endpoint 0 IN Transfer (PIO, OverBytes) */
-static int EP0_in_OverBytes(struct nbu2ss_udc *udc, u8 *pBuf, u32 iRemainSize)
+static int ep0_in_overbytes(struct nbu2ss_udc *udc, u8 *pBuf, u32 iRemainSize)
 {
 	u32		i;
 	union usb_reg_access  Temp32;
@@ -724,7 +724,7 @@ static int _nbu2ss_ep0_in_transfer(
 
 	if ((iRemainSize < sizeof(u32)) && (result != EP0_PACKETSIZE)) {
 		pBuffer += result;
-		result += EP0_in_OverBytes(udc, pBuffer, iRemainSize);
+		result += ep0_in_overbytes(udc, pBuffer, iRemainSize);
 		req->div_len = result;
 	}
 
@@ -765,7 +765,7 @@ static int _nbu2ss_ep0_out_transfer(
 			pBuffer += result;
 			iRemainSize -= result;
 
-			result = EP0_out_OverBytes(udc, pBuffer
+			result = ep0_out_overbytes(udc, pBuffer
 					, min(iRemainSize, iRecvLength));
 			req->req.actual += result;
 		}
