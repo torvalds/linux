@@ -2118,61 +2118,62 @@ static bool __has_curseg_space(struct f2fs_sb_info *sbi, int type)
 	return false;
 }
 
-static int __get_segment_type_2(struct page *page, enum page_type p_type)
+static int __get_segment_type_2(struct f2fs_io_info *fio)
 {
-	if (p_type == DATA)
+	if (fio->type == DATA)
 		return CURSEG_HOT_DATA;
 	else
 		return CURSEG_HOT_NODE;
 }
 
-static int __get_segment_type_4(struct page *page, enum page_type p_type)
+static int __get_segment_type_4(struct f2fs_io_info *fio)
 {
-	if (p_type == DATA) {
-		struct inode *inode = page->mapping->host;
+	if (fio->type == DATA) {
+		struct inode *inode = fio->page->mapping->host;
 
 		if (S_ISDIR(inode->i_mode))
 			return CURSEG_HOT_DATA;
 		else
 			return CURSEG_COLD_DATA;
 	} else {
-		if (IS_DNODE(page) && is_cold_node(page))
+		if (IS_DNODE(fio->page) && is_cold_node(fio->page))
 			return CURSEG_WARM_NODE;
 		else
 			return CURSEG_COLD_NODE;
 	}
 }
 
-static int __get_segment_type_6(struct page *page, enum page_type p_type)
+static int __get_segment_type_6(struct f2fs_io_info *fio)
 {
-	if (p_type == DATA) {
-		struct inode *inode = page->mapping->host;
+	if (fio->type == DATA) {
+		struct inode *inode = fio->page->mapping->host;
 
-		if (is_cold_data(page) || file_is_cold(inode))
+		if (is_cold_data(fio->page) || file_is_cold(inode))
 			return CURSEG_COLD_DATA;
 		if (is_inode_flag_set(inode, FI_HOT_DATA))
 			return CURSEG_HOT_DATA;
 		return CURSEG_WARM_DATA;
 	} else {
-		if (IS_DNODE(page))
-			return is_cold_node(page) ? CURSEG_WARM_NODE :
+		if (IS_DNODE(fio->page))
+			return is_cold_node(fio->page) ? CURSEG_WARM_NODE :
 						CURSEG_HOT_NODE;
 		return CURSEG_COLD_NODE;
 	}
 }
 
-static int __get_segment_type(struct page *page, enum page_type p_type)
+static int __get_segment_type(struct f2fs_io_info *fio)
 {
-	switch (F2FS_P_SB(page)->active_logs) {
+	switch (fio->sbi->active_logs) {
 	case 2:
-		return __get_segment_type_2(page, p_type);
+		return __get_segment_type_2(fio);
 	case 4:
-		return __get_segment_type_4(page, p_type);
+		return __get_segment_type_4(fio);
 	}
+
 	/* NR_CURSEG_TYPE(6) logs by default */
-	f2fs_bug_on(F2FS_P_SB(page),
-		F2FS_P_SB(page)->active_logs != NR_CURSEG_TYPE);
-	return __get_segment_type_6(page, p_type);
+	f2fs_bug_on(fio->sbi, fio->sbi->active_logs != NR_CURSEG_TYPE);
+
+	return __get_segment_type_6(fio);
 }
 
 void allocate_data_block(struct f2fs_sb_info *sbi, struct page *page,
@@ -2218,7 +2219,7 @@ void allocate_data_block(struct f2fs_sb_info *sbi, struct page *page,
 
 static void do_write_page(struct f2fs_summary *sum, struct f2fs_io_info *fio)
 {
-	int type = __get_segment_type(fio->page, fio->type);
+	int type = __get_segment_type(fio);
 	int err;
 
 	if (fio->type == NODE || fio->type == DATA)
