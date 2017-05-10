@@ -481,7 +481,7 @@ EXPORT_SYMBOL(input_inject_event);
 void input_alloc_absinfo(struct input_dev *dev)
 {
 	if (!dev->absinfo)
-		dev->absinfo = kcalloc(ABS_CNT, sizeof(struct input_absinfo),
+		dev->absinfo = kcalloc(ABS_CNT, sizeof(*dev->absinfo),
 					GFP_KERNEL);
 
 	WARN(!dev->absinfo, "%s(): kcalloc() failed?\n", __func__);
@@ -1783,7 +1783,7 @@ struct input_dev *input_allocate_device(void)
 	static atomic_t input_no = ATOMIC_INIT(-1);
 	struct input_dev *dev;
 
-	dev = kzalloc(sizeof(struct input_dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev) {
 		dev->dev.type = &input_dev_type;
 		dev->dev.class = &input_class;
@@ -1849,7 +1849,7 @@ struct input_dev *devm_input_allocate_device(struct device *dev)
 	struct input_devres *devres;
 
 	devres = devres_alloc(devm_input_device_release,
-			      sizeof(struct input_devres), GFP_KERNEL);
+			      sizeof(*devres), GFP_KERNEL);
 	if (!devres)
 		return NULL;
 
@@ -2099,7 +2099,7 @@ int input_register_device(struct input_dev *dev)
 
 	if (dev->devres_managed) {
 		devres = devres_alloc(devm_input_device_unregister,
-				      sizeof(struct input_devres), GFP_KERNEL);
+				      sizeof(*devres), GFP_KERNEL);
 		if (!devres)
 			return -ENOMEM;
 
