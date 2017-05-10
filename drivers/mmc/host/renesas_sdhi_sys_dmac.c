@@ -20,7 +20,8 @@
 
 #define TMIO_MMC_MIN_DMA_LEN 8
 
-static void tmio_mmc_enable_dma(struct tmio_mmc_host *host, bool enable)
+static void renesas_sdhi_sys_dmac_enable_dma(struct tmio_mmc_host *host,
+					     bool enable)
 {
 	if (!host->chan_tx || !host->chan_rx)
 		return;
@@ -29,19 +30,19 @@ static void tmio_mmc_enable_dma(struct tmio_mmc_host *host, bool enable)
 		host->dma->enable(host, enable);
 }
 
-static void tmio_mmc_abort_dma(struct tmio_mmc_host *host)
+static void renesas_sdhi_sys_dmac_abort_dma(struct tmio_mmc_host *host)
 {
-	tmio_mmc_enable_dma(host, false);
+	renesas_sdhi_sys_dmac_enable_dma(host, false);
 
 	if (host->chan_rx)
 		dmaengine_terminate_all(host->chan_rx);
 	if (host->chan_tx)
 		dmaengine_terminate_all(host->chan_tx);
 
-	tmio_mmc_enable_dma(host, true);
+	renesas_sdhi_sys_dmac_enable_dma(host, true);
 }
 
-static void tmio_mmc_dma_callback(void *arg)
+static void renesas_sdhi_sys_dmac_dma_callback(void *arg)
 {
 	struct tmio_mmc_host *host = arg;
 
@@ -69,7 +70,7 @@ out:
 	spin_unlock_irq(&host->lock);
 }
 
-static void tmio_mmc_start_dma_rx(struct tmio_mmc_host *host)
+static void renesas_sdhi_sys_dmac_start_dma_rx(struct tmio_mmc_host *host)
 {
 	struct scatterlist *sg = host->sg_ptr, *sg_tmp;
 	struct dma_async_tx_descriptor *desc = NULL;
@@ -115,7 +116,7 @@ static void tmio_mmc_start_dma_rx(struct tmio_mmc_host *host)
 
 	if (desc) {
 		reinit_completion(&host->dma_dataend);
-		desc->callback = tmio_mmc_dma_callback;
+		desc->callback = renesas_sdhi_sys_dmac_dma_callback;
 		desc->callback_param = host;
 
 		cookie = dmaengine_submit(desc);
@@ -127,7 +128,7 @@ static void tmio_mmc_start_dma_rx(struct tmio_mmc_host *host)
 pio:
 	if (!desc) {
 		/* DMA failed, fall back to PIO */
-		tmio_mmc_enable_dma(host, false);
+		renesas_sdhi_sys_dmac_enable_dma(host, false);
 		if (ret >= 0)
 			ret = -EIO;
 		host->chan_rx = NULL;
@@ -143,7 +144,7 @@ pio:
 	}
 }
 
-static void tmio_mmc_start_dma_tx(struct tmio_mmc_host *host)
+static void renesas_sdhi_sys_dmac_start_dma_tx(struct tmio_mmc_host *host)
 {
 	struct scatterlist *sg = host->sg_ptr, *sg_tmp;
 	struct dma_async_tx_descriptor *desc = NULL;
@@ -193,7 +194,7 @@ static void tmio_mmc_start_dma_tx(struct tmio_mmc_host *host)
 
 	if (desc) {
 		reinit_completion(&host->dma_dataend);
-		desc->callback = tmio_mmc_dma_callback;
+		desc->callback = renesas_sdhi_sys_dmac_dma_callback;
 		desc->callback_param = host;
 
 		cookie = dmaengine_submit(desc);
@@ -205,7 +206,7 @@ static void tmio_mmc_start_dma_tx(struct tmio_mmc_host *host)
 pio:
 	if (!desc) {
 		/* DMA failed, fall back to PIO */
-		tmio_mmc_enable_dma(host, false);
+		renesas_sdhi_sys_dmac_enable_dma(host, false);
 		if (ret >= 0)
 			ret = -EIO;
 		host->chan_tx = NULL;
@@ -221,19 +222,19 @@ pio:
 	}
 }
 
-static void tmio_mmc_start_dma(struct tmio_mmc_host *host,
+static void renesas_sdhi_sys_dmac_start_dma(struct tmio_mmc_host *host,
 			       struct mmc_data *data)
 {
 	if (data->flags & MMC_DATA_READ) {
 		if (host->chan_rx)
-			tmio_mmc_start_dma_rx(host);
+			renesas_sdhi_sys_dmac_start_dma_rx(host);
 	} else {
 		if (host->chan_tx)
-			tmio_mmc_start_dma_tx(host);
+			renesas_sdhi_sys_dmac_start_dma_tx(host);
 	}
 }
 
-static void tmio_mmc_issue_tasklet_fn(unsigned long priv)
+static void renesas_sdhi_sys_dmac_issue_tasklet_fn(unsigned long priv)
 {
 	struct tmio_mmc_host *host = (struct tmio_mmc_host *)priv;
 	struct dma_chan *chan = NULL;
@@ -255,8 +256,8 @@ static void tmio_mmc_issue_tasklet_fn(unsigned long priv)
 		dma_async_issue_pending(chan);
 }
 
-static void tmio_mmc_request_dma(struct tmio_mmc_host *host,
-				 struct tmio_mmc_data *pdata)
+static void renesas_sdhi_sys_dmac_request_dma(struct tmio_mmc_host *host,
+					      struct tmio_mmc_data *pdata)
 {
 	/* We can only either use DMA for both Tx and Rx or not use it at all */
 	if (!host->dma || (!host->pdev->dev.of_node &&
@@ -319,10 +320,12 @@ static void tmio_mmc_request_dma(struct tmio_mmc_host *host,
 			goto ebouncebuf;
 
 		init_completion(&host->dma_dataend);
-		tasklet_init(&host->dma_issue, tmio_mmc_issue_tasklet_fn, (unsigned long)host);
+		tasklet_init(&host->dma_issue,
+			     renesas_sdhi_sys_dmac_issue_tasklet_fn,
+			     (unsigned long)host);
 	}
 
-	tmio_mmc_enable_dma(host, true);
+	renesas_sdhi_sys_dmac_enable_dma(host, true);
 
 	return;
 
@@ -336,7 +339,7 @@ ecfgtx:
 	host->chan_tx = NULL;
 }
 
-static void tmio_mmc_release_dma(struct tmio_mmc_host *host)
+static void renesas_sdhi_sys_dmac_release_dma(struct tmio_mmc_host *host)
 {
 	if (host->chan_tx) {
 		struct dma_chan *chan = host->chan_tx;
@@ -354,15 +357,15 @@ static void tmio_mmc_release_dma(struct tmio_mmc_host *host)
 	}
 }
 
-static const struct tmio_mmc_dma_ops tmio_mmc_dma_ops = {
-	.start = tmio_mmc_start_dma,
-	.enable = tmio_mmc_enable_dma,
-	.request = tmio_mmc_request_dma,
-	.release = tmio_mmc_release_dma,
-	.abort = tmio_mmc_abort_dma,
+static const struct tmio_mmc_dma_ops renesas_sdhi_sys_dmac_dma_ops = {
+	.start = renesas_sdhi_sys_dmac_start_dma,
+	.enable = renesas_sdhi_sys_dmac_enable_dma,
+	.request = renesas_sdhi_sys_dmac_request_dma,
+	.release = renesas_sdhi_sys_dmac_release_dma,
+	.abort = renesas_sdhi_sys_dmac_abort_dma,
 };
 
-const struct tmio_mmc_dma_ops *tmio_mmc_get_dma_ops(void)
+const struct tmio_mmc_dma_ops *renesas_sdhi_get_dma_ops(void)
 {
-	return &tmio_mmc_dma_ops;
+	return &renesas_sdhi_sys_dmac_dma_ops;
 }

@@ -35,6 +35,7 @@
 #include <linux/pinctrl/pinctrl-state.h>
 #include <linux/regulator/consumer.h>
 
+#include "renesas_sdhi.h"
 #include "tmio_mmc.h"
 
 #define EXT_ACC           0xe4
@@ -667,7 +668,7 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	/* All SDHI have SDIO status bits which must be 1 */
 	mmc_data->flags |= TMIO_MMC_SDIO_STATUS_SETBITS;
 
-	ret = tmio_mmc_host_probe(host, mmc_data, tmio_mmc_get_dma_ops());
+	ret = tmio_mmc_host_probe(host, mmc_data, renesas_sdhi_get_dma_ops());
 	if (ret < 0)
 		goto efree;
 

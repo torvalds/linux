@@ -213,15 +213,6 @@ void tmio_mmc_enable_mmc_irqs(struct tmio_mmc_host *host, u32 i);
 void tmio_mmc_disable_mmc_irqs(struct tmio_mmc_host *host, u32 i);
 irqreturn_t tmio_mmc_irq(int irq, void *devid);
 
-#if IS_ENABLED(CONFIG_MMC_SDHI)
-const struct tmio_mmc_dma_ops *tmio_mmc_get_dma_ops(void);
-#else
-static inline const struct tmio_mmc_dma_ops *tmio_mmc_get_dma_ops(void)
-{
-	return NULL;
-}
-#endif
-
 static inline char *tmio_mmc_kmap_atomic(struct scatterlist *sg,
 					 unsigned long *flags)
 {
