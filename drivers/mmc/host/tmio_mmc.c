@@ -97,7 +97,7 @@ static int tmio_mmc_probe(struct platform_device *pdev)
 	/* SD control register space size is 0x200, 0x400 for bus_shift=1 */
 	host->bus_shift = resource_size(res) >> 10;
 
-	ret = tmio_mmc_host_probe(host, pdata);
+	ret = tmio_mmc_host_probe(host, pdata, NULL);
 	if (ret)
 		goto host_free;
 
