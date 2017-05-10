@@ -1775,8 +1775,6 @@ int aac_check_health(struct aac_dev * aac)
 	int BlinkLED;
 	unsigned long time_now, flagv = 0;
 	struct list_head * entry;
-	struct Scsi_Host * host;
-	int bled;
 
 	/* Extending the scope of fib_lock slightly to protect aac->in_reset */
 	if (spin_trylock_irqsave(&aac->fib_lock, flagv) == 0)
@@ -1887,19 +1885,6 @@ int aac_check_health(struct aac_dev * aac)
 	}
 
 	printk(KERN_ERR "%s: Host adapter BLINK LED 0x%x\n", aac->name, BlinkLED);
-
-	if (!aac_check_reset || ((aac_check_reset == 1) &&
-		(aac->supplement_adapter_info.supported_options2 &
-			AAC_OPTION_IGNORE_RESET)))
-		goto out;
-	host = aac->scsi_host_ptr;
-	if (aac->thread->pid != current->pid)
-		spin_lock_irqsave(host->host_lock, flagv);
-	bled = aac_check_reset != 1 ? 1 : 0;
-	_aac_reset_adapter(aac, bled, IOP_HWSOFT_RESET);
-	if (aac->thread->pid != current->pid)
-		spin_unlock_irqrestore(host->host_lock, flagv);
-	return BlinkLED;
 
 out:
 	aac->in_reset = 0;
