@@ -694,15 +694,17 @@ static void aac_dump_fw_fib_iop_reset(struct aac_dev *dev)
 			0, 0, 0,  0, 0, 0, NULL, NULL, NULL, NULL, NULL);
 }
 
-static void aac_send_iop_reset(struct aac_dev *dev, int bled)
+static void aac_notify_fw_of_iop_reset(struct aac_dev *dev)
 {
-	u32 var, reset_mask;
+	aac_adapter_sync_cmd(dev, IOP_RESET_ALWAYS, 0, 0, 0, 0, 0, 0, NULL,
+						NULL, NULL, NULL, NULL);
+}
 
+static void aac_send_iop_reset(struct aac_dev *dev)
+{
 	aac_dump_fw_fib_iop_reset(dev);
 
-	bled = aac_adapter_sync_cmd(dev, IOP_RESET_ALWAYS,
-				    0, 0, 0, 0, 0, 0, &var,
-				    &reset_mask, NULL, NULL, NULL);
+	aac_notify_fw_of_iop_reset(dev);
 
 	aac_set_intx_mode(dev);
 
@@ -742,7 +744,7 @@ static int aac_src_restart_adapter(struct aac_dev *dev, int bled, u8 reset_type)
 
 	switch (reset_type) {
 	case IOP_HWSOFT_RESET:
-		aac_send_iop_reset(dev, bled);
+		aac_send_iop_reset(dev);
 		/*
 		 * Check to see if KERNEL_UP_AND_RUNNING
 		 * Wait for the adapter to be up and running.
@@ -769,7 +771,7 @@ static int aac_src_restart_adapter(struct aac_dev *dev, int bled, u8 reset_type)
 		}
 		break;
 	default:
-		aac_send_iop_reset(dev, bled);
+		aac_send_iop_reset(dev);
 		break;
 	}
 
