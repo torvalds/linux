@@ -712,6 +712,8 @@ static int xgene_enet_rx_frame(struct xgene_enet_desc_ring *rx_ring,
 			xgene_enet_parse_error(rx_ring, status);
 			rx_ring->rx_dropped++;
 			goto out;
+		} else {
+			pdata->false_rflr++;
 		}
 	}
 

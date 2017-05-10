@@ -224,6 +224,7 @@ struct xgene_enet_pdata {
 	enum xgene_enet_rm rm;
 	struct xgene_enet_cle cle;
 	u64 *extd_stats;
+	u64 false_rflr;
 	spinlock_t stats_lock; /* statistics lock */
 	const struct xgene_mac_ops *mac_ops;
 	spinlock_t mac_lock; /* mac lock */

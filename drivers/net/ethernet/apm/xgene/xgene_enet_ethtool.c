@@ -64,6 +64,7 @@ static const struct xgene_gstrings_stats gstrings_extd_stats[] = {
 	XGENE_EXTD_STAT(rx_unk_opcode_cntr, RXUO, 16),
 	XGENE_EXTD_STAT(rx_align_err_cntr, RALN, 16),
 	XGENE_EXTD_STAT(rx_frame_len_err_cntr, RFLR, 16),
+	XGENE_EXTD_STAT(rx_frame_len_err_recov_cntr, DUMP, 0),
 	XGENE_EXTD_STAT(rx_code_err_cntr, RCDE, 16),
 	XGENE_EXTD_STAT(rx_carrier_sense_err_cntr, RCSE, 16),
 	XGENE_EXTD_STAT(rx_undersize_pkt_cntr, RUND, 16),
@@ -95,8 +96,9 @@ static const struct xgene_gstrings_stats gstrings_extd_stats[] = {
 
 #define XGENE_STATS_LEN		ARRAY_SIZE(gstrings_stats)
 #define XGENE_EXTD_STATS_LEN	ARRAY_SIZE(gstrings_extd_stats)
-#define RX_OVERRUN_IDX		22
-#define TX_UNDERRUN_IDX		41
+#define FALSE_RFLR_IDX		15
+#define RX_OVERRUN_IDX		23
+#define TX_UNDERRUN_IDX		42
 
 static void xgene_get_drvinfo(struct net_device *ndev,
 			      struct ethtool_drvinfo *info)
@@ -229,6 +231,9 @@ static void xgene_get_extd_stats(struct xgene_enet_pdata *pdata)
 	pdata->mac_ops->get_drop_cnt(pdata, &rx_drop, &tx_drop);
 	pdata->extd_stats[RX_OVERRUN_IDX] += rx_drop;
 	pdata->extd_stats[TX_UNDERRUN_IDX] += tx_drop;
+
+	/* Errata 10GE_8 -  Update Frame recovered from Errata 10GE_8/ENET_11 */
+	pdata->extd_stats[FALSE_RFLR_IDX] = pdata->false_rflr;
 }
 
 int xgene_extd_stats_init(struct xgene_enet_pdata *pdata)
