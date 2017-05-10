@@ -1122,45 +1122,24 @@ static enum surface_update_type get_plane_info_update_type(
 static enum surface_update_type  get_scaling_info_update_type(
 		const struct dc_surface_update *u)
 {
-	struct dc_scaling_info temp_scaling_info = { { 0 } };
-
 	if (!u->scaling_info)
 		return UPDATE_TYPE_FAST;
 
-	/* Copy all parameters that will cause a full update
-	 * from current surface, the rest of the parameters
-	 * from provided plane configuration.
-	 * Perform memory compare and special validation
-	 * for those that can cause fast/medium updates
-	 */
-
-	/* Full Update Parameters */
-	temp_scaling_info.dst_rect = u->surface->dst_rect;
-	temp_scaling_info.src_rect = u->surface->src_rect;
-	temp_scaling_info.scaling_quality = u->surface->scaling_quality;
-
-	/* Special validation required */
-	temp_scaling_info.clip_rect = u->scaling_info->clip_rect;
-
-	if (memcmp(u->scaling_info, &temp_scaling_info,
-			sizeof(struct dc_scaling_info)) != 0)
+	if (u->scaling_info->src_rect.width != u->surface->src_rect.width
+			|| u->scaling_info->src_rect.height != u->surface->src_rect.height
+			|| u->scaling_info->clip_rect.width != u->surface->clip_rect.width
+			|| u->scaling_info->clip_rect.height != u->surface->clip_rect.height
+			|| u->scaling_info->dst_rect.width != u->surface->dst_rect.width
+			|| u->scaling_info->dst_rect.height != u->surface->dst_rect.height)
 		return UPDATE_TYPE_FULL;
 
-	/* Check Clip rectangles if not equal
-	 * difference is in offsets == > UPDATE_TYPE_MED
-	 * difference is in dimensions == > UPDATE_TYPE_FULL
-	 */
-	if (memcmp(&u->scaling_info->clip_rect,
-			&u->surface->clip_rect, sizeof(struct rect)) != 0) {
-		if ((u->scaling_info->clip_rect.height ==
-			u->surface->clip_rect.height) &&
-			(u->scaling_info->clip_rect.width ==
-			u->surface->clip_rect.width)) {
-			return UPDATE_TYPE_MED;
-		} else {
-			return UPDATE_TYPE_FULL;
-		}
-	}
+	if (u->scaling_info->src_rect.x != u->surface->src_rect.x
+			|| u->scaling_info->src_rect.y != u->surface->src_rect.y
+			|| u->scaling_info->clip_rect.x != u->surface->clip_rect.x
+			|| u->scaling_info->clip_rect.y != u->surface->clip_rect.y
+			|| u->scaling_info->dst_rect.x != u->surface->dst_rect.x
+			|| u->scaling_info->dst_rect.y != u->surface->dst_rect.y)
+		return UPDATE_TYPE_MED;
 
 	return UPDATE_TYPE_FAST;
 }
