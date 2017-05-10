@@ -2741,13 +2741,17 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	unsigned int size;
 	u16 snb_gmch_ctl;
+	int err;
 
 	/* TODO: We're not aware of mappable constraints on gen8 yet */
 	ggtt->mappable_base = pci_resource_start(pdev, 2);
 	ggtt->mappable_end = pci_resource_len(pdev, 2);
 
-	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(39)))
-		pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(39));
+	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(39));
+	if (!err)
+		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(39));
+	if (err)
+		DRM_ERROR("Can't set DMA mask/consistent mask (%d)\n", err);
 
 	pci_read_config_word(pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
 
@@ -2790,6 +2794,7 @@ static int gen6_gmch_probe(struct i915_ggtt *ggtt)
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	unsigned int size;
 	u16 snb_gmch_ctl;
+	int err;
 
 	ggtt->mappable_base = pci_resource_start(pdev, 2);
 	ggtt->mappable_end = pci_resource_len(pdev, 2);
@@ -2802,8 +2807,11 @@ static int gen6_gmch_probe(struct i915_ggtt *ggtt)
 		return -ENXIO;
 	}
 
-	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(40)))
-		pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(40));
+	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(40));
+	if (!err)
+		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(40));
+	if (err)
+		DRM_ERROR("Can't set DMA mask/consistent mask (%d)\n", err);
 	pci_read_config_word(pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
 
 	ggtt->stolen_size = gen6_get_stolen_size(snb_gmch_ctl);
