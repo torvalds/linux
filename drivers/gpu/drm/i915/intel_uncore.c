@@ -1610,7 +1610,7 @@ int __intel_wait_for_register_fw(struct drm_i915_private *dev_priv,
 				 unsigned int slow_timeout_ms,
 				 u32 *out_value)
 {
-	u32 reg_value;
+	u32 uninitialized_var(reg_value);
 #define done (((reg_value = I915_READ_FW(reg)) & mask) == value)
 	int ret;
 
@@ -1621,7 +1621,7 @@ int __intel_wait_for_register_fw(struct drm_i915_private *dev_priv,
 	ret = -ETIMEDOUT;
 	if (fast_timeout_us && fast_timeout_us <= 20000)
 		ret = _wait_for_atomic(done, fast_timeout_us, 0);
-	if (ret)
+	if (ret && slow_timeout_ms)
 		ret = wait_for(done, slow_timeout_ms);
 
 	if (out_value)
