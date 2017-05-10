@@ -248,6 +248,7 @@ struct __packed vmcs12 {
 	u64 xss_exit_bitmap;
 	u64 guest_physical_address;
 	u64 vmcs_link_pointer;
+	u64 pml_address;
 	u64 guest_ia32_debugctl;
 	u64 guest_ia32_pat;
 	u64 guest_ia32_efer;
@@ -369,6 +370,7 @@ struct __packed vmcs12 {
 	u16 guest_ldtr_selector;
 	u16 guest_tr_selector;
 	u16 guest_intr_status;
+	u16 guest_pml_index;
 	u16 host_es_selector;
 	u16 host_cs_selector;
 	u16 host_ss_selector;
@@ -407,6 +409,7 @@ struct nested_vmx {
 	/* Has the level1 guest done vmxon? */
 	bool vmxon;
 	gpa_t vmxon_ptr;
+	bool pml_full;
 
 	/* The guest-physical address of the current VMCS L1 keeps for L2 */
 	gpa_t current_vmptr;
@@ -742,6 +745,7 @@ static const unsigned short vmcs_field_to_offset_table[] = {
 	FIELD(GUEST_LDTR_SELECTOR, guest_ldtr_selector),
 	FIELD(GUEST_TR_SELECTOR, guest_tr_selector),
 	FIELD(GUEST_INTR_STATUS, guest_intr_status),
+	FIELD(GUEST_PML_INDEX, guest_pml_index),
 	FIELD(HOST_ES_SELECTOR, host_es_selector),
 	FIELD(HOST_CS_SELECTOR, host_cs_selector),
 	FIELD(HOST_SS_SELECTOR, host_ss_selector),
@@ -767,6 +771,7 @@ static const unsigned short vmcs_field_to_offset_table[] = {
 	FIELD64(XSS_EXIT_BITMAP, xss_exit_bitmap),
 	FIELD64(GUEST_PHYSICAL_ADDRESS, guest_physical_address),
 	FIELD64(VMCS_LINK_POINTER, vmcs_link_pointer),
+	FIELD64(PML_ADDRESS, pml_address),
 	FIELD64(GUEST_IA32_DEBUGCTL, guest_ia32_debugctl),
 	FIELD64(GUEST_IA32_PAT, guest_ia32_pat),
 	FIELD64(GUEST_IA32_EFER, guest_ia32_efer),
@@ -1314,6 +1319,11 @@ static inline bool report_flexpriority(void)
 	return flexpriority_enabled;
 }
 
+static inline unsigned nested_cpu_vmx_misc_cr3_count(struct kvm_vcpu *vcpu)
+{
+	return vmx_misc_cr3_count(to_vmx(vcpu)->nested.nested_vmx_misc_low);
+}
+
 static inline bool nested_cpu_has(struct vmcs12 *vmcs12, u32 bit)
 {
 	return vmcs12->cpu_based_vm_exec_control & bit;
@@ -1346,6 +1356,11 @@ static inline bool nested_cpu_has_xsaves(struct vmcs12 *vmcs12)
 {
 	return nested_cpu_has2(vmcs12, SECONDARY_EXEC_XSAVES) &&
 		vmx_xsaves_supported();
+}
+
+static inline bool nested_cpu_has_pml(struct vmcs12 *vmcs12)
+{
+	return nested_cpu_has2(vmcs12, SECONDARY_EXEC_ENABLE_PML);
 }
 
 static inline bool nested_cpu_has_virt_x2apic_mode(struct vmcs12 *vmcs12)
@@ -2751,8 +2766,11 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 		vmx->nested.nested_vmx_ept_caps |= VMX_EPT_EXTENT_GLOBAL_BIT |
 			VMX_EPT_EXTENT_CONTEXT_BIT | VMX_EPT_2MB_PAGE_BIT |
 			VMX_EPT_1GB_PAGE_BIT;
-	       if (enable_ept_ad_bits)
+		if (enable_ept_ad_bits) {
+			vmx->nested.nested_vmx_secondary_ctls_high |=
+				SECONDARY_EXEC_ENABLE_PML;
 		       vmx->nested.nested_vmx_ept_caps |= VMX_EPT_AD_BIT;
+		}
 	} else
 		vmx->nested.nested_vmx_ept_caps = 0;
 
@@ -8114,7 +8132,7 @@ static bool nested_vmx_exit_handled(struct kvm_vcpu *vcpu)
 	case EXIT_REASON_PREEMPTION_TIMER:
 		return false;
 	case EXIT_REASON_PML_FULL:
-		/* We don't expose PML support to L1. */
+		/* We emulate PML support to L1. */
 		return false;
 	default:
 		return true;
@@ -9364,13 +9382,20 @@ static void nested_ept_inject_page_fault(struct kvm_vcpu *vcpu,
 		struct x86_exception *fault)
 {
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 exit_reason;
+	unsigned long exit_qualification = vcpu->arch.exit_qualification;
 
-	if (fault->error_code & PFERR_RSVD_MASK)
+	if (vmx->nested.pml_full) {
+		exit_reason = EXIT_REASON_PML_FULL;
+		vmx->nested.pml_full = false;
+		exit_qualification &= INTR_INFO_UNBLOCK_NMI;
+	} else if (fault->error_code & PFERR_RSVD_MASK)
 		exit_reason = EXIT_REASON_EPT_MISCONFIG;
 	else
 		exit_reason = EXIT_REASON_EPT_VIOLATION;
-	nested_vmx_vmexit(vcpu, exit_reason, 0, vcpu->arch.exit_qualification);
+
+	nested_vmx_vmexit(vcpu, exit_reason, 0, exit_qualification);
 	vmcs12->guest_physical_address = fault->address;
 }
 
@@ -9713,6 +9738,22 @@ static int nested_vmx_check_msr_switch_controls(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
+static int nested_vmx_check_pml_controls(struct kvm_vcpu *vcpu,
+					 struct vmcs12 *vmcs12)
+{
+	u64 address = vmcs12->pml_address;
+	int maxphyaddr = cpuid_maxphyaddr(vcpu);
+
+	if (nested_cpu_has2(vmcs12, SECONDARY_EXEC_ENABLE_PML)) {
+		if (!nested_cpu_has_ept(vmcs12) ||
+		    !IS_ALIGNED(address, 4096)  ||
+		    address >> maxphyaddr)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int nested_vmx_msr_check_common(struct kvm_vcpu *vcpu,
 				       struct vmx_msr_entry *e)
 {
@@ -9886,7 +9927,7 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 			  bool from_vmentry, u32 *entry_failure_code)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	u32 exec_control;
+	u32 exec_control, vmcs12_exec_ctrl;
 
 	vmcs_write16(GUEST_ES_SELECTOR, vmcs12->guest_es_selector);
 	vmcs_write16(GUEST_CS_SELECTOR, vmcs12->guest_cs_selector);
@@ -10017,8 +10058,11 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 				  SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY |
 				  SECONDARY_EXEC_APIC_REGISTER_VIRT);
 		if (nested_cpu_has(vmcs12,
-				CPU_BASED_ACTIVATE_SECONDARY_CONTROLS))
-			exec_control |= vmcs12->secondary_vm_exec_control;
+				   CPU_BASED_ACTIVATE_SECONDARY_CONTROLS)) {
+			vmcs12_exec_ctrl = vmcs12->secondary_vm_exec_control &
+				~SECONDARY_EXEC_ENABLE_PML;
+			exec_control |= vmcs12_exec_ctrl;
+		}
 
 		if (exec_control & SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY) {
 			vmcs_write64(EOI_EXIT_BITMAP0,
@@ -10248,6 +10292,9 @@ static int check_vmentry_prereqs(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 	if (nested_vmx_check_msr_switch_controls(vcpu, vmcs12))
 		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
 
+	if (nested_vmx_check_pml_controls(vcpu, vmcs12))
+		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
+
 	if (!vmx_control_verify(vmcs12->cpu_based_vm_exec_control,
 				vmx->nested.nested_vmx_procbased_ctls_low,
 				vmx->nested.nested_vmx_procbased_ctls_high) ||
@@ -10264,6 +10311,9 @@ static int check_vmentry_prereqs(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 	    !vmx_control_verify(vmcs12->vm_entry_controls,
 				vmx->nested.nested_vmx_entry_ctls_low,
 				vmx->nested.nested_vmx_entry_ctls_high))
+		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
+
+	if (vmcs12->cr3_target_count > nested_cpu_vmx_misc_cr3_count(vcpu))
 		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
 
 	if (!nested_host_cr0_valid(vcpu, vmcs12->host_cr0) ||
@@ -11143,6 +11193,46 @@ static void vmx_flush_log_dirty(struct kvm *kvm)
 	kvm_flush_pml_buffers(kvm);
 }
 
+static int vmx_write_pml_buffer(struct kvm_vcpu *vcpu)
+{
+	struct vmcs12 *vmcs12;
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	gpa_t gpa;
+	struct page *page = NULL;
+	u64 *pml_address;
+
+	if (is_guest_mode(vcpu)) {
+		WARN_ON_ONCE(vmx->nested.pml_full);
+
+		/*
+		 * Check if PML is enabled for the nested guest.
+		 * Whether eptp bit 6 is set is already checked
+		 * as part of A/D emulation.
+		 */
+		vmcs12 = get_vmcs12(vcpu);
+		if (!nested_cpu_has_pml(vmcs12))
+			return 0;
+
+		if (vmcs12->guest_pml_index > PML_ENTITY_NUM) {
+			vmx->nested.pml_full = true;
+			return 1;
+		}
+
+		gpa = vmcs_read64(GUEST_PHYSICAL_ADDRESS) & ~0xFFFull;
+
+		page = nested_get_page(vcpu, vmcs12->pml_address);
+		if (!page)
+			return 0;
+
+		pml_address = kmap(page);
+		pml_address[vmcs12->guest_pml_index--] = gpa;
+		kunmap(page);
+		nested_release_page_clean(page);
+	}
+
+	return 0;
+}
+
 static void vmx_enable_log_dirty_pt_masked(struct kvm *kvm,
 					   struct kvm_memory_slot *memslot,
 					   gfn_t offset, unsigned long mask)
@@ -11502,6 +11592,7 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.slot_disable_log_dirty = vmx_slot_disable_log_dirty,
 	.flush_log_dirty = vmx_flush_log_dirty,
 	.enable_log_dirty_pt_masked = vmx_enable_log_dirty_pt_masked,
+	.write_log_dirty = vmx_write_pml_buffer,
 
 	.pre_block = vmx_pre_block,
 	.post_block = vmx_post_block,

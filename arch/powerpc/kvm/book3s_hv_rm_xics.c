@@ -484,7 +484,7 @@ static void icp_rm_down_cppr(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 }
 
 
-unsigned long kvmppc_rm_h_xirr(struct kvm_vcpu *vcpu)
+unsigned long xics_rm_h_xirr(struct kvm_vcpu *vcpu)
 {
 	union kvmppc_icp_state old_state, new_state;
 	struct kvmppc_xics *xics = vcpu->kvm->arch.xics;
@@ -522,8 +522,8 @@ unsigned long kvmppc_rm_h_xirr(struct kvm_vcpu *vcpu)
 	return check_too_hard(xics, icp);
 }
 
-int kvmppc_rm_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
-		    unsigned long mfrr)
+int xics_rm_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
+		  unsigned long mfrr)
 {
 	union kvmppc_icp_state old_state, new_state;
 	struct kvmppc_xics *xics = vcpu->kvm->arch.xics;
@@ -609,7 +609,7 @@ int kvmppc_rm_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
 	return check_too_hard(xics, this_icp);
 }
 
-int kvmppc_rm_h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr)
+int xics_rm_h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr)
 {
 	union kvmppc_icp_state old_state, new_state;
 	struct kvmppc_xics *xics = vcpu->kvm->arch.xics;
@@ -729,7 +729,7 @@ static int ics_rm_eoi(struct kvm_vcpu *vcpu, u32 irq)
 	return check_too_hard(xics, icp);
 }
 
-int kvmppc_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
+int xics_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
 {
 	struct kvmppc_xics *xics = vcpu->kvm->arch.xics;
 	struct kvmppc_icp *icp = vcpu->arch.icp;
