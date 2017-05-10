@@ -117,7 +117,7 @@ struct pmic_arb_ver_ops;
  * @spmic:		SPMI controller object
  * @apid_to_ppid:	in-memory copy of APID -> PPID mapping table.
  * @ver_ops:		version dependent operations.
- * @ppid_to_chan	in-memory copy of PPID -> channel (APID) mapping table.
+ * @ppid_to_apid	in-memory copy of PPID -> channel (APID) mapping table.
  *			v2 only.
  */
 struct spmi_pmic_arb {
@@ -140,9 +140,9 @@ struct spmi_pmic_arb {
 	struct spmi_controller	*spmic;
 	u16			*apid_to_ppid;
 	const struct pmic_arb_ver_ops *ver_ops;
-	u16			*ppid_to_chan;
-	u16			last_channel;
-	u8			*chan_to_owner;
+	u16			*ppid_to_apid;
+	u16			last_apid;
+	u8			*apid_to_owner;
 };
 
 /**
@@ -772,22 +772,22 @@ pmic_arb_offset_v1(struct spmi_pmic_arb *pa, u8 sid, u16 addr, u32 *offset)
 	return 0;
 }
 
-static u16 pmic_arb_find_chan(struct spmi_pmic_arb *pa, u16 ppid)
+static u16 pmic_arb_find_apid(struct spmi_pmic_arb *pa, u16 ppid)
 {
 	u32 regval, offset;
-	u16 chan;
+	u16 apid;
 	u16 id;
 
 	/*
 	 * PMIC_ARB_REG_CHNL is a table in HW mapping channel to ppid.
-	 * ppid_to_chan is an in-memory invert of that table.
+	 * ppid_to_apid is an in-memory invert of that table.
 	 */
-	for (chan = pa->last_channel; chan < pa->max_periph; chan++) {
+	for (apid = pa->last_apid; apid < pa->max_periph; apid++) {
 		regval = readl_relaxed(pa->cnfg +
-				      SPMI_OWNERSHIP_TABLE_REG(chan));
-		pa->chan_to_owner[chan] = SPMI_OWNERSHIP_PERIPH2OWNER(regval);
+				      SPMI_OWNERSHIP_TABLE_REG(apid));
+		pa->apid_to_owner[apid] = SPMI_OWNERSHIP_PERIPH2OWNER(regval);
 
-		offset = PMIC_ARB_REG_CHNL(chan);
+		offset = PMIC_ARB_REG_CHNL(apid);
 		if (offset >= pa->core_size)
 			break;
 
@@ -796,15 +796,15 @@ static u16 pmic_arb_find_chan(struct spmi_pmic_arb *pa, u16 ppid)
 			continue;
 
 		id = (regval >> 8) & PMIC_ARB_PPID_MASK;
-		pa->ppid_to_chan[id] = chan | PMIC_ARB_CHAN_VALID;
+		pa->ppid_to_apid[id] = apid | PMIC_ARB_CHAN_VALID;
 		if (id == ppid) {
-			chan |= PMIC_ARB_CHAN_VALID;
+			apid |= PMIC_ARB_CHAN_VALID;
 			break;
 		}
 	}
-	pa->last_channel = chan & ~PMIC_ARB_CHAN_VALID;
+	pa->last_apid = apid & ~PMIC_ARB_CHAN_VALID;
 
-	return chan;
+	return apid;
 }
 
 
@@ -812,38 +812,38 @@ static int
 pmic_arb_mode_v2(struct spmi_pmic_arb *pa, u8 sid, u16 addr, mode_t *mode)
 {
 	u16 ppid = (sid << 8) | (addr >> 8);
-	u16 chan;
+	u16 apid;
 	u8 owner;
 
-	chan = pa->ppid_to_chan[ppid];
-	if (!(chan & PMIC_ARB_CHAN_VALID))
+	apid = pa->ppid_to_apid[ppid];
+	if (!(apid & PMIC_ARB_CHAN_VALID))
 		return -ENODEV;
 
 	*mode = 0;
 	*mode |= S_IRUSR;
 
-	chan &= ~PMIC_ARB_CHAN_VALID;
-	owner = pa->chan_to_owner[chan];
+	apid &= ~PMIC_ARB_CHAN_VALID;
+	owner = pa->apid_to_owner[apid];
 	if (owner == pa->ee)
 		*mode |= S_IWUSR;
 	return 0;
 }
 
-/* v2 offset per ppid (chan) and per ee */
+/* v2 offset per ppid and per ee */
 static int
 pmic_arb_offset_v2(struct spmi_pmic_arb *pa, u8 sid, u16 addr, u32 *offset)
 {
 	u16 ppid = (sid << 8) | (addr >> 8);
-	u16 chan;
+	u16 apid;
 
-	chan = pa->ppid_to_chan[ppid];
-	if (!(chan & PMIC_ARB_CHAN_VALID))
-		chan = pmic_arb_find_chan(pa, ppid);
-	if (!(chan & PMIC_ARB_CHAN_VALID))
+	apid = pa->ppid_to_apid[ppid];
+	if (!(apid & PMIC_ARB_CHAN_VALID))
+		apid = pmic_arb_find_apid(pa, ppid);
+	if (!(apid & PMIC_ARB_CHAN_VALID))
 		return -ENODEV;
-	chan &= ~PMIC_ARB_CHAN_VALID;
+	apid &= ~PMIC_ARB_CHAN_VALID;
 
-	*offset = 0x1000 * pa->ee + 0x8000 * chan;
+	*offset = 0x1000 * pa->ee + 0x8000 * apid;
 	return 0;
 }
 
@@ -988,20 +988,20 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 			goto err_put_ctrl;
 		}
 
-		pa->ppid_to_chan = devm_kcalloc(&ctrl->dev,
+		pa->ppid_to_apid = devm_kcalloc(&ctrl->dev,
 						PMIC_ARB_MAX_PPID,
-						sizeof(*pa->ppid_to_chan),
+						sizeof(*pa->ppid_to_apid),
 						GFP_KERNEL);
-		if (!pa->ppid_to_chan) {
+		if (!pa->ppid_to_apid) {
 			err = -ENOMEM;
 			goto err_put_ctrl;
 		}
 
-		pa->chan_to_owner = devm_kcalloc(&ctrl->dev,
+		pa->apid_to_owner = devm_kcalloc(&ctrl->dev,
 						 pa->max_periph,
-						 sizeof(*pa->chan_to_owner),
+						 sizeof(*pa->apid_to_owner),
 						 GFP_KERNEL);
-		if (!pa->chan_to_owner) {
+		if (!pa->apid_to_owner) {
 			err = -ENOMEM;
 			goto err_put_ctrl;
 		}
