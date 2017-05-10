@@ -83,6 +83,13 @@ struct snd_pcm_ops {
 		    void __user *buf, snd_pcm_uframes_t count);
 	int (*silence)(struct snd_pcm_substream *substream, int channel, 
 		       snd_pcm_uframes_t pos, snd_pcm_uframes_t count);
+	int (*fill_silence)(struct snd_pcm_substream *substream, int channel,
+			    unsigned long pos, unsigned long bytes);
+	int (*copy_user)(struct snd_pcm_substream *substream, int channel,
+			 unsigned long pos, void __user *buf,
+			 unsigned long bytes);
+	int (*copy_kernel)(struct snd_pcm_substream *substream, int channel,
+			   unsigned long pos, void *buf, unsigned long bytes);
 	struct page *(*page)(struct snd_pcm_substream *substream,
 			     unsigned long offset);
 	int (*mmap)(struct snd_pcm_substream *substream, struct vm_area_struct *vma);
