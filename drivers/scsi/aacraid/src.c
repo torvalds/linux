@@ -761,8 +761,7 @@ static int aac_src_restart_adapter(struct aac_dev *dev, int bled, u8 reset_type)
 		goto invalid_out;
 
 	if (bled)
-		pr_err("%s%d: adapter kernel panic'd %x.\n",
-				dev->name, dev->id, bled);
+		dev_err(&dev->pdev->dev, "adapter kernel panic'd %x.\n", bled);
 
 	/*
 	 * When there is a BlinkLED, IOP_RESET has not effect
@@ -772,7 +771,10 @@ static int aac_src_restart_adapter(struct aac_dev *dev, int bled, u8 reset_type)
 
 	dev->a_ops.adapter_enable_int = aac_src_disable_interrupt;
 
+	dev_err(&dev->pdev->dev, "Controller reset type is %d\n", reset_type);
+
 	if (reset_type & HW_IOP_RESET) {
+		dev_info(&dev->pdev->dev, "Issuing IOP reset\n");
 		aac_send_iop_reset(dev);
 
 		/*
@@ -781,16 +783,20 @@ static int aac_src_restart_adapter(struct aac_dev *dev, int bled, u8 reset_type)
 		is_ctrl_up = aac_is_ctrl_up_and_running(dev);
 		if (!is_ctrl_up)
 			dev_err(&dev->pdev->dev, "IOP reset failed\n");
-		else
+		else {
+			dev_info(&dev->pdev->dev, "IOP reset succeded\n");
 			goto set_startup;
+		}
 	}
 
 	if (!dev->sa_firmware) {
+		dev_err(&dev->pdev->dev, "ARC Reset attempt failed\n");
 		ret = -ENODEV;
 		goto out;
 	}
 
 	if (reset_type & HW_SOFT_RESET) {
+		dev_info(&dev->pdev->dev, "Issuing SOFT reset\n");
 		aac_send_hardware_soft_reset(dev);
 		dev->msi_enabled = 0;
 
@@ -799,7 +805,8 @@ static int aac_src_restart_adapter(struct aac_dev *dev, int bled, u8 reset_type)
 			dev_err(&dev->pdev->dev, "SOFT reset failed\n");
 			ret = -ENODEV;
 			goto out;
-		}
+		} else
+			dev_info(&dev->pdev->dev, "SOFT reset succeded\n");
 	}
 
 set_startup:
