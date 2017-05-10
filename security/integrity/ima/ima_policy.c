@@ -717,8 +717,7 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 				break;
 			}
 
-			result = blk_part_pack_uuid(args[0].from,
-						    entry->fsuuid);
+			result = uuid_parse(args[0].from, (uuid_t *)&entry->fsuuid);
 			if (!result)
 				entry->flags |= IMA_FSUUID;
 			break;
