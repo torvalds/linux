@@ -359,6 +359,35 @@ u32 xgene_enet_rd_mac(struct xgene_enet_pdata *pdata, u32 rd_addr)
 	return rd_data;
 }
 
+u32 xgene_enet_rd_stat(struct xgene_enet_pdata *pdata, u32 rd_addr)
+{
+	void __iomem *addr, *rd, *cmd, *cmd_done;
+	u32 done, rd_data;
+	u8 wait = 10;
+
+	addr = pdata->mcx_stats_addr + STAT_ADDR_REG_OFFSET;
+	rd = pdata->mcx_stats_addr + STAT_READ_REG_OFFSET;
+	cmd = pdata->mcx_stats_addr + STAT_COMMAND_REG_OFFSET;
+	cmd_done = pdata->mcx_stats_addr + STAT_COMMAND_DONE_REG_OFFSET;
+
+	spin_lock(&pdata->stats_lock);
+	iowrite32(rd_addr, addr);
+	iowrite32(XGENE_ENET_RD_CMD, cmd);
+
+	while (!(done = ioread32(cmd_done)) && wait--)
+		udelay(1);
+
+	if (!done)
+		netdev_err(pdata->ndev, "mac stats read failed, addr: %04x\n",
+			   rd_addr);
+
+	rd_data = ioread32(rd);
+	iowrite32(0, cmd);
+	spin_unlock(&pdata->stats_lock);
+
+	return rd_data;
+}
+
 static void xgene_gmac_set_mac_addr(struct xgene_enet_pdata *pdata)
 {
 	u32 addr0, addr1;

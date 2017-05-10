@@ -1792,12 +1792,15 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 	if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII ||
 	    pdata->phy_mode == PHY_INTERFACE_MODE_SGMII) {
 		pdata->mcx_mac_addr = pdata->base_addr + BLOCK_ETH_MAC_OFFSET;
+		pdata->mcx_stats_addr =
+			pdata->base_addr + BLOCK_ETH_STATS_OFFSET;
 		offset = (pdata->enet_id == XGENE_ENET1) ?
 			  BLOCK_ETH_MAC_CSR_OFFSET :
 			  X2_BLOCK_ETH_MAC_CSR_OFFSET;
 		pdata->mcx_mac_csr_addr = base_addr + offset;
 	} else {
 		pdata->mcx_mac_addr = base_addr + BLOCK_AXG_MAC_OFFSET;
+		pdata->mcx_stats_addr = base_addr + BLOCK_AXG_STATS_OFFSET;
 		pdata->mcx_mac_csr_addr = base_addr + BLOCK_AXG_MAC_CSR_OFFSET;
 		pdata->pcs_addr = base_addr + BLOCK_PCS_OFFSET;
 	}
@@ -2089,6 +2092,11 @@ static int xgene_enet_probe(struct platform_device *pdev)
 		if (ret)
 			goto err1;
 	}
+
+	spin_lock_init(&pdata->stats_lock);
+	ret = xgene_extd_stats_init(pdata);
+	if (ret)
+		goto err2;
 
 	xgene_enet_napi_add(pdata);
 	ret = register_netdev(ndev);

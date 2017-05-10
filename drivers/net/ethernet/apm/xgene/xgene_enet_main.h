@@ -214,6 +214,7 @@ struct xgene_enet_pdata {
 	void __iomem *eth_diag_csr_addr;
 	void __iomem *mcx_mac_addr;
 	void __iomem *mcx_mac_csr_addr;
+	void __iomem *mcx_stats_addr;
 	void __iomem *base_addr;
 	void __iomem *pcs_addr;
 	void __iomem *ring_csr_addr;
@@ -221,6 +222,8 @@ struct xgene_enet_pdata {
 	int phy_mode;
 	enum xgene_enet_rm rm;
 	struct xgene_enet_cle cle;
+	u64 *extd_stats;
+	spinlock_t stats_lock; /* statistics lock */
 	const struct xgene_mac_ops *mac_ops;
 	spinlock_t mac_lock; /* mac lock */
 	const struct xgene_port_ops *port_ops;
@@ -265,5 +268,6 @@ static inline u16 xgene_enet_dst_ring_num(struct xgene_enet_desc_ring *ring)
 }
 
 void xgene_enet_set_ethtool_ops(struct net_device *netdev);
+int xgene_extd_stats_init(struct xgene_enet_pdata *pdata);
 
 #endif /* __XGENE_ENET_MAIN_H__ */
