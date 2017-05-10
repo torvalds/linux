@@ -911,7 +911,7 @@ static unsigned int early_drop_list(struct net *net,
 			continue;
 
 		/* kill only if still in same netns -- might have moved due to
-		 * SLAB_DESTROY_BY_RCU rules.
+		 * SLAB_TYPESAFE_BY_RCU rules.
 		 *
 		 * We steal the timer reference.  If that fails timer has
 		 * already fired or someone else deleted it. Just drop ref
@@ -1114,7 +1114,7 @@ __nf_conntrack_alloc(struct net *net,
 
 	/*
 	 * Do not use kmem_cache_zalloc(), as this cache uses
-	 * SLAB_DESTROY_BY_RCU.
+	 * SLAB_TYPESAFE_BY_RCU.
 	 */
 	ct = kmem_cache_alloc(nf_conntrack_cachep, gfp);
 	if (ct == NULL)
@@ -1159,7 +1159,7 @@ void nf_conntrack_free(struct nf_conn *ct)
 	struct net *net = nf_ct_net(ct);
 
 	/* A freed object has refcnt == 0, that's
-	 * the golden rule for SLAB_DESTROY_BY_RCU
+	 * the golden rule for SLAB_TYPESAFE_BY_RCU
 	 */
 	NF_CT_ASSERT(atomic_read(&ct->ct_general.use) == 0);
 
@@ -1929,7 +1929,7 @@ int nf_conntrack_init_start(void)
 	nf_conntrack_cachep = kmem_cache_create("nf_conntrack",
 						sizeof(struct nf_conn),
 						NFCT_INFOMASK + 1,
-						SLAB_DESTROY_BY_RCU | SLAB_HWCACHE_ALIGN, NULL);
+						SLAB_TYPESAFE_BY_RCU | SLAB_HWCACHE_ALIGN, NULL);
 	if (!nf_conntrack_cachep)
 		goto err_cachep;
 

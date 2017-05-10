@@ -3800,6 +3800,14 @@
 	spia_pedr=
 	spia_peddr=
 
+	srcutree.exp_holdoff [KNL]
+			Specifies how many nanoseconds must elapse
+			since the end of the last SRCU grace period for
+			a given srcu_struct until the next normal SRCU
+			grace period will be considered for automatic
+			expediting.  Set to zero to disable automatic
+			expediting.
+
 	stacktrace	[FTRACE]
 			Enabled the stack tracer on boot up.
 

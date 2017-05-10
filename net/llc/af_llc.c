@@ -142,7 +142,7 @@ static struct proto llc_proto = {
 	.name	  = "LLC",
 	.owner	  = THIS_MODULE,
 	.obj_size = sizeof(struct llc_sock),
-	.slab_flags = SLAB_DESTROY_BY_RCU,
+	.slab_flags = SLAB_TYPESAFE_BY_RCU,
 };
 
 /**

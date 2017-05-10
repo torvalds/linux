@@ -519,7 +519,7 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 	     capsnap->need_flush ? "" : "no_flush");
 	ihold(inode);
 
-	atomic_set(&capsnap->nref, 1);
+	refcount_set(&capsnap->nref, 1);
 	INIT_LIST_HEAD(&capsnap->ci_item);
 
 	capsnap->follows = old_snapc->seq;
