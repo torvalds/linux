@@ -12,7 +12,28 @@
 #ifndef RENESAS_SDHI_H
 #define RENESAS_SDHI_H
 
+#include <linux/platform_device.h>
 #include "tmio_mmc.h"
 
-const struct tmio_mmc_dma_ops *renesas_sdhi_get_dma_ops(void);
+struct renesas_sdhi_scc {
+	unsigned long clk_rate;	/* clock rate for SDR104 */
+	u32 tap;		/* sampling clock position for SDR104 */
+};
+
+struct renesas_sdhi_of_data {
+	unsigned long tmio_flags;
+	u32	      tmio_ocr_mask;
+	unsigned long capabilities;
+	unsigned long capabilities2;
+	enum dma_slave_buswidth dma_buswidth;
+	dma_addr_t dma_rx_offset;
+	unsigned bus_shift;
+	int scc_offset;
+	struct renesas_sdhi_scc *taps;
+	int taps_num;
+};
+
+int renesas_sdhi_probe(struct platform_device *pdev,
+                       const struct tmio_mmc_dma_ops *dma_ops);
+int renesas_sdhi_remove(struct platform_device *pdev);
 #endif
