@@ -1477,9 +1477,15 @@ int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 	synchronize_net();
 
 	/* Flush the hw queues, in case something got queued during entry */
-	ret = iwl_mvm_flush_tx_path(mvm, iwl_mvm_flushable_queues(mvm), flags);
-	if (ret)
-		return ret;
+	/* TODO new tx api */
+	if (iwl_mvm_has_new_tx_api(mvm)) {
+		WARN_ONCE(1, "d0i3: Need to implement flush TX queue\n");
+	} else {
+		ret = iwl_mvm_flush_tx_path(mvm, iwl_mvm_flushable_queues(mvm),
+					    flags);
+		if (ret)
+			return ret;
+	}
 
 	/* configure wowlan configuration only if needed */
 	if (mvm->d0i3_ap_sta_id != IWL_MVM_INVALID_STA) {

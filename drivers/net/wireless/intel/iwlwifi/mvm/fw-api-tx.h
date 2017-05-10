@@ -846,11 +846,23 @@ enum iwl_dump_control {
  * @flush_ctl: control flags
  * @reserved: reserved
  */
-struct iwl_tx_path_flush_cmd {
+struct iwl_tx_path_flush_cmd_v1 {
 	__le32 queues_ctl;
 	__le16 flush_ctl;
 	__le16 reserved;
 } __packed; /* TX_PATH_FLUSH_CMD_API_S_VER_1 */
+
+/**
+ * struct iwl_tx_path_flush_cmd -- queue/FIFO flush command
+ * @sta_id: station ID to flush
+ * @tid_mask: TID mask to flush
+ * @reserved: reserved
+ */
+struct iwl_tx_path_flush_cmd {
+	__le32 sta_id;
+	__le16 tid_mask;
+	__le16 reserved;
+} __packed; /* TX_PATH_FLUSH_CMD_API_S_VER_2 */
 
 /* Available options for the SCD_QUEUE_CFG HCMD */
 enum iwl_scd_cfg_actions {

@@ -734,7 +734,6 @@ static int iwl_mvm_sta_alloc_queue_tvqm(struct iwl_mvm *mvm,
 	spin_lock_bh(&mvmsta->lock);
 	mvmsta->tid_data[tid].txq_id = queue;
 	mvmsta->tid_data[tid].is_tid_active = true;
-	mvmsta->tfd_queue_msk |= BIT(queue);
 	spin_unlock_bh(&mvmsta->lock);
 
 	return 0;
@@ -2004,8 +2003,6 @@ int iwl_mvm_send_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 			mvm->probe_queue = queue;
 		else if (vif->type == NL80211_IFTYPE_P2P_DEVICE)
 			mvm->p2p_dev_queue = queue;
-
-		bsta->tfd_queue_msk |= BIT(queue);
 	}
 
 	return 0;
@@ -2015,29 +2012,32 @@ static void iwl_mvm_free_bcast_sta_queues(struct iwl_mvm *mvm,
 					  struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	int queue;
 
 	lockdep_assert_held(&mvm->mutex);
 
 	iwl_mvm_flush_sta(mvm, &mvmvif->bcast_sta, true, 0);
 
-	if (vif->type == NL80211_IFTYPE_AP ||
-	    vif->type == NL80211_IFTYPE_ADHOC)
-		iwl_mvm_disable_txq(mvm, vif->cab_queue, vif->cab_queue,
-				    IWL_MAX_TID_COUNT, 0);
-
-	if (mvmvif->bcast_sta.tfd_queue_msk & BIT(mvm->probe_queue)) {
-		iwl_mvm_disable_txq(mvm, mvm->probe_queue,
-				    vif->hw_queue[0], IWL_MAX_TID_COUNT,
-				    0);
-		mvmvif->bcast_sta.tfd_queue_msk &= ~BIT(mvm->probe_queue);
+	switch (vif->type) {
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_ADHOC:
+		queue = mvm->probe_queue;
+		break;
+	case NL80211_IFTYPE_P2P_DEVICE:
+		queue = mvm->p2p_dev_queue;
+		break;
+	default:
+		WARN(1, "Can't free bcast queue on vif type %d\n",
+		     vif->type);
+		return;
 	}
 
-	if (mvmvif->bcast_sta.tfd_queue_msk & BIT(mvm->p2p_dev_queue)) {
-		iwl_mvm_disable_txq(mvm, mvm->p2p_dev_queue,
-				    vif->hw_queue[0], IWL_MAX_TID_COUNT,
-				    0);
-		mvmvif->bcast_sta.tfd_queue_msk &= ~BIT(mvm->p2p_dev_queue);
-	}
+	iwl_mvm_disable_txq(mvm, queue, vif->hw_queue[0], IWL_MAX_TID_COUNT, 0);
+	if (iwl_mvm_has_new_tx_api(mvm))
+		return;
+
+	WARN_ON(!(mvmvif->bcast_sta.tfd_queue_msk & BIT(queue)));
+	mvmvif->bcast_sta.tfd_queue_msk &= ~BIT(queue);
 }
 
 /* Send the FW a request to remove the station from it's internal data
@@ -2913,14 +2913,17 @@ int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	if (old_state >= IWL_AGG_ON) {
 		iwl_mvm_drain_sta(mvm, mvmsta, true);
-		if (iwl_mvm_flush_tx_path(mvm, BIT(txq_id), 0))
-			IWL_ERR(mvm, "Couldn't flush the AGG queue\n");
 
-		if (iwl_mvm_has_new_tx_api(mvm))
+		if (iwl_mvm_has_new_tx_api(mvm)) {
+			if (iwl_mvm_flush_sta_tids(mvm, mvmsta->sta_id,
+						   BIT(tid), 0))
+				IWL_ERR(mvm, "Couldn't flush the AGG queue\n");
 			iwl_trans_wait_txq_empty(mvm->trans, txq_id);
-
-		else
+		} else {
+			if (iwl_mvm_flush_tx_path(mvm, BIT(txq_id), 0))
+				IWL_ERR(mvm, "Couldn't flush the AGG queue\n");
 			iwl_trans_wait_tx_queues_empty(mvm->trans, BIT(txq_id));
+		}
 
 		iwl_mvm_drain_sta(mvm, mvmsta, false);
 
