@@ -2011,7 +2011,7 @@ ss_hub_descriptor(struct usb_hub_descriptor *desc)
 			HUB_CHAR_COMMON_OCPM);
 	desc->bNbrPorts = 1;
 	desc->u.ss.bHubHdrDecLat = 0x04; /* Worst case: 0.4 micro sec*/
-	desc->u.ss.DeviceRemovable = 0xffff;
+	desc->u.ss.DeviceRemovable = 0;
 }
 
 static inline void hub_descriptor(struct usb_hub_descriptor *desc)
@@ -2023,8 +2023,8 @@ static inline void hub_descriptor(struct usb_hub_descriptor *desc)
 			HUB_CHAR_INDV_PORT_LPSM |
 			HUB_CHAR_COMMON_OCPM);
 	desc->bNbrPorts = 1;
-	desc->u.hs.DeviceRemovable[0] = 0xff;
-	desc->u.hs.DeviceRemovable[1] = 0xff;
+	desc->u.hs.DeviceRemovable[0] = 0;
+	desc->u.hs.DeviceRemovable[1] = 0xff;	/* PortPwrCtrlMask */
 }
 
 static int dummy_hub_control(
