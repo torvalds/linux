@@ -471,7 +471,7 @@ struct fc_regs {
 	u32 USB_ADDRESS;		/* (0x0008) USB Address */
 	u32 UTMI_CHARACTER_1;		/* (0x000C) UTMI Setting */
 	u32 TEST_CONTROL;		/* (0x0010) TEST Control */
-	u32 Reserved_14;		/* (0x0014) Reserved */
+	u32 reserved_14;		/* (0x0014) Reserved */
 	u32 SETUP_DATA0;		/* (0x0018) Setup Data0 */
 	u32 SETUP_DATA1;		/* (0x001C) Setup Data1 */
 	u32 USB_INT_STA;		/* (0x0020) USB Interrupt Status */
@@ -485,7 +485,7 @@ struct fc_regs {
 
 	struct ep_regs EP_REGS[REG_EP_NUM];	/* Endpoint Register */
 
-	u8 Reserved220[0x1000 - 0x220];	/* (0x0220:0x0FFF) Reserved */
+	u8 reserved_220[0x1000 - 0x220];	/* (0x0220:0x0FFF) Reserved */
 
 	u32 AHBSCTR;			/* (0x1000) AHBSCTR */
 	u32 AHBMCTR;			/* (0x1004) AHBMCTR */
@@ -494,16 +494,16 @@ struct fc_regs {
 	u32 EPCTR;			/* (0x1010) EPCTR */
 	u32 USBF_EPTEST;		/* (0x1014) USBF_EPTEST */
 
-	u8 Reserved1018[0x20 - 0x18];	/* (0x1018:0x101F) Reserved */
+	u8 reserved_1018[0x20 - 0x18];	/* (0x1018:0x101F) Reserved */
 
 	u32 USBSSVER;			/* (0x1020) USBSSVER */
 	u32 USBSSCONF;			/* (0x1024) USBSSCONF */
 
-	u8 Reserved1028[0x110 - 0x28];	/* (0x1028:0x110F) Reserved */
+	u8 reserved_1028[0x110 - 0x28];	/* (0x1028:0x110F) Reserved */
 
 	struct ep_dcr EP_DCR[REG_EP_NUM];	/* */
 
-	u8 Reserved1200[0x1000 - 0x200];	/* Reserved */
+	u8 reserved_1200[0x1000 - 0x200];	/* Reserved */
 } __aligned(32);
 
 #define EP0_PACKETSIZE			64
