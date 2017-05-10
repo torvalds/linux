@@ -1466,10 +1466,9 @@ err:
 
 static void xgene_enet_get_stats64(
 			struct net_device *ndev,
-			struct rtnl_link_stats64 *storage)
+			struct rtnl_link_stats64 *stats)
 {
 	struct xgene_enet_pdata *pdata = netdev_priv(ndev);
-	struct rtnl_link_stats64 *stats = &pdata->stats;
 	struct xgene_enet_desc_ring *ring;
 	int i;
 
@@ -1493,7 +1492,6 @@ static void xgene_enet_get_stats64(
 			stats->rx_dropped += ring->rx_dropped;
 		}
 	}
-	memcpy(storage, stats, sizeof(struct rtnl_link_stats64));
 }
 
 static int xgene_enet_set_mac_address(struct net_device *ndev, void *addr)

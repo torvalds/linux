@@ -25,7 +25,7 @@ struct xgene_gstrings_stats {
 	int offset;
 };
 
-#define XGENE_STAT(m) { #m, offsetof(struct xgene_enet_pdata, stats.m) }
+#define XGENE_STAT(m) { #m, offsetof(struct rtnl_link_stats64, m) }
 
 static const struct xgene_gstrings_stats gstrings_stats[] = {
 	XGENE_STAT(rx_packets),
@@ -156,11 +156,12 @@ static void xgene_get_ethtool_stats(struct net_device *ndev,
 				    struct ethtool_stats *dummy,
 				    u64 *data)
 {
-	void *pdata = netdev_priv(ndev);
+	struct rtnl_link_stats64 stats;
 	int i;
 
+	dev_get_stats(ndev, &stats);
 	for (i = 0; i < XGENE_STATS_LEN; i++)
-		*data++ = *(u64 *)(pdata + gstrings_stats[i].offset);
+		data[i] = *(u64 *)((char *)&stats + gstrings_stats[i].offset);
 }
 
 static void xgene_get_pauseparam(struct net_device *ndev,

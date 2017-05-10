@@ -219,7 +219,6 @@ struct xgene_enet_pdata {
 	int phy_mode;
 	enum xgene_enet_rm rm;
 	struct xgene_enet_cle cle;
-	struct rtnl_link_stats64 stats;
 	const struct xgene_mac_ops *mac_ops;
 	spinlock_t mac_lock; /* mac lock */
 	const struct xgene_port_ops *port_ops;
