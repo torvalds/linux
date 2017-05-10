@@ -204,4 +204,6 @@ source "drivers/fpga/Kconfig"
 
 source "drivers/fsi/Kconfig"
 
+source "drivers/tee/Kconfig"
+
 endmenu
