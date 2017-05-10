@@ -536,8 +536,8 @@ static void pmic_arb_chained_irq(struct irq_desc *desc)
 	void __iomem *intr = pa->intr;
 	int first = pa->min_apid >> 5;
 	int last = pa->max_apid >> 5;
-	u32 status;
-	int i, id;
+	u32 status, enable;
+	int i, id, apid;
 
 	chained_irq_enter(chip, desc);
 
@@ -547,7 +547,11 @@ static void pmic_arb_chained_irq(struct irq_desc *desc)
 		while (status) {
 			id = ffs(status) - 1;
 			status &= ~BIT(id);
-			periph_interrupt(pa, id + i * 32);
+			apid = id + i * 32;
+			enable = readl_relaxed(intr +
+					pa->ver_ops->acc_enable(apid));
+			if (enable & SPMI_PIC_ACC_ENABLE_BIT)
+				periph_interrupt(pa, apid);
 		}
 	}
 
