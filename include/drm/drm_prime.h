@@ -50,6 +50,8 @@ struct drm_prime_file_private {
 	struct rb_root handles;
 };
 
+struct device;
+
 struct dma_buf_export_info;
 struct dma_buf;
 
