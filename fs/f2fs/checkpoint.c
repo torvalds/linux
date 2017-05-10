@@ -208,12 +208,10 @@ int ra_meta_pages(struct f2fs_sb_info *sbi, block_t start, int nrpages,
 		}
 
 		fio.page = page;
-		fio.old_blkaddr = fio.new_blkaddr;
-		f2fs_submit_page_mbio(&fio);
+		f2fs_submit_page_bio(&fio);
 		f2fs_put_page(page, 0);
 	}
 out:
-	f2fs_submit_merged_bio(sbi, META, READ);
 	blk_finish_plug(&plug);
 	return blkno - start;
 }
