@@ -319,10 +319,8 @@ static void iwl_mvm_dump_fifos(struct iwl_mvm *mvm,
 
 void iwl_mvm_free_fw_dump_desc(struct iwl_mvm *mvm)
 {
-	if (mvm->fw_dump_desc == &iwl_mvm_dump_desc_assert)
-		return;
-
-	kfree(mvm->fw_dump_desc);
+	if (mvm->fw_dump_desc != &iwl_mvm_dump_desc_assert)
+		kfree(mvm->fw_dump_desc);
 	mvm->fw_dump_desc = NULL;
 }
 
