@@ -3707,13 +3707,21 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 		  struct link_config *lc)
 {
 	struct fw_port_cmd c;
-	unsigned int fc = 0, mdi = FW_PORT_CAP_MDI_V(FW_PORT_CAP_MDI_AUTO);
+	unsigned int mdi = FW_PORT_CAP_MDI_V(FW_PORT_CAP_MDI_AUTO);
+	unsigned int fc = 0, fec = 0, fw_fec = 0;
 
 	lc->link_ok = 0;
 	if (lc->requested_fc & PAUSE_RX)
 		fc |= FW_PORT_CAP_FC_RX;
 	if (lc->requested_fc & PAUSE_TX)
 		fc |= FW_PORT_CAP_FC_TX;
+
+	fec = lc->requested_fec & FEC_AUTO ? lc->auto_fec : lc->requested_fec;
+
+	if (fec & FEC_RS)
+		fw_fec |= FW_PORT_CAP_FEC_RS;
+	if (fec & FEC_BASER_RS)
+		fw_fec |= FW_PORT_CAP_FEC_BASER_RS;
 
 	memset(&c, 0, sizeof(c));
 	c.op_to_portid = cpu_to_be32(FW_CMD_OP_V(FW_PORT_CMD) |
@@ -3725,13 +3733,15 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 
 	if (!(lc->supported & FW_PORT_CAP_ANEG)) {
 		c.u.l1cfg.rcap = cpu_to_be32((lc->supported & ADVERT_MASK) |
-					     fc);
+					     fc | fw_fec);
 		lc->fc = lc->requested_fc & (PAUSE_RX | PAUSE_TX);
 	} else if (lc->autoneg == AUTONEG_DISABLE) {
-		c.u.l1cfg.rcap = cpu_to_be32(lc->requested_speed | fc | mdi);
+		c.u.l1cfg.rcap = cpu_to_be32(lc->requested_speed | fc |
+					     fw_fec | mdi);
 		lc->fc = lc->requested_fc & (PAUSE_RX | PAUSE_TX);
 	} else
-		c.u.l1cfg.rcap = cpu_to_be32(lc->advertising | fc | mdi);
+		c.u.l1cfg.rcap = cpu_to_be32(lc->advertising | fc |
+					     fw_fec | mdi);
 
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
@@ -7407,13 +7417,26 @@ static void get_pci_mode(struct adapter *adapter, struct pci_params *p)
  *	Initializes the SW state maintained for each link, including the link's
  *	capabilities and default speed/flow-control/autonegotiation settings.
  */
-static void init_link_config(struct link_config *lc, unsigned int caps)
+static void init_link_config(struct link_config *lc, unsigned int pcaps,
+			     unsigned int acaps)
 {
-	lc->supported = caps;
+	lc->supported = pcaps;
 	lc->lp_advertising = 0;
 	lc->requested_speed = 0;
 	lc->speed = 0;
 	lc->requested_fc = lc->fc = PAUSE_RX | PAUSE_TX;
+	lc->auto_fec = 0;
+
+	/* For Forward Error Control, we default to whatever the Firmware
+	 * tells us the Link is currently advertising.
+	 */
+	if (acaps & FW_PORT_CAP_FEC_RS)
+		lc->auto_fec |= FEC_RS;
+	if (acaps & FW_PORT_CAP_FEC_BASER_RS)
+		lc->auto_fec |= FEC_BASER_RS;
+	lc->requested_fec = FEC_AUTO;
+	lc->fec = lc->auto_fec;
+
 	if (lc->supported & FW_PORT_CAP_ANEG) {
 		lc->advertising = lc->supported & ADVERT_MASK;
 		lc->autoneg = AUTONEG_ENABLE;
@@ -7991,7 +8014,8 @@ int t4_init_portinfo(struct port_info *pi, int mbox,
 	pi->port_type = FW_PORT_CMD_PTYPE_G(ret);
 	pi->mod_type = FW_PORT_MOD_TYPE_NA;
 
-	init_link_config(&pi->link_cfg, be16_to_cpu(c.u.info.pcap));
+	init_link_config(&pi->link_cfg, be16_to_cpu(c.u.info.pcap),
+			 be16_to_cpu(c.u.info.acap));
 	return 0;
 }
 

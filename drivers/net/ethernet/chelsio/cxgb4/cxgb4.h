@@ -108,6 +108,12 @@ enum {
 	PAUSE_AUTONEG = 1 << 2
 };
 
+enum {
+	FEC_AUTO      = 1 << 0,	 /* IEEE 802.3 "automatic" */
+	FEC_RS        = 1 << 1,  /* Reed-Solomon */
+	FEC_BASER_RS  = 1 << 2   /* BaseR/Reed-Solomon */
+};
+
 struct port_stats {
 	u64 tx_octets;            /* total # of octets in good frames */
 	u64 tx_frames;            /* all good frames */
@@ -432,6 +438,9 @@ struct link_config {
 	unsigned int   speed;            /* actual link speed */
 	unsigned char  requested_fc;     /* flow control user has requested */
 	unsigned char  fc;               /* actual link flow control */
+	unsigned char  auto_fec;	 /* Forward Error Correction: */
+	unsigned char  requested_fec;	 /* "automatic" (IEEE 802.3), */
+	unsigned char  fec;		 /* requested, and actual in use */
 	unsigned char  autoneg;          /* autonegotiating? */
 	unsigned char  link_ok;          /* link up? */
 	unsigned char  link_down_rc;     /* link down reason */

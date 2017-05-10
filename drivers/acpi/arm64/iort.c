@@ -618,6 +618,46 @@ static int arm_smmu_iort_xlate(struct device *dev, u32 streamid,
 	return ret;
 }
 
+static inline bool iort_iommu_driver_enabled(u8 type)
+{
+	switch (type) {
+	case ACPI_IORT_NODE_SMMU_V3:
+		return IS_BUILTIN(CONFIG_ARM_SMMU_V3);
+	case ACPI_IORT_NODE_SMMU:
+		return IS_BUILTIN(CONFIG_ARM_SMMU);
+	default:
+		pr_warn("IORT node type %u does not describe an SMMU\n", type);
+		return false;
+	}
+}
+
+#ifdef CONFIG_IOMMU_API
+static inline
+const struct iommu_ops *iort_fwspec_iommu_ops(struct iommu_fwspec *fwspec)
+{
+	return (fwspec && fwspec->ops) ? fwspec->ops : NULL;
+}
+
+static inline
+int iort_add_device_replay(const struct iommu_ops *ops, struct device *dev)
+{
+	int err = 0;
+
+	if (!IS_ERR_OR_NULL(ops) && ops->add_device && dev->bus &&
+	    !dev->iommu_group)
+		err = ops->add_device(dev);
+
+	return err;
+}
+#else
+static inline
+const struct iommu_ops *iort_fwspec_iommu_ops(struct iommu_fwspec *fwspec)
+{ return NULL; }
+static inline
+int iort_add_device_replay(const struct iommu_ops *ops, struct device *dev)
+{ return 0; }
+#endif
+
 static const struct iommu_ops *iort_iommu_xlate(struct device *dev,
 					struct acpi_iort_node *node,
 					u32 streamid)
@@ -626,14 +666,31 @@ static const struct iommu_ops *iort_iommu_xlate(struct device *dev,
 	int ret = -ENODEV;
 	struct fwnode_handle *iort_fwnode;
 
+	/*
+	 * If we already translated the fwspec there
+	 * is nothing left to do, return the iommu_ops.
+	 */
+	ops = iort_fwspec_iommu_ops(dev->iommu_fwspec);
+	if (ops)
+		return ops;
+
 	if (node) {
 		iort_fwnode = iort_get_fwnode(node);
 		if (!iort_fwnode)
 			return NULL;
 
 		ops = iommu_ops_from_fwnode(iort_fwnode);
+		/*
+		 * If the ops look-up fails, this means that either
+		 * the SMMU drivers have not been probed yet or that
+		 * the SMMU drivers are not built in the kernel;
+		 * Depending on whether the SMMU drivers are built-in
+		 * in the kernel or not, defer the IOMMU configuration
+		 * or just abort it.
+		 */
 		if (!ops)
-			return NULL;
+			return iort_iommu_driver_enabled(node->type) ?
+			       ERR_PTR(-EPROBE_DEFER) : NULL;
 
 		ret = arm_smmu_iort_xlate(dev, streamid, iort_fwnode, ops);
 	}
@@ -676,6 +733,7 @@ const struct iommu_ops *iort_iommu_configure(struct device *dev)
 	struct acpi_iort_node *node, *parent;
 	const struct iommu_ops *ops = NULL;
 	u32 streamid = 0;
+	int err;
 
 	if (dev_is_pci(dev)) {
 		struct pci_bus *bus = to_pci_dev(dev)->bus;
@@ -707,12 +765,22 @@ const struct iommu_ops *iort_iommu_configure(struct device *dev)
 
 		while (parent) {
 			ops = iort_iommu_xlate(dev, parent, streamid);
+			if (IS_ERR_OR_NULL(ops))
+				return ops;
 
 			parent = iort_node_map_platform_id(node, &streamid,
 							   IORT_IOMMU_TYPE,
 							   i++);
 		}
 	}
+
+	/*
+	 * If we have reason to believe the IOMMU driver missed the initial
+	 * add_device callback for dev, replay it to get things in order.
+	 */
+	err = iort_add_device_replay(ops, dev);
+	if (err)
+		ops = ERR_PTR(err);
 
 	return ops;
 }
@@ -1052,6 +1120,4 @@ void __init acpi_iort_init(void)
 	}
 
 	iort_init_platform_devices();
-
-	acpi_probe_device_table(iort);
 }

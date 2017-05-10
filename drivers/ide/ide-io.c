@@ -107,7 +107,7 @@ void ide_complete_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat, u8 err)
 
 		if (cmd->tf_flags & IDE_TFLAG_DYN)
 			kfree(orig_cmd);
-		else
+		else if (cmd != orig_cmd)
 			memcpy(orig_cmd, cmd, sizeof(*cmd));
 	}
 }

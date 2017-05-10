@@ -1008,7 +1008,7 @@ static struct dma_chan *stm32_dma_of_xlate(struct of_phandle_args *dma_spec,
 
 	c = dma_get_slave_channel(&chan->vchan.chan);
 	if (!c) {
-		dev_err(dev, "No more channel avalaible\n");
+		dev_err(dev, "No more channels available\n");
 		return NULL;
 	}
 
