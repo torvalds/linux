@@ -1140,6 +1140,7 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 	}
 
 	irq_set_chained_handler_and_data(pa->irq, pmic_arb_chained_irq, pa);
+	enable_irq_wake(pa->irq);
 
 	err = spmi_controller_add(ctrl);
 	if (err)
