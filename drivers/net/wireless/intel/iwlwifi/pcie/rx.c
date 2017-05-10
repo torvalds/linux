@@ -761,6 +761,15 @@ static void iwl_pcie_rx_hw_init(struct iwl_trans *trans, struct iwl_rxq *rxq)
 
 void iwl_pcie_enable_rx_wake(struct iwl_trans *trans, bool enable)
 {
+	if (trans->cfg->device_family != IWL_DEVICE_FAMILY_9000)
+		return;
+
+	if (CSR_HW_REV_STEP(trans->hw_rev) != SILICON_A_STEP)
+		return;
+
+	if (!trans->cfg->integrated)
+		return;
+
 	/*
 	 * Turn on the chicken-bits that cause MAC wakeup for RX-related
 	 * values.
@@ -768,12 +777,10 @@ void iwl_pcie_enable_rx_wake(struct iwl_trans *trans, bool enable)
 	 * bug where shadow registers are not in the retention list and their
 	 * value is lost when NIC powers down
 	 */
-	if (trans->cfg->integrated) {
-		iwl_set_bit(trans, CSR_MAC_SHADOW_REG_CTRL,
-			    CSR_MAC_SHADOW_REG_CTRL_RX_WAKE);
-		iwl_set_bit(trans, CSR_MAC_SHADOW_REG_CTL2,
-			    CSR_MAC_SHADOW_REG_CTL2_RX_WAKE);
-	}
+	iwl_set_bit(trans, CSR_MAC_SHADOW_REG_CTRL,
+		    CSR_MAC_SHADOW_REG_CTRL_RX_WAKE);
+	iwl_set_bit(trans, CSR_MAC_SHADOW_REG_CTL2,
+		    CSR_MAC_SHADOW_REG_CTL2_RX_WAKE);
 }
 
 static void iwl_pcie_rx_mq_hw_init(struct iwl_trans *trans)
