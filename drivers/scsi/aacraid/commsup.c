@@ -803,11 +803,11 @@ int aac_hba_send(u8 command, struct fib *fibptr, fib_callback callback,
 		if (aac_check_eeh_failure(dev))
 			return -EFAULT;
 
-		/* Only set for first known interruptable command */
-		if (down_interruptible(&fibptr->event_wait)) {
+		fibptr->flags |= FIB_CONTEXT_FLAG_WAIT;
+		if (down_interruptible(&fibptr->event_wait))
 			fibptr->done = 2;
-			up(&fibptr->event_wait);
-		}
+		fibptr->flags &= ~(FIB_CONTEXT_FLAG_WAIT);
+
 		spin_lock_irqsave(&fibptr->event_lock, flags);
 		if ((fibptr->done == 0) || (fibptr->done == 2)) {
 			fibptr->done = 2; /* Tell interrupt we aborted */
@@ -1514,6 +1514,7 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 	int jafo = 0;
 	int bled;
 	u64 dmamask;
+	int num_of_fibs = 0;
 
 	/*
 	 * Assumptions:
@@ -1547,10 +1548,20 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 	/*
 	 *	Loop through the fibs, close the synchronous FIBS
 	 */
-	for (retval = 1, index = 0; index < (aac->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB); index++) {
+	retval = 1;
+	num_of_fibs = aac->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB;
+	for (index = 0; index <  num_of_fibs; index++) {
+
 		struct fib *fib = &aac->fibs[index];
-		if (!(fib->hw_fib_va->header.XferState & cpu_to_le32(NoResponseExpected | Async)) &&
-		  (fib->hw_fib_va->header.XferState & cpu_to_le32(ResponseExpected))) {
+		__le32 XferState = fib->hw_fib_va->header.XferState;
+		bool is_response_expected = false;
+
+		if (!(XferState & cpu_to_le32(NoResponseExpected | Async)) &&
+		   (XferState & cpu_to_le32(ResponseExpected)))
+			is_response_expected = true;
+
+		if (is_response_expected
+		  || fib->flags & FIB_CONTEXT_FLAG_WAIT) {
 			unsigned long flagv;
 			spin_lock_irqsave(&fib->event_lock, flagv);
 			up(&fib->event_wait);
