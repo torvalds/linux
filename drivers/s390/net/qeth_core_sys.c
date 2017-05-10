@@ -422,6 +422,8 @@ static ssize_t qeth_dev_layer2_store(struct device *dev,
 		goto out;
 
 	rc = card->discipline->setup(card->gdev);
+	if (rc)
+		qeth_core_free_discipline(card);
 out:
 	mutex_unlock(&card->discipline_mutex);
 	return rc ? rc : count;

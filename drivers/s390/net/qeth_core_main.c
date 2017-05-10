@@ -5650,8 +5650,10 @@ static int qeth_core_set_online(struct ccwgroup_device *gdev)
 		if (rc)
 			goto err;
 		rc = card->discipline->setup(card->gdev);
-		if (rc)
+		if (rc) {
+			qeth_core_free_discipline(card);
 			goto err;
+		}
 	}
 	rc = card->discipline->set_online(gdev);
 err:

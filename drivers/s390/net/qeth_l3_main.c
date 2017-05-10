@@ -3227,8 +3227,11 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 static int qeth_l3_probe_device(struct ccwgroup_device *gdev)
 {
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
+	int rc;
 
-	qeth_l3_create_device_attributes(&gdev->dev);
+	rc = qeth_l3_create_device_attributes(&gdev->dev);
+	if (rc)
+		return rc;
 	card->options.layer2 = 0;
 	card->info.hwtrap = 0;
 	return 0;
