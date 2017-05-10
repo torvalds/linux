@@ -754,8 +754,8 @@ static void aac_send_hardware_soft_reset(struct aac_dev *dev)
 
 static int aac_src_restart_adapter(struct aac_dev *dev, int bled, u8 reset_type)
 {
-	unsigned long status, start;
 	bool is_ctrl_up;
+	int ret = 0;
 
 	if (bled < 0)
 		goto invalid_out;
@@ -785,24 +785,21 @@ static int aac_src_restart_adapter(struct aac_dev *dev, int bled, u8 reset_type)
 		else
 			goto set_startup;
 
-		/*
-		 * Check to see if KERNEL_UP_AND_RUNNING
-		 * Wait for the adapter to be up and running.
-		 * If !KERNEL_UP_AND_RUNNING issue HW Soft Reset
-		 */
-		status = src_readl(dev, MUnit.OMR);
-		if (dev->sa_firmware
-		 && !(status & KERNEL_UP_AND_RUNNING)) {
-			start = jiffies;
-			do {
-				status = src_readl(dev, MUnit.OMR);
-				if (time_after(jiffies,
-				 start+HZ*SOFT_RESET_TIME)) {
-					aac_send_hardware_soft_reset(dev);
-					start = jiffies;
-				}
-			} while (!(status & KERNEL_UP_AND_RUNNING));
+		if (!dev->sa_firmware) {
+			ret = -ENODEV;
+			goto out;
 		}
+
+		aac_send_hardware_soft_reset(dev);
+		dev->msi_enabled = 0;
+
+		is_ctrl_up = aac_is_ctrl_up_and_running(dev);
+		if (!is_ctrl_up) {
+			dev_err(&dev->pdev->dev, "SOFT reset failed\n");
+			ret = -ENODEV;
+			goto out;
+		}
+
 		break;
 	case HW_SOFT_RESET:
 		if (dev->sa_firmware) {
@@ -818,13 +815,14 @@ static int aac_src_restart_adapter(struct aac_dev *dev, int bled, u8 reset_type)
 invalid_out:
 
 	if (src_readl(dev, MUnit.OMR) & KERNEL_PANIC)
-		return -ENODEV;
+		ret = -ENODEV;
 
 set_startup:
 	if (startup_timeout < 300)
 		startup_timeout = 300;
 
-	return 0;
+out:
+	return ret;
 }
 
 /**
