@@ -1126,7 +1126,7 @@ static void input_seq_print_bitmap(struct seq_file *seq, const char *name,
 	 * If no output was produced print a single 0.
 	 */
 	if (skip_empty)
-		seq_puts(seq, "0");
+		seq_putc(seq, '0');
 
 	seq_putc(seq, '\n');
 }
