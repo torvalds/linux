@@ -6369,8 +6369,8 @@ static void vlv_pllb_recal_opamp(struct drm_i915_private *dev_priv, enum pipe
 	vlv_dpio_write(dev_priv, pipe, VLV_PLL_DW9(1), reg_val);
 
 	reg_val = vlv_dpio_read(dev_priv, pipe, VLV_REF_DW13);
-	reg_val &= 0x8cffffff;
-	reg_val = 0x8c000000;
+	reg_val &= 0x00ffffff;
+	reg_val |= 0x8c000000;
 	vlv_dpio_write(dev_priv, pipe, VLV_REF_DW13, reg_val);
 
 	reg_val = vlv_dpio_read(dev_priv, pipe, VLV_PLL_DW9(1));
