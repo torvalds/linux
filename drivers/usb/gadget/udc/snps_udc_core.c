@@ -41,7 +41,6 @@
 #include "amd5536udc.h"
 
 static void udc_tasklet_disconnect(unsigned long);
-static void empty_req_queue(struct udc_ep *);
 static void udc_setup_endpoints(struct udc *dev);
 static void udc_soft_reset(struct udc *dev);
 static struct udc_request *udc_alloc_bna_dummy(struct udc_ep *ep);
@@ -1244,7 +1243,7 @@ finished:
 }
 
 /* Empty request queue of an endpoint; caller holds spinlock */
-static void empty_req_queue(struct udc_ep *ep)
+void empty_req_queue(struct udc_ep *ep)
 {
 	struct udc_request	*req;
 
@@ -1256,6 +1255,7 @@ static void empty_req_queue(struct udc_ep *ep)
 		complete_req(ep, req, -ESHUTDOWN);
 	}
 }
+EXPORT_SYMBOL_GPL(empty_req_queue);
 
 /* Dequeues a request packet, called by gadget driver */
 static int udc_dequeue(struct usb_ep *usbep, struct usb_request *usbreq)
@@ -1623,6 +1623,9 @@ static void udc_setup_endpoints(struct udc *dev)
 /* Bringup after Connect event, initial bringup to be ready for ep0 events */
 static void usb_connect(struct udc *dev)
 {
+	/* Return if already connected */
+	if (dev->connected)
+		return;
 
 	dev_info(dev->dev, "USB Connect\n");
 
@@ -1641,6 +1644,9 @@ static void usb_connect(struct udc *dev)
  */
 static void usb_disconnect(struct udc *dev)
 {
+	/* Return if already disconnected */
+	if (!dev->connected)
+		return;
 
 	dev_info(dev->dev, "USB Disconnect\n");
 
@@ -1715,11 +1721,15 @@ static void udc_soft_reset(struct udc *dev)
 	/* device int. status reset */
 	writel(UDC_DEV_MSK_DISABLE, &dev->regs->irqsts);
 
-	spin_lock_irqsave(&udc_irq_spinlock, flags);
-	writel(AMD_BIT(UDC_DEVCFG_SOFTRESET), &dev->regs->cfg);
-	readl(&dev->regs->cfg);
-	spin_unlock_irqrestore(&udc_irq_spinlock, flags);
-
+	/* Don't do this for Broadcom UDC since this is a reserved
+	 * bit.
+	 */
+	if (dev->chiprev != UDC_BCM_REV) {
+		spin_lock_irqsave(&udc_irq_spinlock, flags);
+		writel(AMD_BIT(UDC_DEVCFG_SOFTRESET), &dev->regs->cfg);
+		readl(&dev->regs->cfg);
+		spin_unlock_irqrestore(&udc_irq_spinlock, flags);
+	}
 }
 
 /* RDE timer callback to set RDE bit */
@@ -3171,21 +3181,27 @@ int udc_probe(struct udc *dev)
 	dev_info(dev->dev, "%s\n", mod_desc);
 
 	snprintf(tmp, sizeof(tmp), "%d", dev->irq);
-	dev_info(dev->dev,
-		 "irq %s, pci mem %08lx, chip rev %02x(Geode5536 %s)\n",
-		 tmp, dev->phys_addr, dev->chiprev,
-		 (dev->chiprev == UDC_HSA0_REV) ? "A0" : "B1");
-	strcpy(tmp, UDC_DRIVER_VERSION_STRING);
-	if (dev->chiprev == UDC_HSA0_REV) {
-		dev_err(dev->dev, "chip revision is A0; too old\n");
-		retval = -ENODEV;
-		goto finished;
+
+	/* Print this device info for AMD chips only*/
+	if (dev->chiprev == UDC_HSA0_REV ||
+	    dev->chiprev == UDC_HSB1_REV) {
+		dev_info(dev->dev, "irq %s, pci mem %08lx, chip rev %02x(Geode5536 %s)\n",
+			 tmp, dev->phys_addr, dev->chiprev,
+			 (dev->chiprev == UDC_HSA0_REV) ?
+			 "A0" : "B1");
+		strcpy(tmp, UDC_DRIVER_VERSION_STRING);
+		if (dev->chiprev == UDC_HSA0_REV) {
+			dev_err(dev->dev, "chip revision is A0; too old\n");
+			retval = -ENODEV;
+			goto finished;
+		}
+		dev_info(dev->dev,
+			 "driver version: %s(for Geode5536 B1)\n", tmp);
 	}
-	dev_info(dev->dev,
-		 "driver version: %s(for Geode5536 B1)\n", tmp);
+
 	udc = dev;
 
-	retval = usb_add_gadget_udc_release(&udc->pdev->dev, &dev->gadget,
+	retval = usb_add_gadget_udc_release(udc->dev, &dev->gadget,
 					    gadget_release);
 	if (retval)
 		goto finished;
