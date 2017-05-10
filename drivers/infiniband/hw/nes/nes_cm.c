@@ -1825,7 +1825,7 @@ static void handle_rcv_mpa(struct nes_cm_node *cm_node, struct sk_buff *skb)
 			type = NES_CM_EVENT_CONNECTED;
 			cm_node->state = NES_CM_STATE_TSA;
 		}
-
+		send_ack(cm_node, NULL);
 		break;
 	default:
 		WARN_ON(1);
