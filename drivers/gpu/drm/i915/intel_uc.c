@@ -94,12 +94,20 @@ void intel_uc_sanitize_options(struct drm_i915_private *dev_priv)
 		i915.enable_guc_submission = HAS_GUC_SCHED(dev_priv);
 }
 
+static void guc_write_irq_trigger(struct intel_guc *guc)
+{
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+
+	I915_WRITE(GUC_SEND_INTERRUPT, GUC_SEND_TRIGGER);
+}
+
 void intel_uc_init_early(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;
 
 	mutex_init(&guc->send_mutex);
 	guc->send = intel_guc_send_nop;
+	guc->notify = guc_write_irq_trigger;
 }
 
 static void fetch_uc_fw(struct drm_i915_private *dev_priv,
@@ -413,7 +421,7 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len)
 
 	POSTING_READ(SOFT_SCRATCH(i - 1));
 
-	I915_WRITE(GUC_SEND_INTERRUPT, GUC_SEND_TRIGGER);
+	intel_guc_notify(guc);
 
 	/*
 	 * No GuC command should ever take longer than 10ms.

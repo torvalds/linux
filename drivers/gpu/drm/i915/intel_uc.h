@@ -210,6 +210,9 @@ struct intel_guc {
 
 	/* GuC's FW specific send function */
 	int (*send)(struct intel_guc *guc, const u32 *data, u32 len);
+
+	/* GuC's FW specific notify function */
+	void (*notify)(struct intel_guc *guc);
 };
 
 struct intel_huc {
@@ -229,9 +232,15 @@ void intel_uc_fini_hw(struct drm_i915_private *dev_priv);
 int intel_guc_sample_forcewake(struct intel_guc *guc);
 int intel_guc_send_nop(struct intel_guc *guc, const u32 *action, u32 len);
 int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len);
+
 static inline int intel_guc_send(struct intel_guc *guc, const u32 *action, u32 len)
 {
 	return guc->send(guc, action, len);
+}
+
+static inline void intel_guc_notify(struct intel_guc *guc)
+{
+	guc->notify(guc);
 }
 
 /* intel_guc_loader.c */
