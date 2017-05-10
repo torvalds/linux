@@ -621,7 +621,9 @@ static int EP0_in_PIO(struct nbu2ss_udc *udc, u8 *p_buf, u32 length)
 
 /*-------------------------------------------------------------------------*/
 /* Endpoint 0 IN Transfer (PIO, OverBytes) */
-static int ep0_in_overbytes(struct nbu2ss_udc *udc, u8 *p_buf, u32 i_remain_size)
+static int ep0_in_overbytes(struct nbu2ss_udc *udc,
+			    u8 *p_buf,
+			    u32 i_remain_size)
 {
 	u32		i;
 	union usb_reg_access  temp_32;
@@ -913,7 +915,8 @@ static int _nbu2ss_epn_out_pio(
 	if (data > 0) {
 		/*---------------------------------------------------------*/
 		/* Copy of fraction byte */
-		temp_32.dw = _nbu2ss_readl(&preg->EP_REGS[ep->epnum - 1].EP_READ);
+		temp_32.dw =
+			_nbu2ss_readl(&preg->EP_REGS[ep->epnum - 1].EP_READ);
 		for (i = 0 ; i < data ; i++)
 			p_buf_32->byte.DATA[i] = temp_32.byte.DATA[i];
 		result += data;
@@ -2652,7 +2655,9 @@ static int nbu2ss_ep_queue(
 	}
 
 	req = container_of(_req, struct nbu2ss_req, req);
-	if (unlikely(!_req->complete || !_req->buf || !list_empty(&req->queue))) {
+	if (unlikely(!_req->complete ||
+		     !_req->buf ||
+		     !list_empty(&req->queue))) {
 		if (!_req->complete)
 			pr_err("udc: %s --- !_req->complete\n", __func__);
 
