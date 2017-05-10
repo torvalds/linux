@@ -217,12 +217,6 @@ enum xgene_enet_rm {
 #define FULL_DUPLEX2			BIT(0)
 #define PAD_CRC				BIT(2)
 #define LENGTH_CHK			BIT(4)
-#define SCAN_AUTO_INCR			BIT(5)
-#define TBYT_ADDR			0x38
-#define TPKT_ADDR			0x39
-#define TDRP_ADDR			0x45
-#define TFCS_ADDR			0x47
-#define TUND_ADDR			0x4a
 
 #define TSO_IPPROTO_TCP			1
 
