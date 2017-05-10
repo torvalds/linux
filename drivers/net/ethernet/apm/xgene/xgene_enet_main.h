@@ -138,6 +138,8 @@ struct xgene_enet_desc_ring {
 	__le64 *exp_bufs;
 	u64 tx_packets;
 	u64 tx_bytes;
+	u64 tx_dropped;
+	u64 tx_errors;
 	u64 rx_packets;
 	u64 rx_bytes;
 	u64 rx_dropped;

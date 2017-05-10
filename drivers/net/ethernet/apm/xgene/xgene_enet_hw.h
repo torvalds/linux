@@ -380,9 +380,7 @@ static inline u16 xgene_enet_get_numslots(u16 id, u32 size)
 }
 
 void xgene_enet_parse_error(struct xgene_enet_desc_ring *ring,
-			    struct xgene_enet_pdata *pdata,
 			    enum xgene_enet_err_code status);
-
 int xgene_enet_mdio_config(struct xgene_enet_pdata *pdata);
 void xgene_enet_mdio_remove(struct xgene_enet_pdata *pdata);
 bool xgene_ring_mgr_init(struct xgene_enet_pdata *p);

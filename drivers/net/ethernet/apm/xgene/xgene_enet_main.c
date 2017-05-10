@@ -246,9 +246,9 @@ static int xgene_enet_tx_completion(struct xgene_enet_desc_ring *cp_ring,
 	skb_frag_t *frag;
 	dma_addr_t *frag_dma_addr;
 	u16 skb_index;
-	u8 status;
-	int i, ret = 0;
 	u8 mss_index;
+	u8 status;
+	int i;
 
 	skb_index = GET_VAL(USERINFO, le64_to_cpu(raw_desc->m0));
 	skb = cp_ring->cp_skb[skb_index];
@@ -275,19 +275,17 @@ static int xgene_enet_tx_completion(struct xgene_enet_desc_ring *cp_ring,
 	/* Checking for error */
 	status = GET_VAL(LERR, le64_to_cpu(raw_desc->m0));
 	if (unlikely(status > 2)) {
-		xgene_enet_parse_error(cp_ring, netdev_priv(cp_ring->ndev),
-				       status);
-		ret = -EIO;
+		cp_ring->tx_dropped++;
+		cp_ring->tx_errors++;
 	}
 
 	if (likely(skb)) {
 		dev_kfree_skb_any(skb);
 	} else {
 		netdev_err(cp_ring->ndev, "completion skb is NULL\n");
-		ret = -EIO;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int xgene_enet_setup_mss(struct net_device *ndev, u32 mss)
@@ -711,7 +709,8 @@ static int xgene_enet_rx_frame(struct xgene_enet_desc_ring *rx_ring,
 		if (!xgene_enet_errata_10GE_8(skb, datalen, status)) {
 			dev_kfree_skb_any(skb);
 			xgene_enet_free_pagepool(page_pool, raw_desc, exp_desc);
-			xgene_enet_parse_error(rx_ring, pdata, status);
+			xgene_enet_parse_error(rx_ring, status);
+			rx_ring->rx_dropped++;
 			goto out;
 		}
 	}
@@ -1477,6 +1476,8 @@ static void xgene_enet_get_stats64(
 		if (ring) {
 			stats->tx_packets += ring->tx_packets;
 			stats->tx_bytes += ring->tx_bytes;
+			stats->tx_dropped += ring->tx_dropped;
+			stats->tx_errors += ring->tx_errors;
 		}
 	}
 
@@ -1485,11 +1486,16 @@ static void xgene_enet_get_stats64(
 		if (ring) {
 			stats->rx_packets += ring->rx_packets;
 			stats->rx_bytes += ring->rx_bytes;
-			stats->rx_errors += ring->rx_length_errors +
+			stats->rx_dropped += ring->rx_dropped;
+			stats->rx_errors += ring->rx_errors +
+				ring->rx_length_errors +
 				ring->rx_crc_errors +
 				ring->rx_frame_errors +
 				ring->rx_fifo_errors;
-			stats->rx_dropped += ring->rx_dropped;
+			stats->rx_length_errors += ring->rx_length_errors;
+			stats->rx_crc_errors += ring->rx_crc_errors;
+			stats->rx_frame_errors += ring->rx_frame_errors;
+			stats->rx_fifo_errors += ring->rx_fifo_errors;
 		}
 	}
 }

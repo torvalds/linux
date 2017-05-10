@@ -205,30 +205,24 @@ static u32 xgene_enet_ring_len(struct xgene_enet_desc_ring *ring)
 }
 
 void xgene_enet_parse_error(struct xgene_enet_desc_ring *ring,
-			    struct xgene_enet_pdata *pdata,
 			    enum xgene_enet_err_code status)
 {
 	switch (status) {
 	case INGRESS_CRC:
 		ring->rx_crc_errors++;
-		ring->rx_dropped++;
 		break;
 	case INGRESS_CHECKSUM:
 	case INGRESS_CHECKSUM_COMPUTE:
 		ring->rx_errors++;
-		ring->rx_dropped++;
 		break;
 	case INGRESS_TRUNC_FRAME:
 		ring->rx_frame_errors++;
-		ring->rx_dropped++;
 		break;
 	case INGRESS_PKT_LEN:
 		ring->rx_length_errors++;
-		ring->rx_dropped++;
 		break;
 	case INGRESS_PKT_UNDER:
 		ring->rx_frame_errors++;
-		ring->rx_dropped++;
 		break;
 	case INGRESS_FIFO_OVERRUN:
 		ring->rx_fifo_errors++;
