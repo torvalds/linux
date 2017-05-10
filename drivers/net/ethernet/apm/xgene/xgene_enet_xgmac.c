@@ -446,26 +446,6 @@ static void xgene_enet_xgcle_bypass(struct xgene_enet_pdata *pdata,
 static void xgene_enet_shutdown(struct xgene_enet_pdata *pdata)
 {
 	struct device *dev = &pdata->pdev->dev;
-	struct xgene_enet_desc_ring *ring;
-	u32 pb;
-	int i;
-
-	pb = 0;
-	for (i = 0; i < pdata->rxq_cnt; i++) {
-		ring = pdata->rx_ring[i]->buf_pool;
-		pb |= BIT(xgene_enet_get_fpsel(ring->id));
-		ring = pdata->rx_ring[i]->page_pool;
-		if (ring)
-			pb |= BIT(xgene_enet_get_fpsel(ring->id));
-	}
-	xgene_enet_wr_ring_if(pdata, ENET_CFGSSQMIFPRESET_ADDR, pb);
-
-	pb = 0;
-	for (i = 0; i < pdata->txq_cnt; i++) {
-		ring = pdata->tx_ring[i];
-		pb |= BIT(xgene_enet_ring_bufnum(ring->id));
-	}
-	xgene_enet_wr_ring_if(pdata, ENET_CFGSSQMIWQRESET_ADDR, pb);
 
 	if (dev->of_node) {
 		if (!IS_ERR(pdata->clk))

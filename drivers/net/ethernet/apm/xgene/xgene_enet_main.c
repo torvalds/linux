@@ -2159,8 +2159,8 @@ static int xgene_enet_remove(struct platform_device *pdev)
 		xgene_enet_mdio_remove(pdata);
 
 	unregister_netdev(ndev);
-	pdata->port_ops->shutdown(pdata);
 	xgene_enet_delete_desc_rings(pdata);
+	pdata->port_ops->shutdown(pdata);
 	free_netdev(ndev);
 
 	return 0;

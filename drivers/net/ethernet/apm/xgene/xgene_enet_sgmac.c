@@ -534,26 +534,6 @@ static void xgene_enet_clear(struct xgene_enet_pdata *pdata,
 static void xgene_enet_shutdown(struct xgene_enet_pdata *p)
 {
 	struct device *dev = &p->pdev->dev;
-	struct xgene_enet_desc_ring *ring;
-	u32 pb;
-	int i;
-
-	pb = 0;
-	for (i = 0; i < p->rxq_cnt; i++) {
-		ring = p->rx_ring[i]->buf_pool;
-		pb |= BIT(xgene_enet_get_fpsel(ring->id));
-		ring = p->rx_ring[i]->page_pool;
-		if (ring)
-			pb |= BIT(xgene_enet_get_fpsel(ring->id));
-	}
-	xgene_enet_wr_ring_if(p, ENET_CFGSSQMIFPRESET_ADDR, pb);
-
-	pb = 0;
-	for (i = 0; i < p->txq_cnt; i++) {
-		ring = p->tx_ring[i];
-		pb |= BIT(xgene_enet_ring_bufnum(ring->id));
-	}
-	xgene_enet_wr_ring_if(p, ENET_CFGSSQMIWQRESET_ADDR, pb);
 
 	if (dev->of_node) {
 		if (!IS_ERR(p->clk))
