@@ -164,6 +164,8 @@ struct spmi_pmic_arb {
  *			on v2 offset of SPMI_PIC_IRQ_CLEARn.
  */
 struct pmic_arb_ver_ops {
+	int (*ppid_to_apid)(struct spmi_pmic_arb *pa, u8 sid, u16 addr,
+			u8 *apid);
 	int (*mode)(struct spmi_pmic_arb *dev, u8 sid, u16 addr,
 			mode_t *mode);
 	/* spmi commands (read_cmd, write_cmd, cmd) functionality */
@@ -657,42 +659,6 @@ struct spmi_pmic_arb_irq_spec {
 	unsigned irq:3;
 };
 
-static int search_mapping_table(struct spmi_pmic_arb *pa,
-				struct spmi_pmic_arb_irq_spec *spec,
-				u8 *apid)
-{
-	u16 ppid = spec->slave << 8 | spec->per;
-	u32 *mapping_table = pa->mapping_table;
-	int index = 0, i;
-	u32 data;
-
-	for (i = 0; i < SPMI_MAPPING_TABLE_TREE_DEPTH; ++i) {
-		if (!test_and_set_bit(index, pa->mapping_table_valid))
-			mapping_table[index] = readl_relaxed(pa->cnfg +
-						SPMI_MAPPING_TABLE_REG(index));
-
-		data = mapping_table[index];
-
-		if (ppid & BIT(SPMI_MAPPING_BIT_INDEX(data))) {
-			if (SPMI_MAPPING_BIT_IS_1_FLAG(data)) {
-				index = SPMI_MAPPING_BIT_IS_1_RESULT(data);
-			} else {
-				*apid = SPMI_MAPPING_BIT_IS_1_RESULT(data);
-				return 0;
-			}
-		} else {
-			if (SPMI_MAPPING_BIT_IS_0_FLAG(data)) {
-				index = SPMI_MAPPING_BIT_IS_0_RESULT(data);
-			} else {
-				*apid = SPMI_MAPPING_BIT_IS_0_RESULT(data);
-				return 0;
-			}
-		}
-	}
-
-	return -ENODEV;
-}
-
 static int qpnpint_irq_domain_dt_translate(struct irq_domain *d,
 					   struct device_node *controller,
 					   const u32 *intspec,
@@ -702,7 +668,7 @@ static int qpnpint_irq_domain_dt_translate(struct irq_domain *d,
 {
 	struct spmi_pmic_arb *pa = d->host_data;
 	struct spmi_pmic_arb_irq_spec spec;
-	int err;
+	int rc;
 	u8 apid;
 
 	dev_dbg(&pa->spmic->dev,
@@ -720,11 +686,14 @@ static int qpnpint_irq_domain_dt_translate(struct irq_domain *d,
 	spec.per   = intspec[1];
 	spec.irq   = intspec[2];
 
-	err = search_mapping_table(pa, &spec, &apid);
-	if (err)
-		return err;
-
-	pa->apid_to_ppid[apid] = spec.slave << 8 | spec.per;
+	rc = pa->ver_ops->ppid_to_apid(pa, intspec[0],
+			(intspec[1] << 8), &apid);
+	if (rc < 0) {
+		dev_err(&pa->spmic->dev,
+		"failed to xlate sid = 0x%x, periph = 0x%x, irq = %x rc = %d\n",
+		intspec[0], intspec[1], intspec[2], rc);
+		return rc;
+	}
 
 	/* Keep track of {max,min}_apid for bounding search during interrupt */
 	if (apid > pa->max_apid)
@@ -755,6 +724,54 @@ static int qpnpint_irq_domain_map(struct irq_domain *d,
 	irq_set_chip_data(virq, d->host_data);
 	irq_set_noprobe(virq);
 	return 0;
+}
+
+static int
+pmic_arb_ppid_to_apid_v1(struct spmi_pmic_arb *pa, u8 sid, u16 addr, u8 *apid)
+{
+	u16 ppid = sid << 8 | ((addr >> 8) & 0xFF);
+	u32 *mapping_table = pa->mapping_table;
+	int index = 0, i;
+	u16 apid_valid;
+	u32 data;
+
+	apid_valid = pa->ppid_to_apid[ppid];
+	if (apid_valid & PMIC_ARB_CHAN_VALID) {
+		*apid = (apid_valid & ~PMIC_ARB_CHAN_VALID);
+		return 0;
+	}
+
+	for (i = 0; i < SPMI_MAPPING_TABLE_TREE_DEPTH; ++i) {
+		if (!test_and_set_bit(index, pa->mapping_table_valid))
+			mapping_table[index] = readl_relaxed(pa->cnfg +
+						SPMI_MAPPING_TABLE_REG(index));
+
+		data = mapping_table[index];
+
+		if (ppid & BIT(SPMI_MAPPING_BIT_INDEX(data))) {
+			if (SPMI_MAPPING_BIT_IS_1_FLAG(data)) {
+				index = SPMI_MAPPING_BIT_IS_1_RESULT(data);
+			} else {
+				*apid = SPMI_MAPPING_BIT_IS_1_RESULT(data);
+				pa->ppid_to_apid[ppid]
+					= *apid | PMIC_ARB_CHAN_VALID;
+				pa->apid_to_ppid[*apid] = ppid;
+				return 0;
+			}
+		} else {
+			if (SPMI_MAPPING_BIT_IS_0_FLAG(data)) {
+				index = SPMI_MAPPING_BIT_IS_0_RESULT(data);
+			} else {
+				*apid = SPMI_MAPPING_BIT_IS_0_RESULT(data);
+				pa->ppid_to_apid[ppid]
+					= *apid | PMIC_ARB_CHAN_VALID;
+				pa->apid_to_ppid[*apid] = ppid;
+				return 0;
+			}
+		}
+	}
+
+	return -ENODEV;
 }
 
 static int
@@ -797,6 +814,7 @@ static u16 pmic_arb_find_apid(struct spmi_pmic_arb *pa, u16 ppid)
 
 		id = (regval >> 8) & PMIC_ARB_PPID_MASK;
 		pa->ppid_to_apid[id] = apid | PMIC_ARB_CHAN_VALID;
+		pa->apid_to_ppid[apid] = id;
 		if (id == ppid) {
 			apid |= PMIC_ARB_CHAN_VALID;
 			break;
@@ -809,20 +827,35 @@ static u16 pmic_arb_find_apid(struct spmi_pmic_arb *pa, u16 ppid)
 
 
 static int
-pmic_arb_mode_v2(struct spmi_pmic_arb *pa, u8 sid, u16 addr, mode_t *mode)
+pmic_arb_ppid_to_apid_v2(struct spmi_pmic_arb *pa, u8 sid, u16 addr, u8 *apid)
 {
 	u16 ppid = (sid << 8) | (addr >> 8);
-	u16 apid;
-	u8 owner;
+	u16 apid_valid;
 
-	apid = pa->ppid_to_apid[ppid];
-	if (!(apid & PMIC_ARB_CHAN_VALID))
+	apid_valid = pa->ppid_to_apid[ppid];
+	if (!(apid_valid & PMIC_ARB_CHAN_VALID))
+		apid_valid = pmic_arb_find_apid(pa, ppid);
+	if (!(apid_valid & PMIC_ARB_CHAN_VALID))
 		return -ENODEV;
+
+	*apid = (apid_valid & ~PMIC_ARB_CHAN_VALID);
+	return 0;
+}
+
+static int
+pmic_arb_mode_v2(struct spmi_pmic_arb *pa, u8 sid, u16 addr, mode_t *mode)
+{
+	u8 apid;
+	u8 owner;
+	int rc;
+
+	rc = pmic_arb_ppid_to_apid_v2(pa, sid, addr, &apid);
+	if (rc < 0)
+		return rc;
 
 	*mode = 0;
 	*mode |= S_IRUSR;
 
-	apid &= ~PMIC_ARB_CHAN_VALID;
 	owner = pa->apid_to_owner[apid];
 	if (owner == pa->ee)
 		*mode |= S_IWUSR;
@@ -833,15 +866,12 @@ pmic_arb_mode_v2(struct spmi_pmic_arb *pa, u8 sid, u16 addr, mode_t *mode)
 static int
 pmic_arb_offset_v2(struct spmi_pmic_arb *pa, u8 sid, u16 addr, u32 *offset)
 {
-	u16 ppid = (sid << 8) | (addr >> 8);
-	u16 apid;
+	u8 apid;
+	int rc;
 
-	apid = pa->ppid_to_apid[ppid];
-	if (!(apid & PMIC_ARB_CHAN_VALID))
-		apid = pmic_arb_find_apid(pa, ppid);
-	if (!(apid & PMIC_ARB_CHAN_VALID))
-		return -ENODEV;
-	apid &= ~PMIC_ARB_CHAN_VALID;
+	rc = pmic_arb_ppid_to_apid_v2(pa, sid, addr, &apid);
+	if (rc < 0)
+		return rc;
 
 	*offset = 0x1000 * pa->ee + 0x8000 * apid;
 	return 0;
@@ -898,6 +928,7 @@ static u32 pmic_arb_irq_clear_v2(u8 n)
 }
 
 static const struct pmic_arb_ver_ops pmic_arb_v1 = {
+	.ppid_to_apid		= pmic_arb_ppid_to_apid_v1,
 	.mode			= pmic_arb_mode_v1,
 	.non_data_cmd		= pmic_arb_non_data_cmd_v1,
 	.offset			= pmic_arb_offset_v1,
@@ -909,6 +940,7 @@ static const struct pmic_arb_ver_ops pmic_arb_v1 = {
 };
 
 static const struct pmic_arb_ver_ops pmic_arb_v2 = {
+	.ppid_to_apid		= pmic_arb_ppid_to_apid_v2,
 	.mode			= pmic_arb_mode_v2,
 	.non_data_cmd		= pmic_arb_non_data_cmd_v2,
 	.offset			= pmic_arb_offset_v2,
