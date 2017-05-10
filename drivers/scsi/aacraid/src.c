@@ -772,8 +772,7 @@ static int aac_src_restart_adapter(struct aac_dev *dev, int bled, u8 reset_type)
 
 	dev->a_ops.adapter_enable_int = aac_src_disable_interrupt;
 
-	switch (reset_type) {
-	case IOP_HWSOFT_RESET:
+	if (reset_type & HW_IOP_RESET) {
 		aac_send_iop_reset(dev);
 
 		/*
@@ -784,12 +783,14 @@ static int aac_src_restart_adapter(struct aac_dev *dev, int bled, u8 reset_type)
 			dev_err(&dev->pdev->dev, "IOP reset failed\n");
 		else
 			goto set_startup;
+	}
 
-		if (!dev->sa_firmware) {
-			ret = -ENODEV;
-			goto out;
-		}
+	if (!dev->sa_firmware) {
+		ret = -ENODEV;
+		goto out;
+	}
 
+	if (reset_type & HW_SOFT_RESET) {
 		aac_send_hardware_soft_reset(dev);
 		dev->msi_enabled = 0;
 
@@ -799,23 +800,7 @@ static int aac_src_restart_adapter(struct aac_dev *dev, int bled, u8 reset_type)
 			ret = -ENODEV;
 			goto out;
 		}
-
-		break;
-	case HW_SOFT_RESET:
-		if (dev->sa_firmware) {
-			aac_send_hardware_soft_reset(dev);
-			aac_set_intx_mode(dev);
-		}
-		break;
-	default:
-		aac_send_iop_reset(dev);
-		break;
 	}
-
-invalid_out:
-
-	if (src_readl(dev, MUnit.OMR) & KERNEL_PANIC)
-		ret = -ENODEV;
 
 set_startup:
 	if (startup_timeout < 300)
@@ -823,6 +808,11 @@ set_startup:
 
 out:
 	return ret;
+
+invalid_out:
+	if (src_readl(dev, MUnit.OMR) & KERNEL_PANIC)
+		ret = -ENODEV;
+goto out;
 }
 
 /**
