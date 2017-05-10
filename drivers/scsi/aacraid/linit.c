@@ -466,6 +466,17 @@ static int aac_slave_configure(struct scsi_device *sdev)
 			++num_lsu;
 
 		depth = (host->can_queue - num_one) / num_lsu;
+
+		if (sdev_channel(sdev) != NATIVE_CHANNEL)
+			goto common_config;
+
+		/*
+		 * Check if SATA drive
+		 */
+		if (strncmp(sdev->vendor, "ATA", 3) == 0)
+			depth = 32;
+		else
+			depth = 64;
 	}
 
 common_config:
