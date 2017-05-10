@@ -405,16 +405,22 @@ static int aac_slave_configure(struct scsi_device *sdev)
 	int chn, tid;
 	unsigned int depth = 0;
 	unsigned int set_timeout = 0;
+	bool set_qd_dev_type = false;
+	u8 devtype = 0;
 
 	chn = aac_logical_to_phys(sdev_channel(sdev));
 	tid = sdev_id(sdev);
-	if (chn < AAC_MAX_BUSES && tid < AAC_MAX_TARGETS &&
-		aac->hba_map[chn][tid].devtype == AAC_DEVTYPE_NATIVE_RAW) {
-		depth = aac->hba_map[chn][tid].qd_limit;
+	if (chn < AAC_MAX_BUSES && tid < AAC_MAX_TARGETS && aac->sa_firmware) {
+		devtype = aac->hba_map[chn][tid].devtype;
+
+		if (devtype == AAC_DEVTYPE_NATIVE_RAW)
+			depth = aac->hba_map[chn][tid].qd_limit;
+		else if (devtype == AAC_DEVTYPE_ARC_RAW)
+			set_qd_dev_type = true;
+
 		set_timeout = 1;
 		goto common_config;
 	}
-
 
 	if (aac->jbod && (sdev->type == TYPE_DISK))
 		sdev->removable = 1;
@@ -470,16 +476,22 @@ static int aac_slave_configure(struct scsi_device *sdev)
 		if (sdev_channel(sdev) != NATIVE_CHANNEL)
 			goto common_config;
 
-		/*
-		 * Check if SATA drive
-		 */
+		set_qd_dev_type = true;
+
+	}
+
+common_config:
+
+	/*
+	 * Check if SATA drive
+	 */
+	if (set_qd_dev_type) {
 		if (strncmp(sdev->vendor, "ATA", 3) == 0)
 			depth = 32;
 		else
 			depth = 64;
 	}
 
-common_config:
 	/*
 	 * Firmware has an individual device recovery time typically
 	 * of 35 seconds, give us a margin.
