@@ -2577,14 +2577,14 @@ static size_t gen6_get_stolen_size(u16 snb_gmch_ctl)
 {
 	snb_gmch_ctl >>= SNB_GMCH_GMS_SHIFT;
 	snb_gmch_ctl &= SNB_GMCH_GMS_MASK;
-	return snb_gmch_ctl << 25; /* 32 MB units */
+	return (size_t)snb_gmch_ctl << 25; /* 32 MB units */
 }
 
 static size_t gen8_get_stolen_size(u16 bdw_gmch_ctl)
 {
 	bdw_gmch_ctl >>= BDW_GMCH_GMS_SHIFT;
 	bdw_gmch_ctl &= BDW_GMCH_GMS_MASK;
-	return bdw_gmch_ctl << 25; /* 32 MB units */
+	return (size_t)bdw_gmch_ctl << 25; /* 32 MB units */
 }
 
 static size_t chv_get_stolen_size(u16 gmch_ctrl)
@@ -2598,11 +2598,11 @@ static size_t chv_get_stolen_size(u16 gmch_ctrl)
 	 * 0x17 to 0x1d: 4MB increments start at 36MB
 	 */
 	if (gmch_ctrl < 0x11)
-		return gmch_ctrl << 25;
+		return (size_t)gmch_ctrl << 25;
 	else if (gmch_ctrl < 0x17)
-		return (gmch_ctrl - 0x11 + 2) << 22;
+		return (size_t)(gmch_ctrl - 0x11 + 2) << 22;
 	else
-		return (gmch_ctrl - 0x17 + 9) << 22;
+		return (size_t)(gmch_ctrl - 0x17 + 9) << 22;
 }
 
 static size_t gen9_get_stolen_size(u16 gen9_gmch_ctl)
@@ -2611,10 +2611,10 @@ static size_t gen9_get_stolen_size(u16 gen9_gmch_ctl)
 	gen9_gmch_ctl &= BDW_GMCH_GMS_MASK;
 
 	if (gen9_gmch_ctl < 0xf0)
-		return gen9_gmch_ctl << 25; /* 32 MB units */
+		return (size_t)gen9_gmch_ctl << 25; /* 32 MB units */
 	else
 		/* 4MB increments starting at 0xf0 for 4MB */
-		return (gen9_gmch_ctl - 0xf0 + 1) << 22;
+		return (size_t)(gen9_gmch_ctl - 0xf0 + 1) << 22;
 }
 
 static int ggtt_probe_common(struct i915_ggtt *ggtt, u64 size)
