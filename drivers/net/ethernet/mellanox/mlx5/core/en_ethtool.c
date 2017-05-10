@@ -1045,7 +1045,7 @@ static int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
 	    (hfunc != ETH_RSS_HASH_TOP))
 		return -EINVAL;
 
-	in = mlx5_vzalloc(inlen);
+	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
 		return -ENOMEM;
 

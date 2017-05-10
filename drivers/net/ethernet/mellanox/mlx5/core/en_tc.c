@@ -1738,7 +1738,7 @@ int mlx5e_configure_flower(struct mlx5e_priv *priv, __be16 protocol,
 	}
 
 	flow = kzalloc(sizeof(*flow) + attr_size, GFP_KERNEL);
-	parse_attr = mlx5_vzalloc(sizeof(*parse_attr));
+	parse_attr = kvzalloc(sizeof(*parse_attr), GFP_KERNEL);
 	if (!parse_attr || !flow) {
 		err = -ENOMEM;
 		goto err_free;

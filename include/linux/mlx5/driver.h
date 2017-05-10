@@ -890,11 +890,6 @@ static inline u16 cmdif_rev(struct mlx5_core_dev *dev)
 	return ioread32be(&dev->iseg->cmdif_rev_fw_sub) >> 16;
 }
 
-static inline void *mlx5_vzalloc(unsigned long size)
-{
-	return kvzalloc(size, GFP_KERNEL);
-}
-
 static inline u32 mlx5_base_mkey(const u32 key)
 {
 	return key & 0xffffff00u;

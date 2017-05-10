@@ -311,9 +311,8 @@ mlx5_eswitch_add_send_to_vport_rule(struct mlx5_eswitch *esw, int vport, u32 sqn
 	struct mlx5_flow_spec *spec;
 	void *misc;
 
-	spec = mlx5_vzalloc(sizeof(*spec));
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec) {
-		esw_warn(esw->dev, "FDB: Failed to alloc match parameters\n");
 		flow_rule = ERR_PTR(-ENOMEM);
 		goto out;
 	}
@@ -401,9 +400,8 @@ static int esw_add_fdb_miss_rule(struct mlx5_eswitch *esw)
 	struct mlx5_flow_spec *spec;
 	int err = 0;
 
-	spec = mlx5_vzalloc(sizeof(*spec));
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec) {
-		esw_warn(esw->dev, "FDB: Failed to alloc match parameters\n");
 		err = -ENOMEM;
 		goto out;
 	}
@@ -488,7 +486,7 @@ static int esw_create_offloads_fdb_tables(struct mlx5_eswitch *esw, int nvports)
 	u32 *flow_group_in;
 
 	esw_debug(esw->dev, "Create offloads FDB Tables\n");
-	flow_group_in = mlx5_vzalloc(inlen);
+	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!flow_group_in)
 		return -ENOMEM;
 
@@ -631,7 +629,7 @@ static int esw_create_vport_rx_group(struct mlx5_eswitch *esw)
 	int err = 0;
 	int nvports = priv->sriov.num_vfs + 2;
 
-	flow_group_in = mlx5_vzalloc(inlen);
+	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!flow_group_in)
 		return -ENOMEM;
 
@@ -675,9 +673,8 @@ mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, int vport, u32 tirn)
 	struct mlx5_flow_spec *spec;
 	void *misc;
 
-	spec = mlx5_vzalloc(sizeof(*spec));
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec) {
-		esw_warn(esw->dev, "Failed to alloc match parameters\n");
 		flow_rule = ERR_PTR(-ENOMEM);
 		goto out;
 	}

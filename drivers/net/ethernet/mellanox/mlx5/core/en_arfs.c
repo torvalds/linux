@@ -180,9 +180,8 @@ static int arfs_add_default_rule(struct mlx5e_priv *priv,
 	struct mlx5_flow_spec *spec;
 	int err = 0;
 
-	spec = mlx5_vzalloc(sizeof(*spec));
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec) {
-		netdev_err(priv->netdev, "%s: alloc failed\n", __func__);
 		err = -ENOMEM;
 		goto out;
 	}
@@ -237,7 +236,7 @@ static int arfs_create_groups(struct mlx5e_flow_table *ft,
 
 	ft->g = kcalloc(MLX5E_ARFS_NUM_GROUPS,
 			sizeof(*ft->g), GFP_KERNEL);
-	in = mlx5_vzalloc(inlen);
+	in = kvzalloc(inlen, GFP_KERNEL);
 	if  (!in || !ft->g) {
 		kvfree(ft->g);
 		kvfree(in);
@@ -481,9 +480,8 @@ static struct mlx5_flow_handle *arfs_add_rule(struct mlx5e_priv *priv,
 	struct mlx5_flow_table *ft;
 	int err = 0;
 
-	spec = mlx5_vzalloc(sizeof(*spec));
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec) {
-		netdev_err(priv->netdev, "%s: alloc failed\n", __func__);
 		err = -ENOMEM;
 		goto out;
 	}

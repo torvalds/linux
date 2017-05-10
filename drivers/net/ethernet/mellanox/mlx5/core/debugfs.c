@@ -405,7 +405,7 @@ static u64 cq_read_field(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 	u32 *out;
 	int err;
 
-	out = mlx5_vzalloc(outlen);
+	out = kvzalloc(outlen, GFP_KERNEL);
 	if (!out)
 		return param;
 
