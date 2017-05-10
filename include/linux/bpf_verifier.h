@@ -90,6 +90,7 @@ struct bpf_verifier_env {
 	struct bpf_prog *prog;		/* eBPF program being verified */
 	struct bpf_verifier_stack_elem *head; /* stack of verifier states to be processed */
 	int stack_size;			/* number of states to be processed */
+	bool strict_alignment;		/* perform strict pointer alignment checks */
 	struct bpf_verifier_state cur_state; /* current verifier state */
 	struct bpf_verifier_state_list **explored_states; /* search pruning optimization */
 	const struct bpf_ext_analyzer_ops *analyzer_ops; /* external analyzer ops */

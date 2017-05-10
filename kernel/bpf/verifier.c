@@ -791,6 +791,7 @@ static bool is_pointer_value(struct bpf_verifier_env *env, int regno)
 static int check_pkt_ptr_alignment(const struct bpf_reg_state *reg,
 				   int off, int size, bool strict)
 {
+	int ip_align;
 	int reg_off;
 
 	/* Byte size accesses are always allowed. */
@@ -807,10 +808,14 @@ static int check_pkt_ptr_alignment(const struct bpf_reg_state *reg,
 		reg_off += reg->aux_off;
 	}
 
-	/* skb->data is NET_IP_ALIGN-ed */
-	if ((NET_IP_ALIGN + reg_off + off) % size != 0) {
+	/* skb->data is NET_IP_ALIGN-ed, but for strict alignment checking
+	 * we force this to 2 which is universally what architectures use
+	 * when they don't set CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS.
+	 */
+	ip_align = strict ? 2 : NET_IP_ALIGN;
+	if ((ip_align + reg_off + off) % size != 0) {
 		verbose("misaligned packet access off %d+%d+%d size %d\n",
-			NET_IP_ALIGN, reg_off, off, size);
+			ip_align, reg_off, off, size);
 		return -EACCES;
 	}
 
@@ -828,10 +833,11 @@ static int check_val_ptr_alignment(const struct bpf_reg_state *reg,
 	return 0;
 }
 
-static int check_ptr_alignment(const struct bpf_reg_state *reg,
+static int check_ptr_alignment(struct bpf_verifier_env *env,
+			       const struct bpf_reg_state *reg,
 			       int off, int size)
 {
-	bool strict = false;
+	bool strict = env->strict_alignment;
 
 	if (!IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS))
 		strict = true;
@@ -873,7 +879,7 @@ static int check_mem_access(struct bpf_verifier_env *env, u32 regno, int off,
 	if (size < 0)
 		return size;
 
-	err = check_ptr_alignment(reg, off, size);
+	err = check_ptr_alignment(env, reg, off, size);
 	if (err)
 		return err;
 
@@ -3568,6 +3574,10 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr)
 	} else {
 		log_level = 0;
 	}
+	if (attr->prog_flags & BPF_F_STRICT_ALIGNMENT)
+		env->strict_alignment = true;
+	else
+		env->strict_alignment = false;
 
 	ret = replace_map_fd_with_map_ptr(env);
 	if (ret < 0)
@@ -3673,6 +3683,7 @@ int bpf_analyzer(struct bpf_prog *prog, const struct bpf_ext_analyzer_ops *ops,
 	mutex_lock(&bpf_verifier_lock);
 
 	log_level = 0;
+	env->strict_alignment = false;
 
 	env->explored_states = kcalloc(env->prog->len,
 				       sizeof(struct bpf_verifier_state_list *),
