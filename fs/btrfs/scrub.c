@@ -64,7 +64,7 @@ struct scrub_ctx;
 #define SCRUB_MAX_PAGES_PER_BLOCK	16	/* 64k per node/leaf/sector */
 
 struct scrub_recover {
-	atomic_t		refs;
+	refcount_t		refs;
 	struct btrfs_bio	*bbio;
 	u64			map_length;
 };
@@ -112,7 +112,7 @@ struct scrub_block {
 	struct scrub_page	*pagev[SCRUB_MAX_PAGES_PER_BLOCK];
 	int			page_count;
 	atomic_t		outstanding_pages;
-	atomic_t		refs; /* free mem on transition to zero */
+	refcount_t		refs; /* free mem on transition to zero */
 	struct scrub_ctx	*sctx;
 	struct scrub_parity	*sparity;
 	struct {
@@ -140,9 +140,9 @@ struct scrub_parity {
 
 	int			nsectors;
 
-	int			stripe_len;
+	u64			stripe_len;
 
-	atomic_t		refs;
+	refcount_t		refs;
 
 	struct list_head	spages;
 
@@ -202,7 +202,7 @@ struct scrub_ctx {
 	 * doesn't free the scrub context before or while the workers are
 	 * doing the wakeup() call.
 	 */
-	atomic_t                refs;
+	refcount_t              refs;
 };
 
 struct scrub_fixup_nodatasum {
@@ -238,6 +238,13 @@ struct scrub_warning {
 	sector_t		sector;
 	u64			logical;
 	struct btrfs_device	*dev;
+};
+
+struct full_stripe_lock {
+	struct rb_node node;
+	u64 logical;
+	u64 refs;
+	struct mutex mutex;
 };
 
 static void scrub_pending_bio_inc(struct scrub_ctx *sctx);
@@ -305,7 +312,7 @@ static void scrub_put_ctx(struct scrub_ctx *sctx);
 
 static void scrub_pending_bio_inc(struct scrub_ctx *sctx)
 {
-	atomic_inc(&sctx->refs);
+	refcount_inc(&sctx->refs);
 	atomic_inc(&sctx->bios_in_flight);
 }
 
@@ -349,6 +356,222 @@ static void scrub_blocked_if_needed(struct btrfs_fs_info *fs_info)
 }
 
 /*
+ * Insert new full stripe lock into full stripe locks tree
+ *
+ * Return pointer to existing or newly inserted full_stripe_lock structure if
+ * everything works well.
+ * Return ERR_PTR(-ENOMEM) if we failed to allocate memory
+ *
+ * NOTE: caller must hold full_stripe_locks_root->lock before calling this
+ * function
+ */
+static struct full_stripe_lock *insert_full_stripe_lock(
+		struct btrfs_full_stripe_locks_tree *locks_root,
+		u64 fstripe_logical)
+{
+	struct rb_node **p;
+	struct rb_node *parent = NULL;
+	struct full_stripe_lock *entry;
+	struct full_stripe_lock *ret;
+
+	WARN_ON(!mutex_is_locked(&locks_root->lock));
+
+	p = &locks_root->root.rb_node;
+	while (*p) {
+		parent = *p;
+		entry = rb_entry(parent, struct full_stripe_lock, node);
+		if (fstripe_logical < entry->logical) {
+			p = &(*p)->rb_left;
+		} else if (fstripe_logical > entry->logical) {
+			p = &(*p)->rb_right;
+		} else {
+			entry->refs++;
+			return entry;
+		}
+	}
+
+	/* Insert new lock */
+	ret = kmalloc(sizeof(*ret), GFP_KERNEL);
+	if (!ret)
+		return ERR_PTR(-ENOMEM);
+	ret->logical = fstripe_logical;
+	ret->refs = 1;
+	mutex_init(&ret->mutex);
+
+	rb_link_node(&ret->node, parent, p);
+	rb_insert_color(&ret->node, &locks_root->root);
+	return ret;
+}
+
+/*
+ * Search for a full stripe lock of a block group
+ *
+ * Return pointer to existing full stripe lock if found
+ * Return NULL if not found
+ */
+static struct full_stripe_lock *search_full_stripe_lock(
+		struct btrfs_full_stripe_locks_tree *locks_root,
+		u64 fstripe_logical)
+{
+	struct rb_node *node;
+	struct full_stripe_lock *entry;
+
+	WARN_ON(!mutex_is_locked(&locks_root->lock));
+
+	node = locks_root->root.rb_node;
+	while (node) {
+		entry = rb_entry(node, struct full_stripe_lock, node);
+		if (fstripe_logical < entry->logical)
+			node = node->rb_left;
+		else if (fstripe_logical > entry->logical)
+			node = node->rb_right;
+		else
+			return entry;
+	}
+	return NULL;
+}
+
+/*
+ * Helper to get full stripe logical from a normal bytenr.
+ *
+ * Caller must ensure @cache is a RAID56 block group.
+ */
+static u64 get_full_stripe_logical(struct btrfs_block_group_cache *cache,
+				   u64 bytenr)
+{
+	u64 ret;
+
+	/*
+	 * Due to chunk item size limit, full stripe length should not be
+	 * larger than U32_MAX. Just a sanity check here.
+	 */
+	WARN_ON_ONCE(cache->full_stripe_len >= U32_MAX);
+
+	/*
+	 * round_down() can only handle power of 2, while RAID56 full
+	 * stripe length can be 64KiB * n, so we need to manually round down.
+	 */
+	ret = div64_u64(bytenr - cache->key.objectid, cache->full_stripe_len) *
+		cache->full_stripe_len + cache->key.objectid;
+	return ret;
+}
+
+/*
+ * Lock a full stripe to avoid concurrency of recovery and read
+ *
+ * It's only used for profiles with parities (RAID5/6), for other profiles it
+ * does nothing.
+ *
+ * Return 0 if we locked full stripe covering @bytenr, with a mutex held.
+ * So caller must call unlock_full_stripe() at the same context.
+ *
+ * Return <0 if encounters error.
+ */
+static int lock_full_stripe(struct btrfs_fs_info *fs_info, u64 bytenr,
+			    bool *locked_ret)
+{
+	struct btrfs_block_group_cache *bg_cache;
+	struct btrfs_full_stripe_locks_tree *locks_root;
+	struct full_stripe_lock *existing;
+	u64 fstripe_start;
+	int ret = 0;
+
+	*locked_ret = false;
+	bg_cache = btrfs_lookup_block_group(fs_info, bytenr);
+	if (!bg_cache) {
+		ASSERT(0);
+		return -ENOENT;
+	}
+
+	/* Profiles not based on parity don't need full stripe lock */
+	if (!(bg_cache->flags & BTRFS_BLOCK_GROUP_RAID56_MASK))
+		goto out;
+	locks_root = &bg_cache->full_stripe_locks_root;
+
+	fstripe_start = get_full_stripe_logical(bg_cache, bytenr);
+
+	/* Now insert the full stripe lock */
+	mutex_lock(&locks_root->lock);
+	existing = insert_full_stripe_lock(locks_root, fstripe_start);
+	mutex_unlock(&locks_root->lock);
+	if (IS_ERR(existing)) {
+		ret = PTR_ERR(existing);
+		goto out;
+	}
+	mutex_lock(&existing->mutex);
+	*locked_ret = true;
+out:
+	btrfs_put_block_group(bg_cache);
+	return ret;
+}
+
+/*
+ * Unlock a full stripe.
+ *
+ * NOTE: Caller must ensure it's the same context calling corresponding
+ * lock_full_stripe().
+ *
+ * Return 0 if we unlock full stripe without problem.
+ * Return <0 for error
+ */
+static int unlock_full_stripe(struct btrfs_fs_info *fs_info, u64 bytenr,
+			      bool locked)
+{
+	struct btrfs_block_group_cache *bg_cache;
+	struct btrfs_full_stripe_locks_tree *locks_root;
+	struct full_stripe_lock *fstripe_lock;
+	u64 fstripe_start;
+	bool freeit = false;
+	int ret = 0;
+
+	/* If we didn't acquire full stripe lock, no need to continue */
+	if (!locked)
+		return 0;
+
+	bg_cache = btrfs_lookup_block_group(fs_info, bytenr);
+	if (!bg_cache) {
+		ASSERT(0);
+		return -ENOENT;
+	}
+	if (!(bg_cache->flags & BTRFS_BLOCK_GROUP_RAID56_MASK))
+		goto out;
+
+	locks_root = &bg_cache->full_stripe_locks_root;
+	fstripe_start = get_full_stripe_logical(bg_cache, bytenr);
+
+	mutex_lock(&locks_root->lock);
+	fstripe_lock = search_full_stripe_lock(locks_root, fstripe_start);
+	/* Unpaired unlock_full_stripe() detected */
+	if (!fstripe_lock) {
+		WARN_ON(1);
+		ret = -ENOENT;
+		mutex_unlock(&locks_root->lock);
+		goto out;
+	}
+
+	if (fstripe_lock->refs == 0) {
+		WARN_ON(1);
+		btrfs_warn(fs_info, "full stripe lock at %llu refcount underflow",
+			fstripe_lock->logical);
+	} else {
+		fstripe_lock->refs--;
+	}
+
+	if (fstripe_lock->refs == 0) {
+		rb_erase(&fstripe_lock->node, &locks_root->root);
+		freeit = true;
+	}
+	mutex_unlock(&locks_root->lock);
+
+	mutex_unlock(&fstripe_lock->mutex);
+	if (freeit)
+		kfree(fstripe_lock);
+out:
+	btrfs_put_block_group(bg_cache);
+	return ret;
+}
+
+/*
  * used for workers that require transaction commits (i.e., for the
  * NOCOW case)
  */
@@ -356,7 +579,7 @@ static void scrub_pending_trans_workers_inc(struct scrub_ctx *sctx)
 {
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
 
-	atomic_inc(&sctx->refs);
+	refcount_inc(&sctx->refs);
 	/*
 	 * increment scrubs_running to prevent cancel requests from
 	 * completing as long as a worker is running. we must also
@@ -447,7 +670,7 @@ static noinline_for_stack void scrub_free_ctx(struct scrub_ctx *sctx)
 
 static void scrub_put_ctx(struct scrub_ctx *sctx)
 {
-	if (atomic_dec_and_test(&sctx->refs))
+	if (refcount_dec_and_test(&sctx->refs))
 		scrub_free_ctx(sctx);
 }
 
@@ -462,7 +685,7 @@ struct scrub_ctx *scrub_setup_ctx(struct btrfs_device *dev, int is_dev_replace)
 	sctx = kzalloc(sizeof(*sctx), GFP_KERNEL);
 	if (!sctx)
 		goto nomem;
-	atomic_set(&sctx->refs, 1);
+	refcount_set(&sctx->refs, 1);
 	sctx->is_dev_replace = is_dev_replace;
 	sctx->pages_per_rd_bio = SCRUB_PAGES_PER_RD_BIO;
 	sctx->curr = -1;
@@ -857,12 +1080,14 @@ out:
 
 static inline void scrub_get_recover(struct scrub_recover *recover)
 {
-	atomic_inc(&recover->refs);
+	refcount_inc(&recover->refs);
 }
 
-static inline void scrub_put_recover(struct scrub_recover *recover)
+static inline void scrub_put_recover(struct btrfs_fs_info *fs_info,
+				     struct scrub_recover *recover)
 {
-	if (atomic_dec_and_test(&recover->refs)) {
+	if (refcount_dec_and_test(&recover->refs)) {
+		btrfs_bio_counter_dec(fs_info);
 		btrfs_put_bbio(recover->bbio);
 		kfree(recover);
 	}
@@ -892,6 +1117,7 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	int mirror_index;
 	int page_num;
 	int success;
+	bool full_stripe_locked;
 	static DEFINE_RATELIMIT_STATE(_rs, DEFAULT_RATELIMIT_INTERVAL,
 				      DEFAULT_RATELIMIT_BURST);
 
@@ -916,6 +1142,24 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 			BTRFS_EXTENT_FLAG_DATA);
 	have_csum = sblock_to_check->pagev[0]->have_csum;
 	dev = sblock_to_check->pagev[0]->dev;
+
+	/*
+	 * For RAID5/6, race can happen for a different device scrub thread.
+	 * For data corruption, Parity and Data threads will both try
+	 * to recovery the data.
+	 * Race can lead to doubly added csum error, or even unrecoverable
+	 * error.
+	 */
+	ret = lock_full_stripe(fs_info, logical, &full_stripe_locked);
+	if (ret < 0) {
+		spin_lock(&sctx->stat_lock);
+		if (ret == -ENOMEM)
+			sctx->stat.malloc_errors++;
+		sctx->stat.read_errors++;
+		sctx->stat.uncorrectable_errors++;
+		spin_unlock(&sctx->stat_lock);
+		return ret;
+	}
 
 	if (sctx->is_dev_replace && !is_metadata && !have_csum) {
 		sblocks_for_recheck = NULL;
@@ -1241,7 +1485,7 @@ out:
 				sblock->pagev[page_index]->sblock = NULL;
 				recover = sblock->pagev[page_index]->recover;
 				if (recover) {
-					scrub_put_recover(recover);
+					scrub_put_recover(fs_info, recover);
 					sblock->pagev[page_index]->recover =
 									NULL;
 				}
@@ -1251,6 +1495,9 @@ out:
 		kfree(sblocks_for_recheck);
 	}
 
+	ret = unlock_full_stripe(fs_info, logical, full_stripe_locked);
+	if (ret < 0)
+		return ret;
 	return 0;
 }
 
@@ -1330,20 +1577,23 @@ static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
 		 * with a length of PAGE_SIZE, each returned stripe
 		 * represents one mirror
 		 */
+		btrfs_bio_counter_inc_blocked(fs_info);
 		ret = btrfs_map_sblock(fs_info, BTRFS_MAP_GET_READ_MIRRORS,
-				logical, &mapped_length, &bbio, 0, 1);
+				logical, &mapped_length, &bbio);
 		if (ret || !bbio || mapped_length < sublen) {
 			btrfs_put_bbio(bbio);
+			btrfs_bio_counter_dec(fs_info);
 			return -EIO;
 		}
 
 		recover = kzalloc(sizeof(struct scrub_recover), GFP_NOFS);
 		if (!recover) {
 			btrfs_put_bbio(bbio);
+			btrfs_bio_counter_dec(fs_info);
 			return -ENOMEM;
 		}
 
-		atomic_set(&recover->refs, 1);
+		refcount_set(&recover->refs, 1);
 		recover->bbio = bbio;
 		recover->map_length = mapped_length;
 
@@ -1365,7 +1615,7 @@ leave_nomem:
 				spin_lock(&sctx->stat_lock);
 				sctx->stat.malloc_errors++;
 				spin_unlock(&sctx->stat_lock);
-				scrub_put_recover(recover);
+				scrub_put_recover(fs_info, recover);
 				return -ENOMEM;
 			}
 			scrub_page_get(page);
@@ -1407,7 +1657,7 @@ leave_nomem:
 			scrub_get_recover(recover);
 			page->recover = recover;
 		}
-		scrub_put_recover(recover);
+		scrub_put_recover(fs_info, recover);
 		length -= sublen;
 		logical += sublen;
 		page_index++;
@@ -1497,14 +1747,18 @@ static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
 
 		bio_add_page(bio, page->page, PAGE_SIZE, 0);
 		if (!retry_failed_mirror && scrub_is_page_on_raid56(page)) {
-			if (scrub_submit_raid56_bio_wait(fs_info, bio, page))
+			if (scrub_submit_raid56_bio_wait(fs_info, bio, page)) {
+				page->io_error = 1;
 				sblock->no_io_error_seen = 0;
+			}
 		} else {
 			bio->bi_iter.bi_sector = page->physical >> 9;
 			bio_set_op_attrs(bio, REQ_OP_READ, 0);
 
-			if (btrfsic_submit_bio_wait(bio))
+			if (btrfsic_submit_bio_wait(bio)) {
+				page->io_error = 1;
 				sblock->no_io_error_seen = 0;
+			}
 		}
 
 		bio_put(bio);
@@ -1634,7 +1888,7 @@ static int scrub_write_page_to_dev_replace(struct scrub_block *sblock,
 	if (spage->io_error) {
 		void *mapped_buffer = kmap_atomic(spage->page);
 
-		memset(mapped_buffer, 0, PAGE_SIZE);
+		clear_page(mapped_buffer);
 		flush_dcache_page(spage->page);
 		kunmap_atomic(mapped_buffer);
 	}
@@ -1998,12 +2252,12 @@ static int scrub_checksum_super(struct scrub_block *sblock)
 
 static void scrub_block_get(struct scrub_block *sblock)
 {
-	atomic_inc(&sblock->refs);
+	refcount_inc(&sblock->refs);
 }
 
 static void scrub_block_put(struct scrub_block *sblock)
 {
-	if (atomic_dec_and_test(&sblock->refs)) {
+	if (refcount_dec_and_test(&sblock->refs)) {
 		int i;
 
 		if (sblock->sparity)
@@ -2187,8 +2441,9 @@ static void scrub_missing_raid56_pages(struct scrub_block *sblock)
 	int ret;
 	int i;
 
+	btrfs_bio_counter_inc_blocked(fs_info);
 	ret = btrfs_map_sblock(fs_info, BTRFS_MAP_GET_READ_MIRRORS, logical,
-			&length, &bbio, 0, 1);
+			&length, &bbio);
 	if (ret || !bbio || !bbio->raid_map)
 		goto bbio_out;
 
@@ -2231,6 +2486,7 @@ static void scrub_missing_raid56_pages(struct scrub_block *sblock)
 rbio_out:
 	bio_put(bio);
 bbio_out:
+	btrfs_bio_counter_dec(fs_info);
 	btrfs_put_bbio(bbio);
 	spin_lock(&sctx->stat_lock);
 	sctx->stat.malloc_errors++;
@@ -2255,7 +2511,7 @@ static int scrub_pages(struct scrub_ctx *sctx, u64 logical, u64 len,
 
 	/* one ref inside this function, plus one for each page added to
 	 * a bio later on */
-	atomic_set(&sblock->refs, 1);
+	refcount_set(&sblock->refs, 1);
 	sblock->sctx = sctx;
 	sblock->no_io_error_seen = 1;
 
@@ -2385,7 +2641,7 @@ static inline void __scrub_mark_bitmap(struct scrub_parity *sparity,
 				       unsigned long *bitmap,
 				       u64 start, u64 len)
 {
-	u32 offset;
+	u64 offset;
 	int nsectors;
 	int sectorsize = sparity->sctx->fs_info->sectorsize;
 
@@ -2395,8 +2651,8 @@ static inline void __scrub_mark_bitmap(struct scrub_parity *sparity,
 	}
 
 	start -= sparity->logic_start;
-	start = div_u64_rem(start, sparity->stripe_len, &offset);
-	offset /= sectorsize;
+	start = div64_u64_rem(start, sparity->stripe_len, &offset);
+	offset = div_u64(offset, sectorsize);
 	nsectors = (int)len / sectorsize;
 
 	if (offset + nsectors <= sparity->nsectors) {
@@ -2555,7 +2811,7 @@ static int scrub_pages_for_parity(struct scrub_parity *sparity,
 
 	/* one ref inside this function, plus one for each page added to
 	 * a bio later on */
-	atomic_set(&sblock->refs, 1);
+	refcount_set(&sblock->refs, 1);
 	sblock->sctx = sctx;
 	sblock->no_io_error_seen = 1;
 	sblock->sparity = sparity;
@@ -2694,7 +2950,7 @@ static int get_raid56_logic_offset(u64 physical, int num,
 	for (i = 0; i < nr_data_stripes(map); i++) {
 		*offset = last_offset + i * map->stripe_len;
 
-		stripe_nr = div_u64(*offset, map->stripe_len);
+		stripe_nr = div64_u64(*offset, map->stripe_len);
 		stripe_nr = div_u64(stripe_nr, nr_data_stripes(map));
 
 		/* Work out the disk rotation on this stripe-set */
@@ -2765,7 +3021,6 @@ static void scrub_parity_check_and_repair(struct scrub_parity *sparity)
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
 	struct bio *bio;
 	struct btrfs_raid_bio *rbio;
-	struct scrub_page *spage;
 	struct btrfs_bio *bbio = NULL;
 	u64 length;
 	int ret;
@@ -2775,8 +3030,10 @@ static void scrub_parity_check_and_repair(struct scrub_parity *sparity)
 		goto out;
 
 	length = sparity->logic_end - sparity->logic_start;
+
+	btrfs_bio_counter_inc_blocked(fs_info);
 	ret = btrfs_map_sblock(fs_info, BTRFS_MAP_WRITE, sparity->logic_start,
-			       &length, &bbio, 0, 1);
+			       &length, &bbio);
 	if (ret || !bbio || !bbio->raid_map)
 		goto bbio_out;
 
@@ -2795,9 +3052,6 @@ static void scrub_parity_check_and_repair(struct scrub_parity *sparity)
 	if (!rbio)
 		goto rbio_out;
 
-	list_for_each_entry(spage, &sparity->spages, list)
-		raid56_add_scrub_pages(rbio, spage->page, spage->logical);
-
 	scrub_pending_bio_inc(sctx);
 	raid56_parity_submit_scrub_rbio(rbio);
 	return;
@@ -2805,6 +3059,7 @@ static void scrub_parity_check_and_repair(struct scrub_parity *sparity)
 rbio_out:
 	bio_put(bio);
 bbio_out:
+	btrfs_bio_counter_dec(fs_info);
 	btrfs_put_bbio(bbio);
 	bitmap_or(sparity->ebitmap, sparity->ebitmap, sparity->dbitmap,
 		  sparity->nsectors);
@@ -2822,12 +3077,12 @@ static inline int scrub_calc_parity_bitmap_len(int nsectors)
 
 static void scrub_parity_get(struct scrub_parity *sparity)
 {
-	atomic_inc(&sparity->refs);
+	refcount_inc(&sparity->refs);
 }
 
 static void scrub_parity_put(struct scrub_parity *sparity)
 {
-	if (!atomic_dec_and_test(&sparity->refs))
+	if (!refcount_dec_and_test(&sparity->refs))
 		return;
 
 	scrub_parity_check_and_repair(sparity);
@@ -2879,7 +3134,7 @@ static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 	sparity->scrub_dev = sdev;
 	sparity->logic_start = logic_start;
 	sparity->logic_end = logic_end;
-	atomic_set(&sparity->refs, 1);
+	refcount_set(&sparity->refs, 1);
 	INIT_LIST_HEAD(&sparity->spages);
 	sparity->dbitmap = sparity->bitmap;
 	sparity->ebitmap = (void *)sparity->bitmap + bitmap_len;
@@ -3098,7 +3353,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 
 	physical = map->stripes[num].physical;
 	offset = 0;
-	nstripes = div_u64(length, map->stripe_len);
+	nstripes = div64_u64(length, map->stripe_len);
 	if (map->type & BTRFS_BLOCK_GROUP_RAID0) {
 		offset = map->stripe_len * num;
 		increment = map->stripe_len * map->num_stripes;
