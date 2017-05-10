@@ -624,6 +624,56 @@ static int aac_ioctl(struct scsi_device *sdev, int cmd, void __user * arg)
 	return aac_do_ioctl(dev, cmd, arg);
 }
 
+static int get_num_of_incomplete_fibs(struct aac_dev *aac)
+{
+
+	unsigned long flags;
+	struct scsi_device *sdev = NULL;
+	struct Scsi_Host *shost = aac->scsi_host_ptr;
+	struct scsi_cmnd *scmnd = NULL;
+	struct device *ctrl_dev;
+
+	int mlcnt  = 0;
+	int llcnt  = 0;
+	int ehcnt  = 0;
+	int fwcnt  = 0;
+	int krlcnt = 0;
+
+	__shost_for_each_device(sdev, shost) {
+		spin_lock_irqsave(&sdev->list_lock, flags);
+		list_for_each_entry(scmnd, &sdev->cmd_list, list) {
+			switch (scmnd->SCp.phase) {
+			case AAC_OWNER_FIRMWARE:
+				fwcnt++;
+				break;
+			case AAC_OWNER_ERROR_HANDLER:
+				ehcnt++;
+				break;
+			case AAC_OWNER_LOWLEVEL:
+				llcnt++;
+				break;
+			case AAC_OWNER_MIDLEVEL:
+				mlcnt++;
+				break;
+			default:
+				krlcnt++;
+				break;
+			}
+		}
+		spin_unlock_irqrestore(&sdev->list_lock, flags);
+	}
+
+	ctrl_dev = &aac->pdev->dev;
+
+	dev_info(ctrl_dev, "outstanding cmd: midlevel-%d\n", mlcnt);
+	dev_info(ctrl_dev, "outstanding cmd: lowlevel-%d\n", llcnt);
+	dev_info(ctrl_dev, "outstanding cmd: error handler-%d\n", ehcnt);
+	dev_info(ctrl_dev, "outstanding cmd: firmware-%d\n", fwcnt);
+	dev_info(ctrl_dev, "outstanding cmd: kernel-%d\n", krlcnt);
+
+	return mlcnt + llcnt + ehcnt + fwcnt;
+}
+
 static int aac_eh_abort(struct scsi_cmnd* cmd)
 {
 	struct scsi_device * dev = cmd->device;
@@ -853,8 +903,6 @@ static int aac_eh_reset(struct scsi_cmnd* cmd)
 			pr_err("%s: Host adapter reset request timed out\n",
 			AAC_DRIVERNAME);
 	} else {
-		struct scsi_cmnd *command;
-		unsigned long flags;
 
 		/* Mark the assoc. FIB to not complete, eh handler does this */
 		for (count = 0;
@@ -873,41 +921,9 @@ static int aac_eh_reset(struct scsi_cmnd* cmd)
 		pr_err("%s: Host adapter reset request. SCSI hang ?\n",
 					AAC_DRIVERNAME);
 
-		count = aac_check_health(aac);
-		if (count)
-			return count;
-		/*
-		 * Wait for all commands to complete to this specific
-		 * target (block maximum 60 seconds).
-		 */
-		for (count = 60; count; --count) {
-			int active = aac->in_reset;
-
-			if (active == 0)
-			__shost_for_each_device(dev, host) {
-				spin_lock_irqsave(&dev->list_lock, flags);
-				list_for_each_entry(command, &dev->cmd_list,
-					list) {
-					if ((command != cmd) &&
-					(command->SCp.phase ==
-					AAC_OWNER_FIRMWARE)) {
-						active++;
-						break;
-					}
-				}
-				spin_unlock_irqrestore(&dev->list_lock, flags);
-				if (active)
-					break;
-
-			}
-			/*
-			 * We can exit If all the commands are complete
-			 */
-			if (active == 0)
-				return SUCCESS;
-			ssleep(1);
-		}
-		pr_err("%s: SCSI bus appears hung\n", AAC_DRIVERNAME);
+		count = get_num_of_incomplete_fibs(aac);
+		if (count == 0)
+			return SUCCESS;
 
 		/*
 		 * This adapter needs a blind reset, only do so for
