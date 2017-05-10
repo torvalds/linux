@@ -42,6 +42,7 @@
 
 #define XGENE_DRV_VERSION	"v1.0"
 #define ETHER_MIN_PACKET	64
+#define ETHER_STD_PACKET	1518
 #define XGENE_ENET_STD_MTU	1536
 #define XGENE_ENET_MAX_MTU	9600
 #define SKB_BUFFER_SIZE		(XGENE_ENET_STD_MTU - NET_IP_ALIGN)
@@ -225,6 +226,7 @@ struct xgene_enet_pdata {
 	struct xgene_enet_cle cle;
 	u64 *extd_stats;
 	u64 false_rflr;
+	u64 vlan_rjbr;
 	spinlock_t stats_lock; /* statistics lock */
 	const struct xgene_mac_ops *mac_ops;
 	spinlock_t mac_lock; /* mac lock */

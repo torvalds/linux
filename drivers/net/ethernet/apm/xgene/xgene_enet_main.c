@@ -656,6 +656,18 @@ static void xgene_enet_free_pagepool(struct xgene_enet_desc_ring *buf_pool,
 	buf_pool->head = head;
 }
 
+/* Errata 10GE_10 and ENET_15 - Fix duplicated HW statistic counters */
+static bool xgene_enet_errata_10GE_10(struct sk_buff *skb, u32 len, u8 status)
+{
+	if (status == INGRESS_CRC &&
+	    len >= (ETHER_STD_PACKET + 1) &&
+	    len <= (ETHER_STD_PACKET + 4) &&
+	    skb->protocol == htons(ETH_P_8021Q))
+		return true;
+
+	return false;
+}
+
 /* Errata 10GE_8 and ENET_11 - allow packet with length <=64B */
 static bool xgene_enet_errata_10GE_8(struct sk_buff *skb, u32 len, u8 status)
 {
@@ -706,14 +718,16 @@ static int xgene_enet_rx_frame(struct xgene_enet_desc_ring *rx_ring,
 	status = (GET_VAL(ELERR, le64_to_cpu(raw_desc->m0)) << LERR_LEN) |
 		  GET_VAL(LERR, le64_to_cpu(raw_desc->m0));
 	if (unlikely(status)) {
-		if (!xgene_enet_errata_10GE_8(skb, datalen, status)) {
+		if (xgene_enet_errata_10GE_8(skb, datalen, status)) {
+			pdata->false_rflr++;
+		} else if (xgene_enet_errata_10GE_10(skb, datalen, status)) {
+			pdata->vlan_rjbr++;
+		} else {
 			dev_kfree_skb_any(skb);
 			xgene_enet_free_pagepool(page_pool, raw_desc, exp_desc);
 			xgene_enet_parse_error(rx_ring, status);
 			rx_ring->rx_dropped++;
 			goto out;
-		} else {
-			pdata->false_rflr++;
 		}
 	}
 
