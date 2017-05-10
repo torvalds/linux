@@ -192,9 +192,16 @@ static struct inode *sdcardfs_alloc_inode(struct super_block *sb)
 	return &i->vfs_inode;
 }
 
+static void i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+
+	kmem_cache_free(sdcardfs_inode_cachep, SDCARDFS_I(inode));
+}
+
 static void sdcardfs_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(sdcardfs_inode_cachep, SDCARDFS_I(inode));
+	call_rcu(&inode->i_rcu, i_callback);
 }
 
 /* sdcardfs inode cache constructor */
