@@ -200,13 +200,13 @@ static u32 _nbu2ss_get_begin_ram_address(struct nbu2ss_udc *udc)
 	for (num = 0; num < NUM_ENDPOINTS - 1; num++) {
 		p_ep_regs = &udc->p_regs->EP_REGS[num];
 		data = _nbu2ss_readl(&p_ep_regs->EP_PCKT_ADRS);
-		buf_type = _nbu2ss_readl(&p_ep_regs->EP_CONTROL) & EPn_BUF_TYPE;
+		buf_type = _nbu2ss_readl(&p_ep_regs->EP_CONTROL) & EPN_BUF_TYPE;
 		if (buf_type == 0) {
 			/* Single Buffer */
-			use_ram_size += (data & EPn_MPKT) / sizeof(u32);
+			use_ram_size += (data & EPN_MPKT) / sizeof(u32);
 		} else {
 			/* Double Buffer */
-			use_ram_size += ((data & EPn_MPKT) / sizeof(u32)) * 2;
+			use_ram_size += ((data & EPN_MPKT) / sizeof(u32)) * 2;
 		}
 
 		if ((data >> 16) > last_ram_adr)
@@ -245,15 +245,15 @@ static int _nbu2ss_ep_init(struct nbu2ss_udc *udc, struct nbu2ss_ep *ep)
 	/*   Bulk, Interrupt, ISO */
 	switch (ep->ep_type) {
 	case USB_ENDPOINT_XFER_BULK:
-		data = EPn_BULK;
+		data = EPN_BULK;
 		break;
 
 	case USB_ENDPOINT_XFER_INT:
-		data = EPn_BUF_SINGLE | EPn_INTERRUPT;
+		data = EPN_BUF_SINGLE | EPN_INTERRUPT;
 		break;
 
 	case USB_ENDPOINT_XFER_ISOC:
-		data = EPn_ISO;
+		data = EPN_ISO;
 		break;
 
 	default:
@@ -267,24 +267,24 @@ static int _nbu2ss_ep_init(struct nbu2ss_udc *udc, struct nbu2ss_ep *ep)
 	if (ep->direct == USB_DIR_OUT) {
 		/*---------------------------------------------------------*/
 		/* OUT */
-		data = EPn_EN | EPn_BCLR | EPn_DIR0;
+		data = EPN_EN | EPN_BCLR | EPN_DIR0;
 		_nbu2ss_bitset(&udc->p_regs->EP_REGS[num].EP_CONTROL, data);
 
-		data = EPn_ONAK | EPn_OSTL_EN | EPn_OSTL;
+		data = EPN_ONAK | EPN_OSTL_EN | EPN_OSTL;
 		_nbu2ss_bitclr(&udc->p_regs->EP_REGS[num].EP_CONTROL, data);
 
-		data = EPn_OUT_EN | EPn_OUT_END_EN;
+		data = EPN_OUT_EN | EPN_OUT_END_EN;
 		_nbu2ss_bitset(&udc->p_regs->EP_REGS[num].EP_INT_ENA, data);
 	} else {
 		/*---------------------------------------------------------*/
 		/* IN */
-		data = EPn_EN | EPn_BCLR | EPn_AUTO;
+		data = EPN_EN | EPN_BCLR | EPN_AUTO;
 		_nbu2ss_bitset(&udc->p_regs->EP_REGS[num].EP_CONTROL, data);
 
-		data = EPn_ISTL;
+		data = EPN_ISTL;
 		_nbu2ss_bitclr(&udc->p_regs->EP_REGS[num].EP_CONTROL, data);
 
-		data = EPn_IN_EN | EPn_IN_END_EN;
+		data = EPN_IN_EN | EPN_IN_END_EN;
 		_nbu2ss_bitset(&udc->p_regs->EP_REGS[num].EP_INT_ENA, data);
 	}
 
@@ -315,24 +315,24 @@ static int _nbu2ss_epn_exit(struct nbu2ss_udc *udc, struct nbu2ss_ep *ep)
 	if (ep->direct == USB_DIR_OUT) {
 		/*---------------------------------------------------------*/
 		/* OUT */
-		data = EPn_ONAK | EPn_BCLR;
+		data = EPN_ONAK | EPN_BCLR;
 		_nbu2ss_bitset(&udc->p_regs->EP_REGS[num].EP_CONTROL, data);
 
-		data = EPn_EN | EPn_DIR0;
+		data = EPN_EN | EPN_DIR0;
 		_nbu2ss_bitclr(&udc->p_regs->EP_REGS[num].EP_CONTROL, data);
 
-		data = EPn_OUT_EN | EPn_OUT_END_EN;
+		data = EPN_OUT_EN | EPN_OUT_END_EN;
 		_nbu2ss_bitclr(&udc->p_regs->EP_REGS[num].EP_INT_ENA, data);
 	} else {
 		/*---------------------------------------------------------*/
 		/* IN */
-		data = EPn_BCLR;
+		data = EPN_BCLR;
 		_nbu2ss_bitset(&udc->p_regs->EP_REGS[num].EP_CONTROL, data);
 
-		data = EPn_EN | EPn_AUTO;
+		data = EPN_EN | EPN_AUTO;
 		_nbu2ss_bitclr(&udc->p_regs->EP_REGS[num].EP_CONTROL, data);
 
-		data = EPn_IN_EN | EPn_IN_END_EN;
+		data = EPN_IN_EN | EPN_IN_END_EN;
 		_nbu2ss_bitclr(&udc->p_regs->EP_REGS[num].EP_INT_ENA, data);
 	}
 
@@ -360,21 +360,21 @@ static void _nbu2ss_ep_dma_init(struct nbu2ss_udc *udc, struct nbu2ss_ep *ep)
 
 		/*---------------------------------------------------------*/
 		/* Transfer Direct */
-		data = DCR1_EPn_DIR0;
+		data = DCR1_EPN_DIR0;
 		_nbu2ss_bitset(&udc->p_regs->EP_DCR[num].EP_DCR1, data);
 
 		/*---------------------------------------------------------*/
 		/* DMA Mode etc. */
-		data = EPn_STOP_MODE | EPn_STOP_SET  | EPn_DMAMODE0;
+		data = EPN_STOP_MODE | EPN_STOP_SET  | EPN_DMAMODE0;
 		_nbu2ss_writel(&udc->p_regs->EP_REGS[num].EP_DMA_CTRL, data);
 	} else {
 		/*---------------------------------------------------------*/
 		/* IN */
-		_nbu2ss_bitset(&udc->p_regs->EP_REGS[num].EP_CONTROL, EPn_AUTO);
+		_nbu2ss_bitset(&udc->p_regs->EP_REGS[num].EP_CONTROL, EPN_AUTO);
 
 		/*---------------------------------------------------------*/
 		/* DMA Mode etc. */
-		data = EPn_BURST_SET | EPn_DMAMODE0;
+		data = EPN_BURST_SET | EPN_DMAMODE0;
 		_nbu2ss_writel(&udc->p_regs->EP_REGS[num].EP_DMA_CTRL, data);
 	}
 }
@@ -402,12 +402,12 @@ static void _nbu2ss_ep_dma_exit(struct nbu2ss_udc *udc, struct nbu2ss_ep *ep)
 		/*---------------------------------------------------------*/
 		/* OUT */
 		_nbu2ss_writel(&preg->EP_DCR[num].EP_DCR2, 0);
-		_nbu2ss_bitclr(&preg->EP_DCR[num].EP_DCR1, DCR1_EPn_DIR0);
+		_nbu2ss_bitclr(&preg->EP_DCR[num].EP_DCR1, DCR1_EPN_DIR0);
 		_nbu2ss_writel(&preg->EP_REGS[num].EP_DMA_CTRL, 0);
 	} else {
 		/*---------------------------------------------------------*/
 		/* IN */
-		_nbu2ss_bitclr(&preg->EP_REGS[num].EP_CONTROL, EPn_AUTO);
+		_nbu2ss_bitclr(&preg->EP_REGS[num].EP_CONTROL, EPN_AUTO);
 		_nbu2ss_writel(&preg->EP_REGS[num].EP_DMA_CTRL, 0);
 	}
 }
@@ -418,9 +418,9 @@ static void _nbu2ss_ep_dma_abort(struct nbu2ss_udc *udc, struct nbu2ss_ep *ep)
 {
 	struct fc_regs	*preg = udc->p_regs;
 
-	_nbu2ss_bitclr(&preg->EP_DCR[ep->epnum - 1].EP_DCR1, DCR1_EPn_REQEN);
-	mdelay(DMA_DISABLE_TIME);	/* DCR1_EPn_REQEN Clear */
-	_nbu2ss_bitclr(&preg->EP_REGS[ep->epnum - 1].EP_DMA_CTRL, EPn_DMA_EN);
+	_nbu2ss_bitclr(&preg->EP_DCR[ep->epnum - 1].EP_DCR1, DCR1_EPN_REQEN);
+	mdelay(DMA_DISABLE_TIME);	/* DCR1_EPN_REQEN Clear */
+	_nbu2ss_bitclr(&preg->EP_REGS[ep->epnum - 1].EP_DMA_CTRL, EPN_DMA_EN);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -453,16 +453,16 @@ static void _nbu2ss_ep_in_end(
 	} else {
 		num = epnum - 1;
 
-		_nbu2ss_bitclr(&preg->EP_REGS[num].EP_CONTROL, EPn_AUTO);
+		_nbu2ss_bitclr(&preg->EP_REGS[num].EP_CONTROL, EPN_AUTO);
 
 		/* Writing of 1-4 bytes */
 		if (length)
 			_nbu2ss_writel(&preg->EP_REGS[num].EP_WRITE, data32);
 
-		data = (((length) << 5) & EPn_DW) | EPn_DEND;
+		data = (((length) << 5) & EPN_DW) | EPN_DEND;
 		_nbu2ss_bitset(&preg->EP_REGS[num].EP_CONTROL, data);
 
-		_nbu2ss_bitset(&preg->EP_REGS[num].EP_CONTROL, EPn_AUTO);
+		_nbu2ss_bitset(&preg->EP_REGS[num].EP_CONTROL, EPN_AUTO);
 	}
 }
 
@@ -835,7 +835,7 @@ static int _nbu2ss_out_dma(
 	_nbu2ss_writel(&preg->EP_DCR[num].EP_TADR, (u32)pBuffer);
 
 	/* Number of transfer packets */
-	mpkt = _nbu2ss_readl(&preg->EP_REGS[num].EP_PCKT_ADRS) & EPn_MPKT;
+	mpkt = _nbu2ss_readl(&preg->EP_REGS[num].EP_PCKT_ADRS) & EPN_MPKT;
 	dmacnt = length / mpkt;
 	lmpkt = (length % mpkt) & ~(u32)0x03;
 
@@ -851,18 +851,18 @@ static int _nbu2ss_out_dma(
 	data = mpkt | (lmpkt << 16);
 	_nbu2ss_writel(&preg->EP_DCR[num].EP_DCR2, data);
 
-	data = ((dmacnt & 0xff) << 16) | DCR1_EPn_DIR0 | DCR1_EPn_REQEN;
+	data = ((dmacnt & 0xff) << 16) | DCR1_EPN_DIR0 | DCR1_EPN_REQEN;
 	_nbu2ss_writel(&preg->EP_DCR[num].EP_DCR1, data);
 
 	if (burst == 0) {
 		_nbu2ss_writel(&preg->EP_REGS[num].EP_LEN_DCNT, 0);
-		_nbu2ss_bitclr(&preg->EP_REGS[num].EP_DMA_CTRL, EPn_BURST_SET);
+		_nbu2ss_bitclr(&preg->EP_REGS[num].EP_DMA_CTRL, EPN_BURST_SET);
 	} else {
 		_nbu2ss_writel(&preg->EP_REGS[num].EP_LEN_DCNT
 				, (dmacnt << 16));
-		_nbu2ss_bitset(&preg->EP_REGS[num].EP_DMA_CTRL, EPn_BURST_SET);
+		_nbu2ss_bitset(&preg->EP_REGS[num].EP_DMA_CTRL, EPN_BURST_SET);
 	}
-	_nbu2ss_bitset(&preg->EP_REGS[num].EP_DMA_CTRL, EPn_DMA_EN);
+	_nbu2ss_bitset(&preg->EP_REGS[num].EP_DMA_CTRL, EPN_DMA_EN);
 
 	result = length & ~(u32)0x03;
 	req->div_len = result;
@@ -978,7 +978,7 @@ static int _nbu2ss_epn_out_transfer(
 	/*-------------------------------------------------------------*/
 	/* Receive Length */
 	iRecvLength
-		= _nbu2ss_readl(&preg->EP_REGS[num].EP_LEN_DCNT) & EPn_LDATA;
+		= _nbu2ss_readl(&preg->EP_REGS[num].EP_LEN_DCNT) & EPN_LDATA;
 
 	if (iRecvLength != 0) {
 		result = _nbu2ss_epn_out_data(udc, ep, req, iRecvLength);
@@ -1042,7 +1042,7 @@ static int _nbu2ss_in_dma(
 	req->dma_flag = TRUE;
 
 	/* MAX Packet Size */
-	mpkt = _nbu2ss_readl(&preg->EP_REGS[num].EP_PCKT_ADRS) & EPn_MPKT;
+	mpkt = _nbu2ss_readl(&preg->EP_REGS[num].EP_PCKT_ADRS) & EPN_MPKT;
 
 	if ((DMA_MAX_COUNT * mpkt) < length)
 		iWriteLength = DMA_MAX_COUNT * mpkt;
@@ -1074,7 +1074,7 @@ static int _nbu2ss_in_dma(
 	_nbu2ss_writel(&preg->EP_DCR[num].EP_TADR, (u32)pBuffer);
 
 	/* Packet and DMA setting */
-	data = ((dmacnt & 0xff) << 16) | DCR1_EPn_REQEN;
+	data = ((dmacnt & 0xff) << 16) | DCR1_EPN_REQEN;
 	_nbu2ss_writel(&preg->EP_DCR[num].EP_DCR1, data);
 
 	/* Packet setting of EPC */
@@ -1082,7 +1082,7 @@ static int _nbu2ss_in_dma(
 	_nbu2ss_writel(&preg->EP_REGS[num].EP_LEN_DCNT, data);
 
 	/*DMA setting of EPC */
-	_nbu2ss_bitset(&preg->EP_REGS[num].EP_DMA_CTRL, EPn_DMA_EN);
+	_nbu2ss_bitset(&preg->EP_REGS[num].EP_DMA_CTRL, EPN_DMA_EN);
 
 	result = iWriteLength & ~(u32)0x3;
 	req->div_len = result;
@@ -1192,11 +1192,11 @@ static int _nbu2ss_epn_in_transfer(
 	/*-------------------------------------------------------------*/
 	/* State confirmation of FIFO */
 	if (req->req.actual == 0) {
-		if ((status & EPn_IN_EMPTY) == 0)
+		if ((status & EPN_IN_EMPTY) == 0)
 			return 1;	/* Not Empty */
 
 	} else {
-		if ((status & EPn_IN_FULL) != 0)
+		if ((status & EPN_IN_FULL) != 0)
 			return 1;	/* Not Empty */
 	}
 
@@ -1252,7 +1252,7 @@ static int _nbu2ss_start_transfer(
 		}
 
 	} else {
-		/* EPn */
+		/* EPN */
 		if (ep->direct == USB_DIR_OUT) {
 			/* OUT */
 			if (!bflag)
@@ -1281,7 +1281,7 @@ static void _nbu2ss_restert_transfer(struct nbu2ss_ep *ep)
 		length = _nbu2ss_readl(
 			&ep->udc->p_regs->EP_REGS[ep->epnum - 1].EP_LEN_DCNT);
 
-		length &= EPn_LDATA;
+		length &= EPN_LDATA;
 		if (length < ep->ep.maxpacket)
 			bflag = TRUE;
 	}
@@ -1304,9 +1304,9 @@ static void _nbu2ss_endpoint_toggle_reset(
 	num = (ep_adrs & 0x7F) - 1;
 
 	if (ep_adrs & USB_DIR_IN)
-		data = EPn_IPIDCLR;
+		data = EPN_IPIDCLR;
 	else
-		data = EPn_BCLR | EPn_OPIDCLR;
+		data = EPN_BCLR | EPN_OPIDCLR;
 
 	_nbu2ss_bitset(&udc->p_regs->EP_REGS[num].EP_CONTROL, data);
 }
@@ -1341,9 +1341,9 @@ static void _nbu2ss_set_endpoint_stall(
 			ep->halted = TRUE;
 
 			if (ep_adrs & USB_DIR_IN)
-				data = EPn_BCLR | EPn_ISTL;
+				data = EPN_BCLR | EPN_ISTL;
 			else
-				data = EPn_OSTL_EN | EPn_OSTL;
+				data = EPN_OSTL_EN | EPN_OSTL;
 
 			_nbu2ss_bitset(&preg->EP_REGS[num].EP_CONTROL, data);
 		} else {
@@ -1351,13 +1351,13 @@ static void _nbu2ss_set_endpoint_stall(
 			ep->stalled = FALSE;
 			if (ep_adrs & USB_DIR_IN) {
 				_nbu2ss_bitclr(&preg->EP_REGS[num].EP_CONTROL
-						, EPn_ISTL);
+						, EPN_ISTL);
 			} else {
 				data =
 				_nbu2ss_readl(&preg->EP_REGS[num].EP_CONTROL);
 
-				data &= ~EPn_OSTL;
-				data |= EPn_OSTL_EN;
+				data &= ~EPN_OSTL;
+				data |= EPN_OSTL_EN;
 
 				_nbu2ss_writel(&preg->EP_REGS[num].EP_CONTROL
 						, data);
@@ -1453,13 +1453,13 @@ static int _nbu2ss_get_ep_stall(struct nbu2ss_udc *udc, u8 ep_adrs)
 
 	} else {
 		data = _nbu2ss_readl(&preg->EP_REGS[epnum - 1].EP_CONTROL);
-		if ((data & EPn_EN) == 0)
+		if ((data & EPN_EN) == 0)
 			return -1;
 
 		if (ep_adrs & USB_ENDPOINT_DIR_MASK)
-			bit_data = EPn_ISTL;
+			bit_data = EPN_ISTL;
 		else
-			bit_data = EPn_OSTL;
+			bit_data = EPN_OSTL;
 	}
 
 	if ((data & bit_data) == 0)
@@ -1548,7 +1548,7 @@ static void _nbu2ss_epn_set_stall(
 			regdata = _nbu2ss_readl(
 				&preg->EP_REGS[ep->epnum - 1].EP_STATUS);
 
-			if ((regdata & EPn_IN_DATA) == 0)
+			if ((regdata & EPN_IN_DATA) == 0)
 				break;
 
 			mdelay(1);
@@ -1968,7 +1968,7 @@ static inline void _nbu2ss_epn_in_int(
 			status =
 			_nbu2ss_readl(&preg->EP_REGS[ep->epnum - 1].EP_STATUS);
 
-			if ((status & EPn_IN_FULL) == 0) {
+			if ((status & EPN_IN_FULL) == 0) {
 				/*-----------------------------------------*/
 				/* 0 Length Packet */
 				req->zero = false;
@@ -2059,18 +2059,18 @@ static inline void _nbu2ss_epn_out_dma_int(
 	}
 
 	ep_dmacnt = _nbu2ss_readl(&preg->EP_REGS[num].EP_LEN_DCNT)
-		 & EPn_DMACNT;
+		 & EPN_DMACNT;
 	ep_dmacnt >>= 16;
 
 	for (i = 0; i < EPC_PLL_LOCK_COUNT; i++) {
 		dmacnt = _nbu2ss_readl(&preg->EP_DCR[num].EP_DCR1)
-			 & DCR1_EPn_DMACNT;
+			 & DCR1_EPN_DMACNT;
 		dmacnt >>= 16;
 		if (ep_dmacnt == dmacnt)
 			break;
 	}
 
-	_nbu2ss_bitclr(&preg->EP_DCR[num].EP_DCR1, DCR1_EPn_REQEN);
+	_nbu2ss_bitclr(&preg->EP_DCR[num].EP_DCR1, DCR1_EPN_REQEN);
 
 	if (dmacnt != 0) {
 		mpkt = ep->ep.maxpacket;
@@ -2117,20 +2117,20 @@ static inline void _nbu2ss_epn_int(struct nbu2ss_udc *udc, u32 epnum)
 		return;
 	}
 
-	if (status & EPn_OUT_END_INT) {
-		status &= ~EPn_OUT_INT;
+	if (status & EPN_OUT_END_INT) {
+		status &= ~EPN_OUT_INT;
 		_nbu2ss_epn_out_dma_int(udc, ep, req);
 	}
 
-	if (status & EPn_OUT_INT)
+	if (status & EPN_OUT_INT)
 		_nbu2ss_epn_out_int(udc, ep, req);
 
-	if (status & EPn_IN_END_INT) {
-		status &= ~EPn_IN_INT;
+	if (status & EPN_IN_END_INT) {
+		status &= ~EPN_IN_INT;
 		_nbu2ss_epn_in_dma_int(udc, ep, req);
 	}
 
-	if (status & EPn_IN_INT)
+	if (status & EPN_IN_INT)
 		_nbu2ss_epn_in_int(udc, ep, req);
 }
 
@@ -2231,9 +2231,9 @@ static void _nbu2ss_fifo_flush(struct nbu2ss_udc *udc, struct nbu2ss_ep *ep)
 		_nbu2ss_bitset(&p->EP0_CONTROL, EP0_BCLR);
 
 	} else {
-		/* EPn */
+		/* EPN */
 		_nbu2ss_ep_dma_abort(udc, ep);
-		_nbu2ss_bitset(&p->EP_REGS[ep->epnum - 1].EP_CONTROL, EPn_BCLR);
+		_nbu2ss_bitset(&p->EP_REGS[ep->epnum - 1].EP_CONTROL, EPN_BCLR);
 	}
 }
 
@@ -2478,7 +2478,7 @@ static irqreturn_t _nbu2ss_udc_irq(int irq, void *_udc)
 			suspend_flag = 1;
 		}
 
-		if (status & EPn_INT) {
+		if (status & EPN_INT) {
 			/* EP INT */
 			int_bit = status >> 8;
 
@@ -2868,7 +2868,7 @@ static int nbu2ss_ep_fifo_status(struct usb_ep *_ep)
 
 	} else {
 		data = _nbu2ss_readl(&preg->EP_REGS[ep->epnum - 1].EP_LEN_DCNT)
-			& EPn_LDATA;
+			& EPN_LDATA;
 	}
 
 	spin_unlock_irqrestore(&udc->lock, flags);
