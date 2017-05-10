@@ -1,13 +1,11 @@
 /*
- * linux/drivers/mmc/tmio_mmc_dma.c
+ * DMA function for TMIO MMC implementations
  *
  * Copyright (C) 2010-2011 Guennadi Liakhovetski
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * DMA function for TMIO MMC implementations
  */
 
 #include <linux/device.h>
