@@ -3162,6 +3162,8 @@ static int qeth_l3_probe_device(struct ccwgroup_device *gdev)
 	rc = qeth_l3_create_device_attributes(&gdev->dev);
 	if (rc)
 		return rc;
+	hash_init(card->ip_htable);
+	hash_init(card->ip_mc_htable);
 	card->options.layer2 = 0;
 	card->info.hwtrap = 0;
 	return 0;
