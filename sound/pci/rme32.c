@@ -254,43 +254,60 @@ static inline unsigned int snd_rme32_pcm_byteptr(struct rme32 * rme32)
 }
 
 /* silence callback for halfduplex mode */
-static int snd_rme32_playback_silence(struct snd_pcm_substream *substream, int channel,	/* not used (interleaved data) */
-				      snd_pcm_uframes_t pos,
-				      snd_pcm_uframes_t count)
+static int snd_rme32_playback_silence(struct snd_pcm_substream *substream,
+				      int channel, unsigned long pos,
+				      unsigned long count)
 {
 	struct rme32 *rme32 = snd_pcm_substream_chip(substream);
-	count <<= rme32->playback_frlog;
-	pos <<= rme32->playback_frlog;
+
 	memset_io(rme32->iobase + RME32_IO_DATA_BUFFER + pos, 0, count);
 	return 0;
 }
 
 /* copy callback for halfduplex mode */
-static int snd_rme32_playback_copy(struct snd_pcm_substream *substream, int channel,	/* not used (interleaved data) */
-				   snd_pcm_uframes_t pos,
-				   void __user *src, snd_pcm_uframes_t count)
+static int snd_rme32_playback_copy(struct snd_pcm_substream *substream,
+				   int channel, unsigned long pos,
+				   void __user *src, unsigned long count)
 {
 	struct rme32 *rme32 = snd_pcm_substream_chip(substream);
-	count <<= rme32->playback_frlog;
-	pos <<= rme32->playback_frlog;
+
 	if (copy_from_user_toio(rme32->iobase + RME32_IO_DATA_BUFFER + pos,
-			    src, count))
+				src, count))
 		return -EFAULT;
 	return 0;
 }
 
-/* copy callback for halfduplex mode */
-static int snd_rme32_capture_copy(struct snd_pcm_substream *substream, int channel,	/* not used (interleaved data) */
-				  snd_pcm_uframes_t pos,
-				  void __user *dst, snd_pcm_uframes_t count)
+static int snd_rme32_playback_copy_kernel(struct snd_pcm_substream *substream,
+					  int channel, unsigned long pos,
+					  void *src, unsigned long count)
 {
 	struct rme32 *rme32 = snd_pcm_substream_chip(substream);
-	count <<= rme32->capture_frlog;
-	pos <<= rme32->capture_frlog;
+
+	memcpy_toio(rme32->iobase + RME32_IO_DATA_BUFFER + pos, src, count);
+	return 0;
+}
+
+/* copy callback for halfduplex mode */
+static int snd_rme32_capture_copy(struct snd_pcm_substream *substream,
+				  int channel, unsigned long pos,
+				  void __user *dst, unsigned long count)
+{
+	struct rme32 *rme32 = snd_pcm_substream_chip(substream);
+
 	if (copy_to_user_fromio(dst,
 			    rme32->iobase + RME32_IO_DATA_BUFFER + pos,
 			    count))
 		return -EFAULT;
+	return 0;
+}
+
+static int snd_rme32_capture_copy_kernel(struct snd_pcm_substream *substream,
+					 int channel, unsigned long pos,
+					 void *dst, unsigned long count)
+{
+	struct rme32 *rme32 = snd_pcm_substream_chip(substream);
+
+	memcpy_fromio(dst, rme32->iobase + RME32_IO_DATA_BUFFER + pos, count);
 	return 0;
 }
 
@@ -1203,8 +1220,9 @@ static const struct snd_pcm_ops snd_rme32_playback_spdif_ops = {
 	.prepare =	snd_rme32_playback_prepare,
 	.trigger =	snd_rme32_pcm_trigger,
 	.pointer =	snd_rme32_playback_pointer,
-	.copy =		snd_rme32_playback_copy,
-	.silence =	snd_rme32_playback_silence,
+	.copy_user =	snd_rme32_playback_copy,
+	.copy_kernel =	snd_rme32_playback_copy_kernel,
+	.fill_silence =	snd_rme32_playback_silence,
 	.mmap =		snd_pcm_lib_mmap_iomem,
 };
 
@@ -1217,7 +1235,8 @@ static const struct snd_pcm_ops snd_rme32_capture_spdif_ops = {
 	.prepare =	snd_rme32_capture_prepare,
 	.trigger =	snd_rme32_pcm_trigger,
 	.pointer =	snd_rme32_capture_pointer,
-	.copy =		snd_rme32_capture_copy,
+	.copy_user =	snd_rme32_capture_copy,
+	.copy_kernel =	snd_rme32_capture_copy_kernel,
 	.mmap =		snd_pcm_lib_mmap_iomem,
 };
 
@@ -1229,8 +1248,9 @@ static const struct snd_pcm_ops snd_rme32_playback_adat_ops = {
 	.prepare =	snd_rme32_playback_prepare,
 	.trigger =	snd_rme32_pcm_trigger,
 	.pointer =	snd_rme32_playback_pointer,
-	.copy =		snd_rme32_playback_copy,
-	.silence =	snd_rme32_playback_silence,
+	.copy_user =	snd_rme32_playback_copy,
+	.copy_kernel =	snd_rme32_playback_copy_kernel,
+	.fill_silence =	snd_rme32_playback_silence,
 	.mmap =		snd_pcm_lib_mmap_iomem,
 };
 
@@ -1242,7 +1262,8 @@ static const struct snd_pcm_ops snd_rme32_capture_adat_ops = {
 	.prepare =	snd_rme32_capture_prepare,
 	.trigger =	snd_rme32_pcm_trigger,
 	.pointer =	snd_rme32_capture_pointer,
-	.copy =		snd_rme32_capture_copy,
+	.copy_user =	snd_rme32_capture_copy,
+	.copy_kernel =	snd_rme32_capture_copy_kernel,
 	.mmap =		snd_pcm_lib_mmap_iomem,
 };
 
