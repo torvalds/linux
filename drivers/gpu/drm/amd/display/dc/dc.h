@@ -434,9 +434,35 @@ bool dc_post_update_surfaces_to_stream(
 void dc_update_surfaces_for_stream(struct dc *dc, struct dc_surface_update *updates,
 		int surface_count, const struct dc_stream *stream);
 
+/* Surface update type is used by dc_update_surfaces_and_stream
+ * The update type is determined at the very beginning of the function based
+ * on parameters passed in and decides how much programming (or updating) is
+ * going to be done during the call.
+ *
+ * UPDATE_TYPE_FAST is used for really fast updates that do not require much
+ * logical calculations or hardware register programming. This update MUST be
+ * ISR safe on windows. Currently fast update will only be used to flip surface
+ * address.
+ *
+ * UPDATE_TYPE_MED is used for slower updates which require significant hw
+ * re-programming however do not affect bandwidth consumption or clock
+ * requirements. At present, this is the level at which front end updates
+ * that do not require us to run bw_calcs happen. These are in/out transfer func
+ * updates, viewport offset changes, recout size changes and pixel depth changes.
+ * This update can be done at ISR, but we want to minimize how often this happens.
+ *
+ * UPDATE_TYPE_FULL is slow. Really slow. This requires us to recalculate our
+ * bandwidth and clocks, possibly rearrange some pipes and reprogram anything front
+ * end related. Any time viewport dimensions, recout dimensions, scaling ratios or
+ * gamma need to be adjusted or pipe needs to be turned on (or disconnected) we do
+ * a full update. This cannot be done at ISR level and should be a rare event.
+ * Unless someone is stress testing mpo enter/exit, playing with colour or adjusting
+ * underscan we don't expect to see this call at all.
+ */
+
 enum surface_update_type {
 	UPDATE_TYPE_FAST, /* super fast, safe to execute in isr */
-	UPDATE_TYPE_MED,  /* a lot of programming needed.  may need to alloc */
+	UPDATE_TYPE_MED,  /* ISR safe, most of programming needed, no bw/clk change*/
 	UPDATE_TYPE_FULL, /* may need to shuffle resources */
 };
 
