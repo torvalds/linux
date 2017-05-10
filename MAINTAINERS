@@ -1085,6 +1085,16 @@ F: 	drivers/pinctrl/meson/
 F:	drivers/mmc/host/meson*
 N:	meson
 
+ARM/Amlogic Meson SoC CLOCK FRAMEWORK
+M:	Neil Armstrong <narmstrong@baylibre.com>
+M:	Jerome Brunet <jbrunet@baylibre.com>
+L:	linux-amlogic@lists.infradead.org
+S:	Maintained
+F:	drivers/clk/meson/
+F:	include/dt-bindings/clock/meson*
+F:	include/dt-bindings/clock/gxbb*
+F:	Documentation/devicetree/bindings/clock/amlogic*
+
 ARM/Annapurna Labs ALPINE ARCHITECTURE
 M:	Tsahee Zidenberg <tsahee@annapurnalabs.com>
 M:	Antoine Tenart <antoine.tenart@free-electrons.com>

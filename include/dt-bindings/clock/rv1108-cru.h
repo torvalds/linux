@@ -13,8 +13,8 @@
  * GNU General Public License for more details.
  */
 
-#ifndef _DT_BINDINGS_CLK_ROCKCHIP_RK1108_H
-#define _DT_BINDINGS_CLK_ROCKCHIP_RK1108_H
+#ifndef _DT_BINDINGS_CLK_ROCKCHIP_RV1108_H
+#define _DT_BINDINGS_CLK_ROCKCHIP_RV1108_H
 
 /* pll id */
 #define PLL_APLL			0
@@ -266,4 +266,4 @@
 #define ARST_DSP_EDP_PERF		184
 #define ARST_DSP_EPP_PERF		185
 
-#endif /* _DT_BINDINGS_CLK_ROCKCHIP_RK1108_H */
+#endif /* _DT_BINDINGS_CLK_ROCKCHIP_RV1108_H */

@@ -116,6 +116,30 @@ static const struct pll_rate_table *meson_clk_get_pll_settings(struct meson_clk_
 	return NULL;
 }
 
+/* Specific wait loop for GXL/GXM GP0 PLL */
+static int meson_clk_pll_wait_lock_reset(struct meson_clk_pll *pll,
+					 struct parm *p_n)
+{
+	int delay = 100;
+	u32 reg;
+
+	while (delay > 0) {
+		reg = readl(pll->base + p_n->reg_off);
+		writel(reg | MESON_PLL_RESET, pll->base + p_n->reg_off);
+		udelay(10);
+		writel(reg & ~MESON_PLL_RESET, pll->base + p_n->reg_off);
+
+		/* This delay comes from AMLogic tree clk-gp0-gxl driver */
+		mdelay(1);
+
+		reg = readl(pll->base + p_n->reg_off);
+		if (reg & MESON_PLL_LOCK)
+			return 0;
+		delay--;
+	}
+	return -ETIMEDOUT;
+}
+
 static int meson_clk_pll_wait_lock(struct meson_clk_pll *pll,
 				   struct parm *p_n)
 {
@@ -130,6 +154,15 @@ static int meson_clk_pll_wait_lock(struct meson_clk_pll *pll,
 		delay--;
 	}
 	return -ETIMEDOUT;
+}
+
+static void meson_clk_pll_init_params(struct meson_clk_pll *pll)
+{
+	int i;
+
+	for (i = 0 ; i < pll->params.params_count ; ++i)
+		writel(pll->params.params_table[i].value,
+		       pll->base + pll->params.params_table[i].reg_off);
 }
 
 static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -151,10 +184,16 @@ static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (!rate_set)
 		return -EINVAL;
 
+	/* Initialize the PLL in a clean state if specified */
+	if (pll->params.params_count)
+		meson_clk_pll_init_params(pll);
+
 	/* PLL reset */
 	p = &pll->n;
 	reg = readl(pll->base + p->reg_off);
-	writel(reg | MESON_PLL_RESET, pll->base + p->reg_off);
+	/* If no_init_reset is provided, avoid resetting at this point */
+	if (!pll->params.no_init_reset)
+		writel(reg | MESON_PLL_RESET, pll->base + p->reg_off);
 
 	reg = PARM_SET(p->width, p->shift, reg, rate_set->n);
 	writel(reg, pll->base + p->reg_off);
@@ -184,7 +223,17 @@ static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	}
 
 	p = &pll->n;
-	ret = meson_clk_pll_wait_lock(pll, p);
+	/* If clear_reset_for_lock is provided, remove the reset bit here */
+	if (pll->params.clear_reset_for_lock) {
+		reg = readl(pll->base + p->reg_off);
+		writel(reg & ~MESON_PLL_RESET, pll->base + p->reg_off);
+	}
+
+	/* If reset_lock_loop, use a special loop including resetting */
+	if (pll->params.reset_lock_loop)
+		ret = meson_clk_pll_wait_lock_reset(pll, p);
+	else
+		ret = meson_clk_pll_wait_lock(pll, p);
 	if (ret) {
 		pr_warn("%s: pll did not lock, trying to restore old rate %lu\n",
 			__func__, old_rate);
