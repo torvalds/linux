@@ -718,6 +718,7 @@ enum qeth_discipline_id {
 };
 
 struct qeth_discipline {
+	const struct device_type *devtype;
 	void (*start_poll)(struct ccw_device *, int, unsigned long);
 	qdio_handler_t *input_handler;
 	qdio_handler_t *output_handler;
@@ -893,6 +894,9 @@ extern struct qeth_discipline qeth_l2_discipline;
 extern struct qeth_discipline qeth_l3_discipline;
 extern const struct attribute_group *qeth_generic_attr_groups[];
 extern const struct attribute_group *qeth_osn_attr_groups[];
+extern const struct attribute_group qeth_device_attr_group;
+extern const struct attribute_group qeth_device_blkt_group;
+extern const struct device_type qeth_generic_devtype;
 extern struct workqueue_struct *qeth_wq;
 
 int qeth_card_hw_is_reachable(struct qeth_card *);
