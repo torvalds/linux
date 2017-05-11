@@ -3747,14 +3747,6 @@ void ex_btc8821a2ant_display_coex_info(struct btc_coexist *btcoexist)
 		    ((BTC_WIFI_TRAFFIC_TX == wifi_traffic_dir) ?
 		     "uplink" : "downlink")));
 
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-		 "\r\n %-35s = [%s/ %d/ %d] ", "BT [status/ rssi/ retryCnt]",
-		   ((coex_sta->c2h_bt_inquiry_page) ? ("inquiry/page scan") :
-		    ((BT_8821A_2ANT_BT_STATUS_IDLE == coex_dm->bt_status)
-		     ? "idle" : ((BT_8821A_2ANT_BT_STATUS_CON_IDLE ==
-		     coex_dm->bt_status) ? "connected-idle" : "busy"))),
-		    coex_sta->bt_rssi, coex_sta->bt_retry_cnt);
-
 	if (stack_info->profile_notified) {
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
 			 "\r\n %-35s = %d / %d / %d / %d", "SCO/HID/PAN/A2DP",
@@ -3789,11 +3781,6 @@ void ex_btc8821a2ant_display_coex_info(struct btc_coexist *btcoexist)
 	/* Sw mechanism*/
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s",
 		 "============[Sw mechanism]============");
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-		 "\r\n %-35s = %d/ %d/ %d/ %d ",
-		 "SM1[ShRf/ LpRA/ LimDig/ btLna]",
-		 coex_dm->cur_rf_rx_lpf_shrink, coex_dm->cur_low_penalty_ra,
-		 coex_dm->limited_dig, coex_dm->cur_bt_lna_constrain);
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
 		 "\r\n %-35s = %d/ %d/ %d(0x%x) ",
 		 "SM2[AgcT/ AdcB/ SwDacSwing(lvl)]",

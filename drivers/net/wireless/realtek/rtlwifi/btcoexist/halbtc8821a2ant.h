@@ -79,10 +79,6 @@ struct coex_dm_8821a_2ant {
 	/* fw mechanism */
 	bool		pre_dec_bt_pwr_lvl;
 	bool		cur_dec_bt_pwr_lvl;
-	bool		pre_bt_lna_constrain;
-	bool		cur_bt_lna_constrain;
-	u8		pre_bt_psd_mode;
-	u8		cur_bt_psd_mode;
 	u8		pre_fw_dac_swing_lvl;
 	u8		cur_fw_dac_swing_lvl;
 	bool		cur_ignore_wlan_act;
