@@ -194,7 +194,7 @@ static int chaoskey_probe(struct usb_interface *interface,
 
 	dev->in_ep = in_ep;
 
-	if (udev->descriptor.idVendor != ALEA_VENDOR_ID)
+	if (le16_to_cpu(udev->descriptor.idVendor) != ALEA_VENDOR_ID)
 		dev->reads_started = 1;
 
 	dev->size = size;
