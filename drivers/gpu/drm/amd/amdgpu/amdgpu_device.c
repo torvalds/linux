@@ -2644,9 +2644,9 @@ int amdgpu_sriov_gpu_reset(struct amdgpu_device *adev, struct amdgpu_job *job)
 		if (job && j != i)
 			continue;
 
-		/* here give the last chance to check if fence signaled
+		/* here give the last chance to check if job removed from mirror-list
 		 * since we already pay some time on kthread_park */
-		if (job && dma_fence_is_signaled(&job->base.s_fence->finished)) {
+		if (job && list_empty(&job->base.node)) {
 			kthread_unpark(ring->sched.thread);
 			goto give_up_reset;
 		}
