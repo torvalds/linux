@@ -420,8 +420,6 @@ static int append_oa_sample(struct i915_perf_stream *stream,
  * @buf: destination buffer given by userspace
  * @count: the number of bytes userspace wants to read
  * @offset: (inout): the current position for writing into @buf
- * @head_ptr: (inout): the current oa buffer cpu read position
- * @tail: the current oa buffer gpu write position
  *
  * Notably any error condition resulting in a short read (-%ENOSPC or
  * -%EFAULT) will be returned even though one or more records may
@@ -439,9 +437,7 @@ static int append_oa_sample(struct i915_perf_stream *stream,
 static int gen7_append_oa_reports(struct i915_perf_stream *stream,
 				  char __user *buf,
 				  size_t count,
-				  size_t *offset,
-				  u32 *head_ptr,
-				  u32 tail)
+				  size_t *offset)
 {
 	struct drm_i915_private *dev_priv = stream->dev_priv;
 	int report_size = dev_priv->perf.oa.oa_buffer.format_size;
@@ -449,14 +445,15 @@ static int gen7_append_oa_reports(struct i915_perf_stream *stream,
 	int tail_margin = dev_priv->perf.oa.tail_margin;
 	u32 gtt_offset = i915_ggtt_offset(dev_priv->perf.oa.oa_buffer.vma);
 	u32 mask = (OA_BUFFER_SIZE - 1);
-	u32 head;
+	size_t start_offset = *offset;
+	u32 head, oastatus1, tail;
 	u32 taken;
 	int ret = 0;
 
 	if (WARN_ON(!stream->enabled))
 		return -EIO;
 
-	head = *head_ptr - gtt_offset;
+	head = dev_priv->perf.oa.oa_buffer.head - gtt_offset;
 
 	/* An out of bounds or misaligned head pointer implies a driver bug
 	 * since we are in full control of head pointer which should only
@@ -467,7 +464,8 @@ static int gen7_append_oa_reports(struct i915_perf_stream *stream,
 		      "Inconsistent OA buffer head pointer = %u\n", head))
 		return -EIO;
 
-	tail -= gtt_offset;
+	oastatus1 = I915_READ(GEN7_OASTATUS1);
+	tail = (oastatus1 & GEN7_OASTATUS1_TAIL_MASK) - gtt_offset;
 
 	/* The OA unit is expected to wrap the tail pointer according to the OA
 	 * buffer size
@@ -477,8 +475,6 @@ static int gen7_append_oa_reports(struct i915_perf_stream *stream,
 			  tail);
 		dev_priv->perf.oa.ops.oa_disable(dev_priv);
 		dev_priv->perf.oa.ops.oa_enable(dev_priv);
-		*head_ptr = I915_READ(GEN7_OASTATUS2) &
-			GEN7_OASTATUS2_HEAD_MASK;
 		return -EIO;
 	}
 
@@ -542,7 +538,17 @@ static int gen7_append_oa_reports(struct i915_perf_stream *stream,
 		report32[0] = 0;
 	}
 
-	*head_ptr = gtt_offset + head;
+	if (start_offset != *offset) {
+		/* We removed the gtt_offset for the copy loop above, indexing
+		 * relative to oa_buf_base so put back here...
+		 */
+		head += gtt_offset;
+
+		I915_WRITE(GEN7_OASTATUS2,
+			   ((head & GEN7_OASTATUS2_HEAD_MASK) |
+			    OA_MEM_SELECT_GGTT));
+		dev_priv->perf.oa.oa_buffer.head = head;
+	}
 
 	return ret;
 }
@@ -570,17 +576,12 @@ static int gen7_oa_read(struct i915_perf_stream *stream,
 {
 	struct drm_i915_private *dev_priv = stream->dev_priv;
 	u32 oastatus1;
-	u32 head;
-	u32 tail;
 	int ret;
 
 	if (WARN_ON(!dev_priv->perf.oa.oa_buffer.vaddr))
 		return -EIO;
 
 	oastatus1 = I915_READ(GEN7_OASTATUS1);
-
-	head = dev_priv->perf.oa.oa_buffer.head;
-	tail = oastatus1 & GEN7_OASTATUS1_TAIL_MASK;
 
 	/* XXX: On Haswell we don't have a safe way to clear oastatus1
 	 * bits while the OA unit is enabled (while the tail pointer
@@ -621,9 +622,6 @@ static int gen7_oa_read(struct i915_perf_stream *stream,
 		dev_priv->perf.oa.ops.oa_enable(dev_priv);
 
 		oastatus1 = I915_READ(GEN7_OASTATUS1);
-
-		head = dev_priv->perf.oa.oa_buffer.head;
-		tail = oastatus1 & GEN7_OASTATUS1_TAIL_MASK;
 	}
 
 	if (unlikely(oastatus1 & GEN7_OASTATUS1_REPORT_LOST)) {
@@ -635,19 +633,7 @@ static int gen7_oa_read(struct i915_perf_stream *stream,
 			GEN7_OASTATUS1_REPORT_LOST;
 	}
 
-	ret = gen7_append_oa_reports(stream, buf, count, offset,
-				     &head, tail);
-
-	/* Note: we update the head pointer here even if an error
-	 * was returned since the error may represent a short read
-	 * where some some reports were successfully copied.
-	 */
-	I915_WRITE(GEN7_OASTATUS2,
-		   ((head & GEN7_OASTATUS2_HEAD_MASK) |
-		    OA_MEM_SELECT_GGTT));
-	dev_priv->perf.oa.oa_buffer.head = head;
-
-	return ret;
+	return gen7_append_oa_reports(stream, buf, count, offset);
 }
 
 /**
