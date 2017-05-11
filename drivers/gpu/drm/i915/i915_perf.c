@@ -1902,11 +1902,13 @@ static int read_properties_unlocked(struct drm_i915_private *dev_priv,
 			break;
 		case DRM_I915_PERF_PROP_OA_FORMAT:
 			if (value == 0 || value >= I915_OA_FORMAT_MAX) {
-				DRM_DEBUG("Invalid OA report format\n");
+				DRM_DEBUG("Out-of-range OA report format %llu\n",
+					  value);
 				return -EINVAL;
 			}
 			if (!dev_priv->perf.oa.oa_formats[value].size) {
-				DRM_DEBUG("Invalid OA report format\n");
+				DRM_DEBUG("Unsupported OA report format %llu\n",
+					  value);
 				return -EINVAL;
 			}
 			props->oa_format = value;
