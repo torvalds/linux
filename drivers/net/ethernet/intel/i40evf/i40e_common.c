@@ -68,6 +68,7 @@ i40e_status i40e_set_mac_type(struct i40e_hw *hw)
 			break;
 		case I40E_DEV_ID_VF:
 		case I40E_DEV_ID_VF_HV:
+		case I40E_DEV_ID_ADAPTIVE_VF:
 			hw->mac.type = I40E_MAC_VF;
 			break;
 		default:
