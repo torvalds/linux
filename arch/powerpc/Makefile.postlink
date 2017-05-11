@@ -11,7 +11,14 @@ __archpost:
 include scripts/Kbuild.include
 
 quiet_cmd_relocs_check = CHKREL  $@
-      cmd_relocs_check = $(CONFIG_SHELL) $(srctree)/arch/powerpc/tools/relocs_check.sh "$(OBJDUMP)" "$@"
+ifdef CONFIG_PPC_BOOK3S_64
+      cmd_relocs_check =						\
+	$(CONFIG_SHELL) $(srctree)/arch/powerpc/tools/relocs_check.sh "$(OBJDUMP)" "$@" ; \
+	$(CONFIG_SHELL) $(srctree)/arch/powerpc/tools/unrel_branch_check.sh "$(OBJDUMP)" "$@"
+else
+      cmd_relocs_check =						\
+	$(CONFIG_SHELL) $(srctree)/arch/powerpc/tools/relocs_check.sh "$(OBJDUMP)" "$@"
+endif
 
 # `@true` prevents complaint when there is nothing to be done
 
