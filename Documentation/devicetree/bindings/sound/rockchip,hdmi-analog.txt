@@ -1,0 +1,24 @@
+ROCKCHIP Built-in HDMI and external audio codec which use the same
+I2S interface(such as RK3368)
+Use simple-audio-card can be if only HDMI or codec ic
+
+Required properties:
+- compatible: "rockchip,rk3368-hdmi-analog"
+- rockchip,cpu: The phandle of the Rockchip I2S controller that's
+  connected to the CODEC
+- rockchip,codec: The phandle of audio codecs, should contain both
+  codec ic and HDMI
+
+Example:
+
+sound {
+	compatible = "rockchip,rk3368-hdmi-analog";
+	rockchip,cpu = <&i2s_8ch>;
+	rockchip,codec = <&es8316>, <&hdmi>;
+	rockchip,widgets = "Microphone", "Mic Jack",
+			   "Headphone", "Headphone Jack";
+	rockchip,routing = "Mic Jack", "micbias",
+			   "Headphone Jack", "HPOL",
+			   "Headphone Jack", "HPOR";
+};
+

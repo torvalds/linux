@@ -41,6 +41,14 @@ config SND_SOC_ROCKCHIP_DA7219
 	  Say Y or M here if you want to add support for SoC audio on Rockchip
 	  boards using the DA7219 codec, such as Veyron.
 
+config SND_SOC_ROCKCHIP_HDMI_ANALOG
+	tristate "ASoC support for Rockchip built-in HDMI and CODEC IC"
+	select SND_SOC_ROCKCHIP_I2S
+	select SND_SOC_HDMI_CODEC
+	help
+	  Say Y or M here if you want to add support for SoC audio on Rockchip
+	  boards using built-in HDMI and CODEC IC, such as RK3368 boards.
+
 config SND_SOC_ROCKCHIP_HDMI_DP
 	tristate "ASoC support for Rockchip built-in HDMI and DP"
 	depends on SND_SOC_ROCKCHIP && CLKDEV_LOOKUP
