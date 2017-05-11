@@ -1161,7 +1161,7 @@ static int vega10_setup_default_pcie_table(struct pp_hwmgr *hwmgr)
 			"Incorrect number of PCIE States from VBIOS!",
 			return -1);
 
-	for (i = 0; i < NUM_LINK_LEVELS - 1; i++) {
+	for (i = 0; i < NUM_LINK_LEVELS; i++) {
 		if (data->registry_data.pcieSpeedOverride)
 			pcie_table->pcie_gen[i] =
 					data->registry_data.pcieSpeedOverride;
