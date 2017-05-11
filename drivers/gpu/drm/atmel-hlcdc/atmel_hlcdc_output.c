@@ -83,14 +83,8 @@ static const struct drm_encoder_helper_funcs atmel_hlcdc_panel_encoder_helper_fu
 	.enable = atmel_hlcdc_rgb_encoder_enable,
 };
 
-static void atmel_hlcdc_rgb_encoder_destroy(struct drm_encoder *encoder)
-{
-	drm_encoder_cleanup(encoder);
-	memset(encoder, 0, sizeof(*encoder));
-}
-
 static const struct drm_encoder_funcs atmel_hlcdc_panel_encoder_funcs = {
-	.destroy = atmel_hlcdc_rgb_encoder_destroy,
+	.destroy = drm_encoder_cleanup,
 };
 
 static int atmel_hlcdc_panel_get_modes(struct drm_connector *connector)
