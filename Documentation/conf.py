@@ -281,6 +281,7 @@ latex_elements = {
 	\\definecolor{NoteColor}{RGB}{204,255,255}
 	\\definecolor{WarningColor}{RGB}{255,204,204}
 	\\definecolor{AttentionColor}{RGB}{255,255,204}
+	\\definecolor{ImportantColor}{RGB}{192,255,204}
 	\\definecolor{OtherColor}{RGB}{204,204,204}
         \\newlength{\\mynoticelength}
         \\makeatletter\\newenvironment{coloredbox}[1]{%
@@ -301,7 +302,12 @@ latex_elements = {
 	            \\ifthenelse%
 	            {\\equal{\\py@noticetype}{attention}}%
 	            {\\colorbox{AttentionColor}{\\usebox{\\@tempboxa}}}%
-	            {\\colorbox{OtherColor}{\\usebox{\\@tempboxa}}}%
+		    {%
+	               \\ifthenelse%
+	               {\\equal{\\py@noticetype}{important}}%
+	               {\\colorbox{ImportantColor}{\\usebox{\\@tempboxa}}}%
+	               {\\colorbox{OtherColor}{\\usebox{\\@tempboxa}}}%
+		    }%
 		 }%
 	      }%
         }\\makeatother
