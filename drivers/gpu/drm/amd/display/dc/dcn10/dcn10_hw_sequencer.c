@@ -848,7 +848,7 @@ static void reset_front_end_for_pipe(
 
 	unlock_master_tg_and_wait(dc->ctx, pipe_ctx->tg->inst);
 
-	pipe_ctx->mi->funcs->disable_request(pipe_ctx->mi);
+	pipe_ctx->mi->funcs->set_blank(pipe_ctx->mi, true);
 
 	wait_no_outstanding_request(dc->ctx, pipe_ctx->pipe_idx);
 
@@ -1513,6 +1513,35 @@ static void program_gamut_remap(struct pipe_ctx *pipe_ctx)
 	pipe_ctx->xfm->funcs->transform_set_gamut_remap(pipe_ctx->xfm, &adjust);
 }
 
+static bool is_lower_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
+{
+	if (pipe_ctx->surface->public.visible)
+		return true;
+	if (pipe_ctx->bottom_pipe && is_lower_pipe_tree_visible(pipe_ctx->bottom_pipe))
+		return true;
+	return false;
+}
+
+static bool is_upper_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
+{
+	if (pipe_ctx->surface->public.visible)
+		return true;
+	if (pipe_ctx->top_pipe && is_upper_pipe_tree_visible(pipe_ctx->top_pipe))
+		return true;
+	return false;
+}
+
+static bool is_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
+{
+	if (pipe_ctx->surface->public.visible)
+		return true;
+	if (pipe_ctx->top_pipe && is_upper_pipe_tree_visible(pipe_ctx->top_pipe))
+		return true;
+	if (pipe_ctx->bottom_pipe && is_lower_pipe_tree_visible(pipe_ctx->bottom_pipe))
+		return true;
+	return false;
+}
+
 static void update_dchubp_dpp(
 	struct core_dc *dc,
 	struct pipe_ctx *pipe_ctx,
@@ -1633,12 +1662,9 @@ static void update_dchubp_dpp(
 		&size,
 		surface->public.rotation,
 		&surface->public.dcc,
-		surface->public.horizontal_mirror,
-		surface->public.visible);
+		surface->public.horizontal_mirror);
 
-	/* Only support one plane for now. */
-	pipe_ctx->tg->funcs->set_blank(pipe_ctx->tg, !surface->public.visible);
-
+	mi->funcs->set_blank(mi, !is_pipe_tree_visible(pipe_ctx));
 }
 
 static void program_all_pipe_in_tree(
@@ -1669,10 +1695,13 @@ static void program_all_pipe_in_tree(
 
 		pipe_ctx->tg->funcs->program_global_sync(
 				pipe_ctx->tg);
+		pipe_ctx->tg->funcs->set_blank(pipe_ctx->tg, !is_pipe_tree_visible(pipe_ctx));
 
 
 
 		update_dchubp_dpp(dc, pipe_ctx, context);
+
+		/* Only support one plane for now. */
 	}
 
 	if (pipe_ctx->bottom_pipe != NULL)

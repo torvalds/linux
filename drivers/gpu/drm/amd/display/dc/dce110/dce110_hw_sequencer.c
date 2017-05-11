@@ -1986,8 +1986,9 @@ static void set_plane_config(
 			&surface->public.plane_size,
 			surface->public.rotation,
 			NULL,
-			false,
-			pipe_ctx->surface->public.visible);
+			false);
+	if (mi->funcs->set_blank)
+		mi->funcs->set_blank(mi, pipe_ctx->surface->public.visible);
 
 	if (dc->public.config.gpu_vm_support)
 		mi->funcs->mem_input_program_pte_vm(
@@ -2432,8 +2433,9 @@ static void dce110_program_front_end_for_pipe(
 			&surface->public.plane_size,
 			surface->public.rotation,
 			NULL,
-			false,
-			pipe_ctx->surface->public.visible);
+			false);
+	if (mi->funcs->set_blank)
+		mi->funcs->set_blank(mi, pipe_ctx->surface->public.visible);
 
 	if (dc->public.config.gpu_vm_support)
 		mi->funcs->mem_input_program_pte_vm(

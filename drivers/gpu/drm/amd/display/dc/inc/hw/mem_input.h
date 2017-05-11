@@ -94,9 +94,6 @@ struct mem_input_funcs {
 			struct _vcs_dpi_display_ttu_regs_st *ttu_regs,
 			struct _vcs_dpi_display_rq_regs_st *rq_regs,
 			struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest);
-
-	void (*disable_request)(struct mem_input *mem_input);
-
 #endif
 
 	void (*mem_input_program_display_marks)(
@@ -142,13 +139,14 @@ struct mem_input_funcs {
 		union plane_size *plane_size,
 		enum dc_rotation_angle rotation,
 		struct dc_plane_dcc_param *dcc,
-		bool horizontal_mirror,
-		bool visible);
+		bool horizontal_mirror);
 
 	bool (*mem_input_is_flip_pending)(struct mem_input *mem_input);
 
 	void (*mem_input_update_dchub)(struct mem_input *mem_input,
 			struct dchub_init_data *dh_data);
+
+	void (*set_blank)(struct mem_input *mi, bool blank);
 };
 
 #endif

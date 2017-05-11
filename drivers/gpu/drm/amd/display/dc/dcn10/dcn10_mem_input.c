@@ -38,22 +38,14 @@
 #define FN(reg_name, field_name) \
 	mi->mi_shift->field_name, mi->mi_mask->field_name
 
-static void set_blank(struct dcn10_mem_input *mi, bool blank)
+static void dcn_mi_set_blank(struct mem_input *mem_input, bool blank)
 {
+	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
 	uint32_t blank_en = blank ? 1 : 0;
 
 	REG_UPDATE_2(DCHUBP_CNTL,
 			HUBP_BLANK_EN, blank_en,
 			HUBP_TTU_DISABLE, blank_en);
-}
-
-
-static void disable_request(struct mem_input *mem_input)
-{
-	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
-
-	/* To disable the requestors, set blank_en to 1 */
-	set_blank(mi, true);
 }
 
 static void vready_workaround(struct mem_input *mem_input,
@@ -402,8 +394,7 @@ static void mem_input_program_surface_config(
 	union plane_size *plane_size,
 	enum dc_rotation_angle rotation,
 	struct dc_plane_dcc_param *dcc,
-	bool horizontal_mirror,
-	bool visible)
+	bool horizontal_mirror)
 {
 	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
 
@@ -412,8 +403,6 @@ static void mem_input_program_surface_config(
 	program_size_and_rotation(
 		mi, rotation, format, plane_size, dcc, horizontal_mirror);
 	program_pixel_format(mi, format);
-
-	set_blank(mi, !visible);
 }
 
 static void program_requestor(
@@ -573,7 +562,6 @@ static void mem_input_setup(
 	/* otg is locked when this func is called. Register are double buffered.
 	 * disable the requestors is not needed
 	 */
-	/* disable_request(mem_input); */
 	program_requestor(mem_input, rq_regs);
 	program_deadline(mem_input, dlg_attr, ttu_attr);
 	vready_workaround(mem_input, pipe_dest);
@@ -1065,7 +1053,6 @@ static struct mem_input_funcs dcn10_mem_input_funcs = {
 	.mem_input_program_display_marks = mem_input_program_display_marks,
 	.allocate_mem_input = NULL,
 	.free_mem_input = NULL,
-	.disable_request = disable_request,
 	.mem_input_program_surface_flip_and_addr =
 			mem_input_program_surface_flip_and_addr,
 	.mem_input_program_surface_config =
@@ -1075,6 +1062,7 @@ static struct mem_input_funcs dcn10_mem_input_funcs = {
 	.program_watermarks = program_watermarks,
 	.mem_input_update_dchub = mem_input_update_dchub,
 	.mem_input_program_pte_vm = dcn_mem_input_program_pte_vm,
+	.set_blank = dcn_mi_set_blank,
 };
 
 

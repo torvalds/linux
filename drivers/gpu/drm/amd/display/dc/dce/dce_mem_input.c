@@ -403,8 +403,7 @@ void dce_mem_input_program_surface_config(struct mem_input *mi,
 	union plane_size *plane_size,
 	enum dc_rotation_angle rotation,
 	struct dc_plane_dcc_param *dcc,
-	bool horizontal_mirror,
-	bool visible)
+	bool horizontal_mirror)
 {
 	REG_UPDATE(GRPH_ENABLE, GRPH_ENABLE, 1);
 
