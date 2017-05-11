@@ -2199,6 +2199,11 @@ static int do_setlink(const struct sk_buff *skb,
 				err = -EINVAL;
 				goto errout;
 			}
+			if ((xdp_flags & XDP_FLAGS_SKB_MODE) &&
+			    (xdp_flags & XDP_FLAGS_DRV_MODE)) {
+				err = -EINVAL;
+				goto errout;
+			}
 		}
 
 		if (xdp[IFLA_XDP_FD]) {

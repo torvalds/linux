@@ -6873,6 +6873,8 @@ int dev_change_xdp_fd(struct net_device *dev, struct netlink_ext_ack *extack,
 	ASSERT_RTNL();
 
 	xdp_op = ops->ndo_xdp;
+	if (!xdp_op && (flags & XDP_FLAGS_DRV_MODE))
+		return -EOPNOTSUPP;
 	if (!xdp_op || (flags & XDP_FLAGS_SKB_MODE))
 		xdp_op = generic_xdp_install;
 

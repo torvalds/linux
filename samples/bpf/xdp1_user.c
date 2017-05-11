@@ -62,13 +62,14 @@ static void usage(const char *prog)
 	fprintf(stderr,
 		"usage: %s [OPTS] IFINDEX\n\n"
 		"OPTS:\n"
-		"    -S    use skb-mode\n",
+		"    -S    use skb-mode\n"
+		"    -N    enforce native mode\n",
 		prog);
 }
 
 int main(int argc, char **argv)
 {
-	const char *optstr = "S";
+	const char *optstr = "SN";
 	char filename[256];
 	int opt;
 
@@ -76,6 +77,9 @@ int main(int argc, char **argv)
 		switch (opt) {
 		case 'S':
 			xdp_flags |= XDP_FLAGS_SKB_MODE;
+			break;
+		case 'N':
+			xdp_flags |= XDP_FLAGS_DRV_MODE;
 			break;
 		default:
 			usage(basename(argv[0]));
