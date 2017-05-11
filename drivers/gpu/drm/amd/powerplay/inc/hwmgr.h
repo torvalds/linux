@@ -612,17 +612,6 @@ struct phm_ppt_v2_information {
 	uint8_t  uc_dcef_dpm_voltage_mode;
 };
 
-struct phm_ppt_v3_information {
-	struct phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_on_sclk;
-	struct phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_on_mclk;
-	struct phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_on_socclk;
-	struct phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_on_dcefclk;
-	struct phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_on_pixclk;
-	struct phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_on_dispclk;
-	struct phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_on_phyclk;
-};
-
-
 struct phm_dynamic_state_info {
 	struct phm_clock_voltage_dependency_table *vddc_dependency_on_sclk;
 	struct phm_clock_voltage_dependency_table *vddci_dependency_on_mclk;
@@ -638,7 +627,7 @@ struct phm_dynamic_state_info {
 	uint32_t                                  vddc_vddci_delta;
 	uint32_t                                  min_vddc_for_pcie_gen2;
 	struct phm_cac_leakage_table              *cac_leakage_table;
-	struct phm_phase_shedding_limits_table	  *vddc_phase_shed_limits_table;
+	struct phm_phase_shedding_limits_table  *vddc_phase_shed_limits_table;
 
 	struct phm_vce_clock_voltage_dependency_table
 					    *vce_clock_voltage_dependency_table;
@@ -651,8 +640,8 @@ struct phm_dynamic_state_info {
 
 	struct phm_ppm_table                          *ppm_parameter_table;
 	struct phm_cac_tdp_table                      *cac_dtp_table;
-	struct phm_clock_voltage_dependency_table	  *vdd_gfx_dependency_on_sclk;
-	struct phm_vq_budgeting_table				  *vq_budgeting_table;
+	struct phm_clock_voltage_dependency_table	*vdd_gfx_dependency_on_sclk;
+	struct phm_vq_budgeting_table				*vq_budgeting_table;
 };
 
 struct pp_fan_info {
@@ -836,6 +825,7 @@ extern void phm_apply_dal_min_voltage_request(struct pp_hwmgr *hwmgr);
 
 extern int smu7_init_function_pointers(struct pp_hwmgr *hwmgr);
 extern int vega10_hwmgr_init(struct pp_hwmgr *hwmgr);
+extern int rv_init_function_pointers(struct pp_hwmgr *hwmgr);
 
 extern int phm_get_voltage_evv_on_sclk(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
 				uint32_t sclk, uint16_t id, uint16_t *voltage);

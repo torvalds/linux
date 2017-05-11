@@ -1015,6 +1015,10 @@ static int init_overdrive_limits(struct pp_hwmgr *hwmgr,
 	hwmgr->platform_descriptor.overdriveLimit.memoryClock = 0;
 	hwmgr->platform_descriptor.minOverdriveVDDC = 0;
 	hwmgr->platform_descriptor.maxOverdriveVDDC = 0;
+	hwmgr->platform_descriptor.overdriveVDDCStep = 0;
+
+	if (hwmgr->chip_id == CHIP_RAVEN)
+		return 0;
 
 	/* We assume here that fw_info is unchanged if this call fails.*/
 	fw_info = cgs_atom_get_data_table(hwmgr->device,

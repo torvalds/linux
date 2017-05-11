@@ -115,6 +115,15 @@ int hwmgr_early_init(struct pp_instance *handle)
 			return -EINVAL;
 		}
 		break;
+	case AMDGPU_FAMILY_RV:
+		switch (hwmgr->chip_id) {
+		case CHIP_RAVEN:
+			rv_init_function_pointers(hwmgr);
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
 	default:
 		return -EINVAL;
 	}
