@@ -72,7 +72,7 @@ static int rv_init_vq_budget_table(struct pp_hwmgr *hwmgr)
 {
 	uint32_t table_size, i;
 	struct phm_vq_budgeting_table *ptable;
-	uint32_t num_entries = (sizeof(rv_vqtable) / sizeof(*rv_vqtable));
+	uint32_t num_entries = ARRAY_SIZE(rv_vqtable);
 
 	if (hwmgr->dyn_state.vq_budgeting_table != NULL)
 		return 0;
@@ -463,18 +463,22 @@ static int rv_populate_clock_table(struct pp_hwmgr *hwmgr)
 						&rv_data->clock_table.MemClocks[0]);
 	} else {
 		rv_get_clock_voltage_dependency_table(hwmgr, &pinfo->vdd_dep_on_dcefclk,
-						sizeof(VddDcfClk)/sizeof(*VddDcfClk), &VddDcfClk[0]);
+						ARRAY_SIZE(VddDcfClk),
+						&VddDcfClk[0]);
 		rv_get_clock_voltage_dependency_table(hwmgr, &pinfo->vdd_dep_on_socclk,
-						sizeof(VddSocClk)/sizeof(*VddSocClk), &VddSocClk[0]);
+						ARRAY_SIZE(VddSocClk),
+						&VddSocClk[0]);
 		rv_get_clock_voltage_dependency_table(hwmgr, &pinfo->vdd_dep_on_fclk,
-						sizeof(VddFClk)/sizeof(*VddFClk), &VddFClk[0]);
+						ARRAY_SIZE(VddFClk),
+						&VddFClk[0]);
 	}
 	rv_get_clock_voltage_dependency_table(hwmgr, &pinfo->vdd_dep_on_dispclk,
-					sizeof(VddDispClk)/sizeof(*VddDispClk), &VddDispClk[0]);
+					ARRAY_SIZE(VddDispClk),
+					&VddDispClk[0]);
 	rv_get_clock_voltage_dependency_table(hwmgr, &pinfo->vdd_dep_on_dppclk,
-					sizeof(VddDppClk)/sizeof(*VddDppClk), &VddDppClk[0]);
+					ARRAY_SIZE(VddDppClk), &VddDppClk[0]);
 	rv_get_clock_voltage_dependency_table(hwmgr, &pinfo->vdd_dep_on_phyclk,
-					sizeof(VddPhyClk)/sizeof(*VddPhyClk), &VddPhyClk[0]);
+					ARRAY_SIZE(VddPhyClk), &VddPhyClk[0]);
 
 	return 0;
 }
