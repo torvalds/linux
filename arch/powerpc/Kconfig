@@ -391,11 +391,6 @@ config PPC_DT_CPU_FTRS
 	  firmware provides this binding.
 	  If you're not sure say Y.
 
-config PPC_CPUFEATURES_ENABLE_UNKNOWN
-	bool "cpufeatures pass through unknown features to guest/userspace"
-	depends on PPC_DT_CPU_FTRS
-	default y
-
 config HIGHMEM
 	bool "High memory support"
 	depends on PPC32
