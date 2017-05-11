@@ -5935,9 +5935,10 @@ void intel_encoder_destroy(struct drm_encoder *encoder)
 
 /* Cross check the actual hw state with our own modeset state tracking (and it's
  * internal consistency). */
-static void intel_connector_verify_state(struct intel_connector *connector)
+static void intel_connector_verify_state(struct drm_crtc_state *crtc_state,
+					 struct drm_connector_state *conn_state)
 {
-	struct drm_crtc *crtc = connector->base.state->crtc;
+	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.base.id,
@@ -5945,15 +5946,14 @@ static void intel_connector_verify_state(struct intel_connector *connector)
 
 	if (connector->get_hw_state(connector)) {
 		struct intel_encoder *encoder = connector->encoder;
-		struct drm_connector_state *conn_state = connector->base.state;
 
-		I915_STATE_WARN(!crtc,
+		I915_STATE_WARN(!crtc_state,
 			 "connector enabled without attached crtc\n");
 
-		if (!crtc)
+		if (!crtc_state)
 			return;
 
-		I915_STATE_WARN(!crtc->state->active,
+		I915_STATE_WARN(!crtc_state->active,
 		      "connector is active, but attached crtc isn't\n");
 
 		if (!encoder || encoder->type == INTEL_OUTPUT_DP_MST)
@@ -5965,9 +5965,9 @@ static void intel_connector_verify_state(struct intel_connector *connector)
 		I915_STATE_WARN(conn_state->crtc != encoder->base.crtc,
 			"attached encoder crtc differs from connector crtc\n");
 	} else {
-		I915_STATE_WARN(crtc && crtc->state->active,
+		I915_STATE_WARN(crtc_state && crtc_state->active,
 			"attached crtc is active, but connector isn't\n");
-		I915_STATE_WARN(!crtc && connector->base.state->best_encoder,
+		I915_STATE_WARN(!crtc_state && conn_state->best_encoder,
 			"best encoder set without crtc!\n");
 	}
 }
@@ -12122,11 +12122,15 @@ verify_connector_state(struct drm_device *dev,
 
 	for_each_new_connector_in_state(state, connector, new_conn_state, i) {
 		struct drm_encoder *encoder = connector->encoder;
+		struct drm_crtc_state *crtc_state = NULL;
 
 		if (new_conn_state->crtc != crtc)
 			continue;
 
-		intel_connector_verify_state(to_intel_connector(connector));
+		if (crtc)
+			crtc_state = drm_atomic_get_new_crtc_state(state, new_conn_state->crtc);
+
+		intel_connector_verify_state(crtc_state, new_conn_state);
 
 		I915_STATE_WARN(new_conn_state->best_encoder != encoder,
 		     "connector's atomic encoder doesn't match legacy encoder\n");
@@ -12244,7 +12248,7 @@ verify_crtc_state(struct drm_crtc *crtc,
 
 	intel_pipe_config_sanity_check(dev_priv, pipe_config);
 
-	sw_config = to_intel_crtc_state(crtc->state);
+	sw_config = to_intel_crtc_state(new_crtc_state);
 	if (!intel_pipe_config_compare(dev_priv, sw_config,
 				       pipe_config, false)) {
 		I915_STATE_WARN(1, "pipe state doesn't match!\n");
