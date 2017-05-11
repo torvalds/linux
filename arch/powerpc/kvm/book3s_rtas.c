@@ -16,6 +16,7 @@
 #include <asm/kvm_ppc.h>
 #include <asm/hvcall.h>
 #include <asm/rtas.h>
+#include <asm/xive.h>
 
 #ifdef CONFIG_KVM_XICS
 static void kvm_rtas_set_xive(struct kvm_vcpu *vcpu, struct rtas_args *args)
@@ -32,7 +33,10 @@ static void kvm_rtas_set_xive(struct kvm_vcpu *vcpu, struct rtas_args *args)
 	server = be32_to_cpu(args->args[1]);
 	priority = be32_to_cpu(args->args[2]);
 
-	rc = kvmppc_xics_set_xive(vcpu->kvm, irq, server, priority);
+	if (xive_enabled())
+		rc = kvmppc_xive_set_xive(vcpu->kvm, irq, server, priority);
+	else
+		rc = kvmppc_xics_set_xive(vcpu->kvm, irq, server, priority);
 	if (rc)
 		rc = -3;
 out:
@@ -52,7 +56,10 @@ static void kvm_rtas_get_xive(struct kvm_vcpu *vcpu, struct rtas_args *args)
 	irq = be32_to_cpu(args->args[0]);
 
 	server = priority = 0;
-	rc = kvmppc_xics_get_xive(vcpu->kvm, irq, &server, &priority);
+	if (xive_enabled())
+		rc = kvmppc_xive_get_xive(vcpu->kvm, irq, &server, &priority);
+	else
+		rc = kvmppc_xics_get_xive(vcpu->kvm, irq, &server, &priority);
 	if (rc) {
 		rc = -3;
 		goto out;
@@ -76,7 +83,10 @@ static void kvm_rtas_int_off(struct kvm_vcpu *vcpu, struct rtas_args *args)
 
 	irq = be32_to_cpu(args->args[0]);
 
-	rc = kvmppc_xics_int_off(vcpu->kvm, irq);
+	if (xive_enabled())
+		rc = kvmppc_xive_int_off(vcpu->kvm, irq);
+	else
+		rc = kvmppc_xics_int_off(vcpu->kvm, irq);
 	if (rc)
 		rc = -3;
 out:
@@ -95,7 +105,10 @@ static void kvm_rtas_int_on(struct kvm_vcpu *vcpu, struct rtas_args *args)
 
 	irq = be32_to_cpu(args->args[0]);
 
-	rc = kvmppc_xics_int_on(vcpu->kvm, irq);
+	if (xive_enabled())
+		rc = kvmppc_xive_int_on(vcpu->kvm, irq);
+	else
+		rc = kvmppc_xics_int_on(vcpu->kvm, irq);
 	if (rc)
 		rc = -3;
 out:

@@ -634,6 +634,8 @@ int main(void)
 	HSTATE_FIELD(HSTATE_KVM_VCPU, kvm_vcpu);
 	HSTATE_FIELD(HSTATE_KVM_VCORE, kvm_vcore);
 	HSTATE_FIELD(HSTATE_XICS_PHYS, xics_phys);
+	HSTATE_FIELD(HSTATE_XIVE_TIMA_PHYS, xive_tima_phys);
+	HSTATE_FIELD(HSTATE_XIVE_TIMA_VIRT, xive_tima_virt);
 	HSTATE_FIELD(HSTATE_SAVED_XIRR, saved_xirr);
 	HSTATE_FIELD(HSTATE_HOST_IPI, host_ipi);
 	HSTATE_FIELD(HSTATE_PTID, ptid);
@@ -717,6 +719,14 @@ int main(void)
 #ifdef CONFIG_KVM_BOOKE_HV
 	OFFSET(VCPU_HOST_MAS4, kvm_vcpu, arch.host_mas4);
 	OFFSET(VCPU_HOST_MAS6, kvm_vcpu, arch.host_mas6);
+#endif
+
+#ifdef CONFIG_KVM_XICS
+	DEFINE(VCPU_XIVE_SAVED_STATE, offsetof(struct kvm_vcpu,
+					       arch.xive_saved_state));
+	DEFINE(VCPU_XIVE_CAM_WORD, offsetof(struct kvm_vcpu,
+					    arch.xive_cam_word));
+	DEFINE(VCPU_XIVE_PUSHED, offsetof(struct kvm_vcpu, arch.xive_pushed));
 #endif
 
 #ifdef CONFIG_KVM_EXIT_TIMING

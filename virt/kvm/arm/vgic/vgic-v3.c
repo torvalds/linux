@@ -234,18 +234,124 @@ void vgic_v3_enable(struct kvm_vcpu *vcpu)
 	vgic_v3->vgic_hcr = ICH_HCR_EN;
 }
 
-/* check for overlapping regions and for regions crossing the end of memory */
-static bool vgic_v3_check_base(struct kvm *kvm)
+int vgic_v3_lpi_sync_pending_status(struct kvm *kvm, struct vgic_irq *irq)
+{
+	struct kvm_vcpu *vcpu;
+	int byte_offset, bit_nr;
+	gpa_t pendbase, ptr;
+	bool status;
+	u8 val;
+	int ret;
+
+retry:
+	vcpu = irq->target_vcpu;
+	if (!vcpu)
+		return 0;
+
+	pendbase = GICR_PENDBASER_ADDRESS(vcpu->arch.vgic_cpu.pendbaser);
+
+	byte_offset = irq->intid / BITS_PER_BYTE;
+	bit_nr = irq->intid % BITS_PER_BYTE;
+	ptr = pendbase + byte_offset;
+
+	ret = kvm_read_guest(kvm, ptr, &val, 1);
+	if (ret)
+		return ret;
+
+	status = val & (1 << bit_nr);
+
+	spin_lock(&irq->irq_lock);
+	if (irq->target_vcpu != vcpu) {
+		spin_unlock(&irq->irq_lock);
+		goto retry;
+	}
+	irq->pending_latch = status;
+	vgic_queue_irq_unlock(vcpu->kvm, irq);
+
+	if (status) {
+		/* clear consumed data */
+		val &= ~(1 << bit_nr);
+		ret = kvm_write_guest(kvm, ptr, &val, 1);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+
+/**
+ * vgic_its_save_pending_tables - Save the pending tables into guest RAM
+ * kvm lock and all vcpu lock must be held
+ */
+int vgic_v3_save_pending_tables(struct kvm *kvm)
+{
+	struct vgic_dist *dist = &kvm->arch.vgic;
+	int last_byte_offset = -1;
+	struct vgic_irq *irq;
+	int ret;
+
+	list_for_each_entry(irq, &dist->lpi_list_head, lpi_list) {
+		int byte_offset, bit_nr;
+		struct kvm_vcpu *vcpu;
+		gpa_t pendbase, ptr;
+		bool stored;
+		u8 val;
+
+		vcpu = irq->target_vcpu;
+		if (!vcpu)
+			continue;
+
+		pendbase = GICR_PENDBASER_ADDRESS(vcpu->arch.vgic_cpu.pendbaser);
+
+		byte_offset = irq->intid / BITS_PER_BYTE;
+		bit_nr = irq->intid % BITS_PER_BYTE;
+		ptr = pendbase + byte_offset;
+
+		if (byte_offset != last_byte_offset) {
+			ret = kvm_read_guest(kvm, ptr, &val, 1);
+			if (ret)
+				return ret;
+			last_byte_offset = byte_offset;
+		}
+
+		stored = val & (1U << bit_nr);
+		if (stored == irq->pending_latch)
+			continue;
+
+		if (irq->pending_latch)
+			val |= 1 << bit_nr;
+		else
+			val &= ~(1 << bit_nr);
+
+		ret = kvm_write_guest(kvm, ptr, &val, 1);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+
+/*
+ * Check for overlapping regions and for regions crossing the end of memory
+ * for base addresses which have already been set.
+ */
+bool vgic_v3_check_base(struct kvm *kvm)
 {
 	struct vgic_dist *d = &kvm->arch.vgic;
 	gpa_t redist_size = KVM_VGIC_V3_REDIST_SIZE;
 
 	redist_size *= atomic_read(&kvm->online_vcpus);
 
-	if (d->vgic_dist_base + KVM_VGIC_V3_DIST_SIZE < d->vgic_dist_base)
+	if (!IS_VGIC_ADDR_UNDEF(d->vgic_dist_base) &&
+	    d->vgic_dist_base + KVM_VGIC_V3_DIST_SIZE < d->vgic_dist_base)
 		return false;
-	if (d->vgic_redist_base + redist_size < d->vgic_redist_base)
+
+	if (!IS_VGIC_ADDR_UNDEF(d->vgic_redist_base) &&
+	    d->vgic_redist_base + redist_size < d->vgic_redist_base)
 		return false;
+
+	/* Both base addresses must be set to check if they overlap */
+	if (IS_VGIC_ADDR_UNDEF(d->vgic_dist_base) ||
+	    IS_VGIC_ADDR_UNDEF(d->vgic_redist_base))
+		return true;
 
 	if (d->vgic_dist_base + KVM_VGIC_V3_DIST_SIZE <= d->vgic_redist_base)
 		return true;
@@ -289,20 +395,6 @@ int vgic_v3_map_resources(struct kvm *kvm)
 	if (ret) {
 		kvm_err("Unable to register VGICv3 dist MMIO regions\n");
 		goto out;
-	}
-
-	ret = vgic_register_redist_iodevs(kvm, dist->vgic_redist_base);
-	if (ret) {
-		kvm_err("Unable to register VGICv3 redist MMIO regions\n");
-		goto out;
-	}
-
-	if (vgic_has_its(kvm)) {
-		ret = vgic_register_its_iodevs(kvm);
-		if (ret) {
-			kvm_err("Unable to register VGIC ITS MMIO regions\n");
-			goto out;
-		}
 	}
 
 	dist->ready = true;

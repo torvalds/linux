@@ -148,7 +148,6 @@ struct vgic_its {
 	gpa_t			vgic_its_base;
 
 	bool			enabled;
-	bool			initialized;
 	struct vgic_io_device	iodev;
 	struct kvm_device	*dev;
 
@@ -161,6 +160,9 @@ struct vgic_its {
 	u64			cbaser;
 	u32			creadr;
 	u32			cwriter;
+
+	/* migration ABI revision in use */
+	u32			abi_rev;
 
 	/* Protects the device and collection lists */
 	struct mutex		its_lock;
@@ -283,6 +285,7 @@ extern struct static_key_false vgic_v2_cpuif_trap;
 
 int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write);
 void kvm_vgic_early_init(struct kvm *kvm);
+int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu);
 int kvm_vgic_create(struct kvm *kvm, u32 type);
 void kvm_vgic_destroy(struct kvm *kvm);
 void kvm_vgic_vcpu_early_init(struct kvm_vcpu *vcpu);

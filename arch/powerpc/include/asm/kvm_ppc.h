@@ -240,6 +240,7 @@ int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu, struct kvm_interrupt *irq);
 extern int kvm_vm_ioctl_rtas_define_token(struct kvm *kvm, void __user *argp);
 extern int kvmppc_rtas_hcall(struct kvm_vcpu *vcpu);
 extern void kvmppc_rtas_tokens_free(struct kvm *kvm);
+
 extern int kvmppc_xics_set_xive(struct kvm *kvm, u32 irq, u32 server,
 				u32 priority);
 extern int kvmppc_xics_get_xive(struct kvm *kvm, u32 irq, u32 *server,
@@ -428,6 +429,14 @@ static inline void kvmppc_set_xics_phys(int cpu, unsigned long addr)
 	paca[cpu].kvm_hstate.xics_phys = (void __iomem *)addr;
 }
 
+static inline void kvmppc_set_xive_tima(int cpu,
+					unsigned long phys_addr,
+					void __iomem *virt_addr)
+{
+	paca[cpu].kvm_hstate.xive_tima_phys = (void __iomem *)phys_addr;
+	paca[cpu].kvm_hstate.xive_tima_virt = virt_addr;
+}
+
 static inline u32 kvmppc_get_xics_latch(void)
 {
 	u32 xirr;
@@ -456,6 +465,11 @@ static inline void __init kvm_cma_reserve(void)
 {}
 
 static inline void kvmppc_set_xics_phys(int cpu, unsigned long addr)
+{}
+
+static inline void kvmppc_set_xive_tima(int cpu,
+					unsigned long phys_addr,
+					void __iomem *virt_addr)
 {}
 
 static inline u32 kvmppc_get_xics_latch(void)
@@ -508,6 +522,10 @@ extern long kvmppc_deliver_irq_passthru(struct kvm_vcpu *vcpu, __be32 xirr,
 					struct kvmppc_irq_map *irq_map,
 					struct kvmppc_passthru_irqmap *pimap,
 					bool *again);
+
+extern int kvmppc_xics_set_irq(struct kvm *kvm, int irq_source_id, u32 irq,
+			       int level, bool line_status);
+
 extern int h_ipi_redirect;
 #else
 static inline struct kvmppc_passthru_irqmap *kvmppc_get_passthru_irqmap(
@@ -524,6 +542,60 @@ static inline void kvmppc_xics_free_icp(struct kvm_vcpu *vcpu) { }
 static inline int kvmppc_xics_hcall(struct kvm_vcpu *vcpu, u32 cmd)
 	{ return 0; }
 #endif
+
+#ifdef CONFIG_KVM_XIVE
+/*
+ * Below the first "xive" is the "eXternal Interrupt Virtualization Engine"
+ * ie. P9 new interrupt controller, while the second "xive" is the legacy
+ * "eXternal Interrupt Vector Entry" which is the configuration of an
+ * interrupt on the "xics" interrupt controller on P8 and earlier. Those
+ * two function consume or produce a legacy "XIVE" state from the
+ * new "XIVE" interrupt controller.
+ */
+extern int kvmppc_xive_set_xive(struct kvm *kvm, u32 irq, u32 server,
+				u32 priority);
+extern int kvmppc_xive_get_xive(struct kvm *kvm, u32 irq, u32 *server,
+				u32 *priority);
+extern int kvmppc_xive_int_on(struct kvm *kvm, u32 irq);
+extern int kvmppc_xive_int_off(struct kvm *kvm, u32 irq);
+extern void kvmppc_xive_init_module(void);
+extern void kvmppc_xive_exit_module(void);
+
+extern int kvmppc_xive_connect_vcpu(struct kvm_device *dev,
+				    struct kvm_vcpu *vcpu, u32 cpu);
+extern void kvmppc_xive_cleanup_vcpu(struct kvm_vcpu *vcpu);
+extern int kvmppc_xive_set_mapped(struct kvm *kvm, unsigned long guest_irq,
+				  struct irq_desc *host_desc);
+extern int kvmppc_xive_clr_mapped(struct kvm *kvm, unsigned long guest_irq,
+				  struct irq_desc *host_desc);
+extern u64 kvmppc_xive_get_icp(struct kvm_vcpu *vcpu);
+extern int kvmppc_xive_set_icp(struct kvm_vcpu *vcpu, u64 icpval);
+
+extern int kvmppc_xive_set_irq(struct kvm *kvm, int irq_source_id, u32 irq,
+			       int level, bool line_status);
+#else
+static inline int kvmppc_xive_set_xive(struct kvm *kvm, u32 irq, u32 server,
+				       u32 priority) { return -1; }
+static inline int kvmppc_xive_get_xive(struct kvm *kvm, u32 irq, u32 *server,
+				       u32 *priority) { return -1; }
+static inline int kvmppc_xive_int_on(struct kvm *kvm, u32 irq) { return -1; }
+static inline int kvmppc_xive_int_off(struct kvm *kvm, u32 irq) { return -1; }
+static inline void kvmppc_xive_init_module(void) { }
+static inline void kvmppc_xive_exit_module(void) { }
+
+static inline int kvmppc_xive_connect_vcpu(struct kvm_device *dev,
+					   struct kvm_vcpu *vcpu, u32 cpu) { return -EBUSY; }
+static inline void kvmppc_xive_cleanup_vcpu(struct kvm_vcpu *vcpu) { }
+static inline int kvmppc_xive_set_mapped(struct kvm *kvm, unsigned long guest_irq,
+					 struct irq_desc *host_desc) { return -ENODEV; }
+static inline int kvmppc_xive_clr_mapped(struct kvm *kvm, unsigned long guest_irq,
+					 struct irq_desc *host_desc) { return -ENODEV; }
+static inline u64 kvmppc_xive_get_icp(struct kvm_vcpu *vcpu) { return 0; }
+static inline int kvmppc_xive_set_icp(struct kvm_vcpu *vcpu, u64 icpval) { return -ENOENT; }
+
+static inline int kvmppc_xive_set_irq(struct kvm *kvm, int irq_source_id, u32 irq,
+				      int level, bool line_status) { return -ENODEV; }
+#endif /* CONFIG_KVM_XIVE */
 
 /*
  * Prototypes for functions called only from assembler code.
@@ -562,6 +634,8 @@ long kvmppc_h_clear_mod(struct kvm_vcpu *vcpu, unsigned long flags,
 long kvmppc_hpte_hv_fault(struct kvm_vcpu *vcpu, unsigned long addr,
                           unsigned long slb_v, unsigned int status, bool data);
 unsigned long kvmppc_rm_h_xirr(struct kvm_vcpu *vcpu);
+unsigned long kvmppc_rm_h_xirr_x(struct kvm_vcpu *vcpu);
+unsigned long kvmppc_rm_h_ipoll(struct kvm_vcpu *vcpu, unsigned long server);
 int kvmppc_rm_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
                     unsigned long mfrr);
 int kvmppc_rm_h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr);

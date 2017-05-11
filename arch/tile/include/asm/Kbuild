@@ -1,6 +1,3 @@
-
-header-y += ../arch/
-
 generic-y += bug.h
 generic-y += bugs.h
 generic-y += clkdev.h

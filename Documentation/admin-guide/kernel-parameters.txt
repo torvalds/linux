@@ -972,7 +972,7 @@
 			A valid base address must be provided, and the serial
 			port must already be setup and configured.
 
-		armada3700_uart,<addr>
+		ar3700_uart,<addr>
 			Start an early, polled-mode console on the
 			Armada 3700 serial port at the specified
 			address. The serial port must already be setup
@@ -2433,12 +2433,6 @@
 			clients using auth_sys, and will accept numeric uids
 			and gids from such clients.  This is intended to ease
 			migration from NFSv2/v3.
-
-	objlayoutdriver.osd_login_prog=
-			[NFS] [OBJLAYOUT] sets the pathname to the program which
-			is used to automatically discover and login into new
-			osd-targets. Please see:
-			Documentation/filesystems/pnfs.txt for more explanations
 
 	nmi_debug=	[KNL,SH] Specify one or more actions to take
 			when a NMI is triggered.
