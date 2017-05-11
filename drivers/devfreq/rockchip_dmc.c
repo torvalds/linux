@@ -197,7 +197,7 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 		if (err) {
 			dev_err(dev, "Cannot set voltage %lu uV\n",
 				target_volt);
-			goto out;
+			return err;
 		}
 	}
 
