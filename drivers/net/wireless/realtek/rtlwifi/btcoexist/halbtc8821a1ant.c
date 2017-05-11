@@ -2473,7 +2473,7 @@ void ex_btc8821a1ant_ips_notify(struct btc_coexist *btcoexist, u8 type)
 		btc8821a1ant_set_ant_path(btcoexist,
 					  BTC_ANT_PATH_BT, false, true);
 		/* set PTA control */
-		btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, false, 8);
+		btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, false, 0);
 		btc8821a1ant_coex_table_with_type(btcoexist,
 						  NORMAL_EXEC, 0);
 	} else if (BTC_IPS_LEAVE == type) {
@@ -2481,7 +2481,9 @@ void ex_btc8821a1ant_ips_notify(struct btc_coexist *btcoexist, u8 type)
 			 "[BTCoex], IPS LEAVE notify\n");
 		coex_sta->under_ips = false;
 
-		btc8821a1ant_run_coexist_mechanism(btcoexist);
+		btc8821a1ant_init_hw_config(btcoexist, false, false);
+		btc8821a1ant_init_coex_dm(btcoexist);
+		btc8821a1ant_query_bt_info(btcoexist);
 	}
 }
 
