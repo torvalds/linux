@@ -22,6 +22,7 @@
 #include <linux/hwmon-vid.h>
 #include <linux/err.h>
 #include <linux/jiffies.h>
+#include <linux/util_macros.h>
 
 /* Indexes for the sysfs hooks */
 
@@ -314,35 +315,6 @@ static void adt7475_write_word(struct i2c_client *client, int reg, u16 val)
 	i2c_smbus_write_byte_data(client, reg, val & 0xFF);
 }
 
-/*
- * Find the nearest value in a table - used for pwm frequency and
- * auto temp range
- */
-static int find_nearest(long val, const int *array, int size)
-{
-	int i;
-
-	if (val < array[0])
-		return 0;
-
-	if (val > array[size - 1])
-		return size - 1;
-
-	for (i = 0; i < size - 1; i++) {
-		int a, b;
-
-		if (val > array[i + 1])
-			continue;
-
-		a = val - array[i];
-		b = array[i + 1] - val;
-
-		return (a <= b) ? i : i + 1;
-	}
-
-	return 0;
-}
-
 static ssize_t show_voltage(struct device *dev, struct device_attribute *attr,
 			    char *buf)
 {
@@ -606,7 +578,7 @@ static ssize_t set_point2(struct device *dev, struct device_attribute *attr,
 	val -= temp;
 
 	/* Find the nearest table entry to what the user wrote */
-	val = find_nearest(val, autorange_table, ARRAY_SIZE(autorange_table));
+	val = find_closest(val, autorange_table, ARRAY_SIZE(autorange_table));
 
 	data->range[sattr->index] &= ~0xF0;
 	data->range[sattr->index] |= val << 4;
@@ -864,7 +836,7 @@ static ssize_t set_pwmfreq(struct device *dev, struct device_attribute *attr,
 	if (kstrtol(buf, 10, &val))
 		return -EINVAL;
 
-	out = find_nearest(val, pwmfreq_table, ARRAY_SIZE(pwmfreq_table));
+	out = find_closest(val, pwmfreq_table, ARRAY_SIZE(pwmfreq_table));
 
 	mutex_lock(&data->lock);
 
