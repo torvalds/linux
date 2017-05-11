@@ -43,17 +43,6 @@
 
 #define MAX_PIE_NUM     9
 #define MAX_PIE_FREQ    512
-static const u32 PIE_BIT_DEF[MAX_PIE_NUM][2] = {
-	{ 2,		RTC_2HZ_BIT },
-	{ 4,		RTC_SAM0_BIT },
-	{ 8,		RTC_SAM1_BIT },
-	{ 16,		RTC_SAM2_BIT },
-	{ 32,		RTC_SAM3_BIT },
-	{ 64,		RTC_SAM4_BIT },
-	{ 128,		RTC_SAM5_BIT },
-	{ 256,		RTC_SAM6_BIT },
-	{ MAX_PIE_FREQ,	RTC_SAM7_BIT },
-};
 
 #define MXC_RTC_TIME	0
 #define MXC_RTC_ALARM	1
