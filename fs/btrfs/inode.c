@@ -7483,8 +7483,8 @@ bool btrfs_page_exists_in_range(struct inode *inode, loff_t start, loff_t end)
 	int found = false;
 	void **pagep = NULL;
 	struct page *page = NULL;
-	int start_idx;
-	int end_idx;
+	unsigned long start_idx;
+	unsigned long end_idx;
 
 	start_idx = start >> PAGE_SHIFT;
 
