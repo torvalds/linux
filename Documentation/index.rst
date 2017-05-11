@@ -51,6 +51,7 @@ merged much easier.
    process/index
    dev-tools/index
    doc-guide/index
+   kernel-hacking/index
 
 Kernel API documentation
 ------------------------

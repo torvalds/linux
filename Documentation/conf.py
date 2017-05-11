@@ -352,6 +352,8 @@ latex_documents = [
      'The kernel development community', 'manual'),
     ('kernel-documentation', 'kernel-documentation.tex', 'The Linux Kernel Documentation',
      'The kernel development community', 'manual'),
+    ('kernel-hacking/index', 'kernel-hacking.tex', 'Kernel Hacking Guides',
+     'The kernel development community', 'manual'),
     ('process/index', 'development-process.tex', 'Linux Kernel Development Documentation',
      'The kernel development community', 'manual'),
     ('gpu/index', 'gpu.tex', 'Linux GPU Driver Developer\'s Guide',

@@ -7,7 +7,7 @@
 # list of DOCBOOKS.
 
 DOCBOOKS := z8530book.xml  \
-	    kernel-hacking.xml kernel-locking.xml \
+	    kernel-locking.xml \
 	    networking.xml \
 	    filesystems.xml lsm.xml kgdb.xml \
 	    libata.xml mtdnand.xml librs.xml rapidio.xml \
