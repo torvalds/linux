@@ -579,8 +579,14 @@ enum iwl_umac_scan_general_flags {
 	IWL_UMAC_SCAN_GEN_FLAGS_RRM_ENABLED		= BIT(8),
 	IWL_UMAC_SCAN_GEN_FLAGS_MATCH			= BIT(9),
 	IWL_UMAC_SCAN_GEN_FLAGS_EXTENDED_DWELL		= BIT(10),
+	/* Extended dwell is obselete when adaptive dwell is used, making this
+	 * bit reusable. Hence, probe request defer is used only when adaptive
+	 * dwell is supported. */
+	IWL_UMAC_SCAN_GEN_FLAGS_PROB_REQ_DEFER_SUPP	= BIT(10),
 	IWL_UMAC_SCAN_GEN_FLAGS_LMAC2_FRAGMENTED	= BIT(11),
 	IWL_UMAC_SCAN_GEN_FLAGS_ADAPTIVE_DWELL		= BIT(13),
+	IWL_UMAC_SCAN_GEN_FLAGS_MAX_CHNL_TIME		= BIT(14),
+	IWL_UMAC_SCAN_GEN_FLAGS_PROB_REQ_HIGH_TX_RATE	= BIT(15),
 };
 
 /**

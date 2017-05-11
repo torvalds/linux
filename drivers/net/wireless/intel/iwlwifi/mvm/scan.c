@@ -1268,8 +1268,27 @@ static u16 iwl_mvm_scan_umac_flags(struct iwl_mvm *mvm,
 	 */
 	if (iwl_mvm_is_regular_scan(params) &&
 	    vif->type != NL80211_IFTYPE_P2P_DEVICE &&
-	    params->type != IWL_SCAN_TYPE_FRAGMENTED)
+	    params->type != IWL_SCAN_TYPE_FRAGMENTED &&
+	    !iwl_mvm_is_adaptive_dwell_supported(mvm) &&
+	    !iwl_mvm_is_oce_supported(mvm))
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS_EXTENDED_DWELL;
+
+	if (iwl_mvm_is_oce_supported(mvm)) {
+		if ((params->flags &
+		     NL80211_SCAN_FLAG_OCE_PROBE_REQ_HIGH_TX_RATE))
+			flags |= IWL_UMAC_SCAN_GEN_FLAGS_PROB_REQ_HIGH_TX_RATE;
+		/* Since IWL_UMAC_SCAN_GEN_FLAGS_EXTENDED_DWELL and
+		 * NL80211_SCAN_FLAG_OCE_PROBE_REQ_DEFERRAL_SUPPRESSION shares
+		 * the same bit, we need to make sure that we use this bit here
+		 * only when IWL_UMAC_SCAN_GEN_FLAGS_EXTENDED_DWELL cannot be
+		 * used. */
+		if ((params->flags &
+		     NL80211_SCAN_FLAG_OCE_PROBE_REQ_DEFERRAL_SUPPRESSION) &&
+		     !WARN_ON_ONCE(!iwl_mvm_is_adaptive_dwell_supported(mvm)))
+			flags |= IWL_UMAC_SCAN_GEN_FLAGS_PROB_REQ_DEFER_SUPP;
+		if ((params->flags & NL80211_SCAN_FLAG_FILS_MAX_CHANNEL_TIME))
+			flags |= IWL_UMAC_SCAN_GEN_FLAGS_MAX_CHNL_TIME;
+	}
 
 	return flags;
 }

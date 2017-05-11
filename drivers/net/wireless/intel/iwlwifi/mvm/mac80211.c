@@ -661,6 +661,17 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 				      NL80211_EXT_FEATURE_SET_SCAN_DWELL);
 	}
 
+	if (iwl_mvm_is_oce_supported(mvm)) {
+		wiphy_ext_feature_set(hw->wiphy,
+			NL80211_EXT_FEATURE_ACCEPT_BCAST_PROBE_RESP);
+		wiphy_ext_feature_set(hw->wiphy,
+			NL80211_EXT_FEATURE_FILS_MAX_CHANNEL_TIME);
+		wiphy_ext_feature_set(hw->wiphy,
+			NL80211_EXT_FEATURE_OCE_PROBE_REQ_DEFERRAL_SUPPRESSION);
+		wiphy_ext_feature_set(hw->wiphy,
+			NL80211_EXT_FEATURE_OCE_PROBE_REQ_HIGH_TX_RATE);
+	}
+
 	mvm->rts_threshold = IEEE80211_MAX_RTS_THRESHOLD;
 
 #ifdef CONFIG_PM_SLEEP

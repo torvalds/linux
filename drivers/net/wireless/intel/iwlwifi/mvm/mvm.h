@@ -1155,6 +1155,12 @@ static inline bool iwl_mvm_is_adaptive_dwell_supported(struct iwl_mvm *mvm)
 			  IWL_UCODE_TLV_API_ADAPTIVE_DWELL);
 }
 
+static inline bool iwl_mvm_is_oce_supported(struct iwl_mvm *mvm)
+{
+	/* OCE should never be enabled for LMAC scan FWs */
+	return fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_OCE);
+}
+
 static inline bool iwl_mvm_enter_d0i3_on_suspend(struct iwl_mvm *mvm)
 {
 	/* For now we only use this mode to differentiate between
