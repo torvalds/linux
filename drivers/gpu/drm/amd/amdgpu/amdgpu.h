@@ -62,6 +62,7 @@
 #include "amdgpu_acp.h"
 #include "amdgpu_uvd.h"
 #include "amdgpu_vce.h"
+#include "amdgpu_vcn.h"
 
 #include "gpu_scheduler.h"
 #include "amdgpu_virt.h"
@@ -1179,31 +1180,6 @@ int amdgpu_wb_get_64bit(struct amdgpu_device *adev, u32 *wb);
 void amdgpu_wb_free_64bit(struct amdgpu_device *adev, u32 wb);
 
 void amdgpu_get_pcie_info(struct amdgpu_device *adev);
-
-/*
- * VCN
- */
-#define AMDGPU_VCN_STACK_SIZE		(200*1024)
-#define AMDGPU_VCN_HEAP_SIZE		(256*1024)
-#define AMDGPU_VCN_SESSION_SIZE		(50*1024)
-#define AMDGPU_VCN_FIRMWARE_OFFSET	256
-#define AMDGPU_VCN_MAX_ENC_RINGS	3
-
-struct amdgpu_vcn {
-	struct amdgpu_bo	*vcpu_bo;
-	void			*cpu_addr;
-	uint64_t		gpu_addr;
-	unsigned		fw_version;
-	void			*saved_bo;
-	struct delayed_work	idle_work;
-	const struct firmware	*fw;	/* VCN firmware */
-	struct amdgpu_ring	ring_dec;
-	struct amdgpu_ring	ring_enc[AMDGPU_VCN_MAX_ENC_RINGS];
-	struct amdgpu_irq_src	irq;
-	struct amd_sched_entity entity_dec;
-	struct amd_sched_entity entity_enc;
-	uint32_t                srbm_soft_reset;
-};
 
 /*
  * SDMA

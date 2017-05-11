@@ -24,6 +24,28 @@
 #ifndef __AMDGPU_VCN_H__
 #define __AMDGPU_VCN_H__
 
+#define AMDGPU_VCN_STACK_SIZE		(200*1024)
+#define AMDGPU_VCN_HEAP_SIZE		(256*1024)
+#define AMDGPU_VCN_SESSION_SIZE		(50*1024)
+#define AMDGPU_VCN_FIRMWARE_OFFSET	256
+#define AMDGPU_VCN_MAX_ENC_RINGS	3
+
+struct amdgpu_vcn {
+	struct amdgpu_bo	*vcpu_bo;
+	void			*cpu_addr;
+	uint64_t		gpu_addr;
+	unsigned		fw_version;
+	void			*saved_bo;
+	struct delayed_work	idle_work;
+	const struct firmware	*fw;	/* VCN firmware */
+	struct amdgpu_ring	ring_dec;
+	struct amdgpu_ring	ring_enc[AMDGPU_VCN_MAX_ENC_RINGS];
+	struct amdgpu_irq_src	irq;
+	struct amd_sched_entity entity_dec;
+	struct amd_sched_entity entity_enc;
+	uint32_t                srbm_soft_reset;
+};
+
 int amdgpu_vcn_sw_init(struct amdgpu_device *adev);
 int amdgpu_vcn_sw_fini(struct amdgpu_device *adev);
 int amdgpu_vcn_suspend(struct amdgpu_device *adev);
