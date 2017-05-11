@@ -1120,8 +1120,6 @@ static bool clean_target_met(struct smq_policy *mq, bool idle)
 	 * Cache entries may not be populated.  So we cannot rely on the
 	 * size of the clean queue.
 	 */
-	unsigned nr_clean;
-
 	if (idle) {
 		/*
 		 * We'd like to clean everything.
@@ -1129,9 +1127,10 @@ static bool clean_target_met(struct smq_policy *mq, bool idle)
 		return q_size(&mq->dirty) == 0u;
 	}
 
-	nr_clean = from_cblock(mq->cache_size) - q_size(&mq->dirty);
-	return (nr_clean + btracker_nr_writebacks_queued(mq->bg_work)) >=
-		percent_to_target(mq, CLEAN_TARGET);
+	/*
+	 * If we're busy we don't worry about cleaning at all.
+	 */
+	return true;
 }
 
 static bool free_target_met(struct smq_policy *mq)
