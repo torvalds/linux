@@ -433,6 +433,7 @@ static int axp20x_power_probe(struct platform_device *pdev)
 {
 	struct axp20x_batt_ps *axp20x_batt;
 	struct power_supply_config psy_cfg = {};
+	struct power_supply_battery_info info;
 
 	if (!of_device_is_available(pdev->dev.of_node))
 		return -ENODEV;
@@ -482,6 +483,15 @@ static int axp20x_power_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to register power supply: %ld\n",
 			PTR_ERR(axp20x_batt->batt));
 		return PTR_ERR(axp20x_batt->batt);
+	}
+
+	if (!power_supply_get_battery_info(axp20x_batt->batt, &info)) {
+		int vmin = info.voltage_min_design_uv;
+
+		if (vmin > 0 && axp20x_set_voltage_min_design(axp20x_batt,
+							      vmin))
+			dev_err(&pdev->dev,
+				"couldn't set voltage_min_design\n");
 	}
 
 	return 0;
