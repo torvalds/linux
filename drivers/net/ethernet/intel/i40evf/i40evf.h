@@ -43,7 +43,7 @@
 #include <net/udp.h>
 
 #include "i40e_type.h"
-#include "i40e_virtchnl.h"
+#include <linux/avf/virtchnl.h>
 #include "i40e_txrx.h"
 
 #define DEFAULT_DEBUG_LEVEL_SHIFT 3
