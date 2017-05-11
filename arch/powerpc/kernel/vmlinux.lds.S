@@ -115,6 +115,14 @@ SECTIONS
 		KPROBES_TEXT
 		IRQENTRY_TEXT
 		SOFTIRQENTRY_TEXT
+		/*
+		 * -Os builds call FP save/restore functions. The powerpc64
+		 * linker generates those on demand in the .sfpr section.
+		 * .sfpr gets placed at the beginning of a group of input
+		 * sections, which can break start-of-text offset if it is
+		 * included with the main text sections, so put it by itself.
+		 */
+		*(.sfpr);
 		MEM_KEEP(init.text)
 		MEM_KEEP(exit.text)
 
