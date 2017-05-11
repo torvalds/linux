@@ -2536,15 +2536,16 @@ err:
 
 /**
  * i40e_vc_validate_vf_msg
- * @vf: pointer to the VF info
+ * @ver: Virtchnl version info
+ * @v_opcode: Opcode for the message
  * @msg: pointer to the msg buffer
  * @msglen: msg length
- * @msghndl: msg handle
  *
- * validate msg
+ * validate msg format against struct for each opcode
  **/
-static int i40e_vc_validate_vf_msg(struct i40e_vf *vf, u32 v_opcode,
-				   u32 v_retval, u8 *msg, u16 msglen)
+static int
+i40e_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
+			u8 *msg, u16 msglen)
 {
 	bool err_msg_format = false;
 	int valid_len = 0;
@@ -2557,7 +2558,7 @@ static int i40e_vc_validate_vf_msg(struct i40e_vf *vf, u32 v_opcode,
 	case VIRTCHNL_OP_RESET_VF:
 		break;
 	case VIRTCHNL_OP_GET_VF_RESOURCES:
-		if (VF_IS_V11(&vf->vf_ver))
+		if (VF_IS_V11(ver))
 			valid_len = sizeof(u32);
 		break;
 	case VIRTCHNL_OP_CONFIG_TX_QUEUE:
@@ -2633,7 +2634,6 @@ static int i40e_vc_validate_vf_msg(struct i40e_vf *vf, u32 v_opcode,
 			err_msg_format = true;
 		break;
 	case VIRTCHNL_OP_RELEASE_IWARP_IRQ_MAP:
-		valid_len = 0;
 		break;
 	case VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP:
 		valid_len = sizeof(struct virtchnl_iwarp_qvlist_info);
@@ -2673,15 +2673,13 @@ static int i40e_vc_validate_vf_msg(struct i40e_vf *vf, u32 v_opcode,
 	case VIRTCHNL_OP_EVENT:
 	case VIRTCHNL_OP_UNKNOWN:
 	default:
-		return -EPERM;
+		return VIRTCHNL_ERR_PARAM;
 	}
 	/* few more checks */
-	if ((valid_len != msglen) || (err_msg_format)) {
-		i40e_vc_send_resp_to_vf(vf, v_opcode, I40E_ERR_PARAM);
-		return -EINVAL;
-	} else {
-		return 0;
-	}
+	if ((valid_len != msglen) || (err_msg_format))
+		return VIRTCHNL_STATUS_ERR_OPCODE_MISMATCH;
+
+	return 0;
 }
 
 /**
@@ -2713,7 +2711,7 @@ int i40e_vc_process_vf_msg(struct i40e_pf *pf, s16 vf_id, u32 v_opcode,
 		return I40E_ERR_PARAM;
 
 	/* perform basic checks on the msg */
-	ret = i40e_vc_validate_vf_msg(vf, v_opcode, v_retval, msg, msglen);
+	ret = i40e_vc_validate_vf_msg(&vf->vf_ver, v_opcode, msg, msglen);
 
 	/* perform additional checks specific to this driver */
 	if (v_opcode == VIRTCHNL_OP_CONFIG_RSS_KEY) {
@@ -2729,9 +2727,15 @@ int i40e_vc_process_vf_msg(struct i40e_pf *pf, s16 vf_id, u32 v_opcode,
 	}
 
 	if (ret) {
+		i40e_vc_send_resp_to_vf(vf, v_opcode, I40E_ERR_PARAM);
 		dev_err(&pf->pdev->dev, "Invalid message from VF %d, opcode %d, len %d\n",
 			local_vf_id, v_opcode, msglen);
-		return ret;
+		switch (ret) {
+		case VIRTCHNL_ERR_PARAM:
+			return -EPERM;
+		default:
+			return -EINVAL;
+		}
 	}
 
 	switch (v_opcode) {

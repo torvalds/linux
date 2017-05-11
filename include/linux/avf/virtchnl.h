@@ -53,6 +53,23 @@
  * its queues, optionally add MAC and VLAN filters, and process traffic.
  */
 
+/* START GENERIC DEFINES
+ * Need to ensure the following enums and defines hold the same meaning and
+ * value in current and future projects
+ */
+
+/* Error Codes */
+enum virtchnl_status_code {
+	VIRTCHNL_STATUS_SUCCESS				= 0,
+	VIRTCHNL_ERR_PARAM				= -5,
+	VIRTCHNL_STATUS_ERR_OPCODE_MISMATCH		= -38,
+	VIRTCHNL_STATUS_ERR_CQP_COMPL_ERROR		= -39,
+	VIRTCHNL_STATUS_ERR_INVALID_VF_ID		= -40,
+	VIRTCHNL_STATUS_NOT_SUPPORTED			= -64,
+};
+
+/* END GENERIC DEFINES */
+
 /* Opcodes for VF-PF communication. These are placed in the v_opcode field
  * of the virtchnl_msg structure.
  */
