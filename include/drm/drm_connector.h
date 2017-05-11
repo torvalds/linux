@@ -1010,21 +1010,6 @@ void drm_mode_put_tile_group(struct drm_device *dev,
 			     struct drm_tile_group *tg);
 
 /**
- * drm_for_each_connector - iterate over all connectors
- * @connector: the loop cursor
- * @dev: the DRM device
- *
- * Iterate over all connectors of @dev.
- *
- * WARNING:
- *
- * This iterator is not safe against hotadd/removal of connectors and is
- * deprecated. Use drm_for_each_connector_iter() instead.
- */
-#define drm_for_each_connector(connector, dev) \
-	list_for_each_entry(connector, &(dev)->mode_config.connector_list, head)
-
-/**
  * struct drm_connector_list_iter - connector_list iterator
  *
  * This iterator tracks state needed to be able to walk the connector_list
