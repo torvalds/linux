@@ -927,55 +927,6 @@ static void gmc_v8_0_gart_fini(struct amdgpu_device *adev)
 	amdgpu_gart_fini(adev);
 }
 
-/*
- * vm
- * VMID 0 is the physical GPU addresses as used by the kernel.
- * VMIDs 1-15 are used for userspace clients and are handled
- * by the amdgpu vm/hsa code.
- */
-/**
- * gmc_v8_0_vm_init - cik vm init callback
- *
- * @adev: amdgpu_device pointer
- *
- * Inits cik specific vm parameters (number of VMs, base of vram for
- * VMIDs 1-15) (CIK).
- * Returns 0 for success.
- */
-static int gmc_v8_0_vm_init(struct amdgpu_device *adev)
-{
-	/*
-	 * number of VMs
-	 * VMID 0 is reserved for System
-	 * amdgpu graphics/compute will use VMIDs 1-7
-	 * amdkfd will use VMIDs 8-15
-	 */
-	adev->vm_manager.id_mgr[0].num_ids = AMDGPU_NUM_OF_VMIDS;
-	adev->vm_manager.num_level = 1;
-	amdgpu_vm_manager_init(adev);
-
-	/* base offset of vram pages */
-	if (adev->flags & AMD_IS_APU) {
-		u64 tmp = RREG32(mmMC_VM_FB_OFFSET);
-		tmp <<= 22;
-		adev->vm_manager.vram_base_offset = tmp;
-	} else
-		adev->vm_manager.vram_base_offset = 0;
-
-	return 0;
-}
-
-/**
- * gmc_v8_0_vm_fini - cik vm fini callback
- *
- * @adev: amdgpu_device pointer
- *
- * Tear down any asic specific VM setup (CIK).
- */
-static void gmc_v8_0_vm_fini(struct amdgpu_device *adev)
-{
-}
-
 /**
  * gmc_v8_0_vm_decode_fault - print human readable fault info
  *
@@ -1135,27 +1086,34 @@ static int gmc_v8_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	if (!adev->vm_manager.enabled) {
-		r = gmc_v8_0_vm_init(adev);
-		if (r) {
-			dev_err(adev->dev, "vm manager initialization failed (%d).\n", r);
-			return r;
-		}
-		adev->vm_manager.enabled = true;
+	/*
+	 * number of VMs
+	 * VMID 0 is reserved for System
+	 * amdgpu graphics/compute will use VMIDs 1-7
+	 * amdkfd will use VMIDs 8-15
+	 */
+	adev->vm_manager.id_mgr[0].num_ids = AMDGPU_NUM_OF_VMIDS;
+	adev->vm_manager.num_level = 1;
+	amdgpu_vm_manager_init(adev);
+
+	/* base offset of vram pages */
+	if (adev->flags & AMD_IS_APU) {
+		u64 tmp = RREG32(mmMC_VM_FB_OFFSET);
+
+		tmp <<= 22;
+		adev->vm_manager.vram_base_offset = tmp;
+	} else {
+		adev->vm_manager.vram_base_offset = 0;
 	}
 
-	return r;
+	return 0;
 }
 
 static int gmc_v8_0_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (adev->vm_manager.enabled) {
-		amdgpu_vm_manager_fini(adev);
-		gmc_v8_0_vm_fini(adev);
-		adev->vm_manager.enabled = false;
-	}
+	amdgpu_vm_manager_fini(adev);
 	gmc_v8_0_gart_fini(adev);
 	amdgpu_gem_force_release(adev);
 	amdgpu_bo_fini(adev);

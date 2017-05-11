@@ -524,54 +524,6 @@ static int gmc_v9_0_gart_init(struct amdgpu_device *adev)
 	return amdgpu_gart_table_vram_alloc(adev);
 }
 
-/*
- * vm
- * VMID 0 is the physical GPU addresses as used by the kernel.
- * VMIDs 1-15 are used for userspace clients and are handled
- * by the amdgpu vm/hsa code.
- */
-/**
- * gmc_v9_0_vm_init - vm init callback
- *
- * @adev: amdgpu_device pointer
- *
- * Inits vega10 specific vm parameters (number of VMs, base of vram for
- * VMIDs 1-15) (vega10).
- * Returns 0 for success.
- */
-static int gmc_v9_0_vm_init(struct amdgpu_device *adev)
-{
-	/*
-	 * number of VMs
-	 * VMID 0 is reserved for System
-	 * amdgpu graphics/compute will use VMIDs 1-7
-	 * amdkfd will use VMIDs 8-15
-	 */
-	adev->vm_manager.id_mgr[AMDGPU_GFXHUB].num_ids = AMDGPU_NUM_OF_VMIDS;
-	adev->vm_manager.id_mgr[AMDGPU_MMHUB].num_ids = AMDGPU_NUM_OF_VMIDS;
-
-	/* TODO: fix num_level for APU when updating vm size and block size */
-	if (adev->flags & AMD_IS_APU)
-		adev->vm_manager.num_level = 1;
-	else
-		adev->vm_manager.num_level = 3;
-	amdgpu_vm_manager_init(adev);
-
-	return 0;
-}
-
-/**
- * gmc_v9_0_vm_fini - vm fini callback
- *
- * @adev: amdgpu_device pointer
- *
- * Tear down any asic specific VM setup.
- */
-static void gmc_v9_0_vm_fini(struct amdgpu_device *adev)
-{
-	return;
-}
-
 static int gmc_v9_0_sw_init(void *handle)
 {
 	int r;
@@ -647,15 +599,23 @@ static int gmc_v9_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	if (!adev->vm_manager.enabled) {
-		r = gmc_v9_0_vm_init(adev);
-		if (r) {
-			dev_err(adev->dev, "vm manager initialization failed (%d).\n", r);
-			return r;
-		}
-		adev->vm_manager.enabled = true;
-	}
-	return r;
+	/*
+	 * number of VMs
+	 * VMID 0 is reserved for System
+	 * amdgpu graphics/compute will use VMIDs 1-7
+	 * amdkfd will use VMIDs 8-15
+	 */
+	adev->vm_manager.id_mgr[AMDGPU_GFXHUB].num_ids = AMDGPU_NUM_OF_VMIDS;
+	adev->vm_manager.id_mgr[AMDGPU_MMHUB].num_ids = AMDGPU_NUM_OF_VMIDS;
+
+	/* TODO: fix num_level for APU when updating vm size and block size */
+	if (adev->flags & AMD_IS_APU)
+		adev->vm_manager.num_level = 1;
+	else
+		adev->vm_manager.num_level = 3;
+	amdgpu_vm_manager_init(adev);
+
+	return 0;
 }
 
 /**
@@ -675,11 +635,7 @@ static int gmc_v9_0_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (adev->vm_manager.enabled) {
-		amdgpu_vm_manager_fini(adev);
-		gmc_v9_0_vm_fini(adev);
-		adev->vm_manager.enabled = false;
-	}
+	amdgpu_vm_manager_fini(adev);
 	gmc_v9_0_gart_fini(adev);
 	amdgpu_gem_force_release(adev);
 	amdgpu_bo_fini(adev);

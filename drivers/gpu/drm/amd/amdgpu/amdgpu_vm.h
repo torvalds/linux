@@ -173,8 +173,6 @@ struct amdgpu_vm_manager {
 	uint32_t				block_size;
 	/* vram base address for page table entry  */
 	u64					vram_base_offset;
-	/* is vm enabled? */
-	bool					enabled;
 	/* vm pte handling */
 	const struct amdgpu_vm_pte_funcs        *vm_pte_funcs;
 	struct amdgpu_ring                      *vm_pte_rings[AMDGPU_MAX_RINGS];

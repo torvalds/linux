@@ -569,9 +569,6 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	uint64_t va_flags;
 	int r = 0;
 
-	if (!adev->vm_manager.enabled)
-		return -ENOTTY;
-
 	if (args->va_address < AMDGPU_VA_RESERVED_SIZE) {
 		dev_err(&dev->pdev->dev,
 			"va_address 0x%lX is in reserved area 0x%X\n",

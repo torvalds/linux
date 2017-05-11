@@ -614,33 +614,6 @@ static void gmc_v6_0_gart_fini(struct amdgpu_device *adev)
 	amdgpu_gart_fini(adev);
 }
 
-static int gmc_v6_0_vm_init(struct amdgpu_device *adev)
-{
-	/*
-	 * number of VMs
-	 * VMID 0 is reserved for System
-	 * amdgpu graphics/compute will use VMIDs 1-7
-	 * amdkfd will use VMIDs 8-15
-	 */
-	adev->vm_manager.id_mgr[0].num_ids = AMDGPU_NUM_OF_VMIDS;
-	adev->vm_manager.num_level = 1;
-	amdgpu_vm_manager_init(adev);
-
-	/* base offset of vram pages */
-	if (adev->flags & AMD_IS_APU) {
-		u64 tmp = RREG32(mmMC_VM_FB_OFFSET);
-		tmp <<= 22;
-		adev->vm_manager.vram_base_offset = tmp;
-	} else
-		adev->vm_manager.vram_base_offset = 0;
-
-	return 0;
-}
-
-static void gmc_v6_0_vm_fini(struct amdgpu_device *adev)
-{
-}
-
 static void gmc_v6_0_vm_decode_fault(struct amdgpu_device *adev,
 				     u32 status, u32 addr, u32 mc_client)
 {
@@ -887,26 +860,34 @@ static int gmc_v6_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	if (!adev->vm_manager.enabled) {
-		r = gmc_v6_0_vm_init(adev);
-		if (r) {
-			dev_err(adev->dev, "vm manager initialization failed (%d).\n", r);
-			return r;
-		}
-		adev->vm_manager.enabled = true;
+	/*
+	 * number of VMs
+	 * VMID 0 is reserved for System
+	 * amdgpu graphics/compute will use VMIDs 1-7
+	 * amdkfd will use VMIDs 8-15
+	 */
+	adev->vm_manager.id_mgr[0].num_ids = AMDGPU_NUM_OF_VMIDS;
+	adev->vm_manager.num_level = 1;
+	amdgpu_vm_manager_init(adev);
+
+	/* base offset of vram pages */
+	if (adev->flags & AMD_IS_APU) {
+		u64 tmp = RREG32(mmMC_VM_FB_OFFSET);
+
+		tmp <<= 22;
+		adev->vm_manager.vram_base_offset = tmp;
+	} else {
+		adev->vm_manager.vram_base_offset = 0;
 	}
 
-	return r;
+	return 0;
 }
 
 static int gmc_v6_0_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (adev->vm_manager.enabled) {
-		gmc_v6_0_vm_fini(adev);
-		adev->vm_manager.enabled = false;
-	}
+	amdgpu_vm_manager_fini(adev);
 	gmc_v6_0_gart_fini(adev);
 	amdgpu_gem_force_release(adev);
 	amdgpu_bo_fini(adev);
