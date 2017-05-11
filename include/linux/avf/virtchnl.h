@@ -275,8 +275,10 @@ struct virtchnl_rxq_info {
 	u16 splithdr_enabled; /* deprecated with AVF 1.0 */
 	u32 databuffer_size;
 	u32 max_pkt_size;
+	u32 pad1;
 	u64 dma_ring_addr;
 	enum virtchnl_rx_hsplit rx_split_pos; /* deprecated with AVF 1.0 */
+	u32 pad2;
 };
 
 /* VIRTCHNL_OP_CONFIG_VSI_QUEUES
@@ -295,6 +297,7 @@ struct virtchnl_queue_pair_info {
 struct virtchnl_vsi_queue_config_info {
 	u16 vsi_id;
 	u16 num_queue_pairs;
+	u32 pad;
 	struct virtchnl_queue_pair_info qpair[1];
 };
 
