@@ -99,8 +99,6 @@ static void intel_dp_aux_enable_backlight(struct intel_connector *connector)
 	uint8_t dpcd_buf = 0;
 	uint8_t edp_backlight_mode = 0;
 
-	set_aux_backlight_enable(intel_dp, true);
-
 	if (drm_dp_dpcd_readb(&intel_dp->aux,
 			DP_EDP_BACKLIGHT_MODE_SET_REGISTER, &dpcd_buf) != 1) {
 		DRM_DEBUG_KMS("Failed to read DPCD register 0x%x\n",
@@ -127,6 +125,8 @@ static void intel_dp_aux_enable_backlight(struct intel_connector *connector)
 	default:
 		break;
 	}
+
+	set_aux_backlight_enable(intel_dp, true);
 }
 
 static void intel_dp_aux_disable_backlight(struct intel_connector *connector)
