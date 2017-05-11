@@ -391,6 +391,29 @@ static bool gen7_oa_buffer_check_unlocked(struct drm_i915_private *dev_priv)
 
 	now = ktime_get_mono_fast_ns();
 
+	/* Update the aged tail
+	 *
+	 * Flip the tail pointer available for read()s once the aging tail is
+	 * old enough to trust that the corresponding data will be visible to
+	 * the CPU...
+	 *
+	 * Do this before updating the aging pointer in case we may be able to
+	 * immediately start aging a new pointer too (if new data has become
+	 * available) without needing to wait for a later hrtimer callback.
+	 */
+	if (aging_tail != INVALID_TAIL_PTR &&
+	    ((now - dev_priv->perf.oa.oa_buffer.aging_timestamp) >
+	     OA_TAIL_MARGIN_NSEC)) {
+		aged_idx ^= 1;
+		dev_priv->perf.oa.oa_buffer.aged_tail_idx = aged_idx;
+
+		aged_tail = aging_tail;
+
+		/* Mark that we need a new pointer to start aging... */
+		dev_priv->perf.oa.oa_buffer.tails[!aged_idx].offset = INVALID_TAIL_PTR;
+		aging_tail = INVALID_TAIL_PTR;
+	}
+
 	/* Update the aging tail
 	 *
 	 * We throttle aging tail updates until we have a new tail that
@@ -418,24 +441,6 @@ static bool gen7_oa_buffer_check_unlocked(struct drm_i915_private *dev_priv)
 			DRM_ERROR("Ignoring spurious out of range OA buffer tail pointer = %u\n",
 				  hw_tail);
 		}
-	}
-
-	/* Update the aged tail
-	 *
-	 * Flip the tail pointer available for read()s once the aging tail is
-	 * old enough to trust that the corresponding data will be visible to
-	 * the CPU...
-	 */
-	if (aging_tail != INVALID_TAIL_PTR &&
-	    ((now - dev_priv->perf.oa.oa_buffer.aging_timestamp) >
-	     OA_TAIL_MARGIN_NSEC)) {
-		aged_idx ^= 1;
-		dev_priv->perf.oa.oa_buffer.aged_tail_idx = aged_idx;
-
-		aged_tail = aging_tail;
-
-		/* Mark that we need a new pointer to start aging... */
-		dev_priv->perf.oa.oa_buffer.tails[!aged_idx].offset = INVALID_TAIL_PTR;
 	}
 
 	spin_unlock_irqrestore(&dev_priv->perf.oa.oa_buffer.ptr_lock, flags);
