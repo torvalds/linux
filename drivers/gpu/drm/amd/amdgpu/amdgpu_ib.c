@@ -169,6 +169,9 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		dma_fence_put(tmp);
 	}
 
+	if (ring->funcs->insert_start)
+		ring->funcs->insert_start(ring);
+
 	if (vm) {
 		r = amdgpu_vm_flush(ring, job);
 		if (r) {
