@@ -894,6 +894,13 @@ enum {
 					 XDP_FLAGS_SKB_MODE | \
 					 XDP_FLAGS_DRV_MODE)
 
+/* These are stored into IFLA_XDP_ATTACHED on dump. */
+enum {
+	XDP_ATTACHED_NONE = 0,
+	XDP_ATTACHED_DRV,
+	XDP_ATTACHED_SKB,
+};
+
 enum {
 	IFLA_XDP_UNSPEC,
 	IFLA_XDP_FD,
