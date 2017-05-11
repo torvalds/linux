@@ -4011,6 +4011,17 @@ vsmt_mode being returned when the KVM_CAP_PPC_SMT capability is
 subsequently queried for the VM.  This capability is only supported by
 HV KVM, and can only be set before any VCPUs have been created.
 
+7.12 KVM_CAP_PPC_FWNMI
+
+Architectures: ppc
+Parameters: none
+
+With this capability a machine check exception in the guest address
+space will cause KVM to exit the guest with NMI exit reason. This
+enables QEMU to build error log and branch to guest kernel registered
+machine check handling routine. Without this capability KVM will
+branch to guests' 0x200 interrupt vector.
+
 8. Other capabilities.
 ----------------------
 

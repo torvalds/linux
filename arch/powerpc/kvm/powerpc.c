@@ -624,6 +624,11 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		r = !!hv_enabled && !cpu_has_feature(CPU_FTR_ARCH_300);
 		break;
 #endif
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+	case KVM_CAP_PPC_FWNMI:
+		r = hv_enabled;
+		break;
+#endif
 	case KVM_CAP_PPC_HTM:
 		r = cpu_has_feature(CPU_FTR_TM_COMP) &&
 		    is_kvmppc_hv_enabled(kvm);
@@ -1543,6 +1548,15 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 		break;
 	}
 #endif /* CONFIG_KVM_XICS */
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+	case KVM_CAP_PPC_FWNMI:
+		r = -EINVAL;
+		if (!is_kvmppc_hv_enabled(vcpu->kvm))
+			break;
+		r = 0;
+		vcpu->kvm->arch.fwnmi_enabled = true;
+		break;
+#endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 	default:
 		r = -EINVAL;
 		break;
