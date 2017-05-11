@@ -123,6 +123,9 @@ struct virtchnl_version_info {
 	u32 minor;
 };
 
+#define VF_IS_V10(_v) (((_v)->major == 1) && ((_v)->minor == 0))
+#define VF_IS_V11(_ver) (((_ver)->major == 1) && ((_ver)->minor == 1))
+
 /* VIRTCHNL_OP_RESET_VF
  * VF sends this request to PF with no parameters
  * PF does NOT respond! VF driver must delay then poll VFGEN_RSTAT register

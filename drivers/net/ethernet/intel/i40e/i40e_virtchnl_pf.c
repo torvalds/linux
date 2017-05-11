@@ -1481,7 +1481,7 @@ static int i40e_vc_get_version_msg(struct i40e_vf *vf, u8 *msg)
 
 	vf->vf_ver = *(struct virtchnl_version_info *)msg;
 	/* VFs running the 1.0 API expect to get 1.0 back or they will cry. */
-	if (VF_IS_V10(vf))
+	if (VF_IS_V10(&vf->vf_ver))
 		info.minor = VIRTCHNL_VERSION_MINOR_NO_VF_CAPS;
 	return i40e_vc_send_msg_to_vf(vf, VIRTCHNL_OP_VERSION,
 				      I40E_SUCCESS, (u8 *)&info,
@@ -1521,7 +1521,7 @@ static int i40e_vc_get_vf_resources_msg(struct i40e_vf *vf, u8 *msg)
 		len = 0;
 		goto err;
 	}
-	if (VF_IS_V11(vf))
+	if (VF_IS_V11(&vf->vf_ver))
 		vf->driver_caps = *(u32 *)msg;
 	else
 		vf->driver_caps = VIRTCHNL_VF_OFFLOAD_L2 |
@@ -2557,7 +2557,7 @@ static int i40e_vc_validate_vf_msg(struct i40e_vf *vf, u32 v_opcode,
 	case VIRTCHNL_OP_RESET_VF:
 		break;
 	case VIRTCHNL_OP_GET_VF_RESOURCES:
-		if (VF_IS_V11(vf))
+		if (VF_IS_V11(&vf->vf_ver))
 			valid_len = sizeof(u32);
 		break;
 	case VIRTCHNL_OP_CONFIG_TX_QUEUE:
