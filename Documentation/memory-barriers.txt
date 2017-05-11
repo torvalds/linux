@@ -2373,7 +2373,7 @@ is performed:
 					spin_unlock(Q);
 
 
-See Documentation/DocBook/deviceiobook.tmpl for more information.
+See Documentation/driver-api/device-io.rst for more information.
 
 
 =================================
@@ -2614,7 +2614,7 @@ might be needed:
      relaxed memory access properties, then _mandatory_ memory barriers are
      required to enforce ordering.
 
-See Documentation/DocBook/deviceiobook.tmpl for more information.
+See Documentation/driver-api/device-io.rst for more information.
 
 
 INTERRUPTS
