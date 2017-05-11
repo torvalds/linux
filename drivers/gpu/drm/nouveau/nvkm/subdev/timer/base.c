@@ -80,12 +80,22 @@ nvkm_timer_alarm(struct nvkm_timer *tmr, u32 nsec, struct nvkm_alarm *alarm)
 			if (list->timestamp > alarm->timestamp)
 				break;
 		}
+
 		list_add_tail(&alarm->head, &list->head);
+
+		/* Update HW if this is now the earliest alarm. */
+		list = list_first_entry(&tmr->alarms, typeof(*list), head);
+		if (list == alarm) {
+			tmr->func->alarm_init(tmr, alarm->timestamp);
+			/* This shouldn't happen if callers aren't stupid.
+			 *
+			 * Worst case scenario is that it'll take roughly
+			 * 4 seconds for the next alarm to trigger.
+			 */
+			WARN_ON(alarm->timestamp <= nvkm_timer_read(tmr));
+		}
 	}
 	spin_unlock_irqrestore(&tmr->lock, flags);
-
-	/* process pending alarms */
-	nvkm_timer_alarm_trigger(tmr);
 }
 
 void
