@@ -27,8 +27,6 @@
 #ifndef _I40E_VIRTCHNL_H_
 #define _I40E_VIRTCHNL_H_
 
-#include "i40e_type.h"
-
 /* Description:
  * This header file describes the VF-PF communication protocol used
  * by the various i40e drivers.
