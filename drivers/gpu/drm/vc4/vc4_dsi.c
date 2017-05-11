@@ -519,7 +519,8 @@ struct vc4_dsi {
 	/* DSI channel for the panel we're connected to. */
 	u32 channel;
 	u32 lanes;
-	enum mipi_dsi_pixel_format format;
+	u32 format;
+	u32 divider;
 	u32 mode_flags;
 
 	/* Input clock from CPRMAN to the digital PHY, for the DSI
@@ -906,13 +907,67 @@ static void vc4_dsi_encoder_disable(struct drm_encoder *encoder)
 	pm_runtime_put(dev);
 }
 
+/* Extends the mode's blank intervals to handle BCM2835's integer-only
+ * DSI PLL divider.
+ *
+ * On 2835, PLLD is set to 2Ghz, and may not be changed by the display
+ * driver since most peripherals are hanging off of the PLLD_PER
+ * divider.  PLLD_DSI1, which drives our DSI bit clock (and therefore
+ * the pixel clock), only has an integer divider off of DSI.
+ *
+ * To get our panel mode to refresh at the expected 60Hz, we need to
+ * extend the horizontal blank time.  This means we drive a
+ * higher-than-expected clock rate to the panel, but that's what the
+ * firmware does too.
+ */
+static bool vc4_dsi_encoder_mode_fixup(struct drm_encoder *encoder,
+				       const struct drm_display_mode *mode,
+				       struct drm_display_mode *adjusted_mode)
+{
+	struct vc4_dsi_encoder *vc4_encoder = to_vc4_dsi_encoder(encoder);
+	struct vc4_dsi *dsi = vc4_encoder->dsi;
+	struct clk *phy_parent = clk_get_parent(dsi->pll_phy_clock);
+	unsigned long parent_rate = clk_get_rate(phy_parent);
+	unsigned long pixel_clock_hz = mode->clock * 1000;
+	unsigned long pll_clock = pixel_clock_hz * dsi->divider;
+	int divider;
+
+	/* Find what divider gets us a faster clock than the requested
+	 * pixel clock.
+	 */
+	for (divider = 1; divider < 8; divider++) {
+		if (parent_rate / divider < pll_clock) {
+			divider--;
+			break;
+		}
+	}
+
+	/* Now that we've picked a PLL divider, calculate back to its
+	 * pixel clock.
+	 */
+	pll_clock = parent_rate / divider;
+	pixel_clock_hz = pll_clock / dsi->divider;
+
+	/* Round up the clk_set_rate() request slightly, since
+	 * PLLD_DSI1 is an integer divider and its rate selection will
+	 * never round up.
+	 */
+	adjusted_mode->clock = pixel_clock_hz / 1000 + 1;
+
+	/* Given the new pixel clock, adjust HFP to keep vrefresh the same. */
+	adjusted_mode->htotal = pixel_clock_hz / (mode->vrefresh * mode->vtotal);
+	adjusted_mode->hsync_end += adjusted_mode->htotal - mode->htotal;
+	adjusted_mode->hsync_start += adjusted_mode->htotal - mode->htotal;
+
+	return true;
+}
+
 static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 {
-	struct drm_display_mode *mode = &encoder->crtc->mode;
+	struct drm_display_mode *mode = &encoder->crtc->state->adjusted_mode;
 	struct vc4_dsi_encoder *vc4_encoder = to_vc4_dsi_encoder(encoder);
 	struct vc4_dsi *dsi = vc4_encoder->dsi;
 	struct device *dev = &dsi->pdev->dev;
-	u32 format = 0, divider = 0;
 	bool debug_dump_regs = false;
 	unsigned long hs_clock;
 	u32 ui_ns;
@@ -940,26 +995,7 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 		vc4_dsi_dump_regs(dsi);
 	}
 
-	switch (dsi->format) {
-	case MIPI_DSI_FMT_RGB888:
-		format = DSI_PFORMAT_RGB888;
-		divider = 24 / dsi->lanes;
-		break;
-	case MIPI_DSI_FMT_RGB666:
-		format = DSI_PFORMAT_RGB666;
-		divider = 24 / dsi->lanes;
-		break;
-	case MIPI_DSI_FMT_RGB666_PACKED:
-		format = DSI_PFORMAT_RGB666_PACKED;
-		divider = 18 / dsi->lanes;
-		break;
-	case MIPI_DSI_FMT_RGB565:
-		format = DSI_PFORMAT_RGB565;
-		divider = 16 / dsi->lanes;
-		break;
-	}
-
-	phy_clock = pixel_clock_hz * divider;
+	phy_clock = pixel_clock_hz * dsi->divider;
 	ret = clk_set_rate(dsi->pll_phy_clock, phy_clock);
 	if (ret) {
 		dev_err(&dsi->pdev->dev,
@@ -1134,8 +1170,9 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 
 	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO) {
 		DSI_PORT_WRITE(DISP0_CTRL,
-			       VC4_SET_FIELD(divider, DSI_DISP0_PIX_CLK_DIV) |
-			       VC4_SET_FIELD(format, DSI_DISP0_PFORMAT) |
+			       VC4_SET_FIELD(dsi->divider,
+					     DSI_DISP0_PIX_CLK_DIV) |
+			       VC4_SET_FIELD(dsi->format, DSI_DISP0_PFORMAT) |
 			       VC4_SET_FIELD(DSI_DISP0_LP_STOP_PERFRAME,
 					     DSI_DISP0_LP_STOP_CTRL) |
 			       DSI_DISP0_ST_END |
@@ -1347,8 +1384,30 @@ static int vc4_dsi_host_attach(struct mipi_dsi_host *host,
 
 	dsi->lanes = device->lanes;
 	dsi->channel = device->channel;
-	dsi->format = device->format;
 	dsi->mode_flags = device->mode_flags;
+
+	switch (device->format) {
+	case MIPI_DSI_FMT_RGB888:
+		dsi->format = DSI_PFORMAT_RGB888;
+		dsi->divider = 24 / dsi->lanes;
+		break;
+	case MIPI_DSI_FMT_RGB666:
+		dsi->format = DSI_PFORMAT_RGB666;
+		dsi->divider = 24 / dsi->lanes;
+		break;
+	case MIPI_DSI_FMT_RGB666_PACKED:
+		dsi->format = DSI_PFORMAT_RGB666_PACKED;
+		dsi->divider = 18 / dsi->lanes;
+		break;
+	case MIPI_DSI_FMT_RGB565:
+		dsi->format = DSI_PFORMAT_RGB565;
+		dsi->divider = 16 / dsi->lanes;
+		break;
+	default:
+		dev_err(&dsi->pdev->dev, "Unknown DSI format: %d.\n",
+			dsi->format);
+		return 0;
+	}
 
 	if (!(dsi->mode_flags & MIPI_DSI_MODE_VIDEO)) {
 		dev_err(&dsi->pdev->dev,
@@ -1397,6 +1456,7 @@ static const struct mipi_dsi_host_ops vc4_dsi_host_ops = {
 static const struct drm_encoder_helper_funcs vc4_dsi_encoder_helper_funcs = {
 	.disable = vc4_dsi_encoder_disable,
 	.enable = vc4_dsi_encoder_enable,
+	.mode_fixup = vc4_dsi_encoder_mode_fixup,
 };
 
 static const struct of_device_id vc4_dsi_dt_match[] = {
