@@ -322,9 +322,8 @@ struct perf_open_properties {
 static bool gen7_oa_buffer_is_empty_fop_unlocked(struct drm_i915_private *dev_priv)
 {
 	int report_size = dev_priv->perf.oa.oa_buffer.format_size;
-	u32 oastatus2 = I915_READ(GEN7_OASTATUS2);
 	u32 oastatus1 = I915_READ(GEN7_OASTATUS1);
-	u32 head = oastatus2 & GEN7_OASTATUS2_HEAD_MASK;
+	u32 head = dev_priv->perf.oa.oa_buffer.head;
 	u32 tail = oastatus1 & GEN7_OASTATUS1_TAIL_MASK;
 
 	return OA_TAKEN(tail, head) <
@@ -458,16 +457,24 @@ static int gen7_append_oa_reports(struct i915_perf_stream *stream,
 		return -EIO;
 
 	head = *head_ptr - gtt_offset;
+
+	/* An out of bounds or misaligned head pointer implies a driver bug
+	 * since we are in full control of head pointer which should only
+	 * be incremented by multiples of the report size (notably also
+	 * all a power of two).
+	 */
+	if (WARN_ONCE(head > OA_BUFFER_SIZE || head % report_size,
+		      "Inconsistent OA buffer head pointer = %u\n", head))
+		return -EIO;
+
 	tail -= gtt_offset;
 
 	/* The OA unit is expected to wrap the tail pointer according to the OA
-	 * buffer size and since we should never write a misaligned head
-	 * pointer we don't expect to read one back either...
+	 * buffer size
 	 */
-	if (tail > OA_BUFFER_SIZE || head > OA_BUFFER_SIZE ||
-	    head % report_size) {
-		DRM_ERROR("Inconsistent OA buffer pointer (head = %u, tail = %u): force restart\n",
-			  head, tail);
+	if (tail > OA_BUFFER_SIZE) {
+		DRM_ERROR("Inconsistent OA buffer tail pointer = %u: force restart\n",
+			  tail);
 		dev_priv->perf.oa.ops.oa_disable(dev_priv);
 		dev_priv->perf.oa.ops.oa_enable(dev_priv);
 		*head_ptr = I915_READ(GEN7_OASTATUS2) &
@@ -562,8 +569,6 @@ static int gen7_oa_read(struct i915_perf_stream *stream,
 			size_t *offset)
 {
 	struct drm_i915_private *dev_priv = stream->dev_priv;
-	int report_size = dev_priv->perf.oa.oa_buffer.format_size;
-	u32 oastatus2;
 	u32 oastatus1;
 	u32 head;
 	u32 tail;
@@ -572,10 +577,9 @@ static int gen7_oa_read(struct i915_perf_stream *stream,
 	if (WARN_ON(!dev_priv->perf.oa.oa_buffer.vaddr))
 		return -EIO;
 
-	oastatus2 = I915_READ(GEN7_OASTATUS2);
 	oastatus1 = I915_READ(GEN7_OASTATUS1);
 
-	head = oastatus2 & GEN7_OASTATUS2_HEAD_MASK;
+	head = dev_priv->perf.oa.oa_buffer.head;
 	tail = oastatus1 & GEN7_OASTATUS1_TAIL_MASK;
 
 	/* XXX: On Haswell we don't have a safe way to clear oastatus1
@@ -616,10 +620,9 @@ static int gen7_oa_read(struct i915_perf_stream *stream,
 		dev_priv->perf.oa.ops.oa_disable(dev_priv);
 		dev_priv->perf.oa.ops.oa_enable(dev_priv);
 
-		oastatus2 = I915_READ(GEN7_OASTATUS2);
 		oastatus1 = I915_READ(GEN7_OASTATUS1);
 
-		head = oastatus2 & GEN7_OASTATUS2_HEAD_MASK;
+		head = dev_priv->perf.oa.oa_buffer.head;
 		tail = oastatus1 & GEN7_OASTATUS1_TAIL_MASK;
 	}
 
@@ -635,17 +638,6 @@ static int gen7_oa_read(struct i915_perf_stream *stream,
 	ret = gen7_append_oa_reports(stream, buf, count, offset,
 				     &head, tail);
 
-	/* All the report sizes are a power of two and the
-	 * head should always be incremented by some multiple
-	 * of the report size.
-	 *
-	 * A warning here, but notably if we later read back a
-	 * misaligned pointer we will treat that as a bug since
-	 * it could lead to a buffer overrun.
-	 */
-	WARN_ONCE(head & (report_size - 1),
-		  "i915: Writing misaligned OA head pointer");
-
 	/* Note: we update the head pointer here even if an error
 	 * was returned since the error may represent a short read
 	 * where some some reports were successfully copied.
@@ -653,6 +645,7 @@ static int gen7_oa_read(struct i915_perf_stream *stream,
 	I915_WRITE(GEN7_OASTATUS2,
 		   ((head & GEN7_OASTATUS2_HEAD_MASK) |
 		    OA_MEM_SELECT_GGTT));
+	dev_priv->perf.oa.oa_buffer.head = head;
 
 	return ret;
 }
@@ -833,7 +826,10 @@ static void gen7_init_oa_buffer(struct drm_i915_private *dev_priv)
 	 * before OASTATUS1, but after OASTATUS2
 	 */
 	I915_WRITE(GEN7_OASTATUS2, gtt_offset | OA_MEM_SELECT_GGTT); /* head */
+	dev_priv->perf.oa.oa_buffer.head = gtt_offset;
+
 	I915_WRITE(GEN7_OABUFFER, gtt_offset);
+
 	I915_WRITE(GEN7_OASTATUS1, gtt_offset | OABUFFER_SIZE_16M); /* tail */
 
 	/* On Haswell we have to track which OASTATUS1 flags we've

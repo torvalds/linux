@@ -2372,6 +2372,17 @@ struct drm_i915_private {
 				u8 *vaddr;
 				int format;
 				int format_size;
+
+				/**
+				 * Although we can always read back the head
+				 * pointer register, we prefer to avoid
+				 * trusting the HW state, just to avoid any
+				 * risk that some hardware condition could
+				 * somehow bump the head pointer unpredictably
+				 * and cause us to forward the wrong OA buffer
+				 * data to userspace.
+				 */
+				u32 head;
 			} oa_buffer;
 
 			u32 gen7_latched_oastatus1;
