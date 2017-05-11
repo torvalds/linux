@@ -49,8 +49,8 @@
  *   CLOSE_FIXED_SECTION() or elsewhere, there may be something
  *   unexpected being added there. Remove the '. = x_len' line, rebuild, and
  *   check what is pushing the section down.
- * - If the build dies in linking, check arch/powerpc/kernel/vmlinux.lds.S
- *   for instructions.
+ * - If the build dies in linking, check arch/powerpc/tools/head_check.sh
+ *   comments.
  * - If the kernel crashes or hangs in very early boot, it could be linker
  *   stubs at the start of the main text.
  */
