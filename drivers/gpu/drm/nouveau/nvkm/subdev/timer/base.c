@@ -65,14 +65,17 @@ nvkm_timer_alarm(struct nvkm_timer *tmr, u32 nsec, struct nvkm_alarm *alarm)
 	struct nvkm_alarm *list;
 	unsigned long flags;
 
-	alarm->timestamp = nvkm_timer_read(tmr) + nsec;
-
-	/* append new alarm to list, in soonest-alarm-first order */
+	/* Remove alarm from pending list.
+	 *
+	 * This both protects against the corruption of the list,
+	 * and implements alarm rescheduling/cancellation.
+	 */
 	spin_lock_irqsave(&tmr->lock, flags);
-	if (!nsec) {
-		if (!list_empty(&alarm->head))
-			list_del(&alarm->head);
-	} else {
+	list_del_init(&alarm->head);
+
+	if (nsec) {
+		/* Insert into pending list, ordered earliest to latest. */
+		alarm->timestamp = nvkm_timer_read(tmr) + nsec;
 		list_for_each_entry(list, &tmr->alarms, head) {
 			if (list->timestamp > alarm->timestamp)
 				break;
