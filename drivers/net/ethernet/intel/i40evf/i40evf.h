@@ -264,25 +264,25 @@ struct i40evf_adapter {
 	bool netdev_registered;
 	bool link_up;
 	enum i40e_aq_link_speed link_speed;
-	enum i40e_virtchnl_ops current_op;
+	enum virtchnl_ops current_op;
 #define CLIENT_ALLOWED(_a) ((_a)->vf_res ? \
 			    (_a)->vf_res->vf_offload_flags & \
-				I40E_VIRTCHNL_VF_OFFLOAD_IWARP : \
+				VIRTCHNL_VF_OFFLOAD_IWARP : \
 			    0)
 #define CLIENT_ENABLED(_a) ((_a)->cinst)
 /* RSS by the PF should be preferred over RSS via other methods. */
 #define RSS_PF(_a) ((_a)->vf_res->vf_offload_flags & \
-		    I40E_VIRTCHNL_VF_OFFLOAD_RSS_PF)
+		    VIRTCHNL_VF_OFFLOAD_RSS_PF)
 #define RSS_AQ(_a) ((_a)->vf_res->vf_offload_flags & \
-		    I40E_VIRTCHNL_VF_OFFLOAD_RSS_AQ)
+		    VIRTCHNL_VF_OFFLOAD_RSS_AQ)
 #define RSS_REG(_a) (!((_a)->vf_res->vf_offload_flags & \
-		       (I40E_VIRTCHNL_VF_OFFLOAD_RSS_AQ | \
-			I40E_VIRTCHNL_VF_OFFLOAD_RSS_PF)))
+		       (VIRTCHNL_VF_OFFLOAD_RSS_AQ | \
+			VIRTCHNL_VF_OFFLOAD_RSS_PF)))
 #define VLAN_ALLOWED(_a) ((_a)->vf_res->vf_offload_flags & \
-			  I40E_VIRTCHNL_VF_OFFLOAD_VLAN)
-	struct i40e_virtchnl_vf_resource *vf_res; /* incl. all VSIs */
-	struct i40e_virtchnl_vsi_resource *vsi_res; /* our LAN VSI */
-	struct i40e_virtchnl_version_info pf_version;
+			  VIRTCHNL_VF_OFFLOAD_VLAN)
+	struct virtchnl_vf_resource *vf_res; /* incl. all VSIs */
+	struct virtchnl_vsi_resource *vsi_res; /* our LAN VSI */
+	struct virtchnl_version_info pf_version;
 #define PF_IS_V11(_a) (((_a)->pf_version.major == 1) && \
 		       ((_a)->pf_version.minor == 1))
 	u16 msg_enable;
@@ -348,7 +348,7 @@ void i40evf_set_hena(struct i40evf_adapter *adapter);
 void i40evf_set_rss_key(struct i40evf_adapter *adapter);
 void i40evf_set_rss_lut(struct i40evf_adapter *adapter);
 void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
-				enum i40e_virtchnl_ops v_opcode,
+				enum virtchnl_ops v_opcode,
 				i40e_status v_retval, u8 *msg, u16 msglen);
 int i40evf_config_rss(struct i40evf_adapter *adapter);
 int i40evf_lan_add_device(struct i40evf_adapter *adapter);

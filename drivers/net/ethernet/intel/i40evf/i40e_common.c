@@ -1054,7 +1054,7 @@ do_retry:
  * completion before returning.
  **/
 i40e_status i40e_aq_send_msg_to_pf(struct i40e_hw *hw,
-				enum i40e_virtchnl_ops v_opcode,
+				enum virtchnl_ops v_opcode,
 				i40e_status v_retval,
 				u8 *msg, u16 msglen,
 				struct i40e_asq_cmd_details *cmd_details)
@@ -1092,9 +1092,9 @@ i40e_status i40e_aq_send_msg_to_pf(struct i40e_hw *hw,
  * with appropriate information.
  **/
 void i40e_vf_parse_hw_config(struct i40e_hw *hw,
-			     struct i40e_virtchnl_vf_resource *msg)
+			     struct virtchnl_vf_resource *msg)
 {
-	struct i40e_virtchnl_vsi_resource *vsi_res;
+	struct virtchnl_vsi_resource *vsi_res;
 	int i;
 
 	vsi_res = &msg->vsi_res[0];
@@ -1104,7 +1104,7 @@ void i40e_vf_parse_hw_config(struct i40e_hw *hw,
 	hw->dev_caps.num_tx_qp = msg->num_queue_pairs;
 	hw->dev_caps.num_msix_vectors_vf = msg->max_vectors;
 	hw->dev_caps.dcb = msg->vf_offload_flags &
-			   I40E_VIRTCHNL_VF_OFFLOAD_L2;
+			   VIRTCHNL_VF_OFFLOAD_L2;
 	hw->dev_caps.fcoe = 0;
 	for (i = 0; i < msg->num_vsis; i++) {
 		if (vsi_res->vsi_type == I40E_VSI_SRIOV) {
@@ -1127,7 +1127,7 @@ void i40e_vf_parse_hw_config(struct i40e_hw *hw,
  **/
 i40e_status i40e_vf_reset(struct i40e_hw *hw)
 {
-	return i40e_aq_send_msg_to_pf(hw, I40E_VIRTCHNL_OP_RESET_VF,
+	return i40e_aq_send_msg_to_pf(hw, VIRTCHNL_OP_RESET_VF,
 				      0, NULL, 0, NULL);
 }
 

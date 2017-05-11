@@ -81,13 +81,13 @@ struct i40e_vf {
 	s16 vf_id;
 	/* all VF vsis connect to the same parent */
 	enum i40e_switch_element_types parent_type;
-	struct i40e_virtchnl_version_info vf_ver;
+	struct virtchnl_version_info vf_ver;
 	u32 driver_caps; /* reported by VF driver */
 
 	/* VF Port Extender (PE) stag if used */
 	u16 stag;
 
-	struct i40e_virtchnl_ether_addr default_lan_addr;
+	struct virtchnl_ether_addr default_lan_addr;
 	u16 port_vlan_id;
 	bool pf_set_mac;	/* The VMM admin set the VF MAC address */
 	bool trusted;
@@ -115,7 +115,7 @@ struct i40e_vf {
 	u16 num_vlan;
 
 	/* RDMA Client */
-	struct i40e_virtchnl_iwarp_qvlist_info *qvlist_info;
+	struct virtchnl_iwarp_qvlist_info *qvlist_info;
 };
 
 void i40e_free_vfs(struct i40e_pf *pf);
