@@ -57,7 +57,7 @@
 #include "i40e_type.h"
 #include "i40e_prototype.h"
 #include "i40e_client.h"
-#include "i40e_virtchnl.h"
+#include <linux/avf/virtchnl.h>
 #include "i40e_virtchnl_pf.h"
 #include "i40e_txrx.h"
 #include "i40e_dcb.h"
