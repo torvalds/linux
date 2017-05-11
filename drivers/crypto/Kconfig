@@ -89,6 +89,20 @@ config PKEY
 	  requires to have at least one CEX card in coprocessor mode
 	  available at runtime.
 
+config CRYPTO_PAES_S390
+	tristate "PAES cipher algorithms"
+	depends on S390
+	depends on ZCRYPT
+	depends on PKEY
+	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
+	help
+	  This is the s390 hardware accelerated implementation of the
+	  AES cipher algorithms for use with protected key.
+
+	  Select this option if you want to use the paes cipher
+	  for example to use protected key encrypted devices.
+
 config CRYPTO_SHA1_S390
 	tristate "SHA1 digest algorithm"
 	depends on S390
@@ -137,7 +151,6 @@ config CRYPTO_AES_S390
 	depends on S390
 	select CRYPTO_ALGAPI
 	select CRYPTO_BLKCIPHER
-	select PKEY
 	help
 	  This is the s390 hardware accelerated implementation of the
 	  AES cipher algorithms (FIPS-197).
