@@ -6,3 +6,4 @@ Kernel Hacking Guides
    :maxdepth: 2
 
    hacking
+   locking
