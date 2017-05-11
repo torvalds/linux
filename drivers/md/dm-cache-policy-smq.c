@@ -1190,7 +1190,7 @@ static void queue_demotion(struct smq_policy *mq)
 	if (unlikely(WARN_ON_ONCE(!mq->migrations_allowed)))
 		return;
 
-	e = q_peek(&mq->clean, mq->clean.nr_levels, true);
+	e = q_peek(&mq->clean, mq->clean.nr_levels / 2, true);
 	if (!e) {
 		if (!clean_target_met(mq, false))
 			queue_writeback(mq);
