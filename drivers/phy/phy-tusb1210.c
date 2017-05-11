@@ -12,8 +12,7 @@
 #include <linux/module.h>
 #include <linux/ulpi/driver.h>
 #include <linux/gpio/consumer.h>
-
-#include "ulpi_phy.h"
+#include <linux/phy/ulpi_phy.h>
 
 #define TUSB1210_VENDOR_SPECIFIC2		0x80
 #define TUSB1210_VENDOR_SPECIFIC2_IHSTX_SHIFT	0
