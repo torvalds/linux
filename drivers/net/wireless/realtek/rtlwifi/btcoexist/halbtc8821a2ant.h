@@ -168,6 +168,8 @@ struct coex_sta_8821a_2ant {
 
 	u8	coex_table_type;
 	bool	force_lps_on;
+
+	u8	dis_ver_info_cnt;
 };
 
 /*===========================================
