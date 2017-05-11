@@ -36,23 +36,29 @@ nvkm_timer_alarm_trigger(struct nvkm_timer *tmr)
 	unsigned long flags;
 	LIST_HEAD(exec);
 
-	/* move any due alarms off the pending list */
+	/* Process pending alarms. */
 	spin_lock_irqsave(&tmr->lock, flags);
 	list_for_each_entry_safe(alarm, atemp, &tmr->alarms, head) {
-		if (alarm->timestamp <= nvkm_timer_read(tmr))
-			list_move_tail(&alarm->head, &exec);
+		/* Have we hit the earliest alarm that hasn't gone off? */
+		if (alarm->timestamp > nvkm_timer_read(tmr)) {
+			/* Schedule it.  If we didn't race, we're done. */
+			tmr->func->alarm_init(tmr, alarm->timestamp);
+			if (alarm->timestamp > nvkm_timer_read(tmr))
+				break;
+		}
+
+		/* Move to completed list.  We'll drop the lock before
+		 * executing the callback so it can reschedule itself.
+		 */
+		list_move_tail(&alarm->head, &exec);
 	}
 
-	/* reschedule interrupt for next alarm time */
-	if (!list_empty(&tmr->alarms)) {
-		alarm = list_first_entry(&tmr->alarms, typeof(*alarm), head);
-		tmr->func->alarm_init(tmr, alarm->timestamp);
-	} else {
+	/* Shut down interrupt if no more pending alarms. */
+	if (list_empty(&tmr->alarms))
 		tmr->func->alarm_fini(tmr);
-	}
 	spin_unlock_irqrestore(&tmr->lock, flags);
 
-	/* execute any pending alarm handlers */
+	/* Execute completed callbacks. */
 	list_for_each_entry_safe(alarm, atemp, &exec, head) {
 		list_del_init(&alarm->head);
 		alarm->func(alarm);
