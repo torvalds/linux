@@ -93,13 +93,13 @@ Locking in the Linux Kernel
 ===========================
 
 If I could give you one piece of advice: never sleep with anyone crazier
-than yourself. But if I had to give you advice on locking: *keep it
-simple*.
+than yourself. But if I had to give you advice on locking: **keep it
+simple**.
 
 Be reluctant to introduce new locks.
 
 Strangely enough, this last one is the exact reverse of my advice when
-you *have* slept with someone crazier than yourself. And you should
+you **have** slept with someone crazier than yourself. And you should
 think about getting a big dog.
 
 Two Main Types of Kernel Locks: Spinlocks and Mutexes
@@ -311,7 +311,7 @@ Pete Zaitcev gives the following summary:
 Table of Minimum Requirements
 -----------------------------
 
-The following table lists the *minimum* locking requirements between
+The following table lists the **minimum** locking requirements between
 various contexts. In some cases, the same context can only be running on
 one CPU at a time, so no locking is required for that context (eg. a
 particular thread can only run on one CPU at a time, but if it needs
@@ -703,7 +703,7 @@ reference count, but they are more complicated.
 Using Atomic Operations For The Reference Count
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-In practice, ``atomic_t`` would usually be used for refcnt. There are a
+In practice, :c:type:`atomic_t` would usually be used for refcnt. There are a
 number of atomic operations defined in ``include/asm/atomic.h``: these
 are guaranteed to be seen atomically from all CPUs in the system, so no
 lock is required. In this case, it is simpler than using spinlocks,
@@ -1321,7 +1321,7 @@ from user context, and can sleep.
 
    -  :c:func:`put_user()`
 
--  ``kmalloc(GFP_KERNEL)``
+-  :c:func:`kmalloc(GFP_KERNEL) <kmalloc>`
 
 -  :c:func:`mutex_lock_interruptible()` and
    :c:func:`mutex_lock()`
@@ -1431,10 +1431,10 @@ tasklet
 timer
   A dynamically-registrable software interrupt, which is run at (or close
   to) a given time. When running, it is just like a tasklet (in fact, they
-  are called from the TIMER_SOFTIRQ).
+  are called from the ``TIMER_SOFTIRQ``).
 
 UP
-  Uni-Processor: Non-SMP. (CONFIG_SMP=n).
+  Uni-Processor: Non-SMP. (``CONFIG_SMP=n``).
 
 User Context
   The kernel executing on behalf of a particular process (ie. a system
