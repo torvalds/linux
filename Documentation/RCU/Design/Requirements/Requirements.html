@@ -2520,11 +2520,7 @@ It is similarly socially unacceptable to interrupt an
 <tt>nohz_full</tt> CPU running in userspace.
 RCU must therefore track <tt>nohz_full</tt> userspace
 execution.
-And in
-<a href="https://lwn.net/Articles/558284/"><tt>CONFIG_NO_HZ_FULL_SYSIDLE=y</tt></a>
-kernels, RCU must separately track idle CPUs on the one hand and
-CPUs that are either idle or executing in userspace on the other.
-In both cases, RCU must be able to sample state at two points in
+RCU must therefore be able to sample state at two points in
 time, and be able to determine whether or not some other CPU spent
 any time idle and/or executing in userspace.
 

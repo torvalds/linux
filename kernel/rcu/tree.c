@@ -270,10 +270,6 @@ void rcu_bh_qs(void)
 static DEFINE_PER_CPU(struct rcu_dynticks, rcu_dynticks) = {
 	.dynticks_nesting = DYNTICK_TASK_EXIT_IDLE,
 	.dynticks = ATOMIC_INIT(RCU_DYNTICK_CTRL_CTR),
-#ifdef CONFIG_NO_HZ_FULL_SYSIDLE
-	.dynticks_idle_nesting = DYNTICK_TASK_NEST_VALUE,
-	.dynticks_idle = ATOMIC_INIT(1),
-#endif /* #ifdef CONFIG_NO_HZ_FULL_SYSIDLE */
 };
 
 /*
@@ -546,10 +542,7 @@ module_param(jiffies_till_sched_qs, ulong, 0644);
 
 static bool rcu_start_gp_advanced(struct rcu_state *rsp, struct rcu_node *rnp,
 				  struct rcu_data *rdp);
-static void force_qs_rnp(struct rcu_state *rsp,
-			 int (*f)(struct rcu_data *rsp, bool *isidle,
-				  unsigned long *maxj),
-			 bool *isidle, unsigned long *maxj);
+static void force_qs_rnp(struct rcu_state *rsp, int (*f)(struct rcu_data *rsp));
 static void force_quiescent_state(struct rcu_state *rsp);
 static int rcu_pending(void);
 
@@ -854,7 +847,6 @@ void rcu_idle_enter(void)
 
 	local_irq_save(flags);
 	rcu_eqs_enter(false);
-	rcu_sysidle_enter(0);
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(rcu_idle_enter);
@@ -904,7 +896,6 @@ void rcu_irq_exit(void)
 		trace_rcu_dyntick(TPS("--="), rdtp->dynticks_nesting, rdtp->dynticks_nesting - 1);
 		rdtp->dynticks_nesting--;
 	}
-	rcu_sysidle_enter(1);
 }
 
 /*
@@ -986,7 +977,6 @@ void rcu_idle_exit(void)
 
 	local_irq_save(flags);
 	rcu_eqs_exit(false);
-	rcu_sysidle_exit(0);
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(rcu_idle_exit);
@@ -1038,7 +1028,6 @@ void rcu_irq_enter(void)
 		trace_rcu_dyntick(TPS("++="), oldval, rdtp->dynticks_nesting);
 	else
 		rcu_eqs_exit_common(oldval, true);
-	rcu_sysidle_exit(1);
 }
 
 /*
@@ -1217,11 +1206,9 @@ static int rcu_is_cpu_rrupt_from_idle(void)
  * credit them with an implicit quiescent state.  Return 1 if this CPU
  * is in dynticks idle mode, which is an extended quiescent state.
  */
-static int dyntick_save_progress_counter(struct rcu_data *rdp,
-					 bool *isidle, unsigned long *maxj)
+static int dyntick_save_progress_counter(struct rcu_data *rdp)
 {
 	rdp->dynticks_snap = rcu_dynticks_snap(rdp->dynticks);
-	rcu_sysidle_check_cpu(rdp, isidle, maxj);
 	if (rcu_dynticks_in_eqs(rdp->dynticks_snap)) {
 		trace_rcu_fqs(rdp->rsp->name, rdp->gpnum, rdp->cpu, TPS("dti"));
 		if (ULONG_CMP_LT(READ_ONCE(rdp->gpnum) + ULONG_MAX / 4,
@@ -1238,8 +1225,7 @@ static int dyntick_save_progress_counter(struct rcu_data *rdp,
  * idle state since the last call to dyntick_save_progress_counter()
  * for this same CPU, or by virtue of having been offline.
  */
-static int rcu_implicit_dynticks_qs(struct rcu_data *rdp,
-				    bool *isidle, unsigned long *maxj)
+static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 {
 	unsigned long jtsq;
 	bool *rnhqp;
@@ -2105,25 +2091,16 @@ static bool rcu_gp_fqs_check_wake(struct rcu_state *rsp, int *gfp)
  */
 static void rcu_gp_fqs(struct rcu_state *rsp, bool first_time)
 {
-	bool isidle = false;
-	unsigned long maxj;
 	struct rcu_node *rnp = rcu_get_root(rsp);
 
 	WRITE_ONCE(rsp->gp_activity, jiffies);
 	rsp->n_force_qs++;
 	if (first_time) {
 		/* Collect dyntick-idle snapshots. */
-		if (is_sysidle_rcu_state(rsp)) {
-			isidle = true;
-			maxj = jiffies - ULONG_MAX / 4;
-		}
-		force_qs_rnp(rsp, dyntick_save_progress_counter,
-			     &isidle, &maxj);
-		rcu_sysidle_report_gp(rsp, isidle, maxj);
+		force_qs_rnp(rsp, dyntick_save_progress_counter);
 	} else {
 		/* Handle dyntick-idle and offline CPUs. */
-		isidle = true;
-		force_qs_rnp(rsp, rcu_implicit_dynticks_qs, &isidle, &maxj);
+		force_qs_rnp(rsp, rcu_implicit_dynticks_qs);
 	}
 	/* Clear flag to prevent immediate re-entry. */
 	if (READ_ONCE(rsp->gp_flags) & RCU_GP_FLAG_FQS) {
@@ -2895,10 +2872,7 @@ void rcu_check_callbacks(int user)
  *
  * The caller must have suppressed start of new grace periods.
  */
-static void force_qs_rnp(struct rcu_state *rsp,
-			 int (*f)(struct rcu_data *rsp, bool *isidle,
-				  unsigned long *maxj),
-			 bool *isidle, unsigned long *maxj)
+static void force_qs_rnp(struct rcu_state *rsp, int (*f)(struct rcu_data *rsp))
 {
 	int cpu;
 	unsigned long flags;
@@ -2937,7 +2911,7 @@ static void force_qs_rnp(struct rcu_state *rsp,
 		for_each_leaf_node_possible_cpu(rnp, cpu) {
 			unsigned long bit = leaf_node_cpu_bit(rnp, cpu);
 			if ((rnp->qsmask & bit) != 0) {
-				if (f(per_cpu_ptr(rsp->rda, cpu), isidle, maxj))
+				if (f(per_cpu_ptr(rsp->rda, cpu)))
 					mask |= bit;
 			}
 		}
@@ -3793,7 +3767,6 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp)
 	    !init_nocb_callback_list(rdp))
 		rcu_segcblist_init(&rdp->cblist);  /* Re-enable callbacks. */
 	rdp->dynticks->dynticks_nesting = DYNTICK_TASK_EXIT_IDLE;
-	rcu_sysidle_init_percpu_data(rdp->dynticks);
 	rcu_dynticks_eqs_online();
 	raw_spin_unlock_rcu_node(rnp);		/* irqs remain disabled. */
 

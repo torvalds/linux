@@ -45,14 +45,6 @@ struct rcu_dynticks {
 	bool rcu_need_heavy_qs;     /* GP old, need heavy quiescent state. */
 	unsigned long rcu_qs_ctr;   /* Light universal quiescent state ctr. */
 	bool rcu_urgent_qs;	    /* GP old need light quiescent state. */
-#ifdef CONFIG_NO_HZ_FULL_SYSIDLE
-	long long dynticks_idle_nesting;
-				    /* irq/process nesting level from idle. */
-	atomic_t dynticks_idle;	    /* Even value for idle, else odd. */
-				    /*  "Idle" excludes userspace execution. */
-	unsigned long dynticks_idle_jiffies;
-				    /* End of last non-NMI non-idle period. */
-#endif /* #ifdef CONFIG_NO_HZ_FULL_SYSIDLE */
 #ifdef CONFIG_RCU_FAST_NO_HZ
 	bool all_lazy;		    /* Are all CPU's CBs lazy? */
 	unsigned long nonlazy_posted;
@@ -529,15 +521,7 @@ static void __init rcu_organize_nocb_kthreads(struct rcu_state *rsp);
 #endif /* #ifdef CONFIG_RCU_NOCB_CPU */
 static void __maybe_unused rcu_kick_nohz_cpu(int cpu);
 static bool init_nocb_callback_list(struct rcu_data *rdp);
-static void rcu_sysidle_enter(int irq);
-static void rcu_sysidle_exit(int irq);
-static void rcu_sysidle_check_cpu(struct rcu_data *rdp, bool *isidle,
-				  unsigned long *maxj);
-static bool is_sysidle_rcu_state(struct rcu_state *rsp);
-static void rcu_sysidle_report_gp(struct rcu_state *rsp, int isidle,
-				  unsigned long maxj);
 static void rcu_bind_gp_kthread(void);
-static void rcu_sysidle_init_percpu_data(struct rcu_dynticks *rdtp);
 static bool rcu_nohz_full_cpu(struct rcu_state *rsp);
 static void rcu_dynticks_task_enter(void);
 static void rcu_dynticks_task_exit(void);

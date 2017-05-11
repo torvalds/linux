@@ -854,15 +854,6 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
 #define kfree_rcu(ptr, rcu_head)					\
 	__kfree_rcu(&((ptr)->rcu_head), offsetof(typeof(*(ptr)), rcu_head))
 
-/* Only for use by adaptive-ticks code. */
-#ifdef CONFIG_NO_HZ_FULL_SYSIDLE
-bool rcu_sys_is_idle(void);
-void rcu_sysidle_force_exit(void);
-#else /* #ifdef CONFIG_NO_HZ_FULL_SYSIDLE */
-static inline bool rcu_sys_is_idle(void) { return false; }
-static inline void rcu_sysidle_force_exit(void) { }
-#endif /* #else #ifdef CONFIG_NO_HZ_FULL_SYSIDLE */
-
 
 /*
  * Place this after a lock-acquisition primitive to guarantee that
