@@ -408,7 +408,7 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 	if (REG(DP_MSA_TIMING_PARAM1)) {
 		switch (output_color_space) {
 		case COLOR_SPACE_SRGB:
-			misc0 = misc0 | 0x0;;
+			misc0 = misc0 | 0x0;
 			misc1 = misc1 & ~0x80; /* bit7 = 0*/
 			break;
 		case COLOR_SPACE_SRGB_LIMITED:
@@ -417,7 +417,7 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 			break;
 		case COLOR_SPACE_YCBCR601:
 			misc0 = misc0 | 0x8; /* bit3=1, bit4=0 */
-			misc1 = misc1 & ~0x80; /* bit7 = 0*/;
+			misc1 = misc1 & ~0x80; /* bit7 = 0*/
 			if (crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR422)
 				misc0 = misc0 | 0x2; /* bit2=0, bit1=1 */
 			else if (crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR444)
