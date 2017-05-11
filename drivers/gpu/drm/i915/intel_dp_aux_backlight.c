@@ -127,6 +127,7 @@ static void intel_dp_aux_enable_backlight(struct intel_connector *connector)
 	}
 
 	set_aux_backlight_enable(intel_dp, true);
+	intel_dp_aux_set_backlight(connector, connector->panel.backlight.level);
 }
 
 static void intel_dp_aux_disable_backlight(struct intel_connector *connector)
