@@ -2763,11 +2763,10 @@ static long calc_cfs_shares(struct cfs_rq *cfs_rq)
 	tg_shares = READ_ONCE(tg->shares);
 
 	/*
-	 * This really should be: cfs_rq->avg.load_avg, but instead we use
-	 * cfs_rq->load.weight, which is its upper bound. This helps ramp up
-	 * the shares for small weight interactive tasks.
+	 * Because (5) drops to 0 when the cfs_rq is idle, we need to use (3)
+	 * as a lower bound.
 	 */
-	load = scale_load_down(cfs_rq->load.weight);
+	load = max(scale_load_down(cfs_rq->load.weight), cfs_rq->avg.load_avg);
 
 	tg_weight = atomic_long_read(&tg->load_avg);
 
