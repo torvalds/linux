@@ -62,6 +62,7 @@
 #include <linux/mmu_notifier.h>
 #include <linux/uaccess.h>
 #include <linux/cgroup_rdma.h>
+#include <uapi/rdma/ib_user_verbs.h>
 
 extern struct workqueue_struct *ib_wq;
 extern struct workqueue_struct *ib_comp_wq;
@@ -1888,8 +1889,6 @@ enum ib_mad_result {
 	IB_MAD_RESULT_REPLY    = 1 << 1, /* Reply packet needs to be sent    */
 	IB_MAD_RESULT_CONSUMED = 1 << 2  /* Packet consumed: stop processing */
 };
-
-#define IB_DEVICE_NAME_MAX 64
 
 struct ib_port_cache {
 	struct ib_pkey_cache  *pkey;

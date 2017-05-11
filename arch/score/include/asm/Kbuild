@@ -1,6 +1,3 @@
-
-header-y +=
-
 generic-y += barrier.h
 generic-y += clkdev.h
 generic-y += current.h
