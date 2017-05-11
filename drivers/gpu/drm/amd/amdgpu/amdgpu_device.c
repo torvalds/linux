@@ -1462,19 +1462,19 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 			(const struct gpu_info_firmware_v1_0 *)(fw->data +
 								le32_to_cpu(hdr->header.ucode_array_offset_bytes));
 
-		adev->gfx.config.max_shader_engines = gpu_info_fw->gc_num_se;
-		adev->gfx.config.max_cu_per_sh = gpu_info_fw->gc_num_cu_per_sh;
-		adev->gfx.config.max_sh_per_se = gpu_info_fw->gc_num_sh_per_se;
-		adev->gfx.config.max_backends_per_se = gpu_info_fw->gc_num_rb_per_se;
+		adev->gfx.config.max_shader_engines = le32_to_cpu(gpu_info_fw->gc_num_se);
+		adev->gfx.config.max_cu_per_sh = le32_to_cpu(gpu_info_fw->gc_num_cu_per_sh);
+		adev->gfx.config.max_sh_per_se = le32_to_cpu(gpu_info_fw->gc_num_sh_per_se);
+		adev->gfx.config.max_backends_per_se = le32_to_cpu(gpu_info_fw->gc_num_rb_per_se);
 		adev->gfx.config.max_texture_channel_caches =
-			gpu_info_fw->gc_num_tccs;
-		adev->gfx.config.max_gprs = gpu_info_fw->gc_num_gprs;
-		adev->gfx.config.max_gs_threads = gpu_info_fw->gc_num_max_gs_thds;
-		adev->gfx.config.gs_vgt_table_depth = gpu_info_fw->gc_gs_table_depth;
-		adev->gfx.config.gs_prim_buffer_depth = gpu_info_fw->gc_gsprim_buff_depth;
+			le32_to_cpu(gpu_info_fw->gc_num_tccs);
+		adev->gfx.config.max_gprs = le32_to_cpu(gpu_info_fw->gc_num_gprs);
+		adev->gfx.config.max_gs_threads = le32_to_cpu(gpu_info_fw->gc_num_max_gs_thds);
+		adev->gfx.config.gs_vgt_table_depth = le32_to_cpu(gpu_info_fw->gc_gs_table_depth);
+		adev->gfx.config.gs_prim_buffer_depth = le32_to_cpu(gpu_info_fw->gc_gsprim_buff_depth);
 		adev->gfx.config.double_offchip_lds_buf =
-			gpu_info_fw->gc_double_offchip_lds_buffer;
-		adev->gfx.cu_info.wave_front_size = gpu_info_fw->gc_wave_size;
+			le32_to_cpu(gpu_info_fw->gc_double_offchip_lds_buffer);
+		adev->gfx.cu_info.wave_front_size = le32_to_cpu(gpu_info_fw->gc_wave_size);
 		break;
 	}
 	default:
