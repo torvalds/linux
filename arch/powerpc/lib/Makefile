@@ -11,12 +11,15 @@ CFLAGS_REMOVE_feature-fixups.o = $(CC_FLAGS_FTRACE)
 
 obj-y += string.o alloc.o code-patching.o feature-fixups.o
 
-# 64-bit linker creates .sfpr on demand for final link (vmlinux),
-# so it is only needed for modules.
-obj-$(CONFIG_PPC32) += crtsavres.o
-extra-$(CONFIG_PPC64) += crtsavres.o
+obj-$(CONFIG_PPC32)	+= div64.o copy_32.o crtsavres.o
 
-obj-$(CONFIG_PPC32)	+= div64.o copy_32.o
+# See corresponding test in arch/powerpc/Makefile
+# 64-bit linker creates .sfpr on demand for final link (vmlinux),
+# so it is only needed for modules, and only for older linkers which
+# do not support --save-restore-funcs
+ifeq ($(call ld-ifversion, -lt, 225000000, y),y)
+extra-$(CONFIG_PPC64)	+= crtsavres.o
+endif
 
 obj64-y	+= copypage_64.o copyuser_64.o mem_64.o hweight_64.o \
 	   copyuser_power7.o string_64.o copypage_power7.o memcpy_power7.o \
