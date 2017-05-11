@@ -306,11 +306,6 @@ static void MakeTSEntry(struct ts_common_info *pTsCommonInfo, u8 *Addr,
 	pTsCommonInfo->TClasNum = TCLAS_Num;
 }
 
-static bool IsACValid(unsigned int tid)
-{
-	return tid < 7;
-}
-
 bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 	   u8 *Addr, u8 TID, enum tr_select TxRxSelect, bool bAddNewTs)
 {
@@ -328,12 +323,6 @@ bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 	if (ieee->current_network.qos_data.supported == 0) {
 		UP = 0;
 	} else {
-		if (!IsACValid(TID)) {
-			netdev_warn(ieee->dev, "%s(): TID(%d) is not valid\n",
-				    __func__, TID);
-			return false;
-		}
-
 		switch (TID) {
 		case 0:
 		case 3:
@@ -351,6 +340,10 @@ bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 		case 7:
 			UP = 7;
 			break;
+		default:
+			netdev_warn(ieee->dev, "%s(): TID(%d) is not valid\n",
+				    __func__, TID);
+			return false;
 		}
 	}
 
