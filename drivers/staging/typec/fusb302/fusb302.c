@@ -1025,7 +1025,7 @@ static int fusb302_pd_send_message(struct fusb302_chip *chip,
 	buf[pos++] = FUSB302_TKN_SYNC1;
 	buf[pos++] = FUSB302_TKN_SYNC2;
 
-	len = pd_header_cnt(msg->header) * 4;
+	len = pd_header_cnt_le(msg->header) * 4;
 	/* plug 2 for header */
 	len += 2;
 	if (len > 0x1F) {
@@ -1481,7 +1481,7 @@ static int fusb302_pd_read_message(struct fusb302_chip *chip,
 				     (u8 *)&msg->header);
 	if (ret < 0)
 		return ret;
-	len = pd_header_cnt(msg->header) * 4;
+	len = pd_header_cnt_le(msg->header) * 4;
 	/* add 4 to length to include the CRC */
 	if (len > PD_MAX_PAYLOAD * 4) {
 		fusb302_log(chip, "PD message too long %d", len);
