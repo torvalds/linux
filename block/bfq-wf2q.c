@@ -1114,11 +1114,20 @@ static void bfq_activate_requeue_entity(struct bfq_entity *entity,
 bool __bfq_deactivate_entity(struct bfq_entity *entity, bool ins_into_idle_tree)
 {
 	struct bfq_sched_data *sd = entity->sched_data;
-	struct bfq_service_tree *st = bfq_entity_service_tree(entity);
-	int is_in_service = entity == sd->in_service_entity;
+	struct bfq_service_tree *st;
+	bool is_in_service;
 
 	if (!entity->on_st) /* entity never activated, or already inactive */
 		return false;
+
+	/*
+	 * If we get here, then entity is active, which implies that
+	 * bfq_group_set_parent has already been invoked for the group
+	 * represented by entity. Therefore, the field
+	 * entity->sched_data has been set, and we can safely use it.
+	 */
+	st = bfq_entity_service_tree(entity);
+	is_in_service = entity == sd->in_service_entity;
 
 	if (is_in_service)
 		bfq_calc_finish(entity, entity->service);
