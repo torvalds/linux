@@ -1485,8 +1485,7 @@ static int i40e_vc_get_version_msg(struct i40e_vf *vf, u8 *msg)
 		info.minor = VIRTCHNL_VERSION_MINOR_NO_VF_CAPS;
 	return i40e_vc_send_msg_to_vf(vf, VIRTCHNL_OP_VERSION,
 				      I40E_SUCCESS, (u8 *)&info,
-				      sizeof(struct
-					     virtchnl_version_info));
+				      sizeof(struct virtchnl_version_info));
 }
 
 /**
@@ -1544,11 +1543,9 @@ static int i40e_vc_get_vf_resources_msg(struct i40e_vf *vf, u8 *msg)
 	} else {
 		if ((pf->flags & I40E_FLAG_RSS_AQ_CAPABLE) &&
 		    (vf->driver_caps & VIRTCHNL_VF_OFFLOAD_RSS_AQ))
-			vfres->vf_offload_flags |=
-					VIRTCHNL_VF_OFFLOAD_RSS_AQ;
+			vfres->vf_offload_flags |= VIRTCHNL_VF_OFFLOAD_RSS_AQ;
 		else
-			vfres->vf_offload_flags |=
-					VIRTCHNL_VF_OFFLOAD_RSS_REG;
+			vfres->vf_offload_flags |= VIRTCHNL_VF_OFFLOAD_RSS_REG;
 	}
 
 	if (pf->flags & I40E_FLAG_MULTIPLE_TCP_UDP_RSS_PCTYPE) {
@@ -2530,8 +2527,7 @@ static int i40e_vc_set_rss_hena(struct i40e_vf *vf, u8 *msg, u16 msglen)
 
 	/* send the response to the VF */
 err:
-	return i40e_vc_send_resp_to_vf(vf, VIRTCHNL_OP_SET_RSS_HENA,
-				       aq_ret);
+	return i40e_vc_send_resp_to_vf(vf, VIRTCHNL_OP_SET_RSS_HENA, aq_ret);
 }
 
 /**

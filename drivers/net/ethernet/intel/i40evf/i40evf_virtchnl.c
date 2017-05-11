@@ -1018,8 +1018,7 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 				~(BIT(VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP));
 		break;
 	case VIRTCHNL_OP_GET_RSS_HENA_CAPS: {
-		struct virtchnl_rss_hena *vrh =
-			(struct virtchnl_rss_hena *)msg;
+		struct virtchnl_rss_hena *vrh = (struct virtchnl_rss_hena *)msg;
 		if (msglen == sizeof(*vrh))
 			adapter->hena = vrh->hena;
 		else
