@@ -1761,7 +1761,7 @@ static u32 __req_capsule_offset(const struct req_capsule *pill,
 		 field->rmf_name, offset, loc);
 	offset--;
 
-	LASSERT(0 <= offset && offset < REQ_MAX_FIELD_NR);
+	LASSERT(offset < REQ_MAX_FIELD_NR);
 	return offset;
 }
 
