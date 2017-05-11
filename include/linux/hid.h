@@ -183,9 +183,8 @@ struct hid_item {
 #define HID_GD_KEYPAD		0x00010007
 #define HID_GD_MULTIAXIS	0x00010008
 /*
- * Microsoft Win8 Wireless Radio Controls extensions CA, see (checked 09052017):
- * https://docs.microsoft.com/en-us/windows-hardware/drivers/hid/airplane-mode-radio-management
- * https://web.archive.org/web/20170509144631/https://docs.microsoft.com/en-us/windows-hardware/drivers/hid/airplane-mode-radio-management
+ * Microsoft Win8 Wireless Radio Controls extensions CA, see:
+ * http://www.usb.org/developers/hidpage/HUTRR40RadioHIDUsagesFinal.pdf
  */
 #define HID_GD_WIRELESS_RADIO_CTLS	0x0001000c
 #define HID_GD_X		0x00010030

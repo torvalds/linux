@@ -658,7 +658,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 
 		case HID_GD_RFKILL_BTN:
 			/* MS wireless radio ctl extension, also check CA */
-			if (field->application == 0x0001000c) {
+			if (field->application == HID_GD_WIRELESS_RADIO_CTLS) {
 				map_key_clear(KEY_RFKILL);
 				/* We need to simulate the btn release */
 				field->flags |= HID_MAIN_ITEM_RELATIVE;
