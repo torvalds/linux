@@ -43,6 +43,7 @@
 /dts-v1/;
 
 #include "rk322x.dtsi"
+#include "rk3229-cpu-opp.dtsi"
 #include "rk322x-android.dtsi"
 
 / {
