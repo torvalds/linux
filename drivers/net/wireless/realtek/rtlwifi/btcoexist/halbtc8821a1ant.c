@@ -2524,6 +2524,19 @@ void ex_btc8821a1ant_scan_notify(struct btc_coexist *btcoexist, u8 type)
 		return;
 	}
 
+	if (type == BTC_SCAN_START) {
+		coex_sta->wifi_is_high_pri_task = true;
+		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+			 "[BTCoex], SCAN START notify\n");
+
+		/* Force antenna setup for no scan result issue */
+		btc8821a1ant_ps_tdma(btcoexist, FORCE_EXEC, false, 8);
+	} else {
+		coex_sta->wifi_is_high_pri_task = false;
+		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+			 "[BTCoex], SCAN FINISH notify\n");
+	}
+
 	if (coex_sta->bt_disabled)
 		return;
 
