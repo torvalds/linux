@@ -123,7 +123,7 @@ void rcu_scheduler_starting(void);
 #else /* #if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_SRCU) */
 static inline void rcu_scheduler_starting(void) { }
 #endif /* #else #if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_SRCU) */
-
+static inline void rcu_end_inkernel_boot(void) { }
 static inline bool rcu_is_watching(void) { return true; }
 
 /* Avoid RCU read-side critical sections leaking across. */
