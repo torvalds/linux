@@ -3485,14 +3485,14 @@ static void btc8821a2ant_run_coexist_mechanism(struct btc_coexist *btcoexist)
 	if (btc8821a2ant_is_common_action(btcoexist)) {
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 			 "[BTCoex], Action 2-Ant common\n");
-		coex_dm->reset_tdma_adjust = true;
+		coex_dm->auto_tdma_adjust = true;
 	} else {
 		if (coex_dm->cur_algorithm != coex_dm->pre_algorithm) {
 			RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 				 "[BTCoex], pre_algorithm = %d, cur_algorithm = %d\n",
 				    coex_dm->pre_algorithm,
 				    coex_dm->cur_algorithm);
-			coex_dm->reset_tdma_adjust = true;
+			coex_dm->auto_tdma_adjust = false;
 		}
 		switch (coex_dm->cur_algorithm) {
 		case BT_8821A_2ANT_COEX_ALGO_SCO:
@@ -4200,7 +4200,14 @@ void ex_btc8821a2ant_periodical(struct btc_coexist *btcoexist)
 			 "[BTCoex], ****************************************************************\n");
 	}
 
-	btc8821a2ant_query_bt_info(btcoexist);
-	btc8821a2ant_monitor_bt_ctr(btcoexist);
-	btc8821a2ant_monitor_wifi_ctr(btcoexist);
+	if (btcoexist->auto_report_2ant) {
+		btc8821a2ant_query_bt_info(btcoexist);
+	} else {
+		btc8821a2ant_monitor_bt_ctr(btcoexist);
+		btc8821a2ant_monitor_wifi_ctr(btcoexist);
+
+		if (btc8821a2ant_is_wifi_status_changed(btcoexist) ||
+		    coex_dm->auto_tdma_adjust)
+			btc8821a2ant_run_coexist_mechanism(btcoexist);
+	}
 }
