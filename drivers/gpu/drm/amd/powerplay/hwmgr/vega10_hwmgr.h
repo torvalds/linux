@@ -210,6 +210,7 @@ struct vega10_smc_state_table {
 	PPTable_t       pp_table;
 	Watermarks_t    water_marks_table;
 	AvfsTable_t     avfs_table;
+	AvfsFuseOverride_t avfs_fuse_override_table;
 };
 
 struct vega10_mclk_latency_entries {

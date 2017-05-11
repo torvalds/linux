@@ -47,7 +47,7 @@
 #include "amd_pcie_helpers.h"
 #include "cgs_linux.h"
 #include "ppinterrupt.h"
-
+#include "pp_overdriver.h"
 
 #define VOLTAGE_SCALE  4
 #define VOLTAGE_VID_OFFSET_SCALE1   625
@@ -2286,6 +2286,45 @@ static int vega10_avfs_enable(struct pp_hwmgr *hwmgr, bool enable)
 	return 0;
 }
 
+static int vega10_populate_and_upload_avfs_fuse_override(struct pp_hwmgr *hwmgr)
+{
+	int result = 0;
+
+	uint64_t serial_number = 0;
+	uint32_t top32, bottom32;
+	struct phm_fuses_default fuse;
+
+	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	AvfsFuseOverride_t *avfs_fuse_table = &(data->smc_state_table.avfs_fuse_override_table);
+
+	smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_ReadSerialNumTop32);
+	vega10_read_arg_from_smc(hwmgr->smumgr, &top32);
+
+	smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_ReadSerialNumBottom32);
+	vega10_read_arg_from_smc(hwmgr->smumgr, &bottom32);
+
+	serial_number = ((uint64_t)bottom32 << 32) | top32;
+
+	if (pp_override_get_default_fuse_value(serial_number, vega10_fuses_default, &fuse) == 0) {
+		avfs_fuse_table->VFT0_b  = fuse.VFT0_b;
+		avfs_fuse_table->VFT0_m1 = fuse.VFT0_m1;
+		avfs_fuse_table->VFT0_m2 = fuse.VFT0_m2;
+		avfs_fuse_table->VFT1_b  = fuse.VFT1_b;
+		avfs_fuse_table->VFT1_m1 = fuse.VFT1_m1;
+		avfs_fuse_table->VFT1_m2 = fuse.VFT1_m2;
+		avfs_fuse_table->VFT2_b  = fuse.VFT2_b;
+		avfs_fuse_table->VFT2_m1 = fuse.VFT2_m1;
+		avfs_fuse_table->VFT2_m2 = fuse.VFT2_m2;
+		result = vega10_copy_table_to_smc(hwmgr->smumgr,
+			(uint8_t *)avfs_fuse_table, AVFSFUSETABLE);
+		PP_ASSERT_WITH_CODE(!result,
+			"Failed to upload FuseOVerride!",
+			);
+	}
+
+	return result;
+}
+
 static int vega10_save_default_power_profile(struct pp_hwmgr *hwmgr)
 {
 	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
@@ -2438,6 +2477,8 @@ static int vega10_init_smc_table(struct pp_hwmgr *hwmgr)
 			(data->uclk_average_alpha);
 	pp_table->GfxActivityAverageAlpha = (uint8_t)
 			(data->gfx_activity_average_alpha);
+
+	vega10_populate_and_upload_avfs_fuse_override(hwmgr);
 
 	result = vega10_copy_table_to_smc(hwmgr->smumgr,
 			(uint8_t *)pp_table, PPTABLE);
