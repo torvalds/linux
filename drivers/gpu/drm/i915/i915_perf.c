@@ -1351,7 +1351,15 @@ static ssize_t i915_perf_read(struct file *file,
 		mutex_unlock(&dev_priv->perf.lock);
 	}
 
-	if (ret >= 0) {
+	/* We allow the poll checking to sometimes report false positive POLLIN
+	 * events where we might actually report EAGAIN on read() if there's
+	 * not really any data available. In this situation though we don't
+	 * want to enter a busy loop between poll() reporting a POLLIN event
+	 * and read() returning -EAGAIN. Clearing the oa.pollin state here
+	 * effectively ensures we back off until the next hrtimer callback
+	 * before reporting another POLLIN event.
+	 */
+	if (ret >= 0 || ret == -EAGAIN) {
 		/* Maybe make ->pollin per-stream state if we support multiple
 		 * concurrent streams in the future.
 		 */
