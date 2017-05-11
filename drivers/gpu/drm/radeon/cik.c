@@ -7416,7 +7416,7 @@ static inline void cik_irq_ack(struct radeon_device *rdev)
 		WREG32(DC_HPD5_INT_CONTROL, tmp);
 	}
 	if (rdev->irq.stat_regs.cik.disp_int_cont5 & DC_HPD6_INTERRUPT) {
-		tmp = RREG32(DC_HPD5_INT_CONTROL);
+		tmp = RREG32(DC_HPD6_INT_CONTROL);
 		tmp |= DC_HPDx_INT_ACK;
 		WREG32(DC_HPD6_INT_CONTROL, tmp);
 	}
@@ -7446,7 +7446,7 @@ static inline void cik_irq_ack(struct radeon_device *rdev)
 		WREG32(DC_HPD5_INT_CONTROL, tmp);
 	}
 	if (rdev->irq.stat_regs.cik.disp_int_cont5 & DC_HPD6_RX_INTERRUPT) {
-		tmp = RREG32(DC_HPD5_INT_CONTROL);
+		tmp = RREG32(DC_HPD6_INT_CONTROL);
 		tmp |= DC_HPDx_RX_INT_ACK;
 		WREG32(DC_HPD6_INT_CONTROL, tmp);
 	}
