@@ -77,7 +77,7 @@ static void i40e_vc_notify_vf_link_state(struct i40e_vf *vf)
 	int abs_vf_id = vf->vf_id + (int)hw->func_caps.vf_base_id;
 
 	pfe.event = VIRTCHNL_EVENT_LINK_CHANGE;
-	pfe.severity = I40E_PF_EVENT_SEVERITY_INFO;
+	pfe.severity = PF_EVENT_SEVERITY_INFO;
 	if (vf->link_forced) {
 		pfe.event_data.link_event.link_status = vf->link_up;
 		pfe.event_data.link_event.link_speed =
@@ -85,7 +85,8 @@ static void i40e_vc_notify_vf_link_state(struct i40e_vf *vf)
 	} else {
 		pfe.event_data.link_event.link_status =
 			ls->link_info & I40E_AQ_LINK_UP;
-		pfe.event_data.link_event.link_speed = ls->link_speed;
+		pfe.event_data.link_event.link_speed =
+			(enum virtchnl_link_speed)ls->link_speed;
 	}
 	i40e_aq_send_msg_to_vf(hw, abs_vf_id, VIRTCHNL_OP_EVENT,
 			       0, (u8 *)&pfe, sizeof(pfe), NULL);
@@ -116,7 +117,7 @@ void i40e_vc_notify_reset(struct i40e_pf *pf)
 	struct virtchnl_pf_event pfe;
 
 	pfe.event = VIRTCHNL_EVENT_RESET_IMPENDING;
-	pfe.severity = I40E_PF_EVENT_SEVERITY_CERTAIN_DOOM;
+	pfe.severity = PF_EVENT_SEVERITY_CERTAIN_DOOM;
 	i40e_vc_vf_broadcast(pf, VIRTCHNL_OP_EVENT, 0,
 			     (u8 *)&pfe, sizeof(struct virtchnl_pf_event));
 }
@@ -144,7 +145,7 @@ void i40e_vc_notify_vf_reset(struct i40e_vf *vf)
 	abs_vf_id = vf->vf_id + (int)vf->pf->hw.func_caps.vf_base_id;
 
 	pfe.event = VIRTCHNL_EVENT_RESET_IMPENDING;
-	pfe.severity = I40E_PF_EVENT_SEVERITY_CERTAIN_DOOM;
+	pfe.severity = PF_EVENT_SEVERITY_CERTAIN_DOOM;
 	i40e_aq_send_msg_to_vf(&vf->pf->hw, abs_vf_id, VIRTCHNL_OP_EVENT,
 			       0, (u8 *)&pfe,
 			       sizeof(struct virtchnl_pf_event), NULL);
@@ -1586,7 +1587,7 @@ static int i40e_vc_get_vf_resources_msg(struct i40e_vf *vf, u8 *msg)
 
 	if (vf->lan_vsi_idx) {
 		vfres->vsi_res[0].vsi_id = vf->lan_vsi_id;
-		vfres->vsi_res[0].vsi_type = I40E_VSI_SRIOV;
+		vfres->vsi_res[0].vsi_type = VIRTCHNL_VSI_SRIOV;
 		vfres->vsi_res[0].num_queue_pairs = vsi->alloc_queue_pairs;
 		/* VFs only use TC 0 */
 		vfres->vsi_res[0].qset_handle
@@ -1680,7 +1681,7 @@ static int i40e_vc_config_promiscuous_mode_msg(struct i40e_vf *vf,
 		goto error_param;
 	}
 	/* Multicast promiscuous handling*/
-	if (info->flags & I40E_FLAG_VF_MULTICAST_PROMISC)
+	if (info->flags & FLAG_VF_MULTICAST_PROMISC)
 		allmulti = true;
 
 	if (vf->port_vlan_id) {
@@ -1731,7 +1732,7 @@ static int i40e_vc_config_promiscuous_mode_msg(struct i40e_vf *vf,
 			clear_bit(I40E_VF_STATE_MC_PROMISC, &vf->vf_states);
 	}
 
-	if (info->flags & I40E_FLAG_VF_UNICAST_PROMISC)
+	if (info->flags & FLAG_VF_UNICAST_PROMISC)
 		alluni = true;
 	if (vf->port_vlan_id) {
 		aq_ret = i40e_aq_set_vsi_uc_promisc_on_vlan(hw, vsi->seid,
@@ -3241,7 +3242,7 @@ int i40e_ndo_set_vf_link_state(struct net_device *netdev, int vf_id, int link)
 	abs_vf_id = vf->vf_id + hw->func_caps.vf_base_id;
 
 	pfe.event = VIRTCHNL_EVENT_LINK_CHANGE;
-	pfe.severity = I40E_PF_EVENT_SEVERITY_INFO;
+	pfe.severity = PF_EVENT_SEVERITY_INFO;
 
 	switch (link) {
 	case IFLA_VF_LINK_STATE_AUTO:
@@ -3249,6 +3250,7 @@ int i40e_ndo_set_vf_link_state(struct net_device *netdev, int vf_id, int link)
 		pfe.event_data.link_event.link_status =
 			pf->hw.phy.link_info.link_info & I40E_AQ_LINK_UP;
 		pfe.event_data.link_event.link_speed =
+			(enum virtchnl_link_speed)
 			pf->hw.phy.link_info.link_speed;
 		break;
 	case IFLA_VF_LINK_STATE_ENABLE:

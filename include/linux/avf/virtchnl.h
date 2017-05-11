@@ -29,28 +29,29 @@
 
 /* Description:
  * This header file describes the VF-PF communication protocol used
- * by the various i40e drivers.
+ * by the drivers for all devices starting from our 40G product line
  *
  * Admin queue buffer usage:
- * desc->opcode is always i40e_aqc_opc_send_msg_to_pf
+ * desc->opcode is always aqc_opc_send_msg_to_pf
  * flags, retval, datalen, and data addr are all used normally.
- * Firmware copies the cookie fields when sending messages between the PF and
- * VF, but uses all other fields internally. Due to this limitation, we
- * must send all messages as "indirect", i.e. using an external buffer.
+ * The Firmware copies the cookie fields when sending messages between the
+ * PF and VF, but uses all other fields internally. Due to this limitation,
+ * we must send all messages as "indirect", i.e. using an external buffer.
  *
- * All the vsi indexes are relative to the VF. Each VF can have maximum of
+ * All the VSI indexes are relative to the VF. Each VF can have maximum of
  * three VSIs. All the queue indexes are relative to the VSI.  Each VF can
  * have a maximum of sixteen queues for all of its VSIs.
  *
  * The PF is required to return a status code in v_retval for all messages
- * except RESET_VF, which does not require any response. The return value is of
- * i40e_status_code type, defined in the i40e_type.h.
+ * except RESET_VF, which does not require any response. The return value
+ * is of status_code type, defined in the shared type.h.
  *
- * In general, VF driver initialization should roughly follow the order of these
- * opcodes. The VF driver must first validate the API version of the PF driver,
- * then request a reset, then get resources, then configure queues and
- * interrupts. After these operations are complete, the VF driver may start
- * its queues, optionally add MAC and VLAN filters, and process traffic.
+ * In general, VF driver initialization should roughly follow the order of
+ * these opcodes. The VF driver must first validate the API version of the
+ * PF driver, then request a reset, then get resources, then configure
+ * queues and interrupts. After these operations are complete, the VF
+ * driver may start its queues, optionally add MAC and VLAN filters, and
+ * process traffic.
  */
 
 /* START GENERIC DEFINES
@@ -68,6 +69,33 @@ enum virtchnl_status_code {
 	VIRTCHNL_STATUS_NOT_SUPPORTED			= -64,
 };
 
+#define VIRTCHNL_LINK_SPEED_100MB_SHIFT		0x1
+#define VIRTCHNL_LINK_SPEED_1000MB_SHIFT	0x2
+#define VIRTCHNL_LINK_SPEED_10GB_SHIFT		0x3
+#define VIRTCHNL_LINK_SPEED_40GB_SHIFT		0x4
+#define VIRTCHNL_LINK_SPEED_20GB_SHIFT		0x5
+#define VIRTCHNL_LINK_SPEED_25GB_SHIFT		0x6
+
+enum virtchnl_link_speed {
+	VIRTCHNL_LINK_SPEED_UNKNOWN	= 0,
+	VIRTCHNL_LINK_SPEED_100MB	= BIT(VIRTCHNL_LINK_SPEED_100MB_SHIFT),
+	VIRTCHNL_LINK_SPEED_1GB		= BIT(VIRTCHNL_LINK_SPEED_1000MB_SHIFT),
+	VIRTCHNL_LINK_SPEED_10GB	= BIT(VIRTCHNL_LINK_SPEED_10GB_SHIFT),
+	VIRTCHNL_LINK_SPEED_40GB	= BIT(VIRTCHNL_LINK_SPEED_40GB_SHIFT),
+	VIRTCHNL_LINK_SPEED_20GB	= BIT(VIRTCHNL_LINK_SPEED_20GB_SHIFT),
+	VIRTCHNL_LINK_SPEED_25GB	= BIT(VIRTCHNL_LINK_SPEED_25GB_SHIFT),
+};
+
+/* for hsplit_0 field of Rx HMC context */
+/* deprecated with AVF 1.0 */
+enum virtchnl_rx_hsplit {
+	VIRTCHNL_RX_HSPLIT_NO_SPLIT      = 0,
+	VIRTCHNL_RX_HSPLIT_SPLIT_L2      = 1,
+	VIRTCHNL_RX_HSPLIT_SPLIT_IP      = 2,
+	VIRTCHNL_RX_HSPLIT_SPLIT_TCP_UDP = 4,
+	VIRTCHNL_RX_HSPLIT_SPLIT_SCTP    = 8,
+};
+
 /* END GENERIC DEFINES */
 
 /* Opcodes for VF-PF communication. These are placed in the v_opcode field
@@ -77,6 +105,8 @@ enum virtchnl_ops {
 /* The PF sends status change events to VFs using
  * the VIRTCHNL_OP_EVENT opcode.
  * VFs send requests to the PF using the other ops.
+ * Use of "advanced opcode" features must be negotiated as part of capabilities
+ * exchange and are not considered part of base mode feature set.
  */
 	VIRTCHNL_OP_UNKNOWN = 0,
 	VIRTCHNL_OP_VERSION = 1, /* must ALWAYS be 1 */
@@ -96,14 +126,13 @@ enum virtchnl_ops {
 	VIRTCHNL_OP_GET_STATS = 15,
 	VIRTCHNL_OP_RSVD = 16,
 	VIRTCHNL_OP_EVENT = 17, /* must ALWAYS be 17 */
-	VIRTCHNL_OP_IWARP = 20,
-	VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP = 21,
-	VIRTCHNL_OP_RELEASE_IWARP_IRQ_MAP = 22,
+	VIRTCHNL_OP_IWARP = 20, /* advanced opcode */
+	VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP = 21, /* advanced opcode */
+	VIRTCHNL_OP_RELEASE_IWARP_IRQ_MAP = 22, /* advanced opcode */
 	VIRTCHNL_OP_CONFIG_RSS_KEY = 23,
 	VIRTCHNL_OP_CONFIG_RSS_LUT = 24,
 	VIRTCHNL_OP_GET_RSS_HENA_CAPS = 25,
 	VIRTCHNL_OP_SET_RSS_HENA = 26,
-
 };
 
 /* Virtual channel message descriptor. This overlays the admin queue
@@ -113,7 +142,7 @@ enum virtchnl_ops {
 struct virtchnl_msg {
 	u8 pad[8];			 /* AQ flags/opcode/len/retval fields */
 	enum virtchnl_ops v_opcode; /* avoid confusion with desc->opcode */
-	i40e_status v_retval;  /* ditto for desc->retval */
+	enum virtchnl_status_code v_retval;  /* ditto for desc->retval */
 	u32 vfid;			 /* used by PF when sending to VF */
 };
 
@@ -155,6 +184,15 @@ struct virtchnl_version_info {
  * are cleared.
  */
 
+/* VSI types that use VIRTCHNL interface for VF-PF communication. VSI_SRIOV
+ * vsi_type should always be 6 for backward compatibility. Add other fields
+ * as needed.
+ */
+enum virtchnl_vsi_type {
+	VIRTCHNL_VSI_TYPE_INVALID = 0,
+	VIRTCHNL_VSI_SRIOV = 6,
+};
+
 /* VIRTCHNL_OP_GET_VF_RESOURCES
  * Version 1.0 VF sends this request to PF with no parameters
  * Version 1.1 VF sends this request to PF with u32 bitmap of its capabilities
@@ -166,14 +204,18 @@ struct virtchnl_version_info {
 struct virtchnl_vsi_resource {
 	u16 vsi_id;
 	u16 num_queue_pairs;
-	enum i40e_vsi_type vsi_type;
+	enum virtchnl_vsi_type vsi_type;
 	u16 qset_handle;
 	u8 default_mac_addr[ETH_ALEN];
 };
-/* VF offload flags */
-#define VIRTCHNL_VF_OFFLOAD_L2		0x00000001
+
+/* VF offload flags
+ * VIRTCHNL_VF_OFFLOAD_L2 flag is inclusive of base mode L2 offloads including
+ * TX/RX Checksum offloading and TSO for non-tunnelled packets.
+ */
+#define VIRTCHNL_VF_OFFLOAD_L2			0x00000001
 #define VIRTCHNL_VF_OFFLOAD_IWARP		0x00000002
-#define VIRTCHNL_VF_OFFLOAD_FCOE		0x00000004
+#define VIRTCHNL_VF_OFFLOAD_RSVD		0x00000004
 #define VIRTCHNL_VF_OFFLOAD_RSS_AQ		0x00000008
 #define VIRTCHNL_VF_OFFLOAD_RSS_REG		0x00000010
 #define VIRTCHNL_VF_OFFLOAD_WB_ON_ITR		0x00000020
@@ -182,11 +224,12 @@ struct virtchnl_vsi_resource {
 #define VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2	0x00040000
 #define VIRTCHNL_VF_OFFLOAD_RSS_PF		0X00080000
 #define VIRTCHNL_VF_OFFLOAD_ENCAP		0X00100000
-#define VIRTCHNL_VF_OFFLOAD_ENCAP_CSUM	0X00200000
+#define VIRTCHNL_VF_OFFLOAD_ENCAP_CSUM		0X00200000
+#define VIRTCHNL_VF_OFFLOAD_RX_ENCAP_CSUM	0X00400000
 
-#define I40E_VF_BASE_MODE_OFFLOADS (VIRTCHNL_VF_OFFLOAD_L2 | \
-				    VIRTCHNL_VF_OFFLOAD_VLAN | \
-				    VIRTCHNL_VF_OFFLOAD_RSS_PF)
+#define VF_BASE_MODE_OFFLOADS (VIRTCHNL_VF_OFFLOAD_L2 | \
+			       VIRTCHNL_VF_OFFLOAD_VLAN | \
+			       VIRTCHNL_VF_OFFLOAD_RSS_PF)
 
 struct virtchnl_vf_resource {
 	u16 num_vsis;
@@ -212,9 +255,9 @@ struct virtchnl_txq_info {
 	u16 vsi_id;
 	u16 queue_id;
 	u16 ring_len;		/* number of descriptors, multiple of 8 */
-	u16 headwb_enabled;
+	u16 headwb_enabled; /* deprecated with AVF 1.0 */
 	u64 dma_ring_addr;
-	u64 dma_headwb_addr;
+	u64 dma_headwb_addr; /* deprecated with AVF 1.0 */
 };
 
 /* VIRTCHNL_OP_CONFIG_RX_QUEUE
@@ -229,11 +272,11 @@ struct virtchnl_rxq_info {
 	u16 queue_id;
 	u32 ring_len;		/* number of descriptors, multiple of 32 */
 	u16 hdr_size;
-	u16 splithdr_enabled;
+	u16 splithdr_enabled; /* deprecated with AVF 1.0 */
 	u32 databuffer_size;
 	u32 max_pkt_size;
 	u64 dma_ring_addr;
-	enum i40e_hmc_obj_rx_hsplit_0 rx_split_pos;
+	enum virtchnl_rx_hsplit rx_split_pos; /* deprecated with AVF 1.0 */
 };
 
 /* VIRTCHNL_OP_CONFIG_VSI_QUEUES
@@ -344,15 +387,15 @@ struct virtchnl_promisc_info {
 	u16 flags;
 };
 
-#define I40E_FLAG_VF_UNICAST_PROMISC	0x00000001
-#define I40E_FLAG_VF_MULTICAST_PROMISC	0x00000002
+#define FLAG_VF_UNICAST_PROMISC	0x00000001
+#define FLAG_VF_MULTICAST_PROMISC	0x00000002
 
 /* VIRTCHNL_OP_GET_STATS
  * VF sends this message to request stats for the selected VSI. VF uses
  * the virtchnl_queue_select struct to specify the VSI. The queue_id
  * field is ignored by the PF.
  *
- * PF replies with struct i40e_eth_stats in an external buffer.
+ * PF replies with struct eth_stats in an external buffer.
  */
 
 /* VIRTCHNL_OP_CONFIG_RSS_KEY
@@ -382,7 +425,6 @@ struct virtchnl_rss_lut {
  * By default, the PF sets these to all possible traffic types that the
  * hardware supports. The VF can query this value if it wants to change the
  * traffic types that are hashed by the hardware.
- * Traffic types are defined in the i40e_filter_pctype enum in i40e_type.h
  */
 struct virtchnl_rss_hena {
 	u64 hena;
@@ -399,14 +441,15 @@ enum virtchnl_event_codes {
 	VIRTCHNL_EVENT_RESET_IMPENDING,
 	VIRTCHNL_EVENT_PF_DRIVER_CLOSE,
 };
-#define I40E_PF_EVENT_SEVERITY_INFO		0
-#define I40E_PF_EVENT_SEVERITY_CERTAIN_DOOM	255
+
+#define PF_EVENT_SEVERITY_INFO		0
+#define PF_EVENT_SEVERITY_CERTAIN_DOOM	255
 
 struct virtchnl_pf_event {
 	enum virtchnl_event_codes event;
 	union {
 		struct {
-			enum i40e_aq_link_speed link_speed;
+			enum virtchnl_link_speed link_speed;
 			bool link_status;
 		} link_event;
 	} event_data;
@@ -426,13 +469,6 @@ struct virtchnl_pf_event {
  * PF configures interrupt mapping and returns status.
  */
 
-/* HW does not define a type value for AEQ; only for RX/TX and CEQ.
- * In order for us to keep the interface simple, SW will define a
- * unique type value for AEQ.
- */
-#define I40E_QUEUE_TYPE_PE_AEQ  0x80
-#define I40E_QUEUE_INVALID_IDX  0xFFFF
-
 struct virtchnl_iwarp_qv_info {
 	u32 v_idx; /* msix_vector */
 	u16 ceq_idx;
@@ -446,8 +482,7 @@ struct virtchnl_iwarp_qvlist_info {
 };
 
 /* VF reset states - these are written into the RSTAT register:
- * I40E_VFGEN_RSTAT1 on the PF
- * I40E_VFGEN_RSTAT on the VF
+ * VFGEN_RSTAT on the VF
  * When the PF initiates a reset, it writes 0
  * When the reset is complete, it writes 1
  * When the PF detects that the VF has recovered, it writes 2
@@ -461,7 +496,6 @@ enum virtchnl_vfr_states {
 	VIRTCHNL_VFR_INPROGRESS = 0,
 	VIRTCHNL_VFR_COMPLETED,
 	VIRTCHNL_VFR_VFACTIVE,
-	VIRTCHNL_VFR_UNKNOWN,
 };
 
 #endif /* _VIRTCHNL_H_ */

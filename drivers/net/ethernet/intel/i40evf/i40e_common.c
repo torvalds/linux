@@ -1107,7 +1107,7 @@ void i40e_vf_parse_hw_config(struct i40e_hw *hw,
 			   VIRTCHNL_VF_OFFLOAD_L2;
 	hw->dev_caps.fcoe = 0;
 	for (i = 0; i < msg->num_vsis; i++) {
-		if (vsi_res->vsi_type == I40E_VSI_SRIOV) {
+		if (vsi_res->vsi_type == VIRTCHNL_VSI_SRIOV) {
 			ether_addr_copy(hw->mac.perm_addr,
 					vsi_res->default_mac_addr);
 			ether_addr_copy(hw->mac.addr,

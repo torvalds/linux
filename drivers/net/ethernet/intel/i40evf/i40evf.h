@@ -263,7 +263,7 @@ struct i40evf_adapter {
 	struct work_struct watchdog_task;
 	bool netdev_registered;
 	bool link_up;
-	enum i40e_aq_link_speed link_speed;
+	enum virtchnl_link_speed link_speed;
 	enum virtchnl_ops current_op;
 #define CLIENT_ALLOWED(_a) ((_a)->vf_res ? \
 			    (_a)->vf_res->vf_offload_flags & \

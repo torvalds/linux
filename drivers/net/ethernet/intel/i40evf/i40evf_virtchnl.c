@@ -662,15 +662,15 @@ void i40evf_set_promiscuous(struct i40evf_adapter *adapter, int flags)
 		return;
 	}
 
-	promisc_all = I40E_FLAG_VF_UNICAST_PROMISC |
-		      I40E_FLAG_VF_MULTICAST_PROMISC;
+	promisc_all = FLAG_VF_UNICAST_PROMISC |
+		      FLAG_VF_MULTICAST_PROMISC;
 	if ((flags & promisc_all) == promisc_all) {
 		adapter->flags |= I40EVF_FLAG_PROMISC_ON;
 		adapter->aq_required &= ~I40EVF_FLAG_AQ_REQUEST_PROMISC;
 		dev_info(&adapter->pdev->dev, "Entering promiscuous mode\n");
 	}
 
-	if (flags & I40E_FLAG_VF_MULTICAST_PROMISC) {
+	if (flags & FLAG_VF_MULTICAST_PROMISC) {
 		adapter->flags |= I40EVF_FLAG_ALLMULTI_ON;
 		adapter->aq_required &= ~I40EVF_FLAG_AQ_REQUEST_ALLMULTI;
 		dev_info(&adapter->pdev->dev, "Entering multicast promiscuous mode\n");
