@@ -2096,7 +2096,6 @@ static void btc8821a1ant_init_coex_dm(struct btc_coexist *btcoexist)
 	 */
 	btc8821a1ant_sw_mechanism(btcoexist, false);
 
-	btc8821a1ant_ps_tdma(btcoexist, FORCE_EXEC, false, 8);
 	btc8821a1ant_coex_table_with_type(btcoexist, FORCE_EXEC, 0);
 }
 
