@@ -250,9 +250,13 @@ static void mlx5e_fill_stats_strings(struct mlx5e_priv *priv, uint8_t *data)
 		strcpy(data + (idx++) * ETH_GSTRING_LEN,
 		       pcie_perf_stats_desc[i].format);
 
-	for (i = 0; i < NUM_PCIE_PERF_STALL_COUNTERS(priv); i++)
+	for (i = 0; i < NUM_PCIE_PERF_COUNTERS64(priv); i++)
 		strcpy(data + (idx++) * ETH_GSTRING_LEN,
-		       pcie_perf_stall_stats_desc[i].format);
+		       pcie_perf_stats_desc64[i].format);
+
+	for (i = 0; i < NUM_PCIE_PERF_STALL_COUNTERS(priv); i++)
+	 strcpy(data + (idx++) * ETH_GSTRING_LEN,
+		pcie_perf_stall_stats_desc[i].format);
 
 	for (prio = 0; prio < NUM_PPORT_PRIO; prio++) {
 		for (i = 0; i < NUM_PPORT_PER_PRIO_TRAFFIC_COUNTERS; i++)
@@ -388,6 +392,10 @@ void mlx5e_ethtool_get_ethtool_stats(struct mlx5e_priv *priv,
 	for (i = 0; i < NUM_PCIE_PERF_COUNTERS(priv); i++)
 		data[idx++] = MLX5E_READ_CTR32_BE(&priv->stats.pcie.pcie_perf_counters,
 						  pcie_perf_stats_desc, i);
+
+	for (i = 0; i < NUM_PCIE_PERF_COUNTERS64(priv); i++)
+		data[idx++] = MLX5E_READ_CTR64_BE(&priv->stats.pcie.pcie_perf_counters,
+						  pcie_perf_stats_desc64, i);
 
 	for (i = 0; i < NUM_PCIE_PERF_STALL_COUNTERS(priv); i++)
 		data[idx++] = MLX5E_READ_CTR32_BE(&priv->stats.pcie.pcie_perf_counters,

@@ -307,6 +307,12 @@ static const struct counter_desc pport_eth_ext_stats_desc[] = {
 	MLX5_GET(mpcnt_reg, (pcie_stats)->pcie_perf_counters, \
 		 counter_set.pcie_perf_cntrs_grp_data_layout.c)
 
+#define PCIE_PERF_OFF64(c) \
+	MLX5_BYTE_OFF(mpcnt_reg, counter_set.pcie_perf_cntrs_grp_data_layout.c##_high)
+#define PCIE_PERF_GET64(pcie_stats, c) \
+	MLX5_GET64(mpcnt_reg, (pcie_stats)->pcie_perf_counters, \
+		   counter_set.pcie_perf_cntrs_grp_data_layout.c##_high)
+
 struct mlx5e_pcie_stats {
 	__be64 pcie_perf_counters[MLX5_ST_SZ_QW(mpcnt_reg)];
 };
@@ -314,6 +320,10 @@ struct mlx5e_pcie_stats {
 static const struct counter_desc pcie_perf_stats_desc[] = {
 	{ "rx_pci_signal_integrity", PCIE_PERF_OFF(rx_errors) },
 	{ "tx_pci_signal_integrity", PCIE_PERF_OFF(tx_errors) },
+};
+
+static const struct counter_desc pcie_perf_stats_desc64[] = {
+	{ "outbound_pci_buffer_overflow", PCIE_PERF_OFF64(tx_overflow_buffer_pkt) },
 };
 
 static const struct counter_desc pcie_perf_stall_stats_desc[] = {
@@ -415,6 +425,9 @@ static const struct counter_desc sq_stats_desc[] = {
 #define NUM_PCIE_PERF_COUNTERS(priv) \
 	(ARRAY_SIZE(pcie_perf_stats_desc) * \
 	 MLX5_CAP_MCAM_FEATURE((priv)->mdev, pcie_performance_group))
+#define NUM_PCIE_PERF_COUNTERS64(priv) \
+	(ARRAY_SIZE(pcie_perf_stats_desc64) * \
+	 MLX5_CAP_MCAM_FEATURE((priv)->mdev, tx_overflow_buffer_pkt))
 #define NUM_PCIE_PERF_STALL_COUNTERS(priv) \
 	(ARRAY_SIZE(pcie_perf_stall_stats_desc) * \
 	 MLX5_CAP_MCAM_FEATURE((priv)->mdev, pcie_outbound_stalled))
@@ -433,6 +446,7 @@ static const struct counter_desc sq_stats_desc[] = {
 					 NUM_PPORT_PRIO + \
 					 NUM_PPORT_ETH_EXT_COUNTERS(priv))
 #define NUM_PCIE_COUNTERS(priv)		(NUM_PCIE_PERF_COUNTERS(priv) + \
+					 NUM_PCIE_PERF_COUNTERS64(priv) +\
 					 NUM_PCIE_PERF_STALL_COUNTERS(priv))
 #define NUM_RQ_STATS			ARRAY_SIZE(rq_stats_desc)
 #define NUM_SQ_STATS			ARRAY_SIZE(sq_stats_desc)
