@@ -50,6 +50,10 @@
 #define PIN_MAP_E		BIT(4)
 #define PIN_MAP_F		BIT(5)
 
+#define PACKET_IS_GOOD_CRC(header) \
+		(PD_HEADER_TYPE(header) == CMT_GOODCRC && \
+		 PD_HEADER_CNT(header) == 0)
+
 static u8 fusb30x_port_used;
 static struct fusb30x_chip *fusb30x_port_info[256];
 
@@ -339,11 +343,14 @@ static int tcpm_get_message(struct fusb30x_chip *chip)
 	u8 buf[32];
 	int len;
 
-	regmap_raw_read(chip->regmap, FUSB_REG_FIFO, buf, 3);
-	chip->rec_head = (buf[1] & 0xff) | ((buf[2] << 8) & 0xff00);
+	do {
+		regmap_raw_read(chip->regmap, FUSB_REG_FIFO, buf, 3);
+		chip->rec_head = (buf[1] & 0xff) | ((buf[2] << 8) & 0xff00);
 
-	len = PD_HEADER_CNT(chip->rec_head) << 2;
-	regmap_raw_read(chip->regmap, FUSB_REG_FIFO, buf, len + 4);
+		len = PD_HEADER_CNT(chip->rec_head) << 2;
+		regmap_raw_read(chip->regmap, FUSB_REG_FIFO, buf, len + 4);
+	/* ignore good_crc message */
+	} while (PACKET_IS_GOOD_CRC(chip->rec_head));
 
 	memcpy(chip->rec_load, buf, len);
 
@@ -352,7 +359,7 @@ static int tcpm_get_message(struct fusb30x_chip *chip)
 
 static void fusb302_flush_rx_fifo(struct fusb30x_chip *chip)
 {
-	tcpm_get_message(chip);
+	regmap_write(chip->regmap, FUSB_REG_CONTROL1, CONTROL1_RX_FLUSH);
 }
 
 static int tcpm_get_cc(struct fusb30x_chip *chip, int *CC1, int *CC2)
@@ -741,7 +748,6 @@ static void tcpc_alert(struct fusb30x_chip *chip, int *evt)
 
 	if (interrupta & INTERRUPTA_TXSENT) {
 		*evt |= EVENT_TX;
-		fusb302_flush_rx_fifo(chip);
 		chip->tx_state = tx_success;
 	}
 
