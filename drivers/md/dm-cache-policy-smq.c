@@ -1452,6 +1452,7 @@ static void __complete_background_work(struct smq_policy *mq,
 		clear_pending(mq, e);
 		if (success) {
 			e->oblock = work->oblock;
+			e->level = NR_CACHE_LEVELS - 1;
 			push(mq, e);
 			// h, q, a
 		} else {
