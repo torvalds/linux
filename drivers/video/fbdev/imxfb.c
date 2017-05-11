@@ -117,6 +117,9 @@
 
 #define IMXFB_LSCR1_DEFAULT 0x00120300
 
+#define LCDC_LAUSCR	0x80
+#define LAUSCR_AUS_MODE	(1<<31)
+
 /* Used fb-mode. Can be set on kernel command line, therefore file-static. */
 static const char *fb_mode;
 
@@ -158,6 +161,7 @@ struct imxfb_info {
 	dma_addr_t		dbar2;
 
 	u_int			pcr;
+	u_int			lauscr;
 	u_int			pwmr;
 	u_int			lscr1;
 	u_int			dmacr;
@@ -422,6 +426,11 @@ static int imxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	pcr |= imxfb_mode->pcr & ~(0x3f | (7 << 25));
 
 	fbi->pcr = pcr;
+	/*
+	 * The LCDC AUS Mode Control Register does not exist on imx1.
+	 */
+	if (!is_imx1_fb(fbi) && imxfb_mode->aus_mode)
+		fbi->lauscr = LAUSCR_AUS_MODE;
 
 	/*
 	 * Copy the RGB parameters for this display
@@ -638,6 +647,9 @@ static int imxfb_activate_var(struct fb_var_screeninfo *var, struct fb_info *inf
 	if (fbi->dmacr)
 		writel(fbi->dmacr, fbi->regs + LCDC_DMACR);
 
+	if (fbi->lauscr)
+		writel(fbi->lauscr, fbi->regs + LCDC_LAUSCR);
+
 	return 0;
 }
 
@@ -733,6 +745,11 @@ static int imxfb_of_read_mode(struct device *dev, struct device_node *np,
 
 	imxfb_mode->bpp = bpp;
 	imxfb_mode->pcr = pcr;
+
+	/*
+	 * fsl,aus-mode is optional
+	 */
+	imxfb_mode->aus_mode = of_property_read_bool(np, "fsl,aus-mode");
 
 	return 0;
 }
