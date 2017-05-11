@@ -218,6 +218,10 @@
 	};
 };
 
+&cpu0 {
+	cpu-supply = <&vdd_arm>;
+};
+
 &pinctrl {
 	pmic {
 		pmic_int_l: pmic-int-l {
