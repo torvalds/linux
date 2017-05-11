@@ -1799,7 +1799,11 @@ static void btc8821a1ant_action_wifi_connected(struct btc_coexist *btcoexist)
 	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_LINK, &link);
 	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_ROAM, &roam);
 	if (scan || link || roam) {
-		btc8821a1ant_action_wifi_connected_scan(btcoexist);
+		if (scan)
+			btc8821a1ant_action_wifi_connected_scan(btcoexist);
+		else
+			btc8821a1ant_act_wifi_conn_sp_pkt(btcoexist);
+
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 			 "[BTCoex], CoexForWifiConnect(), return for wifi is under scan<===\n");
 		return;
