@@ -971,12 +971,12 @@ int __dax_zero_page_range(struct block_device *bdev,
 		void *kaddr;
 		pfn_t pfn;
 
-		rc = bdev_dax_pgoff(bdev, sector, size, &pgoff);
+		rc = bdev_dax_pgoff(bdev, sector, PAGE_SIZE, &pgoff);
 		if (rc)
 			return rc;
 
 		id = dax_read_lock();
-		rc = dax_direct_access(dax_dev, pgoff, PHYS_PFN(size), &kaddr,
+		rc = dax_direct_access(dax_dev, pgoff, 1, &kaddr,
 				&pfn);
 		if (rc < 0) {
 			dax_read_unlock(id);
