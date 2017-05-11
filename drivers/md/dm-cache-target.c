@@ -1718,7 +1718,6 @@ static int invalidate_start(struct cache *cache, dm_cblock_t cblock,
 
 enum busy {
 	IDLE,
-	MODERATE,
 	BUSY
 };
 
@@ -1728,10 +1727,10 @@ static enum busy spare_migration_bandwidth(struct cache *cache)
 	sector_t current_volume = (atomic_read(&cache->nr_io_migrations) + 1) *
 		cache->sectors_per_block;
 
-	if (current_volume <= cache->migration_threshold)
-		return idle ? IDLE : MODERATE;
+	if (idle && current_volume <= cache->migration_threshold)
+		return IDLE;
 	else
-		return idle ? MODERATE : BUSY;
+		return BUSY;
 }
 
 static void inc_hit_counter(struct cache *cache, struct bio *bio)
@@ -2047,8 +2046,6 @@ static void check_migrations(struct work_struct *ws)
 
 	for (;;) {
 		b = spare_migration_bandwidth(cache);
-		if (b == BUSY)
-			break;
 
 		r = policy_get_background_work(cache->policy, b == IDLE, &op);
 		if (r == -ENODATA)
