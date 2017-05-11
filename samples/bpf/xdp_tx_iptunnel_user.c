@@ -244,6 +244,7 @@ int main(int argc, char **argv)
 	}
 
 	signal(SIGINT, int_exit);
+	signal(SIGTERM, int_exit);
 
 	while (min_port <= max_port) {
 		vip.dport = htons(min_port++);

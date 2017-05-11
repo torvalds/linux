@@ -106,6 +106,7 @@ int main(int argc, char **argv)
 	}
 
 	signal(SIGINT, int_exit);
+	signal(SIGTERM, int_exit);
 
 	if (set_link_xdp_fd(ifindex, prog_fd[0], xdp_flags) < 0) {
 		printf("link set xdp fd failed\n");
