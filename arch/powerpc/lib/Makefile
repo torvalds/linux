@@ -9,8 +9,12 @@ ccflags-$(CONFIG_PPC64)	:= $(NO_MINIMAL_TOC)
 CFLAGS_REMOVE_code-patching.o = $(CC_FLAGS_FTRACE)
 CFLAGS_REMOVE_feature-fixups.o = $(CC_FLAGS_FTRACE)
 
-obj-y += string.o alloc.o crtsavres.o code-patching.o \
-	 feature-fixups.o
+obj-y += string.o alloc.o code-patching.o feature-fixups.o
+
+# 64-bit linker creates .sfpr on demand for final link (vmlinux),
+# so it is only needed for modules.
+obj-$(CONFIG_PPC32) += crtsavres.o
+extra-$(CONFIG_PPC64) += crtsavres.o
 
 obj-$(CONFIG_PPC32)	+= div64.o copy_32.o
 
