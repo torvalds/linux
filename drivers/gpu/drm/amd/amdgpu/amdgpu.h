@@ -1132,7 +1132,6 @@ struct amdgpu_job {
 	void			*owner;
 	uint64_t		fence_ctx; /* the fence_context this job uses */
 	bool                    vm_needs_flush;
-	bool			need_pipeline_sync;
 	unsigned		vm_id;
 	uint64_t		vm_pd_addr;
 	uint32_t		gds_base, gds_size;

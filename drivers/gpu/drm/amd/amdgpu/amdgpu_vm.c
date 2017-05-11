@@ -694,6 +694,35 @@ static u64 amdgpu_vm_adjust_mc_addr(struct amdgpu_device *adev, u64 mc_addr)
 	return addr;
 }
 
+bool amdgpu_vm_need_pipeline_sync(struct amdgpu_ring *ring,
+				  struct amdgpu_job *job)
+{
+	struct amdgpu_device *adev = ring->adev;
+	unsigned vmhub = ring->funcs->vmhub;
+	struct amdgpu_vm_id_manager *id_mgr = &adev->vm_manager.id_mgr[vmhub];
+	struct amdgpu_vm_id *id;
+	bool gds_switch_needed;
+	bool vm_flush_needed = job->vm_needs_flush ||
+		amdgpu_vm_ring_has_compute_vm_bug(ring);
+
+	if (job->vm_id == 0)
+		return false;
+	id = &id_mgr->ids[job->vm_id];
+	gds_switch_needed = ring->funcs->emit_gds_switch && (
+		id->gds_base != job->gds_base ||
+		id->gds_size != job->gds_size ||
+		id->gws_base != job->gws_base ||
+		id->gws_size != job->gws_size ||
+		id->oa_base != job->oa_base ||
+		id->oa_size != job->oa_size);
+
+	if (amdgpu_vm_had_gpu_reset(adev, id))
+		return true;
+	if (!vm_flush_needed && !gds_switch_needed)
+		return false;
+	return true;
+}
+
 /**
  * amdgpu_vm_flush - hardware flush the vm
  *
@@ -731,9 +760,6 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job)
 
 	if (ring->funcs->init_cond_exec)
 		patch_offset = amdgpu_ring_init_cond_exec(ring);
-
-	if (ring->funcs->emit_pipeline_sync && !job->need_pipeline_sync)
-		amdgpu_ring_emit_pipeline_sync(ring);
 
 	if (ring->funcs->emit_vm_flush && vm_flush_needed) {
 		u64 pd_addr = amdgpu_vm_adjust_mc_addr(adev, job->vm_pd_addr);
