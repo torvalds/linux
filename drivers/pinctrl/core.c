@@ -1038,6 +1038,16 @@ static struct pinctrl *create_pinctrl(struct device *dev,
 		/* Map must be for this device */
 		if (strcmp(map->dev_name, devname))
 			continue;
+		/*
+		 * If pctldev is not null, we are claiming hog for it,
+		 * that means, setting that is served by pctldev by itself.
+		 *
+		 * Thus we must skip map that is for this device but is served
+		 * by other device.
+		 */
+		if (pctldev &&
+		    strcmp(dev_name(pctldev->dev), map->ctrl_dev_name))
+			continue;
 
 		ret = add_setting(p, pctldev, map);
 		/*
