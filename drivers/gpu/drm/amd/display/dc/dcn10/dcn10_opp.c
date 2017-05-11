@@ -338,9 +338,11 @@ static void opp_set_output_csc_default(
 	if (default_adjust != NULL) {
 		switch (default_adjust->out_color_space) {
 		case COLOR_SPACE_SRGB:
+		case COLOR_SPACE_2020_RGB_FULLRANGE:
 			ocsc_mode = 0;
 			break;
 		case COLOR_SPACE_SRGB_LIMITED:
+		case COLOR_SPACE_2020_RGB_LIMITEDRANGE:
 			ocsc_mode = 1;
 			break;
 		case COLOR_SPACE_YCBCR601:
@@ -349,6 +351,7 @@ static void opp_set_output_csc_default(
 			break;
 		case COLOR_SPACE_YCBCR709:
 		case COLOR_SPACE_YCBCR709_LIMITED:
+		case COLOR_SPACE_2020_YCBCR:
 			ocsc_mode = 3;
 			break;
 		case COLOR_SPACE_UNKNOWN:
