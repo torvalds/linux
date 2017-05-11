@@ -2354,6 +2354,12 @@ struct drm_i915_private {
 			wait_queue_head_t poll_wq;
 			bool pollin;
 
+			/**
+			 * For rate limiting any notifications of spurious
+			 * invalid OA reports
+			 */
+			struct ratelimit_state spurious_report_rs;
+
 			bool periodic;
 			int period_exponent;
 

@@ -632,7 +632,8 @@ static int gen7_append_oa_reports(struct i915_perf_stream *stream,
 		 * copying it to userspace...
 		 */
 		if (report32[0] == 0) {
-			DRM_NOTE("Skipping spurious, invalid OA report\n");
+			if (__ratelimit(&dev_priv->perf.oa.spurious_report_rs))
+				DRM_NOTE("Skipping spurious, invalid OA report\n");
 			continue;
 		}
 
@@ -911,6 +912,11 @@ static void i915_oa_stream_destroy(struct i915_perf_stream *stream)
 		oa_put_render_ctx_id(stream);
 
 	dev_priv->perf.oa.exclusive_stream = NULL;
+
+	if (dev_priv->perf.oa.spurious_report_rs.missed) {
+		DRM_NOTE("%d spurious OA report notices suppressed due to ratelimiting\n",
+			 dev_priv->perf.oa.spurious_report_rs.missed);
+	}
 }
 
 static void gen7_init_oa_buffer(struct drm_i915_private *dev_priv)
@@ -1265,6 +1271,26 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 		DRM_DEBUG("OA report format not specified\n");
 		return -EINVAL;
 	}
+
+	/* We set up some ratelimit state to potentially throttle any _NOTES
+	 * about spurious, invalid OA reports which we don't forward to
+	 * userspace.
+	 *
+	 * The initialization is associated with opening the stream (not driver
+	 * init) considering we print a _NOTE about any throttling when closing
+	 * the stream instead of waiting until driver _fini which no one would
+	 * ever see.
+	 *
+	 * Using the same limiting factors as printk_ratelimit()
+	 */
+	ratelimit_state_init(&dev_priv->perf.oa.spurious_report_rs,
+			     5 * HZ, 10);
+	/* Since we use a DRM_NOTE for spurious reports it would be
+	 * inconsistent to let __ratelimit() automatically print a warning for
+	 * throttling.
+	 */
+	ratelimit_set_flags(&dev_priv->perf.oa.spurious_report_rs,
+			    RATELIMIT_MSG_ON_RELEASE);
 
 	stream->sample_size = sizeof(struct drm_i915_perf_record_header);
 
