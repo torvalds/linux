@@ -6504,7 +6504,7 @@ static __init int hardware_setup(void)
 		enable_ept_ad_bits = 0;
 	}
 
-	if (!cpu_has_vmx_ept_ad_bits())
+	if (!cpu_has_vmx_ept_ad_bits() || !enable_ept)
 		enable_ept_ad_bits = 0;
 
 	if (!cpu_has_vmx_unrestricted_guest())
