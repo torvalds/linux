@@ -79,6 +79,12 @@ struct amdgpu_pte_update_params {
 		     uint64_t flags);
 	/* indicate update pt or its shadow */
 	bool shadow;
+	/* The next two are used during VM update by CPU
+	 *  DMA addresses to use for mapping
+	 *  Kernel pointer of PD/PT BO that needs to be updated
+	 */
+	dma_addr_t *pages_addr;
+	void *kptr;
 };
 
 /* Helper to disable partial resident texture feature from a fence callback */
@@ -972,10 +978,14 @@ static void amdgpu_vm_cpu_set_ptes(struct amdgpu_pte_update_params *params,
 				   uint64_t flags)
 {
 	unsigned int i;
+	uint64_t value;
 
 	for (i = 0; i < count; i++) {
+		value = params->pages_addr ?
+			amdgpu_vm_map_gart(params->pages_addr, addr) :
+			addr;
 		amdgpu_gart_set_pte_pde(params->adev, (void *)pe,
-					i, addr, flags);
+					i, value, flags);
 		addr += incr;
 	}
 
@@ -1254,6 +1264,59 @@ static struct amdgpu_bo *amdgpu_vm_get_pt(struct amdgpu_pte_update_params *p,
 }
 
 /**
+ * amdgpu_vm_update_ptes_cpu - Update the page tables in the range
+ *  start - @end using CPU.
+ * See amdgpu_vm_update_ptes for parameter description.
+ *
+ */
+static int amdgpu_vm_update_ptes_cpu(struct amdgpu_pte_update_params *params,
+				     uint64_t start, uint64_t end,
+				     uint64_t dst, uint64_t flags)
+{
+	struct amdgpu_device *adev = params->adev;
+	const uint64_t mask = AMDGPU_VM_PTE_COUNT(adev) - 1;
+	void *pe_ptr;
+	uint64_t addr;
+	struct amdgpu_bo *pt;
+	unsigned int nptes;
+	int r;
+
+	/* initialize the variables */
+	addr = start;
+
+	/* walk over the address space and update the page tables */
+	while (addr < end) {
+		pt = amdgpu_vm_get_pt(params, addr);
+		if (!pt) {
+			pr_err("PT not found, aborting update_ptes\n");
+			return -EINVAL;
+		}
+
+		WARN_ON(params->shadow);
+
+		r = amdgpu_bo_kmap(pt, &pe_ptr);
+		if (r)
+			return r;
+
+		pe_ptr += (addr & mask) * 8;
+
+		if ((addr & ~mask) == (end & ~mask))
+			nptes = end - addr;
+		else
+			nptes = AMDGPU_VM_PTE_COUNT(adev) - (addr & mask);
+
+		params->func(params, (uint64_t)pe_ptr, dst, nptes,
+			     AMDGPU_GPU_PAGE_SIZE, flags);
+
+		amdgpu_bo_kunmap(pt);
+		addr += nptes;
+		dst += nptes * AMDGPU_GPU_PAGE_SIZE;
+	}
+
+	return 0;
+}
+
+/**
  * amdgpu_vm_update_ptes - make sure that page tables are valid
  *
  * @params: see amdgpu_pte_update_params definition
@@ -1276,6 +1339,10 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 	uint64_t addr, pe_start;
 	struct amdgpu_bo *pt;
 	unsigned nptes;
+
+	if (params->func == amdgpu_vm_cpu_set_ptes)
+		return amdgpu_vm_update_ptes_cpu(params, start, end,
+						 dst, flags);
 
 	/* walk over the address space and update the page tables */
 	for (addr = start; addr < end; addr += nptes) {
@@ -1417,6 +1484,25 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	params.adev = adev;
 	params.vm = vm;
 	params.src = src;
+
+	if (vm->use_cpu_for_update) {
+		/* params.src is used as flag to indicate system Memory */
+		if (pages_addr)
+			params.src = ~0;
+
+		/* Wait for PT BOs to be free. PTs share the same resv. object
+		 * as the root PD BO
+		 */
+		r = amdgpu_vm_bo_wait(adev, vm->root.bo);
+		if (unlikely(r))
+			return r;
+
+		params.func = amdgpu_vm_cpu_set_ptes;
+		params.pages_addr = pages_addr;
+		params.shadow = false;
+		return amdgpu_vm_frag_ptes(&params, start, last + 1,
+					   addr, flags);
+	}
 
 	ring = container_of(vm->entity.sched, struct amdgpu_ring, sched);
 
