@@ -102,23 +102,7 @@ void
 intel_plane_destroy_state(struct drm_plane *plane,
 			  struct drm_plane_state *state)
 {
-	struct i915_vma *vma;
-
-	vma = fetch_and_zero(&to_intel_plane_state(state)->vma);
-
-	/*
-	 * FIXME: Normally intel_cleanup_plane_fb handles destruction of vma.
-	 * We currently don't clear all planes during driver unload, so we have
-	 * to be able to unpin vma here for now.
-	 *
-	 * Normally this can only happen during unload when kmscon is disabled
-	 * and userspace doesn't attempt to set a framebuffer at all.
-	 */
-	if (vma) {
-		mutex_lock(&plane->dev->struct_mutex);
-		intel_unpin_fb_vma(vma);
-		mutex_unlock(&plane->dev->struct_mutex);
-	}
+	WARN_ON(to_intel_plane_state(state)->vma);
 
 	drm_atomic_helper_plane_destroy_state(plane, state);
 }
