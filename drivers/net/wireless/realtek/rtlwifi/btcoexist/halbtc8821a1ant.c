@@ -2028,11 +2028,11 @@ static void btc8821a1ant_run_coexist_mechanism(struct btc_coexist *btcoexist)
 			    (wifi_rssi_state == BTC_RSSI_STATE_STAY_HIGH)) {
 				btc8821a1ant_limited_tx(btcoexist,
 							NORMAL_EXEC, 1, 1,
-							1, 1);
+							0, 1);
 			} else {
 				btc8821a1ant_limited_tx(btcoexist,
 							NORMAL_EXEC, 1, 1,
-							1, 1);
+							0, 1);
 			}
 		} else {
 			btc8821a1ant_limited_tx(btcoexist, NORMAL_EXEC,
