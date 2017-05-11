@@ -101,6 +101,7 @@ static void fpu__init_system_early_generic(struct cpuinfo_x86 *c)
  * Boot time FPU feature detection code:
  */
 unsigned int mxcsr_feature_mask __read_mostly = 0xffffffffu;
+EXPORT_SYMBOL_GPL(mxcsr_feature_mask);
 
 static void __init fpu__init_system_mxcsr(void)
 {
