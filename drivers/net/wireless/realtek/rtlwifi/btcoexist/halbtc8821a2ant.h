@@ -54,6 +54,9 @@ enum _BT_8821A_2ANT_BT_STATUS {
 	BT_8821A_2ANT_BT_STATUS_IDLE		= 0x0,
 	BT_8821A_2ANT_BT_STATUS_CON_IDLE	= 0x1,
 	BT_8821A_2ANT_BT_STATUS_NON_IDLE	= 0x2,
+	BT_8821A_2ANT_BT_STATUS_ACL_BUSY	= 0x3,
+	BT_8821A_2ANT_BT_STATUS_SCO_BUSY	= 0x4,
+	BT_8821A_2ANT_BT_STATUS_ACL_SCO_BUSY	= 0x5,
 	BT_8821A_2ANT_BT_STATUS_MAX
 };
 
@@ -143,6 +146,7 @@ struct coex_sta_8821a_2ant {
 	u32	low_priority_tx;
 	u32	low_priority_rx;
 	u8	bt_rssi;
+	bool	bt_tx_rx_mask;
 	u8	pre_bt_rssi_state;
 	u8	pre_wifi_rssi_state[4];
 	bool	c2h_bt_info_req_sent;
