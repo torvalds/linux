@@ -149,6 +149,22 @@ static int ovl_set_opaque(struct dentry *dentry, struct dentry *upperdentry)
 	return ovl_set_opaque_xerr(dentry, upperdentry, -EIO);
 }
 
+static int ovl_set_impure(struct dentry *dentry, struct dentry *upperdentry)
+{
+	int err;
+
+	/*
+	 * Do not fail when upper doesn't support xattrs.
+	 * Upper inodes won't have origin nor redirect xattr anyway.
+	 */
+	err = ovl_check_setxattr(dentry, upperdentry, OVL_XATTR_IMPURE,
+				 "y", 1, 0);
+	if (!err)
+		ovl_dentry_set_impure(dentry);
+
+	return err;
+}
+
 /* Common operations required to be done after creation of file on upper */
 static void ovl_instantiate(struct dentry *dentry, struct inode *inode,
 			    struct dentry *newdentry, bool hardlink)
@@ -171,6 +187,11 @@ static void ovl_instantiate(struct dentry *dentry, struct inode *inode,
 static bool ovl_type_merge(struct dentry *dentry)
 {
 	return OVL_TYPE_MERGE(ovl_path_type(dentry));
+}
+
+static bool ovl_type_origin(struct dentry *dentry)
+{
+	return OVL_TYPE_ORIGIN(ovl_path_type(dentry));
 }
 
 static int ovl_create_upper(struct dentry *dentry, struct inode *inode,
@@ -951,6 +972,30 @@ static int ovl_rename(struct inode *olddir, struct dentry *old,
 
 	old_upperdir = ovl_dentry_upper(old->d_parent);
 	new_upperdir = ovl_dentry_upper(new->d_parent);
+
+	if (!samedir) {
+		/*
+		 * When moving a merge dir or non-dir with copy up origin into
+		 * a non-merge upper dir (a.k.a pure upper dir), we are making
+		 * the target parent dir "impure". ovl_iterate() iterates pure
+		 * upper dirs directly, because there is no need to filter out
+		 * whiteouts and merge dir content with lower dir. But for the
+		 * case of an "impure" upper dir, ovl_iterate() cannot iterate
+		 * the real directory directly, because it looks for the inode
+		 * numbers to fill d_ino in the entries origin inode.
+		 */
+		if (ovl_type_origin(old) && !ovl_type_merge(new->d_parent)) {
+			err = ovl_set_impure(new->d_parent, new_upperdir);
+			if (err)
+				goto out_revert_creds;
+		}
+		if (!overwrite && ovl_type_origin(new) &&
+		    !ovl_type_merge(old->d_parent)) {
+			err = ovl_set_impure(old->d_parent, old_upperdir);
+			if (err)
+				goto out_revert_creds;
+		}
+	}
 
 	trap = lock_rename(new_upperdir, old_upperdir);
 

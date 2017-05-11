@@ -43,6 +43,7 @@ struct ovl_entry {
 			u64 version;
 			const char *redirect;
 			bool opaque;
+			bool impure;
 			bool copying;
 		};
 		struct rcu_head rcu;
