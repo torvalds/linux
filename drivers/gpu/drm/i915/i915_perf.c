@@ -431,7 +431,7 @@ static int append_oa_sample(struct i915_perf_stream *stream,
  * userspace.
  *
  * Note: reports are consumed from the head, and appended to the
- * tail, so the head chases the tail?... If you think that's mad
+ * tail, so the tail chases the head?... If you think that's mad
  * and back-to-front you're not alone, but this follows the
  * Gen PRM naming convention.
  *
