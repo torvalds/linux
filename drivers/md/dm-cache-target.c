@@ -94,6 +94,9 @@ static void iot_io_begin(struct io_tracker *iot, sector_t len)
 
 static void __iot_io_end(struct io_tracker *iot, sector_t len)
 {
+	if (!len)
+		return;
+
 	iot->in_flight -= len;
 	if (!iot->in_flight)
 		iot->idle_time = jiffies;
