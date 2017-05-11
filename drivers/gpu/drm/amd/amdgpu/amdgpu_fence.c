@@ -541,6 +541,12 @@ void amdgpu_fence_driver_force_completion(struct amdgpu_device *adev)
 	}
 }
 
+void amdgpu_fence_driver_force_completion_ring(struct amdgpu_ring *ring)
+{
+	if (ring)
+		amdgpu_fence_write(ring, ring->fence_drv.sync_seq);
+}
+
 /*
  * Common fence implementation
  */

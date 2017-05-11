@@ -2617,7 +2617,7 @@ err:
  */
 int amdgpu_sriov_gpu_reset(struct amdgpu_device *adev, struct amdgpu_job *job)
 {
-	int i, r = 0;
+	int i, j, r = 0;
 	int resched;
 	struct amdgpu_bo *bo, *tmp;
 	struct amdgpu_ring *ring;
@@ -2630,19 +2630,36 @@ int amdgpu_sriov_gpu_reset(struct amdgpu_device *adev, struct amdgpu_job *job)
 	/* block TTM */
 	resched = ttm_bo_lock_delayed_workqueue(&adev->mman.bdev);
 
-	/* block scheduler */
-	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
-		ring = adev->rings[i];
+	/* we start from the ring trigger GPU hang */
+	j = job ? job->ring->idx : 0;
 
+	/* block scheduler */
+	for (i = j; i < j + AMDGPU_MAX_RINGS; ++i) {
+		ring = adev->rings[i % AMDGPU_MAX_RINGS];
 		if (!ring || !ring->sched.thread)
 			continue;
 
 		kthread_park(ring->sched.thread);
-		amd_sched_hw_job_reset(&ring->sched);
-	}
 
-	/* after all hw jobs are reset, hw fence is meaningless, so force_completion */
-	amdgpu_fence_driver_force_completion(adev);
+		if (job && j != i)
+			continue;
+
+		/* here give the last chance to check if fence signaled
+		 * since we already pay some time on kthread_park */
+		if (job && dma_fence_is_signaled(&job->base.s_fence->finished)) {
+			kthread_unpark(ring->sched.thread);
+			goto give_up_reset;
+		}
+
+		if (amd_sched_invalidate_job(&job->base, amdgpu_job_hang_limit))
+			amd_sched_job_kickout(&job->base);
+
+		/* only do job_reset on the hang ring if @job not NULL */
+		amd_sched_hw_job_reset(&ring->sched);
+
+		/* after all hw jobs are reset, hw fence is meaningless, so force_completion */
+		amdgpu_fence_driver_force_completion_ring(ring);
+	}
 
 	/* request to take full control of GPU before re-initialization  */
 	if (job)
@@ -2695,20 +2712,28 @@ int amdgpu_sriov_gpu_reset(struct amdgpu_device *adev, struct amdgpu_job *job)
 	}
 	dma_fence_put(fence);
 
-	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
-		struct amdgpu_ring *ring = adev->rings[i];
+	for (i = j; i < j + AMDGPU_MAX_RINGS; ++i) {
+		ring = adev->rings[i % AMDGPU_MAX_RINGS];
 		if (!ring || !ring->sched.thread)
 			continue;
+
+		if (job && j != i) {
+			kthread_unpark(ring->sched.thread);
+			continue;
+		}
 
 		amd_sched_job_recovery(&ring->sched);
 		kthread_unpark(ring->sched.thread);
 	}
 
 	drm_helper_resume_force_mode(adev->ddev);
+give_up_reset:
 	ttm_bo_unlock_delayed_workqueue(&adev->mman.bdev, resched);
 	if (r) {
 		/* bad news, how to tell it to userspace ? */
 		dev_info(adev->dev, "GPU reset failed\n");
+	} else {
+		dev_info(adev->dev, "GPU reset successed!\n");
 	}
 
 	adev->gfx.in_reset = false;
