@@ -2000,7 +2000,7 @@ struct i915_oa_ops {
 		    size_t *offset);
 
 	/**
-	 * @oa_buffer_is_empty: Check if OA buffer empty (false positives OK)
+	 * @oa_buffer_check: Check for OA buffer data + update tail
 	 *
 	 * This is either called via fops or the poll check hrtimer (atomic
 	 * ctx) without any locks taken.
@@ -2013,7 +2013,7 @@ struct i915_oa_ops {
 	 * here, which will be handled gracefully - likely resulting in an
 	 * %EAGAIN error for userspace.
 	 */
-	bool (*oa_buffer_is_empty)(struct drm_i915_private *dev_priv);
+	bool (*oa_buffer_check)(struct drm_i915_private *dev_priv);
 };
 
 struct intel_cdclk_state {
@@ -2356,9 +2356,6 @@ struct drm_i915_private {
 
 			bool periodic;
 			int period_exponent;
-			int timestamp_frequency;
-
-			int tail_margin;
 
 			int metrics_set;
 
@@ -2372,6 +2369,59 @@ struct drm_i915_private {
 				u8 *vaddr;
 				int format;
 				int format_size;
+
+				/**
+				 * Locks reads and writes to all head/tail state
+				 *
+				 * Consider: the head and tail pointer state
+				 * needs to be read consistently from a hrtimer
+				 * callback (atomic context) and read() fop
+				 * (user context) with tail pointer updates
+				 * happening in atomic context and head updates
+				 * in user context and the (unlikely)
+				 * possibility of read() errors needing to
+				 * reset all head/tail state.
+				 *
+				 * Note: Contention or performance aren't
+				 * currently a significant concern here
+				 * considering the relatively low frequency of
+				 * hrtimer callbacks (5ms period) and that
+				 * reads typically only happen in response to a
+				 * hrtimer event and likely complete before the
+				 * next callback.
+				 *
+				 * Note: This lock is not held *while* reading
+				 * and copying data to userspace so the value
+				 * of head observed in htrimer callbacks won't
+				 * represent any partial consumption of data.
+				 */
+				spinlock_t ptr_lock;
+
+				/**
+				 * One 'aging' tail pointer and one 'aged'
+				 * tail pointer ready to used for reading.
+				 *
+				 * Initial values of 0xffffffff are invalid
+				 * and imply that an update is required
+				 * (and should be ignored by an attempted
+				 * read)
+				 */
+				struct {
+					u32 offset;
+				} tails[2];
+
+				/**
+				 * Index for the aged tail ready to read()
+				 * data up to.
+				 */
+				unsigned int aged_tail_idx;
+
+				/**
+				 * A monotonic timestamp for when the current
+				 * aging tail pointer was read; used to
+				 * determine when it is old enough to trust.
+				 */
+				u64 aging_timestamp;
 
 				/**
 				 * Although we can always read back the head
