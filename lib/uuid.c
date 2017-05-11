@@ -21,6 +21,11 @@
 #include <linux/uuid.h>
 #include <linux/random.h>
 
+const guid_t guid_null;
+EXPORT_SYMBOL(guid_null);
+const uuid_t uuid_null;
+EXPORT_SYMBOL(uuid_null);
+
 const u8 guid_index[16] = {3,2,1,0,5,4,7,6,8,9,10,11,12,13,14,15};
 const u8 uuid_index[16] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
 
