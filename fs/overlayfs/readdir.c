@@ -15,11 +15,13 @@
 #include <linux/rbtree.h>
 #include <linux/security.h>
 #include <linux/cred.h>
+#include <linux/ratelimit.h>
 #include "overlayfs.h"
 
 struct ovl_cache_entry {
 	unsigned int len;
 	unsigned int type;
+	u64 real_ino;
 	u64 ino;
 	struct list_head l_node;
 	struct rb_node node;
@@ -44,6 +46,7 @@ struct ovl_readdir_data {
 	struct ovl_cache_entry *first_maybe_whiteout;
 	int count;
 	int err;
+	bool is_upper;
 	bool d_type_supported;
 };
 
@@ -82,6 +85,32 @@ static struct ovl_cache_entry *ovl_cache_entry_find(struct rb_root *root,
 	return NULL;
 }
 
+static bool ovl_calc_d_ino(struct ovl_readdir_data *rdd,
+			   struct ovl_cache_entry *p)
+{
+	/* Don't care if not doing ovl_iter() */
+	if (!rdd->dentry)
+		return false;
+
+	/* Always recalc d_ino for parent */
+	if (strcmp(p->name, "..") == 0)
+		return true;
+
+	/* If this is lower, then native d_ino will do */
+	if (!rdd->is_upper)
+		return false;
+
+	/*
+	 * Recalc d_ino for '.' and for all entries if dir is impure (contains
+	 * copied up entries)
+	 */
+	if ((p->name[0] == '.' && p->len == 1) ||
+	    ovl_test_flag(OVL_IMPURE, d_inode(rdd->dentry)))
+		return true;
+
+	return false;
+}
+
 static struct ovl_cache_entry *ovl_cache_entry_new(struct ovl_readdir_data *rdd,
 						   const char *name, int len,
 						   u64 ino, unsigned int d_type)
@@ -97,7 +126,11 @@ static struct ovl_cache_entry *ovl_cache_entry_new(struct ovl_readdir_data *rdd,
 	p->name[len] = '\0';
 	p->len = len;
 	p->type = d_type;
+	p->real_ino = ino;
 	p->ino = ino;
+	/* Defer setting d_ino for upper entry to ovl_iterate() */
+	if (ovl_calc_d_ino(rdd, p))
+		p->ino = 0;
 	p->is_whiteout = false;
 
 	if (d_type == DT_CHR) {
@@ -290,6 +323,7 @@ static int ovl_dir_read_merged(struct dentry *dentry, struct list_head *list)
 
 	for (idx = 0; idx != -1; idx = next) {
 		next = ovl_path_next(idx, dentry, &realpath);
+		rdd.is_upper = ovl_dentry_upper(dentry) == realpath.dentry;
 
 		if (next != -1) {
 			err = ovl_dir_read(&realpath, &rdd);
@@ -355,11 +389,81 @@ static struct ovl_dir_cache *ovl_cache_get(struct dentry *dentry)
 	return cache;
 }
 
+/*
+ * Set d_ino for upper entries. Non-upper entries should always report
+ * the uppermost real inode ino and should not call this function.
+ *
+ * When not all layer are on same fs, report real ino also for upper.
+ *
+ * When all layers are on the same fs, and upper has a reference to
+ * copy up origin, call vfs_getattr() on the overlay entry to make
+ * sure that d_ino will be consistent with st_ino from stat(2).
+ */
+static int ovl_cache_update_ino(struct path *path, struct ovl_cache_entry *p)
+
+{
+	struct dentry *dir = path->dentry;
+	struct dentry *this = NULL;
+	enum ovl_path_type type;
+	u64 ino = p->real_ino;
+	int err = 0;
+
+	if (!ovl_same_sb(dir->d_sb))
+		goto out;
+
+	if (p->name[0] == '.') {
+		if (p->len == 1) {
+			this = dget(dir);
+			goto get;
+		}
+		if (p->len == 2 && p->name[1] == '.') {
+			/* we shall not be moved */
+			this = dget(dir->d_parent);
+			goto get;
+		}
+	}
+	this = lookup_one_len(p->name, dir, p->len);
+	if (IS_ERR_OR_NULL(this) || !this->d_inode) {
+		if (IS_ERR(this)) {
+			err = PTR_ERR(this);
+			this = NULL;
+			goto fail;
+		}
+		goto out;
+	}
+
+get:
+	type = ovl_path_type(this);
+	if (OVL_TYPE_ORIGIN(type)) {
+		struct kstat stat;
+		struct path statpath = *path;
+
+		statpath.dentry = this;
+		err = vfs_getattr(&statpath, &stat, STATX_INO, 0);
+		if (err)
+			goto fail;
+
+		WARN_ON_ONCE(dir->d_sb->s_dev != stat.dev);
+		ino = stat.ino;
+	}
+
+out:
+	p->ino = ino;
+	dput(this);
+	return err;
+
+fail:
+	pr_warn_ratelimited("overlay: failed to look up (%s) for ino (%i)\n",
+			    p->name, err);
+	goto out;
+}
+
 static int ovl_iterate(struct file *file, struct dir_context *ctx)
 {
 	struct ovl_dir_file *od = file->private_data;
 	struct dentry *dentry = file->f_path.dentry;
 	struct ovl_cache_entry *p;
+	int err;
 
 	if (!ctx->pos)
 		ovl_dir_reset(file);
@@ -380,9 +484,15 @@ static int ovl_iterate(struct file *file, struct dir_context *ctx)
 
 	while (od->cursor != &od->cache->entries) {
 		p = list_entry(od->cursor, struct ovl_cache_entry, l_node);
-		if (!p->is_whiteout)
+		if (!p->is_whiteout) {
+			if (!p->ino) {
+				err = ovl_cache_update_ino(&file->f_path, p);
+				if (err)
+					return err;
+			}
 			if (!dir_emit(ctx, p->name, p->len, p->ino, p->type))
 				break;
+		}
 		od->cursor = p->l_node.next;
 		ctx->pos++;
 	}
