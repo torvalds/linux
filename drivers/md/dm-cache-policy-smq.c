@@ -1134,12 +1134,9 @@ static bool clean_target_met(struct smq_policy *mq, bool idle)
 		percent_to_target(mq, CLEAN_TARGET);
 }
 
-static bool free_target_met(struct smq_policy *mq, bool idle)
+static bool free_target_met(struct smq_policy *mq)
 {
 	unsigned nr_free;
-
-	if (!idle)
-		return true;
 
 	nr_free = from_cblock(mq->cache_size) - mq->cache_alloc.nr_allocated;
 	return (nr_free + btracker_nr_demotions_queued(mq->bg_work)) >=
@@ -1220,7 +1217,7 @@ static void queue_promotion(struct smq_policy *mq, dm_oblock_t oblock,
 		 * We always claim to be 'idle' to ensure some demotions happen
 		 * with continuous loads.
 		 */
-		if (!free_target_met(mq, true))
+		if (!free_target_met(mq))
 			queue_demotion(mq);
 		return;
 	}
@@ -1421,14 +1418,10 @@ static int smq_get_background_work(struct dm_cache_policy *p, bool idle,
 	spin_lock_irqsave(&mq->lock, flags);
 	r = btracker_issue(mq->bg_work, result);
 	if (r == -ENODATA) {
-		/* find some writeback work to do */
-		if (mq->migrations_allowed && !free_target_met(mq, idle))
-			queue_demotion(mq);
-
-		else if (!clean_target_met(mq, idle))
+		if (!clean_target_met(mq, idle)) {
 			queue_writeback(mq);
-
-		r = btracker_issue(mq->bg_work, result);
+			r = btracker_issue(mq->bg_work, result);
+		}
 	}
 	spin_unlock_irqrestore(&mq->lock, flags);
 
