@@ -627,7 +627,7 @@ void rtl92e_get_eeprom_size(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	RT_TRACE(COMP_INIT, "===========>%s()\n", __func__);
-	curCR = rtl92e_readl(dev, EPROM_CMD);
+	curCR = rtl92e_readw(dev, EPROM_CMD);
 	RT_TRACE(COMP_INIT, "read from Reg Cmd9346CR(%x):%x\n", EPROM_CMD,
 		 curCR);
 	priv->epromtype = (curCR & EPROM_CMD_9356SEL) ? EEPROM_93C56 :
