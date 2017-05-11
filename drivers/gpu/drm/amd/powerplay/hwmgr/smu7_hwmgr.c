@@ -2655,6 +2655,28 @@ static int smu7_get_power_state_size(struct pp_hwmgr *hwmgr)
 	return sizeof(struct smu7_power_state);
 }
 
+static int smu7_vblank_too_short(struct pp_hwmgr *hwmgr,
+				 uint32_t vblank_time_us)
+{
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+	uint32_t switch_limit_us;
+
+	switch (hwmgr->chip_id) {
+	case CHIP_POLARIS10:
+	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
+		switch_limit_us = data->is_memory_gddr5 ? 190 : 150;
+		break;
+	default:
+		switch_limit_us = data->is_memory_gddr5 ? 450 : 150;
+		break;
+	}
+
+	if (vblank_time_us < switch_limit_us)
+		return true;
+	else
+		return false;
+}
 
 static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 				struct pp_power_state *request_ps,
@@ -2669,6 +2691,7 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	bool disable_mclk_switching;
 	bool disable_mclk_switching_for_frame_lock;
 	struct cgs_display_info info = {0};
+	struct cgs_mode_info mode_info = {0};
 	const struct phm_clock_and_voltage_limits *max_limits;
 	uint32_t i;
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
@@ -2677,6 +2700,7 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	int32_t count;
 	int32_t stable_pstate_sclk = 0, stable_pstate_mclk = 0;
 
+	info.mode_info = &mode_info;
 	data->battery_state = (PP_StateUILabel_Battery ==
 			request_ps->classification.ui_label);
 
@@ -2702,8 +2726,6 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	smu7_ps->vce_clks.ecclk = hwmgr->vce_arbiter.ecclk;
 
 	cgs_get_active_displays_info(hwmgr->device, &info);
-
-	/*TO DO result = PHM_CheckVBlankTime(hwmgr, &vblankTooShort);*/
 
 	minimum_clocks.engineClock = hwmgr->display_config.min_core_set_clock;
 	minimum_clocks.memoryClock = hwmgr->display_config.min_mem_set_clock;
@@ -2769,8 +2791,9 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 				    PHM_PlatformCaps_DisableMclkSwitchingForFrameLock);
 
 
-	disable_mclk_switching = (1 < info.display_count) ||
-				    disable_mclk_switching_for_frame_lock;
+	disable_mclk_switching = ((1 < info.display_count) ||
+				  disable_mclk_switching_for_frame_lock ||
+				  smu7_vblank_too_short(hwmgr, mode_info.vblank_time_us));
 
 	sclk = smu7_ps->performance_levels[0].engine_clock;
 	mclk = smu7_ps->performance_levels[0].memory_clock;
