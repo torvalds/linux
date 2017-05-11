@@ -1082,7 +1082,7 @@ static bool dcc_support_swizzle(
 		break;
 	default:
 		break;
-	};
+	}
 
 	if (bytes_per_element == 1 && standard_swizzle) {
 		*segment_order_horz = segment_order__contiguous;
