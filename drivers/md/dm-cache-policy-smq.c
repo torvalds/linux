@@ -1192,7 +1192,7 @@ static void queue_demotion(struct smq_policy *mq)
 
 	e = q_peek(&mq->clean, mq->clean.nr_levels / 2, true);
 	if (!e) {
-		if (!clean_target_met(mq, false))
+		if (!clean_target_met(mq, true))
 			queue_writeback(mq);
 		return;
 	}
