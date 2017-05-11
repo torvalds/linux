@@ -334,18 +334,14 @@ do {									\
 #define raw_spin_unlock_irq_rcu_node(p)					\
 	raw_spin_unlock_irq(&ACCESS_PRIVATE(p, lock))
 
-#define raw_spin_lock_irqsave_rcu_node(rnp, flags)			\
+#define raw_spin_lock_irqsave_rcu_node(p, flags)			\
 do {									\
-	typecheck(unsigned long, flags);				\
-	raw_spin_lock_irqsave(&ACCESS_PRIVATE(rnp, lock), flags);	\
+	raw_spin_lock_irqsave(&ACCESS_PRIVATE(p, lock), flags);	\
 	smp_mb__after_unlock_lock();					\
 } while (0)
 
-#define raw_spin_unlock_irqrestore_rcu_node(rnp, flags)			\
-do {									\
-	typecheck(unsigned long, flags);				\
-	raw_spin_unlock_irqrestore(&ACCESS_PRIVATE(rnp, lock), flags);	\
-} while (0)
+#define raw_spin_unlock_irqrestore_rcu_node(p, flags)			\
+	raw_spin_unlock_irqrestore(&ACCESS_PRIVATE(p, lock), flags)	\
 
 #define raw_spin_trylock_rcu_node(p)					\
 ({									\
