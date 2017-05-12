@@ -525,11 +525,6 @@ struct omapdss_atv_ops {
 	void (*get_timings)(struct omap_dss_device *dssdev,
 			    struct videomode *vm);
 
-	void (*set_type)(struct omap_dss_device *dssdev,
-		enum omap_dss_venc_type type);
-	void (*invert_vid_out_polarity)(struct omap_dss_device *dssdev,
-		bool invert_polarity);
-
 	int (*set_wss)(struct omap_dss_device *dssdev, u32 wss);
 	u32 (*get_wss)(struct omap_dss_device *dssdev);
 };
@@ -642,11 +637,6 @@ struct omap_dss_device {
 		struct {
 			int module;
 		} dsi;
-
-		struct {
-			enum omap_dss_venc_type type;
-			bool invert_polarity;
-		} venc;
 	} phy;
 
 	struct {

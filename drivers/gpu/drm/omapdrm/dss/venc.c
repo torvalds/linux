@@ -616,26 +616,6 @@ err:
 	return r;
 }
 
-static void venc_set_type(struct omap_dss_device *dssdev,
-		enum omap_dss_venc_type type)
-{
-	mutex_lock(&venc.venc_lock);
-
-	venc.type = type;
-
-	mutex_unlock(&venc.venc_lock);
-}
-
-static void venc_invert_vid_out_polarity(struct omap_dss_device *dssdev,
-		bool invert_polarity)
-{
-	mutex_lock(&venc.venc_lock);
-
-	venc.invert_polarity = invert_polarity;
-
-	mutex_unlock(&venc.venc_lock);
-}
-
 static int venc_init_regulator(void)
 {
 	struct regulator *vdda_dac;
@@ -778,9 +758,6 @@ static const struct omapdss_atv_ops venc_ops = {
 	.check_timings = venc_check_timings,
 	.set_timings = venc_set_timings,
 	.get_timings = venc_get_timings,
-
-	.set_type = venc_set_type,
-	.invert_vid_out_polarity = venc_invert_vid_out_polarity,
 
 	.set_wss = venc_set_wss,
 	.get_wss = venc_get_wss,
