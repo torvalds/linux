@@ -589,8 +589,7 @@ void hfi1_ib_rcv(struct hfi1_packet *packet)
 		goto drop;
 	}
 
-	trace_input_ibhdr(rcd->dd, hdr);
-
+	trace_input_ibhdr(rcd->dd, packet, !!(packet->rhf & RHF_DC_INFO_SMASK));
 	opcode = ib_bth_get_opcode(packet->ohdr);
 	inc_opstats(tlen, &rcd->opstats->stats[opcode]);
 
@@ -885,7 +884,7 @@ int hfi1_verbs_send_dma(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 		return ret;
 	}
 	trace_sdma_output_ibhdr(dd_from_ibdev(qp->ibqp.device),
-				&ps->s_txreq->phdr.hdr);
+				&ps->s_txreq->phdr.hdr, ib_is_sc5(sc5));
 	return ret;
 
 bail_ecomm:
@@ -1058,7 +1057,7 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 	}
 
 	trace_pio_output_ibhdr(dd_from_ibdev(qp->ibqp.device),
-			       &ps->s_txreq->phdr.hdr);
+			       &ps->s_txreq->phdr.hdr, ib_is_sc5(sc5));
 
 pio_bail:
 	if (qp->s_wqe) {

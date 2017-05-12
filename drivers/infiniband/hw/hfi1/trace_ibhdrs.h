@@ -55,8 +55,57 @@
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM hfi1_ibhdrs
 
-u8 ibhdr_exhdr_len(struct ib_header *hdr);
+#define ib_opcode_name(opcode) { IB_OPCODE_##opcode, #opcode  }
+#define show_ib_opcode(opcode)                             \
+__print_symbolic(opcode,                                   \
+	ib_opcode_name(RC_SEND_FIRST),                     \
+	ib_opcode_name(RC_SEND_MIDDLE),                    \
+	ib_opcode_name(RC_SEND_LAST),                      \
+	ib_opcode_name(RC_SEND_LAST_WITH_IMMEDIATE),       \
+	ib_opcode_name(RC_SEND_ONLY),                      \
+	ib_opcode_name(RC_SEND_ONLY_WITH_IMMEDIATE),       \
+	ib_opcode_name(RC_RDMA_WRITE_FIRST),               \
+	ib_opcode_name(RC_RDMA_WRITE_MIDDLE),              \
+	ib_opcode_name(RC_RDMA_WRITE_LAST),                \
+	ib_opcode_name(RC_RDMA_WRITE_LAST_WITH_IMMEDIATE), \
+	ib_opcode_name(RC_RDMA_WRITE_ONLY),                \
+	ib_opcode_name(RC_RDMA_WRITE_ONLY_WITH_IMMEDIATE), \
+	ib_opcode_name(RC_RDMA_READ_REQUEST),              \
+	ib_opcode_name(RC_RDMA_READ_RESPONSE_FIRST),       \
+	ib_opcode_name(RC_RDMA_READ_RESPONSE_MIDDLE),      \
+	ib_opcode_name(RC_RDMA_READ_RESPONSE_LAST),        \
+	ib_opcode_name(RC_RDMA_READ_RESPONSE_ONLY),        \
+	ib_opcode_name(RC_ACKNOWLEDGE),                    \
+	ib_opcode_name(RC_ATOMIC_ACKNOWLEDGE),             \
+	ib_opcode_name(RC_COMPARE_SWAP),                   \
+	ib_opcode_name(RC_FETCH_ADD),                      \
+	ib_opcode_name(UC_SEND_FIRST),                     \
+	ib_opcode_name(UC_SEND_MIDDLE),                    \
+	ib_opcode_name(UC_SEND_LAST),                      \
+	ib_opcode_name(UC_SEND_LAST_WITH_IMMEDIATE),       \
+	ib_opcode_name(UC_SEND_ONLY),                      \
+	ib_opcode_name(UC_SEND_ONLY_WITH_IMMEDIATE),       \
+	ib_opcode_name(UC_RDMA_WRITE_FIRST),               \
+	ib_opcode_name(UC_RDMA_WRITE_MIDDLE),              \
+	ib_opcode_name(UC_RDMA_WRITE_LAST),                \
+	ib_opcode_name(UC_RDMA_WRITE_LAST_WITH_IMMEDIATE), \
+	ib_opcode_name(UC_RDMA_WRITE_ONLY),                \
+	ib_opcode_name(UC_RDMA_WRITE_ONLY_WITH_IMMEDIATE), \
+	ib_opcode_name(UD_SEND_ONLY),                      \
+	ib_opcode_name(UD_SEND_ONLY_WITH_IMMEDIATE),       \
+	ib_opcode_name(CNP))
+
 const char *parse_everbs_hdrs(struct trace_seq *p, u8 opcode, void *ehdrs);
+u8 hfi1_trace_ib_hdr_len(struct ib_header *hdr);
+const char *hfi1_trace_get_packet_str(struct hfi1_packet *packet);
+void hfi1_trace_parse_bth(struct ib_other_headers *ohdr,
+			  u8 *ack, u8 *becn, u8 *fecn, u8 *mig,
+			  u8 *se, u8 *pad, u8 *opcode, u8 *tver,
+			  u16 *pkey, u32 *psn, u32 *qpn);
+void hfi1_trace_parse_9b_hdr(struct ib_header *hdr, bool sc5,
+			     struct ib_other_headers **ohdr,
+			     u8 *lnh, u8 *lver, u8 *sl, u8 *sc,
+			     u16 *len, u32 *dlid, u32 *slid);
 
 #define __parse_ib_ehdrs(op, ehdrs) parse_everbs_hdrs(p, op, ehdrs)
 
@@ -66,139 +115,198 @@ __print_symbolic(lrh,                    \
 	lrh_name(LRH_BTH),               \
 	lrh_name(LRH_GRH))
 
-#define LRH_PRN "vl %d lver %d sl %d lnh %d,%s dlid %.4x len %d slid %.4x"
+#define LRH_PRN "len:%d sc:%d dlid:0x%.4x slid:0x%.4x"
+#define LRH_9B_PRN "lnh:%d,%s lver:%d sl:%d "
 #define BTH_PRN \
-	"op 0x%.2x,%s se %d m %d pad %d tver %d pkey 0x%.4x " \
-	"f %d b %d qpn 0x%.6x a %d psn 0x%.8x"
-#define EHDR_PRN "%s"
+	"op:0x%.2x,%s se:%d m:%d pad:%d tver:%d pkey:0x%.4x " \
+	"f:%d b:%d qpn:0x%.6x a:%d psn:0x%.8x"
+#define EHDR_PRN "hlen:%d %s"
 
-DECLARE_EVENT_CLASS(hfi1_ibhdr_template,
+DECLARE_EVENT_CLASS(hfi1_input_ibhdr_template,
 		    TP_PROTO(struct hfi1_devdata *dd,
-			     struct ib_header *hdr),
-		    TP_ARGS(dd, hdr),
+			     struct hfi1_packet *packet,
+			     bool sc5),
+		    TP_ARGS(dd, packet, sc5),
 		    TP_STRUCT__entry(
 			DD_DEV_ENTRY(dd)
-			/* LRH */
-			__field(u8, vl)
+			__field(u8, lnh)
 			__field(u8, lver)
 			__field(u8, sl)
-			__field(u8, lnh)
-			__field(u16, dlid)
 			__field(u16, len)
-			__field(u16, slid)
-			/* BTH */
+			__field(u32, dlid)
+			__field(u8, sc)
+			__field(u32, slid)
 			__field(u8, opcode)
 			__field(u8, se)
-			__field(u8, m)
+			__field(u8, mig)
 			__field(u8, pad)
 			__field(u8, tver)
 			__field(u16, pkey)
-			__field(u8, f)
-			__field(u8, b)
+			__field(u8, fecn)
+			__field(u8, becn)
 			__field(u32, qpn)
-			__field(u8, a)
+			__field(u8, ack)
 			__field(u32, psn)
 			/* extended headers */
-			__dynamic_array(u8, ehdrs, ibhdr_exhdr_len(hdr))
+			__dynamic_array(u8, ehdrs,
+					hfi1_trace_ib_hdr_len(packet->hdr))
 			),
-		      TP_fast_assign(
+		    TP_fast_assign(
+			   struct ib_other_headers *ohdr;
+
+			   DD_DEV_ASSIGN(dd);
+
+			   hfi1_trace_parse_9b_hdr(packet->hdr, sc5,
+						   &ohdr,
+						   &__entry->lnh,
+						   &__entry->lver,
+						   &__entry->sl,
+						   &__entry->sc,
+						   &__entry->len,
+						   &__entry->dlid,
+						   &__entry->slid);
+
+			  hfi1_trace_parse_bth(ohdr, &__entry->ack,
+					       &__entry->becn, &__entry->fecn,
+					       &__entry->mig, &__entry->se,
+					       &__entry->pad, &__entry->opcode,
+					       &__entry->tver, &__entry->pkey,
+					       &__entry->psn, &__entry->qpn);
+			  /* extended headers */
+			  memcpy(__get_dynamic_array(ehdrs), &ohdr->u,
+				 __get_dynamic_array_len(ehdrs));
+			 ),
+		    TP_printk("[%s] (IB) " LRH_PRN " " LRH_9B_PRN " "
+			      BTH_PRN " " EHDR_PRN,
+			      __get_str(dev),
+			      __entry->len,
+			      __entry->sc,
+			      __entry->dlid,
+			      __entry->slid,
+			      __entry->lnh, show_lnh(__entry->lnh),
+			      __entry->lver,
+			      __entry->sl,
+			      /* BTH */
+			      __entry->opcode, show_ib_opcode(__entry->opcode),
+			      __entry->se,
+			      __entry->mig,
+			      __entry->pad,
+			      __entry->tver,
+			      __entry->pkey,
+			      __entry->fecn,
+			      __entry->becn,
+			      __entry->qpn,
+			      __entry->ack,
+			      __entry->psn,
+			      /* extended headers */
+			      __get_dynamic_array_len(ehdrs),
+			      __parse_ib_ehdrs(
+					__entry->opcode,
+					(void *)__get_dynamic_array(ehdrs))
+			     )
+);
+
+DEFINE_EVENT(hfi1_input_ibhdr_template, input_ibhdr,
+	     TP_PROTO(struct hfi1_devdata *dd,
+		      struct hfi1_packet *packet, bool sc5),
+	     TP_ARGS(dd, packet, sc5));
+
+DECLARE_EVENT_CLASS(hfi1_output_ibhdr_template,
+		    TP_PROTO(struct hfi1_devdata *dd,
+			     struct ib_header *hdr,
+			     bool sc5),
+		    TP_ARGS(dd, hdr, sc5),
+		    TP_STRUCT__entry(
+			DD_DEV_ENTRY(dd)
+			__field(u8, lnh)
+			__field(u8, lver)
+			__field(u8, sl)
+			__field(u16, len)
+			__field(u32, dlid)
+			__field(u8, sc)
+			__field(u32, slid)
+			__field(u8, opcode)
+			__field(u8, se)
+			__field(u8, mig)
+			__field(u8, pad)
+			__field(u8, tver)
+			__field(u16, pkey)
+			__field(u8, fecn)
+			__field(u8, becn)
+			__field(u32, qpn)
+			__field(u8, ack)
+			__field(u32, psn)
+			/* extended headers */
+			__dynamic_array(u8, ehdrs,
+					hfi1_trace_ib_hdr_len(hdr))
+			),
+		    TP_fast_assign(
 			struct ib_other_headers *ohdr;
 
 			DD_DEV_ASSIGN(dd);
-			/* LRH */
-			__entry->vl =
-			(u8)(be16_to_cpu(hdr->lrh[0]) >> 12);
-			__entry->lver =
-			(u8)(be16_to_cpu(hdr->lrh[0]) >> 8) & 0xf;
-			__entry->sl =
-			(u8)(be16_to_cpu(hdr->lrh[0]) >> 4) & 0xf;
-			__entry->lnh =
-			(u8)(be16_to_cpu(hdr->lrh[0]) & 3);
-			__entry->dlid =
-			be16_to_cpu(hdr->lrh[1]);
-			/* allow for larger len */
-			__entry->len =
-			be16_to_cpu(hdr->lrh[2]);
-			__entry->slid =
-			be16_to_cpu(hdr->lrh[3]);
-			/* BTH */
-			if (__entry->lnh == HFI1_LRH_BTH)
-			ohdr = &hdr->u.oth;
-			else
-			ohdr = &hdr->u.l.oth;
-			__entry->opcode =
-			(be32_to_cpu(ohdr->bth[0]) >> 24) & 0xff;
-			__entry->se =
-			(be32_to_cpu(ohdr->bth[0]) >> 23) & 1;
-			__entry->m =
-			(be32_to_cpu(ohdr->bth[0]) >> 22) & 1;
-			__entry->pad =
-			(be32_to_cpu(ohdr->bth[0]) >> 20) & 3;
-			__entry->tver =
-			(be32_to_cpu(ohdr->bth[0]) >> 16) & 0xf;
-			__entry->pkey =
-			be32_to_cpu(ohdr->bth[0]) & 0xffff;
-			__entry->f =
-			(be32_to_cpu(ohdr->bth[1]) >> IB_FECN_SHIFT) &
-			IB_FECN_MASK;
-			__entry->b =
-			(be32_to_cpu(ohdr->bth[1]) >> IB_BECN_SHIFT) &
-			IB_BECN_MASK;
-			__entry->qpn =
-			be32_to_cpu(ohdr->bth[1]) & RVT_QPN_MASK;
-			__entry->a =
-			(be32_to_cpu(ohdr->bth[2]) >> 31) & 1;
-			/* allow for larger PSN */
-			__entry->psn =
-			be32_to_cpu(ohdr->bth[2]) & 0x7fffffff;
+
+			hfi1_trace_parse_9b_hdr(hdr, sc5,
+						&ohdr, &__entry->lnh,
+						&__entry->lver, &__entry->sl,
+						&__entry->sc, &__entry->len,
+						&__entry->dlid, &__entry->slid);
+
+			hfi1_trace_parse_bth(ohdr, &__entry->ack,
+					     &__entry->becn, &__entry->fecn,
+					     &__entry->mig, &__entry->se,
+					     &__entry->pad, &__entry->opcode,
+					     &__entry->tver, &__entry->pkey,
+					     &__entry->psn, &__entry->qpn);
+
 			/* extended headers */
-			memcpy(__get_dynamic_array(ehdrs), &ohdr->u,
-			       ibhdr_exhdr_len(hdr));
-			),
-		TP_printk("[%s] " LRH_PRN " " BTH_PRN " " EHDR_PRN,
-			  __get_str(dev),
-			  /* LRH */
-			  __entry->vl,
-			  __entry->lver,
-			  __entry->sl,
-			  __entry->lnh, show_lnh(__entry->lnh),
-			  __entry->dlid,
-			  __entry->len,
-			  __entry->slid,
-			  /* BTH */
-			  __entry->opcode, show_ib_opcode(__entry->opcode),
-			  __entry->se,
-			  __entry->m,
-			  __entry->pad,
-			  __entry->tver,
-			  __entry->pkey,
-			  __entry->f,
-			  __entry->b,
-			  __entry->qpn,
-			  __entry->a,
-			  __entry->psn,
-			  /* extended headers */
-			  __parse_ib_ehdrs(
-				__entry->opcode,
-				(void *)__get_dynamic_array(ehdrs))
-			)
+			memcpy(__get_dynamic_array(ehdrs),
+			       &ohdr->u, __get_dynamic_array_len(ehdrs));
+		    ),
+		    TP_printk("[%s] (IB) " LRH_PRN " " LRH_9B_PRN " "
+			      BTH_PRN " " EHDR_PRN,
+			      __get_str(dev),
+			      __entry->len,
+			      __entry->sc,
+			      __entry->dlid,
+			      __entry->slid,
+			      __entry->lnh, show_lnh(__entry->lnh),
+			      __entry->lver,
+			      __entry->sl,
+			      /* BTH */
+			      __entry->opcode, show_ib_opcode(__entry->opcode),
+			      __entry->se,
+			      __entry->mig,
+			      __entry->pad,
+			      __entry->tver,
+			      __entry->pkey,
+			      __entry->fecn,
+			      __entry->becn,
+			      __entry->qpn,
+			      __entry->ack,
+			      __entry->psn,
+			      /* extended headers */
+			      __get_dynamic_array_len(ehdrs),
+			      __parse_ib_ehdrs(
+					__entry->opcode,
+					(void *)__get_dynamic_array(ehdrs))
+			     )
 );
 
-DEFINE_EVENT(hfi1_ibhdr_template, input_ibhdr,
-	     TP_PROTO(struct hfi1_devdata *dd, struct ib_header *hdr),
-	     TP_ARGS(dd, hdr));
+DEFINE_EVENT(hfi1_output_ibhdr_template, pio_output_ibhdr,
+	     TP_PROTO(struct hfi1_devdata *dd,
+		      struct ib_header *hdr, bool sc5),
+	     TP_ARGS(dd, hdr, sc5));
 
-DEFINE_EVENT(hfi1_ibhdr_template, pio_output_ibhdr,
-	     TP_PROTO(struct hfi1_devdata *dd, struct ib_header *hdr),
-	     TP_ARGS(dd, hdr));
+DEFINE_EVENT(hfi1_output_ibhdr_template, ack_output_ibhdr,
+	     TP_PROTO(struct hfi1_devdata *dd,
+		      struct ib_header *hdr, bool sc5),
+	     TP_ARGS(dd, hdr, sc5));
 
-DEFINE_EVENT(hfi1_ibhdr_template, ack_output_ibhdr,
-	     TP_PROTO(struct hfi1_devdata *dd, struct ib_header *hdr),
-	     TP_ARGS(dd, hdr));
+DEFINE_EVENT(hfi1_output_ibhdr_template, sdma_output_ibhdr,
+	     TP_PROTO(struct hfi1_devdata *dd,
+		      struct ib_header *hdr, bool sc5),
+	     TP_ARGS(dd, hdr, sc5));
 
-DEFINE_EVENT(hfi1_ibhdr_template, sdma_output_ibhdr,
-	     TP_PROTO(struct hfi1_devdata *dd, struct ib_header *hdr),
-	     TP_ARGS(dd, hdr));
 
 #endif /* __HFI1_TRACE_IBHDRS_H */
 
