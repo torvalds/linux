@@ -204,8 +204,8 @@
 #define GPSR6_4		F_(SSI_SDATA2_A,	IP15_7_4)
 #define GPSR6_3		F_(SSI_SDATA1_A,	IP15_3_0)
 #define GPSR6_2		F_(SSI_SDATA0,		IP14_31_28)
-#define GPSR6_1		F_(SSI_WS0129,		IP14_27_24)
-#define GPSR6_0		F_(SSI_SCK0129,		IP14_23_20)
+#define GPSR6_1		F_(SSI_WS01239,		IP14_27_24)
+#define GPSR6_0		F_(SSI_SCK01239,	IP14_23_20)
 
 /* GPSR7 */
 #define GPSR7_3		FM(GP7_03)
@@ -338,8 +338,8 @@
 #define IP14_11_8	FM(MLB_CLK)		F_(0, 0)	FM(MSIOF1_SCK_F)	F_(0, 0)			FM(SCL1_B)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP14_15_12	FM(MLB_SIG)		FM(RX1_B)	FM(MSIOF1_SYNC_F)	F_(0, 0)			FM(SDA1_B)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP14_19_16	FM(MLB_DAT)		FM(TX1_B)	FM(MSIOF1_RXD_F)	F_(0, 0)			F_(0, 0)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
-#define IP14_23_20	FM(SSI_SCK0129)		F_(0, 0)	FM(MSIOF1_TXD_F)	F_(0, 0)			F_(0, 0)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
-#define IP14_27_24	FM(SSI_WS0129)		F_(0, 0)	FM(MSIOF1_SS1_F)	F_(0, 0)			F_(0, 0)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
+#define IP14_23_20	FM(SSI_SCK01239)	F_(0, 0)	FM(MSIOF1_TXD_F)	F_(0, 0)			F_(0, 0)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
+#define IP14_27_24	FM(SSI_WS01239)		F_(0, 0)	FM(MSIOF1_SS1_F)	F_(0, 0)			F_(0, 0)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 
 /* IPSRx */		/* 0 */			/* 1 */		/* 2 */			/* 3 */				/* 4 */		/* 5 */		/* 6 */			/* 7 */		/* 8 */			/* 9 */		/* A */		/* B */		/* C - F */
 #define IP14_31_28	FM(SSI_SDATA0)		F_(0, 0)	FM(MSIOF1_SS2_F)	F_(0, 0)			F_(0, 0)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
@@ -1304,10 +1304,10 @@ static const u16 pinmux_data[] = {
 	PINMUX_IPSR_MSEL(IP14_19_16,	TX1_B,			SEL_SCIF1_1),
 	PINMUX_IPSR_MSEL(IP14_19_16,	MSIOF1_RXD_F,		SEL_MSIOF1_5),
 
-	PINMUX_IPSR_GPSR(IP14_23_20,	SSI_SCK0129),
+	PINMUX_IPSR_GPSR(IP14_23_20,	SSI_SCK01239),
 	PINMUX_IPSR_MSEL(IP14_23_20,	MSIOF1_TXD_F,		SEL_MSIOF1_5),
 
-	PINMUX_IPSR_GPSR(IP14_27_24,	SSI_WS0129),
+	PINMUX_IPSR_GPSR(IP14_27_24,	SSI_WS01239),
 	PINMUX_IPSR_MSEL(IP14_27_24,	MSIOF1_SS1_F,		SEL_MSIOF1_5),
 
 	PINMUX_IPSR_GPSR(IP14_31_28,	SSI_SDATA0),
