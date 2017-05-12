@@ -1242,14 +1242,14 @@ bpt_cmds(void)
 {
 	int cmd;
 	unsigned long a;
-	int mode, i;
+	int i;
 	struct bpt *bp;
-	const char badaddr[] = "Only kernel addresses are permitted "
-		"for breakpoints\n";
 
 	cmd = inchar();
 	switch (cmd) {
-#ifndef CONFIG_8xx
+#ifndef CONFIG_PPC_8xx
+	static const char badaddr[] = "Only kernel addresses are permitted for breakpoints\n";
+	int mode;
 	case 'd':	/* bd - hardware data breakpoint */
 		mode = 7;
 		cmd = inchar();
