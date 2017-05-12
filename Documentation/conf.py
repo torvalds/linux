@@ -345,14 +345,17 @@ if major == 1 and minor > 3:
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
+# Sorted in alphabetical order
 latex_documents = [
-    ('doc-guide/index', 'kernel-doc-guide.tex', 'Linux Kernel Documentation Guide',
-     'The kernel development community', 'manual'),
     ('admin-guide/index', 'linux-user.tex', 'Linux Kernel User Documentation',
      'The kernel development community', 'manual'),
     ('core-api/index', 'core-api.tex', 'The kernel core API manual',
      'The kernel development community', 'manual'),
+    ('doc-guide/index', 'kernel-doc-guide.tex', 'Linux Kernel Documentation Guide',
+     'The kernel development community', 'manual'),
     ('driver-api/index', 'driver-api.tex', 'The kernel driver API manual',
+     'The kernel development community', 'manual'),
+    ('gpu/index', 'gpu.tex', 'Linux GPU Driver Developer\'s Guide',
      'The kernel development community', 'manual'),
     ('input/index', 'linux-input.tex', 'The Linux input driver subsystem',
      'The kernel development community', 'manual'),
@@ -360,11 +363,9 @@ latex_documents = [
      'The kernel development community', 'manual'),
     ('kernel-hacking/index', 'kernel-hacking.tex', 'Kernel Hacking Guides',
      'The kernel development community', 'manual'),
-    ('process/index', 'development-process.tex', 'Linux Kernel Development Documentation',
-     'The kernel development community', 'manual'),
-    ('gpu/index', 'gpu.tex', 'Linux GPU Driver Developer\'s Guide',
-     'The kernel development community', 'manual'),
     ('media/index', 'media.tex', 'Linux Media Subsystem Documentation',
+     'The kernel development community', 'manual'),
+    ('process/index', 'development-process.tex', 'Linux Kernel Development Documentation',
      'The kernel development community', 'manual'),
     ('security/index', 'security.tex', 'The kernel security subsystem manual',
      'The kernel development community', 'manual'),
