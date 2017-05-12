@@ -2532,7 +2532,7 @@ static const char *nfsd4_op_name(unsigned opnum)
 #define nfsd4_voidres			nfsd4_voidargs
 struct nfsd4_voidargs { int dummy; };
 
-static struct svc_procedure		nfsd_procedures4[2] = {
+static const struct svc_procedure nfsd_procedures4[2] = {
 	[NFSPROC4_NULL] = {
 		.pc_func = nfsd4_proc_null,
 		.pc_encode = nfs4svc_encode_voidres,

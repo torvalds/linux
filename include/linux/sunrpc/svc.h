@@ -237,7 +237,7 @@ struct svc_rqst {
 
 	struct svc_serv *	rq_server;	/* RPC service definition */
 	struct svc_pool *	rq_pool;	/* thread pool */
-	struct svc_procedure *	rq_procinfo;	/* procedure info */
+	const struct svc_procedure *rq_procinfo;/* procedure info */
 	struct auth_ops *	rq_authop;	/* authentication flavour */
 	struct svc_cred		rq_cred;	/* auth info */
 	void *			rq_xprt_ctxt;	/* transport specific context ptr */
@@ -397,7 +397,7 @@ struct svc_program {
 struct svc_version {
 	u32			vs_vers;	/* version number */
 	u32			vs_nproc;	/* number of procedures */
-	struct svc_procedure *	vs_proc;	/* per-procedure info */
+	const struct svc_procedure *vs_proc;	/* per-procedure info */
 	unsigned int		*vs_count;	/* call counts */
 	u32			vs_xdrsize;	/* xdrsize needed for this version */
 

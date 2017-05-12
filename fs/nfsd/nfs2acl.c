@@ -370,7 +370,7 @@ struct nfsd3_voidargs { int dummy; };
 #define pAT (1+AT)	/* post attributes - conditional */
 #define ACL (1+NFS_ACL_MAX_ENTRIES*3)  /* Access Control List */
 
-static struct svc_procedure		nfsd_acl_procedures2[] = {
+static const struct svc_procedure nfsd_acl_procedures2[] = {
   PROC(null,	void,		void,		void,	  RC_NOCACHE, ST),
   PROC(getacl,	getacl,		getacl,		getacl,	  RC_NOCACHE, ST+1+2*(1+ACL)),
   PROC(setacl,	setacl,		attrstat,	attrstat, RC_NOCACHE, ST+AT),

@@ -573,7 +573,7 @@ struct nfsd_void { int dummy; };
 #define FH 8		/* filehandle */
 #define	AT 18		/* attributes */
 
-static struct svc_procedure		nfsd_procedures2[18] = {
+static const struct svc_procedure nfsd_procedures2[18] = {
 	[NFSPROC_NULL] = {
 		.pc_func = nfsd_proc_null,
 		.pc_decode = nfssvc_decode_void,

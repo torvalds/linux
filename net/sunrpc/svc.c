@@ -1152,7 +1152,7 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 {
 	struct svc_program	*progp;
 	struct svc_version	*versp = NULL;	/* compiler food */
-	struct svc_procedure	*procp = NULL;
+	const struct svc_procedure *procp = NULL;
 	struct svc_serv		*serv = rqstp->rq_server;
 	__be32			*statp;
 	u32			prog, vers, proc;
