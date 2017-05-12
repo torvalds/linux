@@ -182,7 +182,7 @@ OPTIONS
 --parent=<regex>::
         A regex filter to identify parent. The parent is a caller of this
 	function and searched through the callchain, thus it requires callchain
-	information recorded. The pattern is in the exteneded regex format and
+	information recorded. The pattern is in the extended regex format and
 	defaults to "\^sys_|^do_page_fault", see '--sort parent'.
 
 -x::
@@ -207,8 +207,8 @@ OPTIONS
 -g::
 --call-graph=<print_type,threshold[,print_limit],order,sort_key[,branch],value>::
         Display call chains using type, min percent threshold, print limit,
-	call order, sort key, optional branch and value.  Note that ordering of
-	parameters is not fixed so any parement can be given in an arbitraty order.
+	call order, sort key, optional branch and value.  Note that ordering
+	is not fixed so any parameter can be given in an arbitrary order.
 	One exception is the print_limit which should be preceded by threshold.
 
 	print_type can be either:
