@@ -643,8 +643,9 @@ static int sdma_v3_0_gfx_resume(struct amdgpu_device *adev)
 		WREG32(mmSDMA0_GFX_RB_CNTL + sdma_offsets[i], rb_cntl);
 
 		/* Initialize the ring buffer's read and write pointers */
+		ring->wptr = 0;
 		WREG32(mmSDMA0_GFX_RB_RPTR + sdma_offsets[i], 0);
-		WREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[i], 0);
+		sdma_v3_0_ring_set_wptr(ring);
 		WREG32(mmSDMA0_GFX_IB_RPTR + sdma_offsets[i], 0);
 		WREG32(mmSDMA0_GFX_IB_OFFSET + sdma_offsets[i], 0);
 
@@ -658,9 +659,6 @@ static int sdma_v3_0_gfx_resume(struct amdgpu_device *adev)
 
 		WREG32(mmSDMA0_GFX_RB_BASE + sdma_offsets[i], ring->gpu_addr >> 8);
 		WREG32(mmSDMA0_GFX_RB_BASE_HI + sdma_offsets[i], ring->gpu_addr >> 40);
-
-		ring->wptr = 0;
-		WREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[i], lower_32_bits(ring->wptr) << 2);
 
 		doorbell = RREG32(mmSDMA0_GFX_DOORBELL + sdma_offsets[i]);
 
