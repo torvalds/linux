@@ -242,6 +242,16 @@ config GPIO_ICH
 
 	  If unsure, say N.
 
+config GPIO_INGENIC
+	tristate "Ingenic JZ47xx SoCs GPIO support"
+	depends on MACH_INGENIC || COMPILE_TEST
+	select GPIOLIB_IRQCHIP
+	help
+	  Say yes here to support the GPIO functionality present on the
+	  JZ4740 and JZ4780 SoCs from Ingenic.
+
+	  If unsure, say N.
+
 config GPIO_IOP
 	tristate "Intel IOP GPIO"
 	depends on ARCH_IOP32X || ARCH_IOP33X || COMPILE_TEST
