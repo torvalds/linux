@@ -386,6 +386,23 @@ static int gmc_v9_0_early_init(void *handle)
 static int gmc_v9_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	unsigned vm_inv_eng[AMDGPU_MAX_VMHUBS] = { 3, 3 };
+	unsigned i;
+
+	for(i = 0; i < adev->num_rings; ++i) {
+		struct amdgpu_ring *ring = adev->rings[i];
+		unsigned vmhub = ring->funcs->vmhub;
+
+		ring->vm_inv_eng = vm_inv_eng[vmhub]++;
+		dev_info(adev->dev, "ring %u(%s) uses VM inv eng %u on hub %u\n",
+			 ring->idx, ring->name, ring->vm_inv_eng,
+			 ring->funcs->vmhub);
+	}
+
+	/* Engine 17 is used for GART flushes */
+	for(i = 0; i < AMDGPU_MAX_VMHUBS; ++i)
+		BUG_ON(vm_inv_eng[i] > 17);
+
 	return amdgpu_irq_get(adev, &adev->mc.vm_fault, 0);
 }
 
@@ -469,7 +486,8 @@ static int gmc_v9_0_mc_init(struct amdgpu_device *adev)
 	 * size equal to the 1024 or vram, whichever is larger.
 	 */
 	if (amdgpu_gart_size == -1)
-		adev->mc.gtt_size = max((1024ULL << 20), adev->mc.mc_vram_size);
+		adev->mc.gtt_size = max((AMDGPU_DEFAULT_GTT_SIZE_MB << 20),
+					adev->mc.mc_vram_size);
 	else
 		adev->mc.gtt_size = (uint64_t)amdgpu_gart_size << 20;
 
@@ -519,7 +537,8 @@ static int gmc_v9_0_vm_init(struct amdgpu_device *adev)
 	 * amdgpu graphics/compute will use VMIDs 1-7
 	 * amdkfd will use VMIDs 8-15
 	 */
-	adev->vm_manager.num_ids = AMDGPU_NUM_OF_VMIDS;
+	adev->vm_manager.id_mgr[AMDGPU_GFXHUB].num_ids = AMDGPU_NUM_OF_VMIDS;
+	adev->vm_manager.id_mgr[AMDGPU_MMHUB].num_ids = AMDGPU_NUM_OF_VMIDS;
 
 	/* TODO: fix num_level for APU when updating vm size and block size */
 	if (adev->flags & AMD_IS_APU)

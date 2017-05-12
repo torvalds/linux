@@ -186,7 +186,7 @@ void amdgpu_gart_table_vram_unpin(struct amdgpu_device *adev)
 	if (adev->gart.robj == NULL) {
 		return;
 	}
-	r = amdgpu_bo_reserve(adev->gart.robj, false);
+	r = amdgpu_bo_reserve(adev->gart.robj, true);
 	if (likely(r == 0)) {
 		amdgpu_bo_kunmap(adev->gart.robj);
 		amdgpu_bo_unpin(adev->gart.robj);

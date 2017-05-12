@@ -117,11 +117,13 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		priority = (r->flags & RADEON_RELOC_PRIO_MASK) * 2
 			   + !!r->write_domain;
 
-		/* the first reloc of an UVD job is the msg and that must be in
-		   VRAM, also but everything into VRAM on AGP cards and older
-		   IGP chips to avoid image corruptions */
+		/* The first reloc of an UVD job is the msg and that must be in
+		 * VRAM, the second reloc is the DPB and for WMV that must be in
+		 * VRAM as well. Also put everything into VRAM on AGP cards and older
+		 * IGP chips to avoid image corruptions
+		 */
 		if (p->ring == R600_RING_TYPE_UVD_INDEX &&
-		    (i == 0 || pci_find_capability(p->rdev->ddev->pdev,
+		    (i <= 0 || pci_find_capability(p->rdev->ddev->pdev,
 						   PCI_CAP_ID_AGP) ||
 		     p->rdev->family == CHIP_RS780 ||
 		     p->rdev->family == CHIP_RS880)) {
