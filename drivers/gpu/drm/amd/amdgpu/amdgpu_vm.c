@@ -682,16 +682,6 @@ static bool amdgpu_vm_ring_has_compute_vm_bug(struct amdgpu_ring *ring)
 	return false;
 }
 
-static u64 amdgpu_vm_adjust_mc_addr(struct amdgpu_device *adev, u64 mc_addr)
-{
-	u64 addr = mc_addr;
-
-	if (adev->gart.gart_funcs->adjust_mc_addr)
-		addr = adev->gart.gart_funcs->adjust_mc_addr(adev, addr);
-
-	return addr;
-}
-
 bool amdgpu_vm_need_pipeline_sync(struct amdgpu_ring *ring,
 				  struct amdgpu_job *job)
 {
@@ -1033,18 +1023,18 @@ static int amdgpu_vm_update_level(struct amdgpu_device *adev,
 		    (count == AMDGPU_VM_MAX_UPDATE_SIZE)) {
 
 			if (count) {
-				uint64_t pt_addr =
-					amdgpu_vm_adjust_mc_addr(adev, last_pt);
+				uint64_t entry;
 
+				entry = amdgpu_gart_get_vm_pde(adev, last_pt);
 				if (shadow)
 					amdgpu_vm_do_set_ptes(&params,
 							      last_shadow,
-							      pt_addr, count,
+							      entry, count,
 							      incr,
 							      AMDGPU_PTE_VALID);
 
 				amdgpu_vm_do_set_ptes(&params, last_pde,
-						      pt_addr, count, incr,
+						      entry, count, incr,
 						      AMDGPU_PTE_VALID);
 			}
 
@@ -1058,13 +1048,15 @@ static int amdgpu_vm_update_level(struct amdgpu_device *adev,
 	}
 
 	if (count) {
-		uint64_t pt_addr = amdgpu_vm_adjust_mc_addr(adev, last_pt);
+		uint64_t entry;
+
+		entry = amdgpu_gart_get_vm_pde(adev, last_pt);
 
 		if (vm->root.bo->shadow)
-			amdgpu_vm_do_set_ptes(&params, last_shadow, pt_addr,
+			amdgpu_vm_do_set_ptes(&params, last_shadow, entry,
 					      count, incr, AMDGPU_PTE_VALID);
 
-		amdgpu_vm_do_set_ptes(&params, last_pde, pt_addr,
+		amdgpu_vm_do_set_ptes(&params, last_pde, entry,
 				      count, incr, AMDGPU_PTE_VALID);
 	}
 

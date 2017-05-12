@@ -1124,10 +1124,8 @@ static void sdma_v4_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	uint32_t req = ring->adev->gart.gart_funcs->get_invalidate_req(vm_id);
 	unsigned eng = ring->vm_inv_eng;
 
-	pd_addr = ring->adev->gart.gart_funcs->adjust_mc_addr(ring->adev, pd_addr);
-	pd_addr = pd_addr | 0x1; /* valid bit */
-	/* now only use physical base address of PDE and valid */
-	BUG_ON(pd_addr & 0xFFFF00000000003EULL);
+	pd_addr = amdgpu_gart_get_vm_pde(ring->adev, pd_addr);
+	pd_addr |= AMDGPU_PTE_VALID;
 
 	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_SRBM_WRITE) |
 			  SDMA_PKT_SRBM_WRITE_HEADER_BYTE_EN(0xf));

@@ -656,6 +656,12 @@ static uint64_t gmc_v8_0_get_vm_pte_flags(struct amdgpu_device *adev,
 	return pte_flag;
 }
 
+static uint64_t gmc_v8_0_get_vm_pde(struct amdgpu_device *adev, uint64_t addr)
+{
+	BUG_ON(addr & 0xFFFFFF0000000FFFULL);
+	return addr;
+}
+
 /**
  * gmc_v8_0_set_fault_enable_default - update VM fault handling
  *
@@ -1612,7 +1618,8 @@ static const struct amdgpu_gart_funcs gmc_v8_0_gart_funcs = {
 	.flush_gpu_tlb = gmc_v8_0_gart_flush_gpu_tlb,
 	.set_pte_pde = gmc_v8_0_gart_set_pte_pde,
 	.set_prt = gmc_v8_0_set_prt,
-	.get_vm_pte_flags = gmc_v8_0_get_vm_pte_flags
+	.get_vm_pte_flags = gmc_v8_0_get_vm_pte_flags,
+	.get_vm_pde = gmc_v8_0_get_vm_pde
 };
 
 static const struct amdgpu_irq_src_funcs gmc_v8_0_irq_funcs = {

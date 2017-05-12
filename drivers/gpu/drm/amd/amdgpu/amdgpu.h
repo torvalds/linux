@@ -308,8 +308,8 @@ struct amdgpu_gart_funcs {
 	/* set pte flags based per asic */
 	uint64_t (*get_vm_pte_flags)(struct amdgpu_device *adev,
 				     uint32_t flags);
-	/* adjust mc addr in fb for APU case */
-	u64 (*adjust_mc_addr)(struct amdgpu_device *adev, u64 addr);
+	/* get the pde for a given mc addr */
+	u64 (*get_vm_pde)(struct amdgpu_device *adev, u64 addr);
 	uint32_t (*get_invalidate_req)(unsigned int vm_id);
 };
 
@@ -1813,6 +1813,7 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_asic_get_config_memsize(adev) (adev)->asic_funcs->get_config_memsize((adev))
 #define amdgpu_gart_flush_gpu_tlb(adev, vmid) (adev)->gart.gart_funcs->flush_gpu_tlb((adev), (vmid))
 #define amdgpu_gart_set_pte_pde(adev, pt, idx, addr, flags) (adev)->gart.gart_funcs->set_pte_pde((adev), (pt), (idx), (addr), (flags))
+#define amdgpu_gart_get_vm_pde(adev, addr) (adev)->gart.gart_funcs->get_vm_pde((adev), (addr))
 #define amdgpu_vm_copy_pte(adev, ib, pe, src, count) ((adev)->vm_manager.vm_pte_funcs->copy_pte((ib), (pe), (src), (count)))
 #define amdgpu_vm_write_pte(adev, ib, pe, value, count, incr) ((adev)->vm_manager.vm_pte_funcs->write_pte((ib), (pe), (value), (count), (incr)))
 #define amdgpu_vm_set_pte_pde(adev, ib, pe, addr, count, incr, flags) ((adev)->vm_manager.vm_pte_funcs->set_pte_pde((ib), (pe), (addr), (count), (incr), (flags)))

@@ -358,17 +358,19 @@ static uint64_t gmc_v9_0_get_vm_pte_flags(struct amdgpu_device *adev,
 	return pte_flag;
 }
 
-static u64 gmc_v9_0_adjust_mc_addr(struct amdgpu_device *adev, u64 mc_addr)
+static u64 gmc_v9_0_get_vm_pde(struct amdgpu_device *adev, u64 addr)
 {
-	return adev->vm_manager.vram_base_offset + mc_addr - adev->mc.vram_start;
+	addr = adev->vm_manager.vram_base_offset + addr - adev->mc.vram_start;
+	BUG_ON(addr & 0xFFFF00000000003FULL);
+	return addr;
 }
 
 static const struct amdgpu_gart_funcs gmc_v9_0_gart_funcs = {
 	.flush_gpu_tlb = gmc_v9_0_gart_flush_gpu_tlb,
 	.set_pte_pde = gmc_v9_0_gart_set_pte_pde,
-	.get_vm_pte_flags = gmc_v9_0_get_vm_pte_flags,
-	.adjust_mc_addr = gmc_v9_0_adjust_mc_addr,
 	.get_invalidate_req = gmc_v9_0_get_invalidate_req,
+	.get_vm_pte_flags = gmc_v9_0_get_vm_pte_flags,
+	.get_vm_pde = gmc_v9_0_get_vm_pde
 };
 
 static void gmc_v9_0_set_gart_funcs(struct amdgpu_device *adev)

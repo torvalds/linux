@@ -3832,10 +3832,8 @@ static void gfx_v9_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	uint32_t req = ring->adev->gart.gart_funcs->get_invalidate_req(vm_id);
 	unsigned eng = ring->vm_inv_eng;
 
-	pd_addr = ring->adev->gart.gart_funcs->adjust_mc_addr(ring->adev, pd_addr);
-	pd_addr = pd_addr | 0x1; /* valid bit */
-	/* now only use physical base address of PDE and valid */
-	BUG_ON(pd_addr & 0xFFFF00000000003EULL);
+	pd_addr = amdgpu_gart_get_vm_pde(ring->adev, pd_addr);
+	pd_addr |= AMDGPU_PTE_VALID;
 
 	gfx_v9_0_write_data_to_reg(ring, usepfp, true,
 				   hub->ctx0_ptb_addr_lo32 + (2 * vm_id),

@@ -1316,10 +1316,8 @@ static void uvd_v7_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	uint32_t data0, data1, mask;
 	unsigned eng = ring->vm_inv_eng;
 
-	pd_addr = ring->adev->gart.gart_funcs->adjust_mc_addr(ring->adev, pd_addr);
-	pd_addr = pd_addr | 0x1; /* valid bit */
-	/* now only use physical base address of PDE and valid */
-	BUG_ON(pd_addr & 0xFFFF00000000003EULL);
+	pd_addr = amdgpu_gart_get_vm_pde(ring->adev, pd_addr);
+	pd_addr |= AMDGPU_PTE_VALID;
 
 	data0 = (hub->ctx0_ptb_addr_hi32 + vm_id * 2) << 2;
 	data1 = upper_32_bits(pd_addr);
@@ -1358,10 +1356,8 @@ static void uvd_v7_0_enc_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	uint32_t req = ring->adev->gart.gart_funcs->get_invalidate_req(vm_id);
 	unsigned eng = ring->vm_inv_eng;
 
-	pd_addr = ring->adev->gart.gart_funcs->adjust_mc_addr(ring->adev, pd_addr);
-	pd_addr = pd_addr | 0x1; /* valid bit */
-	/* now only use physical base address of PDE and valid */
-	BUG_ON(pd_addr & 0xFFFF00000000003EULL);
+	pd_addr = amdgpu_gart_get_vm_pde(ring->adev, pd_addr);
+	pd_addr |= AMDGPU_PTE_VALID;
 
 	amdgpu_ring_write(ring, HEVC_ENC_CMD_REG_WRITE);
 	amdgpu_ring_write(ring,	(hub->ctx0_ptb_addr_hi32 + vm_id * 2) << 2);
