@@ -319,7 +319,7 @@ void hfi1_uc_rcv(struct hfi1_packet *packet)
 
 	process_ecn(qp, packet, true);
 
-	psn = be32_to_cpu(ohdr->bth[2]);
+	psn = ib_bth_get_psn(ohdr);
 	opcode = ib_bth_get_opcode(ohdr);
 
 	/* Compare the PSN verses the expected PSN. */

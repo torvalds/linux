@@ -286,7 +286,7 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 			goto drop;
 		}
 		/* Get the destination QP number. */
-		qp_num = be32_to_cpu(ohdr->bth[1]) & RVT_QPN_MASK;
+		qp_num = ib_bth_get_qpn(ohdr);
 		if (lid < be16_to_cpu(IB_MULTICAST_LID_BASE)) {
 			struct rvt_qp *qp;
 			unsigned long flags;
@@ -438,7 +438,7 @@ void hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 	case IB_QPT_GSI:
 	case IB_QPT_UD:
 		rlid = ib_get_slid(hdr);
-		rqpn = be32_to_cpu(ohdr->u.ud.deth[1]) & RVT_QPN_MASK;
+		rqpn = ib_get_sqpn(ohdr);
 		svc_type = IB_CC_SVCTYPE_UD;
 		is_mcast = (dlid > be16_to_cpu(IB_MULTICAST_LID_BASE)) &&
 			(dlid != be16_to_cpu(IB_LID_PERMISSIVE));
@@ -461,7 +461,7 @@ void hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 
 	bth1 = be32_to_cpu(ohdr->bth[1]);
 	if (do_cnp && (bth1 & IB_FECN_SMASK)) {
-		u16 pkey = (u16)be32_to_cpu(ohdr->bth[0]);
+		u16 pkey = ib_bth_get_pkey(ohdr);
 
 		return_cnp(ibp, qp, rqpn, pkey, dlid, rlid, sc, grh);
 	}

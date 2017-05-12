@@ -664,6 +664,8 @@ union rdma_network_hdr {
 	};
 };
 
+#define IB_QPN_MASK		0xFFFFFF
+
 enum {
 	IB_MULTICAST_QPN = 0xffffff
 };

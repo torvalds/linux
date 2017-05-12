@@ -595,7 +595,7 @@ void hfi1_ib_rcv(struct hfi1_packet *packet)
 	inc_opstats(tlen, &rcd->opstats->stats[opcode]);
 
 	/* Get the destination QP number. */
-	qp_num = be32_to_cpu(packet->ohdr->bth[1]) & RVT_QPN_MASK;
+	qp_num = ib_bth_get_qpn(packet->ohdr);
 	lid = ib_get_dlid(hdr);
 	if (unlikely((lid >= be16_to_cpu(IB_MULTICAST_LID_BASE)) &&
 		     (lid != be16_to_cpu(IB_LID_PERMISSIVE)))) {
@@ -863,7 +863,7 @@ int hfi1_verbs_send_dma(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 
 			/* No vl15 here */
 			/* set PBC_DC_INFO bit (aka SC[4]) in pbc_flags */
-			pbc |= (!!(sc5 & 0x10)) << PBC_DC_INFO_SHIFT;
+			pbc |= (ib_is_sc5(sc5) << PBC_DC_INFO_SHIFT);
 
 			if (unlikely(hfi1_dbg_fault_opcode(qp, opcode, false)))
 				pbc = hfi1_fault_tx(qp, opcode, pbc);
@@ -999,7 +999,7 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 		u8 opcode = get_opcode(&tx->phdr.hdr);
 
 		/* set PBC_DC_INFO bit (aka SC[4]) in pbc_flags */
-		pbc |= (!!(sc5 & 0x10)) << PBC_DC_INFO_SHIFT;
+		pbc |= (ib_is_sc5(sc5) << PBC_DC_INFO_SHIFT);
 		if (unlikely(hfi1_dbg_fault_opcode(qp, opcode, false)))
 			pbc = hfi1_fault_tx(qp, opcode, pbc);
 		pbc = create_pbc(ppd, pbc, qp->srate_mbps, vl, plen);

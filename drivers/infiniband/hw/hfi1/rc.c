@@ -765,7 +765,7 @@ void hfi1_send_rc_ack(struct hfi1_ctxtdata *rcd, struct rvt_qp *qp,
 		ohdr->u.aeth = rvt_compute_aeth(qp);
 	sc5 = ibp->sl_to_sc[rdma_ah_get_sl(&qp->remote_ah_attr)];
 	/* set PBC_DC_INFO bit (aka SC[4]) in pbc_flags */
-	pbc_flags |= ((!!(sc5 & 0x10)) << PBC_DC_INFO_SHIFT);
+	pbc_flags |= (ib_is_sc5(sc5) << PBC_DC_INFO_SHIFT);
 	lrh0 |= (sc5 & 0xf) << 12 | (rdma_ah_get_sl(&qp->remote_ah_attr)
 				     & 0xf) << 4;
 	hdr.lrh[0] = cpu_to_be16(lrh0);
@@ -1009,7 +1009,7 @@ void hfi1_rc_send_complete(struct rvt_qp *qp, struct ib_header *hdr)
 		return;
 	}
 
-	psn = be32_to_cpu(ohdr->bth[2]);
+	psn = ib_bth_get_psn(ohdr);
 	reset_sending_psn(qp, psn);
 
 	/*
@@ -1943,7 +1943,7 @@ void hfi1_rc_rcv(struct hfi1_packet *packet)
 
 	is_fecn = process_ecn(qp, packet, false);
 
-	psn = be32_to_cpu(ohdr->bth[2]);
+	psn = ib_bth_get_psn(ohdr);
 	opcode = ib_bth_get_opcode(ohdr);
 
 	/*
@@ -2388,7 +2388,7 @@ void hfi1_rc_hdrerr(
 	if (hfi1_ruc_check_hdr(ibp, hdr, has_grh, qp, bth0))
 		return;
 
-	psn = be32_to_cpu(ohdr->bth[2]);
+	psn = ib_bth_get_psn(ohdr);
 	opcode = ib_bth_get_opcode(ohdr);
 
 	/* Only deal with RDMA Writes for now */

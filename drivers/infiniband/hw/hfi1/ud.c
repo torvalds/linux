@@ -549,7 +549,7 @@ void return_cnp(struct hfi1_ibport *ibp, struct rvt_qp *qp, u32 remote_qpn,
 	hdr.lrh[3] = cpu_to_be16(slid);
 
 	plen = 2 /* PBC */ + hwords;
-	pbc_flags |= (!!(sc5 & 0x10)) << PBC_DC_INFO_SHIFT;
+	pbc_flags |= (ib_is_sc5(sc5) << PBC_DC_INFO_SHIFT);
 	vl = sc_to_vlt(ppd->dd, sc5);
 	pbc = create_pbc(ppd, pbc_flags, qp->srate_mbps, vl, plen);
 	if (ctxt) {
@@ -689,8 +689,8 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 	u16 slid;
 	u8 extra_bytes;
 
-	qkey = be32_to_cpu(ohdr->u.ud.deth[0]);
-	src_qp = be32_to_cpu(ohdr->u.ud.deth[1]) & RVT_QPN_MASK;
+	qkey = ib_get_qkey(ohdr);
+	src_qp = ib_get_sqpn(ohdr);
 	dlid = ib_get_dlid(hdr);
 	bth1 = be32_to_cpu(ohdr->bth[1]);
 	slid = ib_get_slid(hdr);
