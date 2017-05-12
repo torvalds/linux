@@ -1750,6 +1750,8 @@ ssize_t x86_event_sysfs_show(char *page, u64 config, u64 event)
 	return ret;
 }
 
+static struct attribute_group x86_pmu_attr_group;
+
 static int __init init_hw_perf_events(void)
 {
 	struct x86_pmu_quirk *quirk;
@@ -1811,6 +1813,14 @@ static int __init init_hw_perf_events(void)
 		tmp = merge_attr(x86_pmu_events_group.attrs, x86_pmu.cpu_events);
 		if (!WARN_ON(!tmp))
 			x86_pmu_events_group.attrs = tmp;
+	}
+
+	if (x86_pmu.attrs) {
+		struct attribute **tmp;
+
+		tmp = merge_attr(x86_pmu_attr_group.attrs, x86_pmu.attrs);
+		if (!WARN_ON(!tmp))
+			x86_pmu_attr_group.attrs = tmp;
 	}
 
 	pr_info("... version:                %d\n",     x86_pmu.version);
