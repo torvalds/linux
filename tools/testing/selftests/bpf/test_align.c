@@ -361,7 +361,6 @@ static int do_test_single(struct bpf_align_test *test)
 				break;
 			}
 		}
-		/* printf("%s", bpf_vlog); */
 		close(fd_prog);
 	}
 	return ret;
