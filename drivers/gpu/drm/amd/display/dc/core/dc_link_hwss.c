@@ -203,10 +203,10 @@ enum dp_panel_mode dp_get_panel_mode(struct core_link *link)
 		default:
 			break;
 		}
+	}
 
-		if (link->dpcd_caps.panel_mode_edp) {
-			return DP_PANEL_MODE_EDP;
-		}
+	if (link->dpcd_caps.panel_mode_edp) {
+		return DP_PANEL_MODE_EDP;
 	}
 
 	return DP_PANEL_MODE_DEFAULT;
