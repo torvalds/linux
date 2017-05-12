@@ -596,12 +596,6 @@ struct omap_dss_device {
 	enum omap_display_type type;
 	enum omap_display_type output_type;
 
-	union {
-		struct {
-			int module;
-		} dsi;
-	} phy;
-
 	struct {
 		struct videomode vm;
 
@@ -609,16 +603,7 @@ struct omap_dss_device {
 		enum omap_dss_dsi_mode dsi_mode;
 	} panel;
 
-	struct {
-		u8 pixel_size;
-	} ctrl;
-
 	const char *name;
-
-	/* used to match device to driver */
-	const char *driver_name;
-
-	void *data;
 
 	struct omap_dss_driver *driver;
 
@@ -655,8 +640,6 @@ struct omap_dss_device {
 	int port_num;
 
 	/* dynamic fields */
-	struct omap_overlay_manager *manager;
-
 	struct omap_dss_device *dst;
 };
 
