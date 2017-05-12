@@ -219,10 +219,12 @@ static inline void dim2_clear_ctr(u32 ctr_addr)
 static void dim2_configure_cat(u8 cat_base, u8 ch_addr, u8 ch_type,
 			       bool read_not_write, bool sync_mfe)
 {
+	bool isoc_fce = ch_type == CAT_CT_VAL_ISOC;
 	u16 const cat =
 		(read_not_write << CAT_RNW_BIT) |
 		(ch_type << CAT_CT_SHIFT) |
 		(ch_addr << CAT_CL_SHIFT) |
+		(isoc_fce << CAT_FCE_BIT) |
 		(sync_mfe << CAT_MFE_BIT) |
 		(false << CAT_MT_BIT) |
 		(true << CAT_CE_BIT);
