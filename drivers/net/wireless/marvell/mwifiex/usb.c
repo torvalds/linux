@@ -424,7 +424,8 @@ static int mwifiex_usb_probe(struct usb_interface *intf,
 	card->intf = intf;
 
 	pr_debug("info: bcdUSB=%#x Device Class=%#x SubClass=%#x Protocol=%#x\n",
-		 udev->descriptor.bcdUSB, udev->descriptor.bDeviceClass,
+		 le16_to_cpu(udev->descriptor.bcdUSB),
+		 udev->descriptor.bDeviceClass,
 		 udev->descriptor.bDeviceSubClass,
 		 udev->descriptor.bDeviceProtocol);
 
