@@ -2554,7 +2554,7 @@ static const struct svc_procedure nfsd_procedures4[2] = {
 };
 
 static unsigned int nfsd_count3[ARRAY_SIZE(nfsd_procedures4)];
-struct svc_version	nfsd_version4 = {
+const struct svc_version nfsd_version4 = {
 	.vs_vers		= 4,
 	.vs_nproc		= 2,
 	.vs_proc		= nfsd_procedures4,
