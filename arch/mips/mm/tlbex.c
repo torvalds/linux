@@ -865,6 +865,13 @@ void build_get_pmde64(u32 **p, struct uasm_label **l, struct uasm_reloc **r,
 
 	uasm_i_andi(p, tmp, tmp, (PTRS_PER_PGD - 1)<<3);
 	uasm_i_daddu(p, ptr, ptr, tmp); /* add in pgd offset */
+#ifndef __PAGETABLE_PUD_FOLDED
+	uasm_i_dmfc0(p, tmp, C0_BADVADDR); /* get faulting address */
+	uasm_i_ld(p, ptr, 0, ptr); /* get pud pointer */
+	uasm_i_dsrl_safe(p, tmp, tmp, PUD_SHIFT - 3); /* get pud offset in bytes */
+	uasm_i_andi(p, tmp, tmp, (PTRS_PER_PUD - 1) << 3);
+	uasm_i_daddu(p, ptr, ptr, tmp); /* add in pud offset */
+#endif
 #ifndef __PAGETABLE_PMD_FOLDED
 	uasm_i_dmfc0(p, tmp, C0_BADVADDR); /* get faulting address */
 	uasm_i_ld(p, ptr, 0, ptr); /* get pmd pointer */
@@ -1183,6 +1190,21 @@ build_fast_tlb_refill_handler (u32 **p, struct uasm_label **l,
 		uasm_i_daddu(p, ptr, ptr, scratch); /* add in pgd offset */
 		uasm_i_ld(p, LOC_PTEP, 0, ptr); /* get pmd pointer */
 	}
+
+#ifndef __PAGETABLE_PUD_FOLDED
+	/* get pud offset in bytes */
+	uasm_i_dsrl_safe(p, scratch, tmp, PUD_SHIFT - 3);
+	uasm_i_andi(p, scratch, scratch, (PTRS_PER_PUD - 1) << 3);
+
+	if (use_lwx_insns()) {
+		UASM_i_LWX(p, ptr, scratch, ptr);
+	} else {
+		uasm_i_daddu(p, ptr, ptr, scratch); /* add in pmd offset */
+		UASM_i_LW(p, ptr, 0, ptr);
+	}
+	/* ptr contains a pointer to PMD entry */
+	/* tmp contains the address */
+#endif
 
 #ifndef __PAGETABLE_PMD_FOLDED
 	/* get pmd offset in bytes */
