@@ -337,6 +337,9 @@ static int mbigen_device_probe(struct platform_device *pdev)
 	mgn_chip->pdev = pdev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -EINVAL;
+
 	mgn_chip->base = devm_ioremap(&pdev->dev, res->start,
 				      resource_size(res));
 	if (!mgn_chip->base) {
