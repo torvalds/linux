@@ -32,6 +32,7 @@
 #include <asm/vfp.h>
 #include "../vfp/vfpinstr.h"
 
+#define CREATE_TRACE_POINTS
 #include "trace.h"
 #include "coproc.h"
 
