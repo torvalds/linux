@@ -337,9 +337,12 @@ static int mbigen_device_probe(struct platform_device *pdev)
 	mgn_chip->pdev = pdev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mgn_chip->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(mgn_chip->base))
-		return PTR_ERR(mgn_chip->base);
+	mgn_chip->base = devm_ioremap(&pdev->dev, res->start,
+				      resource_size(res));
+	if (!mgn_chip->base) {
+		dev_err(&pdev->dev, "failed to ioremap %pR\n", res);
+		return -ENOMEM;
+	}
 
 	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node)
 		err = mbigen_of_create_domain(pdev, mgn_chip);
