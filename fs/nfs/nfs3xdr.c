@@ -2611,8 +2611,7 @@ static struct rpc_procinfo	nfs3_acl_procedures[] = {
 static unsigned int nfs3_acl_counts[ARRAY_SIZE(nfs3_acl_procedures)];
 const struct rpc_version nfsacl_version3 = {
 	.number			= 3,
-	.nrprocs		= sizeof(nfs3_acl_procedures)/
-				  sizeof(nfs3_acl_procedures[0]),
+	.nrprocs		= ARRAY_SIZE(nfs3_acl_procedures),
 	.procs			= nfs3_acl_procedures,
 	.counts			= nfs3_acl_counts,
 };
