@@ -9563,6 +9563,24 @@ static int btrfs_getattr(const struct path *path, struct kstat *stat,
 	u64 delalloc_bytes;
 	struct inode *inode = d_inode(path->dentry);
 	u32 blocksize = inode->i_sb->s_blocksize;
+	u32 bi_flags = BTRFS_I(inode)->flags;
+
+	stat->result_mask |= STATX_BTIME;
+	stat->btime.tv_sec = BTRFS_I(inode)->i_otime.tv_sec;
+	stat->btime.tv_nsec = BTRFS_I(inode)->i_otime.tv_nsec;
+	if (bi_flags & BTRFS_INODE_APPEND)
+		stat->attributes |= STATX_ATTR_APPEND;
+	if (bi_flags & BTRFS_INODE_COMPRESS)
+		stat->attributes |= STATX_ATTR_COMPRESSED;
+	if (bi_flags & BTRFS_INODE_IMMUTABLE)
+		stat->attributes |= STATX_ATTR_IMMUTABLE;
+	if (bi_flags & BTRFS_INODE_NODUMP)
+		stat->attributes |= STATX_ATTR_NODUMP;
+
+	stat->attributes_mask |= (STATX_ATTR_APPEND |
+				  STATX_ATTR_COMPRESSED |
+				  STATX_ATTR_IMMUTABLE |
+				  STATX_ATTR_NODUMP);
 
 	generic_fillattr(inode, stat);
 	stat->dev = BTRFS_I(inode)->root->anon_dev;
