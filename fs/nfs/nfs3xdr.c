@@ -2554,7 +2554,7 @@ static int nfs3_stat_to_errno(enum nfs_stat status)
 	.p_name      = #proc,						\
 	}
 
-struct rpc_procinfo	nfs3_procedures[] = {
+const struct rpc_procinfo nfs3_procedures[] = {
 	PROC(GETATTR,		getattr,	getattr,	1),
 	PROC(SETATTR,		setattr,	setattr,	0),
 	PROC(LOOKUP,		lookup,		lookup,		2),
@@ -2587,7 +2587,7 @@ const struct rpc_version nfs_version3 = {
 };
 
 #ifdef CONFIG_NFS_V3_ACL
-static struct rpc_procinfo	nfs3_acl_procedures[] = {
+static const struct rpc_procinfo nfs3_acl_procedures[] = {
 	[ACLPROC3_GETACL] = {
 		.p_proc = ACLPROC3_GETACL,
 		.p_encode = nfs3_xdr_enc_getacl3args,

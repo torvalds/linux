@@ -128,13 +128,13 @@ struct rpcbind_args {
 	int			r_status;
 };
 
-static struct rpc_procinfo rpcb_procedures2[];
-static struct rpc_procinfo rpcb_procedures3[];
-static struct rpc_procinfo rpcb_procedures4[];
+static const struct rpc_procinfo rpcb_procedures2[];
+static const struct rpc_procinfo rpcb_procedures3[];
+static const struct rpc_procinfo rpcb_procedures4[];
 
 struct rpcb_info {
 	u32			rpc_vers;
-	struct rpc_procinfo *	rpc_proc;
+	const struct rpc_procinfo *rpc_proc;
 };
 
 static const struct rpcb_info rpcb_next_version[];
@@ -620,7 +620,8 @@ int rpcb_v4_register(struct net *net, const u32 program, const u32 version,
 	return -EAFNOSUPPORT;
 }
 
-static struct rpc_task *rpcb_call_async(struct rpc_clnt *rpcb_clnt, struct rpcbind_args *map, struct rpc_procinfo *proc)
+static struct rpc_task *rpcb_call_async(struct rpc_clnt *rpcb_clnt,
+		struct rpcbind_args *map, const struct rpc_procinfo *proc)
 {
 	struct rpc_message msg = {
 		.rpc_proc = proc,
@@ -671,7 +672,7 @@ static struct rpc_clnt *rpcb_find_transport_owner(struct rpc_clnt *clnt)
 void rpcb_getport_async(struct rpc_task *task)
 {
 	struct rpc_clnt *clnt;
-	struct rpc_procinfo *proc;
+	const struct rpc_procinfo *proc;
 	u32 bind_version;
 	struct rpc_xprt *xprt;
 	struct rpc_clnt	*rpcb_clnt;
@@ -994,7 +995,7 @@ out_fail:
  * since the Linux kernel RPC code requires only these.
  */
 
-static struct rpc_procinfo rpcb_procedures2[] = {
+static const struct rpc_procinfo rpcb_procedures2[] = {
 	[RPCBPROC_SET] = {
 		.p_proc		= RPCBPROC_SET,
 		.p_encode	= rpcb_enc_mapping,
@@ -1027,7 +1028,7 @@ static struct rpc_procinfo rpcb_procedures2[] = {
 	},
 };
 
-static struct rpc_procinfo rpcb_procedures3[] = {
+static const struct rpc_procinfo rpcb_procedures3[] = {
 	[RPCBPROC_SET] = {
 		.p_proc		= RPCBPROC_SET,
 		.p_encode	= rpcb_enc_getaddr,
@@ -1060,7 +1061,7 @@ static struct rpc_procinfo rpcb_procedures3[] = {
 	},
 };
 
-static struct rpc_procinfo rpcb_procedures4[] = {
+static const struct rpc_procinfo rpcb_procedures4[] = {
 	[RPCBPROC_SET] = {
 		.p_proc		= RPCBPROC_SET,
 		.p_encode	= rpcb_enc_getaddr,

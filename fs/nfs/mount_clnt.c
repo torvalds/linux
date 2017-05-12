@@ -466,7 +466,7 @@ static int mnt_xdr_dec_mountres3(struct rpc_rqst *req,
 	return decode_auth_flavors(xdr, res);
 }
 
-static struct rpc_procinfo mnt_procedures[] = {
+static const struct rpc_procinfo mnt_procedures[] = {
 	[MOUNTPROC_MNT] = {
 		.p_proc		= MOUNTPROC_MNT,
 		.p_encode	= mnt_xdr_enc_dirpath,
@@ -485,7 +485,7 @@ static struct rpc_procinfo mnt_procedures[] = {
 	},
 };
 
-static struct rpc_procinfo mnt3_procedures[] = {
+static const struct rpc_procinfo mnt3_procedures[] = {
 	[MOUNTPROC3_MNT] = {
 		.p_proc		= MOUNTPROC3_MNT,
 		.p_encode	= mnt_xdr_enc_dirpath,

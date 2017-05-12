@@ -39,7 +39,7 @@ struct rpc_clnt {
 	struct list_head	cl_tasks;	/* List of tasks */
 	spinlock_t		cl_lock;	/* spinlock */
 	struct rpc_xprt __rcu *	cl_xprt;	/* transport */
-	struct rpc_procinfo *	cl_procinfo;	/* procedure info */
+	const struct rpc_procinfo *cl_procinfo;	/* procedure info */
 	u32			cl_prog,	/* RPC program number */
 				cl_vers,	/* RPC version number */
 				cl_maxproc;	/* max procedure number */
@@ -87,7 +87,7 @@ struct rpc_program {
 struct rpc_version {
 	u32			number;		/* version number */
 	unsigned int		nrprocs;	/* number of procs */
-	struct rpc_procinfo *	procs;		/* procedure array */
+	const struct rpc_procinfo *procs;	/* procedure array */
 	unsigned int		*counts;	/* call counts */
 };
 

@@ -191,7 +191,7 @@ void rpc_count_iostats(const struct rpc_task *task, struct rpc_iostats *stats)
 EXPORT_SYMBOL_GPL(rpc_count_iostats);
 
 static void _print_name(struct seq_file *seq, unsigned int op,
-			struct rpc_procinfo *procs)
+			const struct rpc_procinfo *procs)
 {
 	if (procs[op].p_name)
 		seq_printf(seq, "\t%12s: ", procs[op].p_name);
