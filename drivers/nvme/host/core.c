@@ -1633,6 +1633,8 @@ int nvme_init_identify(struct nvme_ctrl *ctrl)
 		}
 	} else {
 		ctrl->cntlid = le16_to_cpu(id->cntlid);
+		ctrl->hmpre = le32_to_cpu(id->hmpre);
+		ctrl->hmmin = le32_to_cpu(id->hmmin);
 	}
 
 	kfree(id);
