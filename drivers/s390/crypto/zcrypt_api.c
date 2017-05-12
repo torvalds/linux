@@ -821,8 +821,10 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 			do {
 				rc = zcrypt_rsa_modexpo(&mex);
 			} while (rc == -EAGAIN);
-		if (rc)
+		if (rc) {
+			ZCRYPT_DBF(DBF_DEBUG, "ioctl ICARSAMODEXPO rc=%d", rc);
 			return rc;
+		}
 		return put_user(mex.outputdatalength, &umex->outputdatalength);
 	}
 	case ICARSACRT: {
@@ -838,8 +840,10 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 			do {
 				rc = zcrypt_rsa_crt(&crt);
 			} while (rc == -EAGAIN);
-		if (rc)
+		if (rc) {
+			ZCRYPT_DBF(DBF_DEBUG, "ioctl ICARSACRT rc=%d", rc);
 			return rc;
+		}
 		return put_user(crt.outputdatalength, &ucrt->outputdatalength);
 	}
 	case ZSECSENDCPRB: {
@@ -855,6 +859,8 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 			do {
 				rc = zcrypt_send_cprb(&xcRB);
 			} while (rc == -EAGAIN);
+		if (rc)
+			ZCRYPT_DBF(DBF_DEBUG, "ioctl ZSENDCPRB rc=%d", rc);
 		if (copy_to_user(uxcRB, &xcRB, sizeof(xcRB)))
 			return -EFAULT;
 		return rc;
@@ -872,6 +878,8 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 			do {
 				rc = zcrypt_send_ep11_cprb(&xcrb);
 			} while (rc == -EAGAIN);
+		if (rc)
+			ZCRYPT_DBF(DBF_DEBUG, "ioctl ZSENDEP11CPRB rc=%d", rc);
 		if (copy_to_user(uxcrb, &xcrb, sizeof(xcrb)))
 			return -EFAULT;
 		return rc;
