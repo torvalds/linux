@@ -1663,14 +1663,12 @@ static int init_gpio(struct fusb302_chip *chip)
 	if (ret < 0) {
 		fusb302_log(chip,
 			    "cannot set GPIO Int_N to input, ret=%d", ret);
-		gpio_free(chip->gpio_int_n);
 		return ret;
 	}
 	ret = gpio_to_irq(chip->gpio_int_n);
 	if (ret < 0) {
 		fusb302_log(chip,
 			    "cannot request IRQ for GPIO Int_N, ret=%d", ret);
-		gpio_free(chip->gpio_int_n);
 		return ret;
 	}
 	chip->gpio_int_n_irq = ret;
