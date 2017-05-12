@@ -457,8 +457,6 @@ static struct omap_dss_driver tpo_td043_ops = {
 
 	.set_mirror	= tpo_td043_set_hmirror,
 	.get_mirror	= tpo_td043_get_hmirror,
-
-	.get_resolution	= omapdss_default_get_resolution,
 };
 
 static int tpo_td043_probe_of(struct spi_device *spi)

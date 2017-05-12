@@ -195,8 +195,6 @@ static struct omap_dss_driver hdmic_driver = {
 	.get_timings		= hdmic_get_timings,
 	.check_timings		= hdmic_check_timings,
 
-	.get_resolution		= omapdss_default_get_resolution,
-
 	.read_edid		= hdmic_read_edid,
 	.detect			= hdmic_detect,
 	.set_hdmi_mode		= hdmic_set_hdmi_mode,

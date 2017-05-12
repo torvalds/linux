@@ -226,8 +226,6 @@ static struct omap_dss_driver lb035q02_ops = {
 	.set_timings	= lb035q02_set_timings,
 	.get_timings	= lb035q02_get_timings,
 	.check_timings	= lb035q02_check_timings,
-
-	.get_resolution	= omapdss_default_get_resolution,
 };
 
 static int lb035q02_probe_of(struct spi_device *spi)

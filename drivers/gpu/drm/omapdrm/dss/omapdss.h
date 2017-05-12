@@ -688,9 +688,6 @@ struct omap_dss_driver {
 			void *buf, size_t size,
 			u16 x, u16 y, u16 w, u16 h);
 
-	void (*get_resolution)(struct omap_dss_device *dssdev,
-			u16 *xres, u16 *yres);
-
 	int (*check_timings)(struct omap_dss_device *dssdev,
 			     struct videomode *vm);
 	void (*set_timings)(struct omap_dss_device *dssdev,
@@ -749,8 +746,6 @@ int omapdss_output_unset_device(struct omap_dss_device *out);
 struct omap_dss_device *omapdss_find_output_from_display(struct omap_dss_device *dssdev);
 struct omap_overlay_manager *omapdss_find_mgr_from_display(struct omap_dss_device *dssdev);
 
-void omapdss_default_get_resolution(struct omap_dss_device *dssdev,
-		u16 *xres, u16 *yres);
 void omapdss_default_get_timings(struct omap_dss_device *dssdev,
 				 struct videomode *vm);
 

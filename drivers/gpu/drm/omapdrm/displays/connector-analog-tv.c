@@ -171,8 +171,6 @@ static struct omap_dss_driver tvc_driver = {
 	.get_timings		= tvc_get_timings,
 	.check_timings		= tvc_check_timings,
 
-	.get_resolution		= omapdss_default_get_resolution,
-
 	.get_wss		= tvc_get_wss,
 	.set_wss		= tvc_set_wss,
 };

@@ -30,14 +30,6 @@
 
 #include "omapdss.h"
 
-void omapdss_default_get_resolution(struct omap_dss_device *dssdev,
-			u16 *xres, u16 *yres)
-{
-	*xres = dssdev->panel.vm.hactive;
-	*yres = dssdev->panel.vm.vactive;
-}
-EXPORT_SYMBOL(omapdss_default_get_resolution);
-
 void omapdss_default_get_timings(struct omap_dss_device *dssdev,
 				 struct videomode *vm)
 {
@@ -71,8 +63,6 @@ int omapdss_register_display(struct omap_dss_device *dssdev)
 	if (dssdev->name == NULL)
 		dssdev->name = dssdev->alias;
 
-	if (drv && drv->get_resolution == NULL)
-		drv->get_resolution = omapdss_default_get_resolution;
 	if (drv && drv->get_timings == NULL)
 		drv->get_timings = omapdss_default_get_timings;
 

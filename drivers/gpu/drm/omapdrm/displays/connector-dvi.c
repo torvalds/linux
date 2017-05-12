@@ -227,8 +227,6 @@ static struct omap_dss_driver dvic_driver = {
 	.get_timings	= dvic_get_timings,
 	.check_timings	= dvic_check_timings,
 
-	.get_resolution	= omapdss_default_get_resolution,
-
 	.read_edid	= dvic_read_edid,
 	.detect		= dvic_detect,
 };

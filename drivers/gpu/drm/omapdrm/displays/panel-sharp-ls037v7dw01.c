@@ -190,8 +190,6 @@ static struct omap_dss_driver sharp_ls_ops = {
 	.set_timings	= sharp_ls_set_timings,
 	.get_timings	= sharp_ls_get_timings,
 	.check_timings	= sharp_ls_check_timings,
-
-	.get_resolution	= omapdss_default_get_resolution,
 };
 
 static  int sharp_ls_get_gpio_of(struct device *dev, int index, int val,
