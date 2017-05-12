@@ -9,6 +9,7 @@ Required properties:
 - compatible: should be one of the following:
    - "rockchip,rk3066-spdif"
    - "rockchip,rk3188-spdif"
+   - "rockchip,rk3228-spdif"
    - "rockchip,rk3288-spdif"
    - "rockchip,rk3328-spdif"
    - "rockchip,rk3366-spdif"
