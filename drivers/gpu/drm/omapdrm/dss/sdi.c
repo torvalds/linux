@@ -252,11 +252,6 @@ static int sdi_check_timings(struct omap_dss_device *dssdev,
 	return 0;
 }
 
-static void sdi_set_datapairs(struct omap_dss_device *dssdev, int datapairs)
-{
-	sdi.datapairs = datapairs;
-}
-
 static int sdi_init_regulator(void)
 {
 	struct regulator *vdds_sdi;
@@ -326,8 +321,6 @@ static const struct omapdss_sdi_ops sdi_ops = {
 	.check_timings = sdi_check_timings,
 	.set_timings = sdi_set_timings,
 	.get_timings = sdi_get_timings,
-
-	.set_datapairs = sdi_set_datapairs,
 };
 
 static void sdi_init_output(struct platform_device *pdev)

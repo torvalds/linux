@@ -490,8 +490,6 @@ struct omapdss_sdi_ops {
 			    struct videomode *vm);
 	void (*get_timings)(struct omap_dss_device *dssdev,
 			    struct videomode *vm);
-
-	void (*set_datapairs)(struct omap_dss_device *dssdev, int datapairs);
 };
 
 struct omapdss_dvi_ops {
@@ -640,10 +638,6 @@ struct omap_dss_device {
 			u8 channel;
 			u8 data_lines;
 		} rfbi;
-
-		struct {
-			u8 datapairs;
-		} sdi;
 
 		struct {
 			int module;
