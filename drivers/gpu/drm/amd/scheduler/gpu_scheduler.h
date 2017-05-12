@@ -158,4 +158,6 @@ int amd_sched_job_init(struct amd_sched_job *job,
 		       void *owner);
 void amd_sched_hw_job_reset(struct amd_gpu_scheduler *sched);
 void amd_sched_job_recovery(struct amd_gpu_scheduler *sched);
+bool amd_sched_dependency_optimized(struct dma_fence* fence,
+				    struct amd_sched_entity *entity);
 #endif

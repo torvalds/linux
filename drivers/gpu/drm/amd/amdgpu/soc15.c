@@ -25,7 +25,7 @@
 #include <linux/module.h>
 #include "drmP.h"
 #include "amdgpu.h"
-#include "amdgpu_atombios.h"
+#include "amdgpu_atomfirmware.h"
 #include "amdgpu_ih.h"
 #include "amdgpu_uvd.h"
 #include "amdgpu_vce.h"
@@ -405,11 +405,11 @@ static void soc15_gpu_pci_config_reset(struct amdgpu_device *adev)
 
 static int soc15_asic_reset(struct amdgpu_device *adev)
 {
-	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
+	amdgpu_atomfirmware_scratch_regs_engine_hung(adev, true);
 
 	soc15_gpu_pci_config_reset(adev);
 
-	amdgpu_atombios_scratch_regs_engine_hung(adev, false);
+	amdgpu_atomfirmware_scratch_regs_engine_hung(adev, false);
 
 	return 0;
 }
@@ -505,8 +505,7 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 			amdgpu_ip_block_add(adev, &dce_virtual_ip_block);
 		amdgpu_ip_block_add(adev, &gfx_v9_0_ip_block);
 		amdgpu_ip_block_add(adev, &sdma_v4_0_ip_block);
-		if (!amdgpu_sriov_vf(adev))
-			amdgpu_ip_block_add(adev, &uvd_v7_0_ip_block);
+		amdgpu_ip_block_add(adev, &uvd_v7_0_ip_block);
 		amdgpu_ip_block_add(adev, &vce_v4_0_ip_block);
 		break;
 	default:

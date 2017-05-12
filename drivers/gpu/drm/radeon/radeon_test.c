@@ -298,7 +298,12 @@ static int radeon_test_create_and_emit_fence(struct radeon_device *rdev,
 			DRM_ERROR("Failed to lock ring A %d\n", ring->idx);
 			return r;
 		}
-		radeon_fence_emit(rdev, fence, ring->idx);
+		r = radeon_fence_emit(rdev, fence, ring->idx);
+		if (r) {
+			DRM_ERROR("Failed to emit fence\n");
+			radeon_ring_unlock_undo(rdev, ring);
+			return r;
+		}
 		radeon_ring_unlock_commit(rdev, ring, false);
 	}
 	return 0;

@@ -139,6 +139,35 @@ int amdgpu_gem_object_open(struct drm_gem_object *obj,
 	return 0;
 }
 
+static int amdgpu_gem_vm_check(void *param, struct amdgpu_bo *bo)
+{
+	/* if anything is swapped out don't swap it in here,
+	   just abort and wait for the next CS */
+	if (!amdgpu_bo_gpu_accessible(bo))
+		return -ERESTARTSYS;
+
+	if (bo->shadow && !amdgpu_bo_gpu_accessible(bo->shadow))
+		return -ERESTARTSYS;
+
+	return 0;
+}
+
+static bool amdgpu_gem_vm_ready(struct amdgpu_device *adev,
+				struct amdgpu_vm *vm,
+				struct list_head *list)
+{
+	struct ttm_validate_buffer *entry;
+
+	list_for_each_entry(entry, list, head) {
+		struct amdgpu_bo *bo =
+			container_of(entry->bo, struct amdgpu_bo, tbo);
+		if (amdgpu_gem_vm_check(NULL, bo))
+			return false;
+	}
+
+	return !amdgpu_vm_validate_pt_bos(adev, vm, amdgpu_gem_vm_check, NULL);
+}
+
 void amdgpu_gem_object_close(struct drm_gem_object *obj,
 			     struct drm_file *file_priv)
 {
@@ -148,15 +177,13 @@ void amdgpu_gem_object_close(struct drm_gem_object *obj,
 	struct amdgpu_vm *vm = &fpriv->vm;
 
 	struct amdgpu_bo_list_entry vm_pd;
-	struct list_head list, duplicates;
+	struct list_head list;
 	struct ttm_validate_buffer tv;
 	struct ww_acquire_ctx ticket;
 	struct amdgpu_bo_va *bo_va;
-	struct dma_fence *fence = NULL;
 	int r;
 
 	INIT_LIST_HEAD(&list);
-	INIT_LIST_HEAD(&duplicates);
 
 	tv.bo = &bo->tbo;
 	tv.shared = true;
@@ -164,16 +191,18 @@ void amdgpu_gem_object_close(struct drm_gem_object *obj,
 
 	amdgpu_vm_get_pd_bo(vm, &list, &vm_pd);
 
-	r = ttm_eu_reserve_buffers(&ticket, &list, false, &duplicates);
+	r = ttm_eu_reserve_buffers(&ticket, &list, false, NULL);
 	if (r) {
 		dev_err(adev->dev, "leaking bo va because "
 			"we fail to reserve bo (%d)\n", r);
 		return;
 	}
 	bo_va = amdgpu_vm_bo_find(vm, bo);
-	if (bo_va) {
-		if (--bo_va->ref_count == 0) {
-			amdgpu_vm_bo_rmv(adev, bo_va);
+	if (bo_va && --bo_va->ref_count == 0) {
+		amdgpu_vm_bo_rmv(adev, bo_va);
+
+		if (amdgpu_gem_vm_ready(adev, vm, &list)) {
+			struct dma_fence *fence = NULL;
 
 			r = amdgpu_vm_clear_freed(adev, vm, &fence);
 			if (unlikely(r)) {
@@ -502,19 +531,6 @@ out:
 	return r;
 }
 
-static int amdgpu_gem_va_check(void *param, struct amdgpu_bo *bo)
-{
-	/* if anything is swapped out don't swap it in here,
-	   just abort and wait for the next CS */
-	if (!amdgpu_bo_gpu_accessible(bo))
-		return -ERESTARTSYS;
-
-	if (bo->shadow && !amdgpu_bo_gpu_accessible(bo->shadow))
-		return -ERESTARTSYS;
-
-	return 0;
-}
-
 /**
  * amdgpu_gem_va_update_vm -update the bo_va in its VM
  *
@@ -533,19 +549,9 @@ static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 				    struct list_head *list,
 				    uint32_t operation)
 {
-	struct ttm_validate_buffer *entry;
 	int r = -ERESTARTSYS;
 
-	list_for_each_entry(entry, list, head) {
-		struct amdgpu_bo *bo =
-			container_of(entry->bo, struct amdgpu_bo, tbo);
-		if (amdgpu_gem_va_check(NULL, bo))
-			goto error;
-	}
-
-	r = amdgpu_vm_validate_pt_bos(adev, vm, amdgpu_gem_va_check,
-				      NULL);
-	if (r)
+	if (!amdgpu_gem_vm_ready(adev, vm, list))
 		goto error;
 
 	r = amdgpu_vm_update_directories(adev, vm);
