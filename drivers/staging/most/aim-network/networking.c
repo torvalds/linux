@@ -22,7 +22,6 @@
 #include <linux/wait.h>
 #include <linux/kobject.h>
 #include "mostcore.h"
-#include "networking.h"
 
 #define MEP_HDR_LEN 8
 #define MDP_HDR_LEN 16
@@ -176,6 +175,9 @@ static int most_nd_set_mac_address(struct net_device *dev, void *p)
 	return 0;
 }
 
+static void on_netinfo(struct most_interface *iface,
+		       unsigned char link_stat, unsigned char *mac_addr);
+
 static int most_nd_open(struct net_device *dev)
 {
 	struct net_dev_context *nd = dev->ml_priv;
@@ -204,7 +206,7 @@ static int most_nd_open(struct net_device *dev)
 		netif_dormant_on(dev);
 	netif_wake_queue(dev);
 	if (nd->iface->request_netinfo)
-		nd->iface->request_netinfo(nd->iface, nd->tx.ch_id);
+		nd->iface->request_netinfo(nd->iface, nd->tx.ch_id, on_netinfo);
 	return 0;
 }
 
@@ -216,6 +218,8 @@ static int most_nd_stop(struct net_device *dev)
 
 	BUG_ON(nd->dev != dev);
 	netif_stop_queue(dev);
+	if (nd->iface->request_netinfo)
+		nd->iface->request_netinfo(nd->iface, nd->tx.ch_id, NULL);
 	most_stop_channel(nd->iface, nd->rx.ch_id, &aim);
 	most_stop_channel(nd->iface, nd->tx.ch_id, &aim);
 
@@ -527,13 +531,13 @@ static void __exit most_net_exit(void)
 }
 
 /**
- * most_deliver_netinfo - callback for HDM to be informed about HW's MAC
+ * on_netinfo - callback for HDM to be informed about HW's MAC
  * @param iface - most interface instance
  * @param link_stat - link status
  * @param mac_addr - MAC address
  */
-void most_deliver_netinfo(struct most_interface *iface,
-			  unsigned char link_stat, unsigned char *mac_addr)
+static void on_netinfo(struct most_interface *iface,
+		       unsigned char link_stat, unsigned char *mac_addr)
 {
 	struct net_dev_context *nd;
 	struct net_device *dev;
@@ -564,7 +568,6 @@ void most_deliver_netinfo(struct most_interface *iface,
 		}
 	}
 }
-EXPORT_SYMBOL(most_deliver_netinfo);
 
 module_init(most_net_init);
 module_exit(most_net_exit);
