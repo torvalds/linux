@@ -68,6 +68,7 @@ needed).
    driver-api/index
    core-api/index
    media/index
+   networking/index
    input/index
    gpu/index
    security/index

@@ -369,6 +369,8 @@ latex_documents = [
      'The kernel development community', 'manual'),
     ('media/index', 'media.tex', 'Linux Media Subsystem Documentation',
      'The kernel development community', 'manual'),
+    ('networking/index', 'networking.tex', 'Linux Networking Documentation',
+     'The kernel development community', 'manual'),
     ('process/index', 'development-process.tex', 'Linux Kernel Development Documentation',
      'The kernel development community', 'manual'),
     ('security/index', 'security.tex', 'The kernel security subsystem manual',

@@ -7,7 +7,6 @@
 # list of DOCBOOKS.
 
 DOCBOOKS := z8530book.xml  \
-	    networking.xml \
 	    lsm.xml \
 	    mtdnand.xml librs.xml rapidio.xml \
 	    scsi.xml \
