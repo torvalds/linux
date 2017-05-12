@@ -170,10 +170,10 @@ This function is very timing critical. When you wish to simply discard
 data the support code provides the function
 :c:func:`z8530_null_rx()` to discard the data.
 
-To active PIO mode sending and receiving the ``
-    z8530_sync_open`` is called. This expects to be passed the network
-device and the channel. Typically this is called from your network
-device open callback. On a failure a non zero error status is returned.
+To active PIO mode sending and receiving the ``z8530_sync_open`` is called.
+This expects to be passed the network device and the channel. Typically
+this is called from your network device open callback. On a failure a
+non zero error status is returned.
 The :c:func:`z8530_sync_close()` function shuts down a PIO
 channel. This must be done before the channel is opened again and before
 the driver shuts down and unloads.
@@ -190,8 +190,7 @@ the close function matching the open mode you used.
 The final supported mode uses a single DMA channel to drive the transmit
 side. As the Z85C30 has a larger FIFO on the receive channel this tends
 to increase the maximum speed a little. This is activated by calling the
-``z8530_sync_txdma_open
-    ``. This returns a non zero error code on failure. The
+``z8530_sync_txdma_open``. This returns a non zero error code on failure. The
 :c:func:`z8530_sync_txdma_close()` function closes down the Z8530
 interface from this mode.
 
@@ -228,8 +227,8 @@ Should you need to retarget the Z8530 driver to another architecture the
 only code that should need changing are the port I/O functions. At the
 moment these assume PC I/O port accesses. This may not be appropriate
 for all platforms. Replacing :c:func:`z8530_read_port()` and
-``z8530_write_port
-    `` is intended to be all that is required to port this driver layer.
+``z8530_write_port`` is intended to be all that is required to port
+this driver layer.
 
 Known Bugs And Assumptions
 ==========================

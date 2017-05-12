@@ -9,7 +9,6 @@
 DOCBOOKS := \
 	    lsm.xml \
 	    mtdnand.xml librs.xml rapidio.xml \
-	    scsi.xml \
 	    sh.xml w1.xml
 
 ifeq ($(DOCBOOKS),)

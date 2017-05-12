@@ -32,6 +32,7 @@ available subsections can be seen below.
    i2c
    hsi
    edac
+   scsi
    libata
    miscellaneous
    s390-drivers
