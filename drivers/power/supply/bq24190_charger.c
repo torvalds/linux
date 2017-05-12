@@ -533,6 +533,9 @@ static int bq24190_register_reset(struct bq24190_dev_info *bdi)
 	int ret, limit = 100;
 	u8 v;
 
+	if (device_property_read_bool(bdi->dev, "disable-reset"))
+		return 0;
+
 	/* Reset the registers */
 	ret = bq24190_write_mask(bdi, BQ24190_REG_POC,
 			BQ24190_REG_POC_RESET_MASK,
@@ -659,22 +662,25 @@ static int bq24190_charger_get_health(struct bq24190_dev_info *bdi,
 	v = bdi->f_reg;
 	mutex_unlock(&bdi->f_reg_lock);
 
-	if (v & BQ24190_REG_F_BOOST_FAULT_MASK) {
-		/*
-		 * This could be over-current or over-voltage but there's
-		 * no way to tell which.  Return 'OVERVOLTAGE' since there
-		 * isn't an 'OVERCURRENT' value defined that we can return
-		 * even if it was over-current.
-		 */
-		health = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
-	} else {
-		v &= BQ24190_REG_F_CHRG_FAULT_MASK;
-		v >>= BQ24190_REG_F_CHRG_FAULT_SHIFT;
-
-		switch (v) {
-		case 0x0: /* Normal */
-			health = POWER_SUPPLY_HEALTH_GOOD;
+	if (v & BQ24190_REG_F_NTC_FAULT_MASK) {
+		switch (v >> BQ24190_REG_F_NTC_FAULT_SHIFT & 0x7) {
+		case 0x1: /* TS1  Cold */
+		case 0x3: /* TS2  Cold */
+		case 0x5: /* Both Cold */
+			health = POWER_SUPPLY_HEALTH_COLD;
 			break;
+		case 0x2: /* TS1  Hot */
+		case 0x4: /* TS2  Hot */
+		case 0x6: /* Both Hot */
+			health = POWER_SUPPLY_HEALTH_OVERHEAT;
+			break;
+		default:
+			health = POWER_SUPPLY_HEALTH_UNKNOWN;
+		}
+	} else if (v & BQ24190_REG_F_BAT_FAULT_MASK) {
+		health = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
+	} else if (v & BQ24190_REG_F_CHRG_FAULT_MASK) {
+		switch (v >> BQ24190_REG_F_CHRG_FAULT_SHIFT & 0x3) {
 		case 0x1: /* Input Fault (VBUS OVP or VBAT<VBUS<3.8V) */
 			/*
 			 * This could be over-voltage or under-voltage
@@ -691,9 +697,19 @@ static int bq24190_charger_get_health(struct bq24190_dev_info *bdi,
 		case 0x3: /* Charge Safety Timer Expiration */
 			health = POWER_SUPPLY_HEALTH_SAFETY_TIMER_EXPIRE;
 			break;
-		default:
-			health = POWER_SUPPLY_HEALTH_UNKNOWN;
+		default:  /* prevent compiler warning */
+			health = -1;
 		}
+	} else if (v & BQ24190_REG_F_BOOST_FAULT_MASK) {
+		/*
+		 * This could be over-current or over-voltage but there's
+		 * no way to tell which.  Return 'OVERVOLTAGE' since there
+		 * isn't an 'OVERCURRENT' value defined that we can return
+		 * even if it was over-current.
+		 */
+		health = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
+	} else {
+		health = POWER_SUPPLY_HEALTH_GOOD;
 	}
 
 	val->intval = health;
@@ -704,17 +720,57 @@ static int bq24190_charger_get_health(struct bq24190_dev_info *bdi,
 static int bq24190_charger_get_online(struct bq24190_dev_info *bdi,
 		union power_supply_propval *val)
 {
-	u8 v;
+	u8 pg_stat, batfet_disable;
 	int ret;
 
 	ret = bq24190_read_mask(bdi, BQ24190_REG_SS,
 			BQ24190_REG_SS_PG_STAT_MASK,
-			BQ24190_REG_SS_PG_STAT_SHIFT, &v);
+			BQ24190_REG_SS_PG_STAT_SHIFT, &pg_stat);
 	if (ret < 0)
 		return ret;
 
-	val->intval = v;
+	ret = bq24190_read_mask(bdi, BQ24190_REG_MOC,
+			BQ24190_REG_MOC_BATFET_DISABLE_MASK,
+			BQ24190_REG_MOC_BATFET_DISABLE_SHIFT, &batfet_disable);
+	if (ret < 0)
+		return ret;
+
+	val->intval = pg_stat && !batfet_disable;
+
 	return 0;
+}
+
+static int bq24190_battery_set_online(struct bq24190_dev_info *bdi,
+				      const union power_supply_propval *val);
+static int bq24190_battery_get_status(struct bq24190_dev_info *bdi,
+				      union power_supply_propval *val);
+static int bq24190_battery_get_temp_alert_max(struct bq24190_dev_info *bdi,
+					      union power_supply_propval *val);
+static int bq24190_battery_set_temp_alert_max(struct bq24190_dev_info *bdi,
+					      const union power_supply_propval *val);
+
+static int bq24190_charger_set_online(struct bq24190_dev_info *bdi,
+				      const union power_supply_propval *val)
+{
+	return bq24190_battery_set_online(bdi, val);
+}
+
+static int bq24190_charger_get_status(struct bq24190_dev_info *bdi,
+				      union power_supply_propval *val)
+{
+	return bq24190_battery_get_status(bdi, val);
+}
+
+static int bq24190_charger_get_temp_alert_max(struct bq24190_dev_info *bdi,
+					      union power_supply_propval *val)
+{
+	return bq24190_battery_get_temp_alert_max(bdi, val);
+}
+
+static int bq24190_charger_set_temp_alert_max(struct bq24190_dev_info *bdi,
+					      const union power_supply_propval *val)
+{
+	return bq24190_battery_set_temp_alert_max(bdi, val);
 }
 
 static int bq24190_charger_get_current(struct bq24190_dev_info *bdi,
@@ -831,6 +887,12 @@ static int bq24190_charger_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_ONLINE:
 		ret = bq24190_charger_get_online(bdi, val);
 		break;
+	case POWER_SUPPLY_PROP_STATUS:
+		ret = bq24190_charger_get_status(bdi, val);
+		break;
+	case POWER_SUPPLY_PROP_TEMP_ALERT_MAX:
+		ret =  bq24190_charger_get_temp_alert_max(bdi, val);
+		break;
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
 		ret = bq24190_charger_get_current(bdi, val);
 		break;
@@ -879,6 +941,12 @@ static int bq24190_charger_set_property(struct power_supply *psy,
 		return ret;
 
 	switch (psp) {
+	case POWER_SUPPLY_PROP_ONLINE:
+		ret = bq24190_charger_set_online(bdi, val);
+		break;
+	case POWER_SUPPLY_PROP_TEMP_ALERT_MAX:
+		ret = bq24190_charger_set_temp_alert_max(bdi, val);
+		break;
 	case POWER_SUPPLY_PROP_CHARGE_TYPE:
 		ret = bq24190_charger_set_charge_type(bdi, val);
 		break;
@@ -904,6 +972,8 @@ static int bq24190_charger_property_is_writeable(struct power_supply *psy,
 	int ret;
 
 	switch (psp) {
+	case POWER_SUPPLY_PROP_ONLINE:
+	case POWER_SUPPLY_PROP_TEMP_ALERT_MAX:
 	case POWER_SUPPLY_PROP_CHARGE_TYPE:
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
@@ -920,6 +990,8 @@ static enum power_supply_property bq24190_charger_properties[] = {
 	POWER_SUPPLY_PROP_CHARGE_TYPE,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_STATUS,
+	POWER_SUPPLY_PROP_TEMP_ALERT_MAX,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE,
@@ -1093,6 +1165,7 @@ static int bq24190_battery_get_property(struct power_supply *psy,
 	struct bq24190_dev_info *bdi = power_supply_get_drvdata(psy);
 	int ret;
 
+	dev_warn(bdi->dev, "warning: /sys/class/power_supply/bq24190-battery is deprecated\n");
 	dev_dbg(bdi->dev, "prop: %d\n", psp);
 
 	ret = pm_runtime_get_sync(bdi->dev);
@@ -1138,6 +1211,7 @@ static int bq24190_battery_set_property(struct power_supply *psy,
 	struct bq24190_dev_info *bdi = power_supply_get_drvdata(psy);
 	int ret;
 
+	dev_warn(bdi->dev, "warning: /sys/class/power_supply/bq24190-battery is deprecated\n");
 	dev_dbg(bdi->dev, "prop: %d\n", psp);
 
 	ret = pm_runtime_get_sync(bdi->dev);
@@ -1266,9 +1340,9 @@ static void bq24190_check_status(struct bq24190_dev_info *bdi)
 		bdi->ss_reg = ss_reg;
 	}
 
-	if (alert_charger)
+	if (alert_charger || alert_battery)
 		power_supply_changed(bdi->charger);
-	if (alert_battery)
+	if (alert_battery && bdi->battery)
 		power_supply_changed(bdi->battery);
 
 	dev_dbg(bdi->dev, "ss_reg: 0x%02x, f_reg: 0x%02x\n", ss_reg, f_reg);
@@ -1473,19 +1547,23 @@ static int bq24190_probe(struct i2c_client *client,
 		goto out_pmrt;
 	}
 
-	battery_cfg.drv_data = bdi;
-	bdi->battery = power_supply_register(dev, &bq24190_battery_desc,
-						&battery_cfg);
-	if (IS_ERR(bdi->battery)) {
-		dev_err(dev, "Can't register battery\n");
-		ret = PTR_ERR(bdi->battery);
-		goto out_charger;
+	/* the battery class is deprecated and will be removed. */
+	/* in the interim, this property hides it.              */
+	if (!device_property_read_bool(dev, "omit-battery-class")) {
+		battery_cfg.drv_data = bdi;
+		bdi->battery = power_supply_register(dev, &bq24190_battery_desc,
+						     &battery_cfg);
+		if (IS_ERR(bdi->battery)) {
+			dev_err(dev, "Can't register battery\n");
+			ret = PTR_ERR(bdi->battery);
+			goto out_charger;
+		}
 	}
 
 	ret = bq24190_sysfs_create_group(bdi);
 	if (ret) {
 		dev_err(dev, "Can't create sysfs entries\n");
-		goto out_battery;
+		goto out_charger;
 	}
 
 	bdi->initialized = true;
@@ -1523,10 +1601,9 @@ static int bq24190_probe(struct i2c_client *client,
 out_sysfs:
 	bq24190_sysfs_remove_group(bdi);
 
-out_battery:
-	power_supply_unregister(bdi->battery);
-
 out_charger:
+	if (!IS_ERR_OR_NULL(bdi->battery))
+		power_supply_unregister(bdi->battery);
 	power_supply_unregister(bdi->charger);
 
 out_pmrt:
@@ -1549,7 +1626,8 @@ static int bq24190_remove(struct i2c_client *client)
 
 	bq24190_register_reset(bdi);
 	bq24190_sysfs_remove_group(bdi);
-	power_supply_unregister(bdi->battery);
+	if (bdi->battery)
+		power_supply_unregister(bdi->battery);
 	power_supply_unregister(bdi->charger);
 	if (error >= 0)
 		pm_runtime_put_sync(bdi->dev);
@@ -1636,7 +1714,8 @@ static __maybe_unused int bq24190_pm_resume(struct device *dev)
 
 	/* Things may have changed while suspended so alert upper layer */
 	power_supply_changed(bdi->charger);
-	power_supply_changed(bdi->battery);
+	if (bdi->battery)
+		power_supply_changed(bdi->battery);
 
 	return 0;
 }

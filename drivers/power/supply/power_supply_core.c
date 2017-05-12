@@ -280,13 +280,19 @@ static inline int power_supply_check_supplies(struct power_supply *psy)
 }
 #endif
 
-static int __power_supply_am_i_supplied(struct device *dev, void *data)
+struct psy_am_i_supplied_data {
+	struct power_supply *psy;
+	unsigned int count;
+};
+
+static int __power_supply_am_i_supplied(struct device *dev, void *_data)
 {
 	union power_supply_propval ret = {0,};
-	struct power_supply *psy = data;
 	struct power_supply *epsy = dev_get_drvdata(dev);
+	struct psy_am_i_supplied_data *data = _data;
 
-	if (__power_supply_is_supplied_by(epsy, psy))
+	data->count++;
+	if (__power_supply_is_supplied_by(epsy, data->psy))
 		if (!epsy->desc->get_property(epsy, POWER_SUPPLY_PROP_ONLINE,
 					&ret))
 			return ret.intval;
@@ -296,12 +302,16 @@ static int __power_supply_am_i_supplied(struct device *dev, void *data)
 
 int power_supply_am_i_supplied(struct power_supply *psy)
 {
+	struct psy_am_i_supplied_data data = { psy, 0 };
 	int error;
 
-	error = class_for_each_device(power_supply_class, NULL, psy,
+	error = class_for_each_device(power_supply_class, NULL, &data,
 				      __power_supply_am_i_supplied);
 
-	dev_dbg(&psy->dev, "%s %d\n", __func__, error);
+	dev_dbg(&psy->dev, "%s count %u err %d\n", __func__, data.count, error);
+
+	if (data.count == 0)
+		return -ENODEV;
 
 	return error;
 }
