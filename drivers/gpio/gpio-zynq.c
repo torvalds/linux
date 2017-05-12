@@ -651,9 +651,8 @@ static const struct zynq_platform_data zynq_gpio_def = {
 };
 
 static const struct of_device_id zynq_gpio_of_match[] = {
-	{ .compatible = "xlnx,zynq-gpio-1.0", .data = (void *)&zynq_gpio_def },
-	{ .compatible = "xlnx,zynqmp-gpio-1.0",
-					.data = (void *)&zynqmp_gpio_def },
+	{ .compatible = "xlnx,zynq-gpio-1.0", .data = &zynq_gpio_def },
+	{ .compatible = "xlnx,zynqmp-gpio-1.0", .data = &zynqmp_gpio_def },
 	{ /* end of table */ }
 };
 MODULE_DEVICE_TABLE(of, zynq_gpio_of_match);
