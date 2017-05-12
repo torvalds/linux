@@ -377,6 +377,7 @@ static void phy_sanitize_settings(struct phy_device *phydev)
  * @cmd: ethtool_cmd
  *
  * A few notes about parameter checking:
+ *
  * - We don't set port or transceiver, so we don't care what they
  *   were set to.
  * - phy_start_aneg() will make sure forced settings are sane, and
