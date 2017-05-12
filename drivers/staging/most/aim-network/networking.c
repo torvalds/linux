@@ -197,6 +197,7 @@ static int most_nd_open(struct net_device *dev)
 		return -EBUSY;
 	}
 
+	netif_carrier_off(dev);
 	if (is_valid_ether_addr(dev->dev_addr))
 		netif_dormant_off(dev);
 	else
@@ -544,6 +545,11 @@ void most_deliver_netinfo(struct most_interface *iface,
 	dev = nd->dev;
 	if (!dev)
 		return;
+
+	if (link_stat)
+		netif_carrier_on(dev);
+	else
+		netif_carrier_off(dev);
 
 	if (m && is_valid_ether_addr(m)) {
 		if (!is_valid_ether_addr(dev->dev_addr)) {
