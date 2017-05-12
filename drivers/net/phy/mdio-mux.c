@@ -169,7 +169,6 @@ int mdio_mux_init(struct device *dev,
 		if (r) {
 			mdiobus_free(cb->mii_bus);
 			devm_kfree(dev, cb);
-			of_node_put(child_bus_node);
 		} else {
 			cb->next = pb->children;
 			pb->children = cb;
