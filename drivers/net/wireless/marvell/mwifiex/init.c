@@ -670,8 +670,7 @@ mwifiex_shutdown_drv(struct mwifiex_adapter *adapter)
 
 			mwifiex_clean_auto_tdls(priv);
 			mwifiex_abort_cac(priv);
-			mwifiex_clean_txrx(priv);
-			mwifiex_delete_bss_prio_tbl(priv);
+			mwifiex_free_priv(priv);
 		}
 	}
 
