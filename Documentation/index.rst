@@ -73,6 +73,7 @@ needed).
    security/index
    sound/index
    crypto/index
+   filesystems/index
 
 Korean translations
 -------------------

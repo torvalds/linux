@@ -8,7 +8,7 @@
 
 DOCBOOKS := z8530book.xml  \
 	    networking.xml \
-	    filesystems.xml lsm.xml \
+	    lsm.xml \
 	    libata.xml mtdnand.xml librs.xml rapidio.xml \
 	    s390-drivers.xml scsi.xml \
 	    sh.xml w1.xml
