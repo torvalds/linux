@@ -370,7 +370,6 @@ static void mwifiex_pcie_reset_notify(struct pci_dev *pdev, bool prepare)
 		 * PCIe and HW.
 		 */
 		mwifiex_shutdown_sw(adapter);
-		adapter->surprise_removed = true;
 		clear_bit(MWIFIEX_IFACE_WORK_DEVICE_DUMP, &card->work_flags);
 		clear_bit(MWIFIEX_IFACE_WORK_CARD_RESET, &card->work_flags);
 	} else {
@@ -378,7 +377,6 @@ static void mwifiex_pcie_reset_notify(struct pci_dev *pdev, bool prepare)
 		 * after performing FLR respectively. Reconfigure the software
 		 * and firmware including firmware redownload
 		 */
-		adapter->surprise_removed = false;
 		ret = mwifiex_reinit_sw(adapter);
 		if (ret) {
 			dev_err(&pdev->dev, "reinit failed: %d\n", ret);
