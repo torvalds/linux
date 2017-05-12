@@ -135,8 +135,8 @@ static int dm_crtc_get_scanoutpos(struct amdgpu_device *adev, int crtc,
 					 &h_position,
 					 &v_position);
 
-		*position = (v_position) || (h_position << 16);
-		*vbl = (v_blank_start) || (v_blank_end << 16);
+		*position = v_position | (h_position << 16);
+		*vbl = v_blank_start | (v_blank_end << 16);
 	}
 
 	return 0;
