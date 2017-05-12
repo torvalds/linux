@@ -356,17 +356,26 @@ struct hfi1_packet {
 	__le32 *rhf_addr;
 	struct rvt_qp *qp;
 	struct ib_other_headers *ohdr;
+	struct ib_grh *grh;
 	u64 rhf;
 	u32 maxcnt;
 	u32 rhqoff;
+	u32 dlid;
+	u32 slid;
 	u16 tlen;
 	s16 etail;
 	u8 hlen;
 	u8 numpkt;
 	u8 rsize;
 	u8 updegr;
-	u8 rcv_flags;
 	u8 etype;
+	u8 extra_byte;
+	u8 pad;
+	u8 sc;
+	u8 sl;
+	u8 opcode;
+	bool becn;
+	bool fecn;
 };
 
 struct rvt_sge_state;
@@ -2086,4 +2095,14 @@ int hfi1_tempsense_rd(struct hfi1_devdata *dd, struct hfi1_temp *temp);
 
 #define DD_DEV_ENTRY(dd)       __string(dev, dev_name(&(dd)->pcidev->dev))
 #define DD_DEV_ASSIGN(dd)      __assign_str(dev, dev_name(&(dd)->pcidev->dev))
+
+/*
+ * hfi1_check_mcast- Check if the given lid is
+ * in the IB multicast range.
+ */
+static inline bool hfi1_check_mcast(u16 lid)
+{
+	return ((lid >= be16_to_cpu(IB_MULTICAST_LID_BASE)) &&
+		(lid != be16_to_cpu(IB_LID_PERMISSIVE)));
+}
 #endif                          /* _HFI1_KERNEL_H */

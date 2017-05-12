@@ -9810,15 +9810,6 @@ void hfi1_clear_tids(struct hfi1_ctxtdata *rcd)
 		hfi1_put_tid(dd, i, PT_INVALID, 0, 0);
 }
 
-struct ib_header *hfi1_get_msgheader(
-	struct hfi1_devdata *dd, __le32 *rhf_addr)
-{
-	u32 offset = rhf_hdrq_offset(rhf_to_cpu(rhf_addr));
-
-	return (struct ib_header *)
-		(rhf_addr - dd->rhf_offset + offset);
-}
-
 static const char * const ib_cfg_name_strings[] = {
 	"HFI1_IB_CFG_LIDLMC",
 	"HFI1_IB_CFG_LWID_DG_ENB",

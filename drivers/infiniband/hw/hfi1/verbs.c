@@ -508,13 +508,14 @@ again:
 /*
  * Make sure the QP is ready and able to accept the given opcode.
  */
-static inline opcode_handler qp_ok(int opcode, struct hfi1_packet *packet)
+static inline opcode_handler qp_ok(struct hfi1_packet *packet)
 {
 	if (!(ib_rvt_state_ops[packet->qp->state] & RVT_PROCESS_RECV_OK))
 		return NULL;
-	if (((opcode & RVT_OPCODE_QP_MASK) == packet->qp->allowed_ops) ||
-	    (opcode == IB_OPCODE_CNP))
-		return opcode_handler_tbl[opcode];
+	if (((packet->opcode & RVT_OPCODE_QP_MASK) ==
+	     packet->qp->allowed_ops) ||
+	    (packet->opcode == IB_OPCODE_CNP))
+		return opcode_handler_tbl[packet->opcode];
 
 	return NULL;
 }
@@ -548,68 +549,34 @@ static u64 hfi1_fault_tx(struct rvt_qp *qp, u8 opcode, u64 pbc)
 	return pbc;
 }
 
-/**
- * hfi1_ib_rcv - process an incoming packet
- * @packet: data packet information
- *
- * This is called to process an incoming packet at interrupt level.
- *
- * Tlen is the length of the header + data + CRC in bytes.
- */
-void hfi1_ib_rcv(struct hfi1_packet *packet)
+static inline void hfi1_handle_packet(struct hfi1_packet *packet,
+				      bool is_mcast)
 {
+	u32 qp_num;
 	struct hfi1_ctxtdata *rcd = packet->rcd;
-	struct ib_header *hdr = packet->hdr;
-	u32 tlen = packet->tlen;
 	struct hfi1_pportdata *ppd = rcd->ppd;
 	struct hfi1_ibport *ibp = rcd_to_iport(rcd);
 	struct rvt_dev_info *rdi = &ppd->dd->verbs_dev.rdi;
 	opcode_handler packet_handler;
 	unsigned long flags;
-	u32 qp_num;
-	int lnh;
-	u8 opcode;
-	u16 lid;
 
-	/* Check for GRH */
-	lnh = ib_get_lnh(hdr);
-	if (lnh == HFI1_LRH_BTH) {
-		packet->ohdr = &hdr->u.oth;
-	} else if (lnh == HFI1_LRH_GRH) {
-		u32 vtf;
+	inc_opstats(packet->tlen, &rcd->opstats->stats[packet->opcode]);
 
-		packet->ohdr = &hdr->u.l.oth;
-		if (hdr->u.l.grh.next_hdr != IB_GRH_NEXT_HDR)
-			goto drop;
-		vtf = be32_to_cpu(hdr->u.l.grh.version_tclass_flow);
-		if ((vtf >> IB_GRH_VERSION_SHIFT) != IB_GRH_VERSION)
-			goto drop;
-		packet->rcv_flags |= HFI1_HAS_GRH;
-	} else {
-		goto drop;
-	}
-
-	trace_input_ibhdr(rcd->dd, packet, !!(packet->rhf & RHF_DC_INFO_SMASK));
-	opcode = ib_bth_get_opcode(packet->ohdr);
-	inc_opstats(tlen, &rcd->opstats->stats[opcode]);
-
-	/* Get the destination QP number. */
-	qp_num = ib_bth_get_qpn(packet->ohdr);
-	lid = ib_get_dlid(hdr);
-	if (unlikely((lid >= be16_to_cpu(IB_MULTICAST_LID_BASE)) &&
-		     (lid != be16_to_cpu(IB_LID_PERMISSIVE)))) {
+	if (unlikely(is_mcast)) {
 		struct rvt_mcast *mcast;
 		struct rvt_mcast_qp *p;
 
-		if (lnh != HFI1_LRH_GRH)
+		if (!packet->grh)
 			goto drop;
-		mcast = rvt_mcast_find(&ibp->rvp, &hdr->u.l.grh.dgid, lid);
+		mcast = rvt_mcast_find(&ibp->rvp,
+				       &packet->grh->dgid,
+				       packet->dlid);
 		if (!mcast)
 			goto drop;
 		list_for_each_entry_rcu(p, &mcast->qp_list, list) {
 			packet->qp = p->qp;
 			spin_lock_irqsave(&packet->qp->r_lock, flags);
-			packet_handler = qp_ok(opcode, packet);
+			packet_handler = qp_ok(packet);
 			if (likely(packet_handler))
 				packet_handler(packet);
 			else
@@ -623,19 +590,21 @@ void hfi1_ib_rcv(struct hfi1_packet *packet)
 		if (atomic_dec_return(&mcast->refcount) <= 1)
 			wake_up(&mcast->wait);
 	} else {
+		/* Get the destination QP number. */
+		qp_num = ib_bth_get_qpn(packet->ohdr);
 		rcu_read_lock();
 		packet->qp = rvt_lookup_qpn(rdi, &ibp->rvp, qp_num);
 		if (!packet->qp) {
 			rcu_read_unlock();
 			goto drop;
 		}
-		if (unlikely(hfi1_dbg_fault_opcode(packet->qp, opcode,
+		if (unlikely(hfi1_dbg_fault_opcode(packet->qp, packet->opcode,
 						   true))) {
 			rcu_read_unlock();
 			goto drop;
 		}
 		spin_lock_irqsave(&packet->qp->r_lock, flags);
-		packet_handler = qp_ok(opcode, packet);
+		packet_handler = qp_ok(packet);
 		if (likely(packet_handler))
 			packet_handler(packet);
 		else
@@ -644,9 +613,27 @@ void hfi1_ib_rcv(struct hfi1_packet *packet)
 		rcu_read_unlock();
 	}
 	return;
-
 drop:
 	ibp->rvp.n_pkt_drops++;
+}
+
+/**
+ * hfi1_ib_rcv - process an incoming packet
+ * @packet: data packet information
+ *
+ * This is called to process an incoming packet at interrupt level.
+ */
+void hfi1_ib_rcv(struct hfi1_packet *packet)
+{
+	struct hfi1_ctxtdata *rcd = packet->rcd;
+	bool is_mcast = false;
+
+	if (unlikely(hfi1_check_mcast(packet->dlid)))
+		is_mcast = true;
+
+	trace_input_ibhdr(rcd->dd, packet,
+			  !!(packet->rhf & RHF_DC_INFO_SMASK));
+	hfi1_handle_packet(packet, is_mcast);
 }
 
 /*

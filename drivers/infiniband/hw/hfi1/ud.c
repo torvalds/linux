@@ -668,36 +668,31 @@ static int opa_smp_check(struct hfi1_ibport *ibp, u16 pkey, u8 sc5,
 void hfi1_ud_rcv(struct hfi1_packet *packet)
 {
 	struct ib_other_headers *ohdr = packet->ohdr;
-	int opcode;
 	u32 hdrsize = packet->hlen;
 	struct ib_wc wc;
 	u32 qkey;
 	u32 src_qp;
-	u16 dlid, pkey;
+	u16 pkey;
 	int mgmt_pkey_idx = -1;
 	struct hfi1_ibport *ibp = rcd_to_iport(packet->rcd);
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 	struct ib_header *hdr = packet->hdr;
-	u32 rcv_flags = packet->rcv_flags;
 	void *data = packet->ebuf;
 	u32 tlen = packet->tlen;
 	struct rvt_qp *qp = packet->qp;
-	bool has_grh = rcv_flags & HFI1_HAS_GRH;
 	u8 sc5 = hfi1_9B_get_sc5(hdr, packet->rhf);
 	u32 bth1;
-	u8 sl_from_sc, sl;
-	u16 slid;
-	u8 extra_bytes;
+	u8 sl_from_sc;
+	u8 extra_bytes = packet->pad;
+	u8 opcode = packet->opcode;
+	u8 sl = packet->sl;
+	u32 dlid = packet->dlid;
+	u32 slid = packet->slid;
 
+	bth1 = be32_to_cpu(ohdr->bth[1]);
 	qkey = ib_get_qkey(ohdr);
 	src_qp = ib_get_sqpn(ohdr);
-	dlid = ib_get_dlid(hdr);
-	bth1 = be32_to_cpu(ohdr->bth[1]);
-	slid = ib_get_slid(hdr);
 	pkey = ib_bth_get_pkey(ohdr);
-	opcode = ib_bth_get_opcode(ohdr);
-	sl = ib_get_sl(hdr);
-	extra_bytes = ib_bth_get_pad(ohdr);
 	extra_bytes += (SIZE_OF_CRC << 2);
 	sl_from_sc = ibp->sc_to_sl[sc5];
 
@@ -811,7 +806,7 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 		qp->r_flags |= RVT_R_REUSE_SGE;
 		goto drop;
 	}
-	if (has_grh) {
+	if (packet->grh) {
 		hfi1_copy_sge(&qp->r_sge, &hdr->u.l.grh,
 			      sizeof(struct ib_grh), true, false);
 		wc.wc_flags |= IB_WC_GRH;

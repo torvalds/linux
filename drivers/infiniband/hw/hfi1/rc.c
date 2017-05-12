@@ -1916,17 +1916,16 @@ void process_becn(struct hfi1_pportdata *ppd, u8 sl, u16 rlid, u32 lqpn,
 void hfi1_rc_rcv(struct hfi1_packet *packet)
 {
 	struct hfi1_ctxtdata *rcd = packet->rcd;
-	struct ib_header *hdr = packet->hdr;
-	u32 rcv_flags = packet->rcv_flags;
 	void *data = packet->ebuf;
 	u32 tlen = packet->tlen;
 	struct rvt_qp *qp = packet->qp;
 	struct hfi1_ibport *ibp = rcd_to_iport(rcd);
 	struct ib_other_headers *ohdr = packet->ohdr;
-	u32 bth0, opcode;
+	u32 bth0;
+	u32 opcode = packet->opcode;
 	u32 hdrsize = packet->hlen;
 	u32 psn;
-	u32 pad;
+	u32 pad = packet->pad;
 	struct ib_wc wc;
 	u32 pmtu = qp->pmtu;
 	int diff;
@@ -1938,14 +1937,13 @@ void hfi1_rc_rcv(struct hfi1_packet *packet)
 	u32 rkey;
 
 	lockdep_assert_held(&qp->r_lock);
+
 	bth0 = be32_to_cpu(ohdr->bth[0]);
-	if (hfi1_ruc_check_hdr(ibp, hdr, rcv_flags & HFI1_HAS_GRH, qp, bth0))
+	if (hfi1_ruc_check_hdr(ibp, packet))
 		return;
 
 	is_fecn = process_ecn(qp, packet, false);
-
 	psn = ib_bth_get_psn(ohdr);
-	opcode = ib_bth_get_opcode(ohdr);
 
 	/*
 	 * Process responses (ACKs) before anything else.  Note that the
@@ -2075,8 +2073,6 @@ no_immediate_data:
 		wc.wc_flags = 0;
 		wc.ex.imm_data = 0;
 send_last:
-		/* Get the number of bytes the message was padded by. */
-		pad = ib_bth_get_pad(ohdr);
 		/* Check for invalid length. */
 		/* LAST len should be >= 1 */
 		if (unlikely(tlen < (hdrsize + pad + 4)))
@@ -2369,28 +2365,19 @@ send_ack:
 
 void hfi1_rc_hdrerr(
 	struct hfi1_ctxtdata *rcd,
-	struct ib_header *hdr,
-	u32 rcv_flags,
+	struct hfi1_packet *packet,
 	struct rvt_qp *qp)
 {
-	int has_grh = rcv_flags & HFI1_HAS_GRH;
-	struct ib_other_headers *ohdr;
 	struct hfi1_ibport *ibp = rcd_to_iport(rcd);
 	int diff;
 	u32 opcode;
-	u32 psn, bth0;
+	u32 psn;
 
-	/* Check for GRH */
-	ohdr = &hdr->u.oth;
-	if (has_grh)
-		ohdr = &hdr->u.l.oth;
-
-	bth0 = be32_to_cpu(ohdr->bth[0]);
-	if (hfi1_ruc_check_hdr(ibp, hdr, has_grh, qp, bth0))
+	if (hfi1_ruc_check_hdr(ibp, packet))
 		return;
 
-	psn = ib_bth_get_psn(ohdr);
-	opcode = ib_bth_get_opcode(ohdr);
+	psn = ib_bth_get_psn(packet->ohdr);
+	opcode = ib_bth_get_opcode(packet->ohdr);
 
 	/* Only deal with RDMA Writes for now */
 	if (opcode < IB_OPCODE_RC_RDMA_READ_RESPONSE_FIRST) {
