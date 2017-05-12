@@ -74,10 +74,6 @@ CONFIG_TINY_RCU
 
 	These are controlled by CONFIG_PREEMPT and/or CONFIG_SMP.
 
-CONFIG_SPARSE_RCU_POINTER
-
-	Makes sense only for sparse runs, not for kernel builds.
-
 CONFIG_SRCU
 CONFIG_TASKS_RCU
 

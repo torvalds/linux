@@ -559,9 +559,7 @@ The <tt>rcu_access_pointer()</tt> on line&nbsp;6 is similar to
 	For <tt>remove_gp_synchronous()</tt>, as long as all modifications
 	to <tt>gp</tt> are carried out while holding <tt>gp_lock</tt>,
 	the above optimizations are harmless.
-	However,
-	with <tt>CONFIG_SPARSE_RCU_POINTER=y</tt>,
-	<tt>sparse</tt> will complain if you
+	However, <tt>sparse</tt> will complain if you
 	define <tt>gp</tt> with <tt>__rcu</tt> and then
 	access it without using
 	either <tt>rcu_access_pointer()</tt> or <tt>rcu_dereference()</tt>.
@@ -1978,9 +1976,8 @@ guard against mishaps and misuse:
 	and <tt>rcu_dereference()</tt>, perhaps (incorrectly)
 	substituting a simple assignment.
 	To catch this sort of error, a given RCU-protected pointer may be
-	tagged with <tt>__rcu</tt>, after which running sparse
-	with <tt>CONFIG_SPARSE_RCU_POINTER=y</tt> will complain
-	about simple-assignment accesses to that pointer.
+	tagged with <tt>__rcu</tt>, after which sparse
+	will complain about simple-assignment accesses to that pointer.
 	Arnd Bergmann made me aware of this requirement, and also
 	supplied the needed
 	<a href="https://lwn.net/Articles/376011/">patch series</a>.
