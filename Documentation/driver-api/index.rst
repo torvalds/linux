@@ -32,6 +32,7 @@ available subsections can be seen below.
    i2c
    hsi
    edac
+   libata
    miscellaneous
    vme
    80211/index
