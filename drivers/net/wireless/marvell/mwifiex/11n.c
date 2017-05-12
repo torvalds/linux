@@ -653,11 +653,13 @@ int mwifiex_send_delba(struct mwifiex_private *priv, int tid, u8 *peer_mac,
 void mwifiex_11n_delba(struct mwifiex_private *priv, int tid)
 {
 	struct mwifiex_rx_reorder_tbl *rx_reor_tbl_ptr;
+	unsigned long flags;
 
+	spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
 	if (list_empty(&priv->rx_reorder_tbl_ptr)) {
 		dev_dbg(priv->adapter->dev,
 			"mwifiex_11n_delba: rx_reorder_tbl_ptr empty\n");
-		return;
+		goto exit;
 	}
 
 	list_for_each_entry(rx_reor_tbl_ptr, &priv->rx_reorder_tbl_ptr, list) {
@@ -666,9 +668,11 @@ void mwifiex_11n_delba(struct mwifiex_private *priv, int tid)
 				"Send delba to tid=%d, %pM\n",
 				tid, rx_reor_tbl_ptr->ta);
 			mwifiex_send_delba(priv, tid, rx_reor_tbl_ptr->ta, 0);
-			return;
+			goto exit;
 		}
 	}
+exit:
+	spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
 }
 
 /*
