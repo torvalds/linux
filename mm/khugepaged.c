@@ -907,8 +907,10 @@ static bool __collapse_huge_page_swapin(struct mm_struct *mm,
 				return false;
 			}
 			/* check if the pmd is still valid */
-			if (mm_find_pmd(mm, address) != pmd)
+			if (mm_find_pmd(mm, address) != pmd) {
+				trace_mm_collapse_huge_page_swapin(mm, swapped_in, referenced, 0);
 				return false;
+			}
 		}
 		if (ret & VM_FAULT_ERROR) {
 			trace_mm_collapse_huge_page_swapin(mm, swapped_in, referenced, 0);
