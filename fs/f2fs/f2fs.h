@@ -799,6 +799,12 @@ enum temp_type {
 	NR_TEMP_TYPE,
 };
 
+enum need_lock_type {
+	LOCK_REQ = 0,
+	LOCK_DONE,
+	LOCK_RETRY,
+};
+
 struct f2fs_io_info {
 	struct f2fs_sb_info *sbi;	/* f2fs_sb_info pointer */
 	enum page_type type;	/* contains DATA/NODE/META/META_FLUSH */
@@ -810,7 +816,7 @@ struct f2fs_io_info {
 	struct page *page;	/* page to be written */
 	struct page *encrypted_page;	/* encrypted page */
 	bool submitted;		/* indicate IO submission */
-	bool need_lock;		/* indicate we need to lock cp_rwsem */
+	int need_lock;		/* indicate we need to lock cp_rwsem */
 };
 
 #define is_read_io(rw) ((rw) == READ)
@@ -1277,6 +1283,11 @@ static inline bool enabled_nat_bits(struct f2fs_sb_info *sbi,
 static inline void f2fs_lock_op(struct f2fs_sb_info *sbi)
 {
 	down_read(&sbi->cp_rwsem);
+}
+
+static inline int f2fs_trylock_op(struct f2fs_sb_info *sbi)
+{
+	return down_read_trylock(&sbi->cp_rwsem);
 }
 
 static inline void f2fs_unlock_op(struct f2fs_sb_info *sbi)

@@ -1383,12 +1383,12 @@ int do_write_data_page(struct f2fs_io_info *fio)
 
 		if (valid_ipu_blkaddr(fio)) {
 			ipu_force = true;
-			fio->need_lock = false;
+			fio->need_lock = LOCK_DONE;
 			goto got_it;
 		}
 	}
 
-	if (fio->need_lock)
+	if (fio->need_lock == LOCK_REQ)
 		f2fs_lock_op(fio->sbi);
 
 	err = get_dnode_of_data(&dn, page->index, LOOKUP_NODE);
@@ -1403,25 +1403,38 @@ int do_write_data_page(struct f2fs_io_info *fio)
 		goto out_writepage;
 	}
 got_it:
-	err = encrypt_one_page(fio);
-	if (err)
-		goto out_writepage;
-
-	set_page_writeback(page);
-
 	/*
 	 * If current allocation needs SSR,
 	 * it had better in-place writes for updated data.
 	 */
 	if (ipu_force || (valid_ipu_blkaddr(fio) && need_inplace_update(fio))) {
+		err = encrypt_one_page(fio);
+		if (err)
+			goto out_writepage;
+
+		set_page_writeback(page);
 		f2fs_put_dnode(&dn);
-		if (fio->need_lock)
+		if (fio->need_lock == LOCK_REQ)
 			f2fs_unlock_op(fio->sbi);
 		err = rewrite_data_page(fio);
 		trace_f2fs_do_write_data_page(fio->page, IPU);
 		set_inode_flag(inode, FI_UPDATE_WRITE);
 		return err;
 	}
+
+	if (fio->need_lock == LOCK_RETRY) {
+		if (!f2fs_trylock_op(fio->sbi)) {
+			err = -EAGAIN;
+			goto out_writepage;
+		}
+		fio->need_lock = LOCK_REQ;
+	}
+
+	err = encrypt_one_page(fio);
+	if (err)
+		goto out_writepage;
+
+	set_page_writeback(page);
 
 	/* LFS mode write path */
 	write_data_page(&dn, fio);
@@ -1432,7 +1445,7 @@ got_it:
 out_writepage:
 	f2fs_put_dnode(&dn);
 out:
-	if (fio->need_lock)
+	if (fio->need_lock == LOCK_REQ)
 		f2fs_unlock_op(fio->sbi);
 	return err;
 }
@@ -1458,7 +1471,7 @@ static int __write_data_page(struct page *page, bool *submitted,
 		.page = page,
 		.encrypted_page = NULL,
 		.submitted = false,
-		.need_lock = true,
+		.need_lock = LOCK_RETRY,
 	};
 
 	trace_f2fs_writepage(page, DATA);
@@ -1494,7 +1507,7 @@ write:
 
 	/* Dentry blocks are controlled by checkpoint */
 	if (S_ISDIR(inode->i_mode)) {
-		fio.need_lock = false;
+		fio.need_lock = LOCK_DONE;
 		err = do_write_data_page(&fio);
 		goto done;
 	}
@@ -1513,8 +1526,13 @@ write:
 			goto out;
 	}
 
-	if (err == -EAGAIN)
+	if (err == -EAGAIN) {
 		err = do_write_data_page(&fio);
+		if (err == -EAGAIN) {
+			fio.need_lock = LOCK_REQ;
+			err = do_write_data_page(&fio);
+		}
+	}
 	if (F2FS_I(inode)->last_disk_size < psize)
 		F2FS_I(inode)->last_disk_size = psize;
 
