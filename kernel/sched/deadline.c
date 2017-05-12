@@ -1533,7 +1533,7 @@ retry:
 		 * then possible that next_task has migrated.
 		 */
 		task = pick_next_pushable_dl_task(rq);
-		if (task_cpu(next_task) == rq->cpu && task == next_task) {
+		if (task == next_task) {
 			/*
 			 * The task is still there. We don't try
 			 * again, some other cpu will pull it when ready.
