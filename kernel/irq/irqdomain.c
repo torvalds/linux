@@ -801,15 +801,26 @@ static int virq_debug_show(struct seq_file *m, void *private)
 	mutex_lock(&irq_domain_mutex);
 	list_for_each_entry(domain, &irq_domain_list, link) {
 		struct device_node *of_node;
+		const char *name;
+
 		int count = 0;
+
 		of_node = irq_domain_get_of_node(domain);
+		if (of_node)
+			name = of_node_full_name(of_node);
+		else if (is_fwnode_irqchip(domain->fwnode))
+			name = container_of(domain->fwnode, struct irqchip_fwid,
+					    fwnode)->name;
+		else
+			name = "";
+
 		radix_tree_for_each_slot(slot, &domain->revmap_tree, &iter, 0)
 			count++;
 		seq_printf(m, "%c%-16s  %6u  %10u  %10u  %s\n",
 			   domain == irq_default_domain ? '*' : ' ', domain->name,
 			   domain->revmap_size + count, domain->revmap_size,
 			   domain->revmap_direct_max_irq,
-			   of_node ? of_node_full_name(of_node) : "");
+			   name);
 	}
 	mutex_unlock(&irq_domain_mutex);
 
