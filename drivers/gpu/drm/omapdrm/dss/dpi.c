@@ -560,17 +560,6 @@ static int dpi_check_timings(struct omap_dss_device *dssdev,
 	return 0;
 }
 
-static void dpi_set_data_lines(struct omap_dss_device *dssdev, int data_lines)
-{
-	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
-
-	mutex_lock(&dpi->lock);
-
-	dpi->data_lines = data_lines;
-
-	mutex_unlock(&dpi->lock);
-}
-
 static int dpi_verify_pll(struct dss_pll *pll)
 {
 	int r;
@@ -725,8 +714,6 @@ static const struct omapdss_dpi_ops dpi_ops = {
 	.check_timings = dpi_check_timings,
 	.set_timings = dpi_set_timings,
 	.get_timings = dpi_get_timings,
-
-	.set_data_lines = dpi_set_data_lines,
 };
 
 static void dpi_init_output_port(struct platform_device *pdev,

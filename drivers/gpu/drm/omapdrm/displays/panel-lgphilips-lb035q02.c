@@ -49,8 +49,6 @@ struct panel_drv_data {
 
 	struct spi_device *spi;
 
-	int data_lines;
-
 	struct videomode vm;
 
 	struct gpio_desc *enable_gpio;
@@ -159,8 +157,6 @@ static int lb035q02_enable(struct omap_dss_device *dssdev)
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
 
-	if (ddata->data_lines)
-		in->ops.dpi->set_data_lines(in, ddata->data_lines);
 	in->ops.dpi->set_timings(in, &ddata->vm);
 
 	r = in->ops.dpi->enable(in);
@@ -289,7 +285,6 @@ static int lb035q02_panel_spi_probe(struct spi_device *spi)
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
 	dssdev->owner = THIS_MODULE;
 	dssdev->panel.vm = ddata->vm;
-	dssdev->phy.dpi.data_lines = ddata->data_lines;
 
 	r = omapdss_register_display(dssdev);
 	if (r) {

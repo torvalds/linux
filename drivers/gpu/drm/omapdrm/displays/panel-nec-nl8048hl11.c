@@ -25,8 +25,6 @@ struct panel_drv_data {
 
 	struct videomode vm;
 
-	int data_lines;
-
 	int res_gpio;
 	int qvga_gpio;
 
@@ -153,8 +151,6 @@ static int nec_8048_enable(struct omap_dss_device *dssdev)
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
 
-	if (ddata->data_lines)
-		in->ops.dpi->set_data_lines(in, ddata->data_lines);
 	in->ops.dpi->set_timings(in, &ddata->vm);
 
 	r = in->ops.dpi->enable(in);

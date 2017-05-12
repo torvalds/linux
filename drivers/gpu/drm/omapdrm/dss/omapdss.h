@@ -471,8 +471,6 @@ struct omapdss_dpi_ops {
 			    struct videomode *vm);
 	void (*get_timings)(struct omap_dss_device *dssdev,
 			    struct videomode *vm);
-
-	void (*set_data_lines)(struct omap_dss_device *dssdev, int data_lines);
 };
 
 struct omapdss_sdi_ops {
@@ -625,10 +623,6 @@ struct omap_dss_device {
 	enum omap_display_type output_type;
 
 	union {
-		struct {
-			u8 data_lines;
-		} dpi;
-
 		struct {
 			u8 channel;
 			u8 data_lines;
