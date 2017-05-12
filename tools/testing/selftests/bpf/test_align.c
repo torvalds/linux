@@ -273,6 +273,20 @@ static struct bpf_align_test tests[] = {
 			BPF_EXIT_INSN(),
 			BPF_LDX_MEM(BPF_W, BPF_REG_4, BPF_REG_5, 0),
 
+			/* Test multiple accumulations of unknown values
+			 * into a packet pointer.
+			 */
+			BPF_MOV64_REG(BPF_REG_5, BPF_REG_2),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_5, 14),
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_5, BPF_REG_6),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_5, 4),
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_5, BPF_REG_6),
+			BPF_MOV64_REG(BPF_REG_4, BPF_REG_5),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_4, 4),
+			BPF_JMP_REG(BPF_JGE, BPF_REG_3, BPF_REG_4, 1),
+			BPF_EXIT_INSN(),
+			BPF_LDX_MEM(BPF_W, BPF_REG_4, BPF_REG_5, 0),
+
 			BPF_MOV64_IMM(BPF_REG_0, 0),
 			BPF_EXIT_INSN(),
 		},
@@ -314,6 +328,29 @@ static struct bpf_align_test tests[] = {
 			 * requirements.
 			 */
 			"23: R0=pkt(id=0,off=8,r=8) R1=ctx R2=pkt(id=0,off=0,r=8) R3=pkt_end R4=pkt(id=2,off=18,r=18),aux_off_align=4 R5=pkt(id=2,off=14,r=18),aux_off_align=4 R6=inv54,min_align=4 R10=fp",
+
+			/* Constant offset is added to R5 packet pointer,
+			 * resulting in reg->off value of 14.
+			 */
+			"26: R0=pkt(id=0,off=8,r=8) R1=ctx R2=pkt(id=0,off=0,r=8) R3=pkt_end R4=inv,aux_off_align=4 R5=pkt(id=0,off=14,r=8) R6=inv54,min_align=4 R10=fp",
+			/* Variable offset is added to R5, resulting in an
+			 * auxiliary offset of 14, and an auxiliary alignment of 4.
+			 */
+			"27: R0=pkt(id=0,off=8,r=8) R1=ctx R2=pkt(id=0,off=0,r=8) R3=pkt_end R4=inv,aux_off_align=4 R5=pkt(id=3,off=0,r=0),aux_off=14,aux_off_align=4 R6=inv54,min_align=4 R10=fp",
+			/* Constant is added to R5 again, setting reg->off to 4. */
+			"28: R0=pkt(id=0,off=8,r=8) R1=ctx R2=pkt(id=0,off=0,r=8) R3=pkt_end R4=inv,aux_off_align=4 R5=pkt(id=3,off=4,r=0),aux_off=14,aux_off_align=4 R6=inv54,min_align=4 R10=fp",
+			/* And once more we add a variable, which causes an accumulation
+			 * of reg->off into reg->aux_off_align, with resulting value of
+			 * 18.  The auxiliary alignment stays at 4.
+			 */
+			"29: R0=pkt(id=0,off=8,r=8) R1=ctx R2=pkt(id=0,off=0,r=8) R3=pkt_end R4=inv,aux_off_align=4 R5=pkt(id=4,off=0,r=0),aux_off=18,aux_off_align=4 R6=inv54,min_align=4 R10=fp",
+			/* At the time the word size load is performed from R5,
+			 * it's total offset is NET_IP_ALIGN + reg->off (0) +
+			 * reg->aux_off (18) which is 20.  Then the variable offset
+			 * is considered using reg->aux_off_align which is 4 and meets
+			 * the load's requirements.
+			 */
+			"33: R0=pkt(id=0,off=8,r=8) R1=ctx R2=pkt(id=0,off=0,r=8) R3=pkt_end R4=pkt(id=4,off=4,r=4),aux_off=18,aux_off_align=4 R5=pkt(id=4,off=0,r=4),aux_off=18,aux_off_align=4 R6=inv54,min_align=4 R10=fp",
 		},
 	},
 };
