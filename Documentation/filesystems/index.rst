@@ -287,7 +287,6 @@ Transasction Level
 ~~~~~~~~~~~~~~~~~~
 
 .. kernel-doc:: fs/jbd2/transaction.c
-   :export:
 
 See also
 --------
