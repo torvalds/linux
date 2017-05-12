@@ -507,7 +507,7 @@ struct nlm_void			{ int dummy; };
 #define	No	(1+1024/4)				/* netobj */
 #define	St	1					/* status */
 #define	Rg	4					/* range (offset + length) */
-struct svc_procedure		nlmsvc_procedures4[] = {
+const struct svc_procedure nlmsvc_procedures4[] = {
   PROC(null,		void,		void,		void,	void, 1),
   PROC(test,		testargs,	testres,	args,	res, Ck+St+2+No+Rg),
   PROC(lock,		lockargs,	res,		args,	res, Ck+St),

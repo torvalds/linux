@@ -995,7 +995,7 @@ static struct callback_op callback_ops[] = {
 /*
  * Define NFS4 callback procedures
  */
-static struct svc_procedure nfs4_callback_procedures1[] = {
+static const struct svc_procedure nfs4_callback_procedures1[] = {
 	[CB_NULL] = {
 		.pc_func = nfs4_callback_null,
 		.pc_decode = nfs4_decode_void,

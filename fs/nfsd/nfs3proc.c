@@ -674,7 +674,7 @@ struct nfsd3_voidargs { int dummy; };
 #define pAT (1+AT)	/* post attributes - conditional */
 #define WC (7+pAT)	/* WCC attributes */
 
-static struct svc_procedure		nfsd_procedures3[22] = {
+static const struct svc_procedure nfsd_procedures3[22] = {
 	[NFS3PROC_NULL] = {
 		.pc_func = nfsd3_proc_null,
 		.pc_encode = nfs3svc_encode_voidres,

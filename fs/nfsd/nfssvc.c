@@ -756,7 +756,7 @@ static __be32 map_new_errors(u32 vers, __be32 nfserr)
  * problem, we enforce these assumptions here:
  */
 static bool nfs_request_too_big(struct svc_rqst *rqstp,
-				struct svc_procedure *proc)
+				const struct svc_procedure *proc)
 {
 	/*
 	 * The ACL code has more careful bounds-checking and is not
@@ -781,7 +781,7 @@ static bool nfs_request_too_big(struct svc_rqst *rqstp,
 int
 nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 {
-	struct svc_procedure	*proc;
+	const struct svc_procedure *proc;
 	__be32			nfserr;
 	__be32			*nfserrp;
 
