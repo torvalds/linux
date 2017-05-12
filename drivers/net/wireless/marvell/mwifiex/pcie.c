@@ -2380,11 +2380,6 @@ static irqreturn_t mwifiex_pcie_interrupt(int irq, void *context)
 	struct pcie_service_card *card;
 	struct mwifiex_adapter *adapter;
 
-	if (!pdev) {
-		pr_err("info: %s: pdev is NULL\n", __func__);
-		goto exit;
-	}
-
 	card = pci_get_drvdata(pdev);
 
 	if (!card->adapter) {
