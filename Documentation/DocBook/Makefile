@@ -6,7 +6,7 @@
 # To add a new book the only step required is to add the book to the
 # list of DOCBOOKS.
 
-DOCBOOKS := z8530book.xml  \
+DOCBOOKS := \
 	    lsm.xml \
 	    mtdnand.xml librs.xml rapidio.xml \
 	    scsi.xml \
