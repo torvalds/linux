@@ -1731,7 +1731,7 @@ void sched_ttwu_pending(void)
 {
 	struct rq *rq = this_rq();
 	struct llist_node *llist = llist_del_all(&rq->wake_list);
-	struct task_struct *p;
+	struct task_struct *p, *t;
 	struct rq_flags rf;
 
 	if (!llist)
@@ -1740,17 +1740,8 @@ void sched_ttwu_pending(void)
 	rq_lock_irqsave(rq, &rf);
 	update_rq_clock(rq);
 
-	while (llist) {
-		int wake_flags = 0;
-
-		p = llist_entry(llist, struct task_struct, wake_entry);
-		llist = llist_next(llist);
-
-		if (p->sched_remote_wakeup)
-			wake_flags = WF_MIGRATED;
-
-		ttwu_do_activate(rq, p, wake_flags, &rf);
-	}
+	llist_for_each_entry_safe(p, t, llist, wake_entry)
+		ttwu_do_activate(rq, p, p->sched_remote_wakeup ? WF_MIGRATED : 0, &rf);
 
 	rq_unlock_irqrestore(rq, &rf);
 }
