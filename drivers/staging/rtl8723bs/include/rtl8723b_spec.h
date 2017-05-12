@@ -17,7 +17,6 @@
 
 #include <autoconf.h>
 
-
 #define HAL_NAV_UPPER_UNIT_8723B		128		/*  micro-second */
 
 /*  */
@@ -124,7 +123,6 @@
 /*  */
 /*  */
 
-
 /*  */
 /*  SDIO Bus Specification */
 /*  */
@@ -141,7 +139,6 @@
 /*  SDIO register */
 /*  */
 #define SDIO_REG_HCPWM1_8723B	0x025 /*  HCI Current Power Mode 1 */
-
 
 /*  */
 /* 	8723 Regsiter Bit and Content definition */
@@ -160,7 +157,6 @@
 /* 	0x0100h ~ 0x01FFh	MACTOP General Configuration */
 /*  */
 /*  */
-
 
 /*  */
 /*  */
@@ -206,7 +202,6 @@
 /*  */
 #define EEPROM_RF_GAIN_OFFSET			0xC1
 #define EEPROM_RF_GAIN_VAL			0x1F6
-
 
 /*  */
 /*        8195 IMR/ISR bits						(offset 0xB0,  8bits) */
