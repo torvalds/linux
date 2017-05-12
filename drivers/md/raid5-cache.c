@@ -2637,8 +2637,11 @@ int r5c_try_caching_write(struct r5conf *conf,
 	 * When run in degraded mode, array is set to write-through mode.
 	 * This check helps drain pending write safely in the transition to
 	 * write-through mode.
+	 *
+	 * When a stripe is syncing, the write is also handled in write
+	 * through mode.
 	 */
-	if (s->failed) {
+	if (s->failed || test_bit(STRIPE_SYNCING, &sh->state)) {
 		r5c_make_stripe_write_out(sh);
 		return -EAGAIN;
 	}
@@ -2841,6 +2844,9 @@ void r5c_finish_stripe_write_out(struct r5conf *conf,
 	}
 
 	r5l_append_flush_payload(log, sh->sector);
+	/* stripe is flused to raid disks, we can do resync now */
+	if (test_bit(STRIPE_SYNC_REQUESTED, &sh->state))
+		set_bit(STRIPE_HANDLE, &sh->state);
 }
 
 int r5c_cache_data(struct r5l_log *log, struct stripe_head *sh)

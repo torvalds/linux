@@ -233,11 +233,15 @@ static void do_release_stripe(struct r5conf *conf, struct stripe_head *sh,
 			if (test_bit(R5_InJournal, &sh->dev[i].flags))
 				injournal++;
 	/*
-	 * When quiesce in r5c write back, set STRIPE_HANDLE for stripes with
-	 * data in journal, so they are not released to cached lists
+	 * In the following cases, the stripe cannot be released to cached
+	 * lists. Therefore, we make the stripe write out and set
+	 * STRIPE_HANDLE:
+	 *   1. when quiesce in r5c write back;
+	 *   2. when resync is requested fot the stripe.
 	 */
-	if (conf->quiesce && r5c_is_writeback(conf->log) &&
-	    !test_bit(STRIPE_HANDLE, &sh->state) && injournal != 0) {
+	if (test_bit(STRIPE_SYNC_REQUESTED, &sh->state) ||
+	    (conf->quiesce && r5c_is_writeback(conf->log) &&
+	     !test_bit(STRIPE_HANDLE, &sh->state) && injournal != 0)) {
 		if (test_bit(STRIPE_R5C_CACHING, &sh->state))
 			r5c_make_stripe_write_out(sh);
 		set_bit(STRIPE_HANDLE, &sh->state);
@@ -4656,8 +4660,13 @@ static void handle_stripe(struct stripe_head *sh)
 
 	if (test_bit(STRIPE_SYNC_REQUESTED, &sh->state) && !sh->batch_head) {
 		spin_lock(&sh->stripe_lock);
-		/* Cannot process 'sync' concurrently with 'discard' */
-		if (!test_bit(STRIPE_DISCARD, &sh->state) &&
+		/*
+		 * Cannot process 'sync' concurrently with 'discard'.
+		 * Flush data in r5cache before 'sync'.
+		 */
+		if (!test_bit(STRIPE_R5C_PARTIAL_STRIPE, &sh->state) &&
+		    !test_bit(STRIPE_R5C_FULL_STRIPE, &sh->state) &&
+		    !test_bit(STRIPE_DISCARD, &sh->state) &&
 		    test_and_clear_bit(STRIPE_SYNC_REQUESTED, &sh->state)) {
 			set_bit(STRIPE_SYNCING, &sh->state);
 			clear_bit(STRIPE_INSYNC, &sh->state);
