@@ -239,12 +239,10 @@ static void sctp_v6_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 	struct sctp_bind_addr *bp;
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct sctp_sockaddr_entry *laddr;
-	union sctp_addr *baddr = NULL;
 	union sctp_addr *daddr = &t->ipaddr;
 	union sctp_addr dst_saddr;
 	struct in6_addr *final_p, final;
 	__u8 matchlen = 0;
-	__u8 bmatchlen;
 	sctp_scope_t scope;
 
 	memset(fl6, 0, sizeof(struct flowi6));
@@ -311,23 +309,37 @@ static void sctp_v6_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 	 */
 	rcu_read_lock();
 	list_for_each_entry_rcu(laddr, &bp->address_list, list) {
-		if (!laddr->valid)
+		struct dst_entry *bdst;
+		__u8 bmatchlen;
+
+		if (!laddr->valid ||
+		    laddr->state != SCTP_ADDR_SRC ||
+		    laddr->a.sa.sa_family != AF_INET6 ||
+		    scope > sctp_scope(&laddr->a))
 			continue;
-		if ((laddr->state == SCTP_ADDR_SRC) &&
-		    (laddr->a.sa.sa_family == AF_INET6) &&
-		    (scope <= sctp_scope(&laddr->a))) {
-			bmatchlen = sctp_v6_addr_match_len(daddr, &laddr->a);
-			if (!baddr || (matchlen < bmatchlen)) {
-				baddr = &laddr->a;
-				matchlen = bmatchlen;
-			}
-		}
-	}
-	if (baddr) {
-		fl6->saddr = baddr->v6.sin6_addr;
-		fl6->fl6_sport = baddr->v6.sin6_port;
+
+		fl6->saddr = laddr->a.v6.sin6_addr;
+		fl6->fl6_sport = laddr->a.v6.sin6_port;
 		final_p = fl6_update_dst(fl6, rcu_dereference(np->opt), &final);
-		dst = ip6_dst_lookup_flow(sk, fl6, final_p);
+		bdst = ip6_dst_lookup_flow(sk, fl6, final_p);
+
+		if (!IS_ERR(bdst) &&
+		    ipv6_chk_addr(dev_net(bdst->dev),
+				  &laddr->a.v6.sin6_addr, bdst->dev, 1)) {
+			if (!IS_ERR_OR_NULL(dst))
+				dst_release(dst);
+			dst = bdst;
+			break;
+		}
+
+		bmatchlen = sctp_v6_addr_match_len(daddr, &laddr->a);
+		if (matchlen > bmatchlen)
+			continue;
+
+		if (!IS_ERR_OR_NULL(dst))
+			dst_release(dst);
+		dst = bdst;
+		matchlen = bmatchlen;
 	}
 	rcu_read_unlock();
 
