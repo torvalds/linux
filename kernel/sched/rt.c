@@ -1819,7 +1819,7 @@ retry:
 		 * pushing.
 		 */
 		task = pick_next_pushable_task(rq);
-		if (task_cpu(next_task) == rq->cpu && task == next_task) {
+		if (task == next_task) {
 			/*
 			 * The task hasn't migrated, and is still the next
 			 * eligible task, but we failed to find a run-queue
