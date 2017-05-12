@@ -10,7 +10,7 @@ DOCBOOKS := z8530book.xml  \
 	    networking.xml \
 	    lsm.xml \
 	    mtdnand.xml librs.xml rapidio.xml \
-	    s390-drivers.xml scsi.xml \
+	    scsi.xml \
 	    sh.xml w1.xml
 
 ifeq ($(DOCBOOKS),)

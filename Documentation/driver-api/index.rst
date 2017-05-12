@@ -34,6 +34,7 @@ available subsections can be seen below.
    edac
    libata
    miscellaneous
+   s390-drivers
    vme
    80211/index
    uio-howto
