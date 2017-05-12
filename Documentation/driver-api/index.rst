@@ -35,6 +35,7 @@ available subsections can be seen below.
    scsi
    libata
    miscellaneous
+   w1
    s390-drivers
    vme
    80211/index
