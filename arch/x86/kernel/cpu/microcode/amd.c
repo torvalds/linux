@@ -352,8 +352,6 @@ void reload_ucode_amd(void)
 	u32 rev, dummy;
 
 	mc = (struct microcode_amd *)amd_ucode_patch;
-	if (!mc)
-		return;
 
 	rdmsr(MSR_AMD64_PATCH_LEVEL, rev, dummy);
 
