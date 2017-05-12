@@ -43,7 +43,7 @@ static int vx_mic_level_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_
 static int vx_mic_level_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct vx_core *_chip = snd_kcontrol_chip(kcontrol);
-	struct snd_vxpocket *chip = (struct snd_vxpocket *)_chip;
+	struct snd_vxpocket *chip = to_vxpocket(_chip);
 	ucontrol->value.integer.value[0] = chip->mic_level;
 	return 0;
 }
@@ -51,7 +51,7 @@ static int vx_mic_level_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_v
 static int vx_mic_level_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct vx_core *_chip = snd_kcontrol_chip(kcontrol);
-	struct snd_vxpocket *chip = (struct snd_vxpocket *)_chip;
+	struct snd_vxpocket *chip = to_vxpocket(_chip);
 	unsigned int val = ucontrol->value.integer.value[0];
 
 	if (val > MIC_LEVEL_MAX)
@@ -88,7 +88,7 @@ static struct snd_kcontrol_new vx_control_mic_level = {
 static int vx_mic_boost_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct vx_core *_chip = snd_kcontrol_chip(kcontrol);
-	struct snd_vxpocket *chip = (struct snd_vxpocket *)_chip;
+	struct snd_vxpocket *chip = to_vxpocket(_chip);
 	ucontrol->value.integer.value[0] = chip->mic_level;
 	return 0;
 }
@@ -96,7 +96,7 @@ static int vx_mic_boost_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_v
 static int vx_mic_boost_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct vx_core *_chip = snd_kcontrol_chip(kcontrol);
-	struct snd_vxpocket *chip = (struct snd_vxpocket *)_chip;
+	struct snd_vxpocket *chip = to_vxpocket(_chip);
 	int val = !!ucontrol->value.integer.value[0];
 	mutex_lock(&_chip->mixer_mutex);
 	if (chip->mic_level != val) {
@@ -120,7 +120,7 @@ static struct snd_kcontrol_new vx_control_mic_boost = {
 
 int vxp_add_mic_controls(struct vx_core *_chip)
 {
-	struct snd_vxpocket *chip = (struct snd_vxpocket *)_chip;
+	struct snd_vxpocket *chip = to_vxpocket(_chip);
 	int err;
 
 	/* mute input levels */
