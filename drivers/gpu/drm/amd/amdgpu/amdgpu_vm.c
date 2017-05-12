@@ -1104,6 +1104,32 @@ error_free:
 }
 
 /*
+ * amdgpu_vm_invalidate_level - mark all PD levels as invalid
+ *
+ * @parent: parent PD
+ *
+ * Mark all PD level as invalid after an error.
+ */
+static void amdgpu_vm_invalidate_level(struct amdgpu_vm_pt *parent)
+{
+	unsigned pt_idx;
+
+	/*
+	 * Recurse into the subdirectories. This recursion is harmless because
+	 * we only have a maximum of 5 layers.
+	 */
+	for (pt_idx = 0; pt_idx <= parent->last_entry_used; ++pt_idx) {
+		struct amdgpu_vm_pt *entry = &parent->entries[pt_idx];
+
+		if (!entry->bo)
+			continue;
+
+		entry->addr = ~0ULL;
+		amdgpu_vm_invalidate_level(entry);
+	}
+}
+
+/*
  * amdgpu_vm_update_directories - make sure that all directories are valid
  *
  * @adev: amdgpu_device pointer
@@ -1115,7 +1141,13 @@ error_free:
 int amdgpu_vm_update_directories(struct amdgpu_device *adev,
 				 struct amdgpu_vm *vm)
 {
-	return amdgpu_vm_update_level(adev, vm, &vm->root, 0);
+	int r;
+
+	r = amdgpu_vm_update_level(adev, vm, &vm->root, 0);
+	if (r)
+		amdgpu_vm_invalidate_level(&vm->root);
+
+	return r;
 }
 
 /**
