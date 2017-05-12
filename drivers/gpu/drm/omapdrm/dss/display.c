@@ -38,37 +38,6 @@ void omapdss_default_get_resolution(struct omap_dss_device *dssdev,
 }
 EXPORT_SYMBOL(omapdss_default_get_resolution);
 
-int omapdss_default_get_recommended_bpp(struct omap_dss_device *dssdev)
-{
-	switch (dssdev->type) {
-	case OMAP_DISPLAY_TYPE_DPI:
-		if (dssdev->phy.dpi.data_lines == 24)
-			return 24;
-		else
-			return 16;
-
-	case OMAP_DISPLAY_TYPE_DBI:
-		if (dssdev->ctrl.pixel_size == 24)
-			return 24;
-		else
-			return 16;
-	case OMAP_DISPLAY_TYPE_DSI:
-		if (dssdev->panel.dsi_pix_fmt == OMAP_DSS_DSI_FMT_RGB565)
-			return 16;
-		else
-			return 24;
-	case OMAP_DISPLAY_TYPE_VENC:
-	case OMAP_DISPLAY_TYPE_SDI:
-	case OMAP_DISPLAY_TYPE_HDMI:
-	case OMAP_DISPLAY_TYPE_DVI:
-		return 24;
-	default:
-		BUG();
-		return 0;
-	}
-}
-EXPORT_SYMBOL(omapdss_default_get_recommended_bpp);
-
 void omapdss_default_get_timings(struct omap_dss_device *dssdev,
 				 struct videomode *vm)
 {
@@ -104,8 +73,6 @@ int omapdss_register_display(struct omap_dss_device *dssdev)
 
 	if (drv && drv->get_resolution == NULL)
 		drv->get_resolution = omapdss_default_get_resolution;
-	if (drv && drv->get_recommended_bpp == NULL)
-		drv->get_recommended_bpp = omapdss_default_get_recommended_bpp;
 	if (drv && drv->get_timings == NULL)
 		drv->get_timings = omapdss_default_get_timings;
 

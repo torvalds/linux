@@ -1117,7 +1117,6 @@ static struct omap_dss_driver dsicm_ops = {
 	.sync		= dsicm_sync,
 
 	.get_resolution	= dsicm_get_resolution,
-	.get_recommended_bpp = omapdss_default_get_recommended_bpp,
 
 	.enable_te	= dsicm_enable_te,
 	.get_te		= dsicm_get_te,

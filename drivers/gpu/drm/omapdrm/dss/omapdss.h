@@ -730,7 +730,6 @@ struct omap_dss_driver {
 			u16 *xres, u16 *yres);
 	void (*get_dimensions)(struct omap_dss_device *dssdev,
 			u32 *width, u32 *height);
-	int (*get_recommended_bpp)(struct omap_dss_device *dssdev);
 
 	int (*check_timings)(struct omap_dss_device *dssdev,
 			     struct videomode *vm);
@@ -792,7 +791,6 @@ struct omap_overlay_manager *omapdss_find_mgr_from_display(struct omap_dss_devic
 
 void omapdss_default_get_resolution(struct omap_dss_device *dssdev,
 		u16 *xres, u16 *yres);
-int omapdss_default_get_recommended_bpp(struct omap_dss_device *dssdev);
 void omapdss_default_get_timings(struct omap_dss_device *dssdev,
 				 struct videomode *vm);
 
