@@ -1415,6 +1415,22 @@ bool dc_link_set_backlight_level(const struct dc_link *dc_link, uint32_t level,
 	return true;
 }
 
+
+bool dc_link_set_abm_disable(const struct dc_link *dc_link)
+{
+	struct core_link *link = DC_LINK_TO_CORE(dc_link);
+	struct core_dc *core_dc = DC_TO_CORE(link->ctx->dc);
+	struct abm *abm = core_dc->res_pool->abm;
+
+	if ((abm == NULL) || (abm->funcs->set_backlight_level == NULL))
+		return false;
+
+	abm->funcs->set_abm_immediate_disable(abm);
+
+	return true;
+}
+
+
 bool dc_link_set_psr_enable(const struct dc_link *dc_link, bool enable)
 {
 	struct core_link *link = DC_LINK_TO_CORE(dc_link);

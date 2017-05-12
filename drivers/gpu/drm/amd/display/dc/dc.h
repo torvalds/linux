@@ -714,6 +714,8 @@ const struct graphics_object_id dc_get_link_id_at_index(
 bool dc_link_set_backlight_level(const struct dc_link *dc_link, uint32_t level,
 		uint32_t frame_ramp, const struct dc_stream *stream);
 
+bool dc_link_set_abm_disable(const struct dc_link *dc_link);
+
 bool dc_link_set_psr_enable(const struct dc_link *dc_link, bool enable);
 
 bool dc_link_setup_psr(const struct dc_link *dc_link,

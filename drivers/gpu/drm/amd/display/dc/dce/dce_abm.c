@@ -49,6 +49,8 @@
 #define MCP_ABM_PIPE_SET 0x66
 #define MCP_BL_SET 0x67
 
+#define MCP_DISABLE_ABM_IMMEDIATELY 255
+
 struct abm_backlight_registers {
 	unsigned int BL_PWM_CNTL;
 	unsigned int BL_PWM_CNTL2;
@@ -315,6 +317,24 @@ static bool dce_abm_set_level(struct abm *abm, uint32_t level)
 	return true;
 }
 
+static bool dce_abm_immediate_disable(struct abm *abm)
+{
+	struct dce_abm *abm_dce = TO_DCE_ABM(abm);
+
+	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0,
+			100, 800);
+
+	/* setDMCUParam_ABMLevel */
+	REG_UPDATE_2(MASTER_COMM_CMD_REG,
+			MASTER_COMM_CMD_REG_BYTE0, MCP_ABM_LEVEL_SET,
+			MASTER_COMM_CMD_REG_BYTE2, MCP_DISABLE_ABM_IMMEDIATELY);
+
+	/* notifyDMCUMsg */
+	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
+
+	return true;
+}
+
 static bool dce_abm_init_backlight(struct abm *abm)
 {
 	struct dce_abm *abm_dce = TO_DCE_ABM(abm);
@@ -414,6 +434,7 @@ static const struct abm_funcs dce_funcs = {
 	.init_backlight = dce_abm_init_backlight,
 	.set_backlight_level = dce_abm_set_backlight_level,
 	.get_current_backlight_8_bit = dce_abm_get_current_backlight_8_bit,
+	.set_abm_immediate_disable = dce_abm_immediate_disable,
 	.is_dmcu_initialized = is_dmcu_initialized
 };
 
