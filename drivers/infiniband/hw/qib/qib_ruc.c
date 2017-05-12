@@ -59,7 +59,7 @@ static int qib_init_sge(struct rvt_qp *qp, struct rvt_rwqe *wqe)
 			continue;
 		/* Check LKEY */
 		if (!rvt_lkey_ok(rkt, pd, j ? &ss->sg_list[j - 1] : &ss->sge,
-				 &wqe->sg_list[i], IB_ACCESS_LOCAL_WRITE))
+				 NULL, &wqe->sg_list[i], IB_ACCESS_LOCAL_WRITE))
 			goto bad_lkey;
 		qp->r_len += wqe->sg_list[i].length;
 		j++;
