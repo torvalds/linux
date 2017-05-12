@@ -666,8 +666,11 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 					break;
 			}
 			continue;
-		} else
+		} else {
+			if ((sectors > best_good_sectors) && (best_disk >= 0))
+				best_disk = -1;
 			best_good_sectors = sectors;
+		}
 
 		if (best_disk >= 0)
 			/* At least two disks to choose from so failfast is OK */
