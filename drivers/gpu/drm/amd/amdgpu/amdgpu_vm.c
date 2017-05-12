@@ -1187,8 +1187,9 @@ static struct amdgpu_bo *amdgpu_vm_get_pt(struct amdgpu_pte_update_params *p,
  * @flags: mapping flags
  *
  * Update the page tables in the range @start - @end.
+ * Returns 0 for success, -EINVAL for failure.
  */
-static void amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
+static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 				  uint64_t start, uint64_t end,
 				  uint64_t dst, uint64_t flags)
 {
@@ -1206,12 +1207,12 @@ static void amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 	pt = amdgpu_vm_get_pt(params, addr);
 	if (!pt) {
 		pr_err("PT not found, aborting update_ptes\n");
-		return;
+		return -EINVAL;
 	}
 
 	if (params->shadow) {
 		if (!pt->shadow)
-			return;
+			return 0;
 		pt = pt->shadow;
 	}
 	if ((addr & ~mask) == (end & ~mask))
@@ -1233,12 +1234,12 @@ static void amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 		pt = amdgpu_vm_get_pt(params, addr);
 		if (!pt) {
 			pr_err("PT not found, aborting update_ptes\n");
-			return;
+			return -EINVAL;
 		}
 
 		if (params->shadow) {
 			if (!pt->shadow)
-				return;
+				return 0;
 			pt = pt->shadow;
 		}
 
@@ -1273,6 +1274,8 @@ static void amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 
 	params->func(params, cur_pe_start, cur_dst, cur_nptes,
 		     AMDGPU_GPU_PAGE_SIZE, flags);
+
+	return 0;
 }
 
 /*
@@ -1284,11 +1287,14 @@ static void amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
  * @end: last PTE to handle
  * @dst: addr those PTEs should point to
  * @flags: hw mapping flags
+ * Returns 0 for success, -EINVAL for failure.
  */
-static void amdgpu_vm_frag_ptes(struct amdgpu_pte_update_params	*params,
+static int amdgpu_vm_frag_ptes(struct amdgpu_pte_update_params	*params,
 				uint64_t start, uint64_t end,
 				uint64_t dst, uint64_t flags)
 {
+	int r;
+
 	/**
 	 * The MC L1 TLB supports variable sized pages, based on a fragment
 	 * field in the PTE. When this field is set to a non-zero value, page
@@ -1317,28 +1323,30 @@ static void amdgpu_vm_frag_ptes(struct amdgpu_pte_update_params	*params,
 
 	/* system pages are non continuously */
 	if (params->src || !(flags & AMDGPU_PTE_VALID) ||
-	    (frag_start >= frag_end)) {
-
-		amdgpu_vm_update_ptes(params, start, end, dst, flags);
-		return;
-	}
+	    (frag_start >= frag_end))
+		return amdgpu_vm_update_ptes(params, start, end, dst, flags);
 
 	/* handle the 4K area at the beginning */
 	if (start != frag_start) {
-		amdgpu_vm_update_ptes(params, start, frag_start,
-				      dst, flags);
+		r = amdgpu_vm_update_ptes(params, start, frag_start,
+					  dst, flags);
+		if (r)
+			return r;
 		dst += (frag_start - start) * AMDGPU_GPU_PAGE_SIZE;
 	}
 
 	/* handle the area in the middle */
-	amdgpu_vm_update_ptes(params, frag_start, frag_end, dst,
-			      flags | frag_flags);
+	r = amdgpu_vm_update_ptes(params, frag_start, frag_end, dst,
+				  flags | frag_flags);
+	if (r)
+		return r;
 
 	/* handle the 4K area at the end */
 	if (frag_end != end) {
 		dst += (frag_end - frag_start) * AMDGPU_GPU_PAGE_SIZE;
-		amdgpu_vm_update_ptes(params, frag_end, end, dst, flags);
+		r = amdgpu_vm_update_ptes(params, frag_end, end, dst, flags);
 	}
+	return r;
 }
 
 /**
@@ -1459,9 +1467,13 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 		goto error_free;
 
 	params.shadow = true;
-	amdgpu_vm_frag_ptes(&params, start, last + 1, addr, flags);
+	r = amdgpu_vm_frag_ptes(&params, start, last + 1, addr, flags);
+	if (r)
+		goto error_free;
 	params.shadow = false;
-	amdgpu_vm_frag_ptes(&params, start, last + 1, addr, flags);
+	r = amdgpu_vm_frag_ptes(&params, start, last + 1, addr, flags);
+	if (r)
+		goto error_free;
 
 	amdgpu_ring_pad_ib(ring, params.ib);
 	WARN_ON(params.ib->length_dw > ndw);
