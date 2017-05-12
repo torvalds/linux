@@ -203,7 +203,8 @@ static int most_nd_open(struct net_device *dev)
 	else
 		netif_dormant_on(dev);
 	netif_wake_queue(dev);
-	nd->iface->request_netinfo(nd->iface, nd->tx.ch_id);
+	if (nd->iface->request_netinfo)
+		nd->iface->request_netinfo(nd->iface, nd->tx.ch_id);
 	return 0;
 }
 
