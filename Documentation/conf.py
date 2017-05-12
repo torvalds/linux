@@ -351,6 +351,8 @@ latex_documents = [
      'The kernel development community', 'manual'),
     ('core-api/index', 'core-api.tex', 'The kernel core API manual',
      'The kernel development community', 'manual'),
+    ('crypto/index', 'crypto-api.tex', 'Linux Kernel Crypto API manual',
+     'The kernel development community', 'manual'),
     ('doc-guide/index', 'kernel-doc-guide.tex', 'Linux Kernel Documentation Guide',
      'The kernel development community', 'manual'),
     ('driver-api/index', 'driver-api.tex', 'The kernel driver API manual',
