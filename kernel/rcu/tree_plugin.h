@@ -79,9 +79,7 @@ static void __init rcu_bootup_announce_oddness(void)
 		pr_info("\tHierarchical RCU autobalancing is disabled.\n");
 	if (IS_ENABLED(CONFIG_RCU_FAST_NO_HZ))
 		pr_info("\tRCU dyntick-idle grace-period acceleration is enabled.\n");
-	if (IS_ENABLED(CONFIG_PROVE_RCU_REPEATEDLY))
-		pr_info("\tRCU lockdep checking is permanently enabled.\n");
-	else if (IS_ENABLED(CONFIG_PROVE_RCU))
+	if (IS_ENABLED(CONFIG_PROVE_RCU))
 		pr_info("\tRCU lockdep checking is enabled.\n");
 	if (RCU_NUM_LVLS >= 4)
 		pr_info("\tFour(or more)-level hierarchy is enabled.\n");
