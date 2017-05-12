@@ -154,13 +154,11 @@ static int skb_to_mep(const struct sk_buff *skb, struct mbo *mbo)
 
 static int most_nd_set_mac_address(struct net_device *dev, void *p)
 {
-	struct net_dev_context *nd = dev->ml_priv;
+	struct net_dev_context *nd = netdev_priv(dev);
 	int err = eth_mac_addr(dev, p);
 
 	if (err)
 		return err;
-
-	BUG_ON(nd->dev != dev);
 
 	nd->is_mamac =
 		(dev->dev_addr[0] == 0 && dev->dev_addr[1] == 0 &&
@@ -180,11 +178,9 @@ static void on_netinfo(struct most_interface *iface,
 
 static int most_nd_open(struct net_device *dev)
 {
-	struct net_dev_context *nd = dev->ml_priv;
+	struct net_dev_context *nd = netdev_priv(dev);
 
 	netdev_info(dev, "open net device\n");
-
-	BUG_ON(nd->dev != dev);
 
 	BUG_ON(!nd->tx.linked || !nd->rx.linked);
 
@@ -212,11 +208,10 @@ static int most_nd_open(struct net_device *dev)
 
 static int most_nd_stop(struct net_device *dev)
 {
-	struct net_dev_context *nd = dev->ml_priv;
+	struct net_dev_context *nd = netdev_priv(dev);
 
 	netdev_info(dev, "stop net device\n");
 
-	BUG_ON(nd->dev != dev);
 	netif_stop_queue(dev);
 	if (nd->iface->request_netinfo)
 		nd->iface->request_netinfo(nd->iface, nd->tx.ch_id, NULL);
@@ -229,11 +224,9 @@ static int most_nd_stop(struct net_device *dev)
 static netdev_tx_t most_nd_start_xmit(struct sk_buff *skb,
 				      struct net_device *dev)
 {
-	struct net_dev_context *nd = dev->ml_priv;
+	struct net_dev_context *nd = netdev_priv(dev);
 	struct mbo *mbo;
 	int ret;
-
-	BUG_ON(nd->dev != dev);
 
 	mbo = most_get_mbo(nd->iface, nd->tx.ch_id, &aim);
 
@@ -275,18 +268,6 @@ static void most_nd_setup(struct net_device *dev)
 	dev->netdev_ops = &most_nd_ops;
 }
 
-static void most_net_rm_netdev_safe(struct net_dev_context *nd)
-{
-	if (!nd->dev)
-		return;
-
-	pr_info("remove net device %p\n", nd->dev);
-
-	unregister_netdev(nd->dev);
-	free_netdev(nd->dev);
-	nd->dev = NULL;
-}
-
 static struct net_dev_context *get_net_dev_context(
 	struct most_interface *iface)
 {
@@ -321,11 +302,16 @@ static int aim_probe_channel(struct most_interface *iface, int channel_idx,
 	nd = get_net_dev_context(iface);
 
 	if (!nd) {
-		nd = kzalloc(sizeof(*nd), GFP_KERNEL);
-		if (!nd)
+		struct net_device *dev;
+
+		dev = alloc_netdev(sizeof(struct net_dev_context), "meth%d",
+				   NET_NAME_UNKNOWN, most_nd_setup);
+		if (!dev)
 			return -ENOMEM;
 
+		nd = netdev_priv(dev);
 		nd->iface = iface;
+		nd->dev = dev;
 
 		spin_lock_irqsave(&list_lock, flags);
 		list_add(&nd->list, &net_devices);
@@ -338,31 +324,13 @@ static int aim_probe_channel(struct most_interface *iface, int channel_idx,
 		return -EINVAL;
 	}
 
-	if (nd->tx.linked || nd->rx.linked) {
-		struct net_device *dev =
-			alloc_netdev(0, "meth%d", NET_NAME_UNKNOWN,
-				     most_nd_setup);
-
-		if (!dev) {
-			pr_err("no memory for net_device\n");
-			return -ENOMEM;
-		}
-
-		nd->dev = dev;
-		ch->ch_id = channel_idx;
-		ch->linked = true;
-
-		dev->ml_priv = nd;
-		if (register_netdev(dev)) {
-			pr_err("registering net device failed\n");
-			ch->linked = false;
-			free_netdev(dev);
-			return -EINVAL;
-		}
-	}
-
 	ch->ch_id = channel_idx;
 	ch->linked = true;
+	if (nd->tx.linked && nd->rx.linked && register_netdev(nd->dev)) {
+		pr_err("register_netdev() failed\n");
+		ch->linked = false;
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -385,19 +353,19 @@ static int aim_disconnect_channel(struct most_interface *iface,
 	else
 		return -EINVAL;
 
-	ch->linked = false;
-
 	/*
 	 * do not call most_stop_channel() here, because channels are
 	 * going to be closed in ndo_stop() after unregister_netdev()
 	 */
-	most_net_rm_netdev_safe(nd);
+	if (nd->rx.linked && nd->tx.linked)
+		unregister_netdev(nd->dev);
 
+	ch->linked = false;
 	if (!nd->rx.linked && !nd->tx.linked) {
 		spin_lock_irqsave(&list_lock, flags);
 		list_del(&nd->list);
 		spin_unlock_irqrestore(&list_lock, flags);
-		kfree(nd);
+		free_netdev(nd->dev);
 	}
 
 	return 0;
@@ -410,9 +378,6 @@ static int aim_resume_tx_channel(struct most_interface *iface,
 
 	nd = get_net_dev_context(iface);
 	if (!nd || nd->tx.ch_id != channel_idx)
-		return 0;
-
-	if (!nd->dev)
 		return 0;
 
 	netif_wake_queue(nd->dev);
@@ -434,10 +399,6 @@ static int aim_rx_data(struct mbo *mbo)
 		return -EIO;
 
 	dev = nd->dev;
-	if (!dev) {
-		pr_err_once("drop packet: missing net_device\n");
-		return -EIO;
-	}
 
 	if (nd->is_mamac) {
 		if (!PMS_IS_MAMAC(buf, len))
@@ -531,8 +492,6 @@ static void on_netinfo(struct most_interface *iface,
 		return;
 
 	dev = nd->dev;
-	if (!dev)
-		return;
 
 	if (link_stat)
 		netif_carrier_on(dev);
