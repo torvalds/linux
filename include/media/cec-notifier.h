@@ -106,6 +106,16 @@ static inline void cec_notifier_set_phys_addr_from_edid(struct cec_notifier *n,
 {
 }
 
+static inline void cec_notifier_register(struct cec_notifier *n,
+			 struct cec_adapter *adap,
+			 void (*callback)(struct cec_adapter *adap, u16 pa))
+{
+}
+
+static inline void cec_notifier_unregister(struct cec_notifier *n)
+{
+}
+
 #endif
 
 #endif
