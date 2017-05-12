@@ -155,9 +155,9 @@ Code Example For Use of Operational State Memory With SHASH
         char ctx[];
     };
 
-    static struct sdesc init_sdesc(struct crypto_shash *alg)
+    static struct sdesc *init_sdesc(struct crypto_shash *alg)
     {
-        struct sdesc sdesc;
+        struct sdesc *sdesc;
         int size;
 
         size = sizeof(struct shash_desc) + crypto_shash_descsize(alg);
@@ -169,20 +169,38 @@ Code Example For Use of Operational State Memory With SHASH
         return sdesc;
     }
 
-    static int calc_hash(struct crypto_shashalg,
-                 const unsigned chardata, unsigned int datalen,
-                 unsigned chardigest) {
-        struct sdesc sdesc;
+    static int calc_hash(struct crypto_shash *alg,
+                 const unsigned char *data, unsigned int datalen,
+                 unsigned char *digest)
+    {
+        struct sdesc *sdesc;
         int ret;
 
         sdesc = init_sdesc(alg);
         if (IS_ERR(sdesc)) {
-            pr_info("trusted_key: can't alloc %s\n", hash_alg);
+            pr_info("can't alloc sdesc\n");
             return PTR_ERR(sdesc);
         }
 
         ret = crypto_shash_digest(&sdesc->shash, data, datalen, digest);
         kfree(sdesc);
+        return ret;
+    }
+
+    static int test_hash(const unsigned char *data, unsigned int datalen,
+                 unsigned char *digest)
+    {
+        struct crypto_shash *alg;
+        char *hash_alg_name = "sha1-padlock-nano";
+        int ret;
+
+        alg = crypto_alloc_shash(hash_alg_name, CRYPTO_ALG_TYPE_SHASH, 0);
+        if (IS_ERR(alg)) {
+                pr_info("can't alloc alg %s\n", hash_alg_name);
+                return PTR_ERR(alg);
+        }
+        ret = calc_hash(alg, data, datalen, digest);
+        crypto_free_shash(alg);
         return ret;
     }
 
@@ -195,8 +213,8 @@ Code Example For Random Number Generator Usage
 
     static int get_random_numbers(u8 *buf, unsigned int len)
     {
-        struct crypto_rngrng = NULL;
-        chardrbg = "drbg_nopr_sha256"; /* Hash DRBG with SHA-256, no PR */
+        struct crypto_rng *rng = NULL;
+        char *drbg = "drbg_nopr_sha256"; /* Hash DRBG with SHA-256, no PR */
         int ret;
 
         if (!buf || !len) {
@@ -207,7 +225,7 @@ Code Example For Random Number Generator Usage
         rng = crypto_alloc_rng(drbg, 0, 0);
         if (IS_ERR(rng)) {
             pr_debug("could not allocate RNG handle for %s\n", drbg);
-            return -PTR_ERR(rng);
+            return PTR_ERR(rng);
         }
 
         ret = crypto_rng_get_bytes(rng, buf, len);
