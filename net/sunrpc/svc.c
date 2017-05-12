@@ -1008,7 +1008,7 @@ int svc_register(const struct svc_serv *serv, struct net *net,
 		 const unsigned short port)
 {
 	struct svc_program	*progp;
-	struct svc_version	*vers;
+	const struct svc_version *vers;
 	unsigned int		i;
 	int			error = 0;
 
@@ -1151,7 +1151,7 @@ static int
 svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 {
 	struct svc_program	*progp;
-	struct svc_version	*versp = NULL;	/* compiler food */
+	const struct svc_version *versp = NULL;	/* compiler food */
 	const struct svc_procedure *procp = NULL;
 	struct svc_serv		*serv = rqstp->rq_server;
 	__be32			*statp;

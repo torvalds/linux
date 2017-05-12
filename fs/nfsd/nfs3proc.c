@@ -891,11 +891,11 @@ static const struct svc_procedure nfsd_procedures3[22] = {
 };
 
 static unsigned int nfsd_count3[ARRAY_SIZE(nfsd_procedures3)];
-struct svc_version	nfsd_version3 = {
-		.vs_vers	= 3,
-		.vs_nproc	= 22,
-		.vs_proc	= nfsd_procedures3,
-		.vs_count	= nfsd_count3,
-		.vs_dispatch	= nfsd_dispatch,
-		.vs_xdrsize	= NFS3_SVC_XDRSIZE,
+const struct svc_version nfsd_version3 = {
+	.vs_vers	= 3,
+	.vs_nproc	= 22,
+	.vs_proc	= nfsd_procedures3,
+	.vs_dispatch	= nfsd_dispatch,
+	.vs_count	= nfsd_count3,
+	.vs_xdrsize	= NFS3_SVC_XDRSIZE,
 };

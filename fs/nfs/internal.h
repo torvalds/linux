@@ -225,8 +225,8 @@ static inline void nfs_fs_proc_exit(void)
 #endif
 
 /* callback_xdr.c */
-extern struct svc_version nfs4_callback_version1;
-extern struct svc_version nfs4_callback_version4;
+extern const struct svc_version nfs4_callback_version1;
+extern const struct svc_version nfs4_callback_version4;
 
 struct nfs_pageio_descriptor;
 /* pagelist.c */
