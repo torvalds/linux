@@ -290,11 +290,11 @@ static void most_net_rm_netdev_safe(struct net_dev_context *nd)
 static struct net_dev_context *get_net_dev_context(
 	struct most_interface *iface)
 {
-	struct net_dev_context *nd, *tmp;
+	struct net_dev_context *nd;
 	unsigned long flags;
 
 	spin_lock_irqsave(&list_lock, flags);
-	list_for_each_entry_safe(nd, tmp, &net_devices, list) {
+	list_for_each_entry(nd, &net_devices, list) {
 		if (nd->iface == iface) {
 			spin_unlock_irqrestore(&list_lock, flags);
 			return nd;
