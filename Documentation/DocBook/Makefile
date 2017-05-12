@@ -8,8 +8,8 @@
 
 DOCBOOKS := \
 	    lsm.xml \
-	    mtdnand.xml librs.xml rapidio.xml \
-	    sh.xml w1.xml
+	    mtdnand.xml librs.xml \
+	    sh.xml
 
 ifeq ($(DOCBOOKS),)
 
