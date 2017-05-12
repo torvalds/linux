@@ -18,12 +18,38 @@ struct dax_operations {
 			void **, pfn_t *);
 };
 
+int bdev_dax_pgoff(struct block_device *, sector_t, size_t, pgoff_t *pgoff);
+#if IS_ENABLED(CONFIG_FS_DAX)
+int __bdev_dax_supported(struct super_block *sb, int blocksize);
+static inline int bdev_dax_supported(struct super_block *sb, int blocksize)
+{
+	return __bdev_dax_supported(sb, blocksize);
+}
+#else
+static inline int bdev_dax_supported(struct super_block *sb, int blocksize)
+{
+	return -EOPNOTSUPP;
+}
+#endif
+
+#if IS_ENABLED(CONFIG_DAX)
+struct dax_device *dax_get_by_host(const char *host);
+void put_dax(struct dax_device *dax_dev);
+#else
+static inline struct dax_device *dax_get_by_host(const char *host)
+{
+	return NULL;
+}
+
+static inline void put_dax(struct dax_device *dax_dev)
+{
+}
+#endif
+
 int dax_read_lock(void);
 void dax_read_unlock(int id);
-struct dax_device *dax_get_by_host(const char *host);
 struct dax_device *alloc_dax(void *private, const char *host,
 		const struct dax_operations *ops);
-void put_dax(struct dax_device *dax_dev);
 bool dax_alive(struct dax_device *dax_dev);
 void kill_dax(struct dax_device *dax_dev);
 void *dax_get_private(struct dax_device *dax_dev);

@@ -228,7 +228,8 @@ u64 nd_sb_checksum(struct nd_gen_sb *nd_gen_sb)
 EXPORT_SYMBOL(nd_sb_checksum);
 
 static int nsio_rw_bytes(struct nd_namespace_common *ndns,
-		resource_size_t offset, void *buf, size_t size, int rw)
+		resource_size_t offset, void *buf, size_t size, int rw,
+		unsigned long flags)
 {
 	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
 	unsigned int sz_align = ALIGN(size + (offset & (512 - 1)), 512);
@@ -259,7 +260,8 @@ static int nsio_rw_bytes(struct nd_namespace_common *ndns,
 		 * work around this collision.
 		 */
 		if (IS_ALIGNED(offset, 512) && IS_ALIGNED(size, 512)
-				&& (!ndns->claim || !is_nd_btt(ndns->claim))) {
+				&& !(flags & NVDIMM_IO_ATOMIC)
+				&& !ndns->claim) {
 			long cleared;
 
 			cleared = nvdimm_clear_poison(&ndns->dev,
