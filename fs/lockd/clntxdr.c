@@ -582,7 +582,7 @@ out:
 	.p_name      = #proc,						\
 	}
 
-static struct rpc_procinfo	nlm_procedures[] = {
+static const struct rpc_procinfo nlm_procedures[] = {
 	PROC(TEST,		testargs,	testres),
 	PROC(LOCK,		lockargs,	res),
 	PROC(CANCEL,		cancargs,	res),

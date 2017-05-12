@@ -531,7 +531,7 @@ static int nsm_xdr_dec_stat(struct rpc_rqst *rqstp,
 #define SM_monres_sz	2
 #define SM_unmonres_sz	1
 
-static struct rpc_procinfo	nsm_procedures[] = {
+static const struct rpc_procinfo nsm_procedures[] = {
 [NSMPROC_MON] = {
 		.p_proc		= NSMPROC_MON,
 		.p_encode	= nsm_xdr_enc_mon,

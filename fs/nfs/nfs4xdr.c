@@ -7594,7 +7594,7 @@ nfs4_stat_to_errno(int stat)
 	.p_name = #proc,	\
 }
 
-struct rpc_procinfo	nfs4_procedures[] = {
+const struct rpc_procinfo nfs4_procedures[] = {
 	PROC(READ,		enc_read,		dec_read),
 	PROC(WRITE,		enc_write,		dec_write),
 	PROC(COMMIT,		enc_commit,		dec_commit),

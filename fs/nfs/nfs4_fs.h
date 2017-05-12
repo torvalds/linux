@@ -493,7 +493,7 @@ static inline void nfs4_unregister_sysctl(void)
 #endif
 
 /* nfs4xdr.c */
-extern struct rpc_procinfo nfs4_procedures[];
+extern const struct rpc_procinfo nfs4_procedures[];
 
 struct nfs4_mount_data;
 

@@ -1152,7 +1152,7 @@ static int nfs_stat_to_errno(enum nfs_stat status)
 	.p_statidx  =  NFSPROC_##proc,					\
 	.p_name     =  #proc,						\
 	}
-struct rpc_procinfo	nfs_procedures[] = {
+const struct rpc_procinfo nfs_procedures[] = {
 	PROC(GETATTR,	fhandle,	attrstat,	1),
 	PROC(SETATTR,	sattrargs,	attrstat,	0),
 	PROC(LOOKUP,	diropargs,	diropres,	2),

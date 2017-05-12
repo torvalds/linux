@@ -696,7 +696,7 @@ static int nfs4_xdr_dec_cb_notify_lock(struct rpc_rqst *rqstp,
 	.p_name    = #proc,						\
 }
 
-static struct rpc_procinfo nfs4_cb_procedures[] = {
+static const struct rpc_procinfo nfs4_cb_procedures[] = {
 	PROC(CB_NULL,	NULL,		cb_null,	cb_null),
 	PROC(CB_RECALL,	COMPOUND,	cb_recall,	cb_recall),
 #ifdef CONFIG_NFSD_PNFS

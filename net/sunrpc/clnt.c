@@ -1674,7 +1674,7 @@ call_allocate(struct rpc_task *task)
 	unsigned int slack = task->tk_rqstp->rq_cred->cr_auth->au_cslack;
 	struct rpc_rqst *req = task->tk_rqstp;
 	struct rpc_xprt *xprt = req->rq_xprt;
-	struct rpc_procinfo *proc = task->tk_msg.rpc_proc;
+	const struct rpc_procinfo *proc = task->tk_msg.rpc_proc;
 	int status;
 
 	dprint_status(task);
@@ -2489,7 +2489,7 @@ static int rpcproc_decode_null(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
 	return 0;
 }
 
-static struct rpc_procinfo rpcproc_null = {
+static const struct rpc_procinfo rpcproc_null = {
 	.p_encode = rpcproc_encode_null,
 	.p_decode = rpcproc_decode_null,
 };

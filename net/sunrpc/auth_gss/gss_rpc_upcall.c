@@ -63,7 +63,7 @@ enum {
 	.p_name   = #proc,				\
 }
 
-static struct rpc_procinfo gssp_procedures[] = {
+static const struct rpc_procinfo gssp_procedures[] = {
 	PROC(INDICATE_MECHS, indicate_mechs),
         PROC(GET_CALL_CONTEXT, get_call_context),
         PROC(IMPORT_AND_CANON_NAME, import_and_canon_name),
