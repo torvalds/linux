@@ -65,7 +65,6 @@ struct net_dev_channel {
 
 struct net_dev_context {
 	struct most_interface *iface;
-	bool channels_opened;
 	bool is_mamac;
 	struct net_device *dev;
 	struct net_dev_channel rx;
@@ -187,9 +186,6 @@ static int most_nd_open(struct net_device *dev)
 
 	BUG_ON(nd->dev != dev);
 
-	if (nd->channels_opened)
-		return -EFAULT;
-
 	BUG_ON(!nd->tx.linked || !nd->rx.linked);
 
 	if (most_start_channel(nd->iface, nd->rx.ch_id, &aim)) {
@@ -219,7 +215,6 @@ static int most_nd_open(struct net_device *dev)
 		}
 	}
 
-	nd->channels_opened = true;
 	netif_wake_queue(dev);
 	return 0;
 
@@ -237,12 +232,8 @@ static int most_nd_stop(struct net_device *dev)
 
 	BUG_ON(nd->dev != dev);
 	netif_stop_queue(dev);
-
-	if (nd->channels_opened) {
-		most_stop_channel(nd->iface, nd->rx.ch_id, &aim);
-		most_stop_channel(nd->iface, nd->tx.ch_id, &aim);
-		nd->channels_opened = false;
-	}
+	most_stop_channel(nd->iface, nd->rx.ch_id, &aim);
+	most_stop_channel(nd->iface, nd->tx.ch_id, &aim);
 
 	return 0;
 }
@@ -431,7 +422,7 @@ static int aim_resume_tx_channel(struct most_interface *iface,
 	struct net_dev_context *nd;
 
 	nd = get_net_dev_context(iface);
-	if (!nd || !nd->channels_opened || nd->tx.ch_id != channel_idx)
+	if (!nd || nd->tx.ch_id != channel_idx)
 		return 0;
 
 	if (!nd->dev)
@@ -452,7 +443,7 @@ static int aim_rx_data(struct mbo *mbo)
 	unsigned int skb_len;
 
 	nd = get_net_dev_context(mbo->ifp);
-	if (!nd || !nd->channels_opened || nd->rx.ch_id != mbo->hdm_channel_id)
+	if (!nd || nd->rx.ch_id != mbo->hdm_channel_id)
 		return -EIO;
 
 	dev = nd->dev;
