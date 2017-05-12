@@ -106,6 +106,28 @@
 		regulator-always-on;
 		regulator-boot-on;
 	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		vccio_1v8_reg: regulator@0 {
+			compatible = "regulator-fixed";
+			regulator-name = "vccio_1v8";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-always-on;
+		};
+
+		vccio_3v3_reg: regulator@1 {
+			compatible = "regulator-fixed";
+			regulator-name = "vccio_3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+		};
+	};
 };
 
 &cpu0 {
@@ -131,6 +153,14 @@
 &gpu {
 	status = "okay";
 	mali-supply = <&vdd_log>;
+};
+
+&io_domains {
+	status = "okay";
+
+	vccio1-supply = <&vccio_3v3_reg>;
+	vccio2-supply = <&vccio_1v8_reg>;
+	vccio4-supply = <&vccio_3v3_reg>;
 };
 
 &pinctrl {
