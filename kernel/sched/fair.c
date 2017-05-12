@@ -3574,6 +3574,7 @@ update_cfs_rq_load_avg(u64 now, struct cfs_rq *cfs_rq)
 
 	if (cfs_rq->removed.nr) {
 		unsigned long r;
+		u32 divider = LOAD_AVG_MAX - 1024 + sa->period_contrib;
 
 		raw_spin_lock(&cfs_rq->removed.lock);
 		swap(cfs_rq->removed.util_avg, removed_util);
@@ -3582,17 +3583,13 @@ update_cfs_rq_load_avg(u64 now, struct cfs_rq *cfs_rq)
 		cfs_rq->removed.nr = 0;
 		raw_spin_unlock(&cfs_rq->removed.lock);
 
-		/*
-		 * The LOAD_AVG_MAX for _sum is a slight over-estimate,
-		 * which is safe due to sub_positive() clipping at 0.
-		 */
 		r = removed_load;
 		sub_positive(&sa->load_avg, r);
-		sub_positive(&sa->load_sum, r * LOAD_AVG_MAX);
+		sub_positive(&sa->load_sum, r * divider);
 
 		r = removed_util;
 		sub_positive(&sa->util_avg, r);
-		sub_positive(&sa->util_sum, r * LOAD_AVG_MAX);
+		sub_positive(&sa->util_sum, r * divider);
 
 		add_tg_cfs_propagate(cfs_rq, -(long)removed_runnable_sum);
 
