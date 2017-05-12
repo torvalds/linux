@@ -607,12 +607,19 @@ int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
 	hfi1_cdbg(SDMA, "[%u:%u:%u] Using req/comp entry %u\n", dd->unit,
 		  uctxt->ctxt, fd->subctxt, info.comp_idx);
 	req = pq->reqs + info.comp_idx;
-	memset(req, 0, sizeof(*req));
 	req->data_iovs = req_iovcnt(info.ctrl) - 1; /* subtract header vector */
+	req->data_len  = 0;
 	req->pq = pq;
 	req->cq = cq;
 	req->status = -1;
 	req->ahg_idx = -1;
+	req->iov_idx = 0;
+	req->sent = 0;
+	req->seqnum = 0;
+	req->seqcomp = 0;
+	req->seqsubmitted = 0;
+	req->flags = 0;
+	req->tids = NULL;
 	INIT_LIST_HEAD(&req->txps);
 
 	memcpy(&req->info, &info, sizeof(info));
@@ -701,12 +708,14 @@ int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
 
 	/* Save all the IO vector structures */
 	for (i = 0; i < req->data_iovs; i++) {
+		req->iovs[i].offset = 0;
 		INIT_LIST_HEAD(&req->iovs[i].list);
 		memcpy(&req->iovs[i].iov,
 		       iovec + idx++,
 		       sizeof(req->iovs[i].iov));
 		ret = pin_vector_pages(req, &req->iovs[i]);
 		if (ret) {
+			req->data_iovs = i;
 			req->status = ret;
 			goto free_req;
 		}
@@ -749,6 +758,7 @@ int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
 		}
 		req->tids = tmp;
 		req->n_tids = ntids;
+		req->tididx = 0;
 		idx++;
 	}
 
