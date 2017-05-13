@@ -970,9 +970,6 @@ hints" for an explanation.
 .. kernel-doc:: drivers/mtd/nand/nand_base.c
    :export:
 
-.. kernel-doc:: drivers/mtd/nand/nand_bbt.c
-   :export:
-
 .. kernel-doc:: drivers/mtd/nand/nand_ecc.c
    :export:
 
