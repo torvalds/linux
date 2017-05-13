@@ -16,6 +16,7 @@ place where this information is gathered.
 .. toctree::
    :maxdepth: 2
 
+   no_new_privs
    seccomp_filter
    unshare
 
