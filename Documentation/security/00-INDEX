@@ -1,7 +1,5 @@
 00-INDEX
 	- this file.
-Smack.txt
-	- documentation on the Smack Linux Security Module.
 keys-ecryptfs.txt
 	- description of the encryption keys for the ecryptfs filesystem.
 keys-request-key.txt

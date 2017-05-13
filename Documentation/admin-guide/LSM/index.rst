@@ -36,5 +36,6 @@ the one "major" module (e.g. SELinux) if there is one configured.
    apparmor
    LoadPin
    SELinux
+   Smack
    tomoyo
    Yama

@@ -11876,7 +11876,7 @@ L:	linux-security-module@vger.kernel.org
 W:	http://schaufler-ca.com
 T:	git git://github.com/cschaufler/smack-next
 S:	Maintained
-F:	Documentation/security/Smack.txt
+F:	Documentation/admin-guide/LSM/Smack.rst
 F:	security/smack/
 
 DRIVERS FOR ADAPTIVE VOLTAGE SCALING (AVS)
