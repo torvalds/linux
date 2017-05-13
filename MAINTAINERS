@@ -7342,7 +7342,7 @@ KEYS/KEYRINGS:
 M:	David Howells <dhowells@redhat.com>
 L:	keyrings@vger.kernel.org
 S:	Maintained
-F:	Documentation/security/keys.txt
+F:	Documentation/security/keys/core.rst
 F:	include/linux/key.h
 F:	include/linux/key-type.h
 F:	include/linux/keyctl.h

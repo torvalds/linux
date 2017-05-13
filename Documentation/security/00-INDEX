@@ -6,5 +6,3 @@ keys-request-key.txt
 	- description of the kernel key request service.
 keys-trusted-encrypted.txt
 	- info on the Trusted and Encrypted keys in the kernel key ring service.
-keys.txt
-	- description of the kernel key retention service.
