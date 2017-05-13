@@ -126,7 +126,6 @@ static unsigned int random_engine(struct rnd_state *rnd)
 
 static int bench_sync(void *arg)
 {
-#define M (1 << 20)
 	struct rnd_state prng;
 	struct intel_timeline *tl;
 	unsigned long end_time, count;
@@ -158,7 +157,7 @@ static int bench_sync(void *arg)
 	kt = ktime_sub(ktime_get(), kt);
 	pr_debug("%s: %lu random evaluations, %lluns/prng\n",
 		 __func__, count, (long long)div64_ul(ktime_to_ns(kt), count));
-	prng32_1M = ktime_to_ns(kt) * M / count;
+	prng32_1M = div64_ul(ktime_to_ns(kt) << 20, count);
 
 	/* Benchmark (only) setting random context ids */
 	prandom_seed_state(&prng, i915_selftest.random_seed);
@@ -172,7 +171,7 @@ static int bench_sync(void *arg)
 		count++;
 	} while (!time_after(jiffies, end_time));
 	kt = ktime_sub(ktime_get(), kt);
-	kt = ktime_sub_ns(kt, count * prng32_1M * 2 / M);
+	kt = ktime_sub_ns(kt, (count * prng32_1M * 2) >> 20);
 	pr_info("%s: %lu random insertions, %lluns/insert\n",
 		__func__, count, (long long)div64_ul(ktime_to_ns(kt), count));
 
@@ -190,7 +189,7 @@ static int bench_sync(void *arg)
 		}
 	}
 	kt = ktime_sub(ktime_get(), kt);
-	kt = ktime_sub_ns(kt, count * prng32_1M * 2 / M);
+	kt = ktime_sub_ns(kt, (count * prng32_1M * 2) >> 20);
 	pr_info("%s: %lu random lookups, %lluns/lookup\n",
 		__func__, count, (long long)div64_ul(ktime_to_ns(kt), count));
 
@@ -248,7 +247,7 @@ static int bench_sync(void *arg)
 		count++;
 	} while (!time_after(jiffies, end_time));
 	kt = ktime_sub(ktime_get(), kt);
-	kt = ktime_sub_ns(kt, count * prng32_1M * 2 / M);
+	kt = ktime_sub_ns(kt, (count * prng32_1M * 2) >> 20);
 	pr_info("%s: %lu repeated insert/lookups, %lluns/op\n",
 		__func__, count, (long long)div64_ul(ktime_to_ns(kt), count));
 	mock_timeline_destroy(tl);
@@ -287,7 +286,6 @@ static int bench_sync(void *arg)
 	}
 
 	return 0;
-#undef M
 }
 
 int i915_gem_timeline_mock_selftests(void)
