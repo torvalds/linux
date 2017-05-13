@@ -1525,7 +1525,8 @@ static void rtllib_associate_complete_wq(void *data)
 				     associate_complete_wq);
 	struct rt_pwr_save_ctrl *pPSC = &(ieee->PowerSaveControl);
 
-	netdev_info(ieee->dev, "Associated successfully\n");
+	netdev_info(ieee->dev, "Associated successfully with %pM\n",
+		    ieee->current_network.bssid);
 	if (!ieee->is_silent_reset) {
 		netdev_info(ieee->dev, "normal associate\n");
 		notify_wx_assoc_event(ieee);
