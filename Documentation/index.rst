@@ -76,6 +76,17 @@ needed).
    crypto/index
    filesystems/index
 
+Architecture-specific documentation
+-----------------------------------
+
+These books provide programming details about architecture-specific
+implementation.
+
+.. toctree::
+   :maxdepth: 2
+
+   sh/index
+
 Korean translations
 -------------------
 

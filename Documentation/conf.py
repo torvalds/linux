@@ -375,6 +375,8 @@ latex_documents = [
      'The kernel development community', 'manual'),
     ('security/index', 'security.tex', 'The kernel security subsystem manual',
      'The kernel development community', 'manual'),
+    ('sh/index', 'sh.tex', 'SuperH architecture implementation manual',
+     'The kernel development community', 'manual'),
     ('sound/index', 'sound.tex', 'Linux Sound Subsystem Documentation',
      'The kernel development community', 'manual'),
     ('userspace-api/index', 'userspace-api.tex', 'The Linux kernel user-space API guide',

@@ -6,9 +6,7 @@
 # To add a new book the only step required is to add the book to the
 # list of DOCBOOKS.
 
-DOCBOOKS := \
-	    lsm.xml \
-	    sh.xml
+DOCBOOKS := lsm.xml
 
 ifeq ($(DOCBOOKS),)
 
