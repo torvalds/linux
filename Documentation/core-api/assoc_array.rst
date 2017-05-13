@@ -10,7 +10,10 @@ properties:
 
 1. Objects are opaque pointers.  The implementation does not care where they
    point (if anywhere) or what they point to (if anything).
-.. note:: Pointers to objects _must_ be zero in the least significant bit.
+
+   .. note::
+
+      Pointers to objects _must_ be zero in the least significant bit.
 
 2. Objects do not need to contain linkage blocks for use by the array.  This
    permits an object to be located in multiple arrays simultaneously.
