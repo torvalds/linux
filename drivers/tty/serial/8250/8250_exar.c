@@ -176,13 +176,13 @@ static void setup_gpio(u8 __iomem *p)
 	writeb(0x00, p + UART_EXAR_MPIOLVL_7_0);
 	writeb(0x00, p + UART_EXAR_MPIO3T_7_0);
 	writeb(0x00, p + UART_EXAR_MPIOINV_7_0);
-	writeb(0x00, p + UART_EXAR_MPIOSEL_7_0);
+	writeb(0xff, p + UART_EXAR_MPIOSEL_7_0);
 	writeb(0x00, p + UART_EXAR_MPIOOD_7_0);
 	writeb(0x00, p + UART_EXAR_MPIOINT_15_8);
 	writeb(0x00, p + UART_EXAR_MPIOLVL_15_8);
 	writeb(0x00, p + UART_EXAR_MPIO3T_15_8);
 	writeb(0x00, p + UART_EXAR_MPIOINV_15_8);
-	writeb(0x00, p + UART_EXAR_MPIOSEL_15_8);
+	writeb(0xff, p + UART_EXAR_MPIOSEL_15_8);
 	writeb(0x00, p + UART_EXAR_MPIOOD_15_8);
 }
 
