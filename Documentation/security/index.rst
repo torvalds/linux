@@ -7,4 +7,5 @@ Security Documentation
 
    credentials
    IMA-templates
+   self-protection
    tpm/index
