@@ -165,6 +165,7 @@ keithkoep	Keith & Koep GmbH
 keymile	Keymile GmbH
 khadas	Khadas
 kinetic Kinetic Technologies
+kingnovel	Kingnovel Technology Co., Ltd.
 kosagi	Sutajio Ko-Usagi PTE Ltd.
 kyo	Kyocera Corporation
 lacie	LaCie
