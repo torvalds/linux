@@ -2127,6 +2127,12 @@
 	memmap=nn[KMG]@ss[KMG]
 			[KNL] Force usage of a specific region of memory.
 			Region of memory to be used is from ss to ss+nn.
+			If @ss[KMG] is omitted, it is equivalent to mem=nn[KMG],
+			which limits max address to nn[KMG].
+			Multiple different regions can be specified,
+			comma delimited.
+			Example:
+				memmap=100M@2G,100M#3G,1G!1024G
 
 	memmap=nn[KMG]#ss[KMG]
 			[KNL,ACPI] Mark specific memory as ACPI data.
@@ -2139,6 +2145,9 @@
 			         memmap=64K$0x18690000
 			         or
 			         memmap=0x10000$0x18690000
+			Some bootloaders may need an escape character before '$',
+			like Grub2, otherwise '$' and the following number
+			will be eaten.
 
 	memmap=nn[KMG]!ss[KMG]
 			[KNL,X86] Mark specific memory as protected.
