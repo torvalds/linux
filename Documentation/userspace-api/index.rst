@@ -16,6 +16,7 @@ place where this information is gathered.
 .. toctree::
    :maxdepth: 2
 
+   seccomp_filter
    unshare
 
 .. only::  subproject and html
