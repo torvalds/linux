@@ -7,3 +7,4 @@ Kernel Keys
 
    core
    ecryptfs
+   request-key
