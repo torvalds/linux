@@ -2827,6 +2827,3 @@ fail1:
 fail0:
 	return rc;
 }
-
-
-
