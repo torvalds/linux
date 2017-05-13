@@ -1,7 +1,5 @@
 00-INDEX
 	- this file.
-SELinux.txt
-	- how to get started with the SELinux security enhancement.
 Smack.txt
 	- documentation on the Smack Linux Security Module.
 Yama.txt

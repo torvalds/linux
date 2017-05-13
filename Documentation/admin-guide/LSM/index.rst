@@ -29,3 +29,8 @@ will always include the capability module. The list reflects the
 order in which checks are made. The capability module will always
 be first, followed by any "minor" modules (e.g. Yama) and then
 the one "major" module (e.g. SELinux) if there is one configured.
+
+.. toctree::
+   :maxdepth: 1
+
+   SELinux
