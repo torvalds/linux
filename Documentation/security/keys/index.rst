@@ -6,3 +6,4 @@ Kernel Keys
    :maxdepth: 1
 
    core
+   ecryptfs

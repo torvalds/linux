@@ -1,4 +1,6 @@
-		Encrypted keys for the eCryptfs filesystem
+==========================================
+Encrypted keys for the eCryptfs filesystem
+==========================================
 
 ECryptfs is a stacked filesystem which transparently encrypts and decrypts each
 file using a randomly generated File Encryption Key (FEK).
@@ -35,20 +37,23 @@ controlled environment.  Another advantage is that the key is not exposed to
 threats of malicious software, because it is available in clear form only at
 kernel level.
 
-Usage:
+Usage::
+
    keyctl add encrypted name "new ecryptfs key-type:master-key-name keylen" ring
    keyctl add encrypted name "load hex_blob" ring
    keyctl update keyid "update key-type:master-key-name"
 
-name:= '<16 hexadecimal characters>'
-key-type:= 'trusted' | 'user'
-keylen:= 64
+Where::
+
+	name:= '<16 hexadecimal characters>'
+	key-type:= 'trusted' | 'user'
+	keylen:= 64
 
 
 Example of encrypted key usage with the eCryptfs filesystem:
 
 Create an encrypted key "1000100010001000" of length 64 bytes with format
-'ecryptfs' and save it using a previously loaded user key "test":
+'ecryptfs' and save it using a previously loaded user key "test"::
 
     $ keyctl add encrypted 1000100010001000 "new ecryptfs user:test 64" @u
     19184530
@@ -62,7 +67,7 @@ Create an encrypted key "1000100010001000" of length 64 bytes with format
     $ keyctl pipe 19184530 > ecryptfs.blob
 
 Mount an eCryptfs filesystem using the created encrypted key "1000100010001000"
-into the '/secret' directory:
+into the '/secret' directory::
 
     $ mount -i -t ecryptfs -oecryptfs_sig=1000100010001000,\
       ecryptfs_cipher=aes,ecryptfs_key_bytes=32 /secret /secret
