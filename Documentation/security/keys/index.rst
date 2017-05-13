@@ -8,3 +8,4 @@ Kernel Keys
    core
    ecryptfs
    request-key
+   trusted-encrypted

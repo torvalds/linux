@@ -1,4 +1,6 @@
-			Trusted and Encrypted Keys
+==========================
+Trusted and Encrypted Keys
+==========================
 
 Trusted and Encrypted Keys are two new key types added to the existing kernel
 key ring service.  Both of these new types are variable length symmetric keys,
@@ -20,7 +22,8 @@ By default, trusted keys are sealed under the SRK, which has the default
 authorization value (20 zeros).  This can be set at takeownership time with the
 trouser's utility: "tpm_takeownership -u -z".
 
-Usage:
+Usage::
+
     keyctl add trusted name "new keylen [options]" ring
     keyctl add trusted name "load hex_blob [pcrlock=pcrnum]" ring
     keyctl update key "update [options]"
@@ -64,19 +67,22 @@ The decrypted portion of encrypted keys can contain either a simple symmetric
 key or a more complex structure. The format of the more complex structure is
 application specific, which is identified by 'format'.
 
-Usage:
+Usage::
+
     keyctl add encrypted name "new [format] key-type:master-key-name keylen"
         ring
     keyctl add encrypted name "load hex_blob" ring
     keyctl update keyid "update key-type:master-key-name"
 
-format:= 'default | ecryptfs'
-key-type:= 'trusted' | 'user'
+Where::
+
+	format:= 'default | ecryptfs'
+	key-type:= 'trusted' | 'user'
 
 
 Examples of trusted and encrypted key usage:
 
-Create and save a trusted key named "kmk" of length 32 bytes:
+Create and save a trusted key named "kmk" of length 32 bytes::
 
     $ keyctl add trusted kmk "new 32" @u
     440502848
@@ -99,7 +105,7 @@ Create and save a trusted key named "kmk" of length 32 bytes:
 
     $ keyctl pipe 440502848 > kmk.blob
 
-Load a trusted key from the saved blob:
+Load a trusted key from the saved blob::
 
     $ keyctl add trusted kmk "load `cat kmk.blob`" @u
     268728824
@@ -114,7 +120,7 @@ Load a trusted key from the saved blob:
     f1f8fff03ad0acb083725535636addb08d73dedb9832da198081e5deae84bfaf0409c22b
     e4a8aea2b607ec96931e6f4d4fe563ba
 
-Reseal a trusted key under new pcr values:
+Reseal a trusted key under new pcr values::
 
     $ keyctl update 268728824 "update pcrinfo=`cat pcr.blob`"
     $ keyctl print 268728824
@@ -135,11 +141,13 @@ compromised by a user level problem, and when sealed to specific boot PCR
 values, protects against boot and offline attacks.  Create and save an
 encrypted key "evm" using the above trusted key "kmk":
 
-option 1: omitting 'format'
+option 1: omitting 'format'::
+
     $ keyctl add encrypted evm "new trusted:kmk 32" @u
     159771175
 
-option 2: explicitly defining 'format' as 'default'
+option 2: explicitly defining 'format' as 'default'::
+
     $ keyctl add encrypted evm "new default trusted:kmk 32" @u
     159771175
 
@@ -150,7 +158,7 @@ option 2: explicitly defining 'format' as 'default'
 
     $ keyctl pipe 159771175 > evm.blob
 
-Load an encrypted key "evm" from saved blob:
+Load an encrypted key "evm" from saved blob::
 
     $ keyctl add encrypted evm "load `cat evm.blob`" @u
     831684262
@@ -164,4 +172,4 @@ Other uses for trusted and encrypted keys, such as for disk and file encryption
 are anticipated.  In particular the new format 'ecryptfs' has been defined in
 in order to use encrypted keys to mount an eCryptfs filesystem.  More details
 about the usage can be found in the file
-'Documentation/security/keys-ecryptfs.txt'.
+``Documentation/security/keys-ecryptfs.txt``.
