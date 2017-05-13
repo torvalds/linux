@@ -8,7 +8,6 @@
 
 DOCBOOKS := \
 	    lsm.xml \
-	    mtdnand.xml \
 	    sh.xml
 
 ifeq ($(DOCBOOKS),)

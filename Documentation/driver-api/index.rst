@@ -34,6 +34,7 @@ available subsections can be seen below.
    edac
    scsi
    libata
+   mtdnand
    miscellaneous
    w1
    rapidio
