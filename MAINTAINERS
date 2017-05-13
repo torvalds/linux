@@ -11560,6 +11560,7 @@ W:	apparmor.wiki.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jj/apparmor-dev.git
 S:	Supported
 F:	security/apparmor/
+F:	Documentation/admin-guide/LSM/apparmor.rst
 
 LOADPIN SECURITY MODULE
 M:	Kees Cook <keescook@chromium.org>

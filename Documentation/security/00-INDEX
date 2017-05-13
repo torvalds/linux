@@ -4,8 +4,6 @@ Smack.txt
 	- documentation on the Smack Linux Security Module.
 Yama.txt
 	- documentation on the Yama Linux Security Module.
-apparmor.txt
-	- documentation on the AppArmor security extension.
 keys-ecryptfs.txt
 	- description of the encryption keys for the ecryptfs filesystem.
 keys-request-key.txt

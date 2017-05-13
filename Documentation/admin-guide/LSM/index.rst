@@ -33,4 +33,5 @@ the one "major" module (e.g. SELinux) if there is one configured.
 .. toctree::
    :maxdepth: 1
 
+   apparmor
    SELinux
