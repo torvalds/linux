@@ -1214,9 +1214,6 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 		return -1;
 	}
 
-	if (rtllib_is_eapol_frame(ieee, skb, hdrlen))
-		netdev_warn(ieee->dev, "RX: IEEE802.1X EAPOL frame!\n");
-
 	return 0;
 }
 
