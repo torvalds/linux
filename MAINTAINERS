@@ -11573,6 +11573,7 @@ M:	Kees Cook <keescook@chromium.org>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git yama/tip
 S:	Supported
 F:	security/yama/
+F:	Documentation/admin-guide/LSM/Yama.rst
 
 SENSABLE PHANTOM
 M:	Jiri Slaby <jirislaby@gmail.com>
