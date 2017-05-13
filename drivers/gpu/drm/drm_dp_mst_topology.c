@@ -855,7 +855,7 @@ static void drm_dp_destroy_mst_branch_device(struct kref *kref)
 	mutex_unlock(&mstb->mgr->qlock);
 
 	if (wake_tx)
-		wake_up(&mstb->mgr->tx_waitq);
+		wake_up_all(&mstb->mgr->tx_waitq);
 
 	kref_put(kref, drm_dp_free_mst_branch_device);
 }
@@ -1510,7 +1510,7 @@ static void process_single_down_tx_qlock(struct drm_dp_mst_topology_mgr *mgr)
 		if (txmsg->seqno != -1)
 			txmsg->dst->tx_slots[txmsg->seqno] = NULL;
 		txmsg->state = DRM_DP_SIDEBAND_TX_TIMEOUT;
-		wake_up(&mgr->tx_waitq);
+		wake_up_all(&mgr->tx_waitq);
 	}
 }
 
@@ -2258,7 +2258,7 @@ static int drm_dp_mst_handle_down_rep(struct drm_dp_mst_topology_mgr *mgr)
 		mstb->tx_slots[slot] = NULL;
 		mutex_unlock(&mgr->qlock);
 
-		wake_up(&mgr->tx_waitq);
+		wake_up_all(&mgr->tx_waitq);
 	}
 	return ret;
 }
