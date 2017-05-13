@@ -6069,11 +6069,13 @@ ssize_t
 CIFSSMBQAllEAs(const unsigned int xid, struct cifs_tcon *tcon,
 		const unsigned char *searchName, const unsigned char *ea_name,
 		char *EAData, size_t buf_size,
-		const struct nls_table *nls_codepage, int remap)
+		struct cifs_sb_info *cifs_sb)
 {
 		/* BB assumes one setup word */
 	TRANSACTION2_QPI_REQ *pSMB = NULL;
 	TRANSACTION2_QPI_RSP *pSMBr = NULL;
+	int remap = cifs_remap(cifs_sb);
+	struct nls_table *nls_codepage = cifs_sb->local_nls;
 	int rc = 0;
 	int bytes_returned;
 	int list_len;
