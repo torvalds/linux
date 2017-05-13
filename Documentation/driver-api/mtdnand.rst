@@ -843,10 +843,8 @@ Chip option constants
 Constants for chip id table
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-These constants are defined in nand.h. They are ored together to
-describe the chip functionality.
-
-::
+These constants are defined in nand.h. They are OR-ed together to
+describe the chip functionality::
 
     /* Buswitdh is 16 bit */
     #define NAND_BUSWIDTH_16    0x00000002
@@ -867,10 +865,8 @@ describe the chip functionality.
 Constants for runtime options
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-These constants are defined in nand.h. They are ored together to
-describe the functionality.
-
-::
+These constants are defined in nand.h. They are OR-ed together to
+describe the functionality::
 
     /* The hw ecc generator provides a syndrome instead a ecc value on read
      * This can only work if we have the ecc bytes directly behind the
@@ -881,9 +877,7 @@ describe the functionality.
 ECC selection constants
 -----------------------
 
-Use these constants to select the ECC algorithm.
-
-::
+Use these constants to select the ECC algorithm::
 
     /* No ECC. Usage is not recommended ! */
     #define NAND_ECC_NONE       0
@@ -903,9 +897,7 @@ Hardware control related constants
 ----------------------------------
 
 These constants describe the requested hardware access function when the
-boardspecific hardware control function is called
-
-::
+boardspecific hardware control function is called::
 
     /* Select the chip by setting nCE to low */
     #define NAND_CTL_SETNCE     1
@@ -929,9 +921,7 @@ Bad block table related constants
 ---------------------------------
 
 These constants describe the options used for bad block table
-descriptors.
-
-::
+descriptors::
 
     /* Options for the bad block table descriptors */
 
