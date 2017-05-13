@@ -162,16 +162,10 @@ kimage_file_prepare_segments(struct kimage *image, int kernel_fd, int initrd_fd,
 	}
 
 	if (cmdline_len) {
-		image->cmdline_buf = kzalloc(cmdline_len, GFP_KERNEL);
-		if (!image->cmdline_buf) {
-			ret = -ENOMEM;
-			goto out;
-		}
-
-		ret = copy_from_user(image->cmdline_buf, cmdline_ptr,
-				     cmdline_len);
-		if (ret) {
-			ret = -EFAULT;
+		image->cmdline_buf = memdup_user(cmdline_ptr, cmdline_len);
+		if (IS_ERR(image->cmdline_buf)) {
+			ret = PTR_ERR(image->cmdline_buf);
+			image->cmdline_buf = NULL;
 			goto out;
 		}
 
