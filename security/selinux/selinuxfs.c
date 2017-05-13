@@ -656,14 +656,12 @@ static ssize_t sel_write_validatetrans(struct file *file,
 	if (*ppos != 0)
 		goto out;
 
-	rc = -ENOMEM;
-	req = kzalloc(count + 1, GFP_KERNEL);
-	if (!req)
+	req = memdup_user_nul(buf, count);
+	if (IS_ERR(req)) {
+		rc = PTR_ERR(req);
+		req = NULL;
 		goto out;
-
-	rc = -EFAULT;
-	if (copy_from_user(req, buf, count))
-		goto out;
+	}
 
 	rc = -ENOMEM;
 	oldcon = kzalloc(count + 1, GFP_KERNEL);
