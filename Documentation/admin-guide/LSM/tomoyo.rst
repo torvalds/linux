@@ -1,21 +1,30 @@
---- What is TOMOYO? ---
+======
+TOMOYO
+======
+
+What is TOMOYO?
+===============
 
 TOMOYO is a name-based MAC extension (LSM module) for the Linux kernel.
 
 LiveCD-based tutorials are available at
+
 http://tomoyo.sourceforge.jp/1.7/1st-step/ubuntu10.04-live/
-http://tomoyo.sourceforge.jp/1.7/1st-step/centos5-live/ .
+http://tomoyo.sourceforge.jp/1.7/1st-step/centos5-live/
+
 Though these tutorials use non-LSM version of TOMOYO, they are useful for you
 to know what TOMOYO is.
 
---- How to enable TOMOYO? ---
+How to enable TOMOYO?
+=====================
 
-Build the kernel with CONFIG_SECURITY_TOMOYO=y and pass "security=tomoyo" on
+Build the kernel with ``CONFIG_SECURITY_TOMOYO=y`` and pass ``security=tomoyo`` on
 kernel's command line.
 
 Please see http://tomoyo.sourceforge.jp/2.3/ for details.
 
---- Where is documentation? ---
+Where is documentation?
+=======================
 
 User <-> Kernel interface documentation is available at
 http://tomoyo.sourceforge.jp/2.3/policy-reference.html .
@@ -42,7 +51,8 @@ History of TOMOYO?
   Realities of Mainlining
     http://sourceforge.jp/projects/tomoyo/docs/lfj2008.pdf
 
---- What is future plan? ---
+What is future plan?
+====================
 
 We believe that inode based security and name based security are complementary
 and both should be used together. But unfortunately, so far, we cannot enable

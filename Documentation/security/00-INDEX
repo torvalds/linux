@@ -12,5 +12,3 @@ keys-trusted-encrypted.txt
 	- info on the Trusted and Encrypted keys in the kernel key ring service.
 keys.txt
 	- description of the kernel key retention service.
-tomoyo.txt
-	- documentation on the TOMOYO Linux Security Module.
