@@ -10,7 +10,7 @@
  *  Author: Peter Oruba <peter.oruba@amd.com>
  *
  *  Based on work by:
- *  Tigran Aivazian <tigran@aivazian.fsnet.co.uk>
+ *  Tigran Aivazian <aivazian.tigran@gmail.com>
  *
  *  early loader:
  *  Copyright (C) 2013 Advanced Micro Devices, Inc.
