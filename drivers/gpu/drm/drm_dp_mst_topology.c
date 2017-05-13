@@ -737,16 +737,16 @@ static void drm_dp_mst_put_payload_id(struct drm_dp_mst_topology_mgr *mgr,
 static bool check_txmsg_state(struct drm_dp_mst_topology_mgr *mgr,
 			      struct drm_dp_sideband_msg_tx *txmsg)
 {
-	bool ret;
+	unsigned int state;
 
 	/*
 	 * All updates to txmsg->state are protected by mgr->qlock, and the two
 	 * cases we check here are terminal states. For those the barriers
 	 * provided by the wake_up/wait_event pair are enough.
 	 */
-	ret = (txmsg->state == DRM_DP_SIDEBAND_TX_RX ||
-	       txmsg->state == DRM_DP_SIDEBAND_TX_TIMEOUT);
-	return ret;
+	state = READ_ONCE(txmsg->state);
+	return (state == DRM_DP_SIDEBAND_TX_RX ||
+		state == DRM_DP_SIDEBAND_TX_TIMEOUT);
 }
 
 static int drm_dp_mst_wait_tx_reply(struct drm_dp_mst_branch *mstb,
