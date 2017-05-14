@@ -17,6 +17,18 @@ menuconfig MULTIPLEXER
 
 if MULTIPLEXER
 
+config MUX_ADG792A
+	tristate "Analog Devices ADG792A/ADG792G Multiplexers"
+	depends on I2C || COMPILE_TEST
+	help
+	  ADG792A and ADG792G Wide Bandwidth Triple 4:1 Multiplexers
+
+	  The driver supports both operating the three multiplexers in
+	  parallel and operating them independently.
+
+	  To compile the driver as a module, choose M here: the module will
+	  be called mux-adg792a.
+
 config MUX_GPIO
 	tristate "GPIO-controlled Multiplexer"
 	depends on GPIOLIB || COMPILE_TEST
