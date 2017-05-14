@@ -62,6 +62,7 @@
 #include <linux/kcov.h>
 #include <linux/random.h>
 #include <linux/rcuwait.h>
+#include <linux/compat.h>
 
 #include <linux/uaccess.h>
 #include <asm/unistd.h>
@@ -1734,4 +1735,72 @@ SYSCALL_DEFINE3(waitpid, pid_t, pid, int __user *, stat_addr, int, options)
 	return sys_wait4(pid, stat_addr, options, NULL);
 }
 
+#endif
+
+#ifdef CONFIG_COMPAT
+COMPAT_SYSCALL_DEFINE4(wait4,
+	compat_pid_t, pid,
+	compat_uint_t __user *, stat_addr,
+	int, options,
+	struct compat_rusage __user *, ru)
+{
+	if (!ru) {
+		return sys_wait4(pid, stat_addr, options, NULL);
+	} else {
+		struct rusage r;
+		int ret;
+		unsigned int status;
+		mm_segment_t old_fs = get_fs();
+
+		set_fs (KERNEL_DS);
+		ret = sys_wait4(pid,
+				(stat_addr ?
+				 (unsigned int __user *) &status : NULL),
+				options, (struct rusage __user *) &r);
+		set_fs (old_fs);
+
+		if (ret > 0) {
+			if (put_compat_rusage(&r, ru))
+				return -EFAULT;
+			if (stat_addr && put_user(status, stat_addr))
+				return -EFAULT;
+		}
+		return ret;
+	}
+}
+
+COMPAT_SYSCALL_DEFINE5(waitid,
+		int, which, compat_pid_t, pid,
+		struct compat_siginfo __user *, infop, int, options,
+		struct compat_rusage __user *, uru)
+{
+	siginfo_t info;
+	struct rusage ru;
+	long ret;
+	mm_segment_t old_fs = get_fs();
+
+	memset(&info, 0, sizeof(info));
+
+	set_fs(KERNEL_DS);
+	ret = sys_waitid(which, pid, (siginfo_t __user *)&info, options,
+			 uru ? (struct rusage __user *)&ru : NULL);
+	set_fs(old_fs);
+
+	if ((ret < 0) || (info.si_signo == 0))
+		return ret;
+
+	if (uru) {
+		/* sys_waitid() overwrites everything in ru */
+		if (COMPAT_USE_64BIT_TIME)
+			ret = copy_to_user(uru, &ru, sizeof(ru));
+		else
+			ret = put_compat_rusage(&ru, uru);
+		if (ret)
+			return -EFAULT;
+	}
+
+	BUG_ON(info.si_code & __SI_MASK);
+	info.si_code |= __SI_CHLD;
+	return copy_siginfo_to_user32(infop, &info);
+}
 #endif
