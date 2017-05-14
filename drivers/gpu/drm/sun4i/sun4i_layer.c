@@ -16,6 +16,7 @@
 #include <drm/drmP.h>
 
 #include "sun4i_backend.h"
+#include "sun4i_crtc.h"
 #include "sun4i_layer.h"
 
 struct sun4i_plane_desc {
@@ -128,15 +129,16 @@ static struct sun4i_layer *sun4i_layer_init_one(struct drm_device *drm,
 	return layer;
 }
 
-struct sun4i_layer **sun4i_layers_init(struct drm_device *drm,
-				       struct sun4i_backend *backend)
+struct drm_plane **sun4i_layers_init(struct drm_device *drm,
+				     struct sun4i_crtc *crtc)
 {
-	struct sun4i_layer **layers;
+	struct drm_plane **planes;
+	struct sun4i_backend *backend = crtc->backend;
 	int i;
 
-	layers = devm_kcalloc(drm->dev, ARRAY_SIZE(sun4i_backend_planes) + 1,
-			      sizeof(*layers), GFP_KERNEL);
-	if (!layers)
+	planes = devm_kcalloc(drm->dev, ARRAY_SIZE(sun4i_backend_planes) + 1,
+			      sizeof(*planes), GFP_KERNEL);
+	if (!planes)
 		return ERR_PTR(-ENOMEM);
 
 	/*
@@ -178,8 +180,8 @@ struct sun4i_layer **sun4i_layers_init(struct drm_device *drm,
 				   SUN4I_BACKEND_ATTCTL_REG0_LAY_PIPESEL(plane->pipe));
 
 		layer->id = i;
-		layers[i] = layer;
+		planes[i] = &layer->plane;
 	};
 
-	return layers;
+	return planes;
 }

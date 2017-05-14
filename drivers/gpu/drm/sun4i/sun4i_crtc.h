@@ -19,7 +19,6 @@ struct sun4i_crtc {
 
 	struct sun4i_backend		*backend;
 	struct sun4i_tcon		*tcon;
-	struct sun4i_layer		**layers;
 };
 
 static inline struct sun4i_crtc *drm_crtc_to_sun4i_crtc(struct drm_crtc *crtc)
