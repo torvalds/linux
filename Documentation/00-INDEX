@@ -264,6 +264,8 @@ logo.gif
 	- full colour GIF image of Linux logo (penguin - Tux).
 logo.txt
 	- info on creator of above logo & site to get additional images from.
+lsm.txt
+	- Linux Security Modules: General Security Hooks for Linux
 lzo.txt
 	- kernel LZO decompressor input formats
 m68k/
