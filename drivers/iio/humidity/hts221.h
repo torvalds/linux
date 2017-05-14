@@ -57,11 +57,14 @@ struct hts221_hw {
 
 	struct hts221_sensor sensors[HTS221_SENSOR_MAX];
 
+	bool enabled;
 	u8 odr;
 
 	const struct hts221_transfer_function *tf;
 	struct hts221_transfer_buffer tb;
 };
+
+extern const struct dev_pm_ops hts221_pm_ops;
 
 int hts221_config_drdy(struct hts221_hw *hw, bool enable);
 int hts221_probe(struct iio_dev *iio_dev);
