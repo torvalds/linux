@@ -681,8 +681,8 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 	}
 
 	if (major_ver < DPRC_MIN_VER_MAJOR ||
-	   (major_ver == DPRC_MIN_VER_MAJOR &&
-	    minor_ver < DPRC_MIN_VER_MINOR)) {
+	    (major_ver == DPRC_MIN_VER_MAJOR &&
+	     minor_ver < DPRC_MIN_VER_MINOR)) {
 		dev_err(&mc_dev->dev,
 			"ERROR: DPRC version %d.%d not supported\n",
 			major_ver, minor_ver);

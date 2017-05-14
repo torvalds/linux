@@ -644,10 +644,10 @@ static int get_mc_addr_translation_ranges(struct device *dev,
 	const __be32 *cell;
 
 	ret = parse_mc_ranges(dev,
-				&paddr_cells,
-				&mc_addr_cells,
-				&mc_size_cells,
-				&ranges_start);
+			      &paddr_cells,
+			      &mc_addr_cells,
+			      &mc_size_cells,
+			      &ranges_start);
 	if (ret < 0)
 		return ret;
 
