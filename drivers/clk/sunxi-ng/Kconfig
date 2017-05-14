@@ -140,6 +140,11 @@ config SUN8I_V3S_CCU
 	default MACH_SUN8I
 	depends on MACH_SUN8I || COMPILE_TEST
 
+config SUN8I_DE2_CCU
+	bool "Support for the Allwinner SoCs DE2 CCU"
+	select SUNXI_CCU_DIV
+	select SUNXI_CCU_GATE
+
 config SUN9I_A80_CCU
 	bool "Support for the Allwinner A80 CCU"
 	select SUNXI_CCU_DIV
