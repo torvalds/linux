@@ -819,7 +819,7 @@ static int hdmi_codec_probe(struct platform_device *pdev)
 	mutex_unlock(&hdmi_mutex);
 
 	if (hd->cnt >= ARRAY_SIZE(hdmi_dai_name)) {
-		dev_err(dev, "too many hdmi codec are deteced\n");
+		dev_err(dev, "too many hdmi codec are detected\n");
 		return -EINVAL;
 	}
 
