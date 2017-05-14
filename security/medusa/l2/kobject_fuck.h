@@ -12,6 +12,8 @@
 
 #define inode_security(inode) (*(struct medusa_l1_inode_s*)(inode->i_security))
 
+int validate_fuck(struct path* path);
+
 struct fuck_kobject {	
 	MEDUSA_KOBJECT_HEADER;
 	char path[PATH_MAX];

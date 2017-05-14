@@ -57,7 +57,7 @@ int validate_fuck(struct path* path){
 		printk("FUCK_VALIDATE: It is equal\n");
 		return 0;
 	}
-	return -1;
+	return 1;
 }
 
 int __init getfuck_evtype_init(void) {
