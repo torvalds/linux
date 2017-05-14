@@ -14,3 +14,21 @@ menuconfig MULTIPLEXER
 
 	  To compile the subsystem as a module, choose M here: the module will
 	  be called mux-core.
+
+if MULTIPLEXER
+
+config MUX_GPIO
+	tristate "GPIO-controlled Multiplexer"
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  GPIO-controlled Multiplexer controller.
+
+	  The driver builds a single multiplexer controller using a number
+	  of gpio pins. For N pins, there will be 2^N possible multiplexer
+	  states. The GPIO pins can be connected (by the hardware) to several
+	  multiplexers, which in that case will be operated in parallel.
+
+	  To compile the driver as a module, choose M here: the module will
+	  be called mux-gpio.
+
+endif
