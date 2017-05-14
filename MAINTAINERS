@@ -8716,6 +8716,12 @@ S:	Orphan
 F:	drivers/mmc/host/mmc_spi.c
 F:	include/linux/spi/mmc_spi.h
 
+MULTIPLEXER SUBSYSTEM
+M:	Peter Rosin <peda@axentia.se>
+S:	Maintained
+F:	Documentation/devicetree/bindings/mux/
+F:	include/linux/dt-bindings/mux/
+
 MULTISOUND SOUND DRIVER
 M:	Andrew Veliath <andrewtv@usa.net>
 S:	Maintained
