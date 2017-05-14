@@ -744,7 +744,6 @@ static int ssi_blkcipher_complete(struct device *dev,
                                   struct ssi_ablkcipher_ctx *ctx_p,
                                   struct blkcipher_req_ctx *req_ctx,
                                   struct scatterlist *dst, struct scatterlist *src,
-                                  void *info, //req info
                                   unsigned int ivsize,
                                   void *areq,
                                   void __iomem *cc_base)
@@ -755,7 +754,6 @@ static int ssi_blkcipher_complete(struct device *dev,
 
 	START_CYCLE_COUNT();
 	ssi_buffer_mgr_unmap_blkcipher_request(dev, req_ctx, ivsize, src, dst);
-	info = req_ctx->backup_info;
 	END_CYCLE_COUNT(STAT_OP_TYPE_GENERIC, STAT_PHASE_4);
 
 
@@ -895,7 +893,9 @@ static int ssi_blkcipher_process(
 			END_CYCLE_COUNT(ssi_req.op_type, STAT_PHASE_3);
 		} else {
 			END_CYCLE_COUNT(ssi_req.op_type, STAT_PHASE_3);
-			rc = ssi_blkcipher_complete(dev, ctx_p, req_ctx, dst, src, info, ivsize, NULL, ctx_p->drvdata->cc_base);
+			rc = ssi_blkcipher_complete(dev, ctx_p, req_ctx, dst,
+						    src, ivsize, NULL,
+						    ctx_p->drvdata->cc_base);
 		}
 	}
 
@@ -916,7 +916,8 @@ static void ssi_ablkcipher_complete(struct device *dev, void *ssi_req, void __io
 
 	CHECK_AND_RETURN_VOID_UPON_FIPS_ERROR();
 
-	ssi_blkcipher_complete(dev, ctx_p, req_ctx, areq->dst, areq->src, areq->info, ivsize, areq, cc_base);
+	ssi_blkcipher_complete(dev, ctx_p, req_ctx, areq->dst, areq->src,
+			       ivsize, areq, cc_base);
 }
 
 
