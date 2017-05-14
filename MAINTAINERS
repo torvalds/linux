@@ -8719,8 +8719,11 @@ F:	include/linux/spi/mmc_spi.h
 MULTIPLEXER SUBSYSTEM
 M:	Peter Rosin <peda@axentia.se>
 S:	Maintained
+F:	Documentation/ABI/testing/mux/sysfs-class-mux*
 F:	Documentation/devicetree/bindings/mux/
 F:	include/linux/dt-bindings/mux/
+F:	include/linux/mux/
+F:	drivers/mux/
 
 MULTISOUND SOUND DRIVER
 M:	Andrew Veliath <andrewtv@usa.net>

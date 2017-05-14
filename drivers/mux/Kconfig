@@ -1,0 +1,16 @@
+#
+# Multiplexer devices
+#
+
+menuconfig MULTIPLEXER
+	tristate "Multiplexer subsystem"
+	help
+	  Multiplexer controller subsystem. Multiplexers are used in a
+	  variety of settings, and this subsystem abstracts their use
+	  so that the rest of the kernel sees a common interface. When
+	  multiple parallel multiplexers are controlled by one single
+	  multiplexer controller, this subsystem also coordinates the
+	  multiplexer accesses.
+
+	  To compile the subsystem as a module, choose M here: the module will
+	  be called mux-core.

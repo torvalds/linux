@@ -206,4 +206,6 @@ source "drivers/fsi/Kconfig"
 
 source "drivers/tee/Kconfig"
 
+source "drivers/mux/Kconfig"
+
 endmenu

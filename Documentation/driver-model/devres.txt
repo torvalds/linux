@@ -337,6 +337,11 @@ MEM
 MFD
   devm_mfd_add_devices()
 
+MUX
+  devm_mux_chip_alloc()
+  devm_mux_chip_register()
+  devm_mux_control_get()
+
 PER-CPU MEM
   devm_alloc_percpu()
   devm_free_percpu()
