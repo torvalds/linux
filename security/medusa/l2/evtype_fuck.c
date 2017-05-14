@@ -30,6 +30,35 @@ MED_ATTRS(getfuck_event) {
 MED_EVTYPE(getfuck_event, "getfuck", fuck_kobject, "fuck",
 		fuck_kobject, "parent");
 
+int validate_fuck(struct path* path){
+	struct medusa_l1_inode_s *fuck_security = &inode_security(path->dentry->d_inode);	
+	char *fuck_path = fuck_security->med_object.fuck_path;
+	if(!fuck_path){
+		printk("FUCK_VALIDATE: No fuck paths\n");
+		return 0;
+	}
+	
+	char path_buf[PATH_MAX];
+	char *path_real;
+	int error = 0;
+
+	path_real = d_absolute_path(path, path_buf, PATH_MAX);
+	if(!path_real || IS_ERR(path_real)){
+		if(PTR_ERR(path_real) == -ENAMETOOLONG)
+			return -ENAMETOOLONG;
+		path_real = dentry_path_raw(path->dentry, path_buf, PATH_MAX);
+		if(IS_ERR(path_real)){
+			error = PTR_ERR(path_real);
+			return error;
+		}
+	}
+	
+	if(strcmp(path_real, fuck_path) == 0) {
+		printk("FUCK_VALIDATE: It is equal\n");
+		return 0;
+	}
+	return -1;
+}
 
 int __init getfuck_evtype_init(void) {
 	MED_REGISTER_EVTYPE(getfuck_event,
