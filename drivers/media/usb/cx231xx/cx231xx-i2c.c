@@ -580,17 +580,10 @@ int cx231xx_i2c_mux_create(struct cx231xx *dev)
 
 int cx231xx_i2c_mux_register(struct cx231xx *dev, int mux_no)
 {
-	int rc;
-
-	rc = i2c_mux_add_adapter(dev->muxc,
-				 0,
-				 mux_no /* chan_id */,
-				 0 /* class */);
-	if (rc)
-		dev_warn(dev->dev,
-			 "i2c mux %d register FAILED\n", mux_no);
-
-	return rc;
+	return i2c_mux_add_adapter(dev->muxc,
+				   0,
+				   mux_no /* chan_id */,
+				   0 /* class */);
 }
 
 void cx231xx_i2c_mux_unregister(struct cx231xx *dev)

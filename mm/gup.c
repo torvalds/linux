@@ -1189,34 +1189,57 @@ struct page *get_dump_page(unsigned long addr)
  */
 #ifdef CONFIG_HAVE_GENERIC_RCU_GUP
 
+#ifndef gup_get_pte
+/*
+ * We assume that the PTE can be read atomically. If this is not the case for
+ * your architecture, please provide the helper.
+ */
+static inline pte_t gup_get_pte(pte_t *ptep)
+{
+	return READ_ONCE(*ptep);
+}
+#endif
+
+static void undo_dev_pagemap(int *nr, int nr_start, struct page **pages)
+{
+	while ((*nr) - nr_start) {
+		struct page *page = pages[--(*nr)];
+
+		ClearPageReferenced(page);
+		put_page(page);
+	}
+}
+
 #ifdef __HAVE_ARCH_PTE_SPECIAL
 static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
 			 int write, struct page **pages, int *nr)
 {
+	struct dev_pagemap *pgmap = NULL;
+	int nr_start = *nr, ret = 0;
 	pte_t *ptep, *ptem;
-	int ret = 0;
 
 	ptem = ptep = pte_offset_map(&pmd, addr);
 	do {
-		/*
-		 * In the line below we are assuming that the pte can be read
-		 * atomically. If this is not the case for your architecture,
-		 * please wrap this in a helper function!
-		 *
-		 * for an example see gup_get_pte in arch/x86/mm/gup.c
-		 */
-		pte_t pte = READ_ONCE(*ptep);
+		pte_t pte = gup_get_pte(ptep);
 		struct page *head, *page;
 
 		/*
 		 * Similar to the PMD case below, NUMA hinting must take slow
 		 * path using the pte_protnone check.
 		 */
-		if (!pte_present(pte) || pte_special(pte) ||
-			pte_protnone(pte) || (write && !pte_write(pte)))
+		if (pte_protnone(pte))
 			goto pte_unmap;
 
-		if (!arch_pte_access_permitted(pte, write))
+		if (!pte_access_permitted(pte, write))
+			goto pte_unmap;
+
+		if (pte_devmap(pte)) {
+			pgmap = get_dev_pagemap(pte_pfn(pte), pgmap);
+			if (unlikely(!pgmap)) {
+				undo_dev_pagemap(nr, nr_start, pages);
+				goto pte_unmap;
+			}
+		} else if (pte_special(pte))
 			goto pte_unmap;
 
 		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
@@ -1232,6 +1255,9 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
 		}
 
 		VM_BUG_ON_PAGE(compound_head(page) != head, page);
+
+		put_dev_pagemap(pgmap);
+		SetPageReferenced(page);
 		pages[*nr] = page;
 		(*nr)++;
 
@@ -1261,14 +1287,75 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
 }
 #endif /* __HAVE_ARCH_PTE_SPECIAL */
 
+#ifdef __HAVE_ARCH_PTE_DEVMAP
+static int __gup_device_huge(unsigned long pfn, unsigned long addr,
+		unsigned long end, struct page **pages, int *nr)
+{
+	int nr_start = *nr;
+	struct dev_pagemap *pgmap = NULL;
+
+	do {
+		struct page *page = pfn_to_page(pfn);
+
+		pgmap = get_dev_pagemap(pfn, pgmap);
+		if (unlikely(!pgmap)) {
+			undo_dev_pagemap(nr, nr_start, pages);
+			return 0;
+		}
+		SetPageReferenced(page);
+		pages[*nr] = page;
+		get_page(page);
+		put_dev_pagemap(pgmap);
+		(*nr)++;
+		pfn++;
+	} while (addr += PAGE_SIZE, addr != end);
+	return 1;
+}
+
+static int __gup_device_huge_pmd(pmd_t pmd, unsigned long addr,
+		unsigned long end, struct page **pages, int *nr)
+{
+	unsigned long fault_pfn;
+
+	fault_pfn = pmd_pfn(pmd) + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
+	return __gup_device_huge(fault_pfn, addr, end, pages, nr);
+}
+
+static int __gup_device_huge_pud(pud_t pud, unsigned long addr,
+		unsigned long end, struct page **pages, int *nr)
+{
+	unsigned long fault_pfn;
+
+	fault_pfn = pud_pfn(pud) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
+	return __gup_device_huge(fault_pfn, addr, end, pages, nr);
+}
+#else
+static int __gup_device_huge_pmd(pmd_t pmd, unsigned long addr,
+		unsigned long end, struct page **pages, int *nr)
+{
+	BUILD_BUG();
+	return 0;
+}
+
+static int __gup_device_huge_pud(pud_t pud, unsigned long addr,
+		unsigned long end, struct page **pages, int *nr)
+{
+	BUILD_BUG();
+	return 0;
+}
+#endif
+
 static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
 		unsigned long end, int write, struct page **pages, int *nr)
 {
 	struct page *head, *page;
 	int refs;
 
-	if (write && !pmd_write(orig))
+	if (!pmd_access_permitted(orig, write))
 		return 0;
+
+	if (pmd_devmap(orig))
+		return __gup_device_huge_pmd(orig, addr, end, pages, nr);
 
 	refs = 0;
 	head = pmd_page(orig);
@@ -1293,6 +1380,7 @@ static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
 		return 0;
 	}
 
+	SetPageReferenced(head);
 	return 1;
 }
 
@@ -1302,8 +1390,11 @@ static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
 	struct page *head, *page;
 	int refs;
 
-	if (write && !pud_write(orig))
+	if (!pud_access_permitted(orig, write))
 		return 0;
+
+	if (pud_devmap(orig))
+		return __gup_device_huge_pud(orig, addr, end, pages, nr);
 
 	refs = 0;
 	head = pud_page(orig);
@@ -1328,6 +1419,7 @@ static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
 		return 0;
 	}
 
+	SetPageReferenced(head);
 	return 1;
 }
 
@@ -1338,9 +1430,10 @@ static int gup_huge_pgd(pgd_t orig, pgd_t *pgdp, unsigned long addr,
 	int refs;
 	struct page *head, *page;
 
-	if (write && !pgd_write(orig))
+	if (!pgd_access_permitted(orig, write))
 		return 0;
 
+	BUILD_BUG_ON(pgd_devmap(orig));
 	refs = 0;
 	head = pgd_page(orig);
 	page = head + ((addr & ~PGDIR_MASK) >> PAGE_SHIFT);
@@ -1364,6 +1457,7 @@ static int gup_huge_pgd(pgd_t orig, pgd_t *pgdp, unsigned long addr,
 		return 0;
 	}
 
+	SetPageReferenced(head);
 	return 1;
 }
 
@@ -1481,7 +1575,7 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 	end = start + len;
 
 	if (unlikely(!access_ok(write ? VERIFY_WRITE : VERIFY_READ,
-					start, len)))
+					(void __user *)start, len)))
 		return 0;
 
 	/*
@@ -1520,6 +1614,21 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 	return nr;
 }
 
+#ifndef gup_fast_permitted
+/*
+ * Check if it's allowed to use __get_user_pages_fast() for the range, or
+ * we need to fall back to the slow version:
+ */
+bool gup_fast_permitted(unsigned long start, int nr_pages, int write)
+{
+	unsigned long len, end;
+
+	len = (unsigned long) nr_pages << PAGE_SHIFT;
+	end = start + len;
+	return end >= start;
+}
+#endif
+
 /**
  * get_user_pages_fast() - pin user pages in memory
  * @start:	starting user address
@@ -1539,11 +1648,14 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 			struct page **pages)
 {
-	int nr, ret;
+	int nr = 0, ret = 0;
 
 	start &= PAGE_MASK;
-	nr = __get_user_pages_fast(start, nr_pages, write, pages);
-	ret = nr;
+
+	if (gup_fast_permitted(start, nr_pages, write)) {
+		nr = __get_user_pages_fast(start, nr_pages, write, pages);
+		ret = nr;
+	}
 
 	if (nr < nr_pages) {
 		/* Try to get the remaining pages with get_user_pages */

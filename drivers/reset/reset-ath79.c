@@ -1,4 +1,7 @@
 /*
+ * AR71xx Reset Controller Driver
+ * Author: Alban Bedel
+ *
  * Copyright (C) 2015 Alban Bedel <albeu@free.fr>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -13,7 +16,7 @@
  */
 
 #include <linux/io.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/reset-controller.h>
 #include <linux/reboot.h>
@@ -127,31 +130,17 @@ static int ath79_reset_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ath79_reset_remove(struct platform_device *pdev)
-{
-	struct ath79_reset *ath79_reset = platform_get_drvdata(pdev);
-
-	unregister_restart_handler(&ath79_reset->restart_nb);
-
-	return 0;
-}
-
 static const struct of_device_id ath79_reset_dt_ids[] = {
 	{ .compatible = "qca,ar7100-reset", },
 	{ },
 };
-MODULE_DEVICE_TABLE(of, ath79_reset_dt_ids);
 
 static struct platform_driver ath79_reset_driver = {
 	.probe	= ath79_reset_probe,
-	.remove = ath79_reset_remove,
 	.driver = {
-		.name		= "ath79-reset",
-		.of_match_table	= ath79_reset_dt_ids,
+		.name			= "ath79-reset",
+		.of_match_table		= ath79_reset_dt_ids,
+		.suppress_bind_attrs	= true,
 	},
 };
-module_platform_driver(ath79_reset_driver);
-
-MODULE_AUTHOR("Alban Bedel <albeu@free.fr>");
-MODULE_DESCRIPTION("AR71xx Reset Controller Driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(ath79_reset_driver);

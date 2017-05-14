@@ -8,7 +8,7 @@ include ../lib.mk
 
 all:
 	for DIR in $(SUBDIRS); do		\
-		BUILD_TARGET=$$OUTPUT/$$DIR;	\
+		BUILD_TARGET=$(OUTPUT)/$$DIR;	\
 		mkdir $$BUILD_TARGET  -p;	\
 		make OUTPUT=$$BUILD_TARGET -C $$DIR $@;\
 	done
@@ -22,7 +22,7 @@ override define INSTALL_RULE
 	install -t $(INSTALL_PATH) $(TEST_PROGS) $(TEST_PROGS_EXTENDED) $(TEST_FILES)
 
 	@for SUBDIR in $(SUBDIRS); do \
-		BUILD_TARGET=$$OUTPUT/$$SUBDIR;	\
+		BUILD_TARGET=$(OUTPUT)/$$SUBDIR;	\
 		mkdir $$BUILD_TARGET  -p;	\
 		$(MAKE) OUTPUT=$$BUILD_TARGET -C $$SUBDIR INSTALL_PATH=$(INSTALL_PATH)/$$SUBDIR install; \
 	done;
@@ -32,9 +32,10 @@ override define EMIT_TESTS
 	echo "./run.sh"
 endef
 
-clean:
+override define CLEAN
 	for DIR in $(SUBDIRS); do		\
-		BUILD_TARGET=$$OUTPUT/$$DIR;	\
+		BUILD_TARGET=$(OUTPUT)/$$DIR;	\
 		mkdir $$BUILD_TARGET  -p;	\
 		make OUTPUT=$$BUILD_TARGET -C $$DIR $@;\
 	done
+endef

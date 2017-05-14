@@ -16,9 +16,10 @@
 
 #include <linux/device.h>
 #include <linux/genalloc.h>
+#include <linux/mm.h>
 #include <linux/sram.h>
 
-#include <asm/cacheflush.h>
+#include <asm/set_memory.h>
 
 #include "sram.h"
 

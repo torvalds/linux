@@ -96,7 +96,7 @@
 #include <linux/pm_runtime.h>
 #include "rsnd.h"
 
-#define RSND_RATES SNDRV_PCM_RATE_8000_96000
+#define RSND_RATES SNDRV_PCM_RATE_8000_192000
 #define RSND_FMTS (SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S16_LE)
 
 static const struct of_device_id rsnd_of_match[] = {
@@ -110,7 +110,6 @@ MODULE_DEVICE_TABLE(of, rsnd_of_match);
 /*
  *	rsnd_mod functions
  */
-#ifdef DEBUG
 void rsnd_mod_make_sure(struct rsnd_mod *mod, enum rsnd_mod_type type)
 {
 	if (mod->type != type) {
@@ -121,7 +120,6 @@ void rsnd_mod_make_sure(struct rsnd_mod *mod, enum rsnd_mod_type type)
 			 rsnd_mod_name(mod), rsnd_mod_id(mod));
 	}
 }
-#endif
 
 char *rsnd_mod_name(struct rsnd_mod *mod)
 {
@@ -674,12 +672,10 @@ static int rsnd_soc_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	/* set clock inversion */
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_IF:
-		rdai->bit_clk_inv =  rdai->bit_clk_inv;
 		rdai->frm_clk_inv = !rdai->frm_clk_inv;
 		break;
 	case SND_SOC_DAIFMT_IB_NF:
 		rdai->bit_clk_inv = !rdai->bit_clk_inv;
-		rdai->frm_clk_inv =  rdai->frm_clk_inv;
 		break;
 	case SND_SOC_DAIFMT_IB_IF:
 		rdai->bit_clk_inv = !rdai->bit_clk_inv;
@@ -1002,13 +998,30 @@ static int rsnd_kctrl_put(struct snd_kcontrol *kctrl,
 	return change;
 }
 
-static int __rsnd_kctrl_new(struct rsnd_mod *mod,
-			    struct rsnd_dai_stream *io,
-			    struct snd_soc_pcm_runtime *rtd,
-			    const unsigned char *name,
-			    struct rsnd_kctrl_cfg *cfg,
-			    void (*update)(struct rsnd_dai_stream *io,
-					   struct rsnd_mod *mod))
+struct rsnd_kctrl_cfg *rsnd_kctrl_init_m(struct rsnd_kctrl_cfg_m *cfg)
+{
+	cfg->cfg.val = cfg->val;
+
+	return &cfg->cfg;
+}
+
+struct rsnd_kctrl_cfg *rsnd_kctrl_init_s(struct rsnd_kctrl_cfg_s *cfg)
+{
+	cfg->cfg.val = &cfg->val;
+
+	return &cfg->cfg;
+}
+
+int rsnd_kctrl_new(struct rsnd_mod *mod,
+		   struct rsnd_dai_stream *io,
+		   struct snd_soc_pcm_runtime *rtd,
+		   const unsigned char *name,
+		   void (*update)(struct rsnd_dai_stream *io,
+				  struct rsnd_mod *mod),
+		   struct rsnd_kctrl_cfg *cfg,
+		   const char * const *texts,
+		   int size,
+		   u32 max)
 {
 	struct snd_card *card = rtd->card->snd_card;
 	struct snd_kcontrol *kctrl;
@@ -1023,6 +1036,9 @@ static int __rsnd_kctrl_new(struct rsnd_mod *mod,
 	};
 	int ret;
 
+	if (size > RSND_MAX_CHANNELS)
+		return -EINVAL;
+
 	kctrl = snd_ctl_new1(&knew, mod);
 	if (!kctrl)
 		return -ENOMEM;
@@ -1031,72 +1047,15 @@ static int __rsnd_kctrl_new(struct rsnd_mod *mod,
 	if (ret < 0)
 		return ret;
 
-	cfg->update = update;
-	cfg->card = card;
-	cfg->kctrl = kctrl;
-	cfg->io = io;
+	cfg->texts	= texts;
+	cfg->max	= max;
+	cfg->size	= size;
+	cfg->update	= update;
+	cfg->card	= card;
+	cfg->kctrl	= kctrl;
+	cfg->io		= io;
 
 	return 0;
-}
-
-void _rsnd_kctrl_remove(struct rsnd_kctrl_cfg *cfg)
-{
-	if (cfg->card && cfg->kctrl)
-		snd_ctl_remove(cfg->card, cfg->kctrl);
-
-	cfg->card = NULL;
-	cfg->kctrl = NULL;
-}
-
-int rsnd_kctrl_new_m(struct rsnd_mod *mod,
-		     struct rsnd_dai_stream *io,
-		     struct snd_soc_pcm_runtime *rtd,
-		     const unsigned char *name,
-		     void (*update)(struct rsnd_dai_stream *io,
-				    struct rsnd_mod *mod),
-		     struct rsnd_kctrl_cfg_m *_cfg,
-		     int ch_size,
-		     u32 max)
-{
-	if (ch_size > RSND_MAX_CHANNELS)
-		return -EINVAL;
-
-	_cfg->cfg.max	= max;
-	_cfg->cfg.size	= ch_size;
-	_cfg->cfg.val	= _cfg->val;
-	return __rsnd_kctrl_new(mod, io, rtd, name, &_cfg->cfg, update);
-}
-
-int rsnd_kctrl_new_s(struct rsnd_mod *mod,
-		     struct rsnd_dai_stream *io,
-		     struct snd_soc_pcm_runtime *rtd,
-		     const unsigned char *name,
-		     void (*update)(struct rsnd_dai_stream *io,
-				    struct rsnd_mod *mod),
-		     struct rsnd_kctrl_cfg_s *_cfg,
-		     u32 max)
-{
-	_cfg->cfg.max	= max;
-	_cfg->cfg.size	= 1;
-	_cfg->cfg.val	= &_cfg->val;
-	return __rsnd_kctrl_new(mod, io, rtd, name, &_cfg->cfg, update);
-}
-
-int rsnd_kctrl_new_e(struct rsnd_mod *mod,
-		     struct rsnd_dai_stream *io,
-		     struct snd_soc_pcm_runtime *rtd,
-		     const unsigned char *name,
-		     struct rsnd_kctrl_cfg_s *_cfg,
-		     void (*update)(struct rsnd_dai_stream *io,
-				    struct rsnd_mod *mod),
-		     const char * const *texts,
-		     u32 max)
-{
-	_cfg->cfg.max	= max;
-	_cfg->cfg.size	= 1;
-	_cfg->cfg.val	= &_cfg->val;
-	_cfg->cfg.texts	= texts;
-	return __rsnd_kctrl_new(mod, io, rtd, name, &_cfg->cfg, update);
 }
 
 /*

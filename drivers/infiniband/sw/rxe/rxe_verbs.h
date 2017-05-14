@@ -38,6 +38,7 @@
 #include <rdma/rdma_user_rxe.h>
 #include "rxe_pool.h"
 #include "rxe_task.h"
+#include "rxe_hw_counters.h"
 
 static inline int pkey_match(u16 key1, u16 key2)
 {
@@ -401,9 +402,17 @@ struct rxe_dev {
 	spinlock_t		mmap_offset_lock; /* guard mmap_offset */
 	int			mmap_offset;
 
+	u64			stats_counters[RXE_NUM_OF_COUNTERS];
+
 	struct rxe_port		port;
 	struct list_head	list;
+	struct crypto_shash	*tfm;
 };
+
+static inline void rxe_counter_inc(struct rxe_dev *rxe, enum rxe_counters cnt)
+{
+	rxe->stats_counters[cnt]++;
+}
 
 static inline struct rxe_dev *to_rdev(struct ib_device *dev)
 {

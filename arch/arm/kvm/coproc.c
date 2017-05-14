@@ -40,6 +40,24 @@
  * Co-processor emulation
  *****************************************************************************/
 
+static bool write_to_read_only(struct kvm_vcpu *vcpu,
+			       const struct coproc_params *params)
+{
+	WARN_ONCE(1, "CP15 write to read-only register\n");
+	print_cp_instr(params);
+	kvm_inject_undefined(vcpu);
+	return false;
+}
+
+static bool read_from_write_only(struct kvm_vcpu *vcpu,
+				 const struct coproc_params *params)
+{
+	WARN_ONCE(1, "CP15 read to write-only register\n");
+	print_cp_instr(params);
+	kvm_inject_undefined(vcpu);
+	return false;
+}
+
 /* 3 bits per cache level, as per CLIDR, but non-existent caches always 0 */
 static u32 cache_levels;
 
@@ -502,15 +520,15 @@ static int emulate_cp15(struct kvm_vcpu *vcpu,
 		if (likely(r->access(vcpu, params, r))) {
 			/* Skip instruction, since it was emulated */
 			kvm_skip_instr(vcpu, kvm_vcpu_trap_il_is32bit(vcpu));
-			return 1;
 		}
-		/* If access function fails, it should complain. */
 	} else {
+		/* If access function fails, it should complain. */
 		kvm_err("Unsupported guest CP15 access at: %08lx\n",
 			*vcpu_pc(vcpu));
 		print_cp_instr(params);
+		kvm_inject_undefined(vcpu);
 	}
-	kvm_inject_undefined(vcpu);
+
 	return 1;
 }
 

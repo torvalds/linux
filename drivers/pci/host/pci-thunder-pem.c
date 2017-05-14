@@ -375,7 +375,6 @@ static void thunder_pem_legacy_fw(struct acpi_pci_root *root,
 	index -= node * PEM_MAX_DOM_IN_NODE;
 	res_pem->start = PEM_RES_BASE | FIELD_PREP(PEM_NODE_MASK, node) |
 					FIELD_PREP(PEM_INDX_MASK, index);
-	res_pem->end = res_pem->start + SZ_16M - 1;
 	res_pem->flags = IORESOURCE_MEM;
 }
 
@@ -399,8 +398,15 @@ static int thunder_pem_acpi_init(struct pci_config_window *cfg)
 	 */
 	if (ret) {
 		thunder_pem_legacy_fw(root, res_pem);
-		/* Reserve PEM-specific resources and PCI configuration space */
+		/*
+		 * Reserve 64K size PEM specific resources. The full 16M range
+		 * size is required for thunder_pem_init() call.
+		 */
+		res_pem->end = res_pem->start + SZ_64K - 1;
 		thunder_pem_reserve_range(dev, root->segment, res_pem);
+		res_pem->end = res_pem->start + SZ_16M - 1;
+
+		/* Reserve PCI configuration space as well. */
 		thunder_pem_reserve_range(dev, root->segment, &cfg->res);
 	}
 
@@ -468,6 +474,7 @@ static struct platform_driver thunder_pem_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.of_match_table = thunder_pem_of_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe = thunder_pem_probe,
 };

@@ -146,6 +146,7 @@ SECTIONS
 		_edata = .;
 	} :data
 
+	BUG_TABLE
 
 	. = ALIGN(PAGE_SIZE);
 	__vvar_page = .;

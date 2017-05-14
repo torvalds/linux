@@ -246,6 +246,7 @@ typedef struct _drm_i915_sarea {
 #define DRM_I915_OVERLAY_PUT_IMAGE	0x27
 #define DRM_I915_OVERLAY_ATTRS	0x28
 #define DRM_I915_GEM_EXECBUFFER2	0x29
+#define DRM_I915_GEM_EXECBUFFER2_WR	DRM_I915_GEM_EXECBUFFER2
 #define DRM_I915_GET_SPRITE_COLORKEY	0x2a
 #define DRM_I915_SET_SPRITE_COLORKEY	0x2b
 #define DRM_I915_GEM_WAIT	0x2c
@@ -280,6 +281,7 @@ typedef struct _drm_i915_sarea {
 #define DRM_IOCTL_I915_GEM_INIT		DRM_IOW(DRM_COMMAND_BASE + DRM_I915_GEM_INIT, struct drm_i915_gem_init)
 #define DRM_IOCTL_I915_GEM_EXECBUFFER	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_GEM_EXECBUFFER, struct drm_i915_gem_execbuffer)
 #define DRM_IOCTL_I915_GEM_EXECBUFFER2	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_GEM_EXECBUFFER2, struct drm_i915_gem_execbuffer2)
+#define DRM_IOCTL_I915_GEM_EXECBUFFER2_WR	DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GEM_EXECBUFFER2_WR, struct drm_i915_gem_execbuffer2)
 #define DRM_IOCTL_I915_GEM_PIN		DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GEM_PIN, struct drm_i915_gem_pin)
 #define DRM_IOCTL_I915_GEM_UNPIN	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_GEM_UNPIN, struct drm_i915_gem_unpin)
 #define DRM_IOCTL_I915_GEM_BUSY		DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GEM_BUSY, struct drm_i915_gem_busy)
@@ -396,6 +398,19 @@ typedef struct drm_i915_irq_wait {
  */
 #define I915_PARAM_HAS_SCHEDULER	 41
 #define I915_PARAM_HUC_STATUS		 42
+
+/* Query whether DRM_I915_GEM_EXECBUFFER2 supports the ability to opt-out of
+ * synchronisation with implicit fencing on individual objects.
+ * See EXEC_OBJECT_ASYNC.
+ */
+#define I915_PARAM_HAS_EXEC_ASYNC	 43
+
+/* Query whether DRM_I915_GEM_EXECBUFFER2 supports explicit fence support -
+ * both being able to pass in a sync_file fd to wait upon before executing,
+ * and being able to return a new sync_file fd that is signaled when the
+ * current request is complete. See I915_EXEC_FENCE_IN and I915_EXEC_FENCE_OUT.
+ */
+#define I915_PARAM_HAS_EXEC_FENCE	 44
 
 typedef struct drm_i915_getparam {
 	__s32 param;
@@ -737,8 +752,29 @@ struct drm_i915_gem_exec_object2 {
 #define EXEC_OBJECT_SUPPORTS_48B_ADDRESS (1<<3)
 #define EXEC_OBJECT_PINNED		 (1<<4)
 #define EXEC_OBJECT_PAD_TO_SIZE		 (1<<5)
+/* The kernel implicitly tracks GPU activity on all GEM objects, and
+ * synchronises operations with outstanding rendering. This includes
+ * rendering on other devices if exported via dma-buf. However, sometimes
+ * this tracking is too coarse and the user knows better. For example,
+ * if the object is split into non-overlapping ranges shared between different
+ * clients or engines (i.e. suballocating objects), the implicit tracking
+ * by kernel assumes that each operation affects the whole object rather
+ * than an individual range, causing needless synchronisation between clients.
+ * The kernel will also forgo any CPU cache flushes prior to rendering from
+ * the object as the client is expected to be also handling such domain
+ * tracking.
+ *
+ * The kernel maintains the implicit tracking in order to manage resources
+ * used by the GPU - this flag only disables the synchronisation prior to
+ * rendering with this object in this execbuf.
+ *
+ * Opting out of implicit synhronisation requires the user to do its own
+ * explicit tracking to avoid rendering corruption. See, for example,
+ * I915_PARAM_HAS_EXEC_FENCE to order execbufs and execute them asynchronously.
+ */
+#define EXEC_OBJECT_ASYNC		(1<<6)
 /* All remaining bits are MBZ and RESERVED FOR FUTURE USE */
-#define __EXEC_OBJECT_UNKNOWN_FLAGS -(EXEC_OBJECT_PAD_TO_SIZE<<1)
+#define __EXEC_OBJECT_UNKNOWN_FLAGS -(EXEC_OBJECT_ASYNC<<1)
 	__u64 flags;
 
 	union {
@@ -828,7 +864,32 @@ struct drm_i915_gem_execbuffer2 {
  */
 #define I915_EXEC_RESOURCE_STREAMER     (1<<15)
 
-#define __I915_EXEC_UNKNOWN_FLAGS -(I915_EXEC_RESOURCE_STREAMER<<1)
+/* Setting I915_EXEC_FENCE_IN implies that lower_32_bits(rsvd2) represent
+ * a sync_file fd to wait upon (in a nonblocking manner) prior to executing
+ * the batch.
+ *
+ * Returns -EINVAL if the sync_file fd cannot be found.
+ */
+#define I915_EXEC_FENCE_IN		(1<<16)
+
+/* Setting I915_EXEC_FENCE_OUT causes the ioctl to return a sync_file fd
+ * in the upper_32_bits(rsvd2) upon success. Ownership of the fd is given
+ * to the caller, and it should be close() after use. (The fd is a regular
+ * file descriptor and will be cleaned up on process termination. It holds
+ * a reference to the request, but nothing else.)
+ *
+ * The sync_file fd can be combined with other sync_file and passed either
+ * to execbuf using I915_EXEC_FENCE_IN, to atomic KMS ioctls (so that a flip
+ * will only occur after this request completes), or to other devices.
+ *
+ * Using I915_EXEC_FENCE_OUT requires use of
+ * DRM_IOCTL_I915_GEM_EXECBUFFER2_WR ioctl so that the result is written
+ * back to userspace. Failure to do so will cause the out-fence to always
+ * be reported as zero, and the real fence fd to be leaked.
+ */
+#define I915_EXEC_FENCE_OUT		(1<<17)
+
+#define __I915_EXEC_UNKNOWN_FLAGS (-(I915_EXEC_FENCE_OUT<<1))
 
 #define I915_EXEC_CONTEXT_ID_MASK	(0xffffffff)
 #define i915_execbuffer2_set_context_id(eb2, context) \

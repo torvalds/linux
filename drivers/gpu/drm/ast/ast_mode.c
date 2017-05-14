@@ -645,7 +645,8 @@ static void ast_crtc_reset(struct drm_crtc *crtc)
 }
 
 static int ast_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
-			      u16 *blue, uint32_t size)
+			      u16 *blue, uint32_t size,
+			      struct drm_modeset_acquire_ctx *ctx)
 {
 	struct ast_crtc *ast_crtc = to_ast_crtc(crtc);
 	int i;

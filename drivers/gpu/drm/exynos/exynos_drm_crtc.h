@@ -23,8 +23,6 @@ struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
 					enum exynos_drm_output_type type,
 					const struct exynos_drm_crtc_ops *ops,
 					void *context);
-int exynos_drm_crtc_enable_vblank(struct drm_device *dev, unsigned int pipe);
-void exynos_drm_crtc_disable_vblank(struct drm_device *dev, unsigned int pipe);
 void exynos_drm_crtc_wait_pending_update(struct exynos_drm_crtc *exynos_crtc);
 void exynos_drm_crtc_finish_update(struct exynos_drm_crtc *exynos_crtc,
 				   struct exynos_drm_plane *exynos_plane);

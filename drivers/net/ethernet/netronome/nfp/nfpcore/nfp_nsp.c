@@ -49,6 +49,7 @@
 
 #include "nfp.h"
 #include "nfp_cpp.h"
+#include "nfp_nsp.h"
 
 /* Offsets relative to the CSR base */
 #define NSP_STATUS		0x00
@@ -77,7 +78,7 @@
 
 #define NSP_MAGIC		0xab10
 #define NSP_MAJOR		0
-#define NSP_MINOR		(__MAX_SPCODE - 1)
+#define NSP_MINOR		8
 
 #define NSP_CODE_MAJOR		GENMASK(15, 12)
 #define NSP_CODE_MINOR		GENMASK(11, 0)
@@ -92,8 +93,18 @@ enum nfp_nsp_cmd {
 	SPCODE_FW_LOAD		= 6, /* Load fw from buffer, len in option */
 	SPCODE_ETH_RESCAN	= 7, /* Rescan ETHs, write ETH_TABLE to buf */
 	SPCODE_ETH_CONTROL	= 8, /* Update media config from buffer */
+	SPCODE_NSP_IDENTIFY	= 13, /* Read NSP version */
+};
 
-	__MAX_SPCODE,
+static const struct {
+	int code;
+	const char *msg;
+} nsp_errors[] = {
+	{ 6010, "could not map to phy for port" },
+	{ 6011, "not an allowed rate/lanes for port" },
+	{ 6012, "not an allowed rate/lanes for port" },
+	{ 6013, "high/low error, change other port first" },
+	{ 6014, "config not found in flash" },
 };
 
 struct nfp_nsp {
@@ -103,7 +114,62 @@ struct nfp_nsp {
 		u16 major;
 		u16 minor;
 	} ver;
+
+	/* Eth table config state */
+	bool modified;
+	unsigned int idx;
+	void *entries;
 };
+
+struct nfp_cpp *nfp_nsp_cpp(struct nfp_nsp *state)
+{
+	return state->cpp;
+}
+
+bool nfp_nsp_config_modified(struct nfp_nsp *state)
+{
+	return state->modified;
+}
+
+void nfp_nsp_config_set_modified(struct nfp_nsp *state, bool modified)
+{
+	state->modified = modified;
+}
+
+void *nfp_nsp_config_entries(struct nfp_nsp *state)
+{
+	return state->entries;
+}
+
+unsigned int nfp_nsp_config_idx(struct nfp_nsp *state)
+{
+	return state->idx;
+}
+
+void
+nfp_nsp_config_set_state(struct nfp_nsp *state, void *entries, unsigned int idx)
+{
+	state->entries = entries;
+	state->idx = idx;
+}
+
+void nfp_nsp_config_clear_state(struct nfp_nsp *state)
+{
+	state->entries = NULL;
+	state->idx = 0;
+}
+
+static void nfp_nsp_print_extended_error(struct nfp_nsp *state, u32 ret_val)
+{
+	int i;
+
+	if (!ret_val)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(nsp_errors); i++)
+		if (ret_val == nsp_errors[i].code)
+			nfp_err(state->cpp, "err msg: %s\n", nsp_errors[i].msg);
+}
 
 static int nfp_nsp_check(struct nfp_nsp *state)
 {
@@ -209,9 +275,8 @@ nfp_nsp_wait_reg(struct nfp_cpp *cpp, u64 *reg,
 		if ((*reg & mask) == val)
 			return 0;
 
-		err = msleep_interruptible(100);
-		if (err)
-			return err;
+		if (msleep_interruptible(25))
+			return -ERESTARTSYS;
 
 		if (time_after(start_time, wait_until))
 			return -ETIMEDOUT;
@@ -228,7 +293,7 @@ nfp_nsp_wait_reg(struct nfp_cpp *cpp, u64 *reg,
  *
  * Return: 0 for success with no result
  *
- *	 1..255 for NSP completion with a result code
+ *	 positive value for NSP completion with a result code
  *
  *	-EAGAIN if the NSP is not yet present
  *	-ENODEV if the NSP is not a supported model
@@ -239,7 +304,7 @@ nfp_nsp_wait_reg(struct nfp_cpp *cpp, u64 *reg,
 static int nfp_nsp_command(struct nfp_nsp *state, u16 code, u32 option,
 			   u32 buff_cpp, u64 buff_addr)
 {
-	u64 reg, nsp_base, nsp_buffer, nsp_status, nsp_command;
+	u64 reg, ret_val, nsp_base, nsp_buffer, nsp_status, nsp_command;
 	struct nfp_cpp *cpp = state->cpp;
 	u32 nsp_cpp;
 	int err;
@@ -292,18 +357,20 @@ static int nfp_nsp_command(struct nfp_nsp *state, u16 code, u32 option,
 		return err;
 	}
 
+	err = nfp_cpp_readq(cpp, nsp_cpp, nsp_command, &ret_val);
+	if (err < 0)
+		return err;
+	ret_val = FIELD_GET(NSP_COMMAND_OPTION, ret_val);
+
 	err = FIELD_GET(NSP_STATUS_RESULT, reg);
 	if (err) {
-		nfp_warn(cpp, "Result (error) code set: %d command: %d\n",
-			 -err, code);
+		nfp_warn(cpp, "Result (error) code set: %d (%d) command: %d\n",
+			 -err, (int)ret_val, code);
+		nfp_nsp_print_extended_error(state, ret_val);
 		return -err;
 	}
 
-	err = nfp_cpp_readq(cpp, nsp_cpp, nsp_command, &reg);
-	if (err < 0)
-		return err;
-
-	return FIELD_GET(NSP_COMMAND_OPTION, reg);
+	return ret_val;
 }
 
 static int nfp_nsp_command_buf(struct nfp_nsp *nsp, u16 code, u32 option,
@@ -380,9 +447,10 @@ int nfp_nsp_wait(struct nfp_nsp *state)
 		if (err != -EAGAIN)
 			break;
 
-		err = msleep_interruptible(100);
-		if (err)
+		if (msleep_interruptible(25)) {
+			err = -ERESTARTSYS;
 			break;
+		}
 
 		if (time_after(start_time, wait_until)) {
 			err = -ETIMEDOUT;
@@ -423,4 +491,10 @@ int nfp_nsp_write_eth_table(struct nfp_nsp *state,
 {
 	return nfp_nsp_command_buf(state, SPCODE_ETH_CONTROL, size, buf, size,
 				   NULL, 0);
+}
+
+int nfp_nsp_read_identify(struct nfp_nsp *state, void *buf, unsigned int size)
+{
+	return nfp_nsp_command_buf(state, SPCODE_NSP_IDENTIFY, size, NULL, 0,
+				   buf, size);
 }

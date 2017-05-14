@@ -51,14 +51,12 @@ CFLAGS_dumpstack.o	+= -fno-optimize-sibling-calls
 #
 CFLAGS_ptrace.o		+= -DUTS_MACHINE='"$(UTS_MACHINE)"'
 
-CFLAGS_sysinfo.o	+= -w
-
 obj-y	:= traps.o time.o process.o base.o early.o setup.o idle.o vtime.o
 obj-y	+= processor.o sys_s390.o ptrace.o signal.o cpcmd.o ebcdic.o nmi.o
 obj-y	+= debug.o irq.o ipl.o dis.o diag.o vdso.o als.o
 obj-y	+= sysinfo.o jump_label.o lgr.o os_info.o machine_kexec.o pgm_check.o
-obj-y	+= runtime_instr.o cache.o fpu.o dumpstack.o
-obj-y	+= entry.o reipl.o relocate_kernel.o
+obj-y	+= runtime_instr.o cache.o fpu.o dumpstack.o guarded_storage.o
+obj-y	+= entry.o reipl.o relocate_kernel.o kdebugfs.o
 
 extra-y				+= head.o head64.o vmlinux.lds
 

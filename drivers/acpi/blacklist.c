@@ -188,6 +188,14 @@ static struct dmi_system_id acpi_rev_dmi_table[] __initdata = {
 		      DMI_MATCH(DMI_PRODUCT_NAME, "Latitude 3350"),
 		},
 	},
+	{
+	 .callback = dmi_enable_rev_override,
+	 .ident = "DELL Inspiron 7537",
+	 .matches = {
+		      DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+		      DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 7537"),
+		},
+	},
 #endif
 	{}
 };

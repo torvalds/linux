@@ -85,6 +85,18 @@ static inline void efifb_setup_from_dmi(struct screen_info *si, const char *opt)
  */
 #define ZIMAGE_OFFSET_LIMIT	SZ_128M
 #define MIN_ZIMAGE_OFFSET	MAX_UNCOMP_KERNEL_SIZE
-#define MAX_FDT_OFFSET		ZIMAGE_OFFSET_LIMIT
+
+/* on ARM, the FDT should be located in the first 128 MB of RAM */
+static inline unsigned long efi_get_max_fdt_addr(unsigned long dram_base)
+{
+	return dram_base + ZIMAGE_OFFSET_LIMIT;
+}
+
+/* on ARM, the initrd should be loaded in a lowmem region */
+static inline unsigned long efi_get_max_initrd_addr(unsigned long dram_base,
+						    unsigned long image_addr)
+{
+	return dram_base + SZ_512M;
+}
 
 #endif /* _ASM_ARM_EFI_H */

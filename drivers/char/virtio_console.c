@@ -1945,9 +1945,9 @@ static int init_vqs(struct ports_device *portdev)
 		}
 	}
 	/* Find the queues. */
-	err = portdev->vdev->config->find_vqs(portdev->vdev, nr_queues, vqs,
-					      io_callbacks,
-					      (const char **)io_names, NULL);
+	err = virtio_find_vqs(portdev->vdev, nr_queues, vqs,
+			      io_callbacks,
+			      (const char **)io_names, NULL);
 	if (err)
 		goto free;
 
@@ -2202,14 +2202,16 @@ static int virtcons_freeze(struct virtio_device *vdev)
 
 	vdev->config->reset(vdev);
 
-	virtqueue_disable_cb(portdev->c_ivq);
+	if (use_multiport(portdev))
+		virtqueue_disable_cb(portdev->c_ivq);
 	cancel_work_sync(&portdev->control_work);
 	cancel_work_sync(&portdev->config_work);
 	/*
 	 * Once more: if control_work_handler() was running, it would
 	 * enable the cb as the last step.
 	 */
-	virtqueue_disable_cb(portdev->c_ivq);
+	if (use_multiport(portdev))
+		virtqueue_disable_cb(portdev->c_ivq);
 	remove_controlq_data(portdev);
 
 	list_for_each_entry(port, &portdev->ports, list) {
@@ -2302,7 +2304,7 @@ static int __init init(void)
 
 	pdrvdata.debugfs_dir = debugfs_create_dir("virtio-ports", NULL);
 	if (!pdrvdata.debugfs_dir)
-		pr_warning("Error creating debugfs dir for virtio-ports\n");
+		pr_warn("Error creating debugfs dir for virtio-ports\n");
 	INIT_LIST_HEAD(&pdrvdata.consoles);
 	INIT_LIST_HEAD(&pdrvdata.portdevs);
 

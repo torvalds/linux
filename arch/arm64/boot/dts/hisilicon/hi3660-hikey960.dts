@@ -8,6 +8,7 @@
 /dts-v1/;
 
 #include "hi3660.dtsi"
+#include "hikey960-pinctrl.dtsi"
 
 / {
 	model = "HiKey960";

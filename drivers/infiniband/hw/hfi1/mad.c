@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015-2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -53,6 +53,7 @@
 #include "mad.h"
 #include "trace.h"
 #include "qp.h"
+#include "vnic.h"
 
 /* the reset value from the FM is supposed to be 0xffff, handle both */
 #define OPA_LINK_WIDTH_RESET_OLD 0x0fff
@@ -650,9 +651,11 @@ static int __subn_get_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 					OPA_PI_MASK_PORT_ACTIVE_OPTOMIZE : 0);
 
 	pi->port_packet_format.supported =
-		cpu_to_be16(OPA_PORT_PACKET_FORMAT_9B);
+		cpu_to_be16(OPA_PORT_PACKET_FORMAT_9B |
+			    OPA_PORT_PACKET_FORMAT_16B);
 	pi->port_packet_format.enabled =
-		cpu_to_be16(OPA_PORT_PACKET_FORMAT_9B);
+		cpu_to_be16(OPA_PORT_PACKET_FORMAT_9B |
+			    OPA_PORT_PACKET_FORMAT_16B);
 
 	/* flit_control.interleave is (OPA V1, version .76):
 	 * bits		use
@@ -701,7 +704,13 @@ static int __subn_get_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 	buffer_units |= (dd->vl15_init << 11) & OPA_PI_MASK_BUF_UNIT_VL15_INIT;
 	pi->buffer_units = cpu_to_be32(buffer_units);
 
-	pi->opa_cap_mask = cpu_to_be16(OPA_CAP_MASK3_IsSharedSpaceSupported);
+	pi->opa_cap_mask = cpu_to_be16(OPA_CAP_MASK3_IsSharedSpaceSupported |
+				       OPA_CAP_MASK3_IsEthOnFabricSupported);
+	/* Driver does not support mcast/collective configuration */
+	pi->opa_cap_mask &=
+		cpu_to_be16(~OPA_CAP_MASK3_IsAddrRangeConfigSupported);
+	pi->collectivemask_multicastmask = ((HFI1_COLLECTIVE_NR & 0x7)
+					    << 3 | (HFI1_MCAST_NR & 0x7));
 
 	/* HFI supports a replay buffer 128 LTPs in size */
 	pi->replay_depth.buffer = 0x80;
@@ -1146,16 +1155,6 @@ static int __subn_set_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 		ppd->linkinit_reason =
 			(pi->partenforce_filterraw &
 			 OPA_PI_MASK_LINKINIT_REASON);
-	/* enable/disable SW pkey checking as per FM control */
-	if (pi->partenforce_filterraw & OPA_PI_MASK_PARTITION_ENFORCE_IN)
-		ppd->part_enforce |= HFI1_PART_ENFORCE_IN;
-	else
-		ppd->part_enforce &= ~HFI1_PART_ENFORCE_IN;
-
-	if (pi->partenforce_filterraw & OPA_PI_MASK_PARTITION_ENFORCE_OUT)
-		ppd->part_enforce |= HFI1_PART_ENFORCE_OUT;
-	else
-		ppd->part_enforce &= ~HFI1_PART_ENFORCE_OUT;
 
 	/* Must be a valid unicast LID address. */
 	if ((smlid == 0 && ls_old > IB_PORT_INIT) ||
@@ -1167,9 +1166,9 @@ static int __subn_set_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 		spin_lock_irqsave(&ibp->rvp.lock, flags);
 		if (ibp->rvp.sm_ah) {
 			if (smlid != ibp->rvp.sm_lid)
-				ibp->rvp.sm_ah->attr.dlid = smlid;
+				rdma_ah_set_dlid(&ibp->rvp.sm_ah->attr, smlid);
 			if (msl != ibp->rvp.sm_sl)
-				ibp->rvp.sm_ah->attr.sl = msl;
+				rdma_ah_set_sl(&ibp->rvp.sm_ah->attr, msl);
 		}
 		spin_unlock_irqrestore(&ibp->rvp.lock, flags);
 		if (smlid != ibp->rvp.sm_lid)
@@ -1465,25 +1464,15 @@ static int __subn_set_opa_pkeytable(struct opa_smp *smp, u32 am, u8 *data,
 	return __subn_get_opa_pkeytable(smp, am, data, ibdev, port, resp_len);
 }
 
-static int get_sc2vlt_tables(struct hfi1_devdata *dd, void *data)
-{
-	u64 *val = data;
-
-	*val++ = read_csr(dd, SEND_SC2VLT0);
-	*val++ = read_csr(dd, SEND_SC2VLT1);
-	*val++ = read_csr(dd, SEND_SC2VLT2);
-	*val++ = read_csr(dd, SEND_SC2VLT3);
-	return 0;
-}
-
 #define ILLEGAL_VL 12
 /*
  * filter_sc2vlt changes mappings to VL15 to ILLEGAL_VL (except
  * for SC15, which must map to VL15). If we don't remap things this
  * way it is possible for VL15 counters to increment when we try to
  * send on a SC which is mapped to an invalid VL.
+ * When getting the table convert ILLEGAL_VL back to VL15.
  */
-static void filter_sc2vlt(void *data)
+static void filter_sc2vlt(void *data, bool set)
 {
 	int i;
 	u8 *pd = data;
@@ -1491,8 +1480,14 @@ static void filter_sc2vlt(void *data)
 	for (i = 0; i < OPA_MAX_SCS; i++) {
 		if (i == 15)
 			continue;
-		if ((pd[i] & 0x1f) == 0xf)
-			pd[i] = ILLEGAL_VL;
+
+		if (set) {
+			if ((pd[i] & 0x1f) == 0xf)
+				pd[i] = ILLEGAL_VL;
+		} else {
+			if ((pd[i] & 0x1f) == ILLEGAL_VL)
+				pd[i] = 0xf;
+		}
 	}
 }
 
@@ -1500,7 +1495,7 @@ static int set_sc2vlt_tables(struct hfi1_devdata *dd, void *data)
 {
 	u64 *val = data;
 
-	filter_sc2vlt(data);
+	filter_sc2vlt(data, true);
 
 	write_csr(dd, SEND_SC2VLT0, *val++);
 	write_csr(dd, SEND_SC2VLT1, *val++);
@@ -1509,6 +1504,19 @@ static int set_sc2vlt_tables(struct hfi1_devdata *dd, void *data)
 	write_seqlock_irq(&dd->sc2vl_lock);
 	memcpy(dd->sc2vl, data, sizeof(dd->sc2vl));
 	write_sequnlock_irq(&dd->sc2vl_lock);
+	return 0;
+}
+
+static int get_sc2vlt_tables(struct hfi1_devdata *dd, void *data)
+{
+	u64 *val = (u64 *)data;
+
+	*val++ = read_csr(dd, SEND_SC2VLT0);
+	*val++ = read_csr(dd, SEND_SC2VLT1);
+	*val++ = read_csr(dd, SEND_SC2VLT2);
+	*val++ = read_csr(dd, SEND_SC2VLT3);
+
+	filter_sc2vlt((u64 *)data, false);
 	return 0;
 }
 
@@ -1984,31 +1992,6 @@ static int __subn_set_opa_vl_arb(struct opa_smp *smp, u32 am, u8 *data,
 struct opa_pma_mad {
 	struct ib_mad_hdr mad_hdr;
 	u8 data[2024];
-} __packed;
-
-struct opa_class_port_info {
-	u8 base_version;
-	u8 class_version;
-	__be16 cap_mask;
-	__be32 cap_mask2_resp_time;
-
-	u8 redirect_gid[16];
-	__be32 redirect_tc_fl;
-	__be32 redirect_lid;
-	__be32 redirect_sl_qp;
-	__be32 redirect_qkey;
-
-	u8 trap_gid[16];
-	__be32 trap_tc_fl;
-	__be32 trap_lid;
-	__be32 trap_hl_qp;
-	__be32 trap_qkey;
-
-	__be16 trap_pkey;
-	__be16 redirect_pkey;
-
-	u8 trap_sl_rsvd;
-	u8 reserved[3];
 } __packed;
 
 struct opa_port_status_req {

@@ -233,10 +233,6 @@ int acpi_numa_init (void);
 
 int acpi_table_init (void);
 int acpi_table_parse(char *id, acpi_tbl_table_handler handler);
-int __init acpi_parse_entries(char *id, unsigned long table_size,
-			      acpi_tbl_entry_handler handler,
-			      struct acpi_table_header *table_header,
-			      int entry_id, unsigned int max_entries);
 int __init acpi_table_parse_entries(char *id, unsigned long table_size,
 			      int entry_id,
 			      acpi_tbl_entry_handler handler,
@@ -595,6 +591,13 @@ enum acpi_reconfig_event  {
 int acpi_reconfig_notifier_register(struct notifier_block *nb);
 int acpi_reconfig_notifier_unregister(struct notifier_block *nb);
 
+#ifdef CONFIG_ACPI_GTDT
+int acpi_gtdt_init(struct acpi_table_header *table, int *platform_timer_count);
+int acpi_gtdt_map_ppi(int type);
+bool acpi_gtdt_c3stop(int type);
+int acpi_arch_timer_mem_init(struct arch_timer_mem *timer_mem, int *timer_count);
+#endif
+
 #else	/* !CONFIG_ACPI */
 
 #define acpi_disabled 1
@@ -607,6 +610,11 @@ int acpi_reconfig_notifier_unregister(struct notifier_block *nb);
 struct fwnode_handle;
 
 static inline bool acpi_dev_found(const char *hid)
+{
+	return false;
+}
+
+static inline bool acpi_dev_present(const char *hid, const char *uid, s64 hrv)
 {
 	return false;
 }
@@ -762,8 +770,11 @@ static inline enum dev_dma_attr acpi_get_dma_attr(struct acpi_device *adev)
 	return DEV_DMA_NOT_SUPPORTED;
 }
 
-static inline void acpi_dma_configure(struct device *dev,
-				      enum dev_dma_attr attr) { }
+static inline int acpi_dma_configure(struct device *dev,
+				     enum dev_dma_attr attr)
+{
+	return 0;
+}
 
 static inline void acpi_dma_deconfigure(struct device *dev) { }
 
@@ -949,6 +960,10 @@ static inline void acpi_dev_remove_driver_gpios(struct acpi_device *adev)
 		adev->driver_gpios = NULL;
 }
 
+int devm_acpi_dev_add_driver_gpios(struct device *dev,
+				   const struct acpi_gpio_mapping *gpios);
+void devm_acpi_dev_remove_driver_gpios(struct device *dev);
+
 int acpi_dev_gpio_irq_get(struct acpi_device *adev, int index);
 #else
 static inline int acpi_dev_add_driver_gpios(struct acpi_device *adev,
@@ -957,6 +972,13 @@ static inline int acpi_dev_add_driver_gpios(struct acpi_device *adev,
 	return -ENXIO;
 }
 static inline void acpi_dev_remove_driver_gpios(struct acpi_device *adev) {}
+
+static inline int devm_acpi_dev_add_driver_gpios(struct device *dev,
+			      const struct acpi_gpio_mapping *gpios)
+{
+	return -ENXIO;
+}
+static inline void devm_acpi_dev_remove_driver_gpios(struct device *dev) {}
 
 static inline int acpi_dev_gpio_irq_get(struct acpi_device *adev, int index)
 {
@@ -997,8 +1019,16 @@ int acpi_node_prop_read(struct fwnode_handle *fwnode, const char *propname,
 int acpi_dev_prop_read(struct acpi_device *adev, const char *propname,
 		       enum dev_prop_type proptype, void *val, size_t nval);
 
-struct fwnode_handle *acpi_get_next_subnode(struct device *dev,
-					    struct fwnode_handle *subnode);
+struct fwnode_handle *acpi_get_next_subnode(struct fwnode_handle *fwnode,
+					    struct fwnode_handle *child);
+struct fwnode_handle *acpi_node_get_parent(struct fwnode_handle *fwnode);
+
+struct fwnode_handle *acpi_graph_get_next_endpoint(struct fwnode_handle *fwnode,
+						   struct fwnode_handle *prev);
+int acpi_graph_get_remote_endpoint(struct fwnode_handle *fwnode,
+				   struct fwnode_handle **remote,
+				   struct fwnode_handle **port,
+				   struct fwnode_handle **endpoint);
 
 struct acpi_probe_entry;
 typedef bool (*acpi_probe_entry_validate_subtbl)(struct acpi_subtable_header *,
@@ -1115,10 +1145,32 @@ static inline int acpi_dev_prop_read(struct acpi_device *adev,
 	return -ENXIO;
 }
 
-static inline struct fwnode_handle *acpi_get_next_subnode(struct device *dev,
-						struct fwnode_handle *subnode)
+static inline struct fwnode_handle *
+acpi_get_next_subnode(struct fwnode_handle *fwnode, struct fwnode_handle *child)
 {
 	return NULL;
+}
+
+static inline struct fwnode_handle *
+acpi_node_get_parent(struct fwnode_handle *fwnode)
+{
+	return NULL;
+}
+
+static inline struct fwnode_handle *
+acpi_graph_get_next_endpoint(struct fwnode_handle *fwnode,
+			     struct fwnode_handle *prev)
+{
+	return ERR_PTR(-ENXIO);
+}
+
+static inline int
+acpi_graph_get_remote_endpoint(struct fwnode_handle *fwnode,
+			       struct fwnode_handle **remote,
+			       struct fwnode_handle **port,
+			       struct fwnode_handle **endpoint)
+{
+	return -ENXIO;
 }
 
 #define ACPI_DECLARE_PROBE_ENTRY(table, name, table_id, subtable, valid, data, fn) \

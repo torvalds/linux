@@ -11,8 +11,13 @@
  * which is what it's designed for.
  */
 #include "cache.h"
-#include "util.h"
+#include "path.h"
+#include <linux/kernel.h>
 #include <limits.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 static char bad_path[] = "/bad-path/";
 /*
@@ -49,4 +54,25 @@ char *mkpath(const char *fmt, ...)
 	if (len >= PATH_MAX)
 		return bad_path;
 	return cleanup_path(pathname);
+}
+
+int path__join(char *bf, size_t size, const char *path1, const char *path2)
+{
+	return scnprintf(bf, size, "%s%s%s", path1, path1[0] ? "/" : "", path2);
+}
+
+int path__join3(char *bf, size_t size, const char *path1, const char *path2, const char *path3)
+{
+	return scnprintf(bf, size, "%s%s%s%s%s", path1, path1[0] ? "/" : "",
+			 path2, path2[0] ? "/" : "", path3);
+}
+
+bool is_regular_file(const char *file)
+{
+	struct stat st;
+
+	if (stat(file, &st))
+		return false;
+
+	return S_ISREG(st.st_mode);
 }

@@ -195,6 +195,7 @@
 		 * 1 - Stream
 		 * 2 - Bypass
 		 */
+#define     INDIRECT_BUFFER_PRE_ENB(x)		 ((x) << 21)
 #define	PACKET3_COPY_DATA				0x40
 #define	PACKET3_PFP_SYNC_ME				0x42
 #define	PACKET3_SURFACE_SYNC				0x43
@@ -361,7 +362,89 @@
 #define	PACKET3_WAIT_ON_DE_COUNTER_DIFF			0x88
 #define	PACKET3_SWITCH_BUFFER				0x8B
 #define	PACKET3_SET_RESOURCES				0xA0
+/* 1. header
+ * 2. CONTROL
+ * 3. QUEUE_MASK_LO [31:0]
+ * 4. QUEUE_MASK_HI [31:0]
+ * 5. GWS_MASK_LO [31:0]
+ * 6. GWS_MASK_HI [31:0]
+ * 7. OAC_MASK [15:0]
+ * 8. GDS_HEAP_SIZE [16:11] | GDS_HEAP_BASE [5:0]
+ */
+#              define PACKET3_SET_RESOURCES_VMID_MASK(x)     ((x) << 0)
+#              define PACKET3_SET_RESOURCES_UNMAP_LATENTY(x) ((x) << 16)
+#              define PACKET3_SET_RESOURCES_QUEUE_TYPE(x)    ((x) << 29)
 #define	PACKET3_MAP_QUEUES				0xA2
+/* 1. header
+ * 2. CONTROL
+ * 3. CONTROL2
+ * 4. MQD_ADDR_LO [31:0]
+ * 5. MQD_ADDR_HI [31:0]
+ * 6. WPTR_ADDR_LO [31:0]
+ * 7. WPTR_ADDR_HI [31:0]
+ */
+/* CONTROL */
+#              define PACKET3_MAP_QUEUES_QUEUE_SEL(x)       ((x) << 4)
+#              define PACKET3_MAP_QUEUES_VMID(x)            ((x) << 8)
+#              define PACKET3_MAP_QUEUES_QUEUE_TYPE(x)      ((x) << 21)
+#              define PACKET3_MAP_QUEUES_ALLOC_FORMAT(x)    ((x) << 24)
+#              define PACKET3_MAP_QUEUES_ENGINE_SEL(x)      ((x) << 26)
+#              define PACKET3_MAP_QUEUES_NUM_QUEUES(x)      ((x) << 29)
+/* CONTROL2 */
+#              define PACKET3_MAP_QUEUES_CHECK_DISABLE(x)   ((x) << 1)
+#              define PACKET3_MAP_QUEUES_DOORBELL_OFFSET(x) ((x) << 2)
+#              define PACKET3_MAP_QUEUES_QUEUE(x)           ((x) << 26)
+#              define PACKET3_MAP_QUEUES_PIPE(x)            ((x) << 29)
+#              define PACKET3_MAP_QUEUES_ME(x)              ((x) << 31)
+#define	PACKET3_UNMAP_QUEUES				0xA3
+/* 1. header
+ * 2. CONTROL
+ * 3. CONTROL2
+ * 4. CONTROL3
+ * 5. CONTROL4
+ * 6. CONTROL5
+ */
+/* CONTROL */
+#              define PACKET3_UNMAP_QUEUES_ACTION(x)           ((x) << 0)
+		/* 0 - PREEMPT_QUEUES
+		 * 1 - RESET_QUEUES
+		 * 2 - DISABLE_PROCESS_QUEUES
+		 * 3 - PREEMPT_QUEUES_NO_UNMAP
+		 */
+#              define PACKET3_UNMAP_QUEUES_QUEUE_SEL(x)        ((x) << 4)
+#              define PACKET3_UNMAP_QUEUES_ENGINE_SEL(x)       ((x) << 26)
+#              define PACKET3_UNMAP_QUEUES_NUM_QUEUES(x)       ((x) << 29)
+/* CONTROL2a */
+#              define PACKET3_UNMAP_QUEUES_PASID(x)            ((x) << 0)
+/* CONTROL2b */
+#              define PACKET3_UNMAP_QUEUES_DOORBELL_OFFSET0(x) ((x) << 2)
+/* CONTROL3a */
+#              define PACKET3_UNMAP_QUEUES_DOORBELL_OFFSET1(x) ((x) << 2)
+/* CONTROL3b */
+#              define PACKET3_UNMAP_QUEUES_RB_WPTR(x)          ((x) << 0)
+/* CONTROL4 */
+#              define PACKET3_UNMAP_QUEUES_DOORBELL_OFFSET2(x) ((x) << 2)
+/* CONTROL5 */
+#              define PACKET3_UNMAP_QUEUES_DOORBELL_OFFSET3(x) ((x) << 2)
+#define	PACKET3_QUERY_STATUS				0xA4
+/* 1. header
+ * 2. CONTROL
+ * 3. CONTROL2
+ * 4. ADDR_LO [31:0]
+ * 5. ADDR_HI [31:0]
+ * 6. DATA_LO [31:0]
+ * 7. DATA_HI [31:0]
+ */
+/* CONTROL */
+#              define PACKET3_QUERY_STATUS_CONTEXT_ID(x)       ((x) << 0)
+#              define PACKET3_QUERY_STATUS_INTERRUPT_SEL(x)    ((x) << 28)
+#              define PACKET3_QUERY_STATUS_COMMAND(x)          ((x) << 30)
+/* CONTROL2a */
+#              define PACKET3_QUERY_STATUS_PASID(x)            ((x) << 0)
+/* CONTROL2b */
+#              define PACKET3_QUERY_STATUS_DOORBELL_OFFSET(x)  ((x) << 2)
+#              define PACKET3_QUERY_STATUS_ENG_SEL(x)          ((x) << 25)
+
 
 #define VCE_CMD_NO_OP		0x00000000
 #define VCE_CMD_END		0x00000001

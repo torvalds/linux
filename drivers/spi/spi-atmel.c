@@ -1464,6 +1464,25 @@ static int atmel_spi_gpio_cs(struct platform_device *pdev)
 	return 0;
 }
 
+static void atmel_spi_init(struct atmel_spi *as)
+{
+	spi_writel(as, CR, SPI_BIT(SWRST));
+	spi_writel(as, CR, SPI_BIT(SWRST)); /* AT91SAM9263 Rev B workaround */
+	if (as->caps.has_wdrbt) {
+		spi_writel(as, MR, SPI_BIT(WDRBT) | SPI_BIT(MODFDIS)
+				| SPI_BIT(MSTR));
+	} else {
+		spi_writel(as, MR, SPI_BIT(MSTR) | SPI_BIT(MODFDIS));
+	}
+
+	if (as->use_pdc)
+		spi_writel(as, PTCR, SPI_BIT(RXTDIS) | SPI_BIT(TXTDIS));
+	spi_writel(as, CR, SPI_BIT(SPIEN));
+
+	if (as->fifo_size)
+		spi_writel(as, CR, SPI_BIT(FIFOEN));
+}
+
 static int atmel_spi_probe(struct platform_device *pdev)
 {
 	struct resource		*regs;
@@ -1572,25 +1591,13 @@ static int atmel_spi_probe(struct platform_device *pdev)
 
 	as->spi_clk = clk_get_rate(clk);
 
-	spi_writel(as, CR, SPI_BIT(SWRST));
-	spi_writel(as, CR, SPI_BIT(SWRST)); /* AT91SAM9263 Rev B workaround */
-	if (as->caps.has_wdrbt) {
-		spi_writel(as, MR, SPI_BIT(WDRBT) | SPI_BIT(MODFDIS)
-				| SPI_BIT(MSTR));
-	} else {
-		spi_writel(as, MR, SPI_BIT(MSTR) | SPI_BIT(MODFDIS));
-	}
-
-	if (as->use_pdc)
-		spi_writel(as, PTCR, SPI_BIT(RXTDIS) | SPI_BIT(TXTDIS));
-	spi_writel(as, CR, SPI_BIT(SPIEN));
-
 	as->fifo_size = 0;
 	if (!of_property_read_u32(pdev->dev.of_node, "atmel,fifo-size",
 				  &as->fifo_size)) {
 		dev_info(&pdev->dev, "Using FIFO (%u data)\n", as->fifo_size);
-		spi_writel(as, CR, SPI_BIT(FIFOEN));
 	}
+
+	atmel_spi_init(as);
 
 	pm_runtime_set_autosuspend_delay(&pdev->dev, AUTOSUSPEND_TIMEOUT);
 	pm_runtime_use_autosuspend(&pdev->dev);
@@ -1695,7 +1702,16 @@ static int atmel_spi_suspend(struct device *dev)
 static int atmel_spi_resume(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
+	struct atmel_spi *as = spi_master_get_devdata(master);
 	int ret;
+
+	ret = clk_prepare_enable(as->clk);
+	if (ret)
+		return ret;
+
+	atmel_spi_init(as);
+
+	clk_disable_unprepare(as->clk);
 
 	if (!pm_runtime_suspended(dev)) {
 		ret = atmel_spi_runtime_resume(dev);

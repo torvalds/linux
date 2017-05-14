@@ -124,6 +124,20 @@ static struct usb_device *testdev_to_usbdev(struct usbtest_dev *test)
 
 /*-------------------------------------------------------------------------*/
 
+static inline void endpoint_update(int edi,
+				   struct usb_host_endpoint **in,
+				   struct usb_host_endpoint **out,
+				   struct usb_host_endpoint *e)
+{
+	if (edi) {
+		if (!*in)
+			*in = e;
+	} else {
+		if (!*out)
+			*out = e;
+	}
+}
+
 static int
 get_endpoints(struct usbtest_dev *dev, struct usb_interface *intf)
 {
@@ -151,45 +165,25 @@ get_endpoints(struct usbtest_dev *dev, struct usb_interface *intf)
 		 */
 		for (ep = 0; ep < alt->desc.bNumEndpoints; ep++) {
 			struct usb_host_endpoint	*e;
+			int edi;
 
 			e = alt->endpoint + ep;
+			edi = usb_endpoint_dir_in(&e->desc);
+
 			switch (usb_endpoint_type(&e->desc)) {
 			case USB_ENDPOINT_XFER_BULK:
-				break;
+				endpoint_update(edi, &in, &out, e);
+				continue;
 			case USB_ENDPOINT_XFER_INT:
 				if (dev->info->intr)
-					goto try_intr;
+					endpoint_update(edi, &int_in, &int_out, e);
+				continue;
 			case USB_ENDPOINT_XFER_ISOC:
 				if (dev->info->iso)
-					goto try_iso;
+					endpoint_update(edi, &iso_in, &iso_out, e);
 				/* FALLTHROUGH */
 			default:
 				continue;
-			}
-			if (usb_endpoint_dir_in(&e->desc)) {
-				if (!in)
-					in = e;
-			} else {
-				if (!out)
-					out = e;
-			}
-			continue;
-try_intr:
-			if (usb_endpoint_dir_in(&e->desc)) {
-				if (!int_in)
-					int_in = e;
-			} else {
-				if (!int_out)
-					int_out = e;
-			}
-			continue;
-try_iso:
-			if (usb_endpoint_dir_in(&e->desc)) {
-				if (!iso_in)
-					iso_in = e;
-			} else {
-				if (!iso_out)
-					iso_out = e;
 			}
 		}
 		if ((in && out)  ||  iso_in || iso_out || int_in || int_out)

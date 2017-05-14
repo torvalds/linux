@@ -102,11 +102,25 @@ void release_thread(struct task_struct *);
 #endif
 
 #ifdef CONFIG_PPC64
-/* 64-bit user address space is 46-bits (64TB user VM) */
-#define TASK_SIZE_USER64 (0x0000400000000000UL)
+/*
+ * 64-bit user address space can have multiple limits
+ * For now supported values are:
+ */
+#define TASK_SIZE_64TB  (0x0000400000000000UL)
+#define TASK_SIZE_128TB (0x0000800000000000UL)
+#define TASK_SIZE_512TB (0x0002000000000000UL)
 
-/* 
- * 32-bit user address space is 4GB - 1 page 
+#ifdef CONFIG_PPC_BOOK3S_64
+/*
+ * Max value currently used:
+ */
+#define TASK_SIZE_USER64	TASK_SIZE_512TB
+#else
+#define TASK_SIZE_USER64	TASK_SIZE_64TB
+#endif
+
+/*
+ * 32-bit user address space is 4GB - 1 page
  * (this 1 page is needed so referencing of 0xFFFFFFFF generates EFAULT
  */
 #define TASK_SIZE_USER32 (0x0000000100000000UL - (1*PAGE_SIZE))
@@ -114,26 +128,42 @@ void release_thread(struct task_struct *);
 #define TASK_SIZE_OF(tsk) (test_tsk_thread_flag(tsk, TIF_32BIT) ? \
 		TASK_SIZE_USER32 : TASK_SIZE_USER64)
 #define TASK_SIZE	  TASK_SIZE_OF(current)
-
 /* This decides where the kernel will search for a free chunk of vm
  * space during mmap's.
  */
 #define TASK_UNMAPPED_BASE_USER32 (PAGE_ALIGN(TASK_SIZE_USER32 / 4))
-#define TASK_UNMAPPED_BASE_USER64 (PAGE_ALIGN(TASK_SIZE_USER64 / 4))
+#define TASK_UNMAPPED_BASE_USER64 (PAGE_ALIGN(TASK_SIZE_128TB / 4))
 
 #define TASK_UNMAPPED_BASE ((is_32bit_task()) ? \
 		TASK_UNMAPPED_BASE_USER32 : TASK_UNMAPPED_BASE_USER64 )
 #endif
 
+/*
+ * Initial task size value for user applications. For book3s 64 we start
+ * with 128TB and conditionally enable upto 512TB
+ */
+#ifdef CONFIG_PPC_BOOK3S_64
+#define DEFAULT_MAP_WINDOW	((is_32bit_task()) ? \
+				 TASK_SIZE_USER32 : TASK_SIZE_128TB)
+#else
+#define DEFAULT_MAP_WINDOW	TASK_SIZE
+#endif
+
 #ifdef __powerpc64__
 
+#ifdef CONFIG_PPC_BOOK3S_64
+/* Limit stack to 128TB */
+#define STACK_TOP_USER64 TASK_SIZE_128TB
+#else
 #define STACK_TOP_USER64 TASK_SIZE_USER64
+#endif
+
 #define STACK_TOP_USER32 TASK_SIZE_USER32
 
 #define STACK_TOP (is_32bit_task() ? \
 		   STACK_TOP_USER32 : STACK_TOP_USER64)
 
-#define STACK_TOP_MAX STACK_TOP_USER64
+#define STACK_TOP_MAX TASK_SIZE_USER64
 
 #else /* __powerpc64__ */
 

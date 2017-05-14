@@ -21,3 +21,30 @@ Description:
 		is responsible for coordination of driver and firmware
 		link framing mode, changing this setting to 'Y' if the
 		firmware is configured for 'raw-ip' mode.
+
+What:		/sys/class/net/<iface>/qmi/add_mux
+Date:		March 2017
+KernelVersion:	4.11
+Contact:	Bjørn Mork <bjorn@mork.no>
+Description:
+		Unsigned integer.
+
+		Write a number ranging from 1 to 127 to add a qmap mux
+		based network device, supported by recent Qualcomm based
+		modems.
+
+		The network device will be called qmimux.
+
+		Userspace is in charge of managing the qmux network device
+		activation and data stream setup on the modem side by
+		using the proper QMI protocol requests.
+
+What:		/sys/class/net/<iface>/qmi/del_mux
+Date:		March 2017
+KernelVersion:	4.11
+Contact:	Bjørn Mork <bjorn@mork.no>
+Description:
+		Unsigned integer.
+
+		Write a number ranging from 1 to 127 to delete a previously
+		created qmap mux based network device.

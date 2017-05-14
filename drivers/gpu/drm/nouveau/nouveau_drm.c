@@ -108,7 +108,7 @@ nouveau_name(struct drm_device *dev)
 	if (dev->pdev)
 		return nouveau_pci_name(dev->pdev);
 	else
-		return nouveau_platform_name(dev->platformdev);
+		return nouveau_platform_name(to_platform_device(dev->dev));
 }
 
 static void
@@ -980,10 +980,8 @@ driver_stub = {
 
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = nouveau_drm_debugfs_init,
-	.debugfs_cleanup = nouveau_drm_debugfs_cleanup,
 #endif
 
-	.get_vblank_counter = drm_vblank_no_hw_counter,
 	.enable_vblank = nouveau_display_vblank_enable,
 	.disable_vblank = nouveau_display_vblank_disable,
 	.get_scanout_position = nouveau_display_scanoutpos,
@@ -1097,7 +1095,6 @@ nouveau_platform_device_create(const struct nvkm_device_tegra_func *func,
 		goto err_free;
 	}
 
-	drm->platformdev = pdev;
 	platform_set_drvdata(pdev, drm);
 
 	return drm;

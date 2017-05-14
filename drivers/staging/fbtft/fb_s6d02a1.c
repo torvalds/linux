@@ -24,7 +24,7 @@
 
 #define DRVNAME "fb_s6d02a1"
 
-static s16 default_init_sequence[] = {
+static const s16 default_init_sequence[] = {
 
 	-1, 0xf0, 0x5a, 0x5a,
 

@@ -188,7 +188,7 @@ static int p1022_rdk_machine_remove(struct snd_soc_card *card)
 /**
  * p1022_rdk_ops: ASoC machine driver operations
  */
-static struct snd_soc_ops p1022_rdk_ops = {
+static const struct snd_soc_ops p1022_rdk_ops = {
 	.startup = p1022_rdk_startup,
 };
 

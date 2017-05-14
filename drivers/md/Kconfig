@@ -115,7 +115,7 @@ config MD_RAID10
 
 	  RAID-10 requires mdadm-1.7.0 or later, available at:
 
-	  ftp://ftp.kernel.org/pub/linux/utils/raid/mdadm/
+	  https://www.kernel.org/pub/linux/utils/raid/mdadm/
 
 	  If unsure, say Y.
 
@@ -200,6 +200,7 @@ config BLK_DEV_DM_BUILTIN
 config BLK_DEV_DM
 	tristate "Device mapper support"
 	select BLK_DEV_DM_BUILTIN
+	select DAX
 	---help---
 	  Device-mapper is a low level volume manager.  It works by allowing
 	  people to specify mappings for ranges of logical sectors.  Various
@@ -325,14 +326,6 @@ config DM_CACHE_SMQ
          of less memory utilization, improved performance and increased
          adaptability in the face of changing workloads.
 
-config DM_CACHE_CLEANER
-       tristate "Cleaner Cache Policy (EXPERIMENTAL)"
-       depends on DM_CACHE
-       default y
-       ---help---
-         A simple cache policy that writes back all data to the
-         origin.  Used when decommissioning a dm-cache.
-
 config DM_ERA
        tristate "Era target (EXPERIMENTAL)"
        depends on BLK_DEV_DM
@@ -365,6 +358,7 @@ config DM_LOG_USERSPACE
 config DM_RAID
        tristate "RAID 1/4/5/6/10 target"
        depends on BLK_DEV_DM
+       select MD_RAID0
        select MD_RAID1
        select MD_RAID10
        select MD_RAID456
@@ -505,6 +499,27 @@ config DM_LOG_WRITES
 
 	  To compile this code as a module, choose M here: the module will
 	  be called dm-log-writes.
+
+	  If unsure, say N.
+
+config DM_INTEGRITY
+	tristate "Integrity target support"
+	depends on BLK_DEV_DM
+	select BLK_DEV_INTEGRITY
+	select DM_BUFIO
+	select CRYPTO
+	select ASYNC_XOR
+	---help---
+	  This device-mapper target emulates a block device that has
+	  additional per-sector tags that can be used for storing
+	  integrity information.
+
+	  This integrity target is used with the dm-crypt target to
+	  provide authenticated disk encryption or it can be used
+	  standalone.
+
+	  To compile this code as a module, choose M here: the module will
+	  be called dm-integrity.
 
 	  If unsure, say N.
 

@@ -20,6 +20,7 @@
 #ifndef __DENALI_H__
 #define __DENALI_H__
 
+#include <linux/bitops.h>
 #include <linux/mtd/nand.h>
 
 #define DEVICE_RESET				0x0
@@ -178,8 +179,6 @@
 
 #define REVISION				0x370
 #define     REVISION__VALUE				0xffff
-#define MAKE_COMPARABLE_REVISION(x)		swab16((x) & REVISION__VALUE)
-#define REVISION_5_1				0x00000501
 
 #define ONFI_DEVICE_FEATURES			0x380
 #define     ONFI_DEVICE_FEATURES__VALUE			0x003f
@@ -218,64 +217,28 @@
 
 #define INTR_STATUS(__bank)	(0x410 + ((__bank) * 0x50))
 #define INTR_EN(__bank)		(0x420 + ((__bank) * 0x50))
-
-#define     INTR_STATUS__ECC_TRANSACTION_DONE		0x0001
-#define     INTR_STATUS__ECC_ERR			0x0002
-#define     INTR_STATUS__DMA_CMD_COMP			0x0004
-#define     INTR_STATUS__TIME_OUT			0x0008
-#define     INTR_STATUS__PROGRAM_FAIL			0x0010
-#define     INTR_STATUS__ERASE_FAIL			0x0020
-#define     INTR_STATUS__LOAD_COMP			0x0040
-#define     INTR_STATUS__PROGRAM_COMP			0x0080
-#define     INTR_STATUS__ERASE_COMP			0x0100
-#define     INTR_STATUS__PIPE_CPYBCK_CMD_COMP		0x0200
-#define     INTR_STATUS__LOCKED_BLK			0x0400
-#define     INTR_STATUS__UNSUP_CMD			0x0800
-#define     INTR_STATUS__INT_ACT			0x1000
-#define     INTR_STATUS__RST_COMP			0x2000
-#define     INTR_STATUS__PIPE_CMD_ERR			0x4000
-#define     INTR_STATUS__PAGE_XFER_INC			0x8000
-
-#define     INTR_EN__ECC_TRANSACTION_DONE		0x0001
-#define     INTR_EN__ECC_ERR				0x0002
-#define     INTR_EN__DMA_CMD_COMP			0x0004
-#define     INTR_EN__TIME_OUT				0x0008
-#define     INTR_EN__PROGRAM_FAIL			0x0010
-#define     INTR_EN__ERASE_FAIL				0x0020
-#define     INTR_EN__LOAD_COMP				0x0040
-#define     INTR_EN__PROGRAM_COMP			0x0080
-#define     INTR_EN__ERASE_COMP				0x0100
-#define     INTR_EN__PIPE_CPYBCK_CMD_COMP		0x0200
-#define     INTR_EN__LOCKED_BLK				0x0400
-#define     INTR_EN__UNSUP_CMD				0x0800
-#define     INTR_EN__INT_ACT				0x1000
-#define     INTR_EN__RST_COMP				0x2000
-#define     INTR_EN__PIPE_CMD_ERR			0x4000
-#define     INTR_EN__PAGE_XFER_INC			0x8000
+/* bit[1:0] is used differently depending on IP version */
+#define     INTR__ECC_UNCOR_ERR				0x0001	/* new IP */
+#define     INTR__ECC_TRANSACTION_DONE			0x0001	/* old IP */
+#define     INTR__ECC_ERR				0x0002	/* old IP */
+#define     INTR__DMA_CMD_COMP				0x0004
+#define     INTR__TIME_OUT				0x0008
+#define     INTR__PROGRAM_FAIL				0x0010
+#define     INTR__ERASE_FAIL				0x0020
+#define     INTR__LOAD_COMP				0x0040
+#define     INTR__PROGRAM_COMP				0x0080
+#define     INTR__ERASE_COMP				0x0100
+#define     INTR__PIPE_CPYBCK_CMD_COMP			0x0200
+#define     INTR__LOCKED_BLK				0x0400
+#define     INTR__UNSUP_CMD				0x0800
+#define     INTR__INT_ACT				0x1000
+#define     INTR__RST_COMP				0x2000
+#define     INTR__PIPE_CMD_ERR				0x4000
+#define     INTR__PAGE_XFER_INC				0x8000
 
 #define PAGE_CNT(__bank)	(0x430 + ((__bank) * 0x50))
 #define ERR_PAGE_ADDR(__bank)	(0x440 + ((__bank) * 0x50))
 #define ERR_BLOCK_ADDR(__bank)	(0x450 + ((__bank) * 0x50))
-
-#define DATA_INTR				0x550
-#define     DATA_INTR__WRITE_SPACE_AV			0x0001
-#define     DATA_INTR__READ_DATA_AV			0x0002
-
-#define DATA_INTR_EN				0x560
-#define     DATA_INTR_EN__WRITE_SPACE_AV		0x0001
-#define     DATA_INTR_EN__READ_DATA_AV			0x0002
-
-#define GPREG_0					0x570
-#define     GPREG_0__VALUE				0xffff
-
-#define GPREG_1					0x580
-#define     GPREG_1__VALUE				0xffff
-
-#define GPREG_2					0x590
-#define     GPREG_2__VALUE				0xffff
-
-#define GPREG_3					0x5a0
-#define     GPREG_3__VALUE				0xffff
 
 #define ECC_THRESHOLD				0x600
 #define     ECC_THRESHOLD__VALUE			0x03ff
@@ -297,6 +260,11 @@
 #define     ERR_CORRECTION_INFO__ERROR_TYPE		0x4000
 #define     ERR_CORRECTION_INFO__LAST_ERR_INFO		0x8000
 
+#define ECC_COR_INFO(bank)			(0x650 + (bank) / 2 * 0x10)
+#define     ECC_COR_INFO__SHIFT(bank)			((bank) % 2 * 8)
+#define     ECC_COR_INFO__MAX_ERRORS			0x007f
+#define     ECC_COR_INFO__UNCOR_ERR			0x0080
+
 #define DMA_ENABLE				0x700
 #define     DMA_ENABLE__FLAG				0x0001
 
@@ -304,20 +272,13 @@
 #define     IGNORE_ECC_DONE__FLAG			0x0001
 
 #define DMA_INTR				0x720
+#define DMA_INTR_EN				0x730
 #define     DMA_INTR__TARGET_ERROR			0x0001
 #define     DMA_INTR__DESC_COMP_CHANNEL0		0x0002
 #define     DMA_INTR__DESC_COMP_CHANNEL1		0x0004
 #define     DMA_INTR__DESC_COMP_CHANNEL2		0x0008
 #define     DMA_INTR__DESC_COMP_CHANNEL3		0x0010
-#define     DMA_INTR__MEMCOPY_DESC_COMP		0x0020
-
-#define DMA_INTR_EN				0x730
-#define     DMA_INTR_EN__TARGET_ERROR			0x0001
-#define     DMA_INTR_EN__DESC_COMP_CHANNEL0		0x0002
-#define     DMA_INTR_EN__DESC_COMP_CHANNEL1		0x0004
-#define     DMA_INTR_EN__DESC_COMP_CHANNEL2		0x0008
-#define     DMA_INTR_EN__DESC_COMP_CHANNEL3		0x0010
-#define     DMA_INTR_EN__MEMCOPY_DESC_COMP		0x0020
+#define     DMA_INTR__MEMCOPY_DESC_COMP			0x0020
 
 #define TARGET_ERR_ADDR_LO			0x740
 #define     TARGET_ERR_ADDR_LO__VALUE			0xffff
@@ -331,68 +292,11 @@
 #define     CHNL_ACTIVE__CHANNEL2			0x0004
 #define     CHNL_ACTIVE__CHANNEL3			0x0008
 
-#define ACTIVE_SRC_ID				0x800
-#define     ACTIVE_SRC_ID__VALUE			0x00ff
-
-#define PTN_INTR					0x810
-#define     PTN_INTR__CONFIG_ERROR			0x0001
-#define     PTN_INTR__ACCESS_ERROR_BANK0		0x0002
-#define     PTN_INTR__ACCESS_ERROR_BANK1		0x0004
-#define     PTN_INTR__ACCESS_ERROR_BANK2		0x0008
-#define     PTN_INTR__ACCESS_ERROR_BANK3		0x0010
-#define     PTN_INTR__REG_ACCESS_ERROR			0x0020
-
-#define PTN_INTR_EN				0x820
-#define     PTN_INTR_EN__CONFIG_ERROR			0x0001
-#define     PTN_INTR_EN__ACCESS_ERROR_BANK0		0x0002
-#define     PTN_INTR_EN__ACCESS_ERROR_BANK1		0x0004
-#define     PTN_INTR_EN__ACCESS_ERROR_BANK2		0x0008
-#define     PTN_INTR_EN__ACCESS_ERROR_BANK3		0x0010
-#define     PTN_INTR_EN__REG_ACCESS_ERROR		0x0020
-
-#define PERM_SRC_ID(__bank)	(0x830 + ((__bank) * 0x40))
-#define     PERM_SRC_ID__SRCID				0x00ff
-#define     PERM_SRC_ID__DIRECT_ACCESS_ACTIVE		0x0800
-#define     PERM_SRC_ID__WRITE_ACTIVE			0x2000
-#define     PERM_SRC_ID__READ_ACTIVE			0x4000
-#define     PERM_SRC_ID__PARTITION_VALID		0x8000
-
-#define MIN_BLK_ADDR(__bank)	(0x840 + ((__bank) * 0x40))
-#define     MIN_BLK_ADDR__VALUE				0xffff
-
-#define MAX_BLK_ADDR(__bank)	(0x850 + ((__bank) * 0x40))
-#define     MAX_BLK_ADDR__VALUE				0xffff
-
-#define MIN_MAX_BANK(__bank)	(0x860 + ((__bank) * 0x40))
-#define     MIN_MAX_BANK__MIN_VALUE			0x0003
-#define     MIN_MAX_BANK__MAX_VALUE			0x000c
-
-
-/* ffsdefs.h */
-#define CLEAR 0                 /*use this to clear a field instead of "fail"*/
-#define SET   1                 /*use this to set a field instead of "pass"*/
 #define FAIL 1                  /*failed flag*/
 #define PASS 0                  /*success flag*/
-#define ERR -1                  /*error flag*/
-
-/* lld.h */
-#define GOOD_BLOCK 0
-#define DEFECTIVE_BLOCK 1
-#define READ_ERROR 2
 
 #define CLK_X  5
 #define CLK_MULTI 4
-
-/* KBV - Updated to LNW scratch register address */
-#define SCRATCH_REG_ADDR    CONFIG_MTD_NAND_DENALI_SCRATCH_REG_ADDR
-#define SCRATCH_REG_SIZE    64
-
-#define GLOB_HWCTL_DEFAULT_BLKS    2048
-
-#define SUPPORT_15BITECC        1
-#define SUPPORT_8BITECC         1
-
-#define CUSTOM_CONF_PARAMS      0
 
 #define ONFI_BLOOM_TIME         1
 #define MODE5_WORKAROUND        0
@@ -402,31 +306,6 @@
 #define MODE_01    0x04000000
 #define MODE_10    0x08000000
 #define MODE_11    0x0C000000
-
-
-#define DATA_TRANSFER_MODE              0
-#define PROTECTION_PER_BLOCK            1
-#define LOAD_WAIT_COUNT                 2
-#define PROGRAM_WAIT_COUNT              3
-#define ERASE_WAIT_COUNT                4
-#define INT_MONITOR_CYCLE_COUNT         5
-#define READ_BUSY_PIN_ENABLED           6
-#define MULTIPLANE_OPERATION_SUPPORT    7
-#define PRE_FETCH_MODE                  8
-#define CE_DONT_CARE_SUPPORT            9
-#define COPYBACK_SUPPORT                10
-#define CACHE_WRITE_SUPPORT             11
-#define CACHE_READ_SUPPORT              12
-#define NUM_PAGES_IN_BLOCK              13
-#define ECC_ENABLE_SELECT               14
-#define WRITE_ENABLE_2_READ_ENABLE      15
-#define ADDRESS_2_DATA                  16
-#define READ_ENABLE_2_WRITE_ENABLE      17
-#define TWO_ROW_ADDRESS_CYCLES          18
-#define MULTIPLANE_ADDRESS_RESTRICT     19
-#define ACC_CLOCKS                      20
-#define READ_WRITE_ENABLE_LOW_COUNT     21
-#define READ_WRITE_ENABLE_HIGH_COUNT    22
 
 #define ECC_SECTOR_SIZE     512
 
@@ -449,22 +328,25 @@ struct denali_nand_info {
 	struct nand_buf buf;
 	struct device *dev;
 	int total_used_banks;
-	uint32_t block;  /* stored for future use */
-	uint16_t page;
-	void __iomem *flash_reg;  /* Mapped io reg base address */
-	void __iomem *flash_mem;  /* Mapped io reg base address */
+	int page;
+	void __iomem *flash_reg;	/* Register Interface */
+	void __iomem *flash_mem;	/* Host Data/Command Interface */
 
 	/* elements used by ISR */
 	struct completion complete;
 	spinlock_t irq_lock;
 	uint32_t irq_status;
-	int irq_debug_array[32];
 	int irq;
 
-	uint32_t devnum;	/* represent how many nands connected */
-	uint32_t bbtskipbytes;
-	uint32_t max_banks;
+	int devnum;	/* represent how many nands connected */
+	int bbtskipbytes;
+	int max_banks;
+	unsigned int revision;
+	unsigned int caps;
 };
+
+#define DENALI_CAP_HW_ECC_FIXUP			BIT(0)
+#define DENALI_CAP_DMA_64BIT			BIT(1)
 
 extern int denali_init(struct denali_nand_info *denali);
 extern void denali_remove(struct denali_nand_info *denali);

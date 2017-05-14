@@ -976,21 +976,13 @@ static int __init msi_laptop_input_setup(void)
 
 	err = input_register_device(msi_laptop_input_dev);
 	if (err)
-		goto err_free_keymap;
+		goto err_free_dev;
 
 	return 0;
 
-err_free_keymap:
-	sparse_keymap_free(msi_laptop_input_dev);
 err_free_dev:
 	input_free_device(msi_laptop_input_dev);
 	return err;
-}
-
-static void msi_laptop_input_destroy(void)
-{
-	sparse_keymap_free(msi_laptop_input_dev);
-	input_unregister_device(msi_laptop_input_dev);
 }
 
 static int __init load_scm_model_init(struct platform_device *sdev)
@@ -1037,7 +1029,7 @@ static int __init load_scm_model_init(struct platform_device *sdev)
 	return 0;
 
 fail_filter:
-	msi_laptop_input_destroy();
+	input_unregister_device(msi_laptop_input_dev);
 
 fail_input:
 	rfkill_cleanup();
@@ -1158,7 +1150,7 @@ static void __exit msi_cleanup(void)
 {
 	if (quirks->load_scm_model) {
 		i8042_remove_filter(msi_laptop_i8042_filter);
-		msi_laptop_input_destroy();
+		input_unregister_device(msi_laptop_input_dev);
 		cancel_delayed_work_sync(&msi_rfkill_dwork);
 		cancel_work_sync(&msi_rfkill_work);
 		rfkill_cleanup();

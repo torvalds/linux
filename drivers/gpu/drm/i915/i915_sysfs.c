@@ -42,32 +42,8 @@ static inline struct drm_i915_private *kdev_minor_to_i915(struct device *kdev)
 static u32 calc_residency(struct drm_i915_private *dev_priv,
 			  i915_reg_t reg)
 {
-	u64 raw_time; /* 32b value may overflow during fixed point math */
-	u64 units = 128ULL, div = 100000ULL;
-	u32 ret;
-
-	if (!intel_enable_rc6())
-		return 0;
-
-	intel_runtime_pm_get(dev_priv);
-
-	/* On VLV and CHV, residency time is in CZ units rather than 1.28us */
-	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-		units = 1;
-		div = dev_priv->czclk_freq;
-
-		if (I915_READ(VLV_COUNTER_CONTROL) & VLV_COUNT_RANGE_HIGH)
-			units <<= 8;
-	} else if (IS_GEN9_LP(dev_priv)) {
-		units = 1;
-		div = 1200;		/* 833.33ns */
-	}
-
-	raw_time = I915_READ(reg) * units;
-	ret = DIV_ROUND_UP_ULL(raw_time, div);
-
-	intel_runtime_pm_put(dev_priv);
-	return ret;
+	return DIV_ROUND_CLOSEST_ULL(intel_rc6_residency_us(dev_priv, reg),
+				     1000);
 }
 
 static ssize_t
@@ -395,13 +371,13 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 	/* We still need *_set_rps to process the new max_delay and
 	 * update the interrupt limits and PMINTRMSK even though
 	 * frequency request may be unchanged. */
-	intel_set_rps(dev_priv, val);
+	ret = intel_set_rps(dev_priv, val);
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	intel_runtime_pm_put(dev_priv);
 
-	return count;
+	return ret ?: count;
 }
 
 static ssize_t gt_min_freq_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
@@ -448,14 +424,13 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 	/* We still need *_set_rps to process the new min_delay and
 	 * update the interrupt limits and PMINTRMSK even though
 	 * frequency request may be unchanged. */
-	intel_set_rps(dev_priv, val);
+	ret = intel_set_rps(dev_priv, val);
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	intel_runtime_pm_put(dev_priv);
 
-	return count;
-
+	return ret ?: count;
 }
 
 static DEVICE_ATTR(gt_act_freq_mhz, S_IRUGO, gt_act_freq_mhz_show, NULL);
@@ -523,33 +498,27 @@ static ssize_t error_state_read(struct file *filp, struct kobject *kobj,
 
 	struct device *kdev = kobj_to_dev(kobj);
 	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
-	struct drm_device *dev = &dev_priv->drm;
-	struct i915_error_state_file_priv error_priv;
 	struct drm_i915_error_state_buf error_str;
-	ssize_t ret_count = 0;
-	int ret;
+	struct i915_gpu_state *gpu;
+	ssize_t ret;
 
-	memset(&error_priv, 0, sizeof(error_priv));
-
-	ret = i915_error_state_buf_init(&error_str, to_i915(dev), count, off);
+	ret = i915_error_state_buf_init(&error_str, dev_priv, count, off);
 	if (ret)
 		return ret;
 
-	error_priv.i915 = dev_priv;
-	i915_error_state_get(dev, &error_priv);
-
-	ret = i915_error_state_to_str(&error_str, &error_priv);
+	gpu = i915_first_error_state(dev_priv);
+	ret = i915_error_state_to_str(&error_str, gpu);
 	if (ret)
 		goto out;
 
-	ret_count = count < error_str.bytes ? count : error_str.bytes;
+	ret = count < error_str.bytes ? count : error_str.bytes;
+	memcpy(buf, error_str.buf, ret);
 
-	memcpy(buf, error_str.buf, ret_count);
 out:
-	i915_error_state_put(&error_priv);
+	i915_gpu_state_put(gpu);
 	i915_error_state_buf_release(&error_str);
 
-	return ret ?: ret_count;
+	return ret;
 }
 
 static ssize_t error_state_write(struct file *file, struct kobject *kobj,
@@ -560,7 +529,7 @@ static ssize_t error_state_write(struct file *file, struct kobject *kobj,
 	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
 
 	DRM_DEBUG_DRIVER("Resetting error state\n");
-	i915_destroy_error_state(dev_priv);
+	i915_reset_error_state(dev_priv);
 
 	return count;
 }

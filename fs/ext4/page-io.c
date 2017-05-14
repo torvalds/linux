@@ -297,8 +297,17 @@ static void ext4_end_bio(struct bio *bio)
 {
 	ext4_io_end_t *io_end = bio->bi_private;
 	sector_t bi_sector = bio->bi_iter.bi_sector;
+	char b[BDEVNAME_SIZE];
 
-	BUG_ON(!io_end);
+	if (WARN_ONCE(!io_end, "io_end is NULL: %s: sector %Lu len %u err %d\n",
+		      bdevname(bio->bi_bdev, b),
+		      (long long) bio->bi_iter.bi_sector,
+		      (unsigned) bio_sectors(bio),
+		      bio->bi_error)) {
+		ext4_finish_bio(bio);
+		bio_put(bio);
+		return;
+	}
 	bio->bi_end_io = NULL;
 
 	if (bio->bi_error) {

@@ -12,6 +12,7 @@ tools/arch/sparc/include/asm/barrier_32.h
 tools/arch/sparc/include/asm/barrier_64.h
 tools/arch/tile/include/asm/barrier.h
 tools/arch/x86/include/asm/barrier.h
+tools/arch/x86/include/asm/cmpxchg.h
 tools/arch/x86/include/asm/cpufeatures.h
 tools/arch/x86/include/asm/disabled-features.h
 tools/arch/x86/include/asm/required-features.h
@@ -63,6 +64,7 @@ tools/include/linux/bitops.h
 tools/include/linux/compiler.h
 tools/include/linux/compiler-gcc.h
 tools/include/linux/coresight-pmu.h
+tools/include/linux/bug.h
 tools/include/linux/filter.h
 tools/include/linux/hash.h
 tools/include/linux/kernel.h
@@ -72,12 +74,15 @@ tools/include/uapi/asm-generic/mman-common.h
 tools/include/uapi/asm-generic/mman.h
 tools/include/uapi/linux/bpf.h
 tools/include/uapi/linux/bpf_common.h
+tools/include/uapi/linux/fcntl.h
 tools/include/uapi/linux/hw_breakpoint.h
 tools/include/uapi/linux/mman.h
 tools/include/uapi/linux/perf_event.h
+tools/include/uapi/linux/stat.h
 tools/include/linux/poison.h
 tools/include/linux/rbtree.h
 tools/include/linux/rbtree_augmented.h
+tools/include/linux/refcount.h
 tools/include/linux/string.h
 tools/include/linux/stringify.h
 tools/include/linux/types.h

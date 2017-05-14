@@ -98,9 +98,7 @@ static void sdhci_at91_set_power(struct sdhci_host *host, unsigned char mode,
 	if (!IS_ERR(host->mmc->supply.vmmc)) {
 		struct mmc_host *mmc = host->mmc;
 
-		spin_unlock_irq(&host->lock);
 		mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, vdd);
-		spin_lock_irq(&host->lock);
 	}
 	sdhci_set_power_noreg(host, mode, vdd);
 }
@@ -139,6 +137,9 @@ static int sdhci_at91_runtime_suspend(struct device *dev)
 	int ret;
 
 	ret = sdhci_runtime_suspend_host(host);
+
+	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
+		mmc_retune_needed(host->mmc);
 
 	clk_disable_unprepare(priv->gck);
 	clk_disable_unprepare(priv->hclock);

@@ -154,7 +154,7 @@ int __cgroup_bpf_update(struct cgroup *cgrp, struct cgroup *parent,
 
 /**
  * __cgroup_bpf_run_filter_skb() - Run a program for packet filtering
- * @sk: The socken sending or receiving traffic
+ * @sk: The socket sending or receiving traffic
  * @skb: The skb that is being sent or received
  * @type: The type of program to be exectuted
  *
@@ -189,10 +189,13 @@ int __cgroup_bpf_run_filter_skb(struct sock *sk,
 	prog = rcu_dereference(cgrp->bpf.effective[type]);
 	if (prog) {
 		unsigned int offset = skb->data - skb_network_header(skb);
+		struct sock *save_sk = skb->sk;
 
+		skb->sk = sk;
 		__skb_push(skb, offset);
 		ret = bpf_prog_run_save_cb(prog, skb) == 1 ? 0 : -EPERM;
 		__skb_pull(skb, offset);
+		skb->sk = save_sk;
 	}
 
 	rcu_read_unlock();

@@ -13,7 +13,7 @@
 #define LOCAL_FREE_TARGET		(128)
 #define LOCAL_NR_SCANS			LOCAL_FREE_TARGET
 
-#define PERCPU_FREE_TARGET		(16)
+#define PERCPU_FREE_TARGET		(4)
 #define PERCPU_NR_SCANS			PERCPU_FREE_TARGET
 
 /* Helpers to get the local list index */

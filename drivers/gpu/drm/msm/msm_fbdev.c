@@ -235,7 +235,6 @@ void msm_fbdev_free(struct drm_device *dev)
 	DBG();
 
 	drm_fb_helper_unregister_fbi(helper);
-	drm_fb_helper_release_fbi(helper);
 
 	drm_fb_helper_fini(helper);
 

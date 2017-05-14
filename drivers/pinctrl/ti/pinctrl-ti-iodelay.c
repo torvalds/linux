@@ -893,6 +893,8 @@ static int ti_iodelay_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, iod);
 
+	return pinctrl_enable(iod->pctl);
+
 exit_out:
 	of_node_put(np);
 	return ret;

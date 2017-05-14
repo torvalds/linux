@@ -227,9 +227,9 @@ static int lm363x_regulator_of_get_enable_gpio(struct device_node *np, int id)
 	 */
 	switch (id) {
 	case LM3632_LDO_POS:
-		return of_get_named_gpio(np, "ti,lcm-en1-gpio", 0);
+		return of_get_named_gpio(np, "enable-gpios", 0);
 	case LM3632_LDO_NEG:
-		return of_get_named_gpio(np, "ti,lcm-en2-gpio", 0);
+		return of_get_named_gpio(np, "enable-gpios", 1);
 	default:
 		return -EINVAL;
 	}

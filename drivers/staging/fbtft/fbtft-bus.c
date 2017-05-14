@@ -36,14 +36,9 @@ void func(struct fbtft_par *par, int len, ...)                                \
 	}                                                                     \
 									      \
 	*buf = modifier((type)va_arg(args, unsigned int));                    \
-	if (par->gpio.dc != -1)                                               \
-		gpio_set_value(par->gpio.dc, 0);                              \
-	ret = par->fbtftops.write(par, par->buf, sizeof(type) + offset);      \
-	if (ret < 0) {                                                        \
-		va_end(args);                                                 \
-		dev_err(par->info->device, "%s: write() failed and returned %d\n", __func__, ret); \
-		return;                                                       \
-	}                                                                     \
+	ret = fbtft_write_buf_dc(par, par->buf, sizeof(type) + offset, 0);    \
+	if (ret < 0)							      \
+		goto out;						      \
 	len--;                                                                \
 									      \
 	if (par->startbyte)                                                   \
@@ -51,19 +46,12 @@ void func(struct fbtft_par *par, int len, ...)                                \
 									      \
 	if (len) {                                                            \
 		i = len;                                                      \
-		while (i--) {                                                 \
+		while (i--)						      \
 			*buf++ = modifier((type)va_arg(args, unsigned int));  \
-		}                                                             \
-		if (par->gpio.dc != -1)                                       \
-			gpio_set_value(par->gpio.dc, 1);                      \
-		ret = par->fbtftops.write(par, par->buf,		      \
-					  len * (sizeof(type) + offset));     \
-		if (ret < 0) {                                                \
-			va_end(args);                                         \
-			dev_err(par->info->device, "%s: write() failed and returned %d\n", __func__, ret); \
-			return;                                               \
-		}                                                             \
+		fbtft_write_buf_dc(par, par->buf,			      \
+				   len * (sizeof(type) + offset), 1);	      \
 	}                                                                     \
+out:									      \
 	va_end(args);                                                         \
 }                                                                             \
 EXPORT_SYMBOL(func);
@@ -126,7 +114,7 @@ EXPORT_SYMBOL(fbtft_write_reg8_bus9);
 int fbtft_write_vmem16_bus8(struct fbtft_par *par, size_t offset, size_t len)
 {
 	u16 *vmem16;
-	u16 *txbuf16 = par->txbuf.buf;
+	__be16 *txbuf16 = par->txbuf.buf;
 	size_t remain;
 	size_t to_copy;
 	size_t tx_array_size;
@@ -243,10 +231,7 @@ int fbtft_write_vmem16_bus16(struct fbtft_par *par, size_t offset, size_t len)
 
 	vmem16 = (u16 *)(par->info->screen_buffer + offset);
 
-	if (par->gpio.dc != -1)
-		gpio_set_value(par->gpio.dc, 1);
-
 	/* no need for buffered write with 16-bit bus */
-	return par->fbtftops.write(par, vmem16, len);
+	return fbtft_write_buf_dc(par, vmem16, len, 1);
 }
 EXPORT_SYMBOL(fbtft_write_vmem16_bus16);

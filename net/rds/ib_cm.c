@@ -702,9 +702,8 @@ int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 		event->param.conn.initiator_depth);
 
 	/* rdma_accept() calls rdma_reject() internally if it fails */
-	err = rdma_accept(cm_id, &conn_param);
-	if (err)
-		rds_ib_conn_error(conn, "rdma_accept failed (%d)\n", err);
+	if (rdma_accept(cm_id, &conn_param))
+		rds_ib_conn_error(conn, "rdma_accept failed\n");
 
 out:
 	if (conn)

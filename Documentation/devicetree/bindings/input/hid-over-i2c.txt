@@ -17,6 +17,22 @@ Required properties:
 - interrupt-parent: the phandle for the interrupt controller
 - interrupts: interrupt line
 
+Additional optional properties:
+
+Some devices may support additional optional properties to help with, e.g.,
+power sequencing. The following properties can be supported by one or more
+device-specific compatible properties, which should be used in addition to the
+"hid-over-i2c" string.
+
+- compatible:
+  * "wacom,w9013" (Wacom W9013 digitizer). Supports:
+    - vdd-supply
+    - post-power-on-delay-ms
+
+- vdd-supply: phandle of the regulator that provides the supply voltage.
+- post-power-on-delay-ms: time required by the device after enabling its regulators
+  before it is ready for communication. Must be used with 'vdd-supply'.
+
 Example:
 
 	i2c-hid-dev@2c {

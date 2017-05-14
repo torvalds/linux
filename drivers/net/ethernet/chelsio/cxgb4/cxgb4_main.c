@@ -880,27 +880,6 @@ freeout:
 	return err;
 }
 
-/*
- * Allocate a chunk of memory using kmalloc or, if that fails, vmalloc.
- * The allocated memory is cleared.
- */
-void *t4_alloc_mem(size_t size)
-{
-	void *p = kzalloc(size, GFP_KERNEL | __GFP_NOWARN);
-
-	if (!p)
-		p = vzalloc(size);
-	return p;
-}
-
-/*
- * Free memory allocated through alloc_mem().
- */
-void t4_free_mem(void *addr)
-{
-	kvfree(addr);
-}
-
 static u16 cxgb_select_queue(struct net_device *dev, struct sk_buff *skb,
 			     void *accel_priv, select_queue_fallback_t fallback)
 {
@@ -1299,7 +1278,7 @@ static int tid_init(struct tid_info *t)
 	       max_ftids * sizeof(*t->ftid_tab) +
 	       ftid_bmap_size * sizeof(long);
 
-	t->tid_tab = t4_alloc_mem(size);
+	t->tid_tab = kvzalloc(size, GFP_KERNEL);
 	if (!t->tid_tab)
 		return -ENOMEM;
 
@@ -2338,6 +2317,10 @@ int cxgb4_create_server_filter(const struct net_device *dev, unsigned int stid,
 	f->locked = 1;
 	f->fs.rpttid = 1;
 
+	/* Save the actual tid. We need this to get the corresponding
+	 * filter entry structure in filter_rpl.
+	 */
+	f->tid = stid + adap->tids.ftid_base;
 	ret = set_filter_wr(adap, stid);
 	if (ret) {
 		clear_filter(adap, f);
@@ -3441,7 +3424,7 @@ static int adap_init0(struct adapter *adap)
 		/* allocate memory to read the header of the firmware on the
 		 * card
 		 */
-		card_fw = t4_alloc_mem(sizeof(*card_fw));
+		card_fw = kvzalloc(sizeof(*card_fw), GFP_KERNEL);
 
 		/* Get FW from from /lib/firmware/ */
 		ret = request_firmware(&fw, fw_info->fw_mod_name,
@@ -3461,7 +3444,7 @@ static int adap_init0(struct adapter *adap)
 
 		/* Cleaning up */
 		release_firmware(fw);
-		t4_free_mem(card_fw);
+		kvfree(card_fw);
 
 		if (ret < 0)
 			goto bye;
@@ -3809,6 +3792,15 @@ static int adap_init0(struct adapter *adap)
 	}
 	if (caps_cmd.cryptocaps) {
 		/* Should query params here...TODO */
+		params[0] = FW_PARAM_PFVF(NCRYPTO_LOOKASIDE);
+		ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 2,
+				      params, val);
+		if (ret < 0) {
+			if (ret != -EINVAL)
+				goto bye;
+		} else {
+			adap->vres.ncrypto_fc = val[0];
+		}
 		adap->params.crypto |= ULP_CRYPTO_LOOKASIDE;
 		adap->num_uld += 1;
 	}
@@ -4457,9 +4449,9 @@ static void free_some_resources(struct adapter *adapter)
 {
 	unsigned int i;
 
-	t4_free_mem(adapter->l2t);
+	kvfree(adapter->l2t);
 	t4_cleanup_sched(adapter);
-	t4_free_mem(adapter->tids.tid_tab);
+	kvfree(adapter->tids.tid_tab);
 	cxgb4_cleanup_tc_u32(adapter);
 	kfree(adapter->sge.egr_map);
 	kfree(adapter->sge.ingr_map);

@@ -19,6 +19,8 @@
 #include <linux/mfd/core.h>
 #include <linux/slab.h>
 #include <linux/err.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/regmap.h>
 
 #include <linux/mfd/wm831x/core.h>
@@ -27,8 +29,18 @@
 static int wm831x_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
+	struct wm831x_pdata *pdata = dev_get_platdata(&i2c->dev);
+	const struct of_device_id *of_id;
 	struct wm831x *wm831x;
+	enum wm831x_parent type;
 	int ret;
+
+	if (i2c->dev.of_node) {
+		of_id = of_match_device(wm831x_of_match, &i2c->dev);
+		type = (enum wm831x_parent)of_id->data;
+	} else {
+		type = (enum wm831x_parent)id->driver_data;
+	}
 
 	wm831x = devm_kzalloc(&i2c->dev, sizeof(struct wm831x), GFP_KERNEL);
 	if (wm831x == NULL)
@@ -36,6 +48,7 @@ static int wm831x_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, wm831x);
 	wm831x->dev = &i2c->dev;
+	wm831x->type = type;
 
 	wm831x->regmap = devm_regmap_init_i2c(i2c, &wm831x_regmap_config);
 	if (IS_ERR(wm831x->regmap)) {
@@ -45,7 +58,10 @@ static int wm831x_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
-	return wm831x_device_init(wm831x, id->driver_data, i2c->irq);
+	if (pdata)
+		memcpy(&wm831x->pdata, pdata, sizeof(*pdata));
+
+	return wm831x_device_init(wm831x, i2c->irq);
 }
 
 static int wm831x_i2c_remove(struct i2c_client *i2c)
@@ -94,6 +110,7 @@ static struct i2c_driver wm831x_i2c_driver = {
 	.driver = {
 		.name = "wm831x",
 		.pm = &wm831x_pm_ops,
+		.of_match_table = of_match_ptr(wm831x_of_match),
 	},
 	.probe = wm831x_i2c_probe,
 	.remove = wm831x_i2c_remove,

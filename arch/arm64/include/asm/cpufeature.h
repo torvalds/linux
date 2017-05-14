@@ -226,7 +226,7 @@ void update_cpu_errata_workarounds(void);
 void __init enable_errata_workarounds(void);
 void verify_local_cpu_errata_workarounds(void);
 
-u64 read_system_reg(u32 id);
+u64 read_sanitised_ftr_reg(u32 id);
 
 static inline bool cpu_supports_mixed_endian_el0(void)
 {
@@ -240,7 +240,7 @@ static inline bool system_supports_32bit_el0(void)
 
 static inline bool system_supports_mixed_endian_el0(void)
 {
-	return id_aa64mmfr0_mixed_endian_el0(read_system_reg(SYS_ID_AA64MMFR0_EL1));
+	return id_aa64mmfr0_mixed_endian_el0(read_sanitised_ftr_reg(SYS_ID_AA64MMFR0_EL1));
 }
 
 static inline bool system_supports_fpsimd(void)

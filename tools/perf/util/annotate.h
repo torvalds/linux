@@ -98,7 +98,7 @@ struct cyc_hist {
 struct source_line_samples {
 	double		percent;
 	double		percent_sum;
-	double          nr;
+	u64		nr;
 };
 
 struct source_line {

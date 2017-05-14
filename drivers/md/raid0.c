@@ -29,7 +29,8 @@
 #define UNSUPPORTED_MDDEV_FLAGS		\
 	((1L << MD_HAS_JOURNAL) |	\
 	 (1L << MD_JOURNAL_CLEAN) |	\
-	 (1L << MD_FAILFAST_SUPPORTED))
+	 (1L << MD_FAILFAST_SUPPORTED) |\
+	 (1L << MD_HAS_PPL))
 
 static int raid0_congested(struct mddev *mddev, int bits)
 {
@@ -383,6 +384,7 @@ static int raid0_run(struct mddev *mddev)
 
 		blk_queue_max_hw_sectors(mddev->queue, mddev->chunk_sectors);
 		blk_queue_max_write_same_sectors(mddev->queue, mddev->chunk_sectors);
+		blk_queue_max_write_zeroes_sectors(mddev->queue, mddev->chunk_sectors);
 		blk_queue_max_discard_sectors(mddev->queue, mddev->chunk_sectors);
 
 		blk_queue_io_min(mddev->queue, mddev->chunk_sectors << 9);
@@ -461,52 +463,54 @@ static void raid0_make_request(struct mddev *mddev, struct bio *bio)
 {
 	struct strip_zone *zone;
 	struct md_rdev *tmp_dev;
-	struct bio *split;
+	sector_t bio_sector;
+	sector_t sector;
+	unsigned chunk_sects;
+	unsigned sectors;
 
 	if (unlikely(bio->bi_opf & REQ_PREFLUSH)) {
 		md_flush_request(mddev, bio);
 		return;
 	}
 
-	do {
-		sector_t bio_sector = bio->bi_iter.bi_sector;
-		sector_t sector = bio_sector;
-		unsigned chunk_sects = mddev->chunk_sectors;
+	bio_sector = bio->bi_iter.bi_sector;
+	sector = bio_sector;
+	chunk_sects = mddev->chunk_sectors;
 
-		unsigned sectors = chunk_sects -
-			(likely(is_power_of_2(chunk_sects))
-			 ? (sector & (chunk_sects-1))
-			 : sector_div(sector, chunk_sects));
+	sectors = chunk_sects -
+		(likely(is_power_of_2(chunk_sects))
+		 ? (sector & (chunk_sects-1))
+		 : sector_div(sector, chunk_sects));
 
-		/* Restore due to sector_div */
-		sector = bio_sector;
+	/* Restore due to sector_div */
+	sector = bio_sector;
 
-		if (sectors < bio_sectors(bio)) {
-			split = bio_split(bio, sectors, GFP_NOIO, fs_bio_set);
-			bio_chain(split, bio);
-		} else {
-			split = bio;
-		}
+	if (sectors < bio_sectors(bio)) {
+		struct bio *split = bio_split(bio, sectors, GFP_NOIO, mddev->bio_set);
+		bio_chain(split, bio);
+		generic_make_request(bio);
+		bio = split;
+	}
 
-		zone = find_zone(mddev->private, &sector);
-		tmp_dev = map_sector(mddev, zone, sector, &sector);
-		split->bi_bdev = tmp_dev->bdev;
-		split->bi_iter.bi_sector = sector + zone->dev_start +
-			tmp_dev->data_offset;
+	zone = find_zone(mddev->private, &sector);
+	tmp_dev = map_sector(mddev, zone, sector, &sector);
+	bio->bi_bdev = tmp_dev->bdev;
+	bio->bi_iter.bi_sector = sector + zone->dev_start +
+		tmp_dev->data_offset;
 
-		if (unlikely((bio_op(split) == REQ_OP_DISCARD) &&
-			 !blk_queue_discard(bdev_get_queue(split->bi_bdev)))) {
-			/* Just ignore it */
-			bio_endio(split);
-		} else {
-			if (mddev->gendisk)
-				trace_block_bio_remap(bdev_get_queue(split->bi_bdev),
-						      split, disk_devt(mddev->gendisk),
-						      bio_sector);
-			mddev_check_writesame(mddev, split);
-			generic_make_request(split);
-		}
-	} while (split != bio);
+	if (unlikely((bio_op(bio) == REQ_OP_DISCARD) &&
+		     !blk_queue_discard(bdev_get_queue(bio->bi_bdev)))) {
+		/* Just ignore it */
+		bio_endio(bio);
+	} else {
+		if (mddev->gendisk)
+			trace_block_bio_remap(bdev_get_queue(bio->bi_bdev),
+					      bio, disk_devt(mddev->gendisk),
+					      bio_sector);
+		mddev_check_writesame(mddev, bio);
+		mddev_check_write_zeroes(mddev, bio);
+		generic_make_request(bio);
+	}
 }
 
 static void raid0_status(struct seq_file *seq, struct mddev *mddev)

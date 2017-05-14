@@ -566,13 +566,6 @@ sas_domain_attach_transport(struct sas_domain_function_template *dft)
 }
 EXPORT_SYMBOL_GPL(sas_domain_attach_transport);
 
-
-void sas_domain_release_transport(struct scsi_transport_template *stt)
-{
-	sas_release_transport(stt);
-}
-EXPORT_SYMBOL_GPL(sas_domain_release_transport);
-
 /* ---------- SAS Class register/unregister ---------- */
 
 static int __init sas_class_init(void)

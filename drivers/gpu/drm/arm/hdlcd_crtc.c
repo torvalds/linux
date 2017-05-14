@@ -42,6 +42,24 @@ static void hdlcd_crtc_cleanup(struct drm_crtc *crtc)
 	drm_crtc_cleanup(crtc);
 }
 
+static int hdlcd_crtc_enable_vblank(struct drm_crtc *crtc)
+{
+	struct hdlcd_drm_private *hdlcd = crtc_to_hdlcd_priv(crtc);
+	unsigned int mask = hdlcd_read(hdlcd, HDLCD_REG_INT_MASK);
+
+	hdlcd_write(hdlcd, HDLCD_REG_INT_MASK, mask | HDLCD_INTERRUPT_VSYNC);
+
+	return 0;
+}
+
+static void hdlcd_crtc_disable_vblank(struct drm_crtc *crtc)
+{
+	struct hdlcd_drm_private *hdlcd = crtc_to_hdlcd_priv(crtc);
+	unsigned int mask = hdlcd_read(hdlcd, HDLCD_REG_INT_MASK);
+
+	hdlcd_write(hdlcd, HDLCD_REG_INT_MASK, mask & ~HDLCD_INTERRUPT_VSYNC);
+}
+
 static const struct drm_crtc_funcs hdlcd_crtc_funcs = {
 	.destroy = hdlcd_crtc_cleanup,
 	.set_config = drm_atomic_helper_set_config,
@@ -49,6 +67,8 @@ static const struct drm_crtc_funcs hdlcd_crtc_funcs = {
 	.reset = drm_atomic_helper_crtc_reset,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.enable_vblank = hdlcd_crtc_enable_vblank,
+	.disable_vblank = hdlcd_crtc_disable_vblank,
 };
 
 static struct simplefb_format supported_formats[] = SIMPLEFB_FORMATS;

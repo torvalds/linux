@@ -25,7 +25,7 @@
 
 #include <linux/interrupt.h>
 #include <asm/acpi.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 
 #ifdef CONFIG_HOTPLUG_CPU
 #define DEFAULT_SEND_IPI	(1)

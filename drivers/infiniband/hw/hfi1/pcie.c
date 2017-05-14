@@ -240,36 +240,6 @@ void hfi1_pcie_ddcleanup(struct hfi1_devdata *dd)
 		iounmap(dd->piobase);
 }
 
-/*
- * Do a Function Level Reset (FLR) on the device.
- * Based on static function drivers/pci/pci.c:pcie_flr().
- */
-void hfi1_pcie_flr(struct hfi1_devdata *dd)
-{
-	int i;
-	u16 status;
-
-	/* no need to check for the capability - we know the device has it */
-
-	/* wait for Transaction Pending bit to clear, at most a few ms */
-	for (i = 0; i < 4; i++) {
-		if (i)
-			msleep((1 << (i - 1)) * 100);
-
-		pcie_capability_read_word(dd->pcidev, PCI_EXP_DEVSTA, &status);
-		if (!(status & PCI_EXP_DEVSTA_TRPND))
-			goto clear;
-	}
-
-	dd_dev_err(dd, "Transaction Pending bit is not clearing, proceeding with reset anyway\n");
-
-clear:
-	pcie_capability_set_word(dd->pcidev, PCI_EXP_DEVCTL,
-				 PCI_EXP_DEVCTL_BCR_FLR);
-	/* PCIe spec requires the function to be back within 100ms */
-	msleep(100);
-}
-
 static void msix_setup(struct hfi1_devdata *dd, int pos, u32 *msixcnt,
 		       struct hfi1_msix_entry *hfi1_msix_entry)
 {
@@ -583,7 +553,7 @@ pci_mmio_enabled(struct pci_dev *pdev)
 		if (words == ~0ULL)
 			ret = PCI_ERS_RESULT_NEED_RESET;
 		dd_dev_info(dd,
-			    "HFI1 mmio_enabled function called, read wordscntr %Lx, returning %d\n",
+			    "HFI1 mmio_enabled function called, read wordscntr %llx, returning %d\n",
 			    words, ret);
 	}
 	return  ret;

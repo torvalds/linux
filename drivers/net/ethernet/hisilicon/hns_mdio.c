@@ -23,17 +23,9 @@
 #include <linux/phy.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
-#include <linux/spinlock_types.h>
 
 #define MDIO_DRV_NAME "Hi-HNS_MDIO"
 #define MDIO_BUS_NAME "Hisilicon MII Bus"
-#define MDIO_DRV_VERSION "1.3.0"
-#define MDIO_COPYRIGHT "Copyright(c) 2015 Huawei Corporation."
-#define MDIO_DRV_STRING MDIO_BUS_NAME
-#define MDIO_DEFAULT_DEVICE_DESCR MDIO_BUS_NAME
-
-#define MDIO_CTL_DEV_ADDR(x)	(x & 0x1f)
-#define MDIO_CTL_PORT_ADDR(x)	((x & 0x1f) << 5)
 
 #define MDIO_TIMEOUT			1000000
 
@@ -64,9 +56,7 @@ struct hns_mdio_device {
 #define MDIO_CMD_DEVAD_S	0
 #define MDIO_CMD_PRTAD_M	0x1f
 #define MDIO_CMD_PRTAD_S	5
-#define MDIO_CMD_OP_M		0x3
 #define MDIO_CMD_OP_S		10
-#define MDIO_CMD_ST_M		0x3
 #define MDIO_CMD_ST_S		12
 #define MDIO_CMD_START_B	14
 
@@ -185,18 +175,20 @@ static int mdio_sc_cfg_reg_write(struct hns_mdio_device *mdio_dev,
 static int hns_mdio_wait_ready(struct mii_bus *bus)
 {
 	struct hns_mdio_device *mdio_dev = bus->priv;
+	u32 cmd_reg_value;
 	int i;
-	u32 cmd_reg_value = 1;
 
 	/* waitting for MDIO_COMMAND_REG 's mdio_start==0 */
 	/* after that can do read or write*/
-	for (i = 0; cmd_reg_value; i++) {
+	for (i = 0; i < MDIO_TIMEOUT; i++) {
 		cmd_reg_value = MDIO_GET_REG_BIT(mdio_dev,
 						 MDIO_COMMAND_REG,
 						 MDIO_CMD_START_B);
-		if (i == MDIO_TIMEOUT)
-			return -ETIMEDOUT;
+		if (!cmd_reg_value)
+			break;
 	}
+	if ((i == MDIO_TIMEOUT) && cmd_reg_value)
+		return -ETIMEDOUT;
 
 	return 0;
 }

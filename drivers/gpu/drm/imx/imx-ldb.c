@@ -647,7 +647,6 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 
 	for_each_child_of_node(np, child) {
 		struct imx_ldb_channel *channel;
-		struct device_node *ep;
 		int bus_format;
 
 		ret = of_property_read_u32(child, "reg", &i);
@@ -671,27 +670,11 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 		 * The output port is port@4 with an external 4-port mux or
 		 * port@2 with the internal 2-port mux.
 		 */
-		ep = of_graph_get_endpoint_by_regs(child,
-						   imx_ldb->lvds_mux ? 4 : 2,
-						   -1);
-		if (ep) {
-			struct device_node *remote;
-
-			remote = of_graph_get_remote_port_parent(ep);
-			of_node_put(ep);
-			if (remote) {
-				channel->panel = of_drm_find_panel(remote);
-				channel->bridge = of_drm_find_bridge(remote);
-			} else
-				return -EPROBE_DEFER;
-			of_node_put(remote);
-
-			if (!channel->panel && !channel->bridge) {
-				dev_err(dev, "panel/bridge not found: %s\n",
-					remote->full_name);
-				return -EPROBE_DEFER;
-			}
-		}
+		ret = drm_of_find_panel_or_bridge(child,
+						  imx_ldb->lvds_mux ? 4 : 2, 0,
+						  &channel->panel, &channel->bridge);
+		if (ret)
+			return ret;
 
 		/* panel ddc only if there is no bridge */
 		if (!channel->bridge) {

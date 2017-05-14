@@ -1,7 +1,7 @@
 #ifndef _PIO_H
 #define _PIO_H
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015-2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -53,6 +53,12 @@
 #define SC_ACK    2
 #define SC_USER   3	/* must be the last one: it may take all left */
 #define SC_MAX    4	/* count of send context types */
+
+/*
+ * SC_VNIC types are allocated (dynamically) from the user context pool,
+ * (SC_USER) and used by kernel driver as kernel contexts (SC_KERNEL).
+ */
+#define SC_VNIC   SC_MAX
 
 /* invalid send context index */
 #define INVALID_SCI 0xff
@@ -195,7 +201,7 @@ struct sc_config_sizes {
  *      |    mask                  |              --/  |--------------------|
  *      |--------------------------|            -/     |        *           |
  *      |    actual_vls (max 8)    |          -/       |--------------------|
- *      |--------------------------|       --/         | ksc[n] -> sc n     |
+ *      |--------------------------|       --/         | ksc[n-1] -> sc n   |
  *      |    vls (max 8)           |     -/            +--------------------+
  *      |--------------------------|  --/
  *      |    map[0]                |-/
@@ -208,21 +214,21 @@ struct sc_config_sizes {
  *      |--------------------------|                   |--------------------|
  *      |   map[vls - 1]           |-                  |         *          |
  *      +--------------------------+ \-                |--------------------|
- *                                     \-              | ksc[m] -> sc m+n   |
+ *                                     \-              | ksc[m-1] -> sc m+n |
  *                                       \             +--------------------+
  *                                        \-
  *                                          \
- *                                           \-        +--------------------+
- *                                             \-      |       mask         |
- *                                               \     |--------------------|
- *                                                \-   | ksc[0] -> sc 1+m+n |
- *                                                  \- |--------------------|
- *                                                    >| ksc[1] -> sc 2+m+n |
- *                                                     |--------------------|
- *                                                     |         *          |
- *                                                     |--------------------|
- *                                                     | ksc[o] -> sc o+m+n |
- *                                                     +--------------------+
+ *                                           \-        +----------------------+
+ *                                             \-      |       mask           |
+ *                                               \     |----------------------|
+ *                                                \-   | ksc[0] -> sc 1+m+n   |
+ *                                                  \- |----------------------|
+ *                                                    >| ksc[1] -> sc 2+m+n   |
+ *                                                     |----------------------|
+ *                                                     |         *            |
+ *                                                     |----------------------|
+ *                                                     | ksc[o-1] -> sc o+m+n |
+ *                                                     +----------------------+
  *
  */
 

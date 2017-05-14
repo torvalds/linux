@@ -14,6 +14,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/regmap.h>
@@ -113,7 +114,8 @@
 #define ILIM_3000MA			3000	/* 3000mA */
 
 #define AXP288_EXTCON_DEV_NAME		"axp288_extcon"
-#define USB_HOST_EXTCON_DEV_NAME	"INT3496:00"
+#define USB_HOST_EXTCON_HID		"INT3496"
+#define USB_HOST_EXTCON_NAME		"INT3496:00"
 
 static const unsigned int cable_ids[] =
 	{ EXTCON_CHG_USB_SDP, EXTCON_CHG_USB_CDP, EXTCON_CHG_USB_DCP };
@@ -807,10 +809,14 @@ static int axp288_charger_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 	}
 
-	info->otg.cable = extcon_get_extcon_dev(USB_HOST_EXTCON_DEV_NAME);
-	if (info->otg.cable == NULL) {
-		dev_dbg(dev, "EXTCON_USB_HOST is not ready, probe deferred\n");
-		return -EPROBE_DEFER;
+	if (acpi_dev_present(USB_HOST_EXTCON_HID, NULL, -1)) {
+		info->otg.cable = extcon_get_extcon_dev(USB_HOST_EXTCON_NAME);
+		if (info->otg.cable == NULL) {
+			dev_dbg(dev, "EXTCON_USB_HOST is not ready, probe deferred\n");
+			return -EPROBE_DEFER;
+		}
+		dev_info(&pdev->dev,
+			 "Using " USB_HOST_EXTCON_HID " extcon for usb-id\n");
 	}
 
 	platform_set_drvdata(pdev, info);
@@ -849,13 +855,15 @@ static int axp288_charger_probe(struct platform_device *pdev)
 	/* Register for OTG notification */
 	INIT_WORK(&info->otg.work, axp288_charger_otg_evt_worker);
 	info->otg.id_nb.notifier_call = axp288_charger_handle_otg_evt;
-	ret = devm_extcon_register_notifier(&pdev->dev, info->otg.cable,
+	if (info->otg.cable) {
+		ret = devm_extcon_register_notifier(&pdev->dev, info->otg.cable,
 					EXTCON_USB_HOST, &info->otg.id_nb);
-	if (ret) {
-		dev_err(dev, "failed to register EXTCON_USB_HOST notifier\n");
-		return ret;
+		if (ret) {
+			dev_err(dev, "failed to register EXTCON_USB_HOST notifier\n");
+			return ret;
+		}
+		schedule_work(&info->otg.work);
 	}
-	schedule_work(&info->otg.work);
 
 	/* Register charger interrupts */
 	for (i = 0; i < CHRG_INTR_END; i++) {

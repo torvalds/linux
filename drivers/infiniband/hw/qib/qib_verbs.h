@@ -310,7 +310,7 @@ void qib_uc_rcv(struct qib_ibport *ibp, struct ib_header *hdr,
 void qib_rc_rcv(struct qib_ctxtdata *rcd, struct ib_header *hdr,
 		int has_grh, void *data, u32 tlen, struct rvt_qp *qp);
 
-int qib_check_ah(struct ib_device *ibdev, struct ib_ah_attr *ah_attr);
+int qib_check_ah(struct ib_device *ibdev, struct rdma_ah_attr *ah_attr);
 
 int qib_check_send_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe);
 
@@ -335,7 +335,7 @@ int qib_ruc_check_hdr(struct qib_ibport *ibp, struct ib_header *hdr,
 		      int has_grh, struct rvt_qp *qp, u32 bth0);
 
 u32 qib_make_grh(struct qib_ibport *ibp, struct ib_grh *hdr,
-		 struct ib_global_route *grh, u32 hwords, u32 nwords);
+		 const struct ib_global_route *grh, u32 hwords, u32 nwords);
 
 void qib_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 			 u32 bth0, u32 bth2);

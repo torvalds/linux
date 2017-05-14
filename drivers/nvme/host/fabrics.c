@@ -471,6 +471,16 @@ int nvmf_connect_io_queue(struct nvme_ctrl *ctrl, u16 qid)
 }
 EXPORT_SYMBOL_GPL(nvmf_connect_io_queue);
 
+bool nvmf_should_reconnect(struct nvme_ctrl *ctrl)
+{
+	if (ctrl->opts->max_reconnects != -1 &&
+	    ctrl->opts->nr_reconnects < ctrl->opts->max_reconnects)
+		return true;
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(nvmf_should_reconnect);
+
 /**
  * nvmf_register_transport() - NVMe Fabrics Library registration function.
  * @ops:	Transport ops instance to be registered to the
@@ -533,6 +543,7 @@ static const match_table_t opt_tokens = {
 	{ NVMF_OPT_QUEUE_SIZE,		"queue_size=%d"		},
 	{ NVMF_OPT_NR_IO_QUEUES,	"nr_io_queues=%d"	},
 	{ NVMF_OPT_RECONNECT_DELAY,	"reconnect_delay=%d"	},
+	{ NVMF_OPT_CTRL_LOSS_TMO,	"ctrl_loss_tmo=%d"	},
 	{ NVMF_OPT_KATO,		"keep_alive_tmo=%d"	},
 	{ NVMF_OPT_HOSTNQN,		"hostnqn=%s"		},
 	{ NVMF_OPT_HOST_TRADDR,		"host_traddr=%s"	},
@@ -546,6 +557,7 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 	char *options, *o, *p;
 	int token, ret = 0;
 	size_t nqnlen  = 0;
+	int ctrl_loss_tmo = NVMF_DEF_CTRL_LOSS_TMO;
 
 	/* Set defaults */
 	opts->queue_size = NVMF_DEF_QUEUE_SIZE;
@@ -655,6 +667,16 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 			}
 			opts->kato = token;
 			break;
+		case NVMF_OPT_CTRL_LOSS_TMO:
+			if (match_int(args, &token)) {
+				ret = -EINVAL;
+				goto out;
+			}
+
+			if (token < 0)
+				pr_warn("ctrl_loss_tmo < 0 will reconnect forever\n");
+			ctrl_loss_tmo = token;
+			break;
 		case NVMF_OPT_HOSTNQN:
 			if (opts->host) {
 				pr_err("hostnqn already user-assigned: %s\n",
@@ -709,6 +731,12 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 			goto out;
 		}
 	}
+
+	if (ctrl_loss_tmo < 0)
+		opts->max_reconnects = -1;
+	else
+		opts->max_reconnects = DIV_ROUND_UP(ctrl_loss_tmo,
+						opts->reconnect_delay);
 
 	if (!opts->host) {
 		kref_get(&nvmf_default_host->ref);

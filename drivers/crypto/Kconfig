@@ -388,6 +388,21 @@ config CRYPTO_DEV_MXC_SCC
 	  This option enables support for the Security Controller (SCC)
 	  found in Freescale i.MX25 chips.
 
+config CRYPTO_DEV_EXYNOS_RNG
+	tristate "EXYNOS HW pseudo random number generator support"
+	depends on ARCH_EXYNOS || COMPILE_TEST
+	depends on HAS_IOMEM
+	select CRYPTO_RNG
+	---help---
+	  This driver provides kernel-side support through the
+	  cryptographic API for the pseudo random number generator hardware
+	  found on Exynos SoCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called exynos-rng.
+
+	  If unsure, say Y.
+
 config CRYPTO_DEV_S5P
 	tristate "Support for Samsung S5PV210/Exynos crypto accelerator"
 	depends on ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
@@ -515,6 +530,13 @@ config CRYPTO_DEV_MXS_DCP
 source "drivers/crypto/qat/Kconfig"
 source "drivers/crypto/cavium/cpt/Kconfig"
 
+config CRYPTO_DEV_CAVIUM_ZIP
+	tristate "Cavium ZIP driver"
+	depends on PCI && 64BIT && (ARM64 || COMPILE_TEST)
+	---help---
+	  Select this option if you want to enable compression/decompression
+	  acceleration on Cavium's ARM based SoCs
+
 config CRYPTO_DEV_QCE
 	tristate "Qualcomm crypto engine accelerator"
 	depends on (ARCH_QCOM || COMPILE_TEST) && HAS_DMA && HAS_IOMEM
@@ -618,5 +640,7 @@ config CRYPTO_DEV_BCM_SPU
 	  This driver provides support for Broadcom crypto acceleration using the
 	  Secure Processing Unit (SPU). The SPU driver registers ablkcipher,
 	  ahash, and aead algorithms with the kernel cryptographic API.
+
+source "drivers/crypto/stm32/Kconfig"
 
 endif # CRYPTO_HW

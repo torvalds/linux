@@ -59,6 +59,43 @@
 			interrupt-parent = <&gic>;
 			ranges = <0x0 0x0 0xf2000000 0x2000000>;
 
+			cpm_ethernet: ethernet@0 {
+				compatible = "marvell,armada-7k-pp22";
+				reg = <0x0 0x100000>, <0x129000 0xb000>;
+				clocks = <&cpm_syscon0 1 3>, <&cpm_syscon0 1 9>, <&cpm_syscon0 1 5>;
+				clock-names = "pp_clk", "gop_clk", "mg_clk";
+				status = "disabled";
+				dma-coherent;
+
+				cpm_eth0: eth0 {
+					interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+					port-id = <0>;
+					gop-port-id = <0>;
+					status = "disabled";
+				};
+
+				cpm_eth1: eth1 {
+					interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+					port-id = <1>;
+					gop-port-id = <2>;
+					status = "disabled";
+				};
+
+				cpm_eth2: eth2 {
+					interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
+					port-id = <2>;
+					gop-port-id = <3>;
+					status = "disabled";
+				};
+			};
+
+			cpm_mdio: mdio@12a200 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "marvell,orion-mdio";
+				reg = <0x12a200 0x10>;
+			};
+
 			cpm_syscon0: system-controller@440000 {
 				compatible = "marvell,cp110-system-controller0",
 					     "syscon";
@@ -77,6 +114,13 @@
 					"cpm-sd-mmc-gop", "none", "none",
 					"cpm-slow-io", "cpm-usb3h0", "cpm-usb3h1",
 					"cpm-usb3dev", "cpm-eip150", "cpm-eip197";
+			};
+
+			cpm_rtc: rtc@284000 {
+				compatible = "marvell,armada-8k-rtc";
+				reg = <0x284000 0x20>, <0x284080 0x24>;
+				reg-names = "rtc", "rtc-soc";
+				interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
 			cpm_sata0: sata@540000 {
@@ -172,6 +216,32 @@
 				interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&cpm_syscon0 1 25>;
 				status = "okay";
+			};
+
+			cpm_sdhci0: sdhci@780000 {
+				compatible = "marvell,armada-cp110-sdhci";
+				reg = <0x780000 0x300>;
+				interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
+				clock-names = "core";
+				clocks = <&cpm_syscon0 1 4>;
+				dma-coherent;
+				status = "disabled";
+			};
+
+			cpm_crypto: crypto@800000 {
+				compatible = "inside-secure,safexcel-eip197";
+				reg = <0x800000 0x200000>;
+				interrupts = <GIC_SPI 34 (IRQ_TYPE_EDGE_RISING
+				| IRQ_TYPE_LEVEL_HIGH)>,
+					     <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "mem", "ring0", "ring1",
+				"ring2", "ring3", "eip";
+				clocks = <&cpm_syscon0 1 26>;
+				status = "disabled";
 			};
 		};
 

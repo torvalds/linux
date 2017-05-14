@@ -1,0 +1,33 @@
+Faraday Technology timer
+
+This timer is a generic IP block from Faraday Technology, embedded in the
+Cortina Systems Gemini SoCs and other designs.
+
+Required properties:
+
+- compatible : Must be one of
+  "faraday,fttmr010"
+  "cortina,gemini-timer"
+- reg : Should contain registers location and length
+- interrupts : Should contain the three timer interrupts usually with
+  flags for falling edge
+
+Optionally required properties:
+
+- clocks : a clock to provide the tick rate for "faraday,fttmr010"
+- clock-names : should be "EXTCLK" and "PCLK" for the external tick timer
+  and peripheral clock respectively, for "faraday,fttmr010"
+- syscon : a phandle to the global Gemini system controller if the compatible
+  type is "cortina,gemini-timer"
+
+Example:
+
+timer@43000000 {
+	compatible = "faraday,fttmr010";
+	reg = <0x43000000 0x1000>;
+	interrupts = <14 IRQ_TYPE_EDGE_FALLING>, /* Timer 1 */
+		   <15 IRQ_TYPE_EDGE_FALLING>, /* Timer 2 */
+		   <16 IRQ_TYPE_EDGE_FALLING>; /* Timer 3 */
+	clocks = <&extclk>, <&pclk>;
+	clock-names = "EXTCLK", "PCLK";
+};

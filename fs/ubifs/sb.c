@@ -84,6 +84,8 @@ static int create_default_filesystem(struct ubifs_info *c)
 	int min_leb_cnt = UBIFS_MIN_LEB_CNT;
 	long long tmp64, main_bytes;
 	__le64 tmp_le64;
+	__le32 tmp_le32;
+	struct timespec ts;
 
 	/* Some functions called from here depend on the @c->key_len filed */
 	c->key_len = UBIFS_SK_LEN;
@@ -298,13 +300,17 @@ static int create_default_filesystem(struct ubifs_info *c)
 	ino->ch.node_type = UBIFS_INO_NODE;
 	ino->creat_sqnum = cpu_to_le64(++c->max_sqnum);
 	ino->nlink = cpu_to_le32(2);
-	tmp_le64 = cpu_to_le64(CURRENT_TIME_SEC.tv_sec);
+
+	ktime_get_real_ts(&ts);
+	ts = timespec_trunc(ts, DEFAULT_TIME_GRAN);
+	tmp_le64 = cpu_to_le64(ts.tv_sec);
 	ino->atime_sec   = tmp_le64;
 	ino->ctime_sec   = tmp_le64;
 	ino->mtime_sec   = tmp_le64;
-	ino->atime_nsec  = 0;
-	ino->ctime_nsec  = 0;
-	ino->mtime_nsec  = 0;
+	tmp_le32 = cpu_to_le32(ts.tv_nsec);
+	ino->atime_nsec  = tmp_le32;
+	ino->ctime_nsec  = tmp_le32;
+	ino->mtime_nsec  = tmp_le32;
 	ino->mode = cpu_to_le32(S_IFDIR | S_IRUGO | S_IWUSR | S_IXUGO);
 	ino->size = cpu_to_le64(UBIFS_INO_NODE_SZ);
 

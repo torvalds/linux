@@ -4,6 +4,7 @@
  *	       Martin Schwidefsky <schwidefsky@de.ibm.com>,
  */
 
+#include <linux/debugfs.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/proc_fs.h>
@@ -13,6 +14,7 @@
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <asm/ebcdic.h>
+#include <asm/debug.h>
 #include <asm/sysinfo.h>
 #include <asm/cpcmd.h>
 #include <asm/topology.h>
@@ -485,3 +487,99 @@ void calibrate_delay(void)
 	       "%lu.%02lu BogoMIPS preset\n", loops_per_jiffy/(500000/HZ),
 	       (loops_per_jiffy/(5000/HZ)) % 100);
 }
+
+#ifdef CONFIG_DEBUG_FS
+
+#define STSI_FILE(fc, s1, s2)						       \
+static int stsi_open_##fc##_##s1##_##s2(struct inode *inode, struct file *file)\
+{									       \
+	file->private_data = (void *) get_zeroed_page(GFP_KERNEL);	       \
+	if (!file->private_data)					       \
+		return -ENOMEM;						       \
+	if (stsi(file->private_data, fc, s1, s2)) {			       \
+		free_page((unsigned long)file->private_data);		       \
+		file->private_data = NULL;				       \
+		return -EACCES;						       \
+	}								       \
+	return nonseekable_open(inode, file);				       \
+}									       \
+									       \
+static const struct file_operations stsi_##fc##_##s1##_##s2##_fs_ops = {       \
+	.open		= stsi_open_##fc##_##s1##_##s2,			       \
+	.release	= stsi_release,					       \
+	.read		= stsi_read,					       \
+	.llseek		= no_llseek,					       \
+};
+
+static int stsi_release(struct inode *inode, struct file *file)
+{
+	free_page((unsigned long)file->private_data);
+	return 0;
+}
+
+static ssize_t stsi_read(struct file *file, char __user *buf, size_t size, loff_t *ppos)
+{
+	return simple_read_from_buffer(buf, size, ppos, file->private_data, PAGE_SIZE);
+}
+
+STSI_FILE( 1, 1, 1);
+STSI_FILE( 1, 2, 1);
+STSI_FILE( 1, 2, 2);
+STSI_FILE( 2, 2, 1);
+STSI_FILE( 2, 2, 2);
+STSI_FILE( 3, 2, 2);
+STSI_FILE(15, 1, 2);
+STSI_FILE(15, 1, 3);
+STSI_FILE(15, 1, 4);
+STSI_FILE(15, 1, 5);
+STSI_FILE(15, 1, 6);
+
+struct stsi_file {
+	const struct file_operations *fops;
+	char *name;
+};
+
+static struct stsi_file stsi_file[] __initdata = {
+	{.fops = &stsi_1_1_1_fs_ops,  .name =  "1_1_1"},
+	{.fops = &stsi_1_2_1_fs_ops,  .name =  "1_2_1"},
+	{.fops = &stsi_1_2_2_fs_ops,  .name =  "1_2_2"},
+	{.fops = &stsi_2_2_1_fs_ops,  .name =  "2_2_1"},
+	{.fops = &stsi_2_2_2_fs_ops,  .name =  "2_2_2"},
+	{.fops = &stsi_3_2_2_fs_ops,  .name =  "3_2_2"},
+	{.fops = &stsi_15_1_2_fs_ops, .name = "15_1_2"},
+	{.fops = &stsi_15_1_3_fs_ops, .name = "15_1_3"},
+	{.fops = &stsi_15_1_4_fs_ops, .name = "15_1_4"},
+	{.fops = &stsi_15_1_5_fs_ops, .name = "15_1_5"},
+	{.fops = &stsi_15_1_6_fs_ops, .name = "15_1_6"},
+};
+
+static u8 stsi_0_0_0;
+
+static __init int stsi_init_debugfs(void)
+{
+	struct dentry *stsi_root;
+	struct stsi_file *sf;
+	int lvl, i;
+
+	stsi_root = debugfs_create_dir("stsi", arch_debugfs_dir);
+	if (IS_ERR_OR_NULL(stsi_root))
+		return 0;
+	lvl = stsi(NULL, 0, 0, 0);
+	if (lvl > 0)
+		stsi_0_0_0 = lvl;
+	debugfs_create_u8("0_0_0", 0400, stsi_root, &stsi_0_0_0);
+	for (i = 0; i < ARRAY_SIZE(stsi_file); i++) {
+		sf = &stsi_file[i];
+		debugfs_create_file(sf->name, 0400, stsi_root, NULL, sf->fops);
+	}
+	if (IS_ENABLED(CONFIG_SCHED_TOPOLOGY) && MACHINE_HAS_TOPOLOGY) {
+		char link_to[10];
+
+		sprintf(link_to, "15_1_%d", topology_mnest_limit());
+		debugfs_create_symlink("topology", stsi_root, link_to);
+	}
+	return 0;
+}
+device_initcall(stsi_init_debugfs);
+
+#endif /* CONFIG_DEBUG_FS */

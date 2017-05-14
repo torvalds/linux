@@ -22,10 +22,10 @@
 
 struct silead_ts_dmi_data {
 	const char *acpi_name;
-	struct property_entry *properties;
+	const struct property_entry *properties;
 };
 
-static struct property_entry cube_iwork8_air_props[] = {
+static const struct property_entry cube_iwork8_air_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-size-x", 1660),
 	PROPERTY_ENTRY_U32("touchscreen-size-y", 900),
 	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
@@ -39,7 +39,7 @@ static const struct silead_ts_dmi_data cube_iwork8_air_data = {
 	.properties	= cube_iwork8_air_props,
 };
 
-static struct property_entry jumper_ezpad_mini3_props[] = {
+static const struct property_entry jumper_ezpad_mini3_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-size-x", 1700),
 	PROPERTY_ENTRY_U32("touchscreen-size-y", 1150),
 	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
@@ -51,6 +51,33 @@ static struct property_entry jumper_ezpad_mini3_props[] = {
 static const struct silead_ts_dmi_data jumper_ezpad_mini3_data = {
 	.acpi_name	= "MSSL1680:00",
 	.properties	= jumper_ezpad_mini3_props,
+};
+
+static const struct property_entry dexp_ursus_7w_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 890),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 630),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl1686-dexp-ursus-7w.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	{ }
+};
+
+static const struct silead_ts_dmi_data dexp_ursus_7w_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= dexp_ursus_7w_props,
+};
+
+static const struct property_entry surftab_wintron70_st70416_6_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 884),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 632),
+	PROPERTY_ENTRY_STRING("firmware-name",
+			      "gsl1686-surftab-wintron70-st70416-6.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	{ }
+};
+
+static const struct silead_ts_dmi_data surftab_wintron70_st70416_6_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= surftab_wintron70_st70416_6_props,
 };
 
 static const struct dmi_system_id silead_ts_dmi_table[] = {
@@ -72,24 +99,37 @@ static const struct dmi_system_id silead_ts_dmi_table[] = {
 			DMI_MATCH(DMI_BIOS_VERSION, "jumperx.T87.KFBNEEA"),
 		},
 	},
+	{
+		/* DEXP Ursus 7W */
+		.driver_data = (void *)&dexp_ursus_7w_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "7W"),
+		},
+	},
+	{
+		/* Trekstor Surftab Wintron 7.0 ST70416-6 */
+		.driver_data = (void *)&surftab_wintron70_st70416_6_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "ST70416-6"),
+			/* Exact match, different versions need different fw */
+			DMI_MATCH(DMI_BIOS_VERSION, "TREK.G.WI71C.JGBMRBA04"),
+		},
+	},
 	{ },
 };
 
-static void silead_ts_dmi_add_props(struct device *dev)
+static const struct silead_ts_dmi_data *silead_ts_data;
+
+static void silead_ts_dmi_add_props(struct i2c_client *client)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	const struct dmi_system_id *dmi_id;
-	const struct silead_ts_dmi_data *ts_data;
+	struct device *dev = &client->dev;
 	int error;
 
-	dmi_id = dmi_first_match(silead_ts_dmi_table);
-	if (!dmi_id)
-		return;
-
-	ts_data = dmi_id->driver_data;
 	if (has_acpi_companion(dev) &&
-	    !strncmp(ts_data->acpi_name, client->name, I2C_NAME_SIZE)) {
-		error = device_add_properties(dev, ts_data->properties);
+	    !strncmp(silead_ts_data->acpi_name, client->name, I2C_NAME_SIZE)) {
+		error = device_add_properties(dev, silead_ts_data->properties);
 		if (error)
 			dev_err(dev, "failed to add properties: %d\n", error);
 	}
@@ -99,10 +139,13 @@ static int silead_ts_dmi_notifier_call(struct notifier_block *nb,
 				       unsigned long action, void *data)
 {
 	struct device *dev = data;
+	struct i2c_client *client;
 
 	switch (action) {
 	case BUS_NOTIFY_ADD_DEVICE:
-		silead_ts_dmi_add_props(dev);
+		client = i2c_verify_client(dev);
+		if (client)
+			silead_ts_dmi_add_props(client);
 		break;
 
 	default:
@@ -118,7 +161,14 @@ static struct notifier_block silead_ts_dmi_notifier = {
 
 static int __init silead_ts_dmi_init(void)
 {
+	const struct dmi_system_id *dmi_id;
 	int error;
+
+	dmi_id = dmi_first_match(silead_ts_dmi_table);
+	if (!dmi_id)
+		return 0; /* Not an error */
+
+	silead_ts_data = dmi_id->driver_data;
 
 	error = bus_register_notifier(&i2c_bus_type, &silead_ts_dmi_notifier);
 	if (error)

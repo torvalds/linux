@@ -32,55 +32,98 @@
 #include <asm/intel-family.h>
 #include <asm/intel_rdt.h>
 
+#define MAX_MBA_BW	100u
+#define MBA_IS_LINEAR	0x4
+
 /* Mutex to protect rdtgroup access. */
 DEFINE_MUTEX(rdtgroup_mutex);
 
 DEFINE_PER_CPU_READ_MOSTLY(int, cpu_closid);
 
+/*
+ * Used to store the max resource name width and max resource data width
+ * to display the schemata in a tabular format
+ */
+int max_name_width, max_data_width;
+
+static void
+mba_wrmsr(struct rdt_domain *d, struct msr_param *m, struct rdt_resource *r);
+static void
+cat_wrmsr(struct rdt_domain *d, struct msr_param *m, struct rdt_resource *r);
+
 #define domain_init(id) LIST_HEAD_INIT(rdt_resources_all[id].domains)
 
 struct rdt_resource rdt_resources_all[] = {
 	{
-		.name		= "L3",
-		.domains	= domain_init(RDT_RESOURCE_L3),
-		.msr_base	= IA32_L3_CBM_BASE,
-		.min_cbm_bits	= 1,
-		.cache_level	= 3,
-		.cbm_idx_multi	= 1,
-		.cbm_idx_offset	= 0
+		.name			= "L3",
+		.domains		= domain_init(RDT_RESOURCE_L3),
+		.msr_base		= IA32_L3_CBM_BASE,
+		.msr_update		= cat_wrmsr,
+		.cache_level		= 3,
+		.cache = {
+			.min_cbm_bits	= 1,
+			.cbm_idx_mult	= 1,
+			.cbm_idx_offset	= 0,
+		},
+		.parse_ctrlval		= parse_cbm,
+		.format_str		= "%d=%0*x",
 	},
 	{
-		.name		= "L3DATA",
-		.domains	= domain_init(RDT_RESOURCE_L3DATA),
-		.msr_base	= IA32_L3_CBM_BASE,
-		.min_cbm_bits	= 1,
-		.cache_level	= 3,
-		.cbm_idx_multi	= 2,
-		.cbm_idx_offset	= 0
+		.name			= "L3DATA",
+		.domains		= domain_init(RDT_RESOURCE_L3DATA),
+		.msr_base		= IA32_L3_CBM_BASE,
+		.msr_update		= cat_wrmsr,
+		.cache_level		= 3,
+		.cache = {
+			.min_cbm_bits	= 1,
+			.cbm_idx_mult	= 2,
+			.cbm_idx_offset	= 0,
+		},
+		.parse_ctrlval		= parse_cbm,
+		.format_str		= "%d=%0*x",
 	},
 	{
-		.name		= "L3CODE",
-		.domains	= domain_init(RDT_RESOURCE_L3CODE),
-		.msr_base	= IA32_L3_CBM_BASE,
-		.min_cbm_bits	= 1,
-		.cache_level	= 3,
-		.cbm_idx_multi	= 2,
-		.cbm_idx_offset	= 1
+		.name			= "L3CODE",
+		.domains		= domain_init(RDT_RESOURCE_L3CODE),
+		.msr_base		= IA32_L3_CBM_BASE,
+		.msr_update		= cat_wrmsr,
+		.cache_level		= 3,
+		.cache = {
+			.min_cbm_bits	= 1,
+			.cbm_idx_mult	= 2,
+			.cbm_idx_offset	= 1,
+		},
+		.parse_ctrlval		= parse_cbm,
+		.format_str		= "%d=%0*x",
 	},
 	{
-		.name		= "L2",
-		.domains	= domain_init(RDT_RESOURCE_L2),
-		.msr_base	= IA32_L2_CBM_BASE,
-		.min_cbm_bits	= 1,
-		.cache_level	= 2,
-		.cbm_idx_multi	= 1,
-		.cbm_idx_offset	= 0
+		.name			= "L2",
+		.domains		= domain_init(RDT_RESOURCE_L2),
+		.msr_base		= IA32_L2_CBM_BASE,
+		.msr_update		= cat_wrmsr,
+		.cache_level		= 2,
+		.cache = {
+			.min_cbm_bits	= 1,
+			.cbm_idx_mult	= 1,
+			.cbm_idx_offset	= 0,
+		},
+		.parse_ctrlval		= parse_cbm,
+		.format_str		= "%d=%0*x",
+	},
+	{
+		.name			= "MB",
+		.domains		= domain_init(RDT_RESOURCE_MBA),
+		.msr_base		= IA32_MBA_THRTL_BASE,
+		.msr_update		= mba_wrmsr,
+		.cache_level		= 3,
+		.parse_ctrlval		= parse_bw,
+		.format_str		= "%d=%*d",
 	},
 };
 
-static int cbm_idx(struct rdt_resource *r, int closid)
+static unsigned int cbm_idx(struct rdt_resource *r, unsigned int closid)
 {
-	return closid * r->cbm_idx_multi + r->cbm_idx_offset;
+	return closid * r->cache.cbm_idx_mult + r->cache.cbm_idx_offset;
 }
 
 /*
@@ -118,9 +161,9 @@ static inline bool cache_alloc_hsw_probe(void)
 			return false;
 
 		r->num_closid = 4;
-		r->cbm_len = 20;
-		r->max_cbm = max_cbm;
-		r->min_cbm_bits = 2;
+		r->default_ctrl = max_cbm;
+		r->cache.cbm_len = 20;
+		r->cache.min_cbm_bits = 2;
 		r->capable = true;
 		r->enabled = true;
 
@@ -130,16 +173,66 @@ static inline bool cache_alloc_hsw_probe(void)
 	return false;
 }
 
-static void rdt_get_config(int idx, struct rdt_resource *r)
+/*
+ * rdt_get_mb_table() - get a mapping of bandwidth(b/w) percentage values
+ * exposed to user interface and the h/w understandable delay values.
+ *
+ * The non-linear delay values have the granularity of power of two
+ * and also the h/w does not guarantee a curve for configured delay
+ * values vs. actual b/w enforced.
+ * Hence we need a mapping that is pre calibrated so the user can
+ * express the memory b/w as a percentage value.
+ */
+static inline bool rdt_get_mb_table(struct rdt_resource *r)
+{
+	/*
+	 * There are no Intel SKUs as of now to support non-linear delay.
+	 */
+	pr_info("MBA b/w map not implemented for cpu:%d, model:%d",
+		boot_cpu_data.x86, boot_cpu_data.x86_model);
+
+	return false;
+}
+
+static bool rdt_get_mem_config(struct rdt_resource *r)
+{
+	union cpuid_0x10_3_eax eax;
+	union cpuid_0x10_x_edx edx;
+	u32 ebx, ecx;
+
+	cpuid_count(0x00000010, 3, &eax.full, &ebx, &ecx, &edx.full);
+	r->num_closid = edx.split.cos_max + 1;
+	r->membw.max_delay = eax.split.max_delay + 1;
+	r->default_ctrl = MAX_MBA_BW;
+	if (ecx & MBA_IS_LINEAR) {
+		r->membw.delay_linear = true;
+		r->membw.min_bw = MAX_MBA_BW - r->membw.max_delay;
+		r->membw.bw_gran = MAX_MBA_BW - r->membw.max_delay;
+	} else {
+		if (!rdt_get_mb_table(r))
+			return false;
+	}
+	r->data_width = 3;
+	rdt_get_mba_infofile(r);
+
+	r->capable = true;
+	r->enabled = true;
+
+	return true;
+}
+
+static void rdt_get_cache_config(int idx, struct rdt_resource *r)
 {
 	union cpuid_0x10_1_eax eax;
-	union cpuid_0x10_1_edx edx;
+	union cpuid_0x10_x_edx edx;
 	u32 ebx, ecx;
 
 	cpuid_count(0x00000010, idx, &eax.full, &ebx, &ecx, &edx.full);
 	r->num_closid = edx.split.cos_max + 1;
-	r->cbm_len = eax.split.cbm_len + 1;
-	r->max_cbm = BIT_MASK(eax.split.cbm_len + 1) - 1;
+	r->cache.cbm_len = eax.split.cbm_len + 1;
+	r->default_ctrl = BIT_MASK(eax.split.cbm_len + 1) - 1;
+	r->data_width = (r->cache.cbm_len + 3) / 4;
+	rdt_get_cache_infofile(r);
 	r->capable = true;
 	r->enabled = true;
 }
@@ -150,41 +243,15 @@ static void rdt_get_cdp_l3_config(int type)
 	struct rdt_resource *r = &rdt_resources_all[type];
 
 	r->num_closid = r_l3->num_closid / 2;
-	r->cbm_len = r_l3->cbm_len;
-	r->max_cbm = r_l3->max_cbm;
+	r->cache.cbm_len = r_l3->cache.cbm_len;
+	r->default_ctrl = r_l3->default_ctrl;
+	r->data_width = (r->cache.cbm_len + 3) / 4;
 	r->capable = true;
 	/*
 	 * By default, CDP is disabled. CDP can be enabled by mount parameter
 	 * "cdp" during resctrl file system mount time.
 	 */
 	r->enabled = false;
-}
-
-static inline bool get_rdt_resources(void)
-{
-	bool ret = false;
-
-	if (cache_alloc_hsw_probe())
-		return true;
-
-	if (!boot_cpu_has(X86_FEATURE_RDT_A))
-		return false;
-
-	if (boot_cpu_has(X86_FEATURE_CAT_L3)) {
-		rdt_get_config(1, &rdt_resources_all[RDT_RESOURCE_L3]);
-		if (boot_cpu_has(X86_FEATURE_CDP_L3)) {
-			rdt_get_cdp_l3_config(RDT_RESOURCE_L3DATA);
-			rdt_get_cdp_l3_config(RDT_RESOURCE_L3CODE);
-		}
-		ret = true;
-	}
-	if (boot_cpu_has(X86_FEATURE_CAT_L2)) {
-		/* CPUID 0x10.2 fields are same format at 0x10.1 */
-		rdt_get_config(2, &rdt_resources_all[RDT_RESOURCE_L2]);
-		ret = true;
-	}
-
-	return ret;
 }
 
 static int get_cache_id(int cpu, int level)
@@ -200,29 +267,55 @@ static int get_cache_id(int cpu, int level)
 	return -1;
 }
 
-void rdt_cbm_update(void *arg)
+/*
+ * Map the memory b/w percentage value to delay values
+ * that can be written to QOS_MSRs.
+ * There are currently no SKUs which support non linear delay values.
+ */
+static u32 delay_bw_map(unsigned long bw, struct rdt_resource *r)
 {
-	struct msr_param *m = (struct msr_param *)arg;
+	if (r->membw.delay_linear)
+		return MAX_MBA_BW - bw;
+
+	pr_warn_once("Non Linear delay-bw map not supported but queried\n");
+	return r->default_ctrl;
+}
+
+static void
+mba_wrmsr(struct rdt_domain *d, struct msr_param *m, struct rdt_resource *r)
+{
+	unsigned int i;
+
+	/*  Write the delay values for mba. */
+	for (i = m->low; i < m->high; i++)
+		wrmsrl(r->msr_base + i, delay_bw_map(d->ctrl_val[i], r));
+}
+
+static void
+cat_wrmsr(struct rdt_domain *d, struct msr_param *m, struct rdt_resource *r)
+{
+	unsigned int i;
+
+	for (i = m->low; i < m->high; i++)
+		wrmsrl(r->msr_base + cbm_idx(r, i), d->ctrl_val[i]);
+}
+
+void rdt_ctrl_update(void *arg)
+{
+	struct msr_param *m = arg;
 	struct rdt_resource *r = m->res;
-	int i, cpu = smp_processor_id();
+	int cpu = smp_processor_id();
 	struct rdt_domain *d;
 
 	list_for_each_entry(d, &r->domains, list) {
 		/* Find the domain that contains this CPU */
-		if (cpumask_test_cpu(cpu, &d->cpu_mask))
-			goto found;
+		if (cpumask_test_cpu(cpu, &d->cpu_mask)) {
+			r->msr_update(d, m, r);
+			return;
+		}
 	}
-	pr_info_once("cpu %d not found in any domain for resource %s\n",
+	pr_warn_once("cpu %d not found in any domain for resource %s\n",
 		     cpu, r->name);
-
-	return;
-
-found:
-	for (i = m->low; i < m->high; i++) {
-		int idx = cbm_idx(r, i);
-
-		wrmsrl(r->msr_base + idx, d->cbm[i]);
-	}
 }
 
 /*
@@ -258,6 +351,32 @@ static struct rdt_domain *rdt_find_domain(struct rdt_resource *r, int id,
 	return NULL;
 }
 
+static int domain_setup_ctrlval(struct rdt_resource *r, struct rdt_domain *d)
+{
+	struct msr_param m;
+	u32 *dc;
+	int i;
+
+	dc = kmalloc_array(r->num_closid, sizeof(*d->ctrl_val), GFP_KERNEL);
+	if (!dc)
+		return -ENOMEM;
+
+	d->ctrl_val = dc;
+
+	/*
+	 * Initialize the Control MSRs to having no control.
+	 * For Cache Allocation: Set all bits in cbm
+	 * For Memory Allocation: Set b/w requested to 100
+	 */
+	for (i = 0; i < r->num_closid; i++, dc++)
+		*dc = r->default_ctrl;
+
+	m.low = 0;
+	m.high = r->num_closid;
+	r->msr_update(d, &m, r);
+	return 0;
+}
+
 /*
  * domain_add_cpu - Add a cpu to a resource's domain list.
  *
@@ -273,7 +392,7 @@ static struct rdt_domain *rdt_find_domain(struct rdt_resource *r, int id,
  */
 static void domain_add_cpu(int cpu, struct rdt_resource *r)
 {
-	int i, id = get_cache_id(cpu, r->cache_level);
+	int id = get_cache_id(cpu, r->cache_level);
 	struct list_head *add_pos = NULL;
 	struct rdt_domain *d;
 
@@ -294,22 +413,13 @@ static void domain_add_cpu(int cpu, struct rdt_resource *r)
 
 	d->id = id;
 
-	d->cbm = kmalloc_array(r->num_closid, sizeof(*d->cbm), GFP_KERNEL);
-	if (!d->cbm) {
+	if (domain_setup_ctrlval(r, d)) {
 		kfree(d);
 		return;
 	}
 
-	for (i = 0; i < r->num_closid; i++) {
-		int idx = cbm_idx(r, i);
-
-		d->cbm[i] = r->max_cbm;
-		wrmsrl(r->msr_base + idx, d->cbm[i]);
-	}
-
 	cpumask_set_cpu(cpu, &d->cpu_mask);
 	list_add_tail(&d->list, add_pos);
-	r->num_domains++;
 }
 
 static void domain_remove_cpu(int cpu, struct rdt_resource *r)
@@ -325,8 +435,7 @@ static void domain_remove_cpu(int cpu, struct rdt_resource *r)
 
 	cpumask_clear_cpu(cpu, &d->cpu_mask);
 	if (cpumask_empty(&d->cpu_mask)) {
-		r->num_domains--;
-		kfree(d->cbm);
+		kfree(d->ctrl_val);
 		list_del(&d->list);
 		kfree(d);
 	}
@@ -374,6 +483,57 @@ static int intel_rdt_offline_cpu(unsigned int cpu)
 	return 0;
 }
 
+/*
+ * Choose a width for the resource name and resource data based on the
+ * resource that has widest name and cbm.
+ */
+static __init void rdt_init_padding(void)
+{
+	struct rdt_resource *r;
+	int cl;
+
+	for_each_capable_rdt_resource(r) {
+		cl = strlen(r->name);
+		if (cl > max_name_width)
+			max_name_width = cl;
+
+		if (r->data_width > max_data_width)
+			max_data_width = r->data_width;
+	}
+}
+
+static __init bool get_rdt_resources(void)
+{
+	bool ret = false;
+
+	if (cache_alloc_hsw_probe())
+		return true;
+
+	if (!boot_cpu_has(X86_FEATURE_RDT_A))
+		return false;
+
+	if (boot_cpu_has(X86_FEATURE_CAT_L3)) {
+		rdt_get_cache_config(1, &rdt_resources_all[RDT_RESOURCE_L3]);
+		if (boot_cpu_has(X86_FEATURE_CDP_L3)) {
+			rdt_get_cdp_l3_config(RDT_RESOURCE_L3DATA);
+			rdt_get_cdp_l3_config(RDT_RESOURCE_L3CODE);
+		}
+		ret = true;
+	}
+	if (boot_cpu_has(X86_FEATURE_CAT_L2)) {
+		/* CPUID 0x10.2 fields are same format at 0x10.1 */
+		rdt_get_cache_config(2, &rdt_resources_all[RDT_RESOURCE_L2]);
+		ret = true;
+	}
+
+	if (boot_cpu_has(X86_FEATURE_MBA)) {
+		if (rdt_get_mem_config(&rdt_resources_all[RDT_RESOURCE_MBA]))
+			ret = true;
+	}
+
+	return ret;
+}
+
 static int __init intel_rdt_late_init(void)
 {
 	struct rdt_resource *r;
@@ -381,6 +541,8 @@ static int __init intel_rdt_late_init(void)
 
 	if (!get_rdt_resources())
 		return -ENODEV;
+
+	rdt_init_padding();
 
 	state = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
 				  "x86/rdt/cat:online:",

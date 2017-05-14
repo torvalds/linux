@@ -23,6 +23,7 @@
  */
 #include "priv.h"
 
+#include <core/msgqueue.h>
 #include <subdev/timer.h>
 
 void
@@ -85,7 +86,8 @@ nvkm_pmu_reset(struct nvkm_pmu *pmu)
 	);
 
 	/* Reset. */
-	pmu->func->reset(pmu);
+	if (pmu->func->reset)
+		pmu->func->reset(pmu);
 
 	/* Wait for IMEM/DMEM scrubbing to be complete. */
 	nvkm_msec(device, 2000,
@@ -113,10 +115,18 @@ nvkm_pmu_init(struct nvkm_subdev *subdev)
 	return ret;
 }
 
+static int
+nvkm_pmu_oneinit(struct nvkm_subdev *subdev)
+{
+	struct nvkm_pmu *pmu = nvkm_pmu(subdev);
+	return nvkm_falcon_v1_new(&pmu->subdev, "PMU", 0x10a000, &pmu->falcon);
+}
+
 static void *
 nvkm_pmu_dtor(struct nvkm_subdev *subdev)
 {
 	struct nvkm_pmu *pmu = nvkm_pmu(subdev);
+	nvkm_msgqueue_del(&pmu->queue);
 	nvkm_falcon_del(&pmu->falcon);
 	return nvkm_pmu(subdev);
 }
@@ -125,6 +135,7 @@ static const struct nvkm_subdev_func
 nvkm_pmu = {
 	.dtor = nvkm_pmu_dtor,
 	.preinit = nvkm_pmu_preinit,
+	.oneinit = nvkm_pmu_oneinit,
 	.init = nvkm_pmu_init,
 	.fini = nvkm_pmu_fini,
 	.intr = nvkm_pmu_intr,
@@ -138,7 +149,7 @@ nvkm_pmu_ctor(const struct nvkm_pmu_func *func, struct nvkm_device *device,
 	pmu->func = func;
 	INIT_WORK(&pmu->recv.work, nvkm_pmu_recv);
 	init_waitqueue_head(&pmu->recv.wait);
-	return nvkm_falcon_v1_new(&pmu->subdev, "PMU", 0x10a000, &pmu->falcon);
+	return 0;
 }
 
 int

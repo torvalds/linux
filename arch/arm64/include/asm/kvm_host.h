@@ -31,7 +31,6 @@
 #define __KVM_HAVE_ARCH_INTC_INITIALIZED
 
 #define KVM_USER_MEM_SLOTS 512
-#define KVM_COALESCED_MMIO_PAGE_OFFSET 1
 #define KVM_HALT_POLL_NS_DEFAULT 500000
 
 #include <kvm/arm_vgic.h>
@@ -42,7 +41,7 @@
 
 #define KVM_VCPU_MAX_FEATURES 4
 
-#define KVM_REQ_VCPU_EXIT	8
+#define KVM_REQ_VCPU_EXIT	(8 | KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
 
 int __attribute_const__ kvm_target_cpu(void);
 int kvm_reset_vcpu(struct kvm_vcpu *vcpu);
@@ -360,13 +359,6 @@ static inline void __cpu_init_hyp_mode(phys_addr_t pgd_ptr,
 	 * HYP code.
 	 */
 	__kvm_call_hyp((void *)pgd_ptr, hyp_stack_ptr, vector_ptr);
-}
-
-void __kvm_hyp_teardown(void);
-static inline void __cpu_reset_hyp_mode(unsigned long vector_ptr,
-					phys_addr_t phys_idmap_start)
-{
-	kvm_call_hyp(__kvm_hyp_teardown, phys_idmap_start);
 }
 
 static inline void kvm_arch_hardware_unsetup(void) {}

@@ -30,6 +30,7 @@ nf_nat_masquerade_ipv6(struct sk_buff *skb, const struct nf_nat_range *range,
 		       const struct net_device *out)
 {
 	enum ip_conntrack_info ctinfo;
+	struct nf_conn_nat *nat;
 	struct in6_addr src;
 	struct nf_conn *ct;
 	struct nf_nat_range newrange;
@@ -42,7 +43,9 @@ nf_nat_masquerade_ipv6(struct sk_buff *skb, const struct nf_nat_range *range,
 			       &ipv6_hdr(skb)->daddr, 0, &src) < 0)
 		return NF_DROP;
 
-	nfct_nat(ct)->masq_index = out->ifindex;
+	nat = nf_ct_nat_ext_add(ct);
+	if (nat)
+		nat->masq_index = out->ifindex;
 
 	newrange.flags		= range->flags | NF_NAT_RANGE_MAP_IPS;
 	newrange.min_addr.in6	= src;

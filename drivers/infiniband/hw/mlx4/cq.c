@@ -147,7 +147,7 @@ static int mlx4_ib_get_cq_umem(struct mlx4_ib_dev *dev, struct ib_ucontext *cont
 		return PTR_ERR(*umem);
 
 	err = mlx4_mtt_init(dev->dev, ib_umem_page_count(*umem),
-			    ilog2((*umem)->page_size), &buf->mtt);
+			    (*umem)->page_shift, &buf->mtt);
 	if (err)
 		goto err_buf;
 

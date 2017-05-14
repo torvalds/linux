@@ -268,10 +268,8 @@ void blk_sync_queue(struct request_queue *q)
 		struct blk_mq_hw_ctx *hctx;
 		int i;
 
-		queue_for_each_hw_ctx(q, hctx, i) {
-			cancel_work_sync(&hctx->run_work);
-			cancel_delayed_work_sync(&hctx->delay_work);
-		}
+		queue_for_each_hw_ctx(q, hctx, i)
+			cancel_delayed_work_sync(&hctx->run_work);
 	} else {
 		cancel_delayed_work_sync(&q->delay_work);
 	}
@@ -500,6 +498,13 @@ void blk_set_queue_dying(struct request_queue *q)
 	queue_flag_set(QUEUE_FLAG_DYING, q);
 	spin_unlock_irq(q->queue_lock);
 
+	/*
+	 * When queue DYING flag is set, we need to block new req
+	 * entering queue, so we call blk_freeze_queue_start() to
+	 * prevent I/O from crossing blk_queue_enter().
+	 */
+	blk_freeze_queue_start(q);
+
 	if (q->mq_ops)
 		blk_mq_wake_waiters(q);
 	else {
@@ -669,6 +674,15 @@ int blk_queue_enter(struct request_queue *q, bool nowait)
 		if (nowait)
 			return -EBUSY;
 
+		/*
+		 * read pair of barrier in blk_freeze_queue_start(),
+		 * we need to order reading __PERCPU_REF_DEAD flag of
+		 * .q_usage_counter and reading .mq_freeze_depth or
+		 * queue dying flag, otherwise the following wait may
+		 * never return if the two reads are reordered.
+		 */
+		smp_rmb();
+
 		ret = wait_event_interruptible(q->mq_freeze_wq,
 				!atomic_read(&q->mq_freeze_depth) ||
 				blk_queue_dying(q));
@@ -719,6 +733,10 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 	q->backing_dev_info = bdi_alloc_node(gfp_mask, node_id);
 	if (!q->backing_dev_info)
 		goto fail_split;
+
+	q->stats = blk_alloc_queue_stats();
+	if (!q->stats)
+		goto fail_stats;
 
 	q->backing_dev_info->ra_pages =
 			(VM_MAX_READAHEAD * 1024) / PAGE_SIZE;
@@ -776,6 +794,8 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 fail_ref:
 	percpu_ref_exit(&q->q_usage_counter);
 fail_bdi:
+	blk_free_queue_stats(q->stats);
+fail_stats:
 	bdi_put(q->backing_dev_info);
 fail_split:
 	bioset_free(q->bio_split);
@@ -889,7 +909,6 @@ out_exit_flush_rq:
 		q->exit_rq_fn(q, q->fq->flush_rq);
 out_free_flush_queue:
 	blk_free_flush_queue(q->fq);
-	wbt_exit(q);
 	return -ENOMEM;
 }
 EXPORT_SYMBOL(blk_init_allocated_queue);
@@ -1128,7 +1147,6 @@ static struct request *__get_request(struct request_list *rl, unsigned int op,
 
 	blk_rq_init(q, rq);
 	blk_rq_set_rl(rq, rl);
-	blk_rq_set_prio(rq, ioc);
 	rq->cmd_flags = op;
 	rq->rq_flags = rq_flags;
 
@@ -1608,17 +1626,23 @@ out:
 	return ret;
 }
 
-void init_request_from_bio(struct request *req, struct bio *bio)
+void blk_init_request_from_bio(struct request *req, struct bio *bio)
 {
+	struct io_context *ioc = rq_ioc(bio);
+
 	if (bio->bi_opf & REQ_RAHEAD)
 		req->cmd_flags |= REQ_FAILFAST_MASK;
 
-	req->errors = 0;
 	req->__sector = bio->bi_iter.bi_sector;
 	if (ioprio_valid(bio_prio(bio)))
 		req->ioprio = bio_prio(bio);
+	else if (ioc)
+		req->ioprio = ioc->ioprio;
+	else
+		req->ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_NONE, 0);
 	blk_rq_bio_prep(req->q, req, bio);
 }
+EXPORT_SYMBOL_GPL(blk_init_request_from_bio);
 
 static blk_qc_t blk_queue_bio(struct request_queue *q, struct bio *bio)
 {
@@ -1709,7 +1733,7 @@ get_rq:
 	 * We don't worry about that case for efficiency. It won't happen
 	 * often, and the elevators are able to handle it.
 	 */
-	init_request_from_bio(req, bio);
+	blk_init_request_from_bio(req, bio);
 
 	if (test_bit(QUEUE_FLAG_SAME_COMP, &q->queue_flags))
 		req->cpu = raw_smp_processor_id();
@@ -1936,7 +1960,13 @@ generic_make_request_checks(struct bio *bio)
 	if (!blkcg_bio_issue_check(q, bio))
 		return false;
 
-	trace_block_bio_queue(q, bio);
+	if (!bio_flagged(bio, BIO_TRACE_COMPLETION)) {
+		trace_block_bio_queue(q, bio);
+		/* Now that enqueuing has been traced, we need to trace
+		 * completion as well.
+		 */
+		bio_set_flag(bio, BIO_TRACE_COMPLETION);
+	}
 	return true;
 
 not_supported:
@@ -2478,7 +2508,7 @@ void blk_start_request(struct request *req)
 	blk_dequeue_request(req);
 
 	if (test_bit(QUEUE_FLAG_STATS, &req->q->queue_flags)) {
-		blk_stat_set_issue_time(&req->issue_stat);
+		blk_stat_set_issue(&req->issue_stat, blk_rq_sectors(req));
 		req->rq_flags |= RQF_STATS;
 		wbt_issue(req->q->rq_wb, &req->issue_stat);
 	}
@@ -2540,21 +2570,10 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 {
 	int total_bytes;
 
-	trace_block_rq_complete(req->q, req, nr_bytes);
+	trace_block_rq_complete(req, error, nr_bytes);
 
 	if (!req->bio)
 		return false;
-
-	/*
-	 * For fs requests, rq is just carrier of independent bio's
-	 * and each partial completion should be handled separately.
-	 * Reset per-request error on each partial completion.
-	 *
-	 * TODO: tj: This is too subtle.  It would be better to let
-	 * low level drivers do what they see fit.
-	 */
-	if (!blk_rq_is_passthrough(req))
-		req->errors = 0;
 
 	if (error && !blk_rq_is_passthrough(req) &&
 	    !(req->rq_flags & RQF_QUIET)) {
@@ -2601,6 +2620,8 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 		if (bio_bytes == bio->bi_iter.bi_size)
 			req->bio = bio->bi_next;
 
+		/* Completion has already been traced */
+		bio_clear_flag(bio, BIO_TRACE_COMPLETION);
 		req_bio_endio(req, bio, bio_bytes, error);
 
 		total_bytes += bio_bytes;
@@ -2623,8 +2644,6 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 		return false;
 	}
 
-	WARN_ON_ONCE(req->rq_flags & RQF_SPECIAL_PAYLOAD);
-
 	req->__data_len -= total_bytes;
 
 	/* update sector only for requests with clear definition of sector */
@@ -2637,17 +2656,19 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 		req->cmd_flags |= req->bio->bi_opf & REQ_FAILFAST_MASK;
 	}
 
-	/*
-	 * If total number of sectors is less than the first segment
-	 * size, something has gone terribly wrong.
-	 */
-	if (blk_rq_bytes(req) < blk_rq_cur_bytes(req)) {
-		blk_dump_rq_flags(req, "request botched");
-		req->__data_len = blk_rq_cur_bytes(req);
-	}
+	if (!(req->rq_flags & RQF_SPECIAL_PAYLOAD)) {
+		/*
+		 * If total number of sectors is less than the first segment
+		 * size, something has gone terribly wrong.
+		 */
+		if (blk_rq_bytes(req) < blk_rq_cur_bytes(req)) {
+			blk_dump_rq_flags(req, "request botched");
+			req->__data_len = blk_rq_cur_bytes(req);
+		}
 
-	/* recalculate the number of segments */
-	blk_recalc_rq_segments(req);
+		/* recalculate the number of segments */
+		blk_recalc_rq_segments(req);
+	}
 
 	return true;
 }
@@ -2699,7 +2720,7 @@ void blk_finish_request(struct request *req, int error)
 	struct request_queue *q = req->q;
 
 	if (req->rq_flags & RQF_STATS)
-		blk_stat_add(&q->rq_stats[rq_data_dir(req)], req);
+		blk_stat_add(req);
 
 	if (req->rq_flags & RQF_QUEUED)
 		blk_queue_end_tag(q, req);
@@ -2776,7 +2797,7 @@ static bool blk_end_bidi_request(struct request *rq, int error,
  *     %false - we are done with this request
  *     %true  - still buffers pending for this request
  **/
-bool __blk_end_bidi_request(struct request *rq, int error,
+static bool __blk_end_bidi_request(struct request *rq, int error,
 				   unsigned int nr_bytes, unsigned int bidi_bytes)
 {
 	if (blk_update_bidi_request(rq, error, nr_bytes, bidi_bytes))
@@ -2827,43 +2848,6 @@ void blk_end_request_all(struct request *rq, int error)
 	BUG_ON(pending);
 }
 EXPORT_SYMBOL(blk_end_request_all);
-
-/**
- * blk_end_request_cur - Helper function to finish the current request chunk.
- * @rq: the request to finish the current chunk for
- * @error: %0 for success, < %0 for error
- *
- * Description:
- *     Complete the current consecutively mapped chunk from @rq.
- *
- * Return:
- *     %false - we are done with this request
- *     %true  - still buffers pending for this request
- */
-bool blk_end_request_cur(struct request *rq, int error)
-{
-	return blk_end_request(rq, error, blk_rq_cur_bytes(rq));
-}
-EXPORT_SYMBOL(blk_end_request_cur);
-
-/**
- * blk_end_request_err - Finish a request till the next failure boundary.
- * @rq: the request to finish till the next failure boundary for
- * @error: must be negative errno
- *
- * Description:
- *     Complete @rq till the next failure boundary.
- *
- * Return:
- *     %false - we are done with this request
- *     %true  - still buffers pending for this request
- */
-bool blk_end_request_err(struct request *rq, int error)
-{
-	WARN_ON(error >= 0);
-	return blk_end_request(rq, error, blk_rq_err_bytes(rq));
-}
-EXPORT_SYMBOL_GPL(blk_end_request_err);
 
 /**
  * __blk_end_request - Helper function for drivers to complete the request.
@@ -2923,26 +2907,6 @@ bool __blk_end_request_cur(struct request *rq, int error)
 	return __blk_end_request(rq, error, blk_rq_cur_bytes(rq));
 }
 EXPORT_SYMBOL(__blk_end_request_cur);
-
-/**
- * __blk_end_request_err - Finish a request till the next failure boundary.
- * @rq: the request to finish till the next failure boundary for
- * @error: must be negative errno
- *
- * Description:
- *     Complete @rq till the next failure boundary.  Must be called
- *     with queue lock held.
- *
- * Return:
- *     %false - we are done with this request
- *     %true  - still buffers pending for this request
- */
-bool __blk_end_request_err(struct request *rq, int error)
-{
-	WARN_ON(error >= 0);
-	return __blk_end_request(rq, error, blk_rq_err_bytes(rq));
-}
-EXPORT_SYMBOL_GPL(__blk_end_request_err);
 
 void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 		     struct bio *bio)
@@ -3105,6 +3069,13 @@ int kblockd_schedule_work_on(int cpu, struct work_struct *work)
 	return queue_work_on(cpu, kblockd_workqueue, work);
 }
 EXPORT_SYMBOL(kblockd_schedule_work_on);
+
+int kblockd_mod_delayed_work_on(int cpu, struct delayed_work *dwork,
+				unsigned long delay)
+{
+	return mod_delayed_work_on(cpu, kblockd_workqueue, dwork, delay);
+}
+EXPORT_SYMBOL(kblockd_mod_delayed_work_on);
 
 int kblockd_schedule_delayed_work(struct delayed_work *dwork,
 				  unsigned long delay)

@@ -80,12 +80,11 @@ static int smc_ib_modify_qp_rtr(struct smc_link *lnk)
 	memset(&qp_attr, 0, sizeof(qp_attr));
 	qp_attr.qp_state = IB_QPS_RTR;
 	qp_attr.path_mtu = min(lnk->path_mtu, lnk->peer_mtu);
-	qp_attr.ah_attr.port_num = lnk->ibport;
-	qp_attr.ah_attr.ah_flags = IB_AH_GRH;
-	qp_attr.ah_attr.grh.hop_limit = 1;
-	memcpy(&qp_attr.ah_attr.grh.dgid, lnk->peer_gid,
-	       sizeof(lnk->peer_gid));
-	memcpy(&qp_attr.ah_attr.dmac, lnk->peer_mac,
+	qp_attr.ah_attr.type = RDMA_AH_ATTR_TYPE_ROCE;
+	rdma_ah_set_port_num(&qp_attr.ah_attr, lnk->ibport);
+	rdma_ah_set_grh(&qp_attr.ah_attr, NULL, 0, 0, 1, 0);
+	rdma_ah_set_dgid_raw(&qp_attr.ah_attr, lnk->peer_gid);
+	memcpy(&qp_attr.ah_attr.roce.dmac, lnk->peer_mac,
 	       sizeof(lnk->peer_mac));
 	qp_attr.dest_qp_num = lnk->peer_qpn;
 	qp_attr.rq_psn = lnk->peer_psn; /* starting receive packet seq # */
@@ -179,8 +178,6 @@ static void smc_ib_global_event_handler(struct ib_event_handler *handler,
 	u8 port_idx;
 
 	smcibdev = container_of(handler, struct smc_ib_device, event_handler);
-	if (!smc_pnet_find_ib(smcibdev->ibdev->name))
-		return;
 
 	switch (ibevent->event) {
 	case IB_EVENT_PORT_ERR:
@@ -259,7 +256,6 @@ int smc_ib_create_queue_pair(struct smc_link *lnk)
 			.max_recv_wr = SMC_WR_BUF_CNT * 3,
 			.max_send_sge = SMC_IB_MAX_SEND_SGE,
 			.max_recv_sge = 1,
-			.max_inline_data = SMC_WR_TX_SIZE,
 		},
 		.sq_sig_type = IB_SIGNAL_REQ_WR,
 		.qp_type = IB_QPT_RC,

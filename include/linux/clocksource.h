@@ -120,7 +120,7 @@ struct clocksource {
 #define CLOCK_SOURCE_RESELECT			0x100
 
 /* simplify initialization of mask field */
-#define CLOCKSOURCE_MASK(bits) (u64)((bits) < 64 ? ((1ULL<<(bits))-1) : -1)
+#define CLOCKSOURCE_MASK(bits) GENMASK_ULL((bits) - 1, 0)
 
 static inline u32 clocksource_freq2mult(u32 freq, u32 shift_constant, u64 from)
 {

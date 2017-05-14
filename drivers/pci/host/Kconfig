@@ -27,6 +27,12 @@ config PCIE_XILINX_NWL
 	 or End Point. The current option selection will only
 	 support root port enabling.
 
+config PCI_FTPCI100
+	bool "Faraday Technology FTPCI100 PCI controller"
+	depends on OF
+	depends on ARM
+	default ARCH_GEMINI
+
 config PCI_TEGRA
 	bool "NVIDIA Tegra PCIe controller"
 	depends on ARCH_TEGRA
@@ -95,6 +101,7 @@ config PCI_VERSATILE
 
 config PCIE_IPROC
 	tristate
+	select PCI_DOMAINS
 	help
 	  This enables the iProc PCIe core controller support for Broadcom's
 	  iProc family of SoCs. An appropriate bus interface driver needs
@@ -115,7 +122,6 @@ config PCIE_IPROC_BCMA
 	depends on ARM && (ARCH_BCM_IPROC || COMPILE_TEST)
 	select PCIE_IPROC
 	select BCMA
-	select PCI_DOMAINS
 	default ARCH_BCM_5301X
 	help
 	  Say Y here if you want to use the Broadcom iProc PCIe controller
@@ -164,7 +170,7 @@ config PCI_HOST_THUNDER_ECAM
 	  Say Y here if you want ECAM support for CN88XX-Pass-1.x Cavium Thunder SoCs.
 
 config PCIE_ROCKCHIP
-	bool "Rockchip PCIe controller"
+	tristate "Rockchip PCIe controller"
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	depends on OF
 	depends on PCI_MSI_IRQ_DOMAIN

@@ -144,15 +144,13 @@ error:
 }
 
 int
-acr_ls_ucode_load_fecs(const struct nvkm_subdev *subdev,
-		       struct ls_ucode_img *img)
+acr_ls_ucode_load_fecs(const struct nvkm_secboot *sb, struct ls_ucode_img *img)
 {
-	return ls_ucode_img_load_gr(subdev, img, "fecs");
+	return ls_ucode_img_load_gr(&sb->subdev, img, "fecs");
 }
 
 int
-acr_ls_ucode_load_gpccs(const struct nvkm_subdev *subdev,
-			struct ls_ucode_img *img)
+acr_ls_ucode_load_gpccs(const struct nvkm_secboot *sb, struct ls_ucode_img *img)
 {
-	return ls_ucode_img_load_gr(subdev, img, "gpccs");
+	return ls_ucode_img_load_gr(&sb->subdev, img, "gpccs");
 }

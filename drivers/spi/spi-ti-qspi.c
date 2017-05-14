@@ -33,6 +33,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
+#include <linux/sizes.h>
 
 #include <linux/spi/spi.h>
 
@@ -57,6 +58,8 @@ struct ti_qspi {
 	struct ti_qspi_regs     ctx_reg;
 
 	dma_addr_t		mmap_phys_base;
+	dma_addr_t		rx_bb_dma_addr;
+	void			*rx_bb_addr;
 	struct dma_chan		*rx_chan;
 
 	u32 spi_max_frequency;
@@ -125,6 +128,8 @@ struct ti_qspi {
 #define QSPI_SETUP_RD_QUAD		(0x3 << 12)
 #define QSPI_SETUP_ADDR_SHIFT		8
 #define QSPI_SETUP_DUMMY_SHIFT		10
+
+#define QSPI_DMA_BUFFER_SIZE            SZ_64K
 
 static inline unsigned long ti_qspi_read(struct ti_qspi *qspi,
 		unsigned long reg)
@@ -395,14 +400,12 @@ static int ti_qspi_dma_xfer(struct ti_qspi *qspi, dma_addr_t dma_dst,
 			    dma_addr_t dma_src, size_t len)
 {
 	struct dma_chan *chan = qspi->rx_chan;
-	struct dma_device *dma_dev = chan->device;
 	dma_cookie_t cookie;
 	enum dma_ctrl_flags flags = DMA_CTRL_ACK | DMA_PREP_INTERRUPT;
 	struct dma_async_tx_descriptor *tx;
 	int ret;
 
-	tx = dma_dev->device_prep_dma_memcpy(chan, dma_dst, dma_src,
-					     len, flags);
+	tx = dmaengine_prep_dma_memcpy(chan, dma_dst, dma_src, len, flags);
 	if (!tx) {
 		dev_err(qspi->dev, "device_prep_dma_memcpy error\n");
 		return -EIO;
@@ -429,6 +432,35 @@ static int ti_qspi_dma_xfer(struct ti_qspi *qspi, dma_addr_t dma_dst,
 	}
 
 	return 0;
+}
+
+static int ti_qspi_dma_bounce_buffer(struct ti_qspi *qspi,
+				     struct spi_flash_read_message *msg)
+{
+	size_t readsize = msg->len;
+	void *to = msg->buf;
+	dma_addr_t dma_src = qspi->mmap_phys_base + msg->from;
+	int ret = 0;
+
+	/*
+	 * Use bounce buffer as FS like jffs2, ubifs may pass
+	 * buffers that does not belong to kernel lowmem region.
+	 */
+	while (readsize != 0) {
+		size_t xfer_len = min_t(size_t, QSPI_DMA_BUFFER_SIZE,
+					readsize);
+
+		ret = ti_qspi_dma_xfer(qspi, qspi->rx_bb_dma_addr,
+				       dma_src, xfer_len);
+		if (ret != 0)
+			return ret;
+		memcpy(to, qspi->rx_bb_addr, xfer_len);
+		readsize -= xfer_len;
+		dma_src += xfer_len;
+		to += xfer_len;
+	}
+
+	return ret;
 }
 
 static int ti_qspi_dma_xfer_sg(struct ti_qspi *qspi, struct sg_table rx_sg,
@@ -498,6 +530,12 @@ static void ti_qspi_setup_mmap_read(struct spi_device *spi,
 		      QSPI_SPI_SETUP_REG(spi->chip_select));
 }
 
+static bool ti_qspi_spi_flash_can_dma(struct spi_device *spi,
+				      struct spi_flash_read_message *msg)
+{
+	return virt_addr_valid(msg->buf);
+}
+
 static int ti_qspi_spi_flash_read(struct spi_device *spi,
 				  struct spi_flash_read_message *msg)
 {
@@ -511,15 +549,12 @@ static int ti_qspi_spi_flash_read(struct spi_device *spi,
 	ti_qspi_setup_mmap_read(spi, msg);
 
 	if (qspi->rx_chan) {
-		if (msg->cur_msg_mapped) {
+		if (msg->cur_msg_mapped)
 			ret = ti_qspi_dma_xfer_sg(qspi, msg->rx_sg, msg->from);
-			if (ret)
-				goto err_unlock;
-		} else {
-			dev_err(qspi->dev, "Invalid address for DMA\n");
-			ret = -EIO;
+		else
+			ret = ti_qspi_dma_bounce_buffer(qspi, msg);
+		if (ret)
 			goto err_unlock;
-		}
 	} else {
 		memcpy_fromio(msg->buf, qspi->mmap_base + msg->from, msg->len);
 	}
@@ -725,6 +760,17 @@ static int ti_qspi_probe(struct platform_device *pdev)
 		ret = 0;
 		goto no_dma;
 	}
+	qspi->rx_bb_addr = dma_alloc_coherent(qspi->dev,
+					      QSPI_DMA_BUFFER_SIZE,
+					      &qspi->rx_bb_dma_addr,
+					      GFP_KERNEL | GFP_DMA);
+	if (!qspi->rx_bb_addr) {
+		dev_err(qspi->dev,
+			"dma_alloc_coherent failed, using PIO mode\n");
+		dma_release_channel(qspi->rx_chan);
+		goto no_dma;
+	}
+	master->spi_flash_can_dma = ti_qspi_spi_flash_can_dma;
 	master->dma_rx = qspi->rx_chan;
 	init_completion(&qspi->transfer_complete);
 	if (res_mmap)
@@ -765,6 +811,10 @@ static int ti_qspi_remove(struct platform_device *pdev)
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
+	if (qspi->rx_bb_addr)
+		dma_free_coherent(qspi->dev, QSPI_DMA_BUFFER_SIZE,
+				  qspi->rx_bb_addr,
+				  qspi->rx_bb_dma_addr);
 	if (qspi->rx_chan)
 		dma_release_channel(qspi->rx_chan);
 

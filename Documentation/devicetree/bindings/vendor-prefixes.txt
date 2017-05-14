@@ -51,6 +51,7 @@ brcm	Broadcom Corporation
 buffalo	Buffalo, Inc.
 calxeda	Calxeda
 capella	Capella Microsystems, Inc
+cascoda	Cascoda, Ltd.
 cavium	Cavium, Inc.
 cdns	Cadence Design Systems Inc.
 ceva	Ceva, Inc.
@@ -79,6 +80,7 @@ denx	Denx Software Engineering
 devantech	Devantech, Ltd.
 digi	Digi International Inc.
 digilent	Diglent, Inc.
+dioo	Dioo Microcircuit Co., Ltd
 dlg	Dialog Semiconductor
 dlink	D-Link Corporation
 dmo	Data Modul AG
@@ -102,6 +104,7 @@ ettus	NI Ettus Research
 eukrea  Eukréa Electromatique
 everest	Everest Semiconductor Co. Ltd.
 everspin	Everspin Technologies, Inc.
+exar	Exar Corporation
 excito	Excito
 ezchip	EZchip Semiconductor
 faraday	Faraday Technology Corporation
@@ -136,6 +139,7 @@ holt	Holt Integrated Circuits, Inc.
 honeywell	Honeywell
 hp	Hewlett Packard
 holtek	Holtek Semiconductor, Inc.
+hwacom	HwaCom Systems Inc.
 i2se	I2SE GmbH
 ibm	International Business Machines (IBM)
 idt	Integrated Device Technologies, Inc.
@@ -159,6 +163,7 @@ jedec	JEDEC Solid State Technology Association
 karo	Ka-Ro electronics GmbH
 keithkoep	Keith & Koep GmbH
 keymile	Keymile GmbH
+khadas	Khadas
 kinetic Kinetic Technologies
 kosagi	Sutajio Ko-Usagi PTE Ltd.
 kyo	Kyocera Corporation
@@ -168,6 +173,7 @@ lego	LEGO Systems A/S
 lenovo	Lenovo Group Ltd.
 lg	LG Corporation
 licheepi	Lichee Pi
+linaro	Linaro Limited
 linux	Linux-specific binding
 lltc	Linear Technology Corporation
 lsi	LSI Corp. (LSI Logic)
@@ -178,6 +184,7 @@ maxim	Maxim Integrated Products
 mcube	mCube
 meas	Measurement Specialties
 mediatek	MediaTek Inc.
+megachips	MegaChips
 melexis	Melexis N.V.
 melfas	MELFAS Inc.
 memsic	MEMSIC Inc.
@@ -190,6 +197,7 @@ minix	MINIX Technology Ltd.
 miramems	MiraMEMS Sensing Technology Co., Ltd.
 mitsubishi	Mitsubishi Electric Corporation
 mosaixtech	Mosaix Technologies, Inc.
+motorola	Motorola, Inc.
 moxa	Moxa
 mpl	MPL AG
 mqmaker	mqmaker Inc.
@@ -212,6 +220,7 @@ newhaven	Newhaven Display International
 ni	National Instruments
 nintendo	Nintendo
 nokia	Nokia
+nordic	Nordic Semiconductor
 nuvoton	Nuvoton Technology Corporation
 nvd	New Vision Display
 nvidia	NVIDIA
@@ -258,6 +267,7 @@ richtek	Richtek Technology Corporation
 ricoh	Ricoh Co. Ltd.
 rikomagic	Rikomagic Tech Corp. Ltd
 rockchip	Fuzhou Rockchip Electronics Co., Ltd
+rohm	ROHM Semiconductor Co., Ltd
 samsung	Samsung Semiconductor
 samtec	Samtec/Softing company
 sandisk	Sandisk Corporation
@@ -265,6 +275,7 @@ sbs	Smart Battery System
 schindler	Schindler
 seagate	Seagate Technology PLC
 semtech	Semtech Corporation
+sensirion	Sensirion AG
 sgx	SGX Sensortech
 sharp	Sharp Corporation
 si-en	Si-En Technology Ltd.
@@ -335,6 +346,7 @@ wd	Western Digital Corp.
 wetek	WeTek Electronics, limited.
 wexler	Wexler
 winbond Winbond Electronics corp.
+winstar	Winstar Display Corp.
 wlf	Wolfson Microelectronics
 wm	Wondermedia Technologies, Inc.
 x-powers	X-Powers

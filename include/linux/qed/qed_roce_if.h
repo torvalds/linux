@@ -240,6 +240,7 @@ struct qed_rdma_add_user_out_params {
 	u64 dpi_addr;
 	u64 dpi_phys_addr;
 	u32 dpi_size;
+	u16 wid_count;
 };
 
 enum roce_mode {
@@ -533,6 +534,7 @@ enum qed_rdma_type {
 struct qed_dev_rdma_info {
 	struct qed_dev_info common;
 	enum qed_rdma_type rdma_type;
+	u8 user_dpm_enabled;
 };
 
 struct qed_rdma_ops {

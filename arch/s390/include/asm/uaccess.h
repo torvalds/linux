@@ -12,13 +12,9 @@
 /*
  * User space memory access functions
  */
-#include <linux/sched.h>
-#include <linux/errno.h>
 #include <asm/processor.h>
 #include <asm/ctl_reg.h>
-
-#define VERIFY_READ     0
-#define VERIFY_WRITE    1
+#include <asm/extable.h>
 
 
 /*
@@ -42,7 +38,7 @@
 static inline void set_fs(mm_segment_t fs)
 {
 	current->thread.mm_segment = fs;
-	if (segment_eq(fs, KERNEL_DS)) {
+	if (uaccess_kernel()) {
 		set_cpu_flag(CIF_ASCE_SECONDARY);
 		__ctl_load(S390_lowcore.kernel_asce, 7, 7);
 	} else {
@@ -64,72 +60,14 @@ static inline int __range_ok(unsigned long addr, unsigned long size)
 
 #define access_ok(type, addr, size) __access_ok(addr, size)
 
-/*
- * The exception table consists of pairs of addresses: the first is the
- * address of an instruction that is allowed to fault, and the second is
- * the address at which the program should continue.  No registers are
- * modified, so it is entirely up to the continuation code to figure out
- * what to do.
- *
- * All the routines below use bits of fixup code that are out of line
- * with the main instruction path.  This means when everything is well,
- * we don't even have to jump over them.  Further, they do not intrude
- * on our cache or tlb entries.
- */
+unsigned long __must_check
+raw_copy_from_user(void *to, const void __user *from, unsigned long n);
 
-struct exception_table_entry
-{
-	int insn, fixup;
-};
+unsigned long __must_check
+raw_copy_to_user(void __user *to, const void *from, unsigned long n);
 
-static inline unsigned long extable_fixup(const struct exception_table_entry *x)
-{
-	return (unsigned long)&x->fixup + x->fixup;
-}
-
-#define ARCH_HAS_RELATIVE_EXTABLE
-
-/**
- * __copy_from_user: - Copy a block of data from user space, with less checking.
- * @to:   Destination address, in kernel space.
- * @from: Source address, in user space.
- * @n:	  Number of bytes to copy.
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * Copy data from user space to kernel space.  Caller must check
- * the specified block with access_ok() before calling this function.
- *
- * Returns number of bytes that could not be copied.
- * On success, this will be zero.
- *
- * If some data could not be copied, this function will pad the copied
- * data to the requested size using zero bytes.
- */
-unsigned long __must_check __copy_from_user(void *to, const void __user *from,
-					    unsigned long n);
-
-/**
- * __copy_to_user: - Copy a block of data into user space, with less checking.
- * @to:   Destination address, in user space.
- * @from: Source address, in kernel space.
- * @n:	  Number of bytes to copy.
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * Copy data from kernel space to user space.  Caller must check
- * the specified block with access_ok() before calling this function.
- *
- * Returns number of bytes that could not be copied.
- * On success, this will be zero.
- */
-unsigned long __must_check __copy_to_user(void __user *to, const void *from,
-					  unsigned long n);
-
-#define __copy_to_user_inatomic __copy_to_user
-#define __copy_from_user_inatomic __copy_from_user
+#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_TO_USER
 
 #ifdef CONFIG_HAVE_MARCH_Z10_FEATURES
 
@@ -147,7 +85,7 @@ unsigned long __must_check __copy_to_user(void __user *to, const void *from,
 		"	jg	2b\n"				\
 		".popsection\n"					\
 		EX_TABLE(0b,3b) EX_TABLE(1b,3b)			\
-		: "=d" (__rc), "=Q" (*(to))			\
+		: "=d" (__rc), "+Q" (*(to))			\
 		: "d" (size), "Q" (*(from)),			\
 		  "d" (__reg0), "K" (-EFAULT)			\
 		: "cc");					\
@@ -218,13 +156,13 @@ static inline int __get_user_fn(void *x, const void __user *ptr, unsigned long s
 
 static inline int __put_user_fn(void *x, void __user *ptr, unsigned long size)
 {
-	size = __copy_to_user(ptr, x, size);
+	size = raw_copy_to_user(ptr, x, size);
 	return size ? -EFAULT : 0;
 }
 
 static inline int __get_user_fn(void *x, const void __user *ptr, unsigned long size)
 {
-	size = __copy_from_user(x, ptr, size);
+	size = raw_copy_from_user(x, ptr, size);
 	return size ? -EFAULT : 0;
 }
 
@@ -314,77 +252,8 @@ int __get_user_bad(void) __attribute__((noreturn));
 #define __put_user_unaligned __put_user
 #define __get_user_unaligned __get_user
 
-extern void __compiletime_error("usercopy buffer size is too small")
-__bad_copy_user(void);
-
-static inline void copy_user_overflow(int size, unsigned long count)
-{
-	WARN(1, "Buffer overflow detected (%d < %lu)!\n", size, count);
-}
-
-/**
- * copy_to_user: - Copy a block of data into user space.
- * @to:   Destination address, in user space.
- * @from: Source address, in kernel space.
- * @n:    Number of bytes to copy.
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * Copy data from kernel space to user space.
- *
- * Returns number of bytes that could not be copied.
- * On success, this will be zero.
- */
-static inline unsigned long __must_check
-copy_to_user(void __user *to, const void *from, unsigned long n)
-{
-	might_fault();
-	return __copy_to_user(to, from, n);
-}
-
-/**
- * copy_from_user: - Copy a block of data from user space.
- * @to:   Destination address, in kernel space.
- * @from: Source address, in user space.
- * @n:    Number of bytes to copy.
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * Copy data from user space to kernel space.
- *
- * Returns number of bytes that could not be copied.
- * On success, this will be zero.
- *
- * If some data could not be copied, this function will pad the copied
- * data to the requested size using zero bytes.
- */
-static inline unsigned long __must_check
-copy_from_user(void *to, const void __user *from, unsigned long n)
-{
-	unsigned int sz = __compiletime_object_size(to);
-
-	might_fault();
-	if (unlikely(sz != -1 && sz < n)) {
-		if (!__builtin_constant_p(n))
-			copy_user_overflow(sz, n);
-		else
-			__bad_copy_user();
-		return n;
-	}
-	return __copy_from_user(to, from, n);
-}
-
 unsigned long __must_check
-__copy_in_user(void __user *to, const void __user *from, unsigned long n);
-
-static inline unsigned long __must_check
-copy_in_user(void __user *to, const void __user *from, unsigned long n)
-{
-	might_fault();
-	return __copy_in_user(to, from, n);
-}
+raw_copy_in_user(void __user *to, const void __user *from, unsigned long n);
 
 /*
  * Copy a null terminated string from userspace.

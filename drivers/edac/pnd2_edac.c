@@ -1349,7 +1349,7 @@ static int pnd2_mce_check_error(struct notifier_block *nb, unsigned long val, vo
 	struct dram_addr daddr;
 	char *type;
 
-	if (get_edac_report_status() == EDAC_REPORTING_DISABLED)
+	if (edac_get_report_status() == EDAC_REPORTING_DISABLED)
 		return NOTIFY_DONE;
 
 	mci = pnd2_mci;

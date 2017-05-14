@@ -40,6 +40,8 @@
 #include <net/netfilter/nfnetlink_log.h>
 
 #include <linux/atomic.h>
+#include <linux/refcount.h>
+
 
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 #include "../bridge/br_private.h"
@@ -57,7 +59,7 @@
 struct nfulnl_instance {
 	struct hlist_node hlist;	/* global list of instances */
 	spinlock_t lock;
-	atomic_t use;			/* use count */
+	refcount_t use;			/* use count */
 
 	unsigned int qlen;		/* number of nlmsgs in skb */
 	struct sk_buff *skb;		/* pre-allocatd skb */
@@ -115,7 +117,7 @@ __instance_lookup(struct nfnl_log_net *log, u_int16_t group_num)
 static inline void
 instance_get(struct nfulnl_instance *inst)
 {
-	atomic_inc(&inst->use);
+	refcount_inc(&inst->use);
 }
 
 static struct nfulnl_instance *
@@ -125,7 +127,7 @@ instance_lookup_get(struct nfnl_log_net *log, u_int16_t group_num)
 
 	rcu_read_lock_bh();
 	inst = __instance_lookup(log, group_num);
-	if (inst && !atomic_inc_not_zero(&inst->use))
+	if (inst && !refcount_inc_not_zero(&inst->use))
 		inst = NULL;
 	rcu_read_unlock_bh();
 
@@ -145,7 +147,7 @@ static void nfulnl_instance_free_rcu(struct rcu_head *head)
 static void
 instance_put(struct nfulnl_instance *inst)
 {
-	if (inst && atomic_dec_and_test(&inst->use))
+	if (inst && refcount_dec_and_test(&inst->use))
 		call_rcu_bh(&inst->rcu, nfulnl_instance_free_rcu);
 }
 
@@ -180,7 +182,7 @@ instance_create(struct net *net, u_int16_t group_num,
 	INIT_HLIST_NODE(&inst->hlist);
 	spin_lock_init(&inst->lock);
 	/* needs to be two, since we _put() after creation */
-	atomic_set(&inst->use, 2);
+	refcount_set(&inst->use, 2);
 
 	setup_timer(&inst->timer, nfulnl_timer, (unsigned long)inst);
 
@@ -409,7 +411,7 @@ __build_packet_message(struct nfnl_log_net *log,
 	const unsigned char *hwhdrp;
 
 	nlh = nlmsg_put(inst->skb, 0, 0,
-			NFNL_SUBSYS_ULOG << 8 | NFULNL_MSG_PACKET,
+			nfnl_msg_type(NFNL_SUBSYS_ULOG, NFULNL_MSG_PACKET),
 			sizeof(struct nfgenmsg), 0);
 	if (!nlh)
 		return -1;
@@ -801,7 +803,7 @@ static int nfulnl_recv_unsupp(struct net *net, struct sock *ctnl,
 static struct nf_logger nfulnl_logger __read_mostly = {
 	.name	= "nfnetlink_log",
 	.type	= NF_LOG_TYPE_ULOG,
-	.logfn	= &nfulnl_log_packet,
+	.logfn	= nfulnl_log_packet,
 	.me	= THIS_MODULE,
 };
 
@@ -1031,7 +1033,7 @@ static int seq_show(struct seq_file *s, void *v)
 		   inst->group_num,
 		   inst->peer_portid, inst->qlen,
 		   inst->copy_mode, inst->copy_range,
-		   inst->flushtimeout, atomic_read(&inst->use));
+		   inst->flushtimeout, refcount_read(&inst->use));
 
 	return 0;
 }
@@ -1138,10 +1140,10 @@ out:
 
 static void __exit nfnetlink_log_fini(void)
 {
-	nf_log_unregister(&nfulnl_logger);
 	nfnetlink_subsys_unregister(&nfulnl_subsys);
 	netlink_unregister_notifier(&nfulnl_rtnl_notifier);
 	unregister_pernet_subsys(&nfnl_log_net_ops);
+	nf_log_unregister(&nfulnl_logger);
 }
 
 MODULE_DESCRIPTION("netfilter userspace logging");

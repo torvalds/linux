@@ -56,10 +56,9 @@ static int snooze_loop(struct cpuidle_device *dev,
 
 	snooze_exit_time = get_tb() + snooze_timeout;
 	ppc64_runlatch_off();
+	HMT_very_low();
 	while (!need_resched()) {
-		HMT_low();
-		HMT_very_low();
-		if (snooze_timeout_en && get_tb() > snooze_exit_time)
+		if (likely(snooze_timeout_en) && get_tb() > snooze_exit_time)
 			break;
 	}
 
@@ -215,11 +214,25 @@ static inline void add_powernv_state(int index, const char *name,
 	stop_psscr_table[index].mask = psscr_mask;
 }
 
+/*
+ * Returns 0 if prop1_len == prop2_len. Else returns -1
+ */
+static inline int validate_dt_prop_sizes(const char *prop1, int prop1_len,
+					 const char *prop2, int prop2_len)
+{
+	if (prop1_len == prop2_len)
+		return 0;
+
+	pr_warn("cpuidle-powernv: array sizes don't match for %s and %s\n",
+		prop1, prop2);
+	return -1;
+}
+
 static int powernv_add_idle_states(void)
 {
 	struct device_node *power_mgt;
 	int nr_idle_states = 1; /* Snooze */
-	int dt_idle_states;
+	int dt_idle_states, count;
 	u32 latency_ns[CPUIDLE_STATE_MAX];
 	u32 residency_ns[CPUIDLE_STATE_MAX];
 	u32 flags[CPUIDLE_STATE_MAX];
@@ -243,6 +256,21 @@ static int powernv_add_idle_states(void)
 		pr_warn("cpuidle-powernv: no idle states found in the DT\n");
 		goto out;
 	}
+
+	count = of_property_count_u32_elems(power_mgt,
+					    "ibm,cpu-idle-state-latencies-ns");
+
+	if (validate_dt_prop_sizes("ibm,cpu-idle-state-flags", dt_idle_states,
+				   "ibm,cpu-idle-state-latencies-ns",
+				   count) != 0)
+		goto out;
+
+	count = of_property_count_strings(power_mgt,
+					  "ibm,cpu-idle-state-names");
+	if (validate_dt_prop_sizes("ibm,cpu-idle-state-flags", dt_idle_states,
+				   "ibm,cpu-idle-state-names",
+				   count) != 0)
+		goto out;
 
 	/*
 	 * Since snooze is used as first idle state, max idle states allowed is
@@ -278,6 +306,22 @@ static int powernv_add_idle_states(void)
 	has_stop_states = (flags[0] &
 			   (OPAL_PM_STOP_INST_FAST | OPAL_PM_STOP_INST_DEEP));
 	if (has_stop_states) {
+		count = of_property_count_u64_elems(power_mgt,
+						    "ibm,cpu-idle-state-psscr");
+		if (validate_dt_prop_sizes("ibm,cpu-idle-state-flags",
+					   dt_idle_states,
+					   "ibm,cpu-idle-state-psscr",
+					   count) != 0)
+			goto out;
+
+		count = of_property_count_u64_elems(power_mgt,
+						    "ibm,cpu-idle-state-psscr-mask");
+		if (validate_dt_prop_sizes("ibm,cpu-idle-state-flags",
+					   dt_idle_states,
+					   "ibm,cpu-idle-state-psscr-mask",
+					   count) != 0)
+			goto out;
+
 		if (of_property_read_u64_array(power_mgt,
 		    "ibm,cpu-idle-state-psscr", psscr_val, dt_idle_states)) {
 			pr_warn("cpuidle-powernv: missing ibm,cpu-idle-state-psscr in DT\n");
@@ -292,8 +336,21 @@ static int powernv_add_idle_states(void)
 		}
 	}
 
-	rc = of_property_read_u32_array(power_mgt,
-		"ibm,cpu-idle-state-residency-ns", residency_ns, dt_idle_states);
+	count = of_property_count_u32_elems(power_mgt,
+					    "ibm,cpu-idle-state-residency-ns");
+
+	if (count < 0) {
+		rc = count;
+	} else if (validate_dt_prop_sizes("ibm,cpu-idle-state-flags",
+					  dt_idle_states,
+					  "ibm,cpu-idle-state-residency-ns",
+					  count) != 0) {
+		goto out;
+	} else {
+		rc = of_property_read_u32_array(power_mgt,
+						"ibm,cpu-idle-state-residency-ns",
+						residency_ns, dt_idle_states);
+	}
 
 	for (i = 0; i < dt_idle_states; i++) {
 		unsigned int exit_latency, target_residency;

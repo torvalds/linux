@@ -357,7 +357,7 @@ static struct kmem_cache *ext4_free_data_cachep;
 #define NR_GRPINFO_CACHES 8
 static struct kmem_cache *ext4_groupinfo_caches[NR_GRPINFO_CACHES];
 
-static const char *ext4_groupinfo_slab_names[NR_GRPINFO_CACHES] = {
+static const char * const ext4_groupinfo_slab_names[NR_GRPINFO_CACHES] = {
 	"ext4_groupinfo_1k", "ext4_groupinfo_2k", "ext4_groupinfo_4k",
 	"ext4_groupinfo_8k", "ext4_groupinfo_16k", "ext4_groupinfo_32k",
 	"ext4_groupinfo_64k", "ext4_groupinfo_128k"
@@ -2393,7 +2393,7 @@ int ext4_mb_alloc_groupinfo(struct super_block *sb, ext4_group_t ngroups)
 		return 0;
 
 	size = roundup_pow_of_two(sizeof(*sbi->s_group_info) * size);
-	new_groupinfo = ext4_kvzalloc(size, GFP_KERNEL);
+	new_groupinfo = kvzalloc(size, GFP_KERNEL);
 	if (!new_groupinfo) {
 		ext4_msg(sb, KERN_ERR, "can't allocate buddy meta group");
 		return -ENOMEM;
@@ -5276,4 +5276,53 @@ int ext4_trim_fs(struct super_block *sb, struct fstrim_range *range)
 out:
 	range->len = EXT4_C2B(EXT4_SB(sb), trimmed) << sb->s_blocksize_bits;
 	return ret;
+}
+
+/* Iterate all the free extents in the group. */
+int
+ext4_mballoc_query_range(
+	struct super_block		*sb,
+	ext4_group_t			group,
+	ext4_grpblk_t			start,
+	ext4_grpblk_t			end,
+	ext4_mballoc_query_range_fn	formatter,
+	void				*priv)
+{
+	void				*bitmap;
+	ext4_grpblk_t			next;
+	struct ext4_buddy		e4b;
+	int				error;
+
+	error = ext4_mb_load_buddy(sb, group, &e4b);
+	if (error)
+		return error;
+	bitmap = e4b.bd_bitmap;
+
+	ext4_lock_group(sb, group);
+
+	start = (e4b.bd_info->bb_first_free > start) ?
+		e4b.bd_info->bb_first_free : start;
+	if (end >= EXT4_CLUSTERS_PER_GROUP(sb))
+		end = EXT4_CLUSTERS_PER_GROUP(sb) - 1;
+
+	while (start <= end) {
+		start = mb_find_next_zero_bit(bitmap, end + 1, start);
+		if (start > end)
+			break;
+		next = mb_find_next_bit(bitmap, end + 1, start);
+
+		ext4_unlock_group(sb, group);
+		error = formatter(sb, group, start, next - start, priv);
+		if (error)
+			goto out_unload;
+		ext4_lock_group(sb, group);
+
+		start = next + 1;
+	}
+
+	ext4_unlock_group(sb, group);
+out_unload:
+	ext4_mb_unload_buddy(&e4b);
+
+	return error;
 }

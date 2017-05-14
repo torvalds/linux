@@ -454,6 +454,12 @@ int ldlm_bl_to_thread_list(struct ldlm_namespace *ns, struct ldlm_lock_desc *ld,
 	return ldlm_bl_to_thread(ns, ld, NULL, cancels, count, cancel_flags);
 }
 
+int ldlm_bl_thread_wakeup(void)
+{
+	wake_up(&ldlm_state->ldlm_bl_pool->blp_waitq);
+	return 0;
+}
+
 /* Setinfo coming from Server (eg MDT) to Client (eg MDC)! */
 static int ldlm_handle_setinfo(struct ptlrpc_request *req)
 {
@@ -675,8 +681,11 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 	return 0;
 }
 
-static struct ldlm_bl_work_item *ldlm_bl_get_work(struct ldlm_bl_pool *blp)
+static int ldlm_bl_get_work(struct ldlm_bl_pool *blp,
+			    struct ldlm_bl_work_item **p_blwi,
+			    struct obd_export **p_exp)
 {
+	int num_th = atomic_read(&blp->blp_num_threads);
 	struct ldlm_bl_work_item *blwi = NULL;
 	static unsigned int num_bl;
 
@@ -693,18 +702,18 @@ static struct ldlm_bl_work_item *ldlm_bl_get_work(struct ldlm_bl_pool *blp)
 					  blwi_entry);
 
 	if (blwi) {
-		if (++num_bl >= atomic_read(&blp->blp_num_threads))
+		if (++num_bl >= num_th)
 			num_bl = 0;
 		list_del(&blwi->blwi_entry);
 	}
 	spin_unlock(&blp->blp_lock);
+	*p_blwi = blwi;
 
-	return blwi;
+	return (*p_blwi || *p_exp) ? 1 : 0;
 }
 
 /* This only contains temporary data until the thread starts */
 struct ldlm_bl_thread_data {
-	char			bltd_name[CFS_CURPROC_COMM_MAX];
 	struct ldlm_bl_pool	*bltd_blp;
 	struct completion	bltd_comp;
 	int			bltd_num;
@@ -712,22 +721,93 @@ struct ldlm_bl_thread_data {
 
 static int ldlm_bl_thread_main(void *arg);
 
-static int ldlm_bl_thread_start(struct ldlm_bl_pool *blp)
+static int ldlm_bl_thread_start(struct ldlm_bl_pool *blp, bool check_busy)
 {
 	struct ldlm_bl_thread_data bltd = { .bltd_blp = blp };
 	struct task_struct *task;
 
 	init_completion(&bltd.bltd_comp);
-	bltd.bltd_num = atomic_read(&blp->blp_num_threads);
-	snprintf(bltd.bltd_name, sizeof(bltd.bltd_name),
-		 "ldlm_bl_%02d", bltd.bltd_num);
-	task = kthread_run(ldlm_bl_thread_main, &bltd, "%s", bltd.bltd_name);
+
+	bltd.bltd_num = atomic_inc_return(&blp->blp_num_threads);
+	if (bltd.bltd_num >= blp->blp_max_threads) {
+		atomic_dec(&blp->blp_num_threads);
+		return 0;
+	}
+
+	LASSERTF(bltd.bltd_num > 0, "thread num:%d\n", bltd.bltd_num);
+	if (check_busy &&
+	    atomic_read(&blp->blp_busy_threads) < (bltd.bltd_num - 1)) {
+		atomic_dec(&blp->blp_num_threads);
+		return 0;
+	}
+
+	task = kthread_run(ldlm_bl_thread_main, &bltd, "ldlm_bl_%02d",
+			   bltd.bltd_num);
 	if (IS_ERR(task)) {
 		CERROR("cannot start LDLM thread ldlm_bl_%02d: rc %ld\n",
-		       atomic_read(&blp->blp_num_threads), PTR_ERR(task));
+		       bltd.bltd_num, PTR_ERR(task));
+		atomic_dec(&blp->blp_num_threads);
 		return PTR_ERR(task);
 	}
 	wait_for_completion(&bltd.bltd_comp);
+
+	return 0;
+}
+
+/* Not fatal if racy and have a few too many threads */
+static int ldlm_bl_thread_need_create(struct ldlm_bl_pool *blp,
+				      struct ldlm_bl_work_item *blwi)
+{
+	if (atomic_read(&blp->blp_num_threads) >= blp->blp_max_threads)
+		return 0;
+
+	if (atomic_read(&blp->blp_busy_threads) <
+	    atomic_read(&blp->blp_num_threads))
+		return 0;
+
+	if (blwi && (!blwi->blwi_ns || blwi->blwi_mem_pressure))
+		return 0;
+
+	return 1;
+}
+
+static int ldlm_bl_thread_blwi(struct ldlm_bl_pool *blp,
+			       struct ldlm_bl_work_item *blwi)
+{
+	if (!blwi->blwi_ns)
+		/* added by ldlm_cleanup() */
+		return LDLM_ITER_STOP;
+
+	if (blwi->blwi_mem_pressure)
+		memory_pressure_set();
+
+	OBD_FAIL_TIMEOUT(OBD_FAIL_LDLM_PAUSE_CANCEL2, 4);
+
+	if (blwi->blwi_count) {
+		int count;
+
+		/*
+		 * The special case when we cancel locks in lru
+		 * asynchronously, we pass the list of locks here.
+		 * Thus locks are marked LDLM_FL_CANCELING, but NOT
+		 * canceled locally yet.
+		 */
+		count = ldlm_cli_cancel_list_local(&blwi->blwi_head,
+						   blwi->blwi_count,
+						   LCF_BL_AST);
+		ldlm_cli_cancel_list(&blwi->blwi_head, count, NULL,
+				     blwi->blwi_flags);
+	} else {
+		ldlm_handle_bl_callback(blwi->blwi_ns, &blwi->blwi_ld,
+					blwi->blwi_lock);
+	}
+	if (blwi->blwi_mem_pressure)
+		memory_pressure_clr();
+
+	if (blwi->blwi_flags & LCF_ASYNC)
+		kfree(blwi);
+	else
+		complete(&blwi->blwi_comp);
 
 	return 0;
 }
@@ -742,76 +822,40 @@ static int ldlm_bl_thread_start(struct ldlm_bl_pool *blp)
 static int ldlm_bl_thread_main(void *arg)
 {
 	struct ldlm_bl_pool *blp;
+	struct ldlm_bl_thread_data *bltd = arg;
 
-	{
-		struct ldlm_bl_thread_data *bltd = arg;
+	blp = bltd->bltd_blp;
 
-		blp = bltd->bltd_blp;
-
-		atomic_inc(&blp->blp_num_threads);
-		atomic_inc(&blp->blp_busy_threads);
-
-		complete(&bltd->bltd_comp);
-		/* cannot use bltd after this, it is only on caller's stack */
-	}
+	complete(&bltd->bltd_comp);
+	/* cannot use bltd after this, it is only on caller's stack */
 
 	while (1) {
 		struct l_wait_info lwi = { 0 };
 		struct ldlm_bl_work_item *blwi = NULL;
-		int busy;
+		struct obd_export *exp = NULL;
+		int rc;
 
-		blwi = ldlm_bl_get_work(blp);
-
-		if (!blwi) {
-			atomic_dec(&blp->blp_busy_threads);
+		rc = ldlm_bl_get_work(blp, &blwi, &exp);
+		if (!rc)
 			l_wait_event_exclusive(blp->blp_waitq,
-					       (blwi = ldlm_bl_get_work(blp)),
+					       ldlm_bl_get_work(blp, &blwi,
+								&exp),
 					       &lwi);
-			busy = atomic_inc_return(&blp->blp_busy_threads);
-		} else {
-			busy = atomic_read(&blp->blp_busy_threads);
-		}
+		atomic_inc(&blp->blp_busy_threads);
 
-		if (!blwi->blwi_ns)
-			/* added by ldlm_cleanup() */
-			break;
-
-		/* Not fatal if racy and have a few too many threads */
-		if (unlikely(busy < blp->blp_max_threads &&
-			     busy >= atomic_read(&blp->blp_num_threads) &&
-			     !blwi->blwi_mem_pressure))
+		if (ldlm_bl_thread_need_create(blp, blwi))
 			/* discard the return value, we tried */
-			ldlm_bl_thread_start(blp);
+			ldlm_bl_thread_start(blp, true);
 
-		if (blwi->blwi_mem_pressure)
-			memory_pressure_set();
+		if (blwi)
+			rc = ldlm_bl_thread_blwi(blp, blwi);
 
-		if (blwi->blwi_count) {
-			int count;
-			/* The special case when we cancel locks in LRU
-			 * asynchronously, we pass the list of locks here.
-			 * Thus locks are marked LDLM_FL_CANCELING, but NOT
-			 * canceled locally yet.
-			 */
-			count = ldlm_cli_cancel_list_local(&blwi->blwi_head,
-							   blwi->blwi_count,
-							   LCF_BL_AST);
-			ldlm_cli_cancel_list(&blwi->blwi_head, count, NULL,
-					     blwi->blwi_flags);
-		} else {
-			ldlm_handle_bl_callback(blwi->blwi_ns, &blwi->blwi_ld,
-						blwi->blwi_lock);
-		}
-		if (blwi->blwi_mem_pressure)
-			memory_pressure_clr();
+		atomic_dec(&blp->blp_busy_threads);
 
-		if (blwi->blwi_flags & LCF_ASYNC)
-			kfree(blwi);
-		else
-			complete(&blwi->blwi_comp);
+		if (rc == LDLM_ITER_STOP)
+			break;
 	}
 
-	atomic_dec(&blp->blp_busy_threads);
 	atomic_dec(&blp->blp_num_threads);
 	complete(&blp->blp_comp);
 	return 0;
@@ -991,7 +1035,7 @@ static int ldlm_setup(void)
 	}
 
 	for (i = 0; i < blp->blp_min_threads; i++) {
-		rc = ldlm_bl_thread_start(blp);
+		rc = ldlm_bl_thread_start(blp, false);
 		if (rc < 0)
 			goto out;
 	}
@@ -1071,7 +1115,7 @@ int ldlm_init(void)
 	ldlm_lock_slab = kmem_cache_create("ldlm_locks",
 					   sizeof(struct ldlm_lock), 0,
 					   SLAB_HWCACHE_ALIGN |
-					   SLAB_DESTROY_BY_RCU, NULL);
+					   SLAB_TYPESAFE_BY_RCU, NULL);
 	if (!ldlm_lock_slab) {
 		kmem_cache_destroy(ldlm_resource_slab);
 		return -ENOMEM;

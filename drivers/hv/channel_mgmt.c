@@ -1080,30 +1080,30 @@ static void vmbus_onversion_response(
 }
 
 /* Channel message dispatch table */
-struct vmbus_channel_message_table_entry
-	channel_message_table[CHANNELMSG_COUNT] = {
-	{CHANNELMSG_INVALID,			0, NULL},
-	{CHANNELMSG_OFFERCHANNEL,		0, vmbus_onoffer},
-	{CHANNELMSG_RESCIND_CHANNELOFFER,	0, vmbus_onoffer_rescind},
-	{CHANNELMSG_REQUESTOFFERS,		0, NULL},
-	{CHANNELMSG_ALLOFFERS_DELIVERED,	1, vmbus_onoffers_delivered},
-	{CHANNELMSG_OPENCHANNEL,		0, NULL},
-	{CHANNELMSG_OPENCHANNEL_RESULT,		1, vmbus_onopen_result},
-	{CHANNELMSG_CLOSECHANNEL,		0, NULL},
-	{CHANNELMSG_GPADL_HEADER,		0, NULL},
-	{CHANNELMSG_GPADL_BODY,			0, NULL},
-	{CHANNELMSG_GPADL_CREATED,		1, vmbus_ongpadl_created},
-	{CHANNELMSG_GPADL_TEARDOWN,		0, NULL},
-	{CHANNELMSG_GPADL_TORNDOWN,		1, vmbus_ongpadl_torndown},
-	{CHANNELMSG_RELID_RELEASED,		0, NULL},
-	{CHANNELMSG_INITIATE_CONTACT,		0, NULL},
-	{CHANNELMSG_VERSION_RESPONSE,		1, vmbus_onversion_response},
-	{CHANNELMSG_UNLOAD,			0, NULL},
-	{CHANNELMSG_UNLOAD_RESPONSE,		1, vmbus_unload_response},
-	{CHANNELMSG_18,				0, NULL},
-	{CHANNELMSG_19,				0, NULL},
-	{CHANNELMSG_20,				0, NULL},
-	{CHANNELMSG_TL_CONNECT_REQUEST,		0, NULL},
+const struct vmbus_channel_message_table_entry
+channel_message_table[CHANNELMSG_COUNT] = {
+	{ CHANNELMSG_INVALID,			0, NULL },
+	{ CHANNELMSG_OFFERCHANNEL,		0, vmbus_onoffer },
+	{ CHANNELMSG_RESCIND_CHANNELOFFER,	0, vmbus_onoffer_rescind },
+	{ CHANNELMSG_REQUESTOFFERS,		0, NULL },
+	{ CHANNELMSG_ALLOFFERS_DELIVERED,	1, vmbus_onoffers_delivered },
+	{ CHANNELMSG_OPENCHANNEL,		0, NULL },
+	{ CHANNELMSG_OPENCHANNEL_RESULT,	1, vmbus_onopen_result },
+	{ CHANNELMSG_CLOSECHANNEL,		0, NULL },
+	{ CHANNELMSG_GPADL_HEADER,		0, NULL },
+	{ CHANNELMSG_GPADL_BODY,		0, NULL },
+	{ CHANNELMSG_GPADL_CREATED,		1, vmbus_ongpadl_created },
+	{ CHANNELMSG_GPADL_TEARDOWN,		0, NULL },
+	{ CHANNELMSG_GPADL_TORNDOWN,		1, vmbus_ongpadl_torndown },
+	{ CHANNELMSG_RELID_RELEASED,		0, NULL },
+	{ CHANNELMSG_INITIATE_CONTACT,		0, NULL },
+	{ CHANNELMSG_VERSION_RESPONSE,		1, vmbus_onversion_response },
+	{ CHANNELMSG_UNLOAD,			0, NULL },
+	{ CHANNELMSG_UNLOAD_RESPONSE,		1, vmbus_unload_response },
+	{ CHANNELMSG_18,			0, NULL },
+	{ CHANNELMSG_19,			0, NULL },
+	{ CHANNELMSG_20,			0, NULL },
+	{ CHANNELMSG_TL_CONNECT_REQUEST,	0, NULL },
 };
 
 /*

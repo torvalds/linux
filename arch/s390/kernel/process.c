@@ -73,8 +73,10 @@ extern void kernel_thread_starter(void);
  */
 void exit_thread(struct task_struct *tsk)
 {
-	if (tsk == current)
+	if (tsk == current) {
 		exit_thread_runtime_instr();
+		exit_thread_gs();
+	}
 }
 
 void flush_thread(void)
@@ -159,6 +161,9 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long new_stackp,
 	/* Don't copy runtime instrumentation info */
 	p->thread.ri_cb = NULL;
 	frame->childregs.psw.mask &= ~PSW_MASK_RI;
+	/* Don't copy guarded storage control block */
+	p->thread.gs_cb = NULL;
+	p->thread.gs_bc_cb = NULL;
 
 	/* Set a new TLS ?  */
 	if (clone_flags & CLONE_SETTLS) {
