@@ -1625,15 +1625,18 @@ SYSCALL_DEFINE5(waitid, int, which, pid_t, upid, struct siginfo __user *,
 	if (!infop)
 		return err;
 
-	if (put_user(err ? 0 : SIGCHLD, &infop->si_signo) ||
-	    put_user(0, &infop->si_errno) ||
-	    put_user((short)info.cause, &infop->si_code) ||
-	    put_user(info.pid, &infop->si_pid) ||
-	    put_user(info.uid, &infop->si_uid) ||
-	    put_user(info.status, &infop->si_status))
-		err = -EFAULT;
-
+	user_access_begin();
+	unsafe_put_user(err ? 0 : SIGCHLD, &infop->si_signo, Efault);
+	unsafe_put_user(0, &infop->si_errno, Efault);
+	unsafe_put_user((short)info.cause, &infop->si_code, Efault);
+	unsafe_put_user(info.pid, &infop->si_pid, Efault);
+	unsafe_put_user(info.uid, &infop->si_uid, Efault);
+	unsafe_put_user(info.status, &infop->si_status, Efault);
+	user_access_end();
 	return err;
+Efault:
+	user_access_end();
+	return -EFAULT;
 }
 
 static long kernel_wait4(pid_t upid, int __user *stat_addr,
@@ -1736,13 +1739,20 @@ COMPAT_SYSCALL_DEFINE5(waitid,
 			return -EFAULT;
 	}
 
-	if (put_user(err ? 0 : SIGCHLD, &infop->si_signo) ||
-	    put_user(0, &infop->si_errno) ||
-	    put_user((short)info.cause, &infop->si_code) ||
-	    put_user(info.pid, &infop->si_pid) ||
-	    put_user(info.uid, &infop->si_uid) ||
-	    put_user(info.status, &infop->si_status))
-		err = -EFAULT;
+	if (!infop)
+		return err;
+
+	user_access_begin();
+	unsafe_put_user(err ? 0 : SIGCHLD, &infop->si_signo, Efault);
+	unsafe_put_user(0, &infop->si_errno, Efault);
+	unsafe_put_user((short)info.cause, &infop->si_code, Efault);
+	unsafe_put_user(info.pid, &infop->si_pid, Efault);
+	unsafe_put_user(info.uid, &infop->si_uid, Efault);
+	unsafe_put_user(info.status, &infop->si_status, Efault);
+	user_access_end();
 	return err;
+Efault:
+	user_access_end();
+	return -EFAULT;
 }
 #endif
