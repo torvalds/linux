@@ -11,11 +11,11 @@
 #define CPG_AUDIO_CLK_I		R8A7795_CLK_S0D4
 
 /dts-v1/;
-#include "r8a7795.dtsi"
+#include "r8a7795-es1.dtsi"
 #include "salvator-x.dtsi"
 
 / {
-	model = "Renesas Salvator-X board based on r8a7795 ES2.0+";
+	model = "Renesas Salvator-X board based on r8a7795 ES1.x";
 	compatible = "renesas,salvator-x", "renesas,r8a7795";
 
 	memory@48000000 {
