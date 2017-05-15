@@ -2700,6 +2700,7 @@ struct bio *btrfs_bio_clone(struct bio *bio, gfp_t gfp_mask)
 		btrfs_bio->csum = NULL;
 		btrfs_bio->csum_allocated = NULL;
 		btrfs_bio->end_io = NULL;
+		btrfs_bio->iter = bio->bi_iter;
 	}
 	return new;
 }
@@ -2736,6 +2737,7 @@ struct bio *btrfs_bio_clone_partial(struct bio *orig, gfp_t gfp_mask,
 	btrfs_bio->end_io = NULL;
 
 	bio_trim(bio, offset >> 9, size >> 9);
+	btrfs_bio->iter = bio->bi_iter;
 	return bio;
 }
 
