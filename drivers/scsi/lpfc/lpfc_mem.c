@@ -629,8 +629,6 @@ struct rqb_dmabuf *
 lpfc_sli4_nvmet_alloc(struct lpfc_hba *phba)
 {
 	struct rqb_dmabuf *dma_buf;
-	struct lpfc_iocbq *nvmewqe;
-	union lpfc_wqe128 *wqe;
 
 	dma_buf = kzalloc(sizeof(struct rqb_dmabuf), GFP_KERNEL);
 	if (!dma_buf)
@@ -651,60 +649,6 @@ lpfc_sli4_nvmet_alloc(struct lpfc_hba *phba)
 		return NULL;
 	}
 	dma_buf->total_size = LPFC_NVMET_DATA_BUF_SIZE;
-
-	dma_buf->context = kzalloc(sizeof(struct lpfc_nvmet_rcv_ctx),
-				   GFP_KERNEL);
-	if (!dma_buf->context) {
-		pci_pool_free(phba->lpfc_nvmet_drb_pool, dma_buf->dbuf.virt,
-			      dma_buf->dbuf.phys);
-		pci_pool_free(phba->lpfc_hrb_pool, dma_buf->hbuf.virt,
-			      dma_buf->hbuf.phys);
-		kfree(dma_buf);
-		return NULL;
-	}
-
-	dma_buf->iocbq = lpfc_sli_get_iocbq(phba);
-	if (!dma_buf->iocbq) {
-		kfree(dma_buf->context);
-		pci_pool_free(phba->lpfc_nvmet_drb_pool, dma_buf->dbuf.virt,
-			      dma_buf->dbuf.phys);
-		pci_pool_free(phba->lpfc_hrb_pool, dma_buf->hbuf.virt,
-			      dma_buf->hbuf.phys);
-		kfree(dma_buf);
-		lpfc_printf_log(phba, KERN_ERR, LOG_NVME,
-				"2621 Ran out of nvmet iocb/WQEs\n");
-		return NULL;
-	}
-	dma_buf->iocbq->iocb_flag = LPFC_IO_NVMET;
-	nvmewqe = dma_buf->iocbq;
-	wqe = (union lpfc_wqe128 *)&nvmewqe->wqe;
-	/* Initialize WQE */
-	memset(wqe, 0, sizeof(union lpfc_wqe));
-	/* Word 7 */
-	bf_set(wqe_ct, &wqe->generic.wqe_com, SLI4_CT_RPI);
-	bf_set(wqe_class, &wqe->generic.wqe_com, CLASS3);
-	bf_set(wqe_pu, &wqe->generic.wqe_com, 1);
-	/* Word 10 */
-	bf_set(wqe_nvme, &wqe->fcp_tsend.wqe_com, 1);
-	bf_set(wqe_ebde_cnt, &wqe->generic.wqe_com, 0);
-	bf_set(wqe_qosd, &wqe->generic.wqe_com, 0);
-
-	dma_buf->iocbq->context1 = NULL;
-	spin_lock(&phba->sli4_hba.sgl_list_lock);
-	dma_buf->sglq = __lpfc_sli_get_nvmet_sglq(phba, dma_buf->iocbq);
-	spin_unlock(&phba->sli4_hba.sgl_list_lock);
-	if (!dma_buf->sglq) {
-		lpfc_sli_release_iocbq(phba, dma_buf->iocbq);
-		kfree(dma_buf->context);
-		pci_pool_free(phba->lpfc_nvmet_drb_pool, dma_buf->dbuf.virt,
-			      dma_buf->dbuf.phys);
-		pci_pool_free(phba->lpfc_hrb_pool, dma_buf->hbuf.virt,
-			      dma_buf->hbuf.phys);
-		kfree(dma_buf);
-		lpfc_printf_log(phba, KERN_ERR, LOG_NVME,
-				"6132 Ran out of nvmet XRIs\n");
-		return NULL;
-	}
 	return dma_buf;
 }
 
@@ -723,18 +667,6 @@ lpfc_sli4_nvmet_alloc(struct lpfc_hba *phba)
 void
 lpfc_sli4_nvmet_free(struct lpfc_hba *phba, struct rqb_dmabuf *dmab)
 {
-	unsigned long flags;
-
-	__lpfc_clear_active_sglq(phba, dmab->sglq->sli4_lxritag);
-	dmab->sglq->state = SGL_FREED;
-	dmab->sglq->ndlp = NULL;
-
-	spin_lock_irqsave(&phba->sli4_hba.sgl_list_lock, flags);
-	list_add_tail(&dmab->sglq->list, &phba->sli4_hba.lpfc_nvmet_sgl_list);
-	spin_unlock_irqrestore(&phba->sli4_hba.sgl_list_lock, flags);
-
-	lpfc_sli_release_iocbq(phba, dmab->iocbq);
-	kfree(dmab->context);
 	pci_pool_free(phba->lpfc_hrb_pool, dmab->hbuf.virt, dmab->hbuf.phys);
 	pci_pool_free(phba->lpfc_nvmet_drb_pool,
 		      dmab->dbuf.virt, dmab->dbuf.phys);
@@ -822,6 +754,11 @@ lpfc_rq_buf_free(struct lpfc_hba *phba, struct lpfc_dmabuf *mp)
 	rc = lpfc_sli4_rq_put(rqb_entry->hrq, rqb_entry->drq, &hrqe, &drqe);
 	if (rc < 0) {
 		(rqbp->rqb_free_buffer)(phba, rqb_entry);
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"6409 Cannot post to RQ %d: %x %x\n",
+				rqb_entry->hrq->queue_id,
+				rqb_entry->hrq->host_index,
+				rqb_entry->hrq->hba_index);
 	} else {
 		list_add_tail(&rqb_entry->hbuf.list, &rqbp->rqb_buffer_list);
 		rqbp->buffer_count++;

@@ -1099,7 +1099,7 @@ lpfc_hba_down_post_s4(struct lpfc_hba *phba)
 
 		list_for_each_entry_safe(ctxp, ctxp_next, &nvmet_aborts, list) {
 			ctxp->flag &= ~(LPFC_NVMET_XBUSY | LPFC_NVMET_ABORT_OP);
-			lpfc_nvmet_rq_post(phba, ctxp, &ctxp->rqb_buffer->hbuf);
+			lpfc_nvmet_ctxbuf_post(phba, ctxp->ctxbuf);
 		}
 	}
 
@@ -3381,7 +3381,7 @@ lpfc_sli4_nvmet_sgl_update(struct lpfc_hba *phba)
 {
 	struct lpfc_sglq *sglq_entry = NULL, *sglq_entry_next = NULL;
 	uint16_t i, lxri, xri_cnt, els_xri_cnt;
-	uint16_t nvmet_xri_cnt, tot_cnt;
+	uint16_t nvmet_xri_cnt;
 	LIST_HEAD(nvmet_sgl_list);
 	int rc;
 
@@ -3389,20 +3389,9 @@ lpfc_sli4_nvmet_sgl_update(struct lpfc_hba *phba)
 	 * update on pci function's nvmet xri-sgl list
 	 */
 	els_xri_cnt = lpfc_sli4_get_els_iocb_cnt(phba);
-	nvmet_xri_cnt = phba->cfg_nvmet_mrq * phba->cfg_nvmet_mrq_post;
 
-	/* Ensure we at least meet the minimun for the system */
-	if (nvmet_xri_cnt < LPFC_NVMET_RQE_DEF_COUNT)
-		nvmet_xri_cnt = LPFC_NVMET_RQE_DEF_COUNT;
-
-	tot_cnt = phba->sli4_hba.max_cfg_param.max_xri - els_xri_cnt;
-	if (nvmet_xri_cnt > tot_cnt) {
-		phba->cfg_nvmet_mrq_post = tot_cnt / phba->cfg_nvmet_mrq;
-		nvmet_xri_cnt = phba->cfg_nvmet_mrq * phba->cfg_nvmet_mrq_post;
-		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
-				"6301 NVMET post-sgl count changed to %d\n",
-				phba->cfg_nvmet_mrq_post);
-	}
+	/* For NVMET, ALL remaining XRIs are dedicated for IO processing */
+	nvmet_xri_cnt = phba->sli4_hba.max_cfg_param.max_xri - els_xri_cnt;
 
 	if (nvmet_xri_cnt > phba->sli4_hba.nvmet_xri_cnt) {
 		/* els xri-sgl expanded */
@@ -5835,6 +5824,8 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		spin_lock_init(&phba->sli4_hba.abts_nvme_buf_list_lock);
 		INIT_LIST_HEAD(&phba->sli4_hba.lpfc_abts_nvme_buf_list);
 		INIT_LIST_HEAD(&phba->sli4_hba.lpfc_abts_nvmet_ctx_list);
+		INIT_LIST_HEAD(&phba->sli4_hba.lpfc_nvmet_ctx_list);
+
 		/* Fast-path XRI aborted CQ Event work queue list */
 		INIT_LIST_HEAD(&phba->sli4_hba.sp_nvme_xri_aborted_work_queue);
 	}
@@ -6279,7 +6270,7 @@ lpfc_unset_driver_resource_phase2(struct lpfc_hba *phba)
  *
  * This routine is invoked to free the driver's IOCB list and memory.
  **/
-static void
+void
 lpfc_free_iocb_list(struct lpfc_hba *phba)
 {
 	struct lpfc_iocbq *iocbq_entry = NULL, *iocbq_next = NULL;
@@ -6307,7 +6298,7 @@ lpfc_free_iocb_list(struct lpfc_hba *phba)
  *	0 - successful
  *	other values - error
  **/
-static int
+int
 lpfc_init_iocb_list(struct lpfc_hba *phba, int iocb_count)
 {
 	struct lpfc_iocbq *iocbq_entry = NULL;
@@ -8319,46 +8310,6 @@ lpfc_sli4_queue_destroy(struct lpfc_hba *phba)
 
 	/* Everything on this list has been freed */
 	INIT_LIST_HEAD(&phba->sli4_hba.lpfc_wq_list);
-}
-
-int
-lpfc_post_rq_buffer(struct lpfc_hba *phba, struct lpfc_queue *hrq,
-		    struct lpfc_queue *drq, int count)
-{
-	int rc, i;
-	struct lpfc_rqe hrqe;
-	struct lpfc_rqe drqe;
-	struct lpfc_rqb *rqbp;
-	struct rqb_dmabuf *rqb_buffer;
-	LIST_HEAD(rqb_buf_list);
-
-	rqbp = hrq->rqbp;
-	for (i = 0; i < count; i++) {
-		rqb_buffer = (rqbp->rqb_alloc_buffer)(phba);
-		if (!rqb_buffer)
-			break;
-		rqb_buffer->hrq = hrq;
-		rqb_buffer->drq = drq;
-		list_add_tail(&rqb_buffer->hbuf.list, &rqb_buf_list);
-	}
-	while (!list_empty(&rqb_buf_list)) {
-		list_remove_head(&rqb_buf_list, rqb_buffer, struct rqb_dmabuf,
-				 hbuf.list);
-
-		hrqe.address_lo = putPaddrLow(rqb_buffer->hbuf.phys);
-		hrqe.address_hi = putPaddrHigh(rqb_buffer->hbuf.phys);
-		drqe.address_lo = putPaddrLow(rqb_buffer->dbuf.phys);
-		drqe.address_hi = putPaddrHigh(rqb_buffer->dbuf.phys);
-		rc = lpfc_sli4_rq_put(hrq, drq, &hrqe, &drqe);
-		if (rc < 0) {
-			(rqbp->rqb_free_buffer)(phba, rqb_buffer);
-		} else {
-			list_add_tail(&rqb_buffer->hbuf.list,
-				      &rqbp->rqb_buffer_list);
-			rqbp->buffer_count++;
-		}
-	}
-	return 1;
 }
 
 int
@@ -11103,7 +11054,7 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	struct lpfc_hba   *phba;
 	struct lpfc_vport *vport = NULL;
 	struct Scsi_Host  *shost = NULL;
-	int error, cnt, num;
+	int error;
 	uint32_t cfg_mode, intr_mode;
 
 	/* Allocate memory for HBA structure */
@@ -11137,27 +11088,6 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 		goto out_unset_pci_mem_s4;
 	}
 
-	cnt = phba->cfg_iocb_cnt * 1024;
-	if (phba->nvmet_support) {
-		/* Ensure we at least meet the minimun for the system */
-		num = (phba->cfg_nvmet_mrq_post * phba->cfg_nvmet_mrq);
-		if (num < LPFC_NVMET_RQE_DEF_COUNT)
-			num = LPFC_NVMET_RQE_DEF_COUNT;
-		cnt += num;
-	}
-
-	/* Initialize and populate the iocb list per host */
-	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-			"2821 initialize iocb list %d total %d\n",
-			phba->cfg_iocb_cnt, cnt);
-	error = lpfc_init_iocb_list(phba, cnt);
-
-	if (error) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"1413 Failed to initialize iocb list.\n");
-		goto out_unset_driver_resource_s4;
-	}
-
 	INIT_LIST_HEAD(&phba->active_rrq_list);
 	INIT_LIST_HEAD(&phba->fcf.fcf_pri_list);
 
@@ -11166,7 +11096,7 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	if (error) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"1414 Failed to set up driver resource.\n");
-		goto out_free_iocb_list;
+		goto out_unset_driver_resource_s4;
 	}
 
 	/* Get the default values for Model Name and Description */
@@ -11266,8 +11196,6 @@ out_destroy_shost:
 	lpfc_destroy_shost(phba);
 out_unset_driver_resource:
 	lpfc_unset_driver_resource_phase2(phba);
-out_free_iocb_list:
-	lpfc_free_iocb_list(phba);
 out_unset_driver_resource_s4:
 	lpfc_sli4_driver_resource_unset(phba);
 out_unset_pci_mem_s4:

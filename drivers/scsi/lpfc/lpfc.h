@@ -141,6 +141,13 @@ struct lpfc_dmabuf {
 	uint32_t   buffer_tag;	/* used for tagged queue ring */
 };
 
+struct lpfc_nvmet_ctxbuf {
+	struct list_head list;
+	struct lpfc_nvmet_rcv_ctx *context;
+	struct lpfc_iocbq *iocbq;
+	struct lpfc_sglq *sglq;
+};
+
 struct lpfc_dma_pool {
 	struct lpfc_dmabuf   *elements;
 	uint32_t    max_count;
@@ -163,9 +170,6 @@ struct rqb_dmabuf {
 	struct lpfc_dmabuf dbuf;
 	uint16_t total_size;
 	uint16_t bytes_recv;
-	void *context;
-	struct lpfc_iocbq *iocbq;
-	struct lpfc_sglq *sglq;
 	struct lpfc_queue *hrq;	  /* ptr to associated Header RQ */
 	struct lpfc_queue *drq;	  /* ptr to associated Data RQ */
 };
@@ -777,7 +781,6 @@ struct lpfc_hba {
 	uint32_t cfg_nvme_oas;
 	uint32_t cfg_nvme_io_channel;
 	uint32_t cfg_nvmet_mrq;
-	uint32_t cfg_nvmet_mrq_post;
 	uint32_t cfg_enable_nvmet;
 	uint32_t cfg_nvme_enable_fb;
 	uint32_t cfg_nvmet_fb_size;

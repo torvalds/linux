@@ -6513,6 +6513,49 @@ lpfc_set_host_data(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 		 (phba->hba_flag & HBA_FCOE_MODE) ? "FCoE" : "FC");
 }
 
+static int
+lpfc_post_rq_buffer(struct lpfc_hba *phba, struct lpfc_queue *hrq,
+		    struct lpfc_queue *drq, int count)
+{
+	int rc, i;
+	struct lpfc_rqe hrqe;
+	struct lpfc_rqe drqe;
+	struct lpfc_rqb *rqbp;
+	struct rqb_dmabuf *rqb_buffer;
+	LIST_HEAD(rqb_buf_list);
+
+	rqbp = hrq->rqbp;
+	for (i = 0; i < count; i++) {
+		/* IF RQ is already full, don't bother */
+		if (rqbp->buffer_count + i >= rqbp->entry_count - 1)
+			break;
+		rqb_buffer = rqbp->rqb_alloc_buffer(phba);
+		if (!rqb_buffer)
+			break;
+		rqb_buffer->hrq = hrq;
+		rqb_buffer->drq = drq;
+		list_add_tail(&rqb_buffer->hbuf.list, &rqb_buf_list);
+	}
+	while (!list_empty(&rqb_buf_list)) {
+		list_remove_head(&rqb_buf_list, rqb_buffer, struct rqb_dmabuf,
+				 hbuf.list);
+
+		hrqe.address_lo = putPaddrLow(rqb_buffer->hbuf.phys);
+		hrqe.address_hi = putPaddrHigh(rqb_buffer->hbuf.phys);
+		drqe.address_lo = putPaddrLow(rqb_buffer->dbuf.phys);
+		drqe.address_hi = putPaddrHigh(rqb_buffer->dbuf.phys);
+		rc = lpfc_sli4_rq_put(hrq, drq, &hrqe, &drqe);
+		if (rc < 0) {
+			rqbp->rqb_free_buffer(phba, rqb_buffer);
+		} else {
+			list_add_tail(&rqb_buffer->hbuf.list,
+				      &rqbp->rqb_buffer_list);
+			rqbp->buffer_count++;
+		}
+	}
+	return 1;
+}
+
 /**
  * lpfc_sli4_hba_setup - SLI4 device initialization PCI function
  * @phba: Pointer to HBA context object.
@@ -6525,7 +6568,7 @@ lpfc_set_host_data(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 int
 lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 {
-	int rc, i;
+	int rc, i, cnt;
 	LPFC_MBOXQ_t *mboxq;
 	struct lpfc_mqe *mqe;
 	uint8_t *vpd;
@@ -6876,6 +6919,21 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 			goto out_destroy_queue;
 		}
 		phba->sli4_hba.nvmet_xri_cnt = rc;
+
+		cnt = phba->cfg_iocb_cnt * 1024;
+		/* We need 1 iocbq for every SGL, for IO processing */
+		cnt += phba->sli4_hba.nvmet_xri_cnt;
+		/* Initialize and populate the iocb list per host */
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+				"2821 initialize iocb list %d total %d\n",
+				phba->cfg_iocb_cnt, cnt);
+		rc = lpfc_init_iocb_list(phba, cnt);
+		if (rc) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"1413 Failed to init iocb list.\n");
+			goto out_destroy_queue;
+		}
+
 		lpfc_nvmet_create_targetport(phba);
 	} else {
 		/* update host scsi xri-sgl sizes and mappings */
@@ -6895,10 +6953,21 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 					"and mapping: %d\n", rc);
 			goto out_destroy_queue;
 		}
+
+		cnt = phba->cfg_iocb_cnt * 1024;
+		/* Initialize and populate the iocb list per host */
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+				"2820 initialize iocb list %d total %d\n",
+				phba->cfg_iocb_cnt, cnt);
+		rc = lpfc_init_iocb_list(phba, cnt);
+		if (rc) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"6301 Failed to init iocb list.\n");
+			goto out_destroy_queue;
+		}
 	}
 
 	if (phba->nvmet_support && phba->cfg_nvmet_mrq) {
-
 		/* Post initial buffers to all RQs created */
 		for (i = 0; i < phba->cfg_nvmet_mrq; i++) {
 			rqbp = phba->sli4_hba.nvmet_mrq_hdr[i]->rqbp;
@@ -6911,7 +6980,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 			lpfc_post_rq_buffer(
 				phba, phba->sli4_hba.nvmet_mrq_hdr[i],
 				phba->sli4_hba.nvmet_mrq_data[i],
-				phba->cfg_nvmet_mrq_post);
+				LPFC_NVMET_RQE_DEF_COUNT);
 		}
 	}
 
@@ -7078,6 +7147,7 @@ out_unset_queue:
 	/* Unset all the queues set up in this routine when error out */
 	lpfc_sli4_queue_unset(phba);
 out_destroy_queue:
+	lpfc_free_iocb_list(phba);
 	lpfc_sli4_queue_destroy(phba);
 out_stop_timers:
 	lpfc_stop_hba_timers(phba);
@@ -18731,7 +18801,7 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, uint32_t ring_number,
 
 		spin_lock_irqsave(&pring->ring_lock, iflags);
 		ctxp = pwqe->context2;
-		sglq = ctxp->rqb_buffer->sglq;
+		sglq = ctxp->ctxbuf->sglq;
 		if (pwqe->sli4_xritag ==  NO_XRI) {
 			pwqe->sli4_lxritag = sglq->sli4_lxritag;
 			pwqe->sli4_xritag = sglq->sli4_xritag;

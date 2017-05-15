@@ -618,10 +618,12 @@ struct lpfc_sli4_hba {
 	uint16_t scsi_xri_start;
 	uint16_t els_xri_cnt;
 	uint16_t nvmet_xri_cnt;
+	uint16_t nvmet_ctx_cnt;
 	struct list_head lpfc_els_sgl_list;
 	struct list_head lpfc_abts_els_sgl_list;
 	struct list_head lpfc_nvmet_sgl_list;
 	struct list_head lpfc_abts_nvmet_ctx_list;
+	struct list_head lpfc_nvmet_ctx_list;
 	struct list_head lpfc_abts_scsi_buf_list;
 	struct list_head lpfc_abts_nvme_buf_list;
 	struct lpfc_sglq **lpfc_sglq_active_list;
@@ -662,8 +664,6 @@ struct lpfc_sli4_hba {
 	uint16_t num_online_cpu;
 	uint16_t num_present_cpu;
 	uint16_t curr_disp_cpu;
-
-	uint16_t nvmet_mrq_post_idx;
 };
 
 enum lpfc_sge_type {

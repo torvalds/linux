@@ -106,6 +106,7 @@ struct lpfc_nvmet_rcv_ctx {
 #define LPFC_NVMET_CTX_RLS		0x8  /* ctx free requested */
 #define LPFC_NVMET_ABTS_RCV		0x10  /* ABTS received on exchange */
 	struct rqb_dmabuf *rqb_buffer;
+	struct lpfc_nvmet_ctxbuf *ctxbuf;
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	uint64_t ts_isr_cmd;
