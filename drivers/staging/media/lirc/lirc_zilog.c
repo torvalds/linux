@@ -545,9 +545,9 @@ static int get_key_data(unsigned char *buf,
 		if (!read_uint32(&data, tx_data->endp, &i))
 			goto corrupt;
 
-		if (i == codeset)
+		if (i == codeset) {
 			break;
-		else if (codeset > i) {
+		} else if (codeset > i) {
 			base = pos + 1;
 			--lim;
 		}
@@ -981,8 +981,9 @@ static int send_code(struct IR_tx *tx, unsigned int code, unsigned int key)
 			"failed to get data for code %u, key %u -- check lircd.conf entries\n",
 			code, key);
 		return ret;
-	} else if (ret != 0)
+	} else if (ret != 0) {
 		return ret;
+	}
 
 	/* Send the data block */
 	ret = send_data_block(tx, data_block);
@@ -1179,8 +1180,9 @@ static ssize_t write(struct file *filep, const char __user *buf, size_t n,
 			schedule_timeout((100 * HZ + 999) / 1000);
 			tx->need_boot = 1;
 			++failures;
-		} else
+		} else {
 			i += sizeof(int);
+		}
 	}
 
 	/* Release i2c bus */
