@@ -616,8 +616,10 @@ static unsigned long bcm2835_pll_get_rate(struct clk_hw *hw,
 	using_prediv = cprman_read(cprman, data->ana_reg_base + 4) &
 		data->ana->fb_prediv_mask;
 
-	if (using_prediv)
+	if (using_prediv) {
 		ndiv *= 2;
+		fdiv *= 2;
+	}
 
 	return bcm2835_pll_rate_from_divisors(parent_rate, ndiv, fdiv, pdiv);
 }
