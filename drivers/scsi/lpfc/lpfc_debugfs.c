@@ -3075,11 +3075,11 @@ __lpfc_idiag_print_wq(struct lpfc_queue *qp, char *wqtype,
 			qp->assoc_qid, qp->q_cnt_1,
 			(unsigned long long)qp->q_cnt_4);
 	len += snprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len,
-			"\t\tWQID[%02d], QE-CNT[%04d], QE-SIZE[%04d], "
-			"HOST-IDX[%04d], PORT-IDX[%04d]",
+			"\t\tWQID[%02d], QE-CNT[%04d], QE-SZ[%04d], "
+			"HST-IDX[%04d], PRT-IDX[%04d], PST[%03d]",
 			qp->queue_id, qp->entry_count,
 			qp->entry_size, qp->host_index,
-			qp->hba_index);
+			qp->hba_index, qp->entry_repost);
 	len +=  snprintf(pbuffer + len,
 			LPFC_QUE_INFO_GET_BUF_SIZE - len, "\n");
 	return len;
@@ -3126,11 +3126,11 @@ __lpfc_idiag_print_cq(struct lpfc_queue *qp, char *cqtype,
 			qp->assoc_qid, qp->q_cnt_1, qp->q_cnt_2,
 			qp->q_cnt_3, (unsigned long long)qp->q_cnt_4);
 	len += snprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len,
-			"\tCQID[%02d], QE-CNT[%04d], QE-SIZE[%04d], "
-			"HOST-IDX[%04d], PORT-IDX[%04d]",
+			"\tCQID[%02d], QE-CNT[%04d], QE-SZ[%04d], "
+			"HST-IDX[%04d], PRT-IDX[%04d], PST[%03d]",
 			qp->queue_id, qp->entry_count,
 			qp->entry_size, qp->host_index,
-			qp->hba_index);
+			qp->hba_index, qp->entry_repost);
 
 	len +=  snprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len, "\n");
 
@@ -3152,16 +3152,16 @@ __lpfc_idiag_print_rqpair(struct lpfc_queue *qp, struct lpfc_queue *datqp,
 			qp->assoc_qid, qp->q_cnt_1, qp->q_cnt_2,
 			qp->q_cnt_3, (unsigned long long)qp->q_cnt_4);
 	len += snprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len,
-			"\t\tHQID[%02d], QE-CNT[%04d], QE-SIZE[%04d], "
-			"HOST-IDX[%04d], PORT-IDX[%04d]\n",
+			"\t\tHQID[%02d], QE-CNT[%04d], QE-SZ[%04d], "
+			"HST-IDX[%04d], PRT-IDX[%04d], PST[%03d]\n",
 			qp->queue_id, qp->entry_count, qp->entry_size,
-			qp->host_index, qp->hba_index);
+			qp->host_index, qp->hba_index, qp->entry_repost);
 	len += snprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len,
-			"\t\tDQID[%02d], QE-CNT[%04d], QE-SIZE[%04d], "
-			"HOST-IDX[%04d], PORT-IDX[%04d]\n",
+			"\t\tDQID[%02d], QE-CNT[%04d], QE-SZ[%04d], "
+			"HST-IDX[%04d], PRT-IDX[%04d], PST[%03d]\n",
 			datqp->queue_id, datqp->entry_count,
 			datqp->entry_size, datqp->host_index,
-			datqp->hba_index);
+			datqp->hba_index, datqp->entry_repost);
 	return len;
 }
 
@@ -3247,10 +3247,10 @@ __lpfc_idiag_print_eq(struct lpfc_queue *qp, char *eqtype,
 			eqtype, qp->q_cnt_1, qp->q_cnt_2, qp->q_cnt_3,
 			(unsigned long long)qp->q_cnt_4);
 	len += snprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len,
-			"EQID[%02d], QE-CNT[%04d], QE-SIZE[%04d], "
-			"HOST-IDX[%04d], PORT-IDX[%04d]",
+			"EQID[%02d], QE-CNT[%04d], QE-SZ[%04d], "
+			"HST-IDX[%04d], PRT-IDX[%04d], PST[%03d]",
 			qp->queue_id, qp->entry_count, qp->entry_size,
-			qp->host_index, qp->hba_index);
+			qp->host_index, qp->hba_index, qp->entry_repost);
 	len +=  snprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len, "\n");
 
 	return len;
