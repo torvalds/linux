@@ -469,7 +469,7 @@ static inline void srcutorture_get_gp_data(enum rcutorture_type test_type,
 	*flags = 0;
 	*completed = sp->completed;
 	*gpnum = *completed;
-	if (sp->batch_queue.head || sp->batch_check0.head || sp->batch_check0.head)
+	if (sp->batch_queue.head || sp->batch_check0.head || sp->batch_check1.head)
 		(*gpnum)++;
 }
 
