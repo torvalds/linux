@@ -180,6 +180,19 @@
 				};
 			};
 
+			dragon_gsbi8_i2c_pins: gsbi8_i2c {
+				mux {
+					pins = "gpio64", "gpio65";
+					function = "gsbi8";
+				};
+				pinconf {
+					pins = "gpio64", "gpio65";
+					drive-strength = <16>;
+					/* These have external pull-up 2.2kOhm to 1.8V */
+					bias-disable;
+				};
+			};
+
 			dragon_gsbi12_i2c_pins: gsbi12_i2c {
 				mux {
 					pins = "gpio115", "gpio116";
@@ -444,6 +457,42 @@
 					label = "pm8058:green";
 					default-state = "on";
 					linux,default-trigger = "heartbeat";
+				};
+			};
+		};
+
+		gsbi@19800000 {
+			status = "ok";
+			qcom,mode = <GSBI_PROT_I2C>;
+
+			i2c@19880000 {
+				status = "ok";
+				pinctrl-names = "default";
+				pinctrl-0 = <&dragon_gsbi8_i2c_pins>;
+
+				eeprom@52 {
+					/* A 16KiB Platform ID EEPROM on the CPU carrier board */
+					compatible = "atmel,24c128";
+					reg = <0x52>;
+					vcc-supply = <&pm8058_s3>;
+					pagesize = <64>;
+				};
+				wm8903: wm8903@1a {
+					/* This Woolfson Micro device has an unrouted interrupt line */
+					compatible = "wlf,wm8903";
+					reg = <0x1a>;
+
+					AVDD-supply = <&pm8058_l16>;
+					CPVDD-supply = <&pm8058_l16>;
+					DBVDD-supply = <&pm8058_s3>;
+					DCVDD-supply = <&pm8058_l0>;
+
+					gpio-controller;
+					#gpio-cells = <2>;
+
+					micdet-cfg = <0>;
+					micdet-delay = <100>;
+					gpio-cfg = <0xffffffff 0xffffffff 0 0xffffffff 0xffffffff>;
 				};
 			};
 		};
