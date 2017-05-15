@@ -481,7 +481,7 @@ static int multipath_clone_and_map(struct dm_target *ti, struct request *rq,
 		if (test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags))
 			return DM_MAPIO_DELAY_REQUEUE;
 		dm_report_EIO(m);	/* Failed */
-		return -EIO;
+		return DM_MAPIO_KILL;
 	} else if (test_bit(MPATHF_QUEUE_IO, &m->flags) ||
 		   test_bit(MPATHF_PG_INIT_REQUIRED, &m->flags)) {
 		if (pg_init_all_paths(m))
