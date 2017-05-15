@@ -6525,7 +6525,6 @@ lpfc_sli4_create_rpi_hdr(struct lpfc_hba *phba)
 	uint16_t rpi_limit, curr_rpi_range;
 	struct lpfc_dmabuf *dmabuf;
 	struct lpfc_rpi_hdr *rpi_hdr;
-	uint32_t rpi_count;
 
 	/*
 	 * If the SLI4 port supports extents, posting the rpi header isn't
@@ -6538,8 +6537,7 @@ lpfc_sli4_create_rpi_hdr(struct lpfc_hba *phba)
 		return NULL;
 
 	/* The limit on the logical index is just the max_rpi count. */
-	rpi_limit = phba->sli4_hba.max_cfg_param.rpi_base +
-	phba->sli4_hba.max_cfg_param.max_rpi - 1;
+	rpi_limit = phba->sli4_hba.max_cfg_param.max_rpi;
 
 	spin_lock_irq(&phba->hbalock);
 	/*
@@ -6550,18 +6548,10 @@ lpfc_sli4_create_rpi_hdr(struct lpfc_hba *phba)
 	curr_rpi_range = phba->sli4_hba.next_rpi;
 	spin_unlock_irq(&phba->hbalock);
 
-	/*
-	 * The port has a limited number of rpis. The increment here
-	 * is LPFC_RPI_HDR_COUNT - 1 to account for the starting value
-	 * and to allow the full max_rpi range per port.
-	 */
-	if ((curr_rpi_range + (LPFC_RPI_HDR_COUNT - 1)) > rpi_limit)
-		rpi_count = rpi_limit - curr_rpi_range;
-	else
-		rpi_count = LPFC_RPI_HDR_COUNT;
-
-	if (!rpi_count)
+	/* Reached full RPI range */
+	if (curr_rpi_range == rpi_limit)
 		return NULL;
+
 	/*
 	 * First allocate the protocol header region for the port.  The
 	 * port expects a 4KB DMA-mapped memory region that is 4K aligned.
@@ -6595,13 +6585,9 @@ lpfc_sli4_create_rpi_hdr(struct lpfc_hba *phba)
 
 	/* The rpi_hdr stores the logical index only. */
 	rpi_hdr->start_rpi = curr_rpi_range;
+	rpi_hdr->next_rpi = phba->sli4_hba.next_rpi + LPFC_RPI_HDR_COUNT;
 	list_add_tail(&rpi_hdr->list, &phba->sli4_hba.lpfc_rpi_hdr_list);
 
-	/*
-	 * The next_rpi stores the next logical module-64 rpi value used
-	 * to post physical rpis in subsequent rpi postings.
-	 */
-	phba->sli4_hba.next_rpi += rpi_count;
 	spin_unlock_irq(&phba->hbalock);
 	return rpi_hdr;
 
