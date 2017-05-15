@@ -269,6 +269,30 @@
 			};
 		};
 
+		qman: qman@1880000 {
+			compatible = "fsl,qman";
+			reg = <0x0 0x1880000 0x0 0x10000>;
+			interrupts = <0 45 0x4>;
+			memory-region = <&qman_fqd &qman_pfdr>;
+
+		};
+
+		bman: bman@1890000 {
+			compatible = "fsl,bman";
+			reg = <0x0 0x1890000 0x0 0x10000>;
+			interrupts = <0 45 0x4>;
+			memory-region = <&bman_fbpr>;
+
+		};
+
+		qportals: qman-portals@500000000 {
+			ranges = <0x0 0x5 0x00000000 0x8000000>;
+		};
+
+		bportals: bman-portals@508000000 {
+			ranges = <0x0 0x5 0x08000000 0x8000000>;
+		};
+
 		dcfg: dcfg@1ee0000 {
 			compatible = "fsl,ls1046a-dcfg", "syscon";
 			reg = <0x0 0x1ee0000 0x0 0x10000>;
@@ -595,4 +619,34 @@
 			clocks = <&clockgen 4 1>;
 		};
 	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		bman_fbpr: bman-fbpr {
+			compatible = "shared-dma-pool";
+			size = <0 0x1000000>;
+			alignment = <0 0x1000000>;
+			no-map;
+		};
+
+		qman_fqd: qman-fqd {
+			compatible = "shared-dma-pool";
+			size = <0 0x800000>;
+			alignment = <0 0x800000>;
+			no-map;
+		};
+
+		qman_pfdr: qman-pfdr {
+			compatible = "shared-dma-pool";
+			size = <0 0x2000000>;
+			alignment = <0 0x2000000>;
+			no-map;
+		};
+	};
 };
+
+#include "qoriq-qman-portals.dtsi"
+#include "qoriq-bman-portals.dtsi"
