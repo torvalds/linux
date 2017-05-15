@@ -3,7 +3,6 @@
 
 struct mcp23s08_chip_info {
 	bool		is_present;	/* true if populated */
-	unsigned	pullups;	/* BIT(x) means enable pullup x */
 };
 
 struct mcp23s08_platform_data {

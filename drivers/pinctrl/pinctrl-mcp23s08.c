@@ -782,11 +782,6 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 			goto fail;
 	}
 
-	/* configure ~100K pullups */
-	ret = mcp_write(mcp, MCP_GPPU, pdata->chip[cs].pullups);
-	if (ret < 0)
-		goto fail;
-
 	ret = mcp_update_cache(mcp);
 	if (ret < 0)
 		goto fail;
@@ -911,7 +906,6 @@ static int mcp230xx_probe(struct i2c_client *client,
 	if (match) {
 		pdata = &local_pdata;
 		pdata->base = -1;
-		pdata->chip[0].pullups = 0;
 		pdata->irq_controller =	of_property_read_bool(
 					client->dev.of_node,
 					"interrupt-controller");
@@ -1031,7 +1025,6 @@ static int mcp23s08_probe(struct spi_device *spi)
 		pdata = &local_pdata;
 		pdata->base = -1;
 		for (addr = 0; addr < ARRAY_SIZE(pdata->chip); addr++) {
-			pdata->chip[addr].pullups = 0;
 			if (spi_present_mask & (1 << addr))
 				chips++;
 		}
