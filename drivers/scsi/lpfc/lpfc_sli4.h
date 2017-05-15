@@ -24,7 +24,6 @@
 #define LPFC_XRI_EXCH_BUSY_WAIT_TMO		10000
 #define LPFC_XRI_EXCH_BUSY_WAIT_T1   		10
 #define LPFC_XRI_EXCH_BUSY_WAIT_T2              30000
-#define LPFC_RELEASE_NOTIFICATION_INTERVAL	32
 #define LPFC_RPI_LOW_WATER_MARK			10
 
 #define LPFC_UNREG_FCF                          1
@@ -155,8 +154,11 @@ struct lpfc_queue {
 	uint32_t entry_count;	/* Number of entries to support on the queue */
 	uint32_t entry_size;	/* Size of each queue entry. */
 	uint32_t entry_repost;	/* Count of entries before doorbell is rung */
-#define LPFC_QUEUE_MIN_REPOST	8
+#define LPFC_EQ_REPOST		8
+#define LPFC_MQ_REPOST		8
+#define LPFC_CQ_REPOST		64
 #define LPFC_RQ_REPOST		64
+#define LPFC_RELEASE_NOTIFICATION_INTERVAL	32  /* For WQs */
 	uint32_t queue_id;	/* Queue ID assigned by the hardware */
 	uint32_t assoc_qid;     /* Queue ID associated with, for CQ/WQ/MQ */
 	uint32_t page_count;	/* Number of pages allocated for this queue */

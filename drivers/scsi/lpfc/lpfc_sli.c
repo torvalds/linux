@@ -13922,16 +13922,9 @@ lpfc_sli4_queue_alloc(struct lpfc_hba *phba, uint32_t entry_size,
 	}
 	queue->entry_size = entry_size;
 	queue->entry_count = entry_count;
-
-	/*
-	 * entry_repost is calculated based on the number of entries in the
-	 * queue. This works out except for RQs. If buffers are NOT initially
-	 * posted for every RQE, entry_repost should be adjusted accordingly.
-	 */
-	queue->entry_repost = (entry_count >> 3);
-	if (queue->entry_repost < LPFC_QUEUE_MIN_REPOST)
-		queue->entry_repost = LPFC_QUEUE_MIN_REPOST;
 	queue->phba = phba;
+
+	/* entry_repost will be set during q creation */
 
 	return queue;
 out_fail:
@@ -14163,6 +14156,7 @@ lpfc_eq_create(struct lpfc_hba *phba, struct lpfc_queue *eq, uint32_t imax)
 		status = -ENXIO;
 	eq->host_index = 0;
 	eq->hba_index = 0;
+	eq->entry_repost = LPFC_EQ_REPOST;
 
 	mempool_free(mbox, phba->mbox_mem_pool);
 	return status;
@@ -14236,9 +14230,9 @@ lpfc_cq_create(struct lpfc_hba *phba, struct lpfc_queue *cq,
 	default:
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"0361 Unsupported CQ count: "
-				"entry cnt %d sz %d pg cnt %d repost %d\n",
+				"entry cnt %d sz %d pg cnt %d\n",
 				cq->entry_count, cq->entry_size,
-				cq->page_count, cq->entry_repost);
+				cq->page_count);
 		if (cq->entry_count < 256) {
 			status = -EINVAL;
 			goto out;
@@ -14291,6 +14285,7 @@ lpfc_cq_create(struct lpfc_hba *phba, struct lpfc_queue *cq,
 	cq->assoc_qid = eq->queue_id;
 	cq->host_index = 0;
 	cq->hba_index = 0;
+	cq->entry_repost = LPFC_CQ_REPOST;
 
 out:
 	mempool_free(mbox, phba->mbox_mem_pool);
@@ -14482,6 +14477,7 @@ lpfc_cq_create_set(struct lpfc_hba *phba, struct lpfc_queue **cqp,
 		cq->assoc_qid = eq->queue_id;
 		cq->host_index = 0;
 		cq->hba_index = 0;
+		cq->entry_repost = LPFC_CQ_REPOST;
 
 		rc = 0;
 		list_for_each_entry(dmabuf, &cq->page_list, list) {
@@ -14730,6 +14726,7 @@ lpfc_mq_create(struct lpfc_hba *phba, struct lpfc_queue *mq,
 	mq->subtype = subtype;
 	mq->host_index = 0;
 	mq->hba_index = 0;
+	mq->entry_repost = LPFC_MQ_REPOST;
 
 	/* link the mq onto the parent cq child list */
 	list_add_tail(&mq->list, &cq->child_list);
