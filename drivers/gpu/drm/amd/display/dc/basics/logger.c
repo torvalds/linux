@@ -81,7 +81,6 @@ static const struct dc_log_type_info log_type_info_tbl[] = {
 		(1 << LOG_SYNC) | \
 		(1 << LOG_BANDWIDTH_VALIDATION) | \
 		(1 << LOG_MST) | \
-		(1 << LOG_DETECTION_EDID_PARSER) | \
 		(1 << LOG_DETECTION_DP_CAPS) | \
 		(1 << LOG_BACKLIGHT)) | \
 		(1 << LOG_I2C_AUX) | \
