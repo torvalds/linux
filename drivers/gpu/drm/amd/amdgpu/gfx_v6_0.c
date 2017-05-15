@@ -1271,8 +1271,9 @@ static void gfx_v6_0_setup_rb(struct amdgpu_device *adev)
 		for (j = 0; j < adev->gfx.config.max_sh_per_se; j++) {
 			gfx_v6_0_select_se_sh(adev, i, j, 0xffffffff);
 			data = gfx_v6_0_get_rb_active_bitmap(adev);
-			active_rbs |= data << ((i * adev->gfx.config.max_sh_per_se + j) *
-					rb_bitmap_width_per_sh);
+			active_rbs |= data <<
+				((i * adev->gfx.config.max_sh_per_se + j) *
+				 rb_bitmap_width_per_sh);
 		}
 	}
 	gfx_v6_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
@@ -1286,13 +1287,12 @@ static void gfx_v6_0_setup_rb(struct amdgpu_device *adev)
 	gfx_v6_0_raster_config(adev, &raster_config);
 
 	if (!adev->gfx.config.backend_enable_mask ||
-			adev->gfx.config.num_rbs >= num_rb_pipes) {
+	     adev->gfx.config.num_rbs >= num_rb_pipes)
 		WREG32(mmPA_SC_RASTER_CONFIG, raster_config);
-	} else {
+	else
 		gfx_v6_0_write_harvested_raster_configs(adev, raster_config,
 							adev->gfx.config.backend_enable_mask,
 							num_rb_pipes);
-	}
 
 	/* cache the values for userspace */
 	for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
