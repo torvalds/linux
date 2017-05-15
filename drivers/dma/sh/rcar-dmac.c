@@ -1010,7 +1010,11 @@ static void rcar_dmac_free_chan_resources(struct dma_chan *chan)
 	rcar_dmac_chan_halt(rchan);
 	spin_unlock_irq(&rchan->lock);
 
-	/* Now no new interrupts will occur */
+	/*
+	 * Now no new interrupts will occur, but one might already be
+	 * running. Wait for it to finish before freeing resources.
+	 */
+	synchronize_irq(rchan->irq);
 
 	if (rchan->mid_rid >= 0) {
 		/* The caller is holding dma_list_mutex */
