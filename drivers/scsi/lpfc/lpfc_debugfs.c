@@ -842,6 +842,12 @@ lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
 			}
 			spin_unlock(&phba->sli4_hba.abts_nvme_buf_list_lock);
 		}
+
+		len += snprintf(buf + len, size - len,
+				"IO_CTX: %08x  outstanding %08x total %08x\n",
+				phba->sli4_hba.nvmet_ctx_cnt,
+				phba->sli4_hba.nvmet_io_wait_cnt,
+				phba->sli4_hba.nvmet_io_wait_total);
 	} else {
 		if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME))
 			return len;

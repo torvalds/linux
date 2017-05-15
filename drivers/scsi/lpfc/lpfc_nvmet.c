@@ -158,6 +158,12 @@ void
 lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 {
 	struct lpfc_nvmet_rcv_ctx *ctxp = ctx_buf->context;
+	struct lpfc_nvmet_tgtport *tgtp;
+	struct fc_frame_header *fc_hdr;
+	struct rqb_dmabuf *nvmebuf;
+	struct lpfc_dmabuf *hbufp;
+	uint32_t *payload;
+	uint32_t size, oxid, sid, rc;
 	unsigned long iflag;
 
 	if (ctxp->txrdy) {
@@ -167,6 +173,87 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 		ctxp->txrdy_phys = 0;
 	}
 	ctxp->state = LPFC_NVMET_STE_FREE;
+
+	spin_lock_irqsave(&phba->sli4_hba.nvmet_io_wait_lock, iflag);
+	if (phba->sli4_hba.nvmet_io_wait_cnt) {
+		hbufp = &nvmebuf->hbuf;
+		list_remove_head(&phba->sli4_hba.lpfc_nvmet_io_wait_list,
+				 nvmebuf, struct rqb_dmabuf,
+				 hbuf.list);
+		phba->sli4_hba.nvmet_io_wait_cnt--;
+		spin_unlock_irqrestore(&phba->sli4_hba.nvmet_io_wait_lock,
+				       iflag);
+
+		fc_hdr = (struct fc_frame_header *)(nvmebuf->hbuf.virt);
+		oxid = be16_to_cpu(fc_hdr->fh_ox_id);
+		tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
+		payload = (uint32_t *)(nvmebuf->dbuf.virt);
+		size = nvmebuf->bytes_recv;
+		sid = sli4_sid_from_fc_hdr(fc_hdr);
+
+		ctxp = (struct lpfc_nvmet_rcv_ctx *)ctx_buf->context;
+		memset(ctxp, 0, sizeof(ctxp->ctx));
+		ctxp->wqeq = NULL;
+		ctxp->txrdy = NULL;
+		ctxp->offset = 0;
+		ctxp->phba = phba;
+		ctxp->size = size;
+		ctxp->oxid = oxid;
+		ctxp->sid = sid;
+		ctxp->state = LPFC_NVMET_STE_RCV;
+		ctxp->entry_cnt = 1;
+		ctxp->flag = 0;
+		ctxp->ctxbuf = ctx_buf;
+		spin_lock_init(&ctxp->ctxlock);
+
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+		if (phba->ktime_on) {
+			ctxp->ts_cmd_nvme = ktime_get_ns();
+			ctxp->ts_isr_cmd = ctxp->ts_cmd_nvme;
+			ctxp->ts_nvme_data = 0;
+			ctxp->ts_data_wqput = 0;
+			ctxp->ts_isr_data = 0;
+			ctxp->ts_data_nvme = 0;
+			ctxp->ts_nvme_status = 0;
+			ctxp->ts_status_wqput = 0;
+			ctxp->ts_isr_status = 0;
+			ctxp->ts_status_nvme = 0;
+		}
+#endif
+		atomic_inc(&tgtp->rcv_fcp_cmd_in);
+		/*
+		 * The calling sequence should be:
+		 * nvmet_fc_rcv_fcp_req->lpfc_nvmet_xmt_fcp_op/cmp- req->done
+		 * lpfc_nvmet_xmt_fcp_op_cmp should free the allocated ctxp.
+		 * When we return from nvmet_fc_rcv_fcp_req, all relevant info
+		 * the NVME command / FC header is stored.
+		 * A buffer has already been reposted for this IO, so just free
+		 * the nvmebuf.
+		 */
+		rc = nvmet_fc_rcv_fcp_req(phba->targetport, &ctxp->ctx.fcp_req,
+					  payload, size);
+
+		/* Process FCP command */
+		if (rc == 0) {
+			atomic_inc(&tgtp->rcv_fcp_cmd_out);
+			nvmebuf->hrq->rqbp->rqb_free_buffer(phba, nvmebuf);
+			return;
+		}
+
+		atomic_inc(&tgtp->rcv_fcp_cmd_drop);
+		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
+				"2582 FCP Drop IO x%x: err x%x: x%x x%x x%x\n",
+				ctxp->oxid, rc,
+				atomic_read(&tgtp->rcv_fcp_cmd_in),
+				atomic_read(&tgtp->rcv_fcp_cmd_out),
+				atomic_read(&tgtp->xmt_fcp_release));
+
+		lpfc_nvmet_defer_release(phba, ctxp);
+		lpfc_nvmet_unsol_fcp_issue_abort(phba, ctxp, sid, oxid);
+		nvmebuf->hrq->rqbp->rqb_free_buffer(phba, nvmebuf);
+		return;
+	}
+	spin_unlock_irqrestore(&phba->sli4_hba.nvmet_io_wait_lock, iflag);
 
 	spin_lock_irqsave(&phba->sli4_hba.nvmet_io_lock, iflag);
 	list_add_tail(&ctx_buf->list,
@@ -1232,7 +1319,7 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 	struct fc_frame_header *fc_hdr;
 	struct lpfc_nvmet_ctxbuf *ctx_buf;
 	uint32_t *payload;
-	uint32_t size, oxid, sid, rc;
+	uint32_t size, oxid, sid, rc, qno;
 	unsigned long iflag;
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	uint32_t id;
@@ -1257,21 +1344,41 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 	}
 	spin_unlock_irqrestore(&phba->sli4_hba.nvmet_io_lock, iflag);
 
+	fc_hdr = (struct fc_frame_header *)(nvmebuf->hbuf.virt);
+	oxid = be16_to_cpu(fc_hdr->fh_ox_id);
+	size = nvmebuf->bytes_recv;
+
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	if (phba->cpucheck_on & LPFC_CHECK_NVMET_RCV) {
+		id = smp_processor_id();
+		if (id < LPFC_CHECK_CPU_CNT)
+			phba->cpucheck_rcv_io[id]++;
+	}
+#endif
+
+	lpfc_nvmeio_data(phba, "NVMET FCP  RCV: xri x%x sz %d CPU %02x\n",
+			 oxid, size, smp_processor_id());
+
 	if (!ctx_buf) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
-				"6408 No NVMET ctx Drop IO\n");
-		oxid = 0;
-		size = 0;
-		sid = 0;
-		ctxp = NULL;
-		goto dropit;
+		/* Queue this NVME IO to process later */
+		spin_lock_irqsave(&phba->sli4_hba.nvmet_io_wait_lock, iflag);
+		list_add_tail(&nvmebuf->hbuf.list,
+			      &phba->sli4_hba.lpfc_nvmet_io_wait_list);
+		phba->sli4_hba.nvmet_io_wait_cnt++;
+		phba->sli4_hba.nvmet_io_wait_total++;
+		spin_unlock_irqrestore(&phba->sli4_hba.nvmet_io_wait_lock,
+				       iflag);
+
+		/* Post a brand new DMA buffer to RQ */
+		qno = nvmebuf->idx;
+		lpfc_post_rq_buffer(
+			phba, phba->sli4_hba.nvmet_mrq_hdr[qno],
+			phba->sli4_hba.nvmet_mrq_data[qno], 1, qno);
+		return;
 	}
 
 	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
 	payload = (uint32_t *)(nvmebuf->dbuf.virt);
-	fc_hdr = (struct fc_frame_header *)(nvmebuf->hbuf.virt);
-	size = nvmebuf->bytes_recv;
-	oxid = be16_to_cpu(fc_hdr->fh_ox_id);
 	sid = sli4_sid_from_fc_hdr(fc_hdr);
 
 	ctxp = (struct lpfc_nvmet_rcv_ctx *)ctx_buf->context;
@@ -1302,16 +1409,7 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 		ctxp->ts_isr_status = 0;
 		ctxp->ts_status_nvme = 0;
 	}
-
-	if (phba->cpucheck_on & LPFC_CHECK_NVMET_RCV) {
-		id = smp_processor_id();
-		if (id < LPFC_CHECK_CPU_CNT)
-			phba->cpucheck_rcv_io[id]++;
-	}
 #endif
-
-	lpfc_nvmeio_data(phba, "NVMET FCP  RCV: xri x%x sz %d CPU %02x\n",
-			 oxid, size, smp_processor_id());
 
 	atomic_inc(&tgtp->rcv_fcp_cmd_in);
 	/*

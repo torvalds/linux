@@ -5825,6 +5825,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		INIT_LIST_HEAD(&phba->sli4_hba.lpfc_abts_nvme_buf_list);
 		INIT_LIST_HEAD(&phba->sli4_hba.lpfc_abts_nvmet_ctx_list);
 		INIT_LIST_HEAD(&phba->sli4_hba.lpfc_nvmet_ctx_list);
+		INIT_LIST_HEAD(&phba->sli4_hba.lpfc_nvmet_io_wait_list);
 
 		/* Fast-path XRI aborted CQ Event work queue list */
 		INIT_LIST_HEAD(&phba->sli4_hba.sp_nvme_xri_aborted_work_queue);
@@ -5833,6 +5834,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	/* This abort list used by worker thread */
 	spin_lock_init(&phba->sli4_hba.sgl_list_lock);
 	spin_lock_init(&phba->sli4_hba.nvmet_io_lock);
+	spin_lock_init(&phba->sli4_hba.nvmet_io_wait_lock);
 
 	/*
 	 * Initialize driver internal slow-path work queues

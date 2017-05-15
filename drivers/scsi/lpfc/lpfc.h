@@ -170,6 +170,7 @@ struct rqb_dmabuf {
 	struct lpfc_dmabuf dbuf;
 	uint16_t total_size;
 	uint16_t bytes_recv;
+	uint16_t idx;
 	struct lpfc_queue *hrq;	  /* ptr to associated Header RQ */
 	struct lpfc_queue *drq;	  /* ptr to associated Data RQ */
 };

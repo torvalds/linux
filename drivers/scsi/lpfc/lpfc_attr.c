@@ -245,6 +245,12 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 				atomic_read(&tgtp->xmt_abort_rsp),
 				atomic_read(&tgtp->xmt_abort_rsp_error));
 
+		len += snprintf(buf + len, PAGE_SIZE - len,
+				"IO_CTX: %08x outstanding %08x total %x",
+				phba->sli4_hba.nvmet_ctx_cnt,
+				phba->sli4_hba.nvmet_io_wait_cnt,
+				phba->sli4_hba.nvmet_io_wait_total);
+
 		len +=  snprintf(buf+len, PAGE_SIZE-len, "\n");
 		return len;
 	}

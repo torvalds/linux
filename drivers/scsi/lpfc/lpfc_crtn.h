@@ -77,6 +77,8 @@ void lpfc_retry_pport_discovery(struct lpfc_hba *);
 void lpfc_release_rpi(struct lpfc_hba *, struct lpfc_vport *, uint16_t);
 int lpfc_init_iocb_list(struct lpfc_hba *phba, int cnt);
 void lpfc_free_iocb_list(struct lpfc_hba *phba);
+int lpfc_post_rq_buffer(struct lpfc_hba *phba, struct lpfc_queue *hrq,
+			struct lpfc_queue *drq, int count, int idx);
 
 void lpfc_mbx_cmpl_local_config_link(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_mbx_cmpl_reg_login(struct lpfc_hba *, LPFC_MBOXQ_t *);

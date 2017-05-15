@@ -6513,9 +6513,9 @@ lpfc_set_host_data(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 		 (phba->hba_flag & HBA_FCOE_MODE) ? "FCoE" : "FC");
 }
 
-static int
+int
 lpfc_post_rq_buffer(struct lpfc_hba *phba, struct lpfc_queue *hrq,
-		    struct lpfc_queue *drq, int count)
+		    struct lpfc_queue *drq, int count, int idx)
 {
 	int rc, i;
 	struct lpfc_rqe hrqe;
@@ -6534,6 +6534,7 @@ lpfc_post_rq_buffer(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 			break;
 		rqb_buffer->hrq = hrq;
 		rqb_buffer->drq = drq;
+		rqb_buffer->idx = idx;
 		list_add_tail(&rqb_buffer->hbuf.list, &rqb_buf_list);
 	}
 	while (!list_empty(&rqb_buf_list)) {
@@ -6980,7 +6981,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 			lpfc_post_rq_buffer(
 				phba, phba->sli4_hba.nvmet_mrq_hdr[i],
 				phba->sli4_hba.nvmet_mrq_data[i],
-				LPFC_NVMET_RQE_DEF_COUNT);
+				LPFC_NVMET_RQE_DEF_COUNT, i);
 		}
 	}
 
