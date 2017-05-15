@@ -1921,7 +1921,6 @@ static int sunxi_nand_hw_ecc_ctrl_init(struct mtd_info *mtd,
 	ecc->write_subpage = sunxi_nfc_hw_ecc_write_subpage;
 	ecc->read_oob_raw = nand_read_oob_std;
 	ecc->write_oob_raw = nand_write_oob_std;
-	ecc->read_subpage = sunxi_nfc_hw_ecc_read_subpage;
 
 	return 0;
 }
