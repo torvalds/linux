@@ -36,6 +36,8 @@
 #define MCP_TYPE_017	3
 #define MCP_TYPE_S18    4
 
+#define MCP_MAX_DEV_PER_CS	8
+
 /* Registers are all 8 bits wide.
  *
  * The mcp23s17 has twice as many bits, and can be configured to work
@@ -1064,7 +1066,6 @@ static int mcp23s08_probe(struct spi_device *spi)
 	int				status, type;
 	unsigned			ngpio = 0;
 	const struct			of_device_id *match;
-	u32				spi_present_mask = 0;
 
 	match = of_match_device(of_match_ptr(mcp23s08_spi_of_match), &spi->dev);
 	if (match)
@@ -1078,36 +1079,26 @@ static int mcp23s08_probe(struct spi_device *spi)
 		pdata->base = -1;
 
 		status = device_property_read_u32(&spi->dev,
-			"microchip,spi-present-mask", &spi_present_mask);
+			"microchip,spi-present-mask", &pdata->spi_present_mask);
 		if (status) {
 			status = device_property_read_u32(&spi->dev,
-				"mcp,spi-present-mask", &spi_present_mask);
+				"mcp,spi-present-mask",
+				&pdata->spi_present_mask);
 
 			if (status) {
 				dev_err(&spi->dev, "missing spi-present-mask");
 				return -ENODEV;
 			}
 		}
-	} else {
-		for (addr = 0; addr < ARRAY_SIZE(pdata->chip); addr++) {
-			if (!pdata->chip[addr].is_present)
-				continue;
-			if ((type == MCP_TYPE_S08) && (addr > 3)) {
-				dev_err(&spi->dev,
-					"mcp23s08 only supports address 0..3");
-				return -EINVAL;
-			}
-			spi_present_mask |= BIT(addr);
-		}
 	}
 
-	if (!spi_present_mask || spi_present_mask >= 256) {
+	if (!pdata->spi_present_mask || pdata->spi_present_mask > 0xff) {
 		dev_err(&spi->dev, "invalid spi-present-mask");
 		return -ENODEV;
 	}
 
-	for (addr = 0; addr < ARRAY_SIZE(pdata->chip); addr++) {
-		if (spi_present_mask & BIT(addr))
+	for (addr = 0; addr < MCP_MAX_DEV_PER_CS; addr++) {
+		if (pdata->spi_present_mask & BIT(addr))
 			chips++;
 	}
 
@@ -1122,8 +1113,8 @@ static int mcp23s08_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, data);
 
-	for (addr = 0; addr < ARRAY_SIZE(pdata->chip); addr++) {
-		if (!(spi_present_mask & (1 << addr)))
+	for (addr = 0; addr < MCP_MAX_DEV_PER_CS; addr++) {
+		if (!(pdata->spi_present_mask & BIT(addr)))
 			continue;
 		chips--;
 		data->mcp[addr] = &data->chip[chips];
