@@ -876,6 +876,10 @@ static void skl_remove(struct pci_dev *pci)
 	dev_set_drvdata(&pci->dev, NULL);
 }
 
+static struct sst_codecs skl_codecs = { 1, {"NAU88L25"} };
+static struct sst_codecs kbl_codecs = { 1, {"NAU88L25"} };
+static struct sst_codecs bxt_codecs = { 1, {"MX98357A"} };
+
 static struct sst_acpi_mach sst_skl_devdata[] = {
 	{
 		.id = "INT343A",
@@ -886,12 +890,16 @@ static struct sst_acpi_mach sst_skl_devdata[] = {
 		.id = "INT343B",
 		.drv_name = "skl_n88l25_s4567",
 		.fw_filename = "intel/dsp_fw_release.bin",
+		.machine_quirk = sst_acpi_codec_list,
+		.quirk_data = &skl_codecs,
 		.pdata = &skl_dmic_data
 	},
 	{
 		.id = "MX98357A",
 		.drv_name = "skl_n88l25_m98357a",
 		.fw_filename = "intel/dsp_fw_release.bin",
+		.machine_quirk = sst_acpi_codec_list,
+		.quirk_data = &skl_codecs,
 		.pdata = &skl_dmic_data
 	},
 	{}
@@ -907,6 +915,8 @@ static struct sst_acpi_mach sst_bxtp_devdata[] = {
 		.id = "DLGS7219",
 		.drv_name = "bxt_da7219_max98357a_i2s",
 		.fw_filename = "intel/dsp_fw_bxtn.bin",
+		.machine_quirk = sst_acpi_codec_list,
+		.quirk_data = &bxt_codecs,
 	},
 };
 
@@ -920,12 +930,16 @@ static struct sst_acpi_mach sst_kbl_devdata[] = {
 		.id = "INT343B",
 		.drv_name = "kbl_n88l25_s4567",
 		.fw_filename = "intel/dsp_fw_kbl.bin",
+		.machine_quirk = sst_acpi_codec_list,
+		.quirk_data = &kbl_codecs,
 		.pdata = &skl_dmic_data
 	},
 	{
 		.id = "MX98357A",
 		.drv_name = "kbl_n88l25_m98357a",
 		.fw_filename = "intel/dsp_fw_kbl.bin",
+		.machine_quirk = sst_acpi_codec_list,
+		.quirk_data = &kbl_codecs,
 		.pdata = &skl_dmic_data
 	},
 	{}

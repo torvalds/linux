@@ -151,5 +151,23 @@ bool sst_acpi_find_package_from_hid(const u8 hid[ACPI_ID_LEN],
 }
 EXPORT_SYMBOL_GPL(sst_acpi_find_package_from_hid);
 
+struct sst_acpi_mach *sst_acpi_codec_list(void *arg)
+{
+	struct sst_acpi_mach *mach = arg;
+	struct sst_codecs *codec_list = (struct sst_codecs *) mach->quirk_data;
+	int i;
+
+	if (mach->quirk_data == NULL)
+		return mach;
+
+	for (i = 0; i < codec_list->num_codecs; i++) {
+		if (sst_acpi_check_hid(codec_list->codecs[i]) != true)
+			return NULL;
+	}
+
+	return mach;
+}
+EXPORT_SYMBOL_GPL(sst_acpi_codec_list);
+
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Intel Common ACPI Match module");
