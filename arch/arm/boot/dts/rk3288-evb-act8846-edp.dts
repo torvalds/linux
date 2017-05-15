@@ -246,8 +246,41 @@
 	};
 };
 
+&edp {
+	status = "okay";
+};
+
 &edp_panel {
+	compatible ="lg,lp079qx1-sp0v", "simple-panel";
+	enable-gpios = <&gpio7 4 GPIO_ACTIVE_HIGH>;
+	pinctrl-0 = <&lcd_cs>;
 	power-supply = <&vcc_lcd>;
+	delay,prepare = <120>;
+	status = "okay";
+
+	disp_timings: display-timings {
+		native-mode = <&timing0>;
+
+		timing0: timing0 {
+			clock-frequency = <200000000>;
+			hactive = <1536>;
+			vactive = <2048>;
+			hfront-porch = <12>;
+			hsync-len = <16>;
+			hback-porch = <48>;
+			vfront-porch = <8>;
+			vsync-len = <4>;
+			vback-porch = <8>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			de-active = <0>;
+			pixelclk-active = <0>;
+		};
+	};
+};
+
+&edp_phy {
+	status = "okay";
 };
 
 &i2c1 {
