@@ -1195,11 +1195,10 @@ static void gfx_v6_0_write_harvested_raster_configs(struct amdgpu_device *adev,
 		if ((num_se > 1) && (!se_mask[idx] || !se_mask[idx + 1])) {
 			raster_config_se &= ~PA_SC_RASTER_CONFIG__SE_MAP_MASK;
 
-			if (!se_mask[idx]) {
+			if (!se_mask[idx])
 				raster_config_se |= RASTER_CONFIG_SE_MAP_3 << PA_SC_RASTER_CONFIG__SE_MAP__SHIFT;
-			} else {
+			else
 				raster_config_se |= RASTER_CONFIG_SE_MAP_0 << PA_SC_RASTER_CONFIG__SE_MAP__SHIFT;
-			}
 		}
 
 		pkr0_mask &= rb_mask;
@@ -1207,11 +1206,10 @@ static void gfx_v6_0_write_harvested_raster_configs(struct amdgpu_device *adev,
 		if (rb_per_se > 2 && (!pkr0_mask || !pkr1_mask)) {
 			raster_config_se &= ~PA_SC_RASTER_CONFIG__PKR_MAP_MASK;
 
-			if (!pkr0_mask) {
+			if (!pkr0_mask)
 				raster_config_se |= RASTER_CONFIG_PKR_MAP_3 << PA_SC_RASTER_CONFIG__PKR_MAP__SHIFT;
-			} else {
+			else
 				raster_config_se |= RASTER_CONFIG_PKR_MAP_0 << PA_SC_RASTER_CONFIG__PKR_MAP__SHIFT;
-			}
 		}
 
 		if (rb_per_se >= 2) {
@@ -1223,13 +1221,12 @@ static void gfx_v6_0_write_harvested_raster_configs(struct amdgpu_device *adev,
 			if (!rb0_mask || !rb1_mask) {
 				raster_config_se &= ~PA_SC_RASTER_CONFIG__RB_MAP_PKR0_MASK;
 
-				if (!rb0_mask) {
+				if (!rb0_mask)
 					raster_config_se |=
 						RASTER_CONFIG_RB_MAP_3 << PA_SC_RASTER_CONFIG__RB_MAP_PKR0__SHIFT;
-				} else {
+				else
 					raster_config_se |=
 						RASTER_CONFIG_RB_MAP_0 << PA_SC_RASTER_CONFIG__RB_MAP_PKR0__SHIFT;
-				}
 			}
 
 			if (rb_per_se > 2) {
@@ -1240,13 +1237,12 @@ static void gfx_v6_0_write_harvested_raster_configs(struct amdgpu_device *adev,
 				if (!rb0_mask || !rb1_mask) {
 					raster_config_se &= ~PA_SC_RASTER_CONFIG__RB_MAP_PKR1_MASK;
 
-					if (!rb0_mask) {
+					if (!rb0_mask)
 						raster_config_se |=
 							RASTER_CONFIG_RB_MAP_3 << PA_SC_RASTER_CONFIG__RB_MAP_PKR1__SHIFT;
-					} else {
+					else
 						raster_config_se |=
 							RASTER_CONFIG_RB_MAP_0 << PA_SC_RASTER_CONFIG__RB_MAP_PKR1__SHIFT;
-					}
 				}
 			}
 		}
