@@ -985,6 +985,7 @@ static int amdgpu_vm_update_level(struct amdgpu_device *adev,
 		}
 
 		pt = amdgpu_bo_gpu_offset(bo);
+		pt = amdgpu_gart_get_vm_pde(adev, pt);
 		if (parent->entries[pt_idx].addr == pt)
 			continue;
 
@@ -996,18 +997,15 @@ static int amdgpu_vm_update_level(struct amdgpu_device *adev,
 		    (count == AMDGPU_VM_MAX_UPDATE_SIZE)) {
 
 			if (count) {
-				uint64_t entry;
-
-				entry = amdgpu_gart_get_vm_pde(adev, last_pt);
 				if (shadow)
 					amdgpu_vm_do_set_ptes(&params,
 							      last_shadow,
-							      entry, count,
+							      last_pt, count,
 							      incr,
 							      AMDGPU_PTE_VALID);
 
 				amdgpu_vm_do_set_ptes(&params, last_pde,
-						      entry, count, incr,
+						      last_pt, count, incr,
 						      AMDGPU_PTE_VALID);
 			}
 
@@ -1021,15 +1019,11 @@ static int amdgpu_vm_update_level(struct amdgpu_device *adev,
 	}
 
 	if (count) {
-		uint64_t entry;
-
-		entry = amdgpu_gart_get_vm_pde(adev, last_pt);
-
 		if (vm->root.bo->shadow)
-			amdgpu_vm_do_set_ptes(&params, last_shadow, entry,
+			amdgpu_vm_do_set_ptes(&params, last_shadow, last_pt,
 					      count, incr, AMDGPU_PTE_VALID);
 
-		amdgpu_vm_do_set_ptes(&params, last_pde, entry,
+		amdgpu_vm_do_set_ptes(&params, last_pde, last_pt,
 				      count, incr, AMDGPU_PTE_VALID);
 	}
 
