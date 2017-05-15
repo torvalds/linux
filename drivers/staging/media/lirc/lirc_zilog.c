@@ -1203,7 +1203,7 @@ static unsigned int poll(struct file *filep, poll_table *wait)
 	struct lirc_buffer *rbuf = ir->l.rbuf;
 	unsigned int ret;
 
-	dev_dbg(ir->l.dev, "poll called\n");
+	dev_dbg(ir->l.dev, "%s called\n", __func__);
 
 	rx = get_ir_rx(ir);
 	if (!rx) {
@@ -1211,7 +1211,7 @@ static unsigned int poll(struct file *filep, poll_table *wait)
 		 * Revisit this, if our poll function ever reports writeable
 		 * status for Tx
 		 */
-		dev_dbg(ir->l.dev, "poll result = POLLERR\n");
+		dev_dbg(ir->l.dev, "%s result = POLLERR\n", __func__);
 		return POLLERR;
 	}
 
@@ -1224,7 +1224,7 @@ static unsigned int poll(struct file *filep, poll_table *wait)
 	/* Indicate what ops could happen immediately without blocking */
 	ret = lirc_buffer_empty(rbuf) ? 0 : (POLLIN | POLLRDNORM);
 
-	dev_dbg(ir->l.dev, "poll result = %s\n",
+	dev_dbg(ir->l.dev, "%s result = %s\n", __func__,
 		ret ? "POLLIN|POLLRDNORM" : "none");
 	return ret;
 }
@@ -1332,7 +1332,8 @@ static int close(struct inode *node, struct file *filep)
 	struct IR *ir = filep->private_data;
 
 	if (!ir) {
-		pr_err("ir: close: no private_data attached to the file!\n");
+		pr_err("ir: %s: no private_data attached to the file!\n",
+		       __func__);
 		return -ENODEV;
 	}
 
