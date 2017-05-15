@@ -79,6 +79,9 @@
 
 #define REG_TEMP_TRANGE_BASE	0x5F
 
+#define REG_ENHANCE_ACOUSTICS1	0x62
+#define REG_ENHANCE_ACOUSTICS2	0x63
+
 #define REG_PWM_MIN_BASE	0x64
 
 #define REG_TEMP_TMIN_BASE	0x67
@@ -209,6 +212,7 @@ struct adt7475_data {
 	u8 range[3];
 	u8 pwmctl[3];
 	u8 pwmchan[3];
+	u8 enh_acoustics[2];
 
 	u8 vid;
 	u8 vrm;
@@ -700,6 +704,43 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 	data->pwm[sattr->nr][sattr->index] = clamp_val(val, 0, 0xFF);
 	i2c_smbus_write_byte_data(client, reg,
 				  data->pwm[sattr->nr][sattr->index]);
+	mutex_unlock(&data->lock);
+
+	return count;
+}
+
+static ssize_t show_stall_disable(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	struct sensor_device_attribute_2 *sattr = to_sensor_dev_attr_2(attr);
+	struct i2c_client *client = to_i2c_client(dev);
+	struct adt7475_data *data = i2c_get_clientdata(client);
+	u8 mask = BIT(5 + sattr->index);
+
+	return sprintf(buf, "%d\n", !!(data->enh_acoustics[0] & mask));
+}
+
+static ssize_t set_stall_disable(struct device *dev,
+				 struct device_attribute *attr, const char *buf,
+				 size_t count)
+{
+	struct sensor_device_attribute_2 *sattr = to_sensor_dev_attr_2(attr);
+	struct i2c_client *client = to_i2c_client(dev);
+	struct adt7475_data *data = i2c_get_clientdata(client);
+	long val;
+	u8 mask = BIT(5 + sattr->index);
+
+	if (kstrtol(buf, 10, &val))
+		return -EINVAL;
+
+	mutex_lock(&data->lock);
+
+	data->enh_acoustics[0] &= ~mask;
+	if (val)
+		data->enh_acoustics[0] |= mask;
+
+	i2c_smbus_write_byte_data(client, REG_ENHANCE_ACOUSTICS1,
+				  data->enh_acoustics[0]);
 
 	mutex_unlock(&data->lock);
 
@@ -1028,6 +1069,8 @@ static SENSOR_DEVICE_ATTR_2(pwm1_auto_point1_pwm, S_IRUGO | S_IWUSR, show_pwm,
 			    set_pwm, MIN, 0);
 static SENSOR_DEVICE_ATTR_2(pwm1_auto_point2_pwm, S_IRUGO | S_IWUSR, show_pwm,
 			    set_pwm, MAX, 0);
+static SENSOR_DEVICE_ATTR_2(pwm1_stall_disable, S_IRUGO | S_IWUSR,
+			    show_stall_disable, set_stall_disable, 0, 0);
 static SENSOR_DEVICE_ATTR_2(pwm2, S_IRUGO | S_IWUSR, show_pwm, set_pwm, INPUT,
 			    1);
 static SENSOR_DEVICE_ATTR_2(pwm2_freq, S_IRUGO | S_IWUSR, show_pwmfreq,
@@ -1040,6 +1083,8 @@ static SENSOR_DEVICE_ATTR_2(pwm2_auto_point1_pwm, S_IRUGO | S_IWUSR, show_pwm,
 			    set_pwm, MIN, 1);
 static SENSOR_DEVICE_ATTR_2(pwm2_auto_point2_pwm, S_IRUGO | S_IWUSR, show_pwm,
 			    set_pwm, MAX, 1);
+static SENSOR_DEVICE_ATTR_2(pwm2_stall_disable, S_IRUGO | S_IWUSR,
+			    show_stall_disable, set_stall_disable, 0, 1);
 static SENSOR_DEVICE_ATTR_2(pwm3, S_IRUGO | S_IWUSR, show_pwm, set_pwm, INPUT,
 			    2);
 static SENSOR_DEVICE_ATTR_2(pwm3_freq, S_IRUGO | S_IWUSR, show_pwmfreq,
@@ -1052,6 +1097,8 @@ static SENSOR_DEVICE_ATTR_2(pwm3_auto_point1_pwm, S_IRUGO | S_IWUSR, show_pwm,
 			    set_pwm, MIN, 2);
 static SENSOR_DEVICE_ATTR_2(pwm3_auto_point2_pwm, S_IRUGO | S_IWUSR, show_pwm,
 			    set_pwm, MAX, 2);
+static SENSOR_DEVICE_ATTR_2(pwm3_stall_disable, S_IRUGO | S_IWUSR,
+			    show_stall_disable, set_stall_disable, 0, 2);
 
 /* Non-standard name, might need revisiting */
 static DEVICE_ATTR_RW(pwm_use_point2_pwm_at_crit);
@@ -1112,12 +1159,14 @@ static struct attribute *adt7475_attrs[] = {
 	&sensor_dev_attr_pwm1_auto_channels_temp.dev_attr.attr,
 	&sensor_dev_attr_pwm1_auto_point1_pwm.dev_attr.attr,
 	&sensor_dev_attr_pwm1_auto_point2_pwm.dev_attr.attr,
+	&sensor_dev_attr_pwm1_stall_disable.dev_attr.attr,
 	&sensor_dev_attr_pwm3.dev_attr.attr,
 	&sensor_dev_attr_pwm3_freq.dev_attr.attr,
 	&sensor_dev_attr_pwm3_enable.dev_attr.attr,
 	&sensor_dev_attr_pwm3_auto_channels_temp.dev_attr.attr,
 	&sensor_dev_attr_pwm3_auto_point1_pwm.dev_attr.attr,
 	&sensor_dev_attr_pwm3_auto_point2_pwm.dev_attr.attr,
+	&sensor_dev_attr_pwm3_stall_disable.dev_attr.attr,
 	&dev_attr_pwm_use_point2_pwm_at_crit.attr,
 	NULL,
 };
@@ -1136,6 +1185,7 @@ static struct attribute *pwm2_attrs[] = {
 	&sensor_dev_attr_pwm2_auto_channels_temp.dev_attr.attr,
 	&sensor_dev_attr_pwm2_auto_point1_pwm.dev_attr.attr,
 	&sensor_dev_attr_pwm2_auto_point2_pwm.dev_attr.attr,
+	&sensor_dev_attr_pwm2_stall_disable.dev_attr.attr,
 	NULL
 };
 
