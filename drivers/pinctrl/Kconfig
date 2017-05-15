@@ -153,6 +153,7 @@ config PINCTRL_MCP23S08
 	select GPIOLIB_IRQCHIP
 	select REGMAP_I2C if I2C
 	select REGMAP_SPI if SPI_MASTER
+	select GENERIC_PINCONF
 	help
 	  SPI/I2C driver for Microchip MCP23S08/MCP23S17/MCP23008/MCP23017
 	  I/O expanders.
