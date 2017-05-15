@@ -12,10 +12,6 @@
 
 #define SRC_NAME "src"
 
-/* SRCx_STATUS */
-#define OUF_SRCO	((1 << 12) | (1 << 13))
-#define OUF_SRCI	((1 <<  9) | (1 <<  8))
-
 /* SCU_SYSTEM_STATUS0/1 */
 #define OUF_SRC(id)	((1 << (id + 16)) | (1 << id))
 
