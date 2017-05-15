@@ -995,28 +995,16 @@ static int mcp230xx_probe(struct i2c_client *client,
 	struct mcp23s08_platform_data *pdata, local_pdata;
 	struct mcp23s08 *mcp;
 	int status;
-	const struct of_device_id *match;
 
-	match = of_match_device(of_match_ptr(mcp23s08_i2c_of_match),
-					&client->dev);
-	if (match) {
+	pdata = dev_get_platdata(&client->dev);
+	if (!pdata) {
 		pdata = &local_pdata;
 		pdata->base = -1;
-		pdata->irq_controller =	of_property_read_bool(
-					client->dev.of_node,
-					"interrupt-controller");
-		pdata->mirror = of_property_read_bool(client->dev.of_node,
-						      "microchip,irq-mirror");
-	} else {
-		pdata = dev_get_platdata(&client->dev);
-		if (!pdata) {
-			pdata = devm_kzalloc(&client->dev,
-					sizeof(struct mcp23s08_platform_data),
-					GFP_KERNEL);
-			if (!pdata)
-				return -ENOMEM;
-			pdata->base = -1;
-		}
+
+		pdata->irq_controller = device_property_read_bool(
+			&client->dev, "interrupt-controller");
+		pdata->mirror = device_property_read_bool(
+			&client->dev, "microchip,irq-mirror");
 	}
 
 	mcp = devm_kzalloc(&client->dev, sizeof(*mcp), GFP_KERNEL);
