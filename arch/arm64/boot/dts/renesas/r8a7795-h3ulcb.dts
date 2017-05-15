@@ -12,11 +12,11 @@
 #define CPG_AUDIO_CLK_I		R8A7795_CLK_S0D4
 
 /dts-v1/;
-#include "r8a7795.dtsi"
+#include "r8a7795-es1.dtsi"
 #include "ulcb.dtsi"
 
 / {
-	model = "Renesas H3ULCB board based on r8a7795";
+	model = "Renesas H3ULCB board based on r8a7795 ES1.x";
 	compatible = "renesas,h3ulcb", "renesas,r8a7795";
 
 	memory@48000000 {
