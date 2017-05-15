@@ -1,6 +1,3 @@
-
-/* FIXME driver should be able to handle IRQs...  */
-
 struct mcp23s08_platform_data {
 	/* For mcp23s08, up to 4 slaves (numbered 0..3) can share one SPI
 	 * chipselect, each providing 1 gpio_chip instance with 8 gpios.

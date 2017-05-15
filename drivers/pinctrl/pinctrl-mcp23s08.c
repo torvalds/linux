@@ -1,14 +1,4 @@
-/*
- * MCP23S08 SPI/I2C GPIO gpio expander driver
- *
- * The inputs and outputs of the mcp23s08, mcp23s17, mcp23008 and mcp23017 are
- * supported.
- * For the I2C versions of the chips (mcp23008 and mcp23017) generation of
- * interrupts is also supported.
- * The hardware of the SPI versions of the chips (mcp23s08 and mcp23s17) is
- * also capable of generating interrupts, but the linux driver does not
- * support that yet.
- */
+/* MCP23S08 SPI/I2C GPIO driver */
 
 #include <linux/kernel.h>
 #include <linux/device.h>
@@ -27,7 +17,7 @@
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinconf-generic.h>
 
-/**
+/*
  * MCP types supported by driver
  */
 #define MCP_TYPE_S08	0
@@ -1130,11 +1120,6 @@ static int mcp23s08_probe(struct spi_device *spi)
 		ngpio += data->mcp[addr]->chip.ngpio;
 	}
 	data->ngpio = ngpio;
-
-	/* NOTE:  these chips have a relatively sane IRQ framework, with
-	 * per-signal masking and level/edge triggering.  It's not yet
-	 * handled here...
-	 */
 
 	return 0;
 }
