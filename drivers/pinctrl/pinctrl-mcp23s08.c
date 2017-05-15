@@ -783,7 +783,7 @@ done:
 
 static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 			      void *data, unsigned addr, unsigned type,
-			      struct mcp23s08_platform_data *pdata, int cs)
+			      unsigned int base, int cs)
 {
 	int status, ret;
 	bool mirror = false;
@@ -855,7 +855,7 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 	if (IS_ERR(mcp->regmap))
 		return PTR_ERR(mcp->regmap);
 
-	mcp->chip.base = pdata->base;
+	mcp->chip.base = base;
 	mcp->chip.can_sleep = true;
 	mcp->chip.parent = dev;
 	mcp->chip.owner = THIS_MODULE;
@@ -868,13 +868,14 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 	if (ret < 0)
 		goto fail;
 
-	mcp->irq_controller = pdata->irq_controller;
+	mcp->irq_controller =
+		device_property_read_bool(dev, "interrupt-controller");
 	if (mcp->irq && mcp->irq_controller) {
 		mcp->irq_active_high =
-			of_property_read_bool(mcp->chip.parent->of_node,
+			device_property_read_bool(dev,
 					      "microchip,irq-active-high");
 
-		mirror = pdata->mirror;
+		mirror = device_property_read_bool(dev, "microchip,irq-mirror");
 	}
 
 	if ((status & IOCON_SEQOP) || !(status & IOCON_HAEN) || mirror ||
@@ -1000,11 +1001,6 @@ static int mcp230xx_probe(struct i2c_client *client,
 	if (!pdata) {
 		pdata = &local_pdata;
 		pdata->base = -1;
-
-		pdata->irq_controller = device_property_read_bool(
-			&client->dev, "interrupt-controller");
-		pdata->mirror = device_property_read_bool(
-			&client->dev, "microchip,irq-mirror");
 	}
 
 	mcp = devm_kzalloc(&client->dev, sizeof(*mcp), GFP_KERNEL);
@@ -1013,7 +1009,7 @@ static int mcp230xx_probe(struct i2c_client *client,
 
 	mcp->irq = client->irq;
 	status = mcp23s08_probe_one(mcp, &client->dev, client, client->addr,
-				    id->driver_data, pdata, 0);
+				    id->driver_data, pdata->base, 0);
 	if (status)
 		return status;
 
@@ -1081,11 +1077,6 @@ static int mcp23s08_probe(struct spi_device *spi)
 		pdata = &local_pdata;
 		pdata->base = -1;
 
-		pdata->irq_controller = device_property_read_bool(&spi->dev,
-			"interrupt-controller");
-		pdata->mirror = device_property_read_bool(&spi->dev,
-			"microchip,irq-mirror");
-
 		status = device_property_read_u32(&spi->dev,
 			"microchip,spi-present-mask", &spi_present_mask);
 		if (status) {
@@ -1138,8 +1129,8 @@ static int mcp23s08_probe(struct spi_device *spi)
 		data->mcp[addr] = &data->chip[chips];
 		data->mcp[addr]->irq = spi->irq;
 		status = mcp23s08_probe_one(data->mcp[addr], &spi->dev, spi,
-					    0x40 | (addr << 1), type, pdata,
-					    addr);
+					    0x40 | (addr << 1), type,
+					    pdata->base, addr);
 		if (status < 0)
 			return status;
 
