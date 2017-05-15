@@ -1349,6 +1349,7 @@ static void dm_page_flip(struct amdgpu_device *adev,
 	struct amdgpu_crtc *acrtc;
 	const struct dc_stream *stream;
 	struct dc_flip_addrs addr = { {0} };
+	struct dc_surface_update surface_updates[1] = { {0} };
 
 	/*
 	 * TODO risk of concurrency issues
@@ -1411,9 +1412,11 @@ static void dm_page_flip(struct amdgpu_device *adev,
 		acrtc->base.state->event = NULL;
 	}
 
-	dc_flip_surface_addrs(adev->dm.dc,
-			      dc_stream_get_status(stream)->surfaces,
-			      &addr, 1);
+	surface_updates->surface = dc_stream_get_status(stream)->surfaces[0];
+	surface_updates->flip_addr = &addr;
+
+
+	dc_update_surfaces_for_stream(adev->dm.dc, surface_updates, 1, stream);
 
 	DRM_DEBUG_DRIVER("%s Flipping to hi: 0x%x, low: 0x%x \n",
 			 __func__,
