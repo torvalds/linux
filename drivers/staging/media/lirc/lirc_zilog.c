@@ -472,7 +472,7 @@ static int lirc_thread(void *arg)
 
 		/* if device not opened, we can sleep half a second */
 		if (atomic_read(&ir->open_count) == 0) {
-			schedule_timeout(HZ/2);
+			schedule_timeout(HZ / 2);
 			continue;
 		}
 
@@ -499,7 +499,7 @@ static int lirc_thread(void *arg)
 
 /* safe read of a uint32 (always network byte order) */
 static int read_uint32(unsigned char **data,
-				     unsigned char *endp, unsigned int *val)
+		       unsigned char *endp, unsigned int *val)
 {
 	if (*data + 4 > endp)
 		return 0;
@@ -511,7 +511,7 @@ static int read_uint32(unsigned char **data,
 
 /* safe read of a uint8 */
 static int read_uint8(unsigned char **data,
-				    unsigned char *endp, unsigned char *val)
+		      unsigned char *endp, unsigned char *val)
 {
 	if (*data + 1 > endp)
 		return 0;
@@ -521,7 +521,7 @@ static int read_uint8(unsigned char **data,
 
 /* safe skipping of N bytes */
 static int skip(unsigned char **data,
-			      unsigned char *endp, unsigned int distance)
+		unsigned char *endp, unsigned int distance)
 {
 	if (*data + distance > endp)
 		return 0;
@@ -531,7 +531,7 @@ static int skip(unsigned char **data,
 
 /* decompress key data into the given buffer */
 static int get_key_data(unsigned char *buf,
-			     unsigned int codeset, unsigned int key)
+			unsigned int codeset, unsigned int key)
 {
 	unsigned char *data, *endp, *diffs, *key_block;
 	unsigned char keys, ndiffs, id;
@@ -801,7 +801,7 @@ static int fw_load(struct IR_tx *tx)
 		goto corrupt;
 
 	if (!read_uint32(&data, tx_data->endp,
-			      &tx_data->num_code_sets))
+			 &tx_data->num_code_sets))
 		goto corrupt;
 
 	dev_dbg(tx->ir->l.dev, "%u IR blaster codesets loaded\n",
@@ -857,12 +857,12 @@ static int fw_load(struct IR_tx *tx)
 		 * global fixed
 		 */
 		if (!skip(&data, tx_data->endp,
-			       1 + TX_BLOCK_SIZE - num_global_fixed))
+			  1 + TX_BLOCK_SIZE - num_global_fixed))
 			goto corrupt;
 
 		/* Then we have keys-1 blocks of key id+diffs */
 		if (!skip(&data, tx_data->endp,
-			       (ndiffs + 1) * (keys - 1)))
+			  (ndiffs + 1) * (keys - 1)))
 			goto corrupt;
 	}
 	ret = 0;
@@ -1056,7 +1056,7 @@ static int send_code(struct IR_tx *tx, unsigned int code, unsigned int key)
 			break;
 		dev_dbg(tx->ir->l.dev,
 			"NAK expected: i2c_master_send failed with %d (try %d)\n",
-			ret, i+1);
+			ret, i + 1);
 	}
 	if (ret != 1) {
 		dev_err(tx->ir->l.dev,
@@ -1222,7 +1222,7 @@ static unsigned int poll(struct file *filep, poll_table *wait)
 	poll_wait(filep, &rbuf->wait_poll, wait);
 
 	/* Indicate what ops could happen immediately without blocking */
-	ret = lirc_buffer_empty(rbuf) ? 0 : (POLLIN|POLLRDNORM);
+	ret = lirc_buffer_empty(rbuf) ? 0 : (POLLIN | POLLRDNORM);
 
 	dev_dbg(ir->l.dev, "poll result = %s\n",
 		ret ? "POLLIN|POLLRDNORM" : "none");
@@ -1246,15 +1246,15 @@ static long ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		result = put_user(features, uptr);
 		break;
 	case LIRC_GET_REC_MODE:
-		if (!(features&LIRC_CAN_REC_MASK))
+		if (!(features & LIRC_CAN_REC_MASK))
 			return -ENOSYS;
 
 		result = put_user(LIRC_REC2MODE
-				  (features&LIRC_CAN_REC_MASK),
+				  (features & LIRC_CAN_REC_MASK),
 				  uptr);
 		break;
 	case LIRC_SET_REC_MODE:
-		if (!(features&LIRC_CAN_REC_MASK))
+		if (!(features & LIRC_CAN_REC_MASK))
 			return -ENOSYS;
 
 		result = get_user(mode, uptr);
@@ -1262,13 +1262,13 @@ static long ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 			result = -EINVAL;
 		break;
 	case LIRC_GET_SEND_MODE:
-		if (!(features&LIRC_CAN_SEND_MASK))
+		if (!(features & LIRC_CAN_SEND_MASK))
 			return -ENOSYS;
 
 		result = put_user(LIRC_MODE_PULSE, uptr);
 		break;
 	case LIRC_SET_SEND_MODE:
-		if (!(features&LIRC_CAN_SEND_MASK))
+		if (!(features & LIRC_CAN_SEND_MASK))
 			return -ENOSYS;
 
 		result = get_user(mode, uptr);
@@ -1414,7 +1414,6 @@ static int ir_remove(struct i2c_client *client)
 	return 0;
 }
 
-
 /* ir_devices_lock must be held */
 static struct IR *get_ir_device_by_adapter(struct i2c_adapter *adapter)
 {
@@ -1455,7 +1454,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return -ENXIO;
 
 	pr_info("probing IR %s on %s (i2c-%d)\n",
-		   tx_probe ? "Tx" : "Rx", adap->name, adap->nr);
+		tx_probe ? "Tx" : "Rx", adap->name, adap->nr);
 
 	mutex_lock(&ir_devices_lock);
 
@@ -1591,7 +1590,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		/* Proceed only if the Tx client is also ready */
 		if (tx == NULL) {
 			pr_info("probe of IR Rx on %s (i2c-%d) done. Waiting on IR Tx.\n",
-				   adap->name, adap->nr);
+				adap->name, adap->nr);
 			goto out_ok;
 		}
 	}
