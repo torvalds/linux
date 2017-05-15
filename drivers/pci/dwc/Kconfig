@@ -16,6 +16,7 @@ config PCIE_DW_EP
 
 config PCI_DRA7XX
 	bool "TI DRA7xx PCIe controller"
+	depends on SOC_DRA7XX || COMPILE_TEST
 	depends on (PCI && PCI_MSI_IRQ_DOMAIN) || PCI_ENDPOINT
 	depends on OF && HAS_IOMEM && TI_PIPE3
 	help
