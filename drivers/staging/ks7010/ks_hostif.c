@@ -994,22 +994,22 @@ void hostif_phy_information_confirm(struct ks_wlan_private *priv)
 {
 	struct iw_statistics *wstats = &priv->wstats;
 	unsigned char rssi, signal, noise;
-	unsigned char LinkSpeed;
-	unsigned int TransmittedFrameCount, ReceivedFragmentCount;
-	unsigned int FailedCount, FCSErrorCount;
+	unsigned char link_speed;
+	unsigned int transmitted_frame_count, received_fragment_count;
+	unsigned int failed_count, fcs_error_count;
 
 	DPRINTK(3, "\n");
 	rssi = get_BYTE(priv);
 	signal = get_BYTE(priv);
 	noise = get_BYTE(priv);
-	LinkSpeed = get_BYTE(priv);
-	TransmittedFrameCount = get_DWORD(priv);
-	ReceivedFragmentCount = get_DWORD(priv);
-	FailedCount = get_DWORD(priv);
-	FCSErrorCount = get_DWORD(priv);
+	link_speed = get_BYTE(priv);
+	transmitted_frame_count = get_DWORD(priv);
+	received_fragment_count = get_DWORD(priv);
+	failed_count = get_DWORD(priv);
+	fcs_error_count = get_DWORD(priv);
 
 	DPRINTK(4, "phyinfo confirm rssi=%d signal=%d\n", rssi, signal);
-	priv->current_rate = (LinkSpeed & RATE_MASK);
+	priv->current_rate = (link_speed & RATE_MASK);
 	wstats->qual.qual = signal;
 	wstats->qual.level = 256 - rssi;
 	wstats->qual.noise = 0;	/* invalid noise value */
@@ -1017,14 +1017,13 @@ void hostif_phy_information_confirm(struct ks_wlan_private *priv)
 
 	DPRINTK(3, "\n    rssi=%u\n"
 		   "    signal=%u\n"
-		   "    LinkSpeed=%ux500Kbps\n"
-		   "    TransmittedFrameCount=%u\n"
-		   "    ReceivedFragmentCount=%u\n"
-		   "    FailedCount=%u\n"
-		   "    FCSErrorCount=%u\n",
-		rssi, signal, LinkSpeed, TransmittedFrameCount,
-		ReceivedFragmentCount, FailedCount, FCSErrorCount);
-
+		   "    link_speed=%ux500Kbps\n"
+		   "    transmitted_frame_count=%u\n"
+		   "    received_fragment_count=%u\n"
+		   "    failed_count=%u\n"
+		   "    fcs_error_count=%u\n",
+		rssi, signal, link_speed, transmitted_frame_count,
+		received_fragment_count, failed_count, fcs_error_count);
 	/* wake_up_interruptible_all(&priv->confirm_wait); */
 	complete(&priv->confirm_wait);
 }
