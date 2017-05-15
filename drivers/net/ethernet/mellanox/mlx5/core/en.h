@@ -283,12 +283,14 @@ struct mlx5e_dma_info {
 
 struct mlx5e_rx_am_stats {
 	int ppms; /* packets per msec */
+	int bpms; /* bytes per msec */
 	int epms; /* events per msec */
 };
 
 struct mlx5e_rx_am_sample {
 	ktime_t		time;
 	unsigned int	pkt_ctr;
+	unsigned int    byte_ctr;
 	u16		event_ctr;
 };
 
