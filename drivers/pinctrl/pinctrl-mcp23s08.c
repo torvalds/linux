@@ -21,7 +21,6 @@
 #include <linux/slab.h>
 #include <asm/byteorder.h>
 #include <linux/interrupt.h>
-#include <linux/of_irq.h>
 #include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -1008,7 +1007,6 @@ static int mcp230xx_probe(struct i2c_client *client,
 					"interrupt-controller");
 		pdata->mirror = of_property_read_bool(client->dev.of_node,
 						      "microchip,irq-mirror");
-		client->irq = irq_of_parse_and_map(client->dev.of_node, 0);
 	} else {
 		pdata = dev_get_platdata(&client->dev);
 		if (!pdata) {
@@ -1163,8 +1161,6 @@ static int mcp23s08_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	spi_set_drvdata(spi, data);
-
-	spi->irq = irq_of_parse_and_map(spi->dev.of_node, 0);
 
 	for (addr = 0; addr < ARRAY_SIZE(pdata->chip); addr++) {
 		if (!(spi_present_mask & (1 << addr)))
