@@ -214,6 +214,21 @@ fail_free_drb_pool:
 	return -ENOMEM;
 }
 
+int
+lpfc_nvmet_mem_alloc(struct lpfc_hba *phba)
+{
+	phba->lpfc_nvmet_drb_pool =
+		pci_pool_create("lpfc_nvmet_drb_pool",
+				phba->pcidev, LPFC_NVMET_DATA_BUF_SIZE,
+				SGL_ALIGN_SZ, 0);
+	if (!phba->lpfc_nvmet_drb_pool) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"6024 Can't enable NVME Target - no memory\n");
+		return -ENOMEM;
+	}
+	return 0;
+}
+
 /**
  * lpfc_mem_free - Frees memory allocated by lpfc_mem_alloc
  * @phba: HBA to free memory for
@@ -232,6 +247,9 @@ lpfc_mem_free(struct lpfc_hba *phba)
 
 	/* Free HBQ pools */
 	lpfc_sli_hbqbuf_free_all(phba);
+	if (phba->lpfc_nvmet_drb_pool)
+		pci_pool_destroy(phba->lpfc_nvmet_drb_pool);
+	phba->lpfc_nvmet_drb_pool = NULL;
 	if (phba->lpfc_drb_pool)
 		pci_pool_destroy(phba->lpfc_drb_pool);
 	phba->lpfc_drb_pool = NULL;
@@ -624,20 +642,20 @@ lpfc_sli4_nvmet_alloc(struct lpfc_hba *phba)
 		kfree(dma_buf);
 		return NULL;
 	}
-	dma_buf->dbuf.virt = pci_pool_alloc(phba->lpfc_drb_pool, GFP_KERNEL,
-					    &dma_buf->dbuf.phys);
+	dma_buf->dbuf.virt = pci_pool_alloc(phba->lpfc_nvmet_drb_pool,
+					    GFP_KERNEL, &dma_buf->dbuf.phys);
 	if (!dma_buf->dbuf.virt) {
 		pci_pool_free(phba->lpfc_hrb_pool, dma_buf->hbuf.virt,
 			      dma_buf->hbuf.phys);
 		kfree(dma_buf);
 		return NULL;
 	}
-	dma_buf->total_size = LPFC_DATA_BUF_SIZE;
+	dma_buf->total_size = LPFC_NVMET_DATA_BUF_SIZE;
 
 	dma_buf->context = kzalloc(sizeof(struct lpfc_nvmet_rcv_ctx),
 				   GFP_KERNEL);
 	if (!dma_buf->context) {
-		pci_pool_free(phba->lpfc_drb_pool, dma_buf->dbuf.virt,
+		pci_pool_free(phba->lpfc_nvmet_drb_pool, dma_buf->dbuf.virt,
 			      dma_buf->dbuf.phys);
 		pci_pool_free(phba->lpfc_hrb_pool, dma_buf->hbuf.virt,
 			      dma_buf->hbuf.phys);
@@ -648,7 +666,7 @@ lpfc_sli4_nvmet_alloc(struct lpfc_hba *phba)
 	dma_buf->iocbq = lpfc_sli_get_iocbq(phba);
 	if (!dma_buf->iocbq) {
 		kfree(dma_buf->context);
-		pci_pool_free(phba->lpfc_drb_pool, dma_buf->dbuf.virt,
+		pci_pool_free(phba->lpfc_nvmet_drb_pool, dma_buf->dbuf.virt,
 			      dma_buf->dbuf.phys);
 		pci_pool_free(phba->lpfc_hrb_pool, dma_buf->hbuf.virt,
 			      dma_buf->hbuf.phys);
@@ -678,7 +696,7 @@ lpfc_sli4_nvmet_alloc(struct lpfc_hba *phba)
 	if (!dma_buf->sglq) {
 		lpfc_sli_release_iocbq(phba, dma_buf->iocbq);
 		kfree(dma_buf->context);
-		pci_pool_free(phba->lpfc_drb_pool, dma_buf->dbuf.virt,
+		pci_pool_free(phba->lpfc_nvmet_drb_pool, dma_buf->dbuf.virt,
 			      dma_buf->dbuf.phys);
 		pci_pool_free(phba->lpfc_hrb_pool, dma_buf->hbuf.virt,
 			      dma_buf->hbuf.phys);
@@ -718,7 +736,8 @@ lpfc_sli4_nvmet_free(struct lpfc_hba *phba, struct rqb_dmabuf *dmab)
 	lpfc_sli_release_iocbq(phba, dmab->iocbq);
 	kfree(dmab->context);
 	pci_pool_free(phba->lpfc_hrb_pool, dmab->hbuf.virt, dmab->hbuf.phys);
-	pci_pool_free(phba->lpfc_drb_pool, dmab->dbuf.virt, dmab->dbuf.phys);
+	pci_pool_free(phba->lpfc_nvmet_drb_pool,
+		      dmab->dbuf.virt, dmab->dbuf.phys);
 	kfree(dmab);
 }
 

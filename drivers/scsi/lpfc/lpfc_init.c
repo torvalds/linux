@@ -5956,16 +5956,21 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		for (i = 0; i < lpfc_enable_nvmet_cnt; i++) {
 			if (wwn == lpfc_enable_nvmet[i]) {
 #if (IS_ENABLED(CONFIG_NVME_TARGET_FC))
+				if (lpfc_nvmet_mem_alloc(phba))
+					break;
+
+				phba->nvmet_support = 1; /* a match */
+
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 						"6017 NVME Target %016llx\n",
 						wwn);
-				phba->nvmet_support = 1; /* a match */
 #else
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 						"6021 Can't enable NVME Target."
 						" NVME_TARGET_FC infrastructure"
 						" is not in kernel\n");
 #endif
+				break;
 			}
 		}
 	}
