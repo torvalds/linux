@@ -8192,7 +8192,6 @@ static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_shared_dpll *pll;
 	const struct intel_limit *limit;
 	int refclk = 120000;
 
@@ -8236,8 +8235,7 @@ static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
 
 	ironlake_compute_dpll(crtc, crtc_state, NULL);
 
-	pll = intel_get_shared_dpll(crtc, crtc_state, NULL);
-	if (pll == NULL) {
+	if (!intel_get_shared_dpll(crtc, crtc_state, NULL)) {
 		DRM_DEBUG_DRIVER("failed to find PLL for pipe %c\n",
 				 pipe_name(crtc->pipe));
 		return -EINVAL;
