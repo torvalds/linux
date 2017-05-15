@@ -23,7 +23,8 @@
 #include <linux/ratelimit.h>
 
 /* Do not directly use this function. Use OVERRIDE_CRED() instead. */
-const struct cred *override_fsids(struct sdcardfs_sb_info *sbi, struct sdcardfs_inode_info *info)
+const struct cred *override_fsids(struct sdcardfs_sb_info *sbi,
+		struct sdcardfs_inode_data *data)
 {
 	struct cred *cred;
 	const struct cred *old_cred;
@@ -33,10 +34,10 @@ const struct cred *override_fsids(struct sdcardfs_sb_info *sbi, struct sdcardfs_
 	if (!cred)
 		return NULL;
 
-	if (info->under_obb)
+	if (data->under_obb)
 		uid = AID_MEDIA_OBB;
 	else
-		uid = multiuser_get_uid(info->userid, sbi->options.fs_low_uid);
+		uid = multiuser_get_uid(data->userid, sbi->options.fs_low_uid);
 	cred->fsuid = make_kuid(&init_user_ns, uid);
 	cred->fsgid = make_kgid(&init_user_ns, sbi->options.fs_low_gid);
 
@@ -96,7 +97,8 @@ static int sdcardfs_create(struct inode *dir, struct dentry *dentry,
 	if (err)
 		goto out;
 
-	err = sdcardfs_interpose(dentry, dir->i_sb, &lower_path, SDCARDFS_I(dir)->userid);
+	err = sdcardfs_interpose(dentry, dir->i_sb, &lower_path,
+			SDCARDFS_I(dir)->data->userid);
 	if (err)
 		goto out;
 	fsstack_copy_attr_times(dir, sdcardfs_lower_inode(dir));
@@ -267,7 +269,7 @@ static int sdcardfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 	struct path lower_path;
 	struct sdcardfs_sb_info *sbi = SDCARDFS_SB(dentry->d_sb);
 	const struct cred *saved_cred = NULL;
-	struct sdcardfs_inode_info *pi = SDCARDFS_I(dir);
+	struct sdcardfs_inode_data *pd = SDCARDFS_I(dir)->data;
 	int touch_err = 0;
 	struct fs_struct *saved_fs;
 	struct fs_struct *copied_fs;
@@ -336,7 +338,7 @@ static int sdcardfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 			make_nomedia_in_obb = 1;
 	}
 
-	err = sdcardfs_interpose(dentry, dir->i_sb, &lower_path, pi->userid);
+	err = sdcardfs_interpose(dentry, dir->i_sb, &lower_path, pd->userid);
 	if (err) {
 		unlock_dir(lower_parent_dentry);
 		goto out;
@@ -349,12 +351,13 @@ static int sdcardfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 	fixup_lower_ownership(dentry, dentry->d_name.name);
 	unlock_dir(lower_parent_dentry);
 	if ((!sbi->options.multiuser) && (qstr_case_eq(&dentry->d_name, &q_obb))
-		&& (pi->perm == PERM_ANDROID) && (pi->userid == 0))
+		&& (pd->perm == PERM_ANDROID) && (pd->userid == 0))
 		make_nomedia_in_obb = 1;
 
 	/* When creating /Android/data and /Android/obb, mark them as .nomedia */
 	if (make_nomedia_in_obb ||
-		((pi->perm == PERM_ANDROID) && (qstr_case_eq(&dentry->d_name, &q_data)))) {
+		((pd->perm == PERM_ANDROID)
+				&& (qstr_case_eq(&dentry->d_name, &q_data)))) {
 		REVERT_CRED(saved_cred);
 		OVERRIDE_CRED(SDCARDFS_SB(dir->i_sb), saved_cred, SDCARDFS_I(d_inode(dentry)));
 		set_fs_pwd(current->fs, &lower_path);
@@ -616,7 +619,7 @@ static int sdcardfs_permission(struct vfsmount *mnt, struct inode *inode, int ma
 {
 	int err;
 	struct inode tmp;
-	struct inode *top = grab_top(SDCARDFS_I(inode));
+	struct sdcardfs_inode_data *top = top_data_get(SDCARDFS_I(inode));
 
 	if (!top)
 		return -EINVAL;
@@ -633,10 +636,11 @@ static int sdcardfs_permission(struct vfsmount *mnt, struct inode *inode, int ma
 	 * locks must be dealt with to avoid undefined behavior.
 	 */
 	copy_attrs(&tmp, inode);
-	tmp.i_uid = make_kuid(&init_user_ns, SDCARDFS_I(top)->d_uid);
-	tmp.i_gid = make_kgid(&init_user_ns, get_gid(mnt, SDCARDFS_I(top)));
-	tmp.i_mode = (inode->i_mode & S_IFMT) | get_mode(mnt, SDCARDFS_I(top));
-	release_top(SDCARDFS_I(inode));
+	tmp.i_uid = make_kuid(&init_user_ns, top->d_uid);
+	tmp.i_gid = make_kgid(&init_user_ns, get_gid(mnt, top));
+	tmp.i_mode = (inode->i_mode & S_IFMT)
+			| get_mode(mnt, SDCARDFS_I(inode), top);
+	data_put(top);
 	tmp.i_sb = inode->i_sb;
 	if (IS_POSIXACL(inode))
 		pr_warn("%s: This may be undefined behavior...\n", __func__);
@@ -687,11 +691,11 @@ static int sdcardfs_setattr(struct vfsmount *mnt, struct dentry *dentry, struct 
 	struct iattr lower_ia;
 	struct dentry *parent;
 	struct inode tmp;
-	struct inode *top;
+	struct sdcardfs_inode_data *top;
 	const struct cred *saved_cred = NULL;
 
 	inode = d_inode(dentry);
-	top = grab_top(SDCARDFS_I(inode));
+	top = top_data_get(SDCARDFS_I(inode));
 
 	if (!top)
 		return -EINVAL;
@@ -709,11 +713,12 @@ static int sdcardfs_setattr(struct vfsmount *mnt, struct dentry *dentry, struct 
 	 *
 	 */
 	copy_attrs(&tmp, inode);
-	tmp.i_uid = make_kuid(&init_user_ns, SDCARDFS_I(top)->d_uid);
-	tmp.i_gid = make_kgid(&init_user_ns, get_gid(mnt, SDCARDFS_I(top)));
-	tmp.i_mode = (inode->i_mode & S_IFMT) | get_mode(mnt, SDCARDFS_I(top));
+	tmp.i_uid = make_kuid(&init_user_ns, top->d_uid);
+	tmp.i_gid = make_kgid(&init_user_ns, get_gid(mnt, top));
+	tmp.i_mode = (inode->i_mode & S_IFMT)
+			| get_mode(mnt, SDCARDFS_I(inode), top);
 	tmp.i_size = i_size_read(inode);
-	release_top(SDCARDFS_I(inode));
+	data_put(top);
 	tmp.i_sb = inode->i_sb;
 
 	/*
@@ -815,17 +820,17 @@ static int sdcardfs_fillattr(struct vfsmount *mnt,
 				struct inode *inode, struct kstat *stat)
 {
 	struct sdcardfs_inode_info *info = SDCARDFS_I(inode);
-	struct inode *top = grab_top(info);
+	struct sdcardfs_inode_data *top = top_data_get(info);
 
 	if (!top)
 		return -EINVAL;
 
 	stat->dev = inode->i_sb->s_dev;
 	stat->ino = inode->i_ino;
-	stat->mode = (inode->i_mode  & S_IFMT) | get_mode(mnt, SDCARDFS_I(top));
+	stat->mode = (inode->i_mode  & S_IFMT) | get_mode(mnt, info, top);
 	stat->nlink = inode->i_nlink;
-	stat->uid = make_kuid(&init_user_ns, SDCARDFS_I(top)->d_uid);
-	stat->gid = make_kgid(&init_user_ns, get_gid(mnt, SDCARDFS_I(top)));
+	stat->uid = make_kuid(&init_user_ns, top->d_uid);
+	stat->gid = make_kgid(&init_user_ns, get_gid(mnt, top));
 	stat->rdev = inode->i_rdev;
 	stat->size = i_size_read(inode);
 	stat->atime = inode->i_atime;
@@ -833,7 +838,7 @@ static int sdcardfs_fillattr(struct vfsmount *mnt,
 	stat->ctime = inode->i_ctime;
 	stat->blksize = (1 << inode->i_blkbits);
 	stat->blocks = inode->i_blocks;
-	release_top(info);
+	data_put(top);
 	return 0;
 }
 

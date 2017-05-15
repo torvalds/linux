@@ -156,7 +156,7 @@ int check_caller_access_to_name(struct inode *parent_node, const struct qstr *na
 	struct qstr q_android_secure = QSTR_LITERAL("android_secure");
 
 	/* Always block security-sensitive files at root */
-	if (parent_node && SDCARDFS_I(parent_node)->perm == PERM_ROOT) {
+	if (parent_node && SDCARDFS_I(parent_node)->data->perm == PERM_ROOT) {
 		if (qstr_case_eq(name, &q_autorun)
 			|| qstr_case_eq(name, &q__android_secure)
 			|| qstr_case_eq(name, &q_android_secure)) {

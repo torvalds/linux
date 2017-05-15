@@ -26,28 +26,28 @@ static void inherit_derived_state(struct inode *parent, struct inode *child)
 	struct sdcardfs_inode_info *pi = SDCARDFS_I(parent);
 	struct sdcardfs_inode_info *ci = SDCARDFS_I(child);
 
-	ci->perm = PERM_INHERIT;
-	ci->userid = pi->userid;
-	ci->d_uid = pi->d_uid;
-	ci->under_android = pi->under_android;
-	ci->under_cache = pi->under_cache;
-	ci->under_obb = pi->under_obb;
-	set_top(ci, pi->top);
+	ci->data->perm = PERM_INHERIT;
+	ci->data->userid = pi->data->userid;
+	ci->data->d_uid = pi->data->d_uid;
+	ci->data->under_android = pi->data->under_android;
+	ci->data->under_cache = pi->data->under_cache;
+	ci->data->under_obb = pi->data->under_obb;
+	set_top(ci, pi->top_data);
 }
 
 /* helper function for derived state */
 void setup_derived_state(struct inode *inode, perm_t perm, userid_t userid,
-						uid_t uid, bool under_android,
-						struct inode *top)
+					uid_t uid, bool under_android,
+					struct sdcardfs_inode_data *top)
 {
 	struct sdcardfs_inode_info *info = SDCARDFS_I(inode);
 
-	info->perm = perm;
-	info->userid = userid;
-	info->d_uid = uid;
-	info->under_android = under_android;
-	info->under_cache = false;
-	info->under_obb = false;
+	info->data->perm = perm;
+	info->data->userid = userid;
+	info->data->d_uid = uid;
+	info->data->under_android = under_android;
+	info->data->under_cache = false;
+	info->data->under_obb = false;
 	set_top(info, top);
 }
 
@@ -58,7 +58,8 @@ void get_derived_permission_new(struct dentry *parent, struct dentry *dentry,
 				const struct qstr *name)
 {
 	struct sdcardfs_inode_info *info = SDCARDFS_I(d_inode(dentry));
-	struct sdcardfs_inode_info *parent_info = SDCARDFS_I(d_inode(parent));
+	struct sdcardfs_inode_data *parent_data =
+			SDCARDFS_I(d_inode(parent))->data;
 	appid_t appid;
 	unsigned long user_num;
 	int err;
@@ -82,60 +83,61 @@ void get_derived_permission_new(struct dentry *parent, struct dentry *dentry,
 	if (!S_ISDIR(d_inode(dentry)->i_mode))
 		return;
 	/* Derive custom permissions based on parent and current node */
-	switch (parent_info->perm) {
+	switch (parent_data->perm) {
 	case PERM_INHERIT:
 	case PERM_ANDROID_PACKAGE_CACHE:
 		/* Already inherited above */
 		break;
 	case PERM_PRE_ROOT:
 		/* Legacy internal layout places users at top level */
-		info->perm = PERM_ROOT;
+		info->data->perm = PERM_ROOT;
 		err = kstrtoul(name->name, 10, &user_num);
 		if (err)
-			info->userid = 0;
+			info->data->userid = 0;
 		else
-			info->userid = user_num;
-		set_top(info, &info->vfs_inode);
+			info->data->userid = user_num;
+		set_top(info, info->data);
 		break;
 	case PERM_ROOT:
 		/* Assume masked off by default. */
 		if (qstr_case_eq(name, &q_Android)) {
 			/* App-specific directories inside; let anyone traverse */
-			info->perm = PERM_ANDROID;
-			info->under_android = true;
-			set_top(info, &info->vfs_inode);
+			info->data->perm = PERM_ANDROID;
+			info->data->under_android = true;
+			set_top(info, info->data);
 		}
 		break;
 	case PERM_ANDROID:
 		if (qstr_case_eq(name, &q_data)) {
 			/* App-specific directories inside; let anyone traverse */
-			info->perm = PERM_ANDROID_DATA;
-			set_top(info, &info->vfs_inode);
+			info->data->perm = PERM_ANDROID_DATA;
+			set_top(info, info->data);
 		} else if (qstr_case_eq(name, &q_obb)) {
 			/* App-specific directories inside; let anyone traverse */
-			info->perm = PERM_ANDROID_OBB;
-			info->under_obb = true;
-			set_top(info, &info->vfs_inode);
+			info->data->perm = PERM_ANDROID_OBB;
+			info->data->under_obb = true;
+			set_top(info, info->data);
 			/* Single OBB directory is always shared */
 		} else if (qstr_case_eq(name, &q_media)) {
 			/* App-specific directories inside; let anyone traverse */
-			info->perm = PERM_ANDROID_MEDIA;
-			set_top(info, &info->vfs_inode);
+			info->data->perm = PERM_ANDROID_MEDIA;
+			set_top(info, info->data);
 		}
 		break;
 	case PERM_ANDROID_OBB:
 	case PERM_ANDROID_DATA:
 	case PERM_ANDROID_MEDIA:
-		info->perm = PERM_ANDROID_PACKAGE;
+		info->data->perm = PERM_ANDROID_PACKAGE;
 		appid = get_appid(name->name);
-		if (appid != 0 && !is_excluded(name->name, parent_info->userid))
-			info->d_uid = multiuser_get_uid(parent_info->userid, appid);
-		set_top(info, &info->vfs_inode);
+		if (appid != 0 && !is_excluded(name->name, parent_data->userid))
+			info->data->d_uid =
+				multiuser_get_uid(parent_data->userid, appid);
+		set_top(info, info->data);
 		break;
 	case PERM_ANDROID_PACKAGE:
 		if (qstr_case_eq(name, &q_cache)) {
-			info->perm = PERM_ANDROID_PACKAGE_CACHE;
-			info->under_cache = true;
+			info->data->perm = PERM_ANDROID_PACKAGE_CACHE;
+			info->data->under_cache = true;
 		}
 		break;
 	}
@@ -166,7 +168,8 @@ void fixup_lower_ownership(struct dentry *dentry, const char *name)
 	struct inode *delegated_inode = NULL;
 	int error;
 	struct sdcardfs_inode_info *info;
-	struct sdcardfs_inode_info *info_top;
+	struct sdcardfs_inode_data *info_d;
+	struct sdcardfs_inode_data *info_top;
 	perm_t perm;
 	struct sdcardfs_sb_info *sbi = SDCARDFS_SB(dentry->d_sb);
 	uid_t uid = sbi->options.fs_low_uid;
@@ -174,15 +177,16 @@ void fixup_lower_ownership(struct dentry *dentry, const char *name)
 	struct iattr newattrs;
 
 	info = SDCARDFS_I(d_inode(dentry));
-	perm = info->perm;
-	if (info->under_obb) {
+	info_d = info->data;
+	perm = info_d->perm;
+	if (info_d->under_obb) {
 		perm = PERM_ANDROID_OBB;
-	} else if (info->under_cache) {
+	} else if (info_d->under_cache) {
 		perm = PERM_ANDROID_PACKAGE_CACHE;
 	} else if (perm == PERM_INHERIT) {
-		info_top = SDCARDFS_I(grab_top(info));
+		info_top = top_data_get(info);
 		perm = info_top->perm;
-		release_top(info);
+		data_put(info_top);
 	}
 
 	switch (perm) {
@@ -192,7 +196,7 @@ void fixup_lower_ownership(struct dentry *dentry, const char *name)
 	case PERM_ANDROID_MEDIA:
 	case PERM_ANDROID_PACKAGE:
 	case PERM_ANDROID_PACKAGE_CACHE:
-		uid = multiuser_get_uid(info->userid, uid);
+		uid = multiuser_get_uid(info_d->userid, uid);
 		break;
 	case PERM_ANDROID_OBB:
 		uid = AID_MEDIA_OBB;
@@ -207,24 +211,24 @@ void fixup_lower_ownership(struct dentry *dentry, const char *name)
 	case PERM_ANDROID_DATA:
 	case PERM_ANDROID_MEDIA:
 		if (S_ISDIR(d_inode(dentry)->i_mode))
-			gid = multiuser_get_uid(info->userid, AID_MEDIA_RW);
+			gid = multiuser_get_uid(info_d->userid, AID_MEDIA_RW);
 		else
-			gid = multiuser_get_uid(info->userid, get_type(name));
+			gid = multiuser_get_uid(info_d->userid, get_type(name));
 		break;
 	case PERM_ANDROID_OBB:
 		gid = AID_MEDIA_OBB;
 		break;
 	case PERM_ANDROID_PACKAGE:
-		if (uid_is_app(info->d_uid))
-			gid = multiuser_get_ext_gid(info->d_uid);
+		if (uid_is_app(info_d->d_uid))
+			gid = multiuser_get_ext_gid(info_d->d_uid);
 		else
-			gid = multiuser_get_uid(info->userid, AID_MEDIA_RW);
+			gid = multiuser_get_uid(info_d->userid, AID_MEDIA_RW);
 		break;
 	case PERM_ANDROID_PACKAGE_CACHE:
-		if (uid_is_app(info->d_uid))
-			gid = multiuser_get_ext_cache_gid(info->d_uid);
+		if (uid_is_app(info_d->d_uid))
+			gid = multiuser_get_ext_cache_gid(info_d->d_uid);
 		else
-			gid = multiuser_get_uid(info->userid, AID_MEDIA_RW);
+			gid = multiuser_get_uid(info_d->userid, AID_MEDIA_RW);
 		break;
 	case PERM_PRE_ROOT:
 	default:
@@ -257,11 +261,13 @@ retry_deleg:
 	sdcardfs_put_lower_path(dentry, &path);
 }
 
-static int descendant_may_need_fixup(struct sdcardfs_inode_info *info, struct limit_search *limit)
+static int descendant_may_need_fixup(struct sdcardfs_inode_data *data,
+		struct limit_search *limit)
 {
-	if (info->perm == PERM_ROOT)
-		return (limit->flags & BY_USERID)?info->userid == limit->userid:1;
-	if (info->perm == PERM_PRE_ROOT || info->perm == PERM_ANDROID)
+	if (data->perm == PERM_ROOT)
+		return (limit->flags & BY_USERID) ?
+				data->userid == limit->userid : 1;
+	if (data->perm == PERM_PRE_ROOT || data->perm == PERM_ANDROID)
 		return 1;
 	return 0;
 }
@@ -292,7 +298,7 @@ static void __fixup_perms_recursive(struct dentry *dentry, struct limit_search *
 	}
 	info = SDCARDFS_I(d_inode(dentry));
 
-	if (needs_fixup(info->perm)) {
+	if (needs_fixup(info->data->perm)) {
 		list_for_each_entry(child, &dentry->d_subdirs, d_child) {
 			spin_lock_nested(&child->d_lock, depth + 1);
 			if (!(limit->flags & BY_NAME) || qstr_case_eq(&child->d_name, &limit->name)) {
@@ -305,7 +311,7 @@ static void __fixup_perms_recursive(struct dentry *dentry, struct limit_search *
 			}
 			spin_unlock(&child->d_lock);
 		}
-	} else if (descendant_may_need_fixup(info, limit)) {
+	} else if (descendant_may_need_fixup(info->data, limit)) {
 		list_for_each_entry(child, &dentry->d_subdirs, d_child) {
 			__fixup_perms_recursive(child, limit, depth + 1);
 		}
@@ -349,12 +355,12 @@ int need_graft_path(struct dentry *dentry)
 	struct sdcardfs_sb_info *sbi = SDCARDFS_SB(dentry->d_sb);
 	struct qstr obb = QSTR_LITERAL("obb");
 
-	if (parent_info->perm == PERM_ANDROID &&
+	if (parent_info->data->perm == PERM_ANDROID &&
 			qstr_case_eq(&dentry->d_name, &obb)) {
 
 		/* /Android/obb is the base obbpath of DERIVED_UNIFIED */
 		if (!(sbi->options.multiuser == false
-				&& parent_info->userid == 0)) {
+				&& parent_info->data->userid == 0)) {
 			ret = 1;
 		}
 	}
@@ -415,11 +421,11 @@ int is_base_obbpath(struct dentry *dentry)
 
 	spin_lock(&SDCARDFS_D(dentry)->lock);
 	if (sbi->options.multiuser) {
-		if (parent_info->perm == PERM_PRE_ROOT &&
+		if (parent_info->data->perm == PERM_PRE_ROOT &&
 				qstr_case_eq(&dentry->d_name, &q_obb)) {
 			ret = 1;
 		}
-	} else  if (parent_info->perm == PERM_ANDROID &&
+	} else  if (parent_info->data->perm == PERM_ANDROID &&
 			qstr_case_eq(&dentry->d_name, &q_obb)) {
 		ret = 1;
 	}

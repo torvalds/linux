@@ -26,6 +26,23 @@
  */
 static struct kmem_cache *sdcardfs_inode_cachep;
 
+/*
+ * To support the top references, we must track some data separately.
+ * An sdcardfs_inode_info always has a reference to its data, and once set up,
+ * also has a reference to its top. The top may be itself, in which case it
+ * holds two references to its data. When top is changed, it takes a ref to the
+ * new data and then drops the ref to the old data.
+ */
+static struct kmem_cache *sdcardfs_inode_data_cachep;
+
+void data_release(struct kref *ref)
+{
+	struct sdcardfs_inode_data *data =
+		container_of(ref, struct sdcardfs_inode_data, refcount);
+
+	kmem_cache_free(sdcardfs_inode_data_cachep, data);
+}
+
 /* final actions when unmounting a file system */
 static void sdcardfs_put_super(struct super_block *sb)
 {
@@ -166,6 +183,7 @@ static void sdcardfs_evict_inode(struct inode *inode)
 	struct inode *lower_inode;
 
 	truncate_inode_pages(&inode->i_data, 0);
+	set_top(SDCARDFS_I(inode), NULL);
 	clear_inode(inode);
 	/*
 	 * Decrement a reference to a lower_inode, which was incremented
@@ -173,13 +191,13 @@ static void sdcardfs_evict_inode(struct inode *inode)
 	 */
 	lower_inode = sdcardfs_lower_inode(inode);
 	sdcardfs_set_lower_inode(inode, NULL);
-	set_top(SDCARDFS_I(inode), inode);
 	iput(lower_inode);
 }
 
 static struct inode *sdcardfs_alloc_inode(struct super_block *sb)
 {
 	struct sdcardfs_inode_info *i;
+	struct sdcardfs_inode_data *d;
 
 	i = kmem_cache_alloc(sdcardfs_inode_cachep, GFP_KERNEL);
 	if (!i)
@@ -187,6 +205,16 @@ static struct inode *sdcardfs_alloc_inode(struct super_block *sb)
 
 	/* memset everything up to the inode to 0 */
 	memset(i, 0, offsetof(struct sdcardfs_inode_info, vfs_inode));
+
+	d = kmem_cache_alloc(sdcardfs_inode_data_cachep,
+					GFP_KERNEL | __GFP_ZERO);
+	if (!d) {
+		kmem_cache_free(sdcardfs_inode_cachep, i);
+		return NULL;
+	}
+
+	i->data = d;
+	kref_init(&d->refcount);
 
 	i->vfs_inode.i_version = 1;
 	return &i->vfs_inode;
@@ -196,6 +224,7 @@ static void i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
 
+	release_own_data(SDCARDFS_I(inode));
 	kmem_cache_free(sdcardfs_inode_cachep, SDCARDFS_I(inode));
 }
 
@@ -214,20 +243,30 @@ static void init_once(void *obj)
 
 int sdcardfs_init_inode_cache(void)
 {
-	int err = 0;
-
 	sdcardfs_inode_cachep =
 		kmem_cache_create("sdcardfs_inode_cache",
 				  sizeof(struct sdcardfs_inode_info), 0,
 				  SLAB_RECLAIM_ACCOUNT, init_once);
+
 	if (!sdcardfs_inode_cachep)
-		err = -ENOMEM;
-	return err;
+		return -ENOMEM;
+
+	sdcardfs_inode_data_cachep =
+		kmem_cache_create("sdcardfs_inode_data_cache",
+				  sizeof(struct sdcardfs_inode_data), 0,
+				  SLAB_RECLAIM_ACCOUNT, NULL);
+	if (!sdcardfs_inode_data_cachep) {
+		kmem_cache_destroy(sdcardfs_inode_cachep);
+		return -ENOMEM;
+	}
+
+	return 0;
 }
 
 /* sdcardfs inode cache destructor */
 void sdcardfs_destroy_inode_cache(void)
 {
+	kmem_cache_destroy(sdcardfs_inode_data_cachep);
 	kmem_cache_destroy(sdcardfs_inode_cachep);
 }
 
