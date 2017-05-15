@@ -2070,6 +2070,16 @@ static int skl_tplg_get_token(struct device *dev,
 
 		break;
 
+	case SKL_TKN_U32_CAPS_SET_PARAMS:
+		mconfig->formats_config.set_params =
+				tkn_elem->value;
+		break;
+
+	case SKL_TKN_U32_CAPS_PARAMS_ID:
+		mconfig->formats_config.param_id =
+				tkn_elem->value;
+		break;
+
 	case SKL_TKN_U32_PROC_DOMAIN:
 		mconfig->domain =
 			tkn_elem->value;
@@ -2147,7 +2157,7 @@ static int skl_tplg_get_tokens(struct device *dev,
 		tuple_size += tkn_count * sizeof(*tkn_elem);
 	}
 
-	return 0;
+	return off;
 }
 
 /*
@@ -2198,10 +2208,11 @@ static int skl_tplg_get_pvt_data(struct snd_soc_tplg_dapm_widget *tplg_w,
 	num_blocks = ret;
 
 	off += array->size;
-	array = (struct snd_soc_tplg_vendor_array *)(tplg_w->priv.data + off);
-
 	/* Read the BLOCK_TYPE and BLOCK_SIZE descriptor */
 	while (num_blocks > 0) {
+		array = (struct snd_soc_tplg_vendor_array *)
+				(tplg_w->priv.data + off);
+
 		ret = skl_tplg_get_desc_blocks(dev, array);
 
 		if (ret < 0)
@@ -2237,7 +2248,9 @@ static int skl_tplg_get_pvt_data(struct snd_soc_tplg_dapm_widget *tplg_w,
 				memcpy(mconfig->formats_config.caps, data,
 					mconfig->formats_config.caps_size);
 			--num_blocks;
+			ret = mconfig->formats_config.caps_size;
 		}
+		off += ret;
 	}
 
 	return 0;
