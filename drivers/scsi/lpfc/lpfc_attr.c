@@ -205,8 +205,9 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 				atomic_read(&tgtp->xmt_ls_rsp_error));
 
 		len += snprintf(buf+len, PAGE_SIZE-len,
-				"FCP: Rcv %08x Drop %08x\n",
+				"FCP: Rcv %08x Release %08x Drop %08x\n",
 				atomic_read(&tgtp->rcv_fcp_cmd_in),
+				atomic_read(&tgtp->xmt_fcp_release),
 				atomic_read(&tgtp->rcv_fcp_cmd_drop));
 
 		if (atomic_read(&tgtp->rcv_fcp_cmd_in) !=
@@ -218,15 +219,12 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 		}
 
 		len += snprintf(buf+len, PAGE_SIZE-len,
-				"FCP Rsp: RD %08x rsp %08x WR %08x rsp %08x\n",
+				"FCP Rsp: RD %08x rsp %08x WR %08x rsp %08x "
+				"drop %08x\n",
 				atomic_read(&tgtp->xmt_fcp_read),
 				atomic_read(&tgtp->xmt_fcp_read_rsp),
 				atomic_read(&tgtp->xmt_fcp_write),
-				atomic_read(&tgtp->xmt_fcp_rsp));
-
-		len += snprintf(buf+len, PAGE_SIZE-len,
-				"FCP Rsp: abort %08x drop %08x\n",
-				atomic_read(&tgtp->xmt_fcp_abort),
+				atomic_read(&tgtp->xmt_fcp_rsp),
 				atomic_read(&tgtp->xmt_fcp_drop));
 
 		len += snprintf(buf+len, PAGE_SIZE-len,
@@ -236,10 +234,16 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 				atomic_read(&tgtp->xmt_fcp_rsp_drop));
 
 		len += snprintf(buf+len, PAGE_SIZE-len,
-				"ABORT: Xmt %08x Err %08x Cmpl %08x",
+				"ABORT: Xmt %08x Cmpl %08x\n",
+				atomic_read(&tgtp->xmt_fcp_abort),
+				atomic_read(&tgtp->xmt_fcp_abort_cmpl));
+
+		len += snprintf(buf + len, PAGE_SIZE - len,
+				"ABORT: Sol %08x  Usol %08x Err %08x Cmpl %08x",
+				atomic_read(&tgtp->xmt_abort_sol),
+				atomic_read(&tgtp->xmt_abort_unsol),
 				atomic_read(&tgtp->xmt_abort_rsp),
-				atomic_read(&tgtp->xmt_abort_rsp_error),
-				atomic_read(&tgtp->xmt_abort_cmpl));
+				atomic_read(&tgtp->xmt_abort_rsp_error));
 
 		len +=  snprintf(buf+len, PAGE_SIZE-len, "\n");
 		return len;

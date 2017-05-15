@@ -195,7 +195,7 @@ struct lpfc_queue {
 /* defines for RQ stats */
 #define	RQ_no_posted_buf	q_cnt_1
 #define	RQ_no_buf_found		q_cnt_2
-#define	RQ_buf_trunc		q_cnt_3
+#define	RQ_buf_posted		q_cnt_3
 #define	RQ_rcv_buf		q_cnt_4
 
 	uint64_t isr_timestamp;

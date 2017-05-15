@@ -512,6 +512,7 @@ lpfc_sli4_rq_put(struct lpfc_queue *hq, struct lpfc_queue *dq,
 		} else {
 			return -EINVAL;
 		}
+		hq->RQ_buf_posted += hq->entry_repost;
 		writel(doorbell.word0, hq->db_regaddr);
 	}
 	return put_index;
@@ -12788,6 +12789,7 @@ lpfc_sli4_sp_handle_rcqe(struct lpfc_hba *phba, struct lpfc_rcqe *rcqe)
 	struct fc_frame_header *fc_hdr;
 	struct lpfc_queue *hrq = phba->sli4_hba.hdr_rq;
 	struct lpfc_queue *drq = phba->sli4_hba.dat_rq;
+	struct lpfc_nvmet_tgtport *tgtp;
 	struct hbq_dmabuf *dma_buf;
 	uint32_t status, rq_id;
 	unsigned long iflags;
@@ -12808,7 +12810,6 @@ lpfc_sli4_sp_handle_rcqe(struct lpfc_hba *phba, struct lpfc_rcqe *rcqe)
 	case FC_STATUS_RQ_BUF_LEN_EXCEEDED:
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"2537 Receive Frame Truncated!!\n");
-		hrq->RQ_buf_trunc++;
 	case FC_STATUS_RQ_SUCCESS:
 		lpfc_sli4_rq_release(hrq, drq);
 		spin_lock_irqsave(&phba->hbalock, iflags);
@@ -12819,6 +12820,7 @@ lpfc_sli4_sp_handle_rcqe(struct lpfc_hba *phba, struct lpfc_rcqe *rcqe)
 			goto out;
 		}
 		hrq->RQ_rcv_buf++;
+		hrq->RQ_buf_posted--;
 		memcpy(&dma_buf->cq_event.cqe.rcqe_cmpl, rcqe, sizeof(*rcqe));
 
 		/* If a NVME LS event (type 0x28), treat it as Fast path */
@@ -12832,8 +12834,21 @@ lpfc_sli4_sp_handle_rcqe(struct lpfc_hba *phba, struct lpfc_rcqe *rcqe)
 		spin_unlock_irqrestore(&phba->hbalock, iflags);
 		workposted = true;
 		break;
-	case FC_STATUS_INSUFF_BUF_NEED_BUF:
 	case FC_STATUS_INSUFF_BUF_FRM_DISC:
+		if (phba->nvmet_support) {
+			tgtp = phba->targetport->private;
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI | LOG_NVME,
+					"6402 RQE Error x%x, posted %d err_cnt "
+					"%d: %x %x %x\n",
+					status, hrq->RQ_buf_posted,
+					hrq->RQ_no_posted_buf,
+					atomic_read(&tgtp->rcv_fcp_cmd_in),
+					atomic_read(&tgtp->rcv_fcp_cmd_out),
+					atomic_read(&tgtp->xmt_fcp_release));
+		}
+		/* fallthrough */
+
+	case FC_STATUS_INSUFF_BUF_NEED_BUF:
 		hrq->RQ_no_posted_buf++;
 		/* Post more buffers if possible */
 		spin_lock_irqsave(&phba->hbalock, iflags);
@@ -13135,6 +13150,7 @@ lpfc_sli4_nvmet_handle_rcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 	struct lpfc_queue *drq;
 	struct rqb_dmabuf *dma_buf;
 	struct fc_frame_header *fc_hdr;
+	struct lpfc_nvmet_tgtport *tgtp;
 	uint32_t status, rq_id;
 	unsigned long iflags;
 	uint32_t fctl, idx;
@@ -13165,8 +13181,6 @@ lpfc_sli4_nvmet_handle_rcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 	case FC_STATUS_RQ_BUF_LEN_EXCEEDED:
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"6126 Receive Frame Truncated!!\n");
-		hrq->RQ_buf_trunc++;
-		break;
 	case FC_STATUS_RQ_SUCCESS:
 		lpfc_sli4_rq_release(hrq, drq);
 		spin_lock_irqsave(&phba->hbalock, iflags);
@@ -13178,6 +13192,7 @@ lpfc_sli4_nvmet_handle_rcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 		}
 		spin_unlock_irqrestore(&phba->hbalock, iflags);
 		hrq->RQ_rcv_buf++;
+		hrq->RQ_buf_posted--;
 		fc_hdr = (struct fc_frame_header *)dma_buf->hbuf.virt;
 
 		/* Just some basic sanity checks on FCP Command frame */
@@ -13200,8 +13215,21 @@ lpfc_sli4_nvmet_handle_rcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 drop:
 		lpfc_in_buf_free(phba, &dma_buf->dbuf);
 		break;
-	case FC_STATUS_INSUFF_BUF_NEED_BUF:
 	case FC_STATUS_INSUFF_BUF_FRM_DISC:
+		if (phba->nvmet_support) {
+			tgtp = phba->targetport->private;
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI | LOG_NVME,
+					"6401 RQE Error x%x, posted %d err_cnt "
+					"%d: %x %x %x\n",
+					status, hrq->RQ_buf_posted,
+					hrq->RQ_no_posted_buf,
+					atomic_read(&tgtp->rcv_fcp_cmd_in),
+					atomic_read(&tgtp->rcv_fcp_cmd_out),
+					atomic_read(&tgtp->xmt_fcp_release));
+		}
+		/* fallthrough */
+
+	case FC_STATUS_INSUFF_BUF_NEED_BUF:
 		hrq->RQ_no_posted_buf++;
 		/* Post more buffers if possible */
 		spin_lock_irqsave(&phba->hbalock, iflags);
