@@ -1309,11 +1309,6 @@ static void gfx_v6_0_setup_rb(struct amdgpu_device *adev)
 	gfx_v6_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
 	mutex_unlock(&adev->grbm_idx_mutex);
 }
-/*
-static void gmc_v6_0_init_compute_vmid(struct amdgpu_device *adev)
-{
-}
-*/
 
 static void gfx_v6_0_set_user_cu_inactive_bitmap(struct amdgpu_device *adev,
 						 u32 bitmap)
