@@ -1424,6 +1424,8 @@ cifs_readv_discard(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 
 	length = discard_remaining_data(server);
 	dequeue_mid(mid, rdata->result);
+	mid->resp_buf = server->smallbuf;
+	server->smallbuf = NULL;
 	return length;
 }
 
@@ -1538,6 +1540,8 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 		return cifs_readv_discard(server, mid);
 
 	dequeue_mid(mid, false);
+	mid->resp_buf = server->smallbuf;
+	server->smallbuf = NULL;
 	return length;
 }
 
