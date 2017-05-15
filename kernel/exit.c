@@ -1639,8 +1639,8 @@ Efault:
 	return -EFAULT;
 }
 
-static long kernel_wait4(pid_t upid, int __user *stat_addr,
-			int options, struct rusage *ru)
+long kernel_wait4(pid_t upid, int __user *stat_addr, int options,
+		  struct rusage *ru)
 {
 	struct wait_opts wo;
 	struct pid *pid = NULL;
