@@ -1002,7 +1002,7 @@ struct wait_opts {
 	struct pid		*wo_pid;
 
 	struct siginfo __user	*wo_info;
-	int __user		*wo_stat;
+	int			wo_stat;
 	struct rusage		*wo_rusage;
 
 	wait_queue_t		child_wait;
@@ -1189,8 +1189,7 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 	retval = 0;
 	status = (p->signal->flags & SIGNAL_GROUP_EXIT)
 		? p->signal->group_exit_code : p->exit_code;
-	if (!retval && wo->wo_stat)
-		retval = put_user(status, wo->wo_stat);
+	wo->wo_stat = status;
 
 	infop = wo->wo_info;
 	if (!retval && infop)
@@ -1322,8 +1321,7 @@ unlock_sig:
 	if (wo->wo_rusage)
 		getrusage(p, RUSAGE_BOTH, wo->wo_rusage);
 	retval = 0;
-	if (!retval && wo->wo_stat)
-		retval = put_user((exit_code << 8) | 0x7f, wo->wo_stat);
+	wo->wo_stat = (exit_code << 8) | 0x7f;
 
 	infop = wo->wo_info;
 	if (!retval && infop)
@@ -1383,12 +1381,9 @@ static int wait_task_continued(struct wait_opts *wo, struct task_struct *p)
 	if (!wo->wo_info) {
 		if (wo->wo_rusage)
 			getrusage(p, RUSAGE_BOTH, wo->wo_rusage);
-		retval = 0;
 		put_task_struct(p);
-		if (!retval && wo->wo_stat)
-			retval = put_user(0xffff, wo->wo_stat);
-		if (!retval)
-			retval = pid;
+		wo->wo_stat = 0xffff;
+		retval = pid;
 	} else {
 		retval = wait_noreap_copyout(wo, p, pid, uid,
 					     CLD_CONTINUED, SIGCONT);
@@ -1662,7 +1657,6 @@ static long kernel_waitid(int which, pid_t upid, struct siginfo __user *infop,
 	wo.wo_pid	= pid;
 	wo.wo_flags	= options;
 	wo.wo_info	= infop;
-	wo.wo_stat	= NULL;
 	wo.wo_rusage	= ru;
 	ret = do_wait(&wo);
 
@@ -1734,10 +1728,12 @@ static long kernel_wait4(pid_t upid, int __user *stat_addr,
 	wo.wo_pid	= pid;
 	wo.wo_flags	= options | WEXITED;
 	wo.wo_info	= NULL;
-	wo.wo_stat	= stat_addr;
+	wo.wo_stat	= 0;
 	wo.wo_rusage	= ru;
 	ret = do_wait(&wo);
 	put_pid(pid);
+	if (ret > 0 && stat_addr && put_user(wo.wo_stat, stat_addr))
+		ret = -EFAULT;
 
 	return ret;
 }
