@@ -402,7 +402,6 @@ static int ipack_device_read_id(struct ipack_device *dev)
 	 * ID ROM contents */
 	dev->id = kmalloc(dev->id_avail, GFP_KERNEL);
 	if (!dev->id) {
-		dev_err(&dev->dev, "dev->id alloc failed.\n");
 		ret = -ENOMEM;
 		goto out;
 	}
