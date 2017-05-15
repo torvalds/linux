@@ -1658,6 +1658,17 @@ static int amdgpu_init(struct amdgpu_device *adev)
 	return 0;
 }
 
+static void amdgpu_fill_reset_magic(struct amdgpu_device *adev)
+{
+	memcpy(adev->reset_magic, adev->gart.ptr, AMDGPU_RESET_MAGIC_NUM);
+}
+
+static bool amdgpu_check_vram_lost(struct amdgpu_device *adev)
+{
+	return !!memcmp(adev->gart.ptr, adev->reset_magic,
+			AMDGPU_RESET_MAGIC_NUM);
+}
+
 static int amdgpu_late_init(struct amdgpu_device *adev)
 {
 	int i = 0, r;
@@ -1687,6 +1698,8 @@ static int amdgpu_late_init(struct amdgpu_device *adev)
 			}
 		}
 	}
+
+	amdgpu_fill_reset_magic(adev);
 
 	return 0;
 }
@@ -2762,7 +2775,7 @@ int amdgpu_gpu_reset(struct amdgpu_device *adev)
 {
 	int i, r;
 	int resched;
-	bool need_full_reset;
+	bool need_full_reset, vram_lost = false;
 
 	if (!amdgpu_check_soft_reset(adev)) {
 		DRM_INFO("No hardware hang detected. Did some blocks stall?\n");
@@ -2825,12 +2838,17 @@ retry:
 			r = amdgpu_resume_phase1(adev);
 			if (r)
 				goto out;
+			vram_lost = amdgpu_check_vram_lost(adev);
+			if (vram_lost)
+				DRM_ERROR("VRAM is lost!\n");
 			r = amdgpu_ttm_recover_gart(adev);
 			if (r)
 				goto out;
 			r = amdgpu_resume_phase2(adev);
 			if (r)
 				goto out;
+			if (vram_lost)
+				amdgpu_fill_reset_magic(adev);
 		}
 	}
 out:

@@ -1427,6 +1427,7 @@ typedef void (*amdgpu_wreg_t)(struct amdgpu_device*, uint32_t, uint32_t);
 typedef uint32_t (*amdgpu_block_rreg_t)(struct amdgpu_device*, uint32_t, uint32_t);
 typedef void (*amdgpu_block_wreg_t)(struct amdgpu_device*, uint32_t, uint32_t, uint32_t);
 
+#define AMDGPU_RESET_MAGIC_NUM 64
 struct amdgpu_device {
 	struct device			*dev;
 	struct drm_device		*ddev;
@@ -1619,6 +1620,7 @@ struct amdgpu_device {
 
 	/* record hw reset is performed */
 	bool has_hw_reset;
+	u8				reset_magic[AMDGPU_RESET_MAGIC_NUM];
 
 };
 
