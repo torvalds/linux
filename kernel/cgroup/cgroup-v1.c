@@ -510,10 +510,58 @@ static int cgroup_pidlist_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-static ssize_t cgroup_tasks_write(struct kernfs_open_file *of,
-				  char *buf, size_t nbytes, loff_t off)
+static ssize_t __cgroup1_procs_write(struct kernfs_open_file *of,
+				     char *buf, size_t nbytes, loff_t off,
+				     bool threadgroup)
 {
-	return __cgroup_procs_write(of, buf, nbytes, off, false);
+	struct cgroup *cgrp;
+	struct task_struct *task;
+	const struct cred *cred, *tcred;
+	ssize_t ret;
+
+	cgrp = cgroup_kn_lock_live(of->kn, false);
+	if (!cgrp)
+		return -ENODEV;
+
+	task = cgroup_procs_write_start(buf, threadgroup);
+	ret = PTR_ERR_OR_ZERO(task);
+	if (ret)
+		goto out_unlock;
+
+	/*
+	 * Even if we're attaching all tasks in the thread group, we only
+	 * need to check permissions on one of them.
+	 */
+	cred = current_cred();
+	tcred = get_task_cred(task);
+	if (!uid_eq(cred->euid, GLOBAL_ROOT_UID) &&
+	    !uid_eq(cred->euid, tcred->uid) &&
+	    !uid_eq(cred->euid, tcred->suid))
+		ret = -EACCES;
+	put_cred(tcred);
+	if (ret)
+		goto out_finish;
+
+	ret = cgroup_attach_task(cgrp, task, threadgroup);
+
+out_finish:
+	cgroup_procs_write_finish(task);
+out_unlock:
+	cgroup_kn_unlock(of->kn);
+
+	return ret ?: nbytes;
+}
+
+static ssize_t cgroup1_procs_write(struct kernfs_open_file *of,
+				   char *buf, size_t nbytes, loff_t off)
+{
+	return __cgroup1_procs_write(of, buf, nbytes, off, true);
+}
+
+static ssize_t cgroup1_tasks_write(struct kernfs_open_file *of,
+				   char *buf, size_t nbytes, loff_t off)
+{
+	return __cgroup1_procs_write(of, buf, nbytes, off, false);
 }
 
 static ssize_t cgroup_release_agent_write(struct kernfs_open_file *of,
@@ -592,7 +640,7 @@ struct cftype cgroup1_base_files[] = {
 		.seq_stop = cgroup_pidlist_stop,
 		.seq_show = cgroup_pidlist_show,
 		.private = CGROUP_FILE_PROCS,
-		.write = cgroup_procs_write,
+		.write = cgroup1_procs_write,
 	},
 	{
 		.name = "cgroup.clone_children",
@@ -611,7 +659,7 @@ struct cftype cgroup1_base_files[] = {
 		.seq_stop = cgroup_pidlist_stop,
 		.seq_show = cgroup_pidlist_show,
 		.private = CGROUP_FILE_TASKS,
-		.write = cgroup_tasks_write,
+		.write = cgroup1_tasks_write,
 	},
 	{
 		.name = "notify_on_release",

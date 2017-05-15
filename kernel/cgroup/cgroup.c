@@ -2421,96 +2421,23 @@ int cgroup_attach_task(struct cgroup *dst_cgrp, struct task_struct *leader,
 	return ret;
 }
 
-static int cgroup_procs_write_permission(struct task_struct *task,
-					 struct cgroup *dst_cgrp,
-					 struct kernfs_open_file *of)
-{
-	struct super_block *sb = of->file->f_path.dentry->d_sb;
-	struct cgroup_namespace *ns = current->nsproxy->cgroup_ns;
-	struct cgroup *root_cgrp = ns->root_cset->dfl_cgrp;
-	struct cgroup *src_cgrp, *com_cgrp;
-	struct inode *inode;
-	int ret;
-
-	if (!cgroup_on_dfl(dst_cgrp)) {
-		const struct cred *cred = current_cred();
-		const struct cred *tcred = get_task_cred(task);
-
-		/*
-		 * even if we're attaching all tasks in the thread group,
-		 * we only need to check permissions on one of them.
-		 */
-		if (uid_eq(cred->euid, GLOBAL_ROOT_UID) ||
-		    uid_eq(cred->euid, tcred->uid) ||
-		    uid_eq(cred->euid, tcred->suid))
-			ret = 0;
-		else
-			ret = -EACCES;
-
-		put_cred(tcred);
-		return ret;
-	}
-
-	/* find the source cgroup */
-	spin_lock_irq(&css_set_lock);
-	src_cgrp = task_cgroup_from_root(task, &cgrp_dfl_root);
-	spin_unlock_irq(&css_set_lock);
-
-	/* and the common ancestor */
-	com_cgrp = src_cgrp;
-	while (!cgroup_is_descendant(dst_cgrp, com_cgrp))
-		com_cgrp = cgroup_parent(com_cgrp);
-
-	/* %current should be authorized to migrate to the common ancestor */
-	inode = kernfs_get_inode(sb, com_cgrp->procs_file.kn);
-	if (!inode)
-		return -ENOMEM;
-
-	ret = inode_permission(inode, MAY_WRITE);
-	iput(inode);
-	if (ret)
-		return ret;
-
-	/*
-	 * If namespaces are delegation boundaries, %current must be able
-	 * to see both source and destination cgroups from its namespace.
-	 */
-	if ((cgrp_dfl_root.flags & CGRP_ROOT_NS_DELEGATE) &&
-	    (!cgroup_is_descendant(src_cgrp, root_cgrp) ||
-	     !cgroup_is_descendant(dst_cgrp, root_cgrp)))
-		return -ENOENT;
-
-	return 0;
-}
-
-/*
- * Find the task_struct of the task to attach by vpid and pass it along to the
- * function to attach either it or all tasks in its threadgroup. Will lock
- * cgroup_mutex and threadgroup.
- */
-ssize_t __cgroup_procs_write(struct kernfs_open_file *of, char *buf,
-			     size_t nbytes, loff_t off, bool threadgroup)
+struct task_struct *cgroup_procs_write_start(char *buf, bool threadgroup)
+	__acquires(&cgroup_threadgroup_rwsem)
 {
 	struct task_struct *tsk;
-	struct cgroup_subsys *ss;
-	struct cgroup *cgrp;
 	pid_t pid;
-	int ssid, ret;
 
 	if (kstrtoint(strstrip(buf), 0, &pid) || pid < 0)
-		return -EINVAL;
-
-	cgrp = cgroup_kn_lock_live(of->kn, false);
-	if (!cgrp)
-		return -ENODEV;
+		return ERR_PTR(-EINVAL);
 
 	percpu_down_write(&cgroup_threadgroup_rwsem);
+
 	rcu_read_lock();
 	if (pid) {
 		tsk = find_task_by_vpid(pid);
 		if (!tsk) {
-			ret = -ESRCH;
-			goto out_unlock_rcu;
+			tsk = ERR_PTR(-ESRCH);
+			goto out_unlock_threadgroup;
 		}
 	} else {
 		tsk = current;
@@ -2526,35 +2453,33 @@ ssize_t __cgroup_procs_write(struct kernfs_open_file *of, char *buf,
 	 * cgroup with no rt_runtime allocated.  Just say no.
 	 */
 	if (tsk->no_cgroup_migration || (tsk->flags & PF_NO_SETAFFINITY)) {
-		ret = -EINVAL;
-		goto out_unlock_rcu;
+		tsk = ERR_PTR(-EINVAL);
+		goto out_unlock_threadgroup;
 	}
 
 	get_task_struct(tsk);
-	rcu_read_unlock();
+	goto out_unlock_rcu;
 
-	ret = cgroup_procs_write_permission(tsk, cgrp, of);
-	if (!ret)
-		ret = cgroup_attach_task(cgrp, tsk, threadgroup);
-
-	put_task_struct(tsk);
-	goto out_unlock_threadgroup;
-
+out_unlock_threadgroup:
+	percpu_up_write(&cgroup_threadgroup_rwsem);
 out_unlock_rcu:
 	rcu_read_unlock();
-out_unlock_threadgroup:
+	return tsk;
+}
+
+void cgroup_procs_write_finish(struct task_struct *task)
+	__releases(&cgroup_threadgroup_rwsem)
+{
+	struct cgroup_subsys *ss;
+	int ssid;
+
+	/* release reference from cgroup_procs_write_start() */
+	put_task_struct(task);
+
 	percpu_up_write(&cgroup_threadgroup_rwsem);
 	for_each_subsys(ss, ssid)
 		if (ss->post_attach)
 			ss->post_attach();
-	cgroup_kn_unlock(of->kn);
-	return ret ?: nbytes;
-}
-
-ssize_t cgroup_procs_write(struct kernfs_open_file *of, char *buf, size_t nbytes,
-			   loff_t off)
-{
-	return __cgroup_procs_write(of, buf, nbytes, off, true);
 }
 
 static void cgroup_print_ss_mask(struct seq_file *seq, u16 ss_mask)
@@ -3868,6 +3793,79 @@ static int cgroup_procs_show(struct seq_file *s, void *v)
 {
 	seq_printf(s, "%d\n", task_tgid_vnr(v));
 	return 0;
+}
+
+static int cgroup_procs_write_permission(struct cgroup *src_cgrp,
+					 struct cgroup *dst_cgrp,
+					 struct super_block *sb)
+{
+	struct cgroup_namespace *ns = current->nsproxy->cgroup_ns;
+	struct cgroup *com_cgrp = src_cgrp;
+	struct inode *inode;
+	int ret;
+
+	lockdep_assert_held(&cgroup_mutex);
+
+	/* find the common ancestor */
+	while (!cgroup_is_descendant(dst_cgrp, com_cgrp))
+		com_cgrp = cgroup_parent(com_cgrp);
+
+	/* %current should be authorized to migrate to the common ancestor */
+	inode = kernfs_get_inode(sb, com_cgrp->procs_file.kn);
+	if (!inode)
+		return -ENOMEM;
+
+	ret = inode_permission(inode, MAY_WRITE);
+	iput(inode);
+	if (ret)
+		return ret;
+
+	/*
+	 * If namespaces are delegation boundaries, %current must be able
+	 * to see both source and destination cgroups from its namespace.
+	 */
+	if ((cgrp_dfl_root.flags & CGRP_ROOT_NS_DELEGATE) &&
+	    (!cgroup_is_descendant(src_cgrp, ns->root_cset->dfl_cgrp) ||
+	     !cgroup_is_descendant(dst_cgrp, ns->root_cset->dfl_cgrp)))
+		return -ENOENT;
+
+	return 0;
+}
+
+static ssize_t cgroup_procs_write(struct kernfs_open_file *of,
+				  char *buf, size_t nbytes, loff_t off)
+{
+	struct cgroup *src_cgrp, *dst_cgrp;
+	struct task_struct *task;
+	ssize_t ret;
+
+	dst_cgrp = cgroup_kn_lock_live(of->kn, false);
+	if (!dst_cgrp)
+		return -ENODEV;
+
+	task = cgroup_procs_write_start(buf, true);
+	ret = PTR_ERR_OR_ZERO(task);
+	if (ret)
+		goto out_unlock;
+
+	/* find the source cgroup */
+	spin_lock_irq(&css_set_lock);
+	src_cgrp = task_cgroup_from_root(task, &cgrp_dfl_root);
+	spin_unlock_irq(&css_set_lock);
+
+	ret = cgroup_procs_write_permission(src_cgrp, dst_cgrp,
+					    of->file->f_path.dentry->d_sb);
+	if (ret)
+		goto out_finish;
+
+	ret = cgroup_attach_task(dst_cgrp, task, true);
+
+out_finish:
+	cgroup_procs_write_finish(task);
+out_unlock:
+	cgroup_kn_unlock(of->kn);
+
+	return ret ?: nbytes;
 }
 
 /* cgroup core interface files for the default hierarchy */
