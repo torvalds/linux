@@ -330,6 +330,11 @@ static bool cgroup_has_tasks(struct cgroup *cgrp)
 	return cgrp->nr_populated_csets;
 }
 
+static bool cgroup_is_threaded(struct cgroup *cgrp)
+{
+	return cgrp->dom_cgrp != cgrp;
+}
+
 /* subsystems visibly enabled on a cgroup */
 static u16 cgroup_control(struct cgroup *cgrp)
 {
@@ -565,15 +570,22 @@ EXPORT_SYMBOL_GPL(of_css);
  */
 struct css_set init_css_set = {
 	.refcount		= REFCOUNT_INIT(1),
+	.dom_cset		= &init_css_set,
 	.tasks			= LIST_HEAD_INIT(init_css_set.tasks),
 	.mg_tasks		= LIST_HEAD_INIT(init_css_set.mg_tasks),
 	.task_iters		= LIST_HEAD_INIT(init_css_set.task_iters),
+	.threaded_csets		= LIST_HEAD_INIT(init_css_set.threaded_csets),
 	.cgrp_links		= LIST_HEAD_INIT(init_css_set.cgrp_links),
 	.mg_preload_node	= LIST_HEAD_INIT(init_css_set.mg_preload_node),
 	.mg_node		= LIST_HEAD_INIT(init_css_set.mg_node),
 };
 
 static int css_set_count	= 1;	/* 1 for init_css_set */
+
+static bool css_set_threaded(struct css_set *cset)
+{
+	return cset->dom_cset != cset;
+}
 
 /**
  * css_set_populated - does a css_set contain any tasks?
@@ -618,10 +630,14 @@ static void cgroup_update_populated(struct cgroup *cgrp, bool populated)
 	do {
 		bool was_populated = cgroup_is_populated(cgrp);
 
-		if (!child)
+		if (!child) {
 			cgrp->nr_populated_csets += adj;
-		else
-			cgrp->nr_populated_children += adj;
+		} else {
+			if (cgroup_is_threaded(child))
+				cgrp->nr_populated_threaded_children += adj;
+			else
+				cgrp->nr_populated_domain_children += adj;
+		}
 
 		if (was_populated == cgroup_is_populated(cgrp))
 			break;
@@ -747,6 +763,8 @@ void put_css_set_locked(struct css_set *cset)
 	if (!refcount_dec_and_test(&cset->refcount))
 		return;
 
+	WARN_ON_ONCE(!list_empty(&cset->threaded_csets));
+
 	/* This css_set is dead. unlink it and release cgroup and css refs */
 	for_each_subsys(ss, ssid) {
 		list_del(&cset->e_cset_node[ssid]);
@@ -761,6 +779,11 @@ void put_css_set_locked(struct css_set *cset)
 		if (cgroup_parent(link->cgrp))
 			cgroup_put(link->cgrp);
 		kfree(link);
+	}
+
+	if (css_set_threaded(cset)) {
+		list_del(&cset->threaded_csets_node);
+		put_css_set_locked(cset->dom_cset);
 	}
 
 	kfree_rcu(cset, rcu_head);
@@ -781,6 +804,7 @@ static bool compare_css_sets(struct css_set *cset,
 			     struct cgroup *new_cgrp,
 			     struct cgroup_subsys_state *template[])
 {
+	struct cgroup *new_dfl_cgrp;
 	struct list_head *l1, *l2;
 
 	/*
@@ -789,6 +813,16 @@ static bool compare_css_sets(struct css_set *cset,
 	 * Let's first ensure that csses match.
 	 */
 	if (memcmp(template, cset->subsys, sizeof(cset->subsys)))
+		return false;
+
+
+	/* @cset's domain should match the default cgroup's */
+	if (cgroup_on_dfl(new_cgrp))
+		new_dfl_cgrp = new_cgrp;
+	else
+		new_dfl_cgrp = old_cset->dfl_cgrp;
+
+	if (new_dfl_cgrp->dom_cgrp != cset->dom_cset->dfl_cgrp)
 		return false;
 
 	/*
@@ -998,9 +1032,11 @@ static struct css_set *find_css_set(struct css_set *old_cset,
 	}
 
 	refcount_set(&cset->refcount, 1);
+	cset->dom_cset = cset;
 	INIT_LIST_HEAD(&cset->tasks);
 	INIT_LIST_HEAD(&cset->mg_tasks);
 	INIT_LIST_HEAD(&cset->task_iters);
+	INIT_LIST_HEAD(&cset->threaded_csets);
 	INIT_HLIST_NODE(&cset->hlist);
 	INIT_LIST_HEAD(&cset->cgrp_links);
 	INIT_LIST_HEAD(&cset->mg_preload_node);
@@ -1037,6 +1073,28 @@ static struct css_set *find_css_set(struct css_set *old_cset,
 	}
 
 	spin_unlock_irq(&css_set_lock);
+
+	/*
+	 * If @cset should be threaded, look up the matching dom_cset and
+	 * link them up.  We first fully initialize @cset then look for the
+	 * dom_cset.  It's simpler this way and safe as @cset is guaranteed
+	 * to stay empty until we return.
+	 */
+	if (cgroup_is_threaded(cset->dfl_cgrp)) {
+		struct css_set *dcset;
+
+		dcset = find_css_set(cset, cset->dfl_cgrp->dom_cgrp);
+		if (!dcset) {
+			put_css_set(cset);
+			return NULL;
+		}
+
+		spin_lock_irq(&css_set_lock);
+		cset->dom_cset = dcset;
+		list_add_tail(&cset->threaded_csets_node,
+			      &dcset->threaded_csets);
+		spin_unlock_irq(&css_set_lock);
+	}
 
 	return cset;
 }
@@ -1680,6 +1738,7 @@ static void init_cgroup_housekeeping(struct cgroup *cgrp)
 	mutex_init(&cgrp->pidlist_mutex);
 	cgrp->self.cgroup = cgrp;
 	cgrp->self.flags |= CSS_ONLINE;
+	cgrp->dom_cgrp = cgrp;
 
 	for_each_subsys(ss, ssid)
 		INIT_LIST_HEAD(&cgrp->e_csets[ssid]);
@@ -4408,6 +4467,7 @@ static void kill_css(struct cgroup_subsys_state *css)
 static int cgroup_destroy_locked(struct cgroup *cgrp)
 	__releases(&cgroup_mutex) __acquires(&cgroup_mutex)
 {
+	struct cgroup *parent = cgroup_parent(cgrp);
 	struct cgroup_subsys_state *css;
 	struct cgrp_cset_link *link;
 	int ssid;
@@ -4451,6 +4511,9 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 	 * extra ref on its kn.
 	 */
 	kernfs_remove(cgrp->kn);
+
+	if (parent && cgroup_is_threaded(cgrp))
+		parent->nr_threaded_children--;
 
 	cgroup1_check_for_release(cgroup_parent(cgrp));
 
