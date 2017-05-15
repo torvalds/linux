@@ -155,7 +155,7 @@ static uint32_t drm_rotation_to_tiler(unsigned int drm_rot)
 /* update ovl info for scanout, handles cases of multi-planar fb's, etc.
  */
 void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
-		struct omap_drm_window *win, struct omap_overlay_info *info)
+		struct drm_plane_state *state, struct omap_overlay_info *info)
 {
 	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
 	const struct drm_format_info *format = omap_fb->format;
@@ -164,25 +164,27 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 
 	info->fourcc = fb->format->format;
 
-	info->pos_x      = win->crtc_x;
-	info->pos_y      = win->crtc_y;
-	info->out_width  = win->crtc_w;
-	info->out_height = win->crtc_h;
-	info->width      = win->src_w;
-	info->height     = win->src_h;
+	info->pos_x      = state->crtc_x;
+	info->pos_y      = state->crtc_y;
+	info->out_width  = state->crtc_w;
+	info->out_height = state->crtc_h;
+	info->width      = state->src_w >> 16;
+	info->height     = state->src_h >> 16;
 
-	x = win->src_x;
-	y = win->src_y;
+	/* DSS driver wants the w & h in rotated orientation */
+	if (drm_rotation_90_or_270(state->rotation))
+		swap(info->width, info->height);
+
+	x = state->src_x >> 16;
+	y = state->src_y >> 16;
 
 	if (omap_gem_flags(plane->bo) & OMAP_BO_TILED) {
-		uint32_t w = win->src_w;
-		uint32_t h = win->src_h;
+		uint32_t w = state->src_w >> 16;
+		uint32_t h = state->src_h >> 16;
 
-		orient = drm_rotation_to_tiler(win->rotation);
+		orient = drm_rotation_to_tiler(state->rotation);
 
-		/* adjust x,y offset for flip/invert: */
-		if (orient & MASK_XY_FLIP)
-			swap(w, h);
+		/* adjust x,y offset for invert: */
 		if (orient & MASK_Y_INVERT)
 			y += h - 1;
 		if (orient & MASK_X_INVERT)
@@ -193,7 +195,7 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 		info->rotation_type = OMAP_DSS_ROT_TILER;
 		info->screen_width  = omap_gem_tiled_stride(plane->bo, orient);
 	} else {
-		switch (win->rotation & DRM_MODE_ROTATE_MASK) {
+		switch (state->rotation & DRM_MODE_ROTATE_MASK) {
 		case 0:
 		case DRM_MODE_ROTATE_0:
 			/* OK */
@@ -202,8 +204,7 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 		default:
 			dev_warn(fb->dev->dev,
 				"rotation '%d' ignored for non-tiled fb\n",
-				win->rotation);
-			win->rotation = 0;
+				state->rotation);
 			break;
 		}
 

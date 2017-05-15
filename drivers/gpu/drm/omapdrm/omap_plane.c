@@ -59,7 +59,6 @@ static void omap_plane_atomic_update(struct drm_plane *plane,
 	struct omap_plane *omap_plane = to_omap_plane(plane);
 	struct drm_plane_state *state = plane->state;
 	struct omap_overlay_info info;
-	struct omap_drm_window win;
 	int ret;
 
 	DBG("%s, crtc=%p fb=%p", omap_plane->name, state->crtc, state->fb);
@@ -71,30 +70,8 @@ static void omap_plane_atomic_update(struct drm_plane *plane,
 	info.mirror = 0;
 	info.zorder = state->zpos;
 
-	memset(&win, 0, sizeof(win));
-	win.rotation = state->rotation;
-	win.crtc_x = state->crtc_x;
-	win.crtc_y = state->crtc_y;
-	win.crtc_w = state->crtc_w;
-	win.crtc_h = state->crtc_h;
-
-	/*
-	 * src values are in Q16 fixed point, convert to integer.
-	 * omap_framebuffer_update_scanout() takes adjusted src.
-	 */
-	win.src_x = state->src_x >> 16;
-	win.src_y = state->src_y >> 16;
-
-	if (drm_rotation_90_or_270(state->rotation)) {
-		win.src_w = state->src_h >> 16;
-		win.src_h = state->src_w >> 16;
-	} else {
-		win.src_w = state->src_w >> 16;
-		win.src_h = state->src_h >> 16;
-	}
-
 	/* update scanout: */
-	omap_framebuffer_update_scanout(state->fb, &win, &info);
+	omap_framebuffer_update_scanout(state->fb, state, &info);
 
 	DBG("%dx%d -> %dx%d (%d)", info.width, info.height,
 			info.out_width, info.out_height,

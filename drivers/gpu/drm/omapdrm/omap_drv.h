@@ -38,15 +38,6 @@
 
 struct omap_drm_usergart;
 
-/* parameters which describe (unrotated) coordinates of scanout within a fb: */
-struct omap_drm_window {
-	uint32_t rotation;
-	int32_t  crtc_x, crtc_y;		/* signed because can be offscreen */
-	uint32_t crtc_w, crtc_h;
-	uint32_t src_x, src_y;
-	uint32_t src_w, src_h;
-};
-
 /* For KMS code that needs to wait for a certain # of IRQs:
  */
 struct omap_irq_wait;
@@ -157,7 +148,7 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 int omap_framebuffer_pin(struct drm_framebuffer *fb);
 void omap_framebuffer_unpin(struct drm_framebuffer *fb);
 void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
-		struct omap_drm_window *win, struct omap_overlay_info *info);
+		struct drm_plane_state *state, struct omap_overlay_info *info);
 struct drm_connector *omap_framebuffer_get_next_connector(
 		struct drm_framebuffer *fb, struct drm_connector *from);
 bool omap_framebuffer_supports_rotation(struct drm_framebuffer *fb);
