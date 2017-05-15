@@ -138,6 +138,8 @@ struct iommu_dev_data {
 					     PPR completions */
 	u32 errata;			  /* Bitmap for errata to apply */
 	bool use_vapic;			  /* Enable device to use vapic mode */
+
+	struct ratelimit_state rs;	  /* Ratelimit IOPF messages */
 };
 
 /*
@@ -252,6 +254,8 @@ static struct iommu_dev_data *alloc_dev_data(u16 devid)
 	spin_lock_irqsave(&dev_data_list_lock, flags);
 	list_add_tail(&dev_data->dev_data_list, &dev_data_list);
 	spin_unlock_irqrestore(&dev_data_list_lock, flags);
+
+	ratelimit_default_init(&dev_data->rs);
 
 	return dev_data;
 }
@@ -551,6 +555,29 @@ static void dump_command(unsigned long phys_addr)
 		pr_err("AMD-Vi: CMD[%d]: %08x\n", i, cmd->data[i]);
 }
 
+static void amd_iommu_report_page_fault(u16 devid, u16 domain_id,
+					u64 address, int flags)
+{
+	struct iommu_dev_data *dev_data = NULL;
+	struct pci_dev *pdev;
+
+	pdev = pci_get_bus_and_slot(PCI_BUS_NUM(devid), devid & 0xff);
+	if (pdev)
+		dev_data = get_dev_data(&pdev->dev);
+
+	if (dev_data && __ratelimit(&dev_data->rs)) {
+		dev_err(&pdev->dev, "AMD-Vi: Event logged [IO_PAGE_FAULT domain=0x%04x address=0x%016llx flags=0x%04x]\n",
+			domain_id, address, flags);
+	} else if (printk_ratelimit()) {
+		pr_err("AMD-Vi: Event logged [IO_PAGE_FAULT device=%02x:%02x.%x domain=0x%04x address=0x%016llx flags=0x%04x]\n",
+			PCI_BUS_NUM(devid), PCI_SLOT(devid), PCI_FUNC(devid),
+			domain_id, address, flags);
+	}
+
+	if (pdev)
+		pci_dev_put(pdev);
+}
+
 static void iommu_print_event(struct amd_iommu *iommu, void *__evt)
 {
 	int type, devid, domid, flags;
@@ -575,7 +602,12 @@ retry:
 		goto retry;
 	}
 
-	printk(KERN_ERR "AMD-Vi: Event logged [");
+	if (type == EVENT_TYPE_IO_FAULT) {
+		amd_iommu_report_page_fault(devid, domid, address, flags);
+		return;
+	} else {
+		printk(KERN_ERR "AMD-Vi: Event logged [");
+	}
 
 	switch (type) {
 	case EVENT_TYPE_ILL_DEV:
@@ -584,12 +616,6 @@ retry:
 		       PCI_BUS_NUM(devid), PCI_SLOT(devid), PCI_FUNC(devid),
 		       address, flags);
 		dump_dte_entry(devid);
-		break;
-	case EVENT_TYPE_IO_FAULT:
-		printk("IO_PAGE_FAULT device=%02x:%02x.%x "
-		       "domain=0x%04x address=0x%016llx flags=0x%04x]\n",
-		       PCI_BUS_NUM(devid), PCI_SLOT(devid), PCI_FUNC(devid),
-		       domid, address, flags);
 		break;
 	case EVENT_TYPE_DEV_TAB_ERR:
 		printk("DEV_TAB_HARDWARE_ERROR device=%02x:%02x.%x "
