@@ -148,7 +148,6 @@ config PINCTRL_FALCON
 
 config PINCTRL_MCP23S08
 	tristate "Microchip MCP23xxx I/O expander"
-	depends on OF_GPIO
 	depends on SPI_MASTER || I2C
 	select GPIOLIB_IRQCHIP
 	select REGMAP_I2C if I2C
