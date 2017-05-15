@@ -122,6 +122,36 @@ bool omap_framebuffer_supports_rotation(struct drm_framebuffer *fb)
 	return omap_gem_flags(plane->bo) & OMAP_BO_TILED;
 }
 
+/* Note: DRM rotates counter-clockwise, TILER & DSS rotates clockwise */
+static uint32_t drm_rotation_to_tiler(unsigned int drm_rot)
+{
+	uint32_t orient;
+
+	switch (drm_rot & DRM_MODE_ROTATE_MASK) {
+	default:
+	case DRM_MODE_ROTATE_0:
+		orient = 0;
+		break;
+	case DRM_MODE_ROTATE_90:
+		orient = MASK_XY_FLIP | MASK_X_INVERT;
+		break;
+	case DRM_MODE_ROTATE_180:
+		orient = MASK_X_INVERT | MASK_Y_INVERT;
+		break;
+	case DRM_MODE_ROTATE_270:
+		orient = MASK_XY_FLIP | MASK_Y_INVERT;
+		break;
+	}
+
+	if (drm_rot & DRM_MODE_REFLECT_X)
+		orient ^= MASK_X_INVERT;
+
+	if (drm_rot & DRM_MODE_REFLECT_Y)
+		orient ^= MASK_Y_INVERT;
+
+	return orient;
+}
+
 /* update ovl info for scanout, handles cases of multi-planar fb's, etc.
  */
 void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
@@ -148,31 +178,7 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 		uint32_t w = win->src_w;
 		uint32_t h = win->src_h;
 
-		switch (win->rotation & DRM_MODE_ROTATE_MASK) {
-		default:
-			dev_err(fb->dev->dev, "invalid rotation: %02x",
-					(uint32_t)win->rotation);
-			/* fallthru to default to no rotation */
-		case 0:
-		case DRM_MODE_ROTATE_0:
-			orient = 0;
-			break;
-		case DRM_MODE_ROTATE_90:
-			orient = MASK_XY_FLIP | MASK_X_INVERT;
-			break;
-		case DRM_MODE_ROTATE_180:
-			orient = MASK_X_INVERT | MASK_Y_INVERT;
-			break;
-		case DRM_MODE_ROTATE_270:
-			orient = MASK_XY_FLIP | MASK_Y_INVERT;
-			break;
-		}
-
-		if (win->rotation & DRM_MODE_REFLECT_X)
-			orient ^= MASK_X_INVERT;
-
-		if (win->rotation & DRM_MODE_REFLECT_Y)
-			orient ^= MASK_Y_INVERT;
+		orient = drm_rotation_to_tiler(win->rotation);
 
 		/* adjust x,y offset for flip/invert: */
 		if (orient & MASK_XY_FLIP)
