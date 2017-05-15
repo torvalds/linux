@@ -27,6 +27,7 @@
 #define BM_PLL_POWER		(0x1 << 12)
 #define BM_PLL_LOCK		(0x1 << 31)
 #define IMX7_ENET_PLL_POWER	(0x1 << 5)
+#define IMX7_DDR_PLL_POWER	(0x1 << 20)
 
 /**
  * struct clk_pllv3 - IMX PLL clock version 3
@@ -450,6 +451,10 @@ struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,
 	case IMX_PLLV3_ENET:
 		pll->ref_clock = 500000000;
 		ops = &clk_pllv3_enet_ops;
+		break;
+	case IMX_PLLV3_DDR_IMX7:
+		pll->power_bit = IMX7_ENET_PLL_POWER;
+		ops = &clk_pllv3_av_ops;
 		break;
 	default:
 		ops = &clk_pllv3_ops;
