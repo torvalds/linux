@@ -597,22 +597,6 @@ int ipu_idmac_wait_busy(struct ipuv3_channel *channel, int ms)
 }
 EXPORT_SYMBOL_GPL(ipu_idmac_wait_busy);
 
-int ipu_wait_interrupt(struct ipu_soc *ipu, int irq, int ms)
-{
-	unsigned long timeout;
-
-	timeout = jiffies + msecs_to_jiffies(ms);
-	ipu_cm_write(ipu, BIT(irq % 32), IPU_INT_STAT(irq / 32));
-	while (!(ipu_cm_read(ipu, IPU_INT_STAT(irq / 32) & BIT(irq % 32)))) {
-		if (time_after(jiffies, timeout))
-			return -ETIMEDOUT;
-		cpu_relax();
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(ipu_wait_interrupt);
-
 int ipu_idmac_disable_channel(struct ipuv3_channel *channel)
 {
 	struct ipu_soc *ipu = channel->ipu;
