@@ -4583,7 +4583,7 @@ static int vega10_set_power_profile_state(struct pp_hwmgr *hwmgr,
 		struct amd_pp_profile *request)
 {
 	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
-	uint32_t sclk_idx = 0, mclk_idx = 0;
+	uint32_t sclk_idx = ~0, mclk_idx = ~0;
 
 	if (hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_AUTO)
 		return -EINVAL;
@@ -4591,7 +4591,7 @@ static int vega10_set_power_profile_state(struct pp_hwmgr *hwmgr,
 	vega10_find_min_clock_index(hwmgr, &sclk_idx, &mclk_idx,
 			request->min_sclk, request->min_mclk);
 
-	if (sclk_idx) {
+	if (sclk_idx != ~0) {
 		if (!data->registry_data.sclk_dpm_key_disabled)
 			PP_ASSERT_WITH_CODE(
 					!smum_send_msg_to_smc_with_parameter(
@@ -4602,7 +4602,7 @@ static int vega10_set_power_profile_state(struct pp_hwmgr *hwmgr,
 					return -EINVAL);
 	}
 
-	if (mclk_idx) {
+	if (mclk_idx != ~0) {
 		if (!data->registry_data.mclk_dpm_key_disabled)
 			PP_ASSERT_WITH_CODE(
 					!smum_send_msg_to_smc_with_parameter(
