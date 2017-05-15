@@ -82,6 +82,7 @@ static void mlx5i_init(struct mlx5_core_dev *mdev,
 	netdev->hw_features    |= NETIF_F_RXHASH;
 
 	netdev->netdev_ops = &mlx5i_netdev_ops;
+	netdev->ethtool_ops = &mlx5i_ethtool_ops;
 }
 
 /* Called directly before IPoIB netdevice is destroyed to cleanup SW structs */
@@ -510,4 +511,3 @@ void mlx5_rdma_netdev_free(struct net_device *netdev)
 	mlx5e_destroy_mdev_resources(priv->mdev);
 }
 EXPORT_SYMBOL(mlx5_rdma_netdev_free);
-
