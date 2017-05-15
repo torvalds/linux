@@ -74,6 +74,8 @@ static struct lpfc_iocbq *lpfc_sli4_els_wcqe_to_rspiocbq(struct lpfc_hba *,
 							 struct lpfc_iocbq *);
 static void lpfc_sli4_send_seq_to_ulp(struct lpfc_vport *,
 				      struct hbq_dmabuf *);
+static void lpfc_sli4_handle_mds_loopback(struct lpfc_vport *vport,
+					  struct hbq_dmabuf *dmabuf);
 static int lpfc_sli4_fp_handle_cqe(struct lpfc_hba *, struct lpfc_queue *,
 				    struct lpfc_cqe *);
 static int lpfc_sli4_post_sgl_list(struct lpfc_hba *, struct list_head *,
@@ -5907,7 +5909,7 @@ lpfc_set_features(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox,
 		bf_set(lpfc_mbx_set_feature_mds,
 		       &mbox->u.mqe.un.set_feature, 1);
 		bf_set(lpfc_mbx_set_feature_mds_deep_loopbk,
-		       &mbox->u.mqe.un.set_feature, 0);
+		       &mbox->u.mqe.un.set_feature, 1);
 		mbox->u.mqe.un.set_feature.feature = LPFC_SET_MDS_DIAGS;
 		mbox->u.mqe.un.set_feature.param_len = 8;
 		break;
@@ -8688,8 +8690,11 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		memset(wqe, 0, sizeof(union lpfc_wqe128));
 	/* Some of the fields are in the right position already */
 	memcpy(wqe, &iocbq->iocb, sizeof(union lpfc_wqe));
-	wqe->generic.wqe_com.word7 = 0; /* The ct field has moved so reset */
-	wqe->generic.wqe_com.word10 = 0;
+	if (iocbq->iocb.ulpCommand != CMD_SEND_FRAME) {
+		/* The ct field has moved so reset */
+		wqe->generic.wqe_com.word7 = 0;
+		wqe->generic.wqe_com.word10 = 0;
+	}
 
 	abort_tag = (uint32_t) iocbq->iotag;
 	xritag = iocbq->sli4_xritag;
@@ -9183,6 +9188,10 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		}
 
 		break;
+	case CMD_SEND_FRAME:
+		bf_set(wqe_xri_tag, &wqe->generic.wqe_com, xritag);
+		bf_set(wqe_reqtag, &wqe->generic.wqe_com, iocbq->iotag);
+		return 0;
 	case CMD_XRI_ABORTED_CX:
 	case CMD_CREATE_XRI_CR: /* Do we expect to use this? */
 	case CMD_IOCB_FCP_IBIDIR64_CR: /* bidirectional xfer */
@@ -16137,6 +16146,8 @@ lpfc_fc_frame_check(struct lpfc_hba *phba, struct fc_frame_header *fc_hdr)
 	struct fc_vft_header *fc_vft_hdr;
 	uint32_t *header = (uint32_t *) fc_hdr;
 
+#define FC_RCTL_MDS_DIAGS	0xF4
+
 	switch (fc_hdr->fh_r_ctl) {
 	case FC_RCTL_DD_UNCAT:		/* uncategorized information */
 	case FC_RCTL_DD_SOL_DATA:	/* solicited data */
@@ -16164,6 +16175,7 @@ lpfc_fc_frame_check(struct lpfc_hba *phba, struct fc_frame_header *fc_hdr)
 	case FC_RCTL_F_BSY:	/* fabric busy to data frame */
 	case FC_RCTL_F_BSYL:	/* fabric busy to link control frame */
 	case FC_RCTL_LCR:	/* link credit reset */
+	case FC_RCTL_MDS_DIAGS: /* MDS Diagnostics */
 	case FC_RCTL_END:	/* end */
 		break;
 	case FC_RCTL_VFTH:	/* Virtual Fabric tagging Header */
@@ -16173,12 +16185,16 @@ lpfc_fc_frame_check(struct lpfc_hba *phba, struct fc_frame_header *fc_hdr)
 	default:
 		goto drop;
 	}
+
+#define FC_TYPE_VENDOR_UNIQUE	0xFF
+
 	switch (fc_hdr->fh_type) {
 	case FC_TYPE_BLS:
 	case FC_TYPE_ELS:
 	case FC_TYPE_FCP:
 	case FC_TYPE_CT:
 	case FC_TYPE_NVME:
+	case FC_TYPE_VENDOR_UNIQUE:
 		break;
 	case FC_TYPE_IP:
 	case FC_TYPE_ILS:
@@ -16189,12 +16205,14 @@ lpfc_fc_frame_check(struct lpfc_hba *phba, struct fc_frame_header *fc_hdr)
 	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
 			"2538 Received frame rctl:%s (x%x), type:%s (x%x), "
 			"frame Data:%08x %08x %08x %08x %08x %08x %08x\n",
+			(fc_hdr->fh_r_ctl == FC_RCTL_MDS_DIAGS) ? "MDS Diags" :
 			lpfc_rctl_names[fc_hdr->fh_r_ctl], fc_hdr->fh_r_ctl,
-			lpfc_type_names[fc_hdr->fh_type], fc_hdr->fh_type,
-			be32_to_cpu(header[0]), be32_to_cpu(header[1]),
-			be32_to_cpu(header[2]), be32_to_cpu(header[3]),
-			be32_to_cpu(header[4]), be32_to_cpu(header[5]),
-			be32_to_cpu(header[6]));
+			(fc_hdr->fh_type == FC_TYPE_VENDOR_UNIQUE) ?
+			"Vendor Unique" : lpfc_type_names[fc_hdr->fh_type],
+			fc_hdr->fh_type, be32_to_cpu(header[0]),
+			be32_to_cpu(header[1]), be32_to_cpu(header[2]),
+			be32_to_cpu(header[3]), be32_to_cpu(header[4]),
+			be32_to_cpu(header[5]), be32_to_cpu(header[6]));
 	return 0;
 drop:
 	lpfc_printf_log(phba, KERN_WARNING, LOG_ELS,
@@ -17000,6 +17018,96 @@ lpfc_sli4_send_seq_to_ulp(struct lpfc_vport *vport,
 	lpfc_sli_release_iocbq(phba, iocbq);
 }
 
+static void
+lpfc_sli4_mds_loopback_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
+			    struct lpfc_iocbq *rspiocb)
+{
+	struct lpfc_dmabuf *pcmd = cmdiocb->context2;
+
+	if (pcmd && pcmd->virt)
+		pci_pool_free(phba->lpfc_drb_pool, pcmd->virt, pcmd->phys);
+	kfree(pcmd);
+	lpfc_sli_release_iocbq(phba, cmdiocb);
+}
+
+static void
+lpfc_sli4_handle_mds_loopback(struct lpfc_vport *vport,
+			      struct hbq_dmabuf *dmabuf)
+{
+	struct fc_frame_header *fc_hdr;
+	struct lpfc_hba *phba = vport->phba;
+	struct lpfc_iocbq *iocbq = NULL;
+	union  lpfc_wqe *wqe;
+	struct lpfc_dmabuf *pcmd = NULL;
+	uint32_t frame_len;
+	int rc;
+
+	fc_hdr = (struct fc_frame_header *)dmabuf->hbuf.virt;
+	frame_len = bf_get(lpfc_rcqe_length, &dmabuf->cq_event.cqe.rcqe_cmpl);
+
+	/* Send the received frame back */
+	iocbq = lpfc_sli_get_iocbq(phba);
+	if (!iocbq)
+		goto exit;
+
+	/* Allocate buffer for command payload */
+	pcmd = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
+	if (pcmd)
+		pcmd->virt = pci_pool_alloc(phba->lpfc_drb_pool, GFP_KERNEL,
+					    &pcmd->phys);
+	if (!pcmd || !pcmd->virt)
+		goto exit;
+
+	INIT_LIST_HEAD(&pcmd->list);
+
+	/* copyin the payload */
+	memcpy(pcmd->virt, dmabuf->dbuf.virt, frame_len);
+
+	/* fill in BDE's for command */
+	iocbq->iocb.un.xseq64.bdl.addrHigh = putPaddrHigh(pcmd->phys);
+	iocbq->iocb.un.xseq64.bdl.addrLow = putPaddrLow(pcmd->phys);
+	iocbq->iocb.un.xseq64.bdl.bdeFlags = BUFF_TYPE_BDE_64;
+	iocbq->iocb.un.xseq64.bdl.bdeSize = frame_len;
+
+	iocbq->context2 = pcmd;
+	iocbq->vport = vport;
+	iocbq->iocb_flag &= ~LPFC_FIP_ELS_ID_MASK;
+	iocbq->iocb_flag |= LPFC_USE_FCPWQIDX;
+
+	/*
+	 * Setup rest of the iocb as though it were a WQE
+	 * Build the SEND_FRAME WQE
+	 */
+	wqe = (union lpfc_wqe *)&iocbq->iocb;
+
+	wqe->send_frame.frame_len = frame_len;
+	wqe->send_frame.fc_hdr_wd0 = be32_to_cpu(*((uint32_t *)fc_hdr));
+	wqe->send_frame.fc_hdr_wd1 = be32_to_cpu(*((uint32_t *)fc_hdr + 1));
+	wqe->send_frame.fc_hdr_wd2 = be32_to_cpu(*((uint32_t *)fc_hdr + 2));
+	wqe->send_frame.fc_hdr_wd3 = be32_to_cpu(*((uint32_t *)fc_hdr + 3));
+	wqe->send_frame.fc_hdr_wd4 = be32_to_cpu(*((uint32_t *)fc_hdr + 4));
+	wqe->send_frame.fc_hdr_wd5 = be32_to_cpu(*((uint32_t *)fc_hdr + 5));
+
+	iocbq->iocb.ulpCommand = CMD_SEND_FRAME;
+	iocbq->iocb.ulpLe = 1;
+	iocbq->iocb_cmpl = lpfc_sli4_mds_loopback_cmpl;
+	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, iocbq, 0);
+	if (rc == IOCB_ERROR)
+		goto exit;
+
+	lpfc_in_buf_free(phba, &dmabuf->dbuf);
+	return;
+
+exit:
+	lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
+			"2023 Unable to process MDS loopback frame\n");
+	if (pcmd && pcmd->virt)
+		pci_pool_free(phba->lpfc_drb_pool, pcmd->virt, pcmd->phys);
+	kfree(pcmd);
+	lpfc_sli_release_iocbq(phba, iocbq);
+	lpfc_in_buf_free(phba, &dmabuf->dbuf);
+}
+
 /**
  * lpfc_sli4_handle_received_buffer - Handle received buffers from firmware
  * @phba: Pointer to HBA context object.
@@ -17037,6 +17145,13 @@ lpfc_sli4_handle_received_buffer(struct lpfc_hba *phba,
 	else
 		fcfi = bf_get(lpfc_rcqe_fcf_id,
 			      &dmabuf->cq_event.cqe.rcqe_cmpl);
+
+	if (fc_hdr->fh_r_ctl == 0xF4 && fc_hdr->fh_type == 0xFF) {
+		vport = phba->pport;
+		/* Handle MDS Loopback frames */
+		lpfc_sli4_handle_mds_loopback(vport, dmabuf);
+		return;
+	}
 
 	/* d_id this frame is directed to */
 	did = sli4_did_from_fc_hdr(fc_hdr);

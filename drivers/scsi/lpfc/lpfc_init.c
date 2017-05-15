@@ -4540,6 +4540,19 @@ lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
 	pmb->vport = phba->pport;
 
 	if (phba->sli4_hba.link_state.status != LPFC_FC_LA_TYPE_LINK_UP) {
+		phba->link_flag &= ~(LS_MDS_LINK_DOWN | LS_MDS_LOOPBACK);
+
+		switch (phba->sli4_hba.link_state.status) {
+		case LPFC_FC_LA_TYPE_MDS_LINK_DOWN:
+			phba->link_flag |= LS_MDS_LINK_DOWN;
+			break;
+		case LPFC_FC_LA_TYPE_MDS_LOOPBACK:
+			phba->link_flag |= LS_MDS_LOOPBACK;
+			break;
+		default:
+			break;
+		}
+
 		/* Parse and translate status field */
 		mb = &pmb->u.mb;
 		mb->mbxStatus = lpfc_sli4_parse_latt_fault(phba,

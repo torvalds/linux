@@ -701,7 +701,8 @@ lpfc_work_done(struct lpfc_hba *phba)
 			/* Set the lpfc data pending flag */
 			set_bit(LPFC_DATA_READY, &phba->data_flags);
 		} else {
-			if (phba->link_state >= LPFC_LINK_UP) {
+			if (phba->link_state >= LPFC_LINK_UP ||
+			    phba->link_flag & LS_MDS_LOOPBACK) {
 				pring->flag &= ~LPFC_DEFERRED_RING_EVENT;
 				lpfc_sli_handle_slow_ring_event(phba, pring,
 								(status &
