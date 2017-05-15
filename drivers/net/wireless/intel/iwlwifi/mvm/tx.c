@@ -651,6 +651,9 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 			   info.control.vif->type == NL80211_IFTYPE_STATION &&
 			   queue != mvm->aux_queue) {
 			queue = IWL_MVM_DQA_BSS_CLIENT_QUEUE;
+		} else if (iwl_mvm_is_dqa_supported(mvm) &&
+			   info.control.vif->type == NL80211_IFTYPE_MONITOR) {
+			queue = mvm->aux_queue;
 		}
 	}
 
