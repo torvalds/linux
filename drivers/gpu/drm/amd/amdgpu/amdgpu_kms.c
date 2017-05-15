@@ -235,6 +235,7 @@ static int amdgpu_firmware_info(struct drm_amdgpu_info_firmware *fw_info,
 static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 {
 	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_fpriv *fpriv = filp->driver_priv;
 	struct drm_amdgpu_info *info = data;
 	struct amdgpu_mode_info *minfo = &adev->mode_info;
 	void __user *out = (void __user *)(uintptr_t)info->return_pointer;
@@ -247,6 +248,8 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 
 	if (!info->return_size || !info->return_pointer)
 		return -EINVAL;
+	if (amdgpu_kms_vram_lost(adev, fpriv))
+		return -ENODEV;
 
 	switch (info->query) {
 	case AMDGPU_INFO_ACCEL_WORKING:
@@ -747,6 +750,12 @@ void amdgpu_driver_lastclose_kms(struct drm_device *dev)
 	vga_switcheroo_process_delayed_switch();
 }
 
+bool amdgpu_kms_vram_lost(struct amdgpu_device *adev,
+			  struct amdgpu_fpriv *fpriv)
+{
+	return fpriv->vram_lost_counter != atomic_read(&adev->vram_lost_counter);
+}
+
 /**
  * amdgpu_driver_open_kms - drm callback for open
  *
@@ -799,6 +808,7 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 
 	amdgpu_ctx_mgr_init(&fpriv->ctx_mgr);
 
+	fpriv->vram_lost_counter = atomic_read(&adev->vram_lost_counter);
 	file_priv->driver_priv = fpriv;
 
 out_suspend:

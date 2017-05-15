@@ -1097,6 +1097,7 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 {
 	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_fpriv *fpriv = filp->driver_priv;
 	union drm_amdgpu_cs *cs = data;
 	struct amdgpu_cs_parser parser = {};
 	bool reserved_buffers = false;
@@ -1104,6 +1105,8 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 	if (!adev->accel_working)
 		return -EBUSY;
+	if (amdgpu_kms_vram_lost(adev, fpriv))
+		return -ENODEV;
 
 	parser.adev = adev;
 	parser.filp = filp;
@@ -1165,12 +1168,15 @@ int amdgpu_cs_wait_ioctl(struct drm_device *dev, void *data,
 {
 	union drm_amdgpu_wait_cs *wait = data;
 	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_fpriv *fpriv = filp->driver_priv;
 	unsigned long timeout = amdgpu_gem_timeout(wait->in.timeout);
 	struct amdgpu_ring *ring = NULL;
 	struct amdgpu_ctx *ctx;
 	struct dma_fence *fence;
 	long r;
 
+	if (amdgpu_kms_vram_lost(adev, fpriv))
+		return -ENODEV;
 	r = amdgpu_cs_get_ring(adev, wait->in.ip_type, wait->in.ip_instance,
 			       wait->in.ring, &ring);
 	if (r)
@@ -1344,12 +1350,15 @@ int amdgpu_cs_wait_fences_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *filp)
 {
 	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_fpriv *fpriv = filp->driver_priv;
 	union drm_amdgpu_wait_fences *wait = data;
 	uint32_t fence_count = wait->in.fence_count;
 	struct drm_amdgpu_fence *fences_user;
 	struct drm_amdgpu_fence *fences;
 	int r;
 
+	if (amdgpu_kms_vram_lost(adev, fpriv))
+		return -ENODEV;
 	/* Get the fences from userspace */
 	fences = kmalloc_array(fence_count, sizeof(struct drm_amdgpu_fence),
 			GFP_KERNEL);

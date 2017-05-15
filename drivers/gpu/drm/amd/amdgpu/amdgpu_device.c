@@ -2839,8 +2839,10 @@ retry:
 			if (r)
 				goto out;
 			vram_lost = amdgpu_check_vram_lost(adev);
-			if (vram_lost)
+			if (vram_lost) {
 				DRM_ERROR("VRAM is lost!\n");
+				atomic_inc(&adev->vram_lost_counter);
+			}
 			r = amdgpu_ttm_recover_gart(adev);
 			if (r)
 				goto out;

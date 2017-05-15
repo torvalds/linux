@@ -824,6 +824,7 @@ struct amdgpu_fpriv {
 	struct mutex		bo_list_lock;
 	struct idr		bo_list_handles;
 	struct amdgpu_ctx_mgr	ctx_mgr;
+	u32			vram_lost_counter;
 };
 
 /*
@@ -1528,6 +1529,7 @@ struct amdgpu_device {
 	atomic64_t			num_bytes_moved;
 	atomic64_t			num_evictions;
 	atomic_t			gpu_reset_counter;
+	atomic_t			vram_lost_counter;
 
 	/* data for buffer migration throttling */
 	struct {
@@ -1914,6 +1916,8 @@ static inline bool amdgpu_has_atpx(void) { return false; }
 extern const struct drm_ioctl_desc amdgpu_ioctls_kms[];
 extern const int amdgpu_max_kms_ioctl;
 
+bool amdgpu_kms_vram_lost(struct amdgpu_device *adev,
+			  struct amdgpu_fpriv *fpriv);
 int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags);
 void amdgpu_driver_unload_kms(struct drm_device *dev);
 void amdgpu_driver_lastclose_kms(struct drm_device *dev);
