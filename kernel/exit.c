@@ -1074,28 +1074,14 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 		return 0;
 
 	if (unlikely(wo->wo_flags & WNOWAIT)) {
-		int exit_code = p->exit_code;
-
+		status = p->exit_code;
 		get_task_struct(p);
 		read_unlock(&tasklist_lock);
 		sched_annotate_sleep();
 		if (wo->wo_rusage)
 			getrusage(p, RUSAGE_BOTH, wo->wo_rusage);
 		put_task_struct(p);
-
-		infop = wo->wo_info;
-		if (infop) {
-			if ((exit_code & 0x7f) == 0) {
-				infop->cause = CLD_EXITED;
-				infop->status = exit_code >> 8;
-			} else {
-				infop->cause = (exit_code & 0x80) ? CLD_DUMPED : CLD_KILLED;
-				infop->status = exit_code & 0x7f;
-			}
-			infop->pid = pid;
-			infop->uid = uid;
-		}
-		return pid;
+		goto out_info;
 	}
 	/*
 	 * Move the task's state to DEAD/TRACE, only one thread can do this.
@@ -1174,19 +1160,6 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 		? p->signal->group_exit_code : p->exit_code;
 	wo->wo_stat = status;
 
-	infop = wo->wo_info;
-	if (infop) {
-		if ((status & 0x7f) == 0) {
-			infop->cause = CLD_EXITED;
-			infop->status = status >> 8;
-		} else {
-			infop->cause = (status & 0x80) ? CLD_DUMPED : CLD_KILLED;
-			infop->status = status & 0x7f;
-		}
-		infop->pid = pid;
-		infop->uid = uid;
-	}
-
 	if (state == EXIT_TRACE) {
 		write_lock_irq(&tasklist_lock);
 		/* We dropped tasklist, ptracer could die and untrace */
@@ -1201,6 +1174,20 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 	}
 	if (state == EXIT_DEAD)
 		release_task(p);
+
+out_info:
+	infop = wo->wo_info;
+	if (infop) {
+		if ((status & 0x7f) == 0) {
+			infop->cause = CLD_EXITED;
+			infop->status = status >> 8;
+		} else {
+			infop->cause = (status & 0x80) ? CLD_DUMPED : CLD_KILLED;
+			infop->status = status & 0x7f;
+		}
+		infop->pid = pid;
+		infop->uid = uid;
+	}
 
 	return pid;
 }
