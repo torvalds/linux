@@ -1,20 +1,39 @@
 LIBDIR := ../../../lib
-BPFOBJ := $(LIBDIR)/bpf/bpf.o
+BPFDIR := $(LIBDIR)/bpf
+APIDIR := ../../../include/uapi
+GENDIR := ../../../../include/generated
+GENHDR := $(GENDIR)/autoconf.h
 
-CFLAGS += -Wall -O2 -lcap -I../../../include/uapi -I$(LIBDIR)
+ifneq ($(wildcard $(GENHDR)),)
+  GENFLAGS := -DHAVE_GENHDR
+endif
 
-TEST_GEN_PROGS = test_verifier test_tag test_maps test_lru_map test_lpm_map
+CFLAGS += -Wall -O2 -I$(APIDIR) -I$(LIBDIR) -I$(GENDIR) $(GENFLAGS) -I../../../include
+LDLIBS += -lcap -lelf
+
+TEST_GEN_PROGS = test_verifier test_tag test_maps test_lru_map test_lpm_map test_progs
+
+TEST_GEN_FILES = test_pkt_access.o test_xdp.o test_l4lb.o test_tcp_estats.o
 
 TEST_PROGS := test_kmod.sh
 
-.PHONY: all clean force
+include ../lib.mk
+
+BPFOBJ := $(OUTPUT)/libbpf.a
+
+$(TEST_GEN_PROGS): $(BPFOBJ)
+
+.PHONY: force
 
 # force a rebuild of BPFOBJ when its dependencies are updated
 force:
 
 $(BPFOBJ): force
-	$(MAKE) -C $(dir $(BPFOBJ))
+	$(MAKE) -C $(BPFDIR) OUTPUT=$(OUTPUT)/
 
-$(test_objs): $(BPFOBJ)
+CLANG ?= clang
 
-include ../lib.mk
+%.o: %.c
+	$(CLANG) -I. -I../../../include/uapi -I../../../../samples/bpf/ \
+		-Wno-compare-distinct-pointer-types \
+		-O2 -target bpf -c $< -o $@

@@ -17,6 +17,7 @@
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include "inv_mpu_iio.h"
 
 static const struct regmap_config inv_mpu_regmap_config = {
@@ -69,7 +70,8 @@ static int inv_mpu6050_deselect_bypass(struct i2c_mux_core *muxc, u32 chan_id)
 	return 0;
 }
 
-static const char *inv_mpu_match_acpi_device(struct device *dev, int *chip_id)
+static const char *inv_mpu_match_acpi_device(struct device *dev,
+					     enum inv_devices *chip_id)
 {
 	const struct acpi_device_id *id;
 
@@ -93,7 +95,8 @@ static int inv_mpu_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
 	struct inv_mpu6050_state *st;
-	int result, chip_type;
+	int result;
+	enum inv_devices chip_type;
 	struct regmap *regmap;
 	const char *name;
 
@@ -101,8 +104,13 @@ static int inv_mpu_probe(struct i2c_client *client,
 				     I2C_FUNC_SMBUS_I2C_BLOCK))
 		return -EOPNOTSUPP;
 
-	if (id) {
-		chip_type = (int)id->driver_data;
+	if (client->dev.of_node) {
+		chip_type = (enum inv_devices)
+			of_device_get_match_data(&client->dev);
+		name = client->name;
+	} else if (id) {
+		chip_type = (enum inv_devices)
+			id->driver_data;
 		name = id->name;
 	} else if (ACPI_HANDLE(&client->dev)) {
 		name = inv_mpu_match_acpi_device(&client->dev, &chip_type);
@@ -170,11 +178,37 @@ static const struct i2c_device_id inv_mpu_id[] = {
 	{"mpu6050", INV_MPU6050},
 	{"mpu6500", INV_MPU6500},
 	{"mpu9150", INV_MPU9150},
+	{"mpu9250", INV_MPU9250},
 	{"icm20608", INV_ICM20608},
 	{}
 };
 
 MODULE_DEVICE_TABLE(i2c, inv_mpu_id);
+
+static const struct of_device_id inv_of_match[] = {
+	{
+		.compatible = "invensense,mpu6050",
+		.data = (void *)INV_MPU6050
+	},
+	{
+		.compatible = "invensense,mpu6500",
+		.data = (void *)INV_MPU6500
+	},
+	{
+		.compatible = "invensense,mpu9150",
+		.data = (void *)INV_MPU9150
+	},
+	{
+		.compatible = "invensense,mpu9250",
+		.data = (void *)INV_MPU9250
+	},
+	{
+		.compatible = "invensense,icm20608",
+		.data = (void *)INV_ICM20608
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, inv_of_match);
 
 static const struct acpi_device_id inv_acpi_match[] = {
 	{"INVN6500", INV_MPU6500},
@@ -188,6 +222,7 @@ static struct i2c_driver inv_mpu_driver = {
 	.remove		=	inv_mpu_remove,
 	.id_table	=	inv_mpu_id,
 	.driver = {
+		.of_match_table = inv_of_match,
 		.acpi_match_table = ACPI_PTR(inv_acpi_match),
 		.name	=	"inv-mpu6050-i2c",
 		.pm     =       &inv_mpu_pmops,

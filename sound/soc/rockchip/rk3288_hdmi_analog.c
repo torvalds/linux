@@ -93,6 +93,9 @@ static int rk_hw_params(struct snd_pcm_substream *substream,
 	case 96000:
 		mclk = 12288000;
 		break;
+	case 192000:
+		mclk = 24576000;
+		break;
 	case 11025:
 	case 22050:
 	case 44100:

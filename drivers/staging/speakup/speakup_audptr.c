@@ -104,9 +104,10 @@ static struct spk_synth synth_audptr = {
 	.startup = SYNTH_START,
 	.checkval = SYNTH_CHECK,
 	.vars = vars,
+	.io_ops = &spk_serial_io_ops,
 	.probe = synth_probe,
 	.release = spk_serial_release,
-	.synth_immediate = spk_synth_immediate,
+	.synth_immediate = spk_serial_synth_immediate,
 	.catch_up = spk_do_catch_up,
 	.flush = synth_flush,
 	.is_alive = spk_synth_is_alive_restart,
@@ -127,15 +128,8 @@ static struct spk_synth synth_audptr = {
 
 static void synth_flush(struct spk_synth *synth)
 {
-	int timeout = SPK_XMITR_TIMEOUT;
-
-	while (spk_serial_tx_busy()) {
-		if (!--timeout)
-			break;
-		udelay(1);
-	}
-	outb(SYNTH_CLEAR, speakup_info.port_tts);
-	spk_serial_out(PROCSPEECH);
+	synth->io_ops->send_xchar(SYNTH_CLEAR);
+	synth->io_ops->synth_out(synth, PROCSPEECH);
 }
 
 static void synth_version(struct spk_synth *synth)
@@ -143,7 +137,7 @@ static void synth_version(struct spk_synth *synth)
 	unsigned char test = 0;
 	char synth_id[40] = "";
 
-	spk_synth_immediate(synth, "\x05[Q]");
+	synth->synth_immediate(synth, "\x05[Q]");
 	synth_id[test] = spk_serial_in();
 	if (synth_id[test] == 'A') {
 		do {

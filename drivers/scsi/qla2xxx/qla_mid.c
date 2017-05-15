@@ -74,13 +74,14 @@ qla24xx_deallocate_vp_id(scsi_qla_host_t *vha)
 	 * ensures no active vp_list traversal while the vport is removed
 	 * from the queue)
 	 */
+	wait_event_timeout(vha->vref_waitq, atomic_read(&vha->vref_count),
+	    10*HZ);
+
 	spin_lock_irqsave(&ha->vport_slock, flags);
-	while (atomic_read(&vha->vref_count)) {
-		spin_unlock_irqrestore(&ha->vport_slock, flags);
-
-		msleep(500);
-
-		spin_lock_irqsave(&ha->vport_slock, flags);
+	if (atomic_read(&vha->vref_count)) {
+		ql_dbg(ql_dbg_vport, vha, 0xfffa,
+		    "vha->vref_count=%u timeout\n", vha->vref_count.counter);
+		vha->vref_count = (atomic_t)ATOMIC_INIT(0);
 	}
 	list_del(&vha->list);
 	qlt_update_vp_map(vha, RESET_VP_IDX);
@@ -269,6 +270,7 @@ qla2x00_alert_all_vps(struct rsp_que *rsp, uint16_t *mb)
 
 			spin_lock_irqsave(&ha->vport_slock, flags);
 			atomic_dec(&vha->vref_count);
+			wake_up(&vha->vref_waitq);
 		}
 		i++;
 	}

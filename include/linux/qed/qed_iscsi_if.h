@@ -67,6 +67,8 @@ struct qed_dev_iscsi_info {
 
 	void __iomem *primary_dbq_rq_addr;
 	void __iomem *secondary_bdq_rq_addr;
+
+	u8 num_cqs;
 };
 
 struct qed_iscsi_id_params {

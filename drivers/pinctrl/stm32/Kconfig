@@ -14,6 +14,12 @@ config PINCTRL_STM32F429
 	default MACH_STM32F429
 	select PINCTRL_STM32
 
+config PINCTRL_STM32F469
+	bool "STMicroelectronics STM32F469 pin control" if COMPILE_TEST && !MACH_STM32F469
+	depends on OF && IRQ_DOMAIN_HIERARCHY
+	default MACH_STM32F469
+	select PINCTRL_STM32
+
 config PINCTRL_STM32F746
 	bool "STMicroelectronics STM32F746 pin control" if COMPILE_TEST && !MACH_STM32F746
 	depends on OF && IRQ_DOMAIN_HIERARCHY

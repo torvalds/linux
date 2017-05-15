@@ -160,6 +160,9 @@ int i40iw_inetaddr_event(struct notifier_block *notifier,
 		return NOTIFY_DONE;
 
 	iwdev = &hdl->device;
+	if (iwdev->init_state < INET_NOTIFIER)
+		return NOTIFY_DONE;
+
 	netdev = iwdev->ldev->netdev;
 	upper_dev = netdev_master_upper_dev_get(netdev);
 	if (netdev != event_netdev)
@@ -214,6 +217,9 @@ int i40iw_inet6addr_event(struct notifier_block *notifier,
 		return NOTIFY_DONE;
 
 	iwdev = &hdl->device;
+	if (iwdev->init_state < INET_NOTIFIER)
+		return NOTIFY_DONE;
+
 	netdev = iwdev->ldev->netdev;
 	if (netdev != event_netdev)
 		return NOTIFY_DONE;
@@ -260,6 +266,8 @@ int i40iw_net_event(struct notifier_block *notifier, unsigned long event, void *
 		if (!iwhdl)
 			return NOTIFY_DONE;
 		iwdev = &iwhdl->device;
+		if (iwdev->init_state < INET_NOTIFIER)
+			return NOTIFY_DONE;
 		p = (__be32 *)neigh->primary_key;
 		i40iw_copy_ip_ntohl(local_ipaddr, p);
 		if (neigh->nud_state & NUD_VALID) {
@@ -836,10 +844,9 @@ void i40iw_terminate_start_timer(struct i40iw_sc_qp *qp)
 
 	iwqp = (struct i40iw_qp *)qp->back_qp;
 	i40iw_add_ref(&iwqp->ibqp);
-	init_timer(&iwqp->terminate_timer);
-	iwqp->terminate_timer.function = i40iw_terminate_timeout;
+	setup_timer(&iwqp->terminate_timer, i40iw_terminate_timeout,
+		    (unsigned long)iwqp);
 	iwqp->terminate_timer.expires = jiffies + HZ;
-	iwqp->terminate_timer.data = (unsigned long)iwqp;
 	add_timer(&iwqp->terminate_timer);
 }
 
@@ -1428,9 +1435,8 @@ void i40iw_hw_stats_start_timer(struct i40iw_sc_vsi *vsi)
 {
 	struct i40iw_vsi_pestat *devstat = vsi->pestat;
 
-	init_timer(&devstat->stats_timer);
-	devstat->stats_timer.function = i40iw_hw_stats_timeout;
-	devstat->stats_timer.data = (unsigned long)vsi;
+	setup_timer(&devstat->stats_timer, i40iw_hw_stats_timeout,
+		    (unsigned long)vsi);
 	mod_timer(&devstat->stats_timer,
 		  jiffies + msecs_to_jiffies(STATS_TIMER_DELAY));
 }

@@ -222,14 +222,6 @@ struct exynos_drm_private {
 	wait_queue_head_t	wait;
 };
 
-static inline struct exynos_drm_crtc *
-exynos_drm_crtc_from_pipe(struct drm_device *dev, int pipe)
-{
-	struct drm_crtc *crtc = drm_crtc_from_index(dev, pipe);
-
-	return to_exynos_crtc(crtc);
-}
-
 static inline struct device *to_dma_dev(struct drm_device *dev)
 {
 	struct exynos_drm_private *priv = dev->dev_private;

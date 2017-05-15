@@ -42,7 +42,7 @@
 #include <asm/fixmap.h>
 #include <asm/proto.h>
 #include <asm/setup.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/io.h>
 
 #include "../realmode/rm/wakeup.h"
@@ -68,9 +68,9 @@ void __init tboot_probe(void)
 	 * also verify that it is mapped as we expect it before calling
 	 * set_fixmap(), to reduce chance of garbage value causing crash
 	 */
-	if (!e820_any_mapped(boot_params.tboot_addr,
-			     boot_params.tboot_addr, E820_RESERVED)) {
-		pr_warning("non-0 tboot_addr but it is not of type E820_RESERVED\n");
+	if (!e820__mapped_any(boot_params.tboot_addr,
+			     boot_params.tboot_addr, E820_TYPE_RESERVED)) {
+		pr_warning("non-0 tboot_addr but it is not of type E820_TYPE_RESERVED\n");
 		return;
 	}
 
@@ -118,12 +118,16 @@ static int map_tboot_page(unsigned long vaddr, unsigned long pfn,
 			  pgprot_t prot)
 {
 	pgd_t *pgd;
+	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 
 	pgd = pgd_offset(&tboot_mm, vaddr);
-	pud = pud_alloc(&tboot_mm, pgd, vaddr);
+	p4d = p4d_alloc(&tboot_mm, pgd, vaddr);
+	if (!p4d)
+		return -1;
+	pud = pud_alloc(&tboot_mm, p4d, vaddr);
 	if (!pud)
 		return -1;
 	pmd = pmd_alloc(&tboot_mm, pud, vaddr);
@@ -188,12 +192,12 @@ static int tboot_setup_sleep(void)
 
 	tboot->num_mac_regions = 0;
 
-	for (i = 0; i < e820->nr_map; i++) {
-		if ((e820->map[i].type != E820_RAM)
-		 && (e820->map[i].type != E820_RESERVED_KERN))
+	for (i = 0; i < e820_table->nr_entries; i++) {
+		if ((e820_table->entries[i].type != E820_TYPE_RAM)
+		 && (e820_table->entries[i].type != E820_TYPE_RESERVED_KERN))
 			continue;
 
-		add_mac_region(e820->map[i].addr, e820->map[i].size);
+		add_mac_region(e820_table->entries[i].addr, e820_table->entries[i].size);
 	}
 
 	tboot->acpi_sinfo.kernel_s3_resume_vector =
@@ -509,6 +513,9 @@ int tboot_force_iommu(void)
 {
 	if (!tboot_enabled())
 		return 0;
+
+	if (!intel_iommu_tboot_noforce)
+		return 1;
 
 	if (no_iommu || swiotlb || dmar_disabled)
 		pr_warning("Forcing Intel-IOMMU to enabled\n");

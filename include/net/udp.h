@@ -372,4 +372,5 @@ void udp_encap_enable(void);
 #if IS_ENABLED(CONFIG_IPV6)
 void udpv6_encap_enable(void);
 #endif
+
 #endif	/* _UDP_H */

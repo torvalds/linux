@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015-2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -49,6 +49,7 @@
 #include <linux/vmalloc.h>
 #include <linux/io.h>
 #include <linux/sched/mm.h>
+#include <linux/bitmap.h>
 
 #include <rdma/ib.h>
 
@@ -70,30 +71,37 @@
 /*
  * File operation functions
  */
-static int hfi1_file_open(struct inode *, struct file *);
-static int hfi1_file_close(struct inode *, struct file *);
-static ssize_t hfi1_write_iter(struct kiocb *, struct iov_iter *);
-static unsigned int hfi1_poll(struct file *, struct poll_table_struct *);
-static int hfi1_file_mmap(struct file *, struct vm_area_struct *);
+static int hfi1_file_open(struct inode *inode, struct file *fp);
+static int hfi1_file_close(struct inode *inode, struct file *fp);
+static ssize_t hfi1_write_iter(struct kiocb *kiocb, struct iov_iter *from);
+static unsigned int hfi1_poll(struct file *fp, struct poll_table_struct *pt);
+static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma);
 
-static u64 kvirt_to_phys(void *);
-static int assign_ctxt(struct file *, struct hfi1_user_info *);
-static int init_subctxts(struct hfi1_ctxtdata *, const struct hfi1_user_info *);
-static int user_init(struct file *);
-static int get_ctxt_info(struct file *, void __user *, __u32);
-static int get_base_info(struct file *, void __user *, __u32);
-static int setup_ctxt(struct file *);
-static int setup_subctxt(struct hfi1_ctxtdata *);
-static int get_user_context(struct file *, struct hfi1_user_info *, int);
-static int find_shared_ctxt(struct file *, const struct hfi1_user_info *);
-static int allocate_ctxt(struct file *, struct hfi1_devdata *,
-			 struct hfi1_user_info *);
-static unsigned int poll_urgent(struct file *, struct poll_table_struct *);
-static unsigned int poll_next(struct file *, struct poll_table_struct *);
-static int user_event_ack(struct hfi1_ctxtdata *, int, unsigned long);
-static int set_ctxt_pkey(struct hfi1_ctxtdata *, unsigned, u16);
-static int manage_rcvq(struct hfi1_ctxtdata *, unsigned, int);
-static int vma_fault(struct vm_fault *);
+static u64 kvirt_to_phys(void *addr);
+static int assign_ctxt(struct hfi1_filedata *fd, struct hfi1_user_info *uinfo);
+static int init_subctxts(struct hfi1_ctxtdata *uctxt,
+			 const struct hfi1_user_info *uinfo);
+static int init_user_ctxt(struct hfi1_filedata *fd);
+static void user_init(struct hfi1_ctxtdata *uctxt);
+static int get_ctxt_info(struct hfi1_filedata *fd, void __user *ubase,
+			 __u32 len);
+static int get_base_info(struct hfi1_filedata *fd, void __user *ubase,
+			 __u32 len);
+static int setup_base_ctxt(struct hfi1_filedata *fd);
+static int setup_subctxt(struct hfi1_ctxtdata *uctxt);
+
+static int find_sub_ctxt(struct hfi1_filedata *fd,
+			 const struct hfi1_user_info *uinfo);
+static int allocate_ctxt(struct hfi1_filedata *fd, struct hfi1_devdata *dd,
+			 struct hfi1_user_info *uinfo);
+static unsigned int poll_urgent(struct file *fp, struct poll_table_struct *pt);
+static unsigned int poll_next(struct file *fp, struct poll_table_struct *pt);
+static int user_event_ack(struct hfi1_ctxtdata *uctxt, u16 subctxt,
+			  unsigned long events);
+static int set_ctxt_pkey(struct hfi1_ctxtdata *uctxt, u16 subctxt, u16 pkey);
+static int manage_rcvq(struct hfi1_ctxtdata *uctxt, u16 subctxt,
+		       int start_stop);
+static int vma_fault(struct vm_fault *vmf);
 static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
 			    unsigned long arg);
 
@@ -173,6 +181,9 @@ static int hfi1_file_open(struct inode *inode, struct file *fp)
 					       struct hfi1_devdata,
 					       user_cdev);
 
+	if (!((dd->flags & HFI1_PRESENT) && dd->kregbase))
+		return -EINVAL;
+
 	if (!atomic_inc_not_zero(&dd->user_refcount))
 		return -ENXIO;
 
@@ -187,6 +198,7 @@ static int hfi1_file_open(struct inode *inode, struct file *fp)
 		fd->rec_cpu_num = -1; /* no cpu affinity by default */
 		fd->mm = current->mm;
 		mmgrab(fd->mm);
+		fd->dd = dd;
 		fp->private_data = fd;
 	} else {
 		fp->private_data = NULL;
@@ -229,20 +241,14 @@ static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
 				   sizeof(uinfo)))
 			return -EFAULT;
 
-		ret = assign_ctxt(fp, &uinfo);
-		if (ret < 0)
-			return ret;
-		ret = setup_ctxt(fp);
-		if (ret)
-			return ret;
-		ret = user_init(fp);
+		ret = assign_ctxt(fd, &uinfo);
 		break;
 	case HFI1_IOCTL_CTXT_INFO:
-		ret = get_ctxt_info(fp, (void __user *)(unsigned long)arg,
+		ret = get_ctxt_info(fd, (void __user *)(unsigned long)arg,
 				    sizeof(struct hfi1_ctxt_info));
 		break;
 	case HFI1_IOCTL_USER_INFO:
-		ret = get_base_info(fp, (void __user *)(unsigned long)arg,
+		ret = get_base_info(fd, (void __user *)(unsigned long)arg,
 				    sizeof(struct hfi1_base_info));
 		break;
 	case HFI1_IOCTL_CREDIT_UPD:
@@ -256,7 +262,7 @@ static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
 				   sizeof(tinfo)))
 			return -EFAULT;
 
-		ret = hfi1_user_exp_rcv_setup(fp, &tinfo);
+		ret = hfi1_user_exp_rcv_setup(fd, &tinfo);
 		if (!ret) {
 			/*
 			 * Copy the number of tidlist entries we used
@@ -278,7 +284,7 @@ static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
 				   sizeof(tinfo)))
 			return -EFAULT;
 
-		ret = hfi1_user_exp_rcv_clear(fp, &tinfo);
+		ret = hfi1_user_exp_rcv_clear(fd, &tinfo);
 		if (ret)
 			break;
 		addr = arg + offsetof(struct hfi1_tid_info, tidcnt);
@@ -293,7 +299,7 @@ static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
 				   sizeof(tinfo)))
 			return -EFAULT;
 
-		ret = hfi1_user_exp_rcv_invalid(fp, &tinfo);
+		ret = hfi1_user_exp_rcv_invalid(fd, &tinfo);
 		if (ret)
 			break;
 		addr = arg + offsetof(struct hfi1_tid_info, tidcnt);
@@ -430,7 +436,7 @@ static ssize_t hfi1_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 		unsigned long count = 0;
 
 		ret = hfi1_user_sdma_process_request(
-			kiocb->ki_filp,	(struct iovec *)(from->iov + done),
+			fd, (struct iovec *)(from->iov + done),
 			dim, &count);
 		if (ret) {
 			reqs = ret;
@@ -586,8 +592,8 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 		 * knows where it's own bitmap is within the page.
 		 */
 		memaddr = (unsigned long)(dd->events +
-					  ((uctxt->ctxt - dd->first_user_ctxt) *
-					   HFI1_MAX_SHARED_CTXTS)) & PAGE_MASK;
+				  ((uctxt->ctxt - dd->first_dyn_alloc_ctxt) *
+				   HFI1_MAX_SHARED_CTXTS)) & PAGE_MASK;
 		memlen = PAGE_SIZE;
 		/*
 		 * v3.7 removes VM_RESERVED but the effect is kept by
@@ -597,6 +603,10 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 		vmf = 1;
 		break;
 	case STATUS:
+		if (flags & (unsigned long)(VM_WRITE | VM_EXEC)) {
+			ret = -EPERM;
+			goto done;
+		}
 		memaddr = kvirt_to_phys((void *)dd->status);
 		memlen = PAGE_SIZE;
 		flags |= VM_IO | VM_DONTEXPAND;
@@ -752,16 +762,19 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 	/* release the cpu */
 	hfi1_put_proc_affinity(fdata->rec_cpu_num);
 
+	/* clean up rcv side */
+	hfi1_user_exp_rcv_free(fdata);
+
 	/*
 	 * Clear any left over, unhandled events so the next process that
 	 * gets this context doesn't get confused.
 	 */
-	ev = dd->events + ((uctxt->ctxt - dd->first_user_ctxt) *
+	ev = dd->events + ((uctxt->ctxt - dd->first_dyn_alloc_ctxt) *
 			   HFI1_MAX_SHARED_CTXTS) + fdata->subctxt;
 	*ev = 0;
 
-	if (--uctxt->cnt) {
-		uctxt->active_slaves &= ~(1 << fdata->subctxt);
+	__clear_bit(fdata->subctxt, uctxt->in_use_ctxts);
+	if (!bitmap_empty(uctxt->in_use_ctxts, HFI1_MAX_SHARED_CTXTS)) {
 		mutex_unlock(&hfi1_mutex);
 		goto done;
 	}
@@ -791,8 +804,8 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 
 	dd->rcd[uctxt->ctxt] = NULL;
 
-	hfi1_user_exp_rcv_free(fdata);
-	hfi1_clear_ctxt_pkey(dd, uctxt->ctxt);
+	hfi1_user_exp_rcv_grp_free(uctxt);
+	hfi1_clear_ctxt_pkey(dd, uctxt);
 
 	uctxt->rcvwait_to = 0;
 	uctxt->piowait_to = 0;
@@ -832,121 +845,135 @@ static u64 kvirt_to_phys(void *addr)
 	return paddr;
 }
 
-static int assign_ctxt(struct file *fp, struct hfi1_user_info *uinfo)
+static int assign_ctxt(struct hfi1_filedata *fd, struct hfi1_user_info *uinfo)
 {
-	int i_minor, ret = 0;
+	int ret;
 	unsigned int swmajor, swminor;
 
 	swmajor = uinfo->userversion >> 16;
-	if (swmajor != HFI1_USER_SWMAJOR) {
-		ret = -ENODEV;
-		goto done;
-	}
+	if (swmajor != HFI1_USER_SWMAJOR)
+		return -ENODEV;
 
 	swminor = uinfo->userversion & 0xffff;
 
 	mutex_lock(&hfi1_mutex);
-	/* First, lets check if we need to setup a shared context? */
+	/*
+	 * Get a sub context if necessary.
+	 * ret < 0 error, 0 no context, 1 sub-context found
+	 */
+	ret = 0;
 	if (uinfo->subctxt_cnt) {
-		struct hfi1_filedata *fd = fp->private_data;
-
-		ret = find_shared_ctxt(fp, uinfo);
-		if (ret < 0)
-			goto done_unlock;
-		if (ret) {
+		ret = find_sub_ctxt(fd, uinfo);
+		if (ret > 0)
 			fd->rec_cpu_num =
 				hfi1_get_proc_affinity(fd->uctxt->numa_id);
-		}
 	}
 
 	/*
-	 * We execute the following block if we couldn't find a
-	 * shared context or if context sharing is not required.
+	 * Allocate a base context if context sharing is not required or we
+	 * couldn't find a sub context.
 	 */
-	if (!ret) {
-		i_minor = iminor(file_inode(fp)) - HFI1_USER_MINOR_BASE;
-		ret = get_user_context(fp, uinfo, i_minor);
-	}
-done_unlock:
+	if (!ret)
+		ret = allocate_ctxt(fd, fd->dd, uinfo);
+
 	mutex_unlock(&hfi1_mutex);
-done:
-	return ret;
-}
 
-static int get_user_context(struct file *fp, struct hfi1_user_info *uinfo,
-			    int devno)
-{
-	struct hfi1_devdata *dd = NULL;
-	int devmax, npresent, nup;
+	/* Depending on the context type, do the appropriate init */
+	if (ret > 0) {
+		/*
+		 * sub-context info can only be set up after the base
+		 * context has been completed.
+		 */
+		ret = wait_event_interruptible(fd->uctxt->wait, !test_bit(
+					       HFI1_CTXT_BASE_UNINIT,
+					       &fd->uctxt->event_flags));
+		if (test_bit(HFI1_CTXT_BASE_FAILED, &fd->uctxt->event_flags)) {
+			clear_bit(fd->subctxt, fd->uctxt->in_use_ctxts);
+			return -ENOMEM;
+		}
+		/* The only thing a sub context needs is the user_xxx stuff */
+		if (!ret)
+			ret = init_user_ctxt(fd);
 
-	devmax = hfi1_count_units(&npresent, &nup);
-	if (!npresent)
-		return -ENXIO;
-
-	if (!nup)
-		return -ENETDOWN;
-
-	dd = hfi1_lookup(devno);
-	if (!dd)
-		return -ENODEV;
-	else if (!dd->freectxts)
-		return -EBUSY;
-
-	return allocate_ctxt(fp, dd, uinfo);
-}
-
-static int find_shared_ctxt(struct file *fp,
-			    const struct hfi1_user_info *uinfo)
-{
-	int devmax, ndev, i;
-	int ret = 0;
-	struct hfi1_filedata *fd = fp->private_data;
-
-	devmax = hfi1_count_units(NULL, NULL);
-
-	for (ndev = 0; ndev < devmax; ndev++) {
-		struct hfi1_devdata *dd = hfi1_lookup(ndev);
-
-		if (!(dd && (dd->flags & HFI1_PRESENT) && dd->kregbase))
-			continue;
-		for (i = dd->first_user_ctxt; i < dd->num_rcv_contexts; i++) {
-			struct hfi1_ctxtdata *uctxt = dd->rcd[i];
-
-			/* Skip ctxts which are not yet open */
-			if (!uctxt || !uctxt->cnt)
-				continue;
-			/* Skip ctxt if it doesn't match the requested one */
-			if (memcmp(uctxt->uuid, uinfo->uuid,
-				   sizeof(uctxt->uuid)) ||
-			    uctxt->jkey != generate_jkey(current_uid()) ||
-			    uctxt->subctxt_id != uinfo->subctxt_id ||
-			    uctxt->subctxt_cnt != uinfo->subctxt_cnt)
-				continue;
-
-			/* Verify the sharing process matches the master */
-			if (uctxt->userversion != uinfo->userversion ||
-			    uctxt->cnt >= uctxt->subctxt_cnt) {
-				ret = -EINVAL;
-				goto done;
-			}
-			fd->uctxt = uctxt;
-			fd->subctxt  = uctxt->cnt++;
-			uctxt->active_slaves |= 1 << fd->subctxt;
-			ret = 1;
-			goto done;
+		if (ret)
+			clear_bit(fd->subctxt, fd->uctxt->in_use_ctxts);
+	} else if (!ret) {
+		ret = setup_base_ctxt(fd);
+		if (fd->uctxt->subctxt_cnt) {
+			/* If there is an error, set the failed bit. */
+			if (ret)
+				set_bit(HFI1_CTXT_BASE_FAILED,
+					&fd->uctxt->event_flags);
+			/*
+			 * Base context is done, notify anybody using a
+			 * sub-context that is waiting for this completion
+			 */
+			clear_bit(HFI1_CTXT_BASE_UNINIT,
+				  &fd->uctxt->event_flags);
+			wake_up(&fd->uctxt->wait);
 		}
 	}
 
-done:
 	return ret;
 }
 
-static int allocate_ctxt(struct file *fp, struct hfi1_devdata *dd,
+/*
+ * The hfi1_mutex must be held when this function is called.  It is
+ * necessary to ensure serialized access to the bitmask in_use_ctxts.
+ */
+static int find_sub_ctxt(struct hfi1_filedata *fd,
+			 const struct hfi1_user_info *uinfo)
+{
+	int i;
+	struct hfi1_devdata *dd = fd->dd;
+	u16 subctxt;
+
+	for (i = dd->first_dyn_alloc_ctxt; i < dd->num_rcv_contexts; i++) {
+		struct hfi1_ctxtdata *uctxt = dd->rcd[i];
+
+		/* Skip ctxts which are not yet open */
+		if (!uctxt ||
+		    bitmap_empty(uctxt->in_use_ctxts,
+				 HFI1_MAX_SHARED_CTXTS))
+			continue;
+
+		/* Skip dynamically allocted kernel contexts */
+		if (uctxt->sc && (uctxt->sc->type == SC_KERNEL))
+			continue;
+
+		/* Skip ctxt if it doesn't match the requested one */
+		if (memcmp(uctxt->uuid, uinfo->uuid,
+			   sizeof(uctxt->uuid)) ||
+		    uctxt->jkey != generate_jkey(current_uid()) ||
+		    uctxt->subctxt_id != uinfo->subctxt_id ||
+		    uctxt->subctxt_cnt != uinfo->subctxt_cnt)
+			continue;
+
+		/* Verify the sharing process matches the master */
+		if (uctxt->userversion != uinfo->userversion)
+			return -EINVAL;
+
+		/* Find an unused context */
+		subctxt = find_first_zero_bit(uctxt->in_use_ctxts,
+					      HFI1_MAX_SHARED_CTXTS);
+		if (subctxt >= uctxt->subctxt_cnt)
+			return -EBUSY;
+
+		fd->uctxt = uctxt;
+		fd->subctxt = subctxt;
+		__set_bit(fd->subctxt, uctxt->in_use_ctxts);
+
+		return 1;
+	}
+
+	return 0;
+}
+
+static int allocate_ctxt(struct hfi1_filedata *fd, struct hfi1_devdata *dd,
 			 struct hfi1_user_info *uinfo)
 {
-	struct hfi1_filedata *fd = fp->private_data;
 	struct hfi1_ctxtdata *uctxt;
-	unsigned ctxt;
+	unsigned int ctxt;
 	int ret, numa;
 
 	if (dd->flags & HFI1_FROZEN) {
@@ -960,7 +987,16 @@ static int allocate_ctxt(struct file *fp, struct hfi1_devdata *dd,
 		return -EIO;
 	}
 
-	for (ctxt = dd->first_user_ctxt; ctxt < dd->num_rcv_contexts; ctxt++)
+	/*
+	 * This check is sort of redundant to the next EBUSY error. It would
+	 * also indicate an inconsistancy in the driver if this value was
+	 * zero, but there were still contexts available.
+	 */
+	if (!dd->freectxts)
+		return -EBUSY;
+
+	for (ctxt = dd->first_dyn_alloc_ctxt;
+	     ctxt < dd->num_rcv_contexts; ctxt++)
 		if (!dd->rcd[ctxt])
 			break;
 
@@ -1002,12 +1038,12 @@ static int allocate_ctxt(struct file *fp, struct hfi1_devdata *dd,
 		goto ctxdata_free;
 
 	/*
-	 * Setup shared context resources if the user-level has requested
-	 * shared contexts and this is the 'master' process.
+	 * Setup sub context resources if the user-level has requested
+	 * sub contexts.
 	 * This has to be done here so the rest of the sub-contexts find the
 	 * proper master.
 	 */
-	if (uinfo->subctxt_cnt && !fd->subctxt) {
+	if (uinfo->subctxt_cnt) {
 		ret = init_subctxts(uctxt, uinfo);
 		/*
 		 * On error, we don't need to disable and de-allocate the
@@ -1044,7 +1080,7 @@ ctxdata_free:
 static int init_subctxts(struct hfi1_ctxtdata *uctxt,
 			 const struct hfi1_user_info *uinfo)
 {
-	unsigned num_subctxts;
+	u16 num_subctxts;
 
 	num_subctxts = uinfo->subctxt_cnt;
 	if (num_subctxts > HFI1_MAX_SHARED_CTXTS)
@@ -1052,9 +1088,8 @@ static int init_subctxts(struct hfi1_ctxtdata *uctxt,
 
 	uctxt->subctxt_cnt = uinfo->subctxt_cnt;
 	uctxt->subctxt_id = uinfo->subctxt_id;
-	uctxt->active_slaves = 1;
 	uctxt->redirect_seq_cnt = 1;
-	set_bit(HFI1_CTXT_MASTER_UNINIT, &uctxt->event_flags);
+	set_bit(HFI1_CTXT_BASE_UNINIT, &uctxt->event_flags);
 
 	return 0;
 }
@@ -1062,13 +1097,12 @@ static int init_subctxts(struct hfi1_ctxtdata *uctxt,
 static int setup_subctxt(struct hfi1_ctxtdata *uctxt)
 {
 	int ret = 0;
-	unsigned num_subctxts = uctxt->subctxt_cnt;
+	u16 num_subctxts = uctxt->subctxt_cnt;
 
 	uctxt->subctxt_uregbase = vmalloc_user(PAGE_SIZE);
-	if (!uctxt->subctxt_uregbase) {
-		ret = -ENOMEM;
-		goto bail;
-	}
+	if (!uctxt->subctxt_uregbase)
+		return -ENOMEM;
+
 	/* We can take the size of the RcvHdr Queue from the master */
 	uctxt->subctxt_rcvhdr_base = vmalloc_user(uctxt->rcvhdrq_size *
 						  num_subctxts);
@@ -1083,25 +1117,22 @@ static int setup_subctxt(struct hfi1_ctxtdata *uctxt)
 		ret = -ENOMEM;
 		goto bail_rhdr;
 	}
-	goto bail;
+
+	return 0;
+
 bail_rhdr:
 	vfree(uctxt->subctxt_rcvhdr_base);
+	uctxt->subctxt_rcvhdr_base = NULL;
 bail_ureg:
 	vfree(uctxt->subctxt_uregbase);
 	uctxt->subctxt_uregbase = NULL;
-bail:
+
 	return ret;
 }
 
-static int user_init(struct file *fp)
+static void user_init(struct hfi1_ctxtdata *uctxt)
 {
 	unsigned int rcvctrl_ops = 0;
-	struct hfi1_filedata *fd = fp->private_data;
-	struct hfi1_ctxtdata *uctxt = fd->uctxt;
-
-	/* make sure that the context has already been setup */
-	if (!test_bit(HFI1_CTXT_SETUP_DONE, &uctxt->event_flags))
-		return -EFAULT;
 
 	/* initialize poll variables... */
 	uctxt->urgent = 0;
@@ -1149,20 +1180,12 @@ static int user_init(struct file *fp)
 	else
 		rcvctrl_ops |= HFI1_RCVCTRL_TAILUPD_DIS;
 	hfi1_rcvctrl(uctxt->dd, rcvctrl_ops, uctxt->ctxt);
-
-	/* Notify any waiting slaves */
-	if (uctxt->subctxt_cnt) {
-		clear_bit(HFI1_CTXT_MASTER_UNINIT, &uctxt->event_flags);
-		wake_up(&uctxt->wait);
-	}
-
-	return 0;
 }
 
-static int get_ctxt_info(struct file *fp, void __user *ubase, __u32 len)
+static int get_ctxt_info(struct hfi1_filedata *fd, void __user *ubase,
+			 __u32 len)
 {
 	struct hfi1_ctxt_info cinfo;
-	struct hfi1_filedata *fd = fp->private_data;
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	int ret = 0;
 
@@ -1200,75 +1223,71 @@ static int get_ctxt_info(struct file *fp, void __user *ubase, __u32 len)
 	return ret;
 }
 
-static int setup_ctxt(struct file *fp)
+static int init_user_ctxt(struct hfi1_filedata *fd)
 {
-	struct hfi1_filedata *fd = fp->private_data;
+	struct hfi1_ctxtdata *uctxt = fd->uctxt;
+	int ret;
+
+	ret = hfi1_user_sdma_alloc_queues(uctxt, fd);
+	if (ret)
+		return ret;
+
+	ret = hfi1_user_exp_rcv_init(fd);
+
+	return ret;
+}
+
+static int setup_base_ctxt(struct hfi1_filedata *fd)
+{
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct hfi1_devdata *dd = uctxt->dd;
 	int ret = 0;
 
-	/*
-	 * Context should be set up only once, including allocation and
-	 * programming of eager buffers. This is done if context sharing
-	 * is not requested or by the master process.
-	 */
-	if (!uctxt->subctxt_cnt || !fd->subctxt) {
-		ret = hfi1_init_ctxt(uctxt->sc);
-		if (ret)
-			goto done;
+	hfi1_init_ctxt(uctxt->sc);
 
-		/* Now allocate the RcvHdr queue and eager buffers. */
-		ret = hfi1_create_rcvhdrq(dd, uctxt);
-		if (ret)
-			goto done;
-		ret = hfi1_setup_eagerbufs(uctxt);
-		if (ret)
-			goto done;
-		if (uctxt->subctxt_cnt && !fd->subctxt) {
-			ret = setup_subctxt(uctxt);
-			if (ret)
-				goto done;
-		}
-	} else {
-		ret = wait_event_interruptible(uctxt->wait, !test_bit(
-					       HFI1_CTXT_MASTER_UNINIT,
-					       &uctxt->event_flags));
-		if (ret)
-			goto done;
-	}
-
-	ret = hfi1_user_sdma_alloc_queues(uctxt, fp);
+	/* Now allocate the RcvHdr queue and eager buffers. */
+	ret = hfi1_create_rcvhdrq(dd, uctxt);
 	if (ret)
-		goto done;
-	/*
-	 * Expected receive has to be setup for all processes (including
-	 * shared contexts). However, it has to be done after the master
-	 * context has been fully configured as it depends on the
-	 * eager/expected split of the RcvArray entries.
-	 * Setting it up here ensures that the subcontexts will be waiting
-	 * (due to the above wait_event_interruptible() until the master
-	 * is setup.
-	 */
-	ret = hfi1_user_exp_rcv_init(fp);
-	if (ret)
-		goto done;
+		return ret;
 
-	set_bit(HFI1_CTXT_SETUP_DONE, &uctxt->event_flags);
-done:
+	ret = hfi1_setup_eagerbufs(uctxt);
+	if (ret)
+		goto setup_failed;
+
+	/* If sub-contexts are enabled, do the appropriate setup */
+	if (uctxt->subctxt_cnt)
+		ret = setup_subctxt(uctxt);
+	if (ret)
+		goto setup_failed;
+
+	ret = hfi1_user_exp_rcv_grp_init(fd);
+	if (ret)
+		goto setup_failed;
+
+	ret = init_user_ctxt(fd);
+	if (ret)
+		goto setup_failed;
+
+	user_init(uctxt);
+
+	return 0;
+
+setup_failed:
+	hfi1_free_ctxtdata(dd, uctxt);
 	return ret;
 }
 
-static int get_base_info(struct file *fp, void __user *ubase, __u32 len)
+static int get_base_info(struct hfi1_filedata *fd, void __user *ubase,
+			 __u32 len)
 {
 	struct hfi1_base_info binfo;
-	struct hfi1_filedata *fd = fp->private_data;
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct hfi1_devdata *dd = uctxt->dd;
 	ssize_t sz;
 	unsigned offset;
 	int ret = 0;
 
-	trace_hfi1_uctxtdata(uctxt->dd, uctxt);
+	trace_hfi1_uctxtdata(uctxt->dd, uctxt, fd->subctxt);
 
 	memset(&binfo, 0, sizeof(binfo));
 	binfo.hw_version = dd->revision;
@@ -1306,7 +1325,7 @@ static int get_base_info(struct file *fp, void __user *ubase, __u32 len)
 	 */
 	binfo.user_regbase = HFI1_MMAP_TOKEN(UREGS, uctxt->ctxt,
 					    fd->subctxt, 0);
-	offset = offset_in_page((((uctxt->ctxt - dd->first_user_ctxt) *
+	offset = offset_in_page((((uctxt->ctxt - dd->first_dyn_alloc_ctxt) *
 		    HFI1_MAX_SHARED_CTXTS) + fd->subctxt) *
 		  sizeof(*dd->events));
 	binfo.events_bufbase = HFI1_MMAP_TOKEN(EVENTS, uctxt->ctxt,
@@ -1400,12 +1419,12 @@ int hfi1_set_uevent_bits(struct hfi1_pportdata *ppd, const int evtbit)
 	}
 
 	spin_lock_irqsave(&dd->uctxt_lock, flags);
-	for (ctxt = dd->first_user_ctxt; ctxt < dd->num_rcv_contexts;
+	for (ctxt = dd->first_dyn_alloc_ctxt; ctxt < dd->num_rcv_contexts;
 	     ctxt++) {
 		uctxt = dd->rcd[ctxt];
 		if (uctxt) {
 			unsigned long *evs = dd->events +
-				(uctxt->ctxt - dd->first_user_ctxt) *
+				(uctxt->ctxt - dd->first_dyn_alloc_ctxt) *
 				HFI1_MAX_SHARED_CTXTS;
 			int i;
 			/*
@@ -1432,7 +1451,7 @@ done:
  * overflow conditions.  start_stop==1 re-enables, to be used to
  * re-init the software copy of the head register
  */
-static int manage_rcvq(struct hfi1_ctxtdata *uctxt, unsigned subctxt,
+static int manage_rcvq(struct hfi1_ctxtdata *uctxt, u16 subctxt,
 		       int start_stop)
 {
 	struct hfi1_devdata *dd = uctxt->dd;
@@ -1467,7 +1486,7 @@ bail:
  * User process then performs actions appropriate to bit having been
  * set, if desired, and checks again in future.
  */
-static int user_event_ack(struct hfi1_ctxtdata *uctxt, int subctxt,
+static int user_event_ack(struct hfi1_ctxtdata *uctxt, u16 subctxt,
 			  unsigned long events)
 {
 	int i;
@@ -1477,7 +1496,7 @@ static int user_event_ack(struct hfi1_ctxtdata *uctxt, int subctxt,
 	if (!dd->events)
 		return 0;
 
-	evs = dd->events + ((uctxt->ctxt - dd->first_user_ctxt) *
+	evs = dd->events + ((uctxt->ctxt - dd->first_dyn_alloc_ctxt) *
 			    HFI1_MAX_SHARED_CTXTS) + subctxt;
 
 	for (i = 0; i <= _HFI1_MAX_EVENT_BIT; i++) {
@@ -1488,8 +1507,7 @@ static int user_event_ack(struct hfi1_ctxtdata *uctxt, int subctxt,
 	return 0;
 }
 
-static int set_ctxt_pkey(struct hfi1_ctxtdata *uctxt, unsigned subctxt,
-			 u16 pkey)
+static int set_ctxt_pkey(struct hfi1_ctxtdata *uctxt, u16 subctxt, u16 pkey)
 {
 	int ret = -ENOENT, i, intable = 0;
 	struct hfi1_pportdata *ppd = uctxt->ppd;

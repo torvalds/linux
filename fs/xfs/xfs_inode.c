@@ -50,6 +50,7 @@
 #include "xfs_log.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_reflink.h"
+#include "xfs_dir2_priv.h"
 
 kmem_zone_t *xfs_inode_zone;
 
@@ -1615,7 +1616,7 @@ xfs_itruncate_extents(
 
 	/* Remove all pending CoW reservations. */
 	error = xfs_reflink_cancel_cow_blocks(ip, &tp, first_unmap_block,
-			last_block);
+			last_block, true);
 	if (error)
 		goto out;
 
@@ -1905,12 +1906,13 @@ xfs_inactive(
 		 * force is true because we are evicting an inode from the
 		 * cache. Post-eof blocks must be freed, lest we end up with
 		 * broken free space accounting.
+		 *
+		 * Note: don't bother with iolock here since lockdep complains
+		 * about acquiring it in reclaim context. We have the only
+		 * reference to the inode at this point anyways.
 		 */
-		if (xfs_can_free_eofblocks(ip, true)) {
-			xfs_ilock(ip, XFS_IOLOCK_EXCL);
+		if (xfs_can_free_eofblocks(ip, true))
 			xfs_free_eofblocks(ip);
-			xfs_iunlock(ip, XFS_IOLOCK_EXCL);
-		}
 
 		return;
 	}
@@ -3545,6 +3547,12 @@ xfs_iflush_int(
 	 */
 	if (ip->i_d.di_version < 3)
 		ip->i_d.di_flushiter++;
+
+	/* Check the inline directory data. */
+	if (S_ISDIR(VFS_I(ip)->i_mode) &&
+	    ip->i_d.di_format == XFS_DINODE_FMT_LOCAL &&
+	    xfs_dir2_sf_verify(ip))
+		goto corrupt_out;
 
 	/*
 	 * Copy the dirty parts of the inode into the on-disk inode.  We always

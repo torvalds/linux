@@ -33,7 +33,7 @@ nvbios_boostTe(struct nvkm_bios *bios,
 	u32 boost = 0;
 
 	if (!bit_entry(bios, 'P', &bit_P)) {
-		if (bit_P.version == 2)
+		if (bit_P.version == 2 && bit_P.length >= 0x34)
 			boost = nvbios_rd32(bios, bit_P.offset + 0x30);
 
 		if (boost) {

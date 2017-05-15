@@ -33,23 +33,19 @@
  */
 
 #include <linux/compiler.h>
-#include <linux/errno.h>
-#include <linux/sched.h>
 #include <linux/page-flags.h>
 #include <linux/mm.h>
 
 #include <asm/intrinsics.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
+#include <asm/extable.h>
 
 /*
  * For historical reasons, the following macros are grossly misnamed:
  */
 #define KERNEL_DS	((mm_segment_t) { ~0UL })		/* cf. access_ok() */
 #define USER_DS		((mm_segment_t) { TASK_SIZE-1 })	/* cf. access_ok() */
-
-#define VERIFY_READ	0
-#define VERIFY_WRITE	1
 
 #define get_ds()  (KERNEL_DS)
 #define get_fs()  (current_thread_info()->addr_limit)
@@ -63,14 +59,14 @@
  * address TASK_SIZE is never valid.  We also need to make sure that the address doesn't
  * point inside the virtually mapped linear page table.
  */
-#define __access_ok(addr, size, segment)						\
-({											\
-	__chk_user_ptr(addr);								\
-	(likely((unsigned long) (addr) <= (segment).seg)				\
-	 && ((segment).seg == KERNEL_DS.seg						\
-	     || likely(REGION_OFFSET((unsigned long) (addr)) < RGN_MAP_LIMIT)));	\
-})
-#define access_ok(type, addr, size)	__access_ok((addr), (size), get_fs())
+static inline int __access_ok(const void __user *p, unsigned long size)
+{
+	unsigned long addr = (unsigned long)p;
+	unsigned long seg = get_fs().seg;
+	return likely(addr <= seg) &&
+	 (seg == KERNEL_DS.seg || likely(REGION_OFFSET(addr) < RGN_MAP_LIMIT));
+}
+#define access_ok(type, addr, size)	__access_ok((addr), (size))
 
 /*
  * These are the main single-value transfer routines.  They automatically
@@ -80,8 +76,8 @@
  * (a) re-use the arguments for side effects (sizeof/typeof is ok)
  * (b) require any knowledge of processes at this stage
  */
-#define put_user(x, ptr)	__put_user_check((__typeof__(*(ptr))) (x), (ptr), sizeof(*(ptr)), get_fs())
-#define get_user(x, ptr)	__get_user_check((x), (ptr), sizeof(*(ptr)), get_fs())
+#define put_user(x, ptr)	__put_user_check((__typeof__(*(ptr))) (x), (ptr), sizeof(*(ptr)))
+#define get_user(x, ptr)	__get_user_check((x), (ptr), sizeof(*(ptr)))
 
 /*
  * The "__xxx" versions do not do address space checking, useful when
@@ -184,13 +180,13 @@ extern void __get_user_unknown (void);
  * could clobber r8 and r9 (among others).  Thus, be careful not to evaluate it while
  * using r8/r9.
  */
-#define __do_get_user(check, x, ptr, size, segment)					\
+#define __do_get_user(check, x, ptr, size)						\
 ({											\
 	const __typeof__(*(ptr)) __user *__gu_ptr = (ptr);				\
 	__typeof__ (size) __gu_size = (size);						\
 	long __gu_err = -EFAULT;							\
 	unsigned long __gu_val = 0;							\
-	if (!check || __access_ok(__gu_ptr, size, segment))				\
+	if (!check || __access_ok(__gu_ptr, size))					\
 		switch (__gu_size) {							\
 		      case 1: __get_user_size(__gu_val, __gu_ptr, 1, __gu_err); break;	\
 		      case 2: __get_user_size(__gu_val, __gu_ptr, 2, __gu_err); break;	\
@@ -202,8 +198,8 @@ extern void __get_user_unknown (void);
 	__gu_err;									\
 })
 
-#define __get_user_nocheck(x, ptr, size)	__do_get_user(0, x, ptr, size, KERNEL_DS)
-#define __get_user_check(x, ptr, size, segment)	__do_get_user(1, x, ptr, size, segment)
+#define __get_user_nocheck(x, ptr, size)	__do_get_user(0, x, ptr, size)
+#define __get_user_check(x, ptr, size)	__do_get_user(1, x, ptr, size)
 
 extern void __put_user_unknown (void);
 
@@ -211,14 +207,14 @@ extern void __put_user_unknown (void);
  * Evaluating arguments X, PTR, SIZE, and SEGMENT may involve subroutine-calls, which
  * could clobber r8 (among others).  Thus, be careful not to evaluate them while using r8.
  */
-#define __do_put_user(check, x, ptr, size, segment)					\
+#define __do_put_user(check, x, ptr, size)						\
 ({											\
 	__typeof__ (x) __pu_x = (x);							\
 	__typeof__ (*(ptr)) __user *__pu_ptr = (ptr);					\
 	__typeof__ (size) __pu_size = (size);						\
 	long __pu_err = -EFAULT;							\
 											\
-	if (!check || __access_ok(__pu_ptr, __pu_size, segment))			\
+	if (!check || __access_ok(__pu_ptr, __pu_size))					\
 		switch (__pu_size) {							\
 		      case 1: __put_user_size(__pu_x, __pu_ptr, 1, __pu_err); break;	\
 		      case 2: __put_user_size(__pu_x, __pu_ptr, 2, __pu_err); break;	\
@@ -229,8 +225,8 @@ extern void __put_user_unknown (void);
 	__pu_err;									\
 })
 
-#define __put_user_nocheck(x, ptr, size)	__do_put_user(0, x, ptr, size, KERNEL_DS)
-#define __put_user_check(x, ptr, size, segment)	__do_put_user(1, x, ptr, size, segment)
+#define __put_user_nocheck(x, ptr, size)	__do_put_user(0, x, ptr, size)
+#define __put_user_check(x, ptr, size)	__do_put_user(1, x, ptr, size)
 
 /*
  * Complex access routines
@@ -239,56 +235,19 @@ extern unsigned long __must_check __copy_user (void __user *to, const void __use
 					       unsigned long count);
 
 static inline unsigned long
-__copy_to_user (void __user *to, const void *from, unsigned long count)
+raw_copy_to_user(void __user *to, const void *from, unsigned long count)
 {
-	check_object_size(from, count, true);
-
 	return __copy_user(to, (__force void __user *) from, count);
 }
 
 static inline unsigned long
-__copy_from_user (void *to, const void __user *from, unsigned long count)
+raw_copy_from_user(void *to, const void __user *from, unsigned long count)
 {
-	check_object_size(to, count, false);
-
 	return __copy_user((__force void __user *) to, from, count);
 }
 
-#define __copy_to_user_inatomic		__copy_to_user
-#define __copy_from_user_inatomic	__copy_from_user
-#define copy_to_user(to, from, n)							\
-({											\
-	void __user *__cu_to = (to);							\
-	const void *__cu_from = (from);							\
-	long __cu_len = (n);								\
-											\
-	if (__access_ok(__cu_to, __cu_len, get_fs())) {					\
-		check_object_size(__cu_from, __cu_len, true);			\
-		__cu_len = __copy_user(__cu_to, (__force void __user *)  __cu_from, __cu_len);	\
-	}										\
-	__cu_len;									\
-})
-
-static inline unsigned long
-copy_from_user(void *to, const void __user *from, unsigned long n)
-{
-	check_object_size(to, n, false);
-	if (likely(__access_ok(from, n, get_fs())))
-		n = __copy_user((__force void __user *) to, from, n);
-	else
-		memset(to, 0, n);
-	return n;
-}
-
-#define __copy_in_user(to, from, size)	__copy_user((to), (from), (size))
-
-static inline unsigned long
-copy_in_user (void __user *to, const void __user *from, unsigned long n)
-{
-	if (likely(access_ok(VERIFY_READ, from, n) && access_ok(VERIFY_WRITE, to, n)))
-		n = __copy_user(to, from, n);
-	return n;
-}
+#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_TO_USER
 
 extern unsigned long __do_clear_user (void __user *, unsigned long);
 
@@ -297,7 +256,7 @@ extern unsigned long __do_clear_user (void __user *, unsigned long);
 #define clear_user(to, n)					\
 ({								\
 	unsigned long __cu_len = (n);				\
-	if (__access_ok(to, __cu_len, get_fs()))		\
+	if (__access_ok(to, __cu_len))				\
 		__cu_len = __do_clear_user(to, __cu_len);	\
 	__cu_len;						\
 })
@@ -313,7 +272,7 @@ extern long __must_check __strncpy_from_user (char *to, const char __user *from,
 ({									\
 	const char __user * __sfu_from = (from);			\
 	long __sfu_ret = -EFAULT;					\
-	if (__access_ok(__sfu_from, 0, get_fs()))			\
+	if (__access_ok(__sfu_from, 0))					\
 		__sfu_ret = __strncpy_from_user((to), __sfu_from, (n));	\
 	__sfu_ret;							\
 })
@@ -325,7 +284,7 @@ extern unsigned long __strlen_user (const char __user *);
 ({							\
 	const char __user *__su_str = (str);		\
 	unsigned long __su_ret = 0;			\
-	if (__access_ok(__su_str, 0, get_fs()))		\
+	if (__access_ok(__su_str, 0))			\
 		__su_ret = __strlen_user(__su_str);	\
 	__su_ret;					\
 })
@@ -341,17 +300,10 @@ extern unsigned long __strnlen_user (const char __user *, long);
 ({								\
 	const char __user *__su_str = (str);			\
 	unsigned long __su_ret = 0;				\
-	if (__access_ok(__su_str, 0, get_fs()))			\
+	if (__access_ok(__su_str, 0))				\
 		__su_ret = __strnlen_user(__su_str, len);	\
 	__su_ret;						\
 })
-
-#define ARCH_HAS_RELATIVE_EXTABLE
-
-struct exception_table_entry {
-	int insn;	/* location-relative address of insn this fixup is for */
-	int fixup;	/* location-relative continuation addr.; if bit 2 is set, r9 is set to 0 */
-};
 
 #define ARCH_HAS_TRANSLATE_MEM_PTR	1
 static __inline__ void *

@@ -21,6 +21,7 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/reset.h>
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
@@ -65,6 +66,8 @@ struct sdhci_tegra {
 	struct gpio_desc *power_gpio;
 	bool ddr_signaling;
 	bool pad_calib_required;
+
+	struct reset_control *rst;
 };
 
 static u16 tegra_sdhci_readw(struct sdhci_host *host, int reg)
@@ -431,7 +434,23 @@ static const struct sdhci_tegra_soc_data soc_data_tegra210 = {
 	.pdata = &sdhci_tegra210_pdata,
 };
 
+static const struct sdhci_pltfm_data sdhci_tegra186_pdata = {
+	.quirks = SDHCI_QUIRK_BROKEN_TIMEOUT_VAL |
+		  SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
+		  SDHCI_QUIRK_SINGLE_POWER_WRITE |
+		  SDHCI_QUIRK_NO_HISPD_BIT |
+		  SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC |
+		  SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
+	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
+	.ops  = &tegra114_sdhci_ops,
+};
+
+static const struct sdhci_tegra_soc_data soc_data_tegra186 = {
+	.pdata = &sdhci_tegra186_pdata,
+};
+
 static const struct of_device_id sdhci_tegra_dt_match[] = {
+	{ .compatible = "nvidia,tegra186-sdhci", .data = &soc_data_tegra186 },
 	{ .compatible = "nvidia,tegra210-sdhci", .data = &soc_data_tegra210 },
 	{ .compatible = "nvidia,tegra124-sdhci", .data = &soc_data_tegra124 },
 	{ .compatible = "nvidia,tegra114-sdhci", .data = &soc_data_tegra114 },
@@ -489,6 +508,25 @@ static int sdhci_tegra_probe(struct platform_device *pdev)
 	clk_prepare_enable(clk);
 	pltfm_host->clk = clk;
 
+	tegra_host->rst = devm_reset_control_get(&pdev->dev, "sdhci");
+	if (IS_ERR(tegra_host->rst)) {
+		rc = PTR_ERR(tegra_host->rst);
+		dev_err(&pdev->dev, "failed to get reset control: %d\n", rc);
+		goto err_rst_get;
+	}
+
+	rc = reset_control_assert(tegra_host->rst);
+	if (rc)
+		goto err_rst_get;
+
+	usleep_range(2000, 4000);
+
+	rc = reset_control_deassert(tegra_host->rst);
+	if (rc)
+		goto err_rst_get;
+
+	usleep_range(2000, 4000);
+
 	rc = sdhci_add_host(host);
 	if (rc)
 		goto err_add_host;
@@ -496,12 +534,31 @@ static int sdhci_tegra_probe(struct platform_device *pdev)
 	return 0;
 
 err_add_host:
+	reset_control_assert(tegra_host->rst);
+err_rst_get:
 	clk_disable_unprepare(pltfm_host->clk);
 err_clk_get:
 err_power_req:
 err_parse_dt:
 	sdhci_pltfm_free(pdev);
 	return rc;
+}
+
+static int sdhci_tegra_remove(struct platform_device *pdev)
+{
+	struct sdhci_host *host = platform_get_drvdata(pdev);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_tegra *tegra_host = sdhci_pltfm_priv(pltfm_host);
+
+	sdhci_remove_host(host, 0);
+
+	reset_control_assert(tegra_host->rst);
+	usleep_range(2000, 4000);
+	clk_disable_unprepare(pltfm_host->clk);
+
+	sdhci_pltfm_free(pdev);
+
+	return 0;
 }
 
 static struct platform_driver sdhci_tegra_driver = {
@@ -511,7 +568,7 @@ static struct platform_driver sdhci_tegra_driver = {
 		.pm	= &sdhci_pltfm_pmops,
 	},
 	.probe		= sdhci_tegra_probe,
-	.remove		= sdhci_pltfm_unregister,
+	.remove		= sdhci_tegra_remove,
 };
 
 module_platform_driver(sdhci_tegra_driver);

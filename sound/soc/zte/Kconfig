@@ -15,3 +15,11 @@ config ZX_I2S
 	help
 	  Say Y or M if you want to add support for codecs attached to the
 	  ZTE ZX I2S interface
+
+config ZX_TDM
+        tristate "ZTE ZX TDM Driver Support"
+        depends on COMMON_CLK
+        select SND_SOC_GENERIC_DMAENGINE_PCM
+        help
+          Say Y or M if you want to add support for codecs attached to the
+          ZTE ZX TDM interface

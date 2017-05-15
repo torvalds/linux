@@ -129,7 +129,7 @@ enum qca9377_chip_id_rev {
 #define QCA4019_HW_1_0_PATCH_LOAD_ADDR  0x1234
 
 #define ATH10K_FW_FILE_BASE		"firmware"
-#define ATH10K_FW_API_MAX		5
+#define ATH10K_FW_API_MAX		6
 #define ATH10K_FW_API_MIN		2
 
 #define ATH10K_FW_API2_FILE		"firmware-2.bin"
@@ -140,6 +140,9 @@ enum qca9377_chip_id_rev {
 
 /* HTT id conflict fix for management frames over HTT */
 #define ATH10K_FW_API5_FILE		"firmware-5.bin"
+
+/* the firmware-6.bin blob */
+#define ATH10K_FW_API6_FILE		"firmware-6.bin"
 
 #define ATH10K_FW_UTF_FILE		"utf.bin"
 #define ATH10K_FW_UTF_API2_FILE		"utf-2.bin"
@@ -255,6 +258,9 @@ struct ath10k_hw_regs {
 	u32 pcie_intr_fw_mask;
 	u32 pcie_intr_ce_mask_all;
 	u32 pcie_intr_clr_address;
+	u32 cpu_pll_init_address;
+	u32 cpu_speed_address;
+	u32 core_clk_div_address;
 };
 
 extern const struct ath10k_hw_regs qca988x_regs;
@@ -293,7 +299,8 @@ void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
  *  - raw appears in nwifi decap, raw and nwifi appear in ethernet decap
  *  - raw have FCS, nwifi doesn't
  *  - ethernet frames have 802.11 header decapped and parts (base hdr, cipher
- *    param, llc/snap) are aligned to 4byte boundaries each */
+ *    param, llc/snap) are aligned to 4byte boundaries each
+ */
 enum ath10k_hw_txrx_mode {
 	ATH10K_HW_TXRX_RAW = 0,
 
@@ -363,6 +370,30 @@ enum ath10k_hw_cc_wraparound_type {
 	ATH10K_HW_CC_WRAP_SHIFTED_EACH = 2,
 };
 
+enum ath10k_hw_refclk_speed {
+	ATH10K_HW_REFCLK_UNKNOWN = -1,
+	ATH10K_HW_REFCLK_48_MHZ = 0,
+	ATH10K_HW_REFCLK_19_2_MHZ = 1,
+	ATH10K_HW_REFCLK_24_MHZ = 2,
+	ATH10K_HW_REFCLK_26_MHZ = 3,
+	ATH10K_HW_REFCLK_37_4_MHZ = 4,
+	ATH10K_HW_REFCLK_38_4_MHZ = 5,
+	ATH10K_HW_REFCLK_40_MHZ = 6,
+	ATH10K_HW_REFCLK_52_MHZ = 7,
+
+	/* must be the last one */
+	ATH10K_HW_REFCLK_COUNT,
+};
+
+struct ath10k_hw_clk_params {
+	u32 refclk;
+	u32 div;
+	u32 rnfrac;
+	u32 settle_time;
+	u32 refdiv;
+	u32 outdiv;
+};
+
 struct ath10k_hw_params {
 	u32 id;
 	u16 dev_id;
@@ -416,6 +447,13 @@ struct ath10k_hw_params {
 
 	/* Number of bytes used for alignment in rx_hdr_status of rx desc. */
 	int decap_align_bytes;
+
+	/* hw specific clock control parameters */
+	const struct ath10k_hw_clk_params *hw_clk;
+	int target_cpu_freq;
+
+	/* Number of bytes to be discarded for each FFT sample */
+	int spectral_bin_discard;
 };
 
 struct htt_rx_desc;
@@ -424,10 +462,14 @@ struct htt_rx_desc;
 struct ath10k_hw_ops {
 	int (*rx_desc_get_l3_pad_bytes)(struct htt_rx_desc *rxd);
 	void (*set_coverage_class)(struct ath10k *ar, s16 value);
+	int (*enable_pll_clk)(struct ath10k *ar);
 };
 
 extern const struct ath10k_hw_ops qca988x_ops;
 extern const struct ath10k_hw_ops qca99x0_ops;
+extern const struct ath10k_hw_ops qca6174_ops;
+
+extern const struct ath10k_hw_clk_params qca6174_clk[];
 
 static inline int
 ath10k_rx_desc_get_l3_pad_bytes(struct ath10k_hw_params *hw,
@@ -846,5 +888,39 @@ ath10k_rx_desc_get_l3_pad_bytes(struct ath10k_hw_params *hw,
 #define WAVE1_PHYCLK				0x801C
 #define WAVE1_PHYCLK_USEC_MASK			0x0000007F
 #define WAVE1_PHYCLK_USEC_LSB			0
+
+/* qca6174 PLL offset/mask */
+#define SOC_CORE_CLK_CTRL_OFFSET		0x00000114
+#define SOC_CORE_CLK_CTRL_DIV_LSB		0
+#define SOC_CORE_CLK_CTRL_DIV_MASK		0x00000007
+
+#define EFUSE_OFFSET				0x0000032c
+#define EFUSE_XTAL_SEL_LSB			8
+#define EFUSE_XTAL_SEL_MASK			0x00000700
+
+#define BB_PLL_CONFIG_OFFSET			0x000002f4
+#define BB_PLL_CONFIG_FRAC_LSB			0
+#define BB_PLL_CONFIG_FRAC_MASK			0x0003ffff
+#define BB_PLL_CONFIG_OUTDIV_LSB		18
+#define BB_PLL_CONFIG_OUTDIV_MASK		0x001c0000
+
+#define WLAN_PLL_SETTLE_OFFSET			0x0018
+#define WLAN_PLL_SETTLE_TIME_LSB		0
+#define WLAN_PLL_SETTLE_TIME_MASK		0x000007ff
+
+#define WLAN_PLL_CONTROL_OFFSET			0x0014
+#define WLAN_PLL_CONTROL_DIV_LSB		0
+#define WLAN_PLL_CONTROL_DIV_MASK		0x000003ff
+#define WLAN_PLL_CONTROL_REFDIV_LSB		10
+#define WLAN_PLL_CONTROL_REFDIV_MASK		0x00003c00
+#define WLAN_PLL_CONTROL_BYPASS_LSB		16
+#define WLAN_PLL_CONTROL_BYPASS_MASK		0x00010000
+#define WLAN_PLL_CONTROL_NOPWD_LSB		18
+#define WLAN_PLL_CONTROL_NOPWD_MASK		0x00040000
+
+#define RTC_SYNC_STATUS_OFFSET			0x0244
+#define RTC_SYNC_STATUS_PLL_CHANGING_LSB	5
+#define RTC_SYNC_STATUS_PLL_CHANGING_MASK	0x00000020
+/* qca6174 PLL offset/mask end */
 
 #endif /* _HW_H_ */

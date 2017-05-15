@@ -228,7 +228,7 @@ static int vpfe_enable_clock(struct vpfe_device *vpfe_dev)
 
 	vpfe_dev->clks = kcalloc(vpfe_cfg->num_clocks,
 				 sizeof(*vpfe_dev->clks), GFP_KERNEL);
-	if (vpfe_dev->clks == NULL)
+	if (!vpfe_dev->clks)
 		return -ENOMEM;
 
 	for (i = 0; i < vpfe_cfg->num_clocks; i++) {
@@ -348,7 +348,7 @@ static int register_i2c_devices(struct vpfe_device *vpfe_dev)
 	vpfe_dev->sd =
 		  kcalloc(num_subdevs, sizeof(struct v4l2_subdev *),
 			  GFP_KERNEL);
-	if (vpfe_dev->sd == NULL)
+	if (!vpfe_dev->sd)
 		return -ENOMEM;
 
 	for (i = 0, k = 0; i < num_subdevs; i++) {

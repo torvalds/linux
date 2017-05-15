@@ -176,12 +176,13 @@ static void nvt_write_wakeup_codes(struct rc_dev *dev,
 {
 	u8 tolerance, config;
 	struct nvt_dev *nvt = dev->priv;
+	unsigned long flags;
 	int i;
 
 	/* hardcode the tolerance to 10% */
 	tolerance = DIV_ROUND_UP(count, 10);
 
-	spin_lock(&nvt->lock);
+	spin_lock_irqsave(&nvt->lock, flags);
 
 	nvt_clear_cir_wake_fifo(nvt);
 	nvt_cir_wake_reg_write(nvt, count, CIR_WAKE_FIFO_CMP_DEEP);
@@ -203,7 +204,7 @@ static void nvt_write_wakeup_codes(struct rc_dev *dev,
 
 	nvt_cir_wake_reg_write(nvt, config, CIR_WAKE_IRCON);
 
-	spin_unlock(&nvt->lock);
+	spin_unlock_irqrestore(&nvt->lock, flags);
 }
 
 static ssize_t wakeup_data_show(struct device *dev,

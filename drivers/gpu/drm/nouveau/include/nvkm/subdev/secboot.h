@@ -30,9 +30,12 @@ enum nvkm_secboot_falcon {
 	NVKM_SECBOOT_FALCON_RESERVED = 1,
 	NVKM_SECBOOT_FALCON_FECS = 2,
 	NVKM_SECBOOT_FALCON_GPCCS = 3,
-	NVKM_SECBOOT_FALCON_END = 4,
+	NVKM_SECBOOT_FALCON_SEC2 = 7,
+	NVKM_SECBOOT_FALCON_END = 8,
 	NVKM_SECBOOT_FALCON_INVALID = 0xffffffff,
 };
+
+extern const char *nvkm_secboot_falcon_name[];
 
 /**
  * @wpr_set: whether the WPR region is currently set
@@ -42,6 +45,7 @@ struct nvkm_secboot {
 	struct nvkm_acr *acr;
 	struct nvkm_subdev subdev;
 	struct nvkm_falcon *boot_falcon;
+	struct nvkm_falcon *halt_falcon;
 
 	u64 wpr_addr;
 	u32 wpr_size;
@@ -51,9 +55,11 @@ struct nvkm_secboot {
 #define nvkm_secboot(p) container_of((p), struct nvkm_secboot, subdev)
 
 bool nvkm_secboot_is_managed(struct nvkm_secboot *, enum nvkm_secboot_falcon);
-int nvkm_secboot_reset(struct nvkm_secboot *, enum nvkm_secboot_falcon);
+int nvkm_secboot_reset(struct nvkm_secboot *, unsigned long);
 
 int gm200_secboot_new(struct nvkm_device *, int, struct nvkm_secboot **);
 int gm20b_secboot_new(struct nvkm_device *, int, struct nvkm_secboot **);
+int gp102_secboot_new(struct nvkm_device *, int, struct nvkm_secboot **);
+int gp10b_secboot_new(struct nvkm_device *, int, struct nvkm_secboot **);
 
 #endif

@@ -4910,7 +4910,7 @@ void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
-void ata_sg_clean(struct ata_queued_cmd *qc)
+static void ata_sg_clean(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct scatterlist *sg = qc->sg;
@@ -5902,9 +5902,9 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 	INIT_LIST_HEAD(&ap->eh_done_q);
 	init_waitqueue_head(&ap->eh_wait_q);
 	init_completion(&ap->park_req_pending);
-	init_timer_deferrable(&ap->fastdrain_timer);
-	ap->fastdrain_timer.function = ata_eh_fastdrain_timerfn;
-	ap->fastdrain_timer.data = (unsigned long)ap;
+	setup_deferrable_timer(&ap->fastdrain_timer,
+			       ata_eh_fastdrain_timerfn,
+			       (unsigned long)ap);
 
 	ap->cbl = ATA_CBL_NONE;
 

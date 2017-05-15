@@ -1,3 +1,4 @@
+
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
@@ -952,7 +953,7 @@ __lpfc_sli_get_els_sglq(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq)
 	start_sglq = sglq;
 	while (!found) {
 		if (!sglq)
-			return NULL;
+			break;
 		if (ndlp && ndlp->active_rrqs_xri_bitmap &&
 		    test_bit(sglq->sli4_lxritag,
 		    ndlp->active_rrqs_xri_bitmap)) {
@@ -6337,7 +6338,7 @@ lpfc_sli4_get_allocated_extnts(struct lpfc_hba *phba, uint16_t type,
 }
 
 /**
- * lpfc_sli4_repost_sgl_list - Repsot the buffers sgl pages as block
+ * lpfc_sli4_repost_sgl_list - Repost the buffers sgl pages as block
  * @phba: pointer to lpfc hba data structure.
  * @pring: Pointer to driver SLI ring object.
  * @sgl_list: linked link of sgl buffers to post
@@ -12213,6 +12214,41 @@ void lpfc_sli4_fcp_xri_abort_event_proc(struct lpfc_hba *phba)
 }
 
 /**
+ * lpfc_sli4_nvme_xri_abort_event_proc - Process nvme xri abort event
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine is invoked by the worker thread to process all the pending
+ * SLI4 NVME abort XRI events.
+ **/
+void lpfc_sli4_nvme_xri_abort_event_proc(struct lpfc_hba *phba)
+{
+	struct lpfc_cq_event *cq_event;
+
+	/* First, declare the fcp xri abort event has been handled */
+	spin_lock_irq(&phba->hbalock);
+	phba->hba_flag &= ~NVME_XRI_ABORT_EVENT;
+	spin_unlock_irq(&phba->hbalock);
+	/* Now, handle all the fcp xri abort events */
+	while (!list_empty(&phba->sli4_hba.sp_nvme_xri_aborted_work_queue)) {
+		/* Get the first event from the head of the event queue */
+		spin_lock_irq(&phba->hbalock);
+		list_remove_head(&phba->sli4_hba.sp_nvme_xri_aborted_work_queue,
+				 cq_event, struct lpfc_cq_event, list);
+		spin_unlock_irq(&phba->hbalock);
+		/* Notify aborted XRI for NVME work queue */
+		if (phba->nvmet_support) {
+			lpfc_sli4_nvmet_xri_aborted(phba,
+						    &cq_event->cqe.wcqe_axri);
+		} else {
+			lpfc_sli4_nvme_xri_aborted(phba,
+						   &cq_event->cqe.wcqe_axri);
+		}
+		/* Free the event processed back to the free pool */
+		lpfc_sli4_cq_event_release(phba, cq_event);
+	}
+}
+
+/**
  * lpfc_sli4_els_xri_abort_event_proc - Process els xri abort event
  * @phba: pointer to lpfc hba data structure.
  *
@@ -12709,10 +12745,22 @@ lpfc_sli4_sp_handle_abort_xri_wcqe(struct lpfc_hba *phba,
 		spin_unlock_irqrestore(&phba->hbalock, iflags);
 		workposted = true;
 		break;
+	case LPFC_NVME:
+		spin_lock_irqsave(&phba->hbalock, iflags);
+		list_add_tail(&cq_event->list,
+			      &phba->sli4_hba.sp_nvme_xri_aborted_work_queue);
+		/* Set the nvme xri abort event flag */
+		phba->hba_flag |= NVME_XRI_ABORT_EVENT;
+		spin_unlock_irqrestore(&phba->hbalock, iflags);
+		workposted = true;
+		break;
 	default:
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-				"0603 Invalid work queue CQE subtype (x%x)\n",
-				cq->subtype);
+				"0603 Invalid CQ subtype %d: "
+				"%08x %08x %08x %08x\n",
+				cq->subtype, wcqe->word0, wcqe->parameter,
+				wcqe->word2, wcqe->word3);
+		lpfc_sli4_cq_event_release(phba, cq_event);
 		workposted = false;
 		break;
 	}
@@ -13710,7 +13758,10 @@ lpfc_sli4_queue_free(struct lpfc_queue *queue)
 		lpfc_free_rq_buffer(queue->phba, queue);
 		kfree(queue->rqbp);
 	}
-	kfree(queue->pring);
+
+	if (!list_empty(&queue->wq_list))
+		list_del(&queue->wq_list);
+
 	kfree(queue);
 	return;
 }
@@ -13827,6 +13878,8 @@ lpfc_dual_chute_pci_bar_map(struct lpfc_hba *phba, uint16_t pci_barset)
  * @startq: The starting FCP EQ to modify
  *
  * This function sends an MODIFY_EQ_DELAY mailbox command to the HBA.
+ * The command allows up to LPFC_MAX_EQ_DELAY_EQID_CNT EQ ID's to be
+ * updated in one mailbox command.
  *
  * The @phba struct is used to send mailbox command to HBA. The @startq
  * is used to get the starting FCP EQ to change.
@@ -13879,7 +13932,7 @@ lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq)
 		eq_delay->u.request.eq[cnt].phase = 0;
 		eq_delay->u.request.eq[cnt].delay_multi = dmult;
 		cnt++;
-		if (cnt >= LPFC_MAX_EQ_DELAY)
+		if (cnt >= LPFC_MAX_EQ_DELAY_EQID_CNT)
 			break;
 	}
 	eq_delay->u.request.num_eq = cnt;
@@ -14688,6 +14741,9 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 	case LPFC_Q_CREATE_VERSION_1:
 		bf_set(lpfc_mbx_wq_create_wqe_count, &wq_create->u.request_1,
 		       wq->entry_count);
+		bf_set(lpfc_mbox_hdr_version, &shdr->request,
+		       LPFC_Q_CREATE_VERSION_1);
+
 		switch (wq->entry_size) {
 		default:
 		case 64:
@@ -15185,14 +15241,14 @@ lpfc_mrq_create(struct lpfc_hba *phba, struct lpfc_queue **hrqp,
 		drq = drqp[idx];
 		cq  = cqp[idx];
 
-		if (hrq->entry_count != drq->entry_count) {
-			status = -EINVAL;
-			goto out;
-		}
-
 		/* sanity check on queue memory */
 		if (!hrq || !drq || !cq) {
 			status = -ENODEV;
+			goto out;
+		}
+
+		if (hrq->entry_count != drq->entry_count) {
+			status = -EINVAL;
 			goto out;
 		}
 
@@ -15511,6 +15567,8 @@ lpfc_wq_destroy(struct lpfc_hba *phba, struct lpfc_queue *wq)
 	}
 	/* Remove wq from any list */
 	list_del_init(&wq->list);
+	kfree(wq->pring);
+	wq->pring = NULL;
 	mempool_free(mbox, wq->phba->mbox_mem_pool);
 	return status;
 }
@@ -16463,7 +16521,7 @@ lpfc_sli4_xri_inrange(struct lpfc_hba *phba,
  * This function sends a basic response to a previous unsol sequence abort
  * event after aborting the sequence handling.
  **/
-static void
+void
 lpfc_sli4_seq_abort_rsp(struct lpfc_vport *vport,
 			struct fc_frame_header *fc_hdr, bool aborted)
 {
@@ -16484,14 +16542,13 @@ lpfc_sli4_seq_abort_rsp(struct lpfc_vport *vport,
 
 	ndlp = lpfc_findnode_did(vport, sid);
 	if (!ndlp) {
-		ndlp = mempool_alloc(phba->nlp_mem_pool, GFP_KERNEL);
+		ndlp = lpfc_nlp_init(vport, sid);
 		if (!ndlp) {
 			lpfc_printf_vlog(vport, KERN_WARNING, LOG_ELS,
 					 "1268 Failed to allocate ndlp for "
 					 "oxid:x%x SID:x%x\n", oxid, sid);
 			return;
 		}
-		lpfc_nlp_init(vport, ndlp, sid);
 		/* Put ndlp onto pport node list */
 		lpfc_enqueue_node(vport, ndlp);
 	} else if (!NLP_CHK_NODE_ACT(ndlp)) {
@@ -16639,6 +16696,11 @@ lpfc_sli4_handle_unsol_abort(struct lpfc_vport *vport,
 			aborted = lpfc_sli4_abort_ulp_seq(vport, dmabuf);
 	}
 	lpfc_in_buf_free(phba, &dmabuf->dbuf);
+
+	if (phba->nvmet_support) {
+		lpfc_nvmet_rcv_unsol_abort(vport, &fc_hdr);
+		return;
+	}
 
 	/* Respond with BA_ACC or BA_RJT accordingly */
 	lpfc_sli4_seq_abort_rsp(vport, &fc_hdr, aborted);

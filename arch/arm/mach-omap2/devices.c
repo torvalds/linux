@@ -121,7 +121,7 @@ static inline void omap_init_mcspi(void) {}
  *
  * Bind the RNG hwmod to the RNG omap_device.  No return value.
  */
-static void omap_init_rng(void)
+static void __init omap_init_rng(void)
 {
 	struct omap_hwmod *oh;
 	struct platform_device *pdev;

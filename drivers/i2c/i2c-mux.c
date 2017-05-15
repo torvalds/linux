@@ -395,13 +395,16 @@ int i2c_mux_add_adapter(struct i2c_mux_core *muxc,
 	if (force_nr) {
 		priv->adap.nr = force_nr;
 		ret = i2c_add_numbered_adapter(&priv->adap);
+		dev_err(&parent->dev,
+			"failed to add mux-adapter %u as bus %u (error=%d)\n",
+			chan_id, force_nr, ret);
 	} else {
 		ret = i2c_add_adapter(&priv->adap);
+		dev_err(&parent->dev,
+			"failed to add mux-adapter %u (error=%d)\n",
+			chan_id, ret);
 	}
 	if (ret < 0) {
-		dev_err(&parent->dev,
-			"failed to add mux-adapter (error=%d)\n",
-			ret);
 		kfree(priv);
 		return ret;
 	}
@@ -429,6 +432,7 @@ void i2c_mux_del_adapters(struct i2c_mux_core *muxc)
 	while (muxc->num_adapters) {
 		struct i2c_adapter *adap = muxc->adapter[--muxc->num_adapters];
 		struct i2c_mux_priv *priv = adap->algo_data;
+		struct device_node *np = adap->dev.of_node;
 
 		muxc->adapter[muxc->num_adapters] = NULL;
 
@@ -438,6 +442,7 @@ void i2c_mux_del_adapters(struct i2c_mux_core *muxc)
 
 		sysfs_remove_link(&priv->adap.dev.kobj, "mux_device");
 		i2c_del_adapter(adap);
+		of_node_put(np);
 		kfree(priv);
 	}
 }

@@ -2886,7 +2886,7 @@ xfs_btree_split_worker(
 	struct xfs_btree_split_args	*args = container_of(work,
 						struct xfs_btree_split_args, work);
 	unsigned long		pflags;
-	unsigned long		new_pflags = PF_FSTRANS;
+	unsigned long		new_pflags = PF_MEMALLOC_NOFS;
 
 	/*
 	 * we are in a transaction context here, but may also be doing work
@@ -4840,6 +4840,21 @@ xfs_btree_query_range(
 				&high_key, fn, priv);
 	return xfs_btree_overlapped_query_range(cur, &low_key, &high_key,
 			fn, priv);
+}
+
+/* Query a btree for all records. */
+int
+xfs_btree_query_all(
+	struct xfs_btree_cur		*cur,
+	xfs_btree_query_range_fn	fn,
+	void				*priv)
+{
+	union xfs_btree_irec		low_rec;
+	union xfs_btree_irec		high_rec;
+
+	memset(&low_rec, 0, sizeof(low_rec));
+	memset(&high_rec, 0xFF, sizeof(high_rec));
+	return xfs_btree_query_range(cur, &low_rec, &high_rec, fn, priv);
 }
 
 /*

@@ -7,9 +7,9 @@
 /*
  * Driver version
  */
-#define QLA2XXX_VERSION      "8.07.00.38-k"
+#define QLA2XXX_VERSION      "9.00.00.00-k"
 
-#define QLA_DRIVER_MAJOR_VER	8
-#define QLA_DRIVER_MINOR_VER	7
+#define QLA_DRIVER_MAJOR_VER	9
+#define QLA_DRIVER_MINOR_VER	0
 #define QLA_DRIVER_PATCH_VER	0
 #define QLA_DRIVER_BETA_VER	0

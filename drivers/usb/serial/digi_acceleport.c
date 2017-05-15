@@ -273,6 +273,8 @@ static struct usb_serial_driver digi_acceleport_2_device = {
 	.description =			"Digi 2 port USB adapter",
 	.id_table =			id_table_2,
 	.num_ports =			3,
+	.num_bulk_in =			4,
+	.num_bulk_out =			4,
 	.open =				digi_open,
 	.close =			digi_close,
 	.dtr_rts =			digi_dtr_rts,
@@ -302,6 +304,8 @@ static struct usb_serial_driver digi_acceleport_4_device = {
 	.description =			"Digi 4 port USB adapter",
 	.id_table =			id_table_4,
 	.num_ports =			4,
+	.num_bulk_in =			5,
+	.num_bulk_out =			5,
 	.open =				digi_open,
 	.close =			digi_close,
 	.write =			digi_write,
@@ -1251,27 +1255,8 @@ static int digi_port_init(struct usb_serial_port *port, unsigned port_num)
 
 static int digi_startup(struct usb_serial *serial)
 {
-	struct device *dev = &serial->interface->dev;
 	struct digi_serial *serial_priv;
 	int ret;
-	int i;
-
-	/* check whether the device has the expected number of endpoints */
-	if (serial->num_port_pointers < serial->type->num_ports + 1) {
-		dev_err(dev, "OOB endpoints missing\n");
-		return -ENODEV;
-	}
-
-	for (i = 0; i < serial->type->num_ports + 1 ; i++) {
-		if (!serial->port[i]->read_urb) {
-			dev_err(dev, "bulk-in endpoint missing\n");
-			return -ENODEV;
-		}
-		if (!serial->port[i]->write_urb) {
-			dev_err(dev, "bulk-out endpoint missing\n");
-			return -ENODEV;
-		}
-	}
 
 	serial_priv = kzalloc(sizeof(*serial_priv), GFP_KERNEL);
 	if (!serial_priv)
@@ -1500,7 +1485,7 @@ static int digi_read_oob_callback(struct urb *urb)
 		return -1;
 
 	/* handle each oob command */
-	for (i = 0; i < urb->actual_length - 4; i += 4) {
+	for (i = 0; i < urb->actual_length - 3; i += 4) {
 		opcode = buf[i];
 		line = buf[i + 1];
 		status = buf[i + 2];

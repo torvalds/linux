@@ -67,7 +67,7 @@ static void *ieee80211_tkip_init(int key_idx)
 	struct ieee80211_tkip_data *priv;
 
 	priv = kzalloc(sizeof(*priv), GFP_ATOMIC);
-	if (priv == NULL)
+	if (!priv)
 		goto fail;
 	priv->key_idx = key_idx;
 

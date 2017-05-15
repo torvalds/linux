@@ -47,7 +47,7 @@ struct flow_flush_info {
 
 static struct kmem_cache *flow_cachep __read_mostly;
 
-#define flow_cache_hash_size(cache)	(1 << (cache)->hash_shift)
+#define flow_cache_hash_size(cache)	(1U << (cache)->hash_shift)
 #define FLOW_HASH_RND_PERIOD		(10 * 60 * HZ)
 
 static void flow_cache_new_hashrnd(unsigned long arg)
@@ -99,7 +99,8 @@ static void flow_cache_gc_task(struct work_struct *work)
 }
 
 static void flow_cache_queue_garbage(struct flow_cache_percpu *fcp,
-				     int deleted, struct list_head *gc_list,
+				     unsigned int deleted,
+				     struct list_head *gc_list,
 				     struct netns_xfrm *xfrm)
 {
 	if (deleted) {
@@ -114,17 +115,18 @@ static void flow_cache_queue_garbage(struct flow_cache_percpu *fcp,
 
 static void __flow_cache_shrink(struct flow_cache *fc,
 				struct flow_cache_percpu *fcp,
-				int shrink_to)
+				unsigned int shrink_to)
 {
 	struct flow_cache_entry *fle;
 	struct hlist_node *tmp;
 	LIST_HEAD(gc_list);
-	int i, deleted = 0;
+	unsigned int deleted = 0;
 	struct netns_xfrm *xfrm = container_of(fc, struct netns_xfrm,
 						flow_cache_global);
+	unsigned int i;
 
 	for (i = 0; i < flow_cache_hash_size(fc); i++) {
-		int saved = 0;
+		unsigned int saved = 0;
 
 		hlist_for_each_entry_safe(fle, tmp,
 					  &fcp->hash_table[i], u.hlist) {
@@ -145,7 +147,7 @@ static void __flow_cache_shrink(struct flow_cache *fc,
 static void flow_cache_shrink(struct flow_cache *fc,
 			      struct flow_cache_percpu *fcp)
 {
-	int shrink_to = fc->low_watermark / flow_cache_hash_size(fc);
+	unsigned int shrink_to = fc->low_watermark / flow_cache_hash_size(fc);
 
 	__flow_cache_shrink(fc, fcp, shrink_to);
 }
@@ -161,7 +163,7 @@ static void flow_new_hash_rnd(struct flow_cache *fc,
 static u32 flow_hash_code(struct flow_cache *fc,
 			  struct flow_cache_percpu *fcp,
 			  const struct flowi *key,
-			  size_t keysize)
+			  unsigned int keysize)
 {
 	const u32 *k = (const u32 *) key;
 	const u32 length = keysize * sizeof(flow_compare_t) / sizeof(u32);
@@ -174,7 +176,7 @@ static u32 flow_hash_code(struct flow_cache *fc,
  * important assumptions that we can here, such as alignment.
  */
 static int flow_key_compare(const struct flowi *key1, const struct flowi *key2,
-			    size_t keysize)
+			    unsigned int keysize)
 {
 	const flow_compare_t *k1, *k1_lim, *k2;
 
@@ -199,7 +201,7 @@ flow_cache_lookup(struct net *net, const struct flowi *key, u16 family, u8 dir,
 	struct flow_cache_percpu *fcp;
 	struct flow_cache_entry *fle, *tfle;
 	struct flow_cache_object *flo;
-	size_t keysize;
+	unsigned int keysize;
 	unsigned int hash;
 
 	local_bh_disable();
@@ -295,9 +297,10 @@ static void flow_cache_flush_tasklet(unsigned long data)
 	struct flow_cache_entry *fle;
 	struct hlist_node *tmp;
 	LIST_HEAD(gc_list);
-	int i, deleted = 0;
+	unsigned int deleted = 0;
 	struct netns_xfrm *xfrm = container_of(fc, struct netns_xfrm,
 						flow_cache_global);
+	unsigned int i;
 
 	fcp = this_cpu_ptr(fc->percpu);
 	for (i = 0; i < flow_cache_hash_size(fc); i++) {
@@ -327,7 +330,7 @@ static void flow_cache_flush_tasklet(unsigned long data)
 static int flow_cache_percpu_empty(struct flow_cache *fc, int cpu)
 {
 	struct flow_cache_percpu *fcp;
-	int i;
+	unsigned int i;
 
 	fcp = per_cpu_ptr(fc->percpu, cpu);
 	for (i = 0; i < flow_cache_hash_size(fc); i++)
@@ -402,12 +405,12 @@ void flow_cache_flush_deferred(struct net *net)
 static int flow_cache_cpu_prepare(struct flow_cache *fc, int cpu)
 {
 	struct flow_cache_percpu *fcp = per_cpu_ptr(fc->percpu, cpu);
-	size_t sz = sizeof(struct hlist_head) * flow_cache_hash_size(fc);
+	unsigned int sz = sizeof(struct hlist_head) * flow_cache_hash_size(fc);
 
 	if (!fcp->hash_table) {
 		fcp->hash_table = kzalloc_node(sz, GFP_KERNEL, cpu_to_node(cpu));
 		if (!fcp->hash_table) {
-			pr_err("NET: failed to allocate flow cache sz %zu\n", sz);
+			pr_err("NET: failed to allocate flow cache sz %u\n", sz);
 			return -ENOMEM;
 		}
 		fcp->hash_rnd_recalc = 1;

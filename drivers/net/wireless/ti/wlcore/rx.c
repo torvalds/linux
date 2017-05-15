@@ -72,7 +72,7 @@ static void wl1271_rx_status(struct wl1271 *wl,
 
 	/* 11n support */
 	if (desc->rate <= wl->hw_min_ht_rate)
-		status->flag |= RX_FLAG_HT;
+		status->encoding = RX_ENC_HT;
 
 	/*
 	* Read the signal level and antenna diversity indication.

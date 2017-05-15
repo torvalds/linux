@@ -30,6 +30,7 @@
 #include <asm/book3s/64/mmu-hash.h>
 #include <asm/tm.h>
 #include <asm/opal.h>
+#include <asm/xive-regs.h>
 
 #define VCPU_GPRS_TM(reg) (((reg) * ULONG_SIZE) + VCPU_GPR_TM)
 
@@ -970,6 +971,23 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 	cmpwi	r3, 512		/* 1 microsecond */
 	blt	hdec_soon
 
+#ifdef CONFIG_KVM_XICS
+	/* We are entering the guest on that thread, push VCPU to XIVE */
+	ld	r10, HSTATE_XIVE_TIMA_PHYS(r13)
+	cmpldi	cr0, r10, r0
+	beq	no_xive
+	ld	r11, VCPU_XIVE_SAVED_STATE(r4)
+	li	r9, TM_QW1_OS
+	stdcix	r11,r9,r10
+	eieio
+	lwz	r11, VCPU_XIVE_CAM_WORD(r4)
+	li	r9, TM_QW1_OS + TM_WORD2
+	stwcix	r11,r9,r10
+	li	r9, 1
+	stw	r9, VCPU_XIVE_PUSHED(r4)
+no_xive:
+#endif /* CONFIG_KVM_XICS */
+
 deliver_guest_interrupt:
 	ld	r6, VCPU_CTR(r4)
 	ld	r7, VCPU_XER(r4)
@@ -1307,6 +1325,42 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	blt	deliver_guest_interrupt
 
 guest_exit_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
+#ifdef CONFIG_KVM_XICS
+	/* We are exiting, pull the VP from the XIVE */
+	lwz	r0, VCPU_XIVE_PUSHED(r9)
+	cmpwi	cr0, r0, 0
+	beq	1f
+	li	r7, TM_SPC_PULL_OS_CTX
+	li	r6, TM_QW1_OS
+	mfmsr	r0
+	andi.	r0, r0, MSR_IR		/* in real mode? */
+	beq	2f
+	ld	r10, HSTATE_XIVE_TIMA_VIRT(r13)
+	cmpldi	cr0, r10, 0
+	beq	1f
+	/* First load to pull the context, we ignore the value */
+	lwzx	r11, r7, r10
+	eieio
+	/* Second load to recover the context state (Words 0 and 1) */
+	ldx	r11, r6, r10
+	b	3f
+2:	ld	r10, HSTATE_XIVE_TIMA_PHYS(r13)
+	cmpldi	cr0, r10, 0
+	beq	1f
+	/* First load to pull the context, we ignore the value */
+	lwzcix	r11, r7, r10
+	eieio
+	/* Second load to recover the context state (Words 0 and 1) */
+	ldcix	r11, r6, r10
+3:	std	r11, VCPU_XIVE_SAVED_STATE(r9)
+	/* Fixup some of the state for the next load */
+	li	r10, 0
+	li	r0, 0xff
+	stw	r10, VCPU_XIVE_PUSHED(r9)
+	stb	r10, (VCPU_XIVE_SAVED_STATE+3)(r9)
+	stb	r0, (VCPU_XIVE_SAVED_STATE+4)(r9)
+1:
+#endif /* CONFIG_KVM_XICS */
 	/* Save more register state  */
 	mfdar	r6
 	mfdsisr	r7
@@ -2011,7 +2065,7 @@ hcall_real_table:
 	.long	DOTSYM(kvmppc_rm_h_eoi) - hcall_real_table
 	.long	DOTSYM(kvmppc_rm_h_cppr) - hcall_real_table
 	.long	DOTSYM(kvmppc_rm_h_ipi) - hcall_real_table
-	.long	0		/* 0x70 - H_IPOLL */
+	.long	DOTSYM(kvmppc_rm_h_ipoll) - hcall_real_table
 	.long	DOTSYM(kvmppc_rm_h_xirr) - hcall_real_table
 #else
 	.long	0		/* 0x64 - H_EOI */
@@ -2181,7 +2235,11 @@ hcall_real_table:
 	.long	0		/* 0x2f0 */
 	.long	0		/* 0x2f4 */
 	.long	0		/* 0x2f8 */
-	.long	0		/* 0x2fc */
+#ifdef CONFIG_KVM_XICS
+	.long	DOTSYM(kvmppc_rm_h_xirr_x) - hcall_real_table
+#else
+	.long	0		/* 0x2fc - H_XIRR_X*/
+#endif
 	.long	DOTSYM(kvmppc_h_random) - hcall_real_table
 	.globl	hcall_real_table_end
 hcall_real_table_end:

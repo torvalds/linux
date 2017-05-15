@@ -746,6 +746,8 @@ static int rc_validate_filter(struct rc_dev *dev,
 		[RC_TYPE_NECX] = 0xffffff,
 		[RC_TYPE_NEC32] = 0xffffffff,
 		[RC_TYPE_SANYO] = 0x1fffff,
+		[RC_TYPE_MCIR2_KBD] = 0xffff,
+		[RC_TYPE_MCIR2_MSE] = 0x1fffff,
 		[RC_TYPE_RC6_0] = 0xffff,
 		[RC_TYPE_RC6_6A_20] = 0xfffff,
 		[RC_TYPE_RC6_6A_24] = 0xffffff,
@@ -878,7 +880,8 @@ static const struct {
 	{ RC_BIT_RC5_SZ,	"rc-5-sz",	"ir-rc5-decoder"	},
 	{ RC_BIT_SANYO,		"sanyo",	"ir-sanyo-decoder"	},
 	{ RC_BIT_SHARP,		"sharp",	"ir-sharp-decoder"	},
-	{ RC_BIT_MCE_KBD,	"mce_kbd",	"ir-mce_kbd-decoder"	},
+	{ RC_BIT_MCIR2_KBD |
+	  RC_BIT_MCIR2_MSE,	"mce_kbd",	"ir-mce_kbd-decoder"	},
 	{ RC_BIT_XMP,		"xmp",		"ir-xmp-decoder"	},
 	{ RC_BIT_CEC,		"cec",		NULL			},
 };
@@ -1346,7 +1349,8 @@ static const char * const proto_variant_names[] = {
 	[RC_TYPE_NECX] = "nec-x",
 	[RC_TYPE_NEC32] = "nec-32",
 	[RC_TYPE_SANYO] = "sanyo",
-	[RC_TYPE_MCE_KBD] = "mce_kbd",
+	[RC_TYPE_MCIR2_KBD] = "mcir2-kbd",
+	[RC_TYPE_MCIR2_MSE] = "mcir2-mse",
 	[RC_TYPE_RC6_0] = "rc-6-0",
 	[RC_TYPE_RC6_6A_20] = "rc-6-6a-20",
 	[RC_TYPE_RC6_6A_24] = "rc-6-6a-24",
@@ -1663,6 +1667,7 @@ static int rc_setup_rx_device(struct rc_dev *dev)
 {
 	int rc;
 	struct rc_map *rc_map;
+	u64 rc_type;
 
 	if (!dev->map_name)
 		return -EINVAL;
@@ -1677,14 +1682,17 @@ static int rc_setup_rx_device(struct rc_dev *dev)
 	if (rc)
 		return rc;
 
-	if (dev->change_protocol) {
-		u64 rc_type = (1ll << rc_map->rc_type);
+	rc_type = BIT_ULL(rc_map->rc_type);
 
+	if (dev->change_protocol) {
 		rc = dev->change_protocol(dev, &rc_type);
 		if (rc < 0)
 			goto out_table;
 		dev->enabled_protocols = rc_type;
 	}
+
+	if (dev->driver_type == RC_DRIVER_IR_RAW)
+		ir_raw_load_modules(&rc_type);
 
 	set_bit(EV_KEY, dev->input_dev->evbit);
 	set_bit(EV_REP, dev->input_dev->evbit);
@@ -1777,12 +1785,6 @@ int rc_register_device(struct rc_dev *dev)
 		dev->input_name ?: "Unspecified device", path ?: "N/A");
 	kfree(path);
 
-	if (dev->driver_type != RC_DRIVER_IR_RAW_TX) {
-		rc = rc_setup_rx_device(dev);
-		if (rc)
-			goto out_dev;
-	}
-
 	if (dev->driver_type == RC_DRIVER_IR_RAW ||
 	    dev->driver_type == RC_DRIVER_IR_RAW_TX) {
 		if (!raw_init) {
@@ -1791,7 +1793,13 @@ int rc_register_device(struct rc_dev *dev)
 		}
 		rc = ir_raw_event_register(dev);
 		if (rc < 0)
-			goto out_rx;
+			goto out_dev;
+	}
+
+	if (dev->driver_type != RC_DRIVER_IR_RAW_TX) {
+		rc = rc_setup_rx_device(dev);
+		if (rc)
+			goto out_raw;
 	}
 
 	/* Allow the RC sysfs nodes to be accessible */
@@ -1803,8 +1811,8 @@ int rc_register_device(struct rc_dev *dev)
 
 	return 0;
 
-out_rx:
-	rc_free_rx_device(dev);
+out_raw:
+	ir_raw_event_unregister(dev);
 out_dev:
 	device_del(&dev->dev);
 out_unlock:

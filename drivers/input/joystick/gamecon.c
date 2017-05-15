@@ -870,7 +870,8 @@ static int gc_setup_pad(struct gc *gc, int idx, int pad_type)
 
 		err = gc_n64_init_ff(input_dev, idx);
 		if (err) {
-			pr_warning("Failed to initiate rumble for N64 device %d\n", idx);
+			pr_warn("Failed to initiate rumble for N64 device %d\n",
+				idx);
 			goto err_free_dev;
 		}
 

@@ -454,6 +454,20 @@ static u32 rsnd_dmapp_read(struct rsnd_dma *dma, u32 reg)
 	return ioread32(rsnd_dmapp_addr(dmac, dma, reg));
 }
 
+static void rsnd_dmapp_bset(struct rsnd_dma *dma, u32 data, u32 mask, u32 reg)
+{
+	struct rsnd_mod *mod = rsnd_mod_get(dma);
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct rsnd_dma_ctrl *dmac = rsnd_priv_to_dmac(priv);
+	void __iomem *addr = rsnd_dmapp_addr(dmac, dma, reg);
+	u32 val = ioread32(addr);
+
+	val &= ~mask;
+	val |= (data & mask);
+
+	iowrite32(val, addr);
+}
+
 static int rsnd_dmapp_stop(struct rsnd_mod *mod,
 			   struct rsnd_dai_stream *io,
 			   struct rsnd_priv *priv)
@@ -461,10 +475,10 @@ static int rsnd_dmapp_stop(struct rsnd_mod *mod,
 	struct rsnd_dma *dma = rsnd_mod_to_dma(mod);
 	int i;
 
-	rsnd_dmapp_write(dma, 0, PDMACHCR);
+	rsnd_dmapp_bset(dma, 0,  PDMACHCR_DE, PDMACHCR);
 
 	for (i = 0; i < 1024; i++) {
-		if (0 == rsnd_dmapp_read(dma, PDMACHCR))
+		if (0 == (rsnd_dmapp_read(dma, PDMACHCR) & PDMACHCR_DE))
 			return 0;
 		udelay(1);
 	}

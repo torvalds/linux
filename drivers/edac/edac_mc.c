@@ -40,6 +40,11 @@
 #define edac_atomic_scrub(va, size) do { } while (0)
 #endif
 
+int edac_op_state = EDAC_OPSTATE_INVAL;
+EXPORT_SYMBOL_GPL(edac_op_state);
+
+static int edac_report = EDAC_REPORTING_ENABLED;
+
 /* lock to memory controller's control array */
 static DEFINE_MUTEX(mem_ctls_mutex);
 static LIST_HEAD(mc_devices);
@@ -51,6 +56,65 @@ static LIST_HEAD(mc_devices);
 static void const *edac_mc_owner;
 
 static struct bus_type mc_bus[EDAC_MAX_MCS];
+
+int edac_get_report_status(void)
+{
+	return edac_report;
+}
+EXPORT_SYMBOL_GPL(edac_get_report_status);
+
+void edac_set_report_status(int new)
+{
+	if (new == EDAC_REPORTING_ENABLED ||
+	    new == EDAC_REPORTING_DISABLED ||
+	    new == EDAC_REPORTING_FORCE)
+		edac_report = new;
+}
+EXPORT_SYMBOL_GPL(edac_set_report_status);
+
+static int edac_report_set(const char *str, const struct kernel_param *kp)
+{
+	if (!str)
+		return -EINVAL;
+
+	if (!strncmp(str, "on", 2))
+		edac_report = EDAC_REPORTING_ENABLED;
+	else if (!strncmp(str, "off", 3))
+		edac_report = EDAC_REPORTING_DISABLED;
+	else if (!strncmp(str, "force", 5))
+		edac_report = EDAC_REPORTING_FORCE;
+
+	return 0;
+}
+
+static int edac_report_get(char *buffer, const struct kernel_param *kp)
+{
+	int ret = 0;
+
+	switch (edac_report) {
+	case EDAC_REPORTING_ENABLED:
+		ret = sprintf(buffer, "on");
+		break;
+	case EDAC_REPORTING_DISABLED:
+		ret = sprintf(buffer, "off");
+		break;
+	case EDAC_REPORTING_FORCE:
+		ret = sprintf(buffer, "force");
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
+static const struct kernel_param_ops edac_report_ops = {
+	.set = edac_report_set,
+	.get = edac_report_get,
+};
+
+module_param_cb(edac_report, &edac_report_ops, &edac_report, 0644);
 
 unsigned edac_dimm_info_location(struct dimm_info *dimm, char *buf,
 			         unsigned len)
@@ -505,22 +569,6 @@ struct mem_ctl_info *find_mci_by_dev(struct device *dev)
 EXPORT_SYMBOL_GPL(find_mci_by_dev);
 
 /*
- * handler for EDAC to check if NMI type handler has asserted interrupt
- */
-static int edac_mc_assert_error_check_and_clear(void)
-{
-	int old_state;
-
-	if (edac_op_state == EDAC_OPSTATE_POLL)
-		return 1;
-
-	old_state = edac_err_assert;
-	edac_err_assert = 0;
-
-	return old_state;
-}
-
-/*
  * edac_mc_workq_function
  *	performs the operation scheduled by a workq request
  */
@@ -536,7 +584,7 @@ static void edac_mc_workq_function(struct work_struct *work_req)
 		return;
 	}
 
-	if (edac_mc_assert_error_check_and_clear())
+	if (edac_op_state == EDAC_OPSTATE_POLL)
 		mci->edac_check(mci);
 
 	mutex_unlock(&mem_ctls_mutex);
@@ -601,7 +649,6 @@ static int add_mc_to_global_list(struct mem_ctl_info *mci)
 	}
 
 	list_add_tail_rcu(&mci->link, insert_before);
-	atomic_inc(&edac_handlers);
 	return 0;
 
 fail0:
@@ -619,7 +666,6 @@ fail1:
 
 static int del_mc_from_global_list(struct mem_ctl_info *mci)
 {
-	int handlers = atomic_dec_return(&edac_handlers);
 	list_del_rcu(&mci->link);
 
 	/* these are for safe removal of devices from global list while
@@ -628,7 +674,7 @@ static int del_mc_from_global_list(struct mem_ctl_info *mci)
 	synchronize_rcu();
 	INIT_LIST_HEAD(&mci->link);
 
-	return handlers;
+	return list_empty(&mc_devices);
 }
 
 struct mem_ctl_info *edac_mc_find(int idx)
@@ -763,7 +809,7 @@ struct mem_ctl_info *edac_mc_del_mc(struct device *dev)
 	/* mark MCI offline: */
 	mci->op_state = OP_OFFLINE;
 
-	if (!del_mc_from_global_list(mci))
+	if (del_mc_from_global_list(mci))
 		edac_mc_owner = NULL;
 
 	mutex_unlock(&mem_ctls_mutex);
@@ -1195,10 +1241,13 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 
 	/* Report the error via the trace interface */
 	grain_bits = fls_long(e->grain) + 1;
-	trace_mc_event(type, e->msg, e->label, e->error_count,
-		       mci->mc_idx, e->top_layer, e->mid_layer, e->low_layer,
-		       (e->page_frame_number << PAGE_SHIFT) | e->offset_in_page,
-		       grain_bits, e->syndrome, e->other_detail);
+
+	if (IS_ENABLED(CONFIG_RAS))
+		trace_mc_event(type, e->msg, e->label, e->error_count,
+			       mci->mc_idx, e->top_layer, e->mid_layer,
+			       e->low_layer,
+			       (e->page_frame_number << PAGE_SHIFT) | e->offset_in_page,
+			       grain_bits, e->syndrome, e->other_detail);
 
 	edac_raw_mc_handle_error(type, mci, e);
 }

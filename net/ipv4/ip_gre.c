@@ -829,7 +829,8 @@ out:
 static int ipgre_netlink_parms(struct net_device *dev,
 				struct nlattr *data[],
 				struct nlattr *tb[],
-				struct ip_tunnel_parm *parms)
+				struct ip_tunnel_parm *parms,
+				__u32 *fwmark)
 {
 	struct ip_tunnel *t = netdev_priv(dev);
 
@@ -885,6 +886,9 @@ static int ipgre_netlink_parms(struct net_device *dev,
 			return -EINVAL;
 		t->ignore_df = !!nla_get_u8(data[IFLA_GRE_IGNORE_DF]);
 	}
+
+	if (data[IFLA_GRE_FWMARK])
+		*fwmark = nla_get_u32(data[IFLA_GRE_FWMARK]);
 
 	return 0;
 }
@@ -957,6 +961,7 @@ static int ipgre_newlink(struct net *src_net, struct net_device *dev,
 {
 	struct ip_tunnel_parm p;
 	struct ip_tunnel_encap ipencap;
+	__u32 fwmark = 0;
 	int err;
 
 	if (ipgre_netlink_encap_parms(data, &ipencap)) {
@@ -967,31 +972,32 @@ static int ipgre_newlink(struct net *src_net, struct net_device *dev,
 			return err;
 	}
 
-	err = ipgre_netlink_parms(dev, data, tb, &p);
+	err = ipgre_netlink_parms(dev, data, tb, &p, &fwmark);
 	if (err < 0)
 		return err;
-	return ip_tunnel_newlink(dev, tb, &p);
+	return ip_tunnel_newlink(dev, tb, &p, fwmark);
 }
 
 static int ipgre_changelink(struct net_device *dev, struct nlattr *tb[],
 			    struct nlattr *data[])
 {
+	struct ip_tunnel *t = netdev_priv(dev);
 	struct ip_tunnel_parm p;
 	struct ip_tunnel_encap ipencap;
+	__u32 fwmark = t->fwmark;
 	int err;
 
 	if (ipgre_netlink_encap_parms(data, &ipencap)) {
-		struct ip_tunnel *t = netdev_priv(dev);
 		err = ip_tunnel_encap_setup(t, &ipencap);
 
 		if (err < 0)
 			return err;
 	}
 
-	err = ipgre_netlink_parms(dev, data, tb, &p);
+	err = ipgre_netlink_parms(dev, data, tb, &p, &fwmark);
 	if (err < 0)
 		return err;
-	return ip_tunnel_changelink(dev, tb, &p);
+	return ip_tunnel_changelink(dev, tb, &p, fwmark);
 }
 
 static size_t ipgre_get_size(const struct net_device *dev)
@@ -1029,6 +1035,8 @@ static size_t ipgre_get_size(const struct net_device *dev)
 		nla_total_size(0) +
 		/* IFLA_GRE_IGNORE_DF */
 		nla_total_size(1) +
+		/* IFLA_GRE_FWMARK */
+		nla_total_size(4) +
 		0;
 }
 
@@ -1049,7 +1057,8 @@ static int ipgre_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	    nla_put_u8(skb, IFLA_GRE_TTL, p->iph.ttl) ||
 	    nla_put_u8(skb, IFLA_GRE_TOS, p->iph.tos) ||
 	    nla_put_u8(skb, IFLA_GRE_PMTUDISC,
-		       !!(p->iph.frag_off & htons(IP_DF))))
+		       !!(p->iph.frag_off & htons(IP_DF))) ||
+	    nla_put_u32(skb, IFLA_GRE_FWMARK, t->fwmark))
 		goto nla_put_failure;
 
 	if (nla_put_u16(skb, IFLA_GRE_ENCAP_TYPE,
@@ -1093,6 +1102,7 @@ static const struct nla_policy ipgre_policy[IFLA_GRE_MAX + 1] = {
 	[IFLA_GRE_ENCAP_DPORT]	= { .type = NLA_U16 },
 	[IFLA_GRE_COLLECT_METADATA]	= { .type = NLA_FLAG },
 	[IFLA_GRE_IGNORE_DF]	= { .type = NLA_U8 },
+	[IFLA_GRE_FWMARK]	= { .type = NLA_U32 },
 };
 
 static struct rtnl_link_ops ipgre_link_ops __read_mostly = {

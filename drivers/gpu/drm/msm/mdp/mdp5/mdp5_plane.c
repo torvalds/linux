@@ -22,6 +22,8 @@
 struct mdp5_plane {
 	struct drm_plane base;
 
+	spinlock_t pipe_lock;     /* protect REG_MDP5_PIPE_* registers */
+
 	uint32_t nformats;
 	uint32_t formats[32];
 };
@@ -37,10 +39,8 @@ static int mdp5_update_cursor_plane_legacy(struct drm_plane *plane,
 		int crtc_x, int crtc_y,
 		unsigned int crtc_w, unsigned int crtc_h,
 		uint32_t src_x, uint32_t src_y,
-		uint32_t src_w, uint32_t src_h);
-
-static void set_scanout_locked(struct drm_plane *plane,
-		struct drm_framebuffer *fb);
+		uint32_t src_w, uint32_t src_h,
+		struct drm_modeset_acquire_ctx *ctx);
 
 static struct mdp5_kms *get_kms(struct drm_plane *plane)
 {
@@ -177,9 +177,14 @@ mdp5_plane_atomic_print_state(struct drm_printer *p,
 		const struct drm_plane_state *state)
 {
 	struct mdp5_plane_state *pstate = to_mdp5_plane_state(state);
+	struct mdp5_kms *mdp5_kms = get_kms(state->plane);
 
 	drm_printf(p, "\thwpipe=%s\n", pstate->hwpipe ?
 			pstate->hwpipe->name : "(null)");
+	if (mdp5_kms->caps & MDP_CAP_SRC_SPLIT)
+		drm_printf(p, "\tright-hwpipe=%s\n",
+			   pstate->r_hwpipe ? pstate->r_hwpipe->name :
+					      "(null)");
 	drm_printf(p, "\tpremultiplied=%u\n", pstate->premultiplied);
 	drm_printf(p, "\tzpos=%u\n", pstate->zpos);
 	drm_printf(p, "\talpha=%u\n", pstate->alpha);
@@ -299,7 +304,9 @@ static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 	struct drm_plane_state *old_state = plane->state;
 	struct mdp5_cfg *config = mdp5_cfg_get_config(get_kms(plane)->cfg);
 	bool new_hwpipe = false;
+	bool need_right_hwpipe = false;
 	uint32_t max_width, max_height;
+	bool out_of_bounds = false;
 	uint32_t caps = 0;
 	struct drm_rect clip;
 	int min_scale, max_scale;
@@ -312,7 +319,23 @@ static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 	max_height = config->hw->lm.max_height << 16;
 
 	/* Make sure source dimensions are within bounds. */
-	if ((state->src_w > max_width) || (state->src_h > max_height)) {
+	if (state->src_h > max_height)
+		out_of_bounds = true;
+
+	if (state->src_w > max_width) {
+		/* If source split is supported, we can go up to 2x
+		 * the max LM width, but we'd need to stage another
+		 * hwpipe to the right LM. So, the drm_plane would
+		 * consist of 2 hwpipes.
+		 */
+		if (config->hw->mdp.caps & MDP_CAP_SRC_SPLIT &&
+		    (state->src_w <= 2 * max_width))
+			need_right_hwpipe = true;
+		else
+			out_of_bounds = true;
+	}
+
+	if (out_of_bounds) {
 		struct drm_rect src = drm_plane_state_src(state);
 		DBG("Invalid source size "DRM_RECT_FP_FMT,
 				DRM_RECT_FP_ARG(&src));
@@ -363,6 +386,15 @@ static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 		if (!mdp5_state->hwpipe || (caps & ~mdp5_state->hwpipe->caps))
 			new_hwpipe = true;
 
+		/*
+		 * (re)allocte hw pipe if we're either requesting for 2 hw pipes
+		 * or we're switching from 2 hw pipes to 1 hw pipe because the
+		 * new src_w can be supported by 1 hw pipe itself.
+		 */
+		if ((need_right_hwpipe && !mdp5_state->r_hwpipe) ||
+		    (!need_right_hwpipe && mdp5_state->r_hwpipe))
+			new_hwpipe = true;
+
 		if (mdp5_kms->smp) {
 			const struct mdp_format *format =
 				to_mdp_format(msm_framebuffer_format(state->fb));
@@ -381,13 +413,36 @@ static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 			 * it available for other planes?
 			 */
 			struct mdp5_hw_pipe *old_hwpipe = mdp5_state->hwpipe;
+			struct mdp5_hw_pipe *old_right_hwpipe =
+							  mdp5_state->r_hwpipe;
+
 			mdp5_state->hwpipe = mdp5_pipe_assign(state->state,
 					plane, caps, blkcfg);
 			if (IS_ERR(mdp5_state->hwpipe)) {
 				DBG("%s: failed to assign hwpipe!", plane->name);
 				return PTR_ERR(mdp5_state->hwpipe);
 			}
+
+			if (need_right_hwpipe) {
+				mdp5_state->r_hwpipe =
+					mdp5_pipe_assign(state->state, plane,
+							 caps, blkcfg);
+				if (IS_ERR(mdp5_state->r_hwpipe)) {
+					DBG("%s: failed to assign right hwpipe",
+					    plane->name);
+					return PTR_ERR(mdp5_state->r_hwpipe);
+				}
+			} else {
+				/*
+				 * set it to NULL so that the driver knows we
+				 * don't have a right hwpipe when committing a
+				 * new state
+				 */
+				mdp5_state->r_hwpipe = NULL;
+			}
+
 			mdp5_pipe_release(state->state, old_hwpipe);
+			mdp5_pipe_release(state->state, old_right_hwpipe);
 		}
 	}
 
@@ -436,13 +491,10 @@ static const struct drm_plane_helper_funcs mdp5_plane_helper_funcs = {
 		.atomic_update = mdp5_plane_atomic_update,
 };
 
-static void set_scanout_locked(struct drm_plane *plane,
-		struct drm_framebuffer *fb)
+static void set_scanout_locked(struct mdp5_kms *mdp5_kms,
+			       enum mdp5_pipe pipe,
+			       struct drm_framebuffer *fb)
 {
-	struct mdp5_kms *mdp5_kms = get_kms(plane);
-	struct mdp5_hw_pipe *hwpipe = to_mdp5_plane_state(plane->state)->hwpipe;
-	enum mdp5_pipe pipe = hwpipe->pipe;
-
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC_STRIDE_A(pipe),
 			MDP5_PIPE_SRC_STRIDE_A_P0(fb->pitches[0]) |
 			MDP5_PIPE_SRC_STRIDE_A_P1(fb->pitches[1]));
@@ -459,8 +511,6 @@ static void set_scanout_locked(struct drm_plane *plane,
 			msm_framebuffer_iova(fb, mdp5_kms->id, 2));
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC3_ADDR(pipe),
 			msm_framebuffer_iova(fb, mdp5_kms->id, 3));
-
-	plane->fb = fb;
 }
 
 /* Note: mdp5_plane->pipe_lock must be locked */
@@ -713,95 +763,39 @@ static void mdp5_write_pixel_ext(struct mdp5_kms *mdp5_kms, enum mdp5_pipe pipe,
 	}
 }
 
+struct pixel_ext {
+	int left[COMP_MAX];
+	int right[COMP_MAX];
+	int top[COMP_MAX];
+	int bottom[COMP_MAX];
+};
 
-static int mdp5_plane_mode_set(struct drm_plane *plane,
-		struct drm_crtc *crtc, struct drm_framebuffer *fb,
-		struct drm_rect *src, struct drm_rect *dest)
+struct phase_step {
+	u32 x[COMP_MAX];
+	u32 y[COMP_MAX];
+};
+
+static void mdp5_hwpipe_mode_set(struct mdp5_kms *mdp5_kms,
+				 struct mdp5_hw_pipe *hwpipe,
+				 struct drm_framebuffer *fb,
+				 struct phase_step *step,
+				 struct pixel_ext *pe,
+				 u32 scale_config, u32 hdecm, u32 vdecm,
+				 bool hflip, bool vflip,
+				 int crtc_x, int crtc_y,
+				 unsigned int crtc_w, unsigned int crtc_h,
+				 u32 src_img_w, u32 src_img_h,
+				 u32 src_x, u32 src_y,
+				 u32 src_w, u32 src_h)
 {
-	struct drm_plane_state *pstate = plane->state;
-	struct mdp5_hw_pipe *hwpipe = to_mdp5_plane_state(pstate)->hwpipe;
-	struct mdp5_kms *mdp5_kms = get_kms(plane);
 	enum mdp5_pipe pipe = hwpipe->pipe;
-	const struct mdp_format *format;
-	uint32_t nplanes, config = 0;
-	uint32_t phasex_step[COMP_MAX] = {0,}, phasey_step[COMP_MAX] = {0,};
-	bool pe = hwpipe->caps & MDP_PIPE_CAP_SW_PIX_EXT;
-	int pe_left[COMP_MAX], pe_right[COMP_MAX];
-	int pe_top[COMP_MAX], pe_bottom[COMP_MAX];
-	uint32_t hdecm = 0, vdecm = 0;
-	uint32_t pix_format;
-	unsigned int rotation;
-	bool vflip, hflip;
-	int crtc_x, crtc_y;
-	unsigned int crtc_w, crtc_h;
-	uint32_t src_x, src_y;
-	uint32_t src_w, src_h;
-	unsigned long flags;
-	int ret;
-
-	nplanes = fb->format->num_planes;
-
-	/* bad formats should already be rejected: */
-	if (WARN_ON(nplanes > pipe2nclients(pipe)))
-		return -EINVAL;
-
-	format = to_mdp_format(msm_framebuffer_format(fb));
-	pix_format = format->base.pixel_format;
-
-	src_x = src->x1;
-	src_y = src->y1;
-	src_w = drm_rect_width(src);
-	src_h = drm_rect_height(src);
-
-	crtc_x = dest->x1;
-	crtc_y = dest->y1;
-	crtc_w = drm_rect_width(dest);
-	crtc_h = drm_rect_height(dest);
-
-	/* src values are in Q16 fixed point, convert to integer: */
-	src_x = src_x >> 16;
-	src_y = src_y >> 16;
-	src_w = src_w >> 16;
-	src_h = src_h >> 16;
-
-	DBG("%s: FB[%u] %u,%u,%u,%u -> CRTC[%u] %d,%d,%u,%u", plane->name,
-			fb->base.id, src_x, src_y, src_w, src_h,
-			crtc->base.id, crtc_x, crtc_y, crtc_w, crtc_h);
-
-	ret = calc_scalex_steps(plane, pix_format, src_w, crtc_w, phasex_step);
-	if (ret)
-		return ret;
-
-	ret = calc_scaley_steps(plane, pix_format, src_h, crtc_h, phasey_step);
-	if (ret)
-		return ret;
-
-	if (hwpipe->caps & MDP_PIPE_CAP_SW_PIX_EXT) {
-		calc_pixel_ext(format, src_w, crtc_w, phasex_step,
-					 pe_left, pe_right, true);
-		calc_pixel_ext(format, src_h, crtc_h, phasey_step,
-					pe_top, pe_bottom, false);
-	}
-
-	/* TODO calc hdecm, vdecm */
-
-	/* SCALE is used to both scale and up-sample chroma components */
-	config |= get_scale_config(format, src_w, crtc_w, true);
-	config |= get_scale_config(format, src_h, crtc_h, false);
-	DBG("scale config = %x", config);
-
-	rotation = drm_rotation_simplify(pstate->rotation,
-					 DRM_ROTATE_0 |
-					 DRM_REFLECT_X |
-					 DRM_REFLECT_Y);
-	hflip = !!(rotation & DRM_REFLECT_X);
-	vflip = !!(rotation & DRM_REFLECT_Y);
-
-	spin_lock_irqsave(&hwpipe->pipe_lock, flags);
+	bool has_pe = hwpipe->caps & MDP_PIPE_CAP_SW_PIX_EXT;
+	const struct mdp_format *format =
+			to_mdp_format(msm_framebuffer_format(fb));
 
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC_IMG_SIZE(pipe),
-			MDP5_PIPE_SRC_IMG_SIZE_WIDTH(min(fb->width, src_w)) |
-			MDP5_PIPE_SRC_IMG_SIZE_HEIGHT(min(fb->height, src_h)));
+			MDP5_PIPE_SRC_IMG_SIZE_WIDTH(src_img_w) |
+			MDP5_PIPE_SRC_IMG_SIZE_HEIGHT(src_img_h));
 
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC_SIZE(pipe),
 			MDP5_PIPE_SRC_SIZE_WIDTH(src_w) |
@@ -840,7 +834,7 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC_OP_MODE(pipe),
 			(hflip ? MDP5_PIPE_SRC_OP_MODE_FLIP_LR : 0) |
 			(vflip ? MDP5_PIPE_SRC_OP_MODE_FLIP_UD : 0) |
-			COND(pe, MDP5_PIPE_SRC_OP_MODE_SW_PIX_EXT_OVERRIDE) |
+			COND(has_pe, MDP5_PIPE_SRC_OP_MODE_SW_PIX_EXT_OVERRIDE) |
 			MDP5_PIPE_SRC_OP_MODE_BWC(BWC_LOSSLESS));
 
 	/* not using secure mode: */
@@ -848,22 +842,23 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 
 	if (hwpipe->caps & MDP_PIPE_CAP_SW_PIX_EXT)
 		mdp5_write_pixel_ext(mdp5_kms, pipe, format,
-				src_w, pe_left, pe_right,
-				src_h, pe_top, pe_bottom);
+				src_w, pe->left, pe->right,
+				src_h, pe->top, pe->bottom);
 
 	if (hwpipe->caps & MDP_PIPE_CAP_SCALE) {
 		mdp5_write(mdp5_kms, REG_MDP5_PIPE_SCALE_PHASE_STEP_X(pipe),
-				phasex_step[COMP_0]);
+				step->x[COMP_0]);
 		mdp5_write(mdp5_kms, REG_MDP5_PIPE_SCALE_PHASE_STEP_Y(pipe),
-				phasey_step[COMP_0]);
+				step->y[COMP_0]);
 		mdp5_write(mdp5_kms, REG_MDP5_PIPE_SCALE_CR_PHASE_STEP_X(pipe),
-				phasex_step[COMP_1_2]);
+				step->x[COMP_1_2]);
 		mdp5_write(mdp5_kms, REG_MDP5_PIPE_SCALE_CR_PHASE_STEP_Y(pipe),
-				phasey_step[COMP_1_2]);
+				step->y[COMP_1_2]);
 		mdp5_write(mdp5_kms, REG_MDP5_PIPE_DECIMATION(pipe),
 				MDP5_PIPE_DECIMATION_VERT(vdecm) |
 				MDP5_PIPE_DECIMATION_HORZ(hdecm));
-		mdp5_write(mdp5_kms, REG_MDP5_PIPE_SCALE_CONFIG(pipe), config);
+		mdp5_write(mdp5_kms, REG_MDP5_PIPE_SCALE_CONFIG(pipe),
+			   scale_config);
 	}
 
 	if (hwpipe->caps & MDP_PIPE_CAP_CSC) {
@@ -874,9 +869,130 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 			csc_disable(mdp5_kms, pipe);
 	}
 
-	set_scanout_locked(plane, fb);
+	set_scanout_locked(mdp5_kms, pipe, fb);
+}
 
-	spin_unlock_irqrestore(&hwpipe->pipe_lock, flags);
+static int mdp5_plane_mode_set(struct drm_plane *plane,
+		struct drm_crtc *crtc, struct drm_framebuffer *fb,
+		struct drm_rect *src, struct drm_rect *dest)
+{
+	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
+	struct drm_plane_state *pstate = plane->state;
+	struct mdp5_hw_pipe *hwpipe = to_mdp5_plane_state(pstate)->hwpipe;
+	struct mdp5_kms *mdp5_kms = get_kms(plane);
+	enum mdp5_pipe pipe = hwpipe->pipe;
+	struct mdp5_hw_pipe *right_hwpipe;
+	const struct mdp_format *format;
+	uint32_t nplanes, config = 0;
+	struct phase_step step = { 0 };
+	struct pixel_ext pe = { 0 };
+	uint32_t hdecm = 0, vdecm = 0;
+	uint32_t pix_format;
+	unsigned int rotation;
+	bool vflip, hflip;
+	int crtc_x, crtc_y;
+	unsigned int crtc_w, crtc_h;
+	uint32_t src_x, src_y;
+	uint32_t src_w, src_h;
+	uint32_t src_img_w, src_img_h;
+	uint32_t src_x_r;
+	int crtc_x_r;
+	unsigned long flags;
+	int ret;
+
+	nplanes = fb->format->num_planes;
+
+	/* bad formats should already be rejected: */
+	if (WARN_ON(nplanes > pipe2nclients(pipe)))
+		return -EINVAL;
+
+	format = to_mdp_format(msm_framebuffer_format(fb));
+	pix_format = format->base.pixel_format;
+
+	src_x = src->x1;
+	src_y = src->y1;
+	src_w = drm_rect_width(src);
+	src_h = drm_rect_height(src);
+
+	crtc_x = dest->x1;
+	crtc_y = dest->y1;
+	crtc_w = drm_rect_width(dest);
+	crtc_h = drm_rect_height(dest);
+
+	/* src values are in Q16 fixed point, convert to integer: */
+	src_x = src_x >> 16;
+	src_y = src_y >> 16;
+	src_w = src_w >> 16;
+	src_h = src_h >> 16;
+
+	src_img_w = min(fb->width, src_w);
+	src_img_h = min(fb->height, src_h);
+
+	DBG("%s: FB[%u] %u,%u,%u,%u -> CRTC[%u] %d,%d,%u,%u", plane->name,
+			fb->base.id, src_x, src_y, src_w, src_h,
+			crtc->base.id, crtc_x, crtc_y, crtc_w, crtc_h);
+
+	right_hwpipe = to_mdp5_plane_state(pstate)->r_hwpipe;
+	if (right_hwpipe) {
+		/*
+		 * if the plane comprises of 2 hw pipes, assume that the width
+		 * is split equally across them. The only parameters that varies
+		 * between the 2 pipes are src_x and crtc_x
+		 */
+		crtc_w /= 2;
+		src_w /= 2;
+		src_img_w /= 2;
+
+		crtc_x_r = crtc_x + crtc_w;
+		src_x_r = src_x + src_w;
+	}
+
+	ret = calc_scalex_steps(plane, pix_format, src_w, crtc_w, step.x);
+	if (ret)
+		return ret;
+
+	ret = calc_scaley_steps(plane, pix_format, src_h, crtc_h, step.y);
+	if (ret)
+		return ret;
+
+	if (hwpipe->caps & MDP_PIPE_CAP_SW_PIX_EXT) {
+		calc_pixel_ext(format, src_w, crtc_w, step.x,
+			       pe.left, pe.right, true);
+		calc_pixel_ext(format, src_h, crtc_h, step.y,
+			       pe.top, pe.bottom, false);
+	}
+
+	/* TODO calc hdecm, vdecm */
+
+	/* SCALE is used to both scale and up-sample chroma components */
+	config |= get_scale_config(format, src_w, crtc_w, true);
+	config |= get_scale_config(format, src_h, crtc_h, false);
+	DBG("scale config = %x", config);
+
+	rotation = drm_rotation_simplify(pstate->rotation,
+					 DRM_ROTATE_0 |
+					 DRM_REFLECT_X |
+					 DRM_REFLECT_Y);
+	hflip = !!(rotation & DRM_REFLECT_X);
+	vflip = !!(rotation & DRM_REFLECT_Y);
+
+	spin_lock_irqsave(&mdp5_plane->pipe_lock, flags);
+
+	mdp5_hwpipe_mode_set(mdp5_kms, hwpipe, fb, &step, &pe,
+			     config, hdecm, vdecm, hflip, vflip,
+			     crtc_x, crtc_y, crtc_w, crtc_h,
+			     src_img_w, src_img_h,
+			     src_x, src_y, src_w, src_h);
+	if (right_hwpipe)
+		mdp5_hwpipe_mode_set(mdp5_kms, right_hwpipe, fb, &step, &pe,
+				     config, hdecm, vdecm, hflip, vflip,
+				     crtc_x_r, crtc_y, crtc_w, crtc_h,
+				     src_img_w, src_img_h,
+				     src_x_r, src_y, src_w, src_h);
+
+	spin_unlock_irqrestore(&mdp5_plane->pipe_lock, flags);
+
+	plane->fb = fb;
 
 	return ret;
 }
@@ -886,7 +1002,8 @@ static int mdp5_update_cursor_plane_legacy(struct drm_plane *plane,
 			int crtc_x, int crtc_y,
 			unsigned int crtc_w, unsigned int crtc_h,
 			uint32_t src_x, uint32_t src_y,
-			uint32_t src_w, uint32_t src_h)
+			uint32_t src_w, uint32_t src_h,
+			struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_plane_state *plane_state, *new_plane_state;
 	struct mdp5_plane_state *mdp5_pstate;
@@ -932,6 +1049,7 @@ static int mdp5_update_cursor_plane_legacy(struct drm_plane *plane,
 
 	if (new_plane_state->visible) {
 		struct mdp5_ctl *ctl;
+		struct mdp5_pipeline *pipeline = mdp5_crtc_get_pipeline(crtc);
 
 		ret = mdp5_plane_mode_set(plane, crtc, fb,
 					  &new_plane_state->src,
@@ -940,7 +1058,7 @@ static int mdp5_update_cursor_plane_legacy(struct drm_plane *plane,
 
 		ctl = mdp5_crtc_get_ctl(crtc);
 
-		mdp5_ctl_commit(ctl, mdp5_plane_get_flush(plane));
+		mdp5_ctl_commit(ctl, pipeline, mdp5_plane_get_flush(plane));
 	}
 
 	*to_mdp5_plane_state(plane_state) =
@@ -954,9 +1072,13 @@ slow_free:
 slow:
 	return drm_atomic_helper_update_plane(plane, crtc, fb,
 					      crtc_x, crtc_y, crtc_w, crtc_h,
-					      src_x, src_y, src_w, src_h);
+					      src_x, src_y, src_w, src_h, ctx);
 }
 
+/*
+ * Use this func and the one below only after the atomic state has been
+ * successfully swapped
+ */
 enum mdp5_pipe mdp5_plane_pipe(struct drm_plane *plane)
 {
 	struct mdp5_plane_state *pstate = to_mdp5_plane_state(plane->state);
@@ -967,14 +1089,30 @@ enum mdp5_pipe mdp5_plane_pipe(struct drm_plane *plane)
 	return pstate->hwpipe->pipe;
 }
 
+enum mdp5_pipe mdp5_plane_right_pipe(struct drm_plane *plane)
+{
+	struct mdp5_plane_state *pstate = to_mdp5_plane_state(plane->state);
+
+	if (!pstate->r_hwpipe)
+		return SSPP_NONE;
+
+	return pstate->r_hwpipe->pipe;
+}
+
 uint32_t mdp5_plane_get_flush(struct drm_plane *plane)
 {
 	struct mdp5_plane_state *pstate = to_mdp5_plane_state(plane->state);
+	u32 mask;
 
 	if (WARN_ON(!pstate->hwpipe))
 		return 0;
 
-	return pstate->hwpipe->flush_mask;
+	mask = pstate->hwpipe->flush_mask;
+
+	if (pstate->r_hwpipe)
+		mask |= pstate->r_hwpipe->flush_mask;
+
+	return mask;
 }
 
 /* initialize plane */
@@ -995,6 +1133,8 @@ struct drm_plane *mdp5_plane_init(struct drm_device *dev,
 
 	mdp5_plane->nformats = mdp_get_formats(mdp5_plane->formats,
 		ARRAY_SIZE(mdp5_plane->formats), false);
+
+	spin_lock_init(&mdp5_plane->pipe_lock);
 
 	if (type == DRM_PLANE_TYPE_CURSOR)
 		ret = drm_universal_plane_init(dev, plane, 0xff,

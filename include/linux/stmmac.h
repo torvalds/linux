@@ -28,6 +28,9 @@
 
 #include <linux/platform_device.h>
 
+#define MTL_MAX_RX_QUEUES	8
+#define MTL_MAX_TX_QUEUES	8
+
 #define STMMAC_RX_COE_NONE	0
 #define STMMAC_RX_COE_TYPE1	1
 #define STMMAC_RX_COE_TYPE2	2
@@ -43,6 +46,18 @@
 #define	STMMAC_CSR_35_60M	0x3	/* MDC = clk_scr_i/26 */
 #define	STMMAC_CSR_150_250M	0x4	/* MDC = clk_scr_i/102 */
 #define	STMMAC_CSR_250_300M	0x5	/* MDC = clk_scr_i/122 */
+
+/* MTL algorithms identifiers */
+#define MTL_TX_ALGORITHM_WRR	0x0
+#define MTL_TX_ALGORITHM_WFQ	0x1
+#define MTL_TX_ALGORITHM_DWRR	0x2
+#define MTL_TX_ALGORITHM_SP	0x3
+#define MTL_RX_ALGORITHM_SP	0x4
+#define MTL_RX_ALGORITHM_WSP	0x5
+
+/* RX/TX Queue Mode */
+#define MTL_QUEUE_AVB		0x0
+#define MTL_QUEUE_DCB		0x1
 
 /* The MDC clock could be set higher than the IEEE 802.3
  * specified frequency limit 0f 2.5 MHz, by programming a clock divider
@@ -109,6 +124,26 @@ struct stmmac_axi {
 	bool axi_rb;
 };
 
+struct stmmac_rxq_cfg {
+	u8 mode_to_use;
+	u8 chan;
+	u8 pkt_route;
+	bool use_prio;
+	u32 prio;
+};
+
+struct stmmac_txq_cfg {
+	u8 weight;
+	u8 mode_to_use;
+	/* Credit Base Shaper parameters */
+	u32 send_slope;
+	u32 idle_slope;
+	u32 high_credit;
+	u32 low_credit;
+	bool use_prio;
+	u32 prio;
+};
+
 struct plat_stmmacenet_data {
 	int bus_id;
 	int phy_addr;
@@ -133,6 +168,12 @@ struct plat_stmmacenet_data {
 	int unicast_filter_entries;
 	int tx_fifo_size;
 	int rx_fifo_size;
+	u8 rx_queues_to_use;
+	u8 tx_queues_to_use;
+	u8 rx_sched_algorithm;
+	u8 tx_sched_algorithm;
+	struct stmmac_rxq_cfg rx_queues_cfg[MTL_MAX_RX_QUEUES];
+	struct stmmac_txq_cfg tx_queues_cfg[MTL_MAX_TX_QUEUES];
 	void (*fix_mac_speed)(void *priv, unsigned int speed);
 	int (*init)(struct platform_device *pdev, void *priv);
 	void (*exit)(struct platform_device *pdev, void *priv);

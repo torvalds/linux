@@ -276,9 +276,9 @@ static int vxlan_fdb_info(struct sk_buff *skb, struct vxlan_dev *vxlan,
 	send_eth = send_ip = true;
 
 	if (type == RTM_GETNEIGH) {
-		ndm->ndm_family	= AF_INET;
 		send_ip = !vxlan_addr_any(&rdst->remote_ip);
 		send_eth = !is_zero_ether_addr(fdb->eth_addr);
+		ndm->ndm_family = send_ip ? rdst->remote_ip.sa.sa_family : AF_INET;
 	} else
 		ndm->ndm_family	= AF_BRIDGE;
 	ndm->ndm_state = fdb->state;
@@ -1515,7 +1515,7 @@ static struct sk_buff *vxlan_na_create(struct sk_buff *request,
 	int ns_olen;
 	int i, len;
 
-	if (dev == NULL)
+	if (dev == NULL || !pskb_may_pull(request, request->len))
 		return NULL;
 
 	len = LL_RESERVED_SPACE(dev) + sizeof(struct ipv6hdr) +
@@ -1530,10 +1530,11 @@ static struct sk_buff *vxlan_na_create(struct sk_buff *request,
 	skb_push(reply, sizeof(struct ethhdr));
 	skb_reset_mac_header(reply);
 
-	ns = (struct nd_msg *)skb_transport_header(request);
+	ns = (struct nd_msg *)(ipv6_hdr(request) + 1);
 
 	daddr = eth_hdr(request)->h_source;
-	ns_olen = request->len - skb_transport_offset(request) - sizeof(*ns);
+	ns_olen = request->len - skb_network_offset(request) -
+		sizeof(struct ipv6hdr) - sizeof(*ns);
 	for (i = 0; i < ns_olen-1; i += (ns->opt[i+1]<<3)) {
 		if (ns->opt[i] == ND_OPT_SOURCE_LL_ADDR) {
 			daddr = ns->opt + i + sizeof(struct nd_opt_hdr);
@@ -1604,10 +1605,13 @@ static int neigh_reduce(struct net_device *dev, struct sk_buff *skb, __be32 vni)
 	if (!in6_dev)
 		goto out;
 
+	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr) + sizeof(struct nd_msg)))
+		goto out;
+
 	iphdr = ipv6_hdr(skb);
 	daddr = &iphdr->daddr;
 
-	msg = (struct nd_msg *)skb_transport_header(skb);
+	msg = (struct nd_msg *)(iphdr + 1);
 	if (msg->icmph.icmp6_code != 0 ||
 	    msg->icmph.icmp6_type != NDISC_NEIGHBOUR_SOLICITATION)
 		goto out;
@@ -2242,16 +2246,13 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (ntohs(eth->h_proto) == ETH_P_ARP)
 			return arp_reduce(dev, skb, vni);
 #if IS_ENABLED(CONFIG_IPV6)
-		else if (ntohs(eth->h_proto) == ETH_P_IPV6 &&
-			 pskb_may_pull(skb, sizeof(struct ipv6hdr)
-				       + sizeof(struct nd_msg)) &&
-			 ipv6_hdr(skb)->nexthdr == IPPROTO_ICMPV6) {
-				struct nd_msg *msg;
-
-				msg = (struct nd_msg *)skb_transport_header(skb);
-				if (msg->icmph.icmp6_code == 0 &&
-				    msg->icmph.icmp6_type == NDISC_NEIGHBOUR_SOLICITATION)
-					return neigh_reduce(dev, skb, vni);
+		else if (ntohs(eth->h_proto) == ETH_P_IPV6) {
+			struct ipv6hdr *hdr, _hdr;
+			if ((hdr = skb_header_pointer(skb,
+						      skb_network_offset(skb),
+						      sizeof(_hdr), &_hdr)) &&
+			    hdr->nexthdr == IPPROTO_ICMPV6)
+				return neigh_reduce(dev, skb, vni);
 		}
 #endif
 	}
@@ -2320,6 +2321,9 @@ static void vxlan_cleanup(unsigned long arg)
 			unsigned long timeout;
 
 			if (f->state & (NUD_PERMANENT | NUD_NOARP))
+				continue;
+
+			if (f->flags & NTF_EXT_LEARNED)
 				continue;
 
 			timeout = f->used + vxlan->cfg.age_interval * HZ;
@@ -2754,8 +2758,6 @@ static struct vxlan_sock *vxlan_socket_create(struct net *net, bool ipv6,
 
 	sock = vxlan_create_sock(net, ipv6, port, flags);
 	if (IS_ERR(sock)) {
-		pr_info("Cannot bind port %d, err=%ld\n", ntohs(port),
-			PTR_ERR(sock));
 		kfree(vs);
 		return ERR_CAST(sock);
 	}
@@ -2818,17 +2820,21 @@ static int __vxlan_sock_add(struct vxlan_dev *vxlan, bool ipv6)
 
 static int vxlan_sock_add(struct vxlan_dev *vxlan)
 {
-	bool ipv6 = vxlan->flags & VXLAN_F_IPV6;
 	bool metadata = vxlan->flags & VXLAN_F_COLLECT_METADATA;
+	bool ipv6 = vxlan->flags & VXLAN_F_IPV6 || metadata;
+	bool ipv4 = !ipv6 || metadata;
 	int ret = 0;
 
 	RCU_INIT_POINTER(vxlan->vn4_sock, NULL);
 #if IS_ENABLED(CONFIG_IPV6)
 	RCU_INIT_POINTER(vxlan->vn6_sock, NULL);
-	if (ipv6 || metadata)
+	if (ipv6) {
 		ret = __vxlan_sock_add(vxlan, true);
+		if (ret < 0 && ret != -EAFNOSUPPORT)
+			ipv4 = false;
+	}
 #endif
-	if (!ret && (!ipv6 || metadata))
+	if (ipv4)
 		ret = __vxlan_sock_add(vxlan, false);
 	if (ret < 0)
 		vxlan_sock_release(vxlan);
@@ -2923,6 +2929,11 @@ static int vxlan_dev_configure(struct net *src_net, struct net_device *dev,
 		return -EINVAL;
 	}
 
+	if (lowerdev) {
+		dev->gso_max_size = lowerdev->gso_max_size;
+		dev->gso_max_segs = lowerdev->gso_max_segs;
+	}
+
 	if (conf->mtu) {
 		int max_mtu = ETH_MAX_MTU;
 
@@ -2973,6 +2984,44 @@ static int vxlan_dev_configure(struct net *src_net, struct net_device *dev,
 		}
 	}
 
+	return 0;
+}
+
+static int __vxlan_dev_create(struct net *net, struct net_device *dev,
+			      struct vxlan_config *conf)
+{
+	struct vxlan_net *vn = net_generic(net, vxlan_net_id);
+	struct vxlan_dev *vxlan = netdev_priv(dev);
+	int err;
+
+	err = vxlan_dev_configure(net, dev, conf, false);
+	if (err)
+		return err;
+
+	dev->ethtool_ops = &vxlan_ethtool_ops;
+
+	/* create an fdb entry for a valid default destination */
+	if (!vxlan_addr_any(&vxlan->default_dst.remote_ip)) {
+		err = vxlan_fdb_create(vxlan, all_zeros_mac,
+				       &vxlan->default_dst.remote_ip,
+				       NUD_REACHABLE | NUD_PERMANENT,
+				       NLM_F_EXCL | NLM_F_CREATE,
+				       vxlan->cfg.dst_port,
+				       vxlan->default_dst.remote_vni,
+				       vxlan->default_dst.remote_vni,
+				       vxlan->default_dst.remote_ifindex,
+				       NTF_SELF);
+		if (err)
+			return err;
+	}
+
+	err = register_netdevice(dev);
+	if (err) {
+		vxlan_fdb_delete_default(vxlan, vxlan->default_dst.remote_vni);
+		return err;
+	}
+
+	list_add(&vxlan->next, &vn->vxlan_list);
 	return 0;
 }
 
@@ -3172,8 +3221,6 @@ static int vxlan_nl2conf(struct nlattr *tb[], struct nlattr *data[],
 static int vxlan_newlink(struct net *src_net, struct net_device *dev,
 			 struct nlattr *tb[], struct nlattr *data[])
 {
-	struct vxlan_net *vn = net_generic(src_net, vxlan_net_id);
-	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct vxlan_config conf;
 	int err;
 
@@ -3181,36 +3228,7 @@ static int vxlan_newlink(struct net *src_net, struct net_device *dev,
 	if (err)
 		return err;
 
-	err = vxlan_dev_configure(src_net, dev, &conf, false);
-	if (err)
-		return err;
-
-	dev->ethtool_ops = &vxlan_ethtool_ops;
-
-	/* create an fdb entry for a valid default destination */
-	if (!vxlan_addr_any(&vxlan->default_dst.remote_ip)) {
-		err = vxlan_fdb_create(vxlan, all_zeros_mac,
-				       &vxlan->default_dst.remote_ip,
-				       NUD_REACHABLE | NUD_PERMANENT,
-				       NLM_F_EXCL | NLM_F_CREATE,
-				       vxlan->cfg.dst_port,
-				       vxlan->default_dst.remote_vni,
-				       vxlan->default_dst.remote_vni,
-				       vxlan->default_dst.remote_ifindex,
-				       NTF_SELF);
-		if (err)
-			return err;
-	}
-
-	err = register_netdevice(dev);
-	if (err) {
-		vxlan_fdb_delete_default(vxlan, vxlan->default_dst.remote_vni);
-		return err;
-	}
-
-	list_add(&vxlan->next, &vn->vxlan_list);
-
-	return 0;
+	return __vxlan_dev_create(src_net, dev, &conf);
 }
 
 static int vxlan_changelink(struct net_device *dev, struct nlattr *tb[],
@@ -3440,7 +3458,7 @@ struct net_device *vxlan_dev_create(struct net *net, const char *name,
 	if (IS_ERR(dev))
 		return dev;
 
-	err = vxlan_dev_configure(net, dev, conf, false);
+	err = __vxlan_dev_create(net, dev, conf);
 	if (err < 0) {
 		free_netdev(dev);
 		return ERR_PTR(err);

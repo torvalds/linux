@@ -99,9 +99,10 @@ static struct spk_synth synth_acntsa = {
 	.startup = SYNTH_START,
 	.checkval = SYNTH_CHECK,
 	.vars = vars,
+	.io_ops = &spk_serial_io_ops,
 	.probe = synth_probe,
 	.release = spk_serial_release,
-	.synth_immediate = spk_synth_immediate,
+	.synth_immediate = spk_serial_synth_immediate,
 	.catch_up = spk_do_catch_up,
 	.flush = spk_synth_flush,
 	.is_alive = spk_synth_is_alive_restart,
@@ -126,7 +127,7 @@ static int synth_probe(struct spk_synth *synth)
 
 	failed = spk_serial_synth_probe(synth);
 	if (failed == 0) {
-		spk_synth_immediate(synth, "\033=R\r");
+		synth->synth_immediate(synth, "\033=R\r");
 		mdelay(100);
 	}
 	synth->alive = !failed;

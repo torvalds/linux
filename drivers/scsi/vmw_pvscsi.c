@@ -1487,7 +1487,7 @@ static int pvscsi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		irq_flag &= ~PCI_IRQ_MSI;
 
 	error = pci_alloc_irq_vectors(adapter->dev, 1, 1, irq_flag);
-	if (error)
+	if (error < 0)
 		goto out_reset_adapter;
 
 	adapter->use_req_threshold = pvscsi_setup_req_threshold(adapter, true);

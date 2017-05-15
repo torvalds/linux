@@ -2129,8 +2129,8 @@ int ida_pre_get(struct ida *ida, gfp_t gfp)
 		struct ida_bitmap *bitmap = kmalloc(sizeof(*bitmap), gfp);
 		if (!bitmap)
 			return 0;
-		bitmap = this_cpu_cmpxchg(ida_bitmap, NULL, bitmap);
-		kfree(bitmap);
+		if (this_cpu_cmpxchg(ida_bitmap, NULL, bitmap))
+			kfree(bitmap);
 	}
 
 	return 1;
@@ -2284,6 +2284,8 @@ static int radix_tree_cpu_dead(unsigned int cpu)
 void __init radix_tree_init(void)
 {
 	int ret;
+
+	BUILD_BUG_ON(RADIX_TREE_MAX_TAGS + __GFP_BITS_SHIFT > 32);
 	radix_tree_node_cachep = kmem_cache_create("radix_tree_node",
 			sizeof(struct radix_tree_node), 0,
 			SLAB_PANIC | SLAB_RECLAIM_ACCOUNT,

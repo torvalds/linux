@@ -774,6 +774,7 @@
 			clocks = <&sys_ctrl 2>, <&sys_ctrl 1>;
 			clock-names = "ciu", "biu";
 			resets = <&sys_ctrl PERIPH_RSTDIS0_MMC0>;
+			reset-names = "reset";
 			bus-width = <0x8>;
 			vmmc-supply = <&ldo19>;
 			pinctrl-names = "default";
@@ -797,6 +798,7 @@
 			clocks = <&sys_ctrl 4>, <&sys_ctrl 3>;
 			clock-names = "ciu", "biu";
 			resets = <&sys_ctrl PERIPH_RSTDIS0_MMC1>;
+			reset-names = "reset";
 			vqmmc-supply = <&ldo7>;
 			vmmc-supply = <&ldo10>;
 			bus-width = <0x4>;
@@ -815,6 +817,7 @@
 			clocks = <&sys_ctrl HI6220_MMC2_CIUCLK>, <&sys_ctrl HI6220_MMC2_CLK>;
 			clock-names = "ciu", "biu";
 			resets = <&sys_ctrl PERIPH_RSTDIS0_MMC2>;
+			reset-names = "reset";
 			bus-width = <0x4>;
 			broken-cd;
 			pinctrl-names = "default", "idle";

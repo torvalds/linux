@@ -272,6 +272,7 @@ struct cxgb4_virt_res {                      /* virtualized HW resources */
 	struct cxgb4_range qp;
 	struct cxgb4_range cq;
 	struct cxgb4_range ocq;
+	unsigned int ncrypto_fc;
 };
 
 #define OCQ_WIN_OFFSET(pdev, vres) \

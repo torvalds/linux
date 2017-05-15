@@ -10,7 +10,6 @@
     |         arc: | TODO |
     |         arm: |  ok  |
     |       arm64: |  ok  |
-    |       avr32: | TODO |
     |    blackfin: | TODO |
     |         c6x: |  ok  |
     |        cris: | TODO |

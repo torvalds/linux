@@ -37,7 +37,7 @@
 /*	resource allocation failed, unexpected HW behavior, HW BUG and so on. */
 #define ODM_DBG_SERIOUS				2
 
-/*	Abnormal, rare, or unexpeted cases. */
+/*	Abnormal, rare, or unexpected cases. */
 /*	For example, IRP/Packet/OID canceled, device suprisely unremoved and so on. */
 #define ODM_DBG_WARNING				3
 

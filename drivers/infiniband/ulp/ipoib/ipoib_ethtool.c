@@ -60,7 +60,7 @@ static const struct ipoib_stats ipoib_gstrings_stats[] = {
 static void ipoib_get_drvinfo(struct net_device *netdev,
 			      struct ethtool_drvinfo *drvinfo)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(netdev);
+	struct ipoib_dev_priv *priv = ipoib_priv(netdev);
 
 	ib_get_device_fw_str(priv->ca, drvinfo->fw_version,
 			     sizeof(drvinfo->fw_version));
@@ -77,7 +77,7 @@ static void ipoib_get_drvinfo(struct net_device *netdev,
 static int ipoib_get_coalesce(struct net_device *dev,
 			      struct ethtool_coalesce *coal)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
 	coal->rx_coalesce_usecs = priv->ethtool.coalesce_usecs;
 	coal->rx_max_coalesced_frames = priv->ethtool.max_coalesced_frames;
@@ -88,7 +88,7 @@ static int ipoib_get_coalesce(struct net_device *dev,
 static int ipoib_set_coalesce(struct net_device *dev,
 			      struct ethtool_coalesce *coal)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	int ret;
 
 	/*
@@ -155,7 +155,66 @@ static int ipoib_get_sset_count(struct net_device __always_unused *dev,
 	return -EOPNOTSUPP;
 }
 
+/* Return lane speed in unit of 1e6 bit/sec */
+static inline int ib_speed_enum_to_int(int speed)
+{
+	switch (speed) {
+	case IB_SPEED_SDR:
+		return SPEED_2500;
+	case IB_SPEED_DDR:
+		return SPEED_5000;
+	case IB_SPEED_QDR:
+	case IB_SPEED_FDR10:
+		return SPEED_10000;
+	case IB_SPEED_FDR:
+		return SPEED_14000;
+	case IB_SPEED_EDR:
+		return SPEED_25000;
+	}
+
+	return SPEED_UNKNOWN;
+}
+
+static int ipoib_get_link_ksettings(struct net_device *netdev,
+				    struct ethtool_link_ksettings *cmd)
+{
+	struct ipoib_dev_priv *priv = netdev_priv(netdev);
+	struct ib_port_attr attr;
+	int ret, speed, width;
+
+	if (!netif_carrier_ok(netdev)) {
+		cmd->base.speed = SPEED_UNKNOWN;
+		cmd->base.duplex = DUPLEX_UNKNOWN;
+		return 0;
+	}
+
+	ret = ib_query_port(priv->ca, priv->port, &attr);
+	if (ret < 0)
+		return -EINVAL;
+
+	speed = ib_speed_enum_to_int(attr.active_speed);
+	width = ib_width_enum_to_int(attr.active_width);
+
+	if (speed < 0 || width < 0)
+		return -EINVAL;
+
+	/* Except the following are set, the other members of
+	 * the struct ethtool_link_settings are initialized to
+	 * zero in the function __ethtool_get_link_ksettings.
+	 */
+	cmd->base.speed		 = speed * width;
+	cmd->base.duplex	 = DUPLEX_FULL;
+
+	cmd->base.phy_address	 = 0xFF;
+
+	cmd->base.autoneg	 = AUTONEG_ENABLE;
+	cmd->base.port		 = PORT_OTHER;
+
+	return 0;
+}
+
 static const struct ethtool_ops ipoib_ethtool_ops = {
+	.get_link_ksettings	= ipoib_get_link_ksettings,
 	.get_drvinfo		= ipoib_get_drvinfo,
 	.get_coalesce		= ipoib_get_coalesce,
 	.set_coalesce		= ipoib_set_coalesce,

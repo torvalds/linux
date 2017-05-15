@@ -29,6 +29,7 @@ i915-$(CONFIG_DEBUG_FS) += i915_debugfs.o intel_pipe_crc.o
 # GEM code
 i915-y += i915_cmd_parser.o \
 	  i915_gem_batch_pool.o \
+	  i915_gem_clflush.o \
 	  i915_gem_context.o \
 	  i915_gem_dmabuf.o \
 	  i915_gem_evict.o \
@@ -72,6 +73,7 @@ i915-y += intel_audio.o \
 	  intel_atomic.o \
 	  intel_atomic_plane.o \
 	  intel_bios.o \
+	  intel_cdclk.o \
 	  intel_color.o \
 	  intel_display.o \
 	  intel_dpio_phy.o \
@@ -103,8 +105,8 @@ i915-y += dvo_ch7017.o \
 	  intel_dp.o \
 	  intel_dsi.o \
 	  intel_dsi_dcs_backlight.o \
-	  intel_dsi_panel_vbt.o \
 	  intel_dsi_pll.o \
+	  intel_dsi_vbt.o \
 	  intel_dvo.o \
 	  intel_hdmi.o \
 	  intel_i2c.o \
@@ -116,6 +118,9 @@ i915-y += dvo_ch7017.o \
 
 # Post-mortem debug and GPU hang state capture
 i915-$(CONFIG_DRM_I915_CAPTURE_ERROR) += i915_gpu_error.o
+i915-$(CONFIG_DRM_I915_SELFTEST) += \
+	selftests/i915_random.o \
+	selftests/i915_selftest.o
 
 # virtual gpu code
 i915-y += i915_vgpu.o

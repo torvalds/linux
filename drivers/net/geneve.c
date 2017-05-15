@@ -1244,7 +1244,7 @@ static int geneve_newlink(struct net *net, struct net_device *dev,
 		metadata = true;
 
 	if (data[IFLA_GENEVE_UDP_CSUM] &&
-	    !nla_get_u8(data[IFLA_GENEVE_UDP_CSUM]))
+	    nla_get_u8(data[IFLA_GENEVE_UDP_CSUM]))
 		info.key.tun_flags |= TUNNEL_CSUM;
 
 	if (data[IFLA_GENEVE_UDP_ZERO_CSUM6_TX] &&

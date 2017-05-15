@@ -70,6 +70,10 @@
 /* Frame Engine Interrupt Grouping Register */
 #define MTK_FE_INT_GRP		0x20
 
+/* CDMP Ingress Control Register */
+#define MTK_CDMQ_IG_CTRL	0x1400
+#define MTK_CDMQ_STAG_EN	BIT(0)
+
 /* CDMP Exgress Control Register */
 #define MTK_CDMP_EG_CTRL	0x404
 
@@ -406,12 +410,18 @@ struct mtk_hw_stats {
 	struct u64_stats_sync	syncp;
 };
 
-/* PDMA descriptor can point at 1-2 segments. This enum allows us to track how
- * memory was allocated so that it can be freed properly
- */
 enum mtk_tx_flags {
+	/* PDMA descriptor can point at 1-2 segments. This enum allows us to
+	 * track how memory was allocated so that it can be freed properly.
+	 */
 	MTK_TX_FLAGS_SINGLE0	= 0x01,
 	MTK_TX_FLAGS_PAGE0	= 0x02,
+
+	/* MTK_TX_FLAGS_FPORTx allows tracking which port the transmitted
+	 * SKB out instead of looking up through hardware TX descriptor.
+	 */
+	MTK_TX_FLAGS_FPORT0	= 0x04,
+	MTK_TX_FLAGS_FPORT1	= 0x08,
 };
 
 /* This enum allows us to identify how the clock is defined on the array of the

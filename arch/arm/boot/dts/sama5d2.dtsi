@@ -266,7 +266,7 @@
 		};
 
 		usb1: ohci@00400000 {
-			compatible = "atmel,sama5d2-ohci", "usb-ohci";
+			compatible = "atmel,at91rm9200-ohci", "usb-ohci";
 			reg = <0x00400000 0x100000>;
 			interrupts = <41 IRQ_TYPE_LEVEL_HIGH 2>;
 			clocks = <&uhphs_clk>, <&uhphs_clk>, <&uhpck>;
@@ -1303,6 +1303,11 @@
 				clocks = <&tdes_clk>;
 				clock-names = "tdes_clk";
 				status = "okay";
+			};
+
+			sfrbu: sfr@fc05c000 {
+				compatible = "atmel,sama5d2-sfrbu", "syscon";
+				reg = <0xfc05c000 0x20>;
 			};
 
 			chipid@fc069000 {

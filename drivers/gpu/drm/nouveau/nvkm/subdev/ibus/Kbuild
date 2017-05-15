@@ -3,3 +3,4 @@ nvkm-y += nvkm/subdev/ibus/gf117.o
 nvkm-y += nvkm/subdev/ibus/gk104.o
 nvkm-y += nvkm/subdev/ibus/gk20a.o
 nvkm-y += nvkm/subdev/ibus/gm200.o
+nvkm-y += nvkm/subdev/ibus/gp10b.o

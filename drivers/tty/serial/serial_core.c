@@ -2117,9 +2117,8 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *uport)
 		for (tries = 3; !ops->tx_empty(uport) && tries; tries--)
 			msleep(10);
 		if (!tries)
-			dev_err(uport->dev, "%s%d: Unable to drain transmitter\n",
-				drv->dev_name,
-				drv->tty_driver->name_base + uport->line);
+			dev_err(uport->dev, "%s: Unable to drain transmitter\n",
+				uport->name);
 
 		ops->shutdown(uport);
 	}
@@ -2248,11 +2247,10 @@ uart_report_port(struct uart_driver *drv, struct uart_port *port)
 		break;
 	}
 
-	printk(KERN_INFO "%s%s%s%d at %s (irq = %d, base_baud = %d) is a %s\n",
+	pr_info("%s%s%s at %s (irq = %d, base_baud = %d) is a %s\n",
 	       port->dev ? dev_name(port->dev) : "",
 	       port->dev ? ": " : "",
-	       drv->dev_name,
-	       drv->tty_driver->name_base + port->line,
+	       port->name,
 	       address, port->irq, port->uartclk / 16, uart_type(port));
 }
 
@@ -2331,9 +2329,6 @@ static int uart_poll_init(struct tty_driver *driver, int line, char *options)
 	int flow = 'n';
 	int ret = 0;
 
-	if (!state)
-		return -1;
-
 	tport = &state->port;
 	mutex_lock(&tport->mutex);
 
@@ -2368,13 +2363,12 @@ static int uart_poll_get_char(struct tty_driver *driver, int line)
 	struct uart_port *port;
 	int ret = -1;
 
-	if (state) {
-		port = uart_port_ref(state);
-		if (port) {
-			ret = port->ops->poll_get_char(port);
-			uart_port_deref(port);
-		}
+	port = uart_port_ref(state);
+	if (port) {
+		ret = port->ops->poll_get_char(port);
+		uart_port_deref(port);
 	}
+
 	return ret;
 }
 
@@ -2383,9 +2377,6 @@ static void uart_poll_put_char(struct tty_driver *driver, int line, char ch)
 	struct uart_driver *drv = driver->driver_state;
 	struct uart_state *state = drv->state + line;
 	struct uart_port *port;
-
-	if (!state)
-		return;
 
 	port = uart_port_ref(state);
 	if (!port)
@@ -2751,6 +2742,12 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 	state->pm_state = UART_PM_STATE_UNDEFINED;
 	uport->cons = drv->cons;
 	uport->minor = drv->tty_driver->minor_start + uport->line;
+	uport->name = kasprintf(GFP_KERNEL, "%s%d", drv->dev_name,
+				drv->tty_driver->name_base + uport->line);
+	if (!uport->name) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	/*
 	 * If this port is a console, then the spinlock is already
@@ -2868,6 +2865,7 @@ int uart_remove_one_port(struct uart_driver *drv, struct uart_port *uport)
 	if (uport->type != PORT_UNKNOWN && uport->ops->release_port)
 		uport->ops->release_port(uport);
 	kfree(uport->tty_groups);
+	kfree(uport->name);
 
 	/*
 	 * Indicate that there isn't a port here anymore.

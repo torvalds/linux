@@ -55,7 +55,7 @@ extern int __cvmx_helper_rgmii_probe(int interface);
 extern void cvmx_helper_rgmii_internal_loopback(int port);
 
 /**
- * Configure all of the ASX, GMX, and PKO regsiters required
+ * Configure all of the ASX, GMX, and PKO registers required
  * to get RGMII to function on the supplied interface.
  *
  * @interface: PKO Interface to configure (0 or 1)

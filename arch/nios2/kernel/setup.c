@@ -137,6 +137,8 @@ asmlinkage void __init nios2_boot_init(unsigned r4, unsigned r5, unsigned r6,
 		strncpy(boot_command_line, CONFIG_CMDLINE, COMMAND_LINE_SIZE);
 #endif
 #endif
+
+	parse_early_param();
 }
 
 void __init setup_arch(char **cmdline_p)
@@ -144,10 +146,6 @@ void __init setup_arch(char **cmdline_p)
 	int bootmap_size;
 
 	console_verbose();
-
-#ifdef CONFIG_EARLY_PRINTK
-	setup_early_printk();
-#endif
 
 	memory_start = PAGE_ALIGN((unsigned long)__pa(_end));
 	memory_end = (unsigned long) CONFIG_NIOS2_MEM_BASE + memory_size;
@@ -200,6 +198,9 @@ void __init setup_arch(char **cmdline_p)
 				initrd_end - initrd_start, BOOTMEM_DEFAULT);
 	}
 #endif /* CONFIG_BLK_DEV_INITRD */
+
+	early_init_fdt_reserve_self();
+	early_init_fdt_scan_reserved_mem();
 
 	unflatten_and_copy_device_tree();
 

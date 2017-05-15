@@ -569,7 +569,7 @@ static struct usb_request
 	if (ep->dma) {
 		struct net2280_dma	*td;
 
-		td = pci_pool_alloc(ep->dev->requests, gfp_flags,
+		td = dma_pool_alloc(ep->dev->requests, gfp_flags,
 				&req->td_dma);
 		if (!td) {
 			kfree(req);
@@ -597,7 +597,7 @@ static void net2280_free_request(struct usb_ep *_ep, struct usb_request *_req)
 	req = container_of(_req, struct net2280_request, req);
 	WARN_ON(!list_empty(&req->queue));
 	if (req->td)
-		pci_pool_free(ep->dev->requests, req->td, req->td_dma);
+		dma_pool_free(ep->dev->requests, req->td, req->td_dma);
 	kfree(req);
 }
 
@@ -1146,15 +1146,15 @@ static int scan_dma_completions(struct net2280_ep *ep)
 	 */
 	while (!list_empty(&ep->queue)) {
 		struct net2280_request	*req;
-		u32			tmp;
+		u32 req_dma_count;
 
 		req = list_entry(ep->queue.next,
 				struct net2280_request, queue);
 		if (!req->valid)
 			break;
 		rmb();
-		tmp = le32_to_cpup(&req->td->dmacount);
-		if ((tmp & BIT(VALID_BIT)) != 0)
+		req_dma_count = le32_to_cpup(&req->td->dmacount);
+		if ((req_dma_count & BIT(VALID_BIT)) != 0)
 			break;
 
 		/* SHORT_PACKET_TRANSFERRED_INTERRUPT handles "usb-short"
@@ -1163,40 +1163,41 @@ static int scan_dma_completions(struct net2280_ep *ep)
 		 */
 		if (unlikely(req->td->dmadesc == 0)) {
 			/* paranoia */
-			tmp = readl(&ep->dma->dmacount);
-			if (tmp & DMA_BYTE_COUNT_MASK)
+			u32 const ep_dmacount = readl(&ep->dma->dmacount);
+
+			if (ep_dmacount & DMA_BYTE_COUNT_MASK)
 				break;
 			/* single transfer mode */
-			dma_done(ep, req, tmp, 0);
+			dma_done(ep, req, req_dma_count, 0);
 			num_completed++;
 			break;
 		} else if (!ep->is_in &&
 			   (req->req.length % ep->ep.maxpacket) &&
 			   !(ep->dev->quirks & PLX_PCIE)) {
 
-			tmp = readl(&ep->regs->ep_stat);
+			u32 const ep_stat = readl(&ep->regs->ep_stat);
 			/* AVOID TROUBLE HERE by not issuing short reads from
 			 * your gadget driver.  That helps avoids errata 0121,
 			 * 0122, and 0124; not all cases trigger the warning.
 			 */
-			if ((tmp & BIT(NAK_OUT_PACKETS)) == 0) {
+			if ((ep_stat & BIT(NAK_OUT_PACKETS)) == 0) {
 				ep_warn(ep->dev, "%s lost packet sync!\n",
 						ep->ep.name);
 				req->req.status = -EOVERFLOW;
 			} else {
-				tmp = readl(&ep->regs->ep_avail);
-				if (tmp) {
+				u32 const ep_avail = readl(&ep->regs->ep_avail);
+				if (ep_avail) {
 					/* fifo gets flushed later */
 					ep->out_overflow = 1;
 					ep_dbg(ep->dev,
 						"%s dma, discard %d len %d\n",
-						ep->ep.name, tmp,
+						ep->ep.name, ep_avail,
 						req->req.length);
 					req->req.status = -EOVERFLOW;
 				}
 			}
 		}
-		dma_done(ep, req, tmp, 0);
+		dma_done(ep, req, req_dma_count, 0);
 		num_completed++;
 	}
 
@@ -3578,10 +3579,10 @@ static void net2280_remove(struct pci_dev *pdev)
 		for (i = 1; i < 5; i++) {
 			if (!dev->ep[i].dummy)
 				continue;
-			pci_pool_free(dev->requests, dev->ep[i].dummy,
+			dma_pool_free(dev->requests, dev->ep[i].dummy,
 					dev->ep[i].td_dma);
 		}
-		pci_pool_destroy(dev->requests);
+		dma_pool_destroy(dev->requests);
 	}
 	if (dev->got_irq)
 		free_irq(pdev->irq, dev);
@@ -3723,7 +3724,7 @@ static int net2280_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* DMA setup */
 	/* NOTE:  we know only the 32 LSBs of dma addresses may be nonzero */
-	dev->requests = pci_pool_create("requests", pdev,
+	dev->requests = dma_pool_create("requests", &pdev->dev,
 		sizeof(struct net2280_dma),
 		0 /* no alignment requirements */,
 		0 /* or page-crossing issues */);
@@ -3735,7 +3736,7 @@ static int net2280_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	for (i = 1; i < 5; i++) {
 		struct net2280_dma	*td;
 
-		td = pci_pool_alloc(dev->requests, GFP_KERNEL,
+		td = dma_pool_alloc(dev->requests, GFP_KERNEL,
 				&dev->ep[i].td_dma);
 		if (!td) {
 			ep_dbg(dev, "can't get dummy %d\n", i);

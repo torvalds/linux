@@ -212,4 +212,6 @@ extern bool vgacon_text_force(void);
 static inline bool vgacon_text_force(void) { return false; }
 #endif
 
+extern void console_init(void);
+
 #endif /* _LINUX_CONSOLE_H */

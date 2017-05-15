@@ -66,7 +66,6 @@ static int guc_log_control(struct intel_guc *guc, u32 control_val)
 	return intel_guc_send(guc, action, ARRAY_SIZE(action));
 }
 
-
 /*
  * Sub buffer switch callback. Called whenever relay has to switch to a new
  * sub buffer, relay stays on the same sub buffer if 0 is returned.
@@ -139,44 +138,14 @@ static struct rchan_callbacks relay_callbacks = {
 	.remove_buf_file = remove_buf_file_callback,
 };
 
-static void guc_log_remove_relay_file(struct intel_guc *guc)
-{
-	relay_close(guc->log.relay_chan);
-}
-
-static int guc_log_create_relay_channel(struct intel_guc *guc)
-{
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	struct rchan *guc_log_relay_chan;
-	size_t n_subbufs, subbuf_size;
-
-	/* Keep the size of sub buffers same as shared log buffer */
-	subbuf_size = guc->log.vma->obj->base.size;
-
-	/* Store up to 8 snapshots, which is large enough to buffer sufficient
-	 * boot time logs and provides enough leeway to User, in terms of
-	 * latency, for consuming the logs from relay. Also doesn't take
-	 * up too much memory.
-	 */
-	n_subbufs = 8;
-
-	guc_log_relay_chan = relay_open(NULL, NULL, subbuf_size,
-					n_subbufs, &relay_callbacks, dev_priv);
-	if (!guc_log_relay_chan) {
-		DRM_ERROR("Couldn't create relay chan for GuC logging\n");
-		return -ENOMEM;
-	}
-
-	GEM_BUG_ON(guc_log_relay_chan->subbuf_size < subbuf_size);
-	guc->log.relay_chan = guc_log_relay_chan;
-	return 0;
-}
-
-static int guc_log_create_relay_file(struct intel_guc *guc)
+static int guc_log_relay_file_create(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	struct dentry *log_dir;
 	int ret;
+
+	if (i915.guc_log_level < 0)
+		return 0;
 
 	/* For now create the log file in /sys/kernel/debug/dri/0 dir */
 	log_dir = dev_priv->drm.primary->debugfs_root;
@@ -197,8 +166,8 @@ static int guc_log_create_relay_file(struct intel_guc *guc)
 		return -ENODEV;
 	}
 
-	ret = relay_late_setup_files(guc->log.relay_chan, "guc_log", log_dir);
-	if (ret) {
+	ret = relay_late_setup_files(guc->log.runtime.relay_chan, "guc_log", log_dir);
+	if (ret < 0 && ret != -EEXIST) {
 		DRM_ERROR("Couldn't associate relay chan with file %d\n", ret);
 		return ret;
 	}
@@ -214,15 +183,15 @@ static void guc_move_to_next_buf(struct intel_guc *guc)
 	smp_wmb();
 
 	/* All data has been written, so now move the offset of sub buffer. */
-	relay_reserve(guc->log.relay_chan, guc->log.vma->obj->base.size);
+	relay_reserve(guc->log.runtime.relay_chan, guc->log.vma->obj->base.size);
 
 	/* Switch to the next sub buffer */
-	relay_flush(guc->log.relay_chan);
+	relay_flush(guc->log.runtime.relay_chan);
 }
 
 static void *guc_get_write_buffer(struct intel_guc *guc)
 {
-	if (!guc->log.relay_chan)
+	if (!guc->log.runtime.relay_chan)
 		return NULL;
 
 	/* Just get the base address of a new sub buffer and copy data into it
@@ -233,7 +202,7 @@ static void *guc_get_write_buffer(struct intel_guc *guc)
 	 * done without using relay_reserve() along with relay_write(). So its
 	 * better to use relay_reserve() alone.
 	 */
-	return relay_reserve(guc->log.relay_chan, 0);
+	return relay_reserve(guc->log.runtime.relay_chan, 0);
 }
 
 static bool guc_check_log_buf_overflow(struct intel_guc *guc,
@@ -284,11 +253,11 @@ static void guc_read_update_log_buffer(struct intel_guc *guc)
 	void *src_data, *dst_data;
 	bool new_overflow;
 
-	if (WARN_ON(!guc->log.buf_addr))
+	if (WARN_ON(!guc->log.runtime.buf_addr))
 		return;
 
 	/* Get the pointer to shared GuC log buffer */
-	log_buf_state = src_data = guc->log.buf_addr;
+	log_buf_state = src_data = guc->log.runtime.buf_addr;
 
 	/* Get the pointer to local buffer to store the logs */
 	log_buf_snapshot_state = dst_data = guc_get_write_buffer(guc);
@@ -371,153 +340,113 @@ static void guc_read_update_log_buffer(struct intel_guc *guc)
 	}
 }
 
-static void guc_log_cleanup(struct intel_guc *guc)
-{
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-
-	lockdep_assert_held(&dev_priv->drm.struct_mutex);
-
-	/* First disable the flush interrupt */
-	gen9_disable_guc_interrupts(dev_priv);
-
-	if (guc->log.flush_wq)
-		destroy_workqueue(guc->log.flush_wq);
-
-	guc->log.flush_wq = NULL;
-
-	if (guc->log.relay_chan)
-		guc_log_remove_relay_file(guc);
-
-	guc->log.relay_chan = NULL;
-
-	if (guc->log.buf_addr)
-		i915_gem_object_unpin_map(guc->log.vma->obj);
-
-	guc->log.buf_addr = NULL;
-}
-
 static void capture_logs_work(struct work_struct *work)
 {
 	struct intel_guc *guc =
-		container_of(work, struct intel_guc, log.flush_work);
+		container_of(work, struct intel_guc, log.runtime.flush_work);
 
 	guc_log_capture_logs(guc);
 }
 
-static int guc_log_create_extras(struct intel_guc *guc)
+static bool guc_log_has_runtime(struct intel_guc *guc)
+{
+	return guc->log.runtime.buf_addr != NULL;
+}
+
+static int guc_log_runtime_create(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	void *vaddr;
-	int ret;
+	struct rchan *guc_log_relay_chan;
+	size_t n_subbufs, subbuf_size;
+	int ret = 0;
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
-	/* Nothing to do */
-	if (i915.guc_log_level < 0)
-		return 0;
+	GEM_BUG_ON(guc_log_has_runtime(guc));
 
-	if (!guc->log.buf_addr) {
-		/* Create a WC (Uncached for read) vmalloc mapping of log
-		 * buffer pages, so that we can directly get the data
-		 * (up-to-date) from memory.
-		 */
-		vaddr = i915_gem_object_pin_map(guc->log.vma->obj, I915_MAP_WC);
-		if (IS_ERR(vaddr)) {
-			ret = PTR_ERR(vaddr);
-			DRM_ERROR("Couldn't map log buffer pages %d\n", ret);
-			return ret;
-		}
-
-		guc->log.buf_addr = vaddr;
+	/* Create a WC (Uncached for read) vmalloc mapping of log
+	 * buffer pages, so that we can directly get the data
+	 * (up-to-date) from memory.
+	 */
+	vaddr = i915_gem_object_pin_map(guc->log.vma->obj, I915_MAP_WC);
+	if (IS_ERR(vaddr)) {
+		DRM_ERROR("Couldn't map log buffer pages %d\n", ret);
+		return PTR_ERR(vaddr);
 	}
 
-	if (!guc->log.relay_chan) {
-		/* Create a relay channel, so that we have buffers for storing
-		 * the GuC firmware logs, the channel will be linked with a file
-		 * later on when debugfs is registered.
-		 */
-		ret = guc_log_create_relay_channel(guc);
-		if (ret)
-			return ret;
+	guc->log.runtime.buf_addr = vaddr;
+
+	 /* Keep the size of sub buffers same as shared log buffer */
+	subbuf_size = guc->log.vma->obj->base.size;
+
+	/* Store up to 8 snapshots, which is large enough to buffer sufficient
+	 * boot time logs and provides enough leeway to User, in terms of
+	 * latency, for consuming the logs from relay. Also doesn't take
+	 * up too much memory.
+	 */
+	n_subbufs = 8;
+
+	/* Create a relay channel, so that we have buffers for storing
+	 * the GuC firmware logs, the channel will be linked with a file
+	 * later on when debugfs is registered.
+	 */
+	guc_log_relay_chan = relay_open(NULL, NULL, subbuf_size,
+					n_subbufs, &relay_callbacks, dev_priv);
+	if (!guc_log_relay_chan) {
+		DRM_ERROR("Couldn't create relay chan for GuC logging\n");
+
+		ret = -ENOMEM;
+		goto err_vaddr;
 	}
 
-	if (!guc->log.flush_wq) {
-		INIT_WORK(&guc->log.flush_work, capture_logs_work);
+	GEM_BUG_ON(guc_log_relay_chan->subbuf_size < subbuf_size);
+	guc->log.runtime.relay_chan = guc_log_relay_chan;
 
-		 /*
-		 * GuC log buffer flush work item has to do register access to
-		 * send the ack to GuC and this work item, if not synced before
-		 * suspend, can potentially get executed after the GFX device is
-		 * suspended.
-		 * By marking the WQ as freezable, we don't have to bother about
-		 * flushing of this work item from the suspend hooks, the pending
-		 * work item if any will be either executed before the suspend
-		 * or scheduled later on resume. This way the handling of work
-		 * item can be kept same between system suspend & rpm suspend.
-		 */
-		guc->log.flush_wq = alloc_ordered_workqueue("i915-guc_log",
-							    WQ_HIGHPRI | WQ_FREEZABLE);
-		if (guc->log.flush_wq == NULL) {
-			DRM_ERROR("Couldn't allocate the wq for GuC logging\n");
-			return -ENOMEM;
-		}
+	INIT_WORK(&guc->log.runtime.flush_work, capture_logs_work);
+
+	/*
+	 * GuC log buffer flush work item has to do register access to
+	 * send the ack to GuC and this work item, if not synced before
+	 * suspend, can potentially get executed after the GFX device is
+	 * suspended.
+	 * By marking the WQ as freezable, we don't have to bother about
+	 * flushing of this work item from the suspend hooks, the pending
+	 * work item if any will be either executed before the suspend
+	 * or scheduled later on resume. This way the handling of work
+	 * item can be kept same between system suspend & rpm suspend.
+	 */
+	guc->log.runtime.flush_wq = alloc_ordered_workqueue("i915-guc_log",
+						WQ_HIGHPRI | WQ_FREEZABLE);
+	if (!guc->log.runtime.flush_wq) {
+		DRM_ERROR("Couldn't allocate the wq for GuC logging\n");
+		ret = -ENOMEM;
+		goto err_relaychan;
 	}
 
 	return 0;
+
+err_relaychan:
+	relay_close(guc->log.runtime.relay_chan);
+err_vaddr:
+	i915_gem_object_unpin_map(guc->log.vma->obj);
+	guc->log.runtime.buf_addr = NULL;
+	return ret;
 }
 
-void intel_guc_log_create(struct intel_guc *guc)
+static void guc_log_runtime_destroy(struct intel_guc *guc)
 {
-	struct i915_vma *vma;
-	unsigned long offset;
-	uint32_t size, flags;
+	/*
+	 * It's possible that the runtime stuff was never allocated because
+	 * guc_log_level was < 0 at the time
+	 **/
+	if (!guc_log_has_runtime(guc))
+		return;
 
-	if (i915.guc_log_level > GUC_LOG_VERBOSITY_MAX)
-		i915.guc_log_level = GUC_LOG_VERBOSITY_MAX;
-
-	/* The first page is to save log buffer state. Allocate one
-	 * extra page for others in case for overlap */
-	size = (1 + GUC_LOG_DPC_PAGES + 1 +
-		GUC_LOG_ISR_PAGES + 1 +
-		GUC_LOG_CRASH_PAGES + 1) << PAGE_SHIFT;
-
-	vma = guc->log.vma;
-	if (!vma) {
-		/* We require SSE 4.1 for fast reads from the GuC log buffer and
-		 * it should be present on the chipsets supporting GuC based
-		 * submisssions.
-		 */
-		if (WARN_ON(!i915_has_memcpy_from_wc())) {
-			/* logging will not be enabled */
-			i915.guc_log_level = -1;
-			return;
-		}
-
-		vma = intel_guc_allocate_vma(guc, size);
-		if (IS_ERR(vma)) {
-			/* logging will be off */
-			i915.guc_log_level = -1;
-			return;
-		}
-
-		guc->log.vma = vma;
-
-		if (guc_log_create_extras(guc)) {
-			guc_log_cleanup(guc);
-			i915_vma_unpin_and_release(&guc->log.vma);
-			i915.guc_log_level = -1;
-			return;
-		}
-	}
-
-	/* each allocated unit is a page */
-	flags = GUC_LOG_VALID | GUC_LOG_NOTIFY_ON_HALF_FULL |
-		(GUC_LOG_DPC_PAGES << GUC_LOG_DPC_SHIFT) |
-		(GUC_LOG_ISR_PAGES << GUC_LOG_ISR_SHIFT) |
-		(GUC_LOG_CRASH_PAGES << GUC_LOG_CRASH_SHIFT);
-
-	offset = guc_ggtt_offset(vma) >> PAGE_SHIFT; /* in pages */
-	guc->log.flags = (offset << GUC_LOG_BUF_ADDR_SHIFT) | flags;
+	destroy_workqueue(guc->log.runtime.flush_wq);
+	relay_close(guc->log.runtime.relay_chan);
+	i915_gem_object_unpin_map(guc->log.vma->obj);
+	guc->log.runtime.buf_addr = NULL;
 }
 
 static int guc_log_late_setup(struct intel_guc *guc)
@@ -527,24 +456,25 @@ static int guc_log_late_setup(struct intel_guc *guc)
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
-	if (i915.guc_log_level < 0)
-		return -EINVAL;
+	if (!guc_log_has_runtime(guc)) {
+		/* If log_level was set as -1 at boot time, then setup needed to
+		 * handle log buffer flush interrupts would not have been done yet,
+		 * so do that now.
+		 */
+		ret = guc_log_runtime_create(guc);
+		if (ret)
+			goto err;
+	}
 
-	/* If log_level was set as -1 at boot time, then setup needed to
-	 * handle log buffer flush interrupts would not have been done yet,
-	 * so do that now.
-	 */
-	ret = guc_log_create_extras(guc);
+	ret = guc_log_relay_file_create(guc);
 	if (ret)
-		goto err;
-
-	ret = guc_log_create_relay_file(guc);
-	if (ret)
-		goto err;
+		goto err_runtime;
 
 	return 0;
+
+err_runtime:
+	guc_log_runtime_destroy(guc);
 err:
-	guc_log_cleanup(guc);
 	/* logging will remain off */
 	i915.guc_log_level = -1;
 	return ret;
@@ -577,13 +507,79 @@ static void guc_flush_logs(struct intel_guc *guc)
 	/* Before initiating the forceful flush, wait for any pending/ongoing
 	 * flush to complete otherwise forceful flush may not actually happen.
 	 */
-	flush_work(&guc->log.flush_work);
+	flush_work(&guc->log.runtime.flush_work);
 
 	/* Ask GuC to update the log buffer state */
 	guc_log_flush(guc);
 
 	/* GuC would have updated log buffer by now, so capture it */
 	guc_log_capture_logs(guc);
+}
+
+int intel_guc_log_create(struct intel_guc *guc)
+{
+	struct i915_vma *vma;
+	unsigned long offset;
+	uint32_t size, flags;
+	int ret;
+
+	GEM_BUG_ON(guc->log.vma);
+
+	if (i915.guc_log_level > GUC_LOG_VERBOSITY_MAX)
+		i915.guc_log_level = GUC_LOG_VERBOSITY_MAX;
+
+	/* The first page is to save log buffer state. Allocate one
+	 * extra page for others in case for overlap */
+	size = (1 + GUC_LOG_DPC_PAGES + 1 +
+		GUC_LOG_ISR_PAGES + 1 +
+		GUC_LOG_CRASH_PAGES + 1) << PAGE_SHIFT;
+
+	/* We require SSE 4.1 for fast reads from the GuC log buffer and
+	 * it should be present on the chipsets supporting GuC based
+	 * submisssions.
+	 */
+	if (WARN_ON(!i915_has_memcpy_from_wc())) {
+		ret = -EINVAL;
+		goto err;
+	}
+
+	vma = intel_guc_allocate_vma(guc, size);
+	if (IS_ERR(vma)) {
+		ret = PTR_ERR(vma);
+		goto err;
+	}
+
+	guc->log.vma = vma;
+
+	if (i915.guc_log_level >= 0) {
+		ret = guc_log_runtime_create(guc);
+		if (ret < 0)
+			goto err_vma;
+	}
+
+	/* each allocated unit is a page */
+	flags = GUC_LOG_VALID | GUC_LOG_NOTIFY_ON_HALF_FULL |
+		(GUC_LOG_DPC_PAGES << GUC_LOG_DPC_SHIFT) |
+		(GUC_LOG_ISR_PAGES << GUC_LOG_ISR_SHIFT) |
+		(GUC_LOG_CRASH_PAGES << GUC_LOG_CRASH_SHIFT);
+
+	offset = guc_ggtt_offset(vma) >> PAGE_SHIFT; /* in pages */
+	guc->log.flags = (offset << GUC_LOG_BUF_ADDR_SHIFT) | flags;
+
+	return 0;
+
+err_vma:
+	i915_vma_unpin_and_release(&guc->log.vma);
+err:
+	/* logging will be off */
+	i915.guc_log_level = -1;
+	return ret;
+}
+
+void intel_guc_log_destroy(struct intel_guc *guc)
+{
+	guc_log_runtime_destroy(guc);
+	i915_vma_unpin_and_release(&guc->log.vma);
 }
 
 int i915_guc_log_control(struct drm_i915_private *dev_priv, u64 control_val)
@@ -609,17 +605,22 @@ int i915_guc_log_control(struct drm_i915_private *dev_priv, u64 control_val)
 		return ret;
 	}
 
-	i915.guc_log_level = log_param.verbosity;
+	if (log_param.logging_enabled) {
+		i915.guc_log_level = log_param.verbosity;
 
-	/* If log_level was set as -1 at boot time, then the relay channel file
-	 * wouldn't have been created by now and interrupts also would not have
-	 * been enabled.
-	 */
-	if (!dev_priv->guc.log.relay_chan) {
+		/* If log_level was set as -1 at boot time, then the relay channel file
+		 * wouldn't have been created by now and interrupts also would not have
+		 * been enabled. Try again now, just in case.
+		 */
 		ret = guc_log_late_setup(guc);
-		if (!ret)
-			gen9_enable_guc_interrupts(dev_priv);
-	} else if (!log_param.logging_enabled) {
+		if (ret < 0) {
+			DRM_DEBUG_DRIVER("GuC log late setup failed %d\n", ret);
+			return ret;
+		}
+
+		/* GuC logging is currently the only user of Guc2Host interrupts */
+		gen9_enable_guc_interrupts(dev_priv);
+	} else {
 		/* Once logging is disabled, GuC won't generate logs & send an
 		 * interrupt. But there could be some data in the log buffer
 		 * which is yet to be captured. So request GuC to update the log
@@ -629,9 +630,6 @@ int i915_guc_log_control(struct drm_i915_private *dev_priv, u64 control_val)
 
 		/* As logging is disabled, update log level to reflect that */
 		i915.guc_log_level = -1;
-	} else {
-		/* In case interrupts were disabled, enable them now */
-		gen9_enable_guc_interrupts(dev_priv);
 	}
 
 	return ret;
@@ -639,7 +637,7 @@ int i915_guc_log_control(struct drm_i915_private *dev_priv, u64 control_val)
 
 void i915_guc_log_register(struct drm_i915_private *dev_priv)
 {
-	if (!i915.enable_guc_submission)
+	if (!i915.enable_guc_submission || i915.guc_log_level < 0)
 		return;
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
@@ -653,6 +651,8 @@ void i915_guc_log_unregister(struct drm_i915_private *dev_priv)
 		return;
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
-	guc_log_cleanup(&dev_priv->guc);
+	/* GuC logging is currently the only user of Guc2Host interrupts */
+	gen9_disable_guc_interrupts(dev_priv);
+	guc_log_runtime_destroy(&dev_priv->guc);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 }

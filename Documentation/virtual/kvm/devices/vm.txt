@@ -140,7 +140,8 @@ struct kvm_s390_vm_cpu_subfunc {
        u8 kmo[16];           # valid with Message-Security-Assist-Extension 4
        u8 pcc[16];           # valid with Message-Security-Assist-Extension 4
        u8 ppno[16];          # valid with Message-Security-Assist-Extension 5
-       u8 reserved[1824];    # reserved for future instructions
+       u8 kma[16];           # valid with Message-Security-Assist-Extension 8
+       u8 reserved[1808];    # reserved for future instructions
 };
 
 Parameters: address of a buffer to load the subfunction blocks from.

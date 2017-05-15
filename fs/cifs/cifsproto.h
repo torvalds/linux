@@ -535,4 +535,7 @@ int __cifs_calc_signature(struct smb_rqst *rqst,
 			struct shash_desc *shash);
 enum securityEnum cifs_select_sectype(struct TCP_Server_Info *,
 					enum securityEnum);
+struct cifs_aio_ctx *cifs_aio_ctx_alloc(void);
+void cifs_aio_ctx_release(struct kref *refcount);
+int setup_aio_ctx_iter(struct cifs_aio_ctx *ctx, struct iov_iter *iter, int rw);
 #endif			/* _CIFSPROTO_H */

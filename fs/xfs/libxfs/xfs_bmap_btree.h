@@ -25,14 +25,6 @@ struct xfs_inode;
 struct xfs_trans;
 
 /*
- * Extent state and extent format macros.
- */
-#define XFS_EXTFMT_INODE(x)	\
-	(xfs_sb_version_hasextflgbit(&((x)->i_mount->m_sb)) ? \
-		XFS_EXTFMT_HASSTATE : XFS_EXTFMT_NOSTATE)
-#define ISUNWRITTEN(x)	((x)->br_state == XFS_EXT_UNWRITTEN)
-
-/*
  * Btree block header size depends on a superblock flag.
  */
 #define XFS_BMBT_BLOCK_LEN(mp) \
@@ -139,5 +131,19 @@ extern int xfs_bmbt_change_owner(struct xfs_trans *tp, struct xfs_inode *ip,
 
 extern struct xfs_btree_cur *xfs_bmbt_init_cursor(struct xfs_mount *,
 		struct xfs_trans *, struct xfs_inode *, int);
+
+/*
+ * Check that the extent does not contain an invalid unwritten extent flag.
+ */
+static inline bool xfs_bmbt_validate_extent(struct xfs_mount *mp, int whichfork,
+		struct xfs_bmbt_rec_host *ep)
+{
+	if (ep->l0 >> (64 - BMBT_EXNTFLAG_BITLEN) == 0)
+		return true;
+	if (whichfork == XFS_DATA_FORK &&
+	    xfs_sb_version_hasextflgbit(&mp->m_sb))
+		return true;
+	return false;
+}
 
 #endif	/* __XFS_BMAP_BTREE_H__ */

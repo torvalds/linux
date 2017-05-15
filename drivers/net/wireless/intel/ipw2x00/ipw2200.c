@@ -3539,9 +3539,6 @@ static int ipw_load(struct ipw_priv *priv)
 	fw_img = &fw->data[le32_to_cpu(fw->boot_size) +
 			   le32_to_cpu(fw->ucode_size)];
 
-	if (rc < 0)
-		goto error;
-
 	if (!priv->rxq)
 		priv->rxq = ipw_rx_queue_alloc(priv);
 	else

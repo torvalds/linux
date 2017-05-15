@@ -294,20 +294,6 @@ config HW_RANDOM_POWERNV
 
 	  If unsure, say Y.
 
-config HW_RANDOM_EXYNOS
-	tristate "EXYNOS HW random number generator support"
-	depends on ARCH_EXYNOS || COMPILE_TEST
-	depends on HAS_IOMEM
-	default HW_RANDOM
-	---help---
-	  This driver provides kernel-side support for the Random Number
-	  Generator hardware found on EXYNOS SOCs.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called exynos-rng.
-
-	  If unsure, say Y.
-
 config HW_RANDOM_TPM
 	tristate "TPM HW Random Number Generator support"
 	depends on TCG_TPM
@@ -422,6 +408,34 @@ config HW_RANDOM_CAVIUM
          module will be called cavium_rng.
 
          If unsure, say Y.
+
+config HW_RANDOM_MTK
+	tristate "Mediatek Random Number Generator support"
+	depends on HW_RANDOM
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	default y
+	---help---
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on Mediatek SoCs.
+
+	  To compile this driver as a module, choose M here. the
+	  module will be called mtk-rng.
+
+	  If unsure, say Y.
+
+config HW_RANDOM_S390
+	tristate "S390 True Random Number Generator support"
+	depends on S390
+	default HW_RANDOM
+	---help---
+	  This driver provides kernel-side support for the True
+	  Random Number Generator available as CPACF extension
+	  on modern s390 hardware platforms.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called s390-trng.
+
+	  If unsure, say Y.
 
 endif # HW_RANDOM
 

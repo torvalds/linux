@@ -82,7 +82,7 @@ void cryp_activity(struct cryp_device_data *device_data,
 void cryp_flush_inoutfifo(struct cryp_device_data *device_data)
 {
 	/*
-	 * We always need to disble the hardware before trying to flush the
+	 * We always need to disable the hardware before trying to flush the
 	 * FIFO. This is something that isn't written in the design
 	 * specification, but we have been informed by the hardware designers
 	 * that this must be done.

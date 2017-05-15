@@ -80,7 +80,7 @@ struct secaeskeytoken {
  * token. If keybitsize is given, the bitsize of the key is
  * also checked. Returns 0 on success or errno value on failure.
  */
-static int check_secaeskeytoken(u8 *token, int keybitsize)
+static int check_secaeskeytoken(const u8 *token, int keybitsize)
 {
 	struct secaeskeytoken *t = (struct secaeskeytoken *) token;
 
@@ -572,6 +572,12 @@ int pkey_sec2protkey(u16 cardnr, u16 domain,
 		rc = -EIO;
 		goto out;
 	}
+	if (prepcblk->ccp_rscode != 0) {
+		DEBUG_WARN(
+			"pkey_sec2protkey unwrap secure key warning, card response %d/%d\n",
+			(int) prepcblk->ccp_rtcode,
+			(int) prepcblk->ccp_rscode);
+	}
 
 	/* process response cprb param block */
 	prepcblk->rpl_parmb = ((u8 *) prepcblk) + sizeof(struct CPRBX);
@@ -761,9 +767,10 @@ out:
 }
 
 /*
- * Fetch just the mkvp value via query_crypto_facility from adapter.
+ * Fetch the current and old mkvp values via
+ * query_crypto_facility from adapter.
  */
-static int fetch_mkvp(u16 cardnr, u16 domain, u64 *mkvp)
+static int fetch_mkvp(u16 cardnr, u16 domain, u64 mkvp[2])
 {
 	int rc, found = 0;
 	size_t rlen, vlen;
@@ -779,9 +786,10 @@ static int fetch_mkvp(u16 cardnr, u16 domain, u64 *mkvp)
 	rc = query_crypto_facility(cardnr, domain, "STATICSA",
 				   rarray, &rlen, varray, &vlen);
 	if (rc == 0 && rlen > 8*8 && vlen > 184+8) {
-		if (rarray[64] == '2') {
+		if (rarray[8*8] == '2') {
 			/* current master key state is valid */
-			*mkvp = *((u64 *)(varray + 184));
+			mkvp[0] = *((u64 *)(varray + 184));
+			mkvp[1] = *((u64 *)(varray + 172));
 			found = 1;
 		}
 	}
@@ -796,14 +804,14 @@ struct mkvp_info {
 	struct list_head list;
 	u16 cardnr;
 	u16 domain;
-	u64 mkvp;
+	u64 mkvp[2];
 };
 
 /* a list with mkvp_info entries */
 static LIST_HEAD(mkvp_list);
 static DEFINE_SPINLOCK(mkvp_list_lock);
 
-static int mkvp_cache_fetch(u16 cardnr, u16 domain, u64 *mkvp)
+static int mkvp_cache_fetch(u16 cardnr, u16 domain, u64 mkvp[2])
 {
 	int rc = -ENOENT;
 	struct mkvp_info *ptr;
@@ -812,7 +820,7 @@ static int mkvp_cache_fetch(u16 cardnr, u16 domain, u64 *mkvp)
 	list_for_each_entry(ptr, &mkvp_list, list) {
 		if (ptr->cardnr == cardnr &&
 		    ptr->domain == domain) {
-			*mkvp = ptr->mkvp;
+			memcpy(mkvp, ptr->mkvp, 2 * sizeof(u64));
 			rc = 0;
 			break;
 		}
@@ -822,7 +830,7 @@ static int mkvp_cache_fetch(u16 cardnr, u16 domain, u64 *mkvp)
 	return rc;
 }
 
-static void mkvp_cache_update(u16 cardnr, u16 domain, u64 mkvp)
+static void mkvp_cache_update(u16 cardnr, u16 domain, u64 mkvp[2])
 {
 	int found = 0;
 	struct mkvp_info *ptr;
@@ -831,7 +839,7 @@ static void mkvp_cache_update(u16 cardnr, u16 domain, u64 mkvp)
 	list_for_each_entry(ptr, &mkvp_list, list) {
 		if (ptr->cardnr == cardnr &&
 		    ptr->domain == domain) {
-			ptr->mkvp = mkvp;
+			memcpy(ptr->mkvp, mkvp, 2 * sizeof(u64));
 			found = 1;
 			break;
 		}
@@ -844,7 +852,7 @@ static void mkvp_cache_update(u16 cardnr, u16 domain, u64 mkvp)
 		}
 		ptr->cardnr = cardnr;
 		ptr->domain = domain;
-		ptr->mkvp = mkvp;
+		memcpy(ptr->mkvp, mkvp, 2 * sizeof(u64));
 		list_add(&ptr->list, &mkvp_list);
 	}
 	spin_unlock_bh(&mkvp_list_lock);
@@ -888,8 +896,8 @@ int pkey_findcard(const struct pkey_seckey *seckey,
 	struct secaeskeytoken *t = (struct secaeskeytoken *) seckey;
 	struct zcrypt_device_matrix *device_matrix;
 	u16 card, dom;
-	u64 mkvp;
-	int i, rc;
+	u64 mkvp[2];
+	int i, rc, oi = -1;
 
 	/* mkvp must not be zero */
 	if (t->mkvp == 0)
@@ -910,14 +918,14 @@ int pkey_findcard(const struct pkey_seckey *seckey,
 		    device_matrix->device[i].functions & 0x04) {
 			/* an enabled CCA Coprocessor card */
 			/* try cached mkvp */
-			if (mkvp_cache_fetch(card, dom, &mkvp) == 0 &&
-			    t->mkvp == mkvp) {
+			if (mkvp_cache_fetch(card, dom, mkvp) == 0 &&
+			    t->mkvp == mkvp[0]) {
 				if (!verify)
 					break;
 				/* verify: fetch mkvp from adapter */
-				if (fetch_mkvp(card, dom, &mkvp) == 0) {
+				if (fetch_mkvp(card, dom, mkvp) == 0) {
 					mkvp_cache_update(card, dom, mkvp);
-					if (t->mkvp == mkvp)
+					if (t->mkvp == mkvp[0])
 						break;
 				}
 			}
@@ -936,14 +944,21 @@ int pkey_findcard(const struct pkey_seckey *seckey,
 			card = AP_QID_CARD(device_matrix->device[i].qid);
 			dom = AP_QID_QUEUE(device_matrix->device[i].qid);
 			/* fresh fetch mkvp from adapter */
-			if (fetch_mkvp(card, dom, &mkvp) == 0) {
+			if (fetch_mkvp(card, dom, mkvp) == 0) {
 				mkvp_cache_update(card, dom, mkvp);
-				if (t->mkvp == mkvp)
+				if (t->mkvp == mkvp[0])
 					break;
+				if (t->mkvp == mkvp[1] && oi < 0)
+					oi = i;
 			}
 		}
+		if (i >= MAX_ZDEV_ENTRIES && oi >= 0) {
+			/* old mkvp matched, use this card then */
+			card = AP_QID_CARD(device_matrix->device[oi].qid);
+			dom = AP_QID_QUEUE(device_matrix->device[oi].qid);
+		}
 	}
-	if (i < MAX_ZDEV_ENTRIES) {
+	if (i < MAX_ZDEV_ENTRIES || oi >= 0) {
 		if (pcardnr)
 			*pcardnr = card;
 		if (pdomain)
@@ -987,6 +1002,53 @@ int pkey_skey2pkey(const struct pkey_seckey *seckey,
 	return rc;
 }
 EXPORT_SYMBOL(pkey_skey2pkey);
+
+/*
+ * Verify key and give back some info about the key.
+ */
+int pkey_verifykey(const struct pkey_seckey *seckey,
+		   u16 *pcardnr, u16 *pdomain,
+		   u16 *pkeysize, u32 *pattributes)
+{
+	struct secaeskeytoken *t = (struct secaeskeytoken *) seckey;
+	u16 cardnr, domain;
+	u64 mkvp[2];
+	int rc;
+
+	/* check the secure key for valid AES secure key */
+	rc = check_secaeskeytoken((u8 *) seckey, 0);
+	if (rc)
+		goto out;
+	if (pattributes)
+		*pattributes = PKEY_VERIFY_ATTR_AES;
+	if (pkeysize)
+		*pkeysize = t->bitsize;
+
+	/* try to find a card which can handle this key */
+	rc = pkey_findcard(seckey, &cardnr, &domain, 1);
+	if (rc)
+		goto out;
+
+	/* check mkvp for old mkvp match */
+	rc = mkvp_cache_fetch(cardnr, domain, mkvp);
+	if (rc)
+		goto out;
+	if (t->mkvp == mkvp[1]) {
+		DEBUG_DBG("pkey_verifykey secure key has old mkvp\n");
+		if (pattributes)
+			*pattributes |= PKEY_VERIFY_ATTR_OLD_MKVP;
+	}
+
+	if (pcardnr)
+		*pcardnr = cardnr;
+	if (pdomain)
+		*pdomain = domain;
+
+out:
+	DEBUG_DBG("pkey_verifykey rc=%d\n", rc);
+	return rc;
+}
+EXPORT_SYMBOL(pkey_verifykey);
 
 /*
  * File io functions
@@ -1086,6 +1148,21 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 		if (rc)
 			break;
 		if (copy_to_user(usp, &ksp, sizeof(ksp)))
+			return -EFAULT;
+		break;
+	}
+	case PKEY_VERIFYKEY: {
+		struct pkey_verifykey __user *uvk = (void __user *) arg;
+		struct pkey_verifykey kvk;
+
+		if (copy_from_user(&kvk, uvk, sizeof(kvk)))
+			return -EFAULT;
+		rc = pkey_verifykey(&kvk.seckey, &kvk.cardnr, &kvk.domain,
+				    &kvk.keysize, &kvk.attributes);
+		DEBUG_DBG("pkey_ioctl pkey_verifykey()=%d\n", rc);
+		if (rc)
+			break;
+		if (copy_to_user(uvk, &kvk, sizeof(kvk)))
 			return -EFAULT;
 		break;
 	}

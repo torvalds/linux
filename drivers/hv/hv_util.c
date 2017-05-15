@@ -590,6 +590,8 @@ static int hv_timesync_init(struct hv_util_service *srv)
 	if (!hyperv_cs)
 		return -ENODEV;
 
+	spin_lock_init(&host_ts.lock);
+
 	INIT_WORK(&wrk.work, hv_set_host_time);
 
 	/*

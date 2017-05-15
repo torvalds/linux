@@ -22,11 +22,11 @@ int ceph_mdsmap_get_random_mds(struct ceph_mdsmap *m)
 	int i;
 
 	/* special case for one mds */
-	if (1 == m->m_max_mds && m->m_info[0].state > 0)
+	if (1 == m->m_num_mds && m->m_info[0].state > 0)
 		return 0;
 
 	/* count */
-	for (i = 0; i < m->m_max_mds; i++)
+	for (i = 0; i < m->m_num_mds; i++)
 		if (m->m_info[i].state > 0)
 			n++;
 	if (n == 0)
@@ -135,8 +135,9 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 	m->m_session_autoclose = ceph_decode_32(p);
 	m->m_max_file_size = ceph_decode_64(p);
 	m->m_max_mds = ceph_decode_32(p);
+	m->m_num_mds = m->m_max_mds;
 
-	m->m_info = kcalloc(m->m_max_mds, sizeof(*m->m_info), GFP_NOFS);
+	m->m_info = kcalloc(m->m_num_mds, sizeof(*m->m_info), GFP_NOFS);
 	if (m->m_info == NULL)
 		goto nomem;
 
@@ -207,8 +208,19 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 		     ceph_pr_addr(&addr.in_addr),
 		     ceph_mds_state_name(state));
 
-		if (mds < 0 || mds >= m->m_max_mds || state <= 0)
+		if (mds < 0 || state <= 0)
 			continue;
+
+		if (mds >= m->m_num_mds) {
+			int new_num = max(mds + 1, m->m_num_mds * 2);
+			void *new_m_info = krealloc(m->m_info,
+						new_num * sizeof(*m->m_info),
+						GFP_NOFS | __GFP_ZERO);
+			if (!new_m_info)
+				goto nomem;
+			m->m_info = new_m_info;
+			m->m_num_mds = new_num;
+		}
 
 		info = &m->m_info[mds];
 		info->global_id = global_id;
@@ -228,6 +240,14 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 		} else {
 			info->export_targets = NULL;
 		}
+	}
+	if (m->m_num_mds > m->m_max_mds) {
+		/* find max up mds */
+		for (i = m->m_num_mds; i >= m->m_max_mds; i--) {
+			if (i == 0 || m->m_info[i-1].state > 0)
+				break;
+		}
+		m->m_num_mds = i;
 	}
 
 	/* pg_pools */
@@ -270,12 +290,22 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 
 		for (i = 0; i < n; i++) {
 			s32 mds = ceph_decode_32(p);
-			if (mds >= 0 && mds < m->m_max_mds) {
+			if (mds >= 0 && mds < m->m_num_mds) {
 				if (m->m_info[mds].laggy)
 					num_laggy++;
 			}
 		}
 		m->m_num_laggy = num_laggy;
+
+		if (n > m->m_num_mds) {
+			void *new_m_info = krealloc(m->m_info,
+						    n * sizeof(*m->m_info),
+						    GFP_NOFS | __GFP_ZERO);
+			if (!new_m_info)
+				goto nomem;
+			m->m_info = new_m_info;
+		}
+		m->m_num_mds = n;
 	}
 
 	/* inc */
@@ -341,7 +371,7 @@ void ceph_mdsmap_destroy(struct ceph_mdsmap *m)
 {
 	int i;
 
-	for (i = 0; i < m->m_max_mds; i++)
+	for (i = 0; i < m->m_num_mds; i++)
 		kfree(m->m_info[i].export_targets);
 	kfree(m->m_info);
 	kfree(m->m_data_pg_pools);
@@ -357,7 +387,7 @@ bool ceph_mdsmap_is_cluster_available(struct ceph_mdsmap *m)
 		return false;
 	if (m->m_num_laggy > 0)
 		return false;
-	for (i = 0; i < m->m_max_mds; i++) {
+	for (i = 0; i < m->m_num_mds; i++) {
 		if (m->m_info[i].state == CEPH_MDS_STATE_ACTIVE)
 			nr_active++;
 	}

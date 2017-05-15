@@ -9,7 +9,7 @@
  */
 
 #include <linux/linkage.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <asm/ptrace.h>
 
 #define BREAKINST 0x5730 /* trapa #3 */

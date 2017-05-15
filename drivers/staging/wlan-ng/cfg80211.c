@@ -100,7 +100,7 @@ static int prism2_domibset_pstr32(struct wlandevice *wlandev,
 /* The interface functions, called by the cfg80211 layer */
 static int prism2_change_virtual_intf(struct wiphy *wiphy,
 				      struct net_device *dev,
-				      enum nl80211_iftype type, u32 *flags,
+				      enum nl80211_iftype type,
 				      struct vif_params *params)
 {
 	struct wlandevice *wlandev = dev->ml_priv;
@@ -666,8 +666,11 @@ void prism2_disconnected(struct wlandevice *wlandev)
 
 void prism2_roamed(struct wlandevice *wlandev)
 {
-	cfg80211_roamed(wlandev->netdev, NULL, wlandev->bssid,
-			NULL, 0, NULL, 0, GFP_KERNEL);
+	struct cfg80211_roam_info roam_info = {
+		.bssid = wlandev->bssid,
+	};
+
+	cfg80211_roamed(wlandev->netdev, &roam_info, GFP_KERNEL);
 }
 
 /* Structures for declaring wiphy interface */

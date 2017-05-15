@@ -55,7 +55,6 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/miscdevice.h>
-#include <linux/init.h>
 
 #include <xen/xenbus.h>
 #include <xen/xen.h>
@@ -443,8 +442,10 @@ static int xenbus_write_transaction(unsigned msg_type,
 		return xenbus_command_reply(u, XS_ERROR, "ENOENT");
 
 	rc = xenbus_dev_request_and_reply(&u->u.msg, u);
-	if (rc)
+	if (rc && trans) {
+		list_del(&trans->list);
 		kfree(trans);
+	}
 
 out:
 	return rc;

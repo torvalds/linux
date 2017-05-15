@@ -195,7 +195,7 @@ void qib_migrate_qp(struct rvt_qp *qp)
 
 	qp->s_mig_state = IB_MIG_MIGRATED;
 	qp->remote_ah_attr = qp->alt_ah_attr;
-	qp->port_num = qp->alt_ah_attr.port_num;
+	qp->port_num = rdma_ah_get_port_num(&qp->alt_ah_attr);
 	qp->s_pkey_index = qp->s_alt_pkey_index;
 
 	ev.device = qp->ibqp.device;
@@ -235,18 +235,23 @@ int qib_ruc_check_hdr(struct qib_ibport *ibp, struct ib_header *hdr,
 
 	if (qp->s_mig_state == IB_MIG_ARMED && (bth0 & IB_BTH_MIG_REQ)) {
 		if (!has_grh) {
-			if (qp->alt_ah_attr.ah_flags & IB_AH_GRH)
+			if (rdma_ah_get_ah_flags(&qp->alt_ah_attr) &
+			    IB_AH_GRH)
 				goto err;
 		} else {
-			if (!(qp->alt_ah_attr.ah_flags & IB_AH_GRH))
+			const struct ib_global_route *grh;
+
+			if (!(rdma_ah_get_ah_flags(&qp->alt_ah_attr) &
+			      IB_AH_GRH))
 				goto err;
-			guid = get_sguid(ibp, qp->alt_ah_attr.grh.sgid_index);
+			grh = rdma_ah_read_grh(&qp->alt_ah_attr);
+			guid = get_sguid(ibp, grh->sgid_index);
 			if (!gid_ok(&hdr->u.l.grh.dgid,
 				    ibp->rvp.gid_prefix, guid))
 				goto err;
 			if (!gid_ok(&hdr->u.l.grh.sgid,
-			    qp->alt_ah_attr.grh.dgid.global.subnet_prefix,
-			    qp->alt_ah_attr.grh.dgid.global.interface_id))
+			    grh->dgid.global.subnet_prefix,
+			    grh->dgid.global.interface_id))
 				goto err;
 		}
 		if (!qib_pkey_ok((u16)bth0,
@@ -259,27 +264,33 @@ int qib_ruc_check_hdr(struct qib_ibport *ibp, struct ib_header *hdr,
 			goto err;
 		}
 		/* Validate the SLID. See Ch. 9.6.1.5 and 17.2.8 */
-		if (be16_to_cpu(hdr->lrh[3]) != qp->alt_ah_attr.dlid ||
-		    ppd_from_ibp(ibp)->port != qp->alt_ah_attr.port_num)
+		if ((be16_to_cpu(hdr->lrh[3]) !=
+		     rdma_ah_get_dlid(&qp->alt_ah_attr)) ||
+		    ppd_from_ibp(ibp)->port !=
+			    rdma_ah_get_port_num(&qp->alt_ah_attr))
 			goto err;
 		spin_lock_irqsave(&qp->s_lock, flags);
 		qib_migrate_qp(qp);
 		spin_unlock_irqrestore(&qp->s_lock, flags);
 	} else {
 		if (!has_grh) {
-			if (qp->remote_ah_attr.ah_flags & IB_AH_GRH)
+			if (rdma_ah_get_ah_flags(&qp->remote_ah_attr) &
+			    IB_AH_GRH)
 				goto err;
 		} else {
-			if (!(qp->remote_ah_attr.ah_flags & IB_AH_GRH))
+			const struct ib_global_route *grh;
+
+			if (!(rdma_ah_get_ah_flags(&qp->remote_ah_attr) &
+			      IB_AH_GRH))
 				goto err;
-			guid = get_sguid(ibp,
-					 qp->remote_ah_attr.grh.sgid_index);
+			grh = rdma_ah_read_grh(&qp->remote_ah_attr);
+			guid = get_sguid(ibp, grh->sgid_index);
 			if (!gid_ok(&hdr->u.l.grh.dgid,
 				    ibp->rvp.gid_prefix, guid))
 				goto err;
 			if (!gid_ok(&hdr->u.l.grh.sgid,
-			    qp->remote_ah_attr.grh.dgid.global.subnet_prefix,
-			    qp->remote_ah_attr.grh.dgid.global.interface_id))
+			    grh->dgid.global.subnet_prefix,
+			    grh->dgid.global.interface_id))
 				goto err;
 		}
 		if (!qib_pkey_ok((u16)bth0,
@@ -292,7 +303,8 @@ int qib_ruc_check_hdr(struct qib_ibport *ibp, struct ib_header *hdr,
 			goto err;
 		}
 		/* Validate the SLID. See Ch. 9.6.1.5 */
-		if (be16_to_cpu(hdr->lrh[3]) != qp->remote_ah_attr.dlid ||
+		if (be16_to_cpu(hdr->lrh[3]) !=
+		    rdma_ah_get_dlid(&qp->remote_ah_attr) ||
 		    ppd_from_ibp(ibp)->port != qp->port_num)
 			goto err;
 		if (qp->s_mig_state == IB_MIG_REARM &&
@@ -528,8 +540,8 @@ again:
 	wc.byte_len = wqe->length;
 	wc.qp = &qp->ibqp;
 	wc.src_qp = qp->remote_qpn;
-	wc.slid = qp->remote_ah_attr.dlid;
-	wc.sl = qp->remote_ah_attr.sl;
+	wc.slid = rdma_ah_get_dlid(&qp->remote_ah_attr);
+	wc.sl = rdma_ah_get_sl(&qp->remote_ah_attr);
 	wc.port_num = 1;
 	/* Signal completion event if the solicited bit is set. */
 	rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.recv_cq), &wc,
@@ -619,7 +631,7 @@ done:
  * Return the size of the header in 32 bit words.
  */
 u32 qib_make_grh(struct qib_ibport *ibp, struct ib_grh *hdr,
-		 struct ib_global_route *grh, u32 hwords, u32 nwords)
+		 const struct ib_global_route *grh, u32 hwords, u32 nwords)
 {
 	hdr->version_tclass_flow =
 		cpu_to_be32((IB_GRH_VERSION << IB_GRH_VERSION_SHIFT) |
@@ -652,20 +664,23 @@ void qib_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 	extra_bytes = -qp->s_cur_size & 3;
 	nwords = (qp->s_cur_size + extra_bytes) >> 2;
 	lrh0 = QIB_LRH_BTH;
-	if (unlikely(qp->remote_ah_attr.ah_flags & IB_AH_GRH)) {
-		qp->s_hdrwords += qib_make_grh(ibp, &priv->s_hdr->u.l.grh,
-					       &qp->remote_ah_attr.grh,
-					       qp->s_hdrwords, nwords);
+	if (unlikely(rdma_ah_get_ah_flags(&qp->remote_ah_attr) & IB_AH_GRH)) {
+		qp->s_hdrwords +=
+			qib_make_grh(ibp, &priv->s_hdr->u.l.grh,
+				     rdma_ah_read_grh(&qp->remote_ah_attr),
+				     qp->s_hdrwords, nwords);
 		lrh0 = QIB_LRH_GRH;
 	}
-	lrh0 |= ibp->sl_to_vl[qp->remote_ah_attr.sl] << 12 |
-		qp->remote_ah_attr.sl << 4;
+	lrh0 |= ibp->sl_to_vl[rdma_ah_get_sl(&qp->remote_ah_attr)] << 12 |
+		rdma_ah_get_sl(&qp->remote_ah_attr) << 4;
 	priv->s_hdr->lrh[0] = cpu_to_be16(lrh0);
-	priv->s_hdr->lrh[1] = cpu_to_be16(qp->remote_ah_attr.dlid);
+	priv->s_hdr->lrh[1] =
+			cpu_to_be16(rdma_ah_get_dlid(&qp->remote_ah_attr));
 	priv->s_hdr->lrh[2] =
 			cpu_to_be16(qp->s_hdrwords + nwords + SIZE_OF_CRC);
-	priv->s_hdr->lrh[3] = cpu_to_be16(ppd_from_ibp(ibp)->lid |
-				       qp->remote_ah_attr.src_path_bits);
+	priv->s_hdr->lrh[3] =
+		cpu_to_be16(ppd_from_ibp(ibp)->lid |
+			    rdma_ah_get_path_bits(&qp->remote_ah_attr));
 	bth0 |= qib_get_pkey(ibp, qp->s_pkey_index);
 	bth0 |= extra_bytes << 20;
 	if (qp->s_mig_state == IB_MIG_MIGRATED)
@@ -703,7 +718,8 @@ void qib_do_send(struct rvt_qp *qp)
 
 	if ((qp->ibqp.qp_type == IB_QPT_RC ||
 	     qp->ibqp.qp_type == IB_QPT_UC) &&
-	    (qp->remote_ah_attr.dlid & ~((1 << ppd->lmc) - 1)) == ppd->lid) {
+	    (rdma_ah_get_dlid(&qp->remote_ah_attr) &
+	     ~((1 << ppd->lmc) - 1)) == ppd->lid) {
 		qib_ruc_loopback(qp);
 		return;
 	}
@@ -769,7 +785,10 @@ void qib_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 	    qp->ibqp.qp_type == IB_QPT_GSI)
 		atomic_dec(&ibah_to_rvtah(wqe->ud_wr.ah)->refcount);
 
-	rvt_qp_swqe_complete(qp, wqe, status);
+	rvt_qp_swqe_complete(qp,
+			     wqe,
+			     ib_qib_wc_opcode[wqe->wr.opcode],
+			     status);
 
 	if (qp->s_acked == old_last)
 		qp->s_acked = last;

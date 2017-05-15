@@ -103,7 +103,7 @@ static int tcf_skbmod_init(struct net *net, struct nlattr *nla,
 	if (!nla)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_SKBMOD_MAX, nla, skbmod_policy);
+	err = nla_parse_nested(tb, TCA_SKBMOD_MAX, nla, skbmod_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -228,7 +228,6 @@ static int tcf_skbmod_dump(struct sk_buff *skb, struct tc_action *a,
 
 	return skb->len;
 nla_put_failure:
-	rcu_read_unlock();
 	nlmsg_trim(skb, b);
 	return -1;
 }

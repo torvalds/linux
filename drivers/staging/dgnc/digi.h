@@ -13,8 +13,8 @@
  * PURPOSE.  See the GNU General Public License for more details.
  */
 
-#ifndef __DIGI_H
-#define __DIGI_H
+#ifndef _DIGI_H
+#define _DIGI_H
 
 #ifndef TIOCM_LE
 #define		TIOCM_LE	0x01		/* line enable */
@@ -45,8 +45,7 @@
 #define DIGI_SETAW	(('e' << 8) | 96)	/* Drain & set params */
 #define DIGI_SETAF	(('e' << 8) | 97)	/* Drain, flush & set params */
 #define DIGI_GET_NI_INFO (('d' << 8) | 250)	/* Non-intelligent state info */
-#define DIGI_LOOPBACK (('d' << 8) | 252)	/*
-						 * Enable/disable UART
+#define DIGI_LOOPBACK (('d' << 8) | 252)	/* Enable/disable UART
 						 * internal loopback
 						 */
 #define DIGI_FAST	0x0002		/* Fast baud rates */
@@ -64,50 +63,77 @@
 /*
  * Structure used with ioctl commands for DIGI parameters.
  */
+/**
+ * struct digi_t - Ioctl commands for DIGI parameters.
+ * @digi_flags: Flags.
+ * @digi_maxcps: Maximum printer CPS.
+ * @digi_maxchar: Maximum characters in the print queue.
+ * @digi_bufsize: Buffer size.
+ * @digi_onlen: Length of ON string.
+ * @digi_offlen: Length of OFF string.
+ * @digi_onstr: Printer ON string.
+ * @digi_offstr: Printer OFF string.
+ * @digi_term: Terminal string.
+ */
 struct digi_t {
-	unsigned short	digi_flags;		/* Flags (see above) */
-	unsigned short	digi_maxcps;		/* Max printer CPS */
-	unsigned short	digi_maxchar;		/* Max chars in print queue */
-	unsigned short	digi_bufsize;		/* Buffer size */
-	unsigned char	digi_onlen;		/* Length of ON string */
-	unsigned char	digi_offlen;		/* Length of OFF string	*/
-	char		digi_onstr[DIGI_PLEN];	/* Printer on string */
-	char		digi_offstr[DIGI_PLEN];	/* Printer off string */
-	char		digi_term[DIGI_TSIZ];	/* terminal string */
+	unsigned short	digi_flags;
+	unsigned short	digi_maxcps;
+	unsigned short	digi_maxchar;
+	unsigned short	digi_bufsize;
+	unsigned char	digi_onlen;
+	unsigned char	digi_offlen;
+	char		digi_onstr[DIGI_PLEN];
+	char		digi_offstr[DIGI_PLEN];
+	char		digi_term[DIGI_TSIZ];
 };
 
-/* Structure to get driver status information */
-
+/**
+ * struct digi_dinfo - Driver status information.
+ * @dinfo_nboards: Number of boards configured.
+ * @dinfo_reserved: Not used, for future expansion.
+ * @dinfio_version: Driver version.
+ */
 struct digi_dinfo {
-	unsigned int	dinfo_nboards;		/* # boards configured */
-	char		dinfo_reserved[12];	/* for future expansion */
-	char		dinfo_version[16];	/* driver version */
+	unsigned int	dinfo_nboards;
+	char		dinfo_reserved[12];
+	char		dinfo_version[16];
 };
 
 #define	DIGI_GETDD	(('d' << 8) | 248)	/* get driver info */
 
-/*
- * Structure used with ioctl commands for per-board information
+/**
+ * struct digi_info - Ioctl commands for per board information.
  *
- * physsize and memsize differ when board has "windowed" memory
+ * Physsize and memsize differ when board has "windowed" memory.
+ *
+ * @info_bdnum: Board number (0 based).
+ * @info_ioport: IO port address.
+ * @indo_physaddr: Memory address.
+ * @info_physize: Size of host memory window.
+ * @info_memsize: Amount of dual-port memory on board.
+ * @info_bdtype: Board type.
+ * @info_nports: Number of ports.
+ * @info_bdstate: Board state.
+ * @info_reserved: Not used, for future expansion.
  */
 struct digi_info {
-	unsigned int	info_bdnum;		/* Board number (0 based) */
-	unsigned int	info_ioport;		/* io port address */
-	unsigned int	info_physaddr;		/* memory address */
-	unsigned int	info_physsize;		/* Size of host mem window */
-	unsigned int	info_memsize;		/* Amount of dual-port mem */
-						/* on board */
-	unsigned short	info_bdtype;		/* Board type */
-	unsigned short	info_nports;		/* number of ports */
-	char		info_bdstate;		/* board state */
-	char		info_reserved[7];	/* for future expansion */
+	unsigned int	info_bdnum;
+	unsigned int	info_ioport;
+	unsigned int	info_physaddr;
+	unsigned int	info_physsize;
+	unsigned int	info_memsize;
+	unsigned short	info_bdtype;
+	unsigned short	info_nports;
+	char		info_bdstate;
+	char		info_reserved[7];
 };
 
 #define	DIGI_GETBD	(('d' << 8) | 249)	/* get board info */
 
-struct digi_getbuffer /* Struct for holding buffer use counts */
-{
+/**
+ * struct digi_getbuffer - Holds buffer use counts.
+ */
+struct digi_getbuffer {
 	unsigned long tx_in;
 	unsigned long tx_out;
 	unsigned long rxbuf;
@@ -115,14 +141,24 @@ struct digi_getbuffer /* Struct for holding buffer use counts */
 	unsigned long txdone;
 };
 
+/**
+ * struct digi_getcounter
+ * @norun: Number of UART overrun errors.
+ * @noflow: Number of buffer overflow errors.
+ * @nframe: Number of framing errors.
+ * @nparity: Number of parity errors.
+ * @nbreak: Number of breaks received.
+ * @rbytes: Number of received bytes.
+ * @tbytes: Number of transmitted bytes.
+ */
 struct digi_getcounter {
-	unsigned long norun;		/* number of UART overrun errors */
-	unsigned long noflow;		/* number of buffer overflow errors */
-	unsigned long nframe;		/* number of framing errors */
-	unsigned long nparity;		/* number of parity errors */
-	unsigned long nbreak;		/* number of breaks received */
-	unsigned long rbytes;		/* number of received bytes */
-	unsigned long tbytes;		/* number of bytes transmitted fully */
+	unsigned long norun;
+	unsigned long noflow;
+	unsigned long nframe;
+	unsigned long nparity;
+	unsigned long nbreak;
+	unsigned long rbytes;
+	unsigned long tbytes;
 };
 
 /* Board State Definitions */
@@ -137,15 +173,14 @@ struct digi_getcounter {
 #define DIGI_REALPORT_GETCOUNTERS (('e' << 8) | 110)
 #define DIGI_REALPORT_GETEVENTS (('e' << 8) | 111)
 
-#define EV_OPU 0x0001 /* !<Output paused by client */
-#define EV_OPS 0x0002 /* !<Output paused by regular sw flowctrl */
-#define EV_IPU 0x0010 /* !<Input paused unconditionally by user */
-#define EV_IPS 0x0020 /* !<Input paused by high/low water marks */
-#define EV_TXB 0x0040 /* !<Transmit break pending */
+#define EV_OPU 0x0001 /* Output paused by client */
+#define EV_OPS 0x0002 /* Output paused by regular sw flowctrl */
+#define EV_IPU 0x0010 /* Input paused unconditionally by user */
+#define EV_IPS 0x0020 /* Input paused by high/low water marks */
+#define EV_TXB 0x0040 /* Transmit break pending */
 
-/*
- * This structure holds data needed for the intelligent <--> nonintelligent
- * DPA translation
+/**
+ * struct ni_info - intelligent <--> non-intelligent DPA translation.
  */
 struct ni_info {
 	int board;
@@ -175,4 +210,5 @@ struct ni_info {
 #define T_NEO 0000
 
 #define TTY_FLIPBUF_SIZE 512
-#endif /* DIGI_H */
+
+#endif	/* _DIGI_H */

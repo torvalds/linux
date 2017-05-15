@@ -167,23 +167,29 @@ static ssize_t _nfs42_proc_copy(struct file *src,
 	if (status)
 		return status;
 
+	res->commit_res.verf = kzalloc(sizeof(struct nfs_writeverf), GFP_NOFS);
+	if (!res->commit_res.verf)
+		return -ENOMEM;
 	status = nfs4_call_sync(server->client, server, &msg,
 				&args->seq_args, &res->seq_res, 0);
 	if (status == -ENOTSUPP)
 		server->caps &= ~NFS_CAP_COPY;
 	if (status)
-		return status;
+		goto out;
 
-	if (res->write_res.verifier.committed != NFS_FILE_SYNC) {
-		status = nfs_commit_file(dst, &res->write_res.verifier.verifier);
-		if (status)
-			return status;
+	if (!nfs_write_verifier_cmp(&res->write_res.verifier.verifier,
+				    &res->commit_res.verf->verifier)) {
+		status = -EAGAIN;
+		goto out;
 	}
 
 	truncate_pagecache_range(dst_inode, pos_dst,
 				 pos_dst + res->write_res.count);
 
-	return res->write_res.count;
+	status = res->write_res.count;
+out:
+	kfree(res->commit_res.verf);
+	return status;
 }
 
 ssize_t nfs42_proc_copy(struct file *src, loff_t pos_src,
@@ -240,6 +246,9 @@ ssize_t nfs42_proc_copy(struct file *src, loff_t pos_src,
 		if (err == -ENOTSUPP) {
 			err = -EOPNOTSUPP;
 			break;
+		} if (err == -EAGAIN) {
+			dst_exception.retry = 1;
+			continue;
 		}
 
 		err2 = nfs4_handle_exception(server, err, &src_exception);
@@ -379,6 +388,7 @@ nfs42_layoutstat_done(struct rpc_task *task, void *calldata)
 			pnfs_mark_layout_stateid_invalid(lo, &head);
 			spin_unlock(&inode->i_lock);
 			pnfs_free_lseg_list(&head);
+			nfs_commit_inode(inode, 0);
 		} else
 			spin_unlock(&inode->i_lock);
 		break;
@@ -400,8 +410,6 @@ nfs42_layoutstat_done(struct rpc_task *task, void *calldata)
 	case -EOPNOTSUPP:
 		NFS_SERVER(inode)->caps &= ~NFS_CAP_LAYOUTSTATS;
 	}
-
-	dprintk("%s server returns %d\n", __func__, task->tk_status);
 }
 
 static void

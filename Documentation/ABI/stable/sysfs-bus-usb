@@ -9,7 +9,7 @@ Description:
 		hubs this facility is always enabled and their device
 		directories will not contain this file.
 
-		For more information, see Documentation/usb/persist.txt.
+		For more information, see Documentation/driver-api/usb/persist.rst.
 
 What:		/sys/bus/usb/devices/.../power/autosuspend
 Date:		March 2007

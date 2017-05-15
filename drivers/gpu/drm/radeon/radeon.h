@@ -499,6 +499,7 @@ struct radeon_bo {
 	u32				tiling_flags;
 	u32				pitch;
 	int				surface_reg;
+	unsigned			prime_shared_count;
 	/* list of all virtual address to which this bo
 	 * is associated to
 	 */
@@ -2535,7 +2536,8 @@ static inline struct radeon_fence *to_radeon_fence(struct dma_fence *f)
 #define WREG16(reg, v) writew(v, (rdev->rmmio) + (reg))
 #define RREG32(reg) r100_mm_rreg(rdev, (reg), false)
 #define RREG32_IDX(reg) r100_mm_rreg(rdev, (reg), true)
-#define DREG32(reg) printk(KERN_INFO "REGISTER: " #reg " : 0x%08X\n", r100_mm_rreg(rdev, (reg), false))
+#define DREG32(reg) pr_info("REGISTER: " #reg " : 0x%08X\n",	\
+			    r100_mm_rreg(rdev, (reg), false))
 #define WREG32(reg, v) r100_mm_wreg(rdev, (reg), (v), false)
 #define WREG32_IDX(reg, v) r100_mm_wreg(rdev, (reg), (v), true)
 #define REG_SET(FIELD, v) (((v) << FIELD##_SHIFT) & FIELD##_MASK)

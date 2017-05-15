@@ -293,6 +293,15 @@ config PWM_MTK_DISP
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-mtk-disp.
 
+config PWM_MEDIATEK
+	tristate "MediaTek PWM support"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	help
+	  Generic PWM framework driver for Mediatek ARM SoC.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-mxs.
+
 config PWM_MXS
 	tristate "Freescale MXS PWM support"
 	depends on ARCH_MXS && OF

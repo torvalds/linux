@@ -12,7 +12,8 @@ Required properties:
 - reg : Offset and length of the register set for the module
 - interrupts : the interrupt number for the RNG module.
 		Used for "ti,omap4-rng" and "inside-secure,safexcel-eip76"
-- clocks: the trng clock source
+- clocks: the trng clock source. Only mandatory for the
+  "inside-secure,safexcel-eip76" compatible.
 
 Example:
 /* AM335x */

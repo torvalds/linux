@@ -23,7 +23,7 @@
  * @pdev:	PCI device associated with @set.
  *
  * This function assumes the PCI device @pdev has at least as many available
- * interrupt vetors as @set has queues.  It will then queuery the vector
+ * interrupt vectors as @set has queues.  It will then query the vector
  * corresponding to each queue for it's affinity mask and built queue mapping
  * that maps a queue to the CPUs that have irq affinity for the corresponding
  * vector.

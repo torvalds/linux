@@ -13,6 +13,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/dmi.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -148,6 +149,7 @@ struct chv_community {
 	size_t ngpio_ranges;
 	size_t ngpios;
 	size_t nirqs;
+	acpi_adr_space_type acpi_space_id;
 };
 
 struct chv_pin_context {
@@ -404,6 +406,7 @@ static const struct chv_community southwest_community = {
 	 * trigger GPEs.
 	 */
 	.nirqs = 8,
+	.acpi_space_id = 0x91,
 };
 
 static const struct pinctrl_pin_desc north_pins[] = {
@@ -493,6 +496,7 @@ static const struct chv_community north_community = {
 	 * GPEs.
 	 */
 	.nirqs = 8,
+	.acpi_space_id = 0x92,
 };
 
 static const struct pinctrl_pin_desc east_pins[] = {
@@ -536,6 +540,7 @@ static const struct chv_community east_community = {
 	.ngpio_ranges = ARRAY_SIZE(east_gpio_ranges),
 	.ngpios = ARRAY_SIZE(east_pins),
 	.nirqs = 16,
+	.acpi_space_id = 0x93,
 };
 
 static const struct pinctrl_pin_desc southeast_pins[] = {
@@ -662,6 +667,7 @@ static const struct chv_community southeast_community = {
 	.ngpio_ranges = ARRAY_SIZE(southeast_gpio_ranges),
 	.ngpios = ARRAY_SIZE(southeast_pins),
 	.nirqs = 16,
+	.acpi_space_id = 0x94,
 };
 
 static const struct chv_community *chv_communities[] = {
@@ -1524,10 +1530,31 @@ static void chv_gpio_irq_handler(struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
+/*
+ * Certain machines seem to hardcode Linux IRQ numbers in their ACPI
+ * tables. Since we leave GPIOs that are not capable of generating
+ * interrupts out of the irqdomain the numbering will be different and
+ * cause devices using the hardcoded IRQ numbers fail. In order not to
+ * break such machines we will only mask pins from irqdomain if the machine
+ * is not listed below.
+ */
+static const struct dmi_system_id chv_no_valid_mask[] = {
+	{
+		/* See https://bugzilla.kernel.org/show_bug.cgi?id=194945 */
+		.ident = "Acer Chromebook (CYAN)",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Edgar"),
+			DMI_MATCH(DMI_BIOS_DATE, "05/21/2016"),
+		},
+	}
+};
+
 static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 {
 	const struct chv_gpio_pinrange *range;
 	struct gpio_chip *chip = &pctrl->chip;
+	bool need_valid_mask = !dmi_check_system(chv_no_valid_mask);
 	int ret, i, offset;
 
 	*chip = chv_gpio_chip;
@@ -1536,7 +1563,7 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 	chip->label = dev_name(pctrl->dev);
 	chip->parent = pctrl->dev;
 	chip->base = -1;
-	chip->irq_need_valid_mask = true;
+	chip->irq_need_valid_mask = need_valid_mask;
 
 	ret = devm_gpiochip_add_data(pctrl->dev, chip, pctrl);
 	if (ret) {
@@ -1567,7 +1594,7 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 		intsel &= CHV_PADCTRL0_INTSEL_MASK;
 		intsel >>= CHV_PADCTRL0_INTSEL_SHIFT;
 
-		if (intsel >= pctrl->community->nirqs)
+		if (need_valid_mask && intsel >= pctrl->community->nirqs)
 			clear_bit(i, chip->irq_valid_mask);
 	}
 
@@ -1586,11 +1613,34 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 	return 0;
 }
 
+static acpi_status chv_pinctrl_mmio_access_handler(u32 function,
+	acpi_physical_address address, u32 bits, u64 *value,
+	void *handler_context, void *region_context)
+{
+	struct chv_pinctrl *pctrl = region_context;
+	unsigned long flags;
+	acpi_status ret = AE_OK;
+
+	raw_spin_lock_irqsave(&chv_lock, flags);
+
+	if (function == ACPI_WRITE)
+		chv_writel((u32)(*value), pctrl->regs + (u32)address);
+	else if (function == ACPI_READ)
+		*value = readl(pctrl->regs + (u32)address);
+	else
+		ret = AE_BAD_PARAMETER;
+
+	raw_spin_unlock_irqrestore(&chv_lock, flags);
+
+	return ret;
+}
+
 static int chv_pinctrl_probe(struct platform_device *pdev)
 {
 	struct chv_pinctrl *pctrl;
 	struct acpi_device *adev;
 	struct resource *res;
+	acpi_status status;
 	int ret, irq, i;
 
 	adev = ACPI_COMPANION(&pdev->dev);
@@ -1646,7 +1696,25 @@ static int chv_pinctrl_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	status = acpi_install_address_space_handler(adev->handle,
+					pctrl->community->acpi_space_id,
+					chv_pinctrl_mmio_access_handler,
+					NULL, pctrl);
+	if (ACPI_FAILURE(status))
+		dev_err(&pdev->dev, "failed to install ACPI addr space handler\n");
+
 	platform_set_drvdata(pdev, pctrl);
+
+	return 0;
+}
+
+static int chv_pinctrl_remove(struct platform_device *pdev)
+{
+	struct chv_pinctrl *pctrl = platform_get_drvdata(pdev);
+
+	acpi_remove_address_space_handler(ACPI_COMPANION(&pdev->dev),
+					  pctrl->community->acpi_space_id,
+					  chv_pinctrl_mmio_access_handler);
 
 	return 0;
 }
@@ -1758,6 +1826,7 @@ MODULE_DEVICE_TABLE(acpi, chv_pinctrl_acpi_match);
 
 static struct platform_driver chv_pinctrl_driver = {
 	.probe = chv_pinctrl_probe,
+	.remove = chv_pinctrl_remove,
 	.driver = {
 		.name = "cherryview-pinctrl",
 		.pm = &chv_pinctrl_pm_ops,

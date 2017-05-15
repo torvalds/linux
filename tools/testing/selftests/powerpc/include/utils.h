@@ -24,7 +24,11 @@ typedef uint8_t u8;
 
 void test_harness_set_timeout(uint64_t time);
 int test_harness(int (test_function)(void), char *name);
-extern void *get_auxv_entry(int type);
+
+int read_auxv(char *buf, ssize_t buf_size);
+void *find_auxv_entry(int type, char *auxv);
+void *get_auxv_entry(int type);
+
 int pick_online_cpu(void);
 
 static inline bool have_hwcap(unsigned long ftr)

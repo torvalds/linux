@@ -11,6 +11,8 @@
 #include <linux/mpi.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <linux/crypto.h>
+#include <crypto/hash.h>
 #include <keys/user-type.h>
 #include "internal.h"
 
@@ -77,9 +79,146 @@ error:
 	return ret;
 }
 
-long keyctl_dh_compute(struct keyctl_dh_params __user *params,
-		       char __user *buffer, size_t buflen,
-		       void __user *reserved)
+struct kdf_sdesc {
+	struct shash_desc shash;
+	char ctx[];
+};
+
+static int kdf_alloc(struct kdf_sdesc **sdesc_ret, char *hashname)
+{
+	struct crypto_shash *tfm;
+	struct kdf_sdesc *sdesc;
+	int size;
+
+	/* allocate synchronous hash */
+	tfm = crypto_alloc_shash(hashname, 0, 0);
+	if (IS_ERR(tfm)) {
+		pr_info("could not allocate digest TFM handle %s\n", hashname);
+		return PTR_ERR(tfm);
+	}
+
+	size = sizeof(struct shash_desc) + crypto_shash_descsize(tfm);
+	sdesc = kmalloc(size, GFP_KERNEL);
+	if (!sdesc)
+		return -ENOMEM;
+	sdesc->shash.tfm = tfm;
+	sdesc->shash.flags = 0x0;
+
+	*sdesc_ret = sdesc;
+
+	return 0;
+}
+
+static void kdf_dealloc(struct kdf_sdesc *sdesc)
+{
+	if (!sdesc)
+		return;
+
+	if (sdesc->shash.tfm)
+		crypto_free_shash(sdesc->shash.tfm);
+
+	kzfree(sdesc);
+}
+
+/* convert 32 bit integer into its string representation */
+static inline void crypto_kw_cpu_to_be32(u32 val, u8 *buf)
+{
+	__be32 *a = (__be32 *)buf;
+
+	*a = cpu_to_be32(val);
+}
+
+/*
+ * Implementation of the KDF in counter mode according to SP800-108 section 5.1
+ * as well as SP800-56A section 5.8.1 (Single-step KDF).
+ *
+ * SP800-56A:
+ * The src pointer is defined as Z || other info where Z is the shared secret
+ * from DH and other info is an arbitrary string (see SP800-56A section
+ * 5.8.1.2).
+ */
+static int kdf_ctr(struct kdf_sdesc *sdesc, const u8 *src, unsigned int slen,
+		   u8 *dst, unsigned int dlen)
+{
+	struct shash_desc *desc = &sdesc->shash;
+	unsigned int h = crypto_shash_digestsize(desc->tfm);
+	int err = 0;
+	u8 *dst_orig = dst;
+	u32 i = 1;
+	u8 iteration[sizeof(u32)];
+
+	while (dlen) {
+		err = crypto_shash_init(desc);
+		if (err)
+			goto err;
+
+		crypto_kw_cpu_to_be32(i, iteration);
+		err = crypto_shash_update(desc, iteration, sizeof(u32));
+		if (err)
+			goto err;
+
+		if (src && slen) {
+			err = crypto_shash_update(desc, src, slen);
+			if (err)
+				goto err;
+		}
+
+		if (dlen < h) {
+			u8 tmpbuffer[h];
+
+			err = crypto_shash_final(desc, tmpbuffer);
+			if (err)
+				goto err;
+			memcpy(dst, tmpbuffer, dlen);
+			memzero_explicit(tmpbuffer, h);
+			return 0;
+		} else {
+			err = crypto_shash_final(desc, dst);
+			if (err)
+				goto err;
+
+			dlen -= h;
+			dst += h;
+			i++;
+		}
+	}
+
+	return 0;
+
+err:
+	memzero_explicit(dst_orig, dlen);
+	return err;
+}
+
+static int keyctl_dh_compute_kdf(struct kdf_sdesc *sdesc,
+				 char __user *buffer, size_t buflen,
+				 uint8_t *kbuf, size_t kbuflen)
+{
+	uint8_t *outbuf = NULL;
+	int ret;
+
+	outbuf = kmalloc(buflen, GFP_KERNEL);
+	if (!outbuf) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	ret = kdf_ctr(sdesc, kbuf, kbuflen, outbuf, buflen);
+	if (ret)
+		goto err;
+
+	ret = buflen;
+	if (copy_to_user(buffer, outbuf, buflen) != 0)
+		ret = -EFAULT;
+
+err:
+	kzfree(outbuf);
+	return ret;
+}
+
+long __keyctl_dh_compute(struct keyctl_dh_params __user *params,
+			 char __user *buffer, size_t buflen,
+			 struct keyctl_kdf_params *kdfcopy)
 {
 	long ret;
 	MPI base, private, prime, result;
@@ -88,6 +227,7 @@ long keyctl_dh_compute(struct keyctl_dh_params __user *params,
 	uint8_t *kbuf;
 	ssize_t keylen;
 	size_t resultlen;
+	struct kdf_sdesc *sdesc = NULL;
 
 	if (!params || (!buffer && buflen)) {
 		ret = -EINVAL;
@@ -98,12 +238,34 @@ long keyctl_dh_compute(struct keyctl_dh_params __user *params,
 		goto out;
 	}
 
-	if (reserved) {
-		ret = -EINVAL;
-		goto out;
+	if (kdfcopy) {
+		char *hashname;
+
+		if (buflen > KEYCTL_KDF_MAX_OUTPUT_LEN ||
+		    kdfcopy->otherinfolen > KEYCTL_KDF_MAX_OI_LEN) {
+			ret = -EMSGSIZE;
+			goto out;
+		}
+
+		/* get KDF name string */
+		hashname = strndup_user(kdfcopy->hashname, CRYPTO_MAX_ALG_NAME);
+		if (IS_ERR(hashname)) {
+			ret = PTR_ERR(hashname);
+			goto out;
+		}
+
+		/* allocate KDF from the kernel crypto API */
+		ret = kdf_alloc(&sdesc, hashname);
+		kfree(hashname);
+		if (ret)
+			goto out;
 	}
 
-	keylen = mpi_from_key(pcopy.prime, buflen, &prime);
+	/*
+	 * If the caller requests postprocessing with a KDF, allow an
+	 * arbitrary output buffer size since the KDF ensures proper truncation.
+	 */
+	keylen = mpi_from_key(pcopy.prime, kdfcopy ? SIZE_MAX : buflen, &prime);
 	if (keylen < 0 || !prime) {
 		/* buflen == 0 may be used to query the required buffer size,
 		 * which is the prime key length.
@@ -133,10 +295,23 @@ long keyctl_dh_compute(struct keyctl_dh_params __user *params,
 		goto error3;
 	}
 
-	kbuf = kmalloc(resultlen, GFP_KERNEL);
+	/* allocate space for DH shared secret and SP800-56A otherinfo */
+	kbuf = kmalloc(kdfcopy ? (resultlen + kdfcopy->otherinfolen) : resultlen,
+		       GFP_KERNEL);
 	if (!kbuf) {
 		ret = -ENOMEM;
 		goto error4;
+	}
+
+	/*
+	 * Concatenate SP800-56A otherinfo past DH shared secret -- the
+	 * input to the KDF is (DH shared secret || otherinfo)
+	 */
+	if (kdfcopy && kdfcopy->otherinfo &&
+	    copy_from_user(kbuf + resultlen, kdfcopy->otherinfo,
+			   kdfcopy->otherinfolen) != 0) {
+		ret = -EFAULT;
+		goto error5;
 	}
 
 	ret = do_dh(result, base, private, prime);
@@ -147,12 +322,17 @@ long keyctl_dh_compute(struct keyctl_dh_params __user *params,
 	if (ret != 0)
 		goto error5;
 
-	ret = nbytes;
-	if (copy_to_user(buffer, kbuf, nbytes) != 0)
-		ret = -EFAULT;
+	if (kdfcopy) {
+		ret = keyctl_dh_compute_kdf(sdesc, buffer, buflen, kbuf,
+					    resultlen + kdfcopy->otherinfolen);
+	} else {
+		ret = nbytes;
+		if (copy_to_user(buffer, kbuf, nbytes) != 0)
+			ret = -EFAULT;
+	}
 
 error5:
-	kfree(kbuf);
+	kzfree(kbuf);
 error4:
 	mpi_free(result);
 error3:
@@ -162,5 +342,21 @@ error2:
 error1:
 	mpi_free(prime);
 out:
+	kdf_dealloc(sdesc);
 	return ret;
+}
+
+long keyctl_dh_compute(struct keyctl_dh_params __user *params,
+		       char __user *buffer, size_t buflen,
+		       struct keyctl_kdf_params __user *kdf)
+{
+	struct keyctl_kdf_params kdfcopy;
+
+	if (!kdf)
+		return __keyctl_dh_compute(params, buffer, buflen, NULL);
+
+	if (copy_from_user(&kdfcopy, kdf, sizeof(kdfcopy)) != 0)
+		return -EFAULT;
+
+	return __keyctl_dh_compute(params, buffer, buflen, &kdfcopy);
 }

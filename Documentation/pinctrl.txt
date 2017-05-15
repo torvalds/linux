@@ -77,9 +77,15 @@ static struct pinctrl_desc foo_desc = {
 
 int __init foo_probe(void)
 {
+	int error;
+
 	struct pinctrl_dev *pctl;
 
-	return pinctrl_register_and_init(&foo_desc, <PARENT>, NULL, &pctl);
+	error = pinctrl_register_and_init(&foo_desc, <PARENT>, NULL, &pctl);
+	if (error)
+		return error;
+
+	return pinctrl_enable(pctl);
 }
 
 To enable the pinctrl subsystem and the subgroups for PINMUX and PINCONF and

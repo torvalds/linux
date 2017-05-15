@@ -64,6 +64,7 @@
 
 /* MSTP4 */
 #define R8A7794_CLK_IRQC		7
+#define R8A7794_CLK_INTC_SYS		8
 
 /* MSTP5 */
 #define R8A7794_CLK_AUDIO_DMAC0		2
@@ -81,6 +82,7 @@
 #define R8A7794_CLK_SCIF2		19
 #define R8A7794_CLK_SCIF1		20
 #define R8A7794_CLK_SCIF0		21
+#define R8A7794_CLK_DU1			23
 #define R8A7794_CLK_DU0			24
 
 /* MSTP8 */

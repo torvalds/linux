@@ -25,10 +25,10 @@ extern struct pstore_info *psinfo;
 
 extern void	pstore_set_kmsg_bytes(int);
 extern void	pstore_get_records(int);
-extern int	pstore_mkfile(enum pstore_type_id, char *psname, u64 id,
-			      int count, char *data, bool compressed,
-			      size_t size, struct timespec time,
-			      struct pstore_info *psi);
+extern void	pstore_get_backend_records(struct pstore_info *psi,
+					   struct dentry *root, int quiet);
+extern int	pstore_mkfile(struct dentry *root,
+			      struct pstore_record *record);
 extern bool	pstore_is_mounted(void);
 
 #endif

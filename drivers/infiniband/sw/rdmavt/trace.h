@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2016 Intel Corporation.
+ * Copyright(c) 2016, 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -52,3 +52,5 @@
 #include "trace_qp.h"
 #include "trace_tx.h"
 #include "trace_mr.h"
+#include "trace_cq.h"
+#include "trace_rc.h"

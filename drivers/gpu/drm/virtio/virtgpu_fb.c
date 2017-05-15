@@ -231,63 +231,9 @@ static int virtio_gpufb_create(struct drm_fb_helper *helper,
 	mode_cmd.pitches[0] = mode_cmd.width * 4;
 	mode_cmd.pixel_format = drm_mode_legacy_fb_format(32, 24);
 
-	switch (mode_cmd.pixel_format) {
-#ifdef __BIG_ENDIAN
-	case DRM_FORMAT_XRGB8888:
-		format = VIRTIO_GPU_FORMAT_X8R8G8B8_UNORM;
-		break;
-	case DRM_FORMAT_ARGB8888:
-		format = VIRTIO_GPU_FORMAT_A8R8G8B8_UNORM;
-		break;
-	case DRM_FORMAT_BGRX8888:
-		format = VIRTIO_GPU_FORMAT_B8G8R8X8_UNORM;
-		break;
-	case DRM_FORMAT_BGRA8888:
-		format = VIRTIO_GPU_FORMAT_B8G8R8A8_UNORM;
-		break;
-	case DRM_FORMAT_RGBX8888:
-		format = VIRTIO_GPU_FORMAT_R8G8B8X8_UNORM;
-		break;
-	case DRM_FORMAT_RGBA8888:
-		format = VIRTIO_GPU_FORMAT_R8G8B8A8_UNORM;
-		break;
-	case DRM_FORMAT_XBGR8888:
-		format = VIRTIO_GPU_FORMAT_X8B8G8R8_UNORM;
-		break;
-	case DRM_FORMAT_ABGR8888:
-		format = VIRTIO_GPU_FORMAT_A8B8G8R8_UNORM;
-		break;
-#else
-	case DRM_FORMAT_XRGB8888:
-		format = VIRTIO_GPU_FORMAT_B8G8R8X8_UNORM;
-		break;
-	case DRM_FORMAT_ARGB8888:
-		format = VIRTIO_GPU_FORMAT_B8G8R8A8_UNORM;
-		break;
-	case DRM_FORMAT_BGRX8888:
-		format = VIRTIO_GPU_FORMAT_X8R8G8B8_UNORM;
-		break;
-	case DRM_FORMAT_BGRA8888:
-		format = VIRTIO_GPU_FORMAT_A8R8G8B8_UNORM;
-		break;
-	case DRM_FORMAT_RGBX8888:
-		format = VIRTIO_GPU_FORMAT_X8B8G8R8_UNORM;
-		break;
-	case DRM_FORMAT_RGBA8888:
-		format = VIRTIO_GPU_FORMAT_A8B8G8R8_UNORM;
-		break;
-	case DRM_FORMAT_XBGR8888:
-		format = VIRTIO_GPU_FORMAT_R8G8B8X8_UNORM;
-		break;
-	case DRM_FORMAT_ABGR8888:
-		format = VIRTIO_GPU_FORMAT_R8G8B8A8_UNORM;
-		break;
-#endif
-	default:
-		DRM_ERROR("failed to find virtio gpu format for %d\n",
-			  mode_cmd.pixel_format);
+	format = virtio_gpu_translate_format(mode_cmd.pixel_format);
+	if (format == 0)
 		return -EINVAL;
-	}
 
 	size = mode_cmd.pitches[0] * mode_cmd.height;
 	obj = virtio_gpu_alloc_object(dev, size, false, true);
@@ -320,7 +266,7 @@ static int virtio_gpufb_create(struct drm_fb_helper *helper,
 	ret = virtio_gpu_framebuffer_init(dev, &vfbdev->vgfb,
 					  &mode_cmd, &obj->gem_base);
 	if (ret)
-		goto err_fb_init;
+		goto err_fb_alloc;
 
 	fb = &vfbdev->vgfb.base;
 
@@ -341,8 +287,6 @@ static int virtio_gpufb_create(struct drm_fb_helper *helper,
 	info->fix.mmio_len = 0;
 	return 0;
 
-err_fb_init:
-	drm_fb_helper_release_fbi(helper);
 err_fb_alloc:
 	virtio_gpu_cmd_resource_inval_backing(vgdev, resid);
 err_obj_attach:
@@ -357,7 +301,6 @@ static int virtio_gpu_fbdev_destroy(struct drm_device *dev,
 	struct virtio_gpu_framebuffer *vgfb = &vgfbdev->vgfb;
 
 	drm_fb_helper_unregister_fbi(&vgfbdev->helper);
-	drm_fb_helper_release_fbi(&vgfbdev->helper);
 
 	if (vgfb->obj)
 		vgfb->obj = NULL;

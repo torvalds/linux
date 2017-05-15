@@ -33,30 +33,53 @@
 #define _FSL_DPCON_CMD_H
 
 /* DPCON Version */
-#define DPCON_VER_MAJOR				2
-#define DPCON_VER_MINOR				1
+#define DPCON_VER_MAJOR				3
+#define DPCON_VER_MINOR				2
+
+/* Command versioning */
+#define DPCON_CMD_BASE_VERSION			1
+#define DPCON_CMD_ID_OFFSET			4
+
+#define DPCON_CMD(id)	(((id) << DPCON_CMD_ID_OFFSET) | DPCON_CMD_BASE_VERSION)
 
 /* Command IDs */
-#define DPCON_CMDID_CLOSE				0x800
-#define DPCON_CMDID_OPEN				0x808
-#define DPCON_CMDID_CREATE				0x908
-#define DPCON_CMDID_DESTROY				0x900
+#define DPCON_CMDID_CLOSE			DPCON_CMD(0x800)
+#define DPCON_CMDID_OPEN			DPCON_CMD(0x808)
+#define DPCON_CMDID_GET_API_VERSION		DPCON_CMD(0xa08)
 
-#define DPCON_CMDID_ENABLE				0x002
-#define DPCON_CMDID_DISABLE				0x003
-#define DPCON_CMDID_GET_ATTR				0x004
-#define DPCON_CMDID_RESET				0x005
-#define DPCON_CMDID_IS_ENABLED				0x006
+#define DPCON_CMDID_ENABLE			DPCON_CMD(0x002)
+#define DPCON_CMDID_DISABLE			DPCON_CMD(0x003)
+#define DPCON_CMDID_GET_ATTR			DPCON_CMD(0x004)
+#define DPCON_CMDID_RESET			DPCON_CMD(0x005)
+#define DPCON_CMDID_IS_ENABLED			DPCON_CMD(0x006)
 
-#define DPCON_CMDID_SET_IRQ				0x010
-#define DPCON_CMDID_GET_IRQ				0x011
-#define DPCON_CMDID_SET_IRQ_ENABLE			0x012
-#define DPCON_CMDID_GET_IRQ_ENABLE			0x013
-#define DPCON_CMDID_SET_IRQ_MASK			0x014
-#define DPCON_CMDID_GET_IRQ_MASK			0x015
-#define DPCON_CMDID_GET_IRQ_STATUS			0x016
-#define DPCON_CMDID_CLEAR_IRQ_STATUS			0x017
+#define DPCON_CMDID_SET_NOTIFICATION		DPCON_CMD(0x100)
 
-#define DPCON_CMDID_SET_NOTIFICATION			0x100
+struct dpcon_cmd_open {
+	__le32 dpcon_id;
+};
+
+#define DPCON_ENABLE			1
+
+struct dpcon_rsp_is_enabled {
+	u8 enabled;
+};
+
+struct dpcon_rsp_get_attr {
+	/* response word 0 */
+	__le32 id;
+	__le16 qbman_ch_id;
+	u8 num_priorities;
+	u8 pad;
+};
+
+struct dpcon_cmd_set_notification {
+	/* cmd word 0 */
+	__le32 dpio_id;
+	u8 priority;
+	u8 pad[3];
+	/* cmd word 1 */
+	__le64 user_ctx;
+};
 
 #endif /* _FSL_DPCON_CMD_H */

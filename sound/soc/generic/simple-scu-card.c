@@ -31,9 +31,10 @@ struct simple_card_data {
 	u32 convert_channels;
 };
 
-#define simple_priv_to_dev(priv) ((priv)->snd_card.dev)
-#define simple_priv_to_link(priv, i) ((priv)->snd_card.dai_link + (i))
+#define simple_priv_to_card(priv) (&(priv)->snd_card)
 #define simple_priv_to_props(priv, i) ((priv)->dai_props + (i))
+#define simple_priv_to_dev(priv) (simple_priv_to_card(priv)->dev)
+#define simple_priv_to_link(priv, i) (simple_priv_to_card(priv)->dai_link + (i))
 
 #define DAI	"sound-dai"
 #define CELL	"#sound-dai-cells"
@@ -109,6 +110,7 @@ static int asoc_simple_card_dai_link_of(struct device_node *np,
 	struct device *dev = simple_priv_to_dev(priv);
 	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, idx);
 	struct asoc_simple_dai *dai_props = simple_priv_to_props(priv, idx);
+	struct snd_soc_card *card = simple_priv_to_card(priv);
 	int ret;
 
 	if (is_fe) {
@@ -163,7 +165,7 @@ static int asoc_simple_card_dai_link_of(struct device_node *np,
 		if (ret < 0)
 			return ret;
 
-		snd_soc_of_parse_audio_prefix(&priv->snd_card,
+		snd_soc_of_parse_audio_prefix(card,
 					      &priv->codec_conf,
 					      dai_link->codec_of_node,
 					      PREFIX "prefix");
@@ -201,6 +203,7 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 {
 	struct device *dev = simple_priv_to_dev(priv);
 	struct device_node *np;
+	struct snd_soc_card *card = simple_priv_to_card(priv);
 	unsigned int daifmt = 0;
 	bool is_fe;
 	int ret, i;
@@ -208,7 +211,7 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 	if (!node)
 		return -EINVAL;
 
-	ret = snd_soc_of_parse_audio_routing(&priv->snd_card, PREFIX "routing");
+	ret = snd_soc_of_parse_audio_routing(card, PREFIX "routing");
 	if (ret < 0)
 		return ret;
 
@@ -239,12 +242,12 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 		i++;
 	}
 
-	ret = asoc_simple_card_parse_card_name(&priv->snd_card, PREFIX);
+	ret = asoc_simple_card_parse_card_name(card, PREFIX);
 	if (ret < 0)
 		return ret;
 
 	dev_dbg(dev, "New card: %s\n",
-		priv->snd_card.name ? priv->snd_card.name : "");
+		card->name ? card->name : "");
 	dev_dbg(dev, "convert_rate     %d\n", priv->convert_rate);
 	dev_dbg(dev, "convert_channels %d\n", priv->convert_channels);
 
@@ -256,8 +259,9 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 	struct simple_card_data *priv;
 	struct snd_soc_dai_link *dai_link;
 	struct asoc_simple_dai *dai_props;
+	struct snd_soc_card *card;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_node *np = dev->of_node;
 	int num, ret;
 
 	/* Allocate the private data */
@@ -276,12 +280,13 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 	priv->dai_link				= dai_link;
 
 	/* Init snd_soc_card */
-	priv->snd_card.owner			= THIS_MODULE;
-	priv->snd_card.dev			= dev;
-	priv->snd_card.dai_link			= priv->dai_link;
-	priv->snd_card.num_links		= num;
-	priv->snd_card.codec_conf		= &priv->codec_conf;
-	priv->snd_card.num_configs		= 1;
+	card = simple_priv_to_card(priv);
+	card->owner		= THIS_MODULE;
+	card->dev		= dev;
+	card->dai_link		= priv->dai_link;
+	card->num_links		= num;
+	card->codec_conf	= &priv->codec_conf;
+	card->num_configs	= 1;
 
 	ret = asoc_simple_card_parse_of(np, priv);
 	if (ret < 0) {
@@ -290,13 +295,13 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	snd_soc_card_set_drvdata(&priv->snd_card, priv);
+	snd_soc_card_set_drvdata(card, priv);
 
-	ret = devm_snd_soc_register_card(&pdev->dev, &priv->snd_card);
+	ret = devm_snd_soc_register_card(dev, card);
 	if (ret >= 0)
 		return ret;
 err:
-	asoc_simple_card_clean_reference(&priv->snd_card);
+	asoc_simple_card_clean_reference(card);
 
 	return ret;
 }

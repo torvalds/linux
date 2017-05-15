@@ -116,13 +116,13 @@ dt_offset:
 
 	.data
 	.balign 8
-.globl sha256_digest
-sha256_digest:
+.globl purgatory_sha256_digest
+purgatory_sha256_digest:
 	.skip	32
-	.size sha256_digest, . - sha256_digest
+	.size purgatory_sha256_digest, . - purgatory_sha256_digest
 
 	.balign 8
-.globl sha_regions
-sha_regions:
+.globl purgatory_sha_regions
+purgatory_sha_regions:
 	.skip	8 * 2 * 16
-	.size sha_regions, . - sha_regions
+	.size purgatory_sha_regions, . - purgatory_sha_regions

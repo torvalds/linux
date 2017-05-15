@@ -49,8 +49,8 @@ nouveau_debugfs_vbios_image(struct seq_file *m, void *data)
 static int
 nouveau_debugfs_pstate_get(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct nouveau_debugfs *debugfs = nouveau_debugfs(node->minor->dev);
+	struct drm_device *drm = m->private;
+	struct nouveau_debugfs *debugfs = nouveau_debugfs(drm);
 	struct nvif_object *ctrl = &debugfs->ctrl;
 	struct nvif_control_pstate_info_v0 info = {};
 	int ret, i;
@@ -120,8 +120,8 @@ nouveau_debugfs_pstate_set(struct file *file, const char __user *ubuf,
 			   size_t len, loff_t *offp)
 {
 	struct seq_file *m = file->private_data;
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct nouveau_debugfs *debugfs = nouveau_debugfs(node->minor->dev);
+	struct drm_device *drm = m->private;
+	struct nouveau_debugfs *debugfs = nouveau_debugfs(drm);
 	struct nvif_object *ctrl = &debugfs->ctrl;
 	struct nvif_control_pstate_user_v0 args = { .pwrsrc = -EINVAL };
 	char buf[32] = {}, *tmp, *cur = buf;
@@ -192,62 +192,24 @@ static const struct nouveau_debugfs_files {
 	{"pstate", &nouveau_pstate_fops},
 };
 
-static int
-nouveau_debugfs_create_file(struct drm_minor *minor,
-		const struct nouveau_debugfs_files *ndf)
-{
-	struct drm_info_node *node;
-
-	node = kmalloc(sizeof(*node), GFP_KERNEL);
-	if (node == NULL)
-		return -ENOMEM;
-
-	node->minor = minor;
-	node->info_ent = (const void *)ndf->fops;
-	node->dent = debugfs_create_file(ndf->name, S_IRUGO | S_IWUSR,
-					 minor->debugfs_root, node, ndf->fops);
-	if (!node->dent) {
-		kfree(node);
-		return -ENOMEM;
-	}
-
-	mutex_lock(&minor->debugfs_lock);
-	list_add(&node->list, &minor->debugfs_list);
-	mutex_unlock(&minor->debugfs_lock);
-	return 0;
-}
-
 int
 nouveau_drm_debugfs_init(struct drm_minor *minor)
 {
-	int i, ret;
+	struct dentry *dentry;
+	int i;
 
 	for (i = 0; i < ARRAY_SIZE(nouveau_debugfs_files); i++) {
-		ret = nouveau_debugfs_create_file(minor,
-						  &nouveau_debugfs_files[i]);
-
-		if (ret)
-			return ret;
+		dentry = debugfs_create_file(nouveau_debugfs_files[i].name,
+					     S_IRUGO | S_IWUSR,
+					     minor->debugfs_root, minor->dev,
+					     nouveau_debugfs_files[i].fops);
+		if (!dentry)
+			return -ENOMEM;
 	}
 
 	return drm_debugfs_create_files(nouveau_debugfs_list,
 					NOUVEAU_DEBUGFS_ENTRIES,
 					minor->debugfs_root, minor);
-}
-
-void
-nouveau_drm_debugfs_cleanup(struct drm_minor *minor)
-{
-	int i;
-
-	drm_debugfs_remove_files(nouveau_debugfs_list, NOUVEAU_DEBUGFS_ENTRIES,
-				 minor);
-
-	for (i = 0; i < ARRAY_SIZE(nouveau_debugfs_files); i++) {
-		drm_debugfs_remove_files((struct drm_info_list *)
-					 nouveau_debugfs_files[i].fops,
-					 1, minor);
-	}
 }
 
 int

@@ -199,11 +199,11 @@ void media_gobj_create(struct media_device *mdev,
 
 void media_gobj_destroy(struct media_gobj *gobj)
 {
-	dev_dbg_obj(__func__, gobj);
-
 	/* Do nothing if the object is not linked. */
 	if (gobj->mdev == NULL)
 		return;
+
+	dev_dbg_obj(__func__, gobj);
 
 	gobj->mdev->topology_version++;
 

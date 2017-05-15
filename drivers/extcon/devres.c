@@ -50,6 +50,13 @@ static void devm_extcon_dev_notifier_unreg(struct device *dev, void *res)
 	extcon_unregister_notifier(this->edev, this->id, this->nb);
 }
 
+static void devm_extcon_dev_notifier_all_unreg(struct device *dev, void *res)
+{
+	struct extcon_dev_notifier_devres *this = res;
+
+	extcon_unregister_notifier_all(this->edev, this->nb);
+}
+
 /**
  * devm_extcon_dev_allocate - Allocate managed extcon device
  * @dev:		device owning the extcon device being created
@@ -214,3 +221,57 @@ void devm_extcon_unregister_notifier(struct device *dev,
 			       devm_extcon_dev_match, edev));
 }
 EXPORT_SYMBOL(devm_extcon_unregister_notifier);
+
+/**
+ * devm_extcon_register_notifier_all()
+ *		- Resource-managed extcon_register_notifier_all()
+ * @dev:	device to allocate extcon device
+ * @edev:	the extcon device that has the external connecotr.
+ * @nb:		a notifier block to be registered.
+ *
+ * This function manages automatically the notifier of extcon device using
+ * device resource management and simplify the control of unregistering
+ * the notifier of extcon device. To get more information, refer that function.
+ *
+ * Returns 0 if success or negaive error number if failure.
+ */
+int devm_extcon_register_notifier_all(struct device *dev, struct extcon_dev *edev,
+				struct notifier_block *nb)
+{
+	struct extcon_dev_notifier_devres *ptr;
+	int ret;
+
+	ptr = devres_alloc(devm_extcon_dev_notifier_all_unreg, sizeof(*ptr),
+				GFP_KERNEL);
+	if (!ptr)
+		return -ENOMEM;
+
+	ret = extcon_register_notifier_all(edev, nb);
+	if (ret) {
+		devres_free(ptr);
+		return ret;
+	}
+
+	ptr->edev = edev;
+	ptr->nb = nb;
+	devres_add(dev, ptr);
+
+	return 0;
+}
+EXPORT_SYMBOL(devm_extcon_register_notifier_all);
+
+/**
+ * devm_extcon_unregister_notifier_all()
+ *		- Resource-managed extcon_unregister_notifier_all()
+ * @dev:	device to allocate extcon device
+ * @edev:	the extcon device that has the external connecotr.
+ * @nb:		a notifier block to be registered.
+ */
+void devm_extcon_unregister_notifier_all(struct device *dev,
+				struct extcon_dev *edev,
+				struct notifier_block *nb)
+{
+	WARN_ON(devres_release(dev, devm_extcon_dev_notifier_all_unreg,
+			       devm_extcon_dev_match, edev));
+}
+EXPORT_SYMBOL(devm_extcon_unregister_notifier_all);

@@ -16,13 +16,13 @@
 /* Subsystem device IDs */
 #define PCI_SUBSYS_DEVID_88XX_BGX		0xA126
 #define PCI_SUBSYS_DEVID_81XX_BGX		0xA226
+#define PCI_SUBSYS_DEVID_81XX_RGX		0xA254
 #define PCI_SUBSYS_DEVID_83XX_BGX		0xA326
 
 #define    MAX_BGX_THUNDER			8 /* Max 2 nodes, 4 per node */
 #define    MAX_BGX_PER_CN88XX			2
 #define    MAX_BGX_PER_CN81XX			3 /* 2 BGXs + 1 RGX */
 #define    MAX_BGX_PER_CN83XX			4
-#define    MAX_BGX_PER_NODE			4
 #define    MAX_LMAC_PER_BGX			4
 #define    MAX_BGX_CHANS_PER_LMAC		16
 #define    MAX_DMAC_PER_LMAC			8

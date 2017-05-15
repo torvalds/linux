@@ -524,6 +524,10 @@ static inline struct irq_domain *irq_find_matching_fwnode(
 {
 	return NULL;
 }
+static inline bool irq_domain_check_msi_remap(void)
+{
+	return false;
+}
 #endif /* !CONFIG_IRQ_DOMAIN */
 
 #endif /* _LINUX_IRQDOMAIN_H */

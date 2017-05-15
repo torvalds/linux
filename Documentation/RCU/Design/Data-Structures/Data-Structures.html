@@ -19,6 +19,8 @@ to each other.
 	The <tt>rcu_state</tt> Structure</a>
 <li>	<a href="#The rcu_node Structure">
 	The <tt>rcu_node</tt> Structure</a>
+<li>	<a href="#The rcu_segcblist Structure">
+	The <tt>rcu_segcblist</tt> Structure</a>
 <li>	<a href="#The rcu_data Structure">
 	The <tt>rcu_data</tt> Structure</a>
 <li>	<a href="#The rcu_dynticks Structure">
@@ -841,6 +843,134 @@ for lockdep lock-class names.
 Finally, lines&nbsp;64-66 produce an error if the maximum number of
 CPUs is too large for the specified fanout.
 
+<h3><a name="The rcu_segcblist Structure">
+The <tt>rcu_segcblist</tt> Structure</a></h3>
+
+The <tt>rcu_segcblist</tt> structure maintains a segmented list of
+callbacks as follows:
+
+<pre>
+ 1 #define RCU_DONE_TAIL        0
+ 2 #define RCU_WAIT_TAIL        1
+ 3 #define RCU_NEXT_READY_TAIL  2
+ 4 #define RCU_NEXT_TAIL        3
+ 5 #define RCU_CBLIST_NSEGS     4
+ 6
+ 7 struct rcu_segcblist {
+ 8   struct rcu_head *head;
+ 9   struct rcu_head **tails[RCU_CBLIST_NSEGS];
+10   unsigned long gp_seq[RCU_CBLIST_NSEGS];
+11   long len;
+12   long len_lazy;
+13 };
+</pre>
+
+<p>
+The segments are as follows:
+
+<ol>
+<li>	<tt>RCU_DONE_TAIL</tt>: Callbacks whose grace periods have elapsed.
+	These callbacks are ready to be invoked.
+<li>	<tt>RCU_WAIT_TAIL</tt>: Callbacks that are waiting for the
+	current grace period.
+	Note that different CPUs can have different ideas about which
+	grace period is current, hence the <tt>-&gt;gp_seq</tt> field.
+<li>	<tt>RCU_NEXT_READY_TAIL</tt>: Callbacks waiting for the next
+	grace period to start.
+<li>	<tt>RCU_NEXT_TAIL</tt>: Callbacks that have not yet been
+	associated with a grace period.
+</ol>
+
+<p>
+The <tt>-&gt;head</tt> pointer references the first callback or
+is <tt>NULL</tt> if the list contains no callbacks (which is
+<i>not</i> the same as being empty).
+Each element of the <tt>-&gt;tails[]</tt> array references the
+<tt>-&gt;next</tt> pointer of the last callback in the corresponding
+segment of the list, or the list's <tt>-&gt;head</tt> pointer if
+that segment and all previous segments are empty.
+If the corresponding segment is empty but some previous segment is
+not empty, then the array element is identical to its predecessor.
+Older callbacks are closer to the head of the list, and new callbacks
+are added at the tail.
+This relationship between the <tt>-&gt;head</tt> pointer, the
+<tt>-&gt;tails[]</tt> array, and the callbacks is shown in this
+diagram:
+
+</p><p><img src="nxtlist.svg" alt="nxtlist.svg" width="40%">
+
+</p><p>In this figure, the <tt>-&gt;head</tt> pointer references the
+first
+RCU callback in the list.
+The <tt>-&gt;tails[RCU_DONE_TAIL]</tt> array element references
+the <tt>-&gt;head</tt> pointer itself, indicating that none
+of the callbacks is ready to invoke.
+The <tt>-&gt;tails[RCU_WAIT_TAIL]</tt> array element references callback
+CB&nbsp;2's <tt>-&gt;next</tt> pointer, which indicates that
+CB&nbsp;1 and CB&nbsp;2 are both waiting on the current grace period,
+give or take possible disagreements about exactly which grace period
+is the current one.
+The <tt>-&gt;tails[RCU_NEXT_READY_TAIL]</tt> array element
+references the same RCU callback that <tt>-&gt;tails[RCU_WAIT_TAIL]</tt>
+does, which indicates that there are no callbacks waiting on the next
+RCU grace period.
+The <tt>-&gt;tails[RCU_NEXT_TAIL]</tt> array element references
+CB&nbsp;4's <tt>-&gt;next</tt> pointer, indicating that all the
+remaining RCU callbacks have not yet been assigned to an RCU grace
+period.
+Note that the <tt>-&gt;tails[RCU_NEXT_TAIL]</tt> array element
+always references the last RCU callback's <tt>-&gt;next</tt> pointer
+unless the callback list is empty, in which case it references
+the <tt>-&gt;head</tt> pointer.
+
+<p>
+There is one additional important special case for the
+<tt>-&gt;tails[RCU_NEXT_TAIL]</tt> array element: It can be <tt>NULL</tt>
+when this list is <i>disabled</i>.
+Lists are disabled when the corresponding CPU is offline or when
+the corresponding CPU's callbacks are offloaded to a kthread,
+both of which are described elsewhere.
+
+</p><p>CPUs advance their callbacks from the
+<tt>RCU_NEXT_TAIL</tt> to the <tt>RCU_NEXT_READY_TAIL</tt> to the
+<tt>RCU_WAIT_TAIL</tt> to the <tt>RCU_DONE_TAIL</tt> list segments
+as grace periods advance.
+
+</p><p>The <tt>-&gt;gp_seq[]</tt> array records grace-period
+numbers corresponding to the list segments.
+This is what allows different CPUs to have different ideas as to
+which is the current grace period while still avoiding premature
+invocation of their callbacks.
+In particular, this allows CPUs that go idle for extended periods
+to determine which of their callbacks are ready to be invoked after
+reawakening.
+
+</p><p>The <tt>-&gt;len</tt> counter contains the number of
+callbacks in <tt>-&gt;head</tt>, and the
+<tt>-&gt;len_lazy</tt> contains the number of those callbacks that
+are known to only free memory, and whose invocation can therefore
+be safely deferred.
+
+<p><b>Important note</b>: It is the <tt>-&gt;len</tt> field that
+determines whether or not there are callbacks associated with
+this <tt>rcu_segcblist</tt> structure, <i>not</i> the <tt>-&gt;head</tt>
+pointer.
+The reason for this is that all the ready-to-invoke callbacks
+(that is, those in the <tt>RCU_DONE_TAIL</tt> segment) are extracted
+all at once at callback-invocation time.
+If callback invocation must be postponed, for example, because a
+high-priority process just woke up on this CPU, then the remaining
+callbacks are placed back on the <tt>RCU_DONE_TAIL</tt> segment.
+Either way, the <tt>-&gt;len</tt> and <tt>-&gt;len_lazy</tt> counts
+are adjusted after the corresponding callbacks have been invoked, and so
+again it is the <tt>-&gt;len</tt> count that accurately reflects whether
+or not there are callbacks associated with this <tt>rcu_segcblist</tt>
+structure.
+Of course, off-CPU sampling of the <tt>-&gt;len</tt> count requires
+the use of appropriate synchronization, for example, memory barriers.
+This synchronization can be a bit subtle, particularly in the case
+of <tt>rcu_barrier()</tt>.
+
 <h3><a name="The rcu_data Structure">
 The <tt>rcu_data</tt> Structure</a></h3>
 
@@ -983,62 +1113,18 @@ choice.
 as follows:
 
 <pre>
- 1 struct rcu_head *nxtlist;
- 2 struct rcu_head **nxttail[RCU_NEXT_SIZE];
- 3 unsigned long nxtcompleted[RCU_NEXT_SIZE];
- 4 long qlen_lazy;
- 5 long qlen;
- 6 long qlen_last_fqs_check;
+ 1 struct rcu_segcblist cblist;
+ 2 long qlen_last_fqs_check;
+ 3 unsigned long n_cbs_invoked;
+ 4 unsigned long n_nocbs_invoked;
+ 5 unsigned long n_cbs_orphaned;
+ 6 unsigned long n_cbs_adopted;
  7 unsigned long n_force_qs_snap;
- 8 unsigned long n_cbs_invoked;
- 9 unsigned long n_cbs_orphaned;
-10 unsigned long n_cbs_adopted;
-11 long blimit;
+ 8 long blimit;
 </pre>
 
-<p>The <tt>-&gt;nxtlist</tt> pointer and the
-<tt>-&gt;nxttail[]</tt> array form a four-segment list with
-older callbacks near the head and newer ones near the tail.
-Each segment contains callbacks with the corresponding relationship
-to the current grace period.
-The pointer out of the end of each of the four segments is referenced
-by the element of the <tt>-&gt;nxttail[]</tt> array indexed by
-<tt>RCU_DONE_TAIL</tt> (for callbacks handled by a prior grace period),
-<tt>RCU_WAIT_TAIL</tt> (for callbacks waiting on the current grace period),
-<tt>RCU_NEXT_READY_TAIL</tt> (for callbacks that will wait on the next
-grace period), and
-<tt>RCU_NEXT_TAIL</tt> (for callbacks that are not yet associated
-with a specific grace period)
-respectively, as shown in the following figure.
-
-</p><p><img src="nxtlist.svg" alt="nxtlist.svg" width="40%">
-
-</p><p>In this figure, the <tt>-&gt;nxtlist</tt> pointer references the
-first
-RCU callback in the list.
-The <tt>-&gt;nxttail[RCU_DONE_TAIL]</tt> array element references
-the <tt>-&gt;nxtlist</tt> pointer itself, indicating that none
-of the callbacks is ready to invoke.
-The <tt>-&gt;nxttail[RCU_WAIT_TAIL]</tt> array element references callback
-CB&nbsp;2's <tt>-&gt;next</tt> pointer, which indicates that
-CB&nbsp;1 and CB&nbsp;2 are both waiting on the current grace period.
-The <tt>-&gt;nxttail[RCU_NEXT_READY_TAIL]</tt> array element
-references the same RCU callback that <tt>-&gt;nxttail[RCU_WAIT_TAIL]</tt>
-does, which indicates that there are no callbacks waiting on the next
-RCU grace period.
-The <tt>-&gt;nxttail[RCU_NEXT_TAIL]</tt> array element references
-CB&nbsp;4's <tt>-&gt;next</tt> pointer, indicating that all the
-remaining RCU callbacks have not yet been assigned to an RCU grace
-period.
-Note that the <tt>-&gt;nxttail[RCU_NEXT_TAIL]</tt> array element
-always references the last RCU callback's <tt>-&gt;next</tt> pointer
-unless the callback list is empty, in which case it references
-the <tt>-&gt;nxtlist</tt> pointer.
-
-</p><p>CPUs advance their callbacks from the
-<tt>RCU_NEXT_TAIL</tt> to the <tt>RCU_NEXT_READY_TAIL</tt> to the
-<tt>RCU_WAIT_TAIL</tt> to the <tt>RCU_DONE_TAIL</tt> list segments
-as grace periods advance.
+<p>The <tt>-&gt;cblist</tt> structure is the segmented callback list
+described earlier.
 The CPU advances the callbacks in its <tt>rcu_data</tt> structure
 whenever it notices that another RCU grace period has completed.
 The CPU detects the completion of an RCU grace period by noticing
@@ -1049,16 +1135,7 @@ Recall that each <tt>rcu_node</tt> structure's
 <tt>-&gt;completed</tt> field is updated at the end of each
 grace period.
 
-</p><p>The <tt>-&gt;nxtcompleted[]</tt> array records grace-period
-numbers corresponding to the list segments.
-This allows CPUs that go idle for extended periods to determine
-which of their callbacks are ready to be invoked after reawakening.
-
-</p><p>The <tt>-&gt;qlen</tt> counter contains the number of
-callbacks in <tt>-&gt;nxtlist</tt>, and the
-<tt>-&gt;qlen_lazy</tt> contains the number of those callbacks that
-are known to only free memory, and whose invocation can therefore
-be safely deferred.
+<p>
 The <tt>-&gt;qlen_last_fqs_check</tt> and
 <tt>-&gt;n_force_qs_snap</tt> coordinate the forcing of quiescent
 states from <tt>call_rcu()</tt> and friends when callback
@@ -1069,6 +1146,10 @@ lists grow excessively long.
 fields count the number of callbacks invoked,
 sent to other CPUs when this CPU goes offline,
 and received from other CPUs when those other CPUs go offline.
+The <tt>-&gt;n_nocbs_invoked</tt> is used when the CPU's callbacks
+are offloaded to a kthread.
+
+<p>
 Finally, the <tt>-&gt;blimit</tt> counter is the maximum number of
 RCU callbacks that may be invoked at a given time.
 
@@ -1104,6 +1185,9 @@ Its fields are as follows:
   1   int dynticks_nesting;
   2   int dynticks_nmi_nesting;
   3   atomic_t dynticks;
+  4   bool rcu_need_heavy_qs;
+  5   unsigned long rcu_qs_ctr;
+  6   bool rcu_urgent_qs;
 </pre>
 
 <p>The <tt>-&gt;dynticks_nesting</tt> field counts the
@@ -1117,10 +1201,31 @@ NMIs are counted by the <tt>-&gt;dynticks_nmi_nesting</tt>
 field, except that NMIs that interrupt non-dyntick-idle execution
 are not counted.
 
-</p><p>Finally, the <tt>-&gt;dynticks</tt> field counts the corresponding
+</p><p>The <tt>-&gt;dynticks</tt> field counts the corresponding
 CPU's transitions to and from dyntick-idle mode, so that this counter
 has an even value when the CPU is in dyntick-idle mode and an odd
 value otherwise.
+
+</p><p>The <tt>-&gt;rcu_need_heavy_qs</tt> field is used
+to record the fact that the RCU core code would really like to
+see a quiescent state from the corresponding CPU, so much so that
+it is willing to call for heavy-weight dyntick-counter operations.
+This flag is checked by RCU's context-switch and <tt>cond_resched()</tt>
+code, which provide a momentary idle sojourn in response.
+
+</p><p>The <tt>-&gt;rcu_qs_ctr</tt> field is used to record
+quiescent states from <tt>cond_resched()</tt>.
+Because <tt>cond_resched()</tt> can execute quite frequently, this
+must be quite lightweight, as in a non-atomic increment of this
+per-CPU field.
+
+</p><p>Finally, the <tt>-&gt;rcu_urgent_qs</tt> field is used to record
+the fact that the RCU core code would really like to see a quiescent
+state from the corresponding CPU, with the various other fields indicating
+just how badly RCU wants this quiescent state.
+This flag is checked by RCU's context-switch and <tt>cond_resched()</tt>
+code, which, if nothing else, non-atomically increment <tt>-&gt;rcu_qs_ctr</tt>
+in response.
 
 <table>
 <tr><th>&nbsp;</th></tr>

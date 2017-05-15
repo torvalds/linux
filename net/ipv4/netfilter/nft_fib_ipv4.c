@@ -90,7 +90,7 @@ void nft_fib4_eval(const struct nft_expr *expr, struct nft_regs *regs,
 
 	if (nft_hook(pkt) == NF_INET_PRE_ROUTING &&
 	    nft_fib_is_loopback(pkt->skb, nft_in(pkt))) {
-		nft_fib_store_result(dest, priv->result, pkt,
+		nft_fib_store_result(dest, priv, pkt,
 				     nft_in(pkt)->ifindex);
 		return;
 	}
@@ -99,7 +99,7 @@ void nft_fib4_eval(const struct nft_expr *expr, struct nft_regs *regs,
 	if (ipv4_is_zeronet(iph->saddr)) {
 		if (ipv4_is_lbcast(iph->daddr) ||
 		    ipv4_is_local_multicast(iph->daddr)) {
-			nft_fib_store_result(dest, priv->result, pkt,
+			nft_fib_store_result(dest, priv, pkt,
 					     get_ifindex(pkt->skb->dev));
 			return;
 		}
@@ -212,7 +212,7 @@ nft_fib4_select_ops(const struct nft_ctx *ctx,
 
 static struct nft_expr_type nft_fib4_type __read_mostly = {
 	.name		= "fib",
-	.select_ops	= &nft_fib4_select_ops,
+	.select_ops	= nft_fib4_select_ops,
 	.policy		= nft_fib_policy,
 	.maxattr	= NFTA_FIB_MAX,
 	.family		= NFPROTO_IPV4,

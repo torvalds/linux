@@ -1,7 +1,7 @@
 #ifndef _HFI1_USER_EXP_RCV_H
 #define _HFI1_USER_EXP_RCV_H
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015 - 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -70,10 +70,15 @@
 		(tid) |= EXP_TID_SET(field, (value));			\
 	} while (0)
 
-int hfi1_user_exp_rcv_init(struct file *);
-int hfi1_user_exp_rcv_free(struct hfi1_filedata *);
-int hfi1_user_exp_rcv_setup(struct file *, struct hfi1_tid_info *);
-int hfi1_user_exp_rcv_clear(struct file *, struct hfi1_tid_info *);
-int hfi1_user_exp_rcv_invalid(struct file *, struct hfi1_tid_info *);
+void hfi1_user_exp_rcv_grp_free(struct hfi1_ctxtdata *uctxt);
+int hfi1_user_exp_rcv_grp_init(struct hfi1_filedata *fd);
+int hfi1_user_exp_rcv_init(struct hfi1_filedata *fd);
+void hfi1_user_exp_rcv_free(struct hfi1_filedata *fd);
+int hfi1_user_exp_rcv_setup(struct hfi1_filedata *fd,
+			    struct hfi1_tid_info *tinfo);
+int hfi1_user_exp_rcv_clear(struct hfi1_filedata *fd,
+			    struct hfi1_tid_info *tinfo);
+int hfi1_user_exp_rcv_invalid(struct hfi1_filedata *fd,
+			      struct hfi1_tid_info *tinfo);
 
 #endif /* _HFI1_USER_EXP_RCV_H */

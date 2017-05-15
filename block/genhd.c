@@ -271,16 +271,17 @@ void blkdev_show(struct seq_file *seqf, off_t offset)
 /**
  * register_blkdev - register a new block device
  *
- * @major: the requested major device number [1..255]. If @major=0, try to
+ * @major: the requested major device number [1..255]. If @major = 0, try to
  *         allocate any unused major number.
  * @name: the name of the new block device as a zero terminated string
  *
  * The @name must be unique within the system.
  *
- * The return value depends on the @major input parameter.
+ * The return value depends on the @major input parameter:
+ *
  *  - if a major device number was requested in range [1..255] then the
  *    function returns zero on success, or a negative error code
- *  - if any unused major number was requested with @major=0 parameter
+ *  - if any unused major number was requested with @major = 0 parameter
  *    then the return value is the allocated major number in range
  *    [1..255] or a negative error code otherwise
  */
@@ -572,20 +573,6 @@ exit:
 	disk_part_iter_exit(&piter);
 }
 
-void put_disk_devt(struct disk_devt *disk_devt)
-{
-	if (disk_devt && atomic_dec_and_test(&disk_devt->count))
-		disk_devt->release(disk_devt);
-}
-EXPORT_SYMBOL(put_disk_devt);
-
-void get_disk_devt(struct disk_devt *disk_devt)
-{
-	if (disk_devt)
-		atomic_inc(&disk_devt->count);
-}
-EXPORT_SYMBOL(get_disk_devt);
-
 /**
  * device_add_disk - add partitioning information to kernel list
  * @parent: parent device for the disk
@@ -625,13 +612,6 @@ void device_add_disk(struct device *parent, struct gendisk *disk)
 	disk->first_minor = MINOR(devt);
 
 	disk_alloc_events(disk);
-
-	/*
-	 * Take a reference on the devt and assign it to queue since it
-	 * must not be reallocated while the bdi is registered
-	 */
-	disk->queue->disk_devt = disk->disk_devt;
-	get_disk_devt(disk->disk_devt);
 
 	/* Register BDI before referencing it from bdev */
 	bdi = disk->queue->backing_dev_info;
@@ -681,12 +661,16 @@ void del_gendisk(struct gendisk *disk)
 	disk->flags &= ~GENHD_FL_UP;
 
 	sysfs_remove_link(&disk_to_dev(disk)->kobj, "bdi");
-	/*
-	 * Unregister bdi before releasing device numbers (as they can get
-	 * reused and we'd get clashes in sysfs).
-	 */
-	bdi_unregister(disk->queue->backing_dev_info);
-	blk_unregister_queue(disk);
+	if (disk->queue) {
+		/*
+		 * Unregister bdi before releasing device numbers (as they can
+		 * get reused and we'd get clashes in sysfs).
+		 */
+		bdi_unregister(disk->queue->backing_dev_info);
+		blk_unregister_queue(disk);
+	} else {
+		WARN_ON(1);
+	}
 	blk_unregister_region(disk_devt(disk), disk->minors);
 
 	part_stat_set_all(&disk->part0, 0);
@@ -1077,8 +1061,19 @@ static struct attribute *disk_attrs[] = {
 	NULL
 };
 
+static umode_t disk_visible(struct kobject *kobj, struct attribute *a, int n)
+{
+	struct device *dev = container_of(kobj, typeof(*dev), kobj);
+	struct gendisk *disk = dev_to_disk(dev);
+
+	if (a == &dev_attr_badblocks.attr && !disk->bb)
+		return 0;
+	return a->mode;
+}
+
 static struct attribute_group disk_attr_group = {
 	.attrs = disk_attrs,
+	.is_visible = disk_visible,
 };
 
 static const struct attribute_group *disk_attr_groups[] = {
@@ -1369,7 +1364,7 @@ struct kobject *get_disk(struct gendisk *disk)
 	owner = disk->fops->owner;
 	if (owner && !try_module_get(owner))
 		return NULL;
-	kobj = kobject_get(&disk_to_dev(disk)->kobj);
+	kobj = kobject_get_unless_zero(&disk_to_dev(disk)->kobj);
 	if (kobj == NULL) {
 		module_put(owner);
 		return NULL;

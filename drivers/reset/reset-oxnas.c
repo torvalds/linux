@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/err.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/reset-controller.h>
@@ -83,7 +83,6 @@ static const struct of_device_id oxnas_reset_dt_ids[] = {
 	 { .compatible = "oxsemi,ox820-reset", },
 	 { /* sentinel */ },
 };
-MODULE_DEVICE_TABLE(of, oxnas_reset_dt_ids);
 
 static int oxnas_reset_probe(struct platform_device *pdev)
 {
@@ -123,5 +122,4 @@ static struct platform_driver oxnas_reset_driver = {
 		.of_match_table	= oxnas_reset_dt_ids,
 	},
 };
-
-module_platform_driver(oxnas_reset_driver);
+builtin_platform_driver(oxnas_reset_driver);

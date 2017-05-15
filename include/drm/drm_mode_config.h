@@ -34,6 +34,7 @@ struct drm_file;
 struct drm_device;
 struct drm_atomic_state;
 struct drm_mode_fb_cmd2;
+struct drm_format_info;
 
 /**
  * struct drm_mode_config_funcs - basic driver provided mode setting functions
@@ -68,6 +69,19 @@ struct drm_mode_config_funcs {
 	struct drm_framebuffer *(*fb_create)(struct drm_device *dev,
 					     struct drm_file *file_priv,
 					     const struct drm_mode_fb_cmd2 *mode_cmd);
+
+	/**
+	 * @get_format_info:
+	 *
+	 * Allows a driver to return custom format information for special
+	 * fb layouts (eg. ones with auxiliary compression control planes).
+	 *
+	 * RETURNS:
+	 *
+	 * The format information specific to the given fb metadata, or
+	 * NULL if none is found.
+	 */
+	const struct drm_format_info *(*get_format_info)(const struct drm_mode_fb_cmd2 *mode_cmd);
 
 	/**
 	 * @output_poll_changed:
@@ -267,7 +281,7 @@ struct drm_mode_config_funcs {
 	 * passed-in &drm_atomic_state. This hook is called when the caller
 	 * encountered a &drm_modeset_lock deadlock and needs to drop all
 	 * already acquired locks as part of the deadlock avoidance dance
-	 * implemented in drm_modeset_lock_backoff().
+	 * implemented in drm_modeset_backoff().
 	 *
 	 * Any duplicated state must be invalidated since a concurrent atomic
 	 * update might change it, and the drm atomic interfaces always apply
@@ -285,29 +299,14 @@ struct drm_mode_config_funcs {
 	 * itself. Note that the core first calls drm_atomic_state_clear() to
 	 * avoid code duplicate between the clear and free hooks.
 	 *
-	 * Drivers that implement this must call drm_atomic_state_default_free()
-	 * to release common resources.
+	 * Drivers that implement this must call
+	 * drm_atomic_state_default_release() to release common resources.
 	 */
 	void (*atomic_state_free)(struct drm_atomic_state *state);
 };
 
 /**
  * struct drm_mode_config - Mode configuration control structure
- * @mutex: mutex protecting KMS related lists and structures
- * @connection_mutex: ww mutex protecting connector state and routing
- * @acquire_ctx: global implicit acquire context used by atomic drivers for
- * 	legacy IOCTLs
- * @fb_lock: mutex to protect fb state and lists
- * @num_fb: number of fbs available
- * @fb_list: list of framebuffers available
- * @num_encoder: number of encoders on this device
- * @encoder_list: list of encoder objects
- * @num_overlay_plane: number of overlay planes on this device
- * @num_total_plane: number of universal (i.e. with primary/curso) planes on this device
- * @plane_list: list of plane objects
- * @num_crtc: number of CRTCs on this device
- * @crtc_list: list of CRTC objects
- * @property_list: list of property objects
  * @min_width: minimum pixel width on this device
  * @min_height: minimum pixel height on this device
  * @max_width: maximum pixel width on this device
@@ -318,9 +317,6 @@ struct drm_mode_config_funcs {
  * @poll_running: track polling status for this device
  * @delayed_event: track delayed poll uevent deliver for this device
  * @output_poll_work: delayed work for polling in process context
- * @property_blob_list: list of all the blob property objects
- * @blob_lock: mutex for blob property allocation and management
- * @*_property: core property tracking
  * @preferred_depth: preferred RBG pixel depth, used by fb helpers
  * @prefer_shadow: hint to userspace to prefer shadow-fb rendering
  * @cursor_width: hint to userspace for max cursor width
@@ -332,9 +328,37 @@ struct drm_mode_config_funcs {
  * global restrictions are also here, e.g. dimension restrictions.
  */
 struct drm_mode_config {
-	struct mutex mutex; /* protects configuration (mode lists etc.) */
-	struct drm_modeset_lock connection_mutex; /* protects connector->encoder and encoder->crtc links */
-	struct drm_modeset_acquire_ctx *acquire_ctx; /* for legacy _lock_all() / _unlock_all() */
+	/**
+	 * @mutex:
+	 *
+	 * This is the big scary modeset BKL which protects everything that
+	 * isn't protect otherwise. Scope is unclear and fuzzy, try to remove
+	 * anything from under it's protection and move it into more well-scoped
+	 * locks.
+	 *
+	 * The one important thing this protects is the use of @acquire_ctx.
+	 */
+	struct mutex mutex;
+
+	/**
+	 * @connection_mutex:
+	 *
+	 * This protects connector state and the connector to encoder to CRTC
+	 * routing chain.
+	 *
+	 * For atomic drivers specifically this protects &drm_connector.state.
+	 */
+	struct drm_modeset_lock connection_mutex;
+
+	/**
+	 * @acquire_ctx:
+	 *
+	 * Global implicit acquire context used by atomic drivers for legacy
+	 * IOCTLs. Deprecated, since implicit locking contexts make it
+	 * impossible to use driver-private &struct drm_modeset_lock. Users of
+	 * this must hold @mutex.
+	 */
+	struct drm_modeset_acquire_ctx *acquire_ctx;
 
 	/**
 	 * @idr_mutex:
@@ -360,8 +384,11 @@ struct drm_mode_config {
 	 */
 	struct idr tile_idr;
 
-	struct mutex fb_lock; /* proctects global and per-file fb lists */
+	/** @fb_lock: Mutex to protect fb the global @fb_list and @num_fb. */
+	struct mutex fb_lock;
+	/** @num_fb: Number of entries on @fb_list. */
 	int num_fb;
+	/** @fb_list: List of all &struct drm_framebuffer. */
 	struct list_head fb_list;
 
 	/**
@@ -379,27 +406,80 @@ struct drm_mode_config {
 	 */
 	struct ida connector_ida;
 	/**
-	 * @connector_list: List of connector objects. Protected by
-	 * @connector_list_lock. Only use drm_for_each_connector_iter() and
+	 * @connector_list:
+	 *
+	 * List of connector objects linked with &drm_connector.head. Protected
+	 * by @connector_list_lock. Only use drm_for_each_connector_iter() and
 	 * &struct drm_connector_list_iter to walk this list.
 	 */
 	struct list_head connector_list;
+	/**
+	 * @num_encoder:
+	 *
+	 * Number of encoders on this device. This is invariant over the
+	 * lifetime of a device and hence doesn't need any locks.
+	 */
 	int num_encoder;
+	/**
+	 * @encoder_list:
+	 *
+	 * List of encoder objects linked with &drm_encoder.head. This is
+	 * invariant over the lifetime of a device and hence doesn't need any
+	 * locks.
+	 */
 	struct list_head encoder_list;
 
-	/*
-	 * Track # of overlay planes separately from # of total planes.  By
-	 * default we only advertise overlay planes to userspace; if userspace
-	 * sets the "universal plane" capability bit, we'll go ahead and
-	 * expose all planes.
+	/**
+	 * @num_overlay_plane:
+	 *
+	 * Number of overlay planes on this device, excluding primary and cursor
+	 * planes.
+	 *
+	 * Track number of overlay planes separately from number of total
+	 * planes.  By default we only advertise overlay planes to userspace; if
+	 * userspace sets the "universal plane" capability bit, we'll go ahead
+	 * and expose all planes. This is invariant over the lifetime of a
+	 * device and hence doesn't need any locks.
 	 */
 	int num_overlay_plane;
+	/**
+	 * @num_total_plane:
+	 *
+	 * Number of universal (i.e. with primary/curso) planes on this device.
+	 * This is invariant over the lifetime of a device and hence doesn't
+	 * need any locks.
+	 */
 	int num_total_plane;
+	/**
+	 * @plane_list:
+	 *
+	 * List of plane objects linked with &drm_plane.head. This is invariant
+	 * over the lifetime of a device and hence doesn't need any locks.
+	 */
 	struct list_head plane_list;
 
+	/**
+	 * @num_crtc:
+	 *
+	 * Number of CRTCs on this device linked with &drm_crtc.head. This is invariant over the lifetime
+	 * of a device and hence doesn't need any locks.
+	 */
 	int num_crtc;
+	/**
+	 * @crtc_list:
+	 *
+	 * List of CRTC objects linked with &drm_crtc.head. This is invariant
+	 * over the lifetime of a device and hence doesn't need any locks.
+	 */
 	struct list_head crtc_list;
 
+	/**
+	 * @property_list:
+	 *
+	 * List of property type objects linked with &drm_property.head. This is
+	 * invariant over the lifetime of a device and hence doesn't need any
+	 * locks.
+	 */
 	struct list_head property_list;
 
 	int min_width, min_height;
@@ -413,10 +493,24 @@ struct drm_mode_config {
 	bool delayed_event;
 	struct delayed_work output_poll_work;
 
+	/**
+	 * @blob_lock:
+	 *
+	 * Mutex for blob property allocation and management, protects
+	 * @property_blob_list and &drm_file.blobs.
+	 */
 	struct mutex blob_lock;
 
-	/* pointers to standard properties */
+	/**
+	 * @property_blob_list:
+	 *
+	 * List of all the blob property objects linked with
+	 * &drm_property_blob.head. Protected by @blob_lock.
+	 */
 	struct list_head property_blob_list;
+
+	/* pointers to standard properties */
+
 	/**
 	 * @edid_property: Default connector property to hold the EDID of the
 	 * currently connected sink, if any.
@@ -438,6 +532,11 @@ struct drm_mode_config {
 	 * multiple CRTCs.
 	 */
 	struct drm_property *tile_property;
+	/**
+	 * @link_status_property: Default connector property for link status
+	 * of a connector
+	 */
+	struct drm_property *link_status_property;
 	/**
 	 * @plane_type_property: Default plane property to differentiate
 	 * CURSOR, PRIMARY and OVERLAY legacy uses of planes.
@@ -661,7 +760,7 @@ struct drm_mode_config {
 	/* cursor size */
 	uint32_t cursor_width, cursor_height;
 
-	struct drm_mode_config_helper_funcs *helper_private;
+	const struct drm_mode_config_helper_funcs *helper_private;
 };
 
 void drm_mode_config_init(struct drm_device *dev);
