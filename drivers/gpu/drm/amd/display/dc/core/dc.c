@@ -1515,32 +1515,6 @@ const struct audio **dc_get_audios(struct dc *dc)
 	return (const struct audio **)core_dc->res_pool->audios;
 }
 
-void dc_flip_surface_addrs(
-		struct dc *dc,
-		const struct dc_surface *const surfaces[],
-		struct dc_flip_addrs flip_addrs[],
-		uint32_t count)
-{
-	struct core_dc *core_dc = DC_TO_CORE(dc);
-	int i, j;
-
-	for (i = 0; i < count; i++) {
-		struct core_surface *surface = DC_SURFACE_TO_CORE(surfaces[i]);
-
-		surface->public.address = flip_addrs[i].address;
-		surface->public.flip_immediate = flip_addrs[i].flip_immediate;
-
-		for (j = 0; j < core_dc->res_pool->pipe_count; j++) {
-			struct pipe_ctx *pipe_ctx = &core_dc->current_context->res_ctx.pipe_ctx[j];
-
-			if (pipe_ctx->surface != surface)
-				continue;
-
-			core_dc->hwss.update_plane_addr(core_dc, pipe_ctx);
-		}
-	}
-}
-
 enum dc_irq_source dc_interrupt_to_irq_source(
 		struct dc *dc,
 		uint32_t src_id,

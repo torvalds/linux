@@ -394,18 +394,6 @@ struct dc_flip_addrs {
 };
 
 /*
- * Optimized flip address update function.
- *
- * After this call:
- *   Surface addresses and flip attributes are programmed.
- *   Surface flip occur at next configured time (h_sync or v_sync flip)
- */
-void dc_flip_surface_addrs(struct dc *dc,
-		const struct dc_surface *const surfaces[],
-		struct dc_flip_addrs flip_addrs[],
-		uint32_t count);
-
-/*
  * Set up surface attributes and associate to a stream
  * The surfaces parameter is an absolute set of all surface active for the stream.
  * If no surfaces are provided, the stream will be blanked; no memory read.
