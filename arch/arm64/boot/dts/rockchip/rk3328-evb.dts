@@ -187,6 +187,8 @@
 		wakeup-source;
 		gpio-controller;
 		#gpio-cells = <2>;
+		#clock-cells = <1>;
+		clock-output-names = "xin32k", "rk805-clkout2";
 
 		rtc {
 			status = "disabled";
