@@ -44,12 +44,6 @@ void nand_release(struct mtd_info *mtd);
 /* Internal helper for board drivers which need to override command function */
 void nand_wait_ready(struct mtd_info *mtd);
 
-/* locks all blocks present in the device */
-int nand_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
-
-/* unlocks specified locked blocks */
-int nand_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
-
 /* The maximum number of NAND chips in an array */
 #define NAND_MAX_CHIPS		8
 
@@ -88,10 +82,6 @@ int nand_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
 #define NAND_CMD_GET_FEATURES	0xee
 #define NAND_CMD_SET_FEATURES	0xef
 #define NAND_CMD_RESET		0xff
-
-#define NAND_CMD_LOCK		0x2a
-#define NAND_CMD_UNLOCK1	0x23
-#define NAND_CMD_UNLOCK2	0x24
 
 /* Extended commands for large page devices */
 #define NAND_CMD_READSTART	0x30
