@@ -60,8 +60,6 @@ int init_srcu_struct(struct srcu_struct *sp);
 #include <linux/srcutiny.h>
 #elif defined(CONFIG_TREE_SRCU)
 #include <linux/srcutree.h>
-#elif defined(CONFIG_CLASSIC_SRCU)
-#include <linux/srcuclassic.h>
 #elif defined(CONFIG_SRCU)
 #error "Unknown SRCU implementation specified to kernel configuration"
 #else

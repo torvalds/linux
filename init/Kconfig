@@ -526,32 +526,15 @@ config SRCU
 	  permits arbitrary sleeping or blocking within RCU read-side critical
 	  sections.
 
-config CLASSIC_SRCU
-	bool "Use v4.11 classic SRCU implementation"
-	default n
-	depends on RCU_EXPERT && SRCU
-	help
-	  This option selects the traditional well-tested classic SRCU
-	  implementation from v4.11, as might be desired for enterprise
-	  Linux distributions.  Without this option, the shiny new
-	  Tiny SRCU and Tree SRCU implementations are used instead.
-	  At some point, it is hoped that Tiny SRCU and Tree SRCU
-	  will accumulate enough test time and confidence to allow
-	  Classic SRCU to be dropped entirely.
-
-	  Say Y if you need a rock-solid SRCU.
-
-	  Say N if you would like help test Tree SRCU.
-
 config TINY_SRCU
 	bool
-	default y if SRCU && TINY_RCU && !CLASSIC_SRCU
+	default y if SRCU && TINY_RCU
 	help
 	  This option selects the single-CPU non-preemptible version of SRCU.
 
 config TREE_SRCU
 	bool
-	default y if SRCU && !TINY_RCU && !CLASSIC_SRCU
+	default y if SRCU && !TINY_RCU
 	help
 	  This option selects the full-fledged version of SRCU.
 
