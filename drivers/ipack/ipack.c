@@ -212,7 +212,7 @@ struct ipack_bus_device *ipack_bus_register(struct device *parent, int slots,
 	int bus_nr;
 	struct ipack_bus_device *bus;
 
-	bus = kzalloc(sizeof(struct ipack_bus_device), GFP_KERNEL);
+	bus = kzalloc(sizeof(*bus), GFP_KERNEL);
 	if (!bus)
 		return NULL;
 
