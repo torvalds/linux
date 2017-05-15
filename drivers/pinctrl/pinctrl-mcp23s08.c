@@ -898,7 +898,7 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 			goto fail;
 	}
 
-	ret = gpiochip_add_data(&mcp->chip, mcp);
+	ret = devm_gpiochip_add_data(dev, &mcp->chip, mcp);
 	if (ret < 0)
 		goto fail;
 
@@ -1034,15 +1034,6 @@ static int mcp230xx_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int mcp230xx_remove(struct i2c_client *client)
-{
-	struct mcp23s08 *mcp = i2c_get_clientdata(client);
-
-	gpiochip_remove(&mcp->chip);
-
-	return 0;
-}
-
 static const struct i2c_device_id mcp230xx_id[] = {
 	{ "mcp23008", MCP_TYPE_008 },
 	{ "mcp23017", MCP_TYPE_017 },
@@ -1056,7 +1047,6 @@ static struct i2c_driver mcp230xx_driver = {
 		.of_match_table = of_match_ptr(mcp23s08_i2c_of_match),
 	},
 	.probe		= mcp230xx_probe,
-	.remove		= mcp230xx_remove,
 	.id_table	= mcp230xx_id,
 };
 
@@ -1166,7 +1156,7 @@ static int mcp23s08_probe(struct spi_device *spi)
 					    0x40 | (addr << 1), type, pdata,
 					    addr);
 		if (status < 0)
-			goto fail;
+			return status;
 
 		if (pdata->base != -1)
 			pdata->base += data->mcp[addr]->chip.ngpio;
@@ -1178,31 +1168,6 @@ static int mcp23s08_probe(struct spi_device *spi)
 	 * per-signal masking and level/edge triggering.  It's not yet
 	 * handled here...
 	 */
-
-	return 0;
-
-fail:
-	for (addr = 0; addr < ARRAY_SIZE(data->mcp); addr++) {
-
-		if (!data->mcp[addr])
-			continue;
-		gpiochip_remove(&data->mcp[addr]->chip);
-	}
-	return status;
-}
-
-static int mcp23s08_remove(struct spi_device *spi)
-{
-	struct mcp23s08_driver_data	*data = spi_get_drvdata(spi);
-	unsigned			addr;
-
-	for (addr = 0; addr < ARRAY_SIZE(data->mcp); addr++) {
-
-		if (!data->mcp[addr])
-			continue;
-
-		gpiochip_remove(&data->mcp[addr]->chip);
-	}
 
 	return 0;
 }
@@ -1217,7 +1182,6 @@ MODULE_DEVICE_TABLE(spi, mcp23s08_ids);
 
 static struct spi_driver mcp23s08_driver = {
 	.probe		= mcp23s08_probe,
-	.remove		= mcp23s08_remove,
 	.id_table	= mcp23s08_ids,
 	.driver = {
 		.name	= "mcp23s08",
