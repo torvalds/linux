@@ -3,7 +3,7 @@
 # It provides the control and status of HW CRTC block.
 
 DCE112 = dce112_compressor.o dce112_hw_sequencer.o \
-dce112_resource.o dce112_mem_input.o
+dce112_resource.o
 
 AMD_DAL_DCE112 = $(addprefix $(AMDDALPATH)/dc/dce112/,$(DCE112))
 

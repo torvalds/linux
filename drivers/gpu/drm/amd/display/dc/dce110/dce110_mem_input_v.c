@@ -33,29 +33,17 @@
 #include "include/logger_interface.h"
 #include "inc/dce_calcs.h"
 
-#include "dce110_mem_input.h"
-
-#define DCP_REG(reg) (reg + mem_input110->offsets.dcp)
-/*#define DMIF_REG(reg) (reg + mem_input110->offsets.dmif)*/
-/*#define PIPE_REG(reg) (reg + mem_input110->offsets.pipe)*/
-
-static const struct dce110_mem_input_reg_offsets dce110_mi_v_reg_offsets[] = {
-	{
-		.dcp = 0,
-		.dmif = 0,
-		.pipe = 0,
-	}
-};
+#include "dce/dce_mem_input.h"
 
 static void set_flip_control(
-	struct dce110_mem_input *mem_input110,
+	struct dce_mem_input *mem_input110,
 	bool immediate)
 {
 	uint32_t value = 0;
 
 	value = dm_read_reg(
 			mem_input110->base.ctx,
-			DCP_REG(mmUNP_FLIP_CONTROL));
+			mmUNP_FLIP_CONTROL);
 
 	set_reg_field_value(value, 1,
 			UNP_FLIP_CONTROL,
@@ -63,13 +51,13 @@ static void set_flip_control(
 
 	dm_write_reg(
 			mem_input110->base.ctx,
-			DCP_REG(mmUNP_FLIP_CONTROL),
+			mmUNP_FLIP_CONTROL,
 			value);
 }
 
 /* chroma part */
 static void program_pri_addr_c(
-	struct dce110_mem_input *mem_input110,
+	struct dce_mem_input *mem_input110,
 	PHYSICAL_ADDRESS_LOC address)
 {
 	uint32_t value = 0;
@@ -84,7 +72,7 @@ UNP_GRPH_PRIMARY_SURFACE_ADDRESS_HIGH_C__GRPH_PRIMARY_SURFACE_ADDRESS_HIGH_C_MAS
 
 	dm_write_reg(
 		mem_input110->base.ctx,
-		DCP_REG(mmUNP_GRPH_PRIMARY_SURFACE_ADDRESS_HIGH_C),
+		mmUNP_GRPH_PRIMARY_SURFACE_ADDRESS_HIGH_C,
 		value);
 
 	temp = 0;
@@ -98,13 +86,13 @@ UNP_GRPH_PRIMARY_SURFACE_ADDRESS_HIGH_C__GRPH_PRIMARY_SURFACE_ADDRESS_HIGH_C_MAS
 
 	dm_write_reg(
 		mem_input110->base.ctx,
-		DCP_REG(mmUNP_GRPH_PRIMARY_SURFACE_ADDRESS_C),
+		mmUNP_GRPH_PRIMARY_SURFACE_ADDRESS_C,
 		value);
 }
 
 /* luma part */
 static void program_pri_addr_l(
-	struct dce110_mem_input *mem_input110,
+	struct dce_mem_input *mem_input110,
 	PHYSICAL_ADDRESS_LOC address)
 {
 	uint32_t value = 0;
@@ -120,7 +108,7 @@ UNP_GRPH_PRIMARY_SURFACE_ADDRESS_HIGH_L__GRPH_PRIMARY_SURFACE_ADDRESS_HIGH_L_MAS
 
 	dm_write_reg(
 		mem_input110->base.ctx,
-		DCP_REG(mmUNP_GRPH_PRIMARY_SURFACE_ADDRESS_HIGH_L),
+		mmUNP_GRPH_PRIMARY_SURFACE_ADDRESS_HIGH_L,
 		value);
 
 	temp = 0;
@@ -134,12 +122,12 @@ UNP_GRPH_PRIMARY_SURFACE_ADDRESS_HIGH_L__GRPH_PRIMARY_SURFACE_ADDRESS_HIGH_L_MAS
 
 	dm_write_reg(
 		mem_input110->base.ctx,
-		DCP_REG(mmUNP_GRPH_PRIMARY_SURFACE_ADDRESS_L),
+		mmUNP_GRPH_PRIMARY_SURFACE_ADDRESS_L,
 		value);
 }
 
 static void program_addr(
-	struct dce110_mem_input *mem_input110,
+	struct dce_mem_input *mem_input110,
 	const struct dc_plane_address *addr)
 {
 	switch (addr->type) {
@@ -162,19 +150,19 @@ static void program_addr(
 	}
 }
 
-static void enable(struct dce110_mem_input *mem_input110)
+static void enable(struct dce_mem_input *mem_input110)
 {
 	uint32_t value = 0;
 
-	value = dm_read_reg(mem_input110->base.ctx, DCP_REG(mmUNP_GRPH_ENABLE));
+	value = dm_read_reg(mem_input110->base.ctx, mmUNP_GRPH_ENABLE);
 	set_reg_field_value(value, 1, UNP_GRPH_ENABLE, GRPH_ENABLE);
 	dm_write_reg(mem_input110->base.ctx,
-		DCP_REG(mmUNP_GRPH_ENABLE),
+		mmUNP_GRPH_ENABLE,
 		value);
 }
 
 static void program_tiling(
-	struct dce110_mem_input *mem_input110,
+	struct dce_mem_input *mem_input110,
 	const union dc_tiling_info *info,
 	const enum surface_pixel_format pixel_format)
 {
@@ -239,7 +227,7 @@ static void program_tiling(
 }
 
 static void program_size_and_rotation(
-	struct dce110_mem_input *mem_input110,
+	struct dce_mem_input *mem_input110,
 	enum dc_rotation_angle rotation,
 	const union plane_size *plane_size)
 {
@@ -277,7 +265,7 @@ static void program_size_and_rotation(
 
 	dm_write_reg(
 		mem_input110->base.ctx,
-		DCP_REG(mmUNP_GRPH_PITCH_L),
+		mmUNP_GRPH_PITCH_L,
 		value);
 
 	value = 0;
@@ -285,7 +273,7 @@ static void program_size_and_rotation(
 			UNP_GRPH_PITCH_C, GRPH_PITCH_C);
 	dm_write_reg(
 		mem_input110->base.ctx,
-		DCP_REG(mmUNP_GRPH_PITCH_C),
+		mmUNP_GRPH_PITCH_C,
 		value);
 
 	value = 0;
@@ -293,7 +281,7 @@ static void program_size_and_rotation(
 			UNP_GRPH_X_START_L, GRPH_X_START_L);
 	dm_write_reg(
 		mem_input110->base.ctx,
-		DCP_REG(mmUNP_GRPH_X_START_L),
+		mmUNP_GRPH_X_START_L,
 		value);
 
 	value = 0;
@@ -301,7 +289,7 @@ static void program_size_and_rotation(
 			UNP_GRPH_X_START_C, GRPH_X_START_C);
 	dm_write_reg(
 		mem_input110->base.ctx,
-		DCP_REG(mmUNP_GRPH_X_START_C),
+		mmUNP_GRPH_X_START_C,
 		value);
 
 	value = 0;
@@ -309,7 +297,7 @@ static void program_size_and_rotation(
 			UNP_GRPH_Y_START_L, GRPH_Y_START_L);
 	dm_write_reg(
 		mem_input110->base.ctx,
-		DCP_REG(mmUNP_GRPH_Y_START_L),
+		mmUNP_GRPH_Y_START_L,
 		value);
 
 	value = 0;
@@ -317,7 +305,7 @@ static void program_size_and_rotation(
 			UNP_GRPH_Y_START_C, GRPH_Y_START_C);
 	dm_write_reg(
 		mem_input110->base.ctx,
-		DCP_REG(mmUNP_GRPH_Y_START_C),
+		mmUNP_GRPH_Y_START_C,
 		value);
 
 	value = 0;
@@ -326,7 +314,7 @@ static void program_size_and_rotation(
 			UNP_GRPH_X_END_L, GRPH_X_END_L);
 	dm_write_reg(
 		mem_input110->base.ctx,
-		DCP_REG(mmUNP_GRPH_X_END_L),
+		mmUNP_GRPH_X_END_L,
 		value);
 
 	value = 0;
@@ -335,7 +323,7 @@ static void program_size_and_rotation(
 			UNP_GRPH_X_END_C, GRPH_X_END_C);
 	dm_write_reg(
 		mem_input110->base.ctx,
-		DCP_REG(mmUNP_GRPH_X_END_C),
+		mmUNP_GRPH_X_END_C,
 		value);
 
 	value = 0;
@@ -344,7 +332,7 @@ static void program_size_and_rotation(
 			UNP_GRPH_Y_END_L, GRPH_Y_END_L);
 	dm_write_reg(
 		mem_input110->base.ctx,
-		DCP_REG(mmUNP_GRPH_Y_END_L),
+		mmUNP_GRPH_Y_END_L,
 		value);
 
 	value = 0;
@@ -353,7 +341,7 @@ static void program_size_and_rotation(
 			UNP_GRPH_Y_END_C, GRPH_Y_END_C);
 	dm_write_reg(
 		mem_input110->base.ctx,
-		DCP_REG(mmUNP_GRPH_Y_END_C),
+		mmUNP_GRPH_Y_END_C,
 		value);
 
 	value = 0;
@@ -378,12 +366,12 @@ static void program_size_and_rotation(
 
 	dm_write_reg(
 		mem_input110->base.ctx,
-		DCP_REG(mmUNP_HW_ROTATION),
+		mmUNP_HW_ROTATION,
 		value);
 }
 
 static void program_pixel_format(
-	struct dce110_mem_input *mem_input110,
+	struct dce_mem_input *mem_input110,
 	enum surface_pixel_format format)
 {
 	if (format < SURFACE_PIXEL_FORMAT_VIDEO_BEGIN) {
@@ -393,7 +381,7 @@ static void program_pixel_format(
 
 		value =	dm_read_reg(
 				mem_input110->base.ctx,
-				DCP_REG(mmUNP_GRPH_CONTROL));
+				mmUNP_GRPH_CONTROL);
 
 		switch (format) {
 		case SURFACE_PIXEL_FORMAT_GRPH_PALETA_256_COLORS:
@@ -440,12 +428,12 @@ static void program_pixel_format(
 
 		dm_write_reg(
 				mem_input110->base.ctx,
-				DCP_REG(mmUNP_GRPH_CONTROL),
+				mmUNP_GRPH_CONTROL,
 				value);
 
 		value =	dm_read_reg(
 				mem_input110->base.ctx,
-				DCP_REG(mmUNP_GRPH_CONTROL_EXP));
+				mmUNP_GRPH_CONTROL_EXP);
 
 		/* VIDEO FORMAT 0 */
 		set_reg_field_value(
@@ -455,7 +443,7 @@ static void program_pixel_format(
 				VIDEO_FORMAT);
 		dm_write_reg(
 				mem_input110->base.ctx,
-				DCP_REG(mmUNP_GRPH_CONTROL_EXP),
+				mmUNP_GRPH_CONTROL_EXP,
 				value);
 
 	} else {
@@ -465,7 +453,7 @@ static void program_pixel_format(
 
 		value =	dm_read_reg(
 				mem_input110->base.ctx,
-				DCP_REG(mmUNP_GRPH_CONTROL_EXP));
+				mmUNP_GRPH_CONTROL_EXP);
 
 		switch (format) {
 		case SURFACE_PIXEL_FORMAT_VIDEO_420_YCbCr:
@@ -487,17 +475,17 @@ static void program_pixel_format(
 
 		dm_write_reg(
 			mem_input110->base.ctx,
-			DCP_REG(mmUNP_GRPH_CONTROL_EXP),
+			mmUNP_GRPH_CONTROL_EXP,
 			value);
 	}
 }
 
-bool dce110_mem_input_v_is_surface_pending(struct mem_input *mem_input)
+bool dce_mem_input_v_is_surface_pending(struct mem_input *mem_input)
 {
-	struct dce110_mem_input *mem_input110 = TO_DCE110_MEM_INPUT(mem_input);
+	struct dce_mem_input *mem_input110 = TO_DCE_MEM_INPUT(mem_input);
 	uint32_t value;
 
-	value = dm_read_reg(mem_input110->base.ctx, DCP_REG(mmUNP_GRPH_UPDATE));
+	value = dm_read_reg(mem_input110->base.ctx, mmUNP_GRPH_UPDATE);
 
 	if (get_reg_field_value(value, UNP_GRPH_UPDATE,
 			GRPH_SURFACE_UPDATE_PENDING))
@@ -507,12 +495,12 @@ bool dce110_mem_input_v_is_surface_pending(struct mem_input *mem_input)
 	return false;
 }
 
-bool dce110_mem_input_v_program_surface_flip_and_addr(
+bool dce_mem_input_v_program_surface_flip_and_addr(
 	struct mem_input *mem_input,
 	const struct dc_plane_address *address,
 	bool flip_immediate)
 {
-	struct dce110_mem_input *mem_input110 = TO_DCE110_MEM_INPUT(mem_input);
+	struct dce_mem_input *mem_input110 = TO_DCE_MEM_INPUT(mem_input);
 
 	set_flip_control(mem_input110, flip_immediate);
 	program_addr(mem_input110,
@@ -584,13 +572,13 @@ static const unsigned int *get_dvmm_hw_setting(
 	}
 }
 
-void dce110_mem_input_v_program_pte_vm(
+void dce_mem_input_v_program_pte_vm(
 		struct mem_input *mem_input,
 		enum surface_pixel_format format,
 		union dc_tiling_info *tiling_info,
 		enum dc_rotation_angle rotation)
 {
-	struct dce110_mem_input *mem_input110 = TO_DCE110_MEM_INPUT(mem_input);
+	struct dce_mem_input *mem_input110 = TO_DCE_MEM_INPUT(mem_input);
 	const unsigned int *pte = get_dvmm_hw_setting(tiling_info, format, false);
 	const unsigned int *pte_chroma = get_dvmm_hw_setting(tiling_info, format, true);
 
@@ -628,36 +616,36 @@ void dce110_mem_input_v_program_pte_vm(
 		break;
 	}
 
-	value = dm_read_reg(mem_input110->base.ctx, DCP_REG(mmUNP_PIPE_OUTSTANDING_REQUEST_LIMIT));
+	value = dm_read_reg(mem_input110->base.ctx, mmUNP_PIPE_OUTSTANDING_REQUEST_LIMIT);
 	/* TODO: un-hardcode requestlimit */
 	set_reg_field_value(value, 0xff, UNP_PIPE_OUTSTANDING_REQUEST_LIMIT, UNP_PIPE_OUTSTANDING_REQUEST_LIMIT_L);
 	set_reg_field_value(value, 0xff, UNP_PIPE_OUTSTANDING_REQUEST_LIMIT, UNP_PIPE_OUTSTANDING_REQUEST_LIMIT_C);
-	dm_write_reg(mem_input110->base.ctx, DCP_REG(mmUNP_PIPE_OUTSTANDING_REQUEST_LIMIT), value);
+	dm_write_reg(mem_input110->base.ctx, mmUNP_PIPE_OUTSTANDING_REQUEST_LIMIT, value);
 
-	value = dm_read_reg(mem_input110->base.ctx, DCP_REG(mmUNP_DVMM_PTE_CONTROL));
+	value = dm_read_reg(mem_input110->base.ctx, mmUNP_DVMM_PTE_CONTROL);
 	set_reg_field_value(value, page_width, UNP_DVMM_PTE_CONTROL, DVMM_PAGE_WIDTH);
 	set_reg_field_value(value, page_height, UNP_DVMM_PTE_CONTROL, DVMM_PAGE_HEIGHT);
 	set_reg_field_value(value, min_pte_before_flip, UNP_DVMM_PTE_CONTROL, DVMM_MIN_PTE_BEFORE_FLIP);
-	dm_write_reg(mem_input110->base.ctx, DCP_REG(mmUNP_DVMM_PTE_CONTROL), value);
+	dm_write_reg(mem_input110->base.ctx, mmUNP_DVMM_PTE_CONTROL, value);
 
-	value = dm_read_reg(mem_input110->base.ctx, DCP_REG(mmUNP_DVMM_PTE_ARB_CONTROL));
+	value = dm_read_reg(mem_input110->base.ctx, mmUNP_DVMM_PTE_ARB_CONTROL);
 	set_reg_field_value(value, pte[5], UNP_DVMM_PTE_ARB_CONTROL, DVMM_PTE_REQ_PER_CHUNK);
 	set_reg_field_value(value, 0xff, UNP_DVMM_PTE_ARB_CONTROL, DVMM_MAX_PTE_REQ_OUTSTANDING);
-	dm_write_reg(mem_input110->base.ctx, DCP_REG(mmUNP_DVMM_PTE_ARB_CONTROL), value);
+	dm_write_reg(mem_input110->base.ctx, mmUNP_DVMM_PTE_ARB_CONTROL, value);
 
-	value = dm_read_reg(mem_input110->base.ctx, DCP_REG(mmUNP_DVMM_PTE_CONTROL_C));
+	value = dm_read_reg(mem_input110->base.ctx, mmUNP_DVMM_PTE_CONTROL_C);
 	set_reg_field_value(value, page_width_chroma, UNP_DVMM_PTE_CONTROL_C, DVMM_PAGE_WIDTH_C);
 	set_reg_field_value(value, page_height_chroma, UNP_DVMM_PTE_CONTROL_C, DVMM_PAGE_HEIGHT_C);
 	set_reg_field_value(value, min_pte_before_flip_chroma, UNP_DVMM_PTE_CONTROL_C, DVMM_MIN_PTE_BEFORE_FLIP_C);
-	dm_write_reg(mem_input110->base.ctx, DCP_REG(mmUNP_DVMM_PTE_CONTROL_C), value);
+	dm_write_reg(mem_input110->base.ctx, mmUNP_DVMM_PTE_CONTROL_C, value);
 
-	value = dm_read_reg(mem_input110->base.ctx, DCP_REG(mmUNP_DVMM_PTE_ARB_CONTROL_C));
+	value = dm_read_reg(mem_input110->base.ctx, mmUNP_DVMM_PTE_ARB_CONTROL_C);
 	set_reg_field_value(value, pte_chroma[5], UNP_DVMM_PTE_ARB_CONTROL_C, DVMM_PTE_REQ_PER_CHUNK_C);
 	set_reg_field_value(value, 0xff, UNP_DVMM_PTE_ARB_CONTROL_C, DVMM_MAX_PTE_REQ_OUTSTANDING_C);
-	dm_write_reg(mem_input110->base.ctx, DCP_REG(mmUNP_DVMM_PTE_ARB_CONTROL_C), value);
+	dm_write_reg(mem_input110->base.ctx, mmUNP_DVMM_PTE_ARB_CONTROL_C, value);
 }
 
-void dce110_mem_input_v_program_surface_config(
+void dce_mem_input_v_program_surface_config(
 	struct mem_input *mem_input,
 	enum surface_pixel_format format,
 	union dc_tiling_info *tiling_info,
@@ -666,7 +654,7 @@ void dce110_mem_input_v_program_surface_config(
 	struct dc_plane_dcc_param *dcc,
 	bool horizotal_mirror)
 {
-	struct dce110_mem_input *mem_input110 = TO_DCE110_MEM_INPUT(mem_input);
+	struct dce_mem_input *mem_input110 = TO_DCE_MEM_INPUT(mem_input);
 
 	enable(mem_input110);
 	program_tiling(mem_input110, tiling_info, format);
@@ -943,7 +931,7 @@ static void program_nbp_watermark_c(
 			marks);
 }
 
-void dce110_mem_input_v_program_display_marks(
+void dce_mem_input_v_program_display_marks(
 	struct mem_input *mem_input,
 	struct dce_watermarks nbp,
 	struct dce_watermarks stutter,
@@ -965,7 +953,7 @@ void dce110_mem_input_v_program_display_marks(
 
 }
 
-void dce110_mem_input_program_chroma_display_marks(
+void dce_mem_input_program_chroma_display_marks(
 	struct mem_input *mem_input,
 	struct dce_watermarks nbp,
 	struct dce_watermarks stutter,
@@ -1036,42 +1024,29 @@ void dce110_free_mem_input_v(
 
 static struct mem_input_funcs dce110_mem_input_v_funcs = {
 	.mem_input_program_display_marks =
-			dce110_mem_input_v_program_display_marks,
+			dce_mem_input_v_program_display_marks,
 	.mem_input_program_chroma_display_marks =
-			dce110_mem_input_program_chroma_display_marks,
+			dce_mem_input_program_chroma_display_marks,
 	.allocate_mem_input = dce110_allocate_mem_input_v,
 	.free_mem_input = dce110_free_mem_input_v,
 	.mem_input_program_surface_flip_and_addr =
-			dce110_mem_input_v_program_surface_flip_and_addr,
+			dce_mem_input_v_program_surface_flip_and_addr,
 	.mem_input_program_pte_vm =
-			dce110_mem_input_v_program_pte_vm,
+			dce_mem_input_v_program_pte_vm,
 	.mem_input_program_surface_config =
-			dce110_mem_input_v_program_surface_config,
+			dce_mem_input_v_program_surface_config,
 	.mem_input_is_flip_pending =
-			dce110_mem_input_v_is_surface_pending
+			dce_mem_input_v_is_surface_pending
 };
 /*****************************************/
 /* Constructor, Destructor               */
 /*****************************************/
 
-bool dce110_mem_input_v_construct(
-	struct dce110_mem_input *mem_input110,
+void dce110_mem_input_v_construct(
+	struct dce_mem_input *dce_mi,
 	struct dc_context *ctx)
 {
-	mem_input110->base.funcs = &dce110_mem_input_v_funcs;
-	mem_input110->base.ctx = ctx;
-
-	mem_input110->base.inst = 0;
-
-	mem_input110->offsets = dce110_mi_v_reg_offsets[0];
-
-	return true;
+	dce_mi->base.funcs = &dce110_mem_input_v_funcs;
+	dce_mi->base.ctx = ctx;
 }
 
-#if 0
-void dce110_mem_input_v_destroy(struct mem_input **mem_input)
-{
-	dm_free(TO_DCE110_MEM_INPUT(*mem_input));
-	*mem_input = NULL;
-}
-#endif

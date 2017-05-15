@@ -23,18 +23,18 @@
  *
  */
 
-#include "mem_input.h"
+#include "dce_mem_input.h"
 #include "reg_helper.h"
 #include "basics/conversion.h"
 
 #define CTX \
-	mi->ctx
+	dce_mi->base.ctx
 #define REG(reg)\
-	mi->regs->reg
+	dce_mi->regs->reg
 
 #undef FN
 #define FN(reg_name, field_name) \
-	mi->shifts->field_name, mi->masks->field_name
+	dce_mi->shifts->field_name, dce_mi->masks->field_name
 
 struct pte_setting {
 	unsigned int bpp;
@@ -130,11 +130,13 @@ static bool is_vert_scan(enum dc_rotation_angle rotation)
 	}
 }
 
-void dce_mem_input_program_pte_vm(struct mem_input *mi,
+static void dce_mi_program_pte_vm(
+		struct mem_input *mi,
 		enum surface_pixel_format format,
 		union dc_tiling_info *tiling_info,
 		enum dc_rotation_angle rotation)
 {
+	struct dce_mem_input *dce_mi = TO_DCE_MEM_INPUT(mi);
 	enum mi_bits_per_pixel mi_bpp = get_mi_bpp(format);
 	enum mi_tiling_format mi_tiling = get_mi_tiling(tiling_info);
 	const struct pte_setting *pte = &pte_settings[mi_tiling][mi_bpp];
@@ -158,7 +160,8 @@ void dce_mem_input_program_pte_vm(struct mem_input *mi,
 			DVMM_MAX_PTE_REQ_OUTSTANDING, 0xff);
 }
 
-static void program_urgency_watermark(struct mem_input *mi,
+static void program_urgency_watermark(
+	struct dce_mem_input *dce_mi,
 	uint32_t wm_select,
 	uint32_t urgency_low_wm,
 	uint32_t urgency_high_wm)
@@ -171,7 +174,8 @@ static void program_urgency_watermark(struct mem_input *mi,
 		URGENCY_HIGH_WATERMARK, urgency_high_wm);
 }
 
-static void program_nbp_watermark(struct mem_input *mi,
+static void program_nbp_watermark(
+	struct dce_mem_input *dce_mi,
 	uint32_t wm_select,
 	uint32_t nbp_wm)
 {
@@ -202,7 +206,8 @@ static void program_nbp_watermark(struct mem_input *mi,
 	}
 }
 
-static void program_stutter_watermark(struct mem_input *mi,
+static void program_stutter_watermark(
+	struct dce_mem_input *dce_mi,
 	uint32_t wm_select,
 	uint32_t stutter_mark)
 {
@@ -217,41 +222,67 @@ static void program_stutter_watermark(struct mem_input *mi,
 				STUTTER_EXIT_SELF_REFRESH_WATERMARK, stutter_mark);
 }
 
-void dce_mem_input_program_display_marks(struct mem_input *mi,
+static void dce_mi_program_display_marks(
+	struct mem_input *mi,
 	struct dce_watermarks nbp,
 	struct dce_watermarks stutter,
 	struct dce_watermarks urgent,
 	uint32_t total_dest_line_time_ns)
 {
+	struct dce_mem_input *dce_mi = TO_DCE_MEM_INPUT(mi);
 	uint32_t stutter_en = mi->ctx->dc->debug.disable_stutter ? 0 : 1;
 
-	program_urgency_watermark(mi, 0, /* set a */
+	program_urgency_watermark(dce_mi, 2, /* set a */
 			urgent.a_mark, total_dest_line_time_ns);
-	program_urgency_watermark(mi, 1, /* set b */
-			urgent.b_mark, total_dest_line_time_ns);
-	program_urgency_watermark(mi, 2, /* set c */
-			urgent.c_mark, total_dest_line_time_ns);
-	program_urgency_watermark(mi, 3, /* set d */
+	program_urgency_watermark(dce_mi, 1, /* set d */
 			urgent.d_mark, total_dest_line_time_ns);
 
 	REG_UPDATE_2(DPG_PIPE_STUTTER_CONTROL,
 		STUTTER_ENABLE, stutter_en,
 		STUTTER_IGNORE_FBC, 1);
-	program_nbp_watermark(mi, 0, nbp.a_mark); /* set a */
-	program_nbp_watermark(mi, 1, nbp.b_mark); /* set b */
-	program_nbp_watermark(mi, 2, nbp.c_mark); /* set c */
-	program_nbp_watermark(mi, 3, nbp.d_mark); /* set d */
+	program_nbp_watermark(dce_mi, 2, nbp.a_mark); /* set a */
+	program_nbp_watermark(dce_mi, 1, nbp.d_mark); /* set d */
 
-	program_stutter_watermark(mi, 0, stutter.a_mark); /* set a */
-	program_stutter_watermark(mi, 1, stutter.b_mark); /* set b */
-	program_stutter_watermark(mi, 2, stutter.c_mark); /* set c */
-	program_stutter_watermark(mi, 3, stutter.d_mark); /* set d */
+	program_stutter_watermark(dce_mi, 2, stutter.a_mark); /* set a */
+	program_stutter_watermark(dce_mi, 1, stutter.d_mark); /* set d */
 }
 
-static void program_tiling(struct mem_input *mi,
-	const union dc_tiling_info *info)
+static void dce120_mi_program_display_marks(struct mem_input *mi,
+	struct dce_watermarks nbp,
+	struct dce_watermarks stutter,
+	struct dce_watermarks urgent,
+	uint32_t total_dest_line_time_ns)
 {
-	if (mi->masks->GRPH_SW_MODE) { /* GFX9 */
+	struct dce_mem_input *dce_mi = TO_DCE_MEM_INPUT(mi);
+	uint32_t stutter_en = mi->ctx->dc->debug.disable_stutter ? 0 : 1;
+
+	program_urgency_watermark(dce_mi, 0, /* set a */
+			urgent.a_mark, total_dest_line_time_ns);
+	program_urgency_watermark(dce_mi, 1, /* set b */
+			urgent.b_mark, total_dest_line_time_ns);
+	program_urgency_watermark(dce_mi, 2, /* set c */
+			urgent.c_mark, total_dest_line_time_ns);
+	program_urgency_watermark(dce_mi, 3, /* set d */
+			urgent.d_mark, total_dest_line_time_ns);
+
+	REG_UPDATE_2(DPG_PIPE_STUTTER_CONTROL,
+		STUTTER_ENABLE, stutter_en,
+		STUTTER_IGNORE_FBC, 1);
+	program_nbp_watermark(dce_mi, 0, nbp.a_mark); /* set a */
+	program_nbp_watermark(dce_mi, 1, nbp.b_mark); /* set b */
+	program_nbp_watermark(dce_mi, 2, nbp.c_mark); /* set c */
+	program_nbp_watermark(dce_mi, 3, nbp.d_mark); /* set d */
+
+	program_stutter_watermark(dce_mi, 0, stutter.a_mark); /* set a */
+	program_stutter_watermark(dce_mi, 1, stutter.b_mark); /* set b */
+	program_stutter_watermark(dce_mi, 2, stutter.c_mark); /* set c */
+	program_stutter_watermark(dce_mi, 3, stutter.d_mark); /* set d */
+}
+
+static void program_tiling(
+	struct dce_mem_input *dce_mi, const union dc_tiling_info *info)
+{
+	if (dce_mi->masks->GRPH_SW_MODE) { /* GFX9 */
 		REG_UPDATE_6(GRPH_CONTROL,
 				GRPH_SW_MODE, info->gfx9.swizzle,
 				GRPH_NUM_BANKS, log_2(info->gfx9.num_banks),
@@ -265,7 +296,7 @@ static void program_tiling(struct mem_input *mi,
 		 */
 	}
 
-	if (mi->masks->GRPH_ARRAY_MODE) { /* GFX8 */
+	if (dce_mi->masks->GRPH_ARRAY_MODE) { /* GFX8 */
 		REG_UPDATE_9(GRPH_CONTROL,
 				GRPH_NUM_BANKS, info->gfx8.num_banks,
 				GRPH_BANK_WIDTH, info->gfx8.bank_width,
@@ -285,7 +316,7 @@ static void program_tiling(struct mem_input *mi,
 
 
 static void program_size_and_rotation(
-	struct mem_input *mi,
+	struct dce_mem_input *dce_mi,
 	enum dc_rotation_angle rotation,
 	const union plane_size *plane_size)
 {
@@ -326,7 +357,7 @@ static void program_size_and_rotation(
 }
 
 static void program_grph_pixel_format(
-	struct mem_input *mi,
+	struct dce_mem_input *dce_mi,
 	enum surface_pixel_format format)
 {
 	uint32_t red_xbar = 0, blue_xbar = 0; /* no swap */
@@ -397,7 +428,8 @@ static void program_grph_pixel_format(
 			GRPH_PRESCALE_B_SIGN, sign);
 }
 
-void dce_mem_input_program_surface_config(struct mem_input *mi,
+static void dce_mi_program_surface_config(
+	struct mem_input *mi,
 	enum surface_pixel_format format,
 	union dc_tiling_info *tiling_info,
 	union plane_size *plane_size,
@@ -405,14 +437,15 @@ void dce_mem_input_program_surface_config(struct mem_input *mi,
 	struct dc_plane_dcc_param *dcc,
 	bool horizontal_mirror)
 {
+	struct dce_mem_input *dce_mi = TO_DCE_MEM_INPUT(mi);
 	REG_UPDATE(GRPH_ENABLE, GRPH_ENABLE, 1);
 
-	program_tiling(mi, tiling_info);
-	program_size_and_rotation(mi, rotation, plane_size);
+	program_tiling(dce_mi, tiling_info);
+	program_size_and_rotation(dce_mi, rotation, plane_size);
 
 	if (format >= SURFACE_PIXEL_FORMAT_GRPH_BEGIN &&
 		format < SURFACE_PIXEL_FORMAT_VIDEO_BEGIN)
-		program_grph_pixel_format(mi, format);
+		program_grph_pixel_format(dce_mi, format);
 }
 
 static uint32_t get_dmif_switch_time_us(
@@ -461,12 +494,14 @@ static uint32_t get_dmif_switch_time_us(
 	return frame_time;
 }
 
-void dce_mem_input_allocate_dmif(struct mem_input *mi,
+static void dce_mi_allocate_dmif(
+	struct mem_input *mi,
 	uint32_t h_total,
 	uint32_t v_total,
 	uint32_t pix_clk_khz,
 	uint32_t total_stream_num)
 {
+	struct dce_mem_input *dce_mi = TO_DCE_MEM_INPUT(mi);
 	const uint32_t retry_delay = 10;
 	uint32_t retry_count = get_dmif_switch_time_us(
 			h_total,
@@ -497,18 +532,20 @@ void dce_mem_input_allocate_dmif(struct mem_input *mi,
 			PIXEL_DURATION, pix_dur);
 	}
 
-	if (mi->wa.single_head_rdreq_dmif_limit) {
+	if (dce_mi->wa.single_head_rdreq_dmif_limit) {
 		uint32_t eanble =  (total_stream_num > 1) ? 0 :
-				mi->wa.single_head_rdreq_dmif_limit;
+				dce_mi->wa.single_head_rdreq_dmif_limit;
 
 		REG_UPDATE(MC_HUB_RDREQ_DMIF_LIMIT,
 				ENABLE, eanble);
 	}
 }
 
-void dce_mem_input_free_dmif(struct mem_input *mi,
+static void dce_mi_free_dmif(
+		struct mem_input *mi,
 		uint32_t total_stream_num)
 {
+	struct dce_mem_input *dce_mi = TO_DCE_MEM_INPUT(mi);
 	uint32_t buffers_allocated;
 	uint32_t dmif_buffer_control;
 
@@ -525,11 +562,204 @@ void dce_mem_input_free_dmif(struct mem_input *mi,
 			DMIF_BUFFERS_ALLOCATION_COMPLETED, 1,
 			10, 3500);
 
-	if (mi->wa.single_head_rdreq_dmif_limit) {
+	if (dce_mi->wa.single_head_rdreq_dmif_limit) {
 		uint32_t eanble =  (total_stream_num > 1) ? 0 :
-				mi->wa.single_head_rdreq_dmif_limit;
+				dce_mi->wa.single_head_rdreq_dmif_limit;
 
 		REG_UPDATE(MC_HUB_RDREQ_DMIF_LIMIT,
 				ENABLE, eanble);
 	}
+}
+
+
+static void program_sec_addr(
+	struct dce_mem_input *dce_mi,
+	PHYSICAL_ADDRESS_LOC address)
+{
+	/*high register MUST be programmed first*/
+	REG_SET(GRPH_SECONDARY_SURFACE_ADDRESS_HIGH, 0,
+		GRPH_SECONDARY_SURFACE_ADDRESS_HIGH,
+		address.high_part);
+
+	REG_SET_2(GRPH_SECONDARY_SURFACE_ADDRESS, 0,
+		GRPH_SECONDARY_SURFACE_ADDRESS, address.low_part >> 8,
+		GRPH_SECONDARY_DFQ_ENABLE, 0);
+}
+
+static void program_pri_addr(
+	struct dce_mem_input *dce_mi,
+	PHYSICAL_ADDRESS_LOC address)
+{
+	/*high register MUST be programmed first*/
+	REG_SET(GRPH_PRIMARY_SURFACE_ADDRESS_HIGH, 0,
+		GRPH_PRIMARY_SURFACE_ADDRESS_HIGH,
+		address.high_part);
+
+	REG_SET(GRPH_PRIMARY_SURFACE_ADDRESS, 0,
+		GRPH_PRIMARY_SURFACE_ADDRESS,
+		address.low_part >> 8);
+}
+
+
+static bool dce_mi_is_flip_pending(struct mem_input *mem_input)
+{
+	struct dce_mem_input *dce_mi = TO_DCE_MEM_INPUT(mem_input);
+	uint32_t update_pending;
+
+	REG_GET(GRPH_UPDATE, GRPH_SURFACE_UPDATE_PENDING, &update_pending);
+	if (update_pending)
+		return true;
+
+	mem_input->current_address = mem_input->request_address;
+	return false;
+}
+
+static bool dce_mi_program_surface_flip_and_addr(
+	struct mem_input *mem_input,
+	const struct dc_plane_address *address,
+	bool flip_immediate)
+{
+	struct dce_mem_input *dce_mi = TO_DCE_MEM_INPUT(mem_input);
+
+	/* TODO: Figure out if two modes are needed:
+	 * non-XDMA Mode: GRPH_SURFACE_UPDATE_IMMEDIATE_EN = 1
+	 * XDMA Mode: GRPH_SURFACE_UPDATE_H_RETRACE_EN = 1
+	 */
+	REG_UPDATE(GRPH_UPDATE,
+			GRPH_UPDATE_LOCK, 1);
+
+	if (flip_immediate) {
+		REG_UPDATE_2(GRPH_FLIP_CONTROL,
+			GRPH_SURFACE_UPDATE_IMMEDIATE_EN, 0,
+			GRPH_SURFACE_UPDATE_H_RETRACE_EN, 1);
+	} else {
+		REG_UPDATE_2(GRPH_FLIP_CONTROL,
+			GRPH_SURFACE_UPDATE_IMMEDIATE_EN, 0,
+			GRPH_SURFACE_UPDATE_H_RETRACE_EN, 0);
+	}
+
+	switch (address->type) {
+	case PLN_ADDR_TYPE_GRAPHICS:
+		if (address->grph.addr.quad_part == 0)
+			break;
+		program_pri_addr(dce_mi, address->grph.addr);
+		break;
+	case PLN_ADDR_TYPE_GRPH_STEREO:
+		if (address->grph_stereo.left_addr.quad_part == 0
+			|| address->grph_stereo.right_addr.quad_part == 0)
+			break;
+		program_pri_addr(dce_mi, address->grph_stereo.left_addr);
+		program_sec_addr(dce_mi, address->grph_stereo.right_addr);
+		break;
+	default:
+		/* not supported */
+		BREAK_TO_DEBUGGER();
+		break;
+	}
+
+	mem_input->request_address = *address;
+
+	if (flip_immediate)
+		mem_input->current_address = *address;
+
+	REG_UPDATE(GRPH_UPDATE,
+			GRPH_UPDATE_LOCK, 0);
+
+	return true;
+}
+
+static void dce_mi_update_dchub(struct mem_input *mi,
+		struct dchub_init_data *dh_data)
+{
+	struct dce_mem_input *dce_mi = TO_DCE_MEM_INPUT(mi);
+	/* TODO: port code from dal2 */
+	switch (dh_data->fb_mode) {
+	case FRAME_BUFFER_MODE_ZFB_ONLY:
+		/*For ZFB case need to put DCHUB FB BASE and TOP upside down to indicate ZFB mode*/
+		REG_UPDATE_2(DCHUB_FB_LOCATION,
+				FB_TOP, 0,
+				FB_BASE, 0x0FFFF);
+
+		REG_UPDATE(DCHUB_AGP_BASE,
+				AGP_BASE, dh_data->zfb_phys_addr_base >> 22);
+
+		REG_UPDATE(DCHUB_AGP_BOT,
+				AGP_BOT, dh_data->zfb_mc_base_addr >> 22);
+
+		REG_UPDATE(DCHUB_AGP_TOP,
+				AGP_TOP, (dh_data->zfb_mc_base_addr + dh_data->zfb_size_in_byte - 1) >> 22);
+		break;
+	case FRAME_BUFFER_MODE_MIXED_ZFB_AND_LOCAL:
+		/*Should not touch FB LOCATION (done by VBIOS on AsicInit table)*/
+		REG_UPDATE(DCHUB_AGP_BASE,
+				AGP_BASE, dh_data->zfb_phys_addr_base >> 22);
+
+		REG_UPDATE(DCHUB_AGP_BOT,
+				AGP_BOT, dh_data->zfb_mc_base_addr >> 22);
+
+		REG_UPDATE(DCHUB_AGP_TOP,
+				AGP_TOP, (dh_data->zfb_mc_base_addr + dh_data->zfb_size_in_byte - 1) >> 22);
+		break;
+	case FRAME_BUFFER_MODE_LOCAL_ONLY:
+		/*Should not touch FB LOCATION (done by VBIOS on AsicInit table)*/
+		REG_UPDATE(DCHUB_AGP_BASE,
+				AGP_BASE, 0);
+
+		REG_UPDATE(DCHUB_AGP_BOT,
+				AGP_BOT, 0x03FFFF);
+
+		REG_UPDATE(DCHUB_AGP_TOP,
+				AGP_TOP, 0);
+		break;
+	default:
+		break;
+	}
+
+	dh_data->dchub_initialzied = true;
+	dh_data->dchub_info_valid = false;
+}
+
+static struct mem_input_funcs dce_mi_funcs = {
+	.mem_input_program_display_marks = dce_mi_program_display_marks,
+	.allocate_mem_input = dce_mi_allocate_dmif,
+	.free_mem_input = dce_mi_free_dmif,
+	.mem_input_program_surface_flip_and_addr =
+			dce_mi_program_surface_flip_and_addr,
+	.mem_input_program_pte_vm = dce_mi_program_pte_vm,
+	.mem_input_program_surface_config =
+			dce_mi_program_surface_config,
+	.mem_input_is_flip_pending = dce_mi_is_flip_pending,
+	.mem_input_update_dchub = dce_mi_update_dchub
+};
+
+
+void dce_mem_input_construct(
+	struct dce_mem_input *dce_mi,
+	struct dc_context *ctx,
+	int inst,
+	const struct dce_mem_input_registers *regs,
+	const struct dce_mem_input_shift *mi_shift,
+	const struct dce_mem_input_mask *mi_mask)
+{
+	dce_mi->base.ctx = ctx;
+
+	dce_mi->base.inst = inst;
+	dce_mi->base.funcs = &dce_mi_funcs;
+
+	dce_mi->regs = regs;
+	dce_mi->shifts = mi_shift;
+	dce_mi->masks = mi_mask;
+
+}
+
+void dce112_mem_input_construct(
+	struct dce_mem_input *dce_mi,
+	struct dc_context *ctx,
+	int inst,
+	const struct dce_mem_input_registers *regs,
+	const struct dce_mem_input_shift *mi_shift,
+	const struct dce_mem_input_mask *mi_mask)
+{
+	dce_mem_input_construct(dce_mi, ctx, inst, regs, mi_shift, mi_mask);
+	dce_mi->base.funcs->mem_input_program_display_marks = dce120_mi_program_display_marks;
 }

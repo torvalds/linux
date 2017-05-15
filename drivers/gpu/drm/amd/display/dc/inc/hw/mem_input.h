@@ -28,8 +28,6 @@
 #include "dc.h"
 #include "include/grph_object_id.h"
 
-#include "dce/dce_mem_input.h" /* temporary */
-
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 #include "dml/display_mode_structs.h"
 
@@ -51,7 +49,6 @@ struct dcn_watermark_set {
 	struct dcn_watermarks c;
 	struct dcn_watermarks d;
 };
-
 #endif
 
 struct dce_watermarks {
@@ -74,11 +71,6 @@ struct mem_input {
 	struct dc_plane_address current_address;
 	uint32_t inst;
 	struct stutter_modes stutter_mode;
-
-	const struct dce_mem_input_registers *regs;
-	const struct dce_mem_input_shift *shifts;
-	const struct dce_mem_input_mask *masks;
-	struct dce_mem_input_wa wa;
 };
 
 struct mem_input_funcs {

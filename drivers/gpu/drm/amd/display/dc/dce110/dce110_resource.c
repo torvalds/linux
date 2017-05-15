@@ -38,7 +38,7 @@
 #include "dce110/dce110_timing_generator_v.h"
 #include "dce/dce_link_encoder.h"
 #include "dce/dce_stream_encoder.h"
-#include "dce110/dce110_mem_input.h"
+#include "dce/dce_mem_input.h"
 #include "dce110/dce110_mem_input_v.h"
 #include "dce/dce_ipp.h"
 #include "dce/dce_transform.h"
@@ -130,30 +130,6 @@ static const struct dce110_timing_generator_offsets dce110_tg_offsets[] = {
 	{
 		.crtc = (mmCRTC5_CRTC_CONTROL - mmCRTC_CONTROL),
 		.dcp = (mmDCP5_GRPH_CONTROL - mmGRPH_CONTROL),
-	}
-};
-
-static const struct dce110_mem_input_reg_offsets dce110_mi_reg_offsets[] = {
-	{
-		.dcp = (mmDCP0_GRPH_CONTROL - mmGRPH_CONTROL),
-		.dmif = (mmDMIF_PG0_DPG_WATERMARK_MASK_CONTROL
-				- mmDPG_WATERMARK_MASK_CONTROL),
-		.pipe = (mmPIPE0_DMIF_BUFFER_CONTROL
-				- mmPIPE0_DMIF_BUFFER_CONTROL),
-	},
-	{
-		.dcp = (mmDCP1_GRPH_CONTROL - mmGRPH_CONTROL),
-		.dmif = (mmDMIF_PG1_DPG_WATERMARK_MASK_CONTROL
-				- mmDPG_WATERMARK_MASK_CONTROL),
-		.pipe = (mmPIPE1_DMIF_BUFFER_CONTROL
-				- mmPIPE0_DMIF_BUFFER_CONTROL),
-	},
-	{
-		.dcp = (mmDCP2_GRPH_CONTROL - mmGRPH_CONTROL),
-		.dmif = (mmDMIF_PG2_DPG_WATERMARK_MASK_CONTROL
-				- mmDPG_WATERMARK_MASK_CONTROL),
-		.pipe = (mmPIPE2_DMIF_BUFFER_CONTROL
-				- mmPIPE0_DMIF_BUFFER_CONTROL),
 	}
 };
 
@@ -520,30 +496,21 @@ static const struct dce_mem_input_mask mi_masks = {
 		.ENABLE = MC_HUB_RDREQ_DMIF_LIMIT__ENABLE_MASK
 };
 
+
 static struct mem_input *dce110_mem_input_create(
 	struct dc_context *ctx,
-	uint32_t inst,
-	const struct dce110_mem_input_reg_offsets *offset)
+	uint32_t inst)
 {
-	struct dce110_mem_input *mem_input110 =
-		dm_alloc(sizeof(struct dce110_mem_input));
+	struct dce_mem_input *dce_mi = dm_alloc(sizeof(struct dce_mem_input));
 
-	if (!mem_input110)
+	if (!dce_mi) {
+		BREAK_TO_DEBUGGER();
 		return NULL;
-
-	if (dce110_mem_input_construct(mem_input110, ctx, inst, offset)) {
-		struct mem_input *mi = &mem_input110->base;
-
-		mi->regs = &mi_regs[inst];
-		mi->shifts = &mi_shifts;
-		mi->masks = &mi_masks;
-		mi->wa.single_head_rdreq_dmif_limit = 3;
-		return mi;
 	}
 
-	BREAK_TO_DEBUGGER();
-	dm_free(mem_input110);
-	return NULL;
+	dce_mem_input_construct(dce_mi, ctx, inst, &mi_regs[inst], &mi_shifts, &mi_masks);
+	dce_mi->wa.single_head_rdreq_dmif_limit = 3;
+	return &dce_mi->base;
 }
 
 static void dce110_transform_destroy(struct transform **xfm)
@@ -698,7 +665,7 @@ static void destruct(struct dce110_resource_pool *pool)
 			dce_ipp_destroy(&pool->base.ipps[i]);
 
 		if (pool->base.mis[i] != NULL) {
-			dm_free(TO_DCE110_MEM_INPUT(pool->base.mis[i]));
+			dm_free(TO_DCE_MEM_INPUT(pool->base.mis[i]));
 			pool->base.mis[i] = NULL;
 		}
 
@@ -1132,7 +1099,7 @@ static bool underlay_create(struct dc_context *ctx, struct resource_pool *pool)
 {
 	struct dce110_timing_generator *dce110_tgv = dm_alloc(sizeof (*dce110_tgv));
 	struct dce_transform *dce110_xfmv = dm_alloc(sizeof (*dce110_xfmv));
-	struct dce110_mem_input *dce110_miv = dm_alloc(sizeof (*dce110_miv));
+	struct dce_mem_input *dce110_miv = dm_alloc(sizeof (*dce110_miv));
 	struct dce110_opp *dce110_oppv = dm_alloc(sizeof (*dce110_oppv));
 
 	if ((dce110_tgv == NULL) ||
@@ -1345,8 +1312,7 @@ static bool construct(
 			goto res_create_fail;
 		}
 
-		pool->base.mis[i] = dce110_mem_input_create(ctx, i,
-				&dce110_mi_reg_offsets[i]);
+		pool->base.mis[i] = dce110_mem_input_create(ctx, i);
 		if (pool->base.mis[i] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(
