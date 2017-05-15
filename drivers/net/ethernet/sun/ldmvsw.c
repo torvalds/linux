@@ -413,6 +413,7 @@ static int vsw_port_remove(struct vio_dev *vdev)
 		del_timer_sync(&port->vio.timer);
 
 		napi_disable(&port->napi);
+		unregister_netdev(port->dev);
 
 		list_del_rcu(&port->list);
 
@@ -427,7 +428,6 @@ static int vsw_port_remove(struct vio_dev *vdev)
 
 		dev_set_drvdata(&vdev->dev, NULL);
 
-		unregister_netdev(port->dev);
 		free_netdev(port->dev);
 	}
 
