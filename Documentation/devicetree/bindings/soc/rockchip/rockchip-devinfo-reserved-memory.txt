@@ -1,0 +1,28 @@
+Rockchip devinfo reserved memory device tree bindings
+=======================================================
+
+Dev Info Device Node:
+=======================
+static allocation a specific range of reserved memory
+
+Required properties:
+-----------------
+- compatible:	Should be
+		"rockchip,stb-devinfo"
+- reg:		standard definition
+
+Example:
+-----
+/* RK3399 */
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		...
+
+		stb_devinfo: stb-devinfo@00000000 {
+			compatible = "rockchip,stb-devinfo";
+			reg = <0x0 0x0 0x0 0x0>;
+		};
+	};

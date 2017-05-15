@@ -93,6 +93,7 @@
 		};
 
 		stb_devinfo: stb-devinfo@00000000 {
+			compatible = "rockchip,stb-devinfo";
 			reg = <0x0 0x0 0x0 0x0>;
 		};
 	};
