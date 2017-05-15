@@ -9,6 +9,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/acpi.h>
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -1095,6 +1096,14 @@ static const struct of_device_id rt5514_of_match[] = {
 MODULE_DEVICE_TABLE(of, rt5514_of_match);
 #endif
 
+#ifdef CONFIG_ACPI
+static struct acpi_device_id rt5514_acpi_match[] = {
+	{ "10EC5514", 0},
+	{},
+};
+MODULE_DEVICE_TABLE(acpi, rt5514_acpi_match);
+#endif
+
 static int rt5514_parse_dt(struct rt5514_priv *rt5514, struct device *dev)
 {
 	device_property_read_u32(dev, "realtek,dmic-init-delay-ms",
@@ -1198,6 +1207,7 @@ static const struct dev_pm_ops rt5514_i2_pm_ops = {
 static struct i2c_driver rt5514_i2c_driver = {
 	.driver = {
 		.name = "rt5514",
+		.acpi_match_table = ACPI_PTR(rt5514_acpi_match),
 		.of_match_table = of_match_ptr(rt5514_of_match),
 		.pm = &rt5514_i2_pm_ops,
 	},
