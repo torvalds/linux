@@ -240,12 +240,17 @@ ENTRY(sie64a)
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
 .Lsie_done:
 # some program checks are suppressing. C code (e.g. do_protection_exception)
-# will rewind the PSW by the ILC, which is 4 bytes in case of SIE. Other
-# instructions between sie64a and .Lsie_done should not cause program
-# interrupts. So lets use a nop (47 00 00 00) as a landing pad.
+# will rewind the PSW by the ILC, which is often 4 bytes in case of SIE. There
+# are some corner cases (e.g. runtime instrumentation) where ILC is unpredictable.
+# Other instructions between sie64a and .Lsie_done should not cause program
+# interrupts. So lets use 3 nops as a landing pad for all possible rewinds.
 # See also .Lcleanup_sie
-.Lrewind_pad:
-	nop	0
+.Lrewind_pad6:
+	nopr	7
+.Lrewind_pad4:
+	nopr	7
+.Lrewind_pad2:
+	nopr	7
 	.globl sie_exit
 sie_exit:
 	lg	%r14,__SF_EMPTY+8(%r15)		# load guest register save area
@@ -258,7 +263,9 @@ sie_exit:
 	stg	%r14,__SF_EMPTY+16(%r15)	# set exit reason code
 	j	sie_exit
 
-	EX_TABLE(.Lrewind_pad,.Lsie_fault)
+	EX_TABLE(.Lrewind_pad6,.Lsie_fault)
+	EX_TABLE(.Lrewind_pad4,.Lsie_fault)
+	EX_TABLE(.Lrewind_pad2,.Lsie_fault)
 	EX_TABLE(sie_exit,.Lsie_fault)
 EXPORT_SYMBOL(sie64a)
 EXPORT_SYMBOL(sie_exit)
