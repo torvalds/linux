@@ -401,6 +401,7 @@ static struct regmap_irq_chip rk805_irq_chip = {
 };
 
 static const struct mfd_cell rk805s[] = {
+	{ .name = "rk808-clkout", },
 	{ .name = "rk818-regulator", },
 	{ .name = "rk8xx-gpio", },
 	{
