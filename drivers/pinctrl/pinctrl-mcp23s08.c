@@ -1019,7 +1019,7 @@ static int mcp230xx_probe(struct i2c_client *client,
 		}
 	}
 
-	mcp = kzalloc(sizeof(*mcp), GFP_KERNEL);
+	mcp = devm_kzalloc(&client->dev, sizeof(*mcp), GFP_KERNEL);
 	if (!mcp)
 		return -ENOMEM;
 
@@ -1027,16 +1027,11 @@ static int mcp230xx_probe(struct i2c_client *client,
 	status = mcp23s08_probe_one(mcp, &client->dev, client, client->addr,
 				    id->driver_data, pdata, 0);
 	if (status)
-		goto fail;
+		return status;
 
 	i2c_set_clientdata(client, mcp);
 
 	return 0;
-
-fail:
-	kfree(mcp);
-
-	return status;
 }
 
 static int mcp230xx_remove(struct i2c_client *client)
@@ -1044,7 +1039,6 @@ static int mcp230xx_remove(struct i2c_client *client)
 	struct mcp23s08 *mcp = i2c_get_clientdata(client);
 
 	gpiochip_remove(&mcp->chip);
-	kfree(mcp);
 
 	return 0;
 }
