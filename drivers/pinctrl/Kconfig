@@ -146,6 +146,19 @@ config PINCTRL_FALCON
 	depends on SOC_FALCON
 	depends on PINCTRL_LANTIQ
 
+config PINCTRL_MCP23S08
+	tristate "Microchip MCP23xxx I/O expander"
+	depends on OF_GPIO
+	depends on SPI_MASTER || I2C
+	select GPIOLIB_IRQCHIP
+	select REGMAP_I2C if I2C
+	select REGMAP_SPI if SPI_MASTER
+	help
+	  SPI/I2C driver for Microchip MCP23S08/MCP23S17/MCP23008/MCP23017
+	  I/O expanders.
+	  This provides a GPIO interface supporting inputs and outputs.
+	  The I2C versions of the chips can be used as interrupt-controller.
+
 config PINCTRL_MESON
 	bool
 	depends on OF
