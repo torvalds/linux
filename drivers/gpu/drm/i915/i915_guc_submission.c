@@ -615,9 +615,6 @@ static void __i915_guc_submit(struct drm_i915_gem_request *rq)
 
 	client->submissions[engine_id] += 1;
 
-	guc->submissions[engine_id] += 1;
-	guc->last_seqno[engine_id] = rq->global_seqno;
-
 	spin_unlock_irqrestore(&client->wq_lock, flags);
 }
 

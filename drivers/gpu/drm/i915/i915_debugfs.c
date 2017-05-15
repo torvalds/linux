@@ -2512,9 +2512,6 @@ static int i915_guc_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	const struct intel_guc *guc = &dev_priv->guc;
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-	u64 total;
 
 	if (!check_guc_submission(m))
 		return 0;
@@ -2522,22 +2519,6 @@ static int i915_guc_info(struct seq_file *m, void *data)
 	seq_printf(m, "Doorbell map:\n");
 	seq_printf(m, "\t%*pb\n", GUC_NUM_DOORBELLS, guc->doorbell_bitmap);
 	seq_printf(m, "Doorbell next cacheline: 0x%x\n\n", guc->db_cacheline);
-
-	seq_printf(m, "GuC total action count: %llu\n", guc->action_count);
-	seq_printf(m, "GuC action failure count: %u\n", guc->action_fail);
-	seq_printf(m, "GuC last action command: 0x%x\n", guc->action_cmd);
-	seq_printf(m, "GuC last action status: 0x%x\n", guc->action_status);
-	seq_printf(m, "GuC last action error code: %d\n", guc->action_err);
-
-	total = 0;
-	seq_printf(m, "\nGuC submissions:\n");
-	for_each_engine(engine, dev_priv, id) {
-		u64 submissions = guc->submissions[id];
-		total += submissions;
-		seq_printf(m, "\t%-24s: %10llu, last seqno 0x%08x\n",
-			engine->name, submissions, guc->last_seqno[id]);
-	}
-	seq_printf(m, "\t%s: %llu\n", "Total", total);
 
 	seq_printf(m, "\nGuC execbuf client @ %p:\n", guc->execbuf_client);
 	i915_guc_client_info(m, dev_priv, guc->execbuf_client);

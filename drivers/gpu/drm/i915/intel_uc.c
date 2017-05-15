@@ -440,9 +440,6 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len)
 	mutex_lock(&guc->send_mutex);
 	intel_uncore_forcewake_get(dev_priv, guc->send_regs.fw_domains);
 
-	dev_priv->guc.action_count += 1;
-	dev_priv->guc.action_cmd = action[0];
-
 	for (i = 0; i < len; i++)
 		I915_WRITE(guc_send_reg(guc, i), action[i]);
 
@@ -471,11 +468,7 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len)
 		DRM_WARN("INTEL_GUC_SEND: Action 0x%X failed;"
 			 " ret=%d status=0x%08X response=0x%08X\n",
 			 action[0], ret, status, I915_READ(SOFT_SCRATCH(15)));
-
-		dev_priv->guc.action_fail += 1;
-		dev_priv->guc.action_err = ret;
 	}
-	dev_priv->guc.action_status = status;
 
 	intel_uncore_forcewake_put(dev_priv, guc->send_regs.fw_domains);
 	mutex_unlock(&guc->send_mutex);

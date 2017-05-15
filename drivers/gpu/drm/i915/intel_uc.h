@@ -187,16 +187,6 @@ struct intel_guc {
 	DECLARE_BITMAP(doorbell_bitmap, GUC_NUM_DOORBELLS);
 	uint32_t db_cacheline;		/* Cyclic counter mod pagesize	*/
 
-	/* Action status & statistics */
-	uint64_t action_count;		/* Total commands issued	*/
-	uint32_t action_cmd;		/* Last command word		*/
-	uint32_t action_status;		/* Last return status		*/
-	uint32_t action_fail;		/* Total number of failures	*/
-	int32_t action_err;		/* Last error code		*/
-
-	uint64_t submissions[I915_NUM_ENGINES];
-	uint32_t last_seqno[I915_NUM_ENGINES];
-
 	/* GuC's FW specific registers used in MMIO send */
 	struct {
 		u32 base;
