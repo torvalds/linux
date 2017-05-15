@@ -165,7 +165,11 @@ struct drm_crtc_helper_funcs {
 	 * allowed.
 	 *
 	 * Atomic drivers which need to inspect and adjust more state should
-	 * instead use the @atomic_check callback.
+	 * instead use the @atomic_check callback, but note that they're not
+	 * perfectly equivalent: @mode_valid is called from
+	 * drm_atomic_helper_check_modeset(), but @atomic_check is called from
+	 * drm_atomic_helper_check_planes(), because originally it was meant for
+	 * plane update checks only.
 	 *
 	 * Also beware that userspace can request its own custom modes, neither
 	 * core nor helpers filter modes to the list of probe modes reported by
@@ -547,7 +551,9 @@ struct drm_encoder_helper_funcs {
 	 * allowed.
 	 *
 	 * Atomic drivers which need to inspect and adjust more state should
-	 * instead use the @atomic_check callback.
+	 * instead use the @atomic_check callback. If @atomic_check is used,
+	 * this hook isn't called since @atomic_check allows a strict superset
+	 * of the functionality of @mode_fixup.
 	 *
 	 * Also beware that userspace can request its own custom modes, neither
 	 * core nor helpers filter modes to the list of probe modes reported by
@@ -733,6 +739,11 @@ struct drm_encoder_helper_funcs {
 	 * gets passed both states, to be able to validate interactions and
 	 * update the CRTC to match what the encoder needs for the requested
 	 * connector.
+	 *
+	 * Since this provides a strict superset of the functionality of
+	 * @mode_fixup (the requested and adjusted modes are both available
+	 * through the passed in &struct drm_crtc_state) @mode_fixup is not
+	 * called when @atomic_check is implemented.
 	 *
 	 * This function is used by the atomic helpers, but it is optional.
 	 *
