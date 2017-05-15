@@ -236,7 +236,6 @@ void ovl_inode_update(struct inode *inode, struct dentry *upperdentry)
 {
 	struct inode *upperinode = d_inode(upperdentry);
 
-	WARN_ON(!inode_is_locked(upperdentry->d_parent->d_inode));
 	WARN_ON(OVL_I(inode)->__upperdentry);
 
 	/*
