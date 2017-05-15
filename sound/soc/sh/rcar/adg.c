@@ -556,7 +556,6 @@ static void rsnd_adg_get_clkout(struct rsnd_priv *priv,
 			clk = clk_register_fixed_rate(dev, clkout_name[i],
 						      parent_clk_name, 0,
 						      req_rate[0]);
-			adg->clkout[i] = ERR_PTR(-ENOENT);
 			if (!IS_ERR(clk))
 				adg->clkout[i] = clk;
 		}
