@@ -20,7 +20,6 @@
  */
 #include "spk_priv.h"
 #include "speakup.h"
-#include "serialio.h"
 
 #define DRV_VERSION "2.11"
 #define SYNTH_CLEAR 0x18
@@ -102,10 +101,10 @@ static struct spk_synth synth_spkout = {
 	.startup = SYNTH_START,
 	.checkval = SYNTH_CHECK,
 	.vars = vars,
-	.io_ops = &spk_serial_io_ops,
-	.probe = spk_serial_synth_probe,
-	.release = spk_serial_release,
-	.synth_immediate = spk_serial_synth_immediate,
+	.io_ops = &spk_ttyio_ops,
+	.probe = spk_ttyio_synth_probe,
+	.release = spk_ttyio_release,
+	.synth_immediate = spk_ttyio_synth_immediate,
 	.catch_up = spk_do_catch_up,
 	.flush = synth_flush,
 	.is_alive = spk_synth_is_alive_restart,

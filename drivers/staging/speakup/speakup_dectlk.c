@@ -27,7 +27,6 @@
 #include <linux/kthread.h>
 #include "speakup.h"
 #include "spk_priv.h"
-#include "serialio.h"
 
 #define DRV_VERSION "2.20"
 #define SYNTH_CLEAR 0x03
@@ -130,10 +129,10 @@ static struct spk_synth synth_dectlk = {
 	.vars = vars,
 	.default_pitch = ap_defaults,
 	.default_vol = g5_defaults,
-	.io_ops = &spk_serial_io_ops,
-	.probe = spk_serial_synth_probe,
-	.release = spk_serial_release,
-	.synth_immediate = spk_serial_synth_immediate,
+	.io_ops = &spk_ttyio_ops,
+	.probe = spk_ttyio_synth_probe,
+	.release = spk_ttyio_release,
+	.synth_immediate = spk_ttyio_synth_immediate,
 	.catch_up = do_catch_up,
 	.flush = synth_flush,
 	.is_alive = spk_synth_is_alive_restart,

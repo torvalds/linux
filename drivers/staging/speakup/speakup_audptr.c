@@ -20,7 +20,6 @@
  */
 #include "spk_priv.h"
 #include "speakup.h"
-#include "serialio.h"
 
 #define DRV_VERSION "2.11"
 #define SYNTH_CLEAR 0x18 /* flush synth buffer */
@@ -104,10 +103,10 @@ static struct spk_synth synth_audptr = {
 	.startup = SYNTH_START,
 	.checkval = SYNTH_CHECK,
 	.vars = vars,
-	.io_ops = &spk_serial_io_ops,
+	.io_ops = &spk_ttyio_ops,
 	.probe = synth_probe,
-	.release = spk_serial_release,
-	.synth_immediate = spk_serial_synth_immediate,
+	.release = spk_ttyio_release,
+	.synth_immediate = spk_ttyio_synth_immediate,
 	.catch_up = spk_do_catch_up,
 	.flush = synth_flush,
 	.is_alive = spk_synth_is_alive_restart,
@@ -154,7 +153,7 @@ static int synth_probe(struct spk_synth *synth)
 {
 	int failed;
 
-	failed = spk_serial_synth_probe(synth);
+	failed = spk_ttyio_synth_probe(synth);
 	if (failed == 0)
 		synth_version(synth);
 	synth->alive = !failed;

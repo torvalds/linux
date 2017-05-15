@@ -22,9 +22,9 @@
 #include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/kthread.h>
+#include <linux/serial_reg.h>	/* for UART_MCR* constants */
 
 #include "spk_priv.h"
-#include "serialio.h"
 #include "speakup.h"
 
 #define DRV_VERSION "2.21"
@@ -108,10 +108,10 @@ static struct spk_synth synth_apollo = {
 	.startup = SYNTH_START,
 	.checkval = SYNTH_CHECK,
 	.vars = vars,
-	.io_ops = &spk_serial_io_ops,
-	.probe = spk_serial_synth_probe,
-	.release = spk_serial_release,
-	.synth_immediate = spk_serial_synth_immediate,
+	.io_ops = &spk_ttyio_ops,
+	.probe = spk_ttyio_synth_probe,
+	.release = spk_ttyio_release,
+	.synth_immediate = spk_ttyio_synth_immediate,
 	.catch_up = do_catch_up,
 	.flush = spk_synth_flush,
 	.is_alive = spk_synth_is_alive_restart,
