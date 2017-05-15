@@ -1108,15 +1108,15 @@ void lbs_mesh_set_txpd(struct lbs_private *priv,
  * Ethtool related
  */
 
-static const char * const mesh_stat_strings[] = {
-			"drop_duplicate_bcast",
-			"drop_ttl_zero",
-			"drop_no_fwd_route",
-			"drop_no_buffers",
-			"fwded_unicast_cnt",
-			"fwded_bcast_cnt",
-			"drop_blind_table",
-			"tx_failed_cnt"
+static const char mesh_stat_strings[MESH_STATS_NUM][ETH_GSTRING_LEN] = {
+	"drop_duplicate_bcast",
+	"drop_ttl_zero",
+	"drop_no_fwd_route",
+	"drop_no_buffers",
+	"fwded_unicast_cnt",
+	"fwded_bcast_cnt",
+	"drop_blind_table",
+	"tx_failed_cnt"
 };
 
 void lbs_mesh_ethtool_get_stats(struct net_device *dev,
@@ -1170,17 +1170,11 @@ int lbs_mesh_ethtool_get_sset_count(struct net_device *dev, int sset)
 void lbs_mesh_ethtool_get_strings(struct net_device *dev,
 	uint32_t stringset, uint8_t *s)
 {
-	int i;
-
 	lbs_deb_enter(LBS_DEB_ETHTOOL);
 
 	switch (stringset) {
 	case ETH_SS_STATS:
-		for (i = 0; i < MESH_STATS_NUM; i++) {
-			memcpy(s + i * ETH_GSTRING_LEN,
-					mesh_stat_strings[i],
-					ETH_GSTRING_LEN);
-		}
+		memcpy(s, mesh_stat_strings, sizeof(mesh_stat_strings));
 		break;
 	}
 	lbs_deb_enter(LBS_DEB_ETHTOOL);
