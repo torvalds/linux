@@ -70,7 +70,7 @@ static bool __read_mostly rcu_nocb_poll;    /* Offload kthread are to poll. */
 static void __init rcu_bootup_announce_oddness(void)
 {
 	if (IS_ENABLED(CONFIG_RCU_TRACE))
-		pr_info("\tRCU debugfs-based tracing is enabled.\n");
+		pr_info("\tRCU event tracing is enabled.\n");
 	if ((IS_ENABLED(CONFIG_64BIT) && RCU_FANOUT != 64) ||
 	    (!IS_ENABLED(CONFIG_64BIT) && RCU_FANOUT != 32))
 		pr_info("\tCONFIG_RCU_FANOUT set to non-default value of %d\n",
@@ -899,33 +899,6 @@ void exit_rcu(void)
 
 #include "../locking/rtmutex_common.h"
 
-#ifdef CONFIG_RCU_TRACE
-
-static void rcu_initiate_boost_trace(struct rcu_node *rnp)
-{
-	if (!rcu_preempt_has_tasks(rnp))
-		rnp->n_balk_blkd_tasks++;
-	else if (rnp->exp_tasks == NULL && rnp->gp_tasks == NULL)
-		rnp->n_balk_exp_gp_tasks++;
-	else if (rnp->gp_tasks != NULL && rnp->boost_tasks != NULL)
-		rnp->n_balk_boost_tasks++;
-	else if (rnp->gp_tasks != NULL && rnp->qsmask != 0)
-		rnp->n_balk_notblocked++;
-	else if (rnp->gp_tasks != NULL &&
-		 ULONG_CMP_LT(jiffies, rnp->boost_time))
-		rnp->n_balk_notyet++;
-	else
-		rnp->n_balk_nos++;
-}
-
-#else /* #ifdef CONFIG_RCU_TRACE */
-
-static void rcu_initiate_boost_trace(struct rcu_node *rnp)
-{
-}
-
-#endif /* #else #ifdef CONFIG_RCU_TRACE */
-
 static void rcu_wake_cond(struct task_struct *t, int status)
 {
 	/*
@@ -1058,7 +1031,6 @@ static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags)
 
 	lockdep_assert_held(&rnp->lock);
 	if (!rcu_preempt_blocked_readers_cgp(rnp) && rnp->exp_tasks == NULL) {
-		rnp->n_balk_exp_gp_tasks++;
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 		return;
 	}
@@ -1074,7 +1046,6 @@ static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags)
 		if (t)
 			rcu_wake_cond(t, rnp->boost_kthread_status);
 	} else {
-		rcu_initiate_boost_trace(rnp);
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 	}
 }

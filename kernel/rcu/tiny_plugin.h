@@ -24,8 +24,6 @@
 
 #include <linux/kthread.h>
 #include <linux/init.h>
-#include <linux/debugfs.h>
-#include <linux/seq_file.h>
 
 /* Global control variables for rcupdate callback mechanism. */
 struct rcu_ctrlblk {
@@ -86,49 +84,6 @@ static void rcu_trace_sub_qlen(struct rcu_ctrlblk *rcp, int n)
 	rcp->qlen -= n;
 	local_irq_restore(flags);
 }
-
-/*
- * Dump statistics for TINY_RCU, such as they are.
- */
-static int show_tiny_stats(struct seq_file *m, void *unused)
-{
-	seq_printf(m, "rcu_sched: qlen: %ld\n", rcu_sched_ctrlblk.qlen);
-	seq_printf(m, "rcu_bh: qlen: %ld\n", rcu_bh_ctrlblk.qlen);
-	return 0;
-}
-
-static int show_tiny_stats_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, show_tiny_stats, NULL);
-}
-
-static const struct file_operations show_tiny_stats_fops = {
-	.owner = THIS_MODULE,
-	.open = show_tiny_stats_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
-static struct dentry *rcudir;
-
-static int __init rcutiny_trace_init(void)
-{
-	struct dentry *retval;
-
-	rcudir = debugfs_create_dir("rcu", NULL);
-	if (!rcudir)
-		goto free_out;
-	retval = debugfs_create_file("rcudata", 0444, rcudir,
-				     NULL, &show_tiny_stats_fops);
-	if (!retval)
-		goto free_out;
-	return 0;
-free_out:
-	debugfs_remove_recursive(rcudir);
-	return 1;
-}
-device_initcall(rcutiny_trace_init);
 
 static void check_cpu_stall(struct rcu_ctrlblk *rcp)
 {

@@ -1361,9 +1361,8 @@ config RCU_TRACE
 	default y if TREE_RCU
 	select TRACE_CLOCK
 	help
-	  This option provides tracing in RCU which presents stats
-	  in debugfs for debugging RCU implementation.  It also enables
-	  additional tracepoints for ftrace-style event tracing.
+	  This option enables additional tracepoints for ftrace-style
+	  event tracing.
 
 	  Say Y here if you want to enable RCU tracing
 	  Say N if you are unsure.

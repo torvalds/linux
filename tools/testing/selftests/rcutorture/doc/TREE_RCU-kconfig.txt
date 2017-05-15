@@ -79,9 +79,5 @@ CONFIG_TASKS_RCU
 
 	Selected by CONFIG_RCU_TORTURE_TEST, so cannot disable.
 
-CONFIG_RCU_TRACE
-
-	Implied by CONFIG_RCU_TRACE for Tree RCU.
-
 
 boot parameters ignored: TBD
