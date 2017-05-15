@@ -6,6 +6,7 @@
 
 #include "kobject_process.h"
 #include "kobject_file.h"
+#include "kobject_fuck.h"
 #include <linux/medusa/l1/file_handlers.h>
 
 /* let's define the 'mkdir' access type, with subj=task and obj=inode */
@@ -41,6 +42,7 @@ medusa_answer_t medusa_mkdir(struct dentry *dentry, int mode)
 	if (!MED_MAGIC_VALID(&task_security(current)) &&
 		process_kobj_validate_task(current) <= 0)
 		return MED_OK;
+
 
 	ndcurrent.dentry = dentry;
 	ndcurrent.mnt = NULL;

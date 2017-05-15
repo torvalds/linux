@@ -8,6 +8,11 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/medusa/l3/registry.h>
+#include <linux/medusa/l1/inode.h>
+
+#define inode_security(inode) (*(struct medusa_l1_inode_s*)(inode->i_security))
+
+int validate_fuck(struct path *fuck_path);
 
 struct fuck_kobject {	
 	MEDUSA_KOBJECT_HEADER;

@@ -16,6 +16,15 @@ MED_ATTRS(fuck_kobject) {
 	MED_ATTR_END
 };
 
+int validate_fuck(struct path *fuck_path){
+		struct inode *fuck_inode = fuck_path->dentry->d_inode;
+		char *protected_path = inode_security(fuck_inode).fuck_path;
+
+		printk("VALIDATE_FUCK: protected path: %s\n", protected_path);
+
+		return 0;	
+}
+
 static struct medusa_kobject_s * fuck_fetch(struct medusa_kobject_s * kobj)
 {
 	struct fuck_kobject * fkobj =  (struct fuck_kobject *) kobj;
@@ -25,14 +34,23 @@ static struct medusa_kobject_s * fuck_fetch(struct medusa_kobject_s * kobj)
 	
 	struct path path;
 	if(kern_path(path_name, LOOKUP_FOLLOW, &path) >= 0){
-		unsigned long i_ino = path.dentry->d_inode->i_ino;
-		fkobj->i_ino = i_ino;	
+		struct inode *fuck_inode = path.dentry->d_inode;
+		char *fuck_path = inode_security(fuck_inode).fuck_path;
+
+		strncpy(fuck_path, path_name, PATH_MAX);
+		fuck_path[PATH_MAX-1] = '\0';
+
+		unsigned long i_ino = fuck_inode->i_ino;
+		fkobj->i_ino = i_ino;
+
+		printk("FUCK_SECURED_PATH: %s\n", fuck_path);
 		MED_PRINTF("Fuck: %s with i_no %ul", path_name, i_ino);
 	}else{
 		MED_PRINTF("Fuck: %s have no inode", path_name);
 	}
 	return (struct medusa_kobject_s *)fkobj;
 }
+
 static medusa_answer_t fuck_update(struct medusa_kobject_s * kobj)
 {
 	return MED_OK;
