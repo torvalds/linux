@@ -30,6 +30,7 @@ static void spk_serial_send_xchar(char ch);
 static void spk_serial_tiocmset(unsigned int set, unsigned int clear);
 static unsigned char spk_serial_in(void);
 static unsigned char spk_serial_in_nowait(void);
+static void spk_serial_flush_buffer(void);
 
 struct spk_io_ops spk_serial_io_ops = {
 	.synth_out = spk_serial_out,
@@ -37,6 +38,7 @@ struct spk_io_ops spk_serial_io_ops = {
 	.tiocmset = spk_serial_tiocmset,
 	.synth_in = spk_serial_in,
 	.synth_in_nowait = spk_serial_in_nowait,
+	.flush_buffer = spk_serial_flush_buffer,
 };
 EXPORT_SYMBOL_GPL(spk_serial_io_ops);
 
@@ -266,6 +268,11 @@ static unsigned char spk_serial_in_nowait(void)
 	if (!(lsr & UART_LSR_DR))
 		return 0;
 	return inb_p(speakup_info.port_tts + UART_RX);
+}
+
+static void spk_serial_flush_buffer(void)
+{
+	/* TODO: flush the UART 16550 buffer */
 }
 
 static int spk_serial_out(struct spk_synth *in_synth, const char ch)

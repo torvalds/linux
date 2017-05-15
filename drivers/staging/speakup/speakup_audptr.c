@@ -127,6 +127,7 @@ static struct spk_synth synth_audptr = {
 
 static void synth_flush(struct spk_synth *synth)
 {
+	synth->io_ops->flush_buffer();
 	synth->io_ops->send_xchar(SYNTH_CLEAR);
 	synth->io_ops->synth_out(synth, PROCSPEECH);
 }

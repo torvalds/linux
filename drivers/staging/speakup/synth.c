@@ -120,6 +120,7 @@ EXPORT_SYMBOL_GPL(spk_do_catch_up);
 
 void spk_synth_flush(struct spk_synth *synth)
 {
+	synth->io_ops->flush_buffer();
 	synth->io_ops->synth_out(synth, synth->clear);
 }
 EXPORT_SYMBOL_GPL(spk_synth_flush);

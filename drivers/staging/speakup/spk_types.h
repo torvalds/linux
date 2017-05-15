@@ -154,6 +154,7 @@ struct spk_io_ops {
 	void (*tiocmset)(unsigned int set, unsigned int clear);
 	unsigned char (*synth_in)(void);
 	unsigned char (*synth_in_nowait)(void);
+	void (*flush_buffer)(void);
 };
 
 struct spk_synth {

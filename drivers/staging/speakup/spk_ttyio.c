@@ -85,6 +85,7 @@ static void spk_ttyio_send_xchar(char ch);
 static void spk_ttyio_tiocmset(unsigned int set, unsigned int clear);
 static unsigned char spk_ttyio_in(void);
 static unsigned char spk_ttyio_in_nowait(void);
+static void spk_ttyio_flush_buffer(void);
 
 struct spk_io_ops spk_ttyio_ops = {
 	.synth_out = spk_ttyio_out,
@@ -92,13 +93,22 @@ struct spk_io_ops spk_ttyio_ops = {
 	.tiocmset = spk_ttyio_tiocmset,
 	.synth_in = spk_ttyio_in,
 	.synth_in_nowait = spk_ttyio_in_nowait,
+	.flush_buffer = spk_ttyio_flush_buffer,
 };
 EXPORT_SYMBOL_GPL(spk_ttyio_ops);
+
+static inline void get_termios(struct tty_struct *tty, struct ktermios *out_termios)
+{
+	down_read(&tty->termios_rwsem);
+	*out_termios = tty->termios;
+	up_read(&tty->termios_rwsem);
+}
 
 static int spk_ttyio_initialise_ldisc(int ser)
 {
 	int ret = 0;
 	struct tty_struct *tty;
+	struct ktermios tmp_termios;
 
 	ret = tty_register_ldisc(N_SPEAKUP, &spk_ttyio_ldisc_ops);
 	if (ret) {
@@ -127,6 +137,20 @@ static int spk_ttyio_initialise_ldisc(int ser)
 	}
 
 	clear_bit(TTY_HUPPED, &tty->flags);
+	/* ensure hardware flow control is enabled */
+	get_termios(tty, &tmp_termios);
+	if (!(tmp_termios.c_cflag & CRTSCTS)) {
+		tmp_termios.c_cflag |= CRTSCTS;
+		tty_set_termios(tty, &tmp_termios);
+		/*
+		 * check c_cflag to see if it's updated as tty_set_termios may not return
+		 * error even when no tty bits are changed by the request.
+		 */
+		get_termios(tty, &tmp_termios);
+		if (!(tmp_termios.c_cflag & CRTSCTS))
+			pr_warn("speakup: Failed to set hardware flow control\n");
+	}
+
 	tty_unlock(tty);
 
 	ret = tty_set_ldisc(tty, N_SPEAKUP);
@@ -199,6 +223,11 @@ static unsigned char spk_ttyio_in_nowait(void)
 	char rv = ttyio_in(0);
 
 	return (rv == 0xff) ? 0 : rv;
+}
+
+static void spk_ttyio_flush_buffer(void)
+{
+	speakup_tty->ops->flush_buffer(speakup_tty);
 }
 
 int spk_ttyio_synth_probe(struct spk_synth *synth)
