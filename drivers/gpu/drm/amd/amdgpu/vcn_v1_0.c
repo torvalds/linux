@@ -1110,7 +1110,7 @@ static const struct amdgpu_ring_funcs vcn_v1_0_dec_ring_vm_funcs = {
 	.set_wptr = vcn_v1_0_dec_ring_set_wptr,
 	.emit_frame_size =
 		2 + /* vcn_v1_0_dec_ring_emit_hdp_invalidate */
-		34 * AMDGPU_MAX_VMHUBS + /* vcn_v1_0_dec_ring_emit_vm_flush */
+		34 + /* vcn_v1_0_dec_ring_emit_vm_flush */
 		14 + 14 + /* vcn_v1_0_dec_ring_emit_fence x2 vm fence */
 		6,
 	.emit_ib_size = 8, /* vcn_v1_0_dec_ring_emit_ib */
@@ -1138,7 +1138,7 @@ static const struct amdgpu_ring_funcs vcn_v1_0_enc_ring_vm_funcs = {
 	.get_wptr = vcn_v1_0_enc_ring_get_wptr,
 	.set_wptr = vcn_v1_0_enc_ring_set_wptr,
 	.emit_frame_size =
-		17 * AMDGPU_MAX_VMHUBS + /* vcn_v1_0_enc_ring_emit_vm_flush */
+		17 + /* vcn_v1_0_enc_ring_emit_vm_flush */
 		5 + 5 + /* vcn_v1_0_enc_ring_emit_fence x2 vm fence */
 		1, /* vcn_v1_0_enc_ring_insert_end */
 	.emit_ib_size = 5, /* vcn_v1_0_enc_ring_emit_ib */
