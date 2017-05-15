@@ -2607,7 +2607,7 @@ static int rt5665_i2s_pin_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	unsigned int val1, val2, mask1, mask2 = 0;
+	unsigned int val1, val2, mask1 = 0, mask2 = 0;
 
 	switch (w->shift) {
 	case RT5665_PWR_I2S2_1_BIT:
@@ -2635,13 +2635,17 @@ static int rt5665_i2s_pin_event(struct snd_soc_dapm_widget *w,
 	}
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		snd_soc_update_bits(codec, RT5665_GPIO_CTRL_1, mask1, val1);
+		if (mask1)
+			snd_soc_update_bits(codec, RT5665_GPIO_CTRL_1,
+					    mask1, val1);
 		if (mask2)
 			snd_soc_update_bits(codec, RT5665_GPIO_CTRL_2,
 					    mask2, val2);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		snd_soc_update_bits(codec, RT5665_GPIO_CTRL_1, mask1, 0);
+		if (mask1)
+			snd_soc_update_bits(codec, RT5665_GPIO_CTRL_1,
+					    mask1, 0);
 		if (mask2)
 			snd_soc_update_bits(codec, RT5665_GPIO_CTRL_2,
 					    mask2, 0);
