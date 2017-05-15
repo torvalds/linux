@@ -1057,22 +1057,6 @@ eligible_child(struct wait_opts *wo, bool ptrace, struct task_struct *p)
 	return 1;
 }
 
-static int wait_noreap_copyout(struct wait_opts *wo, struct task_struct *p,
-				pid_t pid, uid_t uid, int why, int status)
-{
-	struct waitid_info *infop;
-
-	put_task_struct(p);
-	infop = wo->wo_info;
-	if (infop) {
-		infop->cause = why;
-		infop->pid = pid;
-		infop->uid = uid;
-		infop->status = status;
-	}
-	return pid;
-}
-
 /*
  * Handle sys_wait4 work for one task in state EXIT_ZOMBIE.  We hold
  * read_lock(&tasklist_lock) on entry.  If we return zero, we still hold
@@ -1091,22 +1075,27 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 
 	if (unlikely(wo->wo_flags & WNOWAIT)) {
 		int exit_code = p->exit_code;
-		int why;
 
 		get_task_struct(p);
 		read_unlock(&tasklist_lock);
 		sched_annotate_sleep();
 		if (wo->wo_rusage)
 			getrusage(p, RUSAGE_BOTH, wo->wo_rusage);
+		put_task_struct(p);
 
-		if ((exit_code & 0x7f) == 0) {
-			why = CLD_EXITED;
-			status = exit_code >> 8;
-		} else {
-			why = (exit_code & 0x80) ? CLD_DUMPED : CLD_KILLED;
-			status = exit_code & 0x7f;
+		infop = wo->wo_info;
+		if (infop) {
+			if ((exit_code & 0x7f) == 0) {
+				infop->cause = CLD_EXITED;
+				infop->status = exit_code >> 8;
+			} else {
+				infop->cause = (exit_code & 0x80) ? CLD_DUMPED : CLD_KILLED;
+				infop->status = exit_code & 0x7f;
+			}
+			infop->pid = pid;
+			infop->uid = uid;
 		}
-		return wait_noreap_copyout(wo, p, pid, uid, why, status);
+		return pid;
 	}
 	/*
 	 * Move the task's state to DEAD/TRACE, only one thread can do this.
@@ -1297,11 +1286,10 @@ unlock_sig:
 	sched_annotate_sleep();
 	if (wo->wo_rusage)
 		getrusage(p, RUSAGE_BOTH, wo->wo_rusage);
+	put_task_struct(p);
 
-	if (unlikely(wo->wo_flags & WNOWAIT))
-		return wait_noreap_copyout(wo, p, pid, uid, why, exit_code);
-
-	wo->wo_stat = (exit_code << 8) | 0x7f;
+	if (likely(!(wo->wo_flags & WNOWAIT)))
+		wo->wo_stat = (exit_code << 8) | 0x7f;
 
 	infop = wo->wo_info;
 	if (infop) {
@@ -1310,9 +1298,6 @@ unlock_sig:
 		infop->pid = pid;
 		infop->uid = uid;
 	}
-	put_task_struct(p);
-
-	BUG_ON(!pid);
 	return pid;
 }
 
@@ -1324,7 +1309,7 @@ unlock_sig:
  */
 static int wait_task_continued(struct wait_opts *wo, struct task_struct *p)
 {
-	int retval;
+	struct waitid_info *infop;
 	pid_t pid;
 	uid_t uid;
 
@@ -1351,18 +1336,18 @@ static int wait_task_continued(struct wait_opts *wo, struct task_struct *p)
 	sched_annotate_sleep();
 	if (wo->wo_rusage)
 		getrusage(p, RUSAGE_BOTH, wo->wo_rusage);
+	put_task_struct(p);
 
-	if (!wo->wo_info) {
-		put_task_struct(p);
+	infop = wo->wo_info;
+	if (!infop) {
 		wo->wo_stat = 0xffff;
-		retval = pid;
 	} else {
-		retval = wait_noreap_copyout(wo, p, pid, uid,
-					     CLD_CONTINUED, SIGCONT);
-		BUG_ON(retval == 0);
+		infop->cause = CLD_CONTINUED;
+		infop->pid = pid;
+		infop->uid = uid;
+		infop->status = SIGCONT;
 	}
-
-	return retval;
+	return pid;
 }
 
 /*
