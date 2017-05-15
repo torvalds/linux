@@ -211,7 +211,7 @@ nft_cmp_select_ops(const struct nft_ctx *ctx, const struct nlattr * const tb[])
 
 	return &nft_cmp_ops;
 err1:
-	nft_data_uninit(&data, desc.type);
+	nft_data_release(&data, desc.type);
 	return ERR_PTR(-EINVAL);
 }
 

@@ -3627,9 +3627,9 @@ void nft_set_elem_destroy(const struct nft_set *set, void *elem,
 {
 	struct nft_set_ext *ext = nft_set_elem_ext(set, elem);
 
-	nft_data_uninit(nft_set_ext_key(ext), NFT_DATA_VALUE);
+	nft_data_release(nft_set_ext_key(ext), NFT_DATA_VALUE);
 	if (nft_set_ext_exists(ext, NFT_SET_EXT_DATA))
-		nft_data_uninit(nft_set_ext_data(ext), set->dtype);
+		nft_data_release(nft_set_ext_data(ext), set->dtype);
 	if (destroy_expr && nft_set_ext_exists(ext, NFT_SET_EXT_EXPR))
 		nf_tables_expr_destroy(NULL, nft_set_ext_expr(ext));
 	if (nft_set_ext_exists(ext, NFT_SET_EXT_OBJREF))
@@ -3637,6 +3637,18 @@ void nft_set_elem_destroy(const struct nft_set *set, void *elem,
 	kfree(elem);
 }
 EXPORT_SYMBOL_GPL(nft_set_elem_destroy);
+
+/* Only called from commit path, nft_set_elem_deactivate() already deals with
+ * the refcounting from the preparation phase.
+ */
+static void nf_tables_set_elem_destroy(const struct nft_set *set, void *elem)
+{
+	struct nft_set_ext *ext = nft_set_elem_ext(set, elem);
+
+	if (nft_set_ext_exists(ext, NFT_SET_EXT_EXPR))
+		nf_tables_expr_destroy(NULL, nft_set_ext_expr(ext));
+	kfree(elem);
+}
 
 static int nft_setelem_parse_flags(const struct nft_set *set,
 				   const struct nlattr *attr, u32 *flags)
@@ -3849,9 +3861,9 @@ err4:
 	kfree(elem.priv);
 err3:
 	if (nla[NFTA_SET_ELEM_DATA] != NULL)
-		nft_data_uninit(&data, d2.type);
+		nft_data_release(&data, d2.type);
 err2:
-	nft_data_uninit(&elem.key.val, d1.type);
+	nft_data_release(&elem.key.val, d1.type);
 err1:
 	return err;
 }
@@ -3894,6 +3906,53 @@ static int nf_tables_newsetelem(struct net *net, struct sock *nlsk,
 			break;
 	}
 	return err;
+}
+
+/**
+ *	nft_data_hold - hold a nft_data item
+ *
+ *	@data: struct nft_data to release
+ *	@type: type of data
+ *
+ *	Hold a nft_data item. NFT_DATA_VALUE types can be silently discarded,
+ *	NFT_DATA_VERDICT bumps the reference to chains in case of NFT_JUMP and
+ *	NFT_GOTO verdicts. This function must be called on active data objects
+ *	from the second phase of the commit protocol.
+ */
+static void nft_data_hold(const struct nft_data *data, enum nft_data_types type)
+{
+	if (type == NFT_DATA_VERDICT) {
+		switch (data->verdict.code) {
+		case NFT_JUMP:
+		case NFT_GOTO:
+			data->verdict.chain->use++;
+			break;
+		}
+	}
+}
+
+static void nft_set_elem_activate(const struct net *net,
+				  const struct nft_set *set,
+				  struct nft_set_elem *elem)
+{
+	const struct nft_set_ext *ext = nft_set_elem_ext(set, elem->priv);
+
+	if (nft_set_ext_exists(ext, NFT_SET_EXT_DATA))
+		nft_data_hold(nft_set_ext_data(ext), set->dtype);
+	if (nft_set_ext_exists(ext, NFT_SET_EXT_OBJREF))
+		(*nft_set_ext_obj(ext))->use++;
+}
+
+static void nft_set_elem_deactivate(const struct net *net,
+				    const struct nft_set *set,
+				    struct nft_set_elem *elem)
+{
+	const struct nft_set_ext *ext = nft_set_elem_ext(set, elem->priv);
+
+	if (nft_set_ext_exists(ext, NFT_SET_EXT_DATA))
+		nft_data_release(nft_set_ext_data(ext), set->dtype);
+	if (nft_set_ext_exists(ext, NFT_SET_EXT_OBJREF))
+		(*nft_set_ext_obj(ext))->use--;
 }
 
 static int nft_del_setelem(struct nft_ctx *ctx, struct nft_set *set,
@@ -3961,6 +4020,8 @@ static int nft_del_setelem(struct nft_ctx *ctx, struct nft_set *set,
 	kfree(elem.priv);
 	elem.priv = priv;
 
+	nft_set_elem_deactivate(ctx->net, set, &elem);
+
 	nft_trans_elem(trans) = elem;
 	list_add_tail(&trans->list, &ctx->net->nft.commit_list);
 	return 0;
@@ -3970,7 +4031,7 @@ err4:
 err3:
 	kfree(elem.priv);
 err2:
-	nft_data_uninit(&elem.key.val, desc.type);
+	nft_data_release(&elem.key.val, desc.type);
 err1:
 	return err;
 }
@@ -4777,8 +4838,8 @@ static void nf_tables_commit_release(struct nft_trans *trans)
 		nft_set_destroy(nft_trans_set(trans));
 		break;
 	case NFT_MSG_DELSETELEM:
-		nft_set_elem_destroy(nft_trans_elem_set(trans),
-				     nft_trans_elem(trans).priv, true);
+		nf_tables_set_elem_destroy(nft_trans_elem_set(trans),
+					   nft_trans_elem(trans).priv);
 		break;
 	case NFT_MSG_DELOBJ:
 		nft_obj_destroy(nft_trans_obj(trans));
@@ -5013,6 +5074,7 @@ static int nf_tables_abort(struct net *net, struct sk_buff *skb)
 		case NFT_MSG_DELSETELEM:
 			te = (struct nft_trans_elem *)trans->data;
 
+			nft_set_elem_activate(net, te->set, &te->elem);
 			te->set->ops->activate(net, te->set, &te->elem);
 			te->set->ndeact--;
 
@@ -5498,7 +5560,7 @@ int nft_data_init(const struct nft_ctx *ctx,
 EXPORT_SYMBOL_GPL(nft_data_init);
 
 /**
- *	nft_data_uninit - release a nft_data item
+ *	nft_data_release - release a nft_data item
  *
  *	@data: struct nft_data to release
  *	@type: type of data
@@ -5506,7 +5568,7 @@ EXPORT_SYMBOL_GPL(nft_data_init);
  *	Release a nft_data item. NFT_DATA_VALUE types can be silently discarded,
  *	all others need to be released by calling this function.
  */
-void nft_data_uninit(const struct nft_data *data, enum nft_data_types type)
+void nft_data_release(const struct nft_data *data, enum nft_data_types type)
 {
 	if (type < NFT_DATA_VERDICT)
 		return;
@@ -5517,7 +5579,7 @@ void nft_data_uninit(const struct nft_data *data, enum nft_data_types type)
 		WARN_ON(1);
 	}
 }
-EXPORT_SYMBOL_GPL(nft_data_uninit);
+EXPORT_SYMBOL_GPL(nft_data_release);
 
 int nft_data_dump(struct sk_buff *skb, int attr, const struct nft_data *data,
 		  enum nft_data_types type, unsigned int len)

@@ -99,9 +99,9 @@ static int nft_bitwise_init(const struct nft_ctx *ctx,
 
 	return 0;
 err2:
-	nft_data_uninit(&priv->xor, d2.type);
+	nft_data_release(&priv->xor, d2.type);
 err1:
-	nft_data_uninit(&priv->mask, d1.type);
+	nft_data_release(&priv->mask, d1.type);
 	return err;
 }
 
