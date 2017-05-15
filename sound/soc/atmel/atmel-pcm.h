@@ -83,8 +83,7 @@ struct atmel_pcm_dma_params {
 #define ssc_readx(base, reg)            (__raw_readl((base) + (reg)))
 #define ssc_writex(base, reg, value)    __raw_writel((value), (base) + (reg))
 
-#if defined(CONFIG_SND_ATMEL_SOC_PDC) || \
-	defined(CONFIG_SND_ATMEL_SOC_PDC_MODULE)
+#if IS_ENABLED(CONFIG_SND_ATMEL_SOC_PDC)
 int atmel_pcm_pdc_platform_register(struct device *dev);
 void atmel_pcm_pdc_platform_unregister(struct device *dev);
 #else
@@ -97,8 +96,7 @@ static inline void atmel_pcm_pdc_platform_unregister(struct device *dev)
 }
 #endif
 
-#if defined(CONFIG_SND_ATMEL_SOC_DMA) || \
-	defined(CONFIG_SND_ATMEL_SOC_DMA_MODULE)
+#if IS_ENABLED(CONFIG_SND_ATMEL_SOC_DMA)
 int atmel_pcm_dma_platform_register(struct device *dev);
 void atmel_pcm_dma_platform_unregister(struct device *dev);
 #else
