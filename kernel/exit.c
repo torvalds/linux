@@ -1003,7 +1003,7 @@ struct wait_opts {
 
 	struct siginfo __user	*wo_info;
 	int __user		*wo_stat;
-	struct rusage __user	*wo_rusage;
+	struct rusage		*wo_rusage;
 
 	wait_queue_t		child_wait;
 	int			notask_error;
@@ -1054,8 +1054,10 @@ static int wait_noreap_copyout(struct wait_opts *wo, struct task_struct *p,
 				pid_t pid, uid_t uid, int why, int status)
 {
 	struct siginfo __user *infop;
-	int retval = wo->wo_rusage
-		? getrusage(p, RUSAGE_BOTH, wo->wo_rusage) : 0;
+	int retval = 0;
+
+	if (wo->wo_rusage)
+		getrusage(p, RUSAGE_BOTH, wo->wo_rusage);
 
 	put_task_struct(p);
 	infop = wo->wo_info;
@@ -1182,8 +1184,9 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 		spin_unlock_irq(&current->sighand->siglock);
 	}
 
-	retval = wo->wo_rusage
-		? getrusage(p, RUSAGE_BOTH, wo->wo_rusage) : 0;
+	if (wo->wo_rusage)
+		getrusage(p, RUSAGE_BOTH, wo->wo_rusage);
+	retval = 0;
 	status = (p->signal->flags & SIGNAL_GROUP_EXIT)
 		? p->signal->group_exit_code : p->exit_code;
 	if (!retval && wo->wo_stat)
@@ -1316,8 +1319,9 @@ unlock_sig:
 	if (unlikely(wo->wo_flags & WNOWAIT))
 		return wait_noreap_copyout(wo, p, pid, uid, why, exit_code);
 
-	retval = wo->wo_rusage
-		? getrusage(p, RUSAGE_BOTH, wo->wo_rusage) : 0;
+	if (wo->wo_rusage)
+		getrusage(p, RUSAGE_BOTH, wo->wo_rusage);
+	retval = 0;
 	if (!retval && wo->wo_stat)
 		retval = put_user((exit_code << 8) | 0x7f, wo->wo_stat);
 
@@ -1377,8 +1381,9 @@ static int wait_task_continued(struct wait_opts *wo, struct task_struct *p)
 	sched_annotate_sleep();
 
 	if (!wo->wo_info) {
-		retval = wo->wo_rusage
-			? getrusage(p, RUSAGE_BOTH, wo->wo_rusage) : 0;
+		if (wo->wo_rusage)
+			getrusage(p, RUSAGE_BOTH, wo->wo_rusage);
+		retval = 0;
 		put_task_struct(p);
 		if (!retval && wo->wo_stat)
 			retval = put_user(0xffff, wo->wo_stat);
@@ -1618,8 +1623,8 @@ end:
 	return retval;
 }
 
-SYSCALL_DEFINE5(waitid, int, which, pid_t, upid, struct siginfo __user *,
-		infop, int, options, struct rusage __user *, ru)
+static long kernel_waitid(int which, pid_t upid, struct siginfo __user *infop,
+			  int options, struct rusage *ru)
 {
 	struct wait_opts wo;
 	struct pid *pid = NULL;
@@ -1687,8 +1692,21 @@ SYSCALL_DEFINE5(waitid, int, which, pid_t, upid, struct siginfo __user *,
 	return ret;
 }
 
-SYSCALL_DEFINE4(wait4, pid_t, upid, int __user *, stat_addr,
-		int, options, struct rusage __user *, ru)
+SYSCALL_DEFINE5(waitid, int, which, pid_t, upid, struct siginfo __user *,
+		infop, int, options, struct rusage __user *, ru)
+{
+	struct rusage r;
+	long err = kernel_waitid(which, upid, infop, options, ru ? &r : NULL);
+
+	if (!err) {
+		if (ru && copy_to_user(ru, &r, sizeof(struct rusage)))
+			return -EFAULT;
+	}
+	return err;
+}
+
+static long kernel_wait4(pid_t upid, int __user *stat_addr,
+			int options, struct rusage *ru)
 {
 	struct wait_opts wo;
 	struct pid *pid = NULL;
@@ -1724,6 +1742,19 @@ SYSCALL_DEFINE4(wait4, pid_t, upid, int __user *, stat_addr,
 	return ret;
 }
 
+SYSCALL_DEFINE4(wait4, pid_t, upid, int __user *, stat_addr,
+		int, options, struct rusage __user *, ru)
+{
+	struct rusage r;
+	long err = kernel_wait4(upid, stat_addr, options, ru ? &r : NULL);
+
+	if (err > 0) {
+		if (ru && copy_to_user(ru, &r, sizeof(struct rusage)))
+			return -EFAULT;
+	}
+	return err;
+}
+
 #ifdef __ARCH_WANT_SYS_WAITPID
 
 /*
@@ -1744,29 +1775,13 @@ COMPAT_SYSCALL_DEFINE4(wait4,
 	int, options,
 	struct compat_rusage __user *, ru)
 {
-	if (!ru) {
-		return sys_wait4(pid, stat_addr, options, NULL);
-	} else {
-		struct rusage r;
-		int ret;
-		unsigned int status;
-		mm_segment_t old_fs = get_fs();
-
-		set_fs (KERNEL_DS);
-		ret = sys_wait4(pid,
-				(stat_addr ?
-				 (unsigned int __user *) &status : NULL),
-				options, (struct rusage __user *) &r);
-		set_fs (old_fs);
-
-		if (ret > 0) {
-			if (put_compat_rusage(&r, ru))
-				return -EFAULT;
-			if (stat_addr && put_user(status, stat_addr))
-				return -EFAULT;
-		}
-		return ret;
+	struct rusage r;
+	long err = kernel_wait4(pid, stat_addr, options, ru ? &r : NULL);
+	if (err > 0) {
+		if (ru && put_compat_rusage(&r, ru))
+			return -EFAULT;
 	}
+	return err;
 }
 
 COMPAT_SYSCALL_DEFINE5(waitid,
@@ -1782,8 +1797,8 @@ COMPAT_SYSCALL_DEFINE5(waitid,
 	memset(&info, 0, sizeof(info));
 
 	set_fs(KERNEL_DS);
-	ret = sys_waitid(which, pid, (siginfo_t __user *)&info, options,
-			 uru ? (struct rusage __user *)&ru : NULL);
+	ret = kernel_waitid(which, pid, (siginfo_t __user *)&info, options,
+			 uru ? &ru : NULL);
 	set_fs(old_fs);
 
 	if ((ret < 0) || (info.si_signo == 0))
