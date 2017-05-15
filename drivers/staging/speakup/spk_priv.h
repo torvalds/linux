@@ -39,6 +39,7 @@
 #endif
 
 #define KT_SPKUP 15
+#define SPK_SYNTH_TIMEOUT 100000 /* in micro-seconds */
 
 const struct old_serial_port *spk_serial_init(int index);
 void spk_stop_serial_interrupt(void);
