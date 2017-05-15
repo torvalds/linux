@@ -38,6 +38,8 @@
 
 /* walk only threadgroup leaders */
 #define CSS_TASK_ITER_PROCS		(1U << 0)
+/* walk all threaded css_sets in the domain */
+#define CSS_TASK_ITER_THREADED		(1U << 1)
 
 /* a css_task_iter should be treated as an opaque object */
 struct css_task_iter {
@@ -47,11 +49,15 @@ struct css_task_iter {
 	struct list_head		*cset_pos;
 	struct list_head		*cset_head;
 
+	struct list_head		*tcset_pos;
+	struct list_head		*tcset_head;
+
 	struct list_head		*task_pos;
 	struct list_head		*tasks_head;
 	struct list_head		*mg_tasks_head;
 
 	struct css_set			*cur_cset;
+	struct css_set			*cur_dcset;
 	struct task_struct		*cur_task;
 	struct list_head		iters_node;	/* css_set->task_iters */
 };
