@@ -879,6 +879,7 @@ static void skl_remove(struct pci_dev *pci)
 static struct sst_codecs skl_codecs = { 1, {"NAU88L25"} };
 static struct sst_codecs kbl_codecs = { 1, {"NAU88L25"} };
 static struct sst_codecs bxt_codecs = { 1, {"MX98357A"} };
+static struct sst_codecs kbl_poppy_codecs = { 1, {"10EC5663"} };
 
 static struct sst_acpi_mach sst_skl_devdata[] = {
 	{
@@ -942,6 +943,15 @@ static struct sst_acpi_mach sst_kbl_devdata[] = {
 		.quirk_data = &kbl_codecs,
 		.pdata = &skl_dmic_data
 	},
+	{
+		.id = "MX98927",
+		.drv_name = "kbl_rt5663_m98927",
+		.fw_filename = "intel/dsp_fw_kbl.bin",
+		.machine_quirk = sst_acpi_codec_list,
+		.quirk_data = &kbl_poppy_codecs,
+		.pdata = &skl_dmic_data
+	},
+
 	{}
 };
 
