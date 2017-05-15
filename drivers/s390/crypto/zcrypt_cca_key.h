@@ -48,26 +48,6 @@ struct cca_token_hdr {
 
 #define CCA_TKN_HDR_ID_EXT 0x1E
 
-/**
- * mapping for the cca private ME section
- */
-struct cca_private_ext_ME_sec {
-	unsigned char  section_identifier;
-	unsigned char  version;
-	unsigned short section_length;
-	unsigned char  private_key_hash[20];
-	unsigned char  reserved1[4];
-	unsigned char  key_format;
-	unsigned char  reserved2;
-	unsigned char  key_name_hash[20];
-	unsigned char  key_use_flags[4];
-	unsigned char  reserved3[6];
-	unsigned char  reserved4[24];
-	unsigned char  confounder[24];
-	unsigned char  exponent[128];
-	unsigned char  modulus[128];
-} __attribute__((packed));
-
 #define CCA_PVT_USAGE_ALL 0x80
 
 /**
@@ -122,71 +102,6 @@ struct cca_pvt_ext_CRT_sec {
 
 #define CCA_PVT_EXT_CRT_SEC_ID_PVT 0x08
 #define CCA_PVT_EXT_CRT_SEC_FMT_CL 0x40
-
-/**
- * Set up private key fields of a type6 MEX message.
- * Note that all numerics in the key token are big-endian,
- * while the entries in the key block header are little-endian.
- *
- * @mex: pointer to user input data
- * @p: pointer to memory area for the key
- *
- * Returns the size of the key area or -EFAULT
- */
-static inline int zcrypt_type6_mex_key_de(struct ica_rsa_modexpo *mex, void *p)
-{
-	static struct cca_token_hdr static_pvt_me_hdr = {
-		.token_identifier	=  0x1E,
-		.token_length		=  0x0183,
-	};
-	static struct cca_private_ext_ME_sec static_pvt_me_sec = {
-		.section_identifier	=  0x02,
-		.section_length		=  0x016C,
-		.key_use_flags		= {0x80,0x00,0x00,0x00},
-	};
-	static struct cca_public_sec static_pub_me_sec = {
-		.section_identifier	=  0x04,
-		.section_length		=  0x000F,
-		.exponent_len		=  0x0003,
-	};
-	static char pk_exponent[3] = { 0x01, 0x00, 0x01 };
-	struct {
-		struct T6_keyBlock_hdr t6_hdr;
-		struct cca_token_hdr pvtMeHdr;
-		struct cca_private_ext_ME_sec pvtMeSec;
-		struct cca_public_sec pubMeSec;
-		char exponent[3];
-	} __attribute__((packed)) *key = p;
-	unsigned char *temp;
-
-	memset(key, 0, sizeof(*key));
-
-	key->t6_hdr.blen = 0x189;
-	key->t6_hdr.ulen = 0x189 - 2;
-	key->pvtMeHdr = static_pvt_me_hdr;
-	key->pvtMeSec = static_pvt_me_sec;
-	key->pubMeSec = static_pub_me_sec;
-	/*
-	 * In a private key, the modulus doesn't appear in the public
-	 * section. So, an arbitrary public exponent of 0x010001 will be
-	 * used.
-	 */
-	memcpy(key->exponent, pk_exponent, 3);
-
-	/* key parameter block */
-	temp = key->pvtMeSec.exponent +
-		sizeof(key->pvtMeSec.exponent) - mex->inputdatalength;
-	if (copy_from_user(temp, mex->b_key, mex->inputdatalength))
-		return -EFAULT;
-
-	/* modulus */
-	temp = key->pvtMeSec.modulus +
-		sizeof(key->pvtMeSec.modulus) - mex->inputdatalength;
-	if (copy_from_user(temp, mex->n_modulus, mex->inputdatalength))
-		return -EFAULT;
-	key->pubMeSec.modulus_bit_len = 8 * mex->inputdatalength;
-	return sizeof(*key);
-}
 
 /**
  * Set up private key fields of a type6 MEX message. The _pad variant
