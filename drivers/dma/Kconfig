@@ -99,6 +99,20 @@ config AXI_DMAC
 	  controller is often used in Analog Device's reference designs for FPGA
 	  platforms.
 
+config BCM_SBA_RAID
+	tristate "Broadcom SBA RAID engine support"
+	depends on (ARM64 && MAILBOX && RAID6_PQ) || COMPILE_TEST
+	select DMA_ENGINE
+	select DMA_ENGINE_RAID
+	select ASYNC_TX_DISABLE_XOR_VAL_DMA
+	select ASYNC_TX_DISABLE_PQ_VAL_DMA
+	default ARCH_BCM_IPROC
+	help
+	  Enable support for Broadcom SBA RAID Engine. The SBA RAID
+	  engine is available on most of the Broadcom iProc SoCs. It
+	  has the capability to offload memcpy, xor and pq computation
+	  for raid5/6.
+
 config COH901318
 	bool "ST-Ericsson COH901318 DMA support"
 	select DMA_ENGINE
