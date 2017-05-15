@@ -7,11 +7,11 @@ struct mcp23s08_platform_data {
 	 */
 	u32 spi_present_mask;
 
-	/* "base" is the number of the first GPIO.  Dynamic assignment is
-	 * not currently supported, and even if there are gaps in chip
-	 * addressing the GPIO numbers are sequential .. so for example
-	 * if only slaves 0 and 3 are present, their GPIOs range from
-	 * base to base+15 (or base+31 for s17 variant).
+	/* "base" is the number of the first GPIO or -1 for dynamic
+	 * assignment. If there are gaps in chip addressing the GPIO
+	 * numbers are sequential .. so for example if only slaves 0
+	 * and 3 are present, their GPIOs range from base to base+15
+	 * (or base+31 for s17 variant).
 	 */
 	unsigned	base;
 };
