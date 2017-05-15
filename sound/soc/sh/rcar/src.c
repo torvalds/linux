@@ -51,20 +51,6 @@ struct rsnd_src {
  *
  */
 
-/*
- * src.c is caring...
- *
- * Gen1
- *
- * [mem] -> [SRU] -> [SSI]
- *        |--------|
- *
- * Gen2
- *
- * [mem] -> [SRC] -> [SSIU] -> [SSI]
- *        |-----------------|
- */
-
 static void rsnd_src_activation(struct rsnd_mod *mod)
 {
 	rsnd_mod_write(mod, SRC_SWRSR, 0);
