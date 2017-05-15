@@ -156,6 +156,7 @@ struct lpfc_queue {
 	uint32_t entry_size;	/* Size of each queue entry. */
 	uint32_t entry_repost;	/* Count of entries before doorbell is rung */
 #define LPFC_QUEUE_MIN_REPOST	8
+#define LPFC_RQ_REPOST		64
 	uint32_t queue_id;	/* Queue ID assigned by the hardware */
 	uint32_t assoc_qid;     /* Queue ID associated with, for CQ/WQ/MQ */
 	uint32_t page_count;	/* Number of pages allocated for this queue */
@@ -763,7 +764,6 @@ int lpfc_rq_create(struct lpfc_hba *, struct lpfc_queue *,
 int lpfc_mrq_create(struct lpfc_hba *phba, struct lpfc_queue **hrqp,
 			struct lpfc_queue **drqp, struct lpfc_queue **cqp,
 			uint32_t subtype);
-void lpfc_rq_adjust_repost(struct lpfc_hba *, struct lpfc_queue *, int);
 int lpfc_eq_destroy(struct lpfc_hba *, struct lpfc_queue *);
 int lpfc_cq_destroy(struct lpfc_hba *, struct lpfc_queue *);
 int lpfc_mq_destroy(struct lpfc_hba *, struct lpfc_queue *);

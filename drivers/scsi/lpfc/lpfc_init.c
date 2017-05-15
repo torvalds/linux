@@ -3390,6 +3390,11 @@ lpfc_sli4_nvmet_sgl_update(struct lpfc_hba *phba)
 	 */
 	els_xri_cnt = lpfc_sli4_get_els_iocb_cnt(phba);
 	nvmet_xri_cnt = phba->cfg_nvmet_mrq * phba->cfg_nvmet_mrq_post;
+
+	/* Ensure we at least meet the minimun for the system */
+	if (nvmet_xri_cnt < LPFC_NVMET_RQE_DEF_COUNT)
+		nvmet_xri_cnt = LPFC_NVMET_RQE_DEF_COUNT;
+
 	tot_cnt = phba->sli4_hba.max_cfg_param.max_xri - els_xri_cnt;
 	if (nvmet_xri_cnt > tot_cnt) {
 		phba->cfg_nvmet_mrq_post = tot_cnt / phba->cfg_nvmet_mrq;
@@ -8158,7 +8163,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 			/* Create NVMET Receive Queue for header */
 			qdesc = lpfc_sli4_queue_alloc(phba,
 						      phba->sli4_hba.rq_esize,
-						      phba->sli4_hba.rq_ecount);
+						      LPFC_NVMET_RQE_DEF_COUNT);
 			if (!qdesc) {
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 						"3146 Failed allocate "
@@ -8180,7 +8185,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 			/* Create NVMET Receive Queue for data */
 			qdesc = lpfc_sli4_queue_alloc(phba,
 						      phba->sli4_hba.rq_esize,
-						      phba->sli4_hba.rq_ecount);
+						      LPFC_NVMET_RQE_DEF_COUNT);
 			if (!qdesc) {
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 						"3156 Failed allocate "
@@ -8769,9 +8774,6 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 		rc = -ENOMEM;
 		goto out_destroy;
 	}
-
-	lpfc_rq_adjust_repost(phba, phba->sli4_hba.hdr_rq, LPFC_ELS_HBQ);
-	lpfc_rq_adjust_repost(phba, phba->sli4_hba.dat_rq, LPFC_ELS_HBQ);
 
 	rc = lpfc_rq_create(phba, phba->sli4_hba.hdr_rq, phba->sli4_hba.dat_rq,
 			    phba->sli4_hba.els_cq, LPFC_USOL);
@@ -11096,7 +11098,7 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	struct lpfc_hba   *phba;
 	struct lpfc_vport *vport = NULL;
 	struct Scsi_Host  *shost = NULL;
-	int error, cnt;
+	int error, cnt, num;
 	uint32_t cfg_mode, intr_mode;
 
 	/* Allocate memory for HBA structure */
@@ -11131,8 +11133,13 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	}
 
 	cnt = phba->cfg_iocb_cnt * 1024;
-	if (phba->nvmet_support)
-		cnt += phba->cfg_nvmet_mrq_post * phba->cfg_nvmet_mrq;
+	if (phba->nvmet_support) {
+		/* Ensure we at least meet the minimun for the system */
+		num = (phba->cfg_nvmet_mrq_post * phba->cfg_nvmet_mrq);
+		if (num < LPFC_NVMET_RQE_DEF_COUNT)
+			num = LPFC_NVMET_RQE_DEF_COUNT;
+		cnt += num;
+	}
 
 	/* Initialize and populate the iocb list per host */
 	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,

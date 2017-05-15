@@ -479,22 +479,23 @@ lpfc_sli4_rq_put(struct lpfc_queue *hq, struct lpfc_queue *dq,
 	if (unlikely(!hq) || unlikely(!dq))
 		return -ENOMEM;
 	put_index = hq->host_index;
-	temp_hrqe = hq->qe[hq->host_index].rqe;
+	temp_hrqe = hq->qe[put_index].rqe;
 	temp_drqe = dq->qe[dq->host_index].rqe;
 
 	if (hq->type != LPFC_HRQ || dq->type != LPFC_DRQ)
 		return -EINVAL;
-	if (hq->host_index != dq->host_index)
+	if (put_index != dq->host_index)
 		return -EINVAL;
 	/* If the host has not yet processed the next entry then we are done */
-	if (((hq->host_index + 1) % hq->entry_count) == hq->hba_index)
+	if (((put_index + 1) % hq->entry_count) == hq->hba_index)
 		return -EBUSY;
 	lpfc_sli_pcimem_bcopy(hrqe, temp_hrqe, hq->entry_size);
 	lpfc_sli_pcimem_bcopy(drqe, temp_drqe, dq->entry_size);
 
 	/* Update the host index to point to the next slot */
-	hq->host_index = ((hq->host_index + 1) % hq->entry_count);
+	hq->host_index = ((put_index + 1) % hq->entry_count);
 	dq->host_index = ((dq->host_index + 1) % dq->entry_count);
+	hq->RQ_buf_posted++;
 
 	/* Ring The Header Receive Queue Doorbell */
 	if (!(hq->host_index % hq->entry_repost)) {
@@ -512,7 +513,6 @@ lpfc_sli4_rq_put(struct lpfc_queue *hq, struct lpfc_queue *dq,
 		} else {
 			return -EINVAL;
 		}
-		hq->RQ_buf_posted += hq->entry_repost;
 		writel(doorbell.word0, hq->db_regaddr);
 	}
 	return put_index;
@@ -6905,13 +6905,8 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 			INIT_LIST_HEAD(&rqbp->rqb_buffer_list);
 			rqbp->rqb_alloc_buffer = lpfc_sli4_nvmet_alloc;
 			rqbp->rqb_free_buffer = lpfc_sli4_nvmet_free;
-			rqbp->entry_count = 256;
+			rqbp->entry_count = LPFC_NVMET_RQE_DEF_COUNT;
 			rqbp->buffer_count = 0;
-
-			/* Divide by 4 and round down to multiple of 16 */
-			rc = (phba->cfg_nvmet_mrq_post >> 2) & 0xfff8;
-			phba->sli4_hba.nvmet_mrq_hdr[i]->entry_repost = rc;
-			phba->sli4_hba.nvmet_mrq_data[i]->entry_repost = rc;
 
 			lpfc_post_rq_buffer(
 				phba, phba->sli4_hba.nvmet_mrq_hdr[i],
@@ -14893,34 +14888,6 @@ out:
 }
 
 /**
- * lpfc_rq_adjust_repost - Adjust entry_repost for an RQ
- * @phba: HBA structure that indicates port to create a queue on.
- * @rq:   The queue structure to use for the receive queue.
- * @qno:  The associated HBQ number
- *
- *
- * For SLI4 we need to adjust the RQ repost value based on
- * the number of buffers that are initially posted to the RQ.
- */
-void
-lpfc_rq_adjust_repost(struct lpfc_hba *phba, struct lpfc_queue *rq, int qno)
-{
-	uint32_t cnt;
-
-	/* sanity check on queue memory */
-	if (!rq)
-		return;
-	cnt = lpfc_hbq_defs[qno]->entry_count;
-
-	/* Recalc repost for RQs based on buffers initially posted */
-	cnt = (cnt >> 3);
-	if (cnt < LPFC_QUEUE_MIN_REPOST)
-		cnt = LPFC_QUEUE_MIN_REPOST;
-
-	rq->entry_repost = cnt;
-}
-
-/**
  * lpfc_rq_create - Create a Receive Queue on the HBA
  * @phba: HBA structure that indicates port to create a queue on.
  * @hrq: The queue structure to use to create the header receive queue.
@@ -15105,6 +15072,7 @@ lpfc_rq_create(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 	hrq->subtype = subtype;
 	hrq->host_index = 0;
 	hrq->hba_index = 0;
+	hrq->entry_repost = LPFC_RQ_REPOST;
 
 	/* now create the data queue */
 	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_FCOE,
@@ -15186,6 +15154,7 @@ lpfc_rq_create(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 	drq->subtype = subtype;
 	drq->host_index = 0;
 	drq->hba_index = 0;
+	drq->entry_repost = LPFC_RQ_REPOST;
 
 	/* link the header and data RQs onto the parent cq child list */
 	list_add_tail(&hrq->list, &cq->child_list);
@@ -15343,6 +15312,7 @@ lpfc_mrq_create(struct lpfc_hba *phba, struct lpfc_queue **hrqp,
 		hrq->subtype = subtype;
 		hrq->host_index = 0;
 		hrq->hba_index = 0;
+		hrq->entry_repost = LPFC_RQ_REPOST;
 
 		drq->db_format = LPFC_DB_RING_FORMAT;
 		drq->db_regaddr = phba->sli4_hba.RQDBregaddr;
@@ -15351,6 +15321,7 @@ lpfc_mrq_create(struct lpfc_hba *phba, struct lpfc_queue **hrqp,
 		drq->subtype = subtype;
 		drq->host_index = 0;
 		drq->hba_index = 0;
+		drq->entry_repost = LPFC_RQ_REPOST;
 
 		list_add_tail(&hrq->list, &cq->child_list);
 		list_add_tail(&drq->list, &cq->child_list);
