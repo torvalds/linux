@@ -5702,7 +5702,7 @@ M:	Alex Elder <elder@kernel.org>
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 S:	Maintained
 F:	drivers/staging/greybus/
-L:	greybus-dev@lists.linaro.org
+L:	greybus-dev@lists.linaro.org (moderated for non-subscribers)
 
 GREYBUS AUDIO PROTOCOLS DRIVERS
 M:	Vaibhav Agarwal <vaibhav.sr@gmail.com>
