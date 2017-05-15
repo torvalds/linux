@@ -184,16 +184,30 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 
 		orient = drm_rotation_to_tiler(state->rotation);
 
+		/*
+		 * omap_gem_rotated_paddr() wants the x & y in tiler units.
+		 * Usually tiler unit size is the same as the pixel size, except
+		 * for YUV422 formats, for which the tiler unit size is 32 bits
+		 * and pixel size is 16 bits.
+		 */
+		if (fb->format->format == DRM_FORMAT_UYVY ||
+				fb->format->format == DRM_FORMAT_YUYV) {
+			x /= 2;
+			w /= 2;
+		}
+
 		/* adjust x,y offset for invert: */
 		if (orient & MASK_Y_INVERT)
 			y += h - 1;
 		if (orient & MASK_X_INVERT)
 			x += w - 1;
 
+		/* Note: x and y are in TILER units, not pixels */
 		omap_gem_rotated_dma_addr(plane->bo, orient, x, y,
 					  &info->paddr);
 		info->rotation_type = OMAP_DSS_ROT_TILER;
 		info->rotation = state->rotation ?: DRM_MODE_ROTATE_0;
+		/* Note: stride in TILER units, not pixels */
 		info->screen_width  = omap_gem_tiled_stride(plane->bo, orient);
 	} else {
 		switch (state->rotation & DRM_MODE_ROTATE_MASK) {

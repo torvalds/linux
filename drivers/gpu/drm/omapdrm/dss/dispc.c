@@ -1919,13 +1919,28 @@ static s32 pixinc(int pixels, u8 ps)
 static void calc_offset(u16 screen_width, u16 width,
 		u32 fourcc, bool fieldmode,
 		unsigned int field_offset, unsigned *offset0, unsigned *offset1,
-		s32 *row_inc, s32 *pix_inc, int x_predecim, int y_predecim)
+		s32 *row_inc, s32 *pix_inc, int x_predecim, int y_predecim,
+		enum omap_dss_rotation_type rotation_type, u8 rotation)
 {
 	u8 ps;
 
 	ps = color_mode_to_bpp(fourcc) / 8;
 
 	DSSDBG("scrw %d, width %d\n", screen_width, width);
+
+	if (rotation_type == OMAP_DSS_ROT_TILER &&
+	    (fourcc == DRM_FORMAT_UYVY || fourcc == DRM_FORMAT_YUYV) &&
+	    drm_rotation_90_or_270(rotation)) {
+		/*
+		 * HACK: ROW_INC needs to be calculated with TILER units.
+		 * We get such 'screen_width' that multiplying it with the
+		 * YUV422 pixel size gives the correct TILER container width.
+		 * However, 'width' is in pixels and multiplying it with YUV422
+		 * pixel size gives incorrect result. We thus multiply it here
+		 * with 2 to match the 32 bit TILER unit size.
+		 */
+		width *= 2;
+	}
 
 	/*
 	 * field 0 = even field = bottom field
@@ -2475,7 +2490,8 @@ static int dispc_ovl_setup_common(enum omap_plane_id plane,
 	calc_offset(screen_width, frame_width,
 			fourcc, fieldmode, field_offset,
 			&offset0, &offset1, &row_inc, &pix_inc,
-			x_predecim, y_predecim);
+			x_predecim, y_predecim,
+			rotation_type, rotation);
 
 	DSSDBG("offset0 %u, offset1 %u, row_inc %d, pix_inc %d\n",
 			offset0, offset1, row_inc, pix_inc);
