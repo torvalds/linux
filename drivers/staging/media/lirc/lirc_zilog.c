@@ -1462,7 +1462,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	/* Use a single struct IR instance for both the Rx and Tx functions */
 	ir = get_ir_device_by_adapter(adap);
 	if (!ir) {
-		ir = kzalloc(sizeof(struct IR), GFP_KERNEL);
+		ir = kzalloc(sizeof(*ir), GFP_KERNEL);
 		if (!ir) {
 			ret = -ENOMEM;
 			goto out_no_ir;
@@ -1502,7 +1502,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		rx = get_ir_rx(ir);
 
 		/* Set up a struct IR_tx instance */
-		tx = kzalloc(sizeof(struct IR_tx), GFP_KERNEL);
+		tx = kzalloc(sizeof(*tx), GFP_KERNEL);
 		if (!tx) {
 			ret = -ENOMEM;
 			goto out_put_xx;
@@ -1546,7 +1546,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		tx = get_ir_tx(ir);
 
 		/* Set up a struct IR_rx instance */
-		rx = kzalloc(sizeof(struct IR_rx), GFP_KERNEL);
+		rx = kzalloc(sizeof(*rx), GFP_KERNEL);
 		if (!rx) {
 			ret = -ENOMEM;
 			goto out_put_xx;
