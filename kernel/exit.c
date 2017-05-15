@@ -1062,9 +1062,6 @@ static int wait_noreap_copyout(struct wait_opts *wo, struct task_struct *p,
 {
 	struct waitid_info *infop;
 
-	if (wo->wo_rusage)
-		getrusage(p, RUSAGE_BOTH, wo->wo_rusage);
-
 	put_task_struct(p);
 	infop = wo->wo_info;
 	if (infop) {
@@ -1099,6 +1096,8 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 		get_task_struct(p);
 		read_unlock(&tasklist_lock);
 		sched_annotate_sleep();
+		if (wo->wo_rusage)
+			getrusage(p, RUSAGE_BOTH, wo->wo_rusage);
 
 		if ((exit_code & 0x7f) == 0) {
 			why = CLD_EXITED;
@@ -1296,12 +1295,12 @@ unlock_sig:
 	why = ptrace ? CLD_TRAPPED : CLD_STOPPED;
 	read_unlock(&tasklist_lock);
 	sched_annotate_sleep();
+	if (wo->wo_rusage)
+		getrusage(p, RUSAGE_BOTH, wo->wo_rusage);
 
 	if (unlikely(wo->wo_flags & WNOWAIT))
 		return wait_noreap_copyout(wo, p, pid, uid, why, exit_code);
 
-	if (wo->wo_rusage)
-		getrusage(p, RUSAGE_BOTH, wo->wo_rusage);
 	wo->wo_stat = (exit_code << 8) | 0x7f;
 
 	infop = wo->wo_info;
@@ -1350,10 +1349,10 @@ static int wait_task_continued(struct wait_opts *wo, struct task_struct *p)
 	get_task_struct(p);
 	read_unlock(&tasklist_lock);
 	sched_annotate_sleep();
+	if (wo->wo_rusage)
+		getrusage(p, RUSAGE_BOTH, wo->wo_rusage);
 
 	if (!wo->wo_info) {
-		if (wo->wo_rusage)
-			getrusage(p, RUSAGE_BOTH, wo->wo_rusage);
 		put_task_struct(p);
 		wo->wo_stat = 0xffff;
 		retval = pid;
