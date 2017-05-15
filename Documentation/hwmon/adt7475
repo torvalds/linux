@@ -114,6 +114,10 @@ minimum (i.e. auto_point1_pwm). This behaviour can be configured using the
 pwm[1-*]_stall_disable sysfs attribute. A value of 0 means the fans will shut
 off. A value of 1 means the fans will run at auto_point1_pwm.
 
+The responsiveness of the ADT747x to temperature changes can be configured.
+This allows smoothing of the fan speed transition. To set the transition time
+set the value in ms in the temp[1-*]_smoothing sysfs attribute.
+
 Notes
 -----
 
