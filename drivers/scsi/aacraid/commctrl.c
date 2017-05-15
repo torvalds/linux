@@ -955,6 +955,8 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 			reply.srb_status = SRB_STATUS_SUCCESS;
 			reply.scsi_status = 0;
 			reply.data_xfer_length = byte_count;
+			reply.sense_data_size = 0;
+			memset(reply.sense_data, 0, AAC_SENSE_BUFFERSIZE);
 		} else {
 			reply.srb_status = err->service_response;
 			reply.scsi_status = err->status;
