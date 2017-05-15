@@ -169,6 +169,22 @@
 	status = "okay";
 };
 
+&cps_mdio {
+	phy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+};
+
+&cps_ethernet {
+	status = "okay";
+};
+
+&cps_eth1 {
+	status = "okay";
+	phy = <&phy0>;
+	phy-mode = "rgmii-id";
+};
+
 &ap_sdhci0 {
 	status = "okay";
 	bus-width = <4>;
