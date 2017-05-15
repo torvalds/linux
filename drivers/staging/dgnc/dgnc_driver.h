@@ -52,19 +52,6 @@
 
 #define dgnc_jiffies_from_ms(a) (((a) * HZ) / 1000)
 
-/*
- * Define a local default termios struct. All ports will be created
- * with this termios initially.  This is the same structure that is defined
- * as the default in tty_io.c with the same settings overridden as in serial.c
- *
- * In short, this should match the internal serial ports' defaults.
- */
-#define	DEFAULT_IFLAGS	(ICRNL | IXON)
-#define	DEFAULT_OFLAGS	(OPOST | ONLCR)
-#define	DEFAULT_CFLAGS	(B9600 | CS8 | CREAD | HUPCL | CLOCAL)
-#define	DEFAULT_LFLAGS	(ISIG | ICANON | ECHO | ECHOE | ECHOK | \
-			ECHOCTL | ECHOKE | IEXTEN)
-
 #ifndef _POSIX_VDISABLE
 #define   _POSIX_VDISABLE '\0'
 #endif
