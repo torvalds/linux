@@ -1118,16 +1118,17 @@ static void vop_crtc_destroy_state(struct drm_crtc *crtc,
 #ifdef CONFIG_DRM_ANALOGIX_DP
 static struct drm_connector *vop_get_edp_connector(struct vop *vop)
 {
-	struct drm_crtc *crtc = &vop->crtc;
 	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
 
-	mutex_lock(&crtc->dev->mode_config.mutex);
-	drm_for_each_connector(connector, crtc->dev)
+	drm_connector_list_iter_begin(vop->drm_dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
-			mutex_unlock(&crtc->dev->mode_config.mutex);
+			drm_connector_list_iter_end(&conn_iter);
 			return connector;
 		}
-	mutex_unlock(&crtc->dev->mode_config.mutex);
+	}
+	drm_connector_list_iter_end(&conn_iter);
 
 	return NULL;
 }
