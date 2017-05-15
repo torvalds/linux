@@ -17,6 +17,7 @@
 #include <drm/drmP.h>
 #include <linux/arm-smccc.h>
 #include <linux/clk.h>
+#include <linux/cpu.h>
 #include <linux/delay.h>
 #include <linux/devfreq.h>
 #include <linux/devfreq-event.h>
@@ -217,7 +218,16 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 		}
 	}
 
+	/*
+	 * We need to prevent cpu hotplug from happening while a dmc freq rate
+	 * change is happening.
+	 */
+	get_online_cpus();
+
 	err = clk_set_rate(dmcfreq->dmc_clk, target_rate);
+
+	put_online_cpus();
+
 	if (err) {
 		dev_err(dev, "Cannot set frequency %lu (%d)\n",
 			target_rate, err);
