@@ -1365,6 +1365,13 @@ done:
 	spin_unlock_irqrestore(&rchan->lock, flags);
 }
 
+static void rcar_dmac_device_synchronize(struct dma_chan *chan)
+{
+	struct rcar_dmac_chan *rchan = to_rcar_dmac_chan(chan);
+
+	synchronize_irq(rchan->irq);
+}
+
 /* -----------------------------------------------------------------------------
  * IRQ handling
  */
@@ -1846,6 +1853,7 @@ static int rcar_dmac_probe(struct platform_device *pdev)
 	engine->device_terminate_all = rcar_dmac_chan_terminate_all;
 	engine->device_tx_status = rcar_dmac_tx_status;
 	engine->device_issue_pending = rcar_dmac_issue_pending;
+	engine->device_synchronize = rcar_dmac_device_synchronize;
 
 	ret = dma_async_device_register(engine);
 	if (ret < 0)
