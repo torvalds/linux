@@ -745,6 +745,7 @@ static int perf_debugfs_setup(struct perf_ctx *perf)
 	if (!debugfs_initialized())
 		return -ENODEV;
 
+	/* Assumpion: only one NTB device in the system */
 	if (!perf_debugfs_dir) {
 		perf_debugfs_dir = debugfs_create_dir(KBUILD_MODNAME, NULL);
 		if (!perf_debugfs_dir)
@@ -754,45 +755,50 @@ static int perf_debugfs_setup(struct perf_ctx *perf)
 	debugfs_node_dir = debugfs_create_dir(pci_name(pdev),
 					      perf_debugfs_dir);
 	if (!debugfs_node_dir)
-		return -ENODEV;
+		goto err;
 
 	debugfs_run = debugfs_create_file("run", S_IRUSR | S_IWUSR,
 					  debugfs_node_dir, perf,
 					  &ntb_perf_debugfs_run);
 	if (!debugfs_run)
-		return -ENODEV;
+		goto err;
 
 	debugfs_threads = debugfs_create_u8("threads", S_IRUSR | S_IWUSR,
 					    debugfs_node_dir,
 					    &perf->perf_threads);
 	if (!debugfs_threads)
-		return -ENODEV;
+		goto err;
 
 	debugfs_seg_order = debugfs_create_u32("seg_order", 0600,
 					       debugfs_node_dir,
 					       &seg_order);
 	if (!debugfs_seg_order)
-		return -ENODEV;
+		goto err;
 
 	debugfs_run_order = debugfs_create_u32("run_order", 0600,
 					       debugfs_node_dir,
 					       &run_order);
 	if (!debugfs_run_order)
-		return -ENODEV;
+		goto err;
 
 	debugfs_use_dma = debugfs_create_bool("use_dma", 0600,
 					       debugfs_node_dir,
 					       &use_dma);
 	if (!debugfs_use_dma)
-		return -ENODEV;
+		goto err;
 
 	debugfs_on_node = debugfs_create_bool("on_node", 0600,
 					      debugfs_node_dir,
 					      &on_node);
 	if (!debugfs_on_node)
-		return -ENODEV;
+		goto err;
 
 	return 0;
+
+err:
+	debugfs_remove_recursive(perf_debugfs_dir);
+	perf_debugfs_dir = NULL;
+	return -ENODEV;
 }
 
 static int perf_probe(struct ntb_client *client, struct ntb_dev *ntb)
