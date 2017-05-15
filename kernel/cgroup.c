@@ -5407,6 +5407,11 @@ static void kill_css(struct cgroup_subsys_state *css)
 {
 	lockdep_assert_held(&cgroup_mutex);
 
+	if (css->flags & CSS_DYING)
+		return;
+
+	css->flags |= CSS_DYING;
+
 	/*
 	 * This must happen before css is disassociated with its cgroup.
 	 * See seq_css() for details.
