@@ -1225,6 +1225,11 @@ config GPIO_PISOSR
 	  GPIO driver for SPI compatible parallel-in/serial-out shift
 	  registers. These are input only devices.
 
+config GPIO_XRA1403
+	tristate "EXAR XRA1403 16-bit GPIO expander"
+	help
+	  GPIO driver for EXAR XRA1403 16-bit SPI-based GPIO expander.
+
 endmenu
 
 menu "SPI or I2C GPIO expanders"
