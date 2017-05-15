@@ -224,13 +224,14 @@ static void optee_release(struct tee_context *ctx)
 	if (!IS_ERR(shm)) {
 		arg = tee_shm_get_va(shm, 0);
 		/*
-		 * If va2pa fails for some reason, we can't call
-		 * optee_close_session(), only free the memory. Secure OS
-		 * will leak sessions and finally refuse more sessions, but
-		 * we will at least let normal world reclaim its memory.
+		 * If va2pa fails for some reason, we can't call into
+		 * secure world, only free the memory. Secure OS will leak
+		 * sessions and finally refuse more sessions, but we will
+		 * at least let normal world reclaim its memory.
 		 */
 		if (!IS_ERR(arg))
-			tee_shm_va2pa(shm, arg, &parg);
+			if (tee_shm_va2pa(shm, arg, &parg))
+				arg = NULL; /* prevent usage of parg below */
 	}
 
 	list_for_each_entry_safe(sess, sess_tmp, &ctxdata->sess_list,
