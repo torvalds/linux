@@ -400,6 +400,8 @@ extern struct tty_struct *get_current_tty(void);
 /* tty_io.c */
 extern int __init tty_init(void);
 extern const char *tty_name(const struct tty_struct *tty);
+extern struct tty_struct *tty_open_by_driver(dev_t device, struct inode *inode,
+		struct file *filp);
 #else
 static inline void tty_kref_put(struct tty_struct *tty)
 { }
