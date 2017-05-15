@@ -81,9 +81,15 @@ struct sst_acpi_mach *sst_acpi_find_machine(struct sst_acpi_mach *machines)
 {
 	struct sst_acpi_mach *mach;
 
-	for (mach = machines; mach->id[0]; mach++)
-		if (sst_acpi_check_hid(mach->id) == true)
-			return mach;
+	for (mach = machines; mach->id[0]; mach++) {
+		if (sst_acpi_check_hid(mach->id) == true) {
+			if (mach->machine_quirk == NULL)
+				return mach;
+
+			if (mach->machine_quirk(mach) != NULL)
+				return mach;
+		}
+	}
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(sst_acpi_find_machine);
