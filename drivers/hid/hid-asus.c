@@ -69,6 +69,7 @@ MODULE_DESCRIPTION("Asus HID Keyboard and TouchPad");
 #define QUIRK_IS_MULTITOUCH		BIT(3)
 #define QUIRK_NO_CONSUMER_USAGES	BIT(4)
 #define QUIRK_USE_KBD_BACKLIGHT		BIT(5)
+#define QUIRK_T100_KEYBOARD		BIT(6)
 
 #define I2C_KEYBOARD_QUIRKS			(QUIRK_FIX_NOTEBOOK_REPORT | \
 						 QUIRK_NO_INIT_REPORTS | \
@@ -548,6 +549,12 @@ static __u8 *asus_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		hid_info(hdev, "Fixing up Asus notebook report descriptor\n");
 		rdesc[55] = 0xdd;
 	}
+	if (drvdata->quirks & QUIRK_T100_KEYBOARD &&
+		 *rsize == 76 && rdesc[73] == 0x81 && rdesc[74] == 0x01) {
+		hid_info(hdev, "Fixing up Asus T100 keyb report descriptor\n");
+		rdesc[74] &= ~HID_MAIN_ITEM_CONSTANT;
+	}
+
 	return rdesc;
 }
 
@@ -560,6 +567,9 @@ static const struct hid_device_id asus_devices[] = {
 		USB_DEVICE_ID_ASUSTEK_ROG_KEYBOARD1) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK,
 		USB_DEVICE_ID_ASUSTEK_ROG_KEYBOARD2), QUIRK_USE_KBD_BACKLIGHT },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK,
+		USB_DEVICE_ID_ASUSTEK_T100_KEYBOARD),
+	  QUIRK_T100_KEYBOARD | QUIRK_NO_CONSUMER_USAGES },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, asus_devices);
