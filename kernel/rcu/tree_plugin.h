@@ -1296,8 +1296,7 @@ static void rcu_prepare_kthreads(int cpu)
 int rcu_needs_cpu(u64 basemono, u64 *nextevt)
 {
 	*nextevt = KTIME_MAX;
-	return IS_ENABLED(CONFIG_RCU_NOCB_CPU_ALL)
-	       ? 0 : rcu_cpu_has_callbacks(NULL);
+	return rcu_cpu_has_callbacks(NULL);
 }
 
 /*
@@ -1409,10 +1408,6 @@ int rcu_needs_cpu(u64 basemono, u64 *nextevt)
 	unsigned long dj;
 
 	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_needs_cpu() invoked with irqs enabled!!!");
-	if (IS_ENABLED(CONFIG_RCU_NOCB_CPU_ALL)) {
-		*nextevt = KTIME_MAX;
-		return 0;
-	}
 
 	/* Snapshot to detect later posting of non-lazy callback. */
 	rdtp->nonlazy_posted_snap = rdtp->nonlazy_posted;
@@ -1462,8 +1457,7 @@ static void rcu_prepare_for_idle(void)
 	int tne;
 
 	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_prepare_for_idle() invoked with irqs enabled!!!");
-	if (IS_ENABLED(CONFIG_RCU_NOCB_CPU_ALL) ||
-	    rcu_is_nocb_cpu(smp_processor_id()))
+	if (rcu_is_nocb_cpu(smp_processor_id()))
 		return;
 
 	/* Handle nohz enablement switches conservatively. */
@@ -1518,8 +1512,7 @@ static void rcu_prepare_for_idle(void)
 static void rcu_cleanup_after_idle(void)
 {
 	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_cleanup_after_idle() invoked with irqs enabled!!!");
-	if (IS_ENABLED(CONFIG_RCU_NOCB_CPU_ALL) ||
-	    rcu_is_nocb_cpu(smp_processor_id()))
+	if (rcu_is_nocb_cpu(smp_processor_id()))
 		return;
 	if (rcu_try_advance_all_cbs())
 		invoke_rcu_core();
@@ -1786,7 +1779,6 @@ static void rcu_init_one_nocb(struct rcu_node *rnp)
 	init_swait_queue_head(&rnp->nocb_gp_wq[1]);
 }
 
-#ifndef CONFIG_RCU_NOCB_CPU_ALL
 /* Is the specified CPU a no-CBs CPU? */
 bool rcu_is_nocb_cpu(int cpu)
 {
@@ -1794,7 +1786,6 @@ bool rcu_is_nocb_cpu(int cpu)
 		return cpumask_test_cpu(cpu, rcu_nocb_mask);
 	return false;
 }
-#endif /* #ifndef CONFIG_RCU_NOCB_CPU_ALL */
 
 /*
  * Kick the leader kthread for this NOCB group.
@@ -2253,10 +2244,6 @@ void __init rcu_init_nohz(void)
 	bool need_rcu_nocb_mask = true;
 	struct rcu_state *rsp;
 
-#ifdef CONFIG_RCU_NOCB_CPU_NONE
-	need_rcu_nocb_mask = false;
-#endif /* #ifndef CONFIG_RCU_NOCB_CPU_NONE */
-
 #if defined(CONFIG_NO_HZ_FULL)
 	if (tick_nohz_full_running && cpumask_weight(tick_nohz_full_mask))
 		need_rcu_nocb_mask = true;
@@ -2272,14 +2259,6 @@ void __init rcu_init_nohz(void)
 	if (!have_rcu_nocb_mask)
 		return;
 
-#ifdef CONFIG_RCU_NOCB_CPU_ZERO
-	pr_info("\tOffload RCU callbacks from CPU 0\n");
-	cpumask_set_cpu(0, rcu_nocb_mask);
-#endif /* #ifdef CONFIG_RCU_NOCB_CPU_ZERO */
-#ifdef CONFIG_RCU_NOCB_CPU_ALL
-	pr_info("\tOffload RCU callbacks from all CPUs\n");
-	cpumask_copy(rcu_nocb_mask, cpu_possible_mask);
-#endif /* #ifdef CONFIG_RCU_NOCB_CPU_ALL */
 #if defined(CONFIG_NO_HZ_FULL)
 	if (tick_nohz_full_running)
 		cpumask_or(rcu_nocb_mask, rcu_nocb_mask, tick_nohz_full_mask);

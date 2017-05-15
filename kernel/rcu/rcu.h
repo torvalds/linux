@@ -564,9 +564,7 @@ void rcu_bh_force_quiescent_state(void);
 void rcu_sched_force_quiescent_state(void);
 #endif /* #else #ifdef CONFIG_TINY_RCU */
 
-#if defined(CONFIG_RCU_NOCB_CPU_ALL)
-static inline bool rcu_is_nocb_cpu(int cpu) { return true; }
-#elif defined(CONFIG_RCU_NOCB_CPU)
+#ifdef CONFIG_RCU_NOCB_CPU
 bool rcu_is_nocb_cpu(int cpu);
 #else
 static inline bool rcu_is_nocb_cpu(int cpu) { return false; }
