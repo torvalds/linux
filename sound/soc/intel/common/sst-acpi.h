@@ -43,6 +43,9 @@ static inline bool sst_acpi_find_package_from_hid(const u8 hid[ACPI_ID_LEN],
 /* acpi match */
 struct sst_acpi_mach *sst_acpi_find_machine(struct sst_acpi_mach *machines);
 
+/* acpi check hid */
+bool sst_acpi_check_hid(const u8 hid[ACPI_ID_LEN]);
+
 /* Descriptor for SST ASoC machine driver */
 struct sst_acpi_mach {
 	/* ACPI ID for the matching machine driver. Audio codec for instance */

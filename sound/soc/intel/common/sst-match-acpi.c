@@ -63,15 +63,26 @@ static acpi_status sst_acpi_mach_match(acpi_handle handle, u32 level,
 	return AE_OK;
 }
 
+bool sst_acpi_check_hid(const u8 hid[ACPI_ID_LEN])
+{
+	acpi_status status;
+	bool found = false;
+
+	status = acpi_get_devices(hid, sst_acpi_mach_match, &found, NULL);
+
+	if (ACPI_FAILURE(status))
+		return false;
+
+	return found;
+}
+EXPORT_SYMBOL_GPL(sst_acpi_check_hid);
+
 struct sst_acpi_mach *sst_acpi_find_machine(struct sst_acpi_mach *machines)
 {
 	struct sst_acpi_mach *mach;
-	bool found = false;
 
 	for (mach = machines; mach->id[0]; mach++)
-		if (ACPI_SUCCESS(acpi_get_devices(mach->id,
-						  sst_acpi_mach_match,
-						  &found, NULL)) && found)
+		if (sst_acpi_check_hid(mach->id) == true)
 			return mach;
 	return NULL;
 }
