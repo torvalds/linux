@@ -1099,7 +1099,7 @@ static int caif_create(struct net *net, struct socket *sock, int protocol,
 }
 
 
-static struct net_proto_family caif_family_ops = {
+static const struct net_proto_family caif_family_ops = {
 	.family = PF_CAIF,
 	.create = caif_create,
 	.owner = THIS_MODULE,

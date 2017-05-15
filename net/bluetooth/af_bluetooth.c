@@ -733,7 +733,7 @@ void bt_procfs_cleanup(struct net *net, const char *name)
 EXPORT_SYMBOL(bt_procfs_init);
 EXPORT_SYMBOL(bt_procfs_cleanup);
 
-static struct net_proto_family bt_sock_family_ops = {
+static const struct net_proto_family bt_sock_family_ops = {
 	.owner	= THIS_MODULE,
 	.family	= PF_BLUETOOTH,
 	.create	= bt_sock_create,
