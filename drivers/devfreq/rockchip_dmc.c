@@ -18,6 +18,7 @@
 #include <linux/arm-smccc.h>
 #include <linux/clk.h>
 #include <linux/cpu.h>
+#include <linux/cpufreq.h>
 #include <linux/delay.h>
 #include <linux/devfreq.h>
 #include <linux/devfreq-event.h>
@@ -164,6 +165,7 @@ struct rockchip_dmcfreq {
 	struct regulator *vdd_center;
 	unsigned long rate, target_rate;
 	unsigned long volt, target_volt;
+	unsigned int min_cpu_freq;
 };
 
 static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
@@ -171,8 +173,10 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 {
 	struct rockchip_dmcfreq *dmcfreq = dev_get_drvdata(dev);
 	struct dev_pm_opp *opp;
+	struct cpufreq_policy *policy;
 	unsigned long old_clk_rate = dmcfreq->rate;
 	unsigned long temp_rate, target_volt, target_rate;
+	unsigned int cpu_cur, cpufreq_cur;
 	int err;
 
 	rcu_read_lock();
@@ -205,6 +209,40 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 	mutex_lock(&dmcfreq->lock);
 
 	/*
+	 * We need to prevent cpu hotplug from happening while a dmc freq rate
+	 * change is happening.
+	 *
+	 * Do this before taking the policy rwsem to avoid deadlocks between the
+	 * mutex that is locked/unlocked in cpu_hotplug_disable/enable. And it
+	 * can also avoid deadlocks between the mutex that is locked/unlocked
+	 * in get/put_online_cpus (such as store_scaling_max_freq()).
+	 */
+	get_online_cpus();
+
+	/*
+	 * Go to specified cpufreq and block other cpufreq changes since
+	 * set_rate needs to complete during vblank.
+	 */
+	cpu_cur = smp_processor_id();
+	policy = cpufreq_cpu_get(cpu_cur);
+	if (!policy) {
+		dev_err(dev, "cpu%d policy NULL\n", cpu_cur);
+		goto cpufreq;
+	}
+	down_write(&policy->rwsem);
+	cpufreq_cur = cpufreq_quick_get(cpu_cur);
+
+	/* If we're thermally throttled; don't change; */
+	if (dmcfreq->min_cpu_freq && cpufreq_cur < dmcfreq->min_cpu_freq) {
+		if (policy->max >= dmcfreq->min_cpu_freq)
+			__cpufreq_driver_target(policy, dmcfreq->min_cpu_freq,
+						CPUFREQ_RELATION_L);
+		else
+			dev_dbg(dev, "CPU may too slow for DMC (%d MHz)\n",
+				policy->max);
+	}
+
+	/*
 	 * If frequency scaling from low to high, adjust voltage first.
 	 * If frequency scaling from high to low, adjust frequency first.
 	 */
@@ -218,16 +256,7 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 		}
 	}
 
-	/*
-	 * We need to prevent cpu hotplug from happening while a dmc freq rate
-	 * change is happening.
-	 */
-	get_online_cpus();
-
 	err = clk_set_rate(dmcfreq->dmc_clk, target_rate);
-
-	put_online_cpus();
-
 	if (err) {
 		dev_err(dev, "Cannot set frequency %lu (%d)\n",
 			target_rate, err);
@@ -262,6 +291,11 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 
 	dmcfreq->volt = target_volt;
 out:
+	__cpufreq_driver_target(policy, cpufreq_cur, CPUFREQ_RELATION_L);
+	up_write(&policy->rwsem);
+	cpufreq_cpu_put(policy);
+cpufreq:
+	put_online_cpus();
 	mutex_unlock(&dmcfreq->lock);
 	return err;
 }
@@ -890,6 +924,7 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 			     &data->ondemand_data.upthreshold);
 	of_property_read_u32(np, "downdifferential",
 			     &data->ondemand_data.downdifferential);
+	of_property_read_u32(np, "min-cpu-freq", &data->min_cpu_freq);
 
 	data->rate = clk_get_rate(data->dmc_clk);
 	data->volt = regulator_get_voltage(data->vdd_center);
