@@ -90,8 +90,6 @@ struct drm_plane_helper_funcs;
  * @plane_mask: bitmask of (1 << drm_plane_index(plane)) of attached planes
  * @connector_mask: bitmask of (1 << drm_connector_index(connector)) of attached connectors
  * @encoder_mask: bitmask of (1 << drm_encoder_index(encoder)) of attached encoders
- * @adjusted_mode: for use by helpers and drivers to compute adjusted mode timings
- * @mode: current mode timings
  * @mode_blob: &drm_property_blob for @mode
  * @state: backpointer to global drm_atomic_state
  *
@@ -131,9 +129,33 @@ struct drm_crtc_state {
 	u32 connector_mask;
 	u32 encoder_mask;
 
-	/* adjusted_mode: for use by helpers and drivers */
+	/**
+	 * @adjusted_mode:
+	 *
+	 * Internal display timings which can be used by the driver to handle
+	 * differences between the mode requested by userspace in @mode and what
+	 * is actually programmed into the hardware. It is purely driver
+	 * implementation defined what exactly this adjusted mode means. Usually
+	 * it is used to store the hardware display timings used between the
+	 * CRTC and encoder blocks.
+	 */
 	struct drm_display_mode adjusted_mode;
 
+	/**
+	 * @mode:
+	 *
+	 * Display timings requested by userspace. The driver should try to
+	 * match the refresh rate as close as possible (but note that it's
+	 * undefined what exactly is close enough, e.g. some of the HDMI modes
+	 * only differ in less than 1% of the refresh rate). The active width
+	 * and height as observed by userspace for positioning planes must match
+	 * exactly.
+	 *
+	 * For external connectors where the sink isn't fixed (like with a
+	 * built-in panel), this mode here should match the physical mode on the
+	 * wire to the last details (i.e. including sync polarities and
+	 * everything).
+	 */
 	struct drm_display_mode mode;
 
 	/* blob property to expose current mode to atomic userspace */

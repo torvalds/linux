@@ -147,7 +147,8 @@ struct drm_crtc_helper_funcs {
 	 * encoders need to be fed with. Note that this is the inverse semantics
 	 * of the meaning for the &drm_encoder and &drm_bridge_funcs.mode_fixup
 	 * vfunc. If the CRTC cannot support the requested conversion from mode
-	 * to adjusted_mode it should reject the modeset.
+	 * to adjusted_mode it should reject the modeset. See also
+	 * &drm_crtc_state.adjusted_mode for more details.
 	 *
 	 * This function is used by both legacy CRTC helpers and atomic helpers.
 	 * With atomic helpers it is optional.
@@ -528,7 +529,8 @@ struct drm_encoder_helper_funcs {
 	 * mode is the display mode that should be fed to the next element in
 	 * the display chain, either the final &drm_connector or a &drm_bridge.
 	 * The parameter adjusted_mode is the input mode the encoder requires. It
-	 * can be modified by this callback and does not need to match mode.
+	 * can be modified by this callback and does not need to match mode. See
+	 * also &drm_crtc_state.adjusted_mode for more details.
 	 *
 	 * This function is used by both legacy CRTC helpers and atomic helpers.
 	 * This hook is optional.

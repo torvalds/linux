@@ -100,7 +100,7 @@ struct drm_bridge_funcs {
 	 * the display chain, either the final &drm_connector or the next
 	 * &drm_bridge. The parameter adjusted_mode is the input mode the bridge
 	 * requires. It can be modified by this callback and does not need to
-	 * match mode.
+	 * match mode. See also &drm_crtc_state.adjusted_mode for more details.
 	 *
 	 * This is the only hook that allows a bridge to reject a modeset. If
 	 * this function passes all other callbacks must succeed for this
