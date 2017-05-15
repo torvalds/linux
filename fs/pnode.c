@@ -439,7 +439,7 @@ static void mark_umount_candidates(struct mount *mnt)
  * NOTE: unmounting 'mnt' naturally propagates to all other mounts its
  * parent propagates to.
  */
-static void __propagate_umount(struct mount *mnt)
+static void __propagate_umount(struct mount *mnt, struct list_head *to_reparent)
 {
 	struct mount *parent = mnt->mnt_parent;
 	struct mount *m;
@@ -464,14 +464,35 @@ static void __propagate_umount(struct mount *mnt)
 		 */
 		topper = find_topper(child);
 		if (topper)
-			mnt_change_mountpoint(child->mnt_parent, child->mnt_mp,
-					      topper);
+			list_add_tail(&topper->mnt_reparent, to_reparent);
 
-		if (list_empty(&child->mnt_mounts)) {
+		if (topper || list_empty(&child->mnt_mounts)) {
 			list_del_init(&child->mnt_child);
+			list_del_init(&child->mnt_reparent);
 			child->mnt.mnt_flags |= MNT_UMOUNT;
 			list_move_tail(&child->mnt_list, &mnt->mnt_list);
 		}
+	}
+}
+
+static void reparent_mounts(struct list_head *to_reparent)
+{
+	while (!list_empty(to_reparent)) {
+		struct mount *mnt, *parent;
+		struct mountpoint *mp;
+
+		mnt = list_first_entry(to_reparent, struct mount, mnt_reparent);
+		list_del_init(&mnt->mnt_reparent);
+
+		/* Where should this mount be reparented to? */
+		mp = mnt->mnt_mp;
+		parent = mnt->mnt_parent;
+		while (parent->mnt.mnt_flags & MNT_UMOUNT) {
+			mp = parent->mnt_mp;
+			parent = parent->mnt_parent;
+		}
+
+		mnt_change_mountpoint(parent, mp, mnt);
 	}
 }
 
@@ -485,11 +506,15 @@ static void __propagate_umount(struct mount *mnt)
 int propagate_umount(struct list_head *list)
 {
 	struct mount *mnt;
+	LIST_HEAD(to_reparent);
 
 	list_for_each_entry_reverse(mnt, list, mnt_list)
 		mark_umount_candidates(mnt);
 
 	list_for_each_entry(mnt, list, mnt_list)
-		__propagate_umount(mnt);
+		__propagate_umount(mnt, &to_reparent);
+
+	reparent_mounts(&to_reparent);
+
 	return 0;
 }
