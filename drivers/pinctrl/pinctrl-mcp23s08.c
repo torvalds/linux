@@ -1071,56 +1071,53 @@ static int mcp23s08_probe(struct spi_device *spi)
 	u32				spi_present_mask = 0;
 
 	match = of_match_device(of_match_ptr(mcp23s08_spi_of_match), &spi->dev);
-	if (match) {
+	if (match)
 		type = (int)(uintptr_t)match->data;
-		status = of_property_read_u32(spi->dev.of_node,
-			    "microchip,spi-present-mask", &spi_present_mask);
+	else
+		type = spi_get_device_id(spi)->driver_data;
+
+	pdata = dev_get_platdata(&spi->dev);
+	if (!pdata) {
+		pdata = &local_pdata;
+		pdata->base = -1;
+
+		pdata->irq_controller = device_property_read_bool(&spi->dev,
+			"interrupt-controller");
+		pdata->mirror = device_property_read_bool(&spi->dev,
+			"microchip,irq-mirror");
+
+		status = device_property_read_u32(&spi->dev,
+			"microchip,spi-present-mask", &spi_present_mask);
 		if (status) {
-			status = of_property_read_u32(spi->dev.of_node,
-				    "mcp,spi-present-mask", &spi_present_mask);
+			status = device_property_read_u32(&spi->dev,
+				"mcp,spi-present-mask", &spi_present_mask);
+
 			if (status) {
-				dev_err(&spi->dev,
-					"DT has no spi-present-mask\n");
+				dev_err(&spi->dev, "missing spi-present-mask");
 				return -ENODEV;
 			}
 		}
-		if ((spi_present_mask <= 0) || (spi_present_mask >= 256)) {
-			dev_err(&spi->dev, "invalid spi-present-mask\n");
-			return -ENODEV;
-		}
-
-		pdata = &local_pdata;
-		pdata->base = -1;
-		for (addr = 0; addr < ARRAY_SIZE(pdata->chip); addr++) {
-			if (spi_present_mask & (1 << addr))
-				chips++;
-		}
-		pdata->irq_controller =	of_property_read_bool(
-					spi->dev.of_node,
-					"interrupt-controller");
-		pdata->mirror = of_property_read_bool(spi->dev.of_node,
-						      "microchip,irq-mirror");
 	} else {
-		type = spi_get_device_id(spi)->driver_data;
-		pdata = dev_get_platdata(&spi->dev);
-		if (!pdata) {
-			pdata = devm_kzalloc(&spi->dev,
-					sizeof(struct mcp23s08_platform_data),
-					GFP_KERNEL);
-			pdata->base = -1;
-		}
-
 		for (addr = 0; addr < ARRAY_SIZE(pdata->chip); addr++) {
 			if (!pdata->chip[addr].is_present)
 				continue;
-			chips++;
 			if ((type == MCP_TYPE_S08) && (addr > 3)) {
 				dev_err(&spi->dev,
-					"mcp23s08 only supports address 0..3\n");
+					"mcp23s08 only supports address 0..3");
 				return -EINVAL;
 			}
-			spi_present_mask |= 1 << addr;
+			spi_present_mask |= BIT(addr);
 		}
+	}
+
+	if (!spi_present_mask || spi_present_mask >= 256) {
+		dev_err(&spi->dev, "invalid spi-present-mask");
+		return -ENODEV;
+	}
+
+	for (addr = 0; addr < ARRAY_SIZE(pdata->chip); addr++) {
+		if (spi_present_mask & BIT(addr))
+			chips++;
 	}
 
 	if (!chips)
