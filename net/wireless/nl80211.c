@@ -9962,6 +9962,9 @@ static int nl80211_join_mesh(struct sk_buff *skb, struct genl_info *info)
 			return err;
 	}
 
+	setup.userspace_handles_dfs =
+		nla_get_flag(info->attrs[NL80211_ATTR_HANDLE_DFS]);
+
 	return cfg80211_join_mesh(rdev, dev, &setup, &cfg);
 }
 
