@@ -614,6 +614,16 @@ static void dcn10_cursor_set_position(
 	uint32_t cur_en = pos->enable ? 1 : 0;
 	uint32_t dst_x_offset = (src_x_offset >= 0) ? src_x_offset : 0;
 
+	/*
+	 * Guard aganst cursor_set_position() from being called with invalid
+	 * attributes
+	 *
+	 * TODO: Look at combining cursor_set_position() and
+	 * cursor_set_attributes() into cursor_update()
+	 */
+	if (ippn10->curs_attr.address.quad_part == 0)
+		return;
+
 	dst_x_offset *= param->ref_clk_khz;
 	dst_x_offset /= param->pixel_clk_khz;
 
