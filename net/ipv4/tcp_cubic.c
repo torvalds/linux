@@ -155,7 +155,7 @@ static void bictcp_cwnd_event(struct sock *sk, enum tcp_ca_event event)
 {
 	if (event == CA_EVENT_TX_START) {
 		struct bictcp *ca = inet_csk_ca(sk);
-		u32 now = tcp_time_stamp;
+		u32 now = tcp_jiffies32;
 		s32 delta;
 
 		delta = now - tcp_sk(sk)->lsndtime;
