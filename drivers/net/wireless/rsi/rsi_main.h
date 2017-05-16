@@ -244,5 +244,13 @@ struct rsi_host_intf_ops {
 				 u8 *data, u16 count);
 	int (*write_reg_multiple)(struct rsi_hw *adapter, u32 addr,
 				  u8 *data, u16 count);
+	int (*master_reg_read)(struct rsi_hw *adapter, u32 addr,
+			       u32 *read_buf, u16 size);
+	int (*master_reg_write)(struct rsi_hw *adapter,
+				unsigned long addr, unsigned long data,
+				u16 size);
+	int (*load_data_master_write)(struct rsi_hw *adapter, u32 addr,
+				      u32 instructions_size, u16 block_size,
+				      u8 *fw);
 };
 #endif

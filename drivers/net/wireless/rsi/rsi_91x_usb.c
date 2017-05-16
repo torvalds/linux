@@ -392,10 +392,75 @@ static int rsi_usb_host_intf_write_pkt(struct rsi_hw *adapter,
 				  len);
 }
 
+static int rsi_usb_master_reg_read(struct rsi_hw *adapter, u32 reg,
+				   u32 *value, u16 len)
+{
+	struct usb_device *usbdev =
+		((struct rsi_91x_usbdev *)adapter->rsi_dev)->usbdev;
+
+	return rsi_usb_reg_read(usbdev, reg, (u16 *)value, len);
+}
+
+static int rsi_usb_master_reg_write(struct rsi_hw *adapter,
+				    unsigned long reg,
+				    unsigned long value, u16 len)
+{
+	struct usb_device *usbdev =
+		((struct rsi_91x_usbdev *)adapter->rsi_dev)->usbdev;
+
+	return rsi_usb_reg_write(usbdev, reg, value, len);
+}
+
+static int rsi_usb_load_data_master_write(struct rsi_hw *adapter,
+					  u32 base_address,
+					  u32 instructions_sz, u16 block_size,
+					  u8 *ta_firmware)
+{
+	u16 num_blocks;
+	u32 cur_indx, i;
+	u8 temp_buf[256];
+	int status;
+
+	num_blocks = instructions_sz / block_size;
+	rsi_dbg(INFO_ZONE, "num_blocks: %d\n", num_blocks);
+
+	for (cur_indx = 0, i = 0; i < num_blocks; i++, cur_indx += block_size) {
+		memset(temp_buf, 0, block_size);
+		memcpy(temp_buf, ta_firmware + cur_indx, block_size);
+		status = rsi_usb_write_register_multiple(adapter, base_address,
+							 (u8 *)(temp_buf),
+							 block_size);
+		if (status < 0)
+			return status;
+
+		rsi_dbg(INFO_ZONE, "%s: loading block: %d\n", __func__, i);
+		base_address += block_size;
+	}
+
+	if (instructions_sz % block_size) {
+		memset(temp_buf, 0, block_size);
+		memcpy(temp_buf, ta_firmware + cur_indx,
+		       instructions_sz % block_size);
+		status = rsi_usb_write_register_multiple
+						(adapter, base_address,
+						 (u8 *)temp_buf,
+						 instructions_sz % block_size);
+		if (status < 0)
+			return status;
+		rsi_dbg(INFO_ZONE,
+			"Written Last Block in Address 0x%x Successfully\n",
+			cur_indx);
+	}
+	return 0;
+}
+
 static struct rsi_host_intf_ops usb_host_intf_ops = {
 	.write_pkt		= rsi_usb_host_intf_write_pkt,
 	.read_reg_multiple	= rsi_usb_read_register_multiple,
 	.write_reg_multiple	= rsi_usb_write_register_multiple,
+	.master_reg_read	= rsi_usb_master_reg_read,
+	.master_reg_write	= rsi_usb_master_reg_write,
+	.load_data_master_write	= rsi_usb_load_data_master_write,
 };
 
 /**

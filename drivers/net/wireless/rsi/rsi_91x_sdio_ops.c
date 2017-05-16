@@ -27,8 +27,7 @@
  *
  * Return: status: 0 on success, -1 on failure.
  */
-static int rsi_sdio_master_access_msword(struct rsi_hw *adapter,
-					 u16 ms_word)
+int rsi_sdio_master_access_msword(struct rsi_hw *adapter, u16 ms_word)
 {
 	u8 byte;
 	u8 function = 0;
