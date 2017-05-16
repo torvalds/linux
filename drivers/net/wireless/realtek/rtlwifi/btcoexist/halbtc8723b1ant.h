@@ -142,6 +142,7 @@ struct coex_sta_8723b_1ant {
 	bool a2dp_exist;
 	bool hid_exist;
 	bool pan_exist;
+	bool bt_hi_pri_link_exist;
 
 	bool under_lps;
 	bool under_ips;

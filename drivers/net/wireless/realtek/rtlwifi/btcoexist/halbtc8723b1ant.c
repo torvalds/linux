@@ -407,6 +407,7 @@ static void halbtc8723b1ant_update_bt_link_info(struct btc_coexist *btcoexist)
 	bt_link_info->a2dp_exist = coex_sta->a2dp_exist;
 	bt_link_info->pan_exist = coex_sta->pan_exist;
 	bt_link_info->hid_exist = coex_sta->hid_exist;
+	bt_link_info->bt_hi_pri_link_exist = coex_sta->bt_hi_pri_link_exist;
 
 	/* work around for HS mode. */
 	if (bt_hs_on) {
@@ -2644,6 +2645,8 @@ void ex_halbtc8723b1ant_bt_info_notify(struct btc_coexist *btcoexist,
 		coex_sta->a2dp_exist = false;
 		coex_sta->hid_exist = false;
 		coex_sta->sco_exist = false;
+
+		coex_sta->bt_hi_pri_link_exist = false;
 	} else {
 		/* connection exists */
 		coex_sta->bt_link_exist = true;
@@ -2663,6 +2666,14 @@ void ex_halbtc8723b1ant_bt_info_notify(struct btc_coexist *btcoexist,
 			coex_sta->sco_exist = true;
 		else
 			coex_sta->sco_exist = false;
+
+		/* Add Hi-Pri Tx/Rx counter to avoid false detection */
+		if (((coex_sta->hid_exist) || (coex_sta->sco_exist)) &&
+		    (coex_sta->high_priority_tx + coex_sta->high_priority_rx >=
+		     160) &&
+		    (!coex_sta->c2h_bt_inquiry_page))
+			coex_sta->bt_hi_pri_link_exist = true;
+
 	}
 
 	halbtc8723b1ant_update_bt_link_info(btcoexist);
