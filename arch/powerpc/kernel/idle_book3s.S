@@ -379,6 +379,7 @@ _GLOBAL(power9_idle_stop)
 	mfspr   r5,SPRN_PSSCR
 	andc    r5,r5,r4
 	or      r3,r3,r5
+	std	r3, PACA_REQ_PSSCR(r13)
 	mtspr 	SPRN_PSSCR,r3
 	LOAD_REG_ADDR(r5,power_enter_stop)
 	li	r4,1
@@ -498,12 +499,22 @@ pnv_restore_hyp_resource_arch300:
 	LOAD_REG_ADDRBASE(r5,pnv_first_deep_stop_state)
 	ld	r4,ADDROFF(pnv_first_deep_stop_state)(r5)
 
-	mfspr	r5,SPRN_PSSCR
+BEGIN_FTR_SECTION_NESTED(71)
+	/*
+	 * Assume that we are waking up from the state
+	 * same as the Requested Level (RL) in the PSSCR
+	 * which are Bits 60-63
+	 */
+	ld	r5,PACA_REQ_PSSCR(r13)
+	rldicl  r5,r5,0,60
+FTR_SECTION_ELSE_NESTED(71)
 	/*
 	 * 0-3 bits correspond to Power-Saving Level Status
 	 * which indicates the idle state we are waking up from
 	 */
+	mfspr	r5, SPRN_PSSCR
 	rldicl  r5,r5,4,60
+ALT_FTR_SECTION_END_NESTED_IFSET(CPU_FTR_POWER9_DD1, 71)
 	cmpd	cr4,r5,r4
 	bge	cr4,pnv_wakeup_tb_loss /* returns to caller */
 

@@ -177,6 +177,8 @@ struct paca_struct {
 	 * to the sibling threads' paca.
 	 */
 	struct paca_struct **thread_sibling_pacas;
+	/* The PSSCR value that the kernel requested before going to stop */
+	u64 requested_psscr;
 #endif
 
 #ifdef CONFIG_PPC_STD_MMU_64
