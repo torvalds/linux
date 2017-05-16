@@ -17,6 +17,7 @@
 
 #include <linux/module.h>
 #include "rsi_usb.h"
+#include "rsi_hal.h"
 
 /**
  * rsi_usb_card_write() - This function writes to the USB Card.
@@ -525,6 +526,7 @@ static int rsi_init_usb_interface(struct rsi_hw *adapter,
 	}
 	rsi_dev->rx_usb_urb[0]->transfer_buffer = adapter->priv->rx_data_pkt;
 	rsi_dev->tx_blk_size = 252;
+	adapter->block_size = rsi_dev->tx_blk_size;
 
 	/* Initializing function callbacks */
 	adapter->rx_urb_submit = rsi_rx_urb_submit;
@@ -583,6 +585,7 @@ static int rsi_probe(struct usb_interface *pfunction,
 			__func__);
 		return -ENOMEM;
 	}
+	adapter->rsi_host_intf = RSI_HOST_INTF_USB;
 
 	status = rsi_init_usb_interface(adapter, pfunction);
 	if (status) {
@@ -596,25 +599,20 @@ static int rsi_probe(struct usb_interface *pfunction,
 	dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
 
 	status = rsi_usb_reg_read(dev->usbdev, FW_STATUS_REG, &fw_status, 2);
-	if (status)
+	if (status < 0)
 		goto err1;
 	else
 		fw_status &= 1;
 
 	if (!fw_status) {
-		status = rsi_usb_device_init(adapter->priv);
+		rsi_dbg(INIT_ZONE, "Loading firmware...\n");
+		status = rsi_hal_device_init(adapter);
 		if (status) {
 			rsi_dbg(ERR_ZONE, "%s: Failed in device init\n",
 				__func__);
 			goto err1;
 		}
-
-		status = rsi_usb_reg_write(dev->usbdev,
-					   USB_INTERNAL_REG_1,
-					   RSI_USB_READY_MAGIC_NUM, 1);
-		if (status)
-			goto err1;
-		rsi_dbg(INIT_ZONE, "%s: Performed device init\n", __func__);
+		rsi_dbg(INIT_ZONE, "%s: Device Init Done\n", __func__);
 	}
 
 	status = rsi_rx_urb_submit(adapter);

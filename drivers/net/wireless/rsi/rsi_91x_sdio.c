@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include "rsi_sdio.h"
 #include "rsi_common.h"
+#include "rsi_hal.h"
 
 /**
  * rsi_sdio_set_cmd52_arg() - This function prepares cmd 52 read/write arg.
@@ -365,6 +366,7 @@ static int rsi_setblocklength(struct rsi_hw *adapter, u32 length)
 
 	status = sdio_set_block_size(dev->pfunction, length);
 	dev->pfunction->max_blksize = 256;
+	adapter->block_size = dev->pfunction->max_blksize;
 
 	rsi_dbg(INFO_ZONE,
 		"%s: Operational blk length is %d\n", __func__, length);
@@ -868,6 +870,7 @@ fail:
 static struct rsi_host_intf_ops sdio_host_intf_ops = {
 	.write_pkt		= rsi_sdio_host_intf_write_pkt,
 	.read_pkt		= rsi_sdio_host_intf_read_pkt,
+	.master_access_msword	= rsi_sdio_master_access_msword,
 	.read_reg_multiple	= rsi_sdio_read_register_multiple,
 	.write_reg_multiple	= rsi_sdio_write_register_multiple,
 	.master_reg_read	= rsi_sdio_master_reg_read,
@@ -906,12 +909,18 @@ static int rsi_probe(struct sdio_func *pfunction,
 		goto fail;
 	}
 
-	if (rsi_sdio_device_init(adapter->priv)) {
+	if (rsi_hal_device_init(adapter)) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in device init\n", __func__);
 		sdio_claim_host(pfunction);
 		sdio_disable_func(pfunction);
 		sdio_release_host(pfunction);
 		goto fail;
+	}
+	rsi_dbg(INFO_ZONE, "===> RSI Device Init Done <===\n");
+
+	if (rsi_sdio_master_access_msword(adapter, MISC_CFG_BASE_ADDR)) {
+		rsi_dbg(ERR_ZONE, "%s: Unable to set ms word reg\n", __func__);
+		return -EIO;
 	}
 
 	sdio_claim_host(pfunction);

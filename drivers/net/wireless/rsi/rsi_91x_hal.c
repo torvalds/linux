@@ -14,7 +14,16 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/firmware.h>
 #include "rsi_mgmt.h"
+#include "rsi_hal.h"
+#include "rsi_sdio.h"
+
+/* FLASH Firmware */
+static struct ta_metadata metadata_flash_content[] = {
+	{"flash_content", 0x00010000},
+	{"rs9113_wlan_qspi.rps", 0x00010000},
+};
 
 /**
  * rsi_send_data_pkt() - This function sends the recieved data packet from
@@ -211,3 +220,521 @@ err:
 	rsi_indicate_tx_status(common->priv, skb, status);
 	return status;
 }
+
+static void bl_cmd_timeout(unsigned long priv)
+{
+	struct rsi_hw *adapter = (struct rsi_hw *)priv;
+
+	adapter->blcmd_timer_expired = true;
+	del_timer(&adapter->bl_cmd_timer);
+}
+
+static int bl_start_cmd_timer(struct rsi_hw *adapter, u32 timeout)
+{
+	init_timer(&adapter->bl_cmd_timer);
+	adapter->bl_cmd_timer.data = (unsigned long)adapter;
+	adapter->bl_cmd_timer.function = (void *)&bl_cmd_timeout;
+	adapter->bl_cmd_timer.expires = (msecs_to_jiffies(timeout) + jiffies);
+
+	adapter->blcmd_timer_expired = false;
+	add_timer(&adapter->bl_cmd_timer);
+
+	return 0;
+}
+
+static int bl_stop_cmd_timer(struct rsi_hw *adapter)
+{
+	adapter->blcmd_timer_expired = false;
+	if (timer_pending(&adapter->bl_cmd_timer))
+		del_timer(&adapter->bl_cmd_timer);
+
+	return 0;
+}
+
+static int bl_write_cmd(struct rsi_hw *adapter, u8 cmd, u8 exp_resp,
+			u16 *cmd_resp)
+{
+	struct rsi_host_intf_ops *hif_ops = adapter->host_intf_ops;
+	u32 regin_val = 0, regout_val = 0;
+	u32 regin_input = 0;
+	u8 output = 0;
+	int status;
+
+	regin_input = (REGIN_INPUT | adapter->priv->coex_mode);
+
+	while (!adapter->blcmd_timer_expired) {
+		regin_val = 0;
+		status = hif_ops->master_reg_read(adapter, SWBL_REGIN,
+						  &regin_val, 2);
+		if (status < 0) {
+			rsi_dbg(ERR_ZONE,
+				"%s: Command %0x REGIN reading failed..\n",
+				__func__, cmd);
+			return status;
+		}
+		mdelay(1);
+		if ((regin_val >> 12) != REGIN_VALID)
+			break;
+	}
+	if (adapter->blcmd_timer_expired) {
+		rsi_dbg(ERR_ZONE,
+			"%s: Command %0x REGIN reading timed out..\n",
+			__func__, cmd);
+		return -ETIMEDOUT;
+	}
+
+	rsi_dbg(INFO_ZONE,
+		"Issuing write to Regin val:%0x sending cmd:%0x\n",
+		regin_val, (cmd | regin_input << 8));
+	status = hif_ops->master_reg_write(adapter, SWBL_REGIN,
+					   (cmd | regin_input << 8), 2);
+	if (status < 0)
+		return status;
+	mdelay(1);
+
+	if (cmd == LOAD_HOSTED_FW || cmd == JUMP_TO_ZERO_PC) {
+		/* JUMP_TO_ZERO_PC doesn't expect
+		 * any response. So return from here
+		 */
+		return 0;
+	}
+
+	while (!adapter->blcmd_timer_expired) {
+		regout_val = 0;
+		status = hif_ops->master_reg_read(adapter, SWBL_REGOUT,
+					     &regout_val, 2);
+		if (status < 0) {
+			rsi_dbg(ERR_ZONE,
+				"%s: Command %0x REGOUT reading failed..\n",
+				__func__, cmd);
+			return status;
+		}
+		mdelay(1);
+		if ((regout_val >> 8) == REGOUT_VALID)
+			break;
+	}
+	if (adapter->blcmd_timer_expired) {
+		rsi_dbg(ERR_ZONE,
+			"%s: Command %0x REGOUT reading timed out..\n",
+			__func__, cmd);
+		return status;
+	}
+
+	*cmd_resp = ((u16 *)&regout_val)[0] & 0xffff;
+
+	output = ((u8 *)&regout_val)[0] & 0xff;
+
+	status = hif_ops->master_reg_write(adapter, SWBL_REGOUT,
+					   (cmd | REGOUT_INVALID << 8), 2);
+	if (status < 0) {
+		rsi_dbg(ERR_ZONE,
+			"%s: Command %0x REGOUT writing failed..\n",
+			__func__, cmd);
+		return status;
+	}
+	mdelay(1);
+
+	if (output != exp_resp) {
+		rsi_dbg(ERR_ZONE,
+			"%s: Recvd resp %x for cmd %0x\n",
+			__func__, output, cmd);
+		return -EINVAL;
+	}
+	rsi_dbg(INFO_ZONE,
+		"%s: Recvd Expected resp %x for cmd %0x\n",
+		__func__, output, cmd);
+
+	return 0;
+}
+
+static int bl_cmd(struct rsi_hw *adapter, u8 cmd, u8 exp_resp, char *str)
+{
+	u16 regout_val = 0;
+	u32 timeout;
+	int status;
+
+	if ((cmd == EOF_REACHED) || (cmd == PING_VALID) || (cmd == PONG_VALID))
+		timeout = BL_BURN_TIMEOUT;
+	else
+		timeout = BL_CMD_TIMEOUT;
+
+	bl_start_cmd_timer(adapter, timeout);
+	status = bl_write_cmd(adapter, cmd, exp_resp, &regout_val);
+	if (status < 0) {
+		rsi_dbg(ERR_ZONE,
+			"%s: Command %s (%0x) writing failed..\n",
+			__func__, str, cmd);
+		return status;
+	}
+	bl_stop_cmd_timer(adapter);
+	return 0;
+}
+
+#define CHECK_SUM_OFFSET 20
+#define LEN_OFFSET 8
+#define ADDR_OFFSET 16
+static int bl_write_header(struct rsi_hw *adapter, u8 *flash_content,
+			   u32 content_size)
+{
+	struct rsi_host_intf_ops *hif_ops = adapter->host_intf_ops;
+	struct bl_header bl_hdr;
+	u32 write_addr, write_len;
+	int status;
+
+	bl_hdr.flags = 0;
+	bl_hdr.image_no = cpu_to_le32(adapter->priv->coex_mode);
+	bl_hdr.check_sum = cpu_to_le32(
+				*(u32 *)&flash_content[CHECK_SUM_OFFSET]);
+	bl_hdr.flash_start_address = cpu_to_le32(
+					*(u32 *)&flash_content[ADDR_OFFSET]);
+	bl_hdr.flash_len = cpu_to_le32(*(u32 *)&flash_content[LEN_OFFSET]);
+	write_len = sizeof(struct bl_header);
+
+	if (adapter->rsi_host_intf == RSI_HOST_INTF_USB) {
+		write_addr = PING_BUFFER_ADDRESS;
+		status = hif_ops->write_reg_multiple(adapter, write_addr,
+						 (u8 *)&bl_hdr, write_len);
+		if (status < 0) {
+			rsi_dbg(ERR_ZONE,
+				"%s: Failed to load Version/CRC structure\n",
+				__func__);
+			return status;
+		}
+	} else {
+		write_addr = PING_BUFFER_ADDRESS >> 16;
+		status = hif_ops->master_access_msword(adapter, write_addr);
+		if (status < 0) {
+			rsi_dbg(ERR_ZONE,
+				"%s: Unable to set ms word to common reg\n",
+				__func__);
+			return status;
+		}
+		write_addr = RSI_SD_REQUEST_MASTER |
+			     (PING_BUFFER_ADDRESS & 0xFFFF);
+		status = hif_ops->write_reg_multiple(adapter, write_addr,
+						 (u8 *)&bl_hdr, write_len);
+		if (status < 0) {
+			rsi_dbg(ERR_ZONE,
+				"%s: Failed to load Version/CRC structure\n",
+				__func__);
+			return status;
+		}
+	}
+	return 0;
+}
+
+static u32 read_flash_capacity(struct rsi_hw *adapter)
+{
+	u32 flash_sz = 0;
+
+	if ((adapter->host_intf_ops->master_reg_read(adapter, FLASH_SIZE_ADDR,
+						     &flash_sz, 2)) < 0) {
+		rsi_dbg(ERR_ZONE,
+			"%s: Flash size reading failed..\n",
+			__func__);
+		return 0;
+	}
+	rsi_dbg(INIT_ZONE, "Flash capacity: %d KiloBytes\n", flash_sz);
+
+	return (flash_sz * 1024); /* Return size in kbytes */
+}
+
+static int ping_pong_write(struct rsi_hw *adapter, u8 cmd, u8 *addr, u32 size)
+{
+	struct rsi_host_intf_ops *hif_ops = adapter->host_intf_ops;
+	u32 block_size = adapter->block_size;
+	u32 cmd_addr;
+	u16 cmd_resp, cmd_req;
+	u8 *str;
+	int status;
+
+	if (cmd == PING_WRITE) {
+		cmd_addr = PING_BUFFER_ADDRESS;
+		cmd_resp = PONG_AVAIL;
+		cmd_req = PING_VALID;
+		str = "PING_VALID";
+	} else {
+		cmd_addr = PONG_BUFFER_ADDRESS;
+		cmd_resp = PING_AVAIL;
+		cmd_req = PONG_VALID;
+		str = "PONG_VALID";
+	}
+
+	status = hif_ops->load_data_master_write(adapter, cmd_addr, size,
+					    block_size, addr);
+	if (status) {
+		rsi_dbg(ERR_ZONE, "%s: Unable to write blk at addr %0x\n",
+			__func__, *addr);
+		return status;
+	}
+
+	status = bl_cmd(adapter, cmd_req, cmd_resp, str);
+	if (status) {
+		bl_stop_cmd_timer(adapter);
+		return status;
+	}
+	return 0;
+}
+
+static int auto_fw_upgrade(struct rsi_hw *adapter, u8 *flash_content,
+			   u32 content_size)
+{
+	u8 cmd, *temp_flash_content;
+	u32 temp_content_size, num_flash, index;
+	u32 flash_start_address;
+	int status;
+
+	temp_flash_content = flash_content;
+
+	if (content_size > MAX_FLASH_FILE_SIZE) {
+		rsi_dbg(ERR_ZONE,
+			"%s: Flash Content size is more than 400K %u\n",
+			__func__, MAX_FLASH_FILE_SIZE);
+		return -EINVAL;
+	}
+
+	flash_start_address = *(u32 *)&flash_content[FLASH_START_ADDRESS];
+	rsi_dbg(INFO_ZONE, "flash start address: %08x\n", flash_start_address);
+
+	if (flash_start_address < FW_IMAGE_MIN_ADDRESS) {
+		rsi_dbg(ERR_ZONE,
+			"%s: Fw image Flash Start Address is less than 64K\n",
+			__func__);
+		return -EINVAL;
+	}
+
+	if (flash_start_address % FLASH_SECTOR_SIZE) {
+		rsi_dbg(ERR_ZONE,
+			"%s: Flash Start Address is not multiple of 4K\n",
+			__func__);
+		return -EINVAL;
+	}
+
+	if ((flash_start_address + content_size) > adapter->flash_capacity) {
+		rsi_dbg(ERR_ZONE,
+			"%s: Flash Content will cross max flash size\n",
+			__func__);
+		return -EINVAL;
+	}
+
+	temp_content_size  = content_size;
+	num_flash = content_size / FLASH_WRITE_CHUNK_SIZE;
+
+	rsi_dbg(INFO_ZONE, "content_size: %d, num_flash: %d\n",
+		content_size, num_flash);
+
+	for (index = 0; index <= num_flash; index++) {
+		rsi_dbg(INFO_ZONE, "flash index: %d\n", index);
+		if (index != num_flash) {
+			content_size = FLASH_WRITE_CHUNK_SIZE;
+			rsi_dbg(INFO_ZONE, "QSPI content_size:%d\n",
+				content_size);
+		} else {
+			content_size =
+				temp_content_size % FLASH_WRITE_CHUNK_SIZE;
+			rsi_dbg(INFO_ZONE,
+				"Writing last sector content_size:%d\n",
+				content_size);
+			if (!content_size) {
+				rsi_dbg(INFO_ZONE, "instruction size zero\n");
+				break;
+			}
+		}
+
+		if (index % 2)
+			cmd = PING_WRITE;
+		else
+			cmd = PONG_WRITE;
+
+		status = ping_pong_write(adapter, cmd, flash_content,
+					 content_size);
+		if (status) {
+			rsi_dbg(ERR_ZONE, "%s: Unable to load %d block\n",
+				__func__, index);
+			return status;
+		}
+
+		rsi_dbg(INFO_ZONE,
+			"%s: Successfully loaded %d instructions\n",
+			__func__, index);
+		flash_content += content_size;
+	}
+
+	status = bl_cmd(adapter, EOF_REACHED, FW_LOADING_SUCCESSFUL,
+			"EOF_REACHED");
+	if (status) {
+		bl_stop_cmd_timer(adapter);
+		return status;
+	}
+	rsi_dbg(INFO_ZONE, "FW loading is done and FW is running..\n");
+	return 0;
+}
+
+static int rsi_load_firmware(struct rsi_hw *adapter)
+{
+	struct rsi_host_intf_ops *hif_ops = adapter->host_intf_ops;
+	const struct firmware *fw_entry = NULL;
+	u32 regout_val = 0, content_size;
+	u16 tmp_regout_val = 0;
+	u8 *flash_content = NULL;
+	struct ta_metadata *metadata_p;
+	int status;
+
+	bl_start_cmd_timer(adapter, BL_CMD_TIMEOUT);
+
+	while (!adapter->blcmd_timer_expired) {
+		status = hif_ops->master_reg_read(adapter, SWBL_REGOUT,
+					      &regout_val, 2);
+		if (status < 0) {
+			rsi_dbg(ERR_ZONE,
+				"%s: REGOUT read failed\n", __func__);
+			return status;
+		}
+		mdelay(1);
+		if ((regout_val >> 8) == REGOUT_VALID)
+			break;
+	}
+	if (adapter->blcmd_timer_expired) {
+		rsi_dbg(ERR_ZONE, "%s: REGOUT read timedout\n", __func__);
+		rsi_dbg(ERR_ZONE,
+			"%s: Soft boot loader not present\n", __func__);
+		return -ETIMEDOUT;
+	}
+	bl_stop_cmd_timer(adapter);
+
+	rsi_dbg(INFO_ZONE, "Received Board Version Number: %x\n",
+		(regout_val & 0xff));
+
+	status = hif_ops->master_reg_write(adapter, SWBL_REGOUT,
+					(REGOUT_INVALID | REGOUT_INVALID << 8),
+					2);
+	if (status < 0) {
+		rsi_dbg(ERR_ZONE, "%s: REGOUT writing failed..\n", __func__);
+		return status;
+	}
+	mdelay(1);
+
+	status = bl_cmd(adapter, CONFIG_AUTO_READ_MODE, CMD_PASS,
+			"AUTO_READ_CMD");
+	if (status < 0)
+		return status;
+
+	adapter->flash_capacity = read_flash_capacity(adapter);
+	if (adapter->flash_capacity <= 0) {
+		rsi_dbg(ERR_ZONE,
+			"%s: Unable to read flash size from EEPROM\n",
+			__func__);
+		return -EINVAL;
+	}
+
+	metadata_p = &metadata_flash_content[adapter->priv->coex_mode];
+
+	rsi_dbg(INIT_ZONE, "%s: Loading file %s\n", __func__, metadata_p->name);
+	adapter->fw_file_name = metadata_p->name;
+
+	status = request_firmware(&fw_entry, metadata_p->name, adapter->device);
+	if (status < 0) {
+		rsi_dbg(ERR_ZONE, "%s: Failed to open file %s\n",
+			__func__, metadata_p->name);
+		return status;
+	}
+	flash_content = kmemdup(fw_entry->data, fw_entry->size, GFP_KERNEL);
+	if (!flash_content) {
+		rsi_dbg(ERR_ZONE, "%s: Failed to copy firmware\n", __func__);
+		status = -EIO;
+		goto fail;
+	}
+	content_size = fw_entry->size;
+	rsi_dbg(INFO_ZONE, "FW Length = %d bytes\n", content_size);
+
+	status = bl_write_header(adapter, flash_content, content_size);
+	if (status) {
+		rsi_dbg(ERR_ZONE,
+			"%s: RPS Image header loading failed\n",
+			__func__);
+		goto fail;
+	}
+
+	bl_start_cmd_timer(adapter, BL_CMD_TIMEOUT);
+	status = bl_write_cmd(adapter, CHECK_CRC, CMD_PASS, &tmp_regout_val);
+	if (status) {
+		bl_stop_cmd_timer(adapter);
+		rsi_dbg(ERR_ZONE,
+			"%s: CHECK_CRC Command writing failed..\n",
+			__func__);
+		if ((tmp_regout_val & 0xff) == CMD_FAIL) {
+			rsi_dbg(ERR_ZONE,
+				"CRC Fail.. Proceeding to Upgrade mode\n");
+			goto fw_upgrade;
+		}
+	}
+	bl_stop_cmd_timer(adapter);
+
+	status = bl_cmd(adapter, POLLING_MODE, CMD_PASS, "POLLING_MODE");
+	if (status)
+		goto fail;
+
+load_image_cmd:
+	status = bl_cmd(adapter, LOAD_HOSTED_FW, LOADING_INITIATED,
+			"LOAD_HOSTED_FW");
+	if (status)
+		goto fail;
+	rsi_dbg(INFO_ZONE, "Load Image command passed..\n");
+	goto success;
+
+fw_upgrade:
+	status = bl_cmd(adapter, BURN_HOSTED_FW, SEND_RPS_FILE, "FW_UPGRADE");
+	if (status)
+		goto fail;
+
+	rsi_dbg(INFO_ZONE, "Burn Command Pass.. Upgrading the firmware\n");
+
+	status = auto_fw_upgrade(adapter, flash_content, content_size);
+	if (status == 0) {
+		rsi_dbg(ERR_ZONE, "Firmware upgradation Done\n");
+		goto load_image_cmd;
+	}
+	rsi_dbg(ERR_ZONE, "Firmware upgrade failed\n");
+
+	status = bl_cmd(adapter, CONFIG_AUTO_READ_MODE, CMD_PASS,
+			"AUTO_READ_MODE");
+	if (status)
+		goto fail;
+
+success:
+	rsi_dbg(ERR_ZONE, "***** Firmware Loading successful *****\n");
+	kfree(flash_content);
+	release_firmware(fw_entry);
+	return 0;
+
+fail:
+	rsi_dbg(ERR_ZONE, "##### Firmware loading failed #####\n");
+	kfree(flash_content);
+	release_firmware(fw_entry);
+	return status;
+}
+
+int rsi_hal_device_init(struct rsi_hw *adapter)
+{
+	struct rsi_common *common = adapter->priv;
+
+	common->coex_mode = 1;
+	adapter->device_model = RSI_DEV_9113;
+
+	switch (adapter->device_model) {
+	case RSI_DEV_9113:
+		if (rsi_load_firmware(adapter)) {
+			rsi_dbg(ERR_ZONE,
+				"%s: Failed to load TA instructions\n",
+				__func__);
+			return -EINVAL;
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rsi_hal_device_init);
+

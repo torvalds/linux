@@ -82,6 +82,8 @@ extern __printf(2, 3) void rsi_dbg(u32 zone, const char *fmt, ...);
 	((_q) == VI_Q) ? IEEE80211_AC_VI : \
 	IEEE80211_AC_VO)
 
+#define RSI_DEV_9113		1
+
 struct version_info {
 	u16 major;
 	u16 minor;
@@ -204,6 +206,7 @@ struct rsi_common {
 	struct cqm_info cqm_info;
 
 	bool hw_data_qs_blocked;
+	u8 coex_mode;
 	
 	int tx_power;
 	u8 ant_in_use;
@@ -216,6 +219,7 @@ enum host_intf {
 
 struct rsi_hw {
 	struct rsi_common *priv;
+	u8 device_model;
 	struct ieee80211_hw *hw;
 	struct ieee80211_vif *vifs[RSI_MAX_VIFS];
 	struct ieee80211_tx_queue_params edca_params[NUM_EDCA_QUEUES];
@@ -225,10 +229,15 @@ struct rsi_hw {
 	u8 sc_nvifs;
 
 	enum host_intf rsi_host_intf;
+	u16 block_size;
 #ifdef CONFIG_RSI_DEBUGFS
 	struct rsi_debugfs *dfsentry;
 	u8 num_debugfs_entries;
 #endif
+	char *fw_file_name;
+	struct timer_list bl_cmd_timer;
+	bool blcmd_timer_expired;
+	u32 flash_capacity;
 	u8 dfs_region;
 	void *rsi_dev;
 	struct rsi_host_intf_ops *host_intf_ops;
@@ -240,6 +249,7 @@ struct rsi_hw {
 struct rsi_host_intf_ops {
 	int (*read_pkt)(struct rsi_hw *adapter, u8 *pkt, u32 len);
 	int (*write_pkt)(struct rsi_hw *adapter, u8 *pkt, u32 len);
+	int (*master_access_msword)(struct rsi_hw *adapter, u16 ms_word);
 	int (*read_reg_multiple)(struct rsi_hw *adapter, u32 addr,
 				 u8 *data, u16 count);
 	int (*write_reg_multiple)(struct rsi_hw *adapter, u32 addr,
