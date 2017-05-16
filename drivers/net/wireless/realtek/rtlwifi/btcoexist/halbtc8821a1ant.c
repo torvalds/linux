@@ -2848,6 +2848,20 @@ void ex_btc8821a1ant_bt_info_notify(struct btc_coexist *btcoexist,
 
 		coex_sta->bt_info_ext = coex_sta->bt_info_c2h[rsp_source][4];
 
+		coex_sta->bt_tx_rx_mask =
+			(coex_sta->bt_info_c2h[rsp_source][2] & 0x40);
+		btcoexist->btc_set(btcoexist, BTC_SET_BL_BT_TX_RX_MASK,
+				   &coex_sta->bt_tx_rx_mask);
+		if (!coex_sta->bt_tx_rx_mask) {
+			/* BT into is responded by BT FW and BT RF REG 0x3C !=
+			 * 0x15 => Need to switch BT TRx Mask
+			 */
+			RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+				 "[BTCoex], Switch BT TRx Mask since BT RF REG 0x3C != 0x15\n");
+			btcoexist->btc_set_bt_reg(btcoexist, BTC_BT_REG_RF,
+						  0x3c, 0x15);
+		}
+
 		/* Here we need to resend some wifi info to BT
 		 * because bt is reset and lost the info
 		 */
