@@ -295,7 +295,8 @@ exit:
 
 static char const *seqname[] = {
 	"ERROR", "S5", "S3", "S0", "S5S3", "S3S0",
-	"S0S3", "S3S5", "STOP", "RUN", "PULSE", "TEST", "KONAMI",
+	"S0S3", "S3S5", "STOP", "RUN", "KONAMI",
+	"TAP", "PROGRAM",
 };
 
 static ssize_t sequence_show(struct device *dev,
@@ -390,6 +391,69 @@ exit:
 	return ret;
 }
 
+static ssize_t program_store(struct device *dev, struct device_attribute *attr,
+			     const char *buf, size_t count)
+{
+	int extra_bytes, max_size, ret;
+	struct ec_params_lightbar *param;
+	struct cros_ec_command *msg;
+	struct cros_ec_dev *ec = container_of(dev, struct cros_ec_dev,
+					      class_dev);
+
+	/*
+	 * We might need to reject the program for size reasons. The EC
+	 * enforces a maximum program size, but we also don't want to try
+	 * and send a program that is too big for the protocol. In order
+	 * to ensure the latter, we also need to ensure we have extra bytes
+	 * to represent the rest of the packet.
+	 */
+	extra_bytes = sizeof(*param) - sizeof(param->set_program.data);
+	max_size = min(EC_LB_PROG_LEN, ec->ec_dev->max_request - extra_bytes);
+	if (count > max_size) {
+		dev_err(dev, "Program is %u bytes, too long to send (max: %u)",
+			(unsigned int)count, max_size);
+
+		return -EINVAL;
+	}
+
+	msg = alloc_lightbar_cmd_msg(ec);
+	if (!msg)
+		return -ENOMEM;
+
+	ret = lb_throttle();
+	if (ret)
+		goto exit;
+
+	dev_info(dev, "Copying %zu byte program to EC", count);
+
+	param = (struct ec_params_lightbar *)msg->data;
+	param->cmd = LIGHTBAR_CMD_SET_PROGRAM;
+
+	param->set_program.size = count;
+	memcpy(param->set_program.data, buf, count);
+
+	/*
+	 * We need to set the message size manually or else it will use
+	 * EC_LB_PROG_LEN. This might be too long, and the program
+	 * is unlikely to use all of the space.
+	 */
+	msg->outsize = count + extra_bytes;
+
+	ret = cros_ec_cmd_xfer(ec->ec_dev, msg);
+	if (ret < 0)
+		goto exit;
+	if (msg->result != EC_RES_SUCCESS) {
+		ret = -EINVAL;
+		goto exit;
+	}
+
+	ret = count;
+exit:
+	kfree(msg);
+
+	return ret;
+}
+
 /* Module initialization */
 
 static DEVICE_ATTR_RW(interval_msec);
@@ -397,12 +461,15 @@ static DEVICE_ATTR_RO(version);
 static DEVICE_ATTR_WO(brightness);
 static DEVICE_ATTR_WO(led_rgb);
 static DEVICE_ATTR_RW(sequence);
+static DEVICE_ATTR_WO(program);
+
 static struct attribute *__lb_cmds_attrs[] = {
 	&dev_attr_interval_msec.attr,
 	&dev_attr_version.attr,
 	&dev_attr_brightness.attr,
 	&dev_attr_led_rgb.attr,
 	&dev_attr_sequence.attr,
+	&dev_attr_program.attr,
 	NULL,
 };
 
