@@ -731,13 +731,14 @@ timebase_resync:
 	 * Use cr3 which indicates that we are waking up with atleast partial
 	 * hypervisor state loss to determine if TIMEBASE RESYNC is needed.
 	 */
-	ble	cr3,clear_lock
+	ble	cr3,.Ltb_resynced
 	/* Time base re-sync */
 	bl	opal_resync_timebase;
 	/*
-	 * If waking up from sleep, per core state is not lost, skip to
-	 * clear_lock.
+	 * If waking up from sleep (POWER8), per core state
+	 * is not lost, skip to clear_lock.
 	 */
+.Ltb_resynced:
 	blt	cr4,clear_lock
 
 	/*
