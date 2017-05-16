@@ -210,3 +210,5 @@
 		reg = <0>;
 	};
 };
+
+#include "fsl-ls1046-post.dtsi"
