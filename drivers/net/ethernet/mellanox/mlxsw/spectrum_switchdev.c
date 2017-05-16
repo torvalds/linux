@@ -322,13 +322,11 @@ static int mlxsw_sp_port_learning_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (mlxsw_sp_port_is_vport(mlxsw_sp_port)) {
 		vid = mlxsw_sp_vport_vid_get(mlxsw_sp_port);
 
-		return __mlxsw_sp_port_vid_learning_set(mlxsw_sp_port, vid, vid,
-							set);
+		return mlxsw_sp_port_vid_learning_set(mlxsw_sp_port, vid, set);
 	}
 
 	for_each_set_bit(vid, mlxsw_sp_port->active_vlans, VLAN_N_VID) {
-		err = __mlxsw_sp_port_vid_learning_set(mlxsw_sp_port, vid, vid,
-						       set);
+		err = mlxsw_sp_port_vid_learning_set(mlxsw_sp_port, vid, set);
 		if (err)
 			goto err_port_vid_learning_set;
 	}
@@ -337,7 +335,7 @@ static int mlxsw_sp_port_learning_set(struct mlxsw_sp_port *mlxsw_sp_port,
 
 err_port_vid_learning_set:
 	for_each_set_bit(vid, mlxsw_sp_port->active_vlans, VLAN_N_VID)
-		__mlxsw_sp_port_vid_learning_set(mlxsw_sp_port, vid, vid, !set);
+		mlxsw_sp_port_vid_learning_set(mlxsw_sp_port, vid, !set);
 	return err;
 }
 
