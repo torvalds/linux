@@ -1734,7 +1734,7 @@ EXPORT_SYMBOL(snd_pcm_hw_param_last);
 int snd_pcm_hw_params_choose(struct snd_pcm_substream *pcm,
 			     struct snd_pcm_hw_params *params)
 {
-	static int vars[] = {
+	static const int vars[] = {
 		SNDRV_PCM_HW_PARAM_ACCESS,
 		SNDRV_PCM_HW_PARAM_FORMAT,
 		SNDRV_PCM_HW_PARAM_SUBFORMAT,
@@ -1745,7 +1745,8 @@ int snd_pcm_hw_params_choose(struct snd_pcm_substream *pcm,
 		SNDRV_PCM_HW_PARAM_TICK_TIME,
 		-1
 	};
-	int err, *v;
+	const int *v;
+	int err;
 
 	for (v = vars; *v != -1; v++) {
 		if (*v != SNDRV_PCM_HW_PARAM_BUFFER_SIZE)
