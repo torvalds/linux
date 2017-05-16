@@ -295,7 +295,6 @@ enum iwl_legacy_cmds {
 	HOT_SPOT_CMD = 0x53,
 	SCAN_OFFLOAD_COMPLETE = 0x6D,
 	SCAN_OFFLOAD_UPDATE_PROFILES_CMD = 0x6E,
-	SCAN_OFFLOAD_CONFIG_CMD = 0x6f,
 	MATCH_FOUND_NOTIFICATION = 0xd9,
 	SCAN_ITERATION_COMPLETE = 0xe7,
 
@@ -328,8 +327,6 @@ enum iwl_legacy_cmds {
 	 * @NVM_ACCESS_CMD: using &struct iwl_nvm_access_cmd
 	 */
 	NVM_ACCESS_CMD = 0x88,
-
-	SET_CALIB_DEFAULT_CMD = 0x8e,
 
 	BEACON_NOTIFICATION = 0x90,
 	/**
@@ -364,8 +361,6 @@ enum iwl_legacy_cmds {
 	 */
 	REDUCE_TX_POWER_CMD = 0x9f,
 
-	/* RF-KILL commands and notifications */
-	CARD_STATE_CMD = 0xa0,
 	CARD_STATE_NOTIFICATION = 0xa1,
 
 	MISSED_BEACONS_NOTIFICATION = 0xa2,
@@ -411,9 +406,6 @@ enum iwl_legacy_cmds {
 
 	MARKER_CMD = 0xcb,
 
-	/* BT Coex */
-	BT_COEX_PRIO_TABLE = 0xcc,
-	BT_COEX_PROT_ENV = 0xcd,
 	/**
 	 * @BT_PROFILE_NOTIFICATION: &struct iwl_bt_coex_profile_notif
 	 */
@@ -422,7 +414,6 @@ enum iwl_legacy_cmds {
 	 * @BT_CONFIG: &struct iwl_bt_coex_cmd
 	 */
 	BT_CONFIG = 0x9b,
-	BT_COEX_UPDATE_SW_BOOST = 0x5a,
 	BT_COEX_UPDATE_CORUN_LUT = 0x5b,
 	BT_COEX_UPDATE_REDUCED_TXP = 0x5c,
 	/**
@@ -439,11 +430,8 @@ enum iwl_legacy_cmds {
 	 */
 	REPLY_BEACON_FILTERING_CMD = 0xd2,
 
-	/* DTS measurements */
-	CMD_DTS_MEASUREMENT_TRIGGER = 0xdc,
 	DTS_MEASUREMENT_NOTIFICATION = 0xdd,
 
-	REPLY_DEBUG_CMD = 0xf0,
 	LDBG_CONFIG_CMD = 0xf6,
 	DEBUG_LOG_MSG = 0xf7,
 
@@ -484,12 +472,9 @@ enum iwl_legacy_cmds {
 	 * @WOWLAN_GET_STATUSES: response in &struct iwl_wowlan_status
 	 */
 	WOWLAN_GET_STATUSES = 0xe5,
-	WOWLAN_TX_POWER_PER_DB = 0xe6,
 
 	/* and for NetDetect */
 	SCAN_OFFLOAD_PROFILES_QUERY_CMD = 0x56,
-	SCAN_OFFLOAD_HOTSPOTS_CONFIG_CMD = 0x58,
-	SCAN_OFFLOAD_HOTSPOTS_QUERY_CMD = 0x59,
 };
 
 /* Please keep this enum *SORTED* by hex value.
@@ -1579,19 +1564,6 @@ struct iwl_mfu_assert_dump_notif {
 	__le32   data_size;
 	__le32   data[0];
 } __packed; /*MFU_DUMP_ASSERT_API_S_VER_1*/
-
-/**
- * struct iwl_set_calib_default_cmd - set default value for calibration.
- * ( SET_CALIB_DEFAULT_CMD = 0x8e )
- * @calib_index: the calibration to set value for
- * @length: of data
- * @data: the value to set for the calibration result
- */
-struct iwl_set_calib_default_cmd {
-	__le16 calib_index;
-	__le16 length;
-	u8 data[0];
-} __packed; /* PHY_CALIB_OVERRIDE_VALUES_S */
 
 #define MAX_PORT_ID_NUM	2
 #define MAX_MCAST_FILTERING_ADDRESSES 256
