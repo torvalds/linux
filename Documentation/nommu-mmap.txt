@@ -1,5 +1,5 @@
 =============================
-NO-MMU MEMORY MAPPING SUPPORT
+No-MMU memory mapping support
 =============================
 
 The kernel has limited support for memory mapping under no-MMU conditions, such
@@ -105,7 +105,7 @@ and it's also much more restricted in the latter case:
 	provide any such support, then the mapping request will be denied.
 
 
-FURTHER NOTES ON NO-MMU MMAP
+Further notes on no-MMU MMAP
 ============================
 
  (#) A request for a private mapping of a file may return a buffer that is not
@@ -160,7 +160,7 @@ FURTHER NOTES ON NO-MMU MMAP
      with character device files, pipes, fifos and sockets.
 
 
-INTERPROCESS SHARED MEMORY
+Interprocess shared memory
 ==========================
 
 Both SYSV IPC SHM shared memory and POSIX shared memory is supported in NOMMU
@@ -168,7 +168,7 @@ mode.  The former through the usual mechanism, the latter through files created
 on ramfs or tmpfs mounts.
 
 
-FUTEXES
+Futexes
 =======
 
 Futexes are supported in NOMMU mode if the arch supports them.  An error will
@@ -177,7 +177,7 @@ mappings made by a process or if the mapping in which the address lies does not
 support futexes (such as an I/O chardev mapping).
 
 
-NO-MMU MREMAP
+No-MMU mremap
 =============
 
 The mremap() function is partially supported.  It may change the size of a
@@ -199,7 +199,7 @@ act on a complete mapping.
 .. [#] Not currently supported.
 
 
-PROVIDING SHAREABLE CHARACTER DEVICE SUPPORT
+Providing shareable character device support
 ============================================
 
 To provide shareable character device support, a driver must provide a
@@ -244,7 +244,7 @@ copy mapped otherwise.
 	circumstances!
 
 
-PROVIDING SHAREABLE MEMORY-BACKED FILE SUPPORT
+Providing shareable memory-backed file support
 ==============================================
 
 Provision of shared mappings on memory backed files is similar to the provision
@@ -261,7 +261,7 @@ Memory backed devices are indicated by the mapping's backing device info having
 the memory_backed flag set.
 
 
-PROVIDING SHAREABLE BLOCK DEVICE SUPPORT
+Providing shareable block device support
 ========================================
 
 Provision of shared mappings on block device files is exactly the same as for
@@ -269,7 +269,7 @@ character devices. If there isn't a real device underneath, then the driver
 should allocate sufficient contiguous memory to honour any supported mapping.
 
 
-ADJUSTING PAGE TRIMMING BEHAVIOUR
+Adjusting page trimming behaviour
 =================================
 
 NOMMU mmap automatically rounds up to the nearest power-of-2 number of pages
