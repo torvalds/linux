@@ -24,7 +24,14 @@
 #include "arche_platform.h"
 #include "greybus.h"
 
+#if IS_ENABLED(CONFIG_USB_HSIC_USB3613)
 #include <linux/usb/usb3613.h>
+#else
+static inline int usb3613_hub_mode_ctrl(bool unused)
+{
+	return 0;
+}
+#endif
 
 #define WD_COLDBOOT_PULSE_WIDTH_MS	30
 
