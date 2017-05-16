@@ -126,7 +126,7 @@ int snd_pcm_plug_format_plugins(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *slave_params);
 
 snd_pcm_format_t snd_pcm_plug_slave_format(snd_pcm_format_t format,
-					   struct snd_mask *format_mask);
+					   const struct snd_mask *format_mask);
 
 int snd_pcm_plugin_append(struct snd_pcm_plugin *plugin);
 
