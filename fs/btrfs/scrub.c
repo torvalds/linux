@@ -183,8 +183,6 @@ struct scrub_ctx {
 	atomic_t		cancel_req;
 	int			readonly;
 	int			pages_per_rd_bio;
-	u32			sectorsize;
-	u32			nodesize;
 
 	int			is_dev_replace;
 	struct scrub_wr_ctx	wr_ctx;
@@ -704,8 +702,6 @@ struct scrub_ctx *scrub_setup_ctx(struct btrfs_device *dev, int is_dev_replace)
 			sctx->bios[i]->next_free = -1;
 	}
 	sctx->first_free = 0;
-	sctx->nodesize = fs_info->nodesize;
-	sctx->sectorsize = fs_info->sectorsize;
 	atomic_set(&sctx->bios_in_flight, 0);
 	atomic_set(&sctx->workers_pending, 0);
 	atomic_set(&sctx->cancel_req, 0);
@@ -2079,7 +2075,7 @@ static int scrub_checksum_data(struct scrub_block *sblock)
 	page = sblock->pagev[0]->page;
 	buffer = kmap_atomic(page);
 
-	len = sctx->sectorsize;
+	len = sctx->fs_info->sectorsize;
 	index = 0;
 	for (;;) {
 		u64 l = min_t(u64, len, PAGE_SIZE);
@@ -2144,7 +2140,7 @@ static int scrub_checksum_tree_block(struct scrub_block *sblock)
 		   BTRFS_UUID_SIZE))
 		sblock->header_error = 1;
 
-	len = sctx->nodesize - BTRFS_CSUM_SIZE;
+	len = sctx->fs_info->nodesize - BTRFS_CSUM_SIZE;
 	mapped_size = PAGE_SIZE - BTRFS_CSUM_SIZE;
 	p = ((u8 *)mapped_buffer) + BTRFS_CSUM_SIZE;
 	index = 0;
@@ -2724,8 +2720,8 @@ static int scrub_find_csum(struct scrub_ctx *sctx, u64 logical, u8 *csum)
 	if (!sum)
 		return 0;
 
-	index = ((u32)(logical - sum->bytenr)) / sctx->sectorsize;
-	num_sectors = sum->len / sctx->sectorsize;
+	index = ((u32)(logical - sum->bytenr)) / sctx->fs_info->sectorsize;
+	num_sectors = sum->len / sctx->fs_info->sectorsize;
 	memcpy(csum, sum->sums + index, sctx->csum_size);
 	if (index == num_sectors - 1) {
 		list_del(&sum->list);
@@ -2744,19 +2740,19 @@ static int scrub_extent(struct scrub_ctx *sctx, u64 logical, u64 len,
 	u32 blocksize;
 
 	if (flags & BTRFS_EXTENT_FLAG_DATA) {
-		blocksize = sctx->sectorsize;
+		blocksize = sctx->fs_info->sectorsize;
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.data_extents_scrubbed++;
 		sctx->stat.data_bytes_scrubbed += len;
 		spin_unlock(&sctx->stat_lock);
 	} else if (flags & BTRFS_EXTENT_FLAG_TREE_BLOCK) {
-		blocksize = sctx->nodesize;
+		blocksize = sctx->fs_info->nodesize;
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.tree_extents_scrubbed++;
 		sctx->stat.tree_bytes_scrubbed += len;
 		spin_unlock(&sctx->stat_lock);
 	} else {
-		blocksize = sctx->sectorsize;
+		blocksize = sctx->fs_info->sectorsize;
 		WARN_ON(1);
 	}
 
@@ -2890,11 +2886,11 @@ static int scrub_extent_for_parity(struct scrub_parity *sparity,
 	}
 
 	if (flags & BTRFS_EXTENT_FLAG_DATA) {
-		blocksize = sctx->sectorsize;
+		blocksize = sctx->fs_info->sectorsize;
 	} else if (flags & BTRFS_EXTENT_FLAG_TREE_BLOCK) {
-		blocksize = sctx->nodesize;
+		blocksize = sctx->fs_info->nodesize;
 	} else {
-		blocksize = sctx->sectorsize;
+		blocksize = sctx->fs_info->sectorsize;
 		WARN_ON(1);
 	}
 
