@@ -300,6 +300,16 @@ int cros_ec_query_all(struct cros_ec_device *ec_dev);
  */
 int cros_ec_get_next_event(struct cros_ec_device *ec_dev);
 
+/**
+ * cros_ec_get_host_event - Return a mask of event set by the EC.
+ *
+ * When MKBP is supported, when the EC raises an interrupt,
+ * We collect the events raised and call the functions in the ec notifier.
+ *
+ * This function is a helper to know which events are raised.
+ */
+u32 cros_ec_get_host_event(struct cros_ec_device *ec_dev);
+
 /* sysfs stuff */
 extern struct attribute_group cros_ec_attr_group;
 extern struct attribute_group cros_ec_lightbar_attr_group;

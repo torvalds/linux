@@ -494,3 +494,23 @@ int cros_ec_get_next_event(struct cros_ec_device *ec_dev)
 		return get_keyboard_state_event(ec_dev);
 }
 EXPORT_SYMBOL(cros_ec_get_next_event);
+
+u32 cros_ec_get_host_event(struct cros_ec_device *ec_dev)
+{
+	u32 host_event;
+
+	BUG_ON(!ec_dev->mkbp_event_supported);
+
+	if (ec_dev->event_data.event_type != EC_MKBP_EVENT_HOST_EVENT)
+		return 0;
+
+	if (ec_dev->event_size != sizeof(host_event)) {
+		dev_warn(ec_dev->dev, "Invalid host event size\n");
+		return 0;
+	}
+
+	host_event = get_unaligned_le32(&ec_dev->event_data.data.host_event);
+
+	return host_event;
+}
+EXPORT_SYMBOL(cros_ec_get_host_event);
