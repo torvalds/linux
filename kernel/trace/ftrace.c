@@ -4144,9 +4144,9 @@ unregister_ftrace_function_probe_func(char *glob, struct trace_array *tr,
 	int i, ret = -ENODEV;
 	int size;
 
-	if (glob && (strcmp(glob, "*") == 0 || !strlen(glob)))
+	if (!glob || !strlen(glob) || !strcmp(glob, "*"))
 		func_g.search = NULL;
-	else if (glob) {
+	else {
 		int not;
 
 		func_g.type = filter_parse_regex(glob, strlen(glob),
