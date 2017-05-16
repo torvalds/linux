@@ -683,6 +683,51 @@ int mlxsw_sp_port_vid_learning_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid,
 	return err;
 }
 
+static int __mlxsw_sp_port_pvid_set(struct mlxsw_sp_port *mlxsw_sp_port,
+				    u16 vid)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	char spvid_pl[MLXSW_REG_SPVID_LEN];
+
+	mlxsw_reg_spvid_pack(spvid_pl, mlxsw_sp_port->local_port, vid);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(spvid), spvid_pl);
+}
+
+static int mlxsw_sp_port_allow_untagged_set(struct mlxsw_sp_port *mlxsw_sp_port,
+					    bool allow)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	char spaft_pl[MLXSW_REG_SPAFT_LEN];
+
+	mlxsw_reg_spaft_pack(spaft_pl, mlxsw_sp_port->local_port, allow);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(spaft), spaft_pl);
+}
+
+int mlxsw_sp_port_pvid_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid)
+{
+	int err;
+
+	if (!vid) {
+		err = mlxsw_sp_port_allow_untagged_set(mlxsw_sp_port, false);
+		if (err)
+			return err;
+	} else {
+		err = __mlxsw_sp_port_pvid_set(mlxsw_sp_port, vid);
+		if (err)
+			return err;
+		err = mlxsw_sp_port_allow_untagged_set(mlxsw_sp_port, true);
+		if (err)
+			goto err_port_allow_untagged_set;
+	}
+
+	mlxsw_sp_port->pvid = vid;
+	return 0;
+
+err_port_allow_untagged_set:
+	__mlxsw_sp_port_pvid_set(mlxsw_sp_port, mlxsw_sp_port->pvid);
+	return err;
+}
+
 static int
 mlxsw_sp_port_system_port_mapping_set(struct mlxsw_sp_port *mlxsw_sp_port)
 {
