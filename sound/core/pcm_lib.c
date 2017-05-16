@@ -1415,7 +1415,8 @@ static int snd_pcm_hw_rule_msbits(struct snd_pcm_hw_params *params,
 	unsigned int l = (unsigned long) rule->private;
 	int width = l & 0xffff;
 	unsigned int msbits = l >> 16;
-	struct snd_interval *i = hw_param_interval(params, SNDRV_PCM_HW_PARAM_SAMPLE_BITS);
+	const struct snd_interval *i =
+		hw_param_interval_c(params, SNDRV_PCM_HW_PARAM_SAMPLE_BITS);
 
 	if (!snd_interval_single(i))
 		return 0;

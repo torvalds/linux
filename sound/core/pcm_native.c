@@ -1940,7 +1940,8 @@ static int snd_pcm_hw_rule_format(struct snd_pcm_hw_params *params,
 				  struct snd_pcm_hw_rule *rule)
 {
 	unsigned int k;
-	struct snd_interval *i = hw_param_interval(params, rule->deps[0]);
+	const struct snd_interval *i =
+				hw_param_interval_c(params, rule->deps[0]);
 	struct snd_mask m;
 	struct snd_mask *mask = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
 	snd_mask_any(&m);
