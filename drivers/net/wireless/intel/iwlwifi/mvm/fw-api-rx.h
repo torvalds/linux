@@ -569,7 +569,7 @@ struct iwl_mvm_pm_state_notification {
 	u8 sta_id;
 	u8 type;
 	/* private: */
-	u16 reserved;
+	__le16 reserved;
 } __packed; /* PEER_PM_NTFY_API_S_VER_1 */
 
 #endif /* __fw_api_rx_h__ */
