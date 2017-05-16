@@ -2483,7 +2483,7 @@ S:	Maintained
 F:	drivers/net/ethernet/ec_bhf.c
 
 BFS FILE SYSTEM
-M:	"Tigran A. Aivazian" <tigran@aivazian.fsnet.co.uk>
+M:	"Tigran A. Aivazian" <aivazian.tigran@gmail.com>
 S:	Maintained
 F:	Documentation/filesystems/bfs.txt
 F:	fs/bfs/
@@ -7923,7 +7923,7 @@ L:	linux-man@vger.kernel.org
 S:	Maintained
 
 MARDUK (CREATOR CI40) DEVICE TREE SUPPORT
-M:	Rahul Bedarkar <rahul.bedarkar@imgtec.com>
+M:	Rahul Bedarkar <rahulbedarkar89@gmail.com>
 L:	linux-mips@linux-mips.org
 S:	Maintained
 F:	arch/mips/boot/dts/img/pistachio_marduk.dts

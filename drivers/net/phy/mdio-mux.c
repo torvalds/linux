@@ -122,9 +122,8 @@ int mdio_mux_init(struct device *dev,
 	pb = devm_kzalloc(dev, sizeof(*pb), GFP_KERNEL);
 	if (pb == NULL) {
 		ret_val = -ENOMEM;
-		goto err_parent_bus;
+		goto err_pb_kz;
 	}
-
 
 	pb->switch_data = data;
 	pb->switch_fn = switch_fn;
@@ -154,6 +153,7 @@ int mdio_mux_init(struct device *dev,
 		cb->mii_bus = mdiobus_alloc();
 		if (!cb->mii_bus) {
 			ret_val = -ENOMEM;
+			devm_kfree(dev, cb);
 			of_node_put(child_bus_node);
 			break;
 		}
@@ -170,7 +170,6 @@ int mdio_mux_init(struct device *dev,
 			mdiobus_free(cb->mii_bus);
 			devm_kfree(dev, cb);
 		} else {
-			of_node_get(child_bus_node);
 			cb->next = pb->children;
 			pb->children = cb;
 		}
@@ -181,9 +180,11 @@ int mdio_mux_init(struct device *dev,
 		return 0;
 	}
 
+	devm_kfree(dev, pb);
+err_pb_kz:
 	/* balance the reference of_mdio_find_bus() took */
-	put_device(&pb->mii_bus->dev);
-
+	if (!mux_bus)
+		put_device(&parent_bus->dev);
 err_parent_bus:
 	of_node_put(parent_bus_node);
 	return ret_val;

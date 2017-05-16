@@ -94,10 +94,10 @@ __setup("noexec32=", nonx32_setup);
  */
 void sync_global_pgds(unsigned long start, unsigned long end)
 {
-	unsigned long address;
+	unsigned long addr;
 
-	for (address = start; address <= end; address += PGDIR_SIZE) {
-		pgd_t *pgd_ref = pgd_offset_k(address);
+	for (addr = start; addr <= end; addr = ALIGN(addr + 1, PGDIR_SIZE)) {
+		pgd_t *pgd_ref = pgd_offset_k(addr);
 		const p4d_t *p4d_ref;
 		struct page *page;
 
@@ -106,7 +106,7 @@ void sync_global_pgds(unsigned long start, unsigned long end)
 		 * handle synchonization on p4d level.
 		 */
 		BUILD_BUG_ON(pgd_none(*pgd_ref));
-		p4d_ref = p4d_offset(pgd_ref, address);
+		p4d_ref = p4d_offset(pgd_ref, addr);
 
 		if (p4d_none(*p4d_ref))
 			continue;
@@ -117,8 +117,8 @@ void sync_global_pgds(unsigned long start, unsigned long end)
 			p4d_t *p4d;
 			spinlock_t *pgt_lock;
 
-			pgd = (pgd_t *)page_address(page) + pgd_index(address);
-			p4d = p4d_offset(pgd, address);
+			pgd = (pgd_t *)page_address(page) + pgd_index(addr);
+			p4d = p4d_offset(pgd, addr);
 			/* the pgt_lock only for Xen */
 			pgt_lock = &pgd_page_get_mm(page)->page_table_lock;
 			spin_lock(pgt_lock);

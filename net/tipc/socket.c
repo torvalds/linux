@@ -362,25 +362,25 @@ static int tipc_sk_sock_err(struct socket *sock, long *timeout)
 	return 0;
 }
 
-#define tipc_wait_for_cond(sock_, timeout_, condition_)			\
-({								        \
-	int rc_ = 0;							\
-	int done_ = 0;							\
-									\
-	while (!(condition_) && !done_) {				\
-		struct sock *sk_ = sock->sk;				\
-		DEFINE_WAIT_FUNC(wait_, woken_wake_function);		\
-									\
-		rc_ = tipc_sk_sock_err(sock_, timeout_);		\
-		if (rc_)						\
-			break;						\
-		prepare_to_wait(sk_sleep(sk_), &wait_,			\
-				TASK_INTERRUPTIBLE);			\
-		done_ = sk_wait_event(sk_, timeout_,			\
-				      (condition_), &wait_);		\
-		remove_wait_queue(sk_sleep(sk_), &wait_);		\
-	}								\
-	rc_;								\
+#define tipc_wait_for_cond(sock_, timeo_, condition_)			       \
+({                                                                             \
+	struct sock *sk_;						       \
+	int rc_;							       \
+									       \
+	while ((rc_ = !(condition_))) {					       \
+		DEFINE_WAIT_FUNC(wait_, woken_wake_function);	               \
+		sk_ = (sock_)->sk;					       \
+		rc_ = tipc_sk_sock_err((sock_), timeo_);		       \
+		if (rc_)						       \
+			break;						       \
+		prepare_to_wait(sk_sleep(sk_), &wait_, TASK_INTERRUPTIBLE);    \
+		release_sock(sk_);					       \
+		*(timeo_) = wait_woken(&wait_, TASK_INTERRUPTIBLE, *(timeo_)); \
+		sched_annotate_sleep();				               \
+		lock_sock(sk_);						       \
+		remove_wait_queue(sk_sleep(sk_), &wait_);		       \
+	}								       \
+	rc_;								       \
 })
 
 /**

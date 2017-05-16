@@ -44,6 +44,10 @@ bool build_id_cache__cached(const char *sbuild_id);
 int build_id_cache__add_s(const char *sbuild_id,
 			  const char *name, bool is_kallsyms, bool is_vdso);
 int build_id_cache__remove_s(const char *sbuild_id);
+
+extern char buildid_dir[];
+
+void set_buildid_dir(const char *dir);
 void disable_buildid_cache(void);
 
 #endif

@@ -37,6 +37,7 @@
 #include <linux/ctype.h>
 #include <linux/log2.h>
 #include <linux/crc16.h>
+#include <linux/dax.h>
 #include <linux/cleancache.h>
 #include <linux/uaccess.h>
 

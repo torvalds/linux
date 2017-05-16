@@ -461,35 +461,6 @@ int dax_delete_mapping_entry(struct address_space *mapping, pgoff_t index)
 }
 
 /*
- * Invalidate exceptional DAX entry if easily possible. This handles DAX
- * entries for invalidate_inode_pages() so we evict the entry only if we can
- * do so without blocking.
- */
-int dax_invalidate_mapping_entry(struct address_space *mapping, pgoff_t index)
-{
-	int ret = 0;
-	void *entry, **slot;
-	struct radix_tree_root *page_tree = &mapping->page_tree;
-
-	spin_lock_irq(&mapping->tree_lock);
-	entry = __radix_tree_lookup(page_tree, index, NULL, &slot);
-	if (!entry || !radix_tree_exceptional_entry(entry) ||
-	    slot_locked(mapping, slot))
-		goto out;
-	if (radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_DIRTY) ||
-	    radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_TOWRITE))
-		goto out;
-	radix_tree_delete(page_tree, index);
-	mapping->nrexceptional--;
-	ret = 1;
-out:
-	spin_unlock_irq(&mapping->tree_lock);
-	if (ret)
-		dax_wake_mapping_entry_waiter(mapping, index, entry, true);
-	return ret;
-}
-
-/*
  * Invalidate exceptional DAX entry if it is clean.
  */
 int dax_invalidate_mapping_entry_sync(struct address_space *mapping,
@@ -993,12 +964,12 @@ int __dax_zero_page_range(struct block_device *bdev,
 		void *kaddr;
 		pfn_t pfn;
 
-		rc = bdev_dax_pgoff(bdev, sector, size, &pgoff);
+		rc = bdev_dax_pgoff(bdev, sector, PAGE_SIZE, &pgoff);
 		if (rc)
 			return rc;
 
 		id = dax_read_lock();
-		rc = dax_direct_access(dax_dev, pgoff, PHYS_PFN(size), &kaddr,
+		rc = dax_direct_access(dax_dev, pgoff, 1, &kaddr,
 				&pfn);
 		if (rc < 0) {
 			dax_read_unlock(id);
@@ -1044,7 +1015,7 @@ dax_iomap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 	 * into page tables. We have to tear down these mappings so that data
 	 * written by write(2) is visible in mmap.
 	 */
-	if ((iomap->flags & IOMAP_F_NEW) && inode->i_mapping->nrpages) {
+	if (iomap->flags & IOMAP_F_NEW) {
 		invalidate_inode_pages2_range(inode->i_mapping,
 					      pos >> PAGE_SHIFT,
 					      (end - 1) >> PAGE_SHIFT);
@@ -1177,6 +1148,12 @@ static int dax_iomap_pte_fault(struct vm_fault *vmf,
 	if ((vmf->flags & FAULT_FLAG_WRITE) && !vmf->cow_page)
 		flags |= IOMAP_WRITE;
 
+	entry = grab_mapping_entry(mapping, vmf->pgoff, 0);
+	if (IS_ERR(entry)) {
+		vmf_ret = dax_fault_return(PTR_ERR(entry));
+		goto out;
+	}
+
 	/*
 	 * Note that we don't bother to use iomap_apply here: DAX required
 	 * the file system block size to be equal the page size, which means
@@ -1185,17 +1162,11 @@ static int dax_iomap_pte_fault(struct vm_fault *vmf,
 	error = ops->iomap_begin(inode, pos, PAGE_SIZE, flags, &iomap);
 	if (error) {
 		vmf_ret = dax_fault_return(error);
-		goto out;
+		goto unlock_entry;
 	}
 	if (WARN_ON_ONCE(iomap.offset + iomap.length < pos + PAGE_SIZE)) {
-		vmf_ret = dax_fault_return(-EIO);	/* fs corruption? */
-		goto finish_iomap;
-	}
-
-	entry = grab_mapping_entry(mapping, vmf->pgoff, 0);
-	if (IS_ERR(entry)) {
-		vmf_ret = dax_fault_return(PTR_ERR(entry));
-		goto finish_iomap;
+		error = -EIO;	/* fs corruption? */
+		goto error_finish_iomap;
 	}
 
 	sector = dax_iomap_sector(&iomap, pos);
@@ -1217,13 +1188,13 @@ static int dax_iomap_pte_fault(struct vm_fault *vmf,
 		}
 
 		if (error)
-			goto error_unlock_entry;
+			goto error_finish_iomap;
 
 		__SetPageUptodate(vmf->cow_page);
 		vmf_ret = finish_fault(vmf);
 		if (!vmf_ret)
 			vmf_ret = VM_FAULT_DONE_COW;
-		goto unlock_entry;
+		goto finish_iomap;
 	}
 
 	switch (iomap.type) {
@@ -1243,7 +1214,7 @@ static int dax_iomap_pte_fault(struct vm_fault *vmf,
 	case IOMAP_HOLE:
 		if (!(vmf->flags & FAULT_FLAG_WRITE)) {
 			vmf_ret = dax_load_hole(mapping, &entry, vmf);
-			goto unlock_entry;
+			goto finish_iomap;
 		}
 		/*FALLTHRU*/
 	default:
@@ -1252,10 +1223,8 @@ static int dax_iomap_pte_fault(struct vm_fault *vmf,
 		break;
 	}
 
- error_unlock_entry:
+ error_finish_iomap:
 	vmf_ret = dax_fault_return(error) | major;
- unlock_entry:
-	put_locked_mapping_entry(mapping, vmf->pgoff, entry);
  finish_iomap:
 	if (ops->iomap_end) {
 		int copied = PAGE_SIZE;
@@ -1270,7 +1239,9 @@ static int dax_iomap_pte_fault(struct vm_fault *vmf,
 		 */
 		ops->iomap_end(inode, pos, PAGE_SIZE, copied, flags, &iomap);
 	}
-out:
+ unlock_entry:
+	put_locked_mapping_entry(mapping, vmf->pgoff, entry);
+ out:
 	trace_dax_pte_fault_done(inode, vmf, vmf_ret);
 	return vmf_ret;
 }
@@ -1417,19 +1388,6 @@ static int dax_iomap_pmd_fault(struct vm_fault *vmf,
 		goto fallback;
 
 	/*
-	 * Note that we don't use iomap_apply here.  We aren't doing I/O, only
-	 * setting up a mapping, so really we're using iomap_begin() as a way
-	 * to look up our filesystem block.
-	 */
-	pos = (loff_t)pgoff << PAGE_SHIFT;
-	error = ops->iomap_begin(inode, pos, PMD_SIZE, iomap_flags, &iomap);
-	if (error)
-		goto fallback;
-
-	if (iomap.offset + iomap.length < pos + PMD_SIZE)
-		goto finish_iomap;
-
-	/*
 	 * grab_mapping_entry() will make sure we get a 2M empty entry, a DAX
 	 * PMD or a HZP entry.  If it can't (because a 4k page is already in
 	 * the tree, for instance), it will return -EEXIST and we just fall
@@ -1437,6 +1395,19 @@ static int dax_iomap_pmd_fault(struct vm_fault *vmf,
 	 */
 	entry = grab_mapping_entry(mapping, pgoff, RADIX_DAX_PMD);
 	if (IS_ERR(entry))
+		goto fallback;
+
+	/*
+	 * Note that we don't use iomap_apply here.  We aren't doing I/O, only
+	 * setting up a mapping, so really we're using iomap_begin() as a way
+	 * to look up our filesystem block.
+	 */
+	pos = (loff_t)pgoff << PAGE_SHIFT;
+	error = ops->iomap_begin(inode, pos, PMD_SIZE, iomap_flags, &iomap);
+	if (error)
+		goto unlock_entry;
+
+	if (iomap.offset + iomap.length < pos + PMD_SIZE)
 		goto finish_iomap;
 
 	switch (iomap.type) {
@@ -1446,7 +1417,7 @@ static int dax_iomap_pmd_fault(struct vm_fault *vmf,
 	case IOMAP_UNWRITTEN:
 	case IOMAP_HOLE:
 		if (WARN_ON_ONCE(write))
-			goto unlock_entry;
+			break;
 		result = dax_pmd_load_hole(vmf, &iomap, &entry);
 		break;
 	default:
@@ -1454,8 +1425,6 @@ static int dax_iomap_pmd_fault(struct vm_fault *vmf,
 		break;
 	}
 
- unlock_entry:
-	put_locked_mapping_entry(mapping, pgoff, entry);
  finish_iomap:
 	if (ops->iomap_end) {
 		int copied = PMD_SIZE;
@@ -1471,6 +1440,8 @@ static int dax_iomap_pmd_fault(struct vm_fault *vmf,
 		ops->iomap_end(inode, pos, PMD_SIZE, copied, iomap_flags,
 				&iomap);
 	}
+ unlock_entry:
+	put_locked_mapping_entry(mapping, pgoff, entry);
  fallback:
 	if (result == VM_FAULT_FALLBACK) {
 		split_huge_pmd(vma, vmf->pmd, vmf->address);

@@ -13,7 +13,6 @@
 #include <string.h>
 #include <errno.h>
 #include <limits.h>
-#include <byteswap.h>
 #include <linux/kernel.h>
 #include <linux/log2.h>
 #include <linux/time64.h>
@@ -335,33 +334,6 @@ int hex2u64(const char *ptr, u64 *long_val)
 	return p - ptr;
 }
 
-unsigned long parse_tag_value(const char *str, struct parse_tag *tags)
-{
-	struct parse_tag *i = tags;
-
-	while (i->tag) {
-		char *s;
-
-		s = strchr(str, i->tag);
-		if (s) {
-			unsigned long int value;
-			char *endptr;
-
-			value = strtoul(str, &endptr, 10);
-			if (s != endptr)
-				break;
-
-			if (value > ULONG_MAX / i->mult)
-				break;
-			value *= i->mult;
-			return value;
-		}
-		i++;
-	}
-
-	return (unsigned long) -1;
-}
-
 int perf_event_paranoid(void)
 {
 	int value;
@@ -370,27 +342,6 @@ int perf_event_paranoid(void)
 		return INT_MAX;
 
 	return value;
-}
-
-void mem_bswap_32(void *src, int byte_size)
-{
-	u32 *m = src;
-	while (byte_size > 0) {
-		*m = bswap_32(*m);
-		byte_size -= sizeof(u32);
-		++m;
-	}
-}
-
-void mem_bswap_64(void *src, int byte_size)
-{
-	u64 *m = src;
-
-	while (byte_size > 0) {
-		*m = bswap_64(*m);
-		byte_size -= sizeof(u64);
-		++m;
-	}
 }
 
 bool find_process(const char *name)

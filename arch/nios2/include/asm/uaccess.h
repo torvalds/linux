@@ -42,6 +42,8 @@
 
 # define __EX_TABLE_SECTION	".section __ex_table,\"a\"\n"
 
+#define user_addr_max() (uaccess_kernel() ? ~0UL : TASK_SIZE)
+
 /*
  * Zero Userspace
  */
@@ -81,8 +83,9 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n);
 #define INLINE_COPY_TO_USER
 
 extern long strncpy_from_user(char *__to, const char __user *__from,
-				long __len);
-extern long strnlen_user(const char __user *s, long n);
+			      long __len);
+extern __must_check long strlen_user(const char __user *str);
+extern __must_check long strnlen_user(const char __user *s, long n);
 
 /* Optimized macros */
 #define __get_user_asm(val, insn, addr, err)				\

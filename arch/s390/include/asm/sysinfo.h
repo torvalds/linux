@@ -146,7 +146,7 @@ extern int topology_max_mnest;
  * Returns the maximum nesting level supported by the cpu topology code.
  * The current maximum level is 4 which is the drawer level.
  */
-static inline int topology_mnest_limit(void)
+static inline unsigned char topology_mnest_limit(void)
 {
 	return min(topology_max_mnest, 4);
 }

@@ -251,7 +251,9 @@ static int pp_suspend(void *handle)
 
 	ret = pp_check(pp_handle);
 
-	if (ret != 0)
+	if (ret == PP_DPM_DISABLED)
+		return 0;
+	else if (ret != 0)
 		return ret;
 
 	eventmgr = pp_handle->eventmgr;

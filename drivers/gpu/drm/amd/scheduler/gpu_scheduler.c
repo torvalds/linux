@@ -236,6 +236,23 @@ static void amd_sched_entity_clear_dep(struct dma_fence *f, struct dma_fence_cb 
 	dma_fence_put(f);
 }
 
+bool amd_sched_dependency_optimized(struct dma_fence* fence,
+				    struct amd_sched_entity *entity)
+{
+	struct amd_gpu_scheduler *sched = entity->sched;
+	struct amd_sched_fence *s_fence;
+
+	if (!fence || dma_fence_is_signaled(fence))
+		return false;
+	if (fence->context == entity->fence_context)
+		return true;
+	s_fence = to_amd_sched_fence(fence);
+	if (s_fence && s_fence->sched == sched)
+		return true;
+
+	return false;
+}
+
 static bool amd_sched_entity_add_dependency_cb(struct amd_sched_entity *entity)
 {
 	struct amd_gpu_scheduler *sched = entity->sched;
@@ -387,7 +404,9 @@ void amd_sched_hw_job_reset(struct amd_gpu_scheduler *sched)
 
 	spin_lock(&sched->job_list_lock);
 	list_for_each_entry_reverse(s_job, &sched->ring_mirror_list, node) {
-		if (dma_fence_remove_callback(s_job->s_fence->parent, &s_job->s_fence->cb)) {
+		if (s_job->s_fence->parent &&
+		    dma_fence_remove_callback(s_job->s_fence->parent,
+					      &s_job->s_fence->cb)) {
 			dma_fence_put(s_job->s_fence->parent);
 			s_job->s_fence->parent = NULL;
 		}
@@ -460,9 +479,9 @@ int amd_sched_job_init(struct amd_sched_job *job,
 	job->sched = sched;
 	job->s_entity = entity;
 	job->s_fence = amd_sched_fence_create(entity, owner);
-	job->id = atomic64_inc_return(&sched->job_id_count);
 	if (!job->s_fence)
 		return -ENOMEM;
+	job->id = atomic64_inc_return(&sched->job_id_count);
 
 	INIT_WORK(&job->finish_work, amd_sched_job_finish);
 	INIT_LIST_HEAD(&job->node);

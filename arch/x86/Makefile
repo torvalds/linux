@@ -179,7 +179,8 @@ ifdef CONFIG_JUMP_LABEL
 endif
 
 ifeq ($(ACCUMULATE_OUTGOING_ARGS), 1)
-	KBUILD_CFLAGS += -maccumulate-outgoing-args
+	# This compiler flag is not supported by Clang:
+	KBUILD_CFLAGS += $(call cc-option,-maccumulate-outgoing-args,)
 endif
 
 # Stackpointer is addressed different for 32 bit and 64 bit x86
