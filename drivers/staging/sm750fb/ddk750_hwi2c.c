@@ -8,9 +8,7 @@
 #define MAX_HWI2C_FIFO                  16
 #define HWI2C_WAIT_TIMEOUT              0xF0000
 
-int sm750_hw_i2c_init(
-unsigned char bus_speed_mode
-)
+int sm750_hw_i2c_init(unsigned char bus_speed_mode)
 {
 	unsigned int value;
 
@@ -81,11 +79,9 @@ static long hw_i2c_wait_tx_done(void)
  *  Return Value:
  *      Total number of bytes those are actually written.
  */
-static unsigned int hw_i2c_write_data(
-	unsigned char addr,
-	unsigned int length,
-	unsigned char *buf
-)
+static unsigned int hw_i2c_write_data(unsigned char addr,
+				      unsigned int length,
+				      unsigned char *buf)
 {
 	unsigned char count, i;
 	unsigned int total_bytes = 0;
@@ -148,11 +144,9 @@ static unsigned int hw_i2c_write_data(
  *  Return Value:
  *      Total number of actual bytes read from the slave device
  */
-static unsigned int hw_i2c_read_data(
-	unsigned char addr,
-	unsigned int length,
-	unsigned char *buf
-)
+static unsigned int hw_i2c_read_data(unsigned char addr,
+				     unsigned int length,
+				     unsigned char *buf)
 {
 	unsigned char count, i;
 	unsigned int total_bytes = 0;
@@ -212,10 +206,7 @@ static unsigned int hw_i2c_read_data(
  *  Return Value:
  *      Register value
  */
-unsigned char sm750_hw_i2c_read_reg(
-	unsigned char addr,
-	unsigned char reg
-)
+unsigned char sm750_hw_i2c_read_reg(unsigned char addr, unsigned char reg)
 {
 	unsigned char value = 0xFF;
 
@@ -238,11 +229,9 @@ unsigned char sm750_hw_i2c_read_reg(
  *          0   - Success
  *         -1   - Fail
  */
-int sm750_hw_i2c_write_reg(
-	unsigned char addr,
-	unsigned char reg,
-	unsigned char data
-)
+int sm750_hw_i2c_write_reg(unsigned char addr,
+			   unsigned char reg,
+			   unsigned char data)
 {
 	unsigned char value[2];
 

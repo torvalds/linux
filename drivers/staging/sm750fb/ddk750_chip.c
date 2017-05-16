@@ -175,7 +175,7 @@ static void set_master_clock(unsigned int frequency)
 		}
 
 		sm750_set_current_gate(reg);
-		}
+	}
 }
 
 unsigned int ddk750_get_vm_size(void)
@@ -224,7 +224,7 @@ int ddk750_init_hw(struct initchip_param *pInitParam)
 	sm750_set_current_gate(reg);
 
 	if (sm750_get_chip_type() != SM750LE) {
-		/*	set panel pll and graphic mode via mmio_88 */
+		/* set panel pll and graphic mode via mmio_88 */
 		reg = peek32(VGA_CONFIGURATION);
 		reg |= (VGA_CONFIGURATION_PLL | VGA_CONFIGURATION_MODE);
 		poke32(VGA_CONFIGURATION, reg);
@@ -309,7 +309,8 @@ int ddk750_init_hw(struct initchip_param *pInitParam)
  * M = {1,...,255}
  * N = {2,...,15}
  */
-unsigned int sm750_calc_pll_value(unsigned int request_orig, struct pll_value *pll)
+unsigned int sm750_calc_pll_value(unsigned int request_orig,
+				  struct pll_value *pll)
 {
 	/*
 	 * as sm750 register definition,

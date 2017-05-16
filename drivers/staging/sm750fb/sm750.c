@@ -112,42 +112,42 @@ static int lynxfb_ops_cursor(struct fb_info *info, struct fb_cursor *fbcursor)
 	cursor = &crtc->cursor;
 
 	if (fbcursor->image.width > cursor->maxW ||
-	   fbcursor->image.height > cursor->maxH ||
-	   fbcursor->image.depth > 1) {
+	    fbcursor->image.height > cursor->maxH ||
+	    fbcursor->image.depth > 1) {
 		return -ENXIO;
 	}
 
 	sm750_hw_cursor_disable(cursor);
 	if (fbcursor->set & FB_CUR_SETSIZE)
 		sm750_hw_cursor_setSize(cursor,
-				  fbcursor->image.width,
-				  fbcursor->image.height);
+					fbcursor->image.width,
+					fbcursor->image.height);
 
 	if (fbcursor->set & FB_CUR_SETPOS)
 		sm750_hw_cursor_setPos(cursor,
-				 fbcursor->image.dx - info->var.xoffset,
-				 fbcursor->image.dy - info->var.yoffset);
+				       fbcursor->image.dx - info->var.xoffset,
+				       fbcursor->image.dy - info->var.yoffset);
 
 	if (fbcursor->set & FB_CUR_SETCMAP) {
 		/* get the 16bit color of kernel means */
 		u16 fg, bg;
 
 		fg = ((info->cmap.red[fbcursor->image.fg_color] & 0xf800)) |
-		      ((info->cmap.green[fbcursor->image.fg_color] & 0xfc00) >> 5) |
-		      ((info->cmap.blue[fbcursor->image.fg_color] & 0xf800) >> 11);
+		     ((info->cmap.green[fbcursor->image.fg_color] & 0xfc00) >> 5) |
+		     ((info->cmap.blue[fbcursor->image.fg_color] & 0xf800) >> 11);
 
 		bg = ((info->cmap.red[fbcursor->image.bg_color] & 0xf800)) |
-		      ((info->cmap.green[fbcursor->image.bg_color] & 0xfc00) >> 5) |
-		      ((info->cmap.blue[fbcursor->image.bg_color] & 0xf800) >> 11);
+		     ((info->cmap.green[fbcursor->image.bg_color] & 0xfc00) >> 5) |
+		     ((info->cmap.blue[fbcursor->image.bg_color] & 0xf800) >> 11);
 
 		sm750_hw_cursor_setColor(cursor, fg, bg);
 	}
 
 	if (fbcursor->set & (FB_CUR_SETSHAPE | FB_CUR_SETIMAGE)) {
 		sm750_hw_cursor_setData(cursor,
-				  fbcursor->rop,
-				  fbcursor->image.data,
-				  fbcursor->mask);
+					fbcursor->rop,
+					fbcursor->image.data,
+					fbcursor->mask);
 	}
 
 	if (fbcursor->enable)
