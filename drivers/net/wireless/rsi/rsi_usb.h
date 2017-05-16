@@ -63,8 +63,5 @@ static inline int rsi_usb_event_timeout(struct rsi_hw *adapter)
 	return EVENT_WAIT_FOREVER;
 }
 
-int rsi_usb_device_init(struct rsi_common *common);
-int rsi_usb_write_register_multiple(struct rsi_hw *adapter, u32 addr,
-				    u8 *data, u16 count);
 void rsi_usb_rx_thread(struct rsi_common *common);
 #endif

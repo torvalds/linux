@@ -327,10 +327,8 @@ static int rsi_usb_read_register_multiple(struct rsi_hw *adapter, u32 addr,
  *
  * Return: status: 0 on success, a negative error code on failure.
  */
-int rsi_usb_write_register_multiple(struct rsi_hw *adapter,
-				    u32 addr,
-				    u8 *data,
-				    u16 count)
+static int rsi_usb_write_register_multiple(struct rsi_hw *adapter, u32 addr,
+					   u8 *data, u16 count)
 {
 	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
 	u8 *buf;
