@@ -428,6 +428,36 @@
 				};
 			};
 		};
+
+		battery {
+			compatible = "rk818-battery";
+			pinctrl-names = "default";
+			pinctrl-0 = <&dc_irq_gpio>;
+			ocv_table = <
+				3400 3650 3693 3707 3731 3749 3760
+				3770 3782 3796 3812 3829 3852 3882
+				3915 3951 3981 4047 4086 4132 4182>;
+			design_capacity = <8650>;
+			design_qmax = <8800>;
+			bat_res = <85>;
+			max_input_current = <2000>;
+			max_chrg_current = <1800>;
+			max_chrg_voltage = <4200>;
+			sleep_enter_current = <600>;
+			sleep_exit_current = <600>;
+			power_off_thresd = <3400>;
+			zero_algorithm_vol = <3850>;
+			fb_temperature = <115>;
+			sample_res = <10>;
+			max_soc_offset = <60>;
+			energy_mode = <0>;
+			monitor_sec = <5>;
+			virtual_power = <0>;
+			power_dc2otg = <1>;
+			support_usb_adp = <1>;
+			support_dc_adp = <1>;
+			dc_det_gpio = <&gpio0 17 GPIO_ACTIVE_LOW>;
+		};
 	};
 };
 
@@ -517,6 +547,7 @@
 
 &pmu_io_domains {
 	status = "okay";
+
 	pmu-supply = <&vcc_io>;
 	vop-supply = <&vcc_io>;
 };
@@ -608,6 +639,12 @@
 	pmic {
 		pmic_int_l: pmic-int-l {
 			rockchip,pins = <RK_GPIO0 1 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	dc_det {
+		dc_irq_gpio: dc-irq-gpio {
+			rockchip,pins = <0 17 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
