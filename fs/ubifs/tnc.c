@@ -2802,6 +2802,8 @@ int ubifs_tnc_remove_ino(struct ubifs_info *c, ino_t inum)
 		dbg_tnc("xent '%s', ino %lu", xent->name,
 			(unsigned long)xattr_inum);
 
+		ubifs_evict_xattr_inode(c, xattr_inum);
+
 		fname_name(&nm) = xent->name;
 		fname_len(&nm) = le16_to_cpu(xent->nlen);
 		err = ubifs_tnc_remove_nm(c, &key1, &nm);

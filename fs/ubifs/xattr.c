@@ -513,6 +513,28 @@ out_cancel:
 	return err;
 }
 
+/**
+ * ubifs_evict_xattr_inode - Evict an xattr inode.
+ * @c: UBIFS file-system description object
+ * @xattr_inum: xattr inode number
+ *
+ * When an inode that hosts xattrs is being removed we have to make sure
+ * that cached inodes of the xattrs also get removed from the inode cache
+ * otherwise we'd waste memory. This function looks up an inode from the
+ * inode cache and clears the link counter such that iput() will evict
+ * the inode.
+ */
+void ubifs_evict_xattr_inode(struct ubifs_info *c, ino_t xattr_inum)
+{
+	struct inode *inode;
+
+	inode = ilookup(c->vfs_sb, xattr_inum);
+	if (inode) {
+		clear_nlink(inode);
+		iput(inode);
+	}
+}
+
 static int ubifs_xattr_remove(struct inode *host, const char *name)
 {
 	struct inode *inode;

@@ -1756,6 +1756,7 @@ int ubifs_xattr_set(struct inode *host, const char *name, const void *value,
 		    size_t size, int flags);
 ssize_t ubifs_xattr_get(struct inode *host, const char *name, void *buf,
 			size_t size);
+void ubifs_evict_xattr_inode(struct ubifs_info *c, ino_t xattr_inum);
 
 #ifdef CONFIG_UBIFS_FS_SECURITY
 extern int ubifs_init_security(struct inode *dentry, struct inode *inode,
