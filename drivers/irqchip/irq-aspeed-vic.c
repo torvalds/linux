@@ -227,4 +227,5 @@ static int __init avic_of_init(struct device_node *node,
 	return 0;
 }
 
-IRQCHIP_DECLARE(aspeed_new_vic, "aspeed,ast2400-vic", avic_of_init);
+IRQCHIP_DECLARE(ast2400_vic, "aspeed,ast2400-vic", avic_of_init);
+IRQCHIP_DECLARE(ast2500_vic, "aspeed,ast2500-vic", avic_of_init);
