@@ -768,17 +768,11 @@ void dce120_tg_set_blank(struct timing_generator *tg,
 		CRTC0_CRTC_DOUBLE_BUFFER_CONTROL,
 		CRTC_BLANK_DATA_DOUBLE_BUFFER_EN, 0);
 
-	if (enable_blanking) {
-		CRTC_REG_SET(
-			CRTC0_CRTC_BLANK_CONTROL,
-			CRTC_BLANK_DATA_EN, 1);
-
-	} else
-		dm_write_reg_soc15(
-			tg->ctx,
-			mmCRTC0_CRTC_BLANK_CONTROL,
-			tg110->offsets.crtc,
-			0);
+	if (enable_blanking)
+		CRTC_REG_SET(CRTC0_CRTC_BLANK_CONTROL, CRTC_BLANK_DATA_EN, 1);
+	else
+		dm_write_reg_soc15(tg->ctx, mmCRTC0_CRTC_BLANK_CONTROL,
+			tg110->offsets.crtc, 0);
 }
 
 bool dce120_tg_validate_timing(struct timing_generator *tg,
