@@ -153,8 +153,8 @@ static bool retransmits_timed_out(struct sock *sk,
 				  unsigned int timeout,
 				  bool syn_set)
 {
-	unsigned int linear_backoff_thresh, start_ts;
 	unsigned int rto_base = syn_set ? TCP_TIMEOUT_INIT : TCP_RTO_MIN;
+	unsigned int linear_backoff_thresh, start_ts;
 
 	if (!inet_csk(sk)->icsk_retransmits)
 		return false;
@@ -172,7 +172,7 @@ static bool retransmits_timed_out(struct sock *sk,
 			timeout = ((2 << linear_backoff_thresh) - 1) * rto_base +
 				(boundary - linear_backoff_thresh) * TCP_RTO_MAX;
 	}
-	return (tcp_time_stamp - start_ts) >= timeout;
+	return (tcp_time_stamp(tcp_sk(sk)) - start_ts) >= jiffies_to_msecs(timeout);
 }
 
 /* A write timeout has occurred. Process the after effects. */
@@ -341,7 +341,7 @@ static void tcp_probe_timer(struct sock *sk)
 	if (!start_ts)
 		tcp_send_head(sk)->skb_mstamp = tp->tcp_mstamp;
 	else if (icsk->icsk_user_timeout &&
-		 (s32)(tcp_time_stamp - start_ts) > icsk->icsk_user_timeout)
+		 (s32)(tcp_time_stamp(tp) - start_ts) > icsk->icsk_user_timeout)
 		goto abort;
 
 	max_probes = sock_net(sk)->ipv4.sysctl_tcp_retries2;
@@ -561,7 +561,7 @@ void tcp_write_timer_handler(struct sock *sk)
 		goto out;
 	}
 
-	skb_mstamp_get(&tcp_sk(sk)->tcp_mstamp);
+	tcp_mstamp_refresh(tcp_sk(sk));
 	event = icsk->icsk_pending;
 
 	switch (event) {

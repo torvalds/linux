@@ -37,7 +37,7 @@
 #include <net/tcp.h>
 
 /* resolution of owd */
-#define LP_RESOL       1000
+#define LP_RESOL       TCP_TS_HZ
 
 /**
  * enum tcp_lp_state
@@ -147,9 +147,9 @@ static u32 tcp_lp_remote_hz_estimator(struct sock *sk)
 	    tp->rx_opt.rcv_tsecr == lp->local_ref_time)
 		goto out;
 
-	m = HZ * (tp->rx_opt.rcv_tsval -
-		  lp->remote_ref_time) / (tp->rx_opt.rcv_tsecr -
-					  lp->local_ref_time);
+	m = TCP_TS_HZ *
+	    (tp->rx_opt.rcv_tsval - lp->remote_ref_time) /
+	    (tp->rx_opt.rcv_tsecr - lp->local_ref_time);
 	if (m < 0)
 		m = -m;
 
@@ -194,7 +194,7 @@ static u32 tcp_lp_owd_calculator(struct sock *sk)
 	if (lp->flag & LP_VALID_RHZ) {
 		owd =
 		    tp->rx_opt.rcv_tsval * (LP_RESOL / lp->remote_hz) -
-		    tp->rx_opt.rcv_tsecr * (LP_RESOL / HZ);
+		    tp->rx_opt.rcv_tsecr * (LP_RESOL / TCP_TS_HZ);
 		if (owd < 0)
 			owd = -owd;
 	}
@@ -264,7 +264,7 @@ static void tcp_lp_pkts_acked(struct sock *sk, const struct ack_sample *sample)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct lp *lp = inet_csk_ca(sk);
-	u32 now = tcp_time_stamp;
+	u32 now = tcp_time_stamp(tp);
 	u32 delta;
 
 	if (sample->rtt_us > 0)
