@@ -789,11 +789,13 @@ int __init da850_register_mmcsd1(struct davinci_mmc_config *config)
 
 static struct resource da8xx_rproc_resources[] = {
 	{ /* DSP boot address */
+		.name		= "host1cfg",
 		.start		= DA8XX_SYSCFG0_BASE + DA8XX_HOST1CFG_REG,
 		.end		= DA8XX_SYSCFG0_BASE + DA8XX_HOST1CFG_REG + 3,
 		.flags		= IORESOURCE_MEM,
 	},
 	{ /* DSP interrupt registers */
+		.name		= "chipsig",
 		.start		= DA8XX_SYSCFG0_BASE + DA8XX_CHIPSIG_REG,
 		.end		= DA8XX_SYSCFG0_BASE + DA8XX_CHIPSIG_REG + 7,
 		.flags		= IORESOURCE_MEM,
