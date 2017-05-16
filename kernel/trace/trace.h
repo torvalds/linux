@@ -980,6 +980,7 @@ register_ftrace_function_probe(char *glob, struct trace_array *tr,
 extern int
 unregister_ftrace_function_probe_func(char *glob, struct trace_array *tr,
 				      struct ftrace_probe_ops *ops);
+extern void clear_ftrace_function_probes(struct trace_array *tr);
 
 int register_ftrace_command(struct ftrace_func_command *cmd);
 int unregister_ftrace_command(struct ftrace_func_command *cmd);

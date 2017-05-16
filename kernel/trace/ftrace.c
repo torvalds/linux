@@ -4256,6 +4256,14 @@ unregister_ftrace_function_probe_func(char *glob, struct trace_array *tr,
 	return ret;
 }
 
+void clear_ftrace_function_probes(struct trace_array *tr)
+{
+	struct ftrace_func_probe *probe, *n;
+
+	list_for_each_entry_safe(probe, n, &tr->func_probes, list)
+		unregister_ftrace_function_probe_func(NULL, tr, probe->probe_ops);
+}
+
 static LIST_HEAD(ftrace_commands);
 static DEFINE_MUTEX(ftrace_cmd_mutex);
 
