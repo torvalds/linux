@@ -220,7 +220,7 @@
 		#size-cells = <2>;
 		#interrupt-cells = <1>;
 		aspm-no-l0s;
-		bus-range = <0x0 0x1>;
+		bus-range = <0x0 0x1f>;
 		clocks = <&cru ACLK_PCIE>, <&cru ACLK_PERF_PCIE>,
 			 <&cru PCLK_PCIE>, <&cru SCLK_PCIE_PM>;
 		clock-names = "aclk", "aclk-perf",
