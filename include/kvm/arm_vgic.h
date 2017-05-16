@@ -39,6 +39,8 @@
 #define KVM_IRQCHIP_NUM_PINS	(1020 - 32)
 
 #define irq_is_ppi(irq) ((irq) >= VGIC_NR_SGIS && (irq) < VGIC_NR_PRIVATE_IRQS)
+#define irq_is_spi(irq) ((irq) >= VGIC_NR_PRIVATE_IRQS && \
+			 (irq) <= VGIC_MAX_SPI)
 
 enum vgic_type {
 	VGIC_V2,		/* Good ol' GICv2 */

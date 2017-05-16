@@ -458,10 +458,24 @@ int kvm_arm_pmu_v3_enable(struct kvm_vcpu *vcpu)
 	/*
 	 * A valid interrupt configuration for the PMU is either to have a
 	 * properly configured interrupt number and using an in-kernel
-	 * irqchip, or to neither set an IRQ nor create an in-kernel irqchip.
+	 * irqchip, or to not have an in-kernel GIC and not set an IRQ.
 	 */
-	if (kvm_arm_pmu_irq_initialized(vcpu) != irqchip_in_kernel(vcpu->kvm))
-		return -EINVAL;
+	if (irqchip_in_kernel(vcpu->kvm)) {
+		int irq = vcpu->arch.pmu.irq_num;
+		if (!kvm_arm_pmu_irq_initialized(vcpu))
+			return -EINVAL;
+
+		/*
+		 * If we are using an in-kernel vgic, at this point we know
+		 * the vgic will be initialized, so we can check the PMU irq
+		 * number against the dimensions of the vgic and make sure
+		 * it's valid.
+		 */
+		if (!irq_is_ppi(irq) && !vgic_valid_spi(vcpu->kvm, irq))
+			return -EINVAL;
+	} else if (kvm_arm_pmu_irq_initialized(vcpu)) {
+		   return -EINVAL;
+	}
 
 	kvm_pmu_vcpu_reset(vcpu);
 	vcpu->arch.pmu.ready = true;
@@ -547,7 +561,7 @@ int kvm_arm_pmu_v3_set_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
 			return -EFAULT;
 
 		/* The PMU overflow interrupt can be a PPI or a valid SPI. */
-		if (!(irq_is_ppi(irq) || vgic_valid_spi(vcpu->kvm, irq)))
+		if (!(irq_is_ppi(irq) || irq_is_spi(irq)))
 			return -EINVAL;
 
 		if (!pmu_irq_is_valid(vcpu->kvm, irq))
