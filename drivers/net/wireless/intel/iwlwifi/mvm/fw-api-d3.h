@@ -139,6 +139,7 @@ struct iwl_proto_offload_cmd_common {
  *	for each target address
  * @target_ipv6_addr: our target addresses
  * @ndp_mac_addr: neighbor solicitation response MAC address
+ * @reserved2: reserved
  */
 struct iwl_proto_offload_cmd_v1 {
 	struct iwl_proto_offload_cmd_common common;
@@ -157,6 +158,8 @@ struct iwl_proto_offload_cmd_v1 {
  *	for each target address
  * @target_ipv6_addr: our target addresses
  * @ndp_mac_addr: neighbor solicitation response MAC address
+ * @num_valid_ipv6_addrs: number of valid IPv6 addresses
+ * @reserved2: reserved
  */
 struct iwl_proto_offload_cmd_v2 {
 	struct iwl_proto_offload_cmd_common common;
@@ -183,6 +186,7 @@ struct iwl_targ_addr {
 /**
  * struct iwl_proto_offload_cmd_v3_small - ARP/NS offload configuration
  * @common: common/IPv4 configuration
+ * @num_valid_ipv6_addrs: number of valid IPv6 addresses
  * @targ_addrs: target IPv6 addresses
  * @ns_config: NS offload configurations
  */
@@ -196,6 +200,7 @@ struct iwl_proto_offload_cmd_v3_small {
 /**
  * struct iwl_proto_offload_cmd_v3_large - ARP/NS offload configuration
  * @common: common/IPv4 configuration
+ * @num_valid_ipv6_addrs: number of valid IPv6 addresses
  * @targ_addrs: target IPv6 addresses
  * @ns_config: NS offload configurations
  */

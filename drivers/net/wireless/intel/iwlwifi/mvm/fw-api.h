@@ -1187,6 +1187,7 @@ enum {
  * ( REPLY_ERROR = 0x2 )
  * @error_type: one of FW_ERR_*
  * @cmd_id: the command ID for which the error occured
+ * @reserved1: reserved
  * @bad_cmd_seq_num: sequence number of the erroneous command
  * @error_service: which service created the error, applicable only if
  *	error_type = 2, otherwise 0
@@ -1649,7 +1650,7 @@ struct iwl_fw_channel_info {
  * @apply_time: 0 means immediate apply and context switch.
  *	other value means apply new params after X usecs
  * @tx_param_color: ???
- * @channel_info:
+ * @ci: channel info
  * @txchain_info: ???
  * @rxchain_info: ???
  * @acquisition_data: ???
@@ -1738,9 +1739,9 @@ struct iwl_hs20_roc_res {
 /**
  * struct iwl_radio_version_notif - information on the radio version
  * ( RADIO_VERSION_NOTIFICATION = 0x68 )
- * @radio_flavor:
- * @radio_step:
- * @radio_dash:
+ * @radio_flavor: radio flavor
+ * @radio_step: radio version step
+ * @radio_dash: radio version dash
  */
 struct iwl_radio_version_notif {
 	__le32 radio_flavor;
@@ -1774,8 +1775,8 @@ struct iwl_card_state_notif {
  * @consec_missed_beacons_since_last_rx: number of consecutive missed
  *	beacons since last RX.
  * @consec_missed_beacons: number of consecutive missed beacons
- * @num_expected_beacons:
- * @num_recvd_beacons:
+ * @num_expected_beacons: number of expected beacons
+ * @num_recvd_beacons: number of received beacons
  */
 struct iwl_missed_beacons_notif {
 	__le32 mac_id;
@@ -1835,6 +1836,7 @@ struct iwl_mfu_assert_dump_notif {
  * @count:	Number of MAC addresses in the array
  * @pass_all:	Set 1 to pass all multicast packets.
  * @bssid:	current association BSSID.
+ * @reserved:	reserved
  * @addr_list:	Place holder for array of MAC addresses.
  *		IMPORTANT: add padding if necessary to ensure DWORD alignment.
  */
@@ -1866,7 +1868,8 @@ enum iwl_mvm_bcast_filter_attr_offset {
  * struct iwl_fw_bcast_filter_attr - broadcast filter attribute
  * @offset_type:	&enum iwl_mvm_bcast_filter_attr_offset.
  * @offset:	starting offset of this pattern.
- * @val:		value to match - big endian (MSB is the first
+ * @reserved1:	reserved
+ * @val:	value to match - big endian (MSB is the first
  *		byte to match from offset pos).
  * @mask:	mask to match (big endian).
  */
@@ -1892,6 +1895,7 @@ enum iwl_mvm_bcast_filter_frame_type {
  * struct iwl_fw_bcast_filter - broadcast filter
  * @discard: discard frame (1) or let it pass (0).
  * @frame_type: &enum iwl_mvm_bcast_filter_frame_type.
+ * @reserved1: reserved
  * @num_attrs: number of valid attributes in this filter.
  * @attrs: attributes of this filter. a filter is considered matched
  *	only when all its attributes are matched (i.e. AND relationship)
@@ -1927,6 +1931,7 @@ struct iwl_ba_window_status_notif {
 /**
  * struct iwl_fw_bcast_mac - per-mac broadcast filtering configuration.
  * @default_discard: default action for this mac (discard (1) / pass (0)).
+ * @reserved1: reserved
  * @attached_filters: bitmap of relevant filters for this mac.
  */
 struct iwl_fw_bcast_mac {
@@ -1940,6 +1945,7 @@ struct iwl_fw_bcast_mac {
  * @disable: enable (0) / disable (1)
  * @max_bcast_filters: max number of filters (MAX_BCAST_FILTERS)
  * @max_macs: max number of macs (NUM_MAC_INDEX_DRIVER)
+ * @reserved1: reserved
  * @filters: broadcast filters
  * @macs: broadcast filtering configuration per-mac
  */
@@ -2282,7 +2288,7 @@ enum iwl_dts_control_measurement_mode {
 * @DTS_USE_CHAIN_A: chain A
 * @DTS_USE_CHAIN_B: chain B
 * @DTS_USE_CHAIN_C: chain C
-* @XTAL_TEMPERATURE - read temperature from xtal
+* @XTAL_TEMPERATURE: read temperature from xtal
 */
 enum iwl_dts_used {
 	DTS_USE_TOP		= 0,
@@ -2624,6 +2630,7 @@ struct iwl_shared_mem_cfg {
 /**
  * struct iwl_mu_group_mgmt_cmd - VHT MU-MIMO group configuration
  *
+ * @reserved: reserved
  * @membership_status: a bitmap of MU groups
  * @user_position:the position of station in a group. If the station is in the
  *	group then bits (group * 2) is the position -1
@@ -2658,6 +2665,7 @@ struct iwl_mu_group_mgmt_notif {
  * @channel: channel this beacon was received on
  * @rates: rate in ucode internal format
  * @byte_count: frame's byte count
+ * @data: beacon data, length in @byte_count
  */
 struct iwl_stored_beacon_notif {
 	__le32 system_time;
@@ -2781,6 +2789,7 @@ struct iwl_dbg_mem_access_rsp {
 
 /**
  * struct iwl_nvm_access_complete_cmd - NVM_ACCESS commands are completed
+ * @reserved: reserved
  */
 struct iwl_nvm_access_complete_cmd {
 	__le32 reserved;
@@ -2820,6 +2829,7 @@ struct iwl_nvm_get_info {
  * @flags: 1 - empty, 0 - valid
  * @nvm_version: nvm version
  * @board_type: board type
+ * @reserved: reserved
  */
 struct iwl_nvm_get_info_general {
 	__le32 flags;

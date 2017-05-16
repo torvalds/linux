@@ -333,7 +333,9 @@ struct iwl_ac_qos {
  * @mac_type: one of &enum iwl_mac_types
  * @tsf_id: TSF HW timer, one of &enum iwl_tsf_id
  * @node_addr: MAC address
+ * @reserved_for_node_addr: reserved
  * @bssid_addr: BSSID
+ * @reserved_for_bssid_addr: reserved
  * @cck_rates: basic rates available for CCK
  * @ofdm_rates: basic rates available for OFDM
  * @protection_flags: combination of &enum iwl_mac_protection_flags
