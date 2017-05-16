@@ -91,6 +91,8 @@ static struct sk_buff *udp6_ufo_fragment(struct sk_buff *skb,
 		 * bytes to insert fragment header.
 		 */
 		unfrag_ip6hlen = ip6_find_1stfragopt(skb, &prevhdr);
+		if (unfrag_ip6hlen < 0)
+			return ERR_PTR(unfrag_ip6hlen);
 		nexthdr = *prevhdr;
 		*prevhdr = NEXTHDR_FRAGMENT;
 		unfrag_len = (skb_network_header(skb) - skb_mac_header(skb)) +
