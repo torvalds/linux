@@ -2184,7 +2184,7 @@ enum iwl_tdls_channel_switch_type {
  *	200TU and the TDLS peer is to be given 25% of the time, the value
  *	given will be 50TU, or 50 * 1024 if translated into microseconds.
  * @switch_time: switch time the peer sent in its channel switch timing IE
- * @switch_timout: switch timeout the peer sent in its channel switch timing IE
+ * @switch_timeout: switch timeout the peer sent in its channel switch timing IE
  */
 struct iwl_tdls_channel_switch_timing {
 	__le32 frame_timestamp; /* GP2 time of peer packet Rx */
@@ -2456,7 +2456,7 @@ enum iwl_lqm_status {
 
 /**
  * struct iwl_link_qual_msrmnt_cmd - Link Quality Measurement command
- * @cmd_operatrion: command operation to be performed (start or stop)
+ * @cmd_operation: command operation to be performed (start or stop)
  *	as defined above.
  * @mac_id: MAC ID the measurement applies to.
  * @measurement_time: time of the total measurement to be performed, in uSec.
@@ -2633,7 +2633,6 @@ struct iwl_nvm_get_info_phy {
  * struct iwl_nvm_get_info_regulatory - regulatory information
  * @lar_enabled: is LAR enabled
  * @channel_profile: regulatory data of this channel
- * @regulatory: regulatory data, see &enum iwl_nvm_channel_flags for data
  */
 struct iwl_nvm_get_info_regulatory {
 	__le32 lar_enabled;

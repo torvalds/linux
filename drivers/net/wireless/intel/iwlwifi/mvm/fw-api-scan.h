@@ -137,7 +137,7 @@ enum iwl_scan_offload_band_selection {
  * struct iwl_scan_offload_profile - SCAN_OFFLOAD_PROFILE_S
  * @ssid_index:		index to ssid list in fixed part
  * @unicast_cipher:	encryption algorithm to match - bitmap
- * @aut_alg:		authentication algorithm to match - bitmap
+ * @auth_alg:		authentication algorithm to match - bitmap
  * @network_type:	enum iwl_scan_offload_network_type
  * @band_selection:	enum iwl_scan_offload_band_selection
  * @client_bitmap:	clients waiting for match - enum scan_framework_client
@@ -221,7 +221,7 @@ enum iwl_scan_channel_flags_lmac {
  * struct iwl_scan_channel_cfg_lmac - SCAN_CHANNEL_CFG_S_VER2
  * @flags:		bits 1-20: directed scan to i'th ssid
  *			other bits &enum iwl_scan_channel_flags_lmac
- * @channel_number:	channel number 1-13 etc
+ * @channel_num:	channel number 1-13 etc
  * @iter_count:		scan iteration on this channel
  * @iter_interval:	interval in seconds between iterations on one channel
  */
@@ -320,13 +320,13 @@ enum iwl_scan_priority_ext {
 /**
  * struct iwl_scan_req_lmac - SCAN_REQUEST_CMD_API_S_VER_1
  * @reserved1: for alignment and future use
- * @channel_num: num of channels to scan
+ * @n_channels: num of channels to scan
  * @active-dwell: dwell time for active channels
  * @passive-dwell: dwell time for passive channels
  * @fragmented-dwell: dwell time for fragmented passive scan
  * @extended_dwell: dwell time for channels 1, 6 and 11 (in certain cases)
  * @reserved2: for alignment and future use
- * @rx_chain_selct: PHY_RX_CHAIN_* flags
+ * @rx_chain_select: PHY_RX_CHAIN_* flags
  * @scan_flags: &enum iwl_mvm_lmac_scan_flags
  * @max_out_time: max time (in TU) to be out of associated channel
  * @suspend_time: pause scan this long (TUs) when returning to service channel

@@ -96,7 +96,7 @@ enum iwl_mac_context_info {
  * @beacon_time_stamp: beacon at on-air rise
  * @phy_flags: general phy flags: band, modulation, ...
  * @channel: channel number
- * @non_cfg_phy_buf: for various implementations of non_cfg_phy
+ * @non_cfg_phy: for various implementations of non_cfg_phy
  * @rate_n_flags: RATE_MCS_*
  * @byte_count: frame's byte-count
  * @frame_time: frame's time on the air, based on byte count and frame rate

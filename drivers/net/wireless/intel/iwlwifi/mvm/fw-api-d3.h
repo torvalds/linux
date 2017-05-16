@@ -183,7 +183,7 @@ struct iwl_targ_addr {
 /**
  * struct iwl_proto_offload_cmd_v3_small - ARP/NS offload configuration
  * @common: common/IPv4 configuration
- * @target_ipv6_addr: target IPv6 addresses
+ * @targ_addrs: target IPv6 addresses
  * @ns_config: NS offload configurations
  */
 struct iwl_proto_offload_cmd_v3_small {
@@ -196,7 +196,7 @@ struct iwl_proto_offload_cmd_v3_small {
 /**
  * struct iwl_proto_offload_cmd_v3_large - ARP/NS offload configuration
  * @common: common/IPv4 configuration
- * @target_ipv6_addr: target IPv6 addresses
+ * @targ_addrs: target IPv6 addresses
  * @ns_config: NS offload configurations
  */
 struct iwl_proto_offload_cmd_v3_large {
