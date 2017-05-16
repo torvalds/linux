@@ -45,7 +45,7 @@
 #define UBIFS_KMALLOC_OK (128*1024)
 
 /* Slab cache for UBIFS inodes */
-struct kmem_cache *ubifs_inode_slab;
+static struct kmem_cache *ubifs_inode_slab;
 
 /* UBIFS TNC shrinker description */
 static struct shrinker ubifs_shrinker_info = {

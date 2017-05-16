@@ -1451,7 +1451,6 @@ struct ubifs_info {
 extern struct list_head ubifs_infos;
 extern spinlock_t ubifs_infos_lock;
 extern atomic_long_t ubifs_clean_zn_cnt;
-extern struct kmem_cache *ubifs_inode_slab;
 extern const struct super_operations ubifs_super_operations;
 extern const struct address_space_operations ubifs_file_address_operations;
 extern const struct file_operations ubifs_file_operations;
