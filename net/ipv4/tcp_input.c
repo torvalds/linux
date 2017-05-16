@@ -887,6 +887,9 @@ static void tcp_update_reordering(struct sock *sk, const int metric,
 	struct tcp_sock *tp = tcp_sk(sk);
 	int mib_idx;
 
+	if (WARN_ON_ONCE(metric < 0))
+		return;
+
 	if (metric > tp->reordering) {
 		tp->reordering = min(sysctl_tcp_max_reordering, metric);
 
