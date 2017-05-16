@@ -354,6 +354,7 @@ static int powernv_add_idle_states(void)
 
 	for (i = 0; i < dt_idle_states; i++) {
 		unsigned int exit_latency, target_residency;
+		bool stops_timebase = false;
 		/*
 		 * If an idle state has exit latency beyond
 		 * POWERNV_THRESHOLD_LATENCY_NS then don't use it
@@ -381,6 +382,9 @@ static int powernv_add_idle_states(void)
 			}
 		}
 
+		if (flags[i] & OPAL_PM_TIMEBASE_STOP)
+			stops_timebase = true;
+
 		/*
 		 * For nap and fastsleep, use default target_residency
 		 * values if f/w does not expose it.
@@ -392,8 +396,7 @@ static int powernv_add_idle_states(void)
 			add_powernv_state(nr_idle_states, "Nap",
 					  CPUIDLE_FLAG_NONE, nap_loop,
 					  target_residency, exit_latency, 0, 0);
-		} else if ((flags[i] & OPAL_PM_STOP_INST_FAST) &&
-				!(flags[i] & OPAL_PM_TIMEBASE_STOP)) {
+		} else if (has_stop_states && !stops_timebase) {
 			add_powernv_state(nr_idle_states, names[i],
 					  CPUIDLE_FLAG_NONE, stop_loop,
 					  target_residency, exit_latency,
@@ -405,8 +408,8 @@ static int powernv_add_idle_states(void)
 		 * within this config dependency check.
 		 */
 #ifdef CONFIG_TICK_ONESHOT
-		if (flags[i] & OPAL_PM_SLEEP_ENABLED ||
-			flags[i] & OPAL_PM_SLEEP_ENABLED_ER1) {
+		else if (flags[i] & OPAL_PM_SLEEP_ENABLED ||
+			 flags[i] & OPAL_PM_SLEEP_ENABLED_ER1) {
 			if (!rc)
 				target_residency = 300000;
 			/* Add FASTSLEEP state */
@@ -414,14 +417,15 @@ static int powernv_add_idle_states(void)
 					  CPUIDLE_FLAG_TIMER_STOP,
 					  fastsleep_loop,
 					  target_residency, exit_latency, 0, 0);
-		} else if ((flags[i] & OPAL_PM_STOP_INST_DEEP) &&
-				(flags[i] & OPAL_PM_TIMEBASE_STOP)) {
+		} else if (has_stop_states && stops_timebase) {
 			add_powernv_state(nr_idle_states, names[i],
 					  CPUIDLE_FLAG_TIMER_STOP, stop_loop,
 					  target_residency, exit_latency,
 					  psscr_val[i], psscr_mask[i]);
 		}
 #endif
+		else
+			continue;
 		nr_idle_states++;
 	}
 out:
