@@ -227,9 +227,20 @@ static int cros_ec_lpc_readmem(struct cros_ec_device *ec, unsigned int offset,
 	return cnt;
 }
 
+static void cros_ec_lpc_acpi_notify(acpi_handle device, u32 value, void *data)
+{
+	struct cros_ec_device *ec_dev = data;
+
+	if (ec_dev->mkbp_event_supported && cros_ec_get_next_event(ec_dev) > 0)
+		blocking_notifier_call_chain(&ec_dev->event_notifier, 0,
+					     ec_dev);
+}
+
 static int cros_ec_lpc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct acpi_device *adev;
+	acpi_status status;
 	struct cros_ec_device *ec_dev;
 	u8 buf[2];
 	int ret;
@@ -277,12 +288,33 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	/*
+	 * Connect a notify handler to process MKBP messages if we have a
+	 * companion ACPI device.
+	 */
+	adev = ACPI_COMPANION(dev);
+	if (adev) {
+		status = acpi_install_notify_handler(adev->handle,
+						     ACPI_ALL_NOTIFY,
+						     cros_ec_lpc_acpi_notify,
+						     ec_dev);
+		if (ACPI_FAILURE(status))
+			dev_warn(dev, "Failed to register notifier %08x\n",
+				 status);
+	}
+
 	return 0;
 }
 
 static int cros_ec_lpc_remove(struct platform_device *pdev)
 {
 	struct cros_ec_device *ec_dev;
+	struct acpi_device *adev;
+
+	adev = ACPI_COMPANION(&pdev->dev);
+	if (adev)
+		acpi_remove_notify_handler(adev->handle, ACPI_ALL_NOTIFY,
+					   cros_ec_lpc_acpi_notify);
 
 	ec_dev = platform_get_drvdata(pdev);
 	cros_ec_remove(ec_dev);
