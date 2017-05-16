@@ -17,6 +17,9 @@
  * (at your option) any later version.
  */
 
+#ifndef __PINCTRL_SAMSUNG_EXYNOS_H
+#define __PINCTRL_SAMSUNG_EXYNOS_H
+
 /* External GPIO and wakeup interrupt related definitions */
 #define EXYNOS_GPIO_ECON_OFFSET		0x700
 #define EXYNOS_GPIO_EFLTCON_OFFSET	0x800
@@ -131,3 +134,5 @@ struct exynos_muxed_weint_data {
 	unsigned int nr_banks;
 	struct samsung_pin_bank *banks[];
 };
+
+#endif /* __PINCTRL_SAMSUNG_EXYNOS_H */
