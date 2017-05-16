@@ -3698,6 +3698,9 @@ static int liquidio_set_vf_mac(struct net_device *netdev, int vfidx, u8 *mac)
 	struct octeon_device *oct = lio->oct_dev;
 	int retval;
 
+	if (vfidx < 0 || vfidx >= oct->sriov_info.num_vfs_alloced)
+		return -EINVAL;
+
 	retval = __liquidio_set_vf_mac(netdev, vfidx, mac, true);
 	if (!retval)
 		cn23xx_tell_vf_its_macaddr_changed(oct, vfidx, mac);
