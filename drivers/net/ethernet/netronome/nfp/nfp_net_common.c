@@ -677,7 +677,7 @@ static void nfp_net_tx_tso(struct nfp_net_r_vector *r_vec,
 	txbuf->real_len += hdrlen * (txbuf->pkt_cnt - 1);
 
 	mss = skb_shinfo(skb)->gso_size & PCIE_DESC_TX_MSS_MASK;
-	txd->l4_offset = hdrlen;
+	txd->lso_hdrlen = hdrlen;
 	txd->mss = cpu_to_le16(mss);
 	txd->flags |= PCIE_DESC_TX_LSO;
 
@@ -823,7 +823,7 @@ static int nfp_net_tx(struct sk_buff *skb, struct net_device *netdev)
 
 	txd->flags = 0;
 	txd->mss = 0;
-	txd->l4_offset = 0;
+	txd->lso_hdrlen = 0;
 
 	nfp_net_tx_tso(r_vec, txbuf, txd, skb);
 
@@ -1515,7 +1515,7 @@ nfp_net_tx_xdp_buf(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring,
 
 	txd->flags = 0;
 	txd->mss = 0;
-	txd->l4_offset = 0;
+	txd->lso_hdrlen = 0;
 
 	tx_ring->wr_p++;
 	tx_ring->wr_ptr_add++;

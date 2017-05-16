@@ -153,7 +153,7 @@ struct nfp_net_tx_desc {
 			__le32 dma_addr_lo; /* Low 32bit of host buf addr */
 
 			__le16 mss;	/* MSS to be used for LSO */
-			u8 l4_offset;	/* LSO, where the L4 data starts */
+			u8 lso_hdrlen;	/* LSO, TCP payload offset */
 			u8 flags;	/* TX Flags, see @PCIE_DESC_TX_* */
 
 			__le16 vlan;	/* VLAN tag to add if indicated */
