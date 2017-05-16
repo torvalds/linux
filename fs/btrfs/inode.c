@@ -8514,7 +8514,7 @@ static int btrfs_submit_direct_hook(struct btrfs_dio_private *dip,
 		 * This will never fail as it's passing GPF_NOFS and
 		 * the allocation is backed by btrfs_bioset.
 		 */
-		bio = btrfs_bio_clone_partial(orig_bio, GFP_NOFS, clone_offset,
+		bio = btrfs_bio_clone_partial(orig_bio, clone_offset,
 					      clone_len);
 		bio->bi_private = dip;
 		bio->bi_end_io = btrfs_end_dio_bio;

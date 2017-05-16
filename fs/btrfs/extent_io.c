@@ -2721,14 +2721,13 @@ struct bio *btrfs_io_bio_alloc(gfp_t gfp_mask, unsigned int nr_iovecs)
 	return bio;
 }
 
-struct bio *btrfs_bio_clone_partial(struct bio *orig, gfp_t gfp_mask,
-				    int offset, int size)
+struct bio *btrfs_bio_clone_partial(struct bio *orig, int offset, int size)
 {
 	struct bio *bio;
 	struct btrfs_io_bio *btrfs_bio;
 
 	/* this will never fail when it's backed by a bioset */
-	bio = bio_clone_fast(orig, gfp_mask, btrfs_bioset);
+	bio = bio_clone_fast(orig, GFP_NOFS, btrfs_bioset);
 	ASSERT(bio);
 
 	btrfs_bio = btrfs_io_bio(bio);
