@@ -822,6 +822,7 @@ void pstore_get_backend_records(struct pstore_info *psi,
 				struct dentry *root, int quiet)
 {
 	int failed = 0;
+	unsigned int stop_loop = 65536;
 
 	if (!psi || !root)
 		return;
@@ -835,7 +836,7 @@ void pstore_get_backend_records(struct pstore_info *psi,
 	 * may reallocate record.buf. On success, pstore_mkfile() will keep
 	 * the record.buf, so free it only on failure.
 	 */
-	for (;;) {
+	for (; stop_loop; stop_loop--) {
 		struct pstore_record *record;
 		int rc;
 
@@ -870,8 +871,11 @@ out:
 	mutex_unlock(&psi->read_mutex);
 
 	if (failed)
-		pr_warn("failed to load %d record(s) from '%s'\n",
+		pr_warn("failed to create %d record(s) from '%s'\n",
 			failed, psi->name);
+	if (!stop_loop)
+		pr_err("looping? Too many records seen from '%s'\n",
+			psi->name);
 }
 
 static void pstore_dowork(struct work_struct *work)
