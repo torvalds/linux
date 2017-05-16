@@ -32,6 +32,10 @@ Optional Properties:
   probing, low speeds or in case where all phases work at tuning time.
   If not specified 0 deg will be used.
 
+* rockchip,desired-num-phases: The desired number of times that the host
+  execute tuning when needed. If not specified, the host will do tuning
+  for 360 times, namely tuning for each degree.
+
 Example:
 
 	rkdwmmc0@12200000 {
