@@ -76,6 +76,11 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 		csa_ie->mode = elems->mesh_chansw_params_ie->mesh_flags;
 		csa_ie->pre_value = le16_to_cpu(
 				elems->mesh_chansw_params_ie->mesh_pre_value);
+
+		if (elems->mesh_chansw_params_ie->mesh_flags &
+				WLAN_EID_CHAN_SWITCH_PARAM_REASON)
+			csa_ie->reason_code = le16_to_cpu(
+				elems->mesh_chansw_params_ie->mesh_reason);
 	}
 
 	new_freq = ieee80211_channel_to_frequency(new_chan_no, new_band);

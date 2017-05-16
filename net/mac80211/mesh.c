@@ -916,6 +916,21 @@ void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 	ieee80211_configure_filter(local);
 }
 
+static void ieee80211_mesh_csa_mark_radar(struct ieee80211_sub_if_data *sdata)
+{
+	int err;
+
+	/* if the current channel is a DFS channel, mark the channel as
+	 * unavailable.
+	 */
+	err = cfg80211_chandef_dfs_required(sdata->local->hw.wiphy,
+					    &sdata->vif.bss_conf.chandef,
+					    NL80211_IFTYPE_MESH_POINT);
+	if (err > 0)
+		cfg80211_radar_event(sdata->local->hw.wiphy,
+				     &sdata->vif.bss_conf.chandef, GFP_ATOMIC);
+}
+
 static bool
 ieee80211_mesh_process_chnswitch(struct ieee80211_sub_if_data *sdata,
 				 struct ieee802_11_elems *elems, bool beacon)
@@ -953,6 +968,12 @@ ieee80211_mesh_process_chnswitch(struct ieee80211_sub_if_data *sdata,
 		return false;
 	if (err)
 		return false;
+
+	/* Mark the channel unavailable if the reason for the switch is
+	 * regulatory.
+	 */
+	if (csa_ie.reason_code == WLAN_REASON_MESH_CHAN_REGULATORY)
+		ieee80211_mesh_csa_mark_radar(sdata);
 
 	params.chandef = csa_ie.chandef;
 	params.count = csa_ie.count;
