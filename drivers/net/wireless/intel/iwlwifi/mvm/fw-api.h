@@ -1748,8 +1748,8 @@ enum iwl_mvm_marker_id {
  * @metadata: additional meta data that will be written to the unsiffer log
  */
 struct iwl_mvm_marker {
-	u8 dwLen;
-	u8 markerId;
+	u8 dw_len;
+	u8 marker_id;
 	__le16 reserved;
 	__le64 timestamp;
 	__le32 metadata[0];

@@ -164,7 +164,7 @@ struct iwl_proto_offload_cmd_v2 {
 	u8 solicited_node_ipv6_addr[16];
 	u8 target_ipv6_addr[IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V2][16];
 	u8 ndp_mac_addr[ETH_ALEN];
-	u8 numValidIPv6Addresses;
+	u8 num_valid_ipv6_addrs;
 	u8 reserved2[3];
 } __packed; /* PROT_OFFLOAD_CONFIG_CMD_DB_S_VER_2 */
 
