@@ -2532,10 +2532,10 @@ nvme_fc_delete_ctrl_work(struct work_struct *work)
 
 	/*
 	 * tear down the controller
-	 * This will result in the last reference on the nvme ctrl to
-	 * expire, calling the transport nvme_fc_nvme_ctrl_freed() callback.
-	 * From there, the transport will tear down it's logical queues and
-	 * association.
+	 * After the last reference on the nvme ctrl is removed,
+	 * the transport nvme_fc_nvme_ctrl_freed() callback will be
+	 * invoked. From there, the transport will tear down it's
+	 * logical queues and association.
 	 */
 	nvme_uninit_ctrl(&ctrl->ctrl);
 
