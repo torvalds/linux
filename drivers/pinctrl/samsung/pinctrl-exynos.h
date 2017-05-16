@@ -135,4 +135,12 @@ struct exynos_muxed_weint_data {
 	struct samsung_pin_bank *banks[];
 };
 
+int exynos_eint_gpio_init(struct samsung_pinctrl_drv_data *d);
+int exynos_eint_wkup_init(struct samsung_pinctrl_drv_data *d);
+void exynos_pinctrl_suspend(struct samsung_pinctrl_drv_data *drvdata);
+void exynos_pinctrl_resume(struct samsung_pinctrl_drv_data *drvdata);
+struct samsung_retention_ctrl *
+exynos_retention_init(struct samsung_pinctrl_drv_data *drvdata,
+		      const struct samsung_retention_data *data);
+
 #endif /* __PINCTRL_SAMSUNG_EXYNOS_H */

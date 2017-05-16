@@ -1183,7 +1183,7 @@ static int __maybe_unused samsung_pinctrl_resume(struct device *dev)
 }
 
 static const struct of_device_id samsung_pinctrl_dt_match[] = {
-#ifdef CONFIG_PINCTRL_EXYNOS
+#ifdef CONFIG_PINCTRL_EXYNOS_ARM
 	{ .compatible = "samsung,exynos3250-pinctrl",
 		.data = exynos3250_pin_ctrl },
 	{ .compatible = "samsung,exynos4210-pinctrl",
@@ -1198,10 +1198,12 @@ static const struct of_device_id samsung_pinctrl_dt_match[] = {
 		.data = exynos5410_pin_ctrl },
 	{ .compatible = "samsung,exynos5420-pinctrl",
 		.data = exynos5420_pin_ctrl },
-	{ .compatible = "samsung,exynos5433-pinctrl",
-		.data = exynos5433_pin_ctrl },
 	{ .compatible = "samsung,s5pv210-pinctrl",
 		.data = s5pv210_pin_ctrl },
+#endif
+#ifdef CONFIG_PINCTRL_EXYNOS_ARM64
+	{ .compatible = "samsung,exynos5433-pinctrl",
+		.data = exynos5433_pin_ctrl },
 	{ .compatible = "samsung,exynos7-pinctrl",
 		.data = exynos7_pin_ctrl },
 #endif
