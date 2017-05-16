@@ -110,33 +110,6 @@ static inline bool mlxsw_sp_fid_is_vfid(u16 fid)
 	return fid >= MLXSW_SP_VFID_BASE && fid < MLXSW_SP_DUMMY_FID;
 }
 
-#define MLXSW_SP_PREFIX_COUNT (sizeof(struct in6_addr) * BITS_PER_BYTE)
-
-struct mlxsw_sp_prefix_usage {
-	DECLARE_BITMAP(b, MLXSW_SP_PREFIX_COUNT);
-};
-
-enum mlxsw_sp_l3proto {
-	MLXSW_SP_L3_PROTO_IPV4,
-	MLXSW_SP_L3_PROTO_IPV6,
-};
-
-struct mlxsw_sp_lpm_tree {
-	u8 id; /* tree ID */
-	unsigned int ref_count;
-	enum mlxsw_sp_l3proto proto;
-	struct mlxsw_sp_prefix_usage prefix_usage;
-};
-
-struct mlxsw_sp_fib;
-
-struct mlxsw_sp_vr {
-	u16 id; /* virtual router ID */
-	u32 tb_id; /* kernel fib table id */
-	unsigned int rif_count;
-	struct mlxsw_sp_fib *fib4;
-};
-
 enum mlxsw_sp_span_type {
 	MLXSW_SP_SPAN_EGRESS,
 	MLXSW_SP_SPAN_INGRESS
@@ -175,26 +148,8 @@ struct mlxsw_sp_port_mall_tc_entry {
 	};
 };
 
-struct mlxsw_sp_router {
-	struct mlxsw_sp_vr *vrs;
-	struct rhashtable neigh_ht;
-	struct rhashtable nexthop_group_ht;
-	struct rhashtable nexthop_ht;
-	struct {
-		struct mlxsw_sp_lpm_tree *trees;
-		unsigned int tree_count;
-	} lpm;
-	struct {
-		struct delayed_work dw;
-		unsigned long interval;	/* ms */
-	} neighs_update;
-	struct delayed_work nexthop_probe_dw;
-#define MLXSW_SP_UNRESOLVED_NH_PROBE_INTERVAL 5000 /* ms */
-	struct list_head nexthop_neighs_list;
-	bool aborted;
-};
-
 struct mlxsw_sp_sb;
+struct mlxsw_sp_router;
 struct mlxsw_sp_acl;
 struct mlxsw_sp_counter_pool;
 
@@ -226,7 +181,7 @@ struct mlxsw_sp {
 	struct mlxsw_sp_upper *lags;
 	u8 *port_to_module;
 	struct mlxsw_sp_sb *sb;
-	struct mlxsw_sp_router router;
+	struct mlxsw_sp_router *router;
 	struct mlxsw_sp_acl *acl;
 	struct {
 		DECLARE_BITMAP(usage, MLXSW_SP_KVD_LINEAR_SIZE);
