@@ -437,8 +437,7 @@ static int ec_device_probe(struct platform_device *pdev)
 		cros_ec_sensors_register(ec);
 
 	/* Take control of the lightbar from the EC. */
-	if (ec_has_lightbar(ec))
-		lb_manual_suspend_ctrl(ec, 1);
+	lb_manual_suspend_ctrl(ec, 1);
 
 	return 0;
 
@@ -452,8 +451,7 @@ static int ec_device_remove(struct platform_device *pdev)
 	struct cros_ec_dev *ec = dev_get_drvdata(&pdev->dev);
 
 	/* Let the EC take over the lightbar again. */
-	if (ec_has_lightbar(ec))
-		lb_manual_suspend_ctrl(ec, 0);
+	lb_manual_suspend_ctrl(ec, 0);
 
 	cros_ec_debugfs_remove(ec);
 
@@ -472,8 +470,7 @@ static int ec_device_suspend(struct device *dev)
 {
 	struct cros_ec_dev *ec = dev_get_drvdata(dev);
 
-	if (ec_has_lightbar(ec))
-		lb_suspend(ec);
+	lb_suspend(ec);
 
 	return 0;
 }
@@ -482,8 +479,7 @@ static int ec_device_resume(struct device *dev)
 {
 	struct cros_ec_dev *ec = dev_get_drvdata(dev);
 
-	if (ec_has_lightbar(ec))
-		lb_resume(ec);
+	lb_resume(ec);
 
 	return 0;
 }
