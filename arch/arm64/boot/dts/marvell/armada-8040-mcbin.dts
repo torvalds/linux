@@ -95,6 +95,21 @@
 	status = "okay";
 };
 
+&ap_sdhci0 {
+	bus-width = <8>;
+	/*
+	 * Not stable in HS modes - phy needs "more calibration", so add
+	 * the "slow-mode" and disable SDR104, SDR50 and DDR50 modes.
+	 */
+	marvell,xenon-phy-slow-mode;
+	no-1-8-v;
+	no-sd;
+	no-sdio;
+	non-removable;
+	status = "okay";
+	vqmmc-supply = <&v_vddo_h>;
+};
+
 &cpm_i2c0 {
 	clock-frequency = <100000>;
 	status = "okay";
@@ -103,6 +118,14 @@
 &cpm_sata0 {
 	/* CPM Lane 0 - U29 */
 	status = "okay";
+};
+
+&cpm_sdhci0 {
+	/* U6 */
+	broken-cd;
+	bus-width = <4>;
+	status = "okay";
+	vqmmc-supply = <&v_3_3>;
 };
 
 &cpm_usb3_0 {
