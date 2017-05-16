@@ -75,13 +75,13 @@ static int rsi_sdio_master_access_msword(struct rsi_hw *adapter,
 static int rsi_copy_to_card(struct rsi_common *common,
 			    const u8 *fw,
 			    u32 len,
-			    u32 num_blocks)
+			    u16 num_blocks)
 {
 	struct rsi_hw *adapter = common->priv;
 	struct rsi_91x_sdiodev *dev =
 		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
 	u32 indx, ii;
-	u32 block_size = dev->tx_blk_size;
+	u16 block_size = dev->tx_blk_size;
 	u32 lsb_address;
 	__le32 data[] = { TA_HOLD_THREAD_VALUE, TA_SOFT_RST_CLR,
 			  TA_PC_ZERO, TA_RELEASE_THREAD_VALUE };
@@ -171,10 +171,10 @@ static int rsi_load_ta_instructions(struct rsi_common *common)
 	struct rsi_91x_sdiodev *dev =
 		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
 	u32 len;
-	u32 num_blocks;
+	u16 num_blocks;
 	const u8 *fw;
 	const struct firmware *fw_entry = NULL;
-	u32 block_size = dev->tx_blk_size;
+	u16 block_size = dev->tx_blk_size;
 	int status = 0;
 	u32 base_address;
 	u16 msb_address;

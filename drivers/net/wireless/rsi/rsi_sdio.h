@@ -110,7 +110,7 @@ struct rsi_91x_sdiodev {
 	u8 sdio_clock_speed;
 	u32 cardcapability;
 	u8 prev_desc[16];
-	u32 tx_blk_size;
+	u16 tx_blk_size;
 	u8 write_fail;
 };
 
@@ -122,7 +122,7 @@ int rsi_sdio_host_intf_read_pkt(struct rsi_hw *adapter, u8 *pkt, u32 length);
 int rsi_sdio_write_register(struct rsi_hw *adapter, u8 function,
 			    u32 addr, u8 *data);
 int rsi_sdio_write_register_multiple(struct rsi_hw *adapter, u32 addr,
-				     u8 *data, u32 count);
+				     u8 *data, u16 count);
 void rsi_sdio_ack_intr(struct rsi_hw *adapter, u8 int_bit);
 int rsi_sdio_determine_event_timeout(struct rsi_hw *adapter);
 int rsi_sdio_read_buffer_status_register(struct rsi_hw *adapter, u8 q_num);
