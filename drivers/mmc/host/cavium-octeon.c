@@ -267,7 +267,7 @@ static int octeon_mmc_probe(struct platform_device *pdev)
 	}
 
 	host->global_pwr_gpiod = devm_gpiod_get_optional(&pdev->dev,
-							 "power-gpios",
+							 "power",
 							 GPIOD_OUT_HIGH);
 	if (IS_ERR(host->global_pwr_gpiod)) {
 		dev_err(&pdev->dev, "Invalid power GPIO\n");
