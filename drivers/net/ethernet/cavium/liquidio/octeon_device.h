@@ -544,6 +544,14 @@ struct octeon_device {
 	u32 tx_max_coalesced_frames;
 
 	bool cores_crashed;
+
+	struct {
+		int bus;
+		int dev;
+		int func;
+	} loc;
+
+	atomic_t *adapter_refcount; /* reference count of adapter */
 };
 
 #define  OCT_DRV_ONLINE 1
@@ -571,6 +579,23 @@ void octeon_free_device_mem(struct octeon_device *oct);
  */
 struct octeon_device *octeon_allocate_device(u32 pci_id,
 					     u32 priv_size);
+
+/** Register a device's bus location at initialization time.
+ *  @param octeon_dev - pointer to the octeon device structure.
+ *  @param bus        - PCIe bus #
+ *  @param dev        - PCIe device #
+ *  @param func       - PCIe function #
+ *  @param is_pf      - TRUE for PF, FALSE for VF
+ *  @return reference count of device's adapter
+ */
+int octeon_register_device(struct octeon_device *oct,
+			   int bus, int dev, int func, int is_pf);
+
+/** Deregister a device at de-initialization time.
+ *  @param octeon_dev - pointer to the octeon device structure.
+ *  @return reference count of device's adapter
+ */
+int octeon_deregister_device(struct octeon_device *oct);
 
 /**  Initialize the driver's dispatch list which is a mix of a hash table
  *  and a linked list. This is done at driver load time.
