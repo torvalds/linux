@@ -595,6 +595,7 @@ struct iwl_mvm_tx_resp_v3 {
  * @ra_tid: bits [3:0] = ra, bits [7:4] = tid
  * @frame_ctrl: frame control
  * @tx_queue: TX queue for this response
+ * @reserved2: reserved for padding/alignment
  * @status: for non-agg:  frame status TX_STATUS_*
  *	For version 6 TX response isn't received for aggregation at all.
  *
