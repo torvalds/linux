@@ -5,6 +5,7 @@ cros_ec_devs-objs			:= cros_ec_dev.o cros_ec_sysfs.o \
 					   cros_ec_lightbar.o cros_ec_vbc.o \
 					   cros_ec_debugfs.o
 obj-$(CONFIG_CROS_EC_CHARDEV)		+= cros_ec_devs.o
-obj-$(CONFIG_CROS_EC_LPC)		+= cros_ec_lpc.o
+cros_ec_lpcs-objs			:= cros_ec_lpc.o cros_ec_lpc_reg.o
+obj-$(CONFIG_CROS_EC_LPC)		+= cros_ec_lpcs.o
 obj-$(CONFIG_CROS_EC_PROTO)		+= cros_ec_proto.o
 obj-$(CONFIG_CROS_KBD_LED_BACKLIGHT)	+= cros_kbd_led_backlight.o
