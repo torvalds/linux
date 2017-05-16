@@ -171,6 +171,7 @@ static struct dma_fence *amdgpu_job_run(struct amd_sched_job *sched_job)
 {
 	struct dma_fence *fence = NULL;
 	struct amdgpu_job *job;
+	struct amdgpu_fpriv *fpriv = NULL;
 	int r;
 
 	if (!sched_job) {
@@ -182,10 +183,16 @@ static struct dma_fence *amdgpu_job_run(struct amd_sched_job *sched_job)
 	BUG_ON(amdgpu_sync_peek_fence(&job->sync, NULL));
 
 	trace_amdgpu_sched_run_job(job);
-	r = amdgpu_ib_schedule(job->ring, job->num_ibs, job->ibs, job, &fence);
-	if (r)
-		DRM_ERROR("Error scheduling IBs (%d)\n", r);
-
+	if (job->vm)
+		fpriv = container_of(job->vm, struct amdgpu_fpriv, vm);
+	/* skip ib schedule when vram is lost */
+	if (fpriv && amdgpu_kms_vram_lost(job->adev, fpriv))
+		DRM_ERROR("Skip scheduling IBs!\n");
+	else {
+		r = amdgpu_ib_schedule(job->ring, job->num_ibs, job->ibs, job, &fence);
+		if (r)
+			DRM_ERROR("Error scheduling IBs (%d)\n", r);
+	}
 	/* if gpu reset, hw fence will be replaced here */
 	dma_fence_put(job->fence);
 	job->fence = dma_fence_get(fence);
