@@ -44,32 +44,49 @@
 #define FIQ_NUM_FOR_DCF		(143) /* NA irq map to fiq for dcf */
 #define DTS_PAR_OFFSET		(4096)
 
-struct init_params {
-	/* these parameters, not use in RK322xh */
+struct share_params {
 	u32 hz;
 	u32 lcdc_type;
 	u32 vop;
-	u32 addr_mcu_el3;
 	u32 vop_dclk_mode;
-	/* if need, add parameter after */
+	u32 sr_idle_en;
+	u32 addr_mcu_el3;
+	/*
+	 * 1: need to wait flag1
+	 * 0: never wait flag1
+	 */
+	u32 wait_flag1;
+	/*
+	 * 1: need to wait flag1
+	 * 0: never wait flag1
+	 */
+	u32 wait_flag0;
+	 /* if need, add parameter after */
 };
 
 char *rk3288_dts_timing[] = {
 	"ddr3_speed_bin",
 	"pd_idle",
 	"sr_idle",
+
 	"auto_pd_dis_freq",
 	"auto_sr_dis_freq",
+	/* for ddr3 only */
 	"ddr3_dll_dis_freq",
 	"phy_dll_dis_freq",
+
 	"ddr3_odt_dis_freq",
+	"phy_ddr3_odt_dis_freq",
 	"ddr3_drv",
 	"ddr3_odt",
 	"phy_ddr3_drv",
 	"phy_ddr3_odt",
+
 	"lpddr2_drv",
 	"phy_lpddr2_drv",
+
 	"lpddr3_odt_dis_freq",
+	"phy_lpddr3_odt_dis_freq",
 	"lpddr3_drv",
 	"lpddr3_odt",
 	"phy_lpddr3_drv",
@@ -88,6 +105,7 @@ struct rk3288_ddr_dts_config_timing {
 	unsigned int phy_dll_dis_freq;
 
 	unsigned int ddr3_odt_dis_freq;
+	unsigned int phy_ddr3_odt_dis_freq;
 	unsigned int ddr3_drv;
 	unsigned int ddr3_odt;
 	unsigned int phy_ddr3_drv;
@@ -95,7 +113,9 @@ struct rk3288_ddr_dts_config_timing {
 
 	unsigned int lpddr2_drv;
 	unsigned int phy_lpddr2_drv;
+
 	unsigned int lpddr3_odt_dis_freq;
+	unsigned int phy_lpddr3_odt_dis_freq;
 	unsigned int lpddr3_drv;
 	unsigned int lpddr3_odt;
 	unsigned int phy_lpddr3_drv;
@@ -422,11 +442,11 @@ static void of_get_rk3288_timings(struct device *dev,
 	struct device_node *np_tim;
 	u32 *p;
 	struct rk3288_ddr_dts_config_timing *dts_timing;
-	struct init_params *init_timing;
+	struct share_params *init_timing;
 	int ret = 0;
 	u32 i;
 
-	init_timing = (struct init_params *)timing;
+	init_timing = (struct share_params *)timing;
 
 	if (of_property_read_u32(np, "vop-dclk-mode",
 				 &init_timing->vop_dclk_mode))
@@ -569,7 +589,7 @@ static int rk3288_dmc_init(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct clk *pclk_phy, *pclk_upctl, *dmc_clk;
 	struct arm_smccc_res res;
-	struct init_params *init_param;
+	struct share_params *init_param;
 	struct drm_device *drm = drm_device_get_by_name("rockchip");
 	int ret;
 
@@ -639,7 +659,7 @@ static int rk3288_dmc_init(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	init_param = (struct init_params *)res.a1;
+	init_param = (struct share_params *)res.a1;
 	of_get_rk3288_timings(&pdev->dev, pdev->dev.of_node,
 			      (uint32_t *)init_param);
 
