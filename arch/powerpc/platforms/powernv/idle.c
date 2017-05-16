@@ -96,15 +96,24 @@ static void pnv_alloc_idle_core_states(void)
 	u32 *core_idle_state;
 
 	/*
-	 * core_idle_state - First 8 bits track the idle state of each thread
-	 * of the core. The 8th bit is the lock bit. Initially all thread bits
-	 * are set. They are cleared when the thread enters deep idle state
-	 * like sleep and winkle. Initially the lock bit is cleared.
-	 * The lock bit has 2 purposes
-	 * a. While the first thread is restoring core state, it prevents
-	 * other threads in the core from switching to process context.
-	 * b. While the last thread in the core is saving the core state, it
-	 * prevents a different thread from waking up.
+	 * core_idle_state - The lower 8 bits track the idle state of
+	 * each thread of the core.
+	 *
+	 * The most significant bit is the lock bit.
+	 *
+	 * Initially all the bits corresponding to threads_per_core
+	 * are set. They are cleared when the thread enters deep idle
+	 * state like sleep and winkle/stop.
+	 *
+	 * Initially the lock bit is cleared.  The lock bit has 2
+	 * purposes:
+	 * 	a. While the first thread in the core waking up from
+	 * 	   idle is restoring core state, it prevents other
+	 * 	   threads in the core from switching to process
+	 * 	   context.
+	 * 	b. While the last thread in the core is saving the
+	 *	   core state, it prevents a different thread from
+	 *	   waking up.
 	 */
 	for (i = 0; i < nr_cores; i++) {
 		int first_cpu = i * threads_per_core;
@@ -112,7 +121,7 @@ static void pnv_alloc_idle_core_states(void)
 		size_t paca_ptr_array_size;
 
 		core_idle_state = kmalloc_node(sizeof(u32), GFP_KERNEL, node);
-		*core_idle_state = PNV_CORE_IDLE_THREAD_BITS;
+		*core_idle_state = (1 << threads_per_core) - 1;
 		paca_ptr_array_size = (threads_per_core *
 				       sizeof(struct paca_struct *));
 
