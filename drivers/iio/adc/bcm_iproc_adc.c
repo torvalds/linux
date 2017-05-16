@@ -143,7 +143,7 @@ static void iproc_adc_reg_dump(struct iio_dev *indio_dev)
 	iproc_adc_dbg_reg(dev, adc_priv, IPROC_SOFT_BYPASS_DATA);
 }
 
-static irqreturn_t iproc_adc_interrupt_handler(int irq, void *data)
+static irqreturn_t iproc_adc_interrupt_thread(int irq, void *data)
 {
 	u32 channel_intr_status;
 	u32 intr_status;
@@ -167,7 +167,7 @@ static irqreturn_t iproc_adc_interrupt_handler(int irq, void *data)
 	return IRQ_NONE;
 }
 
-static irqreturn_t iproc_adc_interrupt_thread(int irq, void *data)
+static irqreturn_t iproc_adc_interrupt_handler(int irq, void *data)
 {
 	irqreturn_t retval = IRQ_NONE;
 	struct iproc_adc_priv *adc_priv;
@@ -181,7 +181,7 @@ static irqreturn_t iproc_adc_interrupt_thread(int irq, void *data)
 	adc_priv = iio_priv(indio_dev);
 
 	regmap_read(adc_priv->regmap, IPROC_INTERRUPT_STATUS, &intr_status);
-	dev_dbg(&indio_dev->dev, "iproc_adc_interrupt_thread(),INTRPT_STS:%x\n",
+	dev_dbg(&indio_dev->dev, "iproc_adc_interrupt_handler(),INTRPT_STS:%x\n",
 			intr_status);
 
 	intr_channels = (intr_status & IPROC_ADC_INTR_MASK) >> IPROC_ADC_INTR;
@@ -566,8 +566,8 @@ static int iproc_adc_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_request_threaded_irq(&pdev->dev, adc_priv->irqno,
-				iproc_adc_interrupt_thread,
 				iproc_adc_interrupt_handler,
+				iproc_adc_interrupt_thread,
 				IRQF_SHARED, "iproc-adc", indio_dev);
 	if (ret) {
 		dev_err(&pdev->dev, "request_irq error %d\n", ret);
