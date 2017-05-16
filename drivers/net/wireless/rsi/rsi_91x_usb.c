@@ -286,11 +286,11 @@ static int rsi_rx_urb_submit(struct rsi_hw *adapter)
 int rsi_usb_write_register_multiple(struct rsi_hw *adapter,
 				    u32 addr,
 				    u8 *data,
-				    u32 count)
+				    u16 count)
 {
 	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
 	u8 *buf;
-	u8 transfer;
+	u16 transfer;
 	int status = 0;
 
 	buf = kzalloc(RSI_USB_BUF_SIZE, GFP_KERNEL);
@@ -298,7 +298,7 @@ int rsi_usb_write_register_multiple(struct rsi_hw *adapter,
 		return -ENOMEM;
 
 	while (count) {
-		transfer = (u8)(min_t(u32, count, RSI_USB_BUF_SIZE));
+		transfer = min_t(u16, count, RSI_USB_BUF_SIZE);
 		memcpy(buf, data, transfer);
 		status = usb_control_msg(dev->usbdev,
 					 usb_sndctrlpipe(dev->usbdev, 0),

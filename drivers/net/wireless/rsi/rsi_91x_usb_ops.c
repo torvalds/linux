@@ -33,12 +33,12 @@
 static int rsi_copy_to_card(struct rsi_common *common,
 			    const u8 *fw,
 			    u32 len,
-			    u32 num_blocks)
+			    u16 num_blocks)
 {
 	struct rsi_hw *adapter = common->priv;
 	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
 	u32 indx, ii;
-	u32 block_size = dev->tx_blk_size;
+	u16 block_size = dev->tx_blk_size;
 	u32 lsb_address;
 	u32 base_address;
 
@@ -134,9 +134,10 @@ static int rsi_load_ta_instructions(struct rsi_common *common)
 	struct rsi_hw *adapter = common->priv;
 	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
 	const struct firmware *fw_entry = NULL;
-	u32 block_size = dev->tx_blk_size;
+	u16 block_size = dev->tx_blk_size;
 	const u8 *fw;
-	u32 num_blocks, len;
+	u16 num_blocks;
+	u32 len;
 	int status = 0;
 
 	status = request_firmware(&fw_entry, FIRMWARE_RSI9113, adapter->device);
