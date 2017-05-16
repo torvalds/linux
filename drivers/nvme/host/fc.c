@@ -1372,9 +1372,9 @@ done:
 	complete_rq = __nvme_fc_fcpop_chk_teardowns(ctrl, op);
 	if (!complete_rq) {
 		if (unlikely(op->flags & FCOP_FLAGS_TERMIO)) {
-			status = cpu_to_le16(NVME_SC_ABORT_REQ);
+			status = cpu_to_le16(NVME_SC_ABORT_REQ << 1);
 			if (blk_queue_dying(rq->q))
-				status |= cpu_to_le16(NVME_SC_DNR);
+				status |= cpu_to_le16(NVME_SC_DNR << 1);
 		}
 		nvme_end_request(rq, status, result);
 	} else
