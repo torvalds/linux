@@ -669,36 +669,23 @@ void dce120_timing_generator_enable_advanced_request(
 				mmCRTC0_CRTC_START_LINE_CONTROL,
 				tg110->offsets.crtc);
 
-
-	if (enable) {
-		set_reg_field_value(
-			value,
-			0,
-			CRTC0_CRTC_START_LINE_CONTROL,
-			CRTC_LEGACY_REQUESTOR_EN);
-	} else {
-		set_reg_field_value(
-			value,
-			1,
-			CRTC0_CRTC_START_LINE_CONTROL,
-			CRTC_LEGACY_REQUESTOR_EN);
-	}
+	set_reg_field_value(
+		value,
+		enable ? 0 : 1,
+		CRTC0_CRTC_START_LINE_CONTROL,
+		CRTC_LEGACY_REQUESTOR_EN);
 
 	/* Program advanced line position acc.to the best case from fetching data perspective to hide MC latency
 	 * and prefilling Line Buffer in V Blank (to 10 lines as LB can store max 10 lines)
 	 */
 	if (v_sync_width_and_b_porch > 10)
-		set_reg_field_value(
-			value,
-			10,
-			CRTC0_CRTC_START_LINE_CONTROL,
-			CRTC_ADVANCED_START_LINE_POSITION);
-	else
-		set_reg_field_value(
-			value,
-			v_sync_width_and_b_porch,
-			CRTC0_CRTC_START_LINE_CONTROL,
-			CRTC_ADVANCED_START_LINE_POSITION);
+		v_sync_width_and_b_porch = 10;
+
+	set_reg_field_value(
+		value,
+		v_sync_width_and_b_porch,
+		CRTC0_CRTC_START_LINE_CONTROL,
+		CRTC_ADVANCED_START_LINE_POSITION);
 
 	dm_write_reg_soc15(tg->ctx,
 			mmCRTC0_CRTC_START_LINE_CONTROL,
