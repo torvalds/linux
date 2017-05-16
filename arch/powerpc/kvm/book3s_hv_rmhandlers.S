@@ -1069,6 +1069,23 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	mr	r9, r4
 	bl	kvmppc_msr_interrupt
 5:
+BEGIN_FTR_SECTION
+	b	fast_guest_return
+END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
+	/* On POWER9, check for pending doorbell requests */
+	lbz	r0, VCPU_DBELL_REQ(r4)
+	cmpwi	r0, 0
+	beq	fast_guest_return
+	ld	r5, HSTATE_KVM_VCORE(r13)
+	/* Set DPDES register so the CPU will take a doorbell interrupt */
+	li	r0, 1
+	mtspr	SPRN_DPDES, r0
+	std	r0, VCORE_DPDES(r5)
+	/* Make sure other cpus see vcore->dpdes set before dbell req clear */
+	lwsync
+	/* Clear the pending doorbell request */
+	li	r0, 0
+	stb	r0, VCPU_DBELL_REQ(r4)
 
 /*
  * Required state:
