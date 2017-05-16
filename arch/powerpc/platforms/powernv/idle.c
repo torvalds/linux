@@ -30,7 +30,32 @@
 /* Power ISA 3.0 allows for stop states 0x0 - 0xF */
 #define MAX_STOP_STATE	0xF
 
+#define P9_STOP_SPR_MSR 2000
+#define P9_STOP_SPR_PSSCR      855
+
 static u32 supported_cpuidle_states;
+
+/*
+ * The default stop state that will be used by ppc_md.power_save
+ * function on platforms that support stop instruction.
+ */
+static u64 pnv_default_stop_val;
+static u64 pnv_default_stop_mask;
+static bool default_stop_found;
+
+/*
+ * First deep stop state. Used to figure out when to save/restore
+ * hypervisor context.
+ */
+u64 pnv_first_deep_stop_state = MAX_STOP_STATE;
+
+/*
+ * psscr value and mask of the deepest stop idle state.
+ * Used when a cpu is offlined.
+ */
+static u64 pnv_deepest_stop_psscr_val;
+static u64 pnv_deepest_stop_psscr_mask;
+static bool deepest_stop_found;
 
 static int pnv_save_sprs_for_deep_states(void)
 {
@@ -48,6 +73,8 @@ static int pnv_save_sprs_for_deep_states(void)
 	uint64_t hid4_val = mfspr(SPRN_HID4);
 	uint64_t hid5_val = mfspr(SPRN_HID5);
 	uint64_t hmeer_val = mfspr(SPRN_HMEER);
+	uint64_t msr_val = MSR_IDLE;
+	uint64_t psscr_val = pnv_deepest_stop_psscr_val;
 
 	for_each_possible_cpu(cpu) {
 		uint64_t pir = get_hard_smp_processor_id(cpu);
@@ -61,6 +88,18 @@ static int pnv_save_sprs_for_deep_states(void)
 		if (rc != 0)
 			return rc;
 
+		if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+			rc = opal_slw_set_reg(pir, P9_STOP_SPR_MSR, msr_val);
+			if (rc)
+				return rc;
+
+			rc = opal_slw_set_reg(pir,
+					      P9_STOP_SPR_PSSCR, psscr_val);
+
+			if (rc)
+				return rc;
+		}
+
 		/* HIDs are per core registers */
 		if (cpu_thread_in_core(cpu) == 0) {
 
@@ -72,17 +111,21 @@ static int pnv_save_sprs_for_deep_states(void)
 			if (rc != 0)
 				return rc;
 
-			rc = opal_slw_set_reg(pir, SPRN_HID1, hid1_val);
-			if (rc != 0)
-				return rc;
+			/* Only p8 needs to set extra HID regiters */
+			if (!cpu_has_feature(CPU_FTR_ARCH_300)) {
 
-			rc = opal_slw_set_reg(pir, SPRN_HID4, hid4_val);
-			if (rc != 0)
-				return rc;
+				rc = opal_slw_set_reg(pir, SPRN_HID1, hid1_val);
+				if (rc != 0)
+					return rc;
 
-			rc = opal_slw_set_reg(pir, SPRN_HID5, hid5_val);
-			if (rc != 0)
-				return rc;
+				rc = opal_slw_set_reg(pir, SPRN_HID4, hid4_val);
+				if (rc != 0)
+					return rc;
+
+				rc = opal_slw_set_reg(pir, SPRN_HID5, hid5_val);
+				if (rc != 0)
+					return rc;
+			}
 		}
 	}
 
@@ -241,34 +284,12 @@ static DEVICE_ATTR(fastsleep_workaround_applyonce, 0600,
 			store_fastsleep_workaround_applyonce);
 
 /*
- * The default stop state that will be used by ppc_md.power_save
- * function on platforms that support stop instruction.
- */
-static u64 pnv_default_stop_val;
-static u64 pnv_default_stop_mask;
-static bool default_stop_found;
-
-/*
  * Used for ppc_md.power_save which needs a function with no parameters
  */
 static void power9_idle(void)
 {
 	power9_idle_stop(pnv_default_stop_val, pnv_default_stop_mask);
 }
-
-/*
- * First deep stop state. Used to figure out when to save/restore
- * hypervisor context.
- */
-u64 pnv_first_deep_stop_state = MAX_STOP_STATE;
-
-/*
- * psscr value and mask of the deepest stop idle state.
- * Used when a cpu is offlined.
- */
-static u64 pnv_deepest_stop_psscr_val;
-static u64 pnv_deepest_stop_psscr_mask;
-static bool deepest_stop_found;
 
 #ifdef CONFIG_HOTPLUG_CPU
 /*
