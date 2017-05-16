@@ -2201,17 +2201,15 @@ static int nfp_net_set_config_and_enable(struct nfp_net *nn)
 
 	new_ctrl = nn->dp.ctrl;
 
-	if (nn->cap & NFP_NET_CFG_CTRL_RSS) {
+	if (nn->dp.ctrl & NFP_NET_CFG_CTRL_RSS) {
 		nfp_net_rss_write_key(nn);
 		nfp_net_rss_write_itbl(nn);
 		nn_writel(nn, NFP_NET_CFG_RSS_CTRL, nn->rss_cfg);
 		update |= NFP_NET_CFG_UPDATE_RSS;
 	}
 
-	if (nn->cap & NFP_NET_CFG_CTRL_IRQMOD) {
+	if (nn->dp.ctrl & NFP_NET_CFG_CTRL_IRQMOD) {
 		nfp_net_coalesce_write_cfg(nn);
-
-		new_ctrl |= NFP_NET_CFG_CTRL_IRQMOD;
 		update |= NFP_NET_CFG_UPDATE_IRQMOD;
 	}
 
