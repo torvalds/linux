@@ -78,6 +78,7 @@ struct mlxsw_sp_router {
 #define MLXSW_SP_UNRESOLVED_NH_PROBE_INTERVAL 5000 /* ms */
 	struct list_head nexthop_neighs_list;
 	bool aborted;
+	struct notifier_block fib_nb;
 };
 
 struct mlxsw_sp_rif {
@@ -2797,9 +2798,9 @@ static void mlxsw_sp_router_fib_event_work(struct work_struct *work)
 static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
 				     unsigned long event, void *ptr)
 {
-	struct mlxsw_sp *mlxsw_sp = container_of(nb, struct mlxsw_sp, fib_nb);
 	struct mlxsw_sp_fib_event_work *fib_work;
 	struct fib_notifier_info *info = ptr;
+	struct mlxsw_sp_router *router;
 
 	if (!net_eq(info->net, &init_net))
 		return NOTIFY_DONE;
@@ -2809,7 +2810,8 @@ static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
 		return NOTIFY_BAD;
 
 	INIT_WORK(&fib_work->work, mlxsw_sp_router_fib_event_work);
-	fib_work->mlxsw_sp = mlxsw_sp;
+	router = container_of(nb, struct mlxsw_sp_router, fib_nb);
+	fib_work->mlxsw_sp = router->mlxsw_sp;
 	fib_work->event = event;
 
 	switch (event) {
@@ -3550,14 +3552,15 @@ int mlxsw_sp_netdevice_vrf_event(struct net_device *l3_dev, unsigned long event,
 
 static void mlxsw_sp_router_fib_dump_flush(struct notifier_block *nb)
 {
-	struct mlxsw_sp *mlxsw_sp = container_of(nb, struct mlxsw_sp, fib_nb);
+	struct mlxsw_sp_router *router;
 
 	/* Flush pending FIB notifications and then flush the device's
 	 * table before requesting another dump. The FIB notification
 	 * block is unregistered, so no need to take RTNL.
 	 */
 	mlxsw_core_flush_owq();
-	mlxsw_sp_router_fib_flush(mlxsw_sp);
+	router = container_of(nb, struct mlxsw_sp_router, fib_nb);
+	mlxsw_sp_router_fib_flush(router->mlxsw_sp);
 }
 
 static int __mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
@@ -3641,8 +3644,8 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		goto err_neigh_init;
 
-	mlxsw_sp->fib_nb.notifier_call = mlxsw_sp_router_fib_event;
-	err = register_fib_notifier(&mlxsw_sp->fib_nb,
+	mlxsw_sp->router->fib_nb.notifier_call = mlxsw_sp_router_fib_event;
+	err = register_fib_notifier(&mlxsw_sp->router->fib_nb,
 				    mlxsw_sp_router_fib_dump_flush);
 	if (err)
 		goto err_register_fib_notifier;
@@ -3668,7 +3671,7 @@ err_router_init:
 
 void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 {
-	unregister_fib_notifier(&mlxsw_sp->fib_nb);
+	unregister_fib_notifier(&mlxsw_sp->router->fib_nb);
 	mlxsw_sp_neigh_fini(mlxsw_sp);
 	mlxsw_sp_vrs_fini(mlxsw_sp);
 	mlxsw_sp_lpm_fini(mlxsw_sp);

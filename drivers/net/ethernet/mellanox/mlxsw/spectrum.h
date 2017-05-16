@@ -179,7 +179,6 @@ struct mlxsw_sp {
 		struct mlxsw_sp_span_entry *entries;
 		int entries_count;
 	} span;
-	struct notifier_block fib_nb;
 };
 
 static inline struct mlxsw_sp_upper *
