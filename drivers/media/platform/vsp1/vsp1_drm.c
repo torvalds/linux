@@ -12,6 +12,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/dma-mapping.h>
 #include <linux/slab.h>
 
 #include <media/media-entity.h>
@@ -539,6 +540,29 @@ void vsp1_du_atomic_flush(struct device *dev)
 	}
 }
 EXPORT_SYMBOL_GPL(vsp1_du_atomic_flush);
+
+int vsp1_du_map_sg(struct device *dev, struct sg_table *sgt)
+{
+	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
+
+	/*
+	 * As all the buffers allocated by the DU driver are coherent, we can
+	 * skip cache sync. This will need to be revisited when support for
+	 * non-coherent buffers will be added to the DU driver.
+	 */
+	return dma_map_sg_attrs(vsp1->bus_master, sgt->sgl, sgt->nents,
+				DMA_TO_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
+}
+EXPORT_SYMBOL_GPL(vsp1_du_map_sg);
+
+void vsp1_du_unmap_sg(struct device *dev, struct sg_table *sgt)
+{
+	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
+
+	dma_unmap_sg_attrs(vsp1->bus_master, sgt->sgl, sgt->nents,
+			   DMA_TO_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
+}
+EXPORT_SYMBOL_GPL(vsp1_du_unmap_sg);
 
 /* -----------------------------------------------------------------------------
  * Initialization
