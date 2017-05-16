@@ -1001,26 +1001,29 @@ static void nfp_net_tx_complete(struct nfp_net_tx_ring *tx_ring)
 		  tx_ring->rd_p, tx_ring->wr_p, tx_ring->cnt);
 }
 
-static void nfp_net_xdp_complete(struct nfp_net_tx_ring *tx_ring)
+static bool nfp_net_xdp_complete(struct nfp_net_tx_ring *tx_ring)
 {
 	struct nfp_net_r_vector *r_vec = tx_ring->r_vec;
 	u32 done_pkts = 0, done_bytes = 0;
+	bool done_all;
 	int idx, todo;
 	u32 qcp_rd_p;
-
-	if (tx_ring->wr_p == tx_ring->rd_p)
-		return;
 
 	/* Work out how many descriptors have been transmitted */
 	qcp_rd_p = nfp_qcp_rd_ptr_read(tx_ring->qcp_q);
 
 	if (qcp_rd_p == tx_ring->qcp_rd_p)
-		return;
+		return true;
 
 	if (qcp_rd_p > tx_ring->qcp_rd_p)
 		todo = qcp_rd_p - tx_ring->qcp_rd_p;
 	else
 		todo = qcp_rd_p + tx_ring->cnt - tx_ring->qcp_rd_p;
+
+	done_all = todo <= NFP_NET_XDP_MAX_COMPLETE;
+	todo = min(todo, NFP_NET_XDP_MAX_COMPLETE);
+
+	tx_ring->qcp_rd_p = (tx_ring->qcp_rd_p + todo) & (tx_ring->cnt - 1);
 
 	done_pkts = todo;
 	while (todo--) {
@@ -1030,16 +1033,16 @@ static void nfp_net_xdp_complete(struct nfp_net_tx_ring *tx_ring)
 		done_bytes += tx_ring->txbufs[idx].real_len;
 	}
 
-	tx_ring->qcp_rd_p = qcp_rd_p;
-
 	u64_stats_update_begin(&r_vec->tx_sync);
 	r_vec->tx_bytes += done_bytes;
 	r_vec->tx_pkts += done_pkts;
 	u64_stats_update_end(&r_vec->tx_sync);
 
 	WARN_ONCE(tx_ring->wr_p - tx_ring->rd_p > tx_ring->cnt,
-		  "TX ring corruption rd_p=%u wr_p=%u cnt=%u\n",
+		  "XDP TX ring corruption rd_p=%u wr_p=%u cnt=%u\n",
 		  tx_ring->rd_p, tx_ring->wr_p, tx_ring->cnt);
+
+	return done_all;
 }
 
 /**
@@ -1500,15 +1503,23 @@ static bool
 nfp_net_tx_xdp_buf(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring,
 		   struct nfp_net_tx_ring *tx_ring,
 		   struct nfp_net_rx_buf *rxbuf, unsigned int dma_off,
-		   unsigned int pkt_len)
+		   unsigned int pkt_len, bool *completed)
 {
 	struct nfp_net_tx_buf *txbuf;
 	struct nfp_net_tx_desc *txd;
 	int wr_idx;
 
 	if (unlikely(nfp_net_tx_full(tx_ring, 1))) {
-		nfp_net_rx_drop(dp, rx_ring->r_vec, rx_ring, rxbuf, NULL);
-		return false;
+		if (!*completed) {
+			nfp_net_xdp_complete(tx_ring);
+			*completed = true;
+		}
+
+		if (unlikely(nfp_net_tx_full(tx_ring, 1))) {
+			nfp_net_rx_drop(dp, rx_ring->r_vec, rx_ring, rxbuf,
+					NULL);
+			return false;
+		}
 	}
 
 	wr_idx = tx_ring->wr_p & (tx_ring->cnt - 1);
@@ -1580,6 +1591,7 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 	struct nfp_net_dp *dp = &r_vec->nfp_net->dp;
 	struct nfp_net_tx_ring *tx_ring;
 	struct bpf_prog *xdp_prog;
+	bool xdp_tx_cmpl = false;
 	unsigned int true_bufsz;
 	struct sk_buff *skb;
 	int pkts_polled = 0;
@@ -1690,7 +1702,8 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 				if (unlikely(!nfp_net_tx_xdp_buf(dp, rx_ring,
 								 tx_ring, rxbuf,
 								 dma_off,
-								 pkt_len)))
+								 pkt_len,
+								 &xdp_tx_cmpl)))
 					trace_xdp_exception(dp->netdev,
 							    xdp_prog, act);
 				continue;
@@ -1738,8 +1751,14 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 		napi_gro_receive(&rx_ring->r_vec->napi, skb);
 	}
 
-	if (xdp_prog && tx_ring->wr_ptr_add)
-		nfp_net_tx_xmit_more_flush(tx_ring);
+	if (xdp_prog) {
+		if (tx_ring->wr_ptr_add)
+			nfp_net_tx_xmit_more_flush(tx_ring);
+		else if (unlikely(tx_ring->wr_p != tx_ring->rd_p) &&
+			 !xdp_tx_cmpl)
+			if (!nfp_net_xdp_complete(tx_ring))
+				pkts_polled = budget;
+	}
 	rcu_read_unlock();
 
 	return pkts_polled;
@@ -1760,11 +1779,8 @@ static int nfp_net_poll(struct napi_struct *napi, int budget)
 
 	if (r_vec->tx_ring)
 		nfp_net_tx_complete(r_vec->tx_ring);
-	if (r_vec->rx_ring) {
+	if (r_vec->rx_ring)
 		pkts_polled = nfp_net_rx(r_vec->rx_ring, budget);
-		if (r_vec->xdp_ring)
-			nfp_net_xdp_complete(r_vec->xdp_ring);
-	}
 
 	if (pkts_polled < budget)
 		if (napi_complete_done(napi, pkts_polled))

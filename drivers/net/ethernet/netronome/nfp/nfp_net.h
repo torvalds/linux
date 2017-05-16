@@ -102,6 +102,7 @@
 #define NFP_NET_RX_DESCS_DEFAULT 4096	/* Default # of Rx descs per ring */
 
 #define NFP_NET_FL_BATCH	16	/* Add freelist in this Batch size */
+#define NFP_NET_XDP_MAX_COMPLETE 2048	/* XDP bufs to reclaim in NAPI poll */
 
 /* Offload definitions */
 #define NFP_NET_N_VXLAN_PORTS	(NFP_NET_CFG_VXLAN_SZ / sizeof(__be16))
