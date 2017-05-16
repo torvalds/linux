@@ -676,8 +676,6 @@ static int rsi_init_sdio_interface(struct rsi_hw *adapter,
 	}
 	sdio_release_host(pfunction);
 
-	adapter->host_intf_write_pkt = rsi_sdio_host_intf_write_pkt;
-	adapter->host_intf_read_pkt = rsi_sdio_host_intf_read_pkt;
 	adapter->determine_event_timeout = rsi_sdio_determine_event_timeout;
 	adapter->check_hw_queue_status = rsi_sdio_read_buffer_status_register;
 
@@ -690,6 +688,13 @@ fail:
 	sdio_release_host(pfunction);
 	return status;
 }
+
+static struct rsi_host_intf_ops sdio_host_intf_ops = {
+	.write_pkt		= rsi_sdio_host_intf_write_pkt,
+	.read_pkt		= rsi_sdio_host_intf_read_pkt,
+	.read_reg_multiple	= rsi_sdio_read_register_multiple,
+	.write_reg_multiple	= rsi_sdio_write_register_multiple,
+};
 
 /**
  * rsi_probe() - This function is called by kernel when the driver provided
@@ -713,6 +718,8 @@ static int rsi_probe(struct sdio_func *pfunction,
 			__func__);
 		return 1;
 	}
+	adapter->rsi_host_intf = RSI_HOST_INTF_SDIO;
+	adapter->host_intf_ops = &sdio_host_intf_ops;
 
 	if (rsi_init_sdio_interface(adapter, pfunction)) {
 		rsi_dbg(ERR_ZONE, "%s: Failed to init sdio interface\n",

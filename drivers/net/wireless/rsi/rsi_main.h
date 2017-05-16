@@ -209,6 +209,11 @@ struct rsi_common {
 	u8 ant_in_use;
 };
 
+enum host_intf {
+	RSI_HOST_INTF_SDIO = 0,
+	RSI_HOST_INTF_USB
+};
+
 struct rsi_hw {
 	struct rsi_common *priv;
 	struct ieee80211_hw *hw;
@@ -219,16 +224,25 @@ struct rsi_hw {
 	struct device *device;
 	u8 sc_nvifs;
 
+	enum host_intf rsi_host_intf;
 #ifdef CONFIG_RSI_DEBUGFS
 	struct rsi_debugfs *dfsentry;
 	u8 num_debugfs_entries;
 #endif
 	u8 dfs_region;
 	void *rsi_dev;
-	int (*host_intf_read_pkt)(struct rsi_hw *adapter, u8 *pkt, u32 len);
-	int (*host_intf_write_pkt)(struct rsi_hw *adapter, u8 *pkt, u32 len);
+	struct rsi_host_intf_ops *host_intf_ops;
 	int (*check_hw_queue_status)(struct rsi_hw *adapter, u8 q_num);
 	int (*rx_urb_submit)(struct rsi_hw *adapter);
 	int (*determine_event_timeout)(struct rsi_hw *adapter);
+};
+
+struct rsi_host_intf_ops {
+	int (*read_pkt)(struct rsi_hw *adapter, u8 *pkt, u32 len);
+	int (*write_pkt)(struct rsi_hw *adapter, u8 *pkt, u32 len);
+	int (*read_reg_multiple)(struct rsi_hw *adapter, u32 addr,
+				 u8 *data, u16 count);
+	int (*write_reg_multiple)(struct rsi_hw *adapter, u32 addr,
+				  u8 *data, u16 count);
 };
 #endif

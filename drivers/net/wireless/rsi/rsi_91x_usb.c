@@ -392,6 +392,12 @@ static int rsi_usb_host_intf_write_pkt(struct rsi_hw *adapter,
 				  len);
 }
 
+static struct rsi_host_intf_ops usb_host_intf_ops = {
+	.write_pkt		= rsi_usb_host_intf_write_pkt,
+	.read_reg_multiple	= rsi_usb_read_register_multiple,
+	.write_reg_multiple	= rsi_usb_write_register_multiple,
+};
+
 /**
  * rsi_deinit_usb_interface() - This function deinitializes the usb interface.
  * @adapter: Pointer to the adapter structure.
@@ -457,9 +463,10 @@ static int rsi_init_usb_interface(struct rsi_hw *adapter,
 
 	/* Initializing function callbacks */
 	adapter->rx_urb_submit = rsi_rx_urb_submit;
-	adapter->host_intf_write_pkt = rsi_usb_host_intf_write_pkt;
 	adapter->check_hw_queue_status = rsi_usb_check_queue_status;
 	adapter->determine_event_timeout = rsi_usb_event_timeout;
+	adapter->rsi_host_intf = RSI_HOST_INTF_USB;
+	adapter->host_intf_ops = &usb_host_intf_ops;
 
 	rsi_init_event(&rsi_dev->rx_thread.event);
 	status = rsi_create_kthread(common, &rsi_dev->rx_thread,

@@ -100,9 +100,8 @@ int rsi_send_data_pkt(struct rsi_common *common, struct sk_buff *skb)
 				    (skb->priority & 0xf) |
 				    (tx_params->sta_id << 8));
 
-	status = adapter->host_intf_write_pkt(common->priv,
-					      skb->data,
-					      skb->len);
+	status = adapter->host_intf_ops->write_pkt(common->priv, skb->data,
+						   skb->len);
 	if (status)
 		rsi_dbg(ERR_ZONE, "%s: Failed to write pkt\n",
 			__func__);
@@ -148,9 +147,9 @@ int rsi_send_mgmt_pkt(struct rsi_common *common,
 		}
 		skb_push(skb, extnd_size);
 		skb->data[extnd_size + 4] = extnd_size;
-		status = adapter->host_intf_write_pkt(common->priv,
-						      (u8 *)skb->data,
-						      skb->len);
+		status = adapter->host_intf_ops->write_pkt(common->priv,
+							   (u8 *)skb->data,
+							   skb->len);
 		if (status) {
 			rsi_dbg(ERR_ZONE,
 				"%s: Failed to write the packet\n", __func__);
@@ -203,9 +202,8 @@ int rsi_send_mgmt_pkt(struct rsi_common *common,
 
 	msg[7] |= cpu_to_le16(vap_id << 8);
 
-	status = adapter->host_intf_write_pkt(common->priv,
-					      (u8 *)msg,
-					      skb->len);
+	status = adapter->host_intf_ops->write_pkt(common->priv, (u8 *)msg,
+						   skb->len);
 	if (status)
 		rsi_dbg(ERR_ZONE, "%s: Failed to write the packet\n", __func__);
 
