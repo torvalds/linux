@@ -809,7 +809,7 @@ static int nfp_net_tx(struct sk_buff *skb, struct net_device *netdev)
 	if (dma_mapping_error(dp->dev, dma_addr))
 		goto err_free;
 
-	wr_idx = tx_ring->wr_p & (tx_ring->cnt - 1);
+	wr_idx = D_IDX(tx_ring, tx_ring->wr_p);
 
 	/* Stash the soft descriptor of the head then initialize it */
 	txbuf = &tx_ring->txbufs[wr_idx];
@@ -852,7 +852,7 @@ static int nfp_net_tx(struct sk_buff *skb, struct net_device *netdev)
 			if (dma_mapping_error(dp->dev, dma_addr))
 				goto err_unmap;
 
-			wr_idx = (wr_idx + 1) & (tx_ring->cnt - 1);
+			wr_idx = D_IDX(tx_ring, wr_idx + 1);
 			tx_ring->txbufs[wr_idx].skb = skb;
 			tx_ring->txbufs[wr_idx].dma_addr = dma_addr;
 			tx_ring->txbufs[wr_idx].fidx = f;
@@ -946,8 +946,7 @@ static void nfp_net_tx_complete(struct nfp_net_tx_ring *tx_ring)
 		todo = qcp_rd_p + tx_ring->cnt - tx_ring->qcp_rd_p;
 
 	while (todo--) {
-		idx = tx_ring->rd_p & (tx_ring->cnt - 1);
-		tx_ring->rd_p++;
+		idx = D_IDX(tx_ring, tx_ring->rd_p++);
 
 		skb = tx_ring->txbufs[idx].skb;
 		if (!skb)
@@ -1023,11 +1022,11 @@ static bool nfp_net_xdp_complete(struct nfp_net_tx_ring *tx_ring)
 	done_all = todo <= NFP_NET_XDP_MAX_COMPLETE;
 	todo = min(todo, NFP_NET_XDP_MAX_COMPLETE);
 
-	tx_ring->qcp_rd_p = (tx_ring->qcp_rd_p + todo) & (tx_ring->cnt - 1);
+	tx_ring->qcp_rd_p = D_IDX(tx_ring, tx_ring->qcp_rd_p + todo);
 
 	done_pkts = todo;
 	while (todo--) {
-		idx = tx_ring->rd_p & (tx_ring->cnt - 1);
+		idx = D_IDX(tx_ring, tx_ring->rd_p);
 		tx_ring->rd_p++;
 
 		done_bytes += tx_ring->txbufs[idx].real_len;
@@ -1063,7 +1062,7 @@ nfp_net_tx_ring_reset(struct nfp_net_dp *dp, struct nfp_net_tx_ring *tx_ring)
 		struct sk_buff *skb;
 		int idx, nr_frags;
 
-		idx = tx_ring->rd_p & (tx_ring->cnt - 1);
+		idx = D_IDX(tx_ring, tx_ring->rd_p);
 		tx_buf = &tx_ring->txbufs[idx];
 
 		skb = tx_ring->txbufs[idx].skb;
@@ -1216,7 +1215,7 @@ static void nfp_net_rx_give_one(const struct nfp_net_dp *dp,
 {
 	unsigned int wr_idx;
 
-	wr_idx = rx_ring->wr_p & (rx_ring->cnt - 1);
+	wr_idx = D_IDX(rx_ring, rx_ring->wr_p);
 
 	nfp_net_dma_sync_dev_rx(dp, dma_addr);
 
@@ -1254,7 +1253,7 @@ static void nfp_net_rx_ring_reset(struct nfp_net_rx_ring *rx_ring)
 	unsigned int wr_idx, last_idx;
 
 	/* Move the empty entry to the end of the list */
-	wr_idx = rx_ring->wr_p & (rx_ring->cnt - 1);
+	wr_idx = D_IDX(rx_ring, rx_ring->wr_p);
 	last_idx = rx_ring->cnt - 1;
 	rx_ring->rxbufs[wr_idx].dma_addr = rx_ring->rxbufs[last_idx].dma_addr;
 	rx_ring->rxbufs[wr_idx].frag = rx_ring->rxbufs[last_idx].frag;
@@ -1522,7 +1521,7 @@ nfp_net_tx_xdp_buf(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring,
 		}
 	}
 
-	wr_idx = tx_ring->wr_p & (tx_ring->cnt - 1);
+	wr_idx = D_IDX(tx_ring, tx_ring->wr_p);
 
 	/* Stash the soft descriptor of the head then initialize it */
 	txbuf = &tx_ring->txbufs[wr_idx];
@@ -1610,7 +1609,7 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 		dma_addr_t new_dma_addr;
 		void *new_frag;
 
-		idx = rx_ring->rd_p & (rx_ring->cnt - 1);
+		idx = D_IDX(rx_ring, rx_ring->rd_p);
 
 		rxd = &rx_ring->rxds[idx];
 		if (!(rxd->rxd.meta_len_dd & PCIE_DESC_RX_DD))

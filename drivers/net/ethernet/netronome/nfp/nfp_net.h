@@ -117,6 +117,9 @@ struct nfp_eth_table_port;
 struct nfp_net;
 struct nfp_net_r_vector;
 
+/* Convenience macro for wrapping descriptor index on ring size */
+#define D_IDX(ring, idx)	((idx) & ((ring)->cnt - 1))
+
 /* Convenience macro for writing dma address into RX/TX descriptors */
 #define nfp_desc_set_dma_addr(desc, dma_addr)				\
 	do {								\
