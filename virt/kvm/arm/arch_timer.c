@@ -226,7 +226,8 @@ static void kvm_timer_update_irq(struct kvm_vcpu *vcpu, bool new_level,
 	if (likely(irqchip_in_kernel(vcpu->kvm))) {
 		ret = kvm_vgic_inject_irq(vcpu->kvm, vcpu->vcpu_id,
 					  timer_ctx->irq.irq,
-					  timer_ctx->irq.level);
+					  timer_ctx->irq.level,
+					  timer_ctx);
 		WARN_ON(ret);
 	}
 }

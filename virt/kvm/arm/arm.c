@@ -832,7 +832,7 @@ int kvm_vm_ioctl_irq_line(struct kvm *kvm, struct kvm_irq_level *irq_level,
 		if (irq_num < VGIC_NR_SGIS || irq_num >= VGIC_NR_PRIVATE_IRQS)
 			return -EINVAL;
 
-		return kvm_vgic_inject_irq(kvm, vcpu->vcpu_id, irq_num, level);
+		return kvm_vgic_inject_irq(kvm, vcpu->vcpu_id, irq_num, level, NULL);
 	case KVM_ARM_IRQ_TYPE_SPI:
 		if (!irqchip_in_kernel(kvm))
 			return -ENXIO;
@@ -840,7 +840,7 @@ int kvm_vm_ioctl_irq_line(struct kvm *kvm, struct kvm_irq_level *irq_level,
 		if (irq_num < VGIC_NR_PRIVATE_IRQS)
 			return -EINVAL;
 
-		return kvm_vgic_inject_irq(kvm, 0, irq_num, level);
+		return kvm_vgic_inject_irq(kvm, 0, irq_num, level, NULL);
 	}
 
 	return -EINVAL;

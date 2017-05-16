@@ -235,10 +235,14 @@ static void vgic_sort_ap_list(struct kvm_vcpu *vcpu)
 
 /*
  * Only valid injection if changing level for level-triggered IRQs or for a
- * rising edge.
+ * rising edge, and in-kernel connected IRQ lines can only be controlled by
+ * their owner.
  */
-static bool vgic_validate_injection(struct vgic_irq *irq, bool level)
+static bool vgic_validate_injection(struct vgic_irq *irq, bool level, void *owner)
 {
+	if (irq->owner != owner)
+		return false;
+
 	switch (irq->config) {
 	case VGIC_CONFIG_LEVEL:
 		return irq->line_level != level;
@@ -350,13 +354,16 @@ retry:
  *			      false: to ignore the call
  *	     Level-sensitive  true:  raise the input signal
  *			      false: lower the input signal
+ * @owner:   The opaque pointer to the owner of the IRQ being raised to verify
+ *           that the caller is allowed to inject this IRQ.  Userspace
+ *           injections will have owner == NULL.
  *
  * The VGIC is not concerned with devices being active-LOW or active-HIGH for
  * level-sensitive interrupts.  You can think of the level parameter as 1
  * being HIGH and 0 being LOW and all devices being active-HIGH.
  */
 int kvm_vgic_inject_irq(struct kvm *kvm, int cpuid, unsigned int intid,
-			bool level)
+			bool level, void *owner)
 {
 	struct kvm_vcpu *vcpu;
 	struct vgic_irq *irq;
@@ -378,7 +385,7 @@ int kvm_vgic_inject_irq(struct kvm *kvm, int cpuid, unsigned int intid,
 
 	spin_lock(&irq->irq_lock);
 
-	if (!vgic_validate_injection(irq, level)) {
+	if (!vgic_validate_injection(irq, level, owner)) {
 		/* Nothing to see here, move along... */
 		spin_unlock(&irq->irq_lock);
 		vgic_put_irq(kvm, irq);
