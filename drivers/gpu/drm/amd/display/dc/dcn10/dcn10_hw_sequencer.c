@@ -29,9 +29,9 @@
 #include "core_types.h"
 #include "core_status.h"
 #include "resource.h"
-#include "hw_sequencer.h"
 #include "dcn10_hw_sequencer.h"
 #include "dce110/dce110_hw_sequencer.h"
+#include "dce/dce_hwseq.h"
 #include "abm.h"
 
 #include "dcn10/dcn10_transform.h"
@@ -951,6 +951,10 @@ static bool dcn10_set_input_transfer_func(
 
 	if (surface->public.in_transfer_func)
 		tf = DC_TRANSFER_FUNC_TO_CORE(surface->public.in_transfer_func);
+
+	if (surface->public.gamma_correction && dce_use_lut(surface))
+	    ipp->funcs->ipp_program_input_lut(ipp,
+			    surface->public.gamma_correction);
 
 	if (tf == NULL)
 		ipp->funcs->ipp_set_degamma(ipp, IPP_DEGAMMA_MODE_BYPASS);
