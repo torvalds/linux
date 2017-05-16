@@ -667,11 +667,16 @@ static void nfp_net_tx_tso(struct nfp_net_r_vector *r_vec,
 	if (!skb_is_gso(skb))
 		return;
 
-	if (!skb->encapsulation)
+	if (!skb->encapsulation) {
+		txd->l3_offset = skb_network_offset(skb);
+		txd->l4_offset = skb_transport_offset(skb);
 		hdrlen = skb_transport_offset(skb) + tcp_hdrlen(skb);
-	else
+	} else {
+		txd->l3_offset = skb_inner_network_offset(skb);
+		txd->l4_offset = skb_inner_transport_offset(skb);
 		hdrlen = skb_inner_transport_header(skb) - skb->data +
 			inner_tcp_hdrlen(skb);
+	}
 
 	txbuf->pkt_cnt = skb_shinfo(skb)->gso_segs;
 	txbuf->real_len += hdrlen * (txbuf->pkt_cnt - 1);
@@ -825,10 +830,9 @@ static int nfp_net_tx(struct sk_buff *skb, struct net_device *netdev)
 	txd->mss = 0;
 	txd->lso_hdrlen = 0;
 
+	/* Do not reorder - tso may adjust pkt cnt, vlan may override fields */
 	nfp_net_tx_tso(r_vec, txbuf, txd, skb);
-
 	nfp_net_tx_csum(dp, r_vec, txbuf, txd, skb);
-
 	if (skb_vlan_tag_present(skb) && dp->ctrl & NFP_NET_CFG_CTRL_TXVLAN) {
 		txd->flags |= PCIE_DESC_TX_VLAN;
 		txd->vlan = cpu_to_le16(skb_vlan_tag_get(skb));
@@ -2724,9 +2728,10 @@ static int nfp_net_set_features(struct net_device *netdev,
 
 	if (changed & (NETIF_F_TSO | NETIF_F_TSO6)) {
 		if (features & (NETIF_F_TSO | NETIF_F_TSO6))
-			new_ctrl |= NFP_NET_CFG_CTRL_LSO;
+			new_ctrl |= nn->cap & NFP_NET_CFG_CTRL_LSO2 ?:
+					      NFP_NET_CFG_CTRL_LSO;
 		else
-			new_ctrl &= ~NFP_NET_CFG_CTRL_LSO;
+			new_ctrl &= ~NFP_NET_CFG_CTRL_LSO_ANY;
 	}
 
 	if (changed & NETIF_F_HW_VLAN_CTAG_RX) {
@@ -3032,7 +3037,7 @@ void nfp_net_info(struct nfp_net *nn)
 		nn->fw_ver.resv, nn->fw_ver.class,
 		nn->fw_ver.major, nn->fw_ver.minor,
 		nn->max_mtu);
-	nn_info(nn, "CAP: %#x %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
+	nn_info(nn, "CAP: %#x %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
 		nn->cap,
 		nn->cap & NFP_NET_CFG_CTRL_PROMISC  ? "PROMISC "  : "",
 		nn->cap & NFP_NET_CFG_CTRL_L2BC     ? "L2BCFILT " : "",
@@ -3043,7 +3048,8 @@ void nfp_net_info(struct nfp_net *nn)
 		nn->cap & NFP_NET_CFG_CTRL_TXVLAN   ? "TXVLAN "   : "",
 		nn->cap & NFP_NET_CFG_CTRL_SCATTER  ? "SCATTER "  : "",
 		nn->cap & NFP_NET_CFG_CTRL_GATHER   ? "GATHER "   : "",
-		nn->cap & NFP_NET_CFG_CTRL_LSO      ? "TSO "      : "",
+		nn->cap & NFP_NET_CFG_CTRL_LSO      ? "TSO1 "     : "",
+		nn->cap & NFP_NET_CFG_CTRL_LSO2     ? "TSO2 "     : "",
 		nn->cap & NFP_NET_CFG_CTRL_RSS      ? "RSS "      : "",
 		nn->cap & NFP_NET_CFG_CTRL_L2SWITCH ? "L2SWITCH " : "",
 		nn->cap & NFP_NET_CFG_CTRL_MSIXAUTO ? "AUTOMASK " : "",
@@ -3249,9 +3255,11 @@ int nfp_net_netdev_init(struct net_device *netdev)
 		netdev->hw_features |= NETIF_F_SG;
 		nn->dp.ctrl |= NFP_NET_CFG_CTRL_GATHER;
 	}
-	if ((nn->cap & NFP_NET_CFG_CTRL_LSO) && nn->fw_ver.major > 2) {
+	if ((nn->cap & NFP_NET_CFG_CTRL_LSO && nn->fw_ver.major > 2) ||
+	    nn->cap & NFP_NET_CFG_CTRL_LSO2) {
 		netdev->hw_features |= NETIF_F_TSO | NETIF_F_TSO6;
-		nn->dp.ctrl |= NFP_NET_CFG_CTRL_LSO;
+		nn->dp.ctrl |= nn->cap & NFP_NET_CFG_CTRL_LSO2 ?:
+					 NFP_NET_CFG_CTRL_LSO;
 	}
 	if (nn->cap & NFP_NET_CFG_CTRL_RSS) {
 		netdev->hw_features |= NETIF_F_RXHASH;
@@ -3275,8 +3283,12 @@ int nfp_net_netdev_init(struct net_device *netdev)
 		nn->dp.ctrl |= NFP_NET_CFG_CTRL_RXVLAN;
 	}
 	if (nn->cap & NFP_NET_CFG_CTRL_TXVLAN) {
-		netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_TX;
-		nn->dp.ctrl |= NFP_NET_CFG_CTRL_TXVLAN;
+		if (nn->cap & NFP_NET_CFG_CTRL_LSO2) {
+			nn_warn(nn, "Device advertises both TSO2 and TXVLAN. Refusing to enable TXVLAN.\n");
+		} else {
+			netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_TX;
+			nn->dp.ctrl |= NFP_NET_CFG_CTRL_TXVLAN;
+		}
 	}
 
 	netdev->features = netdev->hw_features;
@@ -3286,7 +3298,7 @@ int nfp_net_netdev_init(struct net_device *netdev)
 
 	/* Advertise but disable TSO by default. */
 	netdev->features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
-	nn->dp.ctrl &= ~NFP_NET_CFG_CTRL_LSO;
+	nn->dp.ctrl &= ~NFP_NET_CFG_CTRL_LSO_ANY;
 
 	/* Allow L2 Broadcast and Multicast through by default, if supported */
 	if (nn->cap & NFP_NET_CFG_CTRL_L2BC)

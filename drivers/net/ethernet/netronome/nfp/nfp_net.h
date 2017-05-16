@@ -155,8 +155,13 @@ struct nfp_net_tx_desc {
 			__le16 mss;	/* MSS to be used for LSO */
 			u8 lso_hdrlen;	/* LSO, TCP payload offset */
 			u8 flags;	/* TX Flags, see @PCIE_DESC_TX_* */
-
-			__le16 vlan;	/* VLAN tag to add if indicated */
+			union {
+				struct {
+					u8 l3_offset; /* L3 header offset */
+					u8 l4_offset; /* L4 header offset */
+				};
+				__le16 vlan; /* VLAN tag to add if indicated */
+			};
 			__le16 data_len; /* Length of frame + meta data */
 		} __packed;
 		__le32 vals[4];

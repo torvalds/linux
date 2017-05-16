@@ -119,7 +119,7 @@
 #define   NFP_NET_CFG_CTRL_TXVLAN         (0x1 <<  7) /* Enable VLAN insert */
 #define   NFP_NET_CFG_CTRL_SCATTER        (0x1 <<  8) /* Scatter DMA */
 #define   NFP_NET_CFG_CTRL_GATHER         (0x1 <<  9) /* Gather DMA */
-#define   NFP_NET_CFG_CTRL_LSO            (0x1 << 10) /* LSO/TSO */
+#define   NFP_NET_CFG_CTRL_LSO            (0x1 << 10) /* LSO/TSO (version 1) */
 #define   NFP_NET_CFG_CTRL_RINGCFG        (0x1 << 16) /* Ring runtime changes */
 #define   NFP_NET_CFG_CTRL_RSS            (0x1 << 17) /* RSS */
 #define   NFP_NET_CFG_CTRL_IRQMOD         (0x1 << 18) /* Interrupt moderation */
@@ -131,6 +131,11 @@
 #define   NFP_NET_CFG_CTRL_VXLAN	  (0x1 << 24) /* VXLAN tunnel support */
 #define   NFP_NET_CFG_CTRL_NVGRE	  (0x1 << 25) /* NVGRE tunnel support */
 #define   NFP_NET_CFG_CTRL_BPF		  (0x1 << 27) /* BPF offload capable */
+#define   NFP_NET_CFG_CTRL_LSO2		  (0x1 << 28) /* LSO/TSO (version 2) */
+
+#define NFP_NET_CFG_CTRL_LSO_ANY	(NFP_NET_CFG_CTRL_LSO | \
+					 NFP_NET_CFG_CTRL_LSO2)
+
 #define NFP_NET_CFG_UPDATE              0x0004
 #define   NFP_NET_CFG_UPDATE_GEN          (0x1 <<  0) /* General update */
 #define   NFP_NET_CFG_UPDATE_RING         (0x1 <<  1) /* Ring config change */
