@@ -21,6 +21,7 @@
  * expensive.
  */
 
+#include <linux/acpi.h>
 #include <linux/dmi.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -32,6 +33,7 @@
 #include <linux/printk.h>
 
 #define DRV_NAME "cros_ec_lpcs"
+#define ACPI_DRV_NAME "GOOG0004"
 
 static int ec_response_timed_out(void)
 {
@@ -288,6 +290,12 @@ static int cros_ec_lpc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct acpi_device_id cros_ec_lpc_acpi_device_ids[] = {
+	{ ACPI_DRV_NAME, 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, cros_ec_lpc_acpi_device_ids);
+
 static struct dmi_system_id cros_ec_lpc_dmi_table[] __initdata = {
 	{
 		/*
@@ -328,13 +336,10 @@ MODULE_DEVICE_TABLE(dmi, cros_ec_lpc_dmi_table);
 static struct platform_driver cros_ec_lpc_driver = {
 	.driver = {
 		.name = DRV_NAME,
+		.acpi_match_table = cros_ec_lpc_acpi_device_ids,
 	},
 	.probe = cros_ec_lpc_probe,
 	.remove = cros_ec_lpc_remove,
-};
-
-static struct platform_device cros_ec_lpc_device = {
-	.name = DRV_NAME
 };
 
 static int __init cros_ec_lpc_init(void)
@@ -356,21 +361,11 @@ static int __init cros_ec_lpc_init(void)
 		return ret;
 	}
 
-	/* Register the device, and it'll get hooked up automatically */
-	ret = platform_device_register(&cros_ec_lpc_device);
-	if (ret) {
-		pr_err(DRV_NAME ": can't register device: %d\n", ret);
-		platform_driver_unregister(&cros_ec_lpc_driver);
-		cros_ec_lpc_reg_destroy();
-		return ret;
-	}
-
 	return 0;
 }
 
 static void __exit cros_ec_lpc_exit(void)
 {
-	platform_device_unregister(&cros_ec_lpc_device);
 	platform_driver_unregister(&cros_ec_lpc_driver);
 	cros_ec_lpc_reg_destroy();
 }
