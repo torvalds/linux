@@ -398,13 +398,13 @@ struct clock_source *dce120_clock_source_create(
 	bool dp_clk_src)
 {
 	struct dce110_clk_src *clk_src =
-		dm_alloc(sizeof(struct dce110_clk_src));
+		dm_alloc(sizeof(*clk_src));
 
 	if (!clk_src)
 		return NULL;
 
 	if (dce110_clk_src_construct(clk_src, ctx, bios, id,
-			regs, &cs_shift, &cs_mask)) {
+				     regs, &cs_shift, &cs_mask)) {
 		clk_src->base.dp_clk_src = dp_clk_src;
 		return &clk_src->base;
 	}
