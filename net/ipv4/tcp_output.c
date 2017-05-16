@@ -2418,10 +2418,10 @@ bool tcp_schedule_loss_probe(struct sock *sk)
 	timeout = max_t(u32, timeout, msecs_to_jiffies(10));
 
 	/* If RTO is shorter, just schedule TLP in its place. */
-	tlp_time_stamp = tcp_time_stamp + timeout;
+	tlp_time_stamp = tcp_jiffies32 + timeout;
 	rto_time_stamp = (u32)inet_csk(sk)->icsk_timeout;
 	if ((s32)(tlp_time_stamp - rto_time_stamp) > 0) {
-		s32 delta = rto_time_stamp - tcp_time_stamp;
+		s32 delta = rto_time_stamp - tcp_jiffies32;
 		if (delta > 0)
 			timeout = delta;
 	}
