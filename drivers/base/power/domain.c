@@ -443,7 +443,7 @@ static int genpd_dev_pm_qos_notifier(struct notifier_block *nb,
 
 		pdd = dev->power.subsys_data ?
 				dev->power.subsys_data->domain_data : NULL;
-		if (pdd && pdd->dev) {
+		if (pdd) {
 			to_gpd_data(pdd)->td.constraint_changed = true;
 			genpd = dev_to_genpd(dev);
 		} else {
