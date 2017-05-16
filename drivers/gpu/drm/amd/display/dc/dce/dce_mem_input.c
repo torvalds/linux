@@ -625,18 +625,12 @@ static bool dce_mi_program_surface_flip_and_addr(
 	 * non-XDMA Mode: GRPH_SURFACE_UPDATE_IMMEDIATE_EN = 1
 	 * XDMA Mode: GRPH_SURFACE_UPDATE_H_RETRACE_EN = 1
 	 */
-	REG_UPDATE(GRPH_UPDATE,
-			GRPH_UPDATE_LOCK, 1);
+	REG_UPDATE(GRPH_UPDATE, GRPH_UPDATE_LOCK, 1);
 
-	if (flip_immediate) {
-		REG_UPDATE_2(GRPH_FLIP_CONTROL,
-			GRPH_SURFACE_UPDATE_IMMEDIATE_EN, 0,
-			GRPH_SURFACE_UPDATE_H_RETRACE_EN, 1);
-	} else {
-		REG_UPDATE_2(GRPH_FLIP_CONTROL,
-			GRPH_SURFACE_UPDATE_IMMEDIATE_EN, 0,
-			GRPH_SURFACE_UPDATE_H_RETRACE_EN, 0);
-	}
+	REG_UPDATE_2(
+		GRPH_FLIP_CONTROL,
+		GRPH_SURFACE_UPDATE_IMMEDIATE_EN, 0,
+		GRPH_SURFACE_UPDATE_H_RETRACE_EN, flip_immediate ? 1 : 0);
 
 	switch (address->type) {
 	case PLN_ADDR_TYPE_GRAPHICS:
@@ -645,8 +639,8 @@ static bool dce_mi_program_surface_flip_and_addr(
 		program_pri_addr(dce_mi, address->grph.addr);
 		break;
 	case PLN_ADDR_TYPE_GRPH_STEREO:
-		if (address->grph_stereo.left_addr.quad_part == 0
-			|| address->grph_stereo.right_addr.quad_part == 0)
+		if (address->grph_stereo.left_addr.quad_part == 0 ||
+		    address->grph_stereo.right_addr.quad_part == 0)
 			break;
 		program_pri_addr(dce_mi, address->grph_stereo.left_addr);
 		program_sec_addr(dce_mi, address->grph_stereo.right_addr);
@@ -662,8 +656,7 @@ static bool dce_mi_program_surface_flip_and_addr(
 	if (flip_immediate)
 		mem_input->current_address = *address;
 
-	REG_UPDATE(GRPH_UPDATE,
-			GRPH_UPDATE_LOCK, 0);
+	REG_UPDATE(GRPH_UPDATE, GRPH_UPDATE_LOCK, 0);
 
 	return true;
 }
