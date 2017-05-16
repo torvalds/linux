@@ -256,4 +256,6 @@ void dce_clock_gating_power_up(struct dce_hwseq *hws,
 void dce_crtc_switch_to_clk_src(struct dce_hwseq *hws,
 		struct clock_source *clk_src,
 		unsigned int tg_inst);
+
+bool dce_use_lut(const struct core_surface *surface);
 #endif   /*__DCE_HWSEQ_H__*/
