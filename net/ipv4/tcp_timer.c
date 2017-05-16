@@ -339,7 +339,7 @@ static void tcp_probe_timer(struct sock *sk)
 	 */
 	start_ts = tcp_skb_timestamp(tcp_send_head(sk));
 	if (!start_ts)
-		skb_mstamp_get(&tcp_send_head(sk)->skb_mstamp);
+		tcp_send_head(sk)->skb_mstamp = tp->tcp_mstamp;
 	else if (icsk->icsk_user_timeout &&
 		 (s32)(tcp_time_stamp - start_ts) > icsk->icsk_user_timeout)
 		goto abort;
@@ -561,6 +561,7 @@ void tcp_write_timer_handler(struct sock *sk)
 		goto out;
 	}
 
+	skb_mstamp_get(&tcp_sk(sk)->tcp_mstamp);
 	event = icsk->icsk_pending;
 
 	switch (event) {

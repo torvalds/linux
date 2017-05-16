@@ -483,6 +483,7 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 		skb = tcp_write_queue_head(sk);
 		BUG_ON(!skb);
 
+		skb_mstamp_get(&tp->tcp_mstamp);
 		remaining = icsk->icsk_rto -
 			    min(icsk->icsk_rto,
 				tcp_time_stamp - tcp_skb_timestamp(skb));
