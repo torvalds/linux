@@ -1475,7 +1475,7 @@ void tcp_mtup_init(struct sock *sk)
 	icsk->icsk_mtup.search_low = tcp_mss_to_mtu(sk, net->ipv4.sysctl_tcp_base_mss);
 	icsk->icsk_mtup.probe_size = 0;
 	if (icsk->icsk_mtup.enabled)
-		icsk->icsk_mtup.probe_timestamp = tcp_time_stamp;
+		icsk->icsk_mtup.probe_timestamp = tcp_jiffies32;
 }
 EXPORT_SYMBOL(tcp_mtup_init);
 
@@ -1987,7 +1987,7 @@ static inline void tcp_mtu_check_reprobe(struct sock *sk)
 	s32 delta;
 
 	interval = net->ipv4.sysctl_tcp_probe_interval;
-	delta = tcp_time_stamp - icsk->icsk_mtup.probe_timestamp;
+	delta = tcp_jiffies32 - icsk->icsk_mtup.probe_timestamp;
 	if (unlikely(delta >= interval * HZ)) {
 		int mss = tcp_current_mss(sk);
 
@@ -1999,7 +1999,7 @@ static inline void tcp_mtu_check_reprobe(struct sock *sk)
 		icsk->icsk_mtup.search_low = tcp_mss_to_mtu(sk, mss);
 
 		/* Update probe time stamp */
-		icsk->icsk_mtup.probe_timestamp = tcp_time_stamp;
+		icsk->icsk_mtup.probe_timestamp = tcp_jiffies32;
 	}
 }
 
