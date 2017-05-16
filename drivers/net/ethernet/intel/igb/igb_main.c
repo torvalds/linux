@@ -1818,7 +1818,7 @@ void igb_down(struct igb_adapter *adapter)
 
 	/* record the stats before reset*/
 	spin_lock(&adapter->stats64_lock);
-	igb_update_stats(adapter, &adapter->stats64);
+	igb_update_stats(adapter);
 	spin_unlock(&adapter->stats64_lock);
 
 	adapter->link_speed = 0;
@@ -4686,7 +4686,7 @@ no_wait:
 	}
 
 	spin_lock(&adapter->stats64_lock);
-	igb_update_stats(adapter, &adapter->stats64);
+	igb_update_stats(adapter);
 	spin_unlock(&adapter->stats64_lock);
 
 	for (i = 0; i < adapter->num_tx_queues; i++) {
@@ -5499,7 +5499,7 @@ static void igb_get_stats64(struct net_device *netdev,
 	struct igb_adapter *adapter = netdev_priv(netdev);
 
 	spin_lock(&adapter->stats64_lock);
-	igb_update_stats(adapter, &adapter->stats64);
+	igb_update_stats(adapter);
 	memcpy(stats, &adapter->stats64, sizeof(*stats));
 	spin_unlock(&adapter->stats64_lock);
 }
@@ -5548,9 +5548,9 @@ static int igb_change_mtu(struct net_device *netdev, int new_mtu)
  *  igb_update_stats - Update the board statistics counters
  *  @adapter: board private structure
  **/
-void igb_update_stats(struct igb_adapter *adapter,
-		      struct rtnl_link_stats64 *net_stats)
+void igb_update_stats(struct igb_adapter *adapter)
 {
+	struct rtnl_link_stats64 *net_stats = &adapter->stats64;
 	struct e1000_hw *hw = &adapter->hw;
 	struct pci_dev *pdev = adapter->pdev;
 	u32 reg, mpc;

@@ -667,7 +667,7 @@ void igb_setup_tctl(struct igb_adapter *);
 void igb_setup_rctl(struct igb_adapter *);
 netdev_tx_t igb_xmit_frame_ring(struct sk_buff *, struct igb_ring *);
 void igb_alloc_rx_buffers(struct igb_ring *, u16);
-void igb_update_stats(struct igb_adapter *, struct rtnl_link_stats64 *);
+void igb_update_stats(struct igb_adapter *);
 bool igb_has_link(struct igb_adapter *adapter);
 void igb_set_ethtool_ops(struct net_device *);
 void igb_power_up_link(struct igb_adapter *);
