@@ -639,11 +639,6 @@ static noinline_for_stack void scrub_free_ctx(struct scrub_ctx *sctx)
 	if (!sctx)
 		return;
 
-	mutex_lock(&sctx->wr_ctx.wr_lock);
-	kfree(sctx->wr_ctx.wr_curr_bio);
-	sctx->wr_ctx.wr_curr_bio = NULL;
-	mutex_unlock(&sctx->wr_ctx.wr_lock);
-
 	/* this can happen when scrub is cancelled */
 	if (sctx->curr != -1) {
 		struct scrub_bio *sbio = sctx->bios[sctx->curr];
@@ -663,6 +658,7 @@ static noinline_for_stack void scrub_free_ctx(struct scrub_ctx *sctx)
 		kfree(sbio);
 	}
 
+	kfree(sctx->wr_ctx.wr_curr_bio);
 	scrub_free_csums(sctx);
 	kfree(sctx);
 }
