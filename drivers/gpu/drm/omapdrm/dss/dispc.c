@@ -1819,13 +1819,13 @@ static void dispc_ovl_set_rotation_attrs(enum omap_plane_id plane, u8 rotation,
 				vidrot = 2;
 				break;
 			case DRM_MODE_ROTATE_90:
-				vidrot = 3;
+				vidrot = 1;
 				break;
 			case DRM_MODE_ROTATE_180:
 				vidrot = 0;
 				break;
 			case DRM_MODE_ROTATE_270:
-				vidrot = 1;
+				vidrot = 3;
 				break;
 			}
 		} else {
