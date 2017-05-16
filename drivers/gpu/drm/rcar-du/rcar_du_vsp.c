@@ -19,7 +19,9 @@
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_plane_helper.h>
 
+#include <linux/dma-mapping.h>
 #include <linux/of_platform.h>
+#include <linux/scatterlist.h>
 #include <linux/videodev2.h>
 
 #include <media/vsp1.h>
@@ -179,12 +181,9 @@ static void rcar_du_vsp_plane_setup(struct rcar_du_vsp_plane *plane)
 	cfg.dst.width = state->state.crtc_w;
 	cfg.dst.height = state->state.crtc_h;
 
-	for (i = 0; i < state->format->planes; ++i) {
-		struct drm_gem_cma_object *gem;
-
-		gem = drm_fb_cma_get_gem_obj(fb, i);
-		cfg.mem[i] = gem->paddr + fb->offsets[i];
-	}
+	for (i = 0; i < state->format->planes; ++i)
+		cfg.mem[i] = sg_dma_address(state->sg_tables[i].sgl)
+			   + fb->offsets[i];
 
 	for (i = 0; i < ARRAY_SIZE(formats_kms); ++i) {
 		if (formats_kms[i] == state->format->fourcc) {
@@ -194,6 +193,67 @@ static void rcar_du_vsp_plane_setup(struct rcar_du_vsp_plane *plane)
 	}
 
 	vsp1_du_atomic_update(plane->vsp->vsp, plane->index, &cfg);
+}
+
+static int rcar_du_vsp_plane_prepare_fb(struct drm_plane *plane,
+					struct drm_plane_state *state)
+{
+	struct rcar_du_vsp_plane_state *rstate = to_rcar_vsp_plane_state(state);
+	struct rcar_du_vsp *vsp = to_rcar_vsp_plane(plane)->vsp;
+	struct rcar_du_device *rcdu = vsp->dev;
+	unsigned int i;
+	int ret;
+
+	if (!state->fb)
+		return 0;
+
+	for (i = 0; i < rstate->format->planes; ++i) {
+		struct drm_gem_cma_object *gem =
+			drm_fb_cma_get_gem_obj(state->fb, i);
+		struct sg_table *sgt = &rstate->sg_tables[i];
+
+		ret = dma_get_sgtable(rcdu->dev, sgt, gem->vaddr, gem->paddr,
+				      gem->base.size);
+		if (ret)
+			goto fail;
+
+		ret = vsp1_du_map_sg(vsp->vsp, sgt);
+		if (!ret) {
+			sg_free_table(sgt);
+			ret = -ENOMEM;
+			goto fail;
+		}
+	}
+
+	return 0;
+
+fail:
+	while (i--) {
+		struct sg_table *sgt = &rstate->sg_tables[i];
+
+		vsp1_du_unmap_sg(vsp->vsp, sgt);
+		sg_free_table(sgt);
+	}
+
+	return ret;
+}
+
+static void rcar_du_vsp_plane_cleanup_fb(struct drm_plane *plane,
+					 struct drm_plane_state *state)
+{
+	struct rcar_du_vsp_plane_state *rstate = to_rcar_vsp_plane_state(state);
+	struct rcar_du_vsp *vsp = to_rcar_vsp_plane(plane)->vsp;
+	unsigned int i;
+
+	if (!state->fb)
+		return;
+
+	for (i = 0; i < rstate->format->planes; ++i) {
+		struct sg_table *sgt = &rstate->sg_tables[i];
+
+		vsp1_du_unmap_sg(vsp->vsp, sgt);
+		sg_free_table(sgt);
+	}
 }
 
 static int rcar_du_vsp_plane_atomic_check(struct drm_plane *plane,
@@ -236,6 +296,8 @@ static void rcar_du_vsp_plane_atomic_update(struct drm_plane *plane,
 }
 
 static const struct drm_plane_helper_funcs rcar_du_vsp_plane_helper_funcs = {
+	.prepare_fb = rcar_du_vsp_plane_prepare_fb,
+	.cleanup_fb = rcar_du_vsp_plane_cleanup_fb,
 	.atomic_check = rcar_du_vsp_plane_atomic_check,
 	.atomic_update = rcar_du_vsp_plane_atomic_update,
 };
