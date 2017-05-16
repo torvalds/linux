@@ -454,8 +454,8 @@ static int xen_9pfs_front_probe(struct xenbus_device *dev,
 			goto error_xenbus;
 	}
 	priv->tag = xenbus_read(xbt, dev->nodename, "tag", NULL);
-	if (!priv->tag) {
-		ret = -EINVAL;
+	if (IS_ERR(priv->tag)) {
+		ret = PTR_ERR(priv->tag);
 		goto error_xenbus;
 	}
 	ret = xenbus_transaction_end(xbt, 0);
