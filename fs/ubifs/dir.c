@@ -1061,7 +1061,6 @@ static int ubifs_mknod(struct inode *dir, struct dentry *dentry,
 	int sz_change;
 	int err, devlen = 0;
 	struct ubifs_budget_req req = { .new_ino = 1, .new_dent = 1,
-					.new_ino_d = ALIGN(devlen, 8),
 					.dirtied_ino = 1 };
 	struct fscrypt_name nm;
 
@@ -1079,6 +1078,7 @@ static int ubifs_mknod(struct inode *dir, struct dentry *dentry,
 		devlen = ubifs_encode_dev(dev, rdev);
 	}
 
+	req.new_ino_d = ALIGN(devlen, 8);
 	err = ubifs_budget_space(c, &req);
 	if (err) {
 		kfree(dev);
