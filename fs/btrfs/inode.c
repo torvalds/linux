@@ -8078,6 +8078,7 @@ static int __btrfs_correct_data_nocsum(struct inode *inode,
 	u32 sectorsize;
 	int nr_sectors;
 	int ret;
+	int err = 0;
 
 	fs_info = BTRFS_I(inode)->root->fs_info;
 	sectorsize = fs_info->sectorsize;
@@ -8099,8 +8100,10 @@ next_block_or_try_again:
 				pgoff, start, start + sectorsize - 1,
 				io_bio->mirror_num,
 				btrfs_retry_endio_nocsum, &done);
-		if (ret)
-			return ret;
+		if (ret) {
+			err = ret;
+			goto next;
+		}
 
 		wait_for_completion(&done.done);
 
@@ -8109,6 +8112,7 @@ next_block_or_try_again:
 			goto next_block_or_try_again;
 		}
 
+next:
 		start += sectorsize;
 
 		nr_sectors--;
@@ -8119,7 +8123,7 @@ next_block_or_try_again:
 		}
 	}
 
-	return 0;
+	return err;
 }
 
 static void btrfs_retry_endio(struct bio *bio)
