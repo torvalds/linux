@@ -110,43 +110,6 @@ static inline bool mlxsw_sp_fid_is_vfid(u16 fid)
 	return fid >= MLXSW_SP_VFID_BASE && fid < MLXSW_SP_DUMMY_FID;
 }
 
-struct mlxsw_sp_sb_pr {
-	enum mlxsw_reg_sbpr_mode mode;
-	u32 size;
-};
-
-struct mlxsw_cp_sb_occ {
-	u32 cur;
-	u32 max;
-};
-
-struct mlxsw_sp_sb_cm {
-	u32 min_buff;
-	u32 max_buff;
-	u8 pool;
-	struct mlxsw_cp_sb_occ occ;
-};
-
-struct mlxsw_sp_sb_pm {
-	u32 min_buff;
-	u32 max_buff;
-	struct mlxsw_cp_sb_occ occ;
-};
-
-#define MLXSW_SP_SB_POOL_COUNT	4
-#define MLXSW_SP_SB_TC_COUNT	8
-
-struct mlxsw_sp_sb_port {
-	struct mlxsw_sp_sb_cm cms[2][MLXSW_SP_SB_TC_COUNT];
-	struct mlxsw_sp_sb_pm pms[2][MLXSW_SP_SB_POOL_COUNT];
-};
-
-struct mlxsw_sp_sb {
-	struct mlxsw_sp_sb_pr prs[2][MLXSW_SP_SB_POOL_COUNT];
-	struct mlxsw_sp_sb_port *ports;
-	u32 cell_size;
-};
-
 #define MLXSW_SP_PREFIX_COUNT (sizeof(struct in6_addr) * BITS_PER_BYTE)
 
 struct mlxsw_sp_prefix_usage {
@@ -231,6 +194,7 @@ struct mlxsw_sp_router {
 	bool aborted;
 };
 
+struct mlxsw_sp_sb;
 struct mlxsw_sp_acl;
 struct mlxsw_sp_counter_pool;
 
@@ -261,7 +225,7 @@ struct mlxsw_sp {
 	struct mlxsw_sp_upper master_bridge;
 	struct mlxsw_sp_upper *lags;
 	u8 *port_to_module;
-	struct mlxsw_sp_sb sb;
+	struct mlxsw_sp_sb *sb;
 	struct mlxsw_sp_router router;
 	struct mlxsw_sp_acl *acl;
 	struct {
@@ -280,18 +244,6 @@ static inline struct mlxsw_sp_upper *
 mlxsw_sp_lag_get(struct mlxsw_sp *mlxsw_sp, u16 lag_id)
 {
 	return &mlxsw_sp->lags[lag_id];
-}
-
-static inline u32 mlxsw_sp_cells_bytes(const struct mlxsw_sp *mlxsw_sp,
-				       u32 cells)
-{
-	return mlxsw_sp->sb.cell_size * cells;
-}
-
-static inline u32 mlxsw_sp_bytes_cells(const struct mlxsw_sp *mlxsw_sp,
-				       u32 bytes)
-{
-	return DIV_ROUND_UP(bytes, mlxsw_sp->sb.cell_size);
 }
 
 struct mlxsw_sp_port_pcpu_stats {
@@ -515,6 +467,8 @@ int mlxsw_sp_sb_occ_tc_port_bind_get(struct mlxsw_core_port *mlxsw_core_port,
 				     unsigned int sb_index, u16 tc_index,
 				     enum devlink_sb_pool_type pool_type,
 				     u32 *p_cur, u32 *p_max);
+u32 mlxsw_sp_cells_bytes(const struct mlxsw_sp *mlxsw_sp, u32 cells);
+u32 mlxsw_sp_bytes_cells(const struct mlxsw_sp *mlxsw_sp, u32 bytes);
 
 int mlxsw_sp_switchdev_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_switchdev_fini(struct mlxsw_sp *mlxsw_sp);
