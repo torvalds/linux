@@ -78,6 +78,7 @@ static int inv_i2c_read_base(struct inv_mpu_iio_s *st, u16 i2c_addr,
 
 	INV_I2C_INC_MPUWRITE(3);
 	INV_I2C_INC_MPUREAD(length);
+#if 0
 	{
 		char *read = 0;
 		pr_debug("%s RD%02X%02X%02X -> %s%s\n", st->hw->name,
@@ -85,6 +86,7 @@ static int inv_i2c_read_base(struct inv_mpu_iio_s *st, u16 i2c_addr,
 			 wr_pr_debug_begin(data, length, read),
 			 wr_pr_debug_end(read));
 	}
+#endif
 	return res;
 }
 
@@ -208,7 +210,7 @@ static int mpu_i2c_memory_write(struct inv_mpu_iio_s *st, u8 mpu_addr, u16 mem_a
 			res = -EIO;
 		return res;
 	}
-
+#if 0
 	{
 		char *write = 0;
 		pr_debug("%s WM%02X%02X%02X%s%s - %d\n", st->hw->name,
@@ -217,6 +219,7 @@ static int mpu_i2c_memory_write(struct inv_mpu_iio_s *st, u8 mpu_addr, u16 mem_a
 			 wr_pr_debug_end(write),
 			 len);
 	}
+#endif
 	return 0;
 }
 
@@ -293,6 +296,7 @@ static int mpu_i2c_memory_read(struct inv_mpu_iio_s *st, u8 mpu_addr, u16 mem_ad
 			res = -EIO;
 		return res;
 	}
+#if 0
 	{
 		char *read = 0;
 		pr_debug("%s RM%02X%02X%02X%02X - %s%s\n", st->hw->name,
@@ -300,7 +304,7 @@ static int mpu_i2c_memory_read(struct inv_mpu_iio_s *st, u8 mpu_addr, u16 mem_ad
 			 wr_pr_debug_begin(data, len, read),
 			 wr_pr_debug_end(read));
 	}
-
+#endif
 	return 0;
 }
 
