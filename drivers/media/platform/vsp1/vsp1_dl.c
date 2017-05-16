@@ -137,7 +137,7 @@ static int vsp1_dl_body_init(struct vsp1_device *vsp1,
 	dlb->vsp1 = vsp1;
 	dlb->size = size;
 
-	dlb->entries = dma_alloc_wc(vsp1->dev, dlb->size, &dlb->dma,
+	dlb->entries = dma_alloc_wc(vsp1->bus_master, dlb->size, &dlb->dma,
 				    GFP_KERNEL);
 	if (!dlb->entries)
 		return -ENOMEM;
@@ -150,7 +150,7 @@ static int vsp1_dl_body_init(struct vsp1_device *vsp1,
  */
 static void vsp1_dl_body_cleanup(struct vsp1_dl_body *dlb)
 {
-	dma_free_wc(dlb->vsp1->dev, dlb->size, dlb->entries, dlb->dma);
+	dma_free_wc(dlb->vsp1->bus_master, dlb->size, dlb->entries, dlb->dma);
 }
 
 /**
