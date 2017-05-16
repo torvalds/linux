@@ -35,6 +35,8 @@
 #define MGMT_EP                      1
 #define DATA_EP                      2
 
+#define RSI_USB_BUF_SIZE	     4096
+
 struct rsi_91x_usbdev {
 	struct rsi_thread rx_thread;
 	u8 endpoint;

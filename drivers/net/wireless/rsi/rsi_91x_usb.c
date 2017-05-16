@@ -293,12 +293,12 @@ int rsi_usb_write_register_multiple(struct rsi_hw *adapter,
 	u8 transfer;
 	int status = 0;
 
-	buf = kzalloc(4096, GFP_KERNEL);
+	buf = kzalloc(RSI_USB_BUF_SIZE, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
 	while (count) {
-		transfer = (u8)(min_t(u32, count, 4096));
+		transfer = (u8)(min_t(u32, count, RSI_USB_BUF_SIZE));
 		memcpy(buf, data, transfer);
 		status = usb_control_msg(dev->usbdev,
 					 usb_sndctrlpipe(dev->usbdev, 0),
