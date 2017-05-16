@@ -800,6 +800,24 @@ static struct resource da8xx_rproc_resources[] = {
 		.end		= DA8XX_SYSCFG0_BASE + DA8XX_CHIPSIG_REG + 7,
 		.flags		= IORESOURCE_MEM,
 	},
+	{ /* DSP L2 RAM */
+		.name		= "l2sram",
+		.start		= DA8XX_DSP_L2_RAM_BASE,
+		.end		= DA8XX_DSP_L2_RAM_BASE + SZ_256K - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	{ /* DSP L1P RAM */
+		.name		= "l1pram",
+		.start		= DA8XX_DSP_L1P_RAM_BASE,
+		.end		= DA8XX_DSP_L1P_RAM_BASE + SZ_32K - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	{ /* DSP L1D RAM */
+		.name		= "l1dram",
+		.start		= DA8XX_DSP_L1D_RAM_BASE,
+		.end		= DA8XX_DSP_L1D_RAM_BASE + SZ_32K - 1,
+		.flags		= IORESOURCE_MEM,
+	},
 	{ /* dsp irq */
 		.start		= IRQ_DA8XX_CHIPINT0,
 		.end		= IRQ_DA8XX_CHIPINT0,
