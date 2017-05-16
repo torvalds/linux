@@ -746,15 +746,14 @@ bool dce120_tg_is_blanked(struct timing_generator *tg)
 			mmCRTC0_CRTC_BLANK_CONTROL,
 			tg110->offsets.crtc);
 
-	if (
-		get_reg_field_value(
-			value,
-			CRTC0_CRTC_BLANK_CONTROL,
-			CRTC_BLANK_DATA_EN) == 1	&&
-		get_reg_field_value(
-			value,
-			CRTC0_CRTC_BLANK_CONTROL,
-			CRTC_CURRENT_BLANK_STATE) == 1)
+	if (get_reg_field_value(
+		value,
+		CRTC0_CRTC_BLANK_CONTROL,
+		CRTC_BLANK_DATA_EN) == 1 &&
+	    get_reg_field_value(
+		value,
+		CRTC0_CRTC_BLANK_CONTROL,
+		CRTC_CURRENT_BLANK_STATE) == 1)
 			return true;
 
 	return false;
