@@ -978,7 +978,9 @@ ieee80211_mesh_process_chnswitch(struct ieee80211_sub_if_data *sdata,
 	params.count = csa_ie.count;
 
 	if (!cfg80211_chandef_usable(sdata->local->hw.wiphy, &params.chandef,
-				     IEEE80211_CHAN_DISABLED)) {
+				     IEEE80211_CHAN_DISABLED) ||
+	    !cfg80211_reg_can_beacon(sdata->local->hw.wiphy, &params.chandef,
+				     NL80211_IFTYPE_MESH_POINT)) {
 		sdata_info(sdata,
 			   "mesh STA %pM switches to unsupported channel (%d MHz, width:%d, CF1/2: %d/%d MHz), aborting\n",
 			   sdata->vif.addr,
@@ -994,9 +996,16 @@ ieee80211_mesh_process_chnswitch(struct ieee80211_sub_if_data *sdata,
 					    NL80211_IFTYPE_MESH_POINT);
 	if (err < 0)
 		return false;
-	if (err > 0)
-		/* TODO: DFS not (yet) supported */
+	if (err > 0 && !ifmsh->userspace_handles_dfs) {
+		sdata_info(sdata,
+			   "mesh STA %pM switches to channel requiring DFS (%d MHz, width:%d, CF1/2: %d/%d MHz), aborting\n",
+			   sdata->vif.addr,
+			   params.chandef.chan->center_freq,
+			   params.chandef.width,
+			   params.chandef.center_freq1,
+			   params.chandef.center_freq2);
 		return false;
+	}
 
 	params.radar_required = err;
 
