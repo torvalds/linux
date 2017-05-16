@@ -21,6 +21,7 @@
 #include <linux/mfd/core.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 
@@ -435,6 +436,10 @@ static int ec_device_probe(struct platform_device *pdev)
 	if (cros_ec_check_features(ec, EC_FEATURE_MOTION_SENSE))
 		cros_ec_sensors_register(ec);
 
+	/* Take control of the lightbar from the EC. */
+	if (ec_has_lightbar(ec))
+		lb_manual_suspend_ctrl(ec, 1);
+
 	return 0;
 
 failed:
@@ -445,6 +450,10 @@ failed:
 static int ec_device_remove(struct platform_device *pdev)
 {
 	struct cros_ec_dev *ec = dev_get_drvdata(&pdev->dev);
+
+	/* Let the EC take over the lightbar again. */
+	if (ec_has_lightbar(ec))
+		lb_manual_suspend_ctrl(ec, 0);
 
 	cros_ec_debugfs_remove(ec);
 
@@ -459,9 +468,37 @@ static const struct platform_device_id cros_ec_id[] = {
 };
 MODULE_DEVICE_TABLE(platform, cros_ec_id);
 
+static int ec_device_suspend(struct device *dev)
+{
+	struct cros_ec_dev *ec = dev_get_drvdata(dev);
+
+	if (ec_has_lightbar(ec))
+		lb_suspend(ec);
+
+	return 0;
+}
+
+static int ec_device_resume(struct device *dev)
+{
+	struct cros_ec_dev *ec = dev_get_drvdata(dev);
+
+	if (ec_has_lightbar(ec))
+		lb_resume(ec);
+
+	return 0;
+}
+
+static const struct dev_pm_ops cros_ec_dev_pm_ops = {
+#ifdef CONFIG_PM_SLEEP
+	.suspend = ec_device_suspend,
+	.resume = ec_device_resume,
+#endif
+};
+
 static struct platform_driver cros_ec_dev_driver = {
 	.driver = {
 		.name = "cros-ec-ctl",
+		.pm = &cros_ec_dev_pm_ops,
 	},
 	.probe = ec_device_probe,
 	.remove = ec_device_remove,

@@ -341,6 +341,80 @@ exit:
 	return ret;
 }
 
+static int lb_send_empty_cmd(struct cros_ec_dev *ec, uint8_t cmd)
+{
+	struct ec_params_lightbar *param;
+	struct cros_ec_command *msg;
+	int ret;
+
+	msg = alloc_lightbar_cmd_msg(ec);
+	if (!msg)
+		return -ENOMEM;
+
+	param = (struct ec_params_lightbar *)msg->data;
+	param->cmd = cmd;
+
+	ret = lb_throttle();
+	if (ret)
+		goto error;
+
+	ret = cros_ec_cmd_xfer(ec->ec_dev, msg);
+	if (ret < 0)
+		goto error;
+	if (msg->result != EC_RES_SUCCESS) {
+		ret = -EINVAL;
+		goto error;
+	}
+	ret = 0;
+error:
+	kfree(msg);
+
+	return ret;
+}
+
+int lb_manual_suspend_ctrl(struct cros_ec_dev *ec, uint8_t enable)
+{
+	struct ec_params_lightbar *param;
+	struct cros_ec_command *msg;
+	int ret;
+
+	msg = alloc_lightbar_cmd_msg(ec);
+	if (!msg)
+		return -ENOMEM;
+
+	param = (struct ec_params_lightbar *)msg->data;
+
+	param->cmd = LIGHTBAR_CMD_MANUAL_SUSPEND_CTRL;
+	param->manual_suspend_ctrl.enable = enable;
+
+	ret = lb_throttle();
+	if (ret)
+		goto error;
+
+	ret = cros_ec_cmd_xfer(ec->ec_dev, msg);
+	if (ret < 0)
+		goto error;
+	if (msg->result != EC_RES_SUCCESS) {
+		ret = -EINVAL;
+		goto error;
+	}
+	ret = 0;
+error:
+	kfree(msg);
+
+	return ret;
+}
+
+int lb_suspend(struct cros_ec_dev *ec)
+{
+	return lb_send_empty_cmd(ec, LIGHTBAR_CMD_SUSPEND);
+}
+
+int lb_resume(struct cros_ec_dev *ec)
+{
+	return lb_send_empty_cmd(ec, LIGHTBAR_CMD_RESUME);
+}
+
 static ssize_t sequence_store(struct device *dev, struct device_attribute *attr,
 			      const char *buf, size_t count)
 {
@@ -473,6 +547,11 @@ static struct attribute *__lb_cmds_attrs[] = {
 	NULL,
 };
 
+bool ec_has_lightbar(struct cros_ec_dev *ec)
+{
+	return !!get_lightbar_version(ec, NULL, NULL);
+}
+
 static umode_t cros_ec_lightbar_attrs_are_visible(struct kobject *kobj,
 						  struct attribute *a, int n)
 {
@@ -489,10 +568,10 @@ static umode_t cros_ec_lightbar_attrs_are_visible(struct kobject *kobj,
 		return 0;
 
 	/* Only instantiate this stuff if the EC has a lightbar */
-	if (get_lightbar_version(ec, NULL, NULL))
+	if (ec_has_lightbar(ec))
 		return a->mode;
-	else
-		return 0;
+
+	return 0;
 }
 
 struct attribute_group cros_ec_lightbar_attr_group = {

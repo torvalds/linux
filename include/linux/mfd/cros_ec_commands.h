@@ -1175,7 +1175,7 @@ struct ec_params_lightbar {
 		struct {
 			/* no args */
 		} dump, off, on, init, get_seq, get_params_v0, get_params_v1,
-			version, get_brightness, get_demo;
+			version, get_brightness, get_demo, suspend, resume;
 
 		struct {
 			uint8_t num;
@@ -1192,6 +1192,10 @@ struct ec_params_lightbar {
 		struct {
 			uint8_t led;
 		} get_rgb;
+
+		struct {
+			uint8_t enable;
+		} manual_suspend_ctrl;
 
 		struct lightbar_params_v0 set_params_v0;
 		struct lightbar_params_v1 set_params_v1;
@@ -1229,7 +1233,7 @@ struct ec_response_lightbar {
 			/* no return params */
 		} off, on, init, set_brightness, seq, reg, set_rgb,
 			demo, set_params_v0, set_params_v1,
-			set_program;
+			set_program, manual_suspend_ctrl, suspend, resume;
 	};
 } __packed;
 
@@ -1254,6 +1258,9 @@ enum lightbar_command {
 	LIGHTBAR_CMD_GET_PARAMS_V1 = 16,
 	LIGHTBAR_CMD_SET_PARAMS_V1 = 17,
 	LIGHTBAR_CMD_SET_PROGRAM = 18,
+	LIGHTBAR_CMD_MANUAL_SUSPEND_CTRL = 19,
+	LIGHTBAR_CMD_SUSPEND = 20,
+	LIGHTBAR_CMD_RESUME = 21,
 	LIGHTBAR_NUM_CMDS
 };
 
