@@ -443,8 +443,8 @@ static int dsa_dst_apply(struct dsa_switch_tree *dst)
 			return err;
 	}
 
-	if (dst->cpu_switch) {
-		err = dsa_cpu_port_ethtool_setup(dst->cpu_switch);
+	if (dst->cpu_dp) {
+		err = dsa_cpu_port_ethtool_setup(dst->cpu_dp->ds);
 		if (err)
 			return err;
 	}
@@ -484,8 +484,8 @@ static void dsa_dst_unapply(struct dsa_switch_tree *dst)
 		dsa_ds_unapply(dst, ds);
 	}
 
-	if (dst->cpu_switch)
-		dsa_cpu_port_ethtool_restore(dst->cpu_switch);
+	if (dst->cpu_dp)
+		dsa_cpu_port_ethtool_restore(dst->cpu_dp->ds);
 
 	pr_info("DSA: tree %d unapplied\n", dst->tree);
 	dst->applied = false;
@@ -518,10 +518,8 @@ static int dsa_cpu_parse(struct dsa_port *port, u32 index,
 	if (!dst->master_netdev)
 		dst->master_netdev = ethernet_dev;
 
-	if (!dst->cpu_switch) {
-		dst->cpu_switch = ds;
-		dst->cpu_port = index;
-	}
+	if (!dst->cpu_dp)
+		dst->cpu_dp = port;
 
 	tag_protocol = ds->ops->get_tag_protocol(ds);
 	dst->tag_ops = dsa_resolve_tag_protocol(tag_protocol);

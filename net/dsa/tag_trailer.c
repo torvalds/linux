@@ -67,7 +67,7 @@ static struct sk_buff *trailer_rcv(struct sk_buff *skb, struct net_device *dev,
 	u8 *trailer;
 	int source_port;
 
-	ds = dst->cpu_switch;
+	ds = dst->cpu_dp->ds;
 
 	if (skb_linearize(skb))
 		goto out_drop;

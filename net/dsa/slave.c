@@ -821,8 +821,8 @@ static void dsa_cpu_port_get_ethtool_stats(struct net_device *dev,
 					   uint64_t *data)
 {
 	struct dsa_switch_tree *dst = dev->dsa_ptr;
-	struct dsa_switch *ds = dst->cpu_switch;
-	s8 cpu_port = dst->cpu_port;
+	struct dsa_switch *ds = dst->cpu_dp->ds;
+	s8 cpu_port = dst->cpu_dp->index;
 	int count = 0;
 
 	if (dst->master_ethtool_ops.get_sset_count) {
@@ -838,7 +838,7 @@ static void dsa_cpu_port_get_ethtool_stats(struct net_device *dev,
 static int dsa_cpu_port_get_sset_count(struct net_device *dev, int sset)
 {
 	struct dsa_switch_tree *dst = dev->dsa_ptr;
-	struct dsa_switch *ds = dst->cpu_switch;
+	struct dsa_switch *ds = dst->cpu_dp->ds;
 	int count = 0;
 
 	if (dst->master_ethtool_ops.get_sset_count)
@@ -854,8 +854,8 @@ static void dsa_cpu_port_get_strings(struct net_device *dev,
 				     uint32_t stringset, uint8_t *data)
 {
 	struct dsa_switch_tree *dst = dev->dsa_ptr;
-	struct dsa_switch *ds = dst->cpu_switch;
-	s8 cpu_port = dst->cpu_port;
+	struct dsa_switch *ds = dst->cpu_dp->ds;
+	s8 cpu_port = dst->cpu_dp->index;
 	int len = ETH_GSTRING_LEN;
 	int mcount = 0, count;
 	unsigned int i;

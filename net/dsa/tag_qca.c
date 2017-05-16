@@ -99,7 +99,7 @@ static struct sk_buff *qca_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 	/* This protocol doesn't support cascading multiple switches so it's
 	 * safe to assume the switch is first in the tree
 	 */
-	ds = dst->cpu_switch;
+	ds = dst->cpu_dp->ds;
 	if (!ds)
 		goto out_drop;
 

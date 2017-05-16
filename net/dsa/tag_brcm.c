@@ -101,7 +101,7 @@ static struct sk_buff *brcm_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 	int source_port;
 	u8 *brcm_tag;
 
-	ds = dst->cpu_switch;
+	ds = dst->cpu_dp->ds;
 
 	if (unlikely(!pskb_may_pull(skb, BRCM_TAG_LEN)))
 		goto out_drop;

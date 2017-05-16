@@ -115,13 +115,12 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 			continue;
 
 		if (!strcmp(name, "cpu")) {
-			if (dst->cpu_switch) {
+			if (dst->cpu_dp) {
 				netdev_err(dst->master_netdev,
 					   "multiple cpu ports?!\n");
 				return -EINVAL;
 			}
-			dst->cpu_switch = ds;
-			dst->cpu_port = i;
+			dst->cpu_dp = &ds->ports[i];
 			ds->cpu_port_mask |= 1 << i;
 		} else if (!strcmp(name, "dsa")) {
 			ds->dsa_port_mask |= 1 << i;
@@ -144,7 +143,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 	 * tagging protocol to the preferred tagging format of this
 	 * switch.
 	 */
-	if (dst->cpu_switch == ds) {
+	if (dst->cpu_dp->ds == ds) {
 		enum dsa_tag_protocol tag_protocol;
 
 		tag_protocol = ops->get_tag_protocol(ds);
@@ -624,7 +623,6 @@ static int dsa_setup_dst(struct dsa_switch_tree *dst, struct net_device *dev,
 
 	dst->pd = pd;
 	dst->master_netdev = dev;
-	dst->cpu_port = -1;
 
 	for (i = 0; i < pd->nr_chips; i++) {
 		struct dsa_switch *ds;
@@ -735,7 +733,7 @@ static void dsa_remove_dst(struct dsa_switch_tree *dst)
 			dsa_switch_destroy(ds);
 	}
 
-	dsa_cpu_port_ethtool_restore(dst->cpu_switch);
+	dsa_cpu_port_ethtool_restore(dst->cpu_dp->ds);
 
 	dev_put(dst->master_netdev);
 }

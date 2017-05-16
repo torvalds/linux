@@ -137,10 +137,9 @@ struct dsa_switch_tree {
 	const struct ethtool_ops *master_orig_ethtool_ops;
 
 	/*
-	 * The switch and port to which the CPU is attached.
+	 * The switch port to which the CPU is attached.
 	 */
-	struct dsa_switch	*cpu_switch;
-	s8			cpu_port;
+	struct dsa_port		*cpu_dp;
 
 	/*
 	 * Data for the individual switch chips.
@@ -251,7 +250,7 @@ struct dsa_switch {
 
 static inline bool dsa_is_cpu_port(struct dsa_switch *ds, int p)
 {
-	return !!(ds == ds->dst->cpu_switch && p == ds->dst->cpu_port);
+	return ds->dst->cpu_dp == &ds->ports[p];
 }
 
 static inline bool dsa_is_dsa_port(struct dsa_switch *ds, int p)
@@ -279,10 +278,10 @@ static inline u8 dsa_upstream_port(struct dsa_switch *ds)
 	 * Else return the (DSA) port number that connects to the
 	 * switch that is one hop closer to the cpu.
 	 */
-	if (dst->cpu_switch == ds)
-		return dst->cpu_port;
+	if (dst->cpu_dp->ds == ds)
+		return dst->cpu_dp->index;
 	else
-		return ds->rtable[dst->cpu_switch->index];
+		return ds->rtable[dst->cpu_dp->ds->index];
 }
 
 struct switchdev_trans;
