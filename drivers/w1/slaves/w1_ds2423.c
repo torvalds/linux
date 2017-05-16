@@ -140,7 +140,7 @@ static struct w1_family w1_family_1d = {
 };
 module_w1_family(w1_family_1d);
 
-MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mika Laitio <lamikr@pilppa.org>");
 MODULE_DESCRIPTION("w1 family 1d driver for DS2423, 4 counters and 4kb ram");
+MODULE_LICENSE("GPL");
 MODULE_ALIAS("w1-family-" __stringify(W1_COUNTER_DS2423));

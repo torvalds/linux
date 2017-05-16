@@ -63,11 +63,13 @@ int w1_ds2760_read(struct device *dev, char *buf, int addr, size_t count)
 {
 	return w1_ds2760_io(dev, buf, addr, count, 0);
 }
+EXPORT_SYMBOL(w1_ds2760_read);
 
 int w1_ds2760_write(struct device *dev, char *buf, int addr, size_t count)
 {
 	return w1_ds2760_io(dev, buf, addr, count, 1);
 }
+EXPORT_SYMBOL(w1_ds2760_write);
 
 static int w1_ds2760_eeprom_cmd(struct device *dev, int addr, int cmd)
 {
@@ -91,11 +93,13 @@ int w1_ds2760_store_eeprom(struct device *dev, int addr)
 {
 	return w1_ds2760_eeprom_cmd(dev, addr, W1_DS2760_COPY_DATA);
 }
+EXPORT_SYMBOL(w1_ds2760_store_eeprom);
 
 int w1_ds2760_recall_eeprom(struct device *dev, int addr)
 {
 	return w1_ds2760_eeprom_cmd(dev, addr, W1_DS2760_RECALL_DATA);
 }
+EXPORT_SYMBOL(w1_ds2760_recall_eeprom);
 
 static ssize_t w1_slave_read(struct file *filp, struct kobject *kobj,
 			     struct bin_attribute *bin_attr, char *buf,
@@ -164,12 +168,7 @@ static struct w1_family w1_ds2760_family = {
 };
 module_w1_family(w1_ds2760_family);
 
-EXPORT_SYMBOL(w1_ds2760_read);
-EXPORT_SYMBOL(w1_ds2760_write);
-EXPORT_SYMBOL(w1_ds2760_store_eeprom);
-EXPORT_SYMBOL(w1_ds2760_recall_eeprom);
-
-MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Szabolcs Gyurko <szabolcs.gyurko@tlt.hu>");
 MODULE_DESCRIPTION("1-wire Driver Dallas 2760 battery monitor chip");
+MODULE_LICENSE("GPL");
 MODULE_ALIAS("w1-family-" __stringify(W1_FAMILY_DS2760));

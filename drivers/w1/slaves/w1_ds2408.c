@@ -19,12 +19,6 @@
 #include "../w1_int.h"
 #include "../w1_family.h"
 
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Jean-Francois Dagenais <dagenaisj@sonatest.com>");
-MODULE_DESCRIPTION("w1 family 29 driver for DS2408 8 Pin IO");
-MODULE_ALIAS("w1-family-" __stringify(W1_FAMILY_DS2408));
-
-
 #define W1_F29_RETRIES		3
 
 #define W1_F29_REG_LOGIG_STATE             0x88 /* R */
@@ -352,3 +346,8 @@ static struct w1_family w1_family_29 = {
 	.fops = &w1_f29_fops,
 };
 module_w1_family(w1_family_29);
+
+MODULE_AUTHOR("Jean-Francois Dagenais <dagenaisj@sonatest.com>");
+MODULE_DESCRIPTION("w1 family 29 driver for DS2408 8 Pin IO");
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("w1-family-" __stringify(W1_FAMILY_DS2408));
