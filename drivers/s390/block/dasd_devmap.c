@@ -950,11 +950,14 @@ dasd_safe_offline_store(struct device *dev, struct device_attribute *attr,
 {
 	struct ccw_device *cdev = to_ccwdev(dev);
 	struct dasd_device *device;
+	unsigned long flags;
 	int rc;
 
-	device = dasd_device_from_cdev(cdev);
+	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
+	device = dasd_device_from_cdev_locked(cdev);
 	if (IS_ERR(device)) {
 		rc = PTR_ERR(device);
+		spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 		goto out;
 	}
 
@@ -962,12 +965,14 @@ dasd_safe_offline_store(struct device *dev, struct device_attribute *attr,
 	    test_bit(DASD_FLAG_SAFE_OFFLINE_RUNNING, &device->flags)) {
 		/* Already doing offline processing */
 		dasd_put_device(device);
+		spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 		rc = -EBUSY;
 		goto out;
 	}
 
 	set_bit(DASD_FLAG_SAFE_OFFLINE, &device->flags);
 	dasd_put_device(device);
+	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 
 	rc = ccw_device_set_offline(cdev);
 
