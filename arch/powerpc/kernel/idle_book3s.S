@@ -31,6 +31,7 @@
  * registers for winkle support.
  */
 #define _SDR1	GPR3
+#define _PTCR	GPR3
 #define _RPR	GPR4
 #define _SPURR	GPR5
 #define _PURR	GPR6
@@ -39,7 +40,7 @@
 #define _AMOR	GPR9
 #define _WORT	GPR10
 #define _WORC	GPR11
-#define _PTCR	GPR12
+#define _LPCR	GPR12
 
 #define PSSCR_EC_ESL_MASK_SHIFTED          (PSSCR_EC | PSSCR_ESL) >> 16
 
@@ -55,12 +56,14 @@ save_sprs_to_stack:
 	 * here since any thread in the core might wake up first
 	 */
 BEGIN_FTR_SECTION
-	mfspr	r3,SPRN_PTCR
-	std	r3,_PTCR(r1)
 	/*
 	 * Note - SDR1 is dropped in Power ISA v3. Hence not restoring
 	 * SDR1 here
 	 */
+	mfspr	r3,SPRN_PTCR
+	std	r3,_PTCR(r1)
+	mfspr	r3,SPRN_LPCR
+	std	r3,_LPCR(r1)
 FTR_SECTION_ELSE
 	mfspr	r3,SPRN_SDR1
 	std	r3,_SDR1(r1)
@@ -813,6 +816,10 @@ no_segments:
 	mtctr	r12
 	bctrl
 
+BEGIN_FTR_SECTION
+	ld	r4,_LPCR(r1)
+	mtspr	SPRN_LPCR,r4
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 hypervisor_state_restored:
 
 	mtspr	SPRN_SRR1,r16
