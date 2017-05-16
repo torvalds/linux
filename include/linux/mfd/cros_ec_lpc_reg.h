@@ -44,4 +44,18 @@ u8 cros_ec_lpc_read_bytes(unsigned int offset, unsigned int length, u8 *dest);
  */
 u8 cros_ec_lpc_write_bytes(unsigned int offset, unsigned int length, u8 *msg);
 
+/**
+ * cros_ec_lpc_reg_init
+ *
+ * Initialize register I/O.
+ */
+void cros_ec_lpc_reg_init(void);
+
+/**
+ * cros_ec_lpc_reg_destroy
+ *
+ * Cleanup reg I/O.
+ */
+void cros_ec_lpc_reg_destroy(void);
+
 #endif /* __LINUX_MFD_CROS_EC_REG_H */

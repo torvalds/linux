@@ -346,10 +346,13 @@ static int __init cros_ec_lpc_init(void)
 		return -ENODEV;
 	}
 
+	cros_ec_lpc_reg_init();
+
 	/* Register the driver */
 	ret = platform_driver_register(&cros_ec_lpc_driver);
 	if (ret) {
 		pr_err(DRV_NAME ": can't register driver: %d\n", ret);
+		cros_ec_lpc_reg_destroy();
 		return ret;
 	}
 
@@ -358,6 +361,7 @@ static int __init cros_ec_lpc_init(void)
 	if (ret) {
 		pr_err(DRV_NAME ": can't register device: %d\n", ret);
 		platform_driver_unregister(&cros_ec_lpc_driver);
+		cros_ec_lpc_reg_destroy();
 		return ret;
 	}
 
@@ -368,6 +372,7 @@ static void __exit cros_ec_lpc_exit(void)
 {
 	platform_device_unregister(&cros_ec_lpc_device);
 	platform_driver_unregister(&cros_ec_lpc_driver);
+	cros_ec_lpc_reg_destroy();
 }
 
 module_init(cros_ec_lpc_init);
