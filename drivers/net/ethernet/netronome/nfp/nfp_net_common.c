@@ -3286,6 +3286,7 @@ int nfp_net_netdev_init(struct net_device *netdev)
 
 	/* Advertise but disable TSO by default. */
 	netdev->features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
+	nn->dp.ctrl &= ~NFP_NET_CFG_CTRL_LSO;
 
 	/* Allow L2 Broadcast and Multicast through by default, if supported */
 	if (nn->cap & NFP_NET_CFG_CTRL_L2BC)
