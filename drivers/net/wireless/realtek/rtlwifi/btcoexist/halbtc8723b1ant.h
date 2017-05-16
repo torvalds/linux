@@ -161,6 +161,7 @@ struct coex_sta_8723b_1ant {
 	u8 bt_retry_cnt;
 	u8 bt_info_ext;
 	bool cck_ever_lock;
+	bool force_lps_on;
 	u32 pop_event_cnt;
 
 	u32 crc_ok_cck;
