@@ -15,6 +15,7 @@
 
 #include <linux/clk.h>
 #include <linux/cpu.h>
+#include <linux/cpufreq.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -23,6 +24,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
+#include <linux/reboot.h>
 #include <linux/slab.h>
 
 #include "../clk/rockchip/clk.h"
@@ -30,6 +32,8 @@
 #define MAX_PROP_NAME_LEN	3
 #define LEAKAGE_TABLE_END	~1
 #define INVALID_VALUE		0xff
+
+#define REBOOT_FREQ		816000 /* kHz */
 
 struct leakage_table {
 	int min;
@@ -44,6 +48,8 @@ struct cluster_info {
 	int lkg_volt_sel;
 	int soc_version;
 	bool set_opp;
+	unsigned int reboot_freq;
+	bool rebooting;
 };
 
 static LIST_HEAD(cluster_info_list);
@@ -223,6 +229,9 @@ static int rockchip_cpufreq_of_parse_dt(int cpu, struct cluster_info *cluster)
 		}
 	}
 
+	if (of_property_read_u32(np, "reboot-freq", &cluster->reboot_freq))
+		cluster->reboot_freq = REBOOT_FREQ;
+
 	ret = rockchip_efuse_get_one_byte(np, "cpu_leakage", &cluster->leakage);
 	if (ret)
 		dev_err(dev, "Failed to get cpu_leakage\n");
@@ -336,6 +345,53 @@ static struct notifier_block rockchip_hotcpu_nb = {
 	.notifier_call = rockchip_hotcpu_notifier,
 };
 
+static int rockchip_reboot_notifier(struct notifier_block *nb,
+				    unsigned long action, void *ptr)
+{
+	int cpu;
+	struct cluster_info *cluster;
+
+	list_for_each_entry(cluster, &cluster_info_list, list_head) {
+		cpu = cpumask_first_and(&cluster->cpus, cpu_online_mask);
+		cluster->rebooting = true;
+		cpufreq_update_policy(cpu);
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block rockchip_reboot_nb = {
+	.notifier_call = rockchip_reboot_notifier,
+};
+
+static int rockchip_cpufreq_notifier(struct notifier_block *nb,
+				     unsigned long event, void *data)
+{
+	struct cpufreq_policy *policy = data;
+	struct cluster_info *cluster;
+
+	if (event != CPUFREQ_ADJUST)
+		return NOTIFY_OK;
+
+	list_for_each_entry(cluster, &cluster_info_list, list_head) {
+		if (cluster->rebooting &&
+		    cpumask_test_cpu(policy->cpu, &cluster->cpus)) {
+			if (cluster->reboot_freq < policy->max)
+				policy->max = cluster->reboot_freq;
+			policy->min = policy->max;
+			pr_info("cpu%d limit freq=%d min=%d max=%d\n",
+				policy->cpu, cluster->reboot_freq,
+				policy->min, policy->max);
+		}
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block rockchip_cpufreq_nb = {
+	.notifier_call = rockchip_cpufreq_notifier,
+};
+
 static int __init rockchip_cpufreq_driver_init(void)
 {
 	struct platform_device *pdev;
@@ -388,6 +444,9 @@ static int __init rockchip_cpufreq_driver_init(void)
 	}
 
 	register_hotcpu_notifier(&rockchip_hotcpu_nb);
+	register_reboot_notifier(&rockchip_reboot_nb);
+	cpufreq_register_notifier(&rockchip_cpufreq_nb,
+				  CPUFREQ_POLICY_NOTIFIER);
 
 next:
 	pdev = platform_device_register_simple("cpufreq-dt", -1, NULL, 0);
