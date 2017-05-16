@@ -38,6 +38,12 @@
 /* Rate-limit the lightbar interface to prevent DoS. */
 static unsigned long lb_interval_jiffies = 50 * HZ / 1000;
 
+/*
+ * Whether or not we have given userspace control of the lightbar.
+ * If this is true, we won't do anything during suspend/resume.
+ */
+static bool userspace_control;
+
 static ssize_t interval_msec_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
@@ -407,11 +413,17 @@ error:
 
 int lb_suspend(struct cros_ec_dev *ec)
 {
+	if (userspace_control)
+		return 0;
+
 	return lb_send_empty_cmd(ec, LIGHTBAR_CMD_SUSPEND);
 }
 
 int lb_resume(struct cros_ec_dev *ec)
 {
+	if (userspace_control)
+		return 0;
+
 	return lb_send_empty_cmd(ec, LIGHTBAR_CMD_RESUME);
 }
 
@@ -528,6 +540,30 @@ exit:
 	return ret;
 }
 
+static ssize_t userspace_control_show(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%d\n", userspace_control);
+}
+
+static ssize_t userspace_control_store(struct device *dev,
+				       struct device_attribute *attr,
+				       const char *buf,
+				       size_t count)
+{
+	bool enable;
+	int ret;
+
+	ret = strtobool(buf, &enable);
+	if (ret < 0)
+		return ret;
+
+	userspace_control = enable;
+
+	return count;
+}
+
 /* Module initialization */
 
 static DEVICE_ATTR_RW(interval_msec);
@@ -536,6 +572,7 @@ static DEVICE_ATTR_WO(brightness);
 static DEVICE_ATTR_WO(led_rgb);
 static DEVICE_ATTR_RW(sequence);
 static DEVICE_ATTR_WO(program);
+static DEVICE_ATTR_RW(userspace_control);
 
 static struct attribute *__lb_cmds_attrs[] = {
 	&dev_attr_interval_msec.attr,
@@ -544,6 +581,7 @@ static struct attribute *__lb_cmds_attrs[] = {
 	&dev_attr_led_rgb.attr,
 	&dev_attr_sequence.attr,
 	&dev_attr_program.attr,
+	&dev_attr_userspace_control.attr,
 	NULL,
 };
 
