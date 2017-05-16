@@ -4929,7 +4929,7 @@ static struct acpi_device_id rt5665_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, rt5665_acpi_match);
 #endif
 
-struct i2c_driver rt5665_i2c_driver = {
+static struct i2c_driver rt5665_i2c_driver = {
 	.driver = {
 		.name = "rt5665",
 		.of_match_table = of_match_ptr(rt5665_of_match),
