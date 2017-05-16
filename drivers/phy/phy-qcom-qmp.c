@@ -844,7 +844,7 @@ static int qcom_qmp_phy_vreg_init(struct device *dev)
 	int num = qmp->cfg->num_vregs;
 	int i;
 
-	qmp->vregs = devm_kcalloc(dev, num, sizeof(qmp->vregs), GFP_KERNEL);
+	qmp->vregs = devm_kcalloc(dev, num, sizeof(*qmp->vregs), GFP_KERNEL);
 	if (!qmp->vregs)
 		return -ENOMEM;
 
