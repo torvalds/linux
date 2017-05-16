@@ -2582,7 +2582,7 @@ static int i915_guc_stage_pool(struct seq_file *m, void *data)
 			   desc->db_trigger_uk);
 		seq_printf(m, "\tProcess descriptor: 0x%x\n",
 			   desc->process_desc);
-		seq_printf(m, "\tWorkqueue adddress: 0x%x, size: 0x%x\n",
+		seq_printf(m, "\tWorkqueue address: 0x%x, size: 0x%x\n",
 			   desc->wq_addr, desc->wq_size);
 		seq_putc(m, '\n');
 
