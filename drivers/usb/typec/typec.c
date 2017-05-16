@@ -1124,6 +1124,11 @@ void typec_set_vconn_role(struct typec_port *port, enum typec_role role)
 }
 EXPORT_SYMBOL_GPL(typec_set_vconn_role);
 
+static int partner_match(struct device *dev, void *data)
+{
+	return is_typec_partner(dev);
+}
+
 /**
  * typec_set_pwr_opmode - Report changed power operation mode
  * @port: The USB Type-C Port where the mode was changed
@@ -1137,12 +1142,26 @@ EXPORT_SYMBOL_GPL(typec_set_vconn_role);
 void typec_set_pwr_opmode(struct typec_port *port,
 			  enum typec_pwr_opmode opmode)
 {
+	struct device *partner_dev;
+
 	if (port->pwr_opmode == opmode)
 		return;
 
 	port->pwr_opmode = opmode;
 	sysfs_notify(&port->dev.kobj, NULL, "power_operation_mode");
 	kobject_uevent(&port->dev.kobj, KOBJ_CHANGE);
+
+	partner_dev = device_find_child(&port->dev, NULL, partner_match);
+	if (partner_dev) {
+		struct typec_partner *partner = to_typec_partner(partner_dev);
+
+		if (opmode == TYPEC_PWR_MODE_PD && !partner->usb_pd) {
+			partner->usb_pd = 1;
+			sysfs_notify(&partner_dev->kobj, NULL,
+				     "supports_usb_power_delivery");
+		}
+		put_device(partner_dev);
+	}
 }
 EXPORT_SYMBOL_GPL(typec_set_pwr_opmode);
 
