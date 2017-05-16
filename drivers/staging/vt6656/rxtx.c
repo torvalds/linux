@@ -275,7 +275,6 @@ static u16 vnt_mac_hdr_pos(struct vnt_usb_send_context *tx_context,
 static u16 vnt_rxtx_datahead_g(struct vnt_usb_send_context *tx_context,
 			       struct vnt_tx_datahead_g *buf)
 {
-
 	struct vnt_private *priv = tx_context->priv;
 	struct ieee80211_hdr *hdr =
 				(struct ieee80211_hdr *)tx_context->skb->data;
@@ -699,7 +698,6 @@ static u16 vnt_generate_tx_parameter(struct vnt_usb_send_context *tx_context,
 				     struct vnt_mic_hdr **mic_hdr, u32 need_mic,
 				     bool need_rts)
 {
-
 	if (tx_context->pkt_type == PK_TYPE_11GB ||
 	    tx_context->pkt_type == PK_TYPE_11GA) {
 		if (need_rts) {
@@ -787,14 +785,12 @@ static void vnt_fill_txkey(struct vnt_usb_send_context *tx_context,
 		if (ieee80211_has_a4(hdr->frame_control))
 			ether_addr_copy(mic_hdr->addr4, hdr->addr4);
 
-
 		memcpy(key_buffer, tx_key->key, WLAN_KEY_LEN_CCMP);
 
 		break;
 	default:
 		break;
 	}
-
 }
 
 int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
