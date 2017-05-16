@@ -389,6 +389,7 @@ static __initdata DECLARE_COMPLETION(kthreadd_done);
 
 static noinline void __ref rest_init(void)
 {
+	struct task_struct *tsk;
 	int pid;
 
 	rcu_scheduler_starting();
@@ -397,7 +398,17 @@ static noinline void __ref rest_init(void)
 	 * the init task will end up wanting to create kthreads, which, if
 	 * we schedule it before we create kthreadd, will OOPS.
 	 */
-	kernel_thread(kernel_init, NULL, CLONE_FS);
+	pid = kernel_thread(kernel_init, NULL, CLONE_FS);
+	/*
+	 * Pin init on the boot CPU. Task migration is not properly working
+	 * until sched_init_smp() has been run. It will set the allowed
+	 * CPUs for init to the non isolated CPUs.
+	 */
+	rcu_read_lock();
+	tsk = find_task_by_pid_ns(pid, &init_pid_ns);
+	set_cpus_allowed_ptr(tsk, cpumask_of(smp_processor_id()));
+	rcu_read_unlock();
+
 	numa_default_policy();
 	pid = kernel_thread(kthreadd, NULL, CLONE_FS | CLONE_FILES);
 	rcu_read_lock();
@@ -1015,10 +1026,6 @@ static noinline void __init kernel_init_freeable(void)
 	 * init can allocate pages on any node
 	 */
 	set_mems_allowed(node_states[N_MEMORY]);
-	/*
-	 * init can run on any cpu.
-	 */
-	set_cpus_allowed_ptr(current, cpu_all_mask);
 
 	cad_pid = task_pid(current);
 
