@@ -374,9 +374,6 @@ static int mlxsw_sp_port_attr_br_flags_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	unsigned long uc_flood = mlxsw_sp_port->uc_flood ? BR_FLOOD : 0;
 	int err;
 
-	if (!mlxsw_sp_port->bridged)
-		return -EINVAL;
-
 	if (switchdev_trans_ph_prepare(trans))
 		return 0;
 
@@ -796,9 +793,6 @@ static int __mlxsw_sp_port_vlans_add(struct mlxsw_sp_port *mlxsw_sp_port,
 	u16 vid, old_pvid;
 	int err;
 
-	if (!mlxsw_sp_port->bridged)
-		return -EINVAL;
-
 	err = mlxsw_sp_port_fid_join(mlxsw_sp_port, vid_begin, vid_end);
 	if (err) {
 		netdev_err(dev, "Failed to join FIDs\n");
@@ -1161,9 +1155,6 @@ static int __mlxsw_sp_port_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port,
 				     u16 vid_begin, u16 vid_end)
 {
 	u16 vid, pvid;
-
-	if (!mlxsw_sp_port->bridged)
-		return -EINVAL;
 
 	mlxsw_sp_port_vid_learning_set(mlxsw_sp_port, vid_begin, vid_end,
 				       false);
