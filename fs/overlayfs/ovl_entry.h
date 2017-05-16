@@ -28,6 +28,7 @@ struct ovl_fs {
 	/* creds of process who forced instantiation of super block */
 	const struct cred *creator_cred;
 	bool tmpfile;
+	bool noxattr;
 	wait_queue_head_t copyup_wq;
 	/* sb common to all layers */
 	struct super_block *same_sb;
