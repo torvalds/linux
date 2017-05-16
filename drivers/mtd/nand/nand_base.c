@@ -2750,11 +2750,13 @@ static int nand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	if (status < 0)
 		return status;
 
-	if (nand_standard_page_accessors(&chip->ecc))
+	if (nand_standard_page_accessors(&chip->ecc)) {
 		chip->cmdfunc(mtd, NAND_CMD_PAGEPROG, -1, -1);
-	status = chip->waitfunc(mtd, chip);
-	if (status & NAND_STATUS_FAIL)
-		return -EIO;
+
+		status = chip->waitfunc(mtd, chip);
+		if (status & NAND_STATUS_FAIL)
+			return -EIO;
+	}
 
 	return 0;
 }

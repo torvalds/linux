@@ -295,7 +295,7 @@ static int tango_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 			    const u8 *buf, int oob_required, int page)
 {
 	struct tango_nfc *nfc = to_tango_nfc(chip->controller);
-	int err, len = mtd->writesize;
+	int err, status, len = mtd->writesize;
 
 	/* Calling tango_write_oob() would send PAGEPROG twice */
 	if (oob_required)
@@ -305,6 +305,10 @@ static int tango_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	err = do_dma(nfc, DMA_TO_DEVICE, NFC_WRITE, buf, len, page);
 	if (err)
 		return err;
+
+	status = chip->waitfunc(mtd, chip);
+	if (status & NAND_STATUS_FAIL)
+		return -EIO;
 
 	return 0;
 }
@@ -423,9 +427,16 @@ static int tango_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 static int tango_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 				const u8 *buf, int oob_required, int page)
 {
+	int status;
+
 	chip->cmdfunc(mtd, NAND_CMD_SEQIN, 0, page);
 	raw_write(chip, buf, chip->oob_poi);
 	chip->cmdfunc(mtd, NAND_CMD_PAGEPROG, -1, -1);
+
+	status = chip->waitfunc(mtd, chip);
+	if (status & NAND_STATUS_FAIL)
+		return -EIO;
+
 	return 0;
 }
 
