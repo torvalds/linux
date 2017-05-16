@@ -47,15 +47,19 @@
  * @log_mutex: mutex to protect circular buffer
  * @log_wq: waitqueue for log readers
  * @log_poll_work: recurring task to poll EC for new console log data
+ * @panicinfo_blob: panicinfo debugfs blob
  */
 struct cros_ec_debugfs {
 	struct cros_ec_dev *ec;
 	struct dentry *dir;
+	/* EC log */
 	struct circ_buf log_buffer;
 	struct cros_ec_command *read_msg;
 	struct mutex log_mutex;
 	wait_queue_head_t log_wq;
 	struct delayed_work log_poll_work;
+	/* EC panicinfo */
+	struct debugfs_blob_wrapper panicinfo_blob;
 };
 
 /*
@@ -308,6 +312,52 @@ static void cros_ec_cleanup_console_log(struct cros_ec_debugfs *debug_info)
 	}
 }
 
+static int cros_ec_create_panicinfo(struct cros_ec_debugfs *debug_info)
+{
+	struct cros_ec_device *ec_dev = debug_info->ec->ec_dev;
+	int ret;
+	struct cros_ec_command *msg;
+	int insize;
+
+	insize = ec_dev->max_response;
+
+	msg = devm_kzalloc(debug_info->ec->dev,
+			sizeof(*msg) + insize, GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	msg->command = EC_CMD_GET_PANIC_INFO;
+	msg->insize = insize;
+
+	ret = cros_ec_cmd_xfer(ec_dev, msg);
+	if (ret < 0) {
+		dev_warn(debug_info->ec->dev, "Cannot read panicinfo.\n");
+		ret = 0;
+		goto free;
+	}
+
+	/* No panic data */
+	if (ret == 0)
+		goto free;
+
+	debug_info->panicinfo_blob.data = msg->data;
+	debug_info->panicinfo_blob.size = ret;
+
+	if (!debugfs_create_blob("panicinfo",
+				 S_IFREG | S_IRUGO,
+				 debug_info->dir,
+				 &debug_info->panicinfo_blob)) {
+		ret = -ENOMEM;
+		goto free;
+	}
+
+	return 0;
+
+free:
+	devm_kfree(debug_info->ec->dev, msg);
+	return ret;
+}
+
 int cros_ec_debugfs_init(struct cros_ec_dev *ec)
 {
 	struct cros_ec_platform *ec_platform = dev_get_platdata(ec->dev);
@@ -323,6 +373,10 @@ int cros_ec_debugfs_init(struct cros_ec_dev *ec)
 	debug_info->dir = debugfs_create_dir(name, NULL);
 	if (!debug_info->dir)
 		return -ENOMEM;
+
+	ret = cros_ec_create_panicinfo(debug_info);
+	if (ret)
+		goto remove_debugfs;
 
 	ret = cros_ec_create_console_log(debug_info);
 	if (ret)
