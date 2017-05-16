@@ -67,7 +67,6 @@ static void omap_plane_atomic_update(struct drm_plane *plane,
 	info.rotation_type = OMAP_DSS_ROT_NONE;
 	info.rotation = DRM_MODE_ROTATE_0;
 	info.global_alpha = 0xff;
-	info.mirror = 0;
 	info.zorder = state->zpos;
 
 	/* update scanout: */

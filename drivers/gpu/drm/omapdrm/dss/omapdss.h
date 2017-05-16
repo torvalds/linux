@@ -263,7 +263,6 @@ struct omap_overlay_info {
 	u32 fourcc;
 	u8 rotation;
 	enum omap_dss_rotation_type rotation_type;
-	bool mirror;
 
 	u16 pos_x;
 	u16 pos_y;
@@ -311,7 +310,6 @@ struct omap_dss_writeback_info {
 	u32 fourcc;
 	u8 rotation;
 	enum omap_dss_rotation_type rotation_type;
-	bool mirror;
 	u8 pre_mult_alpha;
 };
 

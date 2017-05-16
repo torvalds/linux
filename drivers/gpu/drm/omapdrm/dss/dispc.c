@@ -1805,8 +1805,7 @@ static void dispc_ovl_set_scaling(enum omap_plane_id plane,
 }
 
 static void dispc_ovl_set_rotation_attrs(enum omap_plane_id plane, u8 rotation,
-		enum omap_dss_rotation_type rotation_type,
-		bool mirroring, u32 fourcc)
+		enum omap_dss_rotation_type rotation_type, u32 fourcc)
 {
 	bool row_repeat = false;
 	int vidrot = 0;
@@ -1814,7 +1813,7 @@ static void dispc_ovl_set_rotation_attrs(enum omap_plane_id plane, u8 rotation,
 	/* Note: DSS HW rotates clockwise, DRM_MODE_ROTATE_* counter-clockwise */
 	if (fourcc == DRM_FORMAT_YUYV || fourcc == DRM_FORMAT_UYVY) {
 
-		if (mirroring) {
+		if (rotation & DRM_MODE_REFLECT_X) {
 			switch (rotation & DRM_MODE_ROTATE_MASK) {
 			case DRM_MODE_ROTATE_0:
 				vidrot = 2;
@@ -2369,7 +2368,7 @@ static int dispc_ovl_setup_common(enum omap_plane_id plane,
 		enum omap_overlay_caps caps, u32 paddr, u32 p_uv_addr,
 		u16 screen_width, int pos_x, int pos_y, u16 width, u16 height,
 		u16 out_width, u16 out_height, u32 fourcc,
-		u8 rotation, bool mirror, u8 zorder, u8 pre_mult_alpha,
+		u8 rotation, u8 zorder, u8 pre_mult_alpha,
 		u8 global_alpha, enum omap_dss_rotation_type rotation_type,
 		bool replication, const struct videomode *vm,
 		bool mem_to_mem)
@@ -2517,8 +2516,7 @@ static int dispc_ovl_setup_common(enum omap_plane_id plane,
 		dispc_ovl_set_vid_color_conv(plane, cconv);
 	}
 
-	dispc_ovl_set_rotation_attrs(plane, rotation, rotation_type, mirror,
-			fourcc);
+	dispc_ovl_set_rotation_attrs(plane, rotation, rotation_type, fourcc);
 
 	dispc_ovl_set_zorder(plane, caps, zorder);
 	dispc_ovl_set_pre_mult_alpha(plane, caps, pre_mult_alpha);
@@ -2539,17 +2537,17 @@ static int dispc_ovl_setup(enum omap_plane_id plane,
 	const bool replication = true;
 
 	DSSDBG("dispc_ovl_setup %d, pa %pad, pa_uv %pad, sw %d, %d,%d, %dx%d ->"
-		" %dx%d, cmode %x, rot %d, mir %d, chan %d repl %d\n",
+		" %dx%d, cmode %x, rot %d, chan %d repl %d\n",
 		plane, &oi->paddr, &oi->p_uv_addr, oi->screen_width, oi->pos_x,
 		oi->pos_y, oi->width, oi->height, oi->out_width, oi->out_height,
-		oi->fourcc, oi->rotation, oi->mirror, channel, replication);
+		oi->fourcc, oi->rotation, channel, replication);
 
 	dispc_ovl_set_channel_out(plane, channel);
 
 	r = dispc_ovl_setup_common(plane, caps, oi->paddr, oi->p_uv_addr,
 		oi->screen_width, oi->pos_x, oi->pos_y, oi->width, oi->height,
 		oi->out_width, oi->out_height, oi->fourcc, oi->rotation,
-		oi->mirror, oi->zorder, oi->pre_mult_alpha, oi->global_alpha,
+		oi->zorder, oi->pre_mult_alpha, oi->global_alpha,
 		oi->rotation_type, replication, vm, mem_to_mem);
 
 	return r;
@@ -2571,13 +2569,12 @@ int dispc_wb_setup(const struct omap_dss_writeback_info *wi,
 		OMAP_DSS_OVL_CAP_SCALE | OMAP_DSS_OVL_CAP_PRE_MULT_ALPHA;
 
 	DSSDBG("dispc_wb_setup, pa %x, pa_uv %x, %d,%d -> %dx%d, cmode %x, "
-		"rot %d, mir %d\n", wi->paddr, wi->p_uv_addr, in_width,
-		in_height, wi->width, wi->height, wi->fourcc, wi->rotation,
-		wi->mirror);
+		"rot %d\n", wi->paddr, wi->p_uv_addr, in_width,
+		in_height, wi->width, wi->height, wi->fourcc, wi->rotation);
 
 	r = dispc_ovl_setup_common(plane, caps, wi->paddr, wi->p_uv_addr,
 		wi->buf_width, pos_x, pos_y, in_width, in_height, wi->width,
-		wi->height, wi->fourcc, wi->rotation, wi->mirror, zorder,
+		wi->height, wi->fourcc, wi->rotation, zorder,
 		wi->pre_mult_alpha, global_alpha, wi->rotation_type,
 		replication, vm, mem_to_mem);
 
@@ -3918,7 +3915,6 @@ static const struct dispc_errata_i734_data {
 		.fourcc = DRM_FORMAT_XRGB8888,
 		.rotation = DRM_MODE_ROTATE_0,
 		.rotation_type = OMAP_DSS_ROT_NONE,
-		.mirror = 0,
 		.pos_x = 0, .pos_y = 0,
 		.out_width = 0, .out_height = 0,
 		.global_alpha = 0xff,
