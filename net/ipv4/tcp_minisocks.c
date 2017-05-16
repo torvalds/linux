@@ -447,7 +447,7 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 		newtp->mdev_us = jiffies_to_usecs(TCP_TIMEOUT_INIT);
 		minmax_reset(&newtp->rtt_min, tcp_time_stamp, ~0U);
 		newicsk->icsk_rto = TCP_TIMEOUT_INIT;
-		newicsk->icsk_ack.lrcvtime = tcp_time_stamp;
+		newicsk->icsk_ack.lrcvtime = tcp_jiffies32;
 
 		newtp->packets_out = 0;
 		newtp->retrans_out = 0;
