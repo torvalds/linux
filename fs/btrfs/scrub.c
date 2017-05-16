@@ -289,7 +289,6 @@ static void scrub_remap_extent(struct btrfs_fs_info *fs_info,
 			       u64 *extent_physical,
 			       struct btrfs_device **extent_dev,
 			       int *extent_mirror_num);
-static void scrub_free_wr_ctx(struct scrub_wr_ctx *wr_ctx);
 static int scrub_add_page_to_wr_bio(struct scrub_ctx *sctx,
 				    struct scrub_page *spage);
 static void scrub_wr_submit(struct scrub_ctx *sctx);
@@ -640,7 +639,10 @@ static noinline_for_stack void scrub_free_ctx(struct scrub_ctx *sctx)
 	if (!sctx)
 		return;
 
-	scrub_free_wr_ctx(&sctx->wr_ctx);
+	mutex_lock(&sctx->wr_ctx.wr_lock);
+	kfree(sctx->wr_ctx.wr_curr_bio);
+	sctx->wr_ctx.wr_curr_bio = NULL;
+	mutex_unlock(&sctx->wr_ctx.wr_lock);
 
 	/* this can happen when scrub is cancelled */
 	if (sctx->curr != -1) {
@@ -4335,14 +4337,6 @@ static void scrub_remap_extent(struct btrfs_fs_info *fs_info,
 	*extent_mirror_num = bbio->mirror_num;
 	*extent_dev = bbio->stripes[0].dev;
 	btrfs_put_bbio(bbio);
-}
-
-static void scrub_free_wr_ctx(struct scrub_wr_ctx *wr_ctx)
-{
-	mutex_lock(&wr_ctx->wr_lock);
-	kfree(wr_ctx->wr_curr_bio);
-	wr_ctx->wr_curr_bio = NULL;
-	mutex_unlock(&wr_ctx->wr_lock);
 }
 
 static int copy_nocow_pages(struct scrub_ctx *sctx, u64 logical, u64 len,
