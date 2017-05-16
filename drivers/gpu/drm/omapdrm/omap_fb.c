@@ -193,6 +193,7 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 		omap_gem_rotated_dma_addr(plane->bo, orient, x, y,
 					  &info->paddr);
 		info->rotation_type = OMAP_DSS_ROT_TILER;
+		info->rotation = state->rotation ?: DRM_MODE_ROTATE_0;
 		info->screen_width  = omap_gem_tiled_stride(plane->bo, orient);
 	} else {
 		switch (state->rotation & DRM_MODE_ROTATE_MASK) {
@@ -210,6 +211,7 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 
 		info->paddr         = get_linear_addr(plane, format, 0, x, y);
 		info->rotation_type = OMAP_DSS_ROT_NONE;
+		info->rotation      = DRM_MODE_ROTATE_0;
 		info->screen_width  = plane->pitch;
 	}
 
