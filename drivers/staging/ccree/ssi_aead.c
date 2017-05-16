@@ -96,7 +96,7 @@ static void ssi_aead_exit(struct crypto_aead *tfm)
 	SSI_LOG_DEBUG("Clearing context @%p for %s\n",
 		crypto_aead_ctx(tfm), crypto_tfm_alg_name(&(tfm->base)));
 
- 	dev = &ctx->drvdata->plat_dev->dev;
+	dev = &ctx->drvdata->plat_dev->dev;
 	/* Unmap enckey buffer */
 	if (ctx->enckey != NULL) {
 		SSI_RESTORE_DMA_ADDR_TO_48BIT(ctx->enckey_dma_addr);
@@ -2334,22 +2334,22 @@ static int ssi_gcm_setauthsize(struct crypto_aead *authenc,
 static int ssi_rfc4106_gcm_setauthsize(struct crypto_aead *authenc,
 				      unsigned int authsize)
 {
-        SSI_LOG_DEBUG("ssi_rfc4106_gcm_setauthsize()  authsize %d \n", authsize );
+	SSI_LOG_DEBUG("ssi_rfc4106_gcm_setauthsize()  authsize %d \n", authsize );
 
-        switch (authsize) {
-        case 8:
-        case 12:
-        case 16:
-                break;
-        default:
-                return -EINVAL;
-        }
+	switch (authsize) {
+	case 8:
+	case 12:
+	case 16:
+		break;
+	default:
+		return -EINVAL;
+	}
 
-        return ssi_aead_setauthsize(authenc, authsize);
+	return ssi_aead_setauthsize(authenc, authsize);
 }
 
 static int ssi_rfc4543_gcm_setauthsize(struct crypto_aead *authenc,
-				      unsigned int authsize)
+				       unsigned int authsize)
 {
 	SSI_LOG_DEBUG("ssi_rfc4543_gcm_setauthsize()  authsize %d \n", authsize );
 
@@ -2364,7 +2364,7 @@ static int ssi_rfc4106_gcm_encrypt(struct aead_request *req)
 	/* Very similar to ssi_aead_encrypt() above. */
 
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
-        int rc = -EINVAL;
+	int rc = -EINVAL;
 
 	if (!valid_assoclen(req)) {
 		SSI_LOG_ERR("invalid Assoclen:%u\n", req->assoclen);
@@ -2416,7 +2416,7 @@ static int ssi_rfc4106_gcm_decrypt(struct aead_request *req)
 	/* Very similar to ssi_aead_decrypt() above. */
 
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
-        int rc = -EINVAL;
+	int rc = -EINVAL;
 
 	if (!valid_assoclen(req)) {
 		SSI_LOG_ERR("invalid Assoclen:%u\n", req->assoclen);
