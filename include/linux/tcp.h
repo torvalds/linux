@@ -293,6 +293,8 @@ struct tcp_sock {
 	u32	sacked_out;	/* SACK'd packets			*/
 	u32	fackets_out;	/* FACK'd packets			*/
 
+	struct hrtimer	pacing_timer;
+
 	/* from STCP, retrans queue hinting */
 	struct sk_buff* lost_skb_hint;
 	struct sk_buff *retransmit_skb_hint;

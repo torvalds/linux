@@ -52,10 +52,9 @@
  * There is a public e-mail list for discussing BBR development and testing:
  *   https://groups.google.com/forum/#!forum/bbr-dev
  *
- * NOTE: BBR *must* be used with the fq qdisc ("man tc-fq") with pacing enabled,
- * since pacing is integral to the BBR design and implementation.
- * BBR without pacing would not function properly, and may incur unnecessary
- * high packet loss rates.
+ * NOTE: BBR might be used with the fq qdisc ("man tc-fq") with pacing enabled,
+ * otherwise TCP stack falls back to an internal pacing using one high
+ * resolution timer per TCP socket and may use more resources.
  */
 #include <linux/module.h>
 #include <net/tcp.h>
@@ -830,6 +829,8 @@ static void bbr_init(struct sock *sk)
 	bbr->cycle_idx = 0;
 	bbr_reset_lt_bw_sampling(sk);
 	bbr_reset_startup_mode(sk);
+
+	cmpxchg(&sk->sk_pacing_status, SK_PACING_NONE, SK_PACING_NEEDED);
 }
 
 static u32 bbr_sndbuf_expand(struct sock *sk)

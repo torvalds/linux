@@ -574,6 +574,7 @@ void tcp_fin(struct sock *sk);
 void tcp_init_xmit_timers(struct sock *);
 static inline void tcp_clear_xmit_timers(struct sock *sk)
 {
+	hrtimer_cancel(&tcp_sk(sk)->pacing_timer);
 	inet_csk_clear_xmit_timers(sk);
 }
 
@@ -1944,5 +1945,7 @@ static inline void tcp_listendrop(const struct sock *sk)
 	atomic_inc(&((struct sock *)sk)->sk_drops);
 	__NET_INC_STATS(sock_net(sk), LINUX_MIB_LISTENDROPS);
 }
+
+enum hrtimer_restart tcp_pace_kick(struct hrtimer *timer);
 
 #endif	/* _TCP_H */
