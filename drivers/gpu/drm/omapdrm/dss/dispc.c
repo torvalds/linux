@@ -41,6 +41,7 @@
 #include <linux/of.h>
 #include <linux/component.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_blend.h>
 
 #include "omapdss.h"
 #include "dss.h"
@@ -1600,22 +1601,21 @@ static void dispc_ovl_set_accu_uv(enum omap_plane_id plane,
 		{  0, 1, 0, 1, -1, 1, 0, 1 },
 	};
 
-	switch (rotation) {
-	case OMAP_DSS_ROT_0:
+	/* Note: DSS HW rotates clockwise, DRM_MODE_ROTATE_* counter-clockwise */
+	switch (rotation & DRM_MODE_ROTATE_MASK) {
+	default:
+	case DRM_MODE_ROTATE_0:
 		idx = 0;
 		break;
-	case OMAP_DSS_ROT_90:
-		idx = 1;
-		break;
-	case OMAP_DSS_ROT_180:
-		idx = 2;
-		break;
-	case OMAP_DSS_ROT_270:
+	case DRM_MODE_ROTATE_90:
 		idx = 3;
 		break;
-	default:
-		BUG();
-		return;
+	case DRM_MODE_ROTATE_180:
+		idx = 2;
+		break;
+	case DRM_MODE_ROTATE_270:
+		idx = 1;
+		break;
 	}
 
 	switch (fourcc) {
@@ -1742,8 +1742,7 @@ static void dispc_ovl_set_scaling_uv(enum omap_plane_id plane,
 	case DRM_FORMAT_YUYV:
 	case DRM_FORMAT_UYVY:
 		/* For YUV422 with 90/270 rotation, we don't upsample chroma */
-		if (rotation == OMAP_DSS_ROT_0 ||
-				rotation == OMAP_DSS_ROT_180) {
+		if (!drm_rotation_90_or_270(rotation)) {
 			if (chroma_upscale)
 				/* UV is subsampled by 2 horizontally */
 				orig_width >>= 1;
@@ -1753,7 +1752,7 @@ static void dispc_ovl_set_scaling_uv(enum omap_plane_id plane,
 		}
 
 		/* must use FIR for YUV422 if rotated */
-		if (rotation != OMAP_DSS_ROT_0)
+		if ((rotation & DRM_MODE_ROTATE_MASK) != DRM_MODE_ROTATE_0)
 			scale_x = scale_y = true;
 
 		break;
@@ -1812,41 +1811,42 @@ static void dispc_ovl_set_rotation_attrs(enum omap_plane_id plane, u8 rotation,
 	bool row_repeat = false;
 	int vidrot = 0;
 
+	/* Note: DSS HW rotates clockwise, DRM_MODE_ROTATE_* counter-clockwise */
 	if (fourcc == DRM_FORMAT_YUYV || fourcc == DRM_FORMAT_UYVY) {
 
 		if (mirroring) {
-			switch (rotation) {
-			case OMAP_DSS_ROT_0:
+			switch (rotation & DRM_MODE_ROTATE_MASK) {
+			case DRM_MODE_ROTATE_0:
 				vidrot = 2;
 				break;
-			case OMAP_DSS_ROT_90:
-				vidrot = 1;
+			case DRM_MODE_ROTATE_90:
+				vidrot = 3;
 				break;
-			case OMAP_DSS_ROT_180:
+			case DRM_MODE_ROTATE_180:
 				vidrot = 0;
 				break;
-			case OMAP_DSS_ROT_270:
-				vidrot = 3;
+			case DRM_MODE_ROTATE_270:
+				vidrot = 1;
 				break;
 			}
 		} else {
-			switch (rotation) {
-			case OMAP_DSS_ROT_0:
+			switch (rotation & DRM_MODE_ROTATE_MASK) {
+			case DRM_MODE_ROTATE_0:
 				vidrot = 0;
 				break;
-			case OMAP_DSS_ROT_90:
-				vidrot = 1;
+			case DRM_MODE_ROTATE_90:
+				vidrot = 3;
 				break;
-			case OMAP_DSS_ROT_180:
+			case DRM_MODE_ROTATE_180:
 				vidrot = 2;
 				break;
-			case OMAP_DSS_ROT_270:
-				vidrot = 3;
+			case DRM_MODE_ROTATE_270:
+				vidrot = 1;
 				break;
 			}
 		}
 
-		if (rotation == OMAP_DSS_ROT_90 || rotation == OMAP_DSS_ROT_270)
+		if (drm_rotation_90_or_270(rotation))
 			row_repeat = true;
 		else
 			row_repeat = false;
@@ -1869,7 +1869,7 @@ static void dispc_ovl_set_rotation_attrs(enum omap_plane_id plane, u8 rotation,
 		bool doublestride =
 			fourcc == DRM_FORMAT_NV12 &&
 			rotation_type == OMAP_DSS_ROT_TILER &&
-			(rotation == OMAP_DSS_ROT_0 || rotation == OMAP_DSS_ROT_180);
+			!drm_rotation_90_or_270(rotation);
 
 		/* DOUBLESTRIDE */
 		REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane), doublestride, 22, 22);
@@ -3916,7 +3916,7 @@ static const struct dispc_errata_i734_data {
 		.screen_width = 1,
 		.width = 1, .height = 1,
 		.fourcc = DRM_FORMAT_XRGB8888,
-		.rotation = OMAP_DSS_ROT_0,
+		.rotation = DRM_MODE_ROTATE_0,
 		.rotation_type = OMAP_DSS_ROT_NONE,
 		.mirror = 0,
 		.pos_x = 0, .pos_y = 0,

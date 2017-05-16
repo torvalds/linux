@@ -149,14 +149,6 @@ enum omap_dss_rotation_type {
 	OMAP_DSS_ROT_TILER	= 1 << 0,
 };
 
-/* clockwise rotation angle */
-enum omap_dss_rotation_angle {
-	OMAP_DSS_ROT_0   = 0,
-	OMAP_DSS_ROT_90  = 1,
-	OMAP_DSS_ROT_180 = 2,
-	OMAP_DSS_ROT_270 = 3,
-};
-
 enum omap_overlay_caps {
 	OMAP_DSS_OVL_CAP_SCALE = 1 << 0,
 	OMAP_DSS_OVL_CAP_GLOBAL_ALPHA = 1 << 1,
