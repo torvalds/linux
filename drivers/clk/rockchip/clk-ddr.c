@@ -202,8 +202,13 @@ static const struct clk_ops rockchip_ddrclk_scpi_ops = {
 	.get_parent = rockchip_ddrclk_get_parent,
 };
 
-struct set_rate_params {
+struct share_params {
 	u32 hz;
+	u32 lcdc_type;
+	u32 vop;
+	u32 vop_dclk_mode;
+	u32 sr_idle_en;
+	u32 addr_mcu_el3;
 	/*
 	 * 1: need to wait flag1
 	 * 0: never wait flag1
@@ -214,15 +219,7 @@ struct set_rate_params {
 	 * 0: never wait flag1
 	 */
 	u32 wait_flag0;
-	/* these parameters, not use in RK322xh */
-	u32 lcdc_type;
-	u32 vop;
-	/* if need, add parameter after */
-};
-
-struct round_rate_params {
-	u32 hz;
-	/* if need, add parameter after */
+	 /* if need, add parameter after */
 };
 
 struct rockchip_ddrclk_data {
@@ -248,13 +245,13 @@ static int rockchip_ddrclk_sip_set_rate_v2(struct clk_hw *hw,
 					   unsigned long drate,
 					   unsigned long prate)
 {
-	struct set_rate_params *p;
+	struct share_params *p;
 	struct arm_smccc_res res;
 
 	if (!ddr_data.inited_flag)
 		rockchip_ddrclk_data_init();
 
-	p = (struct set_rate_params *)ddr_data.share_memory;
+	p = (struct share_params *)ddr_data.share_memory;
 
 	p->hz = drate;
 	p->lcdc_type = rk_drm_get_lcdc_type();
@@ -282,13 +279,13 @@ static long rockchip_ddrclk_sip_round_rate_v2(struct clk_hw *hw,
 					      unsigned long rate,
 					      unsigned long *prate)
 {
-	struct round_rate_params *p;
+	struct share_params *p;
 	struct arm_smccc_res res;
 
 	if (!ddr_data.inited_flag)
 		rockchip_ddrclk_data_init();
 
-	p = (struct round_rate_params *)ddr_data.share_memory;
+	p = (struct share_params *)ddr_data.share_memory;
 
 	p->hz = rate;
 
