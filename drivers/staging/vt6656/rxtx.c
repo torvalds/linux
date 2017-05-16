@@ -147,7 +147,10 @@ static __le16 vnt_get_rtscts_rsvtime_le(struct vnt_private *priv, u8 rsv_type,
 {
 	u32 rrv_time, rts_time, cts_time, ack_time, data_time;
 
-	rrv_time = rts_time = cts_time = ack_time = data_time = 0;
+	rrv_time = 0;
+	rts_time = 0;
+	cts_time = 0;
+	ack_time = 0;
 
 	data_time = vnt_get_frame_time(priv->preamble_type, pkt_type,
 				       frame_length, current_rate);
@@ -155,9 +158,11 @@ static __le16 vnt_get_rtscts_rsvtime_le(struct vnt_private *priv, u8 rsv_type,
 	if (rsv_type == 0) {
 		rts_time = vnt_get_frame_time(priv->preamble_type, pkt_type,
 					      20, priv->top_cck_basic_rate);
-		cts_time = ack_time = vnt_get_frame_time(priv->preamble_type,
-							 pkt_type, 14,
-							 priv->top_cck_basic_rate);
+		ack_time = vnt_get_frame_time(priv->preamble_type,
+					      pkt_type, 14,
+					      priv->top_cck_basic_rate);
+		cts_time = ack_time;
+
 	} else if (rsv_type == 1) {
 		rts_time = vnt_get_frame_time(priv->preamble_type, pkt_type,
 					      20, priv->top_cck_basic_rate);
@@ -168,8 +173,11 @@ static __le16 vnt_get_rtscts_rsvtime_le(struct vnt_private *priv, u8 rsv_type,
 	} else if (rsv_type == 2) {
 		rts_time = vnt_get_frame_time(priv->preamble_type, pkt_type,
 					      20, priv->top_ofdm_basic_rate);
-		cts_time = ack_time = vnt_get_frame_time(priv->preamble_type,
-			pkt_type, 14, priv->top_ofdm_basic_rate);
+		ack_time = vnt_get_frame_time(priv->preamble_type,
+					      pkt_type, 14,
+					      priv->top_ofdm_basic_rate);
+		cts_time = ack_time;
+
 	} else if (rsv_type == 3) {
 		cts_time = vnt_get_frame_time(priv->preamble_type, pkt_type,
 					      14, priv->top_cck_basic_rate);
