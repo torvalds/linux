@@ -108,7 +108,7 @@ static void octeon_mmc_release_bus(struct cvm_mmc_host *host)
 static void octeon_mmc_int_enable(struct cvm_mmc_host *host, u64 val)
 {
 	writeq(val, host->base + MIO_EMM_INT(host));
-	if (!host->dma_active || (host->dma_active && !host->has_ciu3))
+	if (!host->has_ciu3)
 		writeq(val, host->base + MIO_EMM_INT_EN(host));
 }
 
