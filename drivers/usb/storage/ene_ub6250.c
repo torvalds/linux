@@ -593,6 +593,18 @@ static int do_scsi_request_sense(struct us_data *us, struct scsi_cmnd *srb)
 	return USB_STOR_TRANSPORT_GOOD;
 }
 
+static int do_scsi_inquiry(struct us_data *us, struct scsi_cmnd *srb)
+{
+	unsigned char data_ptr[36] = {
+		0x00, 0x80, 0x02, 0x00, 0x1F, 0x00, 0x00, 0x00, 0x55,
+		0x53, 0x42, 0x32, 0x2E, 0x30, 0x20, 0x20, 0x43, 0x61,
+		0x72, 0x64, 0x52, 0x65, 0x61, 0x64, 0x65, 0x72, 0x20,
+		0x20, 0x20, 0x20, 0x20, 0x20, 0x30, 0x31, 0x30, 0x30 };
+
+	usb_stor_set_xfer_buf(data_ptr, 36, srb);
+	return USB_STOR_TRANSPORT_GOOD;
+}
+
 static int sd_scsi_test_unit_ready(struct us_data *us, struct scsi_cmnd *srb)
 {
 	struct ene_ub6250_info *info = (struct ene_ub6250_info *) us->extra;
@@ -604,18 +616,6 @@ static int sd_scsi_test_unit_ready(struct us_data *us, struct scsi_cmnd *srb)
 		return USB_STOR_TRANSPORT_GOOD;
 	}
 
-	return USB_STOR_TRANSPORT_GOOD;
-}
-
-static int sd_scsi_inquiry(struct us_data *us, struct scsi_cmnd *srb)
-{
-	unsigned char data_ptr[36] = {
-		0x00, 0x80, 0x02, 0x00, 0x1F, 0x00, 0x00, 0x00, 0x55,
-		0x53, 0x42, 0x32, 0x2E, 0x30, 0x20, 0x20, 0x43, 0x61,
-		0x72, 0x64, 0x52, 0x65, 0x61, 0x64, 0x65, 0x72, 0x20,
-		0x20, 0x20, 0x20, 0x20, 0x20, 0x30, 0x31, 0x30, 0x30 };
-
-	usb_stor_set_xfer_buf(data_ptr, 36, srb);
 	return USB_STOR_TRANSPORT_GOOD;
 }
 
@@ -1462,19 +1462,6 @@ static int ms_scsi_test_unit_ready(struct us_data *us, struct scsi_cmnd *srb)
 	return USB_STOR_TRANSPORT_GOOD;
 }
 
-static int ms_scsi_inquiry(struct us_data *us, struct scsi_cmnd *srb)
-{
-	/* pr_info("MS_SCSI_Inquiry\n"); */
-	unsigned char data_ptr[36] = {
-		0x00, 0x80, 0x02, 0x00, 0x1F, 0x00, 0x00, 0x00, 0x55,
-		0x53, 0x42, 0x32, 0x2E, 0x30, 0x20, 0x20, 0x43, 0x61,
-		0x72, 0x64, 0x52, 0x65, 0x61, 0x64, 0x65, 0x72, 0x20,
-		0x20, 0x20, 0x20, 0x20, 0x20, 0x30, 0x31, 0x30, 0x30};
-
-	usb_stor_set_xfer_buf(data_ptr, 36, srb);
-	return USB_STOR_TRANSPORT_GOOD;
-}
-
 static int ms_scsi_mode_sense(struct us_data *us, struct scsi_cmnd *srb)
 {
 	struct ene_ub6250_info *info = (struct ene_ub6250_info *) us->extra;
@@ -2236,7 +2223,7 @@ static int sd_scsi_irp(struct us_data *us, struct scsi_cmnd *srb)
 		result = do_scsi_request_sense(us, srb);
 		break; /* 0x03 */
 	case INQUIRY:
-		result = sd_scsi_inquiry(us, srb);
+		result = do_scsi_inquiry(us, srb);
 		break; /* 0x12 */
 	case MODE_SENSE:
 		result = sd_scsi_mode_sense(us, srb);
@@ -2281,7 +2268,7 @@ static int ms_scsi_irp(struct us_data *us, struct scsi_cmnd *srb)
 		result = do_scsi_request_sense(us, srb);
 		break; /* 0x03 */
 	case INQUIRY:
-		result = ms_scsi_inquiry(us, srb);
+		result = do_scsi_inquiry(us, srb);
 		break; /* 0x12 */
 	case MODE_SENSE:
 		result = ms_scsi_mode_sense(us, srb);
