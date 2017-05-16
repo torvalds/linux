@@ -146,58 +146,33 @@ static int mlxsw_sp_port_attr_get(struct net_device *dev,
 	return 0;
 }
 
-static int mlxsw_sp_port_stp_state_set(struct mlxsw_sp_port *mlxsw_sp_port,
-				       u8 state)
-{
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	enum mlxsw_reg_spms_state spms_state;
-	char *spms_pl;
-	u16 vid;
-	int err;
-
-	switch (state) {
-	case BR_STATE_FORWARDING:
-		spms_state = MLXSW_REG_SPMS_STATE_FORWARDING;
-		break;
-	case BR_STATE_LEARNING:
-		spms_state = MLXSW_REG_SPMS_STATE_LEARNING;
-		break;
-	case BR_STATE_LISTENING: /* fall-through */
-	case BR_STATE_DISABLED: /* fall-through */
-	case BR_STATE_BLOCKING:
-		spms_state = MLXSW_REG_SPMS_STATE_DISCARDING;
-		break;
-	default:
-		BUG();
-	}
-
-	spms_pl = kmalloc(MLXSW_REG_SPMS_LEN, GFP_KERNEL);
-	if (!spms_pl)
-		return -ENOMEM;
-	mlxsw_reg_spms_pack(spms_pl, mlxsw_sp_port->local_port);
-
-	if (mlxsw_sp_port_is_vport(mlxsw_sp_port)) {
-		vid = mlxsw_sp_vport_vid_get(mlxsw_sp_port);
-		mlxsw_reg_spms_vid_pack(spms_pl, vid, spms_state);
-	} else {
-		for_each_set_bit(vid, mlxsw_sp_port->active_vlans, VLAN_N_VID)
-			mlxsw_reg_spms_vid_pack(spms_pl, vid, spms_state);
-	}
-
-	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(spms), spms_pl);
-	kfree(spms_pl);
-	return err;
-}
-
 static int mlxsw_sp_port_attr_stp_state_set(struct mlxsw_sp_port *mlxsw_sp_port,
 					    struct switchdev_trans *trans,
 					    u8 state)
 {
+	u16 vid;
+	int err;
+
 	if (switchdev_trans_ph_prepare(trans))
 		return 0;
 
+	if (mlxsw_sp_port_is_vport(mlxsw_sp_port)) {
+		vid = mlxsw_sp_vport_vid_get(mlxsw_sp_port);
+		err = mlxsw_sp_port_vid_stp_set(mlxsw_sp_port, vid, state);
+		if (err)
+			return err;
+		mlxsw_sp_port->stp_state = state;
+		return 0;
+	}
+
+	for_each_set_bit(vid, mlxsw_sp_port->active_vlans, VLAN_N_VID) {
+		err = mlxsw_sp_port_vid_stp_set(mlxsw_sp_port, vid, state);
+		if (err)
+			return err;
+	}
 	mlxsw_sp_port->stp_state = state;
-	return mlxsw_sp_port_stp_state_set(mlxsw_sp_port, state);
+
+	return 0;
 }
 
 static int __mlxsw_sp_port_flood_table_set(struct mlxsw_sp_port *mlxsw_sp_port,
