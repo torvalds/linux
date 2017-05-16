@@ -804,11 +804,11 @@ void walt_set_window_start(struct rq *rq)
 	int cpu = cpu_of(rq);
 	struct rq *sync_rq = cpu_rq(sync_cpu);
 
-	if (rq->window_start)
+	if (likely(rq->window_start))
 		return;
 
 	if (cpu == sync_cpu) {
-		rq->window_start = walt_ktime_clock();
+		rq->window_start = 1;
 	} else {
 		raw_spin_unlock(&rq->lock);
 		double_rq_lock(rq, sync_rq);
