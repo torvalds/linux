@@ -249,13 +249,8 @@ void udp_destruct_sock(struct sock *sk);
 void skb_consume_udp(struct sock *sk, struct sk_buff *skb, int len);
 int __udp_enqueue_schedule_skb(struct sock *sk, struct sk_buff *skb);
 void udp_skb_destructor(struct sock *sk, struct sk_buff *skb);
-static inline struct sk_buff *
-__skb_recv_udp(struct sock *sk, unsigned int flags, int noblock, int *peeked,
-	       int *off, int *err)
-{
-	return __skb_recv_datagram(sk, flags | (noblock ? MSG_DONTWAIT : 0),
-				   udp_skb_destructor, peeked, off, err);
-}
+struct sk_buff *__skb_recv_udp(struct sock *sk, unsigned int flags,
+			       int noblock, int *peeked, int *off, int *err);
 static inline struct sk_buff *skb_recv_udp(struct sock *sk, unsigned int flags,
 					   int noblock, int *err)
 {
