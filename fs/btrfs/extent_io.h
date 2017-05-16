@@ -467,6 +467,8 @@ btrfs_bio_alloc(struct block_device *bdev, u64 first_sector, int nr_vecs,
 		gfp_t gfp_flags);
 struct bio *btrfs_io_bio_alloc(gfp_t gfp_mask, unsigned int nr_iovecs);
 struct bio *btrfs_bio_clone(struct bio *bio, gfp_t gfp_mask);
+struct bio *btrfs_bio_clone_partial(struct bio *orig, gfp_t gfp_mask,
+				    int offset, int size);
 
 struct btrfs_fs_info;
 struct btrfs_inode;
