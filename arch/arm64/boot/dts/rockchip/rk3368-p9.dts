@@ -662,6 +662,7 @@
 		dsi,lanes = <4>;
 
 		delay,prepare = <120>;
+		delay,enable = <200>;
 
 		disp_timings: display-timings {
 			native-mode = <&timing0>;
