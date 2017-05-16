@@ -133,6 +133,7 @@ struct coex_dm_8821a_1ant {
 	u8	cur_retry_limit_type;
 	u8	pre_ampdu_time_type;
 	u8	cur_ampdu_time_type;
+	u32	arp_cnt;
 
 	u8	error_condition;
 };

@@ -2592,7 +2592,7 @@ void ex_btc8821a1ant_scan_notify(struct btc_coexist *btcoexist, u8 type)
 void ex_btc8821a1ant_connect_notify(struct btc_coexist *btcoexist, u8 type)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
-	bool	wifi_connected = false, bt_hs_on = false;
+	bool wifi_connected = false, bt_hs_on = false;
 	u32 wifi_link_status = 0;
 	u32 num_of_wifi_link = 0;
 	bool bt_ctrl_agg_buf_size = false;
@@ -2608,6 +2608,18 @@ void ex_btc8821a1ant_connect_notify(struct btc_coexist *btcoexist, u8 type)
 			 "[BTCoex], RunCoexistMechanism(), return for 5G <===\n");
 		btc8821a1ant_coex_under_5g(btcoexist);
 		return;
+	}
+
+	if (type == BTC_ASSOCIATE_START) {
+		coex_sta->wifi_is_high_pri_task = true;
+		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+			 "[BTCoex], CONNECT START notify\n");
+		coex_dm->arp_cnt = 0;
+	} else {
+		coex_sta->wifi_is_high_pri_task = false;
+		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+			 "[BTCoex], CONNECT FINISH notify\n");
+		coex_dm->arp_cnt = 0;
 	}
 
 	btcoexist->btc_get(btcoexist, BTC_GET_U4_WIFI_LINK_STATUS,
@@ -2675,6 +2687,7 @@ void ex_btc8821a1ant_media_status_notify(struct btc_coexist *btcoexist,
 	} else {
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 			 "[BTCoex], MEDIA disconnect notify\n");
+		coex_dm->arp_cnt = 0;
 	}
 
 	/* only 2.4G we need to inform bt the chnl mask */
@@ -2728,6 +2741,24 @@ void ex_btc8821a1ant_special_packet_notify(struct btc_coexist *btcoexist,
 		return;
 	}
 
+	if (type == BTC_PACKET_DHCP || type == BTC_PACKET_EAPOL ||
+	    type == BTC_PACKET_ARP) {
+		coex_sta->wifi_is_high_pri_task = true;
+
+		if (type == BTC_PACKET_ARP) {
+			RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+				 "[BTCoex], specific Packet ARP notify\n");
+		} else {
+			RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+				 "[BTCoex], specific Packet DHCP or EAPOL notify\n");
+		}
+	} else {
+		coex_sta->wifi_is_high_pri_task = false;
+		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+			 "[BTCoex], specific Packet [Type = %d] notify\n",
+			 type);
+	}
+
 	coex_sta->special_pkt_period_cnt = 0;
 
 	btcoexist->btc_get(btcoexist, BTC_GET_U4_WIFI_LINK_STATUS,
@@ -2750,8 +2781,20 @@ void ex_btc8821a1ant_special_packet_notify(struct btc_coexist *btcoexist,
 		return;
 	}
 
-	if (BTC_PACKET_DHCP == type ||
-	    BTC_PACKET_EAPOL == type) {
+	if (type == BTC_PACKET_DHCP || type == BTC_PACKET_EAPOL ||
+	    type == BTC_PACKET_ARP) {
+		if (type == BTC_PACKET_ARP) {
+			coex_dm->arp_cnt++;
+			RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+				 "[BTCoex], ARP Packet Count = %d\n",
+				 coex_dm->arp_cnt);
+			if (coex_dm->arp_cnt >= 10)
+				/* if APR PKT > 10 after connect, do not go to
+				 * btc8821a1ant_act_wifi_conn_sp_pkt
+				 */
+				return;
+		}
+
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 			 "[BTCoex], special Packet(%d) notify\n", type);
 		btc8821a1ant_act_wifi_conn_sp_pkt(btcoexist);
