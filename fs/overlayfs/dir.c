@@ -127,15 +127,26 @@ int ovl_create_real(struct inode *dir, struct dentry *newdentry,
 	return err;
 }
 
-static int ovl_set_opaque(struct dentry *dentry, struct dentry *upperdentry)
+static int ovl_set_opaque_xerr(struct dentry *dentry, struct dentry *upper,
+			       int xerr)
 {
 	int err;
 
-	err = ovl_do_setxattr(upperdentry, OVL_XATTR_OPAQUE, "y", 1, 0);
+	err = ovl_check_setxattr(dentry, upper, OVL_XATTR_OPAQUE, "y", 1, xerr);
 	if (!err)
 		ovl_dentry_set_opaque(dentry);
 
 	return err;
+}
+
+static int ovl_set_opaque(struct dentry *dentry, struct dentry *upperdentry)
+{
+	/*
+	 * Fail with -EIO when trying to create opaque dir and upper doesn't
+	 * support xattrs. ovl_rename() calls ovl_set_opaque_xerr(-EXDEV) to
+	 * return a specific error for noxattr case.
+	 */
+	return ovl_set_opaque_xerr(dentry, upperdentry, -EIO);
 }
 
 /* Common operations required to be done after creation of file on upper */
@@ -846,18 +857,16 @@ static int ovl_set_redirect(struct dentry *dentry, bool samedir)
 	if (IS_ERR(redirect))
 		return PTR_ERR(redirect);
 
-	err = ovl_do_setxattr(ovl_dentry_upper(dentry), OVL_XATTR_REDIRECT,
-			      redirect, strlen(redirect), 0);
+	err = ovl_check_setxattr(dentry, ovl_dentry_upper(dentry),
+				 OVL_XATTR_REDIRECT,
+				 redirect, strlen(redirect), -EXDEV);
 	if (!err) {
 		spin_lock(&dentry->d_lock);
 		ovl_dentry_set_redirect(dentry, redirect);
 		spin_unlock(&dentry->d_lock);
 	} else {
 		kfree(redirect);
-		if (err == -EOPNOTSUPP)
-			ovl_clear_redirect_dir(dentry->d_sb);
-		else
-			pr_warn_ratelimited("overlay: failed to set redirect (%i)\n", err);
+		pr_warn_ratelimited("overlay: failed to set redirect (%i)\n", err);
 		/* Fall back to userspace copy-up */
 		err = -EXDEV;
 	}
@@ -992,7 +1001,7 @@ static int ovl_rename(struct inode *olddir, struct dentry *old,
 		if (ovl_type_merge_or_lower(old))
 			err = ovl_set_redirect(old, samedir);
 		else if (!old_opaque && ovl_type_merge(new->d_parent))
-			err = ovl_set_opaque(old, olddentry);
+			err = ovl_set_opaque_xerr(old, olddentry, -EXDEV);
 		if (err)
 			goto out_dput;
 	}
@@ -1000,7 +1009,7 @@ static int ovl_rename(struct inode *olddir, struct dentry *old,
 		if (ovl_type_merge_or_lower(new))
 			err = ovl_set_redirect(new, samedir);
 		else if (!new_opaque && ovl_type_merge(old->d_parent))
-			err = ovl_set_opaque(new, newdentry);
+			err = ovl_set_opaque_xerr(new, newdentry, -EXDEV);
 		if (err)
 			goto out_dput;
 	}
