@@ -27,7 +27,6 @@
 
 #include "../clk/rockchip/clk.h"
 
-#define MAX_CLUSTERS		2
 #define MAX_PROP_NAME_LEN	3
 #define LEAKAGE_TABLE_END	~1
 #define INVALID_VALUE		0xff
@@ -39,6 +38,7 @@ struct leakage_table {
 };
 
 struct cluster_info {
+	struct list_head list_head;
 	cpumask_t cpus;
 	int leakage;
 	int lkg_volt_sel;
@@ -46,14 +46,19 @@ struct cluster_info {
 	bool set_opp;
 };
 
-struct rockchip_cpufreq_data {
-	struct notifier_block hotcpu_notify;
-	struct cluster_info *cluster;
-};
+static LIST_HEAD(cluster_info_list);
 
-#define hotcpu_notify_to_avs(_n) container_of(_n, \
-					      struct rockchip_cpufreq_data, \
-					      hotcpu_notify)
+static struct cluster_info *rockchip_cluster_info_lookup(int cpu)
+{
+	struct cluster_info *cluster;
+
+	list_for_each_entry(cluster, &cluster_info_list, list_head) {
+		if (cpumask_test_cpu(cpu, &cluster->cpus))
+			return cluster;
+	}
+
+	return NULL;
+}
 
 static int rockchip_efuse_get_one_byte(struct device_node *np, char *porp_name,
 				       int *value)
@@ -183,14 +188,22 @@ static int rockchip_get_leakage_sel(struct device_node *np, char *name,
 	return ret;
 }
 
-static int rockchip_cpufreq_of_parse_dt(struct device *dev,
-					struct cluster_info *cluster)
+static int rockchip_cpufreq_of_parse_dt(int cpu, struct cluster_info *cluster)
 {
 	int (*get_soc_version)(struct device_node *np, int *soc_version);
 	const struct of_device_id *match;
 	struct device_node *node, *np;
 	struct clk *clk;
+	struct device *dev;
 	int ret, lkg_scaling_sel = -1;
+
+	dev = get_cpu_device(cpu);
+	if (!dev)
+		return -ENODEV;
+
+	ret = dev_pm_opp_of_get_sharing_cpus(dev, &cluster->cpus);
+	if (ret)
+		return ret;
 
 	np = of_parse_phandle(dev->of_node, "operating-points-v2", 0);
 	if (!np) {
@@ -247,11 +260,15 @@ static int rockchip_cpufreq_of_parse_dt(struct device *dev,
 	return 0;
 }
 
-static int rockchip_cpufreq_set_opp_info(struct device *dev,
-					 struct cluster_info *cluster)
+static int rockchip_cpufreq_set_opp_info(int cpu, struct cluster_info *cluster)
 {
+	struct device *dev;
 	char name[MAX_PROP_NAME_LEN];
 	int ret, version;
+
+	dev = get_cpu_device(cpu);
+	if (!dev)
+		return -ENODEV;
 
 	if (cluster->soc_version != -1 && cluster->lkg_volt_sel != -1)
 		snprintf(name, MAX_PROP_NAME_LEN, "S%d-L%d",
@@ -262,7 +279,7 @@ static int rockchip_cpufreq_set_opp_info(struct device *dev,
 	else if (cluster->soc_version == -1 && cluster->lkg_volt_sel != -1)
 		snprintf(name, MAX_PROP_NAME_LEN, "L%d", cluster->lkg_volt_sel);
 	else
-		return -EINVAL;
+		return 0;
 
 	ret = dev_pm_opp_set_prop_name(dev, name);
 	if (ret) {
@@ -285,31 +302,21 @@ static int rockchip_cpufreq_set_opp_info(struct device *dev,
 static int rockchip_hotcpu_notifier(struct notifier_block *nb,
 				    unsigned long action, void *hcpu)
 {
-	struct rockchip_cpufreq_data *data = hotcpu_notify_to_avs(nb);
 	unsigned int cpu = (unsigned long)hcpu;
 	struct cluster_info *cluster;
-	struct device *dev;
 	cpumask_t cpus;
-	int i, number, ret;
+	int number, ret;
 
-	for (i = 0; i < MAX_CLUSTERS; i++)
-		if (cpumask_test_cpu(cpu, &data->cluster[i].cpus))
-			break;
-
-	if (i == MAX_CLUSTERS)
+	cluster = rockchip_cluster_info_lookup(cpu);
+	if (!cluster)
 		return NOTIFY_OK;
-
-	cluster = &data->cluster[i];
 
 	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_ONLINE:
 		if (cluster->set_opp) {
-			dev = get_cpu_device(cpu);
-			if (!dev)
-				break;
-			ret = rockchip_cpufreq_set_opp_info(dev, cluster);
+			ret = rockchip_cpufreq_set_opp_info(cpu, cluster);
 			if (ret)
-				dev_err(dev, "Failed to set_opp_info\n");
+				pr_err("Failed to set cpu%d opp_info\n", cpu);
 			cluster->set_opp = false;
 		}
 		break;
@@ -325,75 +332,64 @@ static int rockchip_hotcpu_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
+static struct notifier_block rockchip_hotcpu_nb = {
+	.notifier_call = rockchip_hotcpu_notifier,
+};
+
 static int __init rockchip_cpufreq_driver_init(void)
 {
-	struct rockchip_cpufreq_data *data;
 	struct platform_device *pdev;
-	struct cluster_info *cluster;
-	struct device *dev;
-	int i, cpu, ret;
+	struct cluster_info *cluster, *pos;
+	int cpu, first_cpu, ret, i = 0;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
-
-	data->cluster = kzalloc(sizeof(*data->cluster) * MAX_CLUSTERS,
-				       GFP_KERNEL);
-	if (!data->cluster) {
-		kfree(data);
-		return -ENOMEM;
-	}
-
-	for_each_online_cpu(cpu) {
-		for (i = 0; i < MAX_CLUSTERS; i++) {
-			cluster = &data->cluster[i];
-
-			if (cpumask_test_cpu(cpu, &cluster->cpus))
-				break;
-
-			if (!cpumask_empty(&cluster->cpus))
-				continue;
-
-			dev = get_cpu_device(cpu);
-			if (!dev)
-				return -ENODEV;
-
-			ret = dev_pm_opp_of_get_sharing_cpus(dev,
-							     &cluster->cpus);
-			if (ret) {
-				/* Don't supportoperating-points-v2, break */
-				if (ret == -ENOENT)
-					break;
-				return ret;
-			}
-			break;
-		}
-	}
-
-	for (i = 0; i < MAX_CLUSTERS; i++) {
-		cluster = &data->cluster[i];
-
-		if (cpumask_empty(&cluster->cpus))
+	for_each_possible_cpu(cpu) {
+		cluster = rockchip_cluster_info_lookup(cpu);
+		if (cluster)
 			continue;
 
-		cpu = cpumask_first_and(&cluster->cpus, cpu_online_mask);
-		dev = get_cpu_device(cpu);
-		if (!dev)
-			return -ENODEV;
+		cluster = kzalloc(sizeof(*cluster), GFP_KERNEL);
+		if (!cluster)
+			return -ENOMEM;
 
-		ret = rockchip_cpufreq_of_parse_dt(dev, cluster);
-		if (!ret) {
-			ret = rockchip_cpufreq_set_opp_info(dev, cluster);
-			if (ret)
-				dev_err(dev, "Failed to set_opp_info\n");
-		} else {
-			dev_err(dev, "Failed to parse_dt\n");
+		ret = rockchip_cpufreq_of_parse_dt(cpu, cluster);
+		if (ret) {
+			if (ret != -ENOENT) {
+				pr_err("Failed to cpu%d parse_dt\n", cpu);
+				return ret;
+			}
+
+			/*
+			 * As the OPP document said, only one OPP binding
+			 * should be used per device.
+			 * And if there are multiple clusters on rockchip
+			 * platforms, we should use operating-points-v2.
+			 * So if don't support operating-points-v2, there must
+			 * be only one cluster, the list shuold be null.
+			 */
+			list_for_each_entry(pos, &cluster_info_list, list_head)
+				i++;
+			if (i)
+				return ret;
+			/*
+			 * If don't support operating-points-v2, there is no
+			 * need to register notifiers.
+			 */
+			goto next;
 		}
+
+		first_cpu = cpumask_first_and(&cluster->cpus, cpu_online_mask);
+		ret = rockchip_cpufreq_set_opp_info(first_cpu, cluster);
+		if (ret) {
+			pr_err("Failed to set cpu%d opp_info\n", first_cpu);
+			return ret;
+		}
+
+		list_add(&cluster->list_head, &cluster_info_list);
 	}
 
-	data->hotcpu_notify.notifier_call = rockchip_hotcpu_notifier;
-	register_hotcpu_notifier(&data->hotcpu_notify);
+	register_hotcpu_notifier(&rockchip_hotcpu_nb);
 
+next:
 	pdev = platform_device_register_simple("cpufreq-dt", -1, NULL, 0);
 
 	return PTR_ERR_OR_ZERO(pdev);
@@ -403,4 +399,3 @@ module_init(rockchip_cpufreq_driver_init);
 MODULE_AUTHOR("Finley Xiao <finley.xiao@rock-chips.com>");
 MODULE_DESCRIPTION("Rockchip cpufreq driver");
 MODULE_LICENSE("GPL v2");
-
