@@ -733,9 +733,9 @@ void dce120_tg_program_timing(struct timing_generator *tg,
 	bool use_vbios)
 {
 	if (use_vbios)
-			dce110_timing_generator_program_timing_generator(tg, timing);
-		else
-			dce120_timing_generator_program_blanking(tg, timing);
+		dce110_timing_generator_program_timing_generator(tg, timing);
+	else
+		dce120_timing_generator_program_blanking(tg, timing);
 }
 
 bool dce120_tg_is_blanked(struct timing_generator *tg)
