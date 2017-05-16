@@ -1396,17 +1396,14 @@ static int do_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 		dev = kmalloc(sizeof(union ubifs_dev_desc), GFP_NOFS);
 		if (!dev) {
-			ubifs_release_budget(c, &req);
-			ubifs_release_budget(c, &ino_req);
-			return -ENOMEM;
+			err = -ENOMEM;
+			goto out_release;
 		}
 
 		err = do_tmpfile(old_dir, old_dentry, S_IFCHR | WHITEOUT_MODE, &whiteout);
 		if (err) {
-			ubifs_release_budget(c, &req);
-			ubifs_release_budget(c, &ino_req);
 			kfree(dev);
-			return err;
+			goto out_release;
 		}
 
 		whiteout->i_state |= I_LINKABLE;
@@ -1494,12 +1491,10 @@ static int do_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 		err = ubifs_budget_space(c, &wht_req);
 		if (err) {
-			ubifs_release_budget(c, &req);
-			ubifs_release_budget(c, &ino_req);
 			kfree(whiteout_ui->data);
 			whiteout_ui->data_len = 0;
 			iput(whiteout);
-			return err;
+			goto out_release;
 		}
 
 		inc_nlink(whiteout);
@@ -1554,6 +1549,7 @@ out_cancel:
 		iput(whiteout);
 	}
 	unlock_4_inodes(old_dir, new_dir, new_inode, whiteout);
+out_release:
 	ubifs_release_budget(c, &ino_req);
 	ubifs_release_budget(c, &req);
 	fscrypt_free_filename(&old_nm);
