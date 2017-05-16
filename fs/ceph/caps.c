@@ -3027,8 +3027,10 @@ static void handle_cap_grant(struct ceph_mds_client *mdsc,
 					le32_to_cpu(grant->truncate_seq),
 					le64_to_cpu(grant->truncate_size),
 					size);
-		/* max size increase? */
-		if (ci->i_auth_cap == cap && max_size != ci->i_max_size) {
+	}
+
+	if (ci->i_auth_cap == cap && (newcaps & CEPH_CAP_ANY_FILE_WR)) {
+		if (max_size != ci->i_max_size) {
 			dout("max_size %lld -> %llu\n",
 			     ci->i_max_size, max_size);
 			ci->i_max_size = max_size;
@@ -3036,6 +3038,10 @@ static void handle_cap_grant(struct ceph_mds_client *mdsc,
 				ci->i_wanted_max_size = 0;  /* reset */
 				ci->i_requested_max_size = 0;
 			}
+			wake = true;
+		} else if (ci->i_wanted_max_size > ci->i_max_size &&
+			   ci->i_wanted_max_size > ci->i_requested_max_size) {
+			/* CEPH_CAP_OP_IMPORT */
 			wake = true;
 		}
 	}
@@ -3554,7 +3560,6 @@ retry:
 	}
 
 	/* make sure we re-request max_size, if necessary */
-	ci->i_wanted_max_size = 0;
 	ci->i_requested_max_size = 0;
 
 	*old_issued = issued;
