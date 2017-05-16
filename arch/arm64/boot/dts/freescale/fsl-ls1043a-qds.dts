@@ -181,3 +181,5 @@
 		reg = <0>;
 	};
 };
+
+#include "fsl-ls1043-post.dtsi"
