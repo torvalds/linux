@@ -1659,13 +1659,13 @@ void hostif_phy_information_request(struct ks_wlan_private *priv)
 
 static
 void hostif_power_mgmt_request(struct ks_wlan_private *priv,
-			       unsigned long mode, unsigned long wake_up,
-			       unsigned long receiveDTIMs)
+				unsigned long mode, unsigned long wake_up,
+				unsigned long receive_dtims)
 {
 	struct hostif_power_mgmt_request_t *pp;
 
-	DPRINTK(3, "mode=%lu wake_up=%lu receiveDTIMs=%lu\n", mode, wake_up,
-		receiveDTIMs);
+	DPRINTK(3, "mode=%lu wake_up=%lu receive_dtims=%lu\n", mode, wake_up,
+		receive_dtims);
 
 	pp = hostif_generic_request(sizeof(*pp), HIF_POWER_MGMT_REQ);
 	if (!pp)
@@ -1673,7 +1673,7 @@ void hostif_power_mgmt_request(struct ks_wlan_private *priv,
 
 	pp->mode = cpu_to_le32((uint32_t)mode);
 	pp->wake_up = cpu_to_le32((uint32_t)wake_up);
-	pp->receiveDTIMs = cpu_to_le32((uint32_t)receiveDTIMs);
+	pp->receive_dtims = cpu_to_le32((uint32_t)receive_dtims);
 
 	/* send to device request */
 	ps_confirm_wait_inc(priv);
@@ -2217,44 +2217,44 @@ spin_unlock:
 static
 void hostif_sme_power_mgmt_set(struct ks_wlan_private *priv)
 {
-	unsigned long mode, wake_up, receiveDTIMs;
+	unsigned long mode, wake_up, receive_dtims;
 
 	DPRINTK(3, "\n");
 	switch (priv->reg.power_mgmt) {
 	case POWER_MGMT_ACTIVE:
 		mode = POWER_ACTIVE;
 		wake_up = 0;
-		receiveDTIMs = 0;
+		receive_dtims = 0;
 		break;
 	case POWER_MGMT_SAVE1:
 		if (priv->reg.operation_mode == MODE_INFRASTRUCTURE) {
 			mode = POWER_SAVE;
 			wake_up = 0;
-			receiveDTIMs = 0;
+			receive_dtims = 0;
 		} else {
 			mode = POWER_ACTIVE;
 			wake_up = 0;
-			receiveDTIMs = 0;
+			receive_dtims = 0;
 		}
 		break;
 	case POWER_MGMT_SAVE2:
 		if (priv->reg.operation_mode == MODE_INFRASTRUCTURE) {
 			mode = POWER_SAVE;
 			wake_up = 0;
-			receiveDTIMs = 1;
+			receive_dtims = 1;
 		} else {
 			mode = POWER_ACTIVE;
 			wake_up = 0;
-			receiveDTIMs = 0;
+			receive_dtims = 0;
 		}
 		break;
 	default:
 		mode = POWER_ACTIVE;
 		wake_up = 0;
-		receiveDTIMs = 0;
+		receive_dtims = 0;
 		break;
 	}
-	hostif_power_mgmt_request(priv, mode, wake_up, receiveDTIMs);
+	hostif_power_mgmt_request(priv, mode, wake_up, receive_dtims);
 }
 
 static
