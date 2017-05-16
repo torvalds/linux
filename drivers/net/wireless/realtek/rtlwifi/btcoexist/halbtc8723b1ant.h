@@ -88,7 +88,7 @@ struct coex_dm_8723b_1ant {
 	u8 pre_ps_tdma;
 	u8 cur_ps_tdma;
 	u8 ps_tdma_para[5];
-	u8 tdma_adj_type;
+	u8 ps_tdma_du_adj_type;
 	bool auto_tdma_adjust;
 	bool pre_ps_tdma_on;
 	bool cur_ps_tdma_on;
