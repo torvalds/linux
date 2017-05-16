@@ -1163,41 +1163,12 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 	struct amdgpu_device *adev = params->adev;
 	const uint64_t mask = AMDGPU_VM_PTE_COUNT(adev) - 1;
 
-	uint64_t cur_pe_start, cur_nptes, cur_dst;
-	uint64_t addr; /* next GPU address to be updated */
+	uint64_t addr, pe_start;
 	struct amdgpu_bo *pt;
-	unsigned nptes; /* next number of ptes to be updated */
-	uint64_t next_pe_start;
-
-	/* initialize the variables */
-	addr = start;
-	pt = amdgpu_vm_get_pt(params, addr);
-	if (!pt) {
-		pr_err("PT not found, aborting update_ptes\n");
-		return -EINVAL;
-	}
-
-	if (params->shadow) {
-		if (!pt->shadow)
-			return 0;
-		pt = pt->shadow;
-	}
-	if ((addr & ~mask) == (end & ~mask))
-		nptes = end - addr;
-	else
-		nptes = AMDGPU_VM_PTE_COUNT(adev) - (addr & mask);
-
-	cur_pe_start = amdgpu_bo_gpu_offset(pt);
-	cur_pe_start += (addr & mask) * 8;
-	cur_nptes = nptes;
-	cur_dst = dst;
-
-	/* for next ptb*/
-	addr += nptes;
-	dst += nptes * AMDGPU_GPU_PAGE_SIZE;
+	unsigned nptes;
 
 	/* walk over the address space and update the page tables */
-	while (addr < end) {
+	for (addr = start; addr < end; addr += nptes) {
 		pt = amdgpu_vm_get_pt(params, addr);
 		if (!pt) {
 			pr_err("PT not found, aborting update_ptes\n");
@@ -1215,32 +1186,14 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 		else
 			nptes = AMDGPU_VM_PTE_COUNT(adev) - (addr & mask);
 
-		next_pe_start = amdgpu_bo_gpu_offset(pt);
-		next_pe_start += (addr & mask) * 8;
+		pe_start = amdgpu_bo_gpu_offset(pt);
+		pe_start += (addr & mask) * 8;
 
-		if ((cur_pe_start + 8 * cur_nptes) == next_pe_start &&
-		    ((cur_nptes + nptes) <= AMDGPU_VM_MAX_UPDATE_SIZE)) {
-			/* The next ptb is consecutive to current ptb.
-			 * Don't call the update function now.
-			 * Will update two ptbs together in future.
-			*/
-			cur_nptes += nptes;
-		} else {
-			params->func(params, cur_pe_start, cur_dst, cur_nptes,
-				     AMDGPU_GPU_PAGE_SIZE, flags);
+		params->func(params, pe_start, dst, nptes,
+			     AMDGPU_GPU_PAGE_SIZE, flags);
 
-			cur_pe_start = next_pe_start;
-			cur_nptes = nptes;
-			cur_dst = dst;
-		}
-
-		/* for next ptb*/
-		addr += nptes;
 		dst += nptes * AMDGPU_GPU_PAGE_SIZE;
 	}
-
-	params->func(params, cur_pe_start, cur_dst, cur_nptes,
-		     AMDGPU_GPU_PAGE_SIZE, flags);
 
 	return 0;
 }
