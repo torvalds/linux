@@ -149,6 +149,7 @@ struct mlxsw_sp_port_mall_tc_entry {
 };
 
 struct mlxsw_sp_sb;
+struct mlxsw_sp_bridge;
 struct mlxsw_sp_router;
 struct mlxsw_sp_acl;
 struct mlxsw_sp_counter_pool;
@@ -158,29 +159,16 @@ struct mlxsw_sp {
 		struct list_head list;
 		DECLARE_BITMAP(mapped, MLXSW_SP_VFID_MAX);
 	} vfids;
-	struct {
-		struct list_head list;
-		DECLARE_BITMAP(mapped, MLXSW_SP_MID_MAX);
-	} br_mids;
 	struct list_head fids;	/* VLAN-aware bridge FIDs */
 	struct mlxsw_sp_rif **rifs;
 	struct mlxsw_sp_port **ports;
 	struct mlxsw_core *core;
 	const struct mlxsw_bus_info *bus_info;
 	unsigned char base_mac[ETH_ALEN];
-	struct {
-		struct delayed_work dw;
-#define MLXSW_SP_DEFAULT_LEARNING_INTERVAL 100
-		unsigned int interval; /* ms */
-	} fdb_notify;
-#define MLXSW_SP_MIN_AGEING_TIME 10
-#define MLXSW_SP_MAX_AGEING_TIME 1000000
-#define MLXSW_SP_DEFAULT_AGEING_TIME 300
-	u32 ageing_time;
-	struct mlxsw_sp_upper master_bridge;
 	struct mlxsw_sp_upper *lags;
 	u8 *port_to_module;
 	struct mlxsw_sp_sb *sb;
+	struct mlxsw_sp_bridge *bridge;
 	struct mlxsw_sp_router *router;
 	struct mlxsw_sp_acl *acl;
 	struct {
@@ -425,6 +413,7 @@ int mlxsw_sp_sb_occ_tc_port_bind_get(struct mlxsw_core_port *mlxsw_core_port,
 u32 mlxsw_sp_cells_bytes(const struct mlxsw_sp *mlxsw_sp, u32 cells);
 u32 mlxsw_sp_bytes_cells(const struct mlxsw_sp *mlxsw_sp, u32 bytes);
 
+struct mlxsw_sp_upper *mlxsw_sp_master_bridge(const struct mlxsw_sp *mlxsw_sp);
 int mlxsw_sp_switchdev_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_switchdev_fini(struct mlxsw_sp *mlxsw_sp);
 int mlxsw_sp_port_vlan_init(struct mlxsw_sp_port *mlxsw_sp_port);

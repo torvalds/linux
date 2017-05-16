@@ -3193,7 +3193,7 @@ static struct mlxsw_sp_fid *mlxsw_sp_bridge_fid_get(struct mlxsw_sp *mlxsw_sp,
 
 	if (is_vlan_dev(l3_dev))
 		fid = vlan_dev_vlan_id(l3_dev);
-	else if (mlxsw_sp->master_bridge.dev == l3_dev)
+	else if (mlxsw_sp_master_bridge(mlxsw_sp)->dev == l3_dev)
 		fid = 1;
 	else
 		return mlxsw_sp_vfid_find(mlxsw_sp, l3_dev);
@@ -3389,7 +3389,7 @@ static int mlxsw_sp_inetaddr_vlan_event(struct net_device *vlan_dev,
 		return __mlxsw_sp_inetaddr_lag_event(vlan_dev, real_dev, event,
 						     vid);
 	else if (netif_is_bridge_master(real_dev) &&
-		 mlxsw_sp->master_bridge.dev == real_dev)
+		 mlxsw_sp_master_bridge(mlxsw_sp)->dev == real_dev)
 		return mlxsw_sp_inetaddr_bridge_event(vlan_dev, real_dev,
 						      event);
 

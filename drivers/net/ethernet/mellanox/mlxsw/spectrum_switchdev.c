@@ -52,6 +52,27 @@
 #include "core.h"
 #include "reg.h"
 
+struct mlxsw_sp_bridge {
+	struct mlxsw_sp *mlxsw_sp;
+	struct {
+		struct delayed_work dw;
+#define MLXSW_SP_DEFAULT_LEARNING_INTERVAL 100
+		unsigned int interval; /* ms */
+	} fdb_notify;
+#define MLXSW_SP_MIN_AGEING_TIME 10
+#define MLXSW_SP_MAX_AGEING_TIME 1000000
+#define MLXSW_SP_DEFAULT_AGEING_TIME 300
+	u32 ageing_time;
+	struct mlxsw_sp_upper master_bridge;
+	struct list_head mids_list;
+	DECLARE_BITMAP(mids_bitmap, MLXSW_SP_MID_MAX);
+};
+
+struct mlxsw_sp_upper *mlxsw_sp_master_bridge(const struct mlxsw_sp *mlxsw_sp)
+{
+	return &mlxsw_sp->bridge->master_bridge;
+}
+
 static u16 mlxsw_sp_port_vid_to_fid_get(struct mlxsw_sp_port *mlxsw_sp_port,
 					u16 vid)
 {
@@ -397,7 +418,7 @@ static int mlxsw_sp_ageing_set(struct mlxsw_sp *mlxsw_sp, u32 ageing_time)
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfdat), sfdat_pl);
 	if (err)
 		return err;
-	mlxsw_sp->ageing_time = ageing_time;
+	mlxsw_sp->bridge->ageing_time = ageing_time;
 	return 0;
 }
 
@@ -428,7 +449,8 @@ static int mlxsw_sp_port_attr_br_vlan_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 
 	/* SWITCHDEV_TRANS_PREPARE phase */
-	if ((!vlan_enabled) && (mlxsw_sp->master_bridge.dev == orig_dev)) {
+	if ((!vlan_enabled) &&
+	    (mlxsw_sp->bridge->master_bridge.dev == orig_dev)) {
 		netdev_err(mlxsw_sp_port->dev, "Bridge must be vlan-aware\n");
 		return -EINVAL;
 	}
@@ -1006,7 +1028,7 @@ static struct mlxsw_sp_mid *__mlxsw_sp_mc_get(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_mid *mid;
 
-	list_for_each_entry(mid, &mlxsw_sp->br_mids.list, list) {
+	list_for_each_entry(mid, &mlxsw_sp->bridge->mids_list, list) {
 		if (ether_addr_equal(mid->addr, addr) && mid->fid == fid)
 			return mid;
 	}
@@ -1020,7 +1042,7 @@ static struct mlxsw_sp_mid *__mlxsw_sp_mc_alloc(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_mid *mid;
 	u16 mid_idx;
 
-	mid_idx = find_first_zero_bit(mlxsw_sp->br_mids.mapped,
+	mid_idx = find_first_zero_bit(mlxsw_sp->bridge->mids_bitmap,
 				      MLXSW_SP_MID_MAX);
 	if (mid_idx == MLXSW_SP_MID_MAX)
 		return NULL;
@@ -1029,12 +1051,12 @@ static struct mlxsw_sp_mid *__mlxsw_sp_mc_alloc(struct mlxsw_sp *mlxsw_sp,
 	if (!mid)
 		return NULL;
 
-	set_bit(mid_idx, mlxsw_sp->br_mids.mapped);
+	set_bit(mid_idx, mlxsw_sp->bridge->mids_bitmap);
 	ether_addr_copy(mid->addr, addr);
 	mid->fid = fid;
 	mid->mid = mid_idx;
 	mid->ref_count = 0;
-	list_add_tail(&mid->list, &mlxsw_sp->br_mids.list);
+	list_add_tail(&mid->list, &mlxsw_sp->bridge->mids_list);
 
 	return mid;
 }
@@ -1044,7 +1066,7 @@ static int __mlxsw_sp_mc_dec_ref(struct mlxsw_sp *mlxsw_sp,
 {
 	if (--mid->ref_count == 0) {
 		list_del(&mid->list);
-		clear_bit(mid->mid, mlxsw_sp->br_mids.mapped);
+		clear_bit(mid->mid, mlxsw_sp->bridge->mids_bitmap);
 		kfree(mid);
 		return 1;
 	}
@@ -1600,12 +1622,15 @@ static void mlxsw_sp_fdb_notify_rec_process(struct mlxsw_sp *mlxsw_sp,
 
 static void mlxsw_sp_fdb_notify_work_schedule(struct mlxsw_sp *mlxsw_sp)
 {
-	mlxsw_core_schedule_dw(&mlxsw_sp->fdb_notify.dw,
-			       msecs_to_jiffies(mlxsw_sp->fdb_notify.interval));
+	struct mlxsw_sp_bridge *bridge = mlxsw_sp->bridge;
+
+	mlxsw_core_schedule_dw(&bridge->fdb_notify.dw,
+			       msecs_to_jiffies(bridge->fdb_notify.interval));
 }
 
 static void mlxsw_sp_fdb_notify_work(struct work_struct *work)
 {
+	struct mlxsw_sp_bridge *bridge;
 	struct mlxsw_sp *mlxsw_sp;
 	char *sfn_pl;
 	u8 num_rec;
@@ -1616,7 +1641,8 @@ static void mlxsw_sp_fdb_notify_work(struct work_struct *work)
 	if (!sfn_pl)
 		return;
 
-	mlxsw_sp = container_of(work, struct mlxsw_sp, fdb_notify.dw.work);
+	bridge = container_of(work, struct mlxsw_sp_bridge, fdb_notify.dw.work);
+	mlxsw_sp = bridge->mlxsw_sp;
 
 	rtnl_lock();
 	mlxsw_reg_sfn_pack(sfn_pl);
@@ -1637,6 +1663,7 @@ out:
 
 static int mlxsw_sp_fdb_init(struct mlxsw_sp *mlxsw_sp)
 {
+	struct mlxsw_sp_bridge *bridge = mlxsw_sp->bridge;
 	int err;
 
 	err = mlxsw_sp_ageing_set(mlxsw_sp, MLXSW_SP_DEFAULT_AGEING_TIME);
@@ -1644,25 +1671,37 @@ static int mlxsw_sp_fdb_init(struct mlxsw_sp *mlxsw_sp)
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to set default ageing time\n");
 		return err;
 	}
-	INIT_DELAYED_WORK(&mlxsw_sp->fdb_notify.dw, mlxsw_sp_fdb_notify_work);
-	mlxsw_sp->fdb_notify.interval = MLXSW_SP_DEFAULT_LEARNING_INTERVAL;
+	INIT_DELAYED_WORK(&bridge->fdb_notify.dw, mlxsw_sp_fdb_notify_work);
+	bridge->fdb_notify.interval = MLXSW_SP_DEFAULT_LEARNING_INTERVAL;
 	mlxsw_sp_fdb_notify_work_schedule(mlxsw_sp);
 	return 0;
 }
 
 static void mlxsw_sp_fdb_fini(struct mlxsw_sp *mlxsw_sp)
 {
-	cancel_delayed_work_sync(&mlxsw_sp->fdb_notify.dw);
+	cancel_delayed_work_sync(&mlxsw_sp->bridge->fdb_notify.dw);
 }
 
 int mlxsw_sp_switchdev_init(struct mlxsw_sp *mlxsw_sp)
 {
+	struct mlxsw_sp_bridge *bridge;
+
+	bridge = kzalloc(sizeof(*mlxsw_sp->bridge), GFP_KERNEL);
+	if (!bridge)
+		return -ENOMEM;
+	mlxsw_sp->bridge = bridge;
+	bridge->mlxsw_sp = mlxsw_sp;
+
+	INIT_LIST_HEAD(&mlxsw_sp->bridge->mids_list);
+
 	return mlxsw_sp_fdb_init(mlxsw_sp);
 }
 
 void mlxsw_sp_switchdev_fini(struct mlxsw_sp *mlxsw_sp)
 {
 	mlxsw_sp_fdb_fini(mlxsw_sp);
+	WARN_ON(!list_empty(&mlxsw_sp->bridge->mids_list));
+	kfree(mlxsw_sp->bridge);
 }
 
 void mlxsw_sp_port_switchdev_init(struct mlxsw_sp_port *mlxsw_sp_port)

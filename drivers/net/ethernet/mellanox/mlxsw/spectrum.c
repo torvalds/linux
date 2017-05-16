@@ -3312,7 +3312,6 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->bus_info = mlxsw_bus_info;
 	INIT_LIST_HEAD(&mlxsw_sp->fids);
 	INIT_LIST_HEAD(&mlxsw_sp->vfids.list);
-	INIT_LIST_HEAD(&mlxsw_sp->br_mids.list);
 
 	err = mlxsw_sp_base_mac_get(mlxsw_sp);
 	if (err) {
@@ -3659,21 +3658,26 @@ static void mlxsw_sp_master_bridge_gone_sync(struct mlxsw_sp *mlxsw_sp)
 static bool mlxsw_sp_master_bridge_check(struct mlxsw_sp *mlxsw_sp,
 					 struct net_device *br_dev)
 {
-	return !mlxsw_sp->master_bridge.dev ||
-	       mlxsw_sp->master_bridge.dev == br_dev;
+	struct mlxsw_sp_upper *master_bridge = mlxsw_sp_master_bridge(mlxsw_sp);
+
+	return !master_bridge->dev || master_bridge->dev == br_dev;
 }
 
 static void mlxsw_sp_master_bridge_inc(struct mlxsw_sp *mlxsw_sp,
 				       struct net_device *br_dev)
 {
-	mlxsw_sp->master_bridge.dev = br_dev;
-	mlxsw_sp->master_bridge.ref_count++;
+	struct mlxsw_sp_upper *master_bridge = mlxsw_sp_master_bridge(mlxsw_sp);
+
+	master_bridge->dev = br_dev;
+	master_bridge->ref_count++;
 }
 
 static void mlxsw_sp_master_bridge_dec(struct mlxsw_sp *mlxsw_sp)
 {
-	if (--mlxsw_sp->master_bridge.ref_count == 0) {
-		mlxsw_sp->master_bridge.dev = NULL;
+	struct mlxsw_sp_upper *master_bridge = mlxsw_sp_master_bridge(mlxsw_sp);
+
+	if (--master_bridge->ref_count == 0) {
+		master_bridge->dev = NULL;
 		/* It's possible upper VLAN devices are still holding
 		 * references to underlying FIDs. Drop the reference
 		 * and release the resources if it was the last one.
@@ -4272,7 +4276,7 @@ static int mlxsw_sp_netdevice_bridge_event(struct net_device *br_dev,
 		if (!is_vlan_dev(upper_dev))
 			return -EINVAL;
 		if (is_vlan_dev(upper_dev) &&
-		    br_dev != mlxsw_sp->master_bridge.dev)
+		    br_dev != mlxsw_sp_master_bridge(mlxsw_sp)->dev)
 			return -EINVAL;
 		break;
 	case NETDEV_CHANGEUPPER:
