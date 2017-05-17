@@ -653,10 +653,22 @@ static void nested_enable_signaling(struct drm_i915_gem_request *rq)
 	spin_unlock(&rq->lock);
 }
 
+static void port_assign(struct execlist_port *port,
+			struct drm_i915_gem_request *rq)
+{
+	GEM_BUG_ON(rq == port_request(port));
+
+	if (port_isset(port))
+		i915_gem_request_put(port_request(port));
+
+	port_set(port, i915_gem_request_get(rq));
+	nested_enable_signaling(rq);
+}
+
 static bool i915_guc_dequeue(struct intel_engine_cs *engine)
 {
 	struct execlist_port *port = engine->execlist_port;
-	struct drm_i915_gem_request *last = port[0].request;
+	struct drm_i915_gem_request *last = port_request(port);
 	struct rb_node *rb;
 	bool submit = false;
 
@@ -670,8 +682,7 @@ static bool i915_guc_dequeue(struct intel_engine_cs *engine)
 			if (port != engine->execlist_port)
 				break;
 
-			i915_gem_request_assign(&port->request, last);
-			nested_enable_signaling(last);
+			port_assign(port, last);
 			port++;
 		}
 
@@ -681,13 +692,12 @@ static bool i915_guc_dequeue(struct intel_engine_cs *engine)
 		rq->priotree.priority = INT_MAX;
 
 		i915_guc_submit(rq);
-		trace_i915_gem_request_in(rq, port - engine->execlist_port);
+		trace_i915_gem_request_in(rq, port_index(port, engine));
 		last = rq;
 		submit = true;
 	}
 	if (submit) {
-		i915_gem_request_assign(&port->request, last);
-		nested_enable_signaling(last);
+		port_assign(port, last);
 		engine->execlist_first = rb;
 	}
 	spin_unlock_irq(&engine->timeline->lock);
@@ -703,17 +713,19 @@ static void i915_guc_irq_handler(unsigned long data)
 	bool submit;
 
 	do {
-		rq = port[0].request;
+		rq = port_request(&port[0]);
 		while (rq && i915_gem_request_completed(rq)) {
 			trace_i915_gem_request_out(rq);
 			i915_gem_request_put(rq);
-			port[0].request = port[1].request;
-			port[1].request = NULL;
-			rq = port[0].request;
+
+			port[0] = port[1];
+			memset(&port[1], 0, sizeof(port[1]));
+
+			rq = port_request(&port[0]);
 		}
 
 		submit = false;
-		if (!port[1].request)
+		if (!port_count(&port[1]))
 			submit = i915_guc_dequeue(engine);
 	} while (submit);
 }

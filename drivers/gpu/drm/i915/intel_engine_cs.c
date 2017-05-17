@@ -1233,7 +1233,7 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 		return false;
 
 	/* Both ports drained, no more ELSP submission? */
-	if (engine->execlist_port[0].request)
+	if (port_request(&engine->execlist_port[0]))
 		return false;
 
 	/* Ring stopped? */

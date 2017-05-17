@@ -1324,12 +1324,17 @@ static void engine_record_requests(struct intel_engine_cs *engine,
 static void error_record_engine_execlists(struct intel_engine_cs *engine,
 					  struct drm_i915_error_engine *ee)
 {
+	const struct execlist_port *port = engine->execlist_port;
 	unsigned int n;
 
-	for (n = 0; n < ARRAY_SIZE(engine->execlist_port); n++)
-		if (engine->execlist_port[n].request)
-			record_request(engine->execlist_port[n].request,
-				       &ee->execlist[n]);
+	for (n = 0; n < ARRAY_SIZE(engine->execlist_port); n++) {
+		struct drm_i915_gem_request *rq = port_request(&port[n]);
+
+		if (!rq)
+			break;
+
+		record_request(rq, &ee->execlist[n]);
+	}
 }
 
 static void record_context(struct drm_i915_error_context *e,

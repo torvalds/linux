@@ -368,8 +368,15 @@ struct intel_engine_cs {
 	/* Execlists */
 	struct tasklet_struct irq_tasklet;
 	struct execlist_port {
-		struct drm_i915_gem_request *request;
-		unsigned int count;
+		struct drm_i915_gem_request *request_count;
+#define EXECLIST_COUNT_BITS 2
+#define port_request(p) ptr_mask_bits((p)->request_count, EXECLIST_COUNT_BITS)
+#define port_count(p) ptr_unmask_bits((p)->request_count, EXECLIST_COUNT_BITS)
+#define port_pack(rq, count) ptr_pack_bits(rq, count, EXECLIST_COUNT_BITS)
+#define port_unpack(p, count) ptr_unpack_bits((p)->request_count, count, EXECLIST_COUNT_BITS)
+#define port_set(p, packed) ((p)->request_count = (packed))
+#define port_isset(p) ((p)->request_count)
+#define port_index(p, e) ((p) - (e)->execlist_port)
 		GEM_DEBUG_DECL(u32 context_id);
 	} execlist_port[2];
 	struct rb_root execlist_queue;

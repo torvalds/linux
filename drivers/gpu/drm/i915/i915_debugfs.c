@@ -3353,6 +3353,7 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 		if (i915.enable_execlists) {
 			u32 ptr, read, write;
 			struct rb_node *rb;
+			unsigned int idx;
 
 			seq_printf(m, "\tExeclist status: 0x%08x %08x\n",
 				   I915_READ(RING_EXECLIST_STATUS_LO(engine)),
@@ -3370,8 +3371,7 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 			if (read > write)
 				write += GEN8_CSB_ENTRIES;
 			while (read < write) {
-				unsigned int idx = ++read % GEN8_CSB_ENTRIES;
-
+				idx = ++read % GEN8_CSB_ENTRIES;
 				seq_printf(m, "\tExeclist CSB[%d]: 0x%08x, context: %d\n",
 					   idx,
 					   I915_READ(RING_CONTEXT_STATUS_BUF_LO(engine, idx)),
@@ -3379,21 +3379,19 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 			}
 
 			rcu_read_lock();
-			rq = READ_ONCE(engine->execlist_port[0].request);
-			if (rq) {
-				seq_printf(m, "\t\tELSP[0] count=%d, ",
-					   engine->execlist_port[0].count);
-				print_request(m, rq, "rq: ");
-			} else {
-				seq_printf(m, "\t\tELSP[0] idle\n");
-			}
-			rq = READ_ONCE(engine->execlist_port[1].request);
-			if (rq) {
-				seq_printf(m, "\t\tELSP[1] count=%d, ",
-					   engine->execlist_port[1].count);
-				print_request(m, rq, "rq: ");
-			} else {
-				seq_printf(m, "\t\tELSP[1] idle\n");
+			for (idx = 0; idx < ARRAY_SIZE(engine->execlist_port); idx++) {
+				unsigned int count;
+
+				rq = port_unpack(&engine->execlist_port[idx],
+						 &count);
+				if (rq) {
+					seq_printf(m, "\t\tELSP[%d] count=%d, ",
+						   idx, count);
+					print_request(m, rq, "rq: ");
+				} else {
+					seq_printf(m, "\t\tELSP[%d] idle\n",
+						   idx);
+				}
 			}
 			rcu_read_unlock();
 
