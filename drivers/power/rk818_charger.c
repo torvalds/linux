@@ -57,6 +57,8 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 
 /* RK818_USB_CTRL_REG */
 #define INPUT_CUR450MA		(0x00)
+#define INPUT_CUR80MA		(0x01)
+#define INPUT_CUR850MA		(0x02)
 #define INPUT_CUR1500MA		(0x05)
 #define INPUT_CUR_MSK		(0x0f)
 /* RK818_CHRG_CTRL_REG3 */
@@ -77,8 +79,16 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 #define PLUG_IN_STS		BIT(6)
 /* RK818_TS_CTRL_REG */
 #define GG_EN			BIT(7)
+#define TS2_FUN_ADC		BIT(5)
+/* RK818_ADC_CTRL_REG */
+#define ADC_TS2_EN		BIT(4)
 
 #define DRIVER_VERSION		"1.0"
+
+#define DEFAULT_TS2_THRESHOLD_VOL      4350
+#define DEFAULT_TS2_VALID_VOL          1000
+#define DEFAULT_TS2_VOL_MULTI          0
+#define DEFAULT_TS2_CHECK_CNT          5
 
 static const u16 chrg_vol_sel_array[] = {
 	4050, 4100, 4150, 4200, 4250, 4300, 4350
@@ -115,6 +125,7 @@ struct charger_platform_data {
 	int sample_res;
 	int otg5v_suspend_enable;
 	bool extcon;
+	int ts2_vol_multi;
 };
 
 struct rk818_charger {
@@ -129,12 +140,14 @@ struct rk818_charger {
 	struct workqueue_struct *usb_charger_wq;
 	struct workqueue_struct *dc_charger_wq;
 	struct workqueue_struct *finish_sig_wq;
+	struct workqueue_struct *ts2_wq;
 	struct delayed_work dc_work;
 	struct delayed_work usb_work;
 	struct delayed_work host_work;
 	struct delayed_work discnt_work;
 	struct delayed_work finish_sig_work;
 	struct delayed_work irq_work;
+	struct delayed_work ts2_vol_work;
 	struct notifier_block bc_nb;
 	struct notifier_block cable_cg_nb;
 	struct notifier_block cable_host_nb;
@@ -224,6 +237,22 @@ static int rk818_cg_get_avg_current(struct rk818_charger *cg)
 	cur = val * cg->res_div * 1506 / 1000;
 
 	return cur;
+}
+
+static int rk818_cg_get_ts2_voltage(struct rk818_charger *cg)
+{
+	u32 val = 0;
+	int voltage;
+
+	val |= rk818_reg_read(cg, RK818_TS2_ADC_REGL) << 0;
+	val |= rk818_reg_read(cg, RK818_TS2_ADC_REGH) << 8;
+
+	/* refer voltage 2.2V, 12bit adc accuracy */
+	voltage = val * 2200 * cg->pdata->ts2_vol_multi / 4095;
+
+	DBG("********* ts2 adc=%d, vol=%d\n", val, voltage);
+
+	return voltage;
 }
 
 static u64 get_boot_sec(void)
@@ -477,17 +506,32 @@ static void rk818_cg_set_chrg_param(struct rk818_charger *cg,
 		cg->ac_in = 1;
 		cg->usb_in = 0;
 		cg->prop_status = POWER_SUPPLY_STATUS_CHARGING;
-		if (charger == USB_TYPE_AC_CHARGER)
-			rk818_cg_set_input_current(cg, cg->chrg_input);
-		else
+		if (charger == USB_TYPE_AC_CHARGER) {
+			if (cg->pdata->ts2_vol_multi) {
+				rk818_cg_set_input_current(cg, INPUT_CUR450MA);
+				queue_delayed_work(cg->ts2_wq,
+						   &cg->ts2_vol_work,
+						   msecs_to_jiffies(0));
+			} else {
+				rk818_cg_set_input_current(cg, cg->chrg_input);
+			}
+		} else {
 			rk818_cg_set_input_current(cg, INPUT_CUR1500MA);
+		}
 		power_supply_changed(cg->usb_psy);
 		power_supply_changed(cg->ac_psy);
 		break;
 	case DC_TYPE_DC_CHARGER:
 		cg->dc_in = 1;
 		cg->prop_status = POWER_SUPPLY_STATUS_CHARGING;
-		rk818_cg_set_input_current(cg, cg->chrg_input);
+		if (cg->pdata->ts2_vol_multi) {
+			rk818_cg_set_input_current(cg, INPUT_CUR450MA);
+			queue_delayed_work(cg->ts2_wq,
+					   &cg->ts2_vol_work,
+					   msecs_to_jiffies(0));
+		} else {
+			rk818_cg_set_input_current(cg, cg->chrg_input);
+		}
 		power_supply_changed(cg->usb_psy);
 		power_supply_changed(cg->ac_psy);
 		break;
@@ -670,6 +714,63 @@ static void rk818_cg_init_config(struct rk818_charger *cg)
 	rk818_reg_write(cg, RK818_SUP_STS_REG, sup_sts);
 	rk818_reg_write(cg, RK818_USB_CTRL_REG, usb_ctrl);
 	rk818_reg_write(cg, RK818_CHRG_CTRL_REG1, chrg_ctrl1);
+}
+
+static void rk818_ts2_vol_work(struct work_struct *work)
+{
+	struct rk818_charger *cg;
+	int ts2_vol, input_current, invalid_cnt = 0, confirm_cnt = 0;
+
+	cg = container_of(work, struct rk818_charger, ts2_vol_work.work);
+
+	input_current = INPUT_CUR80MA;
+	while (input_current < cg->chrg_input) {
+		msleep(100);
+		ts2_vol = rk818_cg_get_ts2_voltage(cg);
+
+		/* filter invalid voltage */
+		if (ts2_vol <= DEFAULT_TS2_VALID_VOL) {
+			invalid_cnt++;
+			DBG("%s: invalid ts2 voltage: %d\n, cnt=%d",
+			    __func__, ts2_vol, invalid_cnt);
+			if (invalid_cnt < DEFAULT_TS2_CHECK_CNT)
+				continue;
+
+			/* if fail, set max input current as default */
+			input_current = cg->chrg_input;
+			rk818_cg_set_input_current(cg, input_current);
+			break;
+		}
+
+		/* update input current */
+		if (ts2_vol >= DEFAULT_TS2_THRESHOLD_VOL) {
+			/* update input current */
+			input_current++;
+			rk818_cg_set_input_current(cg, input_current);
+			DBG("********* input=%d\n",
+			    chrg_cur_input_array[input_current & 0x0f]);
+		} else {
+			/* confirm lower threshold voltage */
+			confirm_cnt++;
+			if (confirm_cnt < DEFAULT_TS2_CHECK_CNT) {
+				DBG("%s: confirm ts2 voltage: %d\n, cnt=%d",
+				    __func__, ts2_vol, confirm_cnt);
+				continue;
+			}
+
+			/* trigger threshold, so roll back 1 step */
+			input_current--;
+			if (input_current == INPUT_CUR80MA ||
+			    input_current < 0)
+				input_current = INPUT_CUR450MA;
+			rk818_cg_set_input_current(cg, input_current);
+			break;
+		}
+	}
+
+	if (input_current != cg->chrg_input)
+		CG_INFO("adjust input current: %dma\n",
+			chrg_cur_input_array[input_current & 0x0f]);
 }
 
 static int rk818_cg_charger_evt_notifier(struct notifier_block *nb,
@@ -1111,6 +1212,32 @@ static void rk818_cg_init_finish_sig(struct rk818_charger *cg)
 	INIT_DELAYED_WORK(&cg->finish_sig_work, rk818_cg_finish_sig_work);
 }
 
+static void rk818_cg_init_ts2_detect(struct rk818_charger *cg)
+{
+	u8 buf;
+
+	cg->ts2_wq = alloc_ordered_workqueue("%s",
+				WQ_MEM_RECLAIM | WQ_FREEZABLE,
+				"rk818-ts2-wq");
+	INIT_DELAYED_WORK(&cg->ts2_vol_work, rk818_ts2_vol_work);
+
+	if (!cg->pdata->ts2_vol_multi)
+		return;
+
+	/* TS2 adc mode */
+	buf = rk818_reg_read(cg, RK818_TS_CTRL_REG);
+	buf |= TS2_FUN_ADC;
+	rk818_reg_write(cg, RK818_TS_CTRL_REG, buf);
+
+	/* TS2 adc enable */
+	buf = rk818_reg_read(cg, RK818_ADC_CTRL_REG);
+	buf |= ADC_TS2_EN;
+	rk818_reg_write(cg, RK818_ADC_CTRL_REG, buf);
+
+	CG_INFO("enable ts2 voltage detect, multi=%d\n",
+		cg->pdata->ts2_vol_multi);
+}
+
 static void rk818_cg_init_charger_state(struct rk818_charger *cg)
 {
 	rk818_cg_init_config(cg);
@@ -1183,6 +1310,9 @@ static int rk818_cg_parse_dt(struct rk818_charger *cg)
 		dev_err(dev, "otg5v_suspend_enable missing!\n");
 	}
 
+	ret = of_property_read_u32(np, "ts2_vol_multi",
+				   &pdata->ts2_vol_multi);
+
 	if (!is_battery_exist(cg))
 		pdata->virtual_power = 1;
 
@@ -1211,11 +1341,12 @@ static int rk818_cg_parse_dt(struct rk818_charger *cg)
 	    "chrg_voltage:%d\n"
 	    "sample_res:%d\n"
 	    "extcon:%d\n"
+	    "ts2_vol_multi:%d\n"
 	    "virtual_power:%d\n"
 	    "power_dc2otg:%d\n",
 	    pdata->max_input_current, pdata->max_chrg_current,
 	    pdata->max_chrg_voltage, pdata->sample_res, pdata->extcon,
-	    pdata->virtual_power, pdata->power_dc2otg);
+	    pdata->ts2_vol_multi, pdata->virtual_power, pdata->power_dc2otg);
 
 	return 0;
 }
@@ -1253,6 +1384,8 @@ static int rk818_charger_probe(struct platform_device *pdev)
 		dev_err(cg->dev, "init irqs failed!\n");
 		return ret;
 	}
+
+	rk818_cg_init_ts2_detect(cg);
 
 	ret = rk818_cg_init_dc(cg);
 	if (ret) {
@@ -1293,6 +1426,8 @@ static void rk818_charger_shutdown(struct platform_device *pdev)
 	cancel_delayed_work_sync(&cg->dc_work);
 	cancel_delayed_work_sync(&cg->finish_sig_work);
 	cancel_delayed_work_sync(&cg->irq_work);
+	cancel_delayed_work_sync(&cg->ts2_vol_work);
+	destroy_workqueue(cg->ts2_wq);
 	destroy_workqueue(cg->usb_charger_wq);
 	destroy_workqueue(cg->dc_charger_wq);
 	destroy_workqueue(cg->finish_sig_wq);
