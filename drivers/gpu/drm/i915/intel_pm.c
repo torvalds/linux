@@ -4382,18 +4382,18 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 }
 
 static int
-skl_compute_wm_level(const struct drm_i915_private *dev_priv,
-		     struct skl_ddb_allocation *ddb,
-		     struct intel_crtc_state *cstate,
-		     const struct intel_plane_state *intel_pstate,
-		     int level,
-		     struct skl_wm_level *result)
+skl_compute_wm_levels(const struct drm_i915_private *dev_priv,
+		      struct skl_ddb_allocation *ddb,
+		      struct intel_crtc_state *cstate,
+		      const struct intel_plane_state *intel_pstate,
+		      struct skl_plane_wm *wm)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(cstate->base.crtc);
 	struct drm_plane *plane = intel_pstate->base.plane;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	uint16_t ddb_blocks;
 	enum pipe pipe = intel_crtc->pipe;
+	int level, max_level = ilk_wm_max_level(dev_priv);
 	int ret;
 
 	if (WARN_ON(!intel_pstate->base.fb))
@@ -4401,16 +4401,20 @@ skl_compute_wm_level(const struct drm_i915_private *dev_priv,
 
 	ddb_blocks = skl_ddb_entry_size(&ddb->plane[pipe][intel_plane->id]);
 
-	ret = skl_compute_plane_wm(dev_priv,
-				   cstate,
-				   intel_pstate,
-				   ddb_blocks,
-				   level,
-				   &result->plane_res_b,
-				   &result->plane_res_l,
-				   &result->plane_en);
-	if (ret)
-		return ret;
+	for (level = 0; level <= max_level; level++) {
+		struct skl_wm_level *result = &wm->wm[level];
+
+		ret = skl_compute_plane_wm(dev_priv,
+					   cstate,
+					   intel_pstate,
+					   ddb_blocks,
+					   level,
+					   &result->plane_res_b,
+					   &result->plane_res_l,
+					   &result->plane_en);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
@@ -4461,7 +4465,6 @@ static int skl_build_pipe_wm(struct intel_crtc_state *cstate,
 	struct drm_plane *plane;
 	const struct drm_plane_state *pstate;
 	struct skl_plane_wm *wm;
-	int level, max_level = ilk_wm_max_level(dev_priv);
 	int ret;
 
 	/*
@@ -4477,13 +4480,10 @@ static int skl_build_pipe_wm(struct intel_crtc_state *cstate,
 
 		wm = &pipe_wm->planes[plane_id];
 
-		for (level = 0; level <= max_level; level++) {
-			ret = skl_compute_wm_level(dev_priv, ddb, cstate,
-						   intel_pstate, level,
-						   &wm->wm[level]);
-			if (ret)
-				return ret;
-		}
+		ret = skl_compute_wm_levels(dev_priv, ddb, cstate,
+					    intel_pstate, wm);
+		if (ret)
+			return ret;
 		skl_compute_transition_wm(cstate, &wm->trans_wm);
 	}
 	pipe_wm->linetime = skl_compute_linetime_wm(cstate);
