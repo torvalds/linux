@@ -35,8 +35,9 @@ static int __init make_uml_dir(void)
 
 		err = -ENOENT;
 		if (home == NULL) {
-			printk(UM_KERN_ERR "make_uml_dir : no value in "
-			       "environment for $HOME\n");
+			printk(UM_KERN_ERR
+				"%s: no value in environment for $HOME\n",
+				__func__);
 			goto err;
 		}
 		strlcpy(dir, home, sizeof(dir));
@@ -50,13 +51,15 @@ static int __init make_uml_dir(void)
 	err = -ENOMEM;
 	uml_dir = malloc(strlen(dir) + 1);
 	if (uml_dir == NULL) {
-		printf("make_uml_dir : malloc failed, errno = %d\n", errno);
+		printk(UM_KERN_ERR "%s : malloc failed, errno = %d\n",
+			__func__, errno);
 		goto err;
 	}
 	strcpy(uml_dir, dir);
 
 	if ((mkdir(uml_dir, 0777) < 0) && (errno != EEXIST)) {
-	        printf("Failed to mkdir '%s': %s\n", uml_dir, strerror(errno));
+		printk(UM_KERN_ERR "Failed to mkdir '%s': %s\n",
+			uml_dir, strerror(errno));
 		err = -errno;
 		goto err_free;
 	}
