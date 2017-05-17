@@ -480,7 +480,6 @@ static int ssb_devices_register(struct ssb_bus *bus)
 
 		devwrap = kzalloc(sizeof(*devwrap), GFP_KERNEL);
 		if (!devwrap) {
-			ssb_err("Could not allocate device\n");
 			err = -ENOMEM;
 			goto error;
 		}
