@@ -1465,6 +1465,14 @@ static int vop_crtc_loader_protect(struct drm_crtc *crtc, bool on)
 	return 0;
 }
 
+#define DEBUG_PRINT(args...) \
+		do { \
+			if (s) \
+				seq_printf(s, args); \
+			else \
+				printk(args); \
+		} while (0)
+
 static int vop_plane_info_dump(struct seq_file *s, struct drm_plane *plane)
 {
 	struct vop_win *win = to_vop_win(plane);
@@ -1474,27 +1482,27 @@ static int vop_plane_info_dump(struct seq_file *s, struct drm_plane *plane)
 	struct drm_framebuffer *fb = state->fb;
 	int i;
 
-	seq_printf(s, "    win%d-%d: %s\n", win->win_id, win->area_id,
-		   pstate->enable ? "ACTIVE" : "DISABLED");
+	DEBUG_PRINT("    win%d-%d: %s\n", win->win_id, win->area_id,
+		    pstate->enable ? "ACTIVE" : "DISABLED");
 	if (!fb)
 		return 0;
 
 	src = &pstate->src;
 	dest = &pstate->dest;
 
-	seq_printf(s, "\tformat: %s%s\n", drm_get_format_name(fb->pixel_format),
-		   fb->modifier[0] == DRM_FORMAT_MOD_ARM_AFBC ? "[AFBC]" : "");
-	seq_printf(s, "\tzpos: %d\n", pstate->zpos);
-	seq_printf(s, "\tsrc: pos[%dx%d] rect[%dx%d]\n", src->x1 >> 16,
-		   src->y1 >> 16, drm_rect_width(src) >> 16,
-		   drm_rect_height(src) >> 16);
-	seq_printf(s, "\tdst: pos[%dx%d] rect[%dx%d]\n", dest->x1, dest->y1,
-		   drm_rect_width(dest), drm_rect_height(dest));
+	DEBUG_PRINT("\tformat: %s%s\n", drm_get_format_name(fb->pixel_format),
+		    fb->modifier[0] == DRM_FORMAT_MOD_ARM_AFBC ? "[AFBC]" : "");
+	DEBUG_PRINT("\tzpos: %d\n", pstate->zpos);
+	DEBUG_PRINT("\tsrc: pos[%dx%d] rect[%dx%d]\n", src->x1 >> 16,
+		    src->y1 >> 16, drm_rect_width(src) >> 16,
+		    drm_rect_height(src) >> 16);
+	DEBUG_PRINT("\tdst: pos[%dx%d] rect[%dx%d]\n", dest->x1, dest->y1,
+		    drm_rect_width(dest), drm_rect_height(dest));
 
 	for (i = 0; i < drm_format_num_planes(fb->pixel_format); i++) {
 		dma_addr_t fb_addr = rockchip_fb_get_dma_addr(fb, i);
-		seq_printf(s, "\tbuf[%d]: addr: %pad pitch: %d offset: %d\n",
-			   i, &fb_addr, fb->pitches[i], fb->offsets[i]);
+		DEBUG_PRINT("\tbuf[%d]: addr: %pad pitch: %d offset: %d\n",
+			    i, &fb_addr, fb->pitches[i], fb->offsets[i]);
 	}
 
 	return 0;
@@ -1510,25 +1518,25 @@ static int vop_crtc_debugfs_dump(struct drm_crtc *crtc, struct seq_file *s)
 	struct drm_plane *plane;
 	int i;
 
-	seq_printf(s, "VOP [%s]: %s\n", dev_name(vop->dev),
-		   crtc_state->active ? "ACTIVE" : "DISABLED");
+	DEBUG_PRINT("VOP [%s]: %s\n", dev_name(vop->dev),
+		    crtc_state->active ? "ACTIVE" : "DISABLED");
 
 	if (!crtc_state->active)
 		return 0;
 
-	seq_printf(s, "    Connector: %s\n",
-		   drm_get_connector_name(state->output_type));
-	seq_printf(s, "\tbus_format[%x] output_mode[%x]\n",
-		   state->bus_format, state->output_mode);
-	seq_printf(s, "    Display mode: %dx%d%s%d\n",
-		   mode->hdisplay, mode->vdisplay, interlaced ? "i" : "p",
-		   drm_mode_vrefresh(mode));
-	seq_printf(s, "\tclk[%d] real_clk[%d] type[%x] flag[%x]\n",
-		   mode->clock, mode->crtc_clock, mode->type, mode->flags);
-	seq_printf(s, "\tH: %d %d %d %d\n", mode->hdisplay, mode->hsync_start,
-		   mode->hsync_end, mode->htotal);
-	seq_printf(s, "\tV: %d %d %d %d\n", mode->vdisplay, mode->vsync_start,
-		   mode->vsync_end, mode->vtotal);
+	DEBUG_PRINT("    Connector: %s\n",
+		    drm_get_connector_name(state->output_type));
+	DEBUG_PRINT("\tbus_format[%x] output_mode[%x]\n",
+		    state->bus_format, state->output_mode);
+	DEBUG_PRINT("    Display mode: %dx%d%s%d\n",
+		    mode->hdisplay, mode->vdisplay, interlaced ? "i" : "p",
+		    drm_mode_vrefresh(mode));
+	DEBUG_PRINT("\tclk[%d] real_clk[%d] type[%x] flag[%x]\n",
+		    mode->clock, mode->crtc_clock, mode->type, mode->flags);
+	DEBUG_PRINT("\tH: %d %d %d %d\n", mode->hdisplay, mode->hsync_start,
+		    mode->hsync_end, mode->htotal);
+	DEBUG_PRINT("\tV: %d %d %d %d\n", mode->vdisplay, mode->vsync_start,
+		    mode->vsync_end, mode->vtotal);
 
 	for (i = 0; i < vop->num_wins; i++) {
 		plane = &vop->win[i].base;
@@ -1537,6 +1545,25 @@ static int vop_crtc_debugfs_dump(struct drm_crtc *crtc, struct seq_file *s)
 
 	return 0;
 }
+
+static void vop_crtc_regs_dump(struct drm_crtc *crtc, struct seq_file *s)
+{
+	struct vop *vop = to_vop(crtc);
+	struct drm_crtc_state *crtc_state = crtc->state;
+	int dump_len = vop->len > 0x400 ? 0x400 : vop->len;
+	int i;
+
+	if (!crtc_state->active)
+		return;
+
+	for (i = 0; i < dump_len; i += 4) {
+		if (i % 16 == 0)
+			DEBUG_PRINT("\n0x%08x: ", i);
+		DEBUG_PRINT("%08x ", vop_readl(vop, i));
+	}
+}
+
+#undef DEBUG_PRINT
 
 static enum drm_mode_status
 vop_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode,
@@ -1574,6 +1601,7 @@ static const struct rockchip_crtc_funcs private_crtc_funcs = {
 	.wait_for_update = vop_crtc_wait_for_update,
 	.cancel_pending_vblank = vop_crtc_cancel_pending_vblank,
 	.debugfs_dump = vop_crtc_debugfs_dump,
+	.regs_dump = vop_crtc_regs_dump,
 	.mode_valid = vop_crtc_mode_valid,
 };
 

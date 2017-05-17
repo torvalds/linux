@@ -775,6 +775,29 @@ static void rockchip_drm_crtc_disable_vblank(struct drm_device *dev,
 		priv->crtc_funcs[pipe]->disable_vblank(crtc);
 }
 
+static int rockchip_drm_fault_handler(struct iommu_domain *iommu,
+				      struct device *dev,
+				      unsigned long iova, int flags, void *arg)
+{
+	struct drm_device *drm_dev = arg;
+	struct rockchip_drm_private *priv = drm_dev->dev_private;
+	struct drm_crtc *crtc;
+
+	drm_for_each_crtc(crtc, drm_dev) {
+		int pipe = drm_crtc_index(crtc);
+
+		if (priv->crtc_funcs[pipe] &&
+		    priv->crtc_funcs[pipe]->regs_dump)
+			priv->crtc_funcs[pipe]->regs_dump(crtc, NULL);
+
+		if (priv->crtc_funcs[pipe] &&
+		    priv->crtc_funcs[pipe]->debugfs_dump)
+			priv->crtc_funcs[pipe]->debugfs_dump(crtc, NULL);
+	}
+
+	return 0;
+}
+
 static int rockchip_drm_init_iommu(struct drm_device *drm_dev)
 {
 	struct rockchip_drm_private *private = drm_dev->dev_private;
@@ -796,6 +819,9 @@ static int rockchip_drm_init_iommu(struct drm_device *drm_dev)
 		  start, end);
 	drm_mm_init(&private->mm, start, end - start + 1);
 	mutex_init(&private->mm_lock);
+
+	iommu_set_fault_handler(private->domain, rockchip_drm_fault_handler,
+				drm_dev);
 
 	return 0;
 }
