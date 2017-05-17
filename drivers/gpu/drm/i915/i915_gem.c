@@ -2612,7 +2612,7 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 	}
 	GEM_BUG_ON(!obj->mm.pages);
 
-	ptr = ptr_unpack_bits(obj->mm.mapping, has_type);
+	ptr = ptr_unpack_bits(obj->mm.mapping, &has_type);
 	if (ptr && has_type != type) {
 		if (pinned) {
 			ret = -EBUSY;

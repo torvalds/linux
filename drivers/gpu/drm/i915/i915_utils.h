@@ -77,7 +77,7 @@
 
 #define ptr_unpack_bits(ptr, bits) ({					\
 	unsigned long __v = (unsigned long)(ptr);			\
-	(bits) = __v & ~PAGE_MASK;					\
+	*(bits) = __v & ~PAGE_MASK;					\
 	(typeof(ptr))(__v & PAGE_MASK);					\
 })
 
