@@ -196,6 +196,54 @@ void tcf_destroy_chain(struct tcf_proto __rcu **fl)
 }
 EXPORT_SYMBOL(tcf_destroy_chain);
 
+/* Main classifier routine: scans classifier chain attached
+ * to this qdisc, (optionally) tests for protocol and asks
+ * specific classifiers.
+ */
+int tcf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
+		 struct tcf_result *res, bool compat_mode)
+{
+	__be16 protocol = tc_skb_protocol(skb);
+#ifdef CONFIG_NET_CLS_ACT
+	const int max_reclassify_loop = 4;
+	const struct tcf_proto *old_tp = tp;
+	int limit = 0;
+
+reclassify:
+#endif
+	for (; tp; tp = rcu_dereference_bh(tp->next)) {
+		int err;
+
+		if (tp->protocol != protocol &&
+		    tp->protocol != htons(ETH_P_ALL))
+			continue;
+
+		err = tp->classify(skb, tp, res);
+#ifdef CONFIG_NET_CLS_ACT
+		if (unlikely(err == TC_ACT_RECLASSIFY && !compat_mode))
+			goto reset;
+#endif
+		if (err >= 0)
+			return err;
+	}
+
+	return TC_ACT_UNSPEC; /* signal: continue lookup */
+#ifdef CONFIG_NET_CLS_ACT
+reset:
+	if (unlikely(limit++ >= max_reclassify_loop)) {
+		net_notice_ratelimited("%s: reclassify loop, rule prio %u, protocol %02x\n",
+				       tp->q->ops->id, tp->prio & 0xffff,
+				       ntohs(tp->protocol));
+		return TC_ACT_SHOT;
+	}
+
+	tp = old_tp;
+	protocol = tc_skb_protocol(skb);
+	goto reclassify;
+#endif
+}
+EXPORT_SYMBOL(tcf_classify);
+
 /* Add/change/delete/get a filter node */
 
 static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
