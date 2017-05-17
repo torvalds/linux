@@ -91,7 +91,7 @@ static int sun4i_drv_bind(struct device *dev)
 		goto free_drm;
 	}
 	drm->dev_private = drv;
-	INIT_LIST_HEAD(&drv->backend_list);
+	INIT_LIST_HEAD(&drv->engine_list);
 	INIT_LIST_HEAD(&drv->tcon_list);
 
 	ret = of_reserved_mem_device_init(dev);

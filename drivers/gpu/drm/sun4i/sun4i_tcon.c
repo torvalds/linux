@@ -25,12 +25,12 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 
-#include "sun4i_backend.h"
 #include "sun4i_crtc.h"
 #include "sun4i_dotclock.h"
 #include "sun4i_drv.h"
 #include "sun4i_rgb.h"
 #include "sun4i_tcon.h"
+#include "sunxi_engine.h"
 
 void sun4i_tcon_disable(struct sun4i_tcon *tcon)
 {
@@ -419,12 +419,16 @@ static int sun4i_tcon_init_regmap(struct device *dev,
  * means maintaining a large list of them. Or, since the backend is
  * registered and binded before the TCON, we can just go through the
  * list of registered backends and compare the device node.
+ *
+ * As the structures now store engines instead of backends, here this
+ * function in fact searches the corresponding engine, and the ID is
+ * requested via the get_id function of the engine.
  */
-static struct sun4i_backend *sun4i_tcon_find_backend(struct sun4i_drv *drv,
-						     struct device_node *node)
+static struct sunxi_engine *sun4i_tcon_find_engine(struct sun4i_drv *drv,
+						   struct device_node *node)
 {
 	struct device_node *port, *ep, *remote;
-	struct sun4i_backend *backend;
+	struct sunxi_engine *engine;
 
 	port = of_graph_get_port_by_id(node, 0);
 	if (!port)
@@ -435,21 +439,21 @@ static struct sun4i_backend *sun4i_tcon_find_backend(struct sun4i_drv *drv,
 		if (!remote)
 			continue;
 
-		/* does this node match any registered backends? */
-		list_for_each_entry(backend, &drv->backend_list, list) {
-			if (remote == backend->node) {
+		/* does this node match any registered engines? */
+		list_for_each_entry(engine, &drv->engine_list, list) {
+			if (remote == engine->node) {
 				of_node_put(remote);
 				of_node_put(port);
-				return backend;
+				return engine;
 			}
 		}
 
 		/* keep looking through upstream ports */
-		backend = sun4i_tcon_find_backend(drv, remote);
-		if (!IS_ERR(backend)) {
+		engine = sun4i_tcon_find_engine(drv, remote);
+		if (!IS_ERR(engine)) {
 			of_node_put(remote);
 			of_node_put(port);
-			return backend;
+			return engine;
 		}
 	}
 
@@ -461,13 +465,13 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 {
 	struct drm_device *drm = data;
 	struct sun4i_drv *drv = drm->dev_private;
-	struct sun4i_backend *backend;
+	struct sunxi_engine *engine;
 	struct sun4i_tcon *tcon;
 	int ret;
 
-	backend = sun4i_tcon_find_backend(drv, dev->of_node);
-	if (IS_ERR(backend)) {
-		dev_err(dev, "Couldn't find matching backend\n");
+	engine = sun4i_tcon_find_engine(drv, dev->of_node);
+	if (IS_ERR(engine)) {
+		dev_err(dev, "Couldn't find matching engine\n");
 		return -EPROBE_DEFER;
 	}
 
@@ -477,7 +481,7 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 	dev_set_drvdata(dev, tcon);
 	tcon->drm = drm;
 	tcon->dev = dev;
-	tcon->id = backend->id;
+	tcon->id = engine->id;
 	tcon->quirks = of_device_get_match_data(dev);
 
 	tcon->lcd_rst = devm_reset_control_get(dev, "lcd");
@@ -520,7 +524,7 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 		goto err_free_dotclock;
 	}
 
-	tcon->crtc = sun4i_crtc_init(drm, backend, tcon);
+	tcon->crtc = sun4i_crtc_init(drm, engine, tcon);
 	if (IS_ERR(tcon->crtc)) {
 		dev_err(dev, "Couldn't create our CRTC\n");
 		ret = PTR_ERR(tcon->crtc);

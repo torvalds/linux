@@ -11,13 +11,12 @@
  */
 
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drmP.h>
 
 #include "sun4i_backend.h"
-#include "sun4i_crtc.h"
 #include "sun4i_layer.h"
+#include "sunxi_engine.h"
 
 struct sun4i_plane_desc {
 	       enum drm_plane_type     type;
@@ -130,10 +129,10 @@ static struct sun4i_layer *sun4i_layer_init_one(struct drm_device *drm,
 }
 
 struct drm_plane **sun4i_layers_init(struct drm_device *drm,
-				     struct sun4i_crtc *crtc)
+				     struct sunxi_engine *engine)
 {
 	struct drm_plane **planes;
-	struct sun4i_backend *backend = crtc->backend;
+	struct sun4i_backend *backend = engine_to_sun4i_backend(engine);
 	int i;
 
 	planes = devm_kcalloc(drm->dev, ARRAY_SIZE(sun4i_backend_planes) + 1,
@@ -175,7 +174,7 @@ struct drm_plane **sun4i_layers_init(struct drm_device *drm,
 
 		DRM_DEBUG_DRIVER("Assigning %s plane to pipe %d\n",
 				 i ? "overlay" : "primary", plane->pipe);
-		regmap_update_bits(backend->regs, SUN4I_BACKEND_ATTCTL_REG0(i),
+		regmap_update_bits(engine->regs, SUN4I_BACKEND_ATTCTL_REG0(i),
 				   SUN4I_BACKEND_ATTCTL_REG0_LAY_PIPESEL_MASK,
 				   SUN4I_BACKEND_ATTCTL_REG0_LAY_PIPESEL(plane->pipe));
 

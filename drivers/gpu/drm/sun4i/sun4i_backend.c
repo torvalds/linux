@@ -25,6 +25,8 @@
 
 #include "sun4i_backend.h"
 #include "sun4i_drv.h"
+#include "sun4i_layer.h"
+#include "sunxi_engine.h"
 
 static const u32 sunxi_rgb2yuv_coef[12] = {
 	0x00000107, 0x00000204, 0x00000064, 0x00000108,
@@ -32,41 +34,38 @@ static const u32 sunxi_rgb2yuv_coef[12] = {
 	0x000001c1, 0x00003e88, 0x00003fb8, 0x00000808
 };
 
-void sun4i_backend_apply_color_correction(struct sun4i_backend *backend)
+static void sun4i_backend_apply_color_correction(struct sunxi_engine *engine)
 {
 	int i;
 
 	DRM_DEBUG_DRIVER("Applying RGB to YUV color correction\n");
 
 	/* Set color correction */
-	regmap_write(backend->regs, SUN4I_BACKEND_OCCTL_REG,
+	regmap_write(engine->regs, SUN4I_BACKEND_OCCTL_REG,
 		     SUN4I_BACKEND_OCCTL_ENABLE);
 
 	for (i = 0; i < 12; i++)
-		regmap_write(backend->regs, SUN4I_BACKEND_OCRCOEF_REG(i),
+		regmap_write(engine->regs, SUN4I_BACKEND_OCRCOEF_REG(i),
 			     sunxi_rgb2yuv_coef[i]);
 }
-EXPORT_SYMBOL(sun4i_backend_apply_color_correction);
 
-void sun4i_backend_disable_color_correction(struct sun4i_backend *backend)
+static void sun4i_backend_disable_color_correction(struct sunxi_engine *engine)
 {
 	DRM_DEBUG_DRIVER("Disabling color correction\n");
 
 	/* Disable color correction */
-	regmap_update_bits(backend->regs, SUN4I_BACKEND_OCCTL_REG,
+	regmap_update_bits(engine->regs, SUN4I_BACKEND_OCCTL_REG,
 			   SUN4I_BACKEND_OCCTL_ENABLE, 0);
 }
-EXPORT_SYMBOL(sun4i_backend_disable_color_correction);
 
-void sun4i_backend_commit(struct sun4i_backend *backend)
+static void sun4i_backend_commit(struct sunxi_engine *engine)
 {
 	DRM_DEBUG_DRIVER("Committing changes\n");
 
-	regmap_write(backend->regs, SUN4I_BACKEND_REGBUFFCTL_REG,
+	regmap_write(engine->regs, SUN4I_BACKEND_REGBUFFCTL_REG,
 		     SUN4I_BACKEND_REGBUFFCTL_AUTOLOAD_DIS |
 		     SUN4I_BACKEND_REGBUFFCTL_LOADCTL);
 }
-EXPORT_SYMBOL(sun4i_backend_commit);
 
 void sun4i_backend_layer_enable(struct sun4i_backend *backend,
 				int layer, bool enable)
@@ -81,10 +80,9 @@ void sun4i_backend_layer_enable(struct sun4i_backend *backend,
 	else
 		val = 0;
 
-	regmap_update_bits(backend->regs, SUN4I_BACKEND_MODCTL_REG,
+	regmap_update_bits(backend->engine.regs, SUN4I_BACKEND_MODCTL_REG,
 			   SUN4I_BACKEND_MODCTL_LAY_EN(layer), val);
 }
-EXPORT_SYMBOL(sun4i_backend_layer_enable);
 
 static int sun4i_backend_drm_format_to_layer(struct drm_plane *plane,
 					     u32 format, u32 *mode)
@@ -144,33 +142,33 @@ int sun4i_backend_update_layer_coord(struct sun4i_backend *backend,
 	if (plane->type == DRM_PLANE_TYPE_PRIMARY) {
 		DRM_DEBUG_DRIVER("Primary layer, updating global size W: %u H: %u\n",
 				 state->crtc_w, state->crtc_h);
-		regmap_write(backend->regs, SUN4I_BACKEND_DISSIZE_REG,
+		regmap_write(backend->engine.regs, SUN4I_BACKEND_DISSIZE_REG,
 			     SUN4I_BACKEND_DISSIZE(state->crtc_w,
 						   state->crtc_h));
 	}
 
 	/* Set the line width */
 	DRM_DEBUG_DRIVER("Layer line width: %d bits\n", fb->pitches[0] * 8);
-	regmap_write(backend->regs, SUN4I_BACKEND_LAYLINEWIDTH_REG(layer),
+	regmap_write(backend->engine.regs,
+		     SUN4I_BACKEND_LAYLINEWIDTH_REG(layer),
 		     fb->pitches[0] * 8);
 
 	/* Set height and width */
 	DRM_DEBUG_DRIVER("Layer size W: %u H: %u\n",
 			 state->crtc_w, state->crtc_h);
-	regmap_write(backend->regs, SUN4I_BACKEND_LAYSIZE_REG(layer),
+	regmap_write(backend->engine.regs, SUN4I_BACKEND_LAYSIZE_REG(layer),
 		     SUN4I_BACKEND_LAYSIZE(state->crtc_w,
 					   state->crtc_h));
 
 	/* Set base coordinates */
 	DRM_DEBUG_DRIVER("Layer coordinates X: %d Y: %d\n",
 			 state->crtc_x, state->crtc_y);
-	regmap_write(backend->regs, SUN4I_BACKEND_LAYCOOR_REG(layer),
+	regmap_write(backend->engine.regs, SUN4I_BACKEND_LAYCOOR_REG(layer),
 		     SUN4I_BACKEND_LAYCOOR(state->crtc_x,
 					   state->crtc_y));
 
 	return 0;
 }
-EXPORT_SYMBOL(sun4i_backend_update_layer_coord);
 
 int sun4i_backend_update_layer_formats(struct sun4i_backend *backend,
 				       int layer, struct drm_plane *plane)
@@ -185,7 +183,7 @@ int sun4i_backend_update_layer_formats(struct sun4i_backend *backend,
 		interlaced = plane->state->crtc->state->adjusted_mode.flags
 			& DRM_MODE_FLAG_INTERLACE;
 
-	regmap_update_bits(backend->regs, SUN4I_BACKEND_MODCTL_REG,
+	regmap_update_bits(backend->engine.regs, SUN4I_BACKEND_MODCTL_REG,
 			   SUN4I_BACKEND_MODCTL_ITLMOD_EN,
 			   interlaced ? SUN4I_BACKEND_MODCTL_ITLMOD_EN : 0);
 
@@ -199,12 +197,12 @@ int sun4i_backend_update_layer_formats(struct sun4i_backend *backend,
 		return ret;
 	}
 
-	regmap_update_bits(backend->regs, SUN4I_BACKEND_ATTCTL_REG1(layer),
+	regmap_update_bits(backend->engine.regs,
+			   SUN4I_BACKEND_ATTCTL_REG1(layer),
 			   SUN4I_BACKEND_ATTCTL_REG1_LAY_FBFMT, val);
 
 	return 0;
 }
-EXPORT_SYMBOL(sun4i_backend_update_layer_formats);
 
 int sun4i_backend_update_layer_buffer(struct sun4i_backend *backend,
 				      int layer, struct drm_plane *plane)
@@ -232,19 +230,19 @@ int sun4i_backend_update_layer_buffer(struct sun4i_backend *backend,
 	/* Write the 32 lower bits of the address (in bits) */
 	lo_paddr = paddr << 3;
 	DRM_DEBUG_DRIVER("Setting address lower bits to 0x%x\n", lo_paddr);
-	regmap_write(backend->regs, SUN4I_BACKEND_LAYFB_L32ADD_REG(layer),
+	regmap_write(backend->engine.regs,
+		     SUN4I_BACKEND_LAYFB_L32ADD_REG(layer),
 		     lo_paddr);
 
 	/* And the upper bits */
 	hi_paddr = paddr >> 29;
 	DRM_DEBUG_DRIVER("Setting address high bits to 0x%x\n", hi_paddr);
-	regmap_update_bits(backend->regs, SUN4I_BACKEND_LAYFB_H4ADD_REG,
+	regmap_update_bits(backend->engine.regs, SUN4I_BACKEND_LAYFB_H4ADD_REG,
 			   SUN4I_BACKEND_LAYFB_H4ADD_MSK(layer),
 			   SUN4I_BACKEND_LAYFB_H4ADD(layer, hi_paddr));
 
 	return 0;
 }
-EXPORT_SYMBOL(sun4i_backend_update_layer_buffer);
 
 static int sun4i_backend_init_sat(struct device *dev) {
 	struct sun4i_backend *backend = dev_get_drvdata(dev);
@@ -330,6 +328,13 @@ static int sun4i_backend_of_get_id(struct device_node *node)
 	return ret;
 }
 
+static const struct sunxi_engine_ops sun4i_backend_engine_ops = {
+	.commit				= sun4i_backend_commit,
+	.layers_init			= sun4i_layers_init,
+	.apply_color_correction		= sun4i_backend_apply_color_correction,
+	.disable_color_correction	= sun4i_backend_disable_color_correction,
+};
+
 static struct regmap_config sun4i_backend_regmap_config = {
 	.reg_bits	= 32,
 	.val_bits	= 32,
@@ -353,21 +358,22 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 		return -ENOMEM;
 	dev_set_drvdata(dev, backend);
 
-	backend->node = dev->of_node;
-	backend->id = sun4i_backend_of_get_id(dev->of_node);
-	if (backend->id < 0)
-		return backend->id;
+	backend->engine.node = dev->of_node;
+	backend->engine.ops = &sun4i_backend_engine_ops;
+	backend->engine.id = sun4i_backend_of_get_id(dev->of_node);
+	if (backend->engine.id < 0)
+		return backend->engine.id;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
-	backend->regs = devm_regmap_init_mmio(dev, regs,
-					      &sun4i_backend_regmap_config);
-	if (IS_ERR(backend->regs)) {
+	backend->engine.regs = devm_regmap_init_mmio(dev, regs,
+						     &sun4i_backend_regmap_config);
+	if (IS_ERR(backend->engine.regs)) {
 		dev_err(dev, "Couldn't create the backend regmap\n");
-		return PTR_ERR(backend->regs);
+		return PTR_ERR(backend->engine.regs);
 	}
 
 	backend->reset = devm_reset_control_get(dev, NULL);
@@ -415,18 +421,18 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 		}
 	}
 
-	list_add_tail(&backend->list, &drv->backend_list);
+	list_add_tail(&backend->engine.list, &drv->engine_list);
 
 	/* Reset the registers */
 	for (i = 0x800; i < 0x1000; i += 4)
-		regmap_write(backend->regs, i, 0);
+		regmap_write(backend->engine.regs, i, 0);
 
 	/* Disable registers autoloading */
-	regmap_write(backend->regs, SUN4I_BACKEND_REGBUFFCTL_REG,
+	regmap_write(backend->engine.regs, SUN4I_BACKEND_REGBUFFCTL_REG,
 		     SUN4I_BACKEND_REGBUFFCTL_AUTOLOAD_DIS);
 
 	/* Enable the backend */
-	regmap_write(backend->regs, SUN4I_BACKEND_MODCTL_REG,
+	regmap_write(backend->engine.regs, SUN4I_BACKEND_MODCTL_REG,
 		     SUN4I_BACKEND_MODCTL_DEBE_EN |
 		     SUN4I_BACKEND_MODCTL_START_CTL);
 
@@ -448,7 +454,7 @@ static void sun4i_backend_unbind(struct device *dev, struct device *master,
 {
 	struct sun4i_backend *backend = dev_get_drvdata(dev);
 
-	list_del(&backend->list);
+	list_del(&backend->engine.list);
 
 	if (of_device_is_compatible(dev->of_node,
 				    "allwinner,sun8i-a33-display-backend"))
