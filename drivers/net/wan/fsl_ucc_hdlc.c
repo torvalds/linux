@@ -535,7 +535,7 @@ static int ucc_hdlc_poll(struct napi_struct *napi, int budget)
 
 	/* Tx event processing */
 	spin_lock(&priv->lock);
-		hdlc_tx_done(priv);
+	hdlc_tx_done(priv);
 	spin_unlock(&priv->lock);
 
 	howmany = 0;
