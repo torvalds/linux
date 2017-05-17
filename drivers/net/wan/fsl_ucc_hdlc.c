@@ -98,6 +98,13 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 		uf_info->tsa = 1;
 		uf_info->ctsp = 1;
 	}
+
+	/* This sets HPM register in CMXUCR register which configures a
+	 * open drain connected HDLC bus
+	 */
+	if (priv->hdlc_bus)
+		uf_info->brkpt_support = 1;
+
 	uf_info->uccm_mask = ((UCC_HDLC_UCCE_RXB | UCC_HDLC_UCCE_RXF |
 				UCC_HDLC_UCCE_TXB) << 16);
 
@@ -134,6 +141,28 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 
 	/* Set UPSMR normal mode (need fixed)*/
 	iowrite32be(0, &priv->uf_regs->upsmr);
+
+	/* hdlc_bus mode */
+	if (priv->hdlc_bus) {
+		u32 upsmr;
+
+		dev_info(priv->dev, "HDLC bus Mode\n");
+		upsmr = ioread32be(&priv->uf_regs->upsmr);
+
+		/* bus mode and retransmit enable, with collision window
+		 * set to 8 bytes
+		 */
+		upsmr |= UCC_HDLC_UPSMR_RTE | UCC_HDLC_UPSMR_BUS |
+				UCC_HDLC_UPSMR_CW8;
+		iowrite32be(upsmr, &priv->uf_regs->upsmr);
+
+		/* explicitly disable CDS & CTSP */
+		gumr = ioread32be(&priv->uf_regs->gumr);
+		gumr &= ~(UCC_FAST_GUMR_CDS | UCC_FAST_GUMR_CTSP);
+		/* set automatic sync to explicitly ignore CD signal */
+		gumr |= UCC_FAST_GUMR_SYNL_AUTO;
+		iowrite32be(gumr, &priv->uf_regs->gumr);
+	}
 
 	priv->rx_ring_size = RX_BD_RING_LEN;
 	priv->tx_ring_size = TX_BD_RING_LEN;
@@ -1045,6 +1074,9 @@ static int ucc_hdlc_probe(struct platform_device *pdev)
 
 	if (of_get_property(np, "fsl,ucc-internal-loopback", NULL))
 		uhdlc_priv->loopback = 1;
+
+	if (of_get_property(np, "fsl,hdlc-bus", NULL))
+		uhdlc_priv->hdlc_bus = 1;
 
 	if (uhdlc_priv->tsa == 1) {
 		utdm = kzalloc(sizeof(*utdm), GFP_KERNEL);

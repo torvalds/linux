@@ -789,6 +789,11 @@ struct ucc_slow_pram {
 #define UCC_GETH_UPSMR_SMM	0x00000080
 #define UCC_GETH_UPSMR_SGMM	0x00000020
 
+/* UCC Protocol Specific Mode Register (UPSMR), when used for HDLC */
+#define UCC_HDLC_UPSMR_RTE	0x02000000
+#define UCC_HDLC_UPSMR_BUS	0x00200000
+#define UCC_HDLC_UPSMR_CW8	0x00007000
+
 /* UCC Transmit On Demand Register (UTODR) */
 #define UCC_SLOW_TOD	0x8000
 #define UCC_FAST_TOD	0x8000
