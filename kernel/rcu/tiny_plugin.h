@@ -22,34 +22,6 @@
  * Author: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
  */
 
-#include <linux/kthread.h>
-#include <linux/init.h>
-
-/* Global control variables for rcupdate callback mechanism. */
-struct rcu_ctrlblk {
-	struct rcu_head *rcucblist;	/* List of pending callbacks (CBs). */
-	struct rcu_head **donetail;	/* ->next pointer of last "done" CB. */
-	struct rcu_head **curtail;	/* ->next pointer of last CB. */
-	RCU_TRACE(long qlen);		/* Number of pending CBs. */
-	RCU_TRACE(unsigned long gp_start); /* Start time for stalls. */
-	RCU_TRACE(unsigned long ticks_this_gp); /* Statistic for stalls. */
-	RCU_TRACE(unsigned long jiffies_stall); /* Jiffies at next stall. */
-	RCU_TRACE(const char *name);	/* Name of RCU type. */
-};
-
-/* Definition for rcupdate control block. */
-static struct rcu_ctrlblk rcu_sched_ctrlblk = {
-	.donetail	= &rcu_sched_ctrlblk.rcucblist,
-	.curtail	= &rcu_sched_ctrlblk.rcucblist,
-	RCU_TRACE(.name = "rcu_sched")
-};
-
-static struct rcu_ctrlblk rcu_bh_ctrlblk = {
-	.donetail	= &rcu_bh_ctrlblk.rcucblist,
-	.curtail	= &rcu_bh_ctrlblk.rcucblist,
-	RCU_TRACE(.name = "rcu_bh")
-};
-
 #if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_SRCU)
 #include <linux/kernel_stat.h>
 
@@ -73,53 +45,3 @@ void __init rcu_scheduler_starting(void)
 }
 
 #endif /* #if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_SRCU) */
-
-#ifdef CONFIG_RCU_TRACE
-
-static void rcu_trace_sub_qlen(struct rcu_ctrlblk *rcp, int n)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	rcp->qlen -= n;
-	local_irq_restore(flags);
-}
-
-static void check_cpu_stall(struct rcu_ctrlblk *rcp)
-{
-	unsigned long j;
-	unsigned long js;
-
-	if (rcu_cpu_stall_suppress)
-		return;
-	rcp->ticks_this_gp++;
-	j = jiffies;
-	js = READ_ONCE(rcp->jiffies_stall);
-	if (rcp->rcucblist && ULONG_CMP_GE(j, js)) {
-		pr_err("INFO: %s stall on CPU (%lu ticks this GP) idle=%llx (t=%lu jiffies q=%ld)\n",
-		       rcp->name, rcp->ticks_this_gp, DYNTICK_TASK_EXIT_IDLE,
-		       jiffies - rcp->gp_start, rcp->qlen);
-		dump_stack();
-		WRITE_ONCE(rcp->jiffies_stall,
-			   jiffies + 3 * rcu_jiffies_till_stall_check() + 3);
-	} else if (ULONG_CMP_GE(j, js)) {
-		WRITE_ONCE(rcp->jiffies_stall,
-			   jiffies + rcu_jiffies_till_stall_check());
-	}
-}
-
-static void reset_cpu_stall_ticks(struct rcu_ctrlblk *rcp)
-{
-	rcp->ticks_this_gp = 0;
-	rcp->gp_start = jiffies;
-	WRITE_ONCE(rcp->jiffies_stall,
-		   jiffies + rcu_jiffies_till_stall_check());
-}
-
-static void check_cpu_stalls(void)
-{
-	RCU_TRACE(check_cpu_stall(&rcu_bh_ctrlblk);)
-	RCU_TRACE(check_cpu_stall(&rcu_sched_ctrlblk);)
-}
-
-#endif /* #ifdef CONFIG_RCU_TRACE */
