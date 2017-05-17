@@ -177,3 +177,12 @@ void os_info(const char *fmt, ...)
 	vfprintf(stderr, fmt, list);
 	va_end(list);
 }
+
+void os_warn(const char *fmt, ...)
+{
+	va_list list;
+
+	va_start(list, fmt);
+	vfprintf(stderr, fmt, list);
+	va_end(list);
+}
