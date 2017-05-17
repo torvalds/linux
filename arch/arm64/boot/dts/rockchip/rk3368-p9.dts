@@ -524,7 +524,7 @@
 			power_off_thresd = <3400>;
 			zero_algorithm_vol = <3850>;
 			fb_temperature = <115>;
-			sample_res = <10>;
+			sample_res = <20>;
 			max_soc_offset = <60>;
 			energy_mode = <0>;
 			monitor_sec = <5>;
