@@ -4057,6 +4057,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 	int num_active;
 	unsigned plane_data_rate[I915_MAX_PLANES] = {};
 	unsigned plane_y_data_rate[I915_MAX_PLANES] = {};
+	uint16_t total_min_blocks = 0;
 
 	/* Clear the partitioning for disabled planes. */
 	memset(ddb->plane[pipe], 0, sizeof(ddb->plane[pipe]));
@@ -4084,10 +4085,18 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 	 */
 
 	for_each_plane_id_on_crtc(intel_crtc, plane_id) {
-		alloc_size -= minimum[plane_id];
-		alloc_size -= y_minimum[plane_id];
+		total_min_blocks += minimum[plane_id];
+		total_min_blocks += y_minimum[plane_id];
 	}
 
+	if (total_min_blocks > alloc_size) {
+		DRM_DEBUG_KMS("Requested display configuration exceeds system DDB limitations");
+		DRM_DEBUG_KMS("minimum required %d/%d\n", total_min_blocks,
+							alloc_size);
+		return -EINVAL;
+	}
+
+	alloc_size -= total_min_blocks;
 	ddb->plane[pipe][PLANE_CURSOR].start = alloc->end - minimum[PLANE_CURSOR];
 	ddb->plane[pipe][PLANE_CURSOR].end = alloc->end;
 
