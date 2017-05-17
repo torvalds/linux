@@ -715,11 +715,16 @@ static int rsnd_soc_dai_startup(struct snd_pcm_substream *substream,
 {
 	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
 	struct rsnd_dai_stream *io = rsnd_rdai_to_io(rdai, substream);
+	int ret;
 
 	/*
 	 * call rsnd_dai_call without spinlock
 	 */
-	return rsnd_dai_call(nolock_start, io, priv);
+	ret = rsnd_dai_call(nolock_start, io, priv);
+	if (ret < 0)
+		rsnd_dai_call(nolock_stop, io, priv);
+
+	return ret;
 }
 
 static void rsnd_soc_dai_shutdown(struct snd_pcm_substream *substream,
