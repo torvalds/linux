@@ -582,7 +582,7 @@ sba_prep_dma_interrupt(struct dma_chan *dchan, unsigned long flags)
 	req->tx.flags = flags;
 	req->tx.cookie = -EBUSY;
 
-	return (req) ? &req->tx : NULL;
+	return &req->tx;
 }
 
 static void sba_fillup_memcpy_msg(struct sba_request *req,
