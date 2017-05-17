@@ -157,6 +157,7 @@ out:
 void
 lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 {
+#if (IS_ENABLED(CONFIG_NVME_TARGET_FC))
 	struct lpfc_nvmet_rcv_ctx *ctxp = ctx_buf->context;
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct fc_frame_header *fc_hdr;
@@ -260,6 +261,7 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 		      &phba->sli4_hba.lpfc_nvmet_ctx_list);
 	phba->sli4_hba.nvmet_ctx_cnt++;
 	spin_unlock_irqrestore(&phba->sli4_hba.nvmet_io_lock, iflag);
+#endif
 }
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
