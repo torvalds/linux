@@ -1812,7 +1812,7 @@ static int do_lookup_nm(struct ubifs_info *c, const union ubifs_key *key,
 	int found, n, err;
 	struct ubifs_znode *znode;
 
-	//dbg_tnck(key, "name '%.*s' key ", nm->len, nm->name);
+	dbg_tnck(key, "key ");
 	mutex_lock(&c->tnc_mutex);
 	found = ubifs_lookup_level0(c, key, &znode, &n);
 	if (!found) {
@@ -2410,8 +2410,7 @@ int ubifs_tnc_add_nm(struct ubifs_info *c, const union ubifs_key *key,
 	struct ubifs_znode *znode;
 
 	mutex_lock(&c->tnc_mutex);
-	//dbg_tnck(key, "LEB %d:%d, name '%.*s', key ",
-	//	 lnum, offs, nm->len, nm->name);
+	dbg_tnck(key, "LEB %d:%d, key ", lnum, offs);
 	found = lookup_level0_dirty(c, key, &znode, &n);
 	if (found < 0) {
 		err = found;
@@ -2645,7 +2644,7 @@ int ubifs_tnc_remove_nm(struct ubifs_info *c, const union ubifs_key *key,
 	struct ubifs_znode *znode;
 
 	mutex_lock(&c->tnc_mutex);
-	//dbg_tnck(key, "%.*s, key ", nm->len, nm->name);
+	dbg_tnck(key, "key ");
 	err = lookup_level0_dirty(c, key, &znode, &n);
 	if (err < 0)
 		goto out_unlock;
@@ -2950,7 +2949,7 @@ struct ubifs_dent_node *ubifs_tnc_next_ent(struct ubifs_info *c,
 	struct ubifs_zbranch *zbr;
 	union ubifs_key *dkey;
 
-	//dbg_tnck(key, "%s ", nm->name ? (char *)nm->name : "(lowest)");
+	dbg_tnck(key, "key ");
 	ubifs_assert(is_hash_key(c, key));
 
 	mutex_lock(&c->tnc_mutex);
