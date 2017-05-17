@@ -17,6 +17,7 @@ MED_ATTRS(fuck_kobject) {
 	MED_ATTR_END
 };
 
+//not used, probably not working
 int append_path(char *path, char* dest,char *name)
 {
 	int namelen;
@@ -41,38 +42,46 @@ int validate_fuck_file(struct path fuck_path){
 		struct inode *fuck_inode = fuck_path.dentry->d_inode;
 		char *saved_path = inode_security(fuck_inode).fuck_path;
 		char *accessed_path;
-		char buf[PATH_MAX];
+		char *buf;
 		
+		//dont change to goto out you dont have buf
 		if(saved_path == NULL)
-			return 0;		
+			return 0;	
+		
+		buf = (char *) kmalloc(PATH_MAX * sizeof(char), GFP_KERNEL);
+		if(!buf)
+			goto out;
 
 		accessed_path = d_absolute_path(&fuck_path, buf, PATH_MAX);
 		if(!accessed_path || IS_ERR(accessed_path)){
 			if(PTR_ERR(accessed_path) == -ENAMETOOLONG)
-				return 0;
+				goto out;
 			//accessed_path = dentry_path_raw(fuck_path.dentry, buf, PATH_MAX);
 			if(IS_ERR(accessed_path)){
-				return 0;
+				goto out;
 			}
 		}
 
-		//spravit  *fuck_path   namiesto fuck_path[PATH_MAX]
-		// zabit tam NULL
 		if(accessed_path == NULL){
-			return 0;
+			goto out;
 		}
 		if (strncmp(saved_path, accessed_path, PATH_MAX) == 0){
 			printk("VALIDATE_FUCK: paths are equal\n");
 			printk("VALIDATE_FUCK: saved path: %s\n", saved_path);
-			printk("VALIDATE_FUCK: accessed_path: %s inode: %u\n", accessed_path, fuck_inode->i_ino);
-			return 0;
+			printk("VALIDATE_FUCK: accessed_path: %s inode: %lu\n", accessed_path, fuck_inode->i_ino);
+			goto out;
 		}
 		printk("VALIDATE_FUCK: paths are not equal\n");
 		printk("VALIDATE_FUCK: saved path: %s\n", saved_path);
-		printk("VALIDATE_FUCK: accessed_path: %s inode: %u\n", accessed_path, fuck_inode->i_ino);
+		printk("VALIDATE_FUCK: accessed_path: %s inode: %lu\n", accessed_path, fuck_inode->i_ino);
+		kfree(buf);
 		return -EPERM;
+out:
+		kfree(buf);
+		return 0;
 }
 
+//not used right now
 int validate_fuck(const struct path *fuck_path, struct dentry *dentry){
 		struct inode *fuck_inode = fuck_path->dentry->d_inode;
 		char *saved_path = inode_security(dentry->d_inode).fuck_path;
@@ -86,7 +95,7 @@ int validate_fuck(const struct path *fuck_path, struct dentry *dentry){
 		int res = append_path(accessed_path, newpath, name);
 			
 		printk("VALIDATE_FUCK: saved path: %s\n", saved_path);
-		printk("VALIDATE_FUCK: accessed_path: %s accessed_inode from dentry: %u, from path: %u\n", accessed_path, dentry->d_inode->i_ino, fuck_inode->i_ino);
+		printk("VALIDATE_FUCK: accessed_path: %s accessed_inode from dentry: %lu, from path: %lu\n", accessed_path, dentry->d_inode->i_ino, fuck_inode->i_ino);
 		
 		return 0;	
 }
@@ -94,30 +103,30 @@ int validate_fuck(const struct path *fuck_path, struct dentry *dentry){
 static struct medusa_kobject_s * fuck_fetch(struct medusa_kobject_s * kobj)
 {
 	struct fuck_kobject * fkobj =  (struct fuck_kobject *) kobj;
-	fkobj->path[sizeof(fkobj->path)-1] = '\0';
 	char *path_name;
-	path_name = fkobj->path;
-	
 	struct path path;
+	unsigned long i_ino; 
+	fkobj->path[sizeof(fkobj->path)-1] = '\0';
+	path_name = fkobj->path;
+
 	if(kern_path(path_name, LOOKUP_FOLLOW, &path) >= 0){
 		struct inode *fuck_inode = path.dentry->d_inode;
-		char *fuck_path;
-		fuck_path = (char *) kmalloc((PATH_MAX * sizeof(char *)), GFP_KERNEL);
+		
+		char *fuck_path = (char *) kmalloc((PATH_MAX * sizeof(char)), GFP_KERNEL);
 		strncpy(fuck_path, path_name, PATH_MAX);
 		fuck_path[PATH_MAX-1] = '\0';
 		
 		inode_security(fuck_inode).fuck_path = fuck_path;
 
-		unsigned long i_ino = fuck_inode->i_ino;
+		i_ino = fuck_inode->i_ino;
 		fkobj->i_ino = i_ino;
 
 		printk("FUCK_SECURED_PATH: %s\n", fuck_path);
-		MED_PRINTF("Fuck: %s with i_no %ul", path_name, i_ino);
+		MED_PRINTF("Fuck: %s with i_no %lu", path_name, i_ino);
 	}else{
 		MED_PRINTF("Fuck: %s have no inode", path_name);
 	}
 	
-
 	return (struct medusa_kobject_s *)fkobj;
 }
 
