@@ -8261,8 +8261,11 @@ static void btrfs_endio_direct_read(struct bio *bio)
 	struct btrfs_io_bio *io_bio = btrfs_io_bio(bio);
 	int err = bio->bi_error;
 
-	if (dip->flags & BTRFS_DIO_ORIG_BIO_SUBMITTED)
+	if (dip->flags & BTRFS_DIO_ORIG_BIO_SUBMITTED) {
 		err = btrfs_subio_endio_read(inode, io_bio, err);
+		if (!err)
+			bio->bi_error = 0;
+	}
 
 	unlock_extent(&BTRFS_I(inode)->io_tree, dip->logical_offset,
 		      dip->logical_offset + dip->bytes - 1);
