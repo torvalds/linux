@@ -1697,12 +1697,6 @@ static const char *ubifs_get_link(struct dentry *dentry,
 
 	pstr.name[pstr.len] = '\0';
 
-	// XXX this probably won't happen anymore...
-	if (pstr.name[0] == '\0') {
-		fscrypt_fname_free_buffer(&pstr);
-		return ERR_PTR(-ENOENT);
-	}
-
 	set_delayed_call(done, kfree_link, pstr.name);
 	return pstr.name;
 }
