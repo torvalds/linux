@@ -267,20 +267,14 @@ static struct sg_table *ion_map_dma_buf(struct dma_buf_attachment *attachment,
 {
 	struct ion_dma_buf_attachment *a = attachment->priv;
 	struct sg_table *table;
-	int ret;
 
 	table = a->table;
 
 	if (!dma_map_sg(attachment->dev, table->sgl, table->nents,
-			direction)){
-		ret = -ENOMEM;
-		goto err;
-	}
-	return table;
+			direction))
+		return ERR_PTR(-ENOMEM);
 
-err:
-	free_duped_table(table);
-	return ERR_PTR(ret);
+	return table;
 }
 
 static void ion_unmap_dma_buf(struct dma_buf_attachment *attachment,
