@@ -4197,6 +4197,27 @@ static uint_fixed_16_16_t skl_wm_method2(uint32_t pixel_rate,
 	return ret;
 }
 
+static uint_fixed_16_16_t
+intel_get_linetime_us(struct intel_crtc_state *cstate)
+{
+	uint32_t pixel_rate;
+	uint32_t crtc_htotal;
+	uint_fixed_16_16_t linetime_us;
+
+	if (!cstate->base.active)
+		return u32_to_fixed_16_16(0);
+
+	pixel_rate = cstate->pixel_rate;
+
+	if (WARN_ON(pixel_rate == 0))
+		return u32_to_fixed_16_16(0);
+
+	crtc_htotal = cstate->base.adjusted_mode.crtc_htotal;
+	linetime_us = fixed_16_16_div_u64(crtc_htotal * 1000, pixel_rate);
+
+	return linetime_us;
+}
+
 static uint32_t
 skl_adjusted_plane_pixel_rate(const struct intel_crtc_state *cstate,
 			      const struct intel_plane_state *pstate)
@@ -4331,11 +4352,17 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	if (y_tiled) {
 		selected_result = max_fixed_16_16(method2, y_tile_minimum);
 	} else {
+		uint32_t linetime_us;
+
+		linetime_us = fixed_16_16_to_u32_round_up(
+				intel_get_linetime_us(cstate));
 		if ((cpp * cstate->base.adjusted_mode.crtc_htotal / 512 < 1) &&
 		    (plane_bytes_per_line / 512 < 1))
 			selected_result = method2;
-		else if ((ddb_allocation /
+		else if ((ddb_allocation && ddb_allocation /
 			fixed_16_16_to_u32_round_up(plane_blocks_per_line)) >= 1)
+			selected_result = min_fixed_16_16(method1, method2);
+		else if (latency >= linetime_us)
 			selected_result = min_fixed_16_16(method1, method2);
 		else
 			selected_result = method1;
@@ -4424,19 +4451,16 @@ skl_compute_linetime_wm(struct intel_crtc_state *cstate)
 {
 	struct drm_atomic_state *state = cstate->base.state;
 	struct drm_i915_private *dev_priv = to_i915(state->dev);
-	uint32_t pixel_rate;
+	uint_fixed_16_16_t linetime_us;
 	uint32_t linetime_wm;
 
-	if (!cstate->base.active)
+	linetime_us = intel_get_linetime_us(cstate);
+
+	if (is_fixed16_zero(linetime_us))
 		return 0;
 
-	pixel_rate = cstate->pixel_rate;
-
-	if (WARN_ON(pixel_rate == 0))
-		return 0;
-
-	linetime_wm = DIV_ROUND_UP(8 * cstate->base.adjusted_mode.crtc_htotal *
-				   1000, pixel_rate);
+	linetime_wm = fixed_16_16_to_u32_round_up(mul_u32_fixed_16_16(8,
+				linetime_us));
 
 	/* Display WA #1135: bxt. */
 	if (IS_BROXTON(dev_priv) && dev_priv->ipc_enabled)
