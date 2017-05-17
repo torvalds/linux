@@ -187,7 +187,7 @@ static void tcf_proto_destroy(struct tcf_proto *tp)
 	kfree_rcu(tp, rcu);
 }
 
-static void tcf_destroy_chain(struct tcf_proto __rcu **fl)
+static void tcf_chain_destroy(struct tcf_proto __rcu **fl)
 {
 	struct tcf_proto *tp;
 
@@ -214,7 +214,7 @@ void tcf_block_put(struct tcf_block *block)
 {
 	if (!block)
 		return;
-	tcf_destroy_chain(block->p_filter_chain);
+	tcf_chain_destroy(block->p_filter_chain);
 	kfree(block);
 }
 EXPORT_SYMBOL(tcf_block_put);
@@ -372,7 +372,7 @@ replay:
 
 	if (n->nlmsg_type == RTM_DELTFILTER && prio == 0) {
 		tfilter_notify_chain(net, skb, n, chain, RTM_DELTFILTER);
-		tcf_destroy_chain(chain);
+		tcf_chain_destroy(chain);
 		err = 0;
 		goto errout;
 	}
