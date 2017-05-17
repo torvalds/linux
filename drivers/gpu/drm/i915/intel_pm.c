@@ -4408,7 +4408,8 @@ skl_compute_wm_level(const struct drm_i915_private *dev_priv,
 	if (!intel_pstate)
 		intel_pstate = to_intel_plane_state(plane->state);
 
-	WARN_ON(!intel_pstate->base.fb);
+	if (WARN_ON(!intel_pstate->base.fb))
+		return -EINVAL;
 
 	ddb_blocks = skl_ddb_entry_size(&ddb->plane[pipe][intel_plane->id]);
 
