@@ -2681,7 +2681,9 @@ void btrfs_get_block_group_trimming(struct btrfs_block_group_cache *cache);
 void btrfs_put_block_group_trimming(struct btrfs_block_group_cache *cache);
 void btrfs_create_pending_block_groups(struct btrfs_trans_handle *trans,
 				       struct btrfs_fs_info *fs_info);
-u64 btrfs_get_alloc_profile(struct btrfs_root *root, int data);
+u64 btrfs_data_alloc_profile(struct btrfs_fs_info *fs_info);
+u64 btrfs_metadata_alloc_profile(struct btrfs_fs_info *fs_info);
+u64 btrfs_system_alloc_profile(struct btrfs_fs_info *fs_info);
 void btrfs_clear_space_info_full(struct btrfs_fs_info *info);
 
 enum btrfs_reserve_flush_enum {
