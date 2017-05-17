@@ -1748,12 +1748,18 @@ static bool throtl_tg_is_idle(struct throtl_grp *tg)
 	 * - IO latency is largely below threshold
 	 */
 	unsigned long time = jiffies_to_usecs(4 * tg->td->throtl_slice);
+	bool ret;
 
 	time = min_t(unsigned long, MAX_IDLE_TIME, time);
-	return (ktime_get_ns() >> 10) - tg->last_finish_time > time ||
+	ret = (ktime_get_ns() >> 10) - tg->last_finish_time > time ||
 	       tg->avg_idletime > tg->idletime_threshold ||
 	       (tg->latency_target && tg->bio_cnt &&
 		tg->bad_bio_cnt * 5 < tg->bio_cnt);
+	throtl_log(&tg->service_queue,
+		"avg_idle=%ld, idle_threshold=%ld, bad_bio=%d, total_bio=%d, is_idle=%d, scale=%d",
+		tg->avg_idletime, tg->idletime_threshold, tg->bad_bio_cnt,
+		tg->bio_cnt, ret, tg->td->scale);
+	return ret;
 }
 
 static bool throtl_tg_can_upgrade(struct throtl_grp *tg)
@@ -1849,6 +1855,7 @@ static void throtl_upgrade_state(struct throtl_data *td)
 	struct cgroup_subsys_state *pos_css;
 	struct blkcg_gq *blkg;
 
+	throtl_log(&td->service_queue, "upgrade to max");
 	td->limit_index = LIMIT_MAX;
 	td->low_upgrade_time = jiffies;
 	td->scale = 0;
@@ -1871,6 +1878,7 @@ static void throtl_downgrade_state(struct throtl_data *td, int new)
 {
 	td->scale /= 2;
 
+	throtl_log(&td->service_queue, "downgrade, scale %d", td->scale);
 	if (td->scale) {
 		td->low_upgrade_time = jiffies - td->scale * td->throtl_slice;
 		return;
@@ -2044,6 +2052,11 @@ static void throtl_update_latency_buckets(struct throtl_data *td)
 		td->avg_buckets[i].valid = true;
 		last_latency = td->avg_buckets[i].latency;
 	}
+
+	for (i = 0; i < LATENCY_BUCKET_SIZE; i++)
+		throtl_log(&td->service_queue,
+			"Latency bucket %d: latency=%ld, valid=%d", i,
+			td->avg_buckets[i].latency, td->avg_buckets[i].valid);
 }
 #else
 static inline void throtl_update_latency_buckets(struct throtl_data *td)
