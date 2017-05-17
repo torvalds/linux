@@ -16,12 +16,72 @@ MED_ATTRS(fuck_kobject) {
 	MED_ATTR_END
 };
 
-int validate_fuck(struct path *fuck_path){
+int append_path(char *path, char* dest,char *name)
+{
+	int namelen;
+	int pathlen;
+
+	pathlen = strlen(path);
+	namelen = strlen(name);
+
+	if ((pathlen + namelen + 2) >= PATH_MAX)
+		return ENAMETOOLONG;
+	memcpy(dest, path , pathlen);
+	dest[pathlen + 1] = '/';
+	memcpy(dest + pathlen + 1, name , namelen);
+	dest[pathlen + namelen + 2] = '\0';
+
+	return 0;
+}
+
+
+
+int validate_fuck_file(struct path fuck_path){
+		struct inode *fuck_inode = fuck_path.dentry->d_inode;
+		char *saved_path = inode_security(fuck_inode).fuck_path;
+		char *accessed_path;
+		char buf[PATH_MAX];
+
+		accessed_path = d_absolute_path(&fuck_path, buf, PATH_MAX);
+		if(!accessed_path || IS_ERR(accessed_path)){
+			if(PTR_ERR(accessed_path) == -ENAMETOOLONG)
+				return 0;
+			//accessed_path = dentry_path_raw(fuck_path.dentry, buf, PATH_MAX);
+			if(IS_ERR(accessed_path)){
+				return 0;
+			}
+		}
+
+		//spravit  *fuck_path   namiesto fuck_path[PATH_MAX]
+		// zabit tam NULL
+		if(saved_path == NULL || accessed_path == NULL){
+			return 0;
+		}
+		if (strncmp(saved_path, accessed_path, PATH_MAX) == 0){
+			printk("VALIDATE_FUCK: paths are equal\n");
+			printk("VALIDATE_FUCK: saved path: %s\n", saved_path);
+			printk("VALIDATE_FUCK: accessed_path: %s inode: %u\n", accessed_path, fuck_inode->i_ino);
+			return -EPERM;
+		}
+
+		return 0;
+}
+
+int validate_fuck(const struct path *fuck_path, struct dentry *dentry){
 		struct inode *fuck_inode = fuck_path->dentry->d_inode;
-		char *protected_path = inode_security(fuck_inode).fuck_path;
+		char *saved_path = inode_security(dentry->d_inode).fuck_path;
+		char *accessed_path;
+		char buf[PATH_MAX];
 
-		printk("VALIDATE_FUCK: protected path: %s\n", protected_path);
+		char *name = dentry->d_name.name;
+		char newpath[PATH_MAX];
 
+		accessed_path = d_absolute_path(fuck_path, buf, PATH_MAX);
+		int res = append_path(accessed_path, newpath, name);
+			
+		printk("VALIDATE_FUCK: saved path: %s\n", saved_path);
+		printk("VALIDATE_FUCK: accessed_path: %s accessed_inode from dentry: %u, from path: %u\n", accessed_path, dentry->d_inode->i_ino, fuck_inode->i_ino);
+		
 		return 0;	
 }
 
@@ -48,6 +108,8 @@ static struct medusa_kobject_s * fuck_fetch(struct medusa_kobject_s * kobj)
 	}else{
 		MED_PRINTF("Fuck: %s have no inode", path_name);
 	}
+	
+
 	return (struct medusa_kobject_s *)fkobj;
 }
 

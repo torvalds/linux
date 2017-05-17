@@ -6,6 +6,7 @@
 
 #include "kobject_process.h"
 #include "kobject_file.h"
+#include "kobject_fuck.h"
 #include <linux/medusa/l1/file_handlers.h>
 
 /* let's define the 'rmdir' access type, with subj=task and obj=inode */
@@ -30,9 +31,10 @@ int __init rmdir_acctype_init(void) {
 }
 
 static medusa_answer_t medusa_do_rmdir(struct dentry *dentry);
-medusa_answer_t medusa_rmdir(struct dentry *dentry)
+medusa_answer_t medusa_rmdir(const struct path *dir, struct dentry *dentry)
 {
-	if (!dentry || IS_ERR(dentry) || dentry->d_inode == NULL)
+	
+	if (!dentry || IS_ERR(dir->dentry) || dentry->d_inode == NULL)
 		return MED_OK;
 
 	if (!MED_MAGIC_VALID(&task_security(current)) &&
