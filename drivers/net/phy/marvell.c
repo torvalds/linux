@@ -1101,7 +1101,7 @@ static int marvell_read_status_page(struct phy_device *phydev, int page)
 	if (err)
 		return err;
 
-	if (AUTONEG_ENABLE == phydev->autoneg) {
+	if (phydev->autoneg == AUTONEG_ENABLE) {
 		status = phy_read(phydev, MII_M1011_PHY_STATUS);
 		if (status < 0)
 			return status;
@@ -1126,7 +1126,8 @@ static int marvell_read_status_page(struct phy_device *phydev, int page)
 			phydev->duplex = DUPLEX_HALF;
 
 		status = status & MII_M1011_PHY_STATUS_SPD_MASK;
-		phydev->pause = phydev->asym_pause = 0;
+		phydev->pause = 0;
+		phydev->asym_pause = 0;
 
 		switch (status) {
 		case MII_M1011_PHY_STATUS_1000:
@@ -1185,7 +1186,8 @@ static int marvell_read_status_page(struct phy_device *phydev, int page)
 		else
 			phydev->speed = SPEED_10;
 
-		phydev->pause = phydev->asym_pause = 0;
+		phydev->pause = 0;
+		phydev->asym_pause = 0;
 		phydev->lp_advertising = 0;
 	}
 
