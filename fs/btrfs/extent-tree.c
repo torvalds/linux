@@ -4845,7 +4845,7 @@ static int may_commit_transaction(struct btrfs_fs_info *fs_info,
 	spin_unlock(&delayed_rsv->lock);
 
 commit:
-	trans = btrfs_join_transaction(fs_info->fs_root);
+	trans = btrfs_join_transaction(fs_info->extent_root);
 	if (IS_ERR(trans))
 		return -ENOSPC;
 
@@ -4863,7 +4863,7 @@ static int flush_space(struct btrfs_fs_info *fs_info,
 		       struct btrfs_space_info *space_info, u64 num_bytes,
 		       u64 orig_bytes, int state)
 {
-	struct btrfs_root *root = fs_info->fs_root;
+	struct btrfs_root *root = fs_info->extent_root;
 	struct btrfs_trans_handle *trans;
 	int nr;
 	int ret = 0;
@@ -5063,7 +5063,7 @@ static void priority_reclaim_metadata_space(struct btrfs_fs_info *fs_info,
 	int flush_state = FLUSH_DELAYED_ITEMS_NR;
 
 	spin_lock(&space_info->lock);
-	to_reclaim = btrfs_calc_reclaim_metadata_size(fs_info->fs_root,
+	to_reclaim = btrfs_calc_reclaim_metadata_size(fs_info->extent_root,
 						      space_info);
 	if (!to_reclaim) {
 		spin_unlock(&space_info->lock);
