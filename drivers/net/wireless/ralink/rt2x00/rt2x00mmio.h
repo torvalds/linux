@@ -29,14 +29,7 @@
 /*
  * Register access.
  */
-static inline void rt2x00mmio_register_read(struct rt2x00_dev *rt2x00dev,
-					    const unsigned int offset,
-					    u32 *value)
-{
-	*value = readl(rt2x00dev->csr.base + offset);
-}
-
-static inline u32 _rt2x00mmio_register_read(struct rt2x00_dev *rt2x00dev,
+static inline u32 rt2x00mmio_register_read(struct rt2x00_dev *rt2x00dev,
 					   const unsigned int offset)
 {
 	return readl(rt2x00dev->csr.base + offset);
