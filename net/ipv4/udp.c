@@ -1465,16 +1465,13 @@ struct sk_buff *__skb_recv_udp(struct sock *sk, unsigned int flags,
 		error = -EAGAIN;
 		*peeked = 0;
 		do {
-			int _off = *off;
-
 			spin_lock_bh(&queue->lock);
 			skb = __skb_try_recv_from_queue(sk, queue, flags,
 							udp_skb_destructor,
-							peeked, &_off, err,
+							peeked, off, err,
 							&last);
 			if (skb) {
 				spin_unlock_bh(&queue->lock);
-				*off = _off;
 				return skb;
 			}
 
@@ -1488,20 +1485,17 @@ struct sk_buff *__skb_recv_udp(struct sock *sk, unsigned int flags,
 			 * the sk_receive_queue lock if fwd memory scheduling
 			 * is needed.
 			 */
-			_off = *off;
 			spin_lock(&sk_queue->lock);
 			skb_queue_splice_tail_init(sk_queue, queue);
 
 			skb = __skb_try_recv_from_queue(sk, queue, flags,
 							udp_skb_dtor_locked,
-							peeked, &_off, err,
+							peeked, off, err,
 							&last);
 			spin_unlock(&sk_queue->lock);
 			spin_unlock_bh(&queue->lock);
-			if (skb) {
-				*off = _off;
+			if (skb)
 				return skb;
-			}
 
 busy_check:
 			if (!sk_can_busy_loop(sk))
