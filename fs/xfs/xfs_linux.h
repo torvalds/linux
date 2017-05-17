@@ -39,8 +39,6 @@ typedef __s64			xfs_daddr_t;	/* <disk address> type */
 typedef __u32			xfs_dev_t;
 typedef __u32			xfs_nlink_t;
 
-typedef uuid_be			uuid_t;
-
 #include "xfs_types.h"
 
 #include "kmem.h"
