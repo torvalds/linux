@@ -1824,12 +1824,28 @@ ixgbe_setup_mac_link_sfp_x550a(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 
 	/* Configure CS4227/CS4223 LINE side to proper mode. */
 	reg_slice = IXGBE_CS4227_LINE_SPARE24_LSB + slice_offset;
+
+	ret_val = hw->phy.ops.read_reg(hw, reg_slice,
+				       IXGBE_MDIO_ZERO_DEV_TYPE, &reg_phy_ext);
+	if (ret_val)
+		return ret_val;
+
+	reg_phy_ext &= ~((IXGBE_CS4227_EDC_MODE_CX1 << 1) |
+			 (IXGBE_CS4227_EDC_MODE_SR << 1));
+
 	if (setup_linear)
 		reg_phy_ext = (IXGBE_CS4227_EDC_MODE_CX1 << 1) | 1;
 	else
 		reg_phy_ext = (IXGBE_CS4227_EDC_MODE_SR << 1) | 1;
-	return hw->phy.ops.write_reg(hw, reg_slice, IXGBE_MDIO_ZERO_DEV_TYPE,
-				     reg_phy_ext);
+
+	ret_val = hw->phy.ops.write_reg(hw, reg_slice,
+					IXGBE_MDIO_ZERO_DEV_TYPE, reg_phy_ext);
+	if (ret_val)
+		return ret_val;
+
+	/* Flush previous write with a read */
+	return hw->phy.ops.read_reg(hw, reg_slice,
+				    IXGBE_MDIO_ZERO_DEV_TYPE, &reg_phy_ext);
 }
 
 /**
