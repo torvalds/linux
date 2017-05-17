@@ -268,7 +268,7 @@ static const struct rt2x00debug rt2500usb_rt2x00debug = {
 		.word_count	= BBP_SIZE / sizeof(u8),
 	},
 	.rf	= {
-		.read		= _rt2x00_rf_read,
+		.read		= rt2x00_rf_read,
 		.write		= rt2500usb_rf_write,
 		.word_base	= RF_BASE,
 		.word_size	= sizeof(u32),
@@ -639,7 +639,7 @@ static void rt2500usb_config_txpower(struct rt2x00_dev *rt2x00dev,
 {
 	u32 rf3;
 
-	rt2x00_rf_read(rt2x00dev, 3, &rf3);
+	rf3 = rt2x00_rf_read(rt2x00dev, 3);
 	rt2x00_set_field32(&rf3, RF3_TXPOWER, TXPOWER_TO_DEV(txpower));
 	rt2500usb_rf_write(rt2x00dev, 3, rf3);
 }

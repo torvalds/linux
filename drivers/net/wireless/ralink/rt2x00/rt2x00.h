@@ -1049,15 +1049,8 @@ struct rt2x00_bar_list_entry {
  * Generic RF access.
  * The RF is being accessed by word index.
  */
-static inline void rt2x00_rf_read(struct rt2x00_dev *rt2x00dev,
-				  const unsigned int word, u32 *data)
-{
-	BUG_ON(word < 1 || word > rt2x00dev->ops->rf_size / sizeof(u32));
-	*data = rt2x00dev->rf[word - 1];
-}
-
-static inline u32 _rt2x00_rf_read(struct rt2x00_dev *rt2x00dev,
-				  const unsigned int word)
+static inline u32 rt2x00_rf_read(struct rt2x00_dev *rt2x00dev,
+				 const unsigned int word)
 {
 	BUG_ON(word < 1 || word > rt2x00dev->ops->rf_size / sizeof(u32));
 	return rt2x00dev->rf[word - 1];

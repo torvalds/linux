@@ -199,7 +199,7 @@ static const struct rt2x00debug rt2400pci_rt2x00debug = {
 		.word_count	= BBP_SIZE / sizeof(u8),
 	},
 	.rf	= {
-		.read		= _rt2x00_rf_read,
+		.read		= rt2x00_rf_read,
 		.write		= rt2400pci_rf_write,
 		.word_base	= RF_BASE,
 		.word_size	= sizeof(u32),

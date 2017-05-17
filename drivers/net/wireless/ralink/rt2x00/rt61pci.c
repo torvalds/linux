@@ -236,7 +236,7 @@ static const struct rt2x00debug rt61pci_rt2x00debug = {
 		.word_count	= BBP_SIZE / sizeof(u8),
 	},
 	.rf	= {
-		.read		= _rt2x00_rf_read,
+		.read		= rt2x00_rf_read,
 		.write		= rt61pci_rf_write,
 		.word_base	= RF_BASE,
 		.word_size	= sizeof(u32),
@@ -922,10 +922,10 @@ static void rt61pci_config_txpower(struct rt2x00_dev *rt2x00dev,
 {
 	struct rf_channel rf;
 
-	rt2x00_rf_read(rt2x00dev, 1, &rf.rf1);
-	rt2x00_rf_read(rt2x00dev, 2, &rf.rf2);
-	rt2x00_rf_read(rt2x00dev, 3, &rf.rf3);
-	rt2x00_rf_read(rt2x00dev, 4, &rf.rf4);
+	rf.rf1 = rt2x00_rf_read(rt2x00dev, 1);
+	rf.rf2 = rt2x00_rf_read(rt2x00dev, 2);
+	rf.rf3 = rt2x00_rf_read(rt2x00dev, 3);
+	rf.rf4 = rt2x00_rf_read(rt2x00dev, 4);
 
 	rt61pci_config_channel(rt2x00dev, &rf, txpower);
 }
