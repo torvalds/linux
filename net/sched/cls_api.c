@@ -125,7 +125,7 @@ static inline u32 tcf_auto_prio(struct tcf_proto *tp)
 	if (tp)
 		first = tp->prio - 1;
 
-	return first;
+	return TC_H_MAJ(first);
 }
 
 static struct tcf_proto *tcf_proto_create(const char *kind, u32 protocol,
@@ -411,7 +411,7 @@ replay:
 		}
 
 		if (prio_allocate)
-			prio = TC_H_MAJ(tcf_auto_prio(rtnl_dereference(*back)));
+			prio = tcf_auto_prio(rtnl_dereference(*back));
 
 		tp = tcf_proto_create(nla_data(tca[TCA_KIND]),
 				      protocol, prio, parent, q, block);
