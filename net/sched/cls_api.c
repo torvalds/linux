@@ -307,8 +307,12 @@ reclassify:
 
 		err = tp->classify(skb, tp, res);
 #ifdef CONFIG_NET_CLS_ACT
-		if (unlikely(err == TC_ACT_RECLASSIFY && !compat_mode))
+		if (unlikely(err == TC_ACT_RECLASSIFY && !compat_mode)) {
 			goto reset;
+		} else if (unlikely(TC_ACT_EXT_CMP(err, TC_ACT_GOTO_CHAIN))) {
+			old_tp = res->goto_tp;
+			goto reset;
+		}
 #endif
 		if (err >= 0)
 			return err;
