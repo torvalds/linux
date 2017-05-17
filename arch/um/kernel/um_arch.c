@@ -289,8 +289,8 @@ int __init linux_main(int argc, char **argv)
 
 	diff = UML_ROUND_UP(brk_start) - UML_ROUND_UP(&_end);
 	if (diff > 1024 * 1024) {
-		printf("Adding %ld bytes to physical memory to account for "
-		       "exec-shield gap\n", diff);
+		os_info("Adding %ld bytes to physical memory to account for "
+			"exec-shield gap\n", diff);
 		physmem_size += UML_ROUND_UP(brk_start) - UML_ROUND_UP(&_end);
 	}
 
@@ -330,8 +330,8 @@ int __init linux_main(int argc, char **argv)
 	end_vm = start_vm + virtmem_size;
 
 	if (virtmem_size < physmem_size)
-		printf("Kernel virtual memory size shrunk to %lu bytes\n",
-		       virtmem_size);
+		os_info("Kernel virtual memory size shrunk to %lu bytes\n",
+			virtmem_size);
 
 	os_flush_stdout();
 

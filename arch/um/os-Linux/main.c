@@ -184,14 +184,13 @@ int __init main(int argc, char **argv, char **envp)
 	 */
 	unblock_signals();
 
+	os_info("\n");
 	/* Reboot */
 	if (ret) {
-		printf("\n");
 		execvp(new_argv[0], new_argv);
 		perror("Failed to exec kernel");
 		ret = 1;
 	}
-	printf("\n");
 	return uml_exitcode;
 }
 
