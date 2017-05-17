@@ -36,6 +36,12 @@ static inline void rt2x00mmio_register_read(struct rt2x00_dev *rt2x00dev,
 	*value = readl(rt2x00dev->csr.base + offset);
 }
 
+static inline u32 _rt2x00mmio_register_read(struct rt2x00_dev *rt2x00dev,
+					   const unsigned int offset)
+{
+	return readl(rt2x00dev->csr.base + offset);
+}
+
 static inline void rt2x00mmio_register_multiread(struct rt2x00_dev *rt2x00dev,
 						 const unsigned int offset,
 						 void *value, const u32 length)

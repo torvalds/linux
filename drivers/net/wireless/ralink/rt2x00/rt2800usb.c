@@ -802,8 +802,8 @@ static const struct ieee80211_ops rt2800usb_mac80211_ops = {
 };
 
 static const struct rt2800_ops rt2800usb_rt2800_ops = {
-	.register_read		= rt2x00usb_register_read,
-	.register_read_lock	= rt2x00usb_register_read_lock,
+	.register_read		= _rt2x00usb_register_read,
+	.register_read_lock	= _rt2x00usb_register_read_lock,
 	.register_write		= rt2x00usb_register_write,
 	.register_write_lock	= rt2x00usb_register_write_lock,
 	.register_multiread	= rt2x00usb_register_multiread,

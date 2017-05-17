@@ -164,10 +164,20 @@ static void rt2500pci_eepromregister_write(struct eeprom_93cx6 *eeprom)
 }
 
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
+static u8 _rt2500pci_bbp_read(struct rt2x00_dev *rt2x00dev,
+			      const unsigned int word)
+{
+	u8 value;
+
+	rt2500pci_bbp_read(rt2x00dev, word, &value);
+
+	return value;
+}
+
 static const struct rt2x00debug rt2500pci_rt2x00debug = {
 	.owner	= THIS_MODULE,
 	.csr	= {
-		.read		= rt2x00mmio_register_read,
+		.read		= _rt2x00mmio_register_read,
 		.write		= rt2x00mmio_register_write,
 		.flags		= RT2X00DEBUGFS_OFFSET,
 		.word_base	= CSR_REG_BASE,
@@ -175,21 +185,21 @@ static const struct rt2x00debug rt2500pci_rt2x00debug = {
 		.word_count	= CSR_REG_SIZE / sizeof(u32),
 	},
 	.eeprom	= {
-		.read		= rt2x00_eeprom_read,
+		.read		= _rt2x00_eeprom_read,
 		.write		= rt2x00_eeprom_write,
 		.word_base	= EEPROM_BASE,
 		.word_size	= sizeof(u16),
 		.word_count	= EEPROM_SIZE / sizeof(u16),
 	},
 	.bbp	= {
-		.read		= rt2500pci_bbp_read,
+		.read		= _rt2500pci_bbp_read,
 		.write		= rt2500pci_bbp_write,
 		.word_base	= BBP_BASE,
 		.word_size	= sizeof(u8),
 		.word_count	= BBP_SIZE / sizeof(u8),
 	},
 	.rf	= {
-		.read		= rt2x00_rf_read,
+		.read		= _rt2x00_rf_read,
 		.write		= rt2500pci_rf_write,
 		.word_base	= RF_BASE,
 		.word_size	= sizeof(u32),

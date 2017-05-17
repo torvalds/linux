@@ -1225,10 +1225,28 @@ void rt2800_clear_beacon(struct queue_entry *entry)
 EXPORT_SYMBOL_GPL(rt2800_clear_beacon);
 
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
+static u8 _rt2800_bbp_read(struct rt2x00_dev *rt2x00dev, const unsigned int word)
+{
+	u8 value;
+
+	rt2800_bbp_read(rt2x00dev, word, &value);
+
+	return value;
+}
+
+static u8 _rt2800_rfcsr_read(struct rt2x00_dev *rt2x00dev, const unsigned int word)
+{
+	u8 value;
+
+	rt2800_rfcsr_read(rt2x00dev, word, &value);
+
+	return value;
+}
+
 const struct rt2x00debug rt2800_rt2x00debug = {
 	.owner	= THIS_MODULE,
 	.csr	= {
-		.read		= rt2800_register_read,
+		.read		= _rt2800_register_read,
 		.write		= rt2800_register_write,
 		.flags		= RT2X00DEBUGFS_OFFSET,
 		.word_base	= CSR_REG_BASE,
@@ -1239,28 +1257,28 @@ const struct rt2x00debug rt2800_rt2x00debug = {
 		/* NOTE: The local EEPROM access functions can't
 		 * be used here, use the generic versions instead.
 		 */
-		.read		= rt2x00_eeprom_read,
+		.read		= _rt2x00_eeprom_read,
 		.write		= rt2x00_eeprom_write,
 		.word_base	= EEPROM_BASE,
 		.word_size	= sizeof(u16),
 		.word_count	= EEPROM_SIZE / sizeof(u16),
 	},
 	.bbp	= {
-		.read		= rt2800_bbp_read,
+		.read		= _rt2800_bbp_read,
 		.write		= rt2800_bbp_write,
 		.word_base	= BBP_BASE,
 		.word_size	= sizeof(u8),
 		.word_count	= BBP_SIZE / sizeof(u8),
 	},
 	.rf	= {
-		.read		= rt2x00_rf_read,
+		.read		= _rt2x00_rf_read,
 		.write		= rt2800_rf_write,
 		.word_base	= RF_BASE,
 		.word_size	= sizeof(u32),
 		.word_count	= RF_SIZE / sizeof(u32),
 	},
 	.rfcsr	= {
-		.read		= rt2800_rfcsr_read,
+		.read		= _rt2800_rfcsr_read,
 		.write		= rt2800_rfcsr_write,
 		.word_base	= RFCSR_BASE,
 		.word_size	= sizeof(u8),

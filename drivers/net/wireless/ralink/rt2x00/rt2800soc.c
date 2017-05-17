@@ -164,8 +164,8 @@ static const struct ieee80211_ops rt2800soc_mac80211_ops = {
 };
 
 static const struct rt2800_ops rt2800soc_rt2800_ops = {
-	.register_read		= rt2x00mmio_register_read,
-	.register_read_lock	= rt2x00mmio_register_read, /* same for SoCs */
+	.register_read		= _rt2x00mmio_register_read,
+	.register_read_lock	= _rt2x00mmio_register_read, /* same for SoCs */
 	.register_write		= rt2x00mmio_register_write,
 	.register_write_lock	= rt2x00mmio_register_write, /* same for SoCs */
 	.register_multiread	= rt2x00mmio_register_multiread,

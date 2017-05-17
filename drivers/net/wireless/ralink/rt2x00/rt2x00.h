@@ -1056,6 +1056,13 @@ static inline void rt2x00_rf_read(struct rt2x00_dev *rt2x00dev,
 	*data = rt2x00dev->rf[word - 1];
 }
 
+static inline u32 _rt2x00_rf_read(struct rt2x00_dev *rt2x00dev,
+				  const unsigned int word)
+{
+	BUG_ON(word < 1 || word > rt2x00dev->ops->rf_size / sizeof(u32));
+	return rt2x00dev->rf[word - 1];
+}
+
 static inline void rt2x00_rf_write(struct rt2x00_dev *rt2x00dev,
 				   const unsigned int word, u32 data)
 {
@@ -1076,6 +1083,12 @@ static inline void rt2x00_eeprom_read(struct rt2x00_dev *rt2x00dev,
 				      const unsigned int word, u16 *data)
 {
 	*data = le16_to_cpu(rt2x00dev->eeprom[word]);
+}
+
+static inline u16 _rt2x00_eeprom_read(struct rt2x00_dev *rt2x00dev,
+				      const unsigned int word)
+{
+	return le16_to_cpu(rt2x00dev->eeprom[word]);
 }
 
 static inline void rt2x00_eeprom_write(struct rt2x00_dev *rt2x00dev,

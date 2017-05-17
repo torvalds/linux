@@ -216,14 +216,14 @@ static void rt2500usb_rf_write(struct rt2x00_dev *rt2x00dev,
 }
 
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
-static void _rt2500usb_register_read(struct rt2x00_dev *rt2x00dev,
-				     const unsigned int offset,
-				     u32 *value)
+static u32 _rt2500usb_register_read(struct rt2x00_dev *rt2x00dev,
+				     const unsigned int offset)
 {
 	u16 tmp;
 
 	rt2500usb_register_read(rt2x00dev, offset, &tmp);
-	*value = tmp;
+
+	return tmp;
 }
 
 static void _rt2500usb_register_write(struct rt2x00_dev *rt2x00dev,
@@ -231,6 +231,16 @@ static void _rt2500usb_register_write(struct rt2x00_dev *rt2x00dev,
 				      u32 value)
 {
 	rt2500usb_register_write(rt2x00dev, offset, value);
+}
+
+static u8 _rt2500usb_bbp_read(struct rt2x00_dev *rt2x00dev,
+			      const unsigned int word)
+{
+	u8 value;
+
+	rt2500usb_bbp_read(rt2x00dev, word, &value);
+
+	return value;
 }
 
 static const struct rt2x00debug rt2500usb_rt2x00debug = {
@@ -244,21 +254,21 @@ static const struct rt2x00debug rt2500usb_rt2x00debug = {
 		.word_count	= CSR_REG_SIZE / sizeof(u16),
 	},
 	.eeprom	= {
-		.read		= rt2x00_eeprom_read,
+		.read		= _rt2x00_eeprom_read,
 		.write		= rt2x00_eeprom_write,
 		.word_base	= EEPROM_BASE,
 		.word_size	= sizeof(u16),
 		.word_count	= EEPROM_SIZE / sizeof(u16),
 	},
 	.bbp	= {
-		.read		= rt2500usb_bbp_read,
+		.read		= _rt2500usb_bbp_read,
 		.write		= rt2500usb_bbp_write,
 		.word_base	= BBP_BASE,
 		.word_size	= sizeof(u8),
 		.word_count	= BBP_SIZE / sizeof(u8),
 	},
 	.rf	= {
-		.read		= rt2x00_rf_read,
+		.read		= _rt2x00_rf_read,
 		.write		= rt2500usb_rf_write,
 		.word_base	= RF_BASE,
 		.word_size	= sizeof(u32),
