@@ -1386,11 +1386,11 @@ static bool rt61pci_get_entry_state(struct queue_entry *entry)
 	u32 word;
 
 	if (entry->queue->qid == QID_RX) {
-		rt2x00_desc_read(entry_priv->desc, 0, &word);
+		word = rt2x00_desc_read(entry_priv->desc, 0);
 
 		return rt2x00_get_field32(word, RXD_W0_OWNER_NIC);
 	} else {
-		rt2x00_desc_read(entry_priv->desc, 0, &word);
+		word = rt2x00_desc_read(entry_priv->desc, 0);
 
 		return (rt2x00_get_field32(word, TXD_W0_OWNER_NIC) ||
 		        rt2x00_get_field32(word, TXD_W0_VALID));
@@ -1404,16 +1404,16 @@ static void rt61pci_clear_entry(struct queue_entry *entry)
 	u32 word;
 
 	if (entry->queue->qid == QID_RX) {
-		rt2x00_desc_read(entry_priv->desc, 5, &word);
+		word = rt2x00_desc_read(entry_priv->desc, 5);
 		rt2x00_set_field32(&word, RXD_W5_BUFFER_PHYSICAL_ADDRESS,
 				   skbdesc->skb_dma);
 		rt2x00_desc_write(entry_priv->desc, 5, word);
 
-		rt2x00_desc_read(entry_priv->desc, 0, &word);
+		word = rt2x00_desc_read(entry_priv->desc, 0);
 		rt2x00_set_field32(&word, RXD_W0_OWNER_NIC, 1);
 		rt2x00_desc_write(entry_priv->desc, 0, word);
 	} else {
-		rt2x00_desc_read(entry_priv->desc, 0, &word);
+		word = rt2x00_desc_read(entry_priv->desc, 0);
 		rt2x00_set_field32(&word, TXD_W0_VALID, 0);
 		rt2x00_set_field32(&word, TXD_W0_OWNER_NIC, 0);
 		rt2x00_desc_write(entry_priv->desc, 0, word);
@@ -1879,7 +1879,7 @@ static void rt61pci_write_tx_desc(struct queue_entry *entry,
 	/*
 	 * Start writing the descriptor words.
 	 */
-	rt2x00_desc_read(txd, 1, &word);
+	word = rt2x00_desc_read(txd, 1);
 	rt2x00_set_field32(&word, TXD_W1_HOST_Q_ID, entry->queue->qid);
 	rt2x00_set_field32(&word, TXD_W1_AIFSN, entry->queue->aifs);
 	rt2x00_set_field32(&word, TXD_W1_CWMIN, entry->queue->cw_min);
@@ -1890,7 +1890,7 @@ static void rt61pci_write_tx_desc(struct queue_entry *entry,
 	rt2x00_set_field32(&word, TXD_W1_BUFFER_COUNT, 1);
 	rt2x00_desc_write(txd, 1, word);
 
-	rt2x00_desc_read(txd, 2, &word);
+	word = rt2x00_desc_read(txd, 2);
 	rt2x00_set_field32(&word, TXD_W2_PLCP_SIGNAL, txdesc->u.plcp.signal);
 	rt2x00_set_field32(&word, TXD_W2_PLCP_SERVICE, txdesc->u.plcp.service);
 	rt2x00_set_field32(&word, TXD_W2_PLCP_LENGTH_LOW,
@@ -1904,7 +1904,7 @@ static void rt61pci_write_tx_desc(struct queue_entry *entry,
 		_rt2x00_desc_write(txd, 4, skbdesc->iv[1]);
 	}
 
-	rt2x00_desc_read(txd, 5, &word);
+	word = rt2x00_desc_read(txd, 5);
 	rt2x00_set_field32(&word, TXD_W5_PID_TYPE, entry->queue->qid);
 	rt2x00_set_field32(&word, TXD_W5_PID_SUBTYPE, entry->entry_idx);
 	rt2x00_set_field32(&word, TXD_W5_TX_POWER,
@@ -1913,12 +1913,12 @@ static void rt61pci_write_tx_desc(struct queue_entry *entry,
 	rt2x00_desc_write(txd, 5, word);
 
 	if (entry->queue->qid != QID_BEACON) {
-		rt2x00_desc_read(txd, 6, &word);
+		word = rt2x00_desc_read(txd, 6);
 		rt2x00_set_field32(&word, TXD_W6_BUFFER_PHYSICAL_ADDRESS,
 				   skbdesc->skb_dma);
 		rt2x00_desc_write(txd, 6, word);
 
-		rt2x00_desc_read(txd, 11, &word);
+		word = rt2x00_desc_read(txd, 11);
 		rt2x00_set_field32(&word, TXD_W11_BUFFER_LENGTH0,
 				   txdesc->length);
 		rt2x00_desc_write(txd, 11, word);
@@ -1929,7 +1929,7 @@ static void rt61pci_write_tx_desc(struct queue_entry *entry,
 	 * the device, whereby the device may take hold of the TXD before we
 	 * finished updating it.
 	 */
-	rt2x00_desc_read(txd, 0, &word);
+	word = rt2x00_desc_read(txd, 0);
 	rt2x00_set_field32(&word, TXD_W0_OWNER_NIC, 1);
 	rt2x00_set_field32(&word, TXD_W0_VALID, 1);
 	rt2x00_set_field32(&word, TXD_W0_MORE_FRAG,
@@ -2095,8 +2095,8 @@ static void rt61pci_fill_rxdone(struct queue_entry *entry,
 	u32 word0;
 	u32 word1;
 
-	rt2x00_desc_read(entry_priv->desc, 0, &word0);
-	rt2x00_desc_read(entry_priv->desc, 1, &word1);
+	word0 = rt2x00_desc_read(entry_priv->desc, 0);
+	word1 = rt2x00_desc_read(entry_priv->desc, 1);
 
 	if (rt2x00_get_field32(word0, RXD_W0_CRC_ERROR))
 		rxdesc->flags |= RX_FLAG_FAILED_FCS_CRC;
@@ -2105,11 +2105,11 @@ static void rt61pci_fill_rxdone(struct queue_entry *entry,
 	rxdesc->cipher_status = rt2x00_get_field32(word0, RXD_W0_CIPHER_ERROR);
 
 	if (rxdesc->cipher != CIPHER_NONE) {
-		_rt2x00_desc_read(entry_priv->desc, 2, &rxdesc->iv[0]);
-		_rt2x00_desc_read(entry_priv->desc, 3, &rxdesc->iv[1]);
+		rxdesc->iv[0] = _rt2x00_desc_read(entry_priv->desc, 2);
+		rxdesc->iv[1] = _rt2x00_desc_read(entry_priv->desc, 3);
 		rxdesc->dev_flags |= RXDONE_CRYPTO_IV;
 
-		_rt2x00_desc_read(entry_priv->desc, 4, &rxdesc->icv);
+		rxdesc->icv = _rt2x00_desc_read(entry_priv->desc, 4);
 		rxdesc->dev_flags |= RXDONE_CRYPTO_ICV;
 
 		/*
@@ -2198,7 +2198,7 @@ static void rt61pci_txdone(struct rt2x00_dev *rt2x00dev)
 
 		entry = &queue->entries[index];
 		entry_priv = entry->priv_data;
-		rt2x00_desc_read(entry_priv->desc, 0, &word);
+		word = rt2x00_desc_read(entry_priv->desc, 0);
 
 		if (rt2x00_get_field32(word, TXD_W0_OWNER_NIC) ||
 		    !rt2x00_get_field32(word, TXD_W0_VALID))

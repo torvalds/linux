@@ -109,7 +109,7 @@ void rt2800mmio_fill_rxdone(struct queue_entry *entry,
 	__le32 *rxd = entry_priv->desc;
 	u32 word;
 
-	rt2x00_desc_read(rxd, 3, &word);
+	word = rt2x00_desc_read(rxd, 3);
 
 	if (rt2x00_get_field32(word, RXD_W3_CRC_ERROR))
 		rxdesc->flags |= RX_FLAG_FAILED_FCS_CRC;
@@ -175,7 +175,7 @@ static bool rt2800mmio_txdone_entry_check(struct queue_entry *entry, u32 status)
 	wcid = rt2x00_get_field32(status, TX_STA_FIFO_WCID);
 
 	txwi = rt2800_drv_get_txwi(entry);
-	rt2x00_desc_read(txwi, 1, &word);
+	word = rt2x00_desc_read(txwi, 1);
 	tx_wcid = rt2x00_get_field32(word, TXWI_W1_WIRELESS_CLI_ID);
 
 	return (tx_wcid == wcid);
@@ -696,11 +696,11 @@ bool rt2800mmio_get_entry_state(struct queue_entry *entry)
 	u32 word;
 
 	if (entry->queue->qid == QID_RX) {
-		rt2x00_desc_read(entry_priv->desc, 1, &word);
+		word = rt2x00_desc_read(entry_priv->desc, 1);
 
 		return (!rt2x00_get_field32(word, RXD_W1_DMA_DONE));
 	} else {
-		rt2x00_desc_read(entry_priv->desc, 1, &word);
+		word = rt2x00_desc_read(entry_priv->desc, 1);
 
 		return (!rt2x00_get_field32(word, TXD_W1_DMA_DONE));
 	}
@@ -715,11 +715,11 @@ void rt2800mmio_clear_entry(struct queue_entry *entry)
 	u32 word;
 
 	if (entry->queue->qid == QID_RX) {
-		rt2x00_desc_read(entry_priv->desc, 0, &word);
+		word = rt2x00_desc_read(entry_priv->desc, 0);
 		rt2x00_set_field32(&word, RXD_W0_SDP0, skbdesc->skb_dma);
 		rt2x00_desc_write(entry_priv->desc, 0, word);
 
-		rt2x00_desc_read(entry_priv->desc, 1, &word);
+		word = rt2x00_desc_read(entry_priv->desc, 1);
 		rt2x00_set_field32(&word, RXD_W1_DMA_DONE, 0);
 		rt2x00_desc_write(entry_priv->desc, 1, word);
 
@@ -730,7 +730,7 @@ void rt2800mmio_clear_entry(struct queue_entry *entry)
 		rt2x00mmio_register_write(rt2x00dev, RX_CRX_IDX,
 					  entry->entry_idx);
 	} else {
-		rt2x00_desc_read(entry_priv->desc, 1, &word);
+		word = rt2x00_desc_read(entry_priv->desc, 1);
 		rt2x00_set_field32(&word, TXD_W1_DMA_DONE, 1);
 		rt2x00_desc_write(entry_priv->desc, 1, word);
 	}

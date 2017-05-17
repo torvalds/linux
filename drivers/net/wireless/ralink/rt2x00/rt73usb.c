@@ -1462,7 +1462,7 @@ static void rt73usb_write_tx_desc(struct queue_entry *entry,
 	/*
 	 * Start writing the descriptor words.
 	 */
-	rt2x00_desc_read(txd, 0, &word);
+	word = rt2x00_desc_read(txd, 0);
 	rt2x00_set_field32(&word, TXD_W0_BURST,
 			   test_bit(ENTRY_TXD_BURST, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_VALID, 1);
@@ -1488,7 +1488,7 @@ static void rt73usb_write_tx_desc(struct queue_entry *entry,
 	rt2x00_set_field32(&word, TXD_W0_CIPHER_ALG, txdesc->cipher);
 	rt2x00_desc_write(txd, 0, word);
 
-	rt2x00_desc_read(txd, 1, &word);
+	word = rt2x00_desc_read(txd, 1);
 	rt2x00_set_field32(&word, TXD_W1_HOST_Q_ID, entry->queue->qid);
 	rt2x00_set_field32(&word, TXD_W1_AIFSN, entry->queue->aifs);
 	rt2x00_set_field32(&word, TXD_W1_CWMIN, entry->queue->cw_min);
@@ -1498,7 +1498,7 @@ static void rt73usb_write_tx_desc(struct queue_entry *entry,
 			   test_bit(ENTRY_TXD_GENERATE_SEQ, &txdesc->flags));
 	rt2x00_desc_write(txd, 1, word);
 
-	rt2x00_desc_read(txd, 2, &word);
+	word = rt2x00_desc_read(txd, 2);
 	rt2x00_set_field32(&word, TXD_W2_PLCP_SIGNAL, txdesc->u.plcp.signal);
 	rt2x00_set_field32(&word, TXD_W2_PLCP_SERVICE, txdesc->u.plcp.service);
 	rt2x00_set_field32(&word, TXD_W2_PLCP_LENGTH_LOW,
@@ -1512,7 +1512,7 @@ static void rt73usb_write_tx_desc(struct queue_entry *entry,
 		_rt2x00_desc_write(txd, 4, skbdesc->iv[1]);
 	}
 
-	rt2x00_desc_read(txd, 5, &word);
+	word = rt2x00_desc_read(txd, 5);
 	rt2x00_set_field32(&word, TXD_W5_TX_POWER,
 			   TXPOWER_TO_DEV(entry->queue->rt2x00dev->tx_power));
 	rt2x00_set_field32(&word, TXD_W5_WAITING_DMA_DONE_INT, 1);
@@ -1694,8 +1694,8 @@ static void rt73usb_fill_rxdone(struct queue_entry *entry,
 	/*
 	 * It is now safe to read the descriptor on all architectures.
 	 */
-	rt2x00_desc_read(rxd, 0, &word0);
-	rt2x00_desc_read(rxd, 1, &word1);
+	word0 = rt2x00_desc_read(rxd, 0);
+	word1 = rt2x00_desc_read(rxd, 1);
 
 	if (rt2x00_get_field32(word0, RXD_W0_CRC_ERROR))
 		rxdesc->flags |= RX_FLAG_FAILED_FCS_CRC;
@@ -1704,11 +1704,11 @@ static void rt73usb_fill_rxdone(struct queue_entry *entry,
 	rxdesc->cipher_status = rt2x00_get_field32(word0, RXD_W0_CIPHER_ERROR);
 
 	if (rxdesc->cipher != CIPHER_NONE) {
-		_rt2x00_desc_read(rxd, 2, &rxdesc->iv[0]);
-		_rt2x00_desc_read(rxd, 3, &rxdesc->iv[1]);
+		rxdesc->iv[0] = _rt2x00_desc_read(rxd, 2);
+		rxdesc->iv[1] = _rt2x00_desc_read(rxd, 3);
 		rxdesc->dev_flags |= RXDONE_CRYPTO_IV;
 
-		_rt2x00_desc_read(rxd, 4, &rxdesc->icv);
+		rxdesc->icv = _rt2x00_desc_read(rxd, 4);
 		rxdesc->dev_flags |= RXDONE_CRYPTO_ICV;
 
 		/*

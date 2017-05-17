@@ -1074,7 +1074,7 @@ static void rt2500usb_write_tx_desc(struct queue_entry *entry,
 	/*
 	 * Start writing the descriptor words.
 	 */
-	rt2x00_desc_read(txd, 0, &word);
+	word = rt2x00_desc_read(txd, 0);
 	rt2x00_set_field32(&word, TXD_W0_RETRY_LIMIT, txdesc->retry_limit);
 	rt2x00_set_field32(&word, TXD_W0_MORE_FRAG,
 			   test_bit(ENTRY_TXD_MORE_FRAG, &txdesc->flags));
@@ -1092,14 +1092,14 @@ static void rt2500usb_write_tx_desc(struct queue_entry *entry,
 	rt2x00_set_field32(&word, TXD_W0_KEY_ID, txdesc->key_idx);
 	rt2x00_desc_write(txd, 0, word);
 
-	rt2x00_desc_read(txd, 1, &word);
+	word = rt2x00_desc_read(txd, 1);
 	rt2x00_set_field32(&word, TXD_W1_IV_OFFSET, txdesc->iv_offset);
 	rt2x00_set_field32(&word, TXD_W1_AIFS, entry->queue->aifs);
 	rt2x00_set_field32(&word, TXD_W1_CWMIN, entry->queue->cw_min);
 	rt2x00_set_field32(&word, TXD_W1_CWMAX, entry->queue->cw_max);
 	rt2x00_desc_write(txd, 1, word);
 
-	rt2x00_desc_read(txd, 2, &word);
+	word = rt2x00_desc_read(txd, 2);
 	rt2x00_set_field32(&word, TXD_W2_PLCP_SIGNAL, txdesc->u.plcp.signal);
 	rt2x00_set_field32(&word, TXD_W2_PLCP_SERVICE, txdesc->u.plcp.service);
 	rt2x00_set_field32(&word, TXD_W2_PLCP_LENGTH_LOW,
@@ -1247,8 +1247,8 @@ static void rt2500usb_fill_rxdone(struct queue_entry *entry,
 	/*
 	 * It is now safe to read the descriptor on all architectures.
 	 */
-	rt2x00_desc_read(rxd, 0, &word0);
-	rt2x00_desc_read(rxd, 1, &word1);
+	word0 = rt2x00_desc_read(rxd, 0);
+	word1 = rt2x00_desc_read(rxd, 1);
 
 	if (rt2x00_get_field32(word0, RXD_W0_CRC_ERROR))
 		rxdesc->flags |= RX_FLAG_FAILED_FCS_CRC;
@@ -1260,8 +1260,8 @@ static void rt2500usb_fill_rxdone(struct queue_entry *entry,
 		rxdesc->cipher_status = RX_CRYPTO_FAIL_KEY;
 
 	if (rxdesc->cipher != CIPHER_NONE) {
-		_rt2x00_desc_read(rxd, 2, &rxdesc->iv[0]);
-		_rt2x00_desc_read(rxd, 3, &rxdesc->iv[1]);
+		rxdesc->iv[0] = _rt2x00_desc_read(rxd, 2);
+		rxdesc->iv[1] = _rt2x00_desc_read(rxd, 3);
 		rxdesc->dev_flags |= RXDONE_CRYPTO_IV;
 
 		/* ICV is located at the end of frame */

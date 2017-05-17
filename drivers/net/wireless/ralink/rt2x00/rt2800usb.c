@@ -456,7 +456,7 @@ static void rt2800usb_write_tx_desc(struct queue_entry *entry,
 	/*
 	 * Initialize TXINFO descriptor
 	 */
-	rt2x00_desc_read(txi, 0, &word);
+	word = rt2x00_desc_read(txi, 0);
 
 	/*
 	 * The size of TXINFO_W0_USB_DMA_TX_PKT_LEN is
@@ -527,7 +527,7 @@ static bool rt2800usb_txdone_entry_check(struct queue_entry *entry, u32 reg)
 	 */
 	txwi = rt2800usb_get_txwi(entry);
 
-	rt2x00_desc_read(txwi, 1, &word);
+	word = rt2x00_desc_read(txwi, 1);
 	tx_wcid = rt2x00_get_field32(word, TXWI_W1_WIRELESS_CLI_ID);
 	tx_ack  = rt2x00_get_field32(word, TXWI_W1_ACK);
 	tx_pid  = rt2x00_get_field32(word, TXWI_W1_PACKETID);
@@ -652,7 +652,7 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 	 * | RXINFO | RXWI | header | L2 pad | payload | pad | RXD | USB pad |
 	 *          |<------------ rx_pkt_len -------------->|
 	 */
-	rt2x00_desc_read(rxi, 0, &word);
+	word = rt2x00_desc_read(rxi, 0);
 	rx_pkt_len = rt2x00_get_field32(word, RXINFO_W0_USB_DMA_RX_PKT_LEN);
 
 	/*
@@ -676,7 +676,7 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 	/*
 	 * It is now safe to read the descriptor on all architectures.
 	 */
-	rt2x00_desc_read(rxd, 0, &word);
+	word = rt2x00_desc_read(rxd, 0);
 
 	if (rt2x00_get_field32(word, RXD_W0_CRC_ERROR))
 		rxdesc->flags |= RX_FLAG_FAILED_FCS_CRC;

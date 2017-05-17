@@ -817,11 +817,11 @@ static bool rt2500pci_get_entry_state(struct queue_entry *entry)
 	u32 word;
 
 	if (entry->queue->qid == QID_RX) {
-		rt2x00_desc_read(entry_priv->desc, 0, &word);
+		word = rt2x00_desc_read(entry_priv->desc, 0);
 
 		return rt2x00_get_field32(word, RXD_W0_OWNER_NIC);
 	} else {
-		rt2x00_desc_read(entry_priv->desc, 0, &word);
+		word = rt2x00_desc_read(entry_priv->desc, 0);
 
 		return (rt2x00_get_field32(word, TXD_W0_OWNER_NIC) ||
 		        rt2x00_get_field32(word, TXD_W0_VALID));
@@ -835,15 +835,15 @@ static void rt2500pci_clear_entry(struct queue_entry *entry)
 	u32 word;
 
 	if (entry->queue->qid == QID_RX) {
-		rt2x00_desc_read(entry_priv->desc, 1, &word);
+		word = rt2x00_desc_read(entry_priv->desc, 1);
 		rt2x00_set_field32(&word, RXD_W1_BUFFER_ADDRESS, skbdesc->skb_dma);
 		rt2x00_desc_write(entry_priv->desc, 1, word);
 
-		rt2x00_desc_read(entry_priv->desc, 0, &word);
+		word = rt2x00_desc_read(entry_priv->desc, 0);
 		rt2x00_set_field32(&word, RXD_W0_OWNER_NIC, 1);
 		rt2x00_desc_write(entry_priv->desc, 0, word);
 	} else {
-		rt2x00_desc_read(entry_priv->desc, 0, &word);
+		word = rt2x00_desc_read(entry_priv->desc, 0);
 		rt2x00_set_field32(&word, TXD_W0_VALID, 0);
 		rt2x00_set_field32(&word, TXD_W0_OWNER_NIC, 0);
 		rt2x00_desc_write(entry_priv->desc, 0, word);
@@ -1266,18 +1266,18 @@ static void rt2500pci_write_tx_desc(struct queue_entry *entry,
 	/*
 	 * Start writing the descriptor words.
 	 */
-	rt2x00_desc_read(txd, 1, &word);
+	word = rt2x00_desc_read(txd, 1);
 	rt2x00_set_field32(&word, TXD_W1_BUFFER_ADDRESS, skbdesc->skb_dma);
 	rt2x00_desc_write(txd, 1, word);
 
-	rt2x00_desc_read(txd, 2, &word);
+	word = rt2x00_desc_read(txd, 2);
 	rt2x00_set_field32(&word, TXD_W2_IV_OFFSET, IEEE80211_HEADER);
 	rt2x00_set_field32(&word, TXD_W2_AIFS, entry->queue->aifs);
 	rt2x00_set_field32(&word, TXD_W2_CWMIN, entry->queue->cw_min);
 	rt2x00_set_field32(&word, TXD_W2_CWMAX, entry->queue->cw_max);
 	rt2x00_desc_write(txd, 2, word);
 
-	rt2x00_desc_read(txd, 3, &word);
+	word = rt2x00_desc_read(txd, 3);
 	rt2x00_set_field32(&word, TXD_W3_PLCP_SIGNAL, txdesc->u.plcp.signal);
 	rt2x00_set_field32(&word, TXD_W3_PLCP_SERVICE, txdesc->u.plcp.service);
 	rt2x00_set_field32(&word, TXD_W3_PLCP_LENGTH_LOW,
@@ -1286,7 +1286,7 @@ static void rt2500pci_write_tx_desc(struct queue_entry *entry,
 			   txdesc->u.plcp.length_high);
 	rt2x00_desc_write(txd, 3, word);
 
-	rt2x00_desc_read(txd, 10, &word);
+	word = rt2x00_desc_read(txd, 10);
 	rt2x00_set_field32(&word, TXD_W10_RTS,
 			   test_bit(ENTRY_TXD_RTS_FRAME, &txdesc->flags));
 	rt2x00_desc_write(txd, 10, word);
@@ -1296,7 +1296,7 @@ static void rt2500pci_write_tx_desc(struct queue_entry *entry,
 	 * the device, whereby the device may take hold of the TXD before we
 	 * finished updating it.
 	 */
-	rt2x00_desc_read(txd, 0, &word);
+	word = rt2x00_desc_read(txd, 0);
 	rt2x00_set_field32(&word, TXD_W0_OWNER_NIC, 1);
 	rt2x00_set_field32(&word, TXD_W0_VALID, 1);
 	rt2x00_set_field32(&word, TXD_W0_MORE_FRAG,
@@ -1371,8 +1371,8 @@ static void rt2500pci_fill_rxdone(struct queue_entry *entry,
 	u32 word0;
 	u32 word2;
 
-	rt2x00_desc_read(entry_priv->desc, 0, &word0);
-	rt2x00_desc_read(entry_priv->desc, 2, &word2);
+	word0 = rt2x00_desc_read(entry_priv->desc, 0);
+	word2 = rt2x00_desc_read(entry_priv->desc, 2);
 
 	if (rt2x00_get_field32(word0, RXD_W0_CRC_ERROR))
 		rxdesc->flags |= RX_FLAG_FAILED_FCS_CRC;
@@ -1413,7 +1413,7 @@ static void rt2500pci_txdone(struct rt2x00_dev *rt2x00dev,
 	while (!rt2x00queue_empty(queue)) {
 		entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
 		entry_priv = entry->priv_data;
-		rt2x00_desc_read(entry_priv->desc, 0, &word);
+		word = rt2x00_desc_read(entry_priv->desc, 0);
 
 		if (rt2x00_get_field32(word, TXD_W0_OWNER_NIC) ||
 		    !rt2x00_get_field32(word, TXD_W0_VALID))

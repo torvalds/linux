@@ -785,7 +785,7 @@ void rt2800_write_tx_data(struct queue_entry *entry,
 	/*
 	 * Initialize TX Info descriptor
 	 */
-	rt2x00_desc_read(txwi, 0, &word);
+	word = rt2x00_desc_read(txwi, 0);
 	rt2x00_set_field32(&word, TXWI_W0_FRAG,
 			   test_bit(ENTRY_TXD_MORE_FRAG, &txdesc->flags));
 	rt2x00_set_field32(&word, TXWI_W0_MIMO_PS,
@@ -807,7 +807,7 @@ void rt2800_write_tx_data(struct queue_entry *entry,
 	rt2x00_set_field32(&word, TXWI_W0_PHYMODE, txdesc->rate_mode);
 	rt2x00_desc_write(txwi, 0, word);
 
-	rt2x00_desc_read(txwi, 1, &word);
+	word = rt2x00_desc_read(txwi, 1);
 	rt2x00_set_field32(&word, TXWI_W1_ACK,
 			   test_bit(ENTRY_TXD_ACK, &txdesc->flags));
 	rt2x00_set_field32(&word, TXWI_W1_NSEQ,
@@ -885,12 +885,12 @@ void rt2800_process_rxwi(struct queue_entry *entry,
 	__le32 *rxwi = (__le32 *) entry->skb->data;
 	u32 word;
 
-	rt2x00_desc_read(rxwi, 0, &word);
+	word = rt2x00_desc_read(rxwi, 0);
 
 	rxdesc->cipher = rt2x00_get_field32(word, RXWI_W0_UDF);
 	rxdesc->size = rt2x00_get_field32(word, RXWI_W0_MPDU_TOTAL_BYTE_COUNT);
 
-	rt2x00_desc_read(rxwi, 1, &word);
+	word = rt2x00_desc_read(rxwi, 1);
 
 	if (rt2x00_get_field32(word, RXWI_W1_SHORT_GI))
 		rxdesc->enc_flags |= RX_ENC_FLAG_SHORT_GI;
@@ -911,7 +911,7 @@ void rt2800_process_rxwi(struct queue_entry *entry,
 	if (rxdesc->rate_mode == RATE_MODE_CCK)
 		rxdesc->signal &= ~0x8;
 
-	rt2x00_desc_read(rxwi, 2, &word);
+	word = rt2x00_desc_read(rxwi, 2);
 
 	/*
 	 * Convert descriptor AGC value to RSSI value.
@@ -972,7 +972,7 @@ void rt2800_txdone_entry(struct queue_entry *entry, u32 status, __le32 *txwi,
 	 * Obtain the status about this packet.
 	 */
 	txdesc.flags = 0;
-	rt2x00_desc_read(txwi, 0, &word);
+	word = rt2x00_desc_read(txwi, 0);
 
 	mcs = rt2x00_get_field32(word, TXWI_W0_MCS);
 	ampdu = rt2x00_get_field32(word, TXWI_W0_AMPDU);
