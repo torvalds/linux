@@ -440,7 +440,7 @@ static int hdlc_tx_done(struct ucc_hdlc_private *priv)
 static int hdlc_rx_done(struct ucc_hdlc_private *priv, int rx_work_limit)
 {
 	struct net_device *dev = priv->ndev;
-	struct sk_buff *skb;
+	struct sk_buff *skb = NULL;
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 	struct qe_bd *bd;
 	u16 bd_status;
@@ -968,7 +968,7 @@ static int ucc_hdlc_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct ucc_hdlc_private *uhdlc_priv = NULL;
 	struct ucc_tdm_info *ut_info;
-	struct ucc_tdm *utdm;
+	struct ucc_tdm *utdm = NULL;
 	struct resource res;
 	struct net_device *dev;
 	hdlc_device *hdlc;
