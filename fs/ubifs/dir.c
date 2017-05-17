@@ -143,6 +143,7 @@ struct inode *ubifs_new_inode(struct ubifs_info *c, struct inode *dir,
 	case S_IFBLK:
 	case S_IFCHR:
 		inode->i_op  = &ubifs_file_inode_operations;
+		encrypted = false;
 		break;
 	default:
 		BUG();
