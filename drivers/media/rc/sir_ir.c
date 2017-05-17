@@ -381,6 +381,8 @@ static int sir_ir_probe(struct platform_device *dev)
 
 static int sir_ir_remove(struct platform_device *dev)
 {
+	drop_hardware();
+	drop_port();
 	return 0;
 }
 
@@ -421,8 +423,6 @@ pdev_alloc_fail:
 
 static void __exit sir_ir_exit(void)
 {
-	drop_hardware();
-	drop_port();
 	platform_device_unregister(sir_ir_dev);
 	platform_driver_unregister(&sir_ir_driver);
 }
