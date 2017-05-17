@@ -4334,8 +4334,8 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	}
 
 	res_blocks = fixed_16_16_to_u32_round_up(selected_result) + 1;
-	res_lines = DIV_ROUND_UP(selected_result.val,
-				 plane_blocks_per_line.val);
+	res_lines = div_round_up_fixed16(selected_result,
+					 plane_blocks_per_line);
 
 	if (level >= 1 && level <= 7) {
 		if (y_tiled) {
