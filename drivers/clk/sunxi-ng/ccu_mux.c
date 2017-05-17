@@ -95,19 +95,7 @@ int ccu_mux_helper_determine_rate(struct ccu_common *common,
 		if (!parent)
 			continue;
 
-		if (clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT) {
-			struct clk_rate_request parent_req = *req;
-			int ret = __clk_determine_rate(parent, &parent_req);
-
-			if (ret)
-				continue;
-
-			parent_rate = parent_req.rate;
-		} else {
-			parent_rate = clk_hw_get_rate(parent);
-		}
-
-		adj_parent_rate = parent_rate;
+		adj_parent_rate = parent_rate = clk_hw_get_rate(parent);
 		ccu_mux_helper_adjust_parent_for_prediv(common, cm, i,
 							&adj_parent_rate);
 
