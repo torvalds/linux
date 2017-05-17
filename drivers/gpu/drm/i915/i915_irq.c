@@ -1353,7 +1353,7 @@ static void snb_gt_irq_handler(struct drm_i915_private *dev_priv,
 		ivybridge_parity_error_irq_handler(dev_priv, gt_iir);
 }
 
-static __always_inline void
+static void
 gen8_cs_irq_handler(struct intel_engine_cs *engine, u32 iir, int test_shift)
 {
 	bool tasklet = false;
