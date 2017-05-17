@@ -78,10 +78,10 @@ static inline struct ccu_mux *hw_to_ccu_mux(struct clk_hw *hw)
 
 extern const struct clk_ops ccu_mux_ops;
 
-void ccu_mux_helper_adjust_parent_for_prediv(struct ccu_common *common,
-					     struct ccu_mux_internal *cm,
-					     int parent_index,
-					     unsigned long *parent_rate);
+unsigned long ccu_mux_helper_apply_prediv(struct ccu_common *common,
+					  struct ccu_mux_internal *cm,
+					  int parent_index,
+					  unsigned long parent_rate);
 int ccu_mux_helper_determine_rate(struct ccu_common *common,
 				  struct ccu_mux_internal *cm,
 				  struct clk_rate_request *req,

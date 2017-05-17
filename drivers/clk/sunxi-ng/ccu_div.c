@@ -59,8 +59,8 @@ static unsigned long ccu_div_recalc_rate(struct clk_hw *hw,
 	val = reg >> cd->div.shift;
 	val &= (1 << cd->div.width) - 1;
 
-	ccu_mux_helper_adjust_parent_for_prediv(&cd->common, &cd->mux, -1,
-						&parent_rate);
+	parent_rate = ccu_mux_helper_apply_prediv(&cd->common, &cd->mux, -1,
+						  parent_rate);
 
 	return divider_recalc_rate(hw, parent_rate, val, cd->div.table,
 				   cd->div.flags);
@@ -83,8 +83,8 @@ static int ccu_div_set_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned long val;
 	u32 reg;
 
-	ccu_mux_helper_adjust_parent_for_prediv(&cd->common, &cd->mux, -1,
-						&parent_rate);
+	parent_rate = ccu_mux_helper_apply_prediv(&cd->common, &cd->mux, -1,
+						  parent_rate);
 
 	val = divider_get_val(rate, parent_rate, cd->div.table, cd->div.width,
 			      cd->div.flags);

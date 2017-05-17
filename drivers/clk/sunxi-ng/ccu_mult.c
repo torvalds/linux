@@ -88,8 +88,8 @@ static unsigned long ccu_mult_recalc_rate(struct clk_hw *hw,
 	val = reg >> cm->mult.shift;
 	val &= (1 << cm->mult.width) - 1;
 
-	ccu_mux_helper_adjust_parent_for_prediv(&cm->common, &cm->mux, -1,
-						&parent_rate);
+	parent_rate = ccu_mux_helper_apply_prediv(&cm->common, &cm->mux, -1,
+						  parent_rate);
 
 	return parent_rate * (val + cm->mult.offset);
 }
@@ -116,8 +116,8 @@ static int ccu_mult_set_rate(struct clk_hw *hw, unsigned long rate,
 	else
 		ccu_frac_helper_disable(&cm->common, &cm->frac);
 
-	ccu_mux_helper_adjust_parent_for_prediv(&cm->common, &cm->mux, -1,
-						&parent_rate);
+	parent_rate = ccu_mux_helper_apply_prediv(&cm->common, &cm->mux, -1,
+						  parent_rate);
 
 	_cm.min = cm->mult.min;
 

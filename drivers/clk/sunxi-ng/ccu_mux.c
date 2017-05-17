@@ -56,13 +56,12 @@ static u16 ccu_mux_get_prediv(struct ccu_common *common,
 	return prediv;
 }
 
-void ccu_mux_helper_adjust_parent_for_prediv(struct ccu_common *common,
-					     struct ccu_mux_internal *cm,
-					     int parent_index,
-					     unsigned long *parent_rate)
+unsigned long ccu_mux_helper_apply_prediv(struct ccu_common *common,
+					  struct ccu_mux_internal *cm,
+					  int parent_index,
+					  unsigned long parent_rate)
 {
-	*parent_rate = *parent_rate / ccu_mux_get_prediv(common, cm,
-							 parent_index);
+	return parent_rate / ccu_mux_get_prediv(common, cm, parent_index);
 }
 
 int ccu_mux_helper_determine_rate(struct ccu_common *common,
@@ -84,10 +83,8 @@ int ccu_mux_helper_determine_rate(struct ccu_common *common,
 
 		best_parent = clk_hw_get_parent(hw);
 		best_parent_rate = clk_hw_get_rate(best_parent);
-
-		adj_parent_rate = best_parent_rate;
-		ccu_mux_helper_adjust_parent_for_prediv(common, cm, -1,
-							&adj_parent_rate);
+		adj_parent_rate = ccu_mux_helper_apply_prediv(common, cm, -1,
+							      best_parent_rate);
 
 		best_rate = round(cm, best_parent, &adj_parent_rate,
 				  req->rate, data);
@@ -103,9 +100,9 @@ int ccu_mux_helper_determine_rate(struct ccu_common *common,
 		if (!parent)
 			continue;
 
-		adj_parent_rate = parent_rate = clk_hw_get_rate(parent);
-		ccu_mux_helper_adjust_parent_for_prediv(common, cm, i,
-							&adj_parent_rate);
+		parent_rate = clk_hw_get_rate(parent);
+		adj_parent_rate = ccu_mux_helper_apply_prediv(common, cm, i,
+							      parent_rate);
 
 		tmp_rate = round(cm, parent, &adj_parent_rate, req->rate, data);
 		if (tmp_rate == req->rate) {
@@ -215,10 +212,8 @@ static unsigned long ccu_mux_recalc_rate(struct clk_hw *hw,
 {
 	struct ccu_mux *cm = hw_to_ccu_mux(hw);
 
-	ccu_mux_helper_adjust_parent_for_prediv(&cm->common, &cm->mux, -1,
-						&parent_rate);
-
-	return parent_rate;
+	return ccu_mux_helper_apply_prediv(&cm->common, &cm->mux, -1,
+					   parent_rate);
 }
 
 const struct clk_ops ccu_mux_ops = {
