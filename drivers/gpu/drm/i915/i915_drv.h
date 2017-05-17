@@ -153,6 +153,38 @@ static inline uint_fixed_16_16_t max_fixed_16_16(uint_fixed_16_16_t max1,
 	return max;
 }
 
+static inline uint32_t div_round_up_fixed16(uint_fixed_16_16_t val,
+					    uint_fixed_16_16_t d)
+{
+	return DIV_ROUND_UP(val.val, d.val);
+}
+
+static inline uint32_t mul_round_up_u32_fixed16(uint32_t val,
+						uint_fixed_16_16_t mul)
+{
+	uint64_t intermediate_val;
+	uint32_t result;
+
+	intermediate_val = (uint64_t) val * mul.val;
+	intermediate_val = DIV_ROUND_UP_ULL(intermediate_val, 1 << 16);
+	WARN_ON(intermediate_val >> 32);
+	result = clamp_t(uint32_t, intermediate_val, 0, ~0);
+	return result;
+}
+
+static inline uint_fixed_16_16_t mul_fixed16(uint_fixed_16_16_t val,
+					     uint_fixed_16_16_t mul)
+{
+	uint64_t intermediate_val;
+	uint_fixed_16_16_t fp;
+
+	intermediate_val = (uint64_t) val.val * mul.val;
+	intermediate_val = intermediate_val >> 16;
+	WARN_ON(intermediate_val >> 32);
+	fp.val = clamp_t(uint32_t, intermediate_val, 0, ~0);
+	return fp;
+}
+
 static inline uint_fixed_16_16_t fixed_16_16_div(uint32_t val, uint32_t d)
 {
 	uint_fixed_16_16_t fp, res;
@@ -173,6 +205,17 @@ static inline uint_fixed_16_16_t fixed_16_16_div_u64(uint32_t val, uint32_t d)
 	res.val = (uint32_t) interm_val;
 
 	return res;
+}
+
+static inline uint32_t div_round_up_u32_fixed16(uint32_t val,
+						uint_fixed_16_16_t d)
+{
+	uint64_t interm_val;
+
+	interm_val = (uint64_t)val << 16;
+	interm_val = DIV_ROUND_UP_ULL(interm_val, d.val);
+	WARN_ON(interm_val >> 32);
+	return clamp_t(uint32_t, interm_val, 0, ~0);
 }
 
 static inline uint_fixed_16_16_t mul_u32_fixed_16_16(uint32_t val,
