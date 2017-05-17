@@ -1224,12 +1224,9 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 		return -ESHUTDOWN;
 	}
 
-	if (WARN(req->dep != dep, "request %p belongs to '%s'\n",
-				&req->request, req->dep->name)) {
-		dev_err(dwc->dev, "%s: request %p belongs to '%s'\n",
-				dep->name, &req->request, req->dep->name);
+	if (WARN(req->dep != dep, "request %pK belongs to '%s'\n",
+				&req->request, req->dep->name))
 		return -EINVAL;
-	}
 
 	pm_runtime_get(dwc->dev);
 
@@ -1387,7 +1384,7 @@ static int dwc3_gadget_ep_dequeue(struct usb_ep *ep,
 			}
 			goto out1;
 		}
-		dev_err(dwc->dev, "request %p was not queued to %s\n",
+		dev_err(dwc->dev, "request %pK was not queued to %s\n",
 				request, ep->name);
 		ret = -EINVAL;
 		goto out0;
