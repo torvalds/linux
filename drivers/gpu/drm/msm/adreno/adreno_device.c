@@ -86,6 +86,7 @@ static const struct adreno_info gpulist[] = {
 			ADRENO_QUIRK_FAULT_DETECT_MASK,
 		.init = a5xx_gpu_init,
 		.gpmufw = "a530v3_gpmu.fw2",
+		.zapfw = "a530_zap.mdt",
 	},
 };
 

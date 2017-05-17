@@ -5,6 +5,7 @@ config DRM_MSM
 	depends on ARCH_QCOM || (ARM && COMPILE_TEST)
 	depends on OF && COMMON_CLK
 	depends on MMU
+	select QCOM_MDT_LOADER
 	select REGULATOR
 	select DRM_KMS_HELPER
 	select DRM_PANEL

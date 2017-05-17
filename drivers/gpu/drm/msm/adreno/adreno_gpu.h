@@ -77,6 +77,7 @@ struct adreno_info {
 	uint32_t gmem;
 	enum adreno_quirks quirks;
 	struct msm_gpu *(*init)(struct drm_device *dev);
+	const char *zapfw;
 };
 
 const struct adreno_info *adreno_info(struct adreno_rev rev);
