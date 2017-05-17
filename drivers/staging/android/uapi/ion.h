@@ -57,12 +57,6 @@ enum ion_heap_type {
  */
 #define ION_FLAG_CACHED 1
 
-/*
- * mappings of this buffer will created at mmap time, if this is set
- * caches must be managed manually
- */
-#define ION_FLAG_CACHED_NEEDS_SYNC 2
-
 /**
  * DOC: Ion Userspace API
  *
