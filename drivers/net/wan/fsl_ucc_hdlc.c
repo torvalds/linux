@@ -113,6 +113,9 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 	/* Loopback mode */
 	if (priv->loopback) {
 		dev_info(priv->dev, "Loopback Mode\n");
+		/* use the same clock when work in loopback */
+		qe_setbrg(ut_info->uf_info.rx_clock, 20000000, 1);
+
 		gumr = ioread32be(&priv->uf_regs->gumr);
 		gumr |= (UCC_FAST_GUMR_LOOPBACK | UCC_FAST_GUMR_CDS |
 			 UCC_FAST_GUMR_TCI);
@@ -1020,10 +1023,6 @@ static int ucc_hdlc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Invalid tx-clock-name property\n");
 		return -EINVAL;
 	}
-
-	/* use the same clock when work in loopback */
-	if (ut_info->uf_info.rx_clock == ut_info->uf_info.tx_clock)
-		qe_setbrg(ut_info->uf_info.rx_clock, 20000000, 1);
 
 	ret = of_address_to_resource(np, 0, &res);
 	if (ret)
