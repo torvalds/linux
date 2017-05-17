@@ -1099,6 +1099,17 @@ static void dwc3_prepare_trbs(struct dwc3_ep *dep)
 	}
 
 	list_for_each_entry_safe(req, n, &dep->pending_list, list) {
+		struct dwc3	*dwc = dep->dwc;
+		int		ret;
+
+		ret = usb_gadget_map_request_by_dev(dwc->sysdev, &req->request,
+						    dep->direction);
+		if (ret)
+			return;
+
+		req->sg			= req->request.sg;
+		req->num_pending_sgs	= req->request.num_mapped_sgs;
+
 		if (req->num_pending_sgs > 0)
 			dwc3_prepare_one_trb_sg(dep, req);
 		else
@@ -1205,7 +1216,7 @@ static void dwc3_gadget_start_isoc(struct dwc3 *dwc,
 static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 {
 	struct dwc3		*dwc = dep->dwc;
-	int			ret;
+	int			ret = 0;
 
 	if (!dep->endpoint.desc) {
 		dev_err(dwc->dev, "%s: can't queue to disabled endpoint\n",
@@ -1228,14 +1239,6 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 	req->epnum		= dep->number;
 
 	trace_dwc3_ep_queue(req);
-
-	ret = usb_gadget_map_request_by_dev(dwc->sysdev, &req->request,
-					    dep->direction);
-	if (ret)
-		return ret;
-
-	req->sg			= req->request.sg;
-	req->num_pending_sgs	= req->request.num_mapped_sgs;
 
 	list_add_tail(&req->list, &dep->pending_list);
 
