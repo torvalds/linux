@@ -705,6 +705,11 @@
 						<1 19 RK_FUNC_2 &pcfg_pull_none>;
 			};
 
+			uart21_xfer: uart21-xfer {
+				rockchip,pins = <1 10 RK_FUNC_2 &pcfg_pull_up>,
+						<1 9 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
 			uart2_cts: uart2-cts {
 				rockchip,pins = <0 25 RK_FUNC_1 &pcfg_pull_none>;
 			};
