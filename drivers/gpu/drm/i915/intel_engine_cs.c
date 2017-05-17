@@ -1274,6 +1274,18 @@ void intel_engines_reset_default_submission(struct drm_i915_private *i915)
 		engine->set_default_submission(engine);
 }
 
+void intel_engines_mark_idle(struct drm_i915_private *i915)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
+	for_each_engine(engine, i915, id) {
+		intel_engine_disarm_breadcrumbs(engine);
+		i915_gem_batch_pool_fini(&engine->batch_pool);
+		engine->no_priolist = false;
+	}
+}
+
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 #include "selftests/mock_engine.c"
 #endif

@@ -67,7 +67,7 @@ struct i915_dependency {
 struct i915_priotree {
 	struct list_head signalers_list; /* those before us, we depend upon */
 	struct list_head waiters_list; /* those after us, they depend upon us */
-	struct rb_node node;
+	struct list_head link;
 	int priority;
 #define I915_PRIORITY_MAX 1024
 #define I915_PRIORITY_NORMAL 0

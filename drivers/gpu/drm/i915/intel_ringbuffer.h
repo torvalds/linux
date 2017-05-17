@@ -177,6 +177,12 @@ enum intel_engine_id {
 	VECS
 };
 
+struct i915_priolist {
+	struct rb_node node;
+	struct list_head requests;
+	int priority;
+};
+
 #define INTEL_ENGINE_CS_MAX_NAME 8
 
 struct intel_engine_cs {
@@ -367,6 +373,8 @@ struct intel_engine_cs {
 
 	/* Execlists */
 	struct tasklet_struct irq_tasklet;
+	struct i915_priolist default_priolist;
+	bool no_priolist;
 	struct execlist_port {
 		struct drm_i915_gem_request *request_count;
 #define EXECLIST_COUNT_BITS 2
@@ -723,6 +731,7 @@ static inline u32 *gen8_emit_pipe_control(u32 *batch, u32 flags, u32 offset)
 bool intel_engine_is_idle(struct intel_engine_cs *engine);
 bool intel_engines_are_idle(struct drm_i915_private *dev_priv);
 
+void intel_engines_mark_idle(struct drm_i915_private *i915);
 void intel_engines_reset_default_submission(struct drm_i915_private *i915);
 
 #endif /* _INTEL_RINGBUFFER_H_ */

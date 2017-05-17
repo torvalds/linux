@@ -436,57 +436,75 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 
 	spin_lock_irq(&engine->timeline->lock);
 	rb = engine->execlist_first;
+	GEM_BUG_ON(rb_first(&engine->execlist_queue) != rb);
 	while (rb) {
-		struct drm_i915_gem_request *cursor =
-			rb_entry(rb, typeof(*cursor), priotree.node);
+		struct i915_priolist *p = rb_entry(rb, typeof(*p), node);
+		struct drm_i915_gem_request *rq, *rn;
 
-		/* Can we combine this request with the current port? It has to
-		 * be the same context/ringbuffer and not have any exceptions
-		 * (e.g. GVT saying never to combine contexts).
-		 *
-		 * If we can combine the requests, we can execute both by
-		 * updating the RING_TAIL to point to the end of the second
-		 * request, and so we never need to tell the hardware about
-		 * the first.
-		 */
-		if (last && !can_merge_ctx(cursor->ctx, last->ctx)) {
-			/* If we are on the second port and cannot combine
-			 * this request with the last, then we are done.
+		list_for_each_entry_safe(rq, rn, &p->requests, priotree.link) {
+			/*
+			 * Can we combine this request with the current port?
+			 * It has to be the same context/ringbuffer and not
+			 * have any exceptions (e.g. GVT saying never to
+			 * combine contexts).
+			 *
+			 * If we can combine the requests, we can execute both
+			 * by updating the RING_TAIL to point to the end of the
+			 * second request, and so we never need to tell the
+			 * hardware about the first.
 			 */
-			if (port != engine->execlist_port)
-				break;
+			if (last && !can_merge_ctx(rq->ctx, last->ctx)) {
+				/*
+				 * If we are on the second port and cannot
+				 * combine this request with the last, then we
+				 * are done.
+				 */
+				if (port != engine->execlist_port) {
+					__list_del_many(&p->requests,
+							&rq->priotree.link);
+					goto done;
+				}
 
-			/* If GVT overrides us we only ever submit port[0],
-			 * leaving port[1] empty. Note that we also have
-			 * to be careful that we don't queue the same
-			 * context (even though a different request) to
-			 * the second port.
-			 */
-			if (ctx_single_port_submission(last->ctx) ||
-			    ctx_single_port_submission(cursor->ctx))
-				break;
+				/*
+				 * If GVT overrides us we only ever submit
+				 * port[0], leaving port[1] empty. Note that we
+				 * also have to be careful that we don't queue
+				 * the same context (even though a different
+				 * request) to the second port.
+				 */
+				if (ctx_single_port_submission(last->ctx) ||
+				    ctx_single_port_submission(rq->ctx)) {
+					__list_del_many(&p->requests,
+							&rq->priotree.link);
+					goto done;
+				}
 
-			GEM_BUG_ON(last->ctx == cursor->ctx);
+				GEM_BUG_ON(last->ctx == rq->ctx);
 
-			if (submit)
-				port_assign(port, last);
-			port++;
+				if (submit)
+					port_assign(port, last);
+				port++;
+			}
+
+			INIT_LIST_HEAD(&rq->priotree.link);
+			rq->priotree.priority = INT_MAX;
+
+			__i915_gem_request_submit(rq);
+			trace_i915_gem_request_in(rq, port_index(port, engine));
+			last = rq;
+			submit = true;
 		}
 
 		rb = rb_next(rb);
-		rb_erase(&cursor->priotree.node, &engine->execlist_queue);
-		RB_CLEAR_NODE(&cursor->priotree.node);
-		cursor->priotree.priority = INT_MAX;
-
-		__i915_gem_request_submit(cursor);
-		trace_i915_gem_request_in(cursor, port_index(port, engine));
-		last = cursor;
-		submit = true;
+		rb_erase(&p->node, &engine->execlist_queue);
+		INIT_LIST_HEAD(&p->requests);
+		if (p->priority != I915_PRIORITY_NORMAL)
+			kfree(p);
 	}
-	if (submit) {
+done:
+	engine->execlist_first = rb;
+	if (submit)
 		port_assign(port, last);
-		engine->execlist_first = rb;
-	}
 	spin_unlock_irq(&engine->timeline->lock);
 
 	if (submit)
@@ -610,28 +628,66 @@ static void intel_lrc_irq_handler(unsigned long data)
 	intel_uncore_forcewake_put(dev_priv, engine->fw_domains);
 }
 
-static bool insert_request(struct i915_priotree *pt, struct rb_root *root)
+static bool
+insert_request(struct intel_engine_cs *engine,
+	       struct i915_priotree *pt,
+	       int prio)
 {
-	struct rb_node **p, *rb;
+	struct i915_priolist *p;
+	struct rb_node **parent, *rb;
 	bool first = true;
 
+	if (unlikely(engine->no_priolist))
+		prio = I915_PRIORITY_NORMAL;
+
+find_priolist:
 	/* most positive priority is scheduled first, equal priorities fifo */
 	rb = NULL;
-	p = &root->rb_node;
-	while (*p) {
-		struct i915_priotree *pos;
-
-		rb = *p;
-		pos = rb_entry(rb, typeof(*pos), node);
-		if (pt->priority > pos->priority) {
-			p = &rb->rb_left;
-		} else {
-			p = &rb->rb_right;
+	parent = &engine->execlist_queue.rb_node;
+	while (*parent) {
+		rb = *parent;
+		p = rb_entry(rb, typeof(*p), node);
+		if (prio > p->priority) {
+			parent = &rb->rb_left;
+		} else if (prio < p->priority) {
+			parent = &rb->rb_right;
 			first = false;
+		} else {
+			list_add_tail(&pt->link, &p->requests);
+			return false;
 		}
 	}
-	rb_link_node(&pt->node, rb, p);
-	rb_insert_color(&pt->node, root);
+
+	if (prio == I915_PRIORITY_NORMAL) {
+		p = &engine->default_priolist;
+	} else {
+		p = kmalloc(sizeof(*p), GFP_ATOMIC);
+		/* Convert an allocation failure to a priority bump */
+		if (unlikely(!p)) {
+			prio = I915_PRIORITY_NORMAL; /* recurses just once */
+
+			/* To maintain ordering with all rendering, after an
+			 * allocation failure we have to disable all scheduling.
+			 * Requests will then be executed in fifo, and schedule
+			 * will ensure that dependencies are emitted in fifo.
+			 * There will be still some reordering with existing
+			 * requests, so if userspace lied about their
+			 * dependencies that reordering may be visible.
+			 */
+			engine->no_priolist = true;
+			goto find_priolist;
+		}
+	}
+
+	p->priority = prio;
+	rb_link_node(&p->node, rb, parent);
+	rb_insert_color(&p->node, &engine->execlist_queue);
+
+	INIT_LIST_HEAD(&p->requests);
+	list_add_tail(&pt->link, &p->requests);
+
+	if (first)
+		engine->execlist_first = &p->node;
 
 	return first;
 }
@@ -644,11 +700,15 @@ static void execlists_submit_request(struct drm_i915_gem_request *request)
 	/* Will be called from irq-context when using foreign fences. */
 	spin_lock_irqsave(&engine->timeline->lock, flags);
 
-	if (insert_request(&request->priotree, &engine->execlist_queue)) {
-		engine->execlist_first = &request->priotree.node;
+	if (insert_request(engine,
+			   &request->priotree,
+			   request->priotree.priority)) {
 		if (execlists_elsp_ready(engine))
 			tasklet_hi_schedule(&engine->irq_tasklet);
 	}
+
+	GEM_BUG_ON(!engine->execlist_first);
+	GEM_BUG_ON(list_empty(&request->priotree.link));
 
 	spin_unlock_irqrestore(&engine->timeline->lock, flags);
 }
@@ -734,10 +794,9 @@ static void execlists_schedule(struct drm_i915_gem_request *request, int prio)
 			continue;
 
 		pt->priority = prio;
-		if (!RB_EMPTY_NODE(&pt->node)) {
-			rb_erase(&pt->node, &engine->execlist_queue);
-			if (insert_request(pt, &engine->execlist_queue))
-				engine->execlist_first = &pt->node;
+		if (!list_empty(&pt->link)) {
+			__list_del_entry(&pt->link);
+			insert_request(engine, pt, prio);
 		}
 	}
 

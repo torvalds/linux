@@ -105,4 +105,13 @@
 	__idx;								\
 })
 
+#include <linux/list.h>
+
+static inline void __list_del_many(struct list_head *head,
+				   struct list_head *first)
+{
+	first->prev = head;
+	WRITE_ONCE(head->next, first);
+}
+
 #endif /* !__I915_UTILS_H */

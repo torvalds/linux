@@ -674,32 +674,42 @@ static bool i915_guc_dequeue(struct intel_engine_cs *engine)
 
 	spin_lock_irq(&engine->timeline->lock);
 	rb = engine->execlist_first;
+	GEM_BUG_ON(rb_first(&engine->execlist_queue) != rb);
 	while (rb) {
-		struct drm_i915_gem_request *rq =
-			rb_entry(rb, typeof(*rq), priotree.node);
+		struct i915_priolist *p = rb_entry(rb, typeof(*p), node);
+		struct drm_i915_gem_request *rq, *rn;
 
-		if (last && rq->ctx != last->ctx) {
-			if (port != engine->execlist_port)
-				break;
+		list_for_each_entry_safe(rq, rn, &p->requests, priotree.link) {
+			if (last && rq->ctx != last->ctx) {
+				if (port != engine->execlist_port) {
+					__list_del_many(&p->requests,
+							&rq->priotree.link);
+					goto done;
+				}
 
-			port_assign(port, last);
-			port++;
+				port_assign(port, last);
+				port++;
+			}
+
+			INIT_LIST_HEAD(&rq->priotree.link);
+			rq->priotree.priority = INT_MAX;
+
+			i915_guc_submit(rq);
+			trace_i915_gem_request_in(rq, port_index(port, engine));
+			last = rq;
+			submit = true;
 		}
 
 		rb = rb_next(rb);
-		rb_erase(&rq->priotree.node, &engine->execlist_queue);
-		RB_CLEAR_NODE(&rq->priotree.node);
-		rq->priotree.priority = INT_MAX;
-
-		i915_guc_submit(rq);
-		trace_i915_gem_request_in(rq, port_index(port, engine));
-		last = rq;
-		submit = true;
+		rb_erase(&p->node, &engine->execlist_queue);
+		INIT_LIST_HEAD(&p->requests);
+		if (p->priority != I915_PRIORITY_NORMAL)
+			kfree(p);
 	}
-	if (submit) {
+done:
+	engine->execlist_first = rb;
+	if (submit)
 		port_assign(port, last);
-		engine->execlist_first = rb;
-	}
 	spin_unlock_irq(&engine->timeline->lock);
 
 	return submit;

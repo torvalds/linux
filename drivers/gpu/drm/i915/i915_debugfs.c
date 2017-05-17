@@ -3352,7 +3352,6 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 
 		if (i915.enable_execlists) {
 			u32 ptr, read, write;
-			struct rb_node *rb;
 			unsigned int idx;
 
 			seq_printf(m, "\tExeclist status: 0x%08x %08x\n",
@@ -3396,9 +3395,13 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 			rcu_read_unlock();
 
 			spin_lock_irq(&engine->timeline->lock);
-			for (rb = engine->execlist_first; rb; rb = rb_next(rb)) {
-				rq = rb_entry(rb, typeof(*rq), priotree.node);
-				print_request(m, rq, "\t\tQ ");
+			for (rb = engine->execlist_first; rb; rb = rb_next(rb)){
+				struct i915_priolist *p =
+					rb_entry(rb, typeof(*p), node);
+
+				list_for_each_entry(rq, &p->requests,
+						    priotree.link)
+					print_request(m, rq, "\t\tQ ");
 			}
 			spin_unlock_irq(&engine->timeline->lock);
 		} else if (INTEL_GEN(dev_priv) > 6) {

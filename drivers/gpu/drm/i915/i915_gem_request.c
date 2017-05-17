@@ -159,7 +159,7 @@ i915_priotree_fini(struct drm_i915_private *i915, struct i915_priotree *pt)
 {
 	struct i915_dependency *dep, *next;
 
-	GEM_BUG_ON(!RB_EMPTY_NODE(&pt->node));
+	GEM_BUG_ON(!list_empty(&pt->link));
 
 	/* Everyone we depended upon (the fences we wait to be signaled)
 	 * should retire before us and remove themselves from our list.
@@ -185,7 +185,7 @@ i915_priotree_init(struct i915_priotree *pt)
 {
 	INIT_LIST_HEAD(&pt->signalers_list);
 	INIT_LIST_HEAD(&pt->waiters_list);
-	RB_CLEAR_NODE(&pt->node);
+	INIT_LIST_HEAD(&pt->link);
 	pt->priority = INT_MIN;
 }
 
