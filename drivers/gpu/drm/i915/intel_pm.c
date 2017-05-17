@@ -4165,7 +4165,7 @@ static uint_fixed_16_16_t skl_wm_method1(uint32_t pixel_rate, uint8_t cpp,
 		return FP_16_16_MAX;
 
 	wm_intermediate_val = latency * pixel_rate * cpp;
-	ret = fixed_16_16_div_round_up_u64(wm_intermediate_val, 1000 * 512);
+	ret = fixed_16_16_div_u64(wm_intermediate_val, 1000 * 512);
 	return ret;
 }
 
@@ -4301,8 +4301,8 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	if (y_tiled) {
 		interm_pbpl = DIV_ROUND_UP(plane_bytes_per_line *
 					   y_min_scanlines, 512);
-		plane_blocks_per_line =
-		      fixed_16_16_div_round_up(interm_pbpl, y_min_scanlines);
+		plane_blocks_per_line = fixed_16_16_div(interm_pbpl,
+							y_min_scanlines);
 	} else if (x_tiled) {
 		interm_pbpl = DIV_ROUND_UP(plane_bytes_per_line, 512);
 		plane_blocks_per_line = u32_to_fixed_16_16(interm_pbpl);

@@ -153,8 +153,7 @@ static inline uint_fixed_16_16_t max_fixed_16_16(uint_fixed_16_16_t max1,
 	return max;
 }
 
-static inline uint_fixed_16_16_t fixed_16_16_div_round_up(uint32_t val,
-							  uint32_t d)
+static inline uint_fixed_16_16_t fixed_16_16_div(uint32_t val, uint32_t d)
 {
 	uint_fixed_16_16_t fp, res;
 
@@ -163,8 +162,7 @@ static inline uint_fixed_16_16_t fixed_16_16_div_round_up(uint32_t val,
 	return res;
 }
 
-static inline uint_fixed_16_16_t fixed_16_16_div_round_up_u64(uint32_t val,
-							      uint32_t d)
+static inline uint_fixed_16_16_t fixed_16_16_div_u64(uint32_t val, uint32_t d)
 {
 	uint_fixed_16_16_t res;
 	uint64_t interm_val;
