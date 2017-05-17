@@ -332,7 +332,7 @@ static void aux_write(struct nand_chip *chip, const u8 **buf, int len, int *pos)
 
 	if (!*buf) {
 		/* skip over "len" bytes */
-		chip->cmdfunc(mtd, NAND_CMD_SEQIN, *pos, -1);
+		chip->cmdfunc(mtd, NAND_CMD_RNDIN, *pos, -1);
 	} else {
 		tango_write_buf(mtd, *buf, len);
 		*buf += len;
