@@ -779,6 +779,19 @@ static void execlists_schedule(struct drm_i915_gem_request *request, int prio)
 		list_safe_reset_next(dep, p, dfs_link);
 	}
 
+	/* If we didn't need to bump any existing priorities, and we haven't
+	 * yet submitted this request (i.e. there is no potential race with
+	 * execlists_submit_request()), we can set our own priority and skip
+	 * acquiring the engine locks.
+	 */
+	if (request->priotree.priority == INT_MIN) {
+		GEM_BUG_ON(!list_empty(&request->priotree.link));
+		request->priotree.priority = prio;
+		if (stack.dfs_link.next == stack.dfs_link.prev)
+			return;
+		__list_del_entry(&stack.dfs_link);
+	}
+
 	engine = request->engine;
 	spin_lock_irq(&engine->timeline->lock);
 
