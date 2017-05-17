@@ -187,7 +187,7 @@ static int dsa_loop_port_vlan_del(struct dsa_switch *ds, int port,
 
 static int dsa_loop_port_vlan_dump(struct dsa_switch *ds, int port,
 				   struct switchdev_obj_port_vlan *vlan,
-				   int (*cb)(struct switchdev_obj *obj))
+				   switchdev_obj_dump_cb_t *cb)
 {
 	struct dsa_loop_priv *ps = ds->priv;
 	struct mii_bus *bus = ps->bus;

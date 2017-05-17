@@ -872,7 +872,7 @@ qca8k_port_fdb_del(struct dsa_switch *ds, int port,
 static int
 qca8k_port_fdb_dump(struct dsa_switch *ds, int port,
 		    struct switchdev_obj_port_fdb *fdb,
-		    int (*cb)(struct switchdev_obj *obj))
+		    switchdev_obj_dump_cb_t *cb)
 {
 	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
 	struct qca8k_fdb _fdb = { 0 };

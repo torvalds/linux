@@ -404,7 +404,7 @@ struct dsa_switch_ops {
 				 const struct switchdev_obj_port_vlan *vlan);
 	int	(*port_vlan_dump)(struct dsa_switch *ds, int port,
 				  struct switchdev_obj_port_vlan *vlan,
-				  int (*cb)(struct switchdev_obj *obj));
+				  switchdev_obj_dump_cb_t *cb);
 
 	/*
 	 * Forwarding database
@@ -419,7 +419,7 @@ struct dsa_switch_ops {
 				const struct switchdev_obj_port_fdb *fdb);
 	int	(*port_fdb_dump)(struct dsa_switch *ds, int port,
 				 struct switchdev_obj_port_fdb *fdb,
-				 int (*cb)(struct switchdev_obj *obj));
+				  switchdev_obj_dump_cb_t *cb);
 
 	/*
 	 * Multicast database
@@ -434,7 +434,7 @@ struct dsa_switch_ops {
 				const struct switchdev_obj_port_mdb *mdb);
 	int	(*port_mdb_dump)(struct dsa_switch *ds, int port,
 				 struct switchdev_obj_port_mdb *mdb,
-				 int (*cb)(struct switchdev_obj *obj));
+				  switchdev_obj_dump_cb_t *cb);
 
 	/*
 	 * RXNFC
