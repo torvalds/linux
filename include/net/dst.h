@@ -31,9 +31,9 @@
 struct sk_buff;
 
 struct dst_entry {
+	struct net_device       *dev;
 	struct rcu_head		rcu_head;
 	struct dst_entry	*child;
-	struct net_device       *dev;
 	struct  dst_ops	        *ops;
 	unsigned long		_metrics;
 	unsigned long           expires;
