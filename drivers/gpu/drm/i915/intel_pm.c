@@ -4072,10 +4072,8 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 
 	skl_ddb_get_pipe_allocation_limits(dev, cstate, alloc, &num_active);
 	alloc_size = skl_ddb_entry_size(alloc);
-	if (alloc_size == 0) {
-		memset(ddb->plane[pipe], 0, sizeof(ddb->plane[pipe]));
+	if (alloc_size == 0)
 		return 0;
-	}
 
 	skl_ddb_calc_min(cstate, num_active, minimum, y_minimum);
 
