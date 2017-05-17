@@ -129,7 +129,8 @@ static inline u32 tcf_auto_prio(struct tcf_proto *tp)
 }
 
 static struct tcf_proto *tcf_proto_create(const char *kind, u32 protocol,
-					  u32 prio, u32 parent, struct Qdisc *q)
+					  u32 prio, u32 parent, struct Qdisc *q,
+					  struct tcf_block *block)
 {
 	struct tcf_proto *tp;
 	int err;
@@ -165,6 +166,7 @@ static struct tcf_proto *tcf_proto_create(const char *kind, u32 protocol,
 	tp->prio = prio;
 	tp->classid = parent;
 	tp->q = q;
+	tp->block = block;
 
 	err = tp->ops->init(tp);
 	if (err) {
@@ -185,7 +187,7 @@ static void tcf_proto_destroy(struct tcf_proto *tp)
 	kfree_rcu(tp, rcu);
 }
 
-void tcf_destroy_chain(struct tcf_proto __rcu **fl)
+static void tcf_destroy_chain(struct tcf_proto __rcu **fl)
 {
 	struct tcf_proto *tp;
 
@@ -194,7 +196,28 @@ void tcf_destroy_chain(struct tcf_proto __rcu **fl)
 		tcf_proto_destroy(tp);
 	}
 }
-EXPORT_SYMBOL(tcf_destroy_chain);
+
+int tcf_block_get(struct tcf_block **p_block,
+		  struct tcf_proto __rcu **p_filter_chain)
+{
+	struct tcf_block *block = kzalloc(sizeof(*block), GFP_KERNEL);
+
+	if (!block)
+		return -ENOMEM;
+	block->p_filter_chain = p_filter_chain;
+	*p_block = block;
+	return 0;
+}
+EXPORT_SYMBOL(tcf_block_get);
+
+void tcf_block_put(struct tcf_block *block)
+{
+	if (!block)
+		return;
+	tcf_destroy_chain(block->p_filter_chain);
+	kfree(block);
+}
+EXPORT_SYMBOL(tcf_block_put);
 
 /* Main classifier routine: scans classifier chain attached
  * to this qdisc, (optionally) tests for protocol and asks
@@ -260,6 +283,7 @@ static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 	struct Qdisc  *q;
 	struct tcf_proto __rcu **back;
 	struct tcf_proto __rcu **chain;
+	struct tcf_block *block;
 	struct tcf_proto *next;
 	struct tcf_proto *tp;
 	const struct Qdisc_class_ops *cops;
@@ -328,7 +352,7 @@ replay:
 	if (!cops)
 		return -EINVAL;
 
-	if (cops->tcf_chain == NULL)
+	if (!cops->tcf_block)
 		return -EOPNOTSUPP;
 
 	/* Do we search for filter, attached to class? */
@@ -339,11 +363,13 @@ replay:
 	}
 
 	/* And the last stroke */
-	chain = cops->tcf_chain(q, cl);
-	if (chain == NULL) {
+	block = cops->tcf_block(q, cl);
+	if (!block) {
 		err = -EINVAL;
 		goto errout;
 	}
+	chain = block->p_filter_chain;
+
 	if (n->nlmsg_type == RTM_DELTFILTER && prio == 0) {
 		tfilter_notify_chain(net, skb, n, chain, RTM_DELTFILTER);
 		tcf_destroy_chain(chain);
@@ -387,7 +413,7 @@ replay:
 			nprio = TC_H_MAJ(tcf_auto_prio(rtnl_dereference(*back)));
 
 		tp = tcf_proto_create(nla_data(tca[TCA_KIND]),
-				      protocol, nprio, parent, q);
+				      protocol, nprio, parent, q, block);
 		if (IS_ERR(tp)) {
 			err = PTR_ERR(tp);
 			goto errout;
@@ -556,6 +582,7 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 	int s_t;
 	struct net_device *dev;
 	struct Qdisc *q;
+	struct tcf_block *block;
 	struct tcf_proto *tp, __rcu **chain;
 	struct tcmsg *tcm = nlmsg_data(cb->nlh);
 	unsigned long cl = 0;
@@ -577,16 +604,17 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 	cops = q->ops->cl_ops;
 	if (!cops)
 		goto errout;
-	if (cops->tcf_chain == NULL)
+	if (!cops->tcf_block)
 		goto errout;
 	if (TC_H_MIN(tcm->tcm_parent)) {
 		cl = cops->get(q, tcm->tcm_parent);
 		if (cl == 0)
 			goto errout;
 	}
-	chain = cops->tcf_chain(q, cl);
-	if (chain == NULL)
+	block = cops->tcf_block(q, cl);
+	if (!block)
 		goto errout;
+	chain = block->p_filter_chain;
 
 	s_t = cb->args[0];
 

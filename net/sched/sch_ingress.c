@@ -18,6 +18,10 @@
 #include <net/pkt_sched.h>
 #include <net/pkt_cls.h>
 
+struct ingress_sched_data {
+	struct tcf_block *block;
+};
+
 static struct Qdisc *ingress_leaf(struct Qdisc *sch, unsigned long arg)
 {
 	return NULL;
@@ -47,16 +51,23 @@ static void ingress_walk(struct Qdisc *sch, struct qdisc_walker *walker)
 {
 }
 
-static struct tcf_proto __rcu **ingress_find_tcf(struct Qdisc *sch,
-						 unsigned long cl)
+static struct tcf_block *ingress_tcf_block(struct Qdisc *sch, unsigned long cl)
 {
-	struct net_device *dev = qdisc_dev(sch);
+	struct ingress_sched_data *q = qdisc_priv(sch);
 
-	return &dev->ingress_cl_list;
+	return q->block;
 }
 
 static int ingress_init(struct Qdisc *sch, struct nlattr *opt)
 {
+	struct ingress_sched_data *q = qdisc_priv(sch);
+	struct net_device *dev = qdisc_dev(sch);
+	int err;
+
+	err = tcf_block_get(&q->block, &dev->ingress_cl_list);
+	if (err)
+		return err;
+
 	net_inc_ingress_queue();
 	sch->flags |= TCQ_F_CPUSTATS;
 
@@ -65,9 +76,9 @@ static int ingress_init(struct Qdisc *sch, struct nlattr *opt)
 
 static void ingress_destroy(struct Qdisc *sch)
 {
-	struct net_device *dev = qdisc_dev(sch);
+	struct ingress_sched_data *q = qdisc_priv(sch);
 
-	tcf_destroy_chain(&dev->ingress_cl_list);
+	tcf_block_put(q->block);
 	net_dec_ingress_queue();
 }
 
@@ -91,7 +102,7 @@ static const struct Qdisc_class_ops ingress_class_ops = {
 	.get		=	ingress_get,
 	.put		=	ingress_put,
 	.walk		=	ingress_walk,
-	.tcf_chain	=	ingress_find_tcf,
+	.tcf_block	=	ingress_tcf_block,
 	.tcf_cl_offload	=	ingress_cl_offload,
 	.bind_tcf	=	ingress_bind_filter,
 	.unbind_tcf	=	ingress_put,
@@ -100,10 +111,16 @@ static const struct Qdisc_class_ops ingress_class_ops = {
 static struct Qdisc_ops ingress_qdisc_ops __read_mostly = {
 	.cl_ops		=	&ingress_class_ops,
 	.id		=	"ingress",
+	.priv_size	=	sizeof(struct ingress_sched_data),
 	.init		=	ingress_init,
 	.destroy	=	ingress_destroy,
 	.dump		=	ingress_dump,
 	.owner		=	THIS_MODULE,
+};
+
+struct clsact_sched_data {
+	struct tcf_block *ingress_block;
+	struct tcf_block *egress_block;
 };
 
 static unsigned long clsact_get(struct Qdisc *sch, u32 classid)
@@ -128,16 +145,15 @@ static unsigned long clsact_bind_filter(struct Qdisc *sch,
 	return clsact_get(sch, classid);
 }
 
-static struct tcf_proto __rcu **clsact_find_tcf(struct Qdisc *sch,
-						unsigned long cl)
+static struct tcf_block *clsact_tcf_block(struct Qdisc *sch, unsigned long cl)
 {
-	struct net_device *dev = qdisc_dev(sch);
+	struct clsact_sched_data *q = qdisc_priv(sch);
 
 	switch (cl) {
 	case TC_H_MIN(TC_H_MIN_INGRESS):
-		return &dev->ingress_cl_list;
+		return q->ingress_block;
 	case TC_H_MIN(TC_H_MIN_EGRESS):
-		return &dev->egress_cl_list;
+		return q->egress_block;
 	default:
 		return NULL;
 	}
@@ -145,6 +161,18 @@ static struct tcf_proto __rcu **clsact_find_tcf(struct Qdisc *sch,
 
 static int clsact_init(struct Qdisc *sch, struct nlattr *opt)
 {
+	struct clsact_sched_data *q = qdisc_priv(sch);
+	struct net_device *dev = qdisc_dev(sch);
+	int err;
+
+	err = tcf_block_get(&q->ingress_block, &dev->ingress_cl_list);
+	if (err)
+		return err;
+
+	err = tcf_block_get(&q->egress_block, &dev->egress_cl_list);
+	if (err)
+		return err;
+
 	net_inc_ingress_queue();
 	net_inc_egress_queue();
 
@@ -155,10 +183,10 @@ static int clsact_init(struct Qdisc *sch, struct nlattr *opt)
 
 static void clsact_destroy(struct Qdisc *sch)
 {
-	struct net_device *dev = qdisc_dev(sch);
+	struct clsact_sched_data *q = qdisc_priv(sch);
 
-	tcf_destroy_chain(&dev->ingress_cl_list);
-	tcf_destroy_chain(&dev->egress_cl_list);
+	tcf_block_put(q->egress_block);
+	tcf_block_put(q->ingress_block);
 
 	net_dec_ingress_queue();
 	net_dec_egress_queue();
@@ -169,7 +197,7 @@ static const struct Qdisc_class_ops clsact_class_ops = {
 	.get		=	clsact_get,
 	.put		=	ingress_put,
 	.walk		=	ingress_walk,
-	.tcf_chain	=	clsact_find_tcf,
+	.tcf_block	=	clsact_tcf_block,
 	.tcf_cl_offload	=	clsact_cl_offload,
 	.bind_tcf	=	clsact_bind_filter,
 	.unbind_tcf	=	ingress_put,
@@ -178,6 +206,7 @@ static const struct Qdisc_class_ops clsact_class_ops = {
 static struct Qdisc_ops clsact_qdisc_ops __read_mostly = {
 	.cl_ops		=	&clsact_class_ops,
 	.id		=	"clsact",
+	.priv_size	=	sizeof(struct clsact_sched_data),
 	.init		=	clsact_init,
 	.destroy	=	clsact_destroy,
 	.dump		=	ingress_dump,

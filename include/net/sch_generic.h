@@ -153,7 +153,7 @@ struct Qdisc_class_ops {
 	void			(*walk)(struct Qdisc *, struct qdisc_walker * arg);
 
 	/* Filter manipulation */
-	struct tcf_proto __rcu ** (*tcf_chain)(struct Qdisc *, unsigned long);
+	struct tcf_block *	(*tcf_block)(struct Qdisc *, unsigned long);
 	bool			(*tcf_cl_offload)(u32 classid);
 	unsigned long		(*bind_tcf)(struct Qdisc *, unsigned long,
 					u32 classid);
@@ -236,6 +236,7 @@ struct tcf_proto {
 	struct Qdisc		*q;
 	void			*data;
 	const struct tcf_proto_ops	*ops;
+	struct tcf_block	*block;
 	struct rcu_head		rcu;
 };
 
@@ -245,6 +246,10 @@ struct qdisc_skb_cb {
 	u16			tc_classid;
 #define QDISC_CB_PRIV_LEN 20
 	unsigned char		data[QDISC_CB_PRIV_LEN];
+};
+
+struct tcf_block {
+	struct tcf_proto __rcu **p_filter_chain;
 };
 
 static inline void qdisc_cb_private_validate(const struct sk_buff *skb, int sz)

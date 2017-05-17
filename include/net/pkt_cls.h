@@ -18,12 +18,21 @@ int register_tcf_proto_ops(struct tcf_proto_ops *ops);
 int unregister_tcf_proto_ops(struct tcf_proto_ops *ops);
 
 #ifdef CONFIG_NET_CLS
-void tcf_destroy_chain(struct tcf_proto __rcu **fl);
+int tcf_block_get(struct tcf_block **p_block,
+		  struct tcf_proto __rcu **p_filter_chain);
+void tcf_block_put(struct tcf_block *block);
 int tcf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 		 struct tcf_result *res, bool compat_mode);
 
 #else
-static inline void tcf_destroy_chain(struct tcf_proto __rcu **fl)
+static inline
+int tcf_block_get(struct tcf_block **p_block,
+		  struct tcf_proto __rcu **p_filter_chain)
+{
+	return 0;
+}
+
+static inline void tcf_block_put(struct tcf_block *block)
 {
 }
 

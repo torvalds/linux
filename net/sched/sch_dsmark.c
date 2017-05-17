@@ -44,6 +44,7 @@ struct mask_value {
 struct dsmark_qdisc_data {
 	struct Qdisc		*q;
 	struct tcf_proto __rcu	*filter_list;
+	struct tcf_block	*block;
 	struct mask_value	*mv;
 	u16			indices;
 	u8			set_tc_index;
@@ -183,11 +184,11 @@ ignore:
 	}
 }
 
-static inline struct tcf_proto __rcu **dsmark_find_tcf(struct Qdisc *sch,
-						       unsigned long cl)
+static struct tcf_block *dsmark_tcf_block(struct Qdisc *sch, unsigned long cl)
 {
 	struct dsmark_qdisc_data *p = qdisc_priv(sch);
-	return &p->filter_list;
+
+	return p->block;
 }
 
 /* --------------------------- Qdisc operations ---------------------------- */
@@ -332,7 +333,7 @@ static int dsmark_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct dsmark_qdisc_data *p = qdisc_priv(sch);
 	struct nlattr *tb[TCA_DSMARK_MAX + 1];
-	int err = -EINVAL;
+	int err;
 	u32 default_index = NO_DEFAULT_INDEX;
 	u16 indices;
 	int i;
@@ -341,6 +342,10 @@ static int dsmark_init(struct Qdisc *sch, struct nlattr *opt)
 
 	if (!opt)
 		goto errout;
+
+	err = tcf_block_get(&p->block, &p->filter_list);
+	if (err)
+		return err;
 
 	err = nla_parse_nested(tb, TCA_DSMARK_MAX, opt, dsmark_policy, NULL);
 	if (err < 0)
@@ -400,7 +405,7 @@ static void dsmark_destroy(struct Qdisc *sch)
 
 	pr_debug("%s(sch %p,[qdisc %p])\n", __func__, sch, p);
 
-	tcf_destroy_chain(&p->filter_list);
+	tcf_block_put(p->block);
 	qdisc_destroy(p->q);
 	if (p->mv != p->embedded)
 		kfree(p->mv);
@@ -468,7 +473,7 @@ static const struct Qdisc_class_ops dsmark_class_ops = {
 	.change		=	dsmark_change,
 	.delete		=	dsmark_delete,
 	.walk		=	dsmark_walk,
-	.tcf_chain	=	dsmark_find_tcf,
+	.tcf_block	=	dsmark_tcf_block,
 	.bind_tcf	=	dsmark_bind_filter,
 	.unbind_tcf	=	dsmark_put,
 	.dump		=	dsmark_dump_class,
