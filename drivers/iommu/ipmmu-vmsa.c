@@ -8,6 +8,7 @@
  * the Free Software Foundation; version 2 of the License.
  */
 
+#include <linux/bitmap.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
@@ -26,12 +27,17 @@
 
 #include "io-pgtable.h"
 
+#define IPMMU_CTX_MAX 1
+
 struct ipmmu_vmsa_device {
 	struct device *dev;
 	void __iomem *base;
 	struct list_head list;
 
 	unsigned int num_utlbs;
+	spinlock_t lock;			/* Protects ctx and domains[] */
+	DECLARE_BITMAP(ctx, IPMMU_CTX_MAX);
+	struct ipmmu_vmsa_domain *domains[IPMMU_CTX_MAX];
 
 	struct dma_iommu_mapping *mapping;
 };
@@ -293,9 +299,29 @@ static struct iommu_gather_ops ipmmu_gather_ops = {
  * Domain/Context Management
  */
 
+static int ipmmu_domain_allocate_context(struct ipmmu_vmsa_device *mmu,
+					 struct ipmmu_vmsa_domain *domain)
+{
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&mmu->lock, flags);
+
+	ret = find_first_zero_bit(mmu->ctx, IPMMU_CTX_MAX);
+	if (ret != IPMMU_CTX_MAX) {
+		mmu->domains[ret] = domain;
+		set_bit(ret, mmu->ctx);
+	}
+
+	spin_unlock_irqrestore(&mmu->lock, flags);
+
+	return ret;
+}
+
 static int ipmmu_domain_init_context(struct ipmmu_vmsa_domain *domain)
 {
 	u64 ttbr;
+	int ret;
 
 	/*
 	 * Allocate the page table operations.
@@ -327,10 +353,15 @@ static int ipmmu_domain_init_context(struct ipmmu_vmsa_domain *domain)
 		return -EINVAL;
 
 	/*
-	 * TODO: When adding support for multiple contexts, find an unused
-	 * context.
+	 * Find an unused context.
 	 */
-	domain->context_id = 0;
+	ret = ipmmu_domain_allocate_context(domain->mmu, domain);
+	if (ret == IPMMU_CTX_MAX) {
+		free_io_pgtable_ops(domain->iop);
+		return -EBUSY;
+	}
+
+	domain->context_id = ret;
 
 	/* TTBR0 */
 	ttbr = domain->cfg.arm_lpae_s1_cfg.ttbr[0];
@@ -372,6 +403,19 @@ static int ipmmu_domain_init_context(struct ipmmu_vmsa_domain *domain)
 	return 0;
 }
 
+static void ipmmu_domain_free_context(struct ipmmu_vmsa_device *mmu,
+				      unsigned int context_id)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&mmu->lock, flags);
+
+	clear_bit(context_id, mmu->ctx);
+	mmu->domains[context_id] = NULL;
+
+	spin_unlock_irqrestore(&mmu->lock, flags);
+}
+
 static void ipmmu_domain_destroy_context(struct ipmmu_vmsa_domain *domain)
 {
 	/*
@@ -382,6 +426,7 @@ static void ipmmu_domain_destroy_context(struct ipmmu_vmsa_domain *domain)
 	 */
 	ipmmu_ctx_write(domain, IMCTR, IMCTR_FLUSH);
 	ipmmu_tlb_sync(domain);
+	ipmmu_domain_free_context(domain->mmu, domain->context_id);
 }
 
 /* -----------------------------------------------------------------------------
@@ -439,16 +484,25 @@ static irqreturn_t ipmmu_domain_irq(struct ipmmu_vmsa_domain *domain)
 static irqreturn_t ipmmu_irq(int irq, void *dev)
 {
 	struct ipmmu_vmsa_device *mmu = dev;
-	struct iommu_domain *io_domain;
-	struct ipmmu_vmsa_domain *domain;
+	irqreturn_t status = IRQ_NONE;
+	unsigned int i;
+	unsigned long flags;
 
-	if (!mmu->mapping)
-		return IRQ_NONE;
+	spin_lock_irqsave(&mmu->lock, flags);
 
-	io_domain = mmu->mapping->domain;
-	domain = to_vmsa_domain(io_domain);
+	/*
+	 * Check interrupts for all active contexts.
+	 */
+	for (i = 0; i < IPMMU_CTX_MAX; i++) {
+		if (!mmu->domains[i])
+			continue;
+		if (ipmmu_domain_irq(mmu->domains[i]) == IRQ_HANDLED)
+			status = IRQ_HANDLED;
+	}
 
-	return ipmmu_domain_irq(domain);
+	spin_unlock_irqrestore(&mmu->lock, flags);
+
+	return status;
 }
 
 /* -----------------------------------------------------------------------------
@@ -776,6 +830,8 @@ static int ipmmu_probe(struct platform_device *pdev)
 
 	mmu->dev = &pdev->dev;
 	mmu->num_utlbs = 32;
+	spin_lock_init(&mmu->lock);
+	bitmap_zero(mmu->ctx, IPMMU_CTX_MAX);
 
 	/* Map I/O memory and request IRQ. */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
