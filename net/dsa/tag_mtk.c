@@ -13,7 +13,7 @@
  */
 
 #include <linux/etherdevice.h>
-#include <net/dsa.h>
+
 #include "dsa_priv.h"
 
 #define MTK_HDR_LEN		4

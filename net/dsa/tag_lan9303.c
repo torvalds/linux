@@ -14,7 +14,7 @@
 #include <linux/etherdevice.h>
 #include <linux/list.h>
 #include <linux/slab.h>
-#include <net/dsa.h>
+
 #include "dsa_priv.h"
 
 /* To define the outgoing port and to discover the incoming port a regular
