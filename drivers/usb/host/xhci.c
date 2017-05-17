@@ -359,9 +359,10 @@ static int xhci_try_enable_msi(struct usb_hcd *hcd)
 		/* fall back to msi*/
 		ret = xhci_setup_msi(xhci);
 
-	if (!ret)
-		/* hcd->irq is 0, we have MSI */
+	if (!ret) {
+		hcd->msi_enabled = 1;
 		return 0;
+	}
 
 	if (!pdev->irq) {
 		xhci_err(xhci, "No msi-x/msi found and no IRQ in BIOS\n");

@@ -2707,12 +2707,9 @@ irqreturn_t xhci_irq(struct usb_hcd *hcd)
 	 */
 	status |= STS_EINT;
 	writel(status, &xhci->op_regs->status);
-	/* FIXME when MSI-X is supported and there are multiple vectors */
-	/* Clear the MSI-X event interrupt status */
 
-	if (hcd->irq) {
+	if (!hcd->msi_enabled) {
 		u32 irq_pending;
-		/* Acknowledge the PCI interrupt */
 		irq_pending = readl(&xhci->ir_set->irq_pending);
 		irq_pending |= IMAN_IP;
 		writel(irq_pending, &xhci->ir_set->irq_pending);
