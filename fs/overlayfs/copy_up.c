@@ -233,7 +233,7 @@ int ovl_set_attr(struct dentry *upperdentry, struct kstat *stat)
 	return err;
 }
 
-static struct ovl_fh *ovl_encode_fh(struct dentry *lower, uuid_be *uuid)
+static struct ovl_fh *ovl_encode_fh(struct dentry *lower, uuid_t *uuid)
 {
 	struct ovl_fh *fh;
 	int fh_type, fh_len, dwords;
