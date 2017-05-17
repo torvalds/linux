@@ -217,9 +217,11 @@ static int marvell_config_intr(struct phy_device *phydev)
 	int err;
 
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
-		err = phy_write(phydev, MII_M1011_IMASK, MII_M1011_IMASK_INIT);
+		err = phy_write(phydev, MII_M1011_IMASK,
+				MII_M1011_IMASK_INIT);
 	else
-		err = phy_write(phydev, MII_M1011_IMASK, MII_M1011_IMASK_CLEAR);
+		err = phy_write(phydev, MII_M1011_IMASK,
+				MII_M1011_IMASK_CLEAR);
 
 	return err;
 }
@@ -1394,7 +1396,8 @@ static int m88e1121_did_interrupt(struct phy_device *phydev)
 	return 0;
 }
 
-static void m88e1318_get_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol)
+static void m88e1318_get_wol(struct phy_device *phydev,
+			     struct ethtool_wolinfo *wol)
 {
 	wol->supported = WAKE_MAGIC;
 	wol->wolopts = 0;
@@ -1410,7 +1413,8 @@ static void m88e1318_get_wol(struct phy_device *phydev, struct ethtool_wolinfo *
 		return;
 }
 
-static int m88e1318_set_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol)
+static int m88e1318_set_wol(struct phy_device *phydev,
+			    struct ethtool_wolinfo *wol)
 {
 	int err, oldpage, temp;
 
