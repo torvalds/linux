@@ -14,7 +14,8 @@
 #include "ccu_div.h"
 
 static unsigned long ccu_div_round_rate(struct ccu_mux_internal *mux,
-					unsigned long parent_rate,
+					struct clk_hw *parent,
+					unsigned long *parent_rate,
 					unsigned long rate,
 					void *data)
 {
@@ -26,10 +27,10 @@ static unsigned long ccu_div_round_rate(struct ccu_mux_internal *mux,
 	 * several parents, while we might be called to evaluate
 	 * several different parents.
 	 */
-	val = divider_get_val(rate, parent_rate, cd->div.table, cd->div.width,
+	val = divider_get_val(rate, *parent_rate, cd->div.table, cd->div.width,
 			      cd->div.flags);
 
-	return divider_recalc_rate(&cd->common.hw, parent_rate, val,
+	return divider_recalc_rate(&cd->common.hw, *parent_rate, val,
 				   cd->div.table, cd->div.flags);
 }
 
