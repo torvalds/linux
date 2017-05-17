@@ -614,15 +614,16 @@ int vgic_register_redist_iodev(struct kvm_vcpu *vcpu)
 	mutex_lock(&kvm->slots_lock);
 	ret = kvm_io_bus_register_dev(kvm, KVM_MMIO_BUS, sgi_base,
 				      SZ_64K, &sgi_dev->dev);
-	mutex_unlock(&kvm->slots_lock);
 	if (ret) {
 		kvm_io_bus_unregister_dev(kvm, KVM_MMIO_BUS,
 					  &rd_dev->dev);
-		return ret;
+		goto out;
 	}
 
 	vgic->vgic_redist_free_offset += 2 * SZ_64K;
-	return 0;
+out:
+	mutex_unlock(&kvm->slots_lock);
+	return ret;
 }
 
 static void vgic_unregister_redist_iodev(struct kvm_vcpu *vcpu)
@@ -647,10 +648,12 @@ static int vgic_register_all_redist_iodevs(struct kvm *kvm)
 
 	if (ret) {
 		/* The current c failed, so we start with the previous one. */
+		mutex_lock(&kvm->slots_lock);
 		for (c--; c >= 0; c--) {
 			vcpu = kvm_get_vcpu(kvm, c);
 			vgic_unregister_redist_iodev(vcpu);
 		}
+		mutex_unlock(&kvm->slots_lock);
 	}
 
 	return ret;
