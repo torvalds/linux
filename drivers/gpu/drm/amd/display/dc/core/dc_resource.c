@@ -1148,7 +1148,7 @@ bool resource_validate_attach_surfaces(
 	int i, j;
 
 	for (i = 0; i < set_count; i++) {
-		for (j = 0; j < old_context->stream_count; j++)
+		for (j = 0; old_context && j < old_context->stream_count; j++)
 			if (is_stream_unchanged(
 					old_context->streams[j],
 					context->streams[i])) {
@@ -1387,9 +1387,7 @@ static int get_norm_pix_clk(const struct dc_crtc_timing *timing)
 	return normalized_pix_clk;
 }
 
-static void calculate_phy_pix_clks(
-		const struct core_dc *dc,
-		struct validate_context *context)
+static void calculate_phy_pix_clks(struct validate_context *context)
 {
 	int i;
 
@@ -1410,21 +1408,22 @@ static void calculate_phy_pix_clks(
 
 enum dc_status resource_map_pool_resources(
 		const struct core_dc *dc,
-		struct validate_context *context)
+		struct validate_context *context,
+		struct validate_context *old_context)
 {
 	const struct resource_pool *pool = dc->res_pool;
 	int i, j;
 
-	calculate_phy_pix_clks(dc, context);
+	calculate_phy_pix_clks(context);
 
-	for (i = 0; i < context->stream_count; i++) {
+	for (i = 0; old_context && i < context->stream_count; i++) {
 		struct core_stream *stream = context->streams[i];
 
-		if (!resource_is_stream_unchanged(dc->current_context, stream)) {
-			if (stream != NULL && dc->current_context->streams[i] != NULL) {
+		if (!resource_is_stream_unchanged(old_context, stream)) {
+			if (stream != NULL && old_context->streams[i] != NULL) {
 				stream->bit_depth_params =
-						dc->current_context->streams[i]->bit_depth_params;
-				stream->clamping = dc->current_context->streams[i]->clamping;
+						old_context->streams[i]->bit_depth_params;
+				stream->clamping = old_context->streams[i]->clamping;
 				continue;
 			}
 		}
@@ -1434,7 +1433,7 @@ enum dc_status resource_map_pool_resources(
 			struct pipe_ctx *pipe_ctx =
 				&context->res_ctx.pipe_ctx[j];
 			const struct pipe_ctx *old_pipe_ctx =
-				&dc->current_context->res_ctx.pipe_ctx[j];
+					&old_context->res_ctx.pipe_ctx[j];
 
 			if (!are_stream_backends_same(old_pipe_ctx->stream, stream))
 				continue;
@@ -1475,7 +1474,7 @@ enum dc_status resource_map_pool_resources(
 		struct pipe_ctx *pipe_ctx = NULL;
 		int pipe_idx = -1;
 
-		if (resource_is_stream_unchanged(dc->current_context, stream))
+		if (old_context && resource_is_stream_unchanged(old_context, stream))
 			continue;
 		/* acquire new resources */
 		pipe_idx = acquire_first_free_pipe(
@@ -2203,7 +2202,8 @@ void resource_build_info_frame(struct pipe_ctx *pipe_ctx)
 
 enum dc_status resource_map_clock_resources(
 		const struct core_dc *dc,
-		struct validate_context *context)
+		struct validate_context *context,
+		struct validate_context *old_context)
 {
 	int i, j;
 	const struct resource_pool *pool = dc->res_pool;
@@ -2212,7 +2212,7 @@ enum dc_status resource_map_clock_resources(
 	for (i = 0; i < context->stream_count; i++) {
 		const struct core_stream *stream = context->streams[i];
 
-		if (resource_is_stream_unchanged(dc->current_context, stream))
+		if (old_context && resource_is_stream_unchanged(old_context, stream))
 			continue;
 
 		for (j = 0; j < MAX_PIPES; j++) {

@@ -653,40 +653,6 @@ void dc_destroy(struct dc **dc)
 	*dc = NULL;
 }
 
-static bool is_validation_required(
-		const struct core_dc *dc,
-		const struct dc_validation_set set[],
-		int set_count)
-{
-	const struct validate_context *context = dc->current_context;
-	int i, j;
-
-	if (context->stream_count != set_count)
-		return true;
-
-	for (i = 0; i < set_count; i++) {
-
-		if (set[i].surface_count != context->stream_status[i].surface_count)
-			return true;
-		if (!is_stream_unchanged(DC_STREAM_TO_CORE(set[i].stream), context->streams[i]))
-			return true;
-
-		for (j = 0; j < set[i].surface_count; j++) {
-			struct dc_surface temp_surf = { 0 };
-
-			temp_surf = *context->stream_status[i].surfaces[j];
-			temp_surf.clip_rect = set[i].surfaces[j]->clip_rect;
-			temp_surf.dst_rect.x = set[i].surfaces[j]->dst_rect.x;
-			temp_surf.dst_rect.y = set[i].surfaces[j]->dst_rect.y;
-
-			if (memcmp(&temp_surf, set[i].surfaces[j], sizeof(temp_surf)) != 0)
-				return true;
-		}
-	}
-
-	return false;
-}
-
 struct validate_context *dc_get_validate_context(
 		const struct dc *dc,
 		const struct dc_validation_set set[],
@@ -700,13 +666,8 @@ struct validate_context *dc_get_validate_context(
 	if(context == NULL)
 		goto context_alloc_fail;
 
-	if (!is_validation_required(core_dc, set, set_count)) {
-		dc_resource_validate_ctx_copy_construct(core_dc->current_context, context);
-		return context;
-	}
-
 	result = core_dc->res_pool->funcs->validate_with_context(
-						core_dc, set, set_count, context);
+				core_dc, set, set_count, context, NULL);
 
 context_alloc_fail:
 	if (result != DC_OK) {
@@ -903,7 +864,8 @@ bool dc_commit_streams(
 	if (context == NULL)
 		goto context_alloc_fail;
 
-	result = core_dc->res_pool->funcs->validate_with_context(core_dc, set, stream_count, context);
+	result = core_dc->res_pool->funcs->validate_with_context(
+			core_dc, set, stream_count, context, core_dc->current_context);
 	if (result != DC_OK){
 		dm_logger_write(core_dc->ctx->logger, LOG_ERROR,
 					"%s: Context validation failed! dc_status:%d\n",

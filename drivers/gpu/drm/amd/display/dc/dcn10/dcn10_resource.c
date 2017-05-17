@@ -853,7 +853,8 @@ static enum dc_status build_pipe_hw_param(struct pipe_ctx *pipe_ctx)
 
 static enum dc_status validate_mapped_resource(
 		const struct core_dc *dc,
-		struct validate_context *context)
+		struct validate_context *context,
+		struct validate_context *old_context)
 {
 	enum dc_status status = DC_OK;
 	uint8_t i, j;
@@ -862,8 +863,8 @@ static enum dc_status validate_mapped_resource(
 		struct core_stream *stream = context->streams[i];
 		struct core_link *link = stream->sink->link;
 
-		if (resource_is_stream_unchanged(dc->current_context, stream)) {
-			if (stream != NULL && dc->current_context->streams[i] != NULL) {
+		if (old_context && resource_is_stream_unchanged(old_context, stream)) {
+			if (stream != NULL && old_context->streams[i] != NULL) {
 				/* todo: shouldn't have to copy missing parameter here */
 				resource_build_bit_depth_reduction_params(stream,
 						&stream->bit_depth_params);
@@ -920,7 +921,8 @@ enum dc_status dcn10_validate_with_context(
 		const struct core_dc *dc,
 		const struct dc_validation_set set[],
 		int set_count,
-		struct validate_context *context)
+		struct validate_context *context,
+		struct validate_context *old_context)
 {
 	enum dc_status result = DC_OK;
 	int i;
@@ -934,20 +936,20 @@ enum dc_status dcn10_validate_with_context(
 		context->stream_count++;
 	}
 
-	result = resource_map_pool_resources(dc, context);
+	result = resource_map_pool_resources(dc, context, old_context);
 	if (result != DC_OK)
 		return result;
 
-	result = resource_map_phy_clock_resources(dc, context);
+	result = resource_map_phy_clock_resources(dc, context, old_context);
 	if (result != DC_OK)
 		return result;
 
-	result = validate_mapped_resource(dc, context);
+	result = validate_mapped_resource(dc, context, old_context);
 	if (result != DC_OK)
 		return result;
 
 	if (!resource_validate_attach_surfaces(set, set_count,
-			dc->current_context, context, dc->res_pool))
+			old_context, context, dc->res_pool))
 		return DC_FAIL_ATTACH_SURFACES;
 
 	result = resource_build_scaling_params_for_context(dc, context);
@@ -971,13 +973,13 @@ enum dc_status dcn10_validate_guaranteed(
 	dc_stream_retain(&context->streams[0]->public);
 	context->stream_count++;
 
-	result = resource_map_pool_resources(dc, context);
+	result = resource_map_pool_resources(dc, context, NULL);
 
 	if (result == DC_OK)
-		result = resource_map_phy_clock_resources(dc, context);
+		result = resource_map_phy_clock_resources(dc, context, NULL);
 
 	if (result == DC_OK)
-		result = validate_mapped_resource(dc, context);
+		result = validate_mapped_resource(dc, context, NULL);
 
 	if (result == DC_OK) {
 		validate_guaranteed_copy_streams(

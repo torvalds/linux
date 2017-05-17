@@ -39,7 +39,8 @@ enum dc_status dce112_validate_with_context(
 		const struct core_dc *dc,
 		const struct dc_validation_set set[],
 		int set_count,
-		struct validate_context *context);
+		struct validate_context *context,
+		struct validate_context *old_context);
 
 enum dc_status dce112_validate_guaranteed(
 		const struct core_dc *dc,

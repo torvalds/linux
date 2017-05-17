@@ -203,7 +203,8 @@ struct resource_funcs {
 					const struct core_dc *dc,
 					const struct dc_validation_set set[],
 					int set_count,
-					struct validate_context *context);
+					struct validate_context *context,
+					struct validate_context *old_context);
 
 	enum dc_status (*validate_guaranteed)(
 					const struct core_dc *dc,

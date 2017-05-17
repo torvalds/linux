@@ -769,7 +769,8 @@ static bool is_surface_pixel_format_supported(struct pipe_ctx *pipe_ctx, unsigne
 
 static enum dc_status validate_mapped_resource(
 		const struct core_dc *dc,
-		struct validate_context *context)
+		struct validate_context *context,
+		struct validate_context *old_context)
 {
 	enum dc_status status = DC_OK;
 	uint8_t i, j;
@@ -778,7 +779,7 @@ static enum dc_status validate_mapped_resource(
 		struct core_stream *stream = context->streams[i];
 		struct core_link *link = stream->sink->link;
 
-		if (resource_is_stream_unchanged(dc->current_context, stream))
+		if (old_context && resource_is_stream_unchanged(old_context, stream))
 			continue;
 
 		for (j = 0; j < MAX_PIPES; j++) {
@@ -943,7 +944,8 @@ enum dc_status dce110_validate_with_context(
 		const struct core_dc *dc,
 		const struct dc_validation_set set[],
 		int set_count,
-		struct validate_context *context)
+		struct validate_context *context,
+		struct validate_context *old_context)
 {
 	struct dc_context *dc_ctx = dc->ctx;
 	enum dc_status result = DC_ERROR_UNEXPECTED;
@@ -958,19 +960,19 @@ enum dc_status dce110_validate_with_context(
 		context->stream_count++;
 	}
 
-	result = resource_map_pool_resources(dc, context);
+	result = resource_map_pool_resources(dc, context, old_context);
 
 	if (result == DC_OK)
-		result = resource_map_clock_resources(dc, context);
+		result = resource_map_clock_resources(dc, context, old_context);
 
 	if (!resource_validate_attach_surfaces(set, set_count,
-			dc->current_context, context, dc->res_pool)) {
+			old_context, context, dc->res_pool)) {
 		DC_ERROR("Failed to attach surface to stream!\n");
 		return DC_FAIL_ATTACH_SURFACES;
 	}
 
 	if (result == DC_OK)
-		result = validate_mapped_resource(dc, context);
+		result = validate_mapped_resource(dc, context, old_context);
 
 	if (result == DC_OK)
 		result = resource_build_scaling_params_for_context(dc, context);
@@ -993,13 +995,13 @@ enum dc_status dce110_validate_guaranteed(
 	dc_stream_retain(&context->streams[0]->public);
 	context->stream_count++;
 
-	result = resource_map_pool_resources(dc, context);
+	result = resource_map_pool_resources(dc, context, NULL);
 
 	if (result == DC_OK)
-		result = resource_map_clock_resources(dc, context);
+		result = resource_map_clock_resources(dc, context, NULL);
 
 	if (result == DC_OK)
-		result = validate_mapped_resource(dc, context);
+		result = validate_mapped_resource(dc, context, NULL);
 
 	if (result == DC_OK) {
 		validate_guaranteed_copy_streams(
