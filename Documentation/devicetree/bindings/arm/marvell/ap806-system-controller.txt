@@ -64,6 +64,17 @@ mpp17	17	gpio
 mpp18	18	gpio
 mpp19	19	gpio, uart0(rxd), sdio(pw_off)
 
+GPIO:
+-----
+For common binding part and usage, refer to
+Documentation/devicetree/bindings/gpio/gpio-mvebu.txt.
+
+Required properties:
+
+- compatible: "marvell,armada-8k-gpio"
+
+- offset: offset address inside the syscon block
+
 Example:
 ap_syscon: system-controller@6f4000 {
 	compatible = "syscon", "simple-mfd";
@@ -76,5 +87,14 @@ ap_syscon: system-controller@6f4000 {
 
 	ap_pinctrl: pinctrl {
 		compatible = "marvell,ap806-pinctrl";
+	};
+
+	ap_gpio: gpio {
+		compatible = "marvell,armada-8k-gpio";
+		offset = <0x1040>;
+		ngpios = <19>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-ranges = <&ap_pinctrl 0 0 19>;
 	};
 };

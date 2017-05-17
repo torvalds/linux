@@ -149,6 +149,18 @@ mpp60	60	gpio, mss_gpio6, ptp(pulse), tdm(dtx), au(i2smclk), spi0(csn1), uart0(r
 mpp61	61	gpio, mss_gpio5, ptp(clk), tdm(pclk), au(i2sextclk), spi0(csn2), uart0(txd), uart2(txd), sata1(present_act), ge(mdio), sdio(d3)
 mpp62	62	gpio, mss_gpio4, synce1(clk), ptp(pclk_out), sata1(present_act), spi0(csn3), uart0(rxd), uart2(rxd), sata0(present_act), ge(mdc)
 
+GPIO:
+-----
+
+For common binding part and usage, refer to
+Documentation/devicetree/bindings/gpio/gpio-mvebu.txt.
+
+Required properties:
+
+- compatible: "marvell,armada-8k-gpio"
+
+- offset: offset address inside the syscon block
+
 Example:
 
 cpm_syscon0: system-controller@440000 {
@@ -163,5 +175,15 @@ cpm_syscon0: system-controller@440000 {
 	cpm_pinctrl: pinctrl {
 		compatible = "marvell,armada-8k-cpm-pinctrl";
 	};
-};
 
+	cpm_gpio1: gpio@100 {
+		compatible = "marvell,armada-8k-gpio";
+		offset = <0x100>;
+		ngpios = <32>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-ranges = <&cpm_pinctrl 0 0 32>;
+		status = "disabled";
+	};
+
+};
