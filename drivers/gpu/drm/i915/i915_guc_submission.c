@@ -704,7 +704,7 @@ static bool i915_guc_dequeue(struct intel_engine_cs *engine)
 		rb_erase(&p->node, &engine->execlist_queue);
 		INIT_LIST_HEAD(&p->requests);
 		if (p->priority != I915_PRIORITY_NORMAL)
-			kfree(p);
+			kmem_cache_free(engine->i915->priorities, p);
 	}
 done:
 	engine->execlist_first = rb;

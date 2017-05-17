@@ -74,6 +74,7 @@ static void mock_device_release(struct drm_device *dev)
 
 	destroy_workqueue(i915->wq);
 
+	kmem_cache_destroy(i915->priorities);
 	kmem_cache_destroy(i915->dependencies);
 	kmem_cache_destroy(i915->requests);
 	kmem_cache_destroy(i915->vmas);
@@ -186,12 +187,16 @@ struct drm_i915_private *mock_gem_device(void)
 	if (!i915->dependencies)
 		goto err_requests;
 
+	i915->priorities = KMEM_CACHE(i915_priolist, SLAB_HWCACHE_ALIGN);
+	if (!i915->priorities)
+		goto err_dependencies;
+
 	mutex_lock(&i915->drm.struct_mutex);
 	INIT_LIST_HEAD(&i915->gt.timelines);
 	err = i915_gem_timeline_init__global(i915);
 	if (err) {
 		mutex_unlock(&i915->drm.struct_mutex);
-		goto err_dependencies;
+		goto err_priorities;
 	}
 
 	mock_init_ggtt(i915);
@@ -211,6 +216,8 @@ struct drm_i915_private *mock_gem_device(void)
 err_engine:
 	for_each_engine(engine, i915, id)
 		mock_engine_free(engine);
+err_priorities:
+	kmem_cache_destroy(i915->priorities);
 err_dependencies:
 	kmem_cache_destroy(i915->dependencies);
 err_requests:

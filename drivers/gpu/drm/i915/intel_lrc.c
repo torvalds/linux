@@ -499,7 +499,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 		rb_erase(&p->node, &engine->execlist_queue);
 		INIT_LIST_HEAD(&p->requests);
 		if (p->priority != I915_PRIORITY_NORMAL)
-			kfree(p);
+			kmem_cache_free(engine->i915->priorities, p);
 	}
 done:
 	engine->execlist_first = rb;
@@ -661,7 +661,7 @@ find_priolist:
 	if (prio == I915_PRIORITY_NORMAL) {
 		p = &engine->default_priolist;
 	} else {
-		p = kmalloc(sizeof(*p), GFP_ATOMIC);
+		p = kmem_cache_alloc(engine->i915->priorities, GFP_ATOMIC);
 		/* Convert an allocation failure to a priority bump */
 		if (unlikely(!p)) {
 			prio = I915_PRIORITY_NORMAL; /* recurses just once */
