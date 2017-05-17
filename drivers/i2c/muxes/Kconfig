@@ -30,6 +30,17 @@ config I2C_MUX_GPIO
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-mux-gpio.
 
+config I2C_MUX_LTC4306
+	tristate "LTC LTC4306/5 I2C multiplexer"
+	select GPIOLIB
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for the Analog Devices
+	  LTC4306 or LTC4305 I2C mux/switch devices.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-mux-ltc4306.
+
 config I2C_MUX_PCA9541
 	tristate "NXP PCA9541 I2C Master Selector"
 	help

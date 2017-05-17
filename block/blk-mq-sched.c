@@ -11,6 +11,7 @@
 
 #include "blk.h"
 #include "blk-mq.h"
+#include "blk-mq-debugfs.h"
 #include "blk-mq-sched.h"
 #include "blk-mq-tag.h"
 #include "blk-wbt.h"
@@ -29,43 +30,6 @@ void blk_mq_sched_free_hctx_data(struct request_queue *q,
 	}
 }
 EXPORT_SYMBOL_GPL(blk_mq_sched_free_hctx_data);
-
-int blk_mq_sched_init_hctx_data(struct request_queue *q, size_t size,
-				int (*init)(struct blk_mq_hw_ctx *),
-				void (*exit)(struct blk_mq_hw_ctx *))
-{
-	struct blk_mq_hw_ctx *hctx;
-	int ret;
-	int i;
-
-	queue_for_each_hw_ctx(q, hctx, i) {
-		hctx->sched_data = kmalloc_node(size, GFP_KERNEL, hctx->numa_node);
-		if (!hctx->sched_data) {
-			ret = -ENOMEM;
-			goto error;
-		}
-
-		if (init) {
-			ret = init(hctx);
-			if (ret) {
-				/*
-				 * We don't want to give exit() a partially
-				 * initialized sched_data. init() must clean up
-				 * if it fails.
-				 */
-				kfree(hctx->sched_data);
-				hctx->sched_data = NULL;
-				goto error;
-			}
-		}
-	}
-
-	return 0;
-error:
-	blk_mq_sched_free_hctx_data(q, exit);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(blk_mq_sched_init_hctx_data);
 
 static void __blk_mq_sched_assign_ioc(struct request_queue *q,
 				      struct request *rq,
@@ -226,22 +190,6 @@ void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 		} while (blk_mq_dispatch_rq_list(q, &rq_list));
 	}
 }
-
-void blk_mq_sched_move_to_dispatch(struct blk_mq_hw_ctx *hctx,
-				   struct list_head *rq_list,
-				   struct request *(*get_rq)(struct blk_mq_hw_ctx *))
-{
-	do {
-		struct request *rq;
-
-		rq = get_rq(hctx);
-		if (!rq)
-			break;
-
-		list_add_tail(&rq->queuelist, rq_list);
-	} while (1);
-}
-EXPORT_SYMBOL_GPL(blk_mq_sched_move_to_dispatch);
 
 bool blk_mq_sched_try_merge(struct request_queue *q, struct bio *bio,
 			    struct request **merged_request)
@@ -508,11 +456,26 @@ int blk_mq_sched_init_hctx(struct request_queue *q, struct blk_mq_hw_ctx *hctx,
 			   unsigned int hctx_idx)
 {
 	struct elevator_queue *e = q->elevator;
+	int ret;
 
 	if (!e)
 		return 0;
 
-	return blk_mq_sched_alloc_tags(q, hctx, hctx_idx);
+	ret = blk_mq_sched_alloc_tags(q, hctx, hctx_idx);
+	if (ret)
+		return ret;
+
+	if (e->type->ops.mq.init_hctx) {
+		ret = e->type->ops.mq.init_hctx(hctx, hctx_idx);
+		if (ret) {
+			blk_mq_sched_free_tags(q->tag_set, hctx, hctx_idx);
+			return ret;
+		}
+	}
+
+	blk_mq_debugfs_register_sched_hctx(q, hctx);
+
+	return 0;
 }
 
 void blk_mq_sched_exit_hctx(struct request_queue *q, struct blk_mq_hw_ctx *hctx,
@@ -523,12 +486,20 @@ void blk_mq_sched_exit_hctx(struct request_queue *q, struct blk_mq_hw_ctx *hctx,
 	if (!e)
 		return;
 
+	blk_mq_debugfs_unregister_sched_hctx(hctx);
+
+	if (e->type->ops.mq.exit_hctx && hctx->sched_data) {
+		e->type->ops.mq.exit_hctx(hctx, hctx_idx);
+		hctx->sched_data = NULL;
+	}
+
 	blk_mq_sched_free_tags(q->tag_set, hctx, hctx_idx);
 }
 
 int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 {
 	struct blk_mq_hw_ctx *hctx;
+	struct elevator_queue *eq;
 	unsigned int i;
 	int ret;
 
@@ -553,6 +524,21 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 	if (ret)
 		goto err;
 
+	blk_mq_debugfs_register_sched(q);
+
+	queue_for_each_hw_ctx(q, hctx, i) {
+		if (e->ops.mq.init_hctx) {
+			ret = e->ops.mq.init_hctx(hctx, i);
+			if (ret) {
+				eq = q->elevator;
+				blk_mq_exit_sched(q, eq);
+				kobject_put(&eq->kobj);
+				return ret;
+			}
+		}
+		blk_mq_debugfs_register_sched_hctx(q, hctx);
+	}
+
 	return 0;
 
 err:
@@ -563,6 +549,17 @@ err:
 
 void blk_mq_exit_sched(struct request_queue *q, struct elevator_queue *e)
 {
+	struct blk_mq_hw_ctx *hctx;
+	unsigned int i;
+
+	queue_for_each_hw_ctx(q, hctx, i) {
+		blk_mq_debugfs_unregister_sched_hctx(hctx);
+		if (e->type->ops.mq.exit_hctx && hctx->sched_data) {
+			e->type->ops.mq.exit_hctx(hctx, i);
+			hctx->sched_data = NULL;
+		}
+	}
+	blk_mq_debugfs_unregister_sched(q);
 	if (e->type->ops.mq.exit_sched)
 		e->type->ops.mq.exit_sched(e);
 	blk_mq_sched_tags_teardown(q);

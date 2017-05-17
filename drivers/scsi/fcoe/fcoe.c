@@ -63,11 +63,11 @@ unsigned int fcoe_debug_logging;
 module_param_named(debug_logging, fcoe_debug_logging, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(debug_logging, "a bit mask of logging levels");
 
-unsigned int fcoe_e_d_tov = 2 * 1000;
+static unsigned int fcoe_e_d_tov = 2 * 1000;
 module_param_named(e_d_tov, fcoe_e_d_tov, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(e_d_tov, "E_D_TOV in ms, default 2000");
 
-unsigned int fcoe_r_a_tov = 2 * 2 * 1000;
+static unsigned int fcoe_r_a_tov = 2 * 2 * 1000;
 module_param_named(r_a_tov, fcoe_r_a_tov, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(r_a_tov, "R_A_TOV in ms, default 4000");
 

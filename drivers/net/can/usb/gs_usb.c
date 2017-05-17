@@ -739,13 +739,18 @@ static const struct net_device_ops gs_usb_netdev_ops = {
 static int gs_usb_set_identify(struct net_device *netdev, bool do_identify)
 {
 	struct gs_can *dev = netdev_priv(netdev);
-	struct gs_identify_mode imode;
+	struct gs_identify_mode *imode;
 	int rc;
 
+	imode = kmalloc(sizeof(*imode), GFP_KERNEL);
+
+	if (!imode)
+		return -ENOMEM;
+
 	if (do_identify)
-		imode.mode = GS_CAN_IDENTIFY_ON;
+		imode->mode = GS_CAN_IDENTIFY_ON;
 	else
-		imode.mode = GS_CAN_IDENTIFY_OFF;
+		imode->mode = GS_CAN_IDENTIFY_OFF;
 
 	rc = usb_control_msg(interface_to_usbdev(dev->iface),
 			     usb_sndctrlpipe(interface_to_usbdev(dev->iface),
@@ -755,9 +760,11 @@ static int gs_usb_set_identify(struct net_device *netdev, bool do_identify)
 			     USB_RECIP_INTERFACE,
 			     dev->channel,
 			     0,
-			     &imode,
-			     sizeof(imode),
+			     imode,
+			     sizeof(*imode),
 			     100);
+
+	kfree(imode);
 
 	return (rc > 0) ? 0 : rc;
 }

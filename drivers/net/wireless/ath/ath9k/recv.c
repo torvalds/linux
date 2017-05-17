@@ -1037,11 +1037,11 @@ static void ath_rx_count_airtime(struct ath_softc *sc,
 
 	rxs = IEEE80211_SKB_RXCB(skb);
 
-	is_sgi = !!(rxs->flag & RX_FLAG_SHORT_GI);
-	is_40 = !!(rxs->flag & RX_FLAG_40MHZ);
-	is_sp = !!(rxs->flag & RX_FLAG_SHORTPRE);
+	is_sgi = !!(rxs->enc_flags & RX_ENC_FLAG_SHORT_GI);
+	is_40 = !!(rxs->bw == RATE_INFO_BW_40);
+	is_sp = !!(rxs->enc_flags & RX_ENC_FLAG_SHORTPRE);
 
-	if (!!(rxs->flag & RX_FLAG_HT)) {
+	if (!!(rxs->encoding == RX_ENC_HT)) {
 		/* MCS rates */
 
 		airtime += ath_pkt_duration(sc, rxs->rate_idx, len,

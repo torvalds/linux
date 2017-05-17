@@ -112,10 +112,9 @@ int smu7_fan_ctrl_get_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t *speed)
 */
 int smu7_fan_ctrl_set_static_mode(struct pp_hwmgr *hwmgr, uint32_t mode)
 {
-
 	if (hwmgr->fan_ctrl_is_in_default_mode) {
 		hwmgr->fan_ctrl_default_mode =
-				PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device,	CGS_IND_REG__SMC,
+				PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 						CG_FDO_CTRL2, FDO_PWM_MODE);
 		hwmgr->tmin =
 				PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
@@ -149,7 +148,7 @@ int smu7_fan_ctrl_set_default_mode(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int smu7_fan_ctrl_start_smc_fan_control(struct pp_hwmgr *hwmgr)
+int smu7_fan_ctrl_start_smc_fan_control(struct pp_hwmgr *hwmgr)
 {
 	int result;
 
@@ -179,6 +178,7 @@ static int smu7_fan_ctrl_start_smc_fan_control(struct pp_hwmgr *hwmgr)
 				PPSMC_MSG_SetFanTemperatureTarget,
 				hwmgr->thermal_controller.
 				advanceFanControlParameters.ucTargetTemperature);
+	hwmgr->fan_ctrl_enabled = true;
 
 	return result;
 }
@@ -186,6 +186,7 @@ static int smu7_fan_ctrl_start_smc_fan_control(struct pp_hwmgr *hwmgr)
 
 int smu7_fan_ctrl_stop_smc_fan_control(struct pp_hwmgr *hwmgr)
 {
+	hwmgr->fan_ctrl_enabled = false;
 	return smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_StopFanControl);
 }
 
@@ -280,7 +281,7 @@ int smu7_fan_ctrl_set_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t speed)
 	PHM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 				CG_TACH_STATUS, TACH_PERIOD, tach_period);
 
-	return smu7_fan_ctrl_set_static_mode(hwmgr, FDO_PWM_MODE_STATIC);
+	return smu7_fan_ctrl_set_static_mode(hwmgr, FDO_PWM_MODE_STATIC_RPM);
 }
 
 /**

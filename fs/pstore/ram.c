@@ -58,7 +58,7 @@ module_param_named(pmsg_size, ramoops_pmsg_size, ulong, 0400);
 MODULE_PARM_DESC(pmsg_size, "size of user space message log");
 
 static unsigned long long mem_address;
-module_param(mem_address, ullong, 0400);
+module_param_hw(mem_address, ullong, other, 0400);
 MODULE_PARM_DESC(mem_address,
 		"start of reserved RAM used to store oops/panic logs");
 
@@ -235,35 +235,34 @@ static ssize_t ftrace_log_combine(struct persistent_ram_zone *dest,
 	return 0;
 }
 
-static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
-				   int *count, struct timespec *time,
-				   char **buf, bool *compressed,
-				   ssize_t *ecc_notice_size,
-				   struct pstore_info *psi)
+static ssize_t ramoops_pstore_read(struct pstore_record *record)
 {
 	ssize_t size = 0;
-	struct ramoops_context *cxt = psi->data;
+	struct ramoops_context *cxt = record->psi->data;
 	struct persistent_ram_zone *prz = NULL;
 	int header_length = 0;
 	bool free_prz = false;
 
-	/* Ramoops headers provide time stamps for PSTORE_TYPE_DMESG, but
+	/*
+	 * Ramoops headers provide time stamps for PSTORE_TYPE_DMESG, but
 	 * PSTORE_TYPE_CONSOLE and PSTORE_TYPE_FTRACE don't currently have
 	 * valid time stamps, so it is initialized to zero.
 	 */
-	time->tv_sec = 0;
-	time->tv_nsec = 0;
-	*compressed = false;
+	record->time.tv_sec = 0;
+	record->time.tv_nsec = 0;
+	record->compressed = false;
 
 	/* Find the next valid persistent_ram_zone for DMESG */
 	while (cxt->dump_read_cnt < cxt->max_dump_cnt && !prz) {
 		prz = ramoops_get_next_prz(cxt->dprzs, &cxt->dump_read_cnt,
-					   cxt->max_dump_cnt, id, type,
+					   cxt->max_dump_cnt, &record->id,
+					   &record->type,
 					   PSTORE_TYPE_DMESG, 1);
 		if (!prz_ok(prz))
 			continue;
 		header_length = ramoops_read_kmsg_hdr(persistent_ram_old(prz),
-						      time, compressed);
+						      &record->time,
+						      &record->compressed);
 		/* Clear and skip this DMESG record if it has no valid header */
 		if (!header_length) {
 			persistent_ram_free_old(prz);
@@ -274,18 +273,20 @@ static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
 
 	if (!prz_ok(prz))
 		prz = ramoops_get_next_prz(&cxt->cprz, &cxt->console_read_cnt,
-					   1, id, type, PSTORE_TYPE_CONSOLE, 0);
+					   1, &record->id, &record->type,
+					   PSTORE_TYPE_CONSOLE, 0);
 
 	if (!prz_ok(prz))
 		prz = ramoops_get_next_prz(&cxt->mprz, &cxt->pmsg_read_cnt,
-					   1, id, type, PSTORE_TYPE_PMSG, 0);
+					   1, &record->id, &record->type,
+					   PSTORE_TYPE_PMSG, 0);
 
 	/* ftrace is last since it may want to dynamically allocate memory. */
 	if (!prz_ok(prz)) {
 		if (!(cxt->flags & RAMOOPS_FLAG_FTRACE_PER_CPU)) {
 			prz = ramoops_get_next_prz(cxt->fprzs,
-					&cxt->ftrace_read_cnt, 1, id, type,
-					PSTORE_TYPE_FTRACE, 0);
+					&cxt->ftrace_read_cnt, 1, &record->id,
+					&record->type, PSTORE_TYPE_FTRACE, 0);
 		} else {
 			/*
 			 * Build a new dummy record which combines all the
@@ -302,8 +303,10 @@ static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
 			while (cxt->ftrace_read_cnt < cxt->max_ftrace_cnt) {
 				prz_next = ramoops_get_next_prz(cxt->fprzs,
 						&cxt->ftrace_read_cnt,
-						cxt->max_ftrace_cnt, id,
-						type, PSTORE_TYPE_FTRACE, 0);
+						cxt->max_ftrace_cnt,
+						&record->id,
+						&record->type,
+						PSTORE_TYPE_FTRACE, 0);
 
 				if (!prz_ok(prz_next))
 					continue;
@@ -316,7 +319,7 @@ static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
 				if (size)
 					goto out;
 			}
-			*id = 0;
+			record->id = 0;
 			prz = tmp_prz;
 		}
 	}
@@ -329,17 +332,19 @@ static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
 	size = persistent_ram_old_size(prz) - header_length;
 
 	/* ECC correction notice */
-	*ecc_notice_size = persistent_ram_ecc_string(prz, NULL, 0);
+	record->ecc_notice_size = persistent_ram_ecc_string(prz, NULL, 0);
 
-	*buf = kmalloc(size + *ecc_notice_size + 1, GFP_KERNEL);
-	if (*buf == NULL) {
+	record->buf = kmalloc(size + record->ecc_notice_size + 1, GFP_KERNEL);
+	if (record->buf == NULL) {
 		size = -ENOMEM;
 		goto out;
 	}
 
-	memcpy(*buf, (char *)persistent_ram_old(prz) + header_length, size);
+	memcpy(record->buf, (char *)persistent_ram_old(prz) + header_length,
+	       size);
 
-	persistent_ram_ecc_string(prz, *buf + size, *ecc_notice_size + 1);
+	persistent_ram_ecc_string(prz, record->buf + size,
+				  record->ecc_notice_size + 1);
 
 out:
 	if (free_prz) {
@@ -373,23 +378,18 @@ static size_t ramoops_write_kmsg_hdr(struct persistent_ram_zone *prz,
 	return len;
 }
 
-static int notrace ramoops_pstore_write_buf(enum pstore_type_id type,
-					    enum kmsg_dump_reason reason,
-					    u64 *id, unsigned int part,
-					    const char *buf,
-					    bool compressed, size_t size,
-					    struct pstore_info *psi)
+static int notrace ramoops_pstore_write(struct pstore_record *record)
 {
-	struct ramoops_context *cxt = psi->data;
+	struct ramoops_context *cxt = record->psi->data;
 	struct persistent_ram_zone *prz;
-	size_t hlen;
+	size_t size, hlen;
 
-	if (type == PSTORE_TYPE_CONSOLE) {
+	if (record->type == PSTORE_TYPE_CONSOLE) {
 		if (!cxt->cprz)
 			return -ENOMEM;
-		persistent_ram_write(cxt->cprz, buf, size);
+		persistent_ram_write(cxt->cprz, record->buf, record->size);
 		return 0;
-	} else if (type == PSTORE_TYPE_FTRACE) {
+	} else if (record->type == PSTORE_TYPE_FTRACE) {
 		int zonenum;
 
 		if (!cxt->fprzs)
@@ -402,33 +402,36 @@ static int notrace ramoops_pstore_write_buf(enum pstore_type_id type,
 		else
 			zonenum = 0;
 
-		persistent_ram_write(cxt->fprzs[zonenum], buf, size);
+		persistent_ram_write(cxt->fprzs[zonenum], record->buf,
+				     record->size);
 		return 0;
-	} else if (type == PSTORE_TYPE_PMSG) {
+	} else if (record->type == PSTORE_TYPE_PMSG) {
 		pr_warn_ratelimited("PMSG shouldn't call %s\n", __func__);
 		return -EINVAL;
 	}
 
-	if (type != PSTORE_TYPE_DMESG)
+	if (record->type != PSTORE_TYPE_DMESG)
 		return -EINVAL;
 
-	/* Out of the various dmesg dump types, ramoops is currently designed
+	/*
+	 * Out of the various dmesg dump types, ramoops is currently designed
 	 * to only store crash logs, rather than storing general kernel logs.
 	 */
-	if (reason != KMSG_DUMP_OOPS &&
-	    reason != KMSG_DUMP_PANIC)
+	if (record->reason != KMSG_DUMP_OOPS &&
+	    record->reason != KMSG_DUMP_PANIC)
 		return -EINVAL;
 
 	/* Skip Oopes when configured to do so. */
-	if (reason == KMSG_DUMP_OOPS && !cxt->dump_oops)
+	if (record->reason == KMSG_DUMP_OOPS && !cxt->dump_oops)
 		return -EINVAL;
 
-	/* Explicitly only take the first part of any new crash.
+	/*
+	 * Explicitly only take the first part of any new crash.
 	 * If our buffer is larger than kmsg_bytes, this can never happen,
 	 * and if our buffer is smaller than kmsg_bytes, we don't want the
 	 * report split across multiple records.
 	 */
-	if (part != 1)
+	if (record->part != 1)
 		return -ENOSPC;
 
 	if (!cxt->dprzs)
@@ -436,53 +439,50 @@ static int notrace ramoops_pstore_write_buf(enum pstore_type_id type,
 
 	prz = cxt->dprzs[cxt->dump_write_cnt];
 
-	hlen = ramoops_write_kmsg_hdr(prz, compressed);
+	/* Build header and append record contents. */
+	hlen = ramoops_write_kmsg_hdr(prz, record->compressed);
+	size = record->size;
 	if (size + hlen > prz->buffer_size)
 		size = prz->buffer_size - hlen;
-	persistent_ram_write(prz, buf, size);
+	persistent_ram_write(prz, record->buf, size);
 
 	cxt->dump_write_cnt = (cxt->dump_write_cnt + 1) % cxt->max_dump_cnt;
 
 	return 0;
 }
 
-static int notrace ramoops_pstore_write_buf_user(enum pstore_type_id type,
-						 enum kmsg_dump_reason reason,
-						 u64 *id, unsigned int part,
-						 const char __user *buf,
-						 bool compressed, size_t size,
-						 struct pstore_info *psi)
+static int notrace ramoops_pstore_write_user(struct pstore_record *record,
+					     const char __user *buf)
 {
-	if (type == PSTORE_TYPE_PMSG) {
-		struct ramoops_context *cxt = psi->data;
+	if (record->type == PSTORE_TYPE_PMSG) {
+		struct ramoops_context *cxt = record->psi->data;
 
 		if (!cxt->mprz)
 			return -ENOMEM;
-		return persistent_ram_write_user(cxt->mprz, buf, size);
+		return persistent_ram_write_user(cxt->mprz, buf, record->size);
 	}
 
 	return -EINVAL;
 }
 
-static int ramoops_pstore_erase(enum pstore_type_id type, u64 id, int count,
-				struct timespec time, struct pstore_info *psi)
+static int ramoops_pstore_erase(struct pstore_record *record)
 {
-	struct ramoops_context *cxt = psi->data;
+	struct ramoops_context *cxt = record->psi->data;
 	struct persistent_ram_zone *prz;
 
-	switch (type) {
+	switch (record->type) {
 	case PSTORE_TYPE_DMESG:
-		if (id >= cxt->max_dump_cnt)
+		if (record->id >= cxt->max_dump_cnt)
 			return -EINVAL;
-		prz = cxt->dprzs[id];
+		prz = cxt->dprzs[record->id];
 		break;
 	case PSTORE_TYPE_CONSOLE:
 		prz = cxt->cprz;
 		break;
 	case PSTORE_TYPE_FTRACE:
-		if (id >= cxt->max_ftrace_cnt)
+		if (record->id >= cxt->max_ftrace_cnt)
 			return -EINVAL;
-		prz = cxt->fprzs[id];
+		prz = cxt->fprzs[record->id];
 		break;
 	case PSTORE_TYPE_PMSG:
 		prz = cxt->mprz;
@@ -503,8 +503,8 @@ static struct ramoops_context oops_cxt = {
 		.name	= "ramoops",
 		.open	= ramoops_pstore_open,
 		.read	= ramoops_pstore_read,
-		.write_buf	= ramoops_pstore_write_buf,
-		.write_buf_user	= ramoops_pstore_write_buf_user,
+		.write	= ramoops_pstore_write,
+		.write_user	= ramoops_pstore_write_user,
 		.erase	= ramoops_pstore_erase,
 	},
 };

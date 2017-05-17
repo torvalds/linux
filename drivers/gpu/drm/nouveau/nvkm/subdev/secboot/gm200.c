@@ -34,12 +34,13 @@
  *
  */
 int
-gm200_secboot_run_blob(struct nvkm_secboot *sb, struct nvkm_gpuobj *blob)
+gm200_secboot_run_blob(struct nvkm_secboot *sb, struct nvkm_gpuobj *blob,
+		       struct nvkm_falcon *falcon)
 {
 	struct gm200_secboot *gsb = gm200_secboot(sb);
 	struct nvkm_subdev *subdev = &gsb->base.subdev;
-	struct nvkm_falcon *falcon = gsb->base.boot_falcon;
 	struct nvkm_vma vma;
+	u32 start_address;
 	int ret;
 
 	ret = nvkm_falcon_get(falcon, subdev);
@@ -60,9 +61,11 @@ gm200_secboot_run_blob(struct nvkm_secboot *sb, struct nvkm_gpuobj *blob)
 	nvkm_falcon_bind_context(falcon, gsb->inst);
 
 	/* Load the HS bootloader into the falcon's IMEM/DMEM */
-	ret = sb->acr->func->load(sb->acr, &gsb->base, blob, vma.offset);
-	if (ret)
+	ret = sb->acr->func->load(sb->acr, falcon, blob, vma.offset);
+	if (ret < 0)
 		goto end;
+
+	start_address = ret;
 
 	/* Disable interrupts as we will poll for the HALT bit */
 	nvkm_mc_intr_mask(sb->subdev.device, falcon->owner->index, false);
@@ -71,19 +74,17 @@ gm200_secboot_run_blob(struct nvkm_secboot *sb, struct nvkm_gpuobj *blob)
 	nvkm_falcon_wr32(falcon, 0x040, 0xdeada5a5);
 
 	/* Start the HS bootloader */
-	nvkm_falcon_set_start_addr(falcon, sb->acr->start_address);
+	nvkm_falcon_set_start_addr(falcon, start_address);
 	nvkm_falcon_start(falcon);
 	ret = nvkm_falcon_wait_for_halt(falcon, 100);
 	if (ret)
 		goto end;
 
-	/* If mailbox register contains an error code, then ACR has failed */
+	/*
+	 * The mailbox register contains the (positive) error code - return this
+	 * to the caller
+	 */
 	ret = nvkm_falcon_rd32(falcon, 0x040);
-	if (ret) {
-		nvkm_error(subdev, "ACR boot failed, ret 0x%08x", ret);
-		ret = -EINVAL;
-		goto end;
-	}
 
 end:
 	/* Reenable interrupts */

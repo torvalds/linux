@@ -44,50 +44,6 @@ enum psmouse_scale {
 	PSMOUSE_SCALE21
 };
 
-struct psmouse {
-	void *private;
-	struct input_dev *dev;
-	struct ps2dev ps2dev;
-	struct delayed_work resync_work;
-	char *vendor;
-	char *name;
-	unsigned char packet[8];
-	unsigned char badbyte;
-	unsigned char pktcnt;
-	unsigned char pktsize;
-	unsigned char type;
-	unsigned char oob_data_type;
-	unsigned char extra_buttons;
-	bool ignore_parity;
-	bool acks_disable_command;
-	unsigned int model;
-	unsigned long last;
-	unsigned long out_of_sync_cnt;
-	unsigned long num_resyncs;
-	enum psmouse_state state;
-	char devname[64];
-	char phys[32];
-
-	unsigned int rate;
-	unsigned int resolution;
-	unsigned int resetafter;
-	unsigned int resync_time;
-	bool smartscroll;	/* Logitech only */
-
-	psmouse_ret_t (*protocol_handler)(struct psmouse *psmouse);
-	void (*set_rate)(struct psmouse *psmouse, unsigned int rate);
-	void (*set_resolution)(struct psmouse *psmouse, unsigned int resolution);
-	void (*set_scale)(struct psmouse *psmouse, enum psmouse_scale scale);
-
-	int (*reconnect)(struct psmouse *psmouse);
-	void (*disconnect)(struct psmouse *psmouse);
-	void (*cleanup)(struct psmouse *psmouse);
-	int (*poll)(struct psmouse *psmouse);
-
-	void (*pt_activate)(struct psmouse *psmouse);
-	void (*pt_deactivate)(struct psmouse *psmouse);
-};
-
 enum psmouse_type {
 	PSMOUSE_NONE,
 	PSMOUSE_PS2,
@@ -110,7 +66,66 @@ enum psmouse_type {
 	PSMOUSE_FOCALTECH,
 	PSMOUSE_VMMOUSE,
 	PSMOUSE_BYD,
+	PSMOUSE_SYNAPTICS_SMBUS,
 	PSMOUSE_AUTO		/* This one should always be last */
+};
+
+struct psmouse;
+
+struct psmouse_protocol {
+	enum psmouse_type type;
+	bool maxproto;
+	bool ignore_parity; /* Protocol should ignore parity errors from KBC */
+	bool try_passthru; /* Try protocol also on passthrough ports */
+	bool smbus_companion; /* "Protocol" is a stub, device is on SMBus */
+	const char *name;
+	const char *alias;
+	int (*detect)(struct psmouse *, bool);
+	int (*init)(struct psmouse *);
+};
+
+struct psmouse {
+	void *private;
+	struct input_dev *dev;
+	struct ps2dev ps2dev;
+	struct delayed_work resync_work;
+	const char *vendor;
+	const char *name;
+	const struct psmouse_protocol *protocol;
+	unsigned char packet[8];
+	unsigned char badbyte;
+	unsigned char pktcnt;
+	unsigned char pktsize;
+	unsigned char oob_data_type;
+	unsigned char extra_buttons;
+	bool acks_disable_command;
+	unsigned int model;
+	unsigned long last;
+	unsigned long out_of_sync_cnt;
+	unsigned long num_resyncs;
+	enum psmouse_state state;
+	char devname[64];
+	char phys[32];
+
+	unsigned int rate;
+	unsigned int resolution;
+	unsigned int resetafter;
+	unsigned int resync_time;
+	bool smartscroll;	/* Logitech only */
+
+	psmouse_ret_t (*protocol_handler)(struct psmouse *psmouse);
+	void (*set_rate)(struct psmouse *psmouse, unsigned int rate);
+	void (*set_resolution)(struct psmouse *psmouse, unsigned int resolution);
+	void (*set_scale)(struct psmouse *psmouse, enum psmouse_scale scale);
+
+	int (*reconnect)(struct psmouse *psmouse);
+	int (*fast_reconnect)(struct psmouse *psmouse);
+	void (*disconnect)(struct psmouse *psmouse);
+	void (*cleanup)(struct psmouse *psmouse);
+	int (*poll)(struct psmouse *psmouse);
+
+	void (*pt_activate)(struct psmouse *psmouse);
+	void (*pt_deactivate)(struct psmouse *psmouse);
 };
 
 void psmouse_queue_work(struct psmouse *psmouse, struct delayed_work *work,
@@ -195,5 +210,34 @@ static struct psmouse_attribute psmouse_attr_##_name = {			\
 		   &(psmouse)->ps2dev.serio->dev,	\
 		   psmouse_fmt(format), ##__VA_ARGS__)
 
+#ifdef CONFIG_MOUSE_PS2_SMBUS
+
+int psmouse_smbus_module_init(void);
+void psmouse_smbus_module_exit(void);
+
+struct i2c_board_info;
+
+int psmouse_smbus_init(struct psmouse *psmouse,
+		       const struct i2c_board_info *board,
+		       const void *pdata, size_t pdata_size,
+		       bool leave_breadcrumbs);
+void psmouse_smbus_cleanup(struct psmouse *psmouse);
+
+#else /* !CONFIG_MOUSE_PS2_SMBUS */
+
+static inline int psmouse_smbus_module_init(void)
+{
+	return 0;
+}
+
+static inline void psmouse_smbus_module_exit(void)
+{
+}
+
+static inline void psmouse_smbus_cleanup(struct psmouse *psmouse)
+{
+}
+
+#endif /* CONFIG_MOUSE_PS2_SMBUS */
 
 #endif /* _PSMOUSE_H */

@@ -242,7 +242,7 @@ void delete_property_by_name(struct node *node, char *name)
 	struct property *prop = node->proplist;
 
 	while (prop) {
-		if (!strcmp(prop->name, name)) {
+		if (streq(prop->name, name)) {
 			delete_property(prop);
 			return;
 		}
@@ -275,7 +275,7 @@ void delete_node_by_name(struct node *parent, char *name)
 	struct node *node = parent->children;
 
 	while (node) {
-		if (!strcmp(node->name, name)) {
+		if (streq(node->name, name)) {
 			delete_node(node);
 			return;
 		}
@@ -319,8 +319,8 @@ struct reserve_info *build_reserve_entry(uint64_t address, uint64_t size)
 
 	memset(new, 0, sizeof(*new));
 
-	new->re.address = address;
-	new->re.size = size;
+	new->address = address;
+	new->size = size;
 
 	return new;
 }
@@ -393,7 +393,7 @@ struct property *get_property(struct node *node, const char *propname)
 cell_t propval_cell(struct property *prop)
 {
 	assert(prop->val.len == sizeof(cell_t));
-	return fdt32_to_cpu(*((cell_t *)prop->val.val));
+	return fdt32_to_cpu(*((fdt32_t *)prop->val.val));
 }
 
 struct property *get_property_by_label(struct node *tree, const char *label,
@@ -599,13 +599,13 @@ static int cmp_reserve_info(const void *ax, const void *bx)
 	a = *((const struct reserve_info * const *)ax);
 	b = *((const struct reserve_info * const *)bx);
 
-	if (a->re.address < b->re.address)
+	if (a->address < b->address)
 		return -1;
-	else if (a->re.address > b->re.address)
+	else if (a->address > b->address)
 		return 1;
-	else if (a->re.size < b->re.size)
+	else if (a->size < b->size)
 		return -1;
-	else if (a->re.size > b->re.size)
+	else if (a->size > b->size)
 		return 1;
 	else
 		return 0;
@@ -847,6 +847,8 @@ static void add_fixup_entry(struct dt_info *dti, struct node *fn,
 	xasprintf(&entry, "%s:%s:%u",
 			node->fullpath, prop->name, m->offset);
 	append_to_property(fn, m->ref, entry, strlen(entry) + 1);
+
+	free(entry);
 }
 
 static void generate_fixups_tree_internal(struct dt_info *dti,
@@ -900,7 +902,7 @@ static void add_local_fixup_entry(struct dt_info *dti,
 		struct node *refnode)
 {
 	struct node *wn, *nwn;	/* local fixup node, walk node, new */
-	uint32_t value_32;
+	fdt32_t value_32;
 	char **compp;
 	int i, depth;
 

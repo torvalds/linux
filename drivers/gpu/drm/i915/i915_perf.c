@@ -1008,7 +1008,7 @@ static void hsw_disable_metric_set(struct drm_i915_private *dev_priv)
 
 static void gen7_update_oacontrol_locked(struct drm_i915_private *dev_priv)
 {
-	assert_spin_locked(&dev_priv->perf.hook_lock);
+	lockdep_assert_held(&dev_priv->perf.hook_lock);
 
 	if (dev_priv->perf.oa.exclusive_stream->enabled) {
 		struct i915_gem_context *ctx =

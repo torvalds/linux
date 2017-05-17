@@ -61,7 +61,7 @@ static int st_lsm6dsx_i2c_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
 	return st_lsm6dsx_probe(&client->dev, client->irq,
-				(int)id->driver_data,
+				(int)id->driver_data, id->name,
 				&st_lsm6dsx_transfer_fn);
 }
 
@@ -69,6 +69,14 @@ static const struct of_device_id st_lsm6dsx_i2c_of_match[] = {
 	{
 		.compatible = "st,lsm6ds3",
 		.data = (void *)ST_LSM6DS3_ID,
+	},
+	{
+		.compatible = "st,lsm6ds3h",
+		.data = (void *)ST_LSM6DS3H_ID,
+	},
+	{
+		.compatible = "st,lsm6dsl",
+		.data = (void *)ST_LSM6DSL_ID,
 	},
 	{
 		.compatible = "st,lsm6dsm",
@@ -80,6 +88,8 @@ MODULE_DEVICE_TABLE(of, st_lsm6dsx_i2c_of_match);
 
 static const struct i2c_device_id st_lsm6dsx_i2c_id_table[] = {
 	{ ST_LSM6DS3_DEV_NAME, ST_LSM6DS3_ID },
+	{ ST_LSM6DS3H_DEV_NAME, ST_LSM6DS3H_ID },
+	{ ST_LSM6DSL_DEV_NAME, ST_LSM6DSL_ID },
 	{ ST_LSM6DSM_DEV_NAME, ST_LSM6DSM_ID },
 	{},
 };

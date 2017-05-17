@@ -26,17 +26,13 @@
 #include <linux/seg6_iptunnel.h>
 #include <net/addrconf.h>
 #include <net/ip6_route.h>
-#ifdef CONFIG_DST_CACHE
 #include <net/dst_cache.h>
-#endif
 #ifdef CONFIG_IPV6_SEG6_HMAC
 #include <net/seg6_hmac.h>
 #endif
 
 struct seg6_lwt {
-#ifdef CONFIG_DST_CACHE
 	struct dst_cache cache;
-#endif
 	struct seg6_iptunnel_encap tuninfo[0];
 };
 
@@ -105,7 +101,7 @@ static int seg6_do_srh_encap(struct sk_buff *skb, struct ipv6_sr_hdr *osrh)
 	hdrlen = (osrh->hdrlen + 1) << 3;
 	tot_len = hdrlen + sizeof(*hdr);
 
-	err = pskb_expand_head(skb, tot_len, 0, GFP_ATOMIC);
+	err = skb_cow_head(skb, tot_len);
 	if (unlikely(err))
 		return err;
 
@@ -156,7 +152,7 @@ static int seg6_do_srh_inline(struct sk_buff *skb, struct ipv6_sr_hdr *osrh)
 
 	hdrlen = (osrh->hdrlen + 1) << 3;
 
-	err = pskb_expand_head(skb, hdrlen, 0, GFP_ATOMIC);
+	err = skb_cow_head(skb, hdrlen);
 	if (unlikely(err))
 		return err;
 
@@ -237,6 +233,9 @@ static int seg6_do_srh(struct sk_buff *skb)
 
 static int seg6_input(struct sk_buff *skb)
 {
+	struct dst_entry *orig_dst = skb_dst(skb);
+	struct dst_entry *dst = NULL;
+	struct seg6_lwt *slwt;
 	int err;
 
 	err = seg6_do_srh(skb);
@@ -245,8 +244,30 @@ static int seg6_input(struct sk_buff *skb)
 		return err;
 	}
 
+	slwt = seg6_lwt_lwtunnel(orig_dst->lwtstate);
+
+	preempt_disable();
+	dst = dst_cache_get(&slwt->cache);
+	preempt_enable();
+
 	skb_dst_drop(skb);
-	ip6_route_input(skb);
+
+	if (!dst) {
+		ip6_route_input(skb);
+		dst = skb_dst(skb);
+		if (!dst->error) {
+			preempt_disable();
+			dst_cache_set_ip6(&slwt->cache, dst,
+					  &ipv6_hdr(skb)->saddr);
+			preempt_enable();
+		}
+	} else {
+		skb_dst_set(skb, dst);
+	}
+
+	err = skb_cow_head(skb, LL_RESERVED_SPACE(dst->dev));
+	if (unlikely(err))
+		return err;
 
 	return dst_input(skb);
 }
@@ -264,11 +285,9 @@ static int seg6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 
 	slwt = seg6_lwt_lwtunnel(orig_dst->lwtstate);
 
-#ifdef CONFIG_DST_CACHE
 	preempt_disable();
 	dst = dst_cache_get(&slwt->cache);
 	preempt_enable();
-#endif
 
 	if (unlikely(!dst)) {
 		struct ipv6hdr *hdr = ipv6_hdr(skb);
@@ -287,15 +306,17 @@ static int seg6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 			goto drop;
 		}
 
-#ifdef CONFIG_DST_CACHE
 		preempt_disable();
 		dst_cache_set_ip6(&slwt->cache, dst, &fl6.saddr);
 		preempt_enable();
-#endif
 	}
 
 	skb_dst_drop(skb);
 	skb_dst_set(skb, dst);
+
+	err = skb_cow_head(skb, LL_RESERVED_SPACE(dst->dev));
+	if (unlikely(err))
+		goto drop;
 
 	return dst_output(net, sk, skb);
 drop:
@@ -315,7 +336,7 @@ static int seg6_build_state(struct nlattr *nla,
 	int err;
 
 	err = nla_parse_nested(tb, SEG6_IPTUNNEL_MAX, nla,
-			       seg6_iptunnel_policy);
+			       seg6_iptunnel_policy, NULL);
 
 	if (err < 0)
 		return err;
@@ -355,13 +376,11 @@ static int seg6_build_state(struct nlattr *nla,
 
 	slwt = seg6_lwt_lwtunnel(newts);
 
-#ifdef CONFIG_DST_CACHE
 	err = dst_cache_init(&slwt->cache, GFP_KERNEL);
 	if (err) {
 		kfree(newts);
 		return err;
 	}
-#endif
 
 	memcpy(&slwt->tuninfo, tuninfo, tuninfo_len);
 
@@ -375,12 +394,10 @@ static int seg6_build_state(struct nlattr *nla,
 	return 0;
 }
 
-#ifdef CONFIG_DST_CACHE
 static void seg6_destroy_state(struct lwtunnel_state *lwt)
 {
 	dst_cache_destroy(&seg6_lwt_lwtunnel(lwt)->cache);
 }
-#endif
 
 static int seg6_fill_encap_info(struct sk_buff *skb,
 				struct lwtunnel_state *lwtstate)
@@ -414,9 +431,7 @@ static int seg6_encap_cmp(struct lwtunnel_state *a, struct lwtunnel_state *b)
 
 static const struct lwtunnel_encap_ops seg6_iptun_ops = {
 	.build_state = seg6_build_state,
-#ifdef CONFIG_DST_CACHE
 	.destroy_state = seg6_destroy_state,
-#endif
 	.output = seg6_output,
 	.input = seg6_input,
 	.fill_encap = seg6_fill_encap_info,

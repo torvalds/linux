@@ -284,7 +284,8 @@ Types and flags used to represent the media graph elements
 	  supported scaling ratios is entity-specific and can differ
 	  between the horizontal and vertical directions (in particular
 	  scaling can be supported in one direction only). Binning and
-	  skipping are considered as scaling.
+	  sub-sampling (occasionally also referred to as skipping) are
+	  considered as scaling.
 
     -  ..  row 28
 

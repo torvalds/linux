@@ -84,9 +84,6 @@ struct msm_rd_state {
 
 	bool open;
 
-	struct dentry *ent;
-	struct drm_info_node *node;
-
 	/* current submit to read out: */
 	struct msm_gem_submit *submit;
 
@@ -219,6 +216,7 @@ int msm_rd_debugfs_init(struct drm_minor *minor)
 {
 	struct msm_drm_private *priv = minor->dev->dev_private;
 	struct msm_rd_state *rd;
+	struct dentry *ent;
 
 	/* only create on first minor: */
 	if (priv->rd)
@@ -236,54 +234,30 @@ int msm_rd_debugfs_init(struct drm_minor *minor)
 
 	init_waitqueue_head(&rd->fifo_event);
 
-	rd->node = kzalloc(sizeof(*rd->node), GFP_KERNEL);
-	if (!rd->node)
-		goto fail;
-
-	rd->ent = debugfs_create_file("rd", S_IFREG | S_IRUGO,
+	ent = debugfs_create_file("rd", S_IFREG | S_IRUGO,
 			minor->debugfs_root, rd, &rd_debugfs_fops);
-	if (!rd->ent) {
+	if (!ent) {
 		DRM_ERROR("Cannot create /sys/kernel/debug/dri/%pd/rd\n",
 				minor->debugfs_root);
 		goto fail;
 	}
 
-	rd->node->minor = minor;
-	rd->node->dent  = rd->ent;
-	rd->node->info_ent = NULL;
-
-	mutex_lock(&minor->debugfs_lock);
-	list_add(&rd->node->list, &minor->debugfs_list);
-	mutex_unlock(&minor->debugfs_lock);
-
 	return 0;
 
 fail:
-	msm_rd_debugfs_cleanup(minor);
+	msm_rd_debugfs_cleanup(priv);
 	return -1;
 }
 
-void msm_rd_debugfs_cleanup(struct drm_minor *minor)
+void msm_rd_debugfs_cleanup(struct msm_drm_private *priv)
 {
-	struct msm_drm_private *priv = minor->dev->dev_private;
 	struct msm_rd_state *rd = priv->rd;
 
 	if (!rd)
 		return;
 
 	priv->rd = NULL;
-
-	debugfs_remove(rd->ent);
-
-	if (rd->node) {
-		mutex_lock(&minor->debugfs_lock);
-		list_del(&rd->node->list);
-		mutex_unlock(&minor->debugfs_lock);
-		kfree(rd->node);
-	}
-
 	mutex_destroy(&rd->read_lock);
-
 	kfree(rd);
 }
 
@@ -348,7 +322,7 @@ void msm_rd_dump_submit(struct msm_gem_submit *submit)
 	}
 
 	for (i = 0; i < submit->nr_cmds; i++) {
-		uint32_t iova = submit->cmd[i].iova;
+		uint64_t iova = submit->cmd[i].iova;
 		uint32_t szd  = submit->cmd[i].size; /* in dwords */
 
 		/* snapshot cmdstream bo's (if we haven't already): */
@@ -367,7 +341,7 @@ void msm_rd_dump_submit(struct msm_gem_submit *submit)
 		case MSM_SUBMIT_CMD_CTX_RESTORE_BUF:
 		case MSM_SUBMIT_CMD_BUF:
 			rd_write_section(rd, RD_CMDSTREAM_ADDR,
-					(uint32_t[2]){ iova, szd }, 8);
+				(uint32_t[3]){ iova, szd, iova >> 32 }, 12);
 			break;
 		}
 	}

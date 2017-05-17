@@ -192,7 +192,9 @@ static int sirfsoc_local_timer_starting_cpu(unsigned int cpu)
 	ce->set_next_event = sirfsoc_timer_set_next_event;
 	clockevents_calc_mult_shift(ce, atlas7_timer_rate, 60);
 	ce->max_delta_ns = clockevent_delta2ns(-2, ce);
+	ce->max_delta_ticks = (unsigned long)-2;
 	ce->min_delta_ns = clockevent_delta2ns(2, ce);
+	ce->min_delta_ticks = 2;
 	ce->cpumask = cpumask_of(cpu);
 
 	action->dev_id = ce;

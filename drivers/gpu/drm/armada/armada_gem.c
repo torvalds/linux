@@ -529,10 +529,10 @@ static const struct dma_buf_ops armada_gem_prime_dmabuf_ops = {
 	.map_dma_buf	= armada_gem_prime_map_dma_buf,
 	.unmap_dma_buf	= armada_gem_prime_unmap_dma_buf,
 	.release	= drm_gem_dmabuf_release,
-	.kmap_atomic	= armada_gem_dmabuf_no_kmap,
-	.kunmap_atomic	= armada_gem_dmabuf_no_kunmap,
-	.kmap		= armada_gem_dmabuf_no_kmap,
-	.kunmap		= armada_gem_dmabuf_no_kunmap,
+	.map_atomic	= armada_gem_dmabuf_no_kmap,
+	.unmap_atomic	= armada_gem_dmabuf_no_kunmap,
+	.map		= armada_gem_dmabuf_no_kmap,
+	.unmap		= armada_gem_dmabuf_no_kunmap,
 	.mmap		= armada_gem_dmabuf_mmap,
 };
 

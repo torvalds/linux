@@ -135,15 +135,15 @@ static int io_err_clone_and_map_rq(struct dm_target *ti, struct request *rq,
 				   union map_info *map_context,
 				   struct request **clone)
 {
-	return -EIO;
+	return DM_MAPIO_KILL;
 }
 
 static void io_err_release_clone_rq(struct request *clone)
 {
 }
 
-static long io_err_direct_access(struct dm_target *ti, sector_t sector,
-				 void **kaddr, pfn_t *pfn, long size)
+static long io_err_dax_direct_access(struct dm_target *ti, pgoff_t pgoff,
+		long nr_pages, void **kaddr, pfn_t *pfn)
 {
 	return -EIO;
 }
@@ -157,7 +157,7 @@ static struct target_type error_target = {
 	.map  = io_err_map,
 	.clone_and_map_rq = io_err_clone_and_map_rq,
 	.release_clone_rq = io_err_release_clone_rq,
-	.direct_access = io_err_direct_access,
+	.direct_access = io_err_dax_direct_access,
 };
 
 int __init dm_target_init(void)

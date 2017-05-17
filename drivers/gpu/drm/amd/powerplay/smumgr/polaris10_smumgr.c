@@ -409,4 +409,5 @@ const struct pp_smumgr_func polaris10_smu_funcs = {
 	.populate_all_memory_levels = polaris10_populate_all_memory_levels,
 	.get_mac_definition = polaris10_get_mac_definition,
 	.is_dpm_running = polaris10_is_dpm_running,
+	.populate_requested_graphic_levels = polaris10_populate_requested_graphic_levels,
 };

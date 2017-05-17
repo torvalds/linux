@@ -3878,9 +3878,8 @@ hfcmulti_initmode(struct dchannel *dch)
 		if (hc->dnum[pt]) {
 			mode_hfcmulti(hc, dch->slot, dch->dev.D.protocol,
 				      -1, 0, -1, 0);
-			dch->timer.function = (void *) hfcmulti_dbusy_timer;
-			dch->timer.data = (long) dch;
-			init_timer(&dch->timer);
+			setup_timer(&dch->timer, (void *)hfcmulti_dbusy_timer,
+				    (long)dch);
 		}
 		for (i = 1; i <= 31; i++) {
 			if (!((1 << i) & hc->bmask[pt])) /* skip unused chan */
@@ -3986,9 +3985,8 @@ hfcmulti_initmode(struct dchannel *dch)
 		hc->chan[i].slot_rx = -1;
 		hc->chan[i].conf = -1;
 		mode_hfcmulti(hc, i, dch->dev.D.protocol, -1, 0, -1, 0);
-		dch->timer.function = (void *) hfcmulti_dbusy_timer;
-		dch->timer.data = (long) dch;
-		init_timer(&dch->timer);
+		setup_timer(&dch->timer, (void *)hfcmulti_dbusy_timer,
+			    (long)dch);
 		hc->chan[i - 2].slot_tx = -1;
 		hc->chan[i - 2].slot_rx = -1;
 		hc->chan[i - 2].conf = -1;

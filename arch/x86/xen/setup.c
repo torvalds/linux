@@ -14,7 +14,7 @@
 
 #include <asm/elf.h>
 #include <asm/vdso.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/setup.h>
 #include <asm/acpi.h>
 #include <asm/numa.h>
@@ -41,8 +41,7 @@ struct xen_memory_region xen_extra_mem[XEN_EXTRA_MEM_MAX_REGIONS] __initdata;
 unsigned long xen_released_pages;
 
 /* E820 map used during setting up memory. */
-static struct e820entry xen_e820_map[E820_X_MAX] __initdata;
-static u32 xen_e820_map_entries __initdata;
+static struct e820_table xen_e820_table __initdata;
 
 /*
  * Buffer used to remap identity mapped pages. We only need the virtual space.
@@ -198,15 +197,15 @@ void __init xen_inv_extra_mem(void)
  */
 static unsigned long __init xen_find_pfn_range(unsigned long *min_pfn)
 {
-	const struct e820entry *entry = xen_e820_map;
+	const struct e820_entry *entry = xen_e820_table.entries;
 	unsigned int i;
 	unsigned long done = 0;
 
-	for (i = 0; i < xen_e820_map_entries; i++, entry++) {
+	for (i = 0; i < xen_e820_table.nr_entries; i++, entry++) {
 		unsigned long s_pfn;
 		unsigned long e_pfn;
 
-		if (entry->type != E820_RAM)
+		if (entry->type != E820_TYPE_RAM)
 			continue;
 
 		e_pfn = PFN_DOWN(entry->addr + entry->size);
@@ -457,7 +456,7 @@ static unsigned long __init xen_foreach_remap_area(unsigned long nr_pages,
 {
 	phys_addr_t start = 0;
 	unsigned long ret_val = 0;
-	const struct e820entry *entry = xen_e820_map;
+	const struct e820_entry *entry = xen_e820_table.entries;
 	int i;
 
 	/*
@@ -471,13 +470,13 @@ static unsigned long __init xen_foreach_remap_area(unsigned long nr_pages,
 	 * example) the DMI tables in a reserved region that begins on
 	 * a non-page boundary.
 	 */
-	for (i = 0; i < xen_e820_map_entries; i++, entry++) {
+	for (i = 0; i < xen_e820_table.nr_entries; i++, entry++) {
 		phys_addr_t end = entry->addr + entry->size;
-		if (entry->type == E820_RAM || i == xen_e820_map_entries - 1) {
+		if (entry->type == E820_TYPE_RAM || i == xen_e820_table.nr_entries - 1) {
 			unsigned long start_pfn = PFN_DOWN(start);
 			unsigned long end_pfn = PFN_UP(end);
 
-			if (entry->type == E820_RAM)
+			if (entry->type == E820_TYPE_RAM)
 				end_pfn = PFN_UP(entry->addr);
 
 			if (start_pfn < end_pfn)
@@ -591,28 +590,28 @@ static void __init xen_align_and_add_e820_region(phys_addr_t start,
 	phys_addr_t end = start + size;
 
 	/* Align RAM regions to page boundaries. */
-	if (type == E820_RAM) {
+	if (type == E820_TYPE_RAM) {
 		start = PAGE_ALIGN(start);
 		end &= ~((phys_addr_t)PAGE_SIZE - 1);
 	}
 
-	e820_add_region(start, end - start, type);
+	e820__range_add(start, end - start, type);
 }
 
 static void __init xen_ignore_unusable(void)
 {
-	struct e820entry *entry = xen_e820_map;
+	struct e820_entry *entry = xen_e820_table.entries;
 	unsigned int i;
 
-	for (i = 0; i < xen_e820_map_entries; i++, entry++) {
-		if (entry->type == E820_UNUSABLE)
-			entry->type = E820_RAM;
+	for (i = 0; i < xen_e820_table.nr_entries; i++, entry++) {
+		if (entry->type == E820_TYPE_UNUSABLE)
+			entry->type = E820_TYPE_RAM;
 	}
 }
 
 bool __init xen_is_e820_reserved(phys_addr_t start, phys_addr_t size)
 {
-	struct e820entry *entry;
+	struct e820_entry *entry;
 	unsigned mapcnt;
 	phys_addr_t end;
 
@@ -620,10 +619,10 @@ bool __init xen_is_e820_reserved(phys_addr_t start, phys_addr_t size)
 		return false;
 
 	end = start + size;
-	entry = xen_e820_map;
+	entry = xen_e820_table.entries;
 
-	for (mapcnt = 0; mapcnt < xen_e820_map_entries; mapcnt++) {
-		if (entry->type == E820_RAM && entry->addr <= start &&
+	for (mapcnt = 0; mapcnt < xen_e820_table.nr_entries; mapcnt++) {
+		if (entry->type == E820_TYPE_RAM && entry->addr <= start &&
 		    (entry->addr + entry->size) >= end)
 			return false;
 
@@ -645,10 +644,10 @@ phys_addr_t __init xen_find_free_area(phys_addr_t size)
 {
 	unsigned mapcnt;
 	phys_addr_t addr, start;
-	struct e820entry *entry = xen_e820_map;
+	struct e820_entry *entry = xen_e820_table.entries;
 
-	for (mapcnt = 0; mapcnt < xen_e820_map_entries; mapcnt++, entry++) {
-		if (entry->type != E820_RAM || entry->size < size)
+	for (mapcnt = 0; mapcnt < xen_e820_table.nr_entries; mapcnt++, entry++) {
+		if (entry->type != E820_TYPE_RAM || entry->size < size)
 			continue;
 		start = entry->addr;
 		for (addr = start; addr < start + size; addr += PAGE_SIZE) {
@@ -750,8 +749,8 @@ char * __init xen_memory_setup(void)
 	max_pfn = min(max_pfn, xen_start_info->nr_pages);
 	mem_end = PFN_PHYS(max_pfn);
 
-	memmap.nr_entries = ARRAY_SIZE(xen_e820_map);
-	set_xen_guest_handle(memmap.buffer, xen_e820_map);
+	memmap.nr_entries = ARRAY_SIZE(xen_e820_table.entries);
+	set_xen_guest_handle(memmap.buffer, xen_e820_table.entries);
 
 	op = xen_initial_domain() ?
 		XENMEM_machine_memory_map :
@@ -760,16 +759,16 @@ char * __init xen_memory_setup(void)
 	if (rc == -ENOSYS) {
 		BUG_ON(xen_initial_domain());
 		memmap.nr_entries = 1;
-		xen_e820_map[0].addr = 0ULL;
-		xen_e820_map[0].size = mem_end;
+		xen_e820_table.entries[0].addr = 0ULL;
+		xen_e820_table.entries[0].size = mem_end;
 		/* 8MB slack (to balance backend allocations). */
-		xen_e820_map[0].size += 8ULL << 20;
-		xen_e820_map[0].type = E820_RAM;
+		xen_e820_table.entries[0].size += 8ULL << 20;
+		xen_e820_table.entries[0].type = E820_TYPE_RAM;
 		rc = 0;
 	}
 	BUG_ON(rc);
 	BUG_ON(memmap.nr_entries == 0);
-	xen_e820_map_entries = memmap.nr_entries;
+	xen_e820_table.nr_entries = memmap.nr_entries;
 
 	/*
 	 * Xen won't allow a 1:1 mapping to be created to UNUSABLE
@@ -783,8 +782,7 @@ char * __init xen_memory_setup(void)
 		xen_ignore_unusable();
 
 	/* Make sure the Xen-supplied memory map is well-ordered. */
-	sanitize_e820_map(xen_e820_map, ARRAY_SIZE(xen_e820_map),
-			  &xen_e820_map_entries);
+	e820__update_table(&xen_e820_table);
 
 	max_pages = xen_get_max_pages();
 
@@ -811,15 +809,15 @@ char * __init xen_memory_setup(void)
 	extra_pages = min3(EXTRA_MEM_RATIO * min(max_pfn, PFN_DOWN(MAXMEM)),
 			   extra_pages, max_pages - max_pfn);
 	i = 0;
-	addr = xen_e820_map[0].addr;
-	size = xen_e820_map[0].size;
-	while (i < xen_e820_map_entries) {
+	addr = xen_e820_table.entries[0].addr;
+	size = xen_e820_table.entries[0].size;
+	while (i < xen_e820_table.nr_entries) {
 		bool discard = false;
 
 		chunk_size = size;
-		type = xen_e820_map[i].type;
+		type = xen_e820_table.entries[i].type;
 
-		if (type == E820_RAM) {
+		if (type == E820_TYPE_RAM) {
 			if (addr < mem_end) {
 				chunk_size = min(size, mem_end - addr);
 			} else if (extra_pages) {
@@ -840,9 +838,9 @@ char * __init xen_memory_setup(void)
 		size -= chunk_size;
 		if (size == 0) {
 			i++;
-			if (i < xen_e820_map_entries) {
-				addr = xen_e820_map[i].addr;
-				size = xen_e820_map[i].size;
+			if (i < xen_e820_table.nr_entries) {
+				addr = xen_e820_table.entries[i].addr;
+				size = xen_e820_table.entries[i].size;
 			}
 		}
 	}
@@ -858,10 +856,9 @@ char * __init xen_memory_setup(void)
 	 * reserve ISA memory anyway because too many things poke
 	 * about in there.
 	 */
-	e820_add_region(ISA_START_ADDRESS, ISA_END_ADDRESS - ISA_START_ADDRESS,
-			E820_RESERVED);
+	e820__range_add(ISA_START_ADDRESS, ISA_END_ADDRESS - ISA_START_ADDRESS, E820_TYPE_RESERVED);
 
-	sanitize_e820_map(e820->map, ARRAY_SIZE(e820->map), &e820->nr_map);
+	e820__update_table(e820_table);
 
 	/*
 	 * Check whether the kernel itself conflicts with the target E820 map.
@@ -910,6 +907,37 @@ char * __init xen_memory_setup(void)
 	xen_foreach_remap_area(max_pfn, xen_set_identity_and_remap_chunk);
 
 	pr_info("Released %ld page(s)\n", xen_released_pages);
+
+	return "Xen";
+}
+
+/*
+ * Machine specific memory setup for auto-translated guests.
+ */
+char * __init xen_auto_xlated_memory_setup(void)
+{
+	struct xen_memory_map memmap;
+	int i;
+	int rc;
+
+	memmap.nr_entries = ARRAY_SIZE(xen_e820_table.entries);
+	set_xen_guest_handle(memmap.buffer, xen_e820_table.entries);
+
+	rc = HYPERVISOR_memory_op(XENMEM_memory_map, &memmap);
+	if (rc < 0)
+		panic("No memory map (%d)\n", rc);
+
+	xen_e820_table.nr_entries = memmap.nr_entries;
+
+	e820__update_table(&xen_e820_table);
+
+	for (i = 0; i < xen_e820_table.nr_entries; i++)
+		e820__range_add(xen_e820_table.entries[i].addr, xen_e820_table.entries[i].size, xen_e820_table.entries[i].type);
+
+	/* Remove p2m info, it is not needed. */
+	xen_start_info->mfn_list = 0;
+	xen_start_info->first_p2m_pfn = 0;
+	xen_start_info->nr_p2m_frames = 0;
 
 	return "Xen";
 }
@@ -999,8 +1027,8 @@ void __init xen_pvmmu_arch_setup(void)
 void __init xen_arch_setup(void)
 {
 	xen_panic_handler_init();
-
-	xen_pvmmu_arch_setup();
+	if (!xen_feature(XENFEAT_auto_translated_physmap))
+		xen_pvmmu_arch_setup();
 
 #ifdef CONFIG_ACPI
 	if (!(xen_start_info->flags & SIF_INITDOMAIN)) {

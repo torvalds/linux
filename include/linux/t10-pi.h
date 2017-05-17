@@ -34,9 +34,9 @@ struct t10_pi_tuple {
 };
 
 
-extern struct blk_integrity_profile t10_pi_type1_crc;
-extern struct blk_integrity_profile t10_pi_type1_ip;
-extern struct blk_integrity_profile t10_pi_type3_crc;
-extern struct blk_integrity_profile t10_pi_type3_ip;
+extern const struct blk_integrity_profile t10_pi_type1_crc;
+extern const struct blk_integrity_profile t10_pi_type1_ip;
+extern const struct blk_integrity_profile t10_pi_type3_crc;
+extern const struct blk_integrity_profile t10_pi_type3_ip;
 
 #endif

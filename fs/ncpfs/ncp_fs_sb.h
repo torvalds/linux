@@ -143,7 +143,6 @@ struct ncp_server {
 		size_t len;
 		__u8 data[128];
 	} unexpected_packet;
-	struct backing_dev_info bdi;
 };
 
 extern void ncp_tcp_rcv_proc(struct work_struct *work);

@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -227,6 +229,9 @@ enum {
  */
 #define RATE_LEGACY_RATE_MSK 0xff
 
+/* Bit 10 - OFDM HE */
+#define RATE_MCS_OFDM_HE_POS		10
+#define RATE_MCS_OFDM_HE_MSK		BIT(RATE_MCS_OFDM_HE_POS)
 
 /*
  * Bit 11-12: (0) 20MHz, (1) 40MHz, (2) 80MHz, (3) 160MHz
@@ -255,18 +260,29 @@ enum {
 #define RATE_MCS_ANT_MSK		RATE_MCS_ANT_ABC_MSK
 #define RATE_MCS_ANT_NUM 3
 
-/* Bit 17-18: (0) SS, (1) SS*2 */
+/* Bit 17: (0) SS, (1) SS*2 */
 #define RATE_MCS_STBC_POS		17
-#define RATE_MCS_HT_STBC_MSK		(3 << RATE_MCS_STBC_POS)
-#define RATE_MCS_VHT_STBC_MSK		(1 << RATE_MCS_STBC_POS)
+#define RATE_MCS_STBC_MSK		BIT(RATE_MCS_STBC_POS)
+
+/* Bit 18: OFDM-HE dual carrier mode */
+#define RATE_HE_DUAL_CARRIER_MODE	18
+#define RATE_HE_DUAL_CARRIER_MODE_MSK	BIT(RATE_HE_DUAL_CARRIER_MODE)
 
 /* Bit 19: (0) Beamforming is off, (1) Beamforming is on */
 #define RATE_MCS_BF_POS			19
 #define RATE_MCS_BF_MSK			(1 << RATE_MCS_BF_POS)
 
-/* Bit 20: (0) ZLF is off, (1) ZLF is on */
-#define RATE_MCS_ZLF_POS		20
-#define RATE_MCS_ZLF_MSK		(1 << RATE_MCS_ZLF_POS)
+/*
+ * Bit 20-21: HE guard interval and LTF type.
+ * (0) 1xLTF+1.6us, (1) 2xLTF+0.8us,
+ * (2) 2xLTF+1.6us, (3) 4xLTF+3.2us
+ */
+#define RATE_MCS_HE_GI_LTF_POS		20
+#define RATE_MCS_HE_GI_LTF_MSK		(3 << RATE_MCS_HE_GI_LTF_POS)
+
+/* Bit 22-23: HE type. (0) SU, (1) SU_EXT, (2) MU, (3) trigger based */
+#define RATE_MCS_HE_TYPE_POS		22
+#define RATE_MCS_HE_TYPE_MSK		(3 << RATE_MCS_HE_TYPE_POS)
 
 /* Bit 24-25: (0) 20MHz (no dup), (1) 2x20MHz, (2) 4x20MHz, 3 8x20MHz */
 #define RATE_MCS_DUP_POS		24

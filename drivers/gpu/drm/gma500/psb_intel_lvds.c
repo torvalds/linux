@@ -388,11 +388,11 @@ bool psb_intel_lvds_mode_fixup(struct drm_encoder *encoder,
 
 	/* PSB requires the LVDS is on pipe B, MRST has only one pipe anyway */
 	if (!IS_MRST(dev) && gma_crtc->pipe == 0) {
-		printk(KERN_ERR "Can't support LVDS on pipe A\n");
+		pr_err("Can't support LVDS on pipe A\n");
 		return false;
 	}
 	if (IS_MRST(dev) && gma_crtc->pipe != 0) {
-		printk(KERN_ERR "Must use PIPE A\n");
+		pr_err("Must use PIPE A\n");
 		return false;
 	}
 	/* Should never happen!! */
@@ -400,8 +400,7 @@ bool psb_intel_lvds_mode_fixup(struct drm_encoder *encoder,
 			    head) {
 		if (tmp_encoder != encoder
 		    && tmp_encoder->crtc == encoder->crtc) {
-			printk(KERN_ERR "Can't enable LVDS and another "
-			       "encoder on the same pipe\n");
+			pr_err("Can't enable LVDS and another encoder on the same pipe\n");
 			return false;
 		}
 	}

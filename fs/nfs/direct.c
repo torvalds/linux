@@ -392,16 +392,6 @@ static void nfs_direct_complete(struct nfs_direct_req *dreq)
 	nfs_direct_req_release(dreq);
 }
 
-static void nfs_direct_readpage_release(struct nfs_page *req)
-{
-	dprintk("NFS: direct read done (%s/%llu %d@%lld)\n",
-		req->wb_context->dentry->d_sb->s_id,
-		(unsigned long long)NFS_FILEID(d_inode(req->wb_context->dentry)),
-		req->wb_bytes,
-		(long long)req_offset(req));
-	nfs_release_request(req);
-}
-
 static void nfs_direct_read_completion(struct nfs_pgio_header *hdr)
 {
 	unsigned long bytes = 0;
@@ -426,7 +416,7 @@ static void nfs_direct_read_completion(struct nfs_pgio_header *hdr)
 			set_page_dirty(page);
 		bytes += req->wb_bytes;
 		nfs_list_remove_request(req);
-		nfs_direct_readpage_release(req);
+		nfs_release_request(req);
 	}
 out_put:
 	if (put_dreq(dreq))
@@ -537,7 +527,7 @@ static ssize_t nfs_direct_read_schedule_iovec(struct nfs_direct_req *dreq,
 
 	if (put_dreq(dreq))
 		nfs_direct_complete(dreq);
-	return 0;
+	return requested_bytes;
 }
 
 /**
@@ -566,7 +556,7 @@ ssize_t nfs_file_direct_read(struct kiocb *iocb, struct iov_iter *iter)
 	struct inode *inode = mapping->host;
 	struct nfs_direct_req *dreq;
 	struct nfs_lock_context *l_ctx;
-	ssize_t result = -EINVAL;
+	ssize_t result = -EINVAL, requested;
 	size_t count = iov_iter_count(iter);
 	nfs_add_stats(mapping->host, NFSIOS_DIRECTREADBYTES, count);
 
@@ -600,14 +590,19 @@ ssize_t nfs_file_direct_read(struct kiocb *iocb, struct iov_iter *iter)
 	nfs_start_io_direct(inode);
 
 	NFS_I(inode)->read_io += count;
-	result = nfs_direct_read_schedule_iovec(dreq, iter, iocb->ki_pos);
+	requested = nfs_direct_read_schedule_iovec(dreq, iter, iocb->ki_pos);
 
 	nfs_end_io_direct(inode);
 
-	if (!result) {
+	if (requested > 0) {
 		result = nfs_direct_wait(dreq);
-		if (result > 0)
+		if (result > 0) {
+			requested -= result;
 			iocb->ki_pos += result;
+		}
+		iov_iter_revert(iter, requested);
+	} else {
+		result = requested;
 	}
 
 out_release:
@@ -695,16 +690,9 @@ static void nfs_direct_commit_complete(struct nfs_commit_data *data)
 	int status = data->task.tk_status;
 
 	nfs_init_cinfo_from_dreq(&cinfo, dreq);
-	if (status < 0) {
-		dprintk("NFS: %5u commit failed with error %d.\n",
-			data->task.tk_pid, status);
+	if (status < 0 || nfs_direct_cmp_commit_data_verf(dreq, data))
 		dreq->flags = NFS_ODIRECT_RESCHED_WRITES;
-	} else if (nfs_direct_cmp_commit_data_verf(dreq, data)) {
-		dprintk("NFS: %5u commit verify failed\n", data->task.tk_pid);
-		dreq->flags = NFS_ODIRECT_RESCHED_WRITES;
-	}
 
-	dprintk("NFS: %5u commit returned %d\n", data->task.tk_pid, status);
 	while (!list_empty(&data->pages)) {
 		req = nfs_list_entry(data->pages.next);
 		nfs_list_remove_request(req);
@@ -954,7 +942,7 @@ static ssize_t nfs_direct_write_schedule_iovec(struct nfs_direct_req *dreq,
 
 	if (put_dreq(dreq))
 		nfs_direct_write_complete(dreq);
-	return 0;
+	return requested_bytes;
 }
 
 /**
@@ -979,7 +967,7 @@ static ssize_t nfs_direct_write_schedule_iovec(struct nfs_direct_req *dreq,
  */
 ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter)
 {
-	ssize_t result = -EINVAL;
+	ssize_t result = -EINVAL, requested;
 	size_t count;
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
@@ -1022,7 +1010,7 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter)
 
 	nfs_start_io_direct(inode);
 
-	result = nfs_direct_write_schedule_iovec(dreq, iter, pos);
+	requested = nfs_direct_write_schedule_iovec(dreq, iter, pos);
 
 	if (mapping->nrpages) {
 		invalidate_inode_pages2_range(mapping,
@@ -1031,13 +1019,17 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter)
 
 	nfs_end_io_direct(inode);
 
-	if (!result) {
+	if (requested > 0) {
 		result = nfs_direct_wait(dreq);
 		if (result > 0) {
+			requested -= result;
 			iocb->ki_pos = pos + result;
 			/* XXX: should check the generic_write_sync retval */
 			generic_write_sync(iocb, result);
 		}
+		iov_iter_revert(iter, requested);
+	} else {
+		result = requested;
 	}
 out_release:
 	nfs_direct_req_release(dreq);

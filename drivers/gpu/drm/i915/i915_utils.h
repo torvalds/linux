@@ -25,6 +25,35 @@
 #ifndef __I915_UTILS_H
 #define __I915_UTILS_H
 
+#undef WARN_ON
+/* Many gcc seem to no see through this and fall over :( */
+#if 0
+#define WARN_ON(x) ({ \
+	bool __i915_warn_cond = (x); \
+	if (__builtin_constant_p(__i915_warn_cond)) \
+		BUILD_BUG_ON(__i915_warn_cond); \
+	WARN(__i915_warn_cond, "WARN_ON(" #x ")"); })
+#else
+#define WARN_ON(x) WARN((x), "%s", "WARN_ON(" __stringify(x) ")")
+#endif
+
+#undef WARN_ON_ONCE
+#define WARN_ON_ONCE(x) WARN_ONCE((x), "%s", "WARN_ON_ONCE(" __stringify(x) ")")
+
+#define MISSING_CASE(x) WARN(1, "Missing switch case (%lu) in %s\n", \
+			     (long)(x), __func__)
+
+#if GCC_VERSION >= 70000
+#define add_overflows(A, B) \
+	__builtin_add_overflow_p((A), (B), (typeof((A) + (B)))0)
+#else
+#define add_overflows(A, B) ({ \
+	typeof(A) a = (A); \
+	typeof(B) b = (B); \
+	a + b < a; \
+})
+#endif
+
 #define range_overflows(start, size, max) ({ \
 	typeof(start) start__ = (start); \
 	typeof(size) size__ = (size); \
@@ -54,6 +83,8 @@
 
 #define ptr_pack_bits(ptr, bits)					\
 	((typeof(ptr))((unsigned long)(ptr) | (bits)))
+
+#define ptr_offset(ptr, member) offsetof(typeof(*(ptr)), member)
 
 #define fetch_and_zero(ptr) ({						\
 	typeof(*ptr) __T = *(ptr);					\

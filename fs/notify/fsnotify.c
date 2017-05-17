@@ -41,6 +41,63 @@ void __fsnotify_vfsmount_delete(struct vfsmount *mnt)
 	fsnotify_clear_marks_by_mount(mnt);
 }
 
+/**
+ * fsnotify_unmount_inodes - an sb is unmounting.  handle any watched inodes.
+ * @sb: superblock being unmounted.
+ *
+ * Called during unmount with no locks held, so needs to be safe against
+ * concurrent modifiers. We temporarily drop sb->s_inode_list_lock and CAN block.
+ */
+void fsnotify_unmount_inodes(struct super_block *sb)
+{
+	struct inode *inode, *iput_inode = NULL;
+
+	spin_lock(&sb->s_inode_list_lock);
+	list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
+		/*
+		 * We cannot __iget() an inode in state I_FREEING,
+		 * I_WILL_FREE, or I_NEW which is fine because by that point
+		 * the inode cannot have any associated watches.
+		 */
+		spin_lock(&inode->i_lock);
+		if (inode->i_state & (I_FREEING|I_WILL_FREE|I_NEW)) {
+			spin_unlock(&inode->i_lock);
+			continue;
+		}
+
+		/*
+		 * If i_count is zero, the inode cannot have any watches and
+		 * doing an __iget/iput with MS_ACTIVE clear would actually
+		 * evict all inodes with zero i_count from icache which is
+		 * unnecessarily violent and may in fact be illegal to do.
+		 */
+		if (!atomic_read(&inode->i_count)) {
+			spin_unlock(&inode->i_lock);
+			continue;
+		}
+
+		__iget(inode);
+		spin_unlock(&inode->i_lock);
+		spin_unlock(&sb->s_inode_list_lock);
+
+		if (iput_inode)
+			iput(iput_inode);
+
+		/* for each watch, send FS_UNMOUNT and then remove it */
+		fsnotify(inode, FS_UNMOUNT, inode, FSNOTIFY_EVENT_INODE, NULL, 0);
+
+		fsnotify_inode_delete(inode);
+
+		iput_inode = inode;
+
+		spin_lock(&sb->s_inode_list_lock);
+	}
+	spin_unlock(&sb->s_inode_list_lock);
+
+	if (iput_inode)
+		iput(iput_inode);
+}
+
 /*
  * Given an inode, first check if we care what happens to our children.  Inotify
  * and dnotify both tell their parents about events.  If we care about any event
@@ -127,7 +184,8 @@ static int send_to_group(struct inode *to_tell,
 			 struct fsnotify_mark *vfsmount_mark,
 			 __u32 mask, const void *data,
 			 int data_is, u32 cookie,
-			 const unsigned char *file_name)
+			 const unsigned char *file_name,
+			 struct fsnotify_iter_info *iter_info)
 {
 	struct fsnotify_group *group = NULL;
 	__u32 inode_test_mask = 0;
@@ -178,7 +236,7 @@ static int send_to_group(struct inode *to_tell,
 
 	return group->ops->handle_event(group, to_tell, inode_mark,
 					vfsmount_mark, mask, data, data_is,
-					file_name, cookie);
+					file_name, cookie, iter_info);
 }
 
 /*
@@ -193,8 +251,10 @@ int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
 	struct hlist_node *inode_node = NULL, *vfsmount_node = NULL;
 	struct fsnotify_mark *inode_mark = NULL, *vfsmount_mark = NULL;
 	struct fsnotify_group *inode_group, *vfsmount_group;
+	struct fsnotify_mark_connector *inode_conn, *vfsmount_conn;
+	struct fsnotify_iter_info iter_info;
 	struct mount *mnt;
-	int idx, ret = 0;
+	int ret = 0;
 	/* global tests shouldn't care about events on child only the specific event */
 	__u32 test_mask = (mask & ~FS_EVENT_ON_CHILD);
 
@@ -210,8 +270,8 @@ int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
 	 * SRCU because we have no references to any objects and do not
 	 * need SRCU to keep them "alive".
 	 */
-	if (hlist_empty(&to_tell->i_fsnotify_marks) &&
-	    (!mnt || hlist_empty(&mnt->mnt_fsnotify_marks)))
+	if (!to_tell->i_fsnotify_marks &&
+	    (!mnt || !mnt->mnt_fsnotify_marks))
 		return 0;
 	/*
 	 * if this is a modify event we may need to clear the ignored masks
@@ -223,19 +283,30 @@ int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
 	    !(mnt && test_mask & mnt->mnt_fsnotify_mask))
 		return 0;
 
-	idx = srcu_read_lock(&fsnotify_mark_srcu);
+	iter_info.srcu_idx = srcu_read_lock(&fsnotify_mark_srcu);
 
 	if ((mask & FS_MODIFY) ||
-	    (test_mask & to_tell->i_fsnotify_mask))
-		inode_node = srcu_dereference(to_tell->i_fsnotify_marks.first,
+	    (test_mask & to_tell->i_fsnotify_mask)) {
+		inode_conn = srcu_dereference(to_tell->i_fsnotify_marks,
 					      &fsnotify_mark_srcu);
+		if (inode_conn)
+			inode_node = srcu_dereference(inode_conn->list.first,
+						      &fsnotify_mark_srcu);
+	}
 
 	if (mnt && ((mask & FS_MODIFY) ||
 		    (test_mask & mnt->mnt_fsnotify_mask))) {
-		vfsmount_node = srcu_dereference(mnt->mnt_fsnotify_marks.first,
-						 &fsnotify_mark_srcu);
-		inode_node = srcu_dereference(to_tell->i_fsnotify_marks.first,
+		inode_conn = srcu_dereference(to_tell->i_fsnotify_marks,
 					      &fsnotify_mark_srcu);
+		if (inode_conn)
+			inode_node = srcu_dereference(inode_conn->list.first,
+						      &fsnotify_mark_srcu);
+		vfsmount_conn = srcu_dereference(mnt->mnt_fsnotify_marks,
+					         &fsnotify_mark_srcu);
+		if (vfsmount_conn)
+			vfsmount_node = srcu_dereference(
+						vfsmount_conn->list.first,
+						&fsnotify_mark_srcu);
 	}
 
 	/*
@@ -272,8 +343,13 @@ int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
 				vfsmount_mark = NULL;
 			}
 		}
+
+		iter_info.inode_mark = inode_mark;
+		iter_info.vfsmount_mark = vfsmount_mark;
+
 		ret = send_to_group(to_tell, inode_mark, vfsmount_mark, mask,
-				    data, data_is, cookie, file_name);
+				    data, data_is, cookie, file_name,
+				    &iter_info);
 
 		if (ret && (mask & ALL_FSNOTIFY_PERM_EVENTS))
 			goto out;
@@ -287,11 +363,13 @@ int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
 	}
 	ret = 0;
 out:
-	srcu_read_unlock(&fsnotify_mark_srcu, idx);
+	srcu_read_unlock(&fsnotify_mark_srcu, iter_info.srcu_idx);
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(fsnotify);
+
+extern struct kmem_cache *fsnotify_mark_connector_cachep;
 
 static __init int fsnotify_init(void)
 {
@@ -302,6 +380,9 @@ static __init int fsnotify_init(void)
 	ret = init_srcu_struct(&fsnotify_mark_srcu);
 	if (ret)
 		panic("initializing fsnotify_mark_srcu");
+
+	fsnotify_mark_connector_cachep = KMEM_CACHE(fsnotify_mark_connector,
+						    SLAB_PANIC);
 
 	return 0;
 }

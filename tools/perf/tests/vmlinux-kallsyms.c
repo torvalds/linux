@@ -1,5 +1,6 @@
 #include <linux/compiler.h>
 #include <linux/rbtree.h>
+#include <inttypes.h>
 #include <string.h>
 #include "map.h"
 #include "symbol.h"

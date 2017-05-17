@@ -145,7 +145,9 @@ void __init plat_time_init(void)
 
 	clockevent_set_clock(&jz4740_clockevent, clk_rate);
 	jz4740_clockevent.min_delta_ns = clockevent_delta2ns(100, &jz4740_clockevent);
+	jz4740_clockevent.min_delta_ticks = 100;
 	jz4740_clockevent.max_delta_ns = clockevent_delta2ns(0xffff, &jz4740_clockevent);
+	jz4740_clockevent.max_delta_ticks = 0xffff;
 	jz4740_clockevent.cpumask = cpumask_of(0);
 
 	clockevents_register_device(&jz4740_clockevent);

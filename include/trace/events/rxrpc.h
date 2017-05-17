@@ -683,6 +683,57 @@ TRACE_EVENT(rxrpc_rx_ack,
 		      __entry->n_acks)
 	    );
 
+TRACE_EVENT(rxrpc_rx_abort,
+	    TP_PROTO(struct rxrpc_call *call, rxrpc_serial_t serial,
+		     u32 abort_code),
+
+	    TP_ARGS(call, serial, abort_code),
+
+	    TP_STRUCT__entry(
+		    __field(struct rxrpc_call *,	call		)
+		    __field(rxrpc_serial_t,		serial		)
+		    __field(u32,			abort_code	)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call;
+		    __entry->serial = serial;
+		    __entry->abort_code = abort_code;
+			   ),
+
+	    TP_printk("c=%p ABORT %08x ac=%d",
+		      __entry->call,
+		      __entry->serial,
+		      __entry->abort_code)
+	    );
+
+TRACE_EVENT(rxrpc_rx_rwind_change,
+	    TP_PROTO(struct rxrpc_call *call, rxrpc_serial_t serial,
+		     u32 rwind, bool wake),
+
+	    TP_ARGS(call, serial, rwind, wake),
+
+	    TP_STRUCT__entry(
+		    __field(struct rxrpc_call *,	call		)
+		    __field(rxrpc_serial_t,		serial		)
+		    __field(u32,			rwind		)
+		    __field(bool,			wake		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call;
+		    __entry->serial = serial;
+		    __entry->rwind = rwind;
+		    __entry->wake = wake;
+			   ),
+
+	    TP_printk("c=%p %08x rw=%u%s",
+		      __entry->call,
+		      __entry->serial,
+		      __entry->rwind,
+		      __entry->wake ? " wake" : "")
+	    );
+
 TRACE_EVENT(rxrpc_tx_data,
 	    TP_PROTO(struct rxrpc_call *call, rxrpc_seq_t seq,
 		     rxrpc_serial_t serial, u8 flags, bool retrans, bool lose),
@@ -1085,6 +1136,56 @@ TRACE_EVENT(rxrpc_improper_term,
 	    TP_printk("c=%p ab=%08x",
 		      __entry->call,
 		      __entry->abort_code)
+	    );
+
+TRACE_EVENT(rxrpc_rx_eproto,
+	    TP_PROTO(struct rxrpc_call *call, rxrpc_serial_t serial,
+		     const char *why),
+
+	    TP_ARGS(call, serial, why),
+
+	    TP_STRUCT__entry(
+		    __field(struct rxrpc_call *,	call		)
+		    __field(rxrpc_serial_t,		serial		)
+		    __field(const char *,		why		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call;
+		    __entry->serial = serial;
+		    __entry->why = why;
+			   ),
+
+	    TP_printk("c=%p EPROTO %08x %s",
+		      __entry->call,
+		      __entry->serial,
+		      __entry->why)
+	    );
+
+TRACE_EVENT(rxrpc_connect_call,
+	    TP_PROTO(struct rxrpc_call *call),
+
+	    TP_ARGS(call),
+
+	    TP_STRUCT__entry(
+		    __field(struct rxrpc_call *,	call		)
+		    __field(unsigned long,		user_call_ID	)
+		    __field(u32,			cid		)
+		    __field(u32,			call_id		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call;
+		    __entry->user_call_ID = call->user_call_ID;
+		    __entry->cid = call->cid;
+		    __entry->call_id = call->call_id;
+			   ),
+
+	    TP_printk("c=%p u=%p %08x:%08x",
+		      __entry->call,
+		      (void *)__entry->user_call_ID,
+		      __entry->cid,
+		      __entry->call_id)
 	    );
 
 #endif /* _TRACE_RXRPC_H */

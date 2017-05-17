@@ -1749,17 +1749,16 @@ static int drbg_kcapi_sym_ctr(struct drbg_state *drbg,
 			      u8 *inbuf, u32 inlen,
 			      u8 *outbuf, u32 outlen)
 {
-	struct scatterlist sg_in;
+	struct scatterlist sg_in, sg_out;
 	int ret;
 
 	sg_init_one(&sg_in, inbuf, inlen);
+	sg_init_one(&sg_out, drbg->outscratchpad, DRBG_OUTSCRATCHLEN);
 
 	while (outlen) {
 		u32 cryptlen = min3(inlen, outlen, (u32)DRBG_OUTSCRATCHLEN);
-		struct scatterlist sg_out;
 
 		/* Output buffer may not be valid for SGL, use scratchpad */
-		sg_init_one(&sg_out, drbg->outscratchpad, cryptlen);
 		skcipher_request_set_crypt(drbg->ctr_req, &sg_in, &sg_out,
 					   cryptlen, drbg->V);
 		ret = crypto_skcipher_encrypt(drbg->ctr_req);

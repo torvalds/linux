@@ -64,18 +64,28 @@ void populate_pvinfo_page(struct intel_vgpu *vgpu)
 	WARN_ON(sizeof(struct vgt_if) != VGT_PVINFO_SIZE);
 }
 
+#define VGPU_MAX_WEIGHT 16
+#define VGPU_WEIGHT(vgpu_num)	\
+	(VGPU_MAX_WEIGHT / (vgpu_num))
+
 static struct {
 	unsigned int low_mm;
 	unsigned int high_mm;
 	unsigned int fence;
+
+	/* A vGPU with a weight of 8 will get twice as much GPU as a vGPU
+	 * with a weight of 4 on a contended host, different vGPU type has
+	 * different weight set. Legal weights range from 1 to 16.
+	 */
+	unsigned int weight;
 	enum intel_vgpu_edid edid;
 	char *name;
 } vgpu_types[] = {
 /* Fixed vGPU type table */
-	{ MB_TO_BYTES(64), MB_TO_BYTES(384), 4, GVT_EDID_1024_768, "8" },
-	{ MB_TO_BYTES(128), MB_TO_BYTES(512), 4, GVT_EDID_1920_1200, "4" },
-	{ MB_TO_BYTES(256), MB_TO_BYTES(1024), 4, GVT_EDID_1920_1200, "2" },
-	{ MB_TO_BYTES(512), MB_TO_BYTES(2048), 4, GVT_EDID_1920_1200, "1" },
+	{ MB_TO_BYTES(64), MB_TO_BYTES(384), 4, VGPU_WEIGHT(8), GVT_EDID_1024_768, "8" },
+	{ MB_TO_BYTES(128), MB_TO_BYTES(512), 4, VGPU_WEIGHT(4), GVT_EDID_1920_1200, "4" },
+	{ MB_TO_BYTES(256), MB_TO_BYTES(1024), 4, VGPU_WEIGHT(2), GVT_EDID_1920_1200, "2" },
+	{ MB_TO_BYTES(512), MB_TO_BYTES(2048), 4, VGPU_WEIGHT(1), GVT_EDID_1920_1200, "1" },
 };
 
 /**
@@ -120,6 +130,12 @@ int intel_gvt_init_vgpu_types(struct intel_gvt *gvt)
 		gvt->types[i].low_gm_size = vgpu_types[i].low_mm;
 		gvt->types[i].high_gm_size = vgpu_types[i].high_mm;
 		gvt->types[i].fence = vgpu_types[i].fence;
+
+		if (vgpu_types[i].weight < 1 ||
+					vgpu_types[i].weight > VGPU_MAX_WEIGHT)
+			return -EINVAL;
+
+		gvt->types[i].weight = vgpu_types[i].weight;
 		gvt->types[i].resolution = vgpu_types[i].edid;
 		gvt->types[i].avail_instance = min(low_avail / vgpu_types[i].low_mm,
 						   high_avail / vgpu_types[i].high_mm);
@@ -131,11 +147,12 @@ int intel_gvt_init_vgpu_types(struct intel_gvt *gvt)
 			sprintf(gvt->types[i].name, "GVTg_V5_%s",
 						vgpu_types[i].name);
 
-		gvt_dbg_core("type[%d]: %s avail %u low %u high %u fence %u res %s\n",
+		gvt_dbg_core("type[%d]: %s avail %u low %u high %u fence %u weight %u res %s\n",
 			     i, gvt->types[i].name,
 			     gvt->types[i].avail_instance,
 			     gvt->types[i].low_gm_size,
 			     gvt->types[i].high_gm_size, gvt->types[i].fence,
+			     gvt->types[i].weight,
 			     vgpu_edid_str(gvt->types[i].resolution));
 	}
 
@@ -250,6 +267,59 @@ void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu)
 	mutex_unlock(&gvt->lock);
 }
 
+#define IDLE_VGPU_IDR 0
+
+/**
+ * intel_gvt_create_idle_vgpu - create an idle virtual GPU
+ * @gvt: GVT device
+ *
+ * This function is called when user wants to create an idle virtual GPU.
+ *
+ * Returns:
+ * pointer to intel_vgpu, error pointer if failed.
+ */
+struct intel_vgpu *intel_gvt_create_idle_vgpu(struct intel_gvt *gvt)
+{
+	struct intel_vgpu *vgpu;
+	enum intel_engine_id i;
+	int ret;
+
+	vgpu = vzalloc(sizeof(*vgpu));
+	if (!vgpu)
+		return ERR_PTR(-ENOMEM);
+
+	vgpu->id = IDLE_VGPU_IDR;
+	vgpu->gvt = gvt;
+
+	for (i = 0; i < I915_NUM_ENGINES; i++)
+		INIT_LIST_HEAD(&vgpu->workload_q_head[i]);
+
+	ret = intel_vgpu_init_sched_policy(vgpu);
+	if (ret)
+		goto out_free_vgpu;
+
+	vgpu->active = false;
+
+	return vgpu;
+
+out_free_vgpu:
+	vfree(vgpu);
+	return ERR_PTR(ret);
+}
+
+/**
+ * intel_gvt_destroy_vgpu - destroy an idle virtual GPU
+ * @vgpu: virtual GPU
+ *
+ * This function is called when user wants to destroy an idle virtual GPU.
+ *
+ */
+void intel_gvt_destroy_idle_vgpu(struct intel_vgpu *vgpu)
+{
+	intel_vgpu_clean_sched_policy(vgpu);
+	vfree(vgpu);
+}
+
 static struct intel_vgpu *__intel_gvt_create_vgpu(struct intel_gvt *gvt,
 		struct intel_vgpu_creation_params *param)
 {
@@ -266,13 +336,15 @@ static struct intel_vgpu *__intel_gvt_create_vgpu(struct intel_gvt *gvt,
 
 	mutex_lock(&gvt->lock);
 
-	ret = idr_alloc(&gvt->vgpu_idr, vgpu, 1, GVT_MAX_VGPU, GFP_KERNEL);
+	ret = idr_alloc(&gvt->vgpu_idr, vgpu, IDLE_VGPU_IDR + 1, GVT_MAX_VGPU,
+		GFP_KERNEL);
 	if (ret < 0)
 		goto out_free_vgpu;
 
 	vgpu->id = ret;
 	vgpu->handle = param->handle;
 	vgpu->gvt = gvt;
+	vgpu->sched_ctl.weight = param->weight;
 	bitmap_zero(vgpu->tlb_handle_pending, I915_NUM_ENGINES);
 
 	intel_vgpu_init_cfg_space(vgpu, param->primary);
@@ -358,6 +430,7 @@ struct intel_vgpu *intel_gvt_create_vgpu(struct intel_gvt *gvt,
 	param.low_gm_sz = type->low_gm_size;
 	param.high_gm_sz = type->high_gm_size;
 	param.fence_sz = type->fence;
+	param.weight = type->weight;
 	param.resolution = type->resolution;
 
 	/* XXX current param based on MB */

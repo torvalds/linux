@@ -28,7 +28,7 @@
 
 #include "coda_regs.h"
 
-#define CODA_MAX_FRAMEBUFFERS	8
+#define CODA_MAX_FRAMEBUFFERS	17
 #define FMO_SLICE_SAVE_BUF_SIZE	(32)
 
 enum {
@@ -117,6 +117,8 @@ struct coda_params {
 	u8			h264_deblk_enabled;
 	u8			h264_deblk_alpha;
 	u8			h264_deblk_beta;
+	u8			h264_profile_idc;
+	u8			h264_level_idc;
 	u8			mpeg4_intra_qp;
 	u8			mpeg4_inter_qp;
 	u8			gop_size;
@@ -259,7 +261,7 @@ int coda_decoder_queue_init(void *priv, struct vb2_queue *src_vq,
 
 int coda_hw_reset(struct coda_ctx *ctx);
 
-void coda_fill_bitstream(struct coda_ctx *ctx, bool streaming);
+void coda_fill_bitstream(struct coda_ctx *ctx, struct list_head *buffer_list);
 
 void coda_set_gdi_regs(struct coda_ctx *ctx);
 
@@ -290,7 +292,11 @@ void coda_bit_stream_end_flag(struct coda_ctx *ctx);
 void coda_m2m_buf_done(struct coda_ctx *ctx, struct vb2_v4l2_buffer *buf,
 		       enum vb2_buffer_state state);
 
+int coda_h264_filler_nal(int size, char *p);
 int coda_h264_padding(int size, char *p);
+int coda_h264_profile(int profile_idc);
+int coda_h264_level(int level_idc);
+int coda_sps_parse_profile(struct coda_ctx *ctx, struct vb2_buffer *vb);
 
 bool coda_jpeg_check_buffer(struct coda_ctx *ctx, struct vb2_buffer *vb);
 int coda_jpeg_write_tables(struct coda_ctx *ctx);

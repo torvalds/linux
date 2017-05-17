@@ -827,7 +827,7 @@ The keyctl syscall functions are:
 
        long keyctl(KEYCTL_DH_COMPUTE, struct keyctl_dh_params *params,
 		   char *buffer, size_t buflen,
-		   void *reserved);
+		   struct keyctl_kdf_params *kdf);
 
      The params struct contains serial numbers for three keys:
 
@@ -844,18 +844,61 @@ The keyctl syscall functions are:
      public key.  If the base is the remote public key, the result is
      the shared secret.
 
-     The reserved argument must be set to NULL.
+     If the parameter kdf is NULL, the following applies:
 
-     The buffer length must be at least the length of the prime, or zero.
+	 - The buffer length must be at least the length of the prime, or zero.
 
-     If the buffer length is nonzero, the length of the result is
-     returned when it is successfully calculated and copied in to the
-     buffer. When the buffer length is zero, the minimum required
-     buffer length is returned.
+	 - If the buffer length is nonzero, the length of the result is
+	   returned when it is successfully calculated and copied in to the
+	   buffer. When the buffer length is zero, the minimum required
+	   buffer length is returned.
+
+     The kdf parameter allows the caller to apply a key derivation function
+     (KDF) on the Diffie-Hellman computation where only the result
+     of the KDF is returned to the caller. The KDF is characterized with
+     struct keyctl_kdf_params as follows:
+
+	 - char *hashname specifies the NUL terminated string identifying
+	   the hash used from the kernel crypto API and applied for the KDF
+	   operation. The KDF implemenation complies with SP800-56A as well
+	   as with SP800-108 (the counter KDF).
+
+	 - char *otherinfo specifies the OtherInfo data as documented in
+	   SP800-56A section 5.8.1.2. The length of the buffer is given with
+	   otherinfolen. The format of OtherInfo is defined by the caller.
+	   The otherinfo pointer may be NULL if no OtherInfo shall be used.
 
      This function will return error EOPNOTSUPP if the key type is not
      supported, error ENOKEY if the key could not be found, or error
-     EACCES if the key is not readable by the caller.
+     EACCES if the key is not readable by the caller. In addition, the
+     function will return EMSGSIZE when the parameter kdf is non-NULL
+     and either the buffer length or the OtherInfo length exceeds the
+     allowed length.
+
+ (*) Restrict keyring linkage
+
+       long keyctl(KEYCTL_RESTRICT_KEYRING, key_serial_t keyring,
+		   const char *type, const char *restriction);
+
+     An existing keyring can restrict linkage of additional keys by evaluating
+     the contents of the key according to a restriction scheme.
+
+     "keyring" is the key ID for an existing keyring to apply a restriction
+     to. It may be empty or may already have keys linked. Existing linked keys
+     will remain in the keyring even if the new restriction would reject them.
+
+     "type" is a registered key type.
+
+     "restriction" is a string describing how key linkage is to be restricted.
+     The format varies depending on the key type, and the string is passed to
+     the lookup_restriction() function for the requested type.  It may specify
+     a method and relevant data for the restriction such as signature
+     verification or constraints on key payload. If the requested key type is
+     later unregistered, no keys may be added to the keyring after the key type
+     is removed.
+
+     To apply a keyring restriction the process must have Set Attribute
+     permission and the keyring must not be previously restricted.
 
 ===============
 KERNEL SERVICES
@@ -1032,10 +1075,7 @@ payload contents" for more information.
 	struct key *keyring_alloc(const char *description, uid_t uid, gid_t gid,
 				  const struct cred *cred,
 				  key_perm_t perm,
-				  int (*restrict_link)(struct key *,
-						       const struct key_type *,
-						       unsigned long,
-						       const union key_payload *),
+				  struct key_restriction *restrict_link,
 				  unsigned long flags,
 				  struct key *dest);
 
@@ -1047,20 +1087,23 @@ payload contents" for more information.
     KEY_ALLOC_NOT_IN_QUOTA in flags if the keyring shouldn't be accounted
     towards the user's quota).  Error ENOMEM can also be returned.
 
-    If restrict_link not NULL, it should point to a function that will be
-    called each time an attempt is made to link a key into the new keyring.
-    This function is called to check whether a key may be added into the keying
-    or not.  Callers of key_create_or_update() within the kernel can pass
-    KEY_ALLOC_BYPASS_RESTRICTION to suppress the check.  An example of using
-    this is to manage rings of cryptographic keys that are set up when the
-    kernel boots where userspace is also permitted to add keys - provided they
-    can be verified by a key the kernel already has.
+    If restrict_link is not NULL, it should point to a structure that contains
+    the function that will be called each time an attempt is made to link a
+    key into the new keyring.  The structure may also contain a key pointer
+    and an associated key type.  The function is called to check whether a key
+    may be added into the keyring or not.  The key type is used by the garbage
+    collector to clean up function or data pointers in this structure if the
+    given key type is unregistered.  Callers of key_create_or_update() within
+    the kernel can pass KEY_ALLOC_BYPASS_RESTRICTION to suppress the check.
+    An example of using this is to manage rings of cryptographic keys that are
+    set up when the kernel boots where userspace is also permitted to add keys
+    - provided they can be verified by a key the kernel already has.
 
     When called, the restriction function will be passed the keyring being
-    added to, the key flags value and the type and payload of the key being
-    added.  Note that when a new key is being created, this is called between
-    payload preparsing and actual key creation.  The function should return 0
-    to allow the link or an error to reject it.
+    added to, the key type, the payload of the key being added, and data to be
+    used in the restriction check.  Note that when a new key is being created,
+    this is called between payload preparsing and actual key creation.  The
+    function should return 0 to allow the link or an error to reject it.
 
     A convenience function, restrict_link_reject, exists to always return
     -EPERM to in this case.
@@ -1443,6 +1486,15 @@ The structure has a number of fields, some of which are mandatory:
      (*) struct key *authkey;
 
      	 The authorisation key.
+
+
+ (*) struct key_restriction *(*lookup_restriction)(const char *params);
+
+     This optional method is used to enable userspace configuration of keyring
+     restrictions. The restriction parameter string (not including the key type
+     name) is passed in, and this method returns a pointer to a key_restriction
+     structure containing the relevant functions and data to evaluate each
+     attempted key link operation. If there is no match, -EINVAL is returned.
 
 
 ============================

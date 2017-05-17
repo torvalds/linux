@@ -408,14 +408,6 @@ static int iommu_load_old_irte(struct intel_iommu *iommu)
 	size_t size;
 	u64 irta;
 
-	if (!is_kdump_kernel()) {
-		pr_warn("IRQ remapping was enabled on %s but we are not in kdump mode\n",
-			iommu->name);
-		clear_ir_pre_enabled(iommu);
-		iommu_disable_irq_remapping(iommu);
-		return -EINVAL;
-	}
-
 	/* Check whether the old ir-table has the same size as ours */
 	irta = dmar_readq(iommu->reg + DMAR_IRTA_REG);
 	if ((irta & INTR_REMAP_TABLE_REG_SIZE_MASK)
@@ -567,7 +559,12 @@ static int intel_setup_irq_remapping(struct intel_iommu *iommu)
 	init_ir_status(iommu);
 
 	if (ir_pre_enabled(iommu)) {
-		if (iommu_load_old_irte(iommu))
+		if (!is_kdump_kernel()) {
+			pr_warn("IRQ remapping was enabled on %s but we are not in kdump mode\n",
+				iommu->name);
+			clear_ir_pre_enabled(iommu);
+			iommu_disable_irq_remapping(iommu);
+		} else if (iommu_load_old_irte(iommu))
 			pr_err("Failed to copy IR table for %s from previous kernel\n",
 			       iommu->name);
 		else

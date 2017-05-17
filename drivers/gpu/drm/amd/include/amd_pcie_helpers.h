@@ -82,7 +82,7 @@ static inline uint16_t get_pcie_lane_support(uint32_t pcie_lane_width_cap,
 
 	switch (pcie_lane_width_cap) {
 	case 0:
-		printk(KERN_ERR "No valid PCIE lane width reported");
+		pr_err("No valid PCIE lane width reported\n");
 		break;
 	case CAIL_PCIE_LINK_WIDTH_SUPPORT_X1:
 		new_pcie_lanes = 1;
@@ -126,7 +126,7 @@ static inline uint16_t get_pcie_lane_support(uint32_t pcie_lane_width_cap,
 							}
 						}
 						if (j > 7)
-							printk(KERN_ERR "Cannot find a valid PCIE lane width!");
+							pr_err("Cannot find a valid PCIE lane width!\n");
 					}
 				}
 				break;

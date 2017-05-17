@@ -125,12 +125,20 @@ config REGULATOR_AB8500
 	  This driver supports the regulators found on the ST-Ericsson mixed
 	  signal AB8500 PMIC
 
-config REGULATOR_ARIZONA
-	tristate "Wolfson Arizona class devices"
+config REGULATOR_ARIZONA_LDO1
+	tristate "Wolfson Arizona class devices LDO1"
 	depends on MFD_ARIZONA
 	depends on SND_SOC
 	help
-	  Support for the regulators found on Wolfson Arizona class
+	  Support for the LDO1 regulators found on Wolfson Arizona class
+	  devices.
+
+config REGULATOR_ARIZONA_MICSUPP
+	tristate "Wolfson Arizona class devices MICSUPP"
+	depends on MFD_ARIZONA
+	depends on SND_SOC
+	help
+	  Support for the MICSUPP regulators found on Wolfson Arizona class
 	  devices.
 
 config REGULATOR_AS3711
@@ -162,6 +170,17 @@ config REGULATOR_BCM590XX
 	  This driver provides support for the voltage regulators on the
 	  BCM590xx PMUs. This will enable support for the software
 	  controllable LDO/Switching regulators.
+
+config REGULATOR_BD9571MWV
+	tristate "ROHM BD9571MWV Regulators"
+	depends on MFD_BD9571MWV
+	help
+	  This driver provides support for the voltage regulators on the
+	  ROHM BD9571MWV PMIC. This will enable support for the software
+	  controllable regulator and voltage sampling units.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called bd9571mwv-regulator.
 
 config REGULATOR_CPCAP
 	tristate "Motorola CPCAP regulator"
@@ -788,6 +807,14 @@ config REGULATOR_TPS65090
 	  This driver provides support for the voltage regulators on the
 	  TI TPS65090 PMIC.
 
+config REGULATOR_TPS65132
+	tristate "TI TPS65132 Dual Output Power regulators"
+	depends on I2C && GPIOLIB
+	select REGMAP_I2C
+	help
+	  This driver supports TPS65132 single inductor - dual output
+	  power supply specifcally designed for display panels.
+
 config REGULATOR_TPS65217
 	tristate "TI TPS65217 Power regulators"
 	depends on MFD_TPS65217
@@ -849,6 +876,13 @@ config REGULATOR_TWL4030
 	help
 	  This driver supports the voltage regulators provided by
 	  this family of companion chips.
+
+config REGULATOR_VCTRL
+	tristate "Voltage controlled regulators"
+	depends on OF
+	help
+	  This driver provides support for voltage regulators whose output
+	  voltage is controlled by the voltage of another regulator.
 
 config REGULATOR_VEXPRESS
 	tristate "Versatile Express regulators"

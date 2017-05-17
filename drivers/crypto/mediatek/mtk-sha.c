@@ -17,13 +17,13 @@
 
 #define SHA_ALIGN_MSK		(sizeof(u32) - 1)
 #define SHA_QUEUE_SIZE		512
-#define SHA_TMP_BUF_SIZE	512
 #define SHA_BUF_SIZE		((u32)PAGE_SIZE)
 
 #define SHA_OP_UPDATE		1
 #define SHA_OP_FINAL		2
 
 #define SHA_DATA_LEN_MSK	cpu_to_le32(GENMASK(16, 0))
+#define SHA_MAX_DIGEST_BUF_SIZE	32
 
 /* SHA command token */
 #define SHA_CT_SIZE		5
@@ -34,7 +34,6 @@
 
 /* SHA transform information */
 #define SHA_TFM_HASH		cpu_to_le32(0x2 << 0)
-#define SHA_TFM_INNER_DIG	cpu_to_le32(0x1 << 21)
 #define SHA_TFM_SIZE(x)		cpu_to_le32((x) << 8)
 #define SHA_TFM_START		cpu_to_le32(0x1 << 4)
 #define SHA_TFM_CONTINUE	cpu_to_le32(0x1 << 5)
@@ -61,31 +60,17 @@
 #define SHA_FLAGS_PAD		BIT(10)
 
 /**
- * mtk_sha_ct is a set of hardware instructions(command token)
- * that are used to control engine's processing flow of SHA,
- * and it contains the first two words of transform state.
- */
-struct mtk_sha_ct {
-	__le32 ctrl[2];
-	__le32 cmd[3];
-};
-
-/**
- * mtk_sha_tfm is used to define SHA transform state
- * and store result digest that produced by engine.
- */
-struct mtk_sha_tfm {
-	__le32 ctrl[2];
-	__le32 digest[SIZE_IN_WORDS(SHA512_DIGEST_SIZE)];
-};
-
-/**
- * mtk_sha_info consists of command token and transform state
- * of SHA, its role is similar to mtk_aes_info.
+ * mtk_sha_info - hardware information of AES
+ * @cmd:	command token, hardware instruction
+ * @tfm:	transform state of cipher algorithm.
+ * @state:	contains keys and initial vectors.
+ *
  */
 struct mtk_sha_info {
-	struct mtk_sha_ct ct;
-	struct mtk_sha_tfm tfm;
+	__le32 ctrl[2];
+	__le32 cmd[3];
+	__le32 tfm[2];
+	__le32 digest[SHA_MAX_DIGEST_BUF_SIZE];
 };
 
 struct mtk_sha_reqctx {
@@ -94,7 +79,6 @@ struct mtk_sha_reqctx {
 	unsigned long op;
 
 	u64 digcnt;
-	bool start;
 	size_t bufcnt;
 	dma_addr_t dma_addr;
 
@@ -151,6 +135,21 @@ static inline void mtk_sha_write(struct mtk_cryp *cryp,
 				 u32 offset, u32 value)
 {
 	writel_relaxed(value, cryp->base + offset);
+}
+
+static inline void mtk_sha_ring_shift(struct mtk_ring *ring,
+				      struct mtk_desc **cmd_curr,
+				      struct mtk_desc **res_curr,
+				      int *count)
+{
+	*cmd_curr = ring->cmd_next++;
+	*res_curr = ring->res_next++;
+	(*count)++;
+
+	if (ring->cmd_next == ring->cmd_base + MTK_DESC_NUM) {
+		ring->cmd_next = ring->cmd_base;
+		ring->res_next = ring->res_base;
+	}
 }
 
 static struct mtk_cryp *mtk_sha_find_dev(struct mtk_sha_ctx *tctx)
@@ -251,7 +250,9 @@ static void mtk_sha_fill_padding(struct mtk_sha_reqctx *ctx, u32 len)
 	bits[1] = cpu_to_be64(size << 3);
 	bits[0] = cpu_to_be64(size >> 61);
 
-	if (ctx->flags & (SHA_FLAGS_SHA384 | SHA_FLAGS_SHA512)) {
+	switch (ctx->flags & SHA_FLAGS_ALGO_MSK) {
+	case SHA_FLAGS_SHA384:
+	case SHA_FLAGS_SHA512:
 		index = ctx->bufcnt & 0x7f;
 		padlen = (index < 112) ? (112 - index) : ((128 + 112) - index);
 		*(ctx->buffer + ctx->bufcnt) = 0x80;
@@ -259,7 +260,9 @@ static void mtk_sha_fill_padding(struct mtk_sha_reqctx *ctx, u32 len)
 		memcpy(ctx->buffer + ctx->bufcnt + padlen, bits, 16);
 		ctx->bufcnt += padlen + 16;
 		ctx->flags |= SHA_FLAGS_PAD;
-	} else {
+		break;
+
+	default:
 		index = ctx->bufcnt & 0x3f;
 		padlen = (index < 56) ? (56 - index) : ((64 + 56) - index);
 		*(ctx->buffer + ctx->bufcnt) = 0x80;
@@ -267,36 +270,35 @@ static void mtk_sha_fill_padding(struct mtk_sha_reqctx *ctx, u32 len)
 		memcpy(ctx->buffer + ctx->bufcnt + padlen, &bits[1], 8);
 		ctx->bufcnt += padlen + 8;
 		ctx->flags |= SHA_FLAGS_PAD;
+		break;
 	}
 }
 
 /* Initialize basic transform information of SHA */
 static void mtk_sha_info_init(struct mtk_sha_reqctx *ctx)
 {
-	struct mtk_sha_ct *ct = &ctx->info.ct;
-	struct mtk_sha_tfm *tfm = &ctx->info.tfm;
+	struct mtk_sha_info *info = &ctx->info;
 
 	ctx->ct_hdr = SHA_CT_CTRL_HDR;
 	ctx->ct_size = SHA_CT_SIZE;
 
-	tfm->ctrl[0] = SHA_TFM_HASH | SHA_TFM_INNER_DIG |
-		       SHA_TFM_SIZE(SIZE_IN_WORDS(ctx->ds));
+	info->tfm[0] = SHA_TFM_HASH | SHA_TFM_SIZE(SIZE_IN_WORDS(ctx->ds));
 
 	switch (ctx->flags & SHA_FLAGS_ALGO_MSK) {
 	case SHA_FLAGS_SHA1:
-		tfm->ctrl[0] |= SHA_TFM_SHA1;
+		info->tfm[0] |= SHA_TFM_SHA1;
 		break;
 	case SHA_FLAGS_SHA224:
-		tfm->ctrl[0] |= SHA_TFM_SHA224;
+		info->tfm[0] |= SHA_TFM_SHA224;
 		break;
 	case SHA_FLAGS_SHA256:
-		tfm->ctrl[0] |= SHA_TFM_SHA256;
+		info->tfm[0] |= SHA_TFM_SHA256;
 		break;
 	case SHA_FLAGS_SHA384:
-		tfm->ctrl[0] |= SHA_TFM_SHA384;
+		info->tfm[0] |= SHA_TFM_SHA384;
 		break;
 	case SHA_FLAGS_SHA512:
-		tfm->ctrl[0] |= SHA_TFM_SHA512;
+		info->tfm[0] |= SHA_TFM_SHA512;
 		break;
 
 	default:
@@ -304,13 +306,13 @@ static void mtk_sha_info_init(struct mtk_sha_reqctx *ctx)
 		return;
 	}
 
-	tfm->ctrl[1] = SHA_TFM_HASH_STORE;
-	ct->ctrl[0] = tfm->ctrl[0] | SHA_TFM_CONTINUE | SHA_TFM_START;
-	ct->ctrl[1] = tfm->ctrl[1];
+	info->tfm[1] = SHA_TFM_HASH_STORE;
+	info->ctrl[0] = info->tfm[0] | SHA_TFM_CONTINUE | SHA_TFM_START;
+	info->ctrl[1] = info->tfm[1];
 
-	ct->cmd[0] = SHA_CMD0;
-	ct->cmd[1] = SHA_CMD1;
-	ct->cmd[2] = SHA_CMD2 | SHA_TFM_DIGEST(SIZE_IN_WORDS(ctx->ds));
+	info->cmd[0] = SHA_CMD0;
+	info->cmd[1] = SHA_CMD1;
+	info->cmd[2] = SHA_CMD2 | SHA_TFM_DIGEST(SIZE_IN_WORDS(ctx->ds));
 }
 
 /*
@@ -319,23 +321,21 @@ static void mtk_sha_info_init(struct mtk_sha_reqctx *ctx)
  */
 static int mtk_sha_info_update(struct mtk_cryp *cryp,
 			       struct mtk_sha_rec *sha,
-			       size_t len)
+			       size_t len1, size_t len2)
 {
 	struct mtk_sha_reqctx *ctx = ahash_request_ctx(sha->req);
 	struct mtk_sha_info *info = &ctx->info;
-	struct mtk_sha_ct *ct = &info->ct;
-
-	if (ctx->start)
-		ctx->start = false;
-	else
-		ct->ctrl[0] &= ~SHA_TFM_START;
 
 	ctx->ct_hdr &= ~SHA_DATA_LEN_MSK;
-	ctx->ct_hdr |= cpu_to_le32(len);
-	ct->cmd[0] &= ~SHA_DATA_LEN_MSK;
-	ct->cmd[0] |= cpu_to_le32(len);
+	ctx->ct_hdr |= cpu_to_le32(len1 + len2);
+	info->cmd[0] &= ~SHA_DATA_LEN_MSK;
+	info->cmd[0] |= cpu_to_le32(len1 + len2);
 
-	ctx->digcnt += len;
+	/* Setting SHA_TFM_START only for the first iteration */
+	if (ctx->digcnt)
+		info->ctrl[0] &= ~SHA_TFM_START;
+
+	ctx->digcnt += len1;
 
 	ctx->ct_dma = dma_map_single(cryp->dev, info, sizeof(*info),
 				     DMA_BIDIRECTIONAL);
@@ -343,7 +343,8 @@ static int mtk_sha_info_update(struct mtk_cryp *cryp,
 		dev_err(cryp->dev, "dma %zu bytes error\n", sizeof(*info));
 		return -EINVAL;
 	}
-	ctx->tfm_dma = ctx->ct_dma + sizeof(*ct);
+
+	ctx->tfm_dma = ctx->ct_dma + sizeof(info->ctrl) + sizeof(info->cmd);
 
 	return 0;
 }
@@ -408,7 +409,6 @@ static int mtk_sha_init(struct ahash_request *req)
 	ctx->bufcnt = 0;
 	ctx->digcnt = 0;
 	ctx->buffer = tctx->buf;
-	ctx->start = true;
 
 	if (tctx->flags & SHA_FLAGS_HMAC) {
 		struct mtk_sha_hmac_ctx *bctx = tctx->base;
@@ -422,89 +422,39 @@ static int mtk_sha_init(struct ahash_request *req)
 }
 
 static int mtk_sha_xmit(struct mtk_cryp *cryp, struct mtk_sha_rec *sha,
-			dma_addr_t addr, size_t len)
+			dma_addr_t addr1, size_t len1,
+			dma_addr_t addr2, size_t len2)
 {
 	struct mtk_sha_reqctx *ctx = ahash_request_ctx(sha->req);
 	struct mtk_ring *ring = cryp->ring[sha->id];
-	struct mtk_desc *cmd = ring->cmd_base + ring->cmd_pos;
-	struct mtk_desc *res = ring->res_base + ring->res_pos;
-	int err;
+	struct mtk_desc *cmd, *res;
+	int err, count = 0;
 
-	err = mtk_sha_info_update(cryp, sha, len);
+	err = mtk_sha_info_update(cryp, sha, len1, len2);
 	if (err)
 		return err;
 
 	/* Fill in the command/result descriptors */
-	res->hdr = MTK_DESC_FIRST | MTK_DESC_LAST | MTK_DESC_BUF_LEN(len);
-	res->buf = cpu_to_le32(cryp->tmp_dma);
+	mtk_sha_ring_shift(ring, &cmd, &res, &count);
 
-	cmd->hdr = MTK_DESC_FIRST | MTK_DESC_LAST | MTK_DESC_BUF_LEN(len) |
+	res->hdr = MTK_DESC_FIRST | MTK_DESC_BUF_LEN(len1);
+	cmd->hdr = MTK_DESC_FIRST | MTK_DESC_BUF_LEN(len1) |
 		   MTK_DESC_CT_LEN(ctx->ct_size);
-
-	cmd->buf = cpu_to_le32(addr);
+	cmd->buf = cpu_to_le32(addr1);
 	cmd->ct = cpu_to_le32(ctx->ct_dma);
 	cmd->ct_hdr = ctx->ct_hdr;
 	cmd->tfm = cpu_to_le32(ctx->tfm_dma);
 
-	if (++ring->cmd_pos == MTK_DESC_NUM)
-		ring->cmd_pos = 0;
+	if (len2) {
+		mtk_sha_ring_shift(ring, &cmd, &res, &count);
 
-	ring->res_pos = ring->cmd_pos;
-	/*
-	 * Make sure that all changes to the DMA ring are done before we
-	 * start engine.
-	 */
-	wmb();
-	/* Start DMA transfer */
-	mtk_sha_write(cryp, RDR_PREP_COUNT(sha->id), MTK_DESC_CNT(1));
-	mtk_sha_write(cryp, CDR_PREP_COUNT(sha->id), MTK_DESC_CNT(1));
+		res->hdr = MTK_DESC_BUF_LEN(len2);
+		cmd->hdr = MTK_DESC_BUF_LEN(len2);
+		cmd->buf = cpu_to_le32(addr2);
+	}
 
-	return -EINPROGRESS;
-}
-
-static int mtk_sha_xmit2(struct mtk_cryp *cryp,
-			 struct mtk_sha_rec *sha,
-			 struct mtk_sha_reqctx *ctx,
-			 size_t len1, size_t len2)
-{
-	struct mtk_ring *ring = cryp->ring[sha->id];
-	struct mtk_desc *cmd = ring->cmd_base + ring->cmd_pos;
-	struct mtk_desc *res = ring->res_base + ring->res_pos;
-	int err;
-
-	err = mtk_sha_info_update(cryp, sha, len1 + len2);
-	if (err)
-		return err;
-
-	/* Fill in the command/result descriptors */
-	res->hdr = MTK_DESC_BUF_LEN(len1) | MTK_DESC_FIRST;
-	res->buf = cpu_to_le32(cryp->tmp_dma);
-
-	cmd->hdr = MTK_DESC_BUF_LEN(len1) | MTK_DESC_FIRST |
-		   MTK_DESC_CT_LEN(ctx->ct_size);
-	cmd->buf = cpu_to_le32(sg_dma_address(ctx->sg));
-	cmd->ct = cpu_to_le32(ctx->ct_dma);
-	cmd->ct_hdr = ctx->ct_hdr;
-	cmd->tfm = cpu_to_le32(ctx->tfm_dma);
-
-	if (++ring->cmd_pos == MTK_DESC_NUM)
-		ring->cmd_pos = 0;
-
-	ring->res_pos = ring->cmd_pos;
-
-	cmd = ring->cmd_base + ring->cmd_pos;
-	res = ring->res_base + ring->res_pos;
-
-	res->hdr = MTK_DESC_BUF_LEN(len2) | MTK_DESC_LAST;
-	res->buf = cpu_to_le32(cryp->tmp_dma);
-
-	cmd->hdr = MTK_DESC_BUF_LEN(len2) | MTK_DESC_LAST;
-	cmd->buf = cpu_to_le32(ctx->dma_addr);
-
-	if (++ring->cmd_pos == MTK_DESC_NUM)
-		ring->cmd_pos = 0;
-
-	ring->res_pos = ring->cmd_pos;
+	cmd->hdr |= MTK_DESC_LAST;
+	res->hdr |= MTK_DESC_LAST;
 
 	/*
 	 * Make sure that all changes to the DMA ring are done before we
@@ -512,8 +462,8 @@ static int mtk_sha_xmit2(struct mtk_cryp *cryp,
 	 */
 	wmb();
 	/* Start DMA transfer */
-	mtk_sha_write(cryp, RDR_PREP_COUNT(sha->id), MTK_DESC_CNT(2));
-	mtk_sha_write(cryp, CDR_PREP_COUNT(sha->id), MTK_DESC_CNT(2));
+	mtk_sha_write(cryp, RDR_PREP_COUNT(sha->id), MTK_DESC_CNT(count));
+	mtk_sha_write(cryp, CDR_PREP_COUNT(sha->id), MTK_DESC_CNT(count));
 
 	return -EINPROGRESS;
 }
@@ -532,7 +482,7 @@ static int mtk_sha_dma_map(struct mtk_cryp *cryp,
 
 	ctx->flags &= ~SHA_FLAGS_SG;
 
-	return mtk_sha_xmit(cryp, sha, ctx->dma_addr, count);
+	return mtk_sha_xmit(cryp, sha, ctx->dma_addr, count, 0, 0);
 }
 
 static int mtk_sha_update_slow(struct mtk_cryp *cryp,
@@ -625,7 +575,8 @@ static int mtk_sha_update_start(struct mtk_cryp *cryp,
 
 		if (len == 0) {
 			ctx->flags &= ~SHA_FLAGS_SG;
-			return mtk_sha_xmit(cryp, sha, ctx->dma_addr, count);
+			return mtk_sha_xmit(cryp, sha, ctx->dma_addr,
+					    count, 0, 0);
 
 		} else {
 			ctx->sg = sg;
@@ -635,7 +586,8 @@ static int mtk_sha_update_start(struct mtk_cryp *cryp,
 			}
 
 			ctx->flags |= SHA_FLAGS_SG;
-			return mtk_sha_xmit2(cryp, sha, ctx, len, count);
+			return mtk_sha_xmit(cryp, sha, sg_dma_address(ctx->sg),
+					    len, ctx->dma_addr, count);
 		}
 	}
 
@@ -646,7 +598,8 @@ static int mtk_sha_update_start(struct mtk_cryp *cryp,
 
 	ctx->flags |= SHA_FLAGS_SG;
 
-	return mtk_sha_xmit(cryp, sha, sg_dma_address(ctx->sg), len);
+	return mtk_sha_xmit(cryp, sha, sg_dma_address(ctx->sg),
+			    len, 0, 0);
 }
 
 static int mtk_sha_final_req(struct mtk_cryp *cryp,
@@ -668,7 +621,7 @@ static int mtk_sha_final_req(struct mtk_cryp *cryp,
 static int mtk_sha_finish(struct ahash_request *req)
 {
 	struct mtk_sha_reqctx *ctx = ahash_request_ctx(req);
-	u32 *digest = ctx->info.tfm.digest;
+	__le32 *digest = ctx->info.digest;
 	u32 *result = (u32 *)req->result;
 	int i;
 
@@ -694,7 +647,7 @@ static void mtk_sha_finish_req(struct mtk_cryp *cryp,
 	sha->req->base.complete(&sha->req->base, err);
 
 	/* Handle new request */
-	mtk_sha_handle_queue(cryp, sha->id - RING2, NULL);
+	tasklet_schedule(&sha->queue_task);
 }
 
 static int mtk_sha_handle_queue(struct mtk_cryp *cryp, u8 id,
@@ -1216,60 +1169,38 @@ static struct ahash_alg algs_sha384_sha512[] = {
 },
 };
 
-static void mtk_sha_task0(unsigned long data)
+static void mtk_sha_queue_task(unsigned long data)
 {
-	struct mtk_cryp *cryp = (struct mtk_cryp *)data;
-	struct mtk_sha_rec *sha = cryp->sha[0];
+	struct mtk_sha_rec *sha = (struct mtk_sha_rec *)data;
+
+	mtk_sha_handle_queue(sha->cryp, sha->id - MTK_RING2, NULL);
+}
+
+static void mtk_sha_done_task(unsigned long data)
+{
+	struct mtk_sha_rec *sha = (struct mtk_sha_rec *)data;
+	struct mtk_cryp *cryp = sha->cryp;
 
 	mtk_sha_unmap(cryp, sha);
 	mtk_sha_complete(cryp, sha);
 }
 
-static void mtk_sha_task1(unsigned long data)
+static irqreturn_t mtk_sha_irq(int irq, void *dev_id)
 {
-	struct mtk_cryp *cryp = (struct mtk_cryp *)data;
-	struct mtk_sha_rec *sha = cryp->sha[1];
+	struct mtk_sha_rec *sha = (struct mtk_sha_rec *)dev_id;
+	struct mtk_cryp *cryp = sha->cryp;
+	u32 val = mtk_sha_read(cryp, RDR_STAT(sha->id));
 
-	mtk_sha_unmap(cryp, sha);
-	mtk_sha_complete(cryp, sha);
-}
-
-static irqreturn_t mtk_sha_ring2_irq(int irq, void *dev_id)
-{
-	struct mtk_cryp *cryp = (struct mtk_cryp *)dev_id;
-	struct mtk_sha_rec *sha = cryp->sha[0];
-	u32 val = mtk_sha_read(cryp, RDR_STAT(RING2));
-
-	mtk_sha_write(cryp, RDR_STAT(RING2), val);
+	mtk_sha_write(cryp, RDR_STAT(sha->id), val);
 
 	if (likely((SHA_FLAGS_BUSY & sha->flags))) {
-		mtk_sha_write(cryp, RDR_PROC_COUNT(RING2), MTK_CNT_RST);
-		mtk_sha_write(cryp, RDR_THRESH(RING2),
+		mtk_sha_write(cryp, RDR_PROC_COUNT(sha->id), MTK_CNT_RST);
+		mtk_sha_write(cryp, RDR_THRESH(sha->id),
 			      MTK_RDR_PROC_THRESH | MTK_RDR_PROC_MODE);
 
-		tasklet_schedule(&sha->task);
+		tasklet_schedule(&sha->done_task);
 	} else {
-		dev_warn(cryp->dev, "AES interrupt when no active requests.\n");
-	}
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t mtk_sha_ring3_irq(int irq, void *dev_id)
-{
-	struct mtk_cryp *cryp = (struct mtk_cryp *)dev_id;
-	struct mtk_sha_rec *sha = cryp->sha[1];
-	u32 val = mtk_sha_read(cryp, RDR_STAT(RING3));
-
-	mtk_sha_write(cryp, RDR_STAT(RING3), val);
-
-	if (likely((SHA_FLAGS_BUSY & sha->flags))) {
-		mtk_sha_write(cryp, RDR_PROC_COUNT(RING3), MTK_CNT_RST);
-		mtk_sha_write(cryp, RDR_THRESH(RING3),
-			      MTK_RDR_PROC_THRESH | MTK_RDR_PROC_MODE);
-
-		tasklet_schedule(&sha->task);
-	} else {
-		dev_warn(cryp->dev, "AES interrupt when no active requests.\n");
+		dev_warn(cryp->dev, "SHA interrupt when no active requests.\n");
 	}
 	return IRQ_HANDLED;
 }
@@ -1288,14 +1219,20 @@ static int mtk_sha_record_init(struct mtk_cryp *cryp)
 		if (!sha[i])
 			goto err_cleanup;
 
-		sha[i]->id = i + RING2;
+		sha[i]->cryp = cryp;
 
 		spin_lock_init(&sha[i]->lock);
 		crypto_init_queue(&sha[i]->queue, SHA_QUEUE_SIZE);
+
+		tasklet_init(&sha[i]->queue_task, mtk_sha_queue_task,
+			     (unsigned long)sha[i]);
+		tasklet_init(&sha[i]->done_task, mtk_sha_done_task,
+			     (unsigned long)sha[i]);
 	}
 
-	tasklet_init(&sha[0]->task, mtk_sha_task0, (unsigned long)cryp);
-	tasklet_init(&sha[1]->task, mtk_sha_task1, (unsigned long)cryp);
+	/* Link to ring2 and ring3 respectively */
+	sha[0]->id = MTK_RING2;
+	sha[1]->id = MTK_RING3;
 
 	cryp->rec = 1;
 
@@ -1312,7 +1249,9 @@ static void mtk_sha_record_free(struct mtk_cryp *cryp)
 	int i;
 
 	for (i = 0; i < MTK_REC_NUM; i++) {
-		tasklet_kill(&cryp->sha[i]->task);
+		tasklet_kill(&cryp->sha[i]->done_task);
+		tasklet_kill(&cryp->sha[i]->queue_task);
+
 		kfree(cryp->sha[i]);
 	}
 }
@@ -1368,35 +1307,23 @@ int mtk_hash_alg_register(struct mtk_cryp *cryp)
 	if (err)
 		goto err_record;
 
-	/* Ring2 is use by SHA record0 */
-	err = devm_request_irq(cryp->dev, cryp->irq[RING2],
-			       mtk_sha_ring2_irq, IRQF_TRIGGER_LOW,
-			       "mtk-sha", cryp);
+	err = devm_request_irq(cryp->dev, cryp->irq[MTK_RING2], mtk_sha_irq,
+			       0, "mtk-sha", cryp->sha[0]);
 	if (err) {
 		dev_err(cryp->dev, "unable to request sha irq0.\n");
 		goto err_res;
 	}
 
-	/* Ring3 is use by SHA record1 */
-	err = devm_request_irq(cryp->dev, cryp->irq[RING3],
-			       mtk_sha_ring3_irq, IRQF_TRIGGER_LOW,
-			       "mtk-sha", cryp);
+	err = devm_request_irq(cryp->dev, cryp->irq[MTK_RING3], mtk_sha_irq,
+			       0, "mtk-sha", cryp->sha[1]);
 	if (err) {
 		dev_err(cryp->dev, "unable to request sha irq1.\n");
 		goto err_res;
 	}
 
 	/* Enable ring2 and ring3 interrupt for hash */
-	mtk_sha_write(cryp, AIC_ENABLE_SET(RING2), MTK_IRQ_RDR2);
-	mtk_sha_write(cryp, AIC_ENABLE_SET(RING3), MTK_IRQ_RDR3);
-
-	cryp->tmp = dma_alloc_coherent(cryp->dev, SHA_TMP_BUF_SIZE,
-					&cryp->tmp_dma, GFP_KERNEL);
-	if (!cryp->tmp) {
-		dev_err(cryp->dev, "unable to allocate tmp buffer.\n");
-		err = -EINVAL;
-		goto err_res;
-	}
+	mtk_sha_write(cryp, AIC_ENABLE_SET(MTK_RING2), MTK_IRQ_RDR2);
+	mtk_sha_write(cryp, AIC_ENABLE_SET(MTK_RING3), MTK_IRQ_RDR3);
 
 	spin_lock(&mtk_sha.lock);
 	list_add_tail(&cryp->sha_list, &mtk_sha.dev_list);
@@ -1412,8 +1339,6 @@ err_algs:
 	spin_lock(&mtk_sha.lock);
 	list_del(&cryp->sha_list);
 	spin_unlock(&mtk_sha.lock);
-	dma_free_coherent(cryp->dev, SHA_TMP_BUF_SIZE,
-			  cryp->tmp, cryp->tmp_dma);
 err_res:
 	mtk_sha_record_free(cryp);
 err_record:
@@ -1429,7 +1354,5 @@ void mtk_hash_alg_release(struct mtk_cryp *cryp)
 	spin_unlock(&mtk_sha.lock);
 
 	mtk_sha_unregister_algs();
-	dma_free_coherent(cryp->dev, SHA_TMP_BUF_SIZE,
-			  cryp->tmp, cryp->tmp_dma);
 	mtk_sha_record_free(cryp);
 }

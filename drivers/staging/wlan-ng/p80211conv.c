@@ -211,7 +211,7 @@ int skb_ether_to_p80211(struct wlandevice *wlandev, u32 ethconv,
 			return -ENOMEM;
 		foo = wep_encrypt(wlandev, skb->data, p80211_wep->data,
 				  skb->len,
-				  (wlandev->hostwep & HOSTWEP_DEFAULTKEY_MASK),
+				  wlandev->hostwep & HOSTWEP_DEFAULTKEY_MASK,
 				  p80211_wep->iv, p80211_wep->icv);
 		if (foo) {
 			netdev_warn(wlandev->netdev,

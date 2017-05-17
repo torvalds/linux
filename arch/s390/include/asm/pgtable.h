@@ -372,10 +372,12 @@ static inline int is_module_addr(void *addr)
 #define PGSTE_VSIE_BIT	0x0000200000000000UL	/* ref'd in a shadow table */
 
 /* Guest Page State used for virtualization */
-#define _PGSTE_GPS_ZERO		0x0000000080000000UL
-#define _PGSTE_GPS_USAGE_MASK	0x0000000003000000UL
-#define _PGSTE_GPS_USAGE_STABLE 0x0000000000000000UL
-#define _PGSTE_GPS_USAGE_UNUSED 0x0000000001000000UL
+#define _PGSTE_GPS_ZERO			0x0000000080000000UL
+#define _PGSTE_GPS_USAGE_MASK		0x0000000003000000UL
+#define _PGSTE_GPS_USAGE_STABLE		0x0000000000000000UL
+#define _PGSTE_GPS_USAGE_UNUSED		0x0000000001000000UL
+#define _PGSTE_GPS_USAGE_POT_VOLATILE	0x0000000002000000UL
+#define _PGSTE_GPS_USAGE_VOLATILE	_PGSTE_GPS_USAGE_MASK
 
 /*
  * A user page table pointer has the space-switch-event bit, the
@@ -1040,6 +1042,12 @@ int cond_set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 int reset_guest_reference_bit(struct mm_struct *mm, unsigned long addr);
 int get_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 			  unsigned char *key);
+
+int set_pgste_bits(struct mm_struct *mm, unsigned long addr,
+				unsigned long bits, unsigned long value);
+int get_pgste(struct mm_struct *mm, unsigned long hva, unsigned long *pgstep);
+int pgste_perform_essa(struct mm_struct *mm, unsigned long hva, int orc,
+			unsigned long *oldpte, unsigned long *oldpgste);
 
 /*
  * Certain architectures need to do special things when PTEs

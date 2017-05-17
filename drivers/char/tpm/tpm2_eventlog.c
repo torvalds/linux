@@ -56,18 +56,24 @@ static int calc_tpm2_event_size(struct tcg_pcr_event2 *event,
 
 	efispecid = (struct tcg_efi_specid_event *)event_header->event;
 
-	for (i = 0; (i < event->count) && (i < TPM2_ACTIVE_PCR_BANKS);
-	     i++) {
+	/* Check if event is malformed. */
+	if (event->count > efispecid->num_algs)
+		return 0;
+
+	for (i = 0; i < event->count; i++) {
 		halg_size = sizeof(event->digests[i].alg_id);
 		memcpy(&halg, marker, halg_size);
 		marker = marker + halg_size;
-		for (j = 0; (j < efispecid->num_algs); j++) {
+		for (j = 0; j < efispecid->num_algs; j++) {
 			if (halg == efispecid->digest_sizes[j].alg_id) {
-				marker = marker +
+				marker +=
 					efispecid->digest_sizes[j].digest_size;
 				break;
 			}
 		}
+		/* Algorithm without known length. Such event is unparseable. */
+		if (j == efispecid->num_algs)
+			return 0;
 	}
 
 	event_field = (struct tcg_event_field *)marker;

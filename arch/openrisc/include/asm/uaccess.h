@@ -22,14 +22,10 @@
 /*
  * User space memory access functions
  */
-#include <linux/errno.h>
-#include <linux/thread_info.h>
 #include <linux/prefetch.h>
 #include <linux/string.h>
 #include <asm/page.h>
-
-#define VERIFY_READ	0
-#define VERIFY_WRITE	1
+#include <asm/extable.h>
 
 /*
  * The fs value determines whether argument validity checking should be
@@ -64,23 +60,6 @@
 
 #define access_ok(type, addr, size) \
 	__range_ok((unsigned long)addr, (unsigned long)size)
-
-/*
- * The exception table consists of pairs of addresses: the first is the
- * address of an instruction that is allowed to fault, and the second is
- * the address at which the program should continue.  No registers are
- * modified, so it is entirely up to the continuation code to figure out
- * what to do.
- *
- * All the routines below use bits of fixup code that are out of line
- * with the main instruction path.  This means when everything is well,
- * we don't even have to jump over them.  Further, they do not intrude
- * on our cache or tlb entries.
- */
-
-struct exception_table_entry {
-	unsigned long insn, fixup;
-};
 
 /*
  * These are the main single-value transfer routines.  They automatically
@@ -257,34 +236,18 @@ do {									\
 
 extern unsigned long __must_check
 __copy_tofrom_user(void *to, const void *from, unsigned long size);
-
-#define __copy_from_user(to, from, size) \
-	__copy_tofrom_user(to, from, size)
-#define __copy_to_user(to, from, size) \
-	__copy_tofrom_user(to, from, size)
-
-#define __copy_to_user_inatomic __copy_to_user
-#define __copy_from_user_inatomic __copy_from_user
-
 static inline unsigned long
-copy_from_user(void *to, const void *from, unsigned long n)
+raw_copy_from_user(void *to, const void __user *from, unsigned long size)
 {
-	unsigned long res = n;
-
-	if (likely(access_ok(VERIFY_READ, from, n)))
-		res = __copy_tofrom_user(to, from, n);
-	if (unlikely(res))
-		memset(to + (n - res), 0, res);
-	return res;
+	return __copy_tofrom_user(to, (__force const void *)from, size);
 }
-
 static inline unsigned long
-copy_to_user(void *to, const void *from, unsigned long n)
+raw_copy_to_user(void *to, const void __user *from, unsigned long size)
 {
-	if (likely(access_ok(VERIFY_WRITE, to, n)))
-		n = __copy_tofrom_user(to, from, n);
-	return n;
+	return __copy_tofrom_user((__force void *)to, from, size);
 }
+#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_TO_USER
 
 extern unsigned long __clear_user(void *addr, unsigned long size);
 
@@ -297,7 +260,7 @@ clear_user(void *addr, unsigned long size)
 }
 
 #define user_addr_max() \
-	(segment_eq(get_fs(), USER_DS) ? TASK_SIZE : ~0UL)
+	(uaccess_kernel() ? ~0UL : TASK_SIZE)
 
 extern long strncpy_from_user(char *dest, const char __user *src, long count);
 

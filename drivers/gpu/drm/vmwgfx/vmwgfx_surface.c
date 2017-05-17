@@ -817,7 +817,6 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	} else {
 		srf->snooper.image = NULL;
 	}
-	srf->snooper.crtc = NULL;
 
 	user_srf->prime.base.shareable = false;
 	user_srf->prime.base.tfile = NULL;
@@ -1479,8 +1478,22 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 	*srf_out = NULL;
 
 	if (for_scanout) {
+		uint32_t max_width, max_height;
+
 		if (!svga3dsurface_is_screen_target_format(format)) {
 			DRM_ERROR("Invalid Screen Target surface format.");
+			return -EINVAL;
+		}
+
+		max_width = min(dev_priv->texture_max_width,
+				dev_priv->stdu_max_width);
+		max_height = min(dev_priv->texture_max_height,
+				 dev_priv->stdu_max_height);
+
+		if (size.width > max_width || size.height > max_height) {
+			DRM_ERROR("%ux%u\n, exeeds max surface size %ux%u",
+				  size.width, size.height,
+				  max_width, max_height);
 			return -EINVAL;
 		}
 	} else {

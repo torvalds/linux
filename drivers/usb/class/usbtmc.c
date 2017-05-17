@@ -1375,7 +1375,7 @@ static int usbtmc_probe(struct usb_interface *intf,
 {
 	struct usbtmc_device_data *data;
 	struct usb_host_interface *iface_desc;
-	struct usb_endpoint_descriptor *endpoint;
+	struct usb_endpoint_descriptor *bulk_in, *bulk_out, *int_in;
 	int n;
 	int retcode;
 
@@ -1421,49 +1421,29 @@ static int usbtmc_probe(struct usb_interface *intf,
 	iface_desc = data->intf->cur_altsetting;
 	data->ifnum = iface_desc->desc.bInterfaceNumber;
 
-	/* Find bulk in endpoint */
-	for (n = 0; n < iface_desc->desc.bNumEndpoints; n++) {
-		endpoint = &iface_desc->endpoint[n].desc;
-
-		if (usb_endpoint_is_bulk_in(endpoint)) {
-			data->bulk_in = endpoint->bEndpointAddress;
-			dev_dbg(&intf->dev, "Found bulk in endpoint at %u\n",
-				data->bulk_in);
-			break;
-		}
-	}
-
-	/* Find bulk out endpoint */
-	for (n = 0; n < iface_desc->desc.bNumEndpoints; n++) {
-		endpoint = &iface_desc->endpoint[n].desc;
-
-		if (usb_endpoint_is_bulk_out(endpoint)) {
-			data->bulk_out = endpoint->bEndpointAddress;
-			dev_dbg(&intf->dev, "Found Bulk out endpoint at %u\n",
-				data->bulk_out);
-			break;
-		}
-	}
-
-	if (!data->bulk_out || !data->bulk_in) {
+	/* Find bulk endpoints */
+	retcode = usb_find_common_endpoints(iface_desc,
+			&bulk_in, &bulk_out, NULL, NULL);
+	if (retcode) {
 		dev_err(&intf->dev, "bulk endpoints not found\n");
-		retcode = -ENODEV;
 		goto err_put;
 	}
 
-	/* Find int endpoint */
-	for (n = 0; n < iface_desc->desc.bNumEndpoints; n++) {
-		endpoint = &iface_desc->endpoint[n].desc;
+	data->bulk_in = bulk_in->bEndpointAddress;
+	dev_dbg(&intf->dev, "Found bulk in endpoint at %u\n", data->bulk_in);
 
-		if (usb_endpoint_is_int_in(endpoint)) {
-			data->iin_ep_present = 1;
-			data->iin_ep = endpoint->bEndpointAddress;
-			data->iin_wMaxPacketSize = usb_endpoint_maxp(endpoint);
-			data->iin_interval = endpoint->bInterval;
-			dev_dbg(&intf->dev, "Found Int in endpoint at %u\n",
+	data->bulk_out = bulk_out->bEndpointAddress;
+	dev_dbg(&intf->dev, "Found Bulk out endpoint at %u\n", data->bulk_out);
+
+	/* Find int endpoint */
+	retcode = usb_find_int_in_endpoint(iface_desc, &int_in);
+	if (!retcode) {
+		data->iin_ep_present = 1;
+		data->iin_ep = int_in->bEndpointAddress;
+		data->iin_wMaxPacketSize = usb_endpoint_maxp(int_in);
+		data->iin_interval = int_in->bInterval;
+		dev_dbg(&intf->dev, "Found Int in endpoint at %u\n",
 				data->iin_ep);
-			break;
-		}
 	}
 
 	retcode = get_capabilities(data);

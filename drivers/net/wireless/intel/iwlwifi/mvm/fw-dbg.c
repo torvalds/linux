@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,7 @@
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -99,10 +99,120 @@ static void iwl_mvm_read_radio_reg(struct iwl_mvm *mvm,
 	iwl_trans_release_nic_access(mvm->trans, &flags);
 }
 
+static void iwl_mvm_dump_rxf(struct iwl_mvm *mvm,
+			     struct iwl_fw_error_dump_data **dump_data,
+			     int size, u32 offset, int fifo_num)
+{
+	struct iwl_fw_error_dump_fifo *fifo_hdr;
+	u32 *fifo_data;
+	u32 fifo_len;
+	int i;
+
+	fifo_hdr = (void *)(*dump_data)->data;
+	fifo_data = (void *)fifo_hdr->data;
+	fifo_len = size;
+
+	/* No need to try to read the data if the length is 0 */
+	if (fifo_len == 0)
+		return;
+
+	/* Add a TLV for the RXF */
+	(*dump_data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_RXF);
+	(*dump_data)->len = cpu_to_le32(fifo_len + sizeof(*fifo_hdr));
+
+	fifo_hdr->fifo_num = cpu_to_le32(fifo_num);
+	fifo_hdr->available_bytes =
+		cpu_to_le32(iwl_trans_read_prph(mvm->trans,
+						RXF_RD_D_SPACE + offset));
+	fifo_hdr->wr_ptr =
+		cpu_to_le32(iwl_trans_read_prph(mvm->trans,
+						RXF_RD_WR_PTR + offset));
+	fifo_hdr->rd_ptr =
+		cpu_to_le32(iwl_trans_read_prph(mvm->trans,
+						RXF_RD_RD_PTR + offset));
+	fifo_hdr->fence_ptr =
+		cpu_to_le32(iwl_trans_read_prph(mvm->trans,
+						RXF_RD_FENCE_PTR + offset));
+	fifo_hdr->fence_mode =
+		cpu_to_le32(iwl_trans_read_prph(mvm->trans,
+						RXF_SET_FENCE_MODE + offset));
+
+	/* Lock fence */
+	iwl_trans_write_prph(mvm->trans, RXF_SET_FENCE_MODE + offset, 0x1);
+	/* Set fence pointer to the same place like WR pointer */
+	iwl_trans_write_prph(mvm->trans, RXF_LD_WR2FENCE + offset, 0x1);
+	/* Set fence offset */
+	iwl_trans_write_prph(mvm->trans,
+			     RXF_LD_FENCE_OFFSET_ADDR + offset, 0x0);
+
+	/* Read FIFO */
+	fifo_len /= sizeof(u32); /* Size in DWORDS */
+	for (i = 0; i < fifo_len; i++)
+		fifo_data[i] = iwl_trans_read_prph(mvm->trans,
+						 RXF_FIFO_RD_FENCE_INC +
+						 offset);
+	*dump_data = iwl_fw_error_next_data(*dump_data);
+}
+
+static void iwl_mvm_dump_txf(struct iwl_mvm *mvm,
+			     struct iwl_fw_error_dump_data **dump_data,
+			     int size, u32 offset, int fifo_num)
+{
+	struct iwl_fw_error_dump_fifo *fifo_hdr;
+	u32 *fifo_data;
+	u32 fifo_len;
+	int i;
+
+	fifo_hdr = (void *)(*dump_data)->data;
+	fifo_data = (void *)fifo_hdr->data;
+	fifo_len = size;
+
+	/* No need to try to read the data if the length is 0 */
+	if (fifo_len == 0)
+		return;
+
+	/* Add a TLV for the FIFO */
+	(*dump_data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_TXF);
+	(*dump_data)->len = cpu_to_le32(fifo_len + sizeof(*fifo_hdr));
+
+	fifo_hdr->fifo_num = cpu_to_le32(fifo_num);
+	fifo_hdr->available_bytes =
+		cpu_to_le32(iwl_trans_read_prph(mvm->trans,
+						TXF_FIFO_ITEM_CNT + offset));
+	fifo_hdr->wr_ptr =
+		cpu_to_le32(iwl_trans_read_prph(mvm->trans,
+						TXF_WR_PTR + offset));
+	fifo_hdr->rd_ptr =
+		cpu_to_le32(iwl_trans_read_prph(mvm->trans,
+						TXF_RD_PTR + offset));
+	fifo_hdr->fence_ptr =
+		cpu_to_le32(iwl_trans_read_prph(mvm->trans,
+						TXF_FENCE_PTR + offset));
+	fifo_hdr->fence_mode =
+		cpu_to_le32(iwl_trans_read_prph(mvm->trans,
+						TXF_LOCK_FENCE + offset));
+
+	/* Set the TXF_READ_MODIFY_ADDR to TXF_WR_PTR */
+	iwl_trans_write_prph(mvm->trans, TXF_READ_MODIFY_ADDR + offset,
+			     TXF_WR_PTR + offset);
+
+	/* Dummy-read to advance the read pointer to the head */
+	iwl_trans_read_prph(mvm->trans, TXF_READ_MODIFY_DATA + offset);
+
+	/* Read FIFO */
+	fifo_len /= sizeof(u32); /* Size in DWORDS */
+	for (i = 0; i < fifo_len; i++)
+		fifo_data[i] = iwl_trans_read_prph(mvm->trans,
+						  TXF_READ_MODIFY_DATA +
+						  offset);
+	*dump_data = iwl_fw_error_next_data(*dump_data);
+}
+
 static void iwl_mvm_dump_fifos(struct iwl_mvm *mvm,
 			       struct iwl_fw_error_dump_data **dump_data)
 {
 	struct iwl_fw_error_dump_fifo *fifo_hdr;
+	struct iwl_mvm_shared_mem_cfg *cfg = &mvm->smem_cfg;
 	u32 *fifo_data;
 	u32 fifo_len;
 	unsigned long flags;
@@ -111,126 +221,47 @@ static void iwl_mvm_dump_fifos(struct iwl_mvm *mvm,
 	if (!iwl_trans_grab_nic_access(mvm->trans, &flags))
 		return;
 
-	/* Pull RXF data from all RXFs */
-	for (i = 0; i < ARRAY_SIZE(mvm->shared_mem_cfg.rxfifo_size); i++) {
-		/*
-		 * Keep aside the additional offset that might be needed for
-		 * next RXF
-		 */
-		u32 offset_diff = RXF_DIFF_FROM_PREV * i;
+	/* Pull RXF1 */
+	iwl_mvm_dump_rxf(mvm, dump_data, cfg->lmac[0].rxfifo1_size, 0, 0);
+	/* Pull RXF2 */
+	iwl_mvm_dump_rxf(mvm, dump_data, cfg->rxfifo2_size,
+			 RXF_DIFF_FROM_PREV, 1);
+	/* Pull LMAC2 RXF1 */
+	if (mvm->smem_cfg.num_lmacs > 1)
+		iwl_mvm_dump_rxf(mvm, dump_data, cfg->lmac[1].rxfifo1_size,
+				 LMAC2_PRPH_OFFSET, 2);
 
-		fifo_hdr = (void *)(*dump_data)->data;
-		fifo_data = (void *)fifo_hdr->data;
-		fifo_len = mvm->shared_mem_cfg.rxfifo_size[i];
-
-		/* No need to try to read the data if the length is 0 */
-		if (fifo_len == 0)
-			continue;
-
-		/* Add a TLV for the RXF */
-		(*dump_data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_RXF);
-		(*dump_data)->len = cpu_to_le32(fifo_len + sizeof(*fifo_hdr));
-
-		fifo_hdr->fifo_num = cpu_to_le32(i);
-		fifo_hdr->available_bytes =
-			cpu_to_le32(iwl_trans_read_prph(mvm->trans,
-							RXF_RD_D_SPACE +
-							offset_diff));
-		fifo_hdr->wr_ptr =
-			cpu_to_le32(iwl_trans_read_prph(mvm->trans,
-							RXF_RD_WR_PTR +
-							offset_diff));
-		fifo_hdr->rd_ptr =
-			cpu_to_le32(iwl_trans_read_prph(mvm->trans,
-							RXF_RD_RD_PTR +
-							offset_diff));
-		fifo_hdr->fence_ptr =
-			cpu_to_le32(iwl_trans_read_prph(mvm->trans,
-							RXF_RD_FENCE_PTR +
-							offset_diff));
-		fifo_hdr->fence_mode =
-			cpu_to_le32(iwl_trans_read_prph(mvm->trans,
-							RXF_SET_FENCE_MODE +
-							offset_diff));
-
-		/* Lock fence */
-		iwl_trans_write_prph(mvm->trans,
-				     RXF_SET_FENCE_MODE + offset_diff, 0x1);
-		/* Set fence pointer to the same place like WR pointer */
-		iwl_trans_write_prph(mvm->trans,
-				     RXF_LD_WR2FENCE + offset_diff, 0x1);
-		/* Set fence offset */
-		iwl_trans_write_prph(mvm->trans,
-				     RXF_LD_FENCE_OFFSET_ADDR + offset_diff,
-				     0x0);
-
-		/* Read FIFO */
-		fifo_len /= sizeof(u32); /* Size in DWORDS */
-		for (j = 0; j < fifo_len; j++)
-			fifo_data[j] = iwl_trans_read_prph(mvm->trans,
-							 RXF_FIFO_RD_FENCE_INC +
-							 offset_diff);
-		*dump_data = iwl_fw_error_next_data(*dump_data);
-	}
-
-	/* Pull TXF data from all TXFs */
-	for (i = 0; i < ARRAY_SIZE(mvm->shared_mem_cfg.txfifo_size); i++) {
+	/* Pull TXF data from LMAC1 */
+	for (i = 0; i < mvm->smem_cfg.num_txfifo_entries; i++) {
 		/* Mark the number of TXF we're pulling now */
 		iwl_trans_write_prph(mvm->trans, TXF_LARC_NUM, i);
+		iwl_mvm_dump_txf(mvm, dump_data, cfg->lmac[0].txfifo_size[i],
+				 0, i);
+	}
 
-		fifo_hdr = (void *)(*dump_data)->data;
-		fifo_data = (void *)fifo_hdr->data;
-		fifo_len = mvm->shared_mem_cfg.txfifo_size[i];
-
-		/* No need to try to read the data if the length is 0 */
-		if (fifo_len == 0)
-			continue;
-
-		/* Add a TLV for the FIFO */
-		(*dump_data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_TXF);
-		(*dump_data)->len = cpu_to_le32(fifo_len + sizeof(*fifo_hdr));
-
-		fifo_hdr->fifo_num = cpu_to_le32(i);
-		fifo_hdr->available_bytes =
-			cpu_to_le32(iwl_trans_read_prph(mvm->trans,
-							TXF_FIFO_ITEM_CNT));
-		fifo_hdr->wr_ptr =
-			cpu_to_le32(iwl_trans_read_prph(mvm->trans,
-							TXF_WR_PTR));
-		fifo_hdr->rd_ptr =
-			cpu_to_le32(iwl_trans_read_prph(mvm->trans,
-							TXF_RD_PTR));
-		fifo_hdr->fence_ptr =
-			cpu_to_le32(iwl_trans_read_prph(mvm->trans,
-							TXF_FENCE_PTR));
-		fifo_hdr->fence_mode =
-			cpu_to_le32(iwl_trans_read_prph(mvm->trans,
-							TXF_LOCK_FENCE));
-
-		/* Set the TXF_READ_MODIFY_ADDR to TXF_WR_PTR */
-		iwl_trans_write_prph(mvm->trans, TXF_READ_MODIFY_ADDR,
-				     TXF_WR_PTR);
-
-		/* Dummy-read to advance the read pointer to the head */
-		iwl_trans_read_prph(mvm->trans, TXF_READ_MODIFY_DATA);
-
-		/* Read FIFO */
-		fifo_len /= sizeof(u32); /* Size in DWORDS */
-		for (j = 0; j < fifo_len; j++)
-			fifo_data[j] = iwl_trans_read_prph(mvm->trans,
-							  TXF_READ_MODIFY_DATA);
-		*dump_data = iwl_fw_error_next_data(*dump_data);
+	/* Pull TXF data from LMAC2 */
+	if (mvm->smem_cfg.num_lmacs > 1) {
+		for (i = 0; i < mvm->smem_cfg.num_txfifo_entries; i++) {
+			/* Mark the number of TXF we're pulling now */
+			iwl_trans_write_prph(mvm->trans,
+					     TXF_LARC_NUM + LMAC2_PRPH_OFFSET,
+					     i);
+			iwl_mvm_dump_txf(mvm, dump_data,
+					 cfg->lmac[1].txfifo_size[i],
+					 LMAC2_PRPH_OFFSET,
+					 i + cfg->num_txfifo_entries);
+		}
 	}
 
 	if (fw_has_capa(&mvm->fw->ucode_capa,
 			IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG)) {
 		/* Pull UMAC internal TXF data from all TXFs */
 		for (i = 0;
-		     i < ARRAY_SIZE(mvm->shared_mem_cfg.internal_txfifo_size);
+		     i < ARRAY_SIZE(mvm->smem_cfg.internal_txfifo_size);
 		     i++) {
 			fifo_hdr = (void *)(*dump_data)->data;
 			fifo_data = (void *)fifo_hdr->data;
-			fifo_len = mvm->shared_mem_cfg.internal_txfifo_size[i];
+			fifo_len = mvm->smem_cfg.internal_txfifo_size[i];
 
 			/* No need to try to read the data if the length is 0 */
 			if (fifo_len == 0)
@@ -246,7 +277,7 @@ static void iwl_mvm_dump_fifos(struct iwl_mvm *mvm,
 
 			/* Mark the number of TXF we're pulling now */
 			iwl_trans_write_prph(mvm->trans, TXF_CPU2_NUM, i +
-				ARRAY_SIZE(mvm->shared_mem_cfg.txfifo_size));
+				mvm->smem_cfg.num_txfifo_entries);
 
 			fifo_hdr->available_bytes =
 				cpu_to_le32(iwl_trans_read_prph(mvm->trans,
@@ -553,29 +584,43 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 
 	/* reading RXF/TXF sizes */
 	if (test_bit(STATUS_FW_ERROR, &mvm->trans->status)) {
-		struct iwl_mvm_shared_mem_cfg *mem_cfg = &mvm->shared_mem_cfg;
+		struct iwl_mvm_shared_mem_cfg *mem_cfg = &mvm->smem_cfg;
 
 		fifo_data_len = 0;
 
-		/* Count RXF size */
-		for (i = 0; i < ARRAY_SIZE(mem_cfg->rxfifo_size); i++) {
-			if (!mem_cfg->rxfifo_size[i])
-				continue;
-
+		/* Count RXF2 size */
+		if (mem_cfg->rxfifo2_size) {
 			/* Add header info */
-			fifo_data_len += mem_cfg->rxfifo_size[i] +
+			fifo_data_len += mem_cfg->rxfifo2_size +
 					 sizeof(*dump_data) +
 					 sizeof(struct iwl_fw_error_dump_fifo);
 		}
 
-		for (i = 0; i < mem_cfg->num_txfifo_entries; i++) {
-			if (!mem_cfg->txfifo_size[i])
+		/* Count RXF1 sizes */
+		for (i = 0; i < mem_cfg->num_lmacs; i++) {
+			if (!mem_cfg->lmac[i].rxfifo1_size)
 				continue;
 
 			/* Add header info */
-			fifo_data_len += mem_cfg->txfifo_size[i] +
+			fifo_data_len += mem_cfg->lmac[i].rxfifo1_size +
 					 sizeof(*dump_data) +
 					 sizeof(struct iwl_fw_error_dump_fifo);
+		}
+
+		/* Count TXF sizes */
+		for (i = 0; i < mem_cfg->num_lmacs; i++) {
+			int j;
+
+			for (j = 0; j < mem_cfg->num_txfifo_entries; j++) {
+				if (!mem_cfg->lmac[i].txfifo_size[j])
+					continue;
+
+				/* Add header info */
+				fifo_data_len +=
+					mem_cfg->lmac[i].txfifo_size[j] +
+					sizeof(*dump_data) +
+					sizeof(struct iwl_fw_error_dump_fifo);
+			}
 		}
 
 		if (fw_has_capa(&mvm->fw->ucode_capa,

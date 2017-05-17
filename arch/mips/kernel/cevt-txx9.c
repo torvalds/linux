@@ -196,7 +196,9 @@ void __init txx9_clockevent_init(unsigned long baseaddr, int irq,
 	clockevent_set_clock(cd, TIMER_CLK(imbusclk));
 	cd->max_delta_ns =
 		clockevent_delta2ns(0xffffffff >> (32 - TXX9_TIMER_BITS), cd);
+	cd->max_delta_ticks = 0xffffffff >> (32 - TXX9_TIMER_BITS);
 	cd->min_delta_ns = clockevent_delta2ns(0xf, cd);
+	cd->min_delta_ticks = 0xf;
 	cd->irq = irq;
 	cd->cpumask = cpumask_of(0),
 	clockevents_register_device(cd);

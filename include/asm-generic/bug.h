@@ -5,7 +5,9 @@
 
 #ifdef CONFIG_GENERIC_BUG
 #define BUGFLAG_WARNING		(1 << 0)
-#define BUGFLAG_TAINT(taint)	(BUGFLAG_WARNING | ((taint) << 8))
+#define BUGFLAG_ONCE		(1 << 1)
+#define BUGFLAG_DONE		(1 << 2)
+#define BUGFLAG_TAINT(taint)	((taint) << 8)
 #define BUG_GET_TAINT(bug)	((bug)->flags >> 8)
 #endif
 
@@ -55,6 +57,18 @@ struct bug_entry {
 #define BUG_ON(condition) do { if (unlikely(condition)) BUG(); } while (0)
 #endif
 
+#ifdef __WARN_FLAGS
+#define __WARN_TAINT(taint)		__WARN_FLAGS(BUGFLAG_TAINT(taint))
+#define __WARN_ONCE_TAINT(taint)	__WARN_FLAGS(BUGFLAG_ONCE|BUGFLAG_TAINT(taint))
+
+#define WARN_ON_ONCE(condition) ({				\
+	int __ret_warn_on = !!(condition);			\
+	if (unlikely(__ret_warn_on))				\
+		__WARN_ONCE_TAINT(TAINT_WARN);			\
+	unlikely(__ret_warn_on);				\
+})
+#endif
+
 /*
  * WARN(), WARN_ON(), WARN_ON_ONCE, and so on can be used to report
  * significant issues that need prompt attention if they should ever
@@ -97,7 +111,7 @@ void __warn(const char *file, int line, void *caller, unsigned taint,
 #endif
 
 #ifndef WARN
-#define WARN(condition, format...) ({						\
+#define WARN(condition, format...) ({					\
 	int __ret_warn_on = !!(condition);				\
 	if (unlikely(__ret_warn_on))					\
 		__WARN_printf(format);					\
@@ -112,6 +126,7 @@ void __warn(const char *file, int line, void *caller, unsigned taint,
 	unlikely(__ret_warn_on);					\
 })
 
+#ifndef WARN_ON_ONCE
 #define WARN_ON_ONCE(condition)	({				\
 	static bool __section(.data.unlikely) __warned;		\
 	int __ret_warn_once = !!(condition);			\
@@ -122,6 +137,7 @@ void __warn(const char *file, int line, void *caller, unsigned taint,
 	}							\
 	unlikely(__ret_warn_once);				\
 })
+#endif
 
 #define WARN_ONCE(condition, format...)	({			\
 	static bool __section(.data.unlikely) __warned;		\

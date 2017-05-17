@@ -50,7 +50,11 @@
 #define CTL_CLK_AND_WAIT_CTL 0x138
 #define CTL_RESET_SDIO 0x1e0
 
-/* Definitions for values the CTRL_STATUS register can take. */
+/* Definitions for values the CTL_STOP_INTERNAL_ACTION register can take */
+#define TMIO_STOP_STP		BIT(0)
+#define TMIO_STOP_SEC		BIT(8)
+
+/* Definitions for values the CTL_STATUS register can take */
 #define TMIO_STAT_CMDRESPEND    BIT(0)
 #define TMIO_STAT_DATAEND       BIT(2)
 #define TMIO_STAT_CARD_REMOVE   BIT(3)
@@ -61,7 +65,7 @@
 #define TMIO_STAT_CARD_INSERT_A BIT(9)
 #define TMIO_STAT_SIGSTATE_A    BIT(10)
 
-/* These belong technically to CTRL_STATUS2, but the driver merges them */
+/* These belong technically to CTL_STATUS2, but the driver merges them */
 #define TMIO_STAT_CMD_IDX_ERR   BIT(16)
 #define TMIO_STAT_CRCFAIL       BIT(17)
 #define TMIO_STAT_STOPBIT_ERR   BIT(18)
@@ -85,7 +89,7 @@
 
 #define TMIO_BBS		512		/* Boot block size */
 
-/* Definitions for values the CTRL_SDIO_STATUS register can take. */
+/* Definitions for values the CTL_SDIO_STATUS register can take */
 #define TMIO_SDIO_STAT_IOIRQ	0x0001
 #define TMIO_SDIO_STAT_EXPUB52	0x4000
 #define TMIO_SDIO_STAT_EXWT	0x8000
@@ -137,7 +141,7 @@ struct tmio_mmc_host {
 	bool			force_pio;
 	struct dma_chan		*chan_rx;
 	struct dma_chan		*chan_tx;
-	struct tasklet_struct	dma_complete;
+	struct completion	dma_dataend;
 	struct tasklet_struct	dma_issue;
 	struct scatterlist	bounce_sg;
 	u8			*bounce_buf;

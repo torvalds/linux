@@ -117,9 +117,9 @@ static u8 st33zp24_status(struct tpm_chip *chip)
 /*
  * check_locality if the locality is active
  * @param: chip, the tpm chip description
- * @return: the active locality or -EACCESS.
+ * @return: true if LOCALITY0 is active, otherwise false
  */
-static int check_locality(struct tpm_chip *chip)
+static bool check_locality(struct tpm_chip *chip)
 {
 	struct st33zp24_dev *tpm_dev = dev_get_drvdata(&chip->dev);
 	u8 data;
@@ -129,9 +129,9 @@ static int check_locality(struct tpm_chip *chip)
 	if (status && (data &
 		(TPM_ACCESS_ACTIVE_LOCALITY | TPM_ACCESS_VALID)) ==
 		(TPM_ACCESS_ACTIVE_LOCALITY | TPM_ACCESS_VALID))
-		return tpm_dev->locality;
+		return true;
 
-	return -EACCES;
+	return false;
 } /* check_locality() */
 
 /*
@@ -146,7 +146,7 @@ static int request_locality(struct tpm_chip *chip)
 	long ret;
 	u8 data;
 
-	if (check_locality(chip) == tpm_dev->locality)
+	if (check_locality(chip))
 		return tpm_dev->locality;
 
 	data = TPM_ACCESS_REQUEST_USE;
@@ -158,7 +158,7 @@ static int request_locality(struct tpm_chip *chip)
 
 	/* Request locality is usually effective after the request */
 	do {
-		if (check_locality(chip) >= 0)
+		if (check_locality(chip))
 			return tpm_dev->locality;
 		msleep(TPM_TIMEOUT);
 	} while (time_before(jiffies, stop));

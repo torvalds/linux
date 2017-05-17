@@ -100,8 +100,8 @@
 #define MAX_NUM_LL2_TX_STATS_COUNTERS	32
 
 #define FW_MAJOR_VERSION	8
-#define FW_MINOR_VERSION	10
-#define FW_REVISION_VERSION	10
+#define FW_MINOR_VERSION	15
+#define FW_REVISION_VERSION	3
 #define FW_ENGINEERING_VERSION	0
 
 /***********************/
@@ -187,6 +187,9 @@
 
 /* DEMS */
 #define DQ_DEMS_LEGACY			0
+#define DQ_DEMS_TOE_MORE_TO_SEND	3
+#define DQ_DEMS_TOE_LOCAL_ADV_WND	4
+#define DQ_DEMS_ROCE_CQ_CONS		7
 
 /* XCM agg val selection */
 #define DQ_XCM_AGG_VAL_SEL_WORD2  0
@@ -214,6 +217,9 @@
 #define DQ_XCM_ISCSI_MORE_TO_SEND_SEQ_CMD DQ_XCM_AGG_VAL_SEL_REG3
 #define DQ_XCM_ISCSI_EXP_STAT_SN_CMD	DQ_XCM_AGG_VAL_SEL_REG6
 #define DQ_XCM_ROCE_SQ_PROD_CMD	DQ_XCM_AGG_VAL_SEL_WORD4
+#define DQ_XCM_TOE_TX_BD_PROD_CMD	DQ_XCM_AGG_VAL_SEL_WORD4
+#define DQ_XCM_TOE_MORE_TO_SEND_SEQ_CMD	DQ_XCM_AGG_VAL_SEL_REG3
+#define DQ_XCM_TOE_LOCAL_ADV_WND_SEQ_CMD DQ_XCM_AGG_VAL_SEL_REG4
 
 /* UCM agg val selection (HW) */
 #define	DQ_UCM_AGG_VAL_SEL_WORD0	0
@@ -269,6 +275,8 @@
 #define DQ_XCM_ISCSI_DQ_FLUSH_CMD	BIT(DQ_XCM_AGG_FLG_SHIFT_CF19)
 #define DQ_XCM_ISCSI_SLOW_PATH_CMD	BIT(DQ_XCM_AGG_FLG_SHIFT_CF22)
 #define DQ_XCM_ISCSI_PROC_ONLY_CLEANUP_CMD BIT(DQ_XCM_AGG_FLG_SHIFT_CF23)
+#define DQ_XCM_TOE_DQ_FLUSH_CMD		BIT(DQ_XCM_AGG_FLG_SHIFT_CF19)
+#define DQ_XCM_TOE_SLOW_PATH_CMD	BIT(DQ_XCM_AGG_FLG_SHIFT_CF22)
 
 /* UCM agg counter flag selection (HW) */
 #define	DQ_UCM_AGG_FLG_SHIFT_CF0	0
@@ -285,6 +293,9 @@
 #define DQ_UCM_ETH_PMD_RX_ARM_CMD	BIT(DQ_UCM_AGG_FLG_SHIFT_CF5)
 #define DQ_UCM_ROCE_CQ_ARM_SE_CF_CMD	BIT(DQ_UCM_AGG_FLG_SHIFT_CF4)
 #define DQ_UCM_ROCE_CQ_ARM_CF_CMD	BIT(DQ_UCM_AGG_FLG_SHIFT_CF5)
+#define DQ_UCM_TOE_TIMER_STOP_ALL_CMD	BIT(DQ_UCM_AGG_FLG_SHIFT_CF3)
+#define DQ_UCM_TOE_SLOW_PATH_CF_CMD	BIT(DQ_UCM_AGG_FLG_SHIFT_CF4)
+#define DQ_UCM_TOE_DQ_CF_CMD		BIT(DQ_UCM_AGG_FLG_SHIFT_CF5)
 
 /* TCM agg counter flag selection (HW) */
 #define DQ_TCM_AGG_FLG_SHIFT_CF0	0
@@ -301,6 +312,9 @@
 #define DQ_TCM_FCOE_TIMER_STOP_ALL_CMD      BIT(DQ_TCM_AGG_FLG_SHIFT_CF3)
 #define DQ_TCM_ISCSI_FLUSH_Q0_CMD	BIT(DQ_TCM_AGG_FLG_SHIFT_CF1)
 #define DQ_TCM_ISCSI_TIMER_STOP_ALL_CMD	BIT(DQ_TCM_AGG_FLG_SHIFT_CF3)
+#define DQ_TCM_TOE_FLUSH_Q0_CMD		BIT(DQ_TCM_AGG_FLG_SHIFT_CF1)
+#define DQ_TCM_TOE_TIMER_STOP_ALL_CMD	BIT(DQ_TCM_AGG_FLG_SHIFT_CF3)
+#define DQ_TCM_IWARP_POST_RQ_CF_CMD	BIT(DQ_TCM_AGG_FLG_SHIFT_CF1)
 
 /* PWM address mapping */
 #define DQ_PWM_OFFSET_DPM_BASE	0x0
@@ -689,6 +703,16 @@ struct iscsi_eqe_data {
 #define ISCSI_EQE_DATA_RESERVED0_SHIFT			7
 };
 
+struct rdma_eqe_destroy_qp {
+	__le32 cid;
+	u8 reserved[4];
+};
+
+union rdma_eqe_data {
+	struct regpair async_handle;
+	struct rdma_eqe_destroy_qp rdma_destroy_qp_data;
+};
+
 struct malicious_vf_eqe_data {
 	u8 vf_id;
 	u8 err_id;
@@ -705,9 +729,9 @@ union event_ring_data {
 	u8 bytes[8];
 	struct vf_pf_channel_eqe_data vf_pf_channel;
 	struct iscsi_eqe_data iscsi_info;
+	union rdma_eqe_data rdma_data;
 	struct malicious_vf_eqe_data malicious_vf;
 	struct initial_cleanup_eqe_data vf_init_cleanup;
-	struct regpair roce_handle;
 };
 
 /* Event Ring Entry */

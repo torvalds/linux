@@ -400,7 +400,7 @@ static int flow_change(struct net *net, struct sk_buff *in_skb,
 	if (opt == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_FLOW_MAX, opt, flow_policy);
+	err = nla_parse_nested(tb, TCA_FLOW_MAX, opt, flow_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -508,9 +508,8 @@ static int flow_change(struct net *net, struct sk_buff *in_skb,
 		get_random_bytes(&fnew->hashrnd, 4);
 	}
 
-	fnew->perturb_timer.function = flow_perturbation;
-	fnew->perturb_timer.data = (unsigned long)fnew;
-	init_timer_deferrable(&fnew->perturb_timer);
+	setup_deferrable_timer(&fnew->perturb_timer, flow_perturbation,
+			       (unsigned long)fnew);
 
 	tcf_exts_change(tp, &fnew->exts, &e);
 	tcf_em_tree_change(tp, &fnew->ematches, &t);
@@ -563,12 +562,14 @@ err1:
 	return err;
 }
 
-static int flow_delete(struct tcf_proto *tp, unsigned long arg)
+static int flow_delete(struct tcf_proto *tp, unsigned long arg, bool *last)
 {
+	struct flow_head *head = rtnl_dereference(tp->root);
 	struct flow_filter *f = (struct flow_filter *)arg;
 
 	list_del_rcu(&f->list);
 	call_rcu(&f->rcu, flow_destroy_filter);
+	*last = list_empty(&head->filters);
 	return 0;
 }
 
@@ -584,20 +585,16 @@ static int flow_init(struct tcf_proto *tp)
 	return 0;
 }
 
-static bool flow_destroy(struct tcf_proto *tp, bool force)
+static void flow_destroy(struct tcf_proto *tp)
 {
 	struct flow_head *head = rtnl_dereference(tp->root);
 	struct flow_filter *f, *next;
-
-	if (!force && !list_empty(&head->filters))
-		return false;
 
 	list_for_each_entry_safe(f, next, &head->filters, list) {
 		list_del_rcu(&f->list);
 		call_rcu(&f->rcu, flow_destroy_filter);
 	}
 	kfree_rcu(head, rcu);
-	return true;
 }
 
 static unsigned long flow_get(struct tcf_proto *tp, u32 handle)

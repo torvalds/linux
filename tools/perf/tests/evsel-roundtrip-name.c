@@ -3,6 +3,8 @@
 #include "parse-events.h"
 #include "tests.h"
 #include "debug.h"
+#include <errno.h>
+#include <linux/kernel.h>
 
 static int perf_evsel__roundtrip_cache_name_test(void)
 {

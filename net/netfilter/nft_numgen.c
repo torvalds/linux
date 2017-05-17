@@ -188,7 +188,7 @@ nft_ng_select_ops(const struct nft_ctx *ctx, const struct nlattr * const tb[])
 
 static struct nft_expr_type nft_ng_type __read_mostly = {
 	.name		= "numgen",
-	.select_ops	= &nft_ng_select_ops,
+	.select_ops	= nft_ng_select_ops,
 	.policy		= nft_ng_policy,
 	.maxattr	= NFTA_NG_MAX,
 	.owner		= THIS_MODULE,

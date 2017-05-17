@@ -146,7 +146,7 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	ret = c4iw_ofld_send(rdev, skb);
 	if (ret)
 		goto err4;
-	PDBG("%s wait_event wr_wait %p\n", __func__, &wr_wait);
+	pr_debug("%s wait_event wr_wait %p\n", __func__, &wr_wait);
 	ret = c4iw_wait_for_reply(rdev, &wr_wait, 0, 0, __func__);
 	if (ret)
 		goto err4;
@@ -159,7 +159,7 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 				      &cq->bar2_qid,
 				      user ? &cq->bar2_pa : NULL);
 	if (user && !cq->bar2_pa) {
-		pr_warn(MOD "%s: cqid %u not in BAR2 range.\n",
+		pr_warn("%s: cqid %u not in BAR2 range\n",
 			pci_name(rdev->lldi.pdev), cq->cqid);
 		ret = -EINVAL;
 		goto err4;
@@ -180,8 +180,8 @@ static void insert_recv_cqe(struct t4_wq *wq, struct t4_cq *cq)
 {
 	struct t4_cqe cqe;
 
-	PDBG("%s wq %p cq %p sw_cidx %u sw_pidx %u\n", __func__,
-	     wq, cq, cq->sw_cidx, cq->sw_pidx);
+	pr_debug("%s wq %p cq %p sw_cidx %u sw_pidx %u\n", __func__,
+		 wq, cq, cq->sw_cidx, cq->sw_pidx);
 	memset(&cqe, 0, sizeof(cqe));
 	cqe.header = cpu_to_be32(CQE_STATUS_V(T4_ERR_SWFLUSH) |
 				 CQE_OPCODE_V(FW_RI_SEND) |
@@ -199,8 +199,8 @@ int c4iw_flush_rq(struct t4_wq *wq, struct t4_cq *cq, int count)
 	int in_use = wq->rq.in_use - count;
 
 	BUG_ON(in_use < 0);
-	PDBG("%s wq %p cq %p rq.in_use %u skip count %u\n", __func__,
-	     wq, cq, wq->rq.in_use, count);
+	pr_debug("%s wq %p cq %p rq.in_use %u skip count %u\n", __func__,
+		 wq, cq, wq->rq.in_use, count);
 	while (in_use--) {
 		insert_recv_cqe(wq, cq);
 		flushed++;
@@ -213,8 +213,8 @@ static void insert_sq_cqe(struct t4_wq *wq, struct t4_cq *cq,
 {
 	struct t4_cqe cqe;
 
-	PDBG("%s wq %p cq %p sw_cidx %u sw_pidx %u\n", __func__,
-	     wq, cq, cq->sw_cidx, cq->sw_pidx);
+	pr_debug("%s wq %p cq %p sw_cidx %u sw_pidx %u\n", __func__,
+		 wq, cq, cq->sw_cidx, cq->sw_pidx);
 	memset(&cqe, 0, sizeof(cqe));
 	cqe.header = cpu_to_be32(CQE_STATUS_V(T4_ERR_SWFLUSH) |
 				 CQE_OPCODE_V(swcqe->opcode) |
@@ -283,8 +283,8 @@ static void flush_completed_wrs(struct t4_wq *wq, struct t4_cq *cq)
 			/*
 			 * Insert this completed cqe into the swcq.
 			 */
-			PDBG("%s moving cqe into swcq sq idx %u cq idx %u\n",
-					__func__, cidx, cq->sw_pidx);
+			pr_debug("%s moving cqe into swcq sq idx %u cq idx %u\n",
+				 __func__, cidx, cq->sw_pidx);
 			swsqe->cqe.header |= htonl(CQE_SWCQE_V(1));
 			cq->sw_queue[cq->sw_pidx] = swsqe->cqe;
 			t4_swcq_produce(cq);
@@ -339,7 +339,7 @@ void c4iw_flush_hw_cq(struct c4iw_cq *chp)
 	struct t4_swsqe *swsqe;
 	int ret;
 
-	PDBG("%s  cqid 0x%x\n", __func__, chp->cq.cqid);
+	pr_debug("%s  cqid 0x%x\n", __func__, chp->cq.cqid);
 	ret = t4_next_hw_cqe(&chp->cq, &hw_cqe);
 
 	/*
@@ -432,7 +432,7 @@ void c4iw_count_rcqes(struct t4_cq *cq, struct t4_wq *wq, int *count)
 	u32 ptr;
 
 	*count = 0;
-	PDBG("%s count zero %d\n", __func__, *count);
+	pr_debug("%s count zero %d\n", __func__, *count);
 	ptr = cq->sw_cidx;
 	while (ptr != cq->sw_pidx) {
 		cqe = &cq->sw_queue[ptr];
@@ -442,7 +442,7 @@ void c4iw_count_rcqes(struct t4_cq *cq, struct t4_wq *wq, int *count)
 		if (++ptr == cq->size)
 			ptr = 0;
 	}
-	PDBG("%s cq %p count %d\n", __func__, cq, *count);
+	pr_debug("%s cq %p count %d\n", __func__, cq, *count);
 }
 
 /*
@@ -473,12 +473,11 @@ static int poll_cq(struct t4_wq *wq, struct t4_cq *cq, struct t4_cqe *cqe,
 	if (ret)
 		return ret;
 
-	PDBG("%s CQE OVF %u qpid 0x%0x genbit %u type %u status 0x%0x"
-	     " opcode 0x%0x len 0x%0x wrid_hi_stag 0x%x wrid_low_msn 0x%x\n",
-	     __func__, CQE_OVFBIT(hw_cqe), CQE_QPID(hw_cqe),
-	     CQE_GENBIT(hw_cqe), CQE_TYPE(hw_cqe), CQE_STATUS(hw_cqe),
-	     CQE_OPCODE(hw_cqe), CQE_LEN(hw_cqe), CQE_WRID_HI(hw_cqe),
-	     CQE_WRID_LOW(hw_cqe));
+	pr_debug("%s CQE OVF %u qpid 0x%0x genbit %u type %u status 0x%0x opcode 0x%0x len 0x%0x wrid_hi_stag 0x%x wrid_low_msn 0x%x\n",
+		 __func__, CQE_OVFBIT(hw_cqe), CQE_QPID(hw_cqe),
+		 CQE_GENBIT(hw_cqe), CQE_TYPE(hw_cqe), CQE_STATUS(hw_cqe),
+		 CQE_OPCODE(hw_cqe), CQE_LEN(hw_cqe), CQE_WRID_HI(hw_cqe),
+		 CQE_WRID_LOW(hw_cqe));
 
 	/*
 	 * skip cqe's not affiliated with a QP.
@@ -606,8 +605,8 @@ static int poll_cq(struct t4_wq *wq, struct t4_cq *cq, struct t4_cqe *cqe,
 	if (!SW_CQE(hw_cqe) && (CQE_WRID_SQ_IDX(hw_cqe) != wq->sq.cidx)) {
 		struct t4_swsqe *swsqe;
 
-		PDBG("%s out of order completion going in sw_sq at idx %u\n",
-		     __func__, CQE_WRID_SQ_IDX(hw_cqe));
+		pr_debug("%s out of order completion going in sw_sq at idx %u\n",
+			 __func__, CQE_WRID_SQ_IDX(hw_cqe));
 		swsqe = &wq->sq.sw_sq[CQE_WRID_SQ_IDX(hw_cqe)];
 		swsqe->cqe = *hw_cqe;
 		swsqe->complete = 1;
@@ -641,13 +640,13 @@ proc_cqe:
 		BUG_ON(wq->sq.in_use <= 0 && wq->sq.in_use >= wq->sq.size);
 
 		wq->sq.cidx = (uint16_t)idx;
-		PDBG("%s completing sq idx %u\n", __func__, wq->sq.cidx);
+		pr_debug("%s completing sq idx %u\n", __func__, wq->sq.cidx);
 		*cookie = wq->sq.sw_sq[wq->sq.cidx].wr_id;
 		if (c4iw_wr_log)
 			c4iw_log_wr_stats(wq, hw_cqe);
 		t4_sq_consume(wq);
 	} else {
-		PDBG("%s completing rq idx %u\n", __func__, wq->rq.cidx);
+		pr_debug("%s completing rq idx %u\n", __func__, wq->rq.cidx);
 		*cookie = wq->rq.sw_rq[wq->rq.cidx].wr_id;
 		BUG_ON(t4_rq_empty(wq));
 		if (c4iw_wr_log)
@@ -664,12 +663,12 @@ flush_wq:
 
 skip_cqe:
 	if (SW_CQE(hw_cqe)) {
-		PDBG("%s cq %p cqid 0x%x skip sw cqe cidx %u\n",
-		     __func__, cq, cq->cqid, cq->sw_cidx);
+		pr_debug("%s cq %p cqid 0x%x skip sw cqe cidx %u\n",
+			 __func__, cq, cq->cqid, cq->sw_cidx);
 		t4_swcq_consume(cq);
 	} else {
-		PDBG("%s cq %p cqid 0x%x skip hw cqe cidx %u\n",
-		     __func__, cq, cq->cqid, cq->cidx);
+		pr_debug("%s cq %p cqid 0x%x skip hw cqe cidx %u\n",
+			 __func__, cq, cq->cqid, cq->cidx);
 		t4_hwcq_consume(cq);
 	}
 	return ret;
@@ -715,10 +714,12 @@ static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ib_wc *wc)
 	wc->vendor_err = CQE_STATUS(&cqe);
 	wc->wc_flags = 0;
 
-	PDBG("%s qpid 0x%x type %d opcode %d status 0x%x len %u wrid hi 0x%x "
-	     "lo 0x%x cookie 0x%llx\n", __func__, CQE_QPID(&cqe),
-	     CQE_TYPE(&cqe), CQE_OPCODE(&cqe), CQE_STATUS(&cqe), CQE_LEN(&cqe),
-	     CQE_WRID_HI(&cqe), CQE_WRID_LOW(&cqe), (unsigned long long)cookie);
+	pr_debug("%s qpid 0x%x type %d opcode %d status 0x%x len %u wrid hi 0x%x lo 0x%x cookie 0x%llx\n",
+		 __func__, CQE_QPID(&cqe),
+		 CQE_TYPE(&cqe), CQE_OPCODE(&cqe),
+		 CQE_STATUS(&cqe), CQE_LEN(&cqe),
+		 CQE_WRID_HI(&cqe), CQE_WRID_LOW(&cqe),
+		 (unsigned long long)cookie);
 
 	if (CQE_TYPE(&cqe) == 0) {
 		if (!CQE_STATUS(&cqe))
@@ -766,8 +767,7 @@ static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ib_wc *wc)
 			wc->opcode = IB_WC_SEND;
 			break;
 		default:
-			printk(KERN_ERR MOD "Unexpected opcode %d "
-			       "in the CQE received for QPID=0x%0x\n",
+			pr_err("Unexpected opcode %d in the CQE received for QPID=0x%0x\n",
 			       CQE_OPCODE(&cqe), CQE_QPID(&cqe));
 			ret = -EINVAL;
 			goto out;
@@ -822,8 +822,7 @@ static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ib_wc *wc)
 			wc->status = IB_WC_WR_FLUSH_ERR;
 			break;
 		default:
-			printk(KERN_ERR MOD
-			       "Unexpected cqe_status 0x%x for QPID=0x%0x\n",
+			pr_err("Unexpected cqe_status 0x%x for QPID=0x%0x\n",
 			       CQE_STATUS(&cqe), CQE_QPID(&cqe));
 			wc->status = IB_WC_FATAL_ERR;
 		}
@@ -860,7 +859,7 @@ int c4iw_destroy_cq(struct ib_cq *ib_cq)
 	struct c4iw_cq *chp;
 	struct c4iw_ucontext *ucontext;
 
-	PDBG("%s ib_cq %p\n", __func__, ib_cq);
+	pr_debug("%s ib_cq %p\n", __func__, ib_cq);
 	chp = to_c4iw_cq(ib_cq);
 
 	remove_handle(chp->rhp, &chp->rhp->cqidr, chp->cq.cqid);
@@ -892,7 +891,7 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 	size_t memsize, hwentries;
 	struct c4iw_mm_entry *mm, *mm2;
 
-	PDBG("%s ib_dev %p entries %d\n", __func__, ibdev, entries);
+	pr_debug("%s ib_dev %p entries %d\n", __func__, ibdev, entries);
 	if (attr->flags)
 		return ERR_PTR(-EINVAL);
 
@@ -998,9 +997,9 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 		mm2->len = PAGE_SIZE;
 		insert_mmap(ucontext, mm2);
 	}
-	PDBG("%s cqid 0x%0x chp %p size %u memsize %zu, dma_addr 0x%0llx\n",
-	     __func__, chp->cq.cqid, chp, chp->cq.size,
-	     chp->cq.memsize, (unsigned long long) chp->cq.dma_addr);
+	pr_debug("%s cqid 0x%0x chp %p size %u memsize %zu, dma_addr 0x%0llx\n",
+		 __func__, chp->cq.cqid, chp, chp->cq.size,
+		 chp->cq.memsize, (unsigned long long)chp->cq.dma_addr);
 	return &chp->ibcq;
 err6:
 	kfree(mm2);

@@ -63,7 +63,7 @@ Additional Configurations
   diagnostics, as well as displaying statistical information. The latest
   version of ethtool can be found at:
 
-  http://ftp.kernel.org/pub/software/network/ethtool/
+  https://www.kernel.org/pub/software/network/ethtool/
 
   Enabling Wake on LAN* (WoL)
   ---------------------------

@@ -18,7 +18,8 @@
  * DOC: VC4 DPI module
  *
  * The VC4 DPI hardware supports MIPI DPI type 4 and Nokia ViSSI
- * signals, which are routed out to GPIO0-27 with the ALT2 function.
+ * signals.  On BCM2835, these can be routed out to GPIO0-27 with the
+ * ALT2 function.
  */
 
 #include "drm_atomic_helper.h"
@@ -143,17 +144,6 @@ static const struct {
 	DPI_REG(DPI_C),
 	DPI_REG(DPI_ID),
 };
-
-static void vc4_dpi_dump_regs(struct vc4_dpi *dpi)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(dpi_regs); i++) {
-		DRM_INFO("0x%04x (%s): 0x%08x\n",
-			 dpi_regs[i].reg, dpi_regs[i].name,
-			 DPI_READ(dpi_regs[i].reg));
-	}
-}
 
 #ifdef CONFIG_DEBUG_FS
 int vc4_dpi_debugfs_regs(struct seq_file *m, void *unused)
@@ -366,23 +356,14 @@ static const struct of_device_id vc4_dpi_dt_match[] = {
  */
 static struct drm_panel *vc4_dpi_get_panel(struct device *dev)
 {
-	struct device_node *endpoint, *panel_node;
+	struct device_node *panel_node;
 	struct device_node *np = dev->of_node;
 	struct drm_panel *panel;
 
-	endpoint = of_graph_get_next_endpoint(np, NULL);
-	if (!endpoint) {
-		dev_err(dev, "no endpoint to fetch DPI panel\n");
-		return NULL;
-	}
-
 	/* don't proceed if we have an endpoint but no panel_node tied to it */
-	panel_node = of_graph_get_remote_port_parent(endpoint);
-	of_node_put(endpoint);
-	if (!panel_node) {
-		dev_err(dev, "no valid panel node\n");
+	panel_node = of_graph_get_remote_node(np, 0, 0);
+	if (!panel_node)
 		return NULL;
-	}
 
 	panel = of_drm_find_panel(panel_node);
 	of_node_put(panel_node);
@@ -415,8 +396,6 @@ static int vc4_dpi_bind(struct device *dev, struct device *master, void *data)
 	dpi->regs = vc4_ioremap_regs(pdev, 0);
 	if (IS_ERR(dpi->regs))
 		return PTR_ERR(dpi->regs);
-
-	vc4_dpi_dump_regs(dpi);
 
 	if (DPI_READ(DPI_ID) != DPI_ID_VALUE) {
 		dev_err(dev, "Port returned 0x%08x for ID instead of 0x%08x\n",

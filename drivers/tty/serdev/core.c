@@ -116,17 +116,41 @@ void serdev_device_close(struct serdev_device *serdev)
 }
 EXPORT_SYMBOL_GPL(serdev_device_close);
 
-int serdev_device_write_buf(struct serdev_device *serdev,
-			    const unsigned char *buf, size_t count)
+void serdev_device_write_wakeup(struct serdev_device *serdev)
+{
+	complete(&serdev->write_comp);
+}
+EXPORT_SYMBOL_GPL(serdev_device_write_wakeup);
+
+int serdev_device_write(struct serdev_device *serdev,
+			const unsigned char *buf, size_t count,
+			unsigned long timeout)
 {
 	struct serdev_controller *ctrl = serdev->ctrl;
+	int ret;
 
-	if (!ctrl || !ctrl->ops->write_buf)
+	if (!ctrl || !ctrl->ops->write_buf ||
+	    (timeout && !serdev->ops->write_wakeup))
 		return -EINVAL;
 
-	return ctrl->ops->write_buf(ctrl, buf, count);
+	mutex_lock(&serdev->write_lock);
+	do {
+		reinit_completion(&serdev->write_comp);
+
+		ret = ctrl->ops->write_buf(ctrl, buf, count);
+		if (ret < 0)
+			break;
+
+		buf += ret;
+		count -= ret;
+
+	} while (count &&
+		 (timeout = wait_for_completion_timeout(&serdev->write_comp,
+							timeout)));
+	mutex_unlock(&serdev->write_lock);
+	return ret < 0 ? ret : (count ? -ETIMEDOUT : 0);
 }
-EXPORT_SYMBOL_GPL(serdev_device_write_buf);
+EXPORT_SYMBOL_GPL(serdev_device_write);
 
 void serdev_device_write_flush(struct serdev_device *serdev)
 {
@@ -173,6 +197,39 @@ void serdev_device_set_flow_control(struct serdev_device *serdev, bool enable)
 }
 EXPORT_SYMBOL_GPL(serdev_device_set_flow_control);
 
+void serdev_device_wait_until_sent(struct serdev_device *serdev, long timeout)
+{
+	struct serdev_controller *ctrl = serdev->ctrl;
+
+	if (!ctrl || !ctrl->ops->wait_until_sent)
+		return;
+
+	ctrl->ops->wait_until_sent(ctrl, timeout);
+}
+EXPORT_SYMBOL_GPL(serdev_device_wait_until_sent);
+
+int serdev_device_get_tiocm(struct serdev_device *serdev)
+{
+	struct serdev_controller *ctrl = serdev->ctrl;
+
+	if (!ctrl || !ctrl->ops->get_tiocm)
+		return -ENOTSUPP;
+
+	return ctrl->ops->get_tiocm(ctrl);
+}
+EXPORT_SYMBOL_GPL(serdev_device_get_tiocm);
+
+int serdev_device_set_tiocm(struct serdev_device *serdev, int set, int clear)
+{
+	struct serdev_controller *ctrl = serdev->ctrl;
+
+	if (!ctrl || !ctrl->ops->set_tiocm)
+		return -ENOTSUPP;
+
+	return ctrl->ops->set_tiocm(ctrl, set, clear);
+}
+EXPORT_SYMBOL_GPL(serdev_device_set_tiocm);
+
 static int serdev_drv_probe(struct device *dev)
 {
 	const struct serdev_device_driver *sdrv = to_serdev_device_driver(dev->driver);
@@ -191,10 +248,7 @@ static int serdev_drv_remove(struct device *dev)
 static ssize_t modalias_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
-	ssize_t len = of_device_get_modalias(dev, buf, PAGE_SIZE - 2);
-	buf[len] = '\n';
-	buf[len+1] = 0;
-	return len+1;
+	return of_device_modalias(dev, buf, PAGE_SIZE);
 }
 
 static struct device_attribute serdev_device_attrs[] = {
@@ -232,6 +286,8 @@ struct serdev_device *serdev_device_alloc(struct serdev_controller *ctrl)
 	serdev->dev.parent = &ctrl->dev;
 	serdev->dev.bus = &serdev_bus_type;
 	serdev->dev.type = &serdev_device_type;
+	init_completion(&serdev->write_comp);
+	mutex_init(&serdev->write_lock);
 	return serdev;
 }
 EXPORT_SYMBOL_GPL(serdev_device_alloc);

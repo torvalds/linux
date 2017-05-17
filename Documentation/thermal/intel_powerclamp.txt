@@ -268,6 +268,15 @@ cur_state:0
 max_state:50
 type:intel_powerclamp
 
+cur_state allows user to set the desired idle percentage. Writing 0 to
+cur_state will stop idle injection. Writing a value between 1 and
+max_state will start the idle injection. Reading cur_state returns the
+actual and current idle percentage. This may not be the same value
+set by the user in that current idle percentage depends on workload
+and includes natural idle. When idle injection is disabled, reading
+cur_state returns value -1 instead of 0 which is to avoid confusing
+100% busy state with the disabled state.
+
 Example usage:
 - To inject 25% idle time
 $ sudo sh -c "echo 25 > /sys/class/thermal/cooling_device80/cur_state
@@ -278,11 +287,12 @@ then the powerclamp driver will not start idle injection. Using Top
 will not show idle injection kernel threads.
 
 If the system is busy (spin test below) and has less than 25% natural
-idle time, powerclamp kernel threads will do idle injection, which
-appear running to the scheduler. But the overall system idle is still
-reflected. In this example, 24.1% idle is shown. This helps the
-system admin or user determine the cause of slowdown, when a
-powerclamp driver is in action.
+idle time, powerclamp kernel threads will do idle injection. Forced
+idle time is accounted as normal idle in that common code path is
+taken as the idle task.
+
+In this example, 24.1% idle is shown. This helps the system admin or
+user determine the cause of slowdown, when a powerclamp driver is in action.
 
 
 Tasks: 197 total,   1 running, 196 sleeping,   0 stopped,   0 zombie

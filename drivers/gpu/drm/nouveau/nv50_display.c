@@ -705,7 +705,7 @@ evo_wait(void *evoc, int nr)
 				break;
 		) < 0) {
 			mutex_unlock(&dmac->lock);
-			printk(KERN_ERR "nouveau: evo channel stalled\n");
+			pr_err("nouveau: evo channel stalled\n");
 			return NULL;
 		}
 
@@ -723,18 +723,18 @@ evo_kick(u32 *push, void *evoc)
 	mutex_unlock(&dmac->lock);
 }
 
-#define evo_mthd(p,m,s) do {                                                   \
-	const u32 _m = (m), _s = (s);                                          \
-	if (drm_debug & DRM_UT_KMS)                                            \
-		printk(KERN_ERR "%04x %d %s\n", _m, _s, __func__);             \
-	*((p)++) = ((_s << 18) | _m);                                          \
+#define evo_mthd(p, m, s) do {						\
+	const u32 _m = (m), _s = (s);					\
+	if (drm_debug & DRM_UT_KMS)					\
+		pr_err("%04x %d %s\n", _m, _s, __func__);		\
+	*((p)++) = ((_s << 18) | _m);					\
 } while(0)
 
-#define evo_data(p,d) do {                                                     \
-	const u32 _d = (d);                                                    \
-	if (drm_debug & DRM_UT_KMS)                                            \
-		printk(KERN_ERR "\t%08x\n", _d);                               \
-	*((p)++) = _d;                                                         \
+#define evo_data(p, d) do {						\
+	const u32 _d = (d);						\
+	if (drm_debug & DRM_UT_KMS)					\
+		pr_err("\t%08x\n", _d);					\
+	*((p)++) = _d;							\
 } while(0)
 
 /******************************************************************************
@@ -846,6 +846,12 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw,
 	asyw->image.w = fb->base.width;
 	asyw->image.h = fb->base.height;
 	asyw->image.kind = (fb->nvbo->tile_flags & 0x0000ff00) >> 8;
+
+	if (asyh->state.pageflip_flags & DRM_MODE_PAGE_FLIP_ASYNC)
+		asyw->interval = 0;
+	else
+		asyw->interval = 1;
+
 	if (asyw->image.kind) {
 		asyw->image.layout = 0;
 		if (drm->client.device.info.chipset >= 0xc0)
@@ -906,11 +912,9 @@ nv50_wndw_atomic_check(struct drm_plane *plane, struct drm_plane_state *state)
 		if (memcmp(&armw->point, &asyw->point, sizeof(asyw->point)))
 			asyw->set.point = true;
 
-		if (!varm || asym || armw->state.fb != asyw->state.fb) {
-			ret = nv50_wndw_atomic_check_acquire(wndw, asyw, asyh);
-			if (ret)
-				return ret;
-		}
+		ret = nv50_wndw_atomic_check_acquire(wndw, asyw, asyh);
+		if (ret)
+			return ret;
 	} else
 	if (varm) {
 		nv50_wndw_atomic_check_release(wndw, asyw, harm);
@@ -1115,9 +1119,13 @@ static void
 nv50_curs_prepare(struct nv50_wndw *wndw, struct nv50_head_atom *asyh,
 		  struct nv50_wndw_atom *asyw)
 {
-	asyh->curs.handle = nv50_disp(wndw->plane.dev)->mast.base.vram.handle;
-	asyh->curs.offset = asyw->image.offset;
-	asyh->set.curs = asyh->curs.visible;
+	u32 handle = nv50_disp(wndw->plane.dev)->mast.base.vram.handle;
+	u32 offset = asyw->image.offset;
+	if (asyh->curs.handle != handle || asyh->curs.offset != offset) {
+		asyh->curs.handle = handle;
+		asyh->curs.offset = offset;
+		asyh->set.curs = asyh->curs.visible;
+	}
 }
 
 static void
@@ -2203,96 +2211,16 @@ nv50_head_lut_load(struct drm_crtc *crtc)
 	}
 }
 
-static int
-nv50_head_mode_set_base_atomic(struct drm_crtc *crtc,
-			       struct drm_framebuffer *fb, int x, int y,
-			       enum mode_set_atomic state)
-{
-	WARN_ON(1);
-	return 0;
-}
-
 static const struct drm_crtc_helper_funcs
 nv50_head_help = {
-	.mode_set_base_atomic = nv50_head_mode_set_base_atomic,
 	.load_lut = nv50_head_lut_load,
 	.atomic_check = nv50_head_atomic_check,
 };
 
-/* This is identical to the version in the atomic helpers, except that
- * it supports non-vblanked ("async") page flips.
- */
-static int
-nv50_head_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
-		    struct drm_pending_vblank_event *event, u32 flags)
-{
-	struct drm_plane *plane = crtc->primary;
-	struct drm_atomic_state *state;
-	struct drm_plane_state *plane_state;
-	struct drm_crtc_state *crtc_state;
-	int ret = 0;
-
-	state = drm_atomic_state_alloc(plane->dev);
-	if (!state)
-		return -ENOMEM;
-
-	state->acquire_ctx = drm_modeset_legacy_acquire_ctx(crtc);
-retry:
-	crtc_state = drm_atomic_get_crtc_state(state, crtc);
-	if (IS_ERR(crtc_state)) {
-		ret = PTR_ERR(crtc_state);
-		goto fail;
-	}
-	crtc_state->event = event;
-
-	plane_state = drm_atomic_get_plane_state(state, plane);
-	if (IS_ERR(plane_state)) {
-		ret = PTR_ERR(plane_state);
-		goto fail;
-	}
-
-	ret = drm_atomic_set_crtc_for_plane(plane_state, crtc);
-	if (ret != 0)
-		goto fail;
-	drm_atomic_set_fb_for_plane(plane_state, fb);
-
-	/* Make sure we don't accidentally do a full modeset. */
-	state->allow_modeset = false;
-	if (!crtc_state->active) {
-		DRM_DEBUG_ATOMIC("[CRTC:%d] disabled, rejecting legacy flip\n",
-				 crtc->base.id);
-		ret = -EINVAL;
-		goto fail;
-	}
-
-	if (flags & DRM_MODE_PAGE_FLIP_ASYNC)
-		nv50_wndw_atom(plane_state)->interval = 0;
-
-	ret = drm_atomic_nonblocking_commit(state);
-fail:
-	if (ret == -EDEADLK)
-		goto backoff;
-
-	drm_atomic_state_put(state);
-	return ret;
-
-backoff:
-	drm_atomic_state_clear(state);
-	drm_atomic_legacy_backoff(state);
-
-	/*
-	 * Someone might have exchanged the framebuffer while we dropped locks
-	 * in the backoff code. We need to fix up the fb refcount tracking the
-	 * core does for us.
-	 */
-	plane->old_fb = plane->fb;
-
-	goto retry;
-}
-
 static int
 nv50_head_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
-		    uint32_t size)
+		    uint32_t size,
+		    struct drm_modeset_acquire_ctx *ctx)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	u32 i;
@@ -2384,7 +2312,7 @@ nv50_head_func = {
 	.gamma_set = nv50_head_gamma_set,
 	.destroy = nv50_head_destroy,
 	.set_config = drm_atomic_helper_set_config,
-	.page_flip = nv50_head_page_flip,
+	.page_flip = drm_atomic_helper_page_flip,
 	.set_property = drm_atomic_helper_crtc_set_property,
 	.atomic_duplicate_state = nv50_head_atomic_duplicate_state,
 	.atomic_destroy_state = nv50_head_atomic_destroy_state,
@@ -2959,7 +2887,8 @@ nv50_msto_enable(struct drm_encoder *encoder)
 	if (WARN_ON(!mstc))
 		return;
 
-	r = drm_dp_mst_allocate_vcpi(&mstm->mgr, mstc->port, mstc->pbn, &slots);
+	slots = drm_dp_find_vcpi_slots(&mstm->mgr, mstc->pbn);
+	r = drm_dp_mst_allocate_vcpi(&mstm->mgr, mstc->port, mstc->pbn, slots);
 	WARN_ON(!r);
 
 	if (mstm->outp->dcb->sorconf.link & 1)
@@ -3691,7 +3620,7 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 		struct nvkm_i2c_aux *aux =
 			nvkm_i2c_aux_find(i2c, dcbe->i2c_index);
 		if (aux) {
-			nv_encoder->i2c = &aux->i2c;
+			nv_encoder->i2c = &nv_connector->aux.ddc;
 			nv_encoder->aux = aux;
 		}
 
@@ -3841,6 +3770,7 @@ nv50_pior_func = {
 static int
 nv50_pior_create(struct drm_connector *connector, struct dcb_output *dcbe)
 {
+	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
 	struct nvkm_i2c *i2c = nvxx_i2c(&drm->client.device);
 	struct nvkm_i2c_bus *bus = NULL;
@@ -3858,7 +3788,7 @@ nv50_pior_create(struct drm_connector *connector, struct dcb_output *dcbe)
 		break;
 	case DCB_OUTPUT_DP:
 		aux  = nvkm_i2c_aux_find(i2c, NVKM_I2C_AUX_EXT(dcbe->extdev));
-		ddc  = aux ? &aux->i2c : NULL;
+		ddc  = aux ? &nv_connector->aux.ddc : NULL;
 		type = DRM_MODE_ENCODER_TMDS;
 		break;
 	default:

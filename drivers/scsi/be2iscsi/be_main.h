@@ -1,20 +1,15 @@
-/**
- * Copyright (C) 2005 - 2016 Broadcom
- * All rights reserved.
+/*
+ * Copyright 2017 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Limited and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.  The full GNU General
+ * as published by the Free Software Foundation. The full GNU General
  * Public License is included in this distribution in the file called COPYING.
- *
- * Written by: Jayamohan Kallickal (jayamohan.kallickal@broadcom.com)
  *
  * Contact Information:
  * linux-drivers@broadcom.com
  *
- * Emulex
- * 3333 Susan Street
- * Costa Mesa, CA 92626
  */
 
 #ifndef _BEISCSI_MAIN_
@@ -36,7 +31,7 @@
 #include <scsi/scsi_transport_iscsi.h>
 
 #define DRV_NAME		"be2iscsi"
-#define BUILD_STR		"11.2.1.0"
+#define BUILD_STR		"11.4.0.0"
 #define BE_NAME			"Emulex OneConnect" \
 				"Open-iSCSI Driver version" BUILD_STR
 #define DRV_DESC		BE_NAME " " "Driver"
@@ -235,7 +230,6 @@ struct sgl_handle {
 struct hba_parameters {
 	unsigned int ios_per_ctrl;
 	unsigned int cxns_per_ctrl;
-	unsigned int asyncpdus_per_ctrl;
 	unsigned int icds_per_ctrl;
 	unsigned int num_sge_per_io;
 	unsigned int defpdu_hdr_sz;
@@ -323,9 +317,7 @@ struct beiscsi_hba {
 	struct pci_dev *pcidev;
 	unsigned int num_cpus;
 	unsigned int nxt_cqid;
-	struct msix_entry msix_entries[MAX_CPUS];
 	char *msi_name[MAX_CPUS];
-	bool msix_enabled;
 	struct be_mem_descriptor *init_mem;
 
 	unsigned short io_sgl_alloc_index;
@@ -597,7 +589,11 @@ struct hd_async_handle {
 	u16 cri;
 	u8 is_header;
 	u8 is_final;
+	u8 in_use;
 };
+
+#define BEISCSI_ASYNC_HDQ_SIZE(phba, ulp) \
+	(BEISCSI_GET_CID_COUNT((phba), (ulp)) * 2)
 
 /**
  * This has list of async PDUs that are waiting to be processed.
@@ -624,14 +620,8 @@ struct hd_async_buf_context {
 	void *va_base;
 	void *ring_base;
 	struct hd_async_handle *handle_base;
-	u16 free_entries;
 	u32 buffer_size;
-	/**
-	 * Once iSCSI layer finishes processing an async PDU, the
-	 * handles used for the PDU are added to this list.
-	 * They are posted back to FW in groups of 8.
-	 */
-	struct list_head free_list;
+	u16 pi;
 };
 
 /**

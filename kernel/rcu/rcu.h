@@ -56,6 +56,83 @@
 #define DYNTICK_TASK_EXIT_IDLE	   (DYNTICK_TASK_NEST_VALUE + \
 				    DYNTICK_TASK_FLAG)
 
+
+/*
+ * Grace-period counter management.
+ */
+
+#define RCU_SEQ_CTR_SHIFT	2
+#define RCU_SEQ_STATE_MASK	((1 << RCU_SEQ_CTR_SHIFT) - 1)
+
+/*
+ * Return the counter portion of a sequence number previously returned
+ * by rcu_seq_snap() or rcu_seq_current().
+ */
+static inline unsigned long rcu_seq_ctr(unsigned long s)
+{
+	return s >> RCU_SEQ_CTR_SHIFT;
+}
+
+/*
+ * Return the state portion of a sequence number previously returned
+ * by rcu_seq_snap() or rcu_seq_current().
+ */
+static inline int rcu_seq_state(unsigned long s)
+{
+	return s & RCU_SEQ_STATE_MASK;
+}
+
+/*
+ * Set the state portion of the pointed-to sequence number.
+ * The caller is responsible for preventing conflicting updates.
+ */
+static inline void rcu_seq_set_state(unsigned long *sp, int newstate)
+{
+	WARN_ON_ONCE(newstate & ~RCU_SEQ_STATE_MASK);
+	WRITE_ONCE(*sp, (*sp & ~RCU_SEQ_STATE_MASK) + newstate);
+}
+
+/* Adjust sequence number for start of update-side operation. */
+static inline void rcu_seq_start(unsigned long *sp)
+{
+	WRITE_ONCE(*sp, *sp + 1);
+	smp_mb(); /* Ensure update-side operation after counter increment. */
+	WARN_ON_ONCE(rcu_seq_state(*sp) != 1);
+}
+
+/* Adjust sequence number for end of update-side operation. */
+static inline void rcu_seq_end(unsigned long *sp)
+{
+	smp_mb(); /* Ensure update-side operation before counter increment. */
+	WARN_ON_ONCE(!rcu_seq_state(*sp));
+	WRITE_ONCE(*sp, (*sp | RCU_SEQ_STATE_MASK) + 1);
+}
+
+/* Take a snapshot of the update side's sequence number. */
+static inline unsigned long rcu_seq_snap(unsigned long *sp)
+{
+	unsigned long s;
+
+	s = (READ_ONCE(*sp) + 2 * RCU_SEQ_STATE_MASK + 1) & ~RCU_SEQ_STATE_MASK;
+	smp_mb(); /* Above access must not bleed into critical section. */
+	return s;
+}
+
+/* Return the current value the update side's sequence number, no ordering. */
+static inline unsigned long rcu_seq_current(unsigned long *sp)
+{
+	return READ_ONCE(*sp);
+}
+
+/*
+ * Given a snapshot from rcu_seq_snap(), determine whether or not a
+ * full update-side operation has occurred.
+ */
+static inline bool rcu_seq_done(unsigned long *sp, unsigned long s)
+{
+	return ULONG_CMP_GE(READ_ONCE(*sp), s);
+}
+
 /*
  * debug_rcu_head_queue()/debug_rcu_head_unqueue() are used internally
  * by call_rcu() and rcu callback execution, and are therefore not part of the
@@ -109,12 +186,12 @@ static inline bool __rcu_reclaim(const char *rn, struct rcu_head *head)
 
 	rcu_lock_acquire(&rcu_callback_map);
 	if (__is_kfree_rcu_offset(offset)) {
-		RCU_TRACE(trace_rcu_invoke_kfree_callback(rn, head, offset));
+		RCU_TRACE(trace_rcu_invoke_kfree_callback(rn, head, offset);)
 		kfree((void *)head - offset);
 		rcu_lock_release(&rcu_callback_map);
 		return true;
 	} else {
-		RCU_TRACE(trace_rcu_invoke_callback(rn, head));
+		RCU_TRACE(trace_rcu_invoke_callback(rn, head);)
 		head->func(head);
 		rcu_lock_release(&rcu_callback_map);
 		return false;
@@ -143,5 +220,77 @@ void rcu_test_sync_prims(void);
  * that context switches can allow the state machine to make progress.
  */
 extern void resched_cpu(int cpu);
+
+#if defined(SRCU) || !defined(TINY_RCU)
+
+#include <linux/rcu_node_tree.h>
+
+extern int rcu_num_lvls;
+extern int num_rcu_lvl[];
+extern int rcu_num_nodes;
+static bool rcu_fanout_exact;
+static int rcu_fanout_leaf;
+
+/*
+ * Compute the per-level fanout, either using the exact fanout specified
+ * or balancing the tree, depending on the rcu_fanout_exact boot parameter.
+ */
+static inline void rcu_init_levelspread(int *levelspread, const int *levelcnt)
+{
+	int i;
+
+	if (rcu_fanout_exact) {
+		levelspread[rcu_num_lvls - 1] = rcu_fanout_leaf;
+		for (i = rcu_num_lvls - 2; i >= 0; i--)
+			levelspread[i] = RCU_FANOUT;
+	} else {
+		int ccur;
+		int cprv;
+
+		cprv = nr_cpu_ids;
+		for (i = rcu_num_lvls - 1; i >= 0; i--) {
+			ccur = levelcnt[i];
+			levelspread[i] = (cprv + ccur - 1) / ccur;
+			cprv = ccur;
+		}
+	}
+}
+
+/*
+ * Do a full breadth-first scan of the rcu_node structures for the
+ * specified rcu_state structure.
+ */
+#define rcu_for_each_node_breadth_first(rsp, rnp) \
+	for ((rnp) = &(rsp)->node[0]; \
+	     (rnp) < &(rsp)->node[rcu_num_nodes]; (rnp)++)
+
+/*
+ * Do a breadth-first scan of the non-leaf rcu_node structures for the
+ * specified rcu_state structure.  Note that if there is a singleton
+ * rcu_node tree with but one rcu_node structure, this loop is a no-op.
+ */
+#define rcu_for_each_nonleaf_node_breadth_first(rsp, rnp) \
+	for ((rnp) = &(rsp)->node[0]; \
+	     (rnp) < (rsp)->level[rcu_num_lvls - 1]; (rnp)++)
+
+/*
+ * Scan the leaves of the rcu_node hierarchy for the specified rcu_state
+ * structure.  Note that if there is a singleton rcu_node tree with but
+ * one rcu_node structure, this loop -will- visit the rcu_node structure.
+ * It is still a leaf node, even if it is also the root node.
+ */
+#define rcu_for_each_leaf_node(rsp, rnp) \
+	for ((rnp) = (rsp)->level[rcu_num_lvls - 1]; \
+	     (rnp) < &(rsp)->node[rcu_num_nodes]; (rnp)++)
+
+/*
+ * Iterate over all possible CPUs in a leaf RCU node.
+ */
+#define for_each_leaf_node_possible_cpu(rnp, cpu) \
+	for ((cpu) = cpumask_next(rnp->grplo - 1, cpu_possible_mask); \
+	     cpu <= rnp->grphi; \
+	     cpu = cpumask_next((cpu), cpu_possible_mask))
+
+#endif /* #if defined(SRCU) || !defined(TINY_RCU) */
 
 #endif /* __LINUX_RCU_H */

@@ -474,6 +474,15 @@ acpi_ut_walk_aml_resources(struct acpi_walk_state *walk_state,
 				return_ACPI_STATUS(AE_AML_NO_RESOURCE_END_TAG);
 			}
 
+			/*
+			 * The end_tag opcode must be followed by a zero byte.
+			 * Although this byte is technically defined to be a checksum,
+			 * in practice, all ASL compilers set this byte to zero.
+			 */
+			if (*(aml + 1) != 0) {
+				return_ACPI_STATUS(AE_AML_NO_RESOURCE_END_TAG);
+			}
+
 			/* Return the pointer to the end_tag if requested */
 
 			if (!user_function) {

@@ -27,6 +27,7 @@
 #include <linux/vga_switcheroo.h>
 
 #include "i915_drv.h"
+#include "i915_selftest.h"
 
 #define GEN_DEFAULT_PIPEOFFSETS \
 	.pipe_offsets = { PIPE_A_OFFSET, PIPE_B_OFFSET, \
@@ -408,6 +409,7 @@ static const struct intel_device_info intel_geminilake_info = {
 	.platform = INTEL_GEMINILAKE,
 	.is_alpha_support = 1,
 	.ddb_size = 1024,
+	.color = { .degamma_lut_size = 0, .gamma_lut_size = 1024 }
 };
 
 static const struct intel_device_info intel_kabylake_info = {
@@ -477,10 +479,19 @@ static const struct pci_device_id pciidlist[] = {
 };
 MODULE_DEVICE_TABLE(pci, pciidlist);
 
+static void i915_pci_remove(struct pci_dev *pdev)
+{
+	struct drm_device *dev = pci_get_drvdata(pdev);
+
+	i915_driver_unload(dev);
+	drm_dev_unref(dev);
+}
+
 static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct intel_device_info *intel_info =
 		(struct intel_device_info *) ent->driver_data;
+	int err;
 
 	if (IS_ALPHA_SUPPORT(intel_info) && !i915.alpha_support) {
 		DRM_INFO("The driver support for your hardware in this kernel version is alpha quality\n"
@@ -504,15 +515,17 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (vga_switcheroo_client_probe_defer(pdev))
 		return -EPROBE_DEFER;
 
-	return i915_driver_load(pdev, ent);
-}
+	err = i915_driver_load(pdev, ent);
+	if (err)
+		return err;
 
-static void i915_pci_remove(struct pci_dev *pdev)
-{
-	struct drm_device *dev = pci_get_drvdata(pdev);
+	err = i915_live_selftests(pdev);
+	if (err) {
+		i915_pci_remove(pdev);
+		return err > 0 ? -ENOTTY : err;
+	}
 
-	i915_driver_unload(dev);
-	drm_dev_unref(dev);
+	return 0;
 }
 
 static struct pci_driver i915_pci_driver = {
@@ -526,6 +539,11 @@ static struct pci_driver i915_pci_driver = {
 static int __init i915_init(void)
 {
 	bool use_kms = true;
+	int err;
+
+	err = i915_mock_selftests();
+	if (err)
+		return err > 0 ? 0 : err;
 
 	/*
 	 * Enable KMS by default, unless explicitly overriden by

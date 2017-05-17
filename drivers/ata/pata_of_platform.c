@@ -67,7 +67,7 @@ static int pata_of_platform_probe(struct platform_device *ofdev)
 				     reg_shift, pio_mask, &pata_platform_sht);
 }
 
-static struct of_device_id pata_of_platform_match[] = {
+static const struct of_device_id pata_of_platform_match[] = {
 	{ .compatible = "ata-generic", },
 	{ },
 };

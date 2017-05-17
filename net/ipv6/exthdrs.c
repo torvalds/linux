@@ -909,6 +909,8 @@ static void ipv6_push_rthdr(struct sk_buff *skb, u8 *proto,
 {
 	switch (opt->type) {
 	case IPV6_SRCRT_TYPE_0:
+	case IPV6_SRCRT_STRICT:
+	case IPV6_SRCRT_TYPE_2:
 		ipv6_push_rthdr0(skb, proto, opt, addr_p, saddr);
 		break;
 	case IPV6_SRCRT_TYPE_4:
@@ -944,13 +946,13 @@ void ipv6_push_nfrag_opts(struct sk_buff *skb, struct ipv6_txoptions *opt,
 	if (opt->hopopt)
 		ipv6_push_exthdr(skb, proto, NEXTHDR_HOP, opt->hopopt);
 }
-EXPORT_SYMBOL(ipv6_push_nfrag_opts);
 
 void ipv6_push_frag_opts(struct sk_buff *skb, struct ipv6_txoptions *opt, u8 *proto)
 {
 	if (opt->dst1opt)
 		ipv6_push_exthdr(skb, proto, NEXTHDR_DEST, opt->dst1opt);
 }
+EXPORT_SYMBOL(ipv6_push_frag_opts);
 
 struct ipv6_txoptions *
 ipv6_dup_options(struct sock *sk, struct ipv6_txoptions *opt)
@@ -1163,6 +1165,8 @@ struct in6_addr *fl6_update_dst(struct flowi6 *fl6,
 
 	switch (opt->srcrt->type) {
 	case IPV6_SRCRT_TYPE_0:
+	case IPV6_SRCRT_STRICT:
+	case IPV6_SRCRT_TYPE_2:
 		fl6->daddr = *((struct rt0_hdr *)opt->srcrt)->addr;
 		break;
 	case IPV6_SRCRT_TYPE_4:

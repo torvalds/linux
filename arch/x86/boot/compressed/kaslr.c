@@ -426,7 +426,7 @@ static unsigned long slots_fetch_random(void)
 	return 0;
 }
 
-static void process_e820_entry(struct e820entry *entry,
+static void process_e820_entry(struct boot_e820_entry *entry,
 			       unsigned long minimum,
 			       unsigned long image_size)
 {
@@ -435,7 +435,7 @@ static void process_e820_entry(struct e820entry *entry,
 	unsigned long start_orig;
 
 	/* Skip non-RAM entries. */
-	if (entry->type != E820_RAM)
+	if (entry->type != E820_TYPE_RAM)
 		return;
 
 	/* On 32-bit, ignore entries entirely above our maximum. */
@@ -518,7 +518,7 @@ static unsigned long find_random_phys_addr(unsigned long minimum,
 
 	/* Verify potential e820 positions, appending to slots list. */
 	for (i = 0; i < boot_params->e820_entries; i++) {
-		process_e820_entry(&boot_params->e820_map[i], minimum,
+		process_e820_entry(&boot_params->e820_table[i], minimum,
 				   image_size);
 		if (slot_area_index == MAX_SLOT_AREA) {
 			debug_putstr("Aborted e820 scan (slot_areas full)!\n");
@@ -597,10 +597,17 @@ void choose_random_location(unsigned long input,
 			add_identity_map(random_addr, output_size);
 			*output = random_addr;
 		}
+
+		/*
+		 * This loads the identity mapping page table.
+		 * This should only be done if a new physical address
+		 * is found for the kernel, otherwise we should keep
+		 * the old page table to make it be like the "nokaslr"
+		 * case.
+		 */
+		finalize_identity_maps();
 	}
 
-	/* This actually loads the identity pagetable on x86_64. */
-	finalize_identity_maps();
 
 	/* Pick random virtual address starting from LOAD_PHYSICAL_ADDR. */
 	if (IS_ENABLED(CONFIG_X86_64))

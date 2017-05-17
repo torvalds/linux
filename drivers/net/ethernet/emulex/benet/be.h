@@ -567,6 +567,12 @@ struct be_error_recovery {
 /* Ethtool priv_flags */
 #define	BE_DISABLE_TPE_RECOVERY	0x1
 
+struct be_vxlan_port {
+	struct list_head list;
+	__be16 port;		/* VxLAN UDP dst port */
+	int port_aliases;	/* alias count */
+};
+
 struct be_adapter {
 	struct pci_dev *pdev;
 	struct net_device *netdev;
@@ -671,9 +677,9 @@ struct be_adapter {
 	u32 sli_family;
 	u8 hba_port_num;
 	u16 pvid;
-	__be16 vxlan_port;
-	int vxlan_port_count;
-	int vxlan_port_aliases;
+	__be16 vxlan_port;		/* offloaded vxlan port num */
+	int vxlan_port_count;		/* active vxlan port count */
+	struct list_head vxlan_port_list;	/* vxlan port list */
 	struct phy_info phy;
 	u8 wol_cap;
 	bool wol_en;

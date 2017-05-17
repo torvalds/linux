@@ -50,6 +50,7 @@
 #include <rdma/ib_umem.h>
 #include <rdma/ib_cache.h>
 #include <rdma/ib_addr.h>
+#include <crypto/hash.h>
 
 #include "rxe_net.h"
 #include "rxe_opcode.h"
@@ -63,6 +64,25 @@
 #define IB_PHYS_STATE_LINK_DOWN		(3)
 
 #define RXE_ROCE_V2_SPORT		(0xc000)
+
+static inline u32 rxe_crc32(struct rxe_dev *rxe,
+			    u32 crc, void *next, size_t len)
+{
+	int err;
+
+	SHASH_DESC_ON_STACK(shash, rxe->tfm);
+
+	shash->tfm = rxe->tfm;
+	shash->flags = 0;
+	*(u32 *)shash_desc_ctx(shash) = crc;
+	err = crypto_shash_update(shash, next, len);
+	if (unlikely(err)) {
+		pr_warn_ratelimited("failed crc calculation, err: %d\n", err);
+		return crc32_le(crc, next, len);
+	}
+
+	return *(u32 *)shash_desc_ctx(shash);
+}
 
 int rxe_set_mtu(struct rxe_dev *rxe, unsigned int dev_mtu);
 

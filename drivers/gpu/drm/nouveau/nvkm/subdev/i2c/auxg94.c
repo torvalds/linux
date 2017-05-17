@@ -74,7 +74,7 @@ g94_i2c_aux_init(struct g94_i2c_aux *aux)
 
 static int
 g94_i2c_aux_xfer(struct nvkm_i2c_aux *obj, bool retry,
-		 u8 type, u32 addr, u8 *data, u8 size)
+		 u8 type, u32 addr, u8 *data, u8 *size)
 {
 	struct g94_i2c_aux *aux = g94_i2c_aux(obj);
 	struct nvkm_device *device = aux->base.pad->i2c->subdev.device;
@@ -83,7 +83,7 @@ g94_i2c_aux_xfer(struct nvkm_i2c_aux *obj, bool retry,
 	u32 xbuf[4] = {};
 	int ret, i;
 
-	AUX_TRACE(&aux->base, "%d: %08x %d", type, addr, size);
+	AUX_TRACE(&aux->base, "%d: %08x %d", type, addr, *size);
 
 	ret = g94_i2c_aux_init(aux);
 	if (ret < 0)
@@ -97,7 +97,7 @@ g94_i2c_aux_xfer(struct nvkm_i2c_aux *obj, bool retry,
 	}
 
 	if (!(type & 1)) {
-		memcpy(xbuf, data, size);
+		memcpy(xbuf, data, *size);
 		for (i = 0; i < 16; i += 4) {
 			AUX_TRACE(&aux->base, "wr %08x", xbuf[i / 4]);
 			nvkm_wr32(device, 0x00e4c0 + base + i, xbuf[i / 4]);
@@ -107,7 +107,7 @@ g94_i2c_aux_xfer(struct nvkm_i2c_aux *obj, bool retry,
 	ctrl  = nvkm_rd32(device, 0x00e4e4 + base);
 	ctrl &= ~0x0001f0ff;
 	ctrl |= type << 12;
-	ctrl |= size - 1;
+	ctrl |= *size - 1;
 	nvkm_wr32(device, 0x00e4e0 + base, addr);
 
 	/* (maybe) retry transaction a number of times on failure... */
@@ -151,7 +151,8 @@ g94_i2c_aux_xfer(struct nvkm_i2c_aux *obj, bool retry,
 			xbuf[i / 4] = nvkm_rd32(device, 0x00e4d0 + base + i);
 			AUX_TRACE(&aux->base, "rd %08x", xbuf[i / 4]);
 		}
-		memcpy(data, xbuf, size);
+		memcpy(data, xbuf, *size);
+		*size = stat & 0x0000001f;
 	}
 
 out:

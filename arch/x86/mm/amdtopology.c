@@ -19,7 +19,7 @@
 #include <asm/types.h>
 #include <asm/mmzone.h>
 #include <asm/proto.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/pci-direct.h>
 #include <asm/numa.h>
 #include <asm/mpspec.h>

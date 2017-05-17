@@ -33,6 +33,7 @@
 #include <linux/platform_device.h>
 #include <linux/acpi.h>
 #include <linux/etherdevice.h>
+#include <linux/of.h>
 #include <rdma/ib_umem.h>
 #include "hns_roce_common.h"
 #include "hns_roce_device.h"
@@ -657,6 +658,7 @@ static int hns_roce_v1_rsv_lp_qp(struct hns_roce_dev *hr_dev)
 	struct hns_roce_qp *hr_qp;
 	struct ib_cq *cq;
 	struct ib_pd *pd;
+	union ib_gid dgid;
 	u64 subnet_prefix;
 	int attr_mask = 0;
 	int i;
@@ -707,12 +709,8 @@ static int hns_roce_v1_rsv_lp_qp(struct hns_roce_dev *hr_dev)
 	attr.rnr_retry		= 7;
 	attr.timeout		= 0x12;
 	attr.path_mtu		= IB_MTU_256;
-	attr.ah_attr.ah_flags		= 1;
-	attr.ah_attr.static_rate	= 3;
-	attr.ah_attr.grh.sgid_index	= 0;
-	attr.ah_attr.grh.hop_limit	= 1;
-	attr.ah_attr.grh.flow_label	= 0;
-	attr.ah_attr.grh.traffic_class	= 0;
+	rdma_ah_set_grh(&attr.ah_attr, NULL, 0, 0, 1, 0);
+	rdma_ah_set_static_rate(&attr.ah_attr, 3);
 
 	subnet_prefix = cpu_to_be64(0xfe80000000000000LL);
 	for (i = 0; i < HNS_ROCE_V1_RESV_QP; i++) {
@@ -741,24 +739,22 @@ static int hns_roce_v1_rsv_lp_qp(struct hns_roce_dev *hr_dev)
 		hr_qp->ibqp.recv_cq	= cq;
 		hr_qp->ibqp.send_cq	= cq;
 
-		attr.ah_attr.port_num	= phy_port + 1;
-		attr.ah_attr.sl		= sl;
+		rdma_ah_set_port_num(&attr.ah_attr, phy_port + 1);
+		rdma_ah_set_sl(&attr.ah_attr, phy_port + 1);
 		attr.port_num		= phy_port + 1;
 
 		attr.dest_qp_num	= hr_qp->qpn;
-		memcpy(attr.ah_attr.dmac, hr_dev->dev_addr[phy_port],
+		memcpy(rdma_ah_retrieve_dmac(&attr.ah_attr),
+		       hr_dev->dev_addr[phy_port],
 		       MAC_ADDR_OCTET_NUM);
 
-		memcpy(attr.ah_attr.grh.dgid.raw,
-			&subnet_prefix, sizeof(u64));
-		memcpy(&attr.ah_attr.grh.dgid.raw[8],
-		       hr_dev->dev_addr[phy_port], 3);
-		memcpy(&attr.ah_attr.grh.dgid.raw[13],
-		       hr_dev->dev_addr[phy_port] + 3, 3);
-		attr.ah_attr.grh.dgid.raw[11] = 0xff;
-		attr.ah_attr.grh.dgid.raw[12] = 0xfe;
-		attr.ah_attr.grh.dgid.raw[8] ^= 2;
-
+		memcpy(&dgid.raw, &subnet_prefix, sizeof(u64));
+		memcpy(&dgid.raw[8], hr_dev->dev_addr[phy_port], 3);
+		memcpy(&dgid.raw[13], hr_dev->dev_addr[phy_port] + 3, 3);
+		dgid.raw[11] = 0xff;
+		dgid.raw[12] = 0xfe;
+		dgid.raw[8] ^= 2;
+		rdma_ah_set_dgid_raw(&attr.ah_attr, dgid.raw);
 		attr_mask |= IB_QP_PORT;
 
 		ret = hr_dev->hw->modify_qp(&hr_qp->ibqp, &attr, attr_mask,
@@ -1725,7 +1721,7 @@ int hns_roce_v1_write_mtpt(void *mb_buf, struct hns_roce_mr *mr,
 	roce_set_field(mpt_entry->mpt_byte_64, MPT_BYTE_64_L_KEY_IDX_H_M,
 		       MPT_BYTE_64_L_KEY_IDX_H_S, mtpt_idx >> MTPT_IDX_SHIFT);
 
-	/* DMA momery regsiter */
+	/* DMA memory register */
 	if (mr->type == MR_TYPE_DMA)
 		return 0;
 
@@ -1851,6 +1847,7 @@ void hns_roce_v1_cq_set_ci(struct hns_roce_cq *hr_cq, u32 cons_index)
 	u32 doorbell[2];
 
 	doorbell[0] = cons_index & ((hr_cq->cq_depth << 1) - 1);
+	doorbell[1] = 0;
 	roce_set_bit(doorbell[1], ROCEE_DB_OTHERS_H_ROCEE_DB_OTH_HW_SYNS_S, 1);
 	roce_set_field(doorbell[1], ROCEE_DB_OTHERS_H_ROCEE_DB_OTH_CMD_M,
 		       ROCEE_DB_OTHERS_H_ROCEE_DB_OTH_CMD_S, 3);
@@ -2565,6 +2562,7 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 	struct hns_roce_qp *hr_qp = to_hr_qp(ibqp);
 	struct device *dev = &hr_dev->pdev->dev;
 	struct hns_roce_qp_context *context;
+	const struct ib_global_route *grh = rdma_ah_read_grh(&attr->ah_attr);
 	dma_addr_t dma_handle_2 = 0;
 	dma_addr_t dma_handle = 0;
 	uint32_t doorbell[2] = {0};
@@ -2573,6 +2571,7 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 	int ret = -EINVAL;
 	u64 *mtts = NULL;
 	int port;
+	u8 port_num;
 	u8 *dmac;
 	u8 *smac;
 
@@ -2739,7 +2738,7 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 			goto out;
 		}
 
-		dmac = (u8 *)attr->ah_attr.dmac;
+		dmac = (u8 *)attr->ah_attr.roce.dmac;
 
 		context->sq_rq_bt_l = (u32)(dma_handle);
 		roce_set_field(context->qpc_bytes_24,
@@ -2780,7 +2779,7 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 
 		roce_set_bit(context->qpc_bytes_32,
 			     QP_CONTEXT_QPC_BYTE_32_GLOBAL_HEADER_S,
-			     attr->ah_attr.ah_flags);
+			     rdma_ah_get_ah_flags(&attr->ah_attr));
 		roce_set_field(context->qpc_bytes_32,
 			       QP_CONTEXT_QPC_BYTES_32_RESPONDER_RESOURCES_M,
 			       QP_CONTEXT_QPC_BYTES_32_RESPONDER_RESOURCES_S,
@@ -2792,12 +2791,13 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 			       attr->dest_qp_num);
 
 		/* Configure GID index */
+		port_num = rdma_ah_get_port_num(&attr->ah_attr);
 		roce_set_field(context->qpc_bytes_36,
 			       QP_CONTEXT_QPC_BYTES_36_SGID_INDEX_M,
 			       QP_CONTEXT_QPC_BYTES_36_SGID_INDEX_S,
-			       hns_get_gid_index(hr_dev,
-						 attr->ah_attr.port_num - 1,
-						 attr->ah_attr.grh.sgid_index));
+				hns_get_gid_index(hr_dev,
+						  port_num - 1,
+						  grh->sgid_index));
 
 		memcpy(&(context->dmac_l), dmac, 4);
 
@@ -2808,26 +2808,26 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 		roce_set_field(context->qpc_bytes_44,
 			       QP_CONTEXT_QPC_BYTES_44_MAXIMUM_STATIC_RATE_M,
 			       QP_CONTEXT_QPC_BYTES_44_MAXIMUM_STATIC_RATE_S,
-			       attr->ah_attr.static_rate);
+			       rdma_ah_get_static_rate(&attr->ah_attr));
 		roce_set_field(context->qpc_bytes_44,
 			       QP_CONTEXT_QPC_BYTES_44_HOPLMT_M,
 			       QP_CONTEXT_QPC_BYTES_44_HOPLMT_S,
-			       attr->ah_attr.grh.hop_limit);
+			       grh->hop_limit);
 
 		roce_set_field(context->qpc_bytes_48,
 			       QP_CONTEXT_QPC_BYTES_48_FLOWLABEL_M,
 			       QP_CONTEXT_QPC_BYTES_48_FLOWLABEL_S,
-			       attr->ah_attr.grh.flow_label);
+			       grh->flow_label);
 		roce_set_field(context->qpc_bytes_48,
 			       QP_CONTEXT_QPC_BYTES_48_TCLASS_M,
 			       QP_CONTEXT_QPC_BYTES_48_TCLASS_S,
-			       attr->ah_attr.grh.traffic_class);
+			       grh->traffic_class);
 		roce_set_field(context->qpc_bytes_48,
 			       QP_CONTEXT_QPC_BYTES_48_MTU_M,
 			       QP_CONTEXT_QPC_BYTES_48_MTU_S, attr->path_mtu);
 
-		memcpy(context->dgid, attr->ah_attr.grh.dgid.raw,
-		       sizeof(attr->ah_attr.grh.dgid.raw));
+		memcpy(context->dgid, grh->dgid.raw,
+		       sizeof(grh->dgid.raw));
 
 		dev_dbg(dev, "dmac:%x :%lx\n", context->dmac_l,
 			roce_get_field(context->qpc_bytes_44,
@@ -2907,8 +2907,9 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 			       hr_qp->phy_port);
 		roce_set_field(context->qpc_bytes_156,
 			       QP_CONTEXT_QPC_BYTES_156_SL_M,
-			       QP_CONTEXT_QPC_BYTES_156_SL_S, attr->ah_attr.sl);
-		hr_qp->sl = attr->ah_attr.sl;
+			       QP_CONTEXT_QPC_BYTES_156_SL_S,
+			       rdma_ah_get_sl(&attr->ah_attr));
+		hr_qp->sl = rdma_ah_get_sl(&attr->ah_attr);
 	} else if (cur_state == IB_QPS_RTR &&
 		new_state == IB_QPS_RTS) {
 		/* If exist optional param, return error */
@@ -3019,8 +3020,9 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 			       hr_qp->phy_port);
 		roce_set_field(context->qpc_bytes_156,
 			       QP_CONTEXT_QPC_BYTES_156_SL_M,
-			       QP_CONTEXT_QPC_BYTES_156_SL_S, attr->ah_attr.sl);
-		hr_qp->sl = attr->ah_attr.sl;
+			       QP_CONTEXT_QPC_BYTES_156_SL_S,
+			       rdma_ah_get_sl(&attr->ah_attr));
+		hr_qp->sl = rdma_ah_get_sl(&attr->ah_attr);
 		roce_set_field(context->qpc_bytes_156,
 			       QP_CONTEXT_QPC_BYTES_156_INITIATOR_DEPTH_M,
 			       QP_CONTEXT_QPC_BYTES_156_INITIATOR_DEPTH_S,
@@ -3355,28 +3357,33 @@ static int hns_roce_v1_q_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 
 	if (hr_qp->ibqp.qp_type == IB_QPT_RC ||
 	    hr_qp->ibqp.qp_type == IB_QPT_UC) {
-		qp_attr->ah_attr.sl = roce_get_field(context->qpc_bytes_156,
-						QP_CONTEXT_QPC_BYTES_156_SL_M,
-						QP_CONTEXT_QPC_BYTES_156_SL_S);
-		qp_attr->ah_attr.grh.flow_label = roce_get_field(
-					context->qpc_bytes_48,
-					QP_CONTEXT_QPC_BYTES_48_FLOWLABEL_M,
-					QP_CONTEXT_QPC_BYTES_48_FLOWLABEL_S);
-		qp_attr->ah_attr.grh.sgid_index = roce_get_field(
-					context->qpc_bytes_36,
-					QP_CONTEXT_QPC_BYTES_36_SGID_INDEX_M,
-					QP_CONTEXT_QPC_BYTES_36_SGID_INDEX_S);
-		qp_attr->ah_attr.grh.hop_limit = roce_get_field(
-					context->qpc_bytes_44,
-					QP_CONTEXT_QPC_BYTES_44_HOPLMT_M,
-					QP_CONTEXT_QPC_BYTES_44_HOPLMT_S);
-		qp_attr->ah_attr.grh.traffic_class = roce_get_field(
-					context->qpc_bytes_48,
-					QP_CONTEXT_QPC_BYTES_48_TCLASS_M,
-					QP_CONTEXT_QPC_BYTES_48_TCLASS_S);
+		struct ib_global_route *grh =
+			rdma_ah_retrieve_grh(&qp_attr->ah_attr);
 
-		memcpy(qp_attr->ah_attr.grh.dgid.raw, context->dgid,
-		       sizeof(qp_attr->ah_attr.grh.dgid.raw));
+		rdma_ah_set_sl(&qp_attr->ah_attr,
+			       roce_get_field(context->qpc_bytes_156,
+					      QP_CONTEXT_QPC_BYTES_156_SL_M,
+					      QP_CONTEXT_QPC_BYTES_156_SL_S));
+		rdma_ah_set_ah_flags(&qp_attr->ah_attr, IB_AH_GRH);
+		grh->flow_label =
+			roce_get_field(context->qpc_bytes_48,
+				       QP_CONTEXT_QPC_BYTES_48_FLOWLABEL_M,
+				       QP_CONTEXT_QPC_BYTES_48_FLOWLABEL_S);
+		grh->sgid_index =
+			roce_get_field(context->qpc_bytes_36,
+				       QP_CONTEXT_QPC_BYTES_36_SGID_INDEX_M,
+				       QP_CONTEXT_QPC_BYTES_36_SGID_INDEX_S);
+		grh->hop_limit =
+			roce_get_field(context->qpc_bytes_44,
+				       QP_CONTEXT_QPC_BYTES_44_HOPLMT_M,
+				       QP_CONTEXT_QPC_BYTES_44_HOPLMT_S);
+		grh->traffic_class =
+			roce_get_field(context->qpc_bytes_48,
+				       QP_CONTEXT_QPC_BYTES_48_TCLASS_M,
+				       QP_CONTEXT_QPC_BYTES_48_TCLASS_S);
+
+		memcpy(grh->dgid.raw, context->dgid,
+		       sizeof(grh->dgid.raw));
 	}
 
 	qp_attr->pkey_index = roce_get_field(context->qpc_bytes_12,

@@ -102,7 +102,7 @@ void drm_fb_cma_destroy(struct drm_framebuffer *fb)
 
 	for (i = 0; i < 4; i++) {
 		if (fb_cma->obj[i])
-			drm_gem_object_unreference_unlocked(&fb_cma->obj[i]->base);
+			drm_gem_object_put_unlocked(&fb_cma->obj[i]->base);
 	}
 
 	drm_framebuffer_cleanup(fb);
@@ -177,7 +177,7 @@ struct drm_framebuffer *drm_fb_cma_create_with_funcs(struct drm_device *dev,
 	int ret;
 	int i;
 
-	info = drm_format_info(mode_cmd->pixel_format);
+	info = drm_get_format_info(dev, mode_cmd);
 	if (!info)
 		return ERR_PTR(-EINVAL);
 
@@ -190,7 +190,7 @@ struct drm_framebuffer *drm_fb_cma_create_with_funcs(struct drm_device *dev,
 		if (!obj) {
 			dev_err(dev->dev, "Failed to lookup GEM object\n");
 			ret = -ENXIO;
-			goto err_gem_object_unreference;
+			goto err_gem_object_put;
 		}
 
 		min_size = (height - 1) * mode_cmd->pitches[i]
@@ -198,9 +198,9 @@ struct drm_framebuffer *drm_fb_cma_create_with_funcs(struct drm_device *dev,
 			 + mode_cmd->offsets[i];
 
 		if (obj->size < min_size) {
-			drm_gem_object_unreference_unlocked(obj);
+			drm_gem_object_put_unlocked(obj);
 			ret = -EINVAL;
-			goto err_gem_object_unreference;
+			goto err_gem_object_put;
 		}
 		objs[i] = to_drm_gem_cma_obj(obj);
 	}
@@ -208,14 +208,14 @@ struct drm_framebuffer *drm_fb_cma_create_with_funcs(struct drm_device *dev,
 	fb_cma = drm_fb_cma_alloc(dev, mode_cmd, objs, i, funcs);
 	if (IS_ERR(fb_cma)) {
 		ret = PTR_ERR(fb_cma);
-		goto err_gem_object_unreference;
+		goto err_gem_object_put;
 	}
 
 	return &fb_cma->fb;
 
-err_gem_object_unreference:
+err_gem_object_put:
 	for (i--; i >= 0; i--)
-		drm_gem_object_unreference_unlocked(&objs[i]->base);
+		drm_gem_object_put_unlocked(&objs[i]->base);
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(drm_fb_cma_create_with_funcs);
@@ -475,9 +475,9 @@ drm_fbdev_cma_create(struct drm_fb_helper *helper,
 err_cma_destroy:
 	drm_framebuffer_remove(&fbdev_cma->fb->fb);
 err_fb_info_destroy:
-	drm_fb_helper_release_fbi(helper);
+	drm_fb_helper_fini(helper);
 err_gem_free_object:
-	drm_gem_object_unreference_unlocked(&obj->base);
+	drm_gem_object_put_unlocked(&obj->base);
 	return ret;
 }
 
@@ -547,7 +547,6 @@ EXPORT_SYMBOL_GPL(drm_fbdev_cma_init_with_funcs);
  * drm_fbdev_cma_init() - Allocate and initializes a drm_fbdev_cma struct
  * @dev: DRM device
  * @preferred_bpp: Preferred bits per pixel for the device
- * @num_crtc: Number of CRTCs
  * @max_conn_count: Maximum number of connectors
  *
  * Returns a newly allocated drm_fbdev_cma struct or a ERR_PTR.
@@ -570,7 +569,6 @@ void drm_fbdev_cma_fini(struct drm_fbdev_cma *fbdev_cma)
 	drm_fb_helper_unregister_fbi(&fbdev_cma->fb_helper);
 	if (fbdev_cma->fb_helper.fbdev)
 		drm_fbdev_cma_defio_fini(fbdev_cma->fb_helper.fbdev);
-	drm_fb_helper_release_fbi(&fbdev_cma->fb_helper);
 
 	if (fbdev_cma->fb)
 		drm_framebuffer_remove(&fbdev_cma->fb->fb);

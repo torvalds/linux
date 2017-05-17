@@ -32,6 +32,18 @@
  * In-kernel definitions.
  */
 
+struct hiddev {
+	int minor;
+	int exist;
+	int open;
+	struct mutex existancelock;
+	wait_queue_head_t wait;
+	struct hid_device *hid;
+	struct list_head list;
+	spinlock_t list_lock;
+	bool initialized;
+};
+
 struct hid_device;
 struct hid_usage;
 struct hid_field;

@@ -295,7 +295,7 @@ nvkm_object_ctor(const struct nvkm_object_func *func,
 	INIT_LIST_HEAD(&object->head);
 	INIT_LIST_HEAD(&object->tree);
 	RB_CLEAR_NODE(&object->node);
-	WARN_ON(oclass->engine && !object->engine);
+	WARN_ON(IS_ERR(object->engine));
 }
 
 int

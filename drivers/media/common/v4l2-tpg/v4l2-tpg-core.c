@@ -927,7 +927,14 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 		y >>= 4;
 		cb >>= 4;
 		cr >>= 4;
-		if (tpg->real_quantization == V4L2_QUANTIZATION_LIM_RANGE) {
+		/*
+		 * XV601/709 use the header/footer margins to encode R', G'
+		 * and B' values outside the range [0-1]. So do not clamp
+		 * XV601/709 values.
+		 */
+		if (tpg->real_quantization == V4L2_QUANTIZATION_LIM_RANGE &&
+		    tpg->real_ycbcr_enc != V4L2_YCBCR_ENC_XV601 &&
+		    tpg->real_ycbcr_enc != V4L2_YCBCR_ENC_XV709) {
 			y = clamp(y, 16, 235);
 			cb = clamp(cb, 16, 240);
 			cr = clamp(cr, 16, 240);

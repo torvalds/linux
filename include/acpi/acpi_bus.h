@@ -88,6 +88,7 @@ acpi_evaluate_dsm_typed(acpi_handle handle, const u8 *uuid, u64 rev, u64 func,
 	}
 
 bool acpi_dev_found(const char *hid);
+bool acpi_dev_present(const char *hid, const char *uid, s64 hrv);
 
 #ifdef CONFIG_ACPI
 
@@ -386,6 +387,7 @@ struct acpi_data_node {
 	const char *name;
 	acpi_handle handle;
 	struct fwnode_handle fwnode;
+	struct fwnode_handle *parent;
 	struct acpi_device_data data;
 	struct list_head sibling;
 	struct kobject kobj;
@@ -575,7 +577,7 @@ struct acpi_pci_root {
 
 bool acpi_dma_supported(struct acpi_device *adev);
 enum dev_dma_attr acpi_get_dma_attr(struct acpi_device *adev);
-void acpi_dma_configure(struct device *dev, enum dev_dma_attr attr);
+int acpi_dma_configure(struct device *dev, enum dev_dma_attr attr);
 void acpi_dma_deconfigure(struct device *dev);
 
 struct acpi_device *acpi_find_child_device(struct acpi_device *parent,
@@ -585,6 +587,15 @@ struct acpi_pci_root *acpi_pci_find_root(acpi_handle handle);
 
 int acpi_enable_wakeup_device_power(struct acpi_device *dev, int state);
 int acpi_disable_wakeup_device_power(struct acpi_device *dev);
+
+#ifdef CONFIG_X86
+bool acpi_device_always_present(struct acpi_device *adev);
+#else
+static inline bool acpi_device_always_present(struct acpi_device *adev)
+{
+	return false;
+}
+#endif
 
 #ifdef CONFIG_PM
 acpi_status acpi_add_pm_notifier(struct acpi_device *adev, struct device *dev,

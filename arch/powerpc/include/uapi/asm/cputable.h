@@ -47,4 +47,11 @@
 #define PPC_FEATURE2_ARCH_3_00		0x00800000 /* ISA 3.00 */
 #define PPC_FEATURE2_HAS_IEEE128	0x00400000 /* VSX IEEE Binary Float 128-bit */
 
+/*
+ * IMPORTANT!
+ * All future PPC_FEATURE definitions should be allocated in cooperation with
+ * OPAL / skiboot firmware, in accordance with the ibm,powerpc-cpu-features
+ * device tree binding.
+ */
+
 #endif /* _UAPI__ASM_POWERPC_CPUTABLE_H */

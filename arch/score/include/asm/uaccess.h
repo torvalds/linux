@@ -2,12 +2,7 @@
 #define __SCORE_UACCESS_H
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/thread_info.h>
 #include <asm/extable.h>
-
-#define VERIFY_READ		0
-#define VERIFY_WRITE		1
 
 #define get_ds()		(KERNEL_DS)
 #define get_fs()		(current_thread_info()->addr_limit)
@@ -300,61 +295,19 @@ extern void __put_user_unknown(void);
 extern int __copy_tofrom_user(void *to, const void *from, unsigned long len);
 
 static inline unsigned long
-copy_from_user(void *to, const void *from, unsigned long len)
+raw_copy_from_user(void *to, const void __user *from, unsigned long len)
 {
-	unsigned long res = len;
-
-	if (likely(access_ok(VERIFY_READ, from, len)))
-		res = __copy_tofrom_user(to, from, len);
-
-	if (unlikely(res))
-		memset(to + (len - res), 0, res);
-
-	return res;
+	return __copy_tofrom_user(to, (__force const void *)from, len);
 }
 
 static inline unsigned long
-copy_to_user(void *to, const void *from, unsigned long len)
+raw_copy_to_user(void __user *to, const void *from, unsigned long len)
 {
-	if (likely(access_ok(VERIFY_WRITE, to, len)))
-		len = __copy_tofrom_user(to, from, len);
-
-	return len;
+	return __copy_tofrom_user((__force void *)to, from, len);
 }
 
-static inline unsigned long
-__copy_from_user(void *to, const void *from, unsigned long len)
-{
-	unsigned long left = __copy_tofrom_user(to, from, len);
-	if (unlikely(left))
-		memset(to + (len - left), 0, left);
-	return left;
-}
-
-#define __copy_to_user(to, from, len)		\
-		__copy_tofrom_user((to), (from), (len))
-
-static inline unsigned long
-__copy_to_user_inatomic(void *to, const void *from, unsigned long len)
-{
-	return __copy_to_user(to, from, len);
-}
-
-static inline unsigned long
-__copy_from_user_inatomic(void *to, const void *from, unsigned long len)
-{
-	return __copy_tofrom_user(to, from, len);
-}
-
-#define __copy_in_user(to, from, len)	__copy_tofrom_user(to, from, len)
-
-static inline unsigned long
-copy_in_user(void *to, const void *from, unsigned long len)
-{
-	if (access_ok(VERIFY_READ, from, len) &&
-		      access_ok(VERFITY_WRITE, to, len))
-		return __copy_tofrom_user(to, from, len);
-}
+#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_TO_USER
 
 /*
  * __clear_user: - Zero a block of memory in user space, with less checking.

@@ -360,13 +360,8 @@ asmlinkage void memory_access_exception(unsigned long esr0,
 	siginfo_t info;
 
 #ifdef CONFIG_MMU
-	unsigned long fixup;
-
-	fixup = search_exception_table(__frame->pc);
-	if (fixup) {
-		__frame->pc = fixup;
+	if (fixup_exception(__frame))
 		return;
-	}
 #endif
 
 	die_if_kernel("-- Memory Access Exception --\n"

@@ -196,8 +196,11 @@ int cxio_poll_cq(struct t3_wq *wq, struct t3_cq *cq, struct t3_cqe *cqe,
 		     u8 *cqe_flushed, u64 *cookie, u32 *credit);
 int iwch_cxgb3_ofld_send(struct t3cdev *tdev, struct sk_buff *skb);
 
-#define MOD "iw_cxgb3: "
-#define PDBG(fmt, args...) pr_debug(MOD fmt, ## args)
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #ifdef DEBUG
 void cxio_dump_tpt(struct cxio_rdev *rev, u32 stag);

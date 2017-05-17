@@ -130,7 +130,8 @@ config DYNAMIC_DEBUG
 		nullarbor:~ # echo -n 'func svc_process -p' >
 						<debugfs>/dynamic_debug/control
 
-	  See Documentation/dynamic-debug-howto.txt for additional information.
+	  See Documentation/admin-guide/dynamic-debug-howto.rst for additional
+	  information.
 
 endmenu # "printk and dmesg options"
 
@@ -356,7 +357,7 @@ config FRAME_POINTER
 	bool "Compile the kernel with frame pointers"
 	depends on DEBUG_KERNEL && \
 		(CRIS || M68K || FRV || UML || \
-		 AVR32 || SUPERH || BLACKFIN || MN10300 || METAG) || \
+		 SUPERH || BLACKFIN || MN10300 || METAG) || \
 		ARCH_WANT_FRAME_POINTERS
 	default y if (DEBUG_INFO && UML) || ARCH_WANT_FRAME_POINTERS
 	help
@@ -404,8 +405,8 @@ config MAGIC_SYSRQ
 	  by pressing various keys while holding SysRq (Alt+PrintScreen). It
 	  also works on a serial console (on PC hardware at least), if you
 	  send a BREAK and then within 5 seconds a command keypress. The
-	  keys are documented in <file:Documentation/sysrq.txt>. Don't say Y
-	  unless you really know what this hack does.
+	  keys are documented in <file:Documentation/admin-guide/sysrq.rst>.
+	  Don't say Y unless you really know what this hack does.
 
 config MAGIC_SYSRQ_DEFAULT_ENABLE
 	hex "Enable magic SysRq key functions by default"
@@ -414,7 +415,7 @@ config MAGIC_SYSRQ_DEFAULT_ENABLE
 	help
 	  Specifies which SysRq key functions are enabled by default.
 	  This may be set to 1 or 0 to enable or disable them all, or
-	  to a bitmask as described in Documentation/sysrq.txt.
+	  to a bitmask as described in Documentation/admin-guide/sysrq.rst.
 
 config MAGIC_SYSRQ_SERIAL
 	bool "Enable magic SysRq key over serial"
@@ -1718,19 +1719,21 @@ config LKDTM
 	Documentation/fault-injection/provoke-crashes.txt
 
 config TEST_LIST_SORT
-	bool "Linked list sorting test"
-	depends on DEBUG_KERNEL
+	tristate "Linked list sorting test"
+	depends on DEBUG_KERNEL || m
 	help
 	  Enable this to turn on 'list_sort()' function test. This test is
-	  executed only once during system boot, so affects only boot time.
+	  executed only once during system boot (so affects only boot time),
+	  or at module load time.
 
 	  If unsure, say N.
 
 config TEST_SORT
-	bool "Array-based sort test"
-	depends on DEBUG_KERNEL
+	tristate "Array-based sort test"
+	depends on DEBUG_KERNEL || m
 	help
-	  This option enables the self-test function of 'sort()' at boot.
+	  This option enables the self-test function of 'sort()' at boot,
+	  or at module load time.
 
 	  If unsure, say N.
 

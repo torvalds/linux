@@ -81,7 +81,7 @@ static void radeon_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 	list_del_init(&bo->list);
 	mutex_unlock(&bo->rdev->gem.mutex);
 	radeon_bo_clear_surface_reg(bo);
-	WARN_ON(!list_empty(&bo->va));
+	WARN_ON_ONCE(!list_empty(&bo->va));
 	drm_gem_object_release(&bo->gem_base);
 	kfree(bo);
 }
@@ -352,6 +352,11 @@ int radeon_bo_pin_restricted(struct radeon_bo *bo, u32 domain, u64 max_offset,
 
 		return 0;
 	}
+	if (bo->prime_shared_count && domain == RADEON_GEM_DOMAIN_VRAM) {
+		/* A BO shared as a dma-buf cannot be sensibly migrated to VRAM */
+		return -EINVAL;
+	}
+
 	radeon_ttm_placement_from_domain(bo, domain);
 	for (i = 0; i < bo->placement.num_placement; i++) {
 		/* force to pin into visible video ram */

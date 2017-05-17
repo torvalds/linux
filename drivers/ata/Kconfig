@@ -14,7 +14,6 @@ menuconfig ATA
 	tristate "Serial ATA and Parallel ATA drivers (libata)"
 	depends on HAS_IOMEM
 	depends on BLOCK
-	depends on !(M32R || S390) || BROKEN
 	select SCSI
 	select GLOB
 	---help---
@@ -115,6 +114,15 @@ config AHCI_DA850
 	help
 	  This option enables support for the DaVinci DA850 SoC's
 	  onboard AHCI SATA.
+
+	  If unsure, say N.
+
+config AHCI_DM816
+	tristate "DaVinci DM816 AHCI SATA support"
+	depends on ARCH_OMAP2PLUS
+	help
+	  This option enables support for the DaVinci DM816 SoC's
+	  onboard AHCI SATA controller.
 
 	  If unsure, say N.
 
@@ -510,6 +518,15 @@ config PATA_BF54X
 
 	  If unsure, say N.
 
+config PATA_BK3710
+	tristate "Palmchip BK3710 PATA support"
+	depends on ARCH_DAVINCI
+	help
+	  This option enables support for the integrated IDE controller on
+	  the TI DaVinci SoC.
+
+	  If unsure, say N.
+
 config PATA_CMD64X
 	tristate "CMD64x PATA support"
 	depends on PCI
@@ -882,14 +899,6 @@ config PATA_AT32
 	help
 	  This option enables support for the IDE devices on the
 	  Atmel AT32AP platform.
-
-	  If unsure, say N.
-
-config PATA_AT91
-	tristate "PATA support for AT91SAM9260"
-	depends on ARM && SOC_AT91SAM9
-	help
-	  This option enables support for IDE devices on the Atmel AT91SAM9260 SoC.
 
 	  If unsure, say N.
 

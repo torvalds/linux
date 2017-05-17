@@ -85,7 +85,7 @@ static int get_connectors_for_crtc(struct drm_crtc *crtc,
 	 */
 	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
 
-	drm_connector_list_iter_get(dev, &conn_iter);
+	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		if (connector->encoder && connector->encoder->crtc == crtc) {
 			if (connector_list != NULL && count < num_connectors)
@@ -94,7 +94,7 @@ static int get_connectors_for_crtc(struct drm_crtc *crtc,
 			count++;
 		}
 	}
-	drm_connector_list_iter_put(&conn_iter);
+	drm_connector_list_iter_end(&conn_iter);
 
 	return count;
 }
@@ -275,6 +275,7 @@ EXPORT_SYMBOL(drm_plane_helper_check_update);
  * @src_y: y offset of @fb for panning
  * @src_w: width of source rectangle in @fb
  * @src_h: height of source rectangle in @fb
+ * @ctx: lock acquire context, not used here
  *
  * Provides a default plane update handler for primary planes.  This is handler
  * is called in response to a userspace SetPlane operation on the plane with a
@@ -303,7 +304,8 @@ int drm_primary_helper_update(struct drm_plane *plane, struct drm_crtc *crtc,
 			      int crtc_x, int crtc_y,
 			      unsigned int crtc_w, unsigned int crtc_h,
 			      uint32_t src_x, uint32_t src_y,
-			      uint32_t src_w, uint32_t src_h)
+			      uint32_t src_w, uint32_t src_h,
+			      struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_mode_set set = {
 		.crtc = crtc,
@@ -347,7 +349,7 @@ int drm_primary_helper_update(struct drm_plane *plane, struct drm_crtc *crtc,
 		 * provides their own disable function, this will just
 		 * wind up returning -EINVAL to userspace.
 		 */
-		return plane->funcs->disable_plane(plane);
+		return plane->funcs->disable_plane(plane, ctx);
 
 	/* Find current connectors for CRTC */
 	num_connectors = get_connectors_for_crtc(crtc, NULL, 0);
@@ -369,7 +371,7 @@ int drm_primary_helper_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	 * drm_mode_setplane() already handles the basic refcounting for the
 	 * framebuffers involved in this operation.
 	 */
-	ret = crtc->funcs->set_config(&set);
+	ret = crtc->funcs->set_config(&set, ctx);
 
 	kfree(connector_list);
 	return ret;
@@ -396,7 +398,8 @@ EXPORT_SYMBOL(drm_primary_helper_update);
  * RETURNS:
  * Unconditionally returns -EINVAL.
  */
-int drm_primary_helper_disable(struct drm_plane *plane)
+int drm_primary_helper_disable(struct drm_plane *plane,
+			       struct drm_modeset_acquire_ctx *ctx)
 {
 	return -EINVAL;
 }
@@ -450,8 +453,7 @@ int drm_plane_helper_commit(struct drm_plane *plane,
 			goto out;
 	}
 
-	if (plane_funcs->prepare_fb && plane_state->fb &&
-	    plane_state->fb != old_fb) {
+	if (plane_funcs->prepare_fb && plane_state->fb != old_fb) {
 		ret = plane_funcs->prepare_fb(plane,
 					      plane_state);
 		if (ret)
@@ -470,7 +472,7 @@ int drm_plane_helper_commit(struct drm_plane *plane,
 	 * Drivers may optionally implement the ->atomic_disable callback, so
 	 * special-case that here.
 	 */
-	if (drm_atomic_plane_disabling(plane, plane_state) &&
+	if (drm_atomic_plane_disabling(plane_state, plane->state) &&
 	    plane_funcs->atomic_disable)
 		plane_funcs->atomic_disable(plane, plane_state);
 	else

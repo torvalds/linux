@@ -26,16 +26,17 @@
 
 static int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 {
-	struct stmmac_priv *priv = (struct stmmac_priv *)p;
-	unsigned int entry = priv->cur_tx;
-	struct dma_desc *desc;
+	struct stmmac_tx_queue *tx_q = (struct stmmac_tx_queue *)p;
 	unsigned int nopaged_len = skb_headlen(skb);
+	struct stmmac_priv *priv = tx_q->priv_data;
+	unsigned int entry = tx_q->cur_tx;
 	unsigned int bmax, len, des2;
+	struct dma_desc *desc;
 
 	if (priv->extend_desc)
-		desc = (struct dma_desc *)(priv->dma_etx + entry);
+		desc = (struct dma_desc *)(tx_q->dma_etx + entry);
 	else
-		desc = priv->dma_tx + entry;
+		desc = tx_q->dma_tx + entry;
 
 	if (priv->plat->enh_desc)
 		bmax = BUF_SIZE_8KiB;
@@ -52,48 +53,51 @@ static int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 		if (dma_mapping_error(priv->device, des2))
 			return -1;
 
-		priv->tx_skbuff_dma[entry].buf = des2;
-		priv->tx_skbuff_dma[entry].len = bmax;
-		priv->tx_skbuff_dma[entry].is_jumbo = true;
+		tx_q->tx_skbuff_dma[entry].buf = des2;
+		tx_q->tx_skbuff_dma[entry].len = bmax;
+		tx_q->tx_skbuff_dma[entry].is_jumbo = true;
 
 		desc->des3 = cpu_to_le32(des2 + BUF_SIZE_4KiB);
 		priv->hw->desc->prepare_tx_desc(desc, 1, bmax, csum,
-						STMMAC_RING_MODE, 0, false);
-		priv->tx_skbuff[entry] = NULL;
+						STMMAC_RING_MODE, 0,
+						false, skb->len);
+		tx_q->tx_skbuff[entry] = NULL;
 		entry = STMMAC_GET_ENTRY(entry, DMA_TX_SIZE);
 
 		if (priv->extend_desc)
-			desc = (struct dma_desc *)(priv->dma_etx + entry);
+			desc = (struct dma_desc *)(tx_q->dma_etx + entry);
 		else
-			desc = priv->dma_tx + entry;
+			desc = tx_q->dma_tx + entry;
 
 		des2 = dma_map_single(priv->device, skb->data + bmax, len,
 				      DMA_TO_DEVICE);
 		desc->des2 = cpu_to_le32(des2);
 		if (dma_mapping_error(priv->device, des2))
 			return -1;
-		priv->tx_skbuff_dma[entry].buf = des2;
-		priv->tx_skbuff_dma[entry].len = len;
-		priv->tx_skbuff_dma[entry].is_jumbo = true;
+		tx_q->tx_skbuff_dma[entry].buf = des2;
+		tx_q->tx_skbuff_dma[entry].len = len;
+		tx_q->tx_skbuff_dma[entry].is_jumbo = true;
 
 		desc->des3 = cpu_to_le32(des2 + BUF_SIZE_4KiB);
 		priv->hw->desc->prepare_tx_desc(desc, 0, len, csum,
-						STMMAC_RING_MODE, 1, true);
+						STMMAC_RING_MODE, 1,
+						true, skb->len);
 	} else {
 		des2 = dma_map_single(priv->device, skb->data,
 				      nopaged_len, DMA_TO_DEVICE);
 		desc->des2 = cpu_to_le32(des2);
 		if (dma_mapping_error(priv->device, des2))
 			return -1;
-		priv->tx_skbuff_dma[entry].buf = des2;
-		priv->tx_skbuff_dma[entry].len = nopaged_len;
-		priv->tx_skbuff_dma[entry].is_jumbo = true;
+		tx_q->tx_skbuff_dma[entry].buf = des2;
+		tx_q->tx_skbuff_dma[entry].len = nopaged_len;
+		tx_q->tx_skbuff_dma[entry].is_jumbo = true;
 		desc->des3 = cpu_to_le32(des2 + BUF_SIZE_4KiB);
 		priv->hw->desc->prepare_tx_desc(desc, 1, nopaged_len, csum,
-						STMMAC_RING_MODE, 0, true);
+						STMMAC_RING_MODE, 0,
+						true, skb->len);
 	}
 
-	priv->cur_tx = entry;
+	tx_q->cur_tx = entry;
 
 	return entry;
 }
@@ -125,12 +129,13 @@ static void stmmac_init_desc3(struct dma_desc *p)
 
 static void stmmac_clean_desc3(void *priv_ptr, struct dma_desc *p)
 {
-	struct stmmac_priv *priv = (struct stmmac_priv *)priv_ptr;
-	unsigned int entry = priv->dirty_tx;
+	struct stmmac_tx_queue *tx_q = (struct stmmac_tx_queue *)priv_ptr;
+	struct stmmac_priv *priv = tx_q->priv_data;
+	unsigned int entry = tx_q->dirty_tx;
 
 	/* des3 is only used for jumbo frames tx or time stamping */
-	if (unlikely(priv->tx_skbuff_dma[entry].is_jumbo ||
-		     (priv->tx_skbuff_dma[entry].last_segment &&
+	if (unlikely(tx_q->tx_skbuff_dma[entry].is_jumbo ||
+		     (tx_q->tx_skbuff_dma[entry].last_segment &&
 		      !priv->extend_desc && priv->hwts_tx_en)))
 		p->des3 = 0;
 }
