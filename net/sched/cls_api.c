@@ -832,8 +832,9 @@ int tcf_exts_validate(struct net *net, struct tcf_proto *tp, struct nlattr **tb,
 		struct tc_action *act;
 
 		if (exts->police && tb[exts->police]) {
-			act = tcf_action_init_1(net, tb[exts->police], rate_tlv,
-						"police", ovr, TCA_ACT_BIND);
+			act = tcf_action_init_1(net, tp, tb[exts->police],
+						rate_tlv, "police", ovr,
+						TCA_ACT_BIND);
 			if (IS_ERR(act))
 				return PTR_ERR(act);
 
@@ -844,8 +845,8 @@ int tcf_exts_validate(struct net *net, struct tcf_proto *tp, struct nlattr **tb,
 			LIST_HEAD(actions);
 			int err, i = 0;
 
-			err = tcf_action_init(net, tb[exts->action], rate_tlv,
-					      NULL, ovr, TCA_ACT_BIND,
+			err = tcf_action_init(net, tp, tb[exts->action],
+					      rate_tlv, NULL, ovr, TCA_ACT_BIND,
 					      &actions);
 			if (err)
 				return err;
