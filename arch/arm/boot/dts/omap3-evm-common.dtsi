@@ -76,7 +76,6 @@
 
 &lcd_3v3 {
 	gpio = <&gpio5 25 GPIO_ACTIVE_LOW>;	/* gpio153 */
-	enable-active-low;
 };
 
 &lcd0 {
