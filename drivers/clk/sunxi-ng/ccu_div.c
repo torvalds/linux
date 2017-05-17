@@ -20,18 +20,11 @@ static unsigned long ccu_div_round_rate(struct ccu_mux_internal *mux,
 					void *data)
 {
 	struct ccu_div *cd = data;
-	unsigned long val;
 
-	/*
-	 * We can't use divider_round_rate that assumes that there's
-	 * several parents, while we might be called to evaluate
-	 * several different parents.
-	 */
-	val = divider_get_val(rate, *parent_rate, cd->div.table, cd->div.width,
-			      cd->div.flags);
-
-	return divider_recalc_rate(&cd->common.hw, *parent_rate, val,
-				   cd->div.table, cd->div.flags);
+	return divider_round_rate_parent(&cd->common.hw, parent,
+					 rate, parent_rate,
+					 cd->div.table, cd->div.width,
+					 cd->div.flags);
 }
 
 static void ccu_div_disable(struct clk_hw *hw)
@@ -77,18 +70,6 @@ static int ccu_div_determine_rate(struct clk_hw *hw,
 				struct clk_rate_request *req)
 {
 	struct ccu_div *cd = hw_to_ccu_div(hw);
-
-	if (clk_hw_get_num_parents(hw) == 1) {
-		req->rate = divider_round_rate(hw, req->rate,
-					       &req->best_parent_rate,
-					       cd->div.table,
-					       cd->div.width,
-					       cd->div.flags);
-
-		req->best_parent_hw = clk_hw_get_parent(hw);
-
-		return 0;
-	}
 
 	return ccu_mux_helper_determine_rate(&cd->common, &cd->mux,
 					     req, ccu_div_round_rate, cd);
