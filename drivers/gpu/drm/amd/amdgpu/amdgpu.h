@@ -1529,6 +1529,7 @@ struct amdgpu_device {
 	atomic64_t			gtt_usage;
 	atomic64_t			num_bytes_moved;
 	atomic64_t			num_evictions;
+	atomic64_t			num_vram_cpu_page_faults;
 	atomic_t			gpu_reset_counter;
 	atomic_t			vram_lost_counter;
 

@@ -417,6 +417,9 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 	case AMDGPU_INFO_NUM_EVICTIONS:
 		ui64 = atomic64_read(&adev->num_evictions);
 		return copy_to_user(out, &ui64, min(size, 8u)) ? -EFAULT : 0;
+	case AMDGPU_INFO_NUM_VRAM_CPU_PAGE_FAULTS:
+		ui64 = atomic64_read(&adev->num_vram_cpu_page_faults);
+		return copy_to_user(out, &ui64, min(size, 8u)) ? -EFAULT : 0;
 	case AMDGPU_INFO_VRAM_USAGE:
 		ui64 = atomic64_read(&adev->vram_usage);
 		return copy_to_user(out, &ui64, min(size, 8u)) ? -EFAULT : 0;

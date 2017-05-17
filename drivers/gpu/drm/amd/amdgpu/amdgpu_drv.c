@@ -66,9 +66,10 @@
  * - 3.14.0 - Fix race in amdgpu_ctx_get_fence() and note new functionality
  * - 3.15.0 - Export more gpu info for gfx9
  * - 3.16.0 - Add reserved vmid support
+ * - 3.17.0 - Add AMDGPU_NUM_VRAM_CPU_PAGE_FAULTS.
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	16
+#define KMS_DRIVER_MINOR	17
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit = 0;
