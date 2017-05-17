@@ -277,7 +277,7 @@ static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 	struct tcmsg *t;
 	u32 protocol;
 	u32 prio;
-	u32 nprio;
+	bool prio_allocate;
 	u32 parent;
 	struct net_device *dev;
 	struct Qdisc  *q;
@@ -306,7 +306,7 @@ replay:
 	t = nlmsg_data(n);
 	protocol = TC_H_MIN(t->tcm_info);
 	prio = TC_H_MAJ(t->tcm_info);
-	nprio = prio;
+	prio_allocate = false;
 	parent = t->tcm_parent;
 	cl = 0;
 
@@ -322,6 +322,7 @@ replay:
 			 */
 			if (n->nlmsg_flags & NLM_F_CREATE) {
 				prio = TC_H_MAKE(0x80000000U, 0U);
+				prio_allocate = true;
 				break;
 			}
 			/* fall-through */
@@ -383,7 +384,7 @@ replay:
 	     back = &tp->next) {
 		if (tp->prio >= prio) {
 			if (tp->prio == prio) {
-				if (!nprio ||
+				if (prio_allocate ||
 				    (tp->protocol != protocol && protocol)) {
 					err = -EINVAL;
 					goto errout;
@@ -409,11 +410,11 @@ replay:
 			goto errout;
 		}
 
-		if (!nprio)
-			nprio = TC_H_MAJ(tcf_auto_prio(rtnl_dereference(*back)));
+		if (prio_allocate)
+			prio = TC_H_MAJ(tcf_auto_prio(rtnl_dereference(*back)));
 
 		tp = tcf_proto_create(nla_data(tca[TCA_KIND]),
-				      protocol, nprio, parent, q, block);
+				      protocol, prio, parent, q, block);
 		if (IS_ERR(tp)) {
 			err = PTR_ERR(tp);
 			goto errout;
