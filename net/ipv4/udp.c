@@ -1218,7 +1218,7 @@ void udp_skb_destructor(struct sock *sk, struct sk_buff *skb)
 EXPORT_SYMBOL(udp_skb_destructor);
 
 /* as above, but the caller held the rx queue lock, too */
-void udp_skb_dtor_locked(struct sock *sk, struct sk_buff *skb)
+static void udp_skb_dtor_locked(struct sock *sk, struct sk_buff *skb)
 {
 	udp_rmem_release(sk, skb->dev_scratch, 1, true);
 }
