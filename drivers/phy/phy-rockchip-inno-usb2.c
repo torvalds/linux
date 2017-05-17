@@ -445,6 +445,7 @@ static int rockchip_usb2phy_init(struct phy *phy)
 
 	if (rport->port_id == USB2PHY_PORT_OTG) {
 		if (rport->mode != USB_DR_MODE_HOST &&
+		    rport->mode != USB_DR_MODE_UNKNOWN &&
 		    !rport->vbus_always_on) {
 			/* clear bvalid status and enable bvalid detect irq */
 			ret = property_enable(rphy,
@@ -568,6 +569,7 @@ static int rockchip_usb2phy_exit(struct phy *phy)
 
 	if (rport->port_id == USB2PHY_PORT_OTG &&
 	    rport->mode != USB_DR_MODE_HOST &&
+	    rport->mode != USB_DR_MODE_UNKNOWN &&
 	    !rport->vbus_always_on)
 		cancel_delayed_work_sync(&rport->chg_work);
 	else if (rport->port_id == USB2PHY_PORT_HOST)
@@ -1180,7 +1182,8 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 	}
 
 	rport->mode = of_usb_get_dr_mode_by_phy(child_np, -1);
-	if (rport->mode == USB_DR_MODE_HOST) {
+	if (rport->mode == USB_DR_MODE_HOST ||
+	    rport->mode == USB_DR_MODE_UNKNOWN) {
 		if (rphy->edev_self) {
 			extcon_set_state(rphy->edev, EXTCON_USB, false);
 			extcon_set_state(rphy->edev, EXTCON_USB_HOST, true);
@@ -1593,6 +1596,12 @@ static const struct rockchip_usb2phy_cfg rk322x_phy_cfgs[] = {
 		.num_ports	= 2,
 		.clkout_ctl	= { 0x0808, 4, 4, 1, 0 },
 		.port_cfgs	= {
+			[USB2PHY_PORT_OTG] = {
+				.phy_sus	= { 0x804, 15, 0, 0, 0x1d1 },
+				.ls_det_en	= { 0x0684, 1, 1, 0, 1 },
+				.ls_det_st	= { 0x0694, 1, 1, 0, 1 },
+				.ls_det_clr	= { 0x06a4, 1, 1, 0, 1 }
+			},
 			[USB2PHY_PORT_HOST] = {
 				.phy_sus	= { 0x800, 15, 0, 0, 0x1d1 },
 				.ls_det_en	= { 0x0684, 0, 0, 0, 1 },
