@@ -137,7 +137,7 @@ static inline unsigned long long cycles_2_ns(unsigned long long cyc)
 	return ns;
 }
 
-static void __set_cyc2ns_scale(unsigned long khz, int cpu, unsigned long long tsc_now)
+static void set_cyc2ns_scale(unsigned long khz, int cpu, unsigned long long tsc_now)
 {
 	unsigned long long ns_now;
 	struct cyc2ns_data data;
@@ -184,11 +184,6 @@ static void __set_cyc2ns_scale(unsigned long khz, int cpu, unsigned long long ts
 done:
 	sched_clock_idle_wakeup_event();
 	local_irq_restore(flags);
-}
-
-static void set_cyc2ns_scale(unsigned long khz, int cpu)
-{
-	__set_cyc2ns_scale(khz, cpu, rdtsc());
 }
 
 /*
@@ -892,7 +887,6 @@ void tsc_restore_sched_clock_state(void)
 }
 
 #ifdef CONFIG_CPU_FREQ
-
 /* Frequency scaling support. Adjust the TSC based timer when the cpu frequency
  * changes.
  *
@@ -933,7 +927,7 @@ static int time_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 		if (!(freq->flags & CPUFREQ_CONST_LOOPS))
 			mark_tsc_unstable("cpufreq changes");
 
-		set_cyc2ns_scale(tsc_khz, freq->cpu);
+		set_cyc2ns_scale(tsc_khz, freq->cpu, rdtsc());
 	}
 
 	return 0;
@@ -1224,7 +1218,7 @@ static void tsc_refine_calibration_work(struct work_struct *work)
 
 	/* Update the sched_clock() rate to match the clocksource one */
 	for_each_possible_cpu(cpu)
-		__set_cyc2ns_scale(tsc_khz, cpu, tsc_stop);
+		set_cyc2ns_scale(tsc_khz, cpu, tsc_stop);
 
 out:
 	if (boot_cpu_has(X86_FEATURE_ART))
@@ -1314,7 +1308,7 @@ void __init tsc_init(void)
 	cyc = rdtsc();
 	for_each_possible_cpu(cpu) {
 		cyc2ns_init(cpu);
-		__set_cyc2ns_scale(tsc_khz, cpu, cyc);
+		set_cyc2ns_scale(tsc_khz, cpu, cyc);
 	}
 
 	if (tsc_disabled > 0)
