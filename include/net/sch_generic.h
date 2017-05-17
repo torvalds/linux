@@ -248,8 +248,13 @@ struct qdisc_skb_cb {
 	unsigned char		data[QDISC_CB_PRIV_LEN];
 };
 
-struct tcf_block {
+struct tcf_chain {
+	struct tcf_proto __rcu *filter_chain;
 	struct tcf_proto __rcu **p_filter_chain;
+};
+
+struct tcf_block {
+	struct tcf_chain *chain;
 };
 
 static inline void qdisc_cb_private_validate(const struct sk_buff *skb, int sz)
