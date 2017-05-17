@@ -61,12 +61,12 @@ static void rt2800usb_start_queue(struct data_queue *queue)
 
 	switch (queue->qid) {
 	case QID_RX:
-		rt2x00usb_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
+		reg = rt2x00usb_register_read(rt2x00dev, MAC_SYS_CTRL);
 		rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_RX, 1);
 		rt2x00usb_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
 		break;
 	case QID_BEACON:
-		rt2x00usb_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
+		reg = rt2x00usb_register_read(rt2x00dev, BCN_TIME_CFG);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 1);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 1);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 1);
@@ -84,12 +84,12 @@ static void rt2800usb_stop_queue(struct data_queue *queue)
 
 	switch (queue->qid) {
 	case QID_RX:
-		rt2x00usb_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
+		reg = rt2x00usb_register_read(rt2x00dev, MAC_SYS_CTRL);
 		rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_RX, 0);
 		rt2x00usb_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
 		break;
 	case QID_BEACON:
-		rt2x00usb_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
+		reg = rt2x00usb_register_read(rt2x00dev, BCN_TIME_CFG);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 0);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 0);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 0);
@@ -333,7 +333,7 @@ static int rt2800usb_init_registers(struct rt2x00_dev *rt2x00dev)
 	if (rt2800_wait_csr_ready(rt2x00dev))
 		return -EBUSY;
 
-	rt2x00usb_register_read(rt2x00dev, PBF_SYS_CTRL, &reg);
+	reg = rt2x00usb_register_read(rt2x00dev, PBF_SYS_CTRL);
 	rt2x00usb_register_write(rt2x00dev, PBF_SYS_CTRL, reg & ~0x00002000);
 
 	reg = 0;
@@ -802,8 +802,8 @@ static const struct ieee80211_ops rt2800usb_mac80211_ops = {
 };
 
 static const struct rt2800_ops rt2800usb_rt2800_ops = {
-	.register_read		= _rt2x00usb_register_read,
-	.register_read_lock	= _rt2x00usb_register_read_lock,
+	.register_read		= rt2x00usb_register_read,
+	.register_read_lock	= rt2x00usb_register_read_lock,
 	.register_write		= rt2x00usb_register_write,
 	.register_write_lock	= rt2x00usb_register_write_lock,
 	.register_multiread	= rt2x00usb_register_multiread,
