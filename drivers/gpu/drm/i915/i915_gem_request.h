@@ -70,6 +70,7 @@ struct i915_priotree {
 	struct rb_node node;
 	int priority;
 #define I915_PRIORITY_MAX 1024
+#define I915_PRIORITY_NORMAL 0
 #define I915_PRIORITY_MIN (-I915_PRIORITY_MAX)
 };
 
