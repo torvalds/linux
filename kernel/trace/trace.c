@@ -1558,7 +1558,7 @@ static __init int init_trace_selftests(void)
 
 	return 0;
 }
-early_initcall(init_trace_selftests);
+core_initcall(init_trace_selftests);
 #else
 static inline int run_tracer_selftest(struct tracer *type)
 {
