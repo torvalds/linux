@@ -4197,8 +4197,9 @@ static uint_fixed_16_16_t skl_wm_method2(uint32_t pixel_rate,
 	return ret;
 }
 
-static uint32_t skl_adjusted_plane_pixel_rate(const struct intel_crtc_state *cstate,
-					      struct intel_plane_state *pstate)
+static uint32_t
+skl_adjusted_plane_pixel_rate(const struct intel_crtc_state *cstate,
+			      const struct intel_plane_state *pstate)
 {
 	uint64_t adjusted_pixel_rate;
 	uint_fixed_16_16_t downscale_amount;
@@ -4220,7 +4221,7 @@ static uint32_t skl_adjusted_plane_pixel_rate(const struct intel_crtc_state *cst
 
 static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 				struct intel_crtc_state *cstate,
-				struct intel_plane_state *intel_pstate,
+				const struct intel_plane_state *intel_pstate,
 				uint16_t ddb_allocation,
 				int level,
 				uint16_t *out_blocks, /* out */
@@ -4228,8 +4229,8 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 				bool *enabled /* out */)
 {
 	struct intel_plane *plane = to_intel_plane(intel_pstate->base.plane);
-	struct drm_plane_state *pstate = &intel_pstate->base;
-	struct drm_framebuffer *fb = pstate->fb;
+	const struct drm_plane_state *pstate = &intel_pstate->base;
+	const struct drm_framebuffer *fb = pstate->fb;
 	uint32_t latency = dev_priv->wm.skl_latency[level];
 	uint_fixed_16_16_t method1, method2;
 	uint_fixed_16_16_t plane_blocks_per_line;
@@ -4384,36 +4385,16 @@ static int
 skl_compute_wm_level(const struct drm_i915_private *dev_priv,
 		     struct skl_ddb_allocation *ddb,
 		     struct intel_crtc_state *cstate,
-		     struct intel_plane *intel_plane,
+		     const struct intel_plane_state *intel_pstate,
 		     int level,
 		     struct skl_wm_level *result)
 {
-	struct drm_atomic_state *state = cstate->base.state;
 	struct intel_crtc *intel_crtc = to_intel_crtc(cstate->base.crtc);
-	struct drm_plane *plane = &intel_plane->base;
-	struct intel_plane_state *intel_pstate = NULL;
+	struct drm_plane *plane = intel_pstate->base.plane;
+	struct intel_plane *intel_plane = to_intel_plane(plane);
 	uint16_t ddb_blocks;
 	enum pipe pipe = intel_crtc->pipe;
 	int ret;
-
-	if (state)
-		intel_pstate =
-			intel_atomic_get_existing_plane_state(state,
-							      intel_plane);
-
-	/*
-	 * Note: If we start supporting multiple pending atomic commits against
-	 * the same planes/CRTC's in the future, plane->state will no longer be
-	 * the correct pre-state to use for the calculations here and we'll
-	 * need to change where we get the 'unchanged' plane data from.
-	 *
-	 * For now this is fine because we only allow one queued commit against
-	 * a CRTC.  Even if the plane isn't modified by this transaction and we
-	 * don't have a plane lock, we still have the CRTC's lock, so we know
-	 * that no other transactions are racing with us to update it.
-	 */
-	if (!intel_pstate)
-		intel_pstate = to_intel_plane_state(plane->state);
 
 	if (WARN_ON(!intel_pstate->base.fb))
 		return -EINVAL;
@@ -4475,8 +4456,10 @@ static int skl_build_pipe_wm(struct intel_crtc_state *cstate,
 			     struct skl_pipe_wm *pipe_wm)
 {
 	struct drm_device *dev = cstate->base.crtc->dev;
+	struct drm_crtc_state *crtc_state = &cstate->base;
 	const struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_plane *intel_plane;
+	struct drm_plane *plane;
+	const struct drm_plane_state *pstate;
 	struct skl_plane_wm *wm;
 	int level, max_level = ilk_wm_max_level(dev_priv);
 	int ret;
@@ -4487,14 +4470,16 @@ static int skl_build_pipe_wm(struct intel_crtc_state *cstate,
 	 */
 	memset(pipe_wm->planes, 0, sizeof(pipe_wm->planes));
 
-	for_each_intel_plane_mask(&dev_priv->drm,
-				  intel_plane,
-				  cstate->base.plane_mask) {
-		wm = &pipe_wm->planes[intel_plane->id];
+	drm_atomic_crtc_state_for_each_plane_state(plane, pstate, crtc_state) {
+		const struct intel_plane_state *intel_pstate =
+						to_intel_plane_state(pstate);
+		enum plane_id plane_id = to_intel_plane(plane)->id;
+
+		wm = &pipe_wm->planes[plane_id];
 
 		for (level = 0; level <= max_level; level++) {
 			ret = skl_compute_wm_level(dev_priv, ddb, cstate,
-						   intel_plane, level,
+						   intel_pstate, level,
 						   &wm->wm[level]);
 			if (ret)
 				return ret;
