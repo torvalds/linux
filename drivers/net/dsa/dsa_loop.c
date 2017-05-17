@@ -17,7 +17,6 @@
 #include <linux/workqueue.h>
 #include <linux/module.h>
 #include <linux/if_bridge.h>
-#include <net/switchdev.h>
 #include <net/dsa.h>
 
 #include "dsa_loop.h"

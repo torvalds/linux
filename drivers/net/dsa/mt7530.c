@@ -28,7 +28,6 @@
 #include <linux/reset.h>
 #include <linux/gpio/consumer.h>
 #include <net/dsa.h>
-#include <net/switchdev.h>
 
 #include "mt7530.h"
 

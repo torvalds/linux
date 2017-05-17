@@ -28,7 +28,6 @@
 #include <linux/if_bridge.h>
 #include <linux/brcmphy.h>
 #include <linux/etherdevice.h>
-#include <net/switchdev.h>
 #include <linux/platform_data/b53.h>
 
 #include "bcm_sf2.h"

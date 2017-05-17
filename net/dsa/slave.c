@@ -18,7 +18,6 @@
 #include <linux/mdio.h>
 #include <linux/list.h>
 #include <net/rtnetlink.h>
-#include <net/switchdev.h>
 #include <net/pkt_cls.h>
 #include <net/tc_act/tc_mirred.h>
 #include <linux/if_bridge.h>

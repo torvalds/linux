@@ -20,6 +20,7 @@
 #include <linux/of.h>
 #include <linux/ethtool.h>
 #include <net/devlink.h>
+#include <net/switchdev.h>
 
 struct tc_action;
 struct phy_device;
@@ -283,12 +284,6 @@ static inline u8 dsa_upstream_port(struct dsa_switch *ds)
 	else
 		return ds->rtable[dst->cpu_dp->ds->index];
 }
-
-struct switchdev_trans;
-struct switchdev_obj;
-struct switchdev_obj_port_fdb;
-struct switchdev_obj_port_mdb;
-struct switchdev_obj_port_vlan;
 
 #define DSA_NOTIFIER_BRIDGE_JOIN		1
 #define DSA_NOTIFIER_BRIDGE_LEAVE		2

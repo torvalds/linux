@@ -32,7 +32,6 @@
 #include <linux/gpio/consumer.h>
 #include <linux/phy.h>
 #include <net/dsa.h>
-#include <net/switchdev.h>
 
 #include "mv88e6xxx.h"
 #include "global1.h"
