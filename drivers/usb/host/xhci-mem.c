@@ -56,7 +56,7 @@ static struct xhci_segment *xhci_segment_alloc(struct xhci_hcd *xhci,
 	}
 
 	if (max_packet) {
-		seg->bounce_buf = kzalloc(max_packet, flags | GFP_DMA);
+		seg->bounce_buf = kzalloc(max_packet, flags);
 		if (!seg->bounce_buf) {
 			dma_pool_free(xhci->segment_pool, seg->trbs, dma);
 			kfree(seg);
