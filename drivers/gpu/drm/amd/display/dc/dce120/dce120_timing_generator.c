@@ -410,7 +410,7 @@ void dce120_timing_generator_disable_vga(struct timing_generator *tg)
 		break;
 	case CONTROLLER_ID_D4:
 		addr = mmD1VGA_CONTROL;
-		offset = mmD1VGA_CONTROL - mmD1VGA_CONTROL;
+		offset = mmD5VGA_CONTROL - mmD1VGA_CONTROL;
 		break;
 	case CONTROLLER_ID_D5:
 		addr = mmD6VGA_CONTROL;
