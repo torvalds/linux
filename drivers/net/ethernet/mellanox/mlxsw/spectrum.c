@@ -210,6 +210,41 @@ static void mlxsw_sp_txhdr_construct(struct sk_buff *skb,
 	mlxsw_tx_hdr_type_set(txhdr, MLXSW_TXHDR_TYPE_CONTROL);
 }
 
+int mlxsw_sp_port_vid_stp_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid,
+			      u8 state)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	enum mlxsw_reg_spms_state spms_state;
+	char *spms_pl;
+	int err;
+
+	switch (state) {
+	case BR_STATE_FORWARDING:
+		spms_state = MLXSW_REG_SPMS_STATE_FORWARDING;
+		break;
+	case BR_STATE_LEARNING:
+		spms_state = MLXSW_REG_SPMS_STATE_LEARNING;
+		break;
+	case BR_STATE_LISTENING: /* fall-through */
+	case BR_STATE_DISABLED: /* fall-through */
+	case BR_STATE_BLOCKING:
+		spms_state = MLXSW_REG_SPMS_STATE_DISCARDING;
+		break;
+	default:
+		BUG();
+	}
+
+	spms_pl = kmalloc(MLXSW_REG_SPMS_LEN, GFP_KERNEL);
+	if (!spms_pl)
+		return -ENOMEM;
+	mlxsw_reg_spms_pack(spms_pl, mlxsw_sp_port->local_port);
+	mlxsw_reg_spms_vid_pack(spms_pl, vid, spms_state);
+
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(spms), spms_pl);
+	kfree(spms_pl);
+	return err;
+}
+
 static int mlxsw_sp_base_mac_get(struct mlxsw_sp *mlxsw_sp)
 {
 	char spad_pl[MLXSW_REG_SPAD_LEN] = {0};
@@ -631,9 +666,8 @@ int mlxsw_sp_port_vid_to_fid_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(svfa), svfa_pl);
 }
 
-int __mlxsw_sp_port_vid_learning_set(struct mlxsw_sp_port *mlxsw_sp_port,
-				     u16 vid_begin, u16 vid_end,
-				     bool learn_enable)
+int mlxsw_sp_port_vid_learning_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid,
+				   bool learn_enable)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	char *spvmlr_pl;
@@ -642,18 +676,56 @@ int __mlxsw_sp_port_vid_learning_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	spvmlr_pl = kmalloc(MLXSW_REG_SPVMLR_LEN, GFP_KERNEL);
 	if (!spvmlr_pl)
 		return -ENOMEM;
-	mlxsw_reg_spvmlr_pack(spvmlr_pl, mlxsw_sp_port->local_port, vid_begin,
-			      vid_end, learn_enable);
+	mlxsw_reg_spvmlr_pack(spvmlr_pl, mlxsw_sp_port->local_port, vid, vid,
+			      learn_enable);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(spvmlr), spvmlr_pl);
 	kfree(spvmlr_pl);
 	return err;
 }
 
-static int mlxsw_sp_port_vid_learning_set(struct mlxsw_sp_port *mlxsw_sp_port,
-					  u16 vid, bool learn_enable)
+static int __mlxsw_sp_port_pvid_set(struct mlxsw_sp_port *mlxsw_sp_port,
+				    u16 vid)
 {
-	return __mlxsw_sp_port_vid_learning_set(mlxsw_sp_port, vid, vid,
-						learn_enable);
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	char spvid_pl[MLXSW_REG_SPVID_LEN];
+
+	mlxsw_reg_spvid_pack(spvid_pl, mlxsw_sp_port->local_port, vid);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(spvid), spvid_pl);
+}
+
+static int mlxsw_sp_port_allow_untagged_set(struct mlxsw_sp_port *mlxsw_sp_port,
+					    bool allow)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	char spaft_pl[MLXSW_REG_SPAFT_LEN];
+
+	mlxsw_reg_spaft_pack(spaft_pl, mlxsw_sp_port->local_port, allow);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(spaft), spaft_pl);
+}
+
+int mlxsw_sp_port_pvid_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid)
+{
+	int err;
+
+	if (!vid) {
+		err = mlxsw_sp_port_allow_untagged_set(mlxsw_sp_port, false);
+		if (err)
+			return err;
+	} else {
+		err = __mlxsw_sp_port_pvid_set(mlxsw_sp_port, vid);
+		if (err)
+			return err;
+		err = mlxsw_sp_port_allow_untagged_set(mlxsw_sp_port, true);
+		if (err)
+			goto err_port_allow_untagged_set;
+	}
+
+	mlxsw_sp_port->pvid = vid;
+	return 0;
+
+err_port_allow_untagged_set:
+	__mlxsw_sp_port_pvid_set(mlxsw_sp_port, mlxsw_sp_port->pvid);
+	return err;
 }
 
 static int
@@ -2547,6 +2619,13 @@ static int __mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		goto err_port_dcb_init;
 	}
 
+	err = mlxsw_sp_port_vp_mode_set(mlxsw_sp_port, false);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to set non-virtual mode\n",
+			mlxsw_sp_port->local_port);
+		goto err_port_vp_mode_set;
+	}
+
 	err = mlxsw_sp_port_pvid_vport_create(mlxsw_sp_port);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to create PVID vPort\n",
@@ -2574,6 +2653,7 @@ err_register_netdev:
 	mlxsw_sp_port_switchdev_fini(mlxsw_sp_port);
 	mlxsw_sp_port_pvid_vport_destroy(mlxsw_sp_port);
 err_port_pvid_vport_create:
+err_port_vp_mode_set:
 	mlxsw_sp_port_dcb_fini(mlxsw_sp_port);
 err_port_dcb_init:
 err_port_ets_init:
@@ -3312,7 +3392,6 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->bus_info = mlxsw_bus_info;
 	INIT_LIST_HEAD(&mlxsw_sp->fids);
 	INIT_LIST_HEAD(&mlxsw_sp->vfids.list);
-	INIT_LIST_HEAD(&mlxsw_sp->br_mids.list);
 
 	err = mlxsw_sp_base_mac_get(mlxsw_sp);
 	if (err) {
@@ -3659,21 +3738,26 @@ static void mlxsw_sp_master_bridge_gone_sync(struct mlxsw_sp *mlxsw_sp)
 static bool mlxsw_sp_master_bridge_check(struct mlxsw_sp *mlxsw_sp,
 					 struct net_device *br_dev)
 {
-	return !mlxsw_sp->master_bridge.dev ||
-	       mlxsw_sp->master_bridge.dev == br_dev;
+	struct mlxsw_sp_upper *master_bridge = mlxsw_sp_master_bridge(mlxsw_sp);
+
+	return !master_bridge->dev || master_bridge->dev == br_dev;
 }
 
 static void mlxsw_sp_master_bridge_inc(struct mlxsw_sp *mlxsw_sp,
 				       struct net_device *br_dev)
 {
-	mlxsw_sp->master_bridge.dev = br_dev;
-	mlxsw_sp->master_bridge.ref_count++;
+	struct mlxsw_sp_upper *master_bridge = mlxsw_sp_master_bridge(mlxsw_sp);
+
+	master_bridge->dev = br_dev;
+	master_bridge->ref_count++;
 }
 
 static void mlxsw_sp_master_bridge_dec(struct mlxsw_sp *mlxsw_sp)
 {
-	if (--mlxsw_sp->master_bridge.ref_count == 0) {
-		mlxsw_sp->master_bridge.dev = NULL;
+	struct mlxsw_sp_upper *master_bridge = mlxsw_sp_master_bridge(mlxsw_sp);
+
+	if (--master_bridge->ref_count == 0) {
+		master_bridge->dev = NULL;
 		/* It's possible upper VLAN devices are still holding
 		 * references to underlying FIDs. Drop the reference
 		 * and release the resources if it was the last one.
@@ -4272,7 +4356,7 @@ static int mlxsw_sp_netdevice_bridge_event(struct net_device *br_dev,
 		if (!is_vlan_dev(upper_dev))
 			return -EINVAL;
 		if (is_vlan_dev(upper_dev) &&
-		    br_dev != mlxsw_sp->master_bridge.dev)
+		    br_dev != mlxsw_sp_master_bridge(mlxsw_sp)->dev)
 			return -EINVAL;
 		break;
 	case NETDEV_CHANGEUPPER:
