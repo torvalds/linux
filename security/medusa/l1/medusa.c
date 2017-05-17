@@ -187,7 +187,7 @@ int medusa_l1_inode_alloc_security(struct inode *inode)
 	struct medusa_l1_inode_s *med;
 
 	med = (struct medusa_l1_inode_s*) kmalloc(sizeof(struct medusa_l1_inode_s), GFP_KERNEL);
-
+	med->fuck_path = NULL;
 	if (med == NULL)
 		return -ENOMEM;
 

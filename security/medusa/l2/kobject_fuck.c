@@ -7,6 +7,7 @@
 #include <linux/path.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
+#include <linux/slab.h>
 #include <linux/medusa/l3/registry.h>
 #include "kobject_fuck.h"
 MED_ATTRS(fuck_kobject) {
@@ -41,6 +42,9 @@ int validate_fuck_file(struct path fuck_path){
 		char *saved_path = inode_security(fuck_inode).fuck_path;
 		char *accessed_path;
 		char buf[PATH_MAX];
+		
+		if(saved_path == NULL)
+			return 0;		
 
 		accessed_path = d_absolute_path(&fuck_path, buf, PATH_MAX);
 		if(!accessed_path || IS_ERR(accessed_path)){
@@ -54,17 +58,19 @@ int validate_fuck_file(struct path fuck_path){
 
 		//spravit  *fuck_path   namiesto fuck_path[PATH_MAX]
 		// zabit tam NULL
-		if(saved_path == NULL || accessed_path == NULL){
+		if(accessed_path == NULL){
 			return 0;
 		}
 		if (strncmp(saved_path, accessed_path, PATH_MAX) == 0){
 			printk("VALIDATE_FUCK: paths are equal\n");
 			printk("VALIDATE_FUCK: saved path: %s\n", saved_path);
 			printk("VALIDATE_FUCK: accessed_path: %s inode: %u\n", accessed_path, fuck_inode->i_ino);
-			return -EPERM;
+			return 0;
 		}
-
-		return 0;
+		printk("VALIDATE_FUCK: paths are not equal\n");
+		printk("VALIDATE_FUCK: saved path: %s\n", saved_path);
+		printk("VALIDATE_FUCK: accessed_path: %s inode: %u\n", accessed_path, fuck_inode->i_ino);
+		return -EPERM;
 }
 
 int validate_fuck(const struct path *fuck_path, struct dentry *dentry){
@@ -95,10 +101,12 @@ static struct medusa_kobject_s * fuck_fetch(struct medusa_kobject_s * kobj)
 	struct path path;
 	if(kern_path(path_name, LOOKUP_FOLLOW, &path) >= 0){
 		struct inode *fuck_inode = path.dentry->d_inode;
-		char *fuck_path = inode_security(fuck_inode).fuck_path;
-
+		char *fuck_path;
+		fuck_path = (char *) kmalloc((PATH_MAX * sizeof(char *)), GFP_KERNEL);
 		strncpy(fuck_path, path_name, PATH_MAX);
 		fuck_path[PATH_MAX-1] = '\0';
+		
+		inode_security(fuck_inode).fuck_path = fuck_path;
 
 		unsigned long i_ino = fuck_inode->i_ino;
 		fkobj->i_ino = i_ino;

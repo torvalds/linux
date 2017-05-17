@@ -26,7 +26,7 @@ struct medusa_l1_inode_s {
        /* for kobject_file.c - don't touch! */
        struct inode * next_live;
        int use_count;
-	   char fuck_path[PATH_MAX];
+	   char *fuck_path;
 };
 
 #endif
