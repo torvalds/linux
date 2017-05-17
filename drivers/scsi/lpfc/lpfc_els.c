@@ -7451,6 +7451,13 @@ lpfc_els_flush_cmd(struct lpfc_vport *vport)
 	 */
 	spin_lock_irq(&phba->hbalock);
 	pring = lpfc_phba_elsring(phba);
+
+	/* Bail out if we've no ELS wq, like in PCI error recovery case. */
+	if (unlikely(!pring)) {
+		spin_unlock_irq(&phba->hbalock);
+		return;
+	}
+
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		spin_lock(&pring->ring_lock);
 
