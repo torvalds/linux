@@ -70,19 +70,26 @@
 #define overflows_type(x, T) \
 	(sizeof(x) > sizeof(T) && (x) >> (sizeof(T) * BITS_PER_BYTE))
 
-#define ptr_mask_bits(ptr) ({						\
+#define ptr_mask_bits(ptr, n) ({					\
 	unsigned long __v = (unsigned long)(ptr);			\
-	(typeof(ptr))(__v & PAGE_MASK);					\
+	(typeof(ptr))(__v & -BIT(n));					\
 })
 
-#define ptr_unpack_bits(ptr, bits) ({					\
+#define ptr_unmask_bits(ptr, n) ((unsigned long)(ptr) & (BIT(n) - 1))
+
+#define ptr_unpack_bits(ptr, bits, n) ({				\
 	unsigned long __v = (unsigned long)(ptr);			\
-	*(bits) = __v & ~PAGE_MASK;					\
-	(typeof(ptr))(__v & PAGE_MASK);					\
+	*(bits) = __v & (BIT(n) - 1);					\
+	(typeof(ptr))(__v & -BIT(n));					\
 })
 
-#define ptr_pack_bits(ptr, bits)					\
+#define ptr_pack_bits(ptr, bits, n)					\
 	((typeof(ptr))((unsigned long)(ptr) | (bits)))
+
+#define page_mask_bits(ptr) ptr_mask_bits(ptr, PAGE_SHIFT)
+#define page_unmask_bits(ptr) ptr_unmask_bits(ptr, PAGE_SHIFT)
+#define page_pack_bits(ptr, bits) ptr_pack_bits(ptr, bits, PAGE_SHIFT)
+#define page_unpack_bits(ptr, bits) ptr_unpack_bits(ptr, bits, PAGE_SHIFT)
 
 #define ptr_offset(ptr, member) offsetof(typeof(*(ptr)), member)
 

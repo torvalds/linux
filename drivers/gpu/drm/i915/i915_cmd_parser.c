@@ -1284,7 +1284,7 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 
 		if (*cmd == MI_BATCH_BUFFER_END) {
 			if (needs_clflush_after) {
-				void *ptr = ptr_mask_bits(shadow_batch_obj->mm.mapping);
+				void *ptr = page_mask_bits(shadow_batch_obj->mm.mapping);
 				drm_clflush_virt_range(ptr,
 						       (void *)(cmd + 1) - ptr);
 			}

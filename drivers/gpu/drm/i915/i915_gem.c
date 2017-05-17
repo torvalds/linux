@@ -2280,7 +2280,7 @@ void __i915_gem_object_put_pages(struct drm_i915_gem_object *obj,
 	if (obj->mm.mapping) {
 		void *ptr;
 
-		ptr = ptr_mask_bits(obj->mm.mapping);
+		ptr = page_mask_bits(obj->mm.mapping);
 		if (is_vmalloc_addr(ptr))
 			vunmap(ptr);
 		else
@@ -2612,7 +2612,7 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 	}
 	GEM_BUG_ON(!obj->mm.pages);
 
-	ptr = ptr_unpack_bits(obj->mm.mapping, &has_type);
+	ptr = page_unpack_bits(obj->mm.mapping, &has_type);
 	if (ptr && has_type != type) {
 		if (pinned) {
 			ret = -EBUSY;
@@ -2634,7 +2634,7 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 			goto err_unpin;
 		}
 
-		obj->mm.mapping = ptr_pack_bits(ptr, type);
+		obj->mm.mapping = page_pack_bits(ptr, type);
 	}
 
 out_unlock:
