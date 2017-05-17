@@ -153,10 +153,11 @@ static void rt2500usb_bbp_write(struct rt2x00_dev *rt2x00dev,
 	mutex_unlock(&rt2x00dev->csr_mutex);
 }
 
-static void rt2500usb_bbp_read(struct rt2x00_dev *rt2x00dev,
-			       const unsigned int word, u8 *value)
+static u8 rt2500usb_bbp_read(struct rt2x00_dev *rt2x00dev,
+			     const unsigned int word)
 {
 	u16 reg;
+	u8 value;
 
 	mutex_lock(&rt2x00dev->csr_mutex);
 
@@ -179,9 +180,11 @@ static void rt2500usb_bbp_read(struct rt2x00_dev *rt2x00dev,
 			reg = rt2500usb_register_read_lock(rt2x00dev, PHY_CSR7);
 	}
 
-	*value = rt2x00_get_field16(reg, PHY_CSR7_DATA);
+	value = rt2x00_get_field16(reg, PHY_CSR7_DATA);
 
 	mutex_unlock(&rt2x00dev->csr_mutex);
+
+	return value;
 }
 
 static void rt2500usb_rf_write(struct rt2x00_dev *rt2x00dev,
@@ -227,16 +230,6 @@ static void _rt2500usb_register_write(struct rt2x00_dev *rt2x00dev,
 	rt2500usb_register_write(rt2x00dev, offset, value);
 }
 
-static u8 _rt2500usb_bbp_read(struct rt2x00_dev *rt2x00dev,
-			      const unsigned int word)
-{
-	u8 value;
-
-	rt2500usb_bbp_read(rt2x00dev, word, &value);
-
-	return value;
-}
-
 static const struct rt2x00debug rt2500usb_rt2x00debug = {
 	.owner	= THIS_MODULE,
 	.csr	= {
@@ -255,7 +248,7 @@ static const struct rt2x00debug rt2500usb_rt2x00debug = {
 		.word_count	= EEPROM_SIZE / sizeof(u16),
 	},
 	.bbp	= {
-		.read		= _rt2500usb_bbp_read,
+		.read		= rt2500usb_bbp_read,
 		.write		= rt2500usb_bbp_write,
 		.word_base	= BBP_BASE,
 		.word_size	= sizeof(u8),
@@ -530,8 +523,8 @@ static void rt2500usb_config_ant(struct rt2x00_dev *rt2x00dev,
 	BUG_ON(ant->rx == ANTENNA_SW_DIVERSITY ||
 	       ant->tx == ANTENNA_SW_DIVERSITY);
 
-	rt2500usb_bbp_read(rt2x00dev, 2, &r2);
-	rt2500usb_bbp_read(rt2x00dev, 14, &r14);
+	r2 = rt2500usb_bbp_read(rt2x00dev, 2);
+	r14 = rt2500usb_bbp_read(rt2x00dev, 14);
 	csr5 = rt2500usb_register_read(rt2x00dev, PHY_CSR5);
 	csr6 = rt2500usb_register_read(rt2x00dev, PHY_CSR6);
 
@@ -903,7 +896,7 @@ static int rt2500usb_wait_bbp_ready(struct rt2x00_dev *rt2x00dev)
 	u8 value;
 
 	for (i = 0; i < REGISTER_USB_BUSY_COUNT; i++) {
-		rt2500usb_bbp_read(rt2x00dev, 0, &value);
+		value = rt2500usb_bbp_read(rt2x00dev, 0);
 		if ((value != 0xff) && (value != 0x00))
 			return 0;
 		udelay(REGISTER_BUSY_DELAY);
@@ -1391,7 +1384,7 @@ static int rt2500usb_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 	 * Switch lower vgc bound to current BBP R17 value,
 	 * lower the value a bit for better quality.
 	 */
-	rt2500usb_bbp_read(rt2x00dev, 17, &bbp);
+	bbp = rt2500usb_bbp_read(rt2x00dev, 17);
 	bbp -= 6;
 
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_BBPTUNE_VGC, &word);

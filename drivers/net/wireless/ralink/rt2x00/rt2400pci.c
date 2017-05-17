@@ -77,10 +77,11 @@ static void rt2400pci_bbp_write(struct rt2x00_dev *rt2x00dev,
 	mutex_unlock(&rt2x00dev->csr_mutex);
 }
 
-static void rt2400pci_bbp_read(struct rt2x00_dev *rt2x00dev,
-			       const unsigned int word, u8 *value)
+static u8 rt2400pci_bbp_read(struct rt2x00_dev *rt2x00dev,
+			     const unsigned int word)
 {
 	u32 reg;
+	u8 value;
 
 	mutex_lock(&rt2x00dev->csr_mutex);
 
@@ -103,9 +104,11 @@ static void rt2400pci_bbp_read(struct rt2x00_dev *rt2x00dev,
 		WAIT_FOR_BBP(rt2x00dev, &reg);
 	}
 
-	*value = rt2x00_get_field32(reg, BBPCSR_VALUE);
+	value = rt2x00_get_field32(reg, BBPCSR_VALUE);
 
 	mutex_unlock(&rt2x00dev->csr_mutex);
+
+	return value;
 }
 
 static void rt2400pci_rf_write(struct rt2x00_dev *rt2x00dev,
@@ -164,16 +167,6 @@ static void rt2400pci_eepromregister_write(struct eeprom_93cx6 *eeprom)
 }
 
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
-static u8 _rt2400pci_bbp_read(struct rt2x00_dev *rt2x00dev,
-			      const unsigned int word)
-{
-	u8 value;
-
-	rt2400pci_bbp_read(rt2x00dev, word, &value);
-
-	return value;
-}
-
 static const struct rt2x00debug rt2400pci_rt2x00debug = {
 	.owner	= THIS_MODULE,
 	.csr	= {
@@ -192,7 +185,7 @@ static const struct rt2x00debug rt2400pci_rt2x00debug = {
 		.word_count	= EEPROM_SIZE / sizeof(u16),
 	},
 	.bbp	= {
-		.read		= _rt2400pci_bbp_read,
+		.read		= rt2400pci_bbp_read,
 		.write		= rt2400pci_bbp_write,
 		.word_base	= BBP_BASE,
 		.word_size	= sizeof(u8),
@@ -418,8 +411,8 @@ static void rt2400pci_config_ant(struct rt2x00_dev *rt2x00dev,
 	BUG_ON(ant->rx == ANTENNA_SW_DIVERSITY ||
 	       ant->tx == ANTENNA_SW_DIVERSITY);
 
-	rt2400pci_bbp_read(rt2x00dev, 4, &r4);
-	rt2400pci_bbp_read(rt2x00dev, 1, &r1);
+	r4 = rt2400pci_bbp_read(rt2x00dev, 4);
+	r1 = rt2400pci_bbp_read(rt2x00dev, 1);
 
 	/*
 	 * Configure the TX antenna.
@@ -600,7 +593,7 @@ static void rt2400pci_link_stats(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Update False CCA count from register.
 	 */
-	rt2400pci_bbp_read(rt2x00dev, 39, &bbp);
+	bbp = rt2400pci_bbp_read(rt2x00dev, 39);
 	qual->false_cca = bbp;
 }
 
@@ -921,7 +914,7 @@ static int rt2400pci_wait_bbp_ready(struct rt2x00_dev *rt2x00dev)
 	u8 value;
 
 	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
-		rt2400pci_bbp_read(rt2x00dev, 0, &value);
+		value = rt2400pci_bbp_read(rt2x00dev, 0);
 		if ((value != 0xff) && (value != 0x00))
 			return 0;
 		udelay(REGISTER_BUSY_DELAY);

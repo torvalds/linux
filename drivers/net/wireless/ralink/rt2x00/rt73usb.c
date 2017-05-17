@@ -84,10 +84,11 @@ static void rt73usb_bbp_write(struct rt2x00_dev *rt2x00dev,
 	mutex_unlock(&rt2x00dev->csr_mutex);
 }
 
-static void rt73usb_bbp_read(struct rt2x00_dev *rt2x00dev,
-			     const unsigned int word, u8 *value)
+static u8 rt73usb_bbp_read(struct rt2x00_dev *rt2x00dev,
+			   const unsigned int word)
 {
 	u32 reg;
+	u8 value;
 
 	mutex_lock(&rt2x00dev->csr_mutex);
 
@@ -110,9 +111,11 @@ static void rt73usb_bbp_read(struct rt2x00_dev *rt2x00dev,
 		WAIT_FOR_BBP(rt2x00dev, &reg);
 	}
 
-	*value = rt2x00_get_field32(reg, PHY_CSR3_VALUE);
+	value = rt2x00_get_field32(reg, PHY_CSR3_VALUE);
 
 	mutex_unlock(&rt2x00dev->csr_mutex);
+
+	return value;
 }
 
 static void rt73usb_rf_write(struct rt2x00_dev *rt2x00dev,
@@ -147,15 +150,6 @@ static void rt73usb_rf_write(struct rt2x00_dev *rt2x00dev,
 }
 
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
-static u8 _rt73usb_bbp_read(struct rt2x00_dev *rt2x00dev, const unsigned int word)
-{
-	u8 value;
-
-	rt73usb_bbp_read(rt2x00dev, word, &value);
-
-	return value;
-}
-
 static const struct rt2x00debug rt73usb_rt2x00debug = {
 	.owner	= THIS_MODULE,
 	.csr	= {
@@ -174,7 +168,7 @@ static const struct rt2x00debug rt73usb_rt2x00debug = {
 		.word_count	= EEPROM_SIZE / sizeof(u16),
 	},
 	.bbp	= {
-		.read		= _rt73usb_bbp_read,
+		.read		= rt73usb_bbp_read,
 		.write		= rt73usb_bbp_write,
 		.word_base	= BBP_BASE,
 		.word_size	= sizeof(u8),
@@ -589,9 +583,9 @@ static void rt73usb_config_antenna_5x(struct rt2x00_dev *rt2x00dev,
 	u8 r77;
 	u8 temp;
 
-	rt73usb_bbp_read(rt2x00dev, 3, &r3);
-	rt73usb_bbp_read(rt2x00dev, 4, &r4);
-	rt73usb_bbp_read(rt2x00dev, 77, &r77);
+	r3 = rt73usb_bbp_read(rt2x00dev, 3);
+	r4 = rt73usb_bbp_read(rt2x00dev, 4);
+	r77 = rt73usb_bbp_read(rt2x00dev, 77);
 
 	rt2x00_set_field8(&r3, BBP_R3_SMART_MODE, 0);
 
@@ -636,9 +630,9 @@ static void rt73usb_config_antenna_2x(struct rt2x00_dev *rt2x00dev,
 	u8 r4;
 	u8 r77;
 
-	rt73usb_bbp_read(rt2x00dev, 3, &r3);
-	rt73usb_bbp_read(rt2x00dev, 4, &r4);
-	rt73usb_bbp_read(rt2x00dev, 77, &r77);
+	r3 = rt73usb_bbp_read(rt2x00dev, 3);
+	r4 = rt73usb_bbp_read(rt2x00dev, 4);
+	r77 = rt73usb_bbp_read(rt2x00dev, 77);
 
 	rt2x00_set_field8(&r3, BBP_R3_SMART_MODE, 0);
 	rt2x00_set_field8(&r4, BBP_R4_RX_FRAME_END,
@@ -771,7 +765,7 @@ static void rt73usb_config_channel(struct rt2x00_dev *rt2x00dev,
 
 	smart = !(rt2x00_rf(rt2x00dev, RF5225) || rt2x00_rf(rt2x00dev, RF2527));
 
-	rt73usb_bbp_read(rt2x00dev, 3, &r3);
+	r3 = rt73usb_bbp_read(rt2x00dev, 3);
 	rt2x00_set_field8(&r3, BBP_R3_SMART_MODE, smart);
 	rt73usb_bbp_write(rt2x00dev, 3, r3);
 
@@ -1305,7 +1299,7 @@ static int rt73usb_wait_bbp_ready(struct rt2x00_dev *rt2x00dev)
 	u8 value;
 
 	for (i = 0; i < REGISTER_USB_BUSY_COUNT; i++) {
-		rt73usb_bbp_read(rt2x00dev, 0, &value);
+		value = rt73usb_bbp_read(rt2x00dev, 0);
 		if ((value != 0xff) && (value != 0x00))
 			return 0;
 		udelay(REGISTER_BUSY_DELAY);
