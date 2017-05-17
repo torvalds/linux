@@ -122,15 +122,15 @@ enum dcn10_clk_src_array_id {
 		.reg_name = NBIO_BASE(mm ## reg_name ## _BASE_IDX) +  \
 					mm ## reg_name
 
-/* GC */
-#define GC_BASE_INNER(seg) \
-	GC_BASE__INST0_SEG ## seg
+/* MMHUB */
+#define MMHUB_BASE_INNER(seg) \
+	MMHUB_BASE__INST0_SEG ## seg
 
-#define GC_BASE(seg) \
-	GC_BASE_INNER(seg)
+#define MMHUB_BASE(seg) \
+	MMHUB_BASE_INNER(seg)
 
-#define GC_SR(reg_name)\
-		.reg_name = GC_BASE(mm ## reg_name ## _BASE_IDX) +  \
+#define MMHUB_SR(reg_name)\
+		.reg_name = MMHUB_BASE(mm ## reg_name ## _BASE_IDX) +  \
 					mm ## reg_name
 
 /* macros to expend register list macro defined in HW object header file
