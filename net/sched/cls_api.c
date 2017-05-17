@@ -640,21 +640,65 @@ static int tcf_node_dump(struct tcf_proto *tp, unsigned long n,
 			     RTM_NEWTFILTER);
 }
 
+static void tcf_chain_dump(struct tcf_chain *chain, struct sk_buff *skb,
+			   struct netlink_callback *cb,
+			   long index_start, long *p_index)
+{
+	struct net *net = sock_net(skb->sk);
+	struct tcmsg *tcm = nlmsg_data(cb->nlh);
+	struct tcf_dump_args arg;
+	struct tcf_proto *tp;
+
+	for (tp = rtnl_dereference(chain->filter_chain);
+	     tp; tp = rtnl_dereference(tp->next), (*p_index)++) {
+		if (*p_index < index_start)
+			continue;
+		if (TC_H_MAJ(tcm->tcm_info) &&
+		    TC_H_MAJ(tcm->tcm_info) != tp->prio)
+			continue;
+		if (TC_H_MIN(tcm->tcm_info) &&
+		    TC_H_MIN(tcm->tcm_info) != tp->protocol)
+			continue;
+		if (*p_index > index_start)
+			memset(&cb->args[1], 0,
+			       sizeof(cb->args) - sizeof(cb->args[0]));
+		if (cb->args[1] == 0) {
+			if (tcf_fill_node(net, skb, tp, 0,
+					  NETLINK_CB(cb->skb).portid,
+					  cb->nlh->nlmsg_seq, NLM_F_MULTI,
+					  RTM_NEWTFILTER) <= 0)
+				break;
+
+			cb->args[1] = 1;
+		}
+		if (!tp->ops->walk)
+			continue;
+		arg.w.fn = tcf_node_dump;
+		arg.skb = skb;
+		arg.cb = cb;
+		arg.w.stop = 0;
+		arg.w.skip = cb->args[1] - 1;
+		arg.w.count = 0;
+		tp->ops->walk(tp, &arg.w);
+		cb->args[1] = arg.w.count + 1;
+		if (arg.w.stop)
+			break;
+	}
+}
+
 /* called with RTNL */
 static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct net *net = sock_net(skb->sk);
-	int t;
-	int s_t;
 	struct net_device *dev;
 	struct Qdisc *q;
 	struct tcf_block *block;
-	struct tcf_proto *tp;
 	struct tcf_chain *chain;
 	struct tcmsg *tcm = nlmsg_data(cb->nlh);
 	unsigned long cl = 0;
 	const struct Qdisc_class_ops *cops;
-	struct tcf_dump_args arg;
+	long index_start;
+	long index;
 
 	if (nlmsg_len(cb->nlh) < sizeof(*tcm))
 		return skb->len;
@@ -683,45 +727,10 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 		goto errout;
 	chain = block->chain;
 
-	s_t = cb->args[0];
-
-	for (tp = rtnl_dereference(chain->filter_chain), t = 0;
-	     tp; tp = rtnl_dereference(tp->next), t++) {
-		if (t < s_t)
-			continue;
-		if (TC_H_MAJ(tcm->tcm_info) &&
-		    TC_H_MAJ(tcm->tcm_info) != tp->prio)
-			continue;
-		if (TC_H_MIN(tcm->tcm_info) &&
-		    TC_H_MIN(tcm->tcm_info) != tp->protocol)
-			continue;
-		if (t > s_t)
-			memset(&cb->args[1], 0,
-			       sizeof(cb->args)-sizeof(cb->args[0]));
-		if (cb->args[1] == 0) {
-			if (tcf_fill_node(net, skb, tp, 0,
-					  NETLINK_CB(cb->skb).portid,
-					  cb->nlh->nlmsg_seq, NLM_F_MULTI,
-					  RTM_NEWTFILTER) <= 0)
-				break;
-
-			cb->args[1] = 1;
-		}
-		if (tp->ops->walk == NULL)
-			continue;
-		arg.w.fn = tcf_node_dump;
-		arg.skb = skb;
-		arg.cb = cb;
-		arg.w.stop = 0;
-		arg.w.skip = cb->args[1] - 1;
-		arg.w.count = 0;
-		tp->ops->walk(tp, &arg.w);
-		cb->args[1] = arg.w.count + 1;
-		if (arg.w.stop)
-			break;
-	}
-
-	cb->args[0] = t;
+	index_start = cb->args[0];
+	index = 0;
+	tcf_chain_dump(chain, skb, cb, index_start, &index);
+	cb->args[0] = index;
 
 errout:
 	if (cl)
