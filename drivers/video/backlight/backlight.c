@@ -134,7 +134,7 @@ static ssize_t bl_power_store(struct device *dev, struct device_attribute *attr,
 {
 	int rc;
 	struct backlight_device *bd = to_backlight_device(dev);
-	unsigned long power;
+	unsigned long power, old_power;
 
 	rc = kstrtoul(buf, 0, &power);
 	if (rc)
@@ -145,10 +145,16 @@ static ssize_t bl_power_store(struct device *dev, struct device_attribute *attr,
 	if (bd->ops) {
 		pr_debug("set power to %lu\n", power);
 		if (bd->props.power != power) {
+			old_power = bd->props.power;
 			bd->props.power = power;
-			backlight_update_status(bd);
+			rc = backlight_update_status(bd);
+			if (rc)
+				bd->props.power = old_power;
+			else
+				rc = count;
+		} else {
+			rc = count;
 		}
-		rc = count;
 	}
 	mutex_unlock(&bd->ops_lock);
 
@@ -176,8 +182,7 @@ int backlight_device_set_brightness(struct backlight_device *bd,
 		else {
 			pr_debug("set brightness to %lu\n", brightness);
 			bd->props.brightness = brightness;
-			backlight_update_status(bd);
-			rc = 0;
+			rc = backlight_update_status(bd);
 		}
 	}
 	mutex_unlock(&bd->ops_lock);
