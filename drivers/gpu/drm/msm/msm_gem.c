@@ -50,13 +50,13 @@ static struct page **get_pages_vram(struct drm_gem_object *obj,
 	struct page **p;
 	int ret, i;
 
-	p = drm_malloc_ab(npages, sizeof(struct page *));
+	p = kvmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
 	if (!p)
 		return ERR_PTR(-ENOMEM);
 
 	ret = drm_mm_insert_node(&priv->vram.mm, msm_obj->vram_node, npages);
 	if (ret) {
-		drm_free_large(p);
+		kvfree(p);
 		return ERR_PTR(ret);
 	}
 
@@ -127,7 +127,7 @@ static void put_pages(struct drm_gem_object *obj)
 			drm_gem_put_pages(obj, msm_obj->pages, true, false);
 		else {
 			drm_mm_remove_node(msm_obj->vram_node);
-			drm_free_large(msm_obj->pages);
+			kvfree(msm_obj->pages);
 		}
 
 		msm_obj->pages = NULL;
@@ -707,7 +707,7 @@ void msm_gem_free_object(struct drm_gem_object *obj)
 		 * ours, just free the array we allocated:
 		 */
 		if (msm_obj->pages)
-			drm_free_large(msm_obj->pages);
+			kvfree(msm_obj->pages);
 
 		drm_prime_gem_destroy(obj, msm_obj->sgt);
 	} else {
@@ -863,7 +863,7 @@ struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 
 	msm_obj = to_msm_bo(obj);
 	msm_obj->sgt = sgt;
-	msm_obj->pages = drm_malloc_ab(npages, sizeof(struct page *));
+	msm_obj->pages = kvmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
 	if (!msm_obj->pages) {
 		ret = -ENOMEM;
 		goto fail;

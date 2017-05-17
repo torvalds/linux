@@ -3102,7 +3102,7 @@ intel_rotate_pages(struct intel_rotation_info *rot_info,
 	int ret = -ENOMEM;
 
 	/* Allocate a temporary list of source pages for random access. */
-	page_addr_list = drm_malloc_gfp(n_pages,
+	page_addr_list = kvmalloc_array(n_pages,
 					sizeof(dma_addr_t),
 					GFP_TEMPORARY);
 	if (!page_addr_list)
@@ -3135,14 +3135,14 @@ intel_rotate_pages(struct intel_rotation_info *rot_info,
 	DRM_DEBUG_KMS("Created rotated page mapping for object size %zu (%ux%u tiles, %u pages)\n",
 		      obj->base.size, rot_info->plane[0].width, rot_info->plane[0].height, size);
 
-	drm_free_large(page_addr_list);
+	kvfree(page_addr_list);
 
 	return st;
 
 err_sg_alloc:
 	kfree(st);
 err_st_alloc:
-	drm_free_large(page_addr_list);
+	kvfree(page_addr_list);
 
 	DRM_DEBUG_KMS("Failed to create rotated mapping for object size %zu! (%ux%u tiles, %u pages)\n",
 		      obj->base.size, rot_info->plane[0].width, rot_info->plane[0].height, size);

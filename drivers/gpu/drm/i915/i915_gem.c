@@ -2504,7 +2504,7 @@ static void *i915_gem_object_map(const struct drm_i915_gem_object *obj,
 
 	if (n_pages > ARRAY_SIZE(stack_pages)) {
 		/* Too big for stack -- allocate temporary array instead */
-		pages = drm_malloc_gfp(n_pages, sizeof(*pages), GFP_TEMPORARY);
+		pages = kvmalloc_array(n_pages, sizeof(*pages), GFP_TEMPORARY);
 		if (!pages)
 			return NULL;
 	}
@@ -2526,7 +2526,7 @@ static void *i915_gem_object_map(const struct drm_i915_gem_object *obj,
 	addr = vmap(pages, n_pages, 0, pgprot);
 
 	if (pages != stack_pages)
-		drm_free_large(pages);
+		kvfree(pages);
 
 	return addr;
 }

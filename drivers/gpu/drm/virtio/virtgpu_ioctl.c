@@ -120,13 +120,14 @@ static int virtio_gpu_execbuffer_ioctl(struct drm_device *dev, void *data,
 	INIT_LIST_HEAD(&validate_list);
 	if (exbuf->num_bo_handles) {
 
-		bo_handles = drm_malloc_ab(exbuf->num_bo_handles,
-					   sizeof(uint32_t));
-		buflist = drm_calloc_large(exbuf->num_bo_handles,
-					   sizeof(struct ttm_validate_buffer));
+		bo_handles = kvmalloc_array(exbuf->num_bo_handles,
+					   sizeof(uint32_t), GFP_KERNEL);
+		buflist = kvmalloc_array(exbuf->num_bo_handles,
+					   sizeof(struct ttm_validate_buffer),
+					   GFP_KERNEL | __GFP_ZERO);
 		if (!bo_handles || !buflist) {
-			drm_free_large(bo_handles);
-			drm_free_large(buflist);
+			kvfree(bo_handles);
+			kvfree(buflist);
 			return -ENOMEM;
 		}
 
@@ -134,16 +135,16 @@ static int virtio_gpu_execbuffer_ioctl(struct drm_device *dev, void *data,
 		if (copy_from_user(bo_handles, user_bo_handles,
 				   exbuf->num_bo_handles * sizeof(uint32_t))) {
 			ret = -EFAULT;
-			drm_free_large(bo_handles);
-			drm_free_large(buflist);
+			kvfree(bo_handles);
+			kvfree(buflist);
 			return ret;
 		}
 
 		for (i = 0; i < exbuf->num_bo_handles; i++) {
 			gobj = drm_gem_object_lookup(drm_file, bo_handles[i]);
 			if (!gobj) {
-				drm_free_large(bo_handles);
-				drm_free_large(buflist);
+				kvfree(bo_handles);
+				kvfree(buflist);
 				return -ENOENT;
 			}
 
@@ -152,7 +153,7 @@ static int virtio_gpu_execbuffer_ioctl(struct drm_device *dev, void *data,
 
 			list_add(&buflist[i].head, &validate_list);
 		}
-		drm_free_large(bo_handles);
+		kvfree(bo_handles);
 	}
 
 	ret = virtio_gpu_object_list_validate(&ticket, &validate_list);
@@ -172,7 +173,7 @@ static int virtio_gpu_execbuffer_ioctl(struct drm_device *dev, void *data,
 
 	/* fence the command bo */
 	virtio_gpu_unref_list(&validate_list);
-	drm_free_large(buflist);
+	kvfree(buflist);
 	dma_fence_put(&fence->f);
 	return 0;
 
@@ -180,7 +181,7 @@ out_unresv:
 	ttm_eu_backoff_reservation(&ticket, &validate_list);
 out_free:
 	virtio_gpu_unref_list(&validate_list);
-	drm_free_large(buflist);
+	kvfree(buflist);
 	return ret;
 }
 

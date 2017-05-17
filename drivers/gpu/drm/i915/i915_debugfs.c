@@ -229,7 +229,7 @@ static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
 	int ret;
 
 	total = READ_ONCE(dev_priv->mm.object_count);
-	objects = drm_malloc_ab(total, sizeof(*objects));
+	objects = kvmalloc_array(total, sizeof(*objects), GFP_KERNEL);
 	if (!objects)
 		return -ENOMEM;
 
@@ -274,7 +274,7 @@ static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
 
 	mutex_unlock(&dev->struct_mutex);
 out:
-	drm_free_large(objects);
+	kvfree(objects);
 	return ret;
 }
 
