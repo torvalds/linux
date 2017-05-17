@@ -3111,6 +3111,7 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 							surface);
 
 				need_to_validate = true;
+				wait_for_prev_commits = true;
 			}
 		}
 	}
