@@ -35,7 +35,6 @@
 #include <linux/time.h>
 #include <linux/cpu.h>
 #include <linux/prefetch.h>
-#include <linux/trace_events.h>
 
 #include "rcu.h"
 
@@ -139,7 +138,6 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp)
 		local_irq_restore(flags);
 		return;
 	}
-	RCU_TRACE(trace_rcu_batch_start(rcp->name, 0, rcp->qlen, -1);)
 	list = rcp->rcucblist;
 	rcp->rcucblist = *rcp->donetail;
 	*rcp->donetail = NULL;
@@ -161,10 +159,6 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp)
 		RCU_TRACE(cb_count++;)
 	}
 	RCU_TRACE(rcu_trace_sub_qlen(rcp, cb_count);)
-	RCU_TRACE(trace_rcu_batch_end(rcp->name,
-				      cb_count, 0, need_resched(),
-				      is_idle_task(current),
-				      false));
 }
 
 static __latent_entropy void rcu_process_callbacks(struct softirq_action *unused)
