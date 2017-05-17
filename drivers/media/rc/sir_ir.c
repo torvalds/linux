@@ -334,14 +334,13 @@ static int init_port(void)
 	setup_timer(&timerlist, sir_timeout, 0);
 
 	/* get I/O port access and IRQ line */
-	if (!request_region(io, 8, KBUILD_MODNAME)) {
+	if (!devm_request_region(&sir_ir_dev->dev, io, 8, KBUILD_MODNAME)) {
 		pr_err("i/o port 0x%.4x already in use.\n", io);
 		return -EBUSY;
 	}
-	retval = request_irq(irq, sir_interrupt, 0,
-			     KBUILD_MODNAME, NULL);
+	retval = devm_request_irq(&sir_ir_dev->dev, irq, sir_interrupt, 0,
+				  KBUILD_MODNAME, NULL);
 	if (retval < 0) {
-		release_region(io, 8);
 		pr_err("IRQ %d already in use.\n", irq);
 		return retval;
 	}
@@ -352,9 +351,7 @@ static int init_port(void)
 
 static void drop_port(void)
 {
-	free_irq(irq, NULL);
 	del_timer_sync(&timerlist);
-	release_region(io, 8);
 }
 
 static int init_sir_ir(void)
