@@ -91,7 +91,7 @@ struct bbr {
 	struct minmax bw;	/* Max recent delivery rate in pkts/uS << 24 */
 	u32	rtt_cnt;	    /* count of packet-timed rounds elapsed */
 	u32     next_rtt_delivered; /* scb->tx.delivered at end of round */
-	struct skb_mstamp cycle_mstamp;  /* time of this cycle phase start */
+	u64	cycle_mstamp;	     /* time of this cycle phase start */
 	u32     mode:3,		     /* current bbr_mode in state machine */
 		prev_ca_state:3,     /* CA state on previous ACK */
 		packet_conservation:1,  /* use packet conservation? */
@@ -411,7 +411,7 @@ static bool bbr_is_next_cycle_phase(struct sock *sk,
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct bbr *bbr = inet_csk_ca(sk);
 	bool is_full_length =
-		skb_mstamp_us_delta(&tp->delivered_mstamp, &bbr->cycle_mstamp) >
+		tcp_stamp_us_delta(tp->delivered_mstamp, bbr->cycle_mstamp) >
 		bbr->min_rtt_us;
 	u32 inflight, bw;
 
@@ -497,7 +497,7 @@ static void bbr_reset_lt_bw_sampling_interval(struct sock *sk)
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct bbr *bbr = inet_csk_ca(sk);
 
-	bbr->lt_last_stamp = tp->delivered_mstamp.stamp_jiffies;
+	bbr->lt_last_stamp = div_u64(tp->delivered_mstamp, USEC_PER_MSEC);
 	bbr->lt_last_delivered = tp->delivered;
 	bbr->lt_last_lost = tp->lost;
 	bbr->lt_rtt_cnt = 0;
@@ -551,7 +551,7 @@ static void bbr_lt_bw_sampling(struct sock *sk, const struct rate_sample *rs)
 	struct bbr *bbr = inet_csk_ca(sk);
 	u32 lost, delivered;
 	u64 bw;
-	s32 t;
+	u32 t;
 
 	if (bbr->lt_use_bw) {	/* already using long-term rate, lt_bw? */
 		if (bbr->mode == BBR_PROBE_BW && bbr->round_start &&
@@ -603,15 +603,15 @@ static void bbr_lt_bw_sampling(struct sock *sk, const struct rate_sample *rs)
 		return;
 
 	/* Find average delivery rate in this sampling interval. */
-	t = (s32)(tp->delivered_mstamp.stamp_jiffies - bbr->lt_last_stamp);
-	if (t < 1)
-		return;		/* interval is less than one jiffy, so wait */
-	t = jiffies_to_usecs(t);
-	/* Interval long enough for jiffies_to_usecs() to return a bogus 0? */
-	if (t < 1) {
+	t = div_u64(tp->delivered_mstamp, USEC_PER_MSEC) - bbr->lt_last_stamp;
+	if ((s32)t < 1)
+		return;		/* interval is less than one ms, so wait */
+	/* Check if can multiply without overflow */
+	if (t >= ~0U / USEC_PER_MSEC) {
 		bbr_reset_lt_bw_sampling(sk);  /* interval too long; reset */
 		return;
 	}
+	t *= USEC_PER_MSEC;
 	bw = (u64)delivered * BW_UNIT;
 	do_div(bw, t);
 	bbr_lt_bw_interval_done(sk, bw);
@@ -730,12 +730,12 @@ static void bbr_update_min_rtt(struct sock *sk, const struct rate_sample *rs)
 	bool filter_expired;
 
 	/* Track min RTT seen in the min_rtt_win_sec filter window: */
-	filter_expired = after(tcp_time_stamp,
+	filter_expired = after(tcp_jiffies32,
 			       bbr->min_rtt_stamp + bbr_min_rtt_win_sec * HZ);
 	if (rs->rtt_us >= 0 &&
 	    (rs->rtt_us <= bbr->min_rtt_us || filter_expired)) {
 		bbr->min_rtt_us = rs->rtt_us;
-		bbr->min_rtt_stamp = tcp_time_stamp;
+		bbr->min_rtt_stamp = tcp_jiffies32;
 	}
 
 	if (bbr_probe_rtt_mode_ms > 0 && filter_expired &&
@@ -754,7 +754,7 @@ static void bbr_update_min_rtt(struct sock *sk, const struct rate_sample *rs)
 		/* Maintain min packets in flight for max(200 ms, 1 round). */
 		if (!bbr->probe_rtt_done_stamp &&
 		    tcp_packets_in_flight(tp) <= bbr_cwnd_min_target) {
-			bbr->probe_rtt_done_stamp = tcp_time_stamp +
+			bbr->probe_rtt_done_stamp = tcp_jiffies32 +
 				msecs_to_jiffies(bbr_probe_rtt_mode_ms);
 			bbr->probe_rtt_round_done = 0;
 			bbr->next_rtt_delivered = tp->delivered;
@@ -762,8 +762,8 @@ static void bbr_update_min_rtt(struct sock *sk, const struct rate_sample *rs)
 			if (bbr->round_start)
 				bbr->probe_rtt_round_done = 1;
 			if (bbr->probe_rtt_round_done &&
-			    after(tcp_time_stamp, bbr->probe_rtt_done_stamp)) {
-				bbr->min_rtt_stamp = tcp_time_stamp;
+			    after(tcp_jiffies32, bbr->probe_rtt_done_stamp)) {
+				bbr->min_rtt_stamp = tcp_jiffies32;
 				bbr->restore_cwnd = 1;  /* snap to prior_cwnd */
 				bbr_reset_mode(sk);
 			}
@@ -810,7 +810,7 @@ static void bbr_init(struct sock *sk)
 	bbr->probe_rtt_done_stamp = 0;
 	bbr->probe_rtt_round_done = 0;
 	bbr->min_rtt_us = tcp_min_rtt(tp);
-	bbr->min_rtt_stamp = tcp_time_stamp;
+	bbr->min_rtt_stamp = tcp_jiffies32;
 
 	minmax_reset(&bbr->bw, bbr->rtt_cnt, 0);  /* init max bw to 0 */
 
@@ -825,7 +825,7 @@ static void bbr_init(struct sock *sk)
 	bbr->idle_restart = 0;
 	bbr->full_bw = 0;
 	bbr->full_bw_cnt = 0;
-	bbr->cycle_mstamp.v64 = 0;
+	bbr->cycle_mstamp = 0;
 	bbr->cycle_idx = 0;
 	bbr_reset_lt_bw_sampling(sk);
 	bbr_reset_startup_mode(sk);
