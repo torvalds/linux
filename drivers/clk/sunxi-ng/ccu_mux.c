@@ -15,24 +15,20 @@
 #include "ccu_gate.h"
 #include "ccu_mux.h"
 
-void ccu_mux_helper_adjust_parent_for_prediv(struct ccu_common *common,
-					     struct ccu_mux_internal *cm,
-					     int parent_index,
-					     unsigned long *parent_rate)
+static u16 ccu_mux_get_prediv(struct ccu_common *common,
+			      struct ccu_mux_internal *cm,
+			      int parent_index)
 {
 	u16 prediv = 1;
 	u32 reg;
-	int i;
 
 	if (!((common->features & CCU_FEATURE_FIXED_PREDIV) ||
 	      (common->features & CCU_FEATURE_VARIABLE_PREDIV) ||
 	      (common->features & CCU_FEATURE_ALL_PREDIV)))
-		return;
+		return 1;
 
-	if (common->features & CCU_FEATURE_ALL_PREDIV) {
-		*parent_rate = *parent_rate / common->prediv;
-		return;
-	}
+	if (common->features & CCU_FEATURE_ALL_PREDIV)
+		return common->prediv;
 
 	reg = readl(common->base + common->reg);
 	if (parent_index < 0) {
@@ -40,10 +36,13 @@ void ccu_mux_helper_adjust_parent_for_prediv(struct ccu_common *common,
 		parent_index &= (1 << cm->width) - 1;
 	}
 
-	if (common->features & CCU_FEATURE_FIXED_PREDIV)
+	if (common->features & CCU_FEATURE_FIXED_PREDIV) {
+		int i;
+
 		for (i = 0; i < cm->n_predivs; i++)
 			if (parent_index == cm->fixed_predivs[i].index)
 				prediv = cm->fixed_predivs[i].div;
+	}
 
 	if (common->features & CCU_FEATURE_VARIABLE_PREDIV)
 		if (parent_index == cm->variable_prediv.index) {
@@ -54,7 +53,16 @@ void ccu_mux_helper_adjust_parent_for_prediv(struct ccu_common *common,
 			prediv = div + 1;
 		}
 
-	*parent_rate = *parent_rate / prediv;
+	return prediv;
+}
+
+void ccu_mux_helper_adjust_parent_for_prediv(struct ccu_common *common,
+					     struct ccu_mux_internal *cm,
+					     int parent_index,
+					     unsigned long *parent_rate)
+{
+	*parent_rate = *parent_rate / ccu_mux_get_prediv(common, cm,
+							 parent_index);
 }
 
 int ccu_mux_helper_determine_rate(struct ccu_common *common,
