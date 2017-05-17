@@ -39,6 +39,15 @@ config HWSPINLOCK_SIRF
 	  It's safe to say n here if you're not interested in SIRF hardware
 	  spinlock or just want a bare minimum kernel.
 
+config HWSPINLOCK_SPRD
+	tristate "SPRD Hardware Spinlock device"
+	depends on ARCH_SPRD
+	depends on HWSPINLOCK
+	help
+	  Say y here to support the SPRD Hardware Spinlock device.
+
+	  If unsure, say N.
+
 config HSEM_U8500
 	tristate "STE Hardware Semaphore functionality"
 	depends on HWSPINLOCK
