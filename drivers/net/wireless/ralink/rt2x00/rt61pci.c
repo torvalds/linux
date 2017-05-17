@@ -216,7 +216,7 @@ static const struct rt2x00debug rt61pci_rt2x00debug = {
 		.word_count	= CSR_REG_SIZE / sizeof(u32),
 	},
 	.eeprom	= {
-		.read		= _rt2x00_eeprom_read,
+		.read		= rt2x00_eeprom_read,
 		.write		= rt2x00_eeprom_write,
 		.word_base	= EEPROM_BASE,
 		.word_size	= sizeof(u16),
@@ -853,13 +853,13 @@ static void rt61pci_config_lna_gain(struct rt2x00_dev *rt2x00dev,
 		if (rt2x00_has_cap_external_lna_bg(rt2x00dev))
 			lna_gain += 14;
 
-		rt2x00_eeprom_read(rt2x00dev, EEPROM_RSSI_OFFSET_BG, &eeprom);
+		eeprom = rt2x00_eeprom_read(rt2x00dev, EEPROM_RSSI_OFFSET_BG);
 		lna_gain -= rt2x00_get_field16(eeprom, EEPROM_RSSI_OFFSET_BG_1);
 	} else {
 		if (rt2x00_has_cap_external_lna_a(rt2x00dev))
 			lna_gain += 14;
 
-		rt2x00_eeprom_read(rt2x00dev, EEPROM_RSSI_OFFSET_A, &eeprom);
+		eeprom = rt2x00_eeprom_read(rt2x00dev, EEPROM_RSSI_OFFSET_A);
 		lna_gain -= rt2x00_get_field16(eeprom, EEPROM_RSSI_OFFSET_A_1);
 	}
 
@@ -1698,7 +1698,7 @@ static int rt61pci_init_bbp(struct rt2x00_dev *rt2x00dev)
 	rt61pci_bbp_write(rt2x00dev, 107, 0x04);
 
 	for (i = 0; i < EEPROM_BBP_SIZE; i++) {
-		rt2x00_eeprom_read(rt2x00dev, EEPROM_BBP_START + i, &eeprom);
+		eeprom = rt2x00_eeprom_read(rt2x00dev, EEPROM_BBP_START + i);
 
 		if (eeprom != 0xffff && eeprom != 0x0000) {
 			reg_id = rt2x00_get_field16(eeprom, EEPROM_BBP_REG_ID);
@@ -2417,7 +2417,7 @@ static int rt61pci_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 	mac = rt2x00_eeprom_addr(rt2x00dev, EEPROM_MAC_ADDR_0);
 	rt2x00lib_set_mac_address(rt2x00dev, mac);
 
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_ANTENNA, &word);
+	word = rt2x00_eeprom_read(rt2x00dev, EEPROM_ANTENNA);
 	if (word == 0xffff) {
 		rt2x00_set_field16(&word, EEPROM_ANTENNA_NUM, 2);
 		rt2x00_set_field16(&word, EEPROM_ANTENNA_TX_DEFAULT,
@@ -2432,7 +2432,7 @@ static int rt61pci_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_eeprom_dbg(rt2x00dev, "Antenna: 0x%04x\n", word);
 	}
 
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC, &word);
+	word = rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC);
 	if (word == 0xffff) {
 		rt2x00_set_field16(&word, EEPROM_NIC_ENABLE_DIVERSITY, 0);
 		rt2x00_set_field16(&word, EEPROM_NIC_TX_DIVERSITY, 0);
@@ -2445,7 +2445,7 @@ static int rt61pci_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_eeprom_dbg(rt2x00dev, "NIC: 0x%04x\n", word);
 	}
 
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED, &word);
+	word = rt2x00_eeprom_read(rt2x00dev, EEPROM_LED);
 	if (word == 0xffff) {
 		rt2x00_set_field16(&word, EEPROM_LED_LED_MODE,
 				   LED_MODE_DEFAULT);
@@ -2453,7 +2453,7 @@ static int rt61pci_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_eeprom_dbg(rt2x00dev, "Led: 0x%04x\n", word);
 	}
 
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_FREQ, &word);
+	word = rt2x00_eeprom_read(rt2x00dev, EEPROM_FREQ);
 	if (word == 0xffff) {
 		rt2x00_set_field16(&word, EEPROM_FREQ_OFFSET, 0);
 		rt2x00_set_field16(&word, EEPROM_FREQ_SEQ, 0);
@@ -2461,7 +2461,7 @@ static int rt61pci_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_eeprom_dbg(rt2x00dev, "Freq: 0x%04x\n", word);
 	}
 
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_RSSI_OFFSET_BG, &word);
+	word = rt2x00_eeprom_read(rt2x00dev, EEPROM_RSSI_OFFSET_BG);
 	if (word == 0xffff) {
 		rt2x00_set_field16(&word, EEPROM_RSSI_OFFSET_BG_1, 0);
 		rt2x00_set_field16(&word, EEPROM_RSSI_OFFSET_BG_2, 0);
@@ -2477,7 +2477,7 @@ static int rt61pci_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_RSSI_OFFSET_BG, word);
 	}
 
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_RSSI_OFFSET_A, &word);
+	word = rt2x00_eeprom_read(rt2x00dev, EEPROM_RSSI_OFFSET_A);
 	if (word == 0xffff) {
 		rt2x00_set_field16(&word, EEPROM_RSSI_OFFSET_A_1, 0);
 		rt2x00_set_field16(&word, EEPROM_RSSI_OFFSET_A_2, 0);
@@ -2505,7 +2505,7 @@ static int rt61pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Read EEPROM word for configuration.
 	 */
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_ANTENNA, &eeprom);
+	eeprom = rt2x00_eeprom_read(rt2x00dev, EEPROM_ANTENNA);
 
 	/*
 	 * Identify RF chipset.
@@ -2552,7 +2552,7 @@ static int rt61pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Read frequency offset and RF programming sequence.
 	 */
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_FREQ, &eeprom);
+	eeprom = rt2x00_eeprom_read(rt2x00dev, EEPROM_FREQ);
 	if (rt2x00_get_field16(eeprom, EEPROM_FREQ_SEQ))
 		__set_bit(CAPABILITY_RF_SEQUENCE, &rt2x00dev->cap_flags);
 
@@ -2561,7 +2561,7 @@ static int rt61pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Read external LNA informations.
 	 */
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC, &eeprom);
+	eeprom = rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC);
 
 	if (rt2x00_get_field16(eeprom, EEPROM_NIC_EXTERNAL_LNA_A))
 		__set_bit(CAPABILITY_EXTERNAL_LNA_A, &rt2x00dev->cap_flags);
@@ -2592,7 +2592,7 @@ static int rt61pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	 * switch to default led mode.
 	 */
 #ifdef CONFIG_RT2X00_LIB_LEDS
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED, &eeprom);
+	eeprom = rt2x00_eeprom_read(rt2x00dev, EEPROM_LED);
 	value = rt2x00_get_field16(eeprom, EEPROM_LED_LED_MODE);
 
 	rt61pci_init_led(rt2x00dev, &rt2x00dev->led_radio, LED_TYPE_RADIO);

@@ -1072,14 +1072,8 @@ static inline void *rt2x00_eeprom_addr(struct rt2x00_dev *rt2x00dev,
 	return (void *)&rt2x00dev->eeprom[word];
 }
 
-static inline void rt2x00_eeprom_read(struct rt2x00_dev *rt2x00dev,
-				      const unsigned int word, u16 *data)
-{
-	*data = le16_to_cpu(rt2x00dev->eeprom[word]);
-}
-
-static inline u16 _rt2x00_eeprom_read(struct rt2x00_dev *rt2x00dev,
-				      const unsigned int word)
+static inline u16 rt2x00_eeprom_read(struct rt2x00_dev *rt2x00dev,
+				     const unsigned int word)
 {
 	return le16_to_cpu(rt2x00dev->eeprom[word]);
 }

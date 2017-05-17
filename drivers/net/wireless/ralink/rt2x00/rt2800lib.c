@@ -416,7 +416,7 @@ static void rt2800_eeprom_read(struct rt2x00_dev *rt2x00dev,
 	unsigned int index;
 
 	index = rt2800_eeprom_word_index(rt2x00dev, word);
-	rt2x00_eeprom_read(rt2x00dev, index, data);
+	*data = rt2x00_eeprom_read(rt2x00dev, index);
 }
 
 static void rt2800_eeprom_write(struct rt2x00_dev *rt2x00dev,
@@ -436,7 +436,7 @@ static void rt2800_eeprom_read_from_array(struct rt2x00_dev *rt2x00dev,
 	unsigned int index;
 
 	index = rt2800_eeprom_word_index(rt2x00dev, array);
-	rt2x00_eeprom_read(rt2x00dev, index + offset, data);
+	*data = rt2x00_eeprom_read(rt2x00dev, index + offset);
 }
 
 static int rt2800_enable_wlan_rt3290(struct rt2x00_dev *rt2x00dev)
@@ -1244,7 +1244,7 @@ const struct rt2x00debug rt2800_rt2x00debug = {
 		/* NOTE: The local EEPROM access functions can't
 		 * be used here, use the generic versions instead.
 		 */
-		.read		= _rt2x00_eeprom_read,
+		.read		= rt2x00_eeprom_read,
 		.write		= rt2x00_eeprom_write,
 		.word_base	= EEPROM_BASE,
 		.word_size	= sizeof(u16),
