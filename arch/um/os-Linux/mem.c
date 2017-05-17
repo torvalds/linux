@@ -82,7 +82,7 @@ static char * __init choose_tempdir(void)
 
 	dir = fallback_dir;
 warn:
-	printf("Warning: tempdir %s is not on tmpfs\n", dir);
+	os_warn("Warning: tempdir %s is not on tmpfs\n", dir);
 done:
 	/* Make a copy since getenv results may not remain valid forever. */
 	return strdup(dir);
@@ -100,7 +100,7 @@ static int __init make_tempfile(const char *template)
 	if (tempdir == NULL) {
 		tempdir = choose_tempdir();
 		if (tempdir == NULL) {
-			fprintf(stderr, "Failed to choose tempdir: %s\n",
+			os_warn("Failed to choose tempdir: %s\n",
 				strerror(errno));
 			return -1;
 		}
@@ -125,7 +125,7 @@ static int __init make_tempfile(const char *template)
 	strcat(tempname, template);
 	fd = mkstemp(tempname);
 	if (fd < 0) {
-		fprintf(stderr, "open - cannot create %s: %s\n", tempname,
+		os_warn("open - cannot create %s: %s\n", tempname,
 			strerror(errno));
 		goto out;
 	}
@@ -197,10 +197,10 @@ void __init check_tmpexec(void)
 	os_info("Checking PROT_EXEC mmap in %s...", tempdir);
 	if (addr == MAP_FAILED) {
 		err = errno;
-		printf("%s\n", strerror(err));
+		os_warn("%s\n", strerror(err));
 		close(fd);
 		if (err == EPERM)
-			printf("%s must be not mounted noexec\n", tempdir);
+			os_warn("%s must be not mounted noexec\n", tempdir);
 		exit(1);
 	}
 	os_info("OK\n");

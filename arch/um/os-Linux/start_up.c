@@ -351,7 +351,7 @@ int __init parse_iomem(char *str, int *add)
 	driver = str;
 	file = strchr(str,',');
 	if (file == NULL) {
-		fprintf(stderr, "parse_iomem : failed to parse iomem\n");
+		os_warn("parse_iomem : failed to parse iomem\n");
 		goto out;
 	}
 	*file = '\0';

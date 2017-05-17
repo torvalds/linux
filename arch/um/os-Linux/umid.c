@@ -354,7 +354,7 @@ char *get_umid(void)
 static int __init set_uml_dir(char *name, int *add)
 {
 	if (*name == '\0') {
-		printf("uml_dir can't be an empty string\n");
+		os_warn("uml_dir can't be an empty string\n");
 		return 0;
 	}
 
@@ -365,7 +365,7 @@ static int __init set_uml_dir(char *name, int *add)
 
 	uml_dir = malloc(strlen(name) + 2);
 	if (uml_dir == NULL) {
-		printf("Failed to malloc uml_dir - error = %d\n", errno);
+		os_warn("Failed to malloc uml_dir - error = %d\n", errno);
 
 		/*
 		 * Return 0 here because do_initcalls doesn't look at
@@ -390,8 +390,8 @@ static void remove_umid_dir(void)
 	sprintf(dir, "%s%s", uml_dir, umid);
 	err = remove_files_and_dir(dir);
 	if (err)
-		printf("remove_umid_dir - remove_files_and_dir failed with "
-		       "err = %d\n", err);
+		os_warn("%s - remove_files_and_dir failed with err = %d\n",
+			__func__, err);
 }
 
 __uml_exitcall(remove_umid_dir);
