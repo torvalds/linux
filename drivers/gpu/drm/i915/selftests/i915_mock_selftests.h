@@ -9,6 +9,7 @@
  * Tests are executed in order by igt/drv_selftest
  */
 selftest(sanitycheck, i915_mock_sanitycheck) /* keep first (igt selfcheck) */
+selftest(fence, i915_sw_fence_mock_selftests)
 selftest(scatterlist, scatterlist_mock_selftests)
 selftest(syncmap, i915_syncmap_mock_selftests)
 selftest(uncore, intel_uncore_mock_selftests)

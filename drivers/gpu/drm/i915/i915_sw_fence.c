@@ -12,6 +12,7 @@
 #include <linux/reservation.h>
 
 #include "i915_sw_fence.h"
+#include "i915_selftest.h"
 
 #define I915_SW_FENCE_FLAG_ALLOC BIT(3) /* after WQ_FLAG_* for safety */
 
@@ -274,7 +275,7 @@ static bool i915_sw_fence_check_if_after(struct i915_sw_fence *fence,
 	unsigned long flags;
 	bool err;
 
-	if (!IS_ENABLED(CONFIG_I915_SW_FENCE_CHECK_DAG))
+	if (!IS_ENABLED(CONFIG_DRM_I915_SW_FENCE_CHECK_DAG))
 		return false;
 
 	spin_lock_irqsave(&i915_sw_fence_lock, flags);
@@ -490,3 +491,7 @@ int i915_sw_fence_await_reservation(struct i915_sw_fence *fence,
 
 	return ret;
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "selftests/i915_sw_fence.c"
+#endif
