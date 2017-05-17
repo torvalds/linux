@@ -32,13 +32,14 @@ static int gc_thread_func(void *data)
 
 	wait_ms = gc_th->min_sleep_time;
 
+	set_freezable();
 	do {
+		wait_event_interruptible_timeout(*wq,
+				kthread_should_stop() || freezing(current),
+				msecs_to_jiffies(wait_ms));
+
 		if (try_to_freeze())
 			continue;
-		else
-			wait_event_interruptible_timeout(*wq,
-						kthread_should_stop(),
-						msecs_to_jiffies(wait_ms));
 		if (kthread_should_stop())
 			break;
 
