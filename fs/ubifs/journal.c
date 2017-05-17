@@ -1298,7 +1298,9 @@ static int truncate_data_node(const struct ubifs_info *c, const struct inode *in
 			goto out;
 	}
 
-	if (compr_type != UBIFS_COMPR_NONE) {
+	if (compr_type == UBIFS_COMPR_NONE) {
+		out_len = *new_len;
+	} else {
 		err = ubifs_decompress(c, &dn->data, dlen, buf, &out_len, compr_type);
 		if (err)
 			goto out;
