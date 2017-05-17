@@ -799,7 +799,7 @@ static int snd_pcm_oss_period_size(struct snd_pcm_substream *substream,
 static int choose_rate(struct snd_pcm_substream *substream,
 		       struct snd_pcm_hw_params *params, unsigned int best_rate)
 {
-	struct snd_interval *it;
+	const struct snd_interval *it;
 	struct snd_pcm_hw_params *save;
 	unsigned int rate, prev;
 
@@ -807,7 +807,7 @@ static int choose_rate(struct snd_pcm_substream *substream,
 	if (save == NULL)
 		return -ENOMEM;
 	*save = *params;
-	it = hw_param_interval(save, SNDRV_PCM_HW_PARAM_RATE);
+	it = hw_param_interval_c(save, SNDRV_PCM_HW_PARAM_RATE);
 
 	/* try multiples of the best rate */
 	rate = best_rate;
@@ -848,7 +848,7 @@ static int snd_pcm_oss_change_params(struct snd_pcm_substream *substream,
 	int direct;
 	snd_pcm_format_t format, sformat;
 	int n;
-	struct snd_mask sformat_mask;
+	const struct snd_mask *sformat_mask;
 	struct snd_mask mask;
 
 	if (trylock) {
@@ -891,18 +891,18 @@ static int snd_pcm_oss_change_params(struct snd_pcm_substream *substream,
 
 	format = snd_pcm_oss_format_from(runtime->oss.format);
 
-	sformat_mask = *hw_param_mask(sparams, SNDRV_PCM_HW_PARAM_FORMAT);
+	sformat_mask = hw_param_mask_c(sparams, SNDRV_PCM_HW_PARAM_FORMAT);
 	if (direct)
 		sformat = format;
 	else
-		sformat = snd_pcm_plug_slave_format(format, &sformat_mask);
+		sformat = snd_pcm_plug_slave_format(format, sformat_mask);
 
 	if ((__force int)sformat < 0 ||
-	    !snd_mask_test(&sformat_mask, (__force int)sformat)) {
+	    !snd_mask_test(sformat_mask, (__force int)sformat)) {
 		for (sformat = (__force snd_pcm_format_t)0;
 		     (__force int)sformat <= (__force int)SNDRV_PCM_FORMAT_LAST;
 		     sformat = (__force snd_pcm_format_t)((__force int)sformat + 1)) {
-			if (snd_mask_test(&sformat_mask, (__force int)sformat) &&
+			if (snd_mask_test(sformat_mask, (__force int)sformat) &&
 			    snd_pcm_oss_format_to(sformat) >= 0)
 				break;
 		}
@@ -1780,7 +1780,7 @@ static int snd_pcm_oss_get_formats(struct snd_pcm_oss_file *pcm_oss_file)
 	int direct;
 	struct snd_pcm_hw_params *params;
 	unsigned int formats = 0;
-	struct snd_mask format_mask;
+	const struct snd_mask *format_mask;
 	int fmt;
 
 	if ((err = snd_pcm_oss_get_active_substream(pcm_oss_file, &substream)) < 0)
@@ -1802,12 +1802,12 @@ static int snd_pcm_oss_get_formats(struct snd_pcm_oss_file *pcm_oss_file)
 		return -ENOMEM;
 	_snd_pcm_hw_params_any(params);
 	err = snd_pcm_hw_refine(substream, params);
-	format_mask = *hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT); 
+	format_mask = hw_param_mask_c(params, SNDRV_PCM_HW_PARAM_FORMAT);
 	kfree(params);
 	if (err < 0)
 		return err;
 	for (fmt = 0; fmt < 32; ++fmt) {
-		if (snd_mask_test(&format_mask, fmt)) {
+		if (snd_mask_test(format_mask, fmt)) {
 			int f = snd_pcm_oss_format_to(fmt);
 			if (f >= 0)
 				formats |= f;
