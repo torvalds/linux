@@ -51,6 +51,7 @@ enum {
 	(((combined) & (~TC_ACT_EXT_VAL_MASK)) == opcode)
 
 #define TC_ACT_JUMP __TC_ACT_EXT(1)
+#define TC_ACT_GOTO_CHAIN __TC_ACT_EXT(2)
 
 /* Action type identifiers*/
 enum {

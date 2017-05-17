@@ -43,6 +43,7 @@
 struct atm_flow_data {
 	struct Qdisc		*q;	/* FIFO, TBF, etc. */
 	struct tcf_proto __rcu	*filter_list;
+	struct tcf_block	*block;
 	struct atm_vcc		*vcc;	/* VCC; NULL if VCC is closed */
 	void			(*old_pop)(struct atm_vcc *vcc,
 					   struct sk_buff *skb); /* chaining */
@@ -143,7 +144,7 @@ static void atm_tc_put(struct Qdisc *sch, unsigned long cl)
 	list_del_init(&flow->list);
 	pr_debug("atm_tc_put: qdisc %p\n", flow->q);
 	qdisc_destroy(flow->q);
-	tcf_destroy_chain(&flow->filter_list);
+	tcf_block_put(flow->block);
 	if (flow->sock) {
 		pr_debug("atm_tc_put: f_count %ld\n",
 			file_count(flow->sock->file));
@@ -274,7 +275,13 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 		error = -ENOBUFS;
 		goto err_out;
 	}
-	RCU_INIT_POINTER(flow->filter_list, NULL);
+
+	error = tcf_block_get(&flow->block, &flow->filter_list);
+	if (error) {
+		kfree(flow);
+		goto err_out;
+	}
+
 	flow->q = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops, classid);
 	if (!flow->q)
 		flow->q = &noop_qdisc;
@@ -346,14 +353,13 @@ static void atm_tc_walk(struct Qdisc *sch, struct qdisc_walker *walker)
 	}
 }
 
-static struct tcf_proto __rcu **atm_tc_find_tcf(struct Qdisc *sch,
-						unsigned long cl)
+static struct tcf_block *atm_tc_tcf_block(struct Qdisc *sch, unsigned long cl)
 {
 	struct atm_qdisc_data *p = qdisc_priv(sch);
 	struct atm_flow_data *flow = (struct atm_flow_data *)cl;
 
 	pr_debug("atm_tc_find_tcf(sch %p,[qdisc %p],flow %p)\n", sch, p, flow);
-	return flow ? &flow->filter_list : &p->link.filter_list;
+	return flow ? flow->block : p->link.block;
 }
 
 /* --------------------------- Qdisc operations ---------------------------- */
@@ -377,7 +383,7 @@ static int atm_tc_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		list_for_each_entry(flow, &p->flows, list) {
 			fl = rcu_dereference_bh(flow->filter_list);
 			if (fl) {
-				result = tc_classify(skb, fl, &res, true);
+				result = tcf_classify(skb, fl, &res, true);
 				if (result < 0)
 					continue;
 				flow = (struct atm_flow_data *)res.class;
@@ -524,6 +530,7 @@ static struct sk_buff *atm_tc_peek(struct Qdisc *sch)
 static int atm_tc_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct atm_qdisc_data *p = qdisc_priv(sch);
+	int err;
 
 	pr_debug("atm_tc_init(sch %p,[qdisc %p],opt %p)\n", sch, p, opt);
 	INIT_LIST_HEAD(&p->flows);
@@ -534,7 +541,11 @@ static int atm_tc_init(struct Qdisc *sch, struct nlattr *opt)
 	if (!p->link.q)
 		p->link.q = &noop_qdisc;
 	pr_debug("atm_tc_init: link (%p) qdisc %p\n", &p->link, p->link.q);
-	RCU_INIT_POINTER(p->link.filter_list, NULL);
+
+	err = tcf_block_get(&p->link.block, &p->link.filter_list);
+	if (err)
+		return err;
+
 	p->link.vcc = NULL;
 	p->link.sock = NULL;
 	p->link.classid = sch->handle;
@@ -561,7 +572,7 @@ static void atm_tc_destroy(struct Qdisc *sch)
 
 	pr_debug("atm_tc_destroy(sch %p,[qdisc %p])\n", sch, p);
 	list_for_each_entry(flow, &p->flows, list)
-		tcf_destroy_chain(&flow->filter_list);
+		tcf_block_put(flow->block);
 
 	list_for_each_entry_safe(flow, tmp, &p->flows, list) {
 		if (flow->ref > 1)
@@ -646,7 +657,7 @@ static const struct Qdisc_class_ops atm_class_ops = {
 	.change		= atm_tc_change,
 	.delete		= atm_tc_delete,
 	.walk		= atm_tc_walk,
-	.tcf_chain	= atm_tc_find_tcf,
+	.tcf_block	= atm_tc_tcf_block,
 	.bind_tcf	= atm_tc_bind_filter,
 	.unbind_tcf	= atm_tc_put,
 	.dump		= atm_tc_dump_class,
