@@ -1807,16 +1807,16 @@ ixgbe_setup_mac_link_sfp_x550a(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 	if (hw->phy.mdio.prtad == MDIO_PRTAD_NONE)
 		return IXGBE_ERR_PHY_ADDR_INVALID;
 
-	/* Get external PHY device id */
-	ret_val = hw->phy.ops.read_reg(hw, IXGBE_CS4227_GLOBAL_ID_MSB,
-				  IXGBE_MDIO_ZERO_DEV_TYPE, &reg_phy_ext);
+	/* Get external PHY SKU id */
+	ret_val = hw->phy.ops.read_reg(hw, IXGBE_CS4227_EFUSE_PDF_SKU,
+				       IXGBE_MDIO_ZERO_DEV_TYPE, &reg_phy_ext);
 	if (ret_val)
 		return ret_val;
 
 	/* When configuring quad port CS4223, the MAC instance is part
 	 * of the slice offset.
 	 */
-	if (reg_phy_ext == IXGBE_CS4223_PHY_ID)
+	if (reg_phy_ext == IXGBE_CS4223_SKU_ID)
 		slice_offset = (hw->bus.lan_id +
 				(hw->bus.instance_id << 1)) << 12;
 	else
