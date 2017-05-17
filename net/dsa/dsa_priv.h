@@ -75,25 +75,25 @@ void dsa_slave_unregister_notifier(void);
 int dsa_switch_register_notifier(struct dsa_switch *ds);
 void dsa_switch_unregister_notifier(struct dsa_switch *ds);
 
+/* tag_brcm.c */
+extern const struct dsa_device_ops brcm_netdev_ops;
+
 /* tag_dsa.c */
 extern const struct dsa_device_ops dsa_netdev_ops;
 
 /* tag_edsa.c */
 extern const struct dsa_device_ops edsa_netdev_ops;
 
-/* tag_trailer.c */
-extern const struct dsa_device_ops trailer_netdev_ops;
-
-/* tag_brcm.c */
-extern const struct dsa_device_ops brcm_netdev_ops;
-
-/* tag_qca.c */
-extern const struct dsa_device_ops qca_netdev_ops;
+/* tag_lan9303.c */
+extern const struct dsa_device_ops lan9303_netdev_ops;
 
 /* tag_mtk.c */
 extern const struct dsa_device_ops mtk_netdev_ops;
 
-/* tag_lan9303.c */
-extern const struct dsa_device_ops lan9303_netdev_ops;
+/* tag_qca.c */
+extern const struct dsa_device_ops qca_netdev_ops;
+
+/* tag_trailer.c */
+extern const struct dsa_device_ops trailer_netdev_ops;
 
 #endif
