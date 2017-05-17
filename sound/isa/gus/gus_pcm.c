@@ -809,7 +809,7 @@ static int snd_gf1_pcm_volume_put(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	return change;
 }
 
-static struct snd_kcontrol_new snd_gf1_pcm_volume_control =
+static const struct snd_kcontrol_new snd_gf1_pcm_volume_control =
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "PCM Playback Volume",
@@ -818,7 +818,7 @@ static struct snd_kcontrol_new snd_gf1_pcm_volume_control =
 	.put = snd_gf1_pcm_volume_put
 };
 
-static struct snd_kcontrol_new snd_gf1_pcm_volume_control1 =
+static const struct snd_kcontrol_new snd_gf1_pcm_volume_control1 =
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "GPCM Playback Volume",
