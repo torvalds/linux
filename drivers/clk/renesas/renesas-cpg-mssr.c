@@ -257,7 +257,7 @@ static void __init cpg_mssr_register_core_clk(const struct cpg_core_clk *core,
 					      const struct cpg_mssr_info *info,
 					      struct cpg_mssr_priv *priv)
 {
-	struct clk *clk = NULL, *parent;
+	struct clk *clk = ERR_PTR(-ENOTSUPP), *parent;
 	struct device *dev = priv->dev;
 	unsigned int id = core->id, div = core->div;
 	const char *parent_name;
