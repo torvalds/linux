@@ -743,14 +743,20 @@ static const struct file_operations clusterip_proc_fops = {
 static int clusterip_net_init(struct net *net)
 {
 	struct clusterip_net *cn = net_generic(net, clusterip_net_id);
+	int ret;
 
 	INIT_LIST_HEAD(&cn->configs);
 
 	spin_lock_init(&cn->lock);
 
+	ret = nf_register_net_hook(net, &cip_arp_ops);
+	if (ret < 0)
+		return ret;
+
 #ifdef CONFIG_PROC_FS
 	cn->procdir = proc_mkdir("ipt_CLUSTERIP", net->proc_net);
 	if (!cn->procdir) {
+		nf_unregister_net_hook(net, &cip_arp_ops);
 		pr_err("Unable to proc dir entry\n");
 		return -ENOMEM;
 	}
@@ -765,6 +771,7 @@ static void clusterip_net_exit(struct net *net)
 	struct clusterip_net *cn = net_generic(net, clusterip_net_id);
 	proc_remove(cn->procdir);
 #endif
+	nf_unregister_net_hook(net, &cip_arp_ops);
 }
 
 static struct pernet_operations clusterip_net_ops = {
@@ -786,17 +793,11 @@ static int __init clusterip_tg_init(void)
 	if (ret < 0)
 		goto cleanup_subsys;
 
-	ret = nf_register_hook(&cip_arp_ops);
-	if (ret < 0)
-		goto cleanup_target;
-
 	pr_info("ClusterIP Version %s loaded successfully\n",
 		CLUSTERIP_VERSION);
 
 	return 0;
 
-cleanup_target:
-	xt_unregister_target(&clusterip_tg_reg);
 cleanup_subsys:
 	unregister_pernet_subsys(&clusterip_net_ops);
 	return ret;
@@ -806,7 +807,6 @@ static void __exit clusterip_tg_exit(void)
 {
 	pr_info("ClusterIP Version %s unloading\n", CLUSTERIP_VERSION);
 
-	nf_unregister_hook(&cip_arp_ops);
 	xt_unregister_target(&clusterip_tg_reg);
 	unregister_pernet_subsys(&clusterip_net_ops);
 
