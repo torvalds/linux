@@ -5,7 +5,8 @@
 
 /* G-Min addition: "platform_is()" lives in intel_mid_pm.h in the MCG
  * tree, but it's just platform ID info and we don't want to pull in
- * the whole SFI-based PM architecture. */
+ * the whole SFI-based PM architecture.
+ */
 #define INTEL_ATOM_MRST 0x26
 #define INTEL_ATOM_MFLD 0x27
 #define INTEL_ATOM_CLV 0x35
@@ -135,8 +136,8 @@ u32 intel_mid_msgbus_read32(u8 port, u32 addr)
 
 	return data;
 }
-
 EXPORT_SYMBOL(intel_mid_msgbus_read32);
+
 void intel_mid_msgbus_write32(u8 port, u32 addr, u32 data)
 {
 	unsigned long irq_flags;
@@ -170,8 +171,8 @@ EXPORT_SYMBOL(intel_mid_soc_stepping);
 
 static bool is_south_complex_device(struct pci_dev *dev)
 {
-	unsigned base_class = dev->class >> 16;
-	unsigned sub_class  = (dev->class & SUB_CLASS_MASK) >> 8;
+	unsigned int base_class = dev->class >> 16;
+	unsigned int sub_class  = (dev->class & SUB_CLASS_MASK) >> 8;
 
 	/* other than camera, pci bridges and display,
 	 * everything else are south complex devices.
