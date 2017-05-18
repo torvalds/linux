@@ -5067,6 +5067,8 @@ static bool emulator_get_segment(struct x86_emulate_ctxt *ctxt, u16 *selector,
 
 	if (var.unusable) {
 		memset(desc, 0, sizeof(*desc));
+		if (base3)
+			*base3 = 0;
 		return false;
 	}
 
