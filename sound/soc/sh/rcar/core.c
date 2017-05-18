@@ -909,8 +909,11 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 	 */
 	dai_i = 0;
 	if (is_graph) {
-		for_each_endpoint_of_node(dai_node, dai_np)
-			__rsnd_dai_probe(priv, dai_np, dai_i++, is_graph);
+		for_each_endpoint_of_node(dai_node, dai_np) {
+			__rsnd_dai_probe(priv, dai_np, dai_i, is_graph);
+			rsnd_ssi_parse_hdmi_connection(priv, dai_np, dai_i);
+			dai_i++;
+		}
 	} else {
 		for_each_child_of_node(dai_node, dai_np)
 			__rsnd_dai_probe(priv, dai_np, dai_i++, is_graph);

@@ -170,6 +170,8 @@ enum rsnd_reg {
 	RSND_REG_SSI_SYS_STATUS5,
 	RSND_REG_SSI_SYS_STATUS6,
 	RSND_REG_SSI_SYS_STATUS7,
+	RSND_REG_HDMI0_SEL,
+	RSND_REG_HDMI1_SEL,
 
 	/* SSI */
 	RSND_REG_SSICR,
@@ -645,6 +647,13 @@ struct rsnd_mod *rsnd_ssi_mod_get(struct rsnd_priv *priv, int id);
 int rsnd_ssi_is_dma_mode(struct rsnd_mod *mod);
 int rsnd_ssi_use_busif(struct rsnd_dai_stream *io);
 u32 rsnd_ssi_multi_slaves_runtime(struct rsnd_dai_stream *io);
+
+#define RSND_SSI_HDMI_PORT0	0xf0
+#define RSND_SSI_HDMI_PORT1	0xf1
+int rsnd_ssi_hdmi_port(struct rsnd_dai_stream *io);
+void rsnd_ssi_parse_hdmi_connection(struct rsnd_priv *priv,
+				    struct device_node *endpoint,
+				    int dai_i);
 
 #define rsnd_ssi_is_pin_sharing(io)	\
 	__rsnd_ssi_is_pin_sharing(rsnd_io_to_mod_ssi(io))
