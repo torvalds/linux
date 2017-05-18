@@ -743,8 +743,7 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job)
 		id->gws_size != job->gws_size ||
 		id->oa_base != job->oa_base ||
 		id->oa_size != job->oa_size);
-	bool vm_flush_needed = job->vm_needs_flush ||
-		amdgpu_vm_ring_has_compute_vm_bug(ring);
+	bool vm_flush_needed = job->vm_needs_flush;
 	unsigned patch_offset = 0;
 	int r;
 
