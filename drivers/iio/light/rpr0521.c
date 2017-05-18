@@ -516,13 +516,26 @@ static int rpr0521_probe(struct i2c_client *client,
 
 	ret = pm_runtime_set_active(&client->dev);
 	if (ret < 0)
-		return ret;
+		goto err_poweroff;
 
 	pm_runtime_enable(&client->dev);
 	pm_runtime_set_autosuspend_delay(&client->dev, RPR0521_SLEEP_DELAY_MS);
 	pm_runtime_use_autosuspend(&client->dev);
 
-	return iio_device_register(indio_dev);
+	ret = iio_device_register(indio_dev);
+	if (ret)
+		goto err_pm_disable;
+
+	return 0;
+
+err_pm_disable:
+	pm_runtime_disable(&client->dev);
+	pm_runtime_set_suspended(&client->dev);
+	pm_runtime_put_noidle(&client->dev);
+err_poweroff:
+	rpr0521_poweroff(data);
+
+	return ret;
 }
 
 static int rpr0521_remove(struct i2c_client *client)
