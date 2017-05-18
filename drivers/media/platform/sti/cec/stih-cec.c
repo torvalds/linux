@@ -353,7 +353,7 @@ static int stih_cec_probe(struct platform_device *pdev)
 	cec->adap = cec_allocate_adapter(&sti_cec_adap_ops, cec,
 			CEC_NAME,
 			CEC_CAP_LOG_ADDRS | CEC_CAP_PASSTHROUGH |
-			CEC_CAP_TRANSMIT, 1);
+			CEC_CAP_TRANSMIT, CEC_MAX_LOG_ADDRS);
 	ret = PTR_ERR_OR_ZERO(cec->adap);
 	if (ret)
 		return ret;
