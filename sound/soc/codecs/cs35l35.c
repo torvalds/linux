@@ -756,6 +756,76 @@ static int cs35l35_codec_set_sysclk(struct snd_soc_codec *codec,
 	return ret;
 }
 
+static int cs35l35_boost_inductor(struct cs35l35_private *cs35l35,
+				  int inductor)
+{
+	struct regmap *regmap = cs35l35->regmap;
+	unsigned int bst_ipk = 0;
+
+	/*
+	 * Digital Boost Converter Configuration for feedback,
+	 * ramping, switching frequency, and estimation block seeding.
+	 */
+
+	regmap_update_bits(regmap, CS35L35_BST_CONV_SW_FREQ,
+			   CS35L35_BST_CONV_SWFREQ_MASK, 0x00);
+
+	regmap_read(regmap, CS35L35_BST_PEAK_I, &bst_ipk);
+	bst_ipk &= CS35L35_BST_IPK_MASK;
+
+	switch (inductor) {
+	case 1000: /* 1 uH */
+		regmap_write(regmap, CS35L35_BST_CONV_COEF_1, 0x24);
+		regmap_write(regmap, CS35L35_BST_CONV_COEF_2, 0x24);
+		regmap_update_bits(regmap, CS35L35_BST_CONV_SW_FREQ,
+				   CS35L35_BST_CONV_LBST_MASK, 0x00);
+
+		if (bst_ipk < 0x04)
+			regmap_write(regmap, CS35L35_BST_CONV_SLOPE_COMP, 0x1B);
+		else
+			regmap_write(regmap, CS35L35_BST_CONV_SLOPE_COMP, 0x4E);
+		break;
+	case 1200: /* 1.2 uH */
+		regmap_write(regmap, CS35L35_BST_CONV_COEF_1, 0x20);
+		regmap_write(regmap, CS35L35_BST_CONV_COEF_2, 0x20);
+		regmap_update_bits(regmap, CS35L35_BST_CONV_SW_FREQ,
+				   CS35L35_BST_CONV_LBST_MASK, 0x01);
+
+		if (bst_ipk < 0x04)
+			regmap_write(regmap, CS35L35_BST_CONV_SLOPE_COMP, 0x1B);
+		else
+			regmap_write(regmap, CS35L35_BST_CONV_SLOPE_COMP, 0x47);
+		break;
+	case 1500: /* 1.5uH */
+		regmap_write(regmap, CS35L35_BST_CONV_COEF_1, 0x20);
+		regmap_write(regmap, CS35L35_BST_CONV_COEF_2, 0x20);
+		regmap_update_bits(regmap, CS35L35_BST_CONV_SW_FREQ,
+				   CS35L35_BST_CONV_LBST_MASK, 0x02);
+
+		if (bst_ipk < 0x04)
+			regmap_write(regmap, CS35L35_BST_CONV_SLOPE_COMP, 0x1B);
+		else
+			regmap_write(regmap, CS35L35_BST_CONV_SLOPE_COMP, 0x3C);
+		break;
+	case 2200: /* 2.2uH */
+		regmap_write(regmap, CS35L35_BST_CONV_COEF_1, 0x19);
+		regmap_write(regmap, CS35L35_BST_CONV_COEF_2, 0x25);
+		regmap_update_bits(regmap, CS35L35_BST_CONV_SW_FREQ,
+				   CS35L35_BST_CONV_LBST_MASK, 0x03);
+
+		if (bst_ipk < 0x04)
+			regmap_write(regmap, CS35L35_BST_CONV_SLOPE_COMP, 0x1B);
+		else
+			regmap_write(regmap, CS35L35_BST_CONV_SLOPE_COMP, 0x23);
+		break;
+	default:
+		dev_err(cs35l35->dev, "Invalid Inductor Value %d uH\n",
+			inductor);
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static int cs35l35_codec_probe(struct snd_soc_codec *codec)
 {
 	struct cs35l35_private *cs35l35 = snd_soc_codec_get_drvdata(codec);
@@ -774,6 +844,10 @@ static int cs35l35_codec_probe(struct snd_soc_codec *codec)
 				CS35L35_BST_IPK_MASK,
 				cs35l35->pdata.bst_ipk <<
 				CS35L35_BST_IPK_SHIFT);
+
+	ret = cs35l35_boost_inductor(cs35l35, cs35l35->pdata.boost_ind);
+	if (ret)
+		return ret;
 
 	if (cs35l35->pdata.gain_zc)
 		regmap_update_bits(cs35l35->regmap, CS35L35_PROTECT_CTL,
@@ -1196,6 +1270,14 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 		}
 
 		pdata->bst_ipk = (val32 - 1680) / 110;
+	}
+
+	ret = of_property_read_u32(np, "cirrus,boost-ind-nanohenry", &val32);
+	if (ret >= 0) {
+		pdata->boost_ind = val32;
+	} else {
+		dev_err(&i2c_client->dev, "Inductor not specified.\n");
+		return -EINVAL;
 	}
 
 	if (of_property_read_u32(np, "cirrus,sp-drv-strength", &val32) >= 0)
