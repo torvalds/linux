@@ -1331,7 +1331,7 @@ See subsequent chapter for the syntax of the Kbuild file.
 	--- 7.5 mandatory-y
 
 	mandatory-y is essentially used by include/uapi/asm-generic/Kbuild.asm
-	to define the minimun set of headers that must be exported in
+	to define the minimum set of headers that must be exported in
 	include/asm.
 
 	The convention is to list one subdir per line and
