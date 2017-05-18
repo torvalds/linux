@@ -386,34 +386,27 @@ bool dce120_timing_generator_did_triggered_reset_occur(
 /* Move to enable accelerated mode */
 void dce120_timing_generator_disable_vga(struct timing_generator *tg)
 {
-	uint32_t addr = 0;
 	uint32_t offset = 0;
 	uint32_t value = 0;
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
 
 	switch (tg110->controller_id) {
 	case CONTROLLER_ID_D0:
-		addr = mmD1VGA_CONTROL;
 		offset = 0;
 		break;
 	case CONTROLLER_ID_D1:
-		addr = mmD2VGA_CONTROL;
 		offset = mmD2VGA_CONTROL - mmD1VGA_CONTROL;
 		break;
 	case CONTROLLER_ID_D2:
-		addr = mmD3VGA_CONTROL;
 		offset = mmD3VGA_CONTROL - mmD1VGA_CONTROL;
 		break;
 	case CONTROLLER_ID_D3:
-		addr = mmD4VGA_CONTROL;
 		offset = mmD4VGA_CONTROL - mmD1VGA_CONTROL;
 		break;
 	case CONTROLLER_ID_D4:
-		addr = mmD1VGA_CONTROL;
 		offset = mmD5VGA_CONTROL - mmD1VGA_CONTROL;
 		break;
 	case CONTROLLER_ID_D5:
-		addr = mmD6VGA_CONTROL;
 		offset = mmD6VGA_CONTROL - mmD1VGA_CONTROL;
 		break;
 	default:
