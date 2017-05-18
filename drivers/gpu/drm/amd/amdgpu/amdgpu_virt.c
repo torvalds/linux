@@ -225,3 +225,49 @@ int amdgpu_virt_reset_gpu(struct amdgpu_device *adev)
 
 	return 0;
 }
+
+/**
+ * amdgpu_virt_alloc_mm_table() - alloc memory for mm table
+ * @amdgpu:	amdgpu device.
+ * MM table is used by UVD and VCE for its initialization
+ * Return: Zero if allocate success.
+ */
+int amdgpu_virt_alloc_mm_table(struct amdgpu_device *adev)
+{
+	int r;
+
+	if (!amdgpu_sriov_vf(adev) || adev->virt.mm_table.gpu_addr)
+		return 0;
+
+	r = amdgpu_bo_create_kernel(adev, PAGE_SIZE, PAGE_SIZE,
+				    AMDGPU_GEM_DOMAIN_VRAM,
+				    &adev->virt.mm_table.bo,
+				    &adev->virt.mm_table.gpu_addr,
+				    (void *)&adev->virt.mm_table.cpu_addr);
+	if (r) {
+		DRM_ERROR("failed to alloc mm table and error = %d.\n", r);
+		return r;
+	}
+
+	memset((void *)adev->virt.mm_table.cpu_addr, 0, PAGE_SIZE);
+	DRM_INFO("MM table gpu addr = 0x%llx, cpu addr = %p.\n",
+		 adev->virt.mm_table.gpu_addr,
+		 adev->virt.mm_table.cpu_addr);
+	return 0;
+}
+
+/**
+ * amdgpu_virt_free_mm_table() - free mm table memory
+ * @amdgpu:	amdgpu device.
+ * Free MM table memory
+ */
+void amdgpu_virt_free_mm_table(struct amdgpu_device *adev)
+{
+	if (!amdgpu_sriov_vf(adev) || !adev->virt.mm_table.gpu_addr)
+		return;
+
+	amdgpu_bo_free_kernel(&adev->virt.mm_table.bo,
+			      &adev->virt.mm_table.gpu_addr,
+			      (void *)&adev->virt.mm_table.cpu_addr);
+	adev->virt.mm_table.gpu_addr = 0;
+}

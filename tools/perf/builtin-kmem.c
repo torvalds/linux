@@ -20,10 +20,15 @@
 
 #include "util/debug.h"
 
+#include <linux/kernel.h>
 #include <linux/rbtree.h>
 #include <linux/string.h>
+#include <errno.h>
+#include <inttypes.h>
 #include <locale.h>
 #include <regex.h>
+
+#include "sane_ctype.h"
 
 static int	kmem_slab;
 static int	kmem_page;
@@ -964,6 +969,7 @@ static struct perf_tool perf_kmem = {
 	.comm		 = perf_event__process_comm,
 	.mmap		 = perf_event__process_mmap,
 	.mmap2		 = perf_event__process_mmap2,
+	.namespaces	 = perf_event__process_namespaces,
 	.ordered_events	 = true,
 };
 
@@ -1865,7 +1871,7 @@ static int __cmd_record(int argc, const char **argv)
 	for (j = 1; j < (unsigned int)argc; j++, i++)
 		rec_argv[i] = argv[j];
 
-	return cmd_record(i, rec_argv, NULL);
+	return cmd_record(i, rec_argv);
 }
 
 static int kmem_config(const char *var, const char *value, void *cb __maybe_unused)
@@ -1884,7 +1890,7 @@ static int kmem_config(const char *var, const char *value, void *cb __maybe_unus
 	return 0;
 }
 
-int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_kmem(int argc, const char **argv)
 {
 	const char * const default_slab_sort = "frag,hit,bytes";
 	const char * const default_page_sort = "bytes,hit";

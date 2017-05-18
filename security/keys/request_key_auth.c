@@ -213,7 +213,7 @@ struct key *request_key_auth_new(struct key *target, const void *callout_info,
 	if (ret < 0)
 		goto error_inst;
 
-	kleave(" = {%d,%d}", authkey->serial, atomic_read(&authkey->usage));
+	kleave(" = {%d,%d}", authkey->serial, refcount_read(&authkey->usage));
 	return authkey;
 
 auth_key_revoked:

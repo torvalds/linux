@@ -486,11 +486,8 @@ static int ov9640_s_fmt(struct v4l2_subdev *sd,
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov9640_reg_alt alts = {0};
-	enum v4l2_colorspace cspace;
-	u32 code = mf->code;
 	int ret;
 
-	ov9640_res_roundup(&mf->width, &mf->height);
 	ov9640_alter_regs(mf->code, &alts);
 
 	ov9640_reset(client);
@@ -499,24 +496,7 @@ static int ov9640_s_fmt(struct v4l2_subdev *sd,
 	if (ret)
 		return ret;
 
-	switch (code) {
-	case MEDIA_BUS_FMT_RGB555_2X8_PADHI_LE:
-	case MEDIA_BUS_FMT_RGB565_2X8_LE:
-		cspace = V4L2_COLORSPACE_SRGB;
-		break;
-	default:
-		code = MEDIA_BUS_FMT_UYVY8_2X8;
-	case MEDIA_BUS_FMT_UYVY8_2X8:
-		cspace = V4L2_COLORSPACE_JPEG;
-	}
-
-	ret = ov9640_write_regs(client, mf->width, code, &alts);
-	if (!ret) {
-		mf->code	= code;
-		mf->colorspace	= cspace;
-	}
-
-	return ret;
+	return ov9640_write_regs(client, mf->width, mf->code, &alts);
 }
 
 static int ov9640_set_fmt(struct v4l2_subdev *sd,
@@ -539,8 +519,10 @@ static int ov9640_set_fmt(struct v4l2_subdev *sd,
 		break;
 	default:
 		mf->code = MEDIA_BUS_FMT_UYVY8_2X8;
+		/* fall through */
 	case MEDIA_BUS_FMT_UYVY8_2X8:
 		mf->colorspace = V4L2_COLORSPACE_JPEG;
+		break;
 	}
 
 	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
@@ -637,7 +619,7 @@ static const struct v4l2_ctrl_ops ov9640_ctrl_ops = {
 	.s_ctrl = ov9640_s_ctrl,
 };
 
-static struct v4l2_subdev_core_ops ov9640_core_ops = {
+static const struct v4l2_subdev_core_ops ov9640_core_ops = {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register		= ov9640_get_register,
 	.s_register		= ov9640_set_register,
@@ -661,7 +643,7 @@ static int ov9640_g_mbus_config(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static struct v4l2_subdev_video_ops ov9640_video_ops = {
+static const struct v4l2_subdev_video_ops ov9640_video_ops = {
 	.s_stream	= ov9640_s_stream,
 	.g_mbus_config	= ov9640_g_mbus_config,
 };
@@ -672,7 +654,7 @@ static const struct v4l2_subdev_pad_ops ov9640_pad_ops = {
 	.set_fmt	= ov9640_set_fmt,
 };
 
-static struct v4l2_subdev_ops ov9640_subdev_ops = {
+static const struct v4l2_subdev_ops ov9640_subdev_ops = {
 	.core	= &ov9640_core_ops,
 	.video	= &ov9640_video_ops,
 	.pad	= &ov9640_pad_ops,

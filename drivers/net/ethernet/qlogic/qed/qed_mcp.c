@@ -111,12 +111,71 @@ void qed_mcp_read_mb(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	}
 }
 
+struct qed_mcp_cmd_elem {
+	struct list_head list;
+	struct qed_mcp_mb_params *p_mb_params;
+	u16 expected_seq_num;
+	bool b_is_completed;
+};
+
+/* Must be called while cmd_lock is acquired */
+static struct qed_mcp_cmd_elem *
+qed_mcp_cmd_add_elem(struct qed_hwfn *p_hwfn,
+		     struct qed_mcp_mb_params *p_mb_params,
+		     u16 expected_seq_num)
+{
+	struct qed_mcp_cmd_elem *p_cmd_elem = NULL;
+
+	p_cmd_elem = kzalloc(sizeof(*p_cmd_elem), GFP_ATOMIC);
+	if (!p_cmd_elem)
+		goto out;
+
+	p_cmd_elem->p_mb_params = p_mb_params;
+	p_cmd_elem->expected_seq_num = expected_seq_num;
+	list_add(&p_cmd_elem->list, &p_hwfn->mcp_info->cmd_list);
+out:
+	return p_cmd_elem;
+}
+
+/* Must be called while cmd_lock is acquired */
+static void qed_mcp_cmd_del_elem(struct qed_hwfn *p_hwfn,
+				 struct qed_mcp_cmd_elem *p_cmd_elem)
+{
+	list_del(&p_cmd_elem->list);
+	kfree(p_cmd_elem);
+}
+
+/* Must be called while cmd_lock is acquired */
+static struct qed_mcp_cmd_elem *qed_mcp_cmd_get_elem(struct qed_hwfn *p_hwfn,
+						     u16 seq_num)
+{
+	struct qed_mcp_cmd_elem *p_cmd_elem = NULL;
+
+	list_for_each_entry(p_cmd_elem, &p_hwfn->mcp_info->cmd_list, list) {
+		if (p_cmd_elem->expected_seq_num == seq_num)
+			return p_cmd_elem;
+	}
+
+	return NULL;
+}
+
 int qed_mcp_free(struct qed_hwfn *p_hwfn)
 {
 	if (p_hwfn->mcp_info) {
+		struct qed_mcp_cmd_elem *p_cmd_elem, *p_tmp;
+
 		kfree(p_hwfn->mcp_info->mfw_mb_cur);
 		kfree(p_hwfn->mcp_info->mfw_mb_shadow);
+
+		spin_lock_bh(&p_hwfn->mcp_info->cmd_lock);
+		list_for_each_entry_safe(p_cmd_elem,
+					 p_tmp,
+					 &p_hwfn->mcp_info->cmd_list, list) {
+			qed_mcp_cmd_del_elem(p_hwfn, p_cmd_elem);
+		}
+		spin_unlock_bh(&p_hwfn->mcp_info->cmd_lock);
 	}
+
 	kfree(p_hwfn->mcp_info);
 
 	return 0;
@@ -160,7 +219,7 @@ static int qed_load_mcp_offsets(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	p_info->drv_pulse_seq = DRV_MB_RD(p_hwfn, p_ptt, drv_pulse_mb) &
 				DRV_PULSE_SEQ_MASK;
 
-	p_info->mcp_hist = (u16)qed_rd(p_hwfn, p_ptt, MISCS_REG_GENERIC_POR_0);
+	p_info->mcp_hist = qed_rd(p_hwfn, p_ptt, MISCS_REG_GENERIC_POR_0);
 
 	return 0;
 }
@@ -176,6 +235,12 @@ int qed_mcp_cmd_init(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		goto err;
 	p_info = p_hwfn->mcp_info;
 
+	/* Initialize the MFW spinlock */
+	spin_lock_init(&p_info->cmd_lock);
+	spin_lock_init(&p_info->link_lock);
+
+	INIT_LIST_HEAD(&p_info->cmd_list);
+
 	if (qed_load_mcp_offsets(p_hwfn, p_ptt) != 0) {
 		DP_NOTICE(p_hwfn, "MCP is not initialized\n");
 		/* Do not free mcp_info here, since public_base indicate that
@@ -190,10 +255,6 @@ int qed_mcp_cmd_init(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	if (!p_info->mfw_mb_shadow || !p_info->mfw_mb_addr)
 		goto err;
 
-	/* Initialize the MFW spinlock */
-	spin_lock_init(&p_info->lock);
-	spin_lock_init(&p_info->link_lock);
-
 	return 0;
 
 err:
@@ -201,68 +262,39 @@ err:
 	return -ENOMEM;
 }
 
-/* Locks the MFW mailbox of a PF to ensure a single access.
- * The lock is achieved in most cases by holding a spinlock, causing other
- * threads to wait till a previous access is done.
- * In some cases (currently when a [UN]LOAD_REQ commands are sent), the single
- * access is achieved by setting a blocking flag, which will fail other
- * competing contexts to send their mailboxes.
- */
-static int qed_mcp_mb_lock(struct qed_hwfn *p_hwfn, u32 cmd)
+static void qed_mcp_reread_offsets(struct qed_hwfn *p_hwfn,
+				   struct qed_ptt *p_ptt)
 {
-	spin_lock_bh(&p_hwfn->mcp_info->lock);
+	u32 generic_por_0 = qed_rd(p_hwfn, p_ptt, MISCS_REG_GENERIC_POR_0);
 
-	/* The spinlock shouldn't be acquired when the mailbox command is
-	 * [UN]LOAD_REQ, since the engine is locked by the MFW, and a parallel
-	 * pending [UN]LOAD_REQ command of another PF together with a spinlock
-	 * (i.e. interrupts are disabled) - can lead to a deadlock.
-	 * It is assumed that for a single PF, no other mailbox commands can be
-	 * sent from another context while sending LOAD_REQ, and that any
-	 * parallel commands to UNLOAD_REQ can be cancelled.
+	/* Use MCP history register to check if MCP reset occurred between init
+	 * time and now.
 	 */
-	if (cmd == DRV_MSG_CODE_LOAD_DONE || cmd == DRV_MSG_CODE_UNLOAD_DONE)
-		p_hwfn->mcp_info->block_mb_sending = false;
+	if (p_hwfn->mcp_info->mcp_hist != generic_por_0) {
+		DP_VERBOSE(p_hwfn,
+			   QED_MSG_SP,
+			   "Rereading MCP offsets [mcp_hist 0x%08x, generic_por_0 0x%08x]\n",
+			   p_hwfn->mcp_info->mcp_hist, generic_por_0);
 
-	if (p_hwfn->mcp_info->block_mb_sending) {
-		DP_NOTICE(p_hwfn,
-			  "Trying to send a MFW mailbox command [0x%x] in parallel to [UN]LOAD_REQ. Aborting.\n",
-			  cmd);
-		spin_unlock_bh(&p_hwfn->mcp_info->lock);
-		return -EBUSY;
+		qed_load_mcp_offsets(p_hwfn, p_ptt);
+		qed_mcp_cmd_port_init(p_hwfn, p_ptt);
 	}
-
-	if (cmd == DRV_MSG_CODE_LOAD_REQ || cmd == DRV_MSG_CODE_UNLOAD_REQ) {
-		p_hwfn->mcp_info->block_mb_sending = true;
-		spin_unlock_bh(&p_hwfn->mcp_info->lock);
-	}
-
-	return 0;
-}
-
-static void qed_mcp_mb_unlock(struct qed_hwfn *p_hwfn, u32 cmd)
-{
-	if (cmd != DRV_MSG_CODE_LOAD_REQ && cmd != DRV_MSG_CODE_UNLOAD_REQ)
-		spin_unlock_bh(&p_hwfn->mcp_info->lock);
 }
 
 int qed_mcp_reset(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
-	u32 seq = ++p_hwfn->mcp_info->drv_mb_seq;
-	u8 delay = CHIP_MCP_RESP_ITER_US;
-	u32 org_mcp_reset_seq, cnt = 0;
+	u32 org_mcp_reset_seq, seq, delay = CHIP_MCP_RESP_ITER_US, cnt = 0;
 	int rc = 0;
 
-	/* Ensure that only a single thread is accessing the mailbox at a
-	 * certain time.
-	 */
-	rc = qed_mcp_mb_lock(p_hwfn, DRV_MSG_CODE_MCP_RESET);
-	if (rc != 0)
-		return rc;
+	/* Ensure that only a single thread is accessing the mailbox */
+	spin_lock_bh(&p_hwfn->mcp_info->cmd_lock);
+
+	org_mcp_reset_seq = qed_rd(p_hwfn, p_ptt, MISCS_REG_GENERIC_POR_0);
 
 	/* Set drv command along with the updated sequence */
-	org_mcp_reset_seq = qed_rd(p_hwfn, p_ptt, MISCS_REG_GENERIC_POR_0);
-	DRV_MB_WR(p_hwfn, p_ptt, drv_mb_header,
-		  (DRV_MSG_CODE_MCP_RESET | seq));
+	qed_mcp_reread_offsets(p_hwfn, p_ptt);
+	seq = ++p_hwfn->mcp_info->drv_mb_seq;
+	DRV_MB_WR(p_hwfn, p_ptt, drv_mb_header, (DRV_MSG_CODE_MCP_RESET | seq));
 
 	do {
 		/* Wait for MFW response */
@@ -281,72 +313,207 @@ int qed_mcp_reset(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		rc = -EAGAIN;
 	}
 
-	qed_mcp_mb_unlock(p_hwfn, DRV_MSG_CODE_MCP_RESET);
+	spin_unlock_bh(&p_hwfn->mcp_info->cmd_lock);
 
 	return rc;
 }
 
-static int qed_do_mcp_cmd(struct qed_hwfn *p_hwfn,
-			  struct qed_ptt *p_ptt,
-			  u32 cmd,
-			  u32 param,
-			  u32 *o_mcp_resp,
-			  u32 *o_mcp_param)
+/* Must be called while cmd_lock is acquired */
+static bool qed_mcp_has_pending_cmd(struct qed_hwfn *p_hwfn)
 {
-	u8 delay = CHIP_MCP_RESP_ITER_US;
-	u32 seq, cnt = 1, actual_mb_seq;
+	struct qed_mcp_cmd_elem *p_cmd_elem;
+
+	/* There is at most one pending command at a certain time, and if it
+	 * exists - it is placed at the HEAD of the list.
+	 */
+	if (!list_empty(&p_hwfn->mcp_info->cmd_list)) {
+		p_cmd_elem = list_first_entry(&p_hwfn->mcp_info->cmd_list,
+					      struct qed_mcp_cmd_elem, list);
+		return !p_cmd_elem->b_is_completed;
+	}
+
+	return false;
+}
+
+/* Must be called while cmd_lock is acquired */
+static int
+qed_mcp_update_pending_cmd(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	struct qed_mcp_mb_params *p_mb_params;
+	struct qed_mcp_cmd_elem *p_cmd_elem;
+	u32 mcp_resp;
+	u16 seq_num;
+
+	mcp_resp = DRV_MB_RD(p_hwfn, p_ptt, fw_mb_header);
+	seq_num = (u16)(mcp_resp & FW_MSG_SEQ_NUMBER_MASK);
+
+	/* Return if no new non-handled response has been received */
+	if (seq_num != p_hwfn->mcp_info->drv_mb_seq)
+		return -EAGAIN;
+
+	p_cmd_elem = qed_mcp_cmd_get_elem(p_hwfn, seq_num);
+	if (!p_cmd_elem) {
+		DP_ERR(p_hwfn,
+		       "Failed to find a pending mailbox cmd that expects sequence number %d\n",
+		       seq_num);
+		return -EINVAL;
+	}
+
+	p_mb_params = p_cmd_elem->p_mb_params;
+
+	/* Get the MFW response along with the sequence number */
+	p_mb_params->mcp_resp = mcp_resp;
+
+	/* Get the MFW param */
+	p_mb_params->mcp_param = DRV_MB_RD(p_hwfn, p_ptt, fw_mb_param);
+
+	/* Get the union data */
+	if (p_mb_params->p_data_dst != NULL && p_mb_params->data_dst_size) {
+		u32 union_data_addr = p_hwfn->mcp_info->drv_mb_addr +
+				      offsetof(struct public_drv_mb,
+					       union_data);
+		qed_memcpy_from(p_hwfn, p_ptt, p_mb_params->p_data_dst,
+				union_data_addr, p_mb_params->data_dst_size);
+	}
+
+	p_cmd_elem->b_is_completed = true;
+
+	return 0;
+}
+
+/* Must be called while cmd_lock is acquired */
+static void __qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
+				    struct qed_ptt *p_ptt,
+				    struct qed_mcp_mb_params *p_mb_params,
+				    u16 seq_num)
+{
+	union drv_union_data union_data;
+	u32 union_data_addr;
+
+	/* Set the union data */
+	union_data_addr = p_hwfn->mcp_info->drv_mb_addr +
+			  offsetof(struct public_drv_mb, union_data);
+	memset(&union_data, 0, sizeof(union_data));
+	if (p_mb_params->p_data_src != NULL && p_mb_params->data_src_size)
+		memcpy(&union_data, p_mb_params->p_data_src,
+		       p_mb_params->data_src_size);
+	qed_memcpy_to(p_hwfn, p_ptt, union_data_addr, &union_data,
+		      sizeof(union_data));
+
+	/* Set the drv param */
+	DRV_MB_WR(p_hwfn, p_ptt, drv_mb_param, p_mb_params->param);
+
+	/* Set the drv command along with the sequence number */
+	DRV_MB_WR(p_hwfn, p_ptt, drv_mb_header, (p_mb_params->cmd | seq_num));
+
+	DP_VERBOSE(p_hwfn, QED_MSG_SP,
+		   "MFW mailbox: command 0x%08x param 0x%08x\n",
+		   (p_mb_params->cmd | seq_num), p_mb_params->param);
+}
+
+static int
+_qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
+		       struct qed_ptt *p_ptt,
+		       struct qed_mcp_mb_params *p_mb_params,
+		       u32 max_retries, u32 delay)
+{
+	struct qed_mcp_cmd_elem *p_cmd_elem;
+	u32 cnt = 0;
+	u16 seq_num;
 	int rc = 0;
 
-	/* Get actual driver mailbox sequence */
-	actual_mb_seq = DRV_MB_RD(p_hwfn, p_ptt, drv_mb_header) &
-			DRV_MSG_SEQ_NUMBER_MASK;
-
-	/* Use MCP history register to check if MCP reset occurred between
-	 * init time and now.
-	 */
-	if (p_hwfn->mcp_info->mcp_hist !=
-	    qed_rd(p_hwfn, p_ptt, MISCS_REG_GENERIC_POR_0)) {
-		DP_VERBOSE(p_hwfn, QED_MSG_SP, "Rereading MCP offsets\n");
-		qed_load_mcp_offsets(p_hwfn, p_ptt);
-		qed_mcp_cmd_port_init(p_hwfn, p_ptt);
-	}
-	seq = ++p_hwfn->mcp_info->drv_mb_seq;
-
-	/* Set drv param */
-	DRV_MB_WR(p_hwfn, p_ptt, drv_mb_param, param);
-
-	/* Set drv command along with the updated sequence */
-	DRV_MB_WR(p_hwfn, p_ptt, drv_mb_header, (cmd | seq));
-
-	DP_VERBOSE(p_hwfn, QED_MSG_SP,
-		   "wrote command (%x) to MFW MB param 0x%08x\n",
-		   (cmd | seq), param);
-
+	/* Wait until the mailbox is non-occupied */
 	do {
-		/* Wait for MFW response */
+		/* Exit the loop if there is no pending command, or if the
+		 * pending command is completed during this iteration.
+		 * The spinlock stays locked until the command is sent.
+		 */
+
+		spin_lock_bh(&p_hwfn->mcp_info->cmd_lock);
+
+		if (!qed_mcp_has_pending_cmd(p_hwfn))
+			break;
+
+		rc = qed_mcp_update_pending_cmd(p_hwfn, p_ptt);
+		if (!rc)
+			break;
+		else if (rc != -EAGAIN)
+			goto err;
+
+		spin_unlock_bh(&p_hwfn->mcp_info->cmd_lock);
 		udelay(delay);
-		*o_mcp_resp = DRV_MB_RD(p_hwfn, p_ptt, fw_mb_header);
+	} while (++cnt < max_retries);
 
-		/* Give the FW up to 5 second (500*10ms) */
-	} while ((seq != (*o_mcp_resp & FW_MSG_SEQ_NUMBER_MASK)) &&
-		 (cnt++ < QED_DRV_MB_MAX_RETRIES));
-
-	DP_VERBOSE(p_hwfn, QED_MSG_SP,
-		   "[after %d ms] read (%x) seq is (%x) from FW MB\n",
-		   cnt * delay, *o_mcp_resp, seq);
-
-	/* Is this a reply to our command? */
-	if (seq == (*o_mcp_resp & FW_MSG_SEQ_NUMBER_MASK)) {
-		*o_mcp_resp &= FW_MSG_CODE_MASK;
-		/* Get the MCP param */
-		*o_mcp_param = DRV_MB_RD(p_hwfn, p_ptt, fw_mb_param);
-	} else {
-		/* FW BUG! */
-		DP_ERR(p_hwfn, "MFW failed to respond [cmd 0x%x param 0x%x]\n",
-		       cmd, param);
-		*o_mcp_resp = 0;
-		rc = -EAGAIN;
+	if (cnt >= max_retries) {
+		DP_NOTICE(p_hwfn,
+			  "The MFW mailbox is occupied by an uncompleted command. Failed to send command 0x%08x [param 0x%08x].\n",
+			  p_mb_params->cmd, p_mb_params->param);
+		return -EAGAIN;
 	}
+
+	/* Send the mailbox command */
+	qed_mcp_reread_offsets(p_hwfn, p_ptt);
+	seq_num = ++p_hwfn->mcp_info->drv_mb_seq;
+	p_cmd_elem = qed_mcp_cmd_add_elem(p_hwfn, p_mb_params, seq_num);
+	if (!p_cmd_elem) {
+		rc = -ENOMEM;
+		goto err;
+	}
+
+	__qed_mcp_cmd_and_union(p_hwfn, p_ptt, p_mb_params, seq_num);
+	spin_unlock_bh(&p_hwfn->mcp_info->cmd_lock);
+
+	/* Wait for the MFW response */
+	do {
+		/* Exit the loop if the command is already completed, or if the
+		 * command is completed during this iteration.
+		 * The spinlock stays locked until the list element is removed.
+		 */
+
+		udelay(delay);
+		spin_lock_bh(&p_hwfn->mcp_info->cmd_lock);
+
+		if (p_cmd_elem->b_is_completed)
+			break;
+
+		rc = qed_mcp_update_pending_cmd(p_hwfn, p_ptt);
+		if (!rc)
+			break;
+		else if (rc != -EAGAIN)
+			goto err;
+
+		spin_unlock_bh(&p_hwfn->mcp_info->cmd_lock);
+	} while (++cnt < max_retries);
+
+	if (cnt >= max_retries) {
+		DP_NOTICE(p_hwfn,
+			  "The MFW failed to respond to command 0x%08x [param 0x%08x].\n",
+			  p_mb_params->cmd, p_mb_params->param);
+
+		spin_lock_bh(&p_hwfn->mcp_info->cmd_lock);
+		qed_mcp_cmd_del_elem(p_hwfn, p_cmd_elem);
+		spin_unlock_bh(&p_hwfn->mcp_info->cmd_lock);
+
+		return -EAGAIN;
+	}
+
+	qed_mcp_cmd_del_elem(p_hwfn, p_cmd_elem);
+	spin_unlock_bh(&p_hwfn->mcp_info->cmd_lock);
+
+	DP_VERBOSE(p_hwfn,
+		   QED_MSG_SP,
+		   "MFW mailbox: response 0x%08x param 0x%08x [after %d.%03d ms]\n",
+		   p_mb_params->mcp_resp,
+		   p_mb_params->mcp_param,
+		   (cnt * delay) / 1000, (cnt * delay) % 1000);
+
+	/* Clear the sequence number from the MFW response */
+	p_mb_params->mcp_resp &= FW_MSG_CODE_MASK;
+
+	return 0;
+
+err:
+	spin_unlock_bh(&p_hwfn->mcp_info->cmd_lock);
 	return rc;
 }
 
@@ -354,9 +521,9 @@ static int qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 				 struct qed_ptt *p_ptt,
 				 struct qed_mcp_mb_params *p_mb_params)
 {
-	u32 union_data_addr;
-
-	int rc;
+	size_t union_data_size = sizeof(union drv_union_data);
+	u32 max_retries = QED_DRV_MB_MAX_RETRIES;
+	u32 delay = CHIP_MCP_RESP_ITER_US;
 
 	/* MCP not initialized */
 	if (!qed_mcp_is_init(p_hwfn)) {
@@ -364,33 +531,17 @@ static int qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 		return -EBUSY;
 	}
 
-	union_data_addr = p_hwfn->mcp_info->drv_mb_addr +
-			  offsetof(struct public_drv_mb, union_data);
+	if (p_mb_params->data_src_size > union_data_size ||
+	    p_mb_params->data_dst_size > union_data_size) {
+		DP_ERR(p_hwfn,
+		       "The provided size is larger than the union data size [src_size %u, dst_size %u, union_data_size %zu]\n",
+		       p_mb_params->data_src_size,
+		       p_mb_params->data_dst_size, union_data_size);
+		return -EINVAL;
+	}
 
-	/* Ensure that only a single thread is accessing the mailbox at a
-	 * certain time.
-	 */
-	rc = qed_mcp_mb_lock(p_hwfn, p_mb_params->cmd);
-	if (rc)
-		return rc;
-
-	if (p_mb_params->p_data_src != NULL)
-		qed_memcpy_to(p_hwfn, p_ptt, union_data_addr,
-			      p_mb_params->p_data_src,
-			      sizeof(*p_mb_params->p_data_src));
-
-	rc = qed_do_mcp_cmd(p_hwfn, p_ptt, p_mb_params->cmd,
-			    p_mb_params->param, &p_mb_params->mcp_resp,
-			    &p_mb_params->mcp_param);
-
-	if (p_mb_params->p_data_dst != NULL)
-		qed_memcpy_from(p_hwfn, p_ptt, p_mb_params->p_data_dst,
-				union_data_addr,
-				sizeof(*p_mb_params->p_data_dst));
-
-	qed_mcp_mb_unlock(p_hwfn, p_mb_params->cmd);
-
-	return rc;
+	return _qed_mcp_cmd_and_union(p_hwfn, p_ptt, p_mb_params, max_retries,
+				      delay);
 }
 
 int qed_mcp_cmd(struct qed_hwfn *p_hwfn,
@@ -401,31 +552,11 @@ int qed_mcp_cmd(struct qed_hwfn *p_hwfn,
 		u32 *o_mcp_param)
 {
 	struct qed_mcp_mb_params mb_params;
-	union drv_union_data data_src;
 	int rc;
 
 	memset(&mb_params, 0, sizeof(mb_params));
-	memset(&data_src, 0, sizeof(data_src));
 	mb_params.cmd = cmd;
 	mb_params.param = param;
-
-	/* In case of UNLOAD_DONE, set the primary MAC */
-	if ((cmd == DRV_MSG_CODE_UNLOAD_DONE) &&
-	    (p_hwfn->cdev->wol_config == QED_OV_WOL_ENABLED)) {
-		u8 *p_mac = p_hwfn->cdev->wol_mac;
-
-		data_src.wol_mac.mac_upper = p_mac[0] << 8 | p_mac[1];
-		data_src.wol_mac.mac_lower = p_mac[2] << 24 | p_mac[3] << 16 |
-					     p_mac[4] << 8 | p_mac[5];
-
-		DP_VERBOSE(p_hwfn,
-			   (QED_MSG_SP | NETIF_MSG_IFDOWN),
-			   "Setting WoL MAC: %pM --> [%08x,%08x]\n",
-			   p_mac, data_src.wol_mac.mac_upper,
-			   data_src.wol_mac.mac_lower);
-
-		mb_params.p_data_src = &data_src;
-	}
 
 	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
 	if (rc)
@@ -445,13 +576,17 @@ int qed_mcp_nvm_rd_cmd(struct qed_hwfn *p_hwfn,
 		       u32 *o_mcp_param, u32 *o_txn_size, u32 *o_buf)
 {
 	struct qed_mcp_mb_params mb_params;
-	union drv_union_data union_data;
+	u8 raw_data[MCP_DRV_NVM_BUF_LEN];
 	int rc;
 
 	memset(&mb_params, 0, sizeof(mb_params));
 	mb_params.cmd = cmd;
 	mb_params.param = param;
-	mb_params.p_data_dst = &union_data;
+	mb_params.p_data_dst = raw_data;
+
+	/* Use the maximal value since the actual one is part of the response */
+	mb_params.data_dst_size = MCP_DRV_NVM_BUF_LEN;
+
 	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
 	if (rc)
 		return rc;
@@ -460,53 +595,411 @@ int qed_mcp_nvm_rd_cmd(struct qed_hwfn *p_hwfn,
 	*o_mcp_param = mb_params.mcp_param;
 
 	*o_txn_size = *o_mcp_param;
-	memcpy(o_buf, &union_data.raw_data, *o_txn_size);
+	memcpy(o_buf, raw_data, *o_txn_size);
 
 	return 0;
 }
 
-int qed_mcp_load_req(struct qed_hwfn *p_hwfn,
-		     struct qed_ptt *p_ptt, u32 *p_load_code)
+static bool
+qed_mcp_can_force_load(u8 drv_role,
+		       u8 exist_drv_role,
+		       enum qed_override_force_load override_force_load)
 {
-	struct qed_dev *cdev = p_hwfn->cdev;
-	struct qed_mcp_mb_params mb_params;
-	union drv_union_data union_data;
+	bool can_force_load = false;
+
+	switch (override_force_load) {
+	case QED_OVERRIDE_FORCE_LOAD_ALWAYS:
+		can_force_load = true;
+		break;
+	case QED_OVERRIDE_FORCE_LOAD_NEVER:
+		can_force_load = false;
+		break;
+	default:
+		can_force_load = (drv_role == DRV_ROLE_OS &&
+				  exist_drv_role == DRV_ROLE_PREBOOT) ||
+				 (drv_role == DRV_ROLE_KDUMP &&
+				  exist_drv_role == DRV_ROLE_OS);
+		break;
+	}
+
+	return can_force_load;
+}
+
+static int qed_mcp_cancel_load_req(struct qed_hwfn *p_hwfn,
+				   struct qed_ptt *p_ptt)
+{
+	u32 resp = 0, param = 0;
 	int rc;
 
-	memset(&mb_params, 0, sizeof(mb_params));
-	/* Load Request */
-	mb_params.cmd = DRV_MSG_CODE_LOAD_REQ;
-	mb_params.param = PDA_COMP | DRV_ID_MCP_HSI_VER_CURRENT |
-			  cdev->drv_type;
-	memcpy(&union_data.ver_str, cdev->ver_str, MCP_DRV_VER_STR_SIZE);
-	mb_params.p_data_src = &union_data;
-	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
+	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_CANCEL_LOAD_REQ, 0,
+			 &resp, &param);
+	if (rc)
+		DP_NOTICE(p_hwfn,
+			  "Failed to send cancel load request, rc = %d\n", rc);
 
-	/* if mcp fails to respond we must abort */
+	return rc;
+}
+
+#define CONFIG_QEDE_BITMAP_IDX		BIT(0)
+#define CONFIG_QED_SRIOV_BITMAP_IDX	BIT(1)
+#define CONFIG_QEDR_BITMAP_IDX		BIT(2)
+#define CONFIG_QEDF_BITMAP_IDX		BIT(4)
+#define CONFIG_QEDI_BITMAP_IDX		BIT(5)
+#define CONFIG_QED_LL2_BITMAP_IDX	BIT(6)
+
+static u32 qed_get_config_bitmap(void)
+{
+	u32 config_bitmap = 0x0;
+
+	if (IS_ENABLED(CONFIG_QEDE))
+		config_bitmap |= CONFIG_QEDE_BITMAP_IDX;
+
+	if (IS_ENABLED(CONFIG_QED_SRIOV))
+		config_bitmap |= CONFIG_QED_SRIOV_BITMAP_IDX;
+
+	if (IS_ENABLED(CONFIG_QED_RDMA))
+		config_bitmap |= CONFIG_QEDR_BITMAP_IDX;
+
+	if (IS_ENABLED(CONFIG_QED_FCOE))
+		config_bitmap |= CONFIG_QEDF_BITMAP_IDX;
+
+	if (IS_ENABLED(CONFIG_QED_ISCSI))
+		config_bitmap |= CONFIG_QEDI_BITMAP_IDX;
+
+	if (IS_ENABLED(CONFIG_QED_LL2))
+		config_bitmap |= CONFIG_QED_LL2_BITMAP_IDX;
+
+	return config_bitmap;
+}
+
+struct qed_load_req_in_params {
+	u8 hsi_ver;
+#define QED_LOAD_REQ_HSI_VER_DEFAULT	0
+#define QED_LOAD_REQ_HSI_VER_1		1
+	u32 drv_ver_0;
+	u32 drv_ver_1;
+	u32 fw_ver;
+	u8 drv_role;
+	u8 timeout_val;
+	u8 force_cmd;
+	bool avoid_eng_reset;
+};
+
+struct qed_load_req_out_params {
+	u32 load_code;
+	u32 exist_drv_ver_0;
+	u32 exist_drv_ver_1;
+	u32 exist_fw_ver;
+	u8 exist_drv_role;
+	u8 mfw_hsi_ver;
+	bool drv_exists;
+};
+
+static int
+__qed_mcp_load_req(struct qed_hwfn *p_hwfn,
+		   struct qed_ptt *p_ptt,
+		   struct qed_load_req_in_params *p_in_params,
+		   struct qed_load_req_out_params *p_out_params)
+{
+	struct qed_mcp_mb_params mb_params;
+	struct load_req_stc load_req;
+	struct load_rsp_stc load_rsp;
+	u32 hsi_ver;
+	int rc;
+
+	memset(&load_req, 0, sizeof(load_req));
+	load_req.drv_ver_0 = p_in_params->drv_ver_0;
+	load_req.drv_ver_1 = p_in_params->drv_ver_1;
+	load_req.fw_ver = p_in_params->fw_ver;
+	QED_MFW_SET_FIELD(load_req.misc0, LOAD_REQ_ROLE, p_in_params->drv_role);
+	QED_MFW_SET_FIELD(load_req.misc0, LOAD_REQ_LOCK_TO,
+			  p_in_params->timeout_val);
+	QED_MFW_SET_FIELD(load_req.misc0, LOAD_REQ_FORCE,
+			  p_in_params->force_cmd);
+	QED_MFW_SET_FIELD(load_req.misc0, LOAD_REQ_FLAGS0,
+			  p_in_params->avoid_eng_reset);
+
+	hsi_ver = (p_in_params->hsi_ver == QED_LOAD_REQ_HSI_VER_DEFAULT) ?
+		  DRV_ID_MCP_HSI_VER_CURRENT :
+		  (p_in_params->hsi_ver << DRV_ID_MCP_HSI_VER_SHIFT);
+
+	memset(&mb_params, 0, sizeof(mb_params));
+	mb_params.cmd = DRV_MSG_CODE_LOAD_REQ;
+	mb_params.param = PDA_COMP | hsi_ver | p_hwfn->cdev->drv_type;
+	mb_params.p_data_src = &load_req;
+	mb_params.data_src_size = sizeof(load_req);
+	mb_params.p_data_dst = &load_rsp;
+	mb_params.data_dst_size = sizeof(load_rsp);
+
+	DP_VERBOSE(p_hwfn, QED_MSG_SP,
+		   "Load Request: param 0x%08x [init_hw %d, drv_type %d, hsi_ver %d, pda 0x%04x]\n",
+		   mb_params.param,
+		   QED_MFW_GET_FIELD(mb_params.param, DRV_ID_DRV_INIT_HW),
+		   QED_MFW_GET_FIELD(mb_params.param, DRV_ID_DRV_TYPE),
+		   QED_MFW_GET_FIELD(mb_params.param, DRV_ID_MCP_HSI_VER),
+		   QED_MFW_GET_FIELD(mb_params.param, DRV_ID_PDA_COMP_VER));
+
+	if (p_in_params->hsi_ver != QED_LOAD_REQ_HSI_VER_1) {
+		DP_VERBOSE(p_hwfn, QED_MSG_SP,
+			   "Load Request: drv_ver 0x%08x_0x%08x, fw_ver 0x%08x, misc0 0x%08x [role %d, timeout %d, force %d, flags0 0x%x]\n",
+			   load_req.drv_ver_0,
+			   load_req.drv_ver_1,
+			   load_req.fw_ver,
+			   load_req.misc0,
+			   QED_MFW_GET_FIELD(load_req.misc0, LOAD_REQ_ROLE),
+			   QED_MFW_GET_FIELD(load_req.misc0,
+					     LOAD_REQ_LOCK_TO),
+			   QED_MFW_GET_FIELD(load_req.misc0, LOAD_REQ_FORCE),
+			   QED_MFW_GET_FIELD(load_req.misc0, LOAD_REQ_FLAGS0));
+	}
+
+	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
 	if (rc) {
-		DP_ERR(p_hwfn, "MCP response failure, aborting\n");
+		DP_NOTICE(p_hwfn, "Failed to send load request, rc = %d\n", rc);
 		return rc;
 	}
 
-	*p_load_code = mb_params.mcp_resp;
+	DP_VERBOSE(p_hwfn, QED_MSG_SP,
+		   "Load Response: resp 0x%08x\n", mb_params.mcp_resp);
+	p_out_params->load_code = mb_params.mcp_resp;
 
-	/* If MFW refused (e.g. other port is in diagnostic mode) we
-	 * must abort. This can happen in the following cases:
-	 * - Other port is in diagnostic mode
-	 * - Previously loaded function on the engine is not compliant with
-	 *   the requester.
-	 * - MFW cannot cope with the requester's DRV_MFW_HSI_VERSION.
-	 *      -
-	 */
-	if (!(*p_load_code) ||
-	    ((*p_load_code) == FW_MSG_CODE_DRV_LOAD_REFUSED_HSI) ||
-	    ((*p_load_code) == FW_MSG_CODE_DRV_LOAD_REFUSED_PDA) ||
-	    ((*p_load_code) == FW_MSG_CODE_DRV_LOAD_REFUSED_DIAG)) {
-		DP_ERR(p_hwfn, "MCP refused load request, aborting\n");
-		return -EBUSY;
+	if (p_in_params->hsi_ver != QED_LOAD_REQ_HSI_VER_1 &&
+	    p_out_params->load_code != FW_MSG_CODE_DRV_LOAD_REFUSED_HSI_1) {
+		DP_VERBOSE(p_hwfn,
+			   QED_MSG_SP,
+			   "Load Response: exist_drv_ver 0x%08x_0x%08x, exist_fw_ver 0x%08x, misc0 0x%08x [exist_role %d, mfw_hsi %d, flags0 0x%x]\n",
+			   load_rsp.drv_ver_0,
+			   load_rsp.drv_ver_1,
+			   load_rsp.fw_ver,
+			   load_rsp.misc0,
+			   QED_MFW_GET_FIELD(load_rsp.misc0, LOAD_RSP_ROLE),
+			   QED_MFW_GET_FIELD(load_rsp.misc0, LOAD_RSP_HSI),
+			   QED_MFW_GET_FIELD(load_rsp.misc0, LOAD_RSP_FLAGS0));
+
+		p_out_params->exist_drv_ver_0 = load_rsp.drv_ver_0;
+		p_out_params->exist_drv_ver_1 = load_rsp.drv_ver_1;
+		p_out_params->exist_fw_ver = load_rsp.fw_ver;
+		p_out_params->exist_drv_role =
+		    QED_MFW_GET_FIELD(load_rsp.misc0, LOAD_RSP_ROLE);
+		p_out_params->mfw_hsi_ver =
+		    QED_MFW_GET_FIELD(load_rsp.misc0, LOAD_RSP_HSI);
+		p_out_params->drv_exists =
+		    QED_MFW_GET_FIELD(load_rsp.misc0, LOAD_RSP_FLAGS0) &
+		    LOAD_RSP_FLAGS0_DRV_EXISTS;
 	}
 
 	return 0;
+}
+
+static int eocre_get_mfw_drv_role(struct qed_hwfn *p_hwfn,
+				  enum qed_drv_role drv_role,
+				  u8 *p_mfw_drv_role)
+{
+	switch (drv_role) {
+	case QED_DRV_ROLE_OS:
+		*p_mfw_drv_role = DRV_ROLE_OS;
+		break;
+	case QED_DRV_ROLE_KDUMP:
+		*p_mfw_drv_role = DRV_ROLE_KDUMP;
+		break;
+	default:
+		DP_ERR(p_hwfn, "Unexpected driver role %d\n", drv_role);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+enum qed_load_req_force {
+	QED_LOAD_REQ_FORCE_NONE,
+	QED_LOAD_REQ_FORCE_PF,
+	QED_LOAD_REQ_FORCE_ALL,
+};
+
+static void qed_get_mfw_force_cmd(struct qed_hwfn *p_hwfn,
+
+				  enum qed_load_req_force force_cmd,
+				  u8 *p_mfw_force_cmd)
+{
+	switch (force_cmd) {
+	case QED_LOAD_REQ_FORCE_NONE:
+		*p_mfw_force_cmd = LOAD_REQ_FORCE_NONE;
+		break;
+	case QED_LOAD_REQ_FORCE_PF:
+		*p_mfw_force_cmd = LOAD_REQ_FORCE_PF;
+		break;
+	case QED_LOAD_REQ_FORCE_ALL:
+		*p_mfw_force_cmd = LOAD_REQ_FORCE_ALL;
+		break;
+	}
+}
+
+int qed_mcp_load_req(struct qed_hwfn *p_hwfn,
+		     struct qed_ptt *p_ptt,
+		     struct qed_load_req_params *p_params)
+{
+	struct qed_load_req_out_params out_params;
+	struct qed_load_req_in_params in_params;
+	u8 mfw_drv_role, mfw_force_cmd;
+	int rc;
+
+	memset(&in_params, 0, sizeof(in_params));
+	in_params.hsi_ver = QED_LOAD_REQ_HSI_VER_DEFAULT;
+	in_params.drv_ver_0 = QED_VERSION;
+	in_params.drv_ver_1 = qed_get_config_bitmap();
+	in_params.fw_ver = STORM_FW_VERSION;
+	rc = eocre_get_mfw_drv_role(p_hwfn, p_params->drv_role, &mfw_drv_role);
+	if (rc)
+		return rc;
+
+	in_params.drv_role = mfw_drv_role;
+	in_params.timeout_val = p_params->timeout_val;
+	qed_get_mfw_force_cmd(p_hwfn,
+			      QED_LOAD_REQ_FORCE_NONE, &mfw_force_cmd);
+
+	in_params.force_cmd = mfw_force_cmd;
+	in_params.avoid_eng_reset = p_params->avoid_eng_reset;
+
+	memset(&out_params, 0, sizeof(out_params));
+	rc = __qed_mcp_load_req(p_hwfn, p_ptt, &in_params, &out_params);
+	if (rc)
+		return rc;
+
+	/* First handle cases where another load request should/might be sent:
+	 * - MFW expects the old interface [HSI version = 1]
+	 * - MFW responds that a force load request is required
+	 */
+	if (out_params.load_code == FW_MSG_CODE_DRV_LOAD_REFUSED_HSI_1) {
+		DP_INFO(p_hwfn,
+			"MFW refused a load request due to HSI > 1. Resending with HSI = 1\n");
+
+		in_params.hsi_ver = QED_LOAD_REQ_HSI_VER_1;
+		memset(&out_params, 0, sizeof(out_params));
+		rc = __qed_mcp_load_req(p_hwfn, p_ptt, &in_params, &out_params);
+		if (rc)
+			return rc;
+	} else if (out_params.load_code ==
+		   FW_MSG_CODE_DRV_LOAD_REFUSED_REQUIRES_FORCE) {
+		if (qed_mcp_can_force_load(in_params.drv_role,
+					   out_params.exist_drv_role,
+					   p_params->override_force_load)) {
+			DP_INFO(p_hwfn,
+				"A force load is required [{role, fw_ver, drv_ver}: loading={%d, 0x%08x, x%08x_0x%08x}, existing={%d, 0x%08x, 0x%08x_0x%08x}]\n",
+				in_params.drv_role, in_params.fw_ver,
+				in_params.drv_ver_0, in_params.drv_ver_1,
+				out_params.exist_drv_role,
+				out_params.exist_fw_ver,
+				out_params.exist_drv_ver_0,
+				out_params.exist_drv_ver_1);
+
+			qed_get_mfw_force_cmd(p_hwfn,
+					      QED_LOAD_REQ_FORCE_ALL,
+					      &mfw_force_cmd);
+
+			in_params.force_cmd = mfw_force_cmd;
+			memset(&out_params, 0, sizeof(out_params));
+			rc = __qed_mcp_load_req(p_hwfn, p_ptt, &in_params,
+						&out_params);
+			if (rc)
+				return rc;
+		} else {
+			DP_NOTICE(p_hwfn,
+				  "A force load is required [{role, fw_ver, drv_ver}: loading={%d, 0x%08x, x%08x_0x%08x}, existing={%d, 0x%08x, 0x%08x_0x%08x}] - Avoid\n",
+				  in_params.drv_role, in_params.fw_ver,
+				  in_params.drv_ver_0, in_params.drv_ver_1,
+				  out_params.exist_drv_role,
+				  out_params.exist_fw_ver,
+				  out_params.exist_drv_ver_0,
+				  out_params.exist_drv_ver_1);
+			DP_NOTICE(p_hwfn,
+				  "Avoid sending a force load request to prevent disruption of active PFs\n");
+
+			qed_mcp_cancel_load_req(p_hwfn, p_ptt);
+			return -EBUSY;
+		}
+	}
+
+	/* Now handle the other types of responses.
+	 * The "REFUSED_HSI_1" and "REFUSED_REQUIRES_FORCE" responses are not
+	 * expected here after the additional revised load requests were sent.
+	 */
+	switch (out_params.load_code) {
+	case FW_MSG_CODE_DRV_LOAD_ENGINE:
+	case FW_MSG_CODE_DRV_LOAD_PORT:
+	case FW_MSG_CODE_DRV_LOAD_FUNCTION:
+		if (out_params.mfw_hsi_ver != QED_LOAD_REQ_HSI_VER_1 &&
+		    out_params.drv_exists) {
+			/* The role and fw/driver version match, but the PF is
+			 * already loaded and has not been unloaded gracefully.
+			 */
+			DP_NOTICE(p_hwfn,
+				  "PF is already loaded\n");
+			return -EINVAL;
+		}
+		break;
+	default:
+		DP_NOTICE(p_hwfn,
+			  "Unexpected refusal to load request [resp 0x%08x]. Aborting.\n",
+			  out_params.load_code);
+		return -EBUSY;
+	}
+
+	p_params->load_code = out_params.load_code;
+
+	return 0;
+}
+
+int qed_mcp_unload_req(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	u32 wol_param, mcp_resp, mcp_param;
+
+	switch (p_hwfn->cdev->wol_config) {
+	case QED_OV_WOL_DISABLED:
+		wol_param = DRV_MB_PARAM_UNLOAD_WOL_DISABLED;
+		break;
+	case QED_OV_WOL_ENABLED:
+		wol_param = DRV_MB_PARAM_UNLOAD_WOL_ENABLED;
+		break;
+	default:
+		DP_NOTICE(p_hwfn,
+			  "Unknown WoL configuration %02x\n",
+			  p_hwfn->cdev->wol_config);
+		/* Fallthrough */
+	case QED_OV_WOL_DEFAULT:
+		wol_param = DRV_MB_PARAM_UNLOAD_WOL_MCP;
+	}
+
+	return qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_UNLOAD_REQ, wol_param,
+			   &mcp_resp, &mcp_param);
+}
+
+int qed_mcp_unload_done(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	struct qed_mcp_mb_params mb_params;
+	struct mcp_mac wol_mac;
+
+	memset(&mb_params, 0, sizeof(mb_params));
+	mb_params.cmd = DRV_MSG_CODE_UNLOAD_DONE;
+
+	/* Set the primary MAC if WoL is enabled */
+	if (p_hwfn->cdev->wol_config == QED_OV_WOL_ENABLED) {
+		u8 *p_mac = p_hwfn->cdev->wol_mac;
+
+		memset(&wol_mac, 0, sizeof(wol_mac));
+		wol_mac.mac_upper = p_mac[0] << 8 | p_mac[1];
+		wol_mac.mac_lower = p_mac[2] << 24 | p_mac[3] << 16 |
+				    p_mac[4] << 8 | p_mac[5];
+
+		DP_VERBOSE(p_hwfn,
+			   (QED_MSG_SP | NETIF_MSG_IFDOWN),
+			   "Setting WoL MAC: %pM --> [%08x,%08x]\n",
+			   p_mac, wol_mac.mac_upper, wol_mac.mac_lower);
+
+		mb_params.p_data_src = &wol_mac;
+		mb_params.data_src_size = sizeof(wol_mac);
+	}
+
+	return qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
 }
 
 static void qed_mcp_handle_vf_flr(struct qed_hwfn *p_hwfn,
@@ -549,7 +1042,6 @@ int qed_mcp_ack_vf_flr(struct qed_hwfn *p_hwfn,
 	u32 func_addr = SECTION_ADDR(mfw_func_offsize,
 				     MCP_PF_ID(p_hwfn));
 	struct qed_mcp_mb_params mb_params;
-	union drv_union_data union_data;
 	int rc;
 	int i;
 
@@ -560,8 +1052,8 @@ int qed_mcp_ack_vf_flr(struct qed_hwfn *p_hwfn,
 
 	memset(&mb_params, 0, sizeof(mb_params));
 	mb_params.cmd = DRV_MSG_CODE_VF_DISABLED_DONE;
-	memcpy(&union_data.ack_vf_disabled, vfs_to_ack, VF_MAX_STATIC / 8);
-	mb_params.p_data_src = &union_data;
+	mb_params.p_data_src = vfs_to_ack;
+	mb_params.data_src_size = VF_MAX_STATIC / 8;
 	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
 	if (rc) {
 		DP_NOTICE(p_hwfn, "Failed to pass ACK for VF flr to MFW\n");
@@ -744,33 +1236,31 @@ int qed_mcp_set_link(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, bool b_up)
 {
 	struct qed_mcp_link_params *params = &p_hwfn->mcp_info->link_input;
 	struct qed_mcp_mb_params mb_params;
-	union drv_union_data union_data;
-	struct eth_phy_cfg *phy_cfg;
+	struct eth_phy_cfg phy_cfg;
 	int rc = 0;
 	u32 cmd;
 
 	/* Set the shmem configuration according to params */
-	phy_cfg = &union_data.drv_phy_cfg;
-	memset(phy_cfg, 0, sizeof(*phy_cfg));
+	memset(&phy_cfg, 0, sizeof(phy_cfg));
 	cmd = b_up ? DRV_MSG_CODE_INIT_PHY : DRV_MSG_CODE_LINK_RESET;
 	if (!params->speed.autoneg)
-		phy_cfg->speed = params->speed.forced_speed;
-	phy_cfg->pause |= (params->pause.autoneg) ? ETH_PAUSE_AUTONEG : 0;
-	phy_cfg->pause |= (params->pause.forced_rx) ? ETH_PAUSE_RX : 0;
-	phy_cfg->pause |= (params->pause.forced_tx) ? ETH_PAUSE_TX : 0;
-	phy_cfg->adv_speed = params->speed.advertised_speeds;
-	phy_cfg->loopback_mode = params->loopback_mode;
+		phy_cfg.speed = params->speed.forced_speed;
+	phy_cfg.pause |= (params->pause.autoneg) ? ETH_PAUSE_AUTONEG : 0;
+	phy_cfg.pause |= (params->pause.forced_rx) ? ETH_PAUSE_RX : 0;
+	phy_cfg.pause |= (params->pause.forced_tx) ? ETH_PAUSE_TX : 0;
+	phy_cfg.adv_speed = params->speed.advertised_speeds;
+	phy_cfg.loopback_mode = params->loopback_mode;
 
 	p_hwfn->b_drv_link_init = b_up;
 
 	if (b_up) {
 		DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
 			   "Configuring Link: Speed 0x%08x, Pause 0x%08x, adv_speed 0x%08x, loopback 0x%08x, features 0x%08x\n",
-			   phy_cfg->speed,
-			   phy_cfg->pause,
-			   phy_cfg->adv_speed,
-			   phy_cfg->loopback_mode,
-			   phy_cfg->feature_config_flags);
+			   phy_cfg.speed,
+			   phy_cfg.pause,
+			   phy_cfg.adv_speed,
+			   phy_cfg.loopback_mode,
+			   phy_cfg.feature_config_flags);
 	} else {
 		DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
 			   "Resetting link\n");
@@ -778,7 +1268,8 @@ int qed_mcp_set_link(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, bool b_up)
 
 	memset(&mb_params, 0, sizeof(mb_params));
 	mb_params.cmd = cmd;
-	mb_params.p_data_src = &union_data;
+	mb_params.p_data_src = &phy_cfg;
+	mb_params.data_src_size = sizeof(phy_cfg);
 	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
 
 	/* if mcp fails to respond we must abort */
@@ -805,7 +1296,6 @@ static void qed_mcp_send_protocol_stats(struct qed_hwfn *p_hwfn,
 	enum qed_mcp_protocol_type stats_type;
 	union qed_mcp_protocol_stats stats;
 	struct qed_mcp_mb_params mb_params;
-	union drv_union_data union_data;
 	u32 hsi_param;
 
 	switch (type) {
@@ -835,8 +1325,8 @@ static void qed_mcp_send_protocol_stats(struct qed_hwfn *p_hwfn,
 	memset(&mb_params, 0, sizeof(mb_params));
 	mb_params.cmd = DRV_MSG_CODE_GET_STATS;
 	mb_params.param = hsi_param;
-	memcpy(&union_data, &stats, sizeof(stats));
-	mb_params.p_data_src = &union_data;
+	mb_params.p_data_src = &stats;
+	mb_params.data_src_size = sizeof(stats);
 	qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
 }
 
@@ -963,7 +1453,7 @@ int qed_mcp_handle_events(struct qed_hwfn *p_hwfn,
 			qed_mcp_update_bw(p_hwfn, p_ptt);
 			break;
 		default:
-			DP_NOTICE(p_hwfn, "Unimplemented MFW message %d\n", i);
+			DP_INFO(p_hwfn, "Unimplemented MFW message %d\n", i);
 			rc = -EINVAL;
 		}
 	}
@@ -1316,24 +1806,23 @@ qed_mcp_send_drv_version(struct qed_hwfn *p_hwfn,
 			 struct qed_ptt *p_ptt,
 			 struct qed_mcp_drv_version *p_ver)
 {
-	struct drv_version_stc *p_drv_version;
 	struct qed_mcp_mb_params mb_params;
-	union drv_union_data union_data;
+	struct drv_version_stc drv_version;
 	__be32 val;
 	u32 i;
 	int rc;
 
-	p_drv_version = &union_data.drv_version;
-	p_drv_version->version = p_ver->version;
-
+	memset(&drv_version, 0, sizeof(drv_version));
+	drv_version.version = p_ver->version;
 	for (i = 0; i < (MCP_DRV_VER_STR_SIZE - 4) / sizeof(u32); i++) {
 		val = cpu_to_be32(*((u32 *)&p_ver->name[i * sizeof(u32)]));
-		*(__be32 *)&p_drv_version->name[i * sizeof(u32)] = val;
+		*(__be32 *)&drv_version.name[i * sizeof(u32)] = val;
 	}
 
 	memset(&mb_params, 0, sizeof(mb_params));
 	mb_params.cmd = DRV_MSG_CODE_SET_VERSION;
-	mb_params.p_data_src = &union_data;
+	mb_params.p_data_src = &drv_version;
+	mb_params.data_src_size = sizeof(drv_version);
 	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
 	if (rc)
 		DP_ERR(p_hwfn, "MCP response failure, aborting\n");
@@ -1450,7 +1939,7 @@ int qed_mcp_ov_update_mac(struct qed_hwfn *p_hwfn,
 			  struct qed_ptt *p_ptt, u8 *mac)
 {
 	struct qed_mcp_mb_params mb_params;
-	union drv_union_data union_data;
+	u32 mfw_mac[2];
 	int rc;
 
 	memset(&mb_params, 0, sizeof(mb_params));
@@ -1458,8 +1947,17 @@ int qed_mcp_ov_update_mac(struct qed_hwfn *p_hwfn,
 	mb_params.param = DRV_MSG_CODE_VMAC_TYPE_MAC <<
 			  DRV_MSG_CODE_VMAC_TYPE_SHIFT;
 	mb_params.param |= MCP_PF_ID(p_hwfn);
-	ether_addr_copy(&union_data.raw_data[0], mac);
-	mb_params.p_data_src = &union_data;
+
+	/* MCP is BE, and on LE platforms PCI would swap access to SHMEM
+	 * in 32-bit granularity.
+	 * So the MAC has to be set in native order [and not byte order],
+	 * otherwise it would be read incorrectly by MFW after swap.
+	 */
+	mfw_mac[0] = mac[0] << 24 | mac[1] << 16 | mac[2] << 8 | mac[3];
+	mfw_mac[1] = mac[4] << 24 | mac[5] << 16;
+
+	mb_params.p_data_src = (u8 *)mfw_mac;
+	mb_params.data_src_size = 8;
 	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
 	if (rc)
 		DP_ERR(p_hwfn, "Failed to send mac address, rc = %d\n", rc);
@@ -1724,52 +2222,426 @@ int qed_mcp_bist_nvm_test_get_image_att(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
-#define QED_RESC_ALLOC_VERSION_MAJOR    1
+static enum resource_id_enum qed_mcp_get_mfw_res_id(enum qed_resources res_id)
+{
+	enum resource_id_enum mfw_res_id = RESOURCE_NUM_INVALID;
+
+	switch (res_id) {
+	case QED_SB:
+		mfw_res_id = RESOURCE_NUM_SB_E;
+		break;
+	case QED_L2_QUEUE:
+		mfw_res_id = RESOURCE_NUM_L2_QUEUE_E;
+		break;
+	case QED_VPORT:
+		mfw_res_id = RESOURCE_NUM_VPORT_E;
+		break;
+	case QED_RSS_ENG:
+		mfw_res_id = RESOURCE_NUM_RSS_ENGINES_E;
+		break;
+	case QED_PQ:
+		mfw_res_id = RESOURCE_NUM_PQ_E;
+		break;
+	case QED_RL:
+		mfw_res_id = RESOURCE_NUM_RL_E;
+		break;
+	case QED_MAC:
+	case QED_VLAN:
+		/* Each VFC resource can accommodate both a MAC and a VLAN */
+		mfw_res_id = RESOURCE_VFC_FILTER_E;
+		break;
+	case QED_ILT:
+		mfw_res_id = RESOURCE_ILT_E;
+		break;
+	case QED_LL2_QUEUE:
+		mfw_res_id = RESOURCE_LL2_QUEUE_E;
+		break;
+	case QED_RDMA_CNQ_RAM:
+	case QED_CMDQS_CQS:
+		/* CNQ/CMDQS are the same resource */
+		mfw_res_id = RESOURCE_CQS_E;
+		break;
+	case QED_RDMA_STATS_QUEUE:
+		mfw_res_id = RESOURCE_RDMA_STATS_QUEUE_E;
+		break;
+	case QED_BDQ:
+		mfw_res_id = RESOURCE_BDQ_E;
+		break;
+	default:
+		break;
+	}
+
+	return mfw_res_id;
+}
+
+#define QED_RESC_ALLOC_VERSION_MAJOR    2
 #define QED_RESC_ALLOC_VERSION_MINOR    0
 #define QED_RESC_ALLOC_VERSION				     \
 	((QED_RESC_ALLOC_VERSION_MAJOR <<		     \
 	  DRV_MB_PARAM_RESOURCE_ALLOC_VERSION_MAJOR_SHIFT) | \
 	 (QED_RESC_ALLOC_VERSION_MINOR <<		     \
 	  DRV_MB_PARAM_RESOURCE_ALLOC_VERSION_MINOR_SHIFT))
-int qed_mcp_get_resc_info(struct qed_hwfn *p_hwfn,
-			  struct qed_ptt *p_ptt,
-			  struct resource_info *p_resc_info,
-			  u32 *p_mcp_resp, u32 *p_mcp_param)
+
+struct qed_resc_alloc_in_params {
+	u32 cmd;
+	enum qed_resources res_id;
+	u32 resc_max_val;
+};
+
+struct qed_resc_alloc_out_params {
+	u32 mcp_resp;
+	u32 mcp_param;
+	u32 resc_num;
+	u32 resc_start;
+	u32 vf_resc_num;
+	u32 vf_resc_start;
+	u32 flags;
+};
+
+static int
+qed_mcp_resc_allocation_msg(struct qed_hwfn *p_hwfn,
+			    struct qed_ptt *p_ptt,
+			    struct qed_resc_alloc_in_params *p_in_params,
+			    struct qed_resc_alloc_out_params *p_out_params)
 {
 	struct qed_mcp_mb_params mb_params;
-	union drv_union_data union_data;
+	struct resource_info mfw_resc_info;
 	int rc;
 
+	memset(&mfw_resc_info, 0, sizeof(mfw_resc_info));
+
+	mfw_resc_info.res_id = qed_mcp_get_mfw_res_id(p_in_params->res_id);
+	if (mfw_resc_info.res_id == RESOURCE_NUM_INVALID) {
+		DP_ERR(p_hwfn,
+		       "Failed to match resource %d [%s] with the MFW resources\n",
+		       p_in_params->res_id,
+		       qed_hw_get_resc_name(p_in_params->res_id));
+		return -EINVAL;
+	}
+
+	switch (p_in_params->cmd) {
+	case DRV_MSG_SET_RESOURCE_VALUE_MSG:
+		mfw_resc_info.size = p_in_params->resc_max_val;
+		/* Fallthrough */
+	case DRV_MSG_GET_RESOURCE_ALLOC_MSG:
+		break;
+	default:
+		DP_ERR(p_hwfn, "Unexpected resource alloc command [0x%08x]\n",
+		       p_in_params->cmd);
+		return -EINVAL;
+	}
+
 	memset(&mb_params, 0, sizeof(mb_params));
-	memset(&union_data, 0, sizeof(union_data));
-	mb_params.cmd = DRV_MSG_GET_RESOURCE_ALLOC_MSG;
+	mb_params.cmd = p_in_params->cmd;
 	mb_params.param = QED_RESC_ALLOC_VERSION;
+	mb_params.p_data_src = &mfw_resc_info;
+	mb_params.data_src_size = sizeof(mfw_resc_info);
+	mb_params.p_data_dst = mb_params.p_data_src;
+	mb_params.data_dst_size = mb_params.data_src_size;
 
-	/* Need to have a sufficient large struct, as the cmd_and_union
-	 * is going to do memcpy from and to it.
-	 */
-	memcpy(&union_data.resource, p_resc_info, sizeof(*p_resc_info));
+	DP_VERBOSE(p_hwfn,
+		   QED_MSG_SP,
+		   "Resource message request: cmd 0x%08x, res_id %d [%s], hsi_version %d.%d, val 0x%x\n",
+		   p_in_params->cmd,
+		   p_in_params->res_id,
+		   qed_hw_get_resc_name(p_in_params->res_id),
+		   QED_MFW_GET_FIELD(mb_params.param,
+				     DRV_MB_PARAM_RESOURCE_ALLOC_VERSION_MAJOR),
+		   QED_MFW_GET_FIELD(mb_params.param,
+				     DRV_MB_PARAM_RESOURCE_ALLOC_VERSION_MINOR),
+		   p_in_params->resc_max_val);
 
-	mb_params.p_data_src = &union_data;
-	mb_params.p_data_dst = &union_data;
 	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
 	if (rc)
 		return rc;
 
-	/* Copy the data back */
-	memcpy(p_resc_info, &union_data.resource, sizeof(*p_resc_info));
-	*p_mcp_resp = mb_params.mcp_resp;
-	*p_mcp_param = mb_params.mcp_param;
+	p_out_params->mcp_resp = mb_params.mcp_resp;
+	p_out_params->mcp_param = mb_params.mcp_param;
+	p_out_params->resc_num = mfw_resc_info.size;
+	p_out_params->resc_start = mfw_resc_info.offset;
+	p_out_params->vf_resc_num = mfw_resc_info.vf_size;
+	p_out_params->vf_resc_start = mfw_resc_info.vf_offset;
+	p_out_params->flags = mfw_resc_info.flags;
 
 	DP_VERBOSE(p_hwfn,
 		   QED_MSG_SP,
-		   "MFW resource_info: version 0x%x, res_id 0x%x, size 0x%x, offset 0x%x, vf_size 0x%x, vf_offset 0x%x, flags 0x%x\n",
-		   *p_mcp_param,
-		   p_resc_info->res_id,
-		   p_resc_info->size,
-		   p_resc_info->offset,
-		   p_resc_info->vf_size,
-		   p_resc_info->vf_offset, p_resc_info->flags);
+		   "Resource message response: mfw_hsi_version %d.%d, num 0x%x, start 0x%x, vf_num 0x%x, vf_start 0x%x, flags 0x%08x\n",
+		   QED_MFW_GET_FIELD(p_out_params->mcp_param,
+				     FW_MB_PARAM_RESOURCE_ALLOC_VERSION_MAJOR),
+		   QED_MFW_GET_FIELD(p_out_params->mcp_param,
+				     FW_MB_PARAM_RESOURCE_ALLOC_VERSION_MINOR),
+		   p_out_params->resc_num,
+		   p_out_params->resc_start,
+		   p_out_params->vf_resc_num,
+		   p_out_params->vf_resc_start, p_out_params->flags);
 
 	return 0;
+}
+
+int
+qed_mcp_set_resc_max_val(struct qed_hwfn *p_hwfn,
+			 struct qed_ptt *p_ptt,
+			 enum qed_resources res_id,
+			 u32 resc_max_val, u32 *p_mcp_resp)
+{
+	struct qed_resc_alloc_out_params out_params;
+	struct qed_resc_alloc_in_params in_params;
+	int rc;
+
+	memset(&in_params, 0, sizeof(in_params));
+	in_params.cmd = DRV_MSG_SET_RESOURCE_VALUE_MSG;
+	in_params.res_id = res_id;
+	in_params.resc_max_val = resc_max_val;
+	memset(&out_params, 0, sizeof(out_params));
+	rc = qed_mcp_resc_allocation_msg(p_hwfn, p_ptt, &in_params,
+					 &out_params);
+	if (rc)
+		return rc;
+
+	*p_mcp_resp = out_params.mcp_resp;
+
+	return 0;
+}
+
+int
+qed_mcp_get_resc_info(struct qed_hwfn *p_hwfn,
+		      struct qed_ptt *p_ptt,
+		      enum qed_resources res_id,
+		      u32 *p_mcp_resp, u32 *p_resc_num, u32 *p_resc_start)
+{
+	struct qed_resc_alloc_out_params out_params;
+	struct qed_resc_alloc_in_params in_params;
+	int rc;
+
+	memset(&in_params, 0, sizeof(in_params));
+	in_params.cmd = DRV_MSG_GET_RESOURCE_ALLOC_MSG;
+	in_params.res_id = res_id;
+	memset(&out_params, 0, sizeof(out_params));
+	rc = qed_mcp_resc_allocation_msg(p_hwfn, p_ptt, &in_params,
+					 &out_params);
+	if (rc)
+		return rc;
+
+	*p_mcp_resp = out_params.mcp_resp;
+
+	if (*p_mcp_resp == FW_MSG_CODE_RESOURCE_ALLOC_OK) {
+		*p_resc_num = out_params.resc_num;
+		*p_resc_start = out_params.resc_start;
+	}
+
+	return 0;
+}
+
+int qed_mcp_initiate_pf_flr(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	u32 mcp_resp, mcp_param;
+
+	return qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_INITIATE_PF_FLR, 0,
+			   &mcp_resp, &mcp_param);
+}
+
+static int qed_mcp_resource_cmd(struct qed_hwfn *p_hwfn,
+				struct qed_ptt *p_ptt,
+				u32 param, u32 *p_mcp_resp, u32 *p_mcp_param)
+{
+	int rc;
+
+	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_RESOURCE_CMD, param,
+			 p_mcp_resp, p_mcp_param);
+	if (rc)
+		return rc;
+
+	if (*p_mcp_resp == FW_MSG_CODE_UNSUPPORTED) {
+		DP_INFO(p_hwfn,
+			"The resource command is unsupported by the MFW\n");
+		return -EINVAL;
+	}
+
+	if (*p_mcp_param == RESOURCE_OPCODE_UNKNOWN_CMD) {
+		u8 opcode = QED_MFW_GET_FIELD(param, RESOURCE_CMD_REQ_OPCODE);
+
+		DP_NOTICE(p_hwfn,
+			  "The resource command is unknown to the MFW [param 0x%08x, opcode %d]\n",
+			  param, opcode);
+		return -EINVAL;
+	}
+
+	return rc;
+}
+
+int
+__qed_mcp_resc_lock(struct qed_hwfn *p_hwfn,
+		    struct qed_ptt *p_ptt,
+		    struct qed_resc_lock_params *p_params)
+{
+	u32 param = 0, mcp_resp, mcp_param;
+	u8 opcode;
+	int rc;
+
+	switch (p_params->timeout) {
+	case QED_MCP_RESC_LOCK_TO_DEFAULT:
+		opcode = RESOURCE_OPCODE_REQ;
+		p_params->timeout = 0;
+		break;
+	case QED_MCP_RESC_LOCK_TO_NONE:
+		opcode = RESOURCE_OPCODE_REQ_WO_AGING;
+		p_params->timeout = 0;
+		break;
+	default:
+		opcode = RESOURCE_OPCODE_REQ_W_AGING;
+		break;
+	}
+
+	QED_MFW_SET_FIELD(param, RESOURCE_CMD_REQ_RESC, p_params->resource);
+	QED_MFW_SET_FIELD(param, RESOURCE_CMD_REQ_OPCODE, opcode);
+	QED_MFW_SET_FIELD(param, RESOURCE_CMD_REQ_AGE, p_params->timeout);
+
+	DP_VERBOSE(p_hwfn,
+		   QED_MSG_SP,
+		   "Resource lock request: param 0x%08x [age %d, opcode %d, resource %d]\n",
+		   param, p_params->timeout, opcode, p_params->resource);
+
+	/* Attempt to acquire the resource */
+	rc = qed_mcp_resource_cmd(p_hwfn, p_ptt, param, &mcp_resp, &mcp_param);
+	if (rc)
+		return rc;
+
+	/* Analyze the response */
+	p_params->owner = QED_MFW_GET_FIELD(mcp_param, RESOURCE_CMD_RSP_OWNER);
+	opcode = QED_MFW_GET_FIELD(mcp_param, RESOURCE_CMD_RSP_OPCODE);
+
+	DP_VERBOSE(p_hwfn,
+		   QED_MSG_SP,
+		   "Resource lock response: mcp_param 0x%08x [opcode %d, owner %d]\n",
+		   mcp_param, opcode, p_params->owner);
+
+	switch (opcode) {
+	case RESOURCE_OPCODE_GNT:
+		p_params->b_granted = true;
+		break;
+	case RESOURCE_OPCODE_BUSY:
+		p_params->b_granted = false;
+		break;
+	default:
+		DP_NOTICE(p_hwfn,
+			  "Unexpected opcode in resource lock response [mcp_param 0x%08x, opcode %d]\n",
+			  mcp_param, opcode);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int
+qed_mcp_resc_lock(struct qed_hwfn *p_hwfn,
+		  struct qed_ptt *p_ptt, struct qed_resc_lock_params *p_params)
+{
+	u32 retry_cnt = 0;
+	int rc;
+
+	do {
+		/* No need for an interval before the first iteration */
+		if (retry_cnt) {
+			if (p_params->sleep_b4_retry) {
+				u16 retry_interval_in_ms =
+				    DIV_ROUND_UP(p_params->retry_interval,
+						 1000);
+
+				msleep(retry_interval_in_ms);
+			} else {
+				udelay(p_params->retry_interval);
+			}
+		}
+
+		rc = __qed_mcp_resc_lock(p_hwfn, p_ptt, p_params);
+		if (rc)
+			return rc;
+
+		if (p_params->b_granted)
+			break;
+	} while (retry_cnt++ < p_params->retry_num);
+
+	return 0;
+}
+
+int
+qed_mcp_resc_unlock(struct qed_hwfn *p_hwfn,
+		    struct qed_ptt *p_ptt,
+		    struct qed_resc_unlock_params *p_params)
+{
+	u32 param = 0, mcp_resp, mcp_param;
+	u8 opcode;
+	int rc;
+
+	opcode = p_params->b_force ? RESOURCE_OPCODE_FORCE_RELEASE
+				   : RESOURCE_OPCODE_RELEASE;
+	QED_MFW_SET_FIELD(param, RESOURCE_CMD_REQ_RESC, p_params->resource);
+	QED_MFW_SET_FIELD(param, RESOURCE_CMD_REQ_OPCODE, opcode);
+
+	DP_VERBOSE(p_hwfn, QED_MSG_SP,
+		   "Resource unlock request: param 0x%08x [opcode %d, resource %d]\n",
+		   param, opcode, p_params->resource);
+
+	/* Attempt to release the resource */
+	rc = qed_mcp_resource_cmd(p_hwfn, p_ptt, param, &mcp_resp, &mcp_param);
+	if (rc)
+		return rc;
+
+	/* Analyze the response */
+	opcode = QED_MFW_GET_FIELD(mcp_param, RESOURCE_CMD_RSP_OPCODE);
+
+	DP_VERBOSE(p_hwfn, QED_MSG_SP,
+		   "Resource unlock response: mcp_param 0x%08x [opcode %d]\n",
+		   mcp_param, opcode);
+
+	switch (opcode) {
+	case RESOURCE_OPCODE_RELEASED_PREVIOUS:
+		DP_INFO(p_hwfn,
+			"Resource unlock request for an already released resource [%d]\n",
+			p_params->resource);
+		/* Fallthrough */
+	case RESOURCE_OPCODE_RELEASED:
+		p_params->b_released = true;
+		break;
+	case RESOURCE_OPCODE_WRONG_OWNER:
+		p_params->b_released = false;
+		break;
+	default:
+		DP_NOTICE(p_hwfn,
+			  "Unexpected opcode in resource unlock response [mcp_param 0x%08x, opcode %d]\n",
+			  mcp_param, opcode);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+void qed_mcp_resc_lock_default_init(struct qed_resc_lock_params *p_lock,
+				    struct qed_resc_unlock_params *p_unlock,
+				    enum qed_resc_lock
+				    resource, bool b_is_permanent)
+{
+	if (p_lock) {
+		memset(p_lock, 0, sizeof(*p_lock));
+
+		/* Permanent resources don't require aging, and there's no
+		 * point in trying to acquire them more than once since it's
+		 * unexpected another entity would release them.
+		 */
+		if (b_is_permanent) {
+			p_lock->timeout = QED_MCP_RESC_LOCK_TO_NONE;
+		} else {
+			p_lock->retry_num = QED_MCP_RESC_LOCK_RETRY_CNT_DFLT;
+			p_lock->retry_interval =
+			    QED_MCP_RESC_LOCK_RETRY_VAL_DFLT;
+			p_lock->sleep_b4_retry = true;
+		}
+
+		p_lock->resource = resource;
+	}
+
+	if (p_unlock) {
+		memset(p_unlock, 0, sizeof(*p_unlock));
+		p_unlock->resource = resource;
+	}
 }

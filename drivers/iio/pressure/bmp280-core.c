@@ -175,11 +175,12 @@ static u32 bmp280_compensate_humidity(struct bmp280_data *data,
 	}
 	H6 = sign_extend32(tmp, 7);
 
-	var = ((s32)data->t_fine) - 76800;
-	var = ((((adc_humidity << 14) - (H4 << 20) - (H5 * var)) + 16384) >> 15)
-		* (((((((var * H6) >> 10) * (((var * H3) >> 11) + 32768)) >> 10)
-		+ 2097152) * H2 + 8192) >> 14);
-	var -= ((((var >> 15) * (var >> 15)) >> 7) * H1) >> 4;
+	var = ((s32)data->t_fine) - (s32)76800;
+	var = ((((adc_humidity << 14) - (H4 << 20) - (H5 * var))
+		+ (s32)16384) >> 15) * (((((((var * H6) >> 10)
+		* (((var * (s32)H3) >> 11) + (s32)32768)) >> 10)
+		+ (s32)2097152) * H2 + 8192) >> 14);
+	var -= ((((var >> 15) * (var >> 15)) >> 7) * (s32)H1) >> 4;
 
 	return var >> 12;
 };

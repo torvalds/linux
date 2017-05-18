@@ -55,6 +55,12 @@ struct pps_ktime {
 	__s32 nsec;
 	__u32 flags;
 };
+
+struct pps_ktime_compat {
+	__s64 sec;
+	__s32 nsec;
+	__u32 flags;
+} __attribute__((packed, aligned(4)));
 #define PPS_TIME_INVALID	(1<<0)	/* used to specify timeout==NULL */
 
 struct pps_kinfo {
@@ -63,6 +69,14 @@ struct pps_kinfo {
 	struct pps_ktime assert_tu;	/* time of assert event */
 	struct pps_ktime clear_tu;	/* time of clear event */
 	int current_mode;		/* current mode bits */
+};
+
+struct pps_kinfo_compat {
+	__u32 assert_sequence;			/* seq. num. of assert event */
+	__u32 clear_sequence;			/* seq. num. of clear event */
+	struct pps_ktime_compat assert_tu;	/* time of assert event */
+	struct pps_ktime_compat clear_tu;	/* time of clear event */
+	int current_mode;			/* current mode bits */
 };
 
 struct pps_kparams {
@@ -112,6 +126,11 @@ struct pps_kparams {
 struct pps_fdata {
 	struct pps_kinfo info;
 	struct pps_ktime timeout;
+};
+
+struct pps_fdata_compat {
+	struct pps_kinfo_compat info;
+	struct pps_ktime_compat timeout;
 };
 
 struct pps_bind_args {

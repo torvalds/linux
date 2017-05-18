@@ -30,7 +30,7 @@ you probably needn't concern yourself with isdn4k-utils.
         Program        Minimal version       Command to check the version
 ====================== ===============  ========================================
 GNU C                  3.2              gcc --version
-GNU make               3.80             make --version
+GNU make               3.81             make --version
 binutils               2.12             ld -v
 util-linux             2.10o            fdformat --version
 module-init-tools      0.9.10           depmod -V
@@ -70,7 +70,7 @@ computer.
 Make
 ----
 
-You will need GNU make 3.80 or later to build the kernel.
+You will need GNU make 3.81 or later to build the kernel.
 
 Binutils
 --------
@@ -349,7 +349,7 @@ Make
 Binutils
 --------
 
-- <ftp://ftp.kernel.org/pub/linux/devel/binutils/>
+- <https://www.kernel.org/pub/linux/devel/binutils/>
 
 OpenSSL
 -------
@@ -362,17 +362,17 @@ System utilities
 Util-linux
 ----------
 
-- <ftp://ftp.kernel.org/pub/linux/utils/util-linux/>
+- <https://www.kernel.org/pub/linux/utils/util-linux/>
 
 Ksymoops
 --------
 
-- <ftp://ftp.kernel.org/pub/linux/utils/kernel/ksymoops/v2.4/>
+- <https://www.kernel.org/pub/linux/utils/kernel/ksymoops/v2.4/>
 
 Module-Init-Tools
 -----------------
 
-- <ftp://ftp.kernel.org/pub/linux/kernel/people/rusty/modules/>
+- <https://www.kernel.org/pub/linux/utils/kernel/module-init-tools/>
 
 Mkinitrd
 --------
@@ -402,7 +402,7 @@ Xfsprogs
 Pcmciautils
 -----------
 
-- <ftp://ftp.kernel.org/pub/linux/utils/kernel/pcmcia/>
+- <https://www.kernel.org/pub/linux/utils/kernel/pcmcia/>
 
 Quota-tools
 -----------

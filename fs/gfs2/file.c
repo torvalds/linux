@@ -911,11 +911,15 @@ out_qunlock:
 static long gfs2_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 {
 	struct inode *inode = file_inode(file);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder gh;
 	int ret;
 
-	if ((mode & ~FALLOC_FL_KEEP_SIZE) || gfs2_is_jdata(ip))
+	if (mode & ~FALLOC_FL_KEEP_SIZE)
+		return -EOPNOTSUPP;
+	/* fallocate is needed by gfs2_grow to reserve space in the rindex */
+	if (gfs2_is_jdata(ip) && inode != sdp->sd_rindex)
 		return -EOPNOTSUPP;
 
 	inode_lock(inode);

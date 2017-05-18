@@ -273,8 +273,8 @@ int nvmet_ns_enable(struct nvmet_ns *ns)
 	ns->bdev = blkdev_get_by_path(ns->device_path, FMODE_READ | FMODE_WRITE,
 			NULL);
 	if (IS_ERR(ns->bdev)) {
-		pr_err("nvmet: failed to open block device %s: (%ld)\n",
-			ns->device_path, PTR_ERR(ns->bdev));
+		pr_err("failed to open block device %s: (%ld)\n",
+		       ns->device_path, PTR_ERR(ns->bdev));
 		ret = PTR_ERR(ns->bdev);
 		ns->bdev = NULL;
 		goto out_unlock;
@@ -659,6 +659,23 @@ out:
 	mutex_unlock(&subsys->lock);
 	nvmet_subsys_put(subsys);
 	return status;
+}
+
+u16 nvmet_check_ctrl_status(struct nvmet_req *req, struct nvme_command *cmd)
+{
+	if (unlikely(!(req->sq->ctrl->cc & NVME_CC_ENABLE))) {
+		pr_err("got io cmd %d while CC.EN == 0 on qid = %d\n",
+		       cmd->common.opcode, req->sq->qid);
+		return NVME_SC_CMD_SEQ_ERROR | NVME_SC_DNR;
+	}
+
+	if (unlikely(!(req->sq->ctrl->csts & NVME_CSTS_RDY))) {
+		pr_err("got io cmd %d while CSTS.RDY == 0 on qid = %d\n",
+		       cmd->common.opcode, req->sq->qid);
+		req->ns = NULL;
+		return NVME_SC_CMD_SEQ_ERROR | NVME_SC_DNR;
+	}
+	return 0;
 }
 
 static bool __nvmet_host_allowed(struct nvmet_subsys *subsys,

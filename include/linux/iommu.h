@@ -19,12 +19,12 @@
 #ifndef __LINUX_IOMMU_H
 #define __LINUX_IOMMU_H
 
+#include <linux/scatterlist.h>
+#include <linux/device.h>
+#include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/of.h>
-#include <linux/types.h>
-#include <linux/scatterlist.h>
-#include <trace/events/iommu.h>
 
 #define IOMMU_READ	(1 << 0)
 #define IOMMU_WRITE	(1 << 1)
@@ -32,10 +32,13 @@
 #define IOMMU_NOEXEC	(1 << 3)
 #define IOMMU_MMIO	(1 << 4) /* e.g. things like MSI doorbells */
 /*
- * This is to make the IOMMU API setup privileged
- * mapppings accessible by the master only at higher
- * privileged execution level and inaccessible at
- * less privileged levels.
+ * Where the bus hardware includes a privilege level as part of its access type
+ * markings, and certain devices are capable of issuing transactions marked as
+ * either 'supervisor' or 'user', the IOMMU_PRIV flag requests that the other
+ * given permission flags only apply to accesses at the higher privilege level,
+ * and that unprivileged transactions should have as little access as possible.
+ * This would usually imply the same permissions as kernel mappings on the CPU,
+ * if the IOMMU page table format is equivalent.
  */
 #define IOMMU_PRIV	(1 << 5)
 
@@ -336,46 +339,9 @@ extern int iommu_domain_window_enable(struct iommu_domain *domain, u32 wnd_nr,
 				      phys_addr_t offset, u64 size,
 				      int prot);
 extern void iommu_domain_window_disable(struct iommu_domain *domain, u32 wnd_nr);
-/**
- * report_iommu_fault() - report about an IOMMU fault to the IOMMU framework
- * @domain: the iommu domain where the fault has happened
- * @dev: the device where the fault has happened
- * @iova: the faulting address
- * @flags: mmu fault flags (e.g. IOMMU_FAULT_READ/IOMMU_FAULT_WRITE/...)
- *
- * This function should be called by the low-level IOMMU implementations
- * whenever IOMMU faults happen, to allow high-level users, that are
- * interested in such events, to know about them.
- *
- * This event may be useful for several possible use cases:
- * - mere logging of the event
- * - dynamic TLB/PTE loading
- * - if restarting of the faulting device is required
- *
- * Returns 0 on success and an appropriate error code otherwise (if dynamic
- * PTE/TLB loading will one day be supported, implementations will be able
- * to tell whether it succeeded or not according to this return value).
- *
- * Specifically, -ENOSYS is returned if a fault handler isn't installed
- * (though fault handlers can also return -ENOSYS, in case they want to
- * elicit the default behavior of the IOMMU drivers).
- */
-static inline int report_iommu_fault(struct iommu_domain *domain,
-		struct device *dev, unsigned long iova, int flags)
-{
-	int ret = -ENOSYS;
 
-	/*
-	 * if upper layers showed interest and installed a fault handler,
-	 * invoke it.
-	 */
-	if (domain->handler)
-		ret = domain->handler(domain, dev, iova, flags,
-						domain->handler_token);
-
-	trace_io_page_fault(dev, iova, flags);
-	return ret;
-}
+extern int report_iommu_fault(struct iommu_domain *domain, struct device *dev,
+			      unsigned long iova, int flags);
 
 static inline size_t iommu_map_sg(struct iommu_domain *domain,
 				  unsigned long iova, struct scatterlist *sg,

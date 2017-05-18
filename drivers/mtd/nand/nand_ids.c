@@ -10,7 +10,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/sizes.h>
 
-#define LP_OPTIONS NAND_SAMSUNG_LP_OPTIONS
+#define LP_OPTIONS 0
 #define LP_OPTIONS16 (LP_OPTIONS | NAND_BUSWIDTH_16)
 
 #define SP_OPTIONS NAND_NEED_READRDY
@@ -169,29 +169,40 @@ struct nand_flash_dev nand_flash_ids[] = {
 };
 
 /* Manufacturer IDs */
-struct nand_manufacturers nand_manuf_ids[] = {
-	{NAND_MFR_TOSHIBA, "Toshiba"},
+static const struct nand_manufacturer nand_manufacturers[] = {
+	{NAND_MFR_TOSHIBA, "Toshiba", &toshiba_nand_manuf_ops},
 	{NAND_MFR_ESMT, "ESMT"},
-	{NAND_MFR_SAMSUNG, "Samsung"},
+	{NAND_MFR_SAMSUNG, "Samsung", &samsung_nand_manuf_ops},
 	{NAND_MFR_FUJITSU, "Fujitsu"},
 	{NAND_MFR_NATIONAL, "National"},
 	{NAND_MFR_RENESAS, "Renesas"},
 	{NAND_MFR_STMICRO, "ST Micro"},
-	{NAND_MFR_HYNIX, "Hynix"},
-	{NAND_MFR_MICRON, "Micron"},
-	{NAND_MFR_AMD, "AMD/Spansion"},
-	{NAND_MFR_MACRONIX, "Macronix"},
+	{NAND_MFR_HYNIX, "Hynix", &hynix_nand_manuf_ops},
+	{NAND_MFR_MICRON, "Micron", &micron_nand_manuf_ops},
+	{NAND_MFR_AMD, "AMD/Spansion", &amd_nand_manuf_ops},
+	{NAND_MFR_MACRONIX, "Macronix", &macronix_nand_manuf_ops},
 	{NAND_MFR_EON, "Eon"},
 	{NAND_MFR_SANDISK, "SanDisk"},
 	{NAND_MFR_INTEL, "Intel"},
 	{NAND_MFR_ATO, "ATO"},
 	{NAND_MFR_WINBOND, "Winbond"},
-	{0x0, "Unknown"}
 };
 
-EXPORT_SYMBOL(nand_manuf_ids);
-EXPORT_SYMBOL(nand_flash_ids);
+/**
+ * nand_get_manufacturer - Get manufacturer information from the manufacturer
+ *			   ID
+ * @id: manufacturer ID
+ *
+ * Returns a pointer a nand_manufacturer object if the manufacturer is defined
+ * in the NAND manufacturers database, NULL otherwise.
+ */
+const struct nand_manufacturer *nand_get_manufacturer(u8 id)
+{
+	int i;
 
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Thomas Gleixner <tglx@linutronix.de>");
-MODULE_DESCRIPTION("Nand device & manufacturer IDs");
+	for (i = 0; i < ARRAY_SIZE(nand_manufacturers); i++)
+		if (nand_manufacturers[i].id == id)
+			return &nand_manufacturers[i];
+
+	return NULL;
+}

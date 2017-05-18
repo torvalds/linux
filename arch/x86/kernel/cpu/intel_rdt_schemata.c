@@ -29,26 +29,77 @@
 #include <asm/intel_rdt.h>
 
 /*
+ * Check whether MBA bandwidth percentage value is correct. The value is
+ * checked against the minimum and max bandwidth values specified by the
+ * hardware. The allocated bandwidth percentage is rounded to the next
+ * control step available on the hardware.
+ */
+static bool bw_validate(char *buf, unsigned long *data, struct rdt_resource *r)
+{
+	unsigned long bw;
+	int ret;
+
+	/*
+	 * Only linear delay values is supported for current Intel SKUs.
+	 */
+	if (!r->membw.delay_linear)
+		return false;
+
+	ret = kstrtoul(buf, 10, &bw);
+	if (ret)
+		return false;
+
+	if (bw < r->membw.min_bw || bw > r->default_ctrl)
+		return false;
+
+	*data = roundup(bw, (unsigned long)r->membw.bw_gran);
+	return true;
+}
+
+int parse_bw(char *buf, struct rdt_resource *r, struct rdt_domain *d)
+{
+	unsigned long data;
+
+	if (d->have_new_ctrl)
+		return -EINVAL;
+
+	if (!bw_validate(buf, &data, r))
+		return -EINVAL;
+	d->new_ctrl = data;
+	d->have_new_ctrl = true;
+
+	return 0;
+}
+
+/*
  * Check whether a cache bit mask is valid. The SDM says:
  *	Please note that all (and only) contiguous '1' combinations
  *	are allowed (e.g. FFFFH, 0FF0H, 003CH, etc.).
  * Additionally Haswell requires at least two bits set.
  */
-static bool cbm_validate(unsigned long var, struct rdt_resource *r)
+static bool cbm_validate(char *buf, unsigned long *data, struct rdt_resource *r)
 {
-	unsigned long first_bit, zero_bit;
+	unsigned long first_bit, zero_bit, val;
+	unsigned int cbm_len = r->cache.cbm_len;
+	int ret;
 
-	if (var == 0 || var > r->max_cbm)
+	ret = kstrtoul(buf, 16, &val);
+	if (ret)
 		return false;
 
-	first_bit = find_first_bit(&var, r->cbm_len);
-	zero_bit = find_next_zero_bit(&var, r->cbm_len, first_bit);
-
-	if (find_next_bit(&var, r->cbm_len, zero_bit) < r->cbm_len)
+	if (val == 0 || val > r->default_ctrl)
 		return false;
 
-	if ((zero_bit - first_bit) < r->min_cbm_bits)
+	first_bit = find_first_bit(&val, cbm_len);
+	zero_bit = find_next_zero_bit(&val, cbm_len, first_bit);
+
+	if (find_next_bit(&val, cbm_len, zero_bit) < cbm_len)
 		return false;
+
+	if ((zero_bit - first_bit) < r->cache.min_cbm_bits)
+		return false;
+
+	*data = val;
 	return true;
 }
 
@@ -56,17 +107,17 @@ static bool cbm_validate(unsigned long var, struct rdt_resource *r)
  * Read one cache bit mask (hex). Check that it is valid for the current
  * resource type.
  */
-static int parse_cbm(char *buf, struct rdt_resource *r)
+int parse_cbm(char *buf, struct rdt_resource *r, struct rdt_domain *d)
 {
 	unsigned long data;
-	int ret;
 
-	ret = kstrtoul(buf, 16, &data);
-	if (ret)
-		return ret;
-	if (!cbm_validate(data, r))
+	if (d->have_new_ctrl)
 		return -EINVAL;
-	r->tmp_cbms[r->num_tmp_cbms++] = data;
+
+	if(!cbm_validate(buf, &data, r))
+		return -EINVAL;
+	d->new_ctrl = data;
+	d->have_new_ctrl = true;
 
 	return 0;
 }
@@ -74,8 +125,8 @@ static int parse_cbm(char *buf, struct rdt_resource *r)
 /*
  * For each domain in this resource we expect to find a series of:
  *	id=mask
- * separated by ";". The "id" is in decimal, and must appear in the
- * right order.
+ * separated by ";". The "id" is in decimal, and must match one of
+ * the "id"s for this resource.
  */
 static int parse_line(char *line, struct rdt_resource *r)
 {
@@ -83,21 +134,22 @@ static int parse_line(char *line, struct rdt_resource *r)
 	struct rdt_domain *d;
 	unsigned long dom_id;
 
-	list_for_each_entry(d, &r->domains, list) {
-		dom = strsep(&line, ";");
-		if (!dom)
-			return -EINVAL;
-		id = strsep(&dom, "=");
-		if (kstrtoul(id, 10, &dom_id) || dom_id != d->id)
-			return -EINVAL;
-		if (parse_cbm(dom, r))
-			return -EINVAL;
-	}
-
-	/* Any garbage at the end of the line? */
-	if (line && line[0])
+next:
+	if (!line || line[0] == '\0')
+		return 0;
+	dom = strsep(&line, ";");
+	id = strsep(&dom, "=");
+	if (!dom || kstrtoul(id, 10, &dom_id))
 		return -EINVAL;
-	return 0;
+	dom = strim(dom);
+	list_for_each_entry(d, &r->domains, list) {
+		if (d->id == dom_id) {
+			if (r->parse_ctrlval(dom, r, d))
+				return -EINVAL;
+			goto next;
+		}
+	}
+	return -EINVAL;
 }
 
 static int update_domains(struct rdt_resource *r, int closid)
@@ -105,7 +157,7 @@ static int update_domains(struct rdt_resource *r, int closid)
 	struct msr_param msr_param;
 	cpumask_var_t cpu_mask;
 	struct rdt_domain *d;
-	int cpu, idx = 0;
+	int cpu;
 
 	if (!zalloc_cpumask_var(&cpu_mask, GFP_KERNEL))
 		return -ENOMEM;
@@ -115,30 +167,46 @@ static int update_domains(struct rdt_resource *r, int closid)
 	msr_param.res = r;
 
 	list_for_each_entry(d, &r->domains, list) {
-		cpumask_set_cpu(cpumask_any(&d->cpu_mask), cpu_mask);
-		d->cbm[msr_param.low] = r->tmp_cbms[idx++];
+		if (d->have_new_ctrl && d->new_ctrl != d->ctrl_val[closid]) {
+			cpumask_set_cpu(cpumask_any(&d->cpu_mask), cpu_mask);
+			d->ctrl_val[closid] = d->new_ctrl;
+		}
 	}
+	if (cpumask_empty(cpu_mask))
+		goto done;
 	cpu = get_cpu();
 	/* Update CBM on this cpu if it's in cpu_mask. */
 	if (cpumask_test_cpu(cpu, cpu_mask))
-		rdt_cbm_update(&msr_param);
+		rdt_ctrl_update(&msr_param);
 	/* Update CBM on other cpus. */
-	smp_call_function_many(cpu_mask, rdt_cbm_update, &msr_param, 1);
+	smp_call_function_many(cpu_mask, rdt_ctrl_update, &msr_param, 1);
 	put_cpu();
 
+done:
 	free_cpumask_var(cpu_mask);
 
 	return 0;
+}
+
+static int rdtgroup_parse_resource(char *resname, char *tok, int closid)
+{
+	struct rdt_resource *r;
+
+	for_each_enabled_rdt_resource(r) {
+		if (!strcmp(resname, r->name) && closid < r->num_closid)
+			return parse_line(tok, r);
+	}
+	return -EINVAL;
 }
 
 ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 				char *buf, size_t nbytes, loff_t off)
 {
 	struct rdtgroup *rdtgrp;
+	struct rdt_domain *dom;
 	struct rdt_resource *r;
 	char *tok, *resname;
 	int closid, ret = 0;
-	u32 *l3_cbms = NULL;
 
 	/* Valid input requires a trailing newline */
 	if (nbytes == 0 || buf[nbytes - 1] != '\n')
@@ -153,44 +221,20 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 
 	closid = rdtgrp->closid;
 
-	/* get scratch space to save all the masks while we validate input */
 	for_each_enabled_rdt_resource(r) {
-		r->tmp_cbms = kcalloc(r->num_domains, sizeof(*l3_cbms),
-				      GFP_KERNEL);
-		if (!r->tmp_cbms) {
-			ret = -ENOMEM;
-			goto out;
-		}
-		r->num_tmp_cbms = 0;
+		list_for_each_entry(dom, &r->domains, list)
+			dom->have_new_ctrl = false;
 	}
 
 	while ((tok = strsep(&buf, "\n")) != NULL) {
-		resname = strsep(&tok, ":");
+		resname = strim(strsep(&tok, ":"));
 		if (!tok) {
 			ret = -EINVAL;
 			goto out;
 		}
-		for_each_enabled_rdt_resource(r) {
-			if (!strcmp(resname, r->name) &&
-			    closid < r->num_closid) {
-				ret = parse_line(tok, r);
-				if (ret)
-					goto out;
-				break;
-			}
-		}
-		if (!r->name) {
-			ret = -EINVAL;
+		ret = rdtgroup_parse_resource(resname, tok, closid);
+		if (ret)
 			goto out;
-		}
-	}
-
-	/* Did the parser find all the masks we need? */
-	for_each_enabled_rdt_resource(r) {
-		if (r->num_tmp_cbms != r->num_domains) {
-			ret = -EINVAL;
-			goto out;
-		}
 	}
 
 	for_each_enabled_rdt_resource(r) {
@@ -200,10 +244,6 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 	}
 
 out:
-	for_each_enabled_rdt_resource(r) {
-		kfree(r->tmp_cbms);
-		r->tmp_cbms = NULL;
-	}
 	rdtgroup_kn_unlock(of->kn);
 	return ret ?: nbytes;
 }
@@ -213,11 +253,12 @@ static void show_doms(struct seq_file *s, struct rdt_resource *r, int closid)
 	struct rdt_domain *dom;
 	bool sep = false;
 
-	seq_printf(s, "%s:", r->name);
+	seq_printf(s, "%*s:", max_name_width, r->name);
 	list_for_each_entry(dom, &r->domains, list) {
 		if (sep)
 			seq_puts(s, ";");
-		seq_printf(s, "%d=%x", dom->id, dom->cbm[closid]);
+		seq_printf(s, r->format_str, dom->id, max_data_width,
+			   dom->ctrl_val[closid]);
 		sep = true;
 	}
 	seq_puts(s, "\n");

@@ -387,7 +387,7 @@ static void lp5523_firmware_loaded(struct lp55xx_chip *chip)
 	}
 
 	/*
-	 * Program momery sequence
+	 * Program memory sequence
 	 *  1) set engine mode to "LOAD"
 	 *  2) write firmware data into program memory
 	 */

@@ -867,8 +867,7 @@ static ssize_t amdgpu_hwmon_get_pwm1_enable(struct device *dev,
 
 	pwm_mode = amdgpu_dpm_get_fan_control_mode(adev);
 
-	/* never 0 (full-speed), fuse or smc-controlled always */
-	return sprintf(buf, "%i\n", pwm_mode == FDO_PWM_MODE_STATIC ? 1 : 2);
+	return sprintf(buf, "%i\n", pwm_mode);
 }
 
 static ssize_t amdgpu_hwmon_set_pwm1_enable(struct device *dev,
@@ -887,14 +886,7 @@ static ssize_t amdgpu_hwmon_set_pwm1_enable(struct device *dev,
 	if (err)
 		return err;
 
-	switch (value) {
-	case 1: /* manual, percent-based */
-		amdgpu_dpm_set_fan_control_mode(adev, FDO_PWM_MODE_STATIC);
-		break;
-	default: /* disable */
-		amdgpu_dpm_set_fan_control_mode(adev, 0);
-		break;
-	}
+	amdgpu_dpm_set_fan_control_mode(adev, value);
 
 	return count;
 }

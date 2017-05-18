@@ -581,6 +581,17 @@ static struct davinci_nand_pdata
 			"ti,davinci-nand-use-bbt"))
 			pdata->bbt_options = NAND_BBT_USE_FLASH;
 
+		/*
+		 * Since kernel v4.8, this driver has been fixed to enable
+		 * use of 4-bit hardware ECC with subpages and verified on
+		 * TI's keystone EVMs (K2L, K2HK and K2E).
+		 * However, in the interest of not breaking systems using
+		 * existing UBI partitions, sub-page writes are not being
+		 * (re)enabled. If you want to use subpage writes on Keystone
+		 * platforms (i.e. do not have any existing UBI partitions),
+		 * then use "ti,davinci-nand" as the compatible in your
+		 * device-tree file.
+		 */
 		if (of_device_is_compatible(pdev->dev.of_node,
 					    "ti,keystone-nand")) {
 			pdata->options |= NAND_NO_SUBPAGE_WRITE;

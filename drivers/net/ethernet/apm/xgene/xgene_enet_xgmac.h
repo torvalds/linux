@@ -65,6 +65,11 @@
 #define XG_DEF_PAUSE_THRES		0x390
 #define XG_DEF_PAUSE_OFF_THRES		0x2c0
 #define XG_RSIF_CONFIG_REG_ADDR		0x00a0
+#define XG_RSIF_CLE_BUFF_THRESH                0x3
+#define RSIF_CLE_BUFF_THRESH_SET(dst, val)     xgene_set_bits(dst, val, 0, 3)
+#define XG_RSIF_CONFIG1_REG_ADDR       0x00b8
+#define XG_RSIF_PLC_CLE_BUFF_THRESH    0x1
+#define RSIF_PLC_CLE_BUFF_THRESH_SET(dst, val) xgene_set_bits(dst, val, 0, 2)
 #define XCLE_BYPASS_REG0_ADDR           0x0160
 #define XCLE_BYPASS_REG1_ADDR           0x0164
 #define XG_CFG_BYPASS_ADDR		0x0204

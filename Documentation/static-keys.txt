@@ -118,7 +118,7 @@ Or:
 
 Keys defined via DEFINE_STATIC_KEY_TRUE(), or DEFINE_STATIC_KEY_FALSE, may
 be used in either static_branch_likely() or static_branch_unlikely()
-statemnts.
+statements.
 
 Branch(es) can be set true via:
 

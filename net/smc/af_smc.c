@@ -101,7 +101,7 @@ struct proto smc_proto = {
 	.unhash		= smc_unhash_sk,
 	.obj_size	= sizeof(struct smc_sock),
 	.h.smc_hash	= &smc_v4_hashinfo,
-	.slab_flags	= SLAB_DESTROY_BY_RCU,
+	.slab_flags	= SLAB_TYPESAFE_BY_RCU,
 };
 EXPORT_SYMBOL_GPL(smc_proto);
 
@@ -147,7 +147,6 @@ static int smc_release(struct socket *sock)
 		schedule_delayed_work(&smc->sock_put_work,
 				      SMC_CLOSE_SOCK_PUT_DELAY);
 	}
-	sk->sk_prot->unhash(sk);
 	release_sock(sk);
 
 	sock_put(sk);
@@ -451,6 +450,9 @@ static int smc_connect_rdma(struct smc_sock *smc)
 		goto decline_rdma_unlock;
 	}
 
+	smc_close_init(smc);
+	smc_rx_init(smc);
+
 	if (local_contact == SMC_FIRST_CONTACT) {
 		rc = smc_ib_ready_link(link);
 		if (rc) {
@@ -477,7 +479,6 @@ static int smc_connect_rdma(struct smc_sock *smc)
 
 	mutex_unlock(&smc_create_lgr_pending);
 	smc_tx_init(smc);
-	smc_rx_init(smc);
 
 out_connected:
 	smc_copy_sock_settings_to_clc(smc);
@@ -637,7 +638,8 @@ struct sock *smc_accept_dequeue(struct sock *parent,
 
 		smc_accept_unlink(new_sk);
 		if (new_sk->sk_state == SMC_CLOSED) {
-			/* tbd in follow-on patch: close this sock */
+			new_sk->sk_prot->unhash(new_sk);
+			sock_put(new_sk);
 			continue;
 		}
 		if (new_sock)
@@ -657,8 +659,13 @@ void smc_close_non_accepted(struct sock *sk)
 	if (!sk->sk_lingertime)
 		/* wait for peer closing */
 		sk->sk_lingertime = SMC_MAX_STREAM_WAIT_TIMEOUT;
-	if (!smc->use_fallback)
+	if (smc->use_fallback) {
+		sk->sk_state = SMC_CLOSED;
+	} else {
 		smc_close_active(smc);
+		sock_set_flag(sk, SOCK_DEAD);
+		sk->sk_shutdown |= SHUTDOWN_MASK;
+	}
 	if (smc->clcsock) {
 		struct socket *tcp;
 
@@ -666,11 +673,9 @@ void smc_close_non_accepted(struct sock *sk)
 		smc->clcsock = NULL;
 		sock_release(tcp);
 	}
-	sock_set_flag(sk, SOCK_DEAD);
-	sk->sk_shutdown |= SHUTDOWN_MASK;
 	if (smc->use_fallback) {
 		schedule_delayed_work(&smc->sock_put_work, TCP_TIMEWAIT_LEN);
-	} else {
+	} else if (sk->sk_state == SMC_CLOSED) {
 		smc_conn_free(&smc->conn);
 		schedule_delayed_work(&smc->sock_put_work,
 				      SMC_CLOSE_SOCK_PUT_DELAY);
@@ -800,6 +805,9 @@ static void smc_listen_work(struct work_struct *work)
 		goto decline_rdma;
 	}
 
+	smc_close_init(new_smc);
+	smc_rx_init(new_smc);
+
 	rc = smc_clc_send_accept(new_smc, local_contact);
 	if (rc)
 		goto out_err;
@@ -839,7 +847,6 @@ static void smc_listen_work(struct work_struct *work)
 	}
 
 	smc_tx_init(new_smc);
-	smc_rx_init(new_smc);
 
 out_connected:
 	sk_refcnt_debug_inc(newsmcsk);

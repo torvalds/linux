@@ -979,7 +979,7 @@ static void dce_v6_0_program_watermarks(struct amdgpu_device *adev,
 	u32 priority_a_mark = 0, priority_b_mark = 0;
 	u32 priority_a_cnt = PRIORITY_OFF;
 	u32 priority_b_cnt = PRIORITY_OFF;
-	u32 tmp, arb_control3;
+	u32 tmp, arb_control3, lb_vblank_lead_lines = 0;
 	fixed20_12 a, b, c;
 
 	if (amdgpu_crtc->base.enabled && num_heads && mode) {
@@ -1091,6 +1091,8 @@ static void dce_v6_0_program_watermarks(struct amdgpu_device *adev,
 		c.full = dfixed_div(c, a);
 		priority_b_mark = dfixed_trunc(c);
 		priority_b_cnt |= priority_b_mark & PRIORITY_MARK_MASK;
+
+		lb_vblank_lead_lines = DIV_ROUND_UP(lb_size, mode->crtc_hdisplay);
 	}
 
 	/* select wm A */
@@ -1120,6 +1122,9 @@ static void dce_v6_0_program_watermarks(struct amdgpu_device *adev,
 	/* save values for DPM */
 	amdgpu_crtc->line_time = line_time;
 	amdgpu_crtc->wm_high = latency_watermark_a;
+
+	/* Save number of lines the linebuffer leads before the scanout */
+	amdgpu_crtc->lb_vblank_lead_lines = lb_vblank_lead_lines;
 }
 
 /* watermark setup */
@@ -1640,7 +1645,7 @@ static int dce_v6_0_crtc_do_set_base(struct drm_crtc *crtc,
 	if (!atomic && fb && fb != crtc->primary->fb) {
 		amdgpu_fb = to_amdgpu_framebuffer(fb);
 		abo = gem_to_amdgpu_bo(amdgpu_fb->obj);
-		r = amdgpu_bo_reserve(abo, false);
+		r = amdgpu_bo_reserve(abo, true);
 		if (unlikely(r != 0))
 			return r;
 		amdgpu_bo_unpin(abo);
@@ -1957,7 +1962,7 @@ static int dce_v6_0_crtc_cursor_set2(struct drm_crtc *crtc,
 unpin:
 	if (amdgpu_crtc->cursor_bo) {
 		struct amdgpu_bo *aobj = gem_to_amdgpu_bo(amdgpu_crtc->cursor_bo);
-		ret = amdgpu_bo_reserve(aobj, false);
+		ret = amdgpu_bo_reserve(aobj, true);
 		if (likely(ret == 0)) {
 			amdgpu_bo_unpin(aobj);
 			amdgpu_bo_unreserve(aobj);
@@ -2083,7 +2088,7 @@ static void dce_v6_0_crtc_disable(struct drm_crtc *crtc)
 
 		amdgpu_fb = to_amdgpu_framebuffer(crtc->primary->fb);
 		abo = gem_to_amdgpu_bo(amdgpu_fb->obj);
-		r = amdgpu_bo_reserve(abo, false);
+		r = amdgpu_bo_reserve(abo, true);
 		if (unlikely(r))
 			DRM_ERROR("failed to reserve abo before unpin\n");
 		else {

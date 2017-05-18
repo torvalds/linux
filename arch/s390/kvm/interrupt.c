@@ -410,6 +410,7 @@ static int __write_machine_check(struct kvm_vcpu *vcpu,
 				 struct kvm_s390_mchk_info *mchk)
 {
 	unsigned long ext_sa_addr;
+	unsigned long lc;
 	freg_t fprs[NUM_FPRS];
 	union mci mci;
 	int rc;
@@ -418,18 +419,48 @@ static int __write_machine_check(struct kvm_vcpu *vcpu,
 	/* take care of lazy register loading */
 	save_fpu_regs();
 	save_access_regs(vcpu->run->s.regs.acrs);
+	if (MACHINE_HAS_GS && vcpu->arch.gs_enabled)
+		save_gs_cb(current->thread.gs_cb);
 
 	/* Extended save area */
-	rc = read_guest_lc(vcpu, __LC_VX_SAVE_AREA_ADDR, &ext_sa_addr,
-			    sizeof(unsigned long));
-	/* Only bits 0-53 are used for address formation */
-	ext_sa_addr &= ~0x3ffUL;
+	rc = read_guest_lc(vcpu, __LC_MCESAD, &ext_sa_addr,
+			   sizeof(unsigned long));
+	/* Only bits 0 through 63-LC are used for address formation */
+	lc = ext_sa_addr & MCESA_LC_MASK;
+	if (test_kvm_facility(vcpu->kvm, 133)) {
+		switch (lc) {
+		case 0:
+		case 10:
+			ext_sa_addr &= ~0x3ffUL;
+			break;
+		case 11:
+			ext_sa_addr &= ~0x7ffUL;
+			break;
+		case 12:
+			ext_sa_addr &= ~0xfffUL;
+			break;
+		default:
+			ext_sa_addr = 0;
+			break;
+		}
+	} else {
+		ext_sa_addr &= ~0x3ffUL;
+	}
+
 	if (!rc && mci.vr && ext_sa_addr && test_kvm_facility(vcpu->kvm, 129)) {
 		if (write_guest_abs(vcpu, ext_sa_addr, vcpu->run->s.regs.vrs,
 				    512))
 			mci.vr = 0;
 	} else {
 		mci.vr = 0;
+	}
+	if (!rc && mci.gs && ext_sa_addr && test_kvm_facility(vcpu->kvm, 133)
+	    && (lc == 11 || lc == 12)) {
+		if (write_guest_abs(vcpu, ext_sa_addr + 1024,
+				    &vcpu->run->s.regs.gscb, 32))
+			mci.gs = 0;
+	} else {
+		mci.gs = 0;
 	}
 
 	/* General interruption information */
@@ -1968,6 +1999,8 @@ static int register_io_adapter(struct kvm_device *dev,
 	adapter->maskable = adapter_info.maskable;
 	adapter->masked = false;
 	adapter->swap = adapter_info.swap;
+	adapter->suppressible = (adapter_info.flags) &
+				KVM_S390_ADAPTER_SUPPRESSIBLE;
 	dev->kvm->arch.adapters[adapter->id] = adapter;
 
 	return 0;
@@ -2121,6 +2154,87 @@ static int clear_io_irq(struct kvm *kvm, struct kvm_device_attr *attr)
 	return 0;
 }
 
+static int modify_ais_mode(struct kvm *kvm, struct kvm_device_attr *attr)
+{
+	struct kvm_s390_float_interrupt *fi = &kvm->arch.float_int;
+	struct kvm_s390_ais_req req;
+	int ret = 0;
+
+	if (!fi->ais_enabled)
+		return -ENOTSUPP;
+
+	if (copy_from_user(&req, (void __user *)attr->addr, sizeof(req)))
+		return -EFAULT;
+
+	if (req.isc > MAX_ISC)
+		return -EINVAL;
+
+	trace_kvm_s390_modify_ais_mode(req.isc,
+				       (fi->simm & AIS_MODE_MASK(req.isc)) ?
+				       (fi->nimm & AIS_MODE_MASK(req.isc)) ?
+				       2 : KVM_S390_AIS_MODE_SINGLE :
+				       KVM_S390_AIS_MODE_ALL, req.mode);
+
+	mutex_lock(&fi->ais_lock);
+	switch (req.mode) {
+	case KVM_S390_AIS_MODE_ALL:
+		fi->simm &= ~AIS_MODE_MASK(req.isc);
+		fi->nimm &= ~AIS_MODE_MASK(req.isc);
+		break;
+	case KVM_S390_AIS_MODE_SINGLE:
+		fi->simm |= AIS_MODE_MASK(req.isc);
+		fi->nimm &= ~AIS_MODE_MASK(req.isc);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+	mutex_unlock(&fi->ais_lock);
+
+	return ret;
+}
+
+static int kvm_s390_inject_airq(struct kvm *kvm,
+				struct s390_io_adapter *adapter)
+{
+	struct kvm_s390_float_interrupt *fi = &kvm->arch.float_int;
+	struct kvm_s390_interrupt s390int = {
+		.type = KVM_S390_INT_IO(1, 0, 0, 0),
+		.parm = 0,
+		.parm64 = (adapter->isc << 27) | 0x80000000,
+	};
+	int ret = 0;
+
+	if (!fi->ais_enabled || !adapter->suppressible)
+		return kvm_s390_inject_vm(kvm, &s390int);
+
+	mutex_lock(&fi->ais_lock);
+	if (fi->nimm & AIS_MODE_MASK(adapter->isc)) {
+		trace_kvm_s390_airq_suppressed(adapter->id, adapter->isc);
+		goto out;
+	}
+
+	ret = kvm_s390_inject_vm(kvm, &s390int);
+	if (!ret && (fi->simm & AIS_MODE_MASK(adapter->isc))) {
+		fi->nimm |= AIS_MODE_MASK(adapter->isc);
+		trace_kvm_s390_modify_ais_mode(adapter->isc,
+					       KVM_S390_AIS_MODE_SINGLE, 2);
+	}
+out:
+	mutex_unlock(&fi->ais_lock);
+	return ret;
+}
+
+static int flic_inject_airq(struct kvm *kvm, struct kvm_device_attr *attr)
+{
+	unsigned int id = attr->attr;
+	struct s390_io_adapter *adapter = get_io_adapter(kvm, id);
+
+	if (!adapter)
+		return -EINVAL;
+
+	return kvm_s390_inject_airq(kvm, adapter);
+}
+
 static int flic_set_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 {
 	int r = 0;
@@ -2157,6 +2271,12 @@ static int flic_set_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 	case KVM_DEV_FLIC_CLEAR_IO_IRQ:
 		r = clear_io_irq(dev->kvm, attr);
 		break;
+	case KVM_DEV_FLIC_AISM:
+		r = modify_ais_mode(dev->kvm, attr);
+		break;
+	case KVM_DEV_FLIC_AIRQ_INJECT:
+		r = flic_inject_airq(dev->kvm, attr);
+		break;
 	default:
 		r = -EINVAL;
 	}
@@ -2176,6 +2296,8 @@ static int flic_has_attr(struct kvm_device *dev,
 	case KVM_DEV_FLIC_ADAPTER_REGISTER:
 	case KVM_DEV_FLIC_ADAPTER_MODIFY:
 	case KVM_DEV_FLIC_CLEAR_IO_IRQ:
+	case KVM_DEV_FLIC_AISM:
+	case KVM_DEV_FLIC_AIRQ_INJECT:
 		return 0;
 	}
 	return -ENXIO;
@@ -2286,12 +2408,7 @@ static int set_adapter_int(struct kvm_kernel_irq_routing_entry *e,
 	ret = adapter_indicators_set(kvm, adapter, &e->adapter);
 	up_read(&adapter->maps_lock);
 	if ((ret > 0) && !adapter->masked) {
-		struct kvm_s390_interrupt s390int = {
-			.type = KVM_S390_INT_IO(1, 0, 0, 0),
-			.parm = 0,
-			.parm64 = (adapter->isc << 27) | 0x80000000,
-		};
-		ret = kvm_s390_inject_vm(kvm, &s390int);
+		ret = kvm_s390_inject_airq(kvm, adapter);
 		if (ret == 0)
 			ret = 1;
 	}

@@ -18,6 +18,7 @@ The A10SR consists of these sub-devices:
 Device                   Description
 ------                   ----------
 a10sr_gpio               GPIO Controller
+a10sr_rst                Reset Controller
 
 Arria10 GPIO
 Required Properties:
@@ -26,6 +27,11 @@ Required Properties:
 - #gpio-cells       : Should be two.  The first cell is the pin number and
                       the second cell is used to specify flags.
                       See ../gpio/gpio.txt for more information.
+
+Arria10 Peripheral PHY Reset
+Required Properties:
+- compatible        : Should be "altr,a10sr-reset"
+- #reset-cells      : Should be one.
 
 Example:
 
@@ -42,5 +48,10 @@ Example:
 			compatible = "altr,a10sr-gpio";
 			gpio-controller;
 			#gpio-cells = <2>;
+		};
+
+		a10sr_rst: reset-controller {
+			compatible = "altr,a10sr-reset";
+			#reset-cells = <1>;
 		};
 	};

@@ -27,8 +27,6 @@
 #define MIN_CACHE_VERSION 1
 #define MAX_CACHE_VERSION 2
 
-#define CACHE_METADATA_CACHE_SIZE 64
-
 /*
  *  3 for btree insert +
  *  2 for btree lookup used within space map
@@ -535,7 +533,6 @@ static int __create_persistent_data_objects(struct dm_cache_metadata *cmd,
 {
 	int r;
 	cmd->bm = dm_block_manager_create(cmd->bdev, DM_CACHE_METADATA_BLOCK_SIZE << SECTOR_SHIFT,
-					  CACHE_METADATA_CACHE_SIZE,
 					  CACHE_MAX_CONCURRENT_LOCKS);
 	if (IS_ERR(cmd->bm)) {
 		DMERR("could not create block manager");
@@ -1627,17 +1624,19 @@ void dm_cache_metadata_set_stats(struct dm_cache_metadata *cmd,
 
 int dm_cache_commit(struct dm_cache_metadata *cmd, bool clean_shutdown)
 {
-	int r;
+	int r = -EINVAL;
 	flags_mutator mutator = (clean_shutdown ? set_clean_shutdown :
 				 clear_clean_shutdown);
 
 	WRITE_LOCK(cmd);
+	if (cmd->fail_io)
+		goto out;
+
 	r = __commit_transaction(cmd, mutator);
 	if (r)
 		goto out;
 
 	r = __begin_transaction(cmd);
-
 out:
 	WRITE_UNLOCK(cmd);
 	return r;
@@ -1649,7 +1648,8 @@ int dm_cache_get_free_metadata_block_count(struct dm_cache_metadata *cmd,
 	int r = -EINVAL;
 
 	READ_LOCK(cmd);
-	r = dm_sm_get_nr_free(cmd->metadata_sm, result);
+	if (!cmd->fail_io)
+		r = dm_sm_get_nr_free(cmd->metadata_sm, result);
 	READ_UNLOCK(cmd);
 
 	return r;
@@ -1661,7 +1661,8 @@ int dm_cache_get_metadata_dev_size(struct dm_cache_metadata *cmd,
 	int r = -EINVAL;
 
 	READ_LOCK(cmd);
-	r = dm_sm_get_nr_blocks(cmd->metadata_sm, result);
+	if (!cmd->fail_io)
+		r = dm_sm_get_nr_blocks(cmd->metadata_sm, result);
 	READ_UNLOCK(cmd);
 
 	return r;

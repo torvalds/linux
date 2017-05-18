@@ -1000,8 +1000,9 @@ static void encode_nfs4_verifier(struct xdr_stream *xdr, const nfs4_verifier *ve
 
 static void encode_attrs(struct xdr_stream *xdr, const struct iattr *iap,
 				const struct nfs4_label *label,
+				const umode_t *umask,
 				const struct nfs_server *server,
-				bool excl_check, const umode_t *umask)
+				const uint32_t attrmask[])
 {
 	char owner_name[IDMAP_NAMESZ];
 	char owner_group[IDMAP_NAMESZ];
@@ -1016,22 +1017,20 @@ static void encode_attrs(struct xdr_stream *xdr, const struct iattr *iap,
 	/*
 	 * We reserve enough space to write the entire attribute buffer at once.
 	 */
-	if (iap->ia_valid & ATTR_SIZE) {
+	if ((iap->ia_valid & ATTR_SIZE) && (attrmask[0] & FATTR4_WORD0_SIZE)) {
 		bmval[0] |= FATTR4_WORD0_SIZE;
 		len += 8;
 	}
-	if (!(server->attr_bitmask[2] & FATTR4_WORD2_MODE_UMASK))
-		umask = NULL;
 	if (iap->ia_valid & ATTR_MODE) {
-		if (umask) {
+		if (umask && (attrmask[2] & FATTR4_WORD2_MODE_UMASK)) {
 			bmval[2] |= FATTR4_WORD2_MODE_UMASK;
 			len += 8;
-		} else {
+		} else if (attrmask[1] & FATTR4_WORD1_MODE) {
 			bmval[1] |= FATTR4_WORD1_MODE;
 			len += 4;
 		}
 	}
-	if (iap->ia_valid & ATTR_UID) {
+	if ((iap->ia_valid & ATTR_UID) && (attrmask[1] & FATTR4_WORD1_OWNER)) {
 		owner_namelen = nfs_map_uid_to_name(server, iap->ia_uid, owner_name, IDMAP_NAMESZ);
 		if (owner_namelen < 0) {
 			dprintk("nfs: couldn't resolve uid %d to string\n",
@@ -1044,7 +1043,8 @@ static void encode_attrs(struct xdr_stream *xdr, const struct iattr *iap,
 		bmval[1] |= FATTR4_WORD1_OWNER;
 		len += 4 + (XDR_QUADLEN(owner_namelen) << 2);
 	}
-	if (iap->ia_valid & ATTR_GID) {
+	if ((iap->ia_valid & ATTR_GID) &&
+	   (attrmask[1] & FATTR4_WORD1_OWNER_GROUP)) {
 		owner_grouplen = nfs_map_gid_to_group(server, iap->ia_gid, owner_group, IDMAP_NAMESZ);
 		if (owner_grouplen < 0) {
 			dprintk("nfs: couldn't resolve gid %d to string\n",
@@ -1056,32 +1056,26 @@ static void encode_attrs(struct xdr_stream *xdr, const struct iattr *iap,
 		bmval[1] |= FATTR4_WORD1_OWNER_GROUP;
 		len += 4 + (XDR_QUADLEN(owner_grouplen) << 2);
 	}
-	if (iap->ia_valid & ATTR_ATIME_SET) {
-		bmval[1] |= FATTR4_WORD1_TIME_ACCESS_SET;
-		len += 16;
-	} else if (iap->ia_valid & ATTR_ATIME) {
-		bmval[1] |= FATTR4_WORD1_TIME_ACCESS_SET;
-		len += 4;
+	if (attrmask[1] & FATTR4_WORD1_TIME_ACCESS_SET) {
+		if (iap->ia_valid & ATTR_ATIME_SET) {
+			bmval[1] |= FATTR4_WORD1_TIME_ACCESS_SET;
+			len += 16;
+		} else if (iap->ia_valid & ATTR_ATIME) {
+			bmval[1] |= FATTR4_WORD1_TIME_ACCESS_SET;
+			len += 4;
+		}
 	}
-	if (iap->ia_valid & ATTR_MTIME_SET) {
-		bmval[1] |= FATTR4_WORD1_TIME_MODIFY_SET;
-		len += 16;
-	} else if (iap->ia_valid & ATTR_MTIME) {
-		bmval[1] |= FATTR4_WORD1_TIME_MODIFY_SET;
-		len += 4;
-	}
-
-	if (excl_check) {
-		const u32 *excl_bmval = server->exclcreat_bitmask;
-		bmval[0] &= excl_bmval[0];
-		bmval[1] &= excl_bmval[1];
-		bmval[2] &= excl_bmval[2];
-
-		if (!(excl_bmval[2] & FATTR4_WORD2_SECURITY_LABEL))
-			label = NULL;
+	if (attrmask[1] & FATTR4_WORD1_TIME_MODIFY_SET) {
+		if (iap->ia_valid & ATTR_MTIME_SET) {
+			bmval[1] |= FATTR4_WORD1_TIME_MODIFY_SET;
+			len += 16;
+		} else if (iap->ia_valid & ATTR_MTIME) {
+			bmval[1] |= FATTR4_WORD1_TIME_MODIFY_SET;
+			len += 4;
+		}
 	}
 
-	if (label) {
+	if (label && (attrmask[2] & FATTR4_WORD2_SECURITY_LABEL)) {
 		len += 4 + 4 + 4 + (XDR_QUADLEN(label->len) << 2);
 		bmval[2] |= FATTR4_WORD2_SECURITY_LABEL;
 	}
@@ -1188,8 +1182,8 @@ static void encode_create(struct xdr_stream *xdr, const struct nfs4_create_arg *
 	}
 
 	encode_string(xdr, create->name->len, create->name->name);
-	encode_attrs(xdr, create->attrs, create->label, create->server, false,
-		     &create->umask);
+	encode_attrs(xdr, create->attrs, create->label, &create->umask,
+			create->server, create->server->attr_bitmask);
 }
 
 static void encode_getattr_one(struct xdr_stream *xdr, uint32_t bitmap, struct compound_hdr *hdr)
@@ -1409,13 +1403,13 @@ static inline void encode_createmode(struct xdr_stream *xdr, const struct nfs_op
 	switch(arg->createmode) {
 	case NFS4_CREATE_UNCHECKED:
 		*p = cpu_to_be32(NFS4_CREATE_UNCHECKED);
-		encode_attrs(xdr, arg->u.attrs, arg->label, arg->server, false,
-			     &arg->umask);
+		encode_attrs(xdr, arg->u.attrs, arg->label, &arg->umask,
+				arg->server, arg->server->attr_bitmask);
 		break;
 	case NFS4_CREATE_GUARDED:
 		*p = cpu_to_be32(NFS4_CREATE_GUARDED);
-		encode_attrs(xdr, arg->u.attrs, arg->label, arg->server, false,
-			     &arg->umask);
+		encode_attrs(xdr, arg->u.attrs, arg->label, &arg->umask,
+				arg->server, arg->server->attr_bitmask);
 		break;
 	case NFS4_CREATE_EXCLUSIVE:
 		*p = cpu_to_be32(NFS4_CREATE_EXCLUSIVE);
@@ -1424,8 +1418,8 @@ static inline void encode_createmode(struct xdr_stream *xdr, const struct nfs_op
 	case NFS4_CREATE_EXCLUSIVE4_1:
 		*p = cpu_to_be32(NFS4_CREATE_EXCLUSIVE4_1);
 		encode_nfs4_verifier(xdr, &arg->u.verifier);
-		encode_attrs(xdr, arg->u.attrs, arg->label, arg->server, true,
-			     &arg->umask);
+		encode_attrs(xdr, arg->u.attrs, arg->label, &arg->umask,
+				arg->server, arg->server->exclcreat_bitmask);
 	}
 }
 
@@ -1681,7 +1675,8 @@ static void encode_setattr(struct xdr_stream *xdr, const struct nfs_setattrargs 
 {
 	encode_op_hdr(xdr, OP_SETATTR, decode_setattr_maxsz, hdr);
 	encode_nfs4_stateid(xdr, &arg->stateid);
-	encode_attrs(xdr, arg->iap, arg->label, server, false, NULL);
+	encode_attrs(xdr, arg->iap, arg->label, NULL, server,
+			server->attr_bitmask);
 }
 
 static void encode_setclientid(struct xdr_stream *xdr, const struct nfs4_setclientid *setclientid, struct compound_hdr *hdr)
@@ -2005,16 +2000,10 @@ encode_layoutcommit(struct xdr_stream *xdr,
 	*p++ = cpu_to_be32(0); /* Never send time_modify_changed */
 	*p++ = cpu_to_be32(NFS_SERVER(args->inode)->pnfs_curr_ld->id);/* type */
 
-	if (NFS_SERVER(inode)->pnfs_curr_ld->encode_layoutcommit) {
-		NFS_SERVER(inode)->pnfs_curr_ld->encode_layoutcommit(
-			NFS_I(inode)->layout, xdr, args);
-	} else {
-		encode_uint32(xdr, args->layoutupdate_len);
-		if (args->layoutupdate_pages) {
-			xdr_write_pages(xdr, args->layoutupdate_pages, 0,
-					args->layoutupdate_len);
-		}
-	}
+	encode_uint32(xdr, args->layoutupdate_len);
+	if (args->layoutupdate_pages)
+		xdr_write_pages(xdr, args->layoutupdate_pages, 0,
+				args->layoutupdate_len);
 
 	return 0;
 }
@@ -2024,7 +2013,6 @@ encode_layoutreturn(struct xdr_stream *xdr,
 		    const struct nfs4_layoutreturn_args *args,
 		    struct compound_hdr *hdr)
 {
-	const struct pnfs_layoutdriver_type *lr_ops = NFS_SERVER(args->inode)->pnfs_curr_ld;
 	__be32 *p;
 
 	encode_op_hdr(xdr, OP_LAYOUTRETURN, decode_layoutreturn_maxsz, hdr);
@@ -2041,8 +2029,6 @@ encode_layoutreturn(struct xdr_stream *xdr,
 	spin_unlock(&args->inode->i_lock);
 	if (args->ld_private->ops && args->ld_private->ops->encode)
 		args->ld_private->ops->encode(xdr, args, args->ld_private);
-	else if (lr_ops->encode_layoutreturn)
-		lr_ops->encode_layoutreturn(xdr, args);
 	else
 		encode_uint32(xdr, 0);
 }
@@ -5579,6 +5565,8 @@ static int decode_op_map(struct xdr_stream *xdr, struct nfs4_op_map *op_map)
 	unsigned int i;
 
 	p = xdr_inline_decode(xdr, 4);
+	if (!p)
+		return -EIO;
 	bitmap_words = be32_to_cpup(p++);
 	if (bitmap_words > NFS4_OP_MAP_NUM_WORDS)
 		return -EIO;

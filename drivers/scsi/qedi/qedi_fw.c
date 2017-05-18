@@ -14,6 +14,8 @@
 #include "qedi.h"
 #include "qedi_iscsi.h"
 #include "qedi_gbl.h"
+#include "qedi_fw_iscsi.h"
+#include "qedi_fw_scsi.h"
 
 static int qedi_send_iscsi_tmf(struct qedi_conn *qedi_conn,
 			       struct iscsi_task *mtask);
@@ -53,8 +55,8 @@ static void qedi_process_logout_resp(struct qedi_ctx *qedi,
 	resp_hdr->exp_cmdsn = cpu_to_be32(cqe_logout_response->exp_cmd_sn);
 	resp_hdr->max_cmdsn = cpu_to_be32(cqe_logout_response->max_cmd_sn);
 
-	resp_hdr->t2wait = cpu_to_be32(cqe_logout_response->time2wait);
-	resp_hdr->t2retain = cpu_to_be32(cqe_logout_response->time2retain);
+	resp_hdr->t2wait = cpu_to_be32(cqe_logout_response->time_2_wait);
+	resp_hdr->t2retain = cpu_to_be32(cqe_logout_response->time_2_retain);
 
 	QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_TID,
 		  "Freeing tid=0x%x for cid=0x%x\n",
@@ -975,81 +977,6 @@ exit_fp_process:
 	return;
 }
 
-static void qedi_add_to_sq(struct qedi_conn *qedi_conn, struct iscsi_task *task,
-			   u16 tid, uint16_t ptu_invalidate, int is_cleanup)
-{
-	struct iscsi_wqe *wqe;
-	struct iscsi_wqe_field *cont_field;
-	struct qedi_endpoint *ep;
-	struct scsi_cmnd *sc = task->sc;
-	struct iscsi_login_req *login_hdr;
-	struct qedi_cmd *cmd = task->dd_data;
-
-	login_hdr = (struct iscsi_login_req *)task->hdr;
-	ep = qedi_conn->ep;
-	wqe = &ep->sq[ep->sq_prod_idx];
-
-	memset(wqe, 0, sizeof(*wqe));
-
-	ep->sq_prod_idx++;
-	ep->fw_sq_prod_idx++;
-	if (ep->sq_prod_idx == QEDI_SQ_SIZE)
-		ep->sq_prod_idx = 0;
-
-	if (is_cleanup) {
-		SET_FIELD(wqe->flags, ISCSI_WQE_WQE_TYPE,
-			  ISCSI_WQE_TYPE_TASK_CLEANUP);
-		wqe->task_id = tid;
-		return;
-	}
-
-	if (ptu_invalidate) {
-		SET_FIELD(wqe->flags, ISCSI_WQE_PTU_INVALIDATE,
-			  ISCSI_WQE_SET_PTU_INVALIDATE);
-	}
-
-	cont_field = &wqe->cont_prevtid_union.cont_field;
-
-	switch (task->hdr->opcode & ISCSI_OPCODE_MASK) {
-	case ISCSI_OP_LOGIN:
-	case ISCSI_OP_TEXT:
-		SET_FIELD(wqe->flags, ISCSI_WQE_WQE_TYPE,
-			  ISCSI_WQE_TYPE_MIDDLE_PATH);
-		SET_FIELD(wqe->flags, ISCSI_WQE_NUM_FAST_SGES,
-			  1);
-		cont_field->contlen_cdbsize_field = ntoh24(login_hdr->dlength);
-		break;
-	case ISCSI_OP_LOGOUT:
-	case ISCSI_OP_NOOP_OUT:
-	case ISCSI_OP_SCSI_TMFUNC:
-		 SET_FIELD(wqe->flags, ISCSI_WQE_WQE_TYPE,
-			   ISCSI_WQE_TYPE_NORMAL);
-		break;
-	default:
-		if (!sc)
-			break;
-
-		SET_FIELD(wqe->flags, ISCSI_WQE_WQE_TYPE,
-			  ISCSI_WQE_TYPE_NORMAL);
-		cont_field->contlen_cdbsize_field =
-				(sc->sc_data_direction == DMA_TO_DEVICE) ?
-				scsi_bufflen(sc) : 0;
-		if (cmd->use_slowpath)
-			SET_FIELD(wqe->flags, ISCSI_WQE_NUM_FAST_SGES, 0);
-		else
-			SET_FIELD(wqe->flags, ISCSI_WQE_NUM_FAST_SGES,
-				  (sc->sc_data_direction ==
-				   DMA_TO_DEVICE) ?
-				  min((u16)QEDI_FAST_SGE_COUNT,
-				      (u16)cmd->io_tbl.sge_valid) : 0);
-		break;
-	}
-
-	wqe->task_id = tid;
-	/* Make sure SQ data is coherent */
-	wmb();
-}
-
 static void qedi_ring_doorbell(struct qedi_conn *qedi_conn)
 {
 	struct iscsi_db_data dbell = { 0 };
@@ -1076,96 +1003,116 @@ static void qedi_ring_doorbell(struct qedi_conn *qedi_conn)
 		  qedi_conn->iscsi_conn_id);
 }
 
+static u16 qedi_get_wqe_idx(struct qedi_conn *qedi_conn)
+{
+	struct qedi_endpoint *ep;
+	u16 rval;
+
+	ep = qedi_conn->ep;
+	rval = ep->sq_prod_idx;
+
+	/* Increament SQ index */
+	ep->sq_prod_idx++;
+	ep->fw_sq_prod_idx++;
+	if (ep->sq_prod_idx == QEDI_SQ_SIZE)
+		ep->sq_prod_idx = 0;
+
+	return rval;
+}
+
 int qedi_send_iscsi_login(struct qedi_conn *qedi_conn,
 			  struct iscsi_task *task)
 {
-	struct qedi_ctx *qedi = qedi_conn->qedi;
+	struct iscsi_login_req_hdr login_req_pdu_header;
+	struct scsi_sgl_task_params tx_sgl_task_params;
+	struct scsi_sgl_task_params rx_sgl_task_params;
+	struct iscsi_task_params task_params;
 	struct iscsi_task_context *fw_task_ctx;
+	struct qedi_ctx *qedi = qedi_conn->qedi;
 	struct iscsi_login_req *login_hdr;
-	struct iscsi_login_req_hdr *fw_login_req = NULL;
-	struct iscsi_cached_sge_ctx *cached_sge = NULL;
-	struct iscsi_sge *single_sge = NULL;
-	struct iscsi_sge *req_sge = NULL;
-	struct iscsi_sge *resp_sge = NULL;
+	struct scsi_sge *req_sge = NULL;
+	struct scsi_sge *resp_sge = NULL;
 	struct qedi_cmd *qedi_cmd;
-	s16 ptu_invalidate = 0;
+	struct qedi_endpoint *ep;
 	s16 tid = 0;
+	u16 sq_idx = 0;
+	int rval = 0;
 
-	req_sge = (struct iscsi_sge *)qedi_conn->gen_pdu.req_bd_tbl;
-	resp_sge = (struct iscsi_sge *)qedi_conn->gen_pdu.resp_bd_tbl;
+	req_sge = (struct scsi_sge *)qedi_conn->gen_pdu.req_bd_tbl;
+	resp_sge = (struct scsi_sge *)qedi_conn->gen_pdu.resp_bd_tbl;
 	qedi_cmd = (struct qedi_cmd *)task->dd_data;
+	ep = qedi_conn->ep;
 	login_hdr = (struct iscsi_login_req *)task->hdr;
 
 	tid = qedi_get_task_idx(qedi);
 	if (tid == -1)
 		return -ENOMEM;
 
-	fw_task_ctx = qedi_get_task_mem(&qedi->tasks, tid);
+	fw_task_ctx =
+	     (struct iscsi_task_context *)qedi_get_task_mem(&qedi->tasks, tid);
 	memset(fw_task_ctx, 0, sizeof(struct iscsi_task_context));
 
 	qedi_cmd->task_id = tid;
 
-	/* Ystorm context */
-	fw_login_req = &fw_task_ctx->ystorm_st_context.pdu_hdr.login_req;
-	fw_login_req->opcode = login_hdr->opcode;
-	fw_login_req->version_min = login_hdr->min_version;
-	fw_login_req->version_max = login_hdr->max_version;
-	fw_login_req->flags_attr = login_hdr->flags;
-	fw_login_req->isid_tabc = *((u16 *)login_hdr->isid + 2);
-	fw_login_req->isid_d = *((u32 *)login_hdr->isid);
-	fw_login_req->tsih = login_hdr->tsih;
+	memset(&task_params, 0, sizeof(task_params));
+	memset(&login_req_pdu_header, 0, sizeof(login_req_pdu_header));
+	memset(&tx_sgl_task_params, 0, sizeof(tx_sgl_task_params));
+	memset(&rx_sgl_task_params, 0, sizeof(rx_sgl_task_params));
+	/* Update header info */
+	login_req_pdu_header.opcode = login_hdr->opcode;
+	login_req_pdu_header.version_min = login_hdr->min_version;
+	login_req_pdu_header.version_max = login_hdr->max_version;
+	login_req_pdu_header.flags_attr = login_hdr->flags;
+	login_req_pdu_header.isid_tabc = swab32p((u32 *)login_hdr->isid);
+	login_req_pdu_header.isid_d = swab16p((u16 *)&login_hdr->isid[4]);
+
+	login_req_pdu_header.tsih = login_hdr->tsih;
+	login_req_pdu_header.hdr_second_dword = ntoh24(login_hdr->dlength);
+
 	qedi_update_itt_map(qedi, tid, task->itt, qedi_cmd);
-	fw_login_req->itt = qedi_set_itt(tid, get_itt(task->itt));
-	fw_login_req->cid = qedi_conn->iscsi_conn_id;
-	fw_login_req->cmd_sn = be32_to_cpu(login_hdr->cmdsn);
-	fw_login_req->exp_stat_sn = be32_to_cpu(login_hdr->exp_statsn);
-	fw_login_req->exp_stat_sn = 0;
+	login_req_pdu_header.itt = qedi_set_itt(tid, get_itt(task->itt));
+	login_req_pdu_header.cid = qedi_conn->iscsi_conn_id;
+	login_req_pdu_header.cmd_sn = be32_to_cpu(login_hdr->cmdsn);
+	login_req_pdu_header.exp_stat_sn = be32_to_cpu(login_hdr->exp_statsn);
+	login_req_pdu_header.exp_stat_sn = 0;
 
-	if (qedi->tid_reuse_count[tid] == QEDI_MAX_TASK_NUM) {
-		ptu_invalidate = 1;
-		qedi->tid_reuse_count[tid] = 0;
-	}
+	/* Fill tx AHS and rx buffer */
+	tx_sgl_task_params.sgl =
+			       (struct scsi_sge *)qedi_conn->gen_pdu.req_bd_tbl;
+	tx_sgl_task_params.sgl_phys_addr.lo =
+					 (u32)(qedi_conn->gen_pdu.req_dma_addr);
+	tx_sgl_task_params.sgl_phys_addr.hi =
+			      (u32)((u64)qedi_conn->gen_pdu.req_dma_addr >> 32);
+	tx_sgl_task_params.total_buffer_size = ntoh24(login_hdr->dlength);
+	tx_sgl_task_params.num_sges = 1;
 
-	fw_task_ctx->ystorm_st_context.state.reuse_count =
-						qedi->tid_reuse_count[tid];
-	fw_task_ctx->mstorm_st_context.reuse_count =
-						qedi->tid_reuse_count[tid]++;
-	cached_sge =
-	       &fw_task_ctx->ystorm_st_context.state.sgl_ctx_union.cached_sge;
-	cached_sge->sge.sge_len = req_sge->sge_len;
-	cached_sge->sge.sge_addr.lo = (u32)(qedi_conn->gen_pdu.req_dma_addr);
-	cached_sge->sge.sge_addr.hi =
-			     (u32)((u64)qedi_conn->gen_pdu.req_dma_addr >> 32);
+	rx_sgl_task_params.sgl =
+			      (struct scsi_sge *)qedi_conn->gen_pdu.resp_bd_tbl;
+	rx_sgl_task_params.sgl_phys_addr.lo =
+					(u32)(qedi_conn->gen_pdu.resp_dma_addr);
+	rx_sgl_task_params.sgl_phys_addr.hi =
+			     (u32)((u64)qedi_conn->gen_pdu.resp_dma_addr >> 32);
+	rx_sgl_task_params.total_buffer_size = resp_sge->sge_len;
+	rx_sgl_task_params.num_sges = 1;
 
-	/* Mstorm context */
-	single_sge = &fw_task_ctx->mstorm_st_context.sgl_union.single_sge;
-	fw_task_ctx->mstorm_st_context.task_type = 0x2;
-	fw_task_ctx->mstorm_ag_context.task_cid = (u16)qedi_conn->iscsi_conn_id;
-	single_sge->sge_addr.lo = resp_sge->sge_addr.lo;
-	single_sge->sge_addr.hi = resp_sge->sge_addr.hi;
-	single_sge->sge_len = resp_sge->sge_len;
+	/* Fill fw input params */
+	task_params.context = fw_task_ctx;
+	task_params.conn_icid = (u16)qedi_conn->iscsi_conn_id;
+	task_params.itid = tid;
+	task_params.cq_rss_number = 0;
+	task_params.tx_io_size = ntoh24(login_hdr->dlength);
+	task_params.rx_io_size = resp_sge->sge_len;
 
-	SET_FIELD(fw_task_ctx->mstorm_st_context.flags.mflags,
-		  ISCSI_MFLAGS_SINGLE_SGE, 1);
-	SET_FIELD(fw_task_ctx->mstorm_st_context.flags.mflags,
-		  ISCSI_MFLAGS_SLOW_IO, 0);
-	fw_task_ctx->mstorm_st_context.sgl_size = 1;
-	fw_task_ctx->mstorm_st_context.rem_task_size = resp_sge->sge_len;
+	sq_idx = qedi_get_wqe_idx(qedi_conn);
+	task_params.sqe = &ep->sq[sq_idx];
 
-	/* Ustorm context */
-	fw_task_ctx->ustorm_st_context.rem_rcv_len = resp_sge->sge_len;
-	fw_task_ctx->ustorm_st_context.exp_data_transfer_len =
-						ntoh24(login_hdr->dlength);
-	fw_task_ctx->ustorm_st_context.exp_data_sn = 0;
-	fw_task_ctx->ustorm_st_context.cq_rss_number = 0;
-	fw_task_ctx->ustorm_st_context.task_type = 0x2;
-	fw_task_ctx->ustorm_ag_context.icid = (u16)qedi_conn->iscsi_conn_id;
-	fw_task_ctx->ustorm_ag_context.exp_data_acked =
-						 ntoh24(login_hdr->dlength);
-	SET_FIELD(fw_task_ctx->ustorm_ag_context.flags1,
-		  USTORM_ISCSI_TASK_AG_CTX_R2T2RECV, 1);
-	SET_FIELD(fw_task_ctx->ustorm_st_context.flags,
-		  USTORM_ISCSI_TASK_ST_CTX_LOCAL_COMP, 0);
+	memset(task_params.sqe, 0, sizeof(struct iscsi_wqe));
+	rval = init_initiator_login_request_task(&task_params,
+						 &login_req_pdu_header,
+						 &tx_sgl_task_params,
+						 &rx_sgl_task_params);
+	if (rval)
+		return -1;
 
 	spin_lock(&qedi_conn->list_lock);
 	list_add_tail(&qedi_cmd->io_cmd, &qedi_conn->active_cmd_list);
@@ -1173,7 +1120,6 @@ int qedi_send_iscsi_login(struct qedi_conn *qedi_conn,
 	qedi_conn->active_cmd_count++;
 	spin_unlock(&qedi_conn->list_lock);
 
-	qedi_add_to_sq(qedi_conn, task, tid, ptu_invalidate, false);
 	qedi_ring_doorbell(qedi_conn);
 	return 0;
 }
@@ -1181,65 +1127,64 @@ int qedi_send_iscsi_login(struct qedi_conn *qedi_conn,
 int qedi_send_iscsi_logout(struct qedi_conn *qedi_conn,
 			   struct iscsi_task *task)
 {
-	struct qedi_ctx *qedi = qedi_conn->qedi;
-	struct iscsi_logout_req_hdr *fw_logout_req = NULL;
-	struct iscsi_task_context *fw_task_ctx = NULL;
+	struct iscsi_logout_req_hdr logout_pdu_header;
+	struct scsi_sgl_task_params tx_sgl_task_params;
+	struct scsi_sgl_task_params rx_sgl_task_params;
+	struct iscsi_task_params task_params;
+	struct iscsi_task_context *fw_task_ctx;
 	struct iscsi_logout *logout_hdr = NULL;
-	struct qedi_cmd *qedi_cmd = NULL;
-	s16  tid = 0;
-	s16 ptu_invalidate = 0;
+	struct qedi_ctx *qedi = qedi_conn->qedi;
+	struct qedi_cmd *qedi_cmd;
+	struct qedi_endpoint *ep;
+	s16 tid = 0;
+	u16 sq_idx = 0;
+	int rval = 0;
 
 	qedi_cmd = (struct qedi_cmd *)task->dd_data;
 	logout_hdr = (struct iscsi_logout *)task->hdr;
+	ep = qedi_conn->ep;
 
 	tid = qedi_get_task_idx(qedi);
 	if (tid == -1)
 		return -ENOMEM;
 
-	fw_task_ctx = qedi_get_task_mem(&qedi->tasks, tid);
-
+	fw_task_ctx =
+	     (struct iscsi_task_context *)qedi_get_task_mem(&qedi->tasks, tid);
 	memset(fw_task_ctx, 0, sizeof(struct iscsi_task_context));
+
 	qedi_cmd->task_id = tid;
 
-	/* Ystorm context */
-	fw_logout_req = &fw_task_ctx->ystorm_st_context.pdu_hdr.logout_req;
-	fw_logout_req->opcode = ISCSI_OPCODE_LOGOUT_REQUEST;
-	fw_logout_req->reason_code = 0x80 | logout_hdr->flags;
+	memset(&task_params, 0, sizeof(task_params));
+	memset(&logout_pdu_header, 0, sizeof(logout_pdu_header));
+	memset(&tx_sgl_task_params, 0, sizeof(tx_sgl_task_params));
+	memset(&rx_sgl_task_params, 0, sizeof(rx_sgl_task_params));
+
+	/* Update header info */
+	logout_pdu_header.opcode = logout_hdr->opcode;
+	logout_pdu_header.reason_code = 0x80 | logout_hdr->flags;
 	qedi_update_itt_map(qedi, tid, task->itt, qedi_cmd);
-	fw_logout_req->itt = qedi_set_itt(tid, get_itt(task->itt));
-	fw_logout_req->exp_stat_sn = be32_to_cpu(logout_hdr->exp_statsn);
-	fw_logout_req->cmd_sn = be32_to_cpu(logout_hdr->cmdsn);
+	logout_pdu_header.itt = qedi_set_itt(tid, get_itt(task->itt));
+	logout_pdu_header.exp_stat_sn = be32_to_cpu(logout_hdr->exp_statsn);
+	logout_pdu_header.cmd_sn = be32_to_cpu(logout_hdr->cmdsn);
+	logout_pdu_header.cid = qedi_conn->iscsi_conn_id;
 
-	if (qedi->tid_reuse_count[tid] == QEDI_MAX_TASK_NUM) {
-		ptu_invalidate = 1;
-		qedi->tid_reuse_count[tid] = 0;
-	}
-	fw_task_ctx->ystorm_st_context.state.reuse_count =
-						  qedi->tid_reuse_count[tid];
-	fw_task_ctx->mstorm_st_context.reuse_count =
-						qedi->tid_reuse_count[tid]++;
-	fw_logout_req->cid = qedi_conn->iscsi_conn_id;
-	fw_task_ctx->ystorm_st_context.state.buffer_offset[0] = 0;
+	/* Fill fw input params */
+	task_params.context = fw_task_ctx;
+	task_params.conn_icid = (u16)qedi_conn->iscsi_conn_id;
+	task_params.itid = tid;
+	task_params.cq_rss_number = 0;
+	task_params.tx_io_size = 0;
+	task_params.rx_io_size = 0;
 
-	/* Mstorm context */
-	fw_task_ctx->mstorm_st_context.task_type = ISCSI_TASK_TYPE_MIDPATH;
-	fw_task_ctx->mstorm_ag_context.task_cid = (u16)qedi_conn->iscsi_conn_id;
+	sq_idx = qedi_get_wqe_idx(qedi_conn);
+	task_params.sqe = &ep->sq[sq_idx];
+	memset(task_params.sqe, 0, sizeof(struct iscsi_wqe));
 
-	/* Ustorm context */
-	fw_task_ctx->ustorm_st_context.rem_rcv_len = 0;
-	fw_task_ctx->ustorm_st_context.exp_data_transfer_len = 0;
-	fw_task_ctx->ustorm_st_context.exp_data_sn = 0;
-	fw_task_ctx->ustorm_st_context.task_type =  ISCSI_TASK_TYPE_MIDPATH;
-	fw_task_ctx->ustorm_st_context.cq_rss_number = 0;
-
-	SET_FIELD(fw_task_ctx->ustorm_st_context.flags,
-		  USTORM_ISCSI_TASK_ST_CTX_LOCAL_COMP, 0);
-	SET_FIELD(fw_task_ctx->ustorm_st_context.reg1.reg1_map,
-		  ISCSI_REG1_NUM_FAST_SGES, 0);
-
-	fw_task_ctx->ustorm_ag_context.icid = (u16)qedi_conn->iscsi_conn_id;
-	SET_FIELD(fw_task_ctx->ustorm_ag_context.flags1,
-		  USTORM_ISCSI_TASK_AG_CTX_R2T2RECV, 1);
+	rval = init_initiator_logout_request_task(&task_params,
+						  &logout_pdu_header,
+						  NULL, NULL);
+	if (rval)
+		return -1;
 
 	spin_lock(&qedi_conn->list_lock);
 	list_add_tail(&qedi_cmd->io_cmd, &qedi_conn->active_cmd_list);
@@ -1247,9 +1192,7 @@ int qedi_send_iscsi_logout(struct qedi_conn *qedi_conn,
 	qedi_conn->active_cmd_count++;
 	spin_unlock(&qedi_conn->list_lock);
 
-	qedi_add_to_sq(qedi_conn, task, tid, ptu_invalidate, false);
 	qedi_ring_doorbell(qedi_conn);
-
 	return 0;
 }
 
@@ -1533,47 +1476,46 @@ ldel_exit:
 static int qedi_send_iscsi_tmf(struct qedi_conn *qedi_conn,
 			       struct iscsi_task *mtask)
 {
-	struct iscsi_conn *conn = qedi_conn->cls_conn->dd_data;
+	struct iscsi_tmf_request_hdr tmf_pdu_header;
+	struct iscsi_task_params task_params;
 	struct qedi_ctx *qedi = qedi_conn->qedi;
 	struct iscsi_task_context *fw_task_ctx;
-	struct iscsi_tmf_request_hdr *fw_tmf_request;
-	struct iscsi_sge *single_sge;
-	struct qedi_cmd *qedi_cmd;
-	struct qedi_cmd *cmd;
+	struct iscsi_conn *conn = qedi_conn->cls_conn->dd_data;
 	struct iscsi_task *ctask;
 	struct iscsi_tm *tmf_hdr;
-	struct iscsi_sge *req_sge;
-	struct iscsi_sge *resp_sge;
-	u32 lun[2];
-	s16 tid = 0, ptu_invalidate = 0;
+	struct qedi_cmd *qedi_cmd;
+	struct qedi_cmd *cmd;
+	struct qedi_endpoint *ep;
+	u32 scsi_lun[2];
+	s16 tid = 0;
+	u16 sq_idx = 0;
+	int rval = 0;
 
-	req_sge = (struct iscsi_sge *)qedi_conn->gen_pdu.req_bd_tbl;
-	resp_sge = (struct iscsi_sge *)qedi_conn->gen_pdu.resp_bd_tbl;
-	qedi_cmd = (struct qedi_cmd *)mtask->dd_data;
 	tmf_hdr = (struct iscsi_tm *)mtask->hdr;
+	qedi_cmd = (struct qedi_cmd *)mtask->dd_data;
+	ep = qedi_conn->ep;
 
-	tid = qedi_cmd->task_id;
-	qedi_update_itt_map(qedi, tid, mtask->itt, qedi_cmd);
+	tid = qedi_get_task_idx(qedi);
+	if (tid == -1)
+		return -ENOMEM;
 
-	fw_task_ctx = qedi_get_task_mem(&qedi->tasks, tid);
+	fw_task_ctx =
+	     (struct iscsi_task_context *)qedi_get_task_mem(&qedi->tasks, tid);
 	memset(fw_task_ctx, 0, sizeof(struct iscsi_task_context));
 
-	fw_tmf_request = &fw_task_ctx->ystorm_st_context.pdu_hdr.tmf_request;
-	fw_tmf_request->itt = qedi_set_itt(tid, get_itt(mtask->itt));
-	fw_tmf_request->cmd_sn = be32_to_cpu(tmf_hdr->cmdsn);
+	qedi_cmd->task_id = tid;
 
-	memcpy(lun, &tmf_hdr->lun, sizeof(struct scsi_lun));
-	fw_tmf_request->lun.lo = be32_to_cpu(lun[0]);
-	fw_tmf_request->lun.hi = be32_to_cpu(lun[1]);
+	memset(&task_params, 0, sizeof(task_params));
+	memset(&tmf_pdu_header, 0, sizeof(tmf_pdu_header));
 
-	if (qedi->tid_reuse_count[tid] == QEDI_MAX_TASK_NUM) {
-		ptu_invalidate = 1;
-		qedi->tid_reuse_count[tid] = 0;
-	}
-	fw_task_ctx->ystorm_st_context.state.reuse_count =
-						qedi->tid_reuse_count[tid];
-	fw_task_ctx->mstorm_st_context.reuse_count =
-						qedi->tid_reuse_count[tid]++;
+	/* Update header info */
+	qedi_update_itt_map(qedi, tid, mtask->itt, qedi_cmd);
+	tmf_pdu_header.itt = qedi_set_itt(tid, get_itt(mtask->itt));
+	tmf_pdu_header.cmd_sn = be32_to_cpu(tmf_hdr->cmdsn);
+
+	memcpy(scsi_lun, &tmf_hdr->lun, sizeof(struct scsi_lun));
+	tmf_pdu_header.lun.lo = be32_to_cpu(scsi_lun[0]);
+	tmf_pdu_header.lun.hi = be32_to_cpu(scsi_lun[1]);
 
 	if ((tmf_hdr->flags & ISCSI_FLAG_TM_FUNC_MASK) ==
 	     ISCSI_TM_FUNC_ABORT_TASK) {
@@ -1584,53 +1526,34 @@ static int qedi_send_iscsi_tmf(struct qedi_conn *qedi_conn,
 			return 0;
 		}
 		cmd = (struct qedi_cmd *)ctask->dd_data;
-		fw_tmf_request->rtt =
+		tmf_pdu_header.rtt =
 				qedi_set_itt(cmd->task_id,
 					     get_itt(tmf_hdr->rtt));
 	} else {
-		fw_tmf_request->rtt = ISCSI_RESERVED_TAG;
+		tmf_pdu_header.rtt = ISCSI_RESERVED_TAG;
 	}
 
-	fw_tmf_request->opcode = tmf_hdr->opcode;
-	fw_tmf_request->function = tmf_hdr->flags;
-	fw_tmf_request->hdr_second_dword = ntoh24(tmf_hdr->dlength);
-	fw_tmf_request->ref_cmd_sn = be32_to_cpu(tmf_hdr->refcmdsn);
+	tmf_pdu_header.opcode = tmf_hdr->opcode;
+	tmf_pdu_header.function = tmf_hdr->flags;
+	tmf_pdu_header.hdr_second_dword = ntoh24(tmf_hdr->dlength);
+	tmf_pdu_header.ref_cmd_sn = be32_to_cpu(tmf_hdr->refcmdsn);
 
-	single_sge = &fw_task_ctx->mstorm_st_context.sgl_union.single_sge;
-	fw_task_ctx->mstorm_st_context.task_type = ISCSI_TASK_TYPE_MIDPATH;
-	fw_task_ctx->mstorm_ag_context.task_cid = (u16)qedi_conn->iscsi_conn_id;
-	single_sge->sge_addr.lo = resp_sge->sge_addr.lo;
-	single_sge->sge_addr.hi = resp_sge->sge_addr.hi;
-	single_sge->sge_len = resp_sge->sge_len;
+	/* Fill fw input params */
+	task_params.context = fw_task_ctx;
+	task_params.conn_icid = (u16)qedi_conn->iscsi_conn_id;
+	task_params.itid = tid;
+	task_params.cq_rss_number = 0;
+	task_params.tx_io_size = 0;
+	task_params.rx_io_size = 0;
 
-	SET_FIELD(fw_task_ctx->mstorm_st_context.flags.mflags,
-		  ISCSI_MFLAGS_SINGLE_SGE, 1);
-	SET_FIELD(fw_task_ctx->mstorm_st_context.flags.mflags,
-		  ISCSI_MFLAGS_SLOW_IO, 0);
-	fw_task_ctx->mstorm_st_context.sgl_size = 1;
-	fw_task_ctx->mstorm_st_context.rem_task_size = resp_sge->sge_len;
+	sq_idx = qedi_get_wqe_idx(qedi_conn);
+	task_params.sqe = &ep->sq[sq_idx];
 
-	/* Ustorm context */
-	fw_task_ctx->ustorm_st_context.rem_rcv_len = 0;
-	fw_task_ctx->ustorm_st_context.exp_data_transfer_len = 0;
-	fw_task_ctx->ustorm_st_context.exp_data_sn = 0;
-	fw_task_ctx->ustorm_st_context.task_type =  ISCSI_TASK_TYPE_MIDPATH;
-	fw_task_ctx->ustorm_st_context.cq_rss_number = 0;
-
-	SET_FIELD(fw_task_ctx->ustorm_st_context.flags,
-		  USTORM_ISCSI_TASK_ST_CTX_LOCAL_COMP, 0);
-	SET_FIELD(fw_task_ctx->ustorm_st_context.reg1.reg1_map,
-		  ISCSI_REG1_NUM_FAST_SGES, 0);
-
-	fw_task_ctx->ustorm_ag_context.icid = (u16)qedi_conn->iscsi_conn_id;
-	SET_FIELD(fw_task_ctx->ustorm_ag_context.flags1,
-		  USTORM_ISCSI_TASK_AG_CTX_R2T2RECV, 1);
-	fw_task_ctx->ustorm_st_context.lun.lo = be32_to_cpu(lun[0]);
-	fw_task_ctx->ustorm_st_context.lun.hi = be32_to_cpu(lun[1]);
-
-	QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_SCSI_TM,
-		  "Add TMF to SQ, tmf tid=0x%x, itt=0x%x, cid=0x%x\n",
-		  tid,  mtask->itt, qedi_conn->iscsi_conn_id);
+	memset(task_params.sqe, 0, sizeof(struct iscsi_wqe));
+	rval = init_initiator_tmf_request_task(&task_params,
+					       &tmf_pdu_header);
+	if (rval)
+		return -1;
 
 	spin_lock(&qedi_conn->list_lock);
 	list_add_tail(&qedi_cmd->io_cmd, &qedi_conn->active_cmd_list);
@@ -1638,7 +1561,6 @@ static int qedi_send_iscsi_tmf(struct qedi_conn *qedi_conn,
 	qedi_conn->active_cmd_count++;
 	spin_unlock(&qedi_conn->list_lock);
 
-	qedi_add_to_sq(qedi_conn, mtask, tid, ptu_invalidate, false);
 	qedi_ring_doorbell(qedi_conn);
 	return 0;
 }
@@ -1689,101 +1611,98 @@ int qedi_iscsi_abort_work(struct qedi_conn *qedi_conn,
 int qedi_send_iscsi_text(struct qedi_conn *qedi_conn,
 			 struct iscsi_task *task)
 {
-	struct qedi_ctx *qedi = qedi_conn->qedi;
+	struct iscsi_text_request_hdr text_request_pdu_header;
+	struct scsi_sgl_task_params tx_sgl_task_params;
+	struct scsi_sgl_task_params rx_sgl_task_params;
+	struct iscsi_task_params task_params;
 	struct iscsi_task_context *fw_task_ctx;
-	struct iscsi_text_request_hdr *fw_text_request;
-	struct iscsi_cached_sge_ctx *cached_sge;
-	struct iscsi_sge *single_sge;
-	struct qedi_cmd *qedi_cmd;
-	/* For 6.5 hdr iscsi_hdr */
+	struct qedi_ctx *qedi = qedi_conn->qedi;
 	struct iscsi_text *text_hdr;
-	struct iscsi_sge *req_sge;
-	struct iscsi_sge *resp_sge;
-	s16 ptu_invalidate = 0;
+	struct scsi_sge *req_sge = NULL;
+	struct scsi_sge *resp_sge = NULL;
+	struct qedi_cmd *qedi_cmd;
+	struct qedi_endpoint *ep;
 	s16 tid = 0;
+	u16 sq_idx = 0;
+	int rval = 0;
 
-	req_sge = (struct iscsi_sge *)qedi_conn->gen_pdu.req_bd_tbl;
-	resp_sge = (struct iscsi_sge *)qedi_conn->gen_pdu.resp_bd_tbl;
+	req_sge = (struct scsi_sge *)qedi_conn->gen_pdu.req_bd_tbl;
+	resp_sge = (struct scsi_sge *)qedi_conn->gen_pdu.resp_bd_tbl;
 	qedi_cmd = (struct qedi_cmd *)task->dd_data;
 	text_hdr = (struct iscsi_text *)task->hdr;
+	ep = qedi_conn->ep;
 
 	tid = qedi_get_task_idx(qedi);
 	if (tid == -1)
 		return -ENOMEM;
 
-	fw_task_ctx = qedi_get_task_mem(&qedi->tasks, tid);
+	fw_task_ctx =
+	     (struct iscsi_task_context *)qedi_get_task_mem(&qedi->tasks, tid);
 	memset(fw_task_ctx, 0, sizeof(struct iscsi_task_context));
 
 	qedi_cmd->task_id = tid;
 
-	/* Ystorm context */
-	fw_text_request =
-			&fw_task_ctx->ystorm_st_context.pdu_hdr.text_request;
-	fw_text_request->opcode = text_hdr->opcode;
-	fw_text_request->flags_attr = text_hdr->flags;
+	memset(&task_params, 0, sizeof(task_params));
+	memset(&text_request_pdu_header, 0, sizeof(text_request_pdu_header));
+	memset(&tx_sgl_task_params, 0, sizeof(tx_sgl_task_params));
+	memset(&rx_sgl_task_params, 0, sizeof(rx_sgl_task_params));
+
+	/* Update header info */
+	text_request_pdu_header.opcode = text_hdr->opcode;
+	text_request_pdu_header.flags_attr = text_hdr->flags;
 
 	qedi_update_itt_map(qedi, tid, task->itt, qedi_cmd);
-	fw_text_request->itt = qedi_set_itt(tid, get_itt(task->itt));
-	fw_text_request->ttt = text_hdr->ttt;
-	fw_text_request->cmd_sn = be32_to_cpu(text_hdr->cmdsn);
-	fw_text_request->exp_stat_sn = be32_to_cpu(text_hdr->exp_statsn);
-	fw_text_request->hdr_second_dword = ntoh24(text_hdr->dlength);
+	text_request_pdu_header.itt = qedi_set_itt(tid, get_itt(task->itt));
+	text_request_pdu_header.ttt = text_hdr->ttt;
+	text_request_pdu_header.cmd_sn = be32_to_cpu(text_hdr->cmdsn);
+	text_request_pdu_header.exp_stat_sn = be32_to_cpu(text_hdr->exp_statsn);
+	text_request_pdu_header.hdr_second_dword = ntoh24(text_hdr->dlength);
 
-	if (qedi->tid_reuse_count[tid] == QEDI_MAX_TASK_NUM) {
-		ptu_invalidate = 1;
-		qedi->tid_reuse_count[tid] = 0;
-	}
-	fw_task_ctx->ystorm_st_context.state.reuse_count =
-						     qedi->tid_reuse_count[tid];
-	fw_task_ctx->mstorm_st_context.reuse_count =
-						   qedi->tid_reuse_count[tid]++;
-
-	cached_sge =
-	       &fw_task_ctx->ystorm_st_context.state.sgl_ctx_union.cached_sge;
-	cached_sge->sge.sge_len = req_sge->sge_len;
-	cached_sge->sge.sge_addr.lo = (u32)(qedi_conn->gen_pdu.req_dma_addr);
-	cached_sge->sge.sge_addr.hi =
+	/* Fill tx AHS and rx buffer */
+	tx_sgl_task_params.sgl =
+			       (struct scsi_sge *)qedi_conn->gen_pdu.req_bd_tbl;
+	tx_sgl_task_params.sgl_phys_addr.lo =
+					 (u32)(qedi_conn->gen_pdu.req_dma_addr);
+	tx_sgl_task_params.sgl_phys_addr.hi =
 			      (u32)((u64)qedi_conn->gen_pdu.req_dma_addr >> 32);
+	tx_sgl_task_params.total_buffer_size = req_sge->sge_len;
+	tx_sgl_task_params.num_sges = 1;
 
-	/* Mstorm context */
-	single_sge = &fw_task_ctx->mstorm_st_context.sgl_union.single_sge;
-	fw_task_ctx->mstorm_st_context.task_type = 0x2;
-	fw_task_ctx->mstorm_ag_context.task_cid = (u16)qedi_conn->iscsi_conn_id;
-	single_sge->sge_addr.lo = resp_sge->sge_addr.lo;
-	single_sge->sge_addr.hi = resp_sge->sge_addr.hi;
-	single_sge->sge_len = resp_sge->sge_len;
+	rx_sgl_task_params.sgl =
+			      (struct scsi_sge *)qedi_conn->gen_pdu.resp_bd_tbl;
+	rx_sgl_task_params.sgl_phys_addr.lo =
+					(u32)(qedi_conn->gen_pdu.resp_dma_addr);
+	rx_sgl_task_params.sgl_phys_addr.hi =
+			     (u32)((u64)qedi_conn->gen_pdu.resp_dma_addr >> 32);
+	rx_sgl_task_params.total_buffer_size = resp_sge->sge_len;
+	rx_sgl_task_params.num_sges = 1;
 
-	SET_FIELD(fw_task_ctx->mstorm_st_context.flags.mflags,
-		  ISCSI_MFLAGS_SINGLE_SGE, 1);
-	SET_FIELD(fw_task_ctx->mstorm_st_context.flags.mflags,
-		  ISCSI_MFLAGS_SLOW_IO, 0);
-	fw_task_ctx->mstorm_st_context.sgl_size = 1;
-	fw_task_ctx->mstorm_st_context.rem_task_size = resp_sge->sge_len;
+	/* Fill fw input params */
+	task_params.context = fw_task_ctx;
+	task_params.conn_icid = (u16)qedi_conn->iscsi_conn_id;
+	task_params.itid = tid;
+	task_params.cq_rss_number = 0;
+	task_params.tx_io_size = ntoh24(text_hdr->dlength);
+	task_params.rx_io_size = resp_sge->sge_len;
 
-	/* Ustorm context */
-	fw_task_ctx->ustorm_ag_context.exp_data_acked =
-						      ntoh24(text_hdr->dlength);
-	fw_task_ctx->ustorm_st_context.rem_rcv_len = resp_sge->sge_len;
-	fw_task_ctx->ustorm_st_context.exp_data_transfer_len =
-						      ntoh24(text_hdr->dlength);
-	fw_task_ctx->ustorm_st_context.exp_data_sn =
-					      be32_to_cpu(text_hdr->exp_statsn);
-	fw_task_ctx->ustorm_st_context.cq_rss_number = 0;
-	fw_task_ctx->ustorm_st_context.task_type = 0x2;
-	fw_task_ctx->ustorm_ag_context.icid = (u16)qedi_conn->iscsi_conn_id;
-	SET_FIELD(fw_task_ctx->ustorm_ag_context.flags1,
-		  USTORM_ISCSI_TASK_AG_CTX_R2T2RECV, 1);
+	sq_idx = qedi_get_wqe_idx(qedi_conn);
+	task_params.sqe = &ep->sq[sq_idx];
 
-	/*  Add command in active command list */
+	memset(task_params.sqe, 0, sizeof(struct iscsi_wqe));
+	rval = init_initiator_text_request_task(&task_params,
+						&text_request_pdu_header,
+						&tx_sgl_task_params,
+						&rx_sgl_task_params);
+	if (rval)
+		return -1;
+
 	spin_lock(&qedi_conn->list_lock);
 	list_add_tail(&qedi_cmd->io_cmd, &qedi_conn->active_cmd_list);
 	qedi_cmd->io_cmd_in_list = true;
 	qedi_conn->active_cmd_count++;
 	spin_unlock(&qedi_conn->list_lock);
 
-	qedi_add_to_sq(qedi_conn, task, tid, ptu_invalidate, false);
 	qedi_ring_doorbell(qedi_conn);
-
 	return 0;
 }
 
@@ -1791,58 +1710,62 @@ int qedi_send_iscsi_nopout(struct qedi_conn *qedi_conn,
 			   struct iscsi_task *task,
 			   char *datap, int data_len, int unsol)
 {
+	struct iscsi_nop_out_hdr nop_out_pdu_header;
+	struct scsi_sgl_task_params tx_sgl_task_params;
+	struct scsi_sgl_task_params rx_sgl_task_params;
+	struct iscsi_task_params task_params;
 	struct qedi_ctx *qedi = qedi_conn->qedi;
 	struct iscsi_task_context *fw_task_ctx;
-	struct iscsi_nop_out_hdr *fw_nop_out;
-	struct qedi_cmd *qedi_cmd;
-	/* For 6.5 hdr iscsi_hdr */
 	struct iscsi_nopout *nopout_hdr;
-	struct iscsi_cached_sge_ctx *cached_sge;
-	struct iscsi_sge *single_sge;
-	struct iscsi_sge *req_sge;
-	struct iscsi_sge *resp_sge;
-	u32 lun[2];
-	s16 ptu_invalidate = 0;
+	struct scsi_sge *req_sge = NULL;
+	struct scsi_sge *resp_sge = NULL;
+	struct qedi_cmd *qedi_cmd;
+	struct qedi_endpoint *ep;
+	u32 scsi_lun[2];
 	s16 tid = 0;
+	u16 sq_idx = 0;
+	int rval = 0;
 
-	req_sge = (struct iscsi_sge *)qedi_conn->gen_pdu.req_bd_tbl;
-	resp_sge = (struct iscsi_sge *)qedi_conn->gen_pdu.resp_bd_tbl;
+	req_sge = (struct scsi_sge *)qedi_conn->gen_pdu.req_bd_tbl;
+	resp_sge = (struct scsi_sge *)qedi_conn->gen_pdu.resp_bd_tbl;
 	qedi_cmd = (struct qedi_cmd *)task->dd_data;
 	nopout_hdr = (struct iscsi_nopout *)task->hdr;
+	ep = qedi_conn->ep;
 
 	tid = qedi_get_task_idx(qedi);
-	if (tid == -1) {
-		QEDI_WARN(&qedi->dbg_ctx, "Invalid tid\n");
+	if (tid == -1)
 		return -ENOMEM;
-	}
 
-	fw_task_ctx = qedi_get_task_mem(&qedi->tasks, tid);
-
+	fw_task_ctx =
+	     (struct iscsi_task_context *)qedi_get_task_mem(&qedi->tasks, tid);
 	memset(fw_task_ctx, 0, sizeof(struct iscsi_task_context));
+
 	qedi_cmd->task_id = tid;
 
-	/* Ystorm context */
-	fw_nop_out = &fw_task_ctx->ystorm_st_context.pdu_hdr.nop_out;
-	SET_FIELD(fw_nop_out->flags_attr, ISCSI_NOP_OUT_HDR_CONST1, 1);
-	SET_FIELD(fw_nop_out->flags_attr, ISCSI_NOP_OUT_HDR_RSRV, 0);
+	memset(&task_params, 0, sizeof(task_params));
+	memset(&nop_out_pdu_header, 0, sizeof(nop_out_pdu_header));
+	memset(&tx_sgl_task_params, 0, sizeof(tx_sgl_task_params));
+	memset(&rx_sgl_task_params, 0, sizeof(rx_sgl_task_params));
 
-	memcpy(lun, &nopout_hdr->lun, sizeof(struct scsi_lun));
-	fw_nop_out->lun.lo = be32_to_cpu(lun[0]);
-	fw_nop_out->lun.hi = be32_to_cpu(lun[1]);
+	/* Update header info */
+	nop_out_pdu_header.opcode = nopout_hdr->opcode;
+	SET_FIELD(nop_out_pdu_header.flags_attr, ISCSI_NOP_OUT_HDR_CONST1, 1);
+	SET_FIELD(nop_out_pdu_header.flags_attr, ISCSI_NOP_OUT_HDR_RSRV, 0);
+
+	memcpy(scsi_lun, &nopout_hdr->lun, sizeof(struct scsi_lun));
+	nop_out_pdu_header.lun.lo = be32_to_cpu(scsi_lun[0]);
+	nop_out_pdu_header.lun.hi = be32_to_cpu(scsi_lun[1]);
+	nop_out_pdu_header.cmd_sn = be32_to_cpu(nopout_hdr->cmdsn);
+	nop_out_pdu_header.exp_stat_sn = be32_to_cpu(nopout_hdr->exp_statsn);
 
 	qedi_update_itt_map(qedi, tid, task->itt, qedi_cmd);
 
 	if (nopout_hdr->ttt != ISCSI_TTT_ALL_ONES) {
-		fw_nop_out->itt = be32_to_cpu(nopout_hdr->itt);
-		fw_nop_out->ttt = be32_to_cpu(nopout_hdr->ttt);
-		fw_task_ctx->ystorm_st_context.state.buffer_offset[0] = 0;
-		fw_task_ctx->ystorm_st_context.state.local_comp = 1;
-		SET_FIELD(fw_task_ctx->ustorm_st_context.flags,
-			  USTORM_ISCSI_TASK_ST_CTX_LOCAL_COMP, 1);
+		nop_out_pdu_header.itt = be32_to_cpu(nopout_hdr->itt);
+		nop_out_pdu_header.ttt = be32_to_cpu(nopout_hdr->ttt);
 	} else {
-		fw_nop_out->itt = qedi_set_itt(tid, get_itt(task->itt));
-		fw_nop_out->ttt = ISCSI_TTT_ALL_ONES;
-		fw_task_ctx->ystorm_st_context.state.buffer_offset[0] = 0;
+		nop_out_pdu_header.itt = qedi_set_itt(tid, get_itt(task->itt));
+		nop_out_pdu_header.ttt = ISCSI_TTT_ALL_ONES;
 
 		spin_lock(&qedi_conn->list_lock);
 		list_add_tail(&qedi_cmd->io_cmd, &qedi_conn->active_cmd_list);
@@ -1851,53 +1774,46 @@ int qedi_send_iscsi_nopout(struct qedi_conn *qedi_conn,
 		spin_unlock(&qedi_conn->list_lock);
 	}
 
-	fw_nop_out->opcode = ISCSI_OPCODE_NOP_OUT;
-	fw_nop_out->cmd_sn = be32_to_cpu(nopout_hdr->cmdsn);
-	fw_nop_out->exp_stat_sn = be32_to_cpu(nopout_hdr->exp_statsn);
+	/* Fill tx AHS and rx buffer */
+	if (data_len) {
+		tx_sgl_task_params.sgl =
+			       (struct scsi_sge *)qedi_conn->gen_pdu.req_bd_tbl;
+		tx_sgl_task_params.sgl_phys_addr.lo =
+					 (u32)(qedi_conn->gen_pdu.req_dma_addr);
+		tx_sgl_task_params.sgl_phys_addr.hi =
+			      (u32)((u64)qedi_conn->gen_pdu.req_dma_addr >> 32);
+		tx_sgl_task_params.total_buffer_size = data_len;
+		tx_sgl_task_params.num_sges = 1;
 
-	cached_sge =
-	       &fw_task_ctx->ystorm_st_context.state.sgl_ctx_union.cached_sge;
-	cached_sge->sge.sge_len = req_sge->sge_len;
-	cached_sge->sge.sge_addr.lo = (u32)(qedi_conn->gen_pdu.req_dma_addr);
-	cached_sge->sge.sge_addr.hi =
-			(u32)((u64)qedi_conn->gen_pdu.req_dma_addr >> 32);
-
-	/* Mstorm context */
-	fw_task_ctx->mstorm_st_context.task_type = ISCSI_TASK_TYPE_MIDPATH;
-	fw_task_ctx->mstorm_ag_context.task_cid = (u16)qedi_conn->iscsi_conn_id;
-
-	single_sge = &fw_task_ctx->mstorm_st_context.sgl_union.single_sge;
-	single_sge->sge_addr.lo = resp_sge->sge_addr.lo;
-	single_sge->sge_addr.hi = resp_sge->sge_addr.hi;
-	single_sge->sge_len = resp_sge->sge_len;
-	fw_task_ctx->mstorm_st_context.rem_task_size = resp_sge->sge_len;
-
-	if (qedi->tid_reuse_count[tid] == QEDI_MAX_TASK_NUM) {
-		ptu_invalidate = 1;
-		qedi->tid_reuse_count[tid] = 0;
+		rx_sgl_task_params.sgl =
+			      (struct scsi_sge *)qedi_conn->gen_pdu.resp_bd_tbl;
+		rx_sgl_task_params.sgl_phys_addr.lo =
+					(u32)(qedi_conn->gen_pdu.resp_dma_addr);
+		rx_sgl_task_params.sgl_phys_addr.hi =
+			     (u32)((u64)qedi_conn->gen_pdu.resp_dma_addr >> 32);
+		rx_sgl_task_params.total_buffer_size = resp_sge->sge_len;
+		rx_sgl_task_params.num_sges = 1;
 	}
-	fw_task_ctx->ystorm_st_context.state.reuse_count =
-						qedi->tid_reuse_count[tid];
-	fw_task_ctx->mstorm_st_context.reuse_count =
-						qedi->tid_reuse_count[tid]++;
-	/* Ustorm context */
-	fw_task_ctx->ustorm_st_context.rem_rcv_len = resp_sge->sge_len;
-	fw_task_ctx->ustorm_st_context.exp_data_transfer_len = data_len;
-	fw_task_ctx->ustorm_st_context.exp_data_sn = 0;
-	fw_task_ctx->ustorm_st_context.task_type =  ISCSI_TASK_TYPE_MIDPATH;
-	fw_task_ctx->ustorm_st_context.cq_rss_number = 0;
 
-	SET_FIELD(fw_task_ctx->ustorm_st_context.reg1.reg1_map,
-		  ISCSI_REG1_NUM_FAST_SGES, 0);
+	/* Fill fw input params */
+	task_params.context = fw_task_ctx;
+	task_params.conn_icid = (u16)qedi_conn->iscsi_conn_id;
+	task_params.itid = tid;
+	task_params.cq_rss_number = 0;
+	task_params.tx_io_size = data_len;
+	task_params.rx_io_size = resp_sge->sge_len;
 
-	fw_task_ctx->ustorm_ag_context.icid = (u16)qedi_conn->iscsi_conn_id;
-	SET_FIELD(fw_task_ctx->ustorm_ag_context.flags1,
-		  USTORM_ISCSI_TASK_AG_CTX_R2T2RECV, 1);
+	sq_idx = qedi_get_wqe_idx(qedi_conn);
+	task_params.sqe = &ep->sq[sq_idx];
 
-	fw_task_ctx->ustorm_st_context.lun.lo = be32_to_cpu(lun[0]);
-	fw_task_ctx->ustorm_st_context.lun.hi = be32_to_cpu(lun[1]);
+	memset(task_params.sqe, 0, sizeof(struct iscsi_wqe));
+	rval = init_initiator_nop_out_task(&task_params,
+					   &nop_out_pdu_header,
+					   &tx_sgl_task_params,
+					   &rx_sgl_task_params);
+	if (rval)
+		return -1;
 
-	qedi_add_to_sq(qedi_conn, task, tid, ptu_invalidate, false);
 	qedi_ring_doorbell(qedi_conn);
 	return 0;
 }
@@ -1905,7 +1821,7 @@ int qedi_send_iscsi_nopout(struct qedi_conn *qedi_conn,
 static int qedi_split_bd(struct qedi_cmd *cmd, u64 addr, int sg_len,
 			 int bd_index)
 {
-	struct iscsi_sge *bd = cmd->io_tbl.sge_tbl;
+	struct scsi_sge *bd = cmd->io_tbl.sge_tbl;
 	int frag_size, sg_frags;
 
 	sg_frags = 0;
@@ -1938,7 +1854,7 @@ static int qedi_split_bd(struct qedi_cmd *cmd, u64 addr, int sg_len,
 static int qedi_map_scsi_sg(struct qedi_ctx *qedi, struct qedi_cmd *cmd)
 {
 	struct scsi_cmnd *sc = cmd->scsi_cmd;
-	struct iscsi_sge *bd = cmd->io_tbl.sge_tbl;
+	struct scsi_sge *bd = cmd->io_tbl.sge_tbl;
 	struct scatterlist *sg;
 	int byte_count = 0;
 	int bd_count = 0;
@@ -2040,7 +1956,7 @@ static void qedi_iscsi_map_sg_list(struct qedi_cmd *cmd)
 		if (bd_count == 0)
 			return;
 	} else {
-		struct iscsi_sge *bd = cmd->io_tbl.sge_tbl;
+		struct scsi_sge *bd = cmd->io_tbl.sge_tbl;
 
 		bd[0].sge_addr.lo = 0;
 		bd[0].sge_addr.hi = 0;
@@ -2136,244 +2052,182 @@ int qedi_iscsi_send_ioreq(struct iscsi_task *task)
 	struct qedi_conn *qedi_conn = conn->dd_data;
 	struct qedi_cmd *cmd = task->dd_data;
 	struct scsi_cmnd *sc = task->sc;
+	struct iscsi_cmd_hdr cmd_pdu_header;
+	struct scsi_sgl_task_params tx_sgl_task_params;
+	struct scsi_sgl_task_params rx_sgl_task_params;
+	struct scsi_sgl_task_params *prx_sgl = NULL;
+	struct scsi_sgl_task_params *ptx_sgl = NULL;
+	struct iscsi_task_params task_params;
+	struct iscsi_conn_params conn_params;
+	struct scsi_initiator_cmd_params cmd_params;
 	struct iscsi_task_context *fw_task_ctx;
-	struct iscsi_cached_sge_ctx *cached_sge;
-	struct iscsi_phys_sgl_ctx *phys_sgl;
-	struct iscsi_virt_sgl_ctx *virt_sgl;
-	struct ystorm_iscsi_task_st_ctx *yst_cxt;
-	struct mstorm_iscsi_task_st_ctx *mst_cxt;
-	struct iscsi_sgl *sgl_struct;
-	struct iscsi_sge *single_sge;
+	struct iscsi_cls_conn *cls_conn;
 	struct iscsi_scsi_req *hdr = (struct iscsi_scsi_req *)task->hdr;
-	struct iscsi_sge *bd = cmd->io_tbl.sge_tbl;
-	enum iscsi_task_type task_type;
-	struct iscsi_cmd_hdr *fw_cmd;
-	u32 lun[2];
-	u32 exp_data;
-	u16 cq_idx = smp_processor_id() % qedi->num_queues;
-	s16 ptu_invalidate = 0;
+	enum iscsi_task_type task_type = MAX_ISCSI_TASK_TYPE;
+	struct qedi_endpoint *ep;
+	u32 scsi_lun[2];
 	s16 tid = 0;
-	u8 num_fast_sgs;
+	u16 sq_idx = 0;
+	u16 cq_idx;
+	int rval = 0;
+
+	ep = qedi_conn->ep;
+	cls_conn = qedi_conn->cls_conn;
+	conn = cls_conn->dd_data;
+
+	qedi_iscsi_map_sg_list(cmd);
+	int_to_scsilun(sc->device->lun, (struct scsi_lun *)scsi_lun);
 
 	tid = qedi_get_task_idx(qedi);
 	if (tid == -1)
 		return -ENOMEM;
 
-	qedi_iscsi_map_sg_list(cmd);
-
-	int_to_scsilun(sc->device->lun, (struct scsi_lun *)lun);
-	fw_task_ctx = qedi_get_task_mem(&qedi->tasks, tid);
-
+	fw_task_ctx =
+	     (struct iscsi_task_context *)qedi_get_task_mem(&qedi->tasks, tid);
 	memset(fw_task_ctx, 0, sizeof(struct iscsi_task_context));
+
 	cmd->task_id = tid;
 
-	/* Ystorm context */
-	fw_cmd = &fw_task_ctx->ystorm_st_context.pdu_hdr.cmd;
-	SET_FIELD(fw_cmd->flags_attr, ISCSI_CMD_HDR_ATTR, ISCSI_ATTR_SIMPLE);
+	memset(&task_params, 0, sizeof(task_params));
+	memset(&cmd_pdu_header, 0, sizeof(cmd_pdu_header));
+	memset(&tx_sgl_task_params, 0, sizeof(tx_sgl_task_params));
+	memset(&rx_sgl_task_params, 0, sizeof(rx_sgl_task_params));
+	memset(&conn_params, 0, sizeof(conn_params));
+	memset(&cmd_params, 0, sizeof(cmd_params));
 
+	cq_idx = smp_processor_id() % qedi->num_queues;
+	/* Update header info */
+	SET_FIELD(cmd_pdu_header.flags_attr, ISCSI_CMD_HDR_ATTR,
+		  ISCSI_ATTR_SIMPLE);
 	if (sc->sc_data_direction == DMA_TO_DEVICE) {
-		if (conn->session->initial_r2t_en) {
-			exp_data = min((conn->session->imm_data_en *
-					conn->max_xmit_dlength),
-				       conn->session->first_burst);
-			exp_data = min(exp_data, scsi_bufflen(sc));
-			fw_task_ctx->ustorm_ag_context.exp_data_acked =
-							  cpu_to_le32(exp_data);
-		} else {
-			fw_task_ctx->ustorm_ag_context.exp_data_acked =
-			      min(conn->session->first_burst, scsi_bufflen(sc));
-		}
-
-		SET_FIELD(fw_cmd->flags_attr, ISCSI_CMD_HDR_WRITE, 1);
+		SET_FIELD(cmd_pdu_header.flags_attr,
+			  ISCSI_CMD_HDR_WRITE, 1);
 		task_type = ISCSI_TASK_TYPE_INITIATOR_WRITE;
 	} else {
-		if (scsi_bufflen(sc))
-			SET_FIELD(fw_cmd->flags_attr, ISCSI_CMD_HDR_READ, 1);
+		SET_FIELD(cmd_pdu_header.flags_attr,
+			  ISCSI_CMD_HDR_READ, 1);
 		task_type = ISCSI_TASK_TYPE_INITIATOR_READ;
 	}
 
-	fw_cmd->lun.lo = be32_to_cpu(lun[0]);
-	fw_cmd->lun.hi = be32_to_cpu(lun[1]);
+	cmd_pdu_header.lun.lo = be32_to_cpu(scsi_lun[0]);
+	cmd_pdu_header.lun.hi = be32_to_cpu(scsi_lun[1]);
 
 	qedi_update_itt_map(qedi, tid, task->itt, cmd);
-	fw_cmd->itt = qedi_set_itt(tid, get_itt(task->itt));
-	fw_cmd->expected_transfer_length = scsi_bufflen(sc);
-	fw_cmd->cmd_sn = be32_to_cpu(hdr->cmdsn);
-	fw_cmd->opcode = hdr->opcode;
-	qedi_cpy_scsi_cdb(sc, (u32 *)fw_cmd->cdb);
+	cmd_pdu_header.itt = qedi_set_itt(tid, get_itt(task->itt));
+	cmd_pdu_header.expected_transfer_length = cpu_to_be32(hdr->data_length);
+	cmd_pdu_header.hdr_second_dword = ntoh24(hdr->dlength);
+	cmd_pdu_header.cmd_sn = be32_to_cpu(hdr->cmdsn);
+	cmd_pdu_header.opcode = hdr->opcode;
+	qedi_cpy_scsi_cdb(sc, (u32 *)cmd_pdu_header.cdb);
 
-	/* Mstorm context */
-	fw_task_ctx->mstorm_st_context.sense_db.lo = (u32)cmd->sense_buffer_dma;
-	fw_task_ctx->mstorm_st_context.sense_db.hi =
-					(u32)((u64)cmd->sense_buffer_dma >> 32);
-	fw_task_ctx->mstorm_ag_context.task_cid = qedi_conn->iscsi_conn_id;
-	fw_task_ctx->mstorm_st_context.task_type = task_type;
-
-	if (qedi->tid_reuse_count[tid] == QEDI_MAX_TASK_NUM) {
-		ptu_invalidate = 1;
-		qedi->tid_reuse_count[tid] = 0;
-	}
-	fw_task_ctx->ystorm_st_context.state.reuse_count =
-						     qedi->tid_reuse_count[tid];
-	fw_task_ctx->mstorm_st_context.reuse_count =
-						   qedi->tid_reuse_count[tid]++;
-
-	/* Ustorm context */
-	fw_task_ctx->ustorm_st_context.rem_rcv_len = scsi_bufflen(sc);
-	fw_task_ctx->ustorm_st_context.exp_data_transfer_len = scsi_bufflen(sc);
-	fw_task_ctx->ustorm_st_context.exp_data_sn =
-						   be32_to_cpu(hdr->exp_statsn);
-	fw_task_ctx->ustorm_st_context.task_type = task_type;
-	fw_task_ctx->ustorm_st_context.cq_rss_number = cq_idx;
-	fw_task_ctx->ustorm_ag_context.icid = (u16)qedi_conn->iscsi_conn_id;
-
-	SET_FIELD(fw_task_ctx->ustorm_ag_context.flags1,
-		  USTORM_ISCSI_TASK_AG_CTX_R2T2RECV, 1);
-	SET_FIELD(fw_task_ctx->ustorm_st_context.flags,
-		  USTORM_ISCSI_TASK_ST_CTX_LOCAL_COMP, 0);
-
-	num_fast_sgs = (cmd->io_tbl.sge_valid ?
-			min((u16)QEDI_FAST_SGE_COUNT,
-			    (u16)cmd->io_tbl.sge_valid) : 0);
-	SET_FIELD(fw_task_ctx->ustorm_st_context.reg1.reg1_map,
-		  ISCSI_REG1_NUM_FAST_SGES, num_fast_sgs);
-
-	fw_task_ctx->ustorm_st_context.lun.lo = be32_to_cpu(lun[0]);
-	fw_task_ctx->ustorm_st_context.lun.hi = be32_to_cpu(lun[1]);
-
-	QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_IO, "Total sge count [%d]\n",
-		  cmd->io_tbl.sge_valid);
-
-	yst_cxt = &fw_task_ctx->ystorm_st_context;
-	mst_cxt = &fw_task_ctx->mstorm_st_context;
-	/* Tx path */
+	/* Fill tx AHS and rx buffer */
 	if (task_type == ISCSI_TASK_TYPE_INITIATOR_WRITE) {
-		/* not considering  superIO or FastIO */
-		if (cmd->io_tbl.sge_valid == 1) {
-			cached_sge = &yst_cxt->state.sgl_ctx_union.cached_sge;
-			cached_sge->sge.sge_addr.lo = bd[0].sge_addr.lo;
-			cached_sge->sge.sge_addr.hi = bd[0].sge_addr.hi;
-			cached_sge->sge.sge_len = bd[0].sge_len;
-			qedi->cached_sgls++;
-		} else if ((cmd->io_tbl.sge_valid != 1) && cmd->use_slowpath) {
-			SET_FIELD(fw_task_ctx->mstorm_st_context.flags.mflags,
-				  ISCSI_MFLAGS_SLOW_IO, 1);
-			SET_FIELD(fw_task_ctx->ustorm_st_context.reg1.reg1_map,
-				  ISCSI_REG1_NUM_FAST_SGES, 0);
-			phys_sgl = &yst_cxt->state.sgl_ctx_union.phys_sgl;
-			phys_sgl->sgl_base.lo = (u32)(cmd->io_tbl.sge_tbl_dma);
-			phys_sgl->sgl_base.hi =
-				     (u32)((u64)cmd->io_tbl.sge_tbl_dma >> 32);
-			phys_sgl->sgl_size = cmd->io_tbl.sge_valid;
-			qedi->slow_sgls++;
-		} else if ((cmd->io_tbl.sge_valid != 1) && !cmd->use_slowpath) {
-			SET_FIELD(fw_task_ctx->mstorm_st_context.flags.mflags,
-				  ISCSI_MFLAGS_SLOW_IO, 0);
-			SET_FIELD(fw_task_ctx->ustorm_st_context.reg1.reg1_map,
-				  ISCSI_REG1_NUM_FAST_SGES,
-				  min((u16)QEDI_FAST_SGE_COUNT,
-				      (u16)cmd->io_tbl.sge_valid));
-			virt_sgl = &yst_cxt->state.sgl_ctx_union.virt_sgl;
-			virt_sgl->sgl_base.lo = (u32)(cmd->io_tbl.sge_tbl_dma);
-			virt_sgl->sgl_base.hi =
+		tx_sgl_task_params.sgl = cmd->io_tbl.sge_tbl;
+		tx_sgl_task_params.sgl_phys_addr.lo =
+						 (u32)(cmd->io_tbl.sge_tbl_dma);
+		tx_sgl_task_params.sgl_phys_addr.hi =
 				      (u32)((u64)cmd->io_tbl.sge_tbl_dma >> 32);
-			virt_sgl->sgl_initial_offset =
-				 (u32)bd[0].sge_addr.lo & (QEDI_PAGE_SIZE - 1);
-			qedi->fast_sgls++;
-		}
-		fw_task_ctx->mstorm_st_context.sgl_size = cmd->io_tbl.sge_valid;
-		fw_task_ctx->mstorm_st_context.rem_task_size = scsi_bufflen(sc);
-	} else {
-	/* Rx path */
-		if (cmd->io_tbl.sge_valid == 1) {
-			SET_FIELD(fw_task_ctx->mstorm_st_context.flags.mflags,
-				  ISCSI_MFLAGS_SLOW_IO, 0);
-			SET_FIELD(fw_task_ctx->mstorm_st_context.flags.mflags,
-				  ISCSI_MFLAGS_SINGLE_SGE, 1);
-			single_sge = &mst_cxt->sgl_union.single_sge;
-			single_sge->sge_addr.lo = bd[0].sge_addr.lo;
-			single_sge->sge_addr.hi = bd[0].sge_addr.hi;
-			single_sge->sge_len = bd[0].sge_len;
-			qedi->cached_sgls++;
-		} else if ((cmd->io_tbl.sge_valid != 1) && cmd->use_slowpath) {
-			sgl_struct = &mst_cxt->sgl_union.sgl_struct;
-			sgl_struct->sgl_addr.lo =
-						(u32)(cmd->io_tbl.sge_tbl_dma);
-			sgl_struct->sgl_addr.hi =
-				     (u32)((u64)cmd->io_tbl.sge_tbl_dma >> 32);
-			SET_FIELD(fw_task_ctx->mstorm_st_context.flags.mflags,
-				  ISCSI_MFLAGS_SLOW_IO, 1);
-			SET_FIELD(fw_task_ctx->ustorm_st_context.reg1.reg1_map,
-				  ISCSI_REG1_NUM_FAST_SGES, 0);
-			sgl_struct->updated_sge_size = 0;
-			sgl_struct->updated_sge_offset = 0;
-			qedi->slow_sgls++;
-		} else if ((cmd->io_tbl.sge_valid != 1) && !cmd->use_slowpath) {
-			sgl_struct = &mst_cxt->sgl_union.sgl_struct;
-			sgl_struct->sgl_addr.lo =
-						(u32)(cmd->io_tbl.sge_tbl_dma);
-			sgl_struct->sgl_addr.hi =
-				     (u32)((u64)cmd->io_tbl.sge_tbl_dma >> 32);
-			sgl_struct->byte_offset =
-				(u32)bd[0].sge_addr.lo & (QEDI_PAGE_SIZE - 1);
-			SET_FIELD(fw_task_ctx->mstorm_st_context.flags.mflags,
-				  ISCSI_MFLAGS_SLOW_IO, 0);
-			SET_FIELD(fw_task_ctx->ustorm_st_context.reg1.reg1_map,
-				  ISCSI_REG1_NUM_FAST_SGES, 0);
-			sgl_struct->updated_sge_size = 0;
-			sgl_struct->updated_sge_offset = 0;
-			qedi->fast_sgls++;
-		}
-		fw_task_ctx->mstorm_st_context.sgl_size = cmd->io_tbl.sge_valid;
-		fw_task_ctx->mstorm_st_context.rem_task_size = scsi_bufflen(sc);
+		tx_sgl_task_params.total_buffer_size = scsi_bufflen(sc);
+		tx_sgl_task_params.num_sges = cmd->io_tbl.sge_valid;
+		if (cmd->use_slowpath)
+			tx_sgl_task_params.small_mid_sge = true;
+	} else if (task_type == ISCSI_TASK_TYPE_INITIATOR_READ) {
+		rx_sgl_task_params.sgl = cmd->io_tbl.sge_tbl;
+		rx_sgl_task_params.sgl_phys_addr.lo =
+						 (u32)(cmd->io_tbl.sge_tbl_dma);
+		rx_sgl_task_params.sgl_phys_addr.hi =
+				      (u32)((u64)cmd->io_tbl.sge_tbl_dma >> 32);
+		rx_sgl_task_params.total_buffer_size = scsi_bufflen(sc);
+		rx_sgl_task_params.num_sges = cmd->io_tbl.sge_valid;
 	}
 
-	if (cmd->io_tbl.sge_valid == 1)
-		/* Singel-SGL */
-		qedi->use_cached_sge = true;
-	else {
-		if (cmd->use_slowpath)
-			qedi->use_slow_sge = true;
-		else
-			qedi->use_fast_sge = true;
-	}
+	/* Add conn param */
+	conn_params.first_burst_length = conn->session->first_burst;
+	conn_params.max_send_pdu_length = conn->max_xmit_dlength;
+	conn_params.max_burst_length = conn->session->max_burst;
+	if (conn->session->initial_r2t_en)
+		conn_params.initial_r2t = true;
+	if (conn->session->imm_data_en)
+		conn_params.immediate_data = true;
+
+	/* Add cmd params */
+	cmd_params.sense_data_buffer_phys_addr.lo = (u32)cmd->sense_buffer_dma;
+	cmd_params.sense_data_buffer_phys_addr.hi =
+					(u32)((u64)cmd->sense_buffer_dma >> 32);
+	/* Fill fw input params */
+	task_params.context = fw_task_ctx;
+	task_params.conn_icid = (u16)qedi_conn->iscsi_conn_id;
+	task_params.itid = tid;
+	task_params.cq_rss_number = cq_idx;
+	if (task_type == ISCSI_TASK_TYPE_INITIATOR_WRITE)
+		task_params.tx_io_size = scsi_bufflen(sc);
+	else if (task_type == ISCSI_TASK_TYPE_INITIATOR_READ)
+		task_params.rx_io_size = scsi_bufflen(sc);
+
+	sq_idx = qedi_get_wqe_idx(qedi_conn);
+	task_params.sqe = &ep->sq[sq_idx];
+
 	QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_IO,
-		  "%s: %s-SGL: num_sges=0x%x first-sge-lo=0x%x first-sge-hi=0x%x",
+		  "%s: %s-SGL: sg_len=0x%x num_sges=0x%x first-sge-lo=0x%x first-sge-hi=0x%x\n",
 		  (task_type == ISCSI_TASK_TYPE_INITIATOR_WRITE) ?
 		  "Write " : "Read ", (cmd->io_tbl.sge_valid == 1) ?
 		  "Single" : (cmd->use_slowpath ? "SLOW" : "FAST"),
-		  (u16)cmd->io_tbl.sge_valid, (u32)(cmd->io_tbl.sge_tbl_dma),
+		  (u16)cmd->io_tbl.sge_valid, scsi_bufflen(sc),
+		  (u32)(cmd->io_tbl.sge_tbl_dma),
 		  (u32)((u64)cmd->io_tbl.sge_tbl_dma >> 32));
 
-	/*  Add command in active command list */
+	memset(task_params.sqe, 0, sizeof(struct iscsi_wqe));
+
+	if (task_params.tx_io_size != 0)
+		ptx_sgl = &tx_sgl_task_params;
+	if (task_params.rx_io_size != 0)
+		prx_sgl = &rx_sgl_task_params;
+
+	rval = init_initiator_rw_iscsi_task(&task_params, &conn_params,
+					    &cmd_params, &cmd_pdu_header,
+					    ptx_sgl, prx_sgl,
+					    NULL);
+	if (rval)
+		return -1;
+
 	spin_lock(&qedi_conn->list_lock);
 	list_add_tail(&cmd->io_cmd, &qedi_conn->active_cmd_list);
 	cmd->io_cmd_in_list = true;
 	qedi_conn->active_cmd_count++;
 	spin_unlock(&qedi_conn->list_lock);
 
-	qedi_add_to_sq(qedi_conn, task, tid, ptu_invalidate, false);
 	qedi_ring_doorbell(qedi_conn);
-	if (qedi_io_tracing)
-		qedi_trace_io(qedi, task, tid, QEDI_IO_TRACE_REQ);
-
 	return 0;
 }
 
 int qedi_iscsi_cleanup_task(struct iscsi_task *task, bool mark_cmd_node_deleted)
 {
+	struct iscsi_task_params task_params;
+	struct qedi_endpoint *ep;
 	struct iscsi_conn *conn = task->conn;
 	struct qedi_conn *qedi_conn = conn->dd_data;
 	struct qedi_cmd *cmd = task->dd_data;
-	s16 ptu_invalidate = 0;
+	u16 sq_idx = 0;
+	int rval = 0;
 
 	QEDI_INFO(&qedi_conn->qedi->dbg_ctx, QEDI_LOG_SCSI_TM,
 		  "issue cleanup tid=0x%x itt=0x%x task_state=%d cmd_state=0%x cid=0x%x\n",
 		  cmd->task_id, get_itt(task->itt), task->state,
 		  cmd->state, qedi_conn->iscsi_conn_id);
 
-	qedi_add_to_sq(qedi_conn, task, cmd->task_id, ptu_invalidate, true);
-	qedi_ring_doorbell(qedi_conn);
+	memset(&task_params, 0, sizeof(task_params));
+	ep = qedi_conn->ep;
 
+	sq_idx = qedi_get_wqe_idx(qedi_conn);
+
+	task_params.sqe = &ep->sq[sq_idx];
+	memset(task_params.sqe, 0, sizeof(struct iscsi_wqe));
+	task_params.itid = cmd->task_id;
+
+	rval = init_cleanup_task(&task_params);
+	if (rval)
+		return rval;
+
+	qedi_ring_doorbell(qedi_conn);
 	return 0;
 }

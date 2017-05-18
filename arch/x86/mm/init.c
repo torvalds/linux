@@ -5,8 +5,8 @@
 #include <linux/memblock.h>
 #include <linux/bootmem.h>	/* for max_low_pfn */
 
-#include <asm/cacheflush.h>
-#include <asm/e820.h>
+#include <asm/set_memory.h>
+#include <asm/e820/api.h>
 #include <asm/init.h>
 #include <asm/page.h>
 #include <asm/page_types.h>
@@ -373,14 +373,14 @@ static int __meminit split_mem_range(struct map_range *mr, int nr_range,
 	return nr_range;
 }
 
-struct range pfn_mapped[E820_X_MAX];
+struct range pfn_mapped[E820_MAX_ENTRIES];
 int nr_pfn_mapped;
 
 static void add_pfn_range_mapped(unsigned long start_pfn, unsigned long end_pfn)
 {
-	nr_pfn_mapped = add_range_with_merge(pfn_mapped, E820_X_MAX,
+	nr_pfn_mapped = add_range_with_merge(pfn_mapped, E820_MAX_ENTRIES,
 					     nr_pfn_mapped, start_pfn, end_pfn);
-	nr_pfn_mapped = clean_sort_range(pfn_mapped, E820_X_MAX);
+	nr_pfn_mapped = clean_sort_range(pfn_mapped, E820_MAX_ENTRIES);
 
 	max_pfn_mapped = max(max_pfn_mapped, end_pfn);
 
@@ -430,7 +430,7 @@ unsigned long __ref init_memory_mapping(unsigned long start,
 
 /*
  * We need to iterate through the E820 memory map and create direct mappings
- * for only E820_RAM and E820_KERN_RESERVED regions. We cannot simply
+ * for only E820_TYPE_RAM and E820_KERN_RESERVED regions. We cannot simply
  * create direct mappings for all pfns from [0 to max_low_pfn) and
  * [4GB to max_pfn) because of possible memory holes in high addresses
  * that cannot be marked as UC by fixed/variable range MTRRs.
@@ -720,7 +720,7 @@ void free_init_pages(char *what, unsigned long begin, unsigned long end)
 
 void __ref free_initmem(void)
 {
-	e820_reallocate_tables();
+	e820__reallocate_tables();
 
 	free_init_pages("unused kernel",
 			(unsigned long)(&__init_begin),
@@ -742,6 +742,53 @@ void __init free_initrd_mem(unsigned long start, unsigned long end)
 	free_init_pages("initrd", start, PAGE_ALIGN(end));
 }
 #endif
+
+/*
+ * Calculate the precise size of the DMA zone (first 16 MB of RAM),
+ * and pass it to the MM layer - to help it set zone watermarks more
+ * accurately.
+ *
+ * Done on 64-bit systems only for the time being, although 32-bit systems
+ * might benefit from this as well.
+ */
+void __init memblock_find_dma_reserve(void)
+{
+#ifdef CONFIG_X86_64
+	u64 nr_pages = 0, nr_free_pages = 0;
+	unsigned long start_pfn, end_pfn;
+	phys_addr_t start_addr, end_addr;
+	int i;
+	u64 u;
+
+	/*
+	 * Iterate over all memory ranges (free and reserved ones alike),
+	 * to calculate the total number of pages in the first 16 MB of RAM:
+	 */
+	nr_pages = 0;
+	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, NULL) {
+		start_pfn = min(start_pfn, MAX_DMA_PFN);
+		end_pfn   = min(end_pfn,   MAX_DMA_PFN);
+
+		nr_pages += end_pfn - start_pfn;
+	}
+
+	/*
+	 * Iterate over free memory ranges to calculate the number of free
+	 * pages in the DMA zone, while not counting potential partial
+	 * pages at the beginning or the end of the range:
+	 */
+	nr_free_pages = 0;
+	for_each_free_mem_range(u, NUMA_NO_NODE, MEMBLOCK_NONE, &start_addr, &end_addr, NULL) {
+		start_pfn = min_t(unsigned long, PFN_UP(start_addr), MAX_DMA_PFN);
+		end_pfn   = min_t(unsigned long, PFN_DOWN(end_addr), MAX_DMA_PFN);
+
+		if (start_pfn < end_pfn)
+			nr_free_pages += end_pfn - start_pfn;
+	}
+
+	set_dma_reserve(nr_pages - nr_free_pages);
+#endif
+}
 
 void __init zone_sizes_init(void)
 {

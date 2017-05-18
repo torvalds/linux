@@ -1579,7 +1579,7 @@ static void gfx_v6_0_setup_spi(struct amdgpu_device *adev)
 
 static void gfx_v6_0_config_init(struct amdgpu_device *adev)
 {
-	adev->gfx.config.double_offchip_lds_buf = 1;
+	adev->gfx.config.double_offchip_lds_buf = 0;
 }
 
 static void gfx_v6_0_gpu_init(struct amdgpu_device *adev)
@@ -2437,7 +2437,7 @@ static void gfx_v6_0_rlc_fini(struct amdgpu_device *adev)
 	int r;
 
 	if (adev->gfx.rlc.save_restore_obj) {
-		r = amdgpu_bo_reserve(adev->gfx.rlc.save_restore_obj, false);
+		r = amdgpu_bo_reserve(adev->gfx.rlc.save_restore_obj, true);
 		if (unlikely(r != 0))
 			dev_warn(adev->dev, "(%d) reserve RLC sr bo failed\n", r);
 		amdgpu_bo_unpin(adev->gfx.rlc.save_restore_obj);
@@ -2448,7 +2448,7 @@ static void gfx_v6_0_rlc_fini(struct amdgpu_device *adev)
 	}
 
 	if (adev->gfx.rlc.clear_state_obj) {
-		r = amdgpu_bo_reserve(adev->gfx.rlc.clear_state_obj, false);
+		r = amdgpu_bo_reserve(adev->gfx.rlc.clear_state_obj, true);
 		if (unlikely(r != 0))
 			dev_warn(adev->dev, "(%d) reserve RLC c bo failed\n", r);
 		amdgpu_bo_unpin(adev->gfx.rlc.clear_state_obj);
@@ -2459,7 +2459,7 @@ static void gfx_v6_0_rlc_fini(struct amdgpu_device *adev)
 	}
 
 	if (adev->gfx.rlc.cp_table_obj) {
-		r = amdgpu_bo_reserve(adev->gfx.rlc.cp_table_obj, false);
+		r = amdgpu_bo_reserve(adev->gfx.rlc.cp_table_obj, true);
 		if (unlikely(r != 0))
 			dev_warn(adev->dev, "(%d) reserve RLC cp table bo failed\n", r);
 		amdgpu_bo_unpin(adev->gfx.rlc.cp_table_obj);
@@ -3292,7 +3292,7 @@ static int gfx_v6_0_sw_init(void *handle)
 		ring->me = 1;
 		ring->pipe = i;
 		ring->queue = i;
-		sprintf(ring->name, "comp %d.%d.%d", ring->me, ring->pipe, ring->queue);
+		sprintf(ring->name, "comp_%d.%d.%d", ring->me, ring->pipe, ring->queue);
 		irq_type = AMDGPU_CP_IRQ_COMPUTE_MEC1_PIPE0_EOP + ring->pipe;
 		r = amdgpu_ring_init(adev, ring, 1024,
 				     &adev->gfx.eop_irq, irq_type);

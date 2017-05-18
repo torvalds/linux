@@ -31,6 +31,8 @@
 #include <linux/seq_file.h>
 #include <linux/stop_machine.h>
 
+#include <asm/set_memory.h>
+
 #include <drm/drmP.h>
 #include <drm/i915_drm.h>
 

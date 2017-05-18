@@ -43,6 +43,10 @@
 	clock-frequency = <48000000>;
 };
 
+&rtc_x1_clk {
+	clock-frequency = <32768>;
+};
+
 &mtu2 {
 	status = "okay";
 };
@@ -66,6 +70,10 @@
 };
 
 &ostm1 {
+	status = "okay";
+};
+
+&rtc {
 	status = "okay";
 };
 

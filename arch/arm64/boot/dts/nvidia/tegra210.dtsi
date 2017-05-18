@@ -89,6 +89,8 @@
 
 		ranges = <0x0 0x54000000 0x0 0x54000000 0x0 0x01000000>;
 
+		iommus = <&mc TEGRA_SWGROUP_HC>;
+
 		dpaux1: dpaux@54040000 {
 			compatible = "nvidia,tegra210-dpaux";
 			reg = <0x0 0x54040000 0x0 0x00040000>;
@@ -185,7 +187,14 @@
 		vic@54340000 {
 			compatible = "nvidia,tegra210-vic";
 			reg = <0x0 0x54340000 0x0 0x00040000>;
-			status = "disabled";
+			interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&tegra_car TEGRA210_CLK_VIC03>;
+			clock-names = "vic";
+			resets = <&tegra_car 178>;
+			reset-names = "vic";
+
+			iommus = <&mc TEGRA_SWGROUP_VIC>;
+			power-domains = <&pd_vic>;
 		};
 
 		nvjpg@54380000 {
@@ -753,6 +762,14 @@
 			pd_xusbhost: xusbc {
 				clocks = <&tegra_car TEGRA210_CLK_XUSB_HOST>;
 				resets = <&tegra_car TEGRA210_CLK_XUSB_HOST>;
+				#power-domain-cells = <0>;
+			};
+
+			pd_vic: vic {
+				clocks = <&tegra_car TEGRA210_CLK_VIC03>;
+				clock-names = "vic";
+				resets = <&tegra_car 178>;
+				reset-names = "vic";
 				#power-domain-cells = <0>;
 			};
 		};

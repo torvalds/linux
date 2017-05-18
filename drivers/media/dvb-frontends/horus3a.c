@@ -404,6 +404,6 @@ struct dvb_frontend *horus3a_attach(struct dvb_frontend *fe,
 }
 EXPORT_SYMBOL(horus3a_attach);
 
-MODULE_DESCRIPTION("Sony HORUS3A sattelite tuner driver");
+MODULE_DESCRIPTION("Sony HORUS3A satellite tuner driver");
 MODULE_AUTHOR("Sergey Kozlov <serjk@netup.ru>");
 MODULE_LICENSE("GPL");

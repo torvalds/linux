@@ -191,7 +191,8 @@ static void sru_try_format(struct vsp1_sru *sru,
 						    SRU_PAD_SINK);
 		fmt->code = format->code;
 
-		/* We can upscale by 2 in both direction, but not independently.
+		/*
+		 * We can upscale by 2 in both direction, but not independently.
 		 * Compare the input and output rectangles areas (avoiding
 		 * integer overflows on the output): if the requested output
 		 * area is larger than 1.5^2 the input area upscale by two,

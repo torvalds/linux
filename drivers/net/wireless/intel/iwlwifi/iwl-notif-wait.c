@@ -76,8 +76,8 @@ void iwl_notification_wait_init(struct iwl_notif_wait_data *notif_wait)
 }
 IWL_EXPORT_SYMBOL(iwl_notification_wait_init);
 
-void iwl_notification_wait_notify(struct iwl_notif_wait_data *notif_wait,
-				  struct iwl_rx_packet *pkt)
+bool iwl_notification_wait(struct iwl_notif_wait_data *notif_wait,
+			   struct iwl_rx_packet *pkt)
 {
 	bool triggered = false;
 
@@ -118,13 +118,11 @@ void iwl_notification_wait_notify(struct iwl_notif_wait_data *notif_wait,
 			}
 		}
 		spin_unlock(&notif_wait->notif_wait_lock);
-
 	}
 
-	if (triggered)
-		wake_up_all(&notif_wait->notif_waitq);
+	return triggered;
 }
-IWL_EXPORT_SYMBOL(iwl_notification_wait_notify);
+IWL_EXPORT_SYMBOL(iwl_notification_wait);
 
 void iwl_abort_notification_waits(struct iwl_notif_wait_data *notif_wait)
 {

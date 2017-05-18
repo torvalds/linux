@@ -46,7 +46,6 @@ struct sh_tmu_channel {
 	void __iomem *base;
 	int irq;
 
-	unsigned long rate;
 	unsigned long periodic;
 	struct clock_event_device ced;
 	struct clocksource cs;
@@ -59,6 +58,7 @@ struct sh_tmu_device {
 
 	void __iomem *mapbase;
 	struct clk *clk;
+	unsigned long rate;
 
 	enum sh_tmu_model model;
 
@@ -165,7 +165,6 @@ static int __sh_tmu_enable(struct sh_tmu_channel *ch)
 	sh_tmu_write(ch, TCNT, 0xffffffff);
 
 	/* configure channel to parent clock / 4, irq off */
-	ch->rate = clk_get_rate(ch->tmu->clk) / 4;
 	sh_tmu_write(ch, TCR, TCR_TPSC_CLK4);
 
 	/* enable channel */
@@ -271,10 +270,8 @@ static int sh_tmu_clocksource_enable(struct clocksource *cs)
 		return 0;
 
 	ret = sh_tmu_enable(ch);
-	if (!ret) {
-		__clocksource_update_freq_hz(cs, ch->rate);
+	if (!ret)
 		ch->cs_enabled = true;
-	}
 
 	return ret;
 }
@@ -334,8 +331,7 @@ static int sh_tmu_register_clocksource(struct sh_tmu_channel *ch,
 	dev_info(&ch->tmu->pdev->dev, "ch%u: used as clock source\n",
 		 ch->index);
 
-	/* Register with dummy 1 Hz value, gets updated in ->enable() */
-	clocksource_register_hz(cs, 1);
+	clocksource_register_hz(cs, ch->tmu->rate);
 	return 0;
 }
 
@@ -346,14 +342,10 @@ static struct sh_tmu_channel *ced_to_sh_tmu(struct clock_event_device *ced)
 
 static void sh_tmu_clock_event_start(struct sh_tmu_channel *ch, int periodic)
 {
-	struct clock_event_device *ced = &ch->ced;
-
 	sh_tmu_enable(ch);
 
-	clockevents_config(ced, ch->rate);
-
 	if (periodic) {
-		ch->periodic = (ch->rate + HZ/2) / HZ;
+		ch->periodic = (ch->tmu->rate + HZ/2) / HZ;
 		sh_tmu_set_next(ch, ch->periodic, 1);
 	}
 }
@@ -435,7 +427,7 @@ static void sh_tmu_register_clockevent(struct sh_tmu_channel *ch,
 	dev_info(&ch->tmu->pdev->dev, "ch%u: used for clock events\n",
 		 ch->index);
 
-	clockevents_config_and_register(ced, 1, 0x300, 0xffffffff);
+	clockevents_config_and_register(ced, ch->tmu->rate, 0x300, 0xffffffff);
 
 	ret = request_irq(ch->irq, sh_tmu_interrupt,
 			  IRQF_TIMER | IRQF_IRQPOLL | IRQF_NOBALANCING,
@@ -560,6 +552,14 @@ static int sh_tmu_setup(struct sh_tmu_device *tmu, struct platform_device *pdev)
 	ret = clk_prepare(tmu->clk);
 	if (ret < 0)
 		goto err_clk_put;
+
+	/* Determine clock rate. */
+	ret = clk_enable(tmu->clk);
+	if (ret < 0)
+		goto err_clk_unprepare;
+
+	tmu->rate = clk_get_rate(tmu->clk) / 4;
+	clk_disable(tmu->clk);
 
 	/* Map the memory resource. */
 	ret = sh_tmu_map_memory(tmu);

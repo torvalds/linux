@@ -108,8 +108,6 @@ extern struct file *do_filp_open(int dfd, struct filename *pathname,
 extern struct file *do_file_open_root(struct dentry *, struct vfsmount *,
 		const char *, const struct open_flags *);
 
-extern long do_handle_open(int mountdirfd,
-			   struct file_handle __user *ufh, int open_flag);
 extern int open_check_o_direct(struct file *f);
 extern int vfs_open(const struct path *, struct file *, const struct cred *);
 extern struct file *filp_clone_open(struct file *);
@@ -127,8 +125,6 @@ static inline bool atime_needs_update_rcu(const struct path *path,
 {
 	return __atime_needs_update(path, inode, true);
 }
-
-extern bool atime_needs_update_rcu(const struct path *, struct inode *);
 
 /*
  * fs-writeback.c

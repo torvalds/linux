@@ -168,7 +168,7 @@ struct gpio_chip {
 	unsigned int		irq_base;
 	irq_flow_handler_t	irq_handler;
 	unsigned int		irq_default_type;
-	int			irq_chained_parent;
+	unsigned int		irq_chained_parent;
 	bool			irq_nested;
 	bool			irq_need_valid_mask;
 	unsigned long		*irq_valid_mask;
@@ -244,12 +244,12 @@ int bgpio_init(struct gpio_chip *gc, struct device *dev,
 
 void gpiochip_set_chained_irqchip(struct gpio_chip *gpiochip,
 		struct irq_chip *irqchip,
-		int parent_irq,
+		unsigned int parent_irq,
 		irq_flow_handler_t parent_handler);
 
 void gpiochip_set_nested_irqchip(struct gpio_chip *gpiochip,
 		struct irq_chip *irqchip,
-		int parent_irq);
+		unsigned int parent_irq);
 
 int gpiochip_irqchip_add_key(struct gpio_chip *gpiochip,
 			     struct irq_chip *irqchip,

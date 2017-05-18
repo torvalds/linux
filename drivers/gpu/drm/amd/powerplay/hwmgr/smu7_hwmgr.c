@@ -4334,26 +4334,31 @@ static int smu7_print_clock_levels(struct pp_hwmgr *hwmgr,
 
 static int smu7_set_fan_control_mode(struct pp_hwmgr *hwmgr, uint32_t mode)
 {
-	if (mode) {
-		/* stop auto-manage */
-		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-				PHM_PlatformCaps_MicrocodeFanControl))
-			smu7_fan_ctrl_stop_smc_fan_control(hwmgr);
-		smu7_fan_ctrl_set_static_mode(hwmgr, mode);
-	} else
-		/* restart auto-manage */
-		smu7_fan_ctrl_reset_fan_speed_to_default(hwmgr);
+	int result = 0;
 
-	return 0;
+	switch (mode) {
+	case AMD_FAN_CTRL_NONE:
+		result = smu7_fan_ctrl_set_fan_speed_percent(hwmgr, 100);
+		break;
+	case AMD_FAN_CTRL_MANUAL:
+		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_MicrocodeFanControl))
+			result = smu7_fan_ctrl_stop_smc_fan_control(hwmgr);
+		break;
+	case AMD_FAN_CTRL_AUTO:
+		result = smu7_fan_ctrl_set_static_mode(hwmgr, mode);
+		if (!result)
+			result = smu7_fan_ctrl_start_smc_fan_control(hwmgr);
+		break;
+	default:
+		break;
+	}
+	return result;
 }
 
 static int smu7_get_fan_control_mode(struct pp_hwmgr *hwmgr)
 {
-	if (hwmgr->fan_ctrl_is_in_default_mode)
-		return hwmgr->fan_ctrl_default_mode;
-	else
-		return PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
-				CG_FDO_CTRL2, FDO_PWM_MODE);
+	return hwmgr->fan_ctrl_enabled ? AMD_FAN_CTRL_AUTO : AMD_FAN_CTRL_MANUAL;
 }
 
 static int smu7_get_sclk_od(struct pp_hwmgr *hwmgr)
@@ -4522,32 +4527,6 @@ static int smu7_get_clock_by_type(struct pp_hwmgr *hwmgr, enum amd_pp_clock_type
 	return 0;
 }
 
-static int smu7_request_firmware(struct pp_hwmgr *hwmgr)
-{
-	int ret;
-	struct cgs_firmware_info info = {0};
-
-	ret = cgs_get_firmware_info(hwmgr->device,
-				    smu7_convert_fw_type_to_cgs(UCODE_ID_SMU),
-				    &info);
-	if (ret || !info.kptr)
-		return -EINVAL;
-
-	return 0;
-}
-
-static int smu7_release_firmware(struct pp_hwmgr *hwmgr)
-{
-	int ret;
-
-	ret = cgs_rel_firmware(hwmgr->device,
-			       smu7_convert_fw_type_to_cgs(UCODE_ID_SMU));
-	if (ret)
-		return -EINVAL;
-
-	return 0;
-}
-
 static void smu7_find_min_clock_masks(struct pp_hwmgr *hwmgr,
 		uint32_t *sclk_mask, uint32_t *mclk_mask,
 		uint32_t min_sclk, uint32_t min_mclk)
@@ -4691,10 +4670,9 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.get_clock_by_type = smu7_get_clock_by_type,
 	.read_sensor = smu7_read_sensor,
 	.dynamic_state_management_disable = smu7_disable_dpm_tasks,
-	.request_firmware = smu7_request_firmware,
-	.release_firmware = smu7_release_firmware,
 	.set_power_profile_state = smu7_set_power_profile_state,
 	.avfs_control = smu7_avfs_control,
+	.disable_smc_firmware_ctf = smu7_thermal_disable_alert,
 };
 
 uint8_t smu7_get_sleep_divider_id_from_clock(uint32_t clock,

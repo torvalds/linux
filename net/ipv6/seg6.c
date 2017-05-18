@@ -53,6 +53,9 @@ bool seg6_validate_srh(struct ipv6_sr_hdr *srh, int len)
 		struct sr6_tlv *tlv;
 		unsigned int tlv_len;
 
+		if (trailing < sizeof(*tlv))
+			return false;
+
 		tlv = (struct sr6_tlv *)((unsigned char *)srh + tlv_offset);
 		tlv_len = sizeof(*tlv) + tlv->len;
 

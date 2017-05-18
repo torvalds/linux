@@ -54,8 +54,8 @@ static inline unsigned int __xfrm4_dpref_spref_hash(const xfrm_address_t *daddr,
 static inline unsigned int __xfrm6_pref_hash(const xfrm_address_t *addr,
 					     __u8 prefixlen)
 {
-	int pdw;
-	int pbi;
+	unsigned int pdw;
+	unsigned int pbi;
 	u32 initval = 0;
 
 	pdw = prefixlen >> 5;     /* num of whole u32 in prefix */

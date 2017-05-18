@@ -734,7 +734,10 @@ int nfs_getattr(const struct path *path, struct kstat *stat,
 	if (need_atime || nfs_need_revalidate_inode(inode)) {
 		struct nfs_server *server = NFS_SERVER(inode);
 
-		nfs_readdirplus_parent_cache_miss(path->dentry);
+		if (!(server->flags & NFS_MOUNT_NOAC))
+			nfs_readdirplus_parent_cache_miss(path->dentry);
+		else
+			nfs_readdirplus_parent_cache_hit(path->dentry);
 		err = __nfs_revalidate_inode(server, inode);
 	} else
 		nfs_readdirplus_parent_cache_hit(path->dentry);

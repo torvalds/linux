@@ -47,10 +47,7 @@ void mei_irq_compl_handler(struct mei_device *dev, struct list_head *cmpl_list)
 		list_del_init(&cb->list);
 
 		dev_dbg(dev->dev, "completing call back.\n");
-		if (cl == &dev->iamthif_cl)
-			mei_amthif_complete(cl, cb);
-		else
-			mei_cl_complete(cl, cb);
+		mei_cl_complete(cl, cb);
 	}
 }
 EXPORT_SYMBOL_GPL(mei_irq_compl_handler);
@@ -76,7 +73,7 @@ static inline int mei_cl_hbm_equal(struct mei_cl *cl,
  * @dev: mei device
  * @hdr: message header
  */
-void mei_irq_discard_msg(struct mei_device *dev, struct mei_msg_hdr *hdr)
+static void mei_irq_discard_msg(struct mei_device *dev, struct mei_msg_hdr *hdr)
 {
 	/*
 	 * no need to check for size as it is guarantied
@@ -96,9 +93,9 @@ void mei_irq_discard_msg(struct mei_device *dev, struct mei_msg_hdr *hdr)
  *
  * Return: always 0
  */
-int mei_cl_irq_read_msg(struct mei_cl *cl,
-		       struct mei_msg_hdr *mei_hdr,
-		       struct list_head *cmpl_list)
+static int mei_cl_irq_read_msg(struct mei_cl *cl,
+			       struct mei_msg_hdr *mei_hdr,
+			       struct list_head *cmpl_list)
 {
 	struct mei_device *dev = cl->dev;
 	struct mei_cl_cb *cb;
@@ -313,11 +310,7 @@ int mei_irq_read_handler(struct mei_device *dev,
 		goto end;
 	}
 
-	if (cl == &dev->iamthif_cl) {
-		ret = mei_amthif_irq_read_msg(cl, mei_hdr, cmpl_list);
-	} else {
-		ret = mei_cl_irq_read_msg(cl, mei_hdr, cmpl_list);
-	}
+	ret = mei_cl_irq_read_msg(cl, mei_hdr, cmpl_list);
 
 
 reset_slots:
@@ -423,10 +416,7 @@ int mei_irq_write_handler(struct mei_device *dev, struct list_head *cmpl_list)
 	dev_dbg(dev->dev, "complete write list cb.\n");
 	list_for_each_entry_safe(cb, next, &dev->write_list, list) {
 		cl = cb->cl;
-		if (cl == &dev->iamthif_cl)
-			ret = mei_amthif_irq_write(cl, cb, cmpl_list);
-		else
-			ret = mei_cl_irq_write(cl, cb, cmpl_list);
+		ret = mei_cl_irq_write(cl, cb, cmpl_list);
 		if (ret)
 			return ret;
 	}
@@ -510,20 +500,6 @@ void mei_timer(struct work_struct *work)
 			}
 			reschedule_timer = true;
 		}
-	}
-
-	if (!mei_cl_is_connected(&dev->iamthif_cl))
-		goto out;
-
-	if (dev->iamthif_stall_timer) {
-		if (--dev->iamthif_stall_timer == 0) {
-			dev_err(dev->dev, "timer: amthif  hanged.\n");
-			mei_reset(dev);
-
-			mei_amthif_run_next_cmd(dev);
-			goto out;
-		}
-		reschedule_timer = true;
 	}
 
 out:

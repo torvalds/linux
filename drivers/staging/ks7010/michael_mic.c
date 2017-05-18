@@ -38,7 +38,7 @@ do {					\
 } while (0)
 
 static
-void MichaelInitializeFunction(struct michel_mic_t *Mic, uint8_t *key)
+void MichaelInitializeFunction(struct michael_mic_t *Mic, uint8_t *key)
 {
 	// Set the key
 	Mic->K0 = getUInt32(key, 0);
@@ -61,7 +61,7 @@ do {								\
 } while (0)
 
 static
-void MichaelAppend(struct michel_mic_t *Mic, uint8_t *src, int nBytes)
+void MichaelAppend(struct michael_mic_t *Mic, uint8_t *src, int nBytes)
 {
 	int addlen;
 
@@ -96,7 +96,7 @@ void MichaelAppend(struct michel_mic_t *Mic, uint8_t *src, int nBytes)
 }
 
 static
-void MichaelGetMIC(struct michel_mic_t *Mic, uint8_t *dst)
+void MichaelGetMIC(struct michael_mic_t *Mic, uint8_t *dst)
 {
 	u8 *data = Mic->M;
 
@@ -125,7 +125,7 @@ void MichaelGetMIC(struct michel_mic_t *Mic, uint8_t *dst)
 	MichaelClear(Mic);
 }
 
-void MichaelMICFunction(struct michel_mic_t *Mic, u8 *Key,
+void MichaelMICFunction(struct michael_mic_t *Mic, u8 *Key,
 			u8 *Data, int Len, u8 priority,
 			u8 *Result)
 {
@@ -141,8 +141,8 @@ void MichaelMICFunction(struct michel_mic_t *Mic, u8 *Key,
 	 * +--+--+--------+--+----+--+--+--+--+--+--+--+--+
 	 */
 	MichaelInitializeFunction(Mic, Key);
-	MichaelAppend(Mic, (uint8_t *) Data, 12);	/* |DA|SA| */
+	MichaelAppend(Mic, (uint8_t *)Data, 12);	/* |DA|SA| */
 	MichaelAppend(Mic, pad_data, 4);	/* |Priority|0|0|0| */
-	MichaelAppend(Mic, (uint8_t *) (Data + 12), Len - 12);	/* |Data| */
+	MichaelAppend(Mic, (uint8_t *)(Data + 12), Len - 12);	/* |Data| */
 	MichaelGetMIC(Mic, Result);
 }

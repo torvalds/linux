@@ -1371,6 +1371,13 @@ static unsigned int efx_wanted_parallelism(struct efx_nic *efx)
 		free_cpumask_var(thread_mask);
 	}
 
+	if (count > EFX_MAX_RX_QUEUES) {
+		netif_cond_dbg(efx, probe, efx->net_dev, !rss_cpus, warn,
+			       "Reducing number of rx queues from %u to %u.\n",
+			       count, EFX_MAX_RX_QUEUES);
+		count = EFX_MAX_RX_QUEUES;
+	}
+
 	/* If RSS is requested for the PF *and* VFs then we can't write RSS
 	 * table entries that are inaccessible to VFs
 	 */

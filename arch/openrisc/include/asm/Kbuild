@@ -1,6 +1,3 @@
-
-header-y += ucontext.h
-
 generic-y += auxvec.h
 generic-y += barrier.h
 generic-y += bitsperlong.h
@@ -16,6 +13,7 @@ generic-y += dma.h
 generic-y += emergency-restart.h
 generic-y += errno.h
 generic-y += exec.h
+generic-y += extable.h
 generic-y += fb.h
 generic-y += fcntl.h
 generic-y += ftrace.h

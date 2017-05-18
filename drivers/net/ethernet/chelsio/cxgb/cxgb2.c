@@ -296,7 +296,7 @@ static struct net_device_stats *t1_get_stats(struct net_device *dev)
 {
 	struct adapter *adapter = dev->ml_priv;
 	struct port_info *p = &adapter->port[dev->if_port];
-	struct net_device_stats *ns = &p->netstats;
+	struct net_device_stats *ns = &dev->stats;
 	const struct cmac_statistics *pstats;
 
 	/* Do a full update of the MAC stats */

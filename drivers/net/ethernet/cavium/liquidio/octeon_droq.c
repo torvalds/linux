@@ -226,8 +226,7 @@ int octeon_init_droq(struct octeon_device *oct,
 	struct octeon_droq *droq;
 	u32 desc_ring_size = 0, c_num_descs = 0, c_buf_size = 0;
 	u32 c_pkts_per_intr = 0, c_refill_threshold = 0;
-	int orig_node = dev_to_node(&oct->pci_dev->dev);
-	int numa_node = cpu_to_node(q_no % num_online_cpus());
+	int numa_node = dev_to_node(&oct->pci_dev->dev);
 
 	dev_dbg(&oct->pci_dev->dev, "%s[%d]\n", __func__, q_no);
 
@@ -267,12 +266,7 @@ int octeon_init_droq(struct octeon_device *oct,
 	droq->buffer_size = c_buf_size;
 
 	desc_ring_size = droq->max_count * OCT_DROQ_DESC_SIZE;
-	set_dev_node(&oct->pci_dev->dev, numa_node);
 	droq->desc_ring = lio_dma_alloc(oct, desc_ring_size,
-					(dma_addr_t *)&droq->desc_ring_dma);
-	set_dev_node(&oct->pci_dev->dev, orig_node);
-	if (!droq->desc_ring)
-		droq->desc_ring = lio_dma_alloc(oct, desc_ring_size,
 					(dma_addr_t *)&droq->desc_ring_dma);
 
 	if (!droq->desc_ring) {
@@ -517,6 +511,32 @@ octeon_droq_refill(struct octeon_device *octeon_dev, struct octeon_droq *droq)
 	 * buffers to refill.
 	 */
 	return desc_refilled;
+}
+
+/** check if we can allocate packets to get out of oom.
+ *  @param  droq - Droq being checked.
+ *  @return does not return anything
+ */
+void octeon_droq_check_oom(struct octeon_droq *droq)
+{
+	int desc_refilled;
+	struct octeon_device *oct = droq->oct_dev;
+
+	if (readl(droq->pkts_credit_reg) <= CN23XX_SLI_DEF_BP) {
+		spin_lock_bh(&droq->lock);
+		desc_refilled = octeon_droq_refill(oct, droq);
+		if (desc_refilled) {
+			/* Flush the droq descriptor data to memory to be sure
+			 * that when we update the credits the data in memory
+			 * is accurate.
+			 */
+			wmb();
+			writel(desc_refilled, droq->pkts_credit_reg);
+			/* make sure mmio write completes */
+			mmiowb();
+		}
+		spin_unlock_bh(&droq->lock);
+	}
 }
 
 static inline u32
@@ -970,7 +990,7 @@ int octeon_create_droq(struct octeon_device *oct,
 		       u32 desc_size, void *app_ctx)
 {
 	struct octeon_droq *droq;
-	int numa_node = cpu_to_node(q_no % num_online_cpus());
+	int numa_node = dev_to_node(&oct->pci_dev->dev);
 
 	if (oct->droq[q_no]) {
 		dev_dbg(&oct->pci_dev->dev, "Droq already in use. Cannot create droq %d again\n",

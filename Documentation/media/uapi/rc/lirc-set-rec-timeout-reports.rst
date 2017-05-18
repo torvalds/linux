@@ -31,6 +31,8 @@ Arguments
 Description
 ===========
 
+.. _lirc-mode2-timeout:
+
 Enable or disable timeout reports for IR receive. By default, timeout reports
 should be turned off.
 

@@ -136,7 +136,7 @@
 				regulator-always-on;
 			};
 
-			vcc_io: REG2 {
+			vcc_io: vccio_codec: REG2 {
 				regulator-name = "VCC_IO";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;

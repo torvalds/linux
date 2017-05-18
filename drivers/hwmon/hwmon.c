@@ -186,7 +186,7 @@ static ssize_t hwmon_attr_show_string(struct device *dev,
 				      char *buf)
 {
 	struct hwmon_device_attribute *hattr = to_hwmon_attr(devattr);
-	char *s;
+	const char *s;
 	int ret;
 
 	ret = hattr->ops->read_string(dev, hattr->type, hattr->attr,

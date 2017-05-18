@@ -22,7 +22,7 @@
 
 #include "i2c-designware-core.h"
 
-#define SEMAPHORE_TIMEOUT	100
+#define SEMAPHORE_TIMEOUT	500
 #define PUNIT_SEMAPHORE		0x7
 #define PUNIT_SEMAPHORE_CHT	0x10e
 #define PUNIT_SEMAPHORE_BIT	BIT(0)
@@ -70,7 +70,7 @@ static void reset_semaphore(struct dw_i2c_dev *dev)
 
 static int baytrail_i2c_acquire(struct dw_i2c_dev *dev)
 {
-	u32 addr = get_sem_addr(dev);
+	u32 addr;
 	u32 sem = PUNIT_SEMAPHORE_ACQUIRE;
 	int ret;
 	unsigned long start, end;
@@ -93,6 +93,8 @@ static int baytrail_i2c_acquire(struct dw_i2c_dev *dev)
 	 * we're holding the semaphore, the SoC hangs.
 	 */
 	pm_qos_update_request(&dev->pm_qos, 0);
+
+	addr = get_sem_addr(dev);
 
 	/* host driver writes to side band semaphore register */
 	ret = iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE, addr, sem);
@@ -170,7 +172,7 @@ int i2c_dw_probe_lock_support(struct dw_i2c_dev *dev)
 	dev_info(dev->dev, "I2C bus managed by PUNIT\n");
 	dev->acquire_lock = baytrail_i2c_acquire;
 	dev->release_lock = baytrail_i2c_release;
-	dev->pm_runtime_disabled = true;
+	dev->pm_disabled = true;
 
 	pm_qos_add_request(&dev->pm_qos, PM_QOS_CPU_DMA_LATENCY,
 			   PM_QOS_DEFAULT_VALUE);

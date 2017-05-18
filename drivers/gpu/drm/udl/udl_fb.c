@@ -37,7 +37,7 @@ struct udl_fbdev {
 };
 
 #define DL_ALIGN_UP(x, a) ALIGN(x, a)
-#define DL_ALIGN_DOWN(x, a) ALIGN(x-(a-1), a)
+#define DL_ALIGN_DOWN(x, a) ALIGN_DOWN(x, a)
 
 /** Read the red component (0..255) of a 32 bpp colour. */
 #define DLO_RGB_GETRED(col) (uint8_t)((col) & 0xFF)

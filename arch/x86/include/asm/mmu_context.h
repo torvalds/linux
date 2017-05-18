@@ -268,8 +268,4 @@ static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
 	return __pkru_allows_pkey(vma_pkey(vma), write);
 }
 
-static inline bool arch_pte_access_permitted(pte_t pte, bool write)
-{
-	return __pkru_allows_pkey(pte_flags_pkey(pte_flags(pte)), write);
-}
 #endif /* _ASM_X86_MMU_CONTEXT_H */

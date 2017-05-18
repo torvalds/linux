@@ -183,9 +183,6 @@ int fscrypt_get_encryption_info(struct inode *inode)
 	if (res)
 		return res;
 
-	if (!inode->i_sb->s_cop->get_context)
-		return -EOPNOTSUPP;
-
 	res = inode->i_sb->s_cop->get_context(inode, &ctx, sizeof(ctx));
 	if (res < 0) {
 		if (!fscrypt_dummy_context_enabled(inode) ||

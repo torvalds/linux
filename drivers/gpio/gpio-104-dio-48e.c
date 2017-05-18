@@ -33,11 +33,11 @@
 
 static unsigned int base[MAX_NUM_DIO48E];
 static unsigned int num_dio48e;
-module_param_array(base, uint, &num_dio48e, 0);
+module_param_hw_array(base, uint, ioport, &num_dio48e, 0);
 MODULE_PARM_DESC(base, "ACCES 104-DIO-48E base addresses");
 
 static unsigned int irq[MAX_NUM_DIO48E];
-module_param_array(irq, uint, NULL, 0);
+module_param_hw_array(irq, uint, irq, NULL, 0);
 MODULE_PARM_DESC(irq, "ACCES 104-DIO-48E interrupt line numbers");
 
 /**
@@ -55,7 +55,7 @@ struct dio48e_gpio {
 	unsigned char io_state[6];
 	unsigned char out_state[6];
 	unsigned char control[2];
-	spinlock_t lock;
+	raw_spinlock_t lock;
 	unsigned base;
 	unsigned char irq_mask;
 };
@@ -78,7 +78,7 @@ static int dio48e_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 	unsigned long flags;
 	unsigned control;
 
-	spin_lock_irqsave(&dio48egpio->lock, flags);
+	raw_spin_lock_irqsave(&dio48egpio->lock, flags);
 
 	/* Check if configuring Port C */
 	if (io_port == 2 || io_port == 5) {
@@ -103,7 +103,7 @@ static int dio48e_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 	control &= ~BIT(7);
 	outb(control, control_addr);
 
-	spin_unlock_irqrestore(&dio48egpio->lock, flags);
+	raw_spin_unlock_irqrestore(&dio48egpio->lock, flags);
 
 	return 0;
 }
@@ -120,7 +120,7 @@ static int dio48e_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 	unsigned long flags;
 	unsigned control;
 
-	spin_lock_irqsave(&dio48egpio->lock, flags);
+	raw_spin_lock_irqsave(&dio48egpio->lock, flags);
 
 	/* Check if configuring Port C */
 	if (io_port == 2 || io_port == 5) {
@@ -153,7 +153,7 @@ static int dio48e_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 	control &= ~BIT(7);
 	outb(control, control_addr);
 
-	spin_unlock_irqrestore(&dio48egpio->lock, flags);
+	raw_spin_unlock_irqrestore(&dio48egpio->lock, flags);
 
 	return 0;
 }
@@ -167,17 +167,17 @@ static int dio48e_gpio_get(struct gpio_chip *chip, unsigned offset)
 	unsigned long flags;
 	unsigned port_state;
 
-	spin_lock_irqsave(&dio48egpio->lock, flags);
+	raw_spin_lock_irqsave(&dio48egpio->lock, flags);
 
 	/* ensure that GPIO is set for input */
 	if (!(dio48egpio->io_state[port] & mask)) {
-		spin_unlock_irqrestore(&dio48egpio->lock, flags);
+		raw_spin_unlock_irqrestore(&dio48egpio->lock, flags);
 		return -EINVAL;
 	}
 
 	port_state = inb(dio48egpio->base + in_port);
 
-	spin_unlock_irqrestore(&dio48egpio->lock, flags);
+	raw_spin_unlock_irqrestore(&dio48egpio->lock, flags);
 
 	return !!(port_state & mask);
 }
@@ -190,7 +190,7 @@ static void dio48e_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	const unsigned out_port = (port > 2) ? port + 1 : port;
 	unsigned long flags;
 
-	spin_lock_irqsave(&dio48egpio->lock, flags);
+	raw_spin_lock_irqsave(&dio48egpio->lock, flags);
 
 	if (value)
 		dio48egpio->out_state[port] |= mask;
@@ -199,7 +199,7 @@ static void dio48e_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 
 	outb(dio48egpio->out_state[port], dio48egpio->base + out_port);
 
-	spin_unlock_irqrestore(&dio48egpio->lock, flags);
+	raw_spin_unlock_irqrestore(&dio48egpio->lock, flags);
 }
 
 static void dio48e_gpio_set_multiple(struct gpio_chip *chip,
@@ -225,14 +225,14 @@ static void dio48e_gpio_set_multiple(struct gpio_chip *chip,
 		out_port = (port > 2) ? port + 1 : port;
 		bitmask = mask[BIT_WORD(i)] & bits[BIT_WORD(i)];
 
-		spin_lock_irqsave(&dio48egpio->lock, flags);
+		raw_spin_lock_irqsave(&dio48egpio->lock, flags);
 
 		/* update output state data and set device gpio register */
 		dio48egpio->out_state[port] &= ~mask[BIT_WORD(i)];
 		dio48egpio->out_state[port] |= bitmask;
 		outb(dio48egpio->out_state[port], dio48egpio->base + out_port);
 
-		spin_unlock_irqrestore(&dio48egpio->lock, flags);
+		raw_spin_unlock_irqrestore(&dio48egpio->lock, flags);
 
 		/* prepare for next gpio register set */
 		mask[BIT_WORD(i)] >>= gpio_reg_size;
@@ -255,7 +255,7 @@ static void dio48e_irq_mask(struct irq_data *data)
 	if (offset != 19 && offset != 43)
 		return;
 
-	spin_lock_irqsave(&dio48egpio->lock, flags);
+	raw_spin_lock_irqsave(&dio48egpio->lock, flags);
 
 	if (offset == 19)
 		dio48egpio->irq_mask &= ~BIT(0);
@@ -266,7 +266,7 @@ static void dio48e_irq_mask(struct irq_data *data)
 		/* disable interrupts */
 		inb(dio48egpio->base + 0xB);
 
-	spin_unlock_irqrestore(&dio48egpio->lock, flags);
+	raw_spin_unlock_irqrestore(&dio48egpio->lock, flags);
 }
 
 static void dio48e_irq_unmask(struct irq_data *data)
@@ -280,7 +280,7 @@ static void dio48e_irq_unmask(struct irq_data *data)
 	if (offset != 19 && offset != 43)
 		return;
 
-	spin_lock_irqsave(&dio48egpio->lock, flags);
+	raw_spin_lock_irqsave(&dio48egpio->lock, flags);
 
 	if (!dio48egpio->irq_mask) {
 		/* enable interrupts */
@@ -293,7 +293,7 @@ static void dio48e_irq_unmask(struct irq_data *data)
 	else
 		dio48egpio->irq_mask |= BIT(1);
 
-	spin_unlock_irqrestore(&dio48egpio->lock, flags);
+	raw_spin_unlock_irqrestore(&dio48egpio->lock, flags);
 }
 
 static int dio48e_irq_set_type(struct irq_data *data, unsigned flow_type)
@@ -329,11 +329,11 @@ static irqreturn_t dio48e_irq_handler(int irq, void *dev_id)
 		generic_handle_irq(irq_find_mapping(chip->irqdomain,
 			19 + gpio*24));
 
-	spin_lock(&dio48egpio->lock);
+	raw_spin_lock(&dio48egpio->lock);
 
 	outb(0x00, dio48egpio->base + 0xF);
 
-	spin_unlock(&dio48egpio->lock);
+	raw_spin_unlock(&dio48egpio->lock);
 
 	return IRQ_HANDLED;
 }
@@ -388,7 +388,7 @@ static int dio48e_probe(struct device *dev, unsigned int id)
 	dio48egpio->chip.set_multiple = dio48e_gpio_set_multiple;
 	dio48egpio->base = base[id];
 
-	spin_lock_init(&dio48egpio->lock);
+	raw_spin_lock_init(&dio48egpio->lock);
 
 	err = devm_gpiochip_add_data(dev, &dio48egpio->chip, dio48egpio);
 	if (err) {

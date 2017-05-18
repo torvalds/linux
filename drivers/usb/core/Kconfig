@@ -26,7 +26,7 @@ config USB_DEFAULT_PERSIST
 	  unplugged, causing any mounted filesystems to be lost.  The
 	  persist feature can still be enabled for individual devices
 	  through the power/persist sysfs node. See
-	  Documentation/usb/persist.txt for more info.
+	  Documentation/driver-api/usb/persist.rst for more info.
 
 	  If you have any questions about this, say Y here, only say N
 	  if you know exactly what you are doing.

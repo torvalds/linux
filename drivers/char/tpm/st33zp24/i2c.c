@@ -111,6 +111,13 @@ static const struct st33zp24_phy_ops i2c_phy_ops = {
 	.recv = st33zp24_i2c_recv,
 };
 
+static const struct acpi_gpio_params lpcpd_gpios = { 1, 0, false };
+
+static const struct acpi_gpio_mapping acpi_st33zp24_gpios[] = {
+	{ "lpcpd-gpios", &lpcpd_gpios, 1 },
+	{},
+};
+
 static int st33zp24_i2c_acpi_request_resources(struct i2c_client *client)
 {
 	struct tpm_chip *chip = i2c_get_clientdata(client);
@@ -118,10 +125,14 @@ static int st33zp24_i2c_acpi_request_resources(struct i2c_client *client)
 	struct st33zp24_i2c_phy *phy = tpm_dev->phy_id;
 	struct gpio_desc *gpiod_lpcpd;
 	struct device *dev = &client->dev;
+	int ret;
+
+	ret = acpi_dev_add_driver_gpios(ACPI_COMPANION(dev), acpi_st33zp24_gpios);
+	if (ret)
+		return ret;
 
 	/* Get LPCPD GPIO from ACPI */
-	gpiod_lpcpd = devm_gpiod_get_index(dev, "TPM IO LPCPD", 1,
-					   GPIOD_OUT_HIGH);
+	gpiod_lpcpd = devm_gpiod_get(dev, "lpcpd", GPIOD_OUT_HIGH);
 	if (IS_ERR(gpiod_lpcpd)) {
 		dev_err(&client->dev,
 			"Failed to retrieve lpcpd-gpios from acpi.\n");
@@ -268,8 +279,14 @@ static int st33zp24_i2c_probe(struct i2c_client *client,
 static int st33zp24_i2c_remove(struct i2c_client *client)
 {
 	struct tpm_chip *chip = i2c_get_clientdata(client);
+	int ret;
 
-	return st33zp24_remove(chip);
+	ret = st33zp24_remove(chip);
+	if (ret)
+		return ret;
+
+	acpi_dev_remove_driver_gpios(ACPI_COMPANION(&client->dev));
+	return 0;
 }
 
 static const struct i2c_device_id st33zp24_i2c_id[] = {

@@ -831,8 +831,7 @@ nv50_wndw_atomic_check_release(struct nv50_wndw *wndw,
 static int
 nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw,
 			       struct nv50_wndw_atom *asyw,
-			       struct nv50_head_atom *asyh,
-			       u32 pflip_flags)
+			       struct nv50_head_atom *asyh)
 {
 	struct nouveau_framebuffer *fb = nouveau_framebuffer(asyw->state.fb);
 	struct nouveau_drm *drm = nouveau_drm(wndw->plane.dev);
@@ -848,7 +847,10 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw,
 	asyw->image.h = fb->base.height;
 	asyw->image.kind = (fb->nvbo->tile_flags & 0x0000ff00) >> 8;
 
-	asyw->interval = pflip_flags & DRM_MODE_PAGE_FLIP_ASYNC ? 0 : 1;
+	if (asyh->state.pageflip_flags & DRM_MODE_PAGE_FLIP_ASYNC)
+		asyw->interval = 0;
+	else
+		asyw->interval = 1;
 
 	if (asyw->image.kind) {
 		asyw->image.layout = 0;
@@ -887,7 +889,6 @@ nv50_wndw_atomic_check(struct drm_plane *plane, struct drm_plane_state *state)
 	struct nv50_head_atom *harm = NULL, *asyh = NULL;
 	bool varm = false, asyv = false, asym = false;
 	int ret;
-	u32 pflip_flags = 0;
 
 	NV_ATOMIC(drm, "%s atomic_check\n", plane->name);
 	if (asyw->state.crtc) {
@@ -896,7 +897,6 @@ nv50_wndw_atomic_check(struct drm_plane *plane, struct drm_plane_state *state)
 			return PTR_ERR(asyh);
 		asym = drm_atomic_crtc_needs_modeset(&asyh->state);
 		asyv = asyh->state.active;
-		pflip_flags = asyh->state.pageflip_flags;
 	}
 
 	if (armw->state.crtc) {
@@ -912,12 +912,9 @@ nv50_wndw_atomic_check(struct drm_plane *plane, struct drm_plane_state *state)
 		if (memcmp(&armw->point, &asyw->point, sizeof(asyw->point)))
 			asyw->set.point = true;
 
-		if (!varm || asym || armw->state.fb != asyw->state.fb) {
-			ret = nv50_wndw_atomic_check_acquire(
-					wndw, asyw, asyh, pflip_flags);
-			if (ret)
-				return ret;
-		}
+		ret = nv50_wndw_atomic_check_acquire(wndw, asyw, asyh);
+		if (ret)
+			return ret;
 	} else
 	if (varm) {
 		nv50_wndw_atomic_check_release(wndw, asyw, harm);
@@ -1122,9 +1119,13 @@ static void
 nv50_curs_prepare(struct nv50_wndw *wndw, struct nv50_head_atom *asyh,
 		  struct nv50_wndw_atom *asyw)
 {
-	asyh->curs.handle = nv50_disp(wndw->plane.dev)->mast.base.vram.handle;
-	asyh->curs.offset = asyw->image.offset;
-	asyh->set.curs = asyh->curs.visible;
+	u32 handle = nv50_disp(wndw->plane.dev)->mast.base.vram.handle;
+	u32 offset = asyw->image.offset;
+	if (asyh->curs.handle != handle || asyh->curs.offset != offset) {
+		asyh->curs.handle = handle;
+		asyh->curs.offset = offset;
+		asyh->set.curs = asyh->curs.visible;
+	}
 }
 
 static void

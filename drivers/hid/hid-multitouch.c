@@ -69,6 +69,7 @@ MODULE_LICENSE("GPL");
 #define MT_QUIRK_CONTACT_CNT_ACCURATE	(1 << 12)
 #define MT_QUIRK_FORCE_GET_FEATURE	(1 << 13)
 #define MT_QUIRK_FIX_CONST_CONTACT_ID	(1 << 14)
+#define MT_QUIRK_TOUCH_SIZE_SCALING	(1 << 15)
 
 #define MT_INPUTMODE_TOUCHSCREEN	0x02
 #define MT_INPUTMODE_TOUCHPAD		0x03
@@ -222,7 +223,8 @@ static struct mt_class mt_classes[] = {
 	 */
 	{ .name = MT_CLS_3M,
 		.quirks = MT_QUIRK_VALID_IS_CONFIDENCE |
-			MT_QUIRK_SLOT_IS_CONTACTID,
+			MT_QUIRK_SLOT_IS_CONTACTID |
+			MT_QUIRK_TOUCH_SIZE_SCALING,
 		.sn_move = 2048,
 		.sn_width = 128,
 		.sn_height = 128,
@@ -658,9 +660,17 @@ static void mt_complete_slot(struct mt_device *td, struct input_dev *input)
 		if (active) {
 			/* this finger is in proximity of the sensor */
 			int wide = (s->w > s->h);
-			/* divided by two to match visual scale of touch */
-			int major = max(s->w, s->h) >> 1;
-			int minor = min(s->w, s->h) >> 1;
+			int major = max(s->w, s->h);
+			int minor = min(s->w, s->h);
+
+			/*
+			 * divided by two to match visual scale of touch
+			 * for devices with this quirk
+			 */
+			if (td->mtclass.quirks & MT_QUIRK_TOUCH_SIZE_SCALING) {
+				major = major >> 1;
+				minor = minor >> 1;
+			}
 
 			input_event(input, EV_ABS, ABS_MT_POSITION_X, s->x);
 			input_event(input, EV_ABS, ABS_MT_POSITION_Y, s->y);

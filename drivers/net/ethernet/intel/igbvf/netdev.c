@@ -400,8 +400,8 @@ next_desc:
 
 	adapter->total_rx_packets += total_packets;
 	adapter->total_rx_bytes += total_bytes;
-	adapter->net_stats.rx_bytes += total_bytes;
-	adapter->net_stats.rx_packets += total_packets;
+	netdev->stats.rx_bytes += total_bytes;
+	netdev->stats.rx_packets += total_packets;
 	return cleaned;
 }
 
@@ -864,8 +864,8 @@ static bool igbvf_clean_tx_irq(struct igbvf_ring *tx_ring)
 		}
 	}
 
-	adapter->net_stats.tx_bytes += total_bytes;
-	adapter->net_stats.tx_packets += total_packets;
+	netdev->stats.tx_bytes += total_bytes;
+	netdev->stats.tx_packets += total_packets;
 	return count < tx_ring->count;
 }
 
@@ -1433,12 +1433,52 @@ static void igbvf_set_multi(struct net_device *netdev)
 }
 
 /**
+ * igbvf_set_uni - Configure unicast MAC filters
+ * @netdev: network interface device structure
+ *
+ * This routine is responsible for configuring the hardware for proper
+ * unicast filters.
+ **/
+static int igbvf_set_uni(struct net_device *netdev)
+{
+	struct igbvf_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
+
+	if (netdev_uc_count(netdev) > IGBVF_MAX_MAC_FILTERS) {
+		pr_err("Too many unicast filters - No Space\n");
+		return -ENOSPC;
+	}
+
+	/* Clear all unicast MAC filters */
+	hw->mac.ops.set_uc_addr(hw, E1000_VF_MAC_FILTER_CLR, NULL);
+
+	if (!netdev_uc_empty(netdev)) {
+		struct netdev_hw_addr *ha;
+
+		/* Add MAC filters one by one */
+		netdev_for_each_uc_addr(ha, netdev) {
+			hw->mac.ops.set_uc_addr(hw, E1000_VF_MAC_FILTER_ADD,
+						ha->addr);
+			udelay(200);
+		}
+	}
+
+	return 0;
+}
+
+static void igbvf_set_rx_mode(struct net_device *netdev)
+{
+	igbvf_set_multi(netdev);
+	igbvf_set_uni(netdev);
+}
+
+/**
  * igbvf_configure - configure the hardware for Rx and Tx
  * @adapter: private board structure
  **/
 static void igbvf_configure(struct igbvf_adapter *adapter)
 {
-	igbvf_set_multi(adapter->netdev);
+	igbvf_set_rx_mode(adapter->netdev);
 
 	igbvf_restore_vlan(adapter);
 
@@ -1798,7 +1838,7 @@ void igbvf_update_stats(struct igbvf_adapter *adapter)
 	UPDATE_VF_COUNTER(VFGPRLBC, gprlbc);
 
 	/* Fill out the OS statistics structure */
-	adapter->net_stats.multicast = adapter->stats.mprc;
+	adapter->netdev->stats.multicast = adapter->stats.mprc;
 }
 
 static void igbvf_print_link_info(struct igbvf_adapter *adapter)
@@ -2334,21 +2374,6 @@ static void igbvf_reset_task(struct work_struct *work)
 }
 
 /**
- * igbvf_get_stats - Get System Network Statistics
- * @netdev: network interface device structure
- *
- * Returns the address of the device statistics structure.
- * The statistics are actually updated from the timer callback.
- **/
-static struct net_device_stats *igbvf_get_stats(struct net_device *netdev)
-{
-	struct igbvf_adapter *adapter = netdev_priv(netdev);
-
-	/* only return the current stats */
-	return &adapter->net_stats;
-}
-
-/**
  * igbvf_change_mtu - Change the Maximum Transfer Unit
  * @netdev: network interface device structure
  * @new_mtu: new value for maximum frame size
@@ -2635,8 +2660,7 @@ static const struct net_device_ops igbvf_netdev_ops = {
 	.ndo_open		= igbvf_open,
 	.ndo_stop		= igbvf_close,
 	.ndo_start_xmit		= igbvf_xmit_frame,
-	.ndo_get_stats		= igbvf_get_stats,
-	.ndo_set_rx_mode	= igbvf_set_multi,
+	.ndo_set_rx_mode	= igbvf_set_rx_mode,
 	.ndo_set_mac_address	= igbvf_set_mac,
 	.ndo_change_mtu		= igbvf_change_mtu,
 	.ndo_do_ioctl		= igbvf_ioctl,

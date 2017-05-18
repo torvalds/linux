@@ -132,8 +132,8 @@ int clk_get_phase(struct clk *clk);
  * @q: clk compared against p
  *
  * Returns true if the two struct clk pointers both point to the same hardware
- * clock node. Put differently, returns true if struct clk *p and struct clk *q
- * share the same struct clk_core object.
+ * clock node. Put differently, returns true if @p and @q
+ * share the same &struct clk_core object.
  *
  * Returns false otherwise. Note that two NULL clks are treated as matching.
  */

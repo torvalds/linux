@@ -7,18 +7,26 @@
  * Copyright (C) 2009, 2010 Arnaldo Carvalho de Melo <acme@redhat.com>
  */
 #include "util.h"
+#include <dirent.h>
+#include <errno.h>
 #include <stdio.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include "build-id.h"
 #include "event.h"
 #include "symbol.h"
+#include "thread.h"
 #include <linux/kernel.h>
 #include "debug.h"
 #include "session.h"
 #include "tool.h"
 #include "header.h"
 #include "vdso.h"
+#include "path.h"
 #include "probe-file.h"
+#include "strlist.h"
 
+#include "sane_ctype.h"
 
 static bool no_buildid_cache;
 
@@ -182,13 +190,17 @@ char *build_id_cache__origname(const char *sbuild_id)
 	char buf[PATH_MAX];
 	char *ret = NULL, *p;
 	size_t offs = 5;	/* == strlen("../..") */
+	ssize_t len;
 
 	linkname = build_id_cache__linkname(sbuild_id, NULL, 0);
 	if (!linkname)
 		return NULL;
 
-	if (readlink(linkname, buf, PATH_MAX) < 0)
+	len = readlink(linkname, buf, sizeof(buf) - 1);
+	if (len <= 0)
 		goto out;
+	buf[len] = '\0';
+
 	/* The link should be "../..<origpath>/<sbuild_id>" */
 	p = strrchr(buf, '/');	/* Cut off the "/<sbuild_id>" */
 	if (p && (p > buf + offs)) {
@@ -443,14 +455,14 @@ void disable_buildid_cache(void)
 }
 
 static bool lsdir_bid_head_filter(const char *name __maybe_unused,
-				  struct dirent *d __maybe_unused)
+				  struct dirent *d)
 {
 	return (strlen(d->d_name) == 2) &&
 		isxdigit(d->d_name[0]) && isxdigit(d->d_name[1]);
 }
 
 static bool lsdir_bid_tail_filter(const char *name __maybe_unused,
-				  struct dirent *d __maybe_unused)
+				  struct dirent *d)
 {
 	int i = 0;
 	while (isxdigit(d->d_name[i]) && i < SBUILD_ID_SIZE - 3)
@@ -690,7 +702,7 @@ int build_id_cache__add_s(const char *sbuild_id, const char *name,
 		err = 0;
 
 	/* Update SDT cache : error is just warned */
-	if (build_id_cache__add_sdt_cache(sbuild_id, realname) < 0)
+	if (realname && build_id_cache__add_sdt_cache(sbuild_id, realname) < 0)
 		pr_debug4("Failed to update/scan SDT cache for %s\n", realname);
 
 out_free:

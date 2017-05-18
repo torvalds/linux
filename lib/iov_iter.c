@@ -413,7 +413,7 @@ void iov_iter_init(struct iov_iter *i, int direction,
 			size_t count)
 {
 	/* It will get better.  Eventually... */
-	if (segment_eq(get_fs(), KERNEL_DS)) {
+	if (uaccess_kernel()) {
 		direction |= ITER_KVEC;
 		i->type = direction;
 		i->kvec = (struct kvec *)iov;
@@ -604,7 +604,7 @@ size_t copy_from_iter_nocache(void *addr, size_t bytes, struct iov_iter *i)
 		return 0;
 	}
 	iterate_and_advance(i, bytes, v,
-		__copy_from_user_nocache((to += v.iov_len) - v.iov_len,
+		__copy_from_user_inatomic_nocache((to += v.iov_len) - v.iov_len,
 					 v.iov_base, v.iov_len),
 		memcpy_from_page((to += v.bv_len) - v.bv_len, v.bv_page,
 				 v.bv_offset, v.bv_len),
@@ -625,7 +625,7 @@ bool copy_from_iter_full_nocache(void *addr, size_t bytes, struct iov_iter *i)
 	if (unlikely(i->count < bytes))
 		return false;
 	iterate_all_kinds(i, bytes, v, ({
-		if (__copy_from_user_nocache((to += v.iov_len) - v.iov_len,
+		if (__copy_from_user_inatomic_nocache((to += v.iov_len) - v.iov_len,
 					     v.iov_base, v.iov_len))
 			return false;
 		0;}),
@@ -790,6 +790,8 @@ void iov_iter_revert(struct iov_iter *i, size_t unroll)
 {
 	if (!unroll)
 		return;
+	if (WARN_ON(unroll > MAX_RW_COUNT))
+		return;
 	i->count += unroll;
 	if (unlikely(i->type & ITER_PIPE)) {
 		struct pipe_inode_info *pipe = i->pipe;
@@ -798,7 +800,7 @@ void iov_iter_revert(struct iov_iter *i, size_t unroll)
 		while (1) {
 			size_t n = off - pipe->bufs[idx].offset;
 			if (unroll < n) {
-				off -= (n - unroll);
+				off -= unroll;
 				break;
 			}
 			unroll -= n;
@@ -1028,10 +1030,7 @@ EXPORT_SYMBOL(iov_iter_get_pages);
 
 static struct page **get_pages_array(size_t n)
 {
-	struct page **p = kmalloc(n * sizeof(struct page *), GFP_KERNEL);
-	if (!p)
-		p = vmalloc(n * sizeof(struct page *));
-	return p;
+	return kvmalloc_array(n, sizeof(struct page *), GFP_KERNEL);
 }
 
 static ssize_t pipe_get_pages_alloc(struct iov_iter *i,

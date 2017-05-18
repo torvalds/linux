@@ -330,7 +330,6 @@ int ip_cmsg_send(struct sock *sk, struct msghdr *msg, struct ipcm_cookie *ipc,
    sent to multicast group to reach destination designated router.
  */
 struct ip_ra_chain __rcu *ip_ra_chain;
-static DEFINE_SPINLOCK(ip_ra_lock);
 
 
 static void ip_ra_destroy_rcu(struct rcu_head *head)
@@ -352,21 +351,17 @@ int ip_ra_control(struct sock *sk, unsigned char on,
 
 	new_ra = on ? kmalloc(sizeof(*new_ra), GFP_KERNEL) : NULL;
 
-	spin_lock_bh(&ip_ra_lock);
 	for (rap = &ip_ra_chain;
-	     (ra = rcu_dereference_protected(*rap,
-			lockdep_is_held(&ip_ra_lock))) != NULL;
+	     (ra = rtnl_dereference(*rap)) != NULL;
 	     rap = &ra->next) {
 		if (ra->sk == sk) {
 			if (on) {
-				spin_unlock_bh(&ip_ra_lock);
 				kfree(new_ra);
 				return -EADDRINUSE;
 			}
 			/* dont let ip_call_ra_chain() use sk again */
 			ra->sk = NULL;
 			RCU_INIT_POINTER(*rap, ra->next);
-			spin_unlock_bh(&ip_ra_lock);
 
 			if (ra->destructor)
 				ra->destructor(sk);
@@ -380,17 +375,14 @@ int ip_ra_control(struct sock *sk, unsigned char on,
 			return 0;
 		}
 	}
-	if (!new_ra) {
-		spin_unlock_bh(&ip_ra_lock);
+	if (!new_ra)
 		return -ENOBUFS;
-	}
 	new_ra->sk = sk;
 	new_ra->destructor = destructor;
 
 	RCU_INIT_POINTER(new_ra->next, ra);
 	rcu_assign_pointer(*rap, new_ra);
 	sock_hold(sk);
-	spin_unlock_bh(&ip_ra_lock);
 
 	return 0;
 }
@@ -488,16 +480,15 @@ static bool ipv4_datagram_support_cmsg(const struct sock *sk,
 		return false;
 
 	/* Support IP_PKTINFO on tstamp packets if requested, to correlate
-	 * timestamp with egress dev. Not possible for packets without dev
+	 * timestamp with egress dev. Not possible for packets without iif
 	 * or without payload (SOF_TIMESTAMPING_OPT_TSONLY).
 	 */
-	if ((!(sk->sk_tsflags & SOF_TIMESTAMPING_OPT_CMSG)) ||
-	    (!skb->dev))
+	info = PKTINFO_SKB_CB(skb);
+	if (!(sk->sk_tsflags & SOF_TIMESTAMPING_OPT_CMSG) ||
+	    !info->ipi_ifindex)
 		return false;
 
-	info = PKTINFO_SKB_CB(skb);
 	info->ipi_spec_dst.s_addr = ip_hdr(skb)->saddr;
-	info->ipi_ifindex = skb->dev->ifindex;
 	return true;
 }
 
@@ -591,6 +582,7 @@ static bool setsockopt_needs_rtnl(int optname)
 	case MCAST_LEAVE_GROUP:
 	case MCAST_LEAVE_SOURCE_GROUP:
 	case MCAST_UNBLOCK_SOURCE:
+	case IP_ROUTER_ALERT:
 		return true;
 	}
 	return false;

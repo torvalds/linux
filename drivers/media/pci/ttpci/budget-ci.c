@@ -693,7 +693,7 @@ static int philips_su1278_tt_tuner_set_params(struct dvb_frontend *fe)
 	return 0;
 }
 
-static struct stv0299_config philips_su1278_tt_config = {
+static const struct stv0299_config philips_su1278_tt_config = {
 
 	.demod_address = 0x68,
 	.inittab = philips_su1278_tt_inittab,

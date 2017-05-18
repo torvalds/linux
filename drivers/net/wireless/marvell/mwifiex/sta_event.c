@@ -670,7 +670,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		adapter->dbg.num_event_deauth++;
 		if (priv->media_connected) {
 			reason_code =
-				le16_to_cpu(*(__le16 *)adapter->event_body);
+				get_unaligned_le16(adapter->event_body);
 			mwifiex_reset_connect_state(priv, reason_code, true);
 		}
 		break;
@@ -685,7 +685,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		adapter->dbg.num_event_disassoc++;
 		if (priv->media_connected) {
 			reason_code =
-				le16_to_cpu(*(__le16 *)adapter->event_body);
+				get_unaligned_le16(adapter->event_body);
 			mwifiex_reset_connect_state(priv, reason_code, true);
 		}
 		break;
@@ -695,7 +695,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		adapter->dbg.num_event_link_lost++;
 		if (priv->media_connected) {
 			reason_code =
-				le16_to_cpu(*(__le16 *)adapter->event_body);
+				get_unaligned_le16(adapter->event_body);
 			mwifiex_reset_connect_state(priv, reason_code, true);
 		}
 		break;
@@ -793,7 +793,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 	case EVENT_BG_SCAN_STOPPED:
 		dev_dbg(adapter->dev, "event: BGS_STOPPED\n");
-		cfg80211_sched_scan_stopped(priv->wdev.wiphy);
+		cfg80211_sched_scan_stopped(priv->wdev.wiphy, 0);
 		if (priv->sched_scanning)
 			priv->sched_scanning = false;
 		break;
@@ -923,7 +923,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 					      adapter->event_body);
 		break;
 	case EVENT_AMSDU_AGGR_CTRL:
-		ctrl = le16_to_cpu(*(__le16 *)adapter->event_body);
+		ctrl = get_unaligned_le16(adapter->event_body);
 		mwifiex_dbg(adapter, EVENT,
 			    "event: AMSDU_AGGR_CTRL %d\n", ctrl);
 

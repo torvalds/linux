@@ -2700,10 +2700,8 @@ static int ftdi_elan_probe(struct usb_interface *interface,
 			   const struct usb_device_id *id)
 {
 	struct usb_host_interface *iface_desc;
-	struct usb_endpoint_descriptor *endpoint;
-	size_t buffer_size;
-	int i;
-	int retval = -ENOMEM;
+	struct usb_endpoint_descriptor *bulk_in, *bulk_out;
+	int retval;
 	struct usb_ftdi *ftdi;
 
 	ftdi = kzalloc(sizeof(struct usb_ftdi), GFP_KERNEL);
@@ -2720,31 +2718,25 @@ static int ftdi_elan_probe(struct usb_interface *interface,
 	ftdi->interface = interface;
 	mutex_init(&ftdi->u132_lock);
 	ftdi->expected = 4;
+
 	iface_desc = interface->cur_altsetting;
-	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
-		endpoint = &iface_desc->endpoint[i].desc;
-		if (!ftdi->bulk_in_endpointAddr &&
-		    usb_endpoint_is_bulk_in(endpoint)) {
-			buffer_size = usb_endpoint_maxp(endpoint);
-			ftdi->bulk_in_size = buffer_size;
-			ftdi->bulk_in_endpointAddr = endpoint->bEndpointAddress;
-			ftdi->bulk_in_buffer = kmalloc(buffer_size, GFP_KERNEL);
-			if (!ftdi->bulk_in_buffer) {
-				retval = -ENOMEM;
-				goto error;
-			}
-		}
-		if (!ftdi->bulk_out_endpointAddr &&
-		    usb_endpoint_is_bulk_out(endpoint)) {
-			ftdi->bulk_out_endpointAddr =
-				endpoint->bEndpointAddress;
-		}
-	}
-	if (!(ftdi->bulk_in_endpointAddr && ftdi->bulk_out_endpointAddr)) {
+	retval = usb_find_common_endpoints(iface_desc,
+			&bulk_in, &bulk_out, NULL, NULL);
+	if (retval) {
 		dev_err(&ftdi->udev->dev, "Could not find both bulk-in and bulk-out endpoints\n");
-		retval = -ENODEV;
 		goto error;
 	}
+
+	ftdi->bulk_in_size = usb_endpoint_maxp(bulk_in);
+	ftdi->bulk_in_endpointAddr = bulk_in->bEndpointAddress;
+	ftdi->bulk_in_buffer = kmalloc(ftdi->bulk_in_size, GFP_KERNEL);
+	if (!ftdi->bulk_in_buffer) {
+		retval = -ENOMEM;
+		goto error;
+	}
+
+	ftdi->bulk_out_endpointAddr = bulk_out->bEndpointAddress;
+
 	dev_info(&ftdi->udev->dev, "interface %d has I=%02X O=%02X\n",
 		 iface_desc->desc.bInterfaceNumber, ftdi->bulk_in_endpointAddr,
 		 ftdi->bulk_out_endpointAddr);

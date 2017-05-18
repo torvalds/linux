@@ -14,13 +14,8 @@
 /*
  * User space memory access functions
  */
-#include <linux/thread_info.h>
 #include <linux/kernel.h>
 #include <asm/page.h>
-#include <asm/errno.h>
-
-#define VERIFY_READ 0
-#define VERIFY_WRITE 1
 
 /*
  * The fs value determines whether argument validity checking should be
@@ -71,26 +66,7 @@ static inline int ___range_ok(unsigned long addr, unsigned int size)
 #define access_ok(type, addr, size) (__range_ok((addr), (size)) == 0)
 #define __access_ok(addr, size)     (__range_ok((addr), (size)) == 0)
 
-/*
- * The exception table consists of pairs of addresses: the first is the
- * address of an instruction that is allowed to fault, and the second is
- * the address at which the program should continue.  No registers are
- * modified, so it is entirely up to the continuation code to figure out
- * what to do.
- *
- * All the routines below use bits of fixup code that are out of line
- * with the main instruction path.  This means when everything is well,
- * we don't even have to jump over them.  Further, they do not intrude
- * on our cache or tlb entries.
- */
-
-struct exception_table_entry
-{
-	unsigned long insn, fixup;
-};
-
-/* Returns 0 if exception not found and fixup otherwise.  */
-extern int fixup_exception(struct pt_regs *regs);
+#include <asm/extable.h>
 
 #define put_user(x, ptr) __put_user_check((x), (ptr), sizeof(*(ptr)))
 #define get_user(x, ptr) __get_user_check((x), (ptr), sizeof(*(ptr)))
@@ -299,170 +275,19 @@ do {									\
 	}								\
 } while (0)
 
-#define __copy_user_zeroing(to, from, size)				\
-do {									\
-	if (size) {							\
-		void *__to = to;					\
-		const void *__from = from;				\
-		int w;							\
-		asm volatile(						\
-			"0:     movbu	(%0),%3;\n"			\
-			"1:     movbu	%3,(%1);\n"			\
-			"	inc	%0;\n"				\
-			"	inc	%1;\n"				\
-			"       add	-1,%2;\n"			\
-			"       bne	0b;\n"				\
-			"2:\n"						\
-			"	.section .fixup,\"ax\"\n"		\
-			"3:\n"						\
-			"	mov	%2,%0\n"			\
-			"	clr	%3\n"				\
-			"4:     movbu	%3,(%1);\n"			\
-			"	inc	%1;\n"				\
-			"       add	-1,%2;\n"			\
-			"       bne	4b;\n"				\
-			"	mov	%0,%2\n"			\
-			"	jmp	2b\n"				\
-			"	.previous\n"				\
-			"	.section __ex_table,\"a\"\n"		\
-			"       .balign	4\n"				\
-			"       .long	0b,3b\n"			\
-			"       .long	1b,3b\n"			\
-			"	.previous\n"				\
-			: "=a"(__from), "=a"(__to), "=r"(size), "=&r"(w)\
-			: "0"(__from), "1"(__to), "2"(size)		\
-			: "cc", "memory");				\
-	}								\
-} while (0)
-
-/* We let the __ versions of copy_from/to_user inline, because they're often
- * used in fast paths and have only a small space overhead.
- */
-static inline
-unsigned long __generic_copy_from_user_nocheck(void *to, const void *from,
-					       unsigned long n)
-{
-	__copy_user_zeroing(to, from, n);
-	return n;
-}
-
-static inline
-unsigned long __generic_copy_to_user_nocheck(void *to, const void *from,
-					     unsigned long n)
+static inline unsigned long
+raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 {
 	__copy_user(to, from, n);
 	return n;
 }
 
-
-#if 0
-#error "don't use - these macros don't increment to & from pointers"
-/* Optimize just a little bit when we know the size of the move. */
-#define __constant_copy_user(to, from, size)	\
-do {						\
-	asm volatile(				\
-		"       mov %0,a0;\n"		\
-		"0:     movbu (%1),d3;\n"	\
-		"1:     movbu d3,(%2);\n"	\
-		"       add -1,a0;\n"		\
-		"       bne 0b;\n"		\
-		"2:;"				\
-		".section .fixup,\"ax\"\n"	\
-		"3:	jmp 2b\n"		\
-		".previous\n"			\
-		".section __ex_table,\"a\"\n"	\
-		"       .balign 4\n"		\
-		"       .long 0b,3b\n"		\
-		"       .long 1b,3b\n"		\
-		".previous"			\
-		:				\
-		: "d"(size), "d"(to), "d"(from)	\
-		: "d3", "a0");			\
-} while (0)
-
-/* Optimize just a little bit when we know the size of the move. */
-#define __constant_copy_user_zeroing(to, from, size)	\
-do {							\
-	asm volatile(					\
-		"       mov %0,a0;\n"			\
-		"0:     movbu (%1),d3;\n"		\
-		"1:     movbu d3,(%2);\n"		\
-		"       add -1,a0;\n"			\
-		"       bne 0b;\n"			\
-		"2:;"					\
-		".section .fixup,\"ax\"\n"		\
-		"3:	jmp 2b\n"			\
-		".previous\n"				\
-		".section __ex_table,\"a\"\n"		\
-		"       .balign 4\n"			\
-		"       .long 0b,3b\n"			\
-		"       .long 1b,3b\n"			\
-		".previous"				\
-		:					\
-		: "d"(size), "d"(to), "d"(from)		\
-		: "d3", "a0");				\
-} while (0)
-
-static inline
-unsigned long __constant_copy_to_user(void *to, const void *from,
-				      unsigned long n)
+static inline unsigned long
+raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 {
-	if (access_ok(VERIFY_WRITE, to, n))
-		__constant_copy_user(to, from, n);
+	__copy_user(to, from, n);
 	return n;
 }
-
-static inline
-unsigned long __constant_copy_from_user(void *to, const void *from,
-					unsigned long n)
-{
-	if (access_ok(VERIFY_READ, from, n))
-		__constant_copy_user_zeroing(to, from, n);
-	return n;
-}
-
-static inline
-unsigned long __constant_copy_to_user_nocheck(void *to, const void *from,
-					      unsigned long n)
-{
-	__constant_copy_user(to, from, n);
-	return n;
-}
-
-static inline
-unsigned long __constant_copy_from_user_nocheck(void *to, const void *from,
-						unsigned long n)
-{
-	__constant_copy_user_zeroing(to, from, n);
-	return n;
-}
-#endif
-
-extern unsigned long __generic_copy_to_user(void __user *, const void *,
-					    unsigned long);
-extern unsigned long __generic_copy_from_user(void *, const void __user *,
-					      unsigned long);
-
-#define __copy_to_user_inatomic(to, from, n) \
-	__generic_copy_to_user_nocheck((to), (from), (n))
-#define __copy_from_user_inatomic(to, from, n) \
-	__generic_copy_from_user_nocheck((to), (from), (n))
-
-#define __copy_to_user(to, from, n)			\
-({							\
-	might_fault();					\
-	__copy_to_user_inatomic((to), (from), (n));	\
-})
-
-#define __copy_from_user(to, from, n)			\
-({							\
-	might_fault();					\
-	__copy_from_user_inatomic((to), (from), (n));	\
-})
-
-
-#define copy_to_user(to, from, n)   __generic_copy_to_user((to), (from), (n))
-#define copy_from_user(to, from, n) __generic_copy_from_user((to), (from), (n))
 
 extern long strncpy_from_user(char *dst, const char __user *src, long count);
 extern long __strncpy_from_user(char *dst, const char __user *src, long count);

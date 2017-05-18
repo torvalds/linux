@@ -52,11 +52,6 @@
 	model = "UniPhier LD11 Reference Board";
 	compatible = "socionext,uniphier-ld11-ref", "socionext,uniphier-ld11";
 
-	memory {
-		device_type = "memory";
-		reg = <0 0x80000000 0 0x40000000>;
-	};
-
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
@@ -72,6 +67,11 @@
 		i2c3 = &i2c3;
 		i2c4 = &i2c4;
 		i2c5 = &i2c5;
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0 0x80000000 0 0x40000000>;
 	};
 };
 

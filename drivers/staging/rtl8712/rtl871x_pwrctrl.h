@@ -48,11 +48,11 @@ enum Power_Mgnt {
 };
 
 /*
-	BIT[2:0] = HW state
-	BIT[3] = Protocol PS state, 0: register active state,
-				    1: register sleep state
-	BIT[4] = sub-state
-*/
+ * BIT[2:0] = HW state
+ * BIT[3] = Protocol PS state, 0: register active state,
+ *				1: register sleep state
+ * BIT[4] = sub-state
+ */
 
 #define		PS_DPS				BIT(0)
 #define		PS_LCLK				(PS_DPS)

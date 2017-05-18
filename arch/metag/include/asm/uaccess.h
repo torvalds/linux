@@ -4,10 +4,6 @@
 /*
  * User space memory access functions
  */
-#include <linux/sched.h>
-
-#define VERIFY_READ	0
-#define VERIFY_WRITE	1
 
 /*
  * The fs value determines whether argument validity checking should be
@@ -28,51 +24,38 @@
 
 #define segment_eq(a, b)	((a).seg == (b).seg)
 
-#define __kernel_ok (segment_eq(get_fs(), KERNEL_DS))
-/*
- * Explicitly allow NULL pointers here. Parts of the kernel such
- * as readv/writev use access_ok to validate pointers, but want
- * to allow NULL pointers for various reasons. NULL pointers are
- * safe to allow through because the first page is not mappable on
- * Meta.
- *
- * We also wish to avoid letting user code access the system area
- * and the kernel half of the address space.
- */
-#define __user_bad(addr, size) (((addr) > 0 && (addr) < META_MEMORY_BASE) || \
-				((addr) > PAGE_OFFSET &&		\
-				 (addr) < LINCORE_BASE))
-
 static inline int __access_ok(unsigned long addr, unsigned long size)
 {
-	return __kernel_ok || !__user_bad(addr, size);
+	/*
+	 * Allow access to the user mapped memory area, but not the system area
+	 * before it. The check extends to the top of the address space when
+	 * kernel access is allowed (there's no real reason to user copy to the
+	 * system area in any case).
+	 */
+	if (likely(addr >= META_MEMORY_BASE && addr < get_fs().seg &&
+		   size <= get_fs().seg - addr))
+		return true;
+	/*
+	 * Explicitly allow NULL pointers here. Parts of the kernel such
+	 * as readv/writev use access_ok to validate pointers, but want
+	 * to allow NULL pointers for various reasons. NULL pointers are
+	 * safe to allow through because the first page is not mappable on
+	 * Meta.
+	 */
+	if (!addr)
+		return true;
+	/* Allow access to core code memory area... */
+	if (addr >= LINCORE_CODE_BASE && addr <= LINCORE_CODE_LIMIT &&
+	    size <= LINCORE_CODE_LIMIT + 1 - addr)
+		return true;
+	/* ... but no other areas. */
+	return false;
 }
 
 #define access_ok(type, addr, size) __access_ok((unsigned long)(addr),	\
 						(unsigned long)(size))
 
-static inline int verify_area(int type, const void *addr, unsigned long size)
-{
-	return access_ok(type, addr, size) ? 0 : -EFAULT;
-}
-
-/*
- * The exception table consists of pairs of addresses: the first is the
- * address of an instruction that is allowed to fault, and the second is
- * the address at which the program should continue.  No registers are
- * modified, so it is entirely up to the continuation code to figure out
- * what to do.
- *
- * All the routines below use bits of fixup code that are out of line
- * with the main instruction path.  This means when everything is well,
- * we don't even have to jump over them.  Further, they do not intrude
- * on our cache or tlb entries.
- */
-struct exception_table_entry {
-	unsigned long insn, fixup;
-};
-
-extern int fixup_exception(struct pt_regs *regs);
+#include <asm/extable.h>
 
 /*
  * These are the main single-value transfer routines.  They automatically
@@ -138,7 +121,8 @@ extern long __get_user_bad(void);
 
 #define __get_user_nocheck(x, ptr, size)			\
 ({                                                              \
-	long __gu_err, __gu_val;                                \
+	long __gu_err;						\
+	long long __gu_val;					\
 	__get_user_size(__gu_val, (ptr), (size), __gu_err);	\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;             \
 	__gu_err;                                               \
@@ -146,7 +130,8 @@ extern long __get_user_bad(void);
 
 #define __get_user_check(x, ptr, size)					\
 ({                                                                      \
-	long __gu_err = -EFAULT, __gu_val = 0;                          \
+	long __gu_err = -EFAULT;					\
+	long long __gu_val = 0;						\
 	const __typeof__(*(ptr)) __user *__gu_addr = (ptr);		\
 	if (access_ok(VERIFY_READ, __gu_addr, size))			\
 		__get_user_size(__gu_val, __gu_addr, (size), __gu_err);	\
@@ -157,6 +142,7 @@ extern long __get_user_bad(void);
 extern unsigned char __get_user_asm_b(const void __user *addr, long *err);
 extern unsigned short __get_user_asm_w(const void __user *addr, long *err);
 extern unsigned int __get_user_asm_d(const void __user *addr, long *err);
+extern unsigned long long __get_user_asm_l(const void __user *addr, long *err);
 
 #define __get_user_size(x, ptr, size, retval)			\
 do {                                                            \
@@ -168,6 +154,8 @@ do {                                                            \
 		x = __get_user_asm_w(ptr, &retval); break;	\
 	case 4:							\
 		x = __get_user_asm_d(ptr, &retval); break;	\
+	case 8:							\
+		x = __get_user_asm_l(ptr, &retval); break;	\
 	default:						\
 		(x) = __get_user_bad();				\
 	}                                                       \
@@ -186,8 +174,13 @@ do {                                                            \
 extern long __must_check __strncpy_from_user(char *dst, const char __user *src,
 					     long count);
 
-#define strncpy_from_user(dst, src, count) __strncpy_from_user(dst, src, count)
-
+static inline long
+strncpy_from_user(char *dst, const char __user *src, long count)
+{
+	if (!access_ok(VERIFY_READ, src, 1))
+		return -EFAULT;
+	return __strncpy_from_user(dst, src, count);
+}
 /*
  * Return the size of a string (including the ending 0)
  *
@@ -199,35 +192,8 @@ extern long __must_check strnlen_user(const char __user *src, long count);
 
 extern unsigned long raw_copy_from_user(void *to, const void __user *from,
 					unsigned long n);
-
-static inline unsigned long
-copy_from_user(void *to, const void __user *from, unsigned long n)
-{
-	unsigned long res = n;
-	if (likely(access_ok(VERIFY_READ, from, n)))
-		res = raw_copy_from_user(to, from, n);
-	if (unlikely(res))
-		memset(to + (n - res), 0, res);
-	return res;
-}
-
-#define __copy_from_user(to, from, n) raw_copy_from_user(to, from, n)
-#define __copy_from_user_inatomic __copy_from_user
-
-extern unsigned long __must_check __copy_user(void __user *to,
-					      const void *from,
-					      unsigned long n);
-
-static inline unsigned long copy_to_user(void __user *to, const void *from,
-					 unsigned long n)
-{
-	if (access_ok(VERIFY_WRITE, to, n))
-		return __copy_user(to, from, n);
-	return n;
-}
-
-#define __copy_to_user(to, from, n) __copy_user(to, from, n)
-#define __copy_to_user_inatomic __copy_to_user
+extern unsigned long raw_copy_to_user(void __user *to, const void *from,
+				      unsigned long n);
 
 /*
  * Zero Userspace

@@ -27,6 +27,7 @@
 #include <asm/debugreg.h>
 #include <asm/kexec-bzimage64.h>
 #include <asm/setup.h>
+#include <asm/set_memory.h>
 
 #ifdef CONFIG_KEXEC_FILE
 static struct kexec_file_ops *kexec_file_loaders[] = {
@@ -36,6 +37,7 @@ static struct kexec_file_ops *kexec_file_loaders[] = {
 
 static void free_transition_pgtable(struct kimage *image)
 {
+	free_page((unsigned long)image->arch.p4d);
 	free_page((unsigned long)image->arch.pud);
 	free_page((unsigned long)image->arch.pmd);
 	free_page((unsigned long)image->arch.pte);
@@ -43,6 +45,7 @@ static void free_transition_pgtable(struct kimage *image)
 
 static int init_transition_pgtable(struct kimage *image, pgd_t *pgd)
 {
+	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
@@ -53,13 +56,21 @@ static int init_transition_pgtable(struct kimage *image, pgd_t *pgd)
 	paddr = __pa(page_address(image->control_code_page)+PAGE_SIZE);
 	pgd += pgd_index(vaddr);
 	if (!pgd_present(*pgd)) {
+		p4d = (p4d_t *)get_zeroed_page(GFP_KERNEL);
+		if (!p4d)
+			goto err;
+		image->arch.p4d = p4d;
+		set_pgd(pgd, __pgd(__pa(p4d) | _KERNPG_TABLE));
+	}
+	p4d = p4d_offset(pgd, vaddr);
+	if (!p4d_present(*p4d)) {
 		pud = (pud_t *)get_zeroed_page(GFP_KERNEL);
 		if (!pud)
 			goto err;
 		image->arch.pud = pud;
-		set_pgd(pgd, __pgd(__pa(pud) | _KERNPG_TABLE));
+		set_p4d(p4d, __p4d(__pa(pud) | _KERNPG_TABLE));
 	}
-	pud = pud_offset(pgd, vaddr);
+	pud = pud_offset(p4d, vaddr);
 	if (!pud_present(*pud)) {
 		pmd = (pmd_t *)get_zeroed_page(GFP_KERNEL);
 		if (!pmd)
@@ -103,7 +114,7 @@ static int init_pgtable(struct kimage *image, unsigned long start_pgtable)
 	struct x86_mapping_info info = {
 		.alloc_pgt_page	= alloc_pgt_page,
 		.context	= image,
-		.pmd_flag	= __PAGE_KERNEL_LARGE_EXEC,
+		.page_flag	= __PAGE_KERNEL_LARGE_EXEC,
 	};
 	unsigned long mstart, mend;
 	pgd_t *level4p;
@@ -112,6 +123,10 @@ static int init_pgtable(struct kimage *image, unsigned long start_pgtable)
 
 	level4p = (pgd_t *)__va(start_pgtable);
 	clear_page(level4p);
+
+	if (direct_gbpages)
+		info.direct_gbpages = true;
+
 	for (i = 0; i < nr_pfn_mapped; i++) {
 		mstart = pfn_mapped[i].start << PAGE_SHIFT;
 		mend   = pfn_mapped[i].end << PAGE_SHIFT;

@@ -1,0 +1,172 @@
+#!/bin/sh
+# description: ftrace - test for function traceon/off triggers
+# flags: instance
+#
+# Ftrace allows to add triggers to functions, such as enabling or disabling
+# tracing, enabling or disabling trace events, or recording a stack trace
+# within the ring buffer.
+#
+# This test is designed to test enabling and disabling tracing triggers
+#
+
+# The triggers are set within the set_ftrace_filter file
+if [ ! -f set_ftrace_filter ]; then
+    echo "set_ftrace_filter not found? Is dynamic ftrace not set?"
+    exit_unsupported
+fi
+
+do_reset() {
+    reset_ftrace_filter
+    reset_tracer
+    disable_events
+    clear_trace
+    enable_tracing
+}
+
+fail() { # mesg
+    do_reset
+    echo $1
+    exit $FAIL
+}
+
+SLEEP_TIME=".1"
+
+do_reset
+
+echo "Testing function probes with enabling disabling tracing:"
+
+cnt_trace() {
+    grep -v '^#' trace | wc -l
+}
+
+echo '** DISABLE TRACING'
+disable_tracing
+clear_trace
+
+cnt=`cnt_trace`
+if [ $cnt -ne 0 ]; then
+    fail "Found junk in trace"
+fi
+
+
+echo '** ENABLE EVENTS'
+
+echo 1 > events/enable
+
+echo '** ENABLE TRACING'
+enable_tracing
+
+cnt=`cnt_trace`
+if [ $cnt -eq 0 ]; then
+   fail "Nothing found in trace"
+fi
+
+# powerpc uses .schedule
+func="schedule"
+x=`grep '^\.schedule$' available_filter_functions | wc -l`
+if [ "$x" -eq 1 ]; then
+   func=".schedule"
+fi
+
+echo '** SET TRACEOFF'
+
+echo "$func:traceoff" > set_ftrace_filter
+
+cnt=`grep schedule set_ftrace_filter | wc -l`
+if [ $cnt -ne 1 ]; then
+   fail "Did not find traceoff trigger"
+fi
+
+cnt=`cnt_trace`
+sleep $SLEEP_TIME
+cnt2=`cnt_trace`
+
+if [ $cnt -ne $cnt2 ]; then
+   fail "Tracing is not stopped"
+fi
+
+on=`cat tracing_on`
+if [ $on != "0" ]; then
+    fail "Tracing is not off"
+fi
+
+line1=`cat trace | tail -1`
+sleep $SLEEP_TIME
+line2=`cat trace | tail -1`
+
+if [ "$line1" != "$line2" ]; then
+    fail "Tracing file is still changing"
+fi
+
+clear_trace
+
+cnt=`cnt_trace`
+if [ $cnt -ne 0 ]; then
+    fail "Tracing is still happeing"
+fi
+
+echo "!$func:traceoff" >> set_ftrace_filter
+
+cnt=`grep schedule set_ftrace_filter | wc -l`
+if [ $cnt -ne 0 ]; then
+    fail "traceoff trigger still exists"
+fi
+
+on=`cat tracing_on`
+if [ $on != "0" ]; then
+    fail "Tracing is started again"
+fi
+
+echo "$func:traceon" > set_ftrace_filter
+
+cnt=`grep schedule set_ftrace_filter | wc -l`
+if [ $cnt -ne 1 ]; then
+    fail "traceon trigger not found"
+fi
+
+cnt=`cnt_trace`
+if [ $cnt -eq 0 ]; then
+   fail "Tracing did not start"
+fi
+
+on=`cat tracing_on`
+if [ $on != "1" ]; then
+    fail "Tracing was not enabled"
+fi
+
+
+echo "!$func:traceon" >> set_ftrace_filter
+
+cnt=`grep schedule set_ftrace_filter | wc -l`
+if [ $cnt -ne 0 ]; then
+   fail "traceon trigger still exists"
+fi
+
+check_sleep() {
+    val=$1
+    sleep $SLEEP_TIME
+    cat set_ftrace_filter
+    on=`cat tracing_on`
+    if [ $on != "$val" ]; then
+	fail "Expected tracing_on to be $val, but it was $on"
+    fi
+}
+
+
+echo "$func:traceoff:3" > set_ftrace_filter
+check_sleep "0"
+echo 1 > tracing_on
+check_sleep "0"
+echo 1 > tracing_on
+check_sleep "0"
+echo 1 > tracing_on
+check_sleep "1"
+echo "!$func:traceoff:0" > set_ftrace_filter
+
+if grep -e traceon -e traceoff set_ftrace_filter; then
+    fail "Tracing on and off triggers still exist"
+fi
+
+disable_events
+
+exit 0

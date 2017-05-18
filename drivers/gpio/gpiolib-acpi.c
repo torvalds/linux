@@ -368,6 +368,37 @@ int acpi_dev_add_driver_gpios(struct acpi_device *adev,
 }
 EXPORT_SYMBOL_GPL(acpi_dev_add_driver_gpios);
 
+static void devm_acpi_dev_release_driver_gpios(struct device *dev, void *res)
+{
+	acpi_dev_remove_driver_gpios(ACPI_COMPANION(dev));
+}
+
+int devm_acpi_dev_add_driver_gpios(struct device *dev,
+				   const struct acpi_gpio_mapping *gpios)
+{
+	void *res;
+	int ret;
+
+	res = devres_alloc(devm_acpi_dev_release_driver_gpios, 0, GFP_KERNEL);
+	if (!res)
+		return -ENOMEM;
+
+	ret = acpi_dev_add_driver_gpios(ACPI_COMPANION(dev), gpios);
+	if (ret) {
+		devres_free(res);
+		return ret;
+	}
+	devres_add(dev, res);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devm_acpi_dev_add_driver_gpios);
+
+void devm_acpi_dev_remove_driver_gpios(struct device *dev)
+{
+	WARN_ON(devres_release(dev, devm_acpi_dev_release_driver_gpios, NULL, NULL));
+}
+EXPORT_SYMBOL_GPL(devm_acpi_dev_remove_driver_gpios);
+
 static bool acpi_get_driver_gpio_data(struct acpi_device *adev,
 				      const char *name, int index,
 				      struct acpi_reference_args *args)
@@ -661,20 +692,24 @@ int acpi_dev_gpio_irq_get(struct acpi_device *adev, int index)
 {
 	int idx, i;
 	unsigned int irq_flags;
-	int ret = -ENOENT;
 
 	for (i = 0, idx = 0; idx <= index; i++) {
 		struct acpi_gpio_info info;
 		struct gpio_desc *desc;
 
 		desc = acpi_get_gpiod_by_index(adev, NULL, i, &info);
-		if (IS_ERR(desc)) {
-			ret = PTR_ERR(desc);
-			break;
-		}
-		if (info.gpioint && idx++ == index) {
-			int irq = gpiod_to_irq(desc);
 
+		/* Ignore -EPROBE_DEFER, it only matters if idx matches */
+		if (IS_ERR(desc) && PTR_ERR(desc) != -EPROBE_DEFER)
+			return PTR_ERR(desc);
+
+		if (info.gpioint && idx++ == index) {
+			int irq;
+
+			if (IS_ERR(desc))
+				return PTR_ERR(desc);
+
+			irq = gpiod_to_irq(desc);
 			if (irq < 0)
 				return irq;
 
@@ -690,7 +725,7 @@ int acpi_dev_gpio_irq_get(struct acpi_device *adev, int index)
 		}
 
 	}
-	return ret;
+	return -ENOENT;
 }
 EXPORT_SYMBOL_GPL(acpi_dev_gpio_irq_get);
 
@@ -1075,7 +1110,7 @@ int acpi_gpio_count(struct device *dev, const char *con_id)
 					break;
 				}
 		}
-		if (count >= 0)
+		if (count > 0)
 			break;
 	}
 
@@ -1091,7 +1126,7 @@ int acpi_gpio_count(struct device *dev, const char *con_id)
 		if (crs_count > 0)
 			count = crs_count;
 	}
-	return count;
+	return count ? count : -ENOENT;
 }
 
 struct acpi_crs_lookup {

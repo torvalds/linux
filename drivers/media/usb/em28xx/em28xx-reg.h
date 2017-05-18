@@ -93,6 +93,24 @@
 #define EM28XX_XCLK_FREQUENCY_24MHZ	0x0b
 
 #define EM28XX_R10_VINMODE	0x10
+	  /* used by all non-camera devices: */
+#define   EM28XX_VINMODE_YUV422_CbYCrY  0x10
+	  /* used by camera devices: */
+#define   EM28XX_VINMODE_YUV422_YUYV    0x08
+#define   EM28XX_VINMODE_YUV422_YVYU    0x09
+#define   EM28XX_VINMODE_YUV422_UYVY    0x0a
+#define   EM28XX_VINMODE_YUV422_VYUY    0x0b
+#define   EM28XX_VINMODE_RGB8_BGGR      0x0c
+#define   EM28XX_VINMODE_RGB8_GRBG      0x0d
+#define   EM28XX_VINMODE_RGB8_GBRG      0x0e
+#define   EM28XX_VINMODE_RGB8_RGGB      0x0f
+	  /*
+	   * apparently:
+	   *   bit 0: swap component 1+2 with 3+4
+	   *                 => e.g.: YUYV => YVYU, BGGR => GRBG
+	   *   bit 1: swap component 1 with 2 and 3 with 4
+	   *                 => e.g.: YUYV => UYVY, BGGR => GBRG
+	   */
 
 #define EM28XX_R11_VINCTRL	0x11
 

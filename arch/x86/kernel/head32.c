@@ -12,7 +12,7 @@
 
 #include <asm/setup.h>
 #include <asm/sections.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/page.h>
 #include <asm/apic.h>
 #include <asm/io_apic.h>

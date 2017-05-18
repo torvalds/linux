@@ -4196,7 +4196,7 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 		if (em->generation <= test_gen)
 			continue;
 		/* Need a ref to keep it from getting evicted from cache */
-		atomic_inc(&em->refs);
+		refcount_inc(&em->refs);
 		set_bit(EXTENT_FLAG_LOGGING, &em->flags);
 		list_add_tail(&em->list, &extents);
 		num++;

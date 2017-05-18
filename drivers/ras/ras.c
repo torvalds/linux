@@ -27,3 +27,14 @@ subsys_initcall(ras_init);
 EXPORT_TRACEPOINT_SYMBOL_GPL(extlog_mem_event);
 #endif
 EXPORT_TRACEPOINT_SYMBOL_GPL(mc_event);
+
+
+int __init parse_ras_param(char *str)
+{
+#ifdef CONFIG_RAS_CEC
+	parse_cec_param(str);
+#endif
+
+	return 1;
+}
+__setup("ras", parse_ras_param);

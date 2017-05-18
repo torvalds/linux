@@ -620,7 +620,7 @@ struct lpfc_sli4_hba {
 	struct list_head lpfc_els_sgl_list;
 	struct list_head lpfc_abts_els_sgl_list;
 	struct list_head lpfc_nvmet_sgl_list;
-	struct list_head lpfc_abts_nvmet_sgl_list;
+	struct list_head lpfc_abts_nvmet_ctx_list;
 	struct list_head lpfc_abts_scsi_buf_list;
 	struct list_head lpfc_abts_nvme_buf_list;
 	struct lpfc_sglq **lpfc_sglq_active_list;

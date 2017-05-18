@@ -392,6 +392,21 @@
 				cap-mmc-highspeed;
 			};
 
+			sdcc2: sdcc@12140000 {
+				status		= "disabled";
+				compatible	= "arm,pl18x", "arm,primecell";
+				arm,primecell-periphid = <0x00051180>;
+				reg		= <0x12140000 0x8000>;
+				interrupts	= <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names	= "cmd_irq";
+				clocks		= <&gcc SDC2_CLK>, <&gcc SDC2_H_CLK>;
+				clock-names	= "mclk", "apb_pclk";
+				bus-width	= <8>;
+				max-frequency	= <48000000>;
+				cap-sd-highspeed;
+				cap-mmc-highspeed;
+			};
+
 			sdcc3: sdcc@12180000 {
 				compatible	= "arm,pl18x", "arm,primecell";
 				arm,primecell-periphid = <0x00051180>;
@@ -406,6 +421,21 @@
 				cap-mmc-highspeed;
 				max-frequency	= <48000000>;
 				no-1-8-v;
+			};
+
+			sdcc4: sdcc@121c0000 {
+				compatible	= "arm,pl18x", "arm,primecell";
+				arm,primecell-periphid = <0x00051180>;
+				status		= "disabled";
+				reg		= <0x121c0000 0x8000>;
+				interrupts	= <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names	= "cmd_irq";
+				clocks		= <&gcc SDC4_CLK>, <&gcc SDC4_H_CLK>;
+				clock-names	= "mclk", "apb_pclk";
+				bus-width	= <4>;
+				max-frequency	= <48000000>;
+				cap-sd-highspeed;
+				cap-mmc-highspeed;
 			};
 
 			sdcc5: sdcc@12200000 {

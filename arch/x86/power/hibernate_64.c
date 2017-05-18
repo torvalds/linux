@@ -16,6 +16,7 @@
 
 #include <crypto/hash.h>
 
+#include <asm/e820/api.h>
 #include <asm/init.h>
 #include <asm/proto.h>
 #include <asm/page.h>
@@ -49,6 +50,7 @@ static int set_up_temporary_text_mapping(pgd_t *pgd)
 {
 	pmd_t *pmd;
 	pud_t *pud;
+	p4d_t *p4d;
 
 	/*
 	 * The new mapping only has to cover the page containing the image
@@ -63,6 +65,13 @@ static int set_up_temporary_text_mapping(pgd_t *pgd)
 	 * the virtual address space after switching over to the original page
 	 * tables used by the image kernel.
 	 */
+
+	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
+		p4d = (p4d_t *)get_safe_page(GFP_ATOMIC);
+		if (!p4d)
+			return -ENOMEM;
+	}
+
 	pud = (pud_t *)get_safe_page(GFP_ATOMIC);
 	if (!pud)
 		return -ENOMEM;
@@ -75,8 +84,13 @@ static int set_up_temporary_text_mapping(pgd_t *pgd)
 		__pmd((jump_address_phys & PMD_MASK) | __PAGE_KERNEL_LARGE_EXEC));
 	set_pud(pud + pud_index(restore_jump_address),
 		__pud(__pa(pmd) | _KERNPG_TABLE));
-	set_pgd(pgd + pgd_index(restore_jump_address),
-		__pgd(__pa(pud) | _KERNPG_TABLE));
+	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
+		set_p4d(p4d + p4d_index(restore_jump_address), __p4d(__pa(pud) | _KERNPG_TABLE));
+		set_pgd(pgd + pgd_index(restore_jump_address), __pgd(__pa(p4d) | _KERNPG_TABLE));
+	} else {
+		/* No p4d for 4-level paging: point the pgd to the pud page table */
+		set_pgd(pgd + pgd_index(restore_jump_address), __pgd(__pa(pud) | _KERNPG_TABLE));
+	}
 
 	return 0;
 }
@@ -90,7 +104,7 @@ static int set_up_temporary_mappings(void)
 {
 	struct x86_mapping_info info = {
 		.alloc_pgt_page	= alloc_pgt_page,
-		.pmd_flag	= __PAGE_KERNEL_LARGE_EXEC,
+		.page_flag	= __PAGE_KERNEL_LARGE_EXEC,
 		.offset		= __PAGE_OFFSET,
 	};
 	unsigned long mstart, mend;
@@ -124,7 +138,10 @@ static int set_up_temporary_mappings(void)
 static int relocate_restore_code(void)
 {
 	pgd_t *pgd;
+	p4d_t *p4d;
 	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
 
 	relocated_restore_code = get_safe_page(GFP_ATOMIC);
 	if (!relocated_restore_code)
@@ -134,22 +151,25 @@ static int relocate_restore_code(void)
 
 	/* Make the page containing the relocated code executable */
 	pgd = (pgd_t *)__va(read_cr3()) + pgd_index(relocated_restore_code);
-	pud = pud_offset(pgd, relocated_restore_code);
+	p4d = p4d_offset(pgd, relocated_restore_code);
+	if (p4d_large(*p4d)) {
+		set_p4d(p4d, __p4d(p4d_val(*p4d) & ~_PAGE_NX));
+		goto out;
+	}
+	pud = pud_offset(p4d, relocated_restore_code);
 	if (pud_large(*pud)) {
 		set_pud(pud, __pud(pud_val(*pud) & ~_PAGE_NX));
-	} else {
-		pmd_t *pmd = pmd_offset(pud, relocated_restore_code);
-
-		if (pmd_large(*pmd)) {
-			set_pmd(pmd, __pmd(pmd_val(*pmd) & ~_PAGE_NX));
-		} else {
-			pte_t *pte = pte_offset_kernel(pmd, relocated_restore_code);
-
-			set_pte(pte, __pte(pte_val(*pte) & ~_PAGE_NX));
-		}
+		goto out;
 	}
+	pmd = pmd_offset(pud, relocated_restore_code);
+	if (pmd_large(*pmd)) {
+		set_pmd(pmd, __pmd(pmd_val(*pmd) & ~_PAGE_NX));
+		goto out;
+	}
+	pte = pte_offset_kernel(pmd, relocated_restore_code);
+	set_pte(pte, __pte(pte_val(*pte) & ~_PAGE_NX));
+out:
 	__flush_tlb_all();
-
 	return 0;
 }
 
@@ -195,12 +215,12 @@ struct restore_data_record {
 
 #if IS_BUILTIN(CONFIG_CRYPTO_MD5)
 /**
- * get_e820_md5 - calculate md5 according to given e820 map
+ * get_e820_md5 - calculate md5 according to given e820 table
  *
- * @map: the e820 map to be calculated
+ * @table: the e820 table to be calculated
  * @buf: the md5 result to be stored to
  */
-static int get_e820_md5(struct e820map *map, void *buf)
+static int get_e820_md5(struct e820_table *table, void *buf)
 {
 	struct scatterlist sg;
 	struct crypto_ahash *tfm;
@@ -213,10 +233,9 @@ static int get_e820_md5(struct e820map *map, void *buf)
 
 	{
 		AHASH_REQUEST_ON_STACK(req, tfm);
-		size = offsetof(struct e820map, map)
-			+ sizeof(struct e820entry) * map->nr_map;
+		size = offsetof(struct e820_table, entries) + sizeof(struct e820_entry) * table->nr_entries;
 		ahash_request_set_tfm(req, tfm);
-		sg_init_one(&sg, (u8 *)map, size);
+		sg_init_one(&sg, (u8 *)table, size);
 		ahash_request_set_callback(req, 0, NULL, NULL);
 		ahash_request_set_crypt(req, &sg, buf, size);
 
@@ -231,7 +250,7 @@ static int get_e820_md5(struct e820map *map, void *buf)
 
 static void hibernation_e820_save(void *buf)
 {
-	get_e820_md5(e820_saved, buf);
+	get_e820_md5(e820_table_firmware, buf);
 }
 
 static bool hibernation_e820_mismatch(void *buf)
@@ -244,7 +263,7 @@ static bool hibernation_e820_mismatch(void *buf)
 	if (!memcmp(result, buf, MD5_DIGEST_SIZE))
 		return false;
 
-	ret = get_e820_md5(e820_saved, result);
+	ret = get_e820_md5(e820_table_firmware, result);
 	if (ret)
 		return true;
 

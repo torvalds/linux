@@ -5,6 +5,7 @@
  * License as published by the Free Software Foundation.
  */
 #include <linux/bpf.h>
+#include <linux/if_link.h>
 #include <assert.h>
 #include <errno.h>
 #include <signal.h>
@@ -24,11 +25,12 @@
 #define STATS_INTERVAL_S 2U
 
 static int ifindex = -1;
+static __u32 xdp_flags = 0;
 
 static void int_exit(int sig)
 {
 	if (ifindex > -1)
-		set_link_xdp_fd(ifindex, -1);
+		set_link_xdp_fd(ifindex, -1, xdp_flags);
 	exit(0);
 }
 
@@ -136,7 +138,7 @@ int main(int argc, char **argv)
 {
 	unsigned char opt_flags[256] = {};
 	unsigned int kill_after_s = 0;
-	const char *optstr = "i:a:p:s:d:m:T:P:h";
+	const char *optstr = "i:a:p:s:d:m:T:P:Sh";
 	int min_port = 0, max_port = 0;
 	struct iptnl_info tnl = {};
 	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
@@ -201,6 +203,9 @@ int main(int argc, char **argv)
 		case 'T':
 			kill_after_s = atoi(optarg);
 			break;
+		case 'S':
+			xdp_flags |= XDP_FLAGS_SKB_MODE;
+			break;
 		default:
 			usage(argv[0]);
 			return 1;
@@ -243,14 +248,14 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (set_link_xdp_fd(ifindex, prog_fd[0]) < 0) {
+	if (set_link_xdp_fd(ifindex, prog_fd[0], xdp_flags) < 0) {
 		printf("link set xdp fd failed\n");
 		return 1;
 	}
 
 	poll_stats(kill_after_s);
 
-	set_link_xdp_fd(ifindex, -1);
+	set_link_xdp_fd(ifindex, -1, xdp_flags);
 
 	return 0;
 }

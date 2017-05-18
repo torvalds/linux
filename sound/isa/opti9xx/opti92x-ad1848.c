@@ -88,20 +88,20 @@ MODULE_PARM_DESC(id, "ID string for opti9xx based soundcard.");
 module_param(isapnp, bool, 0444);
 MODULE_PARM_DESC(isapnp, "Enable ISA PnP detection for specified soundcard.");
 #endif
-module_param(port, long, 0444);
+module_param_hw(port, long, ioport, 0444);
 MODULE_PARM_DESC(port, "WSS port # for opti9xx driver.");
-module_param(mpu_port, long, 0444);
+module_param_hw(mpu_port, long, ioport, 0444);
 MODULE_PARM_DESC(mpu_port, "MPU-401 port # for opti9xx driver.");
-module_param(fm_port, long, 0444);
+module_param_hw(fm_port, long, ioport, 0444);
 MODULE_PARM_DESC(fm_port, "FM port # for opti9xx driver.");
-module_param(irq, int, 0444);
+module_param_hw(irq, int, irq, 0444);
 MODULE_PARM_DESC(irq, "WSS irq # for opti9xx driver.");
-module_param(mpu_irq, int, 0444);
+module_param_hw(mpu_irq, int, irq, 0444);
 MODULE_PARM_DESC(mpu_irq, "MPU-401 irq # for opti9xx driver.");
-module_param(dma1, int, 0444);
+module_param_hw(dma1, int, dma, 0444);
 MODULE_PARM_DESC(dma1, "1st dma # for opti9xx driver.");
 #if defined(CS4231) || defined(OPTi93X)
-module_param(dma2, int, 0444);
+module_param_hw(dma2, int, dma, 0444);
 MODULE_PARM_DESC(dma2, "2nd dma # for opti9xx driver.");
 #endif	/* CS4231 || OPTi93X */
 

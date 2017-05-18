@@ -64,12 +64,11 @@
 #define DRV_NAME "iw_cxgb4"
 #define MOD DRV_NAME ":"
 
-extern int c4iw_debug;
-#define PDBG(fmt, args...) \
-do { \
-	if (c4iw_debug) \
-		printk(MOD fmt, ## args); \
-} while (0)
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include "t4.h"
 
@@ -231,15 +230,15 @@ static inline int c4iw_wait_for_reply(struct c4iw_rdev *rdev,
 
 	ret = wait_for_completion_timeout(&wr_waitp->completion, C4IW_WR_TO);
 	if (!ret) {
-		PDBG("%s - Device %s not responding (disabling device) - tid %u qpid %u\n",
-		     func, pci_name(rdev->lldi.pdev), hwtid, qpid);
+		pr_debug("%s - Device %s not responding (disabling device) - tid %u qpid %u\n",
+			 func, pci_name(rdev->lldi.pdev), hwtid, qpid);
 		rdev->flags |= T4_FATAL_ERROR;
 		wr_waitp->ret = -EIO;
 	}
 out:
 	if (wr_waitp->ret)
-		PDBG("%s: FW reply %d tid %u qpid %u\n",
-		     pci_name(rdev->lldi.pdev), wr_waitp->ret, hwtid, qpid);
+		pr_debug("%s: FW reply %d tid %u qpid %u\n",
+			 pci_name(rdev->lldi.pdev), wr_waitp->ret, hwtid, qpid);
 	return wr_waitp->ret;
 }
 
@@ -538,8 +537,9 @@ static inline struct c4iw_mm_entry *remove_mmap(struct c4iw_ucontext *ucontext,
 		if (mm->key == key && mm->len == len) {
 			list_del_init(&mm->entry);
 			spin_unlock(&ucontext->mmap_lock);
-			PDBG("%s key 0x%x addr 0x%llx len %d\n", __func__,
-			     key, (unsigned long long) mm->addr, mm->len);
+			pr_debug("%s key 0x%x addr 0x%llx len %d\n",
+				 __func__, key,
+				 (unsigned long long)mm->addr, mm->len);
 			return mm;
 		}
 	}
@@ -551,8 +551,8 @@ static inline void insert_mmap(struct c4iw_ucontext *ucontext,
 			       struct c4iw_mm_entry *mm)
 {
 	spin_lock(&ucontext->mmap_lock);
-	PDBG("%s key 0x%x addr 0x%llx len %d\n", __func__,
-	     mm->key, (unsigned long long) mm->addr, mm->len);
+	pr_debug("%s key 0x%x addr 0x%llx len %d\n",
+		 __func__, mm->key, (unsigned long long)mm->addr, mm->len);
 	list_add_tail(&mm->entry, &ucontext->mmaps);
 	spin_unlock(&ucontext->mmap_lock);
 }
@@ -670,17 +670,19 @@ enum c4iw_mmid_state {
 #define MPA_V2_RDMA_READ_RTR            0x4000
 #define MPA_V2_IRD_ORD_MASK             0x3FFF
 
-#define c4iw_put_ep(ep) { \
-	PDBG("put_ep (via %s:%u) ep %p refcnt %d\n", __func__, __LINE__,  \
-	     ep, kref_read(&((ep)->kref))); \
-	WARN_ON(kref_read(&((ep)->kref)) < 1); \
-	kref_put(&((ep)->kref), _c4iw_free_ep); \
+#define c4iw_put_ep(ep) {						\
+	pr_debug("put_ep (via %s:%u) ep %p refcnt %d\n",		\
+		 __func__, __LINE__,					\
+		 ep, kref_read(&((ep)->kref)));				\
+	WARN_ON(kref_read(&((ep)->kref)) < 1);				\
+	kref_put(&((ep)->kref), _c4iw_free_ep);				\
 }
 
-#define c4iw_get_ep(ep) { \
-	PDBG("get_ep (via %s:%u) ep %p, refcnt %d\n", __func__, __LINE__, \
-	     ep, kref_read(&((ep)->kref))); \
-	kref_get(&((ep)->kref));  \
+#define c4iw_get_ep(ep) {						\
+	pr_debug("get_ep (via %s:%u) ep %p, refcnt %d\n",		\
+		 __func__, __LINE__,					\
+		 ep, kref_read(&((ep)->kref)));				\
+	kref_get(&((ep)->kref));					\
 }
 void _c4iw_free_ep(struct kref *kref);
 

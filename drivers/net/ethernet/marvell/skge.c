@@ -2657,7 +2657,7 @@ static int skge_down(struct net_device *dev)
 	struct skge_hw *hw = skge->hw;
 	int port = skge->port;
 
-	if (skge->mem == NULL)
+	if (!skge->mem)
 		return 0;
 
 	netif_info(skge, ifdown, skge->netdev, "disabling interface\n");
@@ -3718,7 +3718,7 @@ static int skge_debug_show(struct seq_file *seq, void *v)
 			   t->csum_offs, t->csum_write, t->csum_start);
 	}
 
-	seq_printf(seq, "\nRx Ring:\n");
+	seq_puts(seq, "\nRx Ring:\n");
 	for (e = skge->rx_ring.to_clean; ; e = e->next) {
 		const struct skge_rx_desc *r = e->desc;
 

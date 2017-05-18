@@ -69,6 +69,14 @@ struct skl_d0i3_data {
 	struct delayed_work work;
 };
 
+#define SKL_LIB_NAME_LENGTH 128
+#define SKL_MAX_LIB 16
+
+struct skl_lib_info {
+	char name[SKL_LIB_NAME_LENGTH];
+	const struct firmware *fw;
+};
+
 struct skl_sst {
 	struct device *dev;
 	struct sst_dsp *dsp;
@@ -76,6 +84,11 @@ struct skl_sst {
 	/* boot */
 	wait_queue_head_t boot_wait;
 	bool boot_complete;
+
+	/* module load */
+	wait_queue_head_t mod_load_wait;
+	bool mod_load_complete;
+	bool mod_load_status;
 
 	/* IPC messaging */
 	struct sst_generic_ipc ipc;
@@ -105,6 +118,8 @@ struct skl_sst {
 	void (*update_d0i3c)(struct device *dev, bool enable);
 
 	struct skl_d0i3_data d0i3;
+
+	const struct skl_dsp_ops *dsp_ops;
 };
 
 struct skl_ipc_init_instance_msg {
@@ -182,7 +197,7 @@ int skl_ipc_get_large_config(struct sst_generic_ipc *ipc,
 		struct skl_ipc_large_config_msg *msg, u32 *param);
 
 int skl_sst_ipc_load_library(struct sst_generic_ipc *ipc,
-			u8 dma_id, u8 table_id);
+			u8 dma_id, u8 table_id, bool wait);
 
 int skl_ipc_set_d0ix(struct sst_generic_ipc *ipc,
 		struct skl_ipc_d0ix_msg *msg);

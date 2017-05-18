@@ -229,7 +229,16 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  "Number of IO Failures: %lld\nNumber of IO NOT Found: %lld\n"
 		  "Number of Memory alloc Failures: %lld\n"
 		  "Number of IOREQ Null: %lld\n"
-		  "Number of SCSI cmd pointer Null: %lld\n",
+		  "Number of SCSI cmd pointer Null: %lld\n"
+
+		  "\nIO completion times: \n"
+		  "            < 10 ms : %lld\n"
+		  "     10 ms - 100 ms : %lld\n"
+		  "    100 ms - 500 ms : %lld\n"
+		  "    500 ms -   5 sec: %lld\n"
+		  "     5 sec -  10 sec: %lld\n"
+		  "    10 sec -  30 sec: %lld\n"
+		  "            > 30 sec: %lld\n",
 		  (u64)atomic64_read(&stats->io_stats.active_ios),
 		  (u64)atomic64_read(&stats->io_stats.max_active_ios),
 		  (u64)atomic64_read(&stats->io_stats.num_ios),
@@ -238,28 +247,58 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  (u64)atomic64_read(&stats->io_stats.io_not_found),
 		  (u64)atomic64_read(&stats->io_stats.alloc_failures),
 		  (u64)atomic64_read(&stats->io_stats.ioreq_null),
-		  (u64)atomic64_read(&stats->io_stats.sc_null));
+		  (u64)atomic64_read(&stats->io_stats.sc_null),
+		  (u64)atomic64_read(&stats->io_stats.io_btw_0_to_10_msec),
+		  (u64)atomic64_read(&stats->io_stats.io_btw_10_to_100_msec),
+		  (u64)atomic64_read(&stats->io_stats.io_btw_100_to_500_msec),
+		  (u64)atomic64_read(&stats->io_stats.io_btw_500_to_5000_msec),
+		  (u64)atomic64_read(&stats->io_stats.io_btw_5000_to_10000_msec),
+		  (u64)atomic64_read(&stats->io_stats.io_btw_10000_to_30000_msec),
+		  (u64)atomic64_read(&stats->io_stats.io_greater_than_30000_msec));
+
+	len += snprintf(debug->debug_buffer + len, buf_size - len,
+		  "\nCurrent Max IO time : %lld\n",
+		  (u64)atomic64_read(&stats->io_stats.current_max_io_time));
 
 	len += snprintf(debug->debug_buffer + len, buf_size - len,
 		  "\n------------------------------------------\n"
 		  "\t\tAbort Statistics\n"
 		  "------------------------------------------\n");
+
 	len += snprintf(debug->debug_buffer + len, buf_size - len,
 		  "Number of Aborts: %lld\n"
 		  "Number of Abort Failures: %lld\n"
 		  "Number of Abort Driver Timeouts: %lld\n"
 		  "Number of Abort FW Timeouts: %lld\n"
-		  "Number of Abort IO NOT Found: %lld\n",
+		  "Number of Abort IO NOT Found: %lld\n"
+
+		  "Abord issued times: \n"
+		  "            < 6 sec : %lld\n"
+		  "     6 sec - 20 sec : %lld\n"
+		  "    20 sec - 30 sec : %lld\n"
+		  "    30 sec - 40 sec : %lld\n"
+		  "    40 sec - 50 sec : %lld\n"
+		  "    50 sec - 60 sec : %lld\n"
+		  "            > 60 sec: %lld\n",
+
 		  (u64)atomic64_read(&stats->abts_stats.aborts),
 		  (u64)atomic64_read(&stats->abts_stats.abort_failures),
 		  (u64)atomic64_read(&stats->abts_stats.abort_drv_timeouts),
 		  (u64)atomic64_read(&stats->abts_stats.abort_fw_timeouts),
-		  (u64)atomic64_read(&stats->abts_stats.abort_io_not_found));
+		  (u64)atomic64_read(&stats->abts_stats.abort_io_not_found),
+		  (u64)atomic64_read(&stats->abts_stats.abort_issued_btw_0_to_6_sec),
+		  (u64)atomic64_read(&stats->abts_stats.abort_issued_btw_6_to_20_sec),
+		  (u64)atomic64_read(&stats->abts_stats.abort_issued_btw_20_to_30_sec),
+		  (u64)atomic64_read(&stats->abts_stats.abort_issued_btw_30_to_40_sec),
+		  (u64)atomic64_read(&stats->abts_stats.abort_issued_btw_40_to_50_sec),
+		  (u64)atomic64_read(&stats->abts_stats.abort_issued_btw_50_to_60_sec),
+		  (u64)atomic64_read(&stats->abts_stats.abort_issued_greater_than_60_sec));
 
 	len += snprintf(debug->debug_buffer + len, buf_size - len,
 		  "\n------------------------------------------\n"
 		  "\t\tTerminate Statistics\n"
 		  "------------------------------------------\n");
+
 	len += snprintf(debug->debug_buffer + len, buf_size - len,
 		  "Number of Terminates: %lld\n"
 		  "Maximum Terminates: %lld\n"
@@ -357,6 +396,7 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  "Number of Copy WQ Alloc Failures for Device Reset: %lld\n"
 		  "Number of Copy WQ Alloc Failures for IOs: %lld\n"
 		  "Number of no icmnd itmf Completions: %lld\n"
+		  "Number of Check Conditions encountered: %lld\n"
 		  "Number of QUEUE Fulls: %lld\n"
 		  "Number of rport not ready: %lld\n"
 		  "Number of receive frame errors: %lld\n",
@@ -377,6 +417,7 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 			  &stats->misc_stats.devrst_cpwq_alloc_failures),
 		  (u64)atomic64_read(&stats->misc_stats.io_cpwq_alloc_failures),
 		  (u64)atomic64_read(&stats->misc_stats.no_icmnd_itmf_cmpls),
+		  (u64)atomic64_read(&stats->misc_stats.check_condition),
 		  (u64)atomic64_read(&stats->misc_stats.queue_fulls),
 		  (u64)atomic64_read(&stats->misc_stats.rport_not_ready),
 		  (u64)atomic64_read(&stats->misc_stats.frame_errors));

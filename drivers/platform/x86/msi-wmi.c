@@ -281,14 +281,12 @@ static int __init msi_wmi_input_setup(void)
 	err = input_register_device(msi_wmi_input_dev);
 
 	if (err)
-		goto err_free_keymap;
+		goto err_free_dev;
 
 	last_pressed = 0;
 
 	return 0;
 
-err_free_keymap:
-	sparse_keymap_free(msi_wmi_input_dev);
 err_free_dev:
 	input_free_device(msi_wmi_input_dev);
 	return err;
@@ -342,10 +340,8 @@ err_uninstall_handler:
 	if (event_wmi)
 		wmi_remove_notify_handler(event_wmi->guid);
 err_free_input:
-	if (event_wmi) {
-		sparse_keymap_free(msi_wmi_input_dev);
+	if (event_wmi)
 		input_unregister_device(msi_wmi_input_dev);
-	}
 	return err;
 }
 
@@ -353,7 +349,6 @@ static void __exit msi_wmi_exit(void)
 {
 	if (event_wmi) {
 		wmi_remove_notify_handler(event_wmi->guid);
-		sparse_keymap_free(msi_wmi_input_dev);
 		input_unregister_device(msi_wmi_input_dev);
 	}
 	backlight_device_unregister(backlight);

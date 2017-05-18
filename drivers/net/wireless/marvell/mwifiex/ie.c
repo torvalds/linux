@@ -131,9 +131,10 @@ mwifiex_update_autoindex_ies(struct mwifiex_private *priv,
 			       sizeof(struct mwifiex_ie));
 		}
 
-		le16_add_cpu(&ie_list->len,
-			     le16_to_cpu(priv->mgmt_ie[index].ie_length) +
-			     MWIFIEX_IE_HDR_SIZE);
+		le16_unaligned_add_cpu(&ie_list->len,
+				       le16_to_cpu(
+					    priv->mgmt_ie[index].ie_length) +
+				       MWIFIEX_IE_HDR_SIZE);
 		input_len -= tlv_len + MWIFIEX_IE_HDR_SIZE;
 	}
 
@@ -172,21 +173,21 @@ mwifiex_update_uap_custom_ie(struct mwifiex_private *priv,
 		      le16_to_cpu(beacon_ie->ie_length);
 		memcpy(pos, beacon_ie, len);
 		pos += len;
-		le16_add_cpu(&ap_custom_ie->len, len);
+		le16_unaligned_add_cpu(&ap_custom_ie->len, len);
 	}
 	if (pr_ie) {
 		len = sizeof(struct mwifiex_ie) - IEEE_MAX_IE_SIZE +
 		      le16_to_cpu(pr_ie->ie_length);
 		memcpy(pos, pr_ie, len);
 		pos += len;
-		le16_add_cpu(&ap_custom_ie->len, len);
+		le16_unaligned_add_cpu(&ap_custom_ie->len, len);
 	}
 	if (ar_ie) {
 		len = sizeof(struct mwifiex_ie) - IEEE_MAX_IE_SIZE +
 		      le16_to_cpu(ar_ie->ie_length);
 		memcpy(pos, ar_ie, len);
 		pos += len;
-		le16_add_cpu(&ap_custom_ie->len, len);
+		le16_unaligned_add_cpu(&ap_custom_ie->len, len);
 	}
 
 	ret = mwifiex_update_autoindex_ies(priv, ap_custom_ie);
@@ -242,7 +243,7 @@ static int mwifiex_update_vs_ie(const u8 *ies, int ies_len,
 		vs_ie = (struct ieee_types_header *)vendor_ie;
 		memcpy(ie->ie_buffer + le16_to_cpu(ie->ie_length),
 		       vs_ie, vs_ie->len + 2);
-		le16_add_cpu(&ie->ie_length, vs_ie->len + 2);
+		le16_unaligned_add_cpu(&ie->ie_length, vs_ie->len + 2);
 		ie->mgmt_subtype_mask = cpu_to_le16(mask);
 		ie->ie_index = cpu_to_le16(MWIFIEX_AUTO_IDX_MASK);
 	}

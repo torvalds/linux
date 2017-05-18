@@ -282,9 +282,7 @@ static void cx18_stream_init(struct cx18 *cx, int type)
 	INIT_WORK(&s->out_work_order, cx18_out_work_handler);
 
 	INIT_LIST_HEAD(&s->vb_capture);
-	s->vb_timeout.function = cx18_vb_timeout;
-	s->vb_timeout.data = (unsigned long)s;
-	init_timer(&s->vb_timeout);
+	setup_timer(&s->vb_timeout, cx18_vb_timeout, (unsigned long)s);
 	spin_lock_init(&s->vb_lock);
 	if (type == CX18_ENC_STREAM_TYPE_YUV) {
 		spin_lock_init(&s->vbuf_q_lock);

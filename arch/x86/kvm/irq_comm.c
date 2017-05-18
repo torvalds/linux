@@ -42,7 +42,7 @@ static int kvm_set_pic_irq(struct kvm_kernel_irq_routing_entry *e,
 			   struct kvm *kvm, int irq_source_id, int level,
 			   bool line_status)
 {
-	struct kvm_pic *pic = pic_irqchip(kvm);
+	struct kvm_pic *pic = kvm->arch.vpic;
 	return kvm_pic_set_irq(pic, e->irqchip.pin, irq_source_id, level);
 }
 
@@ -232,11 +232,11 @@ void kvm_free_irq_source_id(struct kvm *kvm, int irq_source_id)
 		goto unlock;
 	}
 	clear_bit(irq_source_id, &kvm->arch.irq_sources_bitmap);
-	if (!ioapic_in_kernel(kvm))
+	if (!irqchip_kernel(kvm))
 		goto unlock;
 
 	kvm_ioapic_clear_all(kvm->arch.vioapic, irq_source_id);
-	kvm_pic_clear_all(pic_irqchip(kvm), irq_source_id);
+	kvm_pic_clear_all(kvm->arch.vpic, irq_source_id);
 unlock:
 	mutex_unlock(&kvm->irq_lock);
 }
@@ -274,42 +274,42 @@ void kvm_fire_mask_notifiers(struct kvm *kvm, unsigned irqchip, unsigned pin,
 	srcu_read_unlock(&kvm->irq_srcu, idx);
 }
 
+bool kvm_arch_can_set_irq_routing(struct kvm *kvm)
+{
+	return irqchip_in_kernel(kvm);
+}
+
 int kvm_set_routing_entry(struct kvm *kvm,
 			  struct kvm_kernel_irq_routing_entry *e,
 			  const struct kvm_irq_routing_entry *ue)
 {
-	int r = -EINVAL;
-	int delta;
-	unsigned max_pin;
-
+	/* We can't check irqchip_in_kernel() here as some callers are
+	 * currently inititalizing the irqchip. Other callers should therefore
+	 * check kvm_arch_can_set_irq_routing() before calling this function.
+	 */
 	switch (ue->type) {
 	case KVM_IRQ_ROUTING_IRQCHIP:
-		delta = 0;
+		if (irqchip_split(kvm))
+			return -EINVAL;
+		e->irqchip.pin = ue->u.irqchip.pin;
 		switch (ue->u.irqchip.irqchip) {
 		case KVM_IRQCHIP_PIC_SLAVE:
-			delta = 8;
+			e->irqchip.pin += PIC_NUM_PINS / 2;
 			/* fall through */
 		case KVM_IRQCHIP_PIC_MASTER:
-			if (!pic_in_kernel(kvm))
-				goto out;
-
+			if (ue->u.irqchip.pin >= PIC_NUM_PINS / 2)
+				return -EINVAL;
 			e->set = kvm_set_pic_irq;
-			max_pin = PIC_NUM_PINS;
 			break;
 		case KVM_IRQCHIP_IOAPIC:
-			if (!ioapic_in_kernel(kvm))
-				goto out;
-
-			max_pin = KVM_IOAPIC_NUM_PINS;
+			if (ue->u.irqchip.pin >= KVM_IOAPIC_NUM_PINS)
+				return -EINVAL;
 			e->set = kvm_set_ioapic_irq;
 			break;
 		default:
-			goto out;
+			return -EINVAL;
 		}
 		e->irqchip.irqchip = ue->u.irqchip.irqchip;
-		e->irqchip.pin = ue->u.irqchip.pin + delta;
-		if (e->irqchip.pin >= max_pin)
-			goto out;
 		break;
 	case KVM_IRQ_ROUTING_MSI:
 		e->set = kvm_set_msi;
@@ -318,7 +318,7 @@ int kvm_set_routing_entry(struct kvm *kvm,
 		e->msi.data = ue->u.msi.data;
 
 		if (kvm_msi_route_invalid(kvm, e))
-			goto out;
+			return -EINVAL;
 		break;
 	case KVM_IRQ_ROUTING_HV_SINT:
 		e->set = kvm_hv_set_sint;
@@ -326,12 +326,10 @@ int kvm_set_routing_entry(struct kvm *kvm,
 		e->hv_sint.sint = ue->u.hv_sint.sint;
 		break;
 	default:
-		goto out;
+		return -EINVAL;
 	}
 
-	r = 0;
-out:
-	return r;
+	return 0;
 }
 
 bool kvm_intr_is_single_vcpu(struct kvm *kvm, struct kvm_lapic_irq *irq,

@@ -44,11 +44,6 @@ static inline void arch_memcpy_to_pmem(void *dst, const void *src, size_t n)
 		BUG();
 }
 
-static inline int arch_memcpy_from_pmem(void *dst, const void *src, size_t n)
-{
-	return memcpy_mcsafe(dst, src, n);
-}
-
 /**
  * arch_wb_cache_pmem - write back a cache range with CLWB
  * @vaddr:	virtual start address
@@ -103,7 +98,7 @@ static inline size_t arch_copy_from_iter_pmem(void *addr, size_t bytes,
 
 		if (bytes < 8) {
 			if (!IS_ALIGNED(dest, 4) || (bytes != 4))
-				arch_wb_cache_pmem(addr, 1);
+				arch_wb_cache_pmem(addr, bytes);
 		} else {
 			if (!IS_ALIGNED(dest, 8)) {
 				dest = ALIGN(dest, boot_cpu_data.x86_clflush_size);

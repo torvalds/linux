@@ -119,6 +119,9 @@ int ath10k_htc_send(struct ath10k_htc *htc,
 		credits = DIV_ROUND_UP(skb->len, htc->target_credit_size);
 		spin_lock_bh(&htc->tx_lock);
 		if (ep->tx_credits < credits) {
+			ath10k_dbg(ar, ATH10K_DBG_HTC,
+				   "htc insufficient credits ep %d required %d available %d\n",
+				   eid, credits, ep->tx_credits);
 			spin_unlock_bh(&htc->tx_lock);
 			ret = -EAGAIN;
 			goto err_pull;
@@ -419,7 +422,8 @@ static void ath10k_htc_control_rx_complete(struct ath10k *ar,
 					   struct sk_buff *skb)
 {
 	/* This is unexpected. FW is not supposed to send regular rx on this
-	 * endpoint. */
+	 * endpoint.
+	 */
 	ath10k_warn(ar, "unexpected htc rx\n");
 	kfree_skb(skb);
 }

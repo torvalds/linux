@@ -382,10 +382,14 @@ int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 	 * if SMU loaded firmware, it needn't add SMC, UVD, and VCE
 	 * ucode info here
 	 */
-	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
-		adev->firmware.max_ucodes = AMDGPU_UCODE_ID_MAXIMUM - 4;
-	else
+	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
+		if (amdgpu_sriov_vf(adev))
+			adev->firmware.max_ucodes = AMDGPU_UCODE_ID_MAXIMUM - 3;
+		else
+			adev->firmware.max_ucodes = AMDGPU_UCODE_ID_MAXIMUM - 4;
+	} else {
 		adev->firmware.max_ucodes = AMDGPU_UCODE_ID_MAXIMUM;
+	}
 
 	for (i = 0; i < adev->firmware.max_ucodes; i++) {
 		ucode = &adev->firmware.ucode[i];

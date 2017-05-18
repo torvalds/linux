@@ -795,7 +795,7 @@ static void attach_default_qdiscs(struct net_device *dev)
 	}
 #ifdef CONFIG_NET_SCHED
 	if (dev->qdisc != &noop_qdisc)
-		qdisc_hash_add(dev->qdisc);
+		qdisc_hash_add(dev->qdisc, false);
 #endif
 }
 

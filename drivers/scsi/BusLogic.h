@@ -935,7 +935,7 @@ struct blogic_tgt_stats {
 	unsigned short bdr_request;
 	unsigned short bdr_tried;
 	unsigned short bdr_done;
-	unsigned short adatper_reset_req;
+	unsigned short adapter_reset_req;
 	unsigned short adapter_reset_attempt;
 	unsigned short adapter_reset_done;
 };

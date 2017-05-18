@@ -246,6 +246,7 @@
 
 			shdwc@f8048010 {
 				atmel,shdwc-debouncer = <976>;
+				atmel,wakeup-rtc-timer;
 
 				input@0 {
 					reg = <0>;

@@ -1,20 +1,22 @@
 # ==========================================================================
 # Installing headers
 #
-# header-y  - list files to be installed. They are preprocessed
-#             to remove __KERNEL__ section of the file
-# genhdr-y  - Same as header-y but in a generated/ directory
+# All headers under include/uapi, include/generated/uapi,
+# arch/<arch>/include/uapi and arch/<arch>/include/generated/uapi are
+# exported.
+# They are preprocessed to remove __KERNEL__ section of the file.
 #
 # ==========================================================================
 
 # generated header directory
 gen := $(if $(gen),$(gen),$(subst include/,include/generated/,$(obj)))
 
+# Kbuild file is optional
 kbuild-file := $(srctree)/$(obj)/Kbuild
-include $(kbuild-file)
+-include $(kbuild-file)
 
 # called may set destination dir (when installing to asm/)
-_dst := $(if $(destination-y),$(destination-y),$(if $(dst),$(dst),$(obj)))
+_dst := $(if $(dst),$(dst),$(obj))
 
 old-kbuild-file := $(srctree)/$(subst uapi/,,$(obj))/Kbuild
 ifneq ($(wildcard $(old-kbuild-file)),)
@@ -25,9 +27,14 @@ include scripts/Kbuild.include
 
 installdir    := $(INSTALL_HDR_PATH)/$(subst uapi/,,$(_dst))
 
-header-y      := $(sort $(header-y))
-subdirs       := $(patsubst %/,%,$(filter %/, $(header-y)))
-header-y      := $(filter-out %/, $(header-y))
+srcdir        := $(srctree)/$(obj)
+gendir        := $(objtree)/$(gen)
+subdirs       := $(patsubst $(srcdir)/%/.,%,$(wildcard $(srcdir)/*/.))
+header-files  := $(notdir $(wildcard $(srcdir)/*.h))
+header-files  += $(notdir $(wildcard $(srcdir)/*.agh))
+header-files  := $(filter-out $(no-export-headers), $(header-files))
+genhdr-files  := $(notdir $(wildcard $(gendir)/*.h))
+genhdr-files  := $(filter-out $(header-files), $(genhdr-files))
 
 # files used to track state of install/check
 install-file  := $(installdir)/.install
@@ -35,36 +42,20 @@ check-file    := $(installdir)/.check
 
 # generic-y list all files an architecture uses from asm-generic
 # Use this to build a list of headers which require a wrapper
-wrapper-files := $(filter $(header-y), $(generic-y))
-
-srcdir        := $(srctree)/$(obj)
-gendir        := $(objtree)/$(gen)
-
-oldsrcdir     := $(srctree)/$(subst /uapi,,$(obj))
+generic-files := $(notdir $(wildcard $(srctree)/include/uapi/asm-generic/*.h))
+wrapper-files := $(filter $(generic-files), $(generic-y))
+wrapper-files := $(filter-out $(header-files), $(wrapper-files))
 
 # all headers files for this dir
-header-y      := $(filter-out $(generic-y), $(header-y))
-all-files     := $(header-y) $(genhdr-y) $(wrapper-files)
+all-files     := $(header-files) $(genhdr-files) $(wrapper-files)
 output-files  := $(addprefix $(installdir)/, $(all-files))
 
-input-files1  := $(foreach hdr, $(header-y), \
-		   $(if $(wildcard $(srcdir)/$(hdr)), \
-			$(wildcard $(srcdir)/$(hdr))) \
-		   )
-input-files1-name := $(notdir $(input-files1))
-input-files2  := $(foreach hdr, $(header-y), \
-		   $(if  $(wildcard $(srcdir)/$(hdr)),, \
-			$(if $(wildcard $(oldsrcdir)/$(hdr)), \
-				$(wildcard $(oldsrcdir)/$(hdr)), \
-				$(error Missing UAPI file $(srcdir)/$(hdr))) \
-		   ))
-input-files2-name := $(notdir $(input-files2))
-input-files3  := $(foreach hdr, $(genhdr-y), \
-		   $(if	$(wildcard $(gendir)/$(hdr)), \
-			$(wildcard $(gendir)/$(hdr)), \
-			$(error Missing generated UAPI file $(gendir)/$(hdr)) \
-		   ))
-input-files3-name := $(notdir $(input-files3))
+ifneq ($(mandatory-y),)
+missing       := $(filter-out $(all-files),$(mandatory-y))
+ifneq ($(missing),)
+$(error Some mandatory headers ($(missing)) are missing in $(obj))
+endif
+endif
 
 # Work out what needs to be removed
 oldheaders    := $(patsubst $(installdir)/%,%,$(wildcard $(installdir)/*.h))
@@ -78,9 +69,8 @@ printdir = $(patsubst $(INSTALL_HDR_PATH)/%/,%,$(dir $@))
 quiet_cmd_install = INSTALL $(printdir) ($(words $(all-files))\
                             file$(if $(word 2, $(all-files)),s))
       cmd_install = \
-        $(CONFIG_SHELL) $< $(installdir) $(srcdir) $(input-files1-name); \
-        $(CONFIG_SHELL) $< $(installdir) $(oldsrcdir) $(input-files2-name); \
-        $(CONFIG_SHELL) $< $(installdir) $(gendir) $(input-files3-name); \
+        $(CONFIG_SHELL) $< $(installdir) $(srcdir) $(header-files); \
+        $(CONFIG_SHELL) $< $(installdir) $(gendir) $(genhdr-files); \
         for F in $(wrapper-files); do                                   \
                 echo "\#include <asm-generic/$$F>" > $(installdir)/$$F;    \
         done;                                                           \
@@ -106,7 +96,9 @@ __headersinst: $(subdirs) $(install-file)
 	@:
 
 targets += $(install-file)
-$(install-file): scripts/headers_install.sh $(input-files1) $(input-files2) $(input-files3) FORCE
+$(install-file): scripts/headers_install.sh \
+		 $(addprefix $(srcdir)/,$(header-files)) \
+		 $(addprefix $(gendir)/,$(genhdr-files)) FORCE
 	$(if $(unwanted),$(call cmd,remove),)
 	$(if $(wildcard $(dir $@)),,$(shell mkdir -p $(dir $@)))
 	$(call if_changed,install)

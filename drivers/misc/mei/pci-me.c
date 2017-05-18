@@ -242,11 +242,38 @@ end:
 }
 
 /**
+ * mei_me_shutdown - Device Removal Routine
+ *
+ * @pdev: PCI device structure
+ *
+ * mei_me_shutdown is called from the reboot notifier
+ * it's a simplified version of remove so we go down
+ * faster.
+ */
+static void mei_me_shutdown(struct pci_dev *pdev)
+{
+	struct mei_device *dev;
+
+	dev = pci_get_drvdata(pdev);
+	if (!dev)
+		return;
+
+	dev_dbg(&pdev->dev, "shutdown\n");
+	mei_stop(dev);
+
+	if (!pci_dev_run_wake(pdev))
+		mei_me_unset_pm_domain(dev);
+
+	mei_disable_interrupts(dev);
+	free_irq(pdev->irq, dev);
+}
+
+/**
  * mei_me_remove - Device Removal Routine
  *
  * @pdev: PCI device structure
  *
- * mei_remove is called by the PCI subsystem to alert the driver
+ * mei_me_remove is called by the PCI subsystem to alert the driver
  * that it should release a PCI device.
  */
 static void mei_me_remove(struct pci_dev *pdev)
@@ -456,7 +483,7 @@ static struct pci_driver mei_me_driver = {
 	.id_table = mei_me_pci_tbl,
 	.probe = mei_me_probe,
 	.remove = mei_me_remove,
-	.shutdown = mei_me_remove,
+	.shutdown = mei_me_shutdown,
 	.driver.pm = MEI_ME_PM_OPS,
 };
 

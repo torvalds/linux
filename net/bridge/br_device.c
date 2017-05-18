@@ -123,6 +123,7 @@ static void br_dev_uninit(struct net_device *dev)
 {
 	struct net_bridge *br = netdev_priv(dev);
 
+	br_multicast_dev_del(br);
 	br_multicast_uninit_stats(br);
 	br_vlan_flush(br);
 	free_percpu(br->stats);

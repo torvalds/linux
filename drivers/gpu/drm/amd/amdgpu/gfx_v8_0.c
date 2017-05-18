@@ -1239,7 +1239,7 @@ static void gfx_v8_0_rlc_fini(struct amdgpu_device *adev)
 
 	/* clear state block */
 	if (adev->gfx.rlc.clear_state_obj) {
-		r = amdgpu_bo_reserve(adev->gfx.rlc.clear_state_obj, false);
+		r = amdgpu_bo_reserve(adev->gfx.rlc.clear_state_obj, true);
 		if (unlikely(r != 0))
 			dev_warn(adev->dev, "(%d) reserve RLC cbs bo failed\n", r);
 		amdgpu_bo_unpin(adev->gfx.rlc.clear_state_obj);
@@ -1250,7 +1250,7 @@ static void gfx_v8_0_rlc_fini(struct amdgpu_device *adev)
 
 	/* jump table block */
 	if (adev->gfx.rlc.cp_table_obj) {
-		r = amdgpu_bo_reserve(adev->gfx.rlc.cp_table_obj, false);
+		r = amdgpu_bo_reserve(adev->gfx.rlc.cp_table_obj, true);
 		if (unlikely(r != 0))
 			dev_warn(adev->dev, "(%d) reserve RLC cp table bo failed\n", r);
 		amdgpu_bo_unpin(adev->gfx.rlc.cp_table_obj);
@@ -1363,7 +1363,7 @@ static void gfx_v8_0_mec_fini(struct amdgpu_device *adev)
 	int r;
 
 	if (adev->gfx.mec.hpd_eop_obj) {
-		r = amdgpu_bo_reserve(adev->gfx.mec.hpd_eop_obj, false);
+		r = amdgpu_bo_reserve(adev->gfx.mec.hpd_eop_obj, true);
 		if (unlikely(r != 0))
 			dev_warn(adev->dev, "(%d) reserve HPD EOP bo failed\n", r);
 		amdgpu_bo_unpin(adev->gfx.mec.hpd_eop_obj);
@@ -1490,7 +1490,7 @@ static int gfx_v8_0_kiq_init(struct amdgpu_device *adev)
 
 	memset(hpd, 0, MEC_HPD_SIZE);
 
-	r = amdgpu_bo_reserve(kiq->eop_obj, false);
+	r = amdgpu_bo_reserve(kiq->eop_obj, true);
 	if (unlikely(r != 0))
 		dev_warn(adev->dev, "(%d) reserve kiq eop bo failed\n", r);
 	amdgpu_bo_kunmap(kiq->eop_obj);
@@ -1932,6 +1932,7 @@ static int gfx_v8_0_gpu_early_init(struct amdgpu_device *adev)
 		case 0xca:
 		case 0xce:
 		case 0x88:
+		case 0xe6:
 			/* B6 */
 			adev->gfx.config.max_cu_per_sh = 6;
 			break;
@@ -1964,17 +1965,28 @@ static int gfx_v8_0_gpu_early_init(struct amdgpu_device *adev)
 		adev->gfx.config.max_backends_per_se = 1;
 
 		switch (adev->pdev->revision) {
+		case 0x80:
+		case 0x81:
 		case 0xc0:
 		case 0xc1:
 		case 0xc2:
 		case 0xc4:
 		case 0xc8:
 		case 0xc9:
+		case 0xd6:
+		case 0xda:
+		case 0xe9:
+		case 0xea:
 			adev->gfx.config.max_cu_per_sh = 3;
 			break;
+		case 0x83:
 		case 0xd0:
 		case 0xd1:
 		case 0xd2:
+		case 0xd4:
+		case 0xdb:
+		case 0xe1:
+		case 0xe2:
 		default:
 			adev->gfx.config.max_cu_per_sh = 2;
 			break;
@@ -3890,7 +3902,7 @@ static void gfx_v8_0_gpu_init(struct amdgpu_device *adev)
 	sh_static_mem_cfg = REG_SET_FIELD(sh_static_mem_cfg, SH_STATIC_MEM_CONFIG,
 				   INDEX_STRIDE, 3);
 	mutex_lock(&adev->srbm_mutex);
-	for (i = 0; i < adev->vm_manager.num_ids; i++) {
+	for (i = 0; i < adev->vm_manager.id_mgr[0].num_ids; i++) {
 		vi_srbm_select(adev, 0, 0, 0, i);
 		/* CP and shaders */
 		if (i == 0) {

@@ -239,6 +239,11 @@ DK_CXLFLASH_USER_VIRTUAL
     resource handle that is provided is already referencing provisioned
     storage. This is reflected by the last LBA being a non-zero value.
 
+    When a LUN is accessible from more than one port, this ioctl will
+    return with the DK_CXLFLASH_ALL_PORTS_ACTIVE return flag set. This
+    provides the user with a hint that I/O can be retried in the event
+    of an I/O error as the LUN can be reached over multiple paths.
+
 DK_CXLFLASH_VLUN_RESIZE
 -----------------------
     This ioctl is responsible for resizing a previously created virtual

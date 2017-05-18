@@ -693,8 +693,8 @@ xen_swiotlb_dma_mmap(struct device *dev, struct vm_area_struct *vma,
 		     unsigned long attrs)
 {
 #if defined(CONFIG_ARM) || defined(CONFIG_ARM64)
-	if (__generic_dma_ops(dev)->mmap)
-		return __generic_dma_ops(dev)->mmap(dev, vma, cpu_addr,
+	if (xen_get_dma_ops(dev)->mmap)
+		return xen_get_dma_ops(dev)->mmap(dev, vma, cpu_addr,
 						    dma_addr, size, attrs);
 #endif
 	return dma_common_mmap(dev, vma, cpu_addr, dma_addr, size);
@@ -711,7 +711,7 @@ xen_swiotlb_get_sgtable(struct device *dev, struct sg_table *sgt,
 			unsigned long attrs)
 {
 #if defined(CONFIG_ARM) || defined(CONFIG_ARM64)
-	if (__generic_dma_ops(dev)->get_sgtable) {
+	if (xen_get_dma_ops(dev)->get_sgtable) {
 #if 0
 	/*
 	 * This check verifies that the page belongs to the current domain and
@@ -721,7 +721,7 @@ xen_swiotlb_get_sgtable(struct device *dev, struct sg_table *sgt,
 		unsigned long bfn = PHYS_PFN(dma_to_phys(dev, handle));
 		BUG_ON (!page_is_ram(bfn));
 #endif
-		return __generic_dma_ops(dev)->get_sgtable(dev, sgt, cpu_addr,
+		return xen_get_dma_ops(dev)->get_sgtable(dev, sgt, cpu_addr,
 							   handle, size, attrs);
 	}
 #endif

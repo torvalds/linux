@@ -30,7 +30,7 @@ Arguments
    List of FD events to be watched
 
 ``nfds``
-   Number of FD efents at the \*ufds array
+   Number of FD events at the \*ufds array
 
 ``timeout``
    Timeout to wait for events
@@ -49,7 +49,7 @@ is non-zero). CEC devices set the ``POLLIN`` and ``POLLRDNORM`` flags in
 the ``revents`` field if there are messages in the receive queue. If the
 transmit queue has room for new messages, the ``POLLOUT`` and
 ``POLLWRNORM`` flags are set. If there are events in the event queue,
-then the ``POLLPRI`` flag is set. When the function timed out it returns
+then the ``POLLPRI`` flag is set. When the function times out it returns
 a value of zero, on failure it returns -1 and the ``errno`` variable is
 set appropriately.
 

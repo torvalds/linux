@@ -95,6 +95,7 @@ s32 ixgbe_reset_hw_X540(struct ixgbe_hw *hw)
 {
 	s32 status;
 	u32 ctrl, i;
+	u32 swfw_mask = hw->phy.phy_semaphore_mask;
 
 	/* Call adapter stop to disable tx/rx and clear interrupts */
 	status = hw->mac.ops.stop_adapter(hw);
@@ -105,10 +106,17 @@ s32 ixgbe_reset_hw_X540(struct ixgbe_hw *hw)
 	ixgbe_clear_tx_pending(hw);
 
 mac_reset_top:
+	status = hw->mac.ops.acquire_swfw_sync(hw, swfw_mask);
+	if (status) {
+		hw_dbg(hw, "semaphore failed with %d", status);
+		return IXGBE_ERR_SWFW_SYNC;
+	}
+
 	ctrl = IXGBE_CTRL_RST;
 	ctrl |= IXGBE_READ_REG(hw, IXGBE_CTRL);
 	IXGBE_WRITE_REG(hw, IXGBE_CTRL, ctrl);
 	IXGBE_WRITE_FLUSH(hw);
+	hw->mac.ops.release_swfw_sync(hw, swfw_mask);
 	usleep_range(1000, 1200);
 
 	/* Poll for reset bit to self-clear indicating reset is complete */

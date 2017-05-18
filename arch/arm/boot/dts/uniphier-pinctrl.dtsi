@@ -45,7 +45,7 @@
 
 &pinctrl {
 	pinctrl_emmc: emmc_grp {
-		groups = "emmc";
+		groups = "emmc", "emmc_dat8";
 		function = "emmc";
 	};
 
