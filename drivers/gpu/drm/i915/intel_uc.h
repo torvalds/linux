@@ -59,9 +59,6 @@ struct drm_i915_gem_request;
  *                available in the work queue (note, the queue is shared,
  *                not per-engine). It is OK for this to be nonzero, but
  *                it should not be huge!
- *   b_fail: failed to ring the doorbell. This should never happen, unless
- *           somehow the hardware misbehaves, or maybe if the GuC firmware
- *           crashes? We probably need to reset the GPU to recover.
  *   retcode: errno from last guc_submit()
  */
 struct i915_guc_client {
@@ -85,7 +82,6 @@ struct i915_guc_client {
 	uint32_t wq_tail;
 	uint32_t wq_rsvd;
 	uint32_t no_wq_space;
-	uint32_t b_fail;
 	int retcode;
 
 	/* Per-engine counts of GuC submissions */

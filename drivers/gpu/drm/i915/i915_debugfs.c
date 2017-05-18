@@ -2482,7 +2482,6 @@ static void i915_guc_client_info(struct seq_file *m,
 		client->wq_size, client->wq_offset, client->wq_tail);
 
 	seq_printf(m, "\tWork queue full: %u\n", client->no_wq_space);
-	seq_printf(m, "\tFailed doorbell: %u\n", client->b_fail);
 	seq_printf(m, "\tLast submission result: %d\n", client->retcode);
 
 	for_each_engine(engine, dev_priv, id) {
