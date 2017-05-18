@@ -520,7 +520,7 @@ __drm_atomic_get_current_plane_state(struct drm_atomic_state *state,
 
 int __must_check
 drm_atomic_set_mode_for_crtc(struct drm_crtc_state *state,
-			     struct drm_display_mode *mode);
+			     const struct drm_display_mode *mode);
 int __must_check
 drm_atomic_set_mode_prop_for_crtc(struct drm_crtc_state *state,
 				  struct drm_property_blob *blob);
