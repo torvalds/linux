@@ -360,7 +360,6 @@ static int armada_370_xp_mpic_irq_map(struct irq_domain *h,
 		irq_set_percpu_devid(virq);
 		irq_set_chip_and_handler(virq, &armada_370_xp_irq_chip,
 					handle_percpu_devid_irq);
-
 	} else {
 		irq_set_chip_and_handler(virq, &armada_370_xp_irq_chip,
 					handle_level_irq);
@@ -424,16 +423,40 @@ static void armada_mpic_send_doorbell(const struct cpumask *mask,
 		ARMADA_370_XP_SW_TRIG_INT_OFFS);
 }
 
+static void armada_xp_mpic_reenable_percpu(void)
+{
+	unsigned int irq;
+
+	/* Re-enable per-CPU interrupts that were enabled before suspend */
+	for (irq = 0; irq < ARMADA_370_XP_MAX_PER_CPU_IRQS; irq++) {
+		struct irq_data *data;
+		int virq;
+
+		virq = irq_linear_revmap(armada_370_xp_mpic_domain, irq);
+		if (virq == 0)
+			continue;
+
+		data = irq_get_irq_data(virq);
+
+		if (!irq_percpu_is_enabled(virq))
+			continue;
+
+		armada_370_xp_irq_unmask(data);
+	}
+}
+
 static int armada_xp_mpic_starting_cpu(unsigned int cpu)
 {
 	armada_xp_mpic_perf_init();
 	armada_xp_mpic_smp_cpu_init();
+	armada_xp_mpic_reenable_percpu();
 	return 0;
 }
 
 static int mpic_cascaded_starting_cpu(unsigned int cpu)
 {
 	armada_xp_mpic_perf_init();
+	armada_xp_mpic_reenable_percpu();
 	enable_percpu_irq(parent_irq, IRQ_TYPE_NONE);
 	return 0;
 }
@@ -581,16 +604,27 @@ static void armada_370_xp_mpic_resume(void)
 		if (virq == 0)
 			continue;
 
-		if (!is_percpu_irq(irq))
+		data = irq_get_irq_data(virq);
+
+		if (!is_percpu_irq(irq)) {
+			/* Non per-CPU interrupts */
 			writel(irq, per_cpu_int_base +
 			       ARMADA_370_XP_INT_CLEAR_MASK_OFFS);
-		else
+			if (!irqd_irq_disabled(data))
+				armada_370_xp_irq_unmask(data);
+		} else {
+			/* Per-CPU interrupts */
 			writel(irq, main_int_base +
 			       ARMADA_370_XP_INT_SET_ENABLE_OFFS);
 
-		data = irq_get_irq_data(virq);
-		if (!irqd_irq_disabled(data))
-			armada_370_xp_irq_unmask(data);
+			/*
+			 * Re-enable on the current CPU,
+			 * armada_xp_mpic_reenable_percpu() will take
+			 * care of secondary CPUs when they come up.
+			 */
+			if (irq_percpu_is_enabled(virq))
+				armada_370_xp_irq_unmask(data);
+		}
 	}
 
 	/* Reconfigure doorbells for IPIs and MSIs */
