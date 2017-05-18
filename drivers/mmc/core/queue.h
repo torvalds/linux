@@ -3,8 +3,14 @@
 
 #include <linux/types.h>
 #include <linux/blkdev.h>
+#include <linux/blk-mq.h>
 #include <linux/mmc/core.h>
 #include <linux/mmc/host.h>
+
+static inline struct mmc_queue_req *req_to_mmc_queue_req(struct request *rq)
+{
+	return blk_mq_rq_to_pdu(rq);
+}
 
 static inline bool mmc_req_is_special(struct request *req)
 {
@@ -34,7 +40,6 @@ struct mmc_queue_req {
 	struct scatterlist	*bounce_sg;
 	unsigned int		bounce_sg_len;
 	struct mmc_async_req	areq;
-	int			task_id;
 };
 
 struct mmc_queue {
@@ -45,14 +50,15 @@ struct mmc_queue {
 	bool			asleep;
 	struct mmc_blk_data	*blkdata;
 	struct request_queue	*queue;
-	struct mmc_queue_req	*mqrq;
-	int			qdepth;
+	/*
+	 * FIXME: this counter is not a very reliable way of keeping
+	 * track of how many requests that are ongoing. Switch to just
+	 * letting the block core keep track of requests and per-request
+	 * associated mmc_queue_req data.
+	 */
 	int			qcnt;
-	unsigned long		qslots;
 };
 
-extern int mmc_queue_alloc_shared_queue(struct mmc_card *card);
-extern void mmc_queue_free_shared_queue(struct mmc_card *card);
 extern int mmc_init_queue(struct mmc_queue *, struct mmc_card *, spinlock_t *,
 			  const char *);
 extern void mmc_cleanup_queue(struct mmc_queue *);
@@ -65,9 +71,5 @@ extern void mmc_queue_bounce_pre(struct mmc_queue_req *);
 extern void mmc_queue_bounce_post(struct mmc_queue_req *);
 
 extern int mmc_access_rpmb(struct mmc_queue *);
-
-extern struct mmc_queue_req *mmc_queue_req_find(struct mmc_queue *,
-						struct request *);
-extern void mmc_queue_req_free(struct mmc_queue *, struct mmc_queue_req *);
 
 #endif
