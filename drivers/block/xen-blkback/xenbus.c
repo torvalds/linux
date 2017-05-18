@@ -221,7 +221,6 @@ static int xen_blkif_disconnect(struct xen_blkif *blkif)
 	if (blkif->xenblkd) {
 		kthread_stop(blkif->xenblkd);
 		wake_up(&blkif->shutdown_wq);
-		blkif->xenblkd = NULL;
 	}
 
 	/* The above kthread_stop() guarantees that at this point we
