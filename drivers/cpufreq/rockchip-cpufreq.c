@@ -353,6 +353,8 @@ static int rockchip_reboot_notifier(struct notifier_block *nb,
 
 	list_for_each_entry(cluster, &cluster_info_list, list_head) {
 		cpu = cpumask_first_and(&cluster->cpus, cpu_online_mask);
+		if (cpu >= nr_cpu_ids)
+			continue;
 		cluster->rebooting = true;
 		cpufreq_update_policy(cpu);
 	}
