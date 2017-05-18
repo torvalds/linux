@@ -188,13 +188,6 @@ config ATLAS7_TIMER
 	help
 	  Enables support for the Atlas7 timer.
 
-config MOXART_TIMER
-	bool "Moxart timer driver" if COMPILE_TEST
-	depends on GENERIC_CLOCKEVENTS
-	select CLKSRC_MMIO
-	help
-	  Enables support for the Moxart timer.
-
 config MXS_TIMER
 	bool "Mxs timer driver" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS
