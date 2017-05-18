@@ -1320,7 +1320,7 @@ out_lock:
 	/*
 	 * Check if the device is a Fintek F81216A
 	 */
-	if (port->type == PORT_16550A)
+	if (port->type == PORT_16550A && port->iotype == UPIO_PORT)
 		fintek_8250_probe(up);
 
 	if (up->capabilities != old_capabilities) {
