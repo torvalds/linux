@@ -137,6 +137,7 @@ static int da8xx_rproc_stop(struct rproc *rproc)
 {
 	struct da8xx_rproc *drproc = rproc->priv;
 
+	davinci_clk_reset_assert(drproc->dsp_clk);
 	clk_disable(drproc->dsp_clk);
 
 	return 0;
@@ -254,16 +255,6 @@ static int da8xx_rproc_remove(struct platform_device *pdev)
 {
 	struct rproc *rproc = platform_get_drvdata(pdev);
 	struct da8xx_rproc *drproc = (struct da8xx_rproc *)rproc->priv;
-
-	/*
-	 * It's important to place the DSP in reset before going away,
-	 * since a subsequent insmod of this module may enable the DSP's
-	 * clock before its program/boot-address has been loaded and
-	 * before this module's probe has had a chance to reset the DSP.
-	 * Without the reset, the DSP can lockup permanently when it
-	 * begins executing garbage.
-	 */
-	davinci_clk_reset_assert(drproc->dsp_clk);
 
 	/*
 	 * The devm subsystem might end up releasing things before
