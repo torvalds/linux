@@ -255,7 +255,6 @@ static int xen_blkif_disconnect(struct xen_blkif *blkif)
 		if (ring->xenblkd) {
 			kthread_stop(ring->xenblkd);
 			wake_up(&ring->shutdown_wq);
-			ring->xenblkd = NULL;
 		}
 
 		/* The above kthread_stop() guarantees that at this point we
