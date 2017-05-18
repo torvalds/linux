@@ -53,6 +53,7 @@ static int efi_pstore_read_func(struct efivar_entry *entry,
 	if (sscanf(name, "dump-type%u-%u-%d-%lu-%c",
 		   &record->type, &part, &cnt, &time, &data_type) == 5) {
 		record->id = generic_id(time, part, cnt);
+		record->part = part;
 		record->count = cnt;
 		record->time.tv_sec = time;
 		record->time.tv_nsec = 0;
@@ -64,6 +65,7 @@ static int efi_pstore_read_func(struct efivar_entry *entry,
 	} else if (sscanf(name, "dump-type%u-%u-%d-%lu",
 		   &record->type, &part, &cnt, &time) == 4) {
 		record->id = generic_id(time, part, cnt);
+		record->part = part;
 		record->count = cnt;
 		record->time.tv_sec = time;
 		record->time.tv_nsec = 0;
@@ -77,6 +79,7 @@ static int efi_pstore_read_func(struct efivar_entry *entry,
 		 * multiple logs, remains.
 		 */
 		record->id = generic_id(time, part, 0);
+		record->part = part;
 		record->count = 0;
 		record->time.tv_sec = time;
 		record->time.tv_nsec = 0;
@@ -241,9 +244,15 @@ static int efi_pstore_write(struct pstore_record *record)
 	efi_guid_t vendor = LINUX_EFI_CRASH_GUID;
 	int i, ret = 0;
 
+	record->time.tv_sec = get_seconds();
+	record->time.tv_nsec = 0;
+
+	record->id = generic_id(record->time.tv_sec, record->part,
+				record->count);
+
 	snprintf(name, sizeof(name), "dump-type%u-%u-%d-%lu-%c",
 		 record->type, record->part, record->count,
-		 get_seconds(), record->compressed ? 'C' : 'D');
+		 record->time.tv_sec, record->compressed ? 'C' : 'D');
 
 	for (i = 0; i < DUMP_NAME_LEN; i++)
 		efi_name[i] = name[i];
@@ -255,7 +264,6 @@ static int efi_pstore_write(struct pstore_record *record)
 	if (record->reason == KMSG_DUMP_OOPS)
 		efivar_run_worker();
 
-	record->id = record->part;
 	return ret;
 };
 
@@ -287,7 +295,7 @@ static int efi_pstore_erase_func(struct efivar_entry *entry, void *data)
 		 * holding multiple logs, remains.
 		 */
 		snprintf(name_old, sizeof(name_old), "dump-type%u-%u-%lu",
-			ed->record->type, (unsigned int)ed->record->id,
+			ed->record->type, ed->record->part,
 			ed->record->time.tv_sec);
 
 		for (i = 0; i < DUMP_NAME_LEN; i++)
@@ -320,10 +328,7 @@ static int efi_pstore_erase(struct pstore_record *record)
 	char name[DUMP_NAME_LEN];
 	efi_char16_t efi_name[DUMP_NAME_LEN];
 	int found, i;
-	unsigned int part;
 
-	do_div(record->id, 1000);
-	part = do_div(record->id, 100);
 	snprintf(name, sizeof(name), "dump-type%u-%u-%d-%lu",
 		 record->type, record->part, record->count,
 		 record->time.tv_sec);
