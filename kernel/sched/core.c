@@ -2153,6 +2153,7 @@ void __dl_clear_params(struct task_struct *p)
 
 	dl_se->dl_throttled = 0;
 	dl_se->dl_yielded = 0;
+	dl_se->dl_non_contending = 0;
 }
 
 /*
@@ -2184,6 +2185,7 @@ static void __sched_fork(unsigned long clone_flags, struct task_struct *p)
 
 	RB_CLEAR_NODE(&p->dl.rb_node);
 	init_dl_task_timer(&p->dl);
+	init_dl_inactive_task_timer(&p->dl);
 	__dl_clear_params(p);
 
 	INIT_LIST_HEAD(&p->rt.run_list);
@@ -2506,6 +2508,7 @@ static int dl_overflow(struct task_struct *p, int policy,
 		   !__dl_overflow(dl_b, cpus, p->dl.dl_bw, new_bw)) {
 		__dl_clear(dl_b, p->dl.dl_bw);
 		__dl_add(dl_b, new_bw);
+		dl_change_utilization(p, new_bw);
 		err = 0;
 	} else if (!dl_policy(policy) && task_has_dl_policy(p)) {
 		__dl_clear(dl_b, p->dl.dl_bw);
