@@ -390,7 +390,7 @@ int vmbus_post_msg(void *buffer, size_t buflen, bool can_sleep)
 		else
 			mdelay(usec / 1000);
 
-		if (usec < 256000)
+		if (retries < 22)
 			usec *= 2;
 	}
 	return ret;
