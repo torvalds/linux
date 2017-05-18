@@ -1750,14 +1750,14 @@ ixgbe_setup_mac_link_sfp_n(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 	if (ret_val == IXGBE_ERR_SFP_NOT_PRESENT)
 		return 0;
 
-	if (!ret_val)
+	if (ret_val)
 		return ret_val;
 
 	/* Configure internal PHY for native SFI based on module type */
 	ret_val = hw->mac.ops.read_iosf_sb_reg(hw,
 				IXGBE_KRM_PMD_FLX_MASK_ST20(hw->bus.lan_id),
 				IXGBE_SB_IOSF_TARGET_KR_PHY, &reg_phy_int);
-	if (!ret_val)
+	if (ret_val)
 		return ret_val;
 
 	reg_phy_int &= IXGBE_KRM_PMD_FLX_MASK_ST20_SFI_10G_DA;
@@ -1767,7 +1767,7 @@ ixgbe_setup_mac_link_sfp_n(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 	ret_val = hw->mac.ops.write_iosf_sb_reg(hw,
 				IXGBE_KRM_PMD_FLX_MASK_ST20(hw->bus.lan_id),
 				IXGBE_SB_IOSF_TARGET_KR_PHY, reg_phy_int);
-	if (!ret_val)
+	if (ret_val)
 		return ret_val;
 
 	/* Setup SFI internal link. */
@@ -1798,7 +1798,7 @@ ixgbe_setup_mac_link_sfp_x550a(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 	if (ret_val == IXGBE_ERR_SFP_NOT_PRESENT)
 		return 0;
 
-	if (!ret_val)
+	if (ret_val)
 		return ret_val;
 
 	/* Configure internal PHY for KR/KX. */
