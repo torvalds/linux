@@ -53,7 +53,6 @@
 		#global-interrupts = <1>;
 		dma-coherent;
 		power-domains = <&scpi_devpd 0>;
-		status = "disabled";
 	};
 
 	gic: interrupt-controller@2c010000 {
@@ -600,7 +599,6 @@
 			     <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>;
 		#iommu-cells = <1>;
 		#global-interrupts = <1>;
-		status = "disabled";
 	};
 
 	smmu_hdlcd0: iommu@7fb20000 {
@@ -610,7 +608,6 @@
 			     <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
 		#iommu-cells = <1>;
 		#global-interrupts = <1>;
-		status = "disabled";
 	};
 
 	smmu_usb: iommu@7fb30000 {
@@ -621,7 +618,6 @@
 		#iommu-cells = <1>;
 		#global-interrupts = <1>;
 		dma-coherent;
-		status = "disabled";
 	};
 
 	dma@7ff00000 {
