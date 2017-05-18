@@ -288,6 +288,9 @@ static void spi_imx_u32_swap_u8(struct spi_transfer *transfer, u32 *buf)
 {
 	int i;
 
+	if (!buf)
+		return;
+
 	for (i = 0; i < transfer->len / 4; i++)
 		*(buf + i) = cpu_to_be32(*(buf + i));
 }
@@ -295,6 +298,9 @@ static void spi_imx_u32_swap_u8(struct spi_transfer *transfer, u32 *buf)
 static void spi_imx_u32_swap_u16(struct spi_transfer *transfer, u32 *buf)
 {
 	int i;
+
+	if (!buf)
+		return;
 
 	for (i = 0; i < transfer->len / 4; i++) {
 		u16 *temp = (u16 *)buf;
