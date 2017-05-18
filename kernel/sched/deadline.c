@@ -175,8 +175,14 @@ static void task_non_contending(struct task_struct *p)
 	if (zerolag_time < 0) {
 		if (dl_task(p))
 			sub_running_bw(dl_se->dl_bw, dl_rq);
-		if (!dl_task(p) || p->state == TASK_DEAD)
+		if (!dl_task(p) || p->state == TASK_DEAD) {
+			struct dl_bw *dl_b = dl_bw_of(task_cpu(p));
+
+			raw_spin_lock(&dl_b->lock);
+			__dl_clear(dl_b, p->dl.dl_bw);
 			__dl_clear_params(p);
+			raw_spin_unlock(&dl_b->lock);
+		}
 
 		return;
 	}
@@ -1004,10 +1010,16 @@ static enum hrtimer_restart inactive_task_timer(struct hrtimer *timer)
 	rq = task_rq_lock(p, &rf);
 
 	if (!dl_task(p) || p->state == TASK_DEAD) {
+		struct dl_bw *dl_b = dl_bw_of(task_cpu(p));
+
 		if (p->state == TASK_DEAD && dl_se->dl_non_contending) {
 			sub_running_bw(p->dl.dl_bw, dl_rq_of_se(&p->dl));
 			dl_se->dl_non_contending = 0;
 		}
+
+		raw_spin_lock(&dl_b->lock);
+		__dl_clear(dl_b, p->dl.dl_bw);
+		raw_spin_unlock(&dl_b->lock);
 		__dl_clear_params(p);
 
 		goto unlock;
@@ -1532,19 +1544,6 @@ static void task_fork_dl(struct task_struct *p)
 	 * SCHED_DEADLINE tasks cannot fork and this is achieved through
 	 * sched_fork()
 	 */
-}
-
-static void task_dead_dl(struct task_struct *p)
-{
-	struct dl_bw *dl_b = dl_bw_of(task_cpu(p));
-
-	/*
-	 * Since we are TASK_DEAD we won't slip out of the domain!
-	 */
-	raw_spin_lock_irq(&dl_b->lock);
-	/* XXX we should retain the bw until 0-lag */
-	dl_b->total_bw -= p->dl.dl_bw;
-	raw_spin_unlock_irq(&dl_b->lock);
 }
 
 static void set_curr_task_dl(struct rq *rq)
@@ -2141,7 +2140,6 @@ const struct sched_class dl_sched_class = {
 	.set_curr_task		= set_curr_task_dl,
 	.task_tick		= task_tick_dl,
 	.task_fork              = task_fork_dl,
-	.task_dead		= task_dead_dl,
 
 	.prio_changed           = prio_changed_dl,
 	.switched_from		= switched_from_dl,
