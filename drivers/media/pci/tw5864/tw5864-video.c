@@ -545,6 +545,7 @@ static int tw5864_fmt_vid_cap(struct file *file, void *priv,
 	switch (input->std) {
 	default:
 		WARN_ON_ONCE(1);
+		return -EINVAL;
 	case STD_NTSC:
 		f->fmt.pix.height = 480;
 		break;
