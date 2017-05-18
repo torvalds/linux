@@ -281,6 +281,7 @@ struct xen_blkif_ring {
 
 	wait_queue_head_t	wq;
 	atomic_t		inflight;
+	bool			active;
 	/* One thread per blkif ring. */
 	struct task_struct	*xenblkd;
 	unsigned int		waiting_reqs;
