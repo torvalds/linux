@@ -571,11 +571,10 @@ int ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 	int ptr, offset = 0, err = 0;
 	u8 *prevhdr, nexthdr = 0;
 
-	hlen = ip6_find_1stfragopt(skb, &prevhdr);
-	if (hlen < 0) {
-		err = hlen;
+	err = ip6_find_1stfragopt(skb, &prevhdr);
+	if (err < 0)
 		goto fail;
-	}
+	hlen = err;
 	nexthdr = *prevhdr;
 
 	mtu = ip6_skb_dst_mtu(skb);
