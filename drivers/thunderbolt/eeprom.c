@@ -291,7 +291,7 @@ int tb_drom_read_uid_only(struct tb_switch *sw, u64 *uid)
 
 	crc = tb_crc8(data + 1, 8);
 	if (crc != data[0]) {
-		tb_sw_warn(sw, "uid crc8 missmatch (expected: %#x, got: %#x)\n",
+		tb_sw_warn(sw, "uid crc8 mismatch (expected: %#x, got: %#x)\n",
 				data[0], crc);
 		return -EIO;
 	}
