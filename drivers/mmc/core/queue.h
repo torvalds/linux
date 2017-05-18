@@ -12,14 +12,6 @@ static inline struct mmc_queue_req *req_to_mmc_queue_req(struct request *rq)
 	return blk_mq_rq_to_pdu(rq);
 }
 
-static inline bool mmc_req_is_special(struct request *req)
-{
-	return req &&
-		(req_op(req) == REQ_OP_FLUSH ||
-		 req_op(req) == REQ_OP_DISCARD ||
-		 req_op(req) == REQ_OP_SECURE_ERASE);
-}
-
 struct task_struct;
 struct mmc_blk_data;
 struct mmc_blk_ioc_data;
