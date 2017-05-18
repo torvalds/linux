@@ -209,7 +209,7 @@ static void task_non_contending(struct task_struct *p)
 			if (p->state == TASK_DEAD)
 				sub_rq_bw(p->dl.dl_bw, &rq->dl);
 			raw_spin_lock(&dl_b->lock);
-			__dl_clear(dl_b, p->dl.dl_bw);
+			__dl_clear(dl_b, p->dl.dl_bw, dl_bw_cpus(task_cpu(p)));
 			__dl_clear_params(p);
 			raw_spin_unlock(&dl_b->lock);
 		}
@@ -955,28 +955,40 @@ extern bool sched_rt_bandwidth_account(struct rt_rq *rt_rq);
 /*
  * This function implements the GRUB accounting rule:
  * according to the GRUB reclaiming algorithm, the runtime is
- * not decreased as "dq = -dt", but as "dq = -max{u, (1 - Uinact)} dt",
- * where u is the utilization of the task and Uinact is the
- * (per-runqueue) inactive utilization, computed as the difference
- * between the "total runqueue utilization" and the runqueue
- * active utilization.
+ * not decreased as "dq = -dt", but as
+ * "dq = -max{u / Umax, (1 - Uinact - Uextra)} dt",
+ * where u is the utilization of the task, Umax is the maximum reclaimable
+ * utilization, Uinact is the (per-runqueue) inactive utilization, computed
+ * as the difference between the "total runqueue utilization" and the
+ * runqueue active utilization, and Uextra is the (per runqueue) extra
+ * reclaimable utilization.
  * Since rq->dl.running_bw and rq->dl.this_bw contain utilizations
- * multiplied by 2^BW_SHIFT, the result has to be shifted right by BW_SHIFT.
+ * multiplied by 2^BW_SHIFT, the result has to be shifted right by
+ * BW_SHIFT.
+ * Since rq->dl.bw_ratio contains 1 / Umax multipled by 2^RATIO_SHIFT,
+ * dl_bw is multiped by rq->dl.bw_ratio and shifted right by RATIO_SHIFT.
+ * Since delta is a 64 bit variable, to have an overflow its value
+ * should be larger than 2^(64 - 20 - 8), which is more than 64 seconds.
+ * So, overflow is not an issue here.
  */
 u64 grub_reclaim(u64 delta, struct rq *rq, struct sched_dl_entity *dl_se)
 {
 	u64 u_inact = rq->dl.this_bw - rq->dl.running_bw; /* Utot - Uact */
 	u64 u_act;
+	u64 u_act_min = (dl_se->dl_bw * rq->dl.bw_ratio) >> RATIO_SHIFT;
 
 	/*
-	 * Instead of computing max{u, (1 - u_inact)}, we compare
-	 * u_inact with 1 - u, because u_inact can be larger than 1
-	 * (so, 1 - u_inact would be negative leading to wrong results)
+	 * Instead of computing max{u * bw_ratio, (1 - u_inact - u_extra)},
+	 * we compare u_inact + rq->dl.extra_bw with
+	 * 1 - (u * rq->dl.bw_ratio >> RATIO_SHIFT), because
+	 * u_inact + rq->dl.extra_bw can be larger than
+	 * 1 * (so, 1 - u_inact - rq->dl.extra_bw would be negative
+	 * leading to wrong results)
 	 */
-	if (u_inact > BW_UNIT - dl_se->dl_bw)
-		u_act = dl_se->dl_bw;
+	if (u_inact + rq->dl.extra_bw > BW_UNIT - u_act_min)
+		u_act = u_act_min;
 	else
-		u_act = BW_UNIT - u_inact;
+		u_act = BW_UNIT - u_inact - rq->dl.extra_bw;
 
 	return (delta * u_act) >> BW_SHIFT;
 }
@@ -1085,7 +1097,7 @@ static enum hrtimer_restart inactive_task_timer(struct hrtimer *timer)
 		}
 
 		raw_spin_lock(&dl_b->lock);
-		__dl_clear(dl_b, p->dl.dl_bw);
+		__dl_clear(dl_b, p->dl.dl_bw, dl_bw_cpus(task_cpu(p)));
 		raw_spin_unlock(&dl_b->lock);
 		__dl_clear_params(p);
 
@@ -2054,7 +2066,7 @@ static void set_cpus_allowed_dl(struct task_struct *p,
 		 * until we complete the update.
 		 */
 		raw_spin_lock(&src_dl_b->lock);
-		__dl_clear(src_dl_b, p->dl.dl_bw);
+		__dl_clear(src_dl_b, p->dl.dl_bw, dl_bw_cpus(task_cpu(p)));
 		raw_spin_unlock(&src_dl_b->lock);
 	}
 

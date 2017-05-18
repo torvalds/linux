@@ -219,22 +219,27 @@ static inline int dl_bandwidth_enabled(void)
 }
 
 extern struct dl_bw *dl_bw_of(int i);
+extern int dl_bw_cpus(int i);
 
 struct dl_bw {
 	raw_spinlock_t lock;
 	u64 bw, total_bw;
 };
 
+static inline void __dl_update(struct dl_bw *dl_b, s64 bw);
+
 static inline
-void __dl_clear(struct dl_bw *dl_b, u64 tsk_bw)
+void __dl_clear(struct dl_bw *dl_b, u64 tsk_bw, int cpus)
 {
 	dl_b->total_bw -= tsk_bw;
+	__dl_update(dl_b, (s32)tsk_bw / cpus);
 }
 
 static inline
-void __dl_add(struct dl_bw *dl_b, u64 tsk_bw)
+void __dl_add(struct dl_bw *dl_b, u64 tsk_bw, int cpus)
 {
 	dl_b->total_bw += tsk_bw;
+	__dl_update(dl_b, -((s32)tsk_bw / cpus));
 }
 
 static inline
@@ -576,6 +581,7 @@ struct dl_rq {
 	 * runqueue (inactive utilization = this_bw - running_bw).
 	 */
 	u64 this_bw;
+	u64 extra_bw;
 
 	/*
 	 * Inverse of the fraction of CPU utilization that can be reclaimed
@@ -1957,6 +1963,33 @@ extern void nohz_balance_exit_idle(unsigned int cpu);
 #else
 static inline void nohz_balance_exit_idle(unsigned int cpu) { }
 #endif
+
+
+#ifdef CONFIG_SMP
+static inline
+void __dl_update(struct dl_bw *dl_b, s64 bw)
+{
+	struct root_domain *rd = container_of(dl_b, struct root_domain, dl_bw);
+	int i;
+
+	RCU_LOCKDEP_WARN(!rcu_read_lock_sched_held(),
+			 "sched RCU must be held");
+	for_each_cpu_and(i, rd->span, cpu_active_mask) {
+		struct rq *rq = cpu_rq(i);
+
+		rq->dl.extra_bw += bw;
+	}
+}
+#else
+static inline
+void __dl_update(struct dl_bw *dl_b, s64 bw)
+{
+	struct dl_rq *dl = container_of(dl_b, struct dl_rq, dl_bw);
+
+	dl->extra_bw += bw;
+}
+#endif
+
 
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
 struct irqtime {
