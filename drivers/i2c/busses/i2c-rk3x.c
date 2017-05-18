@@ -483,7 +483,9 @@ static irqreturn_t rk3x_i2c_irq(int irqno, void *dev_id)
 
 	ipd = i2c_readl(i2c, REG_IPD);
 	if (i2c->state == STATE_IDLE) {
-		dev_warn(i2c->dev, "irq in STATE_IDLE, ipd = 0x%x\n", ipd);
+		dev_warn_ratelimited(i2c->dev,
+				     "irq in STATE_IDLE, ipd = 0x%x\n",
+				     ipd);
 		rk3x_i2c_clean_ipd(i2c);
 		goto out;
 	}
