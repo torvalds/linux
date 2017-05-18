@@ -8507,7 +8507,7 @@ static int btrfs_submit_direct_hook(struct btrfs_dio_private *dip,
 	/* bio split */
 	ASSERT(map_length <= INT_MAX);
 	atomic_inc(&dip->pending_bios);
-	while (submit_len > 0) {
+	do {
 		clone_len = min_t(int, submit_len, map_length);
 
 		/*
@@ -8550,7 +8550,7 @@ static int btrfs_submit_direct_hook(struct btrfs_dio_private *dip,
 				      start_sector << 9, &map_length, NULL, 0);
 		if (ret)
 			goto out_err;
-	}
+	} while (submit_len > 0);
 
 submit:
 	ret = __btrfs_submit_dio_bio(bio, inode, file_offset, skip_sum,
