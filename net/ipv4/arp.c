@@ -846,7 +846,7 @@ static int arp_process(struct net *net, struct sock *sk, struct sk_buff *skb)
 		 */
 		is_garp = tip == sip && addr_type == RTN_UNICAST;
 
-		/* Unsolicited ARP _replies_ also require target hwaddr to be
+		/* Gratuitous ARP _replies_ also require target hwaddr to be
 		 * the same as source.
 		 */
 		if (is_garp && arp->ar_op == htons(ARPOP_REPLY))
