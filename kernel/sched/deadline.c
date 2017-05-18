@@ -985,7 +985,8 @@ static void update_curr_dl(struct rq *rq)
 
 	sched_rt_avg_update(rq, delta_exec);
 
-	delta_exec = grub_reclaim(delta_exec, rq);
+	if (unlikely(dl_se->flags & SCHED_FLAG_RECLAIM))
+		delta_exec = grub_reclaim(delta_exec, rq);
 	dl_se->runtime -= delta_exec;
 
 throttle:
