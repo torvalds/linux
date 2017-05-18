@@ -130,7 +130,7 @@ static int emmc_vendor_storage_init(void)
 				EMMC_VENDOR_PART_SIZE, 0))
 			goto error_exit;
 	} else {
-		memset((void *)g_vendor, 0, sizeof(g_vendor));
+		memset((void *)g_vendor, 0, sizeof(*g_vendor));
 		g_vendor->version = 1;
 		g_vendor->tag = EMMC_VENDOR_TAG;
 		g_vendor->version2 = g_vendor->version;
@@ -166,22 +166,54 @@ static int emmc_vendor_read(u32 id, void *pbuf, u32 size)
 
 static int emmc_vendor_write(u32 id, void *pbuf, u32 size)
 {
-	u32 i, next_index, algin_size;
+	u32 i, j, next_index, align_size, alloc_size, item_num;
+	u32 offset, next_size;
+	u8 *p_data;
 	struct vendor_item *item;
+	struct vendor_item *next_item;
 
 	if (!g_vendor)
 		return -1;
 
-	algin_size = (size + 0x3F) & (~0x3F); /* algin to 32 bytes*/
+	p_data = g_vendor->data;
+	item_num = g_vendor->item_num;
+	align_size = ALIGN(size, 0x40); /* align to 64 bytes*/
 	next_index = g_vendor->next_index;
-	for (i = 0; i < g_vendor->item_num; i++) {
-		if (g_vendor->item[i].id == id) {
-			if (size > algin_size)
-				return -1;
-			memcpy(&g_vendor->data[g_vendor->item[i].offset],
-			       pbuf,
-			       size);
-			g_vendor->item[i].size = size;
+	for (i = 0; i < item_num; i++) {
+		item = &g_vendor->item[i];
+		if (item->id == id) {
+			alloc_size = ALIGN(item->size, 0x40);
+			if (size > alloc_size) {
+				if (g_vendor->free_size < align_size)
+					return -1;
+				offset = item->offset;
+				for (j = i; j < item_num - 1; j++) {
+					item = &g_vendor->item[j];
+					next_item = &g_vendor->item[j + 1];
+					item->id = next_item->id;
+					item->size = next_item->size;
+					item->offset = offset;
+					next_size = ALIGN(next_item->size,
+							  0x40);
+					memcpy(&p_data[offset],
+					       &p_data[next_item->offset],
+					       next_size);
+					offset += next_size;
+				}
+				item = &g_vendor->item[j];
+				item->id = id;
+				item->offset = offset;
+				item->size = size;
+				memcpy(&p_data[item->offset], pbuf, size);
+				g_vendor->free_offset = offset + align_size;
+				g_vendor->free_size -= (align_size -
+							alloc_size);
+			} else {
+				memcpy(&p_data[item->offset],
+				       pbuf,
+				       size);
+				g_vendor->item[i].size = size;
+			}
 			g_vendor->version++;
 			g_vendor->version2 = g_vendor->version;
 			g_vendor->next_index++;
@@ -194,13 +226,13 @@ static int emmc_vendor_write(u32 id, void *pbuf, u32 size)
 		}
 	}
 
-	if (g_vendor->free_size >= algin_size) {
+	if (g_vendor->free_size >= align_size) {
 		item = &g_vendor->item[g_vendor->item_num];
 		item->id = id;
 		item->offset = g_vendor->free_offset;
 		item->size = size;
-		g_vendor->free_offset += algin_size;
-		g_vendor->free_size -= algin_size;
+		g_vendor->free_offset += align_size;
+		g_vendor->free_size -= align_size;
 		memcpy(&g_vendor->data[item->offset], pbuf, size);
 		g_vendor->item_num++;
 		g_vendor->version++;
@@ -256,7 +288,7 @@ static int emmc_write_idblock(u32 size, u8 *buf, u32 *id_blk_tbl)
 	u32 *p_check_buf = kmalloc(EMMC_BOOT_PART_SIZE * 512, GFP_KERNEL);
 
 	if (!p_check_buf)
-		return -1;
+		return -ENOMEM;
 
 	totle_sec = (size + 511) >> 9;
 	if (totle_sec <= 8)
