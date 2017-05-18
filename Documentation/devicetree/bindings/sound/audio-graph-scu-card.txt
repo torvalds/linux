@@ -1,0 +1,72 @@
+Audio-Graph-SCU-Card:
+
+Audio-Graph-SCU-Card is "Audio-Graph-Card" + "ALSA DPCM".
+
+It is based on common bindings for device graphs.
+see ${LINUX}/Documentation/devicetree/bindings/graph.txt
+
+Basically, Audio-Graph-SCU-Card property is same as
+Simple-Card / Simple-SCU-Card / Audio-Graph-Card.
+see ${LINUX}/Documentation/devicetree/bindings/sound/simple-card.txt
+    ${LINUX}/Documentation/devicetree/bindings/sound/simple-scu-card.txt
+    ${LINUX}/Documentation/devicetree/bindings/sound/audio-graph-card.txt
+
+Below are same as Simple-Card / Audio-Graph-Card.
+
+- label
+- dai-format
+- frame-master
+- bitclock-master
+- bitclock-inversion
+- frame-inversion
+- dai-tdm-slot-num
+- dai-tdm-slot-width
+- clocks / system-clock-frequency
+
+Below are same as Simple-SCU-Card.
+
+- convert-rate
+- convert-channels
+- prefix
+- routing
+
+Required properties:
+
+- compatible				: "audio-graph-scu-card";
+- dais					: list of CPU DAI port{s}
+
+Example
+
+	sound_card {
+		compatible = "audio-graph-scu-card";
+
+		label = "sound-card";
+		prefix = "codec";
+		routing = "codec Playback", "DAI0 Playback",
+			"codec Playback", "DAI1 Playback";
+		convert-rate = <48000>;
+
+		dais = <&cpu_port>;
+	};
+
+	audio-codec {
+		...
+
+		port {
+			codec_endpoint: endpoint {
+				remote-endpoint = <&cpu_endpoint>;
+			};
+		};
+	};
+
+	dai-controller {
+		...
+		cpu_port: port {
+			cpu_endpoint: endpoint {
+				remote-endpoint = <&codec_endpoint>;
+
+				dai-format = "left_j";
+				...
+			};
+		};
+	};
