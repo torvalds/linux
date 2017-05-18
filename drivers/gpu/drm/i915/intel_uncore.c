@@ -1468,6 +1468,19 @@ static int g4x_do_reset(struct drm_i915_private *dev_priv, unsigned engine_mask)
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	int ret;
 
+	/* WaVcpClkGateDisableForMediaReset:ctg,elk */
+	I915_WRITE(VDECCLK_GATE_D,
+		   I915_READ(VDECCLK_GATE_D) | VCP_UNIT_CLOCK_GATE_DISABLE);
+	POSTING_READ(VDECCLK_GATE_D);
+
+	pci_write_config_byte(pdev, I915_GDRST,
+			      GRDOM_MEDIA | GRDOM_RESET_ENABLE);
+	ret =  wait_for(g4x_reset_complete(pdev), 500);
+	if (ret) {
+		DRM_DEBUG_DRIVER("Wait for media reset failed\n");
+		goto out;
+	}
+
 	pci_write_config_byte(pdev, I915_GDRST,
 			      GRDOM_RENDER | GRDOM_RESET_ENABLE);
 	ret =  wait_for(g4x_reset_complete(pdev), 500);
@@ -1476,23 +1489,13 @@ static int g4x_do_reset(struct drm_i915_private *dev_priv, unsigned engine_mask)
 		goto out;
 	}
 
-	/* WaVcpClkGateDisableForMediaReset:ctg,elk */
-	I915_WRITE(VDECCLK_GATE_D, I915_READ(VDECCLK_GATE_D) | VCP_UNIT_CLOCK_GATE_DISABLE);
-	POSTING_READ(VDECCLK_GATE_D);
-
-	pci_write_config_byte(pdev, I915_GDRST,
-			      GRDOM_MEDIA | GRDOM_RESET_ENABLE);
-	ret =  wait_for(g4x_reset_complete(pdev), 500);
-	if (ret) {
-		DRM_DEBUG_DRIVER("Wait for media reset failed\n");
-	}
-
-	/* WaVcpClkGateDisableForMediaReset:ctg,elk */
-	I915_WRITE(VDECCLK_GATE_D, I915_READ(VDECCLK_GATE_D) & ~VCP_UNIT_CLOCK_GATE_DISABLE);
-	POSTING_READ(VDECCLK_GATE_D);
-
 out:
 	pci_write_config_byte(pdev, I915_GDRST, 0);
+
+	I915_WRITE(VDECCLK_GATE_D,
+		   I915_READ(VDECCLK_GATE_D) & ~VCP_UNIT_CLOCK_GATE_DISABLE);
+	POSTING_READ(VDECCLK_GATE_D);
+
 	return ret;
 }
 
