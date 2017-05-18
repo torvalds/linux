@@ -2003,7 +2003,7 @@ ia_css_enable_isys_event_queue(bool enable)
 
 void *sh_css_malloc(size_t size)
 {
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "sh_css_malloc() enter: size=%d\n",size);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "sh_css_malloc() enter: size=%zu\n",size);
 	/* FIXME: This first test can probably go away */
 	if (size == 0)
 		return NULL;
@@ -2016,7 +2016,7 @@ void *sh_css_calloc(size_t N, size_t size)
 {
 	void *p;
 
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "sh_css_calloc() enter: N=%d, size=%d\n",N,size);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "sh_css_calloc() enter: N=%zu, size=%zu\n",N,size);
 
 	/* FIXME: this test can probably go away */
 	if (size > 0) {
@@ -2059,7 +2059,8 @@ map_sp_threads(struct ia_css_stream *stream, bool map)
 	enum ia_css_pipe_id pipe_id;
 
 	assert(stream != NULL);
-	IA_CSS_ENTER_PRIVATE("stream = %p, map = %p", stream, map);
+	IA_CSS_ENTER_PRIVATE("stream = %p, map = %s",
+			     stream, map ? "true" : "false");
 
 	if (stream == NULL) {
 		IA_CSS_LEAVE_ERR_PRIVATE(IA_CSS_ERR_INVALID_ARGUMENTS);
@@ -2766,7 +2767,7 @@ enum ia_css_err ia_css_irq_translate(
 		*irq_infos = infos;
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_irq_translate() "
-		"leave: irq_infos=%p\n", infos);
+		"leave: irq_infos=%u\n", infos);
 
 	return IA_CSS_SUCCESS;
 }
@@ -4514,7 +4515,7 @@ ia_css_pipe_enqueue_buffer(struct ia_css_pipe *pipe,
 #else
 		if (hmm_buffer_record) {
 #endif
-			IA_CSS_LOG("send vbuf=0x%x", h_vbuf);
+			IA_CSS_LOG("send vbuf=%p", h_vbuf);
 		} else {
 			return_err = IA_CSS_ERR_INTERNAL_ERROR;
 			IA_CSS_ERROR("hmm_buffer_record[]: no available slots\n");
@@ -4624,7 +4625,7 @@ ia_css_pipe_dequeue_buffer(struct ia_css_pipe *pipe,
 			ia_css_rmgr_rel_vbuf(hmm_buffer_pool, &hmm_buffer_record->h_vbuf);
 			sh_css_hmm_buffer_record_reset(hmm_buffer_record);
 		} else {
-			IA_CSS_ERROR("hmm_buffer_record not found (0x%p) buf_type(%d)",
+			IA_CSS_ERROR("hmm_buffer_record not found (0x%u) buf_type(%d)",
 				 ddr_buffer_addr, buf_type);
 			IA_CSS_LEAVE_ERR(IA_CSS_ERR_INTERNAL_ERROR);
 			return IA_CSS_ERR_INTERNAL_ERROR;
@@ -4640,8 +4641,8 @@ ia_css_pipe_dequeue_buffer(struct ia_css_pipe *pipe,
 		if ((ddr_buffer.kernel_ptr == 0) ||
 		    (kernel_ptr != HOST_ADDRESS(ddr_buffer.kernel_ptr))) {
 			IA_CSS_ERROR("kernel_ptr invalid");
-			IA_CSS_ERROR("expected: (0x%p)", kernel_ptr);
-			IA_CSS_ERROR("actual: (0x%p)", HOST_ADDRESS(ddr_buffer.kernel_ptr));
+			IA_CSS_ERROR("expected: (0x%llx)", (u64)kernel_ptr);
+			IA_CSS_ERROR("actual: (0x%llx)", (u64)HOST_ADDRESS(ddr_buffer.kernel_ptr));
 			IA_CSS_ERROR("buf_type: %d\n", buf_type);
 			IA_CSS_LEAVE_ERR(IA_CSS_ERR_INTERNAL_ERROR);
 			return IA_CSS_ERR_INTERNAL_ERROR;
@@ -6621,7 +6622,7 @@ allocate_delay_frames(struct ia_css_pipe *pipe)
 	IA_CSS_ENTER_PRIVATE("");
 
 	if (pipe == NULL) {
-		IA_CSS_ERROR("Invalid args - pipe %x", pipe);
+		IA_CSS_ERROR("Invalid args - pipe %p", pipe);
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 	}
 

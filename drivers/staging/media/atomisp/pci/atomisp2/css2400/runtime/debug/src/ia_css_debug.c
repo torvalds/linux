@@ -3148,8 +3148,8 @@ ia_css_debug_dump_pipe_config(
 		ia_css_debug_dump_frame_info(&config->vf_output_info[i],
 				"vf_output_info");
 	}
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "acc_extension: 0x%x\n",
-			config->acc_extension);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "acc_extension: %p\n",
+			    config->acc_extension);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "num_acc_stages: %d\n",
 			config->num_acc_stages);
 	ia_css_debug_dump_capture_config(&config->default_capture_config);
@@ -3179,7 +3179,7 @@ ia_css_debug_dump_stream_config_source(
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "timeout: %d\n",
 				config->source.port.timeout);
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "compression: %d\n",
-				config->source.port.compression);
+				config->source.port.compression.type);
 		break;
 	case IA_CSS_INPUT_MODE_TPG:
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "source.tpg\n");

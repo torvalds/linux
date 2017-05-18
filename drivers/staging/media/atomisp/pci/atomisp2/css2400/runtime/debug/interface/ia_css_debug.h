@@ -137,6 +137,7 @@ ia_css_debug_vdtrace(unsigned int level, const char *fmt, va_list args)
 		sh_css_vprint(fmt, args);
 }
 
+__printf(2, 3)
 extern void ia_css_debug_dtrace(unsigned int level, const char *fmt, ...);
 
 /*! @brief Dump sp thread's stack contents

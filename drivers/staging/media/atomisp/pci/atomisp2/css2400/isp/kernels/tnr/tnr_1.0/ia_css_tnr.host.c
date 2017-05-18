@@ -55,7 +55,7 @@ ia_css_tnr_dump(
 			"tnr_coef", tnr->coef);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
 			"tnr_threshold_Y", tnr->threshold_Y);
-	ia_css_debug_dtrace(level, "\t%-32s = %d\n"
+	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
 			"tnr_threshold_C", tnr->threshold_C);
 }
 
