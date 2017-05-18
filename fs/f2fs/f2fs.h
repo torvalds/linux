@@ -519,6 +519,7 @@ struct f2fs_inode_info {
 	struct mutex inmem_lock;	/* lock for inmemory pages */
 	struct extent_tree *extent_tree;	/* cached extent_tree entry */
 	struct rw_semaphore dio_rwsem[2];/* avoid racing between dio and gc */
+	struct rw_semaphore i_mmap_sem;
 };
 
 static inline void get_extent_info(struct extent_info *ext,
