@@ -525,7 +525,7 @@ static struct xenbus_driver xen_9pfs_front_driver = {
 	.otherend_changed = xen_9pfs_front_changed,
 };
 
-int p9_trans_xen_init(void)
+static int p9_trans_xen_init(void)
 {
 	if (!xen_domain())
 		return -ENODEV;
@@ -537,7 +537,7 @@ int p9_trans_xen_init(void)
 }
 module_init(p9_trans_xen_init);
 
-void p9_trans_xen_exit(void)
+static void p9_trans_xen_exit(void)
 {
 	v9fs_unregister_trans(&p9_xen_trans);
 	return xenbus_unregister_driver(&xen_9pfs_front_driver);
