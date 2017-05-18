@@ -300,7 +300,11 @@ static int ovl_set_origin(struct dentry *dentry, struct dentry *lower,
 			return PTR_ERR(fh);
 	}
 
-	err = ovl_do_setxattr(upper, OVL_XATTR_ORIGIN, fh, fh ? fh->len : 0, 0);
+	/*
+	 * Do not fail when upper doesn't support xattrs.
+	 */
+	err = ovl_check_setxattr(dentry, upper, OVL_XATTR_ORIGIN, fh,
+				 fh ? fh->len : 0, 0);
 	kfree(fh);
 
 	return err;
