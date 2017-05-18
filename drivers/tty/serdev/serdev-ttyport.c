@@ -250,16 +250,18 @@ err_reset_data:
 	return ERR_PTR(ret);
 }
 
-void serdev_tty_port_unregister(struct tty_port *port)
+int serdev_tty_port_unregister(struct tty_port *port)
 {
 	struct serdev_controller *ctrl = port->client_data;
 	struct serport *serport = serdev_controller_get_drvdata(ctrl);
 
 	if (!serport)
-		return;
+		return -ENODEV;
 
 	serdev_controller_remove(ctrl);
 	port->client_ops = NULL;
 	port->client_data = NULL;
 	serdev_controller_put(ctrl);
+
+	return 0;
 }

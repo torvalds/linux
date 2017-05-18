@@ -308,7 +308,7 @@ struct tty_driver;
 struct device *serdev_tty_port_register(struct tty_port *port,
 					struct device *parent,
 					struct tty_driver *drv, int idx);
-void serdev_tty_port_unregister(struct tty_port *port);
+int serdev_tty_port_unregister(struct tty_port *port);
 #else
 static inline struct device *serdev_tty_port_register(struct tty_port *port,
 					   struct device *parent,
@@ -316,7 +316,10 @@ static inline struct device *serdev_tty_port_register(struct tty_port *port,
 {
 	return ERR_PTR(-ENODEV);
 }
-static inline void serdev_tty_port_unregister(struct tty_port *port) {}
+static inline int serdev_tty_port_unregister(struct tty_port *port)
+{
+	return -ENODEV;
+}
 #endif /* CONFIG_SERIAL_DEV_CTRL_TTYPORT */
 
 #endif /*_LINUX_SERDEV_H */
