@@ -828,7 +828,7 @@ static struct nvmet_fc_target_template lpfc_tgttemplate = {
 	.target_priv_sz = sizeof(struct lpfc_nvmet_tgtport),
 };
 
-void
+static void
 lpfc_nvmet_cleanup_io_context(struct lpfc_hba *phba)
 {
 	struct lpfc_nvmet_ctxbuf *ctx_buf, *next_ctx_buf;
@@ -858,7 +858,7 @@ lpfc_nvmet_cleanup_io_context(struct lpfc_hba *phba)
 	}
 }
 
-int
+static int
 lpfc_nvmet_setup_io_context(struct lpfc_hba *phba)
 {
 	struct lpfc_nvmet_ctxbuf *ctx_buf;
