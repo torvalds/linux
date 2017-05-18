@@ -41,15 +41,6 @@
 #include "objsec.h"
 #include "conditional.h"
 
-/* Policy capability filenames */
-static char *policycap_names[] = {
-	"network_peer_controls",
-	"open_perms",
-	"extended_socket_class",
-	"always_check_network",
-	"cgroup_seclabel"
-};
-
 unsigned int selinux_checkreqprot = CONFIG_SECURITY_SELINUX_CHECKREQPROT_VALUE;
 
 static int __init checkreqprot_setup(char *str)
@@ -1750,9 +1741,9 @@ static int sel_make_policycap(void)
 	sel_remove_entries(policycap_dir);
 
 	for (iter = 0; iter <= POLICYDB_CAPABILITY_MAX; iter++) {
-		if (iter < ARRAY_SIZE(policycap_names))
+		if (iter < ARRAY_SIZE(selinux_policycap_names))
 			dentry = d_alloc_name(policycap_dir,
-					      policycap_names[iter]);
+					      selinux_policycap_names[iter]);
 		else
 			dentry = d_alloc_name(policycap_dir, "unknown");
 
