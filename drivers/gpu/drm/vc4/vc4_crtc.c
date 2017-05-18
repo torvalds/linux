@@ -32,13 +32,13 @@
  * ones that set the clock.
  */
 
-#include "drm_atomic.h"
-#include "drm_atomic_helper.h"
-#include "drm_crtc_helper.h"
-#include "linux/clk.h"
-#include "drm_fb_cma_helper.h"
-#include "linux/component.h"
-#include "linux/of_device.h"
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_crtc_helper.h>
+#include <linux/clk.h>
+#include <drm/drm_fb_cma_helper.h>
+#include <linux/component.h>
+#include <linux/of_device.h>
 #include "vc4_drv.h"
 #include "vc4_regs.h"
 

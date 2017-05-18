@@ -29,20 +29,20 @@
  * hopefully present.
  */
 
-#include "drm_atomic_helper.h"
-#include "drm_crtc_helper.h"
-#include "drm_edid.h"
-#include "drm_mipi_dsi.h"
-#include "drm_panel.h"
-#include "linux/clk.h"
-#include "linux/clk-provider.h"
-#include "linux/completion.h"
-#include "linux/component.h"
-#include "linux/dmaengine.h"
-#include "linux/i2c.h"
-#include "linux/of_address.h"
-#include "linux/of_platform.h"
-#include "linux/pm_runtime.h"
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_mipi_dsi.h>
+#include <drm/drm_panel.h>
+#include <linux/clk.h>
+#include <linux/clk-provider.h>
+#include <linux/completion.h>
+#include <linux/component.h>
+#include <linux/dmaengine.h>
+#include <linux/i2c.h>
+#include <linux/of_address.h>
+#include <linux/of_platform.h>
+#include <linux/pm_runtime.h>
 #include "vc4_drv.h"
 #include "vc4_regs.h"
 
