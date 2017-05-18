@@ -132,6 +132,30 @@ static const struct rpr0521_gain_info {
 	},
 };
 
+struct rpr0521_samp_freq {
+	int	als_hz;
+	int	als_uhz;
+	int	pxs_hz;
+	int	pxs_uhz;
+};
+
+static const struct rpr0521_samp_freq rpr0521_samp_freq_i[13] = {
+/*	{ALS, PXS},		   W==currently writable option */
+	{0, 0, 0, 0},		/* W0000, 0=standby */
+	{0, 0, 100, 0},		/*  0001 */
+	{0, 0, 25, 0},		/*  0010 */
+	{0, 0, 10, 0},		/*  0011 */
+	{0, 0, 2, 500000},	/*  0100 */
+	{10, 0, 20, 0},		/*  0101 */
+	{10, 0, 10, 0},		/* W0110 */
+	{10, 0, 2, 500000},	/*  0111 */
+	{2, 500000, 20, 0},	/*  1000, measurement 100ms, sleep 300ms */
+	{2, 500000, 10, 0},	/*  1001, measurement 100ms, sleep 300ms */
+	{2, 500000, 0, 0},	/*  1010, high sensitivity mode */
+	{2, 500000, 2, 500000},	/* W1011, high sensitivity mode */
+	{20, 0, 20, 0}	/* 1100, ALS_data x 0.5, see specification P.18 */
+};
+
 struct rpr0521_data {
 	struct i2c_client *client;
 
@@ -154,9 +178,16 @@ struct rpr0521_data {
 static IIO_CONST_ATTR(in_intensity_scale_available, RPR0521_ALS_SCALE_AVAIL);
 static IIO_CONST_ATTR(in_proximity_scale_available, RPR0521_PXS_SCALE_AVAIL);
 
+/*
+ * Start with easy freq first, whole table of freq combinations is more
+ * complicated.
+ */
+static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("2.5 10");
+
 static struct attribute *rpr0521_attributes[] = {
 	&iio_const_attr_in_intensity_scale_available.dev_attr.attr,
 	&iio_const_attr_in_proximity_scale_available.dev_attr.attr,
+	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
 	NULL,
 };
 
@@ -172,6 +203,7 @@ static const struct iio_chan_spec rpr0521_channels[] = {
 		.channel2 = IIO_MOD_LIGHT_BOTH,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
 			BIT(IIO_CHAN_INFO_SCALE),
+		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ),
 	},
 	{
 		.type = IIO_INTENSITY,
@@ -180,12 +212,14 @@ static const struct iio_chan_spec rpr0521_channels[] = {
 		.channel2 = IIO_MOD_LIGHT_IR,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
 			BIT(IIO_CHAN_INFO_SCALE),
+		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ),
 	},
 	{
 		.type = IIO_PROXIMITY,
 		.address = RPR0521_CHAN_PXS,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
 			BIT(IIO_CHAN_INFO_SCALE),
+		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ),
 	}
 };
 
@@ -331,6 +365,72 @@ static int rpr0521_set_gain(struct rpr0521_data *data, int chan,
 				  idx << rpr0521_gain[chan].shift);
 }
 
+static int rpr0521_read_samp_freq(struct rpr0521_data *data,
+				enum iio_chan_type chan_type,
+			    int *val, int *val2)
+{
+	int reg, ret;
+
+	ret = regmap_read(data->regmap, RPR0521_REG_MODE_CTRL, &reg);
+	if (ret < 0)
+		return ret;
+
+	reg &= RPR0521_MODE_MEAS_TIME_MASK;
+	if (reg >= ARRAY_SIZE(rpr0521_samp_freq_i))
+		return -EINVAL;
+
+	switch (chan_type) {
+	case IIO_INTENSITY:
+		*val = rpr0521_samp_freq_i[reg].als_hz;
+		*val2 = rpr0521_samp_freq_i[reg].als_uhz;
+		return 0;
+
+	case IIO_PROXIMITY:
+		*val = rpr0521_samp_freq_i[reg].pxs_hz;
+		*val2 = rpr0521_samp_freq_i[reg].pxs_uhz;
+		return 0;
+
+	default:
+		return -EINVAL;
+	}
+}
+
+static int rpr0521_write_samp_freq_common(struct rpr0521_data *data,
+				enum iio_chan_type chan_type,
+				int val, int val2)
+{
+	int i;
+
+	/*
+	 * Ignore channel
+	 * both pxs and als are setup only to same freq because of simplicity
+	 */
+	switch (val) {
+	case 0:
+		i = 0;
+		break;
+
+	case 2:
+		if (val2 != 500000)
+			return -EINVAL;
+
+		i = 11;
+		break;
+
+	case 10:
+		i = 6;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return regmap_update_bits(data->regmap,
+		RPR0521_REG_MODE_CTRL,
+		RPR0521_MODE_MEAS_TIME_MASK,
+		i);
+}
+
 static int rpr0521_read_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan, int *val,
 			    int *val2, long mask)
@@ -381,6 +481,15 @@ static int rpr0521_read_raw(struct iio_dev *indio_dev,
 
 		return IIO_VAL_INT_PLUS_MICRO;
 
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		mutex_lock(&data->lock);
+		ret = rpr0521_read_samp_freq(data, chan->type, val, val2);
+		mutex_unlock(&data->lock);
+		if (ret < 0)
+			return ret;
+
+		return IIO_VAL_INT_PLUS_MICRO;
+
 	default:
 		return -EINVAL;
 	}
@@ -397,6 +506,14 @@ static int rpr0521_write_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		mutex_lock(&data->lock);
 		ret = rpr0521_set_gain(data, chan->address, val, val2);
+		mutex_unlock(&data->lock);
+
+		return ret;
+
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		mutex_lock(&data->lock);
+		ret = rpr0521_write_samp_freq_common(data, chan->type,
+						     val, val2);
 		mutex_unlock(&data->lock);
 
 		return ret;
