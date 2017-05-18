@@ -9758,7 +9758,7 @@ static void i9xx_disable_cursor(struct intel_plane *plane,
 
 
 /* VESA 640x480x72Hz mode to set on the pipe */
-static struct drm_display_mode load_detect_mode = {
+static const struct drm_display_mode load_detect_mode = {
 	DRM_MODE("640x480", DRM_MODE_TYPE_DEFAULT, 31500, 640, 664,
 		 704, 832, 0, 480, 489, 491, 520, 0, DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC),
 };
@@ -9793,7 +9793,7 @@ intel_framebuffer_pitch_for_width(int width, int bpp)
 }
 
 static u32
-intel_framebuffer_size_for_mode(struct drm_display_mode *mode, int bpp)
+intel_framebuffer_size_for_mode(const struct drm_display_mode *mode, int bpp)
 {
 	u32 pitch = intel_framebuffer_pitch_for_width(mode->hdisplay, bpp);
 	return PAGE_ALIGN(pitch * mode->vdisplay);
@@ -9801,7 +9801,7 @@ intel_framebuffer_size_for_mode(struct drm_display_mode *mode, int bpp)
 
 static struct drm_framebuffer *
 intel_framebuffer_create_for_mode(struct drm_device *dev,
-				  struct drm_display_mode *mode,
+				  const struct drm_display_mode *mode,
 				  int depth, int bpp)
 {
 	struct drm_framebuffer *fb;
@@ -9828,7 +9828,7 @@ intel_framebuffer_create_for_mode(struct drm_device *dev,
 
 static struct drm_framebuffer *
 mode_fits_in_fbdev(struct drm_device *dev,
-		   struct drm_display_mode *mode)
+		   const struct drm_display_mode *mode)
 {
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -9861,7 +9861,7 @@ mode_fits_in_fbdev(struct drm_device *dev,
 
 static int intel_modeset_setup_plane_state(struct drm_atomic_state *state,
 					   struct drm_crtc *crtc,
-					   struct drm_display_mode *mode,
+					   const struct drm_display_mode *mode,
 					   struct drm_framebuffer *fb,
 					   int x, int y)
 {
@@ -9895,7 +9895,7 @@ static int intel_modeset_setup_plane_state(struct drm_atomic_state *state,
 }
 
 int intel_get_load_detect_pipe(struct drm_connector *connector,
-			       struct drm_display_mode *mode,
+			       const struct drm_display_mode *mode,
 			       struct intel_load_detect_pipe *old,
 			       struct drm_modeset_acquire_ctx *ctx)
 {
