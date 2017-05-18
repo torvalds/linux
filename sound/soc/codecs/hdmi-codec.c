@@ -154,8 +154,12 @@ static int hdmi_codec_startup(struct snd_pcm_substream *substream,
 {
 	struct hdmi_codec_priv *hcp = snd_soc_dai_get_drvdata(dai);
 	int ret;
+	bool playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
 
 	dev_dbg(dai->dev, "%s()\n", __func__);
+
+	if (!playback)
+		return 0;
 
 	ret = hdmi_codec_new_stream(substream, dai);
 	if (ret)
@@ -188,8 +192,12 @@ static void hdmi_codec_shutdown(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
 	struct hdmi_codec_priv *hcp = snd_soc_dai_get_drvdata(dai);
+	bool playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
 
 	dev_dbg(dai->dev, "%s()\n", __func__);
+
+	if (!playback)
+		return;
 
 	WARN_ON(hcp->current_stream != substream);
 
