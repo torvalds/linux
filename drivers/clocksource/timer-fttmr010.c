@@ -49,9 +49,6 @@
 #define TIMER_1_CR_UPDOWN	BIT(9)
 #define TIMER_2_CR_UPDOWN	BIT(10)
 #define TIMER_3_CR_UPDOWN	BIT(11)
-#define TIMER_DEFAULT_FLAGS	(TIMER_1_CR_UPDOWN | \
-				 TIMER_3_CR_ENABLE | \
-				 TIMER_3_CR_UPDOWN)
 
 #define TIMER_1_INT_MATCH1	BIT(0)
 #define TIMER_1_INT_MATCH2	BIT(1)
@@ -80,7 +77,7 @@ static inline struct fttmr010 *to_fttmr010(struct clock_event_device *evt)
 
 static u64 notrace fttmr010_read_sched_clock(void)
 {
-	return readl(local_fttmr->base + TIMER3_COUNT);
+	return readl(local_fttmr->base + TIMER2_COUNT);
 }
 
 static int fttmr010_timer_set_next_event(unsigned long cycles,
@@ -230,19 +227,21 @@ static int __init fttmr010_timer_init(struct device_node *np)
 	 */
 	writel(TIMER_INT_ALL_MASK, fttmr010->base + TIMER_INTR_MASK);
 	writel(0, fttmr010->base + TIMER_INTR_STATE);
-	writel(TIMER_DEFAULT_FLAGS, fttmr010->base + TIMER_CR);
+	/* Enable timer 1 count up, timer 2 count up */
+	writel((TIMER_1_CR_UPDOWN | TIMER_2_CR_ENABLE | TIMER_2_CR_UPDOWN),
+	       fttmr010->base + TIMER_CR);
 
 	/*
 	 * Setup free-running clocksource timer (interrupts
 	 * disabled.)
 	 */
 	local_fttmr = fttmr010;
-	writel(0, fttmr010->base + TIMER3_COUNT);
-	writel(0, fttmr010->base + TIMER3_LOAD);
-	writel(0, fttmr010->base + TIMER3_MATCH1);
-	writel(0, fttmr010->base + TIMER3_MATCH2);
-	clocksource_mmio_init(fttmr010->base + TIMER3_COUNT,
-			      "FTTMR010-TIMER3",
+	writel(0, fttmr010->base + TIMER2_COUNT);
+	writel(0, fttmr010->base + TIMER2_LOAD);
+	writel(0, fttmr010->base + TIMER2_MATCH1);
+	writel(0, fttmr010->base + TIMER2_MATCH2);
+	clocksource_mmio_init(fttmr010->base + TIMER2_COUNT,
+			      "FTTMR010-TIMER2",
 			      fttmr010->tick_rate,
 			      300, 32, clocksource_mmio_readl_up);
 	sched_clock_register(fttmr010_read_sched_clock, 32,
