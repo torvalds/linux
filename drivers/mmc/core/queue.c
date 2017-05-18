@@ -219,7 +219,6 @@ static struct mmc_queue_req *mmc_queue_alloc_mqrqs(int qdepth)
 	return mqrq;
 }
 
-#ifdef CONFIG_MMC_BLOCK_BOUNCE
 static int mmc_queue_alloc_bounce_bufs(struct mmc_queue_req *mqrq, int qdepth,
 				       unsigned int bouncesz)
 {
@@ -258,7 +257,7 @@ static unsigned int mmc_queue_calc_bouncesz(struct mmc_host *host)
 {
 	unsigned int bouncesz = MMC_QUEUE_BOUNCESZ;
 
-	if (host->max_segs != 1)
+	if (host->max_segs != 1 || (host->caps & MMC_CAP_NO_BOUNCE_BUFF))
 		return 0;
 
 	if (bouncesz > host->max_req_size)
@@ -273,18 +272,6 @@ static unsigned int mmc_queue_calc_bouncesz(struct mmc_host *host)
 
 	return bouncesz;
 }
-#else
-static inline bool mmc_queue_alloc_bounce(struct mmc_queue_req *mqrq,
-					  int qdepth, unsigned int bouncesz)
-{
-	return false;
-}
-
-static unsigned int mmc_queue_calc_bouncesz(struct mmc_host *host)
-{
-	return 0;
-}
-#endif
 
 static int mmc_queue_alloc_sgs(struct mmc_queue_req *mqrq, int qdepth,
 			       int max_segs)
