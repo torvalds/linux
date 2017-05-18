@@ -863,16 +863,17 @@ static int arp_process(struct net *net, struct sock *sk, struct sk_buff *skb)
 
 	n = __neigh_lookup(&arp_tbl, &sip, dev, 0);
 
-	if (IN_DEV_ARP_ACCEPT(in_dev)) {
+	if (n || IN_DEV_ARP_ACCEPT(in_dev)) {
 		addr_type = -1;
+		is_garp = arp_is_garp(net, dev, &addr_type, arp->ar_op,
+				      sip, tip, sha, tha);
+	}
 
+	if (IN_DEV_ARP_ACCEPT(in_dev)) {
 		/* Unsolicited ARP is not accepted by default.
 		   It is possible, that this option should be enabled for some
 		   devices (strip is candidate)
 		 */
-		is_garp = arp_is_garp(net, dev, &addr_type, arp->ar_op,
-				      sip, tip, sha, tha);
-
 		if (!n &&
 		    (is_garp ||
 		     (arp->ar_op == htons(ARPOP_REPLY) &&
