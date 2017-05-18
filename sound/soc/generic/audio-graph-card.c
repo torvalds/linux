@@ -107,7 +107,7 @@ static int asoc_graph_card_dai_link_of(struct device_node *cpu_port,
 	int ret;
 
 	if (rcpu_ep != cpu_ep) {
-		dev_err(dev, "remote-endpoint missmatch (%s/%s/%s)\n",
+		dev_err(dev, "remote-endpoint mismatch (%s/%s/%s)\n",
 			cpu_ep->name, codec_ep->name, rcpu_ep->name);
 		ret = -EINVAL;
 		goto dai_link_of_err;
