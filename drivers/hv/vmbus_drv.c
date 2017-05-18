@@ -608,40 +608,6 @@ static void vmbus_free_dynids(struct hv_driver *drv)
 	spin_unlock(&drv->dynids.lock);
 }
 
-/* Parse string of form: 1b4e28ba-2fa1-11d2-883f-b9a761bde3f */
-static int get_uuid_le(const char *str, uuid_le *uu)
-{
-	unsigned int b[16];
-	int i;
-
-	if (strlen(str) < 37)
-		return -1;
-
-	for (i = 0; i < 36; i++) {
-		switch (i) {
-		case 8: case 13: case 18: case 23:
-			if (str[i] != '-')
-				return -1;
-			break;
-		default:
-			if (!isxdigit(str[i]))
-				return -1;
-		}
-	}
-
-	/* unparse little endian output byte order */
-	if (sscanf(str,
-		   "%2x%2x%2x%2x-%2x%2x-%2x%2x-%2x%2x-%2x%2x%2x%2x%2x%2x",
-		   &b[3], &b[2], &b[1], &b[0],
-		   &b[5], &b[4], &b[7], &b[6], &b[8], &b[9],
-		   &b[10], &b[11], &b[12], &b[13], &b[14], &b[15]) != 16)
-		return -1;
-
-	for (i = 0; i < 16; i++)
-		uu->b[i] = b[i];
-	return 0;
-}
-
 /*
  * store_new_id - sysfs frontend to vmbus_add_dynid()
  *
@@ -651,11 +617,12 @@ static ssize_t new_id_store(struct device_driver *driver, const char *buf,
 			    size_t count)
 {
 	struct hv_driver *drv = drv_to_hv_drv(driver);
-	uuid_le guid = NULL_UUID_LE;
+	uuid_le guid;
 	ssize_t retval;
 
-	if (get_uuid_le(buf, &guid) != 0)
-		return -EINVAL;
+	retval = uuid_le_to_bin(buf, &guid);
+	if (retval)
+		return retval;
 
 	if (hv_vmbus_get_id(drv, &guid))
 		return -EEXIST;
@@ -677,12 +644,14 @@ static ssize_t remove_id_store(struct device_driver *driver, const char *buf,
 {
 	struct hv_driver *drv = drv_to_hv_drv(driver);
 	struct vmbus_dynid *dynid, *n;
-	uuid_le guid = NULL_UUID_LE;
-	size_t retval = -ENODEV;
+	uuid_le guid;
+	ssize_t retval;
 
-	if (get_uuid_le(buf, &guid))
-		return -EINVAL;
+	retval = uuid_le_to_bin(buf, &guid);
+	if (retval)
+		return retval;
 
+	retval = -ENODEV;
 	spin_lock(&drv->dynids.lock);
 	list_for_each_entry_safe(dynid, n, &drv->dynids.list, node) {
 		struct hv_vmbus_device_id *id = &dynid->id;
