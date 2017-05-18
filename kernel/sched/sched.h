@@ -558,6 +558,12 @@ struct dl_rq {
 #else
 	struct dl_bw dl_bw;
 #endif
+	/*
+	 * "Active utilization" for this runqueue: increased when a
+	 * task wakes up (becomes TASK_RUNNING) and decreased when a
+	 * task blocks
+	 */
+	u64 running_bw;
 };
 
 #ifdef CONFIG_SMP

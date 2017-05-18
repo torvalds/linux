@@ -43,6 +43,28 @@ static inline int on_dl_rq(struct sched_dl_entity *dl_se)
 	return !RB_EMPTY_NODE(&dl_se->rb_node);
 }
 
+static inline
+void add_running_bw(u64 dl_bw, struct dl_rq *dl_rq)
+{
+	u64 old = dl_rq->running_bw;
+
+	lockdep_assert_held(&(rq_of_dl_rq(dl_rq))->lock);
+	dl_rq->running_bw += dl_bw;
+	SCHED_WARN_ON(dl_rq->running_bw < old); /* overflow */
+}
+
+static inline
+void sub_running_bw(u64 dl_bw, struct dl_rq *dl_rq)
+{
+	u64 old = dl_rq->running_bw;
+
+	lockdep_assert_held(&(rq_of_dl_rq(dl_rq))->lock);
+	dl_rq->running_bw -= dl_bw;
+	SCHED_WARN_ON(dl_rq->running_bw > old); /* underflow */
+	if (dl_rq->running_bw > old)
+		dl_rq->running_bw = 0;
+}
+
 static inline int is_leftmost(struct task_struct *p, struct dl_rq *dl_rq)
 {
 	struct sched_dl_entity *dl_se = &p->dl;
@@ -83,6 +105,8 @@ void init_dl_rq(struct dl_rq *dl_rq)
 #else
 	init_dl_bw(&dl_rq->dl_bw);
 #endif
+
+	dl_rq->running_bw = 0;
 }
 
 #ifdef CONFIG_SMP
@@ -946,10 +970,14 @@ enqueue_dl_entity(struct sched_dl_entity *dl_se,
 	 * parameters of the task might need updating. Otherwise,
 	 * we want a replenishment of its runtime.
 	 */
-	if (flags & ENQUEUE_WAKEUP)
+	if (flags & ENQUEUE_WAKEUP) {
+		struct dl_rq *dl_rq = dl_rq_of_se(dl_se);
+
+		add_running_bw(dl_se->dl_bw, dl_rq);
 		update_dl_entity(dl_se, pi_se);
-	else if (flags & ENQUEUE_REPLENISH)
+	} else if (flags & ENQUEUE_REPLENISH) {
 		replenish_dl_entity(dl_se, pi_se);
+	}
 
 	__enqueue_dl_entity(dl_se);
 }
@@ -998,14 +1026,25 @@ static void enqueue_task_dl(struct rq *rq, struct task_struct *p, int flags)
 	if (!p->dl.dl_throttled && dl_is_constrained(&p->dl))
 		dl_check_constrained_dl(&p->dl);
 
+	if (p->on_rq == TASK_ON_RQ_MIGRATING || flags & ENQUEUE_RESTORE)
+		add_running_bw(p->dl.dl_bw, &rq->dl);
+
 	/*
-	 * If p is throttled, we do nothing. In fact, if it exhausted
+	 * If p is throttled, we do not enqueue it. In fact, if it exhausted
 	 * its budget it needs a replenishment and, since it now is on
 	 * its rq, the bandwidth timer callback (which clearly has not
 	 * run yet) will take care of this.
+	 * However, the active utilization does not depend on the fact
+	 * that the task is on the runqueue or not (but depends on the
+	 * task's state - in GRUB parlance, "inactive" vs "active contending").
+	 * In other words, even if a task is throttled its utilization must
+	 * be counted in the active utilization; hence, we need to call
+	 * add_running_bw().
 	 */
-	if (p->dl.dl_throttled && !(flags & ENQUEUE_REPLENISH))
+	if (p->dl.dl_throttled && !(flags & ENQUEUE_REPLENISH)) {
+		add_running_bw(p->dl.dl_bw, &rq->dl);
 		return;
+	}
 
 	enqueue_dl_entity(&p->dl, pi_se, flags);
 
@@ -1023,6 +1062,20 @@ static void dequeue_task_dl(struct rq *rq, struct task_struct *p, int flags)
 {
 	update_curr_dl(rq);
 	__dequeue_task_dl(rq, p, flags);
+
+	if (p->on_rq == TASK_ON_RQ_MIGRATING || flags & DEQUEUE_SAVE)
+		sub_running_bw(p->dl.dl_bw, &rq->dl);
+
+	/*
+	 * This check allows to decrease the active utilization in two cases:
+	 * when the task blocks and when it is terminating
+	 * (p->state == TASK_DEAD). We can handle the two cases in the same
+	 * way, because from GRUB's point of view the same thing is happening
+	 * (the task moves from "active contending" to "active non contending"
+	 * or "inactive")
+	 */
+	if (flags & DEQUEUE_SLEEP)
+		sub_running_bw(p->dl.dl_bw, &rq->dl);
 }
 
 /*
@@ -1551,7 +1604,9 @@ retry:
 	}
 
 	deactivate_task(rq, next_task, 0);
+	sub_running_bw(next_task->dl.dl_bw, &rq->dl);
 	set_task_cpu(next_task, later_rq->cpu);
+	add_running_bw(next_task->dl.dl_bw, &later_rq->dl);
 	activate_task(later_rq, next_task, 0);
 	ret = 1;
 
@@ -1639,7 +1694,9 @@ static void pull_dl_task(struct rq *this_rq)
 			resched = true;
 
 			deactivate_task(src_rq, p, 0);
+			sub_running_bw(p->dl.dl_bw, &src_rq->dl);
 			set_task_cpu(p, this_cpu);
+			add_running_bw(p->dl.dl_bw, &this_rq->dl);
 			activate_task(this_rq, p, 0);
 			dmin = p->dl.deadline;
 
