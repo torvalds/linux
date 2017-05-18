@@ -311,7 +311,7 @@ static int test_AB_C(void *arg)
 	}
 
 	C = alloc_fence();
-	if (!B) {
+	if (!C) {
 		ret = -ENOMEM;
 		goto err_B;
 	}
@@ -388,7 +388,7 @@ static int test_C_AB(void *arg)
 	}
 
 	C = alloc_fence();
-	if (!B) {
+	if (!C) {
 		ret = -ENOMEM;
 		goto err_B;
 	}
