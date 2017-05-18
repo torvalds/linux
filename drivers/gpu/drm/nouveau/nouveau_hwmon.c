@@ -764,6 +764,169 @@ static const struct hwmon_channel_info *nouveau_info[] = {
 	&nouveau_power,
 	NULL
 };
+
+static umode_t
+nouveau_chip_is_visible(const void *data, u32 attr, int channel)
+{
+	switch (attr) {
+	case hwmon_chip_update_interval:
+		return 0444;
+	default:
+		return 0;
+	}
+}
+
+static umode_t
+nouveau_power_is_visible(const void *data, u32 attr, int channel)
+{
+	struct nouveau_drm *drm = nouveau_drm((struct drm_device *)data);
+	struct nvkm_iccsense *iccsense = nvxx_iccsense(&drm->client.device);
+
+	if (!iccsense || !iccsense->data_valid || list_empty(&iccsense->rails))
+		return 0;
+
+	switch (attr) {
+	case hwmon_power_input:
+		return 0444;
+	case hwmon_power_max:
+		if (iccsense->power_w_max)
+			return 0444;
+		return 0;
+	case hwmon_power_crit:
+		if (iccsense->power_w_crit)
+			return 0444;
+		return 0;
+	default:
+		return 0;
+	}
+}
+
+static umode_t
+nouveau_temp_is_visible(const void *data, u32 attr, int channel)
+{
+	struct nouveau_drm *drm = nouveau_drm((struct drm_device *)data);
+	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
+
+	if (therm && therm->attr_get && nvkm_therm_temp_get(therm) < 0)
+		return 0;
+
+	switch (attr) {
+	case hwmon_temp_input:
+	case hwmon_temp_max:
+	case hwmon_temp_max_hyst:
+	case hwmon_temp_crit:
+	case hwmon_temp_crit_hyst:
+	case hwmon_temp_emergency:
+	case hwmon_temp_emergency_hyst:
+		return 0444;
+	default:
+		return 0;
+	}
+}
+
+static umode_t
+nouveau_pwm_is_visible(const void *data, u32 attr, int channel)
+{
+	struct nouveau_drm *drm = nouveau_drm((struct drm_device *)data);
+	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
+
+	if (therm && therm->attr_get && therm->fan_get &&
+				therm->fan_get(therm) < 0)
+		return 0;
+
+	switch (attr) {
+	case hwmon_pwm_enable:
+	case hwmon_pwm_input:
+		return 0644;
+	default:
+		return 0;
+	}
+}
+
+static umode_t
+nouveau_input_is_visible(const void *data, u32 attr, int channel)
+{
+	struct nouveau_drm *drm = nouveau_drm((struct drm_device *)data);
+	struct nvkm_volt *volt = nvxx_volt(&drm->client.device);
+
+	if (!volt || nvkm_volt_get(volt) < 0)
+		return 0;
+
+	switch (attr) {
+	case hwmon_in_input:
+	case hwmon_in_label:
+	case hwmon_in_min:
+	case hwmon_in_max:
+		return 0444;
+	default:
+		return 0;
+	}
+}
+
+static umode_t
+nouveau_fan_is_visible(const void *data, u32 attr, int channel)
+{
+	struct nouveau_drm *drm = nouveau_drm((struct drm_device *)data);
+	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
+
+	if (!therm || !therm->attr_get || nvkm_therm_fan_sense(therm) < 0)
+		return 0;
+
+	switch (attr) {
+	case hwmon_fan_input:
+		return 0444;
+	default:
+		return 0;
+	}
+}
+
+static umode_t
+nouveau_is_visible(const void *data, enum hwmon_sensor_types type, u32 attr,
+			int channel)
+{
+	switch (type) {
+	case hwmon_chip:
+		return nouveau_chip_is_visible(data, attr, channel);
+	case hwmon_temp:
+		return nouveau_temp_is_visible(data, attr, channel);
+	case hwmon_fan:
+		return nouveau_fan_is_visible(data, attr, channel);
+	case hwmon_in:
+		return nouveau_input_is_visible(data, attr, channel);
+	case hwmon_pwm:
+		return nouveau_pwm_is_visible(data, attr, channel);
+	case hwmon_power:
+		return nouveau_power_is_visible(data, attr, channel);
+	default:
+		return 0;
+	}
+}
+
+static const char input_label[] = "GPU core";
+
+static int
+nouveau_read_string(struct device *dev, enum hwmon_sensor_types type, u32 attr,
+		    int channel, const char **buf)
+{
+	if (type == hwmon_in && attr == hwmon_in_label) {
+		*buf = input_label;
+		return 0;
+	}
+
+	return -EOPNOTSUPP;
+}
+
+static const struct hwmon_ops nouveau_hwmon_ops = {
+	.is_visible = nouveau_is_visible,
+	.read = NULL,
+	.read_string = nouveau_read_string,
+	.write = NULL,
+};
+
+static const struct hwmon_chip_info nouveau_chip_info = {
+	.ops = &nouveau_hwmon_ops,
+	.info = nouveau_info,
+};
 #endif
 
 int
