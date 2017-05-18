@@ -635,7 +635,7 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 
 		rq->buff.wqe_sz = params->lro_en  ?
 				params->lro_wqe_sz :
-				MLX5E_SW2HW_MTU(c->netdev->mtu);
+				MLX5E_SW2HW_MTU(c->priv, c->netdev->mtu);
 		byte_count = rq->buff.wqe_sz;
 
 		/* calc the required page order */
@@ -2468,7 +2468,7 @@ free_in:
 static int mlx5e_set_mtu(struct mlx5e_priv *priv, u16 mtu)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
-	u16 hw_mtu = MLX5E_SW2HW_MTU(mtu);
+	u16 hw_mtu = MLX5E_SW2HW_MTU(priv, mtu);
 	int err;
 
 	err = mlx5_set_port_mtu(mdev, hw_mtu, 1);
@@ -2490,7 +2490,7 @@ static void mlx5e_query_mtu(struct mlx5e_priv *priv, u16 *mtu)
 	if (err || !hw_mtu) /* fallback to port oper mtu */
 		mlx5_query_port_oper_mtu(mdev, &hw_mtu, 1);
 
-	*mtu = MLX5E_HW2SW_MTU(hw_mtu);
+	*mtu = MLX5E_HW2SW_MTU(priv, hw_mtu);
 }
 
 static int mlx5e_set_dev_port_mtu(struct mlx5e_priv *priv)
@@ -3876,6 +3876,7 @@ void mlx5e_build_nic_params(struct mlx5_core_dev *mdev,
 	mlx5e_set_rq_params(mdev, params);
 
 	/* HW LRO */
+
 	/* TODO: && MLX5_CAP_ETH(mdev, lro_cap) */
 	if (params->rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ)
 		params->lro_en = hw_lro_heuristic(link_speed, pci_bw);
@@ -3916,6 +3917,7 @@ static void mlx5e_build_nic_netdev_priv(struct mlx5_core_dev *mdev,
 	priv->netdev      = netdev;
 	priv->profile     = profile;
 	priv->ppriv       = ppriv;
+	priv->hard_mtu = MLX5E_ETH_HARD_MTU;
 
 	mlx5e_build_nic_params(mdev, &priv->channels.params, profile->max_nch(mdev));
 
@@ -4161,7 +4163,7 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 	/* MTU range: 68 - hw-specific max */
 	netdev->min_mtu = ETH_MIN_MTU;
 	mlx5_query_port_max_mtu(priv->mdev, &max_mtu, 1);
-	netdev->max_mtu = MLX5E_HW2SW_MTU(max_mtu);
+	netdev->max_mtu = MLX5E_HW2SW_MTU(priv, max_mtu);
 	mlx5e_set_dev_port_mtu(priv);
 
 	mlx5_lag_add(mdev, netdev);

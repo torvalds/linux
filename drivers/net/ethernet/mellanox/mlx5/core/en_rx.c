@@ -648,7 +648,7 @@ static inline bool mlx5e_xmit_xdp_frame(struct mlx5e_rq *rq,
 	prefetchw(wqe);
 
 	if (unlikely(dma_len < MLX5E_XDP_MIN_INLINE ||
-		     MLX5E_SW2HW_MTU(rq->netdev->mtu) < dma_len)) {
+		     MLX5E_SW2HW_MTU(rq->channel->priv, rq->netdev->mtu) < dma_len)) {
 		rq->stats.xdp_drop++;
 		mlx5e_page_release(rq, di, true);
 		return false;
@@ -1038,11 +1038,7 @@ void mlx5e_free_xdpsq_descs(struct mlx5e_xdpsq *sq)
 #ifdef CONFIG_MLX5_CORE_IPOIB
 
 #define MLX5_IB_GRH_DGID_OFFSET 24
-#define MLX5_IB_GRH_BYTES       40
-#define MLX5_IPOIB_ENCAP_LEN    4
 #define MLX5_GID_SIZE           16
-#define MLX5_IPOIB_PSEUDO_LEN   20
-#define MLX5_IPOIB_HARD_LEN     (MLX5_IPOIB_PSEUDO_LEN + MLX5_IPOIB_ENCAP_LEN)
 
 static inline void mlx5i_complete_rx_cqe(struct mlx5e_rq *rq,
 					 struct mlx5_cqe64 *cqe,

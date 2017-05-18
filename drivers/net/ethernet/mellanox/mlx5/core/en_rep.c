@@ -833,6 +833,9 @@ static void mlx5e_init_rep(struct mlx5_core_dev *mdev,
 	INIT_DELAYED_WORK(&priv->update_stats_work, mlx5e_update_stats_work);
 
 	priv->channels.params.num_channels = profile->max_nch(mdev);
+
+	priv->hard_mtu = MLX5E_ETH_HARD_MTU;
+
 	mlx5e_build_rep_params(mdev, &priv->channels.params);
 	mlx5e_build_rep_netdev(netdev);
 }

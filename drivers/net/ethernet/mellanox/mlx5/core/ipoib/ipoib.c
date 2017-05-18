@@ -73,16 +73,18 @@ static void mlx5i_init(struct mlx5_core_dev *mdev,
 {
 	struct mlx5e_priv *priv  = mlx5i_epriv(netdev);
 
+	/* priv init */
 	priv->mdev        = mdev;
 	priv->netdev      = netdev;
 	priv->profile     = profile;
 	priv->ppriv       = ppriv;
+	priv->hard_mtu = MLX5_IB_GRH_BYTES + MLX5_IPOIB_HARD_LEN;
+	mutex_init(&priv->state_lock);
 
 	mlx5e_build_nic_params(mdev, &priv->channels.params, profile->max_nch(mdev));
 	mlx5i_build_nic_params(mdev, &priv->channels.params);
 
-	mutex_init(&priv->state_lock);
-
+	/* netdev init */
 	netdev->hw_features    |= NETIF_F_SG;
 	netdev->hw_features    |= NETIF_F_IP_CSUM;
 	netdev->hw_features    |= NETIF_F_IPV6_CSUM;
