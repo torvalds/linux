@@ -913,4 +913,23 @@ void drm_dp_aux_unregister(struct drm_dp_aux *aux);
 int drm_dp_start_crc(struct drm_dp_aux *aux, struct drm_crtc *crtc);
 int drm_dp_stop_crc(struct drm_dp_aux *aux);
 
+struct drm_dp_dpcd_ident {
+	u8 oui[3];
+	u8 device_id[6];
+	u8 hw_rev;
+	u8 sw_major_rev;
+	u8 sw_minor_rev;
+} __packed;
+
+/**
+ * struct drm_dp_desc - DP branch/sink device descriptor
+ * @ident: DP device identification from DPCD 0x400 (sink) or 0x500 (branch).
+ */
+struct drm_dp_desc {
+	struct drm_dp_dpcd_ident ident;
+};
+
+int drm_dp_read_desc(struct drm_dp_aux *aux, struct drm_dp_desc *desc,
+		     bool is_branch);
+
 #endif /* _DRM_DP_HELPER_H_ */

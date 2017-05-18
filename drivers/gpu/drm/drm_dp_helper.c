@@ -1208,3 +1208,38 @@ int drm_dp_stop_crc(struct drm_dp_aux *aux)
 	return 0;
 }
 EXPORT_SYMBOL(drm_dp_stop_crc);
+
+/**
+ * drm_dp_read_desc - read sink/branch descriptor from DPCD
+ * @aux: DisplayPort AUX channel
+ * @desc: Device decriptor to fill from DPCD
+ * @is_branch: true for branch devices, false for sink devices
+ *
+ * Read DPCD 0x400 (sink) or 0x500 (branch) into @desc. Also debug log the
+ * identification.
+ *
+ * Returns 0 on success or a negative error code on failure.
+ */
+int drm_dp_read_desc(struct drm_dp_aux *aux, struct drm_dp_desc *desc,
+		     bool is_branch)
+{
+	struct drm_dp_dpcd_ident *ident = &desc->ident;
+	unsigned int offset = is_branch ? DP_BRANCH_OUI : DP_SINK_OUI;
+	int ret, dev_id_len;
+
+	ret = drm_dp_dpcd_read(aux, offset, ident, sizeof(*ident));
+	if (ret < 0)
+		return ret;
+
+	dev_id_len = strnlen(ident->device_id, sizeof(ident->device_id));
+
+	DRM_DEBUG_KMS("DP %s: OUI %*phD dev-ID %*pE HW-rev %d.%d SW-rev %d.%d\n",
+		      is_branch ? "branch" : "sink",
+		      (int)sizeof(ident->oui), ident->oui,
+		      dev_id_len, ident->device_id,
+		      ident->hw_rev >> 4, ident->hw_rev & 0xf,
+		      ident->sw_major_rev, ident->sw_minor_rev);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_read_desc);
