@@ -237,7 +237,7 @@ static bool mem_input_program_surface_flip_and_addr(
 	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
 
 	/* program flip type */
-	REG_UPDATE(DCSURF_FLIP_CONTROL,
+	REG_SET(DCSURF_FLIP_CONTROL, 0,
 			SURFACE_FLIP_TYPE, flip_immediate);
 
 	/* HW automatically latch rest of address register on write to
@@ -258,21 +258,20 @@ static bool mem_input_program_surface_flip_and_addr(
 			break;
 
 		if (address->grph.meta_addr.quad_part != 0) {
-
-			REG_UPDATE(DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH,
+			REG_SET(DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH, 0,
 					PRIMARY_META_SURFACE_ADDRESS_HIGH,
 					address->grph.meta_addr.high_part);
 
-			REG_UPDATE(DCSURF_PRIMARY_META_SURFACE_ADDRESS,
+			REG_SET(DCSURF_PRIMARY_META_SURFACE_ADDRESS, 0,
 					PRIMARY_META_SURFACE_ADDRESS,
 					address->grph.meta_addr.low_part);
 		}
 
-		REG_UPDATE(DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH,
+		REG_SET(DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH, 0,
 				PRIMARY_SURFACE_ADDRESS_HIGH,
 				address->grph.addr.high_part);
 
-		REG_UPDATE(DCSURF_PRIMARY_SURFACE_ADDRESS,
+		REG_SET(DCSURF_PRIMARY_SURFACE_ADDRESS, 0,
 				PRIMARY_SURFACE_ADDRESS,
 				address->grph.addr.low_part);
 		break;
@@ -282,40 +281,38 @@ static bool mem_input_program_surface_flip_and_addr(
 			break;
 
 		if (address->video_progressive.luma_meta_addr.quad_part != 0) {
-
-			REG_UPDATE(DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH,
-				PRIMARY_META_SURFACE_ADDRESS_HIGH,
-				address->video_progressive.luma_meta_addr.high_part);
-
-			REG_UPDATE(DCSURF_PRIMARY_META_SURFACE_ADDRESS,
-				PRIMARY_META_SURFACE_ADDRESS,
-				address->video_progressive.luma_meta_addr.low_part);
-
-			REG_UPDATE(DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH_C,
+			REG_SET(DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH_C, 0,
 				PRIMARY_META_SURFACE_ADDRESS_HIGH_C,
 				address->video_progressive.chroma_meta_addr.high_part);
 
-			REG_UPDATE(DCSURF_PRIMARY_META_SURFACE_ADDRESS_C,
+			REG_SET(DCSURF_PRIMARY_META_SURFACE_ADDRESS_C, 0,
 				PRIMARY_META_SURFACE_ADDRESS_C,
 				address->video_progressive.chroma_meta_addr.low_part);
+
+			REG_SET(DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH, 0,
+				PRIMARY_META_SURFACE_ADDRESS_HIGH,
+				address->video_progressive.luma_meta_addr.high_part);
+
+			REG_SET(DCSURF_PRIMARY_META_SURFACE_ADDRESS, 0,
+				PRIMARY_META_SURFACE_ADDRESS,
+				address->video_progressive.luma_meta_addr.low_part);
 		}
 
-		REG_UPDATE(DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C,
+		REG_SET(DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C, 0,
 			PRIMARY_SURFACE_ADDRESS_HIGH_C,
 			address->video_progressive.chroma_addr.high_part);
 
-		REG_UPDATE(DCSURF_PRIMARY_SURFACE_ADDRESS_C,
+		REG_SET(DCSURF_PRIMARY_SURFACE_ADDRESS_C, 0,
 			PRIMARY_SURFACE_ADDRESS_C,
 			address->video_progressive.chroma_addr.low_part);
 
-		REG_UPDATE(DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH,
+		REG_SET(DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH, 0,
 			PRIMARY_SURFACE_ADDRESS_HIGH,
 			address->video_progressive.luma_addr.high_part);
 
-		REG_UPDATE(DCSURF_PRIMARY_SURFACE_ADDRESS,
+		REG_SET(DCSURF_PRIMARY_SURFACE_ADDRESS, 0,
 			PRIMARY_SURFACE_ADDRESS,
 			address->video_progressive.luma_addr.low_part);
-
 		break;
 	case PLN_ADDR_TYPE_GRPH_STEREO:
 		if (address->grph_stereo.left_addr.quad_part == 0)
@@ -324,39 +321,38 @@ static bool mem_input_program_surface_flip_and_addr(
 			break;
 		if (address->grph_stereo.right_meta_addr.quad_part != 0) {
 
-			REG_UPDATE(DCSURF_SECONDARY_META_SURFACE_ADDRESS_HIGH,
+			REG_SET(DCSURF_SECONDARY_META_SURFACE_ADDRESS_HIGH, 0,
 					SECONDARY_META_SURFACE_ADDRESS_HIGH,
 					address->grph_stereo.right_meta_addr.high_part);
 
-			REG_UPDATE(DCSURF_SECONDARY_META_SURFACE_ADDRESS,
+			REG_SET(DCSURF_SECONDARY_META_SURFACE_ADDRESS, 0,
 					SECONDARY_META_SURFACE_ADDRESS,
 					address->grph_stereo.right_meta_addr.low_part);
 		}
 		if (address->grph_stereo.left_meta_addr.quad_part != 0) {
 
-			REG_UPDATE(DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH,
+			REG_SET(DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH, 0,
 					PRIMARY_META_SURFACE_ADDRESS_HIGH,
 					address->grph_stereo.left_meta_addr.high_part);
 
-			REG_UPDATE(DCSURF_PRIMARY_META_SURFACE_ADDRESS,
+			REG_SET(DCSURF_PRIMARY_META_SURFACE_ADDRESS, 0,
 					PRIMARY_META_SURFACE_ADDRESS,
 					address->grph_stereo.left_meta_addr.low_part);
 		}
 
-		REG_UPDATE(DCSURF_SECONDARY_SURFACE_ADDRESS_HIGH,
+		REG_SET(DCSURF_SECONDARY_SURFACE_ADDRESS_HIGH, 0,
 				SECONDARY_SURFACE_ADDRESS_HIGH,
 				address->grph_stereo.right_addr.high_part);
 
-		REG_UPDATE(DCSURF_SECONDARY_SURFACE_ADDRESS,
+		REG_SET(DCSURF_SECONDARY_SURFACE_ADDRESS, 0,
 				SECONDARY_SURFACE_ADDRESS,
 				address->grph_stereo.right_addr.low_part);
 
-
-		REG_UPDATE(DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH,
+		REG_SET(DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH, 0,
 				PRIMARY_SURFACE_ADDRESS_HIGH,
 				address->grph_stereo.left_addr.high_part);
 
-		REG_UPDATE(DCSURF_PRIMARY_SURFACE_ADDRESS,
+		REG_SET(DCSURF_PRIMARY_SURFACE_ADDRESS, 0,
 				PRIMARY_SURFACE_ADDRESS,
 				address->grph_stereo.left_addr.low_part);
 		break;
