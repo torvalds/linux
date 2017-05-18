@@ -609,8 +609,6 @@ int xen_blkif_schedule(void *arg)
 	unsigned long timeout;
 	int ret;
 
-	xen_blkif_get(blkif);
-
 	set_freezable();
 	while (!kthread_should_stop()) {
 		if (try_to_freeze())
@@ -665,7 +663,6 @@ purge_gnt_list:
 		print_stats(ring);
 
 	ring->xenblkd = NULL;
-	xen_blkif_put(blkif);
 
 	return 0;
 }
