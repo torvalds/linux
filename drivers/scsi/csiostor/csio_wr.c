@@ -480,12 +480,14 @@ csio_wr_iq_create(struct csio_hw *hw, void *priv, int iq_idx,
 
 	flq_idx = csio_q_iq_flq_idx(hw, iq_idx);
 	if (flq_idx != -1) {
+		enum chip_type chip = CHELSIO_CHIP_VERSION(hw->chip_id);
 		struct csio_q *flq = hw->wrm.q_arr[flq_idx];
 
 		iqp.fl0paden	= 1;
 		iqp.fl0packen	= flq->un.fl.packen ? 1 : 0;
 		iqp.fl0fbmin	= X_FETCHBURSTMIN_64B;
-		iqp.fl0fbmax	= X_FETCHBURSTMAX_512B;
+		iqp.fl0fbmax	= ((chip == CHELSIO_T5) ?
+				  X_FETCHBURSTMAX_512B : X_FETCHBURSTMAX_256B);
 		iqp.fl0size	= csio_q_size(hw, flq_idx) / CSIO_QCREDIT_SZ;
 		iqp.fl0addr	= csio_q_pstart(hw, flq_idx);
 	}
