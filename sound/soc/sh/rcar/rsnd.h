@@ -18,6 +18,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/of_graph.h>
 #include <linux/of_irq.h>
 #include <linux/sh_dma.h>
 #include <linux/workqueue.h>
@@ -475,7 +476,6 @@ int rsnd_dai_pointer_offset(struct rsnd_dai_stream *io, int additional);
 int rsnd_dai_connect(struct rsnd_mod *mod,
 		     struct rsnd_dai_stream *io,
 		     enum rsnd_mod_type type);
-#define rsnd_dai_of_node(priv) rsnd_parse_of_node(priv, RSND_NODE_DAI)
 
 /*
  *	R-Car Gen1/Gen2

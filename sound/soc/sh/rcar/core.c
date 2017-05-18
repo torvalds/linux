@@ -774,6 +774,42 @@ void rsnd_parse_connect_common(struct rsnd_dai *rdai,
 	of_node_put(node);
 }
 
+static struct device_node *rsnd_dai_of_node(struct rsnd_priv *priv,
+					    int *is_graph)
+{
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct device_node *np = dev->of_node;
+	struct device_node *dai_node;
+	struct device_node *ret;
+
+	*is_graph = 0;
+
+	/*
+	 * parse both previous dai (= rcar_sound,dai), and
+	 * graph dai (= ports/port)
+	 */
+	dai_node = of_get_child_by_name(np, RSND_NODE_DAI);
+	if (dai_node) {
+		ret = dai_node;
+		goto of_node_compatible;
+	}
+
+	ret = np;
+
+	dai_node = of_graph_get_next_endpoint(np, NULL);
+	if (dai_node)
+		goto of_node_graph;
+
+	return NULL;
+
+of_node_graph:
+	*is_graph = 1;
+of_node_compatible:
+	of_node_put(dai_node);
+
+	return ret;
+}
+
 static int rsnd_dai_probe(struct rsnd_priv *priv)
 {
 	struct device_node *dai_node;
@@ -785,9 +821,10 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 	struct rsnd_dai *rdai;
 	struct device *dev = rsnd_priv_to_dev(priv);
 	int nr, dai_i, io_i;
+	int is_graph;
 	int ret;
 
-	dai_node = rsnd_dai_of_node(priv);
+	dai_node = rsnd_dai_of_node(priv, &is_graph);
 	nr = of_get_child_count(dai_node);
 	if (!nr) {
 		ret = -EINVAL;
