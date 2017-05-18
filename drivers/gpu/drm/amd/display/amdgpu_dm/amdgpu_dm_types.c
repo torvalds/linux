@@ -3115,15 +3115,9 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 
 			action = get_dm_commit_action(crtc->state);
 
-			/* Surfaces are created under two scenarios:
-			 * 1. This commit is not a page flip.
-			 * 2. This commit is a page flip, and streams are created.
-			 */
 			crtc_state = drm_atomic_get_crtc_state(state, crtc);
 			pflip_needed = !state->allow_modeset;
-			if (!pflip_needed ||
-				action == DM_COMMIT_ACTION_DPMS_ON ||
-				action == DM_COMMIT_ACTION_SET) {
+			if (!pflip_needed) {
 				struct dc_surface *surface;
 
 				list_for_each_entry(connector,
