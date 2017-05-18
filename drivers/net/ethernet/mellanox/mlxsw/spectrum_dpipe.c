@@ -217,7 +217,7 @@ static int
 mlxsw_sp_table_erif_entries_dump(void *priv, bool counters_enabled,
 				 struct devlink_dpipe_dump_ctx *dump_ctx)
 {
-	struct devlink_dpipe_value match_value = {{0}}, action_value = {{0}};
+	struct devlink_dpipe_value match_value, action_value;
 	struct devlink_dpipe_action action = {0};
 	struct devlink_dpipe_match match = {0};
 	struct devlink_dpipe_entry entry = {0};
@@ -225,6 +225,9 @@ mlxsw_sp_table_erif_entries_dump(void *priv, bool counters_enabled,
 	unsigned int rif_count;
 	int i, j;
 	int err;
+
+	memset(&match_value, 0, sizeof(match_value));
+	memset(&action_value, 0, sizeof(action_value));
 
 	mlxsw_sp_erif_match_action_prepare(&match, &action);
 	err = mlxsw_sp_erif_entry_prepare(&entry, &match_value, &match,
