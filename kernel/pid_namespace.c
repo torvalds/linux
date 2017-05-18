@@ -277,7 +277,7 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 	 * if reparented.
 	 */
 	for (;;) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
+		set_current_state(TASK_INTERRUPTIBLE);
 		if (pid_ns->nr_hashed == init_pids)
 			break;
 		schedule();
