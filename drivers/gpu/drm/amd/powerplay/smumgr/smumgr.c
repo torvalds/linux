@@ -20,15 +20,16 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include <linux/types.h>
+
+#include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/types.h>
 #include <drm/amdgpu_drm.h>
 #include "pp_instance.h"
 #include "smumgr.h"
 #include "cgs_common.h"
-#include "linux/delay.h"
 
 MODULE_FIRMWARE("amdgpu/topaz_smc.bin");
 MODULE_FIRMWARE("amdgpu/topaz_k_smc.bin");

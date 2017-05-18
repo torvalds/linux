@@ -20,11 +20,13 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include <linux/types.h>
+
+#include <linux/delay.h>
+#include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/gfp.h>
-#include "linux/delay.h"
+#include <linux/types.h>
+
 #include "cgs_common.h"
 #include "smu/smu_8_0_d.h"
 #include "smu/smu_8_0_sh_mask.h"

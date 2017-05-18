@@ -20,10 +20,11 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+
+#include <linux/delay.h>
+#include <linux/fb.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/fb.h>
-#include "linux/delay.h"
 
 #include "hwmgr.h"
 #include "amd_powerplay.h"
