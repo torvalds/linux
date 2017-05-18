@@ -25,6 +25,8 @@
 
 #define CLCD_IRQ_NEXTBASE_UPDATE BIT(2)
 
+struct drm_minor;
+
 struct pl111_drm_connector {
 	struct drm_connector connector;
 	struct drm_panel *panel;
@@ -60,5 +62,6 @@ int pl111_encoder_init(struct drm_device *dev);
 int pl111_dumb_create(struct drm_file *file_priv,
 		      struct drm_device *dev,
 		      struct drm_mode_create_dumb *args);
+int pl111_debugfs_init(struct drm_minor *minor);
 
 #endif /* _PL111_DRM_H_ */

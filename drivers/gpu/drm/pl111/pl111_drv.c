@@ -173,6 +173,10 @@ static struct drm_driver pl111_drm_driver = {
 	.gem_prime_import_sg_table = drm_gem_cma_prime_import_sg_table,
 	.gem_prime_export = drm_gem_prime_export,
 	.gem_prime_get_sg_table	= drm_gem_cma_prime_get_sg_table,
+
+#if defined(CONFIG_DEBUG_FS)
+	.debugfs_init = pl111_debugfs_init,
+#endif
 };
 
 #ifdef CONFIG_ARM_AMBA
