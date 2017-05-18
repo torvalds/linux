@@ -668,15 +668,15 @@ static ssize_t iwl_dbgfs_fw_rx_stats_read(struct file *file,
 	int pos = 0;
 	char *buf;
 	int ret;
-	/* 43 is the size of each data line, 33 is the size of each header */
-	size_t bufsz =
-		((sizeof(struct mvm_statistics_rx) / sizeof(__le32)) * 43) +
-		(4 * 33) + 1;
+	size_t bufsz;
 
-	struct mvm_statistics_rx_phy *ofdm;
-	struct mvm_statistics_rx_phy *cck;
-	struct mvm_statistics_rx_non_phy *general;
-	struct mvm_statistics_rx_ht_phy *ht;
+	if (iwl_mvm_has_new_rx_stats_api(mvm))
+		bufsz = ((sizeof(struct mvm_statistics_rx) /
+			  sizeof(__le32)) * 43) + (4 * 33) + 1;
+	else
+		/* 43 = size of each data line; 33 = size of each header */
+		bufsz = ((sizeof(struct mvm_statistics_rx_v3) /
+			  sizeof(__le32)) * 43) + (4 * 33) + 1;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf)
@@ -684,96 +684,157 @@ static ssize_t iwl_dbgfs_fw_rx_stats_read(struct file *file,
 
 	mutex_lock(&mvm->mutex);
 
-	ofdm = &mvm->rx_stats.ofdm;
-	cck = &mvm->rx_stats.cck;
-	general = &mvm->rx_stats.general;
-	ht = &mvm->rx_stats.ofdm_ht;
-
 	pos += scnprintf(buf + pos, bufsz - pos, fmt_header,
 			 "Statistics_Rx - OFDM");
-	PRINT_STATS_LE32(ofdm, ina_cnt);
-	PRINT_STATS_LE32(ofdm, fina_cnt);
-	PRINT_STATS_LE32(ofdm, plcp_err);
-	PRINT_STATS_LE32(ofdm, crc32_err);
-	PRINT_STATS_LE32(ofdm, overrun_err);
-	PRINT_STATS_LE32(ofdm, early_overrun_err);
-	PRINT_STATS_LE32(ofdm, crc32_good);
-	PRINT_STATS_LE32(ofdm, false_alarm_cnt);
-	PRINT_STATS_LE32(ofdm, fina_sync_err_cnt);
-	PRINT_STATS_LE32(ofdm, sfd_timeout);
-	PRINT_STATS_LE32(ofdm, fina_timeout);
-	PRINT_STATS_LE32(ofdm, unresponded_rts);
-	PRINT_STATS_LE32(ofdm, rxe_frame_lmt_overrun);
-	PRINT_STATS_LE32(ofdm, sent_ack_cnt);
-	PRINT_STATS_LE32(ofdm, sent_cts_cnt);
-	PRINT_STATS_LE32(ofdm, sent_ba_rsp_cnt);
-	PRINT_STATS_LE32(ofdm, dsp_self_kill);
-	PRINT_STATS_LE32(ofdm, mh_format_err);
-	PRINT_STATS_LE32(ofdm, re_acq_main_rssi_sum);
-	PRINT_STATS_LE32(ofdm, reserved);
+	if (!iwl_mvm_has_new_rx_stats_api(mvm)) {
+		struct mvm_statistics_rx_phy_v2 *ofdm = &mvm->rx_stats_v3.ofdm;
+
+		PRINT_STATS_LE32(ofdm, ina_cnt);
+		PRINT_STATS_LE32(ofdm, fina_cnt);
+		PRINT_STATS_LE32(ofdm, plcp_err);
+		PRINT_STATS_LE32(ofdm, crc32_err);
+		PRINT_STATS_LE32(ofdm, overrun_err);
+		PRINT_STATS_LE32(ofdm, early_overrun_err);
+		PRINT_STATS_LE32(ofdm, crc32_good);
+		PRINT_STATS_LE32(ofdm, false_alarm_cnt);
+		PRINT_STATS_LE32(ofdm, fina_sync_err_cnt);
+		PRINT_STATS_LE32(ofdm, sfd_timeout);
+		PRINT_STATS_LE32(ofdm, fina_timeout);
+		PRINT_STATS_LE32(ofdm, unresponded_rts);
+		PRINT_STATS_LE32(ofdm, rxe_frame_lmt_overrun);
+		PRINT_STATS_LE32(ofdm, sent_ack_cnt);
+		PRINT_STATS_LE32(ofdm, sent_cts_cnt);
+		PRINT_STATS_LE32(ofdm, sent_ba_rsp_cnt);
+		PRINT_STATS_LE32(ofdm, dsp_self_kill);
+		PRINT_STATS_LE32(ofdm, mh_format_err);
+		PRINT_STATS_LE32(ofdm, re_acq_main_rssi_sum);
+		PRINT_STATS_LE32(ofdm, reserved);
+	} else {
+		struct mvm_statistics_rx_phy *ofdm = &mvm->rx_stats.ofdm;
+
+		PRINT_STATS_LE32(ofdm, unresponded_rts);
+		PRINT_STATS_LE32(ofdm, rxe_frame_lmt_overrun);
+		PRINT_STATS_LE32(ofdm, sent_ba_rsp_cnt);
+		PRINT_STATS_LE32(ofdm, dsp_self_kill);
+		PRINT_STATS_LE32(ofdm, reserved);
+	}
 
 	pos += scnprintf(buf + pos, bufsz - pos, fmt_header,
 			 "Statistics_Rx - CCK");
-	PRINT_STATS_LE32(cck, ina_cnt);
-	PRINT_STATS_LE32(cck, fina_cnt);
-	PRINT_STATS_LE32(cck, plcp_err);
-	PRINT_STATS_LE32(cck, crc32_err);
-	PRINT_STATS_LE32(cck, overrun_err);
-	PRINT_STATS_LE32(cck, early_overrun_err);
-	PRINT_STATS_LE32(cck, crc32_good);
-	PRINT_STATS_LE32(cck, false_alarm_cnt);
-	PRINT_STATS_LE32(cck, fina_sync_err_cnt);
-	PRINT_STATS_LE32(cck, sfd_timeout);
-	PRINT_STATS_LE32(cck, fina_timeout);
-	PRINT_STATS_LE32(cck, unresponded_rts);
-	PRINT_STATS_LE32(cck, rxe_frame_lmt_overrun);
-	PRINT_STATS_LE32(cck, sent_ack_cnt);
-	PRINT_STATS_LE32(cck, sent_cts_cnt);
-	PRINT_STATS_LE32(cck, sent_ba_rsp_cnt);
-	PRINT_STATS_LE32(cck, dsp_self_kill);
-	PRINT_STATS_LE32(cck, mh_format_err);
-	PRINT_STATS_LE32(cck, re_acq_main_rssi_sum);
-	PRINT_STATS_LE32(cck, reserved);
+	if (!iwl_mvm_has_new_rx_stats_api(mvm)) {
+		struct mvm_statistics_rx_phy_v2 *cck = &mvm->rx_stats_v3.cck;
+
+		PRINT_STATS_LE32(cck, ina_cnt);
+		PRINT_STATS_LE32(cck, fina_cnt);
+		PRINT_STATS_LE32(cck, plcp_err);
+		PRINT_STATS_LE32(cck, crc32_err);
+		PRINT_STATS_LE32(cck, overrun_err);
+		PRINT_STATS_LE32(cck, early_overrun_err);
+		PRINT_STATS_LE32(cck, crc32_good);
+		PRINT_STATS_LE32(cck, false_alarm_cnt);
+		PRINT_STATS_LE32(cck, fina_sync_err_cnt);
+		PRINT_STATS_LE32(cck, sfd_timeout);
+		PRINT_STATS_LE32(cck, fina_timeout);
+		PRINT_STATS_LE32(cck, unresponded_rts);
+		PRINT_STATS_LE32(cck, rxe_frame_lmt_overrun);
+		PRINT_STATS_LE32(cck, sent_ack_cnt);
+		PRINT_STATS_LE32(cck, sent_cts_cnt);
+		PRINT_STATS_LE32(cck, sent_ba_rsp_cnt);
+		PRINT_STATS_LE32(cck, dsp_self_kill);
+		PRINT_STATS_LE32(cck, mh_format_err);
+		PRINT_STATS_LE32(cck, re_acq_main_rssi_sum);
+		PRINT_STATS_LE32(cck, reserved);
+	} else {
+		struct mvm_statistics_rx_phy *cck = &mvm->rx_stats.cck;
+
+		PRINT_STATS_LE32(cck, unresponded_rts);
+		PRINT_STATS_LE32(cck, rxe_frame_lmt_overrun);
+		PRINT_STATS_LE32(cck, sent_ba_rsp_cnt);
+		PRINT_STATS_LE32(cck, dsp_self_kill);
+		PRINT_STATS_LE32(cck, reserved);
+	}
 
 	pos += scnprintf(buf + pos, bufsz - pos, fmt_header,
 			 "Statistics_Rx - GENERAL");
-	PRINT_STATS_LE32(general, bogus_cts);
-	PRINT_STATS_LE32(general, bogus_ack);
-	PRINT_STATS_LE32(general, non_bssid_frames);
-	PRINT_STATS_LE32(general, filtered_frames);
-	PRINT_STATS_LE32(general, non_channel_beacons);
-	PRINT_STATS_LE32(general, channel_beacons);
-	PRINT_STATS_LE32(general, num_missed_bcon);
-	PRINT_STATS_LE32(general, adc_rx_saturation_time);
-	PRINT_STATS_LE32(general, ina_detection_search_time);
-	PRINT_STATS_LE32(general, beacon_silence_rssi_a);
-	PRINT_STATS_LE32(general, beacon_silence_rssi_b);
-	PRINT_STATS_LE32(general, beacon_silence_rssi_c);
-	PRINT_STATS_LE32(general, interference_data_flag);
-	PRINT_STATS_LE32(general, channel_load);
-	PRINT_STATS_LE32(general, dsp_false_alarms);
-	PRINT_STATS_LE32(general, beacon_rssi_a);
-	PRINT_STATS_LE32(general, beacon_rssi_b);
-	PRINT_STATS_LE32(general, beacon_rssi_c);
-	PRINT_STATS_LE32(general, beacon_energy_a);
-	PRINT_STATS_LE32(general, beacon_energy_b);
-	PRINT_STATS_LE32(general, beacon_energy_c);
-	PRINT_STATS_LE32(general, num_bt_kills);
-	PRINT_STATS_LE32(general, mac_id);
-	PRINT_STATS_LE32(general, directed_data_mpdu);
+	if (!iwl_mvm_has_new_rx_stats_api(mvm)) {
+		struct mvm_statistics_rx_non_phy_v3 *general =
+			&mvm->rx_stats_v3.general;
+
+		PRINT_STATS_LE32(general, bogus_cts);
+		PRINT_STATS_LE32(general, bogus_ack);
+		PRINT_STATS_LE32(general, non_bssid_frames);
+		PRINT_STATS_LE32(general, filtered_frames);
+		PRINT_STATS_LE32(general, non_channel_beacons);
+		PRINT_STATS_LE32(general, channel_beacons);
+		PRINT_STATS_LE32(general, num_missed_bcon);
+		PRINT_STATS_LE32(general, adc_rx_saturation_time);
+		PRINT_STATS_LE32(general, ina_detection_search_time);
+		PRINT_STATS_LE32(general, beacon_silence_rssi_a);
+		PRINT_STATS_LE32(general, beacon_silence_rssi_b);
+		PRINT_STATS_LE32(general, beacon_silence_rssi_c);
+		PRINT_STATS_LE32(general, interference_data_flag);
+		PRINT_STATS_LE32(general, channel_load);
+		PRINT_STATS_LE32(general, dsp_false_alarms);
+		PRINT_STATS_LE32(general, beacon_rssi_a);
+		PRINT_STATS_LE32(general, beacon_rssi_b);
+		PRINT_STATS_LE32(general, beacon_rssi_c);
+		PRINT_STATS_LE32(general, beacon_energy_a);
+		PRINT_STATS_LE32(general, beacon_energy_b);
+		PRINT_STATS_LE32(general, beacon_energy_c);
+		PRINT_STATS_LE32(general, num_bt_kills);
+		PRINT_STATS_LE32(general, mac_id);
+		PRINT_STATS_LE32(general, directed_data_mpdu);
+	} else {
+		struct mvm_statistics_rx_non_phy *general =
+			&mvm->rx_stats.general;
+
+		PRINT_STATS_LE32(general, bogus_cts);
+		PRINT_STATS_LE32(general, bogus_ack);
+		PRINT_STATS_LE32(general, non_channel_beacons);
+		PRINT_STATS_LE32(general, channel_beacons);
+		PRINT_STATS_LE32(general, num_missed_bcon);
+		PRINT_STATS_LE32(general, adc_rx_saturation_time);
+		PRINT_STATS_LE32(general, ina_detection_search_time);
+		PRINT_STATS_LE32(general, beacon_silence_rssi_a);
+		PRINT_STATS_LE32(general, beacon_silence_rssi_b);
+		PRINT_STATS_LE32(general, beacon_silence_rssi_c);
+		PRINT_STATS_LE32(general, interference_data_flag);
+		PRINT_STATS_LE32(general, channel_load);
+		PRINT_STATS_LE32(general, beacon_rssi_a);
+		PRINT_STATS_LE32(general, beacon_rssi_b);
+		PRINT_STATS_LE32(general, beacon_rssi_c);
+		PRINT_STATS_LE32(general, beacon_energy_a);
+		PRINT_STATS_LE32(general, beacon_energy_b);
+		PRINT_STATS_LE32(general, beacon_energy_c);
+		PRINT_STATS_LE32(general, num_bt_kills);
+		PRINT_STATS_LE32(general, mac_id);
+	}
 
 	pos += scnprintf(buf + pos, bufsz - pos, fmt_header,
 			 "Statistics_Rx - HT");
-	PRINT_STATS_LE32(ht, plcp_err);
-	PRINT_STATS_LE32(ht, overrun_err);
-	PRINT_STATS_LE32(ht, early_overrun_err);
-	PRINT_STATS_LE32(ht, crc32_good);
-	PRINT_STATS_LE32(ht, crc32_err);
-	PRINT_STATS_LE32(ht, mh_format_err);
-	PRINT_STATS_LE32(ht, agg_crc32_good);
-	PRINT_STATS_LE32(ht, agg_mpdu_cnt);
-	PRINT_STATS_LE32(ht, agg_cnt);
-	PRINT_STATS_LE32(ht, unsupport_mcs);
+	if (!iwl_mvm_has_new_rx_stats_api(mvm)) {
+		struct mvm_statistics_rx_ht_phy_v1 *ht =
+			&mvm->rx_stats_v3.ofdm_ht;
+
+		PRINT_STATS_LE32(ht, plcp_err);
+		PRINT_STATS_LE32(ht, overrun_err);
+		PRINT_STATS_LE32(ht, early_overrun_err);
+		PRINT_STATS_LE32(ht, crc32_good);
+		PRINT_STATS_LE32(ht, crc32_err);
+		PRINT_STATS_LE32(ht, mh_format_err);
+		PRINT_STATS_LE32(ht, agg_crc32_good);
+		PRINT_STATS_LE32(ht, agg_mpdu_cnt);
+		PRINT_STATS_LE32(ht, agg_cnt);
+		PRINT_STATS_LE32(ht, unsupport_mcs);
+	} else {
+		struct mvm_statistics_rx_ht_phy *ht =
+			&mvm->rx_stats.ofdm_ht;
+
+		PRINT_STATS_LE32(ht, mh_format_err);
+		PRINT_STATS_LE32(ht, agg_mpdu_cnt);
+		PRINT_STATS_LE32(ht, agg_cnt);
+		PRINT_STATS_LE32(ht, unsupport_mcs);
+	}
 
 	mutex_unlock(&mvm->mutex);
 

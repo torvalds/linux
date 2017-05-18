@@ -447,7 +447,11 @@ enum iwl_legacy_cmds {
 	TX_ANT_CONFIGURATION_CMD = 0x98,
 
 	/**
-	 * @STATISTICS_CMD: &struct iwl_statistics_cmd
+	 * @STATISTICS_CMD:
+	 * one of &struct iwl_statistics_cmd,
+	 * &struct iwl_notif_statistics_v11,
+	 * &struct iwl_notif_statistics_v10,
+	 * &struct iwl_notif_statistics_cdb
 	 */
 	STATISTICS_CMD = 0x9c,
 

@@ -780,7 +780,10 @@ struct iwl_mvm {
 
 	struct iwl_notif_wait_data notif_wait;
 
-	struct mvm_statistics_rx rx_stats;
+	union {
+		struct mvm_statistics_rx_v3 rx_stats_v3;
+		struct mvm_statistics_rx rx_stats;
+	};
 
 	struct {
 		u64 rx_time;
@@ -1295,6 +1298,12 @@ static inline bool iwl_mvm_is_cdb_supported(struct iwl_mvm *mvm)
 	 */
 	return fw_has_capa(&mvm->fw->ucode_capa,
 			   IWL_UCODE_TLV_CAPA_CDB_SUPPORT);
+}
+
+static inline bool iwl_mvm_has_new_rx_stats_api(struct iwl_mvm *mvm)
+{
+	return fw_has_api(&mvm->fw->ucode_capa,
+			  IWL_UCODE_TLV_API_NEW_RX_STATS);
 }
 
 static inline struct agg_tx_status *
