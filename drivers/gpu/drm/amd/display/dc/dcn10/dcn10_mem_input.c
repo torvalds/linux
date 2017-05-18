@@ -237,16 +237,23 @@ static bool mem_input_program_surface_flip_and_addr(
 	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
 
 	/* program flip type */
-
 	REG_UPDATE(DCSURF_FLIP_CONTROL,
 			SURFACE_FLIP_TYPE, flip_immediate);
 
-	/* REG_UPDATE(FLIP_CONTROL, SURFACE_UPDATE_LOCK, 1); */
-
-
-	/* program high first and then the low addr, order matters! */
+	/* HW automatically latch rest of address register on write to
+	 * DCSURF_PRIMARY_SURFACE_ADDRESS if SURFACE_UPDATE_LOCK is not used
+	 *
+	 * program high first and then the low addr, order matters!
+	 */
 	switch (address->type) {
 	case PLN_ADDR_TYPE_GRAPHICS:
+		/* DCN1.0 does not support const color
+		 * TODO: program DCHUBBUB_RET_PATH_DCC_CFGx_0/1
+		 * base on address->grph.dcc_const_color
+		 * x = 0, 2, 4, 6 for pipe 0, 1, 2, 3 for rgb and luma
+		 * x = 1, 3, 5, 7 for pipe 0, 1, 2, 3 for chroma
+		 */
+
 		if (address->grph.addr.quad_part == 0)
 			break;
 
@@ -268,14 +275,6 @@ static bool mem_input_program_surface_flip_and_addr(
 		REG_UPDATE(DCSURF_PRIMARY_SURFACE_ADDRESS,
 				PRIMARY_SURFACE_ADDRESS,
 				address->grph.addr.low_part);
-
-
-		/* DCN1.0 does not support const color
-		 * TODO: program DCHUBBUB_RET_PATH_DCC_CFGx_0/1
-		 * base on address->grph.dcc_const_color
-		 * x = 0, 2, 4, 6 for pipe 0, 1, 2, 3 for rgb and luma
-		 * x = 1, 3, 5, 7 for pipe 0, 1, 2, 3 for chroma
-		 */
 		break;
 	case PLN_ADDR_TYPE_VIDEO_PROGRESSIVE:
 		if (address->video_progressive.luma_addr.quad_part == 0
@@ -301,14 +300,6 @@ static bool mem_input_program_surface_flip_and_addr(
 				address->video_progressive.chroma_meta_addr.low_part);
 		}
 
-		REG_UPDATE(DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH,
-			PRIMARY_SURFACE_ADDRESS_HIGH,
-			address->video_progressive.luma_addr.high_part);
-
-		REG_UPDATE(DCSURF_PRIMARY_SURFACE_ADDRESS,
-			PRIMARY_SURFACE_ADDRESS,
-			address->video_progressive.luma_addr.low_part);
-
 		REG_UPDATE(DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C,
 			PRIMARY_SURFACE_ADDRESS_HIGH_C,
 			address->video_progressive.chroma_addr.high_part);
@@ -316,6 +307,14 @@ static bool mem_input_program_surface_flip_and_addr(
 		REG_UPDATE(DCSURF_PRIMARY_SURFACE_ADDRESS_C,
 			PRIMARY_SURFACE_ADDRESS_C,
 			address->video_progressive.chroma_addr.low_part);
+
+		REG_UPDATE(DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH,
+			PRIMARY_SURFACE_ADDRESS_HIGH,
+			address->video_progressive.luma_addr.high_part);
+
+		REG_UPDATE(DCSURF_PRIMARY_SURFACE_ADDRESS,
+			PRIMARY_SURFACE_ADDRESS,
+			address->video_progressive.luma_addr.low_part);
 
 		break;
 	case PLN_ADDR_TYPE_GRPH_STEREO:
@@ -365,7 +364,6 @@ static bool mem_input_program_surface_flip_and_addr(
 		BREAK_TO_DEBUGGER();
 		break;
 	}
-	/* REG_UPDATE(FLIP_CONTROL, SURFACE_UPDATE_LOCK, 0); */
 
 	mem_input->request_address = *address;
 
