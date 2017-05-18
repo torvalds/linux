@@ -177,9 +177,18 @@ static int asoc_simple_card_get_dai_id(struct device_node *ep)
 	struct device_node *node;
 	struct device_node *endpoint;
 	int i, id;
+	int ret;
+
+	ret = snd_soc_get_dai_id(ep);
+	if (ret != -ENOTSUPP)
+		return ret;
 
 	node = of_graph_get_port_parent(ep);
 
+	/*
+	 * Non HDMI sound case, counting port/endpoint on its DT
+	 * is enough. Let's count it.
+	 */
 	i = 0;
 	id = -1;
 	for_each_endpoint_of_node(node, endpoint) {
