@@ -4678,9 +4678,6 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 	if (netif_elide_gro(skb->dev))
 		goto normal;
 
-	if (skb->csum_bad)
-		goto normal;
-
 	gro_list_prepare(napi, skb);
 
 	rcu_read_lock();

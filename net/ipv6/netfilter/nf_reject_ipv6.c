@@ -220,9 +220,6 @@ static bool reject6_csum_ok(struct sk_buff *skb, int hook)
 	__be16 fo;
 	u8 proto;
 
-	if (skb->csum_bad)
-		return false;
-
 	if (skb_csum_unnecessary(skb))
 		return true;
 
