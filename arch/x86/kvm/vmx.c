@@ -2769,7 +2769,7 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 		if (enable_ept_ad_bits) {
 			vmx->nested.nested_vmx_secondary_ctls_high |=
 				SECONDARY_EXEC_ENABLE_PML;
-		       vmx->nested.nested_vmx_ept_caps |= VMX_EPT_AD_BIT;
+			vmx->nested.nested_vmx_ept_caps |= VMX_EPT_AD_BIT;
 		}
 	} else
 		vmx->nested.nested_vmx_ept_caps = 0;
