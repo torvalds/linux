@@ -264,16 +264,8 @@ static inline void nc_dump_status(struct usbnet *dev, u16 status)
  * TTL register
  */
 
-#define	TTL_THIS(ttl)	(0x00ff & ttl)
 #define	TTL_OTHER(ttl)	(0x00ff & (ttl >> 8))
 #define MK_TTL(this,other)	((u16)(((other)<<8)|(0x00ff&(this))))
-
-static inline void nc_dump_ttl(struct usbnet *dev, u16 ttl)
-{
-	netif_dbg(dev, link, dev->net, "net1080 %s-%s ttl 0x%x this = %d, other = %d\n",
-		  dev->udev->bus->bus_name, dev->udev->devpath,
-		  ttl, TTL_THIS(ttl), TTL_OTHER(ttl));
-}
 
 /*-------------------------------------------------------------------------*/
 
@@ -308,7 +300,6 @@ static int net1080_reset(struct usbnet *dev)
 		goto done;
 	}
 	ttl = vp;
-	// nc_dump_ttl(dev, ttl);
 
 	nc_register_write(dev, REG_TTL,
 			MK_TTL(NC_READ_TTL_MS, TTL_OTHER(ttl)) );
