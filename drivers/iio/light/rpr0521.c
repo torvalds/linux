@@ -371,6 +371,7 @@ static int rpr0521_read_raw(struct iio_dev *indio_dev,
 		*val = le16_to_cpu(raw_data);
 
 		return IIO_VAL_INT;
+
 	case IIO_CHAN_INFO_SCALE:
 		mutex_lock(&data->lock);
 		ret = rpr0521_get_gain(data, chan->address, val, val2);
@@ -379,6 +380,7 @@ static int rpr0521_read_raw(struct iio_dev *indio_dev,
 			return ret;
 
 		return IIO_VAL_INT_PLUS_MICRO;
+
 	default:
 		return -EINVAL;
 	}
@@ -398,6 +400,7 @@ static int rpr0521_write_raw(struct iio_dev *indio_dev,
 		mutex_unlock(&data->lock);
 
 		return ret;
+
 	default:
 		return -EINVAL;
 	}
