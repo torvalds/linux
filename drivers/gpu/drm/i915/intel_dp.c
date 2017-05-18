@@ -1593,6 +1593,8 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	int common_rates[DP_MAX_SUPPORTED_RATES] = {};
 	int common_len;
 	uint8_t link_bw, rate_select;
+	bool reduce_m_n = drm_dp_has_quirk(&intel_dp->desc,
+					   DP_DPCD_QUIRK_LIMITED_M_N);
 
 	common_len = intel_dp_common_rates(intel_dp, common_rates);
 
@@ -1722,7 +1724,8 @@ found:
 	intel_link_compute_m_n(bpp, lane_count,
 			       adjusted_mode->crtc_clock,
 			       pipe_config->port_clock,
-			       &pipe_config->dp_m_n);
+			       &pipe_config->dp_m_n,
+			       reduce_m_n);
 
 	if (intel_connector->panel.downclock_mode != NULL &&
 		dev_priv->drrs.type == SEAMLESS_DRRS_SUPPORT) {
@@ -1730,7 +1733,8 @@ found:
 			intel_link_compute_m_n(bpp, lane_count,
 				intel_connector->panel.downclock_mode->clock,
 				pipe_config->port_clock,
-				&pipe_config->dp_m2_n2);
+				&pipe_config->dp_m2_n2,
+				reduce_m_n);
 	}
 
 	/*
