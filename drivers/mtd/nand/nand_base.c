@@ -502,10 +502,12 @@ static int nand_default_block_markbad(struct mtd_info *mtd, loff_t ofs)
  * specify how to write bad block markers to OOB (chip->block_markbad).
  *
  * We try operations in the following order:
+ *
  *  (1) erase the affected block, to allow OOB marker to be written cleanly
  *  (2) write bad block marker to OOB area of affected block (unless flag
  *      NAND_BBT_NO_OOB_BBM is present)
  *  (3) update the BBT
+ *
  * Note that we retain the first error encountered in (2) or (3), finish the
  * procedures, and dump the error in the end.
 */
@@ -1219,9 +1221,10 @@ int nand_reset(struct nand_chip *chip, int chipnr)
  * @mtd: mtd info
  * @ofs: offset to start unlock from
  * @len: length to unlock
- * @invert: when = 0, unlock the range of blocks within the lower and
+ * @invert:
+ *        - when = 0, unlock the range of blocks within the lower and
  *                    upper boundary address
- *          when = 1, unlock the range of blocks outside the boundaries
+ *        - when = 1, unlock the range of blocks outside the boundaries
  *                    of the lower and upper boundary address
  *
  * Returs unlock status.

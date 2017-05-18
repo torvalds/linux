@@ -25,7 +25,7 @@
  *
  *
  *  libata documentation is available via 'make {ps|pdf}docs',
- *  as Documentation/DocBook/libata.*
+ *  as Documentation/driver-api/libata.rst
  *
  *  Hardware documentation available from
  *  - http://www.t10.org/
@@ -3398,9 +3398,10 @@ static size_t ata_format_dsm_trim_descr(struct scsi_cmnd *cmd, u32 trmax,
  *
  * Translate a SCSI WRITE SAME command to be either a DSM TRIM command or
  * an SCT Write Same command.
- * Based on WRITE SAME has the UNMAP flag
- *   When set translate to DSM TRIM
- *   When clear translate to SCT Write Same
+ * Based on WRITE SAME has the UNMAP flag:
+ *
+ *   - When set translate to DSM TRIM
+ *   - When clear translate to SCT Write Same
  */
 static unsigned int ata_scsi_write_same_xlat(struct ata_queued_cmd *qc)
 {

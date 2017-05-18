@@ -3579,7 +3579,6 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/herbert/crypto-2.6.git
 S:	Maintained
 F:	Documentation/crypto/
 F:	Documentation/devicetree/bindings/crypto/
-F:	Documentation/DocBook/crypto-API.tmpl
 F:	arch/*/crypto/
 F:	crypto/
 F:	drivers/crypto/
@@ -7377,7 +7376,7 @@ W:	http://kgdb.wiki.kernel.org/
 L:	kgdb-bugreport@lists.sourceforge.net
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jwessel/kgdb.git
 S:	Maintained
-F:	Documentation/DocBook/kgdb.tmpl
+F:	Documentation/dev-tools/kgdb.rst
 F:	drivers/misc/kgdbts.c
 F:	drivers/tty/serial/kgdboc.c
 F:	include/linux/kdb.h
@@ -10990,7 +10989,7 @@ S:	Supported
 F:	arch/s390/
 F:	drivers/s390/
 F:	Documentation/s390/
-F:	Documentation/DocBook/s390*
+F:	Documentation/driver-api/s390-drivers.rst
 
 S390 COMMON I/O LAYER
 M:	Sebastian Ott <sebott@linux.vnet.ibm.com>

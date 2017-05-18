@@ -51,6 +51,7 @@ merged much easier.
    process/index
    dev-tools/index
    doc-guide/index
+   kernel-hacking/index
 
 Kernel API documentation
 ------------------------
@@ -67,11 +68,24 @@ needed).
    driver-api/index
    core-api/index
    media/index
+   networking/index
    input/index
    gpu/index
    security/index
    sound/index
    crypto/index
+   filesystems/index
+
+Architecture-specific documentation
+-----------------------------------
+
+These books provide programming details about architecture-specific
+implementation.
+
+.. toctree::
+   :maxdepth: 2
+
+   sh/index
 
 Korean translations
 -------------------

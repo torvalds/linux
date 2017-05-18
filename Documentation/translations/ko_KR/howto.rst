@@ -191,13 +191,6 @@ ReST 마크업을 사용하는 문서들은 Documentation/output 에 생성된�
          make latexdocs
          make epubdocs
 
-현재, ReST 로의 변환이 진행중인, DocBook 으로 쓰인 문서들이 존재한다. 그런
-문서들은 Documentation/DocBook/ 디렉토리 안에 생성될 것이고 다음 커맨드를 통해
-Postscript 나 man page 로도 만들어질 수 있다::
-
-         make psdocs
-         make mandocs
-
 커널 개발자가 되는 것
 ---------------------
 
