@@ -348,10 +348,11 @@ static int
 validate_tile_binning_config(VALIDATE_ARGS)
 {
 	struct drm_device *dev = exec->exec_bo->base.dev;
-	struct vc4_bo *tile_bo;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	uint8_t flags;
-	uint32_t tile_state_size, tile_alloc_size;
-	uint32_t tile_count;
+	uint32_t tile_state_size;
+	uint32_t tile_count, bin_addr;
+	int bin_slot;
 
 	if (exec->found_tile_binning_mode_config_packet) {
 		DRM_ERROR("Duplicate VC4_PACKET_TILE_BINNING_MODE_CONFIG\n");
@@ -377,13 +378,28 @@ validate_tile_binning_config(VALIDATE_ARGS)
 		return -EINVAL;
 	}
 
+	bin_slot = vc4_v3d_get_bin_slot(vc4);
+	if (bin_slot < 0) {
+		if (bin_slot != -EINTR && bin_slot != -ERESTARTSYS) {
+			DRM_ERROR("Failed to allocate binner memory: %d\n",
+				  bin_slot);
+		}
+		return bin_slot;
+	}
+
+	/* The slot we allocated will only be used by this job, and is
+	 * free when the job completes rendering.
+	 */
+	exec->bin_slots |= BIT(bin_slot);
+	bin_addr = vc4->bin_bo->base.paddr + bin_slot * vc4->bin_alloc_size;
+
 	/* The tile state data array is 48 bytes per tile, and we put it at
 	 * the start of a BO containing both it and the tile alloc.
 	 */
 	tile_state_size = 48 * tile_count;
 
 	/* Since the tile alloc array will follow us, align. */
-	exec->tile_alloc_offset = roundup(tile_state_size, 4096);
+	exec->tile_alloc_offset = bin_addr + roundup(tile_state_size, 4096);
 
 	*(uint8_t *)(validated + 14) =
 		((flags & ~(VC4_BIN_CONFIG_ALLOC_INIT_BLOCK_SIZE_MASK |
@@ -394,35 +410,13 @@ validate_tile_binning_config(VALIDATE_ARGS)
 		 VC4_SET_FIELD(VC4_BIN_CONFIG_ALLOC_BLOCK_SIZE_128,
 			       VC4_BIN_CONFIG_ALLOC_BLOCK_SIZE));
 
-	/* Initial block size. */
-	tile_alloc_size = 32 * tile_count;
-
-	/*
-	 * The initial allocation gets rounded to the next 256 bytes before
-	 * the hardware starts fulfilling further allocations.
-	 */
-	tile_alloc_size = roundup(tile_alloc_size, 256);
-
-	/* Add space for the extra allocations.  This is what gets used first,
-	 * before overflow memory.  It must have at least 4096 bytes, but we
-	 * want to avoid overflow memory usage if possible.
-	 */
-	tile_alloc_size += 1024 * 1024;
-
-	tile_bo = vc4_bo_create(dev, exec->tile_alloc_offset + tile_alloc_size,
-				true);
-	exec->tile_bo = &tile_bo->base;
-	if (IS_ERR(exec->tile_bo))
-		return PTR_ERR(exec->tile_bo);
-	list_add_tail(&tile_bo->unref_head, &exec->unref_list);
-
 	/* tile alloc address. */
-	*(uint32_t *)(validated + 0) = (exec->tile_bo->paddr +
-					exec->tile_alloc_offset);
+	*(uint32_t *)(validated + 0) = exec->tile_alloc_offset;
 	/* tile alloc size. */
-	*(uint32_t *)(validated + 4) = tile_alloc_size;
+	*(uint32_t *)(validated + 4) = (bin_addr + vc4->bin_alloc_size -
+					exec->tile_alloc_offset);
 	/* tile state address. */
-	*(uint32_t *)(validated + 8) = exec->tile_bo->paddr;
+	*(uint32_t *)(validated + 8) = bin_addr;
 
 	return 0;
 }

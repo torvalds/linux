@@ -19,6 +19,8 @@
  * rendering can return quickly.
  */
 
+#include <linux/dma-buf.h>
+
 #include "vc4_drv.h"
 #include "uapi/drm/vc4_drm.h"
 
@@ -88,6 +90,10 @@ static void vc4_bo_destroy(struct vc4_bo *bo)
 
 	vc4->bo_stats.num_allocated--;
 	vc4->bo_stats.size_allocated -= obj->size;
+
+	if (bo->resv == &bo->_resv)
+		reservation_object_fini(bo->resv);
+
 	drm_gem_cma_free_object(obj);
 }
 
@@ -244,8 +250,12 @@ struct vc4_bo *vc4_bo_create(struct drm_device *dev, size_t unaligned_size,
 			return ERR_PTR(-ENOMEM);
 		}
 	}
+	bo = to_vc4_bo(&cma_obj->base);
 
-	return to_vc4_bo(&cma_obj->base);
+	bo->resv = &bo->_resv;
+	reservation_object_init(bo->resv);
+
+	return bo;
 }
 
 int vc4_dumb_create(struct drm_file *file_priv,
@@ -369,6 +379,13 @@ static void vc4_bo_cache_time_timer(unsigned long data)
 	schedule_work(&vc4->bo_cache.time_work);
 }
 
+struct reservation_object *vc4_prime_res_obj(struct drm_gem_object *obj)
+{
+	struct vc4_bo *bo = to_vc4_bo(obj);
+
+	return bo->resv;
+}
+
 struct dma_buf *
 vc4_prime_export(struct drm_device *dev, struct drm_gem_object *obj, int flags)
 {
@@ -438,6 +455,24 @@ void *vc4_prime_vmap(struct drm_gem_object *obj)
 	}
 
 	return drm_gem_cma_prime_vmap(obj);
+}
+
+struct drm_gem_object *
+vc4_prime_import_sg_table(struct drm_device *dev,
+			  struct dma_buf_attachment *attach,
+			  struct sg_table *sgt)
+{
+	struct drm_gem_object *obj;
+	struct vc4_bo *bo;
+
+	obj = drm_gem_cma_prime_import_sg_table(dev, attach, sgt);
+	if (IS_ERR(obj))
+		return obj;
+
+	bo = to_vc4_bo(obj);
+	bo->resv = attach->dmabuf->resv;
+
+	return obj;
 }
 
 int vc4_create_bo_ioctl(struct drm_device *dev, void *data,

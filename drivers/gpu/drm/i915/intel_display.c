@@ -11444,12 +11444,6 @@ intel_modeset_update_crtc_state(struct drm_atomic_state *state)
 	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
 		to_intel_crtc(crtc)->config = to_intel_crtc_state(new_crtc_state);
 
-		/* Update hwmode for vblank functions */
-		if (new_crtc_state->active)
-			crtc->hwmode = new_crtc_state->adjusted_mode;
-		else
-			crtc->hwmode.crtc_clock = 0;
-
 		/*
 		 * Update legacy state to satisfy fbc code. This can
 		 * be removed when fbc uses the atomic state.
@@ -15425,8 +15419,6 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			to_intel_crtc_state(crtc->base.state);
 		int pixclk = 0;
 
-		crtc->base.hwmode = crtc_state->base.adjusted_mode;
-
 		memset(&crtc->base.mode, 0, sizeof(crtc->base.mode));
 		if (crtc_state->base.active) {
 			intel_mode_from_pipe_config(&crtc->base.mode, crtc_state);
@@ -15456,7 +15448,8 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			if (IS_BROADWELL(dev_priv) && crtc_state->ips_enabled)
 				pixclk = DIV_ROUND_UP(pixclk * 100, 95);
 
-			drm_calc_timestamping_constants(&crtc->base, &crtc->base.hwmode);
+			drm_calc_timestamping_constants(&crtc->base,
+							&crtc_state->base.adjusted_mode);
 			update_scanline_offset(crtc);
 		}
 

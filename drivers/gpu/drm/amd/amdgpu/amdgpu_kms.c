@@ -945,47 +945,6 @@ void amdgpu_disable_vblank_kms(struct drm_device *dev, unsigned int pipe)
 	amdgpu_irq_put(adev, &adev->crtc_irq, idx);
 }
 
-/**
- * amdgpu_get_vblank_timestamp_kms - get vblank timestamp
- *
- * @dev: drm dev pointer
- * @crtc: crtc to get the timestamp for
- * @max_error: max error
- * @vblank_time: time value
- * @flags: flags passed to the driver
- *
- * Gets the timestamp on the requested crtc based on the
- * scanout position.  (all asics).
- * Returns postive status flags on success, negative error on failure.
- */
-int amdgpu_get_vblank_timestamp_kms(struct drm_device *dev, unsigned int pipe,
-				    int *max_error,
-				    struct timeval *vblank_time,
-				    unsigned flags)
-{
-	struct drm_crtc *crtc;
-	struct amdgpu_device *adev = dev->dev_private;
-
-	if (pipe >= dev->num_crtcs) {
-		DRM_ERROR("Invalid crtc %u\n", pipe);
-		return -EINVAL;
-	}
-
-	/* Get associated drm_crtc: */
-	crtc = &adev->mode_info.crtcs[pipe]->base;
-	if (!crtc) {
-		/* This can occur on driver load if some component fails to
-		 * initialize completely and driver is unloaded */
-		DRM_ERROR("Uninitialized crtc %d\n", pipe);
-		return -EINVAL;
-	}
-
-	/* Helper routine in DRM core does all the work: */
-	return drm_calc_vbltimestamp_from_scanoutpos(dev, pipe, max_error,
-						     vblank_time, flags,
-						     &crtc->hwmode);
-}
-
 const struct drm_ioctl_desc amdgpu_ioctls_kms[] = {
 	DRM_IOCTL_DEF_DRV(AMDGPU_GEM_CREATE, amdgpu_gem_create_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(AMDGPU_CTX, amdgpu_ctx_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),

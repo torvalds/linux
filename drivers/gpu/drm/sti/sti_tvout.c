@@ -459,7 +459,7 @@ static void tvout_dbg_vip(struct seq_file *s, int val)
 				   "Aux (color matrix by-passed)",
 				   "", "", "", "", "", "Force value"};
 
-	seq_puts(s, "\t");
+	seq_putc(s, '\t');
 	mask = TVO_VIP_REORDER_MASK << TVO_VIP_REORDER_R_SHIFT;
 	r = (val & mask) >> TVO_VIP_REORDER_R_SHIFT;
 	mask = TVO_VIP_REORDER_MASK << TVO_VIP_REORDER_G_SHIFT;
@@ -558,8 +558,7 @@ static int tvout_dbg_show(struct seq_file *s, void *data)
 	DBGFS_DUMP(TVO_CSC_AUX_M6);
 	DBGFS_DUMP(TVO_CSC_AUX_M7);
 	DBGFS_DUMP(TVO_AUX_IN_VID_FORMAT);
-	seq_puts(s, "\n");
-
+	seq_putc(s, '\n');
 	return 0;
 }
 
@@ -847,7 +846,7 @@ static int sti_tvout_probe(struct platform_device *pdev)
 
 	tvout->dev = dev;
 
-	/* get Memory ressources */
+	/* get memory resources */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "tvout-reg");
 	if (!res) {
 		DRM_ERROR("Invalid glue resource\n");

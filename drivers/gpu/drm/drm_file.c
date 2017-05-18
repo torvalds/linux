@@ -351,9 +351,8 @@ void drm_lastclose(struct drm_device * dev)
  *
  * This function must be used by drivers as their &file_operations.release
  * method. It frees any resources associated with the open file, and calls the
- * &drm_driver.preclose and &drm_driver.lastclose driver callbacks. If this is
- * the last open file for the DRM device also proceeds to call the
- * &drm_driver.lastclose driver callback.
+ * &drm_driver.postclose driver callback. If this is the last open file for the
+ * DRM device also proceeds to call the &drm_driver.lastclose driver callback.
  *
  * RETURNS:
  *
@@ -373,7 +372,8 @@ int drm_release(struct inode *inode, struct file *filp)
 	list_del(&file_priv->lhead);
 	mutex_unlock(&dev->filelist_mutex);
 
-	if (dev->driver->preclose)
+	if (drm_core_check_feature(dev, DRIVER_LEGACY) &&
+	    dev->driver->preclose)
 		dev->driver->preclose(dev, file_priv);
 
 	/* ========================================================

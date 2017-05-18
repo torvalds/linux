@@ -121,6 +121,18 @@ struct drm_vblank_crtc {
 	 * drm_calc_timestamping_constants().
 	 */
 	int linedur_ns;
+
+	/**
+	 * @hwmode:
+	 *
+	 * Cache of the current hardware display mode. Only valid when @enabled
+	 * is set. This is used by helpers like
+	 * drm_calc_vbltimestamp_from_scanoutpos(). We can't just access the
+	 * hardware mode by e.g. looking at &drm_crtc_state.adjusted_mode,
+	 * because that one is really hard to get from interrupt context.
+	 */
+	struct drm_display_mode hwmode;
+
 	/**
 	 * @enabled: Tracks the enabling state of the corresponding &drm_crtc to
 	 * avoid double-disabling and hence corrupting saved state. Needed by
@@ -153,11 +165,10 @@ void drm_crtc_vblank_on(struct drm_crtc *crtc);
 void drm_vblank_cleanup(struct drm_device *dev);
 u32 drm_accurate_vblank_count(struct drm_crtc *crtc);
 
-int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
-					  unsigned int pipe, int *max_error,
-					  struct timeval *vblank_time,
-					  unsigned flags,
-					  const struct drm_display_mode *mode);
+bool drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
+					   unsigned int pipe, int *max_error,
+					   struct timeval *vblank_time,
+					   bool in_vblank_irq);
 void drm_calc_timestamping_constants(struct drm_crtc *crtc,
 				     const struct drm_display_mode *mode);
 

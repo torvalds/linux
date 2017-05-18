@@ -93,11 +93,6 @@ struct drm_plane_helper_funcs;
  * @adjusted_mode: for use by helpers and drivers to compute adjusted mode timings
  * @mode: current mode timings
  * @mode_blob: &drm_property_blob for @mode
- * @degamma_lut: Lookup table for converting framebuffer pixel data
- *	before apply the conversion matrix
- * @ctm: Transformation matrix
- * @gamma_lut: Lookup table for converting pixel data after the
- *	conversion matrix
  * @state: backpointer to global drm_atomic_state
  *
  * Note that the distinction between @enable and @active is rather subtile:
@@ -144,9 +139,30 @@ struct drm_crtc_state {
 	/* blob property to expose current mode to atomic userspace */
 	struct drm_property_blob *mode_blob;
 
-	/* blob property to expose color management to userspace */
+	/**
+	 * @degamma_lut:
+	 *
+	 * Lookup table for converting framebuffer pixel data before apply the
+	 * color conversion matrix @ctm. See drm_crtc_enable_color_mgmt(). The
+	 * blob (if not NULL) is an array of &struct drm_color_lut.
+	 */
 	struct drm_property_blob *degamma_lut;
+
+	/**
+	 * @ctm:
+	 *
+	 * Color transformation matrix. See drm_crtc_enable_color_mgmt(). The
+	 * blob (if not NULL) is a &struct drm_color_ctm.
+	 */
 	struct drm_property_blob *ctm;
+
+	/**
+	 * @gamma_lut:
+	 *
+	 * Lookup table for converting pixel data after the color conversion
+	 * matrix @ctm.  See drm_crtc_enable_color_mgmt(). The blob (if not
+	 * NULL) is an array of &struct drm_color_lut.
+	 */
 	struct drm_property_blob *gamma_lut;
 
 	/**
@@ -312,6 +328,12 @@ struct drm_crtc_funcs {
 	 * Set gamma on the CRTC.
 	 *
 	 * This callback is optional.
+	 *
+	 * Atomic drivers who want to support gamma tables should implement the
+	 * atomic color management support, enabled by calling
+	 * drm_crtc_enable_color_mgmt(), which then supports the legacy gamma
+	 * interface through the drm_atomic_helper_legacy_gamma_set()
+	 * compatibility implementation.
 	 *
 	 * NOTE:
 	 *

@@ -179,6 +179,111 @@
 
 #define DP_GUID				    0x030   /* 1.2 */
 
+#define DP_DSC_SUPPORT                      0x060   /* DP 1.4 */
+# define DP_DSC_DECOMPRESSION_IS_SUPPORTED  (1 << 0)
+
+#define DP_DSC_REV                          0x061
+# define DP_DSC_MAJOR_MASK                  (0xf << 0)
+# define DP_DSC_MINOR_MASK                  (0xf << 4)
+# define DP_DSC_MAJOR_SHIFT                 0
+# define DP_DSC_MINOR_SHIFT                 4
+
+#define DP_DSC_RC_BUF_BLK_SIZE              0x062
+# define DP_DSC_RC_BUF_BLK_SIZE_1           0x0
+# define DP_DSC_RC_BUF_BLK_SIZE_4           0x1
+# define DP_DSC_RC_BUF_BLK_SIZE_16          0x2
+# define DP_DSC_RC_BUF_BLK_SIZE_64          0x3
+
+#define DP_DSC_RC_BUF_SIZE                  0x063
+
+#define DP_DSC_SLICE_CAP_1                  0x064
+# define DP_DSC_1_PER_DP_DSC_SINK           (1 << 0)
+# define DP_DSC_2_PER_DP_DSC_SINK           (1 << 1)
+# define DP_DSC_4_PER_DP_DSC_SINK           (1 << 3)
+# define DP_DSC_6_PER_DP_DSC_SINK           (1 << 4)
+# define DP_DSC_8_PER_DP_DSC_SINK           (1 << 5)
+# define DP_DSC_10_PER_DP_DSC_SINK          (1 << 6)
+# define DP_DSC_12_PER_DP_DSC_SINK          (1 << 7)
+
+#define DP_DSC_LINE_BUF_BIT_DEPTH           0x065
+# define DP_DSC_LINE_BUF_BIT_DEPTH_MASK     (0xf << 0)
+# define DP_DSC_LINE_BUF_BIT_DEPTH_9        0x0
+# define DP_DSC_LINE_BUF_BIT_DEPTH_10       0x1
+# define DP_DSC_LINE_BUF_BIT_DEPTH_11       0x2
+# define DP_DSC_LINE_BUF_BIT_DEPTH_12       0x3
+# define DP_DSC_LINE_BUF_BIT_DEPTH_13       0x4
+# define DP_DSC_LINE_BUF_BIT_DEPTH_14       0x5
+# define DP_DSC_LINE_BUF_BIT_DEPTH_15       0x6
+# define DP_DSC_LINE_BUF_BIT_DEPTH_16       0x7
+# define DP_DSC_LINE_BUF_BIT_DEPTH_8        0x8
+
+#define DP_DSC_BLK_PREDICTION_SUPPORT       0x066
+# define DP_DSC_BLK_PREDICTION_IS_SUPPORTED (1 << 0)
+
+#define DP_DSC_MAX_BITS_PER_PIXEL_LOW       0x067   /* eDP 1.4 */
+
+#define DP_DSC_MAX_BITS_PER_PIXEL_HI        0x068   /* eDP 1.4 */
+
+#define DP_DSC_DEC_COLOR_FORMAT_CAP         0x069
+# define DP_DSC_RGB                         (1 << 0)
+# define DP_DSC_YCbCr444                    (1 << 1)
+# define DP_DSC_YCbCr422_Simple             (1 << 2)
+# define DP_DSC_YCbCr422_Native             (1 << 3)
+# define DP_DSC_YCbCr420_Native             (1 << 4)
+
+#define DP_DSC_DEC_COLOR_DEPTH_CAP          0x06A
+# define DP_DSC_8_BPC                       (1 << 1)
+# define DP_DSC_10_BPC                      (1 << 2)
+# define DP_DSC_12_BPC                      (1 << 3)
+
+#define DP_DSC_PEAK_THROUGHPUT              0x06B
+# define DP_DSC_THROUGHPUT_MODE_0_MASK      (0xf << 0)
+# define DP_DSC_THROUGHPUT_MODE_0_SHIFT     0
+# define DP_DSC_THROUGHPUT_MODE_0_340       (1 << 0)
+# define DP_DSC_THROUGHPUT_MODE_0_400       (2 << 0)
+# define DP_DSC_THROUGHPUT_MODE_0_450       (3 << 0)
+# define DP_DSC_THROUGHPUT_MODE_0_500       (4 << 0)
+# define DP_DSC_THROUGHPUT_MODE_0_550       (5 << 0)
+# define DP_DSC_THROUGHPUT_MODE_0_600       (6 << 0)
+# define DP_DSC_THROUGHPUT_MODE_0_650       (7 << 0)
+# define DP_DSC_THROUGHPUT_MODE_0_700       (8 << 0)
+# define DP_DSC_THROUGHPUT_MODE_0_750       (9 << 0)
+# define DP_DSC_THROUGHPUT_MODE_0_800       (10 << 0)
+# define DP_DSC_THROUGHPUT_MODE_0_850       (11 << 0)
+# define DP_DSC_THROUGHPUT_MODE_0_900       (12 << 0)
+# define DP_DSC_THROUGHPUT_MODE_0_950       (13 << 0)
+# define DP_DSC_THROUGHPUT_MODE_0_1000      (14 << 0)
+# define DP_DSC_THROUGHPUT_MODE_1_MASK      (0xf << 4)
+# define DP_DSC_THROUGHPUT_MODE_1_SHIFT     4
+# define DP_DSC_THROUGHPUT_MODE_1_340       (1 << 4)
+# define DP_DSC_THROUGHPUT_MODE_1_400       (2 << 4)
+# define DP_DSC_THROUGHPUT_MODE_1_450       (3 << 4)
+# define DP_DSC_THROUGHPUT_MODE_1_500       (4 << 4)
+# define DP_DSC_THROUGHPUT_MODE_1_550       (5 << 4)
+# define DP_DSC_THROUGHPUT_MODE_1_600       (6 << 4)
+# define DP_DSC_THROUGHPUT_MODE_1_650       (7 << 4)
+# define DP_DSC_THROUGHPUT_MODE_1_700       (8 << 4)
+# define DP_DSC_THROUGHPUT_MODE_1_750       (9 << 4)
+# define DP_DSC_THROUGHPUT_MODE_1_800       (10 << 4)
+# define DP_DSC_THROUGHPUT_MODE_1_850       (11 << 4)
+# define DP_DSC_THROUGHPUT_MODE_1_900       (12 << 4)
+# define DP_DSC_THROUGHPUT_MODE_1_950       (13 << 4)
+# define DP_DSC_THROUGHPUT_MODE_1_1000      (14 << 4)
+
+#define DP_DSC_MAX_SLICE_WIDTH              0x06C
+
+#define DP_DSC_SLICE_CAP_2                  0x06D
+# define DP_DSC_16_PER_DP_DSC_SINK          (1 << 0)
+# define DP_DSC_20_PER_DP_DSC_SINK          (1 << 1)
+# define DP_DSC_24_PER_DP_DSC_SINK          (1 << 2)
+
+#define DP_DSC_BITS_PER_PIXEL_INC           0x06F
+# define DP_DSC_BITS_PER_PIXEL_1_16         0x0
+# define DP_DSC_BITS_PER_PIXEL_1_8          0x1
+# define DP_DSC_BITS_PER_PIXEL_1_4          0x2
+# define DP_DSC_BITS_PER_PIXEL_1_2          0x3
+# define DP_DSC_BITS_PER_PIXEL_1            0x4
+
 #define DP_PSR_SUPPORT                      0x070   /* XXX 1.2? */
 # define DP_PSR_IS_SUPPORTED                1
 # define DP_PSR2_IS_SUPPORTED		    2	    /* eDP 1.4 */
@@ -338,6 +443,8 @@
 
 #define DP_AUX_FRAME_SYNC_VALUE		    0x15c   /* eDP 1.4 */
 # define DP_AUX_FRAME_SYNC_VALID	    (1 << 0)
+
+#define DP_DSC_ENABLE                       0x160   /* DP 1.4 */
 
 #define DP_PSR_EN_CFG			    0x170   /* XXX 1.2? */
 # define DP_PSR_ENABLE			    (1 << 0)
@@ -603,6 +710,9 @@
 #define DP_DEVICE_SERVICE_IRQ_VECTOR_ESI0   0x2003   /* 1.2 */
 
 #define DP_DEVICE_SERVICE_IRQ_VECTOR_ESI1   0x2004   /* 1.2 */
+# define DP_RX_GTC_MSTR_REQ_STATUS_CHANGE    (1 << 0)
+# define DP_LOCK_ACQUISITION_REQUEST         (1 << 1)
+# define DP_CEC_IRQ                          (1 << 2)
 
 #define DP_LINK_SERVICE_IRQ_VECTOR_ESI0     0x2005   /* 1.2 */
 
@@ -635,6 +745,62 @@
 # define DP_VSC_EXT_VESA_SDP_CHAINING_SUPPORTED		(1 << 5)  /* DP 1.4 */
 # define DP_VSC_EXT_CEA_SDP_SUPPORTED			(1 << 6)  /* DP 1.4 */
 # define DP_VSC_EXT_CEA_SDP_CHAINING_SUPPORTED		(1 << 7)  /* DP 1.4 */
+
+/* HDMI CEC tunneling over AUX DP 1.3 section 5.3.3.3.1 DPCD 1.4+ */
+#define DP_CEC_TUNNELING_CAPABILITY            0x3000
+# define DP_CEC_TUNNELING_CAPABLE               (1 << 0)
+# define DP_CEC_SNOOPING_CAPABLE                (1 << 1)
+# define DP_CEC_MULTIPLE_LA_CAPABLE             (1 << 2)
+
+#define DP_CEC_TUNNELING_CONTROL               0x3001
+# define DP_CEC_TUNNELING_ENABLE                (1 << 0)
+# define DP_CEC_SNOOPING_ENABLE                 (1 << 1)
+
+#define DP_CEC_RX_MESSAGE_INFO                 0x3002
+# define DP_CEC_RX_MESSAGE_LEN_MASK             (0xf << 0)
+# define DP_CEC_RX_MESSAGE_LEN_SHIFT            0
+# define DP_CEC_RX_MESSAGE_HPD_STATE            (1 << 4)
+# define DP_CEC_RX_MESSAGE_HPD_LOST             (1 << 5)
+# define DP_CEC_RX_MESSAGE_ACKED                (1 << 6)
+# define DP_CEC_RX_MESSAGE_ENDED                (1 << 7)
+
+#define DP_CEC_TX_MESSAGE_INFO                 0x3003
+# define DP_CEC_TX_MESSAGE_LEN_MASK             (0xf << 0)
+# define DP_CEC_TX_MESSAGE_LEN_SHIFT            0
+# define DP_CEC_TX_RETRY_COUNT_MASK             (0x7 << 4)
+# define DP_CEC_TX_RETRY_COUNT_SHIFT            4
+# define DP_CEC_TX_MESSAGE_SEND                 (1 << 7)
+
+#define DP_CEC_TUNNELING_IRQ_FLAGS             0x3004
+# define DP_CEC_RX_MESSAGE_INFO_VALID           (1 << 0)
+# define DP_CEC_RX_MESSAGE_OVERFLOW             (1 << 1)
+# define DP_CEC_TX_MESSAGE_SENT                 (1 << 4)
+# define DP_CEC_TX_LINE_ERROR                   (1 << 5)
+# define DP_CEC_TX_ADDRESS_NACK_ERROR           (1 << 6)
+# define DP_CEC_TX_DATA_NACK_ERROR              (1 << 7)
+
+#define DP_CEC_LOGICAL_ADDRESS_MASK            0x300E /* 0x300F word */
+# define DP_CEC_LOGICAL_ADDRESS_0               (1 << 0)
+# define DP_CEC_LOGICAL_ADDRESS_1               (1 << 1)
+# define DP_CEC_LOGICAL_ADDRESS_2               (1 << 2)
+# define DP_CEC_LOGICAL_ADDRESS_3               (1 << 3)
+# define DP_CEC_LOGICAL_ADDRESS_4               (1 << 4)
+# define DP_CEC_LOGICAL_ADDRESS_5               (1 << 5)
+# define DP_CEC_LOGICAL_ADDRESS_6               (1 << 6)
+# define DP_CEC_LOGICAL_ADDRESS_7               (1 << 7)
+#define DP_CEC_LOGICAL_ADDRESS_MASK_2          0x300F /* 0x300E word */
+# define DP_CEC_LOGICAL_ADDRESS_8               (1 << 0)
+# define DP_CEC_LOGICAL_ADDRESS_9               (1 << 1)
+# define DP_CEC_LOGICAL_ADDRESS_10              (1 << 2)
+# define DP_CEC_LOGICAL_ADDRESS_11              (1 << 3)
+# define DP_CEC_LOGICAL_ADDRESS_12              (1 << 4)
+# define DP_CEC_LOGICAL_ADDRESS_13              (1 << 5)
+# define DP_CEC_LOGICAL_ADDRESS_14              (1 << 6)
+# define DP_CEC_LOGICAL_ADDRESS_15              (1 << 7)
+
+#define DP_CEC_RX_MESSAGE_BUFFER               0x3010
+#define DP_CEC_TX_MESSAGE_BUFFER               0x3020
+#define DP_CEC_MESSAGE_BUFFER_LENGTH             0x10
 
 /* DP 1.2 Sideband message defines */
 /* peer device type - DP 1.2a Table 2-92 */

@@ -881,7 +881,7 @@ done:
 }
 
 static void
-nouveau_drm_preclose(struct drm_device *dev, struct drm_file *fpriv)
+nouveau_drm_postclose(struct drm_device *dev, struct drm_file *fpriv)
 {
 	struct nouveau_cli *cli = nouveau_cli(fpriv);
 	struct nouveau_drm *drm = nouveau_drm(dev);
@@ -897,12 +897,6 @@ nouveau_drm_preclose(struct drm_device *dev, struct drm_file *fpriv)
 	list_del(&cli->head);
 	mutex_unlock(&drm->client.mutex);
 
-}
-
-static void
-nouveau_drm_postclose(struct drm_device *dev, struct drm_file *fpriv)
-{
-	struct nouveau_cli *cli = nouveau_cli(fpriv);
 	nouveau_cli_fini(cli);
 	kfree(cli);
 	pm_runtime_mark_last_busy(dev->dev);
@@ -974,7 +968,6 @@ driver_stub = {
 	.load = nouveau_drm_load,
 	.unload = nouveau_drm_unload,
 	.open = nouveau_drm_open,
-	.preclose = nouveau_drm_preclose,
 	.postclose = nouveau_drm_postclose,
 	.lastclose = nouveau_vga_lastclose,
 
@@ -985,7 +978,7 @@ driver_stub = {
 	.enable_vblank = nouveau_display_vblank_enable,
 	.disable_vblank = nouveau_display_vblank_disable,
 	.get_scanout_position = nouveau_display_scanoutpos,
-	.get_vblank_timestamp = nouveau_display_vblstamp,
+	.get_vblank_timestamp = drm_calc_vbltimestamp_from_scanoutpos,
 
 	.ioctls = nouveau_ioctls,
 	.num_ioctls = ARRAY_SIZE(nouveau_ioctls),

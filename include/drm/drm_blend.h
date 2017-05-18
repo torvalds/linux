@@ -28,6 +28,7 @@
 
 struct drm_device;
 struct drm_atomic_state;
+struct drm_plane;
 
 /*
  * Rotation property bits. DRM_ROTATE_<degrees> rotates the image by the
