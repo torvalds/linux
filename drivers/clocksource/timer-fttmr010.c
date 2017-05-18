@@ -238,11 +238,17 @@ static int __init fttmr010_timer_of_init(struct device_node *np)
 	 * and using EXTCLK is not supported in the driver.
 	 */
 	struct clk *clk;
+	int ret;
 
 	clk = of_clk_get_by_name(np, "PCLK");
 	if (IS_ERR(clk)) {
-		pr_err("could not get PCLK");
+		pr_err("could not get PCLK\n");
 		return PTR_ERR(clk);
+	}
+	ret = clk_prepare_enable(clk);
+	if (ret) {
+		pr_err("failed to enable PCLK\n");
+		return ret;
 	}
 	tick_rate = clk_get_rate(clk);
 
