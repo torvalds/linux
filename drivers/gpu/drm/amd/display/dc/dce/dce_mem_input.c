@@ -621,15 +621,10 @@ static bool dce_mi_program_surface_flip_and_addr(
 {
 	struct dce_mem_input *dce_mi = TO_DCE_MEM_INPUT(mem_input);
 
-	/* TODO: Figure out if two modes are needed:
-	 * non-XDMA Mode: GRPH_SURFACE_UPDATE_IMMEDIATE_EN = 1
-	 * XDMA Mode: GRPH_SURFACE_UPDATE_H_RETRACE_EN = 1
-	 */
 	REG_UPDATE(GRPH_UPDATE, GRPH_UPDATE_LOCK, 1);
 
-	REG_UPDATE_2(
+	REG_UPDATE(
 		GRPH_FLIP_CONTROL,
-		GRPH_SURFACE_UPDATE_IMMEDIATE_EN, 0,
 		GRPH_SURFACE_UPDATE_H_RETRACE_EN, flip_immediate ? 1 : 0);
 
 	switch (address->type) {
