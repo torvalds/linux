@@ -121,6 +121,7 @@ struct drm_i915_private *mock_gem_device(void)
 		goto err;
 
 	device_initialize(&pdev->dev);
+	pdev->class = PCI_BASE_CLASS_DISPLAY << 16;
 	pdev->dev.release = release_dev;
 	dev_set_name(&pdev->dev, "mock");
 	dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
