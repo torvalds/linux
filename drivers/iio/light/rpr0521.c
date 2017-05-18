@@ -30,6 +30,7 @@
 #define RPR0521_REG_PXS_DATA		0x44 /* 16-bit, little endian */
 #define RPR0521_REG_ALS_DATA0		0x46 /* 16-bit, little endian */
 #define RPR0521_REG_ALS_DATA1		0x48 /* 16-bit, little endian */
+#define RPR0521_REG_PS_OFFSET_LSB	0x53
 #define RPR0521_REG_ID			0x92
 
 #define RPR0521_MODE_ALS_MASK		BIT(7)
@@ -218,6 +219,7 @@ static const struct iio_chan_spec rpr0521_channels[] = {
 		.type = IIO_PROXIMITY,
 		.address = RPR0521_CHAN_PXS,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+			BIT(IIO_CHAN_INFO_OFFSET) |
 			BIT(IIO_CHAN_INFO_SCALE),
 		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ),
 	}
@@ -431,6 +433,40 @@ static int rpr0521_write_samp_freq_common(struct rpr0521_data *data,
 		i);
 }
 
+static int rpr0521_read_ps_offset(struct rpr0521_data *data, int *offset)
+{
+	int ret;
+	__le16 buffer;
+
+	ret = regmap_bulk_read(data->regmap,
+		RPR0521_REG_PS_OFFSET_LSB, &buffer, sizeof(buffer));
+
+	if (ret < 0) {
+		dev_err(&data->client->dev, "Failed to read PS OFFSET register\n");
+		return ret;
+	}
+	*offset = le16_to_cpu(buffer);
+
+	return ret;
+}
+
+static int rpr0521_write_ps_offset(struct rpr0521_data *data, int offset)
+{
+	int ret;
+	__le16 buffer;
+
+	buffer = cpu_to_le16(offset & 0x3ff);
+	ret = regmap_raw_write(data->regmap,
+		RPR0521_REG_PS_OFFSET_LSB, &buffer, sizeof(buffer));
+
+	if (ret < 0) {
+		dev_err(&data->client->dev, "Failed to write PS OFFSET register\n");
+		return ret;
+	}
+
+	return ret;
+}
+
 static int rpr0521_read_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan, int *val,
 			    int *val2, long mask)
@@ -490,6 +526,15 @@ static int rpr0521_read_raw(struct iio_dev *indio_dev,
 
 		return IIO_VAL_INT_PLUS_MICRO;
 
+	case IIO_CHAN_INFO_OFFSET:
+		mutex_lock(&data->lock);
+		ret = rpr0521_read_ps_offset(data, val);
+		mutex_unlock(&data->lock);
+		if (ret < 0)
+			return ret;
+
+		return IIO_VAL_INT;
+
 	default:
 		return -EINVAL;
 	}
@@ -514,6 +559,13 @@ static int rpr0521_write_raw(struct iio_dev *indio_dev,
 		mutex_lock(&data->lock);
 		ret = rpr0521_write_samp_freq_common(data, chan->type,
 						     val, val2);
+		mutex_unlock(&data->lock);
+
+		return ret;
+
+	case IIO_CHAN_INFO_OFFSET:
+		mutex_lock(&data->lock);
+		ret = rpr0521_write_ps_offset(data, val);
 		mutex_unlock(&data->lock);
 
 		return ret;
