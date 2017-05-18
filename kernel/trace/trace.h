@@ -999,6 +999,10 @@ static inline __init int unregister_ftrace_command(char *cmd_name)
 {
 	return -EINVAL;
 }
+static inline void clear_ftrace_function_probes(struct trace_array *tr)
+{
+}
+
 /*
  * The ops parameter passed in is usually undefined.
  * This must be a macro.
