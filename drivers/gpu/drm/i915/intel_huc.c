@@ -52,8 +52,8 @@
 #define KBL_HUC_FW_MINOR 00
 #define KBL_BLD_NUM 1810
 
-#define GLK_HUC_FW_MAJOR 01
-#define GLK_HUC_FW_MINOR 07
+#define GLK_HUC_FW_MAJOR 02
+#define GLK_HUC_FW_MINOR 00
 #define GLK_BLD_NUM 1748
 
 #define HUC_FW_PATH(platform, major, minor, bld_num) \
