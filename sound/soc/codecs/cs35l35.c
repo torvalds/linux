@@ -1269,7 +1269,7 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 			return -EINVAL;
 		}
 
-		pdata->bst_ipk = (val32 - 1680) / 110;
+		pdata->bst_ipk = ((val32 - 1680) / 110) | CS35L35_VALID_PDATA;
 	}
 
 	ret = of_property_read_u32(np, "cirrus,boost-ind-nanohenry", &val32);
