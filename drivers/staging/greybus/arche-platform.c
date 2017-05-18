@@ -615,7 +615,7 @@ static int arche_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int arche_platform_suspend(struct device *dev)
+static __maybe_unused int arche_platform_suspend(struct device *dev)
 {
 	/*
 	 * If timing profile premits, we may shutdown bridge
@@ -629,7 +629,7 @@ static int arche_platform_suspend(struct device *dev)
 	return 0;
 }
 
-static int arche_platform_resume(struct device *dev)
+static __maybe_unused int arche_platform_resume(struct device *dev)
 {
 	/*
 	 * Atleast for ES2 we have to meet the delay requirement between
