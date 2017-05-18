@@ -644,9 +644,12 @@ static int its_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 	if (cpu >= nr_cpu_ids)
 		return -EINVAL;
 
-	target_col = &its_dev->its->collections[cpu];
-	its_send_movi(its_dev, target_col, id);
-	its_dev->event_map.col_map[id] = cpu;
+	/* don't set the affinity when the target cpu is same as current one */
+	if (cpu != its_dev->event_map.col_map[id]) {
+		target_col = &its_dev->its->collections[cpu];
+		its_send_movi(its_dev, target_col, id);
+		its_dev->event_map.col_map[id] = cpu;
+	}
 
 	return IRQ_SET_MASK_OK_DONE;
 }
