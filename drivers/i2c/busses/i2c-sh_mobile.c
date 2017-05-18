@@ -24,7 +24,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
-#include <linux/i2c/i2c-sh_mobile.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -879,7 +878,6 @@ static int sh_mobile_i2c_hook_irqs(struct platform_device *dev, struct sh_mobile
 
 static int sh_mobile_i2c_probe(struct platform_device *dev)
 {
-	struct i2c_sh_mobile_platform_data *pdata = dev_get_platdata(&dev->dev);
 	struct sh_mobile_i2c_data *pd;
 	struct i2c_adapter *adap;
 	struct resource *res;
@@ -910,7 +908,6 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	if (IS_ERR(pd->reg))
 		return PTR_ERR(pd->reg);
 
-	/* Use platform data bus speed or STANDARD_MODE */
 	ret = of_property_read_u32(dev->dev.of_node, "clock-frequency", &bus_speed);
 	pd->bus_speed = ret ? STANDARD_MODE : bus_speed;
 
@@ -929,11 +926,6 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 			if (config->setup)
 				config->setup(pd);
 		}
-	} else {
-		if (pdata && pdata->bus_speed)
-			pd->bus_speed = pdata->bus_speed;
-		if (pdata && pdata->clks_per_count)
-			pd->clks_per_count = pdata->clks_per_count;
 	}
 
 	/* The IIC blocks on SH-Mobile ARM processors
