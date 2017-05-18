@@ -641,6 +641,27 @@ void arp_xmit(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(arp_xmit);
 
+static bool arp_is_garp(struct net_device *dev, int addr_type,
+			__be16 ar_op,
+			__be32 sip, __be32 tip,
+			unsigned char *sha, unsigned char *tha)
+{
+	bool is_garp = tip == sip && addr_type == RTN_UNICAST;
+
+	/* Gratuitous ARP _replies_ also require target hwaddr to be
+	 * the same as source.
+	 */
+	if (is_garp && ar_op == htons(ARPOP_REPLY))
+		is_garp =
+			/* IPv4 over IEEE 1394 doesn't provide target
+			 * hardware address field in its ARP payload.
+			 */
+			tha &&
+			!memcmp(tha, sha, dev->addr_len);
+
+	return is_garp;
+}
+
 /*
  *	Process an arp request.
  */
@@ -844,18 +865,8 @@ static int arp_process(struct net *net, struct sock *sk, struct sk_buff *skb)
 		   It is possible, that this option should be enabled for some
 		   devices (strip is candidate)
 		 */
-		is_garp = tip == sip && addr_type == RTN_UNICAST;
-
-		/* Gratuitous ARP _replies_ also require target hwaddr to be
-		 * the same as source.
-		 */
-		if (is_garp && arp->ar_op == htons(ARPOP_REPLY))
-			is_garp =
-				/* IPv4 over IEEE 1394 doesn't provide target
-				 * hardware address field in its ARP payload.
-				 */
-				tha &&
-				!memcmp(tha, sha, dev->addr_len);
+		is_garp = arp_is_garp(dev, addr_type, arp->ar_op,
+				      sip, tip, sha, tha);
 
 		if (!n &&
 		    ((arp->ar_op == htons(ARPOP_REPLY)  &&
