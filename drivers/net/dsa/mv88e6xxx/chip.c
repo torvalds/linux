@@ -32,7 +32,6 @@
 #include <linux/gpio/consumer.h>
 #include <linux/phy.h>
 #include <net/dsa.h>
-#include <net/switchdev.h>
 
 #include "mv88e6xxx.h"
 #include "global1.h"
@@ -1269,7 +1268,7 @@ static int mv88e6xxx_vtu_loadpurge(struct mv88e6xxx_chip *chip,
 
 static int mv88e6xxx_port_vlan_dump(struct dsa_switch *ds, int port,
 				    struct switchdev_obj_port_vlan *vlan,
-				    int (*cb)(struct switchdev_obj *obj))
+				    switchdev_obj_dump_cb_t *cb)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	struct mv88e6xxx_vtu_entry next = {
@@ -1700,7 +1699,7 @@ static int mv88e6xxx_port_fdb_del(struct dsa_switch *ds, int port,
 static int mv88e6xxx_port_db_dump_fid(struct mv88e6xxx_chip *chip,
 				      u16 fid, u16 vid, int port,
 				      struct switchdev_obj *obj,
-				      int (*cb)(struct switchdev_obj *obj))
+				      switchdev_obj_dump_cb_t *cb)
 {
 	struct mv88e6xxx_atu_entry addr;
 	int err;
@@ -1755,7 +1754,7 @@ static int mv88e6xxx_port_db_dump_fid(struct mv88e6xxx_chip *chip,
 
 static int mv88e6xxx_port_db_dump(struct mv88e6xxx_chip *chip, int port,
 				  struct switchdev_obj *obj,
-				  int (*cb)(struct switchdev_obj *obj))
+				  switchdev_obj_dump_cb_t *cb)
 {
 	struct mv88e6xxx_vtu_entry vlan = {
 		.vid = chip->info->max_vid,
@@ -1792,7 +1791,7 @@ static int mv88e6xxx_port_db_dump(struct mv88e6xxx_chip *chip, int port,
 
 static int mv88e6xxx_port_fdb_dump(struct dsa_switch *ds, int port,
 				   struct switchdev_obj_port_fdb *fdb,
-				   int (*cb)(struct switchdev_obj *obj))
+				   switchdev_obj_dump_cb_t *cb)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
@@ -4038,7 +4037,7 @@ static int mv88e6xxx_port_mdb_del(struct dsa_switch *ds, int port,
 
 static int mv88e6xxx_port_mdb_dump(struct dsa_switch *ds, int port,
 				   struct switchdev_obj_port_mdb *mdb,
-				   int (*cb)(struct switchdev_obj *obj))
+				   switchdev_obj_dump_cb_t *cb)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;

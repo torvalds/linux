@@ -11,7 +11,7 @@
 #include <linux/etherdevice.h>
 #include <linux/list.h>
 #include <linux/slab.h>
-#include <net/dsa.h>
+
 #include "dsa_priv.h"
 
 static struct sk_buff *trailer_xmit(struct sk_buff *skb, struct net_device *dev)

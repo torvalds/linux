@@ -18,7 +18,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/of.h>
 #include <linux/of_net.h>
-#include <net/dsa.h>
+
 #include "dsa_priv.h"
 
 static LIST_HEAD(dsa_switch_trees);

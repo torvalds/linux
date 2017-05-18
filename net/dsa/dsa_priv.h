@@ -14,6 +14,7 @@
 #include <linux/phy.h>
 #include <linux/netdevice.h>
 #include <linux/netpoll.h>
+#include <net/dsa.h>
 
 struct dsa_device_ops {
 	struct sk_buff *(*xmit)(struct sk_buff *skb, struct net_device *dev);

@@ -29,7 +29,6 @@
 #include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
 #include <net/dsa.h>
-#include <net/switchdev.h>
 
 #include "b53_regs.h"
 #include "b53_priv.h"
@@ -1056,7 +1055,7 @@ EXPORT_SYMBOL(b53_vlan_del);
 
 int b53_vlan_dump(struct dsa_switch *ds, int port,
 		  struct switchdev_obj_port_vlan *vlan,
-		  int (*cb)(struct switchdev_obj *obj))
+		  switchdev_obj_dump_cb_t *cb)
 {
 	struct b53_device *dev = ds->priv;
 	u16 vid, vid_start = 0, pvid;
@@ -1285,7 +1284,7 @@ static void b53_arl_search_rd(struct b53_device *dev, u8 idx,
 static int b53_fdb_copy(struct net_device *dev, int port,
 			const struct b53_arl_entry *ent,
 			struct switchdev_obj_port_fdb *fdb,
-			int (*cb)(struct switchdev_obj *obj))
+			switchdev_obj_dump_cb_t *cb)
 {
 	if (!ent->is_valid)
 		return 0;
@@ -1302,7 +1301,7 @@ static int b53_fdb_copy(struct net_device *dev, int port,
 
 int b53_fdb_dump(struct dsa_switch *ds, int port,
 		 struct switchdev_obj_port_fdb *fdb,
-		 int (*cb)(struct switchdev_obj *obj))
+		 switchdev_obj_dump_cb_t *cb)
 {
 	struct b53_device *priv = ds->priv;
 	struct net_device *dev = ds->ports[port].netdev;

@@ -12,7 +12,7 @@
 #include <linux/etherdevice.h>
 #include <linux/list.h>
 #include <linux/slab.h>
-#include <net/dsa.h>
+
 #include "dsa_priv.h"
 
 /* This tag length is 4 bytes, older ones were 6 bytes, we do not

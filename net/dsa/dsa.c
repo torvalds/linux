@@ -24,7 +24,7 @@
 #include <linux/phy_fixed.h>
 #include <linux/gpio/consumer.h>
 #include <linux/etherdevice.h>
-#include <net/dsa.h>
+
 #include "dsa_priv.h"
 
 static struct sk_buff *dsa_slave_notag_xmit(struct sk_buff *skb,

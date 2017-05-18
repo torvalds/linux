@@ -17,13 +17,12 @@
 #include <linux/of_mdio.h>
 #include <linux/mdio.h>
 #include <linux/list.h>
-#include <net/dsa.h>
 #include <net/rtnetlink.h>
-#include <net/switchdev.h>
 #include <net/pkt_cls.h>
 #include <net/tc_act/tc_mirred.h>
 #include <linux/if_bridge.h>
 #include <linux/netpoll.h>
+
 #include "dsa_priv.h"
 
 static bool dsa_slave_dev_check(struct net_device *dev);
