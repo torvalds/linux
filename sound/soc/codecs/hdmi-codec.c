@@ -719,6 +719,18 @@ static const struct snd_soc_dai_driver hdmi_spdif_dai = {
 	.pcm_new = hdmi_codec_pcm_new,
 };
 
+static int hdmi_of_xlate_dai_id(struct snd_soc_component *component,
+				 struct device_node *endpoint)
+{
+	struct hdmi_codec_priv *hcp = snd_soc_component_get_drvdata(component);
+	int ret = -ENOTSUPP; /* see snd_soc_get_dai_id() */
+
+	if (hcp->hcd.ops->get_dai_id)
+		ret = hcp->hcd.ops->get_dai_id(component, endpoint);
+
+	return ret;
+}
+
 static struct snd_soc_codec_driver hdmi_codec = {
 	.component_driver = {
 		.controls		= hdmi_controls,
@@ -727,6 +739,7 @@ static struct snd_soc_codec_driver hdmi_codec = {
 		.num_dapm_widgets	= ARRAY_SIZE(hdmi_widgets),
 		.dapm_routes		= hdmi_routes,
 		.num_dapm_routes	= ARRAY_SIZE(hdmi_routes),
+		.of_xlate_dai_id	= hdmi_of_xlate_dai_id,
 	},
 };
 
