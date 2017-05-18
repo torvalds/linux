@@ -248,7 +248,6 @@ static struct adj_time_work  wrk;
 static struct {
 	u64				host_time;
 	u64				ref_time;
-	struct system_time_snapshot	snap;
 	spinlock_t			lock;
 } host_ts;
 
@@ -281,7 +280,6 @@ static inline void adj_guesttime(u64 hosttime, u64 reftime, u8 adj_flags)
 		cur_reftime = hyperv_cs->read(hyperv_cs);
 		host_ts.host_time = hosttime;
 		host_ts.ref_time = cur_reftime;
-		ktime_get_snapshot(&host_ts.snap);
 
 		/*
 		 * TimeSync v4 messages contain reference time (guest's Hyper-V
@@ -538,46 +536,12 @@ static int hv_ptp_gettime(struct ptp_clock_info *info, struct timespec64 *ts)
 	return 0;
 }
 
-static int hv_ptp_get_syncdevicetime(ktime_t *device,
-				     struct system_counterval_t *system,
-				     void *ctx)
-{
-	system->cs = hyperv_cs;
-	system->cycles = host_ts.ref_time;
-	*device = ns_to_ktime((host_ts.host_time - WLTIMEDELTA) * 100);
-
-	return 0;
-}
-
-static int hv_ptp_getcrosststamp(struct ptp_clock_info *ptp,
-				 struct system_device_crosststamp *xtstamp)
-{
-	unsigned long flags;
-	int ret;
-
-	spin_lock_irqsave(&host_ts.lock, flags);
-
-	/*
-	 * host_ts contains the last time sample from the host and the snapshot
-	 * of system time. We don't need to calculate the time delta between
-	 * the reception and now as get_device_system_crosststamp() does the
-	 * required interpolation.
-	 */
-	ret = get_device_system_crosststamp(hv_ptp_get_syncdevicetime,
-					    NULL, &host_ts.snap, xtstamp);
-
-	spin_unlock_irqrestore(&host_ts.lock, flags);
-
-	return ret;
-}
-
 static struct ptp_clock_info ptp_hyperv_info = {
 	.name		= "hyperv",
 	.enable         = hv_ptp_enable,
 	.adjtime        = hv_ptp_adjtime,
 	.adjfreq        = hv_ptp_adjfreq,
 	.gettime64      = hv_ptp_gettime,
-	.getcrosststamp = hv_ptp_getcrosststamp,
 	.settime64      = hv_ptp_settime,
 	.owner		= THIS_MODULE,
 };
