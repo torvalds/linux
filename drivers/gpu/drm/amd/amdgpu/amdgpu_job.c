@@ -63,6 +63,7 @@ int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
 	(*job)->num_ibs = num_ibs;
 
 	amdgpu_sync_create(&(*job)->sync);
+	amdgpu_sync_create(&(*job)->dep_sync);
 	amdgpu_sync_create(&(*job)->sched_sync);
 
 	return 0;
@@ -102,6 +103,7 @@ static void amdgpu_job_free_cb(struct amd_sched_job *s_job)
 
 	dma_fence_put(job->fence);
 	amdgpu_sync_free(&job->sync);
+	amdgpu_sync_free(&job->dep_sync);
 	amdgpu_sync_free(&job->sched_sync);
 	kfree(job);
 }
@@ -112,6 +114,7 @@ void amdgpu_job_free(struct amdgpu_job *job)
 
 	dma_fence_put(job->fence);
 	amdgpu_sync_free(&job->sync);
+	amdgpu_sync_free(&job->dep_sync);
 	amdgpu_sync_free(&job->sched_sync);
 	kfree(job);
 }
@@ -144,9 +147,16 @@ static struct dma_fence *amdgpu_job_dependency(struct amd_sched_job *sched_job)
 	struct amdgpu_job *job = to_amdgpu_job(sched_job);
 	struct amdgpu_vm *vm = job->vm;
 
-	struct dma_fence *fence = amdgpu_sync_get_fence(&job->sync);
+	struct dma_fence *fence = amdgpu_sync_get_fence(&job->dep_sync);
 	int r;
 
+	if (amd_sched_dependency_optimized(fence, sched_job->s_entity)) {
+		r = amdgpu_sync_fence(job->adev, &job->sched_sync, fence);
+		if (r)
+			DRM_ERROR("Error adding fence to sync (%d)\n", r);
+	}
+	if (!fence)
+		fence = amdgpu_sync_get_fence(&job->sync);
 	while (fence == NULL && vm && !job->vm_id) {
 		struct amdgpu_ring *ring = job->ring;
 
@@ -159,11 +169,6 @@ static struct dma_fence *amdgpu_job_dependency(struct amd_sched_job *sched_job)
 		fence = amdgpu_sync_get_fence(&job->sync);
 	}
 
-	if (amd_sched_dependency_optimized(fence, sched_job->s_entity)) {
-		r = amdgpu_sync_fence(job->adev, &job->sched_sync, fence);
-		if (r)
-			DRM_ERROR("Error adding fence to sync (%d)\n", r);
-	}
 	return fence;
 }
 
