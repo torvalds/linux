@@ -955,26 +955,30 @@ extern bool sched_rt_bandwidth_account(struct rt_rq *rt_rq);
 /*
  * This function implements the GRUB accounting rule:
  * according to the GRUB reclaiming algorithm, the runtime is
- * not decreased as "dq = -dt", but as "dq = -Uact dt", where
- * Uact is the (per-runqueue) active utilization.
- * Since rq->dl.running_bw contains Uact * 2^BW_SHIFT, the result
- * has to be shifted right by BW_SHIFT.
- * To reclaim only a fraction Umax of the CPU time, the
- * runtime accounting rule is modified as
- * "dq = -Uact / Umax dt"; since rq->dl.bw_ratio contains
- * 2^RATIO_SHIFT / Umax, delta is multiplied by bw_ratio and shifted
- * right by RATIO_SHIFT.
- * Since delta is a 64 bit variable, to have an overflow its value
- * should be larger than 2^(64 - 20 - 8), which is more than 64 seconds.
- * So, overflow is not an issue here.
+ * not decreased as "dq = -dt", but as "dq = -max{u, (1 - Uinact)} dt",
+ * where u is the utilization of the task and Uinact is the
+ * (per-runqueue) inactive utilization, computed as the difference
+ * between the "total runqueue utilization" and the runqueue
+ * active utilization.
+ * Since rq->dl.running_bw and rq->dl.this_bw contain utilizations
+ * multiplied by 2^BW_SHIFT, the result has to be shifted right by BW_SHIFT.
  */
-u64 grub_reclaim(u64 delta, struct rq *rq)
+u64 grub_reclaim(u64 delta, struct rq *rq, struct sched_dl_entity *dl_se)
 {
-	delta *= rq->dl.running_bw;
-	delta *= rq->dl.bw_ratio;
-	delta >>= BW_SHIFT + RATIO_SHIFT;
+	u64 u_inact = rq->dl.this_bw - rq->dl.running_bw; /* Utot - Uact */
+	u64 u_act;
 
-	return delta;
+	/*
+	 * Instead of computing max{u, (1 - u_inact)}, we compare
+	 * u_inact with 1 - u, because u_inact can be larger than 1
+	 * (so, 1 - u_inact would be negative leading to wrong results)
+	 */
+	if (u_inact > BW_UNIT - dl_se->dl_bw)
+		u_act = dl_se->dl_bw;
+	else
+		u_act = BW_UNIT - u_inact;
+
+	return (delta * u_act) >> BW_SHIFT;
 }
 
 /*
@@ -1020,7 +1024,7 @@ static void update_curr_dl(struct rq *rq)
 	sched_rt_avg_update(rq, delta_exec);
 
 	if (unlikely(dl_se->flags & SCHED_FLAG_RECLAIM))
-		delta_exec = grub_reclaim(delta_exec, rq);
+		delta_exec = grub_reclaim(delta_exec, rq, &curr->dl);
 	dl_se->runtime -= delta_exec;
 
 throttle:
