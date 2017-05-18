@@ -1,6 +1,6 @@
 /*
  * STIH4xx CEC driver
- * Copyright (C) STMicroelectronic SA 2016
+ * Copyright (C) STMicroelectronics SA 2016
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -213,7 +213,8 @@ static int stih_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 	for (i = 0; i < msg->len; i++)
 		writeb(msg->msg[i], cec->regs + CEC_TX_DATA_BASE + i);
 
-	/* Start transmission, configure hardware to add start and stop bits
+	/*
+	 * Start transmission, configure hardware to add start and stop bits
 	 * Signal free time is handled by the hardware
 	 */
 	writel(CEC_TX_AUTO_SOM_EN | CEC_TX_AUTO_EOM_EN | CEC_TX_START |
