@@ -47,6 +47,13 @@ struct cpu_context_save {
  * __switch_to() assumes cpu_context follows immediately after cpu_domain.
  */
 struct thread_info {
+#ifdef CONFIG_ARCH_ROCKCHIP
+	/*
+	 * FIXME: prevent unknown write of cpu
+	 * we reservee 64 bytes to make sure cacheline aligned
+	 */
+	__u8			reserved[64];
+#endif
 	unsigned long		flags;		/* low level flags */
 	int			preempt_count;	/* 0 => preemptable, <0 => bug */
 	mm_segment_t		addr_limit;	/* address limit */
