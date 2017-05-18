@@ -99,6 +99,7 @@ struct amdgpu_ring_funcs {
 	uint32_t		align_mask;
 	u32			nop;
 	bool			support_64bit_ptrs;
+	unsigned		vmhub;
 
 	/* ring read/write ptr handling */
 	u64 (*get_rptr)(struct amdgpu_ring *ring);
@@ -178,6 +179,7 @@ struct amdgpu_ring {
 	unsigned		cond_exe_offs;
 	u64			cond_exe_gpu_addr;
 	volatile u32		*cond_exe_cpu_addr;
+	unsigned		vm_inv_eng;
 #if defined(CONFIG_DEBUG_FS)
 	struct dentry *ent;
 #endif

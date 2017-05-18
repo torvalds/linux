@@ -33,11 +33,11 @@
 
 static unsigned int base[MAX_NUM_DIO48E];
 static unsigned int num_dio48e;
-module_param_array(base, uint, &num_dio48e, 0);
+module_param_hw_array(base, uint, ioport, &num_dio48e, 0);
 MODULE_PARM_DESC(base, "ACCES 104-DIO-48E base addresses");
 
 static unsigned int irq[MAX_NUM_DIO48E];
-module_param_array(irq, uint, NULL, 0);
+module_param_hw_array(irq, uint, irq, NULL, 0);
 MODULE_PARM_DESC(irq, "ACCES 104-DIO-48E interrupt line numbers");
 
 /**

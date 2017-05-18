@@ -381,14 +381,10 @@ int vega10_thermal_get_temperature(struct pp_hwmgr *hwmgr)
 
 	temp = cgs_read_register(hwmgr->device, reg);
 
-	temp = (temp & CG_MULT_THERMAL_STATUS__CTF_TEMP_MASK) >>
-			CG_MULT_THERMAL_STATUS__CTF_TEMP__SHIFT;
+	temp = (temp & CG_MULT_THERMAL_STATUS__ASIC_MAX_TEMP_MASK) >>
+			CG_MULT_THERMAL_STATUS__ASIC_MAX_TEMP__SHIFT;
 
-	/* Bit 9 means the reading is lower than the lowest usable value. */
-	if (temp & 0x200)
-		temp = VEGA10_THERMAL_MAXIMUM_TEMP_READING;
-	else
-		temp = temp & 0x1ff;
+	temp = temp & 0x1ff;
 
 	temp *= PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
 
@@ -424,22 +420,27 @@ static int vega10_thermal_set_temperature_range(struct pp_hwmgr *hwmgr,
 			mmTHM_THERMAL_INT_CTRL_BASE_IDX, mmTHM_THERMAL_INT_CTRL);
 
 	val = cgs_read_register(hwmgr->device, reg);
-	val &= ~(THM_THERMAL_INT_CTRL__DIG_THERM_INTH_MASK);
-	val |= (high / PP_TEMPERATURE_UNITS_PER_CENTIGRADES) <<
-			THM_THERMAL_INT_CTRL__DIG_THERM_INTH__SHIFT;
-	val &= ~(THM_THERMAL_INT_CTRL__DIG_THERM_INTL_MASK);
-	val |= (low / PP_TEMPERATURE_UNITS_PER_CENTIGRADES) <<
-			THM_THERMAL_INT_CTRL__DIG_THERM_INTL__SHIFT;
+
+	val &= (~THM_THERMAL_INT_CTRL__MAX_IH_CREDIT_MASK);
+	val |=  (5 << THM_THERMAL_INT_CTRL__MAX_IH_CREDIT__SHIFT);
+
+	val &= (~THM_THERMAL_INT_CTRL__THERM_IH_HW_ENA_MASK);
+	val |= (1 << THM_THERMAL_INT_CTRL__THERM_IH_HW_ENA__SHIFT);
+
+	val &= (~THM_THERMAL_INT_CTRL__DIG_THERM_INTH_MASK);
+	val |= ((high / PP_TEMPERATURE_UNITS_PER_CENTIGRADES)
+			<< THM_THERMAL_INT_CTRL__DIG_THERM_INTH__SHIFT);
+
+	val &= (~THM_THERMAL_INT_CTRL__DIG_THERM_INTL_MASK);
+	val |= ((low / PP_TEMPERATURE_UNITS_PER_CENTIGRADES)
+			<< THM_THERMAL_INT_CTRL__DIG_THERM_INTL__SHIFT);
+
+	val = val & (~THM_THERMAL_INT_CTRL__THERM_TRIGGER_MASK_MASK);
+
 	cgs_write_register(hwmgr->device, reg, val);
 
 	reg = soc15_get_register_offset(THM_HWID, 0,
 			mmTHM_TCON_HTC_BASE_IDX, mmTHM_TCON_HTC);
-
-	val = cgs_read_register(hwmgr->device, reg);
-	val &= ~(THM_TCON_HTC__HTC_TMP_LMT_MASK);
-	val |= (high / PP_TEMPERATURE_UNITS_PER_CENTIGRADES) <<
-			THM_TCON_HTC__HTC_TMP_LMT__SHIFT;
-	cgs_write_register(hwmgr->device, reg, val);
 
 	return 0;
 }
@@ -482,18 +483,28 @@ static int vega10_thermal_initialize(struct pp_hwmgr *hwmgr)
 static int vega10_thermal_enable_alert(struct pp_hwmgr *hwmgr)
 {
 	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	uint32_t val = 0;
+	uint32_t reg;
 
 	if (data->smu_features[GNLD_FW_CTF].supported) {
 		if (data->smu_features[GNLD_FW_CTF].enabled)
 			printk("[Thermal_EnableAlert] FW CTF Already Enabled!\n");
+
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+				true,
+				data->smu_features[GNLD_FW_CTF].smu_feature_bitmap),
+				"Attempt to Enable FW CTF feature Failed!",
+				return -1);
+		data->smu_features[GNLD_FW_CTF].enabled = true;
 	}
 
-	PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
-			true,
-			data->smu_features[GNLD_FW_CTF].smu_feature_bitmap),
-			"Attempt to Enable FW CTF feature Failed!",
-			return -1);
-	data->smu_features[GNLD_FW_CTF].enabled = true;
+	val |= (1 << THM_THERMAL_INT_ENA__THERM_INTH_CLR__SHIFT);
+	val |= (1 << THM_THERMAL_INT_ENA__THERM_INTL_CLR__SHIFT);
+	val |= (1 << THM_THERMAL_INT_ENA__THERM_TRIGGER_CLR__SHIFT);
+
+	reg = soc15_get_register_offset(THM_HWID, 0, mmTHM_THERMAL_INT_ENA_BASE_IDX, mmTHM_THERMAL_INT_ENA);
+	cgs_write_register(hwmgr->device, reg, val);
+
 	return 0;
 }
 
@@ -501,21 +512,27 @@ static int vega10_thermal_enable_alert(struct pp_hwmgr *hwmgr)
 * Disable thermal alerts on the RV770 thermal controller.
 * @param    hwmgr The address of the hardware manager.
 */
-static int vega10_thermal_disable_alert(struct pp_hwmgr *hwmgr)
+int vega10_thermal_disable_alert(struct pp_hwmgr *hwmgr)
 {
 	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	uint32_t reg;
 
 	if (data->smu_features[GNLD_FW_CTF].supported) {
 		if (!data->smu_features[GNLD_FW_CTF].enabled)
 			printk("[Thermal_EnableAlert] FW CTF Already disabled!\n");
-	}
 
-	PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
 			false,
 			data->smu_features[GNLD_FW_CTF].smu_feature_bitmap),
 			"Attempt to disable FW CTF feature Failed!",
 			return -1);
-	data->smu_features[GNLD_FW_CTF].enabled = false;
+		data->smu_features[GNLD_FW_CTF].enabled = false;
+	}
+
+	reg = soc15_get_register_offset(THM_HWID, 0, mmTHM_THERMAL_INT_ENA_BASE_IDX, mmTHM_THERMAL_INT_ENA);
+	cgs_write_register(hwmgr->device, reg, 0);
+
 	return 0;
 }
 
@@ -561,6 +578,11 @@ int tf_vega10_thermal_setup_fan_table(struct pp_hwmgr *hwmgr,
 			advanceFanControlParameters.ulMinFanSCLKAcousticLimit);
 	table->FanTargetTemperature = hwmgr->thermal_controller.
 			advanceFanControlParameters.usTMax;
+
+	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+				PPSMC_MSG_SetFanTemperatureTarget,
+				(uint32_t)table->FanTargetTemperature);
+
 	table->FanPwmMin = hwmgr->thermal_controller.
 			advanceFanControlParameters.usPWMMin * 255 / 100;
 	table->FanTargetGfxclk = (uint16_t)(hwmgr->thermal_controller.

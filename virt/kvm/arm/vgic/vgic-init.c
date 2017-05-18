@@ -227,10 +227,27 @@ static int kvm_vgic_dist_init(struct kvm *kvm, unsigned int nr_spis)
 }
 
 /**
- * kvm_vgic_vcpu_init() - Enable the VCPU interface
- * @vcpu: the VCPU which's VGIC should be enabled
+ * kvm_vgic_vcpu_init() - Register VCPU-specific KVM iodevs
+ * @vcpu: pointer to the VCPU being created and initialized
  */
-static void kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)
+int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)
+{
+	int ret = 0;
+	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
+
+	if (!irqchip_in_kernel(vcpu->kvm))
+		return 0;
+
+	/*
+	 * If we are creating a VCPU with a GICv3 we must also register the
+	 * KVM io device for the redistributor that belongs to this VCPU.
+	 */
+	if (dist->vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3)
+		ret = vgic_register_redist_iodev(vcpu);
+	return ret;
+}
+
+static void kvm_vgic_vcpu_enable(struct kvm_vcpu *vcpu)
 {
 	if (kvm_vgic_global_state.type == VGIC_V2)
 		vgic_v2_enable(vcpu);
@@ -269,7 +286,7 @@ int vgic_init(struct kvm *kvm)
 		dist->msis_require_devid = true;
 
 	kvm_for_each_vcpu(i, vcpu, kvm)
-		kvm_vgic_vcpu_init(vcpu);
+		kvm_vgic_vcpu_enable(vcpu);
 
 	ret = kvm_vgic_setup_default_irq_routing(kvm);
 	if (ret)

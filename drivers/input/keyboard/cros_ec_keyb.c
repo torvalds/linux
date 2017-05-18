@@ -660,7 +660,7 @@ static const struct of_device_id cros_ec_keyb_of_match[] = {
 MODULE_DEVICE_TABLE(of, cros_ec_keyb_of_match);
 #endif
 
-static const SIMPLE_DEV_PM_OPS(cros_ec_keyb_pm_ops, NULL, cros_ec_keyb_resume);
+static SIMPLE_DEV_PM_OPS(cros_ec_keyb_pm_ops, NULL, cros_ec_keyb_resume);
 
 static struct platform_driver cros_ec_keyb_driver = {
 	.probe = cros_ec_keyb_probe,

@@ -87,6 +87,7 @@
 #define ACPI_SIG_WDAT           "WDAT"	/* Watchdog Action Table */
 #define ACPI_SIG_WDDT           "WDDT"	/* Watchdog Timer Description Table */
 #define ACPI_SIG_WDRT           "WDRT"	/* Watchdog Resource Table */
+#define ACPI_SIG_XXXX           "XXXX"	/* Intermediate AML header for ASL/ASL+ converter */
 
 #ifdef ACPI_UNDEFINED_TABLES
 /*
@@ -782,6 +783,15 @@ struct acpi_iort_smmu {
 
 #define ACPI_IORT_SMMU_DVM_SUPPORTED    (1)
 #define ACPI_IORT_SMMU_COHERENT_WALK    (1<<1)
+
+/* Global interrupt format */
+
+struct acpi_iort_smmu_gsi {
+	u32 nsg_irpt;
+	u32 nsg_irpt_flags;
+	u32 nsg_cfg_irpt;
+	u32 nsg_cfg_irpt_flags;
+};
 
 struct acpi_iort_smmu_v3 {
 	u64 base_address;	/* SMMUv3 base address */

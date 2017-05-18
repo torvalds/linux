@@ -291,11 +291,11 @@ void __init setup_per_cpu_areas(void)
 
 #ifdef CONFIG_X86_32
 	/*
-	 * Sync back kernel address range.  We want to make sure that
-	 * all kernel mappings, including percpu mappings, are available
-	 * in the smpboot asm.  We can't reliably pick up percpu
-	 * mappings using vmalloc_fault(), because exception dispatch
-	 * needs percpu data.
+	 * Sync back kernel address range again.  We already did this in
+	 * setup_arch(), but percpu data also needs to be available in
+	 * the smpboot asm.  We can't reliably pick up percpu mappings
+	 * using vmalloc_fault(), because exception dispatch needs
+	 * percpu data.
 	 */
 	clone_pgd_range(initial_page_table + KERNEL_PGD_BOUNDARY,
 			swapper_pg_dir     + KERNEL_PGD_BOUNDARY,

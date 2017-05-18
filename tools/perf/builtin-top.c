@@ -27,13 +27,13 @@
 #include "util/drv_configs.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
+#include "util/event.h"
 #include "util/machine.h"
 #include "util/session.h"
 #include "util/symbol.h"
 #include "util/thread.h"
 #include "util/thread_map.h"
 #include "util/top.h"
-#include "util/util.h"
 #include <linux/rbtree.h>
 #include <subcmd/parse-options.h>
 #include "util/parse-events.h"

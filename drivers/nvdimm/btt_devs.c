@@ -273,7 +273,7 @@ static int __nd_btt_probe(struct nd_btt *nd_btt,
 	if (!btt_sb || !ndns || !nd_btt)
 		return -ENODEV;
 
-	if (nvdimm_read_bytes(ndns, SZ_4K, btt_sb, sizeof(*btt_sb)))
+	if (nvdimm_read_bytes(ndns, SZ_4K, btt_sb, sizeof(*btt_sb), 0))
 		return -ENXIO;
 
 	if (nvdimm_namespace_capacity(ndns) < SZ_16M)

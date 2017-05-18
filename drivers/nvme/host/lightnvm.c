@@ -367,7 +367,8 @@ static int nvme_nvm_get_l2p_tbl(struct nvm_dev *nvmdev, u64 slba, u32 nlb,
 
 		if (unlikely(elba > nvmdev->total_secs)) {
 			pr_err("nvm: L2P data from device is out of bounds!\n");
-			return -EINVAL;
+			ret = -EINVAL;
+			goto out;
 		}
 
 		/* Transform physical address to target address space */
@@ -464,8 +465,8 @@ static int nvme_nvm_set_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr *ppas,
 	return ret;
 }
 
-static inline void nvme_nvm_rqtocmd(struct request *rq, struct nvm_rq *rqd,
-				struct nvme_ns *ns, struct nvme_nvm_command *c)
+static inline void nvme_nvm_rqtocmd(struct nvm_rq *rqd, struct nvme_ns *ns,
+				    struct nvme_nvm_command *c)
 {
 	c->ph_rw.opcode = rqd->opcode;
 	c->ph_rw.nsid = cpu_to_le32(ns->ns_id);
@@ -503,7 +504,7 @@ static int nvme_nvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 	if (!cmd)
 		return -ENOMEM;
 
-	nvme_nvm_rqtocmd(rq, rqd, ns, cmd);
+	nvme_nvm_rqtocmd(rqd, ns, cmd);
 
 	rq = nvme_alloc_request(q, (struct nvme_command *)cmd, 0, NVME_QID_ANY);
 	if (IS_ERR(rq)) {

@@ -105,7 +105,7 @@ u16 acpi_ps_peek_opcode(struct acpi_parse_state * parser_state)
 	aml = parser_state->aml;
 	opcode = (u16) ACPI_GET8(aml);
 
-	if (opcode == AML_EXTENDED_OP_PREFIX) {
+	if (opcode == AML_EXTENDED_PREFIX) {
 
 		/* Extended opcode, get the second opcode byte */
 
@@ -210,7 +210,7 @@ acpi_ps_complete_this_op(struct acpi_walk_state *walk_state,
 			    || (op->common.parent->common.aml_opcode ==
 				AML_BANK_FIELD_OP)
 			    || (op->common.parent->common.aml_opcode ==
-				AML_VAR_PACKAGE_OP)) {
+				AML_VARIABLE_PACKAGE_OP)) {
 				replacement_op =
 				    acpi_ps_alloc_op(AML_INT_RETURN_VALUE_OP,
 						     op->common.aml);
@@ -225,7 +225,7 @@ acpi_ps_complete_this_op(struct acpi_walk_state *walk_state,
 				if ((op->common.aml_opcode == AML_BUFFER_OP)
 				    || (op->common.aml_opcode == AML_PACKAGE_OP)
 				    || (op->common.aml_opcode ==
-					AML_VAR_PACKAGE_OP)) {
+					AML_VARIABLE_PACKAGE_OP)) {
 					replacement_op =
 					    acpi_ps_alloc_op(op->common.
 							     aml_opcode,

@@ -535,6 +535,13 @@ static int dmatest_func(void *data)
 
 		total_tests++;
 
+		/* Check if buffer count fits into map count variable (u8) */
+		if ((src_cnt + dst_cnt) >= 255) {
+			pr_err("too many buffers (%d of 255 supported)\n",
+			       src_cnt + dst_cnt);
+			break;
+		}
+
 		if (1 << align > params->buf_size) {
 			pr_err("%u-byte buffer too small for %d-byte alignment\n",
 			       params->buf_size, 1 << align);
@@ -585,7 +592,7 @@ static int dmatest_func(void *data)
 		for (i = 0; i < src_cnt; i++) {
 			void *buf = thread->srcs[i];
 			struct page *pg = virt_to_page(buf);
-			unsigned pg_off = (unsigned long) buf & ~PAGE_MASK;
+			unsigned long pg_off = offset_in_page(buf);
 
 			um->addr[i] = dma_map_page(dev->dev, pg, pg_off,
 						   um->len, DMA_TO_DEVICE);
@@ -605,7 +612,7 @@ static int dmatest_func(void *data)
 		for (i = 0; i < dst_cnt; i++) {
 			void *buf = thread->dsts[i];
 			struct page *pg = virt_to_page(buf);
-			unsigned pg_off = (unsigned long) buf & ~PAGE_MASK;
+			unsigned long pg_off = offset_in_page(buf);
 
 			dsts[i] = dma_map_page(dev->dev, pg, pg_off, um->len,
 					       DMA_BIDIRECTIONAL);

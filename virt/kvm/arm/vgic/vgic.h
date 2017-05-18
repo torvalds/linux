@@ -73,6 +73,29 @@
 				      KVM_REG_ARM_VGIC_SYSREG_CRM_MASK | \
 				      KVM_REG_ARM_VGIC_SYSREG_OP2_MASK)
 
+/*
+ * As per Documentation/virtual/kvm/devices/arm-vgic-its.txt,
+ * below macros are defined for ITS table entry encoding.
+ */
+#define KVM_ITS_CTE_VALID_SHIFT		63
+#define KVM_ITS_CTE_VALID_MASK		BIT_ULL(63)
+#define KVM_ITS_CTE_RDBASE_SHIFT	16
+#define KVM_ITS_CTE_ICID_MASK		GENMASK_ULL(15, 0)
+#define KVM_ITS_ITE_NEXT_SHIFT		48
+#define KVM_ITS_ITE_PINTID_SHIFT	16
+#define KVM_ITS_ITE_PINTID_MASK		GENMASK_ULL(47, 16)
+#define KVM_ITS_ITE_ICID_MASK		GENMASK_ULL(15, 0)
+#define KVM_ITS_DTE_VALID_SHIFT		63
+#define KVM_ITS_DTE_VALID_MASK		BIT_ULL(63)
+#define KVM_ITS_DTE_NEXT_SHIFT		49
+#define KVM_ITS_DTE_NEXT_MASK		GENMASK_ULL(62, 49)
+#define KVM_ITS_DTE_ITTADDR_SHIFT	5
+#define KVM_ITS_DTE_ITTADDR_MASK	GENMASK_ULL(48, 5)
+#define KVM_ITS_DTE_SIZE_MASK		GENMASK_ULL(4, 0)
+#define KVM_ITS_L1E_VALID_MASK		BIT_ULL(63)
+/* we only support 64 kB translation table page size */
+#define KVM_ITS_L1E_ADDR_MASK		GENMASK_ULL(51, 16)
+
 static inline bool irq_is_pending(struct vgic_irq *irq)
 {
 	if (irq->config == VGIC_CONFIG_EDGE)
@@ -157,12 +180,15 @@ void vgic_v3_get_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcr);
 void vgic_v3_enable(struct kvm_vcpu *vcpu);
 int vgic_v3_probe(const struct gic_kvm_info *info);
 int vgic_v3_map_resources(struct kvm *kvm);
-int vgic_register_redist_iodevs(struct kvm *kvm, gpa_t dist_base_address);
+int vgic_v3_lpi_sync_pending_status(struct kvm *kvm, struct vgic_irq *irq);
+int vgic_v3_save_pending_tables(struct kvm *kvm);
+int vgic_v3_set_redist_base(struct kvm *kvm, u64 addr);
+int vgic_register_redist_iodev(struct kvm_vcpu *vcpu);
+bool vgic_v3_check_base(struct kvm *kvm);
 
 void vgic_v3_load(struct kvm_vcpu *vcpu);
 void vgic_v3_put(struct kvm_vcpu *vcpu);
 
-int vgic_register_its_iodevs(struct kvm *kvm);
 bool vgic_has_its(struct kvm *kvm);
 int kvm_vgic_register_its_device(void);
 void vgic_enable_lpis(struct kvm_vcpu *vcpu);
@@ -186,5 +212,8 @@ int vgic_init(struct kvm *kvm);
 
 int vgic_debug_init(struct kvm *kvm);
 int vgic_debug_destroy(struct kvm *kvm);
+
+bool lock_all_vcpus(struct kvm *kvm);
+void unlock_all_vcpus(struct kvm *kvm);
 
 #endif

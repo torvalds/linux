@@ -2311,7 +2311,7 @@ void *transport_kmap_data_sg(struct se_cmd *cmd)
 		return kmap(sg_page(sg)) + sg->offset;
 
 	/* >1 page. use vmap */
-	pages = kmalloc(sizeof(*pages) * cmd->t_data_nents, GFP_KERNEL);
+	pages = kmalloc_array(cmd->t_data_nents, sizeof(*pages), GFP_KERNEL);
 	if (!pages)
 		return NULL;
 

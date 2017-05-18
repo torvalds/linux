@@ -63,9 +63,11 @@
  * - 3.11.0 - Add support for sensor query info (clocks, temp, etc).
  * - 3.12.0 - Add query for double offchip LDS buffers
  * - 3.13.0 - Add PRT support
+ * - 3.14.0 - Fix race in amdgpu_ctx_get_fence() and note new functionality
+ * - 3.15.0 - Export more gpu info for gfx9
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	13
+#define KMS_DRIVER_MINOR	15
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit = 0;
@@ -453,7 +455,9 @@ static const struct pci_device_id pciidlist[] = {
 	{0x1002, 0x6861, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
 	{0x1002, 0x6862, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
 	{0x1002, 0x6863, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
+	{0x1002, 0x6864, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
 	{0x1002, 0x6867, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
+	{0x1002, 0x6868, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
 	{0x1002, 0x686c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
 	{0x1002, 0x687f, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
 	{0, 0, 0}

@@ -567,7 +567,7 @@ tree_mod_log_insert_key(struct btrfs_fs_info *fs_info,
 static noinline int
 tree_mod_log_insert_move(struct btrfs_fs_info *fs_info,
 			 struct extent_buffer *eb, int dst_slot, int src_slot,
-			 int nr_items, gfp_t flags)
+			 int nr_items)
 {
 	struct tree_mod_elem *tm = NULL;
 	struct tree_mod_elem **tm_list = NULL;
@@ -578,11 +578,11 @@ tree_mod_log_insert_move(struct btrfs_fs_info *fs_info,
 	if (!tree_mod_need_log(fs_info, eb))
 		return 0;
 
-	tm_list = kcalloc(nr_items, sizeof(struct tree_mod_elem *), flags);
+	tm_list = kcalloc(nr_items, sizeof(struct tree_mod_elem *), GFP_NOFS);
 	if (!tm_list)
 		return -ENOMEM;
 
-	tm = kzalloc(sizeof(*tm), flags);
+	tm = kzalloc(sizeof(*tm), GFP_NOFS);
 	if (!tm) {
 		ret = -ENOMEM;
 		goto free_tms;
@@ -596,7 +596,7 @@ tree_mod_log_insert_move(struct btrfs_fs_info *fs_info,
 
 	for (i = 0; i + dst_slot < src_slot && i < nr_items; i++) {
 		tm_list[i] = alloc_tree_mod_elem(eb, i + dst_slot,
-		    MOD_LOG_KEY_REMOVE_WHILE_MOVING, flags);
+		    MOD_LOG_KEY_REMOVE_WHILE_MOVING, GFP_NOFS);
 		if (!tm_list[i]) {
 			ret = -ENOMEM;
 			goto free_tms;
@@ -663,7 +663,7 @@ __tree_mod_log_free_eb(struct btrfs_fs_info *fs_info,
 static noinline int
 tree_mod_log_insert_root(struct btrfs_fs_info *fs_info,
 			 struct extent_buffer *old_root,
-			 struct extent_buffer *new_root, gfp_t flags,
+			 struct extent_buffer *new_root,
 			 int log_removal)
 {
 	struct tree_mod_elem *tm = NULL;
@@ -678,14 +678,14 @@ tree_mod_log_insert_root(struct btrfs_fs_info *fs_info,
 	if (log_removal && btrfs_header_level(old_root) > 0) {
 		nritems = btrfs_header_nritems(old_root);
 		tm_list = kcalloc(nritems, sizeof(struct tree_mod_elem *),
-				  flags);
+				  GFP_NOFS);
 		if (!tm_list) {
 			ret = -ENOMEM;
 			goto free_tms;
 		}
 		for (i = 0; i < nritems; i++) {
 			tm_list[i] = alloc_tree_mod_elem(old_root, i,
-			    MOD_LOG_KEY_REMOVE_WHILE_FREEING, flags);
+			    MOD_LOG_KEY_REMOVE_WHILE_FREEING, GFP_NOFS);
 			if (!tm_list[i]) {
 				ret = -ENOMEM;
 				goto free_tms;
@@ -693,7 +693,7 @@ tree_mod_log_insert_root(struct btrfs_fs_info *fs_info,
 		}
 	}
 
-	tm = kzalloc(sizeof(*tm), flags);
+	tm = kzalloc(sizeof(*tm), GFP_NOFS);
 	if (!tm) {
 		ret = -ENOMEM;
 		goto free_tms;
@@ -873,7 +873,7 @@ tree_mod_log_eb_move(struct btrfs_fs_info *fs_info, struct extent_buffer *dst,
 {
 	int ret;
 	ret = tree_mod_log_insert_move(fs_info, dst, dst_offset, src_offset,
-				       nr_items, GFP_NOFS);
+				       nr_items);
 	BUG_ON(ret < 0);
 }
 
@@ -943,7 +943,7 @@ tree_mod_log_set_root_pointer(struct btrfs_root *root,
 {
 	int ret;
 	ret = tree_mod_log_insert_root(root->fs_info, root->node,
-				       new_root_node, GFP_NOFS, log_removal);
+				       new_root_node, log_removal);
 	BUG_ON(ret < 0);
 }
 

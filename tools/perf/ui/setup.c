@@ -10,7 +10,10 @@ pthread_mutex_t ui__lock = PTHREAD_MUTEX_INITIALIZER;
 void *perf_gtk_handle;
 int use_browser = -1;
 
+#define PERF_GTK_DSO "libperf-gtk.so"
+
 #ifdef HAVE_GTK2_SUPPORT
+
 static int setup_gtk_browser(void)
 {
 	int (*perf_ui_init)(void);

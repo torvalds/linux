@@ -59,6 +59,12 @@ static const struct i2c_device_id rx8010_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rx8010_id);
 
+static const struct of_device_id rx8010_of_match[] = {
+	{ .compatible = "epson,rx8010" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, rx8010_of_match);
+
 struct rx8010_data {
 	struct i2c_client *client;
 	struct rtc_device *rtc;
@@ -487,6 +493,7 @@ static int rx8010_probe(struct i2c_client *client,
 static struct i2c_driver rx8010_driver = {
 	.driver = {
 		.name = "rtc-rx8010",
+		.of_match_table = of_match_ptr(rx8010_of_match),
 	},
 	.probe		= rx8010_probe,
 	.id_table	= rx8010_id,

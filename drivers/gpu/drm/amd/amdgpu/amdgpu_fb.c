@@ -112,7 +112,7 @@ static void amdgpufb_destroy_pinned_object(struct drm_gem_object *gobj)
 	struct amdgpu_bo *abo = gem_to_amdgpu_bo(gobj);
 	int ret;
 
-	ret = amdgpu_bo_reserve(abo, false);
+	ret = amdgpu_bo_reserve(abo, true);
 	if (likely(ret == 0)) {
 		amdgpu_bo_kunmap(abo);
 		amdgpu_bo_unpin(abo);

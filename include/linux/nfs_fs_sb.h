@@ -221,6 +221,7 @@ struct nfs_server {
 	u32			mountd_version;
 	unsigned short		mountd_port;
 	unsigned short		mountd_protocol;
+	struct rpc_wait_queue	uoc_rpcwaitq;
 };
 
 /* Server capabilities */

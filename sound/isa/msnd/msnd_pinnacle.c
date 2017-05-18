@@ -800,22 +800,22 @@ MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(INITCODEFILE);
 MODULE_FIRMWARE(PERMCODEFILE);
 
-module_param_array(io, long, NULL, S_IRUGO);
+module_param_hw_array(io, long, ioport, NULL, S_IRUGO);
 MODULE_PARM_DESC(io, "IO port #");
-module_param_array(irq, int, NULL, S_IRUGO);
-module_param_array(mem, long, NULL, S_IRUGO);
+module_param_hw_array(irq, int, irq, NULL, S_IRUGO);
+module_param_hw_array(mem, long, iomem, NULL, S_IRUGO);
 module_param_array(write_ndelay, int, NULL, S_IRUGO);
 module_param(calibrate_signal, int, S_IRUGO);
 #ifndef MSND_CLASSIC
 module_param_array(digital, int, NULL, S_IRUGO);
-module_param_array(cfg, long, NULL, S_IRUGO);
+module_param_hw_array(cfg, long, ioport, NULL, S_IRUGO);
 module_param_array(reset, int, 0, S_IRUGO);
-module_param_array(mpu_io, long, NULL, S_IRUGO);
-module_param_array(mpu_irq, int, NULL, S_IRUGO);
-module_param_array(ide_io0, long, NULL, S_IRUGO);
-module_param_array(ide_io1, long, NULL, S_IRUGO);
-module_param_array(ide_irq, int, NULL, S_IRUGO);
-module_param_array(joystick_io, long, NULL, S_IRUGO);
+module_param_hw_array(mpu_io, long, ioport, NULL, S_IRUGO);
+module_param_hw_array(mpu_irq, int, irq, NULL, S_IRUGO);
+module_param_hw_array(ide_io0, long, ioport, NULL, S_IRUGO);
+module_param_hw_array(ide_io1, long, ioport, NULL, S_IRUGO);
+module_param_hw_array(ide_irq, int, irq, NULL, S_IRUGO);
+module_param_hw_array(joystick_io, long, ioport, NULL, S_IRUGO);
 #endif
 
 

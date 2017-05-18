@@ -391,9 +391,7 @@ EXC_COMMON_BEGIN(machine_check_handle_early)
 	 */
 	BEGIN_FTR_SECTION
 	rlwinm.	r11,r12,47-31,30,31
-	beq-	4f
-	BRANCH_TO_COMMON(r10, machine_check_idle_common)
-4:
+	bne	machine_check_idle_common
 	END_FTR_SECTION_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
 #endif
 

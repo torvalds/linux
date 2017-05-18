@@ -23,6 +23,7 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/sched.h>
 #include <linux/sizes.h>
+#include <linux/dma-mapping.h>
 
 #include "mtk_vpu.h"
 

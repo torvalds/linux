@@ -226,6 +226,10 @@ static int FNAME(update_accessed_dirty_bits)(struct kvm_vcpu *vcpu,
 		if (level == walker->level && write_fault &&
 				!(pte & PT_GUEST_DIRTY_MASK)) {
 			trace_kvm_mmu_set_dirty_bit(table_gfn, index, sizeof(pte));
+#if PTTYPE == PTTYPE_EPT
+			if (kvm_arch_write_log_dirty(vcpu))
+				return -EINVAL;
+#endif
 			pte |= PT_GUEST_DIRTY_MASK;
 		}
 		if (pte == orig_pte)

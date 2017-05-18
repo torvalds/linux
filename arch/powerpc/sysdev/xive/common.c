@@ -46,13 +46,15 @@
 #endif
 
 bool __xive_enabled;
+EXPORT_SYMBOL_GPL(__xive_enabled);
 bool xive_cmdline_disabled;
 
 /* We use only one priority for now */
 static u8 xive_irq_priority;
 
-/* TIMA */
+/* TIMA exported to KVM */
 void __iomem *xive_tima;
+EXPORT_SYMBOL_GPL(xive_tima);
 u32 xive_tima_offset;
 
 /* Backend ops */
@@ -345,8 +347,11 @@ static void xive_irq_eoi(struct irq_data *d)
 	DBG_VERBOSE("eoi_irq: irq=%d [0x%lx] pending=%02x\n",
 		    d->irq, irqd_to_hwirq(d), xc->pending_prio);
 
-	/* EOI the source if it hasn't been disabled */
-	if (!irqd_irq_disabled(d))
+	/*
+	 * EOI the source if it hasn't been disabled and hasn't
+	 * been passed-through to a KVM guest
+	 */
+	if (!irqd_irq_disabled(d) && !irqd_is_forwarded_to_vcpu(d))
 		xive_do_source_eoi(irqd_to_hwirq(d), xd);
 
 	/*
@@ -689,9 +694,14 @@ static int xive_irq_set_affinity(struct irq_data *d,
 
 	old_target = xd->target;
 
-	rc = xive_ops->configure_irq(hw_irq,
-				     get_hard_smp_processor_id(target),
-				     xive_irq_priority, d->irq);
+	/*
+	 * Only configure the irq if it's not currently passed-through to
+	 * a KVM guest
+	 */
+	if (!irqd_is_forwarded_to_vcpu(d))
+		rc = xive_ops->configure_irq(hw_irq,
+					     get_hard_smp_processor_id(target),
+					     xive_irq_priority, d->irq);
 	if (rc < 0) {
 		pr_err("Error %d reconfiguring irq %d\n", rc, d->irq);
 		return rc;
@@ -771,6 +781,123 @@ static int xive_irq_retrigger(struct irq_data *d)
 	return 1;
 }
 
+static int xive_irq_set_vcpu_affinity(struct irq_data *d, void *state)
+{
+	struct xive_irq_data *xd = irq_data_get_irq_handler_data(d);
+	unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
+	int rc;
+	u8 pq;
+
+	/*
+	 * We only support this on interrupts that do not require
+	 * firmware calls for masking and unmasking
+	 */
+	if (xd->flags & XIVE_IRQ_FLAG_MASK_FW)
+		return -EIO;
+
+	/*
+	 * This is called by KVM with state non-NULL for enabling
+	 * pass-through or NULL for disabling it
+	 */
+	if (state) {
+		irqd_set_forwarded_to_vcpu(d);
+
+		/* Set it to PQ=10 state to prevent further sends */
+		pq = xive_poke_esb(xd, XIVE_ESB_SET_PQ_10);
+
+		/* No target ? nothing to do */
+		if (xd->target == XIVE_INVALID_TARGET) {
+			/*
+			 * An untargetted interrupt should have been
+			 * also masked at the source
+			 */
+			WARN_ON(pq & 2);
+
+			return 0;
+		}
+
+		/*
+		 * If P was set, adjust state to PQ=11 to indicate
+		 * that a resend is needed for the interrupt to reach
+		 * the guest. Also remember the value of P.
+		 *
+		 * This also tells us that it's in flight to a host queue
+		 * or has already been fetched but hasn't been EOIed yet
+		 * by the host. This it's potentially using up a host
+		 * queue slot. This is important to know because as long
+		 * as this is the case, we must not hard-unmask it when
+		 * "returning" that interrupt to the host.
+		 *
+		 * This saved_p is cleared by the host EOI, when we know
+		 * for sure the queue slot is no longer in use.
+		 */
+		if (pq & 2) {
+			pq = xive_poke_esb(xd, XIVE_ESB_SET_PQ_11);
+			xd->saved_p = true;
+
+			/*
+			 * Sync the XIVE source HW to ensure the interrupt
+			 * has gone through the EAS before we change its
+			 * target to the guest. That should guarantee us
+			 * that we *will* eventually get an EOI for it on
+			 * the host. Otherwise there would be a small window
+			 * for P to be seen here but the interrupt going
+			 * to the guest queue.
+			 */
+			if (xive_ops->sync_source)
+				xive_ops->sync_source(hw_irq);
+		} else
+			xd->saved_p = false;
+	} else {
+		irqd_clr_forwarded_to_vcpu(d);
+
+		/* No host target ? hard mask and return */
+		if (xd->target == XIVE_INVALID_TARGET) {
+			xive_do_source_set_mask(xd, true);
+			return 0;
+		}
+
+		/*
+		 * Sync the XIVE source HW to ensure the interrupt
+		 * has gone through the EAS before we change its
+		 * target to the host.
+		 */
+		if (xive_ops->sync_source)
+			xive_ops->sync_source(hw_irq);
+
+		/*
+		 * By convention we are called with the interrupt in
+		 * a PQ=10 or PQ=11 state, ie, it won't fire and will
+		 * have latched in Q whether there's a pending HW
+		 * interrupt or not.
+		 *
+		 * First reconfigure the target.
+		 */
+		rc = xive_ops->configure_irq(hw_irq,
+					     get_hard_smp_processor_id(xd->target),
+					     xive_irq_priority, d->irq);
+		if (rc)
+			return rc;
+
+		/*
+		 * Then if saved_p is not set, effectively re-enable the
+		 * interrupt with an EOI. If it is set, we know there is
+		 * still a message in a host queue somewhere that will be
+		 * EOId eventually.
+		 *
+		 * Note: We don't check irqd_irq_disabled(). Effectively,
+		 * we *will* let the irq get through even if masked if the
+		 * HW is still firing it in order to deal with the whole
+		 * saved_p business properly. If the interrupt triggers
+		 * while masked, the generic code will re-mask it anyway.
+		 */
+		if (!xd->saved_p)
+			xive_do_source_eoi(hw_irq, xd);
+
+	}
+	return 0;
+}
+
 static struct irq_chip xive_irq_chip = {
 	.name = "XIVE-IRQ",
 	.irq_startup = xive_irq_startup,
@@ -781,12 +908,14 @@ static struct irq_chip xive_irq_chip = {
 	.irq_set_affinity = xive_irq_set_affinity,
 	.irq_set_type = xive_irq_set_type,
 	.irq_retrigger = xive_irq_retrigger,
+	.irq_set_vcpu_affinity = xive_irq_set_vcpu_affinity,
 };
 
 bool is_xive_irq(struct irq_chip *chip)
 {
 	return chip == &xive_irq_chip;
 }
+EXPORT_SYMBOL_GPL(is_xive_irq);
 
 void xive_cleanup_irq_data(struct xive_irq_data *xd)
 {
@@ -801,6 +930,7 @@ void xive_cleanup_irq_data(struct xive_irq_data *xd)
 		xd->trig_mmio = NULL;
 	}
 }
+EXPORT_SYMBOL_GPL(xive_cleanup_irq_data);
 
 static int xive_irq_alloc_data(unsigned int virq, irq_hw_number_t hw)
 {

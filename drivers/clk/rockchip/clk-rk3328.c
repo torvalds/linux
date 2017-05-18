@@ -20,6 +20,7 @@
 #include <dt-bindings/clock/rk3328-cru.h>
 #include "clk.h"
 
+#define RK3328_GRF_SOC_CON4		0x410
 #define RK3328_GRF_SOC_STATUS0		0x480
 #define RK3328_GRF_MAC_CON1		0x904
 #define RK3328_GRF_MAC_CON2		0x908
@@ -214,6 +215,8 @@ PNAME(mux_mac2io_src_p)		= { "clk_mac2io_src",
 				    "gmac_clkin" };
 PNAME(mux_mac2phy_src_p)	= { "clk_mac2phy_src",
 				    "phy_50m_out" };
+PNAME(mux_mac2io_ext_p)		= { "clk_mac2io",
+				    "gmac_clkin" };
 
 static struct rockchip_pll_clock rk3328_pll_clks[] __initdata = {
 	[apll] = PLL(pll_rk3328, PLL_APLL, "apll", mux_pll_p,
@@ -680,6 +683,10 @@ static struct rockchip_clk_branch rk3328_clk_branches[] __initdata = {
 	COMPOSITE(SCLK_MAC2IO_OUT, "clk_mac2io_out", mux_2plls_p, 0,
 			RK3328_CLKSEL_CON(27), 15, 1, MFLAGS, 8, 5, DFLAGS,
 			RK3328_CLKGATE_CON(3), 5, GFLAGS),
+	MUXGRF(SCLK_MAC2IO, "clk_mac2io", mux_mac2io_src_p, CLK_SET_RATE_NO_REPARENT,
+			RK3328_GRF_MAC_CON1, 10, 1, MFLAGS),
+	MUXGRF(SCLK_MAC2IO_EXT, "clk_mac2io_ext", mux_mac2io_ext_p, CLK_SET_RATE_NO_REPARENT,
+			RK3328_GRF_SOC_CON4, 14, 1, MFLAGS),
 
 	COMPOSITE(SCLK_MAC2PHY_SRC, "clk_mac2phy_src", mux_2plls_p, 0,
 			RK3328_CLKSEL_CON(26), 7, 1, MFLAGS, 0, 5, DFLAGS,
@@ -691,6 +698,8 @@ static struct rockchip_clk_branch rk3328_clk_branches[] __initdata = {
 	COMPOSITE_NOMUX(SCLK_MAC2PHY_OUT, "clk_mac2phy_out", "clk_mac2phy", 0,
 			RK3328_CLKSEL_CON(26), 8, 2, DFLAGS,
 			RK3328_CLKGATE_CON(9), 2, GFLAGS),
+	MUXGRF(SCLK_MAC2PHY, "clk_mac2phy", mux_mac2phy_src_p, CLK_SET_RATE_NO_REPARENT,
+			RK3328_GRF_MAC_CON2, 10, 1, MFLAGS),
 
 	FACTOR(0, "xin12m", "xin24m", 0, 1, 2),
 

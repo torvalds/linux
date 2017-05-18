@@ -106,7 +106,11 @@ void snd_hdac_bus_stop_cmd_io(struct hdac_bus *bus)
 	/* disable ringbuffer DMAs */
 	snd_hdac_chip_writeb(bus, RIRBCTL, 0);
 	snd_hdac_chip_writeb(bus, CORBCTL, 0);
+	spin_unlock_irq(&bus->reg_lock);
+
 	hdac_wait_for_cmd_dmas(bus);
+
+	spin_lock_irq(&bus->reg_lock);
 	/* disable unsolicited responses */
 	snd_hdac_chip_updatel(bus, GCTL, AZX_GCTL_UNSOL, 0);
 	spin_unlock_irq(&bus->reg_lock);

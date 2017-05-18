@@ -270,7 +270,7 @@ When the event stream contains multiple events each event is identified
 by an ID. This can be either through the PERF_SAMPLE_ID or the
 PERF_SAMPLE_IDENTIFIER header. The PERF_SAMPLE_IDENTIFIER header is
 at a fixed offset from the event header, which allows reliable
-parsing of the header. Relying on ID may be ambigious.
+parsing of the header. Relying on ID may be ambiguous.
 IDENTIFIER is only supported by newer Linux kernels.
 
 Perf record specific events:
@@ -288,7 +288,7 @@ struct attr_event {
 	uint64_t id[];
 };
 
-	PERF_RECORD_HEADER_EVENT_TYPE		= 65, /* depreceated */
+	PERF_RECORD_HEADER_EVENT_TYPE		= 65, /* deprecated */
 
 #define MAX_EVENT_NAME 64
 

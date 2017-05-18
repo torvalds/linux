@@ -265,6 +265,11 @@ static void __init cpg_mssr_register_core_clk(const struct cpg_core_clk *core,
 	WARN_DEBUG(id >= priv->num_core_clks);
 	WARN_DEBUG(PTR_ERR(priv->clks[id]) != -ENOENT);
 
+	if (!core->name) {
+		/* Skip NULLified clock */
+		return;
+	}
+
 	switch (core->type) {
 	case CLK_TYPE_IN:
 		clk = of_clk_get_by_name(priv->dev->of_node, core->name);
@@ -334,6 +339,11 @@ static void __init cpg_mssr_register_mod_clk(const struct mssr_mod_clk *mod,
 	WARN_DEBUG(id >= priv->num_core_clks + priv->num_mod_clks);
 	WARN_DEBUG(mod->parent >= priv->num_core_clks + priv->num_mod_clks);
 	WARN_DEBUG(PTR_ERR(priv->clks[id]) != -ENOENT);
+
+	if (!mod->name) {
+		/* Skip NULLified clock */
+		return;
+	}
 
 	parent = priv->clks[mod->parent];
 	if (IS_ERR(parent)) {
@@ -733,6 +743,46 @@ static int __init cpg_mssr_init(void)
 }
 
 subsys_initcall(cpg_mssr_init);
+
+void __init cpg_core_nullify_range(struct cpg_core_clk *core_clks,
+				   unsigned int num_core_clks,
+				   unsigned int first_clk,
+				   unsigned int last_clk)
+{
+	unsigned int i;
+
+	for (i = 0; i < num_core_clks; i++)
+		if (core_clks[i].id >= first_clk &&
+		    core_clks[i].id <= last_clk)
+			core_clks[i].name = NULL;
+}
+
+void __init mssr_mod_nullify(struct mssr_mod_clk *mod_clks,
+			     unsigned int num_mod_clks,
+			     const unsigned int *clks, unsigned int n)
+{
+	unsigned int i, j;
+
+	for (i = 0, j = 0; i < num_mod_clks && j < n; i++)
+		if (mod_clks[i].id == clks[j]) {
+			mod_clks[i].name = NULL;
+			j++;
+		}
+}
+
+void __init mssr_mod_reparent(struct mssr_mod_clk *mod_clks,
+			      unsigned int num_mod_clks,
+			      const struct mssr_mod_reparent *clks,
+			      unsigned int n)
+{
+	unsigned int i, j;
+
+	for (i = 0, j = 0; i < num_mod_clks && j < n; i++)
+		if (mod_clks[i].id == clks[j].clk) {
+			mod_clks[i].parent = clks[j].parent;
+			j++;
+		}
+}
 
 MODULE_DESCRIPTION("Renesas CPG/MSSR Driver");
 MODULE_LICENSE("GPL v2");

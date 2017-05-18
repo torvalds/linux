@@ -10,6 +10,7 @@
 #ifndef _KVM_PPC_BOOK3S_XICS_H
 #define _KVM_PPC_BOOK3S_XICS_H
 
+#ifdef CONFIG_KVM_XICS
 /*
  * We use a two-level tree to store interrupt source information.
  * There are up to 1024 ICS nodes, each of which can represent
@@ -144,5 +145,11 @@ static inline struct kvmppc_ics *kvmppc_xics_find_ics(struct kvmppc_xics *xics,
 	return ics;
 }
 
+extern unsigned long xics_rm_h_xirr(struct kvm_vcpu *vcpu);
+extern int xics_rm_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
+			 unsigned long mfrr);
+extern int xics_rm_h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr);
+extern int xics_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr);
 
+#endif /* CONFIG_KVM_XICS */
 #endif /* _KVM_PPC_BOOK3S_XICS_H */
