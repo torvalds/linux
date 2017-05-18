@@ -101,7 +101,8 @@ config AXI_DMAC
 
 config BCM_SBA_RAID
 	tristate "Broadcom SBA RAID engine support"
-	depends on (ARM64 && MAILBOX && RAID6_PQ) || COMPILE_TEST
+	depends on ARM64 || COMPILE_TEST
+	depends on MAILBOX && RAID6_PQ
 	select DMA_ENGINE
 	select DMA_ENGINE_RAID
 	select ASYNC_TX_DISABLE_XOR_VAL_DMA
