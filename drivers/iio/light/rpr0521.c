@@ -78,9 +78,9 @@ static const struct rpr0521_gain rpr0521_pxs_gain[3] = {
 };
 
 enum rpr0521_channel {
+	RPR0521_CHAN_PXS,
 	RPR0521_CHAN_ALS_DATA0,
 	RPR0521_CHAN_ALS_DATA1,
-	RPR0521_CHAN_PXS,
 };
 
 struct rpr0521_reg_desc {
@@ -89,6 +89,10 @@ struct rpr0521_reg_desc {
 };
 
 static const struct rpr0521_reg_desc rpr0521_data_reg[] = {
+	[RPR0521_CHAN_PXS]	= {
+		.address	= RPR0521_REG_PXS_DATA,
+		.device_mask	= RPR0521_MODE_PXS_MASK,
+	},
 	[RPR0521_CHAN_ALS_DATA0] = {
 		.address	= RPR0521_REG_ALS_DATA0,
 		.device_mask	= RPR0521_MODE_ALS_MASK,
@@ -96,10 +100,6 @@ static const struct rpr0521_reg_desc rpr0521_data_reg[] = {
 	[RPR0521_CHAN_ALS_DATA1] = {
 		.address	= RPR0521_REG_ALS_DATA1,
 		.device_mask	= RPR0521_MODE_ALS_MASK,
-	},
-	[RPR0521_CHAN_PXS]	= {
-		.address	= RPR0521_REG_PXS_DATA,
-		.device_mask	= RPR0521_MODE_PXS_MASK,
 	},
 };
 
@@ -110,6 +110,13 @@ static const struct rpr0521_gain_info {
 	const struct rpr0521_gain *gain;
 	int size;
 } rpr0521_gain[] = {
+	[RPR0521_CHAN_PXS] = {
+		.reg	= RPR0521_REG_PXS_CTRL,
+		.mask	= RPR0521_PXS_GAIN_MASK,
+		.shift	= RPR0521_PXS_GAIN_SHIFT,
+		.gain	= rpr0521_pxs_gain,
+		.size	= ARRAY_SIZE(rpr0521_pxs_gain),
+	},
 	[RPR0521_CHAN_ALS_DATA0] = {
 		.reg	= RPR0521_REG_ALS_CTRL,
 		.mask	= RPR0521_ALS_DATA0_GAIN_MASK,
@@ -123,13 +130,6 @@ static const struct rpr0521_gain_info {
 		.shift	= RPR0521_ALS_DATA1_GAIN_SHIFT,
 		.gain	= rpr0521_als_gain,
 		.size	= ARRAY_SIZE(rpr0521_als_gain),
-	},
-	[RPR0521_CHAN_PXS] = {
-		.reg	= RPR0521_REG_PXS_CTRL,
-		.mask	= RPR0521_PXS_GAIN_MASK,
-		.shift	= RPR0521_PXS_GAIN_SHIFT,
-		.gain	= rpr0521_pxs_gain,
-		.size	= ARRAY_SIZE(rpr0521_pxs_gain),
 	},
 };
 
@@ -198,6 +198,14 @@ static const struct attribute_group rpr0521_attribute_group = {
 
 static const struct iio_chan_spec rpr0521_channels[] = {
 	{
+		.type = IIO_PROXIMITY,
+		.address = RPR0521_CHAN_PXS,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+			BIT(IIO_CHAN_INFO_OFFSET) |
+			BIT(IIO_CHAN_INFO_SCALE),
+		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ),
+	},
+	{
 		.type = IIO_INTENSITY,
 		.modified = 1,
 		.address = RPR0521_CHAN_ALS_DATA0,
@@ -215,14 +223,6 @@ static const struct iio_chan_spec rpr0521_channels[] = {
 			BIT(IIO_CHAN_INFO_SCALE),
 		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ),
 	},
-	{
-		.type = IIO_PROXIMITY,
-		.address = RPR0521_CHAN_PXS,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
-			BIT(IIO_CHAN_INFO_OFFSET) |
-			BIT(IIO_CHAN_INFO_SCALE),
-		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ),
-	}
 };
 
 static int rpr0521_als_enable(struct rpr0521_data *data, u8 status)
