@@ -184,7 +184,7 @@ static int sunxi_de2_clk_probe(struct platform_device *pdev)
 
 	rstc = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 	if (IS_ERR(rstc)) {
-		ret = PTR_ERR(bus_clk);
+		ret = PTR_ERR(rstc);
 		if (ret != -EPROBE_DEFER)
 			dev_err(&pdev->dev,
 				"Couldn't get reset control: %d\n", ret);
