@@ -925,6 +925,7 @@ void recv_ishtp_cl_msg(struct ishtp_device *dev,
 	}
 
 	if (complete_rb) {
+		cl = complete_rb->cl;
 		getnstimeofday(&cl->ts_rx);
 		++cl->recv_msg_cnt_ipc;
 		ishtp_cl_read_complete(complete_rb);
@@ -1045,6 +1046,7 @@ void recv_ishtp_cl_msg_dma(struct ishtp_device *dev, void *msg,
 	}
 
 	if (complete_rb) {
+		cl = complete_rb->cl;
 		getnstimeofday(&cl->ts_rx);
 		++cl->recv_msg_cnt_dma;
 		ishtp_cl_read_complete(complete_rb);
