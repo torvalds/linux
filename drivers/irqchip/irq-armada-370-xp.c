@@ -34,25 +34,24 @@
 #include <asm/smp_plat.h>
 #include <asm/mach/irq.h>
 
-/* Interrupt Controller Registers Map */
-#define ARMADA_370_XP_INT_SET_MASK_OFFS		(0x48)
-#define ARMADA_370_XP_INT_CLEAR_MASK_OFFS	(0x4C)
-#define ARMADA_370_XP_INT_FABRIC_MASK_OFFS	(0x54)
-#define ARMADA_370_XP_INT_CAUSE_PERF(cpu)	(1 << cpu)
-
+/* Registers relative to main_int_base */
 #define ARMADA_370_XP_INT_CONTROL		(0x00)
+#define ARMADA_370_XP_SW_TRIG_INT_OFFS		(0x04)
 #define ARMADA_370_XP_INT_SET_ENABLE_OFFS	(0x30)
 #define ARMADA_370_XP_INT_CLEAR_ENABLE_OFFS	(0x34)
 #define ARMADA_370_XP_INT_SOURCE_CTL(irq)	(0x100 + irq*4)
 #define ARMADA_370_XP_INT_SOURCE_CPU_MASK	0xF
 #define ARMADA_370_XP_INT_IRQ_FIQ_MASK(cpuid)	((BIT(0) | BIT(8)) << cpuid)
 
-#define ARMADA_370_XP_CPU_INTACK_OFFS		(0x44)
+/* Registers relative to per_cpu_int_base */
+#define ARMADA_370_XP_IN_DRBEL_CAUSE_OFFS	(0x08)
+#define ARMADA_370_XP_IN_DRBEL_MSK_OFFS		(0x0c)
 #define ARMADA_375_PPI_CAUSE			(0x10)
-
-#define ARMADA_370_XP_SW_TRIG_INT_OFFS           (0x4)
-#define ARMADA_370_XP_IN_DRBEL_MSK_OFFS          (0xc)
-#define ARMADA_370_XP_IN_DRBEL_CAUSE_OFFS        (0x8)
+#define ARMADA_370_XP_CPU_INTACK_OFFS		(0x44)
+#define ARMADA_370_XP_INT_SET_MASK_OFFS		(0x48)
+#define ARMADA_370_XP_INT_CLEAR_MASK_OFFS	(0x4C)
+#define ARMADA_370_XP_INT_FABRIC_MASK_OFFS	(0x54)
+#define ARMADA_370_XP_INT_CAUSE_PERF(cpu)	(1 << cpu)
 
 #define ARMADA_370_XP_MAX_PER_CPU_IRQS		(28)
 
