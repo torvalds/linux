@@ -34,7 +34,6 @@
 #include <linux/pci.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/version.h>
 #include <linux/delay.h>
 #include <asm/byteorder.h>
 #include <linux/dma-mapping.h>

@@ -38,7 +38,6 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/stddef.h>
-#include <linux/version.h>
 #include <linux/workqueue.h>
 #include <net/ipv6.h>
 #include <linux/bitops.h>

@@ -44,7 +44,6 @@
 #include <linux/slab.h>
 #include <linux/stddef.h>
 #include <linux/string.h>
-#include <linux/version.h>
 #include <linux/workqueue.h>
 #include <linux/errno.h>
 #include <linux/list.h>
