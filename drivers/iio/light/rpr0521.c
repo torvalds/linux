@@ -356,7 +356,7 @@ static int rpr0521_read_raw(struct iio_dev *indio_dev,
 
 		ret = regmap_bulk_read(data->regmap,
 				       rpr0521_data_reg[chan->address].address,
-				       &raw_data, 2);
+				       &raw_data, sizeof(raw_data));
 		if (ret < 0) {
 			rpr0521_set_power_state(data, false, device_mask);
 			mutex_unlock(&data->lock);
