@@ -2867,6 +2867,61 @@ static uint32_t remove_from_val_sets(
 	return set_count;
 }
 
+
+static enum surface_update_type  amdgpu_dm_check_surfaces_update_type(
+		struct dc *dc,
+		const struct dc_surface **new_surfaces,
+		uint8_t new_surface_count,
+		const struct dc_stream *dc_stream)
+{
+	struct dc_surface_update srf_updates[MAX_SURFACES];
+	struct dc_flip_addrs flip_addr[MAX_SURFACES];
+	struct dc_plane_info plane_info[MAX_SURFACES];
+	struct dc_scaling_info scaling_info[MAX_SURFACES];
+	int i;
+	const struct dc_stream_status *stream_status =
+			dc_stream_get_status(dc_stream);
+	enum surface_update_type update_type;
+
+	ASSERT(stream_status);
+
+
+	memset(srf_updates, 0, sizeof(srf_updates));
+	memset(flip_addr, 0, sizeof(flip_addr));
+	memset(plane_info, 0, sizeof(plane_info));
+	memset(scaling_info, 0, sizeof(scaling_info));
+
+	for (i = 0; i < new_surface_count; i++) {
+		srf_updates[i].surface = new_surfaces[i];
+		srf_updates[i].gamma =
+			(struct dc_gamma *)new_surfaces[i]->gamma_correction;
+		flip_addr[i].address = new_surfaces[i]->address;
+		flip_addr[i].flip_immediate = new_surfaces[i]->flip_immediate;
+		plane_info[i].color_space = new_surfaces[i]->color_space;
+		plane_info[i].format = new_surfaces[i]->format;
+		plane_info[i].plane_size = new_surfaces[i]->plane_size;
+		plane_info[i].rotation = new_surfaces[i]->rotation;
+		plane_info[i].horizontal_mirror = new_surfaces[i]->horizontal_mirror;
+		plane_info[i].stereo_format = new_surfaces[i]->stereo_format;
+		plane_info[i].tiling_info = new_surfaces[i]->tiling_info;
+		plane_info[i].visible = new_surfaces[i]->visible;
+		plane_info[i].dcc = new_surfaces[i]->dcc;
+		scaling_info[i].scaling_quality = new_surfaces[i]->scaling_quality;
+		scaling_info[i].src_rect = new_surfaces[i]->src_rect;
+		scaling_info[i].dst_rect = new_surfaces[i]->dst_rect;
+		scaling_info[i].clip_rect = new_surfaces[i]->clip_rect;
+
+		srf_updates[i].flip_addr = &flip_addr[i];
+		srf_updates[i].plane_info = &plane_info[i];
+		srf_updates[i].scaling_info = &scaling_info[i];
+	}
+
+	update_type = dc_check_update_surfaces_for_stream(
+			dc, srf_updates, new_surface_count, NULL, stream_status);
+
+	return update_type;
+}
+
 int amdgpu_dm_atomic_check(struct drm_device *dev,
 			struct drm_atomic_state *state)
 {
@@ -3111,12 +3166,24 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 							surface);
 
 				need_to_validate = true;
-				wait_for_prev_commits = true;
 			}
 		}
 	}
 
 	context = dc_get_validate_context(dc, set, set_count);
+
+	for (i = 0; i < set_count; i++) {
+		for (j = 0; j < set[i].surface_count; j++) {
+			if (amdgpu_dm_check_surfaces_update_type(
+					dc,
+					set[i].surfaces,
+					set[i].surface_count,
+					set[i].stream) > UPDATE_TYPE_MED) {
+				wait_for_prev_commits = true;
+				break;
+			}
+		}
+	}
 
 	if (need_to_validate == false || set_count == 0 || context) {
 
