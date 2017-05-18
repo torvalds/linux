@@ -586,7 +586,7 @@ void ion_device_add_heap(struct ion_heap *heap)
 }
 EXPORT_SYMBOL(ion_device_add_heap);
 
-int ion_device_create(void)
+static int ion_device_create(void)
 {
 	struct ion_device *idev;
 	int ret;
