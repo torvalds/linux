@@ -2423,7 +2423,7 @@ int sched_fork(unsigned long clone_flags, struct task_struct *p)
 unsigned long to_ratio(u64 period, u64 runtime)
 {
 	if (runtime == RUNTIME_INF)
-		return 1ULL << 20;
+		return BW_UNIT;
 
 	/*
 	 * Doing this here saves a lot of checks in all
@@ -2433,7 +2433,7 @@ unsigned long to_ratio(u64 period, u64 runtime)
 	if (period == 0)
 		return 0;
 
-	return div64_u64(runtime << 20, period);
+	return div64_u64(runtime << BW_SHIFT, period);
 }
 
 #ifdef CONFIG_SMP
