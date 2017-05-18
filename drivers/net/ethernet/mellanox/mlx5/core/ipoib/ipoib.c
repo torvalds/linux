@@ -291,6 +291,7 @@ static const struct mlx5e_profile mlx5i_nic_profile = {
 	.disable	   = NULL, /* mlx5i_disable */
 	.update_stats	   = NULL, /* mlx5i_update_stats */
 	.max_nch	   = mlx5e_get_max_num_channels,
+	.update_carrier    = NULL, /* no HW update in IB link */
 	.rx_handlers.handle_rx_cqe       = mlx5i_handle_rx_cqe,
 	.rx_handlers.handle_rx_cqe_mpwqe = NULL, /* Not supported */
 	.max_tc		   = MLX5I_MAX_NUM_TC,
@@ -337,6 +338,7 @@ static int mlx5i_open(struct net_device *netdev)
 
 	mlx5e_refresh_tirs(priv, false);
 	mlx5e_activate_priv_channels(priv);
+
 	mutex_unlock(&priv->state_lock);
 	return 0;
 

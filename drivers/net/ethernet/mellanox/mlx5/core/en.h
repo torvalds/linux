@@ -782,6 +782,7 @@ struct mlx5e_profile {
 	void	(*enable)(struct mlx5e_priv *priv);
 	void	(*disable)(struct mlx5e_priv *priv);
 	void	(*update_stats)(struct mlx5e_priv *priv);
+	void	(*update_carrier)(struct mlx5e_priv *priv);
 	int	(*max_nch)(struct mlx5_core_dev *mdev);
 	struct {
 		mlx5e_fp_handle_rx_cqe handle_rx_cqe;
