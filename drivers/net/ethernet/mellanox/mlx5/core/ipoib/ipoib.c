@@ -36,6 +36,7 @@
 #include "ipoib.h"
 
 #define IB_DEFAULT_Q_KEY   0xb1b
+#define MLX5I_PARAMS_DEFAULT_LOG_RQ_SIZE 9
 
 static int mlx5i_open(struct net_device *netdev);
 static int mlx5i_close(struct net_device *netdev);
@@ -50,6 +51,19 @@ static const struct net_device_ops mlx5i_netdev_ops = {
 };
 
 /* IPoIB mlx5 netdev profile */
+static void mlx5i_build_nic_params(struct mlx5_core_dev *mdev,
+				   struct mlx5e_params *params)
+{
+	/* Override RQ params as IPoIB supports only LINKED LIST RQ for now */
+	mlx5e_set_rq_type_params(mdev, params, MLX5_WQ_TYPE_LINKED_LIST);
+
+	/* RQ size in ipoib by default is 512 */
+	params->log_rq_size = is_kdump_kernel() ?
+		MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE :
+		MLX5I_PARAMS_DEFAULT_LOG_RQ_SIZE;
+
+	params->lro_en = false;
+}
 
 /* Called directly after IPoIB netdevice was created to initialize SW structs */
 static void mlx5i_init(struct mlx5_core_dev *mdev,
@@ -65,10 +79,7 @@ static void mlx5i_init(struct mlx5_core_dev *mdev,
 	priv->ppriv       = ppriv;
 
 	mlx5e_build_nic_params(mdev, &priv->channels.params, profile->max_nch(mdev));
-
-	/* Override RQ params as IPoIB supports only LINKED LIST RQ for now */
-	mlx5e_set_rq_type_params(mdev, &priv->channels.params, MLX5_WQ_TYPE_LINKED_LIST);
-	priv->channels.params.lro_en = false;
+	mlx5i_build_nic_params(mdev, &priv->channels.params);
 
 	mutex_init(&priv->state_lock);
 
