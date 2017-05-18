@@ -1313,6 +1313,7 @@ static void __ibmvnic_reset(struct work_struct *work)
 
 	if (rc) {
 		free_all_rwi(adapter);
+		mutex_unlock(&adapter->reset_lock);
 		return;
 	}
 
