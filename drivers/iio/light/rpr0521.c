@@ -197,7 +197,10 @@ static int rpr0521_als_enable(struct rpr0521_data *data, u8 status)
 	if (ret < 0)
 		return ret;
 
-	data->als_dev_en = true;
+	if (status & RPR0521_MODE_ALS_MASK)
+		data->als_dev_en = true;
+	else
+		data->als_dev_en = false;
 
 	return 0;
 }
@@ -212,7 +215,10 @@ static int rpr0521_pxs_enable(struct rpr0521_data *data, u8 status)
 	if (ret < 0)
 		return ret;
 
-	data->pxs_dev_en = true;
+	if (status & RPR0521_MODE_PXS_MASK)
+		data->pxs_dev_en = true;
+	else
+		data->pxs_dev_en = false;
 
 	return 0;
 }
