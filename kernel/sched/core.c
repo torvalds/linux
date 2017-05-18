@@ -6759,6 +6759,16 @@ static int sched_dl_global_validate(void)
 	return ret;
 }
 
+void init_dl_rq_bw_ratio(struct dl_rq *dl_rq)
+{
+	if (global_rt_runtime() == RUNTIME_INF) {
+		dl_rq->bw_ratio = 1 << RATIO_SHIFT;
+	} else {
+		dl_rq->bw_ratio = to_ratio(global_rt_runtime(),
+			  global_rt_period()) >> (BW_SHIFT - RATIO_SHIFT);
+	}
+}
+
 static void sched_dl_do_global(void)
 {
 	u64 new_bw = -1;
@@ -6784,6 +6794,7 @@ static void sched_dl_do_global(void)
 		raw_spin_unlock_irqrestore(&dl_b->lock, flags);
 
 		rcu_read_unlock_sched();
+		init_dl_rq_bw_ratio(&cpu_rq(cpu)->dl);
 	}
 }
 

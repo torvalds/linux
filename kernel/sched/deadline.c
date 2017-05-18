@@ -268,6 +268,7 @@ void init_dl_rq(struct dl_rq *dl_rq)
 #endif
 
 	dl_rq->running_bw = 0;
+	init_dl_rq_bw_ratio(dl_rq);
 }
 
 #ifdef CONFIG_SMP
@@ -924,11 +925,20 @@ extern bool sched_rt_bandwidth_account(struct rt_rq *rt_rq);
  * Uact is the (per-runqueue) active utilization.
  * Since rq->dl.running_bw contains Uact * 2^BW_SHIFT, the result
  * has to be shifted right by BW_SHIFT.
+ * To reclaim only a fraction Umax of the CPU time, the
+ * runtime accounting rule is modified as
+ * "dq = -Uact / Umax dt"; since rq->dl.bw_ratio contains
+ * 2^RATIO_SHIFT / Umax, delta is multiplied by bw_ratio and shifted
+ * right by RATIO_SHIFT.
+ * Since delta is a 64 bit variable, to have an overflow its value
+ * should be larger than 2^(64 - 20 - 8), which is more than 64 seconds.
+ * So, overflow is not an issue here.
  */
 u64 grub_reclaim(u64 delta, struct rq *rq)
 {
 	delta *= rq->dl.running_bw;
-	delta >>= BW_SHIFT;
+	delta *= rq->dl.bw_ratio;
+	delta >>= BW_SHIFT + RATIO_SHIFT;
 
 	return delta;
 }
