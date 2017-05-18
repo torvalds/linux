@@ -1379,12 +1379,6 @@ static int rk818_charger_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = rk818_cg_init_irqs(cg);
-	if (ret != 0) {
-		dev_err(cg->dev, "init irqs failed!\n");
-		return ret;
-	}
-
 	rk818_cg_init_ts2_detect(cg);
 
 	ret = rk818_cg_init_dc(cg);
@@ -1407,7 +1401,48 @@ static int rk818_charger_probe(struct platform_device *pdev)
 
 	rk818_cg_init_charger_state(cg);
 
+	ret = rk818_cg_init_irqs(cg);
+	if (ret) {
+		dev_err(cg->dev, "init irqs failed!\n");
+		goto irq_fail;
+	}
+
 	CG_INFO("driver version: %s\n", DRIVER_VERSION);
+
+	return 0;
+
+irq_fail:
+
+	/* type-c only */
+	if (cg->pdata->extcon) {
+		cancel_delayed_work_sync(&cg->host_work);
+		cancel_delayed_work_sync(&cg->discnt_work);
+	}
+
+	cancel_delayed_work_sync(&cg->usb_work);
+	cancel_delayed_work_sync(&cg->dc_work);
+	cancel_delayed_work_sync(&cg->finish_sig_work);
+	cancel_delayed_work_sync(&cg->irq_work);
+	cancel_delayed_work_sync(&cg->ts2_vol_work);
+	destroy_workqueue(cg->ts2_wq);
+	destroy_workqueue(cg->usb_charger_wq);
+	destroy_workqueue(cg->dc_charger_wq);
+	destroy_workqueue(cg->finish_sig_wq);
+
+	if (cg->pdata->extcon) {
+		extcon_unregister_notifier(cg->cable_edev, EXTCON_CHG_USB_SDP,
+					   &cg->cable_cg_nb);
+		extcon_unregister_notifier(cg->cable_edev, EXTCON_CHG_USB_DCP,
+					   &cg->cable_cg_nb);
+		extcon_unregister_notifier(cg->cable_edev, EXTCON_CHG_USB_CDP,
+					   &cg->cable_cg_nb);
+		extcon_unregister_notifier(cg->cable_edev, EXTCON_USB_VBUS_EN,
+					   &cg->cable_host_nb);
+		extcon_unregister_notifier(cg->cable_edev, EXTCON_USB,
+					   &cg->cable_discnt_nb);
+	} else {
+		rk_bc_detect_notifier_unregister(&cg->bc_nb);
+	}
 
 	return ret;
 }
