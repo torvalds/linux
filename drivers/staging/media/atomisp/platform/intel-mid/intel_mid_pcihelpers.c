@@ -32,7 +32,6 @@ static DEFINE_SPINLOCK(msgbus_lock);
 
 static struct pci_dev *pci_root;
 static struct pm_qos_request pm_qos;
-int qos;
 
 #define DW_I2C_NEED_QOS	(platform_is(INTEL_ATOM_BYT))
 
