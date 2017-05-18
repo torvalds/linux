@@ -881,6 +881,7 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	struct sh_mobile_i2c_data *pd;
 	struct i2c_adapter *adap;
 	struct resource *res;
+	const struct of_device_id *match;
 	int ret;
 	u32 bus_speed;
 
@@ -910,22 +911,16 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 
 	ret = of_property_read_u32(dev->dev.of_node, "clock-frequency", &bus_speed);
 	pd->bus_speed = ret ? STANDARD_MODE : bus_speed;
-
 	pd->clks_per_count = 1;
 
-	if (dev->dev.of_node) {
-		const struct of_device_id *match;
+	match = of_match_device(sh_mobile_i2c_dt_ids, &dev->dev);
+	if (match) {
+		const struct sh_mobile_dt_config *config = match->data;
 
-		match = of_match_device(sh_mobile_i2c_dt_ids, &dev->dev);
-		if (match) {
-			const struct sh_mobile_dt_config *config;
+		pd->clks_per_count = config->clks_per_count;
 
-			config = match->data;
-			pd->clks_per_count = config->clks_per_count;
-
-			if (config->setup)
-				config->setup(pd);
-		}
+		if (config->setup)
+			config->setup(pd);
 	}
 
 	/* The IIC blocks on SH-Mobile ARM processors
