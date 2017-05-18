@@ -1658,7 +1658,7 @@ ia_css_binary_find(struct ia_css_binary_descr *descr,
 			candidate->internal.max_height);
 			continue;
 		}
-		if (!candidate->enable.ds && need_ds & !(xcandidate->num_output_pins > 1)) {
+		if (!candidate->enable.ds && need_ds && !(xcandidate->num_output_pins > 1)) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 				"ia_css_binary_find() [%d] continue: !%d && %d\n",
 				__LINE__, candidate->enable.ds, (int)need_ds);
