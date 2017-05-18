@@ -116,7 +116,7 @@ static int mv64x60_pci_err_probe(struct platform_device *pdev)
 	pdata = pci->pvt_info;
 
 	pdata->pci_hose = pdev->id;
-	pdata->name = "mpc85xx_pci_err";
+	pdata->name = "mv64x60_pci_err";
 	platform_set_drvdata(pdev, pci);
 	pci->dev = &pdev->dev;
 	pci->dev_name = dev_name(&pdev->dev);
