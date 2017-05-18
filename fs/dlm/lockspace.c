@@ -455,7 +455,8 @@ static int new_lockspace(const char *name, const char *cluster,
 
 	if (dlm_config.ci_recover_callbacks && cluster &&
 	    strncmp(cluster, dlm_config.ci_cluster_name, DLM_LOCKSPACE_LEN)) {
-		log_print("dlm cluster name %s mismatch %s",
+		log_print("dlm cluster name '%s' does not match "
+			  "the application cluster name '%s'",
 			  dlm_config.ci_cluster_name, cluster);
 		error = -EBADR;
 		goto out;
