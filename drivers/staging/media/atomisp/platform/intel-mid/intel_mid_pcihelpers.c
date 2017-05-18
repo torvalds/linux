@@ -22,7 +22,7 @@
 #endif
 static inline int platform_is(u8 model)
 {
-        return (boot_cpu_data.x86_model == model);
+	return (boot_cpu_data.x86_model == model);
 }
 
 #include "../../include/asm/intel_mid_pcihelpers.h"
