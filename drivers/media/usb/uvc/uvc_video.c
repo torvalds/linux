@@ -1327,7 +1327,7 @@ static void uvc_video_complete(struct urb *urb)
 	case -ENOENT:		/* usb_kill_urb() called. */
 		if (stream->frozen)
 			return;
-
+		/* fall through */
 	case -ECONNRESET:	/* usb_unlink_urb() called. */
 	case -ESHUTDOWN:	/* The endpoint is being disabled. */
 		uvc_queue_cancel(queue, urb->status == -ESHUTDOWN);

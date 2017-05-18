@@ -535,6 +535,7 @@ static void af9013_statistics_work(struct work_struct *work)
 	switch (state->statistics_step) {
 	default:
 		state->statistics_step = 0;
+		/* fall-through */
 	case 0:
 		af9013_statistics_signal_strength(&state->fe);
 		state->statistics_step++;
