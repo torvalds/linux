@@ -5,4 +5,4 @@ menuconfig SND_SOC_STM32
 	select SND_SOC_GENERIC_DMAENGINE_PCM
 	select REGMAP_MMIO
 	help
-	  Say Y if you want to enable ASoC-support for STM32
+	  Say Y if you want to enable ASoC support for STM32
