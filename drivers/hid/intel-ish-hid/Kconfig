@@ -1,5 +1,5 @@
 menu "Intel ISH HID support"
-	depends on X86_64 && PCI
+	depends on (X86_64 || COMPILE_TEST) && PCI
 
 config INTEL_ISH_HID
 	tristate "Intel Integrated Sensor Hub"
