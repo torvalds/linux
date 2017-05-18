@@ -42,7 +42,8 @@ struct mmc_queue_req {
 	unsigned int		bounce_sg_len;
 	struct mmc_async_req	areq;
 	int			ioc_result;
-	struct mmc_blk_ioc_data	*idata;
+	struct mmc_blk_ioc_data	**idata;
+	unsigned int		ioc_count;
 };
 
 struct mmc_queue {

@@ -563,6 +563,7 @@ static int mmc_blk_ioctl_cmd(struct block_device *bdev,
 			     struct mmc_ioc_cmd __user *ic_ptr)
 {
 	struct mmc_blk_ioc_data *idata;
+	struct mmc_blk_ioc_data *idatas[1];
 	struct mmc_blk_data *md;
 	struct mmc_queue *mq;
 	struct mmc_card *card;
@@ -600,7 +601,9 @@ static int mmc_blk_ioctl_cmd(struct block_device *bdev,
 	req = blk_get_request(mq->queue,
 		idata->ic.write_flag ? REQ_OP_DRV_OUT : REQ_OP_DRV_IN,
 		__GFP_RECLAIM);
-	req_to_mmc_queue_req(req)->idata = idata;
+	idatas[0] = idata;
+	req_to_mmc_queue_req(req)->idata = idatas;
+	req_to_mmc_queue_req(req)->ioc_count = 1;
 	blk_execute_rq(mq->queue, NULL, req, 0);
 	ioc_err = req_to_mmc_queue_req(req)->ioc_result;
 	err = mmc_blk_ioctl_copy_to_user(ic_ptr, idata);
@@ -622,14 +625,17 @@ cmd_err:
 static void mmc_blk_ioctl_cmd_issue(struct mmc_queue *mq, struct request *req)
 {
 	struct mmc_queue_req *mq_rq;
-	struct mmc_blk_ioc_data *idata;
 	struct mmc_card *card = mq->card;
 	struct mmc_blk_data *md = mq->blkdata;
 	int ioc_err;
+	int i;
 
 	mq_rq = req_to_mmc_queue_req(req);
-	idata = mq_rq->idata;
-	ioc_err = __mmc_blk_ioctl_cmd(card, md, idata);
+	for (i = 0; i < mq_rq->ioc_count; i++) {
+		ioc_err = __mmc_blk_ioctl_cmd(card, md, mq_rq->idata[i]);
+		if (ioc_err)
+			break;
+	}
 	mq_rq->ioc_result = ioc_err;
 
 	/* Always switch back to main area after RPMB access */
@@ -646,8 +652,10 @@ static int mmc_blk_ioctl_multi_cmd(struct block_device *bdev,
 	struct mmc_ioc_cmd __user *cmds = user->cmds;
 	struct mmc_card *card;
 	struct mmc_blk_data *md;
+	struct mmc_queue *mq;
 	int i, err = 0, ioc_err = 0;
 	__u64 num_of_cmds;
+	struct request *req;
 
 	/*
 	 * The caller must have CAP_SYS_RAWIO, and must be calling this on the
@@ -689,20 +697,24 @@ static int mmc_blk_ioctl_multi_cmd(struct block_device *bdev,
 		goto cmd_done;
 	}
 
-	mmc_get_card(card);
 
-	for (i = 0; i < num_of_cmds && !ioc_err; i++)
-		ioc_err = __mmc_blk_ioctl_cmd(card, md, idata[i]);
-
-	/* Always switch back to main area after RPMB access */
-	if (md->area_type & MMC_BLK_DATA_AREA_RPMB)
-		mmc_blk_part_switch(card, dev_get_drvdata(&card->dev));
-
-	mmc_put_card(card);
+	/*
+	 * Dispatch the ioctl()s into the block request queue.
+	 */
+	mq = &md->queue;
+	req = blk_get_request(mq->queue,
+		idata[0]->ic.write_flag ? REQ_OP_DRV_OUT : REQ_OP_DRV_IN,
+		__GFP_RECLAIM);
+	req_to_mmc_queue_req(req)->idata = idata;
+	req_to_mmc_queue_req(req)->ioc_count = num_of_cmds;
+	blk_execute_rq(mq->queue, NULL, req, 0);
+	ioc_err = req_to_mmc_queue_req(req)->ioc_result;
 
 	/* copy to user if data and response */
 	for (i = 0; i < num_of_cmds && !err; i++)
 		err = mmc_blk_ioctl_copy_to_user(&cmds[i], idata[i]);
+
+	blk_put_request(req);
 
 cmd_done:
 	mmc_blk_put(md);
