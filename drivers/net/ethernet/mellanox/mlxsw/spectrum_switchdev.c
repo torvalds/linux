@@ -1369,8 +1369,7 @@ do_fdb_op:
 	err = mlxsw_sp_port_fdb_uc_op(mlxsw_sp, local_port, mac, fid,
 				      adding, true);
 	if (err) {
-		if (net_ratelimit())
-			netdev_err(mlxsw_sp_port->dev, "Failed to set FDB entry\n");
+		dev_err_ratelimited(mlxsw_sp->bus_info->dev, "Failed to set FDB entry\n");
 		return;
 	}
 
@@ -1430,8 +1429,7 @@ do_fdb_op:
 	err = mlxsw_sp_port_fdb_uc_lag_op(mlxsw_sp, lag_id, mac, fid, lag_vid,
 					  adding, true);
 	if (err) {
-		if (net_ratelimit())
-			netdev_err(mlxsw_sp_port->dev, "Failed to set FDB entry\n");
+		dev_err_ratelimited(mlxsw_sp->bus_info->dev, "Failed to set FDB entry\n");
 		return;
 	}
 

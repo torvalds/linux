@@ -835,6 +835,13 @@ static int br_validate(struct nlattr *tb[], struct nlattr *data[])
 			return -EPROTONOSUPPORT;
 		}
 	}
+
+	if (data[IFLA_BR_VLAN_DEFAULT_PVID]) {
+		__u16 defpvid = nla_get_u16(data[IFLA_BR_VLAN_DEFAULT_PVID]);
+
+		if (defpvid >= VLAN_VID_MASK)
+			return -EINVAL;
+	}
 #endif
 
 	return 0;

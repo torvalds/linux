@@ -139,10 +139,7 @@
 
 #include <trace/events/sock.h>
 
-#ifdef CONFIG_INET
 #include <net/tcp.h>
-#endif
-
 #include <net/busy_poll.h>
 
 static DEFINE_MUTEX(proto_list_mutex);

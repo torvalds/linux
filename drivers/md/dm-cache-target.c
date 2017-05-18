@@ -94,6 +94,9 @@ static void iot_io_begin(struct io_tracker *iot, sector_t len)
 
 static void __iot_io_end(struct io_tracker *iot, sector_t len)
 {
+	if (!len)
+		return;
+
 	iot->in_flight -= len;
 	if (!iot->in_flight)
 		iot->idle_time = jiffies;
@@ -474,7 +477,7 @@ struct cache {
 	spinlock_t invalidation_lock;
 	struct list_head invalidation_requests;
 
-	struct io_tracker origin_tracker;
+	struct io_tracker tracker;
 
 	struct work_struct commit_ws;
 	struct batcher committer;
@@ -901,8 +904,7 @@ static dm_oblock_t get_bio_block(struct cache *cache, struct bio *bio)
 
 static bool accountable_bio(struct cache *cache, struct bio *bio)
 {
-	return ((bio->bi_bdev == cache->origin_dev->bdev) &&
-		bio_op(bio) != REQ_OP_DISCARD);
+	return bio_op(bio) != REQ_OP_DISCARD;
 }
 
 static void accounted_begin(struct cache *cache, struct bio *bio)
@@ -912,7 +914,7 @@ static void accounted_begin(struct cache *cache, struct bio *bio)
 
 	if (accountable_bio(cache, bio)) {
 		pb->len = bio_sectors(bio);
-		iot_io_begin(&cache->origin_tracker, pb->len);
+		iot_io_begin(&cache->tracker, pb->len);
 	}
 }
 
@@ -921,7 +923,7 @@ static void accounted_complete(struct cache *cache, struct bio *bio)
 	size_t pb_data_size = get_per_bio_data_size(cache);
 	struct per_bio_data *pb = get_per_bio_data(bio, pb_data_size);
 
-	iot_io_end(&cache->origin_tracker, pb->len);
+	iot_io_end(&cache->tracker, pb->len);
 }
 
 static void accounted_request(struct cache *cache, struct bio *bio)
@@ -1716,20 +1718,19 @@ static int invalidate_start(struct cache *cache, dm_cblock_t cblock,
 
 enum busy {
 	IDLE,
-	MODERATE,
 	BUSY
 };
 
 static enum busy spare_migration_bandwidth(struct cache *cache)
 {
-	bool idle = iot_idle_for(&cache->origin_tracker, HZ);
+	bool idle = iot_idle_for(&cache->tracker, HZ);
 	sector_t current_volume = (atomic_read(&cache->nr_io_migrations) + 1) *
 		cache->sectors_per_block;
 
-	if (current_volume <= cache->migration_threshold)
-		return idle ? IDLE : MODERATE;
+	if (idle && current_volume <= cache->migration_threshold)
+		return IDLE;
 	else
-		return idle ? MODERATE : BUSY;
+		return BUSY;
 }
 
 static void inc_hit_counter(struct cache *cache, struct bio *bio)
@@ -2045,8 +2046,6 @@ static void check_migrations(struct work_struct *ws)
 
 	for (;;) {
 		b = spare_migration_bandwidth(cache);
-		if (b == BUSY)
-			break;
 
 		r = policy_get_background_work(cache->policy, b == IDLE, &op);
 		if (r == -ENODATA)
@@ -2717,7 +2716,7 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 
 	batcher_init(&cache->committer, commit_op, cache,
 		     issue_op, cache, cache->wq);
-	iot_init(&cache->origin_tracker);
+	iot_init(&cache->tracker);
 
 	init_rwsem(&cache->background_work_lock);
 	prevent_background_work(cache);
@@ -2941,7 +2940,7 @@ static void cache_postsuspend(struct dm_target *ti)
 
 	cancel_delayed_work(&cache->waker);
 	flush_workqueue(cache->wq);
-	WARN_ON(cache->origin_tracker.in_flight);
+	WARN_ON(cache->tracker.in_flight);
 
 	/*
 	 * If it's a flush suspend there won't be any deferred bios, so this

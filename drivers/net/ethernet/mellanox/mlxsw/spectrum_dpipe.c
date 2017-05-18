@@ -199,10 +199,11 @@ static int mlxsw_sp_erif_entry_get(struct mlxsw_sp *mlxsw_sp,
 
 	entry->counter_valid = false;
 	entry->counter = 0;
+	entry->index = mlxsw_sp_rif_index(rif);
+
 	if (!counters_enabled)
 		return 0;
 
-	entry->index = mlxsw_sp_rif_index(rif);
 	err = mlxsw_sp_rif_counter_value_get(mlxsw_sp, rif,
 					     MLXSW_SP_RIF_COUNTER_EGRESS,
 					     &cnt);
