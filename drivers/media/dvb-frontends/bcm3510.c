@@ -538,6 +538,7 @@ static int bcm3510_set_frontend(struct dvb_frontend *fe)
 			cmd.ACQUIRE0.MODE = 0x9;
 			cmd.ACQUIRE1.SYM_RATE = 0x0;
 			cmd.ACQUIRE1.IF_FREQ = 0x0;
+			break;
 		default:
 			return -EINVAL;
 	}
