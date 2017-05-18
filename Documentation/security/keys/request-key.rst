@@ -105,15 +105,15 @@ A request proceeds in the following manner:
      UID, GID, groups and security info of process A as if it was process A,
      and come up with key W.
 
- (8) The program then does what it must to get the data with which to
+  8) The program then does what it must to get the data with which to
      instantiate key U, using key W as a reference (perhaps it contacts a
      Kerberos server using the TGT) and then instantiates key U.
 
   9) Upon instantiating key U, auth key V is automatically revoked so that it
      may not be used again.
 
- 10) The program then exits 0 and request_key() deletes key V and returns key
-     U to the caller.
+  10) The program then exits 0 and request_key() deletes key V and returns key
+      U to the caller.
 
 This also extends further.  If key W (step 7 above) didn't exist, key W would
 be created uninstantiated, another auth key (X) would be created (as per step
