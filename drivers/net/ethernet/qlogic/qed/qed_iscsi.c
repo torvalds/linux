@@ -375,7 +375,6 @@ static int qed_sp_iscsi_conn_offload(struct qed_hwfn *p_hwfn,
 		p_tcp->ss_thresh = cpu_to_le32(p_conn->ss_thresh);
 		p_tcp->srtt = cpu_to_le16(p_conn->srtt);
 		p_tcp->rtt_var = cpu_to_le16(p_conn->rtt_var);
-		p_tcp->ts_time = cpu_to_le32(p_conn->ts_time);
 		p_tcp->ts_recent = cpu_to_le32(p_conn->ts_recent);
 		p_tcp->ts_recent_age = cpu_to_le32(p_conn->ts_recent_age);
 		p_tcp->total_rt = cpu_to_le32(p_conn->total_rt);
@@ -400,8 +399,6 @@ static int qed_sp_iscsi_conn_offload(struct qed_hwfn *p_hwfn,
 		p_tcp->mss = cpu_to_le16(p_conn->mss);
 		p_tcp->snd_wnd_scale = p_conn->snd_wnd_scale;
 		p_tcp->rcv_wnd_scale = p_conn->rcv_wnd_scale;
-		dval = p_conn->ts_ticks_per_second;
-		p_tcp->ts_ticks_per_second = cpu_to_le32(dval);
 		wval = p_conn->da_timeout_value;
 		p_tcp->da_timeout_value = cpu_to_le16(wval);
 		p_tcp->ack_frequency = p_conn->ack_frequency;

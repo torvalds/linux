@@ -37,6 +37,8 @@
 #define ROCE_REQ_MAX_SINGLE_SQ_WQE_SIZE (288)
 
 #define ROCE_MAX_QPS	(32 * 1024)
+#define ROCE_DCQCN_NP_MAX_QPS	(64)
+#define ROCE_DCQCN_RP_MAX_QPS	(64)
 
 enum roce_async_events_type {
 	ROCE_ASYNC_EVENT_NONE = 0,

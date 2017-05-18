@@ -2432,10 +2432,6 @@ qed_rdma_register_tid(void *rdma_cxt,
 			  params->page_size_log - 12);
 
 	SET_FIELD(p_ramrod->flags,
-		  RDMA_REGISTER_TID_RAMROD_DATA_MAX_ID,
-		  p_hwfn->p_rdma_info->last_tid);
-
-	SET_FIELD(p_ramrod->flags,
 		  RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_READ,
 		  params->remote_read);
 

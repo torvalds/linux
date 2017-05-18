@@ -944,17 +944,18 @@ void qed_dcbx_set_pf_update_params(struct qed_dcbx_results *p_src,
 	p_dest->pf_id = p_src->pf_id;
 
 	update_flag = p_src->arr[DCBX_PROTOCOL_FCOE].update;
-	p_dest->update_fcoe_dcb_data_flag = update_flag;
+	p_dest->update_fcoe_dcb_data_mode = update_flag;
 
 	update_flag = p_src->arr[DCBX_PROTOCOL_ROCE].update;
-	p_dest->update_roce_dcb_data_flag = update_flag;
+	p_dest->update_roce_dcb_data_mode = update_flag;
+
 	update_flag = p_src->arr[DCBX_PROTOCOL_ROCE_V2].update;
-	p_dest->update_roce_dcb_data_flag = update_flag;
+	p_dest->update_rroce_dcb_data_mode = update_flag;
 
 	update_flag = p_src->arr[DCBX_PROTOCOL_ISCSI].update;
-	p_dest->update_iscsi_dcb_data_flag = update_flag;
+	p_dest->update_iscsi_dcb_data_mode = update_flag;
 	update_flag = p_src->arr[DCBX_PROTOCOL_ETH].update;
-	p_dest->update_eth_dcb_data_flag = update_flag;
+	p_dest->update_eth_dcb_data_mode = update_flag;
 
 	p_dcb_data = &p_dest->fcoe_dcb_data;
 	qed_dcbx_update_protocol_data(p_dcb_data, p_src, DCBX_PROTOCOL_FCOE);
