@@ -614,7 +614,6 @@ static void __i915_guc_submit(struct drm_i915_gem_request *rq)
 	b_ret = guc_ring_doorbell(client);
 
 	client->submissions[engine_id] += 1;
-	client->retcode = b_ret;
 
 	guc->submissions[engine_id] += 1;
 	guc->last_seqno[engine_id] = rq->global_seqno;

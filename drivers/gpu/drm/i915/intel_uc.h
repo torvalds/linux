@@ -59,7 +59,6 @@ struct drm_i915_gem_request;
  *                available in the work queue (note, the queue is shared,
  *                not per-engine). It is OK for this to be nonzero, but
  *                it should not be huge!
- *   retcode: errno from last guc_submit()
  */
 struct i915_guc_client {
 	struct i915_vma *vma;
@@ -82,7 +81,6 @@ struct i915_guc_client {
 	uint32_t wq_tail;
 	uint32_t wq_rsvd;
 	uint32_t no_wq_space;
-	int retcode;
 
 	/* Per-engine counts of GuC submissions */
 	uint64_t submissions[I915_NUM_ENGINES];
