@@ -140,7 +140,7 @@ int public_key_verify_signature(const struct public_key *pkey,
 	 * signature and returns that to us.
 	 */
 	ret = crypto_akcipher_verify(req);
-	if (ret == -EINPROGRESS) {
+	if ((ret == -EINPROGRESS) || (ret == -EBUSY)) {
 		wait_for_completion(&compl.completion);
 		ret = compl.err;
 	}
