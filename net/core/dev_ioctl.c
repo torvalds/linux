@@ -227,6 +227,8 @@ static int net_hwtstamp_validate(struct ifreq *ifr)
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
 		rx_filter_valid = 1;
 		break;
+	case HWTSTAMP_FILTER_NTP_ALL:
+		break;
 	}
 
 	if (!tx_type_valid || !rx_filter_valid)

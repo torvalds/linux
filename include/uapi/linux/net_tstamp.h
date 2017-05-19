@@ -125,6 +125,9 @@ enum hwtstamp_rx_filters {
 	HWTSTAMP_FILTER_PTP_V2_SYNC,
 	/* PTP v2/802.AS1, any layer, Delay_req packet */
 	HWTSTAMP_FILTER_PTP_V2_DELAY_REQ,
+
+	/* NTP, UDP, all versions and packet modes */
+	HWTSTAMP_FILTER_NTP_ALL,
 };
 
 #endif /* _NET_TIMESTAMPING_H */
