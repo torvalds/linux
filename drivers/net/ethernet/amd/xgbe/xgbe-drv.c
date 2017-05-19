@@ -1268,6 +1268,7 @@ static int xgbe_set_hwtstamp_settings(struct xgbe_prv_data *pdata,
 	case HWTSTAMP_FILTER_NONE:
 		break;
 
+	case HWTSTAMP_FILTER_NTP_ALL:
 	case HWTSTAMP_FILTER_ALL:
 		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSENALL, 1);
 		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSENA, 1);

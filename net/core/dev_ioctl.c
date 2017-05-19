@@ -225,9 +225,8 @@ static int net_hwtstamp_validate(struct ifreq *ifr)
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
-		rx_filter_valid = 1;
-		break;
 	case HWTSTAMP_FILTER_NTP_ALL:
+		rx_filter_valid = 1;
 		break;
 	}
 
