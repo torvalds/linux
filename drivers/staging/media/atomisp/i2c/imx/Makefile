@@ -4,3 +4,8 @@ imx1x5-objs := imx.o drv201.o ad5816g.o dw9714.o dw9719.o dw9718.o vcm.o otp.o o
 
 ov8858_driver-objs := ../ov8858.o dw9718.o vcm.o
 obj-$(CONFIG_VIDEO_OV8858)     += ov8858_driver.o
+
+# HACK! While this driver is in bad shape, don't enable several warnings
+#       that would be otherwise enabled with W=1
+ccflags-y += -Wno-unused-but-set-variable -Wno-missing-prototypes \
+             -Wno-unused-const-variable -Wno-missing-declarations

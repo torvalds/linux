@@ -353,3 +353,9 @@ DEFINES += -DSYSTEM_hive_isp_css_2400_system -DISP2400
 
 ccflags-y += $(INCLUDES) $(DEFINES) -fno-common
 
+# HACK! While this driver is in bad shape, don't enable several warnings
+#       that would be otherwise enabled with W=1
+ccflags-y += -Wno-unused-const-variable -Wno-missing-prototypes \
+	     -Wno-unused-but-set-variable -Wno-missing-declarations \
+	     -Wno-suggest-attribute=format -Wno-missing-prototypes \
+	     -Wno-implicit-fallthrough
