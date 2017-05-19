@@ -26,59 +26,22 @@
 
 #include <subdev/timer.h>
 
-static inline u32
-g94_sor_soff(struct nvkm_output_dp *outp)
+void
+g94_sor_dp_drive(struct nvkm_ior *sor, int ln, int pc, int dc, int pe, int pu)
 {
-	return (ffs(outp->base.info.or) - 1) * 0x800;
-}
-
-static inline u32
-g94_sor_loff(struct nvkm_output_dp *outp)
-{
-	return g94_sor_soff(outp) + !(outp->base.info.sorconf.link & 1) * 0x80;
-}
-
-/*******************************************************************************
- * DisplayPort
- ******************************************************************************/
-u32
-g94_sor_dp_lane_map(struct nvkm_device *device, u8 lane)
-{
-	return nvkm_ior_find(device->disp, SOR, -1)->func->dp.lanes[lane] * 8;
-}
-
-static int
-g94_sor_dp_drv_ctl(struct nvkm_output_dp *outp, int ln, int vs, int pe, int pc)
-{
-	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
-	struct nvkm_bios *bios = device->bios;
-	const u32 shift = g94_sor_dp_lane_map(device, ln);
-	const u32 loff = g94_sor_loff(outp);
-	u32 addr, data[3];
-	u8  ver, hdr, cnt, len;
-	struct nvbios_dpout info;
-	struct nvbios_dpcfg ocfg;
-
-	addr = nvbios_dpout_match(bios, outp->base.info.hasht,
-					outp->base.info.hashm,
-				  &ver, &hdr, &cnt, &len, &info);
-	if (!addr)
-		return -ENODEV;
-
-	addr = nvbios_dpcfg_match(bios, addr, 0, vs, pe,
-				  &ver, &hdr, &cnt, &len, &ocfg);
-	if (!addr)
-		return -EINVAL;
+	struct nvkm_device *device = sor->disp->engine.subdev.device;
+	const u32  loff = nv50_sor_link(sor);
+	const u32 shift = sor->func->dp.lanes[ln] * 8;
+	u32 data[3];
 
 	data[0] = nvkm_rd32(device, 0x61c118 + loff) & ~(0x000000ff << shift);
 	data[1] = nvkm_rd32(device, 0x61c120 + loff) & ~(0x000000ff << shift);
 	data[2] = nvkm_rd32(device, 0x61c130 + loff);
-	if ((data[2] & 0x0000ff00) < (ocfg.tx_pu << 8) || ln == 0)
-		data[2] = (data[2] & ~0x0000ff00) | (ocfg.tx_pu << 8);
-	nvkm_wr32(device, 0x61c118 + loff, data[0] | (ocfg.dc << shift));
-	nvkm_wr32(device, 0x61c120 + loff, data[1] | (ocfg.pe << shift));
+	if ((data[2] & 0x0000ff00) < (pu << 8) || ln == 0)
+		data[2] = (data[2] & ~0x0000ff00) | (pu << 8);
+	nvkm_wr32(device, 0x61c118 + loff, data[0] | (dc << shift));
+	nvkm_wr32(device, 0x61c120 + loff, data[1] | (pe << shift));
 	nvkm_wr32(device, 0x61c130 + loff, data[2]);
-	return 0;
 }
 
 void
@@ -130,7 +93,6 @@ g94_sor_dp_links(struct nvkm_ior *sor, struct nvkm_i2c_aux *aux)
 
 static const struct nvkm_output_dp_func
 g94_sor_dp_func = {
-	.drv_ctl = g94_sor_dp_drv_ctl,
 };
 
 int
@@ -298,6 +260,7 @@ g94_sor = {
 		.links = g94_sor_dp_links,
 		.power = g94_sor_dp_power,
 		.pattern = g94_sor_dp_pattern,
+		.drive = g94_sor_dp_drive,
 	},
 };
 

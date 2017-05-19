@@ -56,6 +56,8 @@ struct nvkm_ior_func {
 		int (*links)(struct nvkm_ior *, struct nvkm_i2c_aux *);
 		void (*power)(struct nvkm_ior *, int nr);
 		void (*pattern)(struct nvkm_ior *, int pattern);
+		void (*drive)(struct nvkm_ior *, int ln, int pc,
+			      int dc, int pe, int tx_pu);
 	} dp;
 };
 
@@ -86,10 +88,12 @@ void g94_sor_state(struct nvkm_ior *, struct nvkm_ior_state *);
 int g94_sor_dp_links(struct nvkm_ior *, struct nvkm_i2c_aux *);
 void g94_sor_dp_power(struct nvkm_ior *, int);
 void g94_sor_dp_pattern(struct nvkm_ior *, int);
+void g94_sor_dp_drive(struct nvkm_ior *, int, int, int, int, int);
 
 void gf119_sor_state(struct nvkm_ior *, struct nvkm_ior_state *);
 int gf119_sor_dp_links(struct nvkm_ior *, struct nvkm_i2c_aux *);
 void gf119_sor_dp_pattern(struct nvkm_ior *, int);
+void gf119_sor_dp_drive(struct nvkm_ior *, int, int, int, int, int);
 
 void gm107_sor_dp_pattern(struct nvkm_ior *, int);
 

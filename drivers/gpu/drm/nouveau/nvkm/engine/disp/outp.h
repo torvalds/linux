@@ -47,8 +47,6 @@ int nv50_sor_output_new(struct nvkm_disp *, int, struct dcb_output *,
 int nv50_pior_output_new(struct nvkm_disp *, int, struct dcb_output *,
 			 struct nvkm_output **);
 
-u32 g94_sor_dp_lane_map(struct nvkm_device *, u8 lane);
-
 void gm200_sor_magic(struct nvkm_output *outp);
 
 #define OUTP_MSG(o,l,f,a...) do {                                              \

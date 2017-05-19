@@ -33,6 +33,7 @@ mcp89_sor = {
 		.links = g94_sor_dp_links,
 		.power = g94_sor_dp_power,
 		.pattern = g94_sor_dp_pattern,
+		.drive = g94_sor_dp_drive,
 	},
 };
 

@@ -33,6 +33,7 @@ gk104_sor = {
 		.links = gf119_sor_dp_links,
 		.power = g94_sor_dp_power,
 		.pattern = gf119_sor_dp_pattern,
+		.drive = gf119_sor_dp_drive,
 	},
 };
 

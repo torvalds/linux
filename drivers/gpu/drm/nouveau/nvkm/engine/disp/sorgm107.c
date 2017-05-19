@@ -38,7 +38,6 @@ gm107_sor_dp_pattern(struct nvkm_ior *sor, int pattern)
 
 static const struct nvkm_output_dp_func
 gm107_sor_dp_func = {
-	.drv_ctl = gf119_sor_dp_drv_ctl,
 	.vcpi = gf119_sor_dp_vcpi,
 };
 
@@ -61,6 +60,7 @@ gm107_sor = {
 		.links = gf119_sor_dp_links,
 		.power = g94_sor_dp_power,
 		.pattern = gm107_sor_dp_pattern,
+		.drive = gf119_sor_dp_drive,
 	},
 };
 

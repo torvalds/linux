@@ -73,9 +73,15 @@ static int
 nvkm_dp_train_drive(struct lt_state *lt, bool pc)
 {
 	struct nvkm_dp *dp = lt->dp;
+	struct nvkm_ior *ior = dp->outp.ior;
+	struct nvkm_bios *bios = ior->disp->engine.subdev.device->bios;
+	struct nvbios_dpout info;
+	struct nvbios_dpcfg ocfg;
+	u8  ver, hdr, cnt, len;
+	u32 data;
 	int ret, i;
 
-	for (i = 0; i < dp->outp.ior->dp.nr; i++) {
+	for (i = 0; i < ior->dp.nr; i++) {
 		u8 lane = (lt->stat[4 + (i >> 1)] >> ((i & 1) * 4)) & 0xf;
 		u8 lpc2 = (lt->pc2stat >> (i * 2)) & 0x3;
 		u8 lpre = (lane & 0x0c) >> 2;
@@ -99,7 +105,21 @@ nvkm_dp_train_drive(struct lt_state *lt, bool pc)
 
 		OUTP_TRACE(&dp->outp, "config lane %d %02x %02x",
 			   i, lt->conf[i], lpc2);
-		dp->func->drv_ctl(dp, i, lvsw & 3, lpre & 3, lpc2 & 3);
+
+		data = nvbios_dpout_match(bios, dp->outp.info.hasht,
+						dp->outp.info.hashm,
+					  &ver, &hdr, &cnt, &len, &info);
+		if (!data)
+			continue;
+
+		data = nvbios_dpcfg_match(bios, data, lpc2 & 3, lvsw & 3,
+					  lpre & 3, &ver, &hdr, &cnt, &len,
+					  &ocfg);
+		if (!data)
+			continue;
+
+		ior->func->dp.drive(ior, i, ocfg.pc, ocfg.dc,
+					    ocfg.pe, ocfg.tx_pu);
 	}
 
 	ret = nvkm_wraux(dp->aux, DPCD_LC03(0), lt->conf, 4);
