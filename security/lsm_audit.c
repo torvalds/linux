@@ -421,6 +421,11 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 				 a->u.ibpkey->pkey, &sbn_pfx);
 		break;
 	}
+	case LSM_AUDIT_DATA_IBENDPORT:
+		audit_log_format(ab, " device=%s port_num=%u",
+				 a->u.ibendport->dev_name,
+				 a->u.ibendport->port);
+		break;
 	} /* switch (a->type) */
 }
 
