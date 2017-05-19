@@ -141,7 +141,7 @@ static void omap_plane_atomic_disable(struct drm_plane *plane,
 	struct omap_plane_state *omap_state = to_omap_plane_state(plane->state);
 	struct omap_plane *omap_plane = to_omap_plane(plane);
 
-	plane->state->rotation = DRM_ROTATE_0;
+	plane->state->rotation = DRM_MODE_ROTATE_0;
 	omap_state->zorder = plane->type == DRM_PLANE_TYPE_PRIMARY
 			   ? 0 : omap_plane->id;
 
@@ -177,7 +177,7 @@ static int omap_plane_atomic_check(struct drm_plane *plane,
 	if (state->crtc_y + state->crtc_h > crtc_state->adjusted_mode.vdisplay)
 		return -EINVAL;
 
-	if (state->rotation != DRM_ROTATE_0 &&
+	if (state->rotation != DRM_MODE_ROTATE_0 &&
 	    !omap_framebuffer_supports_rotation(state->fb))
 		return -EINVAL;
 
@@ -213,15 +213,15 @@ void omap_plane_install_properties(struct drm_plane *plane,
 	if (priv->has_dmm) {
 		if (!plane->rotation_property)
 			drm_plane_create_rotation_property(plane,
-							   DRM_ROTATE_0,
-							   DRM_ROTATE_0 | DRM_ROTATE_90 |
-							   DRM_ROTATE_180 | DRM_ROTATE_270 |
-							   DRM_REFLECT_X | DRM_REFLECT_Y);
+							   DRM_MODE_ROTATE_0,
+							   DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_90 |
+							   DRM_MODE_ROTATE_180 | DRM_MODE_ROTATE_270 |
+							   DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y);
 
 		/* Attach the rotation property also to the crtc object */
 		if (plane->rotation_property && obj != &plane->base)
 			drm_object_attach_property(obj, plane->rotation_property,
-						   DRM_ROTATE_0);
+						   DRM_MODE_ROTATE_0);
 	}
 
 	drm_object_attach_property(obj, priv->zorder_prop, 0);
@@ -273,7 +273,7 @@ static void omap_plane_reset(struct drm_plane *plane)
 	 */
 	omap_state->zorder = plane->type == DRM_PLANE_TYPE_PRIMARY
 			   ? 0 : omap_plane->id;
-	omap_state->base.rotation = DRM_ROTATE_0;
+	omap_state->base.rotation = DRM_MODE_ROTATE_0;
 
 	plane->state = &omap_state->base;
 	plane->state->plane = plane;

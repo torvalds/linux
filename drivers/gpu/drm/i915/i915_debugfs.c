@@ -3095,17 +3095,17 @@ static const char *plane_rotation(unsigned int rotation)
 {
 	static char buf[48];
 	/*
-	 * According to doc only one DRM_ROTATE_ is allowed but this
+	 * According to doc only one DRM_MODE_ROTATE_ is allowed but this
 	 * will print them all to visualize if the values are misused
 	 */
 	snprintf(buf, sizeof(buf),
 		 "%s%s%s%s%s%s(0x%08x)",
-		 (rotation & DRM_ROTATE_0) ? "0 " : "",
-		 (rotation & DRM_ROTATE_90) ? "90 " : "",
-		 (rotation & DRM_ROTATE_180) ? "180 " : "",
-		 (rotation & DRM_ROTATE_270) ? "270 " : "",
-		 (rotation & DRM_REFLECT_X) ? "FLIPX " : "",
-		 (rotation & DRM_REFLECT_Y) ? "FLIPY " : "",
+		 (rotation & DRM_MODE_ROTATE_0) ? "0 " : "",
+		 (rotation & DRM_MODE_ROTATE_90) ? "90 " : "",
+		 (rotation & DRM_MODE_ROTATE_180) ? "180 " : "",
+		 (rotation & DRM_MODE_ROTATE_270) ? "270 " : "",
+		 (rotation & DRM_MODE_REFLECT_X) ? "FLIPX " : "",
+		 (rotation & DRM_MODE_REFLECT_Y) ? "FLIPY " : "",
 		 rotation);
 
 	return buf;

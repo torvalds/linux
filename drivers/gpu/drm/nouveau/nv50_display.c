@@ -1033,7 +1033,7 @@ nv50_wndw_reset(struct drm_plane *plane)
 		plane->funcs->atomic_destroy_state(plane, plane->state);
 	plane->state = &asyw->state;
 	plane->state->plane = plane;
-	plane->state->rotation = DRM_ROTATE_0;
+	plane->state->rotation = DRM_MODE_ROTATE_0;
 }
 
 static void

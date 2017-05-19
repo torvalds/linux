@@ -398,10 +398,10 @@ static u32 vlv_sprite_ctl(const struct intel_crtc_state *crtc_state,
 	if (fb->modifier == I915_FORMAT_MOD_X_TILED)
 		sprctl |= SP_TILED;
 
-	if (rotation & DRM_ROTATE_180)
+	if (rotation & DRM_MODE_ROTATE_180)
 		sprctl |= SP_ROTATE_180;
 
-	if (rotation & DRM_REFLECT_X)
+	if (rotation & DRM_MODE_REFLECT_X)
 		sprctl |= SP_MIRROR;
 
 	if (key->flags & I915_SET_COLORKEY_SOURCE)
@@ -533,7 +533,7 @@ static u32 ivb_sprite_ctl(const struct intel_crtc_state *crtc_state,
 	if (fb->modifier == I915_FORMAT_MOD_X_TILED)
 		sprctl |= SPRITE_TILED;
 
-	if (rotation & DRM_ROTATE_180)
+	if (rotation & DRM_MODE_ROTATE_180)
 		sprctl |= SPRITE_ROTATE_180;
 
 	if (key->flags & I915_SET_COLORKEY_DESTINATION)
@@ -674,7 +674,7 @@ static u32 ilk_sprite_ctl(const struct intel_crtc_state *crtc_state,
 	if (fb->modifier == I915_FORMAT_MOD_X_TILED)
 		dvscntr |= DVS_TILED;
 
-	if (rotation & DRM_ROTATE_180)
+	if (rotation & DRM_MODE_ROTATE_180)
 		dvscntr |= DVS_ROTATE_180;
 
 	if (key->flags & I915_SET_COLORKEY_DESTINATION)
@@ -1145,15 +1145,15 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 
 	if (INTEL_GEN(dev_priv) >= 9) {
 		supported_rotations =
-			DRM_ROTATE_0 | DRM_ROTATE_90 |
-			DRM_ROTATE_180 | DRM_ROTATE_270;
+			DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_90 |
+			DRM_MODE_ROTATE_180 | DRM_MODE_ROTATE_270;
 	} else if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_B) {
 		supported_rotations =
-			DRM_ROTATE_0 | DRM_ROTATE_180 |
-			DRM_REFLECT_X;
+			DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_180 |
+			DRM_MODE_REFLECT_X;
 	} else {
 		supported_rotations =
-			DRM_ROTATE_0 | DRM_ROTATE_180;
+			DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_180;
 	}
 
 	intel_plane->pipe = pipe;
@@ -1180,7 +1180,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		goto fail;
 
 	drm_plane_create_rotation_property(&intel_plane->base,
-					   DRM_ROTATE_0,
+					   DRM_MODE_ROTATE_0,
 					   supported_rotations);
 
 	drm_plane_helper_add(&intel_plane->base, &intel_plane_helper_funcs);

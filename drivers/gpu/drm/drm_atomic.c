@@ -781,7 +781,7 @@ int drm_atomic_plane_set_property(struct drm_plane *plane,
 	} else if (property == config->prop_src_h) {
 		state->src_h = val;
 	} else if (property == plane->rotation_property) {
-		if (!is_power_of_2(val & DRM_ROTATE_MASK))
+		if (!is_power_of_2(val & DRM_MODE_ROTATE_MASK))
 			return -EINVAL;
 		state->rotation = val;
 	} else if (property == plane->zpos_property) {
