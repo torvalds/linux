@@ -163,6 +163,7 @@ struct coex_sta_8723b_1ant {
 	bool c2h_bt_inquiry_page;
 	u8 bt_retry_cnt;
 	u8 bt_info_ext;
+	u8 scan_ap_num;
 	bool cck_ever_lock;
 	bool force_lps_on;
 	u32 pop_event_cnt;
