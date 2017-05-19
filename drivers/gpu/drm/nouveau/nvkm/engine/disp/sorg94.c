@@ -44,14 +44,7 @@ g94_sor_loff(struct nvkm_output_dp *outp)
 u32
 g94_sor_dp_lane_map(struct nvkm_device *device, u8 lane)
 {
-	static const u8 gm100[] = { 0, 8, 16, 24 };
-	static const u8 mcp89[] = { 24, 16, 8, 0 }; /* thanks, apple.. */
-	static const u8   g94[] = { 16, 8, 0, 24 };
-	if (device->chipset >= 0x110)
-		return gm100[lane];
-	if (device->chipset == 0xaf)
-		return mcp89[lane];
-	return g94[lane];
+	return nvkm_ior_find(device->disp, SOR, -1)->func->dp.lanes[lane] * 8;
 }
 
 static int
@@ -305,6 +298,9 @@ static const struct nvkm_ior_func
 g94_sor = {
 	.state = g94_sor_state,
 	.power = nv50_sor_power,
+	.dp = {
+		.lanes = { 2, 1, 0, 3},
+	},
 };
 
 int

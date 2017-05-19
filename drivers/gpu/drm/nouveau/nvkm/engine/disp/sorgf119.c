@@ -160,6 +160,9 @@ gf119_sor = {
 	.hdmi = {
 		.ctrl = gf119_hdmi_ctrl,
 	},
+	.dp = {
+		.lanes = { 2, 1, 0, 3 },
+	},
 };
 
 int

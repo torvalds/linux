@@ -28,6 +28,9 @@ mcp77_sor = {
 	.hdmi = {
 		.ctrl = g84_hdmi_ctrl,
 	},
+	.dp = {
+		.lanes = { 2, 1, 0, 3},
+	},
 };
 
 int

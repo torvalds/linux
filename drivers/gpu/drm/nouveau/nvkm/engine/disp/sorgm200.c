@@ -41,7 +41,7 @@ gm200_sor_loff(struct nvkm_output_dp *outp)
 static inline u32
 gm200_sor_dp_lane_map(struct nvkm_device *device, u8 lane)
 {
-	return lane * 0x08;
+	return nvkm_ior_find(device->disp, SOR, -1)->func->dp.lanes[lane] * 8;
 }
 
 static int
@@ -136,6 +136,9 @@ gm200_sor = {
 	.power = nv50_sor_power,
 	.hdmi = {
 		.ctrl = gk104_hdmi_ctrl,
+	},
+	.dp = {
+		.lanes = { 0, 1, 2, 3 },
 	},
 };
 

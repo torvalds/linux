@@ -28,6 +28,9 @@ mcp89_sor = {
 	.hdmi = {
 		.ctrl = gt215_hdmi_ctrl,
 	},
+	.dp = {
+		.lanes = { 3, 2, 1, 0 },
+	},
 };
 
 int

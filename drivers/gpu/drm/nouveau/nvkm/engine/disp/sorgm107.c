@@ -60,6 +60,9 @@ gm107_sor = {
 	.hdmi = {
 		.ctrl = gk104_hdmi_ctrl,
 	},
+	.dp = {
+		.lanes = { 0, 1, 2, 3 },
+	},
 };
 
 int
