@@ -23,8 +23,26 @@
  */
 #include "head.h"
 
+static void
+gf119_head_vblank_put(struct nvkm_head *head)
+{
+	struct nvkm_device *device = head->disp->engine.subdev.device;
+	const u32 hoff = head->id * 0x800;
+	nvkm_mask(device, 0x6100c0 + hoff, 0x00000001, 0x00000000);
+}
+
+static void
+gf119_head_vblank_get(struct nvkm_head *head)
+{
+	struct nvkm_device *device = head->disp->engine.subdev.device;
+	const u32 hoff = head->id * 0x800;
+	nvkm_mask(device, 0x6100c0 + hoff, 0x00000001, 0x00000001);
+}
+
 static const struct nvkm_head_func
 gf119_head = {
+	.vblank_get = gf119_head_vblank_get,
+	.vblank_put = gf119_head_vblank_put,
 };
 
 int

@@ -31,20 +31,6 @@
 #include <subdev/bios/pll.h>
 #include <subdev/devinit.h>
 
-void
-gf119_disp_vblank_init(struct nv50_disp *disp, int head)
-{
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	nvkm_mask(device, 0x6100c0 + (head * 0x800), 0x00000001, 0x00000001);
-}
-
-void
-gf119_disp_vblank_fini(struct nv50_disp *disp, int head)
-{
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	nvkm_mask(device, 0x6100c0 + (head * 0x800), 0x00000001, 0x00000000);
-}
-
 static struct nvkm_output *
 exec_lookup(struct nv50_disp *disp, int head, int or, u32 ctrl,
 	    u32 *data, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
@@ -515,8 +501,6 @@ gf119_disp = {
 	.super = gf119_disp_super,
 	.root = &gf119_disp_root_oclass,
 	.head.new = gf119_head_new,
-	.head.vblank_init = gf119_disp_vblank_init,
-	.head.vblank_fini = gf119_disp_vblank_fini,
 	.head.scanoutpos = gf119_disp_root_scanoutpos,
 	.outp.internal.crt = nv50_dac_output_new,
 	.outp.internal.tmds = nv50_sor_output_new,

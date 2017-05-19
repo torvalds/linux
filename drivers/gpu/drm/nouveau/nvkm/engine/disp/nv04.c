@@ -31,20 +31,6 @@ nv04_disp_root(struct nvkm_disp *disp)
 }
 
 static void
-nv04_disp_vblank_init(struct nvkm_disp *disp, int head)
-{
-	struct nvkm_device *device = disp->engine.subdev.device;
-	nvkm_wr32(device, 0x600140 + (head * 0x2000) , 0x00000001);
-}
-
-static void
-nv04_disp_vblank_fini(struct nvkm_disp *disp, int head)
-{
-	struct nvkm_device *device = disp->engine.subdev.device;
-	nvkm_wr32(device, 0x600140 + (head * 0x2000) , 0x00000000);
-}
-
-static void
 nv04_disp_intr(struct nvkm_disp *disp)
 {
 	struct nvkm_subdev *subdev = &disp->engine.subdev;
@@ -75,8 +61,6 @@ static const struct nvkm_disp_func
 nv04_disp = {
 	.intr = nv04_disp_intr,
 	.root = nv04_disp_root,
-	.head.vblank_init = nv04_disp_vblank_init,
-	.head.vblank_fini = nv04_disp_vblank_fini,
 };
 
 int

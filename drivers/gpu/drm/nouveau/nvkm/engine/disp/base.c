@@ -38,17 +38,21 @@
 #include <nvif/unpack.h>
 
 static void
-nvkm_disp_vblank_fini(struct nvkm_event *event, int type, int head)
+nvkm_disp_vblank_fini(struct nvkm_event *event, int type, int id)
 {
 	struct nvkm_disp *disp = container_of(event, typeof(*disp), vblank);
-	disp->func->head.vblank_fini(disp, head);
+	struct nvkm_head *head = nvkm_head_find(disp, id);
+	if (head)
+		head->func->vblank_put(head);
 }
 
 static void
-nvkm_disp_vblank_init(struct nvkm_event *event, int type, int head)
+nvkm_disp_vblank_init(struct nvkm_event *event, int type, int id)
 {
 	struct nvkm_disp *disp = container_of(event, typeof(*disp), vblank);
-	disp->func->head.vblank_init(disp, head);
+	struct nvkm_head *head = nvkm_head_find(disp, id);
+	if (head)
+		head->func->vblank_get(head);
 }
 
 static int

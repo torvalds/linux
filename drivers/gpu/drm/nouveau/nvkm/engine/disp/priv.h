@@ -29,11 +29,6 @@ struct nvkm_disp_func {
 	const struct nvkm_disp_oclass *(*root)(struct nvkm_disp *);
 
 	struct {
-		void (*vblank_init)(struct nvkm_disp *, int head);
-		void (*vblank_fini)(struct nvkm_disp *, int head);
-	} head;
-
-	struct {
 		const struct nvkm_disp_func_outp internal;
 		const struct nvkm_disp_func_outp external;
 	} outp;

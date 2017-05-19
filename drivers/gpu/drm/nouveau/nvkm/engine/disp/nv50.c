@@ -99,20 +99,6 @@ nv50_disp_outp_external_dp_(struct nvkm_disp *base, int index,
 }
 
 static void
-nv50_disp_vblank_fini_(struct nvkm_disp *base, int head)
-{
-	struct nv50_disp *disp = nv50_disp(base);
-	disp->func->head.vblank_fini(disp, head);
-}
-
-static void
-nv50_disp_vblank_init_(struct nvkm_disp *base, int head)
-{
-	struct nv50_disp *disp = nv50_disp(base);
-	disp->func->head.vblank_init(disp, head);
-}
-
-static void
 nv50_disp_intr_(struct nvkm_disp *base)
 {
 	struct nv50_disp *disp = nv50_disp(base);
@@ -138,8 +124,6 @@ nv50_disp_ = {
 	.outp.internal.dp = nv50_disp_outp_internal_dp_,
 	.outp.external.tmds = nv50_disp_outp_external_tmds_,
 	.outp.external.dp = nv50_disp_outp_external_dp_,
-	.head.vblank_init = nv50_disp_vblank_init_,
-	.head.vblank_fini = nv50_disp_vblank_fini_,
 };
 
 int
@@ -166,20 +150,6 @@ nv50_disp_new_(const struct nv50_disp_func *func, struct nvkm_device *device,
 	}
 
 	return nvkm_event_init(func->uevent, 1, 1 + (heads * 4), &disp->uevent);
-}
-
-void
-nv50_disp_vblank_fini(struct nv50_disp *disp, int head)
-{
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	nvkm_mask(device, 0x61002c, (4 << head), 0);
-}
-
-void
-nv50_disp_vblank_init(struct nv50_disp *disp, int head)
-{
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	nvkm_mask(device, 0x61002c, (4 << head), (4 << head));
 }
 
 static struct nvkm_output *
@@ -827,8 +797,6 @@ nv50_disp = {
 	.super = nv50_disp_super,
 	.root = &nv50_disp_root_oclass,
 	.head.new = nv50_head_new,
-	.head.vblank_init = nv50_disp_vblank_init,
-	.head.vblank_fini = nv50_disp_vblank_fini,
 	.head.scanoutpos = nv50_disp_root_scanoutpos,
 	.outp.internal.crt = nv50_dac_output_new,
 	.outp.internal.tmds = nv50_sor_output_new,

@@ -76,8 +76,6 @@ struct nv50_disp_func {
 
 	struct {
 		int (*new)(struct nvkm_disp *, int id);
-		void (*vblank_init)(struct nv50_disp *, int head);
-		void (*vblank_fini)(struct nv50_disp *, int head);
 		int (*scanoutpos)(NV50_DISP_MTHD_V0);
 	} head;
 
@@ -106,13 +104,9 @@ struct nv50_disp_func {
 	} pior;
 };
 
-void nv50_disp_vblank_init(struct nv50_disp *, int);
-void nv50_disp_vblank_fini(struct nv50_disp *, int);
 void nv50_disp_intr(struct nv50_disp *);
 void nv50_disp_super(struct work_struct *);
 
-void gf119_disp_vblank_init(struct nv50_disp *, int);
-void gf119_disp_vblank_fini(struct nv50_disp *, int);
 void gf119_disp_intr(struct nv50_disp *);
 void gf119_disp_super(struct work_struct *);
 void gf119_disp_intr_error(struct nv50_disp *, int);

@@ -15,6 +15,8 @@ void nvkm_head_del(struct nvkm_head **);
 struct nvkm_head *nvkm_head_find(struct nvkm_disp *, int id);
 
 struct nvkm_head_func {
+	void (*vblank_get)(struct nvkm_head *);
+	void (*vblank_put)(struct nvkm_head *);
 };
 
 #define HEAD_MSG(h,l,f,a...) do {                                              \
