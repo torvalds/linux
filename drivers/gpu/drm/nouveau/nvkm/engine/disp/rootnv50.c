@@ -125,7 +125,7 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 	}
 		break;
 	case NV50_DISP_MTHD_V1_SOR_DP_MST_LINK: {
-		struct nvkm_output_dp *outpdp = nvkm_output_dp(outp);
+		struct nvkm_dp *dp = nvkm_dp(outp);
 		union {
 			struct nv50_disp_sor_dp_mst_link_v0 v0;
 		} *args = data;
@@ -134,11 +134,7 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 		if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 			nvif_ioctl(object, "disp sor dp mst link vers %d state %d\n",
 				   args->v0.version, args->v0.state);
-			if (outpdp->lt.mst != !!args->v0.state) {
-				outpdp->lt.mst = !!args->v0.state;
-				atomic_set(&outpdp->lt.done, 0);
-				nvkm_output_dp_train(&outpdp->base, 0);
-			}
+			dp->lt.mst = !!args->v0.state;
 			return 0;
 		} else
 			return ret;

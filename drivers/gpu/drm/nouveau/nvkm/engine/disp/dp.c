@@ -417,7 +417,9 @@ nvkm_output_dp_train(struct nvkm_outp *outp, u32 datakbps)
 	/* Check that link configuration meets current requirements. */
 	linkKBps = ior->dp.bw * 27000 * ior->dp.nr;
 	dataKBps = DIV_ROUND_UP(datakbps, 8);
-	if (linkKBps < dataKBps) {
+	OUTP_DBG(&dp->outp, "data %d KB/s link %d KB/s mst %d->%d",
+		 dataKBps, linkKBps, ior->dp.mst, dp->lt.mst);
+	if (linkKBps < dataKBps || ior->dp.mst != dp->lt.mst) {
 		OUTP_DBG(&dp->outp, "link requirements changed");
 		goto done;
 	}
@@ -466,10 +468,8 @@ nvkm_dp_enable(struct nvkm_dp *dp, bool enable)
 		}
 
 		if (!nvkm_rdaux(aux, DPCD_RC00_DPCD_REV, dp->dpcd,
-				sizeof(dp->dpcd))) {
-			nvkm_output_dp_train(&dp->outp, 0);
+				sizeof(dp->dpcd)))
 			return;
-		}
 	}
 
 	if (dp->present) {
