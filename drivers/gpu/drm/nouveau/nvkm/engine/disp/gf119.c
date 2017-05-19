@@ -79,44 +79,6 @@ exec_lookup(struct nv50_disp *disp, int head, int or, u32 ctrl,
 }
 
 static struct nvkm_output *
-exec_script(struct nv50_disp *disp, int head, int id)
-{
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
-	struct nvkm_bios *bios = device->bios;
-	struct nvkm_output *outp;
-	struct nvbios_outp info;
-	u8  ver, hdr, cnt, len;
-	u32 data, ctrl = 0;
-	int or;
-
-	for (or = 0; !(ctrl & (1 << head)) && or < 8; or++) {
-		ctrl = nvkm_rd32(device, 0x640180 + (or * 0x20));
-		if (ctrl & (1 << head))
-			break;
-	}
-
-	if (or == 8)
-		return NULL;
-
-	outp = exec_lookup(disp, head, or, ctrl, &data, &ver, &hdr, &cnt, &len, &info);
-	if (outp) {
-		struct nvbios_init init = {
-			.subdev = subdev,
-			.bios = bios,
-			.offset = info.script[id],
-			.outp = &outp->info,
-			.crtc = head,
-			.execute = 1,
-		};
-
-		nvbios_exec(&init);
-	}
-
-	return outp;
-}
-
-static struct nvkm_output *
 exec_clkcmp(struct nv50_disp *disp, int head, int id, u32 pclk, u32 *conf)
 {
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
@@ -174,31 +136,6 @@ exec_clkcmp(struct nv50_disp *disp, int head, int id, u32 pclk, u32 *conf)
 	}
 
 	return outp;
-}
-
-static void
-gf119_disp_intr_unk2_0(struct nv50_disp *disp, int head)
-{
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
-	struct nvkm_output *outp = exec_script(disp, head, 2);
-
-	/* see note in nv50_disp_intr_unk20_0() */
-	if (outp && outp->info.type == DCB_OUTPUT_DP) {
-		struct nvkm_output_dp *outpdp = nvkm_output_dp(outp);
-		if (!outpdp->lt.mst) {
-			struct nvbios_init init = {
-				.subdev = subdev,
-				.bios = subdev->device->bios,
-				.outp = &outp->info,
-				.crtc = head,
-				.offset = outpdp->info.script[4],
-				.execute = 1,
-			};
-
-			atomic_set(&outpdp->lt.done, 0);
-			nvbios_exec(&init);
-		}
-	}
 }
 
 static void
@@ -364,8 +301,7 @@ gf119_disp_super(struct work_struct *work)
 		list_for_each_entry(head, &disp->base.head, head) {
 			if (!(mask[head->id] & 0x00001000))
 				continue;
-			nvkm_debug(subdev, "supervisor 2.0 - head %d\n", head->id);
-			gf119_disp_intr_unk2_0(disp, head->id);
+			nv50_disp_super_2_0(disp, head);
 		}
 		nvkm_outp_route(&disp->base);
 		list_for_each_entry(head, &disp->base.head, head) {

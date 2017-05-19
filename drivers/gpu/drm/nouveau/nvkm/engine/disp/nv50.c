@@ -226,65 +226,6 @@ exec_lookup(struct nv50_disp *disp, int head, int or, u32 ctrl,
 }
 
 static struct nvkm_output *
-exec_script(struct nv50_disp *disp, int head, int id)
-{
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
-	struct nvkm_bios *bios = device->bios;
-	struct nvkm_output *outp;
-	struct nvbios_outp info;
-	u8  ver, hdr, cnt, len;
-	u32 data, ctrl = 0;
-	u32 reg;
-	int i;
-
-	/* DAC */
-	for (i = 0; !(ctrl & (1 << head)) && i < disp->func->dac.nr; i++)
-		ctrl = nvkm_rd32(device, 0x610b5c + (i * 8));
-
-	/* SOR */
-	if (!(ctrl & (1 << head))) {
-		if (device->chipset  < 0x90 ||
-		    device->chipset == 0x92 ||
-		    device->chipset == 0xa0) {
-			reg = 0x610b74;
-		} else {
-			reg = 0x610798;
-		}
-		for (i = 0; !(ctrl & (1 << head)) && i < disp->func->sor.nr; i++)
-			ctrl = nvkm_rd32(device, reg + (i * 8));
-		i += 4;
-	}
-
-	/* PIOR */
-	if (!(ctrl & (1 << head))) {
-		for (i = 0; !(ctrl & (1 << head)) && i < disp->func->pior.nr; i++)
-			ctrl = nvkm_rd32(device, 0x610b84 + (i * 8));
-		i += 8;
-	}
-
-	if (!(ctrl & (1 << head)))
-		return NULL;
-	i--;
-
-	outp = exec_lookup(disp, head, i, ctrl, &data, &ver, &hdr, &cnt, &len, &info);
-	if (outp) {
-		struct nvbios_init init = {
-			.subdev = subdev,
-			.bios = bios,
-			.offset = info.script[id],
-			.outp = &outp->info,
-			.crtc = head,
-			.execute = 1,
-		};
-
-		nvbios_exec(&init);
-	}
-
-	return outp;
-}
-
-static struct nvkm_output *
 exec_clkcmp(struct nv50_disp *disp, int head, int id, u32 pclk, u32 *conf)
 {
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
@@ -601,38 +542,27 @@ nv50_disp_intr_unk20_1(struct nv50_disp *disp, int head)
 		nvkm_devinit_pll_set(devinit, PLL_VPLL0 + head, pclk);
 }
 
-static void
-nv50_disp_intr_unk20_0(struct nv50_disp *disp, int head)
+void
+nv50_disp_super_2_0(struct nv50_disp *disp, struct nvkm_head *head)
 {
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
-	struct nvkm_output *outp = exec_script(disp, head, 2);
+	struct nvkm_outp *outp;
+	struct nvkm_ior *ior;
 
-	/* the binary driver does this outside of the supervisor handling
-	 * (after the third supervisor from a detach).  we (currently?)
-	 * allow both detach/attach to happen in the same set of
-	 * supervisor interrupts, so it would make sense to execute this
-	 * (full power down?) script after all the detach phases of the
-	 * supervisor handling.  like with training if needed from the
-	 * second supervisor, nvidia doesn't do this, so who knows if it's
-	 * entirely safe, but it does appear to work..
-	 *
-	 * without this script being run, on some configurations i've
-	 * seen, switching from DP to TMDS on a DP connector may result
-	 * in a blank screen (SOR_PWR off/on can restore it)
+	/* Determine which OR, if any, we're detaching from the head. */
+	HEAD_DBG(head, "supervisor 2.0");
+	ior = nv50_disp_super_ior_arm(head);
+	if (!ior)
+		return;
+
+	/* Execute OffInt2 IED script. */
+	nv50_disp_super_ied_off(head, ior, 2);
+
+	/* If we're shutting down the OR's only active head, execute
+	 * the output path's release function.
 	 */
-	if (outp && outp->info.type == DCB_OUTPUT_DP) {
-		struct nvkm_output_dp *outpdp = nvkm_output_dp(outp);
-		struct nvbios_init init = {
-			.subdev = subdev,
-			.bios = subdev->device->bios,
-			.outp = &outp->info,
-			.crtc = head,
-			.offset = outpdp->info.script[4],
-			.execute = 1,
-		};
-
-		atomic_set(&outpdp->lt.done, 0);
-		nvbios_exec(&init);
+	if (ior->arm.head == (1 << head->id)) {
+		if ((outp = ior->arm.outp) && outp->func->release)
+			outp->func->release(outp, ior);
 	}
 }
 
@@ -695,7 +625,7 @@ nv50_disp_super(struct work_struct *work)
 		list_for_each_entry(head, &disp->base.head, head) {
 			if (!(super & (0x00000080 << head->id)))
 				continue;
-			nv50_disp_intr_unk20_0(disp, head->id);
+			nv50_disp_super_2_0(disp, head);
 		}
 		nvkm_outp_route(&disp->base);
 		list_for_each_entry(head, &disp->base.head, head) {

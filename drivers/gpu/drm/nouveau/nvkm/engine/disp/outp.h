@@ -39,6 +39,7 @@ struct nvkm_outp_func {
 	void *(*dtor)(struct nvkm_outp *);
 	void (*init)(struct nvkm_outp *);
 	void (*fini)(struct nvkm_outp *);
+	void (*release)(struct nvkm_outp *, struct nvkm_ior *);
 };
 
 #define nvkm_output nvkm_outp
