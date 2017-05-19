@@ -45,6 +45,11 @@ struct lsm_ioctlop_audit {
 	u16 cmd;
 };
 
+struct lsm_ibpkey_audit {
+	u64	subnet_prefix;
+	u16	pkey;
+};
+
 /* Auxiliary data to use in generating the audit record. */
 struct common_audit_data {
 	char type;
@@ -60,6 +65,7 @@ struct common_audit_data {
 #define LSM_AUDIT_DATA_DENTRY	10
 #define LSM_AUDIT_DATA_IOCTL_OP	11
 #define LSM_AUDIT_DATA_FILE	12
+#define LSM_AUDIT_DATA_IBPKEY	13
 	union 	{
 		struct path path;
 		struct dentry *dentry;
@@ -77,6 +83,7 @@ struct common_audit_data {
 		char *kmod_name;
 		struct lsm_ioctlop_audit *op;
 		struct file *file;
+		struct lsm_ibpkey_audit *ibpkey;
 	} u;
 	/* this union contains LSM specific data */
 	union {
