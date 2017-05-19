@@ -22,7 +22,6 @@
  * Authors: Ben Skeggs
  */
 #include "ior.h"
-#include "nv50.h"
 
 #include <subdev/timer.h>
 
@@ -98,17 +97,6 @@ gf119_sor_dp_links(struct nvkm_ior *sor, struct nvkm_i2c_aux *aux)
 	nvkm_mask(device, 0x612300 + soff, 0x007c0000, clksor);
 	nvkm_mask(device, 0x61c10c + loff, 0x401f4000, dpctrl);
 	return 0;
-}
-
-static const struct nvkm_output_dp_func
-gf119_sor_dp_func = {
-};
-
-int
-gf119_sor_dp_new(struct nvkm_disp *disp, int index,
-		 struct dcb_output *dcbE, struct nvkm_output **poutp)
-{
-	return nvkm_output_dp_new_(&gf119_sor_dp_func, disp, index, dcbE, poutp);
 }
 
 void

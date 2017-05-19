@@ -22,7 +22,6 @@
  * Authors: Ben Skeggs
  */
 #include "ior.h"
-#include "nv50.h"
 
 static void
 gm200_sor_dp_drive(struct nvkm_ior *sor, int ln, int pc, int dc, int pe, int pu)
@@ -44,17 +43,6 @@ gm200_sor_dp_drive(struct nvkm_ior *sor, int ln, int pc, int dc, int pe, int pu)
 	nvkm_wr32(device, 0x61c130 + loff, data[2]);
 	data[3] = nvkm_rd32(device, 0x61c13c + loff) & ~(0x000000ff << shift);
 	nvkm_wr32(device, 0x61c13c + loff, data[3] | (pc << shift));
-}
-
-static const struct nvkm_output_dp_func
-gm200_sor_dp_func = {
-};
-
-int
-gm200_sor_dp_new(struct nvkm_disp *disp, int index, struct dcb_output *dcbE,
-		 struct nvkm_output **poutp)
-{
-	return nvkm_output_dp_new_(&gm200_sor_dp_func, disp, index, dcbE, poutp);
 }
 
 void

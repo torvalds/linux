@@ -42,63 +42,6 @@ nv50_disp_root_(struct nvkm_disp *base)
 	return nv50_disp(base)->func->root;
 }
 
-static int
-nv50_disp_outp_internal_crt_(struct nvkm_disp *base, int index,
-			     struct dcb_output *dcb, struct nvkm_output **poutp)
-{
-	struct nv50_disp *disp = nv50_disp(base);
-	return disp->func->outp.internal.crt(base, index, dcb, poutp);
-}
-
-static int
-nv50_disp_outp_internal_tmds_(struct nvkm_disp *base, int index,
-			      struct dcb_output *dcb,
-			      struct nvkm_output **poutp)
-{
-	struct nv50_disp *disp = nv50_disp(base);
-	return disp->func->outp.internal.tmds(base, index, dcb, poutp);
-}
-
-static int
-nv50_disp_outp_internal_lvds_(struct nvkm_disp *base, int index,
-			      struct dcb_output *dcb,
-			      struct nvkm_output **poutp)
-{
-	struct nv50_disp *disp = nv50_disp(base);
-	return disp->func->outp.internal.lvds(base, index, dcb, poutp);
-}
-
-static int
-nv50_disp_outp_internal_dp_(struct nvkm_disp *base, int index,
-			    struct dcb_output *dcb, struct nvkm_output **poutp)
-{
-	struct nv50_disp *disp = nv50_disp(base);
-	if (disp->func->outp.internal.dp)
-		return disp->func->outp.internal.dp(base, index, dcb, poutp);
-	return -ENODEV;
-}
-
-static int
-nv50_disp_outp_external_tmds_(struct nvkm_disp *base, int index,
-			      struct dcb_output *dcb,
-			      struct nvkm_output **poutp)
-{
-	struct nv50_disp *disp = nv50_disp(base);
-	if (disp->func->outp.external.tmds)
-		return disp->func->outp.external.tmds(base, index, dcb, poutp);
-	return -ENODEV;
-}
-
-static int
-nv50_disp_outp_external_dp_(struct nvkm_disp *base, int index,
-			    struct dcb_output *dcb, struct nvkm_output **poutp)
-{
-	struct nv50_disp *disp = nv50_disp(base);
-	if (disp->func->outp.external.dp)
-		return disp->func->outp.external.dp(base, index, dcb, poutp);
-	return -ENODEV;
-}
-
 static void
 nv50_disp_intr_(struct nvkm_disp *base)
 {
@@ -121,12 +64,6 @@ nv50_disp_ = {
 	.dtor = nv50_disp_dtor_,
 	.intr = nv50_disp_intr_,
 	.root = nv50_disp_root_,
-	.outp.internal.crt = nv50_disp_outp_internal_crt_,
-	.outp.internal.tmds = nv50_disp_outp_internal_tmds_,
-	.outp.internal.lvds = nv50_disp_outp_internal_lvds_,
-	.outp.internal.dp = nv50_disp_outp_internal_dp_,
-	.outp.external.tmds = nv50_disp_outp_external_tmds_,
-	.outp.external.dp = nv50_disp_outp_external_dp_,
 };
 
 int
@@ -839,11 +776,6 @@ nv50_disp = {
 	.super = nv50_disp_super,
 	.root = &nv50_disp_root_oclass,
 	.head.new = nv50_head_new,
-	.outp.internal.crt = nv50_dac_output_new,
-	.outp.internal.tmds = nv50_sor_output_new,
-	.outp.internal.lvds = nv50_sor_output_new,
-	.outp.external.tmds = nv50_pior_output_new,
-	.outp.external.dp = nv50_pior_dp_new,
 	.dac = { .nr = 3, .new = nv50_dac_new },
 	.sor = { .nr = 2, .new = nv50_sor_new },
 	.pior = { .nr = 3, .new = nv50_pior_new },

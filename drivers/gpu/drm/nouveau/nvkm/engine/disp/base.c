@@ -23,6 +23,7 @@
  */
 #include "priv.h"
 #include "conn.h"
+#include "dp.h"
 #include "head.h"
 #include "ior.h"
 #include "outp.h"
@@ -252,7 +253,8 @@ static int
 nvkm_disp_oneinit(struct nvkm_engine *engine)
 {
 	struct nvkm_disp *disp = nvkm_disp(engine);
-	struct nvkm_bios *bios = disp->engine.subdev.device->bios;
+	struct nvkm_subdev *subdev = &disp->engine.subdev;
+	struct nvkm_bios *bios = subdev->device->bios;
 	struct nvkm_outp *outp, *outt, *pair;
 	struct nvkm_conn *conn;
 	struct nvkm_head *head;
@@ -265,52 +267,38 @@ nvkm_disp_oneinit(struct nvkm_engine *engine)
 	/* Create output path objects for each VBIOS display path. */
 	i = -1;
 	while ((data = dcb_outp_parse(bios, ++i, &ver, &hdr, &dcbE))) {
-		const struct nvkm_disp_func_outp *outps;
-		int (*ctor)(struct nvkm_disp *, int, struct dcb_output *,
-			    struct nvkm_outp **);
-
 		if (dcbE.type == DCB_OUTPUT_UNUSED)
 			continue;
 		if (dcbE.type == DCB_OUTPUT_EOL)
 			break;
 		outp = NULL;
 
-		switch (dcbE.location) {
-		case 0: outps = &disp->func->outp.internal; break;
-		case 1: outps = &disp->func->outp.external; break;
-		default:
-			nvkm_warn(&disp->engine.subdev,
-				  "dcb %d locn %d unknown\n", i, dcbE.location);
-			continue;
-		}
-
 		switch (dcbE.type) {
-		case DCB_OUTPUT_ANALOG: ctor = outps->crt ; break;
-		case DCB_OUTPUT_TV    : ctor = outps->tv  ; break;
-		case DCB_OUTPUT_TMDS  : ctor = outps->tmds; break;
-		case DCB_OUTPUT_LVDS  : ctor = outps->lvds; break;
-		case DCB_OUTPUT_DP    : ctor = outps->dp  ; break;
+		case DCB_OUTPUT_ANALOG:
+		case DCB_OUTPUT_TV:
+		case DCB_OUTPUT_TMDS:
+		case DCB_OUTPUT_LVDS:
+			ret = nvkm_outp_new(disp, i, &dcbE, &outp);
+			break;
+		case DCB_OUTPUT_DP:
+			ret = nvkm_dp_new(disp, i, &dcbE, &outp);
+			break;
 		default:
-			nvkm_warn(&disp->engine.subdev,
-				  "dcb %d type %d unknown\n", i, dcbE.type);
+			nvkm_warn(subdev, "dcb %d type %d unknown\n",
+				  i, dcbE.type);
 			continue;
 		}
-
-		if (ctor)
-			ret = ctor(disp, i, &dcbE, &outp);
-		else
-			ret = -ENODEV;
 
 		if (ret) {
-			if (ret == -ENODEV) {
-				nvkm_debug(&disp->engine.subdev,
-					   "dcb %d %d/%d not supported\n",
-					   i, dcbE.location, dcbE.type);
+			if (outp) {
+				if (ret != -ENODEV)
+					OUTP_ERR(outp, "ctor failed: %d", ret);
+				else
+					OUTP_DBG(outp, "not supported");
+				nvkm_outp_del(&outp);
 				continue;
 			}
-			nvkm_error(&disp->engine.subdev,
-				   "failed to create outp %d\n", i);
-			nvkm_outp_del(&outp);
+			nvkm_error(subdev, "failed to create outp %d\n", i);
 			continue;
 		}
 

@@ -8,7 +8,6 @@
 #include <subdev/bios/dp.h>
 
 struct nvkm_dp {
-	const struct nvkm_output_dp_func *func;
 	union {
 		struct nvkm_outp base;
 		struct nvkm_outp outp;
@@ -32,28 +31,10 @@ struct nvkm_dp {
 
 #define nvkm_output_dp nvkm_dp
 
-struct nvkm_output_dp_func {
-};
-
 int nvkm_output_dp_train(struct nvkm_output *, u32 rate);
 
-int nvkm_output_dp_new_(const struct nvkm_output_dp_func *, struct nvkm_disp *,
-			int index, struct dcb_output *, struct nvkm_output **);
-
-int nv50_pior_dp_new(struct nvkm_disp *, int, struct dcb_output *,
-		     struct nvkm_output **);
-
-int g94_sor_dp_new(struct nvkm_disp *, int, struct dcb_output *,
-		   struct nvkm_output **);
-
-int gf119_sor_dp_new(struct nvkm_disp *, int, struct dcb_output *,
-		     struct nvkm_output **);
-
-int gm107_sor_dp_new(struct nvkm_disp *, int, struct dcb_output *,
-		     struct nvkm_output **);
-
-int gm200_sor_dp_new(struct nvkm_disp *, int, struct dcb_output *,
-		     struct nvkm_output **);
+int nvkm_dp_new(struct nvkm_disp *, int index, struct dcb_output *,
+		struct nvkm_outp **);
 
 /* DPCD Receiver Capabilities */
 #define DPCD_RC00_DPCD_REV                                              0x00000

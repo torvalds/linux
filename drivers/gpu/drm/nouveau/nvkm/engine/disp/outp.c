@@ -142,12 +142,15 @@ nvkm_outp_ctor(const struct nvkm_outp_func *func, struct nvkm_disp *disp,
 	return 0;
 }
 
+static const struct nvkm_outp_func
+nvkm_outp = {
+};
+
 int
-nvkm_outp_new_(const struct nvkm_outp_func *func,
-	       struct nvkm_disp *disp, int index, struct dcb_output *dcbE,
-	       struct nvkm_outp **poutp)
+nvkm_outp_new(struct nvkm_disp *disp, int index, struct dcb_output *dcbE,
+	      struct nvkm_outp **poutp)
 {
 	if (!(*poutp = kzalloc(sizeof(**poutp), GFP_KERNEL)))
 		return -ENOMEM;
-	return nvkm_outp_ctor(func, disp, index, dcbE, *poutp);
+	return nvkm_outp_ctor(&nvkm_outp, disp, index, dcbE, *poutp);
 }

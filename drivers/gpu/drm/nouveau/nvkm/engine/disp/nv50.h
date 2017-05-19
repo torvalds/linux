@@ -32,19 +32,6 @@ int nv50_disp_new_(const struct nv50_disp_func *, struct nvkm_device *,
 int gf119_disp_new_(const struct nv50_disp_func *, struct nvkm_device *,
 		    int index, struct nvkm_disp **);
 
-struct nv50_disp_func_outp {
-	int (* crt)(struct nvkm_disp *, int index, struct dcb_output *,
-		    struct nvkm_output **);
-	int (*  tv)(struct nvkm_disp *, int index, struct dcb_output *,
-		    struct nvkm_output **);
-	int (*tmds)(struct nvkm_disp *, int index, struct dcb_output *,
-		    struct nvkm_output **);
-	int (*lvds)(struct nvkm_disp *, int index, struct dcb_output *,
-		    struct nvkm_output **);
-	int (*  dp)(struct nvkm_disp *, int index, struct dcb_output *,
-		    struct nvkm_output **);
-};
-
 struct nv50_disp_func {
 	void (*intr)(struct nv50_disp *);
 	void (*intr_error)(struct nv50_disp *, int chid);
@@ -57,11 +44,6 @@ struct nv50_disp_func {
 	struct {
 		int (*new)(struct nvkm_disp *, int id);
 	} head;
-
-	struct {
-		const struct nv50_disp_func_outp internal;
-		const struct nv50_disp_func_outp external;
-	} outp;
 
 	struct {
 		int nr;

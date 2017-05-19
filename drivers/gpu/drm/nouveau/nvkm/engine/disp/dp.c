@@ -580,7 +580,7 @@ nvkm_dp_ctor(struct nvkm_disp *disp, int index, struct dcb_output *dcbE,
 	dp->aux = aux;
 	if (!dp->aux) {
 		OUTP_ERR(&dp->outp, "no aux");
-		return -ENODEV;
+		return -EINVAL;
 	}
 
 	/* bios data is not optional */
@@ -589,7 +589,7 @@ nvkm_dp_ctor(struct nvkm_disp *disp, int index, struct dcb_output *dcbE,
 				  &hdr, &cnt, &len, &dp->info);
 	if (!data) {
 		OUTP_ERR(&dp->outp, "no bios dp data");
-		return -ENODEV;
+		return -EINVAL;
 	}
 
 	OUTP_DBG(&dp->outp, "bios dp %02x %02x %02x %02x",
@@ -616,9 +616,8 @@ nvkm_dp_ctor(struct nvkm_disp *disp, int index, struct dcb_output *dcbE,
 }
 
 int
-nvkm_output_dp_new_(const struct nvkm_output_dp_func *func,
-		    struct nvkm_disp *disp, int index, struct dcb_output *dcbE,
-		    struct nvkm_outp **poutp)
+nvkm_dp_new(struct nvkm_disp *disp, int index, struct dcb_output *dcbE,
+	    struct nvkm_outp **poutp)
 {
 	struct nvkm_i2c *i2c = disp->engine.subdev.device->i2c;
 	struct nvkm_i2c_aux *aux;
@@ -631,7 +630,6 @@ nvkm_output_dp_new_(const struct nvkm_output_dp_func *func,
 
 	if (!(dp = kzalloc(sizeof(*dp), GFP_KERNEL)))
 		return -ENOMEM;
-	dp->func = func;
 	*poutp = &dp->outp;
 
 	return nvkm_dp_ctor(disp, index, dcbE, aux, dp);

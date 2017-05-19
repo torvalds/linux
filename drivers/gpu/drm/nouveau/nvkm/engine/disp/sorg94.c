@@ -91,17 +91,6 @@ g94_sor_dp_links(struct nvkm_ior *sor, struct nvkm_i2c_aux *aux)
 	return 0;
 }
 
-static const struct nvkm_output_dp_func
-g94_sor_dp_func = {
-};
-
-int
-g94_sor_dp_new(struct nvkm_disp *disp, int index, struct dcb_output *dcbE,
-	       struct nvkm_output **poutp)
-{
-	return nvkm_output_dp_new_(&g94_sor_dp_func, disp, index, dcbE, poutp);
-}
-
 static bool
 nv50_disp_dptmds_war(struct nvkm_device *device)
 {

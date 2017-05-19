@@ -34,10 +34,6 @@ gk104_disp = {
 	.super = gf119_disp_super,
 	.root = &gk104_disp_root_oclass,
 	.head.new = gf119_head_new,
-	.outp.internal.crt = nv50_dac_output_new,
-	.outp.internal.tmds = nv50_sor_output_new,
-	.outp.internal.lvds = nv50_sor_output_new,
-	.outp.internal.dp = gf119_sor_dp_new,
 	.dac = { .nr = 3, .new = gf119_dac_new },
 	.sor = { .nr = 4, .new = gk104_sor_new },
 };

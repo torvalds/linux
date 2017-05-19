@@ -22,7 +22,6 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 #include "ior.h"
-#include "nv50.h"
 
 void
 gm107_sor_dp_pattern(struct nvkm_ior *sor, int pattern)
@@ -34,17 +33,6 @@ gm107_sor_dp_pattern(struct nvkm_ior *sor, int pattern)
 		nvkm_mask(device, 0x61c110 + soff, 0x0f0f0f0f, data);
 	else
 		nvkm_mask(device, 0x61c12c + soff, 0x0f0f0f0f, data);
-}
-
-static const struct nvkm_output_dp_func
-gm107_sor_dp_func = {
-};
-
-int
-gm107_sor_dp_new(struct nvkm_disp *disp, int index,
-		 struct dcb_output *dcbE, struct nvkm_output **poutp)
-{
-	return nvkm_output_dp_new_(&gm107_sor_dp_func, disp, index, dcbE, poutp);
 }
 
 static const struct nvkm_ior_func

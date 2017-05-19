@@ -22,29 +22,10 @@
  * Authors: Ben Skeggs
  */
 #include "ior.h"
-#include "dp.h"
 
 #include <subdev/i2c.h>
 #include <subdev/timer.h>
 
-/******************************************************************************
- * TMDS
- *****************************************************************************/
-static const struct nvkm_output_func
-nv50_pior_output_func = {
-};
-
-int
-nv50_pior_output_new(struct nvkm_disp *disp, int index,
-		     struct dcb_output *dcbE, struct nvkm_output **poutp)
-{
-	return nvkm_output_new_(&nv50_pior_output_func, disp,
-				index, dcbE, poutp);
-}
-
-/******************************************************************************
- * DisplayPort
- *****************************************************************************/
 static int
 nv50_pior_dp_links(struct nvkm_ior *pior, struct nvkm_i2c_aux *aux)
 {
@@ -53,18 +34,6 @@ nv50_pior_dp_links(struct nvkm_ior *pior, struct nvkm_i2c_aux *aux)
 	if (ret)
 		return ret;
 	return 1;
-}
-
-static const struct nvkm_output_dp_func
-nv50_pior_output_dp_func = {
-};
-
-int
-nv50_pior_dp_new(struct nvkm_disp *disp, int index, struct dcb_output *dcbE,
-		 struct nvkm_output **poutp)
-{
-	return nvkm_output_dp_new_(&nv50_pior_output_dp_func, disp,
-				   index, dcbE, poutp);
 }
 
 static void

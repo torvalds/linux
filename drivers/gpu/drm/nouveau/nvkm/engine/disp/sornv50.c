@@ -22,21 +22,8 @@
  * Authors: Ben Skeggs
  */
 #include "ior.h"
-#include "outp.h"
 
 #include <subdev/timer.h>
-
-static const struct nvkm_output_func
-nv50_sor_output_func = {
-};
-
-int
-nv50_sor_output_new(struct nvkm_disp *disp, int index,
-		    struct dcb_output *dcbE, struct nvkm_output **poutp)
-{
-	return nvkm_output_new_(&nv50_sor_output_func, disp,
-				index, dcbE, poutp);
-}
 
 static void
 nv50_sor_power_wait(struct nvkm_device *device, u32 soff)

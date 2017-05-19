@@ -23,6 +23,8 @@ struct nvkm_outp {
 
 int nvkm_outp_ctor(const struct nvkm_outp_func *, struct nvkm_disp *,
 		   int index, struct dcb_output *, struct nvkm_outp *);
+int nvkm_outp_new(struct nvkm_disp *, int index, struct dcb_output *,
+		  struct nvkm_outp **);
 void nvkm_outp_del(struct nvkm_outp **);
 void nvkm_outp_init(struct nvkm_outp *);
 void nvkm_outp_fini(struct nvkm_outp *);
@@ -36,16 +38,6 @@ struct nvkm_outp_func {
 #define nvkm_output nvkm_outp
 #define nvkm_output_func nvkm_outp_func
 #define nvkm_output_new_ nvkm_outp_new_
-
-int nvkm_outp_new_(const struct nvkm_outp_func *, struct nvkm_disp *,
-		   int index, struct dcb_output *, struct nvkm_output **);
-
-int nv50_dac_output_new(struct nvkm_disp *, int, struct dcb_output *,
-			struct nvkm_output **);
-int nv50_sor_output_new(struct nvkm_disp *, int, struct dcb_output *,
-			struct nvkm_output **);
-int nv50_pior_output_new(struct nvkm_disp *, int, struct dcb_output *,
-			 struct nvkm_output **);
 
 void gm200_sor_magic(struct nvkm_output *outp);
 
