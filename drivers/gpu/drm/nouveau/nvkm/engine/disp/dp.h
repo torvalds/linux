@@ -1,6 +1,70 @@
-#ifndef __NVKM_DISP_DPORT_H__
-#define __NVKM_DISP_DPORT_H__
-struct nvkm_output_dp;
+#ifndef __NVKM_DISP_OUTP_DP_H__
+#define __NVKM_DISP_OUTP_DP_H__
+#define nvkm_output_dp(p) container_of((p), struct nvkm_output_dp, base)
+#include "outp.h"
+
+#include <core/notify.h>
+#include <subdev/bios.h>
+#include <subdev/bios/dp.h>
+
+struct nvkm_output_dp {
+	const struct nvkm_output_dp_func *func;
+	struct nvkm_output base;
+
+	struct nvbios_dpout info;
+	u8 version;
+
+	struct nvkm_i2c_aux *aux;
+
+	struct nvkm_notify irq;
+	struct nvkm_notify hpd;
+	bool present;
+	u8 dpcd[16];
+
+	struct mutex mutex;
+	struct {
+		atomic_t done;
+		bool mst;
+	} lt;
+};
+
+struct nvkm_output_dp_func {
+	int (*pattern)(struct nvkm_output_dp *, int);
+	int (*lnk_pwr)(struct nvkm_output_dp *, int nr);
+	int (*lnk_ctl)(struct nvkm_output_dp *, int nr, int bw, bool ef);
+	int (*drv_ctl)(struct nvkm_output_dp *, int ln, int vs, int pe, int pc);
+	void (*vcpi)(struct nvkm_output_dp *, int head, u8 start_slot,
+		     u8 num_slots, u16 pbn, u16 aligned_pbn);
+};
+
+int nvkm_output_dp_train(struct nvkm_output *, u32 rate);
+
+int nvkm_output_dp_ctor(const struct nvkm_output_dp_func *, struct nvkm_disp *,
+			int index, struct dcb_output *, struct nvkm_i2c_aux *,
+			struct nvkm_output_dp *);
+int nvkm_output_dp_new_(const struct nvkm_output_dp_func *, struct nvkm_disp *,
+			int index, struct dcb_output *,
+			struct nvkm_output **);
+
+int nv50_pior_dp_new(struct nvkm_disp *, int, struct dcb_output *,
+		     struct nvkm_output **);
+
+int g94_sor_dp_new(struct nvkm_disp *, int, struct dcb_output *,
+		   struct nvkm_output **);
+int g94_sor_dp_lnk_pwr(struct nvkm_output_dp *, int);
+
+int gf119_sor_dp_new(struct nvkm_disp *, int, struct dcb_output *,
+		     struct nvkm_output **);
+int gf119_sor_dp_lnk_ctl(struct nvkm_output_dp *, int, int, bool);
+int gf119_sor_dp_drv_ctl(struct nvkm_output_dp *, int, int, int, int);
+void gf119_sor_dp_vcpi(struct nvkm_output_dp *, int, u8, u8, u16, u16);
+
+int gm107_sor_dp_new(struct nvkm_disp *, int, struct dcb_output *,
+		     struct nvkm_output **);
+int gm107_sor_dp_pattern(struct nvkm_output_dp *, int);
+
+int gm200_sor_dp_new(struct nvkm_disp *, int, struct dcb_output *,
+		     struct nvkm_output **);
 
 /* DPCD Receiver Capabilities */
 #define DPCD_RC00_DPCD_REV                                              0x00000
@@ -76,6 +140,4 @@ struct nvkm_output_dp;
 #define DPCD_SC00_SET_POWER                                                0x03
 #define DPCD_SC00_SET_POWER_D0                                             0x01
 #define DPCD_SC00_SET_POWER_D3                                             0x03
-
-void nvkm_dp_train(struct nvkm_output_dp *);
 #endif

@@ -175,55 +175,6 @@ nv50_disp_vblank_init(struct nv50_disp *disp, int head)
 	nvkm_mask(device, 0x61002c, (4 << head), (4 << head));
 }
 
-static const struct nvkm_enum
-nv50_disp_intr_error_type[] = {
-	{ 3, "ILLEGAL_MTHD" },
-	{ 4, "INVALID_VALUE" },
-	{ 5, "INVALID_STATE" },
-	{ 7, "INVALID_HANDLE" },
-	{}
-};
-
-static const struct nvkm_enum
-nv50_disp_intr_error_code[] = {
-	{ 0x00, "" },
-	{}
-};
-
-static void
-nv50_disp_intr_error(struct nv50_disp *disp, int chid)
-{
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
-	u32 data = nvkm_rd32(device, 0x610084 + (chid * 0x08));
-	u32 addr = nvkm_rd32(device, 0x610080 + (chid * 0x08));
-	u32 code = (addr & 0x00ff0000) >> 16;
-	u32 type = (addr & 0x00007000) >> 12;
-	u32 mthd = (addr & 0x00000ffc);
-	const struct nvkm_enum *ec, *et;
-
-	et = nvkm_enum_find(nv50_disp_intr_error_type, type);
-	ec = nvkm_enum_find(nv50_disp_intr_error_code, code);
-
-	nvkm_error(subdev,
-		   "ERROR %d [%s] %02x [%s] chid %d mthd %04x data %08x\n",
-		   type, et ? et->name : "", code, ec ? ec->name : "",
-		   chid, mthd, data);
-
-	if (chid < ARRAY_SIZE(disp->chan)) {
-		switch (mthd) {
-		case 0x0080:
-			nv50_disp_chan_mthd(disp->chan[chid], NV_DBG_ERROR);
-			break;
-		default:
-			break;
-		}
-	}
-
-	nvkm_wr32(device, 0x610020, 0x00010000 << chid);
-	nvkm_wr32(device, 0x610080 + (chid * 0x08), 0x90000000);
-}
-
 static struct nvkm_output *
 exec_lookup(struct nv50_disp *disp, int head, int or, u32 ctrl,
 	    u32 *data, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
@@ -426,182 +377,46 @@ exec_clkcmp(struct nv50_disp *disp, int head, int id, u32 pclk, u32 *conf)
 	return outp;
 }
 
-static bool
-nv50_disp_dptmds_war(struct nvkm_device *device)
-{
-	switch (device->chipset) {
-	case 0x94:
-	case 0x96:
-	case 0x98:
-		return true;
-	default:
-		break;
-	}
-	return false;
-}
-
-static bool
-nv50_disp_dptmds_war_needed(struct nv50_disp *disp, struct dcb_output *outp)
+/* If programming a TMDS output on a SOR that can also be configured for
+ * DisplayPort, make sure NV50_SOR_DP_CTRL_ENABLE is forced off.
+ *
+ * It looks like the VBIOS TMDS scripts make an attempt at this, however,
+ * the VBIOS scripts on at least one board I have only switch it off on
+ * link 0, causing a blank display if the output has previously been
+ * programmed for DisplayPort.
+ */
+static void
+nv50_disp_intr_unk40_0_tmds(struct nv50_disp *disp,
+			    struct dcb_output *outp)
 {
 	struct nvkm_device *device = disp->base.engine.subdev.device;
-	const u32 soff = __ffs(outp->or) * 0x800;
-	if (nv50_disp_dptmds_war(device) && outp->type == DCB_OUTPUT_TMDS) {
-		switch (nvkm_rd32(device, 0x614300 + soff) & 0x00030000) {
-		case 0x00000000:
-		case 0x00030000:
-			return true;
-		default:
-			break;
-		}
-	}
-	return false;
+	struct nvkm_bios *bios = device->bios;
+	const int link = !(outp->sorconf.link & 1);
+	const int   or = ffs(outp->or) - 1;
+	const u32 loff = (or * 0x800) + (link * 0x80);
+	const u16 mask = (outp->sorconf.link << 6) | outp->or;
+	struct dcb_output match;
+	u8  ver, hdr;
 
+	if (dcb_outp_match(bios, DCB_OUTPUT_DP, mask, &ver, &hdr, &match))
+		nvkm_mask(device, 0x61c10c + loff, 0x00000001, 0x00000000);
 }
 
 static void
-nv50_disp_dptmds_war_2(struct nv50_disp *disp, struct dcb_output *outp)
+nv50_disp_intr_unk40_0(struct nv50_disp *disp, int head)
 {
 	struct nvkm_device *device = disp->base.engine.subdev.device;
-	const u32 soff = __ffs(outp->or) * 0x800;
-
-	if (!nv50_disp_dptmds_war_needed(disp, outp))
-		return;
-
-	nvkm_mask(device, 0x00e840, 0x80000000, 0x80000000);
-	nvkm_mask(device, 0x614300 + soff, 0x03000000, 0x03000000);
-	nvkm_mask(device, 0x61c10c + soff, 0x00000001, 0x00000001);
-
-	nvkm_mask(device, 0x61c00c + soff, 0x0f000000, 0x00000000);
-	nvkm_mask(device, 0x61c008 + soff, 0xff000000, 0x14000000);
-	nvkm_usec(device, 400, NVKM_DELAY);
-	nvkm_mask(device, 0x61c008 + soff, 0xff000000, 0x00000000);
-	nvkm_mask(device, 0x61c00c + soff, 0x0f000000, 0x01000000);
-
-	if (nvkm_rd32(device, 0x61c004 + soff) & 0x00000001) {
-		u32 seqctl = nvkm_rd32(device, 0x61c030 + soff);
-		u32  pu_pc = seqctl & 0x0000000f;
-		nvkm_wr32(device, 0x61c040 + soff + pu_pc * 4, 0x1f008000);
-	}
-}
-
-static void
-nv50_disp_dptmds_war_3(struct nv50_disp *disp, struct dcb_output *outp)
-{
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	const u32 soff = __ffs(outp->or) * 0x800;
-	u32 sorpwr;
-
-	if (!nv50_disp_dptmds_war_needed(disp, outp))
-		return;
-
-	sorpwr = nvkm_rd32(device, 0x61c004 + soff);
-	if (sorpwr & 0x00000001) {
-		u32 seqctl = nvkm_rd32(device, 0x61c030 + soff);
-		u32  pd_pc = (seqctl & 0x00000f00) >> 8;
-		u32  pu_pc =  seqctl & 0x0000000f;
-
-		nvkm_wr32(device, 0x61c040 + soff + pd_pc * 4, 0x1f008000);
-
-		nvkm_msec(device, 2000,
-			if (!(nvkm_rd32(device, 0x61c030 + soff) & 0x10000000))
-				break;
-		);
-		nvkm_mask(device, 0x61c004 + soff, 0x80000001, 0x80000000);
-		nvkm_msec(device, 2000,
-			if (!(nvkm_rd32(device, 0x61c030 + soff) & 0x10000000))
-				break;
-		);
-
-		nvkm_wr32(device, 0x61c040 + soff + pd_pc * 4, 0x00002000);
-		nvkm_wr32(device, 0x61c040 + soff + pu_pc * 4, 0x1f000000);
-	}
-
-	nvkm_mask(device, 0x61c10c + soff, 0x00000001, 0x00000000);
-	nvkm_mask(device, 0x614300 + soff, 0x03000000, 0x00000000);
-
-	if (sorpwr & 0x00000001) {
-		nvkm_mask(device, 0x61c004 + soff, 0x80000001, 0x80000001);
-	}
-}
-
-static void
-nv50_disp_update_sppll1(struct nv50_disp *disp)
-{
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	bool used = false;
-	int sor;
-
-	if (!nv50_disp_dptmds_war(device))
-		return;
-
-	for (sor = 0; sor < disp->func->sor.nr; sor++) {
-		u32 clksor = nvkm_rd32(device, 0x614300 + (sor * 0x800));
-		switch (clksor & 0x03000000) {
-		case 0x02000000:
-		case 0x03000000:
-			used = true;
-			break;
-		default:
-			break;
-		}
-	}
-
-	if (used)
-		return;
-
-	nvkm_mask(device, 0x00e840, 0x80000000, 0x00000000);
-}
-
-static void
-nv50_disp_intr_unk10_0(struct nv50_disp *disp, int head)
-{
-	exec_script(disp, head, 1);
-}
-
-static void
-nv50_disp_intr_unk20_0(struct nv50_disp *disp, int head)
-{
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
-	struct nvkm_output *outp = exec_script(disp, head, 2);
-
-	/* the binary driver does this outside of the supervisor handling
-	 * (after the third supervisor from a detach).  we (currently?)
-	 * allow both detach/attach to happen in the same set of
-	 * supervisor interrupts, so it would make sense to execute this
-	 * (full power down?) script after all the detach phases of the
-	 * supervisor handling.  like with training if needed from the
-	 * second supervisor, nvidia doesn't do this, so who knows if it's
-	 * entirely safe, but it does appear to work..
-	 *
-	 * without this script being run, on some configurations i've
-	 * seen, switching from DP to TMDS on a DP connector may result
-	 * in a blank screen (SOR_PWR off/on can restore it)
-	 */
-	if (outp && outp->info.type == DCB_OUTPUT_DP) {
-		struct nvkm_output_dp *outpdp = nvkm_output_dp(outp);
-		struct nvbios_init init = {
-			.subdev = subdev,
-			.bios = subdev->device->bios,
-			.outp = &outp->info,
-			.crtc = head,
-			.offset = outpdp->info.script[4],
-			.execute = 1,
-		};
-
-		nvkm_notify_put(&outpdp->irq);
-		nvbios_exec(&init);
-		atomic_set(&outpdp->lt.done, 0);
-	}
-}
-
-static void
-nv50_disp_intr_unk20_1(struct nv50_disp *disp, int head)
-{
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	struct nvkm_devinit *devinit = device->devinit;
+	struct nvkm_output *outp;
 	u32 pclk = nvkm_rd32(device, 0x610ad0 + (head * 0x540)) & 0x3fffff;
-	if (pclk)
-		nvkm_devinit_pll_set(devinit, PLL_VPLL0 + head, pclk);
+	u32 conf;
+
+	outp = exec_clkcmp(disp, head, 1, pclk, &conf);
+	if (!outp)
+		return;
+
+	if (outp->info.location == 0 && outp->info.type == DCB_OUTPUT_TMDS)
+		nv50_disp_intr_unk40_0_tmds(disp, &outp->info);
+	nv50_disp_dptmds_war_3(disp, &outp->info);
 }
 
 static void
@@ -810,50 +625,60 @@ nv50_disp_intr_unk20_2(struct nv50_disp *disp, int head)
 	nv50_disp_dptmds_war_2(disp, &outp->info);
 }
 
-/* If programming a TMDS output on a SOR that can also be configured for
- * DisplayPort, make sure NV50_SOR_DP_CTRL_ENABLE is forced off.
- *
- * It looks like the VBIOS TMDS scripts make an attempt at this, however,
- * the VBIOS scripts on at least one board I have only switch it off on
- * link 0, causing a blank display if the output has previously been
- * programmed for DisplayPort.
- */
 static void
-nv50_disp_intr_unk40_0_tmds(struct nv50_disp *disp,
-			    struct dcb_output *outp)
+nv50_disp_intr_unk20_1(struct nv50_disp *disp, int head)
 {
 	struct nvkm_device *device = disp->base.engine.subdev.device;
-	struct nvkm_bios *bios = device->bios;
-	const int link = !(outp->sorconf.link & 1);
-	const int   or = ffs(outp->or) - 1;
-	const u32 loff = (or * 0x800) + (link * 0x80);
-	const u16 mask = (outp->sorconf.link << 6) | outp->or;
-	struct dcb_output match;
-	u8  ver, hdr;
-
-	if (dcb_outp_match(bios, DCB_OUTPUT_DP, mask, &ver, &hdr, &match))
-		nvkm_mask(device, 0x61c10c + loff, 0x00000001, 0x00000000);
+	struct nvkm_devinit *devinit = device->devinit;
+	u32 pclk = nvkm_rd32(device, 0x610ad0 + (head * 0x540)) & 0x3fffff;
+	if (pclk)
+		nvkm_devinit_pll_set(devinit, PLL_VPLL0 + head, pclk);
 }
 
 static void
-nv50_disp_intr_unk40_0(struct nv50_disp *disp, int head)
+nv50_disp_intr_unk20_0(struct nv50_disp *disp, int head)
 {
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	struct nvkm_output *outp;
-	u32 pclk = nvkm_rd32(device, 0x610ad0 + (head * 0x540)) & 0x3fffff;
-	u32 conf;
+	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_output *outp = exec_script(disp, head, 2);
 
-	outp = exec_clkcmp(disp, head, 1, pclk, &conf);
-	if (!outp)
-		return;
+	/* the binary driver does this outside of the supervisor handling
+	 * (after the third supervisor from a detach).  we (currently?)
+	 * allow both detach/attach to happen in the same set of
+	 * supervisor interrupts, so it would make sense to execute this
+	 * (full power down?) script after all the detach phases of the
+	 * supervisor handling.  like with training if needed from the
+	 * second supervisor, nvidia doesn't do this, so who knows if it's
+	 * entirely safe, but it does appear to work..
+	 *
+	 * without this script being run, on some configurations i've
+	 * seen, switching from DP to TMDS on a DP connector may result
+	 * in a blank screen (SOR_PWR off/on can restore it)
+	 */
+	if (outp && outp->info.type == DCB_OUTPUT_DP) {
+		struct nvkm_output_dp *outpdp = nvkm_output_dp(outp);
+		struct nvbios_init init = {
+			.subdev = subdev,
+			.bios = subdev->device->bios,
+			.outp = &outp->info,
+			.crtc = head,
+			.offset = outpdp->info.script[4],
+			.execute = 1,
+		};
 
-	if (outp->info.location == 0 && outp->info.type == DCB_OUTPUT_TMDS)
-		nv50_disp_intr_unk40_0_tmds(disp, &outp->info);
-	nv50_disp_dptmds_war_3(disp, &outp->info);
+		nvkm_notify_put(&outpdp->irq);
+		nvbios_exec(&init);
+		atomic_set(&outpdp->lt.done, 0);
+	}
+}
+
+static void
+nv50_disp_intr_unk10_0(struct nv50_disp *disp, int head)
+{
+	exec_script(disp, head, 1);
 }
 
 void
-nv50_disp_intr_supervisor(struct work_struct *work)
+nv50_disp_super(struct work_struct *work)
 {
 	struct nv50_disp *disp =
 		container_of(work, struct nv50_disp, supervisor);
@@ -903,6 +728,55 @@ nv50_disp_intr_supervisor(struct work_struct *work)
 	nvkm_wr32(device, 0x610030, 0x80000000);
 }
 
+static const struct nvkm_enum
+nv50_disp_intr_error_type[] = {
+	{ 3, "ILLEGAL_MTHD" },
+	{ 4, "INVALID_VALUE" },
+	{ 5, "INVALID_STATE" },
+	{ 7, "INVALID_HANDLE" },
+	{}
+};
+
+static const struct nvkm_enum
+nv50_disp_intr_error_code[] = {
+	{ 0x00, "" },
+	{}
+};
+
+static void
+nv50_disp_intr_error(struct nv50_disp *disp, int chid)
+{
+	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
+	u32 data = nvkm_rd32(device, 0x610084 + (chid * 0x08));
+	u32 addr = nvkm_rd32(device, 0x610080 + (chid * 0x08));
+	u32 code = (addr & 0x00ff0000) >> 16;
+	u32 type = (addr & 0x00007000) >> 12;
+	u32 mthd = (addr & 0x00000ffc);
+	const struct nvkm_enum *ec, *et;
+
+	et = nvkm_enum_find(nv50_disp_intr_error_type, type);
+	ec = nvkm_enum_find(nv50_disp_intr_error_code, code);
+
+	nvkm_error(subdev,
+		   "ERROR %d [%s] %02x [%s] chid %d mthd %04x data %08x\n",
+		   type, et ? et->name : "", code, ec ? ec->name : "",
+		   chid, mthd, data);
+
+	if (chid < ARRAY_SIZE(disp->chan)) {
+		switch (mthd) {
+		case 0x0080:
+			nv50_disp_chan_mthd(disp->chan[chid], NV_DBG_ERROR);
+			break;
+		default:
+			break;
+		}
+	}
+
+	nvkm_wr32(device, 0x610020, 0x00010000 << chid);
+	nvkm_wr32(device, 0x610080 + (chid * 0x08), 0x90000000);
+}
+
 void
 nv50_disp_intr(struct nv50_disp *disp)
 {
@@ -943,7 +817,7 @@ static const struct nv50_disp_func
 nv50_disp = {
 	.intr = nv50_disp_intr,
 	.uevent = &nv50_disp_chan_uevent,
-	.super = nv50_disp_intr_supervisor,
+	.super = nv50_disp_super,
 	.root = &nv50_disp_root_oclass,
 	.head.vblank_init = nv50_disp_vblank_init,
 	.head.vblank_fini = nv50_disp_vblank_fini,

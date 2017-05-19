@@ -2,8 +2,7 @@
 #define __NV50_DISP_H__
 #define nv50_disp(p) container_of((p), struct nv50_disp, base)
 #include "priv.h"
-struct nvkm_output;
-struct nvkm_output_dp;
+#include "dp.h"
 
 #define NV50_DISP_MTHD_ struct nvkm_object *object,                            \
 	struct nv50_disp *disp, void *data, u32 size
@@ -39,17 +38,6 @@ int nv50_dac_sense(NV50_DISP_MTHD_V1);
 
 int gt215_hda_eld(NV50_DISP_MTHD_V1);
 int gf119_hda_eld(NV50_DISP_MTHD_V1);
-
-struct packed_hdmi_infoframe {
-	u32 header;
-	u32 subpack0_low;
-	u32 subpack0_high;
-	u32 subpack1_low;
-	u32 subpack1_high;
-};
-
-void pack_hdmi_infoframe(struct packed_hdmi_infoframe *packed_frame,
-			 u8 *raw_frame, ssize_t len);
 
 int g84_hdmi_ctrl(NV50_DISP_MTHD_V1);
 int gt215_hdmi_ctrl(NV50_DISP_MTHD_V1);
@@ -120,11 +108,15 @@ struct nv50_disp_func {
 void nv50_disp_vblank_init(struct nv50_disp *, int);
 void nv50_disp_vblank_fini(struct nv50_disp *, int);
 void nv50_disp_intr(struct nv50_disp *);
-void nv50_disp_intr_supervisor(struct work_struct *);
+void nv50_disp_super(struct work_struct *);
 
 void gf119_disp_vblank_init(struct nv50_disp *, int);
 void gf119_disp_vblank_fini(struct nv50_disp *, int);
 void gf119_disp_intr(struct nv50_disp *);
-void gf119_disp_intr_supervisor(struct work_struct *);
+void gf119_disp_super(struct work_struct *);
 void gf119_disp_intr_error(struct nv50_disp *, int);
+
+void nv50_disp_dptmds_war_2(struct nv50_disp *, struct dcb_output *);
+void nv50_disp_dptmds_war_3(struct nv50_disp *, struct dcb_output *);
+void nv50_disp_update_sppll1(struct nv50_disp *);
 #endif

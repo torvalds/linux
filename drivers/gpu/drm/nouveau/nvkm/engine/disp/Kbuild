@@ -12,9 +12,8 @@ nvkm-y += nvkm/engine/disp/gm107.o
 nvkm-y += nvkm/engine/disp/gm200.o
 nvkm-y += nvkm/engine/disp/gp100.o
 nvkm-y += nvkm/engine/disp/gp102.o
+nvkm-y += nvkm/engine/disp/vga.o
 
-nvkm-y += nvkm/engine/disp/outp.o
-nvkm-y += nvkm/engine/disp/outpdp.o
 nvkm-y += nvkm/engine/disp/dacnv50.o
 nvkm-y += nvkm/engine/disp/piornv50.o
 nvkm-y += nvkm/engine/disp/sornv50.o
@@ -22,20 +21,20 @@ nvkm-y += nvkm/engine/disp/sorg94.o
 nvkm-y += nvkm/engine/disp/sorgf119.o
 nvkm-y += nvkm/engine/disp/sorgm107.o
 nvkm-y += nvkm/engine/disp/sorgm200.o
-nvkm-y += nvkm/engine/disp/dport.o
 
-nvkm-y += nvkm/engine/disp/conn.o
+nvkm-y += nvkm/engine/disp/outp.o
+nvkm-y += nvkm/engine/disp/dp.o
 
 nvkm-y += nvkm/engine/disp/hdagt215.o
 nvkm-y += nvkm/engine/disp/hdagf119.o
 
-nvkm-y += nvkm/engine/disp/hdmi_infoframe.o
+nvkm-y += nvkm/engine/disp/hdmi.o
 nvkm-y += nvkm/engine/disp/hdmig84.o
 nvkm-y += nvkm/engine/disp/hdmigt215.o
 nvkm-y += nvkm/engine/disp/hdmigf119.o
 nvkm-y += nvkm/engine/disp/hdmigk104.o
 
-nvkm-y += nvkm/engine/disp/vga.o
+nvkm-y += nvkm/engine/disp/conn.o
 
 nvkm-y += nvkm/engine/disp/rootnv04.o
 nvkm-y += nvkm/engine/disp/rootnv50.o

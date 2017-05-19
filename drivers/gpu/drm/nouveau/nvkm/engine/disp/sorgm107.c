@@ -22,7 +22,6 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 #include "nv50.h"
-#include "outpdp.h"
 
 int
 gm107_sor_dp_pattern(struct nvkm_output_dp *outp, int pattern)

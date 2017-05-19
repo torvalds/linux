@@ -21,7 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
-#include "nv50.h"
+#include "hdmi.h"
 #include "outp.h"
 
 #include <core/client.h>

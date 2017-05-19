@@ -28,7 +28,7 @@ static const struct nv50_disp_func
 g84_disp = {
 	.intr = nv50_disp_intr,
 	.uevent = &nv50_disp_chan_uevent,
-	.super = nv50_disp_intr_supervisor,
+	.super = nv50_disp_super,
 	.root = &g84_disp_root_oclass,
 	.head.vblank_init = nv50_disp_vblank_init,
 	.head.vblank_fini = nv50_disp_vblank_fini,

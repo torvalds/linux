@@ -2,7 +2,6 @@
 #define __NVKM_DISP_PRIV_H__
 #include <engine/disp.h>
 #include "outp.h"
-#include "outpdp.h"
 
 int nvkm_disp_ctor(const struct nvkm_disp_func *, struct nvkm_device *,
 		   int index, int heads, struct nvkm_disp *);

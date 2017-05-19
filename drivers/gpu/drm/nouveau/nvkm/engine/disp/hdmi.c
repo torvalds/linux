@@ -1,4 +1,4 @@
-#include "nv50.h"
+#include "hdmi.h"
 
 void pack_hdmi_infoframe(struct packed_hdmi_infoframe *packed_frame,
 			 u8 *raw_frame, ssize_t len)

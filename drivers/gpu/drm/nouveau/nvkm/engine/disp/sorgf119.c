@@ -22,7 +22,17 @@
  * Authors: Ben Skeggs
  */
 #include "nv50.h"
-#include "outpdp.h"
+
+void
+gf119_sor_dp_vcpi(struct nvkm_output_dp *outp, int head, u8 slot,
+		  u8 slot_nr, u16 pbn, u16 aligned)
+{
+	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
+	const u32 hoff = head * 0x800;
+
+	nvkm_mask(device, 0x616588 + hoff, 0x00003f3f, (slot_nr << 8) | slot);
+	nvkm_mask(device, 0x61658c + hoff, 0xffffffff, (aligned << 16) | pbn);
+}
 
 static inline u32
 gf119_sor_soff(struct nvkm_output_dp *outp)
@@ -34,36 +44,6 @@ static inline u32
 gf119_sor_loff(struct nvkm_output_dp *outp)
 {
 	return gf119_sor_soff(outp) + !(outp->base.info.sorconf.link & 1) * 0x80;
-}
-
-static int
-gf119_sor_dp_pattern(struct nvkm_output_dp *outp, int pattern)
-{
-	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
-	const u32 soff = gf119_sor_soff(outp);
-	nvkm_mask(device, 0x61c110 + soff, 0x0f0f0f0f, 0x01010101 * pattern);
-	return 0;
-}
-
-int
-gf119_sor_dp_lnk_ctl(struct nvkm_output_dp *outp, int nr, int bw, bool ef)
-{
-	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
-	const u32 soff = gf119_sor_soff(outp);
-	const u32 loff = gf119_sor_loff(outp);
-	u32 dpctrl = 0x00000000;
-	u32 clksor = 0x00000000;
-
-	clksor |= bw << 18;
-	dpctrl |= ((1 << nr) - 1) << 16;
-	if (outp->lt.mst)
-		dpctrl |= 0x40000000;
-	if (ef)
-		dpctrl |= 0x00004000;
-
-	nvkm_mask(device, 0x612300 + soff, 0x007c0000, clksor);
-	nvkm_mask(device, 0x61c10c + loff, 0x401f4000, dpctrl);
-	return 0;
 }
 
 int
@@ -103,15 +83,34 @@ gf119_sor_dp_drv_ctl(struct nvkm_output_dp *outp,
 	return 0;
 }
 
-void
-gf119_sor_dp_vcpi(struct nvkm_output_dp *outp, int head, u8 slot,
-		  u8 slot_nr, u16 pbn, u16 aligned)
+static int
+gf119_sor_dp_pattern(struct nvkm_output_dp *outp, int pattern)
 {
 	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
-	const u32 hoff = head * 0x800;
+	const u32 soff = gf119_sor_soff(outp);
+	nvkm_mask(device, 0x61c110 + soff, 0x0f0f0f0f, 0x01010101 * pattern);
+	return 0;
+}
 
-	nvkm_mask(device, 0x616588 + hoff, 0x00003f3f, (slot_nr << 8) | slot);
-	nvkm_mask(device, 0x61658c + hoff, 0xffffffff, (aligned << 16) | pbn);
+int
+gf119_sor_dp_lnk_ctl(struct nvkm_output_dp *outp, int nr, int bw, bool ef)
+{
+	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
+	const u32 soff = gf119_sor_soff(outp);
+	const u32 loff = gf119_sor_loff(outp);
+	u32 dpctrl = 0x00000000;
+	u32 clksor = 0x00000000;
+
+	clksor |= bw << 18;
+	dpctrl |= ((1 << nr) - 1) << 16;
+	if (outp->lt.mst)
+		dpctrl |= 0x40000000;
+	if (ef)
+		dpctrl |= 0x00004000;
+
+	nvkm_mask(device, 0x612300 + soff, 0x007c0000, clksor);
+	nvkm_mask(device, 0x61c10c + loff, 0x401f4000, dpctrl);
+	return 0;
 }
 
 static const struct nvkm_output_dp_func

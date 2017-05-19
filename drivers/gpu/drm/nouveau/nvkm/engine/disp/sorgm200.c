@@ -22,7 +22,6 @@
  * Authors: Ben Skeggs
  */
 #include "nv50.h"
-#include "outpdp.h"
 
 #include <subdev/timer.h>
 
@@ -38,42 +37,10 @@ gm200_sor_loff(struct nvkm_output_dp *outp)
 	return gm200_sor_soff(outp) + !(outp->base.info.sorconf.link & 1) * 0x80;
 }
 
-void
-gm200_sor_magic(struct nvkm_output *outp)
-{
-	struct nvkm_device *device = outp->disp->engine.subdev.device;
-	const u32 soff = outp->or * 0x100;
-	const u32 data = outp->or + 1;
-	if (outp->info.sorconf.link & 1)
-		nvkm_mask(device, 0x612308 + soff, 0x0000001f, 0x00000000 | data);
-	if (outp->info.sorconf.link & 2)
-		nvkm_mask(device, 0x612388 + soff, 0x0000001f, 0x00000010 | data);
-}
-
 static inline u32
 gm200_sor_dp_lane_map(struct nvkm_device *device, u8 lane)
 {
 	return lane * 0x08;
-}
-
-static int
-gm200_sor_dp_lnk_pwr(struct nvkm_output_dp *outp, int nr)
-{
-	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
-	const u32 soff = gm200_sor_soff(outp);
-	const u32 loff = gm200_sor_loff(outp);
-	u32 mask = 0, i;
-
-	for (i = 0; i < nr; i++)
-		mask |= 1 << (gm200_sor_dp_lane_map(device, i) >> 3);
-
-	nvkm_mask(device, 0x61c130 + loff, 0x0000000f, mask);
-	nvkm_mask(device, 0x61c034 + soff, 0x80000000, 0x80000000);
-	nvkm_msec(device, 2000,
-		if (!(nvkm_rd32(device, 0x61c034 + soff) & 0x80000000))
-			break;
-	);
-	return 0;
 }
 
 static int
@@ -114,6 +81,26 @@ gm200_sor_dp_drv_ctl(struct nvkm_output_dp *outp,
 	return 0;
 }
 
+static int
+gm200_sor_dp_lnk_pwr(struct nvkm_output_dp *outp, int nr)
+{
+	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
+	const u32 soff = gm200_sor_soff(outp);
+	const u32 loff = gm200_sor_loff(outp);
+	u32 mask = 0, i;
+
+	for (i = 0; i < nr; i++)
+		mask |= 1 << (gm200_sor_dp_lane_map(device, i) >> 3);
+
+	nvkm_mask(device, 0x61c130 + loff, 0x0000000f, mask);
+	nvkm_mask(device, 0x61c034 + soff, 0x80000000, 0x80000000);
+	nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x61c034 + soff) & 0x80000000))
+			break;
+	);
+	return 0;
+}
+
 static const struct nvkm_output_dp_func
 gm200_sor_dp_func = {
 	.pattern = gm107_sor_dp_pattern,
@@ -128,4 +115,16 @@ gm200_sor_dp_new(struct nvkm_disp *disp, int index, struct dcb_output *dcbE,
 		 struct nvkm_output **poutp)
 {
 	return nvkm_output_dp_new_(&gm200_sor_dp_func, disp, index, dcbE, poutp);
+}
+
+void
+gm200_sor_magic(struct nvkm_output *outp)
+{
+	struct nvkm_device *device = outp->disp->engine.subdev.device;
+	const u32 soff = outp->or * 0x100;
+	const u32 data = outp->or + 1;
+	if (outp->info.sorconf.link & 1)
+		nvkm_mask(device, 0x612308 + soff, 0x0000001f, 0x00000000 | data);
+	if (outp->info.sorconf.link & 2)
+		nvkm_mask(device, 0x612388 + soff, 0x0000001f, 0x00000010 | data);
 }
