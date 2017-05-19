@@ -17,8 +17,16 @@
 #include <net/dsa.h>
 
 enum {
+	DSA_NOTIFIER_AGEING_TIME,
 	DSA_NOTIFIER_BRIDGE_JOIN,
 	DSA_NOTIFIER_BRIDGE_LEAVE,
+};
+
+/* DSA_NOTIFIER_AGEING_TIME */
+struct dsa_notifier_ageing_time_info {
+	struct switchdev_trans *trans;
+	unsigned int ageing_time;
+	int sw_index;
 };
 
 /* DSA_NOTIFIER_BRIDGE_* */
