@@ -41,6 +41,7 @@
 #include <crypto/algapi.h>
 #include <crypto/sha.h>
 #include <crypto/hash.h>
+#include <crypto/hmac.h>
 #include <crypto/internal/hash.h>
 
 #define MD5_DIGEST_SIZE			16
@@ -1326,8 +1327,8 @@ static int omap_sham_setkey(struct crypto_ahash *tfm, const u8 *key,
 		memcpy(bctx->opad, bctx->ipad, bs);
 
 		for (i = 0; i < bs; i++) {
-			bctx->ipad[i] ^= 0x36;
-			bctx->opad[i] ^= 0x5c;
+			bctx->ipad[i] ^= HMAC_IPAD_VALUE;
+			bctx->opad[i] ^= HMAC_OPAD_VALUE;
 		}
 	}
 
