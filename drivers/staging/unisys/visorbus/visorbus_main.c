@@ -981,14 +981,14 @@ int visorbus_register_visor_driver(struct visor_driver *drv)
 EXPORT_SYMBOL_GPL(visorbus_register_visor_driver);
 
 /*
- * create_bus_instance() - create a device instance for the visor bus itself
+ * visorbus_create_instance() - create a device instance for the visorbus itself
  * @dev: struct visor_device indicating the bus instance
  *
  * Return: 0 for success, otherwise negative errno value indicating reason for
  *         failure
  */
 static int
-create_bus_instance(struct visor_device *dev)
+visorbus_create_instance(struct visor_device *dev)
 {
 	int id = dev->chipset_bus_no;
 	int err;
@@ -1032,16 +1032,16 @@ create_bus_instance(struct visor_device *dev)
 err_debugfs_dir:
 	debugfs_remove_recursive(dev->debugfs_dir);
 	kfree(hdr_info);
-	dev_err(&dev->device, "create_bus_instance failed: %d\n", err);
+	dev_err(&dev->device, "visorbus_create_instance failed: %d\n", err);
 	return err;
 }
 
 /*
- * remove_bus_instance() - remove a device instance for the visor bus itself
+ * visorbus_remove_instance() - remove a device instance for the visorbus itself
  * @dev: struct visor_device indentifying the bus to remove
  */
 static void
-remove_bus_instance(struct visor_device *dev)
+visorbus_remove_instance(struct visor_device *dev)
 {
 	/*
 	 * Note that this will result in the release method for
@@ -1061,7 +1061,7 @@ remove_bus_instance(struct visor_device *dev)
 }
 
 /*
- * remove_all_visor_devices() - remove all child visor bus device instances
+ * remove_all_visor_devices() - remove all child visorbus device instances
  */
 static void
 remove_all_visor_devices(void)
@@ -1081,7 +1081,7 @@ chipset_bus_create(struct visor_device *dev)
 {
 	int err;
 
-	err = create_bus_instance(dev);
+	err = visorbus_create_instance(dev);
 
 	if (err < 0)
 		return err;
@@ -1094,7 +1094,7 @@ chipset_bus_create(struct visor_device *dev)
 void
 chipset_bus_destroy(struct visor_device *dev)
 {
-	remove_bus_instance(dev);
+	visorbus_remove_instance(dev);
 	visorbus_destroy_response(dev, 0);
 }
 
@@ -1289,7 +1289,7 @@ visorbus_exit(void)
 		struct visor_device *dev = list_entry(listentry,
 						      struct visor_device,
 						      list_all);
-		remove_bus_instance(dev);
+		visorbus_remove_instance(dev);
 	}
 
 	bus_unregister(&visorbus_type);
