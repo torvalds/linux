@@ -1704,7 +1704,7 @@ static void halbtc8723b1ant_monitor_bt_enable_disable(struct btc_coexist
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
 	static u32 bt_disable_cnt;
-	bool bt_active = true, bt_disabled;
+	bool bt_active = true, bt_disabled = false;
 
 	if (coex_sta->high_priority_tx == 0 &&
 	    coex_sta->high_priority_rx == 0 && coex_sta->low_priority_tx == 0 &&
