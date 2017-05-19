@@ -7,6 +7,8 @@ struct nvbios_init {
 	u32 offset;
 
 	struct dcb_output *outp;
+	int or;
+	int link;
 	union {
 		int head;
 		int crtc;

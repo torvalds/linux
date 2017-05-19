@@ -87,8 +87,8 @@ static inline int
 init_or(struct nvbios_init *init)
 {
 	if (init_exec(init)) {
-		if (init->outp)
-			return ffs(init->outp->or) - 1;
+		if (init->or >= 0)
+			return init->or;
 		error("script needs OR!!\n");
 	}
 	return 0;
@@ -98,8 +98,8 @@ static inline int
 init_link(struct nvbios_init *init)
 {
 	if (init_exec(init)) {
-		if (init->outp)
-			return !(init->outp->sorconf.link & 1);
+		if (init->link)
+			return init->link == 2;
 		error("script needs OR link\n");
 	}
 	return 0;
@@ -2277,6 +2277,12 @@ int
 nvbios_exec(struct nvbios_init *init)
 {
 	struct nvkm_bios *bios = init->subdev->device->bios;
+
+	if (init->bios) {
+		init->or = init->outp ? ffs(init->outp->or) - 1 : -1;
+		init->link = init->outp ? init->outp->sorconf.link : 0;
+	}
+
 	init->nested++;
 	while (init->offset) {
 		u8 opcode = nvbios_rd08(bios, init->offset);
