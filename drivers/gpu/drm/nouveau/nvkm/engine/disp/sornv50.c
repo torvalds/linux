@@ -25,6 +25,15 @@
 
 #include <subdev/timer.h>
 
+void
+nv50_sor_clock(struct nvkm_ior *sor)
+{
+	struct nvkm_device *device = sor->disp->engine.subdev.device;
+	const int  div = sor->asy.link == 3;
+	const u32 soff = nv50_ior_base(sor);
+	nvkm_mask(device, 0x614300 + soff, 0x00000707, (div << 8) | div);
+}
+
 static void
 nv50_sor_power_wait(struct nvkm_device *device, u32 soff)
 {
@@ -79,6 +88,7 @@ static const struct nvkm_ior_func
 nv50_sor = {
 	.state = nv50_sor_state,
 	.power = nv50_sor_power,
+	.clock = nv50_sor_clock,
 };
 
 int

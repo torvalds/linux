@@ -50,6 +50,8 @@ struct nvkm_ior_func {
 	void (*power)(struct nvkm_ior *, bool normal, bool pu,
 		      bool data, bool vsync, bool hsync);
 	int (*sense)(struct nvkm_ior *, u32 loadval);
+	void (*clock)(struct nvkm_ior *);
+	void (*war_2)(struct nvkm_ior *);
 
 	struct {
 		void (*ctrl)(struct nvkm_ior *, int head, bool enable,
@@ -67,6 +69,10 @@ struct nvkm_ior_func {
 		void (*vcpi)(struct nvkm_ior *, int head, u8 slot,
 			     u8 slot_nr, u16 pbn, u16 aligned);
 		void (*audio)(struct nvkm_ior *, int head, bool enable);
+		void (*audio_sym)(struct nvkm_ior *, int head, u16 h, u32 v);
+		void (*activesym)(struct nvkm_ior *, int head,
+				  u8 TU, u8 VTUa, u8 VTUf, u8 VTUi);
+		void (*watermark)(struct nvkm_ior *, int head, u8 watermark);
 	} dp;
 
 	struct {
@@ -99,21 +105,28 @@ nv50_sor_link(struct nvkm_ior *ior)
 
 void nv50_sor_state(struct nvkm_ior *, struct nvkm_ior_state *);
 void nv50_sor_power(struct nvkm_ior *, bool, bool, bool, bool, bool);
+void nv50_sor_clock(struct nvkm_ior *);
 
 void g94_sor_state(struct nvkm_ior *, struct nvkm_ior_state *);
 int g94_sor_dp_links(struct nvkm_ior *, struct nvkm_i2c_aux *);
 void g94_sor_dp_power(struct nvkm_ior *, int);
 void g94_sor_dp_pattern(struct nvkm_ior *, int);
 void g94_sor_dp_drive(struct nvkm_ior *, int, int, int, int, int);
+void g94_sor_dp_audio_sym(struct nvkm_ior *, int, u16, u32);
+void g94_sor_dp_activesym(struct nvkm_ior *, int, u8, u8, u8, u8);
+void g94_sor_dp_watermark(struct nvkm_ior *, int, u8);
 
 void gt215_sor_dp_audio(struct nvkm_ior *, int, bool);
 
 void gf119_sor_state(struct nvkm_ior *, struct nvkm_ior_state *);
+void gf119_sor_clock(struct nvkm_ior *);
 int gf119_sor_dp_links(struct nvkm_ior *, struct nvkm_i2c_aux *);
 void gf119_sor_dp_pattern(struct nvkm_ior *, int);
 void gf119_sor_dp_drive(struct nvkm_ior *, int, int, int, int, int);
 void gf119_sor_dp_vcpi(struct nvkm_ior *, int, u8, u8, u16, u16);
 void gf119_sor_dp_audio(struct nvkm_ior *, int, bool);
+void gf119_sor_dp_audio_sym(struct nvkm_ior *, int, u16, u32);
+void gf119_sor_dp_watermark(struct nvkm_ior *, int, u8);
 
 void gm107_sor_dp_pattern(struct nvkm_ior *, int);
 

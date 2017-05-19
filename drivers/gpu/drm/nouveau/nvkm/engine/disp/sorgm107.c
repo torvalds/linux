@@ -39,6 +39,7 @@ static const struct nvkm_ior_func
 gm107_sor = {
 	.state = gf119_sor_state,
 	.power = nv50_sor_power,
+	.clock = gf119_sor_clock,
 	.hdmi = {
 		.ctrl = gk104_hdmi_ctrl,
 	},
@@ -50,6 +51,8 @@ gm107_sor = {
 		.drive = gf119_sor_dp_drive,
 		.vcpi = gf119_sor_dp_vcpi,
 		.audio = gf119_sor_dp_audio,
+		.audio_sym = gf119_sor_dp_audio_sym,
+		.watermark = gf119_sor_dp_watermark,
 	},
 	.hda = {
 		.hpd = gf119_hda_hpd,

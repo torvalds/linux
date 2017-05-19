@@ -27,6 +27,14 @@
 #include <subdev/i2c.h>
 #include <subdev/timer.h>
 
+static void
+nv50_pior_clock(struct nvkm_ior *pior)
+{
+	struct nvkm_device *device = pior->disp->engine.subdev.device;
+	const u32 poff = nv50_ior_base(pior);
+	nvkm_mask(device, 0x614380 + poff, 0x00000707, 0x00000001);
+}
+
 static int
 nv50_pior_dp_links(struct nvkm_ior *pior, struct nvkm_i2c_aux *aux)
 {
@@ -110,6 +118,7 @@ static const struct nvkm_ior_func
 nv50_pior = {
 	.state = nv50_pior_state,
 	.power = nv50_pior_power,
+	.clock = nv50_pior_clock,
 	.dp = {
 		.links = nv50_pior_dp_links,
 	},

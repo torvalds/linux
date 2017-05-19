@@ -25,6 +25,7 @@ static const struct nvkm_ior_func
 g84_sor = {
 	.state = nv50_sor_state,
 	.power = nv50_sor_power,
+	.clock = nv50_sor_clock,
 	.hdmi = {
 		.ctrl = g84_hdmi_ctrl,
 	},

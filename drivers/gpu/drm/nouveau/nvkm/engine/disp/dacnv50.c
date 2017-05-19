@@ -25,6 +25,14 @@
 
 #include <subdev/timer.h>
 
+static void
+nv50_dac_clock(struct nvkm_ior *dac)
+{
+	struct nvkm_device *device = dac->disp->engine.subdev.device;
+	const u32 doff = nv50_ior_base(dac);
+	nvkm_mask(device, 0x614280 + doff, 0x07070707, 0x00000000);
+}
+
 int
 nv50_dac_sense(struct nvkm_ior *dac, u32 loadval)
 {
@@ -95,6 +103,7 @@ nv50_dac = {
 	.state = nv50_dac_state,
 	.power = nv50_dac_power,
 	.sense = nv50_dac_sense,
+	.clock = nv50_dac_clock,
 };
 
 int

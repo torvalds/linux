@@ -25,6 +25,7 @@ static const struct nvkm_ior_func
 mcp77_sor = {
 	.state = g94_sor_state,
 	.power = nv50_sor_power,
+	.clock = nv50_sor_clock,
 	.hdmi = {
 		.ctrl = g84_hdmi_ctrl,
 	},
@@ -34,6 +35,9 @@ mcp77_sor = {
 		.power = g94_sor_dp_power,
 		.pattern = g94_sor_dp_pattern,
 		.drive = g94_sor_dp_drive,
+		.audio_sym = g94_sor_dp_audio_sym,
+		.activesym = g94_sor_dp_activesym,
+		.watermark = g94_sor_dp_watermark,
 	},
 };
 

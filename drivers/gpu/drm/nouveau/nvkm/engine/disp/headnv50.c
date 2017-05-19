@@ -37,6 +37,13 @@ nv50_head_vblank_get(struct nvkm_head *head)
 	nvkm_mask(device, 0x61002c, (4 << head->id), (4 << head->id));
 }
 
+static void
+nv50_head_rgclk(struct nvkm_head *head, int div)
+{
+	struct nvkm_device *device = head->disp->engine.subdev.device;
+	nvkm_mask(device, 0x614200 + (head->id * 0x800), 0x0000000f, div);
+}
+
 void
 nv50_head_rgpos(struct nvkm_head *head, u16 *hline, u16 *vline)
 {
@@ -73,6 +80,7 @@ static const struct nvkm_head_func
 nv50_head = {
 	.state = nv50_head_state,
 	.rgpos = nv50_head_rgpos,
+	.rgclk = nv50_head_rgclk,
 	.vblank_get = nv50_head_vblank_get,
 	.vblank_put = nv50_head_vblank_put,
 };

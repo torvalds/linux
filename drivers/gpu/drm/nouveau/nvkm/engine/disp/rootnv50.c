@@ -23,6 +23,7 @@
  */
 #include "rootnv50.h"
 #include "dmacnv50.h"
+#include "dp.h"
 #include "head.h"
 #include "ior.h"
 

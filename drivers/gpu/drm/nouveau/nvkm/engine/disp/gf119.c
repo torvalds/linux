@@ -139,120 +139,6 @@ exec_clkcmp(struct nv50_disp *disp, int head, int id, u32 pclk, u32 *conf)
 }
 
 static void
-gf119_disp_intr_unk2_2_tu(struct nv50_disp *disp, int head,
-			  struct dcb_output *outp)
-{
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	const int or = ffs(outp->or) - 1;
-	const u32 ctrl = nvkm_rd32(device, 0x660200 + (or   * 0x020));
-	const u32 conf = nvkm_rd32(device, 0x660404 + (head * 0x300));
-	const s32 vactive = nvkm_rd32(device, 0x660414 + (head * 0x300)) & 0xffff;
-	const s32 vblanke = nvkm_rd32(device, 0x66041c + (head * 0x300)) & 0xffff;
-	const s32 vblanks = nvkm_rd32(device, 0x660420 + (head * 0x300)) & 0xffff;
-	const u32 pclk = nvkm_rd32(device, 0x660450 + (head * 0x300)) / 1000;
-	const u32 link = ((ctrl & 0xf00) == 0x800) ? 0 : 1;
-	const u32 hoff = (head * 0x800);
-	const u32 soff = (  or * 0x800);
-	const u32 loff = (link * 0x080) + soff;
-	const u32 symbol = 100000;
-	const u32 TU = 64;
-	u32 dpctrl = nvkm_rd32(device, 0x61c10c + loff);
-	u32 clksor = nvkm_rd32(device, 0x612300 + soff);
-	u32 datarate, link_nr, link_bw, bits;
-	u64 ratio, value;
-
-	link_nr  = hweight32(dpctrl & 0x000f0000);
-	link_bw  = (clksor & 0x007c0000) >> 18;
-	link_bw *= 27000;
-
-	/* symbols/hblank - algorithm taken from comments in tegra driver */
-	value = vblanke + vactive - vblanks - 7;
-	value = value * link_bw;
-	do_div(value, pclk);
-	value = value - (3 * !!(dpctrl & 0x00004000)) - (12 / link_nr);
-	nvkm_mask(device, 0x616620 + hoff, 0x0000ffff, value);
-
-	/* symbols/vblank - algorithm taken from comments in tegra driver */
-	value = vblanks - vblanke - 25;
-	value = value * link_bw;
-	do_div(value, pclk);
-	value = value - ((36 / link_nr) + 3) - 1;
-	nvkm_mask(device, 0x616624 + hoff, 0x00ffffff, value);
-
-	/* watermark */
-	if      ((conf & 0x3c0) == 0x180) bits = 30;
-	else if ((conf & 0x3c0) == 0x140) bits = 24;
-	else                              bits = 18;
-	datarate = (pclk * bits) / 8;
-
-	ratio  = datarate;
-	ratio *= symbol;
-	do_div(ratio, link_nr * link_bw);
-
-	value  = (symbol - ratio) * TU;
-	value *= ratio;
-	do_div(value, symbol);
-	do_div(value, symbol);
-
-	value += 5;
-	value |= 0x08000000;
-
-	nvkm_wr32(device, 0x616610 + hoff, value);
-}
-
-static void
-gf119_disp_intr_unk2_2(struct nv50_disp *disp, int head)
-{
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	struct nvkm_output *outp;
-	u32 pclk = nvkm_rd32(device, 0x660450 + (head * 0x300)) / 1000;
-	u32 conf, addr, data;
-
-	outp = exec_clkcmp(disp, head, 0xff, pclk, &conf);
-	if (!outp)
-		return;
-
-	/* see note in nv50_disp_intr_unk20_2() */
-	if (outp->info.type == DCB_OUTPUT_DP) {
-		u32 sync = nvkm_rd32(device, 0x660404 + (head * 0x300));
-		switch ((sync & 0x000003c0) >> 6) {
-		case 6: pclk = pclk * 30; break;
-		case 5: pclk = pclk * 24; break;
-		case 2:
-		default:
-			pclk = pclk * 18;
-			break;
-		}
-
-		if (nvkm_output_dp_train(outp, pclk))
-			OUTP_ERR(outp, "link not trained before attach");
-	}
-
-	exec_clkcmp(disp, head, 0, pclk, &conf);
-
-	if (outp->info.type == DCB_OUTPUT_ANALOG) {
-		addr = 0x612280 + (ffs(outp->info.or) - 1) * 0x800;
-		data = 0x00000000;
-	} else {
-		addr = 0x612300 + (ffs(outp->info.or) - 1) * 0x800;
-		data = (conf & 0x0100) ? 0x00000101 : 0x00000000;
-		switch (outp->info.type) {
-		case DCB_OUTPUT_TMDS:
-			nvkm_mask(device, addr, 0x007c0000, 0x00280000);
-			break;
-		case DCB_OUTPUT_DP:
-			gf119_disp_intr_unk2_2_tu(disp, head, &outp->info);
-			break;
-		default:
-			break;
-		}
-	}
-
-	nvkm_mask(device, addr, 0x00000707, data);
-	nvkm_wr32(device, 0x612200 + (head * 0x800), 0x00000000);
-}
-
-static void
 gf119_disp_intr_unk4_0(struct nv50_disp *disp, int head)
 {
 	struct nvkm_device *device = disp->base.engine.subdev.device;
@@ -302,8 +188,7 @@ gf119_disp_super(struct work_struct *work)
 		list_for_each_entry(head, &disp->base.head, head) {
 			if (!(mask[head->id] & 0x00001000))
 				continue;
-			nvkm_debug(subdev, "supervisor 2.2 - head %d\n", head->id);
-			gf119_disp_intr_unk2_2(disp, head->id);
+			nv50_disp_super_2_2(disp, head);
 		}
 	} else
 	if (disp->super & 0x00000004) {

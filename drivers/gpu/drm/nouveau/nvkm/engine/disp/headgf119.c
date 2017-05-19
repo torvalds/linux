@@ -40,6 +40,13 @@ gf119_head_vblank_get(struct nvkm_head *head)
 }
 
 static void
+gf119_head_rgclk(struct nvkm_head *head, int div)
+{
+	struct nvkm_device *device = head->disp->engine.subdev.device;
+	nvkm_mask(device, 0x612200 + (head->id * 0x800), 0x0000000f, div);
+}
+
+static void
 gf119_head_state(struct nvkm_head *head, struct nvkm_head_state *state)
 {
 	struct nvkm_device *device = head->disp->engine.subdev.device;
@@ -77,6 +84,7 @@ static const struct nvkm_head_func
 gf119_head = {
 	.state = gf119_head_state,
 	.rgpos = nv50_head_rgpos,
+	.rgclk = gf119_head_rgclk,
 	.vblank_get = gf119_head_vblank_get,
 	.vblank_put = gf119_head_vblank_put,
 };

@@ -27,6 +27,35 @@
 #include <subdev/timer.h>
 
 void
+g94_sor_dp_watermark(struct nvkm_ior *sor, int head, u8 watermark)
+{
+	struct nvkm_device *device = sor->disp->engine.subdev.device;
+	const u32 loff = nv50_sor_link(sor);
+	nvkm_mask(device, 0x61c128 + loff, 0x0000003f, watermark);
+}
+
+void
+g94_sor_dp_activesym(struct nvkm_ior *sor, int head,
+		     u8 TU, u8 VTUa, u8 VTUf, u8 VTUi)
+{
+	struct nvkm_device *device = sor->disp->engine.subdev.device;
+	const u32 loff = nv50_sor_link(sor);
+	nvkm_mask(device, 0x61c10c + loff, 0x000001fc, TU << 2);
+	nvkm_mask(device, 0x61c128 + loff, 0x010f7f00, VTUa << 24 |
+						       VTUf << 16 |
+						       VTUi << 8);
+}
+
+void
+g94_sor_dp_audio_sym(struct nvkm_ior *sor, int head, u16 h, u32 v)
+{
+	struct nvkm_device *device = sor->disp->engine.subdev.device;
+	const u32 soff = nv50_ior_base(sor);
+	nvkm_mask(device, 0x61c1e8 + soff, 0x0000ffff, h);
+	nvkm_mask(device, 0x61c1ec + soff, 0x00ffffff, v);
+}
+
+void
 g94_sor_dp_drive(struct nvkm_ior *sor, int ln, int pc, int dc, int pe, int pu)
 {
 	struct nvkm_device *device = sor->disp->engine.subdev.device;
@@ -123,6 +152,23 @@ nv50_disp_dptmds_war_needed(struct nv50_disp *disp, struct dcb_output *outp)
 
 }
 
+static bool
+g94_sor_war_needed(struct nvkm_ior *sor)
+{
+	struct nvkm_device *device = sor->disp->engine.subdev.device;
+	const u32 soff = nv50_ior_base(sor);
+	if (sor->asy.proto == TMDS) {
+		switch (nvkm_rd32(device, 0x614300 + soff) & 0x00030000) {
+		case 0x00000000:
+		case 0x00030000:
+			return true;
+		default:
+			break;
+		}
+	}
+	return false;
+}
+
 void
 nv50_disp_update_sppll1(struct nv50_disp *disp)
 {
@@ -191,13 +237,13 @@ nv50_disp_dptmds_war_3(struct nv50_disp *disp, struct dcb_output *outp)
 	}
 }
 
-void
-nv50_disp_dptmds_war_2(struct nv50_disp *disp, struct dcb_output *outp)
+static void
+g94_sor_war_2(struct nvkm_ior *sor)
 {
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	const u32 soff = __ffs(outp->or) * 0x800;
+	struct nvkm_device *device = sor->disp->engine.subdev.device;
+	const u32 soff = nv50_ior_base(sor);
 
-	if (!nv50_disp_dptmds_war_needed(disp, outp))
+	if (!g94_sor_war_needed(sor))
 		return;
 
 	nvkm_mask(device, 0x00e840, 0x80000000, 0x80000000);
@@ -245,12 +291,17 @@ static const struct nvkm_ior_func
 g94_sor = {
 	.state = g94_sor_state,
 	.power = nv50_sor_power,
+	.clock = nv50_sor_clock,
+	.war_2 = g94_sor_war_2,
 	.dp = {
 		.lanes = { 2, 1, 0, 3},
 		.links = g94_sor_dp_links,
 		.power = g94_sor_dp_power,
 		.pattern = g94_sor_dp_pattern,
 		.drive = g94_sor_dp_drive,
+		.audio_sym = g94_sor_dp_audio_sym,
+		.activesym = g94_sor_dp_activesym,
+		.watermark = g94_sor_dp_watermark,
 	},
 };
 

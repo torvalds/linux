@@ -29,10 +29,6 @@ struct nvkm_dp {
 	} lt;
 };
 
-#define nvkm_output_dp nvkm_dp
-
-int nvkm_output_dp_train(struct nvkm_output *, u32 rate);
-
 int nvkm_dp_new(struct nvkm_disp *, int index, struct dcb_output *,
 		struct nvkm_outp **);
 

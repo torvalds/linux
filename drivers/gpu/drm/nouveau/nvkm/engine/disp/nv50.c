@@ -130,6 +130,62 @@ nv50_disp_super_iedt(struct nvkm_head *head, struct nvkm_outp *outp,
 }
 
 static void
+nv50_disp_super_ied_on(struct nvkm_head *head,
+		       struct nvkm_ior *ior, int id, u32 khz)
+{
+	struct nvkm_subdev *subdev = &head->disp->engine.subdev;
+	struct nvkm_bios *bios = subdev->device->bios;
+	struct nvkm_outp *outp = ior->asy.outp;
+	struct nvbios_ocfg iedtrs;
+	struct nvbios_outp iedt;
+	u8  ver, hdr, cnt, len, flags = 0x00;
+	u32 data;
+
+	if (!outp) {
+		IOR_DBG(ior, "nothing to attach");
+		return;
+	}
+
+	/* Lookup IED table for the device. */
+	data = nv50_disp_super_iedt(head, outp, &ver, &hdr, &cnt, &len, &iedt);
+	if (!data)
+		return;
+
+	/* Lookup IEDT runtime settings for the current configuration. */
+	if (ior->type == SOR) {
+		if (ior->asy.proto == LVDS) {
+			if (head->asy.or.depth == 24)
+				flags |= 0x02;
+		}
+		if (ior->asy.link == 3)
+			flags |= 0x01;
+	}
+
+	data = nvbios_ocfg_match(bios, data, ior->asy.proto_evo, flags,
+				 &ver, &hdr, &cnt, &len, &iedtrs);
+	if (!data) {
+		OUTP_DBG(outp, "missing IEDT RS for %02x:%02x",
+			 ior->asy.proto_evo, flags);
+		return;
+	}
+
+	/* Execute the OnInt[23] script for the current frequency. */
+	data = nvbios_oclk_match(bios, iedtrs.clkcmp[id], khz);
+	if (!data) {
+		OUTP_DBG(outp, "missing IEDT RSS %d for %02x:%02x %d khz",
+			 id, ior->asy.proto_evo, flags, khz);
+		return;
+	}
+
+	nvbios_init(subdev, data,
+		init.outp = &outp->info;
+		init.or   = ior->id;
+		init.link = ior->asy.link;
+		init.head = head->id;
+	);
+}
+
+static void
 nv50_disp_super_ied_off(struct nvkm_head *head, struct nvkm_ior *ior, int id)
 {
 	struct nvkm_outp *outp = ior->arm.outp;
@@ -152,6 +208,20 @@ nv50_disp_super_ied_off(struct nvkm_head *head, struct nvkm_ior *ior, int id)
 		init.link = ior->arm.link;
 		init.head = head->id;
 	);
+}
+
+static struct nvkm_ior *
+nv50_disp_super_ior_asy(struct nvkm_head *head)
+{
+	struct nvkm_ior *ior;
+	list_for_each_entry(ior, &head->disp->ior, head) {
+		if (ior->asy.head & (1 << head->id)) {
+			HEAD_DBG(head, "to %s", ior->name);
+			return ior;
+		}
+	}
+	HEAD_DBG(head, "nothing to attach");
+	return NULL;
 }
 
 static struct nvkm_ior *
@@ -327,58 +397,40 @@ nv50_disp_intr_unk40_0(struct nv50_disp *disp, int head)
 }
 
 static void
-nv50_disp_intr_unk20_2_dp(struct nv50_disp *disp, int head,
-			  struct dcb_output *outp, u32 pclk)
+nv50_disp_super_2_2_dp(struct nvkm_head *head, struct nvkm_ior *ior)
 {
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
-	const int link = !(outp->sorconf.link & 1);
-	const int   or = ffs(outp->or) - 1;
-	const u32 soff = (  or * 0x800);
-	const u32 loff = (link * 0x080) + soff;
-	const u32 ctrl = nvkm_rd32(device, 0x610794 + (or * 8));
-	const u32 symbol = 100000;
-	const s32 vactive = nvkm_rd32(device, 0x610af8 + (head * 0x540)) & 0xffff;
-	const s32 vblanke = nvkm_rd32(device, 0x610ae8 + (head * 0x540)) & 0xffff;
-	const s32 vblanks = nvkm_rd32(device, 0x610af0 + (head * 0x540)) & 0xffff;
-	u32 dpctrl = nvkm_rd32(device, 0x61c10c + loff);
-	u32 clksor = nvkm_rd32(device, 0x614300 + soff);
+	struct nvkm_subdev *subdev = &head->disp->engine.subdev;
+	const u32      khz = head->asy.hz / 1000;
+	const u32 linkKBps = ior->dp.bw * 27000;
+	const u32   symbol = 100000;
 	int bestTU = 0, bestVTUi = 0, bestVTUf = 0, bestVTUa = 0;
 	int TU, VTUi, VTUf, VTUa;
 	u64 link_data_rate, link_ratio, unk;
 	u32 best_diff = 64 * symbol;
-	u32 link_nr, link_bw, bits;
-	u64 value;
-
-	link_bw = (clksor & 0x000c0000) ? 270000 : 162000;
-	link_nr = hweight32(dpctrl & 0x000f0000);
+	u64 h, v;
 
 	/* symbols/hblank - algorithm taken from comments in tegra driver */
-	value = vblanke + vactive - vblanks - 7;
-	value = value * link_bw;
-	do_div(value, pclk);
-	value = value - (3 * !!(dpctrl & 0x00004000)) - (12 / link_nr);
-	nvkm_mask(device, 0x61c1e8 + soff, 0x0000ffff, value);
+	h = head->asy.hblanke + head->asy.htotal - head->asy.hblanks - 7;
+	h = h * linkKBps;
+	do_div(h, khz);
+	h = h - (3 * ior->dp.ef) - (12 / ior->dp.nr);
 
 	/* symbols/vblank - algorithm taken from comments in tegra driver */
-	value = vblanks - vblanke - 25;
-	value = value * link_bw;
-	do_div(value, pclk);
-	value = value - ((36 / link_nr) + 3) - 1;
-	nvkm_mask(device, 0x61c1ec + soff, 0x00ffffff, value);
+	v = head->asy.vblanks - head->asy.vblanke - 25;
+	v = v * linkKBps;
+	do_div(v, khz);
+	v = v - ((36 / ior->dp.nr) + 3) - 1;
+
+	ior->func->dp.audio_sym(ior, head->id, h, v);
 
 	/* watermark / activesym */
-	if      ((ctrl & 0xf0000) == 0x60000) bits = 30;
-	else if ((ctrl & 0xf0000) == 0x50000) bits = 24;
-	else                                  bits = 18;
-
-	link_data_rate = (pclk * bits / 8) / link_nr;
+	link_data_rate = (khz * head->asy.or.depth / 8) / ior->dp.nr;
 
 	/* calculate ratio of packed data rate to link symbol rate */
 	link_ratio = link_data_rate * symbol;
-	do_div(link_ratio, link_bw);
+	do_div(link_ratio, linkKBps);
 
-	for (TU = 64; TU >= 32; TU--) {
+	for (TU = 64; ior->func->dp.activesym && TU >= 32; TU--) {
 		/* calculate average number of valid symbols in each TU */
 		u32 tu_valid = link_ratio * TU;
 		u32 calc, diff;
@@ -429,9 +481,15 @@ nv50_disp_intr_unk20_2_dp(struct nv50_disp *disp, int head,
 		}
 	}
 
-	if (!bestTU) {
-		nvkm_error(subdev, "unable to find suitable dp config\n");
-		return;
+	if (ior->func->dp.activesym) {
+		if (!bestTU) {
+			nvkm_error(subdev, "unable to determine dp config\n");
+			return;
+		}
+		ior->func->dp.activesym(ior, head->id, bestTU,
+					bestVTUa, bestVTUf, bestVTUi);
+	} else {
+		bestTU = 64;
 	}
 
 	/* XXX close to vbios numbers, but not right */
@@ -441,102 +499,61 @@ nv50_disp_intr_unk20_2_dp(struct nv50_disp *disp, int head,
 	do_div(unk, symbol);
 	unk += 6;
 
-	nvkm_mask(device, 0x61c10c + loff, 0x000001fc, bestTU << 2);
-	nvkm_mask(device, 0x61c128 + loff, 0x010f7f3f, bestVTUa << 24 |
-						   bestVTUf << 16 |
-						   bestVTUi << 8 | unk);
+	ior->func->dp.watermark(ior, head->id, unk);
 }
 
-static void
-nv50_disp_intr_unk20_2(struct nv50_disp *disp, int head)
+void
+nv50_disp_super_2_2(struct nv50_disp *disp, struct nvkm_head *head)
 {
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	struct nvkm_output *outp;
-	u32 pclk = nvkm_rd32(device, 0x610ad0 + (head * 0x540)) & 0x3fffff;
-	u32 hval, hreg = 0x614200 + (head * 0x800);
-	u32 oval, oreg;
-	u32 mask, conf;
+	const u32 khz = head->asy.hz / 1000;
+	struct nvkm_outp *outp;
+	struct nvkm_ior *ior;
 
-	outp = exec_clkcmp(disp, head, 0xff, pclk, &conf);
-	if (!outp)
+	/* Determine which OR, if any, we're attaching from the head. */
+	HEAD_DBG(head, "supervisor 2.2");
+	ior = nv50_disp_super_ior_asy(head);
+	if (!ior)
 		return;
 
-	/* we allow both encoder attach and detach operations to occur
-	 * within a single supervisor (ie. modeset) sequence.  the
-	 * encoder detach scripts quite often switch off power to the
-	 * lanes, which requires the link to be re-trained.
+	/* For some reason, NVIDIA decided not to:
 	 *
-	 * this is not generally an issue as the sink "must" (heh)
-	 * signal an irq when it's lost sync so the driver can
-	 * re-train.
+	 * A) Give dual-link LVDS a separate EVO protocol, like for TMDS.
+	 *  and
+	 * B) Use SetControlOutputResource.PixelDepth on LVDS.
 	 *
-	 * however, on some boards, if one does not configure at least
-	 * the gpu side of the link *before* attaching, then various
-	 * things can go horribly wrong (PDISP disappearing from mmio,
-	 * third supervisor never happens, etc).
-	 *
-	 * the solution is simply to retrain here, if necessary.  last
-	 * i checked, the binary driver userspace does not appear to
-	 * trigger this situation (it forces an UPDATE between steps).
+	 * Override the values we usually read from HW with the same
+	 * data we pass though an ioctl instead.
 	 */
-	if (outp->info.type == DCB_OUTPUT_DP) {
-		u32 soff = (ffs(outp->info.or) - 1) * 0x08;
-		u32 ctrl, datarate;
-
-		if (outp->info.location == 0) {
-			ctrl = nvkm_rd32(device, 0x610794 + soff);
-			soff = 1;
-		} else {
-			ctrl = nvkm_rd32(device, 0x610b80 + soff);
-			soff = 2;
-		}
-
-		switch ((ctrl & 0x000f0000) >> 16) {
-		case 6: datarate = pclk * 30; break;
-		case 5: datarate = pclk * 24; break;
-		case 2:
-		default:
-			datarate = pclk * 18;
-			break;
-		}
-
-		if (nvkm_output_dp_train(outp, datarate / soff))
-			OUTP_ERR(outp, "link not trained before attach");
+	if (ior->type == SOR && ior->asy.proto == LVDS) {
+		head->asy.or.depth = (disp->sor.lvdsconf & 0x0200) ? 24 : 18;
+		ior->asy.link      = (disp->sor.lvdsconf & 0x0100) ? 3  : 1;
 	}
 
-	exec_clkcmp(disp, head, 0, pclk, &conf);
+	/* Handle any link training, etc. */
+	if ((outp = ior->asy.outp) && outp->func->acquire)
+		outp->func->acquire(outp);
 
-	if (!outp->info.location && outp->info.type == DCB_OUTPUT_ANALOG) {
-		oreg = 0x614280 + (ffs(outp->info.or) - 1) * 0x800;
-		oval = 0x00000000;
-		hval = 0x00000000;
-		mask = 0xffffffff;
-	} else
-	if (!outp->info.location) {
-		if (outp->info.type == DCB_OUTPUT_DP)
-			nv50_disp_intr_unk20_2_dp(disp, head, &outp->info, pclk);
-		oreg = 0x614300 + (ffs(outp->info.or) - 1) * 0x800;
-		oval = (conf & 0x0100) ? 0x00000101 : 0x00000000;
-		hval = 0x00000000;
-		mask = 0x00000707;
-	} else {
-		oreg = 0x614380 + (ffs(outp->info.or) - 1) * 0x800;
-		oval = 0x00000001;
-		hval = 0x00000001;
-		mask = 0x00000707;
-	}
+	/* Execute OnInt2 IED script. */
+	nv50_disp_super_ied_on(head, ior, 0, khz);
 
-	nvkm_mask(device, hreg, 0x0000000f, hval);
-	nvkm_mask(device, oreg, mask, oval);
+	/* Program RG clock divider. */
+	head->func->rgclk(head, ior->asy.rgdiv);
 
-	nv50_disp_dptmds_war_2(disp, &outp->info);
+	/* Mode-specific internal DP configuration. */
+	if (ior->type == SOR && ior->asy.proto == DP)
+		nv50_disp_super_2_2_dp(head, ior);
+
+	/* OR-specific handling. */
+	ior->func->clock(ior);
+	if (ior->func->war_2)
+		ior->func->war_2(ior);
 }
 
 void
 nv50_disp_super_2_1(struct nv50_disp *disp, struct nvkm_head *head)
 {
 	struct nvkm_devinit *devinit = disp->base.engine.subdev.device->devinit;
-	u32 khz = head->asy.hz / 1000;
+	const u32 khz = head->asy.hz / 1000;
 	HEAD_DBG(head, "supervisor 2.1 - %d khz", khz);
 	if (khz)
 		nvkm_devinit_pll_set(devinit, PLL_VPLL0 + head->id, khz);
@@ -636,7 +653,7 @@ nv50_disp_super(struct work_struct *work)
 		list_for_each_entry(head, &disp->base.head, head) {
 			if (!(super & (0x00000080 << head->id)))
 				continue;
-			nv50_disp_intr_unk20_2(disp, head->id);
+			nv50_disp_super_2_2(disp, head);
 		}
 	} else
 	if (disp->super & 0x00000040) {

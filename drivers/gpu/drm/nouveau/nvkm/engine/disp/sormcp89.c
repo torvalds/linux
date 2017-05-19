@@ -25,6 +25,7 @@ static const struct nvkm_ior_func
 mcp89_sor = {
 	.state = g94_sor_state,
 	.power = nv50_sor_power,
+	.clock = nv50_sor_clock,
 	.hdmi = {
 		.ctrl = gt215_hdmi_ctrl,
 	},
@@ -35,6 +36,9 @@ mcp89_sor = {
 		.pattern = g94_sor_dp_pattern,
 		.drive = g94_sor_dp_drive,
 		.audio = gt215_sor_dp_audio,
+		.audio_sym = g94_sor_dp_audio_sym,
+		.activesym = g94_sor_dp_activesym,
+		.watermark = g94_sor_dp_watermark,
 	},
 	.hda = {
 		.hpd = gt215_hda_hpd,

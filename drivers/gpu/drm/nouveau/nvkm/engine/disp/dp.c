@@ -428,8 +428,8 @@ nvkm_dp_release(struct nvkm_outp *outp, struct nvkm_ior *ior)
 	);
 }
 
-int
-nvkm_output_dp_train(struct nvkm_outp *outp, u32 unused)
+static int
+nvkm_dp_acquire(struct nvkm_outp *outp)
 {
 	struct nvkm_dp *dp = nvkm_dp(outp);
 	struct nvkm_ior *ior = dp->outp.ior;
@@ -529,7 +529,7 @@ nvkm_dp_hpd(struct nvkm_notify *notify)
 	OUTP_DBG(&dp->outp, "HPD: %d", line->mask);
 	if (line->mask & NVKM_I2C_IRQ) {
 		if (atomic_read(&dp->lt.done))
-			nvkm_output_dp_train(&dp->outp, 0);
+			dp->outp.func->acquire(&dp->outp);
 		rep.mask |= NVIF_NOTIFY_CONN_V0_IRQ;
 	} else {
 		nvkm_dp_enable(dp, true);
@@ -574,6 +574,7 @@ nvkm_dp_func = {
 	.dtor = nvkm_dp_dtor,
 	.init = nvkm_dp_init,
 	.fini = nvkm_dp_fini,
+	.acquire = nvkm_dp_acquire,
 	.release = nvkm_dp_release,
 };
 

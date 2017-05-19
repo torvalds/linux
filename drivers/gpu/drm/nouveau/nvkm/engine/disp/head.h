@@ -36,6 +36,7 @@ struct nvkm_head *nvkm_head_find(struct nvkm_disp *, int id);
 struct nvkm_head_func {
 	void (*state)(struct nvkm_head *, struct nvkm_head_state *);
 	void (*rgpos)(struct nvkm_head *, u16 *hline, u16 *vline);
+	void (*rgclk)(struct nvkm_head *, int div);
 	void (*vblank_get)(struct nvkm_head *);
 	void (*vblank_put)(struct nvkm_head *);
 };

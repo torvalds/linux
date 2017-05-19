@@ -22,6 +22,14 @@
 #include "ior.h"
 
 static void
+gf119_dac_clock(struct nvkm_ior *dac)
+{
+	struct nvkm_device *device = dac->disp->engine.subdev.device;
+	const u32 doff = nv50_ior_base(dac);
+	nvkm_mask(device, 0x612280 + doff, 0x07070707, 0x00000000);
+}
+
+static void
 gf119_dac_state(struct nvkm_ior *dac, struct nvkm_ior_state *state)
 {
 	struct nvkm_device *device = dac->disp->engine.subdev.device;
@@ -44,6 +52,7 @@ gf119_dac = {
 	.state = gf119_dac_state,
 	.power = nv50_dac_power,
 	.sense = nv50_dac_sense,
+	.clock = gf119_dac_clock,
 };
 
 int

@@ -26,6 +26,23 @@
 #include <subdev/timer.h>
 
 void
+gf119_sor_dp_watermark(struct nvkm_ior *sor, int head, u8 watermark)
+{
+	struct nvkm_device *device = sor->disp->engine.subdev.device;
+	const u32 hoff = head * 0x800;
+	nvkm_mask(device, 0x616610 + hoff, 0x0800003f, 0x08000000 | watermark);
+}
+
+void
+gf119_sor_dp_audio_sym(struct nvkm_ior *sor, int head, u16 h, u32 v)
+{
+	struct nvkm_device *device = sor->disp->engine.subdev.device;
+	const u32 hoff = head * 0x800;
+	nvkm_mask(device, 0x616620 + hoff, 0x0000ffff, h);
+	nvkm_mask(device, 0x616624 + hoff, 0x00ffffff, v);
+}
+
+void
 gf119_sor_dp_audio(struct nvkm_ior *sor, int head, bool enable)
 {
 	struct nvkm_device *device = sor->disp->engine.subdev.device;
@@ -100,6 +117,19 @@ gf119_sor_dp_links(struct nvkm_ior *sor, struct nvkm_i2c_aux *aux)
 }
 
 void
+gf119_sor_clock(struct nvkm_ior *sor)
+{
+	struct nvkm_device *device = sor->disp->engine.subdev.device;
+	const int  div = sor->asy.link == 3;
+	const u32 soff = nv50_ior_base(sor);
+	if (sor->asy.proto == TMDS) {
+		/* NFI why, but this sets DP_LINK_BW_2_7 when using TMDS. */
+		nvkm_mask(device, 0x612300 + soff, 0x007c0000, 0x0a << 18);
+	}
+	nvkm_mask(device, 0x612300 + soff, 0x00000707, (div << 8) | div);
+}
+
+void
 gf119_sor_state(struct nvkm_ior *sor, struct nvkm_ior_state *state)
 {
 	struct nvkm_device *device = sor->disp->engine.subdev.device;
@@ -126,6 +156,7 @@ static const struct nvkm_ior_func
 gf119_sor = {
 	.state = gf119_sor_state,
 	.power = nv50_sor_power,
+	.clock = gf119_sor_clock,
 	.hdmi = {
 		.ctrl = gf119_hdmi_ctrl,
 	},
@@ -136,6 +167,8 @@ gf119_sor = {
 		.pattern = gf119_sor_dp_pattern,
 		.vcpi = gf119_sor_dp_vcpi,
 		.audio = gf119_sor_dp_audio,
+		.audio_sym = gf119_sor_dp_audio_sym,
+		.watermark = gf119_sor_dp_watermark,
 	},
 	.hda = {
 		.hpd = gf119_hda_hpd,
