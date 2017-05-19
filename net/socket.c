@@ -662,6 +662,19 @@ static bool skb_is_err_queue(const struct sk_buff *skb)
 	return skb->pkt_type == PACKET_OUTGOING;
 }
 
+/* On transmit, software and hardware timestamps are returned independently.
+ * As the two skb clones share the hardware timestamp, which may be updated
+ * before the software timestamp is received, a hardware TX timestamp may be
+ * returned only if there is no software TX timestamp. Ignore false software
+ * timestamps, which may be made in the __sock_recv_timestamp() call when the
+ * option SO_TIMESTAMP(NS) is enabled on the socket, even when the skb has a
+ * hardware timestamp.
+ */
+static bool skb_is_swtx_tstamp(const struct sk_buff *skb, int false_tstamp)
+{
+	return skb->tstamp && !false_tstamp && skb_is_err_queue(skb);
+}
+
 static void put_ts_pktinfo(struct msghdr *msg, struct sk_buff *skb)
 {
 	struct scm_ts_pktinfo ts_pktinfo;
@@ -691,14 +704,16 @@ void __sock_recv_timestamp(struct msghdr *msg, struct sock *sk,
 {
 	int need_software_tstamp = sock_flag(sk, SOCK_RCVTSTAMP);
 	struct scm_timestamping tss;
-	int empty = 1;
+	int empty = 1, false_tstamp = 0;
 	struct skb_shared_hwtstamps *shhwtstamps =
 		skb_hwtstamps(skb);
 
 	/* Race occurred between timestamp enabling and packet
 	   receiving.  Fill in the current time for now. */
-	if (need_software_tstamp && skb->tstamp == 0)
+	if (need_software_tstamp && skb->tstamp == 0) {
 		__net_timestamp(skb);
+		false_tstamp = 1;
+	}
 
 	if (need_software_tstamp) {
 		if (!sock_flag(sk, SOCK_RCVTSTAMPNS)) {
@@ -720,6 +735,7 @@ void __sock_recv_timestamp(struct msghdr *msg, struct sock *sk,
 		empty = 0;
 	if (shhwtstamps &&
 	    (sk->sk_tsflags & SOF_TIMESTAMPING_RAW_HARDWARE) &&
+	    !skb_is_swtx_tstamp(skb, false_tstamp) &&
 	    ktime_to_timespec_cond(shhwtstamps->hwtstamp, tss.ts + 2)) {
 		empty = 0;
 		if ((sk->sk_tsflags & SOF_TIMESTAMPING_OPT_PKTINFO) &&
