@@ -732,8 +732,7 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id, const char *name,
 }
 EXPORT_SYMBOL(st_lsm6dsx_probe);
 
-#ifdef CONFIG_PM
-static int st_lsm6dsx_suspend(struct device *dev)
+static int __maybe_unused st_lsm6dsx_suspend(struct device *dev)
 {
 	struct st_lsm6dsx_hw *hw = dev_get_drvdata(dev);
 	struct st_lsm6dsx_sensor *sensor;
@@ -757,7 +756,7 @@ static int st_lsm6dsx_suspend(struct device *dev)
 	return err;
 }
 
-static int st_lsm6dsx_resume(struct device *dev)
+static int __maybe_unused st_lsm6dsx_resume(struct device *dev)
 {
 	struct st_lsm6dsx_hw *hw = dev_get_drvdata(dev);
 	struct st_lsm6dsx_sensor *sensor;
@@ -778,7 +777,6 @@ static int st_lsm6dsx_resume(struct device *dev)
 
 	return err;
 }
-#endif /* CONFIG_PM */
 
 const struct dev_pm_ops st_lsm6dsx_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(st_lsm6dsx_suspend, st_lsm6dsx_resume)
