@@ -41,7 +41,7 @@ void ovl_cleanup(struct inode *wdir, struct dentry *wdentry)
 	}
 }
 
-struct dentry *ovl_lookup_temp(struct dentry *workdir, struct dentry *dentry)
+struct dentry *ovl_lookup_temp(struct dentry *workdir)
 {
 	struct dentry *temp;
 	char name[20];
@@ -68,7 +68,7 @@ static struct dentry *ovl_whiteout(struct dentry *workdir,
 	struct dentry *whiteout;
 	struct inode *wdir = workdir->d_inode;
 
-	whiteout = ovl_lookup_temp(workdir, dentry);
+	whiteout = ovl_lookup_temp(workdir);
 	if (IS_ERR(whiteout))
 		return whiteout;
 
@@ -261,7 +261,7 @@ static struct dentry *ovl_clear_empty(struct dentry *dentry,
 	if (upper->d_parent->d_inode != udir)
 		goto out_unlock;
 
-	opaquedir = ovl_lookup_temp(workdir, dentry);
+	opaquedir = ovl_lookup_temp(workdir);
 	err = PTR_ERR(opaquedir);
 	if (IS_ERR(opaquedir))
 		goto out_unlock;
@@ -393,7 +393,7 @@ static int ovl_create_over_whiteout(struct dentry *dentry, struct inode *inode,
 	if (err)
 		goto out;
 
-	newdentry = ovl_lookup_temp(workdir, dentry);
+	newdentry = ovl_lookup_temp(workdir);
 	err = PTR_ERR(newdentry);
 	if (IS_ERR(newdentry))
 		goto out_unlock;

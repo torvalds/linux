@@ -262,7 +262,7 @@ static inline void ovl_copyattr(struct inode *from, struct inode *to)
 
 /* dir.c */
 extern const struct inode_operations ovl_dir_inode_operations;
-struct dentry *ovl_lookup_temp(struct dentry *workdir, struct dentry *dentry);
+struct dentry *ovl_lookup_temp(struct dentry *workdir);
 struct cattr {
 	dev_t rdev;
 	umode_t mode;

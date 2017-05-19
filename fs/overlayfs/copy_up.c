@@ -346,7 +346,7 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 	if (tmpfile)
 		temp = ovl_do_tmpfile(upperdir, stat->mode);
 	else
-		temp = ovl_lookup_temp(workdir, dentry);
+		temp = ovl_lookup_temp(workdir);
 	err = 0;
 	if (IS_ERR(temp)) {
 		err = PTR_ERR(temp);
