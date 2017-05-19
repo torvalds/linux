@@ -532,14 +532,14 @@ nv50_disp_intr_unk20_2(struct nv50_disp *disp, int head)
 	nv50_disp_dptmds_war_2(disp, &outp->info);
 }
 
-static void
-nv50_disp_intr_unk20_1(struct nv50_disp *disp, int head)
+void
+nv50_disp_super_2_1(struct nv50_disp *disp, struct nvkm_head *head)
 {
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	struct nvkm_devinit *devinit = device->devinit;
-	u32 pclk = nvkm_rd32(device, 0x610ad0 + (head * 0x540)) & 0x3fffff;
-	if (pclk)
-		nvkm_devinit_pll_set(devinit, PLL_VPLL0 + head, pclk);
+	struct nvkm_devinit *devinit = disp->base.engine.subdev.device->devinit;
+	u32 khz = head->asy.hz / 1000;
+	HEAD_DBG(head, "supervisor 2.1 - %d khz", khz);
+	if (khz)
+		nvkm_devinit_pll_set(devinit, PLL_VPLL0 + head->id, khz);
 }
 
 void
@@ -631,7 +631,7 @@ nv50_disp_super(struct work_struct *work)
 		list_for_each_entry(head, &disp->base.head, head) {
 			if (!(super & (0x00000200 << head->id)))
 				continue;
-			nv50_disp_intr_unk20_1(disp, head->id);
+			nv50_disp_super_2_1(disp, head);
 		}
 		list_for_each_entry(head, &disp->base.head, head) {
 			if (!(super & (0x00000080 << head->id)))

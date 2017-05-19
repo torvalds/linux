@@ -139,17 +139,6 @@ exec_clkcmp(struct nv50_disp *disp, int head, int id, u32 pclk, u32 *conf)
 }
 
 static void
-gf119_disp_intr_unk2_1(struct nv50_disp *disp, int head)
-{
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	struct nvkm_devinit *devinit = device->devinit;
-	u32 pclk = nvkm_rd32(device, 0x660450 + (head * 0x300)) / 1000;
-	if (pclk)
-		nvkm_devinit_pll_set(devinit, PLL_VPLL0 + head, pclk);
-	nvkm_wr32(device, 0x612200 + (head * 0x800), 0x00000000);
-}
-
-static void
 gf119_disp_intr_unk2_2_tu(struct nv50_disp *disp, int head,
 			  struct dcb_output *outp)
 {
@@ -260,6 +249,7 @@ gf119_disp_intr_unk2_2(struct nv50_disp *disp, int head)
 	}
 
 	nvkm_mask(device, addr, 0x00000707, data);
+	nvkm_wr32(device, 0x612200 + (head * 0x800), 0x00000000);
 }
 
 static void
@@ -307,8 +297,7 @@ gf119_disp_super(struct work_struct *work)
 		list_for_each_entry(head, &disp->base.head, head) {
 			if (!(mask[head->id] & 0x00010000))
 				continue;
-			nvkm_debug(subdev, "supervisor 2.1 - head %d\n", head->id);
-			gf119_disp_intr_unk2_1(disp, head->id);
+			nv50_disp_super_2_1(disp, head);
 		}
 		list_for_each_entry(head, &disp->base.head, head) {
 			if (!(mask[head->id] & 0x00001000))
