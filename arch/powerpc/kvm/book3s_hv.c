@@ -675,6 +675,17 @@ static void kvmppc_create_dtl_entry(struct kvm_vcpu *vcpu,
 	vcpu->arch.dtl.dirty = true;
 }
 
+/* See if there is a doorbell interrupt pending for a vcpu */
+static bool kvmppc_doorbell_pending(struct kvm_vcpu *vcpu)
+{
+	int thr;
+	struct kvmppc_vcore *vc;
+
+	vc = vcpu->arch.vcore;
+	thr = vcpu->vcpu_id - vc->first_vcpuid;
+	return !!(vc->dpdes & (1 << thr));
+}
+
 static bool kvmppc_power8_compatible(struct kvm_vcpu *vcpu)
 {
 	if (vcpu->arch.vcore->arch_compat >= PVR_ARCH_207)
@@ -2672,6 +2683,15 @@ static void shrink_halt_poll_ns(struct kvmppc_vcore *vc)
 		vc->halt_poll_ns /= halt_poll_ns_shrink;
 }
 
+static bool kvmppc_vcpu_woken(struct kvm_vcpu *vcpu)
+{
+	if (vcpu->arch.pending_exceptions || vcpu->arch.prodded ||
+	    kvmppc_doorbell_pending(vcpu))
+		return true;
+
+	return false;
+}
+
 /*
  * Check to see if any of the runnable vcpus on the vcore have pending
  * exceptions or are no longer ceded
@@ -2682,8 +2702,7 @@ static int kvmppc_vcore_check_block(struct kvmppc_vcore *vc)
 	int i;
 
 	for_each_runnable_thread(i, vcpu, vc) {
-		if (vcpu->arch.pending_exceptions || !vcpu->arch.ceded ||
-		    vcpu->arch.prodded)
+		if (!vcpu->arch.ceded || kvmppc_vcpu_woken(vcpu))
 			return 1;
 	}
 
@@ -2869,7 +2888,7 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 			break;
 		n_ceded = 0;
 		for_each_runnable_thread(i, v, vc) {
-			if (!v->arch.pending_exceptions && !v->arch.prodded)
+			if (!kvmppc_vcpu_woken(v))
 				n_ceded += v->arch.ceded;
 			else
 				v->arch.ceded = 0;
