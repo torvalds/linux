@@ -60,6 +60,11 @@ void dsa_cpu_port_ethtool_restore(struct dsa_switch *ds);
 int dsa_legacy_register(void);
 void dsa_legacy_unregister(void);
 
+/* port.c */
+int dsa_port_set_state(struct dsa_port *dp, u8 state,
+		       struct switchdev_trans *trans);
+void dsa_port_set_state_now(struct dsa_port *dp, u8 state);
+
 /* slave.c */
 extern const struct dsa_device_ops notag_netdev_ops;
 void dsa_slave_mii_bus_init(struct dsa_switch *ds);
