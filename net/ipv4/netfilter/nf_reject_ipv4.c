@@ -172,7 +172,7 @@ void nf_send_unreach(struct sk_buff *skb_in, int code, int hook)
 	struct iphdr *iph = ip_hdr(skb_in);
 	u8 proto;
 
-	if (skb_in->csum_bad || iph->frag_off & htons(IP_OFFSET))
+	if (iph->frag_off & htons(IP_OFFSET))
 		return;
 
 	if (skb_csum_unnecessary(skb_in)) {
