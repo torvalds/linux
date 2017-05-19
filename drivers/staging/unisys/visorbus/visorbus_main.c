@@ -1086,7 +1086,7 @@ chipset_bus_create(struct visor_device *dev)
 	if (err < 0)
 		return err;
 
-	bus_create_response(dev, err);
+	visorbus_create_response(dev, err);
 
 	return 0;
 }
@@ -1095,7 +1095,7 @@ void
 chipset_bus_destroy(struct visor_device *dev)
 {
 	remove_bus_instance(dev);
-	bus_destroy_response(dev, 0);
+	visorbus_destroy_response(dev, 0);
 }
 
 int

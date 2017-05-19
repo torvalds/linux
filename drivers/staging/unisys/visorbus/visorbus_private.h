@@ -34,8 +34,8 @@ void chipset_device_destroy(struct visor_device *dev_info);
 int chipset_device_pause(struct visor_device *dev_info);
 int chipset_device_resume(struct visor_device *dev_info);
 
-void bus_create_response(struct visor_device *p, int response);
-void bus_destroy_response(struct visor_device *p, int response);
+void visorbus_create_response(struct visor_device *p, int response);
+void visorbus_destroy_response(struct visor_device *p, int response);
 void device_create_response(struct visor_device *p, int response);
 void device_destroy_response(struct visor_device *p, int response);
 void device_resume_response(struct visor_device *p, int response);

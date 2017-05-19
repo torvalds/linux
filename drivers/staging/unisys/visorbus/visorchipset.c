@@ -1450,7 +1450,7 @@ setup_crash_devices_work_queue(struct work_struct *work)
 }
 
 void
-bus_create_response(struct visor_device *bus_info, int response)
+visorbus_create_response(struct visor_device *bus_info, int response)
 {
 	if (response >= 0)
 		bus_info->state.created = 1;
@@ -1463,7 +1463,7 @@ bus_create_response(struct visor_device *bus_info, int response)
 }
 
 void
-bus_destroy_response(struct visor_device *bus_info, int response)
+visorbus_destroy_response(struct visor_device *bus_info, int response)
 {
 	controlvm_responder(CONTROLVM_BUS_DESTROY, bus_info->pending_msg_hdr,
 			    response);
