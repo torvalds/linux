@@ -155,6 +155,7 @@ struct fujitsu_laptop {
 };
 
 static struct fujitsu_laptop *fujitsu_laptop;
+static struct acpi_device *fext;
 
 #ifdef CONFIG_FUJITSU_LAPTOP_DEBUG
 static u32 dbg_level = 0x03;
@@ -787,6 +788,9 @@ static int acpi_fujitsu_laptop_add(struct acpi_device *device)
 	priv = devm_kzalloc(&device->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+
+	WARN_ONCE(fext, "More than one FUJ02E3 ACPI device was found.  Driver may not work as intended.");
+	fext = device;
 
 	fujitsu_laptop = priv;
 	fujitsu_laptop->acpi_handle = device->handle;
