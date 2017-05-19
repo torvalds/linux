@@ -29,10 +29,10 @@
 
 int visorchipset_bus_create(struct visor_device *bus_info);
 void visorchipset_bus_destroy(struct visor_device *bus_info);
-int chipset_device_create(struct visor_device *dev_info);
-void chipset_device_destroy(struct visor_device *dev_info);
-int chipset_device_pause(struct visor_device *dev_info);
-int chipset_device_resume(struct visor_device *dev_info);
+int visorchipset_device_create(struct visor_device *dev_info);
+void visorchipset_device_destroy(struct visor_device *dev_info);
+int visorchipset_device_pause(struct visor_device *dev_info);
+int visorchipset_device_resume(struct visor_device *dev_info);
 
 void visorbus_create_response(struct visor_device *p, int response);
 void visorbus_destroy_response(struct visor_device *p, int response);

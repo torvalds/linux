@@ -1099,7 +1099,7 @@ visorchipset_bus_destroy(struct visor_device *dev)
 }
 
 int
-chipset_device_create(struct visor_device *dev_info)
+visorchipset_device_create(struct visor_device *dev_info)
 {
 	int err;
 
@@ -1113,7 +1113,7 @@ chipset_device_create(struct visor_device *dev_info)
 }
 
 void
-chipset_device_destroy(struct visor_device *dev_info)
+visorchipset_device_destroy(struct visor_device *dev_info)
 {
 	remove_visor_device(dev_info);
 
@@ -1211,7 +1211,7 @@ initiate_chipset_device_pause_resume(struct visor_device *dev, bool is_pause)
 }
 
 /**
- * chipset_device_pause() - start a pause operation for a visor device
+ * visorchipset_device_pause() - start a pause operation for a visor device
  * @dev_info: struct visor_device identifying the device being paused
  *
  * Tell the subordinate function driver for a specific device to pause
@@ -1219,7 +1219,7 @@ initiate_chipset_device_pause_resume(struct visor_device *dev, bool is_pause)
  * via a callback function; see pause_state_change_complete().
  */
 int
-chipset_device_pause(struct visor_device *dev_info)
+visorchipset_device_pause(struct visor_device *dev_info)
 {
 	int err;
 
@@ -1234,7 +1234,7 @@ chipset_device_pause(struct visor_device *dev_info)
 }
 
 /**
- * chipset_device_resume() - start a resume operation for a visor device
+ * visorchipset_device_resume() - start a resume operation for a visor device
  * @dev_info: struct visor_device identifying the device being resumed
  *
  * Tell the subordinate function driver for a specific device to resume
@@ -1242,7 +1242,7 @@ chipset_device_pause(struct visor_device *dev_info)
  * via a callback function; see resume_state_change_complete().
  */
 int
-chipset_device_resume(struct visor_device *dev_info)
+visorchipset_device_resume(struct visor_device *dev_info)
 {
 	int err;
 

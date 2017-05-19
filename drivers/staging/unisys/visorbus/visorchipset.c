@@ -824,8 +824,8 @@ my_device_create(struct controlvm_message *inmsg)
 		       sizeof(struct controlvm_message_header));
 		dev_info->pending_msg_hdr = pmsg_hdr;
 	}
-	/* Chipset_device_create will send response */
-	err = chipset_device_create(dev_info);
+	/* visorchipset_device_create will send response */
+	err = visorchipset_device_create(dev_info);
 	if (err)
 		goto err_destroy_visorchannel;
 
@@ -882,16 +882,16 @@ my_device_changestate(struct controlvm_message *inmsg)
 
 	if (state.alive == segment_state_running.alive &&
 	    state.operating == segment_state_running.operating)
-		/* Response will be sent from chipset_device_resume */
-		err = chipset_device_resume(dev_info);
+		/* Response will be sent from visorchipset_device_resume */
+		err = visorchipset_device_resume(dev_info);
 	/* ServerNotReady / ServerLost / SegmentStateStandby */
 	else if (state.alive == segment_state_standby.alive &&
 		 state.operating == segment_state_standby.operating)
 		/*
 		 * technically this is standby case where server is lost.
-		 * Response will be sent from chipset_device_pause.
+		 * Response will be sent from visorchipset_device_pause.
 		 */
-		err = chipset_device_pause(dev_info);
+		err = visorchipset_device_pause(dev_info);
 	if (err)
 		goto err_respond;
 
@@ -941,7 +941,7 @@ my_device_destroy(struct controlvm_message *inmsg)
 		dev_info->pending_msg_hdr = pmsg_hdr;
 	}
 
-	chipset_device_destroy(dev_info);
+	visorchipset_device_destroy(dev_info);
 	return 0;
 
 err_respond:
