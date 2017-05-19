@@ -23,6 +23,7 @@
  */
 #include "nv50.h"
 #include "head.h"
+#include "ior.h"
 #include "rootnv50.h"
 
 #include <core/client.h>
@@ -145,6 +146,24 @@ nv50_disp_new_(const struct nv50_disp_func *func, struct nvkm_device *device,
 
 	for (i = 0; func->head.new && i < heads; i++) {
 		ret = func->head.new(&disp->base, i);
+		if (ret)
+			return ret;
+	}
+
+	for (i = 0; func->dac.new && i < func->dac.nr; i++) {
+		ret = func->dac.new(&disp->base, i);
+		if (ret)
+			return ret;
+	}
+
+	for (i = 0; func->pior.new && i < func->pior.nr; i++) {
+		ret = func->pior.new(&disp->base, i);
+		if (ret)
+			return ret;
+	}
+
+	for (i = 0; func->sor.new && i < func->sor.nr; i++) {
+		ret = func->sor.new(&disp->base, i);
 		if (ret)
 			return ret;
 	}
@@ -803,11 +822,14 @@ nv50_disp = {
 	.outp.external.tmds = nv50_pior_output_new,
 	.outp.external.dp = nv50_pior_dp_new,
 	.dac.nr = 3,
+	.dac.new = nv50_dac_new,
 	.dac.power = nv50_dac_power,
 	.dac.sense = nv50_dac_sense,
 	.sor.nr = 2,
+	.sor.new = nv50_sor_new,
 	.sor.power = nv50_sor_power,
 	.pior.nr = 3,
+	.pior.new = nv50_pior_new,
 	.pior.power = nv50_pior_power,
 };
 

@@ -21,6 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
+#include "ior.h"
 #include "nv50.h"
 
 #include <subdev/timer.h>
@@ -127,4 +128,14 @@ gm200_sor_magic(struct nvkm_output *outp)
 		nvkm_mask(device, 0x612308 + soff, 0x0000001f, 0x00000000 | data);
 	if (outp->info.sorconf.link & 2)
 		nvkm_mask(device, 0x612388 + soff, 0x0000001f, 0x00000010 | data);
+}
+
+static const struct nvkm_ior_func
+gm200_sor = {
+};
+
+int
+gm200_sor_new(struct nvkm_disp *disp, int id)
+{
+	return nvkm_ior_new_(&gm200_sor, disp, SOR, id);
 }

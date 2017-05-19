@@ -23,6 +23,7 @@
  */
 #include "nv50.h"
 #include "head.h"
+#include "ior.h"
 #include "rootnv50.h"
 
 static void
@@ -59,14 +60,11 @@ gp102_disp = {
 	.super = gf119_disp_super,
 	.root = &gp102_disp_root_oclass,
 	.head.new = gf119_head_new,
-	.outp.internal.crt = nv50_dac_output_new,
 	.outp.internal.tmds = nv50_sor_output_new,
 	.outp.internal.lvds = nv50_sor_output_new,
 	.outp.internal.dp = gm200_sor_dp_new,
-	.dac.nr = 3,
-	.dac.power = nv50_dac_power,
-	.dac.sense = nv50_dac_sense,
 	.sor.nr = 4,
+	.sor.new = gm200_sor_new,
 	.sor.power = nv50_sor_power,
 	.sor.hda_eld = gf119_hda_eld,
 	.sor.hdmi = gk104_hdmi_ctrl,

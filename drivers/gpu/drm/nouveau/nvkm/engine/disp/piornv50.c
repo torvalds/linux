@@ -21,6 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
+#include "ior.h"
 #include "nv50.h"
 
 #include <core/client.h>
@@ -118,4 +119,14 @@ nv50_pior_power(NV50_DISP_MTHD_V1)
 	);
 	disp->pior.type[outp->or] = type;
 	return 0;
+}
+
+static const struct nvkm_ior_func
+nv50_pior = {
+};
+
+int
+nv50_pior_new(struct nvkm_disp *disp, int id)
+{
+	return nvkm_ior_new_(&nv50_pior, disp, PIOR, id);
 }

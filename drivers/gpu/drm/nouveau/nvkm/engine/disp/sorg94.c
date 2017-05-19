@@ -21,6 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
+#include "ior.h"
 #include "nv50.h"
 
 #include <subdev/timer.h>
@@ -275,4 +276,14 @@ nv50_disp_dptmds_war_2(struct nv50_disp *disp, struct dcb_output *outp)
 		u32  pu_pc = seqctl & 0x0000000f;
 		nvkm_wr32(device, 0x61c040 + soff + pu_pc * 4, 0x1f008000);
 	}
+}
+
+static const struct nvkm_ior_func
+g94_sor = {
+};
+
+int
+g94_sor_new(struct nvkm_disp *disp, int id)
+{
+	return nvkm_ior_new_(&g94_sor, disp, SOR, id);
 }

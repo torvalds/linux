@@ -23,6 +23,7 @@
  */
 #include "nv50.h"
 #include "head.h"
+#include "ior.h"
 #include "rootnv50.h"
 
 static const struct nv50_disp_func
@@ -39,12 +40,15 @@ g94_disp = {
 	.outp.external.tmds = nv50_pior_output_new,
 	.outp.external.dp = nv50_pior_dp_new,
 	.dac.nr = 3,
+	.dac.new = nv50_dac_new,
 	.dac.power = nv50_dac_power,
 	.dac.sense = nv50_dac_sense,
 	.sor.nr = 4,
+	.sor.new = g94_sor_new,
 	.sor.power = nv50_sor_power,
 	.sor.hdmi = g84_hdmi_ctrl,
 	.pior.nr = 3,
+	.pior.new = nv50_pior_new,
 	.pior.power = nv50_pior_power,
 };
 

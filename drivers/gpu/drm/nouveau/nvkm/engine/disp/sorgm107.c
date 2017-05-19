@@ -21,6 +21,7 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
+#include "ior.h"
 #include "nv50.h"
 
 int
@@ -50,4 +51,14 @@ gm107_sor_dp_new(struct nvkm_disp *disp, int index,
 		 struct dcb_output *dcbE, struct nvkm_output **poutp)
 {
 	return nvkm_output_dp_new_(&gm107_sor_dp_func, disp, index, dcbE, poutp);
+}
+
+static const struct nvkm_ior_func
+gm107_sor = {
+};
+
+int
+gm107_sor_new(struct nvkm_disp *disp, int id)
+{
+	return nvkm_ior_new_(&gm107_sor, disp, SOR, id);
 }

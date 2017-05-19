@@ -23,6 +23,7 @@
  */
 #include "nv50.h"
 #include "head.h"
+#include "ior.h"
 #include "rootnv50.h"
 
 #include <subdev/bios.h>
@@ -506,9 +507,11 @@ gf119_disp = {
 	.outp.internal.lvds = nv50_sor_output_new,
 	.outp.internal.dp = gf119_sor_dp_new,
 	.dac.nr = 3,
+	.dac.new = nv50_dac_new,
 	.dac.power = nv50_dac_power,
 	.dac.sense = nv50_dac_sense,
 	.sor.nr = 4,
+	.sor.new = gf119_sor_new,
 	.sor.power = nv50_sor_power,
 	.sor.hda_eld = gf119_hda_eld,
 	.sor.hdmi = gf119_hdmi_ctrl,

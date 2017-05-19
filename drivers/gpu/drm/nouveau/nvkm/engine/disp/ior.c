@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat Inc.
+ * Copyright 2017 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,38 +19,54 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Ben Skeggs
+ * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-#include "nv50.h"
-#include "head.h"
 #include "ior.h"
-#include "rootnv50.h"
 
-static const struct nv50_disp_func
-gm107_disp = {
-	.intr = gf119_disp_intr,
-	.intr_error = gf119_disp_intr_error,
-	.uevent = &gf119_disp_chan_uevent,
-	.super = gf119_disp_super,
-	.root = &gm107_disp_root_oclass,
-	.head.new = gf119_head_new,
-	.outp.internal.crt = nv50_dac_output_new,
-	.outp.internal.tmds = nv50_sor_output_new,
-	.outp.internal.lvds = nv50_sor_output_new,
-	.outp.internal.dp = gm107_sor_dp_new,
-	.dac.nr = 3,
-	.dac.new = nv50_dac_new,
-	.dac.power = nv50_dac_power,
-	.dac.sense = nv50_dac_sense,
-	.sor.nr = 4,
-	.sor.new = gm107_sor_new,
-	.sor.power = nv50_sor_power,
-	.sor.hda_eld = gf119_hda_eld,
-	.sor.hdmi = gk104_hdmi_ctrl,
+static const char *
+nvkm_ior_name[] = {
+	[DAC] = "DAC",
+	[SOR] = "SOR",
+	[PIOR] = "PIOR",
 };
 
-int
-gm107_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
+struct nvkm_ior *
+nvkm_ior_find(struct nvkm_disp *disp, enum nvkm_ior_type type, int id)
 {
-	return gf119_disp_new_(&gm107_disp, device, index, pdisp);
+	struct nvkm_ior *ior;
+	list_for_each_entry(ior, &disp->ior, head) {
+		if (ior->type == type && (id < 0 || ior->id == id))
+			return ior;
+	}
+	return NULL;
+}
+
+void
+nvkm_ior_del(struct nvkm_ior **pior)
+{
+	struct nvkm_ior *ior = *pior;
+	if (ior) {
+		IOR_DBG(ior, "dtor");
+		list_del(&ior->head);
+		kfree(*pior);
+		*pior = NULL;
+	}
+}
+
+int
+nvkm_ior_new_(const struct nvkm_ior_func *func, struct nvkm_disp *disp,
+	      enum nvkm_ior_type type, int id)
+{
+	struct nvkm_ior *ior;
+	if (!(ior = kzalloc(sizeof(*ior), GFP_KERNEL)))
+		return -ENOMEM;
+	ior->func = func;
+	ior->disp = disp;
+	ior->type = type;
+	ior->id = id;
+	snprintf(ior->name, sizeof(ior->name), "%s-%d",
+		 nvkm_ior_name[ior->type], ior->id);
+	list_add_tail(&ior->head, &disp->ior);
+	IOR_DBG(ior, "ctor");
+	return 0;
 }

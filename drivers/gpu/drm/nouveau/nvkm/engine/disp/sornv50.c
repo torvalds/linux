@@ -21,6 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
+#include "ior.h"
 #include "nv50.h"
 #include "outp.h"
 
@@ -76,4 +77,14 @@ nv50_sor_power(NV50_DISP_MTHD_V1)
 			break;
 	);
 	return 0;
+}
+
+static const struct nvkm_ior_func
+nv50_sor = {
+};
+
+int
+nv50_sor_new(struct nvkm_disp *disp, int id)
+{
+	return nvkm_ior_new_(&nv50_sor, disp, SOR, id);
 }

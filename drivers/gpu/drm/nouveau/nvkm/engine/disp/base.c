@@ -24,6 +24,7 @@
 #include "priv.h"
 #include "conn.h"
 #include "head.h"
+#include "ior.h"
 #include "outp.h"
 
 #include <core/client.h>
@@ -414,6 +415,12 @@ nvkm_disp_dtor(struct nvkm_engine *engine)
 		nvkm_outp_del(&outp);
 	}
 
+	while (!list_empty(&disp->ior)) {
+		struct nvkm_ior *ior =
+			list_first_entry(&disp->ior, typeof(*ior), head);
+		nvkm_ior_del(&ior);
+	}
+
 	while (!list_empty(&disp->head)) {
 		struct nvkm_head *head =
 			list_first_entry(&disp->head, typeof(*head), head);
@@ -439,6 +446,7 @@ nvkm_disp_ctor(const struct nvkm_disp_func *func, struct nvkm_device *device,
 {
 	disp->func = func;
 	INIT_LIST_HEAD(&disp->head);
+	INIT_LIST_HEAD(&disp->ior);
 	INIT_LIST_HEAD(&disp->outp);
 	INIT_LIST_HEAD(&disp->conn);
 	return nvkm_engine_ctor(&nvkm_disp, device, index, true, &disp->engine);

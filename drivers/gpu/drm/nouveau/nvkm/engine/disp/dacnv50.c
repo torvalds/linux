@@ -21,6 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
+#include "ior.h"
 #include "nv50.h"
 #include "outp.h"
 
@@ -123,4 +124,14 @@ nv50_dac_power(NV50_DISP_MTHD_V1)
 			break;
 	);
 	return 0;
+}
+
+static const struct nvkm_ior_func
+nv50_dac = {
+};
+
+int
+nv50_dac_new(struct nvkm_disp *disp, int id)
+{
+	return nvkm_ior_new_(&nv50_dac, disp, DAC, id);
 }

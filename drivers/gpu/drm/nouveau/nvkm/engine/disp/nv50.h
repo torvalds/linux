@@ -80,12 +80,14 @@ struct nv50_disp_func {
 
 	struct {
 		int nr;
+		int (*new)(struct nvkm_disp *, int id);
 		int (*power)(NV50_DISP_MTHD_V1);
 		int (*sense)(NV50_DISP_MTHD_V1);
 	} dac;
 
 	struct {
 		int nr;
+		int (*new)(struct nvkm_disp *, int id);
 		int (*power)(NV50_DISP_MTHD_V1);
 		int (*hda_eld)(NV50_DISP_MTHD_V1);
 		int (*hdmi)(NV50_DISP_MTHD_V1);
@@ -94,6 +96,7 @@ struct nv50_disp_func {
 
 	struct {
 		int nr;
+		int (*new)(struct nvkm_disp *, int id);
 		int (*power)(NV50_DISP_MTHD_V1);
 	} pior;
 };
