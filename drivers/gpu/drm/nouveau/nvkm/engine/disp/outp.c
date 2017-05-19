@@ -28,23 +28,23 @@
 #include <subdev/i2c.h>
 
 void
-nvkm_output_fini(struct nvkm_output *outp)
+nvkm_outp_fini(struct nvkm_outp *outp)
 {
 	if (outp->func->fini)
 		outp->func->fini(outp);
 }
 
 void
-nvkm_output_init(struct nvkm_output *outp)
+nvkm_outp_init(struct nvkm_outp *outp)
 {
 	if (outp->func->init)
 		outp->func->init(outp);
 }
 
 void
-nvkm_output_del(struct nvkm_output **poutp)
+nvkm_outp_del(struct nvkm_outp **poutp)
 {
-	struct nvkm_output *outp = *poutp;
+	struct nvkm_outp *outp = *poutp;
 	if (outp && !WARN_ON(!outp->func)) {
 		if (outp->func->dtor)
 			*poutp = outp->func->dtor(outp);
@@ -54,8 +54,8 @@ nvkm_output_del(struct nvkm_output **poutp)
 }
 
 void
-nvkm_output_ctor(const struct nvkm_output_func *func, struct nvkm_disp *disp,
-		 int index, struct dcb_output *dcbE, struct nvkm_output *outp)
+nvkm_outp_ctor(const struct nvkm_outp_func *func, struct nvkm_disp *disp,
+	       int index, struct dcb_output *dcbE, struct nvkm_outp *outp)
 {
 	struct nvkm_i2c *i2c = disp->engine.subdev.device->i2c;
 
@@ -75,13 +75,13 @@ nvkm_output_ctor(const struct nvkm_output_func *func, struct nvkm_disp *disp,
 }
 
 int
-nvkm_output_new_(const struct nvkm_output_func *func,
-		 struct nvkm_disp *disp, int index, struct dcb_output *dcbE,
-		 struct nvkm_output **poutp)
+nvkm_outp_new_(const struct nvkm_outp_func *func,
+	       struct nvkm_disp *disp, int index, struct dcb_output *dcbE,
+	       struct nvkm_outp **poutp)
 {
 	if (!(*poutp = kzalloc(sizeof(**poutp), GFP_KERNEL)))
 		return -ENOMEM;
 
-	nvkm_output_ctor(func, disp, index, dcbE, *poutp);
+	nvkm_outp_ctor(func, disp, index, dcbE, *poutp);
 	return 0;
 }

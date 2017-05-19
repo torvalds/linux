@@ -96,7 +96,7 @@ nvkm_disp_hpd_ctor(struct nvkm_object *object, void *data, u32 size,
 	union {
 		struct nvif_notify_conn_req_v0 v0;
 	} *req = data;
-	struct nvkm_output *outp;
+	struct nvkm_outp *outp;
 	int ret = -ENOSYS;
 
 	if (!(ret = nvif_unpack(ret, &data, &size, req->v0, 0, 0, false))) {
@@ -211,10 +211,10 @@ nvkm_disp_fini(struct nvkm_engine *engine, bool suspend)
 {
 	struct nvkm_disp *disp = nvkm_disp(engine);
 	struct nvkm_connector *conn;
-	struct nvkm_output *outp;
+	struct nvkm_outp *outp;
 
 	list_for_each_entry(outp, &disp->outp, head) {
-		nvkm_output_fini(outp);
+		nvkm_outp_fini(outp);
 	}
 
 	list_for_each_entry(conn, &disp->conn, head) {
@@ -229,14 +229,14 @@ nvkm_disp_init(struct nvkm_engine *engine)
 {
 	struct nvkm_disp *disp = nvkm_disp(engine);
 	struct nvkm_connector *conn;
-	struct nvkm_output *outp;
+	struct nvkm_outp *outp;
 
 	list_for_each_entry(conn, &disp->conn, head) {
 		nvkm_connector_init(conn);
 	}
 
 	list_for_each_entry(outp, &disp->outp, head) {
-		nvkm_output_init(outp);
+		nvkm_outp_init(outp);
 	}
 
 	return 0;
@@ -247,7 +247,7 @@ nvkm_disp_dtor(struct nvkm_engine *engine)
 {
 	struct nvkm_disp *disp = nvkm_disp(engine);
 	struct nvkm_connector *conn;
-	struct nvkm_output *outp;
+	struct nvkm_outp *outp;
 	void *data = disp;
 
 	if (disp->func->dtor)
@@ -259,7 +259,7 @@ nvkm_disp_dtor(struct nvkm_engine *engine)
 	while (!list_empty(&disp->outp)) {
 		outp = list_first_entry(&disp->outp, typeof(*outp), head);
 		list_del(&outp->head);
-		nvkm_output_del(&outp);
+		nvkm_outp_del(&outp);
 	}
 
 	while (!list_empty(&disp->conn)) {
@@ -285,7 +285,7 @@ nvkm_disp_ctor(const struct nvkm_disp_func *func, struct nvkm_device *device,
 	       int index, int heads, struct nvkm_disp *disp)
 {
 	struct nvkm_bios *bios = device->bios;
-	struct nvkm_output *outp, *outt, *pair;
+	struct nvkm_outp *outp, *outt, *pair;
 	struct nvkm_connector *conn;
 	struct nvbios_connE connE;
 	struct dcb_output dcbE;
@@ -307,7 +307,7 @@ nvkm_disp_ctor(const struct nvkm_disp_func *func, struct nvkm_device *device,
 	while ((data = dcb_outp_parse(bios, ++i, &ver, &hdr, &dcbE))) {
 		const struct nvkm_disp_func_outp *outps;
 		int (*ctor)(struct nvkm_disp *, int, struct dcb_output *,
-			    struct nvkm_output **);
+			    struct nvkm_outp **);
 
 		if (dcbE.type == DCB_OUTPUT_UNUSED)
 			continue;
@@ -350,7 +350,7 @@ nvkm_disp_ctor(const struct nvkm_disp_func *func, struct nvkm_device *device,
 			}
 			nvkm_error(&disp->engine.subdev,
 				   "failed to create output %d\n", i);
-			nvkm_output_del(&outp);
+			nvkm_outp_del(&outp);
 			continue;
 		}
 
@@ -411,7 +411,7 @@ nvkm_disp_ctor(const struct nvkm_disp_func *func, struct nvkm_device *device,
 				   outp->index, ret);
 			nvkm_connector_del(&outp->conn);
 			list_del(&outp->head);
-			nvkm_output_del(&outp);
+			nvkm_outp_del(&outp);
 			continue;
 		}
 

@@ -76,8 +76,7 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 	struct nv50_disp_root *root = nv50_disp_root(object);
 	struct nv50_disp *disp = root->disp;
 	const struct nv50_disp_func *func = disp->func;
-	struct nvkm_output *outp = NULL;
-	struct nvkm_output *temp;
+	struct nvkm_outp *temp, *outp = NULL;
 	u16 type, mask = 0;
 	int head, ret = -ENOSYS;
 

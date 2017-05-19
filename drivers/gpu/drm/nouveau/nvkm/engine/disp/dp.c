@@ -566,7 +566,7 @@ nvkm_output_dp_ctor(const struct nvkm_output_dp_func *func,
 	u32 data;
 	int ret;
 
-	nvkm_output_ctor(&nvkm_output_dp_func, disp, index, dcbE, &outp->base);
+	nvkm_outp_ctor(&nvkm_output_dp_func, disp, index, dcbE, &outp->base);
 	outp->func = func;
 	outp->aux = aux;
 	if (!outp->aux) {
