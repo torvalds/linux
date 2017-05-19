@@ -1166,8 +1166,8 @@ resume_state_change_complete(struct visor_device *dev, int status)
 }
 
 /*
- * initiate_chipset_device_pause_resume() - start a pause or resume operation
- *                                          for a visor device
+ * visorchipset_initiate_device_pause_resume() - start a pause or resume
+ *                                               operation for a visor device
  * @dev: struct visor_device identifying the device being paused or resumed
  * @is_pause: true to indicate pause operation, false to indicate resume
  *
@@ -1177,7 +1177,8 @@ resume_state_change_complete(struct visor_device *dev, int status)
  * resume_state_change_complete().
  */
 static int
-initiate_chipset_device_pause_resume(struct visor_device *dev, bool is_pause)
+visorchipset_initiate_device_pause_resume(struct visor_device *dev,
+					  bool is_pause)
 {
 	int err;
 	struct visor_driver *drv = NULL;
@@ -1223,7 +1224,7 @@ visorchipset_device_pause(struct visor_device *dev_info)
 {
 	int err;
 
-	err = initiate_chipset_device_pause_resume(dev_info, true);
+	err = visorchipset_initiate_device_pause_resume(dev_info, true);
 
 	if (err < 0) {
 		dev_info->pausing = false;
@@ -1246,7 +1247,7 @@ visorchipset_device_resume(struct visor_device *dev_info)
 {
 	int err;
 
-	err = initiate_chipset_device_pause_resume(dev_info, false);
+	err = visorchipset_initiate_device_pause_resume(dev_info, false);
 
 	if (err < 0) {
 		dev_info->resuming = false;
