@@ -288,7 +288,7 @@ static int pl111_display_prepare_fb(struct drm_simple_display_pipe *pipe,
 	return drm_fb_cma_prepare_fb(&pipe->plane, plane_state);
 }
 
-const struct drm_simple_display_pipe_funcs pl111_display_funcs = {
+static const struct drm_simple_display_pipe_funcs pl111_display_funcs = {
 	.check = pl111_display_check,
 	.enable = pl111_display_enable,
 	.disable = pl111_display_disable,
