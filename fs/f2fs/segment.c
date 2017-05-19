@@ -2188,7 +2188,8 @@ static int __get_segment_type(struct f2fs_io_info *fio)
 
 void allocate_data_block(struct f2fs_sb_info *sbi, struct page *page,
 		block_t old_blkaddr, block_t *new_blkaddr,
-		struct f2fs_summary *sum, int type)
+		struct f2fs_summary *sum, int type,
+		struct f2fs_io_info *fio, bool add_list)
 {
 	struct sit_info *sit_i = SIT_I(sbi);
 	struct curseg_info *curseg = CURSEG_I(sbi, type);
@@ -2224,6 +2225,17 @@ void allocate_data_block(struct f2fs_sb_info *sbi, struct page *page,
 	if (page && IS_NODESEG(type))
 		fill_node_footer_blkaddr(page, NEXT_FREE_BLKADDR(sbi, curseg));
 
+	if (add_list) {
+		struct f2fs_bio_info *io;
+
+		INIT_LIST_HEAD(&fio->list);
+		fio->in_list = true;
+		io = sbi->write_io[fio->type] + fio->temp;
+		spin_lock(&io->io_lock);
+		list_add_tail(&fio->list, &io->io_list);
+		spin_unlock(&io->io_lock);
+	}
+
 	mutex_unlock(&curseg->curseg_mutex);
 }
 
@@ -2232,11 +2244,9 @@ static void do_write_page(struct f2fs_summary *sum, struct f2fs_io_info *fio)
 	int type = __get_segment_type(fio);
 	int err;
 
-	if (fio->type == NODE || fio->type == DATA)
-		mutex_lock(&fio->sbi->wio_mutex[fio->type][fio->temp]);
 reallocate:
 	allocate_data_block(fio->sbi, fio->page, fio->old_blkaddr,
-					&fio->new_blkaddr, sum, type);
+			&fio->new_blkaddr, sum, type, fio, true);
 
 	/* writeout dirty page into bdev */
 	err = f2fs_submit_page_write(fio);
@@ -2244,9 +2254,6 @@ reallocate:
 		fio->old_blkaddr = fio->new_blkaddr;
 		goto reallocate;
 	}
-
-	if (fio->type == NODE || fio->type == DATA)
-		mutex_unlock(&fio->sbi->wio_mutex[fio->type][fio->temp]);
 }
 
 void write_meta_page(struct f2fs_sb_info *sbi, struct page *page)
@@ -2260,6 +2267,7 @@ void write_meta_page(struct f2fs_sb_info *sbi, struct page *page)
 		.new_blkaddr = page->index,
 		.page = page,
 		.encrypted_page = NULL,
+		.in_list = false,
 	};
 
 	if (unlikely(page->index >= MAIN_BLKADDR(sbi)))
