@@ -200,16 +200,18 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		.ramdump = wil_platform_rop_ramdump,
 		.fw_recovery = wil_platform_rop_fw_recovery,
 	};
+	u32 bar_size = pci_resource_len(pdev, 0);
 
 	/* check HW */
 	dev_info(&pdev->dev, WIL_NAME
-		 " device found [%04x:%04x] (rev %x)\n",
-		 (int)pdev->vendor, (int)pdev->device, (int)pdev->revision);
+		 " device found [%04x:%04x] (rev %x) bar size 0x%x\n",
+		 (int)pdev->vendor, (int)pdev->device, (int)pdev->revision,
+		 bar_size);
 
-	if (pci_resource_len(pdev, 0) != WIL6210_MEM_SIZE) {
-		dev_err(&pdev->dev, "Not " WIL_NAME "? "
-			"BAR0 size is %lu while expecting %lu\n",
-			(ulong)pci_resource_len(pdev, 0), WIL6210_MEM_SIZE);
+	if ((bar_size < WIL6210_MIN_MEM_SIZE) ||
+	    (bar_size > WIL6210_MAX_MEM_SIZE)) {
+		dev_err(&pdev->dev, "Unexpected BAR0 size 0x%x\n",
+			bar_size);
 		return -ENODEV;
 	}
 
@@ -222,6 +224,7 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	wil->pdev = pdev;
 	pci_set_drvdata(pdev, wil);
+	wil->bar_size = bar_size;
 	/* rollback to if_free */
 
 	wil->platform_handle =

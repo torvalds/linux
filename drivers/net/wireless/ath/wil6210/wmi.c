@@ -157,7 +157,7 @@ void __iomem *wmi_buffer(struct wil6210_priv *wil, __le32 ptr_)
 		return NULL;
 
 	off = HOSTADDR(ptr);
-	if (off > WIL6210_MEM_SIZE - 4)
+	if (off > wil->bar_size - 4)
 		return NULL;
 
 	return wil->csr + off;
@@ -177,7 +177,7 @@ void __iomem *wmi_addr(struct wil6210_priv *wil, u32 ptr)
 		return NULL;
 
 	off = HOSTADDR(ptr);
-	if (off > WIL6210_MEM_SIZE - 4)
+	if (off > wil->bar_size - 4)
 		return NULL;
 
 	return wil->csr + off;
