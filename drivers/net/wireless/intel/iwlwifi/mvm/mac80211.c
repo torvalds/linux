@@ -4151,11 +4151,11 @@ static void iwl_mvm_event_mlme_callback(struct iwl_mvm *mvm,
 					struct ieee80211_vif *vif,
 					const struct ieee80211_event *event)
 {
-#define CHECK_MLME_TRIGGER(_mvm, _trig, _buf, _cnt, _fmt...)	\
+#define CHECK_MLME_TRIGGER(_cnt, _fmt...)			\
 	do {							\
-		if ((_cnt) && --(_cnt))				\
+		if ((trig_mlme->_cnt) && --(trig_mlme->_cnt))	\
 			break;					\
-		iwl_mvm_fw_dbg_collect_trig(_mvm, _trig, _fmt);\
+		iwl_mvm_fw_dbg_collect_trig(mvm, trig, _fmt);	\
 	} while (0)
 
 	struct iwl_fw_dbg_trigger_tlv *trig;
@@ -4171,31 +4171,25 @@ static void iwl_mvm_event_mlme_callback(struct iwl_mvm *mvm,
 
 	if (event->u.mlme.data == ASSOC_EVENT) {
 		if (event->u.mlme.status == MLME_DENIED)
-			CHECK_MLME_TRIGGER(mvm, trig, buf,
-					   trig_mlme->stop_assoc_denied,
+			CHECK_MLME_TRIGGER(stop_assoc_denied,
 					   "DENIED ASSOC: reason %d",
 					    event->u.mlme.reason);
 		else if (event->u.mlme.status == MLME_TIMEOUT)
-			CHECK_MLME_TRIGGER(mvm, trig, buf,
-					   trig_mlme->stop_assoc_timeout,
+			CHECK_MLME_TRIGGER(stop_assoc_timeout,
 					   "ASSOC TIMEOUT");
 	} else if (event->u.mlme.data == AUTH_EVENT) {
 		if (event->u.mlme.status == MLME_DENIED)
-			CHECK_MLME_TRIGGER(mvm, trig, buf,
-					   trig_mlme->stop_auth_denied,
+			CHECK_MLME_TRIGGER(stop_auth_denied,
 					   "DENIED AUTH: reason %d",
 					   event->u.mlme.reason);
 		else if (event->u.mlme.status == MLME_TIMEOUT)
-			CHECK_MLME_TRIGGER(mvm, trig, buf,
-					   trig_mlme->stop_auth_timeout,
+			CHECK_MLME_TRIGGER(stop_auth_timeout,
 					   "AUTH TIMEOUT");
 	} else if (event->u.mlme.data == DEAUTH_RX_EVENT) {
-		CHECK_MLME_TRIGGER(mvm, trig, buf,
-				   trig_mlme->stop_rx_deauth,
+		CHECK_MLME_TRIGGER(stop_rx_deauth,
 				   "DEAUTH RX %d", event->u.mlme.reason);
 	} else if (event->u.mlme.data == DEAUTH_TX_EVENT) {
-		CHECK_MLME_TRIGGER(mvm, trig, buf,
-				   trig_mlme->stop_tx_deauth,
+		CHECK_MLME_TRIGGER(stop_tx_deauth,
 				   "DEAUTH TX %d", event->u.mlme.reason);
 	}
 #undef CHECK_MLME_TRIGGER
