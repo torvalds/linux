@@ -529,7 +529,7 @@ struct iochannel_vnic {
  * this header there is a large region of memory which contains the command and
  * response queues as specified in cmd_q and rsp_q SIGNAL_QUEUE_HEADERS.
  */
-struct spar_io_channel_protocol {
+struct visor_io_channel {
 	struct channel_header channel_header;
 	struct signal_queue_header cmd_q;
 	struct signal_queue_header rsp_q;

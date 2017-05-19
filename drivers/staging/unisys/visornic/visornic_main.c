@@ -1807,8 +1807,7 @@ static int visornic_probe(struct visor_device *dev)
 
 	/* Get MAC address from channel and read it into the device. */
 	netdev->addr_len = ETH_ALEN;
-	channel_offset = offsetof(struct spar_io_channel_protocol,
-				  vnic.macaddr);
+	channel_offset = offsetof(struct visor_io_channel, vnic.macaddr);
 	err = visorbus_read_channel(dev, channel_offset, netdev->dev_addr,
 				    ETH_ALEN);
 	if (err < 0) {
@@ -1836,8 +1835,7 @@ static int visornic_probe(struct visor_device *dev)
 	atomic_set(&devdata->usage, 1);
 
 	/* Setup rcv bufs */
-	channel_offset = offsetof(struct spar_io_channel_protocol,
-				  vnic.num_rcv_bufs);
+	channel_offset = offsetof(struct visor_io_channel, vnic.num_rcv_bufs);
 	err = visorbus_read_channel(dev, channel_offset,
 				    &devdata->num_rcv_bufs, 4);
 	if (err) {
@@ -1884,8 +1882,7 @@ static int visornic_probe(struct visor_device *dev)
 	devdata->server_change_state = false;
 
 	/*set the default mtu */
-	channel_offset = offsetof(struct spar_io_channel_protocol,
-				  vnic.mtu);
+	channel_offset = offsetof(struct visor_io_channel, vnic.mtu);
 	err = visorbus_read_channel(dev, channel_offset, &netdev->mtu, 4);
 	if (err) {
 		dev_err(&dev->device,
@@ -1906,7 +1903,7 @@ static int visornic_probe(struct visor_device *dev)
 	 */
 	mod_timer(&devdata->irq_poll_timer, msecs_to_jiffies(2));
 
-	channel_offset = offsetof(struct spar_io_channel_protocol,
+	channel_offset = offsetof(struct visor_io_channel,
 				  channel_header.features);
 	err = visorbus_read_channel(dev, channel_offset, &features, 8);
 	if (err) {
@@ -2115,7 +2112,7 @@ static int visornic_resume(struct visor_device *dev,
 	return 0;
 }
 
-/* This is used to tell the visor bus driver which types of visor devices
+/* This is used to tell the visorbus driver which types of visor devices
  * we support, and what functions to call when a visor device that we support
  * is attached or removed.
  */

@@ -1060,8 +1060,7 @@ static int visorhba_probe(struct visor_device *dev)
 	if (!scsihost)
 		return -ENODEV;
 
-	channel_offset = offsetof(struct spar_io_channel_protocol,
-				  vhba.max);
+	channel_offset = offsetof(struct visor_io_channel, vhba.max);
 	err = visorbus_read_channel(dev, channel_offset, &max,
 				    sizeof(struct vhba_config_max));
 	if (err < 0)
@@ -1105,7 +1104,7 @@ static int visorhba_probe(struct visor_device *dev)
 	devdata->serverchangingstate = false;
 	devdata->scsihost = scsihost;
 
-	channel_offset = offsetof(struct spar_io_channel_protocol,
+	channel_offset = offsetof(struct visor_io_channel,
 				  channel_header.features);
 	err = visorbus_read_channel(dev, channel_offset, &features, 8);
 	if (err)
@@ -1166,7 +1165,7 @@ static void visorhba_remove(struct visor_device *dev)
 	debugfs_remove_recursive(devdata->debugfs_dir);
 }
 
-/* This is used to tell the visor bus driver which types of visor devices
+/* This is used to tell the visorbus driver which types of visor devices
  * we support, and what functions to call when a visor device that we support
  * is attached or removed.
  */
