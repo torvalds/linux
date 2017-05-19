@@ -196,9 +196,8 @@ nvkm_dp_train_cr(struct lt_state *lt)
 }
 
 static int
-nvkm_dp_train_links(struct lt_state *lt)
+nvkm_dp_train_links(struct nvkm_dp *dp)
 {
-	struct nvkm_dp *dp = lt->dp;
 	struct nvkm_ior *ior = dp->outp.ior;
 	struct nvkm_disp *disp = dp->outp.disp;
 	struct nvkm_subdev *subdev = &disp->engine.subdev;
@@ -211,6 +210,9 @@ nvkm_dp_train_links(struct lt_state *lt)
 		.crtc = -1,
 		.execute = 1,
 	};
+	struct lt_state lt = {
+		.dp = dp,
+	};
 	u32 lnkcmp;
 	u8 sink[2];
 	int ret;
@@ -220,11 +222,11 @@ nvkm_dp_train_links(struct lt_state *lt)
 
 	/* Intersect misc. capabilities of the OR and sink. */
 	if (disp->engine.subdev.device->chipset < 0xd0)
-		dp->dpcd[2] &= ~DPCD_RC02_TPS3_SUPPORTED;
-	lt->pc2 = dp->dpcd[2] & DPCD_RC02_TPS3_SUPPORTED;
+		dp->dpcd[DPCD_RC02] &= ~DPCD_RC02_TPS3_SUPPORTED;
+	lt.pc2 = dp->dpcd[DPCD_RC02] & DPCD_RC02_TPS3_SUPPORTED;
 
 	/* Set desired link configuration on the source. */
-	if ((lnkcmp = lt->dp->info.lnkcmp)) {
+	if ((lnkcmp = lt.dp->info.lnkcmp)) {
 		if (dp->version < 0x30) {
 			while ((ior->dp.bw * 2700) < nvbios_rd16(bios, lnkcmp))
 				lnkcmp += 4;
@@ -253,13 +255,22 @@ nvkm_dp_train_links(struct lt_state *lt)
 	if (ior->dp.ef)
 		sink[1] |= DPCD_LC01_ENHANCED_FRAME_EN;
 
-	return nvkm_wraux(dp->aux, DPCD_LC00_LINK_BW_SET, sink, 2);
+	ret = nvkm_wraux(dp->aux, DPCD_LC00_LINK_BW_SET, sink, 2);
+	if (ret)
+		return ret;
+
+	/* Attempt to train the link in this configuration. */
+	memset(lt.stat, 0x00, sizeof(lt.stat));
+	ret = nvkm_dp_train_cr(&lt);
+	if (ret == 0)
+		ret = nvkm_dp_train_eq(&lt);
+	nvkm_dp_train_pattern(&lt, 0);
+	return ret;
 }
 
 static void
-nvkm_dp_train_fini(struct lt_state *lt)
+nvkm_dp_train_fini(struct nvkm_dp *dp)
 {
-	struct nvkm_dp *dp = lt->dp;
 	struct nvkm_subdev *subdev = &dp->outp.disp->engine.subdev;
 	struct nvbios_init init = {
 		.subdev = subdev,
@@ -275,9 +286,8 @@ nvkm_dp_train_fini(struct lt_state *lt)
 }
 
 static void
-nvkm_dp_train_init(struct lt_state *lt)
+nvkm_dp_train_init(struct nvkm_dp *dp)
 {
-	struct nvkm_dp *dp = lt->dp;
 	struct nvkm_subdev *subdev = &dp->outp.disp->engine.subdev;
 	struct nvbios_init init = {
 		.subdev = subdev,
@@ -326,9 +336,6 @@ nvkm_dp_train(struct nvkm_dp *dp)
 	const u8 outp_nr = dp->outp.info.dpconf.link_nr;
 	const u8 outp_bw = dp->outp.info.dpconf.link_bw;
 	const struct dp_rates *cfg;
-	struct lt_state lt = {
-		.dp = dp,
-	};
 	u8  pwr;
 	int ret;
 
@@ -345,8 +352,8 @@ nvkm_dp_train(struct nvkm_dp *dp)
 	}
 
 	/* Link training. */
-	nvkm_dp_train_init(&lt);
-	for (ret = -EINVAL, cfg = nvkm_dp_rates; cfg->rate; cfg++) {
+	nvkm_dp_train_init(dp);
+	for (ret = -EINVAL, cfg = nvkm_dp_rates; ret < 0 && cfg->rate; cfg++) {
 		/* Skip configurations not supported by both OR and sink. */
 		if (cfg[1].rate &&
 		    (cfg->nr > outp_nr || cfg->bw > outp_bw ||
@@ -358,23 +365,9 @@ nvkm_dp_train(struct nvkm_dp *dp)
 		ior->dp.nr = cfg->nr;
 
 		/* Program selected link configuration. */
-		ret = nvkm_dp_train_links(&lt);
-		if (ret == 0) {
-			/* Attempt to train the link in this configuration. */
-			memset(lt.stat, 0x00, sizeof(lt.stat));
-			if (!nvkm_dp_train_cr(&lt) &&
-			    !nvkm_dp_train_eq(&lt))
-				break;
-		} else
-		if (ret) {
-			/* nvkm_dp_train_links() handled training, or
-			 * we failed to communicate with the sink.
-			 */
-			break;
-		}
+		ret = nvkm_dp_train_links(dp);
 	}
-	nvkm_dp_train_pattern(&lt, 0);
-	nvkm_dp_train_fini(&lt);
+	nvkm_dp_train_fini(dp);
 	if (ret < 0)
 		OUTP_ERR(&dp->outp, "training failed");
 
