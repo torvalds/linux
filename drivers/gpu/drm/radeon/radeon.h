@@ -771,12 +771,7 @@ struct r600_irq_stat_regs {
 };
 
 struct evergreen_irq_stat_regs {
-	u32 disp_int;
-	u32 disp_int_cont;
-	u32 disp_int_cont2;
-	u32 disp_int_cont3;
-	u32 disp_int_cont4;
-	u32 disp_int_cont5;
+	u32 disp_int[6];
 	u32 d1grph_int;
 	u32 d2grph_int;
 	u32 d3grph_int;
@@ -2979,6 +2974,12 @@ int radeon_cs_packet_next_reloc(struct radeon_cs_parser *p,
 int r600_cs_common_vline_parse(struct radeon_cs_parser *p,
 			       uint32_t *vline_start_end,
 			       uint32_t *vline_status);
+
+/* interrupt control register helpers */
+void radeon_irq_kms_set_irq_n_enabled(struct radeon_device *rdev,
+				      u32 reg, u32 mask,
+				      bool enable, const char *name,
+				      unsigned n);
 
 #include "radeon_object.h"
 

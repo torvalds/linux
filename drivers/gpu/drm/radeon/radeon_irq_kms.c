@@ -538,3 +538,38 @@ void radeon_irq_kms_disable_hpd(struct radeon_device *rdev, unsigned hpd_mask)
 	spin_unlock_irqrestore(&rdev->irq.lock, irqflags);
 }
 
+/**
+ * radeon_irq_kms_update_int_n - helper for updating interrupt enable registers
+ *
+ * @rdev: radeon device pointer
+ * @reg: the register to write to enable/disable interrupts
+ * @mask: the mask that enables the interrupts
+ * @enable: whether to enable or disable the interrupt register
+ * @name: the name of the interrupt register to print to the kernel log
+ * @num: the number of the interrupt register to print to the kernel log
+ *
+ * Helper for updating the enable state of interrupt registers. Checks whether
+ * or not the interrupt matches the enable state we want. If it doesn't, then
+ * we update it and print a debugging message to the kernel log indicating the
+ * new state of the interrupt register.
+ *
+ * Used for updating sequences of interrupts registers like HPD1, HPD2, etc.
+ */
+void radeon_irq_kms_set_irq_n_enabled(struct radeon_device *rdev,
+				      u32 reg, u32 mask,
+				      bool enable, const char *name, unsigned n)
+{
+	u32 tmp = RREG32(reg);
+
+	/* Interrupt state didn't change */
+	if (!!(tmp & mask) == enable)
+		return;
+
+	if (enable) {
+		DRM_DEBUG("%s%d interrupts enabled\n", name, n);
+		WREG32(reg, tmp |= mask);
+	} else {
+		DRM_DEBUG("%s%d interrupts disabled\n", name, n);
+		WREG32(reg, tmp & ~mask);
+	}
+}
