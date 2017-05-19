@@ -1,15 +1,18 @@
-#ifndef __NVKM_DISP_OUTP_DP_H__
-#define __NVKM_DISP_OUTP_DP_H__
-#define nvkm_output_dp(p) container_of((p), struct nvkm_output_dp, base)
+#ifndef __NVKM_DISP_DP_H__
+#define __NVKM_DISP_DP_H__
+#define nvkm_dp(p) container_of((p), struct nvkm_dp, outp)
 #include "outp.h"
 
 #include <core/notify.h>
 #include <subdev/bios.h>
 #include <subdev/bios/dp.h>
 
-struct nvkm_output_dp {
+struct nvkm_dp {
 	const struct nvkm_output_dp_func *func;
-	struct nvkm_output base;
+	union {
+		struct nvkm_outp base;
+		struct nvkm_outp outp;
+	};
 
 	struct nvbios_dpout info;
 	u8 version;
@@ -28,6 +31,8 @@ struct nvkm_output_dp {
 	} lt;
 };
 
+#define nvkm_output_dp nvkm_dp
+
 struct nvkm_output_dp_func {
 	int (*pattern)(struct nvkm_output_dp *, int);
 	int (*lnk_pwr)(struct nvkm_output_dp *, int nr);
@@ -39,29 +44,25 @@ struct nvkm_output_dp_func {
 
 int nvkm_output_dp_train(struct nvkm_output *, u32 rate);
 
-int nvkm_output_dp_ctor(const struct nvkm_output_dp_func *, struct nvkm_disp *,
-			int index, struct dcb_output *, struct nvkm_i2c_aux *,
-			struct nvkm_output_dp *);
 int nvkm_output_dp_new_(const struct nvkm_output_dp_func *, struct nvkm_disp *,
-			int index, struct dcb_output *,
-			struct nvkm_output **);
+			int index, struct dcb_output *, struct nvkm_output **);
 
 int nv50_pior_dp_new(struct nvkm_disp *, int, struct dcb_output *,
 		     struct nvkm_output **);
 
 int g94_sor_dp_new(struct nvkm_disp *, int, struct dcb_output *,
 		   struct nvkm_output **);
-int g94_sor_dp_lnk_pwr(struct nvkm_output_dp *, int);
+int g94_sor_dp_lnk_pwr(struct nvkm_dp *, int);
 
 int gf119_sor_dp_new(struct nvkm_disp *, int, struct dcb_output *,
 		     struct nvkm_output **);
-int gf119_sor_dp_lnk_ctl(struct nvkm_output_dp *, int, int, bool);
-int gf119_sor_dp_drv_ctl(struct nvkm_output_dp *, int, int, int, int);
-void gf119_sor_dp_vcpi(struct nvkm_output_dp *, int, u8, u8, u16, u16);
+int gf119_sor_dp_lnk_ctl(struct nvkm_dp *, int, int, bool);
+int gf119_sor_dp_drv_ctl(struct nvkm_dp *, int, int, int, int);
+void gf119_sor_dp_vcpi(struct nvkm_dp *, int, u8, u8, u16, u16);
 
 int gm107_sor_dp_new(struct nvkm_disp *, int, struct dcb_output *,
 		     struct nvkm_output **);
-int gm107_sor_dp_pattern(struct nvkm_output_dp *, int);
+int gm107_sor_dp_pattern(struct nvkm_dp *, int);
 
 int gm200_sor_dp_new(struct nvkm_disp *, int, struct dcb_output *,
 		     struct nvkm_output **);

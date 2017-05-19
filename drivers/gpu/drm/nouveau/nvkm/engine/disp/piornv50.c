@@ -81,17 +81,8 @@ int
 nv50_pior_dp_new(struct nvkm_disp *disp, int index, struct dcb_output *dcbE,
 		 struct nvkm_output **poutp)
 {
-	struct nvkm_i2c *i2c = disp->engine.subdev.device->i2c;
-	struct nvkm_i2c_aux *aux =
-		nvkm_i2c_aux_find(i2c, NVKM_I2C_AUX_EXT(dcbE->extdev));
-	struct nvkm_output_dp *outp;
-
-	if (!(outp = kzalloc(sizeof(*outp), GFP_KERNEL)))
-		return -ENOMEM;
-	*poutp = &outp->base;
-
-	return nvkm_output_dp_ctor(&nv50_pior_output_dp_func, disp,
-				   index, dcbE, aux, outp);
+	return nvkm_output_dp_new_(&nv50_pior_output_dp_func, disp,
+				   index, dcbE, poutp);
 }
 
 int
