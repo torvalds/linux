@@ -27,10 +27,9 @@
 
 static bool dsa_slave_dev_check(struct net_device *dev);
 
-static int dsa_slave_notify(struct net_device *dev, unsigned long e, void *v)
+static int dsa_port_notify(struct dsa_port *dp, unsigned long e, void *v)
 {
-	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct raw_notifier_head *nh = &p->dp->ds->dst->nh;
+	struct raw_notifier_head *nh = &dp->ds->dst->nh;
 	int err;
 
 	err = raw_notifier_call_chain(nh, e, v);
@@ -589,7 +588,7 @@ static int dsa_slave_bridge_port_join(struct net_device *dev,
 	 */
 	p->dp->bridge_dev = br;
 
-	err = dsa_slave_notify(dev, DSA_NOTIFIER_BRIDGE_JOIN, &info);
+	err = dsa_port_notify(p->dp, DSA_NOTIFIER_BRIDGE_JOIN, &info);
 
 	/* The bridging is rolled back on error */
 	if (err)
@@ -614,7 +613,7 @@ static void dsa_slave_bridge_port_leave(struct net_device *dev,
 	 */
 	p->dp->bridge_dev = NULL;
 
-	err = dsa_slave_notify(dev, DSA_NOTIFIER_BRIDGE_LEAVE, &info);
+	err = dsa_port_notify(p->dp, DSA_NOTIFIER_BRIDGE_LEAVE, &info);
 	if (err)
 		netdev_err(dev, "failed to notify DSA_NOTIFIER_BRIDGE_LEAVE\n");
 
