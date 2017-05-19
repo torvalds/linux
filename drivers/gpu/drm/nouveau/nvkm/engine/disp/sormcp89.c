@@ -30,6 +30,7 @@ mcp89_sor = {
 	},
 	.dp = {
 		.lanes = { 3, 2, 1, 0 },
+		.links = g94_sor_dp_links,
 	},
 };
 

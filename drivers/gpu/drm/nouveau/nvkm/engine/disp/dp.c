@@ -240,11 +240,13 @@ nvkm_dp_train_links(struct nvkm_dp *dp)
 		nvbios_exec(&init);
 	}
 
-	ret = dp->func->lnk_ctl(dp, ior->dp.nr, ior->dp.bw, ior->dp.ef);
+	ret = ior->func->dp.links(ior, dp->aux);
 	if (ret) {
-		if (ret < 0)
-			OUTP_ERR(&dp->outp, "lnk_ctl failed with %d", ret);
-		return ret;
+		if (ret < 0) {
+			OUTP_ERR(&dp->outp, "train failed with %d", ret);
+			return ret;
+		}
+		return 0;
 	}
 
 	dp->func->lnk_pwr(dp, ior->dp.nr);

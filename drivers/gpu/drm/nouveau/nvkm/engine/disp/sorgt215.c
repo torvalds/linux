@@ -30,6 +30,7 @@ gt215_sor = {
 	},
 	.dp = {
 		.lanes = { 2, 1, 0, 3 },
+		.links = g94_sor_dp_links,
 	},
 };
 

@@ -94,19 +94,19 @@ gf119_sor_dp_pattern(struct nvkm_output_dp *outp, int pattern)
 }
 
 int
-gf119_sor_dp_lnk_ctl(struct nvkm_output_dp *outp, int nr, int bw, bool ef)
+gf119_sor_dp_links(struct nvkm_ior *sor, struct nvkm_i2c_aux *aux)
 {
-	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
-	const u32 soff = gf119_sor_soff(outp);
-	const u32 loff = gf119_sor_loff(outp);
+	struct nvkm_device *device = sor->disp->engine.subdev.device;
+	const u32 soff = nv50_ior_base(sor);
+	const u32 loff = nv50_sor_link(sor);
 	u32 dpctrl = 0x00000000;
 	u32 clksor = 0x00000000;
 
-	clksor |= bw << 18;
-	dpctrl |= ((1 << nr) - 1) << 16;
-	if (outp->lt.mst)
+	clksor |= sor->dp.bw << 18;
+	dpctrl |= ((1 << sor->dp.nr) - 1) << 16;
+	if (sor->dp.mst)
 		dpctrl |= 0x40000000;
-	if (ef)
+	if (sor->dp.ef)
 		dpctrl |= 0x00004000;
 
 	nvkm_mask(device, 0x612300 + soff, 0x007c0000, clksor);
@@ -118,7 +118,6 @@ static const struct nvkm_output_dp_func
 gf119_sor_dp_func = {
 	.pattern = gf119_sor_dp_pattern,
 	.lnk_pwr = g94_sor_dp_lnk_pwr,
-	.lnk_ctl = gf119_sor_dp_lnk_ctl,
 	.drv_ctl = gf119_sor_dp_drv_ctl,
 	.vcpi = gf119_sor_dp_vcpi,
 };
@@ -162,6 +161,7 @@ gf119_sor = {
 	},
 	.dp = {
 		.lanes = { 2, 1, 0, 3 },
+		.links = gf119_sor_dp_links,
 	},
 };
 

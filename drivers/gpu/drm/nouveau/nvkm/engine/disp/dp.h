@@ -35,7 +35,6 @@ struct nvkm_dp {
 struct nvkm_output_dp_func {
 	int (*pattern)(struct nvkm_output_dp *, int);
 	int (*lnk_pwr)(struct nvkm_output_dp *, int nr);
-	int (*lnk_ctl)(struct nvkm_output_dp *, int nr, int bw, bool ef);
 	int (*drv_ctl)(struct nvkm_output_dp *, int ln, int vs, int pe, int pc);
 	void (*vcpi)(struct nvkm_output_dp *, int head, u8 start_slot,
 		     u8 num_slots, u16 pbn, u16 aligned_pbn);
@@ -55,7 +54,6 @@ int g94_sor_dp_lnk_pwr(struct nvkm_dp *, int);
 
 int gf119_sor_dp_new(struct nvkm_disp *, int, struct dcb_output *,
 		     struct nvkm_output **);
-int gf119_sor_dp_lnk_ctl(struct nvkm_dp *, int, int, bool);
 int gf119_sor_dp_drv_ctl(struct nvkm_dp *, int, int, int, int);
 void gf119_sor_dp_vcpi(struct nvkm_dp *, int, u8, u8, u16, u16);
 

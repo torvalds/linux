@@ -1,6 +1,7 @@
 #ifndef __NVKM_DISP_IOR_H__
 #define __NVKM_DISP_IOR_H__
 #include "priv.h"
+struct nvkm_i2c_aux;
 
 struct nvkm_ior {
 	const struct nvkm_ior_func *func;
@@ -52,6 +53,7 @@ struct nvkm_ior_func {
 
 	struct {
 		u8 lanes[4];
+		int (*links)(struct nvkm_ior *, struct nvkm_i2c_aux *);
 	} dp;
 };
 
@@ -69,11 +71,20 @@ nv50_ior_base(struct nvkm_ior *ior)
 void nv50_dac_power(struct nvkm_ior *, bool, bool, bool, bool, bool);
 int nv50_dac_sense(struct nvkm_ior *, u32);
 
+static inline u32
+nv50_sor_link(struct nvkm_ior *ior)
+{
+	return nv50_ior_base(ior) + ((ior->asy.link == 2) * 0x80);
+}
+
 void nv50_sor_state(struct nvkm_ior *, struct nvkm_ior_state *);
 void nv50_sor_power(struct nvkm_ior *, bool, bool, bool, bool, bool);
 
 void g94_sor_state(struct nvkm_ior *, struct nvkm_ior_state *);
+int g94_sor_dp_links(struct nvkm_ior *, struct nvkm_i2c_aux *);
+
 void gf119_sor_state(struct nvkm_ior *, struct nvkm_ior_state *);
+int gf119_sor_dp_links(struct nvkm_ior *, struct nvkm_i2c_aux *);
 
 void g84_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
 void gt215_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);

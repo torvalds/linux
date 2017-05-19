@@ -58,10 +58,10 @@ nv50_pior_output_dp_lnk_pwr(struct nvkm_output_dp *outp, int nr)
 }
 
 static int
-nv50_pior_output_dp_lnk_ctl(struct nvkm_output_dp *outp,
-			    int nr, int bw, bool ef)
+nv50_pior_dp_links(struct nvkm_ior *pior, struct nvkm_i2c_aux *aux)
 {
-	int ret = nvkm_i2c_aux_lnk_ctl(outp->aux, nr, bw, ef);
+	int ret = nvkm_i2c_aux_lnk_ctl(aux, pior->dp.nr, pior->dp.bw,
+					    pior->dp.ef);
 	if (ret)
 		return ret;
 	return 1;
@@ -71,7 +71,6 @@ static const struct nvkm_output_dp_func
 nv50_pior_output_dp_func = {
 	.pattern = nv50_pior_output_dp_pattern,
 	.lnk_pwr = nv50_pior_output_dp_lnk_pwr,
-	.lnk_ctl = nv50_pior_output_dp_lnk_ctl,
 };
 
 int
@@ -129,6 +128,9 @@ static const struct nvkm_ior_func
 nv50_pior = {
 	.state = nv50_pior_state,
 	.power = nv50_pior_power,
+	.dp = {
+		.links = nv50_pior_dp_links,
+	},
 };
 
 int
