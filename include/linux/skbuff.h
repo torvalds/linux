@@ -858,6 +858,15 @@ static inline bool skb_pkt_type_ok(u32 ptype)
 	return ptype <= PACKET_OTHERHOST;
 }
 
+static inline unsigned int skb_napi_id(const struct sk_buff *skb)
+{
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	return skb->napi_id;
+#else
+	return 0;
+#endif
+}
+
 void kfree_skb(struct sk_buff *skb);
 void kfree_skb_list(struct sk_buff *segs);
 void skb_tx_error(struct sk_buff *skb);

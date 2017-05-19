@@ -163,6 +163,7 @@ static int netif_rx_internal(struct sk_buff *skb);
 static int call_netdevice_notifiers_info(unsigned long val,
 					 struct net_device *dev,
 					 struct netdev_notifier_info *info);
+static struct napi_struct *napi_by_id(unsigned int napi_id);
 
 /*
  * The @dev_base_head list is protected by @dev_base_lock and the rtnl
@@ -865,6 +866,31 @@ struct net_device *dev_get_by_index(struct net *net, int ifindex)
 	return dev;
 }
 EXPORT_SYMBOL(dev_get_by_index);
+
+/**
+ *	dev_get_by_napi_id - find a device by napi_id
+ *	@napi_id: ID of the NAPI struct
+ *
+ *	Search for an interface by NAPI ID. Returns %NULL if the device
+ *	is not found or a pointer to the device. The device has not had
+ *	its reference counter increased so the caller must be careful
+ *	about locking. The caller must hold RCU lock.
+ */
+
+struct net_device *dev_get_by_napi_id(unsigned int napi_id)
+{
+	struct napi_struct *napi;
+
+	WARN_ON_ONCE(!rcu_read_lock_held());
+
+	if (napi_id < MIN_NAPI_ID)
+		return NULL;
+
+	napi = napi_by_id(napi_id);
+
+	return napi ? napi->dev : NULL;
+}
+EXPORT_SYMBOL(dev_get_by_napi_id);
 
 /**
  *	netdev_get_name - get a netdevice name, knowing its ifindex.
