@@ -470,7 +470,7 @@ enum crash_obj_type {
 };
 
 static int
-save_crash_message(struct controlvm_message *msg, enum crash_obj_type typ)
+save_crash_message(struct controlvm_message *msg, enum crash_obj_type cr_type)
 {
 	u32 local_crash_msg_offset;
 	u16 local_crash_msg_count;
@@ -502,7 +502,7 @@ save_crash_message(struct controlvm_message *msg, enum crash_obj_type typ)
 		return err;
 	}
 
-	switch (typ) {
+	switch (cr_type) {
 	case CRASH_DEV:
 		local_crash_msg_offset += sizeof(struct controlvm_message);
 		err = visorchannel_write(chipset_dev->controlvm_channel,
