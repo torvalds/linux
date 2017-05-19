@@ -101,7 +101,7 @@ static ssize_t toolaction_show(struct device *dev,
 	int err;
 
 	err = visorchannel_read(chipset_dev->controlvm_channel,
-				offsetof(struct spar_controlvm_channel_protocol,
+				offsetof(struct visor_controlvm_channel,
 					 tool_action),
 				&tool_action, sizeof(u8));
 	if (err)
@@ -120,11 +120,10 @@ static ssize_t toolaction_store(struct device *dev,
 	if (kstrtou8(buf, 10, &tool_action))
 		return -EINVAL;
 
-	err = visorchannel_write
-		(chipset_dev->controlvm_channel,
-		 offsetof(struct spar_controlvm_channel_protocol,
-			  tool_action),
-		 &tool_action, sizeof(u8));
+	err = visorchannel_write(chipset_dev->controlvm_channel,
+				 offsetof(struct visor_controlvm_channel,
+					  tool_action),
+				 &tool_action, sizeof(u8));
 
 	if (err)
 		return err;
@@ -136,18 +135,18 @@ static ssize_t boottotool_show(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf)
 {
-	struct efi_spar_indication efi_spar_indication;
+	struct efi_visor_indication efi_visor_indication;
 	int err;
 
 	err = visorchannel_read(chipset_dev->controlvm_channel,
-				offsetof(struct spar_controlvm_channel_protocol,
-					 efi_spar_ind),
-				&efi_spar_indication,
-				sizeof(struct efi_spar_indication));
+				offsetof(struct visor_controlvm_channel,
+					 efi_visor_ind),
+				&efi_visor_indication,
+				sizeof(struct efi_visor_indication));
 
 	if (err)
 		return err;
-	return sprintf(buf, "%u\n", efi_spar_indication.boot_to_tool);
+	return sprintf(buf, "%u\n", efi_visor_indication.boot_to_tool);
 }
 
 static ssize_t boottotool_store(struct device *dev,
@@ -155,17 +154,17 @@ static ssize_t boottotool_store(struct device *dev,
 				const char *buf, size_t count)
 {
 	int val, err;
-	struct efi_spar_indication efi_spar_indication;
+	struct efi_visor_indication efi_visor_indication;
 
 	if (kstrtoint(buf, 10, &val))
 		return -EINVAL;
 
-	efi_spar_indication.boot_to_tool = val;
-	err = visorchannel_write
-		(chipset_dev->controlvm_channel,
-		 offsetof(struct spar_controlvm_channel_protocol,
-			  efi_spar_ind), &(efi_spar_indication),
-		 sizeof(struct efi_spar_indication));
+	efi_visor_indication.boot_to_tool = val;
+	err = visorchannel_write(chipset_dev->controlvm_channel,
+				 offsetof(struct visor_controlvm_channel,
+					  efi_visor_ind),
+				 &(efi_visor_indication),
+				 sizeof(struct efi_visor_indication));
 
 	if (err)
 		return err;
@@ -180,7 +179,7 @@ static ssize_t error_show(struct device *dev, struct device_attribute *attr,
 	int err;
 
 	err = visorchannel_read(chipset_dev->controlvm_channel,
-				offsetof(struct spar_controlvm_channel_protocol,
+				offsetof(struct visor_controlvm_channel,
 					 installation_error),
 				&error, sizeof(u32));
 	if (err)
@@ -197,11 +196,10 @@ static ssize_t error_store(struct device *dev, struct device_attribute *attr,
 	if (kstrtou32(buf, 10, &error))
 		return -EINVAL;
 
-	err = visorchannel_write
-		(chipset_dev->controlvm_channel,
-		 offsetof(struct spar_controlvm_channel_protocol,
-			  installation_error),
-		 &error, sizeof(u32));
+	err = visorchannel_write(chipset_dev->controlvm_channel,
+				 offsetof(struct visor_controlvm_channel,
+					  installation_error),
+				 &error, sizeof(u32));
 	if (err)
 		return err;
 	return count;
@@ -214,11 +212,10 @@ static ssize_t textid_show(struct device *dev, struct device_attribute *attr,
 	u32 text_id = 0;
 	int err;
 
-	err = visorchannel_read
-			(chipset_dev->controlvm_channel,
-			 offsetof(struct spar_controlvm_channel_protocol,
-				  installation_text_id),
-			 &text_id, sizeof(u32));
+	err = visorchannel_read(chipset_dev->controlvm_channel,
+				offsetof(struct visor_controlvm_channel,
+					 installation_text_id),
+				&text_id, sizeof(u32));
 	if (err)
 		return err;
 
@@ -234,11 +231,10 @@ static ssize_t textid_store(struct device *dev, struct device_attribute *attr,
 	if (kstrtou32(buf, 10, &text_id))
 		return -EINVAL;
 
-	err = visorchannel_write
-		(chipset_dev->controlvm_channel,
-		 offsetof(struct spar_controlvm_channel_protocol,
-			  installation_text_id),
-		 &text_id, sizeof(u32));
+	err = visorchannel_write(chipset_dev->controlvm_channel,
+				 offsetof(struct visor_controlvm_channel,
+					  installation_text_id),
+				 &text_id, sizeof(u32));
 	if (err)
 		return err;
 	return count;
@@ -252,7 +248,7 @@ static ssize_t remaining_steps_show(struct device *dev,
 	int err;
 
 	err = visorchannel_read(chipset_dev->controlvm_channel,
-				offsetof(struct spar_controlvm_channel_protocol,
+				offsetof(struct visor_controlvm_channel,
 					 installation_remaining_steps),
 				&remaining_steps, sizeof(u16));
 	if (err)
@@ -271,11 +267,10 @@ static ssize_t remaining_steps_store(struct device *dev,
 	if (kstrtou16(buf, 10, &remaining_steps))
 		return -EINVAL;
 
-	err = visorchannel_write
-		(chipset_dev->controlvm_channel,
-		 offsetof(struct spar_controlvm_channel_protocol,
-			  installation_remaining_steps),
-		 &remaining_steps, sizeof(u16));
+	err = visorchannel_write(chipset_dev->controlvm_channel,
+				 offsetof(struct visor_controlvm_channel,
+					  installation_remaining_steps),
+				 &remaining_steps, sizeof(u16));
 	if (err)
 		return err;
 	return count;
@@ -285,9 +280,9 @@ static DEVICE_ATTR_RW(remaining_steps);
 static uuid_le
 parser_id_get(struct parser_context *ctx)
 {
-	struct spar_controlvm_parameters_header *phdr = NULL;
+	struct visor_controlvm_parameters_header *phdr = NULL;
 
-	phdr = (struct spar_controlvm_parameters_header *)(ctx->data);
+	phdr = (struct visor_controlvm_parameters_header *)(ctx->data);
 	return phdr->id;
 }
 
@@ -331,9 +326,9 @@ parser_string_get(struct parser_context *ctx)
 static void *
 parser_name_get(struct parser_context *ctx)
 {
-	struct spar_controlvm_parameters_header *phdr = NULL;
+	struct visor_controlvm_parameters_header *phdr = NULL;
 
-	phdr = (struct spar_controlvm_parameters_header *)(ctx->data);
+	phdr = (struct visor_controlvm_parameters_header *)(ctx->data);
 
 	if (phdr->name_offset + phdr->name_length > ctx->param_bytes)
 		return NULL;
@@ -447,7 +442,7 @@ out_respond:
 
 static int
 controlvm_respond(struct controlvm_message_header *msg_hdr, int response,
-		  struct spar_segment_state *state)
+		  struct visor_segment_state *state)
 {
 	struct controlvm_message outmsg;
 
@@ -477,7 +472,7 @@ save_crash_message(struct controlvm_message *msg, enum crash_obj_type cr_type)
 	int err;
 
 	err = visorchannel_read(chipset_dev->controlvm_channel,
-				offsetof(struct spar_controlvm_channel_protocol,
+				offsetof(struct visor_controlvm_channel,
 					 saved_crash_message_count),
 				&local_crash_msg_count, sizeof(u16));
 	if (err) {
@@ -493,7 +488,7 @@ save_crash_message(struct controlvm_message *msg, enum crash_obj_type cr_type)
 	}
 
 	err = visorchannel_read(chipset_dev->controlvm_channel,
-				offsetof(struct spar_controlvm_channel_protocol,
+				offsetof(struct visor_controlvm_channel,
 					 saved_crash_message_offset),
 				&local_crash_msg_offset, sizeof(u32));
 	if (err) {
@@ -551,7 +546,7 @@ controlvm_responder(enum controlvm_id cmd_id,
 static int
 device_changestate_responder(enum controlvm_id cmd_id,
 			     struct visor_device *p, int response,
-			     struct spar_segment_state response_state)
+			     struct visor_segment_state response_state)
 {
 	struct controlvm_message outmsg;
 	u32 bus_no = p->chipset_bus_no;
@@ -850,7 +845,7 @@ visorbus_device_changestate(struct controlvm_message *inmsg)
 	struct controlvm_message_header *pmsg_hdr = NULL;
 	u32 bus_no = cmd->device_change_state.bus_no;
 	u32 dev_no = cmd->device_change_state.dev_no;
-	struct spar_segment_state state = cmd->device_change_state.state;
+	struct visor_segment_state state = cmd->device_change_state.state;
 	struct visor_device *dev_info;
 	int err = 0;
 
@@ -1387,7 +1382,7 @@ setup_crash_devices_work_queue(struct work_struct *work)
 
 	/* get saved message count */
 	if (visorchannel_read(chipset_dev->controlvm_channel,
-			      offsetof(struct spar_controlvm_channel_protocol,
+			      offsetof(struct visor_controlvm_channel,
 				       saved_crash_message_count),
 			      &local_crash_msg_count, sizeof(u16)) < 0) {
 		dev_err(&chipset_dev->acpi_device->dev,
@@ -1403,7 +1398,7 @@ setup_crash_devices_work_queue(struct work_struct *work)
 
 	/* get saved crash message offset */
 	if (visorchannel_read(chipset_dev->controlvm_channel,
-			      offsetof(struct spar_controlvm_channel_protocol,
+			      offsetof(struct visor_controlvm_channel,
 				       saved_crash_message_offset),
 			      &local_crash_msg_offset, sizeof(u32)) < 0) {
 		dev_err(&chipset_dev->acpi_device->dev,

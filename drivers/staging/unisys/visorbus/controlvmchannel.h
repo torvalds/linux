@@ -38,7 +38,7 @@
 	(spar_check_channel(ch, \
 			    VISOR_CONTROLVM_CHANNEL_UUID, \
 			    "controlvm", \
-			    sizeof(struct spar_controlvm_channel_protocol), \
+			    sizeof(struct visor_controlvm_channel), \
 			    VISOR_CONTROLVM_CHANNEL_VERSIONID, \
 			    VISOR_CONTROLVM_CHANNEL_SIGNATURE))
 
@@ -51,7 +51,7 @@
 /* Max num of messages stored during IOVM creation to be reused after crash */
 #define CONTROLVM_CRASHMSG_MAX 2
 
-struct spar_segment_state  {
+struct visor_segment_state  {
 	/* Bit 0: May enter other states */
 	u16 enabled:1;
 	/* Bit 1: Assigned to active partition */
@@ -75,15 +75,15 @@ struct spar_segment_state  {
  */
 } __packed;
 
-static const struct spar_segment_state segment_state_running = {
+static const struct visor_segment_state segment_state_running = {
 	1, 1, 1, 0, 1, 1, 1, 1
 };
 
-static const struct spar_segment_state segment_state_paused = {
+static const struct visor_segment_state segment_state_paused = {
 	1, 1, 1, 0, 1, 1, 1, 0
 };
 
-static const struct spar_segment_state segment_state_standby = {
+static const struct visor_segment_state segment_state_standby = {
 	1, 1, 0, 0, 1, 1, 1, 0
 };
 
@@ -148,7 +148,7 @@ struct irq_info {
 	u8 reserved[3];	/* Natural alignment purposes */
 } __packed;
 
-struct efi_spar_indication  {
+struct efi_visor_indication  {
 	u64 boot_to_fw_ui:1;		/* Bit 0: Stop in uefi ui */
 	u64 clear_nvram:1;		/* Bit 1: Clear NVRAM */
 	u64 clear_cmos:1;		/* Bit 2: Clear CMOS */
@@ -297,13 +297,13 @@ struct controlvm_message_packet  {
 			/* for CONTROLVM_DEVICE_RECONFIGURE */
 		struct  {
 			u32 bus_no;
-			struct spar_segment_state state;
+			struct visor_segment_state state;
 			u8 reserved[2];	/* Natural alignment purposes */
 		} __packed bus_change_state; /* for CONTROLVM_BUS_CHANGESTATE */
 		struct  {
 			u32 bus_no;
 			u32 dev_no;
-			struct spar_segment_state state;
+			struct visor_segment_state state;
 			struct  {
 				/* =1 if message is for a physical device */
 				u32 phys_device:1;
@@ -316,7 +316,7 @@ struct controlvm_message_packet  {
 		struct  {
 			u32 bus_no;
 			u32 dev_no;
-			struct spar_segment_state state;
+			struct visor_segment_state state;
 			u8 reserved[6];	/* Natural alignment purposes */
 		} __packed device_change_state_event;
 			/* for CONTROLVM_DEVICE_CHANGESTATE_EVENT */
@@ -348,7 +348,7 @@ struct controlvm_message {
 	struct controlvm_message_packet cmd;
 } __packed;
 
-struct spar_controlvm_channel_protocol {
+struct visor_controlvm_channel {
 	struct channel_header header;
 	u64 gp_controlvm;	/* guest phys addr of this channel */
 	u64 gp_partition_tables;/* guest phys addr of partition tables */
@@ -404,8 +404,7 @@ struct spar_controlvm_channel_protocol {
 	/* VISOR_TOOL_ACTIONS Installation Action field */
 	u8 tool_action;
 	u8 reserved;		/* alignment */
-	struct efi_spar_indication efi_spar_ind;
-	struct efi_spar_indication efi_spar_ind_supported;
+	struct efi_visor_indication efi_visor_ind;
 	u32 sp_reserved;
 	/* Force signals to begin on 128-byte cache line */
 	u8 reserved2[28];
@@ -443,7 +442,7 @@ struct spar_controlvm_channel_protocol {
  * of total_length should equal PayloadBytes. The format of the strings at
  * PayloadVmOffset will take different forms depending on the message.
  */
-struct spar_controlvm_parameters_header {
+struct visor_controlvm_parameters_header {
 	u32 total_length;
 	u32 header_length;
 	u32 connection_offset;
