@@ -1432,10 +1432,16 @@ static inline int security_tun_dev_open(void *security)
 
 #ifdef CONFIG_SECURITY_INFINIBAND
 int security_ib_pkey_access(void *sec, u64 subnet_prefix, u16 pkey);
+int security_ib_endport_manage_subnet(void *sec, const char *name, u8 port_num);
 int security_ib_alloc_security(void **sec);
 void security_ib_free_security(void *sec);
 #else	/* CONFIG_SECURITY_INFINIBAND */
 static inline int security_ib_pkey_access(void *sec, u64 subnet_prefix, u16 pkey)
+{
+	return 0;
+}
+
+static inline int security_ib_endport_manage_subnet(void *sec, const char *dev_name, u8 port_num)
 {
 	return 0;
 }

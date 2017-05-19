@@ -919,6 +919,11 @@
  *	@subnet_prefix the subnet prefix of the port being used.
  *	@pkey the pkey to be accessed.
  *	@sec pointer to a security structure.
+ * @ib_endport_manage_subnet:
+ *	Check permissions to send and receive SMPs on a end port.
+ *	@dev_name the IB device name (i.e. mlx4_0).
+ *	@port_num the port number.
+ *	@sec pointer to a security structure.
  * @ib_alloc_security:
  *	Allocate a security structure for Infiniband objects.
  *	@sec pointer to a security structure pointer.
@@ -1638,6 +1643,8 @@ union security_list_options {
 
 #ifdef CONFIG_SECURITY_INFINIBAND
 	int (*ib_pkey_access)(void *sec, u64 subnet_prefix, u16 pkey);
+	int (*ib_endport_manage_subnet)(void *sec, const char *dev_name,
+					u8 port_num);
 	int (*ib_alloc_security)(void **sec);
 	void (*ib_free_security)(void *sec);
 #endif	/* CONFIG_SECURITY_INFINIBAND */
@@ -1875,6 +1882,7 @@ struct security_hook_heads {
 #endif	/* CONFIG_SECURITY_NETWORK */
 #ifdef CONFIG_SECURITY_INFINIBAND
 	struct list_head ib_pkey_access;
+	struct list_head ib_endport_manage_subnet;
 	struct list_head ib_alloc_security;
 	struct list_head ib_free_security;
 #endif	/* CONFIG_SECURITY_INFINIBAND */

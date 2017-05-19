@@ -1544,6 +1544,12 @@ int security_ib_pkey_access(void *sec, u64 subnet_prefix, u16 pkey)
 }
 EXPORT_SYMBOL(security_ib_pkey_access);
 
+int security_ib_endport_manage_subnet(void *sec, const char *dev_name, u8 port_num)
+{
+	return call_int_hook(ib_endport_manage_subnet, 0, sec, dev_name, port_num);
+}
+EXPORT_SYMBOL(security_ib_endport_manage_subnet);
+
 int security_ib_alloc_security(void **sec)
 {
 	return call_int_hook(ib_alloc_security, 0, sec);

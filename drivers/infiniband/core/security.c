@@ -39,6 +39,7 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_cache.h>
 #include "core_priv.h"
+#include "mad_priv.h"
 
 static struct pkey_index_qp_list *get_pkey_idx_qp_list(struct ib_port_pkey *pp)
 {
@@ -609,5 +610,96 @@ int ib_security_modify_qp(struct ib_qp *qp,
 	return ret;
 }
 EXPORT_SYMBOL(ib_security_modify_qp);
+
+int ib_security_pkey_access(struct ib_device *dev,
+			    u8 port_num,
+			    u16 pkey_index,
+			    void *sec)
+{
+	u64 subnet_prefix;
+	u16 pkey;
+	int ret;
+
+	ret = ib_get_cached_pkey(dev, port_num, pkey_index, &pkey);
+	if (ret)
+		return ret;
+
+	ret = ib_get_cached_subnet_prefix(dev, port_num, &subnet_prefix);
+
+	if (ret)
+		return ret;
+
+	return security_ib_pkey_access(sec, subnet_prefix, pkey);
+}
+EXPORT_SYMBOL(ib_security_pkey_access);
+
+static int ib_mad_agent_security_change(struct notifier_block *nb,
+					unsigned long event,
+					void *data)
+{
+	struct ib_mad_agent *ag = container_of(nb, struct ib_mad_agent, lsm_nb);
+
+	if (event != LSM_POLICY_CHANGE)
+		return NOTIFY_DONE;
+
+	ag->smp_allowed = !security_ib_endport_manage_subnet(ag->security,
+							     ag->device->name,
+							     ag->port_num);
+
+	return NOTIFY_OK;
+}
+
+int ib_mad_agent_security_setup(struct ib_mad_agent *agent,
+				enum ib_qp_type qp_type)
+{
+	int ret;
+
+	ret = security_ib_alloc_security(&agent->security);
+	if (ret)
+		return ret;
+
+	if (qp_type != IB_QPT_SMI)
+		return 0;
+
+	ret = security_ib_endport_manage_subnet(agent->security,
+						agent->device->name,
+						agent->port_num);
+	if (ret)
+		return ret;
+
+	agent->lsm_nb.notifier_call = ib_mad_agent_security_change;
+	ret = register_lsm_notifier(&agent->lsm_nb);
+	if (ret)
+		return ret;
+
+	agent->smp_allowed = true;
+	agent->lsm_nb_reg = true;
+	return 0;
+}
+
+void ib_mad_agent_security_cleanup(struct ib_mad_agent *agent)
+{
+	security_ib_free_security(agent->security);
+	if (agent->lsm_nb_reg)
+		unregister_lsm_notifier(&agent->lsm_nb);
+}
+
+int ib_mad_enforce_security(struct ib_mad_agent_private *map, u16 pkey_index)
+{
+	int ret;
+
+	if (map->agent.qp->qp_type == IB_QPT_SMI && !map->agent.smp_allowed)
+		return -EACCES;
+
+	ret = ib_security_pkey_access(map->agent.device,
+				      map->agent.port_num,
+				      pkey_index,
+				      map->agent.security);
+
+	if (ret)
+		return ret;
+
+	return 0;
+}
 
 #endif /* CONFIG_SECURITY_INFINIBAND */
