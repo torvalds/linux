@@ -5868,9 +5868,9 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 			adapter->tx_hwtstamp_skb = skb_get(skb);
 			adapter->tx_hwtstamp_start = jiffies;
 			schedule_work(&adapter->tx_hwtstamp_work);
-		} else {
-			skb_tx_timestamp(skb);
 		}
+
+		skb_tx_timestamp(skb);
 
 		netdev_sent_queue(netdev, skb->len);
 		e1000_tx_queue(tx_ring, tx_flags, count);
