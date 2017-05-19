@@ -137,7 +137,7 @@ nvkm_outp_acquire(struct nvkm_outp *outp, u8 user)
 	/* Failing that, a completely unused OR is the next best thing. */
 	list_for_each_entry(ior, &outp->disp->ior, head) {
 		if (!ior->asy.outp && ior->type == type && !ior->arm.outp &&
-		    ior->id == __ffs(outp->info.or))
+		    (ior->func->route.set || ior->id == __ffs(outp->info.or)))
 			return nvkm_outp_acquire_ior(outp, user, ior);
 	}
 
@@ -146,7 +146,7 @@ nvkm_outp_acquire(struct nvkm_outp *outp, u8 user)
 	 */
 	list_for_each_entry(ior, &outp->disp->ior, head) {
 		if (!ior->asy.outp && ior->type == type &&
-		    ior->id == __ffs(outp->info.or))
+		    (ior->func->route.set || ior->id == __ffs(outp->info.or)))
 			return nvkm_outp_acquire_ior(outp, user, ior);
 	}
 
