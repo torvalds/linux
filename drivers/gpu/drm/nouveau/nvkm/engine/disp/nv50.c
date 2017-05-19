@@ -316,31 +316,6 @@ exec_clkcmp(struct nv50_disp *disp, int head, int id, u32 pclk, u32 *conf)
 	return outp;
 }
 
-/* If programming a TMDS output on a SOR that can also be configured for
- * DisplayPort, make sure NV50_SOR_DP_CTRL_ENABLE is forced off.
- *
- * It looks like the VBIOS TMDS scripts make an attempt at this, however,
- * the VBIOS scripts on at least one board I have only switch it off on
- * link 0, causing a blank display if the output has previously been
- * programmed for DisplayPort.
- */
-static void
-nv50_disp_intr_unk40_0_tmds(struct nv50_disp *disp,
-			    struct dcb_output *outp)
-{
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	struct nvkm_bios *bios = device->bios;
-	const int link = !(outp->sorconf.link & 1);
-	const int   or = ffs(outp->or) - 1;
-	const u32 loff = (or * 0x800) + (link * 0x80);
-	const u16 mask = (outp->sorconf.link << 6) | outp->or;
-	struct dcb_output match;
-	u8  ver, hdr;
-
-	if (dcb_outp_match(bios, DCB_OUTPUT_DP, mask, &ver, &hdr, &match))
-		nvkm_mask(device, 0x61c10c + loff, 0x00000001, 0x00000000);
-}
-
 static void
 nv50_disp_intr_unk40_0(struct nv50_disp *disp, int head)
 {
@@ -353,8 +328,6 @@ nv50_disp_intr_unk40_0(struct nv50_disp *disp, int head)
 	if (!outp)
 		return;
 
-	if (outp->info.location == 0 && outp->info.type == DCB_OUTPUT_TMDS)
-		nv50_disp_intr_unk40_0_tmds(disp, &outp->info);
 	nv50_disp_dptmds_war_3(disp, &outp->info);
 }
 
