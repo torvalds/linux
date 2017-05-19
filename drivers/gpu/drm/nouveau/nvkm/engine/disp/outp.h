@@ -16,7 +16,7 @@ struct nvkm_outp {
 	int or;
 
 	struct list_head head;
-	struct nvkm_connector *conn;
+	struct nvkm_conn *conn;
 };
 
 void nvkm_outp_ctor(const struct nvkm_outp_func *, struct nvkm_disp *,

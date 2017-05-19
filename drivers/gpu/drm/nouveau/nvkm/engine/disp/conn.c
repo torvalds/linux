@@ -30,9 +30,9 @@
 #include <nvif/event.h>
 
 static int
-nvkm_connector_hpd(struct nvkm_notify *notify)
+nvkm_conn_hpd(struct nvkm_notify *notify)
 {
-	struct nvkm_connector *conn = container_of(notify, typeof(*conn), hpd);
+	struct nvkm_conn *conn = container_of(notify, typeof(*conn), hpd);
 	struct nvkm_disp *disp = conn->disp;
 	struct nvkm_gpio *gpio = disp->engine.subdev.device->gpio;
 	const struct nvkm_gpio_ntfy_rep *line = notify->data;
@@ -52,21 +52,21 @@ nvkm_connector_hpd(struct nvkm_notify *notify)
 }
 
 void
-nvkm_connector_fini(struct nvkm_connector *conn)
+nvkm_conn_fini(struct nvkm_conn *conn)
 {
 	nvkm_notify_put(&conn->hpd);
 }
 
 void
-nvkm_connector_init(struct nvkm_connector *conn)
+nvkm_conn_init(struct nvkm_conn *conn)
 {
 	nvkm_notify_get(&conn->hpd);
 }
 
 void
-nvkm_connector_del(struct nvkm_connector **pconn)
+nvkm_conn_del(struct nvkm_conn **pconn)
 {
-	struct nvkm_connector *conn = *pconn;
+	struct nvkm_conn *conn = *pconn;
 	if (conn) {
 		nvkm_notify_fini(&conn->hpd);
 		kfree(*pconn);
@@ -75,8 +75,8 @@ nvkm_connector_del(struct nvkm_connector **pconn)
 }
 
 static void
-nvkm_connector_ctor(struct nvkm_disp *disp, int index,
-		    struct nvbios_connE *info, struct nvkm_connector *conn)
+nvkm_conn_ctor(struct nvkm_disp *disp, int index, struct nvbios_connE *info,
+	       struct nvkm_conn *conn)
 {
 	static const u8 hpd[] = { 0x07, 0x08, 0x51, 0x52, 0x5e, 0x5f, 0x60 };
 	struct nvkm_gpio *gpio = disp->engine.subdev.device->gpio;
@@ -105,7 +105,7 @@ nvkm_connector_ctor(struct nvkm_disp *disp, int index,
 			return;
 		}
 
-		ret = nvkm_notify_init(NULL, &gpio->event, nvkm_connector_hpd,
+		ret = nvkm_notify_init(NULL, &gpio->event, nvkm_conn_hpd,
 				       true, &(struct nvkm_gpio_ntfy_req) {
 					.mask = NVKM_GPIO_TOGGLED,
 					.line = func.line,
@@ -122,11 +122,11 @@ nvkm_connector_ctor(struct nvkm_disp *disp, int index,
 }
 
 int
-nvkm_connector_new(struct nvkm_disp *disp, int index,
-		   struct nvbios_connE *info, struct nvkm_connector **pconn)
+nvkm_conn_new(struct nvkm_disp *disp, int index, struct nvbios_connE *info,
+	      struct nvkm_conn **pconn)
 {
 	if (!(*pconn = kzalloc(sizeof(**pconn), GFP_KERNEL)))
 		return -ENOMEM;
-	nvkm_connector_ctor(disp, index, info, *pconn);
+	nvkm_conn_ctor(disp, index, info, *pconn);
 	return 0;
 }

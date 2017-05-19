@@ -210,7 +210,7 @@ static int
 nvkm_disp_fini(struct nvkm_engine *engine, bool suspend)
 {
 	struct nvkm_disp *disp = nvkm_disp(engine);
-	struct nvkm_connector *conn;
+	struct nvkm_conn *conn;
 	struct nvkm_outp *outp;
 
 	list_for_each_entry(outp, &disp->outp, head) {
@@ -218,7 +218,7 @@ nvkm_disp_fini(struct nvkm_engine *engine, bool suspend)
 	}
 
 	list_for_each_entry(conn, &disp->conn, head) {
-		nvkm_connector_fini(conn);
+		nvkm_conn_fini(conn);
 	}
 
 	return 0;
@@ -228,11 +228,11 @@ static int
 nvkm_disp_init(struct nvkm_engine *engine)
 {
 	struct nvkm_disp *disp = nvkm_disp(engine);
-	struct nvkm_connector *conn;
+	struct nvkm_conn *conn;
 	struct nvkm_outp *outp;
 
 	list_for_each_entry(conn, &disp->conn, head) {
-		nvkm_connector_init(conn);
+		nvkm_conn_init(conn);
 	}
 
 	list_for_each_entry(outp, &disp->outp, head) {
@@ -246,7 +246,7 @@ static void *
 nvkm_disp_dtor(struct nvkm_engine *engine)
 {
 	struct nvkm_disp *disp = nvkm_disp(engine);
-	struct nvkm_connector *conn;
+	struct nvkm_conn *conn;
 	struct nvkm_outp *outp;
 	void *data = disp;
 
@@ -265,7 +265,7 @@ nvkm_disp_dtor(struct nvkm_engine *engine)
 	while (!list_empty(&disp->conn)) {
 		conn = list_first_entry(&disp->conn, typeof(*conn), head);
 		list_del(&conn->head);
-		nvkm_connector_del(&conn);
+		nvkm_conn_del(&conn);
 	}
 
 	return data;
@@ -286,7 +286,7 @@ nvkm_disp_ctor(const struct nvkm_disp_func *func, struct nvkm_device *device,
 {
 	struct nvkm_bios *bios = device->bios;
 	struct nvkm_outp *outp, *outt, *pair;
-	struct nvkm_connector *conn;
+	struct nvkm_conn *conn;
 	struct nvbios_connE connE;
 	struct dcb_output dcbE;
 	u8  hpd = 0, ver, hdr;
@@ -404,12 +404,12 @@ nvkm_disp_ctor(const struct nvkm_disp_func *func, struct nvkm_device *device,
 			continue;
 
 		/* apparently we need to create a new one! */
-		ret = nvkm_connector_new(disp, i, &connE, &outp->conn);
+		ret = nvkm_conn_new(disp, i, &connE, &outp->conn);
 		if (ret) {
 			nvkm_error(&disp->engine.subdev,
 				   "failed to create output %d conn: %d\n",
 				   outp->index, ret);
-			nvkm_connector_del(&outp->conn);
+			nvkm_conn_del(&outp->conn);
 			list_del(&outp->head);
 			nvkm_outp_del(&outp);
 			continue;

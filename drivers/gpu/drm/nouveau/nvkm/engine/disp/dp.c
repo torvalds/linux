@@ -482,7 +482,7 @@ nvkm_dp_hpd(struct nvkm_notify *notify)
 {
 	const struct nvkm_i2c_ntfy_rep *line = notify->data;
 	struct nvkm_dp *dp = container_of(notify, typeof(*dp), hpd);
-	struct nvkm_connector *conn = dp->outp.conn;
+	struct nvkm_conn *conn = dp->outp.conn;
 	struct nvkm_disp *disp = dp->outp.disp;
 	struct nvif_notify_conn_rep_v0 rep = {};
 
@@ -503,7 +503,7 @@ nvkm_dp_irq(struct nvkm_notify *notify)
 {
 	const struct nvkm_i2c_ntfy_rep *line = notify->data;
 	struct nvkm_dp *dp = container_of(notify, typeof(*dp), irq);
-	struct nvkm_connector *conn = dp->outp.conn;
+	struct nvkm_conn *conn = dp->outp.conn;
 	struct nvkm_disp *disp = dp->outp.disp;
 	struct nvif_notify_conn_rep_v0 rep = {
 		.mask = NVIF_NOTIFY_CONN_V0_IRQ,
