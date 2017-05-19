@@ -114,6 +114,60 @@ nv50_disp_new_(const struct nv50_disp_func *func, struct nvkm_device *device,
 	return nvkm_event_init(func->uevent, 1, 1 + (heads * 4), &disp->uevent);
 }
 
+static u32
+nv50_disp_super_iedt(struct nvkm_head *head, struct nvkm_outp *outp,
+		     u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
+		     struct nvbios_outp *iedt)
+{
+	struct nvkm_bios *bios = head->disp->engine.subdev.device->bios;
+	const u8  l = ffs(outp->info.link);
+	const u16 t = outp->info.hasht;
+	const u16 m = (0x0100 << head->id) | (l << 6) | outp->info.or;
+	u32 data = nvbios_outp_match(bios, t, m, ver, hdr, cnt, len, iedt);
+	if (!data)
+		OUTP_DBG(outp, "missing IEDT for %04x:%04x", t, m);
+	return data;
+}
+
+static void
+nv50_disp_super_ied_off(struct nvkm_head *head, struct nvkm_ior *ior, int id)
+{
+	struct nvkm_outp *outp = ior->arm.outp;
+	struct nvbios_outp iedt;
+	u8  ver, hdr, cnt, len;
+	u32 data;
+
+	if (!outp) {
+		IOR_DBG(ior, "nothing attached");
+		return;
+	}
+
+	data = nv50_disp_super_iedt(head, outp, &ver, &hdr, &cnt, &len, &iedt);
+	if (!data)
+		return;
+
+	nvbios_init(&head->disp->engine.subdev, iedt.script[id],
+		init.outp = &outp->info;
+		init.or   = ior->id;
+		init.link = ior->arm.link;
+		init.head = head->id;
+	);
+}
+
+static struct nvkm_ior *
+nv50_disp_super_ior_arm(struct nvkm_head *head)
+{
+	struct nvkm_ior *ior;
+	list_for_each_entry(ior, &head->disp->ior, head) {
+		if (ior->arm.head & (1 << head->id)) {
+			HEAD_DBG(head, "on %s", ior->name);
+			return ior;
+		}
+	}
+	HEAD_DBG(head, "nothing attached");
+	return NULL;
+}
+
 static struct nvkm_output *
 exec_lookup(struct nv50_disp *disp, int head, int or, u32 ctrl,
 	    u32 *data, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
@@ -582,10 +636,19 @@ nv50_disp_intr_unk20_0(struct nv50_disp *disp, int head)
 	}
 }
 
-static void
-nv50_disp_intr_unk10_0(struct nv50_disp *disp, int head)
+void
+nv50_disp_super_1_0(struct nv50_disp *disp, struct nvkm_head *head)
 {
-	exec_script(disp, head, 1);
+	struct nvkm_ior *ior;
+
+	/* Determine which OR, if any, we're detaching from the head. */
+	HEAD_DBG(head, "supervisor 1.0");
+	ior = nv50_disp_super_ior_arm(head);
+	if (!ior)
+		return;
+
+	/* Execute OffInt1 IED script. */
+	nv50_disp_super_ied_off(head, ior, 1);
 }
 
 void
@@ -625,7 +688,7 @@ nv50_disp_super(struct work_struct *work)
 				continue;
 			if (!(super & (0x00000080 << head->id)))
 				continue;
-			nv50_disp_intr_unk10_0(disp, head->id);
+			nv50_disp_super_1_0(disp, head);
 		}
 	} else
 	if (disp->super & 0x00000020) {

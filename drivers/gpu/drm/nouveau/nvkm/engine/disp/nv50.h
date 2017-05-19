@@ -3,6 +3,7 @@
 #define nv50_disp(p) container_of((p), struct nv50_disp, base)
 #include "priv.h"
 #include "dp.h"
+struct nvkm_head;
 
 struct nv50_disp {
 	const struct nv50_disp_func *func;
@@ -26,6 +27,7 @@ struct nv50_disp {
 };
 
 void nv50_disp_super_1(struct nv50_disp *);
+void nv50_disp_super_1_0(struct nv50_disp *, struct nvkm_head *);
 
 int nv50_disp_new_(const struct nv50_disp_func *, struct nvkm_device *,
 		   int index, int heads, struct nvkm_disp **);
