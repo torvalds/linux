@@ -8,7 +8,9 @@ struct nvkm_disp {
 	const struct nvkm_disp_func *func;
 	struct nvkm_engine engine;
 
-	struct nvkm_oproxy *client;
+	struct {
+		int nr;
+	} head;
 
 	struct list_head outp;
 	struct list_head conn;
@@ -16,9 +18,7 @@ struct nvkm_disp {
 	struct nvkm_event hpd;
 	struct nvkm_event vblank;
 
-	struct {
-		int nr;
-	} head;
+	struct nvkm_oproxy *client;
 };
 
 int nv04_disp_new(struct nvkm_device *, int, struct nvkm_disp **);
