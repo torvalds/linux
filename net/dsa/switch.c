@@ -121,6 +121,43 @@ static int dsa_switch_fdb_del(struct dsa_switch *ds,
 	return ds->ops->port_fdb_del(ds, info->port, fdb);
 }
 
+static int dsa_switch_mdb_add(struct dsa_switch *ds,
+			      struct dsa_notifier_mdb_info *info)
+{
+	const struct switchdev_obj_port_mdb *mdb = info->mdb;
+	struct switchdev_trans *trans = info->trans;
+
+	/* Do not care yet about other switch chips of the fabric */
+	if (ds->index != info->sw_index)
+		return 0;
+
+	if (switchdev_trans_ph_prepare(trans)) {
+		if (!ds->ops->port_mdb_prepare || !ds->ops->port_mdb_add)
+			return -EOPNOTSUPP;
+
+		return ds->ops->port_mdb_prepare(ds, info->port, mdb, trans);
+	}
+
+	ds->ops->port_mdb_add(ds, info->port, mdb, trans);
+
+	return 0;
+}
+
+static int dsa_switch_mdb_del(struct dsa_switch *ds,
+			      struct dsa_notifier_mdb_info *info)
+{
+	const struct switchdev_obj_port_mdb *mdb = info->mdb;
+
+	/* Do not care yet about other switch chips of the fabric */
+	if (ds->index != info->sw_index)
+		return 0;
+
+	if (!ds->ops->port_mdb_del)
+		return -EOPNOTSUPP;
+
+	return ds->ops->port_mdb_del(ds, info->port, mdb);
+}
+
 static int dsa_switch_event(struct notifier_block *nb,
 			    unsigned long event, void *info)
 {
@@ -142,6 +179,12 @@ static int dsa_switch_event(struct notifier_block *nb,
 		break;
 	case DSA_NOTIFIER_FDB_DEL:
 		err = dsa_switch_fdb_del(ds, info);
+		break;
+	case DSA_NOTIFIER_MDB_ADD:
+		err = dsa_switch_mdb_add(ds, info);
+		break;
+	case DSA_NOTIFIER_MDB_DEL:
+		err = dsa_switch_mdb_del(ds, info);
 		break;
 	default:
 		err = -EOPNOTSUPP;
