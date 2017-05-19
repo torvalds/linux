@@ -1891,6 +1891,7 @@ enum ib_mad_result {
 };
 
 struct ib_port_cache {
+	u64		      subnet_prefix;
 	struct ib_pkey_cache  *pkey;
 	struct ib_gid_table   *gid;
 	u8                     lmc;
