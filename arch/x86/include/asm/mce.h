@@ -257,6 +257,7 @@ static inline void mce_amd_feature_init(struct cpuinfo_x86 *c) { }
 #endif
 
 int mce_available(struct cpuinfo_x86 *c);
+bool mce_is_memory_error(struct mce *m);
 
 DECLARE_PER_CPU(unsigned, mce_exception_count);
 DECLARE_PER_CPU(unsigned, mce_poll_count);
