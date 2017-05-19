@@ -244,9 +244,6 @@ static int efi_pstore_write(struct pstore_record *record)
 	efi_guid_t vendor = LINUX_EFI_CRASH_GUID;
 	int i, ret = 0;
 
-	record->time.tv_sec = get_seconds();
-	record->time.tv_nsec = 0;
-
 	record->id = generic_id(record->time.tv_sec, record->part,
 				record->count);
 

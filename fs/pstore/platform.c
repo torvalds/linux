@@ -480,6 +480,12 @@ void pstore_record_init(struct pstore_record *record,
 	memset(record, 0, sizeof(*record));
 
 	record->psi = psinfo;
+
+	/* Report zeroed timestamp if called before timekeeping has resumed. */
+	if (__getnstimeofday(&record->time)) {
+		record->time.tv_sec = 0;
+		record->time.tv_nsec = 0;
+	}
 }
 
 /*
