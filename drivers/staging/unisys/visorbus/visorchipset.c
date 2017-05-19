@@ -1179,15 +1179,15 @@ parahotplug_request_kickoff(struct parahotplug_request *req)
 		env_cmd, env_id, env_state, env_bus, env_dev, env_func, NULL
 	};
 
-	sprintf(env_cmd, "SPAR_PARAHOTPLUG=1");
-	sprintf(env_id, "SPAR_PARAHOTPLUG_ID=%d", req->id);
-	sprintf(env_state, "SPAR_PARAHOTPLUG_STATE=%d",
+	sprintf(env_cmd, "VISOR_PARAHOTPLUG=1");
+	sprintf(env_id, "VISOR_PARAHOTPLUG_ID=%d", req->id);
+	sprintf(env_state, "VISOR_PARAHOTPLUG_STATE=%d",
 		cmd->device_change_state.state.active);
-	sprintf(env_bus, "SPAR_PARAHOTPLUG_BUS=%d",
+	sprintf(env_bus, "VISOR_PARAHOTPLUG_BUS=%d",
 		cmd->device_change_state.bus_no);
-	sprintf(env_dev, "SPAR_PARAHOTPLUG_DEVICE=%d",
+	sprintf(env_dev, "VISOR_PARAHOTPLUG_DEVICE=%d",
 		cmd->device_change_state.dev_no >> 3);
-	sprintf(env_func, "SPAR_PARAHOTPLUG_FUNCTION=%d",
+	sprintf(env_func, "VISOR_PARAHOTPLUG_FUNCTION=%d",
 		cmd->device_change_state.dev_no & 0x7);
 
 	return kobject_uevent_env(&chipset_dev->acpi_device->dev.kobj,
@@ -1820,7 +1820,7 @@ visorchipset_init(struct acpi_device *acpi_device)
 {
 	int err = -ENODEV;
 	u64 addr;
-	uuid_le uuid = SPAR_CONTROLVM_CHANNEL_PROTOCOL_UUID;
+	uuid_le uuid = VISOR_CONTROLVM_CHANNEL_UUID;
 	struct visorchannel *controlvm_channel;
 
 	chipset_dev = kzalloc(sizeof(*chipset_dev), GFP_KERNEL);
@@ -1848,7 +1848,7 @@ visorchipset_init(struct acpi_device *acpi_device)
 	if (err < 0)
 		goto error_destroy_channel;
 
-	if (!SPAR_CONTROLVM_CHANNEL_OK_CLIENT(
+	if (!VISOR_CONTROLVM_CHANNEL_OK_CLIENT(
 				visorchannel_get_header(controlvm_channel)))
 		goto error_delete_groups;
 

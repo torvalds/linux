@@ -19,12 +19,11 @@
 #include "channel.h"
 
 /* {2B3C2D10-7EF5-4ad8-B966-3448B7386B3D} */
-#define SPAR_CONTROLVM_CHANNEL_PROTOCOL_UUID \
+#define VISOR_CONTROLVM_CHANNEL_UUID \
 	UUID_LE(0x2b3c2d10, 0x7ef5, 0x4ad8, \
 		0xb9, 0x66, 0x34, 0x48, 0xb7, 0x38, 0x6b, 0x3d)
 
-#define ULTRA_CONTROLVM_CHANNEL_PROTOCOL_SIGNATURE \
-	ULTRA_CHANNEL_PROTOCOL_SIGNATURE
+#define VISOR_CONTROLVM_CHANNEL_SIGNATURE ULTRA_CHANNEL_PROTOCOL_SIGNATURE
 #define CONTROLVM_MESSAGE_MAX 64
 
 /* Must increment this whenever you insert or delete fields within
@@ -33,15 +32,15 @@
  * software.  Note that you can usually add fields to the END of the
  * channel struct withOUT needing to increment this.
  */
-#define ULTRA_CONTROLVM_CHANNEL_PROTOCOL_VERSIONID 1
+#define VISOR_CONTROLVM_CHANNEL_VERSIONID 1
 
-#define SPAR_CONTROLVM_CHANNEL_OK_CLIENT(ch) \
+#define VISOR_CONTROLVM_CHANNEL_OK_CLIENT(ch) \
 	(spar_check_channel(ch, \
-			    SPAR_CONTROLVM_CHANNEL_PROTOCOL_UUID, \
+			    VISOR_CONTROLVM_CHANNEL_UUID, \
 			    "controlvm", \
 			    sizeof(struct spar_controlvm_channel_protocol), \
-			    ULTRA_CONTROLVM_CHANNEL_PROTOCOL_VERSIONID, \
-			    ULTRA_CONTROLVM_CHANNEL_PROTOCOL_SIGNATURE))
+			    VISOR_CONTROLVM_CHANNEL_VERSIONID, \
+			    VISOR_CONTROLVM_CHANNEL_SIGNATURE))
 
 /* Defines for various channel queues */
 #define CONTROLVM_QUEUE_REQUEST	 0
@@ -371,7 +370,7 @@ struct spar_controlvm_channel_protocol {
 	u32 message_count;		/* CONTROLVM_MESSAGE_MAX */
 	u64 gp_smbios_table;		/* guest phys addr of SMBIOS tables */
 	u64 gp_physical_smbios_table;	/* guest phys addr of SMBIOS table  */
-	/* ULTRA_MAX_GUESTS_PER_SERVICE */
+	/* VISOR_MAX_GUESTS_PER_SERVICE */
 	char gp_reserved[2688];
 
 	/* guest physical address of EFI firmware image base  */
@@ -402,7 +401,7 @@ struct spar_controlvm_channel_protocol {
 	u32 installation_text_id;	/* Id of string to display */
 	/* Number of remaining installation  steps (for progress bars) */
 	u16 installation_remaining_steps;
-	/* ULTRA_TOOL_ACTIONS Installation Action field */
+	/* VISOR_TOOL_ACTIONS Installation Action field */
 	u8 tool_action;
 	u8 reserved;		/* alignment */
 	struct efi_spar_indication efi_spar_ind;
