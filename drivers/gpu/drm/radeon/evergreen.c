@@ -4467,17 +4467,8 @@ void evergreen_disable_interrupt_state(struct radeon_device *rdev)
 	WREG32(SRBM_INT_CNTL, 0);
 	for (i = 0; i < rdev->num_crtc; i++)
 		WREG32(INT_MASK + crtc_offsets[i], 0);
-
-	WREG32(GRPH_INT_CONTROL + EVERGREEN_CRTC0_REGISTER_OFFSET, 0);
-	WREG32(GRPH_INT_CONTROL + EVERGREEN_CRTC1_REGISTER_OFFSET, 0);
-	if (rdev->num_crtc >= 4) {
-		WREG32(GRPH_INT_CONTROL + EVERGREEN_CRTC2_REGISTER_OFFSET, 0);
-		WREG32(GRPH_INT_CONTROL + EVERGREEN_CRTC3_REGISTER_OFFSET, 0);
-	}
-	if (rdev->num_crtc >= 6) {
-		WREG32(GRPH_INT_CONTROL + EVERGREEN_CRTC4_REGISTER_OFFSET, 0);
-		WREG32(GRPH_INT_CONTROL + EVERGREEN_CRTC5_REGISTER_OFFSET, 0);
-	}
+	for (i = 0; i < rdev->num_crtc; i++)
+		WREG32(GRPH_INT_CONTROL + crtc_offsets[i], 0);
 
 	/* only one DAC on DCE5 */
 	if (!ASIC_IS_DCE5(rdev))
@@ -4581,22 +4572,8 @@ int evergreen_irq_set(struct radeon_device *rdev)
 		    atomic_read(&rdev->irq.pflip[i]), "vblank", i);
 	}
 
-	WREG32(GRPH_INT_CONTROL + EVERGREEN_CRTC0_REGISTER_OFFSET,
-	       GRPH_PFLIP_INT_MASK);
-	WREG32(GRPH_INT_CONTROL + EVERGREEN_CRTC1_REGISTER_OFFSET,
-	       GRPH_PFLIP_INT_MASK);
-	if (rdev->num_crtc >= 4) {
-		WREG32(GRPH_INT_CONTROL + EVERGREEN_CRTC2_REGISTER_OFFSET,
-		       GRPH_PFLIP_INT_MASK);
-		WREG32(GRPH_INT_CONTROL + EVERGREEN_CRTC3_REGISTER_OFFSET,
-		       GRPH_PFLIP_INT_MASK);
-	}
-	if (rdev->num_crtc >= 6) {
-		WREG32(GRPH_INT_CONTROL + EVERGREEN_CRTC4_REGISTER_OFFSET,
-		       GRPH_PFLIP_INT_MASK);
-		WREG32(GRPH_INT_CONTROL + EVERGREEN_CRTC5_REGISTER_OFFSET,
-		       GRPH_PFLIP_INT_MASK);
-	}
+	for (i = 0; i < rdev->num_crtc; i++)
+		WREG32(GRPH_INT_CONTROL + crtc_offsets[i], GRPH_PFLIP_INT_MASK);
 
 	for (i = 0; i < 6; i++) {
 		radeon_irq_kms_set_irq_n_enabled(
@@ -4626,68 +4603,34 @@ int evergreen_irq_set(struct radeon_device *rdev)
 /* Note that the order we write back regs here is important */
 static void evergreen_irq_ack(struct radeon_device *rdev)
 {
-	int i;
+	int i, j;
+	u32 *grph_int = rdev->irq.stat_regs.evergreen.grph_int;
 	u32 *disp_int = rdev->irq.stat_regs.evergreen.disp_int;
 	u32 *afmt_status = rdev->irq.stat_regs.evergreen.afmt_status;
 
 	for (i = 0; i < 6; i++) {
 		disp_int[i] = RREG32(evergreen_disp_int_status[i]);
 		afmt_status[i] = RREG32(AFMT_STATUS + crtc_offsets[i]);
+		if (i < rdev->num_crtc)
+			grph_int[i] = RREG32(GRPH_INT_STATUS + crtc_offsets[i]);
 	}
 
-	rdev->irq.stat_regs.evergreen.d1grph_int = RREG32(GRPH_INT_STATUS + EVERGREEN_CRTC0_REGISTER_OFFSET);
-	rdev->irq.stat_regs.evergreen.d2grph_int = RREG32(GRPH_INT_STATUS + EVERGREEN_CRTC1_REGISTER_OFFSET);
-	if (rdev->num_crtc >= 4) {
-		rdev->irq.stat_regs.evergreen.d3grph_int = RREG32(GRPH_INT_STATUS + EVERGREEN_CRTC2_REGISTER_OFFSET);
-		rdev->irq.stat_regs.evergreen.d4grph_int = RREG32(GRPH_INT_STATUS + EVERGREEN_CRTC3_REGISTER_OFFSET);
-	}
-	if (rdev->num_crtc >= 6) {
-		rdev->irq.stat_regs.evergreen.d5grph_int = RREG32(GRPH_INT_STATUS + EVERGREEN_CRTC4_REGISTER_OFFSET);
-		rdev->irq.stat_regs.evergreen.d6grph_int = RREG32(GRPH_INT_STATUS + EVERGREEN_CRTC5_REGISTER_OFFSET);
-	}
+	/* We write back each interrupt register in pairs of two */
+	for (i = 0; i < rdev->num_crtc; i += 2) {
+		for (j = i; j < (i + 2); j++) {
+			if (grph_int[j] & GRPH_PFLIP_INT_OCCURRED)
+				WREG32(GRPH_INT_STATUS + crtc_offsets[j],
+				       GRPH_PFLIP_INT_CLEAR);
+		}
 
-
-	if (rdev->irq.stat_regs.evergreen.d1grph_int & GRPH_PFLIP_INT_OCCURRED)
-		WREG32(GRPH_INT_STATUS + EVERGREEN_CRTC0_REGISTER_OFFSET, GRPH_PFLIP_INT_CLEAR);
-	if (rdev->irq.stat_regs.evergreen.d2grph_int & GRPH_PFLIP_INT_OCCURRED)
-		WREG32(GRPH_INT_STATUS + EVERGREEN_CRTC1_REGISTER_OFFSET, GRPH_PFLIP_INT_CLEAR);
-	if (disp_int[0] & LB_D1_VBLANK_INTERRUPT)
-		WREG32(VBLANK_STATUS + crtc_offsets[0], VBLANK_ACK);
-	if (disp_int[0] & LB_D1_VLINE_INTERRUPT)
-		WREG32(VLINE_STATUS + crtc_offsets[0], VLINE_ACK);
-	if (disp_int[1] & LB_D1_VBLANK_INTERRUPT)
-		WREG32(VBLANK_STATUS + crtc_offsets[1], VBLANK_ACK);
-	if (disp_int[1] & LB_D1_VLINE_INTERRUPT)
-		WREG32(VLINE_STATUS + crtc_offsets[1], VLINE_ACK);
-
-	if (rdev->num_crtc >= 4) {
-		if (rdev->irq.stat_regs.evergreen.d3grph_int & GRPH_PFLIP_INT_OCCURRED)
-			WREG32(GRPH_INT_STATUS + EVERGREEN_CRTC2_REGISTER_OFFSET, GRPH_PFLIP_INT_CLEAR);
-		if (rdev->irq.stat_regs.evergreen.d4grph_int & GRPH_PFLIP_INT_OCCURRED)
-			WREG32(GRPH_INT_STATUS + EVERGREEN_CRTC3_REGISTER_OFFSET, GRPH_PFLIP_INT_CLEAR);
-		if (disp_int[2] & LB_D1_VBLANK_INTERRUPT)
-			WREG32(VBLANK_STATUS + crtc_offsets[2], VBLANK_ACK);
-		if (disp_int[2] & LB_D1_VLINE_INTERRUPT)
-			WREG32(VLINE_STATUS + crtc_offsets[2], VLINE_ACK);
-		if (disp_int[3] & LB_D1_VBLANK_INTERRUPT)
-			WREG32(VBLANK_STATUS + crtc_offsets[3], VBLANK_ACK);
-		if (disp_int[3] & LB_D1_VLINE_INTERRUPT)
-			WREG32(VLINE_STATUS + crtc_offsets[3], VLINE_ACK);
-	}
-
-	if (rdev->num_crtc >= 6) {
-		if (rdev->irq.stat_regs.evergreen.d5grph_int & GRPH_PFLIP_INT_OCCURRED)
-			WREG32(GRPH_INT_STATUS + EVERGREEN_CRTC4_REGISTER_OFFSET, GRPH_PFLIP_INT_CLEAR);
-		if (rdev->irq.stat_regs.evergreen.d6grph_int & GRPH_PFLIP_INT_OCCURRED)
-			WREG32(GRPH_INT_STATUS + EVERGREEN_CRTC5_REGISTER_OFFSET, GRPH_PFLIP_INT_CLEAR);
-		if (disp_int[4] & LB_D1_VBLANK_INTERRUPT)
-			WREG32(VBLANK_STATUS + crtc_offsets[4], VBLANK_ACK);
-		if (disp_int[4] & LB_D1_VLINE_INTERRUPT)
-			WREG32(VLINE_STATUS + crtc_offsets[4], VLINE_ACK);
-		if (disp_int[5] & LB_D1_VBLANK_INTERRUPT)
-			WREG32(VBLANK_STATUS + crtc_offsets[5], VBLANK_ACK);
-		if (disp_int[5] & LB_D1_VLINE_INTERRUPT)
-			WREG32(VLINE_STATUS + crtc_offsets[5], VLINE_ACK);
+		for (j = i; j < (i + 2); j++) {
+			if (disp_int[j] & LB_D1_VBLANK_INTERRUPT)
+				WREG32(VBLANK_STATUS + crtc_offsets[j],
+				       VBLANK_ACK);
+			if (disp_int[j] & LB_D1_VLINE_INTERRUPT)
+				WREG32(VLINE_STATUS + crtc_offsets[j],
+				       VLINE_ACK);
+		}
 	}
 
 	for (i = 0; i < 6; i++) {

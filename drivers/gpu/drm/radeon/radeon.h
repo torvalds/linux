@@ -772,12 +772,7 @@ struct r600_irq_stat_regs {
 
 struct evergreen_irq_stat_regs {
 	u32 disp_int[6];
-	u32 d1grph_int;
-	u32 d2grph_int;
-	u32 d3grph_int;
-	u32 d4grph_int;
-	u32 d5grph_int;
-	u32 d6grph_int;
+	u32 grph_int[6];
 	u32 afmt_status[6];
 };
 
