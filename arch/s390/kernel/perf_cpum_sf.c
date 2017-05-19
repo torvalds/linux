@@ -351,22 +351,6 @@ static void sfb_init_allocs(unsigned long num, struct hw_perf_event *hwc)
 	sfb_account_allocs(num, hwc);
 }
 
-static size_t event_sample_size(struct hw_perf_event *hwc)
-{
-	struct sf_raw_sample *sfr = (struct sf_raw_sample *) RAWSAMPLE_REG(hwc);
-	size_t sample_size;
-
-	/* The sample size depends on the sampling function: The basic-sampling
-	 * function must be always enabled, diagnostic-sampling function is
-	 * optional.
-	 */
-	sample_size = sfr->bsdes;
-	if (SAMPL_DIAG_MODE(hwc))
-		sample_size += sfr->dsdes;
-
-	return sample_size;
-}
-
 static void deallocate_buffers(struct cpu_hw_sf *cpuhw)
 {
 	if (cpuhw->sfb.sdbt)
@@ -376,35 +360,7 @@ static void deallocate_buffers(struct cpu_hw_sf *cpuhw)
 static int allocate_buffers(struct cpu_hw_sf *cpuhw, struct hw_perf_event *hwc)
 {
 	unsigned long n_sdb, freq, factor;
-	size_t sfr_size, sample_size;
-	struct sf_raw_sample *sfr;
-
-	/* Allocate raw sample buffer
-	 *
-	 *    The raw sample buffer is used to temporarily store sampling data
-	 *    entries for perf raw sample processing.  The buffer size mainly
-	 *    depends on the size of diagnostic-sampling data entries which is
-	 *    machine-specific.  The exact size calculation includes:
-	 *	1. The first 4 bytes of diagnostic-sampling data entries are
-	 *	   already reflected in the sf_raw_sample structure.  Subtract
-	 *	   these bytes.
-	 *	2. The perf raw sample data must be 8-byte aligned (u64) and
-	 *	   perf's internal data size must be considered too.  So add
-	 *	   an additional u32 for correct alignment and subtract before
-	 *	   allocating the buffer.
-	 *	3. Store the raw sample buffer pointer in the perf event
-	 *	   hardware structure.
-	 */
-	sfr_size = ALIGN((sizeof(*sfr) - sizeof(sfr->diag) + cpuhw->qsi.dsdes) +
-			 sizeof(u32), sizeof(u64));
-	sfr_size -= sizeof(u32);
-	sfr = kzalloc(sfr_size, GFP_KERNEL);
-	if (!sfr)
-		return -ENOMEM;
-	sfr->size = sfr_size;
-	sfr->bsdes = cpuhw->qsi.bsdes;
-	sfr->dsdes = cpuhw->qsi.dsdes;
-	RAWSAMPLE_REG(hwc) = (unsigned long) sfr;
+	size_t sample_size;
 
 	/* Calculate sampling buffers using 4K pages
 	 *
@@ -430,7 +386,7 @@ static int allocate_buffers(struct cpu_hw_sf *cpuhw, struct hw_perf_event *hwc)
 	 *	 ensure a minimum of CPUM_SF_MIN_SDBT (one table can manage up
 	 *	 to 511 SDBs).
 	 */
-	sample_size = event_sample_size(hwc);
+	sample_size = sizeof(struct hws_basic_entry);
 	freq = sample_rate_to_freq(&cpuhw->qsi, SAMPL_RATE(hwc));
 	factor = 1;
 	n_sdb = DIV_ROUND_UP(freq, factor * ((PAGE_SIZE-64) / sample_size));
@@ -629,10 +585,6 @@ static int reserve_pmc_hardware(void)
 
 static void hw_perf_event_destroy(struct perf_event *event)
 {
-	/* Free raw sample buffer */
-	if (RAWSAMPLE_REG(&event->hw))
-		kfree((void *) RAWSAMPLE_REG(&event->hw));
-
 	/* Release PMC if this is the last perf event */
 	if (!atomic_add_unless(&num_events, -1, 1)) {
 		mutex_lock(&pmc_reserve_mutex);
@@ -652,15 +604,8 @@ static void hw_init_period(struct hw_perf_event *hwc, u64 period)
 static void hw_reset_registers(struct hw_perf_event *hwc,
 			       unsigned long *sdbt_origin)
 {
-	struct sf_raw_sample *sfr;
-
 	/* (Re)set to first sample-data-block-table */
 	TEAR_REG(hwc) = (unsigned long) sdbt_origin;
-
-	/* (Re)set raw sampling buffer register */
-	sfr = (struct sf_raw_sample *) RAWSAMPLE_REG(hwc);
-	memset(&sfr->basic, 0, sizeof(sfr->basic));
-	memset(&sfr->diag, 0, sfr->dsdes);
 }
 
 static unsigned long hw_limit_rate(const struct hws_qsi_info_block *si,
@@ -986,22 +931,16 @@ static int perf_exclude_event(struct perf_event *event, struct pt_regs *regs,
  *
  * Return non-zero if an event overflow occurred.
  */
-static int perf_push_sample(struct perf_event *event, struct sf_raw_sample *sfr)
+static int perf_push_sample(struct perf_event *event,
+			    struct hws_basic_entry *basic)
 {
 	int overflow;
 	struct pt_regs regs;
 	struct perf_sf_sde_regs *sde_regs;
 	struct perf_sample_data data;
-	struct perf_raw_record raw = {
-		.frag = {
-			.size = sfr->size,
-			.data = sfr,
-		},
-	};
 
 	/* Setup perf sample */
 	perf_sample_data_init(&data, 0, event->hw.last_period);
-	data.raw = &raw;
 
 	/* Setup pt_regs to look like an CPU-measurement external interrupt
 	 * using the Program Request Alert code.  The regs.int_parm_long
@@ -1013,11 +952,11 @@ static int perf_push_sample(struct perf_event *event, struct sf_raw_sample *sfr)
 	regs.int_parm = CPU_MF_INT_SF_PRA;
 	sde_regs = (struct perf_sf_sde_regs *) &regs.int_parm_long;
 
-	psw_bits(regs.psw).ia	= sfr->basic.ia;
-	psw_bits(regs.psw).dat	= sfr->basic.T;
-	psw_bits(regs.psw).wait = sfr->basic.W;
-	psw_bits(regs.psw).pstate = sfr->basic.P;
-	psw_bits(regs.psw).as	= sfr->basic.AS;
+	psw_bits(regs.psw).ia	= basic->ia;
+	psw_bits(regs.psw).dat	= basic->T;
+	psw_bits(regs.psw).wait = basic->W;
+	psw_bits(regs.psw).pstate = basic->P;
+	psw_bits(regs.psw).as	= basic->AS;
 
 	/*
 	 * Use the hardware provided configuration level to decide if the
@@ -1030,7 +969,7 @@ static int perf_push_sample(struct perf_event *event, struct sf_raw_sample *sfr)
 	 * If the value differs from 0xffff (the host value), we assume to
 	 * be a KVM guest.
 	 */
-	switch (sfr->basic.CL) {
+	switch (basic->CL) {
 	case 1: /* logical partition */
 		sde_regs->in_guest = 0;
 		break;
@@ -1038,7 +977,7 @@ static int perf_push_sample(struct perf_event *event, struct sf_raw_sample *sfr)
 		sde_regs->in_guest = 1;
 		break;
 	default: /* old machine, use heuristics */
-		if (sfr->basic.gpp || sfr->basic.prim_asn != 0xffff)
+		if (basic->gpp || basic->prim_asn != 0xffff)
 			sde_regs->in_guest = 1;
 		break;
 	}
@@ -1060,75 +999,12 @@ static void perf_event_count_update(struct perf_event *event, u64 count)
 	local64_add(count, &event->count);
 }
 
-static int sample_format_is_valid(struct hws_combined_entry *sample,
-				   unsigned int flags)
-{
-	if (likely(flags & PERF_CPUM_SF_BASIC_MODE))
-		/* Only basic-sampling data entries with data-entry-format
-		 * version of 0x0001 can be processed.
-		 */
-		if (sample->basic.def != 0x0001)
-			return 0;
-	if (flags & PERF_CPUM_SF_DIAG_MODE)
-		/* The data-entry-format number of diagnostic-sampling data
-		 * entries can vary.  Because diagnostic data is just passed
-		 * through, do only a sanity check on the DEF.
-		 */
-		if (sample->diag.def < 0x8001)
-			return 0;
-	return 1;
-}
-
-static int sample_is_consistent(struct hws_combined_entry *sample,
-				unsigned long flags)
-{
-	/* This check applies only to basic-sampling data entries of potentially
-	 * combined-sampling data entries.  Invalid entries cannot be processed
-	 * by the PMU and, thus, do not deliver an associated
-	 * diagnostic-sampling data entry.
-	 */
-	if (unlikely(!(flags & PERF_CPUM_SF_BASIC_MODE)))
-		return 0;
-	/*
-	 * Samples are skipped, if they are invalid or for which the
-	 * instruction address is not predictable, i.e., the wait-state bit is
-	 * set.
-	 */
-	if (sample->basic.I || sample->basic.W)
-		return 0;
-	return 1;
-}
-
-static void reset_sample_slot(struct hws_combined_entry *sample,
-			      unsigned long flags)
-{
-	if (likely(flags & PERF_CPUM_SF_BASIC_MODE))
-		sample->basic.def = 0;
-	if (flags & PERF_CPUM_SF_DIAG_MODE)
-		sample->diag.def = 0;
-}
-
-static void sfr_store_sample(struct sf_raw_sample *sfr,
-			     struct hws_combined_entry *sample)
-{
-	if (likely(sfr->format & PERF_CPUM_SF_BASIC_MODE))
-		sfr->basic = sample->basic;
-	if (sfr->format & PERF_CPUM_SF_DIAG_MODE)
-		memcpy(&sfr->diag, &sample->diag, sfr->dsdes);
-}
-
-static void debug_sample_entry(struct hws_combined_entry *sample,
-			       struct hws_trailer_entry *te,
-			       unsigned long flags)
+static void debug_sample_entry(struct hws_basic_entry *sample,
+			       struct hws_trailer_entry *te)
 {
 	debug_sprintf_event(sfdbg, 4, "hw_collect_samples: Found unknown "
-			    "sampling data entry: te->f=%i basic.def=%04x (%p)"
-			    " diag.def=%04x (%p)\n", te->f,
-			    sample->basic.def, &sample->basic,
-			    (flags & PERF_CPUM_SF_DIAG_MODE)
-					? sample->diag.def : 0xFFFF,
-			    (flags & PERF_CPUM_SF_DIAG_MODE)
-					?  &sample->diag : NULL);
+			    "sampling data entry: te->f=%i basic.def=%04x (%p)\n",
+			    te->f, sample->def, sample);
 }
 
 /* hw_collect_samples() - Walk through a sample-data-block and collect samples
@@ -1154,44 +1030,37 @@ static void debug_sample_entry(struct hws_combined_entry *sample,
 static void hw_collect_samples(struct perf_event *event, unsigned long *sdbt,
 			       unsigned long long *overflow)
 {
-	unsigned long flags = SAMPL_FLAGS(&event->hw);
-	struct hws_combined_entry *sample;
 	struct hws_trailer_entry *te;
-	struct sf_raw_sample *sfr;
-	size_t sample_size;
+	struct hws_basic_entry *sample;
 
-	/* Prepare and initialize raw sample data */
-	sfr = (struct sf_raw_sample *) RAWSAMPLE_REG(&event->hw);
-	sfr->format = flags & PERF_CPUM_SF_MODE_MASK;
-
-	sample_size = event_sample_size(&event->hw);
 	te = (struct hws_trailer_entry *) trailer_entry_ptr(*sdbt);
-	sample = (struct hws_combined_entry *) *sdbt;
+	sample = (struct hws_basic_entry *) *sdbt;
 	while ((unsigned long *) sample < (unsigned long *) te) {
 		/* Check for an empty sample */
-		if (!sample->basic.def)
+		if (!sample->def)
 			break;
 
 		/* Update perf event period */
 		perf_event_count_update(event, SAMPL_RATE(&event->hw));
 
-		/* Check sampling data entry */
-		if (sample_format_is_valid(sample, flags)) {
+		/* Check whether sample is valid */
+		if (sample->def == 0x0001) {
 			/* If an event overflow occurred, the PMU is stopped to
 			 * throttle event delivery.  Remaining sample data is
 			 * discarded.
 			 */
 			if (!*overflow) {
-				if (sample_is_consistent(sample, flags)) {
+				/* Check whether sample is consistent */
+				if (sample->I == 0 && sample->W == 0) {
 					/* Deliver sample data to perf */
-					sfr_store_sample(sfr, sample);
-					*overflow = perf_push_sample(event, sfr);
+					*overflow = perf_push_sample(event,
+								     sample);
 				}
 			} else
 				/* Count discarded samples */
 				*overflow += 1;
 		} else {
-			debug_sample_entry(sample, te, flags);
+			debug_sample_entry(sample, te);
 			/* Sample slot is not yet written or other record.
 			 *
 			 * This condition can occur if the buffer was reused
@@ -1207,8 +1076,8 @@ static void hw_collect_samples(struct perf_event *event, unsigned long *sdbt,
 		}
 
 		/* Reset sample slot and advance to next sample */
-		reset_sample_slot(sample, flags);
-		sample += sample_size;
+		sample->def = 0;
+		sample++;
 	}
 }
 
