@@ -679,7 +679,7 @@ config ARCH_DMA_ADDR_T_64BIT
 	bool
 
 config ARM_THUMB
-	bool "Support Thumb user binaries" if !CPU_THUMBONLY
+	bool "Support Thumb user binaries" if !CPU_THUMBONLY && EXPERT
 	depends on CPU_THUMB_CAPABLE
 	default y
 	help
@@ -689,6 +689,10 @@ config ARM_THUMB
 	  The Thumb instruction set is a compressed form of the standard ARM
 	  instruction set resulting in smaller binaries at the expense of
 	  slightly less efficient code.
+
+	  If this option is disabled, and you run userspace that switches to
+	  Thumb mode, signal handling will not work correctly, resulting in
+	  segmentation faults or illegal instruction aborts.
 
 	  If you don't know what this all is, saying Y is a safe choice.
 
