@@ -91,6 +91,7 @@
 #include "netif.h"
 #include "netnode.h"
 #include "netport.h"
+#include "ibpkey.h"
 #include "xfrm.h"
 #include "netlabel.h"
 #include "audit.h"
@@ -174,8 +175,10 @@ static int selinux_netcache_avc_callback(u32 event)
 
 static int selinux_lsm_notifier_avc_callback(u32 event)
 {
-	if (event == AVC_CALLBACK_RESET)
+	if (event == AVC_CALLBACK_RESET) {
+		sel_ib_pkey_flush();
 		call_lsm_notifier(LSM_POLICY_CHANGE, NULL);
+	}
 
 	return 0;
 }
@@ -6156,7 +6159,7 @@ static int selinux_ib_pkey_access(void *ib_sec, u64 subnet_prefix, u16 pkey_val)
 	struct ib_security_struct *sec = ib_sec;
 	struct lsm_ibpkey_audit ibpkey;
 
-	err = security_ib_pkey_sid(subnet_prefix, pkey_val, &sid);
+	err = sel_ib_pkey_sid(subnet_prefix, pkey_val, &sid);
 	if (err)
 		return err;
 
