@@ -630,9 +630,9 @@ visorbus_create(struct controlvm_message *inmsg)
 	}
 	bus_info->visorchannel = visorchannel;
 
-	/* Response will be handled by chipset_bus_create */
-	err = chipset_bus_create(bus_info);
-	/* If error chipset_bus_create didn't respond, need to respond here */
+	/* Response will be handled by visorchipset_bus_create */
+	err = visorchipset_bus_create(bus_info);
+	/* If visorchipset_bus_create didn't respond, need to respond here */
 	if (err)
 		goto err_destroy_channel;
 
@@ -688,8 +688,8 @@ visorbus_destroy(struct controlvm_message *inmsg)
 		bus_info->pending_msg_hdr = pmsg_hdr;
 	}
 
-	/* Response will be handled by chipset_bus_destroy */
-	chipset_bus_destroy(bus_info);
+	/* Response will be handled by visorchipset_bus_destroy */
+	visorchipset_bus_destroy(bus_info);
 	return 0;
 
 err_respond:
