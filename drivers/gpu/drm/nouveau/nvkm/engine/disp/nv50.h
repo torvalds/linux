@@ -12,6 +12,7 @@ struct nv50_disp {
 	const struct nv50_disp_func *func;
 	struct nvkm_disp base;
 
+	struct workqueue_struct *wq;
 	struct work_struct supervisor;
 	u32 super;
 

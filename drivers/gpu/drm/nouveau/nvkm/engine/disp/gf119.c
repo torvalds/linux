@@ -459,7 +459,7 @@ gf119_disp_intr(struct nv50_disp *disp)
 		u32 stat = nvkm_rd32(device, 0x6100ac);
 		if (stat & 0x00000007) {
 			disp->super = (stat & 0x00000007);
-			schedule_work(&disp->supervisor);
+			queue_work(disp->wq, &disp->supervisor);
 			nvkm_wr32(device, 0x6100ac, disp->super);
 			stat &= ~0x00000007;
 		}

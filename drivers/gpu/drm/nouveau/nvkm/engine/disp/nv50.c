@@ -111,6 +111,8 @@ nv50_disp_dtor_(struct nvkm_disp *base)
 {
 	struct nv50_disp *disp = nv50_disp(base);
 	nvkm_event_fini(&disp->uevent);
+	if (disp->wq)
+		destroy_workqueue(disp->wq);
 	return disp;
 }
 
@@ -136,13 +138,17 @@ nv50_disp_new_(const struct nv50_disp_func *func, struct nvkm_device *device,
 
 	if (!(disp = kzalloc(sizeof(*disp), GFP_KERNEL)))
 		return -ENOMEM;
-	INIT_WORK(&disp->supervisor, func->super);
 	disp->func = func;
 	*pdisp = &disp->base;
 
 	ret = nvkm_disp_ctor(&nv50_disp_, device, index, &disp->base);
 	if (ret)
 		return ret;
+
+	disp->wq = create_singlethread_workqueue("nvkm-disp");
+	if (!disp->wq)
+		return -ENOMEM;
+	INIT_WORK(&disp->supervisor, func->super);
 
 	for (i = 0; func->head.new && i < heads; i++) {
 		ret = func->head.new(&disp->base, i);
@@ -803,7 +809,7 @@ nv50_disp_intr(struct nv50_disp *disp)
 
 	if (intr1 & 0x00000070) {
 		disp->super = (intr1 & 0x00000070);
-		schedule_work(&disp->supervisor);
+		queue_work(disp->wq, &disp->supervisor);
 		nvkm_wr32(device, 0x610024, disp->super);
 	}
 }
