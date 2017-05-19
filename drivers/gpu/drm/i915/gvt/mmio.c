@@ -202,13 +202,6 @@ int intel_vgpu_emulate_mmio_read(struct intel_vgpu *vgpu, uint64_t pa,
 		if (!vgpu->mmio.disable_warn_untrack) {
 			gvt_vgpu_err("read untracked MMIO %x(%dB) val %x\n",
 				offset, bytes, *(u32 *)p_data);
-
-			if (offset == 0x206c) {
-				gvt_vgpu_err("------------------------------------------\n");
-				gvt_vgpu_err("likely triggers a gfx reset\n");
-				gvt_vgpu_err("------------------------------------------\n");
-				vgpu->mmio.disable_warn_untrack = true;
-			}
 		}
 	}
 

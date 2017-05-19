@@ -1409,6 +1409,15 @@ static int ring_timestamp_mmio_read(struct intel_vgpu *vgpu,
 	return intel_vgpu_default_mmio_read(vgpu, offset, p_data, bytes);
 }
 
+static int instdone_mmio_read(struct intel_vgpu *vgpu,
+		unsigned int offset, void *p_data, unsigned int bytes)
+{
+	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+
+	vgpu_vreg(vgpu, offset) = I915_READ(_MMIO(offset));
+	return intel_vgpu_default_mmio_read(vgpu, offset, p_data, bytes);
+}
+
 static int elsp_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
@@ -1592,6 +1601,12 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 #define RING_REG(base) (base + 0x134)
 	MMIO_RING_DFH(RING_REG, D_ALL, F_CMD_ACCESS, NULL, NULL);
 #undef RING_REG
+
+#define RING_REG(base) (base + 0x6c)
+	MMIO_RING_DFH(RING_REG, D_ALL, 0, instdone_mmio_read, NULL);
+	MMIO_DH(RING_REG(GEN8_BSD2_RING_BASE), D_ALL, instdone_mmio_read, NULL);
+#undef RING_REG
+	MMIO_DH(GEN7_SC_INSTDONE, D_HSW_PLUS, instdone_mmio_read, NULL);
 
 	MMIO_GM_RDR(0x2148, D_ALL, NULL, NULL);
 	MMIO_GM_RDR(CCID, D_ALL, NULL, NULL);
