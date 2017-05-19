@@ -157,7 +157,8 @@ static void transform_set_otg_blank(
 			OTG_V_BLANK_END, v_blank_end);
 }
 
-static enum dscl_mode_sel get_dscl_mode(const struct scaler_data *data)
+static enum dscl_mode_sel get_dscl_mode(
+		const struct scaler_data *data, bool dbg_always_scale)
 {
 	const long long one = dal_fixed31_32_one.value;
 	bool ycbcr = false;
@@ -177,7 +178,8 @@ static enum dscl_mode_sel get_dscl_mode(const struct scaler_data *data)
 	if (data->ratios.horz.value == one
 			&& data->ratios.vert.value == one
 			&& data->ratios.horz_c.value == one
-			&& data->ratios.vert_c.value == one)
+			&& data->ratios.vert_c.value == one
+			&& !dbg_always_scale)
 		return DSCL_MODE_SCALING_444_BYPASS;
 
 	if (!format420) {
@@ -603,7 +605,8 @@ void transform_set_scaler_auto_scale(
 {
 	enum lb_memory_config lb_config;
 	struct dcn10_transform *xfm = TO_DCN10_TRANSFORM(xfm_base);
-	enum dscl_mode_sel dscl_mode = get_dscl_mode(scl_data);
+	enum dscl_mode_sel dscl_mode = get_dscl_mode(
+			scl_data, xfm_base->ctx->dc->debug.always_scale);
 	bool ycbcr = scl_data->format >= PIXEL_FORMAT_VIDEO_BEGIN
 				&& scl_data->format <= PIXEL_FORMAT_VIDEO_END;
 
@@ -611,7 +614,7 @@ void transform_set_scaler_auto_scale(
 
 	transform_set_otg_blank(xfm, scl_data);
 
-	REG_UPDATE(SCL_MODE, DSCL_MODE, get_dscl_mode(scl_data));
+	REG_UPDATE(SCL_MODE, DSCL_MODE, dscl_mode);
 
 	transform_set_viewport(xfm, &scl_data->viewport, &scl_data->viewport_c);
 
@@ -740,7 +743,8 @@ static void transform_set_scaler_manual_scale(
 {
 	enum lb_memory_config lb_config;
 	struct dcn10_transform *xfm = TO_DCN10_TRANSFORM(xfm_base);
-	enum dscl_mode_sel dscl_mode = get_dscl_mode(scl_data);
+	enum dscl_mode_sel dscl_mode = get_dscl_mode(
+			scl_data, xfm_base->ctx->dc->debug.always_scale);
 	bool ycbcr = scl_data->format >= PIXEL_FORMAT_VIDEO_BEGIN
 				&& scl_data->format <= PIXEL_FORMAT_VIDEO_END;
 

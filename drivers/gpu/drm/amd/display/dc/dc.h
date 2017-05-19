@@ -181,6 +181,7 @@ struct dc_debug {
 	int urgent_latency_ns;
 	int percent_of_ideal_drambw;
 	int dram_clock_change_latency_ns;
+	int always_scale;
 #endif
 	bool disable_pplib_clock_request;
 	bool disable_clock_gate;
