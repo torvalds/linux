@@ -815,8 +815,10 @@ struct f2fs_io_info {
 	block_t old_blkaddr;	/* old block address before Cow */
 	struct page *page;	/* page to be written */
 	struct page *encrypted_page;	/* encrypted page */
+	struct list_head list;		/* serialize IOs */
 	bool submitted;		/* indicate IO submission */
 	int need_lock;		/* indicate we need to lock cp_rwsem */
+	bool in_list;		/* indicate fio is in io_list */
 };
 
 #define is_read_io(rw) ((rw) == READ)
@@ -826,6 +828,8 @@ struct f2fs_bio_info {
 	sector_t last_block_in_bio;	/* last block number */
 	struct f2fs_io_info fio;	/* store buffered io info. */
 	struct rw_semaphore io_rwsem;	/* blocking op for bio */
+	spinlock_t io_lock;		/* serialize DATA/NODE IOs */
+	struct list_head io_list;	/* track fios */
 };
 
 #define FDEV(i)				(sbi->devs[i])
@@ -2294,7 +2298,8 @@ void f2fs_replace_block(struct f2fs_sb_info *sbi, struct dnode_of_data *dn,
 			bool recover_newaddr);
 void allocate_data_block(struct f2fs_sb_info *sbi, struct page *page,
 			block_t old_blkaddr, block_t *new_blkaddr,
-			struct f2fs_summary *sum, int type);
+			struct f2fs_summary *sum, int type,
+			struct f2fs_io_info *fio, bool add_list);
 void f2fs_wait_on_page_writeback(struct page *page,
 			enum page_type type, bool ordered);
 void f2fs_wait_on_encrypted_page_writeback(struct f2fs_sb_info *sbi,

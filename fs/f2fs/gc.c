@@ -600,6 +600,7 @@ static void move_encrypted_block(struct inode *inode, block_t bidx,
 		.op = REQ_OP_READ,
 		.op_flags = 0,
 		.encrypted_page = NULL,
+		.in_list = false,
 	};
 	struct dnode_of_data dn;
 	struct f2fs_summary sum;
@@ -643,7 +644,7 @@ static void move_encrypted_block(struct inode *inode, block_t bidx,
 	fio.new_blkaddr = fio.old_blkaddr = dn.data_blkaddr;
 
 	allocate_data_block(fio.sbi, NULL, fio.old_blkaddr, &newaddr,
-							&sum, CURSEG_COLD_DATA);
+					&sum, CURSEG_COLD_DATA, NULL, false);
 
 	fio.encrypted_page = pagecache_get_page(META_MAPPING(fio.sbi), newaddr,
 					FGP_LOCK | FGP_CREAT, GFP_NOFS);

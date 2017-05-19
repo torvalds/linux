@@ -397,6 +397,20 @@ int f2fs_submit_page_write(struct f2fs_io_info *fio)
 
 	f2fs_bug_on(sbi, is_read_io(fio->op));
 
+	down_write(&io->io_rwsem);
+next:
+	if (fio->in_list) {
+		spin_lock(&io->io_lock);
+		if (list_empty(&io->io_list)) {
+			spin_unlock(&io->io_lock);
+			goto out_fail;
+		}
+		fio = list_first_entry(&io->io_list,
+						struct f2fs_io_info, list);
+		list_del(&fio->list);
+		spin_unlock(&io->io_lock);
+	}
+
 	if (fio->old_blkaddr != NEW_ADDR)
 		verify_block_addr(sbi, fio->old_blkaddr);
 	verify_block_addr(sbi, fio->new_blkaddr);
@@ -407,8 +421,6 @@ int f2fs_submit_page_write(struct f2fs_io_info *fio)
 	fio->submitted = 1;
 
 	inc_page_count(sbi, WB_DATA_TYPE(bio_page));
-
-	down_write(&io->io_rwsem);
 
 	if (io->bio && (io->last_block_in_bio != fio->new_blkaddr - 1 ||
 	    (io->fio.op != fio->op || io->fio.op_flags != fio->op_flags) ||
@@ -434,9 +446,13 @@ alloc_new:
 
 	io->last_block_in_bio = fio->new_blkaddr;
 	f2fs_trace_ios(fio, 0);
+
+	trace_f2fs_submit_page_write(fio->page, fio);
+
+	if (fio->in_list)
+		goto next;
 out_fail:
 	up_write(&io->io_rwsem);
-	trace_f2fs_submit_page_write(fio->page, fio);
 	return err;
 }
 
@@ -749,7 +765,7 @@ alloc:
 	set_summary(&sum, dn->nid, dn->ofs_in_node, ni.version);
 
 	allocate_data_block(sbi, NULL, dn->data_blkaddr, &dn->data_blkaddr,
-						&sum, CURSEG_WARM_DATA);
+					&sum, CURSEG_WARM_DATA, NULL, false);
 	set_data_blkaddr(dn);
 
 	/* update i_size */

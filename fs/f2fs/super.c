@@ -1983,6 +1983,8 @@ try_onemore:
 			init_rwsem(&sbi->write_io[i][j].io_rwsem);
 			sbi->write_io[i][j].sbi = sbi;
 			sbi->write_io[i][j].bio = NULL;
+			spin_lock_init(&sbi->write_io[i][j].io_lock);
+			INIT_LIST_HEAD(&sbi->write_io[i][j].io_list);
 		}
 	}
 
