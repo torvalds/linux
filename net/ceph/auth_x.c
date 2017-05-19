@@ -215,6 +215,9 @@ static int process_one_ticket(struct ceph_auth_client *ac,
 	dout(" ticket blob is %d bytes\n", dlen);
 	ceph_decode_need(ptp, tpend, 1 + sizeof(u64), bad);
 	blob_struct_v = ceph_decode_8(ptp);
+	if (blob_struct_v != 1)
+		goto bad;
+
 	new_secret_id = ceph_decode_64(ptp);
 	ret = ceph_decode_buffer(&new_ticket_blob, ptp, tpend);
 	if (ret)
