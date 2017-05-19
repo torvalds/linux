@@ -894,30 +894,9 @@ out:
 	return ret;
 }
 
-/* Process requests from the MMC layer */
-static void tmio_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
+static void tmio_process_mrq(struct tmio_mmc_host *host, struct mmc_request *mrq)
 {
-	struct tmio_mmc_host *host = mmc_priv(mmc);
-	unsigned long flags;
 	int ret;
-
-	spin_lock_irqsave(&host->lock, flags);
-
-	if (host->mrq) {
-		pr_debug("request not null\n");
-		if (IS_ERR(host->mrq)) {
-			spin_unlock_irqrestore(&host->lock, flags);
-			mrq->cmd->error = -EAGAIN;
-			mmc_request_done(mmc, mrq);
-			return;
-		}
-	}
-
-	host->last_req_ts = jiffies;
-	wmb();
-	host->mrq = mrq;
-
-	spin_unlock_irqrestore(&host->lock, flags);
 
 	if (mrq->data) {
 		ret = tmio_mmc_start_data(host, mrq->data);
@@ -937,7 +916,34 @@ fail:
 	host->force_pio = false;
 	host->mrq = NULL;
 	mrq->cmd->error = ret;
-	mmc_request_done(mmc, mrq);
+	mmc_request_done(host->mmc, mrq);
+}
+
+/* Process requests from the MMC layer */
+static void tmio_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
+{
+	struct tmio_mmc_host *host = mmc_priv(mmc);
+	unsigned long flags;
+
+	spin_lock_irqsave(&host->lock, flags);
+
+	if (host->mrq) {
+		pr_debug("request not null\n");
+		if (IS_ERR(host->mrq)) {
+			spin_unlock_irqrestore(&host->lock, flags);
+			mrq->cmd->error = -EAGAIN;
+			mmc_request_done(mmc, mrq);
+			return;
+		}
+	}
+
+	host->last_req_ts = jiffies;
+	wmb();
+	host->mrq = mrq;
+
+	spin_unlock_irqrestore(&host->lock, flags);
+
+	tmio_process_mrq(host, mrq);
 }
 
 static int tmio_mmc_clk_enable(struct tmio_mmc_host *host)
