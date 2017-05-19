@@ -2172,6 +2172,7 @@ void resource_build_info_frame(struct pipe_ctx *pipe_ctx)
 	info->avi.valid = false;
 	info->gamut.valid = false;
 	info->vendor.valid = false;
+	info->spd.valid = false;
 	info->hdrsmd.valid = false;
 	info->vsc.valid = false;
 
