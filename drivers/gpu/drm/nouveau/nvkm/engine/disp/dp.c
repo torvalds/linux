@@ -491,7 +491,13 @@ nvkm_dp_hpd(struct nvkm_notify *notify)
 	struct nvif_notify_conn_rep_v0 rep = {};
 
 	OUTP_DBG(&dp->outp, "HPD: %d", line->mask);
-	nvkm_dp_enable(dp, true);
+	if (line->mask & NVKM_I2C_IRQ) {
+		if (atomic_read(&dp->lt.done))
+			nvkm_output_dp_train(&dp->outp, 0);
+		rep.mask |= NVIF_NOTIFY_CONN_V0_IRQ;
+	} else {
+		nvkm_dp_enable(dp, true);
+	}
 
 	if (line->mask & NVKM_I2C_UNPLUG)
 		rep.mask |= NVIF_NOTIFY_CONN_V0_UNPLUG;
@@ -502,30 +508,11 @@ nvkm_dp_hpd(struct nvkm_notify *notify)
 	return NVKM_NOTIFY_KEEP;
 }
 
-static int
-nvkm_dp_irq(struct nvkm_notify *notify)
-{
-	const struct nvkm_i2c_ntfy_rep *line = notify->data;
-	struct nvkm_dp *dp = container_of(notify, typeof(*dp), irq);
-	struct nvkm_conn *conn = dp->outp.conn;
-	struct nvkm_disp *disp = dp->outp.disp;
-	struct nvif_notify_conn_rep_v0 rep = {
-		.mask = NVIF_NOTIFY_CONN_V0_IRQ,
-	};
-
-	OUTP_DBG(&dp->outp, "IRQ: %d", line->mask);
-	nvkm_output_dp_train(&dp->outp, 0);
-
-	nvkm_event_send(&disp->hpd, rep.mask, conn->index, &rep, sizeof(rep));
-	return NVKM_NOTIFY_KEEP;
-}
-
 static void
 nvkm_dp_fini(struct nvkm_outp *outp)
 {
 	struct nvkm_dp *dp = nvkm_dp(outp);
 	nvkm_notify_put(&dp->hpd);
-	nvkm_notify_put(&dp->irq);
 	nvkm_dp_enable(dp, false);
 }
 
@@ -535,7 +522,6 @@ nvkm_dp_init(struct nvkm_outp *outp)
 	struct nvkm_dp *dp = nvkm_dp(outp);
 	nvkm_notify_put(&dp->outp.conn->hpd);
 	nvkm_dp_enable(dp, true);
-	nvkm_notify_get(&dp->irq);
 	nvkm_notify_get(&dp->hpd);
 }
 
@@ -544,7 +530,6 @@ nvkm_dp_dtor(struct nvkm_outp *outp)
 {
 	struct nvkm_dp *dp = nvkm_dp(outp);
 	nvkm_notify_fini(&dp->hpd);
-	nvkm_notify_fini(&dp->irq);
 	return dp;
 }
 
@@ -588,27 +573,11 @@ nvkm_dp_ctor(struct nvkm_disp *disp, int index, struct dcb_output *dcbE,
 	OUTP_DBG(&dp->outp, "bios dp %02x %02x %02x %02x",
 		 dp->version, hdr, cnt, len);
 
-	/* link maintenance */
-	ret = nvkm_notify_init(NULL, &i2c->event, nvkm_dp_irq, true,
-			       &(struct nvkm_i2c_ntfy_req) {
-				.mask = NVKM_I2C_IRQ,
-				.port = dp->aux->id,
-			       },
-			       sizeof(struct nvkm_i2c_ntfy_req),
-			       sizeof(struct nvkm_i2c_ntfy_rep),
-			       &dp->irq);
-	if (ret) {
-		OUTP_ERR(&dp->outp, "error monitoring aux irq: %d", ret);
-		return ret;
-	}
-
-	mutex_init(&dp->mutex);
-	atomic_set(&dp->lt.done, 0);
-
 	/* hotplug detect, replaces gpio-based mechanism with aux events */
 	ret = nvkm_notify_init(NULL, &i2c->event, nvkm_dp_hpd, true,
 			       &(struct nvkm_i2c_ntfy_req) {
-				.mask = NVKM_I2C_PLUG | NVKM_I2C_UNPLUG,
+				.mask = NVKM_I2C_PLUG | NVKM_I2C_UNPLUG |
+					NVKM_I2C_IRQ,
 				.port = dp->aux->id,
 			       },
 			       sizeof(struct nvkm_i2c_ntfy_req),
@@ -619,6 +588,8 @@ nvkm_dp_ctor(struct nvkm_disp *disp, int index, struct dcb_output *dcbE,
 		return ret;
 	}
 
+	mutex_init(&dp->mutex);
+	atomic_set(&dp->lt.done, 0);
 	return 0;
 }
 

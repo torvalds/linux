@@ -19,7 +19,6 @@ struct nvkm_dp {
 
 	struct nvkm_i2c_aux *aux;
 
-	struct nvkm_notify irq;
 	struct nvkm_notify hpd;
 	bool present;
 	u8 dpcd[16];
