@@ -1366,7 +1366,7 @@ static enum mmc_blk_status mmc_blk_err_check(struct mmc_card *card,
 	struct mmc_queue_req *mq_mrq = container_of(areq, struct mmc_queue_req,
 						    areq);
 	struct mmc_blk_request *brq = &mq_mrq->brq;
-	struct request *req = mq_mrq->req;
+	struct request *req = mmc_queue_req_to_req(mq_mrq);
 	int need_retune = card->host->need_retune;
 	bool ecc_err = false;
 	bool gen_err = false;
@@ -1473,7 +1473,7 @@ static void mmc_blk_data_prep(struct mmc_queue *mq, struct mmc_queue_req *mqrq,
 	struct mmc_blk_data *md = mq->blkdata;
 	struct mmc_card *card = md->queue.card;
 	struct mmc_blk_request *brq = &mqrq->brq;
-	struct request *req = mqrq->req;
+	struct request *req = mmc_queue_req_to_req(mqrq);
 
 	/*
 	 * Reliable writes are used to implement Forced Unit Access and
@@ -1578,7 +1578,7 @@ static void mmc_blk_rw_rq_prep(struct mmc_queue_req *mqrq,
 {
 	u32 readcmd, writecmd;
 	struct mmc_blk_request *brq = &mqrq->brq;
-	struct request *req = mqrq->req;
+	struct request *req = mmc_queue_req_to_req(mqrq);
 	struct mmc_blk_data *md = mq->blkdata;
 	bool do_rel_wr, do_data_tag;
 
@@ -1760,7 +1760,7 @@ static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *new_req)
 		 */
 		mq_rq =	container_of(old_areq, struct mmc_queue_req, areq);
 		brq = &mq_rq->brq;
-		old_req = mq_rq->req;
+		old_req = mmc_queue_req_to_req(mq_rq);
 		type = rq_data_dir(old_req) == READ ? MMC_BLK_READ : MMC_BLK_WRITE;
 		mmc_queue_bounce_post(mq_rq);
 

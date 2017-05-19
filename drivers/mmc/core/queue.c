@@ -184,8 +184,6 @@ static int mmc_init_request(struct request_queue *q, struct request *req,
 	struct mmc_card *card = mq->card;
 	struct mmc_host *host = card->host;
 
-	mq_rq->req = req;
-
 	if (card->bouncesz) {
 		mq_rq->bounce_buf = kmalloc(card->bouncesz, gfp);
 		if (!mq_rq->bounce_buf)
@@ -223,8 +221,6 @@ static void mmc_exit_request(struct request_queue *q, struct request *req)
 
 	kfree(mq_rq->sg);
 	mq_rq->sg = NULL;
-
-	mq_rq->req = NULL;
 }
 
 /**
@@ -373,12 +369,13 @@ unsigned int mmc_queue_map_sg(struct mmc_queue *mq, struct mmc_queue_req *mqrq)
 	unsigned int sg_len;
 	size_t buflen;
 	struct scatterlist *sg;
+	struct request *req = mmc_queue_req_to_req(mqrq);
 	int i;
 
 	if (!mqrq->bounce_buf)
-		return blk_rq_map_sg(mq->queue, mqrq->req, mqrq->sg);
+		return blk_rq_map_sg(mq->queue, req, mqrq->sg);
 
-	sg_len = blk_rq_map_sg(mq->queue, mqrq->req, mqrq->bounce_sg);
+	sg_len = blk_rq_map_sg(mq->queue, req, mqrq->bounce_sg);
 
 	mqrq->bounce_sg_len = sg_len;
 
@@ -400,7 +397,7 @@ void mmc_queue_bounce_pre(struct mmc_queue_req *mqrq)
 	if (!mqrq->bounce_buf)
 		return;
 
-	if (rq_data_dir(mqrq->req) != WRITE)
+	if (rq_data_dir(mmc_queue_req_to_req(mqrq)) != WRITE)
 		return;
 
 	sg_copy_to_buffer(mqrq->bounce_sg, mqrq->bounce_sg_len,
@@ -416,7 +413,7 @@ void mmc_queue_bounce_post(struct mmc_queue_req *mqrq)
 	if (!mqrq->bounce_buf)
 		return;
 
-	if (rq_data_dir(mqrq->req) != READ)
+	if (rq_data_dir(mmc_queue_req_to_req(mqrq)) != READ)
 		return;
 
 	sg_copy_from_buffer(mqrq->bounce_sg, mqrq->bounce_sg_len,

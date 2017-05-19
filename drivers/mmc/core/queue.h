@@ -12,6 +12,13 @@ static inline struct mmc_queue_req *req_to_mmc_queue_req(struct request *rq)
 	return blk_mq_rq_to_pdu(rq);
 }
 
+struct mmc_queue_req;
+
+static inline struct request *mmc_queue_req_to_req(struct mmc_queue_req *mqr)
+{
+	return blk_mq_rq_from_pdu(mqr);
+}
+
 struct task_struct;
 struct mmc_blk_data;
 struct mmc_blk_ioc_data;
@@ -26,7 +33,6 @@ struct mmc_blk_request {
 };
 
 struct mmc_queue_req {
-	struct request		*req;
 	struct mmc_blk_request	brq;
 	struct scatterlist	*sg;
 	char			*bounce_buf;
