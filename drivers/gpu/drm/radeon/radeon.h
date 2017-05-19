@@ -778,12 +778,7 @@ struct evergreen_irq_stat_regs {
 	u32 d4grph_int;
 	u32 d5grph_int;
 	u32 d6grph_int;
-	u32 afmt_status1;
-	u32 afmt_status2;
-	u32 afmt_status3;
-	u32 afmt_status4;
-	u32 afmt_status5;
-	u32 afmt_status6;
+	u32 afmt_status[6];
 };
 
 struct cik_irq_stat_regs {
