@@ -48,7 +48,6 @@ gm200_sor_dp_drive(struct nvkm_ior *sor, int ln, int pc, int dc, int pe, int pu)
 
 static const struct nvkm_output_dp_func
 gm200_sor_dp_func = {
-	.vcpi = gf119_sor_dp_vcpi,
 };
 
 int
@@ -83,6 +82,7 @@ gm200_sor = {
 		.power = g94_sor_dp_power,
 		.pattern = gm107_sor_dp_pattern,
 		.drive = gm200_sor_dp_drive,
+		.vcpi = gf119_sor_dp_vcpi,
 		.audio = gf119_sor_dp_audio,
 	},
 	.hda = {

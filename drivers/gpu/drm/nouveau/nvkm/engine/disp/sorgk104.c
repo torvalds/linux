@@ -34,6 +34,7 @@ gk104_sor = {
 		.power = g94_sor_dp_power,
 		.pattern = gf119_sor_dp_pattern,
 		.drive = gf119_sor_dp_drive,
+		.vcpi = gf119_sor_dp_vcpi,
 		.audio = gf119_sor_dp_audio,
 	},
 	.hda = {

@@ -41,10 +41,10 @@ gf119_sor_dp_audio(struct nvkm_ior *sor, int head, bool enable)
 }
 
 void
-gf119_sor_dp_vcpi(struct nvkm_output_dp *outp, int head, u8 slot,
-		  u8 slot_nr, u16 pbn, u16 aligned)
+gf119_sor_dp_vcpi(struct nvkm_ior *sor, int head,
+		  u8 slot, u8 slot_nr, u16 pbn, u16 aligned)
 {
-	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
+	struct nvkm_device *device = sor->disp->engine.subdev.device;
 	const u32 hoff = head * 0x800;
 
 	nvkm_mask(device, 0x616588 + hoff, 0x00003f3f, (slot_nr << 8) | slot);
@@ -102,7 +102,6 @@ gf119_sor_dp_links(struct nvkm_ior *sor, struct nvkm_i2c_aux *aux)
 
 static const struct nvkm_output_dp_func
 gf119_sor_dp_func = {
-	.vcpi = gf119_sor_dp_vcpi,
 };
 
 int
@@ -147,6 +146,7 @@ gf119_sor = {
 		.links = gf119_sor_dp_links,
 		.power = g94_sor_dp_power,
 		.pattern = gf119_sor_dp_pattern,
+		.vcpi = gf119_sor_dp_vcpi,
 		.audio = gf119_sor_dp_audio,
 	},
 	.hda = {
