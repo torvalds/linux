@@ -64,6 +64,10 @@ struct imx_pinctrl_soc_info {
 	const char *gpr_compatible;
 	struct mutex mutex;
 
+	/* MUX_MODE shift and mask in case SHARE_MUX_CONF_REG */
+	unsigned int mux_mask;
+	u8 mux_shift;
+
 	/* generic pinconf */
 	bool generic_pinconf;
 	const struct pinconf_generic_params *custom_params;

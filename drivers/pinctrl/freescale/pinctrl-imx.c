@@ -197,8 +197,8 @@ static int imx_pmx_set(struct pinctrl_dev *pctldev, unsigned selector,
 		if (info->flags & SHARE_MUX_CONF_REG) {
 			u32 reg;
 			reg = readl(ipctl->base + pin_reg->mux_reg);
-			reg &= ~(0x7 << 20);
-			reg |= (pin->mux_mode << 20);
+			reg &= ~info->mux_mask;
+			reg |= (pin->mux_mode << info->mux_shift);
 			writel(reg, ipctl->base + pin_reg->mux_reg);
 			dev_dbg(ipctl->dev, "write: offset 0x%x val 0x%x\n",
 				pin_reg->mux_reg, reg);
@@ -290,7 +290,7 @@ static int imx_pmx_gpio_request_enable(struct pinctrl_dev *pctldev,
 
 mux_pin:
 	reg = readl(ipctl->base + pin_reg->mux_reg);
-	reg &= ~(0x7 << 20);
+	reg &= ~info->mux_mask;
 	reg |= imx_pin->config;
 	writel(reg, ipctl->base + pin_reg->mux_reg);
 
@@ -434,7 +434,7 @@ static int imx_pinconf_get(struct pinctrl_dev *pctldev,
 	*config = readl(ipctl->base + pin_reg->conf_reg);
 
 	if (info->flags & SHARE_MUX_CONF_REG)
-		*config &= 0xffff;
+		*config &= ~info->mux_mask;
 
 	return 0;
 }
@@ -461,7 +461,7 @@ static int imx_pinconf_set(struct pinctrl_dev *pctldev,
 		if (info->flags & SHARE_MUX_CONF_REG) {
 			u32 reg;
 			reg = readl(ipctl->base + pin_reg->conf_reg);
-			reg &= ~0xffff;
+			reg &= info->mux_mask;
 			reg |= configs[i];
 			writel(reg, ipctl->base + pin_reg->conf_reg);
 			dev_dbg(ipctl->dev, "write: offset 0x%x val 0x%x\n",
