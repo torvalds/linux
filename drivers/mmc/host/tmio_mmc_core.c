@@ -926,11 +926,12 @@ static void tmio_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	}
 
 	ret = tmio_mmc_start_command(host, mrq->cmd);
-	if (!ret) {
-		schedule_delayed_work(&host->delayed_reset_work,
-				      msecs_to_jiffies(CMDREQ_TIMEOUT));
-		return;
-	}
+	if (ret)
+		goto fail;
+
+	schedule_delayed_work(&host->delayed_reset_work,
+			      msecs_to_jiffies(CMDREQ_TIMEOUT));
+	return;
 
 fail:
 	host->force_pio = false;
