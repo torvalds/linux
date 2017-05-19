@@ -1202,7 +1202,7 @@ static int threshold_create_bank(unsigned int cpu, unsigned int bank)
 				goto out;
 
 			per_cpu(threshold_banks, cpu)[bank] = b;
-			atomic_inc(&b->cpus);
+			refcount_inc(&b->cpus);
 
 			err = __threshold_add_blocks(b);
 
@@ -1225,7 +1225,7 @@ static int threshold_create_bank(unsigned int cpu, unsigned int bank)
 	per_cpu(threshold_banks, cpu)[bank] = b;
 
 	if (is_shared_bank(bank)) {
-		atomic_set(&b->cpus, 1);
+		refcount_set(&b->cpus, 1);
 
 		/* nb is already initialized, see above */
 		if (nb) {
@@ -1289,7 +1289,7 @@ static void threshold_remove_bank(unsigned int cpu, int bank)
 		goto free_out;
 
 	if (is_shared_bank(bank)) {
-		if (!atomic_dec_and_test(&b->cpus)) {
+		if (!refcount_dec_and_test(&b->cpus)) {
 			__threshold_remove_blocks(b);
 			per_cpu(threshold_banks, cpu)[bank] = NULL;
 			return;
