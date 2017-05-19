@@ -1701,6 +1701,18 @@ static void halbtc8723b1ant_monitor_bt_enable_disable(struct btc_coexist
  *	Non-Software Coex Mechanism start
  *
  *****************************************************/
+
+static void halbtc8723b1ant_action_bt_whck_test(struct btc_coexist *btcoexist)
+{
+	halbtc8723b1ant_power_save_state(btcoexist, BTC_PS_WIFI_NATIVE, 0x0,
+					 0x0);
+
+	halbtc8723b1ant_ps_tdma(btcoexist, NORMAL_EXEC, false, 8);
+	halbtc8723b1ant_set_ant_path(btcoexist, BTC_ANT_PATH_PTA, NORMAL_EXEC,
+				     false, false);
+	halbtc8723b1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 0);
+}
+
 static void halbtc8723b1ant_action_wifi_multiport(struct btc_coexist *btcoexist)
 {
 	halbtc8723b1ant_power_save_state(btcoexist, BTC_PS_WIFI_NATIVE,
@@ -2071,6 +2083,13 @@ static void halbtc8723b1ant_run_coexist_mechanism(struct btc_coexist *btcoexist)
 	if (coex_sta->under_ips) {
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 			 "[BTCoex], wifi is under IPS !!!\n");
+		return;
+	}
+
+	if (coex_sta->bt_whck_test) {
+		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+			 "[BTCoex], wifi is under IPS !!!\n");
+		halbtc8723b1ant_action_bt_whck_test(btcoexist);
 		return;
 	}
 
@@ -2882,6 +2901,12 @@ void ex_halbtc8723b1ant_bt_info_notify(struct btc_coexist *btcoexist,
 			RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 				 "0x%02x, ", tmp_buf[i]);
 	}
+
+	/* if 0xff, it means BT is under WHCK test */
+	if (bt_info == 0xff)
+		coex_sta->bt_whck_test = true;
+	else
+		coex_sta->bt_whck_test = false;
 
 	if (rsp_source != BT_INFO_SRC_8723B_1ANT_WIFI_FW) {
 		coex_sta->bt_retry_cnt = /* [3:0] */

@@ -162,6 +162,7 @@ struct coex_sta_8723b_1ant {
 	bool c2h_bt_info_req_sent;
 	u8 bt_info_c2h[BT_INFO_SRC_8723B_1ANT_MAX][10];
 	u32 bt_info_c2h_cnt[BT_INFO_SRC_8723B_1ANT_MAX];
+	bool bt_whck_test;
 	bool c2h_bt_inquiry_page;
 	bool c2h_bt_remote_name_req;
 	u8 bt_retry_cnt;
