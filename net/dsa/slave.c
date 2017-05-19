@@ -245,48 +245,6 @@ static int dsa_port_vlan_dump(struct dsa_port *dp,
 	return -EOPNOTSUPP;
 }
 
-static int dsa_port_fdb_add(struct dsa_port *dp,
-			    const struct switchdev_obj_port_fdb *fdb,
-			    struct switchdev_trans *trans)
-{
-	struct dsa_switch *ds = dp->ds;
-
-	if (switchdev_trans_ph_prepare(trans)) {
-		if (!ds->ops->port_fdb_prepare || !ds->ops->port_fdb_add)
-			return -EOPNOTSUPP;
-
-		return ds->ops->port_fdb_prepare(ds, dp->index, fdb, trans);
-	}
-
-	ds->ops->port_fdb_add(ds, dp->index, fdb, trans);
-
-	return 0;
-}
-
-static int dsa_port_fdb_del(struct dsa_port *dp,
-			    const struct switchdev_obj_port_fdb *fdb)
-{
-	struct dsa_switch *ds = dp->ds;
-	int ret = -EOPNOTSUPP;
-
-	if (ds->ops->port_fdb_del)
-		ret = ds->ops->port_fdb_del(ds, dp->index, fdb);
-
-	return ret;
-}
-
-static int dsa_port_fdb_dump(struct dsa_port *dp,
-			     struct switchdev_obj_port_fdb *fdb,
-			     switchdev_obj_dump_cb_t *cb)
-{
-	struct dsa_switch *ds = dp->ds;
-
-	if (ds->ops->port_fdb_dump)
-		return ds->ops->port_fdb_dump(ds, dp->index, fdb, cb);
-
-	return -EOPNOTSUPP;
-}
-
 static int dsa_port_mdb_add(struct dsa_port *dp,
 			    const struct switchdev_obj_port_mdb *mdb,
 			    struct switchdev_trans *trans)

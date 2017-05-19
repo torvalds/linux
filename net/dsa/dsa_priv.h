@@ -70,6 +70,13 @@ int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
 			    struct switchdev_trans *trans);
 int dsa_port_ageing_time(struct dsa_port *dp, clock_t ageing_clock,
 			 struct switchdev_trans *trans);
+int dsa_port_fdb_add(struct dsa_port *dp,
+		     const struct switchdev_obj_port_fdb *fdb,
+		     struct switchdev_trans *trans);
+int dsa_port_fdb_del(struct dsa_port *dp,
+		     const struct switchdev_obj_port_fdb *fdb);
+int dsa_port_fdb_dump(struct dsa_port *dp, struct switchdev_obj_port_fdb *fdb,
+		      switchdev_obj_dump_cb_t *cb);
 
 /* slave.c */
 extern const struct dsa_device_ops notag_netdev_ops;
