@@ -1396,7 +1396,7 @@ static void auto_vdm_machine(struct fusb30x_chip *chip, int evt)
 
 static void fusb_state_disabled(struct fusb30x_chip *chip, int evt)
 {
-	platform_fusb_notify(chip);
+	/* Do nothing */
 }
 
 static void fusb_state_unattached(struct fusb30x_chip *chip, int evt)
@@ -1532,6 +1532,7 @@ static void fusb_state_src_startup(struct fusb30x_chip *chip, int evt)
 	tcpm_set_rx_enable(chip, 1);
 
 	set_state(chip, policy_src_send_caps);
+	platform_fusb_notify(chip);
 }
 
 static void fusb_state_src_discovery(struct fusb30x_chip *chip, int evt)
@@ -1877,6 +1878,7 @@ static void fusb_state_snk_startup(struct fusb30x_chip *chip, int evt)
 	tcpm_set_polarity(chip, chip->cc_polarity);
 	tcpm_set_rx_enable(chip, 1);
 	set_state(chip, policy_snk_discovery);
+	platform_fusb_notify(chip);
 }
 
 static void fusb_state_snk_discovery(struct fusb30x_chip *chip, int evt)
