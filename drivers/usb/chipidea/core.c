@@ -843,7 +843,10 @@ static ssize_t ci_role_show(struct device *dev, struct device_attribute *attr,
 {
 	struct ci_hdrc *ci = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%s\n", ci_role(ci)->name);
+	if (ci->role != CI_ROLE_END)
+		return sprintf(buf, "%s\n", ci_role(ci)->name);
+
+	return 0;
 }
 
 static ssize_t ci_role_store(struct device *dev,
