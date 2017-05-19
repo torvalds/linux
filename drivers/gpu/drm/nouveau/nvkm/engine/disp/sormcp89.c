@@ -25,6 +25,9 @@ static const struct nvkm_ior_func
 mcp89_sor = {
 	.state = g94_sor_state,
 	.power = nv50_sor_power,
+	.hdmi = {
+		.ctrl = gt215_hdmi_ctrl,
+	},
 };
 
 int

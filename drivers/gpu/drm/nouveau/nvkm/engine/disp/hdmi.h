@@ -1,6 +1,6 @@
 #ifndef __NVKM_DISP_HDMI_H__
 #define __NVKM_DISP_HDMI_H__
-#include "nv50.h"
+#include "ior.h"
 
 struct packed_hdmi_infoframe {
 	u32 header;

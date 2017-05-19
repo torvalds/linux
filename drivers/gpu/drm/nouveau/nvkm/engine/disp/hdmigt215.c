@@ -22,67 +22,34 @@
  * Authors: Ben Skeggs
  */
 #include "hdmi.h"
-#include "outp.h"
 
-#include <core/client.h>
-
-#include <nvif/cl5070.h>
-#include <nvif/unpack.h>
-
-int
-gt215_hdmi_ctrl(NV50_DISP_MTHD_V1)
+void
+gt215_hdmi_ctrl(struct nvkm_ior *ior, int head, bool enable, u8 max_ac_packet,
+		u8 rekey, u8 *avi, u8 avi_size, u8 *vendor, u8 vendor_size)
 {
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	const u32 soff = outp->or * 0x800;
-	union {
-		struct nv50_disp_sor_hdmi_pwr_v0 v0;
-	} *args = data;
+	struct nvkm_device *device = ior->disp->engine.subdev.device;
+	const u32 ctrl = 0x40000000 * enable |
+			 0x1f000000 /* ??? */ |
+			 max_ac_packet << 16 |
+			 rekey;
+	const u32 soff = nv50_ior_base(ior);
 	struct packed_hdmi_infoframe avi_infoframe;
 	struct packed_hdmi_infoframe vendor_infoframe;
-	u32 ctrl;
-	int ret = -ENOSYS;
 
-	nvif_ioctl(object, "disp sor hdmi ctrl size %d\n", size);
-	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
-		nvif_ioctl(object, "disp sor hdmi ctrl vers %d state %d "
-				   "max_ac_packet %d rekey %d\n",
-			   args->v0.version, args->v0.state,
-			   args->v0.max_ac_packet, args->v0.rekey);
-		if (args->v0.max_ac_packet > 0x1f || args->v0.rekey > 0x7f)
-			return -EINVAL;
-		ctrl  = 0x40000000 * !!args->v0.state;
-		ctrl |= args->v0.max_ac_packet << 16;
-		ctrl |= args->v0.rekey;
-		ctrl |= 0x1f000000; /* ??? */
-	} else
-		return ret;
-
-	if ((args->v0.avi_infoframe_length
-	     + args->v0.vendor_infoframe_length) > size)
-		return -ENOSYS;
-	else if ((args->v0.avi_infoframe_length
-		    + args->v0.vendor_infoframe_length) < size)
-		return -E2BIG;
-
-	pack_hdmi_infoframe(&avi_infoframe,
-			    data,
-			    args->v0.avi_infoframe_length);
-
-	pack_hdmi_infoframe(&vendor_infoframe,
-			    data + args->v0.avi_infoframe_length,
-			    args->v0.vendor_infoframe_length);
+	pack_hdmi_infoframe(&avi_infoframe, avi, avi_size);
+	pack_hdmi_infoframe(&vendor_infoframe, vendor, vendor_size);
 
 	if (!(ctrl & 0x40000000)) {
 		nvkm_mask(device, 0x61c5a4 + soff, 0x40000000, 0x00000000);
 		nvkm_mask(device, 0x61c53c + soff, 0x00000001, 0x00000000);
 		nvkm_mask(device, 0x61c520 + soff, 0x00000001, 0x00000000);
 		nvkm_mask(device, 0x61c500 + soff, 0x00000001, 0x00000000);
-		return 0;
+		return;
 	}
 
 	/* AVI InfoFrame */
 	nvkm_mask(device, 0x61c520 + soff, 0x00000001, 0x00000000);
-	if (args->v0.avi_infoframe_length) {
+	if (avi_size) {
 		nvkm_wr32(device, 0x61c528 + soff, avi_infoframe.header);
 		nvkm_wr32(device, 0x61c52c + soff, avi_infoframe.subpack0_low);
 		nvkm_wr32(device, 0x61c530 + soff, avi_infoframe.subpack0_high);
@@ -100,7 +67,7 @@ gt215_hdmi_ctrl(NV50_DISP_MTHD_V1)
 
 	/* Vendor InfoFrame */
 	nvkm_mask(device, 0x61c53c + soff, 0x00010001, 0x00010000);
-	if (args->v0.vendor_infoframe_length) {
+	if (vendor_size) {
 		nvkm_wr32(device, 0x61c544 + soff, vendor_infoframe.header);
 		nvkm_wr32(device, 0x61c548 + soff, vendor_infoframe.subpack0_low);
 		nvkm_wr32(device, 0x61c54c + soff, vendor_infoframe.subpack0_high);
@@ -121,5 +88,4 @@ gt215_hdmi_ctrl(NV50_DISP_MTHD_V1)
 
 	/* HDMI_CTRL */
 	nvkm_mask(device, 0x61c5a4 + soff, 0x5f1f007f, ctrl);
-	return 0;
 }

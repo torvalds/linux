@@ -157,6 +157,9 @@ static const struct nvkm_ior_func
 gf119_sor = {
 	.state = gf119_sor_state,
 	.power = nv50_sor_power,
+	.hdmi = {
+		.ctrl = gf119_hdmi_ctrl,
+	},
 };
 
 int

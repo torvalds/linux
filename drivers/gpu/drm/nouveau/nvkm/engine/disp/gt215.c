@@ -43,7 +43,6 @@ gt215_disp = {
 	.sor.nr = 4,
 	.sor.new = gt215_sor_new,
 	.sor.hda_eld = gt215_hda_eld,
-	.sor.hdmi = gt215_hdmi_ctrl,
 	.pior = { .nr = 3, .new = nv50_pior_new },
 };
 

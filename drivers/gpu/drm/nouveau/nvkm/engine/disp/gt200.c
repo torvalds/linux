@@ -39,9 +39,7 @@ gt200_disp = {
 	.outp.external.tmds = nv50_pior_output_new,
 	.outp.external.dp = nv50_pior_dp_new,
 	.dac = { .nr = 3, .new = nv50_dac_new },
-	.sor.nr = 2,
-	.sor.new = g84_sor_new,
-	.sor.hdmi = g84_hdmi_ctrl,
+	.sor = { .nr = 2, .new = g84_sor_new },
 	.pior = { .nr = 3, .new = nv50_pior_new },
 };
 

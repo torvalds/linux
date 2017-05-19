@@ -43,6 +43,12 @@ struct nvkm_ior_func {
 	void (*power)(struct nvkm_ior *, bool normal, bool pu,
 		      bool data, bool vsync, bool hsync);
 	int (*sense)(struct nvkm_ior *, u32 loadval);
+
+	struct {
+		void (*ctrl)(struct nvkm_ior *, int head, bool enable,
+			     u8 max_ac_packet, u8 rekey, u8 *avi, u8 avi_size,
+			     u8 *vendor, u8 vendor_size);
+	} hdmi;
 };
 
 int nvkm_ior_new_(const struct nvkm_ior_func *func, struct nvkm_disp *,
@@ -64,6 +70,11 @@ void nv50_sor_power(struct nvkm_ior *, bool, bool, bool, bool, bool);
 
 void g94_sor_state(struct nvkm_ior *, struct nvkm_ior_state *);
 void gf119_sor_state(struct nvkm_ior *, struct nvkm_ior_state *);
+
+void g84_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
+void gt215_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
+void gf119_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
+void gk104_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
 
 #define IOR_MSG(i,l,f,a...) do {                                               \
 	struct nvkm_ior *_ior = (i);                                           \

@@ -116,10 +116,46 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 		if (!func->sor.hda_eld)
 			return -ENODEV;
 		return func->sor.hda_eld(object, disp, data, size, hidx, outp);
-	case NV50_DISP_MTHD_V1_SOR_HDMI_PWR:
-		if (!func->sor.hdmi)
+	case NV50_DISP_MTHD_V1_SOR_HDMI_PWR: {
+		union {
+			struct nv50_disp_sor_hdmi_pwr_v0 v0;
+		} *args = data;
+		u8 *vendor, vendor_size;
+		u8 *avi, avi_size;
+		int ret = -ENOSYS;
+
+		nvif_ioctl(object, "disp sor hdmi ctrl size %d\n", size);
+		if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
+			nvif_ioctl(object, "disp sor hdmi ctrl vers %d state %d "
+					   "max_ac_packet %d rekey %d\n",
+				   args->v0.version, args->v0.state,
+				   args->v0.max_ac_packet, args->v0.rekey);
+			if (args->v0.max_ac_packet > 0x1f || args->v0.rekey > 0x7f)
+				return -EINVAL;
+			if ((args->v0.avi_infoframe_length
+			     + args->v0.vendor_infoframe_length) > size)
+				return -EINVAL;
+			else
+			if ((args->v0.avi_infoframe_length
+			     + args->v0.vendor_infoframe_length) < size)
+				return -E2BIG;
+			avi = data;
+			avi_size = args->v0.avi_infoframe_length;
+			vendor = avi + avi_size;
+			vendor_size = args->v0.vendor_infoframe_length;
+		} else
+			return ret;
+
+		if (!outp->ior->func->hdmi.ctrl)
 			return -ENODEV;
-		return func->sor.hdmi(object, disp, data, size, hidx, outp);
+
+		outp->ior->func->hdmi.ctrl(outp->ior, hidx, args->v0.state,
+					   args->v0.max_ac_packet,
+					   args->v0.rekey, avi, avi_size,
+					   vendor, vendor_size);
+		return 0;
+	}
+		break;
 	case NV50_DISP_MTHD_V1_SOR_LVDS_SCRIPT: {
 		union {
 			struct nv50_disp_sor_lvds_script_v0 v0;

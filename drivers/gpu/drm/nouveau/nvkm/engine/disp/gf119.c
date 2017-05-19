@@ -510,7 +510,6 @@ gf119_disp = {
 	.sor.nr = 4,
 	.sor.new = gf119_sor_new,
 	.sor.hda_eld = gf119_hda_eld,
-	.sor.hdmi = gf119_hdmi_ctrl,
 };
 
 int

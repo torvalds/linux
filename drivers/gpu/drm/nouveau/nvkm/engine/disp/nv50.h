@@ -34,11 +34,6 @@ void nv50_disp_super_1(struct nv50_disp *);
 int gt215_hda_eld(NV50_DISP_MTHD_V1);
 int gf119_hda_eld(NV50_DISP_MTHD_V1);
 
-int g84_hdmi_ctrl(NV50_DISP_MTHD_V1);
-int gt215_hdmi_ctrl(NV50_DISP_MTHD_V1);
-int gf119_hdmi_ctrl(NV50_DISP_MTHD_V1);
-int gk104_hdmi_ctrl(NV50_DISP_MTHD_V1);
-
 int nv50_disp_new_(const struct nv50_disp_func *, struct nvkm_device *,
 		   int index, int heads, struct nvkm_disp **);
 int gf119_disp_new_(const struct nv50_disp_func *, struct nvkm_device *,
@@ -84,7 +79,6 @@ struct nv50_disp_func {
 		int nr;
 		int (*new)(struct nvkm_disp *, int id);
 		int (*hda_eld)(NV50_DISP_MTHD_V1);
-		int (*hdmi)(NV50_DISP_MTHD_V1);
 		void (*magic)(struct nvkm_output *);
 	} sor;
 
