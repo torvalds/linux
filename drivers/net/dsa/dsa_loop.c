@@ -256,6 +256,9 @@ static int dsa_loop_drv_probe(struct mdio_device *mdiodev)
 		return -ENOMEM;
 
 	ps = devm_kzalloc(&mdiodev->dev, sizeof(*ps), GFP_KERNEL);
+	if (!ps)
+		return -ENOMEM;
+
 	ps->netdev = dev_get_by_name(&init_net, pdata->netdev);
 	if (!ps->netdev)
 		return -EPROBE_DEFER;

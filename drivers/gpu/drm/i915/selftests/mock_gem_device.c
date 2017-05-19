@@ -174,7 +174,7 @@ struct drm_i915_private *mock_gem_device(void)
 	i915->requests = KMEM_CACHE(mock_request,
 				    SLAB_HWCACHE_ALIGN |
 				    SLAB_RECLAIM_ACCOUNT |
-				    SLAB_DESTROY_BY_RCU);
+				    SLAB_TYPESAFE_BY_RCU);
 	if (!i915->requests)
 		goto err_vmas;
 

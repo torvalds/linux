@@ -7,7 +7,7 @@
 PHONY := __archpost
 __archpost:
 
-include include/config/auto.conf
+-include include/config/auto.conf
 include scripts/Kbuild.include
 
 quiet_cmd_relocs_check = CHKREL  $@

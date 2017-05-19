@@ -71,6 +71,8 @@
 #define HHI_GP0_PLL_CNTL2		0x44 /* 0x11 offset in data sheet */
 #define HHI_GP0_PLL_CNTL3		0x48 /* 0x12 offset in data sheet */
 #define HHI_GP0_PLL_CNTL4		0x4c /* 0x13 offset in data sheet */
+#define	HHI_GP0_PLL_CNTL5		0x50 /* 0x14 offset in data sheet */
+#define	HHI_GP0_PLL_CNTL1		0x58 /* 0x16 offset in data sheet */
 
 #define HHI_XTAL_DIVN_CNTL		0xbc /* 0x2f offset in data sheet */
 #define HHI_TIMER90K			0xec /* 0x3b offset in data sheet */
@@ -275,8 +277,15 @@
 #define CLKID_MALI_1_DIV	 104
 /* CLKID_MALI_1	*/
 /* CLKID_MALI	*/
+#define CLKID_CTS_AMCLK		  107
+#define CLKID_CTS_AMCLK_SEL	  108
+#define CLKID_CTS_AMCLK_DIV	  109
+#define CLKID_CTS_MCLK_I958	  110
+#define CLKID_CTS_MCLK_I958_SEL	  111
+#define CLKID_CTS_MCLK_I958_DIV	  112
+#define CLKID_CTS_I958		  113
 
-#define NR_CLKS			  107
+#define NR_CLKS			  114
 
 /* include the CLKIDs that have been made part of the stable DT binding */
 #include <dt-bindings/clock/gxbb-clkc.h>

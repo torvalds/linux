@@ -1460,6 +1460,7 @@ void qed_qm_init_pf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	params.is_first_pf = p_hwfn->first_on_engine;
 	params.num_pf_cids = iids.cids;
 	params.num_vf_cids = iids.vf_cids;
+	params.num_tids = iids.tids;
 	params.start_pq = qm_info->start_pq;
 	params.num_pf_pqs = qm_info->num_pqs - qm_info->num_vf_pqs;
 	params.num_vf_pqs = qm_info->num_vf_pqs;

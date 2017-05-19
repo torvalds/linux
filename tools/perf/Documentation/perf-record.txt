@@ -225,7 +225,7 @@ OPTIONS
 	the libunwind or libdw library) should be used instead.
 	Using the "lbr" method doesn't require any compiler options. It
 	will produce call graphs from the hardware LBR registers. The
-	main limition is that it is only available on new Intel
+	main limitation is that it is only available on new Intel
 	platforms, such as Haswell. It can only get user call chain. It
 	doesn't work with branch stack sampling at the same time.
 

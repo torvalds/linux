@@ -1085,6 +1085,16 @@ F: 	drivers/pinctrl/meson/
 F:	drivers/mmc/host/meson*
 N:	meson
 
+ARM/Amlogic Meson SoC CLOCK FRAMEWORK
+M:	Neil Armstrong <narmstrong@baylibre.com>
+M:	Jerome Brunet <jbrunet@baylibre.com>
+L:	linux-amlogic@lists.infradead.org
+S:	Maintained
+F:	drivers/clk/meson/
+F:	include/dt-bindings/clock/meson*
+F:	include/dt-bindings/clock/gxbb*
+F:	Documentation/devicetree/bindings/clock/amlogic*
+
 ARM/Annapurna Labs ALPINE ARCHITECTURE
 M:	Tsahee Zidenberg <tsahee@annapurnalabs.com>
 M:	Antoine Tenart <antoine.tenart@free-electrons.com>
@@ -2264,7 +2274,7 @@ M:	Wenyou Yang <wenyou.yang@atmel.com>
 M:	Josh Wu <rainyfeeling@outlook.com>
 L:	linux-mtd@lists.infradead.org
 S:	Supported
-F:	drivers/mtd/nand/atmel_nand*
+F:	drivers/mtd/nand/atmel/*
 
 ATMEL SDMMC DRIVER
 M:	Ludovic Desroches <ludovic.desroches@microchip.com>
@@ -2473,7 +2483,7 @@ S:	Maintained
 F:	drivers/net/ethernet/ec_bhf.c
 
 BFS FILE SYSTEM
-M:	"Tigran A. Aivazian" <tigran@aivazian.fsnet.co.uk>
+M:	"Tigran A. Aivazian" <aivazian.tigran@gmail.com>
 S:	Maintained
 F:	Documentation/filesystems/bfs.txt
 F:	fs/bfs/
@@ -2926,6 +2936,8 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mason/linux-btrfs.git
 S:	Maintained
 F:	Documentation/filesystems/btrfs.txt
 F:	fs/btrfs/
+F:	include/linux/btrfs*
+F:	include/uapi/linux/btrfs*
 
 BTTV VIDEO4LINUX DRIVER
 M:	Mauro Carvalho Chehab <mchehab@s-opensource.com>
@@ -5588,6 +5600,7 @@ L:	linux-pm@vger.kernel.org
 S:	Supported
 F:	drivers/base/power/domain*.c
 F:	include/linux/pm_domain.h
+F:	Documentation/devicetree/bindings/power/power_domain.txt
 
 GENERIC UIO DRIVER FOR PCI DEVICES
 M:	"Michael S. Tsirkin" <mst@redhat.com>
@@ -7910,7 +7923,7 @@ L:	linux-man@vger.kernel.org
 S:	Maintained
 
 MARDUK (CREATOR CI40) DEVICE TREE SUPPORT
-M:	Rahul Bedarkar <rahul.bedarkar@imgtec.com>
+M:	Rahul Bedarkar <rahulbedarkar89@gmail.com>
 L:	linux-mips@linux-mips.org
 S:	Maintained
 F:	arch/mips/boot/dts/img/pistachio_marduk.dts
@@ -8363,12 +8376,12 @@ M:	Brian Norris <computersforpeace@gmail.com>
 M:	Boris Brezillon <boris.brezillon@free-electrons.com>
 M:	Marek Vasut <marek.vasut@gmail.com>
 M:	Richard Weinberger <richard@nod.at>
-M:	Cyrille Pitchen <cyrille.pitchen@atmel.com>
+M:	Cyrille Pitchen <cyrille.pitchen@wedev4u.fr>
 L:	linux-mtd@lists.infradead.org
 W:	http://www.linux-mtd.infradead.org/
 Q:	http://patchwork.ozlabs.org/project/linux-mtd/list/
-T:	git git://git.infradead.org/linux-mtd.git
-T:	git git://git.infradead.org/l2-mtd.git
+T:	git git://git.infradead.org/linux-mtd.git master
+T:	git git://git.infradead.org/l2-mtd.git master
 S:	Maintained
 F:	Documentation/devicetree/bindings/mtd/
 F:	drivers/mtd/
@@ -8743,7 +8756,8 @@ R:	Richard Weinberger <richard@nod.at>
 L:	linux-mtd@lists.infradead.org
 W:	http://www.linux-mtd.infradead.org/
 Q:	http://patchwork.ozlabs.org/project/linux-mtd/list/
-T:	git git://github.com/linux-nand/linux.git
+T:	git git://git.infradead.org/linux-mtd.git nand/fixes
+T:	git git://git.infradead.org/l2-mtd.git nand/next
 S:	Maintained
 F:	drivers/mtd/nand/
 F:	include/linux/mtd/nand*.h
@@ -12100,7 +12114,7 @@ S:	Maintained
 F:	drivers/clk/spear/
 
 SPI NOR SUBSYSTEM
-M:	Cyrille Pitchen <cyrille.pitchen@atmel.com>
+M:	Cyrille Pitchen <cyrille.pitchen@wedev4u.fr>
 M:	Marek Vasut <marek.vasut@gmail.com>
 L:	linux-mtd@lists.infradead.org
 W:	http://www.linux-mtd.infradead.org/
@@ -13553,8 +13567,8 @@ F:	include/uapi/linux/virtio_*.h
 F:	drivers/crypto/virtio/
 
 VIRTIO DRIVERS FOR S390
-M:	Christian Borntraeger <borntraeger@de.ibm.com>
 M:	Cornelia Huck <cornelia.huck@de.ibm.com>
+M:	Halil Pasic <pasic@linux.vnet.ibm.com>
 L:	linux-s390@vger.kernel.org
 L:	virtualization@lists.linux-foundation.org
 L:	kvm@vger.kernel.org

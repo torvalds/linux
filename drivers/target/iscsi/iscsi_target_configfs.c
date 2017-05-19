@@ -1506,6 +1506,7 @@ static void lio_tpg_close_session(struct se_session *se_sess)
 		return;
 	}
 	atomic_set(&sess->session_reinstatement, 1);
+	atomic_set(&sess->session_fall_back_to_erl0, 1);
 	spin_unlock(&sess->conn_lock);
 
 	iscsit_stop_time2retain_timer(sess);

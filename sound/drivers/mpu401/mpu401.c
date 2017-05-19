@@ -53,9 +53,9 @@ MODULE_PARM_DESC(enable, "Enable MPU-401 device.");
 module_param_array(pnp, bool, NULL, 0444);
 MODULE_PARM_DESC(pnp, "PnP detection for MPU-401 device.");
 #endif
-module_param_array(port, long, NULL, 0444);
+module_param_hw_array(port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(port, "Port # for MPU-401 device.");
-module_param_array(irq, int, NULL, 0444);
+module_param_hw_array(irq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(irq, "IRQ # for MPU-401 device.");
 module_param_array(uart_enter, bool, NULL, 0444);
 MODULE_PARM_DESC(uart_enter, "Issue UART_ENTER command at open.");

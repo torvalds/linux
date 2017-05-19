@@ -12,6 +12,8 @@
 #include <linux/namei.h>
 #include <linux/xattr.h>
 #include <linux/ratelimit.h>
+#include <linux/mount.h>
+#include <linux/exportfs.h>
 #include "overlayfs.h"
 #include "ovl_entry.h"
 
@@ -79,6 +81,90 @@ fail:
 invalid:
 	pr_warn_ratelimited("overlayfs: invalid redirect (%s)\n", buf);
 	goto err_free;
+}
+
+static int ovl_acceptable(void *ctx, struct dentry *dentry)
+{
+	return 1;
+}
+
+static struct dentry *ovl_get_origin(struct dentry *dentry,
+				     struct vfsmount *mnt)
+{
+	int res;
+	struct ovl_fh *fh = NULL;
+	struct dentry *origin = NULL;
+	int bytes;
+
+	res = vfs_getxattr(dentry, OVL_XATTR_ORIGIN, NULL, 0);
+	if (res < 0) {
+		if (res == -ENODATA || res == -EOPNOTSUPP)
+			return NULL;
+		goto fail;
+	}
+	/* Zero size value means "copied up but origin unknown" */
+	if (res == 0)
+		return NULL;
+
+	fh  = kzalloc(res, GFP_TEMPORARY);
+	if (!fh)
+		return ERR_PTR(-ENOMEM);
+
+	res = vfs_getxattr(dentry, OVL_XATTR_ORIGIN, fh, res);
+	if (res < 0)
+		goto fail;
+
+	if (res < sizeof(struct ovl_fh) || res < fh->len)
+		goto invalid;
+
+	if (fh->magic != OVL_FH_MAGIC)
+		goto invalid;
+
+	/* Treat larger version and unknown flags as "origin unknown" */
+	if (fh->version > OVL_FH_VERSION || fh->flags & ~OVL_FH_FLAG_ALL)
+		goto out;
+
+	/* Treat endianness mismatch as "origin unknown" */
+	if (!(fh->flags & OVL_FH_FLAG_ANY_ENDIAN) &&
+	    (fh->flags & OVL_FH_FLAG_BIG_ENDIAN) != OVL_FH_FLAG_CPU_ENDIAN)
+		goto out;
+
+	bytes = (fh->len - offsetof(struct ovl_fh, fid));
+
+	/*
+	 * Make sure that the stored uuid matches the uuid of the lower
+	 * layer where file handle will be decoded.
+	 */
+	if (uuid_be_cmp(fh->uuid, *(uuid_be *) &mnt->mnt_sb->s_uuid))
+		goto out;
+
+	origin = exportfs_decode_fh(mnt, (struct fid *)fh->fid,
+				    bytes >> 2, (int)fh->type,
+				    ovl_acceptable, NULL);
+	if (IS_ERR(origin)) {
+		/* Treat stale file handle as "origin unknown" */
+		if (origin == ERR_PTR(-ESTALE))
+			origin = NULL;
+		goto out;
+	}
+
+	if (ovl_dentry_weird(origin) ||
+	    ((d_inode(origin)->i_mode ^ d_inode(dentry)->i_mode) & S_IFMT)) {
+		dput(origin);
+		origin = NULL;
+		goto invalid;
+	}
+
+out:
+	kfree(fh);
+	return origin;
+
+fail:
+	pr_warn_ratelimited("overlayfs: failed to get origin (%i)\n", res);
+	goto out;
+invalid:
+	pr_warn_ratelimited("overlayfs: invalid origin (%*phN)\n", res, fh);
+	goto out;
 }
 
 static bool ovl_is_opaquedir(struct dentry *dentry)
@@ -192,6 +278,45 @@ static int ovl_lookup_layer(struct dentry *base, struct ovl_lookup_data *d,
 	return 0;
 }
 
+
+static int ovl_check_origin(struct dentry *dentry, struct dentry *upperdentry,
+			    struct path **stackp, unsigned int *ctrp)
+{
+	struct super_block *same_sb = ovl_same_sb(dentry->d_sb);
+	struct ovl_entry *roe = dentry->d_sb->s_root->d_fsdata;
+	struct vfsmount *mnt;
+	struct dentry *origin;
+
+	if (!same_sb || !roe->numlower)
+		return 0;
+
+       /*
+	* Since all layers are on the same fs, we use the first layer for
+	* decoding the file handle.  We may get a disconnected dentry,
+	* which is fine, because we only need to hold the origin inode in
+	* cache and use its inode number.  We may even get a connected dentry,
+	* that is not under the first layer's root.  That is also fine for
+	* using it's inode number - it's the same as if we held a reference
+	* to a dentry in first layer that was moved under us.
+	*/
+	mnt = roe->lowerstack[0].mnt;
+
+	origin = ovl_get_origin(upperdentry, mnt);
+	if (IS_ERR_OR_NULL(origin))
+		return PTR_ERR(origin);
+
+	BUG_ON(*stackp || *ctrp);
+	*stackp = kmalloc(sizeof(struct path), GFP_TEMPORARY);
+	if (!*stackp) {
+		dput(origin);
+		return -ENOMEM;
+	}
+	**stackp = (struct path) { .dentry = origin, .mnt = mnt };
+	*ctrp = 1;
+
+	return 0;
+}
+
 /*
  * Returns next layer in stack starting from top.
  * Returns -1 if this is the last layer.
@@ -220,6 +345,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 	const struct cred *old_cred;
 	struct ovl_fs *ofs = dentry->d_sb->s_fs_info;
 	struct ovl_entry *poe = dentry->d_parent->d_fsdata;
+	struct ovl_entry *roe = dentry->d_sb->s_root->d_fsdata;
 	struct path *stack = NULL;
 	struct dentry *upperdir, *upperdentry = NULL;
 	unsigned int ctr = 0;
@@ -253,13 +379,20 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			err = -EREMOTE;
 			goto out;
 		}
+		if (upperdentry && !d.is_dir) {
+			BUG_ON(!d.stop || d.redirect);
+			err = ovl_check_origin(dentry, upperdentry,
+					       &stack, &ctr);
+			if (err)
+				goto out;
+		}
 
 		if (d.redirect) {
 			upperredirect = kstrdup(d.redirect, GFP_KERNEL);
 			if (!upperredirect)
 				goto out_put_upper;
 			if (d.redirect[0] == '/')
-				poe = dentry->d_sb->s_root->d_fsdata;
+				poe = roe;
 		}
 		upperopaque = d.opaque;
 	}
@@ -290,10 +423,8 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		if (d.stop)
 			break;
 
-		if (d.redirect &&
-		    d.redirect[0] == '/' &&
-		    poe != dentry->d_sb->s_root->d_fsdata) {
-			poe = dentry->d_sb->s_root->d_fsdata;
+		if (d.redirect && d.redirect[0] == '/' && poe != roe) {
+			poe = roe;
 
 			/* Find the current layer on the root dentry */
 			for (i = 0; i < poe->numlower; i++)

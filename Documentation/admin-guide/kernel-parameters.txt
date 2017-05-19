@@ -972,7 +972,7 @@
 			A valid base address must be provided, and the serial
 			port must already be setup and configured.
 
-		armada3700_uart,<addr>
+		ar3700_uart,<addr>
 			Start an early, polled-mode console on the
 			Armada 3700 serial port at the specified
 			address. The serial port must already be setup
@@ -1578,6 +1578,15 @@
 			extended tables themselves, and also PASID support. With
 			this option set, extended tables will not be used even
 			on hardware which claims to support them.
+		tboot_noforce [Default Off]
+			Do not force the Intel IOMMU enabled under tboot.
+			By default, tboot will force Intel IOMMU on, which
+			could harm performance of some high-throughput
+			devices like 40GBit network cards, even if identity
+			mapping is enabled.
+			Note that using this option lowers the security
+			provided by tboot because it makes the system
+			vulnerable to DMA attacks.
 
 	intel_idle.max_cstate=	[KNL,HW,ACPI,X86]
 			0	disables intel_idle and fall back on acpi_idle.
@@ -1644,6 +1653,12 @@
 		nobypass	[PPC/POWERNV]
 			Disable IOMMU bypass, using IOMMU for PCI devices.
 
+	iommu.passthrough=
+			[ARM64] Configure DMA to bypass the IOMMU by default.
+			Format: { "0" | "1" }
+			0 - Use IOMMU translation for DMA.
+			1 - Bypass the IOMMU for DMA.
+			unset - Use IOMMU translation for DMA.
 
 	io7=		[HW] IO7 for Marvel based alpha systems
 			See comment before marvel_specify_io7 in
@@ -2418,12 +2433,6 @@
 			clients using auth_sys, and will accept numeric uids
 			and gids from such clients.  This is intended to ease
 			migration from NFSv2/v3.
-
-	objlayoutdriver.osd_login_prog=
-			[NFS] [OBJLAYOUT] sets the pathname to the program which
-			is used to automatically discover and login into new
-			osd-targets. Please see:
-			Documentation/filesystems/pnfs.txt for more explanations
 
 	nmi_debug=	[KNL,SH] Specify one or more actions to take
 			when a NMI is triggered.
@@ -3784,6 +3793,14 @@
 	spia_fio_base=
 	spia_pedr=
 	spia_peddr=
+
+	srcutree.exp_holdoff [KNL]
+			Specifies how many nanoseconds must elapse
+			since the end of the last SRCU grace period for
+			a given srcu_struct until the next normal SRCU
+			grace period will be considered for automatic
+			expediting.  Set to zero to disable automatic
+			expediting.
 
 	stacktrace	[FTRACE]
 			Enabled the stack tracer on boot up.

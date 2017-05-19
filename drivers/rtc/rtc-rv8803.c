@@ -18,6 +18,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/rtc.h>
 
 #define RV8803_I2C_TRY_COUNT		4
@@ -556,7 +557,11 @@ static int rv8803_probe(struct i2c_client *client,
 
 	mutex_init(&rv8803->flags_lock);
 	rv8803->client = client;
-	rv8803->type = id->driver_data;
+	if (client->dev.of_node)
+		rv8803->type = (enum rv8803_type)
+			of_device_get_match_data(&client->dev);
+	else
+		rv8803->type = id->driver_data;
 	i2c_set_clientdata(client, rv8803);
 
 	flags = rv8803_read_reg(client, RV8803_FLAG);
@@ -627,9 +632,23 @@ static const struct i2c_device_id rv8803_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rv8803_id);
 
+static const struct of_device_id rv8803_of_match[] = {
+	{
+		.compatible = "microcrystal,rv8803",
+		.data = (void *)rx_8900
+	},
+	{
+		.compatible = "epson,rx8900",
+		.data = (void *)rx_8900
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, rv8803_of_match);
+
 static struct i2c_driver rv8803_driver = {
 	.driver = {
 		.name = "rtc-rv8803",
+		.of_match_table = of_match_ptr(rv8803_of_match),
 	},
 	.probe		= rv8803_probe,
 	.remove		= rv8803_remove,

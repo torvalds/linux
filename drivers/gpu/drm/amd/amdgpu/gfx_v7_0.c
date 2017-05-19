@@ -1935,7 +1935,7 @@ static void gfx_v7_0_gpu_init(struct amdgpu_device *adev)
 				   INDEX_STRIDE, 3);
 
 	mutex_lock(&adev->srbm_mutex);
-	for (i = 0; i < adev->vm_manager.num_ids; i++) {
+	for (i = 0; i < adev->vm_manager.id_mgr[0].num_ids; i++) {
 		if (i == 0)
 			sh_mem_base = 0;
 		else
@@ -2792,7 +2792,7 @@ static void gfx_v7_0_cp_compute_fini(struct amdgpu_device *adev)
 		struct amdgpu_ring *ring = &adev->gfx.compute_ring[i];
 
 		if (ring->mqd_obj) {
-			r = amdgpu_bo_reserve(ring->mqd_obj, false);
+			r = amdgpu_bo_reserve(ring->mqd_obj, true);
 			if (unlikely(r != 0))
 				dev_warn(adev->dev, "(%d) reserve MQD bo failed\n", r);
 
@@ -2810,7 +2810,7 @@ static void gfx_v7_0_mec_fini(struct amdgpu_device *adev)
 	int r;
 
 	if (adev->gfx.mec.hpd_eop_obj) {
-		r = amdgpu_bo_reserve(adev->gfx.mec.hpd_eop_obj, false);
+		r = amdgpu_bo_reserve(adev->gfx.mec.hpd_eop_obj, true);
 		if (unlikely(r != 0))
 			dev_warn(adev->dev, "(%d) reserve HPD EOP bo failed\n", r);
 		amdgpu_bo_unpin(adev->gfx.mec.hpd_eop_obj);
@@ -3359,7 +3359,7 @@ static void gfx_v7_0_rlc_fini(struct amdgpu_device *adev)
 
 	/* save restore block */
 	if (adev->gfx.rlc.save_restore_obj) {
-		r = amdgpu_bo_reserve(adev->gfx.rlc.save_restore_obj, false);
+		r = amdgpu_bo_reserve(adev->gfx.rlc.save_restore_obj, true);
 		if (unlikely(r != 0))
 			dev_warn(adev->dev, "(%d) reserve RLC sr bo failed\n", r);
 		amdgpu_bo_unpin(adev->gfx.rlc.save_restore_obj);
@@ -3371,7 +3371,7 @@ static void gfx_v7_0_rlc_fini(struct amdgpu_device *adev)
 
 	/* clear state block */
 	if (adev->gfx.rlc.clear_state_obj) {
-		r = amdgpu_bo_reserve(adev->gfx.rlc.clear_state_obj, false);
+		r = amdgpu_bo_reserve(adev->gfx.rlc.clear_state_obj, true);
 		if (unlikely(r != 0))
 			dev_warn(adev->dev, "(%d) reserve RLC c bo failed\n", r);
 		amdgpu_bo_unpin(adev->gfx.rlc.clear_state_obj);
@@ -3383,7 +3383,7 @@ static void gfx_v7_0_rlc_fini(struct amdgpu_device *adev)
 
 	/* clear state block */
 	if (adev->gfx.rlc.cp_table_obj) {
-		r = amdgpu_bo_reserve(adev->gfx.rlc.cp_table_obj, false);
+		r = amdgpu_bo_reserve(adev->gfx.rlc.cp_table_obj, true);
 		if (unlikely(r != 0))
 			dev_warn(adev->dev, "(%d) reserve RLC cp table bo failed\n", r);
 		amdgpu_bo_unpin(adev->gfx.rlc.cp_table_obj);

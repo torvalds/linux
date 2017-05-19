@@ -197,6 +197,7 @@ minix	MINIX Technology Ltd.
 miramems	MiraMEMS Sensing Technology Co., Ltd.
 mitsubishi	Mitsubishi Electric Corporation
 mosaixtech	Mosaix Technologies, Inc.
+motorola	Motorola, Inc.
 moxa	Moxa
 mpl	MPL AG
 mqmaker	mqmaker Inc.

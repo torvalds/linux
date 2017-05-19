@@ -314,52 +314,45 @@ int pp_atomfwctrl_get_avfs_information(struct pp_hwmgr *hwmgr,
 			le32_to_cpu(profile->gb_vdroop_table_ckson_a2);
 	param->ulGbFuseTableCksoffM1 =
 			le32_to_cpu(profile->avfsgb_fuse_table_cksoff_m1);
-	param->usGbFuseTableCksoffM2 =
+	param->ulGbFuseTableCksoffM2 =
 			le16_to_cpu(profile->avfsgb_fuse_table_cksoff_m2);
 	param->ulGbFuseTableCksoffB =
 			le32_to_cpu(profile->avfsgb_fuse_table_cksoff_b);
 	param->ulGbFuseTableCksonM1 =
 			le32_to_cpu(profile->avfsgb_fuse_table_ckson_m1);
-	param->usGbFuseTableCksonM2 =
+	param->ulGbFuseTableCksonM2 =
 			le16_to_cpu(profile->avfsgb_fuse_table_ckson_m2);
 	param->ulGbFuseTableCksonB =
 			le32_to_cpu(profile->avfsgb_fuse_table_ckson_b);
-	param->usMaxVoltage025mv =
-			le16_to_cpu(profile->max_voltage_0_25mv);
-	param->ucEnableGbVdroopTableCksoff =
-			profile->enable_gb_vdroop_table_cksoff;
+
 	param->ucEnableGbVdroopTableCkson =
 			profile->enable_gb_vdroop_table_ckson;
-	param->ucEnableGbFuseTableCksoff =
-			profile->enable_gb_fuse_table_cksoff;
 	param->ucEnableGbFuseTableCkson =
 			profile->enable_gb_fuse_table_ckson;
 	param->usPsmAgeComfactor =
 			le16_to_cpu(profile->psm_age_comfactor);
-	param->ucEnableApplyAvfsCksoffVoltage =
-			profile->enable_apply_avfs_cksoff_voltage;
 
 	param->ulDispclk2GfxclkM1 =
 			le32_to_cpu(profile->dispclk2gfxclk_a);
-	param->usDispclk2GfxclkM2 =
+	param->ulDispclk2GfxclkM2 =
 			le16_to_cpu(profile->dispclk2gfxclk_b);
 	param->ulDispclk2GfxclkB =
 			le32_to_cpu(profile->dispclk2gfxclk_c);
 	param->ulDcefclk2GfxclkM1 =
 			le32_to_cpu(profile->dcefclk2gfxclk_a);
-	param->usDcefclk2GfxclkM2 =
+	param->ulDcefclk2GfxclkM2 =
 			le16_to_cpu(profile->dcefclk2gfxclk_b);
 	param->ulDcefclk2GfxclkB =
 			le32_to_cpu(profile->dcefclk2gfxclk_c);
 	param->ulPixelclk2GfxclkM1 =
 			le32_to_cpu(profile->pixclk2gfxclk_a);
-	param->usPixelclk2GfxclkM2 =
+	param->ulPixelclk2GfxclkM2 =
 			le16_to_cpu(profile->pixclk2gfxclk_b);
 	param->ulPixelclk2GfxclkB =
 			le32_to_cpu(profile->pixclk2gfxclk_c);
 	param->ulPhyclk2GfxclkM1 =
 			le32_to_cpu(profile->phyclk2gfxclk_a);
-	param->usPhyclk2GfxclkM2 =
+	param->ulPhyclk2GfxclkM2 =
 			le16_to_cpu(profile->phyclk2gfxclk_b);
 	param->ulPhyclk2GfxclkB =
 			le32_to_cpu(profile->phyclk2gfxclk_c);
@@ -391,6 +384,34 @@ int pp_atomfwctrl_get_gpio_information(struct pp_hwmgr *hwmgr,
 	param->ucVR1HotPolarity = info->vr1hot_polarity;
 	param->ucFwCtfGpio      = info->fw_ctf_gpio_bit;
 	param->ucFwCtfPolarity  = info->fw_ctf_polarity;
+
+	return 0;
+}
+
+int pp_atomfwctrl_get_vbios_bootup_values(struct pp_hwmgr *hwmgr,
+			struct pp_atomfwctrl_bios_boot_up_values *boot_values)
+{
+	struct atom_firmware_info_v3_1 *info = NULL;
+	uint16_t ix;
+
+	ix = GetIndexIntoMasterDataTable(firmwareinfo);
+	info = (struct atom_firmware_info_v3_1 *)
+		cgs_atom_get_data_table(hwmgr->device,
+				ix, NULL, NULL, NULL);
+
+	if (!info) {
+		pr_info("Error retrieving BIOS firmwareinfo!");
+		return -EINVAL;
+	}
+
+	boot_values->ulRevision = info->firmware_revision;
+	boot_values->ulGfxClk   = info->bootup_sclk_in10khz;
+	boot_values->ulUClk     = info->bootup_mclk_in10khz;
+	boot_values->ulSocClk   = 0;
+	boot_values->usVddc     = info->bootup_vddc_mv;
+	boot_values->usVddci    = info->bootup_vddci_mv;
+	boot_values->usMvddc    = info->bootup_mvddc_mv;
+	boot_values->usVddGfx   = info->bootup_vddgfx_mv;
 
 	return 0;
 }

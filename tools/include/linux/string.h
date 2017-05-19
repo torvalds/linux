@@ -18,4 +18,6 @@ extern size_t strlcpy(char *dest, const char *src, size_t size);
 
 char *str_error_r(int errnum, char *buf, size_t buflen);
 
+int prefixcmp(const char *str, const char *prefix);
+
 #endif /* _LINUX_STRING_H_ */

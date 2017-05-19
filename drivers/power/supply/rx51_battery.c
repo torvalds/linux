@@ -23,7 +23,6 @@
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/slab.h>
-#include <linux/i2c/twl4030-madc.h>
 #include <linux/iio/consumer.h>
 #include <linux/of.h>
 

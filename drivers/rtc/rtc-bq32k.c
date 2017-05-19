@@ -310,9 +310,16 @@ static const struct i2c_device_id bq32k_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, bq32k_id);
 
+static const struct of_device_id bq32k_of_match[] = {
+	{ .compatible = "ti,bq32000" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, bq32k_of_match);
+
 static struct i2c_driver bq32k_driver = {
 	.driver = {
 		.name	= "bq32k",
+		.of_match_table = of_match_ptr(bq32k_of_match),
 	},
 	.probe		= bq32k_probe,
 	.remove		= bq32k_remove,

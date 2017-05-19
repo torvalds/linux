@@ -74,10 +74,10 @@ struct mtd_dev_param {
 };
 
 /* Numbers of elements set in the @mtd_dev_param array */
-static int __initdata mtd_devs;
+static int mtd_devs;
 
 /* MTD devices specification parameters */
-static struct mtd_dev_param __initdata mtd_dev_param[UBI_MAX_DEVICES];
+static struct mtd_dev_param mtd_dev_param[UBI_MAX_DEVICES];
 #ifdef CONFIG_MTD_UBI_FASTMAP
 /* UBI module parameter to enable fastmap automatically on non-fastmap images */
 static bool fm_autoconvert;
@@ -1294,7 +1294,7 @@ module_exit(ubi_exit);
  * This function returns positive resulting integer in case of success and a
  * negative error code in case of failure.
  */
-static int __init bytes_str_to_int(const char *str)
+static int bytes_str_to_int(const char *str)
 {
 	char *endp;
 	unsigned long result;
@@ -1332,7 +1332,7 @@ static int __init bytes_str_to_int(const char *str)
  * This function returns zero in case of success and a negative error code in
  * case of error.
  */
-static int __init ubi_mtd_param_parse(const char *val, struct kernel_param *kp)
+static int ubi_mtd_param_parse(const char *val, struct kernel_param *kp)
 {
 	int i, len;
 	struct mtd_dev_param *p;
@@ -1413,7 +1413,7 @@ static int __init ubi_mtd_param_parse(const char *val, struct kernel_param *kp)
 	return 0;
 }
 
-module_param_call(mtd, ubi_mtd_param_parse, NULL, NULL, 000);
+module_param_call(mtd, ubi_mtd_param_parse, NULL, NULL, 0400);
 MODULE_PARM_DESC(mtd, "MTD devices to attach. Parameter format: mtd=<name|num|path>[,<vid_hdr_offs>[,max_beb_per1024[,ubi_num]]].\n"
 		      "Multiple \"mtd\" parameters may be specified.\n"
 		      "MTD devices may be specified by their number, name, or path to the MTD character device node.\n"

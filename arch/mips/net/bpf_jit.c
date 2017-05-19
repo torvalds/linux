@@ -365,6 +365,12 @@ static inline void emit_half_load(unsigned int reg, unsigned int base,
 	emit_instr(ctx, lh, reg, offset, base);
 }
 
+static inline void emit_half_load_unsigned(unsigned int reg, unsigned int base,
+					   unsigned int offset, struct jit_ctx *ctx)
+{
+	emit_instr(ctx, lhu, reg, offset, base);
+}
+
 static inline void emit_mul(unsigned int dst, unsigned int src1,
 			    unsigned int src2, struct jit_ctx *ctx)
 {
@@ -526,7 +532,8 @@ static void save_bpf_jit_regs(struct jit_ctx *ctx, unsigned offset)
 	u32 sflags, tmp_flags;
 
 	/* Adjust the stack pointer */
-	emit_stack_offset(-align_sp(offset), ctx);
+	if (offset)
+		emit_stack_offset(-align_sp(offset), ctx);
 
 	tmp_flags = sflags = ctx->flags >> SEEN_SREG_SFT;
 	/* sflags is essentially a bitmap */
@@ -578,7 +585,8 @@ static void restore_bpf_jit_regs(struct jit_ctx *ctx,
 		emit_load_stack_reg(r_ra, r_sp, real_off, ctx);
 
 	/* Restore the sp and discard the scrach memory */
-	emit_stack_offset(align_sp(offset), ctx);
+	if (offset)
+		emit_stack_offset(align_sp(offset), ctx);
 }
 
 static unsigned int get_stack_depth(struct jit_ctx *ctx)
@@ -625,8 +633,14 @@ static void build_prologue(struct jit_ctx *ctx)
 	if (ctx->flags & SEEN_X)
 		emit_jit_reg_move(r_X, r_zero, ctx);
 
-	/* Do not leak kernel data to userspace */
-	if (bpf_needs_clear_a(&ctx->skf->insns[0]))
+	/*
+	 * Do not leak kernel data to userspace, we only need to clear
+	 * r_A if it is ever used.  In fact if it is never used, we
+	 * will not save/restore it, so clearing it in this case would
+	 * corrupt the state of the caller.
+	 */
+	if (bpf_needs_clear_a(&ctx->skf->insns[0]) &&
+	    (ctx->flags & SEEN_A))
 		emit_jit_reg_move(r_A, r_zero, ctx);
 }
 
@@ -1112,6 +1126,8 @@ jmp_cmp:
 			break;
 		case BPF_ANC | SKF_AD_IFINDEX:
 			/* A = skb->dev->ifindex */
+		case BPF_ANC | SKF_AD_HATYPE:
+			/* A = skb->dev->type */
 			ctx->flags |= SEEN_SKB | SEEN_A;
 			off = offsetof(struct sk_buff, dev);
 			/* Load *dev pointer */
@@ -1120,10 +1136,15 @@ jmp_cmp:
 			emit_bcond(MIPS_COND_EQ, r_s0, r_zero,
 				   b_imm(prog->len, ctx), ctx);
 			emit_reg_move(r_ret, r_zero, ctx);
-			BUILD_BUG_ON(FIELD_SIZEOF(struct net_device,
-						  ifindex) != 4);
-			off = offsetof(struct net_device, ifindex);
-			emit_load(r_A, r_s0, off, ctx);
+			if (code == (BPF_ANC | SKF_AD_IFINDEX)) {
+				BUILD_BUG_ON(FIELD_SIZEOF(struct net_device, ifindex) != 4);
+				off = offsetof(struct net_device, ifindex);
+				emit_load(r_A, r_s0, off, ctx);
+			} else { /* (code == (BPF_ANC | SKF_AD_HATYPE) */
+				BUILD_BUG_ON(FIELD_SIZEOF(struct net_device, type) != 2);
+				off = offsetof(struct net_device, type);
+				emit_half_load_unsigned(r_A, r_s0, off, ctx);
+			}
 			break;
 		case BPF_ANC | SKF_AD_MARK:
 			ctx->flags |= SEEN_SKB | SEEN_A;
@@ -1143,7 +1164,7 @@ jmp_cmp:
 			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff,
 						  vlan_tci) != 2);
 			off = offsetof(struct sk_buff, vlan_tci);
-			emit_half_load(r_s0, r_skb, off, ctx);
+			emit_half_load_unsigned(r_s0, r_skb, off, ctx);
 			if (code == (BPF_ANC | SKF_AD_VLAN_TAG)) {
 				emit_andi(r_A, r_s0, (u16)~VLAN_TAG_PRESENT, ctx);
 			} else {
@@ -1170,7 +1191,7 @@ jmp_cmp:
 			BUILD_BUG_ON(offsetof(struct sk_buff,
 					      queue_mapping) > 0xff);
 			off = offsetof(struct sk_buff, queue_mapping);
-			emit_half_load(r_A, r_skb, off, ctx);
+			emit_half_load_unsigned(r_A, r_skb, off, ctx);
 			break;
 		default:
 			pr_debug("%s: Unhandled opcode: 0x%02x\n", __FILE__,

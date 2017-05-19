@@ -39,6 +39,8 @@
 #ifndef __BNXT_RE_UVERBS_ABI_H__
 #define __BNXT_RE_UVERBS_ABI_H__
 
+#include <linux/types.h>
+
 #define BNXT_RE_ABI_VERSION	1
 
 struct bnxt_re_uctx_resp {

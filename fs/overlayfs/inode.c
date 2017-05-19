@@ -57,18 +57,78 @@ out:
 	return err;
 }
 
-static int ovl_getattr(const struct path *path, struct kstat *stat,
-		       u32 request_mask, unsigned int flags)
+int ovl_getattr(const struct path *path, struct kstat *stat,
+		u32 request_mask, unsigned int flags)
 {
 	struct dentry *dentry = path->dentry;
+	enum ovl_path_type type;
 	struct path realpath;
 	const struct cred *old_cred;
+	bool is_dir = S_ISDIR(dentry->d_inode->i_mode);
 	int err;
 
-	ovl_path_real(dentry, &realpath);
+	type = ovl_path_real(dentry, &realpath);
 	old_cred = ovl_override_creds(dentry->d_sb);
 	err = vfs_getattr(&realpath, stat, request_mask, flags);
+	if (err)
+		goto out;
+
+	/*
+	 * When all layers are on the same fs, all real inode number are
+	 * unique, so we use the overlay st_dev, which is friendly to du -x.
+	 *
+	 * We also use st_ino of the copy up origin, if we know it.
+	 * This guaranties constant st_dev/st_ino across copy up.
+	 *
+	 * If filesystem supports NFS export ops, this also guaranties
+	 * persistent st_ino across mount cycle.
+	 */
+	if (ovl_same_sb(dentry->d_sb)) {
+		if (OVL_TYPE_ORIGIN(type)) {
+			struct kstat lowerstat;
+			u32 lowermask = STATX_INO | (!is_dir ? STATX_NLINK : 0);
+
+			ovl_path_lower(dentry, &realpath);
+			err = vfs_getattr(&realpath, &lowerstat,
+					  lowermask, flags);
+			if (err)
+				goto out;
+
+			WARN_ON_ONCE(stat->dev != lowerstat.dev);
+			/*
+			 * Lower hardlinks are broken on copy up to different
+			 * upper files, so we cannot use the lower origin st_ino
+			 * for those different files, even for the same fs case.
+			 */
+			if (is_dir || lowerstat.nlink == 1)
+				stat->ino = lowerstat.ino;
+		}
+		stat->dev = dentry->d_sb->s_dev;
+	} else if (is_dir) {
+		/*
+		 * If not all layers are on the same fs the pair {real st_ino;
+		 * overlay st_dev} is not unique, so use the non persistent
+		 * overlay st_ino.
+		 *
+		 * Always use the overlay st_dev for directories, so 'find
+		 * -xdev' will scan the entire overlay mount and won't cross the
+		 * overlay mount boundaries.
+		 */
+		stat->dev = dentry->d_sb->s_dev;
+		stat->ino = dentry->d_inode->i_ino;
+	}
+
+	/*
+	 * It's probably not worth it to count subdirs to get the
+	 * correct link count.  nlink=1 seems to pacify 'find' and
+	 * other utilities.
+	 */
+	if (is_dir && OVL_TYPE_MERGE(type))
+		stat->nlink = 1;
+
+out:
 	revert_creds(old_cred);
+
 	return err;
 }
 
@@ -303,6 +363,41 @@ static const struct inode_operations ovl_symlink_inode_operations = {
 	.update_time	= ovl_update_time,
 };
 
+/*
+ * It is possible to stack overlayfs instance on top of another
+ * overlayfs instance as lower layer. We need to annonate the
+ * stackable i_mutex locks according to stack level of the super
+ * block instance. An overlayfs instance can never be in stack
+ * depth 0 (there is always a real fs below it).  An overlayfs
+ * inode lock will use the lockdep annotaion ovl_i_mutex_key[depth].
+ *
+ * For example, here is a snip from /proc/lockdep_chains after
+ * dir_iterate of nested overlayfs:
+ *
+ * [...] &ovl_i_mutex_dir_key[depth]   (stack_depth=2)
+ * [...] &ovl_i_mutex_dir_key[depth]#2 (stack_depth=1)
+ * [...] &type->i_mutex_dir_key        (stack_depth=0)
+ */
+#define OVL_MAX_NESTING FILESYSTEM_MAX_STACK_DEPTH
+
+static inline void ovl_lockdep_annotate_inode_mutex_key(struct inode *inode)
+{
+#ifdef CONFIG_LOCKDEP
+	static struct lock_class_key ovl_i_mutex_key[OVL_MAX_NESTING];
+	static struct lock_class_key ovl_i_mutex_dir_key[OVL_MAX_NESTING];
+
+	int depth = inode->i_sb->s_stack_depth - 1;
+
+	if (WARN_ON_ONCE(depth < 0 || depth >= OVL_MAX_NESTING))
+		depth = 0;
+
+	if (S_ISDIR(inode->i_mode))
+		lockdep_set_class(&inode->i_rwsem, &ovl_i_mutex_dir_key[depth]);
+	else
+		lockdep_set_class(&inode->i_rwsem, &ovl_i_mutex_key[depth]);
+#endif
+}
+
 static void ovl_fill_inode(struct inode *inode, umode_t mode, dev_t rdev)
 {
 	inode->i_ino = get_next_ino();
@@ -311,6 +406,8 @@ static void ovl_fill_inode(struct inode *inode, umode_t mode, dev_t rdev)
 #ifdef CONFIG_FS_POSIX_ACL
 	inode->i_acl = inode->i_default_acl = ACL_DONT_CACHE;
 #endif
+
+	ovl_lockdep_annotate_inode_mutex_key(inode);
 
 	switch (mode & S_IFMT) {
 	case S_IFREG:
