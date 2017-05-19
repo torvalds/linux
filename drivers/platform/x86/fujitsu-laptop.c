@@ -776,6 +776,7 @@ static int acpi_fujitsu_laptop_leds_register(struct acpi_device *device)
 
 static int acpi_fujitsu_laptop_add(struct acpi_device *device)
 {
+	struct fujitsu_laptop *priv;
 	int state = 0;
 	int error;
 	int i;
@@ -783,11 +784,16 @@ static int acpi_fujitsu_laptop_add(struct acpi_device *device)
 	if (!device)
 		return -EINVAL;
 
+	priv = devm_kzalloc(&device->dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	fujitsu_laptop = priv;
 	fujitsu_laptop->acpi_handle = device->handle;
 	sprintf(acpi_device_name(device), "%s",
 		ACPI_FUJITSU_LAPTOP_DEVICE_NAME);
 	sprintf(acpi_device_class(device), "%s", ACPI_FUJITSU_CLASS);
-	device->driver_data = fujitsu_laptop;
+	device->driver_data = priv;
 
 	/* kfifo */
 	spin_lock_init(&fujitsu_laptop->fifo_lock);
@@ -1014,22 +1020,14 @@ static int __init fujitsu_init(void)
 
 	/* Register laptop driver */
 
-	fujitsu_laptop = kzalloc(sizeof(struct fujitsu_laptop), GFP_KERNEL);
-	if (!fujitsu_laptop) {
-		ret = -ENOMEM;
-		goto err_unregister_platform_driver;
-	}
-
 	ret = acpi_bus_register_driver(&acpi_fujitsu_laptop_driver);
 	if (ret)
-		goto err_free_fujitsu_laptop;
+		goto err_unregister_platform_driver;
 
 	pr_info("driver " FUJITSU_DRIVER_VERSION " successfully loaded\n");
 
 	return 0;
 
-err_free_fujitsu_laptop:
-	kfree(fujitsu_laptop);
 err_unregister_platform_driver:
 	platform_driver_unregister(&fujitsu_pf_driver);
 err_unregister_acpi:
@@ -1041,8 +1039,6 @@ err_unregister_acpi:
 static void __exit fujitsu_cleanup(void)
 {
 	acpi_bus_unregister_driver(&acpi_fujitsu_laptop_driver);
-
-	kfree(fujitsu_laptop);
 
 	platform_driver_unregister(&fujitsu_pf_driver);
 
