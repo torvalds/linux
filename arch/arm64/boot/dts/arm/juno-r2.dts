@@ -281,3 +281,27 @@
 &stm_out_port {
 	remote-endpoint = <&csys1_funnel_in_port0>;
 };
+
+&cpu_debug0 {
+	cpu = <&A72_0>;
+};
+
+&cpu_debug1 {
+	cpu = <&A72_1>;
+};
+
+&cpu_debug2 {
+	cpu = <&A53_0>;
+};
+
+&cpu_debug3 {
+	cpu = <&A53_1>;
+};
+
+&cpu_debug4 {
+	cpu = <&A53_2>;
+};
+
+&cpu_debug5 {
+	cpu = <&A53_3>;
+};
