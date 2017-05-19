@@ -2245,6 +2245,13 @@ static int cxgb_open(struct net_device *dev)
 			return err;
 	}
 
+	/* It's possible that the basic port information could have
+	 * changed since we first read it.
+	 */
+	err = t4_update_port_info(pi);
+	if (err < 0)
+		return err;
+
 	err = link_start(dev);
 	if (!err)
 		netif_tx_start_all_queues(dev);
