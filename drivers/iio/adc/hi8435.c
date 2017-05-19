@@ -121,10 +121,21 @@ static int hi8435_write_event_config(struct iio_dev *idev,
 				     enum iio_event_direction dir, int state)
 {
 	struct hi8435_priv *priv = iio_priv(idev);
+	int ret;
+	u32 tmp;
 
-	priv->event_scan_mask &= ~BIT(chan->channel);
-	if (state)
+	if (state) {
+		ret = hi8435_readl(priv, HI8435_SO31_0_REG, &tmp);
+		if (ret < 0)
+			return ret;
+		if (tmp & BIT(chan->channel))
+			priv->event_prev_val |= BIT(chan->channel);
+		else
+			priv->event_prev_val &= ~BIT(chan->channel);
+
 		priv->event_scan_mask |= BIT(chan->channel);
+	} else
+		priv->event_scan_mask &= ~BIT(chan->channel);
 
 	return 0;
 }
