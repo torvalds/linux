@@ -282,7 +282,7 @@ i.e.:
 
 The visorinput driver registers with visorbus as the function driver to
 handle human input devices, specified using the
-SPAR_KEYBOARD_CHANNEL_PROTOCOL_UUID and SPAR_MOUSE_CHANNEL_PROTOCOL_UUID
+VISOR_KEYBOARD_CHANNEL_UUID and VISOR_MOUSE_CHANNEL_UUID
 types in the visorbus_register_visor_driver() call. visorinput uses
 input_register_device() to expose devices of class input
 (e.g., /sys/class/input/) for virtual keyboard and virtual mouse devices.
@@ -307,8 +307,8 @@ When compiled as a module, visorinput can be autoloaded by visorbus in
 standard udev/systemd environments, as it includes the modules.alias
 definition:
 
-    "visorbus:"+SPAR_MOUSE_CHANNEL_PROTOCOL_UUID_STR
-    "visorbus:"+SPAR_KEYBOARD_CHANNEL_PROTOCOL_UUID_STR
+    "visorbus:"+VISOR_MOUSE_CHANNEL_UUID_STR
+    "visorbus:"+VISOR_KEYBOARD_CHANNEL_UUID_STR
 
 i.e.:
 
