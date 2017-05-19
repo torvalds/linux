@@ -58,7 +58,13 @@ struct nvkm_ior_func {
 		void (*pattern)(struct nvkm_ior *, int pattern);
 		void (*drive)(struct nvkm_ior *, int ln, int pc,
 			      int dc, int pe, int tx_pu);
+		void (*audio)(struct nvkm_ior *, int head, bool enable);
 	} dp;
+
+	struct {
+		void (*hpd)(struct nvkm_ior *, int head, bool present);
+		void (*eld)(struct nvkm_ior *, u8 *data, u8 size);
+	} hda;
 };
 
 int nvkm_ior_new_(const struct nvkm_ior_func *func, struct nvkm_disp *,
@@ -90,10 +96,13 @@ void g94_sor_dp_power(struct nvkm_ior *, int);
 void g94_sor_dp_pattern(struct nvkm_ior *, int);
 void g94_sor_dp_drive(struct nvkm_ior *, int, int, int, int, int);
 
+void gt215_sor_dp_audio(struct nvkm_ior *, int, bool);
+
 void gf119_sor_state(struct nvkm_ior *, struct nvkm_ior_state *);
 int gf119_sor_dp_links(struct nvkm_ior *, struct nvkm_i2c_aux *);
 void gf119_sor_dp_pattern(struct nvkm_ior *, int);
 void gf119_sor_dp_drive(struct nvkm_ior *, int, int, int, int, int);
+void gf119_sor_dp_audio(struct nvkm_ior *, int, bool);
 
 void gm107_sor_dp_pattern(struct nvkm_ior *, int);
 
@@ -101,6 +110,12 @@ void g84_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
 void gt215_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
 void gf119_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
 void gk104_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
+
+void gt215_hda_hpd(struct nvkm_ior *, int, bool);
+void gt215_hda_eld(struct nvkm_ior *, u8 *, u8);
+
+void gf119_hda_hpd(struct nvkm_ior *, int, bool);
+void gf119_hda_eld(struct nvkm_ior *, u8 *, u8);
 
 #define IOR_MSG(i,l,f,a...) do {                                               \
 	struct nvkm_ior *_ior = (i);                                           \

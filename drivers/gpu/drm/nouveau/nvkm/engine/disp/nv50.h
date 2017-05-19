@@ -4,10 +4,6 @@
 #include "priv.h"
 #include "dp.h"
 
-#define NV50_DISP_MTHD_ struct nvkm_object *object,                            \
-	struct nv50_disp *disp, void *data, u32 size
-#define NV50_DISP_MTHD_V1 NV50_DISP_MTHD_, int head, struct nvkm_output *outp
-
 struct nv50_disp {
 	const struct nv50_disp_func *func;
 	struct nvkm_disp base;
@@ -30,9 +26,6 @@ struct nv50_disp {
 };
 
 void nv50_disp_super_1(struct nv50_disp *);
-
-int gt215_hda_eld(NV50_DISP_MTHD_V1);
-int gf119_hda_eld(NV50_DISP_MTHD_V1);
 
 int nv50_disp_new_(const struct nv50_disp_func *, struct nvkm_device *,
 		   int index, int heads, struct nvkm_disp **);
@@ -78,7 +71,6 @@ struct nv50_disp_func {
 	struct {
 		int nr;
 		int (*new)(struct nvkm_disp *, int id);
-		int (*hda_eld)(NV50_DISP_MTHD_V1);
 		void (*magic)(struct nvkm_output *);
 	} sor;
 

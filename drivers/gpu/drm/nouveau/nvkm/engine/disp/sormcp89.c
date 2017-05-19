@@ -34,6 +34,11 @@ mcp89_sor = {
 		.power = g94_sor_dp_power,
 		.pattern = g94_sor_dp_pattern,
 		.drive = g94_sor_dp_drive,
+		.audio = gt215_sor_dp_audio,
+	},
+	.hda = {
+		.hpd = gt215_hda_hpd,
+		.eld = gt215_hda_eld,
 	},
 };
 

@@ -24,6 +24,22 @@
 #include "ior.h"
 #include "nv50.h"
 
+#include <subdev/timer.h>
+
+void
+gf119_sor_dp_audio(struct nvkm_ior *sor, int head, bool enable)
+{
+	struct nvkm_device *device = sor->disp->engine.subdev.device;
+	const u32 hoff = 0x800 * head;
+	const u32 data = 0x80000000 | (0x00000001 * enable);
+	const u32 mask = 0x8000000d;
+	nvkm_mask(device, 0x616618 + hoff, mask, data);
+	nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x616618 + hoff) & 0x80000000))
+			break;
+	);
+}
+
 void
 gf119_sor_dp_vcpi(struct nvkm_output_dp *outp, int head, u8 slot,
 		  u8 slot_nr, u16 pbn, u16 aligned)
@@ -131,6 +147,11 @@ gf119_sor = {
 		.links = gf119_sor_dp_links,
 		.power = g94_sor_dp_power,
 		.pattern = gf119_sor_dp_pattern,
+		.audio = gf119_sor_dp_audio,
+	},
+	.hda = {
+		.hpd = gf119_hda_hpd,
+		.eld = gf119_hda_eld,
 	},
 };
 

@@ -39,9 +39,7 @@ gk104_disp = {
 	.outp.internal.lvds = nv50_sor_output_new,
 	.outp.internal.dp = gf119_sor_dp_new,
 	.dac = { .nr = 3, .new = gf119_dac_new },
-	.sor.nr = 4,
-	.sor.new = gk104_sor_new,
-	.sor.hda_eld = gf119_hda_eld,
+	.sor = { .nr = 4, .new = gk104_sor_new },
 };
 
 int

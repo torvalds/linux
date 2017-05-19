@@ -41,7 +41,6 @@ gm200_disp = {
 	.dac = { .nr = 3, .new = gf119_dac_new },
 	.sor.nr = 4,
 	.sor.new = gm200_sor_new,
-	.sor.hda_eld = gf119_hda_eld,
 	.sor.magic = gm200_sor_magic,
 };
 

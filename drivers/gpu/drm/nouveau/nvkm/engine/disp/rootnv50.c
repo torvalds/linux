@@ -43,7 +43,6 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 	} *args = data;
 	struct nv50_disp_root *root = nv50_disp_root(object);
 	struct nv50_disp *disp = root->disp;
-	const struct nv50_disp_func *func = disp->func;
 	struct nvkm_outp *temp, *outp = NULL;
 	struct nvkm_head *head;
 	u16 type, mask = 0;
@@ -112,10 +111,39 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 			return ret;
 	}
 		break;
-	case NV50_DISP_MTHD_V1_SOR_HDA_ELD:
-		if (!func->sor.hda_eld)
+	case NV50_DISP_MTHD_V1_SOR_HDA_ELD: {
+		union {
+			struct nv50_disp_sor_hda_eld_v0 v0;
+		} *args = data;
+		struct nvkm_ior *ior = outp->ior;
+		int ret = -ENOSYS;
+
+		nvif_ioctl(object, "disp sor hda eld size %d\n", size);
+		if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
+			nvif_ioctl(object, "disp sor hda eld vers %d\n",
+				   args->v0.version);
+			if (size > 0x60)
+				return -E2BIG;
+		} else
+			return ret;
+
+		if (!ior->func->hda.hpd)
 			return -ENODEV;
-		return func->sor.hda_eld(object, disp, data, size, hidx, outp);
+
+		if (size && args->v0.data[0]) {
+			if (outp->info.type == DCB_OUTPUT_DP)
+				ior->func->dp.audio(ior, hidx, true);
+			ior->func->hda.hpd(ior, hidx, true);
+			ior->func->hda.eld(ior, data, size);
+		} else {
+			if (outp->info.type == DCB_OUTPUT_DP)
+				ior->func->dp.audio(ior, hidx, false);
+			ior->func->hda.hpd(ior, hidx, false);
+		}
+
+		return 0;
+	}
+		break;
 	case NV50_DISP_MTHD_V1_SOR_HDMI_PWR: {
 		union {
 			struct nv50_disp_sor_hdmi_pwr_v0 v0;

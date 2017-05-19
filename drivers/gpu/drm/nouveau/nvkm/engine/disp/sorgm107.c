@@ -61,6 +61,11 @@ gm107_sor = {
 		.power = g94_sor_dp_power,
 		.pattern = gm107_sor_dp_pattern,
 		.drive = gf119_sor_dp_drive,
+		.audio = gf119_sor_dp_audio,
+	},
+	.hda = {
+		.hpd = gf119_hda_hpd,
+		.eld = gf119_hda_eld,
 	},
 };
 
