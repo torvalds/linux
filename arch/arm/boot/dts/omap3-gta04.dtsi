@@ -55,7 +55,8 @@
 		simple-audio-card,bitclock-master = <&telephony_link_master>;
 		simple-audio-card,frame-master = <&telephony_link_master>;
 		simple-audio-card,format = "i2s";
-
+		simple-audio-card,bitclock-inversion;
+		simple-audio-card,frame-inversion;
 		simple-audio-card,cpu {
 			sound-dai = <&mcbsp4>;
 		};
