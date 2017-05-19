@@ -395,7 +395,7 @@ controlvm_init_response(struct controlvm_message *msg,
 static int
 controlvm_respond_chipset_init(struct controlvm_message_header *msg_hdr,
 			       int response,
-			       enum ultra_chipset_feature features)
+			       enum visor_chipset_feature features)
 {
 	struct controlvm_message outmsg;
 
@@ -409,7 +409,7 @@ static int
 chipset_init(struct controlvm_message *inmsg)
 {
 	static int chipset_inited;
-	enum ultra_chipset_feature features = 0;
+	enum visor_chipset_feature features = 0;
 	int rc = CONTROLVM_RESP_SUCCESS;
 	int res = 0;
 
@@ -425,13 +425,13 @@ chipset_init(struct controlvm_message *inmsg)
 	 * also supports it).
 	 */
 	features = inmsg->cmd.init_chipset.features &
-		   ULTRA_CHIPSET_FEATURE_PARA_HOTPLUG;
+		   VISOR_CHIPSET_FEATURE_PARA_HOTPLUG;
 
 	/*
 	 * Set the "reply" bit so Command knows this is a
 	 * features-aware driver.
 	 */
-	features |= ULTRA_CHIPSET_FEATURE_REPLY;
+	features |= VISOR_CHIPSET_FEATURE_REPLY;
 
 out_respond:
 	if (inmsg->hdr.flags.response_expected)

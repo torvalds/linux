@@ -157,9 +157,9 @@ struct efi_visor_indication  {
 	u64 reserved:60;		/* Natural alignment */
 } __packed;
 
-enum ultra_chipset_feature {
-	ULTRA_CHIPSET_FEATURE_REPLY = 0x00000001,
-	ULTRA_CHIPSET_FEATURE_PARA_HOTPLUG = 0x00000002,
+enum visor_chipset_feature {
+	VISOR_CHIPSET_FEATURE_REPLY = 0x00000001,
+	VISOR_CHIPSET_FEATURE_PARA_HOTPLUG = 0x00000002,
 };
 
 /* This is the common structure that is at the beginning of every
@@ -325,7 +325,7 @@ struct controlvm_message_packet  {
 			u32 bus_count;
 			/* indicates the max number of switches */
 			u32 switch_count;
-			enum ultra_chipset_feature features;
+			enum visor_chipset_feature features;
 			u32 platform_number;	/* Platform Number */
 		} __packed init_chipset;	/* for CONTROLVM_CHIPSET_INIT */
 		struct  {
