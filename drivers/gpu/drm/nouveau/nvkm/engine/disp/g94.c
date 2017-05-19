@@ -32,7 +32,6 @@ g94_disp = {
 	.super = nv50_disp_super,
 	.root = &g94_disp_root_oclass,
 	.head.new = nv50_head_new,
-	.head.scanoutpos = nv50_disp_root_scanoutpos,
 	.outp.internal.crt = nv50_dac_output_new,
 	.outp.internal.tmds = nv50_sor_output_new,
 	.outp.internal.lvds = nv50_sor_output_new,

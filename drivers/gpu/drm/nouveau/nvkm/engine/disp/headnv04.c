@@ -37,8 +37,32 @@ nv04_head_vblank_get(struct nvkm_head *head)
 	nvkm_wr32(device, 0x600140 + (head->id * 0x2000) , 0x00000001);
 }
 
+static void
+nv04_head_rgpos(struct nvkm_head *head, u16 *hline, u16 *vline)
+{
+	struct nvkm_device *device = head->disp->engine.subdev.device;
+	u32 data = nvkm_rd32(device, 0x600868 + (head->id * 0x2000));
+	*hline = (data & 0xffff0000) >> 16;
+	*vline = (data & 0x0000ffff);
+}
+
+static void
+nv04_head_state(struct nvkm_head *head, struct nvkm_head_state *state)
+{
+	struct nvkm_device *device = head->disp->engine.subdev.device;
+	const u32 hoff = head->id * 0x0200;
+	state->vblanks = nvkm_rd32(device, 0x680800 + hoff) & 0x0000ffff;
+	state->vtotal  = nvkm_rd32(device, 0x680804 + hoff) & 0x0000ffff;
+	state->vblanke = state->vtotal - 1;
+	state->hblanks = nvkm_rd32(device, 0x680820 + hoff) & 0x0000ffff;
+	state->htotal  = nvkm_rd32(device, 0x680824 + hoff) & 0x0000ffff;
+	state->hblanke = state->htotal - 1;
+}
+
 static const struct nvkm_head_func
 nv04_head = {
+	.state = nv04_head_state,
+	.rgpos = nv04_head_rgpos,
 	.vblank_get = nv04_head_vblank_get,
 	.vblank_put = nv04_head_vblank_put,
 };

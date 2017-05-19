@@ -39,8 +39,31 @@ gf119_head_vblank_get(struct nvkm_head *head)
 	nvkm_mask(device, 0x6100c0 + hoff, 0x00000001, 0x00000001);
 }
 
+static void
+gf119_head_state(struct nvkm_head *head, struct nvkm_head_state *state)
+{
+	struct nvkm_device *device = head->disp->engine.subdev.device;
+	const u32 hoff = (state == &head->asy) * 0x20000 + head->id * 0x300;
+	u32 data;
+
+	data = nvkm_rd32(device, 0x640414 + hoff);
+	state->vtotal = (data & 0xffff0000) >> 16;
+	state->htotal = (data & 0x0000ffff);
+	data = nvkm_rd32(device, 0x640418 + hoff);
+	state->vsynce = (data & 0xffff0000) >> 16;
+	state->hsynce = (data & 0x0000ffff);
+	data = nvkm_rd32(device, 0x64041c + hoff);
+	state->vblanke = (data & 0xffff0000) >> 16;
+	state->hblanke = (data & 0x0000ffff);
+	data = nvkm_rd32(device, 0x640420 + hoff);
+	state->vblanks = (data & 0xffff0000) >> 16;
+	state->hblanks = (data & 0x0000ffff);
+}
+
 static const struct nvkm_head_func
 gf119_head = {
+	.state = gf119_head_state,
+	.rgpos = nv50_head_rgpos,
 	.vblank_get = gf119_head_vblank_get,
 	.vblank_put = gf119_head_vblank_put,
 };

@@ -59,7 +59,6 @@ gp102_disp = {
 	.super = gf119_disp_super,
 	.root = &gp102_disp_root_oclass,
 	.head.new = gf119_head_new,
-	.head.scanoutpos = gf119_disp_root_scanoutpos,
 	.outp.internal.crt = nv50_dac_output_new,
 	.outp.internal.tmds = nv50_sor_output_new,
 	.outp.internal.lvds = nv50_sor_output_new,

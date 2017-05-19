@@ -25,47 +25,10 @@
 #include "head.h"
 #include "dmacnv50.h"
 
-#include <core/client.h>
 #include <core/ramht.h>
 #include <subdev/timer.h>
 
 #include <nvif/class.h>
-#include <nvif/cl5070.h>
-#include <nvif/unpack.h>
-
-int
-gf119_disp_root_scanoutpos(NV50_DISP_MTHD_V0)
-{
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	const u32 total  = nvkm_rd32(device, 0x640414 + (head * 0x300));
-	const u32 blanke = nvkm_rd32(device, 0x64041c + (head * 0x300));
-	const u32 blanks = nvkm_rd32(device, 0x640420 + (head * 0x300));
-	union {
-		struct nv50_disp_scanoutpos_v0 v0;
-	} *args = data;
-	int ret = -ENOSYS;
-
-	nvif_ioctl(object, "disp scanoutpos size %d\n", size);
-	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-		nvif_ioctl(object, "disp scanoutpos vers %d\n",
-			   args->v0.version);
-		args->v0.vblanke = (blanke & 0xffff0000) >> 16;
-		args->v0.hblanke = (blanke & 0x0000ffff);
-		args->v0.vblanks = (blanks & 0xffff0000) >> 16;
-		args->v0.hblanks = (blanks & 0x0000ffff);
-		args->v0.vtotal  = ( total & 0xffff0000) >> 16;
-		args->v0.htotal  = ( total & 0x0000ffff);
-		args->v0.time[0] = ktime_to_ns(ktime_get());
-		args->v0.vline = /* vline read locks hline */
-			nvkm_rd32(device, 0x616340 + (head * 0x800)) & 0xffff;
-		args->v0.time[1] = ktime_to_ns(ktime_get());
-		args->v0.hline =
-			nvkm_rd32(device, 0x616344 + (head * 0x800)) & 0xffff;
-	} else
-		return ret;
-
-	return 0;
-}
 
 void
 gf119_disp_root_fini(struct nv50_disp_root *root)

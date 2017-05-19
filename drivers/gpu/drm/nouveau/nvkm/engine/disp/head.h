@@ -8,16 +8,33 @@ struct nvkm_head {
 	int id;
 
 	struct list_head head;
+
+	struct nvkm_head_state {
+		u16 htotal;
+		u16 hsynce;
+		u16 hblanke;
+		u16 hblanks;
+		u16 vtotal;
+		u16 vsynce;
+		u16 vblanke;
+		u16 vblanks;
+	} arm, asy;
 };
 
 int nvkm_head_new_(const struct nvkm_head_func *, struct nvkm_disp *, int id);
 void nvkm_head_del(struct nvkm_head **);
+int nvkm_head_mthd_scanoutpos(struct nvkm_object *,
+			      struct nvkm_head *, void *, u32);
 struct nvkm_head *nvkm_head_find(struct nvkm_disp *, int id);
 
 struct nvkm_head_func {
+	void (*state)(struct nvkm_head *, struct nvkm_head_state *);
+	void (*rgpos)(struct nvkm_head *, u16 *hline, u16 *vline);
 	void (*vblank_get)(struct nvkm_head *);
 	void (*vblank_put)(struct nvkm_head *);
 };
+
+void nv50_head_rgpos(struct nvkm_head *, u16 *, u16 *);
 
 #define HEAD_MSG(h,l,f,a...) do {                                              \
 	struct nvkm_head *_h = (h);                                            \

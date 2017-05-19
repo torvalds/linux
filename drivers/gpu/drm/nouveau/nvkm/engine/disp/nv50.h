@@ -6,7 +6,6 @@
 
 #define NV50_DISP_MTHD_ struct nvkm_object *object,                            \
 	struct nv50_disp *disp, void *data, u32 size
-#define NV50_DISP_MTHD_V0 NV50_DISP_MTHD_, int head
 #define NV50_DISP_MTHD_V1 NV50_DISP_MTHD_, int head, struct nvkm_output *outp
 
 struct nv50_disp {
@@ -28,10 +27,6 @@ struct nv50_disp {
 
 	struct nv50_disp_chan *chan[17];
 };
-
-int nv50_disp_root_scanoutpos(NV50_DISP_MTHD_V0);
-
-int gf119_disp_root_scanoutpos(NV50_DISP_MTHD_V0);
 
 int nv50_dac_power(NV50_DISP_MTHD_V1);
 int nv50_dac_sense(NV50_DISP_MTHD_V1);
@@ -76,7 +71,6 @@ struct nv50_disp_func {
 
 	struct {
 		int (*new)(struct nvkm_disp *, int id);
-		int (*scanoutpos)(NV50_DISP_MTHD_V0);
 	} head;
 
 	struct {
