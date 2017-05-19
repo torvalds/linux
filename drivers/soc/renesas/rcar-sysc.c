@@ -275,35 +275,33 @@ finalize:
 }
 
 static const struct of_device_id rcar_sysc_matches[] = {
-#ifdef CONFIG_ARCH_R8A7743
+#ifdef CONFIG_SYSC_R8A7743
 	{ .compatible = "renesas,r8a7743-sysc", .data = &r8a7743_sysc_info },
 #endif
-#ifdef CONFIG_ARCH_R8A7745
+#ifdef CONFIG_SYSC_R8A7745
 	{ .compatible = "renesas,r8a7745-sysc", .data = &r8a7745_sysc_info },
 #endif
-#ifdef CONFIG_ARCH_R8A7779
+#ifdef CONFIG_SYSC_R8A7779
 	{ .compatible = "renesas,r8a7779-sysc", .data = &r8a7779_sysc_info },
 #endif
-#ifdef CONFIG_ARCH_R8A7790
+#ifdef CONFIG_SYSC_R8A7790
 	{ .compatible = "renesas,r8a7790-sysc", .data = &r8a7790_sysc_info },
 #endif
-#ifdef CONFIG_ARCH_R8A7791
+#ifdef CONFIG_SYSC_R8A7791
 	{ .compatible = "renesas,r8a7791-sysc", .data = &r8a7791_sysc_info },
-#endif
-#ifdef CONFIG_ARCH_R8A7792
-	{ .compatible = "renesas,r8a7792-sysc", .data = &r8a7792_sysc_info },
-#endif
-#ifdef CONFIG_ARCH_R8A7793
 	/* R-Car M2-N is identical to R-Car M2-W w.r.t. power domains. */
 	{ .compatible = "renesas,r8a7793-sysc", .data = &r8a7791_sysc_info },
 #endif
-#ifdef CONFIG_ARCH_R8A7794
+#ifdef CONFIG_SYSC_R8A7792
+	{ .compatible = "renesas,r8a7792-sysc", .data = &r8a7792_sysc_info },
+#endif
+#ifdef CONFIG_SYSC_R8A7794
 	{ .compatible = "renesas,r8a7794-sysc", .data = &r8a7794_sysc_info },
 #endif
-#ifdef CONFIG_ARCH_R8A7795
+#ifdef CONFIG_SYSC_R8A7795
 	{ .compatible = "renesas,r8a7795-sysc", .data = &r8a7795_sysc_info },
 #endif
-#ifdef CONFIG_ARCH_R8A7796
+#ifdef CONFIG_SYSC_R8A7796
 	{ .compatible = "renesas,r8a7796-sysc", .data = &r8a7796_sysc_info },
 #endif
 	{ /* sentinel */ }
