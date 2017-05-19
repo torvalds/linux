@@ -362,6 +362,7 @@ gf119_disp_super(struct work_struct *work)
 
 	if (disp->super & 0x00000001) {
 		nv50_disp_chan_mthd(disp->chan[0], NV_DBG_DEBUG);
+		nv50_disp_super_1(disp);
 		list_for_each_entry(head, &disp->base.head, head) {
 			if (!(mask[head->id] & 0x00001000))
 				continue;

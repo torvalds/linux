@@ -21,8 +21,27 @@
  */
 #include "ior.h"
 
+static void
+gf119_dac_state(struct nvkm_ior *dac, struct nvkm_ior_state *state)
+{
+	struct nvkm_device *device = dac->disp->engine.subdev.device;
+	const u32 coff = (state == &dac->asy) * 0x20000 + dac->id * 0x20;
+	u32 ctrl = nvkm_rd32(device, 0x640180 + coff);
+
+	state->proto_evo = (ctrl & 0x00000f00) >> 8;
+	switch (state->proto_evo) {
+	case 0: state->proto = CRT; break;
+	default:
+		state->proto = UNKNOWN;
+		break;
+	}
+
+	state->head = ctrl & 0x0000000f;
+}
+
 static const struct nvkm_ior_func
 gf119_dac = {
+	.state = gf119_dac_state,
 };
 
 int

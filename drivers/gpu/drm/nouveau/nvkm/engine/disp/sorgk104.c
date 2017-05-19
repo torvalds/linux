@@ -23,6 +23,7 @@
 
 static const struct nvkm_ior_func
 gk104_sor = {
+	.state = gf119_sor_state,
 };
 
 int

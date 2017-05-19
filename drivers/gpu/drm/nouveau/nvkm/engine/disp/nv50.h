@@ -29,6 +29,8 @@ struct nv50_disp {
 	struct nv50_disp_chan *chan[17];
 };
 
+void nv50_disp_super_1(struct nv50_disp *);
+
 int nv50_dac_power(NV50_DISP_MTHD_V1);
 int nv50_dac_sense(NV50_DISP_MTHD_V1);
 

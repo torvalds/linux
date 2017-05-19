@@ -16,6 +16,8 @@ struct nvkm_ior {
 	struct list_head head;
 
 	struct nvkm_ior_state {
+		unsigned rgdiv;
+		unsigned proto_evo:4;
 		enum nvkm_ior_proto {
 			CRT,
 			TMDS,
@@ -23,6 +25,8 @@ struct nvkm_ior {
 			DP,
 			UNKNOWN
 		} proto:3;
+		unsigned link:2;
+		unsigned head:4;
 	} arm, asy;
 
 	/* Armed DP state. */
@@ -35,12 +39,17 @@ struct nvkm_ior {
 };
 
 struct nvkm_ior_func {
+	void (*state)(struct nvkm_ior *, struct nvkm_ior_state *);
 };
 
 int nvkm_ior_new_(const struct nvkm_ior_func *func, struct nvkm_disp *,
 		  enum nvkm_ior_type type, int id);
 void nvkm_ior_del(struct nvkm_ior **);
 struct nvkm_ior *nvkm_ior_find(struct nvkm_disp *, enum nvkm_ior_type, int id);
+
+void nv50_sor_state(struct nvkm_ior *, struct nvkm_ior_state *);
+void g94_sor_state(struct nvkm_ior *, struct nvkm_ior_state *);
+void gf119_sor_state(struct nvkm_ior *, struct nvkm_ior_state *);
 
 #define IOR_MSG(i,l,f,a...) do {                                               \
 	struct nvkm_ior *_ior = (i);                                           \

@@ -121,8 +121,28 @@ nv50_pior_power(NV50_DISP_MTHD_V1)
 	return 0;
 }
 
+static void
+nv50_pior_state(struct nvkm_ior *pior, struct nvkm_ior_state *state)
+{
+	struct nvkm_device *device = pior->disp->engine.subdev.device;
+	const u32 coff = pior->id * 8 + (state == &pior->arm) * 4;
+	u32 ctrl = nvkm_rd32(device, 0x610b80 + coff);
+
+	state->proto_evo = (ctrl & 0x00000f00) >> 8;
+	state->rgdiv = 1;
+	switch (state->proto_evo) {
+	case 0: state->proto = TMDS; break;
+	default:
+		state->proto = UNKNOWN;
+		break;
+	}
+
+	state->head = ctrl & 0x00000003;
+}
+
 static const struct nvkm_ior_func
 nv50_pior = {
+	.state = nv50_pior_state,
 };
 
 int

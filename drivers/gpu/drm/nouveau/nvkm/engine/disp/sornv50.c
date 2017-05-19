@@ -79,8 +79,30 @@ nv50_sor_power(NV50_DISP_MTHD_V1)
 	return 0;
 }
 
+void
+nv50_sor_state(struct nvkm_ior *sor, struct nvkm_ior_state *state)
+{
+	struct nvkm_device *device = sor->disp->engine.subdev.device;
+	const u32 coff = sor->id * 8 + (state == &sor->arm) * 4;
+	u32 ctrl = nvkm_rd32(device, 0x610b70 + coff);
+
+	state->proto_evo = (ctrl & 0x00000f00) >> 8;
+	switch (state->proto_evo) {
+	case 0: state->proto = LVDS; state->link = 1; break;
+	case 1: state->proto = TMDS; state->link = 1; break;
+	case 2: state->proto = TMDS; state->link = 2; break;
+	case 5: state->proto = TMDS; state->link = 3; break;
+	default:
+		state->proto = UNKNOWN;
+		break;
+	}
+
+	state->head = ctrl & 0x00000003;
+}
+
 static const struct nvkm_ior_func
 nv50_sor = {
+	.state = nv50_sor_state,
 };
 
 int

@@ -679,6 +679,23 @@ nv50_disp_intr_unk10_0(struct nv50_disp *disp, int head)
 }
 
 void
+nv50_disp_super_1(struct nv50_disp *disp)
+{
+	struct nvkm_head *head;
+	struct nvkm_ior *ior;
+
+	list_for_each_entry(head, &disp->base.head, head) {
+		head->func->state(head, &head->arm);
+		head->func->state(head, &head->asy);
+	}
+
+	list_for_each_entry(ior, &disp->base.ior, head) {
+		ior->func->state(ior, &ior->arm);
+		ior->func->state(ior, &ior->asy);
+	}
+}
+
+void
 nv50_disp_super(struct work_struct *work)
 {
 	struct nv50_disp *disp =
@@ -692,6 +709,7 @@ nv50_disp_super(struct work_struct *work)
 
 	if (disp->super & 0x00000010) {
 		nv50_disp_chan_mthd(disp->chan[0], NV_DBG_DEBUG);
+		nv50_disp_super_1(disp);
 		list_for_each_entry(head, &disp->base.head, head) {
 			if (!(super & (0x00000020 << head->id)))
 				continue;
