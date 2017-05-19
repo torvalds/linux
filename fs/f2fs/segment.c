@@ -917,7 +917,6 @@ static void __punch_discard_cmd(struct f2fs_sb_info *sbi,
 		dc->len = blkaddr - dc->lstart;
 		dcc->undiscard_blks += dc->len;
 		__relocate_discard_cmd(dcc, dc);
-		f2fs_bug_on(sbi, !__check_rb_tree_consistence(sbi, &dcc->root));
 		modified = true;
 	}
 
@@ -927,16 +926,12 @@ static void __punch_discard_cmd(struct f2fs_sb_info *sbi,
 					di.start + blkaddr + 1 - di.lstart,
 					di.lstart + di.len - 1 - blkaddr,
 					NULL, NULL);
-			f2fs_bug_on(sbi,
-				!__check_rb_tree_consistence(sbi, &dcc->root));
 		} else {
 			dc->lstart++;
 			dc->len--;
 			dc->start++;
 			dcc->undiscard_blks += dc->len;
 			__relocate_discard_cmd(dcc, dc);
-			f2fs_bug_on(sbi,
-				!__check_rb_tree_consistence(sbi, &dcc->root));
 		}
 	}
 }
@@ -997,8 +992,6 @@ static void __update_discard_tree_range(struct f2fs_sb_info *sbi,
 			prev_dc->di.len += di.len;
 			dcc->undiscard_blks += di.len;
 			__relocate_discard_cmd(dcc, prev_dc);
-			f2fs_bug_on(sbi,
-				!__check_rb_tree_consistence(sbi, &dcc->root));
 			di = prev_dc->di;
 			tdc = prev_dc;
 			merged = true;
@@ -1014,16 +1007,12 @@ static void __update_discard_tree_range(struct f2fs_sb_info *sbi,
 			__relocate_discard_cmd(dcc, next_dc);
 			if (tdc)
 				__remove_discard_cmd(sbi, tdc);
-			f2fs_bug_on(sbi,
-				!__check_rb_tree_consistence(sbi, &dcc->root));
 			merged = true;
 		}
 
 		if (!merged) {
 			__insert_discard_tree(sbi, bdev, di.lstart, di.start,
 							di.len, NULL, NULL);
-			f2fs_bug_on(sbi,
-				!__check_rb_tree_consistence(sbi, &dcc->root));
 		}
  next:
 		prev_dc = next_dc;
@@ -1062,6 +1051,8 @@ static void __issue_discard_cmd(struct f2fs_sb_info *sbi, bool issue_cond)
 	int i, iter = 0;
 
 	mutex_lock(&dcc->cmd_lock);
+	f2fs_bug_on(sbi,
+		!__check_rb_tree_consistence(sbi, &dcc->root));
 	blk_start_plug(&plug);
 	for (i = MAX_PLIST_NUM - 1; i >= 0; i--) {
 		pend_list = &dcc->pend_list[i];
