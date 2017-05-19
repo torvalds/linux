@@ -392,6 +392,7 @@ static int fujitsu_backlight_register(struct acpi_device *device)
 
 static int acpi_fujitsu_bl_add(struct acpi_device *device)
 {
+	struct fujitsu_bl *priv;
 	int state = 0;
 	int error;
 
@@ -401,10 +402,15 @@ static int acpi_fujitsu_bl_add(struct acpi_device *device)
 	if (!device)
 		return -EINVAL;
 
+	priv = devm_kzalloc(&device->dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	fujitsu_bl = priv;
 	fujitsu_bl->acpi_handle = device->handle;
 	sprintf(acpi_device_name(device), "%s", ACPI_FUJITSU_BL_DEVICE_NAME);
 	sprintf(acpi_device_class(device), "%s", ACPI_FUJITSU_CLASS);
-	device->driver_data = fujitsu_bl;
+	device->driver_data = priv;
 
 	error = acpi_fujitsu_bl_input_setup(device);
 	if (error)
@@ -837,7 +843,7 @@ static int acpi_fujitsu_laptop_add(struct acpi_device *device)
 	pr_info("BTNI: [0x%x]\n", call_fext_func(FUNC_BUTTONS, 0x0, 0x0, 0x0));
 
 	/* Sync backlight power status */
-	if (fujitsu_bl->bl_device &&
+	if (fujitsu_bl && fujitsu_bl->bl_device &&
 	    acpi_video_get_backlight_type() == acpi_backlight_vendor) {
 		if (call_fext_func(FUNC_BACKLIGHT, 0x2, 0x4, 0x0) == 3)
 			fujitsu_bl->bl_device->props.power = FB_BLANK_POWERDOWN;
@@ -995,13 +1001,9 @@ static int __init fujitsu_init(void)
 	if (acpi_disabled)
 		return -ENODEV;
 
-	fujitsu_bl = kzalloc(sizeof(struct fujitsu_bl), GFP_KERNEL);
-	if (!fujitsu_bl)
-		return -ENOMEM;
-
 	ret = acpi_bus_register_driver(&acpi_fujitsu_bl_driver);
 	if (ret)
-		goto err_free_fujitsu_bl;
+		return ret;
 
 	/* Register platform stuff */
 
@@ -1031,8 +1033,6 @@ err_unregister_platform_driver:
 	platform_driver_unregister(&fujitsu_pf_driver);
 err_unregister_acpi:
 	acpi_bus_unregister_driver(&acpi_fujitsu_bl_driver);
-err_free_fujitsu_bl:
-	kfree(fujitsu_bl);
 
 	return ret;
 }
@@ -1046,8 +1046,6 @@ static void __exit fujitsu_cleanup(void)
 	platform_driver_unregister(&fujitsu_pf_driver);
 
 	acpi_bus_unregister_driver(&acpi_fujitsu_bl_driver);
-
-	kfree(fujitsu_bl);
 
 	pr_info("driver unloaded\n");
 }
