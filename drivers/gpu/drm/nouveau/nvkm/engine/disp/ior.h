@@ -40,6 +40,8 @@ struct nvkm_ior {
 
 struct nvkm_ior_func {
 	void (*state)(struct nvkm_ior *, struct nvkm_ior_state *);
+	void (*power)(struct nvkm_ior *, bool normal, bool pu,
+		      bool data, bool vsync, bool hsync);
 };
 
 int nvkm_ior_new_(const struct nvkm_ior_func *func, struct nvkm_disp *,
@@ -47,7 +49,17 @@ int nvkm_ior_new_(const struct nvkm_ior_func *func, struct nvkm_disp *,
 void nvkm_ior_del(struct nvkm_ior **);
 struct nvkm_ior *nvkm_ior_find(struct nvkm_disp *, enum nvkm_ior_type, int id);
 
+static inline u32
+nv50_ior_base(struct nvkm_ior *ior)
+{
+	return ior->id * 0x800;
+}
+
+void nv50_dac_power(struct nvkm_ior *, bool, bool, bool, bool, bool);
+
 void nv50_sor_state(struct nvkm_ior *, struct nvkm_ior_state *);
+void nv50_sor_power(struct nvkm_ior *, bool, bool, bool, bool, bool);
+
 void g94_sor_state(struct nvkm_ior *, struct nvkm_ior_state *);
 void gf119_sor_state(struct nvkm_ior *, struct nvkm_ior_state *);
 

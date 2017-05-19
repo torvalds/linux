@@ -31,7 +31,6 @@ struct nv50_disp {
 
 void nv50_disp_super_1(struct nv50_disp *);
 
-int nv50_dac_power(NV50_DISP_MTHD_V1);
 int nv50_dac_sense(NV50_DISP_MTHD_V1);
 
 int gt215_hda_eld(NV50_DISP_MTHD_V1);
@@ -41,9 +40,6 @@ int g84_hdmi_ctrl(NV50_DISP_MTHD_V1);
 int gt215_hdmi_ctrl(NV50_DISP_MTHD_V1);
 int gf119_hdmi_ctrl(NV50_DISP_MTHD_V1);
 int gk104_hdmi_ctrl(NV50_DISP_MTHD_V1);
-
-int nv50_sor_power(NV50_DISP_MTHD_V1);
-int nv50_pior_power(NV50_DISP_MTHD_V1);
 
 int nv50_disp_new_(const struct nv50_disp_func *, struct nvkm_device *,
 		   int index, int heads, struct nvkm_disp **);
@@ -84,14 +80,12 @@ struct nv50_disp_func {
 	struct {
 		int nr;
 		int (*new)(struct nvkm_disp *, int id);
-		int (*power)(NV50_DISP_MTHD_V1);
 		int (*sense)(NV50_DISP_MTHD_V1);
 	} dac;
 
 	struct {
 		int nr;
 		int (*new)(struct nvkm_disp *, int id);
-		int (*power)(NV50_DISP_MTHD_V1);
 		int (*hda_eld)(NV50_DISP_MTHD_V1);
 		int (*hdmi)(NV50_DISP_MTHD_V1);
 		void (*magic)(struct nvkm_output *);
@@ -100,7 +94,6 @@ struct nv50_disp_func {
 	struct {
 		int nr;
 		int (*new)(struct nvkm_disp *, int id);
-		int (*power)(NV50_DISP_MTHD_V1);
 	} pior;
 };
 

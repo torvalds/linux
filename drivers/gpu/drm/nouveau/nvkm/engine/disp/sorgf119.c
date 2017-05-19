@@ -156,6 +156,7 @@ gf119_sor_state(struct nvkm_ior *sor, struct nvkm_ior_state *state)
 static const struct nvkm_ior_func
 gf119_sor = {
 	.state = gf119_sor_state,
+	.power = nv50_sor_power,
 };
 
 int

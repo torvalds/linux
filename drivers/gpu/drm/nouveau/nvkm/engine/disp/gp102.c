@@ -65,7 +65,6 @@ gp102_disp = {
 	.outp.internal.dp = gm200_sor_dp_new,
 	.sor.nr = 4,
 	.sor.new = gm200_sor_new,
-	.sor.power = nv50_sor_power,
 	.sor.hda_eld = gf119_hda_eld,
 	.sor.hdmi = gk104_hdmi_ctrl,
 	.sor.magic = gm200_sor_magic,

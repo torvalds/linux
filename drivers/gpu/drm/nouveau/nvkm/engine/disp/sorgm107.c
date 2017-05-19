@@ -56,6 +56,7 @@ gm107_sor_dp_new(struct nvkm_disp *disp, int index,
 static const struct nvkm_ior_func
 gm107_sor = {
 	.state = gf119_sor_state,
+	.power = nv50_sor_power,
 };
 
 int

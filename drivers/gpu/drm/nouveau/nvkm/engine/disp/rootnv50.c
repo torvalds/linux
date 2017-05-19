@@ -24,6 +24,7 @@
 #include "rootnv50.h"
 #include "dmacnv50.h"
 #include "head.h"
+#include "ior.h"
 
 #include <core/client.h>
 #include <core/ramht.h>
@@ -94,12 +95,8 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 	}
 
 	switch (mthd * !!outp) {
-	case NV50_DISP_MTHD_V1_DAC_PWR:
-		return func->dac.power(object, disp, data, size, hidx, outp);
 	case NV50_DISP_MTHD_V1_DAC_LOAD:
 		return func->dac.sense(object, disp, data, size, hidx, outp);
-	case NV50_DISP_MTHD_V1_SOR_PWR:
-		return func->sor.power(object, disp, data, size, hidx, outp);
 	case NV50_DISP_MTHD_V1_SOR_HDA_ELD:
 		if (!func->sor.hda_eld)
 			return -ENODEV;
@@ -163,10 +160,6 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 			return ret;
 	}
 		break;
-	case NV50_DISP_MTHD_V1_PIOR_PWR:
-		if (!func->pior.power)
-			return -ENODEV;
-		return func->pior.power(object, disp, data, size, hidx, outp);
 	default:
 		break;
 	}
@@ -231,7 +224,21 @@ static int
 nv50_disp_root_init_(struct nvkm_object *object)
 {
 	struct nv50_disp_root *root = nv50_disp_root(object);
-	return root->func->init(root);
+	struct nvkm_ior *ior;
+	int ret;
+
+	ret = root->func->init(root);
+	if (ret)
+		return ret;
+
+	/* Set 'normal' (ie. when it's attached to a head) state for
+	 * each output resource to 'fully enabled'.
+	 */
+	list_for_each_entry(ior, &root->disp->base.ior, head) {
+		ior->func->power(ior, true, true, true, true, true);
+	}
+
+	return 0;
 }
 
 static void *

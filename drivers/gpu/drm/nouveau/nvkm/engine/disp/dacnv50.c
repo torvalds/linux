@@ -90,40 +90,31 @@ nv50_dac_sense(NV50_DISP_MTHD_V1)
 	return 0;
 }
 
-int
-nv50_dac_power(NV50_DISP_MTHD_V1)
+static void
+nv50_dac_power_wait(struct nvkm_device *device, const u32 doff)
 {
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	const u32 doff = outp->or * 0x800;
-	union {
-		struct nv50_disp_dac_pwr_v0 v0;
-	} *args = data;
-	u32 stat;
-	int ret = -ENOSYS;
-
-	nvif_ioctl(object, "disp dac pwr size %d\n", size);
-	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-		nvif_ioctl(object, "disp dac pwr vers %d state %d data %d "
-				   "vsync %d hsync %d\n",
-			   args->v0.version, args->v0.state, args->v0.data,
-			   args->v0.vsync, args->v0.hsync);
-		stat  = 0x00000040 * !args->v0.state;
-		stat |= 0x00000010 * !args->v0.data;
-		stat |= 0x00000004 * !args->v0.vsync;
-		stat |= 0x00000001 * !args->v0.hsync;
-	} else
-		return ret;
-
 	nvkm_msec(device, 2000,
 		if (!(nvkm_rd32(device, 0x61a004 + doff) & 0x80000000))
 			break;
 	);
-	nvkm_mask(device, 0x61a004 + doff, 0xc000007f, 0x80000000 | stat);
-	nvkm_msec(device, 2000,
-		if (!(nvkm_rd32(device, 0x61a004 + doff) & 0x80000000))
-			break;
-	);
-	return 0;
+}
+
+void
+nv50_dac_power(struct nvkm_ior *dac, bool normal, bool pu,
+	       bool data, bool vsync, bool hsync)
+{
+	struct nvkm_device *device = dac->disp->engine.subdev.device;
+	const u32  doff = nv50_ior_base(dac);
+	const u32 shift = normal ? 0 : 16;
+	const u32 state = 0x80000000 | (0x00000040 * !    pu |
+					0x00000010 * !  data |
+					0x00000004 * ! vsync |
+					0x00000001 * ! hsync) << shift;
+	const u32 field = 0xc0000000 | (0x00000055 << shift);
+
+	nv50_dac_power_wait(device, doff);
+	nvkm_mask(device, 0x61a004 + doff, field, state);
+	nv50_dac_power_wait(device, doff);
 }
 
 static void
@@ -147,6 +138,7 @@ nv50_dac_state(struct nvkm_ior *dac, struct nvkm_ior_state *state)
 static const struct nvkm_ior_func
 nv50_dac = {
 	.state = nv50_dac_state,
+	.power = nv50_dac_power,
 };
 
 int

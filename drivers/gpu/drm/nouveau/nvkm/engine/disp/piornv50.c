@@ -22,14 +22,10 @@
  * Authors: Ben Skeggs
  */
 #include "ior.h"
-#include "nv50.h"
+#include "dp.h"
 
-#include <core/client.h>
 #include <subdev/i2c.h>
 #include <subdev/timer.h>
-
-#include <nvif/cl5070.h>
-#include <nvif/unpack.h>
 
 /******************************************************************************
  * TMDS
@@ -86,39 +82,28 @@ nv50_pior_dp_new(struct nvkm_disp *disp, int index, struct dcb_output *dcbE,
 				   index, dcbE, poutp);
 }
 
-int
-nv50_pior_power(NV50_DISP_MTHD_V1)
+static void
+nv50_pior_power_wait(struct nvkm_device *device, u32 poff)
 {
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	const u32 soff = outp->or * 0x800;
-	union {
-		struct nv50_disp_pior_pwr_v0 v0;
-	} *args = data;
-	u32 ctrl, type;
-	int ret = -ENOSYS;
-
-	nvif_ioctl(object, "disp pior pwr size %d\n", size);
-	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-		nvif_ioctl(object, "disp pior pwr vers %d state %d type %x\n",
-			   args->v0.version, args->v0.state, args->v0.type);
-		if (args->v0.type > 0x0f)
-			return -EINVAL;
-		ctrl = !!args->v0.state;
-		type = args->v0.type;
-	} else
-		return ret;
-
 	nvkm_msec(device, 2000,
-		if (!(nvkm_rd32(device, 0x61e004 + soff) & 0x80000000))
+		if (!(nvkm_rd32(device, 0x61e004 + poff) & 0x80000000))
 			break;
 	);
-	nvkm_mask(device, 0x61e004 + soff, 0x80000101, 0x80000000 | ctrl);
-	nvkm_msec(device, 2000,
-		if (!(nvkm_rd32(device, 0x61e004 + soff) & 0x80000000))
-			break;
-	);
-	disp->pior.type[outp->or] = type;
-	return 0;
+}
+
+static void
+nv50_pior_power(struct nvkm_ior *pior, bool normal, bool pu,
+	       bool data, bool vsync, bool hsync)
+{
+	struct nvkm_device *device = pior->disp->engine.subdev.device;
+	const u32  poff = nv50_ior_base(pior);
+	const u32 shift = normal ? 0 : 16;
+	const u32 state = 0x80000000 | (0x00000001 * !!pu) << shift;
+	const u32 field = 0x80000000 | (0x00000101 << shift);
+
+	nv50_pior_power_wait(device, poff);
+	nvkm_mask(device, 0x61e004 + poff, field, state);
+	nv50_pior_power_wait(device, poff);
 }
 
 static void
@@ -143,6 +128,7 @@ nv50_pior_state(struct nvkm_ior *pior, struct nvkm_ior_state *state)
 static const struct nvkm_ior_func
 nv50_pior = {
 	.state = nv50_pior_state,
+	.power = nv50_pior_power,
 };
 
 int

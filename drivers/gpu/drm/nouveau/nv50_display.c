@@ -2460,30 +2460,6 @@ nv50_outp_atomic_check(struct drm_encoder *encoder,
  * DAC
  *****************************************************************************/
 static void
-nv50_dac_dpms(struct drm_encoder *encoder, int mode)
-{
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nv50_disp *disp = nv50_disp(encoder->dev);
-	struct {
-		struct nv50_disp_mthd_v1 base;
-		struct nv50_disp_dac_pwr_v0 pwr;
-	} args = {
-		.base.version = 1,
-		.base.method = NV50_DISP_MTHD_V1_DAC_PWR,
-		.base.hasht  = nv_encoder->dcb->hasht,
-		.base.hashm  = nv_encoder->dcb->hashm,
-		.pwr.state = 1,
-		.pwr.data  = 1,
-		.pwr.vsync = (mode != DRM_MODE_DPMS_SUSPEND &&
-			      mode != DRM_MODE_DPMS_OFF),
-		.pwr.hsync = (mode != DRM_MODE_DPMS_STANDBY &&
-			      mode != DRM_MODE_DPMS_OFF),
-	};
-
-	nvif_mthd(disp->disp, 0, &args, sizeof(args));
-}
-
-static void
 nv50_dac_disable(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
@@ -2584,7 +2560,6 @@ nv50_dac_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 
 static const struct drm_encoder_helper_funcs
 nv50_dac_help = {
-	.dpms = nv50_dac_dpms,
 	.atomic_check = nv50_outp_atomic_check,
 	.enable = nv50_dac_enable,
 	.disable = nv50_dac_disable,
@@ -3406,25 +3381,6 @@ nv50_mstm_new(struct nouveau_encoder *outp, struct drm_dp_aux *aux, int aux_max,
  * SOR
  *****************************************************************************/
 static void
-nv50_sor_dpms(struct drm_encoder *encoder, int mode)
-{
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nv50_disp *disp = nv50_disp(encoder->dev);
-	struct {
-		struct nv50_disp_mthd_v1 base;
-		struct nv50_disp_sor_pwr_v0 pwr;
-	} args = {
-		.base.version = 1,
-		.base.method = NV50_DISP_MTHD_V1_SOR_PWR,
-		.base.hasht  = nv_encoder->dcb->hasht,
-		.base.hashm  = nv_encoder->dcb->hashm,
-		.pwr.state = mode == DRM_MODE_DPMS_ON,
-	};
-
-	nvif_mthd(disp->disp, 0, &args, sizeof(args));
-}
-
-static void
 nv50_sor_update(struct nouveau_encoder *nv_encoder, u8 head,
 		struct drm_display_mode *mode, u8 proto, u8 depth)
 {
@@ -3602,7 +3558,6 @@ nv50_sor_enable(struct drm_encoder *encoder)
 
 static const struct drm_encoder_helper_funcs
 nv50_sor_help = {
-	.dpms = nv50_sor_dpms,
 	.atomic_check = nv50_outp_atomic_check,
 	.enable = nv50_sor_enable,
 	.disable = nv50_sor_disable,
@@ -3686,26 +3641,6 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 /******************************************************************************
  * PIOR
  *****************************************************************************/
-static void
-nv50_pior_dpms(struct drm_encoder *encoder, int mode)
-{
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nv50_disp *disp = nv50_disp(encoder->dev);
-	struct {
-		struct nv50_disp_mthd_v1 base;
-		struct nv50_disp_pior_pwr_v0 pwr;
-	} args = {
-		.base.version = 1,
-		.base.method = NV50_DISP_MTHD_V1_PIOR_PWR,
-		.base.hasht  = nv_encoder->dcb->hasht,
-		.base.hashm  = nv_encoder->dcb->hashm,
-		.pwr.state = mode == DRM_MODE_DPMS_ON,
-		.pwr.type = nv_encoder->dcb->type,
-	};
-
-	nvif_mthd(disp->disp, 0, &args, sizeof(args));
-}
-
 static int
 nv50_pior_atomic_check(struct drm_encoder *encoder,
 		       struct drm_crtc_state *crtc_state,
@@ -3790,7 +3725,6 @@ nv50_pior_enable(struct drm_encoder *encoder)
 
 static const struct drm_encoder_helper_funcs
 nv50_pior_help = {
-	.dpms = nv50_pior_dpms,
 	.atomic_check = nv50_pior_atomic_check,
 	.enable = nv50_pior_enable,
 	.disable = nv50_pior_disable,
@@ -4355,14 +4289,8 @@ nv50_display_init(struct drm_device *dev)
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		if (encoder->encoder_type != DRM_MODE_ENCODER_DPMST) {
-			const struct drm_encoder_helper_funcs *help;
-			struct nouveau_encoder *nv_encoder;
-
-			nv_encoder = nouveau_encoder(encoder);
-			help = encoder->helper_private;
-			if (help && help->dpms)
-				help->dpms(encoder, DRM_MODE_DPMS_ON);
-
+			struct nouveau_encoder *nv_encoder =
+				nouveau_encoder(encoder);
 			nv50_mstm_init(nv_encoder->dp.mstm);
 		}
 	}

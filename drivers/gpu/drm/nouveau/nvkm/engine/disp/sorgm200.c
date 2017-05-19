@@ -133,6 +133,7 @@ gm200_sor_magic(struct nvkm_output *outp)
 static const struct nvkm_ior_func
 gm200_sor = {
 	.state = gf119_sor_state,
+	.power = nv50_sor_power,
 };
 
 int

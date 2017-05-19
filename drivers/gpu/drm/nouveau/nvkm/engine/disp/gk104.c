@@ -40,11 +40,9 @@ gk104_disp = {
 	.outp.internal.dp = gf119_sor_dp_new,
 	.dac.nr = 3,
 	.dac.new = gf119_dac_new,
-	.dac.power = nv50_dac_power,
 	.dac.sense = nv50_dac_sense,
 	.sor.nr = 4,
 	.sor.new = gk104_sor_new,
-	.sor.power = nv50_sor_power,
 	.sor.hda_eld = gf119_hda_eld,
 	.sor.hdmi = gk104_hdmi_ctrl,
 };

@@ -22,14 +22,9 @@
  * Authors: Ben Skeggs
  */
 #include "ior.h"
-#include "nv50.h"
 #include "outp.h"
 
-#include <core/client.h>
 #include <subdev/timer.h>
-
-#include <nvif/cl5070.h>
-#include <nvif/unpack.h>
 
 static const struct nvkm_output_func
 nv50_sor_output_func = {
@@ -43,40 +38,33 @@ nv50_sor_output_new(struct nvkm_disp *disp, int index,
 				index, dcbE, poutp);
 }
 
-int
-nv50_sor_power(NV50_DISP_MTHD_V1)
+static void
+nv50_sor_power_wait(struct nvkm_device *device, u32 soff)
 {
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	union {
-		struct nv50_disp_sor_pwr_v0 v0;
-	} *args = data;
-	const u32 soff = outp->or * 0x800;
-	u32 stat;
-	int ret = -ENOSYS;
-
-	nvif_ioctl(object, "disp sor pwr size %d\n", size);
-	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-		nvif_ioctl(object, "disp sor pwr vers %d state %d\n",
-			   args->v0.version, args->v0.state);
-		stat = !!args->v0.state;
-	} else
-		return ret;
-
-
 	nvkm_msec(device, 2000,
 		if (!(nvkm_rd32(device, 0x61c004 + soff) & 0x80000000))
 			break;
 	);
-	nvkm_mask(device, 0x61c004 + soff, 0x80000001, 0x80000000 | stat);
-	nvkm_msec(device, 2000,
-		if (!(nvkm_rd32(device, 0x61c004 + soff) & 0x80000000))
-			break;
-	);
+}
+
+void
+nv50_sor_power(struct nvkm_ior *sor, bool normal, bool pu,
+	       bool data, bool vsync, bool hsync)
+{
+	struct nvkm_device *device = sor->disp->engine.subdev.device;
+	const u32  soff = nv50_ior_base(sor);
+	const u32 shift = normal ? 0 : 16;
+	const u32 state = 0x80000000 | (0x00000001 * !!pu) << shift;
+	const u32 field = 0x80000000 | (0x00000001 << shift);
+
+	nv50_sor_power_wait(device, soff);
+	nvkm_mask(device, 0x61c004 + soff, field, state);
+	nv50_sor_power_wait(device, soff);
+
 	nvkm_msec(device, 2000,
 		if (!(nvkm_rd32(device, 0x61c030 + soff) & 0x10000000))
 			break;
 	);
-	return 0;
 }
 
 void
@@ -103,6 +91,7 @@ nv50_sor_state(struct nvkm_ior *sor, struct nvkm_ior_state *state)
 static const struct nvkm_ior_func
 nv50_sor = {
 	.state = nv50_sor_state,
+	.power = nv50_sor_power,
 };
 
 int

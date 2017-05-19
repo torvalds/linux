@@ -24,6 +24,7 @@
 static const struct nvkm_ior_func
 mcp77_sor = {
 	.state = g94_sor_state,
+	.power = nv50_sor_power,
 };
 
 int

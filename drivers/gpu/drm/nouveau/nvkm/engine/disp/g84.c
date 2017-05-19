@@ -40,15 +40,11 @@ g84_disp = {
 	.outp.external.dp = nv50_pior_dp_new,
 	.dac.nr = 3,
 	.dac.new = nv50_dac_new,
-	.dac.power = nv50_dac_power,
 	.dac.sense = nv50_dac_sense,
 	.sor.nr = 2,
 	.sor.new = g84_sor_new,
-	.sor.power = nv50_sor_power,
 	.sor.hdmi = g84_hdmi_ctrl,
-	.pior.nr = 3,
-	.pior.new = nv50_pior_new,
-	.pior.power = nv50_pior_power,
+	.pior = { .nr = 3, .new = nv50_pior_new },
 };
 
 int
