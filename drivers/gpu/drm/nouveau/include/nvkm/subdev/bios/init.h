@@ -22,6 +22,19 @@ struct nvbios_init {
 	u32 ramcfg;
 };
 
+#define nvbios_init(s,o,ARGS...) ({                                            \
+	struct nvbios_init init = {                                            \
+		.subdev = (s),                                                 \
+		.offset = (o),                                                 \
+		.or = -1,                                                      \
+		.link = 0,                                                     \
+		.head = -1,                                                    \
+		.execute = 1,                                                  \
+	};                                                                     \
+	ARGS                                                                   \
+	nvbios_exec(&init);                                                    \
+})
 int nvbios_exec(struct nvbios_init *);
+
 int nvbios_post(struct nvkm_subdev *, bool execute);
 #endif
