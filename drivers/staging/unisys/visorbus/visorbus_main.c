@@ -1107,7 +1107,7 @@ chipset_device_create(struct visor_device *dev_info)
 	if (err < 0)
 		return err;
 
-	device_create_response(dev_info, err);
+	visorbus_device_create_response(dev_info, err);
 
 	return 0;
 }
@@ -1117,7 +1117,7 @@ chipset_device_destroy(struct visor_device *dev_info)
 {
 	remove_visor_device(dev_info);
 
-	device_destroy_response(dev_info, 0);
+	visorbus_device_destroy_response(dev_info, 0);
 }
 
 /*
@@ -1137,7 +1137,7 @@ pause_state_change_complete(struct visor_device *dev, int status)
 
 	dev->pausing = false;
 
-	device_pause_response(dev, status);
+	visorbus_device_pause_response(dev, status);
 }
 
 /*
@@ -1162,7 +1162,7 @@ resume_state_change_complete(struct visor_device *dev, int status)
 	 * which will presumably want to send some sort of response to
 	 * the initiator.
 	 */
-	device_resume_response(dev, status);
+	visorbus_device_resume_response(dev, status);
 }
 
 /*

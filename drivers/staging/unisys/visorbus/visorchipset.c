@@ -1473,7 +1473,7 @@ visorbus_destroy_response(struct visor_device *bus_info, int response)
 }
 
 void
-device_create_response(struct visor_device *dev_info, int response)
+visorbus_device_create_response(struct visor_device *dev_info, int response)
 {
 	if (response >= 0)
 		dev_info->state.created = 1;
@@ -1486,7 +1486,7 @@ device_create_response(struct visor_device *dev_info, int response)
 }
 
 void
-device_destroy_response(struct visor_device *dev_info, int response)
+visorbus_device_destroy_response(struct visor_device *dev_info, int response)
 {
 	controlvm_responder(CONTROLVM_DEVICE_DESTROY, dev_info->pending_msg_hdr,
 			    response);
@@ -1496,8 +1496,7 @@ device_destroy_response(struct visor_device *dev_info, int response)
 }
 
 void
-device_pause_response(struct visor_device *dev_info,
-		      int response)
+visorbus_device_pause_response(struct visor_device *dev_info, int response)
 {
 	device_changestate_responder(CONTROLVM_DEVICE_CHANGESTATE,
 				     dev_info, response,
@@ -1508,7 +1507,7 @@ device_pause_response(struct visor_device *dev_info,
 }
 
 void
-device_resume_response(struct visor_device *dev_info, int response)
+visorbus_device_resume_response(struct visor_device *dev_info, int response)
 {
 	device_changestate_responder(CONTROLVM_DEVICE_CHANGESTATE,
 				     dev_info, response,
