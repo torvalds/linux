@@ -11,16 +11,18 @@ struct nvkm_outp {
 	int index;
 	struct dcb_output info;
 
-	// whatever (if anything) is pointed at by the dcb device entry
 	struct nvkm_i2c_bus *i2c;
 	int or;
 
 	struct list_head head;
 	struct nvkm_conn *conn;
+
+	/* Assembly state. */
+	struct nvkm_ior *ior;
 };
 
-void nvkm_outp_ctor(const struct nvkm_outp_func *, struct nvkm_disp *,
-		    int index, struct dcb_output *, struct nvkm_outp *);
+int nvkm_outp_ctor(const struct nvkm_outp_func *, struct nvkm_disp *,
+		   int index, struct dcb_output *, struct nvkm_outp *);
 void nvkm_outp_del(struct nvkm_outp **);
 void nvkm_outp_init(struct nvkm_outp *);
 void nvkm_outp_fini(struct nvkm_outp *);

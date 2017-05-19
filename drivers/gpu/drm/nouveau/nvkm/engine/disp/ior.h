@@ -14,6 +14,16 @@ struct nvkm_ior {
 	char name[8];
 
 	struct list_head head;
+
+	struct nvkm_ior_state {
+		enum nvkm_ior_proto {
+			CRT,
+			TMDS,
+			LVDS,
+			DP,
+			UNKNOWN
+		} proto:3;
+	} arm, asy;
 };
 
 struct nvkm_ior_func {

@@ -22,10 +22,40 @@
  * Authors: Ben Skeggs
  */
 #include "outp.h"
+#include "ior.h"
 
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>
 #include <subdev/i2c.h>
+
+static enum nvkm_ior_proto
+nvkm_outp_xlat(struct nvkm_output *outp, enum nvkm_ior_type *type)
+{
+	switch (outp->info.location) {
+	case 0:
+		switch (outp->info.type) {
+		case DCB_OUTPUT_ANALOG: *type = DAC; return  CRT;
+		case DCB_OUTPUT_TMDS  : *type = SOR; return TMDS;
+		case DCB_OUTPUT_LVDS  : *type = SOR; return LVDS;
+		case DCB_OUTPUT_DP    : *type = SOR; return   DP;
+		default:
+			break;
+		}
+		break;
+	case 1:
+		switch (outp->info.type) {
+		case DCB_OUTPUT_TMDS: *type = PIOR; return TMDS;
+		case DCB_OUTPUT_DP  : *type = PIOR; return TMDS; /* not a bug */
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+	WARN_ON(1);
+	return UNKNOWN;
+}
 
 void
 nvkm_outp_fini(struct nvkm_outp *outp)
@@ -34,9 +64,38 @@ nvkm_outp_fini(struct nvkm_outp *outp)
 		outp->func->fini(outp);
 }
 
+static void
+nvkm_outp_init_route(struct nvkm_output *outp)
+{
+	struct nvkm_disp *disp = outp->disp;
+	enum nvkm_ior_proto proto;
+	enum nvkm_ior_type type;
+	struct nvkm_ior *ior;
+	int id;
+
+	proto = nvkm_outp_xlat(outp, &type);
+	if (proto == UNKNOWN)
+		return;
+
+	/* Determine the specific OR, if any, this device is attached to. */
+	if (1) {
+		/* Prior to DCB 4.1, this is hardwired like so. */
+		id = ffs(outp->info.or) - 1;
+	}
+
+	ior = nvkm_ior_find(disp, type, id);
+	if (!ior) {
+		WARN_ON(1);
+		return;
+	}
+
+	outp->ior = ior;
+}
+
 void
 nvkm_outp_init(struct nvkm_outp *outp)
 {
+	nvkm_outp_init_route(outp);
 	if (outp->func->init)
 		outp->func->init(outp);
 }
@@ -53,11 +112,13 @@ nvkm_outp_del(struct nvkm_outp **poutp)
 	}
 }
 
-void
+int
 nvkm_outp_ctor(const struct nvkm_outp_func *func, struct nvkm_disp *disp,
 	       int index, struct dcb_output *dcbE, struct nvkm_outp *outp)
 {
 	struct nvkm_i2c *i2c = disp->engine.subdev.device->i2c;
+	enum nvkm_ior_proto proto;
+	enum nvkm_ior_type type;
 
 	outp->func = func;
 	outp->disp = disp;
@@ -72,6 +133,13 @@ nvkm_outp_ctor(const struct nvkm_outp_func *func, struct nvkm_disp *disp,
 		 outp->info.type >= 2 ? outp->info.sorconf.link : 0,
 		 outp->info.connector, outp->info.i2c_index,
 		 outp->info.bus, outp->info.heads);
+
+	/* Cull output paths we can't map to an output resource. */
+	proto = nvkm_outp_xlat(outp, &type);
+	if (proto == UNKNOWN)
+		return -ENODEV;
+
+	return 0;
 }
 
 int
@@ -81,7 +149,5 @@ nvkm_outp_new_(const struct nvkm_outp_func *func,
 {
 	if (!(*poutp = kzalloc(sizeof(**poutp), GFP_KERNEL)))
 		return -ENOMEM;
-
-	nvkm_outp_ctor(func, disp, index, dcbE, *poutp);
-	return 0;
+	return nvkm_outp_ctor(func, disp, index, dcbE, *poutp);
 }

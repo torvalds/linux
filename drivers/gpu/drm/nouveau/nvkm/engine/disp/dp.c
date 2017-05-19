@@ -562,7 +562,10 @@ nvkm_dp_ctor(struct nvkm_disp *disp, int index, struct dcb_output *dcbE,
 	u32 data;
 	int ret;
 
-	nvkm_outp_ctor(&nvkm_dp_func, disp, index, dcbE, &dp->outp);
+	ret = nvkm_outp_ctor(&nvkm_dp_func, disp, index, dcbE, &dp->outp);
+	if (ret)
+		return ret;
+
 	dp->aux = aux;
 	if (!dp->aux) {
 		OUTP_ERR(&dp->outp, "no aux");
