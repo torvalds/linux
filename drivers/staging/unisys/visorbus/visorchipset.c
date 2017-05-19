@@ -744,7 +744,7 @@ err_respond:
 }
 
 static int
-my_device_create(struct controlvm_message *inmsg)
+visorbus_device_create(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
 	struct controlvm_message_header *pmsg_hdr = NULL;
@@ -844,7 +844,7 @@ err_respond:
 }
 
 static int
-my_device_changestate(struct controlvm_message *inmsg)
+visorbus_device_changestate(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
 	struct controlvm_message_header *pmsg_hdr = NULL;
@@ -905,7 +905,7 @@ err_respond:
 }
 
 static int
-my_device_destroy(struct controlvm_message *inmsg)
+visorbus_device_destroy(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
 	struct controlvm_message_header *pmsg_hdr = NULL;
@@ -1446,7 +1446,7 @@ setup_crash_devices_work_queue(struct work_struct *work)
 			"no valid create_device message\n");
 		return;
 	}
-	my_device_create(&local_crash_dev_msg);
+	visorbus_device_create(&local_crash_dev_msg);
 }
 
 void
@@ -1642,7 +1642,7 @@ handle_command(struct controlvm_message inmsg, u64 channel_addr)
 		err = visorbus_configure(&inmsg, parser_ctx);
 		break;
 	case CONTROLVM_DEVICE_CREATE:
-		err = my_device_create(&inmsg);
+		err = visorbus_device_create(&inmsg);
 		break;
 	case CONTROLVM_DEVICE_CHANGESTATE:
 		if (cmd->device_change_state.flags.phys_device) {
@@ -1652,12 +1652,12 @@ handle_command(struct controlvm_message inmsg, u64 channel_addr)
 			 * save the hdr and cmd structures for later use
 			 * when sending back the response to Command
 			 */
-			err = my_device_changestate(&inmsg);
+			err = visorbus_device_changestate(&inmsg);
 			break;
 		}
 		break;
 	case CONTROLVM_DEVICE_DESTROY:
-		err = my_device_destroy(&inmsg);
+		err = visorbus_device_destroy(&inmsg);
 		break;
 	case CONTROLVM_DEVICE_CONFIGURE:
 		/* no op just send a respond that we passed */
