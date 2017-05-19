@@ -129,7 +129,7 @@
  * 	"rotate-270"
  * DRM_REFLECT_X:
  * 	"reflect-x"
- * DRM_REFELCT_Y:
+ * DRM_REFLECT_Y:
  * 	"reflect-y"
  *
  * Rotation is the specified amount in degrees in counter clockwise direction,
