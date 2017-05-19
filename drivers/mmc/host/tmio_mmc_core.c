@@ -315,44 +315,6 @@ static void tmio_mmc_reset_work(struct work_struct *work)
 	mmc_request_done(host->mmc, mrq);
 }
 
-static void tmio_mmc_finish_request(struct tmio_mmc_host *host)
-{
-	struct mmc_request *mrq;
-	unsigned long flags;
-
-	spin_lock_irqsave(&host->lock, flags);
-
-	mrq = host->mrq;
-	if (IS_ERR_OR_NULL(mrq)) {
-		spin_unlock_irqrestore(&host->lock, flags);
-		return;
-	}
-
-	host->cmd = NULL;
-	host->data = NULL;
-	host->force_pio = false;
-
-	cancel_delayed_work(&host->delayed_reset_work);
-
-	host->mrq = NULL;
-	spin_unlock_irqrestore(&host->lock, flags);
-
-	if (mrq->cmd->error || (mrq->data && mrq->data->error))
-		tmio_mmc_abort_dma(host);
-
-	if (host->check_scc_error)
-		host->check_scc_error(host);
-
-	mmc_request_done(host->mmc, mrq);
-}
-
-static void tmio_mmc_done_work(struct work_struct *work)
-{
-	struct tmio_mmc_host *host = container_of(work, struct tmio_mmc_host,
-						  done);
-	tmio_mmc_finish_request(host);
-}
-
 /* These are the bitmasks the tmio chip requires to implement the MMC response
  * types. Note that R1 and R6 are the same in this scheme. */
 #define APP_CMD        0x0040
@@ -943,6 +905,44 @@ static void tmio_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	spin_unlock_irqrestore(&host->lock, flags);
 
 	tmio_process_mrq(host, mrq);
+}
+
+static void tmio_mmc_finish_request(struct tmio_mmc_host *host)
+{
+	struct mmc_request *mrq;
+	unsigned long flags;
+
+	spin_lock_irqsave(&host->lock, flags);
+
+	mrq = host->mrq;
+	if (IS_ERR_OR_NULL(mrq)) {
+		spin_unlock_irqrestore(&host->lock, flags);
+		return;
+	}
+
+	host->cmd = NULL;
+	host->data = NULL;
+	host->force_pio = false;
+
+	cancel_delayed_work(&host->delayed_reset_work);
+
+	host->mrq = NULL;
+	spin_unlock_irqrestore(&host->lock, flags);
+
+	if (mrq->cmd->error || (mrq->data && mrq->data->error))
+		tmio_mmc_abort_dma(host);
+
+	if (host->check_scc_error)
+		host->check_scc_error(host);
+
+	mmc_request_done(host->mmc, mrq);
+}
+
+static void tmio_mmc_done_work(struct work_struct *work)
+{
+	struct tmio_mmc_host *host = container_of(work, struct tmio_mmc_host,
+						  done);
+	tmio_mmc_finish_request(host);
 }
 
 static int tmio_mmc_clk_enable(struct tmio_mmc_host *host)
