@@ -23,6 +23,7 @@
  */
 #include "dp.h"
 #include "conn.h"
+#include "ior.h"
 #include "nv50.h"
 
 #include <subdev/bios.h>
@@ -33,8 +34,6 @@
 
 struct lt_state {
 	struct nvkm_dp *dp;
-	int link_nr;
-	u32 link_bw;
 	u8  stat[6];
 	u8  conf[4];
 	bool pc2;
@@ -76,7 +75,7 @@ nvkm_dp_train_drive(struct lt_state *lt, bool pc)
 	struct nvkm_dp *dp = lt->dp;
 	int ret, i;
 
-	for (i = 0; i < lt->link_nr; i++) {
+	for (i = 0; i < dp->outp.ior->dp.nr; i++) {
 		u8 lane = (lt->stat[4 + (i >> 1)] >> ((i & 1) * 4)) & 0xf;
 		u8 lpc2 = (lt->pc2stat >> (i * 2)) & 0x3;
 		u8 lpre = (lane & 0x0c) >> 2;
@@ -137,7 +136,7 @@ nvkm_dp_train_eq(struct lt_state *lt)
 	bool eq_done = false, cr_done = true;
 	int tries = 0, i;
 
-	if (lt->dp->dpcd[2] & DPCD_RC02_TPS3_SUPPORTED)
+	if (lt->dp->dpcd[DPCD_RC02] & DPCD_RC02_TPS3_SUPPORTED)
 		nvkm_dp_train_pattern(lt, 3);
 	else
 		nvkm_dp_train_pattern(lt, 2);
@@ -149,7 +148,7 @@ nvkm_dp_train_eq(struct lt_state *lt)
 			break;
 
 		eq_done = !!(lt->stat[2] & DPCD_LS04_INTERLANE_ALIGN_DONE);
-		for (i = 0; i < lt->link_nr && eq_done; i++) {
+		for (i = 0; i < lt->dp->outp.ior->dp.nr && eq_done; i++) {
 			u8 lane = (lt->stat[i >> 1] >> ((i & 1) * 4)) & 0xf;
 			if (!(lane & DPCD_LS02_LANE0_CR_DONE))
 				cr_done = false;
@@ -177,7 +176,7 @@ nvkm_dp_train_cr(struct lt_state *lt)
 			break;
 
 		cr_done = true;
-		for (i = 0; i < lt->link_nr; i++) {
+		for (i = 0; i < lt->dp->outp.ior->dp.nr; i++) {
 			u8 lane = (lt->stat[i >> 1] >> ((i & 1) * 4)) & 0xf;
 			if (!(lane & DPCD_LS02_LANE0_CR_DONE)) {
 				cr_done = false;
@@ -200,6 +199,7 @@ static int
 nvkm_dp_train_links(struct lt_state *lt)
 {
 	struct nvkm_dp *dp = lt->dp;
+	struct nvkm_ior *ior = dp->outp.ior;
 	struct nvkm_disp *disp = dp->outp.disp;
 	struct nvkm_subdev *subdev = &disp->engine.subdev;
 	struct nvkm_bios *bios = subdev->device->bios;
@@ -215,7 +215,8 @@ nvkm_dp_train_links(struct lt_state *lt)
 	u8 sink[2];
 	int ret;
 
-	OUTP_DBG(&dp->outp, "%d lanes at %d KB/s", lt->link_nr, lt->link_bw);
+	OUTP_DBG(&dp->outp, "training %d x %d MB/s",
+		 ior->dp.nr, ior->dp.bw * 27);
 
 	/* Intersect misc. capabilities of the OR and sink. */
 	if (disp->engine.subdev.device->chipset < 0xd0)
@@ -225,11 +226,11 @@ nvkm_dp_train_links(struct lt_state *lt)
 	/* Set desired link configuration on the source. */
 	if ((lnkcmp = lt->dp->info.lnkcmp)) {
 		if (dp->version < 0x30) {
-			while ((lt->link_bw / 10) < nvbios_rd16(bios, lnkcmp))
+			while ((ior->dp.bw * 2700) < nvbios_rd16(bios, lnkcmp))
 				lnkcmp += 4;
 			init.offset = nvbios_rd16(bios, lnkcmp + 2);
 		} else {
-			while ((lt->link_bw / 27000) < nvbios_rd08(bios, lnkcmp))
+			while (ior->dp.bw < nvbios_rd08(bios, lnkcmp))
 				lnkcmp += 3;
 			init.offset = nvbios_rd16(bios, lnkcmp + 1);
 		}
@@ -237,21 +238,19 @@ nvkm_dp_train_links(struct lt_state *lt)
 		nvbios_exec(&init);
 	}
 
-	ret = dp->func->lnk_ctl(dp, lt->link_nr, lt->link_bw / 27000,
-				dp->dpcd[DPCD_RC02] &
-					 DPCD_RC02_ENHANCED_FRAME_CAP);
+	ret = dp->func->lnk_ctl(dp, ior->dp.nr, ior->dp.bw, ior->dp.ef);
 	if (ret) {
 		if (ret < 0)
 			OUTP_ERR(&dp->outp, "lnk_ctl failed with %d", ret);
 		return ret;
 	}
 
-	dp->func->lnk_pwr(dp, lt->link_nr);
+	dp->func->lnk_pwr(dp, ior->dp.nr);
 
 	/* Set desired link configuration on the sink. */
-	sink[0] = lt->link_bw / 27000;
-	sink[1] = lt->link_nr;
-	if (dp->dpcd[DPCD_RC02] & DPCD_RC02_ENHANCED_FRAME_CAP)
+	sink[0] = ior->dp.bw;
+	sink[1] = ior->dp.nr;
+	if (ior->dp.ef)
 		sink[1] |= DPCD_LC01_ENHANCED_FRAME_EN;
 
 	return nvkm_wraux(dp->aux, DPCD_LC00_LINK_BW_SET, sink, 2);
@@ -276,7 +275,7 @@ nvkm_dp_train_fini(struct lt_state *lt)
 }
 
 static void
-nvkm_dp_train_init(struct lt_state *lt, bool spread)
+nvkm_dp_train_init(struct lt_state *lt)
 {
 	struct nvkm_dp *dp = lt->dp;
 	struct nvkm_subdev *subdev = &dp->outp.disp->engine.subdev;
@@ -289,7 +288,7 @@ nvkm_dp_train_init(struct lt_state *lt, bool spread)
 	};
 
 	/* Execute EnableSpread/DisableSpread script from DP Info table. */
-	if (spread)
+	if (dp->dpcd[DPCD_RC03] & DPCD_RC03_MAX_DOWNSPREAD)
 		init.offset = dp->info.script[2];
 	else
 		init.offset = dp->info.script[3];
@@ -321,7 +320,12 @@ static void
 nvkm_dp_train(struct nvkm_dp *dp)
 {
 	struct nv50_disp *disp = nv50_disp(dp->outp.disp);
-	const struct dp_rates *cfg = nvkm_dp_rates - 1;
+	struct nvkm_ior *ior = dp->outp.ior;
+	const u8 sink_nr = dp->dpcd[DPCD_RC02] & DPCD_RC02_MAX_LANE_COUNT;
+	const u8 sink_bw = dp->dpcd[DPCD_RC01_MAX_LINK_RATE];
+	const u8 outp_nr = dp->outp.info.dpconf.link_nr;
+	const u8 outp_bw = dp->outp.info.dpconf.link_bw;
+	const struct dp_rates *cfg;
 	struct lt_state lt = {
 		.dp = dp,
 	};
@@ -330,13 +334,6 @@ nvkm_dp_train(struct nvkm_dp *dp)
 
 	if (!dp->outp.info.location && disp->func->sor.magic)
 		disp->func->sor.magic(&dp->outp);
-
-	if ((dp->dpcd[2] & 0x1f) > dp->outp.info.dpconf.link_nr) {
-		dp->dpcd[2] &= ~DPCD_RC02_MAX_LANE_COUNT;
-		dp->dpcd[2] |= dp->outp.info.dpconf.link_nr;
-	}
-	if (dp->dpcd[1] > dp->outp.info.dpconf.link_bw)
-		dp->dpcd[1] = dp->outp.info.dpconf.link_bw;
 
 	/* Ensure sink is not in a low-power state. */
 	if (!nvkm_rdaux(dp->aux, DPCD_SC00, &pwr, 1)) {
@@ -348,14 +345,17 @@ nvkm_dp_train(struct nvkm_dp *dp)
 	}
 
 	/* Link training. */
-	nvkm_dp_train_init(&lt, dp->dpcd[3] & 0x01);
-	while (ret = -EIO, (++cfg)->rate) {
+	nvkm_dp_train_init(&lt);
+	for (ret = -EINVAL, cfg = nvkm_dp_rates; cfg->rate; cfg++) {
 		/* Skip configurations not supported by both OR and sink. */
-		while (cfg->nr > (dp->dpcd[2] & DPCD_RC02_MAX_LANE_COUNT) ||
-		       cfg->bw > (dp->dpcd[DPCD_RC01_MAX_LINK_RATE]))
-			cfg++;
-		lt.link_bw = cfg->bw * 27000;
-		lt.link_nr = cfg->nr;
+		if (cfg[1].rate &&
+		    (cfg->nr > outp_nr || cfg->bw > outp_bw ||
+		     cfg->nr > sink_nr || cfg->bw > sink_bw))
+			continue;
+		ior->dp.mst = dp->lt.mst;
+		ior->dp.ef = dp->dpcd[DPCD_RC02] & DPCD_RC02_ENHANCED_FRAME_CAP;
+		ior->dp.bw = cfg->bw;
+		ior->dp.nr = cfg->nr;
 
 		/* Program selected link configuration. */
 		ret = nvkm_dp_train_links(&lt);

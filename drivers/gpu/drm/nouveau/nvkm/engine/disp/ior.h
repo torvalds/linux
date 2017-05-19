@@ -24,6 +24,14 @@ struct nvkm_ior {
 			UNKNOWN
 		} proto:3;
 	} arm, asy;
+
+	/* Armed DP state. */
+	struct {
+		bool mst;
+		bool ef;
+		u8 nr;
+		u8 bw;
+	} dp;
 };
 
 struct nvkm_ior_func {
