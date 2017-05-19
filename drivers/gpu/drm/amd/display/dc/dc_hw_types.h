@@ -635,6 +635,8 @@ struct dc_crtc_timing_flags {
 	uint32_t YCBCR420 :1; /* TODO: shouldn't need this flag, should be a separate pixel format */
 	uint32_t DTD_COUNTER :5; /* values 1 to 16 */
 
+	uint32_t FORCE_HDR :1;
+
 	/* HDMI 2.0 - Support scrambling for TMDS character
 	 * rates less than or equal to 340Mcsc */
 	uint32_t LTE_340MCSC_SCRAMBLE:1;
