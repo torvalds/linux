@@ -2290,7 +2290,7 @@ nvbios_exec(struct nvbios_init *init)
 }
 
 int
-nvbios_init(struct nvkm_subdev *subdev, bool execute)
+nvbios_post(struct nvkm_subdev *subdev, bool execute)
 {
 	struct nvkm_bios *bios = subdev->device->bios;
 	int ret = 0;

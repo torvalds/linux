@@ -17,5 +17,5 @@ struct nvbios_init {
 };
 
 int nvbios_exec(struct nvbios_init *);
-int nvbios_init(struct nvkm_subdev *, bool execute);
+int nvbios_post(struct nvkm_subdev *, bool execute);
 #endif
