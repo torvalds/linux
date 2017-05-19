@@ -32,6 +32,14 @@ struct mmc_blk_request {
 	int			retune_retry_done;
 };
 
+/**
+ * enum mmc_drv_op - enumerates the operations in the mmc_queue_req
+ * @MMC_DRV_OP_IOCTL: ioctl operation
+ */
+enum mmc_drv_op {
+	MMC_DRV_OP_IOCTL,
+};
+
 struct mmc_queue_req {
 	struct mmc_blk_request	brq;
 	struct scatterlist	*sg;
@@ -39,6 +47,7 @@ struct mmc_queue_req {
 	struct scatterlist	*bounce_sg;
 	unsigned int		bounce_sg_len;
 	struct mmc_async_req	areq;
+	enum mmc_drv_op		drv_op;
 	int			ioc_result;
 	struct mmc_blk_ioc_data	**idata;
 	unsigned int		ioc_count;
