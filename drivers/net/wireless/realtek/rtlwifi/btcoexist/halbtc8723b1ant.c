@@ -3116,6 +3116,43 @@ void ex_halbtc8723b1ant_bt_info_notify(struct btc_coexist *btcoexist,
 	halbtc8723b1ant_run_coexist_mechanism(btcoexist);
 }
 
+void ex_halbtc8723b1ant_rf_status_notify(struct btc_coexist *btcoexist, u8 type)
+{
+	struct rtl_priv *rtlpriv = btcoexist->adapter;
+	u32 u32tmp;
+	u8 u8tmpa, u8tmpb, u8tmpc;
+
+	RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+		 "[BTCoex], RF Status notify\n");
+
+	if (type == BTC_RF_ON) {
+		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+			 "[BTCoex], RF is turned ON!!\n");
+		btcoexist->stop_coex_dm = false;
+	} else if (type == BTC_RF_OFF) {
+		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+			 "[BTCoex], RF is turned OFF!!\n");
+
+		halbtc8723b1ant_power_save_state(btcoexist, BTC_PS_WIFI_NATIVE,
+						 0x0, 0x0);
+		halbtc8723b1ant_ps_tdma(btcoexist, FORCE_EXEC, false, 0);
+		halbtc8723b1ant_set_ant_path(btcoexist, BTC_ANT_PATH_BT,
+					     FORCE_EXEC, false, true);
+
+		halbtc8723b1ant_ignore_wlan_act(btcoexist, FORCE_EXEC, true);
+		btcoexist->stop_coex_dm = true;
+
+		u32tmp = btcoexist->btc_read_4byte(btcoexist, 0x948);
+		u8tmpa = btcoexist->btc_read_1byte(btcoexist, 0x765);
+		u8tmpb = btcoexist->btc_read_1byte(btcoexist, 0x67);
+		u8tmpc = btcoexist->btc_read_1byte(btcoexist, 0x76e);
+
+		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+			 "############# [BTCoex], 0x948=0x%x, 0x765=0x%x, 0x67=0x%x, 0x76e=0x%x\n",
+			 u32tmp, u8tmpa, u8tmpb, u8tmpc);
+	}
+}
+
 void ex_halbtc8723b1ant_halt_notify(struct btc_coexist *btcoexist)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;

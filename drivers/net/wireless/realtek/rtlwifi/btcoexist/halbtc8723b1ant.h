@@ -208,6 +208,8 @@ void ex_halbtc8723b1ant_special_packet_notify(struct btc_coexist *btcoexist,
 					      u8 type);
 void ex_halbtc8723b1ant_bt_info_notify(struct btc_coexist *btcoexist,
 				       u8 *tmpbuf, u8 length);
+void ex_halbtc8723b1ant_rf_status_notify(struct btc_coexist *btcoexist,
+					 u8 type);
 void ex_halbtc8723b1ant_halt_notify(struct btc_coexist *btcoexist);
 void ex_halbtc8723b1ant_pnp_notify(struct btc_coexist *btcoexist, u8 pnpstate);
 void ex_halbtc8723b1ant_coex_dm_reset(struct btc_coexist *btcoexist);
