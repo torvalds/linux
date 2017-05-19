@@ -27,6 +27,9 @@
 
 static const char * const ar100_parents[] = { "osc32k", "osc24M",
 					     "pll-periph0", "iosc" };
+static const struct ccu_mux_var_prediv ar100_predivs[] = {
+	{ .index = 2, .shift = 8, .width = 5 },
+};
 
 static struct ccu_div ar100_clk = {
 	.div		= _SUNXI_CCU_DIV_FLAGS(4, 2, CLK_DIVIDER_POWER_OF_TWO),
@@ -35,11 +38,8 @@ static struct ccu_div ar100_clk = {
 		.shift	= 16,
 		.width	= 2,
 
-		.variable_prediv	= {
-			.index	= 2,
-			.shift	= 8,
-			.width	= 5,
-		},
+		.var_predivs	= ar100_predivs,
+		.n_var_predivs	= ARRAY_SIZE(ar100_predivs),
 	},
 
 	.common		= {

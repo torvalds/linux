@@ -10,6 +10,12 @@ struct ccu_mux_fixed_prediv {
 	u16	div;
 };
 
+struct ccu_mux_var_prediv {
+	u8	index;
+	u8	shift;
+	u8	width;
+};
+
 struct ccu_mux_internal {
 	u8		shift;
 	u8		width;
@@ -18,11 +24,8 @@ struct ccu_mux_internal {
 	const struct ccu_mux_fixed_prediv	*fixed_predivs;
 	u8		n_predivs;
 
-	struct {
-		u8	index;
-		u8	shift;
-		u8	width;
-	} variable_prediv;
+	const struct ccu_mux_var_prediv		*var_predivs;
+	u8		n_var_predivs;
 };
 
 #define _SUNXI_CCU_MUX_TABLE(_shift, _width, _table)	\

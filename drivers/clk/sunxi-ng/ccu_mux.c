@@ -44,14 +44,18 @@ static u16 ccu_mux_get_prediv(struct ccu_common *common,
 				prediv = cm->fixed_predivs[i].div;
 	}
 
-	if (common->features & CCU_FEATURE_VARIABLE_PREDIV)
-		if (parent_index == cm->variable_prediv.index) {
-			u8 div;
+	if (common->features & CCU_FEATURE_VARIABLE_PREDIV) {
+		int i;
 
-			div = reg >> cm->variable_prediv.shift;
-			div &= (1 << cm->variable_prediv.width) - 1;
-			prediv = div + 1;
-		}
+		for (i = 0; i < cm->n_var_predivs; i++)
+			if (parent_index == cm->var_predivs[i].index) {
+				u8 div;
+
+				div = reg >> cm->var_predivs[i].shift;
+				div &= (1 << cm->var_predivs[i].width) - 1;
+				prediv = div + 1;
+			}
+	}
 
 	return prediv;
 }
