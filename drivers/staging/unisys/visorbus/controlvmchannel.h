@@ -35,12 +35,12 @@
 #define VISOR_CONTROLVM_CHANNEL_VERSIONID 1
 
 #define VISOR_CONTROLVM_CHANNEL_OK_CLIENT(ch) \
-	(spar_check_channel(ch, \
-			    VISOR_CONTROLVM_CHANNEL_UUID, \
-			    "controlvm", \
-			    sizeof(struct visor_controlvm_channel), \
-			    VISOR_CONTROLVM_CHANNEL_VERSIONID, \
-			    VISOR_CONTROLVM_CHANNEL_SIGNATURE))
+	(visor_check_channel(ch, \
+			     VISOR_CONTROLVM_CHANNEL_UUID, \
+			     "controlvm", \
+			     sizeof(struct visor_controlvm_channel), \
+			     VISOR_CONTROLVM_CHANNEL_VERSIONID, \
+			     VISOR_CONTROLVM_CHANNEL_SIGNATURE))
 
 /* Defines for various channel queues */
 #define CONTROLVM_QUEUE_REQUEST	 0
