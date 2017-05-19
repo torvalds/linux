@@ -112,6 +112,14 @@
 	status = "okay";
 };
 
+&hdmi {
+	status = "okay";
+};
+
+&hdmi_phy {
+	status = "okay";
+};
+
 &sdmmc {
 	status = "okay";
 	bus-width = <4>;
@@ -204,6 +212,16 @@
 };
 
 &usb_otg {
+	status = "okay";
+};
+
+&vop {
+	assigned-clocks = <&cru DCLK_VOP>;
+	assigned-clock-parents = <&cru HDMIPHY>;
+	status = "okay";
+};
+
+&vop_mmu {
 	status = "okay";
 };
 
