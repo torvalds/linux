@@ -193,6 +193,16 @@ SOF_TIMESTAMPING_OPT_STATS:
   the transmit timestamps, such as how long a certain block of
   data was limited by peer's receiver window.
 
+SOF_TIMESTAMPING_OPT_PKTINFO:
+
+  Enable the SCM_TIMESTAMPING_PKTINFO control message for incoming
+  packets with hardware timestamps. The message contains struct
+  scm_ts_pktinfo, which supplies the index of the real interface which
+  received the packet and its length at layer 2. A valid (non-zero)
+  interface index will be returned only if CONFIG_NET_RX_BUSY_POLL is
+  enabled and the driver is using NAPI. The struct contains also two
+  other fields, but they are reserved and undefined.
+
 New applications are encouraged to pass SOF_TIMESTAMPING_OPT_ID to
 disambiguate timestamps and SOF_TIMESTAMPING_OPT_TSONLY to operate
 regardless of the setting of sysctl net.core.tstamp_allow_data.

@@ -9,6 +9,7 @@
 #ifndef _NET_TIMESTAMPING_H
 #define _NET_TIMESTAMPING_H
 
+#include <linux/types.h>
 #include <linux/socket.h>   /* for SO_TIMESTAMPING */
 
 /* SO_TIMESTAMPING gets an integer bit field comprised of these values */
@@ -26,8 +27,9 @@ enum {
 	SOF_TIMESTAMPING_OPT_CMSG = (1<<10),
 	SOF_TIMESTAMPING_OPT_TSONLY = (1<<11),
 	SOF_TIMESTAMPING_OPT_STATS = (1<<12),
+	SOF_TIMESTAMPING_OPT_PKTINFO = (1<<13),
 
-	SOF_TIMESTAMPING_LAST = SOF_TIMESTAMPING_OPT_STATS,
+	SOF_TIMESTAMPING_LAST = SOF_TIMESTAMPING_OPT_PKTINFO,
 	SOF_TIMESTAMPING_MASK = (SOF_TIMESTAMPING_LAST - 1) |
 				 SOF_TIMESTAMPING_LAST
 };
@@ -128,6 +130,13 @@ enum hwtstamp_rx_filters {
 
 	/* NTP, UDP, all versions and packet modes */
 	HWTSTAMP_FILTER_NTP_ALL,
+};
+
+/* SCM_TIMESTAMPING_PKTINFO control message */
+struct scm_ts_pktinfo {
+	__u32 if_index;
+	__u32 pkt_length;
+	__u32 reserved[2];
 };
 
 #endif /* _NET_TIMESTAMPING_H */
