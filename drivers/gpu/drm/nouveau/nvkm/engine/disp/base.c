@@ -23,6 +23,7 @@
  */
 #include "priv.h"
 #include "conn.h"
+#include "head.h"
 #include "outp.h"
 
 #include <core/client.h>
@@ -249,6 +250,7 @@ nvkm_disp_oneinit(struct nvkm_engine *engine)
 	struct nvkm_bios *bios = disp->engine.subdev.device->bios;
 	struct nvkm_outp *outp, *outt, *pair;
 	struct nvkm_conn *conn;
+	struct nvkm_head *head;
 	struct nvbios_connE connE;
 	struct dcb_output dcbE;
 	u8  hpd = 0, ver, hdr;
@@ -375,8 +377,11 @@ nvkm_disp_oneinit(struct nvkm_engine *engine)
 	if (ret)
 		return ret;
 
-	return nvkm_event_init(&nvkm_disp_vblank_func, 1,
-			       disp->head.nr, &disp->vblank);
+	i = 0;
+	list_for_each_entry(head, &disp->head, head)
+		i = max(i, head->id + 1);
+
+	return nvkm_event_init(&nvkm_disp_vblank_func, 1, i, &disp->vblank);
 }
 
 static void *
@@ -405,6 +410,12 @@ nvkm_disp_dtor(struct nvkm_engine *engine)
 		nvkm_outp_del(&outp);
 	}
 
+	while (!list_empty(&disp->head)) {
+		struct nvkm_head *head =
+			list_first_entry(&disp->head, typeof(*head), head);
+		nvkm_head_del(&head);
+	}
+
 	return data;
 }
 
@@ -420,10 +431,10 @@ nvkm_disp = {
 
 int
 nvkm_disp_ctor(const struct nvkm_disp_func *func, struct nvkm_device *device,
-	       int index, int heads, struct nvkm_disp *disp)
+	       int index, struct nvkm_disp *disp)
 {
 	disp->func = func;
-	disp->head.nr = heads;
+	INIT_LIST_HEAD(&disp->head);
 	INIT_LIST_HEAD(&disp->outp);
 	INIT_LIST_HEAD(&disp->conn);
 	return nvkm_engine_ctor(&nvkm_disp, device, index, true, &disp->engine);
@@ -431,9 +442,9 @@ nvkm_disp_ctor(const struct nvkm_disp_func *func, struct nvkm_device *device,
 
 int
 nvkm_disp_new_(const struct nvkm_disp_func *func, struct nvkm_device *device,
-	       int index, int heads, struct nvkm_disp **pdisp)
+	       int index, struct nvkm_disp **pdisp)
 {
 	if (!(*pdisp = kzalloc(sizeof(**pdisp), GFP_KERNEL)))
 		return -ENOMEM;
-	return nvkm_disp_ctor(func, device, index, heads, *pdisp);
+	return nvkm_disp_ctor(func, device, index, *pdisp);
 }

@@ -14,6 +14,11 @@ nvkm-y += nvkm/engine/disp/gp100.o
 nvkm-y += nvkm/engine/disp/gp102.o
 nvkm-y += nvkm/engine/disp/vga.o
 
+nvkm-y += nvkm/engine/disp/head.o
+nvkm-y += nvkm/engine/disp/headnv04.o
+nvkm-y += nvkm/engine/disp/headnv50.o
+nvkm-y += nvkm/engine/disp/headgf119.o
+
 nvkm-y += nvkm/engine/disp/dacnv50.o
 nvkm-y += nvkm/engine/disp/piornv50.o
 nvkm-y += nvkm/engine/disp/sornv50.o

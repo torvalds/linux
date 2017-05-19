@@ -8,10 +8,7 @@ struct nvkm_disp {
 	const struct nvkm_disp_func *func;
 	struct nvkm_engine engine;
 
-	struct {
-		int nr;
-	} head;
-
+	struct list_head head;
 	struct list_head outp;
 	struct list_head conn;
 

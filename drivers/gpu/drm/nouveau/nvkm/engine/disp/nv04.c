@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "priv.h"
+#include "head.h"
 
 static const struct nvkm_disp_oclass *
 nv04_disp_root(struct nvkm_disp *disp)
@@ -81,5 +82,17 @@ nv04_disp = {
 int
 nv04_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
 {
-	return nvkm_disp_new_(&nv04_disp, device, index, 2, pdisp);
+	int ret, i;
+
+	ret = nvkm_disp_new_(&nv04_disp, device, index, pdisp);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < 2; i++) {
+		ret = nv04_head_new(*pdisp, i);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }

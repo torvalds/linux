@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat Inc.
+ * Copyright 2017 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,39 +19,44 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Ben Skeggs
+ * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-#include "nv50.h"
 #include "head.h"
-#include "rootnv50.h"
 
-static const struct nv50_disp_func
-g84_disp = {
-	.intr = nv50_disp_intr,
-	.uevent = &nv50_disp_chan_uevent,
-	.super = nv50_disp_super,
-	.root = &g84_disp_root_oclass,
-	.head.new = nv50_head_new,
-	.head.vblank_init = nv50_disp_vblank_init,
-	.head.vblank_fini = nv50_disp_vblank_fini,
-	.head.scanoutpos = nv50_disp_root_scanoutpos,
-	.outp.internal.crt = nv50_dac_output_new,
-	.outp.internal.tmds = nv50_sor_output_new,
-	.outp.internal.lvds = nv50_sor_output_new,
-	.outp.external.tmds = nv50_pior_output_new,
-	.outp.external.dp = nv50_pior_dp_new,
-	.dac.nr = 3,
-	.dac.power = nv50_dac_power,
-	.dac.sense = nv50_dac_sense,
-	.sor.nr = 2,
-	.sor.power = nv50_sor_power,
-	.sor.hdmi = g84_hdmi_ctrl,
-	.pior.nr = 3,
-	.pior.power = nv50_pior_power,
-};
+struct nvkm_head *
+nvkm_head_find(struct nvkm_disp *disp, int id)
+{
+	struct nvkm_head *head;
+	list_for_each_entry(head, &disp->head, head) {
+		if (head->id == id)
+			return head;
+	}
+	return NULL;
+}
+
+void
+nvkm_head_del(struct nvkm_head **phead)
+{
+	struct nvkm_head *head = *phead;
+	if (head) {
+		HEAD_DBG(head, "dtor");
+		list_del(&head->head);
+		kfree(*phead);
+		*phead = NULL;
+	}
+}
 
 int
-g84_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
+nvkm_head_new_(const struct nvkm_head_func *func,
+	       struct nvkm_disp *disp, int id)
 {
-	return nv50_disp_new_(&g84_disp, device, index, 2, pdisp);
+	struct nvkm_head *head;
+	if (!(head = kzalloc(sizeof(*head), GFP_KERNEL)))
+		return -ENOMEM;
+	head->func = func;
+	head->disp = disp;
+	head->id = id;
+	list_add_tail(&head->head, &disp->head);
+	HEAD_DBG(head, "ctor");
+	return 0;
 }

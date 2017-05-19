@@ -23,6 +23,7 @@
  */
 #include "rootnv50.h"
 #include "dmacnv50.h"
+#include "head.h"
 
 #include <core/client.h>
 #include <core/ramht.h>
@@ -102,7 +103,7 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 	} else
 		return ret;
 
-	if (head < 0 || head >= disp->base.head.nr)
+	if (!nvkm_head_find(&disp->base, head))
 		return -ENXIO;
 
 	if (mask) {
@@ -351,6 +352,7 @@ int
 nv50_disp_root_init(struct nv50_disp_root *root)
 {
 	struct nv50_disp *disp = root->disp;
+	struct nvkm_head *head;
 	struct nvkm_device *device = disp->base.engine.subdev.device;
 	u32 tmp;
 	int i;
@@ -363,15 +365,15 @@ nv50_disp_root_init(struct nv50_disp_root *root)
 	nvkm_wr32(device, 0x610184, tmp);
 
 	/* ... CRTC caps */
-	for (i = 0; i < disp->base.head.nr; i++) {
-		tmp = nvkm_rd32(device, 0x616100 + (i * 0x800));
-		nvkm_wr32(device, 0x610190 + (i * 0x10), tmp);
-		tmp = nvkm_rd32(device, 0x616104 + (i * 0x800));
-		nvkm_wr32(device, 0x610194 + (i * 0x10), tmp);
-		tmp = nvkm_rd32(device, 0x616108 + (i * 0x800));
-		nvkm_wr32(device, 0x610198 + (i * 0x10), tmp);
-		tmp = nvkm_rd32(device, 0x61610c + (i * 0x800));
-		nvkm_wr32(device, 0x61019c + (i * 0x10), tmp);
+	list_for_each_entry(head, &disp->base.head, head) {
+		tmp = nvkm_rd32(device, 0x616100 + (head->id * 0x800));
+		nvkm_wr32(device, 0x610190 + (head->id * 0x10), tmp);
+		tmp = nvkm_rd32(device, 0x616104 + (head->id * 0x800));
+		nvkm_wr32(device, 0x610194 + (head->id * 0x10), tmp);
+		tmp = nvkm_rd32(device, 0x616108 + (head->id * 0x800));
+		nvkm_wr32(device, 0x610198 + (head->id * 0x10), tmp);
+		tmp = nvkm_rd32(device, 0x61610c + (head->id * 0x800));
+		nvkm_wr32(device, 0x61019c + (head->id * 0x10), tmp);
 	}
 
 	/* ... DAC caps */

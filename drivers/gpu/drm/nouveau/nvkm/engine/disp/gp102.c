@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 #include "nv50.h"
+#include "head.h"
 #include "rootnv50.h"
 
 static void
@@ -57,6 +58,7 @@ gp102_disp = {
 	.uevent = &gf119_disp_chan_uevent,
 	.super = gf119_disp_super,
 	.root = &gp102_disp_root_oclass,
+	.head.new = gf119_head_new,
 	.head.vblank_init = gf119_disp_vblank_init,
 	.head.vblank_fini = gf119_disp_vblank_fini,
 	.head.scanoutpos = gf119_disp_root_scanoutpos,

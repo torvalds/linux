@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "nv50.h"
+#include "head.h"
 #include "rootnv50.h"
 
 static const struct nv50_disp_func
@@ -30,6 +31,7 @@ gt200_disp = {
 	.uevent = &nv50_disp_chan_uevent,
 	.super = nv50_disp_super,
 	.root = &gt200_disp_root_oclass,
+	.head.new = nv50_head_new,
 	.head.vblank_init = nv50_disp_vblank_init,
 	.head.vblank_fini = nv50_disp_vblank_fini,
 	.head.scanoutpos = nv50_disp_root_scanoutpos,

@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "rootnv50.h"
+#include "head.h"
 #include "dmacnv50.h"
 
 #include <core/client.h>
@@ -78,6 +79,7 @@ int
 gf119_disp_root_init(struct nv50_disp_root *root)
 {
 	struct nv50_disp *disp = root->disp;
+	struct nvkm_head *head;
 	struct nvkm_device *device = disp->base.engine.subdev.device;
 	u32 tmp;
 	int i;
@@ -88,13 +90,14 @@ gf119_disp_root_init(struct nv50_disp_root *root)
 	 */
 
 	/* ... CRTC caps */
-	for (i = 0; i < disp->base.head.nr; i++) {
-		tmp = nvkm_rd32(device, 0x616104 + (i * 0x800));
-		nvkm_wr32(device, 0x6101b4 + (i * 0x800), tmp);
-		tmp = nvkm_rd32(device, 0x616108 + (i * 0x800));
-		nvkm_wr32(device, 0x6101b8 + (i * 0x800), tmp);
-		tmp = nvkm_rd32(device, 0x61610c + (i * 0x800));
-		nvkm_wr32(device, 0x6101bc + (i * 0x800), tmp);
+	list_for_each_entry(head, &disp->base.head, head) {
+		const u32 hoff = head->id * 0x800;
+		tmp = nvkm_rd32(device, 0x616104 + hoff);
+		nvkm_wr32(device, 0x6101b4 + hoff, tmp);
+		tmp = nvkm_rd32(device, 0x616108 + hoff);
+		nvkm_wr32(device, 0x6101b8 + hoff, tmp);
+		tmp = nvkm_rd32(device, 0x61610c + hoff);
+		nvkm_wr32(device, 0x6101bc + hoff, tmp);
 	}
 
 	/* ... DAC caps */
@@ -134,8 +137,10 @@ gf119_disp_root_init(struct nv50_disp_root *root)
 	 *
 	 * ftp://download.nvidia.com/open-gpu-doc/gk104-disable-underflow-reporting/1/gk104-disable-underflow-reporting.txt
 	 */
-	for (i = 0; i < disp->base.head.nr; i++)
-		nvkm_mask(device, 0x616308 + (i * 0x800), 0x00000111, 0x00000010);
+	list_for_each_entry(head, &disp->base.head, head) {
+		const u32 hoff = head->id * 0x800;
+		nvkm_mask(device, 0x616308 + hoff, 0x00000111, 0x00000010);
+	}
 
 	return 0;
 }

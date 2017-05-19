@@ -75,6 +75,7 @@ struct nv50_disp_func {
 	const struct nvkm_disp_oclass *root;
 
 	struct {
+		int (*new)(struct nvkm_disp *, int id);
 		void (*vblank_init)(struct nv50_disp *, int head);
 		void (*vblank_fini)(struct nv50_disp *, int head);
 		int (*scanoutpos)(NV50_DISP_MTHD_V0);

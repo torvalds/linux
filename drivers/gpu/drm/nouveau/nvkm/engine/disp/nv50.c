@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "nv50.h"
+#include "head.h"
 #include "rootnv50.h"
 
 #include <core/client.h>
@@ -146,7 +147,7 @@ nv50_disp_new_(const struct nv50_disp_func *func, struct nvkm_device *device,
 	       int index, int heads, struct nvkm_disp **pdisp)
 {
 	struct nv50_disp *disp;
-	int ret;
+	int ret, i;
 
 	if (!(disp = kzalloc(sizeof(*disp), GFP_KERNEL)))
 		return -ENOMEM;
@@ -154,9 +155,15 @@ nv50_disp_new_(const struct nv50_disp_func *func, struct nvkm_device *device,
 	disp->func = func;
 	*pdisp = &disp->base;
 
-	ret = nvkm_disp_ctor(&nv50_disp_, device, index, heads, &disp->base);
+	ret = nvkm_disp_ctor(&nv50_disp_, device, index, &disp->base);
 	if (ret)
 		return ret;
+
+	for (i = 0; func->head.new && i < heads; i++) {
+		ret = func->head.new(&disp->base, i);
+		if (ret)
+			return ret;
+	}
 
 	return nvkm_event_init(func->uevent, 1, 1 + (heads * 4), &disp->uevent);
 }
@@ -684,43 +691,43 @@ nv50_disp_super(struct work_struct *work)
 		container_of(work, struct nv50_disp, supervisor);
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
+	struct nvkm_head *head;
 	u32 super = nvkm_rd32(device, 0x610030);
-	int head;
 
 	nvkm_debug(subdev, "supervisor %08x %08x\n", disp->super, super);
 
 	if (disp->super & 0x00000010) {
 		nv50_disp_chan_mthd(disp->chan[0], NV_DBG_DEBUG);
-		for (head = 0; head < disp->base.head.nr; head++) {
-			if (!(super & (0x00000020 << head)))
+		list_for_each_entry(head, &disp->base.head, head) {
+			if (!(super & (0x00000020 << head->id)))
 				continue;
-			if (!(super & (0x00000080 << head)))
+			if (!(super & (0x00000080 << head->id)))
 				continue;
-			nv50_disp_intr_unk10_0(disp, head);
+			nv50_disp_intr_unk10_0(disp, head->id);
 		}
 	} else
 	if (disp->super & 0x00000020) {
-		for (head = 0; head < disp->base.head.nr; head++) {
-			if (!(super & (0x00000080 << head)))
+		list_for_each_entry(head, &disp->base.head, head) {
+			if (!(super & (0x00000080 << head->id)))
 				continue;
-			nv50_disp_intr_unk20_0(disp, head);
+			nv50_disp_intr_unk20_0(disp, head->id);
 		}
-		for (head = 0; head < disp->base.head.nr; head++) {
-			if (!(super & (0x00000200 << head)))
+		list_for_each_entry(head, &disp->base.head, head) {
+			if (!(super & (0x00000200 << head->id)))
 				continue;
-			nv50_disp_intr_unk20_1(disp, head);
+			nv50_disp_intr_unk20_1(disp, head->id);
 		}
-		for (head = 0; head < disp->base.head.nr; head++) {
-			if (!(super & (0x00000080 << head)))
+		list_for_each_entry(head, &disp->base.head, head) {
+			if (!(super & (0x00000080 << head->id)))
 				continue;
-			nv50_disp_intr_unk20_2(disp, head);
+			nv50_disp_intr_unk20_2(disp, head->id);
 		}
 	} else
 	if (disp->super & 0x00000040) {
-		for (head = 0; head < disp->base.head.nr; head++) {
-			if (!(super & (0x00000080 << head)))
+		list_for_each_entry(head, &disp->base.head, head) {
+			if (!(super & (0x00000080 << head->id)))
 				continue;
-			nv50_disp_intr_unk40_0(disp, head);
+			nv50_disp_intr_unk40_0(disp, head->id);
 		}
 		nv50_disp_update_sppll1(disp);
 	}
@@ -819,6 +826,7 @@ nv50_disp = {
 	.uevent = &nv50_disp_chan_uevent,
 	.super = nv50_disp_super,
 	.root = &nv50_disp_root_oclass,
+	.head.new = nv50_head_new,
 	.head.vblank_init = nv50_disp_vblank_init,
 	.head.vblank_fini = nv50_disp_vblank_fini,
 	.head.scanoutpos = nv50_disp_root_scanoutpos,

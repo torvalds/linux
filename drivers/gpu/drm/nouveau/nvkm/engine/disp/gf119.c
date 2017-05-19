@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "nv50.h"
+#include "head.h"
 #include "rootnv50.h"
 
 #include <subdev/bios.h>
@@ -364,55 +365,55 @@ gf119_disp_super(struct work_struct *work)
 		container_of(work, struct nv50_disp, supervisor);
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
+	struct nvkm_head *head;
 	u32 mask[4];
-	int head;
 
 	nvkm_debug(subdev, "supervisor %d\n", ffs(disp->super));
-	for (head = 0; head < disp->base.head.nr; head++) {
-		mask[head] = nvkm_rd32(device, 0x6101d4 + (head * 0x800));
-		nvkm_debug(subdev, "head %d: %08x\n", head, mask[head]);
+	list_for_each_entry(head, &disp->base.head, head) {
+		mask[head->id] = nvkm_rd32(device, 0x6101d4 + (head->id * 0x800));
+		HEAD_DBG(head, "%08x", mask[head->id]);
 	}
 
 	if (disp->super & 0x00000001) {
 		nv50_disp_chan_mthd(disp->chan[0], NV_DBG_DEBUG);
-		for (head = 0; head < disp->base.head.nr; head++) {
-			if (!(mask[head] & 0x00001000))
+		list_for_each_entry(head, &disp->base.head, head) {
+			if (!(mask[head->id] & 0x00001000))
 				continue;
-			nvkm_debug(subdev, "supervisor 1.0 - head %d\n", head);
-			gf119_disp_intr_unk1_0(disp, head);
+			nvkm_debug(subdev, "supervisor 1.0 - head %d\n", head->id);
+			gf119_disp_intr_unk1_0(disp, head->id);
 		}
 	} else
 	if (disp->super & 0x00000002) {
-		for (head = 0; head < disp->base.head.nr; head++) {
-			if (!(mask[head] & 0x00001000))
+		list_for_each_entry(head, &disp->base.head, head) {
+			if (!(mask[head->id] & 0x00001000))
 				continue;
-			nvkm_debug(subdev, "supervisor 2.0 - head %d\n", head);
-			gf119_disp_intr_unk2_0(disp, head);
+			nvkm_debug(subdev, "supervisor 2.0 - head %d\n", head->id);
+			gf119_disp_intr_unk2_0(disp, head->id);
 		}
-		for (head = 0; head < disp->base.head.nr; head++) {
-			if (!(mask[head] & 0x00010000))
+		list_for_each_entry(head, &disp->base.head, head) {
+			if (!(mask[head->id] & 0x00010000))
 				continue;
-			nvkm_debug(subdev, "supervisor 2.1 - head %d\n", head);
-			gf119_disp_intr_unk2_1(disp, head);
+			nvkm_debug(subdev, "supervisor 2.1 - head %d\n", head->id);
+			gf119_disp_intr_unk2_1(disp, head->id);
 		}
-		for (head = 0; head < disp->base.head.nr; head++) {
-			if (!(mask[head] & 0x00001000))
+		list_for_each_entry(head, &disp->base.head, head) {
+			if (!(mask[head->id] & 0x00001000))
 				continue;
-			nvkm_debug(subdev, "supervisor 2.2 - head %d\n", head);
-			gf119_disp_intr_unk2_2(disp, head);
+			nvkm_debug(subdev, "supervisor 2.2 - head %d\n", head->id);
+			gf119_disp_intr_unk2_2(disp, head->id);
 		}
 	} else
 	if (disp->super & 0x00000004) {
-		for (head = 0; head < disp->base.head.nr; head++) {
-			if (!(mask[head] & 0x00001000))
+		list_for_each_entry(head, &disp->base.head, head) {
+			if (!(mask[head->id] & 0x00001000))
 				continue;
-			nvkm_debug(subdev, "supervisor 3.0 - head %d\n", head);
-			gf119_disp_intr_unk4_0(disp, head);
+			nvkm_debug(subdev, "supervisor 3.0 - head %d\n", head->id);
+			gf119_disp_intr_unk4_0(disp, head->id);
 		}
 	}
 
-	for (head = 0; head < disp->base.head.nr; head++)
-		nvkm_wr32(device, 0x6101d4 + (head * 0x800), 0x00000000);
+	list_for_each_entry(head, &disp->base.head, head)
+		nvkm_wr32(device, 0x6101d4 + (head->id * 0x800), 0x00000000);
 	nvkm_wr32(device, 0x6101d0, 0x80000000);
 }
 
@@ -447,8 +448,8 @@ gf119_disp_intr(struct nv50_disp *disp)
 {
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
+	struct nvkm_head *head;
 	u32 intr = nvkm_rd32(device, 0x610088);
-	int i;
 
 	if (intr & 0x00000001) {
 		u32 stat = nvkm_rd32(device, 0x61008c);
@@ -485,14 +486,15 @@ gf119_disp_intr(struct nv50_disp *disp)
 		intr &= ~0x00100000;
 	}
 
-	for (i = 0; i < disp->base.head.nr; i++) {
-		u32 mask = 0x01000000 << i;
+	list_for_each_entry(head, &disp->base.head, head) {
+		const u32 hoff = head->id * 0x800;
+		u32 mask = 0x01000000 << head->id;
 		if (mask & intr) {
-			u32 stat = nvkm_rd32(device, 0x6100bc + (i * 0x800));
+			u32 stat = nvkm_rd32(device, 0x6100bc + hoff);
 			if (stat & 0x00000001)
-				nvkm_disp_vblank(&disp->base, i);
-			nvkm_mask(device, 0x6100bc + (i * 0x800), 0, 0);
-			nvkm_rd32(device, 0x6100c0 + (i * 0x800));
+				nvkm_disp_vblank(&disp->base, head->id);
+			nvkm_mask(device, 0x6100bc + hoff, 0, 0);
+			nvkm_rd32(device, 0x6100c0 + hoff);
 		}
 	}
 }
@@ -512,6 +514,7 @@ gf119_disp = {
 	.uevent = &gf119_disp_chan_uevent,
 	.super = gf119_disp_super,
 	.root = &gf119_disp_root_oclass,
+	.head.new = gf119_head_new,
 	.head.vblank_init = gf119_disp_vblank_init,
 	.head.vblank_fini = gf119_disp_vblank_fini,
 	.head.scanoutpos = gf119_disp_root_scanoutpos,
