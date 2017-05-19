@@ -472,20 +472,6 @@ prepare_threshold_block(unsigned int bank, unsigned int block, u32 addr,
 		smca_high |= BIT(0);
 
 		/*
-		 * SMCA logs Deferred Error information in MCA_DE{STAT,ADDR}
-		 * registers with the option of additionally logging to
-		 * MCA_{STATUS,ADDR} if MCA_CONFIG[LogDeferredInMcaStat] is set.
-		 *
-		 * This bit is usually set by BIOS to retain the old behavior
-		 * for OSes that don't use the new registers. Linux supports the
-		 * new registers so let's disable that additional logging here.
-		 *
-		 * MCA_CONFIG[LogDeferredInMcaStat] is bit 34 (bit 2 in the high
-		 * portion of the MSR).
-		 */
-		smca_high &= ~BIT(2);
-
-		/*
 		 * SMCA sets the Deferred Error Interrupt type per bank.
 		 *
 		 * MCA_CONFIG[DeferredIntTypeSupported] is bit 5, and tells us
@@ -755,37 +741,19 @@ out_err:
 }
 EXPORT_SYMBOL_GPL(umc_normaddr_to_sysaddr);
 
-static void
-__log_error(unsigned int bank, bool deferred_err, bool threshold_err, u64 misc)
+static void __log_error(unsigned int bank, u64 status, u64 addr, u64 misc)
 {
-	u32 msr_status = msr_ops.status(bank);
-	u32 msr_addr = msr_ops.addr(bank);
 	struct mce m;
-	u64 status;
-
-	WARN_ON_ONCE(deferred_err && threshold_err);
-
-	if (deferred_err && mce_flags.smca) {
-		msr_status = MSR_AMD64_SMCA_MCx_DESTAT(bank);
-		msr_addr = MSR_AMD64_SMCA_MCx_DEADDR(bank);
-	}
-
-	rdmsrl(msr_status, status);
-
-	if (!(status & MCI_STATUS_VAL))
-		return;
 
 	mce_setup(&m);
 
 	m.status = status;
+	m.misc   = misc;
 	m.bank   = bank;
 	m.tsc	 = rdtsc();
 
-	if (threshold_err)
-		m.misc = misc;
-
 	if (m.status & MCI_STATUS_ADDRV) {
-		rdmsrl(msr_addr, m.addr);
+		m.addr = addr;
 
 		/*
 		 * Extract [55:<lsb>] where lsb is the least significant
@@ -806,8 +774,6 @@ __log_error(unsigned int bank, bool deferred_err, bool threshold_err, u64 misc)
 	}
 
 	mce_log(&m);
-
-	wrmsrl(msr_status, 0);
 }
 
 static inline void __smp_deferred_error_interrupt(void)
@@ -832,45 +798,85 @@ asmlinkage __visible void __irq_entry smp_trace_deferred_error_interrupt(void)
 	exiting_ack_irq();
 }
 
+/*
+ * Returns true if the logged error is deferred. False, otherwise.
+ */
+static inline bool
+_log_error_bank(unsigned int bank, u32 msr_stat, u32 msr_addr, u64 misc)
+{
+	u64 status, addr = 0;
+
+	rdmsrl(msr_stat, status);
+	if (!(status & MCI_STATUS_VAL))
+		return false;
+
+	if (status & MCI_STATUS_ADDRV)
+		rdmsrl(msr_addr, addr);
+
+	__log_error(bank, status, addr, misc);
+
+	wrmsrl(status, 0);
+
+	return status & MCI_STATUS_DEFERRED;
+}
+
+/*
+ * We have three scenarios for checking for Deferred errors:
+ *
+ * 1) Non-SMCA systems check MCA_STATUS and log error if found.
+ * 2) SMCA systems check MCA_STATUS. If error is found then log it and also
+ *    clear MCA_DESTAT.
+ * 3) SMCA systems check MCA_DESTAT, if error was not found in MCA_STATUS, and
+ *    log it.
+ */
+static void log_error_deferred(unsigned int bank)
+{
+	bool defrd;
+
+	defrd = _log_error_bank(bank, msr_ops.status(bank),
+					msr_ops.addr(bank), 0);
+
+	if (!mce_flags.smca)
+		return;
+
+	/* Clear MCA_DESTAT if we logged the deferred error from MCA_STATUS. */
+	if (defrd) {
+		wrmsrl(MSR_AMD64_SMCA_MCx_DESTAT(bank), 0);
+		return;
+	}
+
+	/*
+	 * Only deferred errors are logged in MCA_DE{STAT,ADDR} so just check
+	 * for a valid error.
+	 */
+	_log_error_bank(bank, MSR_AMD64_SMCA_MCx_DESTAT(bank),
+			      MSR_AMD64_SMCA_MCx_DEADDR(bank), 0);
+}
+
 /* APIC interrupt handler for deferred errors */
 static void amd_deferred_error_interrupt(void)
 {
 	unsigned int bank;
-	u32 msr_status;
-	u64 status;
 
-	for (bank = 0; bank < mca_cfg.banks; ++bank) {
-		msr_status = (mce_flags.smca) ? MSR_AMD64_SMCA_MCx_DESTAT(bank)
-					      : msr_ops.status(bank);
+	for (bank = 0; bank < mca_cfg.banks; ++bank)
+		log_error_deferred(bank);
+}
 
-		rdmsrl(msr_status, status);
-
-		if (!(status & MCI_STATUS_VAL) ||
-		    !(status & MCI_STATUS_DEFERRED))
-			continue;
-
-		__log_error(bank, true, false, 0);
-		break;
-	}
+static void log_error_thresholding(unsigned int bank, u64 misc)
+{
+	_log_error_bank(bank, msr_ops.status(bank), msr_ops.addr(bank), misc);
 }
 
 /*
- * APIC Interrupt Handler
+ * Threshold interrupt handler will service THRESHOLD_APIC_VECTOR. The interrupt
+ * goes off when error_count reaches threshold_limit.
  */
-
-/*
- * threshold interrupt handler will service THRESHOLD_APIC_VECTOR.
- * the interrupt goes off when error_count reaches threshold_limit.
- * the handler will simply log mcelog w/ software defined bank number.
- */
-
 static void amd_threshold_interrupt(void)
 {
 	u32 low = 0, high = 0, address = 0;
 	unsigned int bank, block, cpu = smp_processor_id();
 	struct thresh_restart tr;
 
-	/* assume first bank caused it */
 	for (bank = 0; bank < mca_cfg.banks; ++bank) {
 		if (!(per_cpu(bank_map, cpu) & (1 << bank)))
 			continue;
@@ -893,23 +899,18 @@ static void amd_threshold_interrupt(void)
 			     (high & MASK_LOCKED_HI))
 				continue;
 
-			/*
-			 * Log the machine check that caused the threshold
-			 * event.
-			 */
-			if (high & MASK_OVERFLOW_HI)
-				goto log;
+			if (!(high & MASK_OVERFLOW_HI))
+				continue;
+
+			/* Log the MCE which caused the threshold event. */
+			log_error_thresholding(bank, ((u64)high << 32) | low);
+
+			/* Reset threshold block after logging error. */
+			memset(&tr, 0, sizeof(tr));
+			tr.b = &per_cpu(threshold_banks, cpu)[bank]->blocks[block];
+			threshold_restart_bank(&tr);
 		}
 	}
-	return;
-
-log:
-	__log_error(bank, false, true, ((u64)high << 32) | low);
-
-	/* Reset threshold block after logging error. */
-	memset(&tr, 0, sizeof(tr));
-	tr.b = &per_cpu(threshold_banks, cpu)[bank]->blocks[block];
-	threshold_restart_bank(&tr);
 }
 
 /*
