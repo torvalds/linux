@@ -298,8 +298,10 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 	snd_soc_card_set_drvdata(card, priv);
 
 	ret = devm_snd_soc_register_card(dev, card);
-	if (ret >= 0)
-		return ret;
+	if (ret < 0)
+		goto err;
+
+	return 0;
 err:
 	asoc_simple_card_clean_reference(card);
 
