@@ -388,20 +388,18 @@ static int dsa_slave_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return -EOPNOTSUPP;
 }
 
-static int dsa_slave_vlan_filtering(struct net_device *dev,
-				    const struct switchdev_attr *attr,
-				    struct switchdev_trans *trans)
+static int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
+				   struct switchdev_trans *trans)
 {
-	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct dsa_switch *ds = p->dp->ds;
+	struct dsa_switch *ds = dp->ds;
 
 	/* bridge skips -EOPNOTSUPP, so skip the prepare phase */
 	if (switchdev_trans_ph_prepare(trans))
 		return 0;
 
 	if (ds->ops->port_vlan_filtering)
-		return ds->ops->port_vlan_filtering(ds, p->dp->index,
-						    attr->u.vlan_filtering);
+		return ds->ops->port_vlan_filtering(ds, dp->index,
+						    vlan_filtering);
 
 	return 0;
 }
@@ -461,7 +459,8 @@ static int dsa_slave_port_attr_set(struct net_device *dev,
 		ret = dsa_port_set_state(dp, attr->u.stp_state, trans);
 		break;
 	case SWITCHDEV_ATTR_ID_BRIDGE_VLAN_FILTERING:
-		ret = dsa_slave_vlan_filtering(dev, attr, trans);
+		ret = dsa_port_vlan_filtering(dp, attr->u.vlan_filtering,
+					      trans);
 		break;
 	case SWITCHDEV_ATTR_ID_BRIDGE_AGEING_TIME:
 		ret = dsa_slave_ageing_time(dev, attr, trans);
