@@ -430,6 +430,7 @@ struct fusb30x_chip {
 	u32 vdm_id;
 	u8 chip_id;
 	bool vconn_enabled;
+	bool is_pd_support;
 	int togdone_pullup;
 	int pd_output_vol;
 	int pd_output_cur;

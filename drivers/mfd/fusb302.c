@@ -1402,6 +1402,8 @@ static void fusb_state_disabled(struct fusb30x_chip *chip, int evt)
 static void fusb_state_unattached(struct fusb30x_chip *chip, int evt)
 {
 	chip->notify.is_cc_connected = 0;
+	chip->is_pd_support = 0;
+
 	if ((evt & EVENT_CC) && chip->cc_state) {
 		if (chip->cc_state & 0x04)
 			set_state(chip, attach_wait_sink);
@@ -1550,12 +1552,13 @@ static void fusb_state_src_discovery(struct fusb30x_chip *chip, int evt)
 	default:
 		if (evt & EVENT_TIMER_STATE) {
 			set_state(chip, policy_src_send_caps);
-		} else if ((evt & EVENT_TIMER_MUX) &&
-			   (chip->hardrst_count > N_HARDRESET_COUNT)) {
-			if (chip->notify.is_pd_connected)
+		} else if (evt & EVENT_TIMER_MUX) {
+			if (!chip->is_pd_support)
+				set_state(chip, disabled);
+			else if (chip->hardrst_count > N_HARDRESET_COUNT)
 				set_state(chip, error_recovery);
 			else
-				set_state(chip, disabled);
+				set_state(chip, policy_src_send_hardrst);
 		}
 		break;
 	}
@@ -1582,6 +1585,7 @@ static void fusb_state_src_send_caps(struct fusb30x_chip *chip, int evt)
 					 chip->timer_state);
 			chip->timer_mux = T_DISABLED;
 			chip->sub_state++;
+			chip->is_pd_support = 1;
 		} else if (tmp == tx_failed) {
 			set_state(chip, policy_src_discovery);
 			break;
@@ -1603,10 +1607,12 @@ static void fusb_state_src_send_caps(struct fusb30x_chip *chip, int evt)
 			else
 				set_state(chip, disabled);
 		} else if (evt & EVENT_TIMER_MUX) {
-			if (chip->notify.is_pd_connected)
+			if (!chip->is_pd_support)
 				set_state(chip, disabled);
-			else
+			else if (chip->hardrst_count > N_HARDRESET_COUNT)
 				set_state(chip, error_recovery);
+			else
+				set_state(chip, policy_src_send_hardrst);
 		}
 		break;
 	}
@@ -1886,17 +1892,22 @@ static void fusb_state_snk_wait_caps(struct fusb30x_chip *chip, int evt)
 	if (evt & EVENT_RX) {
 		if (PD_HEADER_CNT(chip->rec_head) &&
 		    PD_HEADER_TYPE(chip->rec_head) == DMT_SOURCECAPABILITIES) {
+			chip->is_pd_support = 1;
 			chip->timer_mux = T_DISABLED;
 			set_state(chip, policy_snk_evaluate_caps);
 		}
 	} else if (evt & EVENT_TIMER_STATE) {
-		if (chip->hardrst_count <= N_HARDRESET_COUNT)
+		if (chip->hardrst_count <= N_HARDRESET_COUNT) {
 			set_state(chip, policy_snk_send_hardrst);
-		else
-			set_state(chip, disabled);
+		} else {
+			if (chip->is_pd_support)
+				set_state(chip, error_recovery);
+			else
+				set_state(chip, disabled);
+		}
 	} else if ((evt & EVENT_TIMER_MUX) &&
 		   (chip->hardrst_count > N_HARDRESET_COUNT)) {
-		if (chip->notify.is_pd_connected)
+		if (chip->is_pd_support)
 			set_state(chip, error_recovery);
 		else
 			set_state(chip, disabled);
