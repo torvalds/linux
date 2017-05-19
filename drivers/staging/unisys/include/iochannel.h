@@ -34,10 +34,9 @@
 #include <linux/dma-direction.h>
 #include "channel.h"
 
-#define ULTRA_VHBA_CHANNEL_PROTOCOL_SIGNATURE ULTRA_CHANNEL_PROTOCOL_SIGNATURE
-#define ULTRA_VNIC_CHANNEL_PROTOCOL_SIGNATURE ULTRA_CHANNEL_PROTOCOL_SIGNATURE
-#define ULTRA_VSWITCH_CHANNEL_PROTOCOL_SIGNATURE \
-	ULTRA_CHANNEL_PROTOCOL_SIGNATURE
+#define ULTRA_VHBA_CHANNEL_PROTOCOL_SIGNATURE VISOR_CHANNEL_SIGNATURE
+#define ULTRA_VNIC_CHANNEL_PROTOCOL_SIGNATURE VISOR_CHANNEL_SIGNATURE
+#define ULTRA_VSWITCH_CHANNEL_PROTOCOL_SIGNATURE VISOR_CHANNEL_SIGNATURE
 
 /*
  * Must increment these whenever you insert or delete fields within this channel
@@ -51,13 +50,13 @@
 #define ULTRA_VSWITCH_CHANNEL_PROTOCOL_VERSIONID 1
 
 #define SPAR_VHBA_CHANNEL_OK_CLIENT(ch) \
-	(visor_check_channel(ch, spar_vhba_channel_protocol_uuid, \
+	(visor_check_channel(ch, visor_vhba_channel_uuid, \
 			    "vhba", MIN_IO_CHANNEL_SIZE,	\
 			    ULTRA_VHBA_CHANNEL_PROTOCOL_VERSIONID, \
 			    ULTRA_VHBA_CHANNEL_PROTOCOL_SIGNATURE))
 
 #define SPAR_VNIC_CHANNEL_OK_CLIENT(ch) \
-	(visor_check_channel(ch, spar_vnic_channel_protocol_uuid, \
+	(visor_check_channel(ch, visor_vnic_channel_uuid, \
 			    "vnic", MIN_IO_CHANNEL_SIZE,	\
 			    ULTRA_VNIC_CHANNEL_PROTOCOL_VERSIONID, \
 			    ULTRA_VNIC_CHANNEL_PROTOCOL_SIGNATURE))

@@ -37,14 +37,14 @@ static struct dentry *visorhba_debugfs_dir;
 /* GUIDS for HBA channel type supported by this driver */
 static struct visor_channeltype_descriptor visorhba_channel_types[] = {
 	/* Note that the only channel type we expect to be reported by the
-	 * bus driver is the SPAR_VHBA channel.
+	 * bus driver is the VISOR_VHBA channel.
 	 */
-	{ SPAR_VHBA_CHANNEL_PROTOCOL_UUID, "sparvhba" },
+	{ VISOR_VHBA_CHANNEL_UUID, "sparvhba" },
 	{ NULL_UUID_LE, NULL }
 };
 
 MODULE_DEVICE_TABLE(visorbus, visorhba_channel_types);
-MODULE_ALIAS("visorbus:" SPAR_VHBA_CHANNEL_PROTOCOL_UUID_STR);
+MODULE_ALIAS("visorbus:" VISOR_VHBA_CHANNEL_UUID_STR);
 
 struct visordisk_info {
 	u32 valid;
@@ -1110,7 +1110,7 @@ static int visorhba_probe(struct visor_device *dev)
 	err = visorbus_read_channel(dev, channel_offset, &features, 8);
 	if (err)
 		goto err_debugfs_info;
-	features |= ULTRA_IO_CHANNEL_IS_POLLING;
+	features |= VISOR_CHANNEL_IS_POLLING;
 	err = visorbus_write_channel(dev, channel_offset, &features, 8);
 	if (err)
 		goto err_debugfs_info;

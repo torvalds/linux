@@ -39,9 +39,9 @@
 /* GUIDS for director channel type supported by this driver.  */
 static struct visor_channeltype_descriptor visornic_channel_types[] = {
 	/* Note that the only channel type we expect to be reported by the
-	 * bus driver is the SPAR_VNIC channel.
+	 * bus driver is the VISOR_VNIC channel.
 	 */
-	{ SPAR_VNIC_CHANNEL_PROTOCOL_UUID, "ultravnic" },
+	{ VISOR_VNIC_CHANNEL_UUID, "ultravnic" },
 	{ NULL_UUID_LE, NULL }
 };
 MODULE_DEVICE_TABLE(visorbus, visornic_channel_types);
@@ -52,7 +52,7 @@ MODULE_DEVICE_TABLE(visorbus, visornic_channel_types);
  * must be added to scripts/mode/file2alias.c, etc., to get this working
  * properly.
  */
-MODULE_ALIAS("visorbus:" SPAR_VNIC_CHANNEL_PROTOCOL_UUID_STR);
+MODULE_ALIAS("visorbus:" VISOR_VNIC_CHANNEL_UUID_STR);
 
 struct chanstat {
 	unsigned long got_rcv;
@@ -1916,8 +1916,8 @@ static int visornic_probe(struct visor_device *dev)
 		goto cleanup_napi_add;
 	}
 
-	features |= ULTRA_IO_CHANNEL_IS_POLLING;
-	features |= ULTRA_IO_DRIVER_SUPPORTS_ENHANCED_RCVBUF_CHECKING;
+	features |= VISOR_CHANNEL_IS_POLLING;
+	features |= VISOR_DRIVER_ENHANCED_RCVBUF_CHECKING;
 	err = visorbus_write_channel(dev, channel_offset, &features, 8);
 	if (err) {
 		dev_err(&dev->device,

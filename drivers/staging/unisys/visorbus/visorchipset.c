@@ -595,7 +595,7 @@ visorbus_create(struct controlvm_message *inmsg)
 	bus_info->chipset_bus_no = bus_no;
 	bus_info->chipset_dev_no = BUS_ROOT_DEVICE;
 
-	if (uuid_le_cmp(cmd->create_bus.bus_inst_uuid, spar_siovm_uuid) == 0) {
+	if (uuid_le_cmp(cmd->create_bus.bus_inst_uuid, visor_siovm_uuid) == 0) {
 		err = save_crash_message(inmsg, CRASH_BUS);
 		if (err)
 			goto err_free_bus_info;
@@ -802,7 +802,7 @@ visorbus_device_create(struct controlvm_message *inmsg)
 	dev_info->visorchannel = visorchannel;
 	dev_info->channel_type_guid = cmd->create_device.data_type_uuid;
 	if (uuid_le_cmp(cmd->create_device.data_type_uuid,
-			spar_vhba_channel_protocol_uuid) == 0) {
+			visor_vhba_channel_uuid) == 0) {
 		err = save_crash_message(inmsg, CRASH_DEV);
 		if (err)
 			goto err_destroy_visorchannel;
