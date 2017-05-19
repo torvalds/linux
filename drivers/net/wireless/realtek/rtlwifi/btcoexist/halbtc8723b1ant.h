@@ -82,6 +82,9 @@ enum _BT_8723B_1ANT_COEX_ALGO {
 };
 
 struct coex_dm_8723b_1ant {
+	/* hw setting */
+	u8 pre_ant_pos_type;
+	u8 cur_ant_pos_type;
 	/* fw mechanism */
 	bool cur_ignore_wlan_act;
 	bool pre_ignore_wlan_act;
