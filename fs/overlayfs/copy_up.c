@@ -399,6 +399,49 @@ temp_err:
 	goto out;
 }
 
+static int ovl_copy_up_inode(struct dentry *dentry, struct dentry *temp,
+			     struct path *lowerpath, struct kstat *stat)
+{
+	int err;
+
+	if (S_ISREG(stat->mode)) {
+		struct path upperpath;
+
+		ovl_path_upper(dentry, &upperpath);
+		BUG_ON(upperpath.dentry != NULL);
+		upperpath.dentry = temp;
+
+		err = ovl_copy_up_data(lowerpath, &upperpath, stat->size);
+		if (err)
+			return err;
+	}
+
+	err = ovl_copy_xattr(lowerpath->dentry, temp);
+	if (err)
+		return err;
+
+	inode_lock(temp->d_inode);
+	err = ovl_set_attr(temp, stat);
+	inode_unlock(temp->d_inode);
+	if (err)
+		return err;
+
+	/*
+	 * Store identifier of lower inode in upper inode xattr to
+	 * allow lookup of the copy up origin inode.
+	 *
+	 * Don't set origin when we are breaking the association with a lower
+	 * hard link.
+	 */
+	if (S_ISDIR(stat->mode) || stat->nlink == 1) {
+		err = ovl_set_origin(dentry, lowerpath->dentry, temp);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 			      struct dentry *dentry, struct path *lowerpath,
 			      struct kstat *stat, const char *link,
@@ -415,40 +458,9 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 	if (err)
 		goto out;
 
-	if (S_ISREG(stat->mode)) {
-		struct path upperpath;
-
-		ovl_path_upper(dentry, &upperpath);
-		BUG_ON(upperpath.dentry != NULL);
-		upperpath.dentry = temp;
-
-		err = ovl_copy_up_data(lowerpath, &upperpath, stat->size);
-		if (err)
-			goto out_cleanup;
-	}
-
-	err = ovl_copy_xattr(lowerpath->dentry, temp);
+	err = ovl_copy_up_inode(dentry, temp, lowerpath, stat);
 	if (err)
 		goto out_cleanup;
-
-	inode_lock(temp->d_inode);
-	err = ovl_set_attr(temp, stat);
-	inode_unlock(temp->d_inode);
-	if (err)
-		goto out_cleanup;
-
-	/*
-	 * Store identifier of lower inode in upper inode xattr to
-	 * allow lookup of the copy up origin inode.
-	 *
-	 * Don't set origin when we are breaking the association with a lower
-	 * hard link.
-	 */
-	if (S_ISDIR(stat->mode) || stat->nlink == 1) {
-		err = ovl_set_origin(dentry, lowerpath->dentry, temp);
-		if (err)
-			goto out_cleanup;
-	}
 
 	if (tmpfile) {
 		inode_lock_nested(udir, I_MUTEX_PARENT);
