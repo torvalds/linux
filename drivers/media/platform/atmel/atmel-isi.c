@@ -37,8 +37,8 @@
 
 #include "atmel-isi.h"
 
-#define MAX_SUPPORT_WIDTH		2048
-#define MAX_SUPPORT_HEIGHT		2048
+#define MAX_SUPPORT_WIDTH		2048U
+#define MAX_SUPPORT_HEIGHT		2048U
 #define MIN_FRAME_RATE			15
 #define FRAME_INTERVAL_MILLI_SEC	(1000 / MIN_FRAME_RATE)
 
@@ -425,14 +425,14 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 	struct frame_buffer *buf, *node;
 	int ret;
 
+	pm_runtime_get_sync(isi->dev);
+
 	/* Enable stream on the sub device */
 	ret = v4l2_subdev_call(isi->entity.subdev, video, s_stream, 1);
 	if (ret && ret != -ENOIOCTLCMD) {
 		dev_err(isi->dev, "stream on failed in subdev\n");
 		goto err_start_stream;
 	}
-
-	pm_runtime_get_sync(isi->dev);
 
 	/* Reset ISI */
 	ret = atmel_isi_wait_status(isi, WAIT_ISI_RESET);
@@ -456,10 +456,11 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 	return 0;
 
 err_reset:
-	pm_runtime_put(isi->dev);
 	v4l2_subdev_call(isi->entity.subdev, video, s_stream, 0);
 
 err_start_stream:
+	pm_runtime_put(isi->dev);
+
 	spin_lock_irq(&isi->irqlock);
 	isi->active = NULL;
 	/* Release all active buffers */
@@ -567,20 +568,15 @@ static int isi_try_fmt(struct atmel_isi *isi, struct v4l2_format *f,
 	};
 	int ret;
 
-	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
 	isi_fmt = find_format_by_fourcc(isi, pixfmt->pixelformat);
 	if (!isi_fmt) {
 		isi_fmt = isi->user_formats[isi->num_user_formats - 1];
 		pixfmt->pixelformat = isi_fmt->fourcc;
 	}
 
-	/* Limit to Atmel ISC hardware capabilities */
-	if (pixfmt->width > MAX_SUPPORT_WIDTH)
-		pixfmt->width = MAX_SUPPORT_WIDTH;
-	if (pixfmt->height > MAX_SUPPORT_HEIGHT)
-		pixfmt->height = MAX_SUPPORT_HEIGHT;
+	/* Limit to Atmel ISI hardware capabilities */
+	pixfmt->width = clamp(pixfmt->width, 0U, MAX_SUPPORT_WIDTH);
+	pixfmt->height = clamp(pixfmt->height, 0U, MAX_SUPPORT_HEIGHT);
 
 	v4l2_fill_mbus_format(&format.format, pixfmt, isi_fmt->mbus_code);
 	ret = v4l2_subdev_call(isi->entity.subdev, pad, set_fmt,
@@ -1059,7 +1055,7 @@ static int isi_graph_notify_complete(struct v4l2_async_notifier *notifier)
 	struct atmel_isi *isi = notifier_to_isi(notifier);
 	int ret;
 
-	isi->vdev->ctrl_handler	= isi->entity.subdev->ctrl_handler;
+	isi->vdev->ctrl_handler = isi->entity.subdev->ctrl_handler;
 	ret = isi_formats_init(isi);
 	if (ret) {
 		dev_err(isi->dev, "No supported mediabus format found\n");
