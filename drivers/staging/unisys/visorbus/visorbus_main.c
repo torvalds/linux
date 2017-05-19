@@ -64,9 +64,9 @@ static const struct attribute_group *visorbus_dev_groups[] = {
 };
 
 /* filled in with info about parent chipset driver when we register with it */
-static struct ultra_vbus_deviceinfo chipset_driverinfo;
+static struct visor_vbus_deviceinfo chipset_driverinfo;
 /* filled in with info about this driver, wrt it servicing client busses */
-static struct ultra_vbus_deviceinfo clientbus_driverinfo;
+static struct visor_vbus_deviceinfo clientbus_driverinfo;
 
 /* list of visor_device structs, linked via .list_all */
 static LIST_HEAD(list_all_bus_instances);
@@ -356,9 +356,9 @@ static const struct attribute_group *visorbus_groups[] = {
  *  /sys/kernel/debug/visorbus/visorbus<n>.
  */
 /*
- * vbuschannel_print_devinfo() - format a struct ultra_vbus_deviceinfo
+ * vbuschannel_print_devinfo() - format a struct visor_vbus_deviceinfo
  *                               and write it to a seq_file
- * @devinfo: the struct ultra_vbus_deviceinfo to format
+ * @devinfo: the struct visor_vbus_deviceinfo to format
  * @seq: seq_file to write to
  * @devix: the device index to be included in the output data, or -1 if no
  *         device index is to be included
@@ -366,7 +366,7 @@ static const struct attribute_group *visorbus_groups[] = {
  * Reads @devInfo, and writes it in human-readable notation to @seq.
  */
 static void
-vbuschannel_print_devinfo(struct ultra_vbus_deviceinfo *devinfo,
+vbuschannel_print_devinfo(struct visor_vbus_deviceinfo *devinfo,
 			  struct seq_file *seq, int devix)
 {
 	if (!isprint(devinfo->devtype[0]))
@@ -397,7 +397,7 @@ static int client_bus_info_debugfs_show(struct seq_file *seq, void *v)
 
 	int i;
 	unsigned long off;
-	struct ultra_vbus_deviceinfo dev_info;
+	struct visor_vbus_deviceinfo dev_info;
 
 	if (!channel)
 		return 0;
@@ -407,16 +407,14 @@ static int client_bus_info_debugfs_show(struct seq_file *seq, void *v)
 		   ((vdev->name) ? (char *)(vdev->name) : ""),
 		   vdev->chipset_bus_no);
 	if (visorchannel_read(channel,
-			      offsetof(struct spar_vbus_channel_protocol,
-				       chp_info),
+			      offsetof(struct visor_vbus_channel, chp_info),
 			      &dev_info, sizeof(dev_info)) >= 0)
 		vbuschannel_print_devinfo(&dev_info, seq, -1);
 	if (visorchannel_read(channel,
-			      offsetof(struct spar_vbus_channel_protocol,
-				       bus_info),
+			      offsetof(struct visor_vbus_channel, bus_info),
 			      &dev_info, sizeof(dev_info)) >= 0)
 		vbuschannel_print_devinfo(&dev_info, seq, -1);
-	off = offsetof(struct spar_vbus_channel_protocol, dev_info);
+	off = offsetof(struct visor_vbus_channel, dev_info);
 	i = 0;
 	while (off + sizeof(dev_info) <= visorchannel_get_nbytes(channel)) {
 		if (visorchannel_read(channel, off, &dev_info,
@@ -684,14 +682,14 @@ remove_visor_device(struct visor_device *dev)
 
 static int
 get_vbus_header_info(struct visorchannel *chan,
-		     struct spar_vbus_headerinfo *hdr_info)
+		     struct visor_vbus_headerinfo *hdr_info)
 {
 	int err;
 
 	if (!spar_check_channel(visorchannel_get_header(chan),
 				visor_vbus_channel_uuid,
 				"vbus",
-				sizeof(struct spar_vbus_channel_protocol),
+				sizeof(struct visor_vbus_channel),
 				VISOR_VBUS_CHANNEL_VERSIONID,
 				VISOR_VBUS_CHANNEL_SIGNATURE))
 		return -EINVAL;
@@ -701,11 +699,11 @@ get_vbus_header_info(struct visorchannel *chan,
 	if (err < 0)
 		return err;
 
-	if (hdr_info->struct_bytes < sizeof(struct spar_vbus_headerinfo))
+	if (hdr_info->struct_bytes < sizeof(struct visor_vbus_headerinfo))
 		return -EINVAL;
 
 	if (hdr_info->device_info_struct_bytes <
-	    sizeof(struct ultra_vbus_deviceinfo))
+	    sizeof(struct visor_vbus_deviceinfo))
 		return -EINVAL;
 
 	return 0;
@@ -713,7 +711,7 @@ get_vbus_header_info(struct visorchannel *chan,
 
 /*
  * write_vbus_chp_info() - write the contents of <info> to the struct
- *                         spar_vbus_channel_protocol.chp_info
+ *                         visor_vbus_channel.chp_info
  * @chan:     indentifies the s-Par channel that will be updated
  * @hdr_info: used to find appropriate channel offset to write data
  * @info:     contains the information to write
@@ -726,8 +724,8 @@ get_vbus_header_info(struct visorchannel *chan,
  */
 static void
 write_vbus_chp_info(struct visorchannel *chan,
-		    struct spar_vbus_headerinfo *hdr_info,
-		    struct ultra_vbus_deviceinfo *info)
+		    struct visor_vbus_headerinfo *hdr_info,
+		    struct visor_vbus_deviceinfo *info)
 {
 	int off = sizeof(struct channel_header) + hdr_info->chp_info_offset;
 
@@ -739,7 +737,7 @@ write_vbus_chp_info(struct visorchannel *chan,
 
 /*
  * write_vbus_bus_info() - write the contents of <info> to the struct
- *                         spar_vbus_channel_protocol.bus_info
+ *                         visor_vbus_channel.bus_info
  * @chan:     indentifies the s-Par channel that will be updated
  * @hdr_info: used to find appropriate channel offset to write data
  * @info:     contains the information to write
@@ -752,8 +750,8 @@ write_vbus_chp_info(struct visorchannel *chan,
  */
 static void
 write_vbus_bus_info(struct visorchannel *chan,
-		    struct spar_vbus_headerinfo *hdr_info,
-		    struct ultra_vbus_deviceinfo *info)
+		    struct visor_vbus_headerinfo *hdr_info,
+		    struct visor_vbus_deviceinfo *info)
 {
 	int off = sizeof(struct channel_header) + hdr_info->bus_info_offset;
 
@@ -765,7 +763,7 @@ write_vbus_bus_info(struct visorchannel *chan,
 
 /*
  * write_vbus_dev_info() - write the contents of <info> to the struct
- *                         spar_vbus_channel_protocol.dev_info[<devix>]
+ *                         visor_vbus_channel.dev_info[<devix>]
  * @chan:     indentifies the s-Par channel that will be updated
  * @hdr_info: used to find appropriate channel offset to write data
  * @info:     contains the information to write
@@ -779,8 +777,8 @@ write_vbus_bus_info(struct visorchannel *chan,
  */
 static void
 write_vbus_dev_info(struct visorchannel *chan,
-		    struct spar_vbus_headerinfo *hdr_info,
-		    struct ultra_vbus_deviceinfo *info, unsigned int devix)
+		    struct visor_vbus_headerinfo *hdr_info,
+		    struct visor_vbus_deviceinfo *info, unsigned int devix)
 {
 	int off =
 	    (sizeof(struct channel_header) + hdr_info->dev_info_offset) +
@@ -793,10 +791,10 @@ write_vbus_dev_info(struct visorchannel *chan,
 }
 
 static void bus_device_info_init(
-		struct ultra_vbus_deviceinfo *bus_device_info_ptr,
+		struct visor_vbus_deviceinfo *bus_device_info_ptr,
 		const char *dev_type, const char *drv_name)
 {
-	memset(bus_device_info_ptr, 0, sizeof(struct ultra_vbus_deviceinfo));
+	memset(bus_device_info_ptr, 0, sizeof(struct visor_vbus_deviceinfo));
 	snprintf(bus_device_info_ptr->devtype,
 		 sizeof(bus_device_info_ptr->devtype),
 		 "%s", (dev_type) ? dev_type : "unknownType");
@@ -823,9 +821,9 @@ fix_vbus_dev_info(struct visor_device *visordev)
 	struct visor_driver *visordrv;
 	u32 bus_no = visordev->chipset_bus_no;
 	u32 dev_no = visordev->chipset_dev_no;
-	struct ultra_vbus_deviceinfo dev_info;
+	struct visor_vbus_deviceinfo dev_info;
 	const char *chan_type_name = NULL;
-	struct spar_vbus_headerinfo *hdr_info;
+	struct visor_vbus_headerinfo *hdr_info;
 
 	if (!visordev->device.driver)
 		return;
@@ -833,7 +831,7 @@ fix_vbus_dev_info(struct visor_device *visordev)
 	bdev = visorbus_get_device_by_id(bus_no, BUS_ROOT_DEVICE, NULL);
 	if (!bdev)
 		return;
-	hdr_info = (struct spar_vbus_headerinfo *)bdev->vbus_hdr_info;
+	hdr_info = (struct visor_vbus_headerinfo *)bdev->vbus_hdr_info;
 	if (!hdr_info)
 		return;
 	visordrv = to_visor_driver(visordev->device.driver);
@@ -992,7 +990,7 @@ visorbus_create_instance(struct visor_device *dev)
 {
 	int id = dev->chipset_bus_no;
 	int err;
-	struct spar_vbus_headerinfo *hdr_info;
+	struct visor_vbus_headerinfo *hdr_info;
 
 	hdr_info = kzalloc(sizeof(*hdr_info), GFP_KERNEL);
 	if (!hdr_info)

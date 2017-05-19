@@ -48,16 +48,16 @@ static const uuid_le visor_vbus_channel_uuid = VISOR_VBUS_CHANNEL_UUID;
  * It is filled in by the client side to provide info about the device
  * and driver from the client's perspective.
  */
-struct ultra_vbus_deviceinfo {
+struct visor_vbus_deviceinfo {
 	u8 devtype[16];		/* short string identifying the device type */
 	u8 drvname[16];		/* driver .sys file name */
 	u8 infostrs[96];	/* kernel version */
 	u8 reserved[128];	/* pad size to 256 bytes */
 } __packed;
 
-struct spar_vbus_headerinfo {
+struct visor_vbus_headerinfo {
 	u32 struct_bytes;	/* size of this struct in bytes */
-	u32 device_info_struct_bytes;	/* sizeof(ULTRA_VBUS_DEVICEINFO) */
+	u32 device_info_struct_bytes;	/* sizeof(VISOR_VBUS_DEVICEINFO) */
 	u32 dev_info_count;	/* num of items in DevInfo member */
 	/* (this is the allocated size) */
 	u32 chp_info_offset;	/* byte offset from beginning of this struct */
@@ -69,15 +69,15 @@ struct spar_vbus_headerinfo {
 	u8 reserved[104];
 } __packed;
 
-struct spar_vbus_channel_protocol {
+struct visor_vbus_channel {
 	struct channel_header channel_header;	/* initialized by server */
-	struct spar_vbus_headerinfo hdr_info;	/* initialized by server */
+	struct visor_vbus_headerinfo hdr_info;	/* initialized by server */
 	/* the remainder of this channel is filled in by the client */
-	struct ultra_vbus_deviceinfo chp_info;
+	struct visor_vbus_deviceinfo chp_info;
 	/* describes client chipset device and driver */
-	struct ultra_vbus_deviceinfo bus_info;
+	struct visor_vbus_deviceinfo bus_info;
 	/* describes client bus device and driver */
-	struct ultra_vbus_deviceinfo dev_info[0];
+	struct visor_vbus_deviceinfo dev_info[0];
 	/* describes client device and driver for each device on the bus */
 } __packed;
 
