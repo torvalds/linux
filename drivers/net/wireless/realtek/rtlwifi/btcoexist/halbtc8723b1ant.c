@@ -2887,11 +2887,47 @@ void ex_halbtc8723b1ant_bt_info_notify(struct btc_coexist *btcoexist,
 		coex_sta->bt_retry_cnt = /* [3:0] */
 			coex_sta->bt_info_c2h[rsp_source][2] & 0xf;
 
+		if (coex_sta->bt_retry_cnt >= 1)
+			coex_sta->pop_event_cnt++;
+
+		if (coex_sta->bt_info_c2h[rsp_source][2] & 0x20)
+			coex_sta->c2h_bt_remote_name_req = true;
+		else
+			coex_sta->c2h_bt_remote_name_req = false;
+
 		coex_sta->bt_rssi =
-			coex_sta->bt_info_c2h[rsp_source][3] * 2 + 10;
+			coex_sta->bt_info_c2h[rsp_source][3] * 2 - 90;
 
 		coex_sta->bt_info_ext =
 			coex_sta->bt_info_c2h[rsp_source][4];
+
+		if (coex_sta->bt_info_c2h[rsp_source][1] == 0x49) {
+			coex_sta->a2dp_bit_pool =
+				coex_sta->bt_info_c2h[rsp_source][6];
+		} else {
+			coex_sta->a2dp_bit_pool = 0;
+		}
+
+		coex_sta->bt_tx_rx_mask =
+			(coex_sta->bt_info_c2h[rsp_source][2] & 0x40);
+		btcoexist->btc_set(btcoexist, BTC_SET_BL_BT_TX_RX_MASK,
+				   &coex_sta->bt_tx_rx_mask);
+
+		if (!coex_sta->bt_tx_rx_mask) {
+			/* BT into is responded by BT FW and BT RF REG
+			 * 0x3C != 0x15 => Need to switch BT TRx Mask
+			 */
+			RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+				 "[BTCoex], Switch BT TRx Mask since BT RF REG 0x3C != 0x15\n");
+			btcoexist->btc_set_bt_reg(btcoexist, BTC_BT_REG_RF,
+						  0x3c, 0x15);
+
+			/* BT TRx Mask lock 0x2c[0], 0x30[0] = 0 */
+			btcoexist->btc_set_bt_reg(btcoexist, BTC_BT_REG_RF,
+						  0x2c, 0x7c44);
+			btcoexist->btc_set_bt_reg(btcoexist, BTC_BT_REG_RF,
+						  0x30, 0x7c44);
+		}
 
 		/* Here we need to resend some wifi info to BT
 		 * because bt is reset and loss of the info.
@@ -2938,6 +2974,8 @@ void ex_halbtc8723b1ant_bt_info_notify(struct btc_coexist *btcoexist,
 	else
 		coex_sta->c2h_bt_inquiry_page = false;
 
+	coex_sta->num_of_profile = 0;
+
 	/* set link exist status */
 	if (!(bt_info & BT_INFO_8723B_1ANT_B_CONNECTION)) {
 		coex_sta->bt_link_exist = false;
@@ -2950,22 +2988,43 @@ void ex_halbtc8723b1ant_bt_info_notify(struct btc_coexist *btcoexist,
 	} else {
 		/* connection exists */
 		coex_sta->bt_link_exist = true;
-		if (bt_info & BT_INFO_8723B_1ANT_B_FTP)
+		if (bt_info & BT_INFO_8723B_1ANT_B_FTP) {
 			coex_sta->pan_exist = true;
-		else
+			coex_sta->num_of_profile++;
+		} else {
 			coex_sta->pan_exist = false;
-		if (bt_info & BT_INFO_8723B_1ANT_B_A2DP)
+		}
+		if (bt_info & BT_INFO_8723B_1ANT_B_A2DP) {
 			coex_sta->a2dp_exist = true;
-		else
+			coex_sta->num_of_profile++;
+		} else {
 			coex_sta->a2dp_exist = false;
-		if (bt_info & BT_INFO_8723B_1ANT_B_HID)
+		}
+		if (bt_info & BT_INFO_8723B_1ANT_B_HID) {
 			coex_sta->hid_exist = true;
-		else
+			coex_sta->num_of_profile++;
+		} else {
 			coex_sta->hid_exist = false;
-		if (bt_info & BT_INFO_8723B_1ANT_B_SCO_ESCO)
+		}
+		if (bt_info & BT_INFO_8723B_1ANT_B_SCO_ESCO) {
 			coex_sta->sco_exist = true;
-		else
+			coex_sta->num_of_profile++;
+		} else {
 			coex_sta->sco_exist = false;
+		}
+
+		if ((!coex_sta->hid_exist) &&
+		    (!coex_sta->c2h_bt_inquiry_page) &&
+		    (!coex_sta->sco_exist)) {
+			if (coex_sta->high_priority_tx +
+				    coex_sta->high_priority_rx >=
+			    160) {
+				coex_sta->hid_exist = true;
+				coex_sta->wrong_profile_notification++;
+				coex_sta->num_of_profile++;
+				bt_info = bt_info | 0x28;
+			}
+		}
 
 		/* Add Hi-Pri Tx/Rx counter to avoid false detection */
 		if (((coex_sta->hid_exist) || (coex_sta->sco_exist)) &&
@@ -2974,11 +3033,27 @@ void ex_halbtc8723b1ant_bt_info_notify(struct btc_coexist *btcoexist,
 		    (!coex_sta->c2h_bt_inquiry_page))
 			coex_sta->bt_hi_pri_link_exist = true;
 
+		if ((bt_info & BT_INFO_8723B_1ANT_B_ACL_BUSY) &&
+		    (coex_sta->num_of_profile == 0)) {
+			if (coex_sta->low_priority_tx +
+				    coex_sta->low_priority_rx >=
+			    160) {
+				coex_sta->pan_exist = true;
+				coex_sta->num_of_profile++;
+				coex_sta->wrong_profile_notification++;
+				bt_info = bt_info | 0x88;
+			}
+		}
 	}
 
 	halbtc8723b1ant_update_bt_link_info(btcoexist);
 
-	if (!(bt_info&BT_INFO_8723B_1ANT_B_CONNECTION)) {
+	/* mask profile bit for connect-ilde identification
+	 * ( for CSR case: A2DP idle --> 0x41)
+	 */
+	bt_info = bt_info & 0x1f;
+
+	if (!(bt_info & BT_INFO_8723B_1ANT_B_CONNECTION)) {
 		coex_dm->bt_status = BT_8723B_1ANT_BT_STATUS_NON_CONNECTED_IDLE;
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 			 "[BTCoex], BtInfoNotify(), BT Non-Connected idle!\n");
@@ -3000,8 +3075,7 @@ void ex_halbtc8723b1ant_bt_info_notify(struct btc_coexist *btcoexist,
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 			 "[BTCoex], BtInfoNotify(), BT ACL busy!!!\n");
 	} else {
-		coex_dm->bt_status =
-			BT_8723B_1ANT_BT_STATUS_MAX;
+		coex_dm->bt_status = BT_8723B_1ANT_BT_STATUS_MAX;
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 			 "[BTCoex], BtInfoNotify(), BT Non-Defined state!!\n");
 	}

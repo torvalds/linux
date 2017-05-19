@@ -146,6 +146,7 @@ struct coex_sta_8723b_1ant {
 	bool hid_exist;
 	bool pan_exist;
 	bool bt_hi_pri_link_exist;
+	u8 num_of_profile;
 
 	bool under_lps;
 	bool under_ips;
@@ -157,10 +158,12 @@ struct coex_sta_8723b_1ant {
 	u8 bt_rssi;
 	u8 pre_bt_rssi_state;
 	u8 pre_wifi_rssi_state[4];
+	bool bt_tx_rx_mask;
 	bool c2h_bt_info_req_sent;
 	u8 bt_info_c2h[BT_INFO_SRC_8723B_1ANT_MAX][10];
 	u32 bt_info_c2h_cnt[BT_INFO_SRC_8723B_1ANT_MAX];
 	bool c2h_bt_inquiry_page;
+	bool c2h_bt_remote_name_req;
 	u8 bt_retry_cnt;
 	u8 bt_info_ext;
 	u8 scan_ap_num;
@@ -180,6 +183,8 @@ struct coex_sta_8723b_1ant {
 
 	bool cck_lock;
 	bool pre_ccklock;
+
+	u32 wrong_profile_notification;
 
 	u8 a2dp_bit_pool;
 	u8 cut_version;
