@@ -3,9 +3,11 @@
 # It calculates Bandwidth and Watermarks values for HW programming
 #
 
+ifeq ($(ARCH),x86)
 CFLAGS_dcn_calcs.o := -mhard-float -msse -mpreferred-stack-boundary=4
 CFLAGS_dcn_calc_auto.o := -mhard-float -msse -mpreferred-stack-boundary=4
 CFLAGS_dcn_calc_math.o := -mhard-float -msse -mpreferred-stack-boundary=4
+endif
 
 BW_CALCS = dce_calcs.o bw_fixed.o custom_float.o
 

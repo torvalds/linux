@@ -19,7 +19,7 @@ config DRM_AMD_DC_PRE_VEGA
 
 config DRM_AMD_DC_DCN1_0
         bool "DCN 1.0 Raven family"
-        depends on DRM_AMD_DC
+        depends on DRM_AMD_DC && X86
         help
             Choose this option if you want to have
             RV family for display engine
