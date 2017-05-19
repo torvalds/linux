@@ -35,6 +35,8 @@
 #define SECURITY_NAME_MAX	10
 
 struct security_hook_heads security_hook_heads __lsm_ro_after_init;
+static ATOMIC_NOTIFIER_HEAD(lsm_notifier_chain);
+
 char *lsm_names;
 /* Boot-time LSM user choice */
 static __initdata char chosen_lsm[SECURITY_NAME_MAX + 1] =
@@ -165,6 +167,24 @@ void __init security_add_hooks(struct security_hook_list *hooks, int count,
 	if (lsm_append(lsm, &lsm_names) < 0)
 		panic("%s - Cannot get early memory.\n", __func__);
 }
+
+int call_lsm_notifier(enum lsm_event event, void *data)
+{
+	return atomic_notifier_call_chain(&lsm_notifier_chain, event, data);
+}
+EXPORT_SYMBOL(call_lsm_notifier);
+
+int register_lsm_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_register(&lsm_notifier_chain, nb);
+}
+EXPORT_SYMBOL(register_lsm_notifier);
+
+int unregister_lsm_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_unregister(&lsm_notifier_chain, nb);
+}
+EXPORT_SYMBOL(unregister_lsm_notifier);
 
 /*
  * Hook list operation macros.

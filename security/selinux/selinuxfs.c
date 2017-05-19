@@ -154,6 +154,8 @@ static ssize_t sel_write_enforce(struct file *file, const char __user *buf,
 			avc_ss_reset(0);
 		selnl_notify_setenforce(selinux_enforcing);
 		selinux_status_update_setenforce(selinux_enforcing);
+		if (!selinux_enforcing)
+			call_lsm_notifier(LSM_POLICY_CHANGE, NULL);
 	}
 	length = count;
 out:
