@@ -180,6 +180,8 @@ struct coex_sta_8723b_1ant {
 
 	bool cck_lock;
 	bool pre_ccklock;
+
+	u8 a2dp_bit_pool;
 };
 
 /*************************************************************************
