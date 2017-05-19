@@ -164,17 +164,48 @@ static void default_deferred_error_interrupt(void)
 }
 void (*deferred_error_int_vector)(void) = default_deferred_error_interrupt;
 
-static void get_smca_bank_info(unsigned int bank)
+static void smca_configure(unsigned int bank, unsigned int cpu)
 {
-	unsigned int i, hwid_mcatype, cpu = smp_processor_id();
+	unsigned int i, hwid_mcatype;
 	struct smca_hwid *s_hwid;
-	u32 high, instance_id;
+	u32 high, low;
+	u32 smca_config = MSR_AMD64_SMCA_MCx_CONFIG(bank);
+
+	/* Set appropriate bits in MCA_CONFIG */
+	if (!rdmsr_safe(smca_config, &low, &high)) {
+		/*
+		 * OS is required to set the MCAX bit to acknowledge that it is
+		 * now using the new MSR ranges and new registers under each
+		 * bank. It also means that the OS will configure deferred
+		 * errors in the new MCx_CONFIG register. If the bit is not set,
+		 * uncorrectable errors will cause a system panic.
+		 *
+		 * MCA_CONFIG[MCAX] is bit 32 (0 in the high portion of the MSR.)
+		 */
+		high |= BIT(0);
+
+		/*
+		 * SMCA sets the Deferred Error Interrupt type per bank.
+		 *
+		 * MCA_CONFIG[DeferredIntTypeSupported] is bit 5, and tells us
+		 * if the DeferredIntType bit field is available.
+		 *
+		 * MCA_CONFIG[DeferredIntType] is bits [38:37] ([6:5] in the
+		 * high portion of the MSR). OS should set this to 0x1 to enable
+		 * APIC based interrupt. First, check that no interrupt has been
+		 * set.
+		 */
+		if ((low & BIT(5)) && !((high >> 5) & 0x3))
+			high |= BIT(5);
+
+		wrmsr(smca_config, low, high);
+	}
 
 	/* Collect bank_info using CPU 0 for now. */
 	if (cpu)
 		return;
 
-	if (rdmsr_safe_on_cpu(cpu, MSR_AMD64_SMCA_MCx_IPID(bank), &instance_id, &high)) {
+	if (rdmsr_safe_on_cpu(cpu, MSR_AMD64_SMCA_MCx_IPID(bank), &low, &high)) {
 		pr_warn("Failed to read MCA_IPID for bank %d\n", bank);
 		return;
 	}
@@ -191,7 +222,7 @@ static void get_smca_bank_info(unsigned int bank)
 			     smca_get_name(s_hwid->bank_type));
 
 			smca_banks[bank].hwid = s_hwid;
-			smca_banks[bank].id = instance_id;
+			smca_banks[bank].id = low;
 			smca_banks[bank].sysfs_id = s_hwid->count++;
 			break;
 		}
@@ -433,7 +464,7 @@ prepare_threshold_block(unsigned int bank, unsigned int block, u32 addr,
 			int offset, u32 misc_high)
 {
 	unsigned int cpu = smp_processor_id();
-	u32 smca_low, smca_high, smca_addr;
+	u32 smca_low, smca_high;
 	struct threshold_block b;
 	int new;
 
@@ -455,37 +486,6 @@ prepare_threshold_block(unsigned int bank, unsigned int block, u32 addr,
 	if (!mce_flags.smca) {
 		new = (misc_high & MASK_LVTOFF_HI) >> 20;
 		goto set_offset;
-	}
-
-	smca_addr = MSR_AMD64_SMCA_MCx_CONFIG(bank);
-
-	if (!rdmsr_safe(smca_addr, &smca_low, &smca_high)) {
-		/*
-		 * OS is required to set the MCAX bit to acknowledge that it is
-		 * now using the new MSR ranges and new registers under each
-		 * bank. It also means that the OS will configure deferred
-		 * errors in the new MCx_CONFIG register. If the bit is not set,
-		 * uncorrectable errors will cause a system panic.
-		 *
-		 * MCA_CONFIG[MCAX] is bit 32 (0 in the high portion of the MSR.)
-		 */
-		smca_high |= BIT(0);
-
-		/*
-		 * SMCA sets the Deferred Error Interrupt type per bank.
-		 *
-		 * MCA_CONFIG[DeferredIntTypeSupported] is bit 5, and tells us
-		 * if the DeferredIntType bit field is available.
-		 *
-		 * MCA_CONFIG[DeferredIntType] is bits [38:37] ([6:5] in the
-		 * high portion of the MSR). OS should set this to 0x1 to enable
-		 * APIC based interrupt. First, check that no interrupt has been
-		 * set.
-		 */
-		if ((smca_low & BIT(5)) && !((smca_high >> 5) & 0x3))
-			smca_high |= BIT(5);
-
-		wrmsr(smca_addr, smca_low, smca_high);
 	}
 
 	/* Gather LVT offset for thresholding: */
@@ -516,7 +516,7 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 
 	for (bank = 0; bank < mca_cfg.banks; ++bank) {
 		if (mce_flags.smca)
-			get_smca_bank_info(bank);
+			smca_configure(bank, cpu);
 
 		for (block = 0; block < NR_BLOCKS; ++block) {
 			address = get_block_address(cpu, address, low, high, bank, block);
