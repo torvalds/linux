@@ -33,21 +33,21 @@
  *   interrupts.
  */
 
-#include <linux/err.h>
-#include <linux/init.h>
-#include <linux/gpio.h>
-#include <linux/irq.h>
-#include <linux/slab.h>
-#include <linux/irqdomain.h>
-#include <linux/io.h>
-#include <linux/of_irq.h>
-#include <linux/of_device.h>
-#include <linux/pwm.h>
-#include <linux/clk.h>
-#include <linux/pinctrl/consumer.h>
-#include <linux/irqchip/chained_irq.h>
-#include <linux/platform_device.h>
 #include <linux/bitops.h>
+#include <linux/clk.h>
+#include <linux/err.h>
+#include <linux/gpio.h>
+#include <linux/init.h>
+#include <linux/io.h>
+#include <linux/irq.h>
+#include <linux/irqchip/chained_irq.h>
+#include <linux/irqdomain.h>
+#include <linux/of_device.h>
+#include <linux/of_irq.h>
+#include <linux/pinctrl/consumer.h>
+#include <linux/platform_device.h>
+#include <linux/pwm.h>
+#include <linux/slab.h>
 
 #include "gpiolib.h"
 
