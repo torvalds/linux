@@ -565,7 +565,7 @@ calc_button(int x)
 static void
 visorinput_channel_interrupt(struct visor_device *dev)
 {
-	struct ultra_inputreport r;
+	struct visor_inputreport r;
 	int scancode, keycode;
 	struct input_dev *visorinput_dev;
 	int xmotion, ymotion, button;

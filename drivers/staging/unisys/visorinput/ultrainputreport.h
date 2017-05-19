@@ -64,16 +64,16 @@ enum ultra_inputaction {
 	inputaction_last
 };
 
-struct ultra_inputactivity {
+struct visor_inputactivity {
 	u16 action;
 	u16 arg1;
 	u16 arg2;
 	u16 arg3;
 } __packed;
 
-struct ultra_inputreport {
+struct visor_inputreport {
 	u64 seq_no;
-	struct ultra_inputactivity activity;
+	struct visor_inputactivity activity;
 } __packed;
 
 #endif
