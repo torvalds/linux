@@ -525,8 +525,8 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 		ipu_prg_channel_configure(ipu_plane->ipu_ch, axi_id,
 					  drm_rect_width(&state->src) >> 16,
 					  drm_rect_height(&state->src) >> 16,
-					  state->fb->pitches[0],
-					  state->fb->format->format, &eba);
+					  fb->pitches[0],
+					  fb->format->format, &eba);
 	}
 
 	if (old_state->fb && !drm_atomic_crtc_needs_modeset(crtc_state)) {
@@ -553,11 +553,11 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 		ipu_dp_set_global_alpha(ipu_plane->dp, true, 0, true);
 		break;
 	case IPU_DP_FLOW_SYNC_FG:
-		ics = ipu_drm_fourcc_to_colorspace(state->fb->format->format);
+		ics = ipu_drm_fourcc_to_colorspace(fb->format->format);
 		ipu_dp_setup_channel(ipu_plane->dp, ics,
 					IPUV3_COLORSPACE_UNKNOWN);
 		/* Enable local alpha on partial plane */
-		switch (state->fb->format->format) {
+		switch (fb->format->format) {
 		case DRM_FORMAT_ARGB1555:
 		case DRM_FORMAT_ABGR1555:
 		case DRM_FORMAT_RGBA5551:
@@ -587,10 +587,10 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 	ipu_cpmem_set_resolution(ipu_plane->ipu_ch,
 				 drm_rect_width(&state->src) >> 16,
 				 drm_rect_height(&state->src) >> 16);
-	ipu_cpmem_set_fmt(ipu_plane->ipu_ch, state->fb->format->format);
+	ipu_cpmem_set_fmt(ipu_plane->ipu_ch, fb->format->format);
 	ipu_cpmem_set_high_priority(ipu_plane->ipu_ch);
 	ipu_idmac_set_double_buffer(ipu_plane->ipu_ch, 1);
-	ipu_cpmem_set_stride(ipu_plane->ipu_ch, state->fb->pitches[0]);
+	ipu_cpmem_set_stride(ipu_plane->ipu_ch, fb->pitches[0]);
 	ipu_cpmem_set_axi_id(ipu_plane->ipu_ch, axi_id);
 	switch (fb->format->format) {
 	case DRM_FORMAT_YUV420:
@@ -644,8 +644,7 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 		ipu_cpmem_set_format_passthrough(ipu_plane->alpha_ch, 8);
 		ipu_cpmem_set_high_priority(ipu_plane->alpha_ch);
 		ipu_idmac_set_double_buffer(ipu_plane->alpha_ch, 1);
-		ipu_cpmem_set_stride(ipu_plane->alpha_ch,
-				     state->fb->pitches[1]);
+		ipu_cpmem_set_stride(ipu_plane->alpha_ch, fb->pitches[1]);
 		ipu_cpmem_set_burstsize(ipu_plane->alpha_ch, 16);
 		ipu_cpmem_set_buffer(ipu_plane->alpha_ch, 0, alpha_eba);
 		ipu_cpmem_set_buffer(ipu_plane->alpha_ch, 1, alpha_eba);
