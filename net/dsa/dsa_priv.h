@@ -16,6 +16,18 @@
 #include <linux/netpoll.h>
 #include <net/dsa.h>
 
+enum {
+	DSA_NOTIFIER_BRIDGE_JOIN,
+	DSA_NOTIFIER_BRIDGE_LEAVE,
+};
+
+/* DSA_NOTIFIER_BRIDGE_* */
+struct dsa_notifier_bridge_info {
+	struct net_device *br;
+	int sw_index;
+	int port;
+};
+
 struct dsa_device_ops {
 	struct sk_buff *(*xmit)(struct sk_buff *skb, struct net_device *dev);
 	struct sk_buff *(*rcv)(struct sk_buff *skb, struct net_device *dev,
