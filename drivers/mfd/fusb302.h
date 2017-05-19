@@ -279,12 +279,12 @@ enum tcpm_rp_value {
 #define VDM_TYPE_BUSY		3
 
 #define N_DEBOUNCE_CNT		(10 - 1)
-#define N_CAPS_COUNT		100
+#define N_CAPS_COUNT		50
 #define N_HARDRESET_COUNT	0
 
 #define T_NO_RESPONSE		5000
 #define T_SRC_RECOVER		830
-#define T_TYPEC_SEND_SOURCECAP	3
+#define T_TYPEC_SEND_SOURCECAP	100
 #define T_SENDER_RESPONSE	30
 #define T_SRC_TRANSITION	30
 #define T_TYPEC_SINK_WAIT_CAP	500
