@@ -222,14 +222,6 @@ nvkm_dp_train_links(struct nvkm_dp *dp)
 	struct nvkm_disp *disp = dp->outp.disp;
 	struct nvkm_subdev *subdev = &disp->engine.subdev;
 	struct nvkm_bios *bios = subdev->device->bios;
-	struct nvbios_init init = {
-		.subdev = subdev,
-		.bios = bios,
-		.offset = 0x0000,
-		.outp = &dp->outp.info,
-		.crtc = -1,
-		.execute = 1,
-	};
 	struct lt_state lt = {
 		.dp = dp,
 	};
@@ -250,14 +242,18 @@ nvkm_dp_train_links(struct nvkm_dp *dp)
 		if (dp->version < 0x30) {
 			while ((ior->dp.bw * 2700) < nvbios_rd16(bios, lnkcmp))
 				lnkcmp += 4;
-			init.offset = nvbios_rd16(bios, lnkcmp + 2);
+			lnkcmp = nvbios_rd16(bios, lnkcmp + 2);
 		} else {
 			while (ior->dp.bw < nvbios_rd08(bios, lnkcmp))
 				lnkcmp += 3;
-			init.offset = nvbios_rd16(bios, lnkcmp + 1);
+			lnkcmp = nvbios_rd16(bios, lnkcmp + 1);
 		}
 
-		nvbios_exec(&init);
+		nvbios_init(subdev, lnkcmp,
+			init.outp = &dp->outp.info;
+			init.or   = ior->id;
+			init.link = ior->asy.link;
+		);
 	}
 
 	ret = ior->func->dp.links(ior, dp->aux);
@@ -293,42 +289,38 @@ nvkm_dp_train_links(struct nvkm_dp *dp)
 static void
 nvkm_dp_train_fini(struct nvkm_dp *dp)
 {
-	struct nvkm_subdev *subdev = &dp->outp.disp->engine.subdev;
-	struct nvbios_init init = {
-		.subdev = subdev,
-		.bios = subdev->device->bios,
-		.outp = &dp->outp.info,
-		.crtc = -1,
-		.execute = 1,
-	};
-
 	/* Execute AfterLinkTraining script from DP Info table. */
-	init.offset = dp->info.script[1],
-	nvbios_exec(&init);
+	nvbios_init(&dp->outp.disp->engine.subdev, dp->info.script[1],
+		init.outp = &dp->outp.info;
+		init.or   = dp->outp.ior->id;
+		init.link = dp->outp.ior->asy.link;
+	);
 }
 
 static void
 nvkm_dp_train_init(struct nvkm_dp *dp)
 {
-	struct nvkm_subdev *subdev = &dp->outp.disp->engine.subdev;
-	struct nvbios_init init = {
-		.subdev = subdev,
-		.bios = subdev->device->bios,
-		.outp = &dp->outp.info,
-		.crtc = -1,
-		.execute = 1,
-	};
-
 	/* Execute EnableSpread/DisableSpread script from DP Info table. */
-	if (dp->dpcd[DPCD_RC03] & DPCD_RC03_MAX_DOWNSPREAD)
-		init.offset = dp->info.script[2];
-	else
-		init.offset = dp->info.script[3];
-	nvbios_exec(&init);
+	if (dp->dpcd[DPCD_RC03] & DPCD_RC03_MAX_DOWNSPREAD) {
+		nvbios_init(&dp->outp.disp->engine.subdev, dp->info.script[2],
+			init.outp = &dp->outp.info;
+			init.or   = dp->outp.ior->id;
+			init.link = dp->outp.ior->asy.link;
+		);
+	} else {
+		nvbios_init(&dp->outp.disp->engine.subdev, dp->info.script[3],
+			init.outp = &dp->outp.info;
+			init.or   = dp->outp.ior->id;
+			init.link = dp->outp.ior->asy.link;
+		);
+	}
 
 	/* Execute BeforeLinkTraining script from DP Info table. */
-	init.offset = dp->info.script[0];
-	nvbios_exec(&init);
+	nvbios_init(&dp->outp.disp->engine.subdev, dp->info.script[0],
+		init.outp = &dp->outp.info;
+		init.or   = dp->outp.ior->id;
+		init.link = dp->outp.ior->asy.link;
+	);
 }
 
 static const struct dp_rates {
