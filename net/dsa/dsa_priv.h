@@ -24,6 +24,8 @@ enum {
 	DSA_NOTIFIER_FDB_DEL,
 	DSA_NOTIFIER_MDB_ADD,
 	DSA_NOTIFIER_MDB_DEL,
+	DSA_NOTIFIER_VLAN_ADD,
+	DSA_NOTIFIER_VLAN_DEL,
 };
 
 /* DSA_NOTIFIER_AGEING_TIME */
@@ -51,6 +53,14 @@ struct dsa_notifier_fdb_info {
 /* DSA_NOTIFIER_MDB_* */
 struct dsa_notifier_mdb_info {
 	const struct switchdev_obj_port_mdb *mdb;
+	struct switchdev_trans *trans;
+	int sw_index;
+	int port;
+};
+
+/* DSA_NOTIFIER_VLAN_* */
+struct dsa_notifier_vlan_info {
+	const struct switchdev_obj_port_vlan *vlan;
 	struct switchdev_trans *trans;
 	int sw_index;
 	int port;

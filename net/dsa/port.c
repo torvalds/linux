@@ -225,29 +225,26 @@ int dsa_port_vlan_add(struct dsa_port *dp,
 		      const struct switchdev_obj_port_vlan *vlan,
 		      struct switchdev_trans *trans)
 {
-	struct dsa_switch *ds = dp->ds;
+	struct dsa_notifier_vlan_info info = {
+		.sw_index = dp->ds->index,
+		.port = dp->index,
+		.trans = trans,
+		.vlan = vlan,
+	};
 
-	if (switchdev_trans_ph_prepare(trans)) {
-		if (!ds->ops->port_vlan_prepare || !ds->ops->port_vlan_add)
-			return -EOPNOTSUPP;
-
-		return ds->ops->port_vlan_prepare(ds, dp->index, vlan, trans);
-	}
-
-	ds->ops->port_vlan_add(ds, dp->index, vlan, trans);
-
-	return 0;
+	return dsa_port_notify(dp, DSA_NOTIFIER_VLAN_ADD, &info);
 }
 
 int dsa_port_vlan_del(struct dsa_port *dp,
 		      const struct switchdev_obj_port_vlan *vlan)
 {
-	struct dsa_switch *ds = dp->ds;
+	struct dsa_notifier_vlan_info info = {
+		.sw_index = dp->ds->index,
+		.port = dp->index,
+		.vlan = vlan,
+	};
 
-	if (!ds->ops->port_vlan_del)
-		return -EOPNOTSUPP;
-
-	return ds->ops->port_vlan_del(ds, dp->index, vlan);
+	return dsa_port_notify(dp, DSA_NOTIFIER_VLAN_DEL, &info);
 }
 
 int dsa_port_vlan_dump(struct dsa_port *dp,
