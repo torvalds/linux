@@ -34,9 +34,9 @@
 #include <linux/dma-direction.h>
 #include "channel.h"
 
-#define ULTRA_VHBA_CHANNEL_PROTOCOL_SIGNATURE VISOR_CHANNEL_SIGNATURE
-#define ULTRA_VNIC_CHANNEL_PROTOCOL_SIGNATURE VISOR_CHANNEL_SIGNATURE
-#define ULTRA_VSWITCH_CHANNEL_PROTOCOL_SIGNATURE VISOR_CHANNEL_SIGNATURE
+#define VISOR_VHBA_CHANNEL_SIGNATURE VISOR_CHANNEL_SIGNATURE
+#define VISOR_VNIC_CHANNEL_SIGNATURE VISOR_CHANNEL_SIGNATURE
+#define VISOR_VSWITCH_CHANNEL_SIGNATURE VISOR_CHANNEL_SIGNATURE
 
 /*
  * Must increment these whenever you insert or delete fields within this channel
@@ -45,21 +45,21 @@
  * usually add fields to the END of the channel struct without needing to
  * increment this.
  */
-#define ULTRA_VHBA_CHANNEL_PROTOCOL_VERSIONID 2
-#define ULTRA_VNIC_CHANNEL_PROTOCOL_VERSIONID 2
-#define ULTRA_VSWITCH_CHANNEL_PROTOCOL_VERSIONID 1
+#define VISOR_VHBA_CHANNEL_VERSIONID 2
+#define VISOR_VNIC_CHANNEL_VERSIONID 2
+#define VISOR_VSWITCH_CHANNEL_VERSIONID 1
 
-#define SPAR_VHBA_CHANNEL_OK_CLIENT(ch) \
+#define VISOR_VHBA_CHANNEL_OK_CLIENT(ch) \
 	(visor_check_channel(ch, visor_vhba_channel_uuid, \
-			    "vhba", MIN_IO_CHANNEL_SIZE,	\
-			    ULTRA_VHBA_CHANNEL_PROTOCOL_VERSIONID, \
-			    ULTRA_VHBA_CHANNEL_PROTOCOL_SIGNATURE))
+			     "vhba", MIN_IO_CHANNEL_SIZE, \
+			     VISOR_VHBA_CHANNEL_VERSIONID, \
+			     VISOR_VHBA_CHANNEL_SIGNATURE))
 
-#define SPAR_VNIC_CHANNEL_OK_CLIENT(ch) \
+#define VISOR_VNIC_CHANNEL_OK_CLIENT(ch) \
 	(visor_check_channel(ch, visor_vnic_channel_uuid, \
-			    "vnic", MIN_IO_CHANNEL_SIZE,	\
-			    ULTRA_VNIC_CHANNEL_PROTOCOL_VERSIONID, \
-			    ULTRA_VNIC_CHANNEL_PROTOCOL_SIGNATURE))
+			     "vnic", MIN_IO_CHANNEL_SIZE, \
+			     VISOR_VNIC_CHANNEL_VERSIONID, \
+			     VISOR_VNIC_CHANNEL_SIGNATURE))
 
 /*
  * Everything necessary to handle SCSI & NIC traffic between Guest Partition and
