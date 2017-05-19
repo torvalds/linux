@@ -58,6 +58,19 @@ gf119_head_state(struct nvkm_head *head, struct nvkm_head_state *state)
 	data = nvkm_rd32(device, 0x640420 + hoff);
 	state->vblanks = (data & 0xffff0000) >> 16;
 	state->hblanks = (data & 0x0000ffff);
+	state->hz = nvkm_rd32(device, 0x640450 + hoff);
+
+	data = nvkm_rd32(device, 0x640404 + hoff);
+	switch ((data & 0x000003c0) >> 6) {
+	case 6: state->or.depth = 30; break;
+	case 5: state->or.depth = 24; break;
+	case 2: state->or.depth = 18; break;
+	case 0: state->or.depth = 18; break; /*XXX: "default" */
+	default:
+		state->or.depth = 18;
+		WARN_ON(1);
+		break;
+	}
 }
 
 static const struct nvkm_head_func

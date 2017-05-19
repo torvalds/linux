@@ -23,6 +23,7 @@
  */
 #include "dp.h"
 #include "conn.h"
+#include "head.h"
 #include "ior.h"
 
 #include <subdev/bios.h>
@@ -419,19 +420,28 @@ nvkm_dp_train(struct nvkm_dp *dp, u32 dataKBps)
 }
 
 int
-nvkm_output_dp_train(struct nvkm_outp *outp, u32 datakbps)
+nvkm_output_dp_train(struct nvkm_outp *outp, u32 unused)
 {
 	struct nvkm_dp *dp = nvkm_dp(outp);
 	struct nvkm_ior *ior = dp->outp.ior;
+	struct nvkm_head *head;
 	bool retrain = true;
-	u32 linkKBps;
+	u32 datakbps = 0;
 	u32 dataKBps;
+	u32 linkKBps;
 	u8  stat[3];
 	int ret, i;
 
 	mutex_lock(&dp->mutex);
 
 	/* Check that link configuration meets current requirements. */
+	list_for_each_entry(head, &outp->disp->head, head) {
+		if (ior->asy.head & (1 << head->id)) {
+			u32 khz = (head->asy.hz >> ior->asy.rgdiv) / 1000;
+			datakbps += khz * head->asy.or.depth;
+		}
+	}
+
 	linkKBps = ior->dp.bw * 27000 * ior->dp.nr;
 	dataKBps = DIV_ROUND_UP(datakbps, 8);
 	OUTP_DBG(&dp->outp, "data %d KB/s link %d KB/s mst %d->%d",

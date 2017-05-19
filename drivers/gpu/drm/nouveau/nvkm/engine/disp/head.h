@@ -18,6 +18,12 @@ struct nvkm_head {
 		u16 vsynce;
 		u16 vblanke;
 		u16 vblanks;
+		u32 hz;
+
+		/* Prior to GF119, these are set by the OR. */
+		struct {
+			u8 depth;
+		} or;
 	} arm, asy;
 };
 

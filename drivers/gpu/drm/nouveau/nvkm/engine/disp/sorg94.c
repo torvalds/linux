@@ -238,6 +238,7 @@ g94_sor_state(struct nvkm_ior *sor, struct nvkm_ior_state *state)
 	}
 
 	state->head = ctrl & 0x00000003;
+	nv50_pior_depth(sor, state, ctrl);
 }
 
 static const struct nvkm_ior_func

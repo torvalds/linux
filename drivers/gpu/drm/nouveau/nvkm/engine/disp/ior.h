@@ -89,6 +89,8 @@ nv50_ior_base(struct nvkm_ior *ior)
 void nv50_dac_power(struct nvkm_ior *, bool, bool, bool, bool, bool);
 int nv50_dac_sense(struct nvkm_ior *, u32);
 
+void nv50_pior_depth(struct nvkm_ior *, struct nvkm_ior_state *, u32 ctrl);
+
 static inline u32
 nv50_sor_link(struct nvkm_ior *ior)
 {

@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "ior.h"
+#include "head.h"
 
 #include <subdev/i2c.h>
 #include <subdev/timer.h>
@@ -60,6 +61,31 @@ nv50_pior_power(struct nvkm_ior *pior, bool normal, bool pu,
 	nv50_pior_power_wait(device, poff);
 }
 
+void
+nv50_pior_depth(struct nvkm_ior *ior, struct nvkm_ior_state *state, u32 ctrl)
+{
+	/* GF119 moves this information to per-head methods, which is
+	 * a lot more convenient, and where our shared code expect it.
+	 */
+	if (state->head && state == &ior->asy) {
+		struct nvkm_head *head =
+			nvkm_head_find(ior->disp, __ffs(state->head));
+		if (!WARN_ON(!head)) {
+			struct nvkm_head_state *state = &head->asy;
+			switch ((ctrl & 0x000f0000) >> 16) {
+			case 6: state->or.depth = 30; break;
+			case 5: state->or.depth = 24; break;
+			case 2: state->or.depth = 18; break;
+			case 0: state->or.depth = 18; break; /*XXX*/
+			default:
+				state->or.depth = 18;
+				WARN_ON(1);
+				break;
+			}
+		}
+	}
+}
+
 static void
 nv50_pior_state(struct nvkm_ior *pior, struct nvkm_ior_state *state)
 {
@@ -77,6 +103,7 @@ nv50_pior_state(struct nvkm_ior *pior, struct nvkm_ior_state *state)
 	}
 
 	state->head = ctrl & 0x00000003;
+	nv50_pior_depth(pior, state, ctrl);
 }
 
 static const struct nvkm_ior_func

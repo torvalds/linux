@@ -66,6 +66,7 @@ nv50_head_state(struct nvkm_head *head, struct nvkm_head_state *state)
 	data = nvkm_rd32(device, 0x610b00 + hoff);
 	state->vsynce = (data & 0xffff0000) >> 16;
 	state->hsynce = (data & 0x0000ffff);
+	state->hz = (nvkm_rd32(device, 0x610ad0 + hoff) & 0x003fffff) * 1000;
 }
 
 static const struct nvkm_head_func
