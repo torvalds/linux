@@ -4,7 +4,7 @@
 struct nvbios_init {
 	struct nvkm_subdev *subdev;
 	struct nvkm_bios *bios;
-	u16 offset;
+	u32 offset;
 
 	struct dcb_output *outp;
 	union {
@@ -15,8 +15,8 @@ struct nvbios_init {
 	/* internal state used during parsing */
 	u8 execute;
 	u32 nested;
-	u16 repeat;
-	u16 repend;
+	u32 repeat;
+	u32 repend;
 	u32 ramcfg;
 };
 

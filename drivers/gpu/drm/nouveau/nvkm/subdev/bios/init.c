@@ -37,7 +37,7 @@
 #include <subdev/vga.h>
 
 #define bioslog(lvl, fmt, args...) do {                                        \
-	nvkm_printk(init->subdev, lvl, info, "0x%04x[%c]: "fmt,                \
+	nvkm_printk(init->subdev, lvl, info, "0x%08x[%c]: "fmt,                \
 		    init->offset, init_exec(init) ?                            \
 		    '0' + (init->nested - 1) : ' ', ##args);                   \
 } while(0)
