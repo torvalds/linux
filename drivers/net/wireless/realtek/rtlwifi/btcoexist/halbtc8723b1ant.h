@@ -182,12 +182,14 @@ struct coex_sta_8723b_1ant {
 	bool pre_ccklock;
 
 	u8 a2dp_bit_pool;
+	u8 cut_version;
 };
 
 /*************************************************************************
  * The following is interface which will notify coex module.
  *************************************************************************/
-void ex_halbtc8723b1ant_init_hwconfig(struct btc_coexist *btcoexist);
+void ex_halbtc8723b1ant_init_hwconfig(struct btc_coexist *btcoexist,
+				      bool wifi_only);
 void ex_halbtc8723b1ant_init_coex_dm(struct btc_coexist *btcoexist);
 void ex_halbtc8723b1ant_ips_notify(struct btc_coexist *btcoexist, u8 type);
 void ex_halbtc8723b1ant_lps_notify(struct btc_coexist *btcoexist, u8 type);
