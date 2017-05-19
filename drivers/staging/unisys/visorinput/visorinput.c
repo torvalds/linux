@@ -582,46 +582,46 @@ visorinput_channel_interrupt(struct visor_device *dev)
 		scancode = r.activity.arg1;
 		keycode = scancode_to_keycode(scancode);
 		switch (r.activity.action) {
-		case inputaction_key_down:
+		case INPUTACTION_KEY_DOWN:
 			input_report_key(visorinput_dev, keycode, 1);
 			input_sync(visorinput_dev);
 			break;
-		case inputaction_key_up:
+		case INPUTACTION_KEY_UP:
 			input_report_key(visorinput_dev, keycode, 0);
 			input_sync(visorinput_dev);
 			break;
-		case inputaction_key_down_up:
+		case INPUTACTION_KEY_DOWN_UP:
 			input_report_key(visorinput_dev, keycode, 1);
 			input_sync(visorinput_dev);
 			input_report_key(visorinput_dev, keycode, 0);
 			input_sync(visorinput_dev);
 			break;
-		case inputaction_set_locking_key_state:
+		case INPUTACTION_SET_LOCKING_KEY_STATE:
 			handle_locking_key(visorinput_dev, keycode,
 					   r.activity.arg2);
 			break;
-		case inputaction_xy_motion:
+		case INPUTACTION_XY_MOTION:
 			xmotion = r.activity.arg1;
 			ymotion = r.activity.arg2;
 			input_report_abs(visorinput_dev, ABS_X, xmotion);
 			input_report_abs(visorinput_dev, ABS_Y, ymotion);
 			input_sync(visorinput_dev);
 			break;
-		case inputaction_mouse_button_down:
+		case INPUTACTION_MOUSE_BUTTON_DOWN:
 			button = calc_button(r.activity.arg1);
 			if (button < 0)
 				break;
 			input_report_key(visorinput_dev, button, 1);
 			input_sync(visorinput_dev);
 			break;
-		case inputaction_mouse_button_up:
+		case INPUTACTION_MOUSE_BUTTON_UP:
 			button = calc_button(r.activity.arg1);
 			if (button < 0)
 				break;
 			input_report_key(visorinput_dev, button, 0);
 			input_sync(visorinput_dev);
 			break;
-		case inputaction_mouse_button_click:
+		case INPUTACTION_MOUSE_BUTTON_CLICK:
 			button = calc_button(r.activity.arg1);
 			if (button < 0)
 				break;
@@ -631,7 +631,7 @@ visorinput_channel_interrupt(struct visor_device *dev)
 			input_report_key(visorinput_dev, button, 0);
 			input_sync(visorinput_dev);
 			break;
-		case inputaction_mouse_button_dclick:
+		case INPUTACTION_MOUSE_BUTTON_DCLICK:
 			button = calc_button(r.activity.arg1);
 			if (button < 0)
 				break;
@@ -642,11 +642,11 @@ visorinput_channel_interrupt(struct visor_device *dev)
 				input_sync(visorinput_dev);
 			}
 			break;
-		case inputaction_wheel_rotate_away:
+		case INPUTACTION_WHEEL_ROTATE_AWAY:
 			input_report_rel(visorinput_dev, REL_WHEEL, 1);
 			input_sync(visorinput_dev);
 			break;
-		case inputaction_wheel_rotate_toward:
+		case INPUTACTION_WHEEL_ROTATE_TOWARD:
 			input_report_rel(visorinput_dev, REL_WHEEL, -1);
 			input_sync(visorinput_dev);
 			break;
