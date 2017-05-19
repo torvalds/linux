@@ -573,7 +573,7 @@ device_changestate_responder(enum controlvm_id cmd_id,
 }
 
 static int
-bus_create(struct controlvm_message *inmsg)
+visorbus_create(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
 	struct controlvm_message_header *pmsg_hdr = NULL;
@@ -585,7 +585,7 @@ bus_create(struct controlvm_message *inmsg)
 	bus_info = visorbus_get_device_by_id(bus_no, BUS_ROOT_DEVICE, NULL);
 	if (bus_info && (bus_info->state.created == 1)) {
 		dev_err(&chipset_dev->acpi_device->dev,
-			"failed bus_create: already exists\n");
+			"failed visorbus_create: already exists\n");
 		err = -EEXIST;
 		goto err_respond;
 	}
@@ -654,7 +654,7 @@ err_respond:
 }
 
 static int
-bus_destroy(struct controlvm_message *inmsg)
+visorbus_destroy(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
 	struct controlvm_message_header *pmsg_hdr = NULL;
@@ -699,8 +699,8 @@ err_respond:
 }
 
 static int
-bus_configure(struct controlvm_message *inmsg,
-	      struct parser_context *parser_ctx)
+visorbus_configure(struct controlvm_message *inmsg,
+		   struct parser_context *parser_ctx)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
 	u32 bus_no;
@@ -737,7 +737,7 @@ bus_configure(struct controlvm_message *inmsg,
 
 err_respond:
 	dev_err(&chipset_dev->acpi_device->dev,
-		"bus_configured exited with err: %d\n", err);
+		"visorbus_configure exited with err: %d\n", err);
 	if (inmsg->hdr.flags.response_expected == 1)
 		controlvm_responder(inmsg->hdr.id, &inmsg->hdr, err);
 	return err;
@@ -1438,7 +1438,7 @@ setup_crash_devices_work_queue(struct work_struct *work)
 			"no valid create_bus message\n");
 		return;
 	}
-	bus_create(&local_crash_bus_msg);
+	visorbus_create(&local_crash_bus_msg);
 
 	/* reuse create device message for storage device */
 	if (!local_crash_dev_msg.cmd.create_device.channel_addr) {
@@ -1634,13 +1634,13 @@ handle_command(struct controlvm_message inmsg, u64 channel_addr)
 		err = chipset_init(&inmsg);
 		break;
 	case CONTROLVM_BUS_CREATE:
-		err = bus_create(&inmsg);
+		err = visorbus_create(&inmsg);
 		break;
 	case CONTROLVM_BUS_DESTROY:
-		err = bus_destroy(&inmsg);
+		err = visorbus_destroy(&inmsg);
 		break;
 	case CONTROLVM_BUS_CONFIGURE:
-		err = bus_configure(&inmsg, parser_ctx);
+		err = visorbus_configure(&inmsg, parser_ctx);
 		break;
 	case CONTROLVM_DEVICE_CREATE:
 		err = my_device_create(&inmsg);
