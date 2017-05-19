@@ -111,3 +111,19 @@ void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br)
 	 */
 	dsa_port_set_state_now(dp, BR_STATE_FORWARDING);
 }
+
+int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
+			    struct switchdev_trans *trans)
+{
+	struct dsa_switch *ds = dp->ds;
+
+	/* bridge skips -EOPNOTSUPP, so skip the prepare phase */
+	if (switchdev_trans_ph_prepare(trans))
+		return 0;
+
+	if (ds->ops->port_vlan_filtering)
+		return ds->ops->port_vlan_filtering(ds, dp->index,
+						    vlan_filtering);
+
+	return 0;
+}

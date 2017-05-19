@@ -338,22 +338,6 @@ static int dsa_slave_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return -EOPNOTSUPP;
 }
 
-static int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
-				   struct switchdev_trans *trans)
-{
-	struct dsa_switch *ds = dp->ds;
-
-	/* bridge skips -EOPNOTSUPP, so skip the prepare phase */
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
-
-	if (ds->ops->port_vlan_filtering)
-		return ds->ops->port_vlan_filtering(ds, dp->index,
-						    vlan_filtering);
-
-	return 0;
-}
-
 static unsigned int dsa_fastest_ageing_time(struct dsa_switch *ds,
 					    unsigned int ageing_time)
 {

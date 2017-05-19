@@ -66,6 +66,8 @@ int dsa_port_set_state(struct dsa_port *dp, u8 state,
 void dsa_port_set_state_now(struct dsa_port *dp, u8 state);
 int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br);
 void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br);
+int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
+			    struct switchdev_trans *trans);
 
 /* slave.c */
 extern const struct dsa_device_ops notag_netdev_ops;
