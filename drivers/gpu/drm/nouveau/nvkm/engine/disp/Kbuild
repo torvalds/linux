@@ -4,7 +4,9 @@ nvkm-y += nvkm/engine/disp/nv50.o
 nvkm-y += nvkm/engine/disp/g84.o
 nvkm-y += nvkm/engine/disp/g94.o
 nvkm-y += nvkm/engine/disp/gt200.o
+nvkm-y += nvkm/engine/disp/mcp77.o
 nvkm-y += nvkm/engine/disp/gt215.o
+nvkm-y += nvkm/engine/disp/mcp89.o
 nvkm-y += nvkm/engine/disp/gf119.o
 nvkm-y += nvkm/engine/disp/gk104.o
 nvkm-y += nvkm/engine/disp/gk110.o
@@ -21,10 +23,16 @@ nvkm-y += nvkm/engine/disp/headgf119.o
 
 nvkm-y += nvkm/engine/disp/ior.o
 nvkm-y += nvkm/engine/disp/dacnv50.o
+nvkm-y += nvkm/engine/disp/dacgf119.o
 nvkm-y += nvkm/engine/disp/piornv50.o
 nvkm-y += nvkm/engine/disp/sornv50.o
+nvkm-y += nvkm/engine/disp/sorg84.o
 nvkm-y += nvkm/engine/disp/sorg94.o
+nvkm-y += nvkm/engine/disp/sormcp77.o
+nvkm-y += nvkm/engine/disp/sorgt215.o
+nvkm-y += nvkm/engine/disp/sormcp89.o
 nvkm-y += nvkm/engine/disp/sorgf119.o
+nvkm-y += nvkm/engine/disp/sorgk104.o
 nvkm-y += nvkm/engine/disp/sorgm107.o
 nvkm-y += nvkm/engine/disp/sorgm200.o
 

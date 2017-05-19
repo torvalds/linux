@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat Inc.
+ * Copyright 2017 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -18,8 +18,6 @@
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
- *
- * Authors: Ben Skeggs
  */
 #include "nv50.h"
 #include "head.h"
@@ -27,30 +25,33 @@
 #include "rootnv50.h"
 
 static const struct nv50_disp_func
-gk104_disp = {
-	.intr = gf119_disp_intr,
-	.intr_error = gf119_disp_intr_error,
-	.uevent = &gf119_disp_chan_uevent,
-	.super = gf119_disp_super,
-	.root = &gk104_disp_root_oclass,
-	.head.new = gf119_head_new,
+mcp77_disp = {
+	.intr = nv50_disp_intr,
+	.uevent = &nv50_disp_chan_uevent,
+	.super = nv50_disp_super,
+	.root = &g94_disp_root_oclass,
+	.head.new = nv50_head_new,
 	.outp.internal.crt = nv50_dac_output_new,
 	.outp.internal.tmds = nv50_sor_output_new,
 	.outp.internal.lvds = nv50_sor_output_new,
-	.outp.internal.dp = gf119_sor_dp_new,
+	.outp.internal.dp = g94_sor_dp_new,
+	.outp.external.tmds = nv50_pior_output_new,
+	.outp.external.dp = nv50_pior_dp_new,
 	.dac.nr = 3,
-	.dac.new = gf119_dac_new,
+	.dac.new = nv50_dac_new,
 	.dac.power = nv50_dac_power,
 	.dac.sense = nv50_dac_sense,
 	.sor.nr = 4,
-	.sor.new = gk104_sor_new,
+	.sor.new = mcp77_sor_new,
 	.sor.power = nv50_sor_power,
-	.sor.hda_eld = gf119_hda_eld,
-	.sor.hdmi = gk104_hdmi_ctrl,
+	.sor.hdmi = g84_hdmi_ctrl,
+	.pior.nr = 3,
+	.pior.new = nv50_pior_new,
+	.pior.power = nv50_pior_power,
 };
 
 int
-gk104_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
+mcp77_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
 {
-	return gf119_disp_new_(&gk104_disp, device, index, pdisp);
+	return nv50_disp_new_(&mcp77_disp, device, index, 2, pdisp);
 }

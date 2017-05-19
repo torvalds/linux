@@ -32,12 +32,18 @@ struct nvkm_ior *nvkm_ior_find(struct nvkm_disp *, enum nvkm_ior_type, int id);
 #define IOR_DBG(i,f,a...) IOR_MSG((i), debug, f, ##a)
 
 int nv50_dac_new(struct nvkm_disp *, int);
+int gf119_dac_new(struct nvkm_disp *, int);
 
 int nv50_pior_new(struct nvkm_disp *, int);
 
 int nv50_sor_new(struct nvkm_disp *, int);
+int g84_sor_new(struct nvkm_disp *, int);
 int g94_sor_new(struct nvkm_disp *, int);
+int mcp77_sor_new(struct nvkm_disp *, int);
+int gt215_sor_new(struct nvkm_disp *, int);
+int mcp89_sor_new(struct nvkm_disp *, int);
 int gf119_sor_new(struct nvkm_disp *, int);
+int gk104_sor_new(struct nvkm_disp *, int);
 int gm107_sor_new(struct nvkm_disp *, int);
 int gm200_sor_new(struct nvkm_disp *, int);
 #endif
