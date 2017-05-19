@@ -436,7 +436,7 @@ void smp_call_function_many(const struct cpumask *mask,
 	cfd = this_cpu_ptr(&cfd_data);
 
 	cpumask_and(cfd->cpumask, mask, cpu_online_mask);
-	cpumask_clear_cpu(this_cpu, cfd->cpumask);
+	__cpumask_clear_cpu(this_cpu, cfd->cpumask);
 
 	/* Some callers race with other cpus changing the passed mask */
 	if (unlikely(!cpumask_weight(cfd->cpumask)))
@@ -452,7 +452,7 @@ void smp_call_function_many(const struct cpumask *mask,
 		csd->func = func;
 		csd->info = info;
 		if (llist_add(&csd->llist, &per_cpu(call_single_queue, cpu)))
-			cpumask_set_cpu(cpu, cfd->cpumask_ipi);
+			__cpumask_set_cpu(cpu, cfd->cpumask_ipi);
 	}
 
 	/* Send a message to all CPUs in the map */
