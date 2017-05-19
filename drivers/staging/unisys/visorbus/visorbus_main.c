@@ -689,11 +689,11 @@ get_vbus_header_info(struct visorchannel *chan,
 	int err;
 
 	if (!spar_check_channel(visorchannel_get_header(chan),
-				spar_vbus_channel_protocol_uuid,
+				visor_vbus_channel_uuid,
 				"vbus",
 				sizeof(struct spar_vbus_channel_protocol),
-				SPAR_VBUS_CHANNEL_PROTOCOL_VERSIONID,
-				SPAR_VBUS_CHANNEL_PROTOCOL_SIGNATURE))
+				VISOR_VBUS_CHANNEL_VERSIONID,
+				VISOR_VBUS_CHANNEL_SIGNATURE))
 		return -EINVAL;
 
 	err = visorchannel_read(chan, sizeof(struct channel_header), hdr_info,
