@@ -84,6 +84,43 @@ static int dsa_switch_bridge_leave(struct dsa_switch *ds,
 	return 0;
 }
 
+static int dsa_switch_fdb_add(struct dsa_switch *ds,
+			      struct dsa_notifier_fdb_info *info)
+{
+	const struct switchdev_obj_port_fdb *fdb = info->fdb;
+	struct switchdev_trans *trans = info->trans;
+
+	/* Do not care yet about other switch chips of the fabric */
+	if (ds->index != info->sw_index)
+		return 0;
+
+	if (switchdev_trans_ph_prepare(trans)) {
+		if (!ds->ops->port_fdb_prepare || !ds->ops->port_fdb_add)
+			return -EOPNOTSUPP;
+
+		return ds->ops->port_fdb_prepare(ds, info->port, fdb, trans);
+	}
+
+	ds->ops->port_fdb_add(ds, info->port, fdb, trans);
+
+	return 0;
+}
+
+static int dsa_switch_fdb_del(struct dsa_switch *ds,
+			      struct dsa_notifier_fdb_info *info)
+{
+	const struct switchdev_obj_port_fdb *fdb = info->fdb;
+
+	/* Do not care yet about other switch chips of the fabric */
+	if (ds->index != info->sw_index)
+		return 0;
+
+	if (!ds->ops->port_fdb_del)
+		return -EOPNOTSUPP;
+
+	return ds->ops->port_fdb_del(ds, info->port, fdb);
+}
+
 static int dsa_switch_event(struct notifier_block *nb,
 			    unsigned long event, void *info)
 {
@@ -99,6 +136,12 @@ static int dsa_switch_event(struct notifier_block *nb,
 		break;
 	case DSA_NOTIFIER_BRIDGE_LEAVE:
 		err = dsa_switch_bridge_leave(ds, info);
+		break;
+	case DSA_NOTIFIER_FDB_ADD:
+		err = dsa_switch_fdb_add(ds, info);
+		break;
+	case DSA_NOTIFIER_FDB_DEL:
+		err = dsa_switch_fdb_del(ds, info);
 		break;
 	default:
 		err = -EOPNOTSUPP;

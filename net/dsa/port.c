@@ -151,29 +151,26 @@ int dsa_port_fdb_add(struct dsa_port *dp,
 		     const struct switchdev_obj_port_fdb *fdb,
 		     struct switchdev_trans *trans)
 {
-	struct dsa_switch *ds = dp->ds;
+	struct dsa_notifier_fdb_info info = {
+		.sw_index = dp->ds->index,
+		.port = dp->index,
+		.trans = trans,
+		.fdb = fdb,
+	};
 
-	if (switchdev_trans_ph_prepare(trans)) {
-		if (!ds->ops->port_fdb_prepare || !ds->ops->port_fdb_add)
-			return -EOPNOTSUPP;
-
-		return ds->ops->port_fdb_prepare(ds, dp->index, fdb, trans);
-	}
-
-	ds->ops->port_fdb_add(ds, dp->index, fdb, trans);
-
-	return 0;
+	return dsa_port_notify(dp, DSA_NOTIFIER_FDB_ADD, &info);
 }
 
 int dsa_port_fdb_del(struct dsa_port *dp,
 		     const struct switchdev_obj_port_fdb *fdb)
 {
-	struct dsa_switch *ds = dp->ds;
+	struct dsa_notifier_fdb_info info = {
+		.sw_index = dp->ds->index,
+		.port = dp->index,
+		.fdb = fdb,
+	};
 
-	if (ds->ops->port_fdb_del)
-		return -EOPNOTSUPP;
-
-	return ds->ops->port_fdb_del(ds, dp->index, fdb);
+	return dsa_port_notify(dp, DSA_NOTIFIER_FDB_DEL, &info);
 }
 
 int dsa_port_fdb_dump(struct dsa_port *dp, struct switchdev_obj_port_fdb *fdb,

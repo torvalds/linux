@@ -20,6 +20,8 @@ enum {
 	DSA_NOTIFIER_AGEING_TIME,
 	DSA_NOTIFIER_BRIDGE_JOIN,
 	DSA_NOTIFIER_BRIDGE_LEAVE,
+	DSA_NOTIFIER_FDB_ADD,
+	DSA_NOTIFIER_FDB_DEL,
 };
 
 /* DSA_NOTIFIER_AGEING_TIME */
@@ -32,6 +34,14 @@ struct dsa_notifier_ageing_time_info {
 /* DSA_NOTIFIER_BRIDGE_* */
 struct dsa_notifier_bridge_info {
 	struct net_device *br;
+	int sw_index;
+	int port;
+};
+
+/* DSA_NOTIFIER_FDB_* */
+struct dsa_notifier_fdb_info {
+	const struct switchdev_obj_port_fdb *fdb;
+	struct switchdev_trans *trans;
 	int sw_index;
 	int port;
 };
