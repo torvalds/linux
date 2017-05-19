@@ -106,12 +106,12 @@ init_link(struct nvbios_init *init)
 }
 
 static inline int
-init_crtc(struct nvbios_init *init)
+init_head(struct nvbios_init *init)
 {
 	if (init_exec(init)) {
-		if (init->crtc >= 0)
-			return init->crtc;
-		error("script needs crtc\n");
+		if (init->head >= 0)
+			return init->head;
+		error("script needs head\n");
 	}
 	return 0;
 }
@@ -156,7 +156,7 @@ init_nvreg(struct nvbios_init *init, u32 reg)
 	 */
 	if (init->subdev->device->card_type >= NV_50) {
 		if (reg & 0x80000000) {
-			reg += init_crtc(init) * 0x800;
+			reg += init_head(init) * 0x800;
 			reg &= ~0x80000000;
 		}
 
@@ -212,7 +212,7 @@ static u8
 init_rdport(struct nvbios_init *init, u16 port)
 {
 	if (init_exec(init))
-		return nvkm_rdport(init->subdev->device, init->crtc, port);
+		return nvkm_rdport(init->subdev->device, init->head, port);
 	return 0x00;
 }
 
@@ -220,7 +220,7 @@ static void
 init_wrport(struct nvbios_init *init, u16 port, u8 value)
 {
 	if (init_exec(init))
-		nvkm_wrport(init->subdev->device, init->crtc, port, value);
+		nvkm_wrport(init->subdev->device, init->head, port, value);
 }
 
 static u8
@@ -228,7 +228,7 @@ init_rdvgai(struct nvbios_init *init, u16 port, u8 index)
 {
 	struct nvkm_subdev *subdev = init->subdev;
 	if (init_exec(init)) {
-		int head = init->crtc < 0 ? 0 : init->crtc;
+		int head = init->head < 0 ? 0 : init->head;
 		return nvkm_rdvgai(subdev->device, head, port, index);
 	}
 	return 0x00;
@@ -242,18 +242,18 @@ init_wrvgai(struct nvbios_init *init, u16 port, u8 index, u8 value)
 	/* force head 0 for updates to cr44, it only exists on first head */
 	if (device->card_type < NV_50) {
 		if (port == 0x03d4 && index == 0x44)
-			init->crtc = 0;
+			init->head = 0;
 	}
 
 	if (init_exec(init)) {
-		int head = init->crtc < 0 ? 0 : init->crtc;
+		int head = init->head < 0 ? 0 : init->head;
 		nvkm_wrvgai(device, head, port, index, value);
 	}
 
 	/* select head 1 if cr44 write selected it */
 	if (device->card_type < NV_50) {
 		if (port == 0x03d4 && index == 0x44 && value == 3)
-			init->crtc = 1;
+			init->head = 1;
 	}
 }
 
@@ -2307,7 +2307,7 @@ nvbios_post(struct nvkm_subdev *subdev, bool execute)
 			.bios = bios,
 			.offset = data,
 			.outp = NULL,
-			.crtc = -1,
+			.head = -1,
 			.execute = execute ? 1 : 0,
 		};
 
@@ -2323,7 +2323,7 @@ nvbios_post(struct nvkm_subdev *subdev, bool execute)
 			.bios = bios,
 			.offset = data,
 			.outp = NULL,
-			.crtc = -1,
+			.head = -1,
 			.execute = execute ? 1 : 0,
 		};
 
