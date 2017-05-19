@@ -2883,9 +2883,6 @@ static enum surface_update_type  amdgpu_dm_check_surfaces_update_type(
 			dc_stream_get_status(dc_stream);
 	enum surface_update_type update_type;
 
-	ASSERT(stream_status);
-
-
 	memset(srf_updates, 0, sizeof(srf_updates));
 	memset(flip_addr, 0, sizeof(flip_addr));
 	memset(plane_info, 0, sizeof(plane_info));
