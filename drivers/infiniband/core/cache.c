@@ -53,6 +53,7 @@ struct ib_update_work {
 	struct work_struct work;
 	struct ib_device  *device;
 	u8                 port_num;
+	bool		   enforce_security;
 };
 
 union ib_gid zgid;
@@ -1042,7 +1043,8 @@ int ib_get_cached_port_state(struct ib_device   *device,
 EXPORT_SYMBOL(ib_get_cached_port_state);
 
 static void ib_cache_update(struct ib_device *device,
-			    u8                port)
+			    u8                port,
+			    bool	      enforce_security)
 {
 	struct ib_port_attr       *tprops = NULL;
 	struct ib_pkey_cache      *pkey_cache = NULL, *old_pkey_cache;
@@ -1132,6 +1134,11 @@ static void ib_cache_update(struct ib_device *device,
 							tprops->subnet_prefix;
 	write_unlock_irq(&device->cache.lock);
 
+	if (enforce_security)
+		ib_security_cache_change(device,
+					 port,
+					 tprops->subnet_prefix);
+
 	kfree(gid_cache);
 	kfree(old_pkey_cache);
 	kfree(tprops);
@@ -1148,7 +1155,9 @@ static void ib_cache_task(struct work_struct *_work)
 	struct ib_update_work *work =
 		container_of(_work, struct ib_update_work, work);
 
-	ib_cache_update(work->device, work->port_num);
+	ib_cache_update(work->device,
+			work->port_num,
+			work->enforce_security);
 	kfree(work);
 }
 
@@ -1169,6 +1178,12 @@ static void ib_cache_event(struct ib_event_handler *handler,
 			INIT_WORK(&work->work, ib_cache_task);
 			work->device   = event->device;
 			work->port_num = event->element.port_num;
+			if (event->event == IB_EVENT_PKEY_CHANGE ||
+			    event->event == IB_EVENT_GID_CHANGE)
+				work->enforce_security = true;
+			else
+				work->enforce_security = false;
+
 			queue_work(ib_wq, &work->work);
 		}
 	}
@@ -1194,7 +1209,7 @@ int ib_cache_setup_one(struct ib_device *device)
 		goto out;
 
 	for (p = 0; p <= rdma_end_port(device) - rdma_start_port(device); ++p)
-		ib_cache_update(device, p + rdma_start_port(device));
+		ib_cache_update(device, p + rdma_start_port(device), true);
 
 	INIT_IB_EVENT_HANDLER(&device->cache.event_handler,
 			      device, ib_cache_event);

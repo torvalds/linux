@@ -325,6 +325,30 @@ void ib_get_device_fw_str(struct ib_device *dev, char *str, size_t str_len)
 }
 EXPORT_SYMBOL(ib_get_device_fw_str);
 
+static int setup_port_pkey_list(struct ib_device *device)
+{
+	int i;
+
+	/**
+	 * device->port_pkey_list is indexed directly by the port number,
+	 * Therefore it is declared as a 1 based array with potential empty
+	 * slots at the beginning.
+	 */
+	device->port_pkey_list = kcalloc(rdma_end_port(device) + 1,
+					 sizeof(*device->port_pkey_list),
+					 GFP_KERNEL);
+
+	if (!device->port_pkey_list)
+		return -ENOMEM;
+
+	for (i = 0; i < (rdma_end_port(device) + 1); i++) {
+		spin_lock_init(&device->port_pkey_list[i].list_lock);
+		INIT_LIST_HEAD(&device->port_pkey_list[i].pkey_list);
+	}
+
+	return 0;
+}
+
 /**
  * ib_register_device - Register an IB device with IB core
  * @device:Device to register
@@ -382,6 +406,12 @@ int ib_register_device(struct ib_device *device,
 	if (ret) {
 		pr_warn("Couldn't create per port immutable data %s\n",
 			device->name);
+		goto out;
+	}
+
+	ret = setup_port_pkey_list(device);
+	if (ret) {
+		pr_warn("Couldn't create per port_pkey_list\n");
 		goto out;
 	}
 
@@ -467,6 +497,9 @@ void ib_unregister_device(struct ib_device *device)
 	ib_device_unregister_rdmacg(device);
 	ib_device_unregister_sysfs(device);
 	ib_cache_cleanup_one(device);
+
+	ib_security_destroy_port_pkey_list(device);
+	kfree(device->port_pkey_list);
 
 	down_write(&lists_rwsem);
 	spin_lock_irqsave(&device->client_data_lock, flags);
