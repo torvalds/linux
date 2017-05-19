@@ -1787,6 +1787,11 @@ controlvm_periodic_work(struct work_struct *work)
 	/* parahotplug_worker */
 	parahotplug_process_list();
 
+/*
+ * The controlvm messages are sent in a bulk. If we start receiving messages, we
+ * want the polling to be fast. If we do not receive any message for
+ * MIN_IDLE_SECONDS, we can slow down the polling.
+ */
 schedule_out:
 	if (time_after(jiffies, chipset_dev->most_recent_message_jiffies +
 				(HZ * MIN_IDLE_SECONDS))) {
