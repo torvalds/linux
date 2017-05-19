@@ -1446,6 +1446,8 @@ static int wil_cfg80211_stop_ap(struct wiphy *wiphy,
 	wil6210_bus_request(wil, WIL_DEFAULT_BUS_REQUEST_KBPS);
 	wil_set_recovery_state(wil, fw_recovery_idle);
 
+	set_bit(wil_status_resetting, wil->status);
+
 	mutex_lock(&wil->mutex);
 
 	wmi_pcp_stop(wil);
