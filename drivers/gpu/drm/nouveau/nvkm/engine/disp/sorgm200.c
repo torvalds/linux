@@ -82,7 +82,6 @@ gm200_sor_dp_drv_ctl(struct nvkm_output_dp *outp,
 
 static const struct nvkm_output_dp_func
 gm200_sor_dp_func = {
-	.pattern = gm107_sor_dp_pattern,
 	.drv_ctl = gm200_sor_dp_drv_ctl,
 	.vcpi = gf119_sor_dp_vcpi,
 };
@@ -117,6 +116,7 @@ gm200_sor = {
 		.lanes = { 0, 1, 2, 3 },
 		.links = gf119_sor_dp_links,
 		.power = g94_sor_dp_power,
+		.pattern = gm107_sor_dp_pattern,
 	},
 };
 

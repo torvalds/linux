@@ -122,7 +122,7 @@ nvkm_dp_train_pattern(struct lt_state *lt, u8 pattern)
 	u8 sink_tp;
 
 	OUTP_TRACE(&dp->outp, "training pattern %d", pattern);
-	dp->func->pattern(dp, pattern);
+	dp->outp.ior->func->dp.pattern(dp->outp.ior, pattern);
 
 	nvkm_rdaux(dp->aux, DPCD_LC02, &sink_tp, 1);
 	sink_tp &= ~DPCD_LC02_TRAINING_PATTERN_SET;

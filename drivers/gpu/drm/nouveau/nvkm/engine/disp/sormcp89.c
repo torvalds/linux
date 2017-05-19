@@ -32,6 +32,7 @@ mcp89_sor = {
 		.lanes = { 3, 2, 1, 0 },
 		.links = g94_sor_dp_links,
 		.power = g94_sor_dp_power,
+		.pattern = g94_sor_dp_pattern,
 	},
 };
 

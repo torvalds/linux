@@ -46,12 +46,6 @@ nv50_pior_output_new(struct nvkm_disp *disp, int index,
  * DisplayPort
  *****************************************************************************/
 static int
-nv50_pior_output_dp_pattern(struct nvkm_output_dp *outp, int pattern)
-{
-	return 0;
-}
-
-static int
 nv50_pior_dp_links(struct nvkm_ior *pior, struct nvkm_i2c_aux *aux)
 {
 	int ret = nvkm_i2c_aux_lnk_ctl(aux, pior->dp.nr, pior->dp.bw,
@@ -63,7 +57,6 @@ nv50_pior_dp_links(struct nvkm_ior *pior, struct nvkm_i2c_aux *aux)
 
 static const struct nvkm_output_dp_func
 nv50_pior_output_dp_func = {
-	.pattern = nv50_pior_output_dp_pattern,
 };
 
 int

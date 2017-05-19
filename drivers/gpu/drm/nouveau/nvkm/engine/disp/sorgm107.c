@@ -24,22 +24,20 @@
 #include "ior.h"
 #include "nv50.h"
 
-int
-gm107_sor_dp_pattern(struct nvkm_output_dp *outp, int pattern)
+void
+gm107_sor_dp_pattern(struct nvkm_ior *sor, int pattern)
 {
-	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
-	const u32 soff = outp->base.or * 0x800;
+	struct nvkm_device *device = sor->disp->engine.subdev.device;
+	const u32 soff = nv50_ior_base(sor);
 	const u32 data = 0x01010101 * pattern;
-	if (outp->base.info.sorconf.link & 1)
+	if (sor->asy.link & 1)
 		nvkm_mask(device, 0x61c110 + soff, 0x0f0f0f0f, data);
 	else
 		nvkm_mask(device, 0x61c12c + soff, 0x0f0f0f0f, data);
-	return 0;
 }
 
 static const struct nvkm_output_dp_func
 gm107_sor_dp_func = {
-	.pattern = gm107_sor_dp_pattern,
 	.drv_ctl = gf119_sor_dp_drv_ctl,
 	.vcpi = gf119_sor_dp_vcpi,
 };
@@ -62,6 +60,7 @@ gm107_sor = {
 		.lanes = { 0, 1, 2, 3 },
 		.links = gf119_sor_dp_links,
 		.power = g94_sor_dp_power,
+		.pattern = gm107_sor_dp_pattern,
 	},
 };
 
