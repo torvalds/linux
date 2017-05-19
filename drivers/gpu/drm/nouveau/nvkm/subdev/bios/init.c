@@ -2278,11 +2278,6 @@ nvbios_exec(struct nvbios_init *init)
 {
 	struct nvkm_bios *bios = init->subdev->device->bios;
 
-	if (init->bios) {
-		init->or = init->outp ? ffs(init->outp->or) - 1 : -1;
-		init->link = init->outp ? init->outp->sorconf.link : 0;
-	}
-
 	init->nested++;
 	while (init->offset) {
 		u8 opcode = nvbios_rd08(bios, init->offset);

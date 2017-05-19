@@ -30,6 +30,7 @@ void nv50_disp_super_1_0(struct nv50_disp *, struct nvkm_head *);
 void nv50_disp_super_2_0(struct nv50_disp *, struct nvkm_head *);
 void nv50_disp_super_2_1(struct nv50_disp *, struct nvkm_head *);
 void nv50_disp_super_2_2(struct nv50_disp *, struct nvkm_head *);
+void nv50_disp_super_3_0(struct nv50_disp *, struct nvkm_head *);
 
 int nv50_disp_new_(const struct nv50_disp_func *, struct nvkm_device *,
 		   int index, int heads, struct nvkm_disp **);

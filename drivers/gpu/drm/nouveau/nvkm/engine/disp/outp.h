@@ -43,10 +43,6 @@ struct nvkm_outp_func {
 	void (*release)(struct nvkm_outp *, struct nvkm_ior *);
 };
 
-#define nvkm_output nvkm_outp
-#define nvkm_output_func nvkm_outp_func
-#define nvkm_output_new_ nvkm_outp_new_
-
 #define OUTP_MSG(o,l,f,a...) do {                                              \
 	struct nvkm_outp *_outp = (o);                                         \
 	nvkm_##l(&_outp->disp->engine.subdev, "outp %02x:%04x:%04x: "f"\n",    \

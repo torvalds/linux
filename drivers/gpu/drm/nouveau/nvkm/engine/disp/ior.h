@@ -52,6 +52,7 @@ struct nvkm_ior_func {
 	int (*sense)(struct nvkm_ior *, u32 loadval);
 	void (*clock)(struct nvkm_ior *);
 	void (*war_2)(struct nvkm_ior *);
+	void (*war_3)(struct nvkm_ior *);
 
 	struct {
 		void (*ctrl)(struct nvkm_ior *, int head, bool enable,

@@ -3,16 +3,12 @@
 
 struct nvbios_init {
 	struct nvkm_subdev *subdev;
-	struct nvkm_bios *bios;
 	u32 offset;
 
 	struct dcb_output *outp;
 	int or;
 	int link;
-	union {
-		int head;
-		int crtc;
-	};
+	int head;
 
 	/* internal state used during parsing */
 	u8 execute;

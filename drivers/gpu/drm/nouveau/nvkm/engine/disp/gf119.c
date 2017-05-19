@@ -26,128 +26,6 @@
 #include "ior.h"
 #include "rootnv50.h"
 
-#include <subdev/bios.h>
-#include <subdev/bios/disp.h>
-#include <subdev/bios/init.h>
-#include <subdev/bios/pll.h>
-#include <subdev/devinit.h>
-
-static struct nvkm_output *
-exec_lookup(struct nv50_disp *disp, int head, int or, u32 ctrl,
-	    u32 *data, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
-	    struct nvbios_outp *info)
-{
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
-	struct nvkm_bios *bios = subdev->device->bios;
-	struct nvkm_output *outp;
-	u16 mask, type;
-
-	if (or < 4) {
-		type = DCB_OUTPUT_ANALOG;
-		mask = 0;
-	} else {
-		or -= 4;
-		switch (ctrl & 0x00000f00) {
-		case 0x00000000: type = DCB_OUTPUT_LVDS; mask = 1; break;
-		case 0x00000100: type = DCB_OUTPUT_TMDS; mask = 1; break;
-		case 0x00000200: type = DCB_OUTPUT_TMDS; mask = 2; break;
-		case 0x00000500: type = DCB_OUTPUT_TMDS; mask = 3; break;
-		case 0x00000800: type = DCB_OUTPUT_DP; mask = 1; break;
-		case 0x00000900: type = DCB_OUTPUT_DP; mask = 2; break;
-		default:
-			nvkm_error(subdev, "unknown SOR mc %08x\n", ctrl);
-			return NULL;
-		}
-	}
-
-	mask  = 0x00c0 & (mask << 6);
-	mask |= 0x0001 << or;
-	mask |= 0x0100 << head;
-
-	list_for_each_entry(outp, &disp->base.outp, head) {
-		if ((outp->info.hasht & 0xff) == type &&
-		    (outp->info.hashm & mask) == mask) {
-			*data = nvbios_outp_match(bios, outp->info.hasht, mask,
-						  ver, hdr, cnt, len, info);
-			if (!*data)
-				return NULL;
-			return outp;
-		}
-	}
-
-	return NULL;
-}
-
-static struct nvkm_output *
-exec_clkcmp(struct nv50_disp *disp, int head, int id, u32 pclk, u32 *conf)
-{
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
-	struct nvkm_bios *bios = device->bios;
-	struct nvkm_output *outp;
-	struct nvbios_outp info1;
-	struct nvbios_ocfg info2;
-	u8  ver, hdr, cnt, len;
-	u32 data, ctrl = 0;
-	int or;
-
-	for (or = 0; !(ctrl & (1 << head)) && or < 8; or++) {
-		ctrl = nvkm_rd32(device, 0x660180 + (or * 0x20));
-		if (ctrl & (1 << head))
-			break;
-	}
-
-	if (or == 8)
-		return NULL;
-
-	outp = exec_lookup(disp, head, or, ctrl, &data, &ver, &hdr, &cnt, &len, &info1);
-	if (!outp)
-		return NULL;
-
-	*conf = (ctrl & 0x00000f00) >> 8;
-	switch (outp->info.type) {
-	case DCB_OUTPUT_TMDS:
-		if (*conf == 5)
-			*conf |= 0x0100;
-		break;
-	case DCB_OUTPUT_LVDS:
-		*conf |= disp->sor.lvdsconf;
-		break;
-	default:
-		break;
-	}
-
-	data = nvbios_ocfg_match(bios, data, *conf & 0xff, *conf >> 8,
-				 &ver, &hdr, &cnt, &len, &info2);
-	if (data && id < 0xff) {
-		data = nvbios_oclk_match(bios, info2.clkcmp[id], pclk);
-		if (data) {
-			struct nvbios_init init = {
-				.subdev = subdev,
-				.bios = bios,
-				.offset = data,
-				.outp = &outp->info,
-				.crtc = head,
-				.execute = 1,
-			};
-
-			nvbios_exec(&init);
-		}
-	}
-
-	return outp;
-}
-
-static void
-gf119_disp_intr_unk4_0(struct nv50_disp *disp, int head)
-{
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	u32 pclk = nvkm_rd32(device, 0x660450 + (head * 0x300)) / 1000;
-	u32 conf;
-
-	exec_clkcmp(disp, head, 1, pclk, &conf);
-}
-
 void
 gf119_disp_super(struct work_struct *work)
 {
@@ -195,8 +73,7 @@ gf119_disp_super(struct work_struct *work)
 		list_for_each_entry(head, &disp->base.head, head) {
 			if (!(mask[head->id] & 0x00001000))
 				continue;
-			nvkm_debug(subdev, "supervisor 3.0 - head %d\n", head->id);
-			gf119_disp_intr_unk4_0(disp, head->id);
+			nv50_disp_super_3_0(disp, head);
 		}
 	}
 

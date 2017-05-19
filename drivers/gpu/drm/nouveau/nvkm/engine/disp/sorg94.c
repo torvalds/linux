@@ -22,7 +22,6 @@
  * Authors: Ben Skeggs
  */
 #include "ior.h"
-#include "nv50.h"
 
 #include <subdev/timer.h>
 
@@ -121,38 +120,6 @@ g94_sor_dp_links(struct nvkm_ior *sor, struct nvkm_i2c_aux *aux)
 }
 
 static bool
-nv50_disp_dptmds_war(struct nvkm_device *device)
-{
-	switch (device->chipset) {
-	case 0x94:
-	case 0x96:
-	case 0x98:
-		return true;
-	default:
-		break;
-	}
-	return false;
-}
-
-static bool
-nv50_disp_dptmds_war_needed(struct nv50_disp *disp, struct dcb_output *outp)
-{
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	const u32 soff = __ffs(outp->or) * 0x800;
-	if (nv50_disp_dptmds_war(device) && outp->type == DCB_OUTPUT_TMDS) {
-		switch (nvkm_rd32(device, 0x614300 + soff) & 0x00030000) {
-		case 0x00000000:
-		case 0x00030000:
-			return true;
-		default:
-			break;
-		}
-	}
-	return false;
-
-}
-
-static bool
 g94_sor_war_needed(struct nvkm_ior *sor)
 {
 	struct nvkm_device *device = sor->disp->engine.subdev.device;
@@ -169,18 +136,19 @@ g94_sor_war_needed(struct nvkm_ior *sor)
 	return false;
 }
 
-void
-nv50_disp_update_sppll1(struct nv50_disp *disp)
+static void
+g94_sor_war_update_sppll1(struct nvkm_disp *disp)
 {
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_device *device = disp->engine.subdev.device;
+	struct nvkm_ior *ior;
 	bool used = false;
-	int sor;
+	u32 clksor;
 
-	if (!nv50_disp_dptmds_war(device))
-		return;
+	list_for_each_entry(ior, &disp->ior, head) {
+		if (ior->type != SOR)
+			continue;
 
-	for (sor = 0; sor < disp->func->sor.nr; sor++) {
-		u32 clksor = nvkm_rd32(device, 0x614300 + (sor * 0x800));
+		clksor = nvkm_rd32(device, 0x614300 + nv50_ior_base(ior));
 		switch (clksor & 0x03000000) {
 		case 0x02000000:
 		case 0x03000000:
@@ -197,14 +165,14 @@ nv50_disp_update_sppll1(struct nv50_disp *disp)
 	nvkm_mask(device, 0x00e840, 0x80000000, 0x00000000);
 }
 
-void
-nv50_disp_dptmds_war_3(struct nv50_disp *disp, struct dcb_output *outp)
+static void
+g94_sor_war_3(struct nvkm_ior *sor)
 {
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	const u32 soff = __ffs(outp->or) * 0x800;
+	struct nvkm_device *device = sor->disp->engine.subdev.device;
+	const u32 soff = nv50_ior_base(sor);
 	u32 sorpwr;
 
-	if (!nv50_disp_dptmds_war_needed(disp, outp))
+	if (!g94_sor_war_needed(sor))
 		return;
 
 	sorpwr = nvkm_rd32(device, 0x61c004 + soff);
@@ -235,6 +203,8 @@ nv50_disp_dptmds_war_3(struct nv50_disp *disp, struct dcb_output *outp)
 	if (sorpwr & 0x00000001) {
 		nvkm_mask(device, 0x61c004 + soff, 0x80000001, 0x80000001);
 	}
+
+	g94_sor_war_update_sppll1(sor->disp);
 }
 
 static void
@@ -293,6 +263,7 @@ g94_sor = {
 	.power = nv50_sor_power,
 	.clock = nv50_sor_clock,
 	.war_2 = g94_sor_war_2,
+	.war_3 = g94_sor_war_3,
 	.dp = {
 		.lanes = { 2, 1, 0, 3},
 		.links = g94_sor_dp_links,

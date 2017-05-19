@@ -238,162 +238,23 @@ nv50_disp_super_ior_arm(struct nvkm_head *head)
 	return NULL;
 }
 
-static struct nvkm_output *
-exec_lookup(struct nv50_disp *disp, int head, int or, u32 ctrl,
-	    u32 *data, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
-	    struct nvbios_outp *info)
+void
+nv50_disp_super_3_0(struct nv50_disp *disp, struct nvkm_head *head)
 {
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
-	struct nvkm_bios *bios = subdev->device->bios;
-	struct nvkm_output *outp;
-	u16 mask, type;
+	struct nvkm_ior *ior;
 
-	if (or < 4) {
-		type = DCB_OUTPUT_ANALOG;
-		mask = 0;
-	} else
-	if (or < 8) {
-		switch (ctrl & 0x00000f00) {
-		case 0x00000000: type = DCB_OUTPUT_LVDS; mask = 1; break;
-		case 0x00000100: type = DCB_OUTPUT_TMDS; mask = 1; break;
-		case 0x00000200: type = DCB_OUTPUT_TMDS; mask = 2; break;
-		case 0x00000500: type = DCB_OUTPUT_TMDS; mask = 3; break;
-		case 0x00000800: type = DCB_OUTPUT_DP; mask = 1; break;
-		case 0x00000900: type = DCB_OUTPUT_DP; mask = 2; break;
-		default:
-			nvkm_error(subdev, "unknown SOR mc %08x\n", ctrl);
-			return NULL;
-		}
-		or  -= 4;
-	} else {
-		or   = or - 8;
-		type = 0x0010;
-		mask = 0;
-		switch (ctrl & 0x00000f00) {
-		case 0x00000000: type |= disp->pior.type[or]; break;
-		default:
-			nvkm_error(subdev, "unknown PIOR mc %08x\n", ctrl);
-			return NULL;
-		}
-	}
-
-	mask  = 0x00c0 & (mask << 6);
-	mask |= 0x0001 << or;
-	mask |= 0x0100 << head;
-
-	list_for_each_entry(outp, &disp->base.outp, head) {
-		if ((outp->info.hasht & 0xff) == type &&
-		    (outp->info.hashm & mask) == mask) {
-			*data = nvbios_outp_match(bios, outp->info.hasht, mask,
-						  ver, hdr, cnt, len, info);
-			if (!*data)
-				return NULL;
-			return outp;
-		}
-	}
-
-	return NULL;
-}
-
-static struct nvkm_output *
-exec_clkcmp(struct nv50_disp *disp, int head, int id, u32 pclk, u32 *conf)
-{
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
-	struct nvkm_bios *bios = device->bios;
-	struct nvkm_output *outp;
-	struct nvbios_outp info1;
-	struct nvbios_ocfg info2;
-	u8  ver, hdr, cnt, len;
-	u32 data, ctrl = 0;
-	u32 reg;
-	int i;
-
-	/* DAC */
-	for (i = 0; !(ctrl & (1 << head)) && i < disp->func->dac.nr; i++)
-		ctrl = nvkm_rd32(device, 0x610b58 + (i * 8));
-
-	/* SOR */
-	if (!(ctrl & (1 << head))) {
-		if (device->chipset  < 0x90 ||
-		    device->chipset == 0x92 ||
-		    device->chipset == 0xa0) {
-			reg = 0x610b70;
-		} else {
-			reg = 0x610794;
-		}
-		for (i = 0; !(ctrl & (1 << head)) && i < disp->func->sor.nr; i++)
-			ctrl = nvkm_rd32(device, reg + (i * 8));
-		i += 4;
-	}
-
-	/* PIOR */
-	if (!(ctrl & (1 << head))) {
-		for (i = 0; !(ctrl & (1 << head)) && i < disp->func->pior.nr; i++)
-			ctrl = nvkm_rd32(device, 0x610b80 + (i * 8));
-		i += 8;
-	}
-
-	if (!(ctrl & (1 << head)))
-		return NULL;
-	i--;
-
-	outp = exec_lookup(disp, head, i, ctrl, &data, &ver, &hdr, &cnt, &len, &info1);
-	if (!outp)
-		return NULL;
-
-	*conf = (ctrl & 0x00000f00) >> 8;
-	if (outp->info.location == 0) {
-		switch (outp->info.type) {
-		case DCB_OUTPUT_TMDS:
-			if (*conf == 5)
-				*conf |= 0x0100;
-			break;
-		case DCB_OUTPUT_LVDS:
-			*conf |= disp->sor.lvdsconf;
-			break;
-		default:
-			break;
-		}
-	} else {
-		*conf = (ctrl & 0x00000f00) >> 8;
-		pclk = pclk / 2;
-	}
-
-	data = nvbios_ocfg_match(bios, data, *conf & 0xff, *conf >> 8,
-				 &ver, &hdr, &cnt, &len, &info2);
-	if (data && id < 0xff) {
-		data = nvbios_oclk_match(bios, info2.clkcmp[id], pclk);
-		if (data) {
-			struct nvbios_init init = {
-				.subdev = subdev,
-				.bios = bios,
-				.offset = data,
-				.outp = &outp->info,
-				.crtc = head,
-				.execute = 1,
-			};
-
-			nvbios_exec(&init);
-		}
-	}
-
-	return outp;
-}
-
-static void
-nv50_disp_intr_unk40_0(struct nv50_disp *disp, int head)
-{
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	struct nvkm_output *outp;
-	u32 pclk = nvkm_rd32(device, 0x610ad0 + (head * 0x540)) & 0x3fffff;
-	u32 conf;
-
-	outp = exec_clkcmp(disp, head, 1, pclk, &conf);
-	if (!outp)
+	/* Determine which OR, if any, we're attaching to the head. */
+	HEAD_DBG(head, "supervisor 3.0");
+	ior = nv50_disp_super_ior_asy(head);
+	if (!ior)
 		return;
 
-	nv50_disp_dptmds_war_3(disp, &outp->info);
+	/* Execute OnInt3 IED script. */
+	nv50_disp_super_ied_on(head, ior, 1, head->asy.hz / 1000);
+
+	/* OR-specific handling. */
+	if (ior->func->war_3)
+		ior->func->war_3(ior);
 }
 
 static void
@@ -660,9 +521,8 @@ nv50_disp_super(struct work_struct *work)
 		list_for_each_entry(head, &disp->base.head, head) {
 			if (!(super & (0x00000080 << head->id)))
 				continue;
-			nv50_disp_intr_unk40_0(disp, head->id);
+			nv50_disp_super_3_0(disp, head);
 		}
-		nv50_disp_update_sppll1(disp);
 	}
 
 	nvkm_wr32(device, 0x610030, 0x80000000);
