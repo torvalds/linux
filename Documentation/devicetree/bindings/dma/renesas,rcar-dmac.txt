@@ -30,8 +30,9 @@ Required Properties:
 
 - interrupts: interrupt specifiers for the DMAC, one for each entry in
   interrupt-names.
-- interrupt-names: one entry per channel, named "ch%u", where %u is the
-  channel number ranging from zero to the number of channels minus one.
+- interrupt-names: one entry for the error interrupt, named "error", plus one
+  entry per channel, named "ch%u", where %u is the channel number ranging from
+  zero to the number of channels minus one.
 
 - clock-names: "fck" for the functional clock
 - clocks: a list of phandle + clock-specifier pairs, one for each entry
