@@ -1022,7 +1022,8 @@ batadv_iv_ogm_orig_update(struct batadv_priv *bat_priv,
 	u8 tq_avg;
 
 	batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
-		   "update_originator(): Searching and updating originator entry of received packet\n");
+		   "%s(): Searching and updating originator entry of received packet\n",
+		   __func__);
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(tmp_neigh_node,
