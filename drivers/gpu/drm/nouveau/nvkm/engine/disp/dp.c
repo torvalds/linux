@@ -326,7 +326,7 @@ static const struct dp_rates {
 	{}
 };
 
-static void
+static int
 nvkm_dp_train(struct nvkm_dp *dp)
 {
 	struct nv50_disp *disp = nv50_disp(dp->outp.disp);
@@ -370,39 +370,34 @@ nvkm_dp_train(struct nvkm_dp *dp)
 	nvkm_dp_train_fini(dp);
 	if (ret < 0)
 		OUTP_ERR(&dp->outp, "training failed");
-
-	OUTP_DBG(&dp->outp, "training done");
+	else
+		OUTP_DBG(&dp->outp, "training done");
 	atomic_set(&dp->lt.done, 1);
+	return ret;
 }
 
 int
-nvkm_output_dp_train(struct nvkm_outp *outp, u32 datarate)
+nvkm_output_dp_train(struct nvkm_outp *outp, u32 datakbps)
 {
 	struct nvkm_dp *dp = nvkm_dp(outp);
+	struct nvkm_ior *ior = dp->outp.ior;
 	bool retrain = true;
-	u8 link[2], stat[3];
-	u32 linkrate;
+	u32 linkKBps;
+	u32 dataKBps;
+	u8  stat[3];
 	int ret, i;
 
 	mutex_lock(&dp->mutex);
 
-	/* check that the link is trained at a high enough rate */
-	ret = nvkm_rdaux(dp->aux, DPCD_LC00_LINK_BW_SET, link, 2);
-	if (ret) {
-		OUTP_DBG(&dp->outp,
-			 "failed to read link config, assuming no sink");
+	/* Check that link configuration meets current requirements. */
+	linkKBps = ior->dp.bw * 27000 * ior->dp.nr;
+	dataKBps = DIV_ROUND_UP(datakbps, 8);
+	if (linkKBps < dataKBps) {
+		OUTP_DBG(&dp->outp, "link requirements changed");
 		goto done;
 	}
 
-	linkrate = link[0] * 27000 * (link[1] & DPCD_LC01_LANE_COUNT_SET);
-	linkrate = (linkrate * 8) / 10; /* 8B/10B coding overhead */
-	datarate = (datarate + 9) / 10; /* -> decakilobits */
-	if (linkrate < datarate) {
-		OUTP_DBG(&dp->outp, "link not trained at sufficient rate");
-		goto done;
-	}
-
-	/* check that link is still trained */
+	/* Check that link is still trained. */
 	ret = nvkm_rdaux(dp->aux, DPCD_LS02, stat, 3);
 	if (ret) {
 		OUTP_DBG(&dp->outp,
@@ -411,7 +406,7 @@ nvkm_output_dp_train(struct nvkm_outp *outp, u32 datarate)
 	}
 
 	if (stat[2] & DPCD_LS04_INTERLANE_ALIGN_DONE) {
-		for (i = 0; i < (link[1] & DPCD_LC01_LANE_COUNT_SET); i++) {
+		for (i = 0; i < ior->dp.nr; i++) {
 			u8 lane = (stat[i >> 1] >> ((i & 1) * 4)) & 0x0f;
 			if (!(lane & DPCD_LS02_LANE0_CR_DONE) ||
 			    !(lane & DPCD_LS02_LANE0_CHANNEL_EQ_DONE) ||
@@ -435,7 +430,7 @@ done:
 			dp->dpcd[DPCD_RC02] =
 				dp->outp.info.dpconf.link_nr;
 		}
-		nvkm_dp_train(dp);
+		ret = nvkm_dp_train(dp);
 	}
 
 	mutex_unlock(&dp->mutex);
