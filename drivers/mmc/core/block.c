@@ -190,6 +190,8 @@ static ssize_t power_ro_lock_store(struct device *dev,
 	int ret;
 	struct mmc_blk_data *md, *part_md;
 	struct mmc_card *card;
+	struct mmc_queue *mq;
+	struct request *req;
 	unsigned long set;
 
 	if (kstrtoul(buf, 0, &set))
@@ -199,20 +201,14 @@ static ssize_t power_ro_lock_store(struct device *dev,
 		return count;
 
 	md = mmc_blk_get(dev_to_disk(dev));
+	mq = &md->queue;
 	card = md->queue.card;
 
-	mmc_get_card(card);
-
-	ret = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_BOOT_WP,
-				card->ext_csd.boot_ro_lock |
-				EXT_CSD_BOOT_WP_B_PWR_WP_EN,
-				card->ext_csd.part_time);
-	if (ret)
-		pr_err("%s: Locking boot partition ro until next power on failed: %d\n", md->disk->disk_name, ret);
-	else
-		card->ext_csd.boot_ro_lock |= EXT_CSD_BOOT_WP_B_PWR_WP_EN;
-
-	mmc_put_card(card);
+	/* Dispatch locking to the block layer */
+	req = blk_get_request(mq->queue, REQ_OP_DRV_OUT, __GFP_RECLAIM);
+	req_to_mmc_queue_req(req)->drv_op = MMC_DRV_OP_BOOT_WP;
+	blk_execute_rq(mq->queue, NULL, req, 0);
+	ret = req_to_mmc_queue_req(req)->drv_op_result;
 
 	if (!ret) {
 		pr_info("%s: Locking boot partition ro until next power on\n",
@@ -606,7 +602,7 @@ static int mmc_blk_ioctl_cmd(struct block_device *bdev,
 	req_to_mmc_queue_req(req)->idata = idatas;
 	req_to_mmc_queue_req(req)->ioc_count = 1;
 	blk_execute_rq(mq->queue, NULL, req, 0);
-	ioc_err = req_to_mmc_queue_req(req)->ioc_result;
+	ioc_err = req_to_mmc_queue_req(req)->drv_op_result;
 	err = mmc_blk_ioctl_copy_to_user(ic_ptr, idata);
 	blk_put_request(req);
 
@@ -682,7 +678,7 @@ static int mmc_blk_ioctl_multi_cmd(struct block_device *bdev,
 	req_to_mmc_queue_req(req)->idata = idata;
 	req_to_mmc_queue_req(req)->ioc_count = num_of_cmds;
 	blk_execute_rq(mq->queue, NULL, req, 0);
-	ioc_err = req_to_mmc_queue_req(req)->ioc_result;
+	ioc_err = req_to_mmc_queue_req(req)->drv_op_result;
 
 	/* copy to user if data and response */
 	for (i = 0; i < num_of_cmds && !err; i++)
@@ -1195,7 +1191,7 @@ static void mmc_blk_issue_drv_op(struct mmc_queue *mq, struct request *req)
 	struct mmc_queue_req *mq_rq;
 	struct mmc_card *card = mq->card;
 	struct mmc_blk_data *md = mq->blkdata;
-	int ioc_err;
+	int ret;
 	int i;
 
 	mq_rq = req_to_mmc_queue_req(req);
@@ -1203,23 +1199,34 @@ static void mmc_blk_issue_drv_op(struct mmc_queue *mq, struct request *req)
 	switch (mq_rq->drv_op) {
 	case MMC_DRV_OP_IOCTL:
 		for (i = 0; i < mq_rq->ioc_count; i++) {
-			ioc_err =
-				__mmc_blk_ioctl_cmd(card, md, mq_rq->idata[i]);
-			if (ioc_err)
+			ret = __mmc_blk_ioctl_cmd(card, md, mq_rq->idata[i]);
+			if (ret)
 				break;
 		}
-		mq_rq->ioc_result = ioc_err;
-
 		/* Always switch back to main area after RPMB access */
 		if (md->area_type & MMC_BLK_DATA_AREA_RPMB)
 			mmc_blk_part_switch(card, dev_get_drvdata(&card->dev));
-
-		blk_end_request_all(req, ioc_err);
+		break;
+	case MMC_DRV_OP_BOOT_WP:
+		ret = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_BOOT_WP,
+				 card->ext_csd.boot_ro_lock |
+				 EXT_CSD_BOOT_WP_B_PWR_WP_EN,
+				 card->ext_csd.part_time);
+		if (ret)
+			pr_err("%s: Locking boot partition ro until next power on failed: %d\n",
+			       md->disk->disk_name, ret);
+		else
+			card->ext_csd.boot_ro_lock |=
+				EXT_CSD_BOOT_WP_B_PWR_WP_EN;
 		break;
 	default:
-		/* Unknown operation */
+		pr_err("%s: unknown driver specific operation\n",
+		       md->disk->disk_name);
+		ret = -EINVAL;
 		break;
 	}
+	mq_rq->drv_op_result = ret;
+	blk_end_request_all(req, ret);
 }
 
 static void mmc_blk_issue_discard_rq(struct mmc_queue *mq, struct request *req)

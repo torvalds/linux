@@ -35,9 +35,11 @@ struct mmc_blk_request {
 /**
  * enum mmc_drv_op - enumerates the operations in the mmc_queue_req
  * @MMC_DRV_OP_IOCTL: ioctl operation
+ * @MMC_DRV_OP_BOOT_WP: write protect boot partitions
  */
 enum mmc_drv_op {
 	MMC_DRV_OP_IOCTL,
+	MMC_DRV_OP_BOOT_WP,
 };
 
 struct mmc_queue_req {
@@ -48,7 +50,7 @@ struct mmc_queue_req {
 	unsigned int		bounce_sg_len;
 	struct mmc_async_req	areq;
 	enum mmc_drv_op		drv_op;
-	int			ioc_result;
+	int			drv_op_result;
 	struct mmc_blk_ioc_data	**idata;
 	unsigned int		ioc_count;
 };
