@@ -327,7 +327,7 @@ static const struct dp_rates {
 };
 
 static int
-nvkm_dp_train(struct nvkm_dp *dp)
+nvkm_dp_train(struct nvkm_dp *dp, u32 dataKBps)
 {
 	struct nv50_disp *disp = nv50_disp(dp->outp.disp);
 	struct nvkm_ior *ior = dp->outp.ior;
@@ -335,12 +335,33 @@ nvkm_dp_train(struct nvkm_dp *dp)
 	const u8 sink_bw = dp->dpcd[DPCD_RC01_MAX_LINK_RATE];
 	const u8 outp_nr = dp->outp.info.dpconf.link_nr;
 	const u8 outp_bw = dp->outp.info.dpconf.link_bw;
-	const struct dp_rates *cfg;
+	const struct dp_rates *failsafe = NULL, *cfg;
+	int ret = -EINVAL;
 	u8  pwr;
-	int ret;
 
 	if (!dp->outp.info.location && disp->func->sor.magic)
 		disp->func->sor.magic(&dp->outp);
+
+	/* Find the lowest configuration of the OR that can support
+	 * the required link rate.
+	 *
+	 * We will refuse to program the OR to lower rates, even if
+	 * link training fails at higher rates (or even if the sink
+	 * can't support the rate at all, though the DD is supposed
+	 * to prevent such situations from happening).
+	 *
+	 * Attempting to do so can cause the entire display to hang,
+	 * and it's better to have a failed modeset than that.
+	 */
+	for (cfg = nvkm_dp_rates; cfg->rate; cfg++) {
+		if (cfg->nr <= outp_nr && cfg->nr <= outp_bw)
+			failsafe = cfg;
+		if (failsafe && cfg[1].rate < dataKBps)
+			break;
+	}
+
+	if (WARN_ON(!failsafe))
+		return ret;
 
 	/* Ensure sink is not in a low-power state. */
 	if (!nvkm_rdaux(dp->aux, DPCD_SC00, &pwr, 1)) {
@@ -352,13 +373,17 @@ nvkm_dp_train(struct nvkm_dp *dp)
 	}
 
 	/* Link training. */
+	OUTP_DBG(&dp->outp, "training (min: %d x %d MB/s)",
+		 failsafe->nr, failsafe->bw * 27);
 	nvkm_dp_train_init(dp);
-	for (ret = -EINVAL, cfg = nvkm_dp_rates; ret < 0 && cfg->rate; cfg++) {
+	for (cfg = nvkm_dp_rates; ret < 0 && cfg <= failsafe; cfg++) {
 		/* Skip configurations not supported by both OR and sink. */
-		if (cfg[1].rate &&
-		    (cfg->nr > outp_nr || cfg->bw > outp_bw ||
-		     cfg->nr > sink_nr || cfg->bw > sink_bw))
-			continue;
+		if ((cfg->nr > outp_nr || cfg->bw > outp_bw ||
+		     cfg->nr > sink_nr || cfg->bw > sink_bw)) {
+			if (cfg != failsafe)
+				continue;
+			OUTP_ERR(&dp->outp, "link rate unsupported by sink");
+		}
 		ior->dp.mst = dp->lt.mst;
 		ior->dp.ef = dp->dpcd[DPCD_RC02] & DPCD_RC02_ENHANCED_FRAME_CAP;
 		ior->dp.bw = cfg->bw;
@@ -422,17 +447,8 @@ nvkm_output_dp_train(struct nvkm_outp *outp, u32 datakbps)
 	}
 
 done:
-	if (retrain || !atomic_read(&dp->lt.done)) {
-		/* no sink, but still need to configure source */
-		if (dp->dpcd[DPCD_RC00_DPCD_REV] == 0x00) {
-			dp->dpcd[DPCD_RC01_MAX_LINK_RATE] =
-				dp->outp.info.dpconf.link_bw;
-			dp->dpcd[DPCD_RC02] =
-				dp->outp.info.dpconf.link_nr;
-		}
-		ret = nvkm_dp_train(dp);
-	}
-
+	if (retrain || !atomic_read(&dp->lt.done))
+		ret = nvkm_dp_train(dp, dataKBps);
 	mutex_unlock(&dp->mutex);
 	return ret;
 }
