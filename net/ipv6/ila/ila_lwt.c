@@ -91,7 +91,7 @@ static int ila_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 
 drop:
 	kfree_skb(skb);
-	return -EINVAL;
+	return err;
 }
 
 static int ila_input(struct sk_buff *skb)
