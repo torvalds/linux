@@ -29,7 +29,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(extlog_mem_event);
 EXPORT_TRACEPOINT_SYMBOL_GPL(mc_event);
 
 
-int __init parse_ras_param(char *str)
+static int __init parse_ras_param(char *str)
 {
 #ifdef CONFIG_RAS_CEC
 	parse_cec_param(str);
