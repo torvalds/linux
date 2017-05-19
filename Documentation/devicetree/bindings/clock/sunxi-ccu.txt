@@ -6,6 +6,7 @@ Required properties :
 		- "allwinner,sun6i-a31-ccu"
 		- "allwinner,sun8i-a23-ccu"
 		- "allwinner,sun8i-a33-ccu"
+		- "allwinner,sun8i-a83t-ccu"
 		- "allwinner,sun8i-h3-ccu"
 		- "allwinner,sun8i-h3-r-ccu"
 		- "allwinner,sun8i-v3s-ccu"
@@ -18,6 +19,7 @@ Required properties :
 - clocks: phandle to the oscillators feeding the CCU. Two are needed:
   - "hosc": the high frequency oscillator (usually at 24MHz)
   - "losc": the low frequency oscillator (usually at 32kHz)
+	    On the A83T, this is the internal 16MHz oscillator divided by 512
 - clock-names: Must contain the clock names described just above
 - #clock-cells : must contain 1
 - #reset-cells : must contain 1
