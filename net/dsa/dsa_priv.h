@@ -77,6 +77,13 @@ int dsa_port_fdb_del(struct dsa_port *dp,
 		     const struct switchdev_obj_port_fdb *fdb);
 int dsa_port_fdb_dump(struct dsa_port *dp, struct switchdev_obj_port_fdb *fdb,
 		      switchdev_obj_dump_cb_t *cb);
+int dsa_port_mdb_add(struct dsa_port *dp,
+		     const struct switchdev_obj_port_mdb *mdb,
+		     struct switchdev_trans *trans);
+int dsa_port_mdb_del(struct dsa_port *dp,
+		     const struct switchdev_obj_port_mdb *mdb);
+int dsa_port_mdb_dump(struct dsa_port *dp, struct switchdev_obj_port_mdb *mdb,
+		      switchdev_obj_dump_cb_t *cb);
 
 /* slave.c */
 extern const struct dsa_device_ops notag_netdev_ops;

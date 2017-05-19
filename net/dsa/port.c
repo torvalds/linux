@@ -207,3 +207,43 @@ int dsa_port_fdb_dump(struct dsa_port *dp, struct switchdev_obj_port_fdb *fdb,
 
 	return -EOPNOTSUPP;
 }
+
+int dsa_port_mdb_add(struct dsa_port *dp,
+		     const struct switchdev_obj_port_mdb *mdb,
+		     struct switchdev_trans *trans)
+{
+	struct dsa_switch *ds = dp->ds;
+
+	if (switchdev_trans_ph_prepare(trans)) {
+		if (!ds->ops->port_mdb_prepare || !ds->ops->port_mdb_add)
+			return -EOPNOTSUPP;
+
+		return ds->ops->port_mdb_prepare(ds, dp->index, mdb, trans);
+	}
+
+	ds->ops->port_mdb_add(ds, dp->index, mdb, trans);
+
+	return 0;
+}
+
+int dsa_port_mdb_del(struct dsa_port *dp,
+		     const struct switchdev_obj_port_mdb *mdb)
+{
+	struct dsa_switch *ds = dp->ds;
+
+	if (ds->ops->port_mdb_del)
+		return ds->ops->port_mdb_del(ds, dp->index, mdb);
+
+	return -EOPNOTSUPP;
+}
+
+int dsa_port_mdb_dump(struct dsa_port *dp, struct switchdev_obj_port_mdb *mdb,
+		      switchdev_obj_dump_cb_t *cb)
+{
+	struct dsa_switch *ds = dp->ds;
+
+	if (ds->ops->port_mdb_dump)
+		return ds->ops->port_mdb_dump(ds, dp->index, mdb, cb);
+
+	return -EOPNOTSUPP;
+}
