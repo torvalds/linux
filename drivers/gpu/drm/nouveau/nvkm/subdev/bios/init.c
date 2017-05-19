@@ -2308,32 +2308,18 @@ nvbios_post(struct nvkm_subdev *subdev, bool execute)
 	if (execute)
 		nvkm_debug(subdev, "running init tables\n");
 	while (!ret && (data = (init_script(bios, ++i)))) {
-		struct nvbios_init init = {
-			.subdev = subdev,
-			.bios = bios,
-			.offset = data,
-			.outp = NULL,
-			.head = -1,
-			.execute = execute ? 1 : 0,
-		};
-
-		ret = nvbios_exec(&init);
+		ret = nvbios_init(subdev, data,
+			init.execute = execute ? 1 : 0;
+		      );
 	}
 
 	/* the vbios parser will run this right after the normal init
 	 * tables, whereas the binary driver appears to run it later.
 	 */
 	if (!ret && (data = init_unknown_script(bios))) {
-		struct nvbios_init init = {
-			.subdev = subdev,
-			.bios = bios,
-			.offset = data,
-			.outp = NULL,
-			.head = -1,
-			.execute = execute ? 1 : 0,
-		};
-
-		ret = nvbios_exec(&init);
+		ret = nvbios_init(subdev, data,
+			init.execute = execute ? 1 : 0;
+		      );
 	}
 
 	return ret;
