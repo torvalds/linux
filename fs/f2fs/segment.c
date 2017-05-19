@@ -2233,7 +2233,7 @@ static void do_write_page(struct f2fs_summary *sum, struct f2fs_io_info *fio)
 	int err;
 
 	if (fio->type == NODE || fio->type == DATA)
-		mutex_lock(&fio->sbi->wio_mutex[fio->type]);
+		mutex_lock(&fio->sbi->wio_mutex[fio->type][fio->temp]);
 reallocate:
 	allocate_data_block(fio->sbi, fio->page, fio->old_blkaddr,
 					&fio->new_blkaddr, sum, type);
@@ -2246,7 +2246,7 @@ reallocate:
 	}
 
 	if (fio->type == NODE || fio->type == DATA)
-		mutex_unlock(&fio->sbi->wio_mutex[fio->type]);
+		mutex_unlock(&fio->sbi->wio_mutex[fio->type][fio->temp]);
 }
 
 void write_meta_page(struct f2fs_sb_info *sbi, struct page *page)
