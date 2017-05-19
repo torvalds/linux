@@ -36,6 +36,8 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 	const struct ieee80211_wide_bw_chansw_ie *wide_bw_chansw_ie;
 	int secondary_channel_offset = -1;
 
+	memset(csa_ie, 0, sizeof(*csa_ie));
+
 	sec_chan_offs = elems->sec_chan_offs;
 	wide_bw_chansw_ie = elems->wide_bw_chansw_ie;
 

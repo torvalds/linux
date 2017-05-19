@@ -808,7 +808,6 @@ ieee80211_ibss_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	}
 
 	memset(&params, 0, sizeof(params));
-	memset(&csa_ie, 0, sizeof(csa_ie));
 	err = ieee80211_parse_ch_switch_ie(sdata, elems,
 					   ifibss->chandef.chan->band,
 					   sta_flags, ifibss->bssid, &csa_ie);
