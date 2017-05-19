@@ -34,12 +34,12 @@
 
 #define MAX_CONTROLVM_PAYLOAD_BYTES (1024 * 128)
 
-#define UNISYS_SPAR_LEAF_ID 0x40000000
+#define UNISYS_VISOR_LEAF_ID 0x40000000
 
 /* The s-Par leaf ID returns "UnisysSpar64" encoded across ebx, ecx, edx */
-#define UNISYS_SPAR_ID_EBX 0x73696e55
-#define UNISYS_SPAR_ID_ECX 0x70537379
-#define UNISYS_SPAR_ID_EDX 0x34367261
+#define UNISYS_VISOR_ID_EBX 0x73696e55
+#define UNISYS_VISOR_ID_ECX 0x70537379
+#define UNISYS_VISOR_ID_EDX 0x34367261
 
 /*
  * When the controlvm channel is idle for at least MIN_IDLE_SECONDS,
@@ -1927,10 +1927,10 @@ static __init int visorutil_spar_detect(void)
 
 	if (boot_cpu_has(X86_FEATURE_HYPERVISOR)) {
 		/* check the ID */
-		cpuid(UNISYS_SPAR_LEAF_ID, &eax, &ebx, &ecx, &edx);
-		return  (ebx == UNISYS_SPAR_ID_EBX) &&
-			(ecx == UNISYS_SPAR_ID_ECX) &&
-			(edx == UNISYS_SPAR_ID_EDX);
+		cpuid(UNISYS_VISOR_LEAF_ID, &eax, &ebx, &ecx, &edx);
+		return  (ebx == UNISYS_VISOR_ID_EBX) &&
+			(ecx == UNISYS_VISOR_ID_ECX) &&
+			(edx == UNISYS_VISOR_ID_EDX);
 	} else {
 		return 0;
 	}
