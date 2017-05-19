@@ -22,14 +22,9 @@
  * Authors: Ben Skeggs
  */
 #include "ior.h"
-#include "nv50.h"
 #include "outp.h"
 
-#include <core/client.h>
 #include <subdev/timer.h>
-
-#include <nvif/cl5070.h>
-#include <nvif/unpack.h>
 
 static const struct nvkm_output_func
 nv50_dac_output_func = {
@@ -44,50 +39,23 @@ nv50_dac_output_new(struct nvkm_disp *disp, int index,
 }
 
 int
-nv50_dac_sense(NV50_DISP_MTHD_V1)
+nv50_dac_sense(struct nvkm_ior *dac, u32 loadval)
 {
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
-	union {
-		struct nv50_disp_dac_load_v0 v0;
-	} *args = data;
-	const u32 doff = outp->or * 0x800;
-	u32 loadval;
-	int ret = -ENOSYS;
+	struct nvkm_device *device = dac->disp->engine.subdev.device;
+	const u32 doff = nv50_ior_base(dac);
 
-	nvif_ioctl(object, "disp dac load size %d\n", size);
-	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-		nvif_ioctl(object, "disp dac load vers %d data %08x\n",
-			   args->v0.version, args->v0.data);
-		if (args->v0.data & 0xfff00000)
-			return -EINVAL;
-		loadval = args->v0.data;
-	} else
-		return ret;
-
-	nvkm_mask(device, 0x61a004 + doff, 0x807f0000, 0x80150000);
-	nvkm_msec(device, 2000,
-		if (!(nvkm_rd32(device, 0x61a004 + doff) & 0x80000000))
-			break;
-	);
+	dac->func->power(dac, false, true, false, false, false);
 
 	nvkm_wr32(device, 0x61a00c + doff, 0x00100000 | loadval);
 	mdelay(9);
 	udelay(500);
 	loadval = nvkm_mask(device, 0x61a00c + doff, 0xffffffff, 0x00000000);
 
-	nvkm_mask(device, 0x61a004 + doff, 0x807f0000, 0x80550000);
-	nvkm_msec(device, 2000,
-		if (!(nvkm_rd32(device, 0x61a004 + doff) & 0x80000000))
-			break;
-	);
-
-	nvkm_debug(subdev, "DAC%d sense: %08x\n", outp->or, loadval);
+	dac->func->power(dac, false, false, false, false, false);
 	if (!(loadval & 0x80000000))
 		return -ETIMEDOUT;
 
-	args->v0.load = (loadval & 0x38000000) >> 27;
-	return 0;
+	return (loadval & 0x38000000) >> 27;
 }
 
 static void
@@ -139,6 +107,7 @@ static const struct nvkm_ior_func
 nv50_dac = {
 	.state = nv50_dac_state,
 	.power = nv50_dac_power,
+	.sense = nv50_dac_sense,
 };
 
 int

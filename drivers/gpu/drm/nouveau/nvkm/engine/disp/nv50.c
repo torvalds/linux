@@ -844,9 +844,7 @@ nv50_disp = {
 	.outp.internal.lvds = nv50_sor_output_new,
 	.outp.external.tmds = nv50_pior_output_new,
 	.outp.external.dp = nv50_pior_dp_new,
-	.dac.nr = 3,
-	.dac.new = nv50_dac_new,
-	.dac.sense = nv50_dac_sense,
+	.dac = { .nr = 3, .new = nv50_dac_new },
 	.sor = { .nr = 2, .new = nv50_sor_new },
 	.pior = { .nr = 3, .new = nv50_pior_new },
 };

@@ -43,6 +43,7 @@ static const struct nvkm_ior_func
 gf119_dac = {
 	.state = gf119_dac_state,
 	.power = nv50_dac_power,
+	.sense = nv50_dac_sense,
 };
 
 int

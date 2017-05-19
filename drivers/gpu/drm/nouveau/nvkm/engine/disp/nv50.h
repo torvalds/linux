@@ -31,8 +31,6 @@ struct nv50_disp {
 
 void nv50_disp_super_1(struct nv50_disp *);
 
-int nv50_dac_sense(NV50_DISP_MTHD_V1);
-
 int gt215_hda_eld(NV50_DISP_MTHD_V1);
 int gf119_hda_eld(NV50_DISP_MTHD_V1);
 
@@ -80,7 +78,6 @@ struct nv50_disp_func {
 	struct {
 		int nr;
 		int (*new)(struct nvkm_disp *, int id);
-		int (*sense)(NV50_DISP_MTHD_V1);
 	} dac;
 
 	struct {

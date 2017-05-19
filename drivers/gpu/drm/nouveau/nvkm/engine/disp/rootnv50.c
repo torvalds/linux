@@ -95,8 +95,23 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 	}
 
 	switch (mthd * !!outp) {
-	case NV50_DISP_MTHD_V1_DAC_LOAD:
-		return func->dac.sense(object, disp, data, size, hidx, outp);
+	case NV50_DISP_MTHD_V1_DAC_LOAD: {
+		union {
+			struct nv50_disp_dac_load_v0 v0;
+		} *args = data;
+		int ret = -ENOSYS;
+		if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
+			if (args->v0.data & 0xfff00000)
+				return -EINVAL;
+			ret = outp->ior->func->sense(outp->ior, args->v0.data);
+			if (ret < 0)
+				return ret;
+			args->v0.load = ret;
+			return 0;
+		} else
+			return ret;
+	}
+		break;
 	case NV50_DISP_MTHD_V1_SOR_HDA_ELD:
 		if (!func->sor.hda_eld)
 			return -ENODEV;

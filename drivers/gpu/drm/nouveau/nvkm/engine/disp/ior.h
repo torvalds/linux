@@ -42,6 +42,7 @@ struct nvkm_ior_func {
 	void (*state)(struct nvkm_ior *, struct nvkm_ior_state *);
 	void (*power)(struct nvkm_ior *, bool normal, bool pu,
 		      bool data, bool vsync, bool hsync);
+	int (*sense)(struct nvkm_ior *, u32 loadval);
 };
 
 int nvkm_ior_new_(const struct nvkm_ior_func *func, struct nvkm_disp *,
@@ -56,6 +57,7 @@ nv50_ior_base(struct nvkm_ior *ior)
 }
 
 void nv50_dac_power(struct nvkm_ior *, bool, bool, bool, bool, bool);
+int nv50_dac_sense(struct nvkm_ior *, u32);
 
 void nv50_sor_state(struct nvkm_ior *, struct nvkm_ior_state *);
 void nv50_sor_power(struct nvkm_ior *, bool, bool, bool, bool, bool);
