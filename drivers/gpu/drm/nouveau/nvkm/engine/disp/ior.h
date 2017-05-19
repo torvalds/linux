@@ -54,6 +54,7 @@ struct nvkm_ior_func {
 	struct {
 		u8 lanes[4];
 		int (*links)(struct nvkm_ior *, struct nvkm_i2c_aux *);
+		void (*power)(struct nvkm_ior *, int nr);
 	} dp;
 };
 
@@ -82,6 +83,7 @@ void nv50_sor_power(struct nvkm_ior *, bool, bool, bool, bool, bool);
 
 void g94_sor_state(struct nvkm_ior *, struct nvkm_ior_state *);
 int g94_sor_dp_links(struct nvkm_ior *, struct nvkm_i2c_aux *);
+void g94_sor_dp_power(struct nvkm_ior *, int);
 
 void gf119_sor_state(struct nvkm_ior *, struct nvkm_ior_state *);
 int gf119_sor_dp_links(struct nvkm_ior *, struct nvkm_i2c_aux *);

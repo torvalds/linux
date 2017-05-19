@@ -117,7 +117,6 @@ gf119_sor_dp_links(struct nvkm_ior *sor, struct nvkm_i2c_aux *aux)
 static const struct nvkm_output_dp_func
 gf119_sor_dp_func = {
 	.pattern = gf119_sor_dp_pattern,
-	.lnk_pwr = g94_sor_dp_lnk_pwr,
 	.drv_ctl = gf119_sor_dp_drv_ctl,
 	.vcpi = gf119_sor_dp_vcpi,
 };
@@ -162,6 +161,7 @@ gf119_sor = {
 	.dp = {
 		.lanes = { 2, 1, 0, 3 },
 		.links = gf119_sor_dp_links,
+		.power = g94_sor_dp_power,
 	},
 };
 

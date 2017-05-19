@@ -24,8 +24,6 @@
 #include "ior.h"
 #include "nv50.h"
 
-#include <subdev/timer.h>
-
 static inline u32
 gm200_sor_soff(struct nvkm_output_dp *outp)
 {
@@ -82,30 +80,9 @@ gm200_sor_dp_drv_ctl(struct nvkm_output_dp *outp,
 	return 0;
 }
 
-static int
-gm200_sor_dp_lnk_pwr(struct nvkm_output_dp *outp, int nr)
-{
-	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
-	const u32 soff = gm200_sor_soff(outp);
-	const u32 loff = gm200_sor_loff(outp);
-	u32 mask = 0, i;
-
-	for (i = 0; i < nr; i++)
-		mask |= 1 << (gm200_sor_dp_lane_map(device, i) >> 3);
-
-	nvkm_mask(device, 0x61c130 + loff, 0x0000000f, mask);
-	nvkm_mask(device, 0x61c034 + soff, 0x80000000, 0x80000000);
-	nvkm_msec(device, 2000,
-		if (!(nvkm_rd32(device, 0x61c034 + soff) & 0x80000000))
-			break;
-	);
-	return 0;
-}
-
 static const struct nvkm_output_dp_func
 gm200_sor_dp_func = {
 	.pattern = gm107_sor_dp_pattern,
-	.lnk_pwr = gm200_sor_dp_lnk_pwr,
 	.drv_ctl = gm200_sor_dp_drv_ctl,
 	.vcpi = gf119_sor_dp_vcpi,
 };
@@ -139,6 +116,7 @@ gm200_sor = {
 	.dp = {
 		.lanes = { 0, 1, 2, 3 },
 		.links = gf119_sor_dp_links,
+		.power = g94_sor_dp_power,
 	},
 };
 

@@ -249,7 +249,7 @@ nvkm_dp_train_links(struct nvkm_dp *dp)
 		return 0;
 	}
 
-	dp->func->lnk_pwr(dp, ior->dp.nr);
+	ior->func->dp.power(ior, ior->dp.nr);
 
 	/* Set desired link configuration on the sink. */
 	sink[0] = ior->dp.bw;

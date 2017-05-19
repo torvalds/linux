@@ -31,6 +31,7 @@ gk104_sor = {
 	.dp = {
 		.lanes = { 2, 1, 0, 3 },
 		.links = gf119_sor_dp_links,
+		.power = g94_sor_dp_power,
 	},
 };
 

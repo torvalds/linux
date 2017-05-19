@@ -90,16 +90,16 @@ g94_sor_dp_pattern(struct nvkm_output_dp *outp, int pattern)
 	return 0;
 }
 
-int
-g94_sor_dp_lnk_pwr(struct nvkm_output_dp *outp, int nr)
+void
+g94_sor_dp_power(struct nvkm_ior *sor, int nr)
 {
-	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
-	const u32 soff = g94_sor_soff(outp);
-	const u32 loff = g94_sor_loff(outp);
+	struct nvkm_device *device = sor->disp->engine.subdev.device;
+	const u32 soff = nv50_ior_base(sor);
+	const u32 loff = nv50_sor_link(sor);
 	u32 mask = 0, i;
 
 	for (i = 0; i < nr; i++)
-		mask |= 1 << (g94_sor_dp_lane_map(device, i) >> 3);
+		mask |= 1 << sor->func->dp.lanes[i];
 
 	nvkm_mask(device, 0x61c130 + loff, 0x0000000f, mask);
 	nvkm_mask(device, 0x61c034 + soff, 0x80000000, 0x80000000);
@@ -107,7 +107,6 @@ g94_sor_dp_lnk_pwr(struct nvkm_output_dp *outp, int nr)
 		if (!(nvkm_rd32(device, 0x61c034 + soff) & 0x80000000))
 			break;
 	);
-	return 0;
 }
 
 int
@@ -133,7 +132,6 @@ g94_sor_dp_links(struct nvkm_ior *sor, struct nvkm_i2c_aux *aux)
 static const struct nvkm_output_dp_func
 g94_sor_dp_func = {
 	.pattern = g94_sor_dp_pattern,
-	.lnk_pwr = g94_sor_dp_lnk_pwr,
 	.drv_ctl = g94_sor_dp_drv_ctl,
 };
 
@@ -300,6 +298,7 @@ g94_sor = {
 	.dp = {
 		.lanes = { 2, 1, 0, 3},
 		.links = g94_sor_dp_links,
+		.power = g94_sor_dp_power,
 	},
 };
 
