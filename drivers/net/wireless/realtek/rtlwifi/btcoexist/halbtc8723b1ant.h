@@ -188,6 +188,7 @@ struct coex_sta_8723b_1ant {
 /*************************************************************************
  * The following is interface which will notify coex module.
  *************************************************************************/
+void ex_halbtc8723b1ant_power_on_setting(struct btc_coexist *btcoexist);
 void ex_halbtc8723b1ant_init_hwconfig(struct btc_coexist *btcoexist,
 				      bool wifi_only);
 void ex_halbtc8723b1ant_init_coex_dm(struct btc_coexist *btcoexist);
