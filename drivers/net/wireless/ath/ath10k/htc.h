@@ -50,6 +50,8 @@ struct ath10k;
  * 4-byte aligned.
  */
 
+#define HTC_HOST_MAX_MSG_PER_BUNDLE        8
+
 enum ath10k_htc_tx_flags {
 	ATH10K_HTC_FLAG_NEED_CREDIT_UPDATE = 0x01,
 	ATH10K_HTC_FLAG_SEND_BUNDLE        = 0x02
@@ -108,6 +110,10 @@ enum ath10k_htc_conn_svc_status {
 	ATH10K_HTC_CONN_SVC_STATUS_FAILED       = 2,
 	ATH10K_HTC_CONN_SVC_STATUS_NO_RESOURCES = 3,
 	ATH10K_HTC_CONN_SVC_STATUS_NO_MORE_EP   = 4
+};
+
+enum ath10k_htc_setup_complete_flags {
+	ATH10K_HTC_SETUP_COMPLETE_FLAGS_RX_BNDL_EN = 1
 };
 
 struct ath10k_ath10k_htc_msg_hdr {
@@ -174,8 +180,10 @@ struct ath10k_htc_msg {
 } __packed __aligned(4);
 
 enum ath10k_ath10k_htc_record_id {
-	ATH10K_HTC_RECORD_NULL    = 0,
-	ATH10K_HTC_RECORD_CREDITS = 1
+	ATH10K_HTC_RECORD_NULL             = 0,
+	ATH10K_HTC_RECORD_CREDITS          = 1,
+	ATH10K_HTC_RECORD_LOOKAHEAD        = 2,
+	ATH10K_HTC_RECORD_LOOKAHEAD_BUNDLE = 3,
 };
 
 struct ath10k_ath10k_htc_record_hdr {
@@ -192,10 +200,28 @@ struct ath10k_htc_credit_report {
 	u8 pad1;
 } __packed;
 
+struct ath10k_htc_lookahead_report {
+	u8 pre_valid;
+	u8 pad0;
+	u8 pad1;
+	u8 pad2;
+	u8 lookahead[4];
+	u8 post_valid;
+	u8 pad3;
+	u8 pad4;
+	u8 pad5;
+} __packed;
+
+struct ath10k_htc_lookahead_bundle {
+	u8 lookahead[4];
+} __packed;
+
 struct ath10k_htc_record {
 	struct ath10k_ath10k_htc_record_hdr hdr;
 	union {
 		struct ath10k_htc_credit_report credit_report[0];
+		struct ath10k_htc_lookahead_report lookahead_report[0];
+		struct ath10k_htc_lookahead_bundle lookahead_bundle[0];
 		u8 pauload[0];
 	};
 } __packed __aligned(4);
@@ -338,6 +364,7 @@ struct ath10k_htc {
 
 	int total_transmit_credits;
 	int target_credit_size;
+	u8 max_msgs_per_htc_bundle;
 };
 
 int ath10k_htc_init(struct ath10k *ar);
@@ -351,5 +378,13 @@ int ath10k_htc_send(struct ath10k_htc *htc, enum ath10k_htc_ep_id eid,
 struct sk_buff *ath10k_htc_alloc_skb(struct ath10k *ar, int size);
 void ath10k_htc_tx_completion_handler(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_htc_rx_completion_handler(struct ath10k *ar, struct sk_buff *skb);
+void ath10k_htc_notify_tx_completion(struct ath10k_htc_ep *ep,
+				     struct sk_buff *skb);
+int ath10k_htc_process_trailer(struct ath10k_htc *htc,
+			       u8 *buffer,
+			       int length,
+			       enum ath10k_htc_ep_id src_eid,
+			       void *next_lookaheads,
+			       int *next_lookaheads_len);
 
 #endif
