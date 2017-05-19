@@ -2408,10 +2408,8 @@ static void dce110_program_front_end_for_pipe(
 	pipe_ctx->xfm->funcs->transform_set_gamut_remap(pipe_ctx->xfm, &adjust);
 
 	pipe_ctx->scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != 0;
-	if (old_pipe && memcmp(&old_pipe->scl_data,
-				&pipe_ctx->scl_data,
-				sizeof(struct scaler_data)) != 0)
-		program_scaler(dc, pipe_ctx);
+
+	program_scaler(dc, pipe_ctx);
 
 	mi->funcs->mem_input_program_surface_config(
 			mi,

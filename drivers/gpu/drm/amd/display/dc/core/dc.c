@@ -1011,11 +1011,22 @@ bool dc_commit_surfaces_to_stream(
 	struct dc_plane_info plane_info[MAX_SURFACES];
 	struct dc_scaling_info scaling_info[MAX_SURFACES];
 	int i;
+	bool ret;
+	struct dc_stream_update *stream_update =
+			dm_alloc(sizeof(struct dc_stream_update));
+
+	if (!stream_update) {
+		BREAK_TO_DEBUGGER();
+		return false;
+	}
 
 	memset(updates, 0, sizeof(updates));
 	memset(flip_addr, 0, sizeof(flip_addr));
 	memset(plane_info, 0, sizeof(plane_info));
 	memset(scaling_info, 0, sizeof(scaling_info));
+
+	stream_update->src = dc_stream->src;
+	stream_update->dst = dc_stream->dst;
 
 	for (i = 0; i < new_surface_count; i++) {
 		updates[i].surface = new_surfaces[i];
@@ -1041,9 +1052,17 @@ bool dc_commit_surfaces_to_stream(
 		updates[i].plane_info = &plane_info[i];
 		updates[i].scaling_info = &scaling_info[i];
 	}
-	dc_update_surfaces_for_stream(dc, updates, new_surface_count, dc_stream);
 
-	return dc_post_update_surfaces_to_stream(dc);
+	dc_update_surfaces_and_stream(
+			dc,
+			updates,
+			new_surface_count,
+			dc_stream, stream_update);
+
+	ret = dc_post_update_surfaces_to_stream(dc);
+
+	dm_free(stream_update);
+	return ret;
 }
 
 static bool is_surface_in_context(
