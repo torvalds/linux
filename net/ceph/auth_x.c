@@ -151,7 +151,7 @@ static int process_one_ticket(struct ceph_auth_client *ac,
 	struct timespec validity;
 	void *tp, *tpend;
 	void **ptp;
-	struct ceph_crypto_key new_session_key;
+	struct ceph_crypto_key new_session_key = { 0 };
 	struct ceph_buffer *new_ticket_blob;
 	unsigned long new_expires, new_renew_after;
 	u64 new_secret_id;
@@ -237,13 +237,13 @@ static int process_one_ticket(struct ceph_auth_client *ac,
 	     type, ceph_entity_type_name(type), th->secret_id,
 	     (int)th->ticket_blob->vec.iov_len);
 	xi->have_keys |= th->service;
-
-out:
-	return ret;
+	return 0;
 
 bad:
 	ret = -EINVAL;
-	goto out;
+out:
+	ceph_crypto_key_destroy(&new_session_key);
+	return ret;
 }
 
 static int ceph_x_proc_ticket_reply(struct ceph_auth_client *ac,
