@@ -18,6 +18,9 @@ struct nvkm_outp {
 	struct nvkm_conn *conn;
 
 	/* Assembly state. */
+#define NVKM_OUTP_PRIV 1
+#define NVKM_OUTP_USER 2
+	u8 acquired:2;
 	struct nvkm_ior *ior;
 };
 
@@ -28,6 +31,9 @@ int nvkm_outp_new(struct nvkm_disp *, int index, struct dcb_output *,
 void nvkm_outp_del(struct nvkm_outp **);
 void nvkm_outp_init(struct nvkm_outp *);
 void nvkm_outp_fini(struct nvkm_outp *);
+int nvkm_outp_acquire(struct nvkm_outp *, u8 user);
+void nvkm_outp_release(struct nvkm_outp *, u8 user);
+void nvkm_outp_route(struct nvkm_disp *);
 
 struct nvkm_outp_func {
 	void *(*dtor)(struct nvkm_outp *);
@@ -38,8 +44,6 @@ struct nvkm_outp_func {
 #define nvkm_output nvkm_outp
 #define nvkm_output_func nvkm_outp_func
 #define nvkm_output_new_ nvkm_outp_new_
-
-void gm200_sor_magic(struct nvkm_output *outp);
 
 #define OUTP_MSG(o,l,f,a...) do {                                              \
 	struct nvkm_outp *_outp = (o);                                         \

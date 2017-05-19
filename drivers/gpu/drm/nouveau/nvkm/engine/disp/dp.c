@@ -24,7 +24,6 @@
 #include "dp.h"
 #include "conn.h"
 #include "ior.h"
-#include "nv50.h"
 
 #include <subdev/bios.h>
 #include <subdev/bios/init.h>
@@ -351,7 +350,6 @@ static const struct dp_rates {
 static int
 nvkm_dp_train(struct nvkm_dp *dp, u32 dataKBps)
 {
-	struct nv50_disp *disp = nv50_disp(dp->outp.disp);
 	struct nvkm_ior *ior = dp->outp.ior;
 	const u8 sink_nr = dp->dpcd[DPCD_RC02] & DPCD_RC02_MAX_LANE_COUNT;
 	const u8 sink_bw = dp->dpcd[DPCD_RC01_MAX_LINK_RATE];
@@ -360,9 +358,6 @@ nvkm_dp_train(struct nvkm_dp *dp, u32 dataKBps)
 	const struct dp_rates *failsafe = NULL, *cfg;
 	int ret = -EINVAL;
 	u8  pwr;
-
-	if (!dp->outp.info.location && disp->func->sor.magic)
-		disp->func->sor.magic(&dp->outp);
 
 	/* Find the lowest configuration of the OR that can support
 	 * the required link rate.

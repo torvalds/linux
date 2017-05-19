@@ -306,9 +306,6 @@ gf119_disp_intr_unk2_2(struct nv50_disp *disp, int head)
 
 		if (nvkm_output_dp_train(outp, pclk))
 			OUTP_ERR(outp, "link not trained before attach");
-	} else {
-		if (disp->func->sor.magic)
-			disp->func->sor.magic(outp);
 	}
 
 	exec_clkcmp(disp, head, 0, pclk, &conf);
@@ -377,6 +374,7 @@ gf119_disp_super(struct work_struct *work)
 			nvkm_debug(subdev, "supervisor 2.0 - head %d\n", head->id);
 			gf119_disp_intr_unk2_0(disp, head->id);
 		}
+		nvkm_outp_route(&disp->base);
 		list_for_each_entry(head, &disp->base.head, head) {
 			if (!(mask[head->id] & 0x00010000))
 				continue;

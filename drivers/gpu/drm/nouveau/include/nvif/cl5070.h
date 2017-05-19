@@ -27,6 +27,8 @@ struct nv50_disp_scanoutpos_v0 {
 
 struct nv50_disp_mthd_v1 {
 	__u8  version;
+#define NV50_DISP_MTHD_V1_ACQUIRE                                          0x01
+#define NV50_DISP_MTHD_V1_RELEASE                                          0x02
 #define NV50_DISP_MTHD_V1_DAC_LOAD                                         0x11
 #define NV50_DISP_MTHD_V1_SOR_HDA_ELD                                      0x21
 #define NV50_DISP_MTHD_V1_SOR_HDMI_PWR                                     0x22
@@ -37,6 +39,13 @@ struct nv50_disp_mthd_v1 {
 	__u16 hasht;
 	__u16 hashm;
 	__u8  pad06[2];
+};
+
+struct nv50_disp_acquire_v0 {
+	__u8  version;
+	__u8  or;
+	__u8  link;
+	__u8  pad03[5];
 };
 
 struct nv50_disp_dac_load_v0 {

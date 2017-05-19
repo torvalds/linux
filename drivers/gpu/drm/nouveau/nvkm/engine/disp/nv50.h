@@ -53,7 +53,6 @@ struct nv50_disp_func {
 	struct {
 		int nr;
 		int (*new)(struct nvkm_disp *, int id);
-		void (*magic)(struct nvkm_output *);
 	} sor;
 
 	struct {

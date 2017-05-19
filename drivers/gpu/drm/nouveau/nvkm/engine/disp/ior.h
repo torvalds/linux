@@ -17,6 +17,7 @@ struct nvkm_ior {
 	struct list_head head;
 
 	struct nvkm_ior_state {
+		struct nvkm_outp *outp;
 		unsigned rgdiv;
 		unsigned proto_evo:4;
 		enum nvkm_ior_proto {
@@ -40,6 +41,11 @@ struct nvkm_ior {
 };
 
 struct nvkm_ior_func {
+	struct {
+		int (*get)(struct nvkm_outp *, int *link);
+		void (*set)(struct nvkm_outp *, struct nvkm_ior *);
+	} route;
+
 	void (*state)(struct nvkm_ior *, struct nvkm_ior_state *);
 	void (*power)(struct nvkm_ior *, bool normal, bool pu,
 		      bool data, bool vsync, bool hsync);

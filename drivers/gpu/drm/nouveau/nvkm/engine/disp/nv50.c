@@ -661,6 +661,7 @@ nv50_disp_super(struct work_struct *work)
 				continue;
 			nv50_disp_intr_unk20_0(disp, head->id);
 		}
+		nvkm_outp_route(&disp->base);
 		list_for_each_entry(head, &disp->base.head, head) {
 			if (!(super & (0x00000200 << head->id)))
 				continue;
