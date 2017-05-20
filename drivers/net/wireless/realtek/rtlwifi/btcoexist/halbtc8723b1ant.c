@@ -587,22 +587,66 @@ static void halbtc8723b1ant_coex_table_with_type(struct btc_coexist *btcoexist,
 		break;
 	case 3:
 		halbtc8723b1ant_coex_table(btcoexist, force_exec, 0x55555555,
-					   0xaaaaaaaa, 0xffffff, 0x3);
+					   0x5a5a5a5a, 0xffffff, 0x3);
 		break;
 	case 4:
-		halbtc8723b1ant_coex_table(btcoexist, force_exec, 0x55555555,
-					   0x5aaa5aaa, 0xffffff, 0x3);
+		if ((coex_sta->cck_ever_lock) && (coex_sta->scan_ap_num <= 5))
+			halbtc8723b1ant_coex_table(btcoexist, force_exec,
+						   0x55555555, 0xaaaa5a5a,
+						   0xffffff, 0x3);
+		else
+			halbtc8723b1ant_coex_table(btcoexist, force_exec,
+						   0x55555555, 0x5a5a5a5a,
+						   0xffffff, 0x3);
 		break;
 	case 5:
-		halbtc8723b1ant_coex_table(btcoexist, force_exec, 0x5a5a5a5a,
-					   0xaaaa5a5a, 0xffffff, 0x3);
+		if ((coex_sta->cck_ever_lock) && (coex_sta->scan_ap_num <= 5))
+			halbtc8723b1ant_coex_table(btcoexist, force_exec,
+						   0x5a5a5a5a, 0x5aaa5a5a,
+						   0xffffff, 0x3);
+		else
+			halbtc8723b1ant_coex_table(btcoexist, force_exec,
+						   0x5a5a5a5a, 0x5aaa5a5a,
+						   0xffffff, 0x3);
 		break;
 	case 6:
 		halbtc8723b1ant_coex_table(btcoexist, force_exec, 0x55555555,
-					   0xaaaa5a5a, 0xffffff, 0x3);
+					   0xaaaaaaaa, 0xffffff, 0x3);
 		break;
 	case 7:
 		halbtc8723b1ant_coex_table(btcoexist, force_exec, 0xaaaaaaaa,
+					   0xaaaaaaaa, 0xffffff, 0x3);
+		break;
+	case 8:
+		halbtc8723b1ant_coex_table(btcoexist, force_exec, 0x55dd55dd,
+					   0x5ada5ada, 0xffffff, 0x3);
+		break;
+	case 9:
+		halbtc8723b1ant_coex_table(btcoexist, force_exec, 0x55dd55dd,
+					   0x5ada5ada, 0xffffff, 0x3);
+		break;
+	case 10:
+		halbtc8723b1ant_coex_table(btcoexist, force_exec, 0x55dd55dd,
+					   0x5ada5ada, 0xffffff, 0x3);
+		break;
+	case 11:
+		halbtc8723b1ant_coex_table(btcoexist, force_exec, 0x55dd55dd,
+					   0x5ada5ada, 0xffffff, 0x3);
+		break;
+	case 12:
+		halbtc8723b1ant_coex_table(btcoexist, force_exec, 0x55dd55dd,
+					   0x5ada5ada, 0xffffff, 0x3);
+		break;
+	case 13:
+		halbtc8723b1ant_coex_table(btcoexist, force_exec, 0x5fff5fff,
+					   0xaaaaaaaa, 0xffffff, 0x3);
+		break;
+	case 14:
+		halbtc8723b1ant_coex_table(btcoexist, force_exec, 0x5fff5fff,
+					   0x5ada5ada, 0xffffff, 0x3);
+		break;
+	case 15:
+		halbtc8723b1ant_coex_table(btcoexist, force_exec, 0x55dd55dd,
 					   0xaaaaaaaa, 0xffffff, 0x3);
 		break;
 	default:
