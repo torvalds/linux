@@ -1914,7 +1914,9 @@ static void btc8723b1ant_action_wifi_not_conn(struct btc_coexist *btcoexist)
 					 0x0, 0x0);
 
 	/* tdma and coex table */
-	halbtc8723b1ant_ps_tdma(btcoexist, NORMAL_EXEC, false, 8);
+	halbtc8723b1ant_ps_tdma(btcoexist, FORCE_EXEC, false, 8);
+	halbtc8723b1ant_set_ant_path(btcoexist, BTC_ANT_PATH_PTA, NORMAL_EXEC,
+				     false, false);
 	halbtc8723b1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 0);
 }
 
@@ -1928,16 +1930,16 @@ btc8723b1ant_action_wifi_not_conn_scan(struct btc_coexist *btcoexist)
 
 	/* tdma and coex table */
 	if (coex_dm->bt_status == BT_8723B_1ANT_BT_STATUS_ACL_BUSY) {
-		if (bt_link_info->a2dp_exist && bt_link_info->pan_exist) {
+		if (bt_link_info->a2dp_exist) {
+			halbtc8723b1ant_ps_tdma(btcoexist, NORMAL_EXEC,
+						true, 32);
+			halbtc8723b1ant_coex_table_with_type(btcoexist,
+							     NORMAL_EXEC, 4);
+		} else if (bt_link_info->a2dp_exist) {
 			halbtc8723b1ant_ps_tdma(btcoexist, NORMAL_EXEC,
 						true, 22);
 			halbtc8723b1ant_coex_table_with_type(btcoexist,
-							     NORMAL_EXEC, 1);
-		} else if (bt_link_info->pan_only) {
-			halbtc8723b1ant_ps_tdma(btcoexist, NORMAL_EXEC,
-						true, 20);
-			halbtc8723b1ant_coex_table_with_type(btcoexist,
-							     NORMAL_EXEC, 2);
+							     NORMAL_EXEC, 4);
 		} else {
 			halbtc8723b1ant_ps_tdma(btcoexist, NORMAL_EXEC,
 						true, 20);
@@ -1950,6 +1952,8 @@ btc8723b1ant_action_wifi_not_conn_scan(struct btc_coexist *btcoexist)
 				BT_8723B_1ANT_WIFI_STATUS_CONNECTED_SCAN);
 	} else {
 		halbtc8723b1ant_ps_tdma(btcoexist, NORMAL_EXEC, false, 8);
+		halbtc8723b1ant_set_ant_path(btcoexist, BTC_ANT_PATH_PTA,
+					     NORMAL_EXEC, false, false);
 		halbtc8723b1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 2);
 	}
 }
@@ -1962,14 +1966,19 @@ btc8723b1ant_act_wifi_not_conn_asso_auth(struct btc_coexist *btcoexist)
 	halbtc8723b1ant_power_save_state(btcoexist, BTC_PS_WIFI_NATIVE,
 					 0x0, 0x0);
 
-	if ((BT_8723B_1ANT_BT_STATUS_CONNECTED_IDLE == coex_dm->bt_status) ||
-	    (bt_link_info->sco_exist) || (bt_link_info->hid_only) ||
-	    (bt_link_info->a2dp_only) || (bt_link_info->pan_only)) {
-		halbtc8723b1ant_ps_tdma(btcoexist, NORMAL_EXEC, false, 8);
-		halbtc8723b1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 7);
-	} else {
+	/* tdma and coex table */
+	if ((bt_link_info->sco_exist) || (bt_link_info->hid_exist) ||
+	    (bt_link_info->a2dp_exist)) {
+		halbtc8723b1ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 32);
+		halbtc8723b1ant_coex_table_with_type(btcoexist, FORCE_EXEC, 4);
+	} else if (bt_link_info->pan_exist) {
 		halbtc8723b1ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 20);
-		halbtc8723b1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 1);
+		halbtc8723b1ant_coex_table_with_type(btcoexist, FORCE_EXEC, 4);
+	} else {
+		halbtc8723b1ant_ps_tdma(btcoexist, NORMAL_EXEC, false, 8);
+		halbtc8723b1ant_set_ant_path(btcoexist, BTC_ANT_PATH_PTA,
+					     NORMAL_EXEC, false, false);
+		halbtc8723b1ant_coex_table_with_type(btcoexist, FORCE_EXEC, 2);
 	}
 }
 
