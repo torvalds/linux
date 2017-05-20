@@ -19,7 +19,7 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
-#define pr_fmt(fmt) "ACPI : button: " fmt
+#define pr_fmt(fmt) "ACPI: button: " fmt
 
 #include <linux/kernel.h>
 #include <linux/module.h>
