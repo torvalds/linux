@@ -1433,6 +1433,7 @@ static struct dma_async_tx_descriptor *pl08x_prep_dma_memcpy(
 	struct pl08x_driver_data *pl08x = plchan->host;
 	struct pl08x_txd *txd;
 	struct pl08x_sg *dsg;
+	u32 cctl = 0;
 	int ret;
 
 	txd = pl08x_get_txd(plchan);
@@ -1455,15 +1456,83 @@ static struct dma_async_tx_descriptor *pl08x_prep_dma_memcpy(
 
 	/* Set platform data for m2m */
 	txd->ccfg |= PL080_FLOW_MEM2MEM << PL080_CONFIG_FLOW_CONTROL_SHIFT;
-	txd->cctl = pl08x->pd->memcpy_channel.cctl_memcpy &
-			~(PL080_CONTROL_DST_AHB2 | PL080_CONTROL_SRC_AHB2);
+
+	/* Conjure cctl */
+	switch (pl08x->pd->memcpy_burst_size) {
+	default:
+		dev_err(&pl08x->adev->dev,
+			"illegal burst size for memcpy, set to 1\n");
+		/* Fall through */
+	case PL08X_BURST_SZ_1:
+		cctl |= PL080_BSIZE_1 << PL080_CONTROL_SB_SIZE_SHIFT |
+			PL080_BSIZE_1 << PL080_CONTROL_DB_SIZE_SHIFT;
+		break;
+	case PL08X_BURST_SZ_4:
+		cctl |= PL080_BSIZE_4 << PL080_CONTROL_SB_SIZE_SHIFT |
+			PL080_BSIZE_4 << PL080_CONTROL_DB_SIZE_SHIFT;
+		break;
+	case PL08X_BURST_SZ_8:
+		cctl |= PL080_BSIZE_8 << PL080_CONTROL_SB_SIZE_SHIFT |
+			PL080_BSIZE_8 << PL080_CONTROL_DB_SIZE_SHIFT;
+		break;
+	case PL08X_BURST_SZ_16:
+		cctl |= PL080_BSIZE_16 << PL080_CONTROL_SB_SIZE_SHIFT |
+			PL080_BSIZE_16 << PL080_CONTROL_DB_SIZE_SHIFT;
+		break;
+	case PL08X_BURST_SZ_32:
+		cctl |= PL080_BSIZE_32 << PL080_CONTROL_SB_SIZE_SHIFT |
+			PL080_BSIZE_32 << PL080_CONTROL_DB_SIZE_SHIFT;
+		break;
+	case PL08X_BURST_SZ_64:
+		cctl |= PL080_BSIZE_64 << PL080_CONTROL_SB_SIZE_SHIFT |
+			PL080_BSIZE_64 << PL080_CONTROL_DB_SIZE_SHIFT;
+		break;
+	case PL08X_BURST_SZ_128:
+		cctl |= PL080_BSIZE_128 << PL080_CONTROL_SB_SIZE_SHIFT |
+			PL080_BSIZE_128 << PL080_CONTROL_DB_SIZE_SHIFT;
+		break;
+	case PL08X_BURST_SZ_256:
+		cctl |= PL080_BSIZE_256 << PL080_CONTROL_SB_SIZE_SHIFT |
+			PL080_BSIZE_256 << PL080_CONTROL_DB_SIZE_SHIFT;
+		break;
+	}
+
+	switch (pl08x->pd->memcpy_bus_width) {
+	default:
+		dev_err(&pl08x->adev->dev,
+			"illegal bus width for memcpy, set to 8 bits\n");
+		/* Fall through */
+	case PL08X_BUS_WIDTH_8_BITS:
+		cctl |= PL080_WIDTH_8BIT << PL080_CONTROL_SWIDTH_SHIFT |
+			PL080_WIDTH_8BIT << PL080_CONTROL_DWIDTH_SHIFT;
+		break;
+	case PL08X_BUS_WIDTH_16_BITS:
+		cctl |= PL080_WIDTH_16BIT << PL080_CONTROL_SWIDTH_SHIFT |
+			PL080_WIDTH_16BIT << PL080_CONTROL_DWIDTH_SHIFT;
+		break;
+	case PL08X_BUS_WIDTH_32_BITS:
+		cctl |= PL080_WIDTH_32BIT << PL080_CONTROL_SWIDTH_SHIFT |
+			PL080_WIDTH_32BIT << PL080_CONTROL_DWIDTH_SHIFT;
+		break;
+	}
+
+	/* Protection flags */
+	if (pl08x->pd->memcpy_prot_buff)
+		cctl |= PL080_CONTROL_PROT_BUFF;
+	if (pl08x->pd->memcpy_prot_cache)
+		cctl |= PL080_CONTROL_PROT_CACHE;
+
+	/* We are the kernel, so we are in privileged mode */
+	cctl |= PL080_CONTROL_PROT_SYS;
 
 	/* Both to be incremented or the code will break */
-	txd->cctl |= PL080_CONTROL_SRC_INCR | PL080_CONTROL_DST_INCR;
+	cctl |= PL080_CONTROL_SRC_INCR | PL080_CONTROL_DST_INCR;
 
 	if (pl08x->vd->dualmaster)
-		txd->cctl |= pl08x_select_bus(pl08x->mem_buses,
-					      pl08x->mem_buses);
+		cctl |= pl08x_select_bus(pl08x->mem_buses,
+					 pl08x->mem_buses);
+
+	txd->cctl = cctl;
 
 	ret = pl08x_fill_llis_for_desc(plchan->host, txd);
 	if (!ret) {
@@ -1925,9 +1994,16 @@ static int pl08x_dma_init_virtual_channels(struct pl08x_driver_data *pl08x,
 			chan->signal = i;
 			pl08x_dma_slave_init(chan);
 		} else {
-			chan->cd = &pl08x->pd->memcpy_channel;
+			chan->cd = kzalloc(sizeof(*chan->cd), GFP_KERNEL);
+			if (!chan->cd) {
+				kfree(chan);
+				return -ENOMEM;
+			}
+			chan->cd->bus_id = "memcpy";
+			chan->cd->periph_buses = pl08x->pd->mem_buses;
 			chan->name = kasprintf(GFP_KERNEL, "memcpy%d", i);
 			if (!chan->name) {
+				kfree(chan->cd);
 				kfree(chan);
 				return -ENOMEM;
 			}
@@ -2099,7 +2175,6 @@ static int pl08x_of_probe(struct amba_device *adev,
 {
 	struct pl08x_platform_data *pd;
 	struct pl08x_channel_data *chanp = NULL;
-	u32 cctl_memcpy = 0;
 	u32 val;
 	int ret;
 	int i;
@@ -2139,36 +2214,28 @@ static int pl08x_of_probe(struct amba_device *adev,
 		dev_err(&adev->dev, "illegal burst size for memcpy, set to 1\n");
 		/* Fall through */
 	case 1:
-		cctl_memcpy |= PL080_BSIZE_1 << PL080_CONTROL_SB_SIZE_SHIFT |
-			       PL080_BSIZE_1 << PL080_CONTROL_DB_SIZE_SHIFT;
+		pd->memcpy_burst_size = PL08X_BURST_SZ_1;
 		break;
 	case 4:
-		cctl_memcpy |= PL080_BSIZE_4 << PL080_CONTROL_SB_SIZE_SHIFT |
-			       PL080_BSIZE_4 << PL080_CONTROL_DB_SIZE_SHIFT;
+		pd->memcpy_burst_size = PL08X_BURST_SZ_4;
 		break;
 	case 8:
-		cctl_memcpy |= PL080_BSIZE_8 << PL080_CONTROL_SB_SIZE_SHIFT |
-			       PL080_BSIZE_8 << PL080_CONTROL_DB_SIZE_SHIFT;
+		pd->memcpy_burst_size = PL08X_BURST_SZ_8;
 		break;
 	case 16:
-		cctl_memcpy |= PL080_BSIZE_16 << PL080_CONTROL_SB_SIZE_SHIFT |
-			       PL080_BSIZE_16 << PL080_CONTROL_DB_SIZE_SHIFT;
+		pd->memcpy_burst_size = PL08X_BURST_SZ_16;
 		break;
 	case 32:
-		cctl_memcpy |= PL080_BSIZE_32 << PL080_CONTROL_SB_SIZE_SHIFT |
-			       PL080_BSIZE_32 << PL080_CONTROL_DB_SIZE_SHIFT;
+		pd->memcpy_burst_size = PL08X_BURST_SZ_32;
 		break;
 	case 64:
-		cctl_memcpy |= PL080_BSIZE_64 << PL080_CONTROL_SB_SIZE_SHIFT |
-			       PL080_BSIZE_64 << PL080_CONTROL_DB_SIZE_SHIFT;
+		pd->memcpy_burst_size = PL08X_BURST_SZ_64;
 		break;
 	case 128:
-		cctl_memcpy |= PL080_BSIZE_128 << PL080_CONTROL_SB_SIZE_SHIFT |
-			       PL080_BSIZE_128 << PL080_CONTROL_DB_SIZE_SHIFT;
+		pd->memcpy_burst_size = PL08X_BURST_SZ_128;
 		break;
 	case 256:
-		cctl_memcpy |= PL080_BSIZE_256 << PL080_CONTROL_SB_SIZE_SHIFT |
-			       PL080_BSIZE_256 << PL080_CONTROL_DB_SIZE_SHIFT;
+		pd->memcpy_burst_size = PL08X_BURST_SZ_256;
 		break;
 	}
 
@@ -2182,27 +2249,15 @@ static int pl08x_of_probe(struct amba_device *adev,
 		dev_err(&adev->dev, "illegal bus width for memcpy, set to 8 bits\n");
 		/* Fall through */
 	case 8:
-		cctl_memcpy |= PL080_WIDTH_8BIT << PL080_CONTROL_SWIDTH_SHIFT |
-			       PL080_WIDTH_8BIT << PL080_CONTROL_DWIDTH_SHIFT;
+		pd->memcpy_bus_width = PL08X_BUS_WIDTH_8_BITS;
 		break;
 	case 16:
-		cctl_memcpy |= PL080_WIDTH_16BIT << PL080_CONTROL_SWIDTH_SHIFT |
-			       PL080_WIDTH_16BIT << PL080_CONTROL_DWIDTH_SHIFT;
+		pd->memcpy_bus_width = PL08X_BUS_WIDTH_16_BITS;
 		break;
 	case 32:
-		cctl_memcpy |= PL080_WIDTH_32BIT << PL080_CONTROL_SWIDTH_SHIFT |
-			       PL080_WIDTH_32BIT << PL080_CONTROL_DWIDTH_SHIFT;
+		pd->memcpy_bus_width = PL08X_BUS_WIDTH_32_BITS;
 		break;
 	}
-
-	/* This is currently the only thing making sense */
-	cctl_memcpy |= PL080_CONTROL_PROT_SYS;
-
-	/* Set up memcpy channel */
-	pd->memcpy_channel.bus_id = "memcpy";
-	pd->memcpy_channel.cctl_memcpy = cctl_memcpy;
-	/* Use the buses that can access memory, obviously */
-	pd->memcpy_channel.periph_buses = pd->mem_buses;
 
 	/*
 	 * Allocate channel data for all possible slave channels (one

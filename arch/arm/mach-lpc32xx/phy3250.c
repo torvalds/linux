@@ -137,6 +137,9 @@ static void pl08x_put_signal(const struct pl08x_channel_data *cd, int ch)
 }
 
 static struct pl08x_platform_data pl08x_pd = {
+	/* Some reasonable memcpy defaults */
+	.memcpy_burst_size = PL08X_BURST_SZ_256,
+	.memcpy_bus_width = PL08X_BUS_WIDTH_32_BITS,
 	.slave_channels = &pl08x_slave_channels[0],
 	.num_slave_channels = ARRAY_SIZE(pl08x_slave_channels),
 	.get_xfer_signal = pl08x_get_signal,
