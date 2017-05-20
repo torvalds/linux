@@ -351,7 +351,7 @@ static void tcf_chain_tp_insert(struct tcf_chain *chain,
 {
 	if (chain->p_filter_chain &&
 	    *chain_info->pprev == chain->filter_chain)
-		*chain->p_filter_chain = tp;
+		rcu_assign_pointer(*chain->p_filter_chain, tp);
 	RCU_INIT_POINTER(tp->next, tcf_chain_tp_prev(chain_info));
 	rcu_assign_pointer(*chain_info->pprev, tp);
 }
@@ -363,7 +363,7 @@ static void tcf_chain_tp_remove(struct tcf_chain *chain,
 	struct tcf_proto *next = rtnl_dereference(chain_info->next);
 
 	if (chain->p_filter_chain && tp == chain->filter_chain)
-		*chain->p_filter_chain = next;
+		RCU_INIT_POINTER(*chain->p_filter_chain, next);
 	RCU_INIT_POINTER(*chain_info->pprev, next);
 }
 
