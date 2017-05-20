@@ -22,11 +22,8 @@
 struct wmi_device {
 	struct device dev;
 
-	/*
-	 * These are true for data objects that support reads and writes,
-	 * respectively.
-	 */
-	bool readable, writeable;
+	 /* True for data blocks implementing the Set Control Method */
+	bool setable;
 };
 
 /* Caller must kfree the result. */

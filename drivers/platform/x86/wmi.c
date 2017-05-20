@@ -69,7 +69,7 @@ struct wmi_block {
 	wmi_notify_handler handler;
 	void *handler_data;
 
-	bool read_takes_no_args;	/* only defined if readable */
+	bool read_takes_no_args;
 };
 
 
@@ -694,28 +694,18 @@ static ssize_t object_id_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(object_id);
 
-static ssize_t readable_show(struct device *dev, struct device_attribute *attr,
-			     char *buf)
+static ssize_t setable_show(struct device *dev, struct device_attribute *attr,
+			    char *buf)
 {
 	struct wmi_device *wdev = dev_to_wdev(dev);
 
-	return sprintf(buf, "%d\n", (int)wdev->readable);
+	return sprintf(buf, "%d\n", (int)wdev->setable);
 }
-static DEVICE_ATTR_RO(readable);
-
-static ssize_t writeable_show(struct device *dev, struct device_attribute *attr,
-			      char *buf)
-{
-	struct wmi_device *wdev = dev_to_wdev(dev);
-
-	return sprintf(buf, "%d\n", (int)wdev->writeable);
-}
-static DEVICE_ATTR_RO(writeable);
+static DEVICE_ATTR_RO(setable);
 
 static struct attribute *wmi_data_attrs[] = {
 	&dev_attr_object_id.attr,
-	&dev_attr_readable.attr,
-	&dev_attr_writeable.attr,
+	&dev_attr_setable.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(wmi_data);
@@ -833,63 +823,74 @@ static struct device_type wmi_type_data = {
 	.release = wmi_dev_release,
 };
 
-static void wmi_create_device(struct device *wmi_bus_dev,
+static int wmi_create_device(struct device *wmi_bus_dev,
 			     const struct guid_block *gblock,
 			     struct wmi_block *wblock,
 			     struct acpi_device *device)
 {
+	struct acpi_device_info *info;
+	char method[5];
+	int result;
+
+	if (gblock->flags & ACPI_WMI_EVENT) {
+		wblock->dev.dev.type = &wmi_type_event;
+		goto out_init;
+	}
+
+	if (gblock->flags & ACPI_WMI_METHOD) {
+		wblock->dev.dev.type = &wmi_type_method;
+		goto out_init;
+	}
+
+	/*
+	 * Data Block Query Control Method (WQxx by convention) is
+	 * required per the WMI documentation. If it is not present,
+	 * we ignore this data block.
+	 */
+	strcpy(method, "WQ");
+	strncat(method, wblock->gblock.object_id, 2);
+	result = get_subobj_info(device->handle, method, &info);
+
+	if (result) {
+		dev_warn(wmi_bus_dev,
+			 "%s data block query control method not found",
+			 method);
+		return result;
+	}
+
+	wblock->dev.dev.type = &wmi_type_data;
+
+	/*
+	 * The Microsoft documentation specifically states:
+	 *
+	 *   Data blocks registered with only a single instance
+	 *   can ignore the parameter.
+	 *
+	 * ACPICA will get mad at us if we call the method with the wrong number
+	 * of arguments, so check what our method expects.  (On some Dell
+	 * laptops, WQxx may not be a method at all.)
+	 */
+	if (info->type != ACPI_TYPE_METHOD || info->param_count == 0)
+		wblock->read_takes_no_args = true;
+
+	kfree(info);
+
+	strcpy(method, "WS");
+	strncat(method, wblock->gblock.object_id, 2);
+	result = get_subobj_info(device->handle, method, NULL);
+
+	if (result == 0)
+		wblock->dev.setable = true;
+
+ out_init:
 	wblock->dev.dev.bus = &wmi_bus_type;
 	wblock->dev.dev.parent = wmi_bus_dev;
 
 	dev_set_name(&wblock->dev.dev, "%pUL", gblock->guid);
 
-	if (gblock->flags & ACPI_WMI_EVENT) {
-		wblock->dev.dev.type = &wmi_type_event;
-	} else if (gblock->flags & ACPI_WMI_METHOD) {
-		wblock->dev.dev.type = &wmi_type_method;
-	} else {
-		struct acpi_device_info *info;
-		char method[5];
-		int result;
-
-		wblock->dev.dev.type = &wmi_type_data;
-
-		strcpy(method, "WQ");
-		strncat(method, wblock->gblock.object_id, 2);
-		result = get_subobj_info(device->handle, method, &info);
-
-		if (result == 0) {
-			wblock->dev.readable = true;
-
-			/*
-			 * The Microsoft documentation specifically states:
-			 *
-			 *   Data blocks registered with only a single instance
-			 *   can ignore the parameter.
-			 *
-			 * ACPICA will get mad at us if we call the method
-			 * with the wrong number of arguments, so check what
-			 * our method expects.  (On some Dell laptops, WQxx
-			 * may not be a method at all.)
-			 */
-			if (info->type != ACPI_TYPE_METHOD ||
-			    info->param_count == 0)
-				wblock->read_takes_no_args = true;
-
-			kfree(info);
-		}
-
-		strcpy(method, "WS");
-		strncat(method, wblock->gblock.object_id, 2);
-		result = get_subobj_info(device->handle, method, NULL);
-
-		if (result == 0) {
-			wblock->dev.writeable = true;
-		}
-
-	}
-
 	device_initialize(&wblock->dev.dev);
+
+	return 0;
 }
 
 static void wmi_free_devices(struct acpi_device *device)
@@ -978,7 +979,11 @@ static int parse_wdg(struct device *wmi_bus_dev, struct acpi_device *device)
 		wblock->acpi_device = device;
 		wblock->gblock = gblock[i];
 
-		wmi_create_device(wmi_bus_dev, &gblock[i], wblock, device);
+		retval = wmi_create_device(wmi_bus_dev, &gblock[i], wblock, device);
+		if (retval) {
+			kfree(wblock);
+			continue;
+		}
 
 		list_add_tail(&wblock->list, &wmi_block_list);
 
