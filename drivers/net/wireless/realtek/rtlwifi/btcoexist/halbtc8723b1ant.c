@@ -570,6 +570,8 @@ static void halbtc8723b1ant_coex_table(struct btc_coexist *btcoexist,
 static void halbtc8723b1ant_coex_table_with_type(struct btc_coexist *btcoexist,
 						 bool force_exec, u8 type)
 {
+	coex_sta->coex_table_type = type;
+
 	switch (type) {
 	case 0:
 		halbtc8723b1ant_coex_table(btcoexist, force_exec, 0x55555555,
@@ -2519,6 +2521,9 @@ void ex_halbtc8723b1ant_display_coex_info(struct btc_coexist *btcoexist)
 			 "Latest error condition(should be 0)",
 			   coex_dm->error_condition);
 	}
+
+	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s = %d",
+		 "Coex Table Type", coex_sta->coex_table_type);
 
 	/* Hw setting */
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s",
