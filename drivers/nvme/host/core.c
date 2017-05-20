@@ -1605,7 +1605,7 @@ int nvme_init_identify(struct nvme_ctrl *ctrl)
 	}
 	memcpy(ctrl->psd, id->psd, sizeof(ctrl->psd));
 
-	if (ctrl->ops->is_fabrics) {
+	if (ctrl->ops->flags & NVME_F_FABRICS) {
 		ctrl->icdoff = le16_to_cpu(id->icdoff);
 		ctrl->ioccsz = le32_to_cpu(id->ioccsz);
 		ctrl->iorcsz = le32_to_cpu(id->iorcsz);
