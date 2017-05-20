@@ -1644,6 +1644,21 @@ int ubifs_getattr(const struct path *path, struct kstat *stat,
 	struct ubifs_inode *ui = ubifs_inode(inode);
 
 	mutex_lock(&ui->ui_mutex);
+
+	if (ui->flags & UBIFS_APPEND_FL)
+		stat->attributes |= STATX_ATTR_APPEND;
+	if (ui->flags & UBIFS_COMPR_FL)
+		stat->attributes |= STATX_ATTR_COMPRESSED;
+	if (ui->flags & UBIFS_CRYPT_FL)
+		stat->attributes |= STATX_ATTR_ENCRYPTED;
+	if (ui->flags & UBIFS_IMMUTABLE_FL)
+		stat->attributes |= STATX_ATTR_IMMUTABLE;
+
+	stat->attributes_mask |= (STATX_ATTR_APPEND |
+				STATX_ATTR_COMPRESSED |
+				STATX_ATTR_ENCRYPTED |
+				STATX_ATTR_IMMUTABLE);
+
 	generic_fillattr(inode, stat);
 	stat->blksize = UBIFS_BLOCK_SIZE;
 	stat->size = ui->ui_size;
