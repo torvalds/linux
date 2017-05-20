@@ -12,3 +12,16 @@ config PHY_MESON8B_USB2
 	  Enable this to support the Meson USB2 PHYs found in Meson8b
 	  and GXBB SoCs.
 	  If unsure, say N.
+
+config PHY_MESON_GXL_USB2
+	tristate "Meson GXL and GXM USB2 PHY drivers"
+	default ARCH_MESON
+	depends on OF && (ARCH_MESON || COMPILE_TEST)
+	depends on USB_SUPPORT
+	select USB_COMMON
+	select GENERIC_PHY
+	select REGMAP_MMIO
+	help
+	  Enable this to support the Meson USB2 PHYs found in Meson
+	  GXL and GXM SoCs.
+	  If unsure, say N.
