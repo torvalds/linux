@@ -166,6 +166,7 @@ struct coex_sta_8723b_1ant {
 	bool bt_whck_test;
 	bool c2h_bt_inquiry_page;
 	bool c2h_bt_remote_name_req;
+	bool wifi_is_high_pri_task;
 	u8 bt_retry_cnt;
 	u8 bt_info_ext;
 	u8 scan_ap_num;

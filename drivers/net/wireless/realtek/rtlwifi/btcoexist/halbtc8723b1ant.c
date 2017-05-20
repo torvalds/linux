@@ -2662,6 +2662,7 @@ void ex_halbtc8723b1ant_scan_notify(struct btc_coexist *btcoexist, u8 type)
 		return;
 
 	if (type == BTC_SCAN_START) {
+		coex_sta->wifi_is_high_pri_task = true;
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 			 "[BTCoex], SCAN START notify\n");
 		/* Force antenna setup for no scan result issue */
@@ -2676,6 +2677,7 @@ void ex_halbtc8723b1ant_scan_notify(struct btc_coexist *btcoexist, u8 type)
 			 "[BTCoex], 0x948=0x%x, 0x765=0x%x, 0x67=0x%x\n",
 			 u32tmp, u8tmpa, u8tmpb);
 	} else {
+		coex_sta->wifi_is_high_pri_task = false;
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 			 "[BTCoex], SCAN FINISH notify\n");
 
@@ -2748,6 +2750,8 @@ void ex_halbtc8723b1ant_connect_notify(struct btc_coexist *btcoexist, u8 type)
 		return;
 
 	if (type == BTC_ASSOCIATE_START) {
+		coex_sta->wifi_is_high_pri_task = true;
+
 		/* Force antenna setup for no scan result issue */
 		halbtc8723b1ant_ps_tdma(btcoexist, FORCE_EXEC, false, 8);
 		halbtc8723b1ant_set_ant_path(btcoexist, BTC_ANT_PATH_PTA,
@@ -2756,6 +2760,7 @@ void ex_halbtc8723b1ant_connect_notify(struct btc_coexist *btcoexist, u8 type)
 			 "[BTCoex], CONNECT START notify\n");
 		coex_dm->arp_cnt = 0;
 	} else {
+		coex_sta->wifi_is_high_pri_task = false;
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 			 "[BTCoex], CONNECT FINISH notify\n");
 	}
@@ -2906,11 +2911,21 @@ void ex_halbtc8723b1ant_special_packet_notify(struct btc_coexist *btcoexist,
 			RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 				 "[BTCoex], ARP Packet Count = %d\n",
 				 coex_dm->arp_cnt);
+
+			if ((coex_dm->arp_cnt >= 10) && (!under_4way))
+				/* if APR PKT > 10 after connect, do not go to
+				 * ActionWifiConnectedSpecificPacket(btcoexist)
+				 */
+				coex_sta->wifi_is_high_pri_task = false;
+			else
+				coex_sta->wifi_is_high_pri_task = true;
 		} else {
+			coex_sta->wifi_is_high_pri_task = true;
 			RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 				 "[BTCoex], special Packet DHCP or EAPOL notify\n");
 		}
 	} else {
+		coex_sta->wifi_is_high_pri_task = false;
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 			 "[BTCoex], special Packet [Type = %d] notify\n",
 			 type);
