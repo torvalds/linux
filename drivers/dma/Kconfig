@@ -62,8 +62,10 @@ config AMBA_PL08X
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
-	  Platform has a PL08x DMAC device
-	  which can provide DMA engine support
+	  Say yes if your platform has a PL08x DMAC device which can
+	  provide DMA engine support. This includes the original ARM
+	  PL080 and PL081, Samsungs PL080 derivative and Faraday
+	  Technology's FTDMAC020 PL080 derivative.
 
 config AMCC_PPC440SPE_ADMA
 	tristate "AMCC PPC440SPe ADMA support"

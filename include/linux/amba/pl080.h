@@ -44,7 +44,14 @@
 
 #define PL080_SYNC				(0x34)
 
-/* Per channel configuration registers */
+/* The Faraday Technology FTDMAC020 variant registers */
+#define FTDMAC020_CH_BUSY			(0x20)
+/* Identical to PL080_CONFIG */
+#define FTDMAC020_CSR				(0x24)
+/* Identical to PL080_SYNC */
+#define FTDMAC020_SYNC				(0x2C)
+#define FTDMAC020_REVISION			(0x30)
+#define FTDMAC020_FEATURE			(0x34)
 
 /* Per channel configuration registers */
 #define PL080_Cx_BASE(x)			((0x100 + (x * 0x20)))
@@ -55,6 +62,13 @@
 #define PL080_CH_CONFIG				(0x10)
 #define PL080S_CH_CONTROL2			(0x10)
 #define PL080S_CH_CONFIG			(0x14)
+/* The Faraday FTDMAC020 derivative shuffles the registers around */
+#define FTDMAC020_CH_CSR			(0x00)
+#define FTDMAC020_CH_CFG			(0x04)
+#define FTDMAC020_CH_SRC_ADDR			(0x08)
+#define FTDMAC020_CH_DST_ADDR			(0x0C)
+#define FTDMAC020_CH_LLP			(0x10)
+#define FTDMAC020_CH_SIZE			(0x14)
 
 #define PL080_LLI_ADDR_MASK			(0x3fffffff << 2)
 #define PL080_LLI_ADDR_SHIFT			(2)
@@ -118,6 +132,73 @@
 #define PL080_FLOW_MEM2PER_PER			(0x5)
 #define PL080_FLOW_PER2MEM_PER			(0x6)
 #define PL080_FLOW_SRC2DST_SRC			(0x7)
+
+#define FTDMAC020_CH_CSR_TC_MSK			BIT(31)
+/* Later versions have a threshold in bits 24..26,  */
+#define FTDMAC020_CH_CSR_FIFOTH_MSK		(0x7 << 24)
+#define FTDMAC020_CH_CSR_FIFOTH_SHIFT		(24)
+#define FTDMAC020_CH_CSR_CHPR1_MSK		(0x3 << 22)
+#define FTDMAC020_CH_CSR_PROT3			BIT(21)
+#define FTDMAC020_CH_CSR_PROT2			BIT(20)
+#define FTDMAC020_CH_CSR_PROT1			BIT(19)
+#define FTDMAC020_CH_CSR_SRC_SIZE_MSK		(0x7 << 16)
+#define FTDMAC020_CH_CSR_SRC_SIZE_SHIFT		(16)
+#define FTDMAC020_CH_CSR_ABT			BIT(15)
+#define FTDMAC020_CH_CSR_SRC_WIDTH_MSK		(0x7 << 11)
+#define FTDMAC020_CH_CSR_SRC_WIDTH_SHIFT	(11)
+#define FTDMAC020_CH_CSR_DST_WIDTH_MSK		(0x7 << 8)
+#define FTDMAC020_CH_CSR_DST_WIDTH_SHIFT	(8)
+#define FTDMAC020_CH_CSR_MODE			BIT(7)
+/* 00 = increase, 01 = decrease, 10 = fix */
+#define FTDMAC020_CH_CSR_SRCAD_CTL_MSK		(0x3 << 5)
+#define FTDMAC020_CH_CSR_SRCAD_CTL_SHIFT	(5)
+#define FTDMAC020_CH_CSR_DSTAD_CTL_MSK		(0x3 << 3)
+#define FTDMAC020_CH_CSR_DSTAD_CTL_SHIFT	(3)
+#define FTDMAC020_CH_CSR_SRC_SEL		BIT(2)
+#define FTDMAC020_CH_CSR_DST_SEL		BIT(1)
+#define FTDMAC020_CH_CSR_EN			BIT(0)
+
+/* FIFO threshold setting */
+#define FTDMAC020_CH_CSR_FIFOTH_1		(0x0)
+#define FTDMAC020_CH_CSR_FIFOTH_2		(0x1)
+#define FTDMAC020_CH_CSR_FIFOTH_4		(0x2)
+#define FTDMAC020_CH_CSR_FIFOTH_8		(0x3)
+#define FTDMAC020_CH_CSR_FIFOTH_16		(0x4)
+/* The FTDMAC020 supports 64bit wide transfers */
+#define FTDMAC020_WIDTH_64BIT			(0x3)
+/* Address can be increased, decreased or fixed */
+#define FTDMAC020_CH_CSR_SRCAD_CTL_INC		(0x0)
+#define FTDMAC020_CH_CSR_SRCAD_CTL_DEC		(0x1)
+#define FTDMAC020_CH_CSR_SRCAD_CTL_FIXED	(0x2)
+
+#define FTDMAC020_CH_CFG_LLP_CNT_MASK		(0xf << 16)
+#define FTDMAC020_CH_CFG_LLP_CNT_SHIFT		(16)
+#define FTDMAC020_CH_CFG_BUSY			BIT(8)
+#define FTDMAC020_CH_CFG_INT_ABT_MASK		BIT(2)
+#define FTDMAC020_CH_CFG_INT_ERR_MASK		BIT(1)
+#define FTDMAC020_CH_CFG_INT_TC_MASK		BIT(0)
+
+/* Inside the LLIs, the applicable CSR fields are mapped differently */
+#define FTDMAC020_LLI_TC_MSK			BIT(28)
+#define FTDMAC020_LLI_SRC_WIDTH_MSK		(0x7 << 25)
+#define FTDMAC020_LLI_SRC_WIDTH_SHIFT		(25)
+#define FTDMAC020_LLI_DST_WIDTH_MSK		(0x7 << 22)
+#define FTDMAC020_LLI_DST_WIDTH_SHIFT		(22)
+#define FTDMAC020_LLI_SRCAD_CTL_MSK		(0x3 << 20)
+#define FTDMAC020_LLI_SRCAD_CTL_SHIFT		(20)
+#define FTDMAC020_LLI_DSTAD_CTL_MSK		(0x3 << 18)
+#define FTDMAC020_LLI_DSTAD_CTL_SHIFT		(18)
+#define FTDMAC020_LLI_SRC_SEL			BIT(17)
+#define FTDMAC020_LLI_DST_SEL			BIT(16)
+#define FTDMAC020_LLI_TRANSFER_SIZE_MASK	(0xfff << 0)
+#define FTDMAC020_LLI_TRANSFER_SIZE_SHIFT	(0)
+
+#define FTDMAC020_CFG_LLP_CNT_MASK		(0x0f << 16)
+#define FTDMAC020_CFG_LLP_CNT_SHIFT		(16)
+#define FTDMAC020_CFG_BUSY			BIT(8)
+#define FTDMAC020_CFG_INT_ABT_MSK		BIT(2)
+#define FTDMAC020_CFG_INT_ERR_MSK		BIT(1)
+#define FTDMAC020_CFG_INT_TC_MSK		BIT(0)
 
 /* DMA linked list chain structure */
 
