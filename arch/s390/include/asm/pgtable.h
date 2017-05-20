@@ -563,18 +563,23 @@ static inline void crdte(unsigned long old, unsigned long new,
 }
 
 /*
- * pgd/pmd/pte query functions
+ * pgd/p4d/pud/pmd/pte query functions
  */
+static inline int pgd_folded(pgd_t pgd)
+{
+	return (pgd_val(pgd) & _REGION_ENTRY_TYPE_MASK) < _REGION_ENTRY_TYPE_R1;
+}
+
 static inline int pgd_present(pgd_t pgd)
 {
-	if ((pgd_val(pgd) & _REGION_ENTRY_TYPE_MASK) < _REGION_ENTRY_TYPE_R1)
+	if (pgd_folded(pgd))
 		return 1;
 	return (pgd_val(pgd) & _REGION_ENTRY_ORIGIN) != 0UL;
 }
 
 static inline int pgd_none(pgd_t pgd)
 {
-	if ((pgd_val(pgd) & _REGION_ENTRY_TYPE_MASK) < _REGION_ENTRY_TYPE_R1)
+	if (pgd_folded(pgd))
 		return 0;
 	return (pgd_val(pgd) & _REGION_ENTRY_INVALID) != 0UL;
 }
@@ -592,16 +597,21 @@ static inline int pgd_bad(pgd_t pgd)
 	return (pgd_val(pgd) & mask) != 0;
 }
 
+static inline int p4d_folded(p4d_t p4d)
+{
+	return (p4d_val(p4d) & _REGION_ENTRY_TYPE_MASK) < _REGION_ENTRY_TYPE_R2;
+}
+
 static inline int p4d_present(p4d_t p4d)
 {
-	if ((p4d_val(p4d) & _REGION_ENTRY_TYPE_MASK) < _REGION_ENTRY_TYPE_R2)
+	if (p4d_folded(p4d))
 		return 1;
 	return (p4d_val(p4d) & _REGION_ENTRY_ORIGIN) != 0UL;
 }
 
 static inline int p4d_none(p4d_t p4d)
 {
-	if ((p4d_val(p4d) & _REGION_ENTRY_TYPE_MASK) < _REGION_ENTRY_TYPE_R2)
+	if (p4d_folded(p4d))
 		return 0;
 	return p4d_val(p4d) == _REGION2_ENTRY_EMPTY;
 }
@@ -614,16 +624,21 @@ static inline unsigned long p4d_pfn(p4d_t p4d)
 	return (p4d_val(p4d) & origin_mask) >> PAGE_SHIFT;
 }
 
+static inline int pud_folded(pud_t pud)
+{
+	return (pud_val(pud) & _REGION_ENTRY_TYPE_MASK) < _REGION_ENTRY_TYPE_R3;
+}
+
 static inline int pud_present(pud_t pud)
 {
-	if ((pud_val(pud) & _REGION_ENTRY_TYPE_MASK) < _REGION_ENTRY_TYPE_R3)
+	if (pud_folded(pud))
 		return 1;
 	return (pud_val(pud) & _REGION_ENTRY_ORIGIN) != 0UL;
 }
 
 static inline int pud_none(pud_t pud)
 {
-	if ((pud_val(pud) & _REGION_ENTRY_TYPE_MASK) < _REGION_ENTRY_TYPE_R3)
+	if (pud_folded(pud))
 		return 0;
 	return pud_val(pud) == _REGION3_ENTRY_EMPTY;
 }
