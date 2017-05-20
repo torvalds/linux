@@ -18,20 +18,6 @@ struct dax_operations {
 			void **, pfn_t *);
 };
 
-int bdev_dax_pgoff(struct block_device *, sector_t, size_t, pgoff_t *pgoff);
-#if IS_ENABLED(CONFIG_FS_DAX)
-int __bdev_dax_supported(struct super_block *sb, int blocksize);
-static inline int bdev_dax_supported(struct super_block *sb, int blocksize)
-{
-	return __bdev_dax_supported(sb, blocksize);
-}
-#else
-static inline int bdev_dax_supported(struct super_block *sb, int blocksize)
-{
-	return -EOPNOTSUPP;
-}
-#endif
-
 #if IS_ENABLED(CONFIG_DAX)
 struct dax_device *dax_get_by_host(const char *host);
 void put_dax(struct dax_device *dax_dev);
@@ -42,6 +28,40 @@ static inline struct dax_device *dax_get_by_host(const char *host)
 }
 
 static inline void put_dax(struct dax_device *dax_dev)
+{
+}
+#endif
+
+int bdev_dax_pgoff(struct block_device *, sector_t, size_t, pgoff_t *pgoff);
+#if IS_ENABLED(CONFIG_FS_DAX)
+int __bdev_dax_supported(struct super_block *sb, int blocksize);
+static inline int bdev_dax_supported(struct super_block *sb, int blocksize)
+{
+	return __bdev_dax_supported(sb, blocksize);
+}
+
+static inline struct dax_device *fs_dax_get_by_host(const char *host)
+{
+	return dax_get_by_host(host);
+}
+
+static inline void fs_put_dax(struct dax_device *dax_dev)
+{
+	put_dax(dax_dev);
+}
+
+#else
+static inline int bdev_dax_supported(struct super_block *sb, int blocksize)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline struct dax_device *fs_dax_get_by_host(const char *host)
+{
+	return NULL;
+}
+
+static inline void fs_put_dax(struct dax_device *dax_dev)
 {
 }
 #endif
