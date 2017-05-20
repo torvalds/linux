@@ -1843,7 +1843,7 @@ static void btc8723b1ant_act_bt_sco_hid_only_busy(struct btc_coexist *btcoexist,
 	/* tdma and coex table */
 	if (bt_link_info->sco_exist) {
 		halbtc8723b1ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 5);
-		halbtc8723b1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 2);
+		halbtc8723b1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 5);
 	} else {
 		/* HID */
 		halbtc8723b1ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 6);
