@@ -356,7 +356,7 @@ struct lkl_dir *lkl_fdopendir(int fd, int *err)
 
 void lkl_rewinddir(struct lkl_dir *dir)
 {
-	lkl_sys_lseek(dir->fd, 0, SEEK_SET);
+	lkl_sys_lseek(dir->fd, 0, LKL_SEEK_SET);
 	dir->len = 0;
 	dir->pos = NULL;
 }
