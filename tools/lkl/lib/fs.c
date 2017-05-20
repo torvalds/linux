@@ -80,6 +80,7 @@ static int encode_dev_from_sysfs(const char *sysfs_path, uint32_t *pdevid)
 	long fd;
 	int major, minor;
 	char buf[16] = { 0, };
+	char *bufptr;
 
 	fd = lkl_sys_open(sysfs_path, LKL_O_RDONLY, 0);
 	if (fd < 0)
@@ -94,11 +95,16 @@ static int encode_dev_from_sysfs(const char *sysfs_path, uint32_t *pdevid)
 		goto out_close;
 	}
 
-	ret = sscanf(buf, "%d:%d", &major, &minor);
-	if (ret != 2) {
+	bufptr = strchr(buf, ':');
+	if (bufptr == NULL) {
 		ret = -LKL_EINVAL;
 		goto out_close;
 	}
+	bufptr[0] = '\0';
+	bufptr++;
+
+	major = atoi(buf);
+	minor = atoi(bufptr);
 
 	*pdevid = new_encode_dev(major, minor);
 	ret = 0;
