@@ -115,6 +115,7 @@ config EXTCON_PALMAS
 
 config EXTCON_QCOM_SPMI_MISC
 	tristate "Qualcomm USB extcon support"
+	depends on ARCH_QCOM || COMPILE_TEST
 	help
 	  Say Y here to enable SPMI PMIC based USB cable detection
 	  support on Qualcomm PMICs such as PM8941.
