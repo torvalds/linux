@@ -201,15 +201,22 @@ static struct tcf_chain *tcf_chain_create(struct tcf_block *block,
 	return chain;
 }
 
-static void tcf_chain_destroy(struct tcf_chain *chain)
+static void tcf_chain_flush(struct tcf_chain *chain)
 {
 	struct tcf_proto *tp;
 
-	list_del(&chain->list);
+	if (*chain->p_filter_chain)
+		RCU_INIT_POINTER(*chain->p_filter_chain, NULL);
 	while ((tp = rtnl_dereference(chain->filter_chain)) != NULL) {
 		RCU_INIT_POINTER(chain->filter_chain, tp->next);
 		tcf_proto_destroy(tp);
 	}
+}
+
+static void tcf_chain_destroy(struct tcf_chain *chain)
+{
+	list_del(&chain->list);
+	tcf_chain_flush(chain);
 	kfree(chain);
 }
 
@@ -510,7 +517,7 @@ replay:
 
 	if (n->nlmsg_type == RTM_DELTFILTER && prio == 0) {
 		tfilter_notify_chain(net, skb, n, chain, RTM_DELTFILTER);
-		tcf_chain_destroy(chain);
+		tcf_chain_flush(chain);
 		err = 0;
 		goto errout;
 	}
