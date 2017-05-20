@@ -9553,10 +9553,6 @@ F:	drivers/net/wireless/intersil/orinoco/
 
 OSD LIBRARY and FILESYSTEM
 M:	Boaz Harrosh <ooo@electrozaur.com>
-M:	Benny Halevy <bhalevy@primarydata.com>
-L:	osd-dev@open-osd.org
-W:	http://open-osd.org
-T:	git git://git.open-osd.org/open-osd.git
 S:	Maintained
 F:	drivers/scsi/osd/
 F:	include/scsi/osd_*
