@@ -148,6 +148,7 @@ struct coex_sta_8723b_1ant {
 	bool pan_exist;
 	bool bt_hi_pri_link_exist;
 	u8 num_of_profile;
+	bool bt_abnormal_scan;
 
 	bool under_lps;
 	bool under_ips;
