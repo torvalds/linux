@@ -45,12 +45,11 @@
 #define EX_DAR		40
 #define EX_DSISR	48
 #define EX_CCR		52
-#define EX_R3		56
-#define EX_CFAR		64
-#define EX_PPR		72
-#define EX_CTR		80
+#define EX_CFAR		56
+#define EX_PPR		64
+#define EX_CTR		72
 
-#define EX_SIZE		11	/* size in u64 units */
+#define EX_SIZE		10	/* size in u64 units */
 
 /*
  * EX_LR is only used in EXSLB and where it does not overlap with EX_DAR
@@ -59,6 +58,13 @@
  * for future savings though if another 4 byte register was to be saved.
  */
 #define EX_LR		EX_DAR
+
+/*
+ * EX_R3 is only used by the bad_stack handler. bad_stack reloads and
+ * saves DAR from SPRN_DAR, and EX_DAR is not used. So EX_R3 can overlap
+ * with EX_DAR.
+ */
+#define EX_R3		EX_DAR
 
 #ifdef CONFIG_RELOCATABLE
 #define __EXCEPTION_RELON_PROLOG_PSERIES_1(label, h)			\
