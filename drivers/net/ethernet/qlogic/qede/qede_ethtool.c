@@ -1297,7 +1297,7 @@ static int qede_selftest_transmit_traffic(struct qede_dev *edev,
 	}
 
 	/* Fill the entry in the SW ring and the BDs in the FW ring */
-	idx = txq->sw_tx_prod & NUM_TX_BDS_MAX;
+	idx = txq->sw_tx_prod;
 	txq->sw_tx_ring.skbs[idx].skb = skb;
 	first_bd = qed_chain_produce(&txq->tx_pbl);
 	memset(first_bd, 0, sizeof(*first_bd));
@@ -1317,7 +1317,7 @@ static int qede_selftest_transmit_traffic(struct qede_dev *edev,
 
 	/* update the first BD with the actual num BDs */
 	first_bd->data.nbds = 1;
-	txq->sw_tx_prod++;
+	txq->sw_tx_prod = (txq->sw_tx_prod + 1) % txq->num_tx_buffers;
 	/* 'next page' entries are counted in the producer value */
 	val = cpu_to_le16(qed_chain_get_prod_idx(&txq->tx_pbl));
 	txq->tx_db.data.bd_prod = val;
@@ -1351,7 +1351,7 @@ static int qede_selftest_transmit_traffic(struct qede_dev *edev,
 	first_bd = (struct eth_tx_1st_bd *)qed_chain_consume(&txq->tx_pbl);
 	dma_unmap_single(&edev->pdev->dev, BD_UNMAP_ADDR(first_bd),
 			 BD_UNMAP_LEN(first_bd), DMA_TO_DEVICE);
-	txq->sw_tx_cons++;
+	txq->sw_tx_cons = (txq->sw_tx_cons + 1) % txq->num_tx_buffers;
 	txq->sw_tx_ring.skbs[idx].skb = NULL;
 
 	return 0;

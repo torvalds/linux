@@ -1304,12 +1304,12 @@ static int qede_alloc_mem_txq(struct qede_dev *edev, struct qede_tx_queue *txq)
 
 	/* Allocate the parallel driver ring for Tx buffers */
 	if (txq->is_xdp) {
-		size = sizeof(*txq->sw_tx_ring.xdp) * TX_RING_SIZE;
+		size = sizeof(*txq->sw_tx_ring.xdp) * txq->num_tx_buffers;
 		txq->sw_tx_ring.xdp = kzalloc(size, GFP_KERNEL);
 		if (!txq->sw_tx_ring.xdp)
 			goto err;
 	} else {
-		size = sizeof(*txq->sw_tx_ring.skbs) * TX_RING_SIZE;
+		size = sizeof(*txq->sw_tx_ring.skbs) * txq->num_tx_buffers;
 		txq->sw_tx_ring.skbs = kzalloc(size, GFP_KERNEL);
 		if (!txq->sw_tx_ring.skbs)
 			goto err;
@@ -1319,7 +1319,7 @@ static int qede_alloc_mem_txq(struct qede_dev *edev, struct qede_tx_queue *txq)
 					    QED_CHAIN_USE_TO_CONSUME_PRODUCE,
 					    QED_CHAIN_MODE_PBL,
 					    QED_CHAIN_CNT_TYPE_U16,
-					    TX_RING_SIZE,
+					    txq->num_tx_buffers,
 					    sizeof(*p_virt), &txq->tx_pbl);
 	if (rc)
 		goto err;
