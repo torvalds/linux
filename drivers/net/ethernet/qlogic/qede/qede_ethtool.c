@@ -506,6 +506,14 @@ static int qede_set_link_ksettings(struct net_device *dev,
 		params.autoneg = false;
 		params.forced_speed = base->speed;
 		switch (base->speed) {
+		case SPEED_1000:
+			if (!(current_link.supported_caps &
+			      QED_LM_1000baseT_Full_BIT)) {
+				DP_INFO(edev, "1G speed not supported\n");
+				return -EINVAL;
+			}
+			params.adv_speeds = QED_LM_1000baseT_Full_BIT;
+			break;
 		case SPEED_10000:
 			if (!(current_link.supported_caps &
 			      QED_LM_10000baseKR_Full_BIT)) {
