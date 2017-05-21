@@ -495,12 +495,16 @@ void qede_force_mac(void *dev, u8 *mac, bool forced)
 {
 	struct qede_dev *edev = dev;
 
+	__qede_lock(edev);
+
 	/* MAC hints take effect only if we haven't set one already */
-	if (is_valid_ether_addr(edev->ndev->dev_addr) && !forced)
+	if (is_valid_ether_addr(edev->ndev->dev_addr) && !forced) {
+		__qede_unlock(edev);
 		return;
+	}
 
 	ether_addr_copy(edev->ndev->dev_addr, mac);
-	ether_addr_copy(edev->primary_mac, mac);
+	__qede_unlock(edev);
 }
 
 void qede_fill_rss_params(struct qede_dev *edev,
@@ -1061,41 +1065,51 @@ int qede_set_mac_addr(struct net_device *ndev, void *p)
 {
 	struct qede_dev *edev = netdev_priv(ndev);
 	struct sockaddr *addr = p;
-	int rc;
+	int rc = 0;
 
-	ASSERT_RTNL(); /* @@@TBD To be removed */
-
-	DP_INFO(edev, "Set_mac_addr called\n");
+	/* Make sure the state doesn't transition while changing the MAC.
+	 * Also, all flows accessing the dev_addr field are doing that under
+	 * this lock.
+	 */
+	__qede_lock(edev);
 
 	if (!is_valid_ether_addr(addr->sa_data)) {
 		DP_NOTICE(edev, "The MAC address is not valid\n");
-		return -EFAULT;
+		rc = -EFAULT;
+		goto out;
 	}
 
 	if (!edev->ops->check_mac(edev->cdev, addr->sa_data)) {
-		DP_NOTICE(edev, "qed prevents setting MAC\n");
-		return -EINVAL;
+		DP_NOTICE(edev, "qed prevents setting MAC %pM\n",
+			  addr->sa_data);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	if (edev->state == QEDE_STATE_OPEN) {
+		/* Remove the previous primary mac */
+		rc = qede_set_ucast_rx_mac(edev, QED_FILTER_XCAST_TYPE_DEL,
+					   ndev->dev_addr);
+		if (rc)
+			goto out;
 	}
 
 	ether_addr_copy(ndev->dev_addr, addr->sa_data);
+	DP_INFO(edev, "Setting device MAC to %pM\n", addr->sa_data);
 
-	if (!netif_running(ndev))  {
-		DP_NOTICE(edev, "The device is currently down\n");
-		return 0;
+	if (edev->state != QEDE_STATE_OPEN) {
+		DP_VERBOSE(edev, NETIF_MSG_IFDOWN,
+			   "The device is currently down\n");
+		goto out;
 	}
 
-	/* Remove the previous primary mac */
-	rc = qede_set_ucast_rx_mac(edev, QED_FILTER_XCAST_TYPE_DEL,
-				   edev->primary_mac);
-	if (rc)
-		return rc;
+	edev->ops->common->update_mac(edev->cdev, ndev->dev_addr);
 
-	edev->ops->common->update_mac(edev->cdev, addr->sa_data);
-
-	/* Add MAC filter according to the new unicast HW MAC address */
-	ether_addr_copy(edev->primary_mac, ndev->dev_addr);
-	return qede_set_ucast_rx_mac(edev, QED_FILTER_XCAST_TYPE_ADD,
-				      edev->primary_mac);
+	rc = qede_set_ucast_rx_mac(edev, QED_FILTER_XCAST_TYPE_ADD,
+				   ndev->dev_addr);
+out:
+	__qede_unlock(edev);
+	return rc;
 }
 
 static int
@@ -1200,7 +1214,7 @@ void qede_config_rx_mode(struct net_device *ndev)
 	 * (configrue / leave the primary mac)
 	 */
 	rc = qede_set_ucast_rx_mac(edev, QED_FILTER_XCAST_TYPE_REPLACE,
-				   edev->primary_mac);
+				   edev->ndev->dev_addr);
 	if (rc)
 		goto out;
 

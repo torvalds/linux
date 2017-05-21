@@ -2328,6 +2328,7 @@ static void qed_int_sb_attn_free(struct qed_hwfn *p_hwfn)
 				  SB_ATTN_ALIGNED_SIZE(p_hwfn),
 				  p_sb->sb_attn, p_sb->sb_phys);
 	kfree(p_sb);
+	p_hwfn->p_sb_attn = NULL;
 }
 
 static void qed_int_sb_attn_setup(struct qed_hwfn *p_hwfn,
@@ -2679,6 +2680,7 @@ static void qed_int_sp_sb_free(struct qed_hwfn *p_hwfn)
 				  p_sb->sb_info.sb_virt,
 				  p_sb->sb_info.sb_phys);
 	kfree(p_sb);
+	p_hwfn->p_sp_sb = NULL;
 }
 
 static int qed_int_sp_sb_alloc(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
@@ -3157,6 +3159,7 @@ static int qed_int_sp_dpc_alloc(struct qed_hwfn *p_hwfn)
 static void qed_int_sp_dpc_free(struct qed_hwfn *p_hwfn)
 {
 	kfree(p_hwfn->sp_dpc);
+	p_hwfn->sp_dpc = NULL;
 }
 
 int qed_int_alloc(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)

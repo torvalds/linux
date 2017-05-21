@@ -618,6 +618,12 @@ static struct qede_dev *qede_alloc_etherdev(struct qed_dev *cdev,
 	memset(&edev->stats, 0, sizeof(edev->stats));
 	memcpy(&edev->dev_info, info, sizeof(*info));
 
+	/* As ethtool doesn't have the ability to show WoL behavior as
+	 * 'default', if device supports it declare it's enabled.
+	 */
+	if (edev->dev_info.common.wol_support)
+		edev->wol_enabled = true;
+
 	INIT_LIST_HEAD(&edev->vlan_list);
 
 	return edev;
@@ -1066,12 +1072,15 @@ static int qede_set_num_queues(struct qede_dev *edev)
 	return rc;
 }
 
-static void qede_free_mem_sb(struct qede_dev *edev,
-			     struct qed_sb_info *sb_info)
+static void qede_free_mem_sb(struct qede_dev *edev, struct qed_sb_info *sb_info,
+			     u16 sb_id)
 {
-	if (sb_info->sb_virt)
+	if (sb_info->sb_virt) {
+		edev->ops->common->sb_release(edev->cdev, sb_info, sb_id);
 		dma_free_coherent(&edev->pdev->dev, sizeof(*sb_info->sb_virt),
 				  (void *)sb_info->sb_virt, sb_info->sb_phys);
+		memset(sb_info, 0, sizeof(*sb_info));
+	}
 }
 
 /* This function allocates fast-path status block memory */
@@ -1298,12 +1307,12 @@ static int qede_alloc_mem_txq(struct qede_dev *edev, struct qede_tx_queue *txq)
 
 	/* Allocate the parallel driver ring for Tx buffers */
 	if (txq->is_xdp) {
-		size = sizeof(*txq->sw_tx_ring.xdp) * TX_RING_SIZE;
+		size = sizeof(*txq->sw_tx_ring.xdp) * txq->num_tx_buffers;
 		txq->sw_tx_ring.xdp = kzalloc(size, GFP_KERNEL);
 		if (!txq->sw_tx_ring.xdp)
 			goto err;
 	} else {
-		size = sizeof(*txq->sw_tx_ring.skbs) * TX_RING_SIZE;
+		size = sizeof(*txq->sw_tx_ring.skbs) * txq->num_tx_buffers;
 		txq->sw_tx_ring.skbs = kzalloc(size, GFP_KERNEL);
 		if (!txq->sw_tx_ring.skbs)
 			goto err;
@@ -1313,7 +1322,7 @@ static int qede_alloc_mem_txq(struct qede_dev *edev, struct qede_tx_queue *txq)
 					    QED_CHAIN_USE_TO_CONSUME_PRODUCE,
 					    QED_CHAIN_MODE_PBL,
 					    QED_CHAIN_CNT_TYPE_U16,
-					    TX_RING_SIZE,
+					    txq->num_tx_buffers,
 					    sizeof(*p_virt), &txq->tx_pbl);
 	if (rc)
 		goto err;
@@ -1328,7 +1337,7 @@ err:
 /* This function frees all memory of a single fp */
 static void qede_free_mem_fp(struct qede_dev *edev, struct qede_fastpath *fp)
 {
-	qede_free_mem_sb(edev, fp->sb_info);
+	qede_free_mem_sb(edev, fp->sb_info, fp->id);
 
 	if (fp->type & QEDE_FASTPATH_RX)
 		qede_free_mem_rxq(edev, fp->rxq);
@@ -1890,8 +1899,9 @@ static void qede_unload(struct qede_dev *edev, enum qede_unload_mode mode,
 	if (!is_locked)
 		__qede_lock(edev);
 
-	qede_roce_dev_event_close(edev);
 	edev->state = QEDE_STATE_CLOSED;
+
+	qede_roce_dev_event_close(edev);
 
 	/* Close OS Tx */
 	netif_tx_disable(edev->ndev);
@@ -1987,9 +1997,6 @@ static int qede_load(struct qede_dev *edev, enum qede_load_mode mode,
 	if (rc)
 		goto err4;
 	DP_INFO(edev, "Start VPORT, RXQ and TXQ succeeded\n");
-
-	/* Add primary mac and set Rx filters */
-	ether_addr_copy(edev->primary_mac, edev->ndev->dev_addr);
 
 	/* Program un-configured VLANs */
 	qede_configure_vlan_filters(edev);

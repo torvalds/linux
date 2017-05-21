@@ -88,7 +88,11 @@ void qed_ooo_save_history_entry(struct qed_hwfn *p_hwfn,
 				struct qed_ooo_info *p_ooo_info,
 				struct ooo_opaque *p_cqe);
 
-struct qed_ooo_info *qed_ooo_alloc(struct qed_hwfn *p_hwfn);
+int qed_ooo_alloc(struct qed_hwfn *p_hwfn);
+
+void qed_ooo_setup(struct qed_hwfn *p_hwfn);
+
+void qed_ooo_free(struct qed_hwfn *p_hwfn);
 
 void qed_ooo_release_connection_isles(struct qed_hwfn *p_hwfn,
 				      struct qed_ooo_info *p_ooo_info,
@@ -96,10 +100,6 @@ void qed_ooo_release_connection_isles(struct qed_hwfn *p_hwfn,
 
 void qed_ooo_release_all_isles(struct qed_hwfn *p_hwfn,
 			       struct qed_ooo_info *p_ooo_info);
-
-void qed_ooo_setup(struct qed_hwfn *p_hwfn, struct qed_ooo_info *p_ooo_info);
-
-void qed_ooo_free(struct qed_hwfn *p_hwfn, struct qed_ooo_info *p_ooo_info);
 
 void qed_ooo_put_free_buffer(struct qed_hwfn *p_hwfn,
 			     struct qed_ooo_info *p_ooo_info,
@@ -140,8 +140,14 @@ static inline void qed_ooo_save_history_entry(struct qed_hwfn *p_hwfn,
 					      struct qed_ooo_info *p_ooo_info,
 					      struct ooo_opaque *p_cqe) {}
 
-static inline struct qed_ooo_info *qed_ooo_alloc(
-				struct qed_hwfn *p_hwfn) { return NULL; }
+static inline int qed_ooo_alloc(struct qed_hwfn *p_hwfn)
+{
+	return -EINVAL;
+}
+
+static inline void qed_ooo_setup(struct qed_hwfn *p_hwfn) {}
+
+static inline void qed_ooo_free(struct qed_hwfn *p_hwfn) {}
 
 static inline void
 qed_ooo_release_connection_isles(struct qed_hwfn *p_hwfn,
@@ -151,12 +157,6 @@ qed_ooo_release_connection_isles(struct qed_hwfn *p_hwfn,
 static inline void qed_ooo_release_all_isles(struct qed_hwfn *p_hwfn,
 					     struct qed_ooo_info *p_ooo_info)
 					     {}
-
-static inline void qed_ooo_setup(struct qed_hwfn *p_hwfn,
-				 struct qed_ooo_info *p_ooo_info) {}
-
-static inline void qed_ooo_free(struct qed_hwfn *p_hwfn,
-				struct qed_ooo_info *p_ooo_info) {}
 
 static inline void qed_ooo_put_free_buffer(struct qed_hwfn *p_hwfn,
 					   struct qed_ooo_info *p_ooo_info,

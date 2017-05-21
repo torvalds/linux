@@ -923,6 +923,7 @@ int qed_dcbx_info_alloc(struct qed_hwfn *p_hwfn)
 void qed_dcbx_info_free(struct qed_hwfn *p_hwfn)
 {
 	kfree(p_hwfn->p_dcbx_info);
+	p_hwfn->p_dcbx_info = NULL;
 }
 
 static void qed_dcbx_update_protocol_data(struct protocol_dcb_data *p_data,

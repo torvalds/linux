@@ -185,7 +185,7 @@ qed_sp_iscsi_func_start(struct qed_hwfn *p_hwfn,
 		DP_ERR(p_hwfn,
 		       "Cannot satisfy CQ amount. Queues requested %d, CQs available %d. Aborting function start\n",
 		       p_params->num_queues,
-		       p_hwfn->hw_info.resc_num[QED_ISCSI_CQ]);
+		       p_hwfn->hw_info.feat_num[QED_ISCSI_CQ]);
 		return -EINVAL;
 	}
 
@@ -818,28 +818,31 @@ void qed_iscsi_free_connection(struct qed_hwfn *p_hwfn,
 	kfree(p_conn);
 }
 
-struct qed_iscsi_info *qed_iscsi_alloc(struct qed_hwfn *p_hwfn)
+int qed_iscsi_alloc(struct qed_hwfn *p_hwfn)
 {
 	struct qed_iscsi_info *p_iscsi_info;
 
 	p_iscsi_info = kzalloc(sizeof(*p_iscsi_info), GFP_KERNEL);
 	if (!p_iscsi_info)
-		return NULL;
+		return -ENOMEM;
 
 	INIT_LIST_HEAD(&p_iscsi_info->free_list);
-	return p_iscsi_info;
+
+	p_hwfn->p_iscsi_info = p_iscsi_info;
+	return 0;
 }
 
-void qed_iscsi_setup(struct qed_hwfn *p_hwfn,
-		     struct qed_iscsi_info *p_iscsi_info)
+void qed_iscsi_setup(struct qed_hwfn *p_hwfn)
 {
-	spin_lock_init(&p_iscsi_info->lock);
+	spin_lock_init(&p_hwfn->p_iscsi_info->lock);
 }
 
-void qed_iscsi_free(struct qed_hwfn *p_hwfn,
-		    struct qed_iscsi_info *p_iscsi_info)
+void qed_iscsi_free(struct qed_hwfn *p_hwfn)
 {
 	struct qed_iscsi_conn *p_conn = NULL;
+
+	if (!p_hwfn->p_iscsi_info)
+		return;
 
 	while (!list_empty(&p_hwfn->p_iscsi_info->free_list)) {
 		p_conn = list_first_entry(&p_hwfn->p_iscsi_info->free_list,
@@ -850,7 +853,8 @@ void qed_iscsi_free(struct qed_hwfn *p_hwfn,
 		}
 	}
 
-	kfree(p_iscsi_info);
+	kfree(p_hwfn->p_iscsi_info);
+	p_hwfn->p_iscsi_info = NULL;
 }
 
 static void _qed_iscsi_get_tstats(struct qed_hwfn *p_hwfn,

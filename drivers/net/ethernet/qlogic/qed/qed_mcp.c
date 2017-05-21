@@ -177,6 +177,7 @@ int qed_mcp_free(struct qed_hwfn *p_hwfn)
 	}
 
 	kfree(p_hwfn->mcp_info);
+	p_hwfn->mcp_info = NULL;
 
 	return 0;
 }
