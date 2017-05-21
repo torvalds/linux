@@ -47,9 +47,6 @@
 };
 
 &expander0 {
-	#address-cells = <1>;
-	#size-cells = <0>;
-
 	wan_amber@0 {
 		label = "caiman:amber:wan";
 		reg = <0x0>;
