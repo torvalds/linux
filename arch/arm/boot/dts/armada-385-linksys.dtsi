@@ -79,7 +79,7 @@
 		gpio = <&gpio1 18 GPIO_ACTIVE_HIGH>;
 	};
 
-	gpio_keys {
+	gpio_keys: gpio-keys {
 		compatible = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -99,7 +99,7 @@
 		};
 	};
 
-	gpio-leds {
+	gpio_leds: gpio-leds {
 		compatible = "gpio-leds";
 		pinctrl-0 = <&power_led_pin &sata_led_pin>;
 		pinctrl-names = "default";
@@ -210,7 +210,7 @@
 		reg = <0x4c>;
 	};
 
-	pca9635@68 {
+	expander0: pca9635@68 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "nxp,pca9635";
