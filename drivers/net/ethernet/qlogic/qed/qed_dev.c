@@ -161,6 +161,7 @@ void qed_resc_free(struct qed_dev *cdev)
 	cdev->fw_data = NULL;
 
 	kfree(cdev->reset_stats);
+	cdev->reset_stats = NULL;
 
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
@@ -168,18 +169,18 @@ void qed_resc_free(struct qed_dev *cdev)
 		qed_cxt_mngr_free(p_hwfn);
 		qed_qm_info_free(p_hwfn);
 		qed_spq_free(p_hwfn);
-		qed_eq_free(p_hwfn, p_hwfn->p_eq);
-		qed_consq_free(p_hwfn, p_hwfn->p_consq);
+		qed_eq_free(p_hwfn);
+		qed_consq_free(p_hwfn);
 		qed_int_free(p_hwfn);
 #ifdef CONFIG_QED_LL2
-		qed_ll2_free(p_hwfn, p_hwfn->p_ll2_info);
+		qed_ll2_free(p_hwfn);
 #endif
 		if (p_hwfn->hw_info.personality == QED_PCI_FCOE)
-			qed_fcoe_free(p_hwfn, p_hwfn->p_fcoe_info);
+			qed_fcoe_free(p_hwfn);
 
 		if (p_hwfn->hw_info.personality == QED_PCI_ISCSI) {
-			qed_iscsi_free(p_hwfn, p_hwfn->p_iscsi_info);
-			qed_ooo_free(p_hwfn, p_hwfn->p_ooo_info);
+			qed_iscsi_free(p_hwfn);
+			qed_ooo_free(p_hwfn);
 		}
 		qed_iov_free(p_hwfn);
 		qed_dmae_info_free(p_hwfn);
@@ -843,15 +844,7 @@ alloc_err:
 
 int qed_resc_alloc(struct qed_dev *cdev)
 {
-	struct qed_iscsi_info *p_iscsi_info;
-	struct qed_fcoe_info *p_fcoe_info;
-	struct qed_ooo_info *p_ooo_info;
-#ifdef CONFIG_QED_LL2
-	struct qed_ll2_info *p_ll2_info;
-#endif
 	u32 rdma_tasks, excess_tasks;
-	struct qed_consq *p_consq;
-	struct qed_eq *p_eq;
 	u32 line_count;
 	int i, rc = 0;
 
@@ -956,45 +949,38 @@ int qed_resc_alloc(struct qed_dev *cdev)
 			DP_ERR(p_hwfn,
 			       "Cannot allocate 0x%x EQ elements. The maximum of a u16 chain is 0x%x\n",
 			       n_eqes, 0xFFFF);
-			rc = -EINVAL;
-			goto alloc_err;
+			goto alloc_no_mem;
 		}
 
-		p_eq = qed_eq_alloc(p_hwfn, (u16) n_eqes);
-		if (!p_eq)
-			goto alloc_no_mem;
-		p_hwfn->p_eq = p_eq;
+		rc = qed_eq_alloc(p_hwfn, (u16) n_eqes);
+		if (rc)
+			goto alloc_err;
 
-		p_consq = qed_consq_alloc(p_hwfn);
-		if (!p_consq)
-			goto alloc_no_mem;
-		p_hwfn->p_consq = p_consq;
+		rc = qed_consq_alloc(p_hwfn);
+		if (rc)
+			goto alloc_err;
 
 #ifdef CONFIG_QED_LL2
 		if (p_hwfn->using_ll2) {
-			p_ll2_info = qed_ll2_alloc(p_hwfn);
-			if (!p_ll2_info)
-				goto alloc_no_mem;
-			p_hwfn->p_ll2_info = p_ll2_info;
+			rc = qed_ll2_alloc(p_hwfn);
+			if (rc)
+				goto alloc_err;
 		}
 #endif
 
 		if (p_hwfn->hw_info.personality == QED_PCI_FCOE) {
-			p_fcoe_info = qed_fcoe_alloc(p_hwfn);
-			if (!p_fcoe_info)
-				goto alloc_no_mem;
-			p_hwfn->p_fcoe_info = p_fcoe_info;
+			rc = qed_fcoe_alloc(p_hwfn);
+			if (rc)
+				goto alloc_err;
 		}
 
 		if (p_hwfn->hw_info.personality == QED_PCI_ISCSI) {
-			p_iscsi_info = qed_iscsi_alloc(p_hwfn);
-			if (!p_iscsi_info)
-				goto alloc_no_mem;
-			p_hwfn->p_iscsi_info = p_iscsi_info;
-			p_ooo_info = qed_ooo_alloc(p_hwfn);
-			if (!p_ooo_info)
-				goto alloc_no_mem;
-			p_hwfn->p_ooo_info = p_ooo_info;
+			rc = qed_iscsi_alloc(p_hwfn);
+			if (rc)
+				goto alloc_err;
+			rc = qed_ooo_alloc(p_hwfn);
+			if (rc)
+				goto alloc_err;
 		}
 
 		/* DMA info initialization */
@@ -1033,8 +1019,8 @@ void qed_resc_setup(struct qed_dev *cdev)
 
 		qed_cxt_mngr_setup(p_hwfn);
 		qed_spq_setup(p_hwfn);
-		qed_eq_setup(p_hwfn, p_hwfn->p_eq);
-		qed_consq_setup(p_hwfn, p_hwfn->p_consq);
+		qed_eq_setup(p_hwfn);
+		qed_consq_setup(p_hwfn);
 
 		/* Read shadow of current MFW mailbox */
 		qed_mcp_read_mb(p_hwfn, p_hwfn->p_main_ptt);
@@ -1047,14 +1033,14 @@ void qed_resc_setup(struct qed_dev *cdev)
 		qed_iov_setup(p_hwfn, p_hwfn->p_main_ptt);
 #ifdef CONFIG_QED_LL2
 		if (p_hwfn->using_ll2)
-			qed_ll2_setup(p_hwfn, p_hwfn->p_ll2_info);
+			qed_ll2_setup(p_hwfn);
 #endif
 		if (p_hwfn->hw_info.personality == QED_PCI_FCOE)
-			qed_fcoe_setup(p_hwfn, p_hwfn->p_fcoe_info);
+			qed_fcoe_setup(p_hwfn);
 
 		if (p_hwfn->hw_info.personality == QED_PCI_ISCSI) {
-			qed_iscsi_setup(p_hwfn, p_hwfn->p_iscsi_info);
-			qed_ooo_setup(p_hwfn, p_hwfn->p_ooo_info);
+			qed_iscsi_setup(p_hwfn);
+			qed_ooo_setup(p_hwfn);
 		}
 	}
 }
@@ -1968,6 +1954,7 @@ static void qed_hw_hwfn_free(struct qed_hwfn *p_hwfn)
 {
 	qed_ptt_pool_free(p_hwfn);
 	kfree(p_hwfn->hw_info.p_igu_info);
+	p_hwfn->hw_info.p_igu_info = NULL;
 }
 
 /* Setup bar access */

@@ -538,7 +538,7 @@ static void __iomem *qed_fcoe_get_secondary_bdq_prod(struct qed_hwfn *p_hwfn,
 	}
 }
 
-struct qed_fcoe_info *qed_fcoe_alloc(struct qed_hwfn *p_hwfn)
+int qed_fcoe_alloc(struct qed_hwfn *p_hwfn)
 {
 	struct qed_fcoe_info *p_fcoe_info;
 
@@ -546,19 +546,21 @@ struct qed_fcoe_info *qed_fcoe_alloc(struct qed_hwfn *p_hwfn)
 	p_fcoe_info = kzalloc(sizeof(*p_fcoe_info), GFP_KERNEL);
 	if (!p_fcoe_info) {
 		DP_NOTICE(p_hwfn, "Failed to allocate qed_fcoe_info'\n");
-		return NULL;
+		return -ENOMEM;
 	}
 	INIT_LIST_HEAD(&p_fcoe_info->free_list);
-	return p_fcoe_info;
+
+	p_hwfn->p_fcoe_info = p_fcoe_info;
+	return 0;
 }
 
-void qed_fcoe_setup(struct qed_hwfn *p_hwfn, struct qed_fcoe_info *p_fcoe_info)
+void qed_fcoe_setup(struct qed_hwfn *p_hwfn)
 {
 	struct fcoe_task_context *p_task_ctx = NULL;
 	int rc;
 	u32 i;
 
-	spin_lock_init(&p_fcoe_info->lock);
+	spin_lock_init(&p_hwfn->p_fcoe_info->lock);
 	for (i = 0; i < p_hwfn->pf_params.fcoe_pf_params.num_tasks; i++) {
 		rc = qed_cxt_get_task_ctx(p_hwfn, i,
 					  QED_CTX_WORKING_MEM,
@@ -576,15 +578,15 @@ void qed_fcoe_setup(struct qed_hwfn *p_hwfn, struct qed_fcoe_info *p_fcoe_info)
 	}
 }
 
-void qed_fcoe_free(struct qed_hwfn *p_hwfn, struct qed_fcoe_info *p_fcoe_info)
+void qed_fcoe_free(struct qed_hwfn *p_hwfn)
 {
 	struct qed_fcoe_conn *p_conn = NULL;
 
-	if (!p_fcoe_info)
+	if (!p_hwfn->p_fcoe_info)
 		return;
 
-	while (!list_empty(&p_fcoe_info->free_list)) {
-		p_conn = list_first_entry(&p_fcoe_info->free_list,
+	while (!list_empty(&p_hwfn->p_fcoe_info->free_list)) {
+		p_conn = list_first_entry(&p_hwfn->p_fcoe_info->free_list,
 					  struct qed_fcoe_conn, list_entry);
 		if (!p_conn)
 			break;
@@ -592,7 +594,8 @@ void qed_fcoe_free(struct qed_hwfn *p_hwfn, struct qed_fcoe_info *p_fcoe_info)
 		qed_fcoe_free_connection(p_hwfn, p_conn);
 	}
 
-	kfree(p_fcoe_info);
+	kfree(p_hwfn->p_fcoe_info);
+	p_hwfn->p_fcoe_info = NULL;
 }
 
 static int
