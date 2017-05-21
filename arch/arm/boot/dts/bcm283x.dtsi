@@ -589,6 +589,8 @@
 			#size-cells = <0>;
 			clocks = <&clk_usb>;
 			clock-names = "otg";
+			phys = <&usbphy>;
+			phy-names = "usb2-phy";
 		};
 
 		v3d: v3d@7ec00000 {
@@ -623,5 +625,9 @@
 			clock-output-names = "otg";
 			clock-frequency = <480000000>;
 		};
+	};
+
+	usbphy: phy {
+		compatible = "usb-nop-xceiv";
 	};
 };
