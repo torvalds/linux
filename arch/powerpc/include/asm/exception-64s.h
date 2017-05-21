@@ -46,12 +46,19 @@
 #define EX_DSISR	48
 #define EX_CCR		52
 #define EX_R3		56
-#define EX_LR		64
-#define EX_CFAR		72
-#define EX_PPR		80	/* SMT thread status register (priority) */
-#define EX_CTR		88
+#define EX_CFAR		64
+#define EX_PPR		72
+#define EX_CTR		80
 
-#define EX_SIZE		12	/* size in u64 units */
+#define EX_SIZE		11	/* size in u64 units */
+
+/*
+ * EX_LR is only used in EXSLB and where it does not overlap with EX_DAR
+ * EX_CCR similarly with DSISR, but being 4 byte registers there is a hole
+ * in the save area so it's not necessary to overlap them. Could be used
+ * for future savings though if another 4 byte register was to be saved.
+ */
+#define EX_LR		EX_DAR
 
 #ifdef CONFIG_RELOCATABLE
 #define __EXCEPTION_RELON_PROLOG_PSERIES_1(label, h)			\
