@@ -1995,7 +1995,7 @@ static struct adp5588_gpio_platform_data adp5588_gpio_data = {
 #endif
 
 #if IS_ENABLED(CONFIG_BACKLIGHT_ADP8870)
-#include <linux/i2c/adp8870.h>
+#include <linux/platform_data/adp8870.h>
 static struct led_info adp8870_leds[] = {
 	{
 		.name = "adp8870-led7",
