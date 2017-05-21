@@ -2047,7 +2047,7 @@ static struct adp8870_backlight_platform_data adp8870_pdata = {
 #endif
 
 #if IS_ENABLED(CONFIG_BACKLIGHT_ADP8860)
-#include <linux/i2c/adp8860.h>
+#include <linux/platform_data/adp8860.h>
 static struct led_info adp8860_leds[] = {
 	{
 		.name = "adp8860-led7",
