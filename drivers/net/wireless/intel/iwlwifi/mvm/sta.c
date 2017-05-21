@@ -398,7 +398,7 @@ static int iwl_mvm_get_queue_agg_tids(struct iwl_mvm *mvm, int queue)
 	struct iwl_mvm_sta *mvmsta;
 	unsigned long tid_bitmap;
 	unsigned long agg_tids = 0;
-	s8 sta_id;
+	u8 sta_id;
 	int tid;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -989,7 +989,7 @@ static void iwl_mvm_unshare_queue(struct iwl_mvm *mvm, int queue)
 {
 	struct ieee80211_sta *sta;
 	struct iwl_mvm_sta *mvmsta;
-	s8 sta_id;
+	u8 sta_id;
 	int tid = -1;
 	unsigned long tid_bitmap;
 	unsigned int wdg_timeout;
