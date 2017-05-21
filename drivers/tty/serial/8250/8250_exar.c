@@ -9,6 +9,7 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License.
  */
+#include <linux/acpi.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -197,6 +198,7 @@ xr17v35x_register_gpio(struct pci_dev *pcidev)
 		return NULL;
 
 	pdev->dev.parent = &pcidev->dev;
+	ACPI_COMPANION_SET(&pdev->dev, ACPI_COMPANION(&pcidev->dev));
 
 	if (platform_device_add(pdev) < 0) {
 		platform_device_put(pdev);
