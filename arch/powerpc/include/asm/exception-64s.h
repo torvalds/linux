@@ -47,9 +47,12 @@
 #define EX_CCR		52
 #define EX_CFAR		56
 #define EX_PPR		64
+#if defined(CONFIG_RELOCATABLE)
 #define EX_CTR		72
-
 #define EX_SIZE		10	/* size in u64 units */
+#else
+#define EX_SIZE		9	/* size in u64 units */
+#endif
 
 /*
  * EX_LR is only used in EXSLB and where it does not overlap with EX_DAR
