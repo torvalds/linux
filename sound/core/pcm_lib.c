@@ -1994,12 +1994,12 @@ static int wait_for_avail(struct snd_pcm_substream *substream,
 }
 	
 typedef int (*transfer_f)(struct snd_pcm_substream *substream, unsigned int hwoff,
-			  unsigned long data, unsigned int off,
+			  void  *data, unsigned int off,
 			  snd_pcm_uframes_t size);
 
 static int snd_pcm_lib_write_transfer(struct snd_pcm_substream *substream,
 				      unsigned int hwoff,
-				      unsigned long data, unsigned int off,
+				      void *data, unsigned int off,
 				      snd_pcm_uframes_t frames)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -2021,7 +2021,7 @@ static int snd_pcm_lib_write_transfer(struct snd_pcm_substream *substream,
  
 static int snd_pcm_lib_writev_transfer(struct snd_pcm_substream *substream,
 				       unsigned int hwoff,
-				       unsigned long data, unsigned int off,
+				       void *data, unsigned int off,
 				       snd_pcm_uframes_t frames)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -2098,20 +2098,38 @@ static int pcm_accessible_state(struct snd_pcm_runtime *runtime)
 	}
 }
 
-static snd_pcm_sframes_t snd_pcm_lib_write1(struct snd_pcm_substream *substream, 
-					    unsigned long data,
-					    snd_pcm_uframes_t size,
-					    int nonblock,
-					    transfer_f transfer)
+snd_pcm_sframes_t __snd_pcm_lib_write(struct snd_pcm_substream *substream,
+				      void *data, bool interleaved,
+				      snd_pcm_uframes_t size)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	snd_pcm_uframes_t xfer = 0;
 	snd_pcm_uframes_t offset = 0;
 	snd_pcm_uframes_t avail;
-	int err = 0;
+	transfer_f transfer;
+	bool nonblock;
+	int err;
+
+	err = pcm_sanity_check(substream);
+	if (err < 0)
+		return err;
+	runtime = substream->runtime;
+
+	if (interleaved) {
+		if (runtime->access != SNDRV_PCM_ACCESS_RW_INTERLEAVED &&
+		    runtime->channels > 1)
+			return -EINVAL;
+		transfer = snd_pcm_lib_write_transfer;
+	} else {
+		if (runtime->access != SNDRV_PCM_ACCESS_RW_NONINTERLEAVED)
+			return -EINVAL;
+		transfer = snd_pcm_lib_writev_transfer;
+	}
 
 	if (size == 0)
 		return 0;
+
+	nonblock = !!(substream->f_flags & O_NONBLOCK);
 
 	snd_pcm_stream_lock_irq(substream);
 	err = pcm_accessible_state(runtime);
@@ -2180,53 +2198,11 @@ static snd_pcm_sframes_t snd_pcm_lib_write1(struct snd_pcm_substream *substream,
 	snd_pcm_stream_unlock_irq(substream);
 	return xfer > 0 ? (snd_pcm_sframes_t)xfer : err;
 }
-
-snd_pcm_sframes_t snd_pcm_lib_write(struct snd_pcm_substream *substream, const void __user *buf, snd_pcm_uframes_t size)
-{
-	struct snd_pcm_runtime *runtime;
-	int nonblock;
-	int err;
-
-	err = pcm_sanity_check(substream);
-	if (err < 0)
-		return err;
-	runtime = substream->runtime;
-	nonblock = !!(substream->f_flags & O_NONBLOCK);
-
-	if (runtime->access != SNDRV_PCM_ACCESS_RW_INTERLEAVED &&
-	    runtime->channels > 1)
-		return -EINVAL;
-	return snd_pcm_lib_write1(substream, (unsigned long)buf, size, nonblock,
-				  snd_pcm_lib_write_transfer);
-}
-
-EXPORT_SYMBOL(snd_pcm_lib_write);
-
-snd_pcm_sframes_t snd_pcm_lib_writev(struct snd_pcm_substream *substream,
-				     void __user **bufs,
-				     snd_pcm_uframes_t frames)
-{
-	struct snd_pcm_runtime *runtime;
-	int nonblock;
-	int err;
-
-	err = pcm_sanity_check(substream);
-	if (err < 0)
-		return err;
-	runtime = substream->runtime;
-	nonblock = !!(substream->f_flags & O_NONBLOCK);
-
-	if (runtime->access != SNDRV_PCM_ACCESS_RW_NONINTERLEAVED)
-		return -EINVAL;
-	return snd_pcm_lib_write1(substream, (unsigned long)bufs, frames,
-				  nonblock, snd_pcm_lib_writev_transfer);
-}
-
-EXPORT_SYMBOL(snd_pcm_lib_writev);
+EXPORT_SYMBOL(__snd_pcm_lib_write);
 
 static int snd_pcm_lib_read_transfer(struct snd_pcm_substream *substream, 
 				     unsigned int hwoff,
-				     unsigned long data, unsigned int off,
+				     void *data, unsigned int off,
 				     snd_pcm_uframes_t frames)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -2248,7 +2224,7 @@ static int snd_pcm_lib_read_transfer(struct snd_pcm_substream *substream,
 
 static int snd_pcm_lib_readv_transfer(struct snd_pcm_substream *substream,
 				      unsigned int hwoff,
-				      unsigned long data, unsigned int off,
+				      void *data, unsigned int off,
 				      snd_pcm_uframes_t frames)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -2286,20 +2262,38 @@ static int snd_pcm_lib_readv_transfer(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static snd_pcm_sframes_t snd_pcm_lib_read1(struct snd_pcm_substream *substream,
-					   unsigned long data,
-					   snd_pcm_uframes_t size,
-					   int nonblock,
-					   transfer_f transfer)
+snd_pcm_sframes_t __snd_pcm_lib_read(struct snd_pcm_substream *substream,
+				     void *data, bool interleaved,
+				     snd_pcm_uframes_t size)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	snd_pcm_uframes_t xfer = 0;
 	snd_pcm_uframes_t offset = 0;
 	snd_pcm_uframes_t avail;
-	int err = 0;
+	transfer_f transfer;
+	bool nonblock;
+	int err;
+
+	err = pcm_sanity_check(substream);
+	if (err < 0)
+		return err;
+	runtime = substream->runtime;
+
+	if (interleaved) {
+		if (runtime->access != SNDRV_PCM_ACCESS_RW_INTERLEAVED &&
+		    runtime->channels > 1)
+			return -EINVAL;
+		transfer = snd_pcm_lib_read_transfer;
+	} else {
+		if (runtime->access != SNDRV_PCM_ACCESS_RW_NONINTERLEAVED)
+			return -EINVAL;
+		transfer = snd_pcm_lib_readv_transfer;
+	}
 
 	if (size == 0)
 		return 0;
+
+	nonblock = !!(substream->f_flags & O_NONBLOCK);
 
 	snd_pcm_stream_lock_irq(substream);
 	err = pcm_accessible_state(runtime);
@@ -2375,47 +2369,7 @@ static snd_pcm_sframes_t snd_pcm_lib_read1(struct snd_pcm_substream *substream,
 	snd_pcm_stream_unlock_irq(substream);
 	return xfer > 0 ? (snd_pcm_sframes_t)xfer : err;
 }
-
-snd_pcm_sframes_t snd_pcm_lib_read(struct snd_pcm_substream *substream, void __user *buf, snd_pcm_uframes_t size)
-{
-	struct snd_pcm_runtime *runtime;
-	int nonblock;
-	int err;
-	
-	err = pcm_sanity_check(substream);
-	if (err < 0)
-		return err;
-	runtime = substream->runtime;
-	nonblock = !!(substream->f_flags & O_NONBLOCK);
-	if (runtime->access != SNDRV_PCM_ACCESS_RW_INTERLEAVED)
-		return -EINVAL;
-	return snd_pcm_lib_read1(substream, (unsigned long)buf, size, nonblock, snd_pcm_lib_read_transfer);
-}
-
-EXPORT_SYMBOL(snd_pcm_lib_read);
-
-snd_pcm_sframes_t snd_pcm_lib_readv(struct snd_pcm_substream *substream,
-				    void __user **bufs,
-				    snd_pcm_uframes_t frames)
-{
-	struct snd_pcm_runtime *runtime;
-	int nonblock;
-	int err;
-
-	err = pcm_sanity_check(substream);
-	if (err < 0)
-		return err;
-	runtime = substream->runtime;
-	if (runtime->status->state == SNDRV_PCM_STATE_OPEN)
-		return -EBADFD;
-
-	nonblock = !!(substream->f_flags & O_NONBLOCK);
-	if (runtime->access != SNDRV_PCM_ACCESS_RW_NONINTERLEAVED)
-		return -EINVAL;
-	return snd_pcm_lib_read1(substream, (unsigned long)bufs, frames, nonblock, snd_pcm_lib_readv_transfer);
-}
-
-EXPORT_SYMBOL(snd_pcm_lib_readv);
+EXPORT_SYMBOL(__snd_pcm_lib_read);
 
 /*
  * standard channel mapping helpers

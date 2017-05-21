@@ -1072,15 +1072,40 @@ void snd_pcm_set_sync(struct snd_pcm_substream *substream);
 int snd_pcm_lib_ioctl(struct snd_pcm_substream *substream,
 		      unsigned int cmd, void *arg);                      
 void snd_pcm_period_elapsed(struct snd_pcm_substream *substream);
-snd_pcm_sframes_t snd_pcm_lib_write(struct snd_pcm_substream *substream,
-				    const void __user *buf,
-				    snd_pcm_uframes_t frames);
-snd_pcm_sframes_t snd_pcm_lib_read(struct snd_pcm_substream *substream,
-				   void __user *buf, snd_pcm_uframes_t frames);
-snd_pcm_sframes_t snd_pcm_lib_writev(struct snd_pcm_substream *substream,
-				     void __user **bufs, snd_pcm_uframes_t frames);
-snd_pcm_sframes_t snd_pcm_lib_readv(struct snd_pcm_substream *substream,
-				    void __user **bufs, snd_pcm_uframes_t frames);
+snd_pcm_sframes_t __snd_pcm_lib_write(struct snd_pcm_substream *substream,
+				      void *buf, bool interleaved,
+				      snd_pcm_uframes_t frames);
+snd_pcm_sframes_t __snd_pcm_lib_read(struct snd_pcm_substream *substream,
+				     void *buf, bool interleaved,
+				     snd_pcm_uframes_t frames);
+
+static inline snd_pcm_sframes_t
+snd_pcm_lib_write(struct snd_pcm_substream *substream,
+		  const void __user *buf, snd_pcm_uframes_t frames)
+{
+	return __snd_pcm_lib_write(substream, (void *)buf, true, frames);
+}
+
+static inline snd_pcm_sframes_t
+snd_pcm_lib_read(struct snd_pcm_substream *substream,
+		 void __user *buf, snd_pcm_uframes_t frames)
+{
+	return __snd_pcm_lib_read(substream, (void *)buf, true, frames);
+}
+
+static inline snd_pcm_sframes_t
+snd_pcm_lib_writev(struct snd_pcm_substream *substream,
+		   void __user **bufs, snd_pcm_uframes_t frames)
+{
+	return __snd_pcm_lib_write(substream, (void *)bufs, false, frames);
+}
+
+static inline snd_pcm_sframes_t
+snd_pcm_lib_readv(struct snd_pcm_substream *substream,
+		  void __user **bufs, snd_pcm_uframes_t frames)
+{
+	return __snd_pcm_lib_read(substream, (void *)bufs, false, frames);
+}
 
 int snd_pcm_limit_hw_rates(struct snd_pcm_runtime *runtime);
 unsigned int snd_pcm_rate_to_rate_bit(unsigned int rate);
