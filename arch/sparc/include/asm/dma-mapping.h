@@ -5,8 +5,6 @@
 #include <linux/mm.h>
 #include <linux/dma-debug.h>
 
-#define DMA_ERROR_CODE	(~(dma_addr_t)0x0)
-
 #define HAVE_ARCH_DMA_SUPPORTED 1
 int dma_supported(struct device *dev, u64 mask);
 
