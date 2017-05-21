@@ -1899,8 +1899,9 @@ static void qede_unload(struct qede_dev *edev, enum qede_unload_mode mode,
 	if (!is_locked)
 		__qede_lock(edev);
 
-	qede_roce_dev_event_close(edev);
 	edev->state = QEDE_STATE_CLOSED;
+
+	qede_roce_dev_event_close(edev);
 
 	/* Close OS Tx */
 	netif_tx_disable(edev->ndev);
