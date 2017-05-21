@@ -162,11 +162,9 @@ snd_pcm_sframes_t snd_pcm_oss_write3(struct snd_pcm_substream *substream,
 snd_pcm_sframes_t snd_pcm_oss_read3(struct snd_pcm_substream *substream,
 				    char *ptr, snd_pcm_uframes_t size, int in_kernel);
 snd_pcm_sframes_t snd_pcm_oss_writev3(struct snd_pcm_substream *substream,
-				      void **bufs, snd_pcm_uframes_t frames,
-				      int in_kernel);
+				      void **bufs, snd_pcm_uframes_t frames);
 snd_pcm_sframes_t snd_pcm_oss_readv3(struct snd_pcm_substream *substream,
-				     void **bufs, snd_pcm_uframes_t frames,
-				     int in_kernel);
+				     void **bufs, snd_pcm_uframes_t frames);
 
 #else
 
