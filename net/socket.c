@@ -461,7 +461,7 @@ EXPORT_SYMBOL(sock_from_file);
  *	@err: pointer to an error code return
  *
  *	The file handle passed in is locked and the socket it is bound
- *	too is returned. If an error occurs the err pointer is overwritten
+ *	to is returned. If an error occurs the err pointer is overwritten
  *	with a negative errno code and NULL is returned. The function checks
  *	for both invalid handles and passing a handle which is not a socket.
  *
