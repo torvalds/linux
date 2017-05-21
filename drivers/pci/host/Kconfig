@@ -180,6 +180,17 @@ config PCIE_ROCKCHIP
 	  There is 1 internal PCIe port available to support GEN2 with
 	  4 slots.
 
+config PCIE_MEDIATEK
+	bool "MediaTek PCIe controller"
+	depends on ARM && (ARCH_MEDIATEK || COMPILE_TEST)
+	depends on OF
+	depends on PCI
+	select PCIEPORTBUS
+	help
+	  Say Y here if you want to enable PCIe controller support on
+	  MT7623 series SoCs.  There is one single root complex with 3 root
+	  ports available.  Each port supports Gen2 lane x1.
+
 config VMD
 	depends on PCI_MSI && X86_64 && SRCU
 	tristate "Intel Volume Management Device Driver"
