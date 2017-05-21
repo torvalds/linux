@@ -1586,7 +1586,7 @@ static void nf_conntrack_attach(struct sk_buff *nskb, const struct sk_buff *skb)
 
 /* Bring out ya dead! */
 static struct nf_conn *
-get_next_corpse(struct net *net, int (*iter)(struct nf_conn *i, void *data),
+get_next_corpse(int (*iter)(struct nf_conn *i, void *data),
 		void *data, unsigned int *bucket)
 {
 	struct nf_conntrack_tuple_hash *h;
@@ -1603,8 +1603,7 @@ get_next_corpse(struct net *net, int (*iter)(struct nf_conn *i, void *data),
 				if (NF_CT_DIRECTION(h) != IP_CT_DIR_ORIGINAL)
 					continue;
 				ct = nf_ct_tuplehash_to_ctrack(h);
-				if (net_eq(nf_ct_net(ct), net) &&
-				    iter(ct, data))
+				if (iter(ct, data))
 					goto found;
 			}
 		}
@@ -1619,6 +1618,39 @@ found:
 	spin_unlock(lockp);
 	local_bh_enable();
 	return ct;
+}
+
+static void nf_ct_iterate_cleanup(int (*iter)(struct nf_conn *i, void *data),
+				  void *data, u32 portid, int report)
+{
+	struct nf_conn *ct;
+	unsigned int bucket = 0;
+
+	might_sleep();
+
+	while ((ct = get_next_corpse(iter, data, &bucket)) != NULL) {
+		/* Time to push up daises... */
+
+		nf_ct_delete(ct, portid, report);
+		nf_ct_put(ct);
+		cond_resched();
+	}
+}
+
+struct iter_data {
+	int (*iter)(struct nf_conn *i, void *data);
+	void *data;
+	struct net *net;
+};
+
+static int iter_net_only(struct nf_conn *i, void *data)
+{
+	struct iter_data *d = data;
+
+	if (!net_eq(d->net, nf_ct_net(i)))
+		return 0;
+
+	return d->iter(i, d->data);
 }
 
 static void
@@ -1653,8 +1685,7 @@ void nf_ct_iterate_cleanup_net(struct net *net,
 			       int (*iter)(struct nf_conn *i, void *data),
 			       void *data, u32 portid, int report)
 {
-	struct nf_conn *ct;
-	unsigned int bucket = 0;
+	struct iter_data d;
 
 	might_sleep();
 
@@ -1663,21 +1694,51 @@ void nf_ct_iterate_cleanup_net(struct net *net,
 
 	__nf_ct_unconfirmed_destroy(net);
 
+	d.iter = iter;
+	d.data = data;
+	d.net = net;
+
 	synchronize_net();
 
-	while ((ct = get_next_corpse(net, iter, data, &bucket)) != NULL) {
-		/* Time to push up daises... */
-
-		nf_ct_delete(ct, portid, report);
-		nf_ct_put(ct);
-		cond_resched();
-	}
+	nf_ct_iterate_cleanup(iter_net_only, &d, portid, report);
 }
 EXPORT_SYMBOL_GPL(nf_ct_iterate_cleanup_net);
 
+/**
+ * nf_ct_iterate_destroy - destroy unconfirmed conntracks and iterate table
+ * @iter: callback to invoke for each conntrack
+ * @data: data to pass to @iter
+ *
+ * Like nf_ct_iterate_cleanup, but first marks conntracks on the
+ * unconfirmed list as dying (so they will not be inserted into
+ * main table).
+ */
+void
+nf_ct_iterate_destroy(int (*iter)(struct nf_conn *i, void *data), void *data)
+{
+	struct net *net;
+
+	rtnl_lock();
+	for_each_net(net) {
+		if (atomic_read(&net->ct.count) == 0)
+			continue;
+		__nf_ct_unconfirmed_destroy(net);
+	}
+	rtnl_unlock();
+
+	/* a conntrack could have been unlinked from unconfirmed list
+	 * before we grabbed pcpu lock in __nf_ct_unconfirmed_destroy().
+	 * This makes sure its inserted into conntrack table.
+	 */
+	synchronize_net();
+
+	nf_ct_iterate_cleanup(iter, data, 0, 0);
+}
+EXPORT_SYMBOL_GPL(nf_ct_iterate_destroy);
+
 static int kill_all(struct nf_conn *i, void *data)
 {
-	return 1;
+	return net_eq(nf_ct_net(i), data);
 }
 
 void nf_ct_free_hashtable(void *hash, unsigned int size)
@@ -1742,7 +1803,7 @@ void nf_conntrack_cleanup_net_list(struct list_head *net_exit_list)
 i_see_dead_people:
 	busy = 0;
 	list_for_each_entry(net, net_exit_list, exit_list) {
-		nf_ct_iterate_cleanup_net(net, kill_all, NULL, 0, 0);
+		nf_ct_iterate_cleanup(kill_all, net, 0, 0);
 		if (atomic_read(&net->ct.count) != 0)
 			busy = 1;
 	}
