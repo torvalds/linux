@@ -522,7 +522,6 @@ EXC_REAL_BEGIN(data_access_slb, 0x380, 0x80)
 	 * because the distance from here to there depends on where
 	 * the kernel ends up being put.
 	 */
-	mfctr	r11
 	LOAD_HANDLER(r10, slb_miss_realmode)
 	mtctr	r10
 	bctr
@@ -545,7 +544,6 @@ EXC_VIRT_BEGIN(data_access_slb, 0x4380, 0x80)
 	 * because the distance from here to there depends on where
 	 * the kernel ends up being put.
 	 */
-	mfctr	r11
 	LOAD_HANDLER(r10, slb_miss_realmode)
 	mtctr	r10
 	bctr
@@ -585,7 +583,6 @@ EXC_REAL_BEGIN(instruction_access_slb, 0x480, 0x80)
 #ifndef CONFIG_RELOCATABLE
 	b	slb_miss_realmode
 #else
-	mfctr	r11
 	LOAD_HANDLER(r10, slb_miss_realmode)
 	mtctr	r10
 	bctr
@@ -603,7 +600,6 @@ EXC_VIRT_BEGIN(instruction_access_slb, 0x4480, 0x80)
 #ifndef CONFIG_RELOCATABLE
 	b	slb_miss_realmode
 #else
-	mfctr	r11
 	LOAD_HANDLER(r10, slb_miss_realmode)
 	mtctr	r10
 	bctr
@@ -625,10 +621,6 @@ EXC_COMMON_BEGIN(slb_miss_realmode)
 	 * procedure.
 	 */
 	mflr	r10
-#ifdef CONFIG_RELOCATABLE
-	mtctr	r11
-#endif
-
 	stw	r9,PACA_EXSLB+EX_CCR(r13)	/* save CR in exc. frame */
 	std	r10,PACA_EXSLB+EX_LR(r13)	/* save LR */
 
@@ -657,6 +649,7 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
 	mtcrf	0x01,r9		/* slb_allocate uses cr0 and cr7 */
 .machine	pop
 
+	RESTORE_CTR(r9, PACA_EXSLB)
 	RESTORE_PPR_PACA(PACA_EXSLB, r9)
 	ld	r3,PACA_EXSLB+EX_R3(r13)
 	ld	r9,PACA_EXSLB+EX_R9(r13)
