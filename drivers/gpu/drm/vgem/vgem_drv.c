@@ -438,8 +438,8 @@ static int __init vgem_init(void)
 
 	vgem_device->platform =
 		platform_device_register_simple("vgem", -1, NULL, 0);
-	if (!vgem_device->platform) {
-		ret = -ENODEV;
+	if (IS_ERR(vgem_device->platform)) {
+		ret = PTR_ERR(vgem_device->platform);
 		goto out_fini;
 	}
 
