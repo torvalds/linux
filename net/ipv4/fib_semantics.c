@@ -454,7 +454,8 @@ static int fib_detect_death(struct fib_info *fi, int order,
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 
-static int fib_count_nexthops(struct rtnexthop *rtnh, int remaining)
+static int fib_count_nexthops(struct rtnexthop *rtnh, int remaining,
+			      struct netlink_ext_ack *extack)
 {
 	int nhs = 0;
 
@@ -468,7 +469,8 @@ static int fib_count_nexthops(struct rtnexthop *rtnh, int remaining)
 }
 
 static int fib_get_nhs(struct fib_info *fi, struct rtnexthop *rtnh,
-		       int remaining, struct fib_config *cfg)
+		       int remaining, struct fib_config *cfg,
+		       struct netlink_ext_ack *extack)
 {
 	int ret;
 
@@ -714,7 +716,7 @@ int fib_nh_match(struct fib_config *cfg, struct fib_info *fi)
  *					|-> {local prefix} (terminal node)
  */
 static int fib_check_nh(struct fib_config *cfg, struct fib_info *fi,
-			struct fib_nh *nh)
+			struct fib_nh *nh, struct netlink_ext_ack *extack)
 {
 	int err = 0;
 	struct net *net;
@@ -797,7 +799,6 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_info *fi,
 
 		if (nh->nh_flags & (RTNH_F_PERVASIVE | RTNH_F_ONLINK))
 			return -EINVAL;
-
 		rcu_read_lock();
 		err = -ENODEV;
 		in_dev = inetdev_by_index(net, nh->nh_oif);
@@ -980,7 +981,8 @@ fib_convert_metrics(struct fib_info *fi, const struct fib_config *cfg)
 	return 0;
 }
 
-struct fib_info *fib_create_info(struct fib_config *cfg)
+struct fib_info *fib_create_info(struct fib_config *cfg,
+				 struct netlink_ext_ack *extack)
 {
 	int err;
 	struct fib_info *fi = NULL;
@@ -1000,7 +1002,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	if (cfg->fc_mp) {
-		nhs = fib_count_nexthops(cfg->fc_mp, cfg->fc_mp_len);
+		nhs = fib_count_nexthops(cfg->fc_mp, cfg->fc_mp_len, extack);
 		if (nhs == 0)
 			goto err_inval;
 	}
@@ -1062,7 +1064,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 
 	if (cfg->fc_mp) {
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
-		err = fib_get_nhs(fi, cfg->fc_mp, cfg->fc_mp_len, cfg);
+		err = fib_get_nhs(fi, cfg->fc_mp, cfg->fc_mp_len, cfg, extack);
 		if (err != 0)
 			goto failure;
 		if (cfg->fc_oif && fi->fib_nh->nh_oif != cfg->fc_oif)
@@ -1129,7 +1131,9 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 		struct fib_nh *nh = fi->fib_nh;
 
 		/* Local address is added. */
-		if (nhs != 1 || nh->nh_gw)
+		if (nhs != 1)
+			goto err_inval;
+		if (nh->nh_gw)
 			goto err_inval;
 		nh->nh_scope = RT_SCOPE_NOWHERE;
 		nh->nh_dev = dev_get_by_index(net, fi->fib_nh->nh_oif);
@@ -1140,7 +1144,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 		int linkdown = 0;
 
 		change_nexthops(fi) {
-			err = fib_check_nh(cfg, fi, nexthop_nh);
+			err = fib_check_nh(cfg, fi, nexthop_nh, extack);
 			if (err != 0)
 				goto failure;
 			if (nexthop_nh->nh_flags & RTNH_F_LINKDOWN)
