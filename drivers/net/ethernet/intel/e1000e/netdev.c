@@ -3680,6 +3680,7 @@ static int e1000e_config_hwtstamp(struct e1000_adapter *adapter,
 		 * Delay Request messages but not both so fall-through to
 		 * time stamp all packets.
 		 */
+	case HWTSTAMP_FILTER_NTP_ALL:
 	case HWTSTAMP_FILTER_ALL:
 		is_l2 = true;
 		is_l4 = true;
@@ -5867,9 +5868,9 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 			adapter->tx_hwtstamp_skb = skb_get(skb);
 			adapter->tx_hwtstamp_start = jiffies;
 			schedule_work(&adapter->tx_hwtstamp_work);
-		} else {
-			skb_tx_timestamp(skb);
 		}
+
+		skb_tx_timestamp(skb);
 
 		netdev_sent_queue(netdev, skb->len);
 		e1000_tx_queue(tx_ring, tx_flags, count);

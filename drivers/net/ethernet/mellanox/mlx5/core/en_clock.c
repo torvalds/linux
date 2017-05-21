@@ -128,6 +128,7 @@ int mlx5e_hwstamp_set(struct net_device *dev, struct ifreq *ifr)
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+	case HWTSTAMP_FILTER_NTP_ALL:
 		/* Disable CQE compression */
 		netdev_warn(dev, "Disabling cqe compression");
 		err = mlx5e_modify_rx_cqe_compression_locked(priv, false);
