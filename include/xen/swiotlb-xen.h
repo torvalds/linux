@@ -1,69 +1,9 @@
 #ifndef __LINUX_SWIOTLB_XEN_H
 #define __LINUX_SWIOTLB_XEN_H
 
-#include <linux/dma-direction.h>
-#include <linux/scatterlist.h>
 #include <linux/swiotlb.h>
 
 extern int xen_swiotlb_init(int verbose, bool early);
+extern const struct dma_map_ops xen_swiotlb_dma_ops;
 
-extern void
-*xen_swiotlb_alloc_coherent(struct device *hwdev, size_t size,
-			    dma_addr_t *dma_handle, gfp_t flags,
-			    unsigned long attrs);
-
-extern void
-xen_swiotlb_free_coherent(struct device *hwdev, size_t size,
-			  void *vaddr, dma_addr_t dma_handle,
-			  unsigned long attrs);
-
-extern dma_addr_t xen_swiotlb_map_page(struct device *dev, struct page *page,
-				       unsigned long offset, size_t size,
-				       enum dma_data_direction dir,
-				       unsigned long attrs);
-
-extern void xen_swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,
-				   size_t size, enum dma_data_direction dir,
-				   unsigned long attrs);
-extern int
-xen_swiotlb_map_sg_attrs(struct device *hwdev, struct scatterlist *sgl,
-			 int nelems, enum dma_data_direction dir,
-			 unsigned long attrs);
-
-extern void
-xen_swiotlb_unmap_sg_attrs(struct device *hwdev, struct scatterlist *sgl,
-			   int nelems, enum dma_data_direction dir,
-			   unsigned long attrs);
-
-extern void
-xen_swiotlb_sync_single_for_cpu(struct device *hwdev, dma_addr_t dev_addr,
-				size_t size, enum dma_data_direction dir);
-
-extern void
-xen_swiotlb_sync_sg_for_cpu(struct device *hwdev, struct scatterlist *sg,
-			    int nelems, enum dma_data_direction dir);
-
-extern void
-xen_swiotlb_sync_single_for_device(struct device *hwdev, dma_addr_t dev_addr,
-				   size_t size, enum dma_data_direction dir);
-
-extern void
-xen_swiotlb_sync_sg_for_device(struct device *hwdev, struct scatterlist *sg,
-			       int nelems, enum dma_data_direction dir);
-
-extern int
-xen_swiotlb_dma_supported(struct device *hwdev, u64 mask);
-
-extern int
-xen_swiotlb_set_dma_mask(struct device *dev, u64 dma_mask);
-
-extern int
-xen_swiotlb_dma_mmap(struct device *dev, struct vm_area_struct *vma,
-		     void *cpu_addr, dma_addr_t dma_addr, size_t size,
-		     unsigned long attrs);
-
-extern int
-xen_swiotlb_get_sgtable(struct device *dev, struct sg_table *sgt,
-			void *cpu_addr, dma_addr_t handle, size_t size,
-			unsigned long attrs);
 #endif /* __LINUX_SWIOTLB_XEN_H */
