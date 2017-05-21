@@ -83,7 +83,7 @@
 		compatible = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		pinctrl-0 = <&keys_pin>;
+		pinctrl-0 = <&gpio_keys_pins>;
 		pinctrl-names = "default";
 
 		button@1 {
@@ -101,7 +101,7 @@
 
 	gpio_leds: gpio-leds {
 		compatible = "gpio-leds";
-		pinctrl-0 = <&power_led_pin &sata_led_pin>;
+		pinctrl-0 = <&gpio_leds_pins>;
 		pinctrl-names = "default";
 
 		power {
@@ -247,18 +247,15 @@
 };
 
 &pinctrl {
-	keys_pin: keys-pin {
+	gpio_keys_pins: gpio-keys-pins {
+		/* mpp24: wps, mpp29: reset */
 		marvell,pins = "mpp24", "mpp29";
 		marvell,function = "gpio";
 	};
 
-	power_led_pin: power-led-pin {
-		marvell,pins = "mpp55";
-		marvell,function = "gpio";
-	};
-
-	sata_led_pin: sata-led-pin {
-		marvell,pins = "mpp54";
+	gpio_leds_pins: gpio-leds-pins {
+		/* mpp54: sata, mpp55: power */
+		marvell,pins = "mpp54", "mpp55";
 		marvell,function = "gpio";
 	};
 
