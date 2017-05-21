@@ -656,6 +656,7 @@ static int rtm_to_fib_config(struct net *net, struct sk_buff *skb,
 	cfg->fc_nlinfo.nl_net = net;
 
 	if (cfg->fc_type > RTN_MAX) {
+		NL_SET_ERR_MSG(extack, "Invalid route type");
 		err = -EINVAL;
 		goto errout;
 	}
@@ -726,6 +727,7 @@ static int inet_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	tb = fib_get_table(net, cfg.fc_table);
 	if (!tb) {
+		NL_SET_ERR_MSG(extack, "FIB table does not exist");
 		err = -ESRCH;
 		goto errout;
 	}
