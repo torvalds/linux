@@ -22,7 +22,7 @@
 #include <linux/usb/isp1362.h>
 #endif
 #include <linux/i2c.h>
-#include <linux/i2c/adp5588.h>
+#include <linux/platform_data/adp5588.h>
 #include <linux/etherdevice.h>
 #include <linux/ata_platform.h>
 #include <linux/irq.h>
