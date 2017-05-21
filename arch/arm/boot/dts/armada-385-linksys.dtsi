@@ -63,16 +63,16 @@
 			  MBUS_ID(0x0c, 0x04) 0 0xf1200000 0x100000>;
 	};
 
-	usb3_phy: usb3_phy {
+	usb3_1_phy: usb3_1-phy {
 		compatible = "usb-nop-xceiv";
-		vcc-supply = <&reg_xhci0_vbus>;
+		vcc-supply = <&usb3_1_vbus>;
 	};
 
-	reg_xhci0_vbus: xhci0-vbus {
+	usb3_1_vbus: usb3_1-vbus {
 		compatible = "regulator-fixed";
 		pinctrl-names = "default";
-		pinctrl-0 = <&xhci0_vbus_pins>;
-		regulator-name = "xhci0-vbus";
+		pinctrl-0 = <&usb3_1_vbus_pins>;
+		regulator-name = "usb3_1-vbus";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
@@ -371,7 +371,7 @@
 		marvell,function = "gpio";
 	};
 
-	xhci0_vbus_pins: xhci0-vbus-pins {
+	usb3_1_vbus_pins: usb3_1-vbus-pins {
 		marvell,pins = "mpp50";
 		marvell,function = "gpio";
 	};
@@ -393,5 +393,5 @@
 
 &usb3_1 {
 	status = "okay";
-	usb-phy = <&usb3_phy>;
+	usb-phy = <&usb3_1_phy>;
 };
