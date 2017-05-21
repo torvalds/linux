@@ -1997,9 +1997,6 @@ static int qede_load(struct qede_dev *edev, enum qede_load_mode mode,
 		goto err4;
 	DP_INFO(edev, "Start VPORT, RXQ and TXQ succeeded\n");
 
-	/* Add primary mac and set Rx filters */
-	ether_addr_copy(edev->primary_mac, edev->ndev->dev_addr);
-
 	/* Program un-configured VLANs */
 	qede_configure_vlan_filters(edev);
 
