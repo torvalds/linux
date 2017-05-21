@@ -586,7 +586,7 @@ static void nf_nat_l4proto_clean(u8 l3proto, u8 l4proto)
 
 	rtnl_lock();
 	for_each_net(net)
-		nf_ct_iterate_cleanup(net, nf_nat_proto_remove, &clean, 0, 0);
+		nf_ct_iterate_cleanup_net(net, nf_nat_proto_remove, &clean, 0, 0);
 	rtnl_unlock();
 }
 
@@ -600,7 +600,7 @@ static void nf_nat_l3proto_clean(u8 l3proto)
 	rtnl_lock();
 
 	for_each_net(net)
-		nf_ct_iterate_cleanup(net, nf_nat_proto_remove, &clean, 0, 0);
+		nf_ct_iterate_cleanup_net(net, nf_nat_proto_remove, &clean, 0, 0);
 	rtnl_unlock();
 }
 
@@ -826,7 +826,7 @@ static void __net_exit nf_nat_net_exit(struct net *net)
 {
 	struct nf_nat_proto_clean clean = {};
 
-	nf_ct_iterate_cleanup(net, nf_nat_proto_clean, &clean, 0, 0);
+	nf_ct_iterate_cleanup_net(net, nf_nat_proto_clean, &clean, 0, 0);
 }
 
 static struct pernet_operations nf_nat_net_ops = {

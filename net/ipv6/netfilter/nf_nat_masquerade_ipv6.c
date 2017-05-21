@@ -75,8 +75,8 @@ static int masq_device_event(struct notifier_block *this,
 	struct net *net = dev_net(dev);
 
 	if (event == NETDEV_DOWN)
-		nf_ct_iterate_cleanup(net, device_cmp,
-				      (void *)(long)dev->ifindex, 0, 0);
+		nf_ct_iterate_cleanup_net(net, device_cmp,
+					  (void *)(long)dev->ifindex, 0, 0);
 
 	return NOTIFY_DONE;
 }
@@ -99,7 +99,7 @@ static void iterate_cleanup_work(struct work_struct *work)
 	w = container_of(work, struct masq_dev_work, work);
 
 	index = w->ifindex;
-	nf_ct_iterate_cleanup(w->net, device_cmp, (void *)index, 0, 0);
+	nf_ct_iterate_cleanup_net(w->net, device_cmp, (void *)index, 0, 0);
 
 	put_net(w->net);
 	kfree(w);
@@ -110,12 +110,12 @@ static void iterate_cleanup_work(struct work_struct *work)
 /* ipv6 inet notifier is an atomic notifier, i.e. we cannot
  * schedule.
  *
- * Unfortunately, nf_ct_iterate_cleanup can run for a long
+ * Unfortunately, nf_ct_iterate_cleanup_net can run for a long
  * time if there are lots of conntracks and the system
  * handles high softirq load, so it frequently calls cond_resched
  * while iterating the conntrack table.
  *
- * So we defer nf_ct_iterate_cleanup walk to the system workqueue.
+ * So we defer nf_ct_iterate_cleanup_net walk to the system workqueue.
  *
  * As we can have 'a lot' of inet_events (depending on amount
  * of ipv6 addresses being deleted), we also need to add an upper

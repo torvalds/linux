@@ -1117,8 +1117,8 @@ static int ctnetlink_flush_conntrack(struct net *net,
 			return PTR_ERR(filter);
 	}
 
-	nf_ct_iterate_cleanup(net, ctnetlink_filter_match, filter,
-			      portid, report);
+	nf_ct_iterate_cleanup_net(net, ctnetlink_filter_match, filter,
+				  portid, report);
 	kfree(filter);
 
 	return 0;

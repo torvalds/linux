@@ -1634,9 +1634,9 @@ found:
 	return ct;
 }
 
-void nf_ct_iterate_cleanup(struct net *net,
-			   int (*iter)(struct nf_conn *i, void *data),
-			   void *data, u32 portid, int report)
+void nf_ct_iterate_cleanup_net(struct net *net,
+			       int (*iter)(struct nf_conn *i, void *data),
+			       void *data, u32 portid, int report)
 {
 	struct nf_conn *ct;
 	unsigned int bucket = 0;
@@ -1654,7 +1654,7 @@ void nf_ct_iterate_cleanup(struct net *net,
 		cond_resched();
 	}
 }
-EXPORT_SYMBOL_GPL(nf_ct_iterate_cleanup);
+EXPORT_SYMBOL_GPL(nf_ct_iterate_cleanup_net);
 
 static int kill_all(struct nf_conn *i, void *data)
 {
@@ -1723,7 +1723,7 @@ void nf_conntrack_cleanup_net_list(struct list_head *net_exit_list)
 i_see_dead_people:
 	busy = 0;
 	list_for_each_entry(net, net_exit_list, exit_list) {
-		nf_ct_iterate_cleanup(net, kill_all, NULL, 0, 0);
+		nf_ct_iterate_cleanup_net(net, kill_all, NULL, 0, 0);
 		if (atomic_read(&net->ct.count) != 0)
 			busy = 1;
 	}
