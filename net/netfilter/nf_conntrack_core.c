@@ -1623,17 +1623,25 @@ found:
 static void nf_ct_iterate_cleanup(int (*iter)(struct nf_conn *i, void *data),
 				  void *data, u32 portid, int report)
 {
+	unsigned int bucket = 0, sequence;
 	struct nf_conn *ct;
-	unsigned int bucket = 0;
 
 	might_sleep();
 
-	while ((ct = get_next_corpse(iter, data, &bucket)) != NULL) {
-		/* Time to push up daises... */
+	for (;;) {
+		sequence = read_seqcount_begin(&nf_conntrack_generation);
 
-		nf_ct_delete(ct, portid, report);
-		nf_ct_put(ct);
-		cond_resched();
+		while ((ct = get_next_corpse(iter, data, &bucket)) != NULL) {
+			/* Time to push up daises... */
+
+			nf_ct_delete(ct, portid, report);
+			nf_ct_put(ct);
+			cond_resched();
+		}
+
+		if (!read_seqcount_retry(&nf_conntrack_generation, sequence))
+			break;
+		bucket = 0;
 	}
 }
 
