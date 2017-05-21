@@ -200,9 +200,9 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 	drm->dev_private = priv;
 
 	priv->regs = devm_ioremap_resource(dev, &amba_dev->res);
-	if (!priv->regs) {
+	if (IS_ERR(priv->regs)) {
 		dev_err(dev, "%s failed mmio\n", __func__);
-		return -EINVAL;
+		return PTR_ERR(priv->regs);
 	}
 
 	/* turn off interrupts before requesting the irq */
