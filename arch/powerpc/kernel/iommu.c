@@ -198,11 +198,11 @@ static unsigned long iommu_range_alloc(struct device *dev,
 	if (unlikely(npages == 0)) {
 		if (printk_ratelimit())
 			WARN_ON(1);
-		return DMA_ERROR_CODE;
+		return IOMMU_MAPPING_ERROR;
 	}
 
 	if (should_fail_iommu(dev))
-		return DMA_ERROR_CODE;
+		return IOMMU_MAPPING_ERROR;
 
 	/*
 	 * We don't need to disable preemption here because any CPU can
@@ -278,7 +278,7 @@ again:
 		} else {
 			/* Give up */
 			spin_unlock_irqrestore(&(pool->lock), flags);
-			return DMA_ERROR_CODE;
+			return IOMMU_MAPPING_ERROR;
 		}
 	}
 
@@ -310,13 +310,13 @@ static dma_addr_t iommu_alloc(struct device *dev, struct iommu_table *tbl,
 			      unsigned long attrs)
 {
 	unsigned long entry;
-	dma_addr_t ret = DMA_ERROR_CODE;
+	dma_addr_t ret = IOMMU_MAPPING_ERROR;
 	int build_fail;
 
 	entry = iommu_range_alloc(dev, tbl, npages, NULL, mask, align_order);
 
-	if (unlikely(entry == DMA_ERROR_CODE))
-		return DMA_ERROR_CODE;
+	if (unlikely(entry == IOMMU_MAPPING_ERROR))
+		return IOMMU_MAPPING_ERROR;
 
 	entry += tbl->it_offset;	/* Offset into real TCE table */
 	ret = entry << tbl->it_page_shift;	/* Set the return dma address */
@@ -328,12 +328,12 @@ static dma_addr_t iommu_alloc(struct device *dev, struct iommu_table *tbl,
 
 	/* tbl->it_ops->set() only returns non-zero for transient errors.
 	 * Clean up the table bitmap in this case and return
-	 * DMA_ERROR_CODE. For all other errors the functionality is
+	 * IOMMU_MAPPING_ERROR. For all other errors the functionality is
 	 * not altered.
 	 */
 	if (unlikely(build_fail)) {
 		__iommu_free(tbl, ret, npages);
-		return DMA_ERROR_CODE;
+		return IOMMU_MAPPING_ERROR;
 	}
 
 	/* Flush/invalidate TLB caches if necessary */
@@ -478,7 +478,7 @@ int ppc_iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 		DBG("  - vaddr: %lx, size: %lx\n", vaddr, slen);
 
 		/* Handle failure */
-		if (unlikely(entry == DMA_ERROR_CODE)) {
+		if (unlikely(entry == IOMMU_MAPPING_ERROR)) {
 			if (!(attrs & DMA_ATTR_NO_WARN) &&
 			    printk_ratelimit())
 				dev_info(dev, "iommu_alloc failed, tbl %p "
@@ -545,7 +545,7 @@ int ppc_iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 	 */
 	if (outcount < incount) {
 		outs = sg_next(outs);
-		outs->dma_address = DMA_ERROR_CODE;
+		outs->dma_address = IOMMU_MAPPING_ERROR;
 		outs->dma_length = 0;
 	}
 
@@ -563,7 +563,7 @@ int ppc_iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 			npages = iommu_num_pages(s->dma_address, s->dma_length,
 						 IOMMU_PAGE_SIZE(tbl));
 			__iommu_free(tbl, vaddr, npages);
-			s->dma_address = DMA_ERROR_CODE;
+			s->dma_address = IOMMU_MAPPING_ERROR;
 			s->dma_length = 0;
 		}
 		if (s == outs)
@@ -777,7 +777,7 @@ dma_addr_t iommu_map_page(struct device *dev, struct iommu_table *tbl,
 			  unsigned long mask, enum dma_data_direction direction,
 			  unsigned long attrs)
 {
-	dma_addr_t dma_handle = DMA_ERROR_CODE;
+	dma_addr_t dma_handle = IOMMU_MAPPING_ERROR;
 	void *vaddr;
 	unsigned long uaddr;
 	unsigned int npages, align;
@@ -797,7 +797,7 @@ dma_addr_t iommu_map_page(struct device *dev, struct iommu_table *tbl,
 		dma_handle = iommu_alloc(dev, tbl, vaddr, npages, direction,
 					 mask >> tbl->it_page_shift, align,
 					 attrs);
-		if (dma_handle == DMA_ERROR_CODE) {
+		if (dma_handle == IOMMU_MAPPING_ERROR) {
 			if (!(attrs & DMA_ATTR_NO_WARN) &&
 			    printk_ratelimit())  {
 				dev_info(dev, "iommu_alloc failed, tbl %p "
@@ -869,7 +869,7 @@ void *iommu_alloc_coherent(struct device *dev, struct iommu_table *tbl,
 	io_order = get_iommu_order(size, tbl);
 	mapping = iommu_alloc(dev, tbl, ret, nio_pages, DMA_BIDIRECTIONAL,
 			      mask >> tbl->it_page_shift, io_order, 0);
-	if (mapping == DMA_ERROR_CODE) {
+	if (mapping == IOMMU_MAPPING_ERROR) {
 		free_pages((unsigned long)ret, order);
 		return NULL;
 	}
