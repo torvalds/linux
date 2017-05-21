@@ -42,12 +42,14 @@ static int mlx5i_open(struct net_device *netdev);
 static int mlx5i_close(struct net_device *netdev);
 static int  mlx5i_dev_init(struct net_device *dev);
 static void mlx5i_dev_cleanup(struct net_device *dev);
+static int mlx5i_change_mtu(struct net_device *netdev, int new_mtu);
 
 static const struct net_device_ops mlx5i_netdev_ops = {
 	.ndo_open                = mlx5i_open,
 	.ndo_stop                = mlx5i_close,
 	.ndo_init                = mlx5i_dev_init,
 	.ndo_uninit              = mlx5i_dev_cleanup,
+	.ndo_change_mtu          = mlx5i_change_mtu,
 };
 
 /* IPoIB mlx5 netdev profile */
@@ -311,6 +313,35 @@ static const struct mlx5e_profile mlx5i_nic_profile = {
 };
 
 /* mlx5i netdev NDos */
+
+static int mlx5i_change_mtu(struct net_device *netdev, int new_mtu)
+{
+	struct mlx5e_priv *priv = mlx5i_epriv(netdev);
+	struct mlx5e_channels new_channels = {};
+	int curr_mtu;
+	int err = 0;
+
+	mutex_lock(&priv->state_lock);
+
+	curr_mtu    = netdev->mtu;
+	netdev->mtu = new_mtu;
+
+	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
+		goto out;
+
+	new_channels.params = priv->channels.params;
+	err = mlx5e_open_channels(priv, &new_channels);
+	if (err) {
+		netdev->mtu = curr_mtu;
+		goto out;
+	}
+
+	mlx5e_switch_priv_channels(priv, &new_channels, NULL);
+
+out:
+	mutex_unlock(&priv->state_lock);
+	return err;
+}
 
 static int mlx5i_dev_init(struct net_device *dev)
 {
