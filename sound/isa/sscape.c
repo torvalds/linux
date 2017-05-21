@@ -671,7 +671,7 @@ __skip_change:
 	return change;
 }
 
-static struct snd_kcontrol_new midi_mixer_ctl = {
+static const struct snd_kcontrol_new midi_mixer_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "MIDI",
 	.info = sscape_midi_info,

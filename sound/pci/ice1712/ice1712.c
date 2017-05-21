@@ -1401,7 +1401,7 @@ static struct snd_kcontrol_new snd_ice1712_multi_playback_ctrls[] = {
 	},
 };
 
-static struct snd_kcontrol_new snd_ice1712_multi_capture_analog_switch = {
+static const struct snd_kcontrol_new snd_ice1712_multi_capture_analog_switch = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "H/W Multi Capture Switch",
 	.info = snd_ice1712_pro_mixer_switch_info,
@@ -1420,7 +1420,7 @@ static const struct snd_kcontrol_new snd_ice1712_multi_capture_spdif_switch = {
 	.count = 2,
 };
 
-static struct snd_kcontrol_new snd_ice1712_multi_capture_analog_volume = {
+static const struct snd_kcontrol_new snd_ice1712_multi_capture_analog_volume = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
 		   SNDRV_CTL_ELEM_ACCESS_TLV_READ),
@@ -2165,7 +2165,7 @@ static int snd_ice1712_pro_route_spdif_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static struct snd_kcontrol_new snd_ice1712_mixer_pro_analog_route = {
+static const struct snd_kcontrol_new snd_ice1712_mixer_pro_analog_route = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "H/W Playback Route",
 	.info = snd_ice1712_pro_route_info,

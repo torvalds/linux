@@ -2371,7 +2371,7 @@ static int snd_cs46xx_front_dup_put(struct snd_kcontrol *kcontrol,
 				    ucontrol->value.integer.value[0] ? 0 : 0x200);
 }
 
-static struct snd_kcontrol_new snd_cs46xx_front_dup_ctl = {
+static const struct snd_kcontrol_new snd_cs46xx_front_dup_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Duplicate Front",
 	.info = snd_mixer_boolean_info,
