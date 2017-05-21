@@ -1072,12 +1072,15 @@ static int qede_set_num_queues(struct qede_dev *edev)
 	return rc;
 }
 
-static void qede_free_mem_sb(struct qede_dev *edev,
-			     struct qed_sb_info *sb_info)
+static void qede_free_mem_sb(struct qede_dev *edev, struct qed_sb_info *sb_info,
+			     u16 sb_id)
 {
-	if (sb_info->sb_virt)
+	if (sb_info->sb_virt) {
+		edev->ops->common->sb_release(edev->cdev, sb_info, sb_id);
 		dma_free_coherent(&edev->pdev->dev, sizeof(*sb_info->sb_virt),
 				  (void *)sb_info->sb_virt, sb_info->sb_phys);
+		memset(sb_info, 0, sizeof(*sb_info));
+	}
 }
 
 /* This function allocates fast-path status block memory */
@@ -1334,7 +1337,7 @@ err:
 /* This function frees all memory of a single fp */
 static void qede_free_mem_fp(struct qede_dev *edev, struct qede_fastpath *fp)
 {
-	qede_free_mem_sb(edev, fp->sb_info);
+	qede_free_mem_sb(edev, fp->sb_info, fp->id);
 
 	if (fp->type & QEDE_FASTPATH_RX)
 		qede_free_mem_rxq(edev, fp->rxq);
