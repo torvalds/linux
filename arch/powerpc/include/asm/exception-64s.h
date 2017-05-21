@@ -42,17 +42,16 @@
 #define EX_R11		16
 #define EX_R12		24
 #define EX_R13		32
-#define EX_SRR0		40
-#define EX_DAR		48
-#define EX_DSISR	56
-#define EX_CCR		60
-#define EX_R3		64
-#define EX_LR		72
-#define EX_CFAR		80
-#define EX_PPR		88	/* SMT thread status register (priority) */
-#define EX_CTR		96
+#define EX_DAR		40
+#define EX_DSISR	48
+#define EX_CCR		52
+#define EX_R3		56
+#define EX_LR		64
+#define EX_CFAR		72
+#define EX_PPR		80	/* SMT thread status register (priority) */
+#define EX_CTR		88
 
-#define EX_SIZE		13	/* size in u64 units */
+#define EX_SIZE		12	/* size in u64 units */
 
 #ifdef CONFIG_RELOCATABLE
 #define __EXCEPTION_RELON_PROLOG_PSERIES_1(label, h)			\
