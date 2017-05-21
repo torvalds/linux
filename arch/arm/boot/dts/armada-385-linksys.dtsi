@@ -180,8 +180,8 @@
 	status = "okay";
 	phy-mode = "rgmii-id";
 	buffer-manager = <&bm>;
-	bm,pool-long = <2>;
-	bm,pool-short = <3>;
+	bm,pool-long = <0>;
+	bm,pool-short = <1>;
 	fixed-link {
 		speed = <1000>;
 		full-duplex;
@@ -192,8 +192,8 @@
 	status = "okay";
 	phy-mode = "sgmii";
 	buffer-manager = <&bm>;
-	bm,pool-long = <0>;
-	bm,pool-short = <1>;
+	bm,pool-long = <2>;
+	bm,pool-short = <3>;
 	fixed-link {
 		speed = <1000>;
 		full-duplex;
