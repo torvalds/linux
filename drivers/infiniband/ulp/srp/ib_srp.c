@@ -320,7 +320,7 @@ static int srp_new_cm_id(struct srp_rdma_ch *ch)
 	ch->path.sgid = target->sgid;
 	ch->path.dgid = target->orig_dgid;
 	ch->path.pkey = target->pkey;
-	sa_path_set_service_id(&ch->path, target->service_id);
+	ch->path.service_id = target->service_id;
 
 	return 0;
 }
