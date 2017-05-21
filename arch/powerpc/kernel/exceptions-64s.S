@@ -631,7 +631,6 @@ EXC_COMMON_BEGIN(slb_miss_realmode)
 
 	stw	r9,PACA_EXSLB+EX_CCR(r13)	/* save CR in exc. frame */
 	std	r10,PACA_EXSLB+EX_LR(r13)	/* save LR */
-	std	r3,PACA_EXSLB+EX_DAR(r13)
 
 	crset	4*cr0+eq
 #ifdef CONFIG_PPC_STD_MMU_64
@@ -641,11 +640,10 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
 #endif
 
 	ld	r10,PACA_EXSLB+EX_LR(r13)
-	ld	r3,PACA_EXSLB+EX_R3(r13)
 	lwz	r9,PACA_EXSLB+EX_CCR(r13)	/* get saved CR */
 	mtlr	r10
 
-	beq	8f		/* if bad address, make full stack frame */
+	beq-	8f		/* if bad address, make full stack frame */
 
 	andi.	r10,r12,MSR_RI	/* check for unrecoverable exception */
 	beq-	2f
@@ -660,6 +658,7 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
 .machine	pop
 
 	RESTORE_PPR_PACA(PACA_EXSLB, r9)
+	ld	r3,PACA_EXSLB+EX_R3(r13)
 	ld	r9,PACA_EXSLB+EX_R9(r13)
 	ld	r10,PACA_EXSLB+EX_R10(r13)
 	ld	r11,PACA_EXSLB+EX_R11(r13)
@@ -668,7 +667,9 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
 	rfid
 	b	.	/* prevent speculative execution */
 
-2:	mfspr	r11,SPRN_SRR0
+2:	std     r3,PACA_EXSLB+EX_DAR(r13)
+	ld	r3,PACA_EXSLB+EX_R3(r13)
+	mfspr	r11,SPRN_SRR0
 	LOAD_HANDLER(r10,unrecov_slb)
 	mtspr	SPRN_SRR0,r10
 	ld	r10,PACAKMSR(r13)
@@ -676,7 +677,9 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
 	rfid
 	b	.
 
-8:	mfspr	r11,SPRN_SRR0
+8:	std     r3,PACA_EXSLB+EX_DAR(r13)
+	ld	r3,PACA_EXSLB+EX_R3(r13)
+	mfspr	r11,SPRN_SRR0
 	LOAD_HANDLER(r10,bad_addr_slb)
 	mtspr	SPRN_SRR0,r10
 	ld	r10,PACAKMSR(r13)
