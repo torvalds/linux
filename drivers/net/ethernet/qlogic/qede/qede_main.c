@@ -618,6 +618,12 @@ static struct qede_dev *qede_alloc_etherdev(struct qed_dev *cdev,
 	memset(&edev->stats, 0, sizeof(edev->stats));
 	memcpy(&edev->dev_info, info, sizeof(*info));
 
+	/* As ethtool doesn't have the ability to show WoL behavior as
+	 * 'default', if device supports it declare it's enabled.
+	 */
+	if (edev->dev_info.common.wol_support)
+		edev->wol_enabled = true;
+
 	INIT_LIST_HEAD(&edev->vlan_list);
 
 	return edev;
