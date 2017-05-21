@@ -40,6 +40,7 @@ Board compatible values (alphabetically, grouped by SoC):
 
   - "amlogic,p200" (Meson gxbb)
   - "amlogic,p201" (Meson gxbb)
+  - "friendlyarm,nanopi-k2" (Meson gxbb)
   - "hardkernel,odroid-c2" (Meson gxbb)
   - "nexbox,a95x" (Meson gxbb or Meson gxl s905x)
   - "tronsmart,vega-s95-pro", "tronsmart,vega-s95" (Meson gxbb)
