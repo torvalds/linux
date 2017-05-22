@@ -315,10 +315,10 @@ do {									\
 #define __get_user_asm_u64(x, ptr, retval, errret)			\
 ({									\
 	__typeof__(ptr) __ptr = (ptr);					\
-	asm volatile(ASM_STAC "\n"					\
+	asm volatile("\n"					\
 		     "1:	movl %2,%%eax\n"			\
 		     "2:	movl %3,%%edx\n"			\
-		     "3: " ASM_CLAC "\n"				\
+		     "3:\n"				\
 		     ".section .fixup,\"ax\"\n"				\
 		     "4:	mov %4,%0\n"				\
 		     "	xorl %%eax,%%eax\n"				\
@@ -327,7 +327,7 @@ do {									\
 		     ".previous\n"					\
 		     _ASM_EXTABLE(1b, 4b)				\
 		     _ASM_EXTABLE(2b, 4b)				\
-		     : "=r" (retval), "=A"(x)				\
+		     : "=r" (retval), "=&A"(x)				\
 		     : "m" (__m(__ptr)), "m" __m(((u32 *)(__ptr)) + 1),	\
 		       "i" (errret), "0" (retval));			\
 })
