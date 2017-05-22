@@ -282,10 +282,10 @@ static int zx_pinctrl_build_state(struct platform_device *pdev)
 	for (i = 0; i < ngroups; i++) {
 		const struct pinctrl_pin_desc *pindesc = info->pins + i;
 		struct group_desc *group = groups + i;
-		int id = pindesc->number;
 
 		group->name = pindesc->name;
-		group->pins = &id;
+		group->pins = (int *) &pindesc->number;
+		group->num_pins = 1;
 		radix_tree_insert(&pctldev->pin_group_tree, i, group);
 	}
 
