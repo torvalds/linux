@@ -92,7 +92,7 @@ struct inet_frags {
 	 */
 	u32			rnd;
 	seqlock_t		rnd_seqlock;
-	int			qsize;
+	unsigned int		qsize;
 
 	unsigned int		(*hashfn)(const struct inet_frag_queue *);
 	bool			(*match)(const struct inet_frag_queue *q,
