@@ -36,17 +36,10 @@ err:
 	return NULL;
 }
 
-
-
 static int parse_status(const char *value)
 {
 	int ret = 0;
 	char *c;
-
-
-	for (int i = 0; i < vhci_driver->nports; i++)
-		memset(&vhci_driver->idev[i], 0, sizeof(vhci_driver->idev[i]));
-
 
 	/* skip a header line */
 	c = strchr(value, '\n');
@@ -58,6 +51,7 @@ static int parse_status(const char *value)
 		int port, status, speed, devid;
 		unsigned long socket;
 		char lbusid[SYSFS_BUS_ID_SIZE];
+		struct usbip_imported_device *idev;
 
 		ret = sscanf(c, "%d %d %d %x %lx %31s\n",
 				&port, &status, &speed,
@@ -72,29 +66,27 @@ static int parse_status(const char *value)
 				port, status, speed, devid);
 		dbg("socket %lx lbusid %s", socket, lbusid);
 
-
 		/* if a device is connected, look at it */
-		{
-			struct usbip_imported_device *idev = &vhci_driver->idev[port];
+		idev = &vhci_driver->idev[port];
 
-			idev->port	= port;
-			idev->status	= status;
+		memset(idev, 0, sizeof(*idev));
 
-			idev->devid	= devid;
+		idev->port	= port;
+		idev->status	= status;
 
-			idev->busnum	= (devid >> 16);
-			idev->devnum	= (devid & 0x0000ffff);
+		idev->devid	= devid;
 
-			if (idev->status != VDEV_ST_NULL
-			    && idev->status != VDEV_ST_NOTASSIGNED) {
-				idev = imported_device_init(idev, lbusid);
-				if (!idev) {
-					dbg("imported_device_init failed");
-					return -1;
-				}
+		idev->busnum	= (devid >> 16);
+		idev->devnum	= (devid & 0x0000ffff);
+
+		if (idev->status != VDEV_ST_NULL
+		    && idev->status != VDEV_ST_NOTASSIGNED) {
+			idev = imported_device_init(idev, lbusid);
+			if (!idev) {
+				dbg("imported_device_init failed");
+				return -1;
 			}
 		}
-
 
 		/* go to the next line */
 		c = strchr(c, '\n');
