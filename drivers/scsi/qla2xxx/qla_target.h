@@ -862,7 +862,6 @@ struct qla_tgt_cmd {
 	struct se_cmd se_cmd;
 	struct fc_port *sess;
 	int state;
-	struct work_struct free_work;
 	struct work_struct work;
 	/* Sense buffer that will be mapped into outgoing status */
 	unsigned char sense_buffer[TRANSPORT_SENSE_BUFFER];
