@@ -3051,10 +3051,14 @@ enum skl_disp_power_wells {
 #define CLKCFG_FSB_667					(3 << 0)	/* hrawclk 166 */
 #define CLKCFG_FSB_800					(2 << 0)	/* hrawclk 200 */
 #define CLKCFG_FSB_1067					(6 << 0)	/* hrawclk 266 */
+#define CLKCFG_FSB_1067_ALT				(0 << 0)	/* hrawclk 266 */
 #define CLKCFG_FSB_1333					(7 << 0)	/* hrawclk 333 */
-/* Note, below two are guess */
-#define CLKCFG_FSB_1600					(4 << 0)	/* hrawclk 400 */
-#define CLKCFG_FSB_1600_ALT				(0 << 0)	/* hrawclk 400 */
+/*
+ * Note that on at least on ELK the below value is reported for both
+ * 333 and 400 MHz BIOS FSB setting, but given that the gmch datasheet
+ * lists only 200/266/333 MHz FSB as supported let's decode it as 333 MHz.
+ */
+#define CLKCFG_FSB_1333_ALT				(4 << 0)	/* hrawclk 333 */
 #define CLKCFG_FSB_MASK					(7 << 0)
 #define CLKCFG_MEM_533					(1 << 4)
 #define CLKCFG_MEM_667					(2 << 4)

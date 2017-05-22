@@ -58,7 +58,7 @@ parse_opts() { # opts
     ;;
     --verbose|-v|-vv)
       VERBOSE=$((VERBOSE + 1))
-      [ $1 == '-vv' ] && VERBOSE=$((VERBOSE + 1))
+      [ $1 = '-vv' ] && VERBOSE=$((VERBOSE + 1))
       shift 1
     ;;
     --debug|-d)

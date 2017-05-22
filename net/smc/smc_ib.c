@@ -37,24 +37,6 @@ u8 local_systemid[SMC_SYSTEMID_LEN] = SMC_LOCAL_SYSTEMID_RESET;	/* unique system
 								 * identifier
 								 */
 
-int smc_ib_get_memory_region(struct ib_pd *pd, int access_flags,
-			     struct ib_mr **mr)
-{
-	int rc;
-
-	if (*mr)
-		return 0; /* already done */
-
-	/* obtain unique key -
-	 * next invocation of get_dma_mr returns a different key!
-	 */
-	*mr = pd->device->get_dma_mr(pd, access_flags);
-	rc = PTR_ERR_OR_ZERO(*mr);
-	if (IS_ERR(*mr))
-		*mr = NULL;
-	return rc;
-}
-
 static int smc_ib_modify_qp_init(struct smc_link *lnk)
 {
 	struct ib_qp_attr qp_attr;
@@ -210,7 +192,8 @@ int smc_ib_create_protection_domain(struct smc_link *lnk)
 {
 	int rc;
 
-	lnk->roce_pd = ib_alloc_pd(lnk->smcibdev->ibdev, 0);
+	lnk->roce_pd = ib_alloc_pd(lnk->smcibdev->ibdev,
+				   IB_PD_UNSAFE_GLOBAL_RKEY);
 	rc = PTR_ERR_OR_ZERO(lnk->roce_pd);
 	if (IS_ERR(lnk->roce_pd))
 		lnk->roce_pd = NULL;

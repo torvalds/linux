@@ -40,27 +40,24 @@
 #include "eswitch.h"
 
 int mlx5_cmd_update_root_ft(struct mlx5_core_dev *dev,
-			    struct mlx5_flow_table *ft)
+			    struct mlx5_flow_table *ft, u32 underlay_qpn)
 {
 	u32 in[MLX5_ST_SZ_DW(set_flow_table_root_in)]   = {0};
 	u32 out[MLX5_ST_SZ_DW(set_flow_table_root_out)] = {0};
 
 	if ((MLX5_CAP_GEN(dev, port_type) == MLX5_CAP_PORT_TYPE_IB) &&
-	    ft->underlay_qpn == 0)
+	    underlay_qpn == 0)
 		return 0;
 
 	MLX5_SET(set_flow_table_root_in, in, opcode,
 		 MLX5_CMD_OP_SET_FLOW_TABLE_ROOT);
 	MLX5_SET(set_flow_table_root_in, in, table_type, ft->type);
 	MLX5_SET(set_flow_table_root_in, in, table_id, ft->id);
+	MLX5_SET(set_flow_table_root_in, in, underlay_qpn, underlay_qpn);
 	if (ft->vport) {
 		MLX5_SET(set_flow_table_root_in, in, vport_number, ft->vport);
 		MLX5_SET(set_flow_table_root_in, in, other_vport, 1);
 	}
-
-	if ((MLX5_CAP_GEN(dev, port_type) == MLX5_CAP_PORT_TYPE_IB) &&
-	    ft->underlay_qpn != 0)
-		MLX5_SET(set_flow_table_root_in, in, underlay_qpn, ft->underlay_qpn);
 
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
