@@ -146,7 +146,6 @@ static int capture_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *hw_params)
 {
 	struct snd_dice *dice = substream->private_data;
-	struct amdtp_stream *stream = &dice->tx_stream[substream->pcm->device];
 	int err;
 
 	err = snd_pcm_lib_alloc_vmalloc_buffer(substream,
@@ -159,8 +158,6 @@ static int capture_hw_params(struct snd_pcm_substream *substream,
 		dice->substreams_counter++;
 		mutex_unlock(&dice->mutex);
 	}
-
-	amdtp_am824_set_pcm_format(stream, params_format(hw_params));
 
 	return 0;
 }
@@ -168,7 +165,6 @@ static int playback_hw_params(struct snd_pcm_substream *substream,
 			      struct snd_pcm_hw_params *hw_params)
 {
 	struct snd_dice *dice = substream->private_data;
-	struct amdtp_stream *stream = &dice->rx_stream[substream->pcm->device];
 	int err;
 
 	err = snd_pcm_lib_alloc_vmalloc_buffer(substream,
@@ -181,8 +177,6 @@ static int playback_hw_params(struct snd_pcm_substream *substream,
 		dice->substreams_counter++;
 		mutex_unlock(&dice->mutex);
 	}
-
-	amdtp_am824_set_pcm_format(stream, params_format(hw_params));
 
 	return 0;
 }
