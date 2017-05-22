@@ -1808,10 +1808,9 @@ static int ca8210_skb_rx(
 
 	/* Allocate mtu size buffer for every rx packet */
 	skb = dev_alloc_skb(IEEE802154_MTU + sizeof(hdr));
-	if (!skb) {
-		dev_crit(&priv->spi->dev, "dev_alloc_skb failed\n");
+	if (!skb)
 		return -ENOMEM;
-	}
+
 	skb_reserve(skb, sizeof(hdr));
 
 	msdulen = data_ind[22]; /* msdu_length */
