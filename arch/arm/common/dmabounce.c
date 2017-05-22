@@ -33,6 +33,7 @@
 #include <linux/scatterlist.h>
 
 #include <asm/cacheflush.h>
+#include <asm/dma-iommu.h>
 
 #undef STATS
 
@@ -256,7 +257,7 @@ static inline dma_addr_t map_single(struct device *dev, void *ptr, size_t size,
 	if (buf == NULL) {
 		dev_err(dev, "%s: unable to map unsafe buffer %p!\n",
 		       __func__, ptr);
-		return DMA_ERROR_CODE;
+		return ARM_MAPPING_ERROR;
 	}
 
 	dev_dbg(dev, "%s: unsafe buffer %p (dma=%#x) mapped to %p (dma=%#x)\n",
@@ -326,7 +327,7 @@ static dma_addr_t dmabounce_map_page(struct device *dev, struct page *page,
 
 	ret = needs_bounce(dev, dma_addr, size);
 	if (ret < 0)
-		return DMA_ERROR_CODE;
+		return ARM_MAPPING_ERROR;
 
 	if (ret == 0) {
 		arm_dma_ops.sync_single_for_device(dev, dma_addr, size, dir);
@@ -335,7 +336,7 @@ static dma_addr_t dmabounce_map_page(struct device *dev, struct page *page,
 
 	if (PageHighMem(page)) {
 		dev_err(dev, "DMA buffer bouncing of HIGHMEM pages is not supported\n");
-		return DMA_ERROR_CODE;
+		return ARM_MAPPING_ERROR;
 	}
 
 	return map_single(dev, page_address(page) + offset, size, dir, attrs);
@@ -452,6 +453,11 @@ static int dmabounce_set_mask(struct device *dev, u64 dma_mask)
 	return arm_dma_ops.set_dma_mask(dev, dma_mask);
 }
 
+static int dmabounce_mapping_error(struct device *dev, dma_addr_t dma_addr)
+{
+	return arm_dma_ops.mapping_error(dev, dma_addr);
+}
+
 static const struct dma_map_ops dmabounce_ops = {
 	.alloc			= arm_dma_alloc,
 	.free			= arm_dma_free,
@@ -466,6 +472,7 @@ static const struct dma_map_ops dmabounce_ops = {
 	.sync_sg_for_cpu	= arm_dma_sync_sg_for_cpu,
 	.sync_sg_for_device	= arm_dma_sync_sg_for_device,
 	.set_dma_mask		= dmabounce_set_mask,
+	.mapping_error		= dmabounce_mapping_error,
 };
 
 static int dmabounce_init_pool(struct dmabounce_pool *pool, struct device *dev,
