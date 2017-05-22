@@ -267,7 +267,7 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 	nfp_netvf_get_mac_addr(nn);
 
 	num_irqs = nfp_net_irqs_alloc(pdev, vf->irq_entries,
-				      NFP_NET_MIN_PORT_IRQS,
+				      NFP_NET_MIN_VNIC_IRQS,
 				      NFP_NET_NON_Q_VECTORS +
 				      nn->dp.num_r_vecs);
 	if (!num_irqs) {
@@ -289,7 +289,7 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 
 	nfp_net_info(nn);
 	vf->ddir = nfp_net_debugfs_device_add(pdev);
-	nfp_net_debugfs_port_add(nn, vf->ddir, 0);
+	nfp_net_debugfs_vnic_add(nn, vf->ddir, 0);
 
 	return 0;
 

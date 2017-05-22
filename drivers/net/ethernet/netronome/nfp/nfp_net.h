@@ -84,7 +84,7 @@
 #define NFP_NET_NON_Q_VECTORS		2
 #define NFP_NET_IRQ_LSC_IDX		0
 #define NFP_NET_IRQ_EXN_IDX		1
-#define NFP_NET_MIN_PORT_IRQS		(NFP_NET_NON_Q_VECTORS + 1)
+#define NFP_NET_MIN_VNIC_IRQS		(NFP_NET_NON_Q_VECTORS + 1)
 
 /* Queue/Ring definitions */
 #define NFP_NET_MAX_TX_RINGS	64	/* Max. # of Tx rings per device */
@@ -555,7 +555,7 @@ struct nfp_net_dp {
  * @rx_bar:             Pointer to mapped FL/RX queues
  * @debugfs_dir:	Device directory in debugfs
  * @ethtool_dump_flag:	Ethtool dump flag
- * @port_list:		Entry on device port list
+ * @vnic_list:		Entry on device vNIC list
  * @pdev:		Backpointer to PCI device
  * @cpp:		CPP device handle if available
  * @eth_port:		Translated ETH Table port entry
@@ -625,7 +625,7 @@ struct nfp_net {
 	struct dentry *debugfs_dir;
 	u32 ethtool_dump_flag;
 
-	struct list_head port_list;
+	struct list_head vnic_list;
 
 	struct pci_dev *pdev;
 	struct nfp_cpp *cpp;
@@ -842,7 +842,7 @@ void nfp_net_refresh_port_table(struct nfp_net *nn);
 void nfp_net_debugfs_create(void);
 void nfp_net_debugfs_destroy(void);
 struct dentry *nfp_net_debugfs_device_add(struct pci_dev *pdev);
-void nfp_net_debugfs_port_add(struct nfp_net *nn, struct dentry *ddir, int id);
+void nfp_net_debugfs_vnic_add(struct nfp_net *nn, struct dentry *ddir, int id);
 void nfp_net_debugfs_dir_clean(struct dentry **dir);
 #else
 static inline void nfp_net_debugfs_create(void)
@@ -859,7 +859,7 @@ static inline struct dentry *nfp_net_debugfs_device_add(struct pci_dev *pdev)
 }
 
 static inline void
-nfp_net_debugfs_port_add(struct nfp_net *nn, struct dentry *ddir, int id)
+nfp_net_debugfs_vnic_add(struct nfp_net *nn, struct dentry *ddir, int id)
 {
 }
 
