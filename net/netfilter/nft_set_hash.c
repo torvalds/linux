@@ -365,22 +365,13 @@ static void nft_hash_destroy(const struct nft_set *set)
 static bool nft_hash_estimate(const struct nft_set_desc *desc, u32 features,
 			      struct nft_set_estimate *est)
 {
-	unsigned int esize;
-
-	esize = sizeof(struct nft_hash_elem);
-	if (desc->size) {
+	if (desc->size)
 		est->size = sizeof(struct nft_hash) +
 			    roundup_pow_of_two(desc->size * 4 / 3) *
 			    sizeof(struct nft_hash_elem *) +
-			    desc->size * esize;
-	} else {
-		/* Resizing happens when the load drops below 30% or goes
-		 * above 75%. The average of 52.5% load (approximated by 50%)
-		 * is used for the size estimation of the hash buckets,
-		 * meaning we calculate two buckets per element.
-		 */
-		est->size = esize + 2 * sizeof(struct nft_hash_elem *);
-	}
+			    desc->size * sizeof(struct nft_hash_elem);
+	else
+		est->size = ~0;
 
 	est->lookup = NFT_SET_CLASS_O_1;
 	est->space  = NFT_SET_CLASS_O_N;

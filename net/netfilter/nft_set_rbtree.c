@@ -283,13 +283,11 @@ static void nft_rbtree_destroy(const struct nft_set *set)
 static bool nft_rbtree_estimate(const struct nft_set_desc *desc, u32 features,
 				struct nft_set_estimate *est)
 {
-	unsigned int nsize;
-
-	nsize = sizeof(struct nft_rbtree_elem);
 	if (desc->size)
-		est->size = sizeof(struct nft_rbtree) + desc->size * nsize;
+		est->size = sizeof(struct nft_rbtree) +
+			    desc->size * sizeof(struct nft_rbtree_elem);
 	else
-		est->size = nsize;
+		est->size = ~0;
 
 	est->lookup = NFT_SET_CLASS_O_LOG_N;
 	est->space  = NFT_SET_CLASS_O_N;
