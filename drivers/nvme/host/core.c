@@ -1725,7 +1725,6 @@ static void nvme_ns_remove(struct nvme_ns *ns)
 		sysfs_remove_group(&disk_to_dev(ns->disk)->kobj,
 					&nvme_ns_attr_group);
 		del_gendisk(ns->disk);
-		blk_mq_abort_requeue_list(ns->queue);
 		blk_cleanup_queue(ns->queue);
 	}
 
@@ -2048,7 +2047,6 @@ void nvme_kill_queues(struct nvme_ctrl *ctrl)
 			continue;
 		revalidate_disk(ns->disk);
 		blk_set_queue_dying(ns->queue);
-		blk_mq_abort_requeue_list(ns->queue);
 
 		/*
 		 * Forcibly start all queues to avoid having stuck requests.
@@ -2056,6 +2054,9 @@ void nvme_kill_queues(struct nvme_ctrl *ctrl)
 		 * when the final removal happens.
 		 */
 		blk_mq_start_hw_queues(ns->queue);
+
+		/* draining requests in requeue list */
+		blk_mq_kick_requeue_list(ns->queue);
 	}
 	mutex_unlock(&ctrl->namespaces_mutex);
 }
