@@ -47,6 +47,38 @@ struct path;
 				 AA_MAY_CHMOD | AA_MAY_CHOWN | AA_MAY_LOCK | \
 				 AA_EXEC_MMAP | AA_MAY_LINK)
 
+/* struct aa_file_ctx - the AppArmor context the file was opened in
+ * @perms: the permission the file was opened with
+ *
+ * The file_ctx could currently be directly stored in file->f_security
+ * as the profile reference is now stored in the f_cred.  However the
+ * ctx struct will expand in the future so we keep the struct.
+ */
+struct aa_file_ctx {
+	u16 allow;
+};
+
+/**
+ * aa_alloc_file_context - allocate file_ctx
+ * @gfp: gfp flags for allocation
+ *
+ * Returns: file_ctx or NULL on failure
+ */
+static inline struct aa_file_ctx *aa_alloc_file_context(gfp_t gfp)
+{
+	return kzalloc(sizeof(struct aa_file_ctx), gfp);
+}
+
+/**
+ * aa_free_file_context - free a file_ctx
+ * @ctx: file_ctx to free  (MAYBE_NULL)
+ */
+static inline void aa_free_file_context(struct aa_file_ctx *ctx)
+{
+	if (ctx)
+		kzfree(ctx);
+}
+
 /*
  * The xindex is broken into 3 parts
  * - index - an index into either the exec name table or the variable table
