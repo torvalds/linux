@@ -268,16 +268,20 @@ static u8 __iomem *nfp_net_pf_map_ctrl_bar(struct nfp_pf *pf)
 	return ctrl_bar;
 }
 
+static void nfp_net_pf_free_vnic(struct nfp_pf *pf, struct nfp_net *nn)
+{
+	list_del(&nn->vnic_list);
+	pf->num_vnics--;
+	nfp_net_free(nn);
+}
+
 static void nfp_net_pf_free_vnics(struct nfp_pf *pf)
 {
 	struct nfp_net *nn;
 
 	while (!list_empty(&pf->vnics)) {
 		nn = list_first_entry(&pf->vnics, struct nfp_net, vnic_list);
-		list_del(&nn->vnic_list);
-		pf->num_vnics--;
-
-		nfp_net_free(nn);
+		nfp_net_pf_free_vnic(pf, nn);
 	}
 }
 
@@ -518,9 +522,7 @@ static void nfp_net_refresh_vnics(struct work_struct *work)
 		nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
 		nfp_net_clean(nn);
 
-		list_del(&nn->vnic_list);
-		pf->num_vnics--;
-		nfp_net_free(nn);
+		nfp_net_pf_free_vnic(pf, nn);
 	}
 
 	if (list_empty(&pf->vnics))
