@@ -288,11 +288,20 @@ static int octeon_mmc_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(&pdev->dev, "Error populating slots\n");
 			octeon_mmc_set_shared_power(host, 0);
-			return ret;
+			goto error;
 		}
 		i++;
 	}
 	return 0;
+
+error:
+	for (i = 0; i < CAVIUM_MAX_MMC; i++) {
+		if (host->slot[i])
+			cvm_mmc_of_slot_remove(host->slot[i]);
+		if (host->slot_pdev[i])
+			of_platform_device_destroy(&host->slot_pdev[i]->dev, NULL);
+	}
+	return ret;
 }
 
 static int octeon_mmc_remove(struct platform_device *pdev)
