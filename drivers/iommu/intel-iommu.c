@@ -2387,7 +2387,7 @@ static struct dmar_domain *find_domain(struct device *dev)
 
 	/* No lock here, assumes no domain exit in normal case */
 	info = dev->archdata.iommu;
-	if (info)
+	if (likely(info))
 		return info->domain;
 	return NULL;
 }
@@ -3475,7 +3475,7 @@ static unsigned long intel_alloc_iova(struct device *dev,
 	return iova_pfn;
 }
 
-static struct dmar_domain *__get_valid_domain_for_dev(struct device *dev)
+static struct dmar_domain *get_valid_domain_for_dev(struct device *dev)
 {
 	struct dmar_domain *domain, *tmp;
 	struct dmar_rmrr_unit *rmrr;
@@ -3520,18 +3520,6 @@ out:
 
 
 	return domain;
-}
-
-static inline struct dmar_domain *get_valid_domain_for_dev(struct device *dev)
-{
-	struct device_domain_info *info;
-
-	/* No lock here, assumes no domain exit in normal case */
-	info = dev->archdata.iommu;
-	if (likely(info))
-		return info->domain;
-
-	return __get_valid_domain_for_dev(dev);
 }
 
 /* Check if the dev needs to go through non-identity map and unmap process.*/
