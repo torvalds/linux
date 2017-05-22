@@ -251,7 +251,8 @@ cont:
 	read_unlock_bh(&priv->lock);
 }
 
-static unsigned int nft_rbtree_privsize(const struct nlattr * const nla[])
+static unsigned int nft_rbtree_privsize(const struct nlattr * const nla[],
+					const struct nft_set_desc *desc)
 {
 	return sizeof(struct nft_rbtree);
 }

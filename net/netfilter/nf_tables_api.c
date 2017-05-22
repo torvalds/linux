@@ -3052,7 +3052,7 @@ static int nf_tables_newset(struct net *net, struct sock *nlsk,
 
 	size = 0;
 	if (ops->privsize != NULL)
-		size = ops->privsize(nla);
+		size = ops->privsize(nla, &desc);
 
 	err = -ENOMEM;
 	set = kzalloc(sizeof(*set) + size + udlen, GFP_KERNEL);

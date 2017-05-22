@@ -351,7 +351,8 @@ struct nft_set_ops {
 						struct nft_set *set,
 						struct nft_set_iter *iter);
 
-	unsigned int			(*privsize)(const struct nlattr * const nla[]);
+	unsigned int			(*privsize)(const struct nlattr * const nla[],
+						    const struct nft_set_desc *desc);
 	bool				(*estimate)(const struct nft_set_desc *desc,
 						    u32 features,
 						    struct nft_set_estimate *est);
