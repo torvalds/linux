@@ -1488,6 +1488,9 @@ static int g33_do_reset(struct drm_i915_private *dev_priv, unsigned engine_mask)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 
+	/* Stop engines before we reset; see g4x_do_reset() below for why. */
+	gen3_stop_rings(dev_priv);
+
 	pci_write_config_byte(pdev, I915_GDRST, GRDOM_RESET_ENABLE);
 	return wait_for(g4x_reset_complete(pdev), 500);
 }
