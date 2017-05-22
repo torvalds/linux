@@ -197,12 +197,6 @@ int bnxt_re_dereg_mr(struct ib_mr *mr);
 struct ib_mw *bnxt_re_alloc_mw(struct ib_pd *ib_pd, enum ib_mw_type type,
 			       struct ib_udata *udata);
 int bnxt_re_dealloc_mw(struct ib_mw *mw);
-struct ib_fmr *bnxt_re_alloc_fmr(struct ib_pd *pd, int mr_access_flags,
-				 struct ib_fmr_attr *fmr_attr);
-int bnxt_re_map_phys_fmr(struct ib_fmr *fmr, u64 *page_list, int list_len,
-			 u64 iova);
-int bnxt_re_unmap_fmr(struct list_head *fmr_list);
-int bnxt_re_dealloc_fmr(struct ib_fmr *fmr);
 struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				  u64 virt_addr, int mr_access_flags,
 				  struct ib_udata *udata);
