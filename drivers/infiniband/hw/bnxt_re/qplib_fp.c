@@ -1298,6 +1298,9 @@ int bnxt_qplib_post_send(struct bnxt_qplib_qp *qp,
 	}
 
 	sq->hwq.prod++;
+
+	qp->wqe_cnt++;
+
 done:
 	return rc;
 }

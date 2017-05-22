@@ -2075,6 +2075,22 @@ static int bnxt_re_copy_wr_payload(struct bnxt_re_dev *rdev,
 	return payload_sz;
 }
 
+static void bnxt_ud_qp_hw_stall_workaround(struct bnxt_re_qp *qp)
+{
+	if ((qp->ib_qp.qp_type == IB_QPT_UD ||
+	     qp->ib_qp.qp_type == IB_QPT_GSI ||
+	     qp->ib_qp.qp_type == IB_QPT_RAW_ETHERTYPE) &&
+	     qp->qplib_qp.wqe_cnt == BNXT_RE_UD_QP_HW_STALL) {
+		int qp_attr_mask;
+		struct ib_qp_attr qp_attr;
+
+		qp_attr_mask = IB_QP_STATE;
+		qp_attr.qp_state = IB_QPS_RTS;
+		bnxt_re_modify_qp(&qp->ib_qp, &qp_attr, qp_attr_mask, NULL);
+		qp->qplib_qp.wqe_cnt = 0;
+	}
+}
+
 static int bnxt_re_post_send_shadow_qp(struct bnxt_re_dev *rdev,
 				       struct bnxt_re_qp *qp,
 				struct ib_send_wr *wr)
@@ -2120,6 +2136,7 @@ bad:
 		wr = wr->next;
 	}
 	bnxt_qplib_post_send_db(&qp->qplib_qp);
+	bnxt_ud_qp_hw_stall_workaround(qp);
 	spin_unlock_irqrestore(&qp->sq_lock, flags);
 	return rc;
 }
@@ -2216,6 +2233,7 @@ bad:
 		wr = wr->next;
 	}
 	bnxt_qplib_post_send_db(&qp->qplib_qp);
+	bnxt_ud_qp_hw_stall_workaround(qp);
 	spin_unlock_irqrestore(&qp->sq_lock, flags);
 
 	return rc;

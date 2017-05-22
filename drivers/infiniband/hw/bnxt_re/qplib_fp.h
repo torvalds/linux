@@ -250,6 +250,7 @@ struct bnxt_qplib_qp {
 	u8				timeout;
 	u8				retry_cnt;
 	u8				rnr_retry;
+	u64				wqe_cnt;
 	u32				min_rnr_timer;
 	u32				max_rd_atomic;
 	u32				max_dest_rd_atomic;
