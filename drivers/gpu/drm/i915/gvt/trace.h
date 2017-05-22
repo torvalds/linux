@@ -256,6 +256,106 @@ TRACE_EVENT(gvt_command,
 		__entry->ip_gma,
 		__print_array(__get_dynamic_array(raw_cmd), __entry->cmd_len, 4))
 );
+
+#define GVT_TEMP_STR_LEN 10
+TRACE_EVENT(write_ir,
+	TP_PROTO(int id, char *reg_name, unsigned int reg, unsigned int new_val,
+		 unsigned int old_val, bool changed),
+
+	TP_ARGS(id, reg_name, reg, new_val, old_val, changed),
+
+	TP_STRUCT__entry(
+		__field(int, id)
+		__array(char, buf, GVT_TEMP_STR_LEN)
+		__field(unsigned int, reg)
+		__field(unsigned int, new_val)
+		__field(unsigned int, old_val)
+		__field(bool, changed)
+	),
+
+	TP_fast_assign(
+		__entry->id = id;
+		snprintf(__entry->buf, GVT_TEMP_STR_LEN, "%s", reg_name);
+		__entry->reg = reg;
+		__entry->new_val = new_val;
+		__entry->old_val = old_val;
+		__entry->changed = changed;
+	),
+
+	TP_printk("VM%u write [%s] %x, new %08x, old %08x, changed %08x\n",
+		  __entry->id, __entry->buf, __entry->reg, __entry->new_val,
+		  __entry->old_val, __entry->changed)
+);
+
+TRACE_EVENT(propagate_event,
+	TP_PROTO(int id, const char *irq_name, int bit),
+
+	TP_ARGS(id, irq_name, bit),
+
+	TP_STRUCT__entry(
+		__field(int, id)
+		__array(char, buf, GVT_TEMP_STR_LEN)
+		__field(int, bit)
+	),
+
+	TP_fast_assign(
+		__entry->id = id;
+		snprintf(__entry->buf, GVT_TEMP_STR_LEN, "%s", irq_name);
+		__entry->bit = bit;
+	),
+
+	TP_printk("Set bit (%d) for (%s) for vgpu (%d)\n",
+		  __entry->bit, __entry->buf, __entry->id)
+);
+
+TRACE_EVENT(inject_msi,
+	TP_PROTO(int id, unsigned int address, unsigned int data),
+
+	TP_ARGS(id, address, data),
+
+	TP_STRUCT__entry(
+		__field(int, id)
+		__field(unsigned int, address)
+		__field(unsigned int, data)
+	),
+
+	TP_fast_assign(
+		__entry->id = id;
+		__entry->address = address;
+		__entry->data = data;
+	),
+
+	TP_printk("vgpu%d:inject msi address %x data %x\n",
+		  __entry->id, __entry->address, __entry->data)
+);
+
+TRACE_EVENT(render_mmio,
+	TP_PROTO(int id, char *action, unsigned int reg,
+		 unsigned int old_val, unsigned int new_val),
+
+	TP_ARGS(id, action, reg, new_val, old_val),
+
+	TP_STRUCT__entry(
+		__field(int, id)
+		__array(char, buf, GVT_TEMP_STR_LEN)
+		__field(unsigned int, reg)
+		__field(unsigned int, old_val)
+		__field(unsigned int, new_val)
+	),
+
+	TP_fast_assign(
+		__entry->id = id;
+		snprintf(__entry->buf, GVT_TEMP_STR_LEN, "%s", action);
+		__entry->reg = reg;
+		__entry->old_val = old_val;
+		__entry->new_val = new_val;
+	),
+
+	TP_printk("VM%u %s reg %x, old %08x new %08x\n",
+		  __entry->id, __entry->buf, __entry->reg,
+		  __entry->old_val, __entry->new_val)
+);
+
 #endif /* _GVT_TRACE_H_ */
 
 /* This part must be out of protection */

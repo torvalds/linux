@@ -35,6 +35,7 @@
 
 #include "i915_drv.h"
 #include "gvt.h"
+#include "trace.h"
 
 struct render_mmio {
 	int ring_id;
@@ -306,9 +307,9 @@ static void switch_mmio_to_vgpu(struct intel_vgpu *vgpu, int ring_id)
 		I915_WRITE(mmio->reg, v);
 		POSTING_READ(mmio->reg);
 
-		gvt_dbg_render("load reg %x old %x new %x\n",
-				i915_mmio_reg_offset(mmio->reg),
-				mmio->value, v);
+		trace_render_mmio(vgpu->id, "load",
+				  i915_mmio_reg_offset(mmio->reg),
+				  mmio->value, v);
 	}
 	handle_tlb_pending_event(vgpu, ring_id);
 }
@@ -345,9 +346,9 @@ static void switch_mmio_to_host(struct intel_vgpu *vgpu, int ring_id)
 		I915_WRITE(mmio->reg, v);
 		POSTING_READ(mmio->reg);
 
-		gvt_dbg_render("restore reg %x old %x new %x\n",
-				i915_mmio_reg_offset(mmio->reg),
-				mmio->value, v);
+		trace_render_mmio(vgpu->id, "restore",
+				  i915_mmio_reg_offset(mmio->reg),
+				  mmio->value, v);
 	}
 }
 

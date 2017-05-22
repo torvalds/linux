@@ -472,6 +472,7 @@ enum {
 	GVT_FAILSAFE_INSUFFICIENT_RESOURCE,
 };
 
+#include "trace.h"
 #include "mpt.h"
 
 #endif

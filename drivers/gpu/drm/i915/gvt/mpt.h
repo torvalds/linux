@@ -133,8 +133,7 @@ static inline int intel_gvt_hypervisor_inject_msi(struct intel_vgpu *vgpu)
 	if (WARN(control & GENMASK(15, 1), "only support one MSI format\n"))
 		return -EINVAL;
 
-	gvt_dbg_irq("vgpu%d: inject msi address %x data%x\n", vgpu->id, addr,
-		    data);
+	trace_inject_msi(vgpu->id, addr, data);
 
 	ret = intel_gvt_host.mpt->inject_msi(vgpu->handle, addr, data);
 	if (ret)
