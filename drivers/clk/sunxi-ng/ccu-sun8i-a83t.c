@@ -28,7 +28,7 @@
 
 #include "ccu-sun8i-a83t.h"
 
-#define CCU_SUN8I_A83T_LOCK_REG	0x208
+#define CCU_SUN8I_A83T_LOCK_REG	0x20c
 
 /*
  * The CPU PLLs are actually NP clocks, with P being /1 or /4. However
