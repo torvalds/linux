@@ -1450,8 +1450,7 @@ static struct dma_chan *sci_request_dma_chan(struct uart_port *port,
 	chan = dma_request_slave_channel(port->dev,
 					 dir == DMA_MEM_TO_DEV ? "tx" : "rx");
 	if (!chan) {
-		dev_warn(port->dev,
-			 "dma_request_slave_channel_compat failed\n");
+		dev_warn(port->dev, "dma_request_slave_channel failed\n");
 		return NULL;
 	}
 
