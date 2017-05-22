@@ -141,6 +141,11 @@ static const unsigned int nor_q_pins[]		= { PIN(BOOT_12, EE_OFF) };
 static const unsigned int nor_c_pins[]		= { PIN(BOOT_13, EE_OFF) };
 static const unsigned int nor_cs_pins[]		= { PIN(BOOT_15, EE_OFF) };
 
+static const unsigned int spi_mosi_pins[]	= { PIN(GPIOX_8, EE_OFF) };
+static const unsigned int spi_miso_pins[]	= { PIN(GPIOX_9, EE_OFF) };
+static const unsigned int spi_ss0_pins[]	= { PIN(GPIOX_10, EE_OFF) };
+static const unsigned int spi_sclk_pins[]	= { PIN(GPIOX_11, EE_OFF) };
+
 static const unsigned int sdcard_d0_pins[] = { PIN(CARD_1, EE_OFF) };
 static const unsigned int sdcard_d1_pins[] = { PIN(CARD_0, EE_OFF) };
 static const unsigned int sdcard_d2_pins[] = { PIN(CARD_5, EE_OFF) };
@@ -405,6 +410,10 @@ static struct meson_pmx_group meson_gxl_periphs_groups[] = {
 	GROUP(pwm_a,		5,	25),
 	GROUP(pwm_e,		5,	15),
 	GROUP(pwm_f_x,		5,	14),
+	GROUP(spi_mosi,		5,	3),
+	GROUP(spi_miso,		5,	2),
+	GROUP(spi_ss0,		5,	1),
+	GROUP(spi_sclk,		5,	0),
 
 	/* Bank Z */
 	GROUP(eth_mdio,		4,	23),
@@ -560,6 +569,10 @@ static const char * const nor_groups[] = {
 	"nor_d", "nor_q", "nor_c", "nor_cs",
 };
 
+static const char * const spi_groups[] = {
+	"spi_mosi", "spi_miso", "spi_ss0", "spi_sclk",
+};
+
 static const char * const sdcard_groups[] = {
 	"sdcard_d0", "sdcard_d1", "sdcard_d2", "sdcard_d3",
 	"sdcard_cmd", "sdcard_clk",
@@ -693,6 +706,7 @@ static struct meson_pmx_func meson_gxl_periphs_functions[] = {
 	FUNCTION(gpio_periphs),
 	FUNCTION(emmc),
 	FUNCTION(nor),
+	FUNCTION(spi),
 	FUNCTION(sdcard),
 	FUNCTION(sdio),
 	FUNCTION(nand),
