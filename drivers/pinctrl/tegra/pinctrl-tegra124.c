@@ -1,6 +1,8 @@
 /*
  * Pinctrl data for the NVIDIA Tegra124 pinmux
  *
+ * Author: Ashwini Ghuge <aghuge@nvidia.com>
+ *
  * Copyright (c) 2013-2014, NVIDIA CORPORATION.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -13,7 +15,7 @@
  * more details.
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -2069,7 +2071,6 @@ static const struct of_device_id tegra124_pinctrl_of_match[] = {
 	{ .compatible = "nvidia,tegra124-pinmux", },
 	{ },
 };
-MODULE_DEVICE_TABLE(of, tegra124_pinctrl_of_match);
 
 static struct platform_driver tegra124_pinctrl_driver = {
 	.driver = {
@@ -2078,8 +2079,4 @@ static struct platform_driver tegra124_pinctrl_driver = {
 	},
 	.probe = tegra124_pinctrl_probe,
 };
-module_platform_driver(tegra124_pinctrl_driver);
-
-MODULE_AUTHOR("Ashwini Ghuge <aghuge@nvidia.com>");
-MODULE_DESCRIPTION("NVIDIA Tegra124 pinctrl driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(tegra124_pinctrl_driver);
