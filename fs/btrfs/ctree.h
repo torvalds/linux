@@ -1278,19 +1278,16 @@ struct btrfs_root {
 	/* For qgroup metadata space reserve */
 	atomic64_t qgroup_meta_rsv;
 };
+
 static inline u32 btrfs_inode_sectorsize(const struct inode *inode)
 {
 	return btrfs_sb(inode->i_sb)->sectorsize;
 }
 
-static inline u32 __BTRFS_LEAF_DATA_SIZE(u32 blocksize)
-{
-	return blocksize - sizeof(struct btrfs_header);
-}
-
 static inline u32 BTRFS_LEAF_DATA_SIZE(const struct btrfs_fs_info *info)
 {
-	return __BTRFS_LEAF_DATA_SIZE(info->nodesize);
+
+	return info->nodesize - sizeof(struct btrfs_header);
 }
 
 #define BTRFS_LEAF_DATA_OFFSET		offsetof(struct btrfs_leaf, items)
