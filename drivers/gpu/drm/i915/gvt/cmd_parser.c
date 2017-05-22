@@ -2431,8 +2431,6 @@ static int cmd_parser_exec(struct parser_exec_state *s)
 		return -EINVAL;
 	}
 
-	gvt_dbg_cmd("%s\n", info->name);
-
 	s->info = info;
 
 	trace_gvt_command(vgpu->id, s->ring_id, s->ip_gma, s->ip_va,
@@ -2478,8 +2476,6 @@ static int command_scan(struct parser_exec_state *s,
 	gma_tail = rb_start + rb_tail;
 	gma_bottom = rb_start +  rb_len;
 
-	gvt_dbg_cmd("scan_start: start=%lx end=%lx\n", gma_head, gma_tail);
-
 	while (s->ip_gma != gma_tail) {
 		if (s->buf_type == RING_BUFFER_INSTRUCTION) {
 			if (!(s->ip_gma >= rb_start) ||
@@ -2507,8 +2503,6 @@ static int command_scan(struct parser_exec_state *s,
 			break;
 		}
 	}
-
-	gvt_dbg_cmd("scan_end\n");
 
 	return ret;
 }
