@@ -432,46 +432,26 @@ static int ext4_find_unwritten_pgoff(struct inode *inode,
 		num = min_t(pgoff_t, end - index, PAGEVEC_SIZE);
 		nr_pages = pagevec_lookup(&pvec, inode->i_mapping, index,
 					  (pgoff_t)num);
-		if (nr_pages == 0) {
-			if (whence == SEEK_DATA)
-				break;
-
-			BUG_ON(whence != SEEK_HOLE);
-			/*
-			 * If this is the first time to go into the loop and
-			 * offset is not beyond the end offset, it will be a
-			 * hole at this offset
-			 */
-			if (lastoff == startoff || lastoff < endoff)
-				found = 1;
+		if (nr_pages == 0)
 			break;
-		}
-
-		/*
-		 * If this is the first time to go into the loop and
-		 * offset is smaller than the first page offset, it will be a
-		 * hole at this offset.
-		 */
-		if (lastoff == startoff && whence == SEEK_HOLE &&
-		    lastoff < page_offset(pvec.pages[0])) {
-			found = 1;
-			break;
-		}
 
 		for (i = 0; i < nr_pages; i++) {
 			struct page *page = pvec.pages[i];
 			struct buffer_head *bh, *head;
 
 			/*
-			 * If the current offset is not beyond the end of given
-			 * range, it will be a hole.
+			 * If current offset is smaller than the page offset,
+			 * there is a hole at this offset.
 			 */
-			if (lastoff < endoff && whence == SEEK_HOLE &&
-			    page->index > end) {
+			if (whence == SEEK_HOLE && lastoff < endoff &&
+			    lastoff < page_offset(pvec.pages[i])) {
 				found = 1;
 				*offset = lastoff;
 				goto out;
 			}
+
+			if (page->index > end)
+				goto out;
 
 			lock_page(page);
 
@@ -512,20 +492,18 @@ static int ext4_find_unwritten_pgoff(struct inode *inode,
 			unlock_page(page);
 		}
 
-		/*
-		 * The no. of pages is less than our desired, that would be a
-		 * hole in there.
-		 */
-		if (nr_pages < num && whence == SEEK_HOLE) {
-			found = 1;
-			*offset = lastoff;
+		/* The no. of pages is less than our desired, we are done. */
+		if (nr_pages < num)
 			break;
-		}
 
 		index = pvec.pages[i - 1]->index + 1;
 		pagevec_release(&pvec);
 	} while (index <= end);
 
+	if (whence == SEEK_HOLE && lastoff < endoff) {
+		found = 1;
+		*offset = lastoff;
+	}
 out:
 	pagevec_release(&pvec);
 	return found;
