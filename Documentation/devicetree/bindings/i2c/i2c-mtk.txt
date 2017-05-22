@@ -6,6 +6,7 @@ Required properties:
   - compatible: value should be either of the following.
       "mediatek,mt6577-i2c": for i2c compatible with mt6577.
       "mediatek,mt6589-i2c": for i2c compatible with mt6589.
+      "mediatek,mt7623-i2c", "mediatek,mt6577-i2c": for i2c compatible with mt7623.
       "mediatek,mt8173-i2c": for i2c compatible with mt8173.
   - reg: physical base address of the controller and dma base, length of memory
     mapped region.
