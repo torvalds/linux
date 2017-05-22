@@ -802,6 +802,12 @@ config SPI_SLAVE_TIME
 	  SPI slave handler responding with the time of reception of the last
 	  SPI message.
 
+config SPI_SLAVE_SYSTEM_CONTROL
+	tristate "SPI slave handler controlling system state"
+	help
+	  SPI slave handler to allow remote control of system reboot, power
+	  off, halt, and suspend.
+
 endif # SPI_SLAVE
 
 endif # SPI
