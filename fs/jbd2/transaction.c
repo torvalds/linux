@@ -680,6 +680,12 @@ int jbd2__journal_restart(handle_t *handle, int nblocks, gfp_t gfp_mask)
 
 	rwsem_release(&journal->j_trans_commit_map, 1, _THIS_IP_);
 	handle->h_buffer_credits = nblocks;
+	/*
+	 * Restore the original nofs context because the journal restart
+	 * is basically the same thing as journal stop and start.
+	 * start_this_handle will start a new nofs context.
+	 */
+	memalloc_nofs_restore(handle->saved_alloc_context);
 	ret = start_this_handle(journal, handle, gfp_mask);
 	return ret;
 }
