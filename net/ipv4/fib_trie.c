@@ -1101,7 +1101,7 @@ static int fib_insert_alias(struct trie *t, struct key_vector *tp,
 
 /* Caller must hold RTNL. */
 int fib_table_insert(struct net *net, struct fib_table *tb,
-		     struct fib_config *cfg)
+		     struct fib_config *cfg, struct netlink_ext_ack *extack)
 {
 	enum fib_event_type event = FIB_EVENT_ENTRY_ADD;
 	struct trie *t = (struct trie *)tb->tb_data;
@@ -1125,7 +1125,7 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 	if ((plen < KEYLENGTH) && (key << plen))
 		return -EINVAL;
 
-	fi = fib_create_info(cfg);
+	fi = fib_create_info(cfg, extack);
 	if (IS_ERR(fi)) {
 		err = PTR_ERR(fi);
 		goto err;
