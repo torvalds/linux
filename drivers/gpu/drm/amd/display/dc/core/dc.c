@@ -1541,7 +1541,12 @@ enum dc_irq_source dc_interrupt_to_irq_source(
 
 void dc_interrupt_set(const struct dc *dc, enum dc_irq_source src, bool enable)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct core_dc *core_dc;
+
+	if (dc == NULL)
+		return;
+	core_dc = DC_TO_CORE(dc);
+
 	dal_irq_service_set(core_dc->res_pool->irqs, src, enable);
 }
 

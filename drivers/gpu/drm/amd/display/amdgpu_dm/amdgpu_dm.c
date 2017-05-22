@@ -395,9 +395,8 @@ void amdgpu_dm_fini(struct amdgpu_device *adev)
 		adev->dm.freesync_module = NULL;
 	}
 	/* DC Destroy TODO: Replace destroy DAL */
-	{
+	if (adev->dm.dc)
 		dc_destroy(&adev->dm.dc);
-	}
 	return;
 }
 
@@ -490,7 +489,7 @@ static int dm_hw_fini(void *handle)
 	amdgpu_dm_hpd_fini(adev);
 
 	amdgpu_dm_irq_fini(adev);
-
+	amdgpu_dm_fini(adev);
 	return 0;
 }
 
