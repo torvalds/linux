@@ -442,6 +442,7 @@ struct binder_ref_data {
  *               ref for deletion in binder_cleanup_ref, a non-NULL
  *               @node indicates the node must be freed
  * @death:       pointer to death notification (ref_death) if requested
+ *               (protected by @node->lock)
  *
  * Structure to track references from procA to target node (on procB). This
  * structure is unsafe to access without holding @proc->outer_lock.
@@ -3338,10 +3339,12 @@ static int binder_thread_write(struct binder_proc *proc,
 				     ref->data.desc, ref->data.strong,
 				     ref->data.weak, ref->node->debug_id);
 
+			binder_node_lock(ref->node);
 			if (cmd == BC_REQUEST_DEATH_NOTIFICATION) {
 				if (ref->death) {
 					binder_user_error("%d:%d BC_REQUEST_DEATH_NOTIFICATION death notification already set\n",
 						proc->pid, thread->pid);
+					binder_node_unlock(ref->node);
 					binder_proc_unlock(proc);
 					kfree(death);
 					break;
@@ -3350,7 +3353,6 @@ static int binder_thread_write(struct binder_proc *proc,
 				INIT_LIST_HEAD(&death->work.entry);
 				death->cookie = cookie;
 				ref->death = death;
-				binder_node_lock(ref->node);
 				if (ref->node->proc == NULL) {
 					ref->death->work.type = BINDER_WORK_DEAD_BINDER;
 					if (thread->looper &
@@ -3369,9 +3371,7 @@ static int binder_thread_write(struct binder_proc *proc,
 								&proc->wait);
 					}
 				}
-				binder_node_unlock(ref->node);
 			} else {
-				binder_node_lock(ref->node);
 				if (ref->death == NULL) {
 					binder_user_error("%d:%d BC_CLEAR_DEATH_NOTIFICATION death notification not active\n",
 						proc->pid, thread->pid);
@@ -3411,8 +3411,8 @@ static int binder_thread_write(struct binder_proc *proc,
 					death->work.type = BINDER_WORK_DEAD_BINDER_AND_CLEAR;
 				}
 				binder_inner_proc_unlock(proc);
-				binder_node_unlock(ref->node);
 			}
+			binder_node_unlock(ref->node);
 			binder_proc_unlock(proc);
 		} break;
 		case BC_DEAD_BINDER_DONE: {
@@ -3749,44 +3749,39 @@ retry:
 		case BINDER_WORK_CLEAR_DEATH_NOTIFICATION: {
 			struct binder_ref_death *death;
 			uint32_t cmd;
+			binder_uintptr_t cookie;
 
 			death = container_of(w, struct binder_ref_death, work);
 			if (w->type == BINDER_WORK_CLEAR_DEATH_NOTIFICATION)
 				cmd = BR_CLEAR_DEATH_NOTIFICATION_DONE;
 			else
 				cmd = BR_DEAD_BINDER;
-			/*
-			 * TODO: there is a race condition between
-			 * death notification requests and delivery
-			 * of the notifications. This will be handled
-			 * in a later patch.
-			 */
-			binder_inner_proc_unlock(proc);
-			if (put_user(cmd, (uint32_t __user *)ptr))
-				return -EFAULT;
-			ptr += sizeof(uint32_t);
-			if (put_user(death->cookie,
-				     (binder_uintptr_t __user *)ptr))
-				return -EFAULT;
-			ptr += sizeof(binder_uintptr_t);
-			binder_stat_br(proc, thread, cmd);
+			cookie = death->cookie;
+
 			binder_debug(BINDER_DEBUG_DEATH_NOTIFICATION,
 				     "%d:%d %s %016llx\n",
 				      proc->pid, thread->pid,
 				      cmd == BR_DEAD_BINDER ?
 				      "BR_DEAD_BINDER" :
 				      "BR_CLEAR_DEATH_NOTIFICATION_DONE",
-				      (u64)death->cookie);
-
+				      (u64)cookie);
 			if (w->type == BINDER_WORK_CLEAR_DEATH_NOTIFICATION) {
+				binder_inner_proc_unlock(proc);
 				kfree(death);
 				binder_stats_deleted(BINDER_STAT_DEATH);
 			} else {
-				binder_inner_proc_lock(proc);
 				binder_enqueue_work_ilocked(
 						w, &proc->delivered_death);
 				binder_inner_proc_unlock(proc);
 			}
+			if (put_user(cmd, (uint32_t __user *)ptr))
+				return -EFAULT;
+			ptr += sizeof(uint32_t);
+			if (put_user(cookie,
+				     (binder_uintptr_t __user *)ptr))
+				return -EFAULT;
+			ptr += sizeof(binder_uintptr_t);
+			binder_stat_br(proc, thread, cmd);
 			if (cmd == BR_DEAD_BINDER)
 				goto done; /* DEAD_BINDER notifications can cause transactions */
 		} break;
@@ -4536,20 +4531,25 @@ static int binder_node_release(struct binder_node *node, int refs)
 
 	hlist_for_each_entry(ref, &node->refs, node_entry) {
 		refs++;
-
-		if (!ref->death)
+		/*
+		 * Need the node lock to synchronize
+		 * with new notification requests and the
+		 * inner lock to synchronize with queued
+		 * death notifications.
+		 */
+		binder_inner_proc_lock(ref->proc);
+		if (!ref->death) {
+			binder_inner_proc_unlock(ref->proc);
 			continue;
+		}
 
 		death++;
 
-		binder_inner_proc_lock(ref->proc);
-		if (list_empty(&ref->death->work.entry)) {
-			ref->death->work.type = BINDER_WORK_DEAD_BINDER;
-			binder_enqueue_work_ilocked(&ref->death->work,
-						    &ref->proc->todo);
-			wake_up_interruptible(&ref->proc->wait);
-		} else
-			BUG();
+		BUG_ON(!list_empty(&ref->death->work.entry));
+		ref->death->work.type = BINDER_WORK_DEAD_BINDER;
+		binder_enqueue_work_ilocked(&ref->death->work,
+					    &ref->proc->todo);
+		wake_up_interruptible(&ref->proc->wait);
 		binder_inner_proc_unlock(ref->proc);
 	}
 
