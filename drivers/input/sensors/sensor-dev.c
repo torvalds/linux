@@ -997,19 +997,21 @@ static long gyro_dev_ioctl(struct file *file,
 	switch (cmd) {
 	case L3G4200D_IOCTL_GET_ENABLE:
 		result = !sensor->status_cur;
-		if (copy_to_user(argp, &result, sizeof(result)))
-		{
-            		printk("%s:failed to copy status to user space.\n",__FUNCTION__);
+		if (copy_to_user(argp, &result, sizeof(result))) {
+			printk("%s:failed to copy status to user space.\n", __func__);
 			return -EFAULT;
 		}
 
-		DBG("%s :L3G4200D_IOCTL_GET_ENABLE,status=%d\n",__FUNCTION__,result);
+		DBG("%s :L3G4200D_IOCTL_GET_ENABLE,status=%d\n", __func__, result);
 		break;
 	case L3G4200D_IOCTL_SET_ENABLE:
-		DBG("%s :L3G4200D_IOCTL_SET_ENABLE,flag=%d\n",__FUNCTION__,*(unsigned int *)argp);
+		if (copy_from_user(&result, argp, sizeof(result))) {
+			printk("%s:failed to copy gyro sensor status from user space.\n", __func__);
+			return -EFAULT;
+		}
+		DBG("%s :L3G4200D_IOCTL_SET_ENABLE,flag=%d\n", __func__, result);
         	mutex_lock(&sensor->operation_mutex);
-		if(*(unsigned int *)argp)
-		{
+		if (result) {
 			if(sensor->status_cur == SENSOR_OFF)
 			{
 				if ( (result = sensor->ops->active(client, 1, ODR100_BW12_5) ) < 0 ) {
@@ -1050,10 +1052,9 @@ static long gyro_dev_ioctl(struct file *file,
 		}
 
 		result = sensor->status_cur;
-		if (copy_to_user(argp, &result, sizeof(result)))
-		{
+		if (copy_to_user(argp, &result, sizeof(result))) {
 			mutex_unlock(&sensor->operation_mutex);
-            		printk("%s:failed to copy sense data to user space.\n",__FUNCTION__);
+			printk("%s:failed to copy sense data to user space.\n", __func__);
 			return -EFAULT;
 		}
 
@@ -1085,7 +1086,7 @@ static long gyro_dev_ioctl(struct file *file,
 		}
 
 		mutex_unlock(&sensor->operation_mutex);
-		DBG("%s :L3G4200D_IOCTL_SET_DELAY,rate=%d\n",__FUNCTION__,rate);
+		DBG("%s :L3G4200D_IOCTL_SET_DELAY,rate=%d\n", __func__, rate);
 		break;
 
 	default:
@@ -1156,19 +1157,27 @@ static long light_dev_ioctl(struct file *file,
 {
 	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_LIGHT];
 	struct i2c_client *client = sensor->client;
-	unsigned int *argp = (unsigned int *)arg;
+	void __user *argp = (void __user *)arg;
 	int result = 0;
 
 	switch(cmd)
 	{
 		case LIGHTSENSOR_IOCTL_GET_ENABLED:
-			*argp = sensor->status_cur;
+			result = sensor->status_cur;
+			if (copy_to_user(argp, &result, sizeof(result))) {
+				printk("%s:failed to copy light sensor status to user space.\n", __func__);
+				return -EFAULT;
+			}
 			break;
 		case LIGHTSENSOR_IOCTL_ENABLE:
 			DBG("%s:LIGHTSENSOR_IOCTL_ENABLE start\n", __func__);
+			if (copy_from_user(&result, argp, sizeof(result))) {
+				printk("%s:failed to copy light sensor status from user space.\n", __func__);
+				return -EFAULT;
+			}
+
 			mutex_lock(&sensor->operation_mutex);
-			if(*(unsigned int *)argp)
-			{
+			if (result) {
 				if(sensor->status_cur == SENSOR_OFF)
 				{
 		            		if ( (result = sensor->ops->active(client, SENSOR_ON, 0) ) < 0 ) {
@@ -1283,18 +1292,25 @@ static long proximity_dev_ioctl(struct file *file,
 {
 	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_PROXIMITY];
 	struct i2c_client *client = sensor->client;
-	unsigned int *argp = (unsigned int *)arg;
+	void __user *argp = (void __user *)arg;
 	int result = 0;
 	switch(cmd)
 	{
 		case PSENSOR_IOCTL_GET_ENABLED:
-			*argp = sensor->status_cur;
+			result = sensor->status_cur;
+			if (copy_to_user(argp, &result, sizeof(result))) {
+				printk("%s:failed to copy psensor status to user space.\n", __func__);
+				return -EFAULT;
+			}
 			break;
 		case PSENSOR_IOCTL_ENABLE:
 			DBG("%s:PSENSOR_IOCTL_ENABLE start\n", __func__);
+			if (copy_from_user(&result, argp, sizeof(result))) {
+				printk("%s:failed to copy psensor status from user space.\n", __func__);
+				return -EFAULT;
+			}
 			mutex_lock(&sensor->operation_mutex);
-			if(*(unsigned int *)argp)
-			{
+			if (result) {
 				if(sensor->status_cur == SENSOR_OFF)
 				{
 					if ( (result = sensor->ops->active(client, SENSOR_ON, 0) ) < 0 ) {
@@ -1382,19 +1398,26 @@ static long temperature_dev_ioctl(struct file *file,
 {
 	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_TEMPERATURE];
 	struct i2c_client *client = sensor->client;
-	unsigned int *argp = (unsigned int *)arg;
+	void __user *argp = (void __user *)arg;
 	int result = 0;
 
 	switch(cmd)
 	{
 		case TEMPERATURE_IOCTL_GET_ENABLED:
-			*argp = sensor->status_cur;
+			result = sensor->status_cur;
+			if (copy_to_user(argp, &result, sizeof(result))) {
+				printk("%s:failed to copy temperature sensor status to user space.\n", __func__);
+				return -EFAULT;
+			}
 			break;
 		case TEMPERATURE_IOCTL_ENABLE:
 			DBG("%s:LIGHTSENSOR_IOCTL_ENABLE start\n", __func__);
+			if (copy_from_user(&result, argp, sizeof(result))) {
+				printk("%s:failed to copy temperature sensor status from user space.\n", __func__);
+				return -EFAULT;
+			}
 			mutex_lock(&sensor->operation_mutex);
-			if(*(unsigned int *)argp)
-			{
+			if (result) {
 				if(sensor->status_cur == SENSOR_OFF)
 				{
 					if ( (result = sensor->ops->active(client, SENSOR_ON, 0) ) < 0 ) {
@@ -1484,19 +1507,26 @@ static long pressure_dev_ioctl(struct file *file,
 {
 	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_PRESSURE];
 	struct i2c_client *client = sensor->client;
-	unsigned int *argp = (unsigned int *)arg;
+	void __user *argp = (void __user *)arg;
 	int result = 0;
 
 	switch(cmd)
 	{
 		case PRESSURE_IOCTL_GET_ENABLED:
-			*argp = sensor->status_cur;
+			result = sensor->status_cur;
+			if (copy_to_user(argp, &result, sizeof(result))) {
+				printk("%s:failed to copy pressure sensor status to user space.\n", __func__);
+				return -EFAULT;
+			}
 			break;
 		case PRESSURE_IOCTL_ENABLE:
-			DBG("%s:LIGHTSENSOR_IOCTL_ENABLE start\n", __func__);
+			DBG("%s:PRESSURE_IOCTL_ENABLE start\n", __func__);
+			if (copy_from_user(&result, argp, sizeof(result))) {
+				printk("%s:failed to copy pressure sensor status from user space.\n", __func__);
+				return -EFAULT;
+			}
 			mutex_lock(&sensor->operation_mutex);
-			if(*(unsigned int *)argp)
-			{
+			if (result) {
 				if(sensor->status_cur == SENSOR_OFF)
 				{
 					if ( (result = sensor->ops->active(client, SENSOR_ON, 0) ) < 0 ) {
