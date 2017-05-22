@@ -58,6 +58,7 @@
 #include "nfp_net_ctrl.h"
 #include "nfp_net.h"
 #include "nfp_main.h"
+#include "nfp_port.h"
 
 #define NFP_PF_CSR_SLICE_SIZE	(32 * 1024)
 
@@ -142,14 +143,16 @@ err_area:
 static void
 nfp_net_get_mac_addr(struct nfp_net *nn, struct nfp_cpp *cpp, unsigned int id)
 {
+	struct nfp_eth_table_port *eth_port;
 	struct nfp_net_dp *dp = &nn->dp;
 	u8 mac_addr[ETH_ALEN];
 	const char *mac_str;
 	char name[32];
 
-	if (nn->eth_port) {
-		ether_addr_copy(dp->netdev->dev_addr, nn->eth_port->mac_addr);
-		ether_addr_copy(dp->netdev->perm_addr, nn->eth_port->mac_addr);
+	eth_port = __nfp_port_get_eth_port(nn->port);
+	if (eth_port) {
+		ether_addr_copy(dp->netdev->dev_addr, eth_port->mac_addr);
+		ether_addr_copy(dp->netdev->perm_addr, eth_port->mac_addr);
 		return;
 	}
 
@@ -270,6 +273,7 @@ static u8 __iomem *nfp_net_pf_map_ctrl_bar(struct nfp_pf *pf)
 
 static void nfp_net_pf_free_vnic(struct nfp_pf *pf, struct nfp_net *nn)
 {
+	nfp_port_free(nn->port);
 	list_del(&nn->vnic_list);
 	pf->num_vnics--;
 	nfp_net_free(nn);
@@ -291,6 +295,7 @@ nfp_net_pf_alloc_vnic(struct nfp_pf *pf, void __iomem *ctrl_bar,
 		      int stride, struct nfp_net_fw_version *fw_ver,
 		      unsigned int eth_id)
 {
+	struct nfp_eth_table_port *eth_port;
 	u32 n_tx_rings, n_rx_rings;
 	struct nfp_net *nn;
 
@@ -310,7 +315,18 @@ nfp_net_pf_alloc_vnic(struct nfp_pf *pf, void __iomem *ctrl_bar,
 	nn->dp.is_vf = 0;
 	nn->stride_rx = stride;
 	nn->stride_tx = stride;
-	nn->eth_port = nfp_net_find_port(pf->eth_tbl, eth_id);
+
+	eth_port = nfp_net_find_port(pf->eth_tbl, eth_id);
+	if (eth_port) {
+		nn->port = nfp_port_alloc(pf->app, NFP_PORT_PHYS_PORT,
+					  nn->dp.netdev);
+		if (IS_ERR(nn->port)) {
+			nfp_net_free(nn);
+			return ERR_CAST(nn->port);
+		}
+		nn->port->eth_id = eth_id;
+		nn->port->eth_port = eth_port;
+	}
 
 	pf->num_vnics++;
 	list_add_tail(&nn->vnic_list, &pf->vnics);
@@ -380,12 +396,12 @@ nfp_net_pf_alloc_vnics(struct nfp_pf *pf, void __iomem *ctrl_bar,
 		ctrl_bar += NFP_PF_CSR_SLICE_SIZE;
 
 		/* Check if vNIC has external port associated and cfg is OK */
-		if (pf->eth_tbl && !nn->eth_port) {
+		if (pf->eth_tbl && !nn->port) {
 			nfp_err(pf->cpp, "NSP port entries don't match vNICs (no entry for port #%d)\n", i);
 			err = -EINVAL;
 			goto err_free_prev;
 		}
-		if (nn->eth_port && nn->eth_port->override_changed) {
+		if (nn->port && nn->port->eth_port->override_changed) {
 			nfp_warn(pf->cpp, "Config changed for port #%d, reboot required before port will be operational\n", i);
 			nfp_net_pf_free_vnic(pf, nn);
 			continue;
@@ -526,13 +542,20 @@ static void nfp_net_refresh_vnics(struct work_struct *work)
 
 	rtnl_lock();
 	list_for_each_entry(nn, &pf->vnics, vnic_list) {
-		if (!nn->eth_port)
+		if (!__nfp_port_get_eth_port(nn->port))
 			continue;
-		nn->eth_port = nfp_net_find_port(eth_table,
-						 nn->eth_port->eth_index);
-		if (!nn->eth_port)
-			nfp_err(pf->cpp,
-				"Warning: port disappeared after reconfig\n");
+		nn->port->eth_port = nfp_net_find_port(eth_table,
+						       nn->port->eth_id);
+		if (!nn->port->eth_port) {
+			nfp_warn(pf->cpp, "Warning: port #%d not present after reconfig\n",
+				 nn->port->eth_id);
+			continue;
+		}
+		if (nn->port->eth_port->override_changed) {
+			nfp_warn(pf->cpp, "Port config changed, unregistering. Reboot required before port will be operational again.\n");
+			nn->port->type = NFP_PORT_INVALID;
+			continue;
+		}
 	}
 	rtnl_unlock();
 
@@ -540,10 +563,8 @@ static void nfp_net_refresh_vnics(struct work_struct *work)
 	pf->eth_tbl = eth_table;
 
 	list_for_each_entry_safe(nn, next, &pf->vnics, vnic_list) {
-		if (nn->eth_port && !nn->eth_port->override_changed)
+		if (!nn->port || nn->port->type != NFP_PORT_INVALID)
 			continue;
-
-		nn_warn(nn, "Port config changed, unregistering. Reboot required before port will be operational again.\n");
 
 		nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
 		nfp_net_clean(nn);
@@ -557,32 +578,33 @@ out:
 	mutex_unlock(&pf->lock);
 }
 
-void nfp_net_refresh_port_table(struct nfp_net *nn)
+void nfp_net_refresh_port_table(struct nfp_port *port)
 {
-	struct nfp_pf *pf = pci_get_drvdata(nn->pdev);
+	struct nfp_pf *pf = port->app->pf;
 
 	schedule_work(&pf->port_refresh_work);
 }
 
-int nfp_net_refresh_eth_port(struct nfp_net *nn)
+int nfp_net_refresh_eth_port(struct nfp_port *port)
 {
+	struct nfp_cpp *cpp = port->app->cpp;
 	struct nfp_eth_table_port *eth_port;
 	struct nfp_eth_table *eth_table;
 
-	eth_table = nfp_eth_read_ports(nn->app->cpp);
+	eth_table = nfp_eth_read_ports(cpp);
 	if (!eth_table) {
-		nn_err(nn, "Error refreshing port state table!\n");
+		nfp_err(cpp, "Error refreshing port state table!\n");
 		return -EIO;
 	}
 
-	eth_port = nfp_net_find_port(eth_table, nn->eth_port->eth_index);
+	eth_port = nfp_net_find_port(eth_table, port->eth_id);
 	if (!eth_port) {
-		nn_err(nn, "Error finding state of the port!\n");
+		nfp_err(cpp, "Error finding state of the port!\n");
 		kfree(eth_table);
 		return -EIO;
 	}
 
-	memcpy(nn->eth_port, eth_port, sizeof(*eth_port));
+	memcpy(port->eth_port, eth_port, sizeof(*eth_port));
 
 	kfree(eth_table);
 
