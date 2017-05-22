@@ -54,7 +54,7 @@ static const u8 tuning_blk_pattern_8bit[] = {
 	0xff, 0x77, 0x77, 0xff, 0x77, 0xbb, 0xdd, 0xee,
 };
 
-int mmc_send_status(struct mmc_card *card, u32 *status)
+int __mmc_send_status(struct mmc_card *card, u32 *status, unsigned int retries)
 {
 	int err;
 	struct mmc_command cmd = {};
@@ -64,7 +64,7 @@ int mmc_send_status(struct mmc_card *card, u32 *status)
 		cmd.arg = card->rca << 16;
 	cmd.flags = MMC_RSP_SPI_R2 | MMC_RSP_R1 | MMC_CMD_AC;
 
-	err = mmc_wait_for_cmd(card->host, &cmd, MMC_CMD_RETRIES);
+	err = mmc_wait_for_cmd(card->host, &cmd, retries);
 	if (err)
 		return err;
 
@@ -75,6 +75,12 @@ int mmc_send_status(struct mmc_card *card, u32 *status)
 		*status = cmd.resp[0];
 
 	return 0;
+}
+EXPORT_SYMBOL_GPL(__mmc_send_status);
+
+int mmc_send_status(struct mmc_card *card, u32 *status)
+{
+	return __mmc_send_status(card, status, MMC_CMD_RETRIES);
 }
 
 static int _mmc_select_card(struct mmc_host *host, struct mmc_card *card)
