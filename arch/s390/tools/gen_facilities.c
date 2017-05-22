@@ -35,7 +35,6 @@ static struct facility_def facility_defs[] = {
 #endif
 #ifdef CONFIG_HAVE_MARCH_Z9_109_FEATURES
 			7,  /* stfle */
-			17, /* message security assist */
 			21, /* extended-immediate facility */
 			25, /* store clock fast */
 #endif
