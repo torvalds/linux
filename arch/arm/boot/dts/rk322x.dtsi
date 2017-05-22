@@ -5,6 +5,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/clock/rk3228-cru.h>
+#include <dt-bindings/suspend/rockchip-rk322x.h>
 #include <dt-bindings/thermal/thermal.h>
 
 / {
@@ -1167,5 +1168,16 @@
 				rockchip,pins = <0 24 RK_FUNC_1 &pcfg_pull_none>;
 			};
 		};
+	};
+
+	rockchip_suspend: rockchip-suspend {
+		compatible = "rockchip,pm-rk322x";
+		status = "disabled";
+		rockchip,sleep-mode-config = <
+			(0
+			|RKPM_CTR_GTCLKS
+			|RKPM_CTR_IDLESRAM_MD
+			)
+		>;
 	};
 };
