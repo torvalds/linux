@@ -18,7 +18,6 @@
  * external gpio and wakeup interrupt support.
  */
 
-#include <linux/module.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
