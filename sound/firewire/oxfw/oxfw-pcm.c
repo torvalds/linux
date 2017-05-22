@@ -244,8 +244,6 @@ static int pcm_capture_hw_params(struct snd_pcm_substream *substream,
 		mutex_unlock(&oxfw->mutex);
 	}
 
-	amdtp_am824_set_pcm_format(&oxfw->tx_stream, params_format(hw_params));
-
 	return 0;
 }
 static int pcm_playback_hw_params(struct snd_pcm_substream *substream,
@@ -264,8 +262,6 @@ static int pcm_playback_hw_params(struct snd_pcm_substream *substream,
 		oxfw->playback_substreams++;
 		mutex_unlock(&oxfw->mutex);
 	}
-
-	amdtp_am824_set_pcm_format(&oxfw->rx_stream, params_format(hw_params));
 
 	return 0;
 }

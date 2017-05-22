@@ -48,8 +48,7 @@ static int pcm_init_hw_params(struct snd_tscm *tscm,
 		stream = &tscm->tx_stream;
 		pcm_channels = tscm->spec->pcm_capture_analog_channels;
 	} else {
-		runtime->hw.formats =
-				SNDRV_PCM_FMTBIT_S16 | SNDRV_PCM_FMTBIT_S32;
+		runtime->hw.formats = SNDRV_PCM_FMTBIT_S32;
 		stream = &tscm->rx_stream;
 		pcm_channels = tscm->spec->pcm_playback_analog_channels;
 	}
@@ -125,8 +124,6 @@ static int pcm_capture_hw_params(struct snd_pcm_substream *substream,
 		mutex_unlock(&tscm->mutex);
 	}
 
-	amdtp_tscm_set_pcm_format(&tscm->tx_stream, params_format(hw_params));
-
 	return 0;
 }
 
@@ -146,8 +143,6 @@ static int pcm_playback_hw_params(struct snd_pcm_substream *substream,
 		tscm->substreams_counter++;
 		mutex_unlock(&tscm->mutex);
 	}
-
-	amdtp_tscm_set_pcm_format(&tscm->rx_stream, params_format(hw_params));
 
 	return 0;
 }
