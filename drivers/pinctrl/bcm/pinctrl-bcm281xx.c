@@ -1,4 +1,10 @@
 /*
+ * Broadcom BCM281xx pinctrl driver
+ *
+ * Author(s):
+ *	Sherman Yin <syin@broadcom.com>
+ *	Broadcom Corporation <bcm-kernel-feedback-list@broadcom.com>
+ *
  * Copyright (C) 2013 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or
@@ -12,7 +18,7 @@
  */
 #include <linux/err.h>
 #include <linux/io.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -1444,10 +1450,4 @@ static struct platform_driver bcm281xx_pinctrl_driver = {
 		.of_match_table = bcm281xx_pinctrl_of_match,
 	},
 };
-
-module_platform_driver_probe(bcm281xx_pinctrl_driver, bcm281xx_pinctrl_probe);
-
-MODULE_AUTHOR("Broadcom Corporation <bcm-kernel-feedback-list@broadcom.com>");
-MODULE_AUTHOR("Sherman Yin <syin@broadcom.com>");
-MODULE_DESCRIPTION("Broadcom BCM281xx pinctrl driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver_probe(bcm281xx_pinctrl_driver, bcm281xx_pinctrl_probe);

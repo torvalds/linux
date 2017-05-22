@@ -1,4 +1,8 @@
-/* Copyright (C) 2014-2015 Broadcom Corporation
+/*
+ * Broadcom Cygnus IOMUX driver
+ *
+ * Author: Ray Jui <rjui@broadcom.com>
+ * Copyright (C) 2014-2015 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -17,7 +21,6 @@
 
 #include <linux/err.h>
 #include <linux/io.h>
-#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
@@ -1016,7 +1019,3 @@ static int __init cygnus_pinmux_init(void)
 	return platform_driver_register(&cygnus_pinmux_driver);
 }
 arch_initcall(cygnus_pinmux_init);
-
-MODULE_AUTHOR("Ray Jui <rjui@broadcom.com>");
-MODULE_DESCRIPTION("Broadcom Cygnus IOMUX driver");
-MODULE_LICENSE("GPL v2");
