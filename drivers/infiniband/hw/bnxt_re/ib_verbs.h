@@ -74,6 +74,7 @@ struct bnxt_re_qp {
 	struct bnxt_re_dev	*rdev;
 	struct ib_qp		ib_qp;
 	spinlock_t		sq_lock;	/* protect sq */
+	spinlock_t		rq_lock;	/* protect rq */
 	struct bnxt_qplib_qp	qplib_qp;
 	struct ib_umem		*sumem;
 	struct ib_umem		*rumem;

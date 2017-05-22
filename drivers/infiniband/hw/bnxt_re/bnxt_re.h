@@ -58,6 +58,8 @@
 
 #define BNXT_RE_UD_QP_HW_STALL		0x400000
 
+#define BNXT_RE_RQ_WQE_THRESHOLD	32
+
 struct bnxt_re_work {
 	struct work_struct	work;
 	unsigned long		event;

@@ -1249,6 +1249,7 @@ struct ib_qp *bnxt_re_create_qp(struct ib_pd *ib_pd,
 
 	qp->ib_qp.qp_num = qp->qplib_qp.id;
 	spin_lock_init(&qp->sq_lock);
+	spin_lock_init(&qp->rq_lock);
 
 	if (udata) {
 		struct bnxt_re_qp_resp resp;
@@ -2281,7 +2282,10 @@ int bnxt_re_post_recv(struct ib_qp *ib_qp, struct ib_recv_wr *wr,
 	struct bnxt_re_qp *qp = container_of(ib_qp, struct bnxt_re_qp, ib_qp);
 	struct bnxt_qplib_swqe wqe;
 	int rc = 0, payload_sz = 0;
+	unsigned long flags;
+	u32 count = 0;
 
+	spin_lock_irqsave(&qp->rq_lock, flags);
 	while (wr) {
 		/* House keeping */
 		memset(&wqe, 0, sizeof(wqe));
@@ -2310,9 +2314,21 @@ int bnxt_re_post_recv(struct ib_qp *ib_qp, struct ib_recv_wr *wr,
 			*bad_wr = wr;
 			break;
 		}
+
+		/* Ring DB if the RQEs posted reaches a threshold value */
+		if (++count >= BNXT_RE_RQ_WQE_THRESHOLD) {
+			bnxt_qplib_post_recv_db(&qp->qplib_qp);
+			count = 0;
+		}
+
 		wr = wr->next;
 	}
-	bnxt_qplib_post_recv_db(&qp->qplib_qp);
+
+	if (count)
+		bnxt_qplib_post_recv_db(&qp->qplib_qp);
+
+	spin_unlock_irqrestore(&qp->rq_lock, flags);
+
 	return rc;
 }
 
