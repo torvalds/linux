@@ -220,8 +220,15 @@ int usbip_vhci_driver_open(void)
 	}
 
 	vhci_driver->nports = get_nports();
-
 	dbg("available ports: %d", vhci_driver->nports);
+
+	if (vhci_driver->nports <= 0) {
+		err("no available ports");
+		goto err;
+	} else if (vhci_driver->nports > MAXNPORT) {
+		err("port number exceeds %d", MAXNPORT);
+		goto err;
+	}
 
 	if (refresh_imported_device_list())
 		goto err;
