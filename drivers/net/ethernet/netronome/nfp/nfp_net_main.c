@@ -596,6 +596,8 @@ void nfp_net_refresh_port_table(struct nfp_port *port)
 {
 	struct nfp_pf *pf = port->app->pf;
 
+	set_bit(NFP_PORT_CHANGED, &port->flags);
+
 	schedule_work(&pf->port_refresh_work);
 }
 
