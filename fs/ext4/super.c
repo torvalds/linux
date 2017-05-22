@@ -848,14 +848,9 @@ static inline void ext4_quota_off_umount(struct super_block *sb)
 {
 	int type;
 
-	if (ext4_has_feature_quota(sb)) {
-		dquot_disable(sb, -1,
-			      DQUOT_USAGE_ENABLED | DQUOT_LIMITS_ENABLED);
-	} else {
-		/* Use our quota_off function to clear inode flags etc. */
-		for (type = 0; type < EXT4_MAXQUOTAS; type++)
-			ext4_quota_off(sb, type);
-	}
+	/* Use our quota_off function to clear inode flags etc. */
+	for (type = 0; type < EXT4_MAXQUOTAS; type++)
+		ext4_quota_off(sb, type);
 }
 #else
 static inline void ext4_quota_off_umount(struct super_block *sb)
@@ -5485,7 +5480,7 @@ static int ext4_quota_off(struct super_block *sb, int type)
 		goto out;
 
 	err = dquot_quota_off(sb, type);
-	if (err)
+	if (err || ext4_has_feature_quota(sb))
 		goto out_put;
 
 	inode_lock(inode);
@@ -5505,6 +5500,7 @@ static int ext4_quota_off(struct super_block *sb, int type)
 out_unlock:
 	inode_unlock(inode);
 out_put:
+	lockdep_set_quota_inode(inode, I_DATA_SEM_NORMAL);
 	iput(inode);
 	return err;
 out:
