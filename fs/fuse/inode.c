@@ -975,8 +975,15 @@ static int fuse_bdi_init(struct fuse_conn *fc, struct super_block *sb)
 	int err;
 	char *suffix = "";
 
-	if (sb->s_bdev)
+	if (sb->s_bdev) {
 		suffix = "-fuseblk";
+		/*
+		 * sb->s_bdi points to blkdev's bdi however we want to redirect
+		 * it to our private bdi...
+		 */
+		bdi_put(sb->s_bdi);
+		sb->s_bdi = &noop_backing_dev_info;
+	}
 	err = super_setup_bdi_name(sb, "%u:%u%s", MAJOR(fc->dev),
 				   MINOR(fc->dev), suffix);
 	if (err)

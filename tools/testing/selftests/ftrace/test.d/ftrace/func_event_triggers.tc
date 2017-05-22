@@ -48,7 +48,7 @@ test_event_enabled() {
     e=`cat $EVENT_ENABLE`
     if [ "$e" != $val ]; then
 	echo "Expected $val but found $e"
-	exit -1
+	exit 1
     fi
 }
 

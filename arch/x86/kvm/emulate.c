@@ -4173,7 +4173,7 @@ static int check_dr_write(struct x86_emulate_ctxt *ctxt)
 
 static int check_svme(struct x86_emulate_ctxt *ctxt)
 {
-	u64 efer;
+	u64 efer = 0;
 
 	ctxt->ops->get_msr(ctxt, MSR_EFER, &efer);
 

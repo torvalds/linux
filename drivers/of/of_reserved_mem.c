@@ -197,7 +197,7 @@ static int __init __reserved_mem_init_node(struct reserved_mem *rmem)
 	const struct of_device_id *i;
 
 	for (i = __reservedmem_of_table; i < &__rmem_of_table_sentinel; i++) {
-		int const (*initfn)(struct reserved_mem *rmem) = i->data;
+		reservedmem_of_init_fn initfn = i->data;
 		const char *compat = i->compatible;
 
 		if (!of_flat_dt_is_compatible(rmem->fdt_node, compat))

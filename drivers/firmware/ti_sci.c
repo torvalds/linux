@@ -202,7 +202,8 @@ static int ti_sci_debugfs_create(struct platform_device *pdev,
 	info->debug_buffer[info->debug_region_size] = 0;
 
 	info->d = debugfs_create_file(strncat(debug_name, dev_name(dev),
-					      sizeof(debug_name)),
+					      sizeof(debug_name) -
+					      sizeof("ti_sci_debug@")),
 				      0444, NULL, info, &ti_sci_debug_fops);
 	if (IS_ERR(info->d))
 		return PTR_ERR(info->d);

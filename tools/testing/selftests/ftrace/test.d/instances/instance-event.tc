@@ -75,9 +75,13 @@ rmdir foo
 if [ -d foo ]; then
         fail "foo still exists"
 fi
-exit 0
 
-
+mkdir foo
+echo "schedule:enable_event:sched:sched_switch" > foo/set_ftrace_filter
+rmdir foo
+if [ -d foo ]; then
+        fail "foo still exists"
+fi
 
 
 instance_slam() {
