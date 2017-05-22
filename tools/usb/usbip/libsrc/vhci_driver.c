@@ -108,18 +108,33 @@ static int parse_status(const char *value)
 	return 0;
 }
 
+#define MAX_STATUS_NAME 16
+
 static int refresh_imported_device_list(void)
 {
 	const char *attr_status;
+	char status[MAX_STATUS_NAME+1] = "status";
+	int i, ret;
 
-	attr_status = udev_device_get_sysattr_value(vhci_driver->hc_device,
-					       "status");
-	if (!attr_status) {
-		err("udev_device_get_sysattr_value failed");
-		return -1;
+	for (i = 0; i < vhci_driver->ncontrollers; i++) {
+		if (i > 0)
+			snprintf(status, sizeof(status), "status.%d", i);
+
+		attr_status = udev_device_get_sysattr_value(vhci_driver->hc_device,
+							    status);
+		if (!attr_status) {
+			err("udev_device_get_sysattr_value failed");
+			return -1;
+		}
+
+		dbg("controller %d", i);
+
+		ret = parse_status(attr_status);
+		if (ret != 0)
+			return ret;
 	}
 
-	return parse_status(attr_status);
+	return 0;
 }
 
 static int get_nports(void)
