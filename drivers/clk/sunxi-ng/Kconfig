@@ -121,6 +121,7 @@ config SUN8I_A83T_CCU
 	select SUNXI_CCU_DIV
 	select SUNXI_CCU_GATE
 	select SUNXI_CCU_MP
+	select SUNXI_CCU_MULT
 	select SUNXI_CCU_MUX
 	select SUNXI_CCU_NKMP
 	select SUNXI_CCU_NM
