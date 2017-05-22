@@ -963,7 +963,7 @@ static int hisi_sas_abort_task(struct sas_task *task)
 						     HISI_SAS_INT_ABT_DEV, 0);
 			rc = hisi_sas_softreset_ata_disk(device);
 		}
-	} else if (task->task_proto & SAS_PROTOCOL_SMP) {
+	} else if (task->lldd_task && task->task_proto & SAS_PROTOCOL_SMP) {
 		/* SMP */
 		struct hisi_sas_slot *slot = task->lldd_task;
 		u32 tag = slot->idx;
