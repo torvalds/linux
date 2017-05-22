@@ -392,19 +392,6 @@ static irqreturn_t nfp_net_irq_rxtx(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-bool nfp_net_link_changed_read_clear(struct nfp_net *nn)
-{
-	unsigned long flags;
-	bool ret;
-
-	spin_lock_irqsave(&nn->link_status_lock, flags);
-	ret = nn->link_changed;
-	nn->link_changed = false;
-	spin_unlock_irqrestore(&nn->link_status_lock, flags);
-
-	return ret;
-}
-
 /**
  * nfp_net_read_link_status() - Reread link status from control BAR
  * @nn:       NFP Network structure
@@ -424,7 +411,8 @@ static void nfp_net_read_link_status(struct nfp_net *nn)
 		goto out;
 
 	nn->link_up = link_up;
-	nn->link_changed = true;
+	if (nn->port)
+		set_bit(NFP_PORT_CHANGED, &nn->port->flags);
 
 	if (nn->link_up) {
 		netif_carrier_on(nn->dp.netdev);

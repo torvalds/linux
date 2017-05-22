@@ -51,9 +51,20 @@ enum nfp_port_type {
 };
 
 /**
+ * enum nfp_port_flags - port flags (can be type-specific)
+ * @NFP_PORT_CHANGED:	port state has changed since last eth table refresh;
+ *			for NFP_PORT_PHYS_PORT, never set otherwise; must hold
+ *			rtnl_lock to clear
+ */
+enum nfp_port_flags {
+	NFP_PORT_CHANGED = 0,
+};
+
+/**
  * struct nfp_port - structure representing NFP port
  * @netdev:	backpointer to associated netdev
  * @type:	what port type does the entity represent
+ * @flags:	port flags
  * @app:	backpointer to the app structure
  * @eth_id:	for %NFP_PORT_PHYS_PORT port ID in NFP enumeration scheme
  * @eth_port:	for %NFP_PORT_PHYS_PORT translated ETH Table port entry
@@ -61,6 +72,8 @@ enum nfp_port_type {
 struct nfp_port {
 	struct net_device *netdev;
 	enum nfp_port_type type;
+
+	unsigned long flags;
 
 	struct nfp_app *app;
 

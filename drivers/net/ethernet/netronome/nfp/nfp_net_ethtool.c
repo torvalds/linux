@@ -217,15 +217,11 @@ nfp_net_get_link_ksettings(struct net_device *netdev,
 	if (!netif_carrier_ok(netdev))
 		return 0;
 
-	if (!nfp_netdev_is_nfp_net(netdev))
-		return -EOPNOTSUPP;
-	nn = netdev_priv(netdev);
-
 	/* Use link speed from ETH table if available, otherwise try the BAR */
 	if (eth_port) {
 		int err;
 
-		if (nfp_net_link_changed_read_clear(nn)) {
+		if (test_bit(NFP_PORT_CHANGED, &port->flags)) {
 			err = nfp_net_refresh_eth_port(port);
 			if (err)
 				return err;
@@ -236,6 +232,10 @@ nfp_net_get_link_ksettings(struct net_device *netdev,
 		cmd->base.duplex = DUPLEX_FULL;
 		return 0;
 	}
+
+	if (!nfp_netdev_is_nfp_net(netdev))
+		return -EOPNOTSUPP;
+	nn = netdev_priv(netdev);
 
 	sts = nn_readl(nn, NFP_NET_CFG_STS);
 

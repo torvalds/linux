@@ -555,16 +555,19 @@ static void nfp_net_refresh_vnics(struct work_struct *work)
 	if (list_empty(&pf->vnics))
 		goto out;
 
+	/* Update state of all ports */
+	rtnl_lock();
 	list_for_each_entry(nn, &pf->vnics, vnic_list)
-		nfp_net_link_changed_read_clear(nn);
+		if (nn->port)
+			clear_bit(NFP_PORT_CHANGED, &nn->port->flags);
 
 	eth_table = nfp_eth_read_ports(pf->cpp);
 	if (!eth_table) {
+		rtnl_unlock();
 		nfp_err(pf->cpp, "Error refreshing port config!\n");
 		goto out;
 	}
 
-	rtnl_lock();
 	list_for_each_entry(nn, &pf->vnics, vnic_list) {
 		if (!__nfp_port_get_eth_port(nn->port))
 			continue;
@@ -575,6 +578,7 @@ static void nfp_net_refresh_vnics(struct work_struct *work)
 
 	kfree(eth_table);
 
+	/* Shoot off the ports which became invalid */
 	list_for_each_entry_safe(nn, next, &pf->vnics, vnic_list) {
 		if (!nn->port || nn->port->type != NFP_PORT_INVALID)
 			continue;
@@ -603,6 +607,8 @@ int nfp_net_refresh_eth_port(struct nfp_port *port)
 	struct nfp_cpp *cpp = port->app->cpp;
 	struct nfp_eth_table *eth_table;
 	int ret;
+
+	clear_bit(NFP_PORT_CHANGED, &port->flags);
 
 	eth_table = nfp_eth_read_ports(cpp);
 	if (!eth_table) {

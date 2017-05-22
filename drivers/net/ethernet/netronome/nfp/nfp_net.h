@@ -543,7 +543,6 @@ struct nfp_net_dp {
  * @reconfig_sync_present:  Some thread is performing synchronous reconfig
  * @reconfig_timer:	Timer for async reading of reconfig results
  * @link_up:            Is the link up?
- * @link_changed:	Has link state changes since last port refresh?
  * @link_status_lock:	Protects @link_* and ensures atomicity with BAR reading
  * @rx_coalesce_usecs:      RX interrupt moderation usecs delay parameter
  * @rx_coalesce_max_frames: RX interrupt moderation frame count parameter
@@ -601,7 +600,6 @@ struct nfp_net {
 	u32 me_freq_mhz;
 
 	bool link_up;
-	bool link_changed;
 	spinlock_t link_status_lock;
 
 	spinlock_t reconfig_lock;
@@ -841,8 +839,6 @@ nfp_net_irqs_assign(struct nfp_net *nn, struct msix_entry *irq_entries,
 struct nfp_net_dp *nfp_net_clone_dp(struct nfp_net *nn);
 int nfp_net_ring_reconfig(struct nfp_net *nn, struct nfp_net_dp *new,
 			  struct netlink_ext_ack *extack);
-
-bool nfp_net_link_changed_read_clear(struct nfp_net *nn);
 
 #ifdef CONFIG_NFP_DEBUG
 void nfp_net_debugfs_create(void);
