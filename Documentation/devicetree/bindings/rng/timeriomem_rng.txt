@@ -5,6 +5,13 @@ Required properties:
 - reg : base address to sample from
 - period : wait time in microseconds to use between samples
 
+Optional properties:
+- quality : estimated number of bits of true entropy per 1024 bits read from the
+            rng.  Defaults to zero which causes the kernel's default quality to
+            be used instead.  Note that the default quality is usually zero
+            which disables using this rng to automatically fill the kernel's
+            entropy pool.
+
 N.B. currently 'reg' must be four bytes wide and aligned
 
 Example:
