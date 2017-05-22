@@ -3052,6 +3052,12 @@ int bnxt_re_dereg_mr(struct ib_mr *ib_mr)
 	struct bnxt_re_dev *rdev = mr->rdev;
 	int rc;
 
+	rc = bnxt_qplib_free_mrw(&rdev->qplib_res, &mr->qplib_mr);
+	if (rc) {
+		dev_err(rdev_to_dev(rdev), "Dereg MR failed: %#x\n", rc);
+		return rc;
+	}
+
 	if (mr->npages && mr->pages) {
 		rc = bnxt_qplib_free_fast_reg_page_list(&rdev->qplib_res,
 							&mr->qplib_frpl);
@@ -3059,8 +3065,6 @@ int bnxt_re_dereg_mr(struct ib_mr *ib_mr)
 		mr->npages = 0;
 		mr->pages = NULL;
 	}
-	rc = bnxt_qplib_free_mrw(&rdev->qplib_res, &mr->qplib_mr);
-
 	if (!IS_ERR_OR_NULL(mr->ib_umem))
 		ib_umem_release(mr->ib_umem);
 
