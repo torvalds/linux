@@ -844,7 +844,6 @@ static void ideapad_acpi_notify(acpi_handle handle, u32 event, void *data)
 			case 8:
 			case 7:
 			case 6:
-			case 1:
 				ideapad_input_report(priv, vpc_bit);
 				break;
 			case 5:
@@ -861,6 +860,13 @@ static void ideapad_acpi_notify(acpi_handle handle, u32 event, void *data)
 				break;
 			case 0:
 				ideapad_check_special_buttons(priv);
+				break;
+			case 1:
+				/* Some IdeaPads report event 1 every ~20
+				 * seconds while on battery power; some
+				 * report this when changing to/from tablet
+				 * mode. Squelch this event.
+				 */
 				break;
 			default:
 				pr_info("Unknown event: %lu\n", vpc_bit);
