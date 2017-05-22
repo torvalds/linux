@@ -344,12 +344,12 @@ static ssize_t snd_info_text_entry_write(struct file *file,
 		}
 	}
 	if (next > buf->len) {
-		char *nbuf = krealloc(buf->buffer, PAGE_ALIGN(next),
-				      GFP_KERNEL | __GFP_ZERO);
+		char *nbuf = kvzalloc(PAGE_ALIGN(next), GFP_KERNEL);
 		if (!nbuf) {
 			err = -ENOMEM;
 			goto error;
 		}
+		kvfree(buf->buffer);
 		buf->buffer = nbuf;
 		buf->len = PAGE_ALIGN(next);
 	}
@@ -427,7 +427,7 @@ static int snd_info_text_entry_release(struct inode *inode, struct file *file)
 	single_release(inode, file);
 	kfree(data->rbuffer);
 	if (data->wbuffer) {
-		kfree(data->wbuffer->buffer);
+		kvfree(data->wbuffer->buffer);
 		kfree(data->wbuffer);
 	}
 
