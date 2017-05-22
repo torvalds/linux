@@ -427,6 +427,8 @@ static const struct hisi_gate_clock hi3660_iomcu_gate_sep_clks[] = {
 	  CLK_SET_RATE_PARENT, 0x90, 0, 0, },
 };
 
+static struct hisi_clock_data *clk_crgctrl_data;
+
 static void hi3660_clk_iomcu_init(struct device_node *np)
 {
 	struct hisi_clock_data *clk_data;
@@ -489,38 +491,64 @@ static void hi3660_clk_sctrl_init(struct device_node *np)
 				  clk_data);
 }
 
-static void hi3660_clk_crgctrl_init(struct device_node *np)
+static void hi3660_clk_crgctrl_early_init(struct device_node *np)
 {
-	struct hisi_clock_data *clk_data;
 	int nr = ARRAY_SIZE(hi3660_fixed_rate_clks) +
 		 ARRAY_SIZE(hi3660_crgctrl_gate_sep_clks) +
 		 ARRAY_SIZE(hi3660_crgctrl_gate_clks) +
 		 ARRAY_SIZE(hi3660_crgctrl_mux_clks) +
 		 ARRAY_SIZE(hi3660_crg_fixed_factor_clks) +
 		 ARRAY_SIZE(hi3660_crgctrl_divider_clks);
+	int i;
 
-	clk_data = hisi_clk_init(np, nr);
-	if (!clk_data)
+	clk_crgctrl_data = hisi_clk_init(np, nr);
+	if (!clk_crgctrl_data)
 		return;
+
+	for (i = 0; i < nr; i++)
+		clk_crgctrl_data->clk_data.clks[i] = ERR_PTR(-EPROBE_DEFER);
 
 	hisi_clk_register_fixed_rate(hi3660_fixed_rate_clks,
 				     ARRAY_SIZE(hi3660_fixed_rate_clks),
-				     clk_data);
+				     clk_crgctrl_data);
+}
+CLK_OF_DECLARE_DRIVER(hi3660_clk_crgctrl, "hisilicon,hi3660-crgctrl",
+		      hi3660_clk_crgctrl_early_init);
+
+static void hi3660_clk_crgctrl_init(struct device_node *np)
+{
+	struct clk **clks;
+	int i;
+
+	if (!clk_crgctrl_data)
+		hi3660_clk_crgctrl_early_init(np);
+
+	/* clk_crgctrl_data initialization failed */
+	if (!clk_crgctrl_data)
+		return;
+
 	hisi_clk_register_gate_sep(hi3660_crgctrl_gate_sep_clks,
 				   ARRAY_SIZE(hi3660_crgctrl_gate_sep_clks),
-				   clk_data);
+				   clk_crgctrl_data);
 	hisi_clk_register_gate(hi3660_crgctrl_gate_clks,
 			       ARRAY_SIZE(hi3660_crgctrl_gate_clks),
-			       clk_data);
+			       clk_crgctrl_data);
 	hisi_clk_register_mux(hi3660_crgctrl_mux_clks,
 			      ARRAY_SIZE(hi3660_crgctrl_mux_clks),
-			      clk_data);
+			      clk_crgctrl_data);
 	hisi_clk_register_fixed_factor(hi3660_crg_fixed_factor_clks,
 				       ARRAY_SIZE(hi3660_crg_fixed_factor_clks),
-				       clk_data);
+				       clk_crgctrl_data);
 	hisi_clk_register_divider(hi3660_crgctrl_divider_clks,
 				  ARRAY_SIZE(hi3660_crgctrl_divider_clks),
-				  clk_data);
+				  clk_crgctrl_data);
+
+	clks = clk_crgctrl_data->clk_data.clks;
+	for (i = 0; i < clk_crgctrl_data->clk_data.clk_num; i++) {
+		if (IS_ERR(clks[i]) && PTR_ERR(clks[i]) != -EPROBE_DEFER)
+			pr_err("Failed to register crgctrl clock[%d] err=%ld\n",
+			       i, PTR_ERR(clks[i]));
+	}
 }
 
 static const struct of_device_id hi3660_clk_match_table[] = {
