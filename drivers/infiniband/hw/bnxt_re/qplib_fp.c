@@ -284,7 +284,7 @@ int bnxt_qplib_create_qp1(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 {
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
 	struct cmdq_create_qp1 req;
-	struct creq_create_qp1_resp *resp;
+	struct creq_create_qp1_resp resp;
 	struct bnxt_qplib_pbl *pbl;
 	struct bnxt_qplib_q *sq = &qp->sq;
 	struct bnxt_qplib_q *rq = &qp->rq;
@@ -394,31 +394,12 @@ int bnxt_qplib_create_qp1(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 
 	req.pd_id = cpu_to_le32(qp->pd->id);
 
-	resp = (struct creq_create_qp1_resp *)
-			bnxt_qplib_rcfw_send_message(rcfw, (void *)&req,
-						     NULL, 0);
-	if (!resp) {
-		dev_err(&res->pdev->dev, "QPLIB: FP: CREATE_QP1 send failed");
-		rc = -EINVAL;
+	rc = bnxt_qplib_rcfw_send_message(rcfw, (void *)&req,
+					  (void *)&resp, NULL, 0);
+	if (rc)
 		goto fail;
-	}
-	if (!bnxt_qplib_rcfw_wait_for_resp(rcfw, le16_to_cpu(req.cookie))) {
-		/* Cmd timed out */
-		dev_err(&rcfw->pdev->dev, "QPLIB: FP: CREATE_QP1 timed out");
-		rc = -ETIMEDOUT;
-		goto fail;
-	}
-	if (resp->status ||
-	    le16_to_cpu(resp->cookie) != le16_to_cpu(req.cookie)) {
-		dev_err(&rcfw->pdev->dev, "QPLIB: FP: CREATE_QP1 failed ");
-		dev_err(&rcfw->pdev->dev,
-			"QPLIB: with status 0x%x cmdq 0x%x resp 0x%x",
-			resp->status, le16_to_cpu(req.cookie),
-			le16_to_cpu(resp->cookie));
-		rc = -EINVAL;
-		goto fail;
-	}
-	qp->id = le32_to_cpu(resp->xid);
+
+	qp->id = le32_to_cpu(resp.xid);
 	qp->cur_qp_state = CMDQ_MODIFY_QP_NEW_STATE_RESET;
 	sq->flush_in_progress = false;
 	rq->flush_in_progress = false;
@@ -442,7 +423,7 @@ int bnxt_qplib_create_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
 	struct sq_send *hw_sq_send_hdr, **hw_sq_send_ptr;
 	struct cmdq_create_qp req;
-	struct creq_create_qp_resp *resp;
+	struct creq_create_qp_resp resp;
 	struct bnxt_qplib_pbl *pbl;
 	struct sq_psn_search **psn_search_ptr;
 	unsigned long int psn_search, poff = 0;
@@ -627,31 +608,12 @@ int bnxt_qplib_create_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	}
 	req.pd_id = cpu_to_le32(qp->pd->id);
 
-	resp = (struct creq_create_qp_resp *)
-			bnxt_qplib_rcfw_send_message(rcfw, (void *)&req,
-						     NULL, 0);
-	if (!resp) {
-		dev_err(&rcfw->pdev->dev, "QPLIB: FP: CREATE_QP send failed");
-		rc = -EINVAL;
+	rc = bnxt_qplib_rcfw_send_message(rcfw, (void *)&req,
+					  (void *)&resp, NULL, 0);
+	if (rc)
 		goto fail;
-	}
-	if (!bnxt_qplib_rcfw_wait_for_resp(rcfw, le16_to_cpu(req.cookie))) {
-		/* Cmd timed out */
-		dev_err(&rcfw->pdev->dev, "QPLIB: FP: CREATE_QP timed out");
-		rc = -ETIMEDOUT;
-		goto fail;
-	}
-	if (resp->status ||
-	    le16_to_cpu(resp->cookie) != le16_to_cpu(req.cookie)) {
-		dev_err(&rcfw->pdev->dev, "QPLIB: FP: CREATE_QP failed ");
-		dev_err(&rcfw->pdev->dev,
-			"QPLIB: with status 0x%x cmdq 0x%x resp 0x%x",
-			resp->status, le16_to_cpu(req.cookie),
-			le16_to_cpu(resp->cookie));
-		rc = -EINVAL;
-		goto fail;
-	}
-	qp->id = le32_to_cpu(resp->xid);
+
+	qp->id = le32_to_cpu(resp.xid);
 	qp->cur_qp_state = CMDQ_MODIFY_QP_NEW_STATE_RESET;
 	sq->flush_in_progress = false;
 	rq->flush_in_progress = false;
@@ -769,10 +731,11 @@ int bnxt_qplib_modify_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 {
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
 	struct cmdq_modify_qp req;
-	struct creq_modify_qp_resp *resp;
+	struct creq_modify_qp_resp resp;
 	u16 cmd_flags = 0, pkey;
 	u32 temp32[4];
 	u32 bmask;
+	int rc;
 
 	RCFW_CMD_PREP(req, MODIFY_QP, cmd_flags);
 
@@ -862,27 +825,10 @@ int bnxt_qplib_modify_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 
 	req.vlan_pcp_vlan_dei_vlan_id = cpu_to_le16(qp->vlan_id);
 
-	resp = (struct creq_modify_qp_resp *)
-			bnxt_qplib_rcfw_send_message(rcfw, (void *)&req,
-						     NULL, 0);
-	if (!resp) {
-		dev_err(&rcfw->pdev->dev, "QPLIB: FP: MODIFY_QP send failed");
-		return -EINVAL;
-	}
-	if (!bnxt_qplib_rcfw_wait_for_resp(rcfw, le16_to_cpu(req.cookie))) {
-		/* Cmd timed out */
-		dev_err(&rcfw->pdev->dev, "QPLIB: FP: MODIFY_QP timed out");
-		return -ETIMEDOUT;
-	}
-	if (resp->status ||
-	    le16_to_cpu(resp->cookie) != le16_to_cpu(req.cookie)) {
-		dev_err(&rcfw->pdev->dev, "QPLIB: FP: MODIFY_QP failed ");
-		dev_err(&rcfw->pdev->dev,
-			"QPLIB: with status 0x%x cmdq 0x%x resp 0x%x",
-			resp->status, le16_to_cpu(req.cookie),
-			le16_to_cpu(resp->cookie));
-		return -EINVAL;
-	}
+	rc = bnxt_qplib_rcfw_send_message(rcfw, (void *)&req,
+					  (void *)&resp, NULL, 0);
+	if (rc)
+		return rc;
 	qp->cur_qp_state = qp->state;
 	return 0;
 }
@@ -891,37 +837,26 @@ int bnxt_qplib_query_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 {
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
 	struct cmdq_query_qp req;
-	struct creq_query_qp_resp *resp;
+	struct creq_query_qp_resp resp;
+	struct bnxt_qplib_rcfw_sbuf *sbuf;
 	struct creq_query_qp_resp_sb *sb;
 	u16 cmd_flags = 0;
 	u32 temp32[4];
-	int i;
+	int i, rc = 0;
 
 	RCFW_CMD_PREP(req, QUERY_QP, cmd_flags);
 
+	sbuf = bnxt_qplib_rcfw_alloc_sbuf(rcfw, sizeof(*sb));
+	if (!sbuf)
+		return -ENOMEM;
+	sb = sbuf->sb;
+
 	req.qp_cid = cpu_to_le32(qp->id);
 	req.resp_size = sizeof(*sb) / BNXT_QPLIB_CMDQE_UNITS;
-	resp = (struct creq_query_qp_resp *)
-			bnxt_qplib_rcfw_send_message(rcfw, (void *)&req,
-						     (void **)&sb, 0);
-	if (!resp) {
-		dev_err(&rcfw->pdev->dev, "QPLIB: FP: QUERY_QP send failed");
-		return -EINVAL;
-	}
-	if (!bnxt_qplib_rcfw_wait_for_resp(rcfw, le16_to_cpu(req.cookie))) {
-		/* Cmd timed out */
-		dev_err(&rcfw->pdev->dev, "QPLIB: FP: QUERY_QP timed out");
-		return -ETIMEDOUT;
-	}
-	if (resp->status ||
-	    le16_to_cpu(resp->cookie) != le16_to_cpu(req.cookie)) {
-		dev_err(&rcfw->pdev->dev, "QPLIB: FP: QUERY_QP failed ");
-		dev_err(&rcfw->pdev->dev,
-			"QPLIB: with status 0x%x cmdq 0x%x resp 0x%x",
-			resp->status, le16_to_cpu(req.cookie),
-			le16_to_cpu(resp->cookie));
-		return -EINVAL;
-	}
+	rc = bnxt_qplib_rcfw_send_message(rcfw, (void *)&req, (void *)&resp,
+					  (void *)sbuf, 0);
+	if (rc)
+		goto bail;
 	/* Extract the context from the side buffer */
 	qp->state = sb->en_sqd_async_notify_state &
 			CREQ_QUERY_QP_RESP_SB_STATE_MASK;
@@ -976,7 +911,9 @@ int bnxt_qplib_query_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	qp->dest_qpn = le32_to_cpu(sb->dest_qp_id);
 	memcpy(qp->smac, sb->src_mac, 6);
 	qp->vlan_id = le16_to_cpu(sb->vlan_pcp_vlan_dei_vlan_id);
-	return 0;
+bail:
+	bnxt_qplib_rcfw_free_sbuf(rcfw, sbuf);
+	return rc;
 }
 
 static void __clean_cq(struct bnxt_qplib_cq *cq, u64 qp)
@@ -1021,34 +958,18 @@ int bnxt_qplib_destroy_qp(struct bnxt_qplib_res *res,
 {
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
 	struct cmdq_destroy_qp req;
-	struct creq_destroy_qp_resp *resp;
+	struct creq_destroy_qp_resp resp;
 	unsigned long flags;
 	u16 cmd_flags = 0;
+	int rc;
 
 	RCFW_CMD_PREP(req, DESTROY_QP, cmd_flags);
 
 	req.qp_cid = cpu_to_le32(qp->id);
-	resp = (struct creq_destroy_qp_resp *)
-			bnxt_qplib_rcfw_send_message(rcfw, (void *)&req,
-						     NULL, 0);
-	if (!resp) {
-		dev_err(&rcfw->pdev->dev, "QPLIB: FP: DESTROY_QP send failed");
-		return -EINVAL;
-	}
-	if (!bnxt_qplib_rcfw_wait_for_resp(rcfw, le16_to_cpu(req.cookie))) {
-		/* Cmd timed out */
-		dev_err(&rcfw->pdev->dev, "QPLIB: FP: DESTROY_QP timed out");
-		return -ETIMEDOUT;
-	}
-	if (resp->status ||
-	    le16_to_cpu(resp->cookie) != le16_to_cpu(req.cookie)) {
-		dev_err(&rcfw->pdev->dev, "QPLIB: FP: DESTROY_QP failed ");
-		dev_err(&rcfw->pdev->dev,
-			"QPLIB: with status 0x%x cmdq 0x%x resp 0x%x",
-			resp->status, le16_to_cpu(req.cookie),
-			le16_to_cpu(resp->cookie));
-		return -EINVAL;
-	}
+	rc = bnxt_qplib_rcfw_send_message(rcfw, (void *)&req,
+					  (void *)&resp, NULL, 0);
+	if (rc)
+		return rc;
 
 	/* Must walk the associated CQs to nullified the QP ptr */
 	spin_lock_irqsave(&qp->scq->hwq.lock, flags);
@@ -1483,7 +1404,7 @@ int bnxt_qplib_create_cq(struct bnxt_qplib_res *res, struct bnxt_qplib_cq *cq)
 {
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
 	struct cmdq_create_cq req;
-	struct creq_create_cq_resp *resp;
+	struct creq_create_cq_resp resp;
 	struct bnxt_qplib_pbl *pbl;
 	u16 cmd_flags = 0;
 	int rc;
@@ -1525,30 +1446,12 @@ int bnxt_qplib_create_cq(struct bnxt_qplib_res *res, struct bnxt_qplib_cq *cq)
 			(cq->cnq_hw_ring_id & CMDQ_CREATE_CQ_CNQ_ID_MASK) <<
 			 CMDQ_CREATE_CQ_CNQ_ID_SFT);
 
-	resp = (struct creq_create_cq_resp *)
-			bnxt_qplib_rcfw_send_message(rcfw, (void *)&req,
-						     NULL, 0);
-	if (!resp) {
-		dev_err(&rcfw->pdev->dev, "QPLIB: FP: CREATE_CQ send failed");
-		return -EINVAL;
-	}
-	if (!bnxt_qplib_rcfw_wait_for_resp(rcfw, le16_to_cpu(req.cookie))) {
-		/* Cmd timed out */
-		dev_err(&rcfw->pdev->dev, "QPLIB: FP: CREATE_CQ timed out");
-		rc = -ETIMEDOUT;
+	rc = bnxt_qplib_rcfw_send_message(rcfw, (void *)&req,
+					  (void *)&resp, NULL, 0);
+	if (rc)
 		goto fail;
-	}
-	if (resp->status ||
-	    le16_to_cpu(resp->cookie) != le16_to_cpu(req.cookie)) {
-		dev_err(&rcfw->pdev->dev, "QPLIB: FP: CREATE_CQ failed ");
-		dev_err(&rcfw->pdev->dev,
-			"QPLIB: with status 0x%x cmdq 0x%x resp 0x%x",
-			resp->status, le16_to_cpu(req.cookie),
-			le16_to_cpu(resp->cookie));
-		rc = -EINVAL;
-		goto fail;
-	}
-	cq->id = le32_to_cpu(resp->xid);
+
+	cq->id = le32_to_cpu(resp.xid);
 	cq->dbr_base = res->dpi_tbl.dbr_bar_reg_iomem;
 	cq->period = BNXT_QPLIB_QUEUE_START_PERIOD;
 	init_waitqueue_head(&cq->waitq);
@@ -1566,33 +1469,17 @@ int bnxt_qplib_destroy_cq(struct bnxt_qplib_res *res, struct bnxt_qplib_cq *cq)
 {
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
 	struct cmdq_destroy_cq req;
-	struct creq_destroy_cq_resp *resp;
+	struct creq_destroy_cq_resp resp;
 	u16 cmd_flags = 0;
+	int rc;
 
 	RCFW_CMD_PREP(req, DESTROY_CQ, cmd_flags);
 
 	req.cq_cid = cpu_to_le32(cq->id);
-	resp = (struct creq_destroy_cq_resp *)
-			bnxt_qplib_rcfw_send_message(rcfw, (void *)&req,
-						     NULL, 0);
-	if (!resp) {
-		dev_err(&rcfw->pdev->dev, "QPLIB: FP: DESTROY_CQ send failed");
-		return -EINVAL;
-	}
-	if (!bnxt_qplib_rcfw_wait_for_resp(rcfw, le16_to_cpu(req.cookie))) {
-		/* Cmd timed out */
-		dev_err(&rcfw->pdev->dev, "QPLIB: FP: DESTROY_CQ timed out");
-		return -ETIMEDOUT;
-	}
-	if (resp->status ||
-	    le16_to_cpu(resp->cookie) != le16_to_cpu(req.cookie)) {
-		dev_err(&rcfw->pdev->dev, "QPLIB: FP: DESTROY_CQ failed ");
-		dev_err(&rcfw->pdev->dev,
-			"QPLIB: with status 0x%x cmdq 0x%x resp 0x%x",
-			resp->status, le16_to_cpu(req.cookie),
-			le16_to_cpu(resp->cookie));
-		return -EINVAL;
-	}
+	rc = bnxt_qplib_rcfw_send_message(rcfw, (void *)&req,
+					  (void *)&resp, NULL, 0);
+	if (rc)
+		return rc;
 	bnxt_qplib_free_hwq(res->pdev, &cq->hwq);
 	return 0;
 }
