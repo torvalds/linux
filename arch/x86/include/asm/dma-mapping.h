@@ -33,9 +33,6 @@ static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 bool arch_dma_alloc_attrs(struct device **dev, gfp_t *gfp);
 #define arch_dma_alloc_attrs arch_dma_alloc_attrs
 
-#define HAVE_ARCH_DMA_SUPPORTED 1
-extern int dma_supported(struct device *hwdev, u64 mask);
-
 extern void *dma_generic_alloc_coherent(struct device *dev, size_t size,
 					dma_addr_t *dma_addr, gfp_t flag,
 					unsigned long attrs);

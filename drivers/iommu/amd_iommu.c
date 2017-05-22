@@ -2731,6 +2731,8 @@ free_mem:
  */
 static int amd_iommu_dma_supported(struct device *dev, u64 mask)
 {
+	if (!x86_dma_supported(dev, mask))
+		return 0;
 	return check_device(dev);
 }
 
