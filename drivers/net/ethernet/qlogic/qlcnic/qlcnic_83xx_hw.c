@@ -3168,6 +3168,40 @@ int qlcnic_83xx_flash_read32(struct qlcnic_adapter *adapter, u32 flash_addr,
 	return 0;
 }
 
+void qlcnic_83xx_get_port_type(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct qlcnic_cmd_args cmd;
+	u32 config;
+	int err;
+
+	err = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_GET_LINK_STATUS);
+	if (err)
+		return;
+
+	err = qlcnic_issue_cmd(adapter, &cmd);
+	if (err) {
+		dev_info(&adapter->pdev->dev,
+			 "Get Link Status Command failed: 0x%x\n", err);
+		goto out;
+	} else {
+		config = cmd.rsp.arg[3];
+
+		switch (QLC_83XX_SFP_MODULE_TYPE(config)) {
+		case QLC_83XX_MODULE_FIBRE_1000BASE_SX:
+		case QLC_83XX_MODULE_FIBRE_1000BASE_LX:
+		case QLC_83XX_MODULE_FIBRE_1000BASE_CX:
+		case QLC_83XX_MODULE_TP_1000BASE_T:
+			ahw->port_type = QLCNIC_GBE;
+			break;
+		default:
+			ahw->port_type = QLCNIC_XGBE;
+		}
+	}
+out:
+	qlcnic_free_mbx_args(&cmd);
+}
+
 int qlcnic_83xx_test_link(struct qlcnic_adapter *adapter)
 {
 	u8 pci_func;

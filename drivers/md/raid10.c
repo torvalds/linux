@@ -1282,17 +1282,16 @@ static void raid10_write_one_disk(struct mddev *mddev, struct r10bio *r10_bio,
 		plug = container_of(cb, struct raid10_plug_cb, cb);
 	else
 		plug = NULL;
-	spin_lock_irqsave(&conf->device_lock, flags);
 	if (plug) {
 		bio_list_add(&plug->pending, mbio);
 		plug->pending_cnt++;
 	} else {
+		spin_lock_irqsave(&conf->device_lock, flags);
 		bio_list_add(&conf->pending_bio_list, mbio);
 		conf->pending_count++;
-	}
-	spin_unlock_irqrestore(&conf->device_lock, flags);
-	if (!plug)
+		spin_unlock_irqrestore(&conf->device_lock, flags);
 		md_wakeup_thread(mddev->thread);
+	}
 }
 
 static void raid10_write_request(struct mddev *mddev, struct bio *bio,
