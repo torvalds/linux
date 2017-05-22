@@ -217,8 +217,8 @@ static inline unsigned long fadump_calculate_reserve_size(void)
 
 	/*
 	 * Check if the size is specified through crashkernel= cmdline
-	 * option. If yes, then use that but ignore base as fadump
-	 * reserves memory at end of RAM.
+	 * option. If yes, then use that but ignore base as fadump reserves
+	 * memory at a predefined offset.
 	 */
 	ret = parse_crashkernel(boot_command_line, memblock_phys_mem_size(),
 				&size, &base);
