@@ -70,6 +70,7 @@ struct tpm_inf_dev {
 	u8 buf[TPM_BUFSIZE + sizeof(u8)]; /* max. buffer size + addr */
 	struct tpm_chip *chip;
 	enum i2c_chip_type chip_type;
+	unsigned int adapterlimit;
 };
 
 static struct tpm_inf_dev tpm_dev;
@@ -111,6 +112,7 @@ static int iic_tpm_read(u8 addr, u8 *buffer, size_t len)
 
 	int rc = 0;
 	int count;
+	unsigned int msglen = len;
 
 	/* Lock the adapter for the duration of the whole sequence. */
 	if (!tpm_dev.client->adapter->algo->master_xfer)
@@ -131,27 +133,61 @@ static int iic_tpm_read(u8 addr, u8 *buffer, size_t len)
 			usleep_range(SLEEP_DURATION_LOW, SLEEP_DURATION_HI);
 		}
 	} else {
-		/* slb9635 protocol should work in all cases */
-		for (count = 0; count < MAX_COUNT; count++) {
-			rc = __i2c_transfer(tpm_dev.client->adapter, &msg1, 1);
-			if (rc > 0)
-				break;	/* break here to skip sleep */
-
-			usleep_range(SLEEP_DURATION_LOW, SLEEP_DURATION_HI);
-		}
-
-		if (rc <= 0)
-			goto out;
-
-		/* After the TPM has successfully received the register address
-		 * it needs some time, thus we're sleeping here again, before
-		 * retrieving the data
+		/* Expect to send one command message and one data message, but
+		 * support looping over each or both if necessary.
 		 */
-		for (count = 0; count < MAX_COUNT; count++) {
-			usleep_range(SLEEP_DURATION_LOW, SLEEP_DURATION_HI);
-			rc = __i2c_transfer(tpm_dev.client->adapter, &msg2, 1);
-			if (rc > 0)
-				break;
+		while (len > 0) {
+			/* slb9635 protocol should work in all cases */
+			for (count = 0; count < MAX_COUNT; count++) {
+				rc = __i2c_transfer(tpm_dev.client->adapter,
+						    &msg1, 1);
+				if (rc > 0)
+					break;	/* break here to skip sleep */
+
+				usleep_range(SLEEP_DURATION_LOW,
+					     SLEEP_DURATION_HI);
+			}
+
+			if (rc <= 0)
+				goto out;
+
+			/* After the TPM has successfully received the register
+			 * address it needs some time, thus we're sleeping here
+			 * again, before retrieving the data
+			 */
+			for (count = 0; count < MAX_COUNT; count++) {
+				if (tpm_dev.adapterlimit) {
+					msglen = min_t(unsigned int,
+						       tpm_dev.adapterlimit,
+						       len);
+					msg2.len = msglen;
+				}
+				usleep_range(SLEEP_DURATION_LOW,
+					     SLEEP_DURATION_HI);
+				rc = __i2c_transfer(tpm_dev.client->adapter,
+						    &msg2, 1);
+				if (rc > 0) {
+					/* Since len is unsigned, make doubly
+					 * sure we do not underflow it.
+					 */
+					if (msglen > len)
+						len = 0;
+					else
+						len -= msglen;
+					msg2.buf += msglen;
+					break;
+				}
+				/* If the I2C adapter rejected the request (e.g
+				 * when the quirk read_max_len < len) fall back
+				 * to a sane minimum value and try again.
+				 */
+				if (rc == -EOPNOTSUPP)
+					tpm_dev.adapterlimit =
+							I2C_SMBUS_BLOCK_MAX;
+			}
+
+			if (rc <= 0)
+				goto out;
 		}
 	}
 
