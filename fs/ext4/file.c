@@ -474,7 +474,7 @@ static int ext4_find_unwritten_pgoff(struct inode *inode,
 	endoff = (loff_t)end_blk << blkbits;
 
 	index = startoff >> PAGE_SHIFT;
-	end = endoff >> PAGE_SHIFT;
+	end = (endoff - 1) >> PAGE_SHIFT;
 
 	pagevec_init(&pvec, 0);
 	do {
