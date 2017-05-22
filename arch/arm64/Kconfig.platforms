@@ -225,10 +225,7 @@ config ARCH_VEXPRESS
 	  Express).
 
 config ARCH_VULCAN
-	bool "Broadcom Vulcan SOC Family"
-	select GPIOLIB
-	help
-	  This enables support for Broadcom Vulcan SoC Family
+	def_bool n
 
 config ARCH_XGENE
 	bool "AppliedMicro X-Gene SOC Family"
