@@ -329,6 +329,14 @@ static inline void reset_lazy_tlbstate(void)
 	this_cpu_write(cpu_tlbstate.active_mm, &init_mm);
 }
 
+static inline void arch_tlbbatch_add_mm(struct arch_tlbflush_unmap_batch *batch,
+					struct mm_struct *mm)
+{
+	cpumask_or(&batch->cpumask, &batch->cpumask, mm_cpumask(mm));
+}
+
+extern void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch);
+
 #endif	/* SMP */
 
 #ifndef CONFIG_PARAVIRT

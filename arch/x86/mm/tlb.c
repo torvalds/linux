@@ -395,6 +395,23 @@ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 	}
 }
 
+void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch)
+{
+	int cpu = get_cpu();
+
+	if (cpumask_test_cpu(cpu, &batch->cpumask)) {
+		count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
+		local_flush_tlb();
+		trace_tlb_flush(TLB_LOCAL_SHOOTDOWN, TLB_FLUSH_ALL);
+	}
+
+	if (cpumask_any_but(&batch->cpumask, cpu) < nr_cpu_ids)
+		flush_tlb_others(&batch->cpumask, NULL, 0, TLB_FLUSH_ALL);
+	cpumask_clear(&batch->cpumask);
+
+	put_cpu();
+}
+
 static ssize_t tlbflush_read_file(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
 {
