@@ -1940,7 +1940,7 @@ void mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 			mmc_blk_issue_rw_rq(mq, req);
 			card->host->context_info.is_waiting_last_req = false;
 			break;
-		};
+		}
 	} else {
 		/* No request, flushing the pipeline with NULL */
 		mmc_blk_issue_rw_rq(mq, NULL);
