@@ -1,3 +1,7 @@
+#include <dirent.h>
+#include <errno.h>
+#include <inttypes.h>
+#include <regex.h>
 #include "callchain.h"
 #include "debug.h"
 #include "event.h"
@@ -10,9 +14,15 @@
 #include "thread.h"
 #include "vdso.h"
 #include <stdbool.h>
-#include <symbol/kallsyms.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include "unwind.h"
 #include "linux/hash.h"
+#include "asm/bug.h"
+
+#include "sane_ctype.h"
+#include <symbol/kallsyms.h>
 
 static void __machine__remove_thread(struct machine *machine, struct thread *th, bool lock);
 
@@ -501,6 +511,37 @@ int machine__process_comm_event(struct machine *machine, union perf_event *event
 	return err;
 }
 
+int machine__process_namespaces_event(struct machine *machine __maybe_unused,
+				      union perf_event *event,
+				      struct perf_sample *sample __maybe_unused)
+{
+	struct thread *thread = machine__findnew_thread(machine,
+							event->namespaces.pid,
+							event->namespaces.tid);
+	int err = 0;
+
+	WARN_ONCE(event->namespaces.nr_namespaces > NR_NAMESPACES,
+		  "\nWARNING: kernel seems to support more namespaces than perf"
+		  " tool.\nTry updating the perf tool..\n\n");
+
+	WARN_ONCE(event->namespaces.nr_namespaces < NR_NAMESPACES,
+		  "\nWARNING: perf tool seems to support more namespaces than"
+		  " the kernel.\nTry updating the kernel..\n\n");
+
+	if (dump_trace)
+		perf_event__fprintf_namespaces(event, stdout);
+
+	if (thread == NULL ||
+	    thread__set_namespaces(thread, sample->time, &event->namespaces)) {
+		dump_printf("problem processing PERF_RECORD_NAMESPACES, skipping event.\n");
+		err = -1;
+	}
+
+	thread__put(thread);
+
+	return err;
+}
+
 int machine__process_lost_event(struct machine *machine __maybe_unused,
 				union perf_event *event, struct perf_sample *sample __maybe_unused)
 {
@@ -755,11 +796,11 @@ const char *ref_reloc_sym_names[] = {"_text", "_stext", NULL};
  * Returns the name of the start symbol in *symbol_name. Pass in NULL as
  * symbol_name if it's not that important.
  */
-static u64 machine__get_running_kernel_start(struct machine *machine,
-					     const char **symbol_name)
+static int machine__get_running_kernel_start(struct machine *machine,
+					     const char **symbol_name, u64 *start)
 {
 	char filename[PATH_MAX];
-	int i;
+	int i, err = -1;
 	const char *name;
 	u64 addr = 0;
 
@@ -769,21 +810,28 @@ static u64 machine__get_running_kernel_start(struct machine *machine,
 		return 0;
 
 	for (i = 0; (name = ref_reloc_sym_names[i]) != NULL; i++) {
-		addr = kallsyms__get_function_start(filename, name);
-		if (addr)
+		err = kallsyms__get_function_start(filename, name, &addr);
+		if (!err)
 			break;
 	}
+
+	if (err)
+		return -1;
 
 	if (symbol_name)
 		*symbol_name = name;
 
-	return addr;
+	*start = addr;
+	return 0;
 }
 
 int __machine__create_kernel_maps(struct machine *machine, struct dso *kernel)
 {
 	int type;
-	u64 start = machine__get_running_kernel_start(machine, NULL);
+	u64 start = 0;
+
+	if (machine__get_running_kernel_start(machine, NULL, &start))
+		return -1;
 
 	/* In case of renewal the kernel map, destroy previous one */
 	machine__destroy_kernel_maps(machine);
@@ -1144,8 +1192,8 @@ static int machine__create_modules(struct machine *machine)
 int machine__create_kernel_maps(struct machine *machine)
 {
 	struct dso *kernel = machine__get_kernel(machine);
-	const char *name;
-	u64 addr;
+	const char *name = NULL;
+	u64 addr = 0;
 	int ret;
 
 	if (kernel == NULL)
@@ -1170,8 +1218,7 @@ int machine__create_kernel_maps(struct machine *machine)
 	 */
 	map_groups__fixup_end(&machine->kmaps);
 
-	addr = machine__get_running_kernel_start(machine, &name);
-	if (!addr) {
+	if (machine__get_running_kernel_start(machine, &name, &addr)) {
 	} else if (maps__set_kallsyms_ref_reloc_sym(machine->vmlinux_maps, name, addr)) {
 		machine__destroy_kernel_maps(machine);
 		return -1;
@@ -1439,7 +1486,7 @@ static void __machine__remove_thread(struct machine *machine, struct thread *th,
 	if (machine->last_match == th)
 		machine->last_match = NULL;
 
-	BUG_ON(atomic_read(&th->refcnt) == 0);
+	BUG_ON(refcount_read(&th->refcnt) == 0);
 	if (lock)
 		pthread_rwlock_wrlock(&machine->threads_lock);
 	rb_erase_init(&th->rb_node, &machine->threads);
@@ -1538,6 +1585,8 @@ int machine__process_event(struct machine *machine, union perf_event *event,
 		ret = machine__process_comm_event(machine, event, sample); break;
 	case PERF_RECORD_MMAP:
 		ret = machine__process_mmap_event(machine, event, sample); break;
+	case PERF_RECORD_NAMESPACES:
+		ret = machine__process_namespaces_event(machine, event, sample); break;
 	case PERF_RECORD_MMAP2:
 		ret = machine__process_mmap2_event(machine, event, sample); break;
 	case PERF_RECORD_FORK:

@@ -6,11 +6,35 @@
 #define MAX_MAPS 32
 #define MAX_PROGS 32
 
-extern int map_fd[MAX_MAPS];
+struct bpf_map_def {
+	unsigned int type;
+	unsigned int key_size;
+	unsigned int value_size;
+	unsigned int max_entries;
+	unsigned int map_flags;
+	unsigned int inner_map_idx;
+};
+
+struct bpf_map_data {
+	int fd;
+	char *name;
+	size_t elf_offset;
+	struct bpf_map_def def;
+};
+
+typedef void (*fixup_map_cb)(struct bpf_map_data *map, int idx);
+
 extern int prog_fd[MAX_PROGS];
 extern int event_fd[MAX_PROGS];
 extern char bpf_log_buf[BPF_LOG_BUF_SIZE];
 extern int prog_cnt;
+
+/* There is a one-to-one mapping between map_fd[] and map_data[].
+ * The map_data[] just contains more rich info on the given map.
+ */
+extern int map_fd[MAX_MAPS];
+extern struct bpf_map_data map_data[MAX_MAPS];
+extern int map_data_count;
 
 /* parses elf file compiled by llvm .c->.o
  * . parses 'maps' section and creates maps via BPF syscall
@@ -25,6 +49,7 @@ extern int prog_cnt;
  * returns zero on success
  */
 int load_bpf_file(char *path);
+int load_bpf_file_fixup_map(const char *path, fixup_map_cb fixup_map);
 
 void read_trace_pipe(void);
 struct ksym {
@@ -34,5 +59,5 @@ struct ksym {
 
 int load_kallsyms(void);
 struct ksym *ksym_search(long key);
-int set_link_xdp_fd(int ifindex, int fd);
+int set_link_xdp_fd(int ifindex, int fd, __u32 flags);
 #endif

@@ -175,7 +175,7 @@ static void qedi_destroy_cmd_pool(struct qedi_ctx *qedi,
 		if (cmd->io_tbl.sge_tbl)
 			dma_free_coherent(&qedi->pdev->dev,
 					  QEDI_ISCSI_MAX_BDS_PER_CMD *
-					  sizeof(struct iscsi_sge),
+					  sizeof(struct scsi_sge),
 					  cmd->io_tbl.sge_tbl,
 					  cmd->io_tbl.sge_tbl_dma);
 
@@ -191,7 +191,7 @@ static int qedi_alloc_sget(struct qedi_ctx *qedi, struct iscsi_session *session,
 			   struct qedi_cmd *cmd)
 {
 	struct qedi_io_bdt *io = &cmd->io_tbl;
-	struct iscsi_sge *sge;
+	struct scsi_sge *sge;
 
 	io->sge_tbl = dma_alloc_coherent(&qedi->pdev->dev,
 					 QEDI_ISCSI_MAX_BDS_PER_CMD *
@@ -708,22 +708,20 @@ static void qedi_conn_get_stats(struct iscsi_cls_conn *cls_conn,
 
 static void qedi_iscsi_prep_generic_pdu_bd(struct qedi_conn *qedi_conn)
 {
-	struct iscsi_sge *bd_tbl;
+	struct scsi_sge *bd_tbl;
 
-	bd_tbl = (struct iscsi_sge *)qedi_conn->gen_pdu.req_bd_tbl;
+	bd_tbl = (struct scsi_sge *)qedi_conn->gen_pdu.req_bd_tbl;
 
 	bd_tbl->sge_addr.hi =
 		(u32)((u64)qedi_conn->gen_pdu.req_dma_addr >> 32);
 	bd_tbl->sge_addr.lo = (u32)qedi_conn->gen_pdu.req_dma_addr;
 	bd_tbl->sge_len = qedi_conn->gen_pdu.req_wr_ptr -
 				qedi_conn->gen_pdu.req_buf;
-	bd_tbl->reserved0 = 0;
-	bd_tbl = (struct iscsi_sge  *)qedi_conn->gen_pdu.resp_bd_tbl;
+	bd_tbl = (struct scsi_sge  *)qedi_conn->gen_pdu.resp_bd_tbl;
 	bd_tbl->sge_addr.hi =
 			(u32)((u64)qedi_conn->gen_pdu.resp_dma_addr >> 32);
 	bd_tbl->sge_addr.lo = (u32)qedi_conn->gen_pdu.resp_dma_addr;
 	bd_tbl->sge_len = ISCSI_DEF_MAX_RECV_SEG_LEN;
-	bd_tbl->reserved0 = 0;
 }
 
 static int qedi_iscsi_send_generic_request(struct iscsi_task *task)
@@ -1372,7 +1370,7 @@ static void qedi_cleanup_task(struct iscsi_task *task)
 {
 	if (!task->sc || task->state == ISCSI_TASK_PENDING) {
 		QEDI_INFO(NULL, QEDI_LOG_IO, "Returning ref_cnt=%d\n",
-			  atomic_read(&task->refcount));
+			  refcount_read(&task->refcount));
 		return;
 	}
 

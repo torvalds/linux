@@ -533,6 +533,7 @@ DEF_CONFIGFS_ATTRIB_SHOW(emulate_3pc);
 DEF_CONFIGFS_ATTRIB_SHOW(pi_prot_type);
 DEF_CONFIGFS_ATTRIB_SHOW(hw_pi_prot_type);
 DEF_CONFIGFS_ATTRIB_SHOW(pi_prot_format);
+DEF_CONFIGFS_ATTRIB_SHOW(pi_prot_verify);
 DEF_CONFIGFS_ATTRIB_SHOW(enforce_pr_isids);
 DEF_CONFIGFS_ATTRIB_SHOW(is_nonrot);
 DEF_CONFIGFS_ATTRIB_SHOW(emulate_rest_reord);
@@ -823,6 +824,7 @@ static ssize_t pi_prot_type_store(struct config_item *item,
 		ret = dev->transport->init_prot(dev);
 		if (ret) {
 			da->pi_prot_type = old_prot;
+			da->pi_prot_verify = (bool) da->pi_prot_type;
 			return ret;
 		}
 
@@ -830,6 +832,7 @@ static ssize_t pi_prot_type_store(struct config_item *item,
 		dev->transport->free_prot(dev);
 	}
 
+	da->pi_prot_verify = (bool) da->pi_prot_type;
 	pr_debug("dev[%p]: SE Device Protection Type: %d\n", dev, flag);
 	return count;
 }
@@ -869,6 +872,35 @@ static ssize_t pi_prot_format_store(struct config_item *item,
 		return ret;
 
 	pr_debug("dev[%p]: SE Device Protection Format complete\n", dev);
+	return count;
+}
+
+static ssize_t pi_prot_verify_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	struct se_dev_attrib *da = to_attrib(item);
+	bool flag;
+	int ret;
+
+	ret = strtobool(page, &flag);
+	if (ret < 0)
+		return ret;
+
+	if (!flag) {
+		da->pi_prot_verify = flag;
+		return count;
+	}
+	if (da->hw_pi_prot_type) {
+		pr_warn("DIF protection enabled on underlying hardware,"
+			" ignoring\n");
+		return count;
+	}
+	if (!da->pi_prot_type) {
+		pr_warn("DIF protection not supported by backend, ignoring\n");
+		return count;
+	}
+	da->pi_prot_verify = flag;
+
 	return count;
 }
 
@@ -1067,6 +1099,7 @@ CONFIGFS_ATTR(, emulate_3pc);
 CONFIGFS_ATTR(, pi_prot_type);
 CONFIGFS_ATTR_RO(, hw_pi_prot_type);
 CONFIGFS_ATTR(, pi_prot_format);
+CONFIGFS_ATTR(, pi_prot_verify);
 CONFIGFS_ATTR(, enforce_pr_isids);
 CONFIGFS_ATTR(, is_nonrot);
 CONFIGFS_ATTR(, emulate_rest_reord);
@@ -1104,6 +1137,7 @@ struct configfs_attribute *sbc_attrib_attrs[] = {
 	&attr_pi_prot_type,
 	&attr_hw_pi_prot_type,
 	&attr_pi_prot_format,
+	&attr_pi_prot_verify,
 	&attr_enforce_pr_isids,
 	&attr_is_nonrot,
 	&attr_emulate_rest_reord,
@@ -1366,7 +1400,7 @@ static ssize_t target_pr_res_holder_show(struct config_item *item, char *page)
 	struct se_device *dev = pr_to_dev(item);
 	int ret;
 
-	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)
+	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR)
 		return sprintf(page, "Passthrough\n");
 
 	spin_lock(&dev->dev_reservation_lock);
@@ -1506,7 +1540,7 @@ static ssize_t target_pr_res_type_show(struct config_item *item, char *page)
 {
 	struct se_device *dev = pr_to_dev(item);
 
-	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)
+	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR)
 		return sprintf(page, "SPC_PASSTHROUGH\n");
 	else if (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)
 		return sprintf(page, "SPC2_RESERVATIONS\n");
@@ -1519,7 +1553,7 @@ static ssize_t target_pr_res_aptpl_active_show(struct config_item *item,
 {
 	struct se_device *dev = pr_to_dev(item);
 
-	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)
+	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR)
 		return 0;
 
 	return sprintf(page, "APTPL Bit Status: %s\n",
@@ -1531,7 +1565,7 @@ static ssize_t target_pr_res_aptpl_metadata_show(struct config_item *item,
 {
 	struct se_device *dev = pr_to_dev(item);
 
-	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)
+	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR)
 		return 0;
 
 	return sprintf(page, "Ready to process PR APTPL metadata..\n");
@@ -1577,7 +1611,7 @@ static ssize_t target_pr_res_aptpl_metadata_store(struct config_item *item,
 	u16 tpgt = 0;
 	u8 type = 0;
 
-	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)
+	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR)
 		return count;
 	if (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)
 		return count;
@@ -2392,7 +2426,7 @@ static ssize_t target_tg_pt_gp_alua_access_state_show(struct config_item *item,
 		char *page)
 {
 	return sprintf(page, "%d\n",
-		atomic_read(&to_tg_pt_gp(item)->tg_pt_gp_alua_access_state));
+		       to_tg_pt_gp(item)->tg_pt_gp_alua_access_state);
 }
 
 static ssize_t target_tg_pt_gp_alua_access_state_store(struct config_item *item,
@@ -2511,7 +2545,7 @@ static ssize_t target_tg_pt_gp_alua_support_##_name##_store(		\
 	int ret;							\
 									\
 	if (!t->tg_pt_gp_valid_id) {					\
-		pr_err("Unable to do set ##_name ALUA state on non"	\
+		pr_err("Unable to do set " #_name " ALUA state on non"	\
 		       " valid tg_pt_gp ID: %hu\n",			\
 		       t->tg_pt_gp_valid_id);				\
 		return -EINVAL;						\
@@ -2643,13 +2677,13 @@ static ssize_t target_tg_pt_gp_tg_pt_gp_id_store(struct config_item *item,
 
 	ret = kstrtoul(page, 0, &tg_pt_gp_id);
 	if (ret < 0) {
-		pr_err("kstrtoul() returned %d for"
-			" tg_pt_gp_id\n", ret);
+		pr_err("ALUA tg_pt_gp_id: invalid value '%s' for tg_pt_gp_id\n",
+		       page);
 		return ret;
 	}
 	if (tg_pt_gp_id > 0x0000ffff) {
-		pr_err("ALUA tg_pt_gp_id: %lu exceeds maximum:"
-			" 0x0000ffff\n", tg_pt_gp_id);
+		pr_err("ALUA tg_pt_gp_id: %lu exceeds maximum: 0x0000ffff\n",
+		       tg_pt_gp_id);
 		return -EINVAL;
 	}
 

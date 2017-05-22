@@ -27,4 +27,16 @@ struct fwnode_handle {
 	struct fwnode_handle *secondary;
 };
 
+/**
+ * struct fwnode_endpoint - Fwnode graph endpoint
+ * @port: Port number
+ * @id: Endpoint id
+ * @local_fwnode: reference to the related fwnode
+ */
+struct fwnode_endpoint {
+	unsigned int port;
+	unsigned int id;
+	const struct fwnode_handle *local_fwnode;
+};
+
 #endif

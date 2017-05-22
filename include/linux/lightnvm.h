@@ -56,7 +56,6 @@ typedef int (nvm_get_l2p_tbl_fn)(struct nvm_dev *, u64, u32,
 typedef int (nvm_op_bb_tbl_fn)(struct nvm_dev *, struct ppa_addr, u8 *);
 typedef int (nvm_op_set_bb_fn)(struct nvm_dev *, struct ppa_addr *, int, int);
 typedef int (nvm_submit_io_fn)(struct nvm_dev *, struct nvm_rq *);
-typedef int (nvm_erase_blk_fn)(struct nvm_dev *, struct nvm_rq *);
 typedef void *(nvm_create_dma_pool_fn)(struct nvm_dev *, char *);
 typedef void (nvm_destroy_dma_pool_fn)(void *);
 typedef void *(nvm_dev_dma_alloc_fn)(struct nvm_dev *, void *, gfp_t,
@@ -70,7 +69,6 @@ struct nvm_dev_ops {
 	nvm_op_set_bb_fn	*set_bb_tbl;
 
 	nvm_submit_io_fn	*submit_io;
-	nvm_erase_blk_fn	*erase_block;
 
 	nvm_create_dma_pool_fn	*create_dma_pool;
 	nvm_destroy_dma_pool_fn	*destroy_dma_pool;
@@ -125,7 +123,7 @@ enum {
 	/* NAND Access Modes */
 	NVM_IO_SUSPEND		= 0x80,
 	NVM_IO_SLC_MODE		= 0x100,
-	NVM_IO_SCRAMBLE_DISABLE	= 0x200,
+	NVM_IO_SCRAMBLE_ENABLE	= 0x200,
 
 	/* Block Types */
 	NVM_BLK_T_FREE		= 0x0,
@@ -438,7 +436,8 @@ static inline int ppa_cmp_blk(struct ppa_addr ppa1, struct ppa_addr ppa2)
 
 typedef blk_qc_t (nvm_tgt_make_rq_fn)(struct request_queue *, struct bio *);
 typedef sector_t (nvm_tgt_capacity_fn)(void *);
-typedef void *(nvm_tgt_init_fn)(struct nvm_tgt_dev *, struct gendisk *);
+typedef void *(nvm_tgt_init_fn)(struct nvm_tgt_dev *, struct gendisk *,
+				int flags);
 typedef void (nvm_tgt_exit_fn)(void *);
 typedef int (nvm_tgt_sysfs_init_fn)(struct gendisk *);
 typedef void (nvm_tgt_sysfs_exit_fn)(struct gendisk *);
@@ -479,10 +478,10 @@ extern int nvm_set_tgt_bb_tbl(struct nvm_tgt_dev *, struct ppa_addr *,
 			      int, int);
 extern int nvm_max_phys_sects(struct nvm_tgt_dev *);
 extern int nvm_submit_io(struct nvm_tgt_dev *, struct nvm_rq *);
-extern int nvm_set_rqd_ppalist(struct nvm_dev *, struct nvm_rq *,
+extern int nvm_erase_sync(struct nvm_tgt_dev *, struct ppa_addr *, int);
+extern int nvm_set_rqd_ppalist(struct nvm_tgt_dev *, struct nvm_rq *,
 					const struct ppa_addr *, int, int);
-extern void nvm_free_rqd_ppalist(struct nvm_dev *, struct nvm_rq *);
-extern int nvm_erase_blk(struct nvm_tgt_dev *, struct ppa_addr *, int);
+extern void nvm_free_rqd_ppalist(struct nvm_tgt_dev *, struct nvm_rq *);
 extern int nvm_get_l2p_tbl(struct nvm_tgt_dev *, u64, u32, nvm_l2p_update_fn *,
 			   void *);
 extern int nvm_get_area(struct nvm_tgt_dev *, sector_t *, sector_t);

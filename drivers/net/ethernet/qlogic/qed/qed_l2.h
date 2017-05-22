@@ -185,6 +185,14 @@ struct qed_filter_accept_flags {
 #define QED_ACCEPT_BCAST                0x20
 };
 
+struct qed_arfs_config_params {
+	bool tcp;
+	bool udp;
+	bool ipv4;
+	bool ipv6;
+	bool arfs_enable;
+};
+
 struct qed_sp_vport_update_params {
 	u16				opaque_fid;
 	u8				vport_id;

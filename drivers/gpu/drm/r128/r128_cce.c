@@ -149,20 +149,19 @@ static int r128_cce_load_microcode(drm_r128_private_t *dev_priv)
 
 	pdev = platform_device_register_simple("r128_cce", 0, NULL, 0);
 	if (IS_ERR(pdev)) {
-		printk(KERN_ERR "r128_cce: Failed to register firmware\n");
+		pr_err("r128_cce: Failed to register firmware\n");
 		return PTR_ERR(pdev);
 	}
 	rc = request_firmware(&fw, FIRMWARE_NAME, &pdev->dev);
 	platform_device_unregister(pdev);
 	if (rc) {
-		printk(KERN_ERR "r128_cce: Failed to load firmware \"%s\"\n",
+		pr_err("r128_cce: Failed to load firmware \"%s\"\n",
 		       FIRMWARE_NAME);
 		return rc;
 	}
 
 	if (fw->size != 256 * 8) {
-		printk(KERN_ERR
-		       "r128_cce: Bogus length %zu in firmware \"%s\"\n",
+		pr_err("r128_cce: Bogus length %zu in firmware \"%s\"\n",
 		       fw->size, FIRMWARE_NAME);
 		rc = -EINVAL;
 		goto out_release;

@@ -20,6 +20,7 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
+#include <linux/refcount.h>
 
 #ifdef VERBOSE_DEBUG
 #ifndef pr_vdebug
@@ -39,14 +40,15 @@
 struct f_fs_opts;
 
 struct ffs_dev {
-	const char *name;
-	bool name_allocated;
-	bool mounted;
-	bool desc_ready;
-	bool single;
 	struct ffs_data *ffs_data;
 	struct f_fs_opts *opts;
 	struct list_head entry;
+
+	char name[41];
+
+	bool mounted;
+	bool desc_ready;
+	bool single;
 
 	int (*ffs_ready_callback)(struct ffs_data *ffs);
 	void (*ffs_closed_callback)(struct ffs_data *ffs);
@@ -177,7 +179,7 @@ struct ffs_data {
 	struct completion		ep0req_completion;	/* P: mutex */
 
 	/* reference counter */
-	atomic_t			ref;
+	refcount_t			ref;
 	/* how many files are opened (EP0 and others) */
 	atomic_t			opened;
 

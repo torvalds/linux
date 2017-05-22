@@ -22,8 +22,11 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/of_device.h>
 #include <linux/of_mdio.h>
+#include <linux/of_gpio.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
@@ -290,6 +293,36 @@ static inline void of_mdiobus_link_mdiodev(struct mii_bus *mdio,
 #endif
 
 /**
+ * mdiobus_create_device_from_board_info - create a full MDIO device given
+ * a mdio_board_info structure
+ * @bus: MDIO bus to create the devices on
+ * @bi: mdio_board_info structure describing the devices
+ *
+ * Returns 0 on success or < 0 on error.
+ */
+static int mdiobus_create_device(struct mii_bus *bus,
+				 struct mdio_board_info *bi)
+{
+	struct mdio_device *mdiodev;
+	int ret = 0;
+
+	mdiodev = mdio_device_create(bus, bi->mdio_addr);
+	if (IS_ERR(mdiodev))
+		return -ENODEV;
+
+	strncpy(mdiodev->modalias, bi->modalias,
+		sizeof(mdiodev->modalias));
+	mdiodev->bus_match = mdio_device_bus_match;
+	mdiodev->dev.platform_data = (void *)bi->platform_data;
+
+	ret = mdio_device_register(mdiodev);
+	if (ret)
+		mdio_device_free(mdiodev);
+
+	return ret;
+}
+
+/**
  * __mdiobus_register - bring up all the PHYs on a given bus and attach them to bus
  * @bus: target mii_bus
  * @owner: module containing bus accessor functions
@@ -307,6 +340,7 @@ int __mdiobus_register(struct mii_bus *bus, struct module *owner)
 {
 	struct mdio_device *mdiodev;
 	int i, err;
+	struct gpio_desc *gpiod;
 
 	if (NULL == bus || NULL == bus->name ||
 	    NULL == bus->read || NULL == bus->write)
@@ -330,6 +364,35 @@ int __mdiobus_register(struct mii_bus *bus, struct module *owner)
 
 	mutex_init(&bus->mdio_lock);
 
+	/* de-assert bus level PHY GPIO resets */
+	if (bus->num_reset_gpios > 0) {
+		bus->reset_gpiod = devm_kcalloc(&bus->dev,
+						 bus->num_reset_gpios,
+						 sizeof(struct gpio_desc *),
+						 GFP_KERNEL);
+		if (!bus->reset_gpiod)
+			return -ENOMEM;
+	}
+
+	for (i = 0; i < bus->num_reset_gpios; i++) {
+		gpiod = devm_gpiod_get_index(&bus->dev, "reset", i,
+					     GPIOD_OUT_LOW);
+		if (IS_ERR(gpiod)) {
+			err = PTR_ERR(gpiod);
+			if (err != -ENOENT) {
+				dev_err(&bus->dev,
+					"mii_bus %s couldn't get reset GPIO\n",
+					bus->id);
+				return err;
+			}
+		} else {
+			bus->reset_gpiod[i] = gpiod;
+			gpiod_set_value_cansleep(gpiod, 1);
+			udelay(bus->reset_delay_us);
+			gpiod_set_value_cansleep(gpiod, 0);
+		}
+	}
+
 	if (bus->reset)
 		bus->reset(bus);
 
@@ -345,7 +408,7 @@ int __mdiobus_register(struct mii_bus *bus, struct module *owner)
 		}
 	}
 
-	mdiobus_setup_mdiodev_from_board_info(bus);
+	mdiobus_setup_mdiodev_from_board_info(bus, mdiobus_create_device);
 
 	bus->state = MDIOBUS_REGISTERED;
 	pr_info("%s: probed\n", bus->name);
@@ -360,6 +423,13 @@ error:
 		mdiodev->device_remove(mdiodev);
 		mdiodev->device_free(mdiodev);
 	}
+
+	/* Put PHYs in RESET to save power */
+	for (i = 0; i < bus->num_reset_gpios; i++) {
+		if (bus->reset_gpiod[i])
+			gpiod_set_value_cansleep(bus->reset_gpiod[i], 1);
+	}
+
 	device_del(&bus->dev);
 	return err;
 }
@@ -381,6 +451,13 @@ void mdiobus_unregister(struct mii_bus *bus)
 		mdiodev->device_remove(mdiodev);
 		mdiodev->device_free(mdiodev);
 	}
+
+	/* Put PHYs in RESET to save power */
+	for (i = 0; i < bus->num_reset_gpios; i++) {
+		if (bus->reset_gpiod[i])
+			gpiod_set_value_cansleep(bus->reset_gpiod[i], 1);
+	}
+
 	device_del(&bus->dev);
 }
 EXPORT_SYMBOL(mdiobus_unregister);
@@ -648,9 +725,18 @@ int __init mdio_bus_init(void)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(mdio_bus_init);
 
+#if IS_ENABLED(CONFIG_PHYLIB)
 void mdio_bus_exit(void)
 {
 	class_unregister(&mdio_bus_class);
 	bus_unregister(&mdio_bus_type);
 }
+EXPORT_SYMBOL_GPL(mdio_bus_exit);
+#else
+module_init(mdio_bus_init);
+/* no module_exit, intentional */
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("MDIO bus/device layer");
+#endif

@@ -31,7 +31,7 @@ static struct cgroup_namespace *alloc_cgroup_ns(void)
 		kfree(new_ns);
 		return ERR_PTR(ret);
 	}
-	atomic_set(&new_ns->count, 1);
+	refcount_set(&new_ns->count, 1);
 	new_ns->ns.ops = &cgroupns_operations;
 	return new_ns;
 }

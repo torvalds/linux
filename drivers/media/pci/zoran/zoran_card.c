@@ -69,7 +69,7 @@ MODULE_PARM_DESC(card, "Card type");
  */
 
 static unsigned long vidmem;	/* default = 0 - Video memory base address */
-module_param(vidmem, ulong, 0444);
+module_param_hw(vidmem, ulong, iomem, 0444);
 MODULE_PARM_DESC(vidmem, "Default video memory base address");
 
 /*

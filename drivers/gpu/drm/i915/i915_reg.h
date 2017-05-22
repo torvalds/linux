@@ -48,6 +48,8 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 	return !i915_mmio_reg_equal(reg, INVALID_MMIO_REG);
 }
 
+#define _PICK(__index, ...) (((const u32 []){ __VA_ARGS__ })[__index])
+
 #define _PIPE(pipe, a, b) ((a) + (pipe)*((b)-(a)))
 #define _MMIO_PIPE(pipe, a, b) _MMIO(_PIPE(pipe, a, b))
 #define _PLANE(plane, a, b) _PIPE(plane, a, b)
@@ -56,14 +58,11 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define _MMIO_TRANS(tran, a, b) _MMIO(_TRANS(tran, a, b))
 #define _PORT(port, a, b) ((a) + (port)*((b)-(a)))
 #define _MMIO_PORT(port, a, b) _MMIO(_PORT(port, a, b))
-#define _PIPE3(pipe, a, b, c) ((pipe) == PIPE_A ? (a) : \
-			       (pipe) == PIPE_B ? (b) : (c))
+#define _PIPE3(pipe, ...) _PICK(pipe, __VA_ARGS__)
 #define _MMIO_PIPE3(pipe, a, b, c) _MMIO(_PIPE3(pipe, a, b, c))
-#define _PORT3(port, a, b, c) ((port) == PORT_A ? (a) : \
-			       (port) == PORT_B ? (b) : (c))
+#define _PORT3(port, ...) _PICK(port, __VA_ARGS__)
 #define _MMIO_PORT3(pipe, a, b, c) _MMIO(_PORT3(pipe, a, b, c))
-#define _PHY3(phy, a, b, c) ((phy) == DPIO_PHY0 ? (a) : \
-			     (phy) == DPIO_PHY1 ? (b) : (c))
+#define _PHY3(phy, ...) _PICK(phy, __VA_ARGS__)
 #define _MMIO_PHY3(phy, a, b, c) _MMIO(_PHY3(phy, a, b, c))
 
 #define _MASKED_FIELD(mask, value) ({					   \
@@ -78,7 +77,13 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define _MASKED_BIT_ENABLE(a)	({ typeof(a) _a = (a); _MASKED_FIELD(_a, _a); })
 #define _MASKED_BIT_DISABLE(a)	(_MASKED_FIELD((a), 0))
 
+/* Engine ID */
 
+#define RCS_HW		0
+#define VCS_HW		1
+#define BCS_HW		2
+#define VECS_HW		3
+#define VCS2_HW		4
 
 /* PCI config space */
 
@@ -120,7 +125,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define GCFGC	0xf0 /* 915+ only */
 #define   GC_LOW_FREQUENCY_ENABLE	(1 << 7)
 #define   GC_DISPLAY_CLOCK_190_200_MHZ	(0 << 4)
-#define   GC_DISPLAY_CLOCK_333_MHZ	(4 << 4)
+#define   GC_DISPLAY_CLOCK_333_320_MHZ	(4 << 4)
 #define   GC_DISPLAY_CLOCK_267_MHZ_PNV	(0 << 4)
 #define   GC_DISPLAY_CLOCK_333_MHZ_PNV	(1 << 4)
 #define   GC_DISPLAY_CLOCK_444_MHZ_PNV	(2 << 4)
@@ -1135,8 +1140,6 @@ enum skl_disp_power_wells {
 #define 	VLV_BIAS_CPU_125_SOC_875 (6 << 2)
 #define 	CHV_BIAS_CPU_50_SOC_50 (3 << 2)
 
-#define VLV_CZ_CLOCK_TO_MILLI_SEC		100000
-
 /* vlv2 north clock has */
 #define CCK_FUSE_REG				0x8
 #define  CCK_FUSE_HPLL_FREQ_MASK		0x3
@@ -1553,6 +1556,7 @@ enum skl_disp_power_wells {
 	_MMIO(_BXT_PHY_CH(phy, ch, reg_ch0, reg_ch1))
 
 #define BXT_P_CR_GT_DISP_PWRON		_MMIO(0x138090)
+#define  MIPIO_RST_CTRL				(1 << 2)
 
 #define _BXT_PHY_CTL_DDI_A		0x64C00
 #define _BXT_PHY_CTL_DDI_B		0x64C10
@@ -3047,10 +3051,14 @@ enum skl_disp_power_wells {
 #define CLKCFG_FSB_667					(3 << 0)	/* hrawclk 166 */
 #define CLKCFG_FSB_800					(2 << 0)	/* hrawclk 200 */
 #define CLKCFG_FSB_1067					(6 << 0)	/* hrawclk 266 */
+#define CLKCFG_FSB_1067_ALT				(0 << 0)	/* hrawclk 266 */
 #define CLKCFG_FSB_1333					(7 << 0)	/* hrawclk 333 */
-/* Note, below two are guess */
-#define CLKCFG_FSB_1600					(4 << 0)	/* hrawclk 400 */
-#define CLKCFG_FSB_1600_ALT				(0 << 0)	/* hrawclk 400 */
+/*
+ * Note that on at least on ELK the below value is reported for both
+ * 333 and 400 MHz BIOS FSB setting, but given that the gmch datasheet
+ * lists only 200/266/333 MHz FSB as supported let's decode it as 333 MHz.
+ */
+#define CLKCFG_FSB_1333_ALT				(4 << 0)	/* hrawclk 333 */
 #define CLKCFG_FSB_MASK					(7 << 0)
 #define CLKCFG_MEM_533					(1 << 4)
 #define CLKCFG_MEM_667					(2 << 4)
@@ -3376,10 +3384,22 @@ enum {
 	INTEL_LEGACY_64B_CONTEXT
 };
 
+enum {
+	FAULT_AND_HANG = 0,
+	FAULT_AND_HALT, /* Debug only */
+	FAULT_AND_STREAM,
+	FAULT_AND_CONTINUE /* Unsupported */
+};
+
+#define GEN8_CTX_VALID (1<<0)
+#define GEN8_CTX_FORCE_PD_RESTORE (1<<1)
+#define GEN8_CTX_FORCE_RESTORE (1<<2)
+#define GEN8_CTX_L3LLC_COHERENT (1<<5)
+#define GEN8_CTX_PRIVILEGE (1<<8)
 #define GEN8_CTX_ADDRESSING_MODE_SHIFT 3
-#define GEN8_CTX_ADDRESSING_MODE(dev_priv) (USES_FULL_48BIT_PPGTT(dev_priv) ?\
-				INTEL_LEGACY_64B_CONTEXT : \
-				INTEL_LEGACY_32B_CONTEXT)
+
+#define GEN8_CTX_ID_SHIFT 32
+#define GEN8_CTX_ID_WIDTH 21
 
 #define CHV_CLK_CTL1			_MMIO(0x101100)
 #define VLV_CLK_CTL2			_MMIO(0x101104)
@@ -5887,10 +5907,17 @@ enum {
 #define _PLANE_KEYMSK_2_A			0x70298
 #define _PLANE_KEYMAX_1_A			0x701a0
 #define _PLANE_KEYMAX_2_A			0x702a0
+#define _PLANE_COLOR_CTL_1_A			0x701CC /* GLK+ */
+#define _PLANE_COLOR_CTL_2_A			0x702CC /* GLK+ */
+#define _PLANE_COLOR_CTL_3_A			0x703CC /* GLK+ */
+#define   PLANE_COLOR_PIPE_GAMMA_ENABLE		(1 << 30)
+#define   PLANE_COLOR_PIPE_CSC_ENABLE		(1 << 23)
+#define   PLANE_COLOR_PLANE_GAMMA_DISABLE	(1 << 13)
 #define _PLANE_BUF_CFG_1_A			0x7027c
 #define _PLANE_BUF_CFG_2_A			0x7037c
 #define _PLANE_NV12_BUF_CFG_1_A		0x70278
 #define _PLANE_NV12_BUF_CFG_2_A		0x70378
+
 
 #define _PLANE_CTL_1_B				0x71180
 #define _PLANE_CTL_2_B				0x71280
@@ -5986,7 +6013,17 @@ enum {
 #define PLANE_NV12_BUF_CFG(pipe, plane)	\
 	_MMIO_PLANE(plane, _PLANE_NV12_BUF_CFG_1(pipe), _PLANE_NV12_BUF_CFG_2(pipe))
 
-/* SKL new cursor registers */
+#define _PLANE_COLOR_CTL_1_B			0x711CC
+#define _PLANE_COLOR_CTL_2_B			0x712CC
+#define _PLANE_COLOR_CTL_3_B			0x713CC
+#define _PLANE_COLOR_CTL_1(pipe)	\
+	_PIPE(pipe, _PLANE_COLOR_CTL_1_A, _PLANE_COLOR_CTL_1_B)
+#define _PLANE_COLOR_CTL_2(pipe)	\
+	_PIPE(pipe, _PLANE_COLOR_CTL_2_A, _PLANE_COLOR_CTL_2_B)
+#define PLANE_COLOR_CTL(pipe, plane)	\
+	_MMIO_PLANE(plane, _PLANE_COLOR_CTL_1(pipe), _PLANE_COLOR_CTL_2(pipe))
+
+#/* SKL new cursor registers */
 #define _CUR_BUF_CFG_A				0x7017c
 #define _CUR_BUF_CFG_B				0x7117c
 #define CUR_BUF_CFG(pipe)	_MMIO_PIPE(pipe, _CUR_BUF_CFG_A, _CUR_BUF_CFG_B)
@@ -6465,6 +6502,11 @@ enum {
 
 #define CHICKEN_PAR2_1		_MMIO(0x42090)
 #define  KVM_CONFIG_CHANGE_NOTIFICATION_SELECT	(1 << 14)
+
+#define CHICKEN_MISC_2		_MMIO(0x42084)
+#define  GLK_CL0_PWR_DOWN	(1 << 10)
+#define  GLK_CL1_PWR_DOWN	(1 << 11)
+#define  GLK_CL2_PWR_DOWN	(1 << 12)
 
 #define _CHICKEN_PIPESL_1_A	0x420b0
 #define _CHICKEN_PIPESL_1_B	0x420b4
@@ -7413,7 +7455,8 @@ enum {
 #define VLV_RCEDATA				_MMIO(0xA0BC)
 #define GEN6_RC6pp_THRESHOLD			_MMIO(0xA0C0)
 #define GEN6_PMINTRMSK				_MMIO(0xA168)
-#define   GEN8_PMINTR_REDIRECT_TO_GUC		  (1<<31)
+#define   GEN8_PMINTR_DISABLE_REDIRECT_TO_GUC	(1<<31)
+#define   ARAT_EXPIRED_INTRMSK			(1<<9)
 #define GEN8_MISC_CTRL0				_MMIO(0xA180)
 #define VLV_PWRDWNUPCTL				_MMIO(0xA294)
 #define GEN9_MEDIA_PG_IDLE_HYSTERESIS		_MMIO(0xA0C4)
@@ -7790,7 +7833,14 @@ enum {
 #define  TRANS_DDI_EDP_INPUT_B_ONOFF	(5<<12)
 #define  TRANS_DDI_EDP_INPUT_C_ONOFF	(6<<12)
 #define  TRANS_DDI_DP_VC_PAYLOAD_ALLOC	(1<<8)
+#define  TRANS_DDI_HDMI_SCRAMBLER_CTS_ENABLE (1<<7)
+#define  TRANS_DDI_HDMI_SCRAMBLER_RESET_FREQ (1<<6)
 #define  TRANS_DDI_BFI_ENABLE		(1<<4)
+#define  TRANS_DDI_HIGH_TMDS_CHAR_RATE	(1<<4)
+#define  TRANS_DDI_HDMI_SCRAMBLING	(1<<0)
+#define  TRANS_DDI_HDMI_SCRAMBLING_MASK (TRANS_DDI_HDMI_SCRAMBLER_CTS_ENABLE \
+					| TRANS_DDI_HDMI_SCRAMBLER_RESET_FREQ \
+					| TRANS_DDI_HDMI_SCRAMBLING)
 
 /* DisplayPort Transport Control */
 #define _DP_TP_CTL_A			0x64040
@@ -8167,6 +8217,7 @@ enum {
 #define   PAL_PREC_10_12_BIT		(0 << 31)
 #define   PAL_PREC_SPLIT_MODE		(1 << 31)
 #define   PAL_PREC_AUTO_INCREMENT	(1 << 15)
+#define   PAL_PREC_INDEX_VALUE_MASK	(0x3ff << 0)
 #define _PAL_PREC_DATA_A	0x4A404
 #define _PAL_PREC_DATA_B	0x4AC04
 #define _PAL_PREC_DATA_C	0x4B404
@@ -8176,11 +8227,25 @@ enum {
 #define _PAL_PREC_EXT_GC_MAX_A	0x4A420
 #define _PAL_PREC_EXT_GC_MAX_B	0x4AC20
 #define _PAL_PREC_EXT_GC_MAX_C	0x4B420
+#define _PAL_PREC_EXT2_GC_MAX_A	0x4A430
+#define _PAL_PREC_EXT2_GC_MAX_B	0x4AC30
+#define _PAL_PREC_EXT2_GC_MAX_C	0x4B430
 
 #define PREC_PAL_INDEX(pipe)		_MMIO_PIPE(pipe, _PAL_PREC_INDEX_A, _PAL_PREC_INDEX_B)
 #define PREC_PAL_DATA(pipe)		_MMIO_PIPE(pipe, _PAL_PREC_DATA_A, _PAL_PREC_DATA_B)
 #define PREC_PAL_GC_MAX(pipe, i)	_MMIO(_PIPE(pipe, _PAL_PREC_GC_MAX_A, _PAL_PREC_GC_MAX_B) + (i) * 4)
 #define PREC_PAL_EXT_GC_MAX(pipe, i)	_MMIO(_PIPE(pipe, _PAL_PREC_EXT_GC_MAX_A, _PAL_PREC_EXT_GC_MAX_B) + (i) * 4)
+
+#define _PRE_CSC_GAMC_INDEX_A	0x4A484
+#define _PRE_CSC_GAMC_INDEX_B	0x4AC84
+#define _PRE_CSC_GAMC_INDEX_C	0x4B484
+#define   PRE_CSC_GAMC_AUTO_INCREMENT	(1 << 10)
+#define _PRE_CSC_GAMC_DATA_A	0x4A488
+#define _PRE_CSC_GAMC_DATA_B	0x4AC88
+#define _PRE_CSC_GAMC_DATA_C	0x4B488
+
+#define PRE_CSC_GAMC_INDEX(pipe)	_MMIO_PIPE(pipe, _PRE_CSC_GAMC_INDEX_A, _PRE_CSC_GAMC_INDEX_B)
+#define PRE_CSC_GAMC_DATA(pipe)		_MMIO_PIPE(pipe, _PRE_CSC_GAMC_DATA_A, _PRE_CSC_GAMC_DATA_B)
 
 /* pipe CSC & degamma/gamma LUTs on CHV */
 #define _CGM_PIPE_A_CSC_COEFF01	(VLV_DISPLAY_BASE + 0x67900)
@@ -8215,8 +8280,13 @@ enum {
 
 /* MIPI DSI registers */
 
-#define _MIPI_PORT(port, a, c)	_PORT3(port, a, 0, c)	/* ports A and C only */
+#define _MIPI_PORT(port, a, c)	((port) ? c : a)	/* ports A and C only */
 #define _MMIO_MIPI(port, a, c)	_MMIO(_MIPI_PORT(port, a, c))
+
+#define MIPIO_TXESC_CLK_DIV1			_MMIO(0x160004)
+#define  GLK_TX_ESC_CLK_DIV1_MASK			0x3FF
+#define MIPIO_TXESC_CLK_DIV2			_MMIO(0x160008)
+#define  GLK_TX_ESC_CLK_DIV2_MASK			0x3FF
 
 /* BXT MIPI clock controls */
 #define BXT_MAX_VAR_OUTPUT_KHZ			39500
@@ -8304,10 +8374,12 @@ enum {
 #define  BXT_DSI_PLL_PVD_RATIO_SHIFT	16
 #define  BXT_DSI_PLL_PVD_RATIO_MASK	(3 << BXT_DSI_PLL_PVD_RATIO_SHIFT)
 #define  BXT_DSI_PLL_PVD_RATIO_1	(1 << BXT_DSI_PLL_PVD_RATIO_SHIFT)
+#define  BXT_DSIC_16X_BY1		(0 << 10)
 #define  BXT_DSIC_16X_BY2		(1 << 10)
 #define  BXT_DSIC_16X_BY3		(2 << 10)
 #define  BXT_DSIC_16X_BY4		(3 << 10)
 #define  BXT_DSIC_16X_MASK		(3 << 10)
+#define  BXT_DSIA_16X_BY1		(0 << 8)
 #define  BXT_DSIA_16X_BY2		(1 << 8)
 #define  BXT_DSIA_16X_BY3		(2 << 8)
 #define  BXT_DSIA_16X_BY4		(3 << 8)
@@ -8317,6 +8389,8 @@ enum {
 
 #define BXT_DSI_PLL_RATIO_MAX		0x7D
 #define BXT_DSI_PLL_RATIO_MIN		0x22
+#define GLK_DSI_PLL_RATIO_MAX		0x6F
+#define GLK_DSI_PLL_RATIO_MIN		0x22
 #define BXT_DSI_PLL_RATIO_MASK		0xFF
 #define BXT_REF_CLOCK_KHZ		19200
 
@@ -8332,6 +8406,12 @@ enum {
 #define _BXT_MIPIA_PORT_CTRL				0x6B0C0
 #define _BXT_MIPIC_PORT_CTRL				0x6B8C0
 #define BXT_MIPI_PORT_CTRL(tc)	_MMIO_MIPI(tc, _BXT_MIPIA_PORT_CTRL, _BXT_MIPIC_PORT_CTRL)
+
+#define BXT_P_DSI_REGULATOR_CFG			_MMIO(0x160020)
+#define  STAP_SELECT					(1 << 0)
+
+#define BXT_P_DSI_REGULATOR_TX_CTRL		_MMIO(0x160054)
+#define  HS_IO_CTRL_SELECT				(1 << 0)
 
 #define  DPI_ENABLE					(1 << 31) /* A + C */
 #define  MIPIA_MIPI4DPHY_DELAY_COUNT_SHIFT		27
@@ -8585,6 +8665,14 @@ enum {
 #define MIPI_LP_BYTECLK(port)		_MMIO_MIPI(port, _MIPIA_LP_BYTECLK, _MIPIC_LP_BYTECLK)
 #define  LP_BYTECLK_SHIFT				0
 #define  LP_BYTECLK_MASK				(0xffff << 0)
+
+#define _MIPIA_TLPX_TIME_COUNT		(dev_priv->mipi_mmio_base + 0xb0a4)
+#define _MIPIC_TLPX_TIME_COUNT		(dev_priv->mipi_mmio_base + 0xb8a4)
+#define MIPI_TLPX_TIME_COUNT(port)	 _MMIO_MIPI(port, _MIPIA_TLPX_TIME_COUNT, _MIPIC_TLPX_TIME_COUNT)
+
+#define _MIPIA_CLK_LANE_TIMING		(dev_priv->mipi_mmio_base + 0xb098)
+#define _MIPIC_CLK_LANE_TIMING		(dev_priv->mipi_mmio_base + 0xb898)
+#define MIPI_CLK_LANE_TIMING(port)	 _MMIO_MIPI(port, _MIPIA_CLK_LANE_TIMING, _MIPIC_CLK_LANE_TIMING)
 
 /* bits 31:0 */
 #define _MIPIA_LP_GEN_DATA		(dev_priv->mipi_mmio_base + 0xb064)

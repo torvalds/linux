@@ -146,8 +146,6 @@ static int fec_decode_bufs(struct dm_verity *v, struct dm_verity_fec_io *fio,
 		block = fec_buffer_rs_block(v, fio, n, i);
 		res = fec_decode_rs8(v, fio, block, &par[offset], neras);
 		if (res < 0) {
-			dm_bufio_release(buf);
-
 			r = res;
 			goto error;
 		}
@@ -172,6 +170,8 @@ static int fec_decode_bufs(struct dm_verity *v, struct dm_verity_fec_io *fio,
 done:
 	r = corrected;
 error:
+	dm_bufio_release(buf);
+
 	if (r < 0 && neras)
 		DMERR_LIMIT("%s: FEC %llu: failed to correct: %d",
 			    v->data_dev->name, (unsigned long long)rsb, r);
@@ -188,7 +188,7 @@ error:
 static int fec_is_erasure(struct dm_verity *v, struct dm_verity_io *io,
 			  u8 *want_digest, u8 *data)
 {
-	if (unlikely(verity_hash(v, verity_io_hash_desc(v, io),
+	if (unlikely(verity_hash(v, verity_io_hash_req(v, io),
 				 data, 1 << v->data_dev_block_bits,
 				 verity_io_real_digest(v, io))))
 		return 0;
@@ -269,7 +269,7 @@ static int fec_read_bufs(struct dm_verity *v, struct dm_verity_io *io,
 					  &is_zero) == 0) {
 			/* skip known zero blocks entirely */
 			if (is_zero)
-				continue;
+				goto done;
 
 			/*
 			 * skip if we have already found the theoretical
@@ -397,7 +397,7 @@ static int fec_decode_rsb(struct dm_verity *v, struct dm_verity_io *io,
 	}
 
 	/* Always re-validate the corrected block against the expected hash */
-	r = verity_hash(v, verity_io_hash_desc(v, io), fio->output,
+	r = verity_hash(v, verity_io_hash_req(v, io), fio->output,
 			1 << v->data_dev_block_bits,
 			verity_io_real_digest(v, io));
 	if (unlikely(r < 0))
@@ -439,6 +439,13 @@ int verity_fec_decode(struct dm_verity *v, struct dm_verity_io *io,
 	if (!verity_fec_is_enabled(v))
 		return -EOPNOTSUPP;
 
+	if (fio->level >= DM_VERITY_FEC_MAX_RECURSION) {
+		DMWARN_LIMIT("%s: FEC: recursion too deep", v->data_dev->name);
+		return -EIO;
+	}
+
+	fio->level++;
+
 	if (type == DM_VERITY_BLOCK_TYPE_METADATA)
 		block += v->data_blocks;
 
@@ -470,7 +477,7 @@ int verity_fec_decode(struct dm_verity *v, struct dm_verity_io *io,
 	if (r < 0) {
 		r = fec_decode_rsb(v, io, fio, rsb, offset, true);
 		if (r < 0)
-			return r;
+			goto done;
 	}
 
 	if (dest)
@@ -480,6 +487,8 @@ int verity_fec_decode(struct dm_verity *v, struct dm_verity_io *io,
 		r = verity_for_bv_block(v, io, iter, fec_bv_copy);
 	}
 
+done:
+	fio->level--;
 	return r;
 }
 
@@ -520,6 +529,7 @@ void verity_fec_init_io(struct dm_verity_io *io)
 	memset(fio->bufs, 0, sizeof(fio->bufs));
 	fio->nbufs = 0;
 	fio->output = NULL;
+	fio->level = 0;
 }
 
 /*

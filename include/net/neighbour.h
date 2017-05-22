@@ -314,7 +314,8 @@ static inline struct neighbour *neigh_create(struct neigh_table *tbl,
 }
 void neigh_destroy(struct neighbour *neigh);
 int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb);
-int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new, u32 flags);
+int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new, u32 flags,
+		 u32 nlmsg_pid);
 void __neigh_set_probe_once(struct neighbour *neigh);
 void neigh_changeaddr(struct neigh_table *tbl, struct net_device *dev);
 int neigh_ifdown(struct neigh_table *tbl, struct net_device *dev);
@@ -449,7 +450,7 @@ static inline int neigh_hh_bridge(struct hh_cache *hh, struct sk_buff *skb)
 static inline int neigh_hh_output(const struct hh_cache *hh, struct sk_buff *skb)
 {
 	unsigned int seq;
-	int hh_len;
+	unsigned int hh_len;
 
 	do {
 		seq = read_seqbegin(&hh->hh_lock);
@@ -458,7 +459,7 @@ static inline int neigh_hh_output(const struct hh_cache *hh, struct sk_buff *skb
 			/* this is inlined by gcc */
 			memcpy(skb->data - HH_DATA_MOD, hh->hh_data, HH_DATA_MOD);
 		} else {
-			int hh_alen = HH_DATA_ALIGN(hh_len);
+			unsigned int hh_alen = HH_DATA_ALIGN(hh_len);
 
 			memcpy(skb->data - hh_alen, hh->hh_data, hh_alen);
 		}

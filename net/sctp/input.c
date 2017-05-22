@@ -401,10 +401,10 @@ void sctp_icmp_frag_needed(struct sock *sk, struct sctp_association *asoc,
 
 	if (t->param_flags & SPP_PMTUD_ENABLE) {
 		/* Update transports view of the MTU */
-		sctp_transport_update_pmtu(sk, t, pmtu);
+		sctp_transport_update_pmtu(t, pmtu);
 
 		/* Update association pmtu. */
-		sctp_assoc_sync_pmtu(sk, asoc);
+		sctp_assoc_sync_pmtu(asoc);
 	}
 
 	/* Retransmit with the new pmtu setting.

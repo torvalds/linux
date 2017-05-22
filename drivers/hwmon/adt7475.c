@@ -13,6 +13,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
@@ -57,6 +58,8 @@
 #define REG_DEVID		0x3D
 #define REG_VENDID		0x3E
 #define REG_DEVID2		0x3F
+
+#define REG_CONFIG1		0x40
 
 #define REG_STATUS1		0x41
 #define REG_STATUS2		0x42
@@ -160,6 +163,27 @@ static const struct i2c_device_id adt7475_id[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adt7475_id);
+
+static const struct of_device_id adt7475_of_match[] = {
+	{
+		.compatible = "adi,adt7473",
+		.data = (void *)adt7473
+	},
+	{
+		.compatible = "adi,adt7475",
+		.data = (void *)adt7475
+	},
+	{
+		.compatible = "adi,adt7476",
+		.data = (void *)adt7476
+	},
+	{
+		.compatible = "adi,adt7490",
+		.data = (void *)adt7490
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, adt7475_of_match);
 
 struct adt7475_data {
 	struct device *hwmon_dev;
@@ -1250,6 +1274,7 @@ static void adt7475_remove_files(struct i2c_client *client,
 static int adt7475_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
+	enum chips chip;
 	static const char * const names[] = {
 		[adt7473] = "ADT7473",
 		[adt7475] = "ADT7475",
@@ -1268,8 +1293,13 @@ static int adt7475_probe(struct i2c_client *client,
 	mutex_init(&data->lock);
 	i2c_set_clientdata(client, data);
 
+	if (client->dev.of_node)
+		chip = (enum chips)of_device_get_match_data(&client->dev);
+	else
+		chip = id->driver_data;
+
 	/* Initialize device-specific values */
-	switch (id->driver_data) {
+	switch (chip) {
 	case adt7476:
 		data->has_voltage = 0x0e;	/* in1 to in3 */
 		revision = adt7475_read(REG_DEVID2) & 0x07;
@@ -1342,6 +1372,17 @@ static int adt7475_probe(struct i2c_client *client,
 	 */
 	for (i = 0; i < ADT7475_PWM_COUNT; i++)
 		adt7475_read_pwm(client, i);
+
+	/* Start monitoring */
+	switch (chip) {
+	case adt7475:
+	case adt7476:
+		i2c_smbus_write_byte_data(client, REG_CONFIG1,
+					  adt7475_read(REG_CONFIG1) | 0x01);
+		break;
+	default:
+		break;
+	}
 
 	ret = sysfs_create_group(&client->dev.kobj, &adt7475_attr_group);
 	if (ret)
@@ -1428,6 +1469,7 @@ static struct i2c_driver adt7475_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "adt7475",
+		.of_match_table = of_match_ptr(adt7475_of_match),
 	},
 	.probe		= adt7475_probe,
 	.remove		= adt7475_remove,

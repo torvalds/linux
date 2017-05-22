@@ -6,8 +6,6 @@ config XEN
 	bool "Xen guest support"
 	depends on PARAVIRT
 	select PARAVIRT_CLOCK
-	select XEN_HAVE_PVMMU
-	select XEN_HAVE_VPMU
 	depends on X86_64 || (X86_32 && X86_PAE)
 	depends on X86_LOCAL_APIC && X86_TSC
 	help
@@ -15,18 +13,41 @@ config XEN
 	  kernel to boot in a paravirtualized environment under the
 	  Xen hypervisor.
 
-config XEN_DOM0
+config XEN_PV
+	bool "Xen PV guest support"
+	default y
+	depends on XEN
+	select XEN_HAVE_PVMMU
+	select XEN_HAVE_VPMU
+	help
+	  Support running as a Xen PV guest.
+
+config XEN_PV_SMP
 	def_bool y
-	depends on XEN && PCI_XEN && SWIOTLB_XEN
+	depends on XEN_PV && SMP
+
+config XEN_DOM0
+	bool "Xen PV Dom0 support"
+	default y
+	depends on XEN_PV && PCI_XEN && SWIOTLB_XEN
 	depends on X86_IO_APIC && ACPI && PCI
+	help
+	  Support running as a Xen PV Dom0 guest.
 
 config XEN_PVHVM
-	def_bool y
+	bool "Xen PVHVM guest support"
+	default y
 	depends on XEN && PCI && X86_LOCAL_APIC
+	help
+	  Support running as a Xen PVHVM guest.
+
+config XEN_PVHVM_SMP
+	def_bool y
+	depends on XEN_PVHVM && SMP
 
 config XEN_512GB
 	bool "Limit Xen pv-domain memory to 512GB"
-	depends on XEN && X86_64
+	depends on XEN_PV && X86_64
 	default y
 	help
 	  Limit paravirtualized user domains to 512GB of RAM.

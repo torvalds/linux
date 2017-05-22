@@ -1147,6 +1147,7 @@ nouveau_connector_aux_xfer(struct drm_dp_aux *obj, struct drm_dp_aux_msg *msg)
 		container_of(obj, typeof(*nv_connector), aux);
 	struct nouveau_encoder *nv_encoder;
 	struct nvkm_i2c_aux *aux;
+	u8 size = msg->size;
 	int ret;
 
 	nv_encoder = find_encoder(&nv_connector->base, DCB_OUTPUT_DP);
@@ -1162,11 +1163,11 @@ nouveau_connector_aux_xfer(struct drm_dp_aux *obj, struct drm_dp_aux_msg *msg)
 		return ret;
 
 	ret = nvkm_i2c_aux_xfer(aux, false, msg->request, msg->address,
-				msg->buffer, msg->size);
+				msg->buffer, &size);
 	nvkm_i2c_aux_release(aux);
 	if (ret >= 0) {
 		msg->reply = ret;
-		return msg->size;
+		return size;
 	}
 
 	return ret;

@@ -1,4 +1,8 @@
-#include "util.h"
+#include "term.h"
+#include <stdlib.h>
+#include <termios.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
 
 void get_term_dimensions(struct winsize *ws)
 {

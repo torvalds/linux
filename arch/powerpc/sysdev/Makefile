@@ -71,5 +71,6 @@ obj-$(CONFIG_PPC_EARLY_DEBUG_MEMCONS)	+= udbg_memcons.o
 subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
 
 obj-$(CONFIG_PPC_XICS)		+= xics/
+obj-$(CONFIG_PPC_XIVE)		+= xive/
 
 obj-$(CONFIG_GE_FPGA)		+= ge/

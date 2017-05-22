@@ -26,6 +26,7 @@
 #include "insn.c"
 
 #include "intel-pt-insn-decoder.h"
+#include "dump-insn.h"
 
 #if INTEL_PT_INSN_BUF_SZ < MAX_INSN_SIZE || INTEL_PT_INSN_BUF_SZ > MAX_INSN
 #error Instruction buffer size too small
@@ -38,6 +39,8 @@ static void intel_pt_insn_decoder(struct insn *insn,
 	enum intel_pt_insn_op op = INTEL_PT_OP_OTHER;
 	enum intel_pt_insn_branch branch = INTEL_PT_BR_NO_BRANCH;
 	int ext;
+
+	intel_pt_insn->rel = 0;
 
 	if (insn_is_avx(insn)) {
 		intel_pt_insn->op = INTEL_PT_OP_OTHER;
@@ -175,6 +178,29 @@ int intel_pt_get_insn(const unsigned char *buf, size_t len, int x86_64,
 	else
 		memcpy(intel_pt_insn->buf, buf, INTEL_PT_INSN_BUF_SZ);
 	return 0;
+}
+
+const char *dump_insn(struct perf_insn *x, uint64_t ip __maybe_unused,
+		      u8 *inbuf, int inlen, int *lenp)
+{
+	struct insn insn;
+	int n, i;
+	int left;
+
+	insn_init(&insn, inbuf, inlen, x->is64bit);
+	insn_get_length(&insn);
+	if (!insn_complete(&insn) || insn.length > inlen)
+		return "<bad>";
+	if (lenp)
+		*lenp = insn.length;
+	left = sizeof(x->out);
+	n = snprintf(x->out, left, "insn: ");
+	left -= n;
+	for (i = 0; i < insn.length; i++) {
+		n += snprintf(x->out + n, left, "%02x ", inbuf[i]);
+		left -= n;
+	}
+	return x->out;
 }
 
 const char *branch_name[] = {

@@ -18,7 +18,7 @@
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/kobject.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -168,7 +168,7 @@ static struct platform_driver tegra_fuse_driver = {
 	},
 	.probe = tegra_fuse_probe,
 };
-module_platform_driver(tegra_fuse_driver);
+builtin_platform_driver(tegra_fuse_driver);
 
 bool __init tegra_fuse_read_spare(unsigned int spare)
 {

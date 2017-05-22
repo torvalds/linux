@@ -495,12 +495,13 @@ static void remove_widget(struct snd_soc_component *comp,
 			struct snd_kcontrol *kcontrol = w->kcontrols[i];
 			struct soc_enum *se =
 				(struct soc_enum *)kcontrol->private_value;
+			int j;
 
 			snd_ctl_remove(card, kcontrol);
 
 			kfree(se->dobj.control.dvalues);
-			for (i = 0; i < se->items; i++)
-				kfree(se->dobj.control.dtexts[i]);
+			for (j = 0; j < se->items; j++)
+				kfree(se->dobj.control.dtexts[j]);
 
 			kfree(se);
 		}
@@ -933,6 +934,7 @@ static int soc_tplg_denum_create_texts(struct soc_enum *se,
 		}
 	}
 
+	se->texts = (const char * const *)se->dobj.control.dtexts;
 	return 0;
 
 err:

@@ -13,6 +13,12 @@
 #ifndef AMD5536UDC_H
 #define AMD5536UDC_H
 
+/* debug control */
+/* #define UDC_VERBOSE */
+
+#include <linux/usb/ch9.h>
+#include <linux/usb/gadget.h>
+
 /* various constants */
 #define UDC_RDE_TIMER_SECONDS		1
 #define UDC_RDE_TIMER_DIV		10
@@ -545,8 +551,8 @@ struct udc {
 	u32 __iomem			*txfifo;
 
 	/* DMA desc pools */
-	struct pci_pool			*data_requests;
-	struct pci_pool			*stp_requests;
+	struct dma_pool			*data_requests;
+	struct dma_pool			*stp_requests;
 
 	/* device data */
 	unsigned long			phys_addr;
@@ -567,6 +573,36 @@ union udc_setup_data {
 	struct usb_ctrlrequest	request;
 };
 
+/* Function declarations */
+int udc_enable_dev_setup_interrupts(struct udc *dev);
+int udc_mask_unused_interrupts(struct udc *dev);
+irqreturn_t udc_irq(int irq, void *pdev);
+void gadget_release(struct device *pdev);
+void udc_basic_init(struct udc *dev);
+void free_dma_pools(struct udc *dev);
+int init_dma_pools(struct udc *dev);
+void udc_remove(struct udc *dev);
+int udc_probe(struct udc *dev);
+
+/* DMA usage flag */
+static bool use_dma = 1;
+/* packet per buffer dma */
+static bool use_dma_ppb = 1;
+/* with per descr. update */
+static bool use_dma_ppb_du;
+/* full speed only mode */
+static bool use_fullspeed;
+
+/* module parameters */
+module_param(use_dma, bool, S_IRUGO);
+MODULE_PARM_DESC(use_dma, "true for DMA");
+module_param(use_dma_ppb, bool, S_IRUGO);
+MODULE_PARM_DESC(use_dma_ppb, "true for DMA in packet per buffer mode");
+module_param(use_dma_ppb_du, bool, S_IRUGO);
+MODULE_PARM_DESC(use_dma_ppb_du,
+	"true for DMA in packet per buffer mode with descriptor update");
+module_param(use_fullspeed, bool, S_IRUGO);
+MODULE_PARM_DESC(use_fullspeed, "true for fullspeed only");
 /*
  *---------------------------------------------------------------------------
  * SET and GET bitfields in u32 values

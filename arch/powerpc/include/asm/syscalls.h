@@ -8,10 +8,10 @@
 
 struct rtas_args;
 
-asmlinkage unsigned long sys_mmap(unsigned long addr, size_t len,
+asmlinkage long sys_mmap(unsigned long addr, size_t len,
 		unsigned long prot, unsigned long flags,
 		unsigned long fd, off_t offset);
-asmlinkage unsigned long sys_mmap2(unsigned long addr, size_t len,
+asmlinkage long sys_mmap2(unsigned long addr, size_t len,
 		unsigned long prot, unsigned long flags,
 		unsigned long fd, unsigned long pgoff);
 asmlinkage long ppc64_personality(unsigned long personality);

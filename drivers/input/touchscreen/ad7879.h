@@ -11,20 +11,12 @@
 
 #include <linux/types.h>
 
-struct ad7879;
 struct device;
-
-struct ad7879_bus_ops {
-	u16 bustype;
-	int (*read)(struct device *dev, u8 reg);
-	int (*multi_read)(struct device *dev, u8 first_reg, u8 count, u16 *buf);
-	int (*write)(struct device *dev, u8 reg, u16 val);
-};
+struct regmap;
 
 extern const struct dev_pm_ops ad7879_pm_ops;
 
-struct ad7879 *ad7879_probe(struct device *dev, u8 devid, unsigned irq,
-			    const struct ad7879_bus_ops *bops);
-void ad7879_remove(struct ad7879 *);
+int ad7879_probe(struct device *dev, struct regmap *regmap,
+		 int irq, u16 bustype, u8 devid);
 
 #endif

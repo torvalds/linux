@@ -108,7 +108,7 @@ nouveau_name(struct drm_device *dev)
 	if (dev->pdev)
 		return nouveau_pci_name(dev->pdev);
 	else
-		return nouveau_platform_name(dev->platformdev);
+		return nouveau_platform_name(to_platform_device(dev->dev));
 }
 
 static void
@@ -502,6 +502,9 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 		pm_runtime_allow(dev->dev);
 		pm_runtime_mark_last_busy(dev->dev);
 		pm_runtime_put(dev->dev);
+	} else {
+		/* enable polling for external displays */
+		drm_kms_helper_poll_enable(dev);
 	}
 	return 0;
 
@@ -774,9 +777,6 @@ nouveau_pmops_runtime_resume(struct device *dev)
 
 	ret = nouveau_do_resume(drm_dev, true);
 
-	if (!drm_dev->mode_config.poll_enabled)
-		drm_kms_helper_poll_enable(drm_dev);
-
 	/* do magic */
 	nvif_mask(&device->object, 0x088488, (1 << 25), (1 << 25));
 	vga_switcheroo_set_dynamic_switch(pdev, VGA_SWITCHEROO_ON);
@@ -980,10 +980,8 @@ driver_stub = {
 
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = nouveau_drm_debugfs_init,
-	.debugfs_cleanup = nouveau_drm_debugfs_cleanup,
 #endif
 
-	.get_vblank_counter = drm_vblank_no_hw_counter,
 	.enable_vblank = nouveau_display_vblank_enable,
 	.disable_vblank = nouveau_display_vblank_disable,
 	.get_scanout_position = nouveau_display_scanoutpos,
@@ -1097,7 +1095,6 @@ nouveau_platform_device_create(const struct nvkm_device_tegra_func *func,
 		goto err_free;
 	}
 
-	drm->platformdev = pdev;
 	platform_set_drvdata(pdev, drm);
 
 	return drm;

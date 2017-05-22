@@ -1201,9 +1201,8 @@ static void video_init(struct saa7146_dev *dev, struct saa7146_vv *vv)
 {
 	INIT_LIST_HEAD(&vv->video_dmaq.queue);
 
-	init_timer(&vv->video_dmaq.timeout);
-	vv->video_dmaq.timeout.function = saa7146_buffer_timeout;
-	vv->video_dmaq.timeout.data     = (unsigned long)(&vv->video_dmaq);
+	setup_timer(&vv->video_dmaq.timeout, saa7146_buffer_timeout,
+		    (unsigned long)(&vv->video_dmaq));
 	vv->video_dmaq.dev              = dev;
 
 	/* set some default values */

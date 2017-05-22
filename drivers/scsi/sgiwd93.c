@@ -297,7 +297,7 @@ out:
 	return err;
 }
 
-static int __exit sgiwd93_remove(struct platform_device *pdev)
+static int sgiwd93_remove(struct platform_device *pdev)
 {
 	struct Scsi_Host *host = platform_get_drvdata(pdev);
 	struct ip22_hostdata *hdata = (struct ip22_hostdata *) host->hostdata;

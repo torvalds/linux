@@ -84,43 +84,6 @@
 #include <trace/events/fib.h>
 #include "fib_lookup.h"
 
-static unsigned int fib_seq_sum(void)
-{
-	unsigned int fib_seq = 0;
-	struct net *net;
-
-	rtnl_lock();
-	for_each_net(net)
-		fib_seq += net->ipv4.fib_seq;
-	rtnl_unlock();
-
-	return fib_seq;
-}
-
-static ATOMIC_NOTIFIER_HEAD(fib_chain);
-
-static int call_fib_notifier(struct notifier_block *nb, struct net *net,
-			     enum fib_event_type event_type,
-			     struct fib_notifier_info *info)
-{
-	info->net = net;
-	return nb->notifier_call(nb, event_type, info);
-}
-
-static void fib_rules_notify(struct net *net, struct notifier_block *nb,
-			     enum fib_event_type event_type)
-{
-#ifdef CONFIG_IP_MULTIPLE_TABLES
-	struct fib_notifier_info info;
-
-	if (net->ipv4.fib_has_custom_rules)
-		call_fib_notifier(nb, net, event_type, &info);
-#endif
-}
-
-static void fib_notify(struct net *net, struct notifier_block *nb,
-		       enum fib_event_type event_type);
-
 static int call_fib_entry_notifier(struct notifier_block *nb, struct net *net,
 				   enum fib_event_type event_type, u32 dst,
 				   int dst_len, struct fib_info *fi,
@@ -135,62 +98,6 @@ static int call_fib_entry_notifier(struct notifier_block *nb, struct net *net,
 		.tb_id = tb_id,
 	};
 	return call_fib_notifier(nb, net, event_type, &info.info);
-}
-
-static bool fib_dump_is_consistent(struct notifier_block *nb,
-				   void (*cb)(struct notifier_block *nb),
-				   unsigned int fib_seq)
-{
-	atomic_notifier_chain_register(&fib_chain, nb);
-	if (fib_seq == fib_seq_sum())
-		return true;
-	atomic_notifier_chain_unregister(&fib_chain, nb);
-	if (cb)
-		cb(nb);
-	return false;
-}
-
-#define FIB_DUMP_MAX_RETRIES 5
-int register_fib_notifier(struct notifier_block *nb,
-			  void (*cb)(struct notifier_block *nb))
-{
-	int retries = 0;
-
-	do {
-		unsigned int fib_seq = fib_seq_sum();
-		struct net *net;
-
-		/* Mutex semantics guarantee that every change done to
-		 * FIB tries before we read the change sequence counter
-		 * is now visible to us.
-		 */
-		rcu_read_lock();
-		for_each_net_rcu(net) {
-			fib_rules_notify(net, nb, FIB_EVENT_RULE_ADD);
-			fib_notify(net, nb, FIB_EVENT_ENTRY_ADD);
-		}
-		rcu_read_unlock();
-
-		if (fib_dump_is_consistent(nb, cb, fib_seq))
-			return 0;
-	} while (++retries < FIB_DUMP_MAX_RETRIES);
-
-	return -EBUSY;
-}
-EXPORT_SYMBOL(register_fib_notifier);
-
-int unregister_fib_notifier(struct notifier_block *nb)
-{
-	return atomic_notifier_chain_unregister(&fib_chain, nb);
-}
-EXPORT_SYMBOL(unregister_fib_notifier);
-
-int call_fib_notifiers(struct net *net, enum fib_event_type event_type,
-		       struct fib_notifier_info *info)
-{
-	net->ipv4.fib_seq++;
-	info->net = net;
-	return atomic_notifier_call_chain(&fib_chain, event_type, info);
 }
 
 static int call_fib_entry_notifiers(struct net *net,
@@ -1995,8 +1902,7 @@ int fib_table_flush(struct net *net, struct fib_table *tb)
 }
 
 static void fib_leaf_notify(struct net *net, struct key_vector *l,
-			    struct fib_table *tb, struct notifier_block *nb,
-			    enum fib_event_type event_type)
+			    struct fib_table *tb, struct notifier_block *nb)
 {
 	struct fib_alias *fa;
 
@@ -2012,22 +1918,21 @@ static void fib_leaf_notify(struct net *net, struct key_vector *l,
 		if (tb->tb_id != fa->tb_id)
 			continue;
 
-		call_fib_entry_notifier(nb, net, event_type, l->key,
+		call_fib_entry_notifier(nb, net, FIB_EVENT_ENTRY_ADD, l->key,
 					KEYLENGTH - fa->fa_slen, fi, fa->fa_tos,
 					fa->fa_type, fa->tb_id);
 	}
 }
 
 static void fib_table_notify(struct net *net, struct fib_table *tb,
-			     struct notifier_block *nb,
-			     enum fib_event_type event_type)
+			     struct notifier_block *nb)
 {
 	struct trie *t = (struct trie *)tb->tb_data;
 	struct key_vector *l, *tp = t->kv;
 	t_key key = 0;
 
 	while ((l = leaf_walk_rcu(&tp, key)) != NULL) {
-		fib_leaf_notify(net, l, tb, nb, event_type);
+		fib_leaf_notify(net, l, tb, nb);
 
 		key = l->key + 1;
 		/* stop in case of wrap around */
@@ -2036,8 +1941,7 @@ static void fib_table_notify(struct net *net, struct fib_table *tb,
 	}
 }
 
-static void fib_notify(struct net *net, struct notifier_block *nb,
-		       enum fib_event_type event_type)
+void fib_notify(struct net *net, struct notifier_block *nb)
 {
 	unsigned int h;
 
@@ -2046,7 +1950,7 @@ static void fib_notify(struct net *net, struct notifier_block *nb,
 		struct fib_table *tb;
 
 		hlist_for_each_entry_rcu(tb, head, tb_hlist)
-			fib_table_notify(net, tb, nb, event_type);
+			fib_table_notify(net, tb, nb);
 	}
 }
 
@@ -2079,6 +1983,8 @@ static int fn_trie_dump_leaf(struct key_vector *l, struct fib_table *tb,
 
 	/* rcu_read_lock is hold by caller */
 	hlist_for_each_entry_rcu(fa, &l->leaf, fa_list) {
+		int err;
+
 		if (i < s_i) {
 			i++;
 			continue;
@@ -2089,17 +1995,14 @@ static int fn_trie_dump_leaf(struct key_vector *l, struct fib_table *tb,
 			continue;
 		}
 
-		if (fib_dump_info(skb, NETLINK_CB(cb->skb).portid,
-				  cb->nlh->nlmsg_seq,
-				  RTM_NEWROUTE,
-				  tb->tb_id,
-				  fa->fa_type,
-				  xkey,
-				  KEYLENGTH - fa->fa_slen,
-				  fa->fa_tos,
-				  fa->fa_info, NLM_F_MULTI) < 0) {
+		err = fib_dump_info(skb, NETLINK_CB(cb->skb).portid,
+				    cb->nlh->nlmsg_seq, RTM_NEWROUTE,
+				    tb->tb_id, fa->fa_type,
+				    xkey, KEYLENGTH - fa->fa_slen,
+				    fa->fa_tos, fa->fa_info, NLM_F_MULTI);
+		if (err < 0) {
 			cb->args[4] = i;
-			return -1;
+			return err;
 		}
 		i++;
 	}
@@ -2121,10 +2024,13 @@ int fib_table_dump(struct fib_table *tb, struct sk_buff *skb,
 	t_key key = cb->args[3];
 
 	while ((l = leaf_walk_rcu(&tp, key)) != NULL) {
-		if (fn_trie_dump_leaf(l, tb, skb, cb) < 0) {
+		int err;
+
+		err = fn_trie_dump_leaf(l, tb, skb, cb);
+		if (err < 0) {
 			cb->args[3] = key;
 			cb->args[2] = count;
-			return -1;
+			return err;
 		}
 
 		++count;

@@ -83,7 +83,7 @@ nvkm_fan_update(struct nvkm_fan *fan, bool immediate, int target)
 	spin_unlock_irqrestore(&fan->lock, flags);
 
 	/* schedule next fan update, if not at target speed already */
-	if (list_empty(&fan->alarm.head) && target != duty) {
+	if (target != duty) {
 		u16 bump_period = fan->bios.bump_period;
 		u16 slow_down_period = fan->bios.slow_down_period;
 		u64 delay;

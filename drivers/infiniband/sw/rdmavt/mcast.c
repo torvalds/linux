@@ -100,10 +100,11 @@ static void rvt_mcast_qp_free(struct rvt_mcast_qp *mqp)
 /**
  * mcast_alloc - allocate the multicast GID structure
  * @mgid: the multicast GID
+ * @lid: the muilticast LID (host order)
  *
  * A list of QPs will be attached to this structure.
  */
-static struct rvt_mcast *rvt_mcast_alloc(union ib_gid *mgid)
+static struct rvt_mcast *rvt_mcast_alloc(union ib_gid *mgid, u16 lid)
 {
 	struct rvt_mcast *mcast;
 
@@ -111,7 +112,9 @@ static struct rvt_mcast *rvt_mcast_alloc(union ib_gid *mgid)
 	if (!mcast)
 		goto bail;
 
-	mcast->mgid = *mgid;
+	mcast->mcast_addr.mgid = *mgid;
+	mcast->mcast_addr.lid = lid;
+
 	INIT_LIST_HEAD(&mcast->qp_list);
 	init_waitqueue_head(&mcast->wait);
 	atomic_set(&mcast->refcount, 0);
@@ -131,15 +134,19 @@ static void rvt_mcast_free(struct rvt_mcast *mcast)
 }
 
 /**
- * rvt_mcast_find - search the global table for the given multicast GID
+ * rvt_mcast_find - search the global table for the given multicast GID/LID
+ * NOTE: It is valid to have 1 MLID with multiple MGIDs.  It is not valid
+ * to have 1 MGID with multiple MLIDs.
  * @ibp: the IB port structure
  * @mgid: the multicast GID to search for
+ * @lid: the multicast LID portion of the multicast address (host order)
  *
  * The caller is responsible for decrementing the reference count if found.
  *
  * Return: NULL if not found.
  */
-struct rvt_mcast *rvt_mcast_find(struct rvt_ibport *ibp, union ib_gid *mgid)
+struct rvt_mcast *rvt_mcast_find(struct rvt_ibport *ibp, union ib_gid *mgid,
+				 u16 lid)
 {
 	struct rb_node *n;
 	unsigned long flags;
@@ -153,15 +160,18 @@ struct rvt_mcast *rvt_mcast_find(struct rvt_ibport *ibp, union ib_gid *mgid)
 
 		mcast = rb_entry(n, struct rvt_mcast, rb_node);
 
-		ret = memcmp(mgid->raw, mcast->mgid.raw,
-			     sizeof(union ib_gid));
+		ret = memcmp(mgid->raw, mcast->mcast_addr.mgid.raw,
+			     sizeof(*mgid));
 		if (ret < 0) {
 			n = n->rb_left;
 		} else if (ret > 0) {
 			n = n->rb_right;
 		} else {
-			atomic_inc(&mcast->refcount);
-			found = mcast;
+			/* MGID/MLID must match */
+			if (mcast->mcast_addr.lid == lid) {
+				atomic_inc(&mcast->refcount);
+				found = mcast;
+			}
 			break;
 		}
 	}
@@ -177,7 +187,8 @@ EXPORT_SYMBOL(rvt_mcast_find);
  *
  * Return: zero if both were added.  Return EEXIST if the GID was already in
  * the table but the QP was added.  Return ESRCH if the QP was already
- * attached and neither structure was added.
+ * attached and neither structure was added. Return EINVAL if the MGID was
+ * found, but the MLID did NOT match.
  */
 static int rvt_mcast_add(struct rvt_dev_info *rdi, struct rvt_ibport *ibp,
 			 struct rvt_mcast *mcast, struct rvt_mcast_qp *mqp)
@@ -195,8 +206,9 @@ static int rvt_mcast_add(struct rvt_dev_info *rdi, struct rvt_ibport *ibp,
 		pn = *n;
 		tmcast = rb_entry(pn, struct rvt_mcast, rb_node);
 
-		ret = memcmp(mcast->mgid.raw, tmcast->mgid.raw,
-			     sizeof(union ib_gid));
+		ret = memcmp(mcast->mcast_addr.mgid.raw,
+			     tmcast->mcast_addr.mgid.raw,
+			     sizeof(mcast->mcast_addr.mgid));
 		if (ret < 0) {
 			n = &pn->rb_left;
 			continue;
@@ -204,6 +216,11 @@ static int rvt_mcast_add(struct rvt_dev_info *rdi, struct rvt_ibport *ibp,
 		if (ret > 0) {
 			n = &pn->rb_right;
 			continue;
+		}
+
+		if (tmcast->mcast_addr.lid != mcast->mcast_addr.lid) {
+			ret = EINVAL;
+			goto bail;
 		}
 
 		/* Search the QP list to see if this is already there. */
@@ -276,7 +293,7 @@ int rvt_attach_mcast(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	 * Allocate data structures since its better to do this outside of
 	 * spin locks and it will most likely be needed.
 	 */
-	mcast = rvt_mcast_alloc(gid);
+	mcast = rvt_mcast_alloc(gid, lid);
 	if (!mcast)
 		return -ENOMEM;
 
@@ -295,6 +312,10 @@ int rvt_attach_mcast(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	case ENOMEM:
 		/* Exceeded the maximum number of mcast groups. */
 		ret = -ENOMEM;
+		goto bail_mqp;
+	case EINVAL:
+		/* Invalid MGID/MLID pair */
+		ret = -EINVAL;
 		goto bail_mqp;
 	default:
 		break;
@@ -344,14 +365,20 @@ int rvt_detach_mcast(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 		}
 
 		mcast = rb_entry(n, struct rvt_mcast, rb_node);
-		ret = memcmp(gid->raw, mcast->mgid.raw,
-			     sizeof(union ib_gid));
-		if (ret < 0)
+		ret = memcmp(gid->raw, mcast->mcast_addr.mgid.raw,
+			     sizeof(*gid));
+		if (ret < 0) {
 			n = n->rb_left;
-		else if (ret > 0)
+		} else if (ret > 0) {
 			n = n->rb_right;
-		else
+		} else {
+			/* MGID/MLID must match */
+			if (mcast->mcast_addr.lid != lid) {
+				spin_unlock_irq(&ibp->lock);
+				return -EINVAL;
+			}
 			break;
+		}
 	}
 
 	/* Search the QP list. */

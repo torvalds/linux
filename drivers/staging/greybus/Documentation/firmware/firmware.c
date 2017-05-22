@@ -52,6 +52,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
@@ -64,12 +65,12 @@
 #define FW_TAG_INT_DEFAULT	"s3f"
 #define FW_TAG_BCND_DEFAULT	"bf_01"
 #define FW_UPDATE_TYPE_DEFAULT	0
-#define FW_TIMEOUT_DEFAULT	10000;
+#define FW_TIMEOUT_DEFAULT	10000
 
 static const char *firmware_tag;
 static const char *fwdev = FW_DEV_DEFAULT;
-static int fw_update_type = FW_UPDATE_TYPE_DEFAULT;
-static int fw_timeout = FW_TIMEOUT_DEFAULT;
+static unsigned int fw_update_type = FW_UPDATE_TYPE_DEFAULT;
+static unsigned int fw_timeout = FW_TIMEOUT_DEFAULT;
 
 static struct fw_mgmt_ioc_get_intf_version intf_fw_info;
 static struct fw_mgmt_ioc_get_backend_version backend_fw_info;
@@ -204,6 +205,7 @@ retry_fw_update:
 int main(int argc, char *argv[])
 {
 	int fd, ret;
+	char *endptr;
 
 	if (argc > 1 &&
 	    (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help"))) {
@@ -215,20 +217,19 @@ int main(int argc, char *argv[])
 		fwdev = argv[1];
 
 	if (argc > 2)
-		sscanf(argv[2], "%u", &fw_update_type);
+		fw_update_type = strtoul(argv[2], &endptr, 10);
 
-	if (argc > 3) {
+	if (argc > 3)
 		firmware_tag = argv[3];
-	} else if (!fw_update_type) {
+	else if (!fw_update_type)
 		firmware_tag = FW_TAG_INT_DEFAULT;
-	} else {
+	else
 		firmware_tag = FW_TAG_BCND_DEFAULT;
-	}
 
 	if (argc > 4)
-		sscanf(argv[4], "%u", &fw_timeout);
+		fw_timeout = strtoul(argv[4], &endptr, 10);
 
-	printf("Trying Firmware update: fwdev: %s, type: %s, tag: %s, timeout: %d\n",
+	printf("Trying Firmware update: fwdev: %s, type: %s, tag: %s, timeout: %u\n",
 		fwdev, fw_update_type == 0 ? "interface" : "backend",
 		firmware_tag, fw_timeout);
 

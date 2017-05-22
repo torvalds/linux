@@ -40,6 +40,13 @@ const struct cred *ovl_override_creds(struct super_block *sb)
 	return override_creds(ofs->creator_cred);
 }
 
+struct super_block *ovl_same_sb(struct super_block *sb)
+{
+	struct ovl_fs *ofs = sb->s_fs_info;
+
+	return ofs->same_sb;
+}
+
 struct ovl_entry *ovl_alloc_entry(unsigned int numlower)
 {
 	size_t size = offsetof(struct ovl_entry, lowerstack[numlower]);
@@ -75,11 +82,13 @@ enum ovl_path_type ovl_path_type(struct dentry *dentry)
 		type = __OVL_PATH_UPPER;
 
 		/*
-		 * Non-dir dentry can hold lower dentry from previous
-		 * location.
+		 * Non-dir dentry can hold lower dentry of its copy up origin.
 		 */
-		if (oe->numlower && d_is_dir(dentry))
-			type |= __OVL_PATH_MERGE;
+		if (oe->numlower) {
+			type |= __OVL_PATH_ORIGIN;
+			if (d_is_dir(dentry))
+				type |= __OVL_PATH_MERGE;
+		}
 	} else {
 		if (oe->numlower > 1)
 			type |= __OVL_PATH_MERGE;
@@ -100,7 +109,7 @@ void ovl_path_lower(struct dentry *dentry, struct path *path)
 {
 	struct ovl_entry *oe = dentry->d_fsdata;
 
-	*path = oe->numlower ? oe->lowerstack[0] : (struct path) { NULL, NULL };
+	*path = oe->numlower ? oe->lowerstack[0] : (struct path) { };
 }
 
 enum ovl_path_type ovl_path_real(struct dentry *dentry, struct path *path)

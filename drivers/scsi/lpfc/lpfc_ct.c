@@ -537,19 +537,53 @@ lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 	}
 }
 
+static void
+lpfc_ns_rsp_audit_did(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
+{
+	struct lpfc_hba *phba = vport->phba;
+	struct lpfc_nodelist *ndlp = NULL;
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
+
+	/*
+	 * To conserve rpi's, filter out addresses for other
+	 * vports on the same physical HBAs.
+	 */
+	if (Did != vport->fc_myDID &&
+	    (!lpfc_find_vport_by_did(phba, Did) ||
+	     vport->cfg_peer_port_login)) {
+		if (!phba->nvmet_support) {
+			/* FCPI/NVMEI path. Process Did */
+			lpfc_prep_node_fc4type(vport, Did, fc4_type);
+			return;
+		}
+		/* NVMET path.  NVMET only cares about NVMEI nodes. */
+		list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
+			if (ndlp->nlp_type != NLP_NVME_INITIATOR ||
+			    ndlp->nlp_state != NLP_STE_UNMAPPED_NODE)
+				continue;
+			spin_lock_irq(shost->host_lock);
+			if (ndlp->nlp_DID == Did)
+				ndlp->nlp_flag &= ~NLP_NVMET_RECOV;
+			else
+				ndlp->nlp_flag |= NLP_NVMET_RECOV;
+			spin_unlock_irq(shost->host_lock);
+		}
+	}
+}
+
 static int
 lpfc_ns_rsp(struct lpfc_vport *vport, struct lpfc_dmabuf *mp, uint8_t fc4_type,
 	    uint32_t Size)
 {
-	struct lpfc_hba  *phba = vport->phba;
 	struct lpfc_sli_ct_request *Response =
 		(struct lpfc_sli_ct_request *) mp->virt;
-	struct lpfc_nodelist *ndlp = NULL;
 	struct lpfc_dmabuf *mlast, *next_mp;
 	uint32_t *ctptr = (uint32_t *) & Response->un.gid.PortType;
 	uint32_t Did, CTentry;
 	int Cnt;
 	struct list_head head;
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
+	struct lpfc_nodelist *ndlp = NULL;
 
 	lpfc_set_disctmo(vport);
 	vport->num_disc_nodes = 0;
@@ -574,19 +608,7 @@ lpfc_ns_rsp(struct lpfc_vport *vport, struct lpfc_dmabuf *mp, uint8_t fc4_type,
 			/* Get next DID from NameServer List */
 			CTentry = *ctptr++;
 			Did = ((be32_to_cpu(CTentry)) & Mask_DID);
-
-			ndlp = NULL;
-
-			/*
-			 * Check for rscn processing or not
-			 * To conserve rpi's, filter out addresses for other
-			 * vports on the same physical HBAs.
-			 */
-			if ((Did != vport->fc_myDID) &&
-			    ((lpfc_find_vport_by_did(phba, Did) == NULL) ||
-			     vport->cfg_peer_port_login))
-				lpfc_prep_node_fc4type(vport, Did, fc4_type);
-
+			lpfc_ns_rsp_audit_did(vport, Did, fc4_type);
 			if (CTentry & (cpu_to_be32(SLI_CT_LAST_ENTRY)))
 				goto nsout1;
 
@@ -594,6 +616,22 @@ lpfc_ns_rsp(struct lpfc_vport *vport, struct lpfc_dmabuf *mp, uint8_t fc4_type,
 		}
 		ctptr = NULL;
 
+	}
+
+	/* All GID_FT entries processed.  If the driver is running in
+	 * in target mode, put impacted nodes into recovery and drop
+	 * the RPI to flush outstanding IO.
+	 */
+	if (vport->phba->nvmet_support) {
+		list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
+			if (!(ndlp->nlp_flag & NLP_NVMET_RECOV))
+				continue;
+			lpfc_disc_state_machine(vport, ndlp, NULL,
+						NLP_EVT_DEVICE_RECOVERY);
+			spin_lock_irq(shost->host_lock);
+			ndlp->nlp_flag &= ~NLP_NVMET_RECOV;
+			spin_unlock_irq(shost->host_lock);
+		}
 	}
 
 nsout1:

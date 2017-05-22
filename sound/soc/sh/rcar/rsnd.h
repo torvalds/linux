@@ -611,35 +611,30 @@ struct rsnd_kctrl_cfg_s {
 	u32 val;
 };
 
-void _rsnd_kctrl_remove(struct rsnd_kctrl_cfg *cfg);
-#define rsnd_kctrl_remove(_cfg)	_rsnd_kctrl_remove(&((_cfg).cfg))
+struct rsnd_kctrl_cfg *rsnd_kctrl_init_m(struct rsnd_kctrl_cfg_m *cfg);
+struct rsnd_kctrl_cfg *rsnd_kctrl_init_s(struct rsnd_kctrl_cfg_s *cfg);
+int rsnd_kctrl_new(struct rsnd_mod *mod,
+		   struct rsnd_dai_stream *io,
+		   struct snd_soc_pcm_runtime *rtd,
+		   const unsigned char *name,
+		   void (*update)(struct rsnd_dai_stream *io,
+				  struct rsnd_mod *mod),
+		   struct rsnd_kctrl_cfg *cfg,
+		   const char * const *texts,
+		   int size,
+		   u32 max);
 
-int rsnd_kctrl_new_m(struct rsnd_mod *mod,
-		     struct rsnd_dai_stream *io,
-		     struct snd_soc_pcm_runtime *rtd,
-		     const unsigned char *name,
-		     void (*update)(struct rsnd_dai_stream *io,
-				    struct rsnd_mod *mod),
-		     struct rsnd_kctrl_cfg_m *_cfg,
-		     int ch_size,
-		     u32 max);
-int rsnd_kctrl_new_s(struct rsnd_mod *mod,
-		     struct rsnd_dai_stream *io,
-		     struct snd_soc_pcm_runtime *rtd,
-		     const unsigned char *name,
-		     void (*update)(struct rsnd_dai_stream *io,
-				    struct rsnd_mod *mod),
-		     struct rsnd_kctrl_cfg_s *_cfg,
-		     u32 max);
-int rsnd_kctrl_new_e(struct rsnd_mod *mod,
-		     struct rsnd_dai_stream *io,
-		     struct snd_soc_pcm_runtime *rtd,
-		     const unsigned char *name,
-		     struct rsnd_kctrl_cfg_s *_cfg,
-		     void (*update)(struct rsnd_dai_stream *io,
-				    struct rsnd_mod *mod),
-		     const char * const *texts,
-		     u32 max);
+#define rsnd_kctrl_new_m(mod, io, rtd, name, update, cfg, size, max) \
+	rsnd_kctrl_new(mod, io, rtd, name, update, rsnd_kctrl_init_m(cfg), \
+		       NULL, size, max)
+
+#define rsnd_kctrl_new_s(mod, io, rtd, name, update, cfg, max)	\
+	rsnd_kctrl_new(mod, io, rtd, name, update, rsnd_kctrl_init_s(cfg), \
+		       NULL, 1, max)
+
+#define rsnd_kctrl_new_e(mod, io, rtd, name, update, cfg, texts)	\
+	rsnd_kctrl_new(mod, io, rtd, name, update, rsnd_kctrl_init_s(cfg), \
+		       texts, 1, ARRAY_SIZE(texts))
 
 /*
  *	R-Car SSI
@@ -732,8 +727,8 @@ void rsnd_cmd_remove(struct rsnd_priv *priv);
 int rsnd_cmd_attach(struct rsnd_dai_stream *io, int id);
 struct rsnd_mod *rsnd_cmd_mod_get(struct rsnd_priv *priv, int id);
 
-#ifdef DEBUG
 void rsnd_mod_make_sure(struct rsnd_mod *mod, enum rsnd_mod_type type);
+#ifdef DEBUG
 #define rsnd_mod_confirm_ssi(mssi)	rsnd_mod_make_sure(mssi, RSND_MOD_SSI)
 #define rsnd_mod_confirm_src(msrc)	rsnd_mod_make_sure(msrc, RSND_MOD_SRC)
 #define rsnd_mod_confirm_dvc(mdvc)	rsnd_mod_make_sure(mdvc, RSND_MOD_DVC)

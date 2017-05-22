@@ -487,6 +487,9 @@ static unsigned int aq_nic_map_skb(struct aq_nic_s *self,
 		dx_buff->mss = skb_shinfo(skb)->gso_size;
 		dx_buff->is_txc = 1U;
 
+		dx_buff->is_ipv6 =
+			(ip_hdr(skb)->version == 6) ? 1U : 0U;
+
 		dx = aq_ring_next_dx(ring, dx);
 		dx_buff = &ring->buff_ring[dx];
 		++ret;
@@ -510,10 +513,22 @@ static unsigned int aq_nic_map_skb(struct aq_nic_s *self,
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		dx_buff->is_ip_cso = (htons(ETH_P_IP) == skb->protocol) ?
 			1U : 0U;
-		dx_buff->is_tcp_cso =
-			(ip_hdr(skb)->protocol == IPPROTO_TCP) ? 1U : 0U;
-		dx_buff->is_udp_cso =
-			(ip_hdr(skb)->protocol == IPPROTO_UDP) ? 1U : 0U;
+
+		if (ip_hdr(skb)->version == 4) {
+			dx_buff->is_tcp_cso =
+				(ip_hdr(skb)->protocol == IPPROTO_TCP) ?
+					1U : 0U;
+			dx_buff->is_udp_cso =
+				(ip_hdr(skb)->protocol == IPPROTO_UDP) ?
+					1U : 0U;
+		} else if (ip_hdr(skb)->version == 6) {
+			dx_buff->is_tcp_cso =
+				(ipv6_hdr(skb)->nexthdr == NEXTHDR_TCP) ?
+					1U : 0U;
+			dx_buff->is_udp_cso =
+				(ipv6_hdr(skb)->nexthdr == NEXTHDR_UDP) ?
+					1U : 0U;
+		}
 	}
 
 	for (; nr_frags--; ++frag_count) {
@@ -740,7 +755,7 @@ void aq_nic_get_stats(struct aq_nic_s *self, u64 *data)
 	count = 0U;
 
 	for (i = 0U, aq_vec = self->aq_vec[0];
-		self->aq_vecs > i; ++i, aq_vec = self->aq_vec[i]) {
+		aq_vec && self->aq_vecs > i; ++i, aq_vec = self->aq_vec[i]) {
 		data += count;
 		aq_vec_get_sw_stats(aq_vec, data, &count);
 	}
@@ -944,8 +959,10 @@ void aq_nic_free_hot_resources(struct aq_nic_s *self)
 		goto err_exit;
 
 	for (i = AQ_DIMOF(self->aq_vec); i--;) {
-		if (self->aq_vec[i])
+		if (self->aq_vec[i]) {
 			aq_vec_free(self->aq_vec[i]);
+			self->aq_vec[i] = NULL;
+		}
 	}
 
 err_exit:;

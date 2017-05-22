@@ -21,6 +21,7 @@
 #include <linux/pci_ids.h>
 #include <linux/sched.h>
 #include <linux/completion.h>
+#include <linux/interrupt.h>
 #include <linux/scatterlist.h>
 #include <linux/mmc/sdio.h>
 #include <linux/mmc/core.h>

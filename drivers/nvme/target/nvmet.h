@@ -253,14 +253,15 @@ struct nvmet_async_event {
 	u8			log_page;
 };
 
-int nvmet_parse_connect_cmd(struct nvmet_req *req);
-int nvmet_parse_io_cmd(struct nvmet_req *req);
-int nvmet_parse_admin_cmd(struct nvmet_req *req);
-int nvmet_parse_discovery_cmd(struct nvmet_req *req);
-int nvmet_parse_fabrics_cmd(struct nvmet_req *req);
+u16 nvmet_parse_connect_cmd(struct nvmet_req *req);
+u16 nvmet_parse_io_cmd(struct nvmet_req *req);
+u16 nvmet_parse_admin_cmd(struct nvmet_req *req);
+u16 nvmet_parse_discovery_cmd(struct nvmet_req *req);
+u16 nvmet_parse_fabrics_cmd(struct nvmet_req *req);
 
 bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,
 		struct nvmet_sq *sq, struct nvmet_fabrics_ops *ops);
+void nvmet_req_uninit(struct nvmet_req *req);
 void nvmet_req_complete(struct nvmet_req *req, u16 status);
 
 void nvmet_cq_setup(struct nvmet_ctrl *ctrl, struct nvmet_cq *cq, u16 qid,
@@ -278,6 +279,7 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 u16 nvmet_ctrl_find_get(const char *subsysnqn, const char *hostnqn, u16 cntlid,
 		struct nvmet_req *req, struct nvmet_ctrl **ret);
 void nvmet_ctrl_put(struct nvmet_ctrl *ctrl);
+u16 nvmet_check_ctrl_status(struct nvmet_req *req, struct nvme_command *cmd);
 
 struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 		enum nvme_subsys_type type);

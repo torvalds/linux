@@ -209,7 +209,7 @@
 			     <1 10 4>;
 	};
 
-	soc {
+	soc@0 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -378,6 +378,8 @@
 			compatible = "socionext,uniphier-sd4hc", "cdns,sd4hc";
 			reg = <0x5a000000 0x400>;
 			interrupts = <0 78 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_emmc>;
 			clocks = <&sys_clk 4>;
 			bus-width = <8>;
 			mmc-ddr-1_8v;

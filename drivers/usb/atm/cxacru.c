@@ -474,7 +474,7 @@ static ssize_t cxacru_sysfs_store_adsl_config(struct device *dev,
 		ret = sscanf(buf + pos, "%x=%x%n", &index, &value, &tmp);
 		if (ret < 2)
 			return -EINVAL;
-		if (index < 0 || index > 0x7f)
+		if (index > 0x7f)
 			return -EINVAL;
 		if (tmp < 0 || tmp > len - pos)
 			return -EINVAL;

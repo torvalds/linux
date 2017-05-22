@@ -3,12 +3,14 @@
 #include "util/symbol.h"
 #include "util/sort.h"
 #include "util/evsel.h"
+#include "util/event.h"
 #include "util/evlist.h"
 #include "util/machine.h"
 #include "util/thread.h"
 #include "util/parse-events.h"
 #include "tests/tests.h"
 #include "tests/hists_common.h"
+#include <linux/kernel.h>
 
 struct sample {
 	u32 pid;

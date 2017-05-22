@@ -122,7 +122,7 @@ static void iceland_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 		break;
 	default:
 		smu_data->power_tune_defaults = &defaults_iceland;
-		pr_warning("Unknown V.I. Device ID.\n");
+		pr_warn("Unknown V.I. Device ID.\n");
 		break;
 	}
 	return;
@@ -378,7 +378,7 @@ static int iceland_get_std_voltage_value_sidd(struct pp_hwmgr *hwmgr,
 			return -EINVAL);
 
 	if (NULL == hwmgr->dyn_state.cac_leakage_table) {
-		pr_warning("CAC Leakage Table does not exist, using vddc.\n");
+		pr_warn("CAC Leakage Table does not exist, using vddc.\n");
 		return 0;
 	}
 
@@ -394,7 +394,7 @@ static int iceland_get_std_voltage_value_sidd(struct pp_hwmgr *hwmgr,
 				*lo = hwmgr->dyn_state.cac_leakage_table->entries[v_index].Vddc * VOLTAGE_SCALE;
 				*hi = (uint16_t)(hwmgr->dyn_state.cac_leakage_table->entries[v_index].Leakage * VOLTAGE_SCALE);
 			} else {
-				pr_warning("Index from SCLK/VDDC Dependency Table exceeds the CAC Leakage Table index, using maximum index from CAC table.\n");
+				pr_warn("Index from SCLK/VDDC Dependency Table exceeds the CAC Leakage Table index, using maximum index from CAC table.\n");
 				*lo = hwmgr->dyn_state.cac_leakage_table->entries[hwmgr->dyn_state.cac_leakage_table->count - 1].Vddc * VOLTAGE_SCALE;
 				*hi = (uint16_t)(hwmgr->dyn_state.cac_leakage_table->entries[hwmgr->dyn_state.cac_leakage_table->count - 1].Leakage * VOLTAGE_SCALE);
 			}
@@ -414,7 +414,7 @@ static int iceland_get_std_voltage_value_sidd(struct pp_hwmgr *hwmgr,
 					*lo = hwmgr->dyn_state.cac_leakage_table->entries[v_index].Vddc * VOLTAGE_SCALE;
 					*hi = (uint16_t)(hwmgr->dyn_state.cac_leakage_table->entries[v_index].Leakage) * VOLTAGE_SCALE;
 				} else {
-					pr_warning("Index from SCLK/VDDC Dependency Table exceeds the CAC Leakage Table index in second look up, using maximum index from CAC table.");
+					pr_warn("Index from SCLK/VDDC Dependency Table exceeds the CAC Leakage Table index in second look up, using maximum index from CAC table.");
 					*lo = hwmgr->dyn_state.cac_leakage_table->entries[hwmgr->dyn_state.cac_leakage_table->count - 1].Vddc * VOLTAGE_SCALE;
 					*hi = (uint16_t)(hwmgr->dyn_state.cac_leakage_table->entries[hwmgr->dyn_state.cac_leakage_table->count - 1].Leakage * VOLTAGE_SCALE);
 				}
@@ -423,7 +423,7 @@ static int iceland_get_std_voltage_value_sidd(struct pp_hwmgr *hwmgr,
 		}
 
 		if (!vol_found)
-			pr_warning("Unable to get std_vddc from SCLK/VDDC Dependency Table, using vddc.\n");
+			pr_warn("Unable to get std_vddc from SCLK/VDDC Dependency Table, using vddc.\n");
 	}
 
 	return 0;
@@ -2146,7 +2146,7 @@ uint32_t iceland_get_offsetof(uint32_t type, uint32_t member)
 			return offsetof(SMU71_Discrete_DpmTable, LowSclkInterruptThreshold);
 		}
 	}
-	pr_warning("can't get the offset of type %x member %x\n", type, member);
+	pr_warn("can't get the offset of type %x member %x\n", type, member);
 	return 0;
 }
 
@@ -2169,7 +2169,7 @@ uint32_t iceland_get_mac_definition(uint32_t value)
 		return SMU71_MAX_LEVELS_MVDD;
 	}
 
-	pr_warning("can't get the mac of %x\n", value);
+	pr_warn("can't get the mac of %x\n", value);
 	return 0;
 }
 

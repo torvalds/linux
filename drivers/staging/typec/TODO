@@ -1,0 +1,15 @@
+tcpm:
+- Add documentation (at the very least for the API to low level drivers)
+- Split PD code into separate file
+- Check if it makes sense to use tracepoints instead of debugfs for debug logs
+- Implement Alternate Mode handling
+- Address "#if 0" code if not addressed with the above
+- Validate all comments marked with "XXX"; either address or remove comments
+- Add support for USB PD 3.0. While not mandatory, at least fast role swap
+  as well as authentication support would be very desirable.
+
+tcpci:
+- Test with real hardware
+
+Please send patches to Guenter Roeck <linux@roeck-us.net> and copy
+Heikki Krogerus <heikki.krogerus@linux.intel.com>.

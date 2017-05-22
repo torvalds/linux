@@ -8,12 +8,19 @@
  * Copyright (C) Johannes Schindelin, 2005
  *
  */
+#include <errno.h>
+#include <sys/param.h>
 #include "util.h"
 #include "cache.h"
 #include <subcmd/exec-cmd.h>
 #include "util/hist.h"  /* perf_hist_config */
 #include "util/llvm-utils.h"   /* perf_llvm_config */
 #include "config.h"
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+#include "sane_ctype.h"
 
 #define MAXNAME (256)
 
@@ -627,6 +634,8 @@ static int perf_config_set__init(struct perf_config_set *set)
 {
 	int ret = -1;
 	const char *home = NULL;
+	char *user_config;
+	struct stat st;
 
 	/* Setting $PERF_CONFIG makes perf read _only_ the given config file. */
 	if (config_exclusive_filename)
@@ -637,35 +646,41 @@ static int perf_config_set__init(struct perf_config_set *set)
 	}
 
 	home = getenv("HOME");
-	if (perf_config_global() && home) {
-		char *user_config = strdup(mkpath("%s/.perfconfig", home));
-		struct stat st;
 
-		if (user_config == NULL) {
-			warning("Not enough memory to process %s/.perfconfig, "
-				"ignoring it.", home);
-			goto out;
-		}
+	/*
+	 * Skip reading user config if:
+	 *   - there is no place to read it from (HOME)
+	 *   - we are asked not to (PERF_CONFIG_NOGLOBAL=1)
+	 */
+	if (!home || !*home || !perf_config_global())
+		return 0;
 
-		if (stat(user_config, &st) < 0) {
-			if (errno == ENOENT)
-				ret = 0;
-			goto out_free;
-		}
-
-		ret = 0;
-
-		if (st.st_uid && (st.st_uid != geteuid())) {
-			warning("File %s not owned by current user or root, "
-				"ignoring it.", user_config);
-			goto out_free;
-		}
-
-		if (st.st_size)
-			ret = perf_config_from_file(collect_config, user_config, set);
-out_free:
-		free(user_config);
+	user_config = strdup(mkpath("%s/.perfconfig", home));
+	if (user_config == NULL) {
+		warning("Not enough memory to process %s/.perfconfig, "
+			"ignoring it.", home);
+		goto out;
 	}
+
+	if (stat(user_config, &st) < 0) {
+		if (errno == ENOENT)
+			ret = 0;
+		goto out_free;
+	}
+
+	ret = 0;
+
+	if (st.st_uid && (st.st_uid != geteuid())) {
+		warning("File %s not owned by current user or root, "
+			"ignoring it.", user_config);
+		goto out_free;
+	}
+
+	if (st.st_size)
+		ret = perf_config_from_file(collect_config, user_config, set);
+
+out_free:
+	free(user_config);
 out:
 	return ret;
 }

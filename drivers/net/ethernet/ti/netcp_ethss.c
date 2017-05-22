@@ -2651,7 +2651,6 @@ static int gbe_hwtstamp_set(struct gbe_intf *gbe_intf, struct ifreq *ifr)
 	case HWTSTAMP_FILTER_NONE:
 		cpts_rx_enable(cpts, 0);
 		break;
-	case HWTSTAMP_FILTER_ALL:
 	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
 	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
 	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
@@ -3048,8 +3047,7 @@ static void init_secondary_ports(struct gbe_priv *gbe_dev,
 	for_each_child_of_node(node, port) {
 		slave = devm_kzalloc(dev, sizeof(*slave), GFP_KERNEL);
 		if (!slave) {
-			dev_err(dev,
-				"memomry alloc failed for secondary port(%s), skipping...\n",
+			dev_err(dev, "memory alloc failed for secondary port(%s), skipping...\n",
 				port->name);
 			continue;
 		}

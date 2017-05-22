@@ -423,7 +423,6 @@ static void qla2x00_free_req_que(struct qla_hw_data *ha, struct req_que *req)
 		kfree(req->outstanding_cmds);
 
 	kfree(req);
-	req = NULL;
 }
 
 static void qla2x00_free_rsp_que(struct qla_hw_data *ha, struct rsp_que *rsp)
@@ -439,7 +438,6 @@ static void qla2x00_free_rsp_que(struct qla_hw_data *ha, struct rsp_que *rsp)
 		rsp->ring, rsp->dma);
 	}
 	kfree(rsp);
-	rsp = NULL;
 }
 
 static void qla2x00_free_queues(struct qla_hw_data *ha)
@@ -653,7 +651,6 @@ qla2x00_sp_free_dma(void *ptr)
 		ha->gbl_dsd_inuse -= ctx1->dsd_use_cnt;
 		ha->gbl_dsd_avail += ctx1->dsd_use_cnt;
 		mempool_free(ctx1, ha->ctx_mempool);
-		ctx1 = NULL;
 	}
 
 	CMD_SP(cmd) = NULL;
@@ -1160,8 +1157,13 @@ static inline
 uint32_t qla2x00_isp_reg_stat(struct qla_hw_data *ha)
 {
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
+	struct device_reg_82xx __iomem *reg82 = &ha->iobase->isp82;
 
-	return ((RD_REG_DWORD(&reg->host_status)) == ISP_REG_DISCONNECT);
+	if (IS_P3P_TYPE(ha))
+		return ((RD_REG_DWORD(&reg82->host_int)) == ISP_REG_DISCONNECT);
+	else
+		return ((RD_REG_DWORD(&reg->host_status)) ==
+			ISP_REG_DISCONNECT);
 }
 
 /**************************************************************************
@@ -1651,7 +1653,8 @@ qla2x00_abort_all_cmds(scsi_qla_host_t *vha, int res)
 				/* Don't abort commands in adapter during EEH
 				 * recovery as it's not accessible/responding.
 				 */
-				if (GET_CMD_SP(sp) && !ha->flags.eeh_busy) {
+				if (GET_CMD_SP(sp) && !ha->flags.eeh_busy &&
+				    (sp->type == SRB_SCSI_CMD)) {
 					/* Get a reference to the sp and drop the lock.
 					 * The reference ensures this sp->done() call
 					 * - and not the call in qla2xxx_eh_abort() -
@@ -3250,7 +3253,6 @@ iospace_config_failed:
 	}
 	pci_release_selected_regions(ha->pdev, ha->bars);
 	kfree(ha);
-	ha = NULL;
 
 probe_out:
 	pci_disable_device(pdev);
@@ -3498,7 +3500,6 @@ qla2x00_remove_one(struct pci_dev *pdev)
 
 	pci_release_selected_regions(ha->pdev, ha->bars);
 	kfree(ha);
-	ha = NULL;
 
 	pci_disable_pcie_error_reporting(pdev);
 
@@ -3562,7 +3563,6 @@ void qla2x00_free_fcports(struct scsi_qla_host *vha)
 		list_del(&fcport->list);
 		qla2x00_clear_loop_id(fcport);
 		kfree(fcport);
-		fcport = NULL;
 	}
 }
 

@@ -806,7 +806,7 @@ static void cleanup_resource(struct ldlm_resource *res, struct list_head *q,
 
 		unlock_res(res);
 		ldlm_lock2handle(lock, &lockh);
-		rc = ldlm_cli_cancel(&lockh, LCF_ASYNC);
+		rc = ldlm_cli_cancel(&lockh, LCF_LOCAL);
 		if (rc)
 			CERROR("ldlm_cli_cancel: %d\n", rc);
 		LDLM_LOCK_RELEASE(lock);

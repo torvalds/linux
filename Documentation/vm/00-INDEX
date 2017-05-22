@@ -12,6 +12,8 @@ highmem.txt
 	- Outline of highmem and common issues.
 hugetlbpage.txt
 	- a brief summary of hugetlbpage support in the Linux kernel.
+hugetlbfs_reserv.txt
+	- A brief overview of hugetlbfs reservation design/implementation.
 hwpoison.txt
 	- explains what hwpoison is
 idle_page_tracking.txt

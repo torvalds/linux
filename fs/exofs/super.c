@@ -464,7 +464,6 @@ static void exofs_put_super(struct super_block *sb)
 			    sbi->one_comp.obj.partition);
 
 	exofs_sysfs_sb_del(sbi);
-	bdi_destroy(&sbi->bdi);
 	exofs_free_sbi(sbi);
 	sb->s_fs_info = NULL;
 }
@@ -809,8 +808,12 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 	__sbi_read_stats(sbi);
 
 	/* set up operation vectors */
-	sbi->bdi.ra_pages = __ra_pages(&sbi->layout);
-	sb->s_bdi = &sbi->bdi;
+	ret = super_setup_bdi(sb);
+	if (ret) {
+		EXOFS_DBGMSG("Failed to super_setup_bdi\n");
+		goto free_sbi;
+	}
+	sb->s_bdi->ra_pages = __ra_pages(&sbi->layout);
 	sb->s_fs_info = sbi;
 	sb->s_op = &exofs_sops;
 	sb->s_export_op = &exofs_export_ops;
@@ -833,14 +836,6 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 		EXOFS_ERR("ERROR: corrupt root inode (mode = %hd)\n",
 		       root->i_mode);
 		ret = -EINVAL;
-		goto free_sbi;
-	}
-
-	ret = bdi_setup_and_register(&sbi->bdi, "exofs");
-	if (ret) {
-		EXOFS_DBGMSG("Failed to bdi_setup_and_register\n");
-		dput(sb->s_root);
-		sb->s_root = NULL;
 		goto free_sbi;
 	}
 

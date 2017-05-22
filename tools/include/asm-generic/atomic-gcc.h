@@ -60,4 +60,12 @@ static inline int atomic_dec_and_test(atomic_t *v)
 	return __sync_sub_and_fetch(&v->counter, 1) == 0;
 }
 
+#define cmpxchg(ptr, oldval, newval) \
+	__sync_val_compare_and_swap(ptr, oldval, newval)
+
+static inline int atomic_cmpxchg(atomic_t *v, int oldval, int newval)
+{
+	return cmpxchg(&(v)->counter, oldval, newval);
+}
+
 #endif /* __TOOLS_ASM_GENERIC_ATOMIC_H */

@@ -168,7 +168,7 @@ static void rxrpc_abort_calls(struct rxrpc_connection *conn,
  * generate a connection-level abort
  */
 static int rxrpc_abort_connection(struct rxrpc_connection *conn,
-				  u32 error, u32 abort_code)
+				  int error, u32 abort_code)
 {
 	struct rxrpc_wire_header whdr;
 	struct msghdr msg;
@@ -281,14 +281,17 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 
 	case RXRPC_PACKET_TYPE_ABORT:
 		if (skb_copy_bits(skb, sizeof(struct rxrpc_wire_header),
-				  &wtmp, sizeof(wtmp)) < 0)
+				  &wtmp, sizeof(wtmp)) < 0) {
+			trace_rxrpc_rx_eproto(NULL, sp->hdr.serial,
+					      tracepoint_string("bad_abort"));
 			return -EPROTO;
+		}
 		abort_code = ntohl(wtmp);
 		_proto("Rx ABORT %%%u { ac=%d }", sp->hdr.serial, abort_code);
 
 		conn->state = RXRPC_CONN_REMOTELY_ABORTED;
 		rxrpc_abort_calls(conn, RXRPC_CALL_REMOTELY_ABORTED,
-				  abort_code, ECONNABORTED);
+				  abort_code, -ECONNABORTED);
 		return -ECONNABORTED;
 
 	case RXRPC_PACKET_TYPE_CHALLENGE:
@@ -327,7 +330,8 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 		return 0;
 
 	default:
-		_leave(" = -EPROTO [%u]", sp->hdr.type);
+		trace_rxrpc_rx_eproto(NULL, sp->hdr.serial,
+				      tracepoint_string("bad_conn_pkt"));
 		return -EPROTO;
 	}
 }
@@ -370,7 +374,7 @@ static void rxrpc_secure_connection(struct rxrpc_connection *conn)
 
 abort:
 	_debug("abort %d, %d", ret, abort_code);
-	rxrpc_abort_connection(conn, -ret, abort_code);
+	rxrpc_abort_connection(conn, ret, abort_code);
 	_leave(" [aborted]");
 }
 
@@ -419,9 +423,8 @@ requeue_and_leave:
 	goto out;
 
 protocol_error:
-	if (rxrpc_abort_connection(conn, -ret, abort_code) < 0)
+	if (rxrpc_abort_connection(conn, ret, abort_code) < 0)
 		goto requeue_and_leave;
 	rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
-	_leave(" [EPROTO]");
 	goto out;
 }

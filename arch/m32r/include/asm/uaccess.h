@@ -11,13 +11,9 @@
 /*
  * User space memory access functions
  */
-#include <linux/errno.h>
-#include <linux/thread_info.h>
 #include <asm/page.h>
 #include <asm/setup.h>
-
-#define VERIFY_READ 0
-#define VERIFY_WRITE 1
+#include <linux/prefetch.h>
 
 /*
  * The fs value determines whether argument validity checking should be
@@ -114,25 +110,7 @@ static inline int access_ok(int type, const void *addr, unsigned long size)
 }
 #endif /* CONFIG_MMU */
 
-/*
- * The exception table consists of pairs of addresses: the first is the
- * address of an instruction that is allowed to fault, and the second is
- * the address at which the program should continue.  No registers are
- * modified, so it is entirely up to the continuation code to figure out
- * what to do.
- *
- * All the routines below use bits of fixup code that are out of line
- * with the main instruction path.  This means when everything is well,
- * we don't even have to jump over them.  Further, they do not intrude
- * on our cache or tlb entries.
- */
-
-struct exception_table_entry
-{
-	unsigned long insn, fixup;
-};
-
-extern int fixup_exception(struct pt_regs *regs);
+#include <asm/extable.h>
 
 /*
  * These are the main single-value transfer routines.  They automatically
@@ -483,173 +461,24 @@ do {									\
 		: "r14", "memory");					\
 } while (0)
 
-#define __copy_user_zeroing(to, from, size)				\
-do {									\
-	unsigned long __dst, __src, __c;				\
-	__asm__ __volatile__ (						\
-		"	mv	r14, %0\n"				\
-		"	or	r14, %1\n"				\
-		"	beq	%0, %1, 9f\n"				\
-		"	beqz	%2, 9f\n"				\
-		"	and3	r14, r14, #3\n"				\
-		"	bnez	r14, 2f\n"				\
-		"	and3	%2, %2, #3\n"				\
-		"	beqz	%3, 2f\n"				\
-		"	addi	%0, #-4		; word_copy \n"		\
-		"	.fillinsn\n"					\
-		"0:	ld	r14, @%1+\n"				\
-		"	addi	%3, #-1\n"				\
-		"	.fillinsn\n"					\
-		"1:	st	r14, @+%0\n"				\
-		"	bnez	%3, 0b\n"				\
-		"	beqz	%2, 9f\n"				\
-		"	addi	%0, #4\n"				\
-		"	.fillinsn\n"					\
-		"2:	ldb	r14, @%1	; byte_copy \n"		\
-		"	.fillinsn\n"					\
-		"3:	stb	r14, @%0\n"				\
-		"	addi	%1, #1\n"				\
-		"	addi	%2, #-1\n"				\
-		"	addi	%0, #1\n"				\
-		"	bnez	%2, 2b\n"				\
-		"	.fillinsn\n"					\
-		"9:\n"							\
-		".section .fixup,\"ax\"\n"				\
-		"	.balign 4\n"					\
-		"5:	addi	%3, #1\n"				\
-		"	addi	%1, #-4\n"				\
-		"	.fillinsn\n"					\
-		"6:	slli	%3, #2\n"				\
-		"	add	%2, %3\n"				\
-		"	addi	%0, #4\n"				\
-		"	.fillinsn\n"					\
-		"7:	ldi	r14, #0		; store zero \n"	\
-		"	.fillinsn\n"					\
-		"8:	addi	%2, #-1\n"				\
-		"	stb	r14, @%0	; ACE? \n"		\
-		"	addi	%0, #1\n"				\
-		"	bnez	%2, 8b\n"				\
-		"	seth	r14, #high(9b)\n"			\
-		"	or3	r14, r14, #low(9b)\n"			\
-		"	jmp	r14\n"					\
-		".previous\n"						\
-		".section __ex_table,\"a\"\n"				\
-		"	.balign 4\n"					\
-		"	.long 0b,6b\n"					\
-		"	.long 1b,5b\n"					\
-		"	.long 2b,7b\n"					\
-		"	.long 3b,7b\n"					\
-		".previous\n"						\
-		: "=&r" (__dst), "=&r" (__src), "=&r" (size),		\
-		  "=&r" (__c)						\
-		: "0" (to), "1" (from), "2" (size), "3" (size / 4)	\
-		: "r14", "memory");					\
-} while (0)
-
-
 /* We let the __ versions of copy_from/to_user inline, because they're often
  * used in fast paths and have only a small space overhead.
  */
-static inline unsigned long __generic_copy_from_user_nocheck(void *to,
-	const void __user *from, unsigned long n)
+static inline unsigned long
+raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 {
-	__copy_user_zeroing(to, from, n);
-	return n;
-}
-
-static inline unsigned long __generic_copy_to_user_nocheck(void __user *to,
-	const void *from, unsigned long n)
-{
+	prefetchw(to);
 	__copy_user(to, from, n);
 	return n;
 }
 
-unsigned long __generic_copy_to_user(void __user *, const void *, unsigned long);
-unsigned long __generic_copy_from_user(void *, const void __user *, unsigned long);
-
-/**
- * __copy_to_user: - Copy a block of data into user space, with less checking.
- * @to:   Destination address, in user space.
- * @from: Source address, in kernel space.
- * @n:    Number of bytes to copy.
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * Copy data from kernel space to user space.  Caller must check
- * the specified block with access_ok() before calling this function.
- *
- * Returns number of bytes that could not be copied.
- * On success, this will be zero.
- */
-#define __copy_to_user(to, from, n)			\
-	__generic_copy_to_user_nocheck((to), (from), (n))
-
-#define __copy_to_user_inatomic __copy_to_user
-#define __copy_from_user_inatomic __copy_from_user
-
-/**
- * copy_to_user: - Copy a block of data into user space.
- * @to:   Destination address, in user space.
- * @from: Source address, in kernel space.
- * @n:    Number of bytes to copy.
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * Copy data from kernel space to user space.
- *
- * Returns number of bytes that could not be copied.
- * On success, this will be zero.
- */
-#define copy_to_user(to, from, n)			\
-({							\
-	might_fault();					\
-	__generic_copy_to_user((to), (from), (n));	\
-})
-
-/**
- * __copy_from_user: - Copy a block of data from user space, with less checking. * @to:   Destination address, in kernel space.
- * @from: Source address, in user space.
- * @n:    Number of bytes to copy.
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * Copy data from user space to kernel space.  Caller must check
- * the specified block with access_ok() before calling this function.
- *
- * Returns number of bytes that could not be copied.
- * On success, this will be zero.
- *
- * If some data could not be copied, this function will pad the copied
- * data to the requested size using zero bytes.
- */
-#define __copy_from_user(to, from, n)			\
-	__generic_copy_from_user_nocheck((to), (from), (n))
-
-/**
- * copy_from_user: - Copy a block of data from user space.
- * @to:   Destination address, in kernel space.
- * @from: Source address, in user space.
- * @n:    Number of bytes to copy.
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * Copy data from user space to kernel space.
- *
- * Returns number of bytes that could not be copied.
- * On success, this will be zero.
- *
- * If some data could not be copied, this function will pad the copied
- * data to the requested size using zero bytes.
- */
-#define copy_from_user(to, from, n)			\
-({							\
-	might_fault();					\
-	__generic_copy_from_user((to), (from), (n));	\
-})
+static inline unsigned long
+raw_copy_to_user(void __user *to, const void *from, unsigned long n)
+{
+	prefetch(from);
+	__copy_user(to, from, n);
+	return n;
+}
 
 long __must_check strncpy_from_user(char *dst, const char __user *src,
 				long count);

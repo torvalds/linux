@@ -751,7 +751,7 @@ static void zpa2326_suspend(struct iio_dev *indio_dev)
  */
 static irqreturn_t zpa2326_handle_irq(int irq, void *data)
 {
-	struct iio_dev *indio_dev = (struct iio_dev *)data;
+	struct iio_dev *indio_dev = data;
 
 	if (iio_buffer_enabled(indio_dev)) {
 		/* Timestamping needed for buffered sampling only. */
@@ -790,7 +790,7 @@ static irqreturn_t zpa2326_handle_irq(int irq, void *data)
  */
 static irqreturn_t zpa2326_handle_threaded_irq(int irq, void *data)
 {
-	struct iio_dev         *indio_dev = (struct iio_dev *)data;
+	struct iio_dev         *indio_dev = data;
 	struct zpa2326_private *priv = iio_priv(indio_dev);
 	unsigned int            val;
 	bool                    cont;

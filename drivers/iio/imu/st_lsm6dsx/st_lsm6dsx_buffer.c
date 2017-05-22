@@ -1,9 +1,10 @@
 /*
  * STMicroelectronics st_lsm6dsx FIFO buffer library driver
  *
- * LSM6DS3/LSM6DSM: The FIFO buffer can be configured to store data
- * from gyroscope and accelerometer. Samples are queued without any tag
- * according to a specific pattern based on 'FIFO data sets' (6 bytes each):
+ * LSM6DS3/LSM6DS3H/LSM6DSL/LSM6DSM: The FIFO buffer can be configured
+ * to store data from gyroscope and accelerometer. Samples are queued
+ * without any tag according to a specific pattern based on 'FIFO data sets'
+ * (6 bytes each):
  *  - 1st data set is reserved for gyroscope data
  *  - 2nd data set is reserved for accelerometer data
  * The FIFO pattern changes depending on the ODRs and decimation factors
@@ -206,7 +207,7 @@ out:
 }
 
 /**
- * st_lsm6dsx_read_fifo() - LSM6DS3-LSM6DSM read FIFO routine
+ * st_lsm6dsx_read_fifo() - LSM6DS3-LSM6DS3H-LSM6DSL-LSM6DSM read FIFO routine
  * @hw: Pointer to instance of struct st_lsm6dsx_hw.
  *
  * Read samples from the hw FIFO and push them to IIO buffers.
@@ -363,7 +364,7 @@ static int st_lsm6dsx_update_fifo(struct iio_dev *iio_dev, bool enable)
 
 static irqreturn_t st_lsm6dsx_handler_irq(int irq, void *private)
 {
-	struct st_lsm6dsx_hw *hw = (struct st_lsm6dsx_hw *)private;
+	struct st_lsm6dsx_hw *hw = private;
 	struct st_lsm6dsx_sensor *sensor;
 	int i;
 
@@ -387,7 +388,7 @@ static irqreturn_t st_lsm6dsx_handler_irq(int irq, void *private)
 
 static irqreturn_t st_lsm6dsx_handler_thread(int irq, void *private)
 {
-	struct st_lsm6dsx_hw *hw = (struct st_lsm6dsx_hw *)private;
+	struct st_lsm6dsx_hw *hw = private;
 	int count;
 
 	mutex_lock(&hw->fifo_lock);

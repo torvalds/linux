@@ -57,14 +57,26 @@ static int fanotify_merge(struct list_head *list, struct fsnotify_event *event)
 
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
 static int fanotify_get_response(struct fsnotify_group *group,
-				 struct fanotify_perm_event_info *event)
+				 struct fanotify_perm_event_info *event,
+				 struct fsnotify_iter_info *iter_info)
 {
 	int ret;
 
 	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
 
+	/*
+	 * fsnotify_prepare_user_wait() fails if we race with mark deletion.
+	 * Just let the operation pass in that case.
+	 */
+	if (!fsnotify_prepare_user_wait(iter_info)) {
+		event->response = FAN_ALLOW;
+		goto out;
+	}
+
 	wait_event(group->fanotify_data.access_waitq, event->response);
 
+	fsnotify_finish_user_wait(iter_info);
+out:
 	/* userspace responded, convert to something usable */
 	switch (event->response) {
 	case FAN_ALLOW:
@@ -174,7 +186,8 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 				 struct fsnotify_mark *inode_mark,
 				 struct fsnotify_mark *fanotify_mark,
 				 u32 mask, const void *data, int data_type,
-				 const unsigned char *file_name, u32 cookie)
+				 const unsigned char *file_name, u32 cookie,
+				 struct fsnotify_iter_info *iter_info)
 {
 	int ret = 0;
 	struct fanotify_event_info *event;
@@ -215,7 +228,8 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
 	if (mask & FAN_ALL_PERM_EVENTS) {
-		ret = fanotify_get_response(group, FANOTIFY_PE(fsn_event));
+		ret = fanotify_get_response(group, FANOTIFY_PE(fsn_event),
+					    iter_info);
 		fsnotify_destroy_event(group, fsn_event);
 	}
 #endif
@@ -248,8 +262,14 @@ static void fanotify_free_event(struct fsnotify_event *fsn_event)
 	kmem_cache_free(fanotify_event_cachep, event);
 }
 
+static void fanotify_free_mark(struct fsnotify_mark *fsn_mark)
+{
+	kmem_cache_free(fanotify_mark_cache, fsn_mark);
+}
+
 const struct fsnotify_ops fanotify_fsnotify_ops = {
 	.handle_event = fanotify_handle_event,
 	.free_group_priv = fanotify_free_group_priv,
 	.free_event = fanotify_free_event,
+	.free_mark = fanotify_free_mark,
 };

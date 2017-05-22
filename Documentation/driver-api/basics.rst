@@ -7,6 +7,12 @@ Driver Entry and Exit points
 .. kernel-doc:: include/linux/init.h
    :internal:
 
+Driver device table
+-------------------
+
+.. kernel-doc:: include/linux/mod_devicetable.h
+   :internal:
+
 Atomic and pointer manipulation
 -------------------------------
 

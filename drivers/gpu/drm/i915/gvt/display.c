@@ -161,8 +161,9 @@ static unsigned char virtual_dp_monitor_edid[GVT_EDID_NUM][EDID_SIZE] = {
 
 #define DPCD_HEADER_SIZE        0xb
 
+/* let the virtual display supports DP1.2 */
 static u8 dpcd_fix_data[DPCD_HEADER_SIZE] = {
-	0x11, 0x0a, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	0x12, 0x014, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
 static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
@@ -172,26 +173,64 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 			SDE_PORTC_HOTPLUG_CPT |
 			SDE_PORTD_HOTPLUG_CPT);
 
-	if (IS_SKYLAKE(dev_priv))
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
 		vgpu_vreg(vgpu, SDEISR) &= ~(SDE_PORTA_HOTPLUG_SPT |
 				SDE_PORTE_HOTPLUG_SPT);
+		vgpu_vreg(vgpu, SKL_FUSE_STATUS) |=
+				SKL_FUSE_DOWNLOAD_STATUS |
+				SKL_FUSE_PG0_DIST_STATUS |
+				SKL_FUSE_PG1_DIST_STATUS |
+				SKL_FUSE_PG2_DIST_STATUS;
+		vgpu_vreg(vgpu, LCPLL1_CTL) |=
+				LCPLL_PLL_ENABLE |
+				LCPLL_PLL_LOCK;
+		vgpu_vreg(vgpu, LCPLL2_CTL) |= LCPLL_PLL_ENABLE;
+
+	}
 
 	if (intel_vgpu_has_monitor_on_port(vgpu, PORT_B)) {
-		vgpu_vreg(vgpu, SDEISR) |= SDE_PORTB_HOTPLUG_CPT;
 		vgpu_vreg(vgpu, SFUSE_STRAP) |= SFUSE_STRAP_DDIB_DETECTED;
+		vgpu_vreg(vgpu, TRANS_DDI_FUNC_CTL(TRANSCODER_A)) &=
+			~(TRANS_DDI_BPC_MASK | TRANS_DDI_MODE_SELECT_MASK |
+			TRANS_DDI_PORT_MASK);
+		vgpu_vreg(vgpu, TRANS_DDI_FUNC_CTL(TRANSCODER_A)) |=
+			(TRANS_DDI_BPC_8 | TRANS_DDI_MODE_SELECT_DP_SST |
+			(PORT_B << TRANS_DDI_PORT_SHIFT) |
+			TRANS_DDI_FUNC_ENABLE);
+		vgpu_vreg(vgpu, DDI_BUF_CTL(PORT_B)) |= DDI_BUF_CTL_ENABLE;
+		vgpu_vreg(vgpu, DDI_BUF_CTL(PORT_B)) &= ~DDI_BUF_IS_IDLE;
+		vgpu_vreg(vgpu, SDEISR) |= SDE_PORTB_HOTPLUG_CPT;
 	}
 
 	if (intel_vgpu_has_monitor_on_port(vgpu, PORT_C)) {
 		vgpu_vreg(vgpu, SDEISR) |= SDE_PORTC_HOTPLUG_CPT;
+		vgpu_vreg(vgpu, TRANS_DDI_FUNC_CTL(TRANSCODER_A)) &=
+			~(TRANS_DDI_BPC_MASK | TRANS_DDI_MODE_SELECT_MASK |
+			TRANS_DDI_PORT_MASK);
+		vgpu_vreg(vgpu, TRANS_DDI_FUNC_CTL(TRANSCODER_A)) |=
+			(TRANS_DDI_BPC_8 | TRANS_DDI_MODE_SELECT_DP_SST |
+			(PORT_C << TRANS_DDI_PORT_SHIFT) |
+			TRANS_DDI_FUNC_ENABLE);
+		vgpu_vreg(vgpu, DDI_BUF_CTL(PORT_C)) |= DDI_BUF_CTL_ENABLE;
+		vgpu_vreg(vgpu, DDI_BUF_CTL(PORT_C)) &= ~DDI_BUF_IS_IDLE;
 		vgpu_vreg(vgpu, SFUSE_STRAP) |= SFUSE_STRAP_DDIC_DETECTED;
 	}
 
 	if (intel_vgpu_has_monitor_on_port(vgpu, PORT_D)) {
 		vgpu_vreg(vgpu, SDEISR) |= SDE_PORTD_HOTPLUG_CPT;
+		vgpu_vreg(vgpu, TRANS_DDI_FUNC_CTL(TRANSCODER_A)) &=
+			~(TRANS_DDI_BPC_MASK | TRANS_DDI_MODE_SELECT_MASK |
+			TRANS_DDI_PORT_MASK);
+		vgpu_vreg(vgpu, TRANS_DDI_FUNC_CTL(TRANSCODER_A)) |=
+			(TRANS_DDI_BPC_8 | TRANS_DDI_MODE_SELECT_DP_SST |
+			(PORT_D << TRANS_DDI_PORT_SHIFT) |
+			TRANS_DDI_FUNC_ENABLE);
+		vgpu_vreg(vgpu, DDI_BUF_CTL(PORT_D)) |= DDI_BUF_CTL_ENABLE;
+		vgpu_vreg(vgpu, DDI_BUF_CTL(PORT_D)) &= ~DDI_BUF_IS_IDLE;
 		vgpu_vreg(vgpu, SFUSE_STRAP) |= SFUSE_STRAP_DDID_DETECTED;
 	}
 
-	if (IS_SKYLAKE(dev_priv) &&
+	if ((IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) &&
 			intel_vgpu_has_monitor_on_port(vgpu, PORT_E)) {
 		vgpu_vreg(vgpu, SDEISR) |= SDE_PORTE_HOTPLUG_SPT;
 	}
@@ -353,7 +392,7 @@ void intel_vgpu_clean_display(struct intel_vgpu *vgpu)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 
-	if (IS_SKYLAKE(dev_priv))
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 		clean_virtual_dp_monitor(vgpu, PORT_D);
 	else
 		clean_virtual_dp_monitor(vgpu, PORT_B);
@@ -375,7 +414,7 @@ int intel_vgpu_init_display(struct intel_vgpu *vgpu, u64 resolution)
 
 	intel_vgpu_init_i2c_edid(vgpu);
 
-	if (IS_SKYLAKE(dev_priv))
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 		return setup_virtual_dp_monitor(vgpu, PORT_D, GVT_DP_D,
 						resolution);
 	else

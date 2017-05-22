@@ -1,7 +1,7 @@
 /*
  * Copyright 2002-2005, Devicescape Software, Inc.
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright(c) 2015-2016 Intel Deutschland GmbH
+ * Copyright(c) 2015-2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -16,6 +16,7 @@
 #include <linux/if_ether.h>
 #include <linux/workqueue.h>
 #include <linux/average.h>
+#include <linux/bitfield.h>
 #include <linux/etherdevice.h>
 #include <linux/rhashtable.h>
 #include <linux/u64_stats_sync.h>
@@ -324,6 +325,9 @@ struct ieee80211_fast_rx {
 	struct rcu_head rcu_head;
 };
 
+/* we use only values in the range 0-100, so pick a large precision */
+DECLARE_EWMA(mesh_fail_avg, 20, 8)
+
 /**
  * struct mesh_sta - mesh STA information
  * @plink_lock: serialize access to plink fields
@@ -369,7 +373,7 @@ struct mesh_sta {
 	enum nl80211_mesh_power_mode nonpeer_pm;
 
 	/* moving percentage of failed MSDUs */
-	unsigned int fail_avg;
+	struct ewma_mesh_fail_avg fail_avg;
 };
 
 DECLARE_EWMA(signal, 10, 8)
@@ -724,40 +728,55 @@ void ieee80211_sta_ps_deliver_uapsd(struct sta_info *sta);
 
 unsigned long ieee80211_sta_last_active(struct sta_info *sta);
 
+enum sta_stats_type {
+	STA_STATS_RATE_TYPE_INVALID = 0,
+	STA_STATS_RATE_TYPE_LEGACY,
+	STA_STATS_RATE_TYPE_HT,
+	STA_STATS_RATE_TYPE_VHT,
+};
+
+#define STA_STATS_FIELD_HT_MCS		GENMASK( 7,  0)
+#define STA_STATS_FIELD_LEGACY_IDX	GENMASK( 3,  0)
+#define STA_STATS_FIELD_LEGACY_BAND	GENMASK( 7,  4)
+#define STA_STATS_FIELD_VHT_MCS		GENMASK( 3,  0)
+#define STA_STATS_FIELD_VHT_NSS		GENMASK( 7,  4)
+#define STA_STATS_FIELD_BW		GENMASK(11,  8)
+#define STA_STATS_FIELD_SGI		GENMASK(12, 12)
+#define STA_STATS_FIELD_TYPE		GENMASK(15, 13)
+
+#define STA_STATS_FIELD(_n, _v)		FIELD_PREP(STA_STATS_FIELD_ ## _n, _v)
+#define STA_STATS_GET(_n, _v)		FIELD_GET(STA_STATS_FIELD_ ## _n, _v)
+
 #define STA_STATS_RATE_INVALID		0
-#define STA_STATS_RATE_VHT		0x8000
-#define STA_STATS_RATE_HT		0x4000
-#define STA_STATS_RATE_LEGACY		0x2000
-#define STA_STATS_RATE_SGI		0x1000
-#define STA_STATS_RATE_BW_SHIFT		9
-#define STA_STATS_RATE_BW_MASK		(0x7 << STA_STATS_RATE_BW_SHIFT)
 
-static inline u16 sta_stats_encode_rate(struct ieee80211_rx_status *s)
+static inline u32 sta_stats_encode_rate(struct ieee80211_rx_status *s)
 {
-	u16 r = s->rate_idx;
+	u16 r;
 
-	if (s->vht_flag & RX_VHT_FLAG_80MHZ)
-		r |= RATE_INFO_BW_80 << STA_STATS_RATE_BW_SHIFT;
-	else if (s->vht_flag & RX_VHT_FLAG_160MHZ)
-		r |= RATE_INFO_BW_160 << STA_STATS_RATE_BW_SHIFT;
-	else if (s->flag & RX_FLAG_40MHZ)
-		r |= RATE_INFO_BW_40 << STA_STATS_RATE_BW_SHIFT;
-	else if (s->flag & RX_FLAG_10MHZ)
-		r |= RATE_INFO_BW_10 << STA_STATS_RATE_BW_SHIFT;
-	else if (s->flag & RX_FLAG_5MHZ)
-		r |= RATE_INFO_BW_5 << STA_STATS_RATE_BW_SHIFT;
-	else
-		r |= RATE_INFO_BW_20 << STA_STATS_RATE_BW_SHIFT;
+	r = STA_STATS_FIELD(BW, s->bw);
 
-	if (s->flag & RX_FLAG_SHORT_GI)
-		r |= STA_STATS_RATE_SGI;
+	if (s->enc_flags & RX_ENC_FLAG_SHORT_GI)
+		r |= STA_STATS_FIELD(SGI, 1);
 
-	if (s->flag & RX_FLAG_VHT)
-		r |= STA_STATS_RATE_VHT | (s->vht_nss << 4);
-	else if (s->flag & RX_FLAG_HT)
-		r |= STA_STATS_RATE_HT;
-	else
-		r |= STA_STATS_RATE_LEGACY | (s->band << 4);
+	switch (s->encoding) {
+	case RX_ENC_VHT:
+		r |= STA_STATS_FIELD(TYPE, STA_STATS_RATE_TYPE_VHT);
+		r |= STA_STATS_FIELD(VHT_NSS, s->nss);
+		r |= STA_STATS_FIELD(VHT_MCS, s->rate_idx);
+		break;
+	case RX_ENC_HT:
+		r |= STA_STATS_FIELD(TYPE, STA_STATS_RATE_TYPE_HT);
+		r |= STA_STATS_FIELD(HT_MCS, s->rate_idx);
+		break;
+	case RX_ENC_LEGACY:
+		r |= STA_STATS_FIELD(TYPE, STA_STATS_RATE_TYPE_LEGACY);
+		r |= STA_STATS_FIELD(LEGACY_BAND, s->band);
+		r |= STA_STATS_FIELD(LEGACY_IDX, s->rate_idx);
+		break;
+	default:
+		WARN_ON(1);
+		return STA_STATS_RATE_INVALID;
+	}
 
 	return r;
 }

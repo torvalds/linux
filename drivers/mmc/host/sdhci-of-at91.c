@@ -29,6 +29,8 @@
 
 #include "sdhci-pltfm.h"
 
+#define SDMMC_MC1R	0x204
+#define		SDMMC_MC1R_DDR		BIT(3)
 #define SDMMC_CACR	0x230
 #define		SDMMC_CACR_CAPWREN	BIT(0)
 #define		SDMMC_CACR_KEY		(0x46 << 8)
@@ -96,18 +98,23 @@ static void sdhci_at91_set_power(struct sdhci_host *host, unsigned char mode,
 	if (!IS_ERR(host->mmc->supply.vmmc)) {
 		struct mmc_host *mmc = host->mmc;
 
-		spin_unlock_irq(&host->lock);
 		mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, vdd);
-		spin_lock_irq(&host->lock);
 	}
 	sdhci_set_power_noreg(host, mode, vdd);
+}
+
+void sdhci_at91_set_uhs_signaling(struct sdhci_host *host, unsigned int timing)
+{
+	if (timing == MMC_TIMING_MMC_DDR52)
+		sdhci_writeb(host, SDMMC_MC1R_DDR, SDMMC_MC1R);
+	sdhci_set_uhs_signaling(host, timing);
 }
 
 static const struct sdhci_ops sdhci_at91_sama5d2_ops = {
 	.set_clock		= sdhci_at91_set_clock,
 	.set_bus_width		= sdhci_set_bus_width,
 	.reset			= sdhci_reset,
-	.set_uhs_signaling	= sdhci_set_uhs_signaling,
+	.set_uhs_signaling	= sdhci_at91_set_uhs_signaling,
 	.set_power		= sdhci_at91_set_power,
 };
 
@@ -130,6 +137,9 @@ static int sdhci_at91_runtime_suspend(struct device *dev)
 	int ret;
 
 	ret = sdhci_runtime_suspend_host(host);
+
+	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
+		mmc_retune_needed(host->mmc);
 
 	clk_disable_unprepare(priv->gck);
 	clk_disable_unprepare(priv->hclock);

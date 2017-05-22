@@ -23,8 +23,9 @@
 #include "mdp/mdp_kms.h"
 #include "mdp5_cfg.h"	/* must be included before mdp5.xml.h */
 #include "mdp5.xml.h"
-#include "mdp5_ctl.h"
 #include "mdp5_pipe.h"
+#include "mdp5_mixer.h"
+#include "mdp5_ctl.h"
 #include "mdp5_smp.h"
 
 struct mdp5_state;
@@ -38,6 +39,12 @@ struct mdp5_kms {
 
 	unsigned num_hwpipes;
 	struct mdp5_hw_pipe *hwpipes[SSPP_MAX];
+
+	unsigned num_hwmixers;
+	struct mdp5_hw_mixer *hwmixers[8];
+
+	unsigned num_intfs;
+	struct mdp5_interface *intfs[5];
 
 	struct mdp5_cfg_handler *cfg;
 	uint32_t caps;	/* MDP capabilities (MDP_CAP_XXX bits) */
@@ -83,6 +90,7 @@ struct mdp5_kms {
  */
 struct mdp5_state {
 	struct mdp5_hw_pipe_state hwpipe;
+	struct mdp5_hw_mixer_state hwmixer;
 	struct mdp5_smp_state smp;
 };
 
@@ -96,6 +104,7 @@ struct mdp5_plane_state {
 	struct drm_plane_state base;
 
 	struct mdp5_hw_pipe *hwpipe;
+	struct mdp5_hw_pipe *r_hwpipe;	/* right hwpipe */
 
 	/* aligned with property */
 	uint8_t premultiplied;
@@ -107,6 +116,28 @@ struct mdp5_plane_state {
 };
 #define to_mdp5_plane_state(x) \
 		container_of(x, struct mdp5_plane_state, base)
+
+struct mdp5_pipeline {
+	struct mdp5_interface *intf;
+	struct mdp5_hw_mixer *mixer;
+	struct mdp5_hw_mixer *r_mixer;	/* right mixer */
+};
+
+struct mdp5_crtc_state {
+	struct drm_crtc_state base;
+
+	struct mdp5_ctl *ctl;
+	struct mdp5_pipeline pipeline;
+
+	/* these are derivatives of intf/mixer state in mdp5_pipeline */
+	u32 vblank_irqmask;
+	u32 err_irqmask;
+	u32 pp_done_irqmask;
+
+	bool cmd_mode;
+};
+#define to_mdp5_crtc_state(x) \
+		container_of(x, struct mdp5_crtc_state, base)
 
 enum mdp5_intf_mode {
 	MDP5_INTF_MODE_NONE = 0,
@@ -121,6 +152,7 @@ enum mdp5_intf_mode {
 };
 
 struct mdp5_interface {
+	int idx;
 	int num; /* display interface number */
 	enum mdp5_intf_type type;
 	enum mdp5_intf_mode mode;
@@ -128,11 +160,11 @@ struct mdp5_interface {
 
 struct mdp5_encoder {
 	struct drm_encoder base;
-	struct mdp5_interface intf;
 	spinlock_t intf_lock;	/* protect REG_MDP5_INTF_* registers */
 	bool enabled;
 	uint32_t bsc;
 
+	struct mdp5_interface *intf;
 	struct mdp5_ctl *ctl;
 };
 #define to_mdp5_encoder(x) container_of(x, struct mdp5_encoder, base)
@@ -197,8 +229,8 @@ static inline uint32_t intf2err(int intf_num)
 	}
 }
 
-#define GET_PING_PONG_ID(layer_mixer)	((layer_mixer == 5) ? 3 : layer_mixer)
-static inline uint32_t intf2vblank(int lm, struct mdp5_interface *intf)
+static inline uint32_t intf2vblank(struct mdp5_hw_mixer *mixer,
+				   struct mdp5_interface *intf)
 {
 	/*
 	 * In case of DSI Command Mode, the Ping Pong's read pointer IRQ
@@ -208,7 +240,7 @@ static inline uint32_t intf2vblank(int lm, struct mdp5_interface *intf)
 
 	if ((intf->type == INTF_DSI) &&
 			(intf->mode == MDP5_INTF_DSI_MODE_COMMAND))
-		return MDP5_IRQ_PING_PONG_0_RD_PTR << GET_PING_PONG_ID(lm);
+		return MDP5_IRQ_PING_PONG_0_RD_PTR << mixer->pp;
 
 	if (intf->type == INTF_WB)
 		return MDP5_IRQ_WB_2_DONE;
@@ -222,9 +254,9 @@ static inline uint32_t intf2vblank(int lm, struct mdp5_interface *intf)
 	}
 }
 
-static inline uint32_t lm2ppdone(int lm)
+static inline uint32_t lm2ppdone(struct mdp5_hw_mixer *mixer)
 {
-	return MDP5_IRQ_PING_PONG_0_DONE << GET_PING_PONG_ID(lm);
+	return MDP5_IRQ_PING_PONG_0_DONE << mixer->pp;
 }
 
 int mdp5_disable(struct mdp5_kms *mdp5_kms);
@@ -243,15 +275,16 @@ void mdp5_irq_domain_fini(struct mdp5_kms *mdp5_kms);
 
 uint32_t mdp5_plane_get_flush(struct drm_plane *plane);
 enum mdp5_pipe mdp5_plane_pipe(struct drm_plane *plane);
+enum mdp5_pipe mdp5_plane_right_pipe(struct drm_plane *plane);
 struct drm_plane *mdp5_plane_init(struct drm_device *dev,
 				  enum drm_plane_type type);
 
 struct mdp5_ctl *mdp5_crtc_get_ctl(struct drm_crtc *crtc);
 uint32_t mdp5_crtc_vblank(struct drm_crtc *crtc);
 
-int mdp5_crtc_get_lm(struct drm_crtc *crtc);
-void mdp5_crtc_set_pipeline(struct drm_crtc *crtc,
-		struct mdp5_interface *intf, struct mdp5_ctl *ctl);
+struct mdp5_hw_mixer *mdp5_crtc_get_mixer(struct drm_crtc *crtc);
+struct mdp5_pipeline *mdp5_crtc_get_pipeline(struct drm_crtc *crtc);
+void mdp5_crtc_set_pipeline(struct drm_crtc *crtc);
 void mdp5_crtc_wait_for_commit_done(struct drm_crtc *crtc);
 struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
 				struct drm_plane *plane,

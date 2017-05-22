@@ -495,7 +495,8 @@ void intel_gvt_i2c_handle_aux_ch_write(struct intel_vgpu *vgpu,
 			unsigned char val = edid_get_byte(vgpu);
 
 			aux_data_for_write = (val << 16);
-		}
+		} else
+			aux_data_for_write = (0xff << 16);
 	}
 	/* write the return value in AUX_CH_DATA reg which includes:
 	 * ACK of I2C_WRITE

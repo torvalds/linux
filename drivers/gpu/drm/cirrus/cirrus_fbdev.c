@@ -250,7 +250,6 @@ static int cirrus_fbdev_destroy(struct drm_device *dev,
 	struct cirrus_framebuffer *gfb = &gfbdev->gfb;
 
 	drm_fb_helper_unregister_fbi(&gfbdev->helper);
-	drm_fb_helper_release_fbi(&gfbdev->helper);
 
 	if (gfb->obj) {
 		drm_gem_object_unreference_unlocked(gfb->obj);

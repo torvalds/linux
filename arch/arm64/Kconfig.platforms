@@ -2,9 +2,10 @@ menu "Platform selection"
 
 config ARCH_SUNXI
 	bool "Allwinner sunxi 64-bit SoC Family"
+	select ARCH_HAS_RESET_CONTROLLER
 	select GENERIC_IRQ_CHIP
 	select PINCTRL
-	select PINCTRL_SUN50I_A64
+	select RESET_CONTROLLER
 	help
 	  This enables support for Allwinner sunxi based SoCs like the A64.
 
@@ -54,6 +55,8 @@ config ARCH_BRCMSTB
 config ARCH_EXYNOS
 	bool "ARMv8 based Samsung Exynos SoC family"
 	select COMMON_CLK_SAMSUNG
+	select EXYNOS_PM_DOMAINS if PM_GENERIC_DOMAINS
+	select EXYNOS_PMU
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	select HAVE_S3C_RTC if RTC_CLASS
 	select PINCTRL
@@ -103,8 +106,13 @@ config ARCH_MVEBU
 	select ARMADA_AP806_SYSCON
 	select ARMADA_CP110_SYSCON
 	select ARMADA_37XX_CLK
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
 	select MVEBU_ODMI
 	select MVEBU_PIC
+	select OF_GPIO
+	select PINCTRL
+	select PINCTRL_ARMADA_37XX
 	help
 	  This enables support for Marvell EBU familly, including:
 	   - Armada 3700 SoC Family

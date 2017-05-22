@@ -230,9 +230,6 @@ struct extcon_cable {
 };
 
 static struct class *extcon_class;
-#if defined(CONFIG_ANDROID)
-static struct class_compat *switch_class;
-#endif /* CONFIG_ANDROID */
 
 static LIST_HEAD(extcon_dev_list);
 static DEFINE_MUTEX(extcon_dev_list_lock);
@@ -380,7 +377,7 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 	for (i = 0; i < edev->max_supported; i++) {
 		count += sprintf(buf + count, "%s=%d\n",
 				extcon_info[edev->supported_cable[i]].name,
-				 !!(edev->state & (1 << i)));
+				 !!(edev->state & BIT(i)));
 	}
 
 	return count;
@@ -448,7 +445,18 @@ int extcon_sync(struct extcon_dev *edev, unsigned int id)
 	spin_lock_irqsave(&edev->lock, flags);
 
 	state = !!(edev->state & BIT(index));
+
+	/*
+	 * Call functions in a raw notifier chain for the specific one
+	 * external connector.
+	 */
 	raw_notifier_call_chain(&edev->nh[index], state, edev);
+
+	/*
+	 * Call functions in a raw notifier chain for the all supported
+	 * external connectors.
+	 */
+	raw_notifier_call_chain(&edev->nh_all, state, edev);
 
 	/* This could be in interrupt handler */
 	prop_buf = (char *)get_zeroed_page(GFP_ATOMIC);
@@ -954,6 +962,59 @@ int extcon_unregister_notifier(struct extcon_dev *edev, unsigned int id,
 }
 EXPORT_SYMBOL_GPL(extcon_unregister_notifier);
 
+/**
+ * extcon_register_notifier_all() - Register a notifier block for all connectors
+ * @edev:	the extcon device that has the external connecotr.
+ * @nb:		a notifier block to be registered.
+ *
+ * This fucntion registers a notifier block in order to receive the state
+ * change of all supported external connectors from extcon device.
+ * And The second parameter given to the callback of nb (val) is
+ * the current state and third parameter is the edev pointer.
+ *
+ * Returns 0 if success or error number if fail
+ */
+int extcon_register_notifier_all(struct extcon_dev *edev,
+				struct notifier_block *nb)
+{
+	unsigned long flags;
+	int ret;
+
+	if (!edev || !nb)
+		return -EINVAL;
+
+	spin_lock_irqsave(&edev->lock, flags);
+	ret = raw_notifier_chain_register(&edev->nh_all, nb);
+	spin_unlock_irqrestore(&edev->lock, flags);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(extcon_register_notifier_all);
+
+/**
+ * extcon_unregister_notifier_all() - Unregister a notifier block from extcon.
+ * @edev:	the extcon device that has the external connecotr.
+ * @nb:		a notifier block to be registered.
+ *
+ * Returns 0 if success or error number if fail
+ */
+int extcon_unregister_notifier_all(struct extcon_dev *edev,
+				struct notifier_block *nb)
+{
+	unsigned long flags;
+	int ret;
+
+	if (!edev || !nb)
+		return -EINVAL;
+
+	spin_lock_irqsave(&edev->lock, flags);
+	ret = raw_notifier_chain_unregister(&edev->nh_all, nb);
+	spin_unlock_irqrestore(&edev->lock, flags);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(extcon_unregister_notifier_all);
+
 static struct attribute *extcon_attrs[] = {
 	&dev_attr_state.attr,
 	&dev_attr_name.attr,
@@ -968,12 +1029,6 @@ static int create_extcon_class(void)
 		if (IS_ERR(extcon_class))
 			return PTR_ERR(extcon_class);
 		extcon_class->dev_groups = extcon_groups;
-
-#if defined(CONFIG_ANDROID)
-		switch_class = class_compat_register("switch");
-		if (WARN(!switch_class, "cannot allocate"))
-			return -ENOMEM;
-#endif /* CONFIG_ANDROID */
 	}
 
 	return 0;
@@ -1195,10 +1250,6 @@ int extcon_dev_register(struct extcon_dev *edev)
 		put_device(&edev->dev);
 		goto err_dev;
 	}
-#if defined(CONFIG_ANDROID)
-	if (switch_class)
-		ret = class_compat_create_link(switch_class, &edev->dev, NULL);
-#endif /* CONFIG_ANDROID */
 
 	spin_lock_init(&edev->lock);
 
@@ -1211,6 +1262,8 @@ int extcon_dev_register(struct extcon_dev *edev)
 
 	for (index = 0; index < edev->max_supported; index++)
 		RAW_INIT_NOTIFIER_HEAD(&edev->nh[index]);
+
+	RAW_INIT_NOTIFIER_HEAD(&edev->nh_all);
 
 	dev_set_drvdata(&edev->dev, edev);
 	edev->state = 0;
@@ -1284,10 +1337,6 @@ void extcon_dev_unregister(struct extcon_dev *edev)
 		kfree(edev->cables);
 	}
 
-#if defined(CONFIG_ANDROID)
-	if (switch_class)
-		class_compat_remove_link(switch_class, &edev->dev, NULL);
-#endif
 	put_device(&edev->dev);
 }
 EXPORT_SYMBOL_GPL(extcon_dev_unregister);
@@ -1358,9 +1407,6 @@ module_init(extcon_class_init);
 
 static void __exit extcon_class_exit(void)
 {
-#if defined(CONFIG_ANDROID)
-	class_compat_unregister(switch_class);
-#endif
 	class_destroy(extcon_class);
 }
 module_exit(extcon_class_exit);

@@ -76,7 +76,7 @@ REPORT OPTIONS
 
 -c::
 --coalesce::
-	Specify sorintg fields for single cacheline display.
+	Specify sorting fields for single cacheline display.
 	Following fields are available: tid,pid,iaddr,dso
 	(see COALESCE)
 
@@ -106,7 +106,7 @@ REPORT OPTIONS
 
 -d::
 --display::
-	Siwtch to HITM type (rmt, lcl) to display and sort on. Total HITMs as default.
+	Switch to HITM type (rmt, lcl) to display and sort on. Total HITMs as default.
 
 C2C RECORD
 ----------

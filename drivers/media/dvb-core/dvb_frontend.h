@@ -643,6 +643,8 @@ struct dtv_frontend_properties {
 /**
  * struct dvb_frontend - Frontend structure to be used on drivers.
  *
+ * @refcount:		refcount to keep track of struct dvb_frontend
+ *			references
  * @ops:		embedded struct dvb_frontend_ops
  * @dvb:		pointer to struct dvb_adapter
  * @demodulator_priv:	demod private data

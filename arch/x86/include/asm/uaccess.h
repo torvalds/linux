@@ -3,18 +3,13 @@
 /*
  * User space memory access functions
  */
-#include <linux/errno.h>
 #include <linux/compiler.h>
 #include <linux/kasan-checks.h>
-#include <linux/thread_info.h>
 #include <linux/string.h>
 #include <asm/asm.h>
 #include <asm/page.h>
 #include <asm/smap.h>
 #include <asm/extable.h>
-
-#define VERIFY_READ 0
-#define VERIFY_WRITE 1
 
 /*
  * The fs value determines whether argument validity checking should be
@@ -324,10 +319,10 @@ do {									\
 #define __get_user_asm_u64(x, ptr, retval, errret)			\
 ({									\
 	__typeof__(ptr) __ptr = (ptr);					\
-	asm volatile(ASM_STAC "\n"					\
+	asm volatile("\n"					\
 		     "1:	movl %2,%%eax\n"			\
 		     "2:	movl %3,%%edx\n"			\
-		     "3: " ASM_CLAC "\n"				\
+		     "3:\n"				\
 		     ".section .fixup,\"ax\"\n"				\
 		     "4:	mov %4,%0\n"				\
 		     "	xorl %%eax,%%eax\n"				\
@@ -336,7 +331,7 @@ do {									\
 		     ".previous\n"					\
 		     _ASM_EXTABLE(1b, 4b)				\
 		     _ASM_EXTABLE(2b, 4b)				\
-		     : "=r" (retval), "=A"(x)				\
+		     : "=r" (retval), "=&A"(x)				\
 		     : "m" (__m(__ptr)), "m" __m(((u32 *)(__ptr)) + 1),	\
 		       "i" (errret), "0" (retval));			\
 })
@@ -378,6 +373,18 @@ do {									\
 		     ".section .fixup,\"ax\"\n"				\
 		     "3:	mov %3,%0\n"				\
 		     "	xor"itype" %"rtype"1,%"rtype"1\n"		\
+		     "	jmp 2b\n"					\
+		     ".previous\n"					\
+		     _ASM_EXTABLE(1b, 3b)				\
+		     : "=r" (err), ltype(x)				\
+		     : "m" (__m(addr)), "i" (errret), "0" (err))
+
+#define __get_user_asm_nozero(x, addr, err, itype, rtype, ltype, errret)	\
+	asm volatile("\n"						\
+		     "1:	mov"itype" %2,%"rtype"1\n"		\
+		     "2:\n"						\
+		     ".section .fixup,\"ax\"\n"				\
+		     "3:	mov %3,%0\n"				\
 		     "	jmp 2b\n"					\
 		     ".previous\n"					\
 		     _ASM_EXTABLE(1b, 3b)				\
@@ -675,59 +682,6 @@ extern struct movsl_mask {
 # include <asm/uaccess_64.h>
 #endif
 
-unsigned long __must_check _copy_from_user(void *to, const void __user *from,
-					   unsigned n);
-unsigned long __must_check _copy_to_user(void __user *to, const void *from,
-					 unsigned n);
-
-extern void __compiletime_error("usercopy buffer size is too small")
-__bad_copy_user(void);
-
-static inline void copy_user_overflow(int size, unsigned long count)
-{
-	WARN(1, "Buffer overflow detected (%d < %lu)!\n", size, count);
-}
-
-static __always_inline unsigned long __must_check
-copy_from_user(void *to, const void __user *from, unsigned long n)
-{
-	int sz = __compiletime_object_size(to);
-
-	might_fault();
-
-	kasan_check_write(to, n);
-
-	if (likely(sz < 0 || sz >= n)) {
-		check_object_size(to, n, false);
-		n = _copy_from_user(to, from, n);
-	} else if (!__builtin_constant_p(n))
-		copy_user_overflow(sz, n);
-	else
-		__bad_copy_user();
-
-	return n;
-}
-
-static __always_inline unsigned long __must_check
-copy_to_user(void __user *to, const void *from, unsigned long n)
-{
-	int sz = __compiletime_object_size(from);
-
-	kasan_check_read(from, n);
-
-	might_fault();
-
-	if (likely(sz < 0 || sz >= n)) {
-		check_object_size(from, n, true);
-		n = _copy_to_user(to, from, n);
-	} else if (!__builtin_constant_p(n))
-		copy_user_overflow(sz, n);
-	else
-		__bad_copy_user();
-
-	return n;
-}
-
 /*
  * We rely on the nested NMI work to allow atomic faults from the NMI path; the
  * nested NMI paths are careful to preserve CR2.
@@ -749,14 +703,15 @@ copy_to_user(void __user *to, const void *from, unsigned long n)
 #define unsafe_put_user(x, ptr, err_label)					\
 do {										\
 	int __pu_err;								\
-	__put_user_size((x), (ptr), sizeof(*(ptr)), __pu_err, -EFAULT);		\
+	__typeof__(*(ptr)) __pu_val = (x);					\
+	__put_user_size(__pu_val, (ptr), sizeof(*(ptr)), __pu_err, -EFAULT);	\
 	if (unlikely(__pu_err)) goto err_label;					\
 } while (0)
 
 #define unsafe_get_user(x, ptr, err_label)					\
 do {										\
 	int __gu_err;								\
-	unsigned long __gu_val;							\
+	__inttype(*(ptr)) __gu_val;						\
 	__get_user_size(__gu_val, (ptr), sizeof(*(ptr)), __gu_err, -EFAULT);	\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;				\
 	if (unlikely(__gu_err)) goto err_label;					\

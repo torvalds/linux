@@ -204,7 +204,7 @@ static int rmi_i2c_probe(struct i2c_client *client,
 	struct rmi_device_platform_data *client_pdata =
 					dev_get_platdata(&client->dev);
 	struct rmi_i2c_xport *rmi_i2c;
-	int retval;
+	int error;
 
 	rmi_i2c = devm_kzalloc(&client->dev, sizeof(struct rmi_i2c_xport),
 				GFP_KERNEL);
@@ -220,30 +220,31 @@ static int rmi_i2c_probe(struct i2c_client *client,
 
 	rmi_dbg(RMI_DEBUG_XPORT, &client->dev, "Probing %s.\n",
 			dev_name(&client->dev));
+
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(&client->dev,
-			"adapter does not support required functionality.\n");
+			"adapter does not support required functionality\n");
 		return -ENODEV;
 	}
 
 	rmi_i2c->supplies[0].supply = "vdd";
 	rmi_i2c->supplies[1].supply = "vio";
-	retval = devm_regulator_bulk_get(&client->dev,
+	error = devm_regulator_bulk_get(&client->dev,
 					 ARRAY_SIZE(rmi_i2c->supplies),
 					 rmi_i2c->supplies);
-	if (retval < 0)
-		return retval;
+	if (error < 0)
+		return error;
 
-	retval = regulator_bulk_enable(ARRAY_SIZE(rmi_i2c->supplies),
+	error = regulator_bulk_enable(ARRAY_SIZE(rmi_i2c->supplies),
 				       rmi_i2c->supplies);
-	if (retval < 0)
-		return retval;
+	if (error < 0)
+		return error;
 
-	retval = devm_add_action_or_reset(&client->dev,
+	error = devm_add_action_or_reset(&client->dev,
 					  rmi_i2c_regulator_bulk_disable,
 					  rmi_i2c);
-	if (retval)
-		return retval;
+	if (error)
+		return error;
 
 	of_property_read_u32(client->dev.of_node, "syna,startup-delay-ms",
 			     &rmi_i2c->startup_delay);
@@ -263,26 +264,26 @@ static int rmi_i2c_probe(struct i2c_client *client,
 	 * Setting the page to zero will (a) make sure the PSR is in a
 	 * known state, and (b) make sure we can talk to the device.
 	 */
-	retval = rmi_set_page(rmi_i2c, 0);
-	if (retval) {
-		dev_err(&client->dev, "Failed to set page select to 0.\n");
-		return retval;
+	error = rmi_set_page(rmi_i2c, 0);
+	if (error) {
+		dev_err(&client->dev, "Failed to set page select to 0\n");
+		return error;
 	}
 
-	retval = rmi_register_transport_device(&rmi_i2c->xport);
-	if (retval) {
-		dev_err(&client->dev, "Failed to register transport driver at 0x%.2X.\n",
-			client->addr);
-		return retval;
+	dev_info(&client->dev, "registering I2C-connected sensor\n");
+
+	error = rmi_register_transport_device(&rmi_i2c->xport);
+	if (error) {
+		dev_err(&client->dev, "failed to register sensor: %d\n", error);
+		return error;
 	}
-	retval = devm_add_action_or_reset(&client->dev,
+
+	error = devm_add_action_or_reset(&client->dev,
 					  rmi_i2c_unregister_transport,
 					  rmi_i2c);
-	if (retval)
-		return retval;
+	if (error)
+		return error;
 
-	dev_info(&client->dev, "registered rmi i2c driver at %#04x.\n",
-			client->addr);
 	return 0;
 }
 

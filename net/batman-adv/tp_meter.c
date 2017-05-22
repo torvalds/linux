@@ -873,8 +873,8 @@ static int batadv_tp_send(void *arg)
 		/* something went wrong during the preparation/transmission */
 		if (unlikely(err && err != BATADV_TP_REASON_CANT_SEND)) {
 			batadv_dbg(BATADV_DBG_TP_METER, bat_priv,
-				   "Meter: batadv_tp_send() cannot send packets (%d)\n",
-				   err);
+				   "Meter: %s() cannot send packets (%d)\n",
+				   __func__, err);
 			/* ensure nobody else tries to stop the thread now */
 			if (atomic_dec_and_test(&tp_vars->sending))
 				tp_vars->reason = err;
@@ -979,7 +979,8 @@ void batadv_tp_start(struct batadv_priv *bat_priv, const u8 *dst,
 	if (!tp_vars) {
 		spin_unlock_bh(&bat_priv->tp_list_lock);
 		batadv_dbg(BATADV_DBG_TP_METER, bat_priv,
-			   "Meter: batadv_tp_start cannot allocate list elements\n");
+			   "Meter: %s cannot allocate list elements\n",
+			   __func__);
 		batadv_tp_batctl_error_notify(BATADV_TP_REASON_MEMORY_ERROR,
 					      dst, bat_priv, session_cookie);
 		return;

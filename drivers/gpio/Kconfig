@@ -204,14 +204,15 @@ config GPIO_GE_FPGA
 	  and write pin state) for GPIO implemented in a number of GE single
 	  board computers.
 
-config GPIO_GEMINI
-	bool "Gemini GPIO"
-	depends on ARCH_GEMINI
+config GPIO_FTGPIO010
+	bool "Faraday FTGPIO010 GPIO"
 	depends on OF_GPIO
 	select GPIO_GENERIC
 	select GPIOLIB_IRQCHIP
+	default (ARCH_GEMINI || ARCH_MOXART)
 	help
-	  Support for common GPIOs found in Cortina systems Gemini platforms.
+	  Support for common GPIOs from the Faraday FTGPIO010 IP core, found in
+	  Cortina systems Gemini platforms, Moxa ART and others.
 
 config GPIO_GENERIC_PLATFORM
 	tristate "Generic memory-mapped GPIO controller support (MMIO platform device)"
@@ -308,14 +309,6 @@ config GPIO_MOCKUP
 	  tools/testing/selftests/gpio/gpio-mockup.sh. Reference the usage in
 	  it.
 
-config GPIO_MOXART
-	bool "MOXART GPIO support"
-	depends on ARCH_MOXART || COMPILE_TEST
-	select GPIO_GENERIC
-	help
-	  Select this option to enable GPIO driver for
-	  MOXA ART SoC devices.
-
 config GPIO_MPC5200
 	def_bool y
 	depends on PPC_MPC52xx
@@ -386,6 +379,12 @@ config GPIO_RCAR
 	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to support GPIO on Renesas R-Car SoCs.
+
+config GPIO_REG
+	bool
+	help
+	  A 32-bit single register GPIO fixed in/out implementation.  This
+	  can be used to represent any register as a set of GPIO signals.
 
 config GPIO_SPEAR_SPICS
 	bool "ST SPEAr13xx SPI Chip Select as GPIO support"
@@ -505,7 +504,7 @@ config GPIO_XILINX
 
 config GPIO_XLP
 	tristate "Netlogic XLP GPIO support"
-	depends on OF_GPIO && (CPU_XLP || ARCH_VULCAN || COMPILE_TEST)
+	depends on OF_GPIO && (CPU_XLP || ARCH_VULCAN || ARCH_THUNDER2 || COMPILE_TEST)
 	select GPIOLIB_IRQCHIP
 	help
 	  This driver provides support for GPIO interface on Netlogic XLP MIPS64
@@ -557,7 +556,7 @@ menu "Port-mapped I/O GPIO drivers"
 
 config GPIO_104_DIO_48E
 	tristate "ACCES 104-DIO-48E GPIO support"
-	depends on ISA_BUS_API
+	depends on PC104 && ISA_BUS_API
 	select GPIOLIB_IRQCHIP
 	help
 	  Enables GPIO support for the ACCES 104-DIO-48E series (104-DIO-48E,
@@ -567,7 +566,7 @@ config GPIO_104_DIO_48E
 
 config GPIO_104_IDIO_16
 	tristate "ACCES 104-IDIO-16 GPIO support"
-	depends on ISA_BUS_API
+	depends on PC104 && ISA_BUS_API
 	select GPIOLIB_IRQCHIP
 	help
 	  Enables GPIO support for the ACCES 104-IDIO-16 family (104-IDIO-16,
@@ -578,7 +577,7 @@ config GPIO_104_IDIO_16
 
 config GPIO_104_IDI_48
 	tristate "ACCES 104-IDI-48 GPIO support"
-	depends on ISA_BUS_API
+	depends on PC104 && ISA_BUS_API
 	select GPIOLIB_IRQCHIP
 	help
 	  Enables GPIO support for the ACCES 104-IDI-48 family (104-IDI-48A,
@@ -598,7 +597,7 @@ config GPIO_F7188X
 
 config GPIO_GPIO_MM
 	tristate "Diamond Systems GPIO-MM GPIO support"
-	depends on ISA_BUS_API
+	depends on PC104 && ISA_BUS_API
 	help
 	  Enables GPIO support for the Diamond Systems GPIO-MM and GPIO-MM-12.
 
@@ -753,7 +752,7 @@ config GPIO_PCA953X
 	  4 bits:	pca9536, pca9537
 
 	  8 bits:	max7310, max7315, pca6107, pca9534, pca9538, pca9554,
-			pca9556, pca9557, pca9574, tca6408, xra1202
+			pca9556, pca9557, pca9574, tca6408, tca9554, xra1202
 
 	  16 bits:	max7312, max7313, pca9535, pca9539, pca9555, pca9575,
 			tca6416
@@ -844,6 +843,17 @@ config GPIO_ARIZONA
 	depends on MFD_ARIZONA
 	help
 	  Support for GPIOs on Wolfson Arizona class devices.
+
+config GPIO_BD9571MWV
+	tristate "ROHM BD9571 GPIO support"
+	depends on MFD_BD9571MWV
+	help
+	  Support for GPIOs on ROHM BD9571 PMIC. There are two GPIOs
+	  available on the ROHM PMIC in total, both of which can also
+	  generate interrupts.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called gpio-bd9571mwv.
 
 config GPIO_CRYSTAL_COVE
 	tristate "GPIO support for Crystal Cove PMIC"
@@ -1054,7 +1064,7 @@ config GPIO_UCB1400
 
 config GPIO_WHISKEY_COVE
 	tristate "GPIO support for Whiskey Cove PMIC"
-	depends on (X86 || COMPILE_TEST) && INTEL_SOC_PMIC
+	depends on (X86 || COMPILE_TEST) && INTEL_SOC_PMIC_BXTWC
 	select GPIOLIB_IRQCHIP
 	help
 	  Support for GPIO pins on Whiskey Cove PMIC.

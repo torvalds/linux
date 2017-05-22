@@ -52,11 +52,6 @@
 	model = "UniPhier LD4 Reference Board";
 	compatible = "socionext,uniphier-ld4-ref", "socionext,uniphier-ld4";
 
-	memory {
-		device_type = "memory";
-		reg = <0x80000000 0x20000000>;
-	};
-
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
@@ -70,6 +65,11 @@
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x20000000>;
 	};
 };
 

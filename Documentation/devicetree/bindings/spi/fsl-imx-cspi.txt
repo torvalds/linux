@@ -23,6 +23,12 @@ See the clock consumer binding,
 Obsolete properties:
 - fsl,spi-num-chipselects : Contains the number of the chipselect
 
+Optional properties:
+- fsl,spi-rdy-drctl: Integer, representing the value of DRCTL, the register
+controlling the SPI_READY handling. Note that to enable the DRCTL consideration,
+the SPI_READY mode-flag needs to be set too.
+Valid values are: 0 (disabled), 1 (edge-triggered burst) and 2 (level-triggered burst).
+
 Example:
 
 ecspi@70010000 {
@@ -35,4 +41,5 @@ ecspi@70010000 {
 		   <&gpio3 25 0>; /* GPIO3_25 */
 	dmas = <&sdma 3 7 1>, <&sdma 4 7 2>;
 	dma-names = "rx", "tx";
+	fsl,spi-rdy-drctl = <1>;
 };

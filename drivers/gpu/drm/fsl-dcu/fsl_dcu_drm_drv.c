@@ -154,29 +154,6 @@ static irqreturn_t fsl_dcu_drm_irq(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-static int fsl_dcu_drm_enable_vblank(struct drm_device *dev, unsigned int pipe)
-{
-	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
-	unsigned int value;
-
-	regmap_read(fsl_dev->regmap, DCU_INT_MASK, &value);
-	value &= ~DCU_INT_MASK_VBLANK;
-	regmap_write(fsl_dev->regmap, DCU_INT_MASK, value);
-
-	return 0;
-}
-
-static void fsl_dcu_drm_disable_vblank(struct drm_device *dev,
-				       unsigned int pipe)
-{
-	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
-	unsigned int value;
-
-	regmap_read(fsl_dev->regmap, DCU_INT_MASK, &value);
-	value |= DCU_INT_MASK_VBLANK;
-	regmap_write(fsl_dev->regmap, DCU_INT_MASK, value);
-}
-
 static void fsl_dcu_drm_lastclose(struct drm_device *dev)
 {
 	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
@@ -184,17 +161,7 @@ static void fsl_dcu_drm_lastclose(struct drm_device *dev)
 	drm_fbdev_cma_restore_mode(fsl_dev->fbdev);
 }
 
-static const struct file_operations fsl_dcu_drm_fops = {
-	.owner		= THIS_MODULE,
-	.open		= drm_open,
-	.release	= drm_release,
-	.unlocked_ioctl	= drm_ioctl,
-	.compat_ioctl	= drm_compat_ioctl,
-	.poll		= drm_poll,
-	.read		= drm_read,
-	.llseek		= no_llseek,
-	.mmap		= drm_gem_cma_mmap,
-};
+DEFINE_DRM_GEM_CMA_FOPS(fsl_dcu_drm_fops);
 
 static struct drm_driver fsl_dcu_drm_driver = {
 	.driver_features	= DRIVER_HAVE_IRQ | DRIVER_GEM | DRIVER_MODESET
@@ -203,9 +170,6 @@ static struct drm_driver fsl_dcu_drm_driver = {
 	.load			= fsl_dcu_load,
 	.unload			= fsl_dcu_unload,
 	.irq_handler		= fsl_dcu_drm_irq,
-	.get_vblank_counter	= drm_vblank_no_hw_counter,
-	.enable_vblank		= fsl_dcu_drm_enable_vblank,
-	.disable_vblank		= fsl_dcu_drm_disable_vblank,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,

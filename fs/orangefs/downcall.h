@@ -40,16 +40,6 @@ struct orangefs_mkdir_response {
 	struct orangefs_object_kref refn;
 };
 
-/*
- * duplication of some system interface structures so that I don't have
- * to allocate extra memory
- */
-struct orangefs_dirent {
-	char *d_name;
-	int d_length;
-	struct orangefs_khandle khandle;
-};
-
 struct orangefs_statfs_response {
 	__s64 block_size;
 	__s64 blocks_total;
@@ -131,12 +121,16 @@ struct orangefs_downcall_s {
 	} resp;
 };
 
+/*
+ * The readdir response comes in the trailer.  It is followed by the
+ * directory entries as described in dir.c.
+ */
+
 struct orangefs_readdir_response_s {
 	__u64 token;
 	__u64 directory_version;
 	__u32 __pad2;
 	__u32 orangefs_dirent_outcount;
-	struct orangefs_dirent *dirent_array;
 };
 
 #endif /* __DOWNCALL_H */

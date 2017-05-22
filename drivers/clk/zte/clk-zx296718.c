@@ -94,11 +94,34 @@
 
 static DEFINE_SPINLOCK(clk_lock);
 
-static struct zx_pll_config pll_cpu_table[] = {
+static const struct zx_pll_config pll_cpu_table[] = {
 	PLL_RATE(1312000000, 0x00103621, 0x04aaaaaa),
 	PLL_RATE(1407000000, 0x00103a21, 0x04aaaaaa),
 	PLL_RATE(1503000000, 0x00103e21, 0x04aaaaaa),
 	PLL_RATE(1600000000, 0x00104221, 0x04aaaaaa),
+};
+
+static const struct zx_pll_config pll_vga_table[] = {
+	PLL_RATE(36000000,  0x00102464, 0x04000000), /* 800x600@56 */
+	PLL_RATE(40000000,  0x00102864, 0x04000000), /* 800x600@60 */
+	PLL_RATE(49500000,  0x00103164, 0x04800000), /* 800x600@75 */
+	PLL_RATE(50000000,  0x00103264, 0x04000000), /* 800x600@72 */
+	PLL_RATE(56250000,  0x00103864, 0x04400000), /* 800x600@85 */
+	PLL_RATE(65000000,  0x00104164, 0x04000000), /* 1024x768@60 */
+	PLL_RATE(74375000,  0x00104a64, 0x04600000), /* 1280x720@60 */
+	PLL_RATE(75000000,  0x00104b64, 0x04800000), /* 1024x768@70 */
+	PLL_RATE(78750000,  0x00104e64, 0x04c00000), /* 1024x768@75 */
+	PLL_RATE(85500000,  0x00105564, 0x04800000), /* 1360x768@60 */
+	PLL_RATE(106500000, 0x00106a64, 0x04800000), /* 1440x900@60 */
+	PLL_RATE(108000000, 0x00106c64, 0x04000000), /* 1280x1024@60 */
+	PLL_RATE(110000000, 0x00106e64, 0x04000000), /* 1024x768@85 */
+	PLL_RATE(135000000, 0x00105a44, 0x04000000), /* 1280x1024@75 */
+	PLL_RATE(136750000, 0x00104462, 0x04600000), /* 1440x900@75 */
+	PLL_RATE(148500000, 0x00104a62, 0x04400000), /* 1920x1080@60 */
+	PLL_RATE(157000000, 0x00104e62, 0x04800000), /* 1440x900@85 */
+	PLL_RATE(157500000, 0x00104e62, 0x04c00000), /* 1280x1024@85 */
+	PLL_RATE(162000000, 0x00105162, 0x04000000), /* 1600x1200@60 */
+	PLL_RATE(193250000, 0x00106062, 0x04a00000), /* 1920x1200@60 */
 };
 
 PNAME(osc) = {
@@ -369,6 +392,7 @@ PNAME(wdt_ares_p) = {
 
 static struct clk_zx_pll zx296718_pll_clk[] = {
 	ZX296718_PLL("pll_cpu",	"osc24m",	PLL_CPU_REG,	pll_cpu_table),
+	ZX296718_PLL("pll_vga",	"osc24m",	PLL_VGA_REG,	pll_vga_table),
 };
 
 static struct zx_clk_fixed_factor top_ffactor_clk[] = {
@@ -409,7 +433,7 @@ static struct zx_clk_fixed_factor top_ffactor_clk[] = {
 	FFACTOR(0, "clk54m",		"pll_mm1", 1, 24, 0),
 	/* vga */
 	FFACTOR(0, "pll_vga_1800m",	"pll_vga", 1, 1, 0),
-	FFACTOR(0, "clk_vga",		"pll_vga", 1, 2, 0),
+	FFACTOR(0, "clk_vga",		"pll_vga", 1, 1, CLK_SET_RATE_PARENT),
 	/* pll ddr */
 	FFACTOR(0, "clk466m",		"pll_ddr", 1, 2, 0),
 
@@ -458,8 +482,8 @@ static struct zx_clk_mux top_mux_clk[] = {
 	MUX(0, "sappu_a_mux",	 sappu_aclk_p,	  TOP_CLK_MUX5,  4, 2),
 	MUX(0, "sappu_w_mux",	 sappu_wclk_p,	  TOP_CLK_MUX5,  8, 3),
 	MUX(0, "vou_a_mux",	 vou_aclk_p,	  TOP_CLK_MUX7,  0, 3),
-	MUX(0, "vou_main_w_mux", vou_main_wclk_p, TOP_CLK_MUX7,  4, 3),
-	MUX(0, "vou_aux_w_mux",	 vou_aux_wclk_p,  TOP_CLK_MUX7,  8, 3),
+	MUX_F(0, "vou_main_w_mux", vou_main_wclk_p, TOP_CLK_MUX7,  4, 3, CLK_SET_RATE_PARENT, 0),
+	MUX_F(0, "vou_aux_w_mux",  vou_aux_wclk_p,  TOP_CLK_MUX7,  8, 3, CLK_SET_RATE_PARENT, 0),
 	MUX(0, "vou_ppu_w_mux",	 vou_ppu_wclk_p,  TOP_CLK_MUX7, 12, 3),
 	MUX(0, "vga_i2c_mux",	 vga_i2c_wclk_p,  TOP_CLK_MUX7, 16, 1),
 	MUX(0, "viu_m0_a_mux",	 viu_m0_aclk_p,	  TOP_CLK_MUX6,  0, 3),

@@ -259,10 +259,18 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 
 		case OP_31_XOP_MFSPR:
 			emulated = kvmppc_emulate_mfspr(vcpu, sprn, rt);
+			if (emulated == EMULATE_AGAIN) {
+				emulated = EMULATE_DONE;
+				advance = 0;
+			}
 			break;
 
 		case OP_31_XOP_MTSPR:
 			emulated = kvmppc_emulate_mtspr(vcpu, sprn, rs);
+			if (emulated == EMULATE_AGAIN) {
+				emulated = EMULATE_DONE;
+				advance = 0;
+			}
 			break;
 
 		case OP_31_XOP_TLBSYNC:

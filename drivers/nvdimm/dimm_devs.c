@@ -34,7 +34,7 @@ int nvdimm_check_config_data(struct device *dev)
 
 	if (!nvdimm->cmd_mask ||
 	    !test_bit(ND_CMD_GET_CONFIG_DATA, &nvdimm->cmd_mask)) {
-		if (nvdimm->flags & NDD_ALIASING)
+		if (test_bit(NDD_ALIASING, &nvdimm->flags))
 			return -ENXIO;
 		else
 			return -ENOTTY;
@@ -67,6 +67,7 @@ int nvdimm_init_nsarea(struct nvdimm_drvdata *ndd)
 	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(ndd->dev);
 	struct nvdimm_bus_descriptor *nd_desc;
 	int rc = validate_dimm(ndd);
+	int cmd_rc = 0;
 
 	if (rc)
 		return rc;
@@ -76,8 +77,11 @@ int nvdimm_init_nsarea(struct nvdimm_drvdata *ndd)
 
 	memset(cmd, 0, sizeof(*cmd));
 	nd_desc = nvdimm_bus->nd_desc;
-	return nd_desc->ndctl(nd_desc, to_nvdimm(ndd->dev),
-			ND_CMD_GET_CONFIG_SIZE, cmd, sizeof(*cmd), NULL);
+	rc = nd_desc->ndctl(nd_desc, to_nvdimm(ndd->dev),
+			ND_CMD_GET_CONFIG_SIZE, cmd, sizeof(*cmd), &cmd_rc);
+	if (rc < 0)
+		return rc;
+	return cmd_rc;
 }
 
 int nvdimm_init_config_data(struct nvdimm_drvdata *ndd)
@@ -102,10 +106,7 @@ int nvdimm_init_config_data(struct nvdimm_drvdata *ndd)
 		return -ENXIO;
 	}
 
-	ndd->data = kmalloc(ndd->nsarea.config_size, GFP_KERNEL);
-	if (!ndd->data)
-		ndd->data = vmalloc(ndd->nsarea.config_size);
-
+	ndd->data = kvmalloc(ndd->nsarea.config_size, GFP_KERNEL);
 	if (!ndd->data)
 		return -ENOMEM;
 
@@ -188,7 +189,14 @@ void nvdimm_set_aliasing(struct device *dev)
 {
 	struct nvdimm *nvdimm = to_nvdimm(dev);
 
-	nvdimm->flags |= NDD_ALIASING;
+	set_bit(NDD_ALIASING, &nvdimm->flags);
+}
+
+void nvdimm_set_locked(struct device *dev)
+{
+	struct nvdimm *nvdimm = to_nvdimm(dev);
+
+	set_bit(NDD_LOCKED, &nvdimm->flags);
 }
 
 static void nvdimm_release(struct device *dev)
@@ -395,7 +403,7 @@ EXPORT_SYMBOL_GPL(nvdimm_create);
 
 int alias_dpa_busy(struct device *dev, void *data)
 {
-	resource_size_t map_end, blk_start, new, busy;
+	resource_size_t map_end, blk_start, new;
 	struct blk_alloc_info *info = data;
 	struct nd_mapping *nd_mapping;
 	struct nd_region *nd_region;
@@ -436,29 +444,19 @@ int alias_dpa_busy(struct device *dev, void *data)
  retry:
 	/*
 	 * Find the free dpa from the end of the last pmem allocation to
-	 * the end of the interleave-set mapping that is not already
-	 * covered by a blk allocation.
+	 * the end of the interleave-set mapping.
 	 */
-	busy = 0;
 	for_each_dpa_resource(ndd, res) {
+		if (strncmp(res->name, "pmem", 4) != 0)
+			continue;
 		if ((res->start >= blk_start && res->start < map_end)
 				|| (res->end >= blk_start
 					&& res->end <= map_end)) {
-			if (strncmp(res->name, "pmem", 4) == 0) {
-				new = max(blk_start, min(map_end + 1,
-							res->end + 1));
-				if (new != blk_start) {
-					blk_start = new;
-					goto retry;
-				}
-			} else
-				busy += min(map_end, res->end)
-					- max(nd_mapping->start, res->start) + 1;
-		} else if (nd_mapping->start > res->start
-				&& map_end < res->end) {
-			/* total eclipse of the PMEM region mapping */
-			busy += nd_mapping->size;
-			break;
+			new = max(blk_start, min(map_end + 1, res->end + 1));
+			if (new != blk_start) {
+				blk_start = new;
+				goto retry;
+			}
 		}
 	}
 
@@ -470,50 +468,9 @@ int alias_dpa_busy(struct device *dev, void *data)
 		return 1;
 	}
 
-	info->available -= blk_start - nd_mapping->start + busy;
+	info->available -= blk_start - nd_mapping->start;
 
 	return 0;
-}
-
-static int blk_dpa_busy(struct device *dev, void *data)
-{
-	struct blk_alloc_info *info = data;
-	struct nd_mapping *nd_mapping;
-	struct nd_region *nd_region;
-	resource_size_t map_end;
-	int i;
-
-	if (!is_nd_pmem(dev))
-		return 0;
-
-	nd_region = to_nd_region(dev);
-	for (i = 0; i < nd_region->ndr_mappings; i++) {
-		nd_mapping  = &nd_region->mapping[i];
-		if (nd_mapping->nvdimm == info->nd_mapping->nvdimm)
-			break;
-	}
-
-	if (i >= nd_region->ndr_mappings)
-		return 0;
-
-	map_end = nd_mapping->start + nd_mapping->size - 1;
-	if (info->res->start >= nd_mapping->start
-			&& info->res->start < map_end) {
-		if (info->res->end <= map_end) {
-			info->busy = 0;
-			return 1;
-		} else {
-			info->busy -= info->res->end - map_end;
-			return 0;
-		}
-	} else if (info->res->end >= nd_mapping->start
-			&& info->res->end <= map_end) {
-		info->busy -= nd_mapping->start - info->res->start;
-		return 0;
-	} else {
-		info->busy -= nd_mapping->size;
-		return 0;
-	}
 }
 
 /**
@@ -545,11 +502,7 @@ resource_size_t nd_blk_available_dpa(struct nd_region *nd_region)
 	for_each_dpa_resource(ndd, res) {
 		if (strncmp(res->name, "blk", 3) != 0)
 			continue;
-
-		info.res = res;
-		info.busy = resource_size(res);
-		device_for_each_child(&nvdimm_bus->dev, &info, blk_dpa_busy);
-		info.available -= info.busy;
+		info.available -= resource_size(res);
 	}
 
 	return info.available;

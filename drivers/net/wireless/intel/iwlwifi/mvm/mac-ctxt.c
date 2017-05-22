@@ -216,7 +216,8 @@ u32 iwl_mvm_mac_get_queues_mask(struct ieee80211_vif *vif)
 			qmask |= BIT(vif->hw_queue[ac]);
 	}
 
-	if (vif->type == NL80211_IFTYPE_AP)
+	if (vif->type == NL80211_IFTYPE_AP ||
+	    vif->type == NL80211_IFTYPE_ADHOC)
 		qmask |= BIT(vif->cab_queue);
 
 	return qmask;
@@ -466,13 +467,19 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 			queue = IWL_MVM_DQA_GCAST_QUEUE;
 		}
 
+		/*
+		 * For TVQM this will be overwritten later with the FW assigned
+		 * queue value (when queue is enabled).
+		 */
+		mvmvif->cab_queue = queue;
 		vif->cab_queue = queue;
 	} else {
 		vif->cab_queue = IEEE80211_INVAL_HW_QUEUE;
 	}
 
-	mvmvif->bcast_sta.sta_id = IWL_MVM_STATION_COUNT;
-	mvmvif->ap_sta_id = IWL_MVM_STATION_COUNT;
+	mvmvif->bcast_sta.sta_id = IWL_MVM_INVALID_STA;
+	mvmvif->mcast_sta.sta_id = IWL_MVM_INVALID_STA;
+	mvmvif->ap_sta_id = IWL_MVM_INVALID_STA;
 
 	for (i = 0; i < NUM_IWL_MVM_SMPS_REQ; i++)
 		mvmvif->smps_requests[i] = IEEE80211_SMPS_AUTOMATIC;
@@ -900,7 +907,7 @@ static int iwl_mvm_mac_ctxt_cmd_listener(struct iwl_mvm *mvm,
 
 	/* Allocate sniffer station */
 	ret = iwl_mvm_allocate_int_sta(mvm, &mvm->snif_sta, tfd_queue_msk,
-				       vif->type);
+				       vif->type, IWL_STA_GENERAL_PURPOSE);
 	if (ret)
 		return ret;
 
@@ -1221,7 +1228,9 @@ static void iwl_mvm_mac_ctxt_cmd_fill_ap(struct iwl_mvm *mvm,
 		cpu_to_le32(iwl_mvm_reciprocal(vif->bss_conf.beacon_int *
 					       vif->bss_conf.dtim_period));
 
-	ctxt_ap->mcast_qid = cpu_to_le32(vif->cab_queue);
+	if (!fw_has_api(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_API_STA_TYPE))
+		ctxt_ap->mcast_qid = cpu_to_le32(vif->cab_queue);
 
 	/*
 	 * Only set the beacon time when the MAC is being added, when we
@@ -1441,6 +1450,7 @@ void iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 	struct iwl_mvm_tx_resp *beacon_notify_hdr;
 	struct ieee80211_vif *csa_vif;
 	struct ieee80211_vif *tx_blocked_vif;
+	struct agg_tx_status *agg_status;
 	u16 status;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -1448,7 +1458,8 @@ void iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 	beacon_notify_hdr = &beacon->beacon_notify_hdr;
 	mvm->ap_last_beacon_gp2 = le32_to_cpu(beacon->gp2);
 
-	status = le16_to_cpu(beacon_notify_hdr->status.status) & TX_STATUS_MSK;
+	agg_status = iwl_mvm_get_agg_status(mvm, beacon_notify_hdr);
+	status = le16_to_cpu(agg_status->status) & TX_STATUS_MSK;
 	IWL_DEBUG_RX(mvm,
 		     "beacon status %#x retries:%d tsf:0x%16llX gp2:0x%X rate:%d\n",
 		     status, beacon_notify_hdr->failure_frame,

@@ -121,7 +121,7 @@ struct inode *ubifs_new_inode(struct ubifs_info *c, struct inode *dir,
 
 	inode_init_owner(inode, dir, mode);
 	inode->i_mtime = inode->i_atime = inode->i_ctime =
-			 ubifs_current_time(inode);
+			 current_time(inode);
 	inode->i_mapping->nrpages = 0;
 
 	switch (mode & S_IFMT) {
@@ -285,6 +285,15 @@ static struct dentry *ubifs_lookup(struct inode *dir, struct dentry *dentry,
 		goto out_dent;
 	}
 
+	if (ubifs_crypt_is_encrypted(dir) &&
+	    (S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode)) &&
+	    !fscrypt_has_permitted_context(dir, inode)) {
+		ubifs_warn(c, "Inconsistent encryption contexts: %lu/%lu",
+			   dir->i_ino, inode->i_ino);
+		err = -EPERM;
+		goto out_inode;
+	}
+
 done:
 	kfree(dent);
 	fscrypt_free_filename(&nm);
@@ -295,6 +304,8 @@ done:
 	d_add(dentry, inode);
 	return NULL;
 
+out_inode:
+	iput(inode);
 out_dent:
 	kfree(dent);
 out_fname:
@@ -606,8 +617,8 @@ static int ubifs_readdir(struct file *file, struct dir_context *ctx)
 	}
 
 	while (1) {
-		dbg_gen("feed '%s', ino %llu, new f_pos %#x",
-			dent->name, (unsigned long long)le64_to_cpu(dent->inum),
+		dbg_gen("ino %llu, new f_pos %#x",
+			(unsigned long long)le64_to_cpu(dent->inum),
 			key_hash_flash(c, &dent->key));
 		ubifs_assert(le64_to_cpu(dent->ch.sqnum) >
 			     ubifs_inode(dir)->creat_sqnum);
@@ -748,9 +759,14 @@ static int ubifs_link(struct dentry *old_dentry, struct inode *dir,
 		goto out_fname;
 
 	lock_2_inodes(dir, inode);
+
+	/* Handle O_TMPFILE corner case, it is allowed to link a O_TMPFILE. */
+	if (inode->i_nlink == 0)
+		ubifs_delete_orphan(c, inode->i_ino);
+
 	inc_nlink(inode);
 	ihold(inode);
-	inode->i_ctime = ubifs_current_time(inode);
+	inode->i_ctime = current_time(inode);
 	dir->i_size += sz_change;
 	dir_ui->ui_size = dir->i_size;
 	dir->i_mtime = dir->i_ctime = inode->i_ctime;
@@ -768,6 +784,8 @@ out_cancel:
 	dir->i_size -= sz_change;
 	dir_ui->ui_size = dir->i_size;
 	drop_nlink(inode);
+	if (inode->i_nlink == 0)
+		ubifs_add_orphan(c, inode->i_ino);
 	unlock_2_inodes(dir, inode);
 	ubifs_release_budget(c, &req);
 	iput(inode);
@@ -823,7 +841,7 @@ static int ubifs_unlink(struct inode *dir, struct dentry *dentry)
 	}
 
 	lock_2_inodes(dir, inode);
-	inode->i_ctime = ubifs_current_time(dir);
+	inode->i_ctime = current_time(dir);
 	drop_nlink(inode);
 	dir->i_size -= sz_change;
 	dir_ui->ui_size = dir->i_size;
@@ -927,7 +945,7 @@ static int ubifs_rmdir(struct inode *dir, struct dentry *dentry)
 	}
 
 	lock_2_inodes(dir, inode);
-	inode->i_ctime = ubifs_current_time(dir);
+	inode->i_ctime = current_time(dir);
 	clear_nlink(inode);
 	drop_nlink(dir);
 	dir->i_size -= sz_change;
@@ -1068,8 +1086,10 @@ static int ubifs_mknod(struct inode *dir, struct dentry *dentry,
 	}
 
 	err = fscrypt_setup_filename(dir, &dentry->d_name, 0, &nm);
-	if (err)
+	if (err) {
+		kfree(dev);
 		goto out_budg;
+	}
 
 	sz_change = CALC_DENT_SIZE(fname_len(&nm));
 
@@ -1316,9 +1336,6 @@ static int do_rename(struct inode *old_dir, struct dentry *old_dentry,
 	unsigned int uninitialized_var(saved_nlink);
 	struct fscrypt_name old_nm, new_nm;
 
-	if (flags & ~RENAME_NOREPLACE)
-		return -EINVAL;
-
 	/*
 	 * Budget request settings: deletion direntry, new direntry, removing
 	 * the old inode, and changing old and new parent directory inodes.
@@ -1405,7 +1422,7 @@ static int do_rename(struct inode *old_dir, struct dentry *old_dentry,
 	 * Like most other Unix systems, set the @i_ctime for inodes on a
 	 * rename.
 	 */
-	time = ubifs_current_time(old_dir);
+	time = current_time(old_dir);
 	old_inode->i_ctime = time;
 
 	/* We must adjust parent link count when renaming directories */
@@ -1578,7 +1595,7 @@ static int ubifs_xrename(struct inode *old_dir, struct dentry *old_dentry,
 
 	lock_4_inodes(old_dir, new_dir, NULL, NULL);
 
-	time = ubifs_current_time(old_dir);
+	time = current_time(old_dir);
 	fst_inode->i_ctime = time;
 	snd_inode->i_ctime = time;
 	old_dir->i_mtime = old_dir->i_ctime = time;

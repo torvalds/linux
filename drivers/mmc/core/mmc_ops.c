@@ -305,7 +305,7 @@ mmc_send_cxd_data(struct mmc_card *card, struct mmc_host *host,
 int mmc_send_csd(struct mmc_card *card, u32 *csd)
 {
 	int ret, i;
-	u32 *csd_tmp;
+	__be32 *csd_tmp;
 
 	if (!mmc_host_is_spi(card->host))
 		return mmc_send_cxd_native(card->host, card->rca << 16,
@@ -319,7 +319,7 @@ int mmc_send_csd(struct mmc_card *card, u32 *csd)
 	if (ret)
 		goto err;
 
-	for (i = 0;i < 4;i++)
+	for (i = 0; i < 4; i++)
 		csd[i] = be32_to_cpu(csd_tmp[i]);
 
 err:
@@ -330,7 +330,7 @@ err:
 int mmc_send_cid(struct mmc_host *host, u32 *cid)
 {
 	int ret, i;
-	u32 *cid_tmp;
+	__be32 *cid_tmp;
 
 	if (!mmc_host_is_spi(host)) {
 		if (!host->card)
@@ -347,7 +347,7 @@ int mmc_send_cid(struct mmc_host *host, u32 *cid)
 	if (ret)
 		goto err;
 
-	for (i = 0;i < 4;i++)
+	for (i = 0; i < 4; i++)
 		cid[i] = be32_to_cpu(cid_tmp[i]);
 
 err:
@@ -838,3 +838,31 @@ int mmc_can_ext_csd(struct mmc_card *card)
 {
 	return (card && card->csd.mmca_vsn > CSD_SPEC_VER_3);
 }
+
+static int mmc_cmdq_switch(struct mmc_card *card, bool enable)
+{
+	u8 val = enable ? EXT_CSD_CMDQ_MODE_ENABLED : 0;
+	int err;
+
+	if (!card->ext_csd.cmdq_support)
+		return -EOPNOTSUPP;
+
+	err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_CMDQ_MODE_EN,
+			 val, card->ext_csd.generic_cmd6_time);
+	if (!err)
+		card->ext_csd.cmdq_en = enable;
+
+	return err;
+}
+
+int mmc_cmdq_enable(struct mmc_card *card)
+{
+	return mmc_cmdq_switch(card, true);
+}
+EXPORT_SYMBOL_GPL(mmc_cmdq_enable);
+
+int mmc_cmdq_disable(struct mmc_card *card)
+{
+	return mmc_cmdq_switch(card, false);
+}
+EXPORT_SYMBOL_GPL(mmc_cmdq_disable);

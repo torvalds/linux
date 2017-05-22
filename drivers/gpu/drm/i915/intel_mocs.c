@@ -178,7 +178,7 @@ static bool get_mocs_settings(struct drm_i915_private *dev_priv,
 {
 	bool result = false;
 
-	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
+	if (IS_GEN9_BC(dev_priv)) {
 		table->size  = ARRAY_SIZE(skylake_mocs_table);
 		table->table = skylake_mocs_table;
 		result = true;
@@ -191,7 +191,7 @@ static bool get_mocs_settings(struct drm_i915_private *dev_priv,
 			  "Platform that should have a MOCS table does not.\n");
 	}
 
-	/* WaDisableSkipCaching:skl,bxt,kbl */
+	/* WaDisableSkipCaching:skl,bxt,kbl,glk */
 	if (IS_GEN9(dev_priv)) {
 		int i;
 
@@ -276,23 +276,22 @@ int intel_mocs_init_engine(struct intel_engine_cs *engine)
 static int emit_mocs_control_table(struct drm_i915_gem_request *req,
 				   const struct drm_i915_mocs_table *table)
 {
-	struct intel_ring *ring = req->ring;
 	enum intel_engine_id engine = req->engine->id;
 	unsigned int index;
-	int ret;
+	u32 *cs;
 
 	if (WARN_ON(table->size > GEN9_NUM_MOCS_ENTRIES))
 		return -ENODEV;
 
-	ret = intel_ring_begin(req, 2 + 2 * GEN9_NUM_MOCS_ENTRIES);
-	if (ret)
-		return ret;
+	cs = intel_ring_begin(req, 2 + 2 * GEN9_NUM_MOCS_ENTRIES);
+	if (IS_ERR(cs))
+		return PTR_ERR(cs);
 
-	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(GEN9_NUM_MOCS_ENTRIES));
+	*cs++ = MI_LOAD_REGISTER_IMM(GEN9_NUM_MOCS_ENTRIES);
 
 	for (index = 0; index < table->size; index++) {
-		intel_ring_emit_reg(ring, mocs_register(engine, index));
-		intel_ring_emit(ring, table->table[index].control_value);
+		*cs++ = i915_mmio_reg_offset(mocs_register(engine, index));
+		*cs++ = table->table[index].control_value;
 	}
 
 	/*
@@ -304,12 +303,12 @@ static int emit_mocs_control_table(struct drm_i915_gem_request *req,
 	 * that value to all the used entries.
 	 */
 	for (; index < GEN9_NUM_MOCS_ENTRIES; index++) {
-		intel_ring_emit_reg(ring, mocs_register(engine, index));
-		intel_ring_emit(ring, table->table[0].control_value);
+		*cs++ = i915_mmio_reg_offset(mocs_register(engine, index));
+		*cs++ = table->table[0].control_value;
 	}
 
-	intel_ring_emit(ring, MI_NOOP);
-	intel_ring_advance(ring);
+	*cs++ = MI_NOOP;
+	intel_ring_advance(req, cs);
 
 	return 0;
 }
@@ -336,29 +335,27 @@ static inline u32 l3cc_combine(const struct drm_i915_mocs_table *table,
 static int emit_mocs_l3cc_table(struct drm_i915_gem_request *req,
 				const struct drm_i915_mocs_table *table)
 {
-	struct intel_ring *ring = req->ring;
 	unsigned int i;
-	int ret;
+	u32 *cs;
 
 	if (WARN_ON(table->size > GEN9_NUM_MOCS_ENTRIES))
 		return -ENODEV;
 
-	ret = intel_ring_begin(req, 2 + GEN9_NUM_MOCS_ENTRIES);
-	if (ret)
-		return ret;
+	cs = intel_ring_begin(req, 2 + GEN9_NUM_MOCS_ENTRIES);
+	if (IS_ERR(cs))
+		return PTR_ERR(cs);
 
-	intel_ring_emit(ring,
-			MI_LOAD_REGISTER_IMM(GEN9_NUM_MOCS_ENTRIES / 2));
+	*cs++ = MI_LOAD_REGISTER_IMM(GEN9_NUM_MOCS_ENTRIES / 2);
 
 	for (i = 0; i < table->size/2; i++) {
-		intel_ring_emit_reg(ring, GEN9_LNCFCMOCS(i));
-		intel_ring_emit(ring, l3cc_combine(table, 2*i, 2*i+1));
+		*cs++ = i915_mmio_reg_offset(GEN9_LNCFCMOCS(i));
+		*cs++ = l3cc_combine(table, 2 * i, 2 * i + 1);
 	}
 
 	if (table->size & 0x01) {
 		/* Odd table size - 1 left over */
-		intel_ring_emit_reg(ring, GEN9_LNCFCMOCS(i));
-		intel_ring_emit(ring, l3cc_combine(table, 2*i, 0));
+		*cs++ = i915_mmio_reg_offset(GEN9_LNCFCMOCS(i));
+		*cs++ = l3cc_combine(table, 2 * i, 0);
 		i++;
 	}
 
@@ -368,12 +365,12 @@ static int emit_mocs_l3cc_table(struct drm_i915_gem_request *req,
 	 * they are reserved by the hardware.
 	 */
 	for (; i < GEN9_NUM_MOCS_ENTRIES / 2; i++) {
-		intel_ring_emit_reg(ring, GEN9_LNCFCMOCS(i));
-		intel_ring_emit(ring, l3cc_combine(table, 0, 0));
+		*cs++ = i915_mmio_reg_offset(GEN9_LNCFCMOCS(i));
+		*cs++ = l3cc_combine(table, 0, 0);
 	}
 
-	intel_ring_emit(ring, MI_NOOP);
-	intel_ring_advance(ring);
+	*cs++ = MI_NOOP;
+	intel_ring_advance(req, cs);
 
 	return 0;
 }

@@ -52,7 +52,10 @@ static int hw_to_idx(struct clk_zx_pll *zx_pll)
 
 	/* For matching the value in lookup table */
 	hw_cfg0 &= ~BIT(zx_pll->lock_bit);
-	hw_cfg0 |= BIT(zx_pll->pd_bit);
+
+	/* Check availability of pd_bit */
+	if (zx_pll->pd_bit < 32)
+		hw_cfg0 |= BIT(zx_pll->pd_bit);
 
 	for (i = 0; i < zx_pll->count; i++) {
 		if (hw_cfg0 == config[i].cfg0 && hw_cfg1 == config[i].cfg1)
@@ -108,6 +111,10 @@ static int zx_pll_enable(struct clk_hw *hw)
 	struct clk_zx_pll *zx_pll = to_clk_zx_pll(hw);
 	u32 reg;
 
+	/* If pd_bit is not available, simply return success. */
+	if (zx_pll->pd_bit > 31)
+		return 0;
+
 	reg = readl_relaxed(zx_pll->reg_base);
 	writel_relaxed(reg & ~BIT(zx_pll->pd_bit), zx_pll->reg_base);
 
@@ -119,6 +126,9 @@ static void zx_pll_disable(struct clk_hw *hw)
 {
 	struct clk_zx_pll *zx_pll = to_clk_zx_pll(hw);
 	u32 reg;
+
+	if (zx_pll->pd_bit > 31)
+		return;
 
 	reg = readl_relaxed(zx_pll->reg_base);
 	writel_relaxed(reg | BIT(zx_pll->pd_bit), zx_pll->reg_base);

@@ -29,12 +29,14 @@
 #include <asm/vdso_datapage.h>
 #include <asm/cputhreads.h>
 #include <asm/xics.h>
+#include <asm/xive.h>
 #include <asm/opal.h>
 #include <asm/runlatch.h>
 #include <asm/code-patching.h>
 #include <asm/dbell.h>
 #include <asm/kvm_ppc.h>
 #include <asm/ppc-opcode.h>
+#include <asm/cpuidle.h>
 
 #include "powernv.h"
 
@@ -47,13 +49,10 @@
 
 static void pnv_smp_setup_cpu(int cpu)
 {
-	if (cpu != boot_cpuid)
+	if (xive_enabled())
+		xive_smp_setup_cpu();
+	else if (cpu != boot_cpuid)
 		xics_setup_cpu();
-
-#ifdef CONFIG_PPC_DOORBELL
-	if (cpu_has_feature(CPU_FTR_DBELL))
-		doorbell_setup_this_cpu();
-#endif
 }
 
 static int pnv_smp_kick_cpu(int nr)
@@ -132,7 +131,10 @@ static int pnv_smp_cpu_disable(void)
 	vdso_data->processorCount--;
 	if (cpu == boot_cpuid)
 		boot_cpuid = cpumask_any(cpu_online_mask);
-	xics_migrate_irqs_away();
+	if (xive_enabled())
+		xive_smp_disable_cpu();
+	else
+		xics_migrate_irqs_away();
 	return 0;
 }
 
@@ -140,7 +142,6 @@ static void pnv_smp_cpu_kill_self(void)
 {
 	unsigned int cpu;
 	unsigned long srr1, wmask;
-	u32 idle_states;
 
 	/* Standard hot unplug procedure */
 	local_irq_disable();
@@ -154,8 +155,6 @@ static void pnv_smp_cpu_kill_self(void)
 	wmask = SRR1_WAKEMASK;
 	if (cpu_has_feature(CPU_FTR_ARCH_207S))
 		wmask = SRR1_WAKEMASK_P8;
-
-	idle_states = pnv_get_supported_cpuidle_states();
 
 	/* We don't want to take decrementer interrupts while we are offline,
 	 * so clear LPCR:PECE1. We keep PECE2 (and LPCR_PECE_HVEE on P9)
@@ -184,19 +183,7 @@ static void pnv_smp_cpu_kill_self(void)
 		kvmppc_set_host_ipi(cpu, 0);
 
 		ppc64_runlatch_off();
-
-		if (cpu_has_feature(CPU_FTR_ARCH_300)) {
-			srr1 = power9_idle_stop(pnv_deepest_stop_psscr_val,
-						pnv_deepest_stop_psscr_mask);
-		} else if (idle_states & OPAL_PM_WINKLE_ENABLED) {
-			srr1 = power7_winkle();
-		} else if ((idle_states & OPAL_PM_SLEEP_ENABLED) ||
-			   (idle_states & OPAL_PM_SLEEP_ENABLED_ER1)) {
-			srr1 = power7_sleep();
-		} else {
-			srr1 = power7_nap(1);
-		}
-
+		srr1 = pnv_cpu_offline(cpu);
 		ppc64_runlatch_on();
 
 		/*
@@ -213,9 +200,12 @@ static void pnv_smp_cpu_kill_self(void)
 		if (((srr1 & wmask) == SRR1_WAKEEE) ||
 		    ((srr1 & wmask) == SRR1_WAKEHVI) ||
 		    (local_paca->irq_happened & PACA_IRQ_EE)) {
-			if (cpu_has_feature(CPU_FTR_ARCH_300))
-				icp_opal_flush_interrupt();
-			else
+			if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+				if (xive_enabled())
+					xive_flush_interrupt();
+				else
+					icp_opal_flush_interrupt();
+			} else
 				icp_native_flush_interrupt();
 		} else if ((srr1 & wmask) == SRR1_WAKEHDBELL) {
 			unsigned long msg = PPC_DBELL_TYPE(PPC_DBELL_SERVER);
@@ -252,10 +242,69 @@ static int pnv_cpu_bootable(unsigned int nr)
 	return smp_generic_cpu_bootable(nr);
 }
 
+static int pnv_smp_prepare_cpu(int cpu)
+{
+	if (xive_enabled())
+		return xive_smp_prepare_cpu(cpu);
+	return 0;
+}
+
+/* Cause IPI as setup by the interrupt controller (xics or xive) */
+static void (*ic_cause_ipi)(int cpu);
+
+static void pnv_cause_ipi(int cpu)
+{
+	if (doorbell_try_core_ipi(cpu))
+		return;
+
+	ic_cause_ipi(cpu);
+}
+
+static void pnv_p9_dd1_cause_ipi(int cpu)
+{
+	int this_cpu = get_cpu();
+
+	/*
+	 * POWER9 DD1 has a global addressed msgsnd, but for now we restrict
+	 * IPIs to same core, because it requires additional synchronization
+	 * for inter-core doorbells which we do not implement.
+	 */
+	if (cpumask_test_cpu(cpu, cpu_sibling_mask(this_cpu)))
+		doorbell_global_ipi(cpu);
+	else
+		ic_cause_ipi(cpu);
+
+	put_cpu();
+}
+
+static void __init pnv_smp_probe(void)
+{
+	if (xive_enabled())
+		xive_smp_probe();
+	else
+		xics_smp_probe();
+
+	if (cpu_has_feature(CPU_FTR_DBELL)) {
+		ic_cause_ipi = smp_ops->cause_ipi;
+		WARN_ON(!ic_cause_ipi);
+
+		if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+			if (cpu_has_feature(CPU_FTR_POWER9_DD1))
+				smp_ops->cause_ipi = pnv_p9_dd1_cause_ipi;
+			else
+				smp_ops->cause_ipi = doorbell_global_ipi;
+		} else {
+			smp_ops->cause_ipi = pnv_cause_ipi;
+		}
+	}
+}
+
 static struct smp_ops_t pnv_smp_ops = {
-	.message_pass	= smp_muxed_ipi_message_pass,
-	.cause_ipi	= NULL,	/* Filled at runtime by xics_smp_probe() */
-	.probe		= xics_smp_probe,
+	.message_pass	= NULL, /* Use smp_muxed_ipi_message_pass */
+	.cause_ipi	= NULL,	/* Filled at runtime by pnv_smp_probe() */
+	.cause_nmi_ipi	= NULL,
+	.probe		= pnv_smp_probe,
+	.prepare_cpu	= pnv_smp_prepare_cpu,
 	.kick_cpu	= pnv_smp_kick_cpu,
 	.setup_cpu	= pnv_smp_setup_cpu,
 	.cpu_bootable	= pnv_cpu_bootable,

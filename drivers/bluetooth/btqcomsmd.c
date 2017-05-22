@@ -14,7 +14,7 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/soc/qcom/smd.h>
+#include <linux/rpmsg.h>
 #include <linux/soc/qcom/wcnss_ctrl.h>
 #include <linux/platform_device.h>
 
@@ -26,8 +26,8 @@
 struct btqcomsmd {
 	struct hci_dev *hdev;
 
-	struct qcom_smd_channel *acl_channel;
-	struct qcom_smd_channel *cmd_channel;
+	struct rpmsg_endpoint *acl_channel;
+	struct rpmsg_endpoint *cmd_channel;
 };
 
 static int btqcomsmd_recv(struct hci_dev *hdev, unsigned int type,
@@ -48,19 +48,19 @@ static int btqcomsmd_recv(struct hci_dev *hdev, unsigned int type,
 	return hci_recv_frame(hdev, skb);
 }
 
-static int btqcomsmd_acl_callback(struct qcom_smd_channel *channel,
-				  const void *data, size_t count)
+static int btqcomsmd_acl_callback(struct rpmsg_device *rpdev, void *data,
+				  int count, void *priv, u32 addr)
 {
-	struct btqcomsmd *btq = qcom_smd_get_drvdata(channel);
+	struct btqcomsmd *btq = priv;
 
 	btq->hdev->stat.byte_rx += count;
 	return btqcomsmd_recv(btq->hdev, HCI_ACLDATA_PKT, data, count);
 }
 
-static int btqcomsmd_cmd_callback(struct qcom_smd_channel *channel,
-				  const void *data, size_t count)
+static int btqcomsmd_cmd_callback(struct rpmsg_device *rpdev, void *data,
+				  int count, void *priv, u32 addr)
 {
-	struct btqcomsmd *btq = qcom_smd_get_drvdata(channel);
+	struct btqcomsmd *btq = priv;
 
 	return btqcomsmd_recv(btq->hdev, HCI_EVENT_PKT, data, count);
 }
@@ -72,12 +72,12 @@ static int btqcomsmd_send(struct hci_dev *hdev, struct sk_buff *skb)
 
 	switch (hci_skb_pkt_type(skb)) {
 	case HCI_ACLDATA_PKT:
-		ret = qcom_smd_send(btq->acl_channel, skb->data, skb->len);
+		ret = rpmsg_send(btq->acl_channel, skb->data, skb->len);
 		hdev->stat.acl_tx++;
 		hdev->stat.byte_tx += skb->len;
 		break;
 	case HCI_COMMAND_PKT:
-		ret = qcom_smd_send(btq->cmd_channel, skb->data, skb->len);
+		ret = rpmsg_send(btq->cmd_channel, skb->data, skb->len);
 		hdev->stat.cmd_tx++;
 		break;
 	default:
@@ -114,17 +114,14 @@ static int btqcomsmd_probe(struct platform_device *pdev)
 	wcnss = dev_get_drvdata(pdev->dev.parent);
 
 	btq->acl_channel = qcom_wcnss_open_channel(wcnss, "APPS_RIVA_BT_ACL",
-						   btqcomsmd_acl_callback);
+						   btqcomsmd_acl_callback, btq);
 	if (IS_ERR(btq->acl_channel))
 		return PTR_ERR(btq->acl_channel);
 
 	btq->cmd_channel = qcom_wcnss_open_channel(wcnss, "APPS_RIVA_BT_CMD",
-						   btqcomsmd_cmd_callback);
+						   btqcomsmd_cmd_callback, btq);
 	if (IS_ERR(btq->cmd_channel))
 		return PTR_ERR(btq->cmd_channel);
-
-	qcom_smd_set_drvdata(btq->acl_channel, btq);
-	qcom_smd_set_drvdata(btq->cmd_channel, btq);
 
 	hdev = hci_alloc_dev();
 	if (!hdev)
@@ -157,6 +154,9 @@ static int btqcomsmd_remove(struct platform_device *pdev)
 
 	hci_unregister_dev(btq->hdev);
 	hci_free_dev(btq->hdev);
+
+	rpmsg_destroy_ept(btq->cmd_channel);
+	rpmsg_destroy_ept(btq->acl_channel);
 
 	return 0;
 }

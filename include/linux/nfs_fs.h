@@ -76,6 +76,7 @@ struct nfs_open_context {
 #define NFS_CONTEXT_ERROR_WRITE		(0)
 #define NFS_CONTEXT_RESEND_WRITES	(1)
 #define NFS_CONTEXT_BAD			(2)
+#define NFS_CONTEXT_UNLOCK	(3)
 	int error;
 
 	struct list_head list;
@@ -499,23 +500,11 @@ extern int  nfs_updatepage(struct file *, struct page *, unsigned int, unsigned 
  */
 extern int nfs_sync_inode(struct inode *inode);
 extern int nfs_wb_all(struct inode *inode);
-extern int nfs_wb_single_page(struct inode *inode, struct page *page, bool launder);
+extern int nfs_wb_page(struct inode *inode, struct page *page);
 extern int nfs_wb_page_cancel(struct inode *inode, struct page* page);
 extern int  nfs_commit_inode(struct inode *, int);
-extern struct nfs_commit_data *nfs_commitdata_alloc(void);
+extern struct nfs_commit_data *nfs_commitdata_alloc(bool never_fail);
 extern void nfs_commit_free(struct nfs_commit_data *data);
-
-static inline int
-nfs_wb_launder_page(struct inode *inode, struct page *page)
-{
-	return nfs_wb_single_page(inode, page, true);
-}
-
-static inline int
-nfs_wb_page(struct inode *inode, struct page *page)
-{
-	return nfs_wb_single_page(inode, page, false);
-}
 
 static inline int
 nfs_have_writebacks(struct inode *inode)

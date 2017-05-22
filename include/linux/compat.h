@@ -535,11 +535,6 @@ asmlinkage long compat_sys_old_readdir(unsigned int fd,
 asmlinkage long compat_sys_getdents(unsigned int fd,
 				    struct compat_linux_dirent __user *dirent,
 				    unsigned int count);
-#ifdef __ARCH_WANT_COMPAT_SYS_GETDENTS64
-asmlinkage long compat_sys_getdents64(unsigned int fd,
-				      struct linux_dirent64 __user *dirent,
-				      unsigned int count);
-#endif
 asmlinkage long compat_sys_vmsplice(int fd, const struct compat_iovec __user *,
 				    unsigned int nr_segs, unsigned int flags);
 asmlinkage long compat_sys_open(const char __user *filename, int flags,
@@ -729,6 +724,8 @@ asmlinkage long compat_sys_sched_rr_get_interval(compat_pid_t pid,
 
 asmlinkage long compat_sys_fanotify_mark(int, unsigned int, __u32, __u32,
 					    int, const char __user *);
+
+asmlinkage long compat_sys_arch_prctl(int option, unsigned long arg2);
 
 /*
  * For most but not all architectures, "am I in a compat syscall?" and

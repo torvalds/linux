@@ -20,6 +20,7 @@
 #include <linux/namei.h>
 #include <linux/fdtable.h>
 #include <linux/ratelimit.h>
+#include <linux/exportfs.h>
 #include "overlayfs.h"
 #include "ovl_entry.h"
 
@@ -232,6 +233,79 @@ int ovl_set_attr(struct dentry *upperdentry, struct kstat *stat)
 	return err;
 }
 
+static struct ovl_fh *ovl_encode_fh(struct dentry *lower, uuid_be *uuid)
+{
+	struct ovl_fh *fh;
+	int fh_type, fh_len, dwords;
+	void *buf;
+	int buflen = MAX_HANDLE_SZ;
+
+	buf = kmalloc(buflen, GFP_TEMPORARY);
+	if (!buf)
+		return ERR_PTR(-ENOMEM);
+
+	/*
+	 * We encode a non-connectable file handle for non-dir, because we
+	 * only need to find the lower inode number and we don't want to pay
+	 * the price or reconnecting the dentry.
+	 */
+	dwords = buflen >> 2;
+	fh_type = exportfs_encode_fh(lower, buf, &dwords, 0);
+	buflen = (dwords << 2);
+
+	fh = ERR_PTR(-EIO);
+	if (WARN_ON(fh_type < 0) ||
+	    WARN_ON(buflen > MAX_HANDLE_SZ) ||
+	    WARN_ON(fh_type == FILEID_INVALID))
+		goto out;
+
+	BUILD_BUG_ON(MAX_HANDLE_SZ + offsetof(struct ovl_fh, fid) > 255);
+	fh_len = offsetof(struct ovl_fh, fid) + buflen;
+	fh = kmalloc(fh_len, GFP_KERNEL);
+	if (!fh) {
+		fh = ERR_PTR(-ENOMEM);
+		goto out;
+	}
+
+	fh->version = OVL_FH_VERSION;
+	fh->magic = OVL_FH_MAGIC;
+	fh->type = fh_type;
+	fh->flags = OVL_FH_FLAG_CPU_ENDIAN;
+	fh->len = fh_len;
+	fh->uuid = *uuid;
+	memcpy(fh->fid, buf, buflen);
+
+out:
+	kfree(buf);
+	return fh;
+}
+
+static int ovl_set_origin(struct dentry *dentry, struct dentry *lower,
+			  struct dentry *upper)
+{
+	struct super_block *sb = lower->d_sb;
+	uuid_be *uuid = (uuid_be *) &sb->s_uuid;
+	const struct ovl_fh *fh = NULL;
+	int err;
+
+	/*
+	 * When lower layer doesn't support export operations store a 'null' fh,
+	 * so we can use the overlay.origin xattr to distignuish between a copy
+	 * up and a pure upper inode.
+	 */
+	if (sb->s_export_op && sb->s_export_op->fh_to_dentry &&
+	    uuid_be_cmp(*uuid, NULL_UUID_BE)) {
+		fh = ovl_encode_fh(lower, uuid);
+		if (IS_ERR(fh))
+			return PTR_ERR(fh);
+	}
+
+	err = ovl_do_setxattr(upper, OVL_XATTR_ORIGIN, fh, fh ? fh->len : 0, 0);
+	kfree(fh);
+
+	return err;
+}
+
 static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 			      struct dentry *dentry, struct path *lowerpath,
 			      struct kstat *stat, const char *link,
@@ -313,6 +387,14 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 	inode_lock(temp->d_inode);
 	err = ovl_set_attr(temp, stat);
 	inode_unlock(temp->d_inode);
+	if (err)
+		goto out_cleanup;
+
+	/*
+	 * Store identifier of lower inode in upper inode xattr to
+	 * allow lookup of the copy up origin inode.
+	 */
+	err = ovl_set_origin(dentry, lowerpath->dentry, temp);
 	if (err)
 		goto out_cleanup;
 

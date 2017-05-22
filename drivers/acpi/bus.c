@@ -114,6 +114,11 @@ int acpi_bus_get_status(struct acpi_device *device)
 	acpi_status status;
 	unsigned long long sta;
 
+	if (acpi_device_always_present(device)) {
+		acpi_set_device_status(device, ACPI_STA_DEFAULT);
+		return 0;
+	}
+
 	status = acpi_bus_get_status_handle(device->handle, &sta);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;

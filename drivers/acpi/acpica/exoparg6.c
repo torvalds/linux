@@ -124,8 +124,8 @@ acpi_ex_do_match(u32 match_op,
 		 * Change to:     (M == P[i])
 		 */
 		status =
-		    acpi_ex_do_logical_op(AML_LEQUAL_OP, match_obj, package_obj,
-					  &logical_result);
+		    acpi_ex_do_logical_op(AML_LOGICAL_EQUAL_OP, match_obj,
+					  package_obj, &logical_result);
 		if (ACPI_FAILURE(status)) {
 			return (FALSE);
 		}
@@ -137,8 +137,8 @@ acpi_ex_do_match(u32 match_op,
 		 * Change to:                  (M >= P[i]) (M not_less than P[i])
 		 */
 		status =
-		    acpi_ex_do_logical_op(AML_LLESS_OP, match_obj, package_obj,
-					  &logical_result);
+		    acpi_ex_do_logical_op(AML_LOGICAL_LESS_OP, match_obj,
+					  package_obj, &logical_result);
 		if (ACPI_FAILURE(status)) {
 			return (FALSE);
 		}
@@ -151,7 +151,7 @@ acpi_ex_do_match(u32 match_op,
 		 * Change to:         (M > P[i])
 		 */
 		status =
-		    acpi_ex_do_logical_op(AML_LGREATER_OP, match_obj,
+		    acpi_ex_do_logical_op(AML_LOGICAL_GREATER_OP, match_obj,
 					  package_obj, &logical_result);
 		if (ACPI_FAILURE(status)) {
 			return (FALSE);
@@ -164,7 +164,7 @@ acpi_ex_do_match(u32 match_op,
 		 * Change to:                     (M <= P[i]) (M not_greater than P[i])
 		 */
 		status =
-		    acpi_ex_do_logical_op(AML_LGREATER_OP, match_obj,
+		    acpi_ex_do_logical_op(AML_LOGICAL_GREATER_OP, match_obj,
 					  package_obj, &logical_result);
 		if (ACPI_FAILURE(status)) {
 			return (FALSE);
@@ -178,8 +178,8 @@ acpi_ex_do_match(u32 match_op,
 		 * Change to:            (M < P[i])
 		 */
 		status =
-		    acpi_ex_do_logical_op(AML_LLESS_OP, match_obj, package_obj,
-					  &logical_result);
+		    acpi_ex_do_logical_op(AML_LOGICAL_LESS_OP, match_obj,
+					  package_obj, &logical_result);
 		if (ACPI_FAILURE(status)) {
 			return (FALSE);
 		}

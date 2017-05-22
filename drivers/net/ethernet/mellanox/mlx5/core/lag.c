@@ -294,7 +294,7 @@ static int mlx5_handle_changeupper_event(struct mlx5_lag *ldev,
 					 struct netdev_notifier_changeupper_info *info)
 {
 	struct net_device *upper = info->upper_dev, *ndev_tmp;
-	struct netdev_lag_upper_info *lag_upper_info;
+	struct netdev_lag_upper_info *lag_upper_info = NULL;
 	bool is_bonded;
 	int bond_status = 0;
 	int num_slaves = 0;
@@ -303,7 +303,8 @@ static int mlx5_handle_changeupper_event(struct mlx5_lag *ldev,
 	if (!netif_is_lag_master(upper))
 		return 0;
 
-	lag_upper_info = info->upper_info;
+	if (info->linking)
+		lag_upper_info = info->upper_info;
 
 	/* The event may still be of interest if the slave does not belong to
 	 * us, but is enslaved to a master which has one or more of our netdevs

@@ -321,7 +321,6 @@ static inline void usba_cleanup_debugfs(struct usba_udc *udc)
 
 static ushort fifo_mode;
 
-/* "modprobe ... fifo_mode=1" etc */
 module_param(fifo_mode, ushort, 0x0);
 MODULE_PARM_DESC(fifo_mode, "Endpoint configuration mode");
 
@@ -371,7 +370,7 @@ static struct usba_fifo_cfg mode_4_cfg[] = {
 };
 /* Add additional configurations here */
 
-int usba_config_fifo_table(struct usba_udc *udc)
+static int usba_config_fifo_table(struct usba_udc *udc)
 {
 	int n;
 
@@ -1076,11 +1075,9 @@ static int atmel_usba_start(struct usb_gadget *gadget,
 		struct usb_gadget_driver *driver);
 static int atmel_usba_stop(struct usb_gadget *gadget);
 
-static struct usb_ep *atmel_usba_match_ep(
-		struct usb_gadget		*gadget,
-		struct usb_endpoint_descriptor	*desc,
-		struct usb_ss_ep_comp_descriptor *ep_comp
-)
+static struct usb_ep *atmel_usba_match_ep(struct usb_gadget *gadget,
+				struct usb_endpoint_descriptor	*desc,
+				struct usb_ss_ep_comp_descriptor *ep_comp)
 {
 	struct usb_ep	*_ep;
 	struct usba_ep *ep;
@@ -1100,7 +1097,6 @@ found_ep:
 		ep = to_usba_ep(_ep);
 
 		switch (usb_endpoint_type(desc)) {
-
 		case USB_ENDPOINT_XFER_CONTROL:
 			break;
 
@@ -1141,7 +1137,7 @@ found_ep:
 		ep->udc->configured_ep++;
 	}
 
-return _ep;
+	return _ep;
 }
 
 static const struct usb_gadget_ops usba_udc_ops = {
@@ -1855,8 +1851,8 @@ static irqreturn_t usba_udc_irq(int irq, void *devid)
 		 * but it's clearly harmless...
 		 */
 		if (!(usba_ep_readl(ep0, CFG) & USBA_EPT_MAPPED))
-			dev_dbg(&udc->pdev->dev,
-				 "ODD: EP0 configuration is invalid!\n");
+			dev_err(&udc->pdev->dev,
+				"ODD: EP0 configuration is invalid!\n");
 
 		/* Preallocate other endpoints */
 		n = fifo_mode ? udc->num_ep : udc->configured_ep;
@@ -1864,8 +1860,8 @@ static irqreturn_t usba_udc_irq(int irq, void *devid)
 			ep = &udc->usba_ep[i];
 			usba_ep_writel(ep, CFG, ep->ept_cfg);
 			if (!(usba_ep_readl(ep, CFG) & USBA_EPT_MAPPED))
-				dev_dbg(&udc->pdev->dev,
-				 "ODD: EP%d configuration is invalid!\n", i);
+				dev_err(&udc->pdev->dev,
+					"ODD: EP%d configuration is invalid!\n", i);
 		}
 	}
 
@@ -2089,8 +2085,9 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 		while ((pp = of_get_next_child(np, pp)))
 			udc->num_ep++;
 		udc->configured_ep = 1;
-	} else
+	} else {
 		udc->num_ep = usba_config_fifo_table(udc);
+	}
 
 	eps = devm_kzalloc(&pdev->dev, sizeof(struct usba_ep) * udc->num_ep,
 			   GFP_KERNEL);
@@ -2118,14 +2115,34 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 			dev_err(&pdev->dev, "of_probe: fifo-size error(%d)\n", ret);
 			goto err;
 		}
-		ep->fifo_size = fifo_mode ? udc->fifo_cfg[i].fifo_size : val;
+		if (fifo_mode) {
+			if (val < udc->fifo_cfg[i].fifo_size) {
+				dev_warn(&pdev->dev,
+					 "Using max fifo-size value from DT\n");
+				ep->fifo_size = val;
+			} else {
+				ep->fifo_size = udc->fifo_cfg[i].fifo_size;
+			}
+		} else {
+			ep->fifo_size = val;
+		}
 
 		ret = of_property_read_u32(pp, "atmel,nb-banks", &val);
 		if (ret) {
 			dev_err(&pdev->dev, "of_probe: nb-banks error(%d)\n", ret);
 			goto err;
 		}
-		ep->nr_banks = fifo_mode ? udc->fifo_cfg[i].nr_banks : val;
+		if (fifo_mode) {
+			if (val < udc->fifo_cfg[i].nr_banks) {
+				dev_warn(&pdev->dev,
+					 "Using max nb-banks value from DT\n");
+				ep->nr_banks = val;
+			} else {
+				ep->nr_banks = udc->fifo_cfg[i].nr_banks;
+			}
+		} else {
+			ep->nr_banks = val;
+		}
 
 		ep->can_dma = of_property_read_bool(pp, "atmel,can-dma");
 		ep->can_isoc = of_property_read_bool(pp, "atmel,can-isoc");

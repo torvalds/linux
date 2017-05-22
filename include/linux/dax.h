@@ -7,6 +7,74 @@
 #include <asm/pgtable.h>
 
 struct iomap_ops;
+struct dax_device;
+struct dax_operations {
+	/*
+	 * direct_access: translate a device-relative
+	 * logical-page-offset into an absolute physical pfn. Return the
+	 * number of pages available for DAX at that pfn.
+	 */
+	long (*direct_access)(struct dax_device *, pgoff_t, long,
+			void **, pfn_t *);
+};
+
+#if IS_ENABLED(CONFIG_DAX)
+struct dax_device *dax_get_by_host(const char *host);
+void put_dax(struct dax_device *dax_dev);
+#else
+static inline struct dax_device *dax_get_by_host(const char *host)
+{
+	return NULL;
+}
+
+static inline void put_dax(struct dax_device *dax_dev)
+{
+}
+#endif
+
+int bdev_dax_pgoff(struct block_device *, sector_t, size_t, pgoff_t *pgoff);
+#if IS_ENABLED(CONFIG_FS_DAX)
+int __bdev_dax_supported(struct super_block *sb, int blocksize);
+static inline int bdev_dax_supported(struct super_block *sb, int blocksize)
+{
+	return __bdev_dax_supported(sb, blocksize);
+}
+
+static inline struct dax_device *fs_dax_get_by_host(const char *host)
+{
+	return dax_get_by_host(host);
+}
+
+static inline void fs_put_dax(struct dax_device *dax_dev)
+{
+	put_dax(dax_dev);
+}
+
+#else
+static inline int bdev_dax_supported(struct super_block *sb, int blocksize)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline struct dax_device *fs_dax_get_by_host(const char *host)
+{
+	return NULL;
+}
+
+static inline void fs_put_dax(struct dax_device *dax_dev)
+{
+}
+#endif
+
+int dax_read_lock(void);
+void dax_read_unlock(int id);
+struct dax_device *alloc_dax(void *private, const char *host,
+		const struct dax_operations *ops);
+bool dax_alive(struct dax_device *dax_dev);
+void kill_dax(struct dax_device *dax_dev);
+void *dax_get_private(struct dax_device *dax_dev);
+long dax_direct_access(struct dax_device *dax_dev, pgoff_t pgoff, long nr_pages,
+		void **kaddr, pfn_t *pfn);
 
 /*
  * We use lowest available bit in exceptional entry for locking, one bit for
@@ -41,24 +109,19 @@ ssize_t dax_iomap_rw(struct kiocb *iocb, struct iov_iter *iter,
 int dax_iomap_fault(struct vm_fault *vmf, enum page_entry_size pe_size,
 		    const struct iomap_ops *ops);
 int dax_delete_mapping_entry(struct address_space *mapping, pgoff_t index);
-int dax_invalidate_mapping_entry(struct address_space *mapping, pgoff_t index);
 int dax_invalidate_mapping_entry_sync(struct address_space *mapping,
 				      pgoff_t index);
 void dax_wake_mapping_entry_waiter(struct address_space *mapping,
 		pgoff_t index, void *entry, bool wake_all);
 
 #ifdef CONFIG_FS_DAX
-struct page *read_dax_sector(struct block_device *bdev, sector_t n);
-int __dax_zero_page_range(struct block_device *bdev, sector_t sector,
+int __dax_zero_page_range(struct block_device *bdev,
+		struct dax_device *dax_dev, sector_t sector,
 		unsigned int offset, unsigned int length);
 #else
-static inline struct page *read_dax_sector(struct block_device *bdev,
-		sector_t n)
-{
-	return ERR_PTR(-ENXIO);
-}
 static inline int __dax_zero_page_range(struct block_device *bdev,
-		sector_t sector, unsigned int offset, unsigned int length)
+		struct dax_device *dax_dev, sector_t sector,
+		unsigned int offset, unsigned int length)
 {
 	return -ENXIO;
 }

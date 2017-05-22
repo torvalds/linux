@@ -252,12 +252,6 @@ static inline int x2apic_enabled(void) { return 0; }
 #define	x2apic_supported()	(0)
 #endif /* !CONFIG_X86_X2APIC */
 
-#ifdef CONFIG_X86_64
-#define	SET_APIC_ID(x)		(apic->set_apic_id(x))
-#else
-
-#endif
-
 /*
  * Copyright 2004 James Cleverdon, IBM.
  * Subject to the GNU Public License, v.2
@@ -299,6 +293,7 @@ struct apic {
 	int (*phys_pkg_id)(int cpuid_apic, int index_msb);
 
 	unsigned int (*get_apic_id)(unsigned long x);
+	/* Can't be NULL on 64-bit */
 	unsigned long (*set_apic_id)(unsigned int id);
 
 	int (*cpu_mask_to_apicid_and)(const struct cpumask *cpumask,

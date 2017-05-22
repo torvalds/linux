@@ -317,8 +317,15 @@ static int tower_open (struct inode *inode, struct file *file)
 	int subminor;
 	int retval = 0;
 	struct usb_interface *interface;
-	struct tower_reset_reply reset_reply;
+	struct tower_reset_reply *reset_reply;
 	int result;
+
+	reset_reply = kmalloc(sizeof(*reset_reply), GFP_KERNEL);
+
+	if (!reset_reply) {
+		retval = -ENOMEM;
+		goto exit;
+	}
 
 	nonseekable_open(inode, file);
 	subminor = iminor(inode);
@@ -364,8 +371,8 @@ static int tower_open (struct inode *inode, struct file *file)
 				  USB_TYPE_VENDOR | USB_DIR_IN | USB_RECIP_DEVICE,
 				  0,
 				  0,
-				  &reset_reply,
-				  sizeof(reset_reply),
+				  reset_reply,
+				  sizeof(*reset_reply),
 				  1000);
 	if (result < 0) {
 		dev_err(&dev->udev->dev,
@@ -406,6 +413,7 @@ unlock_exit:
 	mutex_unlock(&dev->lock);
 
 exit:
+	kfree(reset_reply);
 	return retval;
 }
 
@@ -806,10 +814,7 @@ static int tower_probe (struct usb_interface *interface, const struct usb_device
 	struct device *idev = &interface->dev;
 	struct usb_device *udev = interface_to_usbdev(interface);
 	struct lego_usb_tower *dev = NULL;
-	struct usb_host_interface *iface_desc;
-	struct usb_endpoint_descriptor* endpoint;
-	struct tower_get_version_reply get_version_reply;
-	int i;
+	struct tower_get_version_reply *get_version_reply = NULL;
 	int retval = -ENOMEM;
 	int result;
 
@@ -846,25 +851,13 @@ static int tower_probe (struct usb_interface *interface, const struct usb_device
 	dev->interrupt_out_urb = NULL;
 	dev->interrupt_out_busy = 0;
 
-	iface_desc = interface->cur_altsetting;
-
-	/* set up the endpoint information */
-	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
-		endpoint = &iface_desc->endpoint[i].desc;
-
-		if (usb_endpoint_xfer_int(endpoint)) {
-			if (usb_endpoint_dir_in(endpoint))
-				dev->interrupt_in_endpoint = endpoint;
-			else
-				dev->interrupt_out_endpoint = endpoint;
-		}
-	}
-	if(dev->interrupt_in_endpoint == NULL) {
-		dev_err(idev, "interrupt in endpoint not found\n");
-		goto error;
-	}
-	if (dev->interrupt_out_endpoint == NULL) {
-		dev_err(idev, "interrupt out endpoint not found\n");
+	result = usb_find_common_endpoints_reverse(interface->cur_altsetting,
+			NULL, NULL,
+			&dev->interrupt_in_endpoint,
+			&dev->interrupt_out_endpoint);
+	if (result) {
+		dev_err(idev, "interrupt endpoints not found\n");
+		retval = result;
 		goto error;
 	}
 
@@ -886,6 +879,13 @@ static int tower_probe (struct usb_interface *interface, const struct usb_device
 	dev->interrupt_in_interval = interrupt_in_interval ? interrupt_in_interval : dev->interrupt_in_endpoint->bInterval;
 	dev->interrupt_out_interval = interrupt_out_interval ? interrupt_out_interval : dev->interrupt_out_endpoint->bInterval;
 
+	get_version_reply = kmalloc(sizeof(*get_version_reply), GFP_KERNEL);
+
+	if (!get_version_reply) {
+		retval = -ENOMEM;
+		goto error;
+	}
+
 	/* get the firmware version and log it */
 	result = usb_control_msg (udev,
 				  usb_rcvctrlpipe(udev, 0),
@@ -893,18 +893,19 @@ static int tower_probe (struct usb_interface *interface, const struct usb_device
 				  USB_TYPE_VENDOR | USB_DIR_IN | USB_RECIP_DEVICE,
 				  0,
 				  0,
-				  &get_version_reply,
-				  sizeof(get_version_reply),
+				  get_version_reply,
+				  sizeof(*get_version_reply),
 				  1000);
 	if (result < 0) {
 		dev_err(idev, "LEGO USB Tower get version control request failed\n");
 		retval = result;
 		goto error;
 	}
-	dev_info(&interface->dev, "LEGO USB Tower firmware version is %d.%d "
-		 "build %d\n", get_version_reply.major,
-		 get_version_reply.minor,
-		 le16_to_cpu(get_version_reply.build_no));
+	dev_info(&interface->dev,
+		 "LEGO USB Tower firmware version is %d.%d build %d\n",
+		 get_version_reply->major,
+		 get_version_reply->minor,
+		 le16_to_cpu(get_version_reply->build_no));
 
 	/* we can register the device now, as it is ready */
 	usb_set_intfdata (interface, dev);
@@ -925,9 +926,11 @@ static int tower_probe (struct usb_interface *interface, const struct usb_device
 		 USB_MAJOR, dev->minor);
 
 exit:
+	kfree(get_version_reply);
 	return retval;
 
 error:
+	kfree(get_version_reply);
 	tower_delete(dev);
 	return retval;
 }

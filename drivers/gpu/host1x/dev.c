@@ -16,23 +16,25 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/module.h>
-#include <linux/list.h>
-#include <linux/slab.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/clk.h>
-#include <linux/io.h>
 #include <linux/dma-mapping.h>
+#include <linux/io.h>
+#include <linux/list.h>
+#include <linux/module.h>
+#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/slab.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/host1x.h>
+#undef CREATE_TRACE_POINTS
 
 #include "bus.h"
-#include "dev.h"
-#include "intr.h"
 #include "channel.h"
 #include "debug.h"
+#include "dev.h"
+#include "intr.h"
+
 #include "hw/host1x01.h"
 #include "hw/host1x02.h"
 #include "hw/host1x04.h"
@@ -168,22 +170,56 @@ static int host1x_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	host->rst = devm_reset_control_get(&pdev->dev, "host1x");
+	if (IS_ERR(host->rst)) {
+		err = PTR_ERR(host->clk);
+		dev_err(&pdev->dev, "failed to get reset: %d\n", err);
+		return err;
+	}
+
+	if (iommu_present(&platform_bus_type)) {
+		struct iommu_domain_geometry *geometry;
+		unsigned long order;
+
+		host->domain = iommu_domain_alloc(&platform_bus_type);
+		if (!host->domain)
+			return -ENOMEM;
+
+		err = iommu_attach_device(host->domain, &pdev->dev);
+		if (err)
+			goto fail_free_domain;
+
+		geometry = &host->domain->geometry;
+
+		order = __ffs(host->domain->pgsize_bitmap);
+		init_iova_domain(&host->iova, 1UL << order,
+				 geometry->aperture_start >> order,
+				 geometry->aperture_end >> order);
+		host->iova_end = geometry->aperture_end;
+	}
+
 	err = host1x_channel_list_init(host);
 	if (err) {
 		dev_err(&pdev->dev, "failed to initialize channel list\n");
-		return err;
+		goto fail_detach_device;
 	}
 
 	err = clk_prepare_enable(host->clk);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to enable clock\n");
-		return err;
+		goto fail_detach_device;
+	}
+
+	err = reset_control_deassert(host->rst);
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to deassert reset: %d\n", err);
+		goto fail_unprepare_disable;
 	}
 
 	err = host1x_syncpt_init(host);
 	if (err) {
 		dev_err(&pdev->dev, "failed to initialize syncpts\n");
-		goto fail_unprepare_disable;
+		goto fail_reset_assert;
 	}
 
 	err = host1x_intr_init(host, syncpt_irq);
@@ -204,8 +240,19 @@ fail_deinit_intr:
 	host1x_intr_deinit(host);
 fail_deinit_syncpt:
 	host1x_syncpt_deinit(host);
+fail_reset_assert:
+	reset_control_assert(host->rst);
 fail_unprepare_disable:
 	clk_disable_unprepare(host->clk);
+fail_detach_device:
+	if (host->domain) {
+		put_iova_domain(&host->iova);
+		iommu_detach_device(host->domain, &pdev->dev);
+	}
+fail_free_domain:
+	if (host->domain)
+		iommu_domain_free(host->domain);
+
 	return err;
 }
 
@@ -216,7 +263,14 @@ static int host1x_remove(struct platform_device *pdev)
 	host1x_unregister(host);
 	host1x_intr_deinit(host);
 	host1x_syncpt_deinit(host);
+	reset_control_assert(host->rst);
 	clk_disable_unprepare(host->clk);
+
+	if (host->domain) {
+		put_iova_domain(&host->iova);
+		iommu_detach_device(host->domain, &pdev->dev);
+		iommu_domain_free(host->domain);
+	}
 
 	return 0;
 }

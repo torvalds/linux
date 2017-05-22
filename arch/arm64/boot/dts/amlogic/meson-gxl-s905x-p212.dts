@@ -43,23 +43,26 @@
 
 /dts-v1/;
 
-#include "meson-gxl-s905x.dtsi"
+#include "meson-gxl-s905x-p212.dtsi"
 
 / {
 	compatible = "amlogic,p212", "amlogic,s905x", "amlogic,meson-gxl";
 	model = "Amlogic Meson GXL (S905X) P212 Development Board";
 
-	aliases {
-		serial0 = &uart_AO;
-	};
+	cvbs-connector {
+		compatible = "composite-video-connector";
 
-	chosen {
-		stdout-path = "serial0:115200n8";
+		port {
+			cvbs_connector_in: endpoint {
+				remote-endpoint = <&cvbs_vdac_out>;
+			};
+		};
 	};
+};
 
-	memory@0 {
-		device_type = "memory";
-		reg = <0x0 0x0 0x0 0x80000000>;
+&cvbs_vdac_port {
+	cvbs_vdac_out: endpoint {
+		remote-endpoint = <&cvbs_connector_in>;
 	};
 };
 

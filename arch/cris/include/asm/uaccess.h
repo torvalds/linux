@@ -15,14 +15,8 @@
 #ifndef _CRIS_UACCESS_H
 #define _CRIS_UACCESS_H
 
-#ifndef __ASSEMBLY__
-#include <linux/sched.h>
-#include <linux/errno.h>
 #include <asm/processor.h>
 #include <asm/page.h>
-
-#define VERIFY_READ	0
-#define VERIFY_WRITE	1
 
 /*
  * The fs value determines whether argument validity checking should be
@@ -49,30 +43,14 @@
 
 #define segment_eq(a, b)	((a).seg == (b).seg)
 
-#define __kernel_ok (segment_eq(get_fs(), KERNEL_DS))
+#define __kernel_ok (uaccess_kernel())
 #define __user_ok(addr, size) \
 	(((size) <= TASK_SIZE) && ((addr) <= TASK_SIZE-(size)))
 #define __access_ok(addr, size) (__kernel_ok || __user_ok((addr), (size)))
 #define access_ok(type, addr, size) __access_ok((unsigned long)(addr), (size))
 
 #include <arch/uaccess.h>
-
-/*
- * The exception table consists of pairs of addresses: the first is the
- * address of an instruction that is allowed to fault, and the second is
- * the address at which the program should continue.  No registers are
- * modified, so it is entirely up to the continuation code to figure out
- * what to do.
- *
- * All the routines below use bits of fixup code that are out of line
- * with the main instruction path.  This means when everything is well,
- * we don't even have to jump over them.  Further, they do not intrude
- * on our cache or tlb entries.
- */
-
-struct exception_table_entry {
-	unsigned long insn, fixup;
-};
+#include <asm/extable.h>
 
 /*
  * These are the main single-value transfer routines.  They automatically
@@ -191,7 +169,7 @@ extern long __get_user_bad(void);
    live in lib/usercopy.c  */
 
 extern unsigned long __copy_user(void __user *to, const void *from, unsigned long n);
-extern unsigned long __copy_user_zeroing(void *to, const void __user *from, unsigned long n);
+extern unsigned long __copy_user_in(void *to, const void __user *from, unsigned long n);
 extern unsigned long __do_clear_user(void __user *to, unsigned long n);
 
 static inline long
@@ -258,7 +236,7 @@ __constant_copy_from_user(void *to, const void __user *from, unsigned long n)
 	else if (n == 24)
 		__asm_copy_from_user_24(to, from, ret);
 	else
-		ret = __copy_user_zeroing(to, from, n);
+		ret = __copy_user_in(to, from, n);
 
 	return ret;
 }
@@ -358,64 +336,33 @@ static inline size_t clear_user(void __user *to, size_t n)
 		return __do_clear_user(to, n);
 }
 
-static inline size_t copy_from_user(void *to, const void __user *from, size_t n)
+static inline unsigned long
+raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 {
-	if (unlikely(!access_ok(VERIFY_READ, from, n))) {
-		memset(to, 0, n);
-		return n;
-	}
 	if (__builtin_constant_p(n))
 		return __constant_copy_from_user(to, from, n);
 	else
-		return __copy_user_zeroing(to, from, n);
+		return __copy_user_in(to, from, n);
 }
 
-static inline size_t copy_to_user(void __user *to, const void *from, size_t n)
+static inline unsigned long
+raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 {
-	if (unlikely(!access_ok(VERIFY_WRITE, to, n)))
-		return n;
 	if (__builtin_constant_p(n))
 		return __constant_copy_to_user(to, from, n);
 	else
 		return __copy_user(to, from, n);
 }
 
-/* We let the __ versions of copy_from/to_user inline, because they're often
- * used in fast paths and have only a small space overhead.
- */
+#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_TO_USER
 
 static inline unsigned long
-__generic_copy_from_user_nocheck(void *to, const void __user *from,
-				 unsigned long n)
-{
-	return __copy_user_zeroing(to, from, n);
-}
-
-static inline unsigned long
-__generic_copy_to_user_nocheck(void __user *to, const void *from,
-			       unsigned long n)
-{
-	return __copy_user(to, from, n);
-}
-
-static inline unsigned long
-__generic_clear_user_nocheck(void __user *to, unsigned long n)
+__clear_user(void __user *to, unsigned long n)
 {
 	return __do_clear_user(to, n);
 }
 
-/* without checking */
-
-#define __copy_to_user(to, from, n) \
-	__generic_copy_to_user_nocheck((to), (from), (n))
-#define __copy_from_user(to, from, n) \
-	__generic_copy_from_user_nocheck((to), (from), (n))
-#define __copy_to_user_inatomic __copy_to_user
-#define __copy_from_user_inatomic __copy_from_user
-#define __clear_user(to, n) __generic_clear_user_nocheck((to), (n))
-
 #define strlen_user(str)	strnlen_user((str), 0x7ffffffe)
-
-#endif  /* __ASSEMBLY__ */
 
 #endif	/* _CRIS_UACCESS_H */

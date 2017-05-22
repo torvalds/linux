@@ -12,6 +12,7 @@
 #include "llvm-utils.h"
 #include "config.h"
 #include "util.h"
+#include <sys/wait.h>
 
 #define CLANG_BPF_CMD_DEFAULT_TEMPLATE				\
 		"$CLANG_EXEC -D__KERNEL__ -D__NR_CPUS__=$NR_CPUS "\

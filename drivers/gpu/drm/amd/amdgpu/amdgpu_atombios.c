@@ -754,6 +754,35 @@ union igp_info {
 	struct _ATOM_INTEGRATED_SYSTEM_INFO_V1_9 info_9;
 };
 
+/*
+ * Return vram width from integrated system info table, if available,
+ * or 0 if not.
+ */
+int amdgpu_atombios_get_vram_width(struct amdgpu_device *adev)
+{
+	struct amdgpu_mode_info *mode_info = &adev->mode_info;
+	int index = GetIndexIntoMasterTable(DATA, IntegratedSystemInfo);
+	u16 data_offset, size;
+	union igp_info *igp_info;
+	u8 frev, crev;
+
+	/* get any igp specific overrides */
+	if (amdgpu_atom_parse_data_header(mode_info->atom_context, index, &size,
+				   &frev, &crev, &data_offset)) {
+		igp_info = (union igp_info *)
+			(mode_info->atom_context->bios + data_offset);
+		switch (crev) {
+		case 8:
+		case 9:
+			return igp_info->info_8.ucUMAChannelNumber * 64;
+		default:
+			return 0;
+		}
+	}
+
+	return 0;
+}
+
 static void amdgpu_atombios_get_igp_ss_overrides(struct amdgpu_device *adev,
 						 struct amdgpu_atom_ss *ss,
 						 int id)
@@ -1698,6 +1727,12 @@ void amdgpu_atombios_scratch_regs_restore(struct amdgpu_device *adev)
 {
 	int i;
 
+	/*
+	 * VBIOS will check ASIC_INIT_COMPLETE bit to decide if
+	 * execute ASIC_Init posting via driver
+	 */
+	adev->bios_scratch[7] &= ~ATOM_S7_ASIC_INIT_COMPLETE_MASK;
+
 	for (i = 0; i < AMDGPU_BIOS_NUM_SCRATCH; i++)
 		WREG32(mmBIOS_SCRATCH_0 + i, adev->bios_scratch[i]);
 }
@@ -1747,4 +1782,32 @@ void amdgpu_atombios_copy_swap(u8 *dst, u8 *src, u8 num_bytes, bool to_le)
 #else
 	memcpy(dst, src, num_bytes);
 #endif
+}
+
+int amdgpu_atombios_allocate_fb_scratch(struct amdgpu_device *adev)
+{
+	struct atom_context *ctx = adev->mode_info.atom_context;
+	int index = GetIndexIntoMasterTable(DATA, VRAM_UsageByFirmware);
+	uint16_t data_offset;
+	int usage_bytes = 0;
+	struct _ATOM_VRAM_USAGE_BY_FIRMWARE *firmware_usage;
+
+	if (amdgpu_atom_parse_data_header(ctx, index, NULL, NULL, NULL, &data_offset)) {
+		firmware_usage = (struct _ATOM_VRAM_USAGE_BY_FIRMWARE *)(ctx->bios + data_offset);
+
+		DRM_DEBUG("atom firmware requested %08x %dkb\n",
+			  le32_to_cpu(firmware_usage->asFirmwareVramReserveInfo[0].ulStartAddrUsedByFirmware),
+			  le16_to_cpu(firmware_usage->asFirmwareVramReserveInfo[0].usFirmwareUseInKb));
+
+		usage_bytes = le16_to_cpu(firmware_usage->asFirmwareVramReserveInfo[0].usFirmwareUseInKb) * 1024;
+	}
+	ctx->scratch_size_bytes = 0;
+	if (usage_bytes == 0)
+		usage_bytes = 20 * 1024;
+	/* allocate some scratch memory */
+	ctx->scratch = kzalloc(usage_bytes, GFP_KERNEL);
+	if (!ctx->scratch)
+		return -ENOMEM;
+	ctx->scratch_size_bytes = usage_bytes;
+	return 0;
 }

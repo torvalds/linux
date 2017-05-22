@@ -653,6 +653,7 @@ static int arp_process(struct net *net, struct sock *sk, struct sk_buff *skb)
 	unsigned char *arp_ptr;
 	struct rtable *rt;
 	unsigned char *sha;
+	unsigned char *tha = NULL;
 	__be32 sip, tip;
 	u16 dev_type = dev->type;
 	int addr_type;
@@ -724,6 +725,7 @@ static int arp_process(struct net *net, struct sock *sk, struct sk_buff *skb)
 		break;
 #endif
 	default:
+		tha = arp_ptr;
 		arp_ptr += dev->addr_len;
 	}
 	memcpy(&tip, arp_ptr, 4);
@@ -842,8 +844,18 @@ static int arp_process(struct net *net, struct sock *sk, struct sk_buff *skb)
 		   It is possible, that this option should be enabled for some
 		   devices (strip is candidate)
 		 */
-		is_garp = arp->ar_op == htons(ARPOP_REQUEST) && tip == sip &&
-			  addr_type == RTN_UNICAST;
+		is_garp = tip == sip && addr_type == RTN_UNICAST;
+
+		/* Unsolicited ARP _replies_ also require target hwaddr to be
+		 * the same as source.
+		 */
+		if (is_garp && arp->ar_op == htons(ARPOP_REPLY))
+			is_garp =
+				/* IPv4 over IEEE 1394 doesn't provide target
+				 * hardware address field in its ARP payload.
+				 */
+				tha &&
+				!memcmp(tha, sha, dev->addr_len);
 
 		if (!n &&
 		    ((arp->ar_op == htons(ARPOP_REPLY)  &&
@@ -872,7 +884,7 @@ static int arp_process(struct net *net, struct sock *sk, struct sk_buff *skb)
 		    skb->pkt_type != PACKET_HOST)
 			state = NUD_STALE;
 		neigh_update(n, sha, state,
-			     override ? NEIGH_UPDATE_F_OVERRIDE : 0);
+			     override ? NEIGH_UPDATE_F_OVERRIDE : 0, 0);
 		neigh_release(n);
 	}
 
@@ -1033,7 +1045,7 @@ static int arp_req_set(struct net *net, struct arpreq *r,
 		err = neigh_update(neigh, (r->arp_flags & ATF_COM) ?
 				   r->arp_ha.sa_data : NULL, state,
 				   NEIGH_UPDATE_F_OVERRIDE |
-				   NEIGH_UPDATE_F_ADMIN);
+				   NEIGH_UPDATE_F_ADMIN, 0);
 		neigh_release(neigh);
 	}
 	return err;
@@ -1084,7 +1096,7 @@ static int arp_invalidate(struct net_device *dev, __be32 ip)
 		if (neigh->nud_state & ~NUD_NOARP)
 			err = neigh_update(neigh, NULL, NUD_FAILED,
 					   NEIGH_UPDATE_F_OVERRIDE|
-					   NEIGH_UPDATE_F_ADMIN);
+					   NEIGH_UPDATE_F_ADMIN, 0);
 		neigh_release(neigh);
 	}
 

@@ -35,9 +35,10 @@
 
 #include "ipoib.h"
 
-int ipoib_mcast_attach(struct net_device *dev, u16 mlid, union ib_gid *mgid, int set_qkey)
+int ipoib_mcast_attach(struct net_device *dev, struct ib_device *hca,
+		       union ib_gid *mgid, u16 mlid, int set_qkey, u32 qkey)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	struct ib_qp_attr *qp_attr = NULL;
 	int ret;
 	u16 pkey_index;
@@ -56,7 +57,7 @@ int ipoib_mcast_attach(struct net_device *dev, u16 mlid, union ib_gid *mgid, int
 			goto out;
 
 		/* set correct QKey for QP */
-		qp_attr->qkey = priv->qkey;
+		qp_attr->qkey = qkey;
 		ret = ib_modify_qp(priv->qp, qp_attr, IB_QP_QKEY);
 		if (ret) {
 			ipoib_warn(priv, "failed to modify QP, ret = %d\n", ret);
@@ -74,9 +75,20 @@ out:
 	return ret;
 }
 
+int ipoib_mcast_detach(struct net_device *dev, struct ib_device *hca,
+		       union ib_gid *mgid, u16 mlid)
+{
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
+	int ret;
+
+	ret = ib_detach_mcast(priv->qp, mgid, mlid);
+
+	return ret;
+}
+
 int ipoib_init_qp(struct net_device *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	int ret;
 	struct ib_qp_attr qp_attr;
 	int attr_mask;
@@ -130,7 +142,7 @@ out_fail:
 
 int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	struct ib_qp_init_attr init_attr = {
 		.cap = {
 			.max_send_wr  = ipoib_sendq_size,
@@ -147,22 +159,6 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 	int ret, size;
 	int i;
 
-	priv->pd = ib_alloc_pd(priv->ca, 0);
-	if (IS_ERR(priv->pd)) {
-		printk(KERN_WARNING "%s: failed to allocate PD\n", ca->name);
-		return -ENODEV;
-	}
-
-	/*
-	 * the various IPoIB tasks assume they will never race against
-	 * themselves, so always use a single thread workqueue
-	 */
-	priv->wq = alloc_ordered_workqueue("ipoib_wq", WQ_MEM_RECLAIM);
-	if (!priv->wq) {
-		printk(KERN_WARNING "ipoib: failed to allocate device WQ\n");
-		goto out_free_pd;
-	}
-
 	size = ipoib_recvq_size + 1;
 	ret = ipoib_cm_dev_init(dev);
 	if (!ret) {
@@ -173,7 +169,7 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 			size += ipoib_recvq_size * ipoib_max_conn_qp;
 	} else
 		if (ret != -ENOSYS)
-			goto out_free_wq;
+			return -ENODEV;
 
 	cq_attr.cqe = size;
 	priv->recv_cq = ib_create_cq(priv->ca, ipoib_ib_completion, NULL,
@@ -212,10 +208,6 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 		goto out_free_send_cq;
 	}
 
-	priv->dev->dev_addr[1] = (priv->qp->qp_num >> 16) & 0xff;
-	priv->dev->dev_addr[2] = (priv->qp->qp_num >>  8) & 0xff;
-	priv->dev->dev_addr[3] = (priv->qp->qp_num      ) & 0xff;
-
 	for (i = 0; i < MAX_SKB_FRAGS + 1; ++i)
 		priv->tx_sge[i].lkey = priv->pd->local_dma_lkey;
 
@@ -247,26 +239,18 @@ out_free_recv_cq:
 out_cm_dev_cleanup:
 	ipoib_cm_dev_cleanup(dev);
 
-out_free_wq:
-	destroy_workqueue(priv->wq);
-	priv->wq = NULL;
-
-out_free_pd:
-	ib_dealloc_pd(priv->pd);
-
 	return -ENODEV;
 }
 
 void ipoib_transport_dev_cleanup(struct net_device *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
 	if (priv->qp) {
 		if (ib_destroy_qp(priv->qp))
 			ipoib_warn(priv, "ib_qp_destroy failed\n");
 
 		priv->qp = NULL;
-		clear_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
 	}
 
 	if (ib_destroy_cq(priv->send_cq))
@@ -274,16 +258,6 @@ void ipoib_transport_dev_cleanup(struct net_device *dev)
 
 	if (ib_destroy_cq(priv->recv_cq))
 		ipoib_warn(priv, "ib_cq_destroy (recv) failed\n");
-
-	ipoib_cm_dev_cleanup(dev);
-
-	if (priv->wq) {
-		flush_workqueue(priv->wq);
-		destroy_workqueue(priv->wq);
-		priv->wq = NULL;
-	}
-
-	ib_dealloc_pd(priv->pd);
 }
 
 void ipoib_event(struct ib_event_handler *handler,

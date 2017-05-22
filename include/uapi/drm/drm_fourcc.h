@@ -114,6 +114,20 @@ extern "C" {
 #define DRM_FORMAT_AYUV		fourcc_code('A', 'Y', 'U', 'V') /* [31:0] A:Y:Cb:Cr 8:8:8:8 little endian */
 
 /*
+ * 2 plane RGB + A
+ * index 0 = RGB plane, same format as the corresponding non _A8 format has
+ * index 1 = A plane, [7:0] A
+ */
+#define DRM_FORMAT_XRGB8888_A8	fourcc_code('X', 'R', 'A', '8')
+#define DRM_FORMAT_XBGR8888_A8	fourcc_code('X', 'B', 'A', '8')
+#define DRM_FORMAT_RGBX8888_A8	fourcc_code('R', 'X', 'A', '8')
+#define DRM_FORMAT_BGRX8888_A8	fourcc_code('B', 'X', 'A', '8')
+#define DRM_FORMAT_RGB888_A8	fourcc_code('R', '8', 'A', '8')
+#define DRM_FORMAT_BGR888_A8	fourcc_code('B', '8', 'A', '8')
+#define DRM_FORMAT_RGB565_A8	fourcc_code('R', '5', 'A', '8')
+#define DRM_FORMAT_BGR565_A8	fourcc_code('B', '5', 'A', '8')
+
+/*
  * 2 plane YCbCr
  * index 0 = Y plane, [7:0] Y
  * index 1 = Cr:Cb plane, [15:0] Cr:Cb little endian
@@ -291,6 +305,51 @@ extern "C" {
  * therefore halved compared to the non-split super-tiled layout.
  */
 #define DRM_FORMAT_MOD_VIVANTE_SPLIT_SUPER_TILED fourcc_mod_code(VIVANTE, 4)
+
+
+/* NVIDIA Tegra frame buffer modifiers */
+
+/*
+ * Some modifiers take parameters, for example the number of vertical GOBs in
+ * a block. Reserve the lower 32 bits for parameters
+ */
+#define __fourcc_mod_tegra_mode_shift 32
+#define fourcc_mod_tegra_code(val, params) \
+	fourcc_mod_code(NV, ((((__u64)val) << __fourcc_mod_tegra_mode_shift) | params))
+#define fourcc_mod_tegra_mod(m) \
+	(m & ~((1ULL << __fourcc_mod_tegra_mode_shift) - 1))
+#define fourcc_mod_tegra_param(m) \
+	(m & ((1ULL << __fourcc_mod_tegra_mode_shift) - 1))
+
+/*
+ * Tegra Tiled Layout, used by Tegra 2, 3 and 4.
+ *
+ * Pixels are arranged in simple tiles of 16 x 16 bytes.
+ */
+#define NV_FORMAT_MOD_TEGRA_TILED fourcc_mod_tegra_code(1, 0)
+
+/*
+ * Tegra 16Bx2 Block Linear layout, used by TK1/TX1
+ *
+ * Pixels are arranged in 64x8 Groups Of Bytes (GOBs). GOBs are then stacked
+ * vertically by a power of 2 (1 to 32 GOBs) to form a block.
+ *
+ * Within a GOB, data is ordered as 16B x 2 lines sectors laid in Z-shape.
+ *
+ * Parameter 'v' is the log2 encoding of the number of GOBs stacked vertically.
+ * Valid values are:
+ *
+ * 0 == ONE_GOB
+ * 1 == TWO_GOBS
+ * 2 == FOUR_GOBS
+ * 3 == EIGHT_GOBS
+ * 4 == SIXTEEN_GOBS
+ * 5 == THIRTYTWO_GOBS
+ *
+ * Chapter 20 "Pixel Memory Formats" of the Tegra X1 TRM describes this format
+ * in full detail.
+ */
+#define NV_FORMAT_MOD_TEGRA_16BX2_BLOCK(v) fourcc_mod_tegra_code(2, v)
 
 #if defined(__cplusplus)
 }

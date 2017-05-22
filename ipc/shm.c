@@ -1095,11 +1095,11 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg,
 	      ulong *raddr, unsigned long shmlba)
 {
 	struct shmid_kernel *shp;
-	unsigned long addr;
+	unsigned long addr = (unsigned long)shmaddr;
 	unsigned long size;
 	struct file *file;
 	int    err;
-	unsigned long flags;
+	unsigned long flags = MAP_SHARED;
 	unsigned long prot;
 	int acc_mode;
 	struct ipc_namespace *ns;
@@ -1111,7 +1111,8 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg,
 	err = -EINVAL;
 	if (shmid < 0)
 		goto out;
-	else if ((addr = (ulong)shmaddr)) {
+
+	if (addr) {
 		if (addr & (shmlba - 1)) {
 			/*
 			 * Round down to the nearest multiple of shmlba.
@@ -1126,13 +1127,10 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg,
 #endif
 					goto out;
 		}
-		flags = MAP_SHARED | MAP_FIXED;
-	} else {
-		if ((shmflg & SHM_REMAP))
-			goto out;
 
-		flags = MAP_SHARED;
-	}
+		flags |= MAP_FIXED;
+	} else if ((shmflg & SHM_REMAP))
+		goto out;
 
 	if (shmflg & SHM_RDONLY) {
 		prot = PROT_READ;

@@ -66,6 +66,8 @@ static int clk_mt2701_eth_probe(struct platform_device *pdev)
 			"could not register clock provider: %s: %d\n",
 			pdev->name, r);
 
+	mtk_register_reset_controller(node, 1, 0x34);
+
 	return r;
 }
 

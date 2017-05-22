@@ -110,7 +110,8 @@ static struct addr_marker address_markers[] = {
 #define PTE_LEVEL_MULT (PAGE_SIZE)
 #define PMD_LEVEL_MULT (PTRS_PER_PTE * PTE_LEVEL_MULT)
 #define PUD_LEVEL_MULT (PTRS_PER_PMD * PMD_LEVEL_MULT)
-#define PGD_LEVEL_MULT (PTRS_PER_PUD * PUD_LEVEL_MULT)
+#define P4D_LEVEL_MULT (PTRS_PER_PUD * PUD_LEVEL_MULT)
+#define PGD_LEVEL_MULT (PTRS_PER_P4D * P4D_LEVEL_MULT)
 
 #define pt_dump_seq_printf(m, to_dmesg, fmt, args...)		\
 ({								\
@@ -286,14 +287,13 @@ static void note_page(struct seq_file *m, struct pg_state *st,
 	}
 }
 
-static void walk_pte_level(struct seq_file *m, struct pg_state *st, pmd_t addr,
-							unsigned long P)
+static void walk_pte_level(struct seq_file *m, struct pg_state *st, pmd_t addr, unsigned long P)
 {
 	int i;
 	pte_t *start;
 	pgprotval_t prot;
 
-	start = (pte_t *) pmd_page_vaddr(addr);
+	start = (pte_t *)pmd_page_vaddr(addr);
 	for (i = 0; i < PTRS_PER_PTE; i++) {
 		prot = pte_flags(*start);
 		st->current_address = normalize_addr(P + i * PTE_LEVEL_MULT);
@@ -304,14 +304,13 @@ static void walk_pte_level(struct seq_file *m, struct pg_state *st, pmd_t addr,
 
 #if PTRS_PER_PMD > 1
 
-static void walk_pmd_level(struct seq_file *m, struct pg_state *st, pud_t addr,
-							unsigned long P)
+static void walk_pmd_level(struct seq_file *m, struct pg_state *st, pud_t addr, unsigned long P)
 {
 	int i;
 	pmd_t *start;
 	pgprotval_t prot;
 
-	start = (pmd_t *) pud_page_vaddr(addr);
+	start = (pmd_t *)pud_page_vaddr(addr);
 	for (i = 0; i < PTRS_PER_PMD; i++) {
 		st->current_address = normalize_addr(P + i * PMD_LEVEL_MULT);
 		if (!pmd_none(*start)) {
@@ -347,15 +346,14 @@ static bool pud_already_checked(pud_t *prev_pud, pud_t *pud, bool checkwx)
 	return checkwx && prev_pud && (pud_val(*prev_pud) == pud_val(*pud));
 }
 
-static void walk_pud_level(struct seq_file *m, struct pg_state *st, pgd_t addr,
-							unsigned long P)
+static void walk_pud_level(struct seq_file *m, struct pg_state *st, p4d_t addr, unsigned long P)
 {
 	int i;
 	pud_t *start;
 	pgprotval_t prot;
 	pud_t *prev_pud = NULL;
 
-	start = (pud_t *) pgd_page_vaddr(addr);
+	start = (pud_t *)p4d_page_vaddr(addr);
 
 	for (i = 0; i < PTRS_PER_PUD; i++) {
 		st->current_address = normalize_addr(P + i * PUD_LEVEL_MULT);
@@ -377,9 +375,42 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st, pgd_t addr,
 }
 
 #else
-#define walk_pud_level(m,s,a,p) walk_pmd_level(m,s,__pud(pgd_val(a)),p)
-#define pgd_large(a) pud_large(__pud(pgd_val(a)))
-#define pgd_none(a)  pud_none(__pud(pgd_val(a)))
+#define walk_pud_level(m,s,a,p) walk_pmd_level(m,s,__pud(p4d_val(a)),p)
+#define p4d_large(a) pud_large(__pud(p4d_val(a)))
+#define p4d_none(a)  pud_none(__pud(p4d_val(a)))
+#endif
+
+#if PTRS_PER_P4D > 1
+
+static void walk_p4d_level(struct seq_file *m, struct pg_state *st, pgd_t addr, unsigned long P)
+{
+	int i;
+	p4d_t *start;
+	pgprotval_t prot;
+
+	start = (p4d_t *)pgd_page_vaddr(addr);
+
+	for (i = 0; i < PTRS_PER_P4D; i++) {
+		st->current_address = normalize_addr(P + i * P4D_LEVEL_MULT);
+		if (!p4d_none(*start)) {
+			if (p4d_large(*start) || !p4d_present(*start)) {
+				prot = p4d_flags(*start);
+				note_page(m, st, __pgprot(prot), 2);
+			} else {
+				walk_pud_level(m, st, *start,
+					       P + i * P4D_LEVEL_MULT);
+			}
+		} else
+			note_page(m, st, __pgprot(0), 2);
+
+		start++;
+	}
+}
+
+#else
+#define walk_p4d_level(m,s,a,p) walk_pud_level(m,s,__p4d(pgd_val(a)),p)
+#define pgd_large(a) p4d_large(__p4d(pgd_val(a)))
+#define pgd_none(a)  p4d_none(__p4d(pgd_val(a)))
 #endif
 
 static inline bool is_hypervisor_range(int idx)
@@ -424,7 +455,7 @@ static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
 				prot = pgd_flags(*start);
 				note_page(m, &st, __pgprot(prot), 1);
 			} else {
-				walk_pud_level(m, &st, *start,
+				walk_p4d_level(m, &st, *start,
 					       i * PGD_LEVEL_MULT);
 			}
 		} else

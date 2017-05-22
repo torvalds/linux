@@ -106,6 +106,15 @@ int hwmgr_early_init(struct pp_instance *handle)
 		}
 		smu7_init_function_pointers(hwmgr);
 		break;
+	case AMDGPU_FAMILY_AI:
+		switch (hwmgr->chip_id) {
+		case CHIP_VEGA10:
+			vega10_hwmgr_init(hwmgr);
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
 	default:
 		return -EINVAL;
 	}

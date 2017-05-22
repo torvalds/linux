@@ -504,11 +504,13 @@ static int xen_blkbk_remove(struct xenbus_device *dev)
 
 	dev_set_drvdata(&dev->dev, NULL);
 
-	if (be->blkif)
+	if (be->blkif) {
 		xen_blkif_disconnect(be->blkif);
 
-	/* Put the reference we set in xen_blkif_alloc(). */
-	xen_blkif_put(be->blkif);
+		/* Put the reference we set in xen_blkif_alloc(). */
+		xen_blkif_put(be->blkif);
+	}
+
 	kfree(be->mode);
 	kfree(be);
 	return 0;

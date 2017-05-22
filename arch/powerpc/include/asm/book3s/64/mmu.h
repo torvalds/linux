@@ -65,6 +65,8 @@ extern struct patb_entry *partition_tb;
  * MAX_USER_CONTEXT * 16 bytes of space.
  */
 #define PRTB_SIZE_SHIFT	(CONTEXT_BITS + 4)
+#define PRTB_ENTRIES	(1ul << CONTEXT_BITS)
+
 /*
  * Power9 currently only support 64K partition table size.
  */
@@ -73,13 +75,20 @@ extern struct patb_entry *partition_tb;
 typedef unsigned long mm_context_id_t;
 struct spinlock;
 
+/* Maximum possible number of NPUs in a system. */
+#define NV_MAX_NPUS 8
+
 typedef struct {
 	mm_context_id_t id;
 	u16 user_psize;		/* page size index */
 
+	/* NPU NMMU context */
+	struct npu_context *npu_context;
+
 #ifdef CONFIG_PPC_MM_SLICES
 	u64 low_slices_psize;	/* SLB page size encodings */
 	unsigned char high_slices_psize[SLICE_ARRAY_SIZE];
+	unsigned long addr_limit;
 #else
 	u16 sllp;		/* SLB page size encoding */
 #endif

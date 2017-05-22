@@ -293,12 +293,16 @@ synproxy_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 					  XT_SYNPROXY_OPT_ECN);
 
 		synproxy_send_client_synack(net, skb, th, &opts);
-		return NF_DROP;
-
+		consume_skb(skb);
+		return NF_STOLEN;
 	} else if (th->ack && !(th->fin || th->rst || th->syn)) {
 		/* ACK from client */
-		synproxy_recv_client_ack(net, skb, th, &opts, ntohl(th->seq));
-		return NF_DROP;
+		if (synproxy_recv_client_ack(net, skb, th, &opts, ntohl(th->seq))) {
+			consume_skb(skb);
+			return NF_STOLEN;
+		} else {
+			return NF_DROP;
+		}
 	}
 
 	return XT_CONTINUE;
@@ -367,10 +371,13 @@ static unsigned int ipv4_synproxy_hook(void *priv,
 			 * number match the one of first SYN.
 			 */
 			if (synproxy_recv_client_ack(net, skb, th, &opts,
-						     ntohl(th->seq) + 1))
+						     ntohl(th->seq) + 1)) {
 				this_cpu_inc(snet->stats->cookie_retrans);
-
-			return NF_DROP;
+				consume_skb(skb);
+				return NF_STOLEN;
+			} else {
+				return NF_DROP;
+			}
 		}
 
 		synproxy->isn = ntohl(th->ack_seq);
@@ -409,33 +416,6 @@ static unsigned int ipv4_synproxy_hook(void *priv,
 	return NF_ACCEPT;
 }
 
-static int synproxy_tg4_check(const struct xt_tgchk_param *par)
-{
-	const struct ipt_entry *e = par->entryinfo;
-
-	if (e->ip.proto != IPPROTO_TCP ||
-	    e->ip.invflags & XT_INV_PROTO)
-		return -EINVAL;
-
-	return nf_ct_netns_get(par->net, par->family);
-}
-
-static void synproxy_tg4_destroy(const struct xt_tgdtor_param *par)
-{
-	nf_ct_netns_put(par->net, par->family);
-}
-
-static struct xt_target synproxy_tg4_reg __read_mostly = {
-	.name		= "SYNPROXY",
-	.family		= NFPROTO_IPV4,
-	.hooks		= (1 << NF_INET_LOCAL_IN) | (1 << NF_INET_FORWARD),
-	.target		= synproxy_tg4,
-	.targetsize	= sizeof(struct xt_synproxy_info),
-	.checkentry	= synproxy_tg4_check,
-	.destroy	= synproxy_tg4_destroy,
-	.me		= THIS_MODULE,
-};
-
 static struct nf_hook_ops ipv4_synproxy_ops[] __read_mostly = {
 	{
 		.hook		= ipv4_synproxy_hook,
@@ -451,31 +431,63 @@ static struct nf_hook_ops ipv4_synproxy_ops[] __read_mostly = {
 	},
 };
 
-static int __init synproxy_tg4_init(void)
+static int synproxy_tg4_check(const struct xt_tgchk_param *par)
 {
+	struct synproxy_net *snet = synproxy_pernet(par->net);
+	const struct ipt_entry *e = par->entryinfo;
 	int err;
 
-	err = nf_register_hooks(ipv4_synproxy_ops,
-				ARRAY_SIZE(ipv4_synproxy_ops));
-	if (err < 0)
-		goto err1;
+	if (e->ip.proto != IPPROTO_TCP ||
+	    e->ip.invflags & XT_INV_PROTO)
+		return -EINVAL;
 
-	err = xt_register_target(&synproxy_tg4_reg);
-	if (err < 0)
-		goto err2;
+	err = nf_ct_netns_get(par->net, par->family);
+	if (err)
+		return err;
 
-	return 0;
+	if (snet->hook_ref4 == 0) {
+		err = nf_register_net_hooks(par->net, ipv4_synproxy_ops,
+					    ARRAY_SIZE(ipv4_synproxy_ops));
+		if (err) {
+			nf_ct_netns_put(par->net, par->family);
+			return err;
+		}
+	}
 
-err2:
-	nf_unregister_hooks(ipv4_synproxy_ops, ARRAY_SIZE(ipv4_synproxy_ops));
-err1:
+	snet->hook_ref4++;
 	return err;
+}
+
+static void synproxy_tg4_destroy(const struct xt_tgdtor_param *par)
+{
+	struct synproxy_net *snet = synproxy_pernet(par->net);
+
+	snet->hook_ref4--;
+	if (snet->hook_ref4 == 0)
+		nf_unregister_net_hooks(par->net, ipv4_synproxy_ops,
+					ARRAY_SIZE(ipv4_synproxy_ops));
+	nf_ct_netns_put(par->net, par->family);
+}
+
+static struct xt_target synproxy_tg4_reg __read_mostly = {
+	.name		= "SYNPROXY",
+	.family		= NFPROTO_IPV4,
+	.hooks		= (1 << NF_INET_LOCAL_IN) | (1 << NF_INET_FORWARD),
+	.target		= synproxy_tg4,
+	.targetsize	= sizeof(struct xt_synproxy_info),
+	.checkentry	= synproxy_tg4_check,
+	.destroy	= synproxy_tg4_destroy,
+	.me		= THIS_MODULE,
+};
+
+static int __init synproxy_tg4_init(void)
+{
+	return xt_register_target(&synproxy_tg4_reg);
 }
 
 static void __exit synproxy_tg4_exit(void)
 {
 	xt_unregister_target(&synproxy_tg4_reg);
-	nf_unregister_hooks(ipv4_synproxy_ops, ARRAY_SIZE(ipv4_synproxy_ops));
 }
 
 module_init(synproxy_tg4_init);

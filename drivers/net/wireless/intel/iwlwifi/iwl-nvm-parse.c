@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,6 +34,7 @@
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -438,25 +439,16 @@ static void iwl_init_vht_hw_capab(const struct iwl_cfg *cfg,
 	vht_cap->vht_mcs.tx_mcs_map = vht_cap->vht_mcs.rx_mcs_map;
 }
 
-static void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
-			    struct iwl_nvm_data *data,
-			    const __le16 *ch_section,
-			    u8 tx_chains, u8 rx_chains, bool lar_supported)
+void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
+		     struct iwl_nvm_data *data, const __le16 *nvm_ch_flags,
+		     u8 tx_chains, u8 rx_chains, bool lar_supported)
 {
 	int n_channels;
 	int n_used = 0;
 	struct ieee80211_supported_band *sband;
 
-	if (cfg->device_family != IWL_DEVICE_FAMILY_8000)
-		n_channels = iwl_init_channel_map(
-				dev, cfg, data,
-				&ch_section[NVM_CHANNELS], lar_supported);
-	else
-		n_channels = iwl_init_channel_map(
-				dev, cfg, data,
-				&ch_section[NVM_CHANNELS_FAMILY_8000],
-				lar_supported);
-
+	n_channels = iwl_init_channel_map(dev, cfg, data, nvm_ch_flags,
+					  lar_supported);
 	sband = &data->bands[NL80211_BAND_2GHZ];
 	sband->band = NL80211_BAND_2GHZ;
 	sband->bitrates = &iwl_cfg80211_rates[RATES_24_OFFS];
@@ -482,6 +474,7 @@ static void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
 		IWL_ERR_DEV(dev, "NVM: used only %d of %d channels\n",
 			    n_used, n_channels);
 }
+IWL_EXPORT_SYMBOL(iwl_init_sbands);
 
 static int iwl_get_sku(const struct iwl_cfg *cfg, const __le16 *nvm_sw,
 		       const __le16 *phy_sku)
@@ -559,8 +552,8 @@ static void iwl_flip_hw_address(__le32 mac_addr0, __le32 mac_addr1, u8 *dest)
 	dest[5] = hw_addr[0];
 }
 
-static void iwl_set_hw_address_from_csr(struct iwl_trans *trans,
-					struct iwl_nvm_data *data)
+void iwl_set_hw_address_from_csr(struct iwl_trans *trans,
+				 struct iwl_nvm_data *data)
 {
 	__le32 mac_addr0 = cpu_to_le32(iwl_read32(trans, CSR_MAC_ADDR0_STRAP));
 	__le32 mac_addr1 = cpu_to_le32(iwl_read32(trans, CSR_MAC_ADDR1_STRAP));
@@ -578,6 +571,7 @@ static void iwl_set_hw_address_from_csr(struct iwl_trans *trans,
 
 	iwl_flip_hw_address(mac_addr0, mac_addr1, data->hw_addr);
 }
+IWL_EXPORT_SYMBOL(iwl_set_hw_address_from_csr);
 
 static void iwl_set_hw_address_family_8000(struct iwl_trans *trans,
 					   const struct iwl_cfg *cfg,
@@ -718,7 +712,7 @@ iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		data->xtal_calib[0] = *(nvm_calib + XTAL_CALIB);
 		data->xtal_calib[1] = *(nvm_calib + XTAL_CALIB + 1);
 		lar_enabled = true;
-		ch_section = nvm_sw;
+		ch_section = &nvm_sw[NVM_CHANNELS];
 	} else {
 		u16 lar_offset = data->nvm_version < 0xE39 ?
 				 NVM_LAR_OFFSET_FAMILY_8000_OLD :
@@ -728,7 +722,7 @@ iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		data->lar_enabled = !!(lar_config &
 				       NVM_LAR_ENABLED_FAMILY_8000);
 		lar_enabled = data->lar_enabled;
-		ch_section = regulatory;
+		ch_section = &regulatory[NVM_CHANNELS_FAMILY_8000];
 	}
 
 	/* If no valid mac address was found - bail out */

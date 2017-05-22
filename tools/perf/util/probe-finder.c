@@ -19,6 +19,7 @@
  *
  */
 
+#include <inttypes.h>
 #include <sys/utsname.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -37,9 +38,11 @@
 #include "debug.h"
 #include "intlist.h"
 #include "util.h"
+#include "strlist.h"
 #include "symbol.h"
 #include "probe-finder.h"
 #include "probe-file.h"
+#include "string2.h"
 
 /* Kprobe tracer basic type is up to u64 */
 #define MAX_BASIC_TYPE_BITS	64

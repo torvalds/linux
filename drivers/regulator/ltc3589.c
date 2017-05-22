@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/of_regulator.h>
@@ -470,7 +471,11 @@ static int ltc3589_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	i2c_set_clientdata(client, ltc3589);
-	ltc3589->variant = id->driver_data;
+	if (client->dev.of_node)
+		ltc3589->variant = (enum ltc3589_variant)
+			of_device_get_match_data(&client->dev);
+	else
+		ltc3589->variant = id->driver_data;
 	ltc3589->dev = dev;
 
 	descs = ltc3589->regulator_descs;
@@ -542,9 +547,27 @@ static struct i2c_device_id ltc3589_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ltc3589_i2c_id);
 
+static const struct of_device_id ltc3589_of_match[] = {
+	{
+		.compatible = "lltc,ltc3589",
+		.data = (void *)LTC3589,
+	},
+	{
+		.compatible = "lltc,ltc3589-1",
+		.data = (void *)LTC3589_1,
+	},
+	{
+		.compatible = "lltc,ltc3589-2",
+		.data = (void *)LTC3589_2,
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, ltc3589_of_match);
+
 static struct i2c_driver ltc3589_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
+		.of_match_table = of_match_ptr(ltc3589_of_match),
 	},
 	.probe = ltc3589_probe,
 	.id_table = ltc3589_i2c_id,

@@ -17,7 +17,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/unaligned/access_ok.h>
+#include <asm/unaligned.h>
 #include <linux/firmware.h>
 #include <linux/nfc.h>
 #include <net/nfc/nci.h>
@@ -281,12 +281,11 @@ static int process_state_fw_dnld(struct nfcmrvl_private *priv,
 			return -EINVAL;
 		}
 		skb_pull(skb, 1);
-		memcpy(&len, skb->data, 2);
+		len = get_unaligned_le16(skb->data);
 		skb_pull(skb, 2);
+		comp_len = get_unaligned_le16(skb->data);
 		memcpy(&comp_len, skb->data, 2);
 		skb_pull(skb, 2);
-		len = get_unaligned_le16(&len);
-		comp_len = get_unaligned_le16(&comp_len);
 		if (((~len) & 0xFFFF) != comp_len) {
 			nfc_err(priv->dev, "bad len complement: %x %x %x",
 				len, comp_len, (~len & 0xFFFF));

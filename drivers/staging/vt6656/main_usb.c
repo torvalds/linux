@@ -407,16 +407,6 @@ static void vnt_free_rx_bufs(struct vnt_private *priv)
 	}
 }
 
-static void usb_device_reset(struct vnt_private *priv)
-{
-	int status;
-
-	status = usb_reset_device(priv->usb);
-	if (status)
-		dev_warn(&priv->usb->dev,
-			 "usb_device_reset fail status=%d\n", status);
-}
-
 static void vnt_free_int_bufs(struct vnt_private *priv)
 {
 	kfree(priv->int_buf.data_buf);
@@ -995,7 +985,10 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	SET_IEEE80211_DEV(priv->hw, &intf->dev);
 
-	usb_device_reset(priv);
+	rc = usb_reset_device(priv->usb);
+	if (rc)
+		dev_warn(&priv->usb->dev,
+			 "%s reset fail status=%d\n", __func__, rc);
 
 	clear_bit(DEVICE_FLAGS_DISCONNECTED, &priv->flags);
 	vnt_reset_command_timer(priv);

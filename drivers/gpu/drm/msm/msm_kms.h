@@ -64,7 +64,6 @@ struct msm_kms_funcs {
 #ifdef CONFIG_DEBUG_FS
 	/* debugfs: */
 	int (*debugfs_init)(struct msm_kms *kms, struct drm_minor *minor);
-	void (*debugfs_cleanup)(struct msm_kms *kms, struct drm_minor *minor);
 #endif
 };
 

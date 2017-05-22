@@ -246,7 +246,8 @@ static inline int update_mctrl(struct qt2_port_private *port_priv,
 	return status;
 }
 
-static int qt2_calc_num_ports(struct usb_serial *serial)
+static int qt2_calc_num_ports(struct usb_serial *serial,
+					struct usb_serial_endpoints *epds)
 {
 	struct qt2_device_detail d;
 	int i;
@@ -600,7 +601,6 @@ static void qt2_process_read_urb(struct urb *urb)
 				escapeflag = true;
 				break;
 			case QT2_CONTROL_ESCAPE:
-				tty_buffer_request_room(&port->port, 2);
 				tty_insert_flip_string(&port->port, ch, 2);
 				i += 2;
 				escapeflag = true;
@@ -615,8 +615,7 @@ static void qt2_process_read_urb(struct urb *urb)
 				continue;
 		}
 
-		tty_buffer_request_room(&port->port, 1);
-		tty_insert_flip_string(&port->port, ch, 1);
+		tty_insert_flip_char(&port->port, *ch, TTY_NORMAL);
 	}
 
 	tty_flip_buffer_push(&port->port);

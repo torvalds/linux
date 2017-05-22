@@ -90,6 +90,5 @@ void armada_fbdev_fini(struct drm_device *);
 int armada_overlay_plane_create(struct drm_device *, unsigned long);
 
 int armada_drm_debugfs_init(struct drm_minor *);
-void armada_drm_debugfs_cleanup(struct drm_minor *);
 
 #endif

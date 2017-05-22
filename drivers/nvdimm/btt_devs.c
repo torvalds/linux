@@ -273,7 +273,7 @@ static int __nd_btt_probe(struct nd_btt *nd_btt,
 	if (!btt_sb || !ndns || !nd_btt)
 		return -ENODEV;
 
-	if (nvdimm_read_bytes(ndns, SZ_4K, btt_sb, sizeof(*btt_sb)))
+	if (nvdimm_read_bytes(ndns, SZ_4K, btt_sb, sizeof(*btt_sb), 0))
 		return -ENXIO;
 
 	if (nvdimm_namespace_capacity(ndns) < SZ_16M)
@@ -314,7 +314,7 @@ int nd_btt_probe(struct device *dev, struct nd_namespace_common *ndns)
 	if (rc < 0) {
 		struct nd_btt *nd_btt = to_nd_btt(btt_dev);
 
-		__nd_detach_ndns(btt_dev, &nd_btt->ndns);
+		nd_detach_ndns(btt_dev, &nd_btt->ndns);
 		put_device(btt_dev);
 	}
 

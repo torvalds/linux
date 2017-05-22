@@ -6,7 +6,7 @@ config HAVE_NET_DSA
 
 config NET_DSA
 	tristate "Distributed Switch Architecture"
-	depends on HAVE_NET_DSA
+	depends on HAVE_NET_DSA && MAY_USE_DEVLINK
 	select NET_SWITCHDEV
 	select PHYLIB
 	---help---
@@ -29,6 +29,12 @@ config NET_DSA_TAG_TRAILER
 	bool
 
 config NET_DSA_TAG_QCA
+	bool
+
+config NET_DSA_TAG_MTK
+	bool
+
+config NET_DSA_TAG_LAN9303
 	bool
 
 endif
