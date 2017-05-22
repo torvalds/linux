@@ -69,7 +69,7 @@ char *aa_split_fqname(char *fqname, char **ns_name)
  * if all whitespace will return NULL
  */
 
-static const char *skipn_spaces(const char *str, size_t n)
+const char *skipn_spaces(const char *str, size_t n)
 {
 	for (; n && isspace(*str); --n)
 		++str;
