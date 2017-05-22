@@ -862,6 +862,13 @@
 			};
 		};
 
+		crc: crc@40023000 {
+			compatible = "st,stm32f4-crc";
+			reg = <0x40023000 0x400>;
+			clocks = <&rcc 0 STM32F4_AHB1_CLOCK(CRC)>;
+			status = "disabled";
+		};
+
 		rcc: rcc@40023810 {
 			#reset-cells = <1>;
 			#clock-cells = <2>;
