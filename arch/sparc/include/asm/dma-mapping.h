@@ -5,9 +5,6 @@
 #include <linux/mm.h>
 #include <linux/dma-debug.h>
 
-#define HAVE_ARCH_DMA_SUPPORTED 1
-int dma_supported(struct device *dev, u64 mask);
-
 static inline void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 				  enum dma_data_direction dir)
 {

@@ -24,6 +24,7 @@
 
 #include "pci_impl.h"
 #include "iommu_common.h"
+#include "kernel.h"
 
 #include "pci_sun4v.h"
 
@@ -669,6 +670,21 @@ static void dma_4v_unmap_sg(struct device *dev, struct scatterlist *sglist,
 	local_irq_restore(flags);
 }
 
+static int dma_4v_supported(struct device *dev, u64 device_mask)
+{
+	struct iommu *iommu = dev->archdata.iommu;
+	u64 dma_addr_mask;
+
+	if (device_mask > DMA_BIT_MASK(32) && iommu->atu)
+		dma_addr_mask = iommu->atu->dma_addr_mask;
+	else
+		dma_addr_mask = iommu->dma_addr_mask;
+
+	if ((device_mask & dma_addr_mask) == dma_addr_mask)
+		return 1;
+	return pci64_dma_supported(to_pci_dev(dev), device_mask);
+}
+
 static int dma_4v_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
 	return dma_addr == SPARC_MAPPING_ERROR;
@@ -681,6 +697,7 @@ static const struct dma_map_ops sun4v_dma_ops = {
 	.unmap_page			= dma_4v_unmap_page,
 	.map_sg				= dma_4v_map_sg,
 	.unmap_sg			= dma_4v_unmap_sg,
+	.dma_supported			= dma_4v_supported,
 	.mapping_error			= dma_4v_mapping_error,
 };
 
