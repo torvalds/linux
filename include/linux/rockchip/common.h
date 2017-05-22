@@ -73,11 +73,6 @@ int rockchip_pm_set_policy(enum rockchip_pm_policy policy);
 int rockchip_pm_policy_register_notifier(struct notifier_block *nb);
 int rockchip_pm_policy_unregister_notifier(struct notifier_block *nb);
 
-int rockchip_register_system_status_notifier(struct notifier_block *nb);
-int rockchip_unregister_system_status_notifier(struct notifier_block *nb);
-int rockchip_set_system_status(unsigned long status);
-int rockchip_clear_system_status(unsigned long status);
-unsigned long rockchip_get_system_status(void);
 u32 pvtm_get_value(u32 ch, u32 time_us);
 
 #define INVALID_TEMP INT_MAX

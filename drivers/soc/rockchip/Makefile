@@ -11,3 +11,4 @@ obj-$(CONFIG_ROCKCHIP_PVTM)	+= rockchip_pvtm.o
 obj-$(CONFIG_ROCKCHIP_SUSPEND_MODE) += rockchip_pm_config.o
 
 obj-y += rk_vendor_storage.o
+obj-y += rockchip-system-status.o
