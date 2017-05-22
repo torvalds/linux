@@ -54,7 +54,7 @@
 #include "nfpcore/nfp_nffw.h"
 #include "nfpcore/nfp_nsp.h"
 #include "nfpcore/nfp6000_pcie.h"
-
+#include "nfp_app.h"
 #include "nfp_net_ctrl.h"
 #include "nfp_net.h"
 #include "nfp_main.h"
@@ -302,7 +302,7 @@ nfp_net_pf_alloc_vnic(struct nfp_pf *pf, void __iomem *ctrl_bar,
 	if (IS_ERR(nn))
 		return nn;
 
-	nn->cpp = pf->cpp;
+	nn->app = pf->app;
 	nn->fw_ver = *fw_ver;
 	nn->dp.ctrl_bar = ctrl_bar;
 	nn->tx_bar = tx_bar;
@@ -463,12 +463,26 @@ err_nn_free:
 	return err;
 }
 
+static int nfp_net_pf_app_init(struct nfp_pf *pf)
+{
+	pf->app = nfp_app_alloc(pf);
+
+	return PTR_ERR_OR_ZERO(pf->app);
+}
+
+static void nfp_net_pf_app_clean(struct nfp_pf *pf)
+{
+	nfp_app_free(pf->app);
+}
+
 static void nfp_net_pci_remove_finish(struct nfp_pf *pf)
 {
 	nfp_net_debugfs_dir_clean(&pf->ddir);
 
 	nfp_net_irqs_disable(pf->pdev);
 	kfree(pf->irq_entries);
+
+	nfp_net_pf_app_clean(pf);
 
 	nfp_cpp_area_release_free(pf->rx_area);
 	nfp_cpp_area_release_free(pf->tx_area);
@@ -543,7 +557,7 @@ int nfp_net_refresh_eth_port(struct nfp_net *nn)
 	struct nfp_eth_table_port *eth_port;
 	struct nfp_eth_table *eth_table;
 
-	eth_table = nfp_eth_read_ports(nn->cpp);
+	eth_table = nfp_eth_read_ports(nn->app->cpp);
 	if (!eth_table) {
 		nn_err(nn, "Error refreshing port state table!\n");
 		return -EIO;
@@ -659,6 +673,10 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 		goto err_unmap_tx;
 	}
 
+	err = nfp_net_pf_app_init(pf);
+	if (err)
+		goto err_unmap_rx;
+
 	pf->ddir = nfp_net_debugfs_device_add(pf->pdev);
 
 	err = nfp_net_pf_spawn_vnics(pf, ctrl_bar, tx_bar, rx_bar,
@@ -672,6 +690,8 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 
 err_clean_ddir:
 	nfp_net_debugfs_dir_clean(&pf->ddir);
+	nfp_net_pf_app_clean(pf);
+err_unmap_rx:
 	nfp_cpp_area_release_free(pf->rx_area);
 err_unmap_tx:
 	nfp_cpp_area_release_free(pf->tx_area);

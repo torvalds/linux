@@ -557,7 +557,7 @@ struct nfp_net_dp {
  * @ethtool_dump_flag:	Ethtool dump flag
  * @vnic_list:		Entry on device vNIC list
  * @pdev:		Backpointer to PCI device
- * @cpp:		CPP device handle if available
+ * @app:		APP handle if available
  * @eth_port:		Translated ETH Table port entry
  */
 struct nfp_net {
@@ -628,7 +628,7 @@ struct nfp_net {
 	struct list_head vnic_list;
 
 	struct pci_dev *pdev;
-	struct nfp_cpp *cpp;
+	struct nfp_app *app;
 
 	struct nfp_eth_table_port *eth_port;
 };

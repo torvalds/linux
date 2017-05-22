@@ -57,6 +57,7 @@ struct nfp_eth_table;
  * struct nfp_pf - NFP PF-specific device structure
  * @pdev:		Backpointer to PCI device
  * @cpp:		Pointer to the CPP handle
+ * @app:		Pointer to the APP handle
  * @data_vnic_bar:	Pointer to the CPP area for the data vNICs' BARs
  * @tx_area:		Pointer to the CPP area for the TX queues
  * @rx_area:		Pointer to the CPP area for the FL/RX queues
@@ -76,6 +77,8 @@ struct nfp_pf {
 	struct pci_dev *pdev;
 
 	struct nfp_cpp *cpp;
+
+	struct nfp_app *app;
 
 	struct nfp_cpp_area *data_vnic_bar;
 	struct nfp_cpp_area *tx_area;

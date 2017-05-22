@@ -50,6 +50,7 @@
 
 #include "nfpcore/nfp.h"
 #include "nfpcore/nfp_nsp.h"
+#include "nfp_app.h"
 #include "nfp_net_ctrl.h"
 #include "nfp_net.h"
 
@@ -134,14 +135,14 @@ static const struct _nfp_net_et_stats nfp_net_et_stats[] = {
 #define NN_ET_STATS_LEN (NN_ET_GLOBAL_STATS_LEN + NN_ET_RVEC_GATHER_STATS + \
 			 NN_ET_RVEC_STATS_LEN + NN_ET_QUEUE_STATS_LEN)
 
-static void nfp_net_get_nspinfo(struct nfp_net *nn, char *version)
+static void nfp_net_get_nspinfo(struct nfp_app *app, char *version)
 {
 	struct nfp_nsp *nsp;
 
-	if (!nn->cpp)
+	if (!app)
 		return;
 
-	nsp = nfp_nsp_open(nn->cpp);
+	nsp = nfp_nsp_open(app->cpp);
 	if (IS_ERR(nsp))
 		return;
 
@@ -162,7 +163,7 @@ static void nfp_net_get_drvinfo(struct net_device *netdev,
 		sizeof(drvinfo->driver));
 	strlcpy(drvinfo->version, nfp_driver_version, sizeof(drvinfo->version));
 
-	nfp_net_get_nspinfo(nn, nsp_version);
+	nfp_net_get_nspinfo(nn->app, nsp_version);
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
 		 "%d.%d.%d.%d %s",
 		 nn->fw_ver.resv, nn->fw_ver.class,
@@ -258,7 +259,7 @@ nfp_net_set_link_ksettings(struct net_device *netdev,
 		return -EBUSY;
 	}
 
-	nsp = nfp_eth_config_start(nn->cpp, nn->eth_port->index);
+	nsp = nfp_eth_config_start(nn->app->cpp, nn->eth_port->index);
 	if (IS_ERR(nsp))
 		return PTR_ERR(nsp);
 
@@ -706,13 +707,13 @@ nfp_dump_nsp_diag(struct nfp_net *nn, struct ethtool_dump *dump, void *buffer)
 	struct nfp_resource *res;
 	int ret;
 
-	if (!nn->cpp)
+	if (!nn->app)
 		return -EOPNOTSUPP;
 
 	dump->version = 1;
 	dump->flag = NFP_DUMP_NSP_DIAG;
 
-	res = nfp_resource_acquire(nn->cpp, NFP_RESOURCE_NSP_DIAG);
+	res = nfp_resource_acquire(nn->app->cpp, NFP_RESOURCE_NSP_DIAG);
 	if (IS_ERR(res))
 		return PTR_ERR(res);
 
@@ -722,7 +723,7 @@ nfp_dump_nsp_diag(struct nfp_net *nn, struct ethtool_dump *dump, void *buffer)
 			goto exit_release;
 		}
 
-		ret = nfp_cpp_read(nn->cpp, nfp_resource_cpp_id(res),
+		ret = nfp_cpp_read(nn->app->cpp, nfp_resource_cpp_id(res),
 				   nfp_resource_address(res),
 				   buffer, dump->len);
 		if (ret != dump->len)
@@ -743,7 +744,7 @@ static int nfp_net_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
 
-	if (!nn->cpp)
+	if (!nn->app)
 		return -EOPNOTSUPP;
 
 	if (val->flag != NFP_DUMP_NSP_DIAG)
