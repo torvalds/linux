@@ -1200,28 +1200,6 @@ EXPORT_SYMBOL(IO_APIC_get_PCI_irq_vector);
 
 static struct irq_chip ioapic_chip, ioapic_ir_chip;
 
-#ifdef CONFIG_X86_32
-static inline int IO_APIC_irq_trigger(int irq)
-{
-	int apic, idx, pin;
-
-	for_each_ioapic_pin(apic, pin) {
-		idx = find_irq_entry(apic, pin, mp_INT);
-		if ((idx != -1) && (irq == pin_2_irq(idx, apic, pin, 0)))
-			return irq_trigger(idx);
-	}
-	/*
-         * nonexistent IRQs are edge default
-         */
-	return 0;
-}
-#else
-static inline int IO_APIC_irq_trigger(int irq)
-{
-	return 1;
-}
-#endif
-
 static void __init setup_IO_APIC_irqs(void)
 {
 	unsigned int ioapic, pin;
