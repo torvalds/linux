@@ -1018,7 +1018,6 @@ static void vnt_interrupt_process(struct vnt_private *priv)
 			}
 
 			/* TODO: adhoc PS mode */
-
 		}
 
 		if (isr & ISR_BNTX) {
@@ -1702,7 +1701,6 @@ static int vt6655_suspend(struct pci_dev *pcid, pm_message_t state)
 
 static int vt6655_resume(struct pci_dev *pcid)
 {
-
 	pci_set_power_state(pcid, PCI_D0);
 	pci_enable_wake(pcid, PCI_D0, 0);
 	pci_restore_state(pcid);
