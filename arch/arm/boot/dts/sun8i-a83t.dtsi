@@ -163,6 +163,15 @@
 		#size-cells = <1>;
 		ranges;
 
+		dma: dma-controller@1c02000 {
+			compatible = "allwinner,sun8i-a83t-dma";
+			reg = <0x01c02000 0x1000>;
+			interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu 21>;
+			resets = <&ccu 7>;
+			#dma-cells = <1>;
+		};
+
 		ccu: clock@1c20000 {
 			compatible = "allwinner,sun8i-a83t-ccu";
 			reg = <0x01c20000 0x400>;
