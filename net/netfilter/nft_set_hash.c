@@ -222,7 +222,7 @@ static void nft_hash_walk(const struct nft_ctx *ctx, struct nft_set *set,
 	struct nft_set_elem elem;
 	int err;
 
-	err = rhashtable_walk_init(&priv->ht, &hti, GFP_KERNEL);
+	err = rhashtable_walk_init(&priv->ht, &hti, GFP_ATOMIC);
 	iter->err = err;
 	if (err)
 		return;

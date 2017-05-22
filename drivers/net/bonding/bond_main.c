@@ -4271,10 +4271,10 @@ static int bond_check_params(struct bond_params *params)
 	int arp_validate_value, fail_over_mac_value, primary_reselect_value, i;
 	struct bond_opt_value newval;
 	const struct bond_opt_value *valptr;
-	int arp_all_targets_value;
+	int arp_all_targets_value = 0;
 	u16 ad_actor_sys_prio = 0;
 	u16 ad_user_port_key = 0;
-	__be32 arp_target[BOND_MAX_ARP_TARGETS];
+	__be32 arp_target[BOND_MAX_ARP_TARGETS] = { 0 };
 	int arp_ip_count;
 	int bond_mode	= BOND_MODE_ROUNDROBIN;
 	int xmit_hashtype = BOND_XMIT_POLICY_LAYER2;
@@ -4501,7 +4501,6 @@ static int bond_check_params(struct bond_params *params)
 		arp_validate_value = 0;
 	}
 
-	arp_all_targets_value = 0;
 	if (arp_all_targets) {
 		bond_opt_initstr(&newval, arp_all_targets);
 		valptr = bond_opt_parse(bond_opt_get(BOND_OPT_ARP_ALL_TARGETS),
