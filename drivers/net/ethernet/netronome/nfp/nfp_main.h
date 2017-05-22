@@ -57,27 +57,31 @@ struct nfp_eth_table;
  * struct nfp_pf - NFP PF-specific device structure
  * @pdev:		Backpointer to PCI device
  * @cpp:		Pointer to the CPP handle
- * @ctrl_area:		Pointer to the CPP area for the control BAR
+ * @app:		Pointer to the APP handle
+ * @data_vnic_bar:	Pointer to the CPP area for the data vNICs' BARs
  * @tx_area:		Pointer to the CPP area for the TX queues
  * @rx_area:		Pointer to the CPP area for the FL/RX queues
- * @irq_entries:	Array of MSI-X entries for all ports
+ * @irq_entries:	Array of MSI-X entries for all vNICs
  * @limit_vfs:		Number of VFs supported by firmware (~0 for PCI limit)
  * @num_vfs:		Number of SR-IOV VFs enabled
  * @fw_loaded:		Is the firmware loaded?
  * @eth_tbl:		NSP ETH table
  * @ddir:		Per-device debugfs directory
- * @num_ports:		Number of adapter ports app firmware supports
- * @num_netdevs:	Number of netdevs spawned
- * @ports:		Linked list of port structures (struct nfp_net)
- * @port_lock:		Protects @ports, @num_ports, @num_netdevs
+ * @max_data_vnics:	Number of data vNICs app firmware supports
+ * @num_vnics:		Number of vNICs spawned
+ * @vnics:		Linked list of vNIC structures (struct nfp_net)
+ * @ports:		Linked list of port structures (struct nfp_port)
  * @port_refresh_work:	Work entry for taking netdevs out
+ * @lock:		Protects all fields which may change after probe
  */
 struct nfp_pf {
 	struct pci_dev *pdev;
 
 	struct nfp_cpp *cpp;
 
-	struct nfp_cpp_area *ctrl_area;
+	struct nfp_app *app;
+
+	struct nfp_cpp_area *data_vnic_bar;
 	struct nfp_cpp_area *tx_area;
 	struct nfp_cpp_area *rx_area;
 
@@ -92,12 +96,13 @@ struct nfp_pf {
 
 	struct dentry *ddir;
 
-	unsigned int num_ports;
-	unsigned int num_netdevs;
+	unsigned int max_data_vnics;
+	unsigned int num_vnics;
 
+	struct list_head vnics;
 	struct list_head ports;
 	struct work_struct port_refresh_work;
-	struct mutex port_lock;
+	struct mutex lock;
 };
 
 extern struct pci_driver nfp_netvf_pci_driver;

@@ -289,6 +289,17 @@ int nfp_cpp_mutex_lock(struct nfp_cpp_mutex *mutex);
 int nfp_cpp_mutex_unlock(struct nfp_cpp_mutex *mutex);
 int nfp_cpp_mutex_trylock(struct nfp_cpp_mutex *mutex);
 
+/**
+ * nfp_cppcore_pcie_unit() - Get PCI Unit of a CPP handle
+ * @cpp:	CPP handle
+ *
+ * Return: PCI unit for the NFP CPP handle
+ */
+static inline u8 nfp_cppcore_pcie_unit(struct nfp_cpp *cpp)
+{
+	return NFP_CPP_INTERFACE_UNIT_of(nfp_cpp_interface(cpp));
+}
+
 struct nfp_cpp_explicit;
 
 struct nfp_cpp_explicit_command {

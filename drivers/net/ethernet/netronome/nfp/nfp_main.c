@@ -340,6 +340,7 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 		err = -ENOMEM;
 		goto err_rel_regions;
 	}
+	INIT_LIST_HEAD(&pf->vnics);
 	INIT_LIST_HEAD(&pf->ports);
 	pci_set_drvdata(pdev, pf);
 	pf->pdev = pdev;

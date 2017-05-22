@@ -84,7 +84,7 @@
 #define NFP_NET_NON_Q_VECTORS		2
 #define NFP_NET_IRQ_LSC_IDX		0
 #define NFP_NET_IRQ_EXN_IDX		1
-#define NFP_NET_MIN_PORT_IRQS		(NFP_NET_NON_Q_VECTORS + 1)
+#define NFP_NET_MIN_VNIC_IRQS		(NFP_NET_NON_Q_VECTORS + 1)
 
 /* Queue/Ring definitions */
 #define NFP_NET_MAX_TX_RINGS	64	/* Max. # of Tx rings per device */
@@ -116,6 +116,7 @@ struct nfp_cpp;
 struct nfp_eth_table_port;
 struct nfp_net;
 struct nfp_net_r_vector;
+struct nfp_port;
 
 /* Convenience macro for wrapping descriptor index on ring size */
 #define D_IDX(ring, idx)	((idx) & ((ring)->cnt - 1))
@@ -542,7 +543,6 @@ struct nfp_net_dp {
  * @reconfig_sync_present:  Some thread is performing synchronous reconfig
  * @reconfig_timer:	Timer for async reading of reconfig results
  * @link_up:            Is the link up?
- * @link_changed:	Has link state changes since last port refresh?
  * @link_status_lock:	Protects @link_* and ensures atomicity with BAR reading
  * @rx_coalesce_usecs:      RX interrupt moderation usecs delay parameter
  * @rx_coalesce_max_frames: RX interrupt moderation frame count parameter
@@ -555,10 +555,10 @@ struct nfp_net_dp {
  * @rx_bar:             Pointer to mapped FL/RX queues
  * @debugfs_dir:	Device directory in debugfs
  * @ethtool_dump_flag:	Ethtool dump flag
- * @port_list:		Entry on device port list
+ * @vnic_list:		Entry on device vNIC list
  * @pdev:		Backpointer to PCI device
- * @cpp:		CPP device handle if available
- * @eth_port:		Translated ETH Table port entry
+ * @app:		APP handle if available
+ * @port:		Pointer to nfp_port structure if vNIC is a port
  */
 struct nfp_net {
 	struct nfp_net_dp dp;
@@ -600,7 +600,6 @@ struct nfp_net {
 	u32 me_freq_mhz;
 
 	bool link_up;
-	bool link_changed;
 	spinlock_t link_status_lock;
 
 	spinlock_t reconfig_lock;
@@ -625,12 +624,12 @@ struct nfp_net {
 	struct dentry *debugfs_dir;
 	u32 ethtool_dump_flag;
 
-	struct list_head port_list;
+	struct list_head vnic_list;
 
 	struct pci_dev *pdev;
-	struct nfp_cpp *cpp;
+	struct nfp_app *app;
 
-	struct nfp_eth_table_port *eth_port;
+	struct nfp_port *port;
 };
 
 /* Functions to read/write from/to a BAR
@@ -802,16 +801,25 @@ static inline u32 nfp_qcp_wr_ptr_read(u8 __iomem *q)
 /* Globals */
 extern const char nfp_driver_version[];
 
+extern const struct net_device_ops nfp_net_netdev_ops;
+
+static inline bool nfp_netdev_is_nfp_net(struct net_device *netdev)
+{
+	return netdev->netdev_ops == &nfp_net_netdev_ops;
+}
+
 /* Prototypes */
 void nfp_net_get_fw_version(struct nfp_net_fw_version *fw_ver,
 			    void __iomem *ctrl_bar);
 
 struct nfp_net *
-nfp_net_netdev_alloc(struct pci_dev *pdev,
-		     unsigned int max_tx_rings, unsigned int max_rx_rings);
-void nfp_net_netdev_free(struct nfp_net *nn);
-int nfp_net_netdev_init(struct net_device *netdev);
-void nfp_net_netdev_clean(struct net_device *netdev);
+nfp_net_alloc(struct pci_dev *pdev,
+	      unsigned int max_tx_rings, unsigned int max_rx_rings);
+void nfp_net_free(struct nfp_net *nn);
+
+int nfp_net_init(struct nfp_net *nn);
+void nfp_net_clean(struct nfp_net *nn);
+
 void nfp_net_set_ethtool_ops(struct net_device *netdev);
 void nfp_net_info(struct nfp_net *nn);
 int nfp_net_reconfig(struct nfp_net *nn, u32 update);
@@ -832,15 +840,11 @@ struct nfp_net_dp *nfp_net_clone_dp(struct nfp_net *nn);
 int nfp_net_ring_reconfig(struct nfp_net *nn, struct nfp_net_dp *new,
 			  struct netlink_ext_ack *extack);
 
-bool nfp_net_link_changed_read_clear(struct nfp_net *nn);
-int nfp_net_refresh_eth_port(struct nfp_net *nn);
-void nfp_net_refresh_port_table(struct nfp_net *nn);
-
 #ifdef CONFIG_NFP_DEBUG
 void nfp_net_debugfs_create(void);
 void nfp_net_debugfs_destroy(void);
 struct dentry *nfp_net_debugfs_device_add(struct pci_dev *pdev);
-void nfp_net_debugfs_port_add(struct nfp_net *nn, struct dentry *ddir, int id);
+void nfp_net_debugfs_vnic_add(struct nfp_net *nn, struct dentry *ddir, int id);
 void nfp_net_debugfs_dir_clean(struct dentry **dir);
 #else
 static inline void nfp_net_debugfs_create(void)
@@ -857,7 +861,7 @@ static inline struct dentry *nfp_net_debugfs_device_add(struct pci_dev *pdev)
 }
 
 static inline void
-nfp_net_debugfs_port_add(struct nfp_net *nn, struct dentry *ddir, int id)
+nfp_net_debugfs_vnic_add(struct nfp_net *nn, struct dentry *ddir, int id)
 {
 }
 

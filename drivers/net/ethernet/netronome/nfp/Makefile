@@ -14,12 +14,14 @@ nfp-objs := \
 	    nfpcore/nfp_resource.o \
 	    nfpcore/nfp_rtsym.o \
 	    nfpcore/nfp_target.o \
+	    nfp_app.o \
 	    nfp_main.o \
 	    nfp_net_common.o \
 	    nfp_net_ethtool.o \
 	    nfp_net_offload.o \
 	    nfp_net_main.o \
-	    nfp_netvf_main.o
+	    nfp_netvf_main.o \
+	    nfp_port.o
 
 ifeq ($(CONFIG_BPF_SYSCALL),y)
 nfp-objs += \

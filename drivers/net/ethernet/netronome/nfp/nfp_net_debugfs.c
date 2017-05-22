@@ -200,7 +200,7 @@ static const struct file_operations nfp_xdp_q_fops = {
 	.llseek = seq_lseek
 };
 
-void nfp_net_debugfs_port_add(struct nfp_net *nn, struct dentry *ddir, int id)
+void nfp_net_debugfs_vnic_add(struct nfp_net *nn, struct dentry *ddir, int id)
 {
 	struct dentry *queues, *tx, *rx, *xdp;
 	char name[20];
@@ -209,7 +209,7 @@ void nfp_net_debugfs_port_add(struct nfp_net *nn, struct dentry *ddir, int id)
 	if (IS_ERR_OR_NULL(nfp_dir))
 		return;
 
-	sprintf(name, "port%d", id);
+	sprintf(name, "vnic%d", id);
 	nn->debugfs_dir = debugfs_create_dir(name, ddir);
 	if (IS_ERR_OR_NULL(nn->debugfs_dir))
 		return;
