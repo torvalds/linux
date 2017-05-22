@@ -7,6 +7,10 @@
 #include <dt-bindings/input/input.h>
 
 / {
+	chosen {
+		stdout-path = &uart1;
+	};
+
 	cpus {
 		cpu@0 {
 			cpu0-supply = <&vcc>;
