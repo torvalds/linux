@@ -1221,6 +1221,7 @@ void srcu_torture_stats_print(struct srcu_struct *sp, char *tt, char *tf)
 {
 	int cpu;
 	int idx;
+	unsigned long s0 = 0, s1 = 0;
 
 	idx = sp->srcu_idx & 0x1;
 	pr_alert("%s%s Tree SRCU per-CPU(idx=%d):", tt, tf, idx);
@@ -1246,8 +1247,10 @@ void srcu_torture_stats_print(struct srcu_struct *sp, char *tt, char *tf)
 		c0 = l0 - u0;
 		c1 = l1 - u1;
 		pr_cont(" %d(%ld,%ld)", cpu, c0, c1);
+		s0 += c0;
+		s1 += c1;
 	}
-	pr_cont("\n");
+	pr_cont(" T(%ld,%ld)\n", s0, s1);
 }
 EXPORT_SYMBOL_GPL(srcu_torture_stats_print);
 
