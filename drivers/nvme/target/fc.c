@@ -517,9 +517,7 @@ nvmet_fc_queue_to_cpu(struct nvmet_fc_tgtport *tgtport, int qid)
 {
 	int cpu, idx, cnt;
 
-	if (!(tgtport->ops->target_features &
-			NVMET_FCTGTFEAT_NEEDS_CMD_CPUSCHED) ||
-	    tgtport->ops->max_hw_queues == 1)
+	if (tgtport->ops->max_hw_queues == 1)
 		return WORK_CPU_UNBOUND;
 
 	/* Simple cpu selection based on qid modulo active cpu count */

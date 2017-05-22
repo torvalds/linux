@@ -768,7 +768,7 @@ equal to zero, in which case the compiler is within its rights to
 transform the above code into the following:
 
 	q = READ_ONCE(a);
-	WRITE_ONCE(b, 1);
+	WRITE_ONCE(b, 2);
 	do_something_else();
 
 Given this transformation, the CPU is not required to respect the ordering
@@ -2373,7 +2373,7 @@ is performed:
 					spin_unlock(Q);
 
 
-See Documentation/DocBook/deviceiobook.tmpl for more information.
+See Documentation/driver-api/device-io.rst for more information.
 
 
 =================================
@@ -2614,7 +2614,7 @@ might be needed:
      relaxed memory access properties, then _mandatory_ memory barriers are
      required to enforce ordering.
 
-See Documentation/DocBook/deviceiobook.tmpl for more information.
+See Documentation/driver-api/device-io.rst for more information.
 
 
 INTERRUPTS

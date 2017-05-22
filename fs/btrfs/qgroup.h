@@ -62,6 +62,50 @@ struct btrfs_qgroup_extent_record {
 };
 
 /*
+ * one struct for each qgroup, organized in fs_info->qgroup_tree.
+ */
+struct btrfs_qgroup {
+	u64 qgroupid;
+
+	/*
+	 * state
+	 */
+	u64 rfer;	/* referenced */
+	u64 rfer_cmpr;	/* referenced compressed */
+	u64 excl;	/* exclusive */
+	u64 excl_cmpr;	/* exclusive compressed */
+
+	/*
+	 * limits
+	 */
+	u64 lim_flags;	/* which limits are set */
+	u64 max_rfer;
+	u64 max_excl;
+	u64 rsv_rfer;
+	u64 rsv_excl;
+
+	/*
+	 * reservation tracking
+	 */
+	u64 reserved;
+
+	/*
+	 * lists
+	 */
+	struct list_head groups;  /* groups this group is member of */
+	struct list_head members; /* groups that are members of this group */
+	struct list_head dirty;   /* dirty groups */
+	struct rb_node node;	  /* tree of qgroups */
+
+	/*
+	 * temp variables for accounting operations
+	 * Refer to qgroup_shared_accounting() for details.
+	 */
+	u64 old_refcnt;
+	u64 new_refcnt;
+};
+
+/*
  * For qgroup event trace points only
  */
 #define QGROUP_RESERVE		(1<<0)
@@ -186,17 +230,12 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
 			 struct btrfs_qgroup_inherit *inherit);
 void btrfs_qgroup_free_refroot(struct btrfs_fs_info *fs_info,
 			       u64 ref_root, u64 num_bytes);
-/*
- * TODO: Add proper trace point for it, as btrfs_qgroup_free() is
- * called by everywhere, can't provide good trace for delayed ref case.
- */
 static inline void btrfs_qgroup_free_delayed_ref(struct btrfs_fs_info *fs_info,
 						 u64 ref_root, u64 num_bytes)
 {
-	btrfs_qgroup_free_refroot(fs_info, ref_root, num_bytes);
 	trace_btrfs_qgroup_free_delayed_ref(fs_info, ref_root, num_bytes);
+	btrfs_qgroup_free_refroot(fs_info, ref_root, num_bytes);
 }
-void assert_qgroups_uptodate(struct btrfs_trans_handle *trans);
 
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 int btrfs_verify_qgroup_counts(struct btrfs_fs_info *fs_info, u64 qgroupid,

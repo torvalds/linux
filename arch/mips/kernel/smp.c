@@ -261,16 +261,20 @@ int mips_smp_ipi_allocate(const struct cpumask *mask)
 		ipidomain = irq_find_matching_host(NULL, DOMAIN_BUS_IPI);
 
 	/*
-	 * There are systems which only use IPI domains some of the time,
-	 * depending upon configuration we don't know until runtime. An
-	 * example is Malta where we may compile in support for GIC & the
-	 * MT ASE, but run on a system which has multiple VPEs in a single
-	 * core and doesn't include a GIC. Until all IPI implementations
-	 * have been converted to use IPI domains the best we can do here
-	 * is to return & hope some other code sets up the IPIs.
+	 * There are systems which use IPI IRQ domains, but only have one
+	 * registered when some runtime condition is met. For example a Malta
+	 * kernel may include support for GIC & CPU interrupt controller IPI
+	 * IRQ domains, but if run on a system with no GIC & no MT ASE then
+	 * neither will be supported or registered.
+	 *
+	 * We only have a problem if we're actually using multiple CPUs so fail
+	 * loudly if that is the case. Otherwise simply return, skipping IPI
+	 * setup, if we're running with only a single CPU.
 	 */
-	if (!ipidomain)
+	if (!ipidomain) {
+		BUG_ON(num_present_cpus() > 1);
 		return 0;
+	}
 
 	virq = irq_reserve_ipi(ipidomain, mask);
 	BUG_ON(!virq);

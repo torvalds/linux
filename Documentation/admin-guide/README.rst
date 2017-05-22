@@ -362,7 +362,7 @@ If something goes wrong
    as is, otherwise you will have to use the ``ksymoops`` program to make
    sense of the dump (but compiling with CONFIG_KALLSYMS is usually preferred).
    This utility can be downloaded from
-   ftp://ftp.<country>.kernel.org/pub/linux/utils/kernel/ksymoops/ .
+   https://www.kernel.org/pub/linux/utils/kernel/ksymoops/ .
    Alternatively, you can do the dump lookup by hand:
 
  - In debugging dumps like the above, it helps enormously if you can

@@ -18,9 +18,12 @@ KVM := ../../../virt/kvm
 kvm-arm-y = $(KVM)/kvm_main.o $(KVM)/coalesced_mmio.o $(KVM)/eventfd.o $(KVM)/vfio.o
 
 obj-$(CONFIG_KVM_ARM_HOST) += hyp/
+
 obj-y += kvm-arm.o init.o interrupts.o
-obj-y += arm.o handle_exit.o guest.o mmu.o emulate.o reset.o
-obj-y += coproc.o coproc_a15.o coproc_a7.o mmio.o psci.o perf.o vgic-v3-coproc.o
+obj-y += handle_exit.o guest.o emulate.o reset.o
+obj-y += coproc.o coproc_a15.o coproc_a7.o   vgic-v3-coproc.o
+obj-y += $(KVM)/arm/arm.o $(KVM)/arm/mmu.o $(KVM)/arm/mmio.o
+obj-y += $(KVM)/arm/psci.o $(KVM)/arm/perf.o
 obj-y += $(KVM)/arm/aarch32.o
 
 obj-y += $(KVM)/arm/vgic/vgic.o

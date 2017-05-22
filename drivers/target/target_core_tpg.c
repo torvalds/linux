@@ -398,6 +398,13 @@ int core_tpg_set_initiator_node_queue_depth(
 	struct se_portal_group *tpg = acl->se_tpg;
 
 	/*
+	 * Allow the setting of se_node_acl queue_depth to be idempotent,
+	 * and not force a session shutdown event if the value is not
+	 * changing.
+	 */
+	if (acl->queue_depth == queue_depth)
+		return 0;
+	/*
 	 * User has requested to change the queue depth for a Initiator Node.
 	 * Change the value in the Node's struct se_node_acl, and call
 	 * target_set_nacl_queue_depth() to set the new queue depth.

@@ -15,6 +15,23 @@ menuconfig THERMAL
 
 if THERMAL
 
+config THERMAL_EMERGENCY_POWEROFF_DELAY_MS
+	int "Emergency poweroff delay in milli-seconds"
+	depends on THERMAL
+	default 0
+	help
+	  Thermal subsystem will issue a graceful shutdown when
+	  critical temperatures are reached using orderly_poweroff(). In
+	  case of failure of an orderly_poweroff(), the thermal emergency
+	  poweroff kicks in after a delay has elapsed and shuts down the system.
+	  This config is number of milliseconds to delay before emergency
+	  poweroff kicks in. Similarly to the critical trip point,
+	  the delay should be carefully profiled so as to give adequate
+	  time for orderly_poweroff() to finish on regular execution.
+	  If set to 0 emergency poweroff will not be supported.
+
+	  In doubt, leave as 0.
+
 config THERMAL_HWMON
 	bool
 	prompt "Expose thermal sensors as hwmon device"
@@ -291,6 +308,16 @@ config ARMADA_THERMAL
 	  Enable this option if you want to have support for thermal management
 	  controller present in Armada 370 and Armada XP SoC.
 
+config DA9062_THERMAL
+	tristate "DA9062/DA9061 Dialog Semiconductor thermal driver"
+	depends on MFD_DA9062 || COMPILE_TEST
+	depends on OF
+	help
+	  Enable this for the Dialog Semiconductor thermal sensor driver.
+	  This will report PMIC junction over-temperature for one thermal trip
+	  zone.
+	  Compatible with the DA9062 and DA9061 PMICs.
+
 config INTEL_POWERCLAMP
 	tristate "Intel PowerClamp idle injection driver"
 	depends on THERMAL
@@ -379,6 +406,11 @@ config MTK_THERMAL
 	help
 	  Enable this option if you want to have support for thermal management
 	  controller present in Mediatek SoCs
+
+menu "Broadcom thermal drivers"
+depends on ARCH_BCM || COMPILE_TEST
+source "drivers/thermal/broadcom/Kconfig"
+endmenu
 
 menu "Texas Instruments thermal drivers"
 depends on ARCH_HAS_BANDGAP || COMPILE_TEST

@@ -173,6 +173,8 @@ int __init ftrace_dyn_arch_init(void)
 	return 0;
 }
 
+#ifdef CONFIG_MODULES
+
 static int __init ftrace_plt_init(void)
 {
 	unsigned int *ip;
@@ -190,6 +192,8 @@ static int __init ftrace_plt_init(void)
 	return 0;
 }
 device_initcall(ftrace_plt_init);
+
+#endif /* CONFIG_MODULES */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 /*

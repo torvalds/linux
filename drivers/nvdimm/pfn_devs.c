@@ -357,7 +357,7 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 	if (!is_nd_pmem(nd_pfn->dev.parent))
 		return -ENODEV;
 
-	if (nvdimm_read_bytes(ndns, SZ_4K, pfn_sb, sizeof(*pfn_sb)))
+	if (nvdimm_read_bytes(ndns, SZ_4K, pfn_sb, sizeof(*pfn_sb), 0))
 		return -ENXIO;
 
 	if (memcmp(pfn_sb->signature, sig, PFN_SIG_LEN) != 0)
@@ -662,7 +662,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 	checksum = nd_sb_checksum((struct nd_gen_sb *) pfn_sb);
 	pfn_sb->checksum = cpu_to_le64(checksum);
 
-	return nvdimm_write_bytes(ndns, SZ_4K, pfn_sb, sizeof(*pfn_sb));
+	return nvdimm_write_bytes(ndns, SZ_4K, pfn_sb, sizeof(*pfn_sb), 0);
 }
 
 /*

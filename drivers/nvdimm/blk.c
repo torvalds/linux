@@ -218,7 +218,8 @@ static blk_qc_t nd_blk_make_request(struct request_queue *q, struct bio *bio)
 }
 
 static int nsblk_rw_bytes(struct nd_namespace_common *ndns,
-		resource_size_t offset, void *iobuf, size_t n, int rw)
+		resource_size_t offset, void *iobuf, size_t n, int rw,
+		unsigned long flags)
 {
 	struct nd_namespace_blk *nsblk = to_nd_namespace_blk(&ndns->dev);
 	struct nd_blk_region *ndbr = to_ndbr(nsblk);

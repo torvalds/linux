@@ -909,6 +909,8 @@ static inline struct file *get_file(struct file *f)
 #define FL_OFDLCK	1024	/* lock is "owned" by struct file */
 #define FL_LAYOUT	2048	/* outstanding pNFS layout */
 
+#define FL_CLOSE_POSIX (FL_POSIX | FL_CLOSE)
+
 /*
  * Special return value from posix_lock_file() and vfs_lock_file() for
  * asynchronous locking.
@@ -1429,7 +1431,6 @@ static inline void i_gid_write(struct inode *inode, gid_t gid)
 	inode->i_gid = make_kgid(inode->i_sb->s_user_ns, gid);
 }
 
-extern struct timespec current_fs_time(struct super_block *sb);
 extern struct timespec current_time(struct inode *inode);
 
 /*

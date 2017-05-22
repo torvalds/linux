@@ -860,7 +860,9 @@ static const struct hda_fixup cxt_fixups[] = {
 			{ 0x16, 0x21011020 }, /* line-out */
 			{ 0x18, 0x2181103f }, /* line-in */
 			{ }
-		}
+		},
+		.chained = true,
+		.chain_id = CXT_FIXUP_MUTE_LED_GPIO,
 	},
 	[CXT_FIXUP_HP_SPECTRE] = {
 		.type = HDA_FIXUP_PINS,

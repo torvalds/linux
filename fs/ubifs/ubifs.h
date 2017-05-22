@@ -1753,12 +1753,22 @@ int ubifs_check_dir_empty(struct inode *dir);
 /* xattr.c */
 extern const struct xattr_handler *ubifs_xattr_handlers[];
 ssize_t ubifs_listxattr(struct dentry *dentry, char *buffer, size_t size);
-int ubifs_init_security(struct inode *dentry, struct inode *inode,
-			const struct qstr *qstr);
 int ubifs_xattr_set(struct inode *host, const char *name, const void *value,
 		    size_t size, int flags);
 ssize_t ubifs_xattr_get(struct inode *host, const char *name, void *buf,
 			size_t size);
+
+#ifdef CONFIG_UBIFS_FS_SECURITY
+extern int ubifs_init_security(struct inode *dentry, struct inode *inode,
+			const struct qstr *qstr);
+#else
+static inline int ubifs_init_security(struct inode *dentry,
+			struct inode *inode, const struct qstr *qstr)
+{
+	return 0;
+}
+#endif
+
 
 /* super.c */
 struct inode *ubifs_iget(struct super_block *sb, unsigned long inum);

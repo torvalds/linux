@@ -130,11 +130,11 @@ See <uapi/linux/input.h> for a description of the ff_effect struct.  You
 should also find help in a few sketches, contained in files shape.svg
 and interactive.svg:
 
-.. figure:: shape.svg
+.. kernel-figure:: shape.svg
 
     Shape
 
-.. figure:: interactive.svg
+.. kernel-figure:: interactive.svg
 
     Interactive
 

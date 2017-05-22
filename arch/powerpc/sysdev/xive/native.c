@@ -31,6 +31,7 @@
 #include <asm/xive.h>
 #include <asm/xive-regs.h>
 #include <asm/opal.h>
+#include <asm/kvm_ppc.h>
 
 #include "xive-internal.h"
 
@@ -95,6 +96,7 @@ int xive_native_populate_irq_data(u32 hw_irq, struct xive_irq_data *data)
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(xive_native_populate_irq_data);
 
 int xive_native_configure_irq(u32 hw_irq, u32 target, u8 prio, u32 sw_irq)
 {
@@ -108,6 +110,8 @@ int xive_native_configure_irq(u32 hw_irq, u32 target, u8 prio, u32 sw_irq)
 	}
 	return rc == 0 ? 0 : -ENXIO;
 }
+EXPORT_SYMBOL_GPL(xive_native_configure_irq);
+
 
 /* This can be called multiple time to change a queue configuration */
 int xive_native_configure_queue(u32 vp_id, struct xive_q *q, u8 prio,
@@ -172,6 +176,7 @@ int xive_native_configure_queue(u32 vp_id, struct xive_q *q, u8 prio,
 fail:
 	return rc;
 }
+EXPORT_SYMBOL_GPL(xive_native_configure_queue);
 
 static void __xive_native_disable_queue(u32 vp_id, struct xive_q *q, u8 prio)
 {
@@ -192,6 +197,7 @@ void xive_native_disable_queue(u32 vp_id, struct xive_q *q, u8 prio)
 {
 	__xive_native_disable_queue(vp_id, q, prio);
 }
+EXPORT_SYMBOL_GPL(xive_native_disable_queue);
 
 static int xive_native_setup_queue(unsigned int cpu, struct xive_cpu *xc, u8 prio)
 {
@@ -262,6 +268,7 @@ static int xive_native_get_ipi(unsigned int cpu, struct xive_cpu *xc)
 	}
 	return 0;
 }
+#endif /* CONFIG_SMP */
 
 u32 xive_native_alloc_irq(void)
 {
@@ -277,6 +284,7 @@ u32 xive_native_alloc_irq(void)
 		return 0;
 	return rc;
 }
+EXPORT_SYMBOL_GPL(xive_native_alloc_irq);
 
 void xive_native_free_irq(u32 irq)
 {
@@ -287,7 +295,9 @@ void xive_native_free_irq(u32 irq)
 		msleep(1);
 	}
 }
+EXPORT_SYMBOL_GPL(xive_native_free_irq);
 
+#ifdef CONFIG_SMP
 static void xive_native_put_ipi(unsigned int cpu, struct xive_cpu *xc)
 {
 	s64 rc;
@@ -383,7 +393,7 @@ static void xive_native_setup_cpu(unsigned int cpu, struct xive_cpu *xc)
 		return;
 
 	/* Enable the pool VP */
-	vp = xive_pool_vps + get_hard_smp_processor_id(cpu);
+	vp = xive_pool_vps + cpu;
 	pr_debug("CPU %d setting up pool VP 0x%x\n", cpu, vp);
 	for (;;) {
 		rc = opal_xive_set_vp_info(vp, OPAL_XIVE_VP_ENABLED, 0);
@@ -428,7 +438,7 @@ static void xive_native_teardown_cpu(unsigned int cpu, struct xive_cpu *xc)
 	in_be64(xive_tima + TM_SPC_PULL_POOL_CTX);
 
 	/* Disable it */
-	vp = xive_pool_vps + get_hard_smp_processor_id(cpu);
+	vp = xive_pool_vps + cpu;
 	for (;;) {
 		rc = opal_xive_set_vp_info(vp, 0, 0);
 		if (rc != OPAL_BUSY)
@@ -437,10 +447,11 @@ static void xive_native_teardown_cpu(unsigned int cpu, struct xive_cpu *xc)
 	}
 }
 
-static void xive_native_sync_source(u32 hw_irq)
+void xive_native_sync_source(u32 hw_irq)
 {
 	opal_xive_sync(XIVE_SYNC_EAS, hw_irq);
 }
+EXPORT_SYMBOL_GPL(xive_native_sync_source);
 
 static const struct xive_ops xive_native_ops = {
 	.populate_irq_data	= xive_native_populate_irq_data,
@@ -501,10 +512,24 @@ static bool xive_parse_provisioning(struct device_node *np)
 	return true;
 }
 
+static void xive_native_setup_pools(void)
+{
+	/* Allocate a pool big enough */
+	pr_debug("XIVE: Allocating VP block for pool size %d\n", nr_cpu_ids);
+
+	xive_pool_vps = xive_native_alloc_vp_block(nr_cpu_ids);
+	if (WARN_ON(xive_pool_vps == XIVE_INVALID_VP))
+		pr_err("XIVE: Failed to allocate pool VP, KVM might not function\n");
+
+	pr_debug("XIVE: Pool VPs allocated at 0x%x for %d max CPUs\n",
+		 xive_pool_vps, nr_cpu_ids);
+}
+
 u32 xive_native_default_eq_shift(void)
 {
 	return xive_queue_shift;
 }
+EXPORT_SYMBOL_GPL(xive_native_default_eq_shift);
 
 bool xive_native_init(void)
 {
@@ -514,7 +539,7 @@ bool xive_native_init(void)
 	struct property *prop;
 	u8 max_prio = 7;
 	const __be32 *p;
-	u32 val;
+	u32 val, cpu;
 	s64 rc;
 
 	if (xive_cmdline_disabled)
@@ -550,7 +575,11 @@ bool xive_native_init(void)
 			break;
 	}
 
-	/* Grab size of provisioning pages */
+	/* Configure Thread Management areas for KVM */
+	for_each_possible_cpu(cpu)
+		kvmppc_set_xive_tima(cpu, r.start, tima);
+
+	/* Grab size of provisionning pages */
 	xive_parse_provisioning(np);
 
 	/* Switch the XIVE to exploitation mode */
@@ -559,6 +588,9 @@ bool xive_native_init(void)
 		pr_err("Switch to exploitation mode failed with error %lld\n", rc);
 		return false;
 	}
+
+	/* Setup some dummy HV pool VPs */
+	xive_native_setup_pools();
 
 	/* Initialize XIVE core with our backend */
 	if (!xive_core_init(&xive_native_ops, tima, TM_QW3_HV_PHYS,
@@ -638,3 +670,47 @@ void xive_native_free_vp_block(u32 vp_base)
 		pr_warn("OPAL error %lld freeing VP block\n", rc);
 }
 EXPORT_SYMBOL_GPL(xive_native_free_vp_block);
+
+int xive_native_enable_vp(u32 vp_id)
+{
+	s64 rc;
+
+	for (;;) {
+		rc = opal_xive_set_vp_info(vp_id, OPAL_XIVE_VP_ENABLED, 0);
+		if (rc != OPAL_BUSY)
+			break;
+		msleep(1);
+	}
+	return rc ? -EIO : 0;
+}
+EXPORT_SYMBOL_GPL(xive_native_enable_vp);
+
+int xive_native_disable_vp(u32 vp_id)
+{
+	s64 rc;
+
+	for (;;) {
+		rc = opal_xive_set_vp_info(vp_id, 0, 0);
+		if (rc != OPAL_BUSY)
+			break;
+		msleep(1);
+	}
+	return rc ? -EIO : 0;
+}
+EXPORT_SYMBOL_GPL(xive_native_disable_vp);
+
+int xive_native_get_vp_info(u32 vp_id, u32 *out_cam_id, u32 *out_chip_id)
+{
+	__be64 vp_cam_be;
+	__be32 vp_chip_id_be;
+	s64 rc;
+
+	rc = opal_xive_get_vp_info(vp_id, NULL, &vp_cam_be, NULL, &vp_chip_id_be);
+	if (rc)
+		return -EIO;
+	*out_cam_id = be64_to_cpu(vp_cam_be) & 0xffffffffu;
+	*out_chip_id = be32_to_cpu(vp_chip_id_be);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(xive_native_get_vp_info);

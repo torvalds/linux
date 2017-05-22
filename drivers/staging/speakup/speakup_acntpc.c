@@ -310,7 +310,7 @@ static void accent_release(void)
 	speakup_info.port_tts = 0;
 }
 
-module_param_named(port, port_forced, int, 0444);
+module_param_hw_named(port, port_forced, int, ioport, 0444);
 module_param_named(start, synth_acntpc.startup, short, 0444);
 
 MODULE_PARM_DESC(port, "Set the port for the synthesizer (override probing).");

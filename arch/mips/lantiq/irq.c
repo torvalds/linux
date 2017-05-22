@@ -274,47 +274,6 @@ static void ltq_hw_irq_handler(struct irq_desc *desc)
 	ltq_hw_irqdispatch(irq_desc_get_irq(desc) - 2);
 }
 
-#ifdef CONFIG_MIPS_MT_SMP
-void __init arch_init_ipiirq(int irq, struct irqaction *action)
-{
-	setup_irq(irq, action);
-	irq_set_handler(irq, handle_percpu_irq);
-}
-
-static void ltq_sw0_irqdispatch(void)
-{
-	do_IRQ(MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_RESCHED_IRQ);
-}
-
-static void ltq_sw1_irqdispatch(void)
-{
-	do_IRQ(MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_CALL_IRQ);
-}
-static irqreturn_t ipi_resched_interrupt(int irq, void *dev_id)
-{
-	scheduler_ipi();
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t ipi_call_interrupt(int irq, void *dev_id)
-{
-	generic_smp_call_function_interrupt();
-	return IRQ_HANDLED;
-}
-
-static struct irqaction irq_resched = {
-	.handler	= ipi_resched_interrupt,
-	.flags		= IRQF_PERCPU,
-	.name		= "IPI_resched"
-};
-
-static struct irqaction irq_call = {
-	.handler	= ipi_call_interrupt,
-	.flags		= IRQF_PERCPU,
-	.name		= "IPI_call"
-};
-#endif
-
 asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned int pending = read_c0_status() & read_c0_cause() & ST0_IM;
@@ -401,17 +360,6 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 	ltq_domain = irq_domain_add_linear(node,
 		(MAX_IM * INT_NUM_IM_OFFSET) + MIPS_CPU_IRQ_CASCADE,
 		&irq_domain_ops, 0);
-
-#if defined(CONFIG_MIPS_MT_SMP)
-	if (cpu_has_vint) {
-		pr_info("Setting up IPI vectored interrupts\n");
-		set_vi_handler(MIPS_CPU_IPI_RESCHED_IRQ, ltq_sw0_irqdispatch);
-		set_vi_handler(MIPS_CPU_IPI_CALL_IRQ, ltq_sw1_irqdispatch);
-	}
-	arch_init_ipiirq(MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_RESCHED_IRQ,
-		&irq_resched);
-	arch_init_ipiirq(MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_CALL_IRQ, &irq_call);
-#endif
 
 #ifndef CONFIG_MIPS_MT_SMP
 	set_c0_status(IE_IRQ0 | IE_IRQ1 | IE_IRQ2 |

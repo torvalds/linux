@@ -13,8 +13,17 @@ Required properties:
 - #gpio-cells : Should be two. The first cell is the pin number and the
   second cell is used to specify optional parameters (currently unused).
 - gpio-controller : Marks the port as GPIO controller.
+Optional properties:
+- fsl,cpm1-gpio-irq-mask : For banks having interrupt capability (like port C
+  on CPM1), this item tells which ports have an associated interrupt (ports are
+  listed in the same order as in PCINT register)
+- interrupts : This property provides the list of interrupt for each GPIO having
+  one as described by the fsl,cpm1-gpio-irq-mask property. There should be as
+  many interrupts as number of ones in the mask property. The first interrupt in
+  the list corresponds to the most significant bit of the mask.
+- interrupt-parent : Parent for the above interrupt property.
 
-Example of three SOC GPIO banks defined as gpio-controller nodes:
+Example of four SOC GPIO banks defined as gpio-controller nodes:
 
 	CPM1_PIO_A: gpio-controller@950 {
 		#gpio-cells = <2>;
@@ -27,6 +36,16 @@ Example of three SOC GPIO banks defined as gpio-controller nodes:
 		#gpio-cells = <2>;
 		compatible = "fsl,cpm1-pario-bank-b";
 		reg = <0xab8 0x10>;
+		gpio-controller;
+	};
+
+	CPM1_PIO_C: gpio-controller@960 {
+		#gpio-cells = <2>;
+		compatible = "fsl,cpm1-pario-bank-c";
+		reg = <0x960 0x10>;
+		fsl,cpm1-gpio-irq-mask = <0x0fff>;
+		interrupts = <1 2 6 9 10 11 14 15 23 24 26 31>;
+		interrupt-parent = <&CPM_PIC>;
 		gpio-controller;
 	};
 

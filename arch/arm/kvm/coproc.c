@@ -32,6 +32,7 @@
 #include <asm/vfp.h>
 #include "../vfp/vfpinstr.h"
 
+#define CREATE_TRACE_POINTS
 #include "trace.h"
 #include "coproc.h"
 
@@ -106,12 +107,6 @@ int kvm_handle_cp_0_13_access(struct kvm_vcpu *vcpu, struct kvm_run *run)
 }
 
 int kvm_handle_cp14_load_store(struct kvm_vcpu *vcpu, struct kvm_run *run)
-{
-	kvm_inject_undefined(vcpu);
-	return 1;
-}
-
-int kvm_handle_cp14_access(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
 	kvm_inject_undefined(vcpu);
 	return 1;
@@ -284,7 +279,7 @@ static bool access_gic_sre(struct kvm_vcpu *vcpu,
  * must always support PMCCNTR (the cycle counter): we just RAZ/WI for
  * all PM registers, which doesn't crash the guest kernel at least.
  */
-static bool pm_fake(struct kvm_vcpu *vcpu,
+static bool trap_raz_wi(struct kvm_vcpu *vcpu,
 		    const struct coproc_params *p,
 		    const struct coproc_reg *r)
 {
@@ -294,19 +289,19 @@ static bool pm_fake(struct kvm_vcpu *vcpu,
 		return read_zero(vcpu, p);
 }
 
-#define access_pmcr pm_fake
-#define access_pmcntenset pm_fake
-#define access_pmcntenclr pm_fake
-#define access_pmovsr pm_fake
-#define access_pmselr pm_fake
-#define access_pmceid0 pm_fake
-#define access_pmceid1 pm_fake
-#define access_pmccntr pm_fake
-#define access_pmxevtyper pm_fake
-#define access_pmxevcntr pm_fake
-#define access_pmuserenr pm_fake
-#define access_pmintenset pm_fake
-#define access_pmintenclr pm_fake
+#define access_pmcr trap_raz_wi
+#define access_pmcntenset trap_raz_wi
+#define access_pmcntenclr trap_raz_wi
+#define access_pmovsr trap_raz_wi
+#define access_pmselr trap_raz_wi
+#define access_pmceid0 trap_raz_wi
+#define access_pmceid1 trap_raz_wi
+#define access_pmccntr trap_raz_wi
+#define access_pmxevtyper trap_raz_wi
+#define access_pmxevcntr trap_raz_wi
+#define access_pmuserenr trap_raz_wi
+#define access_pmintenset trap_raz_wi
+#define access_pmintenclr trap_raz_wi
 
 /* Architected CP15 registers.
  * CRn denotes the primary register number, but is copied to the CRm in the
@@ -532,12 +527,7 @@ static int emulate_cp15(struct kvm_vcpu *vcpu,
 	return 1;
 }
 
-/**
- * kvm_handle_cp15_64 -- handles a mrrc/mcrr trap on a guest CP15 access
- * @vcpu: The VCPU pointer
- * @run:  The kvm_run struct
- */
-int kvm_handle_cp15_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
+static struct coproc_params decode_64bit_hsr(struct kvm_vcpu *vcpu)
 {
 	struct coproc_params params;
 
@@ -551,7 +541,36 @@ int kvm_handle_cp15_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	params.Rt2 = (kvm_vcpu_get_hsr(vcpu) >> 10) & 0xf;
 	params.CRm = 0;
 
+	return params;
+}
+
+/**
+ * kvm_handle_cp15_64 -- handles a mrrc/mcrr trap on a guest CP15 access
+ * @vcpu: The VCPU pointer
+ * @run:  The kvm_run struct
+ */
+int kvm_handle_cp15_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	struct coproc_params params = decode_64bit_hsr(vcpu);
+
 	return emulate_cp15(vcpu, &params);
+}
+
+/**
+ * kvm_handle_cp14_64 -- handles a mrrc/mcrr trap on a guest CP14 access
+ * @vcpu: The VCPU pointer
+ * @run:  The kvm_run struct
+ */
+int kvm_handle_cp14_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	struct coproc_params params = decode_64bit_hsr(vcpu);
+
+	/* raz_wi cp14 */
+	trap_raz_wi(vcpu, &params, NULL);
+
+	/* handled */
+	kvm_skip_instr(vcpu, kvm_vcpu_trap_il_is32bit(vcpu));
+	return 1;
 }
 
 static void reset_coproc_regs(struct kvm_vcpu *vcpu,
@@ -564,12 +583,7 @@ static void reset_coproc_regs(struct kvm_vcpu *vcpu,
 			table[i].reset(vcpu, &table[i]);
 }
 
-/**
- * kvm_handle_cp15_32 -- handles a mrc/mcr trap on a guest CP15 access
- * @vcpu: The VCPU pointer
- * @run:  The kvm_run struct
- */
-int kvm_handle_cp15_32(struct kvm_vcpu *vcpu, struct kvm_run *run)
+static struct coproc_params decode_32bit_hsr(struct kvm_vcpu *vcpu)
 {
 	struct coproc_params params;
 
@@ -583,7 +597,35 @@ int kvm_handle_cp15_32(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	params.Op2 = (kvm_vcpu_get_hsr(vcpu) >> 17) & 0x7;
 	params.Rt2 = 0;
 
+	return params;
+}
+
+/**
+ * kvm_handle_cp15_32 -- handles a mrc/mcr trap on a guest CP15 access
+ * @vcpu: The VCPU pointer
+ * @run:  The kvm_run struct
+ */
+int kvm_handle_cp15_32(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	struct coproc_params params = decode_32bit_hsr(vcpu);
 	return emulate_cp15(vcpu, &params);
+}
+
+/**
+ * kvm_handle_cp14_32 -- handles a mrc/mcr trap on a guest CP14 access
+ * @vcpu: The VCPU pointer
+ * @run:  The kvm_run struct
+ */
+int kvm_handle_cp14_32(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	struct coproc_params params = decode_32bit_hsr(vcpu);
+
+	/* raz_wi cp14 */
+	trap_raz_wi(vcpu, &params, NULL);
+
+	/* handled */
+	kvm_skip_instr(vcpu, kvm_vcpu_trap_il_is32bit(vcpu));
+	return 1;
 }
 
 /******************************************************************************

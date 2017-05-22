@@ -99,7 +99,6 @@ struct xive_q {
 #define XIVE_ESB_SET_PQ_01	0xd00
 #define XIVE_ESB_SET_PQ_10	0xe00
 #define XIVE_ESB_SET_PQ_11	0xf00
-#define XIVE_ESB_MASK		XIVE_ESB_SET_PQ_01
 
 #define XIVE_ESB_VAL_P		0x2
 #define XIVE_ESB_VAL_Q		0x1
@@ -136,11 +135,11 @@ extern int xive_native_configure_queue(u32 vp_id, struct xive_q *q, u8 prio,
 				       __be32 *qpage, u32 order, bool can_escalate);
 extern void xive_native_disable_queue(u32 vp_id, struct xive_q *q, u8 prio);
 
-extern bool __xive_irq_trigger(struct xive_irq_data *xd);
-extern bool __xive_irq_retrigger(struct xive_irq_data *xd);
-extern void xive_do_source_eoi(u32 hw_irq, struct xive_irq_data *xd);
-
+extern void xive_native_sync_source(u32 hw_irq);
 extern bool is_xive_irq(struct irq_chip *chip);
+extern int xive_native_enable_vp(u32 vp_id);
+extern int xive_native_disable_vp(u32 vp_id);
+extern int xive_native_get_vp_info(u32 vp_id, u32 *out_cam_id, u32 *out_chip_id);
 
 #else
 

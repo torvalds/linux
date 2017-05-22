@@ -1268,7 +1268,7 @@ arch_timer_mem_find_best_frame(struct arch_timer_mem *timer_mem)
 		pr_err("Unable to find a suitable frame in timer @ %pa\n",
 			&timer_mem->cntctlbase);
 
-	return frame;
+	return best_frame;
 }
 
 static int __init

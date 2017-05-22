@@ -23,6 +23,7 @@
 #include "../perf.h"
 #include "session.h"
 #include "machine.h"
+#include "memswap.h"
 #include "sort.h"
 #include "tool.h"
 #include "event.h"

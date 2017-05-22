@@ -43,7 +43,7 @@
 #define KVM_PRIVATE_MEM_SLOTS 3
 #define KVM_MEM_SLOTS_NUM (KVM_USER_MEM_SLOTS + KVM_PRIVATE_MEM_SLOTS)
 
-#define KVM_HALT_POLL_NS_DEFAULT 400000
+#define KVM_HALT_POLL_NS_DEFAULT 200000
 
 #define KVM_IRQCHIP_NUM_PINS  KVM_IOAPIC_NUM_PINS
 
@@ -1020,6 +1020,8 @@ struct kvm_x86_ops {
 	void (*enable_log_dirty_pt_masked)(struct kvm *kvm,
 					   struct kvm_memory_slot *slot,
 					   gfn_t offset, unsigned long mask);
+	int (*write_log_dirty)(struct kvm_vcpu *vcpu);
+
 	/* pmu operations of sub-arch */
 	const struct kvm_pmu_ops *pmu_ops;
 

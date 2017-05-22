@@ -21,11 +21,18 @@ from accessing the corresponding object from the original filesystem.
 This is most obvious from the 'st_dev' field returned by stat(2).
 
 While directories will report an st_dev from the overlay-filesystem,
-all non-directory objects will report an st_dev from the lower or
+non-directory objects may report an st_dev from the lower filesystem or
 upper filesystem that is providing the object.  Similarly st_ino will
 only be unique when combined with st_dev, and both of these can change
 over the lifetime of a non-directory object.  Many applications and
 tools ignore these values and will not be affected.
+
+In the special case of all overlay layers on the same underlying
+filesystem, all objects will report an st_dev from the overlay
+filesystem and st_ino from the underlying filesystem.  This will
+make the overlay mount more compliant with filesystem scanners and
+overlay objects will be distinguishable from the corresponding
+objects in the original filesystem.
 
 Upper and Lower
 ---------------

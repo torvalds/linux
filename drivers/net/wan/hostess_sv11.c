@@ -324,11 +324,11 @@ static void sv11_shutdown(struct z8530_dev *dev)
 static int io = 0x200;
 static int irq = 9;
 
-module_param(io, int, 0);
+module_param_hw(io, int, ioport, 0);
 MODULE_PARM_DESC(io, "The I/O base of the Comtrol Hostess SV11 card");
-module_param(dma, int, 0);
+module_param_hw(dma, int, dma, 0);
 MODULE_PARM_DESC(dma, "Set this to 1 to use DMA1/DMA3 for TX/RX");
-module_param(irq, int, 0);
+module_param_hw(irq, int, irq, 0);
 MODULE_PARM_DESC(irq, "The interrupt line setting for the Comtrol Hostess SV11 card");
 
 MODULE_AUTHOR("Alan Cox");

@@ -368,11 +368,10 @@ struct pp_hwmgr_func {
 	int (*get_mclk_od)(struct pp_hwmgr *hwmgr);
 	int (*set_mclk_od)(struct pp_hwmgr *hwmgr, uint32_t value);
 	int (*read_sensor)(struct pp_hwmgr *hwmgr, int idx, void *value, int *size);
-	int (*request_firmware)(struct pp_hwmgr *hwmgr);
-	int (*release_firmware)(struct pp_hwmgr *hwmgr);
 	int (*set_power_profile_state)(struct pp_hwmgr *hwmgr,
 			struct amd_pp_profile *request);
 	int (*avfs_control)(struct pp_hwmgr *hwmgr, bool enable);
+	int (*disable_smc_firmware_ctf)(struct pp_hwmgr *hwmgr);
 };
 
 struct pp_table_func {
@@ -765,6 +764,7 @@ struct pp_hwmgr {
 	struct pp_thermal_controller_info thermal_controller;
 	bool fan_ctrl_is_in_default_mode;
 	uint32_t fan_ctrl_default_mode;
+	bool fan_ctrl_enabled;
 	uint32_t tmin;
 	struct phm_microcode_version_info microcode_version_info;
 	uint32_t ps_size;

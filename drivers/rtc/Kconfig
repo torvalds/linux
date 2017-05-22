@@ -1303,10 +1303,10 @@ config RTC_DRV_SA1100
 
 config RTC_DRV_SH
 	tristate "SuperH On-Chip RTC"
-	depends on SUPERH && HAVE_CLK
+	depends on SUPERH || ARCH_RENESAS
 	help
 	  Say Y here to enable support for the on-chip RTC found in
-	  most SuperH processors.
+	  most SuperH processors. This RTC is also found in RZ/A SoCs.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rtc-sh.
@@ -1730,6 +1730,13 @@ config RTC_DRV_STM32
 
 	   This driver can also be built as a module, if so, the module
 	   will be called "rtc-stm32".
+
+config RTC_DRV_CPCAP
+	depends on MFD_CPCAP
+	tristate "Motorola CPCAP RTC"
+	help
+	   Say y here for CPCAP rtc found on some Motorola phones
+	   and tablets such as Droid 4.
 
 comment "HID Sensor RTC drivers"
 

@@ -64,45 +64,8 @@ table which are called by the nfs-client pnfs-core to implement the
 different layout types.
 
 Files-layout-driver code is in: fs/nfs/filelayout/.. directory
-Objects-layout-driver code is in: fs/nfs/objlayout/.. directory
 Blocks-layout-driver code is in: fs/nfs/blocklayout/.. directory
 Flexfiles-layout-driver code is in: fs/nfs/flexfilelayout/.. directory
-
-objects-layout setup
---------------------
-
-As part of the full STD implementation the objlayoutdriver.ko needs, at times,
-to automatically login to yet undiscovered iscsi/osd devices. For this the
-driver makes up-calles to a user-mode script called *osd_login*
-
-The path_name of the script to use is by default:
-	/sbin/osd_login.
-This name can be overridden by the Kernel module parameter:
-	objlayoutdriver.osd_login_prog
-
-If Kernel does not find the osd_login_prog path it will zero it out
-and will not attempt farther logins. An admin can then write new value
-to the objlayoutdriver.osd_login_prog Kernel parameter to re-enable it.
-
-The /sbin/osd_login is part of the nfs-utils package, and should usually
-be installed on distributions that support this Kernel version.
-
-The API to the login script is as follows:
-	Usage: $0 -u <URI> -o <OSDNAME> -s <SYSTEMID>
-	Options:
-		-u		target uri e.g. iscsi://<ip>:<port>
-				(always exists)
-				(More protocols can be defined in the future.
-				 The client does not interpret this string it is
-				 passed unchanged as received from the Server)
-		-o		osdname of the requested target OSD
-				(Might be empty)
-				(A string which denotes the OSD name, there is a
-				 limit of 64 chars on this string)
-		-s 		systemid of the requested target OSD
-				(Might be empty)
-				(This string, if not empty is always an hex
-				 representation of the 20 bytes osd_system_id)
 
 blocks-layout setup
 -------------------

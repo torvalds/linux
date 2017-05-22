@@ -27,8 +27,8 @@
 
 /* FC Port role bitmask - can merge with FC Port Roles in fc transport */
 #define FC_PORT_ROLE_NVME_INITIATOR	0x10
-#define FC_PORT_ROLE_NVME_TARGET	0x11
-#define FC_PORT_ROLE_NVME_DISCOVERY	0x12
+#define FC_PORT_ROLE_NVME_TARGET	0x20
+#define FC_PORT_ROLE_NVME_DISCOVERY	0x40
 
 
 /**
@@ -642,15 +642,7 @@ enum {
 		 * sequence in one LLDD operation. Errors during Data
 		 * sequence transmit must not allow RSP sequence to be sent.
 		 */
-	NVMET_FCTGTFEAT_NEEDS_CMD_CPUSCHED = (1 << 1),
-		/* Bit 1: When 0, the LLDD will deliver FCP CMD
-		 * on the CPU it should be affinitized to. Thus work will
-		 * be scheduled on the cpu received on. When 1, the LLDD
-		 * may not deliver the CMD on the CPU it should be worked
-		 * on. The transport should pick a cpu to schedule the work
-		 * on.
-		 */
-	NVMET_FCTGTFEAT_CMD_IN_ISR = (1 << 2),
+	NVMET_FCTGTFEAT_CMD_IN_ISR = (1 << 1),
 		/* Bit 2: When 0, the LLDD is calling the cmd rcv handler
 		 * in a non-isr context, allowing the transport to finish
 		 * op completion in the calling context. When 1, the LLDD
@@ -658,7 +650,7 @@ enum {
 		 * requiring the transport to transition to a workqueue
 		 * for op completion.
 		 */
-	NVMET_FCTGTFEAT_OPDONE_IN_ISR = (1 << 3),
+	NVMET_FCTGTFEAT_OPDONE_IN_ISR = (1 << 2),
 		/* Bit 3: When 0, the LLDD is calling the op done handler
 		 * in a non-isr context, allowing the transport to finish
 		 * op completion in the calling context. When 1, the LLDD

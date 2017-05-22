@@ -918,6 +918,18 @@ PAGE_SIZE multiple when read back.
 
 		Number of major page faults incurred
 
+	  workingset_refault
+
+		Number of refaults of previously evicted pages
+
+	  workingset_activate
+
+		Number of refaulted pages that were immediately activated
+
+	  workingset_nodereclaim
+
+		Number of times a shadow node has been reclaimed
+
   memory.swap.current
 
 	A read-only single value file which exists on non-root

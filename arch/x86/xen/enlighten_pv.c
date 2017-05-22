@@ -142,9 +142,7 @@ static void __init xen_banner(void)
 	struct xen_extraversion extra;
 	HYPERVISOR_xen_version(XENVER_extraversion, &extra);
 
-	pr_info("Booting paravirtualized kernel %son %s\n",
-		xen_feature(XENFEAT_auto_translated_physmap) ?
-			"with PVH extensions " : "", pv_info.name);
+	pr_info("Booting paravirtualized kernel on %s\n", pv_info.name);
 	printk(KERN_INFO "Xen version: %d.%d%s%s\n",
 	       version >> 16, version & 0xffff, extra.extraversion,
 	       xen_feature(XENFEAT_mmu_pt_update_preserve_ad) ? " (preserve-AD)" : "");
@@ -277,31 +275,19 @@ static bool __init xen_check_mwait(void)
 
 static bool __init xen_check_xsave(void)
 {
-	unsigned int err, eax, edx;
+	unsigned int cx, xsave_mask;
 
-	/*
-	 * Xen 4.0 and older accidentally leaked the host XSAVE flag into guest
-	 * view, despite not being able to support guests using the
-	 * functionality. Probe for the actual availability of XSAVE by seeing
-	 * whether xgetbv executes successfully or raises #UD.
-	 */
-	asm volatile("1: .byte 0x0f,0x01,0xd0\n\t" /* xgetbv */
-		     "xor %[err], %[err]\n"
-		     "2:\n\t"
-		     ".pushsection .fixup,\"ax\"\n\t"
-		     "3: movl $1,%[err]\n\t"
-		     "jmp 2b\n\t"
-		     ".popsection\n\t"
-		     _ASM_EXTABLE(1b, 3b)
-		     : [err] "=r" (err), "=a" (eax), "=d" (edx)
-		     : "c" (0));
+	cx = cpuid_ecx(1);
 
-	return err == 0;
+	xsave_mask = (1 << (X86_FEATURE_XSAVE % 32)) |
+		     (1 << (X86_FEATURE_OSXSAVE % 32));
+
+	/* Xen will set CR4.OSXSAVE if supported and not disabled by force */
+	return (cx & xsave_mask) == xsave_mask;
 }
 
 static void __init xen_init_capabilities(void)
 {
-	setup_clear_cpu_cap(X86_BUG_SYSRET_SS_ATTRS);
 	setup_force_cpu_cap(X86_FEATURE_XENPV);
 	setup_clear_cpu_cap(X86_FEATURE_DCA);
 	setup_clear_cpu_cap(X86_FEATURE_APERFMPERF);
@@ -317,10 +303,7 @@ static void __init xen_init_capabilities(void)
 	else
 		setup_clear_cpu_cap(X86_FEATURE_MWAIT);
 
-	if (xen_check_xsave()) {
-		setup_force_cpu_cap(X86_FEATURE_XSAVE);
-		setup_force_cpu_cap(X86_FEATURE_OSXSAVE);
-	} else {
+	if (!xen_check_xsave()) {
 		setup_clear_cpu_cap(X86_FEATURE_XSAVE);
 		setup_clear_cpu_cap(X86_FEATURE_OSXSAVE);
 	}
@@ -972,15 +955,10 @@ static void xen_write_msr(unsigned int msr, unsigned low, unsigned high)
 
 void xen_setup_shared_info(void)
 {
-	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
-		set_fixmap(FIX_PARAVIRT_BOOTMAP,
-			   xen_start_info->shared_info);
+	set_fixmap(FIX_PARAVIRT_BOOTMAP, xen_start_info->shared_info);
 
-		HYPERVISOR_shared_info =
-			(struct shared_info *)fix_to_virt(FIX_PARAVIRT_BOOTMAP);
-	} else
-		HYPERVISOR_shared_info =
-			(struct shared_info *)__va(xen_start_info->shared_info);
+	HYPERVISOR_shared_info =
+		(struct shared_info *)fix_to_virt(FIX_PARAVIRT_BOOTMAP);
 
 #ifndef CONFIG_SMP
 	/* In UP this is as good a place as any to set up shared info */
@@ -988,6 +966,13 @@ void xen_setup_shared_info(void)
 #endif
 
 	xen_setup_mfn_list_list();
+
+	/*
+	 * Now that shared info is set up we can start using routines that
+	 * point to pvclock area.
+	 */
+	if (system_state == SYSTEM_BOOTING)
+		xen_init_time_ops();
 }
 
 /* This is called once we have the cpu_possible_mask */
@@ -1285,8 +1270,6 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	x86_init.resources.memory_setup = xen_memory_setup;
 	x86_init.oem.arch_setup = xen_arch_setup;
 	x86_init.oem.banner = xen_banner;
-
-	xen_init_time_ops();
 
 	/*
 	 * Set up some pagetable state before starting to set any ptes.

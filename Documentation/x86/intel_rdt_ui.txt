@@ -295,7 +295,7 @@ kernel and the tasks running there get 50% of the cache. They should
 also get 50% of memory bandwidth assuming that the cores 4-7 are SMT
 siblings and only the real time threads are scheduled on the cores 4-7.
 
-# echo C0 > p0/cpus
+# echo F0 > p0/cpus
 
 4) Locking between applications
 
