@@ -16,6 +16,56 @@
 #include <linux/netpoll.h>
 #include <net/dsa.h>
 
+enum {
+	DSA_NOTIFIER_AGEING_TIME,
+	DSA_NOTIFIER_BRIDGE_JOIN,
+	DSA_NOTIFIER_BRIDGE_LEAVE,
+	DSA_NOTIFIER_FDB_ADD,
+	DSA_NOTIFIER_FDB_DEL,
+	DSA_NOTIFIER_MDB_ADD,
+	DSA_NOTIFIER_MDB_DEL,
+	DSA_NOTIFIER_VLAN_ADD,
+	DSA_NOTIFIER_VLAN_DEL,
+};
+
+/* DSA_NOTIFIER_AGEING_TIME */
+struct dsa_notifier_ageing_time_info {
+	struct switchdev_trans *trans;
+	unsigned int ageing_time;
+	int sw_index;
+};
+
+/* DSA_NOTIFIER_BRIDGE_* */
+struct dsa_notifier_bridge_info {
+	struct net_device *br;
+	int sw_index;
+	int port;
+};
+
+/* DSA_NOTIFIER_FDB_* */
+struct dsa_notifier_fdb_info {
+	const struct switchdev_obj_port_fdb *fdb;
+	struct switchdev_trans *trans;
+	int sw_index;
+	int port;
+};
+
+/* DSA_NOTIFIER_MDB_* */
+struct dsa_notifier_mdb_info {
+	const struct switchdev_obj_port_mdb *mdb;
+	struct switchdev_trans *trans;
+	int sw_index;
+	int port;
+};
+
+/* DSA_NOTIFIER_VLAN_* */
+struct dsa_notifier_vlan_info {
+	const struct switchdev_obj_port_vlan *vlan;
+	struct switchdev_trans *trans;
+	int sw_index;
+	int port;
+};
+
 struct dsa_device_ops {
 	struct sk_buff *(*xmit)(struct sk_buff *skb, struct net_device *dev);
 	struct sk_buff *(*rcv)(struct sk_buff *skb, struct net_device *dev,
@@ -59,6 +109,39 @@ void dsa_cpu_port_ethtool_restore(struct dsa_switch *ds);
 /* legacy.c */
 int dsa_legacy_register(void);
 void dsa_legacy_unregister(void);
+
+/* port.c */
+int dsa_port_set_state(struct dsa_port *dp, u8 state,
+		       struct switchdev_trans *trans);
+void dsa_port_set_state_now(struct dsa_port *dp, u8 state);
+int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br);
+void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br);
+int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
+			    struct switchdev_trans *trans);
+int dsa_port_ageing_time(struct dsa_port *dp, clock_t ageing_clock,
+			 struct switchdev_trans *trans);
+int dsa_port_fdb_add(struct dsa_port *dp,
+		     const struct switchdev_obj_port_fdb *fdb,
+		     struct switchdev_trans *trans);
+int dsa_port_fdb_del(struct dsa_port *dp,
+		     const struct switchdev_obj_port_fdb *fdb);
+int dsa_port_fdb_dump(struct dsa_port *dp, struct switchdev_obj_port_fdb *fdb,
+		      switchdev_obj_dump_cb_t *cb);
+int dsa_port_mdb_add(struct dsa_port *dp,
+		     const struct switchdev_obj_port_mdb *mdb,
+		     struct switchdev_trans *trans);
+int dsa_port_mdb_del(struct dsa_port *dp,
+		     const struct switchdev_obj_port_mdb *mdb);
+int dsa_port_mdb_dump(struct dsa_port *dp, struct switchdev_obj_port_mdb *mdb,
+		      switchdev_obj_dump_cb_t *cb);
+int dsa_port_vlan_add(struct dsa_port *dp,
+		      const struct switchdev_obj_port_vlan *vlan,
+		      struct switchdev_trans *trans);
+int dsa_port_vlan_del(struct dsa_port *dp,
+		      const struct switchdev_obj_port_vlan *vlan);
+int dsa_port_vlan_dump(struct dsa_port *dp,
+		       struct switchdev_obj_port_vlan *vlan,
+		       switchdev_obj_dump_cb_t *cb);
 
 /* slave.c */
 extern const struct dsa_device_ops notag_netdev_ops;

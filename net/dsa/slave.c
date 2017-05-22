@@ -27,17 +27,6 @@
 
 static bool dsa_slave_dev_check(struct net_device *dev);
 
-static int dsa_slave_notify(struct net_device *dev, unsigned long e, void *v)
-{
-	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct raw_notifier_head *nh = &p->dp->ds->dst->nh;
-	int err;
-
-	err = raw_notifier_call_chain(nh, e, v);
-
-	return notifier_to_errno(err);
-}
-
 /* slave mii_bus handling ***************************************************/
 static int dsa_slave_phy_read(struct mii_bus *bus, int addr, int reg)
 {
@@ -85,33 +74,6 @@ static inline bool dsa_port_is_bridged(struct dsa_port *dp)
 	return !!dp->bridge_dev;
 }
 
-static void dsa_slave_set_state(struct net_device *dev, u8 state)
-{
-	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct dsa_port *dp = p->dp;
-	struct dsa_switch *ds = dp->ds;
-	int port = dp->index;
-
-	if (ds->ops->port_stp_state_set)
-		ds->ops->port_stp_state_set(ds, port, state);
-
-	if (ds->ops->port_fast_age) {
-		/* Fast age FDB entries or flush appropriate forwarding database
-		 * for the given port, if we are moving it from Learning or
-		 * Forwarding state, to Disabled or Blocking or Listening state.
-		 */
-
-		if ((dp->stp_state == BR_STATE_LEARNING ||
-		     dp->stp_state == BR_STATE_FORWARDING) &&
-		    (state == BR_STATE_DISABLED ||
-		     state == BR_STATE_BLOCKING ||
-		     state == BR_STATE_LISTENING))
-			ds->ops->port_fast_age(ds, port);
-	}
-
-	dp->stp_state = state;
-}
-
 static int dsa_slave_open(struct net_device *dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
@@ -147,7 +109,7 @@ static int dsa_slave_open(struct net_device *dev)
 			goto clear_promisc;
 	}
 
-	dsa_slave_set_state(dev, stp_state);
+	dsa_port_set_state_now(p->dp, stp_state);
 
 	if (p->phy)
 		phy_start(p->phy);
@@ -189,7 +151,7 @@ static int dsa_slave_close(struct net_device *dev)
 	if (ds->ops->port_disable)
 		ds->ops->port_disable(ds, p->dp->index, p->phy);
 
-	dsa_slave_set_state(dev, BR_STATE_DISABLED);
+	dsa_port_set_state_now(p->dp, BR_STATE_DISABLED);
 
 	return 0;
 }
@@ -242,140 +204,6 @@ out:
 	return 0;
 }
 
-static int dsa_slave_port_vlan_add(struct net_device *dev,
-				   const struct switchdev_obj_port_vlan *vlan,
-				   struct switchdev_trans *trans)
-{
-	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct dsa_port *dp = p->dp;
-	struct dsa_switch *ds = dp->ds;
-
-	if (switchdev_trans_ph_prepare(trans)) {
-		if (!ds->ops->port_vlan_prepare || !ds->ops->port_vlan_add)
-			return -EOPNOTSUPP;
-
-		return ds->ops->port_vlan_prepare(ds, dp->index, vlan, trans);
-	}
-
-	ds->ops->port_vlan_add(ds, dp->index, vlan, trans);
-
-	return 0;
-}
-
-static int dsa_slave_port_vlan_del(struct net_device *dev,
-				   const struct switchdev_obj_port_vlan *vlan)
-{
-	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct dsa_switch *ds = p->dp->ds;
-
-	if (!ds->ops->port_vlan_del)
-		return -EOPNOTSUPP;
-
-	return ds->ops->port_vlan_del(ds, p->dp->index, vlan);
-}
-
-static int dsa_slave_port_vlan_dump(struct net_device *dev,
-				    struct switchdev_obj_port_vlan *vlan,
-				    switchdev_obj_dump_cb_t *cb)
-{
-	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct dsa_switch *ds = p->dp->ds;
-
-	if (ds->ops->port_vlan_dump)
-		return ds->ops->port_vlan_dump(ds, p->dp->index, vlan, cb);
-
-	return -EOPNOTSUPP;
-}
-
-static int dsa_slave_port_fdb_add(struct net_device *dev,
-				  const struct switchdev_obj_port_fdb *fdb,
-				  struct switchdev_trans *trans)
-{
-	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct dsa_switch *ds = p->dp->ds;
-
-	if (switchdev_trans_ph_prepare(trans)) {
-		if (!ds->ops->port_fdb_prepare || !ds->ops->port_fdb_add)
-			return -EOPNOTSUPP;
-
-		return ds->ops->port_fdb_prepare(ds, p->dp->index, fdb, trans);
-	}
-
-	ds->ops->port_fdb_add(ds, p->dp->index, fdb, trans);
-
-	return 0;
-}
-
-static int dsa_slave_port_fdb_del(struct net_device *dev,
-				  const struct switchdev_obj_port_fdb *fdb)
-{
-	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct dsa_switch *ds = p->dp->ds;
-	int ret = -EOPNOTSUPP;
-
-	if (ds->ops->port_fdb_del)
-		ret = ds->ops->port_fdb_del(ds, p->dp->index, fdb);
-
-	return ret;
-}
-
-static int dsa_slave_port_fdb_dump(struct net_device *dev,
-				   struct switchdev_obj_port_fdb *fdb,
-				   switchdev_obj_dump_cb_t *cb)
-{
-	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct dsa_switch *ds = p->dp->ds;
-
-	if (ds->ops->port_fdb_dump)
-		return ds->ops->port_fdb_dump(ds, p->dp->index, fdb, cb);
-
-	return -EOPNOTSUPP;
-}
-
-static int dsa_slave_port_mdb_add(struct net_device *dev,
-				  const struct switchdev_obj_port_mdb *mdb,
-				  struct switchdev_trans *trans)
-{
-	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct dsa_switch *ds = p->dp->ds;
-
-	if (switchdev_trans_ph_prepare(trans)) {
-		if (!ds->ops->port_mdb_prepare || !ds->ops->port_mdb_add)
-			return -EOPNOTSUPP;
-
-		return ds->ops->port_mdb_prepare(ds, p->dp->index, mdb, trans);
-	}
-
-	ds->ops->port_mdb_add(ds, p->dp->index, mdb, trans);
-
-	return 0;
-}
-
-static int dsa_slave_port_mdb_del(struct net_device *dev,
-				  const struct switchdev_obj_port_mdb *mdb)
-{
-	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct dsa_switch *ds = p->dp->ds;
-
-	if (ds->ops->port_mdb_del)
-		return ds->ops->port_mdb_del(ds, p->dp->index, mdb);
-
-	return -EOPNOTSUPP;
-}
-
-static int dsa_slave_port_mdb_dump(struct net_device *dev,
-				   struct switchdev_obj_port_mdb *mdb,
-				   switchdev_obj_dump_cb_t *cb)
-{
-	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct dsa_switch *ds = p->dp->ds;
-
-	if (ds->ops->port_mdb_dump)
-		return ds->ops->port_mdb_dump(ds, p->dp->index, mdb, cb);
-
-	return -EOPNOTSUPP;
-}
-
 static int dsa_slave_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
@@ -386,96 +214,24 @@ static int dsa_slave_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return -EOPNOTSUPP;
 }
 
-static int dsa_slave_stp_state_set(struct net_device *dev,
-				   const struct switchdev_attr *attr,
-				   struct switchdev_trans *trans)
-{
-	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct dsa_switch *ds = p->dp->ds;
-
-	if (switchdev_trans_ph_prepare(trans))
-		return ds->ops->port_stp_state_set ? 0 : -EOPNOTSUPP;
-
-	dsa_slave_set_state(dev, attr->u.stp_state);
-
-	return 0;
-}
-
-static int dsa_slave_vlan_filtering(struct net_device *dev,
-				    const struct switchdev_attr *attr,
-				    struct switchdev_trans *trans)
-{
-	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct dsa_switch *ds = p->dp->ds;
-
-	/* bridge skips -EOPNOTSUPP, so skip the prepare phase */
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
-
-	if (ds->ops->port_vlan_filtering)
-		return ds->ops->port_vlan_filtering(ds, p->dp->index,
-						    attr->u.vlan_filtering);
-
-	return 0;
-}
-
-static unsigned int dsa_fastest_ageing_time(struct dsa_switch *ds,
-					    unsigned int ageing_time)
-{
-	int i;
-
-	for (i = 0; i < ds->num_ports; ++i) {
-		struct dsa_port *dp = &ds->ports[i];
-
-		if (dp && dp->ageing_time && dp->ageing_time < ageing_time)
-			ageing_time = dp->ageing_time;
-	}
-
-	return ageing_time;
-}
-
-static int dsa_slave_ageing_time(struct net_device *dev,
-				 const struct switchdev_attr *attr,
-				 struct switchdev_trans *trans)
-{
-	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct dsa_switch *ds = p->dp->ds;
-	unsigned long ageing_jiffies = clock_t_to_jiffies(attr->u.ageing_time);
-	unsigned int ageing_time = jiffies_to_msecs(ageing_jiffies);
-
-	if (switchdev_trans_ph_prepare(trans)) {
-		if (ds->ageing_time_min && ageing_time < ds->ageing_time_min)
-			return -ERANGE;
-		if (ds->ageing_time_max && ageing_time > ds->ageing_time_max)
-			return -ERANGE;
-		return 0;
-	}
-
-	/* Keep the fastest ageing time in case of multiple bridges */
-	p->dp->ageing_time = ageing_time;
-	ageing_time = dsa_fastest_ageing_time(ds, ageing_time);
-
-	if (ds->ops->set_ageing_time)
-		return ds->ops->set_ageing_time(ds, ageing_time);
-
-	return 0;
-}
-
 static int dsa_slave_port_attr_set(struct net_device *dev,
 				   const struct switchdev_attr *attr,
 				   struct switchdev_trans *trans)
 {
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_port *dp = p->dp;
 	int ret;
 
 	switch (attr->id) {
 	case SWITCHDEV_ATTR_ID_PORT_STP_STATE:
-		ret = dsa_slave_stp_state_set(dev, attr, trans);
+		ret = dsa_port_set_state(dp, attr->u.stp_state, trans);
 		break;
 	case SWITCHDEV_ATTR_ID_BRIDGE_VLAN_FILTERING:
-		ret = dsa_slave_vlan_filtering(dev, attr, trans);
+		ret = dsa_port_vlan_filtering(dp, attr->u.vlan_filtering,
+					      trans);
 		break;
 	case SWITCHDEV_ATTR_ID_BRIDGE_AGEING_TIME:
-		ret = dsa_slave_ageing_time(dev, attr, trans);
+		ret = dsa_port_ageing_time(dp, attr->u.ageing_time, trans);
 		break;
 	default:
 		ret = -EOPNOTSUPP;
@@ -489,6 +245,8 @@ static int dsa_slave_port_obj_add(struct net_device *dev,
 				  const struct switchdev_obj *obj,
 				  struct switchdev_trans *trans)
 {
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_port *dp = p->dp;
 	int err;
 
 	/* For the prepare phase, ensure the full set of changes is feasable in
@@ -498,18 +256,14 @@ static int dsa_slave_port_obj_add(struct net_device *dev,
 
 	switch (obj->id) {
 	case SWITCHDEV_OBJ_ID_PORT_FDB:
-		err = dsa_slave_port_fdb_add(dev,
-					     SWITCHDEV_OBJ_PORT_FDB(obj),
-					     trans);
+		err = dsa_port_fdb_add(dp, SWITCHDEV_OBJ_PORT_FDB(obj), trans);
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_MDB:
-		err = dsa_slave_port_mdb_add(dev, SWITCHDEV_OBJ_PORT_MDB(obj),
-					     trans);
+		err = dsa_port_mdb_add(dp, SWITCHDEV_OBJ_PORT_MDB(obj), trans);
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
-		err = dsa_slave_port_vlan_add(dev,
-					      SWITCHDEV_OBJ_PORT_VLAN(obj),
-					      trans);
+		err = dsa_port_vlan_add(dp, SWITCHDEV_OBJ_PORT_VLAN(obj),
+					trans);
 		break;
 	default:
 		err = -EOPNOTSUPP;
@@ -522,19 +276,19 @@ static int dsa_slave_port_obj_add(struct net_device *dev,
 static int dsa_slave_port_obj_del(struct net_device *dev,
 				  const struct switchdev_obj *obj)
 {
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_port *dp = p->dp;
 	int err;
 
 	switch (obj->id) {
 	case SWITCHDEV_OBJ_ID_PORT_FDB:
-		err = dsa_slave_port_fdb_del(dev,
-					     SWITCHDEV_OBJ_PORT_FDB(obj));
+		err = dsa_port_fdb_del(dp, SWITCHDEV_OBJ_PORT_FDB(obj));
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_MDB:
-		err = dsa_slave_port_mdb_del(dev, SWITCHDEV_OBJ_PORT_MDB(obj));
+		err = dsa_port_mdb_del(dp, SWITCHDEV_OBJ_PORT_MDB(obj));
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
-		err = dsa_slave_port_vlan_del(dev,
-					      SWITCHDEV_OBJ_PORT_VLAN(obj));
+		err = dsa_port_vlan_del(dp, SWITCHDEV_OBJ_PORT_VLAN(obj));
 		break;
 	default:
 		err = -EOPNOTSUPP;
@@ -548,22 +302,19 @@ static int dsa_slave_port_obj_dump(struct net_device *dev,
 				   struct switchdev_obj *obj,
 				   switchdev_obj_dump_cb_t *cb)
 {
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_port *dp = p->dp;
 	int err;
 
 	switch (obj->id) {
 	case SWITCHDEV_OBJ_ID_PORT_FDB:
-		err = dsa_slave_port_fdb_dump(dev,
-					      SWITCHDEV_OBJ_PORT_FDB(obj),
-					      cb);
+		err = dsa_port_fdb_dump(dp, SWITCHDEV_OBJ_PORT_FDB(obj), cb);
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_MDB:
-		err = dsa_slave_port_mdb_dump(dev, SWITCHDEV_OBJ_PORT_MDB(obj),
-					      cb);
+		err = dsa_port_mdb_dump(dp, SWITCHDEV_OBJ_PORT_MDB(obj), cb);
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
-		err = dsa_slave_port_vlan_dump(dev,
-					       SWITCHDEV_OBJ_PORT_VLAN(obj),
-					       cb);
+		err = dsa_port_vlan_dump(dp, SWITCHDEV_OBJ_PORT_VLAN(obj), cb);
 		break;
 	default:
 		err = -EOPNOTSUPP;
@@ -571,57 +322,6 @@ static int dsa_slave_port_obj_dump(struct net_device *dev,
 	}
 
 	return err;
-}
-
-static int dsa_slave_bridge_port_join(struct net_device *dev,
-				      struct net_device *br)
-{
-	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct dsa_notifier_bridge_info info = {
-		.sw_index = p->dp->ds->index,
-		.port = p->dp->index,
-		.br = br,
-	};
-	int err;
-
-	/* Here the port is already bridged. Reflect the current configuration
-	 * so that drivers can program their chips accordingly.
-	 */
-	p->dp->bridge_dev = br;
-
-	err = dsa_slave_notify(dev, DSA_NOTIFIER_BRIDGE_JOIN, &info);
-
-	/* The bridging is rolled back on error */
-	if (err)
-		p->dp->bridge_dev = NULL;
-
-	return err;
-}
-
-static void dsa_slave_bridge_port_leave(struct net_device *dev,
-					struct net_device *br)
-{
-	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct dsa_notifier_bridge_info info = {
-		.sw_index = p->dp->ds->index,
-		.port = p->dp->index,
-		.br = br,
-	};
-	int err;
-
-	/* Here the port is already unbridged. Reflect the current configuration
-	 * so that drivers can program their chips accordingly.
-	 */
-	p->dp->bridge_dev = NULL;
-
-	err = dsa_slave_notify(dev, DSA_NOTIFIER_BRIDGE_LEAVE, &info);
-	if (err)
-		netdev_err(dev, "failed to notify DSA_NOTIFIER_BRIDGE_LEAVE\n");
-
-	/* Port left the bridge, put in BR_STATE_DISABLED by the bridge layer,
-	 * so allow it to be in BR_STATE_FORWARDING to be kept functional
-	 */
-	dsa_slave_set_state(dev, BR_STATE_FORWARDING);
 }
 
 static int dsa_slave_port_attr_get(struct net_device *dev,
@@ -1527,14 +1227,16 @@ static bool dsa_slave_dev_check(struct net_device *dev)
 static int dsa_slave_changeupper(struct net_device *dev,
 				 struct netdev_notifier_changeupper_info *info)
 {
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_port *dp = p->dp;
 	int err = NOTIFY_DONE;
 
 	if (netif_is_bridge_master(info->upper_dev)) {
 		if (info->linking) {
-			err = dsa_slave_bridge_port_join(dev, info->upper_dev);
+			err = dsa_port_bridge_join(dp, info->upper_dev);
 			err = notifier_from_errno(err);
 		} else {
-			dsa_slave_bridge_port_leave(dev, info->upper_dev);
+			dsa_port_bridge_leave(dp, info->upper_dev);
 			err = NOTIFY_OK;
 		}
 	}

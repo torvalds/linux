@@ -285,16 +285,6 @@ static inline u8 dsa_upstream_port(struct dsa_switch *ds)
 		return ds->rtable[dst->cpu_dp->ds->index];
 }
 
-#define DSA_NOTIFIER_BRIDGE_JOIN		1
-#define DSA_NOTIFIER_BRIDGE_LEAVE		2
-
-/* DSA_NOTIFIER_BRIDGE_* */
-struct dsa_notifier_bridge_info {
-	struct net_device *br;
-	int sw_index;
-	int port;
-};
-
 struct dsa_switch_ops {
 	/*
 	 * Legacy probing.
