@@ -124,15 +124,6 @@ static void meson_uart_stop_rx(struct uart_port *port)
 	writel(val, port->membase + AML_UART_CONTROL);
 }
 
-static void meson_uart_enable_tx_engine(struct uart_port *port)
-{
-	u32 val;
-
-	val = readl(port->membase + AML_UART_CONTROL);
-	val |= AML_UART_TX_EN;
-	writel(val, port->membase + AML_UART_CONTROL);
-}
-
 static void meson_uart_shutdown(struct uart_port *port)
 {
 	unsigned long flags;
@@ -451,6 +442,14 @@ static struct uart_ops meson_uart_ops = {
 };
 
 #ifdef CONFIG_SERIAL_MESON_CONSOLE
+static void meson_uart_enable_tx_engine(struct uart_port *port)
+{
+	u32 val;
+
+	val = readl(port->membase + AML_UART_CONTROL);
+	val |= AML_UART_TX_EN;
+	writel(val, port->membase + AML_UART_CONTROL);
+}
 
 static void meson_console_putchar(struct uart_port *port, int ch)
 {
