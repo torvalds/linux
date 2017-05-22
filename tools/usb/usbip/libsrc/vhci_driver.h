@@ -31,6 +31,7 @@ struct usbip_vhci_driver {
 	/* /sys/devices/platform/vhci_hcd */
 	struct udev_device *hc_device;
 
+	int ncontrollers;
 	int nports;
 	struct usbip_imported_device idev[MAXNPORT];
 };
