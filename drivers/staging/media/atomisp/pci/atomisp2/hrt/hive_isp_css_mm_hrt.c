@@ -55,7 +55,7 @@ static ia_css_ptr __hrt_isp_css_mm_alloc(size_t bytes, void *userptr,
 	if (type == HRT_USR_PTR) {
 		if (userptr == NULL)
 			return hmm_alloc(bytes, HMM_BO_PRIVATE, 0,
-						 0, cached);
+						 NULL, cached);
 		else {
 			if (num_pages < ((__page_align(bytes)) >> PAGE_SHIFT))
 				dev_err(atomisp_dev,
@@ -94,7 +94,7 @@ ia_css_ptr hrt_isp_css_mm_alloc_user_ptr(size_t bytes, void *userptr,
 ia_css_ptr hrt_isp_css_mm_alloc_cached(size_t bytes)
 {
 	if (my_userptr == NULL)
-		return hmm_alloc(bytes, HMM_BO_PRIVATE, 0, 0,
+		return hmm_alloc(bytes, HMM_BO_PRIVATE, 0, NULL,
 						HMM_CACHED);
 	else {
 		if (my_num_pages < ((__page_align(bytes)) >> PAGE_SHIFT))

@@ -57,7 +57,7 @@ enum ia_css_err ia_css_spctrl_load_fw(sp_ID_t sp_id,
 	hrt_vaddress code_addr = mmgr_NULL;
 	struct ia_css_sp_init_dmem_cfg *init_dmem_cfg;
 
-	if ((sp_id >= N_SP_ID) || (spctrl_cfg == 0))
+	if ((sp_id >= N_SP_ID) || (spctrl_cfg == NULL))
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 
 	spctrl_cofig_info[sp_id].code_addr = mmgr_NULL;
