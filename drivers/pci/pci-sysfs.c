@@ -472,7 +472,6 @@ static ssize_t sriov_numvfs_store(struct device *dev,
 				  const char *buf, size_t count)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	struct pci_sriov *iov = pdev->sriov;
 	int ret;
 	u16 num_vfs;
 
@@ -483,7 +482,7 @@ static ssize_t sriov_numvfs_store(struct device *dev,
 	if (num_vfs > pci_sriov_get_totalvfs(pdev))
 		return -ERANGE;
 
-	mutex_lock(&iov->dev->sriov->lock);
+	device_lock(&pdev->dev);
 
 	if (num_vfs == pdev->sriov->num_VFs)
 		goto exit;
@@ -518,7 +517,7 @@ static ssize_t sriov_numvfs_store(struct device *dev,
 			 num_vfs, ret);
 
 exit:
-	mutex_unlock(&iov->dev->sriov->lock);
+	device_unlock(&pdev->dev);
 
 	if (ret < 0)
 		return ret;
