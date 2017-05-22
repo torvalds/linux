@@ -76,7 +76,7 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
 	if (S_ISLNK(inode->i_mode))
 		return -EOPNOTSUPP;
 
-	if (strlen(name) > ORANGEFS_MAX_XATTR_NAMELEN)
+	if (strlen(name) >= ORANGEFS_MAX_XATTR_NAMELEN)
 		return -EINVAL;
 
 	fsuid = from_kuid(&init_user_ns, current_fsuid());
@@ -169,7 +169,7 @@ static int orangefs_inode_removexattr(struct inode *inode, const char *name,
 	struct orangefs_kernel_op_s *new_op = NULL;
 	int ret = -ENOMEM;
 
-	if (strlen(name) > ORANGEFS_MAX_XATTR_NAMELEN)
+	if (strlen(name) >= ORANGEFS_MAX_XATTR_NAMELEN)
 		return -EINVAL;
 
 	down_write(&orangefs_inode->xattr_sem);
@@ -233,7 +233,7 @@ int orangefs_inode_setxattr(struct inode *inode, const char *name,
 
 	if (size > ORANGEFS_MAX_XATTR_VALUELEN)
 		return -EINVAL;
-	if (strlen(name) > ORANGEFS_MAX_XATTR_NAMELEN)
+	if (strlen(name) >= ORANGEFS_MAX_XATTR_NAMELEN)
 		return -EINVAL;
 
 	internal_flag = convert_to_internal_xattr_flags(flags);
