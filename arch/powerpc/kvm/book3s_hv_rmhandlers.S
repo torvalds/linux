@@ -936,7 +936,7 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 	mftb	r7
 	subf	r3,r7,r8
 	mtspr	SPRN_DEC,r3
-	stw	r3,VCPU_DEC(r4)
+	std	r3,VCPU_DEC(r4)
 
 	ld	r5, VCPU_SPRG0(r4)
 	ld	r6, VCPU_SPRG1(r4)
@@ -1048,7 +1048,13 @@ kvmppc_cede_reentry:		/* r4 = vcpu, r13 = paca */
 	li	r0, BOOK3S_INTERRUPT_EXTERNAL
 	bne	cr1, 12f
 	mfspr	r0, SPRN_DEC
-	cmpwi	r0, 0
+BEGIN_FTR_SECTION
+	/* On POWER9 check whether the guest has large decrementer enabled */
+	andis.	r8, r8, LPCR_LD@h
+	bne	15f
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
+	extsw	r0, r0
+15:	cmpdi	r0, 0
 	li	r0, BOOK3S_INTERRUPT_DECREMENTER
 	bge	5f
 
@@ -1475,12 +1481,18 @@ mc_cont:
 	mtspr	SPRN_SPURR,r4
 
 	/* Save DEC */
+	ld	r3, HSTATE_KVM_VCORE(r13)
 	mfspr	r5,SPRN_DEC
 	mftb	r6
+	/* On P9, if the guest has large decr enabled, don't sign extend */
+BEGIN_FTR_SECTION
+	ld	r4, VCORE_LPCR(r3)
+	andis.	r4, r4, LPCR_LD@h
+	bne	16f
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	extsw	r5,r5
-	add	r5,r5,r6
+16:	add	r5,r5,r6
 	/* r5 is a guest timebase value here, convert to host TB */
-	ld	r3,HSTATE_KVM_VCORE(r13)
 	ld	r4,VCORE_TB_OFFSET(r3)
 	subf	r5,r4,r5
 	std	r5,VCPU_DEC_EXPIRES(r9)
@@ -2402,8 +2414,15 @@ END_FTR_SECTION_IFSET(CPU_FTR_TM)
 	mfspr	r3, SPRN_DEC
 	mfspr	r4, SPRN_HDEC
 	mftb	r5
+BEGIN_FTR_SECTION
+	/* On P9 check whether the guest has large decrementer mode enabled */
+	ld	r6, HSTATE_KVM_VCORE(r13)
+	ld	r6, VCORE_LPCR(r6)
+	andis.	r6, r6, LPCR_LD@h
+	bne	68f
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	extsw	r3, r3
-	EXTEND_HDEC(r4)
+68:	EXTEND_HDEC(r4)
 	cmpd	r3, r4
 	ble	67f
 	mtspr	SPRN_DEC, r4
