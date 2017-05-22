@@ -212,6 +212,9 @@ static inline unsigned long fadump_calculate_reserve_size(void)
 	int ret;
 	unsigned long long base, size;
 
+	if (fw_dump.reserve_bootvar)
+		pr_warn("'fadump_reserve_mem=' parameter is deprecated in favor of 'crashkernel=' parameter.\n");
+
 	/*
 	 * Check if the size is specified through crashkernel= cmdline
 	 * option. If yes, then use that but ignore base as fadump
@@ -220,7 +223,16 @@ static inline unsigned long fadump_calculate_reserve_size(void)
 	ret = parse_crashkernel(boot_command_line, memblock_phys_mem_size(),
 				&size, &base);
 	if (ret == 0 && size > 0) {
+		if (fw_dump.reserve_bootvar)
+			pr_info("Using 'crashkernel=' parameter for memory reservation.\n");
+
 		fw_dump.reserve_bootvar = (unsigned long)size;
+		return fw_dump.reserve_bootvar;
+	} else if (fw_dump.reserve_bootvar) {
+		/*
+		 * 'fadump_reserve_mem=' is being used to reserve memory
+		 * for firmware-assisted dump.
+		 */
 		return fw_dump.reserve_bootvar;
 	}
 
@@ -376,6 +388,19 @@ static int __init early_fadump_param(char *p)
 	return 0;
 }
 early_param("fadump", early_fadump_param);
+
+/*
+ * Look for fadump_reserve_mem= cmdline option
+ * TODO: Remove references to 'fadump_reserve_mem=' parameter,
+ *       the sooner 'crashkernel=' parameter is accustomed to.
+ */
+static int __init early_fadump_reserve_mem(char *p)
+{
+	if (p)
+		fw_dump.reserve_bootvar = memparse(p, &p);
+	return 0;
+}
+early_param("fadump_reserve_mem", early_fadump_reserve_mem);
 
 static int register_fw_dump(struct fadump_mem_struct *fdm)
 {
