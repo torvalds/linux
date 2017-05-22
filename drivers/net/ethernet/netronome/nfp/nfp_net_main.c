@@ -548,6 +548,7 @@ static void nfp_net_refresh_vnics(struct work_struct *work)
 					 port_refresh_work);
 	struct nfp_eth_table *eth_table;
 	struct nfp_net *nn, *next;
+	struct nfp_port *port;
 
 	mutex_lock(&pf->lock);
 
@@ -557,9 +558,8 @@ static void nfp_net_refresh_vnics(struct work_struct *work)
 
 	/* Update state of all ports */
 	rtnl_lock();
-	list_for_each_entry(nn, &pf->vnics, vnic_list)
-		if (nn->port)
-			clear_bit(NFP_PORT_CHANGED, &nn->port->flags);
+	list_for_each_entry(port, &pf->ports, port_list)
+		clear_bit(NFP_PORT_CHANGED, &port->flags);
 
 	eth_table = nfp_eth_read_ports(pf->cpp);
 	if (!eth_table) {
@@ -568,12 +568,9 @@ static void nfp_net_refresh_vnics(struct work_struct *work)
 		goto out;
 	}
 
-	list_for_each_entry(nn, &pf->vnics, vnic_list) {
-		if (!__nfp_port_get_eth_port(nn->port))
-			continue;
-
-		nfp_net_eth_port_update(pf->cpp, nn->port, eth_table);
-	}
+	list_for_each_entry(port, &pf->ports, port_list)
+		if (__nfp_port_get_eth_port(port))
+			nfp_net_eth_port_update(pf->cpp, port, eth_table);
 	rtnl_unlock();
 
 	kfree(eth_table);

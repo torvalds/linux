@@ -95,10 +95,15 @@ nfp_port_alloc(struct nfp_app *app, enum nfp_port_type type,
 	port->type = type;
 	port->app = app;
 
+	list_add_tail(&port->port_list, &app->pf->ports);
+
 	return port;
 }
 
 void nfp_port_free(struct nfp_port *port)
 {
+	if (!port)
+		return;
+	list_del(&port->port_list);
 	kfree(port);
 }

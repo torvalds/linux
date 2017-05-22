@@ -68,6 +68,7 @@ enum nfp_port_flags {
  * @app:	backpointer to the app structure
  * @eth_id:	for %NFP_PORT_PHYS_PORT port ID in NFP enumeration scheme
  * @eth_port:	for %NFP_PORT_PHYS_PORT translated ETH Table port entry
+ * @port_list:	entry on pf's list of ports
  */
 struct nfp_port {
 	struct net_device *netdev;
@@ -79,6 +80,8 @@ struct nfp_port {
 
 	unsigned int eth_id;
 	struct nfp_eth_table_port *eth_port;
+
+	struct list_head port_list;
 };
 
 struct nfp_port *nfp_port_from_netdev(struct net_device *netdev);
