@@ -9172,7 +9172,7 @@ static int perf_try_init_event(struct pmu *pmu, struct perf_event *event)
 
 static struct pmu *perf_init_event(struct perf_event *event)
 {
-	struct pmu *pmu = NULL;
+	struct pmu *pmu;
 	int idx;
 	int ret;
 
@@ -9456,9 +9456,7 @@ perf_event_alloc(struct perf_event_attr *attr, int cpu,
 	}
 
 	pmu = perf_init_event(event);
-	if (!pmu)
-		goto err_ns;
-	else if (IS_ERR(pmu)) {
+	if (IS_ERR(pmu)) {
 		err = PTR_ERR(pmu);
 		goto err_ns;
 	}
