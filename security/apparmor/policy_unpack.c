@@ -569,6 +569,9 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		profile->xmatch_len = tmp;
 	}
 
+	/* disconnected attachment string is optional */
+	(void) unpack_str(e, &profile->disconnected, "disconnected");
+
 	/* per profile debug flags (complain, audit) */
 	if (!unpack_nameX(e, AA_STRUCT, "flags"))
 		goto fail;

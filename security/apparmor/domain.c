@@ -366,7 +366,7 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 
 	/* buffer freed below, name is pointer into buffer */
 	error = aa_path_name(&bprm->file->f_path, profile->path_flags, &buffer,
-			     &name, &info);
+			     &name, &info, profile->disconnected);
 	if (error) {
 		if (unconfined(profile) ||
 		    (profile->flags & PFLAG_IX_ON_NAME_ERROR))

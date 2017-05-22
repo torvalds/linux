@@ -50,7 +50,7 @@ static int prepend(char **buffer, int buflen, const char *str, int namelen)
  *     namespace root.
  */
 static int disconnect(const struct path *path, char *buf, char **name,
-		      int flags)
+		      int flags, const char *disconnected)
 {
 	int error = 0;
 
@@ -63,9 +63,14 @@ static int disconnect(const struct path *path, char *buf, char **name,
 		error = -EACCES;
 		if (**name == '/')
 			*name = *name + 1;
-	} else if (**name != '/')
-		/* CONNECT_PATH with missing root */
-		error = prepend(name, *name - buf, "/", 1);
+	} else {
+		if (**name != '/')
+			/* CONNECT_PATH with missing root */
+			error = prepend(name, *name - buf, "/", 1);
+		if (!error && disconnected)
+			error = prepend(name, *name - buf, disconnected,
+					strlen(disconnected));
+	}
 
 	return error;
 }
@@ -77,6 +82,7 @@ static int disconnect(const struct path *path, char *buf, char **name,
  * @buflen: length of @buf
  * @name: Returns - pointer for start of path name with in @buf (NOT NULL)
  * @flags: flags controlling path lookup
+ * @disconnected: string to prefix to disconnected paths
  *
  * Handle path name lookup.
  *
@@ -85,7 +91,7 @@ static int disconnect(const struct path *path, char *buf, char **name,
  *          to a position in @buf
  */
 static int d_namespace_path(const struct path *path, char *buf, int buflen,
-			    char **name, int flags)
+			    char **name, int flags, const char *disconnected)
 {
 	char *res;
 	int error = 0;
@@ -106,8 +112,8 @@ static int d_namespace_path(const struct path *path, char *buf, int buflen,
 			 */
 			return prepend(name, *name - buf, "/proc", 5);
 		} else
-			return disconnect(path, buf, name, flags);
-		return 0;
+			return disconnect(path, buf, name, flags,
+					  disconnected);
 	}
 
 	/* resolve paths relative to chroot?*/
@@ -153,7 +159,7 @@ static int d_namespace_path(const struct path *path, char *buf, int buflen,
 	}
 
 	if (!connected)
-		error = disconnect(path, buf, name, flags);
+		error = disconnect(path, buf, name, flags, disconnected);
 
 out:
 	return error;
@@ -170,10 +176,12 @@ out:
  * Returns: %0 else error on failure
  */
 static int get_name_to_buffer(const struct path *path, int flags, char *buffer,
-			      int size, char **name, const char **info)
+			      int size, char **name, const char **info,
+			      const char *disconnected)
 {
 	int adjust = (flags & PATH_IS_DIR) ? 1 : 0;
-	int error = d_namespace_path(path, buffer, size - adjust, name, flags);
+	int error = d_namespace_path(path, buffer, size - adjust, name, flags,
+				     disconnected);
 
 	if (!error && (flags & PATH_IS_DIR) && (*name)[1] != '\0')
 		/*
@@ -203,6 +211,7 @@ static int get_name_to_buffer(const struct path *path, int flags, char *buffer,
  * @buffer: buffer that aa_get_name() allocated  (NOT NULL)
  * @name: Returns - the generated path name if !error (NOT NULL)
  * @info: Returns - information on why the path lookup failed (MAYBE NULL)
+ * @disconnected: string to prepend to disconnected paths
  *
  * @name is a pointer to the beginning of the pathname (which usually differs
  * from the beginning of the buffer), or NULL.  If there is an error @name
@@ -216,7 +225,7 @@ static int get_name_to_buffer(const struct path *path, int flags, char *buffer,
  * Returns: %0 else error code if could retrieve name
  */
 int aa_path_name(const struct path *path, int flags, char **buffer,
-		 const char **name, const char **info)
+		 const char **name, const char **info, const char *disconnected)
 {
 	char *buf, *str = NULL;
 	int size = 256;
@@ -230,7 +239,8 @@ int aa_path_name(const struct path *path, int flags, char **buffer,
 		if (!buf)
 			return -ENOMEM;
 
-		error = get_name_to_buffer(path, flags, buf, size, &str, info);
+		error = get_name_to_buffer(path, flags, buf, size, &str, info,
+					   disconnected);
 		if (error != -ENAMETOOLONG)
 			break;
 
