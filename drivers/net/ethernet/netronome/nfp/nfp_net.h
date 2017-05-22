@@ -807,11 +807,13 @@ void nfp_net_get_fw_version(struct nfp_net_fw_version *fw_ver,
 			    void __iomem *ctrl_bar);
 
 struct nfp_net *
-nfp_net_netdev_alloc(struct pci_dev *pdev,
-		     unsigned int max_tx_rings, unsigned int max_rx_rings);
-void nfp_net_netdev_free(struct nfp_net *nn);
-int nfp_net_netdev_init(struct net_device *netdev);
-void nfp_net_netdev_clean(struct net_device *netdev);
+nfp_net_alloc(struct pci_dev *pdev,
+	      unsigned int max_tx_rings, unsigned int max_rx_rings);
+void nfp_net_free(struct nfp_net *nn);
+
+int nfp_net_init(struct nfp_net *nn);
+void nfp_net_clean(struct nfp_net *nn);
+
 void nfp_net_set_ethtool_ops(struct net_device *netdev);
 void nfp_net_info(struct nfp_net *nn);
 int nfp_net_reconfig(struct nfp_net *nn, u32 update);

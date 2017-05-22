@@ -516,11 +516,10 @@ nfp_net_rx_ring_init(struct nfp_net_rx_ring *rx_ring,
 
 /**
  * nfp_net_vecs_init() - Assign IRQs and setup rvecs.
- * @netdev:   netdev structure
+ * @nn:		NFP Network structure
  */
-static void nfp_net_vecs_init(struct net_device *netdev)
+static void nfp_net_vecs_init(struct nfp_net *nn)
 {
-	struct nfp_net *nn = netdev_priv(netdev);
 	struct nfp_net_r_vector *r_vec;
 	int r;
 
@@ -3087,7 +3086,7 @@ void nfp_net_info(struct nfp_net *nn)
 }
 
 /**
- * nfp_net_netdev_alloc() - Allocate netdev and related structure
+ * nfp_net_alloc() - Allocate netdev and related structure
  * @pdev:         PCI device
  * @max_tx_rings: Maximum number of TX rings supported by device
  * @max_rx_rings: Maximum number of RX rings supported by device
@@ -3097,9 +3096,9 @@ void nfp_net_info(struct nfp_net *nn)
  *
  * Return: NFP Net device structure, or ERR_PTR on error.
  */
-struct nfp_net *nfp_net_netdev_alloc(struct pci_dev *pdev,
-				     unsigned int max_tx_rings,
-				     unsigned int max_rx_rings)
+struct nfp_net *nfp_net_alloc(struct pci_dev *pdev,
+			      unsigned int max_tx_rings,
+			      unsigned int max_rx_rings)
 {
 	struct net_device *netdev;
 	struct nfp_net *nn;
@@ -3144,10 +3143,10 @@ struct nfp_net *nfp_net_netdev_alloc(struct pci_dev *pdev,
 }
 
 /**
- * nfp_net_netdev_free() - Undo what @nfp_net_netdev_alloc() did
+ * nfp_net_free() - Undo what @nfp_net_alloc() did
  * @nn:      NFP Net device to reconfigure
  */
-void nfp_net_netdev_free(struct nfp_net *nn)
+void nfp_net_free(struct nfp_net *nn)
 {
 	free_netdev(nn->dp.netdev);
 }
@@ -3221,14 +3220,14 @@ static void nfp_net_irqmod_init(struct nfp_net *nn)
 }
 
 /**
- * nfp_net_netdev_init() - Initialise/finalise the netdev structure
- * @netdev:      netdev structure
+ * nfp_net_init() - Initialise/finalise the nfp_net structure
+ * @nn:		NFP Net device structure
  *
  * Return: 0 on success or negative errno on error.
  */
-int nfp_net_netdev_init(struct net_device *netdev)
+int nfp_net_init(struct nfp_net *nn)
 {
-	struct nfp_net *nn = netdev_priv(netdev);
+	struct net_device *netdev = nn->dp.netdev;
 	int err;
 
 	nn->dp.rx_dma_dir = DMA_FROM_DEVICE;
@@ -3367,19 +3366,17 @@ int nfp_net_netdev_init(struct net_device *netdev)
 	netif_carrier_off(netdev);
 
 	nfp_net_set_ethtool_ops(netdev);
-	nfp_net_vecs_init(netdev);
+	nfp_net_vecs_init(nn);
 
 	return register_netdev(netdev);
 }
 
 /**
- * nfp_net_netdev_clean() - Undo what nfp_net_netdev_init() did.
- * @netdev:      netdev structure
+ * nfp_net_clean() - Undo what nfp_net_init() did.
+ * @nn:		NFP Net device structure
  */
-void nfp_net_netdev_clean(struct net_device *netdev)
+void nfp_net_clean(struct nfp_net *nn)
 {
-	struct nfp_net *nn = netdev_priv(netdev);
-
 	unregister_netdev(nn->dp.netdev);
 
 	if (nn->dp.xdp_prog)

@@ -277,7 +277,7 @@ static void nfp_net_pf_free_netdevs(struct nfp_pf *pf)
 		list_del(&nn->port_list);
 		pf->num_netdevs--;
 
-		nfp_net_netdev_free(nn);
+		nfp_net_free(nn);
 	}
 }
 
@@ -294,7 +294,7 @@ nfp_net_pf_alloc_port_netdev(struct nfp_pf *pf, void __iomem *ctrl_bar,
 	n_rx_rings = readl(ctrl_bar + NFP_NET_CFG_MAX_RXRINGS);
 
 	/* Allocate and initialise the netdev */
-	nn = nfp_net_netdev_alloc(pf->pdev, n_tx_rings, n_rx_rings);
+	nn = nfp_net_alloc(pf->pdev, n_tx_rings, n_rx_rings);
 	if (IS_ERR(nn))
 		return nn;
 
@@ -326,7 +326,7 @@ nfp_net_pf_init_port_netdev(struct nfp_pf *pf, struct nfp_net *nn,
 	 */
 	nn->me_freq_mhz = 1200;
 
-	err = nfp_net_netdev_init(nn->dp.netdev);
+	err = nfp_net_init(nn);
 	if (err)
 		return err;
 
@@ -451,7 +451,7 @@ nfp_net_pf_spawn_netdevs(struct nfp_pf *pf,
 err_prev_deinit:
 	list_for_each_entry_continue_reverse(nn, &pf->ports, port_list) {
 		nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
-		nfp_net_netdev_clean(nn->dp.netdev);
+		nfp_net_clean(nn);
 	}
 	nfp_net_irqs_disable(pf->pdev);
 err_vec_free:
@@ -518,11 +518,11 @@ static void nfp_net_refresh_netdevs(struct work_struct *work)
 		nn_warn(nn, "Port config changed, unregistering. Reboot required before port will be operational again.\n");
 
 		nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
-		nfp_net_netdev_clean(nn->dp.netdev);
+		nfp_net_clean(nn);
 
 		list_del(&nn->port_list);
 		pf->num_netdevs--;
-		nfp_net_netdev_free(nn);
+		nfp_net_free(nn);
 	}
 
 	if (list_empty(&pf->ports))
@@ -693,7 +693,7 @@ void nfp_net_pci_remove(struct nfp_pf *pf)
 	list_for_each_entry(nn, &pf->ports, port_list) {
 		nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
 
-		nfp_net_netdev_clean(nn->dp.netdev);
+		nfp_net_clean(nn);
 	}
 
 	nfp_net_pf_free_netdevs(pf);
