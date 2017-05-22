@@ -157,7 +157,7 @@ static void vt6655_remove(struct pci_dev *pcid)
 {
 	struct vnt_private *priv = pci_get_drvdata(pcid);
 
-	if (priv == NULL)
+	if (!priv)
 		return;
 	device_free_info(priv);
 }
@@ -453,7 +453,7 @@ static bool device_init_rings(struct vnt_private *priv)
 				       priv->opts.tx_descs[0] * sizeof(struct vnt_tx_desc) +
 				       priv->opts.tx_descs[1] * sizeof(struct vnt_tx_desc),
 				       &priv->pool_dma, GFP_ATOMIC);
-	if (vir_pool == NULL) {
+	if (!vir_pool) {
 		dev_err(&priv->pcid->dev, "allocate desc dma memory failed\n");
 		return false;
 	}
