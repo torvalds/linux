@@ -288,6 +288,23 @@ static void guc_init_send_regs(struct intel_guc *guc)
 	guc->send_regs.fw_domains = fw_domains;
 }
 
+static void guc_capture_load_err_log(struct intel_guc *guc)
+{
+	if (!guc->log.vma || i915.guc_log_level < 0)
+		return;
+
+	if (!guc->load_err_log)
+		guc->load_err_log = i915_gem_object_get(guc->log.vma->obj);
+
+	return;
+}
+
+static void guc_free_load_err_log(struct intel_guc *guc)
+{
+	if (guc->load_err_log)
+		i915_gem_object_put(guc->load_err_log);
+}
+
 static int guc_enable_communication(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
@@ -367,11 +384,11 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 
 	/* Did we succeded or run out of retries? */
 	if (ret)
-		goto err_submission;
+		goto err_log_capture;
 
 	ret = guc_enable_communication(guc);
 	if (ret)
-		goto err_submission;
+		goto err_log_capture;
 
 	intel_guc_auth_huc(dev_priv);
 	if (i915.enable_guc_submission) {
@@ -397,6 +414,8 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 err_interrupts:
 	guc_disable_communication(guc);
 	gen9_disable_guc_interrupts(dev_priv);
+err_log_capture:
+	guc_capture_load_err_log(guc);
 err_submission:
 	if (i915.enable_guc_submission)
 		i915_guc_submission_fini(dev_priv);
@@ -421,6 +440,8 @@ void intel_uc_fini_hw(struct drm_i915_private *dev_priv)
 {
 	if (!i915.enable_guc_loading)
 		return;
+
+	guc_free_load_err_log(&dev_priv->guc);
 
 	if (i915.enable_guc_submission)
 		i915_guc_submission_disable(dev_priv);

@@ -2586,26 +2586,36 @@ static int i915_guc_stage_pool(struct seq_file *m, void *data)
 
 static int i915_guc_log_dump(struct seq_file *m, void *data)
 {
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_i915_gem_object *obj;
-	int i = 0, pg;
+	struct drm_info_node *node = m->private;
+	struct drm_i915_private *dev_priv = node_to_i915(node);
+	bool dump_load_err = !!node->info_ent->data;
+	struct drm_i915_gem_object *obj = NULL;
+	u32 *log;
+	int i = 0;
 
-	if (!dev_priv->guc.log.vma)
+	if (dump_load_err)
+		obj = dev_priv->guc.load_err_log;
+	else if (dev_priv->guc.log.vma)
+		obj = dev_priv->guc.log.vma->obj;
+
+	if (!obj)
 		return 0;
 
-	obj = dev_priv->guc.log.vma->obj;
-	for (pg = 0; pg < obj->base.size / PAGE_SIZE; pg++) {
-		u32 *log = kmap_atomic(i915_gem_object_get_page(obj, pg));
-
-		for (i = 0; i < PAGE_SIZE / sizeof(u32); i += 4)
-			seq_printf(m, "0x%08x 0x%08x 0x%08x 0x%08x\n",
-				   *(log + i), *(log + i + 1),
-				   *(log + i + 2), *(log + i + 3));
-
-		kunmap_atomic(log);
+	log = i915_gem_object_pin_map(obj, I915_MAP_WC);
+	if (IS_ERR(log)) {
+		DRM_DEBUG("Failed to pin object\n");
+		seq_puts(m, "(log data unaccessible)\n");
+		return PTR_ERR(log);
 	}
 
+	for (i = 0; i < obj->base.size / sizeof(u32); i += 4)
+		seq_printf(m, "0x%08x 0x%08x 0x%08x 0x%08x\n",
+			   *(log + i), *(log + i + 1),
+			   *(log + i + 2), *(log + i + 3));
+
 	seq_putc(m, '\n');
+
+	i915_gem_object_unpin_map(obj);
 
 	return 0;
 }
@@ -4791,6 +4801,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_guc_info", i915_guc_info, 0},
 	{"i915_guc_load_status", i915_guc_load_status_info, 0},
 	{"i915_guc_log_dump", i915_guc_log_dump, 0},
+	{"i915_guc_load_err_log_dump", i915_guc_log_dump, 0, (void *)1},
 	{"i915_guc_stage_pool", i915_guc_stage_pool, 0},
 	{"i915_huc_load_status", i915_huc_load_status_info, 0},
 	{"i915_frequency_info", i915_frequency_info, 0},
