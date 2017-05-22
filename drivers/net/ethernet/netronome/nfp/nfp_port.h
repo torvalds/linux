@@ -86,6 +86,7 @@ struct nfp_port {
 
 struct nfp_port *nfp_port_from_netdev(struct net_device *netdev);
 struct nfp_eth_table_port *__nfp_port_get_eth_port(struct nfp_port *port);
+struct nfp_eth_table_port *nfp_port_get_eth_port(struct nfp_port *port);
 
 int
 nfp_port_get_phys_port_name(struct net_device *netdev, char *name, size_t len);

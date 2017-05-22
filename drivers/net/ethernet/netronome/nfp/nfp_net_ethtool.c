@@ -209,7 +209,7 @@ nfp_net_get_link_ksettings(struct net_device *netdev,
 	cmd->base.duplex = DUPLEX_UNKNOWN;
 
 	port = nfp_port_from_netdev(netdev);
-	eth_port = __nfp_port_get_eth_port(port);
+	eth_port = nfp_port_get_eth_port(port);
 	if (eth_port)
 		cmd->base.autoneg = eth_port->aneg != NFP_ANEG_DISABLED ?
 			AUTONEG_ENABLE : AUTONEG_DISABLE;
@@ -219,14 +219,6 @@ nfp_net_get_link_ksettings(struct net_device *netdev,
 
 	/* Use link speed from ETH table if available, otherwise try the BAR */
 	if (eth_port) {
-		int err;
-
-		if (test_bit(NFP_PORT_CHANGED, &port->flags)) {
-			err = nfp_net_refresh_eth_port(port);
-			if (err)
-				return err;
-		}
-
 		cmd->base.port = eth_port->port_type;
 		cmd->base.speed = eth_port->speed;
 		cmd->base.duplex = DUPLEX_FULL;

@@ -58,6 +58,18 @@ struct nfp_eth_table_port *__nfp_port_get_eth_port(struct nfp_port *port)
 	return port->eth_port;
 }
 
+struct nfp_eth_table_port *nfp_port_get_eth_port(struct nfp_port *port)
+{
+	if (!__nfp_port_get_eth_port(port))
+		return NULL;
+
+	if (test_bit(NFP_PORT_CHANGED, &port->flags))
+		if (nfp_net_refresh_eth_port(port))
+			return NULL;
+
+	return __nfp_port_get_eth_port(port);
+}
+
 int
 nfp_port_get_phys_port_name(struct net_device *netdev, char *name, size_t len)
 {
