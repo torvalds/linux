@@ -4023,6 +4023,7 @@ static void rbd_queue_workfn(struct work_struct *work)
 
 	switch (req_op(rq)) {
 	case REQ_OP_DISCARD:
+	case REQ_OP_WRITE_ZEROES:
 		op_type = OBJ_OP_DISCARD;
 		break;
 	case REQ_OP_WRITE:
@@ -4420,6 +4421,7 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 	q->limits.discard_granularity = segment_size;
 	q->limits.discard_alignment = segment_size;
 	blk_queue_max_discard_sectors(q, segment_size / SECTOR_SIZE);
+	blk_queue_max_write_zeroes_sectors(q, segment_size / SECTOR_SIZE);
 
 	if (!ceph_test_opt(rbd_dev->rbd_client->client, NOCRC))
 		q->backing_dev_info->capabilities |= BDI_CAP_STABLE_WRITES;
