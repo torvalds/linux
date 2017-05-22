@@ -20,7 +20,7 @@
 	compatible =  "ti,k2g-evm", "ti,k2g", "ti,keystone";
 	model = "Texas Instruments K2G General Purpose EVM";
 
-	memory {
+	memory@800000000 {
 		device_type = "memory";
 		reg = <0x00000008 0x00000000 0x00000000 0x80000000>;
 	};
