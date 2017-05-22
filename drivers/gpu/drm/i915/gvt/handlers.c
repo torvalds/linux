@@ -1433,7 +1433,6 @@ static int elsp_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 
 	execlist->elsp_dwords.data[execlist->elsp_dwords.index] = data;
 	if (execlist->elsp_dwords.index == 3) {
-		vgpu->last_ctx_submit_time = ktime_get();
 		ret = intel_vgpu_submit_execlist(vgpu, ring_id);
 		if(ret)
 			gvt_vgpu_err("fail submit workload on ring %d\n",

@@ -165,7 +165,6 @@ struct intel_vgpu {
 	struct list_head workload_q_head[I915_NUM_ENGINES];
 	struct kmem_cache *workloads;
 	atomic_t running_workload_num;
-	ktime_t last_ctx_submit_time;
 	DECLARE_BITMAP(tlb_handle_pending, I915_NUM_ENGINES);
 	struct i915_gem_context *shadow_ctx;
 
