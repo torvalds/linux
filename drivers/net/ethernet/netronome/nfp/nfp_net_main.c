@@ -528,6 +528,7 @@ nfp_net_eth_port_update(struct nfp_cpp *cpp, struct nfp_port *port,
 
 	eth_port = nfp_net_find_port(eth_table, port->eth_id);
 	if (!eth_port) {
+		set_bit(NFP_PORT_CHANGED, &port->flags);
 		nfp_warn(cpp, "Warning: port #%d not present after reconfig\n",
 			 port->eth_id);
 		return -EIO;
@@ -563,6 +564,9 @@ static void nfp_net_refresh_vnics(struct work_struct *work)
 
 	eth_table = nfp_eth_read_ports(pf->cpp);
 	if (!eth_table) {
+		list_for_each_entry(port, &pf->ports, port_list)
+			if (__nfp_port_get_eth_port(port))
+				set_bit(NFP_PORT_CHANGED, &port->flags);
 		rtnl_unlock();
 		nfp_err(pf->cpp, "Error refreshing port config!\n");
 		goto out;
@@ -611,6 +615,7 @@ int nfp_net_refresh_eth_port(struct nfp_port *port)
 
 	eth_table = nfp_eth_read_ports(cpp);
 	if (!eth_table) {
+		set_bit(NFP_PORT_CHANGED, &port->flags);
 		nfp_err(cpp, "Error refreshing port state table!\n");
 		return -EIO;
 	}
