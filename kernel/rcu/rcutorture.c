@@ -561,44 +561,7 @@ static void srcu_torture_barrier(void)
 
 static void srcu_torture_stats(void)
 {
-	int __maybe_unused cpu;
-	int idx;
-
-#ifdef CONFIG_TREE_SRCU
-	idx = srcu_ctlp->srcu_idx & 0x1;
-	pr_alert("%s%s Tree SRCU per-CPU(idx=%d):",
-		 torture_type, TORTURE_FLAG, idx);
-	for_each_possible_cpu(cpu) {
-		unsigned long l0, l1;
-		unsigned long u0, u1;
-		long c0, c1;
-		struct srcu_data *counts;
-
-		counts = per_cpu_ptr(srcu_ctlp->sda, cpu);
-		u0 = counts->srcu_unlock_count[!idx];
-		u1 = counts->srcu_unlock_count[idx];
-
-		/*
-		 * Make sure that a lock is always counted if the corresponding
-		 * unlock is counted.
-		 */
-		smp_rmb();
-
-		l0 = counts->srcu_lock_count[!idx];
-		l1 = counts->srcu_lock_count[idx];
-
-		c0 = l0 - u0;
-		c1 = l1 - u1;
-		pr_cont(" %d(%ld,%ld)", cpu, c0, c1);
-	}
-	pr_cont("\n");
-#elif defined(CONFIG_TINY_SRCU)
-	idx = READ_ONCE(srcu_ctlp->srcu_idx) & 0x1;
-	pr_alert("%s%s Tiny SRCU per-CPU(idx=%d): (%hd,%hd)\n",
-		 torture_type, TORTURE_FLAG, idx,
-		 READ_ONCE(srcu_ctlp->srcu_lock_nesting[!idx]),
-		 READ_ONCE(srcu_ctlp->srcu_lock_nesting[idx]));
-#endif
+	srcu_torture_stats_print(srcu_ctlp, torture_type, TORTURE_FLAG);
 }
 
 static void srcu_torture_synchronize_expedited(void)

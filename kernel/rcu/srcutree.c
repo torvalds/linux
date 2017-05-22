@@ -1217,6 +1217,40 @@ void srcutorture_get_gp_data(enum rcutorture_type test_type,
 }
 EXPORT_SYMBOL_GPL(srcutorture_get_gp_data);
 
+void srcu_torture_stats_print(struct srcu_struct *sp, char *tt, char *tf)
+{
+	int cpu;
+	int idx;
+
+	idx = sp->srcu_idx & 0x1;
+	pr_alert("%s%s Tree SRCU per-CPU(idx=%d):", tt, tf, idx);
+	for_each_possible_cpu(cpu) {
+		unsigned long l0, l1;
+		unsigned long u0, u1;
+		long c0, c1;
+		struct srcu_data *counts;
+
+		counts = per_cpu_ptr(sp->sda, cpu);
+		u0 = counts->srcu_unlock_count[!idx];
+		u1 = counts->srcu_unlock_count[idx];
+
+		/*
+		 * Make sure that a lock is always counted if the corresponding
+		 * unlock is counted.
+		 */
+		smp_rmb();
+
+		l0 = counts->srcu_lock_count[!idx];
+		l1 = counts->srcu_lock_count[idx];
+
+		c0 = l0 - u0;
+		c1 = l1 - u1;
+		pr_cont(" %d(%ld,%ld)", cpu, c0, c1);
+	}
+	pr_cont("\n");
+}
+EXPORT_SYMBOL_GPL(srcu_torture_stats_print);
+
 static int __init srcu_bootup_announce(void)
 {
 	pr_info("Hierarchical SRCU implementation.\n");

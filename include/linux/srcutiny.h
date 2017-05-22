@@ -87,4 +87,17 @@ static inline void srcu_barrier(struct srcu_struct *sp)
 	synchronize_srcu(sp);
 }
 
+/* Defined here to avoid size increase for non-torture kernels. */
+static inline void srcu_torture_stats_print(struct srcu_struct *sp,
+					    char *tt, char *tf)
+{
+	int idx;
+
+	idx = READ_ONCE(sp->srcu_idx) & 0x1;
+	pr_alert("%s%s Tiny SRCU per-CPU(idx=%d): (%hd,%hd)\n",
+		 tt, tf, idx,
+		 READ_ONCE(sp->srcu_lock_nesting[!idx]),
+		 READ_ONCE(sp->srcu_lock_nesting[idx]));
+}
+
 #endif
