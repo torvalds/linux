@@ -430,10 +430,10 @@ static int coda_g_fmt(struct file *file, void *priv,
 	f->fmt.pix.bytesperline = q_data->bytesperline;
 
 	f->fmt.pix.sizeimage	= q_data->sizeimage;
-	if (f->fmt.pix.pixelformat == V4L2_PIX_FMT_JPEG)
-		f->fmt.pix.colorspace = V4L2_COLORSPACE_JPEG;
-	else
-		f->fmt.pix.colorspace = ctx->colorspace;
+	f->fmt.pix.colorspace	= ctx->colorspace;
+	f->fmt.pix.xfer_func	= ctx->xfer_func;
+	f->fmt.pix.ycbcr_enc	= ctx->ycbcr_enc;
+	f->fmt.pix.quantization	= ctx->quantization;
 
 	return 0;
 }
@@ -599,6 +599,9 @@ static int coda_try_fmt_vid_cap(struct file *file, void *priv,
 	}
 
 	f->fmt.pix.colorspace = ctx->colorspace;
+	f->fmt.pix.xfer_func = ctx->xfer_func;
+	f->fmt.pix.ycbcr_enc = ctx->ycbcr_enc;
+	f->fmt.pix.quantization = ctx->quantization;
 
 	q_data_src = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
 	codec = coda_find_codec(ctx->dev, q_data_src->fourcc,
@@ -634,6 +637,23 @@ static int coda_try_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
+static void coda_set_default_colorspace(struct v4l2_pix_format *fmt)
+{
+	enum v4l2_colorspace colorspace;
+
+	if (fmt->pixelformat == V4L2_PIX_FMT_JPEG)
+		colorspace = V4L2_COLORSPACE_JPEG;
+	else if (fmt->width <= 720 && fmt->height <= 576)
+		colorspace = V4L2_COLORSPACE_SMPTE170M;
+	else
+		colorspace = V4L2_COLORSPACE_REC709;
+
+	fmt->colorspace = colorspace;
+	fmt->xfer_func = V4L2_XFER_FUNC_DEFAULT;
+	fmt->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
+	fmt->quantization = V4L2_QUANTIZATION_DEFAULT;
+}
+
 static int coda_try_fmt_vid_out(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
@@ -647,16 +667,8 @@ static int coda_try_fmt_vid_out(struct file *file, void *priv,
 	if (ret < 0)
 		return ret;
 
-	switch (f->fmt.pix.colorspace) {
-	case V4L2_COLORSPACE_REC709:
-	case V4L2_COLORSPACE_JPEG:
-		break;
-	default:
-		if (f->fmt.pix.pixelformat == V4L2_PIX_FMT_JPEG)
-			f->fmt.pix.colorspace = V4L2_COLORSPACE_JPEG;
-		else
-			f->fmt.pix.colorspace = V4L2_COLORSPACE_REC709;
-	}
+	if (f->fmt.pix.colorspace == V4L2_COLORSPACE_DEFAULT)
+		coda_set_default_colorspace(&f->fmt.pix);
 
 	q_data_dst = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
 	codec = coda_find_codec(dev, f->fmt.pix.pixelformat, q_data_dst->fourcc);
@@ -771,6 +783,9 @@ static int coda_s_fmt_vid_out(struct file *file, void *priv,
 		return ret;
 
 	ctx->colorspace = f->fmt.pix.colorspace;
+	ctx->xfer_func = f->fmt.pix.xfer_func;
+	ctx->ycbcr_enc = f->fmt.pix.ycbcr_enc;
+	ctx->quantization = f->fmt.pix.quantization;
 
 	memset(&f_cap, 0, sizeof(f_cap));
 	f_cap.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -1281,7 +1296,13 @@ static void set_default_params(struct coda_ctx *ctx)
 	csize = coda_estimate_sizeimage(ctx, usize, max_w, max_h);
 
 	ctx->params.codec_mode = ctx->codec->mode;
-	ctx->colorspace = V4L2_COLORSPACE_REC709;
+	if (ctx->cvd->src_formats[0] == V4L2_PIX_FMT_JPEG)
+		ctx->colorspace = V4L2_COLORSPACE_JPEG;
+	else
+		ctx->colorspace = V4L2_COLORSPACE_REC709;
+	ctx->xfer_func = V4L2_XFER_FUNC_DEFAULT;
+	ctx->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
+	ctx->quantization = V4L2_QUANTIZATION_DEFAULT;
 	ctx->params.framerate = 30;
 
 	/* Default formats for output and input queues */
