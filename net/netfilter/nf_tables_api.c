@@ -2377,24 +2377,32 @@ static int nf_tables_delrule(struct net *net, struct sock *nlsk,
  * Sets
  */
 
-static LIST_HEAD(nf_tables_set_ops);
+static LIST_HEAD(nf_tables_set_types);
 
-int nft_register_set(struct nft_set_ops *ops)
+int nft_register_set(struct nft_set_type *type)
 {
 	nfnl_lock(NFNL_SUBSYS_NFTABLES);
-	list_add_tail_rcu(&ops->list, &nf_tables_set_ops);
+	list_add_tail_rcu(&type->list, &nf_tables_set_types);
 	nfnl_unlock(NFNL_SUBSYS_NFTABLES);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nft_register_set);
 
-void nft_unregister_set(struct nft_set_ops *ops)
+void nft_unregister_set(struct nft_set_type *type)
 {
 	nfnl_lock(NFNL_SUBSYS_NFTABLES);
-	list_del_rcu(&ops->list);
+	list_del_rcu(&type->list);
 	nfnl_unlock(NFNL_SUBSYS_NFTABLES);
 }
 EXPORT_SYMBOL_GPL(nft_unregister_set);
+
+#define NFT_SET_FEATURES	(NFT_SET_INTERVAL | NFT_SET_MAP | \
+				 NFT_SET_TIMEOUT | NFT_SET_OBJECT)
+
+static bool nft_set_ops_candidate(const struct nft_set_ops *ops, u32 flags)
+{
+	return (flags & ops->features) == (flags & NFT_SET_FEATURES);
+}
 
 /*
  * Select a set implementation based on the data characteristics and the
@@ -2402,39 +2410,44 @@ EXPORT_SYMBOL_GPL(nft_unregister_set);
  * given, in that case the amount of memory per element is used.
  */
 static const struct nft_set_ops *
-nft_select_set_ops(const struct nlattr * const nla[],
+nft_select_set_ops(const struct nft_ctx *ctx,
+		   const struct nlattr * const nla[],
 		   const struct nft_set_desc *desc,
 		   enum nft_set_policies policy)
 {
 	const struct nft_set_ops *ops, *bops;
 	struct nft_set_estimate est, best;
-	u32 features;
+	const struct nft_set_type *type;
+	u32 flags = 0;
 
 #ifdef CONFIG_MODULES
-	if (list_empty(&nf_tables_set_ops)) {
+	if (list_empty(&nf_tables_set_types)) {
 		nfnl_unlock(NFNL_SUBSYS_NFTABLES);
 		request_module("nft-set");
 		nfnl_lock(NFNL_SUBSYS_NFTABLES);
-		if (!list_empty(&nf_tables_set_ops))
+		if (!list_empty(&nf_tables_set_types))
 			return ERR_PTR(-EAGAIN);
 	}
 #endif
-	features = 0;
-	if (nla[NFTA_SET_FLAGS] != NULL) {
-		features = ntohl(nla_get_be32(nla[NFTA_SET_FLAGS]));
-		features &= NFT_SET_INTERVAL | NFT_SET_MAP | NFT_SET_TIMEOUT |
-			    NFT_SET_OBJECT;
-	}
+	if (nla[NFTA_SET_FLAGS] != NULL)
+		flags = ntohl(nla_get_be32(nla[NFTA_SET_FLAGS]));
 
 	bops	    = NULL;
 	best.size   = ~0;
 	best.lookup = ~0;
 	best.space  = ~0;
 
-	list_for_each_entry(ops, &nf_tables_set_ops, list) {
-		if ((ops->features & features) != features)
+	list_for_each_entry(type, &nf_tables_set_types, list) {
+		if (!type->select_ops)
+			ops = type->ops;
+		else
+			ops = type->select_ops(ctx, desc, flags);
+		if (!ops)
 			continue;
-		if (!ops->estimate(desc, features, &est))
+
+		if (!nft_set_ops_candidate(ops, flags))
+			continue;
+		if (!ops->estimate(desc, flags, &est))
 			continue;
 
 		switch (policy) {
@@ -2465,10 +2478,10 @@ nft_select_set_ops(const struct nlattr * const nla[],
 			break;
 		}
 
-		if (!try_module_get(ops->owner))
+		if (!try_module_get(type->owner))
 			continue;
 		if (bops != NULL)
-			module_put(bops->owner);
+			module_put(bops->type->owner);
 
 		bops = ops;
 		best = est;
@@ -3029,7 +3042,7 @@ static int nf_tables_newset(struct net *net, struct sock *nlsk,
 	if (!(nlh->nlmsg_flags & NLM_F_CREATE))
 		return -ENOENT;
 
-	ops = nft_select_set_ops(nla, &desc, policy);
+	ops = nft_select_set_ops(&ctx, nla, &desc, policy);
 	if (IS_ERR(ops))
 		return PTR_ERR(ops);
 
@@ -3089,14 +3102,14 @@ err3:
 err2:
 	kfree(set);
 err1:
-	module_put(ops->owner);
+	module_put(ops->type->owner);
 	return err;
 }
 
 static void nft_set_destroy(struct nft_set *set)
 {
 	set->ops->destroy(set);
-	module_put(set->ops->owner);
+	module_put(set->ops->type->owner);
 	kfree(set);
 }
 

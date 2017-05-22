@@ -379,7 +379,9 @@ static bool nft_rhash_estimate(const struct nft_set_desc *desc, u32 features,
 	return true;
 }
 
+static struct nft_set_type nft_hash_type;
 static struct nft_set_ops nft_rhash_ops __read_mostly = {
+	.type		= &nft_hash_type,
 	.privsize       = nft_rhash_privsize,
 	.elemsize	= offsetof(struct nft_rhash_elem, ext),
 	.estimate	= nft_rhash_estimate,
@@ -394,17 +396,21 @@ static struct nft_set_ops nft_rhash_ops __read_mostly = {
 	.update		= nft_rhash_update,
 	.walk		= nft_rhash_walk,
 	.features	= NFT_SET_MAP | NFT_SET_OBJECT | NFT_SET_TIMEOUT,
+};
+
+static struct nft_set_type nft_hash_type __read_mostly = {
+	.ops		= &nft_rhash_ops,
 	.owner		= THIS_MODULE,
 };
 
 static int __init nft_hash_module_init(void)
 {
-	return nft_register_set(&nft_rhash_ops);
+	return nft_register_set(&nft_hash_type);
 }
 
 static void __exit nft_hash_module_exit(void)
 {
-	nft_unregister_set(&nft_rhash_ops);
+	nft_unregister_set(&nft_hash_type);
 }
 
 module_init(nft_hash_module_init);
