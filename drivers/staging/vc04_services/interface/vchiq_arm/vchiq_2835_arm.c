@@ -502,8 +502,15 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 	 */
 	sg_init_table(scatterlist, num_pages);
 	/* Now set the pages for each scatterlist */
-	for (i = 0; i < num_pages; i++)
-		sg_set_page(scatterlist + i, pages[i], PAGE_SIZE, 0);
+	for (i = 0; i < num_pages; i++)	{
+		unsigned int len = PAGE_SIZE - offset;
+
+		if (len > count)
+			len = count;
+		sg_set_page(scatterlist + i, pages[i], len, offset);
+		offset = 0;
+		count -= len;
+	}
 
 	dma_buffers = dma_map_sg(g_dev,
 				 scatterlist,
@@ -524,20 +531,20 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 		u32 addr = sg_dma_address(sg);
 
 		/* Note: addrs is the address + page_count - 1
-		 * The firmware expects the block to be page
+		 * The firmware expects blocks after the first to be page-
 		 * aligned and a multiple of the page size
 		 */
 		WARN_ON(len == 0);
-		WARN_ON(len & ~PAGE_MASK);
-		WARN_ON(addr & ~PAGE_MASK);
+		WARN_ON(i && (i != (dma_buffers - 1)) && (len & ~PAGE_MASK));
+		WARN_ON(i && (addr & ~PAGE_MASK));
 		if (k > 0 &&
-		    ((addrs[k - 1] & PAGE_MASK) |
-			((addrs[k - 1] & ~PAGE_MASK) + 1) << PAGE_SHIFT)
-		    == addr) {
-			addrs[k - 1] += (len >> PAGE_SHIFT);
-		} else {
-			addrs[k++] = addr | ((len >> PAGE_SHIFT) - 1);
-		}
+		    ((addrs[k - 1] & PAGE_MASK) +
+		     (((addrs[k - 1] & ~PAGE_MASK) + 1) << PAGE_SHIFT))
+		    == (addr & PAGE_MASK))
+			addrs[k - 1] += ((len + PAGE_SIZE - 1) >> PAGE_SHIFT);
+		else
+			addrs[k++] = (addr & PAGE_MASK) |
+				(((len + PAGE_SIZE - 1) >> PAGE_SHIFT) - 1);
 	}
 
 	/* Partial cache lines (fragments) require special measures */

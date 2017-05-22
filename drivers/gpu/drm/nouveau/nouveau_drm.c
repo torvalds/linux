@@ -502,6 +502,9 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 		pm_runtime_allow(dev->dev);
 		pm_runtime_mark_last_busy(dev->dev);
 		pm_runtime_put(dev->dev);
+	} else {
+		/* enable polling for external displays */
+		drm_kms_helper_poll_enable(dev);
 	}
 	return 0;
 
@@ -773,9 +776,6 @@ nouveau_pmops_runtime_resume(struct device *dev)
 	pci_set_master(pdev);
 
 	ret = nouveau_do_resume(drm_dev, true);
-
-	if (!drm_dev->mode_config.poll_enabled)
-		drm_kms_helper_poll_enable(drm_dev);
 
 	/* do magic */
 	nvif_mask(&device->object, 0x088488, (1 << 25), (1 << 25));
