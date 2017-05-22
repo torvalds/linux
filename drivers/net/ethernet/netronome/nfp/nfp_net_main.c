@@ -190,15 +190,11 @@ nfp_net_find_port(struct nfp_eth_table *eth_tbl, unsigned int id)
 static unsigned int nfp_net_pf_get_num_ports(struct nfp_pf *pf)
 {
 	char name[256];
-	u16 interface;
-	int pcie_pf;
 	int err = 0;
 	u64 val;
 
-	interface = nfp_cpp_interface(pf->cpp);
-	pcie_pf = NFP_CPP_INTERFACE_UNIT_of(interface);
-
-	snprintf(name, sizeof(name), "nfd_cfg_pf%d_num_ports", pcie_pf);
+	snprintf(name, sizeof(name), "nfd_cfg_pf%u_num_ports",
+		 nfp_cppcore_pcie_unit(pf->cpp));
 
 	val = nfp_rtsym_read_le(pf->cpp, name, &err);
 	/* Default to one port */
@@ -241,13 +237,9 @@ static u8 __iomem *nfp_net_pf_map_ctrl_bar(struct nfp_pf *pf)
 	const struct nfp_rtsym *ctrl_sym;
 	u8 __iomem *ctrl_bar;
 	char pf_symbol[256];
-	u16 interface;
-	int pcie_pf;
 
-	interface = nfp_cpp_interface(pf->cpp);
-	pcie_pf = NFP_CPP_INTERFACE_UNIT_of(interface);
-
-	snprintf(pf_symbol, sizeof(pf_symbol), "_pf%d_net_bar0", pcie_pf);
+	snprintf(pf_symbol, sizeof(pf_symbol), "_pf%u_net_bar0",
+		 nfp_cppcore_pcie_unit(pf->cpp));
 
 	ctrl_sym = nfp_rtsym_lookup(pf->cpp, pf_symbol);
 	if (!ctrl_sym) {
