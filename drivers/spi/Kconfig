@@ -784,6 +784,18 @@ config SPI_TLE62X0
 
 endif # SPI_MASTER
 
-# (slave support would go here)
+#
+# SLAVE side ... listening to other SPI masters
+#
+
+config SPI_SLAVE
+	bool "SPI slave protocol handlers"
+	help
+	  If your system has a slave-capable SPI controller, you can enable
+	  slave protocol handlers.
+
+if SPI_SLAVE
+
+endif # SPI_SLAVE
 
 endif # SPI

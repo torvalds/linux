@@ -29,8 +29,8 @@ struct spi_transfer;
 struct spi_flash_read_message;
 
 /*
- * INTERFACES between SPI master-side drivers and SPI infrastructure.
- * (There's no SPI slave support for Linux yet...)
+ * INTERFACES between SPI master-side drivers and SPI slave protocol handlers,
+ * and SPI infrastructure.
  */
 extern struct bus_type spi_bus_type;
 
@@ -311,6 +311,7 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  * @min_speed_hz: Lowest supported transfer speed
  * @max_speed_hz: Highest supported transfer speed
  * @flags: other constraints relevant to this driver
+ * @slave: indicates that this is an SPI slave controller
  * @max_transfer_size: function that returns the max transfer size for
  *	a &spi_device; may be %NULL, so the default %SIZE_MAX will be used.
  * @max_message_size: function that returns the max message size for
@@ -374,6 +375,7 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  * @handle_err: the subsystem calls the driver to handle an error that occurs
  *		in the generic implementation of transfer_one_message().
  * @unprepare_message: undo any work done by prepare_message().
+ * @slave_abort: abort the ongoing transfer request on an SPI slave controller
  * @spi_flash_read: to support spi-controller hardwares that provide
  *                  accelerated interface to read from flash devices.
  * @spi_flash_can_dma: analogous to can_dma() interface, but for
@@ -446,6 +448,9 @@ struct spi_master {
 #define SPI_MASTER_MUST_RX      BIT(3)		/* requires rx */
 #define SPI_MASTER_MUST_TX      BIT(4)		/* requires tx */
 #define SPI_MASTER_GPIO_SS      BIT(5)		/* GPIO CS must select slave */
+
+	/* flag indicating this is an SPI slave controller */
+	bool			slave;
 
 	/*
 	 * on some hardware transfer / message size may be constrained
@@ -539,6 +544,7 @@ struct spi_master {
 			       struct spi_message *message);
 	int (*unprepare_message)(struct spi_master *master,
 				 struct spi_message *message);
+	int (*slave_abort)(struct spi_master *spi);
 	int (*spi_flash_read)(struct  spi_device *spi,
 			      struct spi_flash_read_message *msg);
 	bool (*spi_flash_can_dma)(struct spi_device *spi,
@@ -595,6 +601,11 @@ static inline void spi_master_put(struct spi_master *master)
 		put_device(&master->dev);
 }
 
+static inline bool spi_controller_is_slave(struct spi_master *ctlr)
+{
+	return IS_ENABLED(CONFIG_SPI_SLAVE) && ctlr->slave;
+}
+
 /* PM calls that need to be issued by the driver */
 extern int spi_master_suspend(struct spi_master *master);
 extern int spi_master_resume(struct spi_master *master);
@@ -605,8 +616,23 @@ extern void spi_finalize_current_message(struct spi_master *master);
 extern void spi_finalize_current_transfer(struct spi_master *master);
 
 /* the spi driver core manages memory for the spi_master classdev */
-extern struct spi_master *
-spi_alloc_master(struct device *host, unsigned size);
+extern struct spi_master *__spi_alloc_controller(struct device *host,
+						 unsigned int size, bool slave);
+
+static inline struct spi_master *spi_alloc_master(struct device *host,
+						  unsigned int size)
+{
+	return __spi_alloc_controller(host, size, false);
+}
+
+static inline struct spi_master *spi_alloc_slave(struct device *host,
+						 unsigned int size)
+{
+	if (!IS_ENABLED(CONFIG_SPI_SLAVE))
+		return NULL;
+
+	return __spi_alloc_controller(host, size, true);
+}
 
 extern int spi_register_master(struct spi_master *master);
 extern int devm_spi_register_master(struct device *dev,
@@ -912,6 +938,7 @@ extern int spi_setup(struct spi_device *spi);
 extern int spi_async(struct spi_device *spi, struct spi_message *message);
 extern int spi_async_locked(struct spi_device *spi,
 			    struct spi_message *message);
+extern int spi_slave_abort(struct spi_device *spi);
 
 static inline size_t
 spi_max_message_size(struct spi_device *spi)
