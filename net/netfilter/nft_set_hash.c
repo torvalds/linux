@@ -40,8 +40,6 @@ struct nft_hash_cmp_arg {
 	u8				genmask;
 };
 
-static const struct rhashtable_params nft_hash_params;
-
 static inline u32 nft_hash_key(const void *data, u32 len, u32 seed)
 {
 	const struct nft_hash_cmp_arg *arg = data;
@@ -70,6 +68,14 @@ static inline int nft_hash_cmp(struct rhashtable_compare_arg *arg,
 		return 1;
 	return 0;
 }
+
+static const struct rhashtable_params nft_hash_params = {
+	.head_offset		= offsetof(struct nft_hash_elem, node),
+	.hashfn			= nft_hash_key,
+	.obj_hashfn		= nft_hash_obj,
+	.obj_cmpfn		= nft_hash_cmp,
+	.automatic_shrinking	= true,
+};
 
 static bool nft_hash_lookup(const struct net *net, const struct nft_set *set,
 			    const u32 *key, const struct nft_set_ext **ext)
@@ -319,14 +325,6 @@ static unsigned int nft_hash_privsize(const struct nlattr * const nla[])
 {
 	return sizeof(struct nft_hash);
 }
-
-static const struct rhashtable_params nft_hash_params = {
-	.head_offset		= offsetof(struct nft_hash_elem, node),
-	.hashfn			= nft_hash_key,
-	.obj_hashfn		= nft_hash_obj,
-	.obj_cmpfn		= nft_hash_cmp,
-	.automatic_shrinking	= true,
-};
 
 static int nft_hash_init(const struct nft_set *set,
 			 const struct nft_set_desc *desc,
