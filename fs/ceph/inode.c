@@ -1653,20 +1653,17 @@ out:
 	return err;
 }
 
-int ceph_inode_set_size(struct inode *inode, loff_t size)
+bool ceph_inode_set_size(struct inode *inode, loff_t size)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	int ret = 0;
+	bool ret;
 
 	spin_lock(&ci->i_ceph_lock);
 	dout("set_size %p %llu -> %llu\n", inode, inode->i_size, size);
 	i_size_write(inode, size);
 	inode->i_blocks = calc_inode_blocks(size);
 
-	/* tell the MDS if we are approaching max_size */
-	if ((size << 1) >= ci->i_max_size &&
-	    (ci->i_reported_size << 1) < ci->i_max_size)
-		ret = 1;
+	ret = __ceph_should_report_size(ci);
 
 	spin_unlock(&ci->i_ceph_lock);
 	return ret;

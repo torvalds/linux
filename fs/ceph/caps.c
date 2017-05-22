@@ -1653,6 +1653,21 @@ static int try_nonblocking_invalidate(struct inode *inode)
 	return -1;
 }
 
+bool __ceph_should_report_size(struct ceph_inode_info *ci)
+{
+	loff_t size = ci->vfs_inode.i_size;
+	/* mds will adjust max size according to the reported size */
+	if (ci->i_flushing_caps & CEPH_CAP_FILE_WR)
+		return false;
+	if (size >= ci->i_max_size)
+		return true;
+	/* half of previous max_size increment has been used */
+	if (ci->i_max_size > ci->i_reported_size &&
+	    (size << 1) >= ci->i_max_size + ci->i_reported_size)
+		return true;
+	return false;
+}
+
 /*
  * Swiss army knife function to examine currently used and wanted
  * versus held caps.  Release, flush, ack revoked caps to mds as
@@ -1806,8 +1821,7 @@ retry_locked:
 			}
 
 			/* approaching file_max? */
-			if ((inode->i_size << 1) >= ci->i_max_size &&
-			    (ci->i_reported_size << 1) < ci->i_max_size) {
+			if (__ceph_should_report_size(ci)) {
 				dout("i_size approaching max_size\n");
 				goto ack;
 			}
