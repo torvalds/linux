@@ -53,7 +53,8 @@ extern int ptrace_request(struct task_struct *child, long request,
 			  unsigned long addr, unsigned long data);
 extern void ptrace_notify(int exit_code);
 extern void __ptrace_link(struct task_struct *child,
-			  struct task_struct *new_parent);
+			  struct task_struct *new_parent,
+			  const struct cred *ptracer_cred);
 extern void __ptrace_unlink(struct task_struct *child);
 extern void exit_ptrace(struct task_struct *tracer, struct list_head *dead);
 #define PTRACE_MODE_READ	0x01
@@ -205,7 +206,7 @@ static inline void ptrace_init_task(struct task_struct *child, bool ptrace)
 
 	if (unlikely(ptrace) && current->ptrace) {
 		child->ptrace = current->ptrace;
-		__ptrace_link(child, current->parent);
+		__ptrace_link(child, current->parent, current->ptracer_cred);
 
 		if (child->ptrace & PT_SEIZED)
 			task_set_jobctl_pending(child, JOBCTL_TRAP_STOP);
@@ -214,6 +215,8 @@ static inline void ptrace_init_task(struct task_struct *child, bool ptrace)
 
 		set_tsk_thread_flag(child, TIF_SIGPENDING);
 	}
+	else
+		child->ptracer_cred = NULL;
 }
 
 /**
