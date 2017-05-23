@@ -1704,15 +1704,9 @@ void transport_generic_request_failure(struct se_cmd *cmd,
 	if (transport_check_aborted_status(cmd, 1))
 		return;
 
-	pr_debug("-----[ Storage Engine Exception for cmd: %p ITT: 0x%08llx"
-		" CDB: 0x%02x\n", cmd, cmd->tag, cmd->t_task_cdb[0]);
-	pr_debug("-----[ i_state: %d t_state: %d sense_reason: %d\n",
-		cmd->se_tfo->get_cmd_state(cmd),
-		cmd->t_state, sense_reason);
-	pr_debug("-----[ CMD_T_ACTIVE: %d CMD_T_STOP: %d CMD_T_SENT: %d\n",
-		(cmd->transport_state & CMD_T_ACTIVE) != 0,
-		(cmd->transport_state & CMD_T_STOP) != 0,
-		(cmd->transport_state & CMD_T_SENT) != 0);
+	pr_debug("-----[ Storage Engine Exception; sense_reason %d\n",
+		 sense_reason);
+	target_show_cmd("-----[ ", cmd);
 
 	/*
 	 * For SAM Task Attribute emulation for failed struct se_cmd
@@ -2705,6 +2699,108 @@ int target_put_sess_cmd(struct se_cmd *se_cmd)
 }
 EXPORT_SYMBOL(target_put_sess_cmd);
 
+static const char *data_dir_name(enum dma_data_direction d)
+{
+	switch (d) {
+	case DMA_BIDIRECTIONAL:	return "BIDI";
+	case DMA_TO_DEVICE:	return "WRITE";
+	case DMA_FROM_DEVICE:	return "READ";
+	case DMA_NONE:		return "NONE";
+	}
+
+	return "(?)";
+}
+
+static const char *cmd_state_name(enum transport_state_table t)
+{
+	switch (t) {
+	case TRANSPORT_NO_STATE:	return "NO_STATE";
+	case TRANSPORT_NEW_CMD:		return "NEW_CMD";
+	case TRANSPORT_WRITE_PENDING:	return "WRITE_PENDING";
+	case TRANSPORT_PROCESSING:	return "PROCESSING";
+	case TRANSPORT_COMPLETE:	return "COMPLETE";
+	case TRANSPORT_ISTATE_PROCESSING:
+					return "ISTATE_PROCESSING";
+	case TRANSPORT_COMPLETE_QF_WP:	return "COMPLETE_QF_WP";
+	case TRANSPORT_COMPLETE_QF_OK:	return "COMPLETE_QF_OK";
+	case TRANSPORT_COMPLETE_QF_ERR:	return "COMPLETE_QF_ERR";
+	}
+
+	return "(?)";
+}
+
+static void target_append_str(char **str, const char *txt)
+{
+	char *prev = *str;
+
+	*str = *str ? kasprintf(GFP_ATOMIC, "%s,%s", *str, txt) :
+		kstrdup(txt, GFP_ATOMIC);
+	kfree(prev);
+}
+
+/*
+ * Convert a transport state bitmask into a string. The caller is
+ * responsible for freeing the returned pointer.
+ */
+static char *target_ts_to_str(u32 ts)
+{
+	char *str = NULL;
+
+	if (ts & CMD_T_ABORTED)
+		target_append_str(&str, "aborted");
+	if (ts & CMD_T_ACTIVE)
+		target_append_str(&str, "active");
+	if (ts & CMD_T_COMPLETE)
+		target_append_str(&str, "complete");
+	if (ts & CMD_T_SENT)
+		target_append_str(&str, "sent");
+	if (ts & CMD_T_STOP)
+		target_append_str(&str, "stop");
+	if (ts & CMD_T_FABRIC_STOP)
+		target_append_str(&str, "fabric_stop");
+
+	return str;
+}
+
+static const char *target_tmf_name(enum tcm_tmreq_table tmf)
+{
+	switch (tmf) {
+	case TMR_ABORT_TASK:		return "ABORT_TASK";
+	case TMR_ABORT_TASK_SET:	return "ABORT_TASK_SET";
+	case TMR_CLEAR_ACA:		return "CLEAR_ACA";
+	case TMR_CLEAR_TASK_SET:	return "CLEAR_TASK_SET";
+	case TMR_LUN_RESET:		return "LUN_RESET";
+	case TMR_TARGET_WARM_RESET:	return "TARGET_WARM_RESET";
+	case TMR_TARGET_COLD_RESET:	return "TARGET_COLD_RESET";
+	case TMR_UNKNOWN:		break;
+	}
+	return "(?)";
+}
+
+void target_show_cmd(const char *pfx, struct se_cmd *cmd)
+{
+	char *ts_str = target_ts_to_str(cmd->transport_state);
+	const u8 *cdb = cmd->t_task_cdb;
+	struct se_tmr_req *tmf = cmd->se_tmr_req;
+
+	if (!(cmd->se_cmd_flags & SCF_SCSI_TMR_CDB)) {
+		pr_debug("%scmd %#02x:%#02x with tag %#llx dir %s i_state %d t_state %s len %d refcnt %d transport_state %s\n",
+			 pfx, cdb[0], cdb[1], cmd->tag,
+			 data_dir_name(cmd->data_direction),
+			 cmd->se_tfo->get_cmd_state(cmd),
+			 cmd_state_name(cmd->t_state), cmd->data_length,
+			 kref_read(&cmd->cmd_kref), ts_str);
+	} else {
+		pr_debug("%stmf %s with tag %#llx ref_task_tag %#llx i_state %d t_state %s refcnt %d transport_state %s\n",
+			 pfx, target_tmf_name(tmf->function), cmd->tag,
+			 tmf->ref_task_tag, cmd->se_tfo->get_cmd_state(cmd),
+			 cmd_state_name(cmd->t_state),
+			 kref_read(&cmd->cmd_kref), ts_str);
+	}
+	kfree(ts_str);
+}
+EXPORT_SYMBOL(target_show_cmd);
+
 /* target_sess_cmd_list_set_waiting - Flag all commands in
  *         sess_cmd_list to complete cmd_wait_comp.  Set
  *         sess_tearing_down so no more commands are queued.
@@ -2849,13 +2945,13 @@ __transport_wait_for_tasks(struct se_cmd *cmd, bool fabric_stop,
 
 	cmd->transport_state |= CMD_T_STOP;
 
-	pr_debug("wait_for_tasks: Stopping %p ITT: 0x%08llx i_state: %d,"
-		 " t_state: %d, CMD_T_STOP\n", cmd, cmd->tag,
-		 cmd->se_tfo->get_cmd_state(cmd), cmd->t_state);
+	target_show_cmd("wait_for_tasks: Stopping ", cmd);
 
 	spin_unlock_irqrestore(&cmd->t_state_lock, *flags);
 
-	wait_for_completion(&cmd->t_transport_stop_comp);
+	while (!wait_for_completion_timeout(&cmd->t_transport_stop_comp,
+					    180 * HZ))
+		target_show_cmd("wait for tasks: ", cmd);
 
 	spin_lock_irqsave(&cmd->t_state_lock, *flags);
 	cmd->transport_state &= ~(CMD_T_ACTIVE | CMD_T_STOP);
