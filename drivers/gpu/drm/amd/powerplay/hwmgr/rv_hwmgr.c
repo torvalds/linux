@@ -35,13 +35,13 @@
 #include "rv_hwmgr.h"
 #include "power_state.h"
 #include "rv_smumgr.h"
+#include "pp_soc15.h"
 
 #define RAVEN_MAX_DEEPSLEEP_DIVIDER_ID     5
 #define RAVEN_MINIMUM_ENGINE_CLOCK         800   //8Mhz, the low boundary of engine clock allowed on this chip
 #define SCLK_MIN_DIV_INTV_SHIFT         12
 #define RAVEN_DISPCLK_BYPASS_THRESHOLD     10000 //100mhz
 #define SMC_RAM_END                     0x40000
-
 
 static const unsigned long PhwRaven_Magic = (unsigned long) PHM_Rv_Magic;
 int rv_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
@@ -613,6 +613,7 @@ static int rv_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	hwmgr->platform_descriptor.minimumClocksReductionPercentage = 50;
 
 	rv_init_vq_budget_table(hwmgr);
+
 	return result;
 }
 
@@ -981,10 +982,32 @@ static int rv_get_max_high_clocks(struct pp_hwmgr *hwmgr, struct amd_pp_simple_c
 	return -EINVAL;
 }
 
+static int rv_thermal_get_temperature(struct pp_hwmgr *hwmgr)
+{
+	uint32_t reg_offset = soc15_get_register_offset(THM_HWID, 0,
+			mmTHM_TCON_CUR_TMP_BASE_IDX, mmTHM_TCON_CUR_TMP);
+	uint32_t reg_value = cgs_read_register(hwmgr->device, reg_offset);
+	int cur_temp =
+		(reg_value & THM_TCON_CUR_TMP__CUR_TEMP_MASK) >> THM_TCON_CUR_TMP__CUR_TEMP__SHIFT;
+
+	if (cur_temp & THM_TCON_CUR_TMP__CUR_TEMP_RANGE_SEL_MASK)
+		cur_temp = ((cur_temp / 8) - 49) * PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	else
+		cur_temp = (cur_temp / 8) * PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+
+	return cur_temp;
+}
+
 static int rv_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 			  void *value, int *size)
 {
-	return -EINVAL;
+	switch (idx) {
+	case AMDGPU_PP_SENSOR_GPU_TEMP:
+		*((uint32_t *)value) = rv_thermal_get_temperature(hwmgr);
+		return 0;
+	default:
+		return -EINVAL;
+	}
 }
 
 static const struct pp_hwmgr_func rv_hwmgr_funcs = {
