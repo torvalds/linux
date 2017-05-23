@@ -61,7 +61,7 @@ static int spk_ttyio_receive_buf2(struct tty_struct *tty,
 		return 0;
 
 	/* Make sure the consumer has read buf before we have seen
-         * buf_free == true and overwrite buf */
+	 * buf_free == true and overwrite buf */
 	mb();
 
 	ldisc_data->buf = cp[0];
