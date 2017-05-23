@@ -220,7 +220,8 @@ static void tcf_chain_destroy(struct tcf_chain *chain)
 	kfree(chain);
 }
 
-struct tcf_chain *tcf_chain_get(struct tcf_block *block, u32 chain_index)
+struct tcf_chain *tcf_chain_get(struct tcf_block *block, u32 chain_index,
+				bool create)
 {
 	struct tcf_chain *chain;
 
@@ -230,7 +231,10 @@ struct tcf_chain *tcf_chain_get(struct tcf_block *block, u32 chain_index)
 			return chain;
 		}
 	}
-	return tcf_chain_create(block, chain_index);
+	if (create)
+		return tcf_chain_create(block, chain_index);
+	else
+		return NULL;
 }
 EXPORT_SYMBOL(tcf_chain_get);
 
@@ -511,9 +515,10 @@ replay:
 		err = -EINVAL;
 		goto errout;
 	}
-	chain = tcf_chain_get(block, chain_index);
+	chain = tcf_chain_get(block, chain_index,
+			      n->nlmsg_type == RTM_NEWTFILTER);
 	if (!chain) {
-		err = -ENOMEM;
+		err = n->nlmsg_type == RTM_NEWTFILTER ? -ENOMEM : -EINVAL;
 		goto errout;
 	}
 

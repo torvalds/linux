@@ -18,7 +18,8 @@ int register_tcf_proto_ops(struct tcf_proto_ops *ops);
 int unregister_tcf_proto_ops(struct tcf_proto_ops *ops);
 
 #ifdef CONFIG_NET_CLS
-struct tcf_chain *tcf_chain_get(struct tcf_block *block, u32 chain_index);
+struct tcf_chain *tcf_chain_get(struct tcf_block *block, u32 chain_index,
+				bool create);
 void tcf_chain_put(struct tcf_chain *chain);
 int tcf_block_get(struct tcf_block **p_block,
 		  struct tcf_proto __rcu **p_filter_chain);
