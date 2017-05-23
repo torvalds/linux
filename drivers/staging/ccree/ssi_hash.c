@@ -2444,8 +2444,8 @@ int ssi_hash_alloc(struct ssi_drvdata *drvdata)
 
 		/* register hmac version */
 
-		if ((((struct ssi_hash_template)driver_hash[alg]).hw_mode != DRV_CIPHER_XCBC_MAC) &&
-			(((struct ssi_hash_template)driver_hash[alg]).hw_mode != DRV_CIPHER_CMAC)) {
+		if ((((struct ssi_hash_template *)&driver_hash[alg])->hw_mode != DRV_CIPHER_XCBC_MAC) &&
+		    (((struct ssi_hash_template *)&driver_hash[alg])->hw_mode != DRV_CIPHER_CMAC)) {
 			t_alg = ssi_hash_create_alg(&driver_hash[alg], true);
 			if (IS_ERR(t_alg)) {
 				rc = PTR_ERR(t_alg);
