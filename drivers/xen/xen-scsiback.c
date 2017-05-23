@@ -614,7 +614,7 @@ static void scsiback_device_action(struct vscsibk_pend *pending_req,
 		SUCCESS : FAILED;
 
 	scsiback_do_resp_with_sense(NULL, err, 0, pending_req);
-	transport_generic_free_cmd(&pending_req->se_cmd, 1);
+	transport_generic_free_cmd(&pending_req->se_cmd, 0);
 	return;
 
 err:
