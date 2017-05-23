@@ -44,3 +44,6 @@ i2c_adapter devices which don't support those I2C operations.
 
 .. kernel-doc:: drivers/i2c/i2c-core-base.c
    :export:
+
+.. kernel-doc:: drivers/i2c/i2c-core-smbus.c
+   :export:
