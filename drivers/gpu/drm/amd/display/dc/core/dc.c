@@ -1223,33 +1223,7 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 	if (!stream_status)
 		return; /* Cannot commit surface to stream that is not committed */
 
-	update_type = dc_check_update_surfaces_for_stream(
-			dc, srf_updates, surface_count, stream_update, stream_status);
-
-	if (update_type >= update_surface_trace_level)
-		update_surface_trace(dc, srf_updates, surface_count);
-
-	if (update_type >= UPDATE_TYPE_FULL) {
-		const struct dc_surface *new_surfaces[MAX_SURFACES] = { 0 };
-
-		for (i = 0; i < surface_count; i++)
-			new_surfaces[i] = srf_updates[i].surface;
-
-		/* initialize scratch memory for building context */
-		context = dm_alloc(sizeof(*context));
-		dc_resource_validate_ctx_copy_construct(
-				core_dc->current_context, context);
-
-		/* add surface to context */
-		if (!resource_attach_surfaces_to_context(
-				new_surfaces, surface_count, dc_stream,
-				context, core_dc->res_pool)) {
-			BREAK_TO_DEBUGGER();
-			goto fail;
-		}
-	} else {
-		context = core_dc->current_context;
-	}
+	context = core_dc->current_context;
 
 	/* update current stream with the new updates */
 	if (stream_update) {
@@ -1274,6 +1248,36 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 				stream->public.out_transfer_func =
 					stream_update->out_transfer_func;
 			}
+		}
+	}
+
+	/* only proceed if we need to make a surface update */
+	if (!srf_updates)
+		return;
+
+	update_type = dc_check_update_surfaces_for_stream(
+			dc, srf_updates, surface_count, stream_update, stream_status);
+
+	if (update_type >= update_surface_trace_level)
+		update_surface_trace(dc, srf_updates, surface_count);
+
+	if (update_type >= UPDATE_TYPE_FULL) {
+		const struct dc_surface *new_surfaces[MAX_SURFACES] = { 0 };
+
+		for (i = 0; i < surface_count; i++)
+			new_surfaces[i] = srf_updates[i].surface;
+
+		/* initialize scratch memory for building context */
+		context = dm_alloc(sizeof(*context));
+		dc_resource_validate_ctx_copy_construct(
+				core_dc->current_context, context);
+
+		/* add surface to context */
+		if (!resource_attach_surfaces_to_context(
+				new_surfaces, surface_count, dc_stream,
+				context, core_dc->res_pool)) {
+			BREAK_TO_DEBUGGER();
+			goto fail;
 		}
 	}
 
