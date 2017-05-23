@@ -250,7 +250,7 @@ run_test() { # testfile
   local testlog=`mktemp $LOG_DIR/${testname}-log.XXXXXX`
   export TMPDIR=`mktemp -d /tmp/ftracetest-dir.XXXXXX`
   testcase $1
-  echo "execute: "$1 > $testlog
+  echo "execute$INSTANCE: "$1 > $testlog
   SIG_RESULT=0
   if [ $VERBOSE -ge 2 ]; then
     __run_test $1 2>> $testlog | tee -a $testlog
