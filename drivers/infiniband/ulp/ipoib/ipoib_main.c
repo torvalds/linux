@@ -233,6 +233,7 @@ static netdev_features_t ipoib_fix_features(struct net_device *dev, netdev_featu
 static int ipoib_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
+	int ret = 0;
 
 	/* dev->mtu > 2K ==> connected mode */
 	if (ipoib_cm_admin_enabled(dev)) {
@@ -256,9 +257,23 @@ static int ipoib_change_mtu(struct net_device *dev, int new_mtu)
 		ipoib_dbg(priv, "MTU must be smaller than the underlying "
 				"link layer MTU - 4 (%u)\n", priv->mcast_mtu);
 
-	dev->mtu = min(priv->mcast_mtu, priv->admin_mtu);
+	new_mtu = min(priv->mcast_mtu, priv->admin_mtu);
 
-	return 0;
+	if (priv->rn_ops->ndo_change_mtu) {
+		bool carrier_status = netif_carrier_ok(dev);
+
+		netif_carrier_off(dev);
+
+		/* notify lower level on the real mtu */
+		ret = priv->rn_ops->ndo_change_mtu(dev, new_mtu);
+
+		if (carrier_status)
+			netif_carrier_on(dev);
+	} else {
+		dev->mtu = new_mtu;
+	}
+
+	return ret;
 }
 
 /* Called with an RCU read lock taken */
