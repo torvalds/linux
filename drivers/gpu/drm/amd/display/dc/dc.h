@@ -115,12 +115,6 @@ struct dc_stream_funcs {
 			unsigned int *v_pos,
 			unsigned int *nom_v_pos);
 
-
-	void (*stream_update_scaling)(const struct dc *dc,
-			const struct dc_stream *dc_stream,
-			const struct rect *src,
-			const struct rect *dst);
-
 	bool (*set_gamut_remap)(struct dc *dc,
 			const struct dc_stream *stream);
 

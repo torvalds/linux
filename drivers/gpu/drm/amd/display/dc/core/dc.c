@@ -249,47 +249,6 @@ static void set_static_screen_events(struct dc *dc,
 	core_dc->hwss.set_static_screen_control(pipes_affected, num_pipes_affected, events);
 }
 
-/* This function is not expected to fail, proper implementation of
- * validation will prevent this from ever being called for unsupported
- * configurations.
- */
-static void stream_update_scaling(
-		const struct dc *dc,
-		const struct dc_stream *dc_stream,
-		const struct rect *src,
-		const struct rect *dst)
-{
-	struct core_stream *stream = DC_STREAM_TO_CORE(dc_stream);
-	struct core_dc *core_dc = DC_TO_CORE(dc);
-	struct validate_context *cur_ctx = core_dc->current_context;
-	int i;
-
-	if (src)
-		stream->public.src = *src;
-
-	if (dst)
-		stream->public.dst = *dst;
-
-	for (i = 0; i < cur_ctx->stream_count; i++) {
-		struct core_stream *cur_stream = cur_ctx->streams[i];
-
-		if (stream == cur_stream) {
-			struct dc_stream_status *status = &cur_ctx->stream_status[i];
-
-			if (status->surface_count)
-				if (!dc_commit_surfaces_to_stream(
-						&core_dc->public,
-						status->surfaces,
-						status->surface_count,
-						&cur_stream->public))
-					/* Need to debug validation */
-					BREAK_TO_DEBUGGER();
-
-			return;
-		}
-	}
-}
-
 static void set_drive_settings(struct dc *dc,
 		struct link_training_settings *lt_settings,
 		const struct dc_link *link)
@@ -402,7 +361,6 @@ void set_dither_option(const struct dc_stream *dc_stream,
 
 static void allocate_dc_stream_funcs(struct core_dc *core_dc)
 {
-	core_dc->public.stream_funcs.stream_update_scaling = stream_update_scaling;
 	if (core_dc->hwss.set_drr != NULL) {
 		core_dc->public.stream_funcs.adjust_vmin_vmax =
 				stream_adjust_vmin_vmax;
