@@ -133,8 +133,7 @@
 		regulator-max-microvolt = <3300000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_flexcan_xcvr>;
-		gpio = <&gpio4 21 GPIO_ACTIVE_HIGH>;
-		enable-active-low;
+		gpio = <&gpio4 21 GPIO_ACTIVE_LOW>;
 	};
 
 	reg_lcd0_pwr: regulator-lcd0-pwr {
