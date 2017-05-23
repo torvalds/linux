@@ -1131,7 +1131,7 @@ passthrough_parse_cdb(struct se_cmd *cmd,
 	case WRITE_16:
 	case WRITE_VERIFY:
 	case WRITE_VERIFY_12:
-	case 0x8e: /* WRITE_VERIFY_16 */
+	case WRITE_VERIFY_16:
 	case COMPARE_AND_WRITE:
 	case XDWRITEREAD_10:
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
