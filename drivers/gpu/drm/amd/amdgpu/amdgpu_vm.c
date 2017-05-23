@@ -1381,8 +1381,9 @@ static int amdgpu_vm_frag_ptes(struct amdgpu_pte_update_params	*params,
 	 */
 
 	/* SI and newer are optimized for 64KB */
-	uint64_t frag_flags = AMDGPU_PTE_FRAG(AMDGPU_LOG2_PAGES_PER_FRAG);
-	uint64_t frag_align = 1 << AMDGPU_LOG2_PAGES_PER_FRAG;
+	unsigned pages_per_frag = AMDGPU_LOG2_PAGES_PER_FRAG(params->adev);
+	uint64_t frag_flags = AMDGPU_PTE_FRAG(pages_per_frag);
+	uint64_t frag_align = 1 << pages_per_frag;
 
 	uint64_t frag_start = ALIGN(start, frag_align);
 	uint64_t frag_end = end & ~(frag_align - 1);
