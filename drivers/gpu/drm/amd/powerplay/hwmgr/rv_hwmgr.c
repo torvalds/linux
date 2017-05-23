@@ -782,6 +782,7 @@ static int rv_get_performance_level(struct pp_hwmgr *hwmgr, const struct pp_hw_p
 	struct rv_hwmgr *data;
 	uint32_t level_index;
 	uint32_t i;
+	uint32_t vol_dep_record_index = 0;
 
 	if (level == NULL || hwmgr == NULL || state == NULL)
 		return -EINVAL;
@@ -800,6 +801,13 @@ static int rv_get_performance_level(struct pp_hwmgr *hwmgr, const struct pp_hw_p
 			}
 		}
 	}
+
+	if (level_index == 0) {
+		vol_dep_record_index = data->clock_vol_info.vdd_dep_on_fclk->count - 1;
+		level->memory_clock =
+			data->clock_vol_info.vdd_dep_on_fclk->entries[vol_dep_record_index].clk;
+	} else
+		level->memory_clock = data->clock_vol_info.vdd_dep_on_fclk->entries[0].clk;
 
 	level->nonLocalMemoryFreq = 0;
 	level->nonLocalMemoryWidth = 0;
