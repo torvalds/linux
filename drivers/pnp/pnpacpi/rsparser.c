@@ -180,6 +180,7 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 	struct pnp_dev *dev = data;
 	struct acpi_resource_dma *dma;
 	struct acpi_resource_vendor_typed *vendor_typed;
+	struct acpi_resource_gpio *gpio;
 	struct resource_win win = {{0}, 0};
 	struct resource *r = &win.res;
 	int i, flags;
@@ -209,6 +210,21 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 				dev->capabilities &= ~PNP_WRITE;
 			}
 		}
+		return AE_OK;
+	} else if (acpi_gpio_get_irq_resource(res, &gpio)) {
+		/*
+		 * If the resource is GpioInt() type then extract the IRQ
+		 * from GPIO resource and fill it into IRQ resource type.
+		 */
+		i = acpi_dev_gpio_irq_get(dev->data, 0);
+		if (i >= 0) {
+			flags = acpi_dev_irq_flags(gpio->triggering,
+						   gpio->polarity,
+						   gpio->sharable);
+		} else {
+			flags = IORESOURCE_DISABLED;
+		}
+		pnp_add_irq_resource(dev, i, flags);
 		return AE_OK;
 	} else if (r->flags & IORESOURCE_DISABLED) {
 		pnp_add_irq_resource(dev, 0, IORESOURCE_DISABLED);
