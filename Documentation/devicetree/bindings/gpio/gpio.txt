@@ -80,6 +80,8 @@ Optional standard bitfield specifiers for the last cell:
            https://en.wikipedia.org/wiki/Single-ended_triode
 - Bit 2: 0 means open-source, 1 means open drain, see:
            https://en.wikipedia.org/wiki/Open_collector
+- Bit 3: 0 means the output should be maintained during sleep/low-power mode
+         1 means the output state can be lost during sleep/low-power mode
 
 1.1) GPIO specifier best practices
 ----------------------------------
