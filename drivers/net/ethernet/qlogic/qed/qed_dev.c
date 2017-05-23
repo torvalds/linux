@@ -2812,12 +2812,6 @@ static int qed_get_dev_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		cdev->chip_num, cdev->chip_rev,
 		cdev->chip_bond_id, cdev->chip_metal);
 
-	if (QED_IS_BB(cdev) && CHIP_REV_IS_A0(cdev)) {
-		DP_NOTICE(cdev->hwfns,
-			  "The chip type/rev (BB A0) is not supported!\n");
-		return -EINVAL;
-	}
-
 	return 0;
 }
 

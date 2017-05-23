@@ -598,15 +598,10 @@ struct qed_dev {
 	enum	qed_dev_type type;
 /* Translate type/revision combo into the proper conditions */
 #define QED_IS_BB(dev)  ((dev)->type == QED_DEV_TYPE_BB)
-#define QED_IS_BB_A0(dev)       (QED_IS_BB(dev) && \
-				 CHIP_REV_IS_A0(dev))
 #define QED_IS_BB_B0(dev)       (QED_IS_BB(dev) && \
 				 CHIP_REV_IS_B0(dev))
 #define QED_IS_AH(dev)  ((dev)->type == QED_DEV_TYPE_AH)
 #define QED_IS_K2(dev)  QED_IS_AH(dev)
-
-#define QED_GET_TYPE(dev)       (QED_IS_BB_A0(dev) ? CHIP_BB_A0 : \
-				 QED_IS_BB_B0(dev) ? CHIP_BB_B0 : CHIP_K2)
 
 	u16	vendor_id;
 	u16	device_id;
@@ -621,7 +616,6 @@ struct qed_dev {
 	u16	chip_rev;
 #define CHIP_REV_MASK                   0xf
 #define CHIP_REV_SHIFT                  12
-#define CHIP_REV_IS_A0(_cdev)   (!(_cdev)->chip_rev)
 #define CHIP_REV_IS_B0(_cdev)   ((_cdev)->chip_rev == 1)
 
 	u16				chip_metal;
