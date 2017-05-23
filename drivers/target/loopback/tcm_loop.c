@@ -51,19 +51,7 @@ static int tcm_loop_queue_status(struct se_cmd *se_cmd);
  */
 static int tcm_loop_check_stop_free(struct se_cmd *se_cmd)
 {
-	/*
-	 * Do not release struct se_cmd's containing a valid TMR
-	 * pointer.  These will be released directly in tcm_loop_device_reset()
-	 * with transport_generic_free_cmd().
-	 */
-	if (se_cmd->se_cmd_flags & SCF_SCSI_TMR_CDB)
-		return 0;
-	/*
-	 * Release the struct se_cmd, which will make a callback to release
-	 * struct tcm_loop_cmd * in tcm_loop_deallocate_core_cmd()
-	 */
-	transport_generic_free_cmd(se_cmd, 0);
-	return 1;
+	return transport_generic_free_cmd(se_cmd, 0);
 }
 
 static void tcm_loop_release_cmd(struct se_cmd *se_cmd)
@@ -244,18 +232,23 @@ static int tcm_loop_issue_tmr(struct tcm_loop_tpg *tl_tpg,
 	se_sess = tl_tpg->tl_nexus->se_sess;
 
 	rc = target_submit_tmr(se_cmd, se_sess, tl_cmd->tl_sense_buf, lun,
-			       NULL, tmr, GFP_KERNEL, task, 0 /*flags*/);
+			       NULL, tmr, GFP_KERNEL, task,
+			       TARGET_SCF_ACK_KREF);
 	if (rc < 0)
 		goto release;
 	wait_for_completion(&tl_cmd->tmr_done);
 	ret = se_cmd->se_tmr_req->response;
+	target_put_sess_cmd(se_cmd);
+
+out:
+	return ret;
 
 release:
 	if (se_cmd)
-		transport_generic_free_cmd(se_cmd, 1);
+		transport_generic_free_cmd(se_cmd, 0);
 	else
 		kmem_cache_free(tcm_loop_cmd_cache, tl_cmd);
-	return ret;
+	goto out;
 }
 
 static int tcm_loop_abort_task(struct scsi_cmnd *sc)
