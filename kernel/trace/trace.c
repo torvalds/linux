@@ -4473,7 +4473,8 @@ static const char readme_msg[] =
 #endif
 #if defined(CONFIG_KPROBE_EVENTS) || defined(CONFIG_UPROBE_EVENTS)
 	"\t  accepts: event-definitions (one definition per line)\n"
-	"\t   Format: p|r[:[<group>/]<event>] <place> [<args>]\n"
+	"\t   Format: p[:[<group>/]<event>] <place> [<args>]\n"
+	"\t           r[maxactive][:[<group>/]<event>] <place> [<args>]\n"
 	"\t           -:[<group>/]<event>\n"
 #ifdef CONFIG_KPROBE_EVENTS
 	"\t    place: [<module>:]<symbol>[+<offset>]|<memaddr>\n"
