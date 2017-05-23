@@ -622,12 +622,12 @@ struct gpio_desc *acpi_find_gpio(struct device *dev,
 		desc = acpi_get_gpiod_by_index(adev, NULL, idx, &info);
 		if (IS_ERR(desc))
 			return desc;
+	}
 
-		if ((flags == GPIOD_OUT_LOW || flags == GPIOD_OUT_HIGH) &&
-		    info.gpioint) {
-			dev_dbg(dev, "refusing GpioInt() entry when doing GPIOD_OUT_* lookup\n");
-			return ERR_PTR(-ENOENT);
-		}
+	if (info.gpioint &&
+	    (flags == GPIOD_OUT_LOW || flags == GPIOD_OUT_HIGH)) {
+		dev_dbg(dev, "refusing GpioInt() entry when doing GPIOD_OUT_* lookup\n");
+		return ERR_PTR(-ENOENT);
 	}
 
 	if (info.polarity == GPIO_ACTIVE_LOW)
