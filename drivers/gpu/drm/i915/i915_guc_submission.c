@@ -681,7 +681,8 @@ static bool i915_guc_dequeue(struct intel_engine_cs *engine)
 					goto done;
 				}
 
-				port_assign(port, last);
+				if (submit)
+					port_assign(port, last);
 				port++;
 			}
 
