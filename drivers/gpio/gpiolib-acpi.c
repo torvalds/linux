@@ -1129,45 +1129,11 @@ int acpi_gpio_count(struct device *dev, const char *con_id)
 	return count ? count : -ENOENT;
 }
 
-struct acpi_crs_lookup {
-	struct list_head node;
-	struct acpi_device *adev;
-	const char *con_id;
-};
-
-static DEFINE_MUTEX(acpi_crs_lookup_lock);
-static LIST_HEAD(acpi_crs_lookup_list);
-
 bool acpi_can_fallback_to_crs(struct acpi_device *adev, const char *con_id)
 {
-	struct acpi_crs_lookup *l, *lookup = NULL;
-
 	/* Never allow fallback if the device has properties */
 	if (adev->data.properties || adev->driver_gpios)
 		return false;
 
-	mutex_lock(&acpi_crs_lookup_lock);
-
-	list_for_each_entry(l, &acpi_crs_lookup_list, node) {
-		if (l->adev == adev) {
-			lookup = l;
-			break;
-		}
-	}
-
-	if (!lookup) {
-		lookup = kmalloc(sizeof(*lookup), GFP_KERNEL);
-		if (lookup) {
-			lookup->adev = adev;
-			lookup->con_id = kstrdup(con_id, GFP_KERNEL);
-			list_add_tail(&lookup->node, &acpi_crs_lookup_list);
-		}
-	}
-
-	mutex_unlock(&acpi_crs_lookup_lock);
-
-	return lookup &&
-		((!lookup->con_id && !con_id) ||
-		 (lookup->con_id && con_id &&
-		  strcmp(lookup->con_id, con_id) == 0));
+	return con_id == NULL;
 }
