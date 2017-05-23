@@ -13,8 +13,8 @@ I2C is a multi-master bus; open drain signaling is used to arbitrate
 between masters, as well as to handshake and to synchronize clocks from
 slower clients.
 
-The Linux I2C programming interfaces support only the master side of bus
-interactions, not the slave side. The programming interface is
+The Linux I2C programming interfaces support the master side of bus
+interactions and the slave side. The programming interface is
 structured around two kinds of driver, and two kinds of device. An I2C
 "Adapter Driver" abstracts the controller hardware; it binds to a
 physical device (perhaps a PCI device or platform_device) and exposes a
@@ -22,9 +22,8 @@ physical device (perhaps a PCI device or platform_device) and exposes a
 I2C bus segment it manages. On each I2C bus segment will be I2C devices
 represented by a :c:type:`struct i2c_client <i2c_client>`.
 Those devices will be bound to a :c:type:`struct i2c_driver
-<i2c_driver>`, which should follow the standard Linux driver
-model. (At this writing, a legacy model is more widely used.) There are
-functions to perform various I2C protocol operations; at this writing
+<i2c_driver>`, which should follow the standard Linux driver model. There
+are functions to perform various I2C protocol operations; at this writing
 all such functions are usable only from task context.
 
 The System Management Bus (SMBus) is a sibling protocol. Most SMBus
