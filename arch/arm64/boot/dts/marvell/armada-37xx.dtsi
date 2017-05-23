@@ -292,6 +292,17 @@
 				};
 			};
 
+			sdhci1: sdhci@d0000 {
+				compatible = "marvell,armada-3700-sdhci",
+					     "marvell,sdhci-xenon";
+				reg = <0xd0000 0x300>,
+				      <0x1e808 0x4>;
+				interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&nb_periph_clk 0>;
+				clock-names = "core";
+				status = "disabled";
+			};
+
 			sdhci0: sdhci@d8000 {
 				compatible = "marvell,armada-3700-sdhci",
 					     "marvell,sdhci-xenon";

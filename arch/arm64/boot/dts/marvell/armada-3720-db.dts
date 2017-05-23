@@ -158,6 +158,15 @@
 	status = "okay";
 };
 
+/* SD slot module on CON14(V2.0)/CON15(V1.4) */
+&sdhci1 {
+	wp-inverted;
+	cd-gpios = <&gpiosb 2 GPIO_ACTIVE_LOW>;
+	bus-width = <4>;
+	marvell,pad-type = "sd";
+	status = "okay";
+};
+
 &spi0 {
 	status = "okay";
 	pinctrl-names = "default";
