@@ -27,17 +27,13 @@ static int snd_pcm_ioctl_delay_compat(struct snd_pcm_substream *substream,
 				      s32 __user *src)
 {
 	snd_pcm_sframes_t delay;
-	mm_segment_t fs;
-	int err;
 
-	fs = snd_enter_user();
-	err = snd_pcm_delay(substream, &delay);
-	snd_leave_user(fs);
-	if (err < 0)
-		return err;
+	delay = snd_pcm_delay(substream);
+	if (delay < 0)
+		return delay;
 	if (put_user(delay, src))
 		return -EFAULT;
-	return err;
+	return 0;
 }
 
 static int snd_pcm_ioctl_rewind_compat(struct snd_pcm_substream *substream,
