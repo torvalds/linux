@@ -348,6 +348,7 @@ struct sbridge_dev {
 	struct pci_dev		**pdev;
 	enum domain		dom;
 	int			n_devs;
+	int			i_devs;
 	struct mem_ctl_info	*mci;
 };
 
@@ -362,11 +363,12 @@ struct knl_pvt {
 };
 
 struct sbridge_pvt {
-	struct pci_dev		*pci_ta, *pci_ddrio, *pci_ras;
+	/* Devices per socket */
+	struct pci_dev		*pci_ddrio;
 	struct pci_dev		*pci_sad0, *pci_sad1;
-	struct pci_dev		*pci_ha0, *pci_ha1;
 	struct pci_dev		*pci_br0, *pci_br1;
-	struct pci_dev		*pci_ha1_ta;
+	/* Devices per memory controller */
+	struct pci_dev		*pci_ha, *pci_ta, *pci_ras;
 	struct pci_dev		*pci_tad[NUM_CHANNELS];
 
 	struct sbridge_dev	*sbridge_dev;
@@ -717,7 +719,8 @@ static inline int numcol(u32 mtr)
 	return 1 << cols;
 }
 
-static struct sbridge_dev *get_sbridge_dev(u8 bus, int multi_bus)
+static struct sbridge_dev *get_sbridge_dev(u8 bus, enum domain dom, int multi_bus,
+					   struct sbridge_dev *prev)
 {
 	struct sbridge_dev *sbridge_dev;
 
@@ -730,15 +733,19 @@ static struct sbridge_dev *get_sbridge_dev(u8 bus, int multi_bus)
 				struct sbridge_dev, list);
 	}
 
-	list_for_each_entry(sbridge_dev, &sbridge_edac_list, list) {
-		if (sbridge_dev->bus == bus)
+	sbridge_dev = list_entry(prev ? prev->list.next
+				      : sbridge_edac_list.next, struct sbridge_dev, list);
+
+	list_for_each_entry_from(sbridge_dev, &sbridge_edac_list, list) {
+		if (sbridge_dev->bus == bus && (dom == SOCK || dom == sbridge_dev->dom))
 			return sbridge_dev;
 	}
 
 	return NULL;
 }
 
-static struct sbridge_dev *alloc_sbridge_dev(u8 bus, enum domain dom, const struct pci_id_table *table)
+static struct sbridge_dev *alloc_sbridge_dev(u8 bus, enum domain dom,
+					     const struct pci_id_table *table)
 {
 	struct sbridge_dev *sbridge_dev;
 
@@ -746,7 +753,9 @@ static struct sbridge_dev *alloc_sbridge_dev(u8 bus, enum domain dom, const stru
 	if (!sbridge_dev)
 		return NULL;
 
-	sbridge_dev->pdev = kcalloc(table->n_devs_per_sock, sizeof(*sbridge_dev->pdev), GFP_KERNEL);
+	sbridge_dev->pdev = kcalloc(table->n_devs_per_imc,
+				    sizeof(*sbridge_dev->pdev),
+				    GFP_KERNEL);
 	if (!sbridge_dev->pdev) {
 		kfree(sbridge_dev);
 		return NULL;
@@ -754,7 +763,7 @@ static struct sbridge_dev *alloc_sbridge_dev(u8 bus, enum domain dom, const stru
 
 	sbridge_dev->bus = bus;
 	sbridge_dev->dom = dom;
-	sbridge_dev->n_devs = table->n_devs_per_sock;
+	sbridge_dev->n_devs = table->n_devs_per_imc;
 	list_add_tail(&sbridge_dev->list, &sbridge_edac_list);
 
 	return sbridge_dev;
@@ -1625,7 +1634,7 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 	u64 knl_mc_sizes[KNL_MAX_CHANNELS];
 
 	if (pvt->info.type == HASWELL || pvt->info.type == BROADWELL) {
-		pci_read_config_dword(pvt->pci_ha0, HASWELL_HASYSDEFEATURE2, &reg);
+		pci_read_config_dword(pvt->pci_ha, HASWELL_HASYSDEFEATURE2, &reg);
 		pvt->is_chan_hash = GET_BITFIELD(reg, 21, 21);
 	}
 	pvt->sbridge_dev->node_id = pvt->info.get_node_id(pvt);
@@ -1730,7 +1739,7 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 				npages = MiB_TO_PAGES(size);
 
 				edac_dbg(0, "mc#%d: ha %d channel %d, dimm %d, %lld Mb (%d pages) bank: %d, rank: %d, row: %#x, col: %#x\n",
-					 pvt->sbridge_dev->mc, i/4, i%4, j,
+					 pvt->sbridge_dev->mc, pvt->sbridge_dev->dom, i, j,
 					 size, npages,
 					 banks, ranks, rows, cols);
 
@@ -1740,8 +1749,8 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 				dimm->mtype = mtype;
 				dimm->edac_mode = mode;
 				snprintf(dimm->label, sizeof(dimm->label),
-					 "CPU_SrcID#%u_Ha#%u_Chan#%u_DIMM#%u",
-					 pvt->sbridge_dev->source_id, i/4, i%4, j);
+						 "CPU_SrcID#%u_Ha#%u_Chan#%u_DIMM#%u",
+						 pvt->sbridge_dev->source_id, pvt->sbridge_dev->dom, i, j);
 			}
 		}
 	}
@@ -1829,8 +1838,7 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 	 */
 	prv = 0;
 	for (n_tads = 0; n_tads < MAX_TAD; n_tads++) {
-		pci_read_config_dword(pvt->pci_ha0, tad_dram_rule[n_tads],
-				      &reg);
+		pci_read_config_dword(pvt->pci_ha, tad_dram_rule[n_tads], &reg);
 		limit = TAD_LIMIT(reg);
 		if (limit <= prv)
 			break;
@@ -1912,12 +1920,12 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 	}
 }
 
-static struct mem_ctl_info *get_mci_for_node_id(u8 node_id)
+static struct mem_ctl_info *get_mci_for_node_id(u8 node_id, u8 ha)
 {
 	struct sbridge_dev *sbridge_dev;
 
 	list_for_each_entry(sbridge_dev, &sbridge_edac_list, list) {
-		if (sbridge_dev->node_id == node_id)
+		if (sbridge_dev->node_id == node_id && sbridge_dev->dom == ha)
 			return sbridge_dev->mci;
 	}
 	return NULL;
@@ -1938,7 +1946,7 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 	int			interleave_mode, shiftup = 0;
 	unsigned		sad_interleave[pvt->info.max_interleave];
 	u32			reg, dram_rule;
-	u8			ch_way, sck_way, pkg, sad_ha = 0, ch_add = 0;
+	u8			ch_way, sck_way, pkg, sad_ha = 0;
 	u32			tad_offset;
 	u32			rir_way;
 	u32			mb, gb;
@@ -2051,13 +2059,10 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 		pkg = sad_pkg(pvt->info.interleave_pkg, reg, idx);
 		*socket = sad_pkg_socket(pkg);
 		sad_ha = sad_pkg_ha(pkg);
-		if (sad_ha)
-			ch_add = 4;
 
 		if (a7mode) {
 			/* MCChanShiftUpEnable */
-			pci_read_config_dword(pvt->pci_ha0,
-					      HASWELL_HASYSDEFEATURE2, &reg);
+			pci_read_config_dword(pvt->pci_ha, HASWELL_HASYSDEFEATURE2, &reg);
 			shiftup = GET_BITFIELD(reg, 22, 22);
 		}
 
@@ -2069,8 +2074,6 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 		pkg = sad_pkg(pvt->info.interleave_pkg, reg, idx);
 		*socket = sad_pkg_socket(pkg);
 		sad_ha = sad_pkg_ha(pkg);
-		if (sad_ha)
-			ch_add = 4;
 		edac_dbg(0, "SAD interleave package: %d = CPU socket %d, HA %d\n",
 			 idx, *socket, sad_ha);
 	}
@@ -2081,7 +2084,7 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 	 * Move to the proper node structure, in order to access the
 	 * right PCI registers
 	 */
-	new_mci = get_mci_for_node_id(*socket);
+	new_mci = get_mci_for_node_id(*socket, sad_ha);
 	if (!new_mci) {
 		sprintf(msg, "Struct for socket #%u wasn't initialized",
 			*socket);
@@ -2094,14 +2097,7 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 	 * Step 2) Get memory channel
 	 */
 	prv = 0;
-	if (pvt->info.type == SANDY_BRIDGE)
-		pci_ha = pvt->pci_ha0;
-	else {
-		if (sad_ha)
-			pci_ha = pvt->pci_ha1;
-		else
-			pci_ha = pvt->pci_ha0;
-	}
+	pci_ha = pvt->pci_ha;
 	for (n_tads = 0; n_tads < MAX_TAD; n_tads++) {
 		pci_read_config_dword(pci_ha, tad_dram_rule[n_tads], &reg);
 		limit = TAD_LIMIT(reg);
@@ -2152,9 +2148,7 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 	}
 	*channel_mask = 1 << base_ch;
 
-	pci_read_config_dword(pvt->pci_tad[ch_add + base_ch],
-				tad_ch_nilv_offset[n_tads],
-				&tad_offset);
+	pci_read_config_dword(pvt->pci_tad[base_ch], tad_ch_nilv_offset[n_tads], &tad_offset);
 
 	if (pvt->is_mirrored) {
 		*channel_mask |= 1 << ((base_ch + 2) % 4);
@@ -2205,9 +2199,7 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 	 * Step 3) Decode rank
 	 */
 	for (n_rir = 0; n_rir < MAX_RIR_RANGES; n_rir++) {
-		pci_read_config_dword(pvt->pci_tad[ch_add + base_ch],
-				      rir_way_limit[n_rir],
-				      &reg);
+		pci_read_config_dword(pvt->pci_tad[base_ch], rir_way_limit[n_rir], &reg);
 
 		if (!IS_RIR_VALID(reg))
 			continue;
@@ -2235,9 +2227,7 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 		idx = (ch_addr >> 13);	/* FIXME: Datasheet says to shift by 15 */
 	idx %= 1 << rir_way;
 
-	pci_read_config_dword(pvt->pci_tad[ch_add + base_ch],
-			      rir_offset[n_rir][idx],
-			      &reg);
+	pci_read_config_dword(pvt->pci_tad[base_ch], rir_offset[n_rir][idx], &reg);
 	*rank = RIR_RNK_TGT(pvt->info.type, reg);
 
 	edac_dbg(0, "RIR#%d: channel address 0x%08Lx < 0x%08Lx, RIR interleave %d, index %d\n",
@@ -2290,10 +2280,11 @@ static int sbridge_get_onedevice(struct pci_dev **prev,
 				 const unsigned devno,
 				 const int multi_bus)
 {
-	struct sbridge_dev *sbridge_dev;
+	struct sbridge_dev *sbridge_dev = NULL;
 	const struct pci_id_descr *dev_descr = &table->descr[devno];
 	struct pci_dev *pdev = NULL;
 	u8 bus = 0;
+	int i = 0;
 
 	sbridge_printk(KERN_DEBUG,
 		"Seeking for: PCI ID %04x:%04x\n",
@@ -2324,7 +2315,8 @@ static int sbridge_get_onedevice(struct pci_dev **prev,
 	}
 	bus = pdev->bus->number;
 
-	sbridge_dev = get_sbridge_dev(bus, multi_bus);
+next_imc:
+	sbridge_dev = get_sbridge_dev(bus, dev_descr->dom, multi_bus, sbridge_dev);
 	if (!sbridge_dev) {
 		sbridge_dev = alloc_sbridge_dev(bus, dev_descr->dom, table);
 		if (!sbridge_dev) {
@@ -2334,7 +2326,7 @@ static int sbridge_get_onedevice(struct pci_dev **prev,
 		(*num_mc)++;
 	}
 
-	if (sbridge_dev->pdev[devno]) {
+	if (sbridge_dev->pdev[sbridge_dev->i_devs]) {
 		sbridge_printk(KERN_ERR,
 			"Duplicated device for %04x:%04x\n",
 			PCI_VENDOR_ID_INTEL, dev_descr->dev_id);
@@ -2342,7 +2334,14 @@ static int sbridge_get_onedevice(struct pci_dev **prev,
 		return -ENODEV;
 	}
 
-	sbridge_dev->pdev[devno] = pdev;
+	sbridge_dev->pdev[sbridge_dev->i_devs++] = pdev;
+
+	/* pdev belongs to more than one IMC, do extra gets */
+	if (++i > 1)
+		pci_dev_get(pdev);
+
+	if (dev_descr->dom == SOCK && i < table->n_imcs_per_sock)
+		goto next_imc;
 
 	/* Be sure that the device is enabled */
 	if (unlikely(pci_enable_device(pdev) < 0)) {
@@ -2436,7 +2435,7 @@ static int sbridge_mci_bind_devs(struct mem_ctl_info *mci,
 			pvt->pci_br0 = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_HA0:
-			pvt->pci_ha0 = pdev;
+			pvt->pci_ha = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TA:
 			pvt->pci_ta = pdev;
@@ -2468,7 +2467,7 @@ static int sbridge_mci_bind_devs(struct mem_ctl_info *mci,
 	}
 
 	/* Check if everything were registered */
-	if (!pvt->pci_sad0 || !pvt->pci_sad1 || !pvt->pci_ha0 ||
+	if (!pvt->pci_sad0 || !pvt->pci_sad1 || !pvt->pci_ha ||
 	    !pvt->pci_ras || !pvt->pci_ta)
 		goto enodev;
 
@@ -2501,11 +2500,13 @@ static int ibridge_mci_bind_devs(struct mem_ctl_info *mci,
 
 		switch (pdev->device) {
 		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0:
-			pvt->pci_ha0 = pdev;
+			pvt->pci_ha = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TA:
+		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TA:
 			pvt->pci_ta = pdev;
 		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_RAS:
+		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_RAS:
 			pvt->pci_ras = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD0:
@@ -2534,14 +2535,14 @@ static int ibridge_mci_bind_devs(struct mem_ctl_info *mci,
 			pvt->pci_br1 = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1:
-			pvt->pci_ha1 = pdev;
+			pvt->pci_ha = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD0:
 		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD1:
 		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD2:
 		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD3:
 		{
-			int id = pdev->device - PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD0 + 4;
+			int id = pdev->device - PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD0;
 			pvt->pci_tad[id] = pdev;
 			saw_chan_mask |= 1 << id;
 		}
@@ -2557,13 +2558,12 @@ static int ibridge_mci_bind_devs(struct mem_ctl_info *mci,
 	}
 
 	/* Check if everything were registered */
-	if (!pvt->pci_sad0 || !pvt->pci_ha0 || !pvt->pci_br0 ||
+	if (!pvt->pci_sad0 || !pvt->pci_ha || !pvt->pci_br0 ||
 	    !pvt->pci_br1 || !pvt->pci_ras || !pvt->pci_ta)
 		goto enodev;
 
-	if (saw_chan_mask != 0x0f && /* -EN */
-	    saw_chan_mask != 0x33 && /* -EP */
-	    saw_chan_mask != 0xff)   /* -EX */
+	if (saw_chan_mask != 0x0f && /* -EN/-EX */
+	    saw_chan_mask != 0x03)   /* -EP */
 		goto enodev;
 	return 0;
 
@@ -2606,12 +2606,13 @@ static int haswell_mci_bind_devs(struct mem_ctl_info *mci,
 			pvt->pci_sad1 = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0:
-			pvt->pci_ha0 = pdev;
+			pvt->pci_ha = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TA:
 			pvt->pci_ta = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TM:
+		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TM:
 			pvt->pci_ras = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TAD0:
@@ -2630,7 +2631,7 @@ static int haswell_mci_bind_devs(struct mem_ctl_info *mci,
 		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TAD2:
 		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TAD3:
 		{
-			int id = pdev->device - PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TAD0 + 4;
+			int id = pdev->device - PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TAD0;
 
 			pvt->pci_tad[id] = pdev;
 			saw_chan_mask |= 1 << id;
@@ -2644,10 +2645,10 @@ static int haswell_mci_bind_devs(struct mem_ctl_info *mci,
 				pvt->pci_ddrio = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1:
-			pvt->pci_ha1 = pdev;
+			pvt->pci_ha = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TA:
-			pvt->pci_ha1_ta = pdev;
+			pvt->pci_ta = pdev;
 			break;
 		default:
 			break;
@@ -2660,13 +2661,12 @@ static int haswell_mci_bind_devs(struct mem_ctl_info *mci,
 	}
 
 	/* Check if everything were registered */
-	if (!pvt->pci_sad0 || !pvt->pci_ha0 || !pvt->pci_sad1 ||
+	if (!pvt->pci_sad0 || !pvt->pci_ha || !pvt->pci_sad1 ||
 	    !pvt->pci_ras  || !pvt->pci_ta || !pvt->info.pci_vtd)
 		goto enodev;
 
-	if (saw_chan_mask != 0x0f && /* -EN */
-	    saw_chan_mask != 0x33 && /* -EP */
-	    saw_chan_mask != 0xff)   /* -EX */
+	if (saw_chan_mask != 0x0f && /* -EN/-EX */
+	    saw_chan_mask != 0x03)   /* -EP */
 		goto enodev;
 	return 0;
 
@@ -2703,12 +2703,13 @@ static int broadwell_mci_bind_devs(struct mem_ctl_info *mci,
 			pvt->pci_sad1 = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0:
-			pvt->pci_ha0 = pdev;
+			pvt->pci_ha = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TA:
 			pvt->pci_ta = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TM:
+		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TM:
 			pvt->pci_ras = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD0:
@@ -2726,7 +2727,7 @@ static int broadwell_mci_bind_devs(struct mem_ctl_info *mci,
 		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD2:
 		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD3:
 		{
-			int id = pdev->device - PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD0 + 4;
+			int id = pdev->device - PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD0;
 			pvt->pci_tad[id] = pdev;
 			saw_chan_mask |= 1 << id;
 		}
@@ -2735,10 +2736,10 @@ static int broadwell_mci_bind_devs(struct mem_ctl_info *mci,
 			pvt->pci_ddrio = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1:
-			pvt->pci_ha1 = pdev;
+			pvt->pci_ha = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TA:
-			pvt->pci_ha1_ta = pdev;
+			pvt->pci_ta = pdev;
 			break;
 		default:
 			break;
@@ -2751,13 +2752,12 @@ static int broadwell_mci_bind_devs(struct mem_ctl_info *mci,
 	}
 
 	/* Check if everything were registered */
-	if (!pvt->pci_sad0 || !pvt->pci_ha0 || !pvt->pci_sad1 ||
+	if (!pvt->pci_sad0 || !pvt->pci_ha || !pvt->pci_sad1 ||
 	    !pvt->pci_ras  || !pvt->pci_ta || !pvt->info.pci_vtd)
 		goto enodev;
 
-	if (saw_chan_mask != 0x0f && /* -EN */
-	    saw_chan_mask != 0x33 && /* -EP */
-	    saw_chan_mask != 0xff)   /* -EX */
+	if (saw_chan_mask != 0x0f && /* -EN/-EX */
+	    saw_chan_mask != 0x03)   /* -EP */
 		goto enodev;
 	return 0;
 
@@ -3019,7 +3019,7 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 
 	if (rc < 0)
 		goto err_parsing;
-	new_mci = get_mci_for_node_id(socket);
+	new_mci = get_mci_for_node_id(socket, ha);
 	if (!new_mci) {
 		strcpy(msg, "Error: socket got corrupted!");
 		goto err_parsing;
@@ -3066,7 +3066,7 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 	/* Call the helper to output message */
 	edac_mc_handle_error(tp_event, mci, core_err_cnt,
 			     m->addr >> PAGE_SHIFT, m->addr & ~PAGE_MASK, 0,
-			     4*ha+channel, dimm, -1,
+			     channel, dimm, -1,
 			     optype, msg);
 	return;
 err_parsing:
@@ -3091,7 +3091,7 @@ static int sbridge_mce_check_error(struct notifier_block *nb, unsigned long val,
 	if (edac_get_report_status() == EDAC_REPORTING_DISABLED)
 		return NOTIFY_DONE;
 
-	mci = get_mci_for_node_id(mce->socketid);
+	mci = get_mci_for_node_id(mce->socketid, IMC0);
 	if (!mci)
 		return NOTIFY_DONE;
 	pvt = mci->pvt_info;
@@ -3234,8 +3234,8 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		if (unlikely(rc < 0))
 			goto fail0;
 		get_source_id(mci);
-		mci->ctl_name = kasprintf(GFP_KERNEL, "Ivy Bridge SrcID#%d",
-			pvt->sbridge_dev->source_id);
+		mci->ctl_name = kasprintf(GFP_KERNEL, "Ivy Bridge SrcID#%d_Ha#%d",
+			pvt->sbridge_dev->source_id, pvt->sbridge_dev->dom);
 		break;
 	case SANDY_BRIDGE:
 		pvt->info.rankcfgr = SB_RANK_CFG_A;
@@ -3259,8 +3259,8 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		if (unlikely(rc < 0))
 			goto fail0;
 		get_source_id(mci);
-		mci->ctl_name = kasprintf(GFP_KERNEL, "Sandy Bridge SrcID#%d",
-			pvt->sbridge_dev->source_id);
+		mci->ctl_name = kasprintf(GFP_KERNEL, "Sandy Bridge SrcID#%d_Ha#%d",
+			pvt->sbridge_dev->source_id, pvt->sbridge_dev->dom);
 		break;
 	case HASWELL:
 		/* rankcfgr isn't used */
@@ -3284,8 +3284,8 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		if (unlikely(rc < 0))
 			goto fail0;
 		get_source_id(mci);
-		mci->ctl_name = kasprintf(GFP_KERNEL, "Haswell SrcID#%d",
-			pvt->sbridge_dev->source_id);
+		mci->ctl_name = kasprintf(GFP_KERNEL, "Haswell SrcID#%d_Ha#%d",
+			pvt->sbridge_dev->source_id, pvt->sbridge_dev->dom);
 		break;
 	case BROADWELL:
 		/* rankcfgr isn't used */
@@ -3309,8 +3309,8 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		if (unlikely(rc < 0))
 			goto fail0;
 		get_source_id(mci);
-		mci->ctl_name = kasprintf(GFP_KERNEL, "Broadwell SrcID#%d",
-			pvt->sbridge_dev->source_id);
+		mci->ctl_name = kasprintf(GFP_KERNEL, "Broadwell SrcID#%d_Ha#%d",
+			pvt->sbridge_dev->source_id, pvt->sbridge_dev->dom);
 		break;
 	case KNIGHTS_LANDING:
 		/* pvt->info.rankcfgr == ??? */
@@ -3333,8 +3333,8 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		if (unlikely(rc < 0))
 			goto fail0;
 		get_source_id(mci);
-		mci->ctl_name = kasprintf(GFP_KERNEL, "Knights Landing SrcID#%d",
-			pvt->sbridge_dev->source_id);
+		mci->ctl_name = kasprintf(GFP_KERNEL, "Knights Landing SrcID#%d_Ha#%d",
+			pvt->sbridge_dev->source_id, pvt->sbridge_dev->dom);
 		break;
 	}
 
