@@ -2577,7 +2577,7 @@ int __bond_3ad_get_active_agg_info(struct bonding *bond,
 		return -1;
 
 	ad_info->aggregator_id = aggregator->aggregator_identifier;
-	ad_info->ports = aggregator->num_of_ports;
+	ad_info->ports = __agg_active_ports(aggregator);
 	ad_info->actor_key = aggregator->actor_oper_aggregator_key;
 	ad_info->partner_key = aggregator->partner_oper_aggregator_key;
 	ether_addr_copy(ad_info->partner_system,
