@@ -203,7 +203,7 @@
 				};
 
 				at24@51 {
-					compatible = "at24,24c32";
+					compatible = "atmel,24c32";
 					pagesize = <32>;
 					reg = <0x51>;
 				};
