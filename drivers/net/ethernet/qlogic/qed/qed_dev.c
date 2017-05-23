@@ -1948,6 +1948,13 @@ int qed_hw_start_fastpath(struct qed_hwfn *p_hwfn)
 	if (!p_ptt)
 		return -EAGAIN;
 
+	/* If roce info is allocated it means roce is initialized and should
+	 * be enabled in searcher.
+	 */
+	if (p_hwfn->p_rdma_info &&
+	    p_hwfn->b_rdma_enabled_in_prs)
+		qed_wr(p_hwfn, p_ptt, p_hwfn->rdma_prs_search_reg, 0x1);
+
 	/* Re-open incoming traffic */
 	qed_wr(p_hwfn, p_ptt, NIG_REG_RX_LLH_BRB_GATE_DNTFWD_PERPF, 0x0);
 	qed_ptt_release(p_hwfn, p_ptt);
