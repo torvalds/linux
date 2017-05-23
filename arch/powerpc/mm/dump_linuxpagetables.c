@@ -16,6 +16,7 @@
  */
 #include <linux/debugfs.h>
 #include <linux/fs.h>
+#include <linux/hugetlb.h>
 #include <linux/io.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
@@ -391,7 +392,7 @@ static void walk_pmd(struct pg_state *st, pud_t *pud, unsigned long start)
 
 	for (i = 0; i < PTRS_PER_PMD; i++, pmd++) {
 		addr = start + i * PMD_SIZE;
-		if (!pmd_none(*pmd))
+		if (!pmd_none(*pmd) && !pmd_huge(*pmd))
 			/* pmd exists */
 			walk_pte(st, pmd, addr);
 		else
@@ -407,7 +408,7 @@ static void walk_pud(struct pg_state *st, pgd_t *pgd, unsigned long start)
 
 	for (i = 0; i < PTRS_PER_PUD; i++, pud++) {
 		addr = start + i * PUD_SIZE;
-		if (!pud_none(*pud))
+		if (!pud_none(*pud) && !pud_huge(*pud))
 			/* pud exists */
 			walk_pmd(st, pud, addr);
 		else
@@ -427,7 +428,7 @@ static void walk_pagetables(struct pg_state *st)
 	 */
 	for (i = 0; i < PTRS_PER_PGD; i++, pgd++) {
 		addr = KERN_VIRT_START + i * PGDIR_SIZE;
-		if (!pgd_none(*pgd))
+		if (!pgd_none(*pgd) && !pgd_huge(*pgd))
 			/* pgd exists */
 			walk_pud(st, pgd, addr);
 		else

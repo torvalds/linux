@@ -1662,14 +1662,14 @@ static ssize_t sysfs_blk_trace_attr_store(struct device *dev,
 		goto out;
 
 	if (attr == &dev_attr_act_mask) {
-		if (sscanf(buf, "%llx", &value) != 1) {
+		if (kstrtoull(buf, 0, &value)) {
 			/* Assume it is a list of trace category names */
 			ret = blk_trace_str2mask(buf);
 			if (ret < 0)
 				goto out;
 			value = ret;
 		}
-	} else if (sscanf(buf, "%llu", &value) != 1)
+	} else if (kstrtoull(buf, 0, &value))
 		goto out;
 
 	ret = -ENXIO;

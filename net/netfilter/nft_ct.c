@@ -826,9 +826,9 @@ static void nft_ct_helper_obj_destroy(struct nft_object *obj)
 	struct nft_ct_helper_obj *priv = nft_obj_data(obj);
 
 	if (priv->helper4)
-		module_put(priv->helper4->me);
+		nf_conntrack_helper_put(priv->helper4);
 	if (priv->helper6)
-		module_put(priv->helper6->me);
+		nf_conntrack_helper_put(priv->helper6);
 }
 
 static void nft_ct_helper_obj_eval(struct nft_object *obj,
