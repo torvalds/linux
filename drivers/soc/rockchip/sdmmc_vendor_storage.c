@@ -99,7 +99,7 @@ static int emmc_vendor_storage_init(void)
 
 	g_vendor = kmalloc(sizeof(*g_vendor), GFP_KERNEL | GFP_DMA);
 	if (!g_vendor)
-		return -1;
+		return -ENOMEM;
 
 	max_ver = 0;
 	max_index = 0;
@@ -149,7 +149,7 @@ static int emmc_vendor_read(u32 id, void *pbuf, u32 size)
 	u32 i;
 
 	if (!g_vendor)
-		return -1;
+		return -ENOMEM;
 
 	for (i = 0; i < g_vendor->item_num; i++) {
 		if (g_vendor->item[i].id == id) {
@@ -560,11 +560,17 @@ static struct miscdevice vender_storage_dev = {
 
 static int vendor_init_thread(void *arg)
 {
-	int ret;
+	int ret, try_count = 5;
 
-	/* sleep 500ms wait emmc initialize completed */
-	msleep(500);
-	ret = emmc_vendor_storage_init();
+	do {
+		ret = emmc_vendor_storage_init();
+		if (!ret) {
+			break;
+		}
+		/* sleep 500ms wait emmc initialize completed */
+		msleep(500);
+	} while (try_count--);
+
 	if (!ret) {
 		ret = misc_register(&vender_storage_dev);
 		rk_vendor_register(emmc_vendor_read, emmc_vendor_write);
