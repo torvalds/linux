@@ -583,7 +583,7 @@ i2c_dw_xfer_msg(struct dw_i2c_dev *dev)
 			 */
 
 			/*
-			 * i2c-core.c always sets the buffer length of
+			 * i2c-core always sets the buffer length of
 			 * I2C_FUNC_SMBUS_BLOCK_DATA to 1. The length will
 			 * be adjusted when receiving the first byte.
 			 * Thus we can't stop the transaction here.
