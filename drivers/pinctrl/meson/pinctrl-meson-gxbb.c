@@ -85,6 +85,7 @@ static const struct pinctrl_pin_desc meson_gxbb_periphs_pins[] = {
 	MESON_PIN(GPIODV_15, EE_OFF),
 	MESON_PIN(GPIODV_16, EE_OFF),
 	MESON_PIN(GPIODV_17, EE_OFF),
+	MESON_PIN(GPIODV_18, EE_OFF),
 	MESON_PIN(GPIODV_19, EE_OFF),
 	MESON_PIN(GPIODV_20, EE_OFF),
 	MESON_PIN(GPIODV_21, EE_OFF),
