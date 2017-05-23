@@ -135,7 +135,6 @@ int dsa_port_ageing_time(struct dsa_port *dp, clock_t ageing_clock,
 	unsigned int ageing_time = jiffies_to_msecs(ageing_jiffies);
 	struct dsa_notifier_ageing_time_info info = {
 		.ageing_time = ageing_time,
-		.sw_index = dp->ds->index,
 		.trans = trans,
 	};
 

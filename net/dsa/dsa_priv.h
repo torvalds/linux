@@ -32,7 +32,6 @@ enum {
 struct dsa_notifier_ageing_time_info {
 	struct switchdev_trans *trans;
 	unsigned int ageing_time;
-	int sw_index;
 };
 
 /* DSA_NOTIFIER_BRIDGE_* */

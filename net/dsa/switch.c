@@ -37,10 +37,6 @@ static int dsa_switch_ageing_time(struct dsa_switch *ds,
 	unsigned int ageing_time = info->ageing_time;
 	struct switchdev_trans *trans = info->trans;
 
-	/* Do not care yet about other switch chips of the fabric */
-	if (ds->index != info->sw_index)
-		return 0;
-
 	if (switchdev_trans_ph_prepare(trans)) {
 		if (ds->ageing_time_min && ageing_time < ds->ageing_time_min)
 			return -ERANGE;
