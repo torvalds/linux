@@ -1239,6 +1239,7 @@ void transport_init_se_cmd(
 	init_completion(&cmd->t_transport_stop_comp);
 	init_completion(&cmd->cmd_wait_comp);
 	spin_lock_init(&cmd->t_state_lock);
+	INIT_WORK(&cmd->work, NULL);
 	kref_init(&cmd->cmd_kref);
 
 	cmd->se_tfo = tfo;
