@@ -874,6 +874,22 @@ static int cpcap_adc_init_request(struct cpcap_adc_request *req,
 	return 0;
 }
 
+static int cpcap_adc_read_st_die_temp(struct cpcap_adc *ddata,
+				      int addr, int *val)
+{
+	int error;
+
+	error = regmap_read(ddata->reg, addr, val);
+	if (error)
+		return error;
+
+	*val -= 282;
+	*val *= 114;
+	*val += 25000;
+
+	return 0;
+}
+
 static int cpcap_adc_read(struct iio_dev *indio_dev,
 			  struct iio_chan_spec const *chan,
 			  int *val, int *val2, long mask)
@@ -905,9 +921,18 @@ static int cpcap_adc_read(struct iio_dev *indio_dev,
 		error = cpcap_adc_start_bank(ddata, &req);
 		if (error)
 			goto err_unlock;
-		error = cpcap_adc_read_bank_scaled(ddata, &req);
-		if (error)
-			goto err_unlock;
+		if ((ddata->vendor == CPCAP_VENDOR_ST) &&
+		    (chan->channel == CPCAP_ADC_AD3)) {
+			error = cpcap_adc_read_st_die_temp(ddata,
+							   chan->address,
+							   &req.result);
+			if (error)
+				goto err_unlock;
+		} else {
+			error = cpcap_adc_read_bank_scaled(ddata, &req);
+			if (error)
+				goto err_unlock;
+		}
 		error = cpcap_adc_stop_bank(ddata);
 		if (error)
 			goto err_unlock;
