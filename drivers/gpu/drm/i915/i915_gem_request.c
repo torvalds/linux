@@ -538,9 +538,6 @@ submit_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
  *
  * @engine: engine that we wish to issue the request on.
  * @ctx: context that the request will be associated with.
- *       This can be NULL if the request is not directly related to
- *       any specific user context, in which case this function will
- *       choose an appropriate context to use.
  *
  * Returns a pointer to the allocated request if successful,
  * or an error code if not.
