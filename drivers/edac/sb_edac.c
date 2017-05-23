@@ -294,6 +294,12 @@ enum type {
 	KNIGHTS_LANDING,
 };
 
+enum domain {
+	IMC0 = 0,
+	IMC1,
+	SOCK,
+};
+
 struct sbridge_pvt;
 struct sbridge_info {
 	enum type	type;
@@ -324,11 +330,14 @@ struct sbridge_channel {
 struct pci_id_descr {
 	int			dev_id;
 	int			optional;
+	enum domain		dom;
 };
 
 struct pci_id_table {
 	const struct pci_id_descr	*descr;
-	int				n_devs;
+	int				n_devs_per_imc;
+	int				n_devs_per_sock;
+	int				n_imcs_per_sock;
 	enum type			type;
 };
 
@@ -337,6 +346,7 @@ struct sbridge_dev {
 	u8			bus, mc;
 	u8			node_id, source_id;
 	struct pci_dev		**pdev;
+	enum domain		dom;
 	int			n_devs;
 	struct mem_ctl_info	*mci;
 };
@@ -373,39 +383,42 @@ struct sbridge_pvt {
 	struct knl_pvt knl;
 };
 
-#define PCI_DESCR(device_id, opt)	\
+#define PCI_DESCR(device_id, opt, domain)	\
 	.dev_id = (device_id),		\
-	.optional = opt
+	.optional = opt,	\
+	.dom = domain
 
 static const struct pci_id_descr pci_dev_descr_sbridge[] = {
 		/* Processor Home Agent */
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_HA0, 0)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_HA0,   0, IMC0) },
 
 		/* Memory controller */
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TA, 0)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_RAS, 0)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD0, 0)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD1, 0)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD2, 0)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD3, 0)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_DDRIO, 1)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TA,    0, IMC0) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_RAS,   0, IMC0) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD0,  0, IMC0) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD1,  0, IMC0) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD2,  0, IMC0) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD3,  0, IMC0) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_DDRIO, 1, SOCK) },
 
 		/* System Address Decoder */
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_SAD0, 0)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_SAD1, 0)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_SAD0,      0, SOCK) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_SAD1,      0, SOCK) },
 
 		/* Broadcast Registers */
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_BR, 0)		},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_BR,        0, SOCK) },
 };
 
-#define PCI_ID_TABLE_ENTRY(A, T) {	\
+#define PCI_ID_TABLE_ENTRY(A, N, M, T) {	\
 	.descr = A,			\
-	.n_devs = ARRAY_SIZE(A),	\
+	.n_devs_per_imc = N,	\
+	.n_devs_per_sock = ARRAY_SIZE(A),	\
+	.n_imcs_per_sock = M,	\
 	.type = T			\
 }
 
 static const struct pci_id_table pci_dev_descr_sbridge_table[] = {
-	PCI_ID_TABLE_ENTRY(pci_dev_descr_sbridge, SANDY_BRIDGE),
+	PCI_ID_TABLE_ENTRY(pci_dev_descr_sbridge, ARRAY_SIZE(pci_dev_descr_sbridge), 1, SANDY_BRIDGE),
 	{0,}			/* 0 terminated list. */
 };
 
@@ -439,40 +452,39 @@ static const struct pci_id_table pci_dev_descr_sbridge_table[] = {
 
 static const struct pci_id_descr pci_dev_descr_ibridge[] = {
 		/* Processor Home Agent */
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0, 0)		},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0,        0, IMC0) },
 
 		/* Memory controller */
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TA, 0)		},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_RAS, 0)		},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD0, 0)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD1, 0)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD2, 0)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD3, 0)	},
-
-		/* System Address Decoder */
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_SAD, 0)			},
-
-		/* Broadcast Registers */
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_BR0, 1)			},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_BR1, 0)			},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TA,     0, IMC0) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_RAS,    0, IMC0) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD0,   0, IMC0) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD1,   0, IMC0) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD2,   0, IMC0) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD3,   0, IMC0) },
 
 		/* Optional, mode 2HA */
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1, 1)		},
-#if 0
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TA, 1)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_RAS, 1)	},
-#endif
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD0, 1)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD1, 1)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD2, 1)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD3, 1)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1,        1, IMC1) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TA,     1, IMC1) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_RAS,    1, IMC1) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD0,   1, IMC1) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD1,   1, IMC1) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD2,   1, IMC1) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD3,   1, IMC1) },
 
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_1HA_DDRIO0, 1)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_2HA_DDRIO0, 1)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_1HA_DDRIO0, 1, SOCK) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_2HA_DDRIO0, 1, SOCK) },
+
+		/* System Address Decoder */
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_SAD,            0, SOCK) },
+
+		/* Broadcast Registers */
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_BR0,            1, SOCK) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_BR1,            0, SOCK) },
+
 };
 
 static const struct pci_id_table pci_dev_descr_ibridge_table[] = {
-	PCI_ID_TABLE_ENTRY(pci_dev_descr_ibridge, IVY_BRIDGE),
+	PCI_ID_TABLE_ENTRY(pci_dev_descr_ibridge, 12, 2, IVY_BRIDGE),
 	{0,}			/* 0 terminated list. */
 };
 
@@ -498,9 +510,9 @@ static const struct pci_id_table pci_dev_descr_ibridge_table[] = {
 #define PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0	0x2fa0
 #define PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1	0x2f60
 #define PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TA	0x2fa8
-#define PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_THERMAL 0x2f71
+#define PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TM	0x2f71
 #define PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TA	0x2f68
-#define PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_THERMAL 0x2f79
+#define PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TM	0x2f79
 #define PCI_DEVICE_ID_INTEL_HASWELL_IMC_CBO_SAD0 0x2ffc
 #define PCI_DEVICE_ID_INTEL_HASWELL_IMC_CBO_SAD1 0x2ffd
 #define PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TAD0 0x2faa
@@ -517,35 +529,33 @@ static const struct pci_id_table pci_dev_descr_ibridge_table[] = {
 #define PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO3 0x2fbb
 static const struct pci_id_descr pci_dev_descr_haswell[] = {
 	/* first item must be the HA */
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0, 0)		},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0,      0, IMC0) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1,      1, IMC1) },
 
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_CBO_SAD0, 0)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_CBO_SAD1, 0)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TA,   0, IMC0) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TM,   0, IMC0) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TAD0, 0, IMC0) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TAD1, 0, IMC0) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TAD2, 1, IMC0) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TAD3, 1, IMC0) },
 
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1, 1)		},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TA,   1, IMC1) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TM,   1, IMC1) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TAD0, 1, IMC1) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TAD1, 1, IMC1) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TAD2, 1, IMC1) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TAD3, 1, IMC1) },
 
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TA, 0)		},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_THERMAL, 0)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TAD0, 0)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TAD1, 0)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TAD2, 1)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TAD3, 1)	},
-
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO0, 1)		},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO1, 1)		},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO2, 1)		},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO3, 1)		},
-
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TA, 1)		},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_THERMAL, 1)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TAD0, 1)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TAD1, 1)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TAD2, 1)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TAD3, 1)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_CBO_SAD0, 0, SOCK) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_CBO_SAD1, 0, SOCK) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO0,   1, SOCK) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO1,   1, SOCK) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO2,   1, SOCK) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO3,   1, SOCK) },
 };
 
 static const struct pci_id_table pci_dev_descr_haswell_table[] = {
-	PCI_ID_TABLE_ENTRY(pci_dev_descr_haswell, HASWELL),
+	PCI_ID_TABLE_ENTRY(pci_dev_descr_haswell, 13, 2, HASWELL),
 	{0,}			/* 0 terminated list. */
 };
 
@@ -559,7 +569,7 @@ static const struct pci_id_table pci_dev_descr_haswell_table[] = {
 /* Memory controller, TAD tables, error injection - 2-8-0, 2-9-0 (2 of these) */
 #define PCI_DEVICE_ID_INTEL_KNL_IMC_MC       0x7840
 /* DRAM channel stuff; bank addrs, dimmmtr, etc.. 2-8-2 - 2-9-4 (6 of these) */
-#define PCI_DEVICE_ID_INTEL_KNL_IMC_CHANNEL  0x7843
+#define PCI_DEVICE_ID_INTEL_KNL_IMC_CHAN     0x7843
 /* kdrwdbu TAD limits/offsets, MCMTR - 2-10-1, 2-11-1 (2 of these) */
 #define PCI_DEVICE_ID_INTEL_KNL_IMC_TA       0x7844
 /* CHA broadcast registers, dram rules - 1-29-0 (1 of these) */
@@ -579,17 +589,17 @@ static const struct pci_id_table pci_dev_descr_haswell_table[] = {
  */
 
 static const struct pci_id_descr pci_dev_descr_knl[] = {
-	[0]         = { PCI_DESCR(PCI_DEVICE_ID_INTEL_KNL_IMC_SAD0, 0) },
-	[1]         = { PCI_DESCR(PCI_DEVICE_ID_INTEL_KNL_IMC_SAD1, 0) },
-	[2 ... 3]   = { PCI_DESCR(PCI_DEVICE_ID_INTEL_KNL_IMC_MC, 0)},
-	[4 ... 41]  = { PCI_DESCR(PCI_DEVICE_ID_INTEL_KNL_IMC_CHA, 0) },
-	[42 ... 47] = { PCI_DESCR(PCI_DEVICE_ID_INTEL_KNL_IMC_CHANNEL, 0) },
-	[48]        = { PCI_DESCR(PCI_DEVICE_ID_INTEL_KNL_IMC_TA, 0) },
-	[49]        = { PCI_DESCR(PCI_DEVICE_ID_INTEL_KNL_IMC_TOLHM, 0) },
+	[0 ... 1]   = { PCI_DESCR(PCI_DEVICE_ID_INTEL_KNL_IMC_MC,    0, IMC0)},
+	[2 ... 7]   = { PCI_DESCR(PCI_DEVICE_ID_INTEL_KNL_IMC_CHAN,  0, IMC0) },
+	[8]	    = { PCI_DESCR(PCI_DEVICE_ID_INTEL_KNL_IMC_TA,    0, IMC0) },
+	[9]	    = { PCI_DESCR(PCI_DEVICE_ID_INTEL_KNL_IMC_TOLHM, 0, IMC0) },
+	[10]	    = { PCI_DESCR(PCI_DEVICE_ID_INTEL_KNL_IMC_SAD0,  0, SOCK) },
+	[11]	    = { PCI_DESCR(PCI_DEVICE_ID_INTEL_KNL_IMC_SAD1,  0, SOCK) },
+	[12 ... 49] = { PCI_DESCR(PCI_DEVICE_ID_INTEL_KNL_IMC_CHA,   0, SOCK) },
 };
 
 static const struct pci_id_table pci_dev_descr_knl_table[] = {
-	PCI_ID_TABLE_ENTRY(pci_dev_descr_knl, KNIGHTS_LANDING),
+	PCI_ID_TABLE_ENTRY(pci_dev_descr_knl, ARRAY_SIZE(pci_dev_descr_knl), 1, KNIGHTS_LANDING),
 	{0,}
 };
 
@@ -615,9 +625,9 @@ static const struct pci_id_table pci_dev_descr_knl_table[] = {
 #define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0	0x6fa0
 #define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1	0x6f60
 #define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TA	0x6fa8
-#define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_THERMAL 0x6f71
+#define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TM	0x6f71
 #define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TA	0x6f68
-#define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_THERMAL 0x6f79
+#define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TM	0x6f79
 #define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_CBO_SAD0 0x6ffc
 #define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_CBO_SAD1 0x6ffd
 #define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD0 0x6faa
@@ -632,32 +642,30 @@ static const struct pci_id_table pci_dev_descr_knl_table[] = {
 
 static const struct pci_id_descr pci_dev_descr_broadwell[] = {
 	/* first item must be the HA */
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0, 0)		},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0,      0, IMC0) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1,      1, IMC1) },
 
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_CBO_SAD0, 0)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_CBO_SAD1, 0)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TA,   0, IMC0) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TM,   0, IMC0) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD0, 0, IMC0) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD1, 0, IMC0) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD2, 1, IMC0) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD3, 1, IMC0) },
 
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1, 1)		},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TA,   1, IMC1) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TM,   1, IMC1) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD0, 1, IMC1) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD1, 1, IMC1) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD2, 1, IMC1) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD3, 1, IMC1) },
 
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TA, 0)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_THERMAL, 0)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD0, 0)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD1, 0)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD2, 1)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD3, 1)	},
-
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_DDRIO0, 1)	},
-
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TA, 1)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_THERMAL, 1)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD0, 1)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD1, 1)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD2, 1)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD3, 1)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_CBO_SAD0, 0, SOCK) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_CBO_SAD1, 0, SOCK) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_DDRIO0,   1, SOCK) },
 };
 
 static const struct pci_id_table pci_dev_descr_broadwell_table[] = {
-	PCI_ID_TABLE_ENTRY(pci_dev_descr_broadwell, BROADWELL),
+	PCI_ID_TABLE_ENTRY(pci_dev_descr_broadwell, 10, 2, BROADWELL),
 	{0,}			/* 0 terminated list. */
 };
 
@@ -730,8 +738,7 @@ static struct sbridge_dev *get_sbridge_dev(u8 bus, int multi_bus)
 	return NULL;
 }
 
-static struct sbridge_dev *alloc_sbridge_dev(u8 bus,
-					   const struct pci_id_table *table)
+static struct sbridge_dev *alloc_sbridge_dev(u8 bus, enum domain dom, const struct pci_id_table *table)
 {
 	struct sbridge_dev *sbridge_dev;
 
@@ -739,15 +746,15 @@ static struct sbridge_dev *alloc_sbridge_dev(u8 bus,
 	if (!sbridge_dev)
 		return NULL;
 
-	sbridge_dev->pdev = kzalloc(sizeof(*sbridge_dev->pdev) * table->n_devs,
-				   GFP_KERNEL);
+	sbridge_dev->pdev = kcalloc(table->n_devs_per_sock, sizeof(*sbridge_dev->pdev), GFP_KERNEL);
 	if (!sbridge_dev->pdev) {
 		kfree(sbridge_dev);
 		return NULL;
 	}
 
 	sbridge_dev->bus = bus;
-	sbridge_dev->n_devs = table->n_devs;
+	sbridge_dev->dom = dom;
+	sbridge_dev->n_devs = table->n_devs_per_sock;
 	list_add_tail(&sbridge_dev->list, &sbridge_edac_list);
 
 	return sbridge_dev;
@@ -2313,7 +2320,7 @@ static int sbridge_get_onedevice(struct pci_dev **prev,
 
 	sbridge_dev = get_sbridge_dev(bus, multi_bus);
 	if (!sbridge_dev) {
-		sbridge_dev = alloc_sbridge_dev(bus, table);
+		sbridge_dev = alloc_sbridge_dev(bus, dev_descr->dom, table);
 		if (!sbridge_dev) {
 			pci_dev_put(pdev);
 			return -ENOMEM;
@@ -2374,7 +2381,7 @@ static int sbridge_get_all_devices(u8 *num_mc,
 	if (table->type == KNIGHTS_LANDING)
 		allow_dups = multi_bus = 1;
 	while (table && table->descr) {
-		for (i = 0; i < table->n_devs; i++) {
+		for (i = 0; i < table->n_devs_per_sock; i++) {
 			if (!allow_dups || i == 0 ||
 					table->descr[i].dev_id !=
 						table->descr[i-1].dev_id) {
@@ -2385,7 +2392,7 @@ static int sbridge_get_all_devices(u8 *num_mc,
 							   table, i, multi_bus);
 				if (rc < 0) {
 					if (i == 0) {
-						i = table->n_devs;
+						i = table->n_devs_per_sock;
 						break;
 					}
 					sbridge_put_all_devices();
@@ -2598,7 +2605,7 @@ static int haswell_mci_bind_devs(struct mem_ctl_info *mci,
 		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TA:
 			pvt->pci_ta = pdev;
 			break;
-		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_THERMAL:
+		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TM:
 			pvt->pci_ras = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TAD0:
@@ -2695,7 +2702,7 @@ static int broadwell_mci_bind_devs(struct mem_ctl_info *mci,
 		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TA:
 			pvt->pci_ta = pdev;
 			break;
-		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_THERMAL:
+		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TM:
 			pvt->pci_ras = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD0:
@@ -2812,7 +2819,7 @@ static int knl_mci_bind_devs(struct mem_ctl_info *mci,
 			pvt->knl.pci_cha[devidx] = pdev;
 			break;
 
-		case PCI_DEVICE_ID_INTEL_KNL_IMC_CHANNEL:
+		case PCI_DEVICE_ID_INTEL_KNL_IMC_CHAN:
 			devidx = -1;
 
 			/*
