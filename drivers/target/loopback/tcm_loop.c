@@ -221,7 +221,6 @@ static int tcm_loop_issue_tmr(struct tcm_loop_tpg *tl_tpg,
 	struct se_portal_group *se_tpg;
 	struct tcm_loop_nexus *tl_nexus;
 	struct tcm_loop_cmd *tl_cmd = NULL;
-	struct tcm_loop_tmr *tl_tmr = NULL;
 	int ret = TMR_FUNCTION_FAILED, rc;
 
 	/*
@@ -240,12 +239,7 @@ static int tcm_loop_issue_tmr(struct tcm_loop_tpg *tl_tpg,
 		return ret;
 	}
 
-	tl_tmr = kzalloc(sizeof(struct tcm_loop_tmr), GFP_KERNEL);
-	if (!tl_tmr) {
-		pr_err("Unable to allocate memory for tl_tmr\n");
-		goto release;
-	}
-	init_waitqueue_head(&tl_tmr->tl_tmr_wait);
+	init_waitqueue_head(&tl_cmd->tl_tmr_wait);
 
 	se_cmd = &tl_cmd->tl_se_cmd;
 	se_tpg = &tl_tpg->tl_se_tpg;
@@ -257,7 +251,7 @@ static int tcm_loop_issue_tmr(struct tcm_loop_tpg *tl_tpg,
 				DMA_NONE, TCM_SIMPLE_TAG,
 				&tl_cmd->tl_sense_buf[0]);
 
-	rc = core_tmr_alloc_req(se_cmd, tl_tmr, tmr, GFP_KERNEL);
+	rc = core_tmr_alloc_req(se_cmd, NULL, tmr, GFP_KERNEL);
 	if (rc < 0)
 		goto release;
 
@@ -276,7 +270,7 @@ static int tcm_loop_issue_tmr(struct tcm_loop_tpg *tl_tpg,
 	 * tcm_loop_queue_tm_rsp() to wake us up.
 	 */
 	transport_generic_handle_tmr(se_cmd);
-	wait_event(tl_tmr->tl_tmr_wait, atomic_read(&tl_tmr->tmr_complete));
+	wait_event(tl_cmd->tl_tmr_wait, atomic_read(&tl_cmd->tmr_complete));
 	/*
 	 * The TMR LUN_RESET has completed, check the response status and
 	 * then release allocations.
@@ -287,7 +281,6 @@ release:
 		transport_generic_free_cmd(se_cmd, 1);
 	else
 		kmem_cache_free(tcm_loop_cmd_cache, tl_cmd);
-	kfree(tl_tmr);
 	return ret;
 }
 
@@ -669,14 +662,15 @@ static int tcm_loop_queue_status(struct se_cmd *se_cmd)
 
 static void tcm_loop_queue_tm_rsp(struct se_cmd *se_cmd)
 {
-	struct se_tmr_req *se_tmr = se_cmd->se_tmr_req;
-	struct tcm_loop_tmr *tl_tmr = se_tmr->fabric_tmr_ptr;
+	struct tcm_loop_cmd *tl_cmd = container_of(se_cmd,
+				struct tcm_loop_cmd, tl_se_cmd);
+
 	/*
 	 * The SCSI EH thread will be sleeping on se_tmr->tl_tmr_wait, go ahead
 	 * and wake up the wait_queue_head_t in tcm_loop_device_reset()
 	 */
-	atomic_set(&tl_tmr->tmr_complete, 1);
-	wake_up(&tl_tmr->tl_tmr_wait);
+	atomic_set(&tl_cmd->tmr_complete, 1);
+	wake_up(&tl_cmd->tl_tmr_wait);
 }
 
 static void tcm_loop_aborted_task(struct se_cmd *se_cmd)
