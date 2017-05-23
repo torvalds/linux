@@ -520,9 +520,7 @@ struct qed_common_ops {
 	int		(*set_power_state)(struct qed_dev *cdev,
 					   pci_power_t state);
 
-	void		(*set_id)(struct qed_dev *cdev,
-				  char name[],
-				  char ver_str[]);
+	void (*set_name) (struct qed_dev *cdev, char name[]);
 
 	/* Client drivers need to make this call before slowpath_start.
 	 * PF params required for the call before slowpath_start is

@@ -2954,7 +2954,7 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 		   "WWPN=%016llx.\n", qedf->wwnn, qedf->wwpn);
 
 	sprintf(host_buf, "host_%d", host->host_no);
-	qed_ops->common->set_id(qedf->cdev, host_buf, QEDF_VERSION);
+	qed_ops->common->set_name(qedf->cdev, host_buf);
 
 
 	/* Set xid max values */

@@ -259,7 +259,7 @@ static int qede_netdev_event(struct notifier_block *this, unsigned long event,
 		/* Notify qed of the name change */
 		if (!edev->ops || !edev->ops->common)
 			goto done;
-		edev->ops->common->set_id(edev->cdev, edev->ndev->name, "qede");
+		edev->ops->common->set_name(edev->cdev, edev->ndev->name);
 		break;
 	case NETDEV_CHANGEADDR:
 		edev = netdev_priv(ndev);
@@ -967,7 +967,7 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 		goto err4;
 	}
 
-	edev->ops->common->set_id(cdev, edev->ndev->name, DRV_MODULE_VERSION);
+	edev->ops->common->set_name(cdev, edev->ndev->name);
 
 	/* PTP not supported on VFs */
 	if (!is_vf)

@@ -338,6 +338,7 @@ static struct qed_dev *qed_probe(struct pci_dev *pdev,
 	if (!cdev)
 		goto err0;
 
+	cdev->drv_type = DRV_ID_DRV_TYPE_LINUX;
 	cdev->protocol = params->protocol;
 
 	if (params->is_vf)
@@ -1128,17 +1129,13 @@ static int qed_slowpath_stop(struct qed_dev *cdev)
 	return 0;
 }
 
-static void qed_set_id(struct qed_dev *cdev, char name[NAME_SIZE],
-		       char ver_str[VER_SIZE])
+static void qed_set_name(struct qed_dev *cdev, char name[NAME_SIZE])
 {
 	int i;
 
 	memcpy(cdev->name, name, NAME_SIZE);
 	for_each_hwfn(cdev, i)
 		snprintf(cdev->hwfns[i].name, NAME_SIZE, "%s-%d", name, i);
-
-	memcpy(cdev->ver_str, ver_str, VER_SIZE);
-	cdev->drv_type = DRV_ID_DRV_TYPE_LINUX;
 }
 
 static u32 qed_sb_init(struct qed_dev *cdev,
@@ -1692,7 +1689,7 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.probe = &qed_probe,
 	.remove = &qed_remove,
 	.set_power_state = &qed_set_power_state,
-	.set_id = &qed_set_id,
+	.set_name = &qed_set_name,
 	.update_pf_params = &qed_update_pf_params,
 	.slowpath_start = &qed_slowpath_start,
 	.slowpath_stop = &qed_slowpath_stop,
