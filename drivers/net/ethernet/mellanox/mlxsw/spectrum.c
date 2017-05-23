@@ -70,6 +70,21 @@
 #include "spectrum_dpipe.h"
 #include "../mlxfw/mlxfw.h"
 
+#define MLXSW_FWREV_MAJOR 13
+#define MLXSW_FWREV_MINOR 1420
+#define MLXSW_FWREV_SUBMINOR 122
+
+static const struct mlxsw_fw_rev mlxsw_sp_supported_fw_rev = {
+	.major = MLXSW_FWREV_MAJOR,
+	.minor = MLXSW_FWREV_MINOR,
+	.subminor = MLXSW_FWREV_SUBMINOR
+};
+
+#define MLXSW_SP_FW_FILENAME \
+	"mlxsw_spectrum-" __stringify(MLXSW_FWREV_MAJOR) \
+	"." __stringify(MLXSW_FWREV_MINOR) \
+	"." __stringify(MLXSW_FWREV_SUBMINOR) ".mfa2"
+
 static const char mlxsw_sp_driver_name[] = "mlxsw_spectrum";
 static const char mlxsw_sp_driver_version[] = "1.0";
 
@@ -305,6 +320,51 @@ static const struct mlxfw_dev_ops mlxsw_sp_mlxfw_dev_ops = {
 	.fsm_cancel		= mlxsw_sp_fsm_cancel,
 	.fsm_release		= mlxsw_sp_fsm_release
 };
+
+static bool mlxsw_sp_fw_rev_ge(const struct mlxsw_fw_rev *a,
+			       const struct mlxsw_fw_rev *b)
+{
+	if (a->major != b->major)
+		return a->major > b->major;
+	if (a->minor != b->minor)
+		return a->minor > b->minor;
+	return a->subminor >= b->subminor;
+}
+
+static int mlxsw_sp_fw_rev_validate(struct mlxsw_sp *mlxsw_sp)
+{
+	const struct mlxsw_fw_rev *rev = &mlxsw_sp->bus_info->fw_rev;
+	struct mlxsw_sp_mlxfw_dev mlxsw_sp_mlxfw_dev = {
+		.mlxfw_dev = {
+			.ops = &mlxsw_sp_mlxfw_dev_ops,
+			.psid = mlxsw_sp->bus_info->psid,
+			.psid_size = strlen(mlxsw_sp->bus_info->psid),
+		},
+		.mlxsw_sp = mlxsw_sp
+	};
+	const struct firmware *firmware;
+	int err;
+
+	if (mlxsw_sp_fw_rev_ge(rev, &mlxsw_sp_supported_fw_rev))
+		return 0;
+
+	dev_info(mlxsw_sp->bus_info->dev, "The firmware version %d.%d.%d out of data\n",
+		 rev->major, rev->minor, rev->subminor);
+	dev_info(mlxsw_sp->bus_info->dev, "Upgrading firmware using file %s\n",
+		 MLXSW_SP_FW_FILENAME);
+
+	err = request_firmware_direct(&firmware, MLXSW_SP_FW_FILENAME,
+				      mlxsw_sp->bus_info->dev);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Could not request firmware file %s\n",
+			MLXSW_SP_FW_FILENAME);
+		return err;
+	}
+
+	err = mlxfw_firmware_flash(&mlxsw_sp_mlxfw_dev.mlxfw_dev, firmware);
+	release_firmware(firmware);
+	return err;
+}
 
 int mlxsw_sp_flow_counter_get(struct mlxsw_sp *mlxsw_sp,
 			      unsigned int counter_index, u64 *packets,
@@ -3559,6 +3619,12 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 	INIT_LIST_HEAD(&mlxsw_sp->fids);
 	INIT_LIST_HEAD(&mlxsw_sp->vfids.list);
 
+	err = mlxsw_sp_fw_rev_validate(mlxsw_sp);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Could not upgrade firmware\n");
+		return err;
+	}
+
 	err = mlxsw_sp_base_mac_get(mlxsw_sp);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to get base mac\n");
@@ -4930,3 +4996,4 @@ MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Jiri Pirko <jiri@mellanox.com>");
 MODULE_DESCRIPTION("Mellanox Spectrum driver");
 MODULE_DEVICE_TABLE(pci, mlxsw_sp_pci_id_table);
+MODULE_FIRMWARE(MLXSW_SP_FW_FILENAME);

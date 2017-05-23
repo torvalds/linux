@@ -75,6 +75,7 @@ config MLXSW_SPECTRUM
 	depends on MLXSW_CORE && MLXSW_PCI && NET_SWITCHDEV && VLAN_8021Q
 	depends on PSAMPLE || PSAMPLE=n
 	select PARMAN
+	select MLXFW
 	default m
 	---help---
 	  This driver supports Mellanox Technologies Spectrum Ethernet
