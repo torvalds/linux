@@ -1389,7 +1389,7 @@ static int mwifiex_pcie_process_recv_data(struct mwifiex_adapter *adapter)
 		 * first 2 bytes for len, next 2 bytes is for type
 		 */
 		rx_len = get_unaligned_le16(skb_data->data);
-		if (WARN_ON(rx_len <= INTF_HEADER_LEN ||
+		if (WARN_ON(rx_len <= adapter->intf_hdr_len ||
 			    rx_len > MWIFIEX_RX_DATA_BUF_SIZE)) {
 			mwifiex_dbg(adapter, ERROR,
 				    "Invalid RX len %d, Rd=%#x, Wr=%#x\n",
@@ -1400,7 +1400,7 @@ static int mwifiex_pcie_process_recv_data(struct mwifiex_adapter *adapter)
 			mwifiex_dbg(adapter, DATA,
 				    "info: RECV DATA: Rd=%#x, Wr=%#x, Len=%d\n",
 				    card->rxbd_rdptr, wrptr, rx_len);
-			skb_pull(skb_data, INTF_HEADER_LEN);
+			skb_pull(skb_data, adapter->intf_hdr_len);
 			if (adapter->rx_work_enabled) {
 				skb_queue_tail(&adapter->rx_data_q, skb_data);
 				adapter->data_received = true;
@@ -1734,7 +1734,7 @@ static int mwifiex_pcie_process_cmd_complete(struct mwifiex_adapter *adapter)
 						       MWIFIEX_MAX_DELAY_COUNT);
 			mwifiex_unmap_pci_memory(adapter, skb,
 						 PCI_DMA_FROMDEVICE);
-			skb_pull(skb, INTF_HEADER_LEN);
+			skb_pull(skb, adapter->intf_hdr_len);
 			while (reg->sleep_cookie && (count++ < 10) &&
 			       mwifiex_pcie_ok_to_access_hw(adapter))
 				usleep_range(50, 60);
@@ -1747,12 +1747,12 @@ static int mwifiex_pcie_process_cmd_complete(struct mwifiex_adapter *adapter)
 		}
 		memcpy(adapter->upld_buf, skb->data,
 		       min_t(u32, MWIFIEX_SIZE_OF_CMD_BUFFER, skb->len));
-		skb_push(skb, INTF_HEADER_LEN);
+		skb_push(skb, adapter->intf_hdr_len);
 		if (mwifiex_map_pci_memory(adapter, skb, MWIFIEX_UPLD_SIZE,
 					   PCI_DMA_FROMDEVICE))
 			return -1;
 	} else if (mwifiex_pcie_ok_to_access_hw(adapter)) {
-		skb_pull(skb, INTF_HEADER_LEN);
+		skb_pull(skb, adapter->intf_hdr_len);
 		adapter->curr_cmd->resp_skb = skb;
 		adapter->cmd_resp_received = true;
 		/* Take the pointer and set it to CMD node and will
@@ -1789,7 +1789,7 @@ static int mwifiex_pcie_cmdrsp_complete(struct mwifiex_adapter *adapter,
 
 	if (skb) {
 		card->cmdrsp_buf = skb;
-		skb_push(card->cmdrsp_buf, INTF_HEADER_LEN);
+		skb_push(card->cmdrsp_buf, adapter->intf_hdr_len);
 		if (mwifiex_map_pci_memory(adapter, skb, MWIFIEX_UPLD_SIZE,
 					   PCI_DMA_FROMDEVICE))
 			return -1;
@@ -1854,14 +1854,15 @@ static int mwifiex_pcie_process_event_ready(struct mwifiex_adapter *adapter)
 		desc = card->evtbd_ring[rdptr];
 		memset(desc, 0, sizeof(*desc));
 
-		event = get_unaligned_le32(&skb_cmd->data[INTF_HEADER_LEN]);
+		event = get_unaligned_le32(
+			&skb_cmd->data[adapter->intf_hdr_len]);
 		adapter->event_cause = event;
 		/* The first 4bytes will be the event transfer header
 		   len is 2 bytes followed by type which is 2 bytes */
 		memcpy(&data_len, skb_cmd->data, sizeof(__le16));
 		evt_len = le16_to_cpu(data_len);
 		skb_trim(skb_cmd, evt_len);
-		skb_pull(skb_cmd, INTF_HEADER_LEN);
+		skb_pull(skb_cmd, adapter->intf_hdr_len);
 		mwifiex_dbg(adapter, EVENT,
 			    "info: Event length: %d\n", evt_len);
 
@@ -1920,7 +1921,7 @@ static int mwifiex_pcie_event_complete(struct mwifiex_adapter *adapter,
 	}
 
 	if (!card->evt_buf_list[rdptr]) {
-		skb_push(skb, INTF_HEADER_LEN);
+		skb_push(skb, adapter->intf_hdr_len);
 		skb_put(skb, MAX_EVENT_SIZE - skb->len);
 		if (mwifiex_map_pci_memory(adapter, skb,
 					   MAX_EVENT_SIZE,

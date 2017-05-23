@@ -1125,7 +1125,7 @@ static void mwifiex_deaggr_sdio_pkt(struct mwifiex_adapter *adapter,
 	data = skb->data;
 	total_pkt_len = skb->len;
 
-	while (total_pkt_len >= (SDIO_HEADER_OFFSET + INTF_HEADER_LEN)) {
+	while (total_pkt_len >= (SDIO_HEADER_OFFSET + adapter->intf_hdr_len)) {
 		if (total_pkt_len < adapter->sdio_rx_block_size)
 			break;
 		blk_num = *(data + BLOCK_NUMBER_OFFSET);
@@ -1152,7 +1152,7 @@ static void mwifiex_deaggr_sdio_pkt(struct mwifiex_adapter *adapter,
 			break;
 		skb_put(skb_deaggr, pkt_len);
 		memcpy(skb_deaggr->data, data + SDIO_HEADER_OFFSET, pkt_len);
-		skb_pull(skb_deaggr, INTF_HEADER_LEN);
+		skb_pull(skb_deaggr, adapter->intf_hdr_len);
 
 		mwifiex_handle_rx_packet(adapter, skb_deaggr);
 		data += blk_size;
@@ -1178,7 +1178,7 @@ static int mwifiex_decode_rx_packet(struct mwifiex_adapter *adapter,
 
 	if (upld_typ != MWIFIEX_TYPE_AGGR_DATA) {
 		skb_trim(skb, pkt_len);
-		skb_pull(skb, INTF_HEADER_LEN);
+		skb_pull(skb, adapter->intf_hdr_len);
 	}
 
 	switch (upld_typ) {
@@ -1537,7 +1537,7 @@ static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
 		rx_len = card->mp_regs[reg->cmd_rd_len_1] << 8;
 		rx_len |= (u16)card->mp_regs[reg->cmd_rd_len_0];
 		rx_blocks = DIV_ROUND_UP(rx_len, MWIFIEX_SDIO_BLOCK_SIZE);
-		if (rx_len <= INTF_HEADER_LEN ||
+		if (rx_len <= adapter->intf_hdr_len ||
 		    (rx_blocks * MWIFIEX_SDIO_BLOCK_SIZE) >
 		     MWIFIEX_RX_DATA_BUF_SIZE)
 			return -1;
@@ -1635,7 +1635,7 @@ static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
 			rx_blocks =
 				(rx_len + MWIFIEX_SDIO_BLOCK_SIZE -
 				 1) / MWIFIEX_SDIO_BLOCK_SIZE;
-			if (rx_len <= INTF_HEADER_LEN ||
+			if (rx_len <= adapter->intf_hdr_len ||
 			    (card->mpa_rx.enabled &&
 			     ((rx_blocks * MWIFIEX_SDIO_BLOCK_SIZE) >
 			      card->mpa_rx.buf_size))) {
@@ -1896,7 +1896,7 @@ static int mwifiex_sdio_host_to_card(struct mwifiex_adapter *adapter,
 		adapter->cmd_sent = true;
 		/* Type must be MWIFIEX_TYPE_CMD */
 
-		if (pkt_len <= INTF_HEADER_LEN ||
+		if (pkt_len <= adapter->intf_hdr_len ||
 		    pkt_len > MWIFIEX_UPLD_SIZE)
 			mwifiex_dbg(adapter, ERROR,
 				    "%s: payload=%p, nb=%d\n",

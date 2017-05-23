@@ -849,6 +849,7 @@ struct mwifiex_adapter {
 	u8 perm_addr[ETH_ALEN];
 	bool surprise_removed;
 	u32 fw_release_number;
+	u8 intf_hdr_len;
 	u16 init_wait_q_woken;
 	wait_queue_head_t init_wait_q;
 	void *card;

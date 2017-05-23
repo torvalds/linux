@@ -217,6 +217,11 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	else
 		adapter->data_sent = false;
 
+	if (adapter->iface_type == MWIFIEX_USB)
+		adapter->intf_hdr_len = 0;
+	else
+		adapter->intf_hdr_len = INTF_HEADER_LEN;
+
 	adapter->cmd_resp_received = false;
 	adapter->event_received = false;
 	adapter->data_received = false;
