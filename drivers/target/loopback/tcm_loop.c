@@ -239,7 +239,7 @@ static int tcm_loop_issue_tmr(struct tcm_loop_tpg *tl_tpg,
 		return ret;
 	}
 
-	init_waitqueue_head(&tl_cmd->tl_tmr_wait);
+	init_completion(&tl_cmd->tmr_done);
 
 	se_cmd = &tl_cmd->tl_se_cmd;
 	se_tpg = &tl_tpg->tl_se_tpg;
@@ -270,7 +270,7 @@ static int tcm_loop_issue_tmr(struct tcm_loop_tpg *tl_tpg,
 	 * tcm_loop_queue_tm_rsp() to wake us up.
 	 */
 	transport_generic_handle_tmr(se_cmd);
-	wait_event(tl_cmd->tl_tmr_wait, atomic_read(&tl_cmd->tmr_complete));
+	wait_for_completion(&tl_cmd->tmr_done);
 	/*
 	 * The TMR LUN_RESET has completed, check the response status and
 	 * then release allocations.
@@ -665,12 +665,8 @@ static void tcm_loop_queue_tm_rsp(struct se_cmd *se_cmd)
 	struct tcm_loop_cmd *tl_cmd = container_of(se_cmd,
 				struct tcm_loop_cmd, tl_se_cmd);
 
-	/*
-	 * The SCSI EH thread will be sleeping on se_tmr->tl_tmr_wait, go ahead
-	 * and wake up the wait_queue_head_t in tcm_loop_device_reset()
-	 */
-	atomic_set(&tl_cmd->tmr_complete, 1);
-	wake_up(&tl_cmd->tl_tmr_wait);
+	/* Wake up tcm_loop_issue_tmr(). */
+	complete(&tl_cmd->tmr_done);
 }
 
 static void tcm_loop_aborted_task(struct se_cmd *se_cmd)

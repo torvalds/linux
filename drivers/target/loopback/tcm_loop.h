@@ -16,8 +16,7 @@ struct tcm_loop_cmd {
 	/* The TCM I/O descriptor that is accessed via container_of() */
 	struct se_cmd tl_se_cmd;
 	struct work_struct work;
-	atomic_t tmr_complete;
-	wait_queue_head_t tl_tmr_wait;
+	struct completion tmr_done;
 	/* Sense buffer that will be mapped into outgoing status */
 	unsigned char tl_sense_buf[TRANSPORT_SENSE_BUFFER];
 };
