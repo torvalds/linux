@@ -64,12 +64,21 @@ struct urb_context {
 	u8 ep;
 };
 
+struct usb_tx_aggr {
+	struct sk_buff_head aggr_list;
+	int aggr_len;
+	int aggr_num;
+};
+
 struct usb_tx_data_port {
 	u8 tx_data_ep;
 	u8 block_status;
 	atomic_t tx_data_urb_pending;
 	int tx_data_ix;
 	struct urb_context tx_data_list[MWIFIEX_TX_DATA_URB];
+	/* usb tx aggregation*/
+	struct usb_tx_aggr tx_aggr;
+	struct sk_buff *skb_aggr[MWIFIEX_TX_DATA_URB];
 };
 
 struct usb_card_rec {

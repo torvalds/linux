@@ -60,6 +60,7 @@
 
 extern const char driver_version[];
 extern bool mfg_mode;
+extern bool aggr_ctrl;
 
 struct mwifiex_adapter;
 struct mwifiex_private;
@@ -798,6 +799,18 @@ struct mwifiex_auto_tdls_peer {
 	u8 do_setup;
 };
 
+#define MWIFIEX_TYPE_AGGR_DATA_V2 11
+#define MWIFIEX_BUS_AGGR_MODE_LEN_V2 (2)
+#define MWIFIEX_BUS_AGGR_MAX_LEN 16000
+#define MWIFIEX_BUS_AGGR_MAX_NUM 10
+struct bus_aggr_params {
+	u16 enable;
+	u16 mode;
+	u16 tx_aggr_max_size;
+	u16 tx_aggr_max_num;
+	u16 tx_aggr_align;
+};
+
 struct mwifiex_if_ops {
 	int (*init_if) (struct mwifiex_adapter *);
 	void (*cleanup_if) (struct mwifiex_adapter *);
@@ -1016,6 +1029,8 @@ struct mwifiex_adapter {
 	/* Wake-on-WLAN (WoWLAN) */
 	int irq_wakeup;
 	bool wake_by_wifi;
+	/* Aggregation parameters*/
+	struct bus_aggr_params bus_aggr;
 };
 
 void mwifiex_process_tx_queue(struct mwifiex_adapter *adapter);
