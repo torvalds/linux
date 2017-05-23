@@ -450,20 +450,8 @@ static int emu8k_pcm_copy(struct snd_pcm_substream *subs,
 	struct snd_emu8000 *emu = rec->emu;
 
 	snd_emu8000_write_wait(emu, 1);
-	if (voice == -1) {
-		unsigned short *buf = src;
-		int i, err;
-		count /= rec->voices;
-		for (i = 0; i < rec->voices; i++) {
-			err = emu8k_transfer_block(emu, pos + rec->loop_start[i], buf, count);
-			if (err < 0)
-				return err;
-			buf += count;
-		}
-		return 0;
-	} else {
-		return emu8k_transfer_block(emu, pos + rec->loop_start[voice], src, count);
-	}
+	return emu8k_transfer_block(emu, pos + rec->loop_start[voice], src,
+				    count);
 }
 
 /* make a channel block silence */
@@ -487,17 +475,7 @@ static int emu8k_pcm_silence(struct snd_pcm_substream *subs,
 	struct snd_emu8000 *emu = rec->emu;
 
 	snd_emu8000_write_wait(emu, 1);
-	if (voice == -1 && rec->voices == 1)
-		voice = 0;
-	if (voice == -1) {
-		int err;
-		err = emu8k_silence_block(emu, pos + rec->loop_start[0], count / 2);
-		if (err < 0)
-			return err;
-		return emu8k_silence_block(emu, pos + rec->loop_start[1], count / 2);
-	} else {
-		return emu8k_silence_block(emu, pos + rec->loop_start[voice], count);
-	}
+	return emu8k_silence_block(emu, pos + rec->loop_start[voice], count);
 }
 
 #else /* interleave */
