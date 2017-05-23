@@ -1119,6 +1119,9 @@ int acpi_gpio_count(struct device *dev, const char *con_id)
 		struct list_head resource_list;
 		unsigned int crs_count = 0;
 
+		if (!acpi_can_fallback_to_crs(adev, con_id))
+			return count;
+
 		INIT_LIST_HEAD(&resource_list);
 		acpi_dev_get_resources(adev, &resource_list,
 				       acpi_find_gpio_count, &crs_count);
