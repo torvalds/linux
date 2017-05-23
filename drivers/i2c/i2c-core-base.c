@@ -1,21 +1,21 @@
-/* i2c-core.c - a device driver for the iic-bus interface		     */
-/* ------------------------------------------------------------------------- */
-/*   Copyright (C) 1995-99 Simon G. Vogl
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.			     */
-/* ------------------------------------------------------------------------- */
-
-/* With some changes from Kyösti Mälkki <kmalkki@cc.hut.fi>.
-   Mux support by Rodolfo Giometti <giometti@enneenne.com> and
-   Michael Lawnick <michael.lawnick.ext@nsn.com>
+/*
+ * Linux I2C core
+ *
+ * Copyright (C) 1995-99 Simon G. Vogl
+ *   With some changes from Kyösti Mälkki <kmalkki@cc.hut.fi>
+ *   Mux support by Rodolfo Giometti <giometti@enneenne.com> and
+ *   Michael Lawnick <michael.lawnick.ext@nsn.com>
+ *
+ * Copyright (C) 2013-2017 Wolfram Sang <wsa@the-dreams.de>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 2 of the License, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt) "i2c-core: " fmt
@@ -57,9 +57,10 @@
 #define I2C_ADDR_7BITS_MAX	0x77
 #define I2C_ADDR_7BITS_COUNT	(I2C_ADDR_7BITS_MAX + 1)
 
-/* core_lock protects i2c_adapter_idr, and guarantees
-   that device detection, deletion of detected devices, and attach_adapter
-   calls are serialized */
+/*
+ * core_lock protects i2c_adapter_idr, and guarantees that device detection,
+ * deletion of detected devices, and attach_adapter calls are serialized
+ */
 static DEFINE_MUTEX(core_lock);
 static DEFINE_IDR(i2c_adapter_idr);
 
