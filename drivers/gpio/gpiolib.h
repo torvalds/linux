@@ -75,11 +75,13 @@ struct gpio_device {
 
 /**
  * struct acpi_gpio_info - ACPI GPIO specific information
+ * @flags: GPIO initialization flags
  * @gpioint: if %true this GPIO is of type GpioInt otherwise type is GpioIo
  * @polarity: interrupt polarity as provided by ACPI
  * @triggering: triggering type as provided by ACPI
  */
 struct acpi_gpio_info {
+	enum gpiod_flags flags;
 	bool gpioint;
 	int polarity;
 	int triggering;
@@ -121,10 +123,13 @@ void acpi_gpiochip_remove(struct gpio_chip *chip);
 void acpi_gpiochip_request_interrupts(struct gpio_chip *chip);
 void acpi_gpiochip_free_interrupts(struct gpio_chip *chip);
 
+int acpi_gpio_update_gpiod_flags(enum gpiod_flags *flags,
+				 enum gpiod_flags update);
+
 struct gpio_desc *acpi_find_gpio(struct device *dev,
 				 const char *con_id,
 				 unsigned int idx,
-				 enum gpiod_flags flags,
+				 enum gpiod_flags *dflags,
 				 enum gpio_lookup_flags *lookupflags);
 struct gpio_desc *acpi_node_get_gpiod(struct fwnode_handle *fwnode,
 				      const char *propname, int index,
@@ -143,9 +148,15 @@ acpi_gpiochip_request_interrupts(struct gpio_chip *chip) { }
 static inline void
 acpi_gpiochip_free_interrupts(struct gpio_chip *chip) { }
 
+static inline int
+acpi_gpio_update_gpiod_flags(enum gpiod_flags *flags, enum gpiod_flags update)
+{
+	return 0;
+}
+
 static inline struct gpio_desc *
 acpi_find_gpio(struct device *dev, const char *con_id,
-	       unsigned int idx, enum gpiod_flags flags,
+	       unsigned int idx, enum gpiod_flags *dflags,
 	       enum gpio_lookup_flags *lookupflags)
 {
 	return ERR_PTR(-ENOENT);

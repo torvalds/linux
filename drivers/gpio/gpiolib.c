@@ -3286,7 +3286,7 @@ struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
 			desc = of_find_gpio(dev, con_id, idx, &lookupflags);
 		} else if (ACPI_COMPANION(dev)) {
 			dev_dbg(dev, "using ACPI for GPIO lookup\n");
-			desc = acpi_find_gpio(dev, con_id, idx, flags, &lookupflags);
+			desc = acpi_find_gpio(dev, con_id, idx, &flags, &lookupflags);
 		}
 	}
 
@@ -3367,8 +3367,12 @@ struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 		struct acpi_gpio_info info;
 
 		desc = acpi_node_get_gpiod(fwnode, propname, index, &info);
-		if (!IS_ERR(desc))
+		if (!IS_ERR(desc)) {
 			active_low = info.polarity == GPIO_ACTIVE_LOW;
+			ret = acpi_gpio_update_gpiod_flags(&dflags, info.flags);
+			if (ret)
+				pr_debug("Override GPIO initialization flags\n");
+		}
 	}
 
 	if (IS_ERR(desc))
