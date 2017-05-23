@@ -240,34 +240,6 @@ static int marvell_config_aneg(struct phy_device *phydev)
 {
 	int err;
 
-	/* The Marvell PHY has an errata which requires
-	 * that certain registers get written in order
-	 * to restart autonegotiation */
-	err = phy_write(phydev, MII_BMCR, BMCR_RESET);
-
-	if (err < 0)
-		return err;
-
-	err = phy_write(phydev, 0x1d, 0x1f);
-	if (err < 0)
-		return err;
-
-	err = phy_write(phydev, 0x1e, 0x200c);
-	if (err < 0)
-		return err;
-
-	err = phy_write(phydev, 0x1d, 0x5);
-	if (err < 0)
-		return err;
-
-	err = phy_write(phydev, 0x1e, 0);
-	if (err < 0)
-		return err;
-
-	err = phy_write(phydev, 0x1e, 0x100);
-	if (err < 0)
-		return err;
-
 	err = marvell_set_polarity(phydev, phydev->mdix);
 	if (err < 0)
 		return err;
@@ -299,6 +271,42 @@ static int marvell_config_aneg(struct phy_device *phydev)
 	}
 
 	return 0;
+}
+
+static int m88e1101_config_aneg(struct phy_device *phydev)
+{
+	int err;
+
+	/* This Marvell PHY has an errata which requires
+	 * that certain registers get written in order
+	 * to restart autonegotiation
+	 */
+	err = phy_write(phydev, MII_BMCR, BMCR_RESET);
+
+	if (err < 0)
+		return err;
+
+	err = phy_write(phydev, 0x1d, 0x1f);
+	if (err < 0)
+		return err;
+
+	err = phy_write(phydev, 0x1e, 0x200c);
+	if (err < 0)
+		return err;
+
+	err = phy_write(phydev, 0x1d, 0x5);
+	if (err < 0)
+		return err;
+
+	err = phy_write(phydev, 0x1e, 0);
+	if (err < 0)
+		return err;
+
+	err = phy_write(phydev, 0x1e, 0x100);
+	if (err < 0)
+		return err;
+
+	return marvell_config_aneg(phydev);
 }
 
 static int m88e1111_config_aneg(struct phy_device *phydev)
@@ -1491,7 +1499,7 @@ static struct phy_driver marvell_drivers[] = {
 		.probe = marvell_probe,
 		.flags = PHY_HAS_INTERRUPT,
 		.config_init = &marvell_config_init,
-		.config_aneg = &marvell_config_aneg,
+		.config_aneg = &m88e1101_config_aneg,
 		.read_status = &genphy_read_status,
 		.ack_interrupt = &marvell_ack_interrupt,
 		.config_intr = &marvell_config_intr,
