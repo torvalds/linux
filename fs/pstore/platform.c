@@ -770,8 +770,11 @@ static void decompress_record(struct pstore_record *record)
 	int unzipped_len;
 	char *decompressed;
 
+	if (!record->compressed)
+		return;
+
 	/* Only PSTORE_TYPE_DMESG support compression. */
-	if (!record->compressed || record->type != PSTORE_TYPE_DMESG) {
+	if (record->type != PSTORE_TYPE_DMESG) {
 		pr_warn("ignored compressed record type %d\n", record->type);
 		return;
 	}
