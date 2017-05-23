@@ -700,11 +700,13 @@ struct qed_common_ops {
 	(((value) >> (name ## _SHIFT)) & name ## _MASK)
 
 /* Debug print definitions */
-#define DP_ERR(cdev, fmt, ...)						     \
-		pr_err("[%s:%d(%s)]" fmt,				     \
-		       __func__, __LINE__,				     \
-		       DP_NAME(cdev) ? DP_NAME(cdev) : "",		     \
-		       ## __VA_ARGS__)					     \
+#define DP_ERR(cdev, fmt, ...)					\
+	do {							\
+		pr_err("[%s:%d(%s)]" fmt,			\
+		       __func__, __LINE__,			\
+		       DP_NAME(cdev) ? DP_NAME(cdev) : "",	\
+		       ## __VA_ARGS__);				\
+	} while (0)
 
 #define DP_NOTICE(cdev, fmt, ...)				      \
 	do {							      \
