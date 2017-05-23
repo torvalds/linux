@@ -75,11 +75,11 @@
 		reg = <0x4c>;
 	};
 	eeprom@52 {
-		compatible = "at24,24c512";
+		compatible = "atmel,24c512";
 		reg = <0x52>;
 	};
 	eeprom@53 {
-		compatible = "at24,24c512";
+		compatible = "atmel,24c512";
 		reg = <0x53>;
 	};
 	rtc@68 {
