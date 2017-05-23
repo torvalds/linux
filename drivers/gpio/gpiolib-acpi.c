@@ -165,6 +165,23 @@ static void acpi_gpio_chip_dh(acpi_handle handle, void *data)
 	/* The address of this function is used as a key. */
 }
 
+bool acpi_gpio_get_irq_resource(struct acpi_resource *ares,
+				struct acpi_resource_gpio **agpio)
+{
+	struct acpi_resource_gpio *gpio;
+
+	if (ares->type != ACPI_RESOURCE_TYPE_GPIO)
+		return false;
+
+	gpio = &ares->data.gpio;
+	if (gpio->connection_type != ACPI_RESOURCE_GPIO_TYPE_INT)
+		return false;
+
+	*agpio = gpio;
+	return true;
+}
+EXPORT_SYMBOL_GPL(acpi_gpio_get_irq_resource);
+
 static acpi_status acpi_gpiochip_request_interrupt(struct acpi_resource *ares,
 						   void *context)
 {
@@ -178,11 +195,7 @@ static acpi_status acpi_gpiochip_request_interrupt(struct acpi_resource *ares,
 	unsigned long irqflags;
 	int ret, pin, irq;
 
-	if (ares->type != ACPI_RESOURCE_TYPE_GPIO)
-		return AE_OK;
-
-	agpio = &ares->data.gpio;
-	if (agpio->connection_type != ACPI_RESOURCE_GPIO_TYPE_INT)
+	if (!acpi_gpio_get_irq_resource(ares, &agpio))
 		return AE_OK;
 
 	handle = ACPI_HANDLE(chip->parent);
