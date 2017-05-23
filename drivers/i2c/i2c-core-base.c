@@ -21,7 +21,6 @@
 #define pr_fmt(fmt) "i2c-core: " fmt
 
 #include <dt-bindings/i2c/i2c.h>
-#include <linux/uaccess.h>
 #include <linux/acpi.h>
 #include <linux/clk/clk-conf.h>
 #include <linux/completion.h>
@@ -29,7 +28,6 @@
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/gpio.h>
-#include <linux/hardirq.h>
 #include <linux/i2c.h>
 #include <linux/idr.h>
 #include <linux/init.h>
