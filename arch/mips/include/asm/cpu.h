@@ -436,5 +436,6 @@ enum cpu_type_enum {
 #define MIPS_ASE_VZ		0x00000080 /* Virtualization ASE */
 #define MIPS_ASE_MSA		0x00000100 /* MIPS SIMD Architecture */
 #define MIPS_ASE_DSP3		0x00000200 /* Signal Processing ASE Rev 3*/
+#define MIPS_ASE_MIPS16E2	0x00000400 /* MIPS16e2 */
 
 #endif /* _ASM_CPU_H */

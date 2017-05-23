@@ -138,6 +138,9 @@
 #ifndef cpu_has_mips16
 #define cpu_has_mips16		(cpu_data[0].ases & MIPS_ASE_MIPS16)
 #endif
+#ifndef cpu_has_mips16e2
+#define cpu_has_mips16e2	(cpu_data[0].ases & MIPS_ASE_MIPS16E2)
+#endif
 #ifndef cpu_has_mdmx
 #define cpu_has_mdmx		(cpu_data[0].ases & MIPS_ASE_MDMX)
 #endif

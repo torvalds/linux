@@ -845,6 +845,8 @@ static inline unsigned int decode_config5(struct cpuinfo_mips *c)
 		c->options |= MIPS_CPU_MVH;
 	if (cpu_has_mips_r6 && (config5 & MIPS_CONF5_VP))
 		c->options |= MIPS_CPU_VP;
+	if (config5 & MIPS_CONF5_CA2)
+		c->ases |= MIPS_ASE_MIPS16E2;
 
 	return config5 & MIPS_CONF_M;
 }
