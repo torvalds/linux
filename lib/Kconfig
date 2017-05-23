@@ -587,3 +587,21 @@ config STRING_SELFTEST
 	bool "Test string functions"
 
 endmenu
+
+config GENERIC_ASHLDI3
+	bool
+
+config GENERIC_ASHRDI3
+	bool
+
+config GENERIC_LSHRDI3
+	bool
+
+config GENERIC_MULDI3
+	bool
+
+config GENERIC_CMPDI2
+	bool
+
+config GENERIC_UCMPDI2
+	bool
