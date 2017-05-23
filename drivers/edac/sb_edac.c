@@ -1594,6 +1594,23 @@ static int knl_get_dimm_capacity(struct sbridge_pvt *pvt, u64 *mc_sizes)
 	return 0;
 }
 
+static void get_source_id(struct mem_ctl_info *mci)
+{
+	struct sbridge_pvt *pvt = mci->pvt_info;
+	u32 reg;
+
+	if (pvt->info.type == HASWELL || pvt->info.type == BROADWELL ||
+	    pvt->info.type == KNIGHTS_LANDING)
+		pci_read_config_dword(pvt->pci_sad1, SAD_TARGET, &reg);
+	else
+		pci_read_config_dword(pvt->pci_br0, SAD_TARGET, &reg);
+
+	if (pvt->info.type == KNIGHTS_LANDING)
+		pvt->sbridge_dev->source_id = SOURCE_ID_KNL(reg);
+	else
+		pvt->sbridge_dev->source_id = SOURCE_ID(reg);
+}
+
 static int get_dimm_config(struct mem_ctl_info *mci)
 {
 	struct sbridge_pvt *pvt = mci->pvt_info;
@@ -1611,17 +1628,6 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 		pci_read_config_dword(pvt->pci_ha0, HASWELL_HASYSDEFEATURE2, &reg);
 		pvt->is_chan_hash = GET_BITFIELD(reg, 21, 21);
 	}
-	if (pvt->info.type == HASWELL || pvt->info.type == BROADWELL ||
-			pvt->info.type == KNIGHTS_LANDING)
-		pci_read_config_dword(pvt->pci_sad1, SAD_TARGET, &reg);
-	else
-		pci_read_config_dword(pvt->pci_br0, SAD_TARGET, &reg);
-
-	if (pvt->info.type == KNIGHTS_LANDING)
-		pvt->sbridge_dev->source_id = SOURCE_ID_KNL(reg);
-	else
-		pvt->sbridge_dev->source_id = SOURCE_ID(reg);
-
 	pvt->sbridge_dev->node_id = pvt->info.get_node_id(pvt);
 	edac_dbg(0, "mc#%d: Node ID: %d, source ID: %d\n",
 		 pvt->sbridge_dev->mc,
@@ -3222,12 +3228,14 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.max_interleave = ARRAY_SIZE(ibridge_interleave_list);
 		pvt->info.interleave_pkg = ibridge_interleave_pkg;
 		pvt->info.get_width = ibridge_get_width;
-		mci->ctl_name = kasprintf(GFP_KERNEL, "Ivy Bridge Socket#%d", mci->mc_idx);
 
 		/* Store pci devices at mci for faster access */
 		rc = ibridge_mci_bind_devs(mci, sbridge_dev);
 		if (unlikely(rc < 0))
 			goto fail0;
+		get_source_id(mci);
+		mci->ctl_name = kasprintf(GFP_KERNEL, "Ivy Bridge SrcID#%d",
+			pvt->sbridge_dev->source_id);
 		break;
 	case SANDY_BRIDGE:
 		pvt->info.rankcfgr = SB_RANK_CFG_A;
@@ -3245,12 +3253,14 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.max_interleave = ARRAY_SIZE(sbridge_interleave_list);
 		pvt->info.interleave_pkg = sbridge_interleave_pkg;
 		pvt->info.get_width = sbridge_get_width;
-		mci->ctl_name = kasprintf(GFP_KERNEL, "Sandy Bridge Socket#%d", mci->mc_idx);
 
 		/* Store pci devices at mci for faster access */
 		rc = sbridge_mci_bind_devs(mci, sbridge_dev);
 		if (unlikely(rc < 0))
 			goto fail0;
+		get_source_id(mci);
+		mci->ctl_name = kasprintf(GFP_KERNEL, "Sandy Bridge SrcID#%d",
+			pvt->sbridge_dev->source_id);
 		break;
 	case HASWELL:
 		/* rankcfgr isn't used */
@@ -3268,12 +3278,14 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.max_interleave = ARRAY_SIZE(ibridge_interleave_list);
 		pvt->info.interleave_pkg = ibridge_interleave_pkg;
 		pvt->info.get_width = ibridge_get_width;
-		mci->ctl_name = kasprintf(GFP_KERNEL, "Haswell Socket#%d", mci->mc_idx);
 
 		/* Store pci devices at mci for faster access */
 		rc = haswell_mci_bind_devs(mci, sbridge_dev);
 		if (unlikely(rc < 0))
 			goto fail0;
+		get_source_id(mci);
+		mci->ctl_name = kasprintf(GFP_KERNEL, "Haswell SrcID#%d",
+			pvt->sbridge_dev->source_id);
 		break;
 	case BROADWELL:
 		/* rankcfgr isn't used */
@@ -3291,12 +3303,14 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.max_interleave = ARRAY_SIZE(ibridge_interleave_list);
 		pvt->info.interleave_pkg = ibridge_interleave_pkg;
 		pvt->info.get_width = broadwell_get_width;
-		mci->ctl_name = kasprintf(GFP_KERNEL, "Broadwell Socket#%d", mci->mc_idx);
 
 		/* Store pci devices at mci for faster access */
 		rc = broadwell_mci_bind_devs(mci, sbridge_dev);
 		if (unlikely(rc < 0))
 			goto fail0;
+		get_source_id(mci);
+		mci->ctl_name = kasprintf(GFP_KERNEL, "Broadwell SrcID#%d",
+			pvt->sbridge_dev->source_id);
 		break;
 	case KNIGHTS_LANDING:
 		/* pvt->info.rankcfgr == ??? */
@@ -3314,12 +3328,13 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.max_interleave = ARRAY_SIZE(knl_interleave_list);
 		pvt->info.interleave_pkg = ibridge_interleave_pkg;
 		pvt->info.get_width = knl_get_width;
-		mci->ctl_name = kasprintf(GFP_KERNEL,
-			"Knights Landing Socket#%d", mci->mc_idx);
 
 		rc = knl_mci_bind_devs(mci, sbridge_dev);
 		if (unlikely(rc < 0))
 			goto fail0;
+		get_source_id(mci);
+		mci->ctl_name = kasprintf(GFP_KERNEL, "Knights Landing SrcID#%d",
+			pvt->sbridge_dev->source_id);
 		break;
 	}
 
@@ -3334,13 +3349,14 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 	if (unlikely(edac_mc_add_mc(mci))) {
 		edac_dbg(0, "MC: failed edac_mc_add_mc()\n");
 		rc = -EINVAL;
-		goto fail0;
+		goto fail;
 	}
 
 	return 0;
 
-fail0:
+fail:
 	kfree(mci->ctl_name);
+fail0:
 	edac_mc_free(mci);
 	sbridge_dev->mci = NULL;
 	return rc;
