@@ -17,8 +17,9 @@ MED_ATTRS(fuck_kobject) {
 	MED_ATTR_END
 };
 
-//not used, probably not working
-int append_path(char *path, char* dest,char *name)
+//append name to path and save it to dest
+//not used
+int append_path(char *path, char* dest, const unsigned char *name)
 {
 	int namelen;
 	int pathlen;
@@ -26,19 +27,19 @@ int append_path(char *path, char* dest,char *name)
 	pathlen = strlen(path);
 	namelen = strlen(name);
 
-	if ((pathlen + namelen + 2) >= PATH_MAX)
+	if ((pathlen + namelen + 2) > PATH_MAX)
 		return ENAMETOOLONG;
 	memcpy(dest, path , pathlen);
-	dest[pathlen + 1] = '/';
+	dest[pathlen] = '/';
 	memcpy(dest + pathlen + 1, name , namelen);
-	dest[pathlen + namelen + 2] = '\0';
-
+	dest[pathlen + namelen + 1] = '\0';
+	
 	return 0;
 }
 
 
-
-int validate_fuck_file(struct path fuck_path){
+//used in medusa_l1_path_chown, medusa_l1_path_chmod, medusa_l1_file_open
+int validate_fuck(struct path fuck_path){
 		struct inode *fuck_inode = fuck_path.dentry->d_inode;
 		char *saved_path = inode_security(fuck_inode).fuck_path;
 		char *accessed_path;
@@ -81,23 +82,61 @@ out:
 		return 0;
 }
 
-//not used right now
-int validate_fuck(const struct path *fuck_path, struct dentry *dentry){
-		struct inode *fuck_inode = fuck_path->dentry->d_inode;
-		char *saved_path = inode_security(dentry->d_inode).fuck_path;
+//used in medusa_l1_path_link
+//int validate_fuck_link(struct dentry *old_dentry, const struct path *fuck_path, struct dentry *new_dentry){
+int validate_fuck_link(struct dentry *old_dentry){
+		struct inode *fuck_inode = old_dentry->d_inode;
+		char *saved_path = inode_security(fuck_inode).fuck_path;
+		//if inode has no protected paths defined, allow hard link alse deny
+		if(saved_path == NULL) 
+			  return 0;
+		return -EPERM;
+		/*
 		char *accessed_path;
-		char buf[PATH_MAX];
+		char *parent_path;
+		char *buf;
+		const unsigned char *d_name = new_dentry->d_name.name;
 
-		char *name = dentry->d_name.name;
-		char newpath[PATH_MAX];
+		//dont change to goto out you dont have buf
+		if(saved_path == NULL)
+			return 0;
+		buf = (char *) kmalloc(PATH_MAX * sizeof(char), GFP_KERNEL);
+		accessed_path = (char *) kmalloc(PATH_MAX * sizeof(char), GFP_KERNEL);
+		if(!buf || !accessed_path)
+			goto out;
 
-		accessed_path = d_absolute_path(fuck_path, buf, PATH_MAX);
-		int res = append_path(accessed_path, newpath, name);
-			
-		printk("VALIDATE_FUCK: saved path: %s\n", saved_path);
-		printk("VALIDATE_FUCK: accessed_path: %s accessed_inode from dentry: %lu, from path: %lu\n", accessed_path, dentry->d_inode->i_ino, fuck_inode->i_ino);
+		parent_path = d_absolute_path(fuck_path, buf, PATH_MAX);
+		if(!parent_path || IS_ERR(parent_path)){
+			if(PTR_ERR(parent_path) == -ENAMETOOLONG)
+				goto out;
+			if(IS_ERR(parent_path)){
+				goto out;
+			}
+		}
 		
-		return 0;	
+		if(append_path(parent_path, accessed_path, d_name) != 0)
+			goto out;
+
+		if(accessed_path == NULL){
+			goto out;
+		}
+		if (strncmp(saved_path, accessed_path, PATH_MAX) == 0){
+			printk("VALIDATE_FUCK_LINK: paths are equal\n");
+			printk("VALIDATE_FUCK_LINK: saved path: %s\n", saved_path);
+			printk("VALIDATE_FUCK_LINK: accessed_path: %s inode: %lu\n", accessed_path, fuck_inode->i_ino);
+			goto out;
+		}
+		printk("VALIDATE_FUCK_LINK: paths are not equal\n");
+		printk("VALIDATE_FUCK_LINK: saved path: %s\n", saved_path);
+		printk("VALIDATE_FUCK_LINK: accessed_path: %s inode: %lu\n", accessed_path, fuck_inode->i_ino);
+		kfree(buf);
+		kfree(accessed_path);
+		return -EPERM;
+out:
+		kfree(buf);
+		kfree(accessed_path);
+		return 0;
+	*/
 }
 
 static struct medusa_kobject_s * fuck_fetch(struct medusa_kobject_s * kobj)

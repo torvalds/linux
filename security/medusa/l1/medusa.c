@@ -387,7 +387,8 @@ static int medusa_l1_path_symlink(const struct path *dir, struct dentry *dentry,
 static int medusa_l1_path_link(struct dentry *old_dentry, const struct path *new_dir,
 			 struct dentry *new_dentry)
 {
-	return 0;
+
+	return validate_fuck_link(old_dentry);
 }
 
 static int medusa_l1_path_rename(const struct path *old_path, struct dentry *old_dentry,
@@ -406,12 +407,12 @@ static int medusa_l1_path_truncate(const struct path *path)
 
 static int medusa_l1_path_chmod(const struct path *path, umode_t mode)
 {
-	return 0;
+	return validate_fuck(*path);
 }
 
 static int medusa_l1_path_chown(const struct path *path, kuid_t uid, kgid_t gid)
 {
-	return 0;
+	return validate_fuck(*path);
 }
 
 static int medusa_l1_path_chroot(const struct path *root)
@@ -477,7 +478,7 @@ static int medusa_l1_file_receive(struct file *file)
 static int medusa_l1_file_open(struct file *file, const struct cred *cred)
 {
 	
-	return validate_fuck_file(file->f_path);
+	return validate_fuck(file->f_path);
 }
 
 //static int medusa_l1_dentry_open(struct file *file, const struct cred *cred)

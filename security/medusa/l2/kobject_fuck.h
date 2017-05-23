@@ -12,8 +12,9 @@
 
 #define inode_security(inode) (*(struct medusa_l1_inode_s*)(inode->i_security))
 
-int validate_fuck(const struct path *fuck_path, struct dentry *dentry);
-extern int validate_fuck_file(struct path fuck_path);
+//int validate_fuck_link(struct dentry *old_dentry, const struct path *fuck_path, struct dentry *new_dentry);
+int validate_fuck_link(struct dentry *old_dentry);
+int validate_fuck(struct path fuck_path);
 
 
 struct fuck_kobject {	
