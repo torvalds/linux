@@ -509,6 +509,11 @@ static int addr_resolve(struct sockaddr *src_in,
 	struct dst_entry *dst;
 	int ret;
 
+	if (!addr->net) {
+		pr_warn_ratelimited("%s: missing namespace\n", __func__);
+		return -EINVAL;
+	}
+
 	if (src_in->sa_family == AF_INET) {
 		struct rtable *rt = NULL;
 		const struct sockaddr_in *dst_in4 =
@@ -546,7 +551,6 @@ static int addr_resolve(struct sockaddr *src_in,
 	}
 
 	addr->bound_dev_if = ndev->ifindex;
-	addr->net = dev_net(ndev);
 	dev_put(ndev);
 
 	return ret;
