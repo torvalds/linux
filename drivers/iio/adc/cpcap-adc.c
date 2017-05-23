@@ -88,7 +88,7 @@
 #define ST_ADC_CAL_BATTI_LOW_THRESHOLD	494
 #define ST_ADC_CALIBRATE_DIFF_THRESHOLD	3
 
-#define CPCAP_ADC_MAX_RETRIES		5	/* Calibration and quirk */
+#define CPCAP_ADC_MAX_RETRIES		5	/* Calibration */
 
 /**
  * struct cpcap_adc_ato - timing settings for cpcap adc
@@ -634,27 +634,6 @@ static void cpcap_adc_setup_bank(struct cpcap_adc *ddata,
 	}
 }
 
-/*
- * Occasionally the ADC does not seem to start and there will be no
- * interrupt. Let's re-init interrupt to prevent the ADC from hanging
- * for the next request. It is unclear why this happens, but the next
- * request will usually work after doing this.
- */
-static void cpcap_adc_quirk_reset_lost_irq(struct cpcap_adc *ddata)
-{
-	int error;
-
-	dev_info(ddata->dev, "lost ADC irq, attempting to reinit\n");
-	disable_irq(ddata->irq);
-	error = regmap_update_bits(ddata->reg, CPCAP_REG_ADCC2,
-				   CPCAP_BIT_ADTRIG_DIS,
-				   CPCAP_BIT_ADTRIG_DIS);
-	if (error)
-		dev_warn(ddata->dev, "%s reset failed: %i\n",
-			 __func__, error);
-	enable_irq(ddata->irq);
-}
-
 static int cpcap_adc_start_bank(struct cpcap_adc *ddata,
 				struct cpcap_adc_request *req)
 {
@@ -672,7 +651,6 @@ static int cpcap_adc_start_bank(struct cpcap_adc *ddata,
 			return 0;
 
 		if (error == 0) {
-			cpcap_adc_quirk_reset_lost_irq(ddata);
 			error = -ETIMEDOUT;
 			continue;
 		}
