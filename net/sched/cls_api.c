@@ -300,7 +300,8 @@ int tcf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 	__be16 protocol = tc_skb_protocol(skb);
 #ifdef CONFIG_NET_CLS_ACT
 	const int max_reclassify_loop = 4;
-	const struct tcf_proto *old_tp = tp;
+	const struct tcf_proto *orig_tp = tp;
+	const struct tcf_proto *first_tp;
 	int limit = 0;
 
 reclassify:
@@ -315,9 +316,10 @@ reclassify:
 		err = tp->classify(skb, tp, res);
 #ifdef CONFIG_NET_CLS_ACT
 		if (unlikely(err == TC_ACT_RECLASSIFY && !compat_mode)) {
+			first_tp = orig_tp;
 			goto reset;
 		} else if (unlikely(TC_ACT_EXT_CMP(err, TC_ACT_GOTO_CHAIN))) {
-			old_tp = res->goto_tp;
+			first_tp = res->goto_tp;
 			goto reset;
 		}
 #endif
@@ -335,7 +337,7 @@ reset:
 		return TC_ACT_SHOT;
 	}
 
-	tp = old_tp;
+	tp = first_tp;
 	protocol = tc_skb_protocol(skb);
 	goto reclassify;
 #endif
