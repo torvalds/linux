@@ -1249,12 +1249,8 @@ int iscsit_process_scsi_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 	 * execution.  These exceptions are processed in CmdSN order using
 	 * iscsit_check_received_cmdsn() in iscsit_get_immediate_data() below.
 	 */
-	if (cmd->sense_reason) {
-		if (cmd->reject_reason)
-			return 0;
-
+	if (cmd->sense_reason)
 		return 1;
-	}
 	/*
 	 * Call directly into transport_generic_new_cmd() to perform
 	 * the backend memory allocation.
