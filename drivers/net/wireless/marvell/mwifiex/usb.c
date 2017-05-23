@@ -363,6 +363,7 @@ static void mwifiex_usb_free(struct usb_card_rec *card)
 	for (i = 0; i < MWIFIEX_TX_DATA_PORT; i++) {
 		port = &card->port[i];
 		for (j = 0; j < MWIFIEX_TX_DATA_URB; j++) {
+			usb_kill_urb(port->tx_data_list[j].urb);
 			usb_free_urb(port->tx_data_list[j].urb);
 			port->tx_data_list[j].urb = NULL;
 		}
