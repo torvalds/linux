@@ -423,6 +423,31 @@ static bool acpi_get_driver_gpio_data(struct acpi_device *adev,
 	return false;
 }
 
+static enum gpiod_flags
+acpi_gpio_to_gpiod_flags(const struct acpi_resource_gpio *agpio)
+{
+	bool pull_up = agpio->pin_config == ACPI_PIN_CONFIG_PULLUP;
+
+	switch (agpio->io_restriction) {
+	case ACPI_IO_RESTRICT_INPUT:
+		return GPIOD_IN;
+	case ACPI_IO_RESTRICT_OUTPUT:
+		/*
+		 * ACPI GPIO resources don't contain an initial value for the
+		 * GPIO. Therefore we deduce that value from the pull field
+		 * instead. If the pin is pulled up we assume default to be
+		 * high, otherwise low.
+		 */
+		return pull_up ? GPIOD_OUT_HIGH : GPIOD_OUT_LOW;
+	default:
+		/*
+		 * Assume that the BIOS has configured the direction and pull
+		 * accordingly.
+		 */
+		return GPIOD_ASIS;
+	}
+}
+
 struct acpi_gpio_lookup {
 	struct acpi_gpio_info info;
 	int index;
@@ -740,7 +765,6 @@ acpi_gpio_adr_space_handler(u32 function, acpi_physical_address address,
 	struct acpi_resource *ares;
 	int pin_index = (int)address;
 	acpi_status status;
-	bool pull_up;
 	int length;
 	int i;
 
@@ -755,7 +779,6 @@ acpi_gpio_adr_space_handler(u32 function, acpi_physical_address address,
 	}
 
 	agpio = &ares->data.gpio;
-	pull_up = agpio->pin_config == ACPI_PIN_CONFIG_PULLUP;
 
 	if (WARN_ON(agpio->io_restriction == ACPI_IO_RESTRICT_INPUT &&
 	    function == ACPI_WRITE)) {
@@ -806,35 +829,23 @@ acpi_gpio_adr_space_handler(u32 function, acpi_physical_address address,
 		}
 
 		if (!found) {
-			desc = gpiochip_request_own_desc(chip, pin,
-							 "ACPI:OpRegion");
+			enum gpiod_flags flags = acpi_gpio_to_gpiod_flags(agpio);
+			const char *label = "ACPI:OpRegion";
+			int err;
+
+			desc = gpiochip_request_own_desc(chip, pin, label);
 			if (IS_ERR(desc)) {
 				status = AE_ERROR;
 				mutex_unlock(&achip->conn_lock);
 				goto out;
 			}
 
-			switch (agpio->io_restriction) {
-			case ACPI_IO_RESTRICT_INPUT:
-				gpiod_direction_input(desc);
-				break;
-			case ACPI_IO_RESTRICT_OUTPUT:
-				/*
-				 * ACPI GPIO resources don't contain an
-				 * initial value for the GPIO. Therefore we
-				 * deduce that value from the pull field
-				 * instead. If the pin is pulled up we
-				 * assume default to be high, otherwise
-				 * low.
-				 */
-				gpiod_direction_output(desc, pull_up);
-				break;
-			default:
-				/*
-				 * Assume that the BIOS has configured the
-				 * direction and pull accordingly.
-				 */
-				break;
+			err = gpiod_configure_flags(desc, label, 0, flags);
+			if (err < 0) {
+				status = AE_NOT_CONFIGURED;
+				gpiochip_free_own_desc(desc);
+				mutex_unlock(&achip->conn_lock);
+				goto out;
 			}
 
 			conn = kzalloc(sizeof(*conn), GFP_KERNEL);
