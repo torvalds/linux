@@ -180,6 +180,7 @@ struct dc_debug {
 	bool disable_pplib_clock_request;
 	bool disable_clock_gate;
 	bool disable_dmcu;
+	bool disable_psr;
 	bool force_abm_enable;
 };
 
