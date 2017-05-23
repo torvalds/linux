@@ -16,6 +16,7 @@ obj-$(CONFIG_ARCH_TEGRA)		+= tegra/
 obj-y					+= broadcom/	\
 					   hisilicon/	\
 					   marvell/	\
+					   motorola/	\
 					   qualcomm/	\
 					   samsung/	\
 					   st/		\

@@ -1,0 +1,11 @@
+#
+# Phy drivers for Motorola devices
+#
+config PHY_CPCAP_USB
+	tristate "CPCAP PMIC USB PHY driver"
+	depends on USB_SUPPORT && IIO
+	select GENERIC_PHY
+	select USB_PHY
+	help
+	  Enable this for USB to work on Motorola phones and tablets
+	  such as Droid 4.
