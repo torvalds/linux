@@ -2414,6 +2414,35 @@ u8 *ieee80211_ie_build_ht_oper(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
 	return pos + sizeof(struct ieee80211_ht_operation);
 }
 
+void ieee80211_ie_build_wide_bw_cs(u8 *pos,
+				   const struct cfg80211_chan_def *chandef)
+{
+	*pos++ = WLAN_EID_WIDE_BW_CHANNEL_SWITCH;	/* EID */
+	*pos++ = 3;					/* IE length */
+	/* New channel width */
+	switch (chandef->width) {
+	case NL80211_CHAN_WIDTH_80:
+		*pos++ = IEEE80211_VHT_CHANWIDTH_80MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_160:
+		*pos++ = IEEE80211_VHT_CHANWIDTH_160MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_80P80:
+		*pos++ = IEEE80211_VHT_CHANWIDTH_80P80MHZ;
+		break;
+	default:
+		*pos++ = IEEE80211_VHT_CHANWIDTH_USE_HT;
+	}
+
+	/* new center frequency segment 0 */
+	*pos++ = ieee80211_frequency_to_channel(chandef->center_freq1);
+	/* new center frequency segment 1 */
+	if (chandef->center_freq2)
+		*pos++ = ieee80211_frequency_to_channel(chandef->center_freq2);
+	else
+		*pos++ = 0;
+}
+
 u8 *ieee80211_ie_build_vht_oper(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 				const struct cfg80211_chan_def *chandef)
 {
@@ -2964,6 +2993,7 @@ int ieee80211_send_action_csa(struct ieee80211_sub_if_data *sdata,
 	skb = dev_alloc_skb(local->tx_headroom + hdr_len +
 			    5 + /* channel switch announcement element */
 			    3 + /* secondary channel offset element */
+			    5 + /* wide bandwidth channel switch announcement */
 			    8); /* mesh channel switch parameters element */
 	if (!skb)
 		return -ENOMEM;
@@ -3020,6 +3050,13 @@ int ieee80211_send_action_csa(struct ieee80211_sub_if_data *sdata,
 		pos += 2;
 		put_unaligned_le16(ifmsh->pre_value, pos);/* Precedence Value */
 		pos += 2;
+	}
+
+	if (csa_settings->chandef.width == NL80211_CHAN_WIDTH_80 ||
+	    csa_settings->chandef.width == NL80211_CHAN_WIDTH_80P80 ||
+	    csa_settings->chandef.width == NL80211_CHAN_WIDTH_160) {
+		skb_put(skb, 5);
+		ieee80211_ie_build_wide_bw_cs(pos, &csa_settings->chandef);
 	}
 
 	ieee80211_tx_skb(sdata, skb);
