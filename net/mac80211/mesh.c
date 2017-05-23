@@ -989,12 +989,14 @@ ieee80211_mesh_process_chnswitch(struct ieee80211_sub_if_data *sdata,
 	if (!sband)
 		return false;
 
-	sta_flags = IEEE80211_STA_DISABLE_VHT;
+	sta_flags = 0;
 	switch (sdata->vif.bss_conf.chandef.width) {
 	case NL80211_CHAN_WIDTH_20_NOHT:
 		sta_flags |= IEEE80211_STA_DISABLE_HT;
 	case NL80211_CHAN_WIDTH_20:
 		sta_flags |= IEEE80211_STA_DISABLE_40MHZ;
+	case NL80211_CHAN_WIDTH_40:
+		sta_flags |= IEEE80211_STA_DISABLE_VHT;
 		break;
 	default:
 		break;
