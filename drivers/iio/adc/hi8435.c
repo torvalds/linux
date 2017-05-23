@@ -410,11 +410,11 @@ static const struct iio_chan_spec hi8435_channels[] = {
 static const struct iio_info hi8435_info = {
 	.driver_module = THIS_MODULE,
 	.read_raw = hi8435_read_raw,
-	.read_event_config = &hi8435_read_event_config,
+	.read_event_config = hi8435_read_event_config,
 	.write_event_config = hi8435_write_event_config,
-	.read_event_value = &hi8435_read_event_value,
-	.write_event_value = &hi8435_write_event_value,
-	.debugfs_reg_access = &hi8435_debugfs_reg_access,
+	.read_event_value = hi8435_read_event_value,
+	.write_event_value = hi8435_write_event_value,
+	.debugfs_reg_access = hi8435_debugfs_reg_access,
 };
 
 static void hi8435_iio_push_event(struct iio_dev *idev, unsigned int val)
