@@ -751,7 +751,6 @@ struct intel_csr {
 	func(has_aliasing_ppgtt); \
 	func(has_csr); \
 	func(has_ddi); \
-	func(has_decoupled_mmio); \
 	func(has_dp_mst); \
 	func(has_fbc); \
 	func(has_fpga_dbg); \
@@ -2994,8 +2993,6 @@ intel_info(const struct drm_i915_private *dev_priv)
 
 #define GT_FREQUENCY_MULTIPLIER 50
 #define GEN9_FREQ_SCALER 3
-
-#define HAS_DECOUPLED_MMIO(dev_priv) (INTEL_INFO(dev_priv)->has_decoupled_mmio)
 
 #include "i915_trace.h"
 

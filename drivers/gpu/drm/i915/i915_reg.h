@@ -7792,13 +7792,6 @@ enum {
 #define  SKL_FUSE_PG1_DIST_STATUS              (1<<26)
 #define  SKL_FUSE_PG2_DIST_STATUS              (1<<25)
 
-/* Decoupled MMIO register pair for kernel driver */
-#define GEN9_DECOUPLED_REG0_DW0			_MMIO(0xF00)
-#define GEN9_DECOUPLED_REG0_DW1			_MMIO(0xF04)
-#define GEN9_DECOUPLED_DW1_GO			(1<<31)
-#define GEN9_DECOUPLED_PD_SHIFT			28
-#define GEN9_DECOUPLED_OP_SHIFT			24
-
 /* Per-pipe DDI Function Control */
 #define _TRANS_DDI_FUNC_CTL_A		0x60400
 #define _TRANS_DDI_FUNC_CTL_B		0x61400
