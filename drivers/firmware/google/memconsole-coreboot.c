@@ -26,7 +26,7 @@
 
 /* CBMEM firmware console log descriptor. */
 struct cbmem_cons {
-	u32 size;
+	u32 size_dont_access_after_boot;
 	u32 cursor;
 	u8  body[0];
 } __packed;
@@ -35,6 +35,7 @@ struct cbmem_cons {
 #define OVERFLOW (1 << 31)
 
 static struct cbmem_cons __iomem *cbmem_console;
+static u32 cbmem_console_size;
 
 /*
  * The cbmem_console structure is read again on every access because it may
@@ -47,7 +48,7 @@ static ssize_t memconsole_coreboot_read(char *buf, loff_t pos, size_t count)
 {
 	u32 cursor = cbmem_console->cursor & CURSOR_MASK;
 	u32 flags = cbmem_console->cursor & ~CURSOR_MASK;
-	u32 size = cbmem_console->size;
+	u32 size = cbmem_console_size;
 	struct seg {	/* describes ring buffer segments in logical order */
 		u32 phys;	/* physical offset from start of mem buffer */
 		u32 len;	/* length of segment */
@@ -81,8 +82,10 @@ static int memconsole_coreboot_init(phys_addr_t physaddr)
 	if (!tmp_cbmc)
 		return -ENOMEM;
 
+	/* Read size only once to prevent overrun attack through /dev/mem. */
+	cbmem_console_size = tmp_cbmc->size_dont_access_after_boot;
 	cbmem_console = memremap(physaddr,
-				 tmp_cbmc->size + sizeof(*cbmem_console),
+				 cbmem_console_size + sizeof(*cbmem_console),
 				 MEMREMAP_WB);
 	memunmap(tmp_cbmc);
 
