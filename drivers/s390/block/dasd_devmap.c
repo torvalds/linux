@@ -748,13 +748,22 @@ static ssize_t
 dasd_ro_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct dasd_devmap *devmap;
-	int ro_flag;
+	struct dasd_device *device;
+	int ro_flag = 0;
 
 	devmap = dasd_find_busid(dev_name(dev));
-	if (!IS_ERR(devmap))
-		ro_flag = (devmap->features & DASD_FEATURE_READONLY) != 0;
-	else
-		ro_flag = (DASD_FEATURE_DEFAULT & DASD_FEATURE_READONLY) != 0;
+	if (IS_ERR(devmap))
+		goto out;
+
+	ro_flag = !!(devmap->features & DASD_FEATURE_READONLY);
+
+	spin_lock(&dasd_devmap_lock);
+	device = devmap->device;
+	if (device)
+		ro_flag |= test_bit(DASD_FLAG_DEVICE_RO, &device->flags);
+	spin_unlock(&dasd_devmap_lock);
+
+out:
 	return snprintf(buf, PAGE_SIZE, ro_flag ? "1\n" : "0\n");
 }
 
