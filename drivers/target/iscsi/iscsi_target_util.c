@@ -167,6 +167,7 @@ struct iscsi_cmd *iscsit_allocate_cmd(struct iscsi_conn *conn, int state)
 
 	cmd->se_cmd.map_tag = tag;
 	cmd->conn = conn;
+	cmd->data_direction = DMA_NONE;
 	INIT_LIST_HEAD(&cmd->i_conn_node);
 	INIT_LIST_HEAD(&cmd->datain_list);
 	INIT_LIST_HEAD(&cmd->cmd_r2t_list);
@@ -711,19 +712,16 @@ void iscsit_release_cmd(struct iscsi_cmd *cmd)
 }
 EXPORT_SYMBOL(iscsit_release_cmd);
 
-void __iscsit_free_cmd(struct iscsi_cmd *cmd, bool scsi_cmd,
-		       bool check_queues)
+void __iscsit_free_cmd(struct iscsi_cmd *cmd, bool check_queues)
 {
 	struct iscsi_conn *conn = cmd->conn;
 
-	if (scsi_cmd) {
-		if (cmd->data_direction == DMA_TO_DEVICE) {
-			iscsit_stop_dataout_timer(cmd);
-			iscsit_free_r2ts_from_list(cmd);
-		}
-		if (cmd->data_direction == DMA_FROM_DEVICE)
-			iscsit_free_all_datain_reqs(cmd);
+	if (cmd->data_direction == DMA_TO_DEVICE) {
+		iscsit_stop_dataout_timer(cmd);
+		iscsit_free_r2ts_from_list(cmd);
 	}
+	if (cmd->data_direction == DMA_FROM_DEVICE)
+		iscsit_free_all_datain_reqs(cmd);
 
 	if (conn && check_queues) {
 		iscsit_remove_cmd_from_immediate_queue(cmd, conn);
@@ -738,23 +736,22 @@ void iscsit_free_cmd(struct iscsi_cmd *cmd, bool shutdown)
 {
 	struct se_cmd *se_cmd = NULL;
 	int rc;
-	bool op_scsi = false;
+
 	/*
 	 * Determine if a struct se_cmd is associated with
 	 * this struct iscsi_cmd.
 	 */
 	switch (cmd->iscsi_opcode) {
 	case ISCSI_OP_SCSI_CMD:
-		op_scsi = true;
 		/*
 		 * Fallthrough
 		 */
 	case ISCSI_OP_SCSI_TMFUNC:
 		se_cmd = &cmd->se_cmd;
-		__iscsit_free_cmd(cmd, op_scsi, shutdown);
+		__iscsit_free_cmd(cmd, shutdown);
 		rc = transport_generic_free_cmd(se_cmd, shutdown);
 		if (!rc && shutdown && se_cmd->se_sess) {
-			__iscsit_free_cmd(cmd, op_scsi, shutdown);
+			__iscsit_free_cmd(cmd, shutdown);
 			target_put_sess_cmd(se_cmd);
 		}
 		break;
@@ -766,18 +763,18 @@ void iscsit_free_cmd(struct iscsi_cmd *cmd, bool shutdown)
 		 */
 		if (cmd->se_cmd.se_tfo != NULL) {
 			se_cmd = &cmd->se_cmd;
-			__iscsit_free_cmd(cmd, true, shutdown);
+			__iscsit_free_cmd(cmd, shutdown);
 
 			rc = transport_generic_free_cmd(&cmd->se_cmd, shutdown);
 			if (!rc && shutdown && se_cmd->se_sess) {
-				__iscsit_free_cmd(cmd, true, shutdown);
+				__iscsit_free_cmd(cmd, shutdown);
 				target_put_sess_cmd(se_cmd);
 			}
 			break;
 		}
 		/* Fall-through */
 	default:
-		__iscsit_free_cmd(cmd, false, shutdown);
+		__iscsit_free_cmd(cmd, shutdown);
 		iscsit_release_cmd(cmd);
 		break;
 	}
