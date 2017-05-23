@@ -180,3 +180,7 @@
 &usb_otg {
 	status = "okay";
 };
+
+&rockchip_suspend {
+	status = "okay";
+};
