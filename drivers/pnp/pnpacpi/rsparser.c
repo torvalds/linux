@@ -149,8 +149,8 @@ static int vendor_resource_matches(struct pnp_dev *dev,
 	    uuid_len == sizeof(match->data) &&
 	    memcmp(uuid, match->data, uuid_len) == 0) {
 		if (expected_len && expected_len != actual_len) {
-			dev_err(&dev->dev, "wrong vendor descriptor size; "
-				"expected %d, found %d bytes\n",
+			dev_err(&dev->dev,
+				"wrong vendor descriptor size; expected %d, found %d bytes\n",
 				expected_len, actual_len);
 			return 0;
 		}
@@ -204,9 +204,8 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 			 * one interrupt, we won't be able to re-encode it.
 			 */
 			if (pnp_can_write(dev)) {
-				dev_warn(&dev->dev, "multiple interrupts in "
-					 "_CRS descriptor; configuration can't "
-					 "be changed\n");
+				dev_warn(&dev->dev,
+					 "multiple interrupts in _CRS descriptor; configuration can't be changed\n");
 				dev->capabilities &= ~PNP_WRITE;
 			}
 		}
@@ -347,8 +346,8 @@ static __init void pnpacpi_parse_ext_irq_option(struct pnp_dev *dev,
 			if (p->interrupts[i] < PNP_IRQ_NR)
 				__set_bit(p->interrupts[i], map.bits);
 			else
-				dev_err(&dev->dev, "ignoring IRQ %d option "
-					"(too large for %d entry bitmap)\n",
+				dev_err(&dev->dev,
+					"ignoring IRQ %d option (too large for %d entry bitmap)\n",
 					p->interrupts[i], PNP_IRQ_NR);
 		}
 	}
@@ -949,8 +948,9 @@ int pnpacpi_encode_resources(struct pnp_dev *dev, struct acpi_buffer *buffer)
 		case ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64:
 		case ACPI_RESOURCE_TYPE_GENERIC_REGISTER:
 		default:	/* other type */
-			dev_warn(&dev->dev, "can't encode unknown resource "
-				 "type %d\n", resource->type);
+			dev_warn(&dev->dev,
+				 "can't encode unknown resource type %d\n",
+				 resource->type);
 			return -EINVAL;
 		}
 		resource++;
