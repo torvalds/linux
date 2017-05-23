@@ -2300,14 +2300,25 @@ static int qed_tunn_configure(struct qed_dev *cdev,
 
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *hwfn = &cdev->hwfns[i];
+		struct qed_ptt *p_ptt;
 		struct qed_tunnel_info *tun;
 
 		tun = &hwfn->cdev->tunnel;
+		if (IS_PF(cdev)) {
+			p_ptt = qed_ptt_acquire(hwfn);
+			if (!p_ptt)
+				return -EAGAIN;
+		} else {
+			p_ptt = NULL;
+		}
 
-		rc = qed_sp_pf_update_tunn_cfg(hwfn, &tunn_info,
+		rc = qed_sp_pf_update_tunn_cfg(hwfn, p_ptt, &tunn_info,
 					       QED_SPQ_MODE_EBLOCK, NULL);
-		if (rc)
+		if (rc) {
+			if (IS_PF(cdev))
+				qed_ptt_release(hwfn, p_ptt);
 			return rc;
+		}
 
 		if (IS_PF_SRIOV(hwfn)) {
 			u16 vxlan_port, geneve_port;
@@ -2324,6 +2335,8 @@ static int qed_tunn_configure(struct qed_dev *cdev,
 
 			qed_schedule_iov(hwfn, QED_IOV_WQ_BULLETIN_UPDATE_FLAG);
 		}
+		if (IS_PF(cdev))
+			qed_ptt_release(hwfn, p_ptt);
 	}
 
 	return 0;
