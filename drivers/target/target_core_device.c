@@ -1091,19 +1091,19 @@ passthrough_parse_cdb(struct se_cmd *cmd,
 	      TRANSPORT_FLAG_PASSTHROUGH_PGR)) {
 		if (cdb[0] == PERSISTENT_RESERVE_IN) {
 			cmd->execute_cmd = target_scsi3_emulate_pr_in;
-			size = (cdb[7] << 8) + cdb[8];
+			size = get_unaligned_be16(&cdb[7]);
 			return target_cmd_size_check(cmd, size);
 		}
 		if (cdb[0] == PERSISTENT_RESERVE_OUT) {
 			cmd->execute_cmd = target_scsi3_emulate_pr_out;
-			size = (cdb[7] << 8) + cdb[8];
+			size = get_unaligned_be16(&cdb[7]);
 			return target_cmd_size_check(cmd, size);
 		}
 
 		if (cdb[0] == RELEASE || cdb[0] == RELEASE_10) {
 			cmd->execute_cmd = target_scsi2_reservation_release;
 			if (cdb[0] == RELEASE_10)
-				size = (cdb[7] << 8) | cdb[8];
+				size = get_unaligned_be16(&cdb[7]);
 			else
 				size = cmd->data_length;
 			return target_cmd_size_check(cmd, size);
@@ -1111,7 +1111,7 @@ passthrough_parse_cdb(struct se_cmd *cmd,
 		if (cdb[0] == RESERVE || cdb[0] == RESERVE_10) {
 			cmd->execute_cmd = target_scsi2_reservation_reserve;
 			if (cdb[0] == RESERVE_10)
-				size = (cdb[7] << 8) | cdb[8];
+				size = get_unaligned_be16(&cdb[7]);
 			else
 				size = cmd->data_length;
 			return target_cmd_size_check(cmd, size);

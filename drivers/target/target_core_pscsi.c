@@ -168,7 +168,7 @@ static void pscsi_tape_read_blocksize(struct se_device *dev,
 	/*
 	 * If MODE_SENSE still returns zero, set the default value to 1024.
 	 */
-	sdev->sector_size = (buf[9] << 16) | (buf[10] << 8) | (buf[11]);
+	sdev->sector_size = get_unaligned_be24(&buf[9]);
 out_free:
 	if (!sdev->sector_size)
 		sdev->sector_size = 1024;
@@ -209,8 +209,7 @@ pscsi_get_inquiry_vpd_serial(struct scsi_device *sdev, struct t10_wwn *wwn)
 	cdb[0] = INQUIRY;
 	cdb[1] = 0x01; /* Query VPD */
 	cdb[2] = 0x80; /* Unit Serial Number */
-	cdb[3] = (INQUIRY_VPD_SERIAL_LEN >> 8) & 0xff;
-	cdb[4] = (INQUIRY_VPD_SERIAL_LEN & 0xff);
+	put_unaligned_be16(INQUIRY_VPD_SERIAL_LEN, &cdb[3]);
 
 	ret = scsi_execute_req(sdev, cdb, DMA_FROM_DEVICE, buf,
 			      INQUIRY_VPD_SERIAL_LEN, NULL, HZ, 1, NULL);
@@ -245,8 +244,7 @@ pscsi_get_inquiry_vpd_device_ident(struct scsi_device *sdev,
 	cdb[0] = INQUIRY;
 	cdb[1] = 0x01; /* Query VPD */
 	cdb[2] = 0x83; /* Device Identifier */
-	cdb[3] = (INQUIRY_VPD_DEVICE_IDENTIFIER_LEN >> 8) & 0xff;
-	cdb[4] = (INQUIRY_VPD_DEVICE_IDENTIFIER_LEN & 0xff);
+	put_unaligned_be16(INQUIRY_VPD_DEVICE_IDENTIFIER_LEN, &cdb[3]);
 
 	ret = scsi_execute_req(sdev, cdb, DMA_FROM_DEVICE, buf,
 			      INQUIRY_VPD_DEVICE_IDENTIFIER_LEN,
@@ -254,7 +252,7 @@ pscsi_get_inquiry_vpd_device_ident(struct scsi_device *sdev,
 	if (ret)
 		goto out;
 
-	page_len = (buf[2] << 8) | buf[3];
+	page_len = get_unaligned_be16(&buf[2]);
 	while (page_len > 0) {
 		/* Grab a pointer to the Identification descriptor */
 		page_83 = &buf[off];
@@ -669,19 +667,17 @@ after_mode_sense:
 		}
 
 		if (cdb[0] == MODE_SELECT)
-			bdl = (buf[3]);
+			bdl = buf[3];
 		else
-			bdl = (buf[6] << 8) | (buf[7]);
+			bdl = get_unaligned_be16(&buf[6]);
 
 		if (!bdl)
 			goto after_mode_select;
 
 		if (cdb[0] == MODE_SELECT)
-			blocksize = (buf[9] << 16) | (buf[10] << 8) |
-					(buf[11]);
+			blocksize = get_unaligned_be24(&buf[9]);
 		else
-			blocksize = (buf[13] << 16) | (buf[14] << 8) |
-					(buf[15]);
+			blocksize = get_unaligned_be24(&buf[13]);
 
 		sd->sector_size = blocksize;
 	}
