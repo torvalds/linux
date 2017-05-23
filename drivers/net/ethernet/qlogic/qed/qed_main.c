@@ -606,6 +606,18 @@ int qed_slowpath_irq_req(struct qed_hwfn *hwfn)
 	return rc;
 }
 
+static void qed_slowpath_tasklet_flush(struct qed_hwfn *p_hwfn)
+{
+	/* Calling the disable function will make sure that any
+	 * currently-running function is completed. The following call to the
+	 * enable function makes this sequence a flush-like operation.
+	 */
+	if (p_hwfn->b_sp_dpc_enabled) {
+		tasklet_disable(p_hwfn->sp_dpc);
+		tasklet_enable(p_hwfn->sp_dpc);
+	}
+}
+
 void qed_slowpath_irq_sync(struct qed_hwfn *p_hwfn)
 {
 	struct qed_dev *cdev = p_hwfn->cdev;
@@ -617,6 +629,8 @@ void qed_slowpath_irq_sync(struct qed_hwfn *p_hwfn)
 		synchronize_irq(cdev->int_params.msix_table[id].vector);
 	else
 		synchronize_irq(cdev->pdev->irq);
+
+	qed_slowpath_tasklet_flush(p_hwfn);
 }
 
 static void qed_slowpath_irq_free(struct qed_dev *cdev)
