@@ -218,7 +218,6 @@ static int tcm_loop_issue_tmr(struct tcm_loop_tpg *tl_tpg,
 {
 	struct se_cmd *se_cmd = NULL;
 	struct se_session *se_sess;
-	struct se_portal_group *se_tpg;
 	struct tcm_loop_nexus *tl_nexus;
 	struct tcm_loop_cmd *tl_cmd = NULL;
 	int ret = TMR_FUNCTION_FAILED, rc;
@@ -242,40 +241,15 @@ static int tcm_loop_issue_tmr(struct tcm_loop_tpg *tl_tpg,
 	init_completion(&tl_cmd->tmr_done);
 
 	se_cmd = &tl_cmd->tl_se_cmd;
-	se_tpg = &tl_tpg->tl_se_tpg;
 	se_sess = tl_tpg->tl_nexus->se_sess;
-	/*
-	 * Initialize struct se_cmd descriptor from target_core_mod infrastructure
-	 */
-	transport_init_se_cmd(se_cmd, se_tpg->se_tpg_tfo, se_sess, 0,
-				DMA_NONE, TCM_SIMPLE_TAG,
-				&tl_cmd->tl_sense_buf[0]);
 
-	rc = core_tmr_alloc_req(se_cmd, NULL, tmr, GFP_KERNEL);
+	rc = target_submit_tmr(se_cmd, se_sess, tl_cmd->tl_sense_buf, lun,
+			       NULL, tmr, GFP_KERNEL, task, 0 /*flags*/);
 	if (rc < 0)
 		goto release;
-
-	if (tmr == TMR_ABORT_TASK)
-		se_cmd->se_tmr_req->ref_task_tag = task;
-
-	/*
-	 * Locate the underlying TCM struct se_lun
-	 */
-	if (transport_lookup_tmr_lun(se_cmd, lun) < 0) {
-		ret = TMR_LUN_DOES_NOT_EXIST;
-		goto release;
-	}
-	/*
-	 * Queue the TMR to TCM Core and sleep waiting for
-	 * tcm_loop_queue_tm_rsp() to wake us up.
-	 */
-	transport_generic_handle_tmr(se_cmd);
 	wait_for_completion(&tl_cmd->tmr_done);
-	/*
-	 * The TMR LUN_RESET has completed, check the response status and
-	 * then release allocations.
-	 */
 	ret = se_cmd->se_tmr_req->response;
+
 release:
 	if (se_cmd)
 		transport_generic_free_cmd(se_cmd, 1);
