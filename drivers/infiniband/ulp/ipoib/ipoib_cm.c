@@ -954,7 +954,7 @@ void ipoib_cm_dev_stop(struct net_device *dev)
 			break;
 		}
 		spin_unlock_irq(&priv->lock);
-		msleep(1);
+		usleep_range(1000, 2000);
 		ipoib_drain_cq(dev);
 		spin_lock_irq(&priv->lock);
 	}
@@ -1206,7 +1206,7 @@ static void ipoib_cm_tx_destroy(struct ipoib_cm_tx *p)
 				goto timeout;
 			}
 
-			msleep(1);
+			usleep_range(1000, 2000);
 		}
 	}
 

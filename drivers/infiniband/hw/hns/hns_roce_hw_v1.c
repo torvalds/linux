@@ -995,7 +995,8 @@ static void hns_roce_v1_mr_free_work_fn(struct work_struct *work)
 			goto free_work;
 		}
 		ne -= ret;
-		msleep(HNS_ROCE_V1_FREE_MR_WAIT_VALUE);
+		usleep_range(HNS_ROCE_V1_FREE_MR_WAIT_VALUE * 1000,
+			     (1 + HNS_ROCE_V1_FREE_MR_WAIT_VALUE) * 1000);
 	} while (ne && time_before_eq(jiffies, end));
 
 	if (ne != 0)
