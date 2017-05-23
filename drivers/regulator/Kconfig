@@ -365,6 +365,14 @@ config REGULATOR_LP8755
 	  chip contains six step-down DC/DC converters which can support
 	  9 mode multiphase configuration.
 
+config REGULATOR_LP87565
+	tristate "TI LP87565 Power regulators"
+	depends on MFD_TI_LP87565 && OF
+	help
+	  This driver supports LP87565 voltage regulator chips. LP87565
+	  provides four step-down converters. It supports software based
+	  voltage control for different voltage domains
+
 config REGULATOR_LP8788
 	tristate "TI LP8788 Power Regulators"
 	depends on MFD_LP8788
