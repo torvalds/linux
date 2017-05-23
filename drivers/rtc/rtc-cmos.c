@@ -1088,7 +1088,7 @@ static u32 rtc_handler(void *context)
 	}
 	spin_unlock_irqrestore(&rtc_lock, flags);
 
-	pm_wakeup_event(dev, 0);
+	pm_wakeup_hard_event(dev);
 	acpi_clear_event(ACPI_EVENT_RTC);
 	acpi_disable_event(ACPI_EVENT_RTC, 0);
 	return ACPI_INTERRUPT_HANDLED;

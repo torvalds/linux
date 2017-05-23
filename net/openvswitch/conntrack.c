@@ -1123,7 +1123,7 @@ static int ovs_ct_add_helper(struct ovs_conntrack_info *info, const char *name,
 
 	help = nf_ct_helper_ext_add(info->ct, helper, GFP_KERNEL);
 	if (!help) {
-		module_put(helper->me);
+		nf_conntrack_helper_put(helper);
 		return -ENOMEM;
 	}
 
@@ -1584,7 +1584,7 @@ void ovs_ct_free_action(const struct nlattr *a)
 static void __ovs_ct_free_action(struct ovs_conntrack_info *ct_info)
 {
 	if (ct_info->helper)
-		module_put(ct_info->helper->me);
+		nf_conntrack_helper_put(ct_info->helper);
 	if (ct_info->ct)
 		nf_ct_tmpl_free(ct_info->ct);
 }

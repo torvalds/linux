@@ -10,6 +10,7 @@
  */
 
 #include <drm/drmP.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
@@ -226,16 +227,33 @@ static const struct drm_crtc_helper_funcs hdlcd_crtc_helper_funcs = {
 static int hdlcd_plane_atomic_check(struct drm_plane *plane,
 				    struct drm_plane_state *state)
 {
-	u32 src_w, src_h;
+	struct drm_rect clip = { 0 };
+	struct drm_crtc_state *crtc_state;
+	u32 src_h = state->src_h >> 16;
 
-	src_w = state->src_w >> 16;
-	src_h = state->src_h >> 16;
-
-	/* we can't do any scaling of the plane source */
-	if ((src_w != state->crtc_w) || (src_h != state->crtc_h))
+	/* only the HDLCD_REG_FB_LINE_COUNT register has a limit */
+	if (src_h >= HDLCD_MAX_YRES) {
+		DRM_DEBUG_KMS("Invalid source width: %d\n", src_h);
 		return -EINVAL;
+	}
 
-	return 0;
+	if (!state->fb || !state->crtc)
+		return 0;
+
+	crtc_state = drm_atomic_get_existing_crtc_state(state->state,
+							state->crtc);
+	if (!crtc_state) {
+		DRM_DEBUG_KMS("Invalid crtc state\n");
+		return -EINVAL;
+	}
+
+	clip.x2 = crtc_state->adjusted_mode.hdisplay;
+	clip.y2 = crtc_state->adjusted_mode.vdisplay;
+
+	return drm_plane_helper_check_state(state, &clip,
+					    DRM_PLANE_HELPER_NO_SCALING,
+					    DRM_PLANE_HELPER_NO_SCALING,
+					    false, true);
 }
 
 static void hdlcd_plane_atomic_update(struct drm_plane *plane,
@@ -244,21 +262,20 @@ static void hdlcd_plane_atomic_update(struct drm_plane *plane,
 	struct drm_framebuffer *fb = plane->state->fb;
 	struct hdlcd_drm_private *hdlcd;
 	struct drm_gem_cma_object *gem;
-	u32 src_w, src_h, dest_w, dest_h;
+	u32 src_x, src_y, dest_h;
 	dma_addr_t scanout_start;
 
 	if (!fb)
 		return;
 
-	src_w = plane->state->src_w >> 16;
-	src_h = plane->state->src_h >> 16;
-	dest_w = plane->state->crtc_w;
-	dest_h = plane->state->crtc_h;
+	src_x = plane->state->src.x1 >> 16;
+	src_y = plane->state->src.y1 >> 16;
+	dest_h = drm_rect_height(&plane->state->dst);
 	gem = drm_fb_cma_get_gem_obj(fb, 0);
+
 	scanout_start = gem->paddr + fb->offsets[0] +
-		plane->state->crtc_y * fb->pitches[0] +
-		plane->state->crtc_x *
-		fb->format->cpp[0];
+			src_y * fb->pitches[0] +
+			src_x *	fb->format->cpp[0];
 
 	hdlcd = plane->dev->dev_private;
 	hdlcd_write(hdlcd, HDLCD_REG_FB_LINE_LENGTH, fb->pitches[0]);
@@ -305,7 +322,6 @@ static struct drm_plane *hdlcd_plane_init(struct drm_device *drm)
 				       formats, ARRAY_SIZE(formats),
 				       DRM_PLANE_TYPE_PRIMARY, NULL);
 	if (ret) {
-		devm_kfree(drm->dev, plane);
 		return ERR_PTR(ret);
 	}
 
@@ -329,7 +345,6 @@ int hdlcd_setup_crtc(struct drm_device *drm)
 					&hdlcd_crtc_funcs, NULL);
 	if (ret) {
 		hdlcd_plane_destroy(primary);
-		devm_kfree(drm->dev, primary);
 		return ret;
 	}
 

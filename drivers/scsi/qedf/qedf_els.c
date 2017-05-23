@@ -109,7 +109,7 @@ retry_els:
 	did = fcport->rdata->ids.port_id;
 	sid = fcport->sid;
 
-	__fc_fill_fc_hdr(fc_hdr, FC_RCTL_ELS_REQ, sid, did,
+	__fc_fill_fc_hdr(fc_hdr, FC_RCTL_ELS_REQ, did, sid,
 			   FC_TYPE_ELS, FC_FC_FIRST_SEQ | FC_FC_END_SEQ |
 			   FC_FC_SEQ_INIT, 0);
 

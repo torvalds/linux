@@ -630,7 +630,7 @@ lpfc_ns_rsp(struct lpfc_vport *vport, struct lpfc_dmabuf *mp, uint8_t fc4_type,
 						NLP_EVT_DEVICE_RECOVERY);
 			spin_lock_irq(shost->host_lock);
 			ndlp->nlp_flag &= ~NLP_NVMET_RECOV;
-			spin_lock_irq(shost->host_lock);
+			spin_unlock_irq(shost->host_lock);
 		}
 	}
 
