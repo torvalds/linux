@@ -178,6 +178,32 @@ static int mlxsw_sp_flower_parse_ports(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 }
 
+static int mlxsw_sp_flower_parse_tcp(struct mlxsw_sp *mlxsw_sp,
+				     struct mlxsw_sp_acl_rule_info *rulei,
+				     struct tc_cls_flower_offload *f,
+				     u8 ip_proto)
+{
+	struct flow_dissector_key_tcp *key, *mask;
+
+	if (!dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_TCP))
+		return 0;
+
+	if (ip_proto != IPPROTO_TCP) {
+		dev_err(mlxsw_sp->bus_info->dev, "TCP keys supported only for TCP\n");
+		return -EINVAL;
+	}
+
+	key = skb_flow_dissector_target(f->dissector,
+					FLOW_DISSECTOR_KEY_TCP,
+					f->key);
+	mask = skb_flow_dissector_target(f->dissector,
+					 FLOW_DISSECTOR_KEY_TCP,
+					 f->mask);
+	mlxsw_sp_acl_rulei_keymask_u32(rulei, MLXSW_AFK_ELEMENT_TCP_FLAGS,
+				       ntohs(key->flags), ntohs(mask->flags));
+	return 0;
+}
+
 static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 				 struct net_device *dev,
 				 struct mlxsw_sp_acl_rule_info *rulei,
@@ -284,6 +310,9 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 		mlxsw_sp_flower_parse_ipv6(rulei, f);
 
 	err = mlxsw_sp_flower_parse_ports(mlxsw_sp, rulei, f, ip_proto);
+	if (err)
+		return err;
+	err = mlxsw_sp_flower_parse_tcp(mlxsw_sp, rulei, f, ip_proto);
 	if (err)
 		return err;
 
