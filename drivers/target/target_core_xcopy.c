@@ -40,6 +40,8 @@
 
 static struct workqueue_struct *xcopy_wq = NULL;
 
+static sense_reason_t target_parse_xcopy_cmd(struct xcopy_op *xop);
+
 static int target_xcopy_gen_naa_ieee(struct se_device *dev, unsigned char *buf)
 {
 	int off = 0;
@@ -779,13 +781,24 @@ static int target_xcopy_write_destination(
 static void target_xcopy_do_work(struct work_struct *work)
 {
 	struct xcopy_op *xop = container_of(work, struct xcopy_op, xop_work);
-	struct se_device *src_dev = xop->src_dev, *dst_dev = xop->dst_dev;
 	struct se_cmd *ec_cmd = xop->xop_se_cmd;
-	sector_t src_lba = xop->src_lba, dst_lba = xop->dst_lba, end_lba;
+	struct se_device *src_dev, *dst_dev;
+	sector_t src_lba, dst_lba, end_lba;
 	unsigned int max_sectors;
-	int rc;
-	unsigned short nolb = xop->nolb, cur_nolb, max_nolb, copied_nolb = 0;
+	int rc = 0;
+	unsigned short nolb, cur_nolb, max_nolb, copied_nolb = 0;
 
+	if (target_parse_xcopy_cmd(xop) != TCM_NO_SENSE)
+		goto err_free;
+
+	if (WARN_ON_ONCE(!xop->src_dev) || WARN_ON_ONCE(!xop->dst_dev))
+		goto err_free;
+
+	src_dev = xop->src_dev;
+	dst_dev = xop->dst_dev;
+	src_lba = xop->src_lba;
+	dst_lba = xop->dst_lba;
+	nolb = xop->nolb;
 	end_lba = src_lba + nolb;
 	/*
 	 * Break up XCOPY I/O into hw_max_sectors sized I/O based on the
@@ -853,6 +866,8 @@ static void target_xcopy_do_work(struct work_struct *work)
 
 out:
 	xcopy_pt_undepend_remotedev(xop);
+
+err_free:
 	kfree(xop);
 	/*
 	 * Don't override an error scsi status if it has already been set
@@ -865,48 +880,22 @@ out:
 	target_complete_cmd(ec_cmd, ec_cmd->scsi_status);
 }
 
-sense_reason_t target_do_xcopy(struct se_cmd *se_cmd)
+/*
+ * Returns TCM_NO_SENSE upon success or a sense code != TCM_NO_SENSE if parsing
+ * fails.
+ */
+static sense_reason_t target_parse_xcopy_cmd(struct xcopy_op *xop)
 {
-	struct se_device *dev = se_cmd->se_dev;
-	struct xcopy_op *xop = NULL;
+	struct se_cmd *se_cmd = xop->xop_se_cmd;
 	unsigned char *p = NULL, *seg_desc;
-	unsigned int list_id, list_id_usage, sdll, inline_dl, sa;
+	unsigned int list_id, list_id_usage, sdll, inline_dl;
 	sense_reason_t ret = TCM_INVALID_PARAMETER_LIST;
 	int rc;
 	unsigned short tdll;
 
-	if (!dev->dev_attrib.emulate_3pc) {
-		pr_err("EXTENDED_COPY operation explicitly disabled\n");
-		return TCM_UNSUPPORTED_SCSI_OPCODE;
-	}
-
-	sa = se_cmd->t_task_cdb[1] & 0x1f;
-	if (sa != 0x00) {
-		pr_err("EXTENDED_COPY(LID4) not supported\n");
-		return TCM_UNSUPPORTED_SCSI_OPCODE;
-	}
-
-	if (se_cmd->data_length == 0) {
-		target_complete_cmd(se_cmd, SAM_STAT_GOOD);
-		return TCM_NO_SENSE;
-	}
-	if (se_cmd->data_length < XCOPY_HDR_LEN) {
-		pr_err("XCOPY parameter truncation: length %u < hdr_len %u\n",
-				se_cmd->data_length, XCOPY_HDR_LEN);
-		return TCM_PARAMETER_LIST_LENGTH_ERROR;
-	}
-
-	xop = kzalloc(sizeof(struct xcopy_op), GFP_KERNEL);
-	if (!xop) {
-		pr_err("Unable to allocate xcopy_op\n");
-		return TCM_OUT_OF_RESOURCES;
-	}
-	xop->xop_se_cmd = se_cmd;
-
 	p = transport_kmap_data_sg(se_cmd);
 	if (!p) {
 		pr_err("transport_kmap_data_sg() failed in target_do_xcopy\n");
-		kfree(xop);
 		return TCM_OUT_OF_RESOURCES;
 	}
 
@@ -975,16 +964,55 @@ sense_reason_t target_do_xcopy(struct se_cmd *se_cmd)
 	pr_debug("XCOPY: Processed %d target descriptors, length: %u\n", rc,
 				rc * XCOPY_TARGET_DESC_LEN);
 	transport_kunmap_data_sg(se_cmd);
-
-	INIT_WORK(&xop->xop_work, target_xcopy_do_work);
-	queue_work(xcopy_wq, &xop->xop_work);
 	return TCM_NO_SENSE;
 
 out:
 	if (p)
 		transport_kunmap_data_sg(se_cmd);
-	kfree(xop);
 	return ret;
+}
+
+sense_reason_t target_do_xcopy(struct se_cmd *se_cmd)
+{
+	struct se_device *dev = se_cmd->se_dev;
+	struct xcopy_op *xop;
+	unsigned int sa;
+
+	if (!dev->dev_attrib.emulate_3pc) {
+		pr_err("EXTENDED_COPY operation explicitly disabled\n");
+		return TCM_UNSUPPORTED_SCSI_OPCODE;
+	}
+
+	sa = se_cmd->t_task_cdb[1] & 0x1f;
+	if (sa != 0x00) {
+		pr_err("EXTENDED_COPY(LID4) not supported\n");
+		return TCM_UNSUPPORTED_SCSI_OPCODE;
+	}
+
+	if (se_cmd->data_length == 0) {
+		target_complete_cmd(se_cmd, SAM_STAT_GOOD);
+		return TCM_NO_SENSE;
+	}
+	if (se_cmd->data_length < XCOPY_HDR_LEN) {
+		pr_err("XCOPY parameter truncation: length %u < hdr_len %u\n",
+				se_cmd->data_length, XCOPY_HDR_LEN);
+		return TCM_PARAMETER_LIST_LENGTH_ERROR;
+	}
+
+	xop = kzalloc(sizeof(struct xcopy_op), GFP_KERNEL);
+	if (!xop)
+		goto err;
+	xop->xop_se_cmd = se_cmd;
+	INIT_WORK(&xop->xop_work, target_xcopy_do_work);
+	if (WARN_ON_ONCE(!queue_work(xcopy_wq, &xop->xop_work)))
+		goto free;
+	return TCM_NO_SENSE;
+
+free:
+	kfree(xop);
+
+err:
+	return TCM_OUT_OF_RESOURCES;
 }
 
 static sense_reason_t target_rcr_operating_parameters(struct se_cmd *se_cmd)
