@@ -372,6 +372,9 @@ struct iscsi_np *iscsit_add_np(
 	init_completion(&np->np_restart_comp);
 	INIT_LIST_HEAD(&np->np_list);
 
+	setup_timer(&np->np_login_timer, iscsi_handle_login_thread_timeout,
+		    (unsigned long)np);
+
 	ret = iscsi_target_setup_login_socket(np, sockaddr);
 	if (ret != 0) {
 		kfree(np);

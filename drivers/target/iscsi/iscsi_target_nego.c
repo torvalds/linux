@@ -618,11 +618,9 @@ static void iscsi_target_do_login_rx(struct work_struct *work)
 	conn->login_kworker = current;
 	allow_signal(SIGINT);
 
-	init_timer(&login_timer);
-	login_timer.expires = (get_jiffies_64() + TA_LOGIN_TIMEOUT * HZ);
-	login_timer.data = (unsigned long)conn;
-	login_timer.function = iscsi_target_login_timeout;
-	add_timer(&login_timer);
+	setup_timer_on_stack(&login_timer, iscsi_target_login_timeout,
+			     (unsigned long)conn);
+	mod_timer(&login_timer, jiffies + TA_LOGIN_TIMEOUT * HZ);
 	pr_debug("Starting login_timer for %s/%d\n", current->comm, current->pid);
 
 	rc = conn->conn_transport->iscsit_get_login_rx(conn, login);

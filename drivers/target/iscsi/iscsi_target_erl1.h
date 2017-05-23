@@ -29,6 +29,7 @@ extern int iscsit_execute_ooo_cmdsns(struct iscsi_session *);
 extern int iscsit_execute_cmd(struct iscsi_cmd *, int);
 extern int iscsit_handle_ooo_cmdsn(struct iscsi_session *, struct iscsi_cmd *, u32);
 extern void iscsit_remove_ooo_cmdsn(struct iscsi_session *, struct iscsi_ooo_cmdsn *);
+extern void iscsit_handle_dataout_timeout(unsigned long data);
 extern void iscsit_mod_dataout_timer(struct iscsi_cmd *);
 extern void iscsit_start_dataout_timer(struct iscsi_cmd *, struct iscsi_conn *);
 extern void iscsit_stop_dataout_timer(struct iscsi_cmd *);
