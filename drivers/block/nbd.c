@@ -1021,6 +1021,7 @@ static void nbd_config_put(struct nbd_device *nbd)
 			}
 			kfree(config->socks);
 		}
+		kfree(nbd->config);
 		nbd->config = NULL;
 
 		nbd->tag_set.timeout = 0;
