@@ -5808,6 +5808,57 @@ static inline void mlxsw_reg_mcc_unpack(char *payload, u32 *p_update_handle,
 		*p_control_state = mlxsw_reg_mcc_control_state_get(payload);
 }
 
+/* MCDA - Management Component Data Access
+ * ---------------------------------------
+ * This register allows reading and writing a firmware component.
+ */
+#define MLXSW_REG_MCDA_ID 0x9063
+#define MLXSW_REG_MCDA_BASE_LEN 0x10
+#define MLXSW_REG_MCDA_MAX_DATA_LEN 0x80
+#define MLXSW_REG_MCDA_LEN \
+		(MLXSW_REG_MCDA_BASE_LEN + MLXSW_REG_MCDA_MAX_DATA_LEN)
+
+MLXSW_REG_DEFINE(mcda, MLXSW_REG_MCDA_ID, MLXSW_REG_MCDA_LEN);
+
+/* reg_mcda_update_handle
+ * Token representing the current flow executed by the FSM.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mcda, update_handle, 0x00, 0, 24);
+
+/* reg_mcda_offset
+ * Offset of accessed address relative to component start. Accesses must be in
+ * accordance to log_mcda_word_size in MCQI reg.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mcda, offset, 0x04, 0, 32);
+
+/* reg_mcda_size
+ * Size of the data accessed, given in bytes.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mcda, size, 0x08, 0, 16);
+
+/* reg_mcda_data
+ * Data block accessed.
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, mcda, data, 0x10, 0, 32, 4, 0, false);
+
+static inline void mlxsw_reg_mcda_pack(char *payload, u32 update_handle,
+				       u32 offset, u16 size, u8 *data)
+{
+	int i;
+
+	MLXSW_REG_ZERO(mcda, payload);
+	mlxsw_reg_mcda_update_handle_set(payload, update_handle);
+	mlxsw_reg_mcda_offset_set(payload, offset);
+	mlxsw_reg_mcda_size_set(payload, size);
+
+	for (i = 0; i < size / 4; i++)
+		mlxsw_reg_mcda_data_set(payload, i, *(u32 *) &data[i * 4]);
+}
+
 /* MPSC - Monitoring Packet Sampling Configuration Register
  * --------------------------------------------------------
  * MPSC Register is used to configure the Packet Sampling mechanism.
@@ -6388,6 +6439,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(mpsc),
 	MLXSW_REG(mcqi),
 	MLXSW_REG(mcc),
+	MLXSW_REG(mcda),
 	MLXSW_REG(mgpc),
 	MLXSW_REG(sbpr),
 	MLXSW_REG(sbcm),
