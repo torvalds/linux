@@ -328,6 +328,14 @@ struct qed_dev_info {
 
 	/* MFW version */
 	u32		mfw_rev;
+#define QED_MFW_VERSION_0_MASK		0x000000FF
+#define QED_MFW_VERSION_0_OFFSET	0
+#define QED_MFW_VERSION_1_MASK		0x0000FF00
+#define QED_MFW_VERSION_1_OFFSET	8
+#define QED_MFW_VERSION_2_MASK		0x00FF0000
+#define QED_MFW_VERSION_2_OFFSET	16
+#define QED_MFW_VERSION_3_MASK		0xFF000000
+#define QED_MFW_VERSION_3_OFFSET	24
 
 	u32		flash_size;
 	u8		mf_mode;
@@ -336,6 +344,15 @@ struct qed_dev_info {
 	u16		mtu;
 
 	bool wol_support;
+
+	/* MBI version */
+	u32 mbi_version;
+#define QED_MBI_VERSION_0_MASK		0x000000FF
+#define QED_MBI_VERSION_0_OFFSET	0
+#define QED_MBI_VERSION_1_MASK		0x0000FF00
+#define QED_MBI_VERSION_1_OFFSET	8
+#define QED_MBI_VERSION_2_MASK		0x00FF0000
+#define QED_MBI_VERSION_2_OFFSET	16
 
 	enum qed_dev_type dev_type;
 

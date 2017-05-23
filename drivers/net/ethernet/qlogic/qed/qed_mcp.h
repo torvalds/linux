@@ -256,6 +256,18 @@ int qed_mcp_get_mfw_ver(struct qed_hwfn *p_hwfn,
 			u32 *p_mfw_ver, u32 *p_running_bundle_id);
 
 /**
+ * @brief Get the MBI version value
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param p_mbi_ver - A pointer to a variable to be filled with the MBI version.
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_get_mbi_ver(struct qed_hwfn *p_hwfn,
+			struct qed_ptt *p_ptt, u32 *p_mbi_ver);
+
+/**
  * @brief Get media type value of the port.
  *
  * @param cdev      - qed dev pointer

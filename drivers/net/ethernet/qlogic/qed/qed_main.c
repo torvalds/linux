@@ -281,6 +281,9 @@ int qed_fill_dev_info(struct qed_dev *cdev,
 			qed_mcp_get_mfw_ver(QED_LEADING_HWFN(cdev), ptt,
 					    &dev_info->mfw_rev, NULL);
 
+			qed_mcp_get_mbi_ver(QED_LEADING_HWFN(cdev), ptt,
+					    &dev_info->mbi_version);
+
 			qed_mcp_get_flash_size(QED_LEADING_HWFN(cdev), ptt,
 					       &dev_info->flash_size);
 
