@@ -35,7 +35,7 @@ static LIST_HEAD(sbridge_edac_list);
 /*
  * Alter this version for the module when modifications are made
  */
-#define SBRIDGE_REVISION    " Ver: 1.1.1 "
+#define SBRIDGE_REVISION    " Ver: 1.1.2 "
 #define EDAC_MOD_STR      "sbridge_edac"
 
 /*
@@ -2353,6 +2353,13 @@ static int sbridge_get_all_devices(u8 *num_mc,
 	return 0;
 }
 
+/*
+ * Device IDs for {SBRIDGE,IBRIDGE,HASWELL,BROADWELL}_IMC_HA0_TAD0 are in
+ * the format: XXXa. So we can convert from a device to the corresponding
+ * channel like this
+ */
+#define TAD_DEV_TO_CHAN(dev) (((dev) & 0xf) - 0xa)
+
 static int sbridge_mci_bind_devs(struct mem_ctl_info *mci,
 				 struct sbridge_dev *sbridge_dev)
 {
@@ -2390,7 +2397,7 @@ static int sbridge_mci_bind_devs(struct mem_ctl_info *mci,
 		case PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD2:
 		case PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD3:
 		{
-			int id = pdev->device - PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD0;
+			int id = TAD_DEV_TO_CHAN(pdev->device);
 			pvt->pci_tad[id] = pdev;
 			saw_chan_mask |= 1 << id;
 		}
@@ -2442,6 +2449,7 @@ static int ibridge_mci_bind_devs(struct mem_ctl_info *mci,
 
 		switch (pdev->device) {
 		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0:
+		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1:
 			pvt->pci_ha = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TA:
@@ -2455,8 +2463,12 @@ static int ibridge_mci_bind_devs(struct mem_ctl_info *mci,
 		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD1:
 		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD2:
 		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD3:
+		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD0:
+		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD1:
+		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD2:
+		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD3:
 		{
-			int id = pdev->device - PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD0;
+			int id = TAD_DEV_TO_CHAN(pdev->device);
 			pvt->pci_tad[id] = pdev;
 			saw_chan_mask |= 1 << id;
 		}
@@ -2475,19 +2487,6 @@ static int ibridge_mci_bind_devs(struct mem_ctl_info *mci,
 			break;
 		case PCI_DEVICE_ID_INTEL_IBRIDGE_BR1:
 			pvt->pci_br1 = pdev;
-			break;
-		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1:
-			pvt->pci_ha = pdev;
-			break;
-		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD0:
-		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD1:
-		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD2:
-		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD3:
-		{
-			int id = pdev->device - PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD0;
-			pvt->pci_tad[id] = pdev;
-			saw_chan_mask |= 1 << id;
-		}
 			break;
 		default:
 			goto error;
@@ -2548,9 +2547,11 @@ static int haswell_mci_bind_devs(struct mem_ctl_info *mci,
 			pvt->pci_sad1 = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0:
+		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1:
 			pvt->pci_ha = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TA:
+		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TA:
 			pvt->pci_ta = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TM:
@@ -2561,20 +2562,12 @@ static int haswell_mci_bind_devs(struct mem_ctl_info *mci,
 		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TAD1:
 		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TAD2:
 		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TAD3:
-		{
-			int id = pdev->device - PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TAD0;
-
-			pvt->pci_tad[id] = pdev;
-			saw_chan_mask |= 1 << id;
-		}
-			break;
 		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TAD0:
 		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TAD1:
 		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TAD2:
 		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TAD3:
 		{
-			int id = pdev->device - PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TAD0;
-
+			int id = TAD_DEV_TO_CHAN(pdev->device);
 			pvt->pci_tad[id] = pdev;
 			saw_chan_mask |= 1 << id;
 		}
@@ -2585,12 +2578,6 @@ static int haswell_mci_bind_devs(struct mem_ctl_info *mci,
 		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_DDRIO3:
 			if (!pvt->pci_ddrio)
 				pvt->pci_ddrio = pdev;
-			break;
-		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1:
-			pvt->pci_ha = pdev;
-			break;
-		case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TA:
-			pvt->pci_ta = pdev;
 			break;
 		default:
 			break;
@@ -2645,9 +2632,11 @@ static int broadwell_mci_bind_devs(struct mem_ctl_info *mci,
 			pvt->pci_sad1 = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0:
+		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1:
 			pvt->pci_ha = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TA:
+		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TA:
 			pvt->pci_ta = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TM:
@@ -2658,30 +2647,18 @@ static int broadwell_mci_bind_devs(struct mem_ctl_info *mci,
 		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD1:
 		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD2:
 		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD3:
-		{
-			int id = pdev->device - PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD0;
-			pvt->pci_tad[id] = pdev;
-			saw_chan_mask |= 1 << id;
-		}
-			break;
 		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD0:
 		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD1:
 		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD2:
 		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD3:
 		{
-			int id = pdev->device - PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD0;
+			int id = TAD_DEV_TO_CHAN(pdev->device);
 			pvt->pci_tad[id] = pdev;
 			saw_chan_mask |= 1 << id;
 		}
 			break;
 		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_DDRIO0:
 			pvt->pci_ddrio = pdev;
-			break;
-		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1:
-			pvt->pci_ha = pdev;
-			break;
-		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TA:
-			pvt->pci_ta = pdev;
 			break;
 		default:
 			break;
