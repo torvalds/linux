@@ -79,7 +79,6 @@ static int disconnect(const struct path *path, char *buf, char **name,
  * d_namespace_path - lookup a name associated with a given path
  * @path: path to lookup  (NOT NULL)
  * @buf:  buffer to store path to  (NOT NULL)
- * @buflen: length of @buf
  * @name: Returns - pointer for start of path name with in @buf (NOT NULL)
  * @flags: flags controlling path lookup
  * @disconnected: string to prefix to disconnected paths
@@ -90,12 +89,14 @@ static int disconnect(const struct path *path, char *buf, char **name,
  *          When no error the path name is returned in @name which points to
  *          to a position in @buf
  */
-static int d_namespace_path(const struct path *path, char *buf, int buflen,
-			    char **name, int flags, const char *disconnected)
+static int d_namespace_path(const struct path *path, char *buf, char **name,
+			    int flags, const char *disconnected)
 {
 	char *res;
 	int error = 0;
 	int connected = 1;
+	int isdir = (flags & PATH_IS_DIR) ? 1 : 0;
+	int buflen = aa_g_path_max - isdir;
 
 	if (path->mnt->mnt_flags & MNT_INTERNAL) {
 		/* it's not mounted anywhere */
@@ -110,10 +111,12 @@ static int d_namespace_path(const struct path *path, char *buf, int buflen,
 			/* TODO: convert over to using a per namespace
 			 * control instead of hard coded /proc
 			 */
-			return prepend(name, *name - buf, "/proc", 5);
+			error = prepend(name, *name - buf, "/proc", 5);
+			goto out;
 		} else
-			return disconnect(path, buf, name, flags,
-					  disconnected);
+			error = disconnect(path, buf, name, flags,
+					   disconnected);
+		goto out;
 	}
 
 	/* resolve paths relative to chroot?*/
@@ -132,8 +135,11 @@ static int d_namespace_path(const struct path *path, char *buf, int buflen,
 	 * be returned.
 	 */
 	if (!res || IS_ERR(res)) {
-		if (PTR_ERR(res) == -ENAMETOOLONG)
-			return -ENAMETOOLONG;
+		if (PTR_ERR(res) == -ENAMETOOLONG) {
+			error = -ENAMETOOLONG;
+			*name = buf;
+			goto out;
+		}
 		connected = 0;
 		res = dentry_path_raw(path->dentry, buf, buflen);
 		if (IS_ERR(res)) {
@@ -146,6 +152,9 @@ static int d_namespace_path(const struct path *path, char *buf, int buflen,
 
 	*name = res;
 
+	if (!connected)
+		error = disconnect(path, buf, name, flags, disconnected);
+
 	/* Handle two cases:
 	 * 1. A deleted dentry && profile is not allowing mediation of deleted
 	 * 2. On some filesystems, newly allocated dentries appear to the
@@ -153,62 +162,27 @@ static int d_namespace_path(const struct path *path, char *buf, int buflen,
 	 *    allocated.
 	 */
 	if (d_unlinked(path->dentry) && d_is_positive(path->dentry) &&
-	    !(flags & PATH_MEDIATE_DELETED)) {
+	    !(flags & (PATH_MEDIATE_DELETED | PATH_DELEGATE_DELETED))) {
 			error = -ENOENT;
 			goto out;
 	}
 
-	if (!connected)
-		error = disconnect(path, buf, name, flags, disconnected);
-
 out:
-	return error;
-}
-
-/**
- * get_name_to_buffer - get the pathname to a buffer ensure dir / is appended
- * @path: path to get name for  (NOT NULL)
- * @flags: flags controlling path lookup
- * @buffer: buffer to put name in  (NOT NULL)
- * @size: size of buffer
- * @name: Returns - contains position of path name in @buffer (NOT NULL)
- *
- * Returns: %0 else error on failure
- */
-static int get_name_to_buffer(const struct path *path, int flags, char *buffer,
-			      int size, char **name, const char **info,
-			      const char *disconnected)
-{
-	int adjust = (flags & PATH_IS_DIR) ? 1 : 0;
-	int error = d_namespace_path(path, buffer, size - adjust, name, flags,
-				     disconnected);
-
-	if (!error && (flags & PATH_IS_DIR) && (*name)[1] != '\0')
-		/*
-		 * Append "/" to the pathname.  The root directory is a special
-		 * case; it already ends in slash.
-		 */
-		strcpy(&buffer[size - 2], "/");
-
-	if (info && error) {
-		if (error == -ENOENT)
-			*info = "Failed name lookup - deleted entry";
-		else if (error == -EACCES)
-			*info = "Failed name lookup - disconnected path";
-		else if (error == -ENAMETOOLONG)
-			*info = "Failed name lookup - name too long";
-		else
-			*info = "Failed name lookup";
-	}
+	/*
+	 * Append "/" to the pathname.  The root directory is a special
+	 * case; it already ends in slash.
+	 */
+	if (!error && isdir && ((*name)[1] != '\0' || (*name)[0] != '/'))
+		strcpy(&buf[aa_g_path_max - 2], "/");
 
 	return error;
 }
 
 /**
- * aa_path_name - compute the pathname of a file
+ * aa_path_name - get the pathname to a buffer ensure dir / is appended
  * @path: path the file  (NOT NULL)
  * @flags: flags controlling path name generation
- * @buffer: buffer that aa_get_name() allocated  (NOT NULL)
+ * @buffer: buffer to put name in (NOT NULL)
  * @name: Returns - the generated path name if !error (NOT NULL)
  * @info: Returns - information on why the path lookup failed (MAYBE NULL)
  * @disconnected: string to prepend to disconnected paths
@@ -224,33 +198,23 @@ static int get_name_to_buffer(const struct path *path, int flags, char *buffer,
  *
  * Returns: %0 else error code if could retrieve name
  */
-int aa_path_name(const struct path *path, int flags, char **buffer,
+int aa_path_name(const struct path *path, int flags, char *buffer,
 		 const char **name, const char **info, const char *disconnected)
 {
-	char *buf, *str = NULL;
-	int size = 256;
-	int error;
+	char *str = NULL;
+	int error = d_namespace_path(path, buffer, &str, flags, disconnected);
 
-	*name = NULL;
-	*buffer = NULL;
-	for (;;) {
-		/* freed by caller */
-		buf = kmalloc(size, GFP_KERNEL);
-		if (!buf)
-			return -ENOMEM;
-
-		error = get_name_to_buffer(path, flags, buf, size, &str, info,
-					   disconnected);
-		if (error != -ENAMETOOLONG)
-			break;
-
-		kfree(buf);
-		size <<= 1;
-		if (size > aa_g_path_max)
-			return -ENAMETOOLONG;
-		*info = NULL;
+	if (info && error) {
+		if (error == -ENOENT)
+			*info = "Failed name lookup - deleted entry";
+		else if (error == -EACCES)
+			*info = "Failed name lookup - disconnected path";
+		else if (error == -ENAMETOOLONG)
+			*info = "Failed name lookup - name too long";
+		else
+			*info = "Failed name lookup";
 	}
-	*buffer = buf;
+
 	*name = str;
 
 	return error;

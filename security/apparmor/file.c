@@ -285,7 +285,8 @@ int aa_path_perm(const char *op, struct aa_profile *profile,
 	int error;
 
 	flags |= profile->path_flags | (S_ISDIR(cond->mode) ? PATH_IS_DIR : 0);
-	error = aa_path_name(path, flags, &buffer, &name, &info,
+	get_buffers(buffer);
+	error = aa_path_name(path, flags, buffer, &name, &info,
 			     profile->disconnected);
 	if (error) {
 		if (error == -ENOENT && is_deleted(path->dentry)) {
@@ -304,7 +305,7 @@ int aa_path_perm(const char *op, struct aa_profile *profile,
 	}
 	error = aa_audit_file(profile, &perms, op, request, name, NULL,
 			      cond->uid, info, error);
-	kfree(buffer);
+	put_buffers(buffer);
 
 	return error;
 }
@@ -363,16 +364,17 @@ int aa_path_link(struct aa_profile *profile, struct dentry *old_dentry,
 	unsigned int state;
 	int error;
 
+	get_buffers(buffer, buffer2);
 	lperms = nullperms;
 
 	/* buffer freed below, lname is pointer in buffer */
-	error = aa_path_name(&link, profile->path_flags, &buffer, &lname,
+	error = aa_path_name(&link, profile->path_flags, buffer, &lname,
 			     &info, profile->disconnected);
 	if (error)
 		goto audit;
 
 	/* buffer2 freed below, tname is pointer in buffer2 */
-	error = aa_path_name(&target, profile->path_flags, &buffer2, &tname,
+	error = aa_path_name(&target, profile->path_flags, buffer2, &tname,
 			     &info, profile->disconnected);
 	if (error)
 		goto audit;
@@ -432,8 +434,7 @@ done_tests:
 audit:
 	error = aa_audit_file(profile, &lperms, OP_LINK, request,
 			      lname, tname, cond.uid, info, error);
-	kfree(buffer);
-	kfree(buffer2);
+	put_buffers(buffer, buffer2);
 
 	return error;
 }

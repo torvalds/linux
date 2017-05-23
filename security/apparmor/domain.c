@@ -357,6 +357,9 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 	AA_BUG(!ctx);
 
 	profile = aa_get_newest_profile(ctx->profile);
+
+	/* buffer freed below, name is pointer into buffer */
+	get_buffers(buffer);
 	/*
 	 * get the namespace from the replacement profile as replacement
 	 * can change the namespace
@@ -364,8 +367,7 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 	ns = profile->ns;
 	state = profile->file.start;
 
-	/* buffer freed below, name is pointer into buffer */
-	error = aa_path_name(&bprm->file->f_path, profile->path_flags, &buffer,
+	error = aa_path_name(&bprm->file->f_path, profile->path_flags, buffer,
 			     &name, &info, profile->disconnected);
 	if (error) {
 		if (unconfined(profile) ||
@@ -515,7 +517,7 @@ audit:
 cleanup:
 	aa_put_profile(new_profile);
 	aa_put_profile(profile);
-	kfree(buffer);
+	put_buffers(buffer);
 
 	return error;
 }
