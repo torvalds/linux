@@ -6273,6 +6273,7 @@ M:	Mika Westerberg <mika.westerberg@linux.intel.com>
 L:	linux-i2c@vger.kernel.org
 L:	linux-acpi@vger.kernel.org
 S:	Maintained
+F:	drivers/i2c/i2c-core-acpi.c
 
 I2C-TAOS-EVM DRIVER
 M:	Jean Delvare <jdelvare@suse.com>
