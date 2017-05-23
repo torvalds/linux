@@ -534,10 +534,6 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 
 	dout("writepage %p idx %lu\n", page, page->index);
 
-	if (!page->mapping || !page->mapping->host) {
-		dout("writepage %p - no mapping\n", page);
-		return -EFAULT;
-	}
 	inode = page->mapping->host;
 	ci = ceph_inode(inode);
 	fsc = ceph_inode_to_client(inode);
