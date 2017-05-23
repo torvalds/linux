@@ -146,6 +146,9 @@
 #define   PCIE_RC_CONFIG_DCR_CSPL_SHIFT		18
 #define   PCIE_RC_CONFIG_DCR_CSPL_LIMIT		0xff
 #define   PCIE_RC_CONFIG_DCR_CPLS_SHIFT		26
+#define PCIE_RC_CONFIG_DCSR		(PCIE_RC_CONFIG_BASE + 0xc8)
+#define   PCIE_RC_CONFIG_DCSR_MPS_MASK		GENMASK(7, 5)
+#define   PCIE_RC_CONFIG_DCSR_MPS_256		(0x1 << 5)
 #define PCIE_RC_CONFIG_LINK_CAP		(PCIE_RC_CONFIG_BASE + 0xcc)
 #define   PCIE_RC_CONFIG_LINK_CAP_L0S		BIT(10)
 #define PCIE_RC_CONFIG_LCS		(PCIE_RC_CONFIG_BASE + 0xd0)
@@ -700,6 +703,11 @@ static int rockchip_pcie_init_port(struct rockchip_pcie *rockchip)
 		status &= ~PCIE_RC_CONFIG_LINK_CAP_L0S;
 		rockchip_pcie_write(rockchip, status, PCIE_RC_CONFIG_LINK_CAP);
 	}
+
+	status = rockchip_pcie_read(rockchip, PCIE_RC_CONFIG_DCSR);
+	status &= ~PCIE_RC_CONFIG_DCSR_MPS_MASK;
+	status |= PCIE_RC_CONFIG_DCSR_MPS_256;
+	rockchip_pcie_write(rockchip, status, PCIE_RC_CONFIG_DCSR);
 
 	return 0;
 }
