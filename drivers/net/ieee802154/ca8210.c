@@ -912,7 +912,7 @@ static int ca8210_spi_transfer(
 )
 {
 	int i, status = 0;
-	struct ca8210_priv *priv = spi_get_drvdata(spi);
+	struct ca8210_priv *priv;
 	struct cas_control *cas_ctl;
 
 	if (!spi) {
@@ -923,6 +923,7 @@ static int ca8210_spi_transfer(
 		return -ENODEV;
 	}
 
+	priv = spi_get_drvdata(spi);
 	reinit_completion(&priv->spi_transfer_complete);
 
 	dev_dbg(&spi->dev, "ca8210_spi_transfer called\n");
