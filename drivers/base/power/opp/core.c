@@ -180,7 +180,7 @@ unsigned long dev_pm_opp_get_max_volt_latency(struct device *dev)
 {
 	struct opp_table *opp_table;
 	struct dev_pm_opp *opp;
-	struct regulator *reg, **regulators;
+	struct regulator *reg;
 	unsigned long latency_ns = 0;
 	int ret, i, count;
 	struct {
@@ -198,15 +198,9 @@ unsigned long dev_pm_opp_get_max_volt_latency(struct device *dev)
 	if (!count)
 		goto put_opp_table;
 
-	regulators = kmalloc_array(count, sizeof(*regulators), GFP_KERNEL);
-	if (!regulators)
-		goto put_opp_table;
-
 	uV = kmalloc_array(count, sizeof(*uV), GFP_KERNEL);
 	if (!uV)
-		goto free_regulators;
-
-	memcpy(regulators, opp_table->regulators, count * sizeof(*regulators));
+		goto put_opp_table;
 
 	mutex_lock(&opp_table->lock);
 
@@ -232,15 +226,13 @@ unsigned long dev_pm_opp_get_max_volt_latency(struct device *dev)
 	 * isn't freed, while we are executing this routine.
 	 */
 	for (i = 0; i < count; i++) {
-		reg = regulators[i];
+		reg = opp_table->regulators[i];
 		ret = regulator_set_voltage_time(reg, uV[i].min, uV[i].max);
 		if (ret > 0)
 			latency_ns += ret * 1000;
 	}
 
 	kfree(uV);
-free_regulators:
-	kfree(regulators);
 put_opp_table:
 	dev_pm_opp_put_opp_table(opp_table);
 
