@@ -1310,8 +1310,8 @@ static int vnt_config(struct ieee80211_hw *hw, u32 changed)
 }
 
 static void vnt_bss_info_changed(struct ieee80211_hw *hw,
-		struct ieee80211_vif *vif, struct ieee80211_bss_conf *conf,
-		u32 changed)
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_bss_conf *conf, u32 changed)
 {
 	struct vnt_private *priv = hw->priv;
 
@@ -1401,7 +1401,7 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 }
 
 static u64 vnt_prepare_multicast(struct ieee80211_hw *hw,
-	struct netdev_hw_addr_list *mc_list)
+				 struct netdev_hw_addr_list *mc_list)
 {
 	struct vnt_private *priv = hw->priv;
 	struct netdev_hw_addr *ha;
@@ -1420,7 +1420,8 @@ static u64 vnt_prepare_multicast(struct ieee80211_hw *hw,
 }
 
 static void vnt_configure(struct ieee80211_hw *hw,
-	unsigned int changed_flags, unsigned int *total_flags, u64 multicast)
+			  unsigned int changed_flags,
+			  unsigned int *total_flags, u64 multicast)
 {
 	struct vnt_private *priv = hw->priv;
 	u8 rx_mode = 0;
@@ -1481,8 +1482,8 @@ static void vnt_configure(struct ieee80211_hw *hw,
 }
 
 static int vnt_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
-	struct ieee80211_vif *vif, struct ieee80211_sta *sta,
-		struct ieee80211_key_conf *key)
+		       struct ieee80211_vif *vif, struct ieee80211_sta *sta,
+		       struct ieee80211_key_conf *key)
 {
 	struct vnt_private *priv = hw->priv;
 
