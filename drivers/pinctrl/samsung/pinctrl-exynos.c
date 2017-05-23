@@ -479,6 +479,8 @@ int exynos_eint_wkup_init(struct samsung_pinctrl_drv_data *d)
 		if (match) {
 			irq_chip = kmemdup(match->data,
 				sizeof(*irq_chip), GFP_KERNEL);
+			if (!irq_chip)
+				return -ENOMEM;
 			wkup_np = np;
 			break;
 		}
