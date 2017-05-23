@@ -37,7 +37,9 @@ static int invalidate_vbmeta_submit(struct bio *bio,
 
 	bio->bi_iter.bi_sector = 0;
 	if (access_last_sector) {
-		sector_t last_sector = (i_size_read(bdev->bd_inode)>>SECTOR_SHIFT) - 1;
+		sector_t last_sector;
+
+		last_sector = (i_size_read(bdev->bd_inode)>>SECTOR_SHIFT) - 1;
 		bio->bi_iter.bi_sector = last_sector;
 	}
 	if (!bio_add_page(bio, page, PAGE_SIZE, 0)) {
@@ -118,7 +120,7 @@ static int invalidate_vbmeta(dev_t vbmeta_devt)
 			goto failed_to_submit_read;
 		}
 		if (memcmp("AVBf", page_address(page) + offset, 4) != 0) {
-			DMERR("invalidate_vbmeta called on non-vbmeta partition");
+			DMERR("invalidate_vbmeta on non-vbmeta partition");
 			ret = -EINVAL;
 			goto invalid_header;
 		}
@@ -224,4 +226,4 @@ MODULE_LICENSE("GPL");
 #define MODULE_PARAM_PREFIX	"androidboot.vbmeta."
 module_param_string(device, avb_vbmeta_device, sizeof(avb_vbmeta_device), 0);
 module_param_string(invalidate_on_error, avb_invalidate_on_error,
-                    sizeof(avb_invalidate_on_error), 0);
+		    sizeof(avb_invalidate_on_error), 0);
