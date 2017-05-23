@@ -14,6 +14,7 @@
 
 #include <dt-bindings/clock/rockchip-ddr.h>
 #include <dt-bindings/display/rk_fb.h>
+#include <dt-bindings/soc/rockchip-system-status.h>
 #include <drm/drmP.h>
 #include <linux/arm-smccc.h>
 #include <linux/clk.h>
@@ -22,27 +23,48 @@
 #include <linux/delay.h>
 #include <linux/devfreq.h>
 #include <linux/devfreq-event.h>
+#include <linux/fb.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
+#include <linux/reboot.h>
 #include <linux/regulator/consumer.h>
 #include <linux/rockchip/rockchip_sip.h>
 #include <linux/rwsem.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/suspend.h>
 
 #include <soc/rockchip/rkfb_dmc.h>
 #include <soc/rockchip/rockchip_dmc.h>
 #include <soc/rockchip/rockchip_sip.h>
+#include <soc/rockchip/rockchip-system-status.h>
 #include <soc/rockchip/scpi.h>
 #include <uapi/drm/drm_mode.h>
 
+#include "governor.h"
+
+#define system_status_to_dmcfreq(nb) container_of(nb, struct rockchip_dmcfreq, \
+						  system_status_nb)
+#define reboot_to_dmcfreq(nb) container_of(nb, struct rockchip_dmcfreq, \
+					   reboot_nb)
+
+#define VIDEO_1080P_SIZE	(1920 * 1080)
 #define FIQ_INIT_HANDLER	(0x1)
 #define FIQ_CPU_TGT_BOOT	(0x0) /* to booting cpu */
 #define FIQ_NUM_FOR_DCF		(143) /* NA irq map to fiq for dcf */
 #define DTS_PAR_OFFSET		(4096)
+
+struct video_info {
+	unsigned int width;
+	unsigned int height;
+	unsigned int ishevc;
+	unsigned int videoFramerate;
+	unsigned int streamBitrate;
+	struct list_head node;
+};
 
 struct share_params {
 	u32 hz;
@@ -183,9 +205,34 @@ struct rockchip_dmcfreq {
 	struct mutex lock; /* scaling frequency lock */
 	struct dram_timing *timing;
 	struct regulator *vdd_center;
+	struct notifier_block system_status_nb;
+	struct notifier_block reboot_nb;
+	struct notifier_block fb_nb;
+	struct list_head video_info_list;
+
 	unsigned long rate, target_rate;
 	unsigned long volt, target_volt;
+
+	unsigned long normal_rate;
+	unsigned long video_1080p_rate;
+	unsigned long video_4k_rate;
+	unsigned long video_4k_10b_rate;
+	unsigned long performance_rate;
+	unsigned long dualview_rate;
+	unsigned long hdmi_rate;
+	unsigned long idle_rate;
+	unsigned long suspend_rate;
+	unsigned long reboot_rate;
+	unsigned long boost_rate;
+	unsigned long isp_rate;
+	unsigned long low_power_rate;
+
 	unsigned int min_cpu_freq;
+	unsigned int auto_min_freq;
+	unsigned int auto_freq_en;
+	unsigned int aotu_self_refresh;
+
+	int (*set_auto_self_refresh)(u32 en);
 };
 
 static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
@@ -879,6 +926,422 @@ static const struct of_device_id rockchip_dmcfreq_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, rockchip_dmcfreq_of_match);
 
+static int rockchip_get_system_status_rate(struct device_node *np,
+					   char *porp_name,
+					   struct rockchip_dmcfreq *dmcfreq)
+{
+	const struct property *prop;
+	unsigned int status = 0, freq = 0;
+	int count, i;
+
+	prop = of_find_property(np, porp_name, NULL);
+	if (!prop)
+		return -EINVAL;
+
+	if (!prop->value)
+		return -ENODATA;
+
+	count = of_property_count_u32_elems(np, porp_name);
+	if (count < 0)
+		return -EINVAL;
+
+	if (count % 2)
+		return -EINVAL;
+
+	for (i = 0; i < count / 2; i++) {
+		of_property_read_u32_index(np, porp_name, 2 * i,
+					   &status);
+		of_property_read_u32_index(np, porp_name, 2 * i + 1,
+					   &freq);
+		switch (status) {
+		case SYS_STATUS_NORMAL:
+			dmcfreq->normal_rate = freq * 1000;
+			break;
+		case SYS_STATUS_SUSPEND:
+			dmcfreq->suspend_rate = freq * 1000;
+			break;
+		case SYS_STATUS_VIDEO_1080P:
+			dmcfreq->video_1080p_rate = freq * 1000;
+			break;
+		case SYS_STATUS_VIDEO_4K:
+			dmcfreq->video_4k_rate = freq * 1000;
+			break;
+		case SYS_STATUS_VIDEO_4K_10B:
+			dmcfreq->video_4k_10b_rate = freq * 1000;
+			break;
+		case SYS_STATUS_PERFORMANCE:
+			dmcfreq->performance_rate = freq * 1000;
+			break;
+		case SYS_STATUS_LCDC0 & SYS_STATUS_LCDC1:
+			dmcfreq->dualview_rate = freq * 1000;
+			break;
+		case SYS_STATUS_HDMI:
+			dmcfreq->hdmi_rate = freq * 1000;
+			break;
+		case SYS_STATUS_IDLE:
+			dmcfreq->idle_rate = freq * 1000;
+			break;
+		case SYS_STATUS_REBOOT:
+			dmcfreq->reboot_rate = freq * 1000;
+			break;
+		case SYS_STATUS_BOOST:
+			dmcfreq->boost_rate = freq * 1000;
+			break;
+		case SYS_STATUS_ISP:
+			dmcfreq->isp_rate = freq * 1000;
+			break;
+		case SYS_STATUS_LOW_POWER:
+			dmcfreq->low_power_rate = freq * 1000;
+			break;
+		default:
+			break;
+		};
+	}
+
+	return 0;
+}
+
+static void rockchip_dmcfreq_update_status(struct rockchip_dmcfreq *dmcfreq,
+					   unsigned long status)
+{
+	struct devfreq *df = dmcfreq->devfreq;
+	struct devfreq_dev_profile *devp = df->profile;
+	unsigned long min = devp->freq_table[0];
+	unsigned long max =
+		devp->freq_table[devp->max_state ? devp->max_state - 1 : 0];
+	unsigned long target_rate = 0;
+	unsigned int refresh = false;
+
+	if (dmcfreq->reboot_rate && (status & SYS_STATUS_REBOOT)) {
+		target_rate = dmcfreq->reboot_rate;
+		goto next;
+	}
+
+	if (dmcfreq->suspend_rate && (status & SYS_STATUS_SUSPEND)) {
+		if (dmcfreq->suspend_rate > target_rate) {
+			target_rate = dmcfreq->suspend_rate;
+			refresh = true;
+			goto next;
+		}
+	}
+
+	if (dmcfreq->low_power_rate && (status & SYS_STATUS_LOW_POWER)) {
+		target_rate = dmcfreq->low_power_rate;
+		goto next;
+	}
+
+	if (dmcfreq->performance_rate && (status & SYS_STATUS_PERFORMANCE)) {
+		if (dmcfreq->performance_rate > target_rate)
+			target_rate = dmcfreq->performance_rate;
+	}
+
+	if (dmcfreq->dualview_rate && (status & SYS_STATUS_LCDC0) &&
+	    (status & SYS_STATUS_LCDC1)) {
+		if (dmcfreq->dualview_rate > target_rate)
+			target_rate = dmcfreq->dualview_rate;
+	}
+
+	if (dmcfreq->hdmi_rate && (status & SYS_STATUS_HDMI)) {
+		if (dmcfreq->hdmi_rate > target_rate)
+			target_rate = dmcfreq->hdmi_rate;
+	}
+
+	if (dmcfreq->video_4k_rate && (status & SYS_STATUS_VIDEO_4K)) {
+		if (dmcfreq->video_4k_rate > target_rate)
+			target_rate = dmcfreq->video_4k_rate;
+	}
+
+	if (dmcfreq->video_4k_10b_rate && (status & SYS_STATUS_VIDEO_4K_10B)) {
+		if (dmcfreq->video_4k_10b_rate > target_rate)
+			target_rate = dmcfreq->video_4k_10b_rate;
+	}
+
+	if (dmcfreq->video_1080p_rate && (status & SYS_STATUS_VIDEO_1080P)) {
+		if (dmcfreq->video_1080p_rate > target_rate)
+			target_rate = dmcfreq->video_1080p_rate;
+	}
+
+	if (dmcfreq->isp_rate && (status & SYS_STATUS_ISP)) {
+		if (dmcfreq->isp_rate > target_rate)
+			target_rate = dmcfreq->isp_rate;
+	}
+
+next:
+
+	mutex_lock(&df->lock);
+
+	if (target_rate) {
+		df->min_freq = target_rate;
+		df->max_freq = target_rate;
+	} else {
+		if (dmcfreq->auto_freq_en) {
+			if (dmcfreq->auto_min_freq)
+				df->min_freq = dmcfreq->auto_min_freq * 1000;
+			else
+				df->min_freq = min;
+			df->max_freq = max;
+		} else if (dmcfreq->normal_rate) {
+			df->min_freq = dmcfreq->normal_rate;
+			df->max_freq = dmcfreq->normal_rate;
+		}
+	}
+
+	dev_dbg(&df->dev, "status=0x%x min=%lu max=%lu\n",
+		(unsigned int)status, df->min_freq, df->min_freq);
+
+	if (dmcfreq->aotu_self_refresh != refresh) {
+		if (dmcfreq->set_auto_self_refresh)
+			dmcfreq->set_auto_self_refresh(refresh);
+		dmcfreq->aotu_self_refresh = refresh;
+	}
+
+	update_devfreq(df);
+
+	mutex_unlock(&df->lock);
+}
+
+static int rockchip_dmcfreq_system_status_notifier(struct notifier_block *nb,
+						   unsigned long val, void *ptr)
+{
+	struct rockchip_dmcfreq *dmcfreq = system_status_to_dmcfreq(nb);
+
+	rockchip_dmcfreq_update_status(dmcfreq, val);
+
+	return NOTIFY_OK;
+}
+
+static int rockchip_dmcfreq_reboot_notifier(struct notifier_block *nb,
+					    unsigned long action, void *ptr)
+{
+	struct rockchip_dmcfreq *dmcfreq = reboot_to_dmcfreq(nb);
+
+	devfreq_monitor_stop(dmcfreq->devfreq);
+	rockchip_set_system_status(SYS_STATUS_REBOOT);
+
+	return NOTIFY_OK;
+}
+
+static int rockchip_dmcfreq_fb_notifier(struct notifier_block *nb,
+					unsigned long action, void *ptr)
+{
+	struct fb_event *event = ptr;
+
+	switch (action) {
+	case FB_EARLY_EVENT_BLANK:
+		switch (*((int *)event->data)) {
+		case FB_BLANK_UNBLANK:
+			rockchip_clear_system_status(SYS_STATUS_SUSPEND);
+			break;
+		default:
+			break;
+		}
+		break;
+	case FB_EVENT_BLANK:
+		switch (*((int *)event->data)) {
+		case FB_BLANK_POWERDOWN:
+			rockchip_set_system_status(SYS_STATUS_SUSPEND);
+			break;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static ssize_t rockchip_dmcfreq_status_show(struct device *dev,
+					    struct device_attribute *attr,
+					    char *buf)
+{
+	unsigned int status = rockchip_get_system_status();
+
+	return sprintf(buf, "0x%x\n", status);
+}
+
+static unsigned long rockchip_get_video_param(char **str)
+{
+	char *p;
+	unsigned long val = 0;
+
+	strsep(str, "=");
+	p = strsep(str, ",");
+	if (p) {
+		if (kstrtoul(p, 10, &val))
+			return 0;
+	}
+
+	return val;
+}
+
+/*
+ * format:
+ * 0,width=val,height=val,ishevc=val,videoFramerate=val,streamBitrate=val
+ * 1,width=val,height=val,ishevc=val,videoFramerate=val,streamBitrate=val
+ */
+static struct video_info *rockchip_parse_video_info(const char *buf)
+{
+	struct video_info *video_info;
+	const char *cp = buf;
+	char *str;
+	int ntokens = 0;
+
+	while ((cp = strpbrk(cp + 1, ",")))
+		ntokens++;
+	if (ntokens != 5)
+		return NULL;
+
+	video_info = kzalloc(sizeof(*video_info), GFP_KERNEL);
+	if (!video_info)
+		return NULL;
+
+	INIT_LIST_HEAD(&video_info->node);
+
+	str = kstrdup(buf, GFP_KERNEL);
+	strsep(&str, ",");
+	video_info->width = rockchip_get_video_param(&str);
+	video_info->height = rockchip_get_video_param(&str);
+	video_info->ishevc = rockchip_get_video_param(&str);
+	video_info->videoFramerate = rockchip_get_video_param(&str);
+	video_info->streamBitrate = rockchip_get_video_param(&str);
+	pr_debug("%c,width=%d,height=%d,ishevc=%d,videoFramerate=%d,streamBitrate=%d\n",
+		 buf[0],
+		 video_info->width,
+		 video_info->height,
+		 video_info->ishevc,
+		 video_info->videoFramerate,
+		 video_info->streamBitrate);
+	kfree(str);
+
+	return video_info;
+}
+
+struct video_info *rockchip_find_video_info(struct rockchip_dmcfreq *dmcfreq,
+					    const char *buf)
+{
+	struct video_info *info, *video_info;
+
+	video_info = rockchip_parse_video_info(buf);
+
+	if (!video_info)
+		return NULL;
+
+	list_for_each_entry(info, &dmcfreq->video_info_list, node) {
+		if ((info->width == video_info->width) &&
+		    (info->height == video_info->height) &&
+		    (info->ishevc == video_info->ishevc) &&
+		    (info->videoFramerate == video_info->videoFramerate) &&
+		    (info->streamBitrate == video_info->streamBitrate)) {
+			kfree(video_info);
+			return info;
+		}
+	}
+
+	kfree(video_info);
+
+	return NULL;
+}
+
+static void rockchip_add_video_info(struct rockchip_dmcfreq *dmcfreq,
+				    struct video_info *video_info)
+{
+	if (video_info)
+		list_add(&video_info->node, &dmcfreq->video_info_list);
+}
+
+static void rockchip_del_video_info(struct video_info *video_info)
+{
+	if (video_info) {
+		list_del(&video_info->node);
+		kfree(video_info);
+	}
+}
+
+static void rockchip_update_video_info(struct rockchip_dmcfreq *dmcfreq)
+{
+	struct video_info *video_info;
+	int max_res = 0, max_stream_bitrate = 0, res = 0;
+
+	if (list_empty(&dmcfreq->video_info_list)) {
+		rockchip_clear_system_status(SYS_STATUS_VIDEO);
+		return;
+	}
+
+	list_for_each_entry(video_info, &dmcfreq->video_info_list, node) {
+		res = video_info->width * video_info->height;
+		if (res > max_res)
+			max_res = res;
+		if (video_info->streamBitrate > max_stream_bitrate)
+			max_stream_bitrate = video_info->streamBitrate;
+	}
+
+	if (max_res <= VIDEO_1080P_SIZE) {
+		rockchip_set_system_status(SYS_STATUS_VIDEO_1080P);
+	} else {
+		if (max_stream_bitrate == 10)
+			rockchip_set_system_status(SYS_STATUS_VIDEO_4K_10B);
+		else
+			rockchip_set_system_status(SYS_STATUS_VIDEO_4K);
+	}
+}
+
+static ssize_t rockchip_dmcfreq_status_store(struct device *dev,
+					     struct device_attribute *attr,
+					     const char *buf,
+					     size_t count)
+{
+	struct devfreq *devfreq = to_devfreq(dev);
+	struct rockchip_dmcfreq *dmcfreq = dev_get_drvdata(devfreq->dev.parent);
+	struct video_info *video_info;
+
+	if (!count)
+		return -EINVAL;
+
+	switch (buf[0]) {
+	case '0':
+		/* clear video flag */
+		video_info = rockchip_find_video_info(dmcfreq, buf);
+		if (video_info) {
+			rockchip_del_video_info(video_info);
+			rockchip_update_video_info(dmcfreq);
+		}
+		break;
+	case '1':
+		/* set video flag */
+		video_info = rockchip_parse_video_info(buf);
+		if (video_info) {
+			rockchip_add_video_info(dmcfreq, video_info);
+			rockchip_update_video_info(dmcfreq);
+		}
+		break;
+	case 'L':
+		/* clear low power flag */
+		rockchip_clear_system_status(SYS_STATUS_LOW_POWER);
+		break;
+	case 'l':
+		/* set low power flag */
+		rockchip_set_system_status(SYS_STATUS_LOW_POWER);
+		break;
+	case 'p':
+		/* set performance flag */
+		rockchip_set_system_status(SYS_STATUS_PERFORMANCE);
+		break;
+	case 'n':
+		/* clear performance flag */
+		rockchip_clear_system_status(SYS_STATUS_PERFORMANCE);
+		break;
+	default:
+		break;
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR(system_status, 0644, rockchip_dmcfreq_status_show,
+		   rockchip_dmcfreq_status_store);
+
 static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -895,6 +1358,7 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	mutex_init(&data->lock);
+	INIT_LIST_HEAD(&data->video_info_list);
 
 	data->vdd_center = devm_regulator_get(dev, "center");
 	if (IS_ERR(data->vdd_center)) {
@@ -945,16 +1409,22 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	of_property_read_u32(np, "downdifferential",
 			     &data->ondemand_data.downdifferential);
 	of_property_read_u32(np, "min-cpu-freq", &data->min_cpu_freq);
+	if (rockchip_get_system_status_rate(np, "system-status-freq", data))
+		dev_err(dev, "failed to get system status rate\n");
+	of_property_read_u32(np, "auto-min-freq", &data->auto_min_freq);
+	of_property_read_u32(np, "auto-freq-en", &data->auto_freq_en);
 
 	data->rate = clk_get_rate(data->dmc_clk);
 	data->volt = regulator_get_voltage(data->vdd_center);
 
 	devp->initial_freq = data->rate;
+
 	data->devfreq = devm_devfreq_add_device(dev, devp,
-					   "simple_ondemand",
-					   &data->ondemand_data);
+						"simple_ondemand",
+						&data->ondemand_data);
 	if (IS_ERR(data->devfreq))
 		return PTR_ERR(data->devfreq);
+
 	devm_devfreq_register_opp_notifier(dev, data->devfreq);
 
 	data->devfreq->min_freq = devp->freq_table[0];
@@ -972,6 +1442,29 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 
 	if (vop_register_dmc())
 		dev_err(dev, "fail to register notify to vop.\n");
+
+	data->system_status_nb.notifier_call =
+		rockchip_dmcfreq_system_status_notifier;
+	ret = rockchip_register_system_status_notifier(&data->system_status_nb);
+	if (ret)
+		dev_err(dev, "failed to register system_status nb\n");
+
+	data->reboot_nb.notifier_call = rockchip_dmcfreq_reboot_notifier;
+	ret = register_reboot_notifier(&data->reboot_nb);
+	if (ret)
+		dev_err(dev, "failed to register reboot nb\n");
+
+	data->fb_nb.notifier_call = rockchip_dmcfreq_fb_notifier;
+	ret = fb_register_client(&data->fb_nb);
+	if (ret)
+		dev_err(dev, "failed to register fb nb\n");
+
+	ret = sysfs_create_file(&data->devfreq->dev.kobj,
+				&dev_attr_system_status.attr);
+	if (ret)
+		dev_err(dev, "failed to register system_status sysfs file\n");
+
+	rockchip_set_system_status(SYS_STATUS_NORMAL);
 
 	return 0;
 }
