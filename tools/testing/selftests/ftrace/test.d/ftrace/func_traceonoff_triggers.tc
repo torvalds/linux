@@ -75,6 +75,15 @@ fi
 echo '** SET TRACEOFF'
 
 echo "$func:traceoff" > set_ftrace_filter
+if [ -d ../../instances ]; then # Check instances
+    cur=`cat set_ftrace_filter`
+    top=`cat ../../set_ftrace_filter`
+    if [ "$cur" = "$top" ]; then
+	echo "This kernel is too old to support per instance filter"
+	reset_ftrace_filter
+	exit_unsupported
+    fi
+fi
 
 cnt=`grep schedule set_ftrace_filter | wc -l`
 if [ $cnt -ne 1 ]; then
