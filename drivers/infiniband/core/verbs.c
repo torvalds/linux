@@ -520,11 +520,6 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 		}
 
 		resolved_dev = dev_get_by_index(&init_net, if_index);
-		if (resolved_dev->flags & IFF_LOOPBACK) {
-			dev_put(resolved_dev);
-			resolved_dev = idev;
-			dev_hold(resolved_dev);
-		}
 		rcu_read_lock();
 		if (resolved_dev != idev && !rdma_is_upper_dev_rcu(idev,
 								   resolved_dev))
