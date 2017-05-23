@@ -363,7 +363,7 @@ static int exynos_wkup_irq_set_wake(struct irq_data *irqd, unsigned int on)
 /*
  * irq_chip for wakeup interrupts
  */
-static struct exynos_irq_chip exynos4210_wkup_irq_chip __initdata = {
+static const struct exynos_irq_chip exynos4210_wkup_irq_chip __initconst = {
 	.chip = {
 		.name = "exynos4210_wkup_irq_chip",
 		.irq_unmask = exynos_irq_unmask,
@@ -379,7 +379,7 @@ static struct exynos_irq_chip exynos4210_wkup_irq_chip __initdata = {
 	.eint_pend = EXYNOS_WKUP_EPEND_OFFSET,
 };
 
-static struct exynos_irq_chip exynos7_wkup_irq_chip __initdata = {
+static const struct exynos_irq_chip exynos7_wkup_irq_chip __initconst = {
 	.chip = {
 		.name = "exynos7_wkup_irq_chip",
 		.irq_unmask = exynos_irq_unmask,
