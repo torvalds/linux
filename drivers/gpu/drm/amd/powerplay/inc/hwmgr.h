@@ -99,7 +99,8 @@ enum PHM_BackEnd_Magic {
 	PHM_CIslands_Magic    = 0x38AC78B0,
 	PHM_Kv_Magic          = 0xDCBBABC0,
 	PHM_VIslands_Magic    = 0x20130307,
-	PHM_Cz_Magic          = 0x67DCBA25
+	PHM_Cz_Magic          = 0x67DCBA25,
+	PHM_Rv_Magic          = 0x20161121
 };
 
 

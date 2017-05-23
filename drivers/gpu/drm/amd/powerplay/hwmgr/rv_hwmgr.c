@@ -43,7 +43,7 @@
 #define SMC_RAM_END                     0x40000
 
 
-static const unsigned long PhwRaven_Magic = (unsigned long) PHM_Cz_Magic;
+static const unsigned long PhwRaven_Magic = (unsigned long) PHM_Rv_Magic;
 int rv_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
 		struct pp_display_clock_request *clock_req);
 
