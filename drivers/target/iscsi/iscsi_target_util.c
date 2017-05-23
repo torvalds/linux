@@ -734,49 +734,18 @@ void __iscsit_free_cmd(struct iscsi_cmd *cmd, bool check_queues)
 
 void iscsit_free_cmd(struct iscsi_cmd *cmd, bool shutdown)
 {
-	struct se_cmd *se_cmd = NULL;
+	struct se_cmd *se_cmd = cmd->se_cmd.se_tfo ? &cmd->se_cmd : NULL;
 	int rc;
 
-	/*
-	 * Determine if a struct se_cmd is associated with
-	 * this struct iscsi_cmd.
-	 */
-	switch (cmd->iscsi_opcode) {
-	case ISCSI_OP_SCSI_CMD:
-		/*
-		 * Fallthrough
-		 */
-	case ISCSI_OP_SCSI_TMFUNC:
-		se_cmd = &cmd->se_cmd;
-		__iscsit_free_cmd(cmd, shutdown);
+	__iscsit_free_cmd(cmd, shutdown);
+	if (se_cmd) {
 		rc = transport_generic_free_cmd(se_cmd, shutdown);
 		if (!rc && shutdown && se_cmd->se_sess) {
 			__iscsit_free_cmd(cmd, shutdown);
 			target_put_sess_cmd(se_cmd);
 		}
-		break;
-	case ISCSI_OP_REJECT:
-		/*
-		 * Handle special case for REJECT when iscsi_add_reject*() has
-		 * overwritten the original iscsi_opcode assignment, and the
-		 * associated cmd->se_cmd needs to be released.
-		 */
-		if (cmd->se_cmd.se_tfo != NULL) {
-			se_cmd = &cmd->se_cmd;
-			__iscsit_free_cmd(cmd, shutdown);
-
-			rc = transport_generic_free_cmd(&cmd->se_cmd, shutdown);
-			if (!rc && shutdown && se_cmd->se_sess) {
-				__iscsit_free_cmd(cmd, shutdown);
-				target_put_sess_cmd(se_cmd);
-			}
-			break;
-		}
-		/* Fall-through */
-	default:
-		__iscsit_free_cmd(cmd, shutdown);
+	} else {
 		iscsit_release_cmd(cmd);
-		break;
 	}
 }
 EXPORT_SYMBOL(iscsit_free_cmd);
