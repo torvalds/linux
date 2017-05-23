@@ -2010,6 +2010,8 @@ static void emulate_load_store_MIPS16e(struct pt_regs *regs, void __user * addr)
 	u16 __user *pc16;
 	unsigned long origpc;
 	union mips16e_instruction mips16inst, oldinst;
+	unsigned int opcode;
+	int extended = 0;
 
 	origpc = regs->cp0_epc;
 	orig31 = regs->regs[31];
@@ -2022,6 +2024,7 @@ static void emulate_load_store_MIPS16e(struct pt_regs *regs, void __user * addr)
 
 	/* skip EXTEND instruction */
 	if (mips16inst.ri.opcode == MIPS16e_extend_op) {
+		extended = 1;
 		pc16++;
 		__get_user(mips16inst.full, pc16);
 	} else if (delay_slot(regs)) {
@@ -2034,7 +2037,8 @@ static void emulate_load_store_MIPS16e(struct pt_regs *regs, void __user * addr)
 			goto sigbus;
 	}
 
-	switch (mips16inst.ri.opcode) {
+	opcode = mips16inst.ri.opcode;
+	switch (opcode) {
 	case MIPS16e_i64_op:	/* I64 or RI64 instruction */
 		switch (mips16inst.i64.func) {	/* I64/RI64 func field check */
 		case MIPS16e_ldpc_func:
@@ -2054,9 +2058,40 @@ static void emulate_load_store_MIPS16e(struct pt_regs *regs, void __user * addr)
 		goto sigbus;
 
 	case MIPS16e_swsp_op:
+		reg = reg16to32[mips16inst.ri.rx];
+		if (extended && cpu_has_mips16e2)
+			switch (mips16inst.ri.imm >> 5) {
+			case 0:		/* SWSP */
+			case 1:		/* SWGP */
+				break;
+			case 2:		/* SHGP */
+				opcode = MIPS16e_sh_op;
+				break;
+			default:
+				goto sigbus;
+			}
+		break;
+
 	case MIPS16e_lwpc_op:
+		reg = reg16to32[mips16inst.ri.rx];
+		break;
+
 	case MIPS16e_lwsp_op:
 		reg = reg16to32[mips16inst.ri.rx];
+		if (extended && cpu_has_mips16e2)
+			switch (mips16inst.ri.imm >> 5) {
+			case 0:		/* LWSP */
+			case 1:		/* LWGP */
+				break;
+			case 2:		/* LHGP */
+				opcode = MIPS16e_lh_op;
+				break;
+			case 4:		/* LHUGP */
+				opcode = MIPS16e_lhu_op;
+				break;
+			default:
+				goto sigbus;
+			}
 		break;
 
 	case MIPS16e_i8_op:
@@ -2070,7 +2105,7 @@ static void emulate_load_store_MIPS16e(struct pt_regs *regs, void __user * addr)
 		break;
 	}
 
-	switch (mips16inst.ri.opcode) {
+	switch (opcode) {
 
 	case MIPS16e_lb_op:
 	case MIPS16e_lbu_op:
