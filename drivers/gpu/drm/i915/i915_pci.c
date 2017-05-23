@@ -385,7 +385,6 @@ static const struct intel_device_info intel_skylake_gt3_info = {
 	.has_gmbus_irq = 1, \
 	.has_logical_ring_contexts = 1, \
 	.has_guc = 1, \
-	.has_decoupled_mmio = 1, \
 	.has_aliasing_ppgtt = 1, \
 	.has_full_ppgtt = 1, \
 	.has_full_48bit_ppgtt = 1, \
