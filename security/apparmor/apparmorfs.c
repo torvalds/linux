@@ -727,8 +727,10 @@ int __aa_fs_profile_mkdir(struct aa_profile *profile, struct dentry *parent)
 		id_len = snprintf(NULL, 0, ".%ld", profile->ns->uniq_id);
 
 		profile->dirname = kmalloc(len + id_len + 1, GFP_KERNEL);
-		if (!profile->dirname)
-			goto fail;
+		if (!profile->dirname) {
+			error = -ENOMEM;
+			goto fail2;
+		}
 
 		mangle_name(profile->base.name, profile->dirname);
 		sprintf(profile->dirname + len, ".%ld", profile->ns->uniq_id++);
