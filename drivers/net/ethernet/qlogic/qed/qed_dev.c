@@ -1698,6 +1698,11 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 			return mfw_rc;
 		}
 
+		/* Check if there is a DID mismatch between nvm-cfg/efuse */
+		if (param & FW_MB_PARAM_LOAD_DONE_DID_EFUSE_ERROR)
+			DP_NOTICE(p_hwfn,
+				  "warning: device configuration is not supported on this board type. The device may not function as expected.\n");
+
 		/* send DCBX attention request command */
 		DP_VERBOSE(p_hwfn,
 			   QED_MSG_DCB,
