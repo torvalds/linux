@@ -816,8 +816,6 @@ struct se_device {
 	unsigned char		udev_path[SE_UDEV_PATH_LEN];
 	/* Pointer to template of function pointers for transport */
 	const struct target_backend_ops *transport;
-	/* Linked list for struct se_hba struct se_device list */
-	struct list_head	dev_list;
 	struct se_lun		xcopy_lun;
 	/* Protection Information */
 	int			prot_length;
