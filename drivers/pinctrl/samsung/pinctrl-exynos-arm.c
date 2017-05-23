@@ -47,7 +47,7 @@ static const struct samsung_pin_bank_type bank_type_alive = {
 
 static void s5pv210_retention_disable(struct samsung_pinctrl_drv_data *drvdata)
 {
-	void *clk_base = drvdata->retention_ctrl->priv;
+	void __iomem *clk_base = (void __iomem *)drvdata->retention_ctrl->priv;
 	u32 tmp;
 
 	tmp = __raw_readl(clk_base + S5P_OTHERS);
@@ -62,7 +62,7 @@ s5pv210_retention_init(struct samsung_pinctrl_drv_data *drvdata,
 {
 	struct samsung_retention_ctrl *ctrl;
 	struct device_node *np;
-	void *clk_base;
+	void __iomem *clk_base;
 
 	ctrl = devm_kzalloc(drvdata->dev, sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
@@ -81,7 +81,7 @@ s5pv210_retention_init(struct samsung_pinctrl_drv_data *drvdata,
 		return ERR_PTR(-EINVAL);
 	}
 
-	ctrl->priv = clk_base;
+	ctrl->priv = (void __force *)clk_base;
 	ctrl->disable = s5pv210_retention_disable;
 
 	return ctrl;
