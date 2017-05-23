@@ -64,10 +64,22 @@ struct urb_context {
 	u8 ep;
 };
 
+#define MWIFIEX_USB_TX_AGGR_TMO_MIN	1
+#define MWIFIEX_USB_TX_AGGR_TMO_MAX	4
+
+struct tx_aggr_tmr_cnxt {
+	struct mwifiex_adapter *adapter;
+	struct usb_tx_data_port *port;
+	struct timer_list hold_timer;
+	bool is_hold_timer_set;
+	u32 hold_tmo_msecs;
+};
+
 struct usb_tx_aggr {
 	struct sk_buff_head aggr_list;
 	int aggr_len;
 	int aggr_num;
+	struct tx_aggr_tmr_cnxt timer_cnxt;
 };
 
 struct usb_tx_data_port {
@@ -79,6 +91,8 @@ struct usb_tx_data_port {
 	/* usb tx aggregation*/
 	struct usb_tx_aggr tx_aggr;
 	struct sk_buff *skb_aggr[MWIFIEX_TX_DATA_URB];
+	/* lock for protect tx aggregation data path*/
+	spinlock_t tx_aggr_lock;
 };
 
 struct usb_card_rec {

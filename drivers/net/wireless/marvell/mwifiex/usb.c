@@ -663,76 +663,6 @@ static struct usb_driver mwifiex_usb_driver = {
 	.soft_unbind = 1,
 };
 
-static int mwifiex_usb_tx_init(struct mwifiex_adapter *adapter)
-{
-	struct usb_card_rec *card = (struct usb_card_rec *)adapter->card;
-	struct usb_tx_data_port *port;
-	int i, j;
-
-	card->tx_cmd.adapter = adapter;
-	card->tx_cmd.ep = card->tx_cmd_ep;
-
-	card->tx_cmd.urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!card->tx_cmd.urb)
-		return -ENOMEM;
-
-	for (i = 0; i < MWIFIEX_TX_DATA_PORT; i++) {
-		port = &card->port[i];
-		if (!port->tx_data_ep)
-			continue;
-		port->tx_data_ix = 0;
-		skb_queue_head_init(&port->tx_aggr.aggr_list);
-		if (port->tx_data_ep == MWIFIEX_USB_EP_DATA)
-			port->block_status = false;
-		else
-			port->block_status = true;
-		for (j = 0; j < MWIFIEX_TX_DATA_URB; j++) {
-			port->tx_data_list[j].adapter = adapter;
-			port->tx_data_list[j].ep = port->tx_data_ep;
-			port->tx_data_list[j].urb =
-					usb_alloc_urb(0, GFP_KERNEL);
-			if (!port->tx_data_list[j].urb)
-				return -ENOMEM;
-		}
-	}
-
-	return 0;
-}
-
-static int mwifiex_usb_rx_init(struct mwifiex_adapter *adapter)
-{
-	struct usb_card_rec *card = (struct usb_card_rec *)adapter->card;
-	int i;
-
-	card->rx_cmd.adapter = adapter;
-	card->rx_cmd.ep = card->rx_cmd_ep;
-
-	card->rx_cmd.urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!card->rx_cmd.urb)
-		return -ENOMEM;
-
-	card->rx_cmd.skb = dev_alloc_skb(MWIFIEX_RX_CMD_BUF_SIZE);
-	if (!card->rx_cmd.skb)
-		return -ENOMEM;
-
-	if (mwifiex_usb_submit_rx_urb(&card->rx_cmd, MWIFIEX_RX_CMD_BUF_SIZE))
-		return -1;
-
-	for (i = 0; i < MWIFIEX_RX_DATA_URB; i++) {
-		card->rx_data_list[i].adapter = adapter;
-		card->rx_data_list[i].ep = card->rx_data_ep;
-
-		card->rx_data_list[i].urb = usb_alloc_urb(0, GFP_KERNEL);
-		if (!card->rx_data_list[i].urb)
-			return -1;
-		if (mwifiex_usb_submit_rx_urb(&card->rx_data_list[i],
-					      MWIFIEX_RX_DATA_BUF_SIZE))
-			return -1;
-	}
-
-	return 0;
-}
-
 static int mwifiex_write_data_sync(struct mwifiex_adapter *adapter, u8 *pbuf,
 				   u32 *len, u8 ep, u32 timeout)
 {
@@ -919,6 +849,15 @@ static int mwifiex_usb_prepare_tx_aggr_skb(struct mwifiex_adapter *adapter,
 	struct mwifiex_txinfo *tx_info = NULL;
 	bool is_txinfo_set = false;
 
+	/* Packets in aggr_list will be send in either skb_aggr or
+	 * write complete, delete the tx_aggr timer
+	 */
+	if (port->tx_aggr.timer_cnxt.is_hold_timer_set) {
+		del_timer(&port->tx_aggr.timer_cnxt.hold_timer);
+		port->tx_aggr.timer_cnxt.is_hold_timer_set = false;
+		port->tx_aggr.timer_cnxt.hold_tmo_msecs = 0;
+	}
+
 	skb_aggr = mwifiex_alloc_dma_align_buf(port->tx_aggr.aggr_len,
 					       GFP_ATOMIC);
 	if (!skb_aggr) {
@@ -1000,6 +939,7 @@ static int mwifiex_usb_aggr_tx_data(struct mwifiex_adapter *adapter, u8 ep,
 	u8 f_send_cur_buf = 0;
 	u8 f_precopy_cur_buf = 0;
 	u8 f_postcopy_cur_buf = 0;
+	u32 timeout;
 	int ret;
 
 	/* padding to ensure each packet alginment */
@@ -1070,8 +1010,35 @@ static int mwifiex_usb_aggr_tx_data(struct mwifiex_adapter *adapter, u8 ep,
 		skb_queue_tail(&port->tx_aggr.aggr_list, skb);
 		port->tx_aggr.aggr_len += (skb->len + pad);
 		port->tx_aggr.aggr_num++;
+		if (f_send_aggr_buf)
+			goto send_aggr_buf;
+
+		/* packet will not been send immediately,
+		 * set a timer to make sure it will be sent under
+		 * strict time limit. Dynamically fit the timeout
+		 * value, according to packets number in aggr_list
+		 */
+		if (!port->tx_aggr.timer_cnxt.is_hold_timer_set) {
+			port->tx_aggr.timer_cnxt.hold_tmo_msecs =
+					MWIFIEX_USB_TX_AGGR_TMO_MIN;
+			timeout =
+				port->tx_aggr.timer_cnxt.hold_tmo_msecs;
+			mod_timer(&port->tx_aggr.timer_cnxt.hold_timer,
+				  jiffies + msecs_to_jiffies(timeout));
+			port->tx_aggr.timer_cnxt.is_hold_timer_set = true;
+		} else {
+			if (port->tx_aggr.timer_cnxt.hold_tmo_msecs <
+			    MWIFIEX_USB_TX_AGGR_TMO_MAX) {
+				/* Dyanmic fit timeout */
+				timeout =
+				++port->tx_aggr.timer_cnxt.hold_tmo_msecs;
+				mod_timer(&port->tx_aggr.timer_cnxt.hold_timer,
+					  jiffies + msecs_to_jiffies(timeout));
+			}
+		}
 	}
 
+send_aggr_buf:
 	if (f_send_aggr_buf) {
 		ret = mwifiex_usb_prepare_tx_aggr_skb(adapter, port, &skb_send);
 		if (!ret) {
@@ -1115,9 +1082,58 @@ postcopy_cur_buf:
 		skb_queue_tail(&port->tx_aggr.aggr_list, skb);
 		port->tx_aggr.aggr_len += (skb->len + pad);
 		port->tx_aggr.aggr_num++;
+		/* New aggregation begin, start timer */
+		if (!port->tx_aggr.timer_cnxt.is_hold_timer_set) {
+			port->tx_aggr.timer_cnxt.hold_tmo_msecs =
+					MWIFIEX_USB_TX_AGGR_TMO_MIN;
+			timeout = port->tx_aggr.timer_cnxt.hold_tmo_msecs;
+			mod_timer(&port->tx_aggr.timer_cnxt.hold_timer,
+				  jiffies + msecs_to_jiffies(timeout));
+			port->tx_aggr.timer_cnxt.is_hold_timer_set = true;
+		}
 	}
 
 	return -EINPROGRESS;
+}
+
+static void mwifiex_usb_tx_aggr_tmo(unsigned long context)
+{
+	struct urb_context *urb_cnxt = NULL;
+	struct sk_buff *skb_send = NULL;
+	struct tx_aggr_tmr_cnxt *timer_context =
+		(struct tx_aggr_tmr_cnxt *)context;
+	struct mwifiex_adapter *adapter = timer_context->adapter;
+	struct usb_tx_data_port *port = timer_context->port;
+	unsigned long flags;
+	int err = 0;
+
+	spin_lock_irqsave(&port->tx_aggr_lock, flags);
+	err = mwifiex_usb_prepare_tx_aggr_skb(adapter, port, &skb_send);
+	if (err) {
+		mwifiex_dbg(adapter, ERROR,
+			    "prepare tx aggr skb failed, err=%d\n", err);
+		return;
+	}
+
+	if (atomic_read(&port->tx_data_urb_pending) >=
+	    MWIFIEX_TX_DATA_URB) {
+		port->block_status = true;
+		adapter->data_sent =
+			mwifiex_usb_data_sent(adapter);
+		err = -1;
+		goto done;
+	}
+
+	if (port->tx_data_ix >= MWIFIEX_TX_DATA_URB)
+		port->tx_data_ix = 0;
+
+	urb_cnxt = &port->tx_data_list[port->tx_data_ix++];
+	err = mwifiex_usb_construct_send_urb(adapter, port, port->tx_data_ep,
+					     urb_cnxt, skb_send);
+done:
+	if (err == -1)
+		mwifiex_write_data_complete(adapter, skb_send, 0, -1);
+	spin_unlock_irqrestore(&port->tx_aggr_lock, flags);
 }
 
 /* This function write a command/data packet to card. */
@@ -1128,7 +1144,8 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 	struct usb_card_rec *card = adapter->card;
 	struct urb_context *context = NULL;
 	struct usb_tx_data_port *port = NULL;
-	int idx;
+	unsigned long flags;
+	int idx, ret;
 
 	if (adapter->is_suspended) {
 		mwifiex_dbg(adapter, ERROR,
@@ -1168,14 +1185,96 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 			return -1;
 		}
 
-		if (adapter->bus_aggr.enable)
-			return mwifiex_usb_aggr_tx_data(adapter, ep, skb,
+		if (adapter->bus_aggr.enable) {
+			spin_lock_irqsave(&port->tx_aggr_lock, flags);
+			ret =  mwifiex_usb_aggr_tx_data(adapter, ep, skb,
 							tx_param, port);
+			spin_unlock_irqrestore(&port->tx_aggr_lock, flags);
+			return ret;
+		}
 
 		context = &port->tx_data_list[port->tx_data_ix++];
 	}
 
 	return mwifiex_usb_construct_send_urb(adapter, port, ep, context, skb);
+}
+
+static int mwifiex_usb_tx_init(struct mwifiex_adapter *adapter)
+{
+	struct usb_card_rec *card = (struct usb_card_rec *)adapter->card;
+	struct usb_tx_data_port *port;
+	int i, j;
+
+	card->tx_cmd.adapter = adapter;
+	card->tx_cmd.ep = card->tx_cmd_ep;
+
+	card->tx_cmd.urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!card->tx_cmd.urb)
+		return -ENOMEM;
+
+	for (i = 0; i < MWIFIEX_TX_DATA_PORT; i++) {
+		port = &card->port[i];
+		if (!port->tx_data_ep)
+			continue;
+		port->tx_data_ix = 0;
+		skb_queue_head_init(&port->tx_aggr.aggr_list);
+		if (port->tx_data_ep == MWIFIEX_USB_EP_DATA)
+			port->block_status = false;
+		else
+			port->block_status = true;
+		for (j = 0; j < MWIFIEX_TX_DATA_URB; j++) {
+			port->tx_data_list[j].adapter = adapter;
+			port->tx_data_list[j].ep = port->tx_data_ep;
+			port->tx_data_list[j].urb =
+					usb_alloc_urb(0, GFP_KERNEL);
+			if (!port->tx_data_list[j].urb)
+				return -ENOMEM;
+		}
+
+		port->tx_aggr.timer_cnxt.adapter = adapter;
+		port->tx_aggr.timer_cnxt.port = port;
+		port->tx_aggr.timer_cnxt.is_hold_timer_set = false;
+		port->tx_aggr.timer_cnxt.hold_tmo_msecs = 0;
+		setup_timer(&port->tx_aggr.timer_cnxt.hold_timer,
+			    mwifiex_usb_tx_aggr_tmo,
+			    (unsigned long)&port->tx_aggr.timer_cnxt);
+	}
+
+	return 0;
+}
+
+static int mwifiex_usb_rx_init(struct mwifiex_adapter *adapter)
+{
+	struct usb_card_rec *card = (struct usb_card_rec *)adapter->card;
+	int i;
+
+	card->rx_cmd.adapter = adapter;
+	card->rx_cmd.ep = card->rx_cmd_ep;
+
+	card->rx_cmd.urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!card->rx_cmd.urb)
+		return -ENOMEM;
+
+	card->rx_cmd.skb = dev_alloc_skb(MWIFIEX_RX_CMD_BUF_SIZE);
+	if (!card->rx_cmd.skb)
+		return -ENOMEM;
+
+	if (mwifiex_usb_submit_rx_urb(&card->rx_cmd, MWIFIEX_RX_CMD_BUF_SIZE))
+		return -1;
+
+	for (i = 0; i < MWIFIEX_RX_DATA_URB; i++) {
+		card->rx_data_list[i].adapter = adapter;
+		card->rx_data_list[i].ep = card->rx_data_ep;
+
+		card->rx_data_list[i].urb = usb_alloc_urb(0, GFP_KERNEL);
+		if (!card->rx_data_list[i].urb)
+			return -1;
+		if (mwifiex_usb_submit_rx_urb(&card->rx_data_list[i],
+					      MWIFIEX_RX_DATA_BUF_SIZE))
+			return -1;
+	}
+
+	return 0;
 }
 
 /* This function register usb device and initialize parameter. */
@@ -1225,14 +1324,16 @@ static void mwifiex_usb_cleanup_tx_aggr(struct mwifiex_adapter *adapter)
 	struct sk_buff *skb_tmp;
 	int idx;
 
-	if (adapter->bus_aggr.enable) {
-		for (idx = 0; idx < MWIFIEX_TX_DATA_PORT; idx++) {
-			port = &card->port[idx];
+	for (idx = 0; idx < MWIFIEX_TX_DATA_PORT; idx++) {
+		port = &card->port[idx];
+		if (adapter->bus_aggr.enable)
 			while ((skb_tmp =
 				skb_dequeue(&port->tx_aggr.aggr_list)))
 				mwifiex_write_data_complete(adapter, skb_tmp,
 							    0, -1);
-		}
+		del_timer_sync(&port->tx_aggr.timer_cnxt.hold_timer);
+		port->tx_aggr.timer_cnxt.is_hold_timer_set = false;
+		port->tx_aggr.timer_cnxt.hold_tmo_msecs = 0;
 	}
 }
 
@@ -1240,8 +1341,7 @@ static void mwifiex_unregister_dev(struct mwifiex_adapter *adapter)
 {
 	struct usb_card_rec *card = (struct usb_card_rec *)adapter->card;
 
-	if (adapter->bus_aggr.enable)
-		mwifiex_usb_cleanup_tx_aggr(adapter);
+	mwifiex_usb_cleanup_tx_aggr(adapter);
 
 	card->adapter = NULL;
 }
