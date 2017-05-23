@@ -724,8 +724,9 @@ __cpufreq_cooling_register(struct device_node *np,
 	/* max_level is an index, not a counter */
 	cpufreq_cdev->max_level = i - 1;
 
-	cpufreq_cdev->freq_table = kmalloc(sizeof(*cpufreq_cdev->freq_table) * i,
-					  GFP_KERNEL);
+	cpufreq_cdev->freq_table = kmalloc_array(i,
+					sizeof(*cpufreq_cdev->freq_table),
+					GFP_KERNEL);
 	if (!cpufreq_cdev->freq_table) {
 		cdev = ERR_PTR(-ENOMEM);
 		goto free_idle_time;
