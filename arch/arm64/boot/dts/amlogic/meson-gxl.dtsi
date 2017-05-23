@@ -244,7 +244,7 @@
 			reg-names = "mux", "pull", "pull-enable", "gpio";
 			gpio-controller;
 			#gpio-cells = <2>;
-			gpio-ranges = <&pinctrl_periphs 0 14 101>;
+			gpio-ranges = <&pinctrl_periphs 0 10 101>;
 		};
 
 		emmc_pins: emmc {
