@@ -543,17 +543,18 @@ _generic_set_opp_clk_only(struct device *dev, struct clk *clk,
 	return ret;
 }
 
-static int _generic_set_opp(struct dev_pm_set_opp_data *data)
+static int _generic_set_opp_regulator(const struct opp_table *opp_table,
+				      struct device *dev,
+				      unsigned long old_freq,
+				      unsigned long freq,
+				      struct dev_pm_opp_supply *old_supply,
+				      struct dev_pm_opp_supply *new_supply)
 {
-	struct dev_pm_opp_supply *old_supply = data->old_opp.supplies;
-	struct dev_pm_opp_supply *new_supply = data->new_opp.supplies;
-	unsigned long old_freq = data->old_opp.rate, freq = data->new_opp.rate;
-	struct regulator *reg = data->regulators[0];
-	struct device *dev= data->dev;
+	struct regulator *reg = opp_table->regulators[0];
 	int ret;
 
 	/* This function only supports single regulator per device */
-	if (WARN_ON(data->regulator_count > 1)) {
+	if (WARN_ON(opp_table->regulator_count > 1)) {
 		dev_err(dev, "multiple regulators are not supported\n");
 		return -EINVAL;
 	}
@@ -566,7 +567,7 @@ static int _generic_set_opp(struct dev_pm_set_opp_data *data)
 	}
 
 	/* Change frequency */
-	ret = _generic_set_opp_clk_only(dev, data->clk, old_freq, freq);
+	ret = _generic_set_opp_clk_only(dev, opp_table->clk, old_freq, freq);
 	if (ret)
 		goto restore_voltage;
 
@@ -580,12 +581,12 @@ static int _generic_set_opp(struct dev_pm_set_opp_data *data)
 	return 0;
 
 restore_freq:
-	if (_generic_set_opp_clk_only(dev, data->clk, freq, old_freq))
+	if (_generic_set_opp_clk_only(dev, opp_table->clk, freq, old_freq))
 		dev_err(dev, "%s: failed to restore old-freq (%lu Hz)\n",
 			__func__, old_freq);
 restore_voltage:
 	/* This shouldn't harm even if the voltages weren't updated earlier */
-	if (old_supply->u_volt)
+	if (old_supply)
 		_set_opp_voltage(dev, reg, old_supply);
 
 	return ret;
@@ -603,10 +604,7 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 {
 	struct opp_table *opp_table;
 	unsigned long freq, old_freq;
-	int (*set_opp)(struct dev_pm_set_opp_data *data);
 	struct dev_pm_opp *old_opp, *opp;
-	struct regulator **regulators;
-	struct dev_pm_set_opp_data *data;
 	struct clk *clk;
 	int ret, size;
 
@@ -661,38 +659,35 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 	dev_dbg(dev, "%s: switching OPP: %lu Hz --> %lu Hz\n", __func__,
 		old_freq, freq);
 
-	regulators = opp_table->regulators;
-
 	/* Only frequency scaling */
-	if (!regulators) {
+	if (!opp_table->regulators) {
 		ret = _generic_set_opp_clk_only(dev, clk, old_freq, freq);
-		goto put_opps;
+	} else if (!opp_table->set_opp) {
+		ret = _generic_set_opp_regulator(opp_table, dev, old_freq, freq,
+						 IS_ERR(old_opp) ? NULL : old_opp->supplies,
+						 opp->supplies);
+	} else {
+		struct dev_pm_set_opp_data *data;
+
+		data = opp_table->set_opp_data;
+		data->regulators = opp_table->regulators;
+		data->regulator_count = opp_table->regulator_count;
+		data->clk = clk;
+		data->dev = dev;
+
+		data->old_opp.rate = old_freq;
+		size = sizeof(*opp->supplies) * opp_table->regulator_count;
+		if (IS_ERR(old_opp))
+			memset(data->old_opp.supplies, 0, size);
+		else
+			memcpy(data->old_opp.supplies, old_opp->supplies, size);
+
+		data->new_opp.rate = freq;
+		memcpy(data->new_opp.supplies, opp->supplies, size);
+
+		ret = opp_table->set_opp(data);
 	}
 
-	if (opp_table->set_opp)
-		set_opp = opp_table->set_opp;
-	else
-		set_opp = _generic_set_opp;
-
-	data = opp_table->set_opp_data;
-	data->regulators = regulators;
-	data->regulator_count = opp_table->regulator_count;
-	data->clk = clk;
-	data->dev = dev;
-
-	data->old_opp.rate = old_freq;
-	size = sizeof(*opp->supplies) * opp_table->regulator_count;
-	if (IS_ERR(old_opp))
-		memset(data->old_opp.supplies, 0, size);
-	else
-		memcpy(data->old_opp.supplies, old_opp->supplies, size);
-
-	data->new_opp.rate = freq;
-	memcpy(data->new_opp.supplies, opp->supplies, size);
-
-	ret = set_opp(data);
-
-put_opps:
 	dev_pm_opp_put(opp);
 put_old_opp:
 	if (!IS_ERR(old_opp))
