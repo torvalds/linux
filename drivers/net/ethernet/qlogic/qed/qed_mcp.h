@@ -482,7 +482,7 @@ int qed_mcp_bist_nvm_test_get_image_att(struct qed_hwfn *p_hwfn,
 #define MCP_PF_ID(p_hwfn) MCP_PF_ID_BY_REL(p_hwfn, (p_hwfn)->rel_pf_id)
 
 #define MFW_PORT(_p_hwfn)       ((_p_hwfn)->abs_pf_id %			  \
-				 ((_p_hwfn)->cdev->num_ports_in_engines * \
+				 ((_p_hwfn)->cdev->num_ports_in_engine * \
 				  qed_device_num_engines((_p_hwfn)->cdev)))
 
 struct qed_mcp_info {
