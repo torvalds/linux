@@ -4299,7 +4299,7 @@ static void irq_remapping_deactivate(struct irq_domain *domain,
 					    irte_info->index);
 }
 
-static struct irq_domain_ops amd_ir_domain_ops = {
+static const struct irq_domain_ops amd_ir_domain_ops = {
 	.alloc = irq_remapping_alloc,
 	.free = irq_remapping_free,
 	.activate = irq_remapping_activate,
