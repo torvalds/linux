@@ -125,26 +125,21 @@ static int compat_drm_getunique(struct file *file, unsigned int cmd,
 				unsigned long arg)
 {
 	drm_unique32_t uq32;
-	struct drm_unique __user *u;
+	struct drm_unique uq;
 	int err;
 
 	if (copy_from_user(&uq32, (void __user *)arg, sizeof(uq32)))
 		return -EFAULT;
+	uq = (struct drm_unique){
+		.unique_len = uq32.unique_len,
+		.unique = compat_ptr(uq32.unique),
+	};
 
-	u = compat_alloc_user_space(sizeof(*u));
-	if (!u)
-		return -EFAULT;
-	if (__put_user(uq32.unique_len, &u->unique_len)
-	    || __put_user((void __user *)(unsigned long)uq32.unique,
-			  &u->unique))
-		return -EFAULT;
-
-	err = drm_ioctl(file, DRM_IOCTL_GET_UNIQUE, (unsigned long)u);
+	err = drm_ioctl_kernel(file, drm_getunique, &uq, DRM_UNLOCKED);
 	if (err)
 		return err;
 
-	if (__get_user(uq32.unique_len, &u->unique_len))
-		return -EFAULT;
+	uq32.unique_len = uq.unique_len;
 	if (copy_to_user((void __user *)arg, &uq32, sizeof(uq32)))
 		return -EFAULT;
 	return 0;
@@ -1072,7 +1067,7 @@ static struct {
 } drm_compat_ioctls[] = {
 #define DRM_IOCTL32_DEF(n, f) [DRM_IOCTL_NR(n##32)] = {.fn = f, .name = #n}
 	DRM_IOCTL32_DEF(DRM_IOCTL_VERSION, compat_drm_version),
-	[DRM_IOCTL_NR(DRM_IOCTL_GET_UNIQUE32)].fn = compat_drm_getunique,
+	DRM_IOCTL32_DEF(DRM_IOCTL_GET_UNIQUE, compat_drm_getunique),
 	[DRM_IOCTL_NR(DRM_IOCTL_GET_MAP32)].fn = compat_drm_getmap,
 	[DRM_IOCTL_NR(DRM_IOCTL_GET_CLIENT32)].fn = compat_drm_getclient,
 	[DRM_IOCTL_NR(DRM_IOCTL_GET_STATS32)].fn = compat_drm_getstats,
