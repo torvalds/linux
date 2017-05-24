@@ -80,8 +80,8 @@ static void queue_flush_work(struct printk_safe_seq_buf *s)
  * happen, printk_safe_log_store() will notice the buffer->len mismatch
  * and repeat the write.
  */
-static int printk_safe_log_store(struct printk_safe_seq_buf *s,
-				 const char *fmt, va_list args)
+static __printf(2, 0) int printk_safe_log_store(struct printk_safe_seq_buf *s,
+						const char *fmt, va_list args)
 {
 	int add;
 	size_t len;
@@ -299,7 +299,7 @@ void printk_safe_flush_on_panic(void)
  * one writer running. But the buffer might get flushed from another
  * CPU, so we need to be careful.
  */
-static int vprintk_nmi(const char *fmt, va_list args)
+static __printf(1, 0) int vprintk_nmi(const char *fmt, va_list args)
 {
 	struct printk_safe_seq_buf *s = this_cpu_ptr(&nmi_print_seq);
 
@@ -330,7 +330,7 @@ void printk_nmi_exit(void)
 
 #else
 
-static int vprintk_nmi(const char *fmt, va_list args)
+static __printf(1, 0) int vprintk_nmi(const char *fmt, va_list args)
 {
 	return 0;
 }
@@ -342,7 +342,7 @@ static int vprintk_nmi(const char *fmt, va_list args)
  * into itself. It uses a per-CPU buffer to store the message, just like
  * NMI.
  */
-static int vprintk_safe(const char *fmt, va_list args)
+static __printf(1, 0) int vprintk_safe(const char *fmt, va_list args)
 {
 	struct printk_safe_seq_buf *s = this_cpu_ptr(&safe_print_seq);
 
