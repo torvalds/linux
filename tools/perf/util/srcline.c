@@ -203,6 +203,16 @@ static void addr2line_cleanup(struct a2l_data *a2l)
 
 #define MAX_INLINE_NEST 1024
 
+static int inline_list__append_dso_a2l(struct dso *dso,
+				       struct inline_node *node)
+{
+	struct a2l_data *a2l = dso->a2l;
+	char *funcname = a2l->funcname ? strdup(a2l->funcname) : NULL;
+	char *filename = a2l->filename ? strdup(a2l->filename) : NULL;
+
+	return inline_list__append(filename, funcname, a2l->line, node, dso);
+}
+
 static int addr2line(const char *dso_name, u64 addr,
 		     char **file, unsigned int *line, struct dso *dso,
 		     bool unwind_inlines, struct inline_node *node)
@@ -231,15 +241,15 @@ static int addr2line(const char *dso_name, u64 addr,
 	if (unwind_inlines) {
 		int cnt = 0;
 
+		if (node && inline_list__append_dso_a2l(dso, node))
+			return 0;
+
 		while (bfd_find_inliner_info(a2l->abfd, &a2l->filename,
 					     &a2l->funcname, &a2l->line) &&
 		       cnt++ < MAX_INLINE_NEST) {
 
 			if (node != NULL) {
-				if (inline_list__append(strdup(a2l->filename),
-							strdup(a2l->funcname),
-							a2l->line, node,
-							dso) != 0)
+				if (inline_list__append_dso_a2l(dso, node))
 					return 0;
 				// found at least one inline frame
 				ret = 1;
