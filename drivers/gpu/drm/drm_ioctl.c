@@ -461,7 +461,7 @@ static int drm_copy_field(char __user *buf, size_t *buf_len, const char *value)
  *
  * Fills in the version information in \p arg.
  */
-static int drm_version(struct drm_device *dev, void *data,
+int drm_version(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv)
 {
 	struct drm_version *version = data;

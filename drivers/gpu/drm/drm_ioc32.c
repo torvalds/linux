@@ -33,6 +33,7 @@
 
 #include <drm/drmP.h>
 #include "drm_legacy.h"
+#include "drm_internal.h"
 
 #define DRM_IOCTL_VERSION32		DRM_IOWR(0x00, drm_version32_t)
 #define DRM_IOCTL_GET_UNIQUE32		DRM_IOWR(0x01, drm_unique32_t)
@@ -88,39 +89,28 @@ static int compat_drm_version(struct file *file, unsigned int cmd,
 			      unsigned long arg)
 {
 	drm_version32_t v32;
-	struct drm_version __user *version;
+	struct drm_version v;
 	int err;
 
 	if (copy_from_user(&v32, (void __user *)arg, sizeof(v32)))
 		return -EFAULT;
 
-	version = compat_alloc_user_space(sizeof(*version));
-	if (!version)
-		return -EFAULT;
-	if (__put_user(v32.name_len, &version->name_len)
-	    || __put_user((void __user *)(unsigned long)v32.name,
-			  &version->name)
-	    || __put_user(v32.date_len, &version->date_len)
-	    || __put_user((void __user *)(unsigned long)v32.date,
-			  &version->date)
-	    || __put_user(v32.desc_len, &version->desc_len)
-	    || __put_user((void __user *)(unsigned long)v32.desc,
-			  &version->desc))
-		return -EFAULT;
-
-	err = drm_ioctl(file,
-			DRM_IOCTL_VERSION, (unsigned long)version);
+	v = (struct drm_version) {
+		.name_len = v32.name_len,
+		.name = compat_ptr(v32.name),
+		.date_len = v32.date_len,
+		.date = compat_ptr(v32.date),
+		.desc_len = v32.desc_len,
+		.desc = compat_ptr(v32.desc),
+	};
+	err = drm_ioctl_kernel(file, drm_version, &v,
+			DRM_UNLOCKED|DRM_RENDER_ALLOW|DRM_CONTROL_ALLOW);
 	if (err)
 		return err;
 
-	if (__get_user(v32.version_major, &version->version_major)
-	    || __get_user(v32.version_minor, &version->version_minor)
-	    || __get_user(v32.version_patchlevel, &version->version_patchlevel)
-	    || __get_user(v32.name_len, &version->name_len)
-	    || __get_user(v32.date_len, &version->date_len)
-	    || __get_user(v32.desc_len, &version->desc_len))
-		return -EFAULT;
-
+	v32.version_major = v.version_major;
+	v32.version_minor = v.version_minor;
+	v32.version_patchlevel = v.version_patchlevel;
 	if (copy_to_user((void __user *)arg, &v32, sizeof(v32)))
 		return -EFAULT;
 	return 0;
@@ -1081,7 +1071,7 @@ static struct {
 	char *name;
 } drm_compat_ioctls[] = {
 #define DRM_IOCTL32_DEF(n, f) [DRM_IOCTL_NR(n##32)] = {.fn = f, .name = #n}
-	[DRM_IOCTL_NR(DRM_IOCTL_VERSION32)].fn = compat_drm_version,
+	DRM_IOCTL32_DEF(DRM_IOCTL_VERSION, compat_drm_version),
 	[DRM_IOCTL_NR(DRM_IOCTL_GET_UNIQUE32)].fn = compat_drm_getunique,
 	[DRM_IOCTL_NR(DRM_IOCTL_GET_MAP32)].fn = compat_drm_getmap,
 	[DRM_IOCTL_NR(DRM_IOCTL_GET_CLIENT32)].fn = compat_drm_getclient,
