@@ -15,7 +15,7 @@
  */
 
 /* \file ssi_sysfs.h
-   ARM CryptoCell sysfs APIs
+ * ARM CryptoCell sysfs APIs
  */
 
 #ifndef __SSI_SYSFS_H__
