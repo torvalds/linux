@@ -26,7 +26,8 @@
 /* The max. size of pool *MUST* be <= SRAM total size */
 #define SSI_IVPOOL_SIZE 1024
 /* The first 32B fraction of pool are dedicated to the
-   next encryption "key" & "IV" for pool regeneration */
+ * next encryption "key" & "IV" for pool regeneration
+ */
 #define SSI_IVPOOL_META_SIZE (CC_AES_IV_SIZE + AES_KEYSIZE_128)
 #define SSI_IVPOOL_GEN_SEQ_LEN	4
 
@@ -278,7 +279,8 @@ int ssi_ivgen_getiv(
 	}
 
 	/* Bypass operation is proceeded by crypto sequence, hence must
-	*  assure bypass-write-transaction by a memory barrier */
+	 *  assure bypass-write-transaction by a memory barrier
+	 */
 	HW_DESC_INIT(&iv_seq[idx]);
 	HW_DESC_SET_DIN_NO_DMA(&iv_seq[idx], 0, 0xfffff0);
 	HW_DESC_SET_DOUT_NO_DMA(&iv_seq[idx], 0, 0, 1);
