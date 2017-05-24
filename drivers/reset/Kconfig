@@ -34,6 +34,13 @@ config RESET_BERLIN
 	help
 	  This enables the reset controller driver for Marvell Berlin SoCs.
 
+config RESET_GEMINI
+	bool "Gemini Reset Driver" if COMPILE_TEST
+	default ARCH_GEMINI
+	select MFD_SYSCON
+	help
+	  This enables the reset controller driver for Cortina Systems Gemini.
+
 config RESET_IMX7
 	bool "i.MX7 Reset Driver" if COMPILE_TEST
 	default SOC_IMX7D
