@@ -1512,6 +1512,22 @@ int dquot_initialize(struct inode *inode)
 }
 EXPORT_SYMBOL(dquot_initialize);
 
+bool dquot_initialize_needed(struct inode *inode)
+{
+	struct dquot **dquots;
+	int i;
+
+	if (!dquot_active(inode))
+		return false;
+
+	dquots = i_dquot(inode);
+	for (i = 0; i < MAXQUOTAS; i++)
+		if (!dquots[i] && sb_has_quota_active(inode->i_sb, i))
+			return true;
+	return false;
+}
+EXPORT_SYMBOL(dquot_initialize_needed);
+
 /*
  * Release all quotas referenced by inode.
  *
