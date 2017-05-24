@@ -314,6 +314,15 @@ config HW_RANDOM_PPC4XX
 	 This option provides the kernel-side support for the TRNG hardware
 	 found in the security function of some PowerPC 4xx SoCs.
 
+config CRYPTO_DEV_OMAP
+	tristate "Support for OMAP crypto HW accelerators"
+	depends on ARCH_OMAP2PLUS
+	help
+	  OMAP processors have various crypto HW accelerators. Select this if
+          you want to use the OMAP modules for any of the crypto algorithms.
+
+if CRYPTO_DEV_OMAP
+
 config CRYPTO_DEV_OMAP_SHAM
 	tristate "Support for OMAP MD5/SHA1/SHA2 hw accelerator"
 	depends on ARCH_OMAP2PLUS
@@ -350,6 +359,8 @@ config CRYPTO_DEV_OMAP_DES
 	  want to use the OMAP module for DES and 3DES algorithms. Currently
 	  the ECB and CBC modes of operation are supported by the driver. Also
 	  accesses made on unaligned boundaries are supported.
+
+endif # CRYPTO_DEV_OMAP
 
 config CRYPTO_DEV_PICOXCELL
 	tristate "Support for picoXcell IPSEC and Layer2 crypto engines"
