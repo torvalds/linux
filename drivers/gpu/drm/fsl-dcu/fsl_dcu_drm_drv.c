@@ -109,7 +109,6 @@ done:
 		drm_fbdev_cma_fini(fsl_dev->fbdev);
 
 	drm_mode_config_cleanup(dev);
-	drm_vblank_cleanup(dev);
 	drm_irq_uninstall(dev);
 	dev->dev_private = NULL;
 
@@ -127,7 +126,6 @@ static void fsl_dcu_unload(struct drm_device *dev)
 		drm_fbdev_cma_fini(fsl_dev->fbdev);
 
 	drm_mode_config_cleanup(dev);
-	drm_vblank_cleanup(dev);
 	drm_irq_uninstall(dev);
 
 	dev->dev_private = NULL;
