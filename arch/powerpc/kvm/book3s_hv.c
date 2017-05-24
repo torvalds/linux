@@ -3317,7 +3317,7 @@ void kvmppc_alloc_host_rm_ops(void)
 		return;
 	}
 
-	get_online_cpus();
+	cpus_read_lock();
 
 	for (cpu = 0; cpu < nr_cpu_ids; cpu += threads_per_core) {
 		if (!cpu_online(cpu))
@@ -3339,17 +3339,17 @@ void kvmppc_alloc_host_rm_ops(void)
 	l_ops = (unsigned long) ops;
 
 	if (cmpxchg64((unsigned long *)&kvmppc_host_rm_ops_hv, 0, l_ops)) {
-		put_online_cpus();
+		cpus_read_unlock();
 		kfree(ops->rm_core);
 		kfree(ops);
 		return;
 	}
 
-	cpuhp_setup_state_nocalls(CPUHP_KVM_PPC_BOOK3S_PREPARE,
-				  "ppc/kvm_book3s:prepare",
-				  kvmppc_set_host_core,
-				  kvmppc_clear_host_core);
-	put_online_cpus();
+	cpuhp_setup_state_nocalls_cpuslocked(CPUHP_KVM_PPC_BOOK3S_PREPARE,
+					     "ppc/kvm_book3s:prepare",
+					     kvmppc_set_host_core,
+					     kvmppc_clear_host_core);
+	cpus_read_unlock();
 }
 
 void kvmppc_free_host_rm_ops(void)
