@@ -26,6 +26,28 @@
 #define BLKSZ		512
 
 struct mmc_card	*this_card = NULL;
+enum emmc_area_type {
+	MMC_DATA_AREA_MAIN,
+	MMC_DATA_AREA_BOOT1,
+	MMC_DATA_AREA_BOOT2,
+	MMC_DATA_AREA_RPMB,
+};
+
+static int rk_emmc_set_areatype(enum emmc_area_type areatype)
+{
+	int err;
+	u8 part_config;
+
+	part_config = this_card->ext_csd.part_config;
+	part_config &= ~EXT_CSD_PART_CONFIG_ACC_MASK;
+	part_config |= (u8)areatype;
+	err = mmc_switch(this_card, EXT_CSD_CMD_SET_NORMAL,
+			 EXT_CSD_PART_CONFIG, part_config,
+			 this_card->ext_csd.part_time);
+
+	return err;
+}
+
 /*
  * Fill in the mmc_request structure given a set of transfer parameters.
  */
@@ -108,6 +130,7 @@ static int rk_emmc_wait_busy(void)
 int rk_emmc_transfer(u8 *buffer, unsigned addr, unsigned blksz, int write)
 {
 	int ret = 0;
+	enum emmc_area_type areatype;
 
 	struct mmc_request mrq = {0};
 	struct mmc_command cmd = {0};
@@ -128,6 +151,17 @@ int rk_emmc_transfer(u8 *buffer, unsigned addr, unsigned blksz, int write)
 	rk_emmc_prepare_mrq(&mrq, &sg, 1, addr, 1, blksz, write);
 
 	mmc_claim_host(this_card->host);
+
+	areatype = (enum emmc_area_type)this_card->ext_csd.part_config
+		    & EXT_CSD_PART_CONFIG_ACC_MASK;
+	if (areatype != MMC_DATA_AREA_MAIN) {
+		ret = rk_emmc_set_areatype(MMC_DATA_AREA_MAIN);
+		if (ret) {
+			pr_err("rk_emmc_set_areatype error!.\n");
+			goto exit;
+		}
+	}
+
 	mmc_wait_for_req(this_card->host, &mrq);
 
 	if (cmd.error){
@@ -140,6 +174,13 @@ int rk_emmc_transfer(u8 *buffer, unsigned addr, unsigned blksz, int write)
 	}
 
 	ret = rk_emmc_wait_busy();
+
+	if (areatype != MMC_DATA_AREA_MAIN) {
+		ret = rk_emmc_set_areatype(areatype);
+		if (ret)
+			pr_err("rk_emmc_set_areatype error!.\n");
+	}
+
 exit:
 	mmc_release_host(this_card->host);
 	return ret;
