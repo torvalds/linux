@@ -53,6 +53,7 @@ static bool rvin_mbus_supported(struct rvin_graph_entity *entity)
 	};
 
 	code.index = 0;
+	code.pad = entity->source_pad;
 	while (!v4l2_subdev_call(sd, pad, enum_mbus_code, NULL, &code)) {
 		code.index++;
 		switch (code.code) {
