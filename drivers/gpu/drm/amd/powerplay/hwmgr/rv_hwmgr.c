@@ -554,6 +554,9 @@ static int rv_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 		return result;
 	}
 
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+                PHM_PlatformCaps_PowerPlaySupport);
+
 	rv_populate_clock_table(hwmgr);
 
 	result = rv_get_system_info_data(hwmgr);
