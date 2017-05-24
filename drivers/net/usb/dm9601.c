@@ -368,6 +368,7 @@ static int dm9601_bind(struct usbnet *dev, struct usb_interface *intf)
 	 * ethernet frames.
 	 */
 	dev->rx_urb_size = dev->net->mtu + ETH_HLEN + DM_RX_OVERHEAD + 1;
+	dev->rx_urb_size = (dev->rx_urb_size > 2048) ? dev->rx_urb_size : 2048;
 
 	dev->mii.dev = dev->net;
 	dev->mii.mdio_read = dm9601_mdio_read;
