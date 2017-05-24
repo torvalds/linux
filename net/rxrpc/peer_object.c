@@ -26,9 +26,6 @@
 #include <net/ip6_route.h>
 #include "ar-internal.h"
 
-static DEFINE_HASHTABLE(rxrpc_peer_hash, 10);
-static DEFINE_SPINLOCK(rxrpc_peer_hash_lock);
-
 /*
  * Hash a peer key.
  */
@@ -124,8 +121,9 @@ static struct rxrpc_peer *__rxrpc_lookup_peer_rcu(
 	unsigned long hash_key)
 {
 	struct rxrpc_peer *peer;
+	struct rxrpc_net *rxnet = local->rxnet;
 
-	hash_for_each_possible_rcu(rxrpc_peer_hash, peer, hash_link, hash_key) {
+	hash_for_each_possible_rcu(rxnet->peer_hash, peer, hash_link, hash_key) {
 		if (rxrpc_peer_cmp_key(peer, local, srx, hash_key) == 0) {
 			if (atomic_read(&peer->usage) == 0)
 				return NULL;
@@ -301,13 +299,14 @@ struct rxrpc_peer *rxrpc_lookup_incoming_peer(struct rxrpc_local *local,
 					      struct rxrpc_peer *prealloc)
 {
 	struct rxrpc_peer *peer;
+	struct rxrpc_net *rxnet = local->rxnet;
 	unsigned long hash_key;
 
 	hash_key = rxrpc_peer_hash_key(local, &prealloc->srx);
 	prealloc->local = local;
 	rxrpc_init_peer(prealloc, hash_key);
 
-	spin_lock(&rxrpc_peer_hash_lock);
+	spin_lock(&rxnet->peer_hash_lock);
 
 	/* Need to check that we aren't racing with someone else */
 	peer = __rxrpc_lookup_peer_rcu(local, &prealloc->srx, hash_key);
@@ -315,10 +314,10 @@ struct rxrpc_peer *rxrpc_lookup_incoming_peer(struct rxrpc_local *local,
 		peer = NULL;
 	if (!peer) {
 		peer = prealloc;
-		hash_add_rcu(rxrpc_peer_hash, &peer->hash_link, hash_key);
+		hash_add_rcu(rxnet->peer_hash, &peer->hash_link, hash_key);
 	}
 
-	spin_unlock(&rxrpc_peer_hash_lock);
+	spin_unlock(&rxnet->peer_hash_lock);
 	return peer;
 }
 
@@ -329,6 +328,7 @@ struct rxrpc_peer *rxrpc_lookup_peer(struct rxrpc_local *local,
 				     struct sockaddr_rxrpc *srx, gfp_t gfp)
 {
 	struct rxrpc_peer *peer, *candidate;
+	struct rxrpc_net *rxnet = local->rxnet;
 	unsigned long hash_key = rxrpc_peer_hash_key(local, srx);
 
 	_enter("{%pISp}", &srx->transport);
@@ -350,17 +350,17 @@ struct rxrpc_peer *rxrpc_lookup_peer(struct rxrpc_local *local,
 			return NULL;
 		}
 
-		spin_lock_bh(&rxrpc_peer_hash_lock);
+		spin_lock_bh(&rxnet->peer_hash_lock);
 
 		/* Need to check that we aren't racing with someone else */
 		peer = __rxrpc_lookup_peer_rcu(local, srx, hash_key);
 		if (peer && !rxrpc_get_peer_maybe(peer))
 			peer = NULL;
 		if (!peer)
-			hash_add_rcu(rxrpc_peer_hash,
+			hash_add_rcu(rxnet->peer_hash,
 				     &candidate->hash_link, hash_key);
 
-		spin_unlock_bh(&rxrpc_peer_hash_lock);
+		spin_unlock_bh(&rxnet->peer_hash_lock);
 
 		if (peer)
 			kfree(candidate);
@@ -379,11 +379,13 @@ struct rxrpc_peer *rxrpc_lookup_peer(struct rxrpc_local *local,
  */
 void __rxrpc_put_peer(struct rxrpc_peer *peer)
 {
+	struct rxrpc_net *rxnet = peer->local->rxnet;
+
 	ASSERT(hlist_empty(&peer->error_targets));
 
-	spin_lock_bh(&rxrpc_peer_hash_lock);
+	spin_lock_bh(&rxnet->peer_hash_lock);
 	hash_del_rcu(&peer->hash_link);
-	spin_unlock_bh(&rxrpc_peer_hash_lock);
+	spin_unlock_bh(&rxnet->peer_hash_lock);
 
 	kfree_rcu(peer, rcu);
 }

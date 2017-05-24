@@ -38,6 +38,7 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 {
 	const void *here = __builtin_return_address(0);
 	struct rxrpc_call *call;
+	struct rxrpc_net *rxnet = rxrpc_net(sock_net(&rx->sk));
 	int max, tmp;
 	unsigned int size = RXRPC_BACKLOG_MAX;
 	unsigned int head, tail, call_head, call_tail;
@@ -79,7 +80,7 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 	if (CIRC_CNT(head, tail, size) < max) {
 		struct rxrpc_connection *conn;
 
-		conn = rxrpc_prealloc_service_connection(gfp);
+		conn = rxrpc_prealloc_service_connection(rxnet, gfp);
 		if (!conn)
 			return -ENOMEM;
 		b->conn_backlog[head] = conn;
@@ -136,9 +137,9 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 
 	write_unlock(&rx->call_lock);
 
-	write_lock(&rxrpc_call_lock);
-	list_add_tail(&call->link, &rxrpc_calls);
-	write_unlock(&rxrpc_call_lock);
+	write_lock(&rxnet->call_lock);
+	list_add_tail(&call->link, &rxnet->calls);
+	write_unlock(&rxnet->call_lock);
 
 	b->call_backlog[call_head] = call;
 	smp_store_release(&b->call_backlog_head, (call_head + 1) & (size - 1));
@@ -185,6 +186,7 @@ int rxrpc_service_prealloc(struct rxrpc_sock *rx, gfp_t gfp)
 void rxrpc_discard_prealloc(struct rxrpc_sock *rx)
 {
 	struct rxrpc_backlog *b = rx->backlog;
+	struct rxrpc_net *rxnet = rxrpc_net(sock_net(&rx->sk));
 	unsigned int size = RXRPC_BACKLOG_MAX, head, tail;
 
 	if (!b)
@@ -209,10 +211,10 @@ void rxrpc_discard_prealloc(struct rxrpc_sock *rx)
 	tail = b->conn_backlog_tail;
 	while (CIRC_CNT(head, tail, size) > 0) {
 		struct rxrpc_connection *conn = b->conn_backlog[tail];
-		write_lock(&rxrpc_connection_lock);
+		write_lock(&rxnet->conn_lock);
 		list_del(&conn->link);
 		list_del(&conn->proc_link);
-		write_unlock(&rxrpc_connection_lock);
+		write_unlock(&rxnet->conn_lock);
 		kfree(conn);
 		tail = (tail + 1) & (size - 1);
 	}

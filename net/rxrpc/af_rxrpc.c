@@ -38,9 +38,6 @@ MODULE_PARM_DESC(debug, "RxRPC debugging mask");
 static struct proto rxrpc_proto;
 static const struct proto_ops rxrpc_rpc_ops;
 
-/* local epoch for detecting local-end reset */
-u32 rxrpc_epoch;
-
 /* current debugging ID */
 atomic_t rxrpc_debug_id;
 
@@ -155,7 +152,7 @@ static int rxrpc_bind(struct socket *sock, struct sockaddr *saddr, int len)
 
 	memcpy(&rx->srx, srx, sizeof(rx->srx));
 
-	local = rxrpc_lookup_local(&rx->srx);
+	local = rxrpc_lookup_local(sock_net(sock->sk), &rx->srx);
 	if (IS_ERR(local)) {
 		ret = PTR_ERR(local);
 		goto error_unlock;
@@ -434,7 +431,7 @@ static int rxrpc_sendmsg(struct socket *sock, struct msghdr *m, size_t len)
 			ret = -EAFNOSUPPORT;
 			goto error_unlock;
 		}
-		local = rxrpc_lookup_local(&rx->srx);
+		local = rxrpc_lookup_local(sock_net(sock->sk), &rx->srx);
 		if (IS_ERR(local)) {
 			ret = PTR_ERR(local);
 			goto error_unlock;
@@ -581,9 +578,6 @@ static int rxrpc_create(struct net *net, struct socket *sock, int protocol,
 	struct sock *sk;
 
 	_enter("%p,%d", sock, protocol);
-
-	if (!net_eq(net, &init_net))
-		return -EAFNOSUPPORT;
 
 	/* we support transport protocol UDP/UDP6 only */
 	if (protocol != PF_INET &&
@@ -780,8 +774,6 @@ static int __init af_rxrpc_init(void)
 
 	BUILD_BUG_ON(sizeof(struct rxrpc_skb_priv) > FIELD_SIZEOF(struct sk_buff, cb));
 
-	get_random_bytes(&rxrpc_epoch, sizeof(rxrpc_epoch));
-	rxrpc_epoch |= RXRPC_RANDOM_EPOCH;
 	get_random_bytes(&tmp, sizeof(tmp));
 	tmp &= 0x3fffffff;
 	if (tmp == 0)
@@ -808,6 +800,10 @@ static int __init af_rxrpc_init(void)
 		pr_crit("Cannot initialise security\n");
 		goto error_security;
 	}
+
+	ret = register_pernet_subsys(&rxrpc_net_ops);
+	if (ret)
+		goto error_pernet;
 
 	ret = proto_register(&rxrpc_proto, 1);
 	if (ret < 0) {
@@ -839,11 +835,6 @@ static int __init af_rxrpc_init(void)
 		goto error_sysctls;
 	}
 
-#ifdef CONFIG_PROC_FS
-	proc_create("rxrpc_calls", 0, init_net.proc_net, &rxrpc_call_seq_fops);
-	proc_create("rxrpc_conns", 0, init_net.proc_net,
-		    &rxrpc_connection_seq_fops);
-#endif
 	return 0;
 
 error_sysctls:
@@ -855,6 +846,8 @@ error_key_type:
 error_sock:
 	proto_unregister(&rxrpc_proto);
 error_proto:
+	unregister_pernet_subsys(&rxrpc_net_ops);
+error_pernet:
 	rxrpc_exit_security();
 error_security:
 	destroy_workqueue(rxrpc_workqueue);
@@ -875,14 +868,16 @@ static void __exit af_rxrpc_exit(void)
 	unregister_key_type(&key_type_rxrpc);
 	sock_unregister(PF_RXRPC);
 	proto_unregister(&rxrpc_proto);
-	rxrpc_destroy_all_calls();
-	rxrpc_destroy_all_connections();
+	unregister_pernet_subsys(&rxrpc_net_ops);
 	ASSERTCMP(atomic_read(&rxrpc_n_tx_skbs), ==, 0);
 	ASSERTCMP(atomic_read(&rxrpc_n_rx_skbs), ==, 0);
-	rxrpc_destroy_all_locals();
 
-	remove_proc_entry("rxrpc_conns", init_net.proc_net);
-	remove_proc_entry("rxrpc_calls", init_net.proc_net);
+	/* Make sure the local and peer records pinned by any dying connections
+	 * are released.
+	 */
+	rcu_barrier();
+	rxrpc_destroy_client_conn_ids();
+
 	destroy_workqueue(rxrpc_workqueue);
 	rxrpc_exit_security();
 	kmem_cache_destroy(rxrpc_call_jar);
