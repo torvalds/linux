@@ -138,7 +138,7 @@ int virtio_gpu_driver_load(struct drm_device *dev, unsigned long flags)
 	u32 num_scanouts, num_capsets;
 	int ret;
 
-	if (!virtio_has_feature(dev->virtdev, VIRTIO_F_VERSION_1))
+	if (!virtio_has_feature(dev_to_virtio(dev->dev), VIRTIO_F_VERSION_1))
 		return -ENODEV;
 
 	vgdev = kzalloc(sizeof(struct virtio_gpu_device), GFP_KERNEL);
@@ -147,7 +147,7 @@ int virtio_gpu_driver_load(struct drm_device *dev, unsigned long flags)
 
 	vgdev->ddev = dev;
 	dev->dev_private = vgdev;
-	vgdev->vdev = dev->virtdev;
+	vgdev->vdev = dev_to_virtio(dev->dev);
 	vgdev->dev = dev->dev;
 
 	spin_lock_init(&vgdev->display_info_lock);
