@@ -2991,6 +2991,16 @@ static inline bool intel_scanout_needs_vtd_wa(struct drm_i915_private *dev_priv)
 	return false;
 }
 
+static inline bool
+intel_ggtt_update_needs_vtd_wa(struct drm_i915_private *dev_priv)
+{
+#ifdef CONFIG_INTEL_IOMMU
+	if (IS_BROXTON(dev_priv) && intel_iommu_gfx_mapped)
+		return true;
+#endif
+	return false;
+}
+
 int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 				int enable_ppgtt);
 
