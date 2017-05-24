@@ -344,6 +344,7 @@ config CRYPTO_DEV_OMAP_AES
 	select CRYPTO_CBC
 	select CRYPTO_ECB
 	select CRYPTO_CTR
+	select CRYPTO_AEAD
 	help
 	  OMAP processors have AES module accelerator. Select this if you
 	  want to use the OMAP module for AES algorithms.
