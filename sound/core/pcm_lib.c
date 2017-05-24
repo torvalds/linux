@@ -2019,6 +2019,22 @@ typedef int (*transfer_f)(struct snd_pcm_substream *substream, unsigned int hwof
 			  unsigned long data, unsigned int off,
 			  snd_pcm_uframes_t size);
 
+static int pcm_accessible_state(struct snd_pcm_runtime *runtime)
+{
+	switch (runtime->status->state) {
+	case SNDRV_PCM_STATE_PREPARED:
+	case SNDRV_PCM_STATE_RUNNING:
+	case SNDRV_PCM_STATE_PAUSED:
+		return 0;
+	case SNDRV_PCM_STATE_XRUN:
+		return -EPIPE;
+	case SNDRV_PCM_STATE_SUSPENDED:
+		return -ESTRPIPE;
+	default:
+		return -EBADFD;
+	}
+}
+
 static snd_pcm_sframes_t snd_pcm_lib_write1(struct snd_pcm_substream *substream, 
 					    unsigned long data,
 					    snd_pcm_uframes_t size,
@@ -2035,21 +2051,9 @@ static snd_pcm_sframes_t snd_pcm_lib_write1(struct snd_pcm_substream *substream,
 		return 0;
 
 	snd_pcm_stream_lock_irq(substream);
-	switch (runtime->status->state) {
-	case SNDRV_PCM_STATE_PREPARED:
-	case SNDRV_PCM_STATE_RUNNING:
-	case SNDRV_PCM_STATE_PAUSED:
-		break;
-	case SNDRV_PCM_STATE_XRUN:
-		err = -EPIPE;
+	err = pcm_accessible_state(runtime);
+	if (err < 0)
 		goto _end_unlock;
-	case SNDRV_PCM_STATE_SUSPENDED:
-		err = -ESTRPIPE;
-		goto _end_unlock;
-	default:
-		err = -EBADFD;
-		goto _end_unlock;
-	}
 
 	runtime->twake = runtime->control->avail_min ? : 1;
 	if (runtime->status->state == SNDRV_PCM_STATE_RUNNING)
@@ -2085,16 +2089,9 @@ static snd_pcm_sframes_t snd_pcm_lib_write1(struct snd_pcm_substream *substream,
 		snd_pcm_stream_lock_irq(substream);
 		if (err < 0)
 			goto _end_unlock;
-		switch (runtime->status->state) {
-		case SNDRV_PCM_STATE_XRUN:
-			err = -EPIPE;
+		err = pcm_accessible_state(runtime);
+		if (err < 0)
 			goto _end_unlock;
-		case SNDRV_PCM_STATE_SUSPENDED:
-			err = -ESTRPIPE;
-			goto _end_unlock;
-		default:
-			break;
-		}
 		appl_ptr += frames;
 		if (appl_ptr >= runtime->boundary)
 			appl_ptr -= runtime->boundary;
@@ -2265,27 +2262,14 @@ static snd_pcm_sframes_t snd_pcm_lib_read1(struct snd_pcm_substream *substream,
 		return 0;
 
 	snd_pcm_stream_lock_irq(substream);
-	switch (runtime->status->state) {
-	case SNDRV_PCM_STATE_PREPARED:
-		if (size >= runtime->start_threshold) {
-			err = snd_pcm_start(substream);
-			if (err < 0)
-				goto _end_unlock;
-		}
-		break;
-	case SNDRV_PCM_STATE_DRAINING:
-	case SNDRV_PCM_STATE_RUNNING:
-	case SNDRV_PCM_STATE_PAUSED:
-		break;
-	case SNDRV_PCM_STATE_XRUN:
-		err = -EPIPE;
+	err = pcm_accessible_state(runtime);
+	if (err < 0)
 		goto _end_unlock;
-	case SNDRV_PCM_STATE_SUSPENDED:
-		err = -ESTRPIPE;
-		goto _end_unlock;
-	default:
-		err = -EBADFD;
-		goto _end_unlock;
+	if (runtime->status->state == SNDRV_PCM_STATE_PREPARED &&
+	    size >= runtime->start_threshold) {
+		err = snd_pcm_start(substream);
+		if (err < 0)
+			goto _end_unlock;
 	}
 
 	runtime->twake = runtime->control->avail_min ? : 1;
@@ -2329,16 +2313,9 @@ static snd_pcm_sframes_t snd_pcm_lib_read1(struct snd_pcm_substream *substream,
 		snd_pcm_stream_lock_irq(substream);
 		if (err < 0)
 			goto _end_unlock;
-		switch (runtime->status->state) {
-		case SNDRV_PCM_STATE_XRUN:
-			err = -EPIPE;
+		err = pcm_accessible_state(runtime);
+		if (err < 0)
 			goto _end_unlock;
-		case SNDRV_PCM_STATE_SUSPENDED:
-			err = -ESTRPIPE;
-			goto _end_unlock;
-		default:
-			break;
-		}
 		appl_ptr += frames;
 		if (appl_ptr >= runtime->boundary)
 			appl_ptr -= runtime->boundary;
