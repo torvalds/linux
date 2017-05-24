@@ -30,6 +30,7 @@ static const struct fscache_state *fscache_look_up_object(struct fscache_object 
 static const struct fscache_state *fscache_object_available(struct fscache_object *, int);
 static const struct fscache_state *fscache_parent_ready(struct fscache_object *, int);
 static const struct fscache_state *fscache_update_object(struct fscache_object *, int);
+static const struct fscache_state *fscache_object_dead(struct fscache_object *, int);
 
 #define __STATE_NAME(n) fscache_osm_##n
 #define STATE(n) (&__STATE_NAME(n))
@@ -91,7 +92,7 @@ static WORK_STATE(LOOKUP_FAILURE,	"LCFL", fscache_lookup_failure);
 static WORK_STATE(KILL_OBJECT,		"KILL", fscache_kill_object);
 static WORK_STATE(KILL_DEPENDENTS,	"KDEP", fscache_kill_dependents);
 static WORK_STATE(DROP_OBJECT,		"DROP", fscache_drop_object);
-static WORK_STATE(OBJECT_DEAD,		"DEAD", (void*)2UL);
+static WORK_STATE(OBJECT_DEAD,		"DEAD", fscache_object_dead);
 
 static WAIT_STATE(WAIT_FOR_INIT,	"?INI",
 		  TRANSIT_TO(INIT_OBJECT,	1 << FSCACHE_OBJECT_EV_NEW_CHILD));
@@ -229,6 +230,10 @@ execute_work_state:
 	event = -1;
 	if (new_state == NO_TRANSIT) {
 		_debug("{OBJ%x} %s notrans", object->debug_id, state->name);
+		if (unlikely(state == STATE(OBJECT_DEAD))) {
+			_leave(" [dead]");
+			return;
+		}
 		fscache_enqueue_object(object);
 		event_mask = object->oob_event_mask;
 		goto unmask_events;
@@ -239,7 +244,7 @@ execute_work_state:
 	object->state = state = new_state;
 
 	if (state->work) {
-		if (unlikely(state->work == ((void *)2UL))) {
+		if (unlikely(state == STATE(OBJECT_DEAD))) {
 			_leave(" [dead]");
 			return;
 		}
@@ -1077,3 +1082,20 @@ void fscache_object_mark_killed(struct fscache_object *object,
 	}
 }
 EXPORT_SYMBOL(fscache_object_mark_killed);
+
+/*
+ * The object is dead.  We can get here if an object gets queued by an event
+ * that would lead to its death (such as EV_KILL) when the dispatcher is
+ * already running (and so can be requeued) but hasn't yet cleared the event
+ * mask.
+ */
+static const struct fscache_state *fscache_object_dead(struct fscache_object *object,
+						       int event)
+{
+	if (!test_and_set_bit(FSCACHE_OBJECT_RUN_AFTER_DEAD,
+			      &object->flags))
+		return NO_TRANSIT;
+
+	WARN(true, "FS-Cache object redispatched after death");
+	return NO_TRANSIT;
+}
