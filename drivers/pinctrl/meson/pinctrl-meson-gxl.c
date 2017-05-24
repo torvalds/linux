@@ -277,8 +277,8 @@ static const unsigned int pwm_ao_a_8_pins[]	= { PIN(GPIOAO_8, 0) };
 static const unsigned int pwm_ao_b_pins[]	= { PIN(GPIOAO_9, 0) };
 static const unsigned int pwm_ao_b_6_pins[]	= { PIN(GPIOAO_6, 0) };
 
-static const unsigned int i2s_out_ch23_ao_pins[] = { PIN(GPIOAO_8, EE_OFF) };
-static const unsigned int i2s_out_ch45_ao_pins[] = { PIN(GPIOAO_9, EE_OFF) };
+static const unsigned int i2s_out_ch23_ao_pins[] = { PIN(GPIOAO_8, 0) };
+static const unsigned int i2s_out_ch45_ao_pins[] = { PIN(GPIOAO_9, 0) };
 
 static const unsigned int spdif_out_ao_6_pins[]	= { PIN(GPIOAO_6, EE_OFF) };
 static const unsigned int spdif_out_ao_9_pins[]	= { PIN(GPIOAO_9, EE_OFF) };
