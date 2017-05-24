@@ -1550,6 +1550,11 @@ bool dc_link_setup_psr(const struct dc_link *dc_link,
 		 */
 		psr_context.psr_level.bits.SKIP_SMU_NOTIFICATION = 1;
 
+		/* Complete PSR entry before aborting to prevent intermittent
+		 * freezes on certain eDPs
+		 */
+		psr_context.psr_level.bits.DISABLE_PSR_ENTRY_ABORT = 1;
+
 		/* Controls additional delay after remote frame capture before
 		 * continuing power down, default = 0
 		 */
