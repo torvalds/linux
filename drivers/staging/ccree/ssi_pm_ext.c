@@ -26,10 +26,10 @@
 #include "ssi_pm_ext.h"
 
 /*
-This function should suspend the HW (if possiable), It should be implemented by
-the driver user.
-The reference code clears the internal SRAM to imitate lose of state.
-*/
+ * This function should suspend the HW (if possiable), It should be implemented by
+ * the driver user.
+ * The reference code clears the internal SRAM to imitate lose of state.
+ */
 void ssi_pm_ext_hw_suspend(struct device *dev)
 {
 	struct ssi_drvdata *drvdata =
@@ -50,9 +50,9 @@ void ssi_pm_ext_hw_suspend(struct device *dev)
 }
 
 /*
-This function should resume the HW (if possiable).It should be implemented by
-the driver user.
-*/
+ * This function should resume the HW (if possiable).It should be implemented by
+ * the driver user.
+ */
 void ssi_pm_ext_hw_resume(struct device *dev)
 {
 	return;
