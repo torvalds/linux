@@ -34,6 +34,7 @@
 #include <linux/ctype.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/of_graph.h>
 #include <linux/dmi.h>
 #include <sound/core.h>
 #include <sound/jack.h>
@@ -4047,6 +4048,42 @@ unsigned int snd_soc_of_parse_daifmt(struct device_node *np,
 	return format;
 }
 EXPORT_SYMBOL_GPL(snd_soc_of_parse_daifmt);
+
+int snd_soc_get_dai_id(struct device_node *ep)
+{
+	struct snd_soc_component *pos;
+	struct device_node *node;
+	int ret;
+
+	node = of_graph_get_port_parent(ep);
+
+	/*
+	 * For example HDMI case, HDMI has video/sound port,
+	 * but ALSA SoC needs sound port number only.
+	 * Thus counting HDMI DT port/endpoint doesn't work.
+	 * Then, it should have .of_xlate_dai_id
+	 */
+	ret = -ENOTSUPP;
+	mutex_lock(&client_mutex);
+	list_for_each_entry(pos, &component_list, list) {
+		struct device_node *component_of_node = pos->dev->of_node;
+
+		if (!component_of_node && pos->dev->parent)
+			component_of_node = pos->dev->parent->of_node;
+
+		if (component_of_node != node)
+			continue;
+
+		if (pos->driver->of_xlate_dai_id)
+			ret = pos->driver->of_xlate_dai_id(pos, ep);
+
+		break;
+	}
+	mutex_unlock(&client_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_get_dai_id);
 
 int snd_soc_get_dai_name(struct of_phandle_args *args,
 				const char **dai_name)
