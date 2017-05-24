@@ -136,12 +136,12 @@ static int vpd_section_attrib_add(const u8 *key, s32 key_len,
 	info->value = value;
 
 	INIT_LIST_HEAD(&info->list);
-	list_add_tail(&info->list, &sec->attribs);
 
 	ret = sysfs_create_bin_file(sec->kobj, &info->bin_attr);
 	if (ret)
 		goto free_info_key;
 
+	list_add_tail(&info->list, &sec->attribs);
 	return 0;
 
 free_info_key:
