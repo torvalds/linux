@@ -37,6 +37,7 @@
 #include <linux/interrupt.h>
 #include <linux/msi.h>
 #include <linux/kthread.h>
+#include <linux/iommu.h>
 
 #include "../../fsl-mc/include/mc.h"
 #include "../../fsl-mc/include/mc-sys.h"
@@ -53,6 +54,16 @@ MODULE_AUTHOR("Freescale Semiconductor, Inc");
 MODULE_DESCRIPTION("Freescale DPAA2 Ethernet Driver");
 
 const char dpaa2_eth_drv_version[] = "0.1";
+
+static void *dpaa2_iova_to_virt(struct iommu_domain *domain,
+				dma_addr_t iova_addr)
+{
+	phys_addr_t phys_addr;
+
+	phys_addr = domain ? iommu_iova_to_phys(domain, iova_addr) : iova_addr;
+
+	return phys_to_virt(phys_addr);
+}
 
 static void validate_rx_csum(struct dpaa2_eth_priv *priv,
 			     u32 fd_status,
@@ -98,12 +109,11 @@ static void free_rx_fd(struct dpaa2_eth_priv *priv,
 	sgt = vaddr + dpaa2_fd_get_offset(fd);
 	for (i = 0; i < DPAA2_ETH_MAX_SG_ENTRIES; i++) {
 		addr = dpaa2_sg_get_addr(&sgt[i]);
+		sg_vaddr = dpaa2_iova_to_virt(priv->iommu_domain, addr);
 		dma_unmap_single(dev, addr, DPAA2_ETH_RX_BUF_SIZE,
 				 DMA_FROM_DEVICE);
 
-		sg_vaddr = phys_to_virt(addr);
 		skb_free_frag(sg_vaddr);
-
 		if (dpaa2_sg_is_final(&sgt[i]))
 			break;
 	}
@@ -159,10 +169,10 @@ static struct sk_buff *build_frag_skb(struct dpaa2_eth_priv *priv,
 
 		/* Get the address and length from the S/G entry */
 		sg_addr = dpaa2_sg_get_addr(sge);
+		sg_vaddr = dpaa2_iova_to_virt(priv->iommu_domain, sg_addr);
 		dma_unmap_single(dev, sg_addr, DPAA2_ETH_RX_BUF_SIZE,
 				 DMA_FROM_DEVICE);
 
-		sg_vaddr = phys_to_virt(sg_addr);
 		sg_length = dpaa2_sg_get_len(sge);
 
 		if (i == 0) {
@@ -222,8 +232,8 @@ static void dpaa2_eth_rx(struct dpaa2_eth_priv *priv,
 	/* Tracing point */
 	trace_dpaa2_rx_fd(priv->net_dev, fd);
 
+	vaddr = dpaa2_iova_to_virt(priv->iommu_domain, addr);
 	dma_unmap_single(dev, addr, DPAA2_ETH_RX_BUF_SIZE, DMA_FROM_DEVICE);
-	vaddr = phys_to_virt(addr);
 
 	prefetch(vaddr + priv->buf_layout.private_data_size);
 	prefetch(vaddr + dpaa2_fd_get_offset(fd));
@@ -490,7 +500,7 @@ static void free_tx_fd(const struct dpaa2_eth_priv *priv,
 	struct dpaa2_fas *fas;
 
 	fd_addr = dpaa2_fd_get_addr(fd);
-	skbh = phys_to_virt(fd_addr);
+	skbh = dpaa2_iova_to_virt(priv->iommu_domain, fd_addr);
 
 	if (fd_format == dpaa2_fd_single) {
 		skb = *skbh;
@@ -802,10 +812,11 @@ static void drain_bufs(struct dpaa2_eth_priv *priv, int count)
 		}
 		for (i = 0; i < ret; i++) {
 			/* Same logic as on regular Rx path */
+			vaddr = dpaa2_iova_to_virt(priv->iommu_domain,
+						   buf_array[i]);
 			dma_unmap_single(dev, buf_array[i],
 					 DPAA2_ETH_RX_BUF_SIZE,
 					 DMA_FROM_DEVICE);
-			vaddr = phys_to_virt(buf_array[i]);
 			skb_free_frag(vaddr);
 		}
 	} while (ret);
@@ -2357,6 +2368,8 @@ static int dpaa2_eth_probe(struct fsl_mc_device *dpni_dev)
 
 	priv = netdev_priv(net_dev);
 	priv->net_dev = net_dev;
+
+	priv->iommu_domain = iommu_get_domain_for_dev(dev);
 
 	/* Obtain a MC portal */
 	err = fsl_mc_portal_allocate(dpni_dev, FSL_MC_IO_ATOMIC_CONTEXT_PORTAL,
