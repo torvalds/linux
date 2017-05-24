@@ -650,6 +650,12 @@ static const struct fscache_state *fscache_kill_object(struct fscache_object *ob
 	fscache_mark_object_dead(object);
 	object->oob_event_mask = 0;
 
+	if (test_bit(FSCACHE_OBJECT_RETIRED, &object->flags)) {
+		/* Reject any new read/write ops and abort any that are pending. */
+		clear_bit(FSCACHE_OBJECT_PENDING_WRITE, &object->flags);
+		fscache_cancel_all_ops(object);
+	}
+
 	if (list_empty(&object->dependents) &&
 	    object->n_ops == 0 &&
 	    object->n_children == 0)
