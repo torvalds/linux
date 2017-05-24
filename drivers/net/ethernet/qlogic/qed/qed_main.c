@@ -281,6 +281,9 @@ int qed_fill_dev_info(struct qed_dev *cdev,
 			qed_mcp_get_mfw_ver(QED_LEADING_HWFN(cdev), ptt,
 					    &dev_info->mfw_rev, NULL);
 
+			qed_mcp_get_mbi_ver(QED_LEADING_HWFN(cdev), ptt,
+					    &dev_info->mbi_version);
+
 			qed_mcp_get_flash_size(QED_LEADING_HWFN(cdev), ptt,
 					       &dev_info->flash_size);
 
@@ -335,6 +338,7 @@ static struct qed_dev *qed_probe(struct pci_dev *pdev,
 	if (!cdev)
 		goto err0;
 
+	cdev->drv_type = DRV_ID_DRV_TYPE_LINUX;
 	cdev->protocol = params->protocol;
 
 	if (params->is_vf)
@@ -606,6 +610,18 @@ int qed_slowpath_irq_req(struct qed_hwfn *hwfn)
 	return rc;
 }
 
+static void qed_slowpath_tasklet_flush(struct qed_hwfn *p_hwfn)
+{
+	/* Calling the disable function will make sure that any
+	 * currently-running function is completed. The following call to the
+	 * enable function makes this sequence a flush-like operation.
+	 */
+	if (p_hwfn->b_sp_dpc_enabled) {
+		tasklet_disable(p_hwfn->sp_dpc);
+		tasklet_enable(p_hwfn->sp_dpc);
+	}
+}
+
 void qed_slowpath_irq_sync(struct qed_hwfn *p_hwfn)
 {
 	struct qed_dev *cdev = p_hwfn->cdev;
@@ -617,6 +633,8 @@ void qed_slowpath_irq_sync(struct qed_hwfn *p_hwfn)
 		synchronize_irq(cdev->int_params.msix_table[id].vector);
 	else
 		synchronize_irq(cdev->pdev->irq);
+
+	qed_slowpath_tasklet_flush(p_hwfn);
 }
 
 static void qed_slowpath_irq_free(struct qed_dev *cdev)
@@ -1111,17 +1129,13 @@ static int qed_slowpath_stop(struct qed_dev *cdev)
 	return 0;
 }
 
-static void qed_set_id(struct qed_dev *cdev, char name[NAME_SIZE],
-		       char ver_str[VER_SIZE])
+static void qed_set_name(struct qed_dev *cdev, char name[NAME_SIZE])
 {
 	int i;
 
 	memcpy(cdev->name, name, NAME_SIZE);
 	for_each_hwfn(cdev, i)
 		snprintf(cdev->hwfns[i].name, NAME_SIZE, "%s-%d", name, i);
-
-	memcpy(cdev->ver_str, ver_str, VER_SIZE);
-	cdev->drv_type = DRV_ID_DRV_TYPE_LINUX;
 }
 
 static u32 qed_sb_init(struct qed_dev *cdev,
@@ -1675,7 +1689,7 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.probe = &qed_probe,
 	.remove = &qed_remove,
 	.set_power_state = &qed_set_power_state,
-	.set_id = &qed_set_id,
+	.set_name = &qed_set_name,
 	.update_pf_params = &qed_update_pf_params,
 	.slowpath_start = &qed_slowpath_start,
 	.slowpath_stop = &qed_slowpath_stop,

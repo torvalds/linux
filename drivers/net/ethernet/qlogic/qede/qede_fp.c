@@ -335,6 +335,7 @@ static int qede_xdp_xmit(struct qede_dev *edev, struct qede_fastpath *fp,
 	struct qede_tx_queue *txq = fp->xdp_tx;
 	struct eth_tx_1st_bd *first_bd;
 	u16 idx = txq->sw_tx_prod;
+	u16 val;
 
 	if (!qed_chain_get_elem_left(&txq->tx_pbl)) {
 		txq->stopped_cnt++;
@@ -346,9 +347,11 @@ static int qede_xdp_xmit(struct qede_dev *edev, struct qede_fastpath *fp,
 	memset(first_bd, 0, sizeof(*first_bd));
 	first_bd->data.bd_flags.bitfields =
 	    BIT(ETH_TX_1ST_BD_FLAGS_START_BD_SHIFT);
-	first_bd->data.bitfields |=
-	    (length & ETH_TX_DATA_1ST_BD_PKT_LEN_MASK) <<
-	    ETH_TX_DATA_1ST_BD_PKT_LEN_SHIFT;
+
+	val = (length & ETH_TX_DATA_1ST_BD_PKT_LEN_MASK) <<
+	       ETH_TX_DATA_1ST_BD_PKT_LEN_SHIFT;
+
+	first_bd->data.bitfields |= cpu_to_le16(val);
 	first_bd->data.nbds = 1;
 
 	/* We can safely ignore the offset, as it's 0 for XDP */
@@ -1424,7 +1427,7 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	struct eth_tx_2nd_bd *second_bd = NULL;
 	struct eth_tx_3rd_bd *third_bd = NULL;
 	struct eth_tx_bd *tx_data_bd = NULL;
-	u16 txq_index;
+	u16 txq_index, val = 0;
 	u8 nbd = 0;
 	dma_addr_t mapping;
 	int rc, frag_idx = 0, ipv6_ext = 0;
@@ -1513,8 +1516,8 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		if (xmit_type & XMIT_ENC) {
 			first_bd->data.bd_flags.bitfields |=
 				1 << ETH_TX_1ST_BD_FLAGS_IP_CSUM_SHIFT;
-			first_bd->data.bitfields |=
-			    1 << ETH_TX_DATA_1ST_BD_TUNN_FLAG_SHIFT;
+
+			val |= (1 << ETH_TX_DATA_1ST_BD_TUNN_FLAG_SHIFT);
 		}
 
 		/* Legacy FW had flipped behavior in regard to this bit -
@@ -1522,8 +1525,7 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		 * packets when it didn't need to.
 		 */
 		if (unlikely(txq->is_legacy))
-			first_bd->data.bitfields ^=
-			    1 << ETH_TX_DATA_1ST_BD_TUNN_FLAG_SHIFT;
+			val ^= (1 << ETH_TX_DATA_1ST_BD_TUNN_FLAG_SHIFT);
 
 		/* If the packet is IPv6 with extension header, indicate that
 		 * to FW and pass few params, since the device cracker doesn't
@@ -1587,10 +1589,11 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 			data_split = true;
 		}
 	} else {
-		first_bd->data.bitfields |=
-		    (skb->len & ETH_TX_DATA_1ST_BD_PKT_LEN_MASK) <<
-		    ETH_TX_DATA_1ST_BD_PKT_LEN_SHIFT;
+		val |= ((skb->len & ETH_TX_DATA_1ST_BD_PKT_LEN_MASK) <<
+			 ETH_TX_DATA_1ST_BD_PKT_LEN_SHIFT);
 	}
+
+	first_bd->data.bitfields = cpu_to_le16(val);
 
 	/* Handle fragmented skb */
 	/* special handle for frags inside 2nd and 3rd bds.. */

@@ -259,7 +259,7 @@ static int qede_netdev_event(struct notifier_block *this, unsigned long event,
 		/* Notify qed of the name change */
 		if (!edev->ops || !edev->ops->common)
 			goto done;
-		edev->ops->common->set_id(edev->cdev, edev->ndev->name, "qede");
+		edev->ops->common->set_name(edev->cdev, edev->ndev->name);
 		break;
 	case NETDEV_CHANGEADDR:
 		edev = netdev_priv(ndev);
@@ -852,6 +852,43 @@ static void qede_update_pf_params(struct qed_dev *cdev)
 	qed_ops->common->update_pf_params(cdev, &pf_params);
 }
 
+#define QEDE_FW_VER_STR_SIZE	80
+
+static void qede_log_probe(struct qede_dev *edev)
+{
+	struct qed_dev_info *p_dev_info = &edev->dev_info.common;
+	u8 buf[QEDE_FW_VER_STR_SIZE];
+	size_t left_size;
+
+	snprintf(buf, QEDE_FW_VER_STR_SIZE,
+		 "Storm FW %d.%d.%d.%d, Management FW %d.%d.%d.%d",
+		 p_dev_info->fw_major, p_dev_info->fw_minor, p_dev_info->fw_rev,
+		 p_dev_info->fw_eng,
+		 (p_dev_info->mfw_rev & QED_MFW_VERSION_3_MASK) >>
+		 QED_MFW_VERSION_3_OFFSET,
+		 (p_dev_info->mfw_rev & QED_MFW_VERSION_2_MASK) >>
+		 QED_MFW_VERSION_2_OFFSET,
+		 (p_dev_info->mfw_rev & QED_MFW_VERSION_1_MASK) >>
+		 QED_MFW_VERSION_1_OFFSET,
+		 (p_dev_info->mfw_rev & QED_MFW_VERSION_0_MASK) >>
+		 QED_MFW_VERSION_0_OFFSET);
+
+	left_size = QEDE_FW_VER_STR_SIZE - strlen(buf);
+	if (p_dev_info->mbi_version && left_size)
+		snprintf(buf + strlen(buf), left_size,
+			 " [MBI %d.%d.%d]",
+			 (p_dev_info->mbi_version & QED_MBI_VERSION_2_MASK) >>
+			 QED_MBI_VERSION_2_OFFSET,
+			 (p_dev_info->mbi_version & QED_MBI_VERSION_1_MASK) >>
+			 QED_MBI_VERSION_1_OFFSET,
+			 (p_dev_info->mbi_version & QED_MBI_VERSION_0_MASK) >>
+			 QED_MBI_VERSION_0_OFFSET);
+
+	pr_info("qede %02x:%02x.%02x: %s [%s]\n", edev->pdev->bus->number,
+		PCI_SLOT(edev->pdev->devfn), PCI_FUNC(edev->pdev->devfn),
+		buf, edev->ndev->name);
+}
+
 enum qede_probe_mode {
 	QEDE_PROBE_NORMAL,
 };
@@ -930,7 +967,7 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 		goto err4;
 	}
 
-	edev->ops->common->set_id(cdev, edev->ndev->name, DRV_MODULE_VERSION);
+	edev->ops->common->set_name(cdev, edev->ndev->name);
 
 	/* PTP not supported on VFs */
 	if (!is_vf)
@@ -945,8 +982,7 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 
 	edev->rx_copybreak = QEDE_RX_HDR_SIZE;
 
-	DP_INFO(edev, "Ending successfully qede probe\n");
-
+	qede_log_probe(edev);
 	return 0;
 
 err4:

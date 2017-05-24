@@ -11655,6 +11655,8 @@ struct public_drv_mb {
 #define FW_MB_PARAM_GET_PF_RDMA_IWARP		0x2
 #define FW_MB_PARAM_GET_PF_RDMA_BOTH		0x3
 
+#define FW_MB_PARAM_LOAD_DONE_DID_EFUSE_ERROR	(1 << 0)
+
 	u32 drv_pulse_mb;
 #define DRV_PULSE_SEQ_MASK			0x00007fff
 #define DRV_PULSE_SYSTEM_TIME_MASK		0xffff0000
@@ -11780,6 +11782,12 @@ struct nvm_cfg1_glob {
 	u32 led_global_settings;
 	u32 generic_cont1;
 	u32 mbi_version;
+#define NVM_CFG1_GLOB_MBI_VERSION_0_MASK		0x000000FF
+#define NVM_CFG1_GLOB_MBI_VERSION_0_OFFSET		0
+#define NVM_CFG1_GLOB_MBI_VERSION_1_MASK		0x0000FF00
+#define NVM_CFG1_GLOB_MBI_VERSION_1_OFFSET		8
+#define NVM_CFG1_GLOB_MBI_VERSION_2_MASK		0x00FF0000
+#define NVM_CFG1_GLOB_MBI_VERSION_2_OFFSET		16
 	u32 mbi_date;
 	u32 misc_sig;
 	u32 device_capabilities;

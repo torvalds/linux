@@ -2209,7 +2209,7 @@ static void qed_iov_vf_mbx_update_tunn_param(struct qed_hwfn *p_hwfn,
 	if (b_update_required) {
 		u16 geneve_port;
 
-		rc = qed_sp_pf_update_tunn_cfg(p_hwfn, &tunn,
+		rc = qed_sp_pf_update_tunn_cfg(p_hwfn, p_ptt, &tunn,
 					       QED_SPQ_MODE_EBLOCK, NULL);
 		if (rc)
 			status = PFVF_STATUS_FAILURE;
