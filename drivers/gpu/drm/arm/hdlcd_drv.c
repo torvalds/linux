@@ -340,7 +340,6 @@ err_register:
 	}
 err_fbdev:
 	drm_kms_helper_poll_fini(drm);
-	drm_vblank_cleanup(drm);
 err_vblank:
 	pm_runtime_disable(drm->dev);
 err_pm_active:
@@ -368,7 +367,6 @@ static void hdlcd_drm_unbind(struct device *dev)
 	}
 	drm_kms_helper_poll_fini(drm);
 	component_unbind_all(dev, drm);
-	drm_vblank_cleanup(drm);
 	pm_runtime_get_sync(drm->dev);
 	drm_irq_uninstall(drm);
 	pm_runtime_put_sync(drm->dev);
