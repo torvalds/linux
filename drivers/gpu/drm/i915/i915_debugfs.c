@@ -4289,26 +4289,27 @@ i915_drop_caches_set(void *data, u64 val)
 {
 	struct drm_i915_private *dev_priv = data;
 	struct drm_device *dev = &dev_priv->drm;
-	int ret;
+	int ret = 0;
 
 	DRM_DEBUG("Dropping caches: 0x%08llx\n", val);
 
 	/* No need to check and wait for gpu resets, only libdrm auto-restarts
 	 * on ioctls on -EAGAIN. */
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-
-	if (val & DROP_ACTIVE) {
-		ret = i915_gem_wait_for_idle(dev_priv,
-					     I915_WAIT_INTERRUPTIBLE |
-					     I915_WAIT_LOCKED);
+	if (val & (DROP_ACTIVE | DROP_RETIRE)) {
+		ret = mutex_lock_interruptible(&dev->struct_mutex);
 		if (ret)
-			goto unlock;
-	}
+			return ret;
 
-	if (val & DROP_RETIRE)
-		i915_gem_retire_requests(dev_priv);
+		if (val & DROP_ACTIVE)
+			ret = i915_gem_wait_for_idle(dev_priv,
+						     I915_WAIT_INTERRUPTIBLE |
+						     I915_WAIT_LOCKED);
+
+		if (val & DROP_RETIRE)
+			i915_gem_retire_requests(dev_priv);
+
+		mutex_unlock(&dev->struct_mutex);
+	}
 
 	lockdep_set_current_reclaim_state(GFP_KERNEL);
 	if (val & DROP_BOUND)
@@ -4320,9 +4321,6 @@ i915_drop_caches_set(void *data, u64 val)
 	if (val & DROP_SHRINK_ALL)
 		i915_gem_shrink_all(dev_priv);
 	lockdep_clear_current_reclaim_state();
-
-unlock:
-	mutex_unlock(&dev->struct_mutex);
 
 	if (val & DROP_FREED) {
 		synchronize_rcu();
