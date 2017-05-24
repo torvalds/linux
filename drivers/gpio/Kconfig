@@ -329,6 +329,7 @@ config GPIO_MVEBU
 	depends on PLAT_ORION || ARCH_MVEBU
 	depends on OF_GPIO
 	select GENERIC_IRQ_CHIP
+	select REGMAP_MMIO
 
 config GPIO_MXC
 	def_bool y
