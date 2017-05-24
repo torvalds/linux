@@ -190,8 +190,7 @@ static int vpd_section_create_attribs(struct vpd_section *sec)
 static int vpd_section_init(const char *name, struct vpd_section *sec,
 			    phys_addr_t physaddr, size_t size)
 {
-	int ret;
-	int raw_len;
+	int err;
 
 	sec->baseaddr = memremap(physaddr, size, MEMREMAP_WB);
 	if (!sec->baseaddr)
@@ -200,10 +199,11 @@ static int vpd_section_init(const char *name, struct vpd_section *sec,
 	sec->name = name;
 
 	/* We want to export the raw partion with name ${name}_raw */
-	raw_len = strlen(name) + 5;
-	sec->raw_name = kzalloc(raw_len, GFP_KERNEL);
-	strncpy(sec->raw_name, name, raw_len);
-	strncat(sec->raw_name, "_raw", raw_len);
+	sec->raw_name = kasprintf(GFP_KERNEL, "%s_raw", name);
+	if (!sec->raw_name) {
+		err = -ENOMEM;
+		goto err_iounmap;
+	}
 
 	sysfs_bin_attr_init(&sec->bin_attr);
 	sec->bin_attr.attr.name = sec->raw_name;
@@ -212,14 +212,14 @@ static int vpd_section_init(const char *name, struct vpd_section *sec,
 	sec->bin_attr.read = vpd_section_read;
 	sec->bin_attr.private = sec;
 
-	ret = sysfs_create_bin_file(vpd_kobj, &sec->bin_attr);
-	if (ret)
-		goto free_sec;
+	err = sysfs_create_bin_file(vpd_kobj, &sec->bin_attr);
+	if (err)
+		goto err_free_raw_name;
 
 	sec->kobj = kobject_create_and_add(name, vpd_kobj);
 	if (!sec->kobj) {
-		ret = -EINVAL;
-		goto sysfs_remove;
+		err = -EINVAL;
+		goto err_sysfs_remove;
 	}
 
 	INIT_LIST_HEAD(&sec->attribs);
@@ -229,14 +229,13 @@ static int vpd_section_init(const char *name, struct vpd_section *sec,
 
 	return 0;
 
-sysfs_remove:
+err_sysfs_remove:
 	sysfs_remove_bin_file(vpd_kobj, &sec->bin_attr);
-
-free_sec:
+err_free_raw_name:
 	kfree(sec->raw_name);
+err_iounmap:
 	iounmap(sec->baseaddr);
-
-	return ret;
+	return err;
 }
 
 static int vpd_section_destroy(struct vpd_section *sec)
