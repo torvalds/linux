@@ -32,6 +32,7 @@
 #include <linux/export.h>
 
 #include <drm/drmP.h>
+#include "drm_legacy.h"
 
 #define DRM_IOCTL_VERSION32		DRM_IOWR(0x00, drm_version32_t)
 #define DRM_IOCTL_GET_UNIQUE32		DRM_IOWR(0x01, drm_unique32_t)
@@ -378,26 +379,28 @@ static int compat_drm_addbufs(struct file *file, unsigned int cmd,
 			      unsigned long arg)
 {
 	drm_buf_desc32_t __user *argp = (void __user *)arg;
-	struct drm_buf_desc __user *buf;
+	drm_buf_desc32_t desc32;
+	struct drm_buf_desc desc;
 	int err;
-	unsigned long agp_start;
 
-	buf = compat_alloc_user_space(sizeof(*buf));
-	if (!buf || !access_ok(VERIFY_WRITE, argp, sizeof(*argp)))
+	if (copy_from_user(&desc32, argp, sizeof(drm_buf_desc32_t)))
 		return -EFAULT;
 
-	if (__copy_in_user(buf, argp, offsetof(drm_buf_desc32_t, agp_start))
-	    || __get_user(agp_start, &argp->agp_start)
-	    || __put_user(agp_start, &buf->agp_start))
-		return -EFAULT;
+	desc = (struct drm_buf_desc){
+		desc32.count, desc32.size, desc32.low_mark, desc32.high_mark,
+		desc32.flags, desc32.agp_start
+	};
 
-	err = drm_ioctl(file, DRM_IOCTL_ADD_BUFS, (unsigned long)buf);
+	err = drm_ioctl_kernel(file, drm_legacy_addbufs, &desc,
+				   DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY);
 	if (err)
 		return err;
 
-	if (__copy_in_user(argp, buf, offsetof(drm_buf_desc32_t, agp_start))
-	    || __get_user(agp_start, &buf->agp_start)
-	    || __put_user(agp_start, &argp->agp_start))
+	desc32 = (drm_buf_desc32_t){
+		desc.count, desc.size, desc.low_mark, desc.high_mark,
+		desc.flags, desc.agp_start
+	};
+	if (copy_to_user(argp, &desc32, sizeof(drm_buf_desc32_t)))
 		return -EFAULT;
 
 	return 0;
@@ -1077,6 +1080,7 @@ static struct {
 	drm_ioctl_compat_t *fn;
 	char *name;
 } drm_compat_ioctls[] = {
+#define DRM_IOCTL32_DEF(n, f) [DRM_IOCTL_NR(n##32)] = {.fn = f, .name = #n}
 	[DRM_IOCTL_NR(DRM_IOCTL_VERSION32)].fn = compat_drm_version,
 	[DRM_IOCTL_NR(DRM_IOCTL_GET_UNIQUE32)].fn = compat_drm_getunique,
 	[DRM_IOCTL_NR(DRM_IOCTL_GET_MAP32)].fn = compat_drm_getmap,
@@ -1084,7 +1088,7 @@ static struct {
 	[DRM_IOCTL_NR(DRM_IOCTL_GET_STATS32)].fn = compat_drm_getstats,
 	[DRM_IOCTL_NR(DRM_IOCTL_SET_UNIQUE32)].fn = compat_drm_setunique,
 	[DRM_IOCTL_NR(DRM_IOCTL_ADD_MAP32)].fn = compat_drm_addmap,
-	[DRM_IOCTL_NR(DRM_IOCTL_ADD_BUFS32)].fn = compat_drm_addbufs,
+	DRM_IOCTL32_DEF(DRM_IOCTL_ADD_BUFS, compat_drm_addbufs),
 	[DRM_IOCTL_NR(DRM_IOCTL_MARK_BUFS32)].fn = compat_drm_markbufs,
 	[DRM_IOCTL_NR(DRM_IOCTL_INFO_BUFS32)].fn = compat_drm_infobufs,
 	[DRM_IOCTL_NR(DRM_IOCTL_MAP_BUFS32)].fn = compat_drm_mapbufs,
