@@ -179,7 +179,6 @@ static struct drm_driver pl111_drm_driver = {
 #endif
 };
 
-#ifdef CONFIG_ARM_AMBA
 static int pl111_amba_probe(struct amba_device *amba_dev,
 			    const struct amba_id *id)
 {
@@ -252,7 +251,7 @@ static struct amba_id pl111_id_table[] = {
 	{0, 0},
 };
 
-static struct amba_driver pl111_amba_driver = {
+static struct amba_driver pl111_amba_driver __maybe_unused = {
 	.drv = {
 		.name = "drm-clcd-pl111",
 	},
@@ -261,8 +260,9 @@ static struct amba_driver pl111_amba_driver = {
 	.id_table = pl111_id_table,
 };
 
+#ifdef CONFIG_ARM_AMBA
 module_amba_driver(pl111_amba_driver);
-#endif /* CONFIG_ARM_AMBA */
+#endif
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("ARM Ltd.");
