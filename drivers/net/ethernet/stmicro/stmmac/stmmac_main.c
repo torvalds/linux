@@ -801,29 +801,16 @@ static void stmmac_adjust_link(struct net_device *dev)
 
 		if (phydev->speed != priv->speed) {
 			new_state = true;
+			ctrl &= ~priv->hw->link.speed_mask;
 			switch (phydev->speed) {
 			case SPEED_1000:
-				if (priv->plat->has_gmac ||
-				    priv->plat->has_gmac4)
-					ctrl &= ~priv->hw->link.port;
+				ctrl |= priv->hw->link.speed1000;
 				break;
 			case SPEED_100:
-				if (priv->plat->has_gmac ||
-				    priv->plat->has_gmac4) {
-					ctrl |= priv->hw->link.port;
-					ctrl |= priv->hw->link.speed;
-				} else {
-					ctrl &= ~priv->hw->link.port;
-				}
+				ctrl |= priv->hw->link.speed100;
 				break;
 			case SPEED_10:
-				if (priv->plat->has_gmac ||
-				    priv->plat->has_gmac4) {
-					ctrl |= priv->hw->link.port;
-					ctrl &= ~(priv->hw->link.speed);
-				} else {
-					ctrl &= ~priv->hw->link.port;
-				}
+				ctrl |= priv->hw->link.speed10;
 				break;
 			default:
 				netif_warn(priv, link, priv->dev,
