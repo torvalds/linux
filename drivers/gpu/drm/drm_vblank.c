@@ -294,7 +294,7 @@ static u32 drm_vblank_count(struct drm_device *dev, unsigned int pipe)
 }
 
 /**
- * drm_accurate_vblank_count - retrieve the master vblank counter
+ * drm_crtc_accurate_vblank_count - retrieve the master vblank counter
  * @crtc: which counter to retrieve
  *
  * This function is similar to drm_crtc_vblank_count() but this function
@@ -304,7 +304,7 @@ static u32 drm_vblank_count(struct drm_device *dev, unsigned int pipe)
  * This is mostly useful for hardware that can obtain the scanout position, but
  * doesn't have a hardware frame counter.
  */
-u32 drm_accurate_vblank_count(struct drm_crtc *crtc)
+u32 drm_crtc_accurate_vblank_count(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	unsigned int pipe = drm_crtc_index(crtc);
@@ -323,7 +323,7 @@ u32 drm_accurate_vblank_count(struct drm_crtc *crtc)
 
 	return vblank;
 }
-EXPORT_SYMBOL(drm_accurate_vblank_count);
+EXPORT_SYMBOL(drm_crtc_accurate_vblank_count);
 
 static void __disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
@@ -772,7 +772,7 @@ drm_get_last_vbltimestamp(struct drm_device *dev, unsigned int pipe,
  * vblank events since the system was booted, including lost events due to
  * modesetting activity. Note that this timer isn't correct against a racing
  * vblank interrupt (since it only reports the software vblank counter), see
- * drm_accurate_vblank_count() for such use-cases.
+ * drm_crtc_accurate_vblank_count() for such use-cases.
  *
  * Returns:
  * The software vblank counter.
