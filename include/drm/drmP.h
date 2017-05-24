@@ -292,23 +292,6 @@ struct pci_controller;
 /* Format strings and argument splitters to simplify printing
  * various "complex" objects
  */
-#define DRM_MODE_FMT    "%d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x"
-#define DRM_MODE_ARG(m) \
-	(m)->base.id, (m)->name, (m)->vrefresh, (m)->clock, \
-	(m)->hdisplay, (m)->hsync_start, (m)->hsync_end, (m)->htotal, \
-	(m)->vdisplay, (m)->vsync_start, (m)->vsync_end, (m)->vtotal, \
-	(m)->type, (m)->flags
-
-#define DRM_RECT_FMT    "%dx%d%+d%+d"
-#define DRM_RECT_ARG(r) drm_rect_width(r), drm_rect_height(r), (r)->x1, (r)->y1
-
-/* for rect's in fixed-point format: */
-#define DRM_RECT_FP_FMT "%d.%06ux%d.%06u%+d.%06u%+d.%06u"
-#define DRM_RECT_FP_ARG(r) \
-		drm_rect_width(r) >> 16, ((drm_rect_width(r) & 0xffff) * 15625) >> 10, \
-		drm_rect_height(r) >> 16, ((drm_rect_height(r) & 0xffff) * 15625) >> 10, \
-		(r)->x1 >> 16, (((r)->x1 & 0xffff) * 15625) >> 10, \
-		(r)->y1 >> 16, (((r)->y1 & 0xffff) * 15625) >> 10
 
 /*@}*/
 
