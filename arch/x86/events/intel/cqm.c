@@ -1682,7 +1682,7 @@ static int __init intel_cqm_init(void)
 	 *
 	 * Also, check that the scales match on all cpus.
 	 */
-	get_online_cpus();
+	cpus_read_lock();
 	for_each_online_cpu(cpu) {
 		struct cpuinfo_x86 *c = &cpu_data(cpu);
 
@@ -1746,14 +1746,14 @@ static int __init intel_cqm_init(void)
 	 * Setup the hot cpu notifier once we are sure cqm
 	 * is enabled to avoid notifier leak.
 	 */
-	cpuhp_setup_state(CPUHP_AP_PERF_X86_CQM_STARTING,
-			  "perf/x86/cqm:starting",
-			  intel_cqm_cpu_starting, NULL);
-	cpuhp_setup_state(CPUHP_AP_PERF_X86_CQM_ONLINE, "perf/x86/cqm:online",
-			  NULL, intel_cqm_cpu_exit);
-
+	cpuhp_setup_state_cpuslocked(CPUHP_AP_PERF_X86_CQM_STARTING,
+				     "perf/x86/cqm:starting",
+				     intel_cqm_cpu_starting, NULL);
+	cpuhp_setup_state_cpuslocked(CPUHP_AP_PERF_X86_CQM_ONLINE,
+				     "perf/x86/cqm:online",
+				     NULL, intel_cqm_cpu_exit);
 out:
-	put_online_cpus();
+	cpus_read_unlock();
 
 	if (ret) {
 		kfree(str);
