@@ -355,7 +355,8 @@ static struct ssi_drvdata *sys_get_drvdata(void)
 {
 	/* TODO: supporting multiple SeP devices would require avoiding
 	 * global "top_dir" and finding associated "top_dir" by traversing
-	 * up the tree to the kobject which matches one of the top_dir's */
+	 * up the tree to the kobject which matches one of the top_dir's
+	 */
 	return sys_top_dir.drvdata;
 }
 
