@@ -272,6 +272,16 @@ struct bpf_prog_aux;
 		.off   = OFF,					\
 		.imm   = IMM })
 
+/* Unconditional jumps, goto pc + off16 */
+
+#define BPF_JMP_A(OFF)						\
+	((struct bpf_insn) {					\
+		.code  = BPF_JMP | BPF_JA,			\
+		.dst_reg = 0,					\
+		.src_reg = 0,					\
+		.off   = OFF,					\
+		.imm   = 0 })
+
 /* Function call */
 
 #define BPF_EMIT_CALL(FUNC)					\
