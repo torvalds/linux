@@ -74,6 +74,8 @@ struct rvin_video_format {
  * @subdev:	subdevice matched using async framework
  * @code:	Media bus format from source
  * @mbus_cfg:	Media bus format from DT
+ * @source_pad:	source pad of remote subdevice
+ * @sink_pad:	sink pad of remote subdevice
  */
 struct rvin_graph_entity {
 	struct v4l2_async_subdev asd;
@@ -81,6 +83,9 @@ struct rvin_graph_entity {
 
 	u32 code;
 	struct v4l2_mbus_config mbus_cfg;
+
+	unsigned int source_pad;
+	unsigned int sink_pad;
 };
 
 /**
@@ -91,8 +96,6 @@ struct rvin_graph_entity {
  *
  * @vdev:		V4L2 video device associated with VIN
  * @v4l2_dev:		V4L2 device
- * @src_pad_idx:	source pad index for media controller drivers
- * @sink_pad_idx:	sink pad index for media controller drivers
  * @ctrl_handler:	V4L2 control handler
  * @notifier:		V4L2 asynchronous subdevs notifier
  * @digital:		entity in the DT for local digital subdevice
@@ -121,8 +124,6 @@ struct rvin_dev {
 
 	struct video_device vdev;
 	struct v4l2_device v4l2_dev;
-	int src_pad_idx;
-	int sink_pad_idx;
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_async_notifier notifier;
 	struct rvin_graph_entity digital;
