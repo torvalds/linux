@@ -43,8 +43,8 @@
 #ifdef CC_DEBUG
 #define DUMP_SGL(sg) \
 	while (sg) { \
-		SSI_LOG_DEBUG("page=%lu offset=%u length=%u (dma_len=%u) " \
-			     "dma_addr=%08x\n", (sg)->page_link, (sg)->offset, \
+		SSI_LOG_DEBUG("page=%p offset=%u length=%u (dma_len=%u) " \
+			     "dma_addr=%08x\n", sg_page(sg), (sg)->offset, \
 			(sg)->length, sg_dma_len(sg), (sg)->dma_address); \
 		(sg) = sg_next(sg); \
 	}
@@ -442,10 +442,10 @@ static int ssi_buffer_mgr_map_scatterlist(
 			return -ENOMEM;
 		}
 		SSI_LOG_DEBUG("Mapped sg: dma_address=0x%llX "
-			     "page_link=0x%08lX addr=%pK offset=%u "
+			     "page=%p addr=%pK offset=%u "
 			     "length=%u\n",
 			     (unsigned long long)sg_dma_address(sg),
-			     sg->page_link,
+			     sg_page(sg),
 			     sg_virt(sg),
 			     sg->offset, sg->length);
 		*lbytes = nbytes;
@@ -505,10 +505,10 @@ ssi_aead_handle_config_buf(struct device *dev,
 			return -ENOMEM;
 	}
 	SSI_LOG_DEBUG("Mapped curr_buff: dma_address=0x%llX "
-		     "page_link=0x%08lX addr=%pK "
+		     "page=%p addr=%pK "
 		     "offset=%u length=%u\n",
 		     (unsigned long long)sg_dma_address(&areq_ctx->ccm_adata_sg),
-		     areq_ctx->ccm_adata_sg.page_link,
+		     sg_page(&areq_ctx->ccm_adata_sg),
 		     sg_virt(&areq_ctx->ccm_adata_sg),
 		     areq_ctx->ccm_adata_sg.offset,
 		     areq_ctx->ccm_adata_sg.length);
@@ -540,10 +540,10 @@ static inline int ssi_ahash_handle_curr_buf(struct device *dev,
 			return -ENOMEM;
 	}
 	SSI_LOG_DEBUG("Mapped curr_buff: dma_address=0x%llX "
-		     "page_link=0x%08lX addr=%pK "
+		     "page=%p addr=%pK "
 		     "offset=%u length=%u\n",
 		     (unsigned long long)sg_dma_address(areq_ctx->buff_sg),
-		     areq_ctx->buff_sg->page_link,
+		     sg_page(areq_ctx->buff_sg),
 		     sg_virt(areq_ctx->buff_sg),
 		     areq_ctx->buff_sg->offset,
 		     areq_ctx->buff_sg->length);
@@ -1870,4 +1870,3 @@ int ssi_buffer_mgr_fini(struct ssi_drvdata *drvdata)
 	}
 	return 0;
 }
-
