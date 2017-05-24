@@ -158,8 +158,8 @@ static void vpd_section_attrib_destroy(struct vpd_section *sec)
 	struct vpd_attrib_info *temp;
 
 	list_for_each_entry_safe(info, temp, &sec->attribs, list) {
-		kfree(info->key);
 		sysfs_remove_bin_file(sec->kobj, &info->bin_attr);
+		kfree(info->key);
 		kfree(info);
 	}
 }
