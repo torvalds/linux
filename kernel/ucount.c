@@ -231,11 +231,10 @@ static __init int user_namespace_sysctl_init(void)
 	 * properly.
 	 */
 	user_header = register_sysctl("user", empty);
+	kmemleak_ignore(user_header);
 	BUG_ON(!user_header);
 	BUG_ON(!setup_userns_sysctls(&init_user_ns));
 #endif
 	return 0;
 }
 subsys_initcall(user_namespace_sysctl_init);
-
-
