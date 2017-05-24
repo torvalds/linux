@@ -211,7 +211,7 @@ EXPORT_SYMBOL_GPL(ir_raw_event_set_idle);
  */
 void ir_raw_event_handle(struct rc_dev *dev)
 {
-	if (!dev->raw)
+	if (!dev->raw || !dev->raw->thread)
 		return;
 
 	wake_up_process(dev->raw->thread);
@@ -490,6 +490,7 @@ int ir_raw_event_register(struct rc_dev *dev)
 {
 	int rc;
 	struct ir_raw_handler *handler;
+	struct task_struct *thread;
 
 	if (!dev)
 		return -EINVAL;
@@ -507,13 +508,15 @@ int ir_raw_event_register(struct rc_dev *dev)
 	 * because the event is coming from userspace
 	 */
 	if (dev->driver_type != RC_DRIVER_IR_RAW_TX) {
-		dev->raw->thread = kthread_run(ir_raw_event_thread, dev->raw,
-					       "rc%u", dev->minor);
+		thread = kthread_run(ir_raw_event_thread, dev->raw, "rc%u",
+				     dev->minor);
 
-		if (IS_ERR(dev->raw->thread)) {
-			rc = PTR_ERR(dev->raw->thread);
+		if (IS_ERR(thread)) {
+			rc = PTR_ERR(thread);
 			goto out;
 		}
+
+		dev->raw->thread = thread;
 	}
 
 	mutex_lock(&ir_raw_handler_lock);
