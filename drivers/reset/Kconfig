@@ -80,7 +80,7 @@ config RESET_SUNXI
 	help
 	  This enables the reset driver for Allwinner SoCs.
 
-config TI_SYSCON_RESET
+config RESET_TI_SYSCON
 	tristate "TI SYSCON Reset Driver"
 	depends on HAS_IOMEM
 	select MFD_SYSCON
