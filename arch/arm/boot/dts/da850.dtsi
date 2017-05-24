@@ -528,6 +528,8 @@
 			ti,ngpio = <144>;
 			ti,davinci-gpio-unbanked = <0>;
 			status = "disabled";
+			interrupt-controller;
+			#interrupt-cells = <2>;
 		};
 		pinconf: pin-controller@22c00c {
 			compatible = "ti,da850-pupd";
