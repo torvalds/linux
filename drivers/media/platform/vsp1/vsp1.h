@@ -54,6 +54,7 @@ struct vsp1_uds;
 #define VSP1_HAS_WPF_HFLIP	(1 << 6)
 #define VSP1_HAS_HGO		(1 << 7)
 #define VSP1_HAS_HGT		(1 << 8)
+#define VSP1_HAS_BRS		(1 << 9)
 
 struct vsp1_device_info {
 	u32 version;
@@ -76,6 +77,7 @@ struct vsp1_device {
 	struct rcar_fcp_device *fcp;
 	struct device *bus_master;
 
+	struct vsp1_bru *brs;
 	struct vsp1_bru *bru;
 	struct vsp1_clu *clu;
 	struct vsp1_hgo *hgo;

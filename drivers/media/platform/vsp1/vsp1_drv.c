@@ -84,6 +84,10 @@ static irqreturn_t vsp1_irq_handler(int irq, void *data)
  *
  * - from a UDS to a UDS (UDS entities can't be chained)
  * - from an entity to itself (no loops are allowed)
+ *
+ * Furthermore, the BRS can't be connected to histogram generators, but no
+ * special check is currently needed as all VSP instances that include a BRS
+ * have no histogram generator.
  */
 static int vsp1_create_sink_links(struct vsp1_device *vsp1,
 				  struct vsp1_entity *sink)
@@ -261,8 +265,18 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 	}
 
 	/* Instantiate all the entities. */
+	if (vsp1->info->features & VSP1_HAS_BRS) {
+		vsp1->brs = vsp1_bru_create(vsp1, VSP1_ENTITY_BRS);
+		if (IS_ERR(vsp1->brs)) {
+			ret = PTR_ERR(vsp1->brs);
+			goto done;
+		}
+
+		list_add_tail(&vsp1->brs->entity.list_dev, &vsp1->entities);
+	}
+
 	if (vsp1->info->features & VSP1_HAS_BRU) {
-		vsp1->bru = vsp1_bru_create(vsp1);
+		vsp1->bru = vsp1_bru_create(vsp1, VSP1_ENTITY_BRU);
 		if (IS_ERR(vsp1->bru)) {
 			ret = PTR_ERR(vsp1->bru);
 			goto done;
@@ -501,6 +515,9 @@ static int vsp1_device_init(struct vsp1_device *vsp1)
 	vsp1_write(vsp1, VI6_DPR_HST_ROUTE, VI6_DPR_NODE_UNUSED);
 	vsp1_write(vsp1, VI6_DPR_HSI_ROUTE, VI6_DPR_NODE_UNUSED);
 	vsp1_write(vsp1, VI6_DPR_BRU_ROUTE, VI6_DPR_NODE_UNUSED);
+
+	if (vsp1->info->features & VSP1_HAS_BRS)
+		vsp1_write(vsp1, VI6_DPR_ILV_BRS_ROUTE, VI6_DPR_NODE_UNUSED);
 
 	vsp1_write(vsp1, VI6_DPR_HGO_SMPPT, (7 << VI6_DPR_SMPPT_TGW_SHIFT) |
 		   (VI6_DPR_NODE_UNUSED << VI6_DPR_SMPPT_PT_SHIFT));

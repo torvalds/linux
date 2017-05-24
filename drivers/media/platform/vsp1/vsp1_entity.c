@@ -29,6 +29,7 @@ void vsp1_entity_route_setup(struct vsp1_entity *entity,
 			     struct vsp1_dl_list *dl)
 {
 	struct vsp1_entity *source;
+	u32 route;
 
 	if (entity->type == VSP1_ENTITY_HGO) {
 		u32 smppt;
@@ -62,8 +63,14 @@ void vsp1_entity_route_setup(struct vsp1_entity *entity,
 	if (source->route->reg == 0)
 		return;
 
-	vsp1_dl_list_write(dl, source->route->reg,
-			   source->sink->route->inputs[source->sink_pad]);
+	route = source->sink->route->inputs[source->sink_pad];
+	/*
+	 * The ILV and BRS share the same data path route. The extra BRSSEL bit
+	 * selects between the ILV and BRS.
+	 */
+	if (source->type == VSP1_ENTITY_BRS)
+		route |= VI6_DPR_ROUTE_BRSSEL;
+	vsp1_dl_list_write(dl, source->route->reg, route);
 }
 
 /* -----------------------------------------------------------------------------
@@ -450,6 +457,8 @@ struct media_pad *vsp1_entity_remote_pad(struct media_pad *pad)
 	  { VI6_DPR_NODE_WPF(idx) }, VI6_DPR_NODE_WPF(idx) }
 
 static const struct vsp1_route vsp1_routes[] = {
+	{ VSP1_ENTITY_BRS, 0, VI6_DPR_ILV_BRS_ROUTE,
+	  { VI6_DPR_NODE_BRS_IN(0), VI6_DPR_NODE_BRS_IN(1) }, 0 },
 	{ VSP1_ENTITY_BRU, 0, VI6_DPR_BRU_ROUTE,
 	  { VI6_DPR_NODE_BRU_IN(0), VI6_DPR_NODE_BRU_IN(1),
 	    VI6_DPR_NODE_BRU_IN(2), VI6_DPR_NODE_BRU_IN(3),

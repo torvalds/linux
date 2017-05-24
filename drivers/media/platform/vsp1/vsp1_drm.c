@@ -62,17 +62,17 @@ EXPORT_SYMBOL_GPL(vsp1_du_init);
  * @cfg: the LIF configuration
  *
  * Configure the output part of VSP DRM pipeline for the given frame @cfg.width
- * and @cfg.height. This sets up formats on the BRU source pad, the WPF0 sink
- * and source pads, and the LIF sink pad.
+ * and @cfg.height. This sets up formats on the blend unit (BRU or BRS) source
+ * pad, the WPF sink and source pads, and the LIF sink pad.
  *
  * The @pipe_index argument selects which DRM pipeline to setup. The number of
  * available pipelines depend on the VSP instance.
  *
- * As the media bus code on the BRU source pad is conditioned by the
- * configuration of the BRU sink 0 pad, we also set up the formats on all BRU
+ * As the media bus code on the blend unit source pad is conditioned by the
+ * configuration of its sink 0 pad, we also set up the formats on all blend unit
  * sinks, even if the configuration will be overwritten later by
- * vsp1_du_setup_rpf(). This ensures that the BRU configuration is set to a well
- * defined state.
+ * vsp1_du_setup_rpf(). This ensures that the blend unit configuration is set to
+ * a well defined state.
  *
  * Return 0 on success or a negative error code on failure.
  */

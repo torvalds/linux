@@ -373,10 +373,11 @@ void vsp1_pipeline_propagate_alpha(struct vsp1_pipeline *pipe,
 		return;
 
 	/*
-	 * The BRU background color has a fixed alpha value set to 255, the
-	 * output alpha value is thus always equal to 255.
+	 * The BRU and BRS background color has a fixed alpha value set to 255,
+	 * the output alpha value is thus always equal to 255.
 	 */
-	if (pipe->uds_input->type == VSP1_ENTITY_BRU)
+	if (pipe->uds_input->type == VSP1_ENTITY_BRU ||
+	    pipe->uds_input->type == VSP1_ENTITY_BRS)
 		alpha = 255;
 
 	vsp1_uds_set_alpha(pipe->uds, dl, alpha);

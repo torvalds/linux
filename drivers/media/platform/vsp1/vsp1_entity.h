@@ -23,6 +23,7 @@ struct vsp1_dl_list;
 struct vsp1_pipeline;
 
 enum vsp1_entity_type {
+	VSP1_ENTITY_BRS,
 	VSP1_ENTITY_BRU,
 	VSP1_ENTITY_CLU,
 	VSP1_ENTITY_HGO,

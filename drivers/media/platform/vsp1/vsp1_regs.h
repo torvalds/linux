@@ -238,6 +238,10 @@
 #define VI6_WPF_SRCRPF_VIRACT_SUB	(1 << 28)
 #define VI6_WPF_SRCRPF_VIRACT_MST	(2 << 28)
 #define VI6_WPF_SRCRPF_VIRACT_MASK	(3 << 28)
+#define VI6_WPF_SRCRPF_VIRACT2_DIS	(0 << 24)
+#define VI6_WPF_SRCRPF_VIRACT2_SUB	(1 << 24)
+#define VI6_WPF_SRCRPF_VIRACT2_MST	(2 << 24)
+#define VI6_WPF_SRCRPF_VIRACT2_MASK	(3 << 24)
 #define VI6_WPF_SRCRPF_RPF_ACT_DIS(n)	(0 << ((n) * 2))
 #define VI6_WPF_SRCRPF_RPF_ACT_SUB(n)	(1 << ((n) * 2))
 #define VI6_WPF_SRCRPF_RPF_ACT_MST(n)	(2 << ((n) * 2))
@@ -321,6 +325,8 @@
 #define VI6_DPR_HST_ROUTE		0x2044
 #define VI6_DPR_HSI_ROUTE		0x2048
 #define VI6_DPR_BRU_ROUTE		0x204c
+#define VI6_DPR_ILV_BRS_ROUTE		0x2050
+#define VI6_DPR_ROUTE_BRSSEL		(1 << 28)
 #define VI6_DPR_ROUTE_FXA_MASK		(0xff << 16)
 #define VI6_DPR_ROUTE_FXA_SHIFT		16
 #define VI6_DPR_ROUTE_FP_MASK		(0x3f << 8)
@@ -344,6 +350,7 @@
 #define VI6_DPR_NODE_CLU		29
 #define VI6_DPR_NODE_HST		30
 #define VI6_DPR_NODE_HSI		31
+#define VI6_DPR_NODE_BRS_IN(n)		(38 + (n))
 #define VI6_DPR_NODE_LIF		55
 #define VI6_DPR_NODE_WPF(n)		(56 + (n))
 #define VI6_DPR_NODE_UNUSED		63
@@ -476,7 +483,7 @@
 #define VI6_HSI_CTRL_EN			(1 << 0)
 
 /* -----------------------------------------------------------------------------
- * BRU Control Registers
+ * BRS and BRU Control Registers
  */
 
 #define VI6_ROP_NOP			0
@@ -496,7 +503,10 @@
 #define VI6_ROP_NAND			14
 #define VI6_ROP_SET			15
 
-#define VI6_BRU_INCTRL			0x2c00
+#define VI6_BRU_BASE			0x2c00
+#define VI6_BRS_BASE			0x3900
+
+#define VI6_BRU_INCTRL			0x0000
 #define VI6_BRU_INCTRL_NRM		(1 << 28)
 #define VI6_BRU_INCTRL_DnON		(1 << (16 + (n)))
 #define VI6_BRU_INCTRL_DITHn_OFF	(0 << ((n) * 4))
@@ -508,19 +518,19 @@
 #define VI6_BRU_INCTRL_DITHn_MASK	(7 << ((n) * 4))
 #define VI6_BRU_INCTRL_DITHn_SHIFT	((n) * 4)
 
-#define VI6_BRU_VIRRPF_SIZE		0x2c04
+#define VI6_BRU_VIRRPF_SIZE		0x0004
 #define VI6_BRU_VIRRPF_SIZE_HSIZE_MASK	(0x1fff << 16)
 #define VI6_BRU_VIRRPF_SIZE_HSIZE_SHIFT	16
 #define VI6_BRU_VIRRPF_SIZE_VSIZE_MASK	(0x1fff << 0)
 #define VI6_BRU_VIRRPF_SIZE_VSIZE_SHIFT	0
 
-#define VI6_BRU_VIRRPF_LOC		0x2c08
+#define VI6_BRU_VIRRPF_LOC		0x0008
 #define VI6_BRU_VIRRPF_LOC_HCOORD_MASK	(0x1fff << 16)
 #define VI6_BRU_VIRRPF_LOC_HCOORD_SHIFT	16
 #define VI6_BRU_VIRRPF_LOC_VCOORD_MASK	(0x1fff << 0)
 #define VI6_BRU_VIRRPF_LOC_VCOORD_SHIFT	0
 
-#define VI6_BRU_VIRRPF_COL		0x2c0c
+#define VI6_BRU_VIRRPF_COL		0x000c
 #define VI6_BRU_VIRRPF_COL_A_MASK	(0xff << 24)
 #define VI6_BRU_VIRRPF_COL_A_SHIFT	24
 #define VI6_BRU_VIRRPF_COL_RCR_MASK	(0xff << 16)
@@ -530,7 +540,7 @@
 #define VI6_BRU_VIRRPF_COL_BCB_MASK	(0xff << 0)
 #define VI6_BRU_VIRRPF_COL_BCB_SHIFT	0
 
-#define VI6_BRU_CTRL(n)			(0x2c10 + (n) * 8 + ((n) <= 3 ? 0 : 4))
+#define VI6_BRU_CTRL(n)			(0x0010 + (n) * 8 + ((n) <= 3 ? 0 : 4))
 #define VI6_BRU_CTRL_RBC		(1 << 31)
 #define VI6_BRU_CTRL_DSTSEL_BRUIN(n)	(((n) <= 3 ? (n) : (n)+1) << 20)
 #define VI6_BRU_CTRL_DSTSEL_VRPF	(4 << 20)
@@ -543,7 +553,7 @@
 #define VI6_BRU_CTRL_AROP(rop)		((rop) << 0)
 #define VI6_BRU_CTRL_AROP_MASK		(0xf << 0)
 
-#define VI6_BRU_BLD(n)			(0x2c14 + (n) * 8 + ((n) <= 3 ? 0 : 4))
+#define VI6_BRU_BLD(n)			(0x0014 + (n) * 8 + ((n) <= 3 ? 0 : 4))
 #define VI6_BRU_BLD_CBES		(1 << 31)
 #define VI6_BRU_BLD_CCMDX_DST_A		(0 << 28)
 #define VI6_BRU_BLD_CCMDX_255_DST_A	(1 << 28)
@@ -576,7 +586,7 @@
 #define VI6_BRU_BLD_COEFY_MASK		(0xff << 0)
 #define VI6_BRU_BLD_COEFY_SHIFT		0
 
-#define VI6_BRU_ROP			0x2c30
+#define VI6_BRU_ROP			0x0030	/* Only available on BRU */
 #define VI6_BRU_ROP_DSTSEL_BRUIN(n)	(((n) <= 3 ? (n) : (n)+1) << 20)
 #define VI6_BRU_ROP_DSTSEL_VRPF		(4 << 20)
 #define VI6_BRU_ROP_DSTSEL_MASK		(7 << 20)
