@@ -56,7 +56,10 @@ static int inline_list__append(char *filename, char *funcname, int line_nr,
 		}
 	}
 
-	list_add_tail(&ilist->list, &node->val);
+	if (callchain_param.order == ORDER_CALLEE)
+		list_add_tail(&ilist->list, &node->val);
+	else
+		list_add(&ilist->list, &node->val);
 
 	return 0;
 }
@@ -200,14 +203,6 @@ static void addr2line_cleanup(struct a2l_data *a2l)
 
 #define MAX_INLINE_NEST 1024
 
-static void inline_list__reverse(struct inline_node *node)
-{
-	struct inline_list *ilist, *n;
-
-	list_for_each_entry_safe_reverse(ilist, n, &node->val, list)
-		list_move_tail(&ilist->list, &node->val);
-}
-
 static int addr2line(const char *dso_name, u64 addr,
 		     char **file, unsigned int *line, struct dso *dso,
 		     bool unwind_inlines, struct inline_node *node)
@@ -249,11 +244,6 @@ static int addr2line(const char *dso_name, u64 addr,
 				// found at least one inline frame
 				ret = 1;
 			}
-		}
-
-		if ((node != NULL) &&
-		    (callchain_param.order != ORDER_CALLEE)) {
-			inline_list__reverse(node);
 		}
 	}
 
