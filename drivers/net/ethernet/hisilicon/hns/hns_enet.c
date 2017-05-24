@@ -304,8 +304,8 @@ int hns_nic_net_xmit_hw(struct net_device *ndev,
 			struct hns_nic_ring_data *ring_data)
 {
 	struct hns_nic_priv *priv = netdev_priv(ndev);
-	struct device *dev = priv->dev;
 	struct hnae_ring *ring = ring_data->ring;
+	struct device *dev = ring_to_dev(ring);
 	struct netdev_queue *dev_queue;
 	struct skb_frag_struct *frag;
 	int buf_num;
