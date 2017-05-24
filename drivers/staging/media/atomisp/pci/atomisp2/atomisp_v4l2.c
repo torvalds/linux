@@ -56,7 +56,7 @@ module_param(skip_fwload, uint, 0644);
 MODULE_PARM_DESC(skip_fwload, "Skip atomisp firmware load");
 
 /* set reserved memory pool size in page */
-unsigned int repool_pgnr;
+static unsigned int repool_pgnr;
 module_param(repool_pgnr, uint, 0644);
 MODULE_PARM_DESC(repool_pgnr,
 		"Set the reserved memory pool size in page (default:0)");
@@ -384,7 +384,7 @@ done:
  * WA for DDR DVFS enable/disable
  * By default, ISP will force DDR DVFS 1600MHz before disable DVFS
  */
-void punit_ddr_dvfs_enable(bool enable)
+static void punit_ddr_dvfs_enable(bool enable)
 {
 	int reg = intel_mid_msgbus_read32(PUNIT_PORT, MRFLD_ISPSSDVFS);
 	int door_bell = 1 << 8;
