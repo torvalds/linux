@@ -1994,6 +1994,15 @@ static int default_write_copy(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+/* default copy_kernel ops for write */
+static int default_write_copy_kernel(struct snd_pcm_substream *substream,
+				     int channel, unsigned long hwoff,
+				     void *buf, unsigned long bytes)
+{
+	memcpy(get_dma_ptr(substream->runtime, channel, hwoff), buf, bytes);
+	return 0;
+}
+
 /* fill silence instead of copy data; called as a transfer helper
  * from __snd_pcm_lib_write() or directly from noninterleaved_copy() when
  * a NULL buffer is passed
@@ -2024,6 +2033,15 @@ static int default_read_copy(struct snd_pcm_substream *substream,
 			 get_dma_ptr(substream->runtime, channel, hwoff),
 			 bytes))
 		return -EFAULT;
+	return 0;
+}
+
+/* default copy_kernel ops for read */
+static int default_read_copy_kernel(struct snd_pcm_substream *substream,
+				    int channel, unsigned long hwoff,
+				    void *buf, unsigned long bytes)
+{
+	memcpy(buf, get_dma_ptr(substream->runtime, channel, hwoff), bytes);
 	return 0;
 }
 
@@ -2126,7 +2144,7 @@ static int pcm_accessible_state(struct snd_pcm_runtime *runtime)
 /* the common loop for read/write data */
 snd_pcm_sframes_t __snd_pcm_lib_xfer(struct snd_pcm_substream *substream,
 				     void *data, bool interleaved,
-				     snd_pcm_uframes_t size)
+				     snd_pcm_uframes_t size, bool in_kernel)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	snd_pcm_uframes_t xfer = 0;
@@ -2159,6 +2177,12 @@ snd_pcm_sframes_t __snd_pcm_lib_xfer(struct snd_pcm_substream *substream,
 			transfer = fill_silence;
 		else
 			return -EINVAL;
+	} else if (in_kernel) {
+		if (substream->ops->copy_kernel)
+			transfer = substream->ops->copy_kernel;
+		else
+			transfer = is_playback ?
+				default_write_copy_kernel : default_read_copy_kernel;
 	} else {
 		if (substream->ops->copy_user)
 			transfer = (pcm_transfer_f)substream->ops->copy_user;
