@@ -15,7 +15,7 @@
  */
 
 /* \file ssi_pm_ext.h
-    */
+ */
 
 #ifndef __PM_EXT_H__
 #define __PM_EXT_H__
