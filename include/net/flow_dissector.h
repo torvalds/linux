@@ -157,6 +157,14 @@ struct flow_dissector_key_eth_addrs {
 	unsigned char src[ETH_ALEN];
 };
 
+/**
+ * struct flow_dissector_key_tcp:
+ * @flags: flags
+ */
+struct flow_dissector_key_tcp {
+	__be16 flags;
+};
+
 enum flow_dissector_key_id {
 	FLOW_DISSECTOR_KEY_CONTROL, /* struct flow_dissector_key_control */
 	FLOW_DISSECTOR_KEY_BASIC, /* struct flow_dissector_key_basic */
@@ -177,6 +185,7 @@ enum flow_dissector_key_id {
 	FLOW_DISSECTOR_KEY_ENC_CONTROL, /* struct flow_dissector_key_control */
 	FLOW_DISSECTOR_KEY_ENC_PORTS, /* struct flow_dissector_key_ports */
 	FLOW_DISSECTOR_KEY_MPLS, /* struct flow_dissector_key_mpls */
+	FLOW_DISSECTOR_KEY_TCP, /* struct flow_dissector_key_tcp */
 
 	FLOW_DISSECTOR_KEY_MAX,
 };

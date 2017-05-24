@@ -18,6 +18,7 @@
 #include <linux/stddef.h>
 #include <linux/if_ether.h>
 #include <linux/mpls.h>
+#include <linux/tcp.h>
 #include <net/flow_dissector.h>
 #include <scsi/fc/fc_fcoe.h>
 
@@ -340,6 +341,30 @@ __skb_flow_dissect_gre(const struct sk_buff *skb,
 		return FLOW_DISSECT_RET_OUT_GOOD;
 
 	return FLOW_DISSECT_RET_OUT_PROTO_AGAIN;
+}
+
+static void
+__skb_flow_dissect_tcp(const struct sk_buff *skb,
+		       struct flow_dissector *flow_dissector,
+		       void *target_container, void *data, int thoff, int hlen)
+{
+	struct flow_dissector_key_tcp *key_tcp;
+	struct tcphdr *th, _th;
+
+	if (!dissector_uses_key(flow_dissector, FLOW_DISSECTOR_KEY_TCP))
+		return;
+
+	th = __skb_header_pointer(skb, thoff, sizeof(_th), data, hlen, &_th);
+	if (!th)
+		return;
+
+	if (unlikely(__tcp_hdrlen(th) < sizeof(_th)))
+		return;
+
+	key_tcp = skb_flow_dissector_target(flow_dissector,
+					    FLOW_DISSECTOR_KEY_TCP,
+					    target_container);
+	key_tcp->flags = (*(__be16 *) &tcp_flag_word(th) & htons(0x0FFF));
 }
 
 /**
@@ -683,6 +708,10 @@ ip_proto_again:
 	case IPPROTO_MPLS:
 		proto = htons(ETH_P_MPLS_UC);
 		goto mpls;
+	case IPPROTO_TCP:
+		__skb_flow_dissect_tcp(skb, flow_dissector, target_container,
+				       data, nhoff, hlen);
+		break;
 	default:
 		break;
 	}
