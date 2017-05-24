@@ -678,7 +678,6 @@ static void atmel_hlcdc_dc_unload(struct drm_device *dev)
 	flush_workqueue(dc->wq);
 	drm_kms_helper_poll_fini(dev);
 	drm_mode_config_cleanup(dev);
-	drm_vblank_cleanup(dev);
 
 	pm_runtime_get_sync(dev->dev);
 	drm_irq_uninstall(dev);
