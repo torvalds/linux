@@ -365,6 +365,13 @@ static int sierra_net_parse_lsi(struct usbnet *dev, char *data, int datalen)
 		return -1;
 	}
 
+	/* Validate the session state */
+	if (lsi->session_state == SIERRA_NET_SESSION_IDLE) {
+		netdev_err(dev->net, "Session idle, 0x%02x\n",
+			   lsi->session_state);
+		return 0;
+	}
+
 	/* Validate the protocol  - only support UMTS for now */
 	if (lsi->protocol != SIERRA_NET_PROTOCOL_UMTS) {
 		netdev_err(dev->net, "Protocol unsupported, 0x%02x\n",
@@ -383,13 +390,6 @@ static int sierra_net_parse_lsi(struct usbnet *dev, char *data, int datalen)
 	if (lsi->coverage == SIERRA_NET_COVERAGE_NONE
 	   || lsi->coverage == SIERRA_NET_COVERAGE_NOPACKET) {
 		netdev_err(dev->net, "No coverage, 0x%02x\n", lsi->coverage);
-		return 0;
-	}
-
-	/* Validate the session state */
-	if (lsi->session_state == SIERRA_NET_SESSION_IDLE) {
-		netdev_err(dev->net, "Session idle, 0x%02x\n",
-			lsi->session_state);
 		return 0;
 	}
 
