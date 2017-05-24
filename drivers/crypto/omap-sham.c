@@ -226,7 +226,7 @@ struct omap_sham_dev {
 	struct dma_chan		*dma_lch;
 	struct tasklet_struct	done_task;
 	u8			polling_mode;
-	u8			xmit_buf[BUFLEN];
+	u8			xmit_buf[BUFLEN] OMAP_ALIGNED;
 
 	unsigned long		flags;
 	struct crypto_queue	queue;
