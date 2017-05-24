@@ -232,7 +232,7 @@ static enum amd_sched_priority amdgpu_to_sched_priority(int amdgpu_priority)
 		return AMD_SCHED_PRIORITY_LOW;
 	default:
 		WARN(1, "Invalid context priority %d\n", amdgpu_priority);
-		return AMD_SCHED_PRIORITY_NORMAL;
+		return AMD_SCHED_PRIORITY_INVALID;
 	}
 }
 
@@ -251,8 +251,10 @@ int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
 	id = args->in.ctx_id;
 	priority = amdgpu_to_sched_priority(args->in.priority);
 
-	if (priority >= AMD_SCHED_PRIORITY_MAX)
-		return -EINVAL;
+	/* For backwards compatibility reasons, we need to accept
+	 * ioctls with garbage in the priority field */
+	if (priority == AMD_SCHED_PRIORITY_INVALID)
+		priority = AMD_SCHED_PRIORITY_NORMAL;
 
 	switch (args->in.op) {
 	case AMDGPU_CTX_OP_ALLOC_CTX:
