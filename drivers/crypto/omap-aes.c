@@ -38,6 +38,8 @@
 #include <crypto/engine.h>
 #include <crypto/internal/skcipher.h>
 
+#include "omap-crypto.h"
+
 #define DST_MAXBURST			4
 #define DMA_MIN				(DST_MAXBURST * sizeof(u32))
 
@@ -97,6 +99,9 @@
 #define FLAGS_INIT		BIT(4)
 #define FLAGS_FAST		BIT(5)
 #define FLAGS_BUSY		BIT(6)
+
+#define FLAGS_IN_DATA_ST_SHIFT	8
+#define FLAGS_OUT_DATA_ST_SHIFT	10
 
 #define AES_BLOCK_WORDS		(AES_BLOCK_SIZE >> 2)
 
@@ -173,7 +178,6 @@ struct omap_aes_dev {
 	struct scatterlist		in_sgl;
 	struct scatterlist		out_sgl;
 	struct scatterlist		*orig_out;
-	int				sgs_copied;
 
 	struct scatter_walk		in_walk;
 	struct scatter_walk		out_walk;
@@ -385,20 +389,6 @@ static void omap_aes_dma_cleanup(struct omap_aes_dev *dd)
 	dma_release_channel(dd->dma_lch_in);
 }
 
-static void sg_copy_buf(void *buf, struct scatterlist *sg,
-			      unsigned int start, unsigned int nbytes, int out)
-{
-	struct scatter_walk walk;
-
-	if (!nbytes)
-		return;
-
-	scatterwalk_start(&walk, sg);
-	scatterwalk_advance(&walk, start);
-	scatterwalk_copychunks(buf, &walk, nbytes, out);
-	scatterwalk_done(&walk, out, 0);
-}
-
 static int omap_aes_crypt_dma(struct omap_aes_dev *dd,
 			      struct scatterlist *in_sg,
 			      struct scatterlist *out_sg,
@@ -534,62 +524,6 @@ static int omap_aes_crypt_dma_stop(struct omap_aes_dev *dd)
 	return 0;
 }
 
-static int omap_aes_check_aligned(struct scatterlist *sg, int total)
-{
-	int len = 0;
-
-	if (!IS_ALIGNED(total, AES_BLOCK_SIZE))
-		return -EINVAL;
-
-	while (sg) {
-		if (!IS_ALIGNED(sg->offset, 4))
-			return -1;
-		if (!IS_ALIGNED(sg->length, AES_BLOCK_SIZE))
-			return -1;
-
-		len += sg->length;
-		sg = sg_next(sg);
-	}
-
-	if (len != total)
-		return -1;
-
-	return 0;
-}
-
-static int omap_aes_copy_sgs(struct omap_aes_dev *dd)
-{
-	void *buf_in, *buf_out;
-	int pages, total;
-
-	total = ALIGN(dd->total, AES_BLOCK_SIZE);
-	pages = get_order(total);
-
-	buf_in = (void *)__get_free_pages(GFP_ATOMIC, pages);
-	buf_out = (void *)__get_free_pages(GFP_ATOMIC, pages);
-
-	if (!buf_in || !buf_out) {
-		pr_err("Couldn't allocated pages for unaligned cases.\n");
-		return -1;
-	}
-
-	dd->orig_out = dd->out_sg;
-
-	sg_copy_buf(buf_in, dd->in_sg, 0, dd->total, 0);
-
-	sg_init_table(&dd->in_sgl, 1);
-	sg_set_buf(&dd->in_sgl, buf_in, total);
-	dd->in_sg = &dd->in_sgl;
-	dd->in_sg_len = 1;
-
-	sg_init_table(&dd->out_sgl, 1);
-	sg_set_buf(&dd->out_sgl, buf_out, total);
-	dd->out_sg = &dd->out_sgl;
-	dd->out_sg_len = 1;
-
-	return 0;
-}
-
 static int omap_aes_handle_queue(struct omap_aes_dev *dd,
 				 struct ablkcipher_request *req)
 {
@@ -606,6 +540,8 @@ static int omap_aes_prepare_req(struct crypto_engine *engine,
 			crypto_ablkcipher_reqtfm(req));
 	struct omap_aes_reqctx *rctx = ablkcipher_request_ctx(req);
 	struct omap_aes_dev *dd = rctx->dd;
+	int ret;
+	u16 flags;
 
 	if (!dd)
 		return -ENODEV;
@@ -616,6 +552,23 @@ static int omap_aes_prepare_req(struct crypto_engine *engine,
 	dd->total_save = req->nbytes;
 	dd->in_sg = req->src;
 	dd->out_sg = req->dst;
+	dd->orig_out = req->dst;
+
+	flags = OMAP_CRYPTO_COPY_DATA;
+	if (req->src == req->dst)
+		flags |= OMAP_CRYPTO_FORCE_COPY;
+
+	ret = omap_crypto_align_sg(&dd->in_sg, dd->total, AES_BLOCK_SIZE,
+				   &dd->in_sgl, flags,
+				   FLAGS_IN_DATA_ST_SHIFT, &dd->flags);
+	if (ret)
+		return ret;
+
+	ret = omap_crypto_align_sg(&dd->out_sg, dd->total, AES_BLOCK_SIZE,
+				   &dd->out_sgl, 0,
+				   FLAGS_OUT_DATA_ST_SHIFT, &dd->flags);
+	if (ret)
+		return ret;
 
 	dd->in_sg_len = sg_nents_for_len(dd->in_sg, dd->total);
 	if (dd->in_sg_len < 0)
@@ -624,15 +577,6 @@ static int omap_aes_prepare_req(struct crypto_engine *engine,
 	dd->out_sg_len = sg_nents_for_len(dd->out_sg, dd->total);
 	if (dd->out_sg_len < 0)
 		return dd->out_sg_len;
-
-	if (omap_aes_check_aligned(dd->in_sg, dd->total) ||
-	    omap_aes_check_aligned(dd->out_sg, dd->total)) {
-		if (omap_aes_copy_sgs(dd))
-			pr_err("Failed to copy SGs for unaligned cases\n");
-		dd->sgs_copied = 1;
-	} else {
-		dd->sgs_copied = 0;
-	}
 
 	rctx->mode &= FLAGS_MODE_MASK;
 	dd->flags = (dd->flags & ~FLAGS_MODE_MASK) | rctx->mode;
@@ -658,8 +602,6 @@ static int omap_aes_crypt_req(struct crypto_engine *engine,
 static void omap_aes_done_task(unsigned long data)
 {
 	struct omap_aes_dev *dd = (struct omap_aes_dev *)data;
-	void *buf_in, *buf_out;
-	int pages, len;
 
 	pr_debug("enter done_task\n");
 
@@ -672,17 +614,11 @@ static void omap_aes_done_task(unsigned long data)
 		omap_aes_crypt_dma_stop(dd);
 	}
 
-	if (dd->sgs_copied) {
-		buf_in = sg_virt(&dd->in_sgl);
-		buf_out = sg_virt(&dd->out_sgl);
+	omap_crypto_cleanup(&dd->in_sgl, NULL, 0, dd->total_save,
+			    FLAGS_IN_DATA_ST_SHIFT, dd->flags);
 
-		sg_copy_buf(buf_out, dd->orig_out, 0, dd->total_save, 1);
-
-		len = ALIGN(dd->total_save, AES_BLOCK_SIZE);
-		pages = get_order(len);
-		free_pages((unsigned long)buf_in, pages);
-		free_pages((unsigned long)buf_out, pages);
-	}
+	omap_crypto_cleanup(&dd->out_sgl, dd->orig_out, 0, dd->total_save,
+			    FLAGS_OUT_DATA_ST_SHIFT, dd->flags);
 
 	omap_aes_finish_req(dd, 0);
 
