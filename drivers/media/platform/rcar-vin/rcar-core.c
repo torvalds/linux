@@ -101,14 +101,9 @@ static void rvin_digital_notify_unbind(struct v4l2_async_notifier *notifier,
 {
 	struct rvin_dev *vin = notifier_to_vin(notifier);
 
-	if (vin->digital.subdev == subdev) {
-		vin_dbg(vin, "unbind digital subdev %s\n", subdev->name);
-		rvin_v4l2_remove(vin);
-		vin->digital.subdev = NULL;
-		return;
-	}
-
-	vin_err(vin, "no entity for subdev %s to unbind\n", subdev->name);
+	vin_dbg(vin, "unbind digital subdev %s\n", subdev->name);
+	rvin_v4l2_remove(vin);
+	vin->digital.subdev = NULL;
 }
 
 static int rvin_digital_notify_bound(struct v4l2_async_notifier *notifier,
@@ -120,28 +115,23 @@ static int rvin_digital_notify_bound(struct v4l2_async_notifier *notifier,
 
 	v4l2_set_subdev_hostdata(subdev, vin);
 
-	if (vin->digital.asd.match.fwnode.fwnode ==
-	    of_fwnode_handle(subdev->dev->of_node)) {
-		/* Find source and sink pad of remote subdevice */
+	/* Find source and sink pad of remote subdevice */
 
-		ret = rvin_find_pad(subdev, MEDIA_PAD_FL_SOURCE);
-		if (ret < 0)
-			return ret;
-		vin->digital.source_pad = ret;
+	ret = rvin_find_pad(subdev, MEDIA_PAD_FL_SOURCE);
+	if (ret < 0)
+		return ret;
+	vin->digital.source_pad = ret;
 
-		ret = rvin_find_pad(subdev, MEDIA_PAD_FL_SINK);
-		vin->digital.sink_pad = ret < 0 ? 0 : ret;
+	ret = rvin_find_pad(subdev, MEDIA_PAD_FL_SINK);
+	vin->digital.sink_pad = ret < 0 ? 0 : ret;
 
-		vin->digital.subdev = subdev;
+	vin->digital.subdev = subdev;
 
-		vin_dbg(vin, "bound subdev %s source pad: %u sink pad: %u\n",
-			subdev->name, vin->digital.source_pad,
-			vin->digital.sink_pad);
-		return 0;
-	}
+	vin_dbg(vin, "bound subdev %s source pad: %u sink pad: %u\n",
+		subdev->name, vin->digital.source_pad,
+		vin->digital.sink_pad);
 
-	vin_err(vin, "no entity for subdev %s to bind\n", subdev->name);
-	return -EINVAL;
+	return 0;
 }
 
 static int rvin_digitial_parse_v4l2(struct rvin_dev *vin,
