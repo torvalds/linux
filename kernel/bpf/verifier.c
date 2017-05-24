@@ -843,9 +843,6 @@ static int check_ptr_alignment(struct bpf_verifier_env *env,
 {
 	bool strict = env->strict_alignment;
 
-	if (!IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS))
-		strict = true;
-
 	switch (reg->type) {
 	case PTR_TO_PACKET:
 		return check_pkt_ptr_alignment(reg, off, size, strict);
@@ -2696,7 +2693,8 @@ err_free:
 /* the following conditions reduce the number of explored insns
  * from ~140k to ~80k for ultra large programs that use a lot of ptr_to_packet
  */
-static bool compare_ptrs_to_packet(struct bpf_reg_state *old,
+static bool compare_ptrs_to_packet(struct bpf_verifier_env *env,
+				   struct bpf_reg_state *old,
 				   struct bpf_reg_state *cur)
 {
 	if (old->id != cur->id)
@@ -2739,7 +2737,7 @@ static bool compare_ptrs_to_packet(struct bpf_reg_state *old,
 	 * 'if (R4 > data_end)' and all further insn were already good with r=20,
 	 * so they will be good with r=30 and we can prune the search.
 	 */
-	if (old->off <= cur->off &&
+	if (!env->strict_alignment && old->off <= cur->off &&
 	    old->off >= old->range && cur->off >= cur->range)
 		return true;
 
@@ -2810,7 +2808,7 @@ static bool states_equal(struct bpf_verifier_env *env,
 			continue;
 
 		if (rold->type == PTR_TO_PACKET && rcur->type == PTR_TO_PACKET &&
-		    compare_ptrs_to_packet(rold, rcur))
+		    compare_ptrs_to_packet(env, rold, rcur))
 			continue;
 
 		return false;
@@ -3588,10 +3586,10 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr)
 	} else {
 		log_level = 0;
 	}
-	if (attr->prog_flags & BPF_F_STRICT_ALIGNMENT)
+
+	env->strict_alignment = !!(attr->prog_flags & BPF_F_STRICT_ALIGNMENT);
+	if (!IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS))
 		env->strict_alignment = true;
-	else
-		env->strict_alignment = false;
 
 	ret = replace_map_fd_with_map_ptr(env);
 	if (ret < 0)
@@ -3697,7 +3695,10 @@ int bpf_analyzer(struct bpf_prog *prog, const struct bpf_ext_analyzer_ops *ops,
 	mutex_lock(&bpf_verifier_lock);
 
 	log_level = 0;
+
 	env->strict_alignment = false;
+	if (!IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS))
+		env->strict_alignment = true;
 
 	env->explored_states = kcalloc(env->prog->len,
 				       sizeof(struct bpf_verifier_state_list *),
