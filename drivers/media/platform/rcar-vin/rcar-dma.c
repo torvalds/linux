@@ -429,6 +429,8 @@ static int rvin_capture_start(struct rvin_dev *vin)
 
 	rvin_capture_on(vin);
 
+	vin->state = RUNNING;
+
 	return 0;
 }
 
@@ -907,7 +909,7 @@ static irqreturn_t rvin_irq(int irq, void *data)
 	struct rvin_dev *vin = data;
 	u32 int_status, vnms;
 	int slot;
-	unsigned int sequence, handled = 0;
+	unsigned int i, sequence, handled = 0;
 	unsigned long flags;
 
 	spin_lock_irqsave(&vin->qlock, flags);
@@ -969,8 +971,20 @@ static irqreturn_t rvin_irq(int irq, void *data)
 		 * the VnMBm registers.
 		 */
 		if (vin->continuous) {
-			rvin_capture_off(vin);
+			rvin_capture_stop(vin);
 			vin_dbg(vin, "IRQ %02d: hw not ready stop\n", sequence);
+
+			/* Maybe we can continue in single capture mode */
+			for (i = 0; i < HW_BUFFER_NUM; i++) {
+				if (vin->queue_buf[i]) {
+					list_add(to_buf_list(vin->queue_buf[i]),
+						 &vin->buf_list);
+					vin->queue_buf[i] = NULL;
+				}
+			}
+
+			if (!list_empty(&vin->buf_list))
+				rvin_capture_start(vin);
 		}
 	} else {
 		/*
@@ -1055,8 +1069,7 @@ static void rvin_buffer_queue(struct vb2_buffer *vb)
 	 * capturing if HW is ready to continue.
 	 */
 	if (vin->state == STALLED)
-		if (rvin_fill_hw(vin))
-			rvin_capture_on(vin);
+		rvin_capture_start(vin);
 
 	spin_unlock_irqrestore(&vin->qlock, flags);
 }
@@ -1073,7 +1086,6 @@ static int rvin_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	spin_lock_irqsave(&vin->qlock, flags);
 
-	vin->state = RUNNING;
 	vin->sequence = 0;
 
 	ret = rvin_capture_start(vin);
