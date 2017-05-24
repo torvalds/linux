@@ -245,7 +245,7 @@ struct pci_packet {
 
 struct pci_version_request {
 	struct pci_message message_type;
-	enum pci_message_type protocol_version;
+	u32 protocol_version;
 } __packed;
 
 /*
@@ -1513,12 +1513,12 @@ static void pci_devices_present_work(struct work_struct *work)
 		put_pcichild(hpdev, hv_pcidev_ref_initial);
 	}
 
-	switch(hbus->state) {
+	switch (hbus->state) {
 	case hv_pcibus_installed:
 		/*
-		* Tell the core to rescan bus
-		* because there may have been changes.
-		*/
+		 * Tell the core to rescan bus
+		 * because there may have been changes.
+		 */
 		pci_lock_rescan_remove();
 		pci_scan_child_bus(hbus->pci_bus);
 		pci_unlock_rescan_remove();
