@@ -3195,7 +3195,7 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		msr_info->data = vmcs_readl(GUEST_SYSENTER_ESP);
 		break;
 	case MSR_IA32_BNDCFGS:
-		if (!kvm_mpx_supported())
+		if (!kvm_mpx_supported() || !guest_cpuid_has_mpx(vcpu))
 			return 1;
 		msr_info->data = vmcs_read64(GUEST_BNDCFGS);
 		break;
@@ -3277,7 +3277,7 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		vmcs_writel(GUEST_SYSENTER_ESP, data);
 		break;
 	case MSR_IA32_BNDCFGS:
-		if (!kvm_mpx_supported())
+		if (!kvm_mpx_supported() || !guest_cpuid_has_mpx(vcpu))
 			return 1;
 		vmcs_write64(GUEST_BNDCFGS, data);
 		break;
