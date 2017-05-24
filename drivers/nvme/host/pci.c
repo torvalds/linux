@@ -95,6 +95,7 @@ struct nvme_dev {
 	int q_depth;
 	u32 db_stride;
 	void __iomem *bar;
+	unsigned long bar_mapped_size;
 	struct work_struct reset_work;
 	struct work_struct remove_work;
 	struct timer_list watchdog_timer;
@@ -1320,12 +1321,42 @@ static int nvme_alloc_admin_tags(struct nvme_dev *dev)
 	return 0;
 }
 
+static unsigned long db_bar_size(struct nvme_dev *dev, unsigned nr_io_queues)
+{
+	return NVME_REG_DBS + ((nr_io_queues + 1) * 8 * dev->db_stride);
+}
+
+static int nvme_remap_bar(struct nvme_dev *dev, unsigned long size)
+{
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
+
+	if (size <= dev->bar_mapped_size)
+		return 0;
+	if (size > pci_resource_len(pdev, 0))
+		return -ENOMEM;
+	if (dev->bar)
+		iounmap(dev->bar);
+	dev->bar = ioremap(pci_resource_start(pdev, 0), size);
+	if (!dev->bar) {
+		dev->bar_mapped_size = 0;
+		return -ENOMEM;
+	}
+	dev->bar_mapped_size = size;
+	dev->dbs = dev->bar + NVME_REG_DBS;
+
+	return 0;
+}
+
 static int nvme_configure_admin_queue(struct nvme_dev *dev)
 {
 	int result;
 	u32 aqa;
 	u64 cap = lo_hi_readq(dev->bar + NVME_REG_CAP);
 	struct nvme_queue *nvmeq;
+
+	result = nvme_remap_bar(dev, db_bar_size(dev, 0));
+	if (result < 0)
+		return result;
 
 	dev->subsystem = readl(dev->bar + NVME_REG_VS) >= NVME_VS(1, 1, 0) ?
 						NVME_CAP_NSSRC(cap) : 0;
@@ -1679,16 +1710,12 @@ static void nvme_setup_host_mem(struct nvme_dev *dev)
 		nvme_free_host_mem(dev);
 }
 
-static size_t db_bar_size(struct nvme_dev *dev, unsigned nr_io_queues)
-{
-	return 4096 + ((nr_io_queues + 1) * 8 * dev->db_stride);
-}
-
 static int nvme_setup_io_queues(struct nvme_dev *dev)
 {
 	struct nvme_queue *adminq = dev->queues[0];
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
-	int result, nr_io_queues, size;
+	int result, nr_io_queues;
+	unsigned long size;
 
 	nr_io_queues = num_online_cpus();
 	result = nvme_set_queue_count(&dev->ctrl, &nr_io_queues);
@@ -1707,20 +1734,15 @@ static int nvme_setup_io_queues(struct nvme_dev *dev)
 			nvme_release_cmb(dev);
 	}
 
-	size = db_bar_size(dev, nr_io_queues);
-	if (size > 8192) {
-		iounmap(dev->bar);
-		do {
-			dev->bar = ioremap(pci_resource_start(pdev, 0), size);
-			if (dev->bar)
-				break;
-			if (!--nr_io_queues)
-				return -ENOMEM;
-			size = db_bar_size(dev, nr_io_queues);
-		} while (1);
-		dev->dbs = dev->bar + 4096;
-		adminq->q_db = dev->dbs;
-	}
+	do {
+		size = db_bar_size(dev, nr_io_queues);
+		result = nvme_remap_bar(dev, size);
+		if (!result)
+			break;
+		if (!--nr_io_queues)
+			return -ENOMEM;
+	} while (1);
+	adminq->q_db = dev->dbs;
 
 	/* Deregister the admin queue's interrupt */
 	pci_free_irq(pdev, 0, adminq);
@@ -2240,8 +2262,7 @@ static int nvme_dev_map(struct nvme_dev *dev)
 	if (pci_request_mem_regions(pdev, "nvme"))
 		return -ENODEV;
 
-	dev->bar = ioremap(pci_resource_start(pdev, 0), 8192);
-	if (!dev->bar)
+	if (nvme_remap_bar(dev, NVME_REG_DBS + 4096))
 		goto release;
 
 	return 0;
