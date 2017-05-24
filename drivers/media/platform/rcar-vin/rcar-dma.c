@@ -397,12 +397,6 @@ static void rvin_capture_on(struct rvin_dev *vin)
 		rvin_write(vin, VNFC_S_FRAME, VNFC_REG);
 }
 
-static void rvin_capture_off(struct rvin_dev *vin)
-{
-	/* Set continuous & single transfer off */
-	rvin_write(vin, 0, VNFC_REG);
-}
-
 static int rvin_capture_start(struct rvin_dev *vin)
 {
 	struct rvin_buffer *buf, *node;
@@ -436,7 +430,8 @@ static int rvin_capture_start(struct rvin_dev *vin)
 
 static void rvin_capture_stop(struct rvin_dev *vin)
 {
-	rvin_capture_off(vin);
+	/* Set continuous & single transfer off */
+	rvin_write(vin, 0, VNFC_REG);
 
 	/* Disable module */
 	rvin_write(vin, rvin_read(vin, VNMC_REG) & ~VNMC_ME, VNMC_REG);
