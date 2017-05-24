@@ -206,7 +206,6 @@ static int __rvin_try_format(struct rvin_dev *vin,
 			     struct v4l2_pix_format *pix,
 			     struct rvin_source_fmt *source)
 {
-	const struct rvin_video_format *info;
 	u32 rwidth, rheight, walign;
 	int ret;
 
@@ -218,17 +217,11 @@ static int __rvin_try_format(struct rvin_dev *vin,
 	if (pix->field == V4L2_FIELD_ANY)
 		pix->field = vin->format.field;
 
-	/*
-	 * Retrieve format information and select the current format if the
-	 * requested format isn't supported.
-	 */
-	info = rvin_format_from_pixel(pix->pixelformat);
-	if (!info) {
-		vin_dbg(vin, "Format %x not found, keeping %x\n",
-			pix->pixelformat, vin->format.pixelformat);
-		*pix = vin->format;
-		pix->width = rwidth;
-		pix->height = rheight;
+	/* If requested format is not supported fallback to the default */
+	if (!rvin_format_from_pixel(pix->pixelformat)) {
+		vin_dbg(vin, "Format 0x%x not found, using default 0x%x\n",
+			pix->pixelformat, RVIN_DEFAULT_FORMAT);
+		pix->pixelformat = RVIN_DEFAULT_FORMAT;
 	}
 
 	/* Always recalculate */
