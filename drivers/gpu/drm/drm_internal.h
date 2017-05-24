@@ -58,11 +58,15 @@ extern unsigned int drm_timestamp_monotonic;
 void drm_vblank_disable_and_save(struct drm_device *dev, unsigned int pipe);
 
 /* IOCTLS */
-int drm_wait_vblank(struct drm_device *dev, void *data,
-		    struct drm_file *filp);
+int drm_wait_vblank_ioctl(struct drm_device *dev, void *data,
+			  struct drm_file *filp);
+int drm_legacy_modeset_ctl_ioctl(struct drm_device *dev, void *data,
+				 struct drm_file *file_priv);
+
+/* drm_irq.c */
+
+/* IOCTLS */
 int drm_legacy_irq_control(struct drm_device *dev, void *data,
-			   struct drm_file *file_priv);
-int drm_legacy_modeset_ctl(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv);
 
 /* drm_auth.c */

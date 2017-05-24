@@ -1293,8 +1293,8 @@ static void drm_legacy_vblank_post_modeset(struct drm_device *dev,
 	}
 }
 
-int drm_legacy_modeset_ctl(struct drm_device *dev, void *data,
-			   struct drm_file *file_priv)
+int drm_legacy_modeset_ctl_ioctl(struct drm_device *dev, void *data,
+				 struct drm_file *file_priv)
 {
 	struct drm_modeset_ctl *modeset = data;
 	unsigned int pipe;
@@ -1413,22 +1413,8 @@ static bool drm_wait_vblank_is_query(union drm_wait_vblank *vblwait)
 					  _DRM_VBLANK_NEXTONMISS));
 }
 
-/*
- * Wait for VBLANK.
- *
- * \param inode device inode.
- * \param file_priv DRM file private.
- * \param cmd command.
- * \param data user argument, pointing to a drm_wait_vblank structure.
- * \return zero on success or a negative number on failure.
- *
- * This function enables the vblank interrupt on the pipe requested, then
- * sleeps waiting for the requested sequence number to occur, and drops
- * the vblank interrupt refcount afterwards. (vblank IRQ disable follows that
- * after a timeout with no further vblank waits scheduled).
- */
-int drm_wait_vblank(struct drm_device *dev, void *data,
-		    struct drm_file *file_priv)
+int drm_wait_vblank_ioctl(struct drm_device *dev, void *data,
+			  struct drm_file *file_priv)
 {
 	struct drm_vblank_crtc *vblank;
 	union drm_wait_vblank *vblwait = data;
