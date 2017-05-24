@@ -2411,6 +2411,10 @@ static void amdgpu_dm_commit_surfaces(struct drm_atomic_state *state,
 			if (crtc == pcrtc) {
 				add_surface(dm->dc, crtc, plane,
 					    &dc_surfaces_constructed[planes_count]);
+				if (dc_surfaces_constructed[planes_count] == NULL) {
+					dm_error("%s: Failed to add surface!\n", __func__);
+					continue;
+				}
 				dc_stream_attach = acrtc_attach->stream;
 				planes_count++;
 			}
