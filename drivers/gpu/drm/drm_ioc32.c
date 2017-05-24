@@ -194,35 +194,28 @@ static int compat_drm_addmap(struct file *file, unsigned int cmd,
 {
 	drm_map32_t __user *argp = (void __user *)arg;
 	drm_map32_t m32;
-	struct drm_map __user *map;
+	struct drm_map map;
 	int err;
-	void *handle;
 
 	if (copy_from_user(&m32, argp, sizeof(m32)))
 		return -EFAULT;
 
-	map = compat_alloc_user_space(sizeof(*map));
-	if (!map)
-		return -EFAULT;
-	if (__put_user(m32.offset, &map->offset)
-	    || __put_user(m32.size, &map->size)
-	    || __put_user(m32.type, &map->type)
-	    || __put_user(m32.flags, &map->flags))
-		return -EFAULT;
+	map.offset = m32.offset;
+	map.size = m32.size;
+	map.type = m32.type;
+	map.flags = m32.flags;
 
-	err = drm_ioctl(file, DRM_IOCTL_ADD_MAP, (unsigned long)map);
+	err = drm_ioctl_kernel(file, drm_legacy_addmap_ioctl, &map,
+				DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY);
 	if (err)
 		return err;
 
-	if (__get_user(m32.offset, &map->offset)
-	    || __get_user(m32.mtrr, &map->mtrr)
-	    || __get_user(handle, &map->handle))
-		return -EFAULT;
-
-	m32.handle = (unsigned long)handle;
-	if (m32.handle != (unsigned long)handle)
+	m32.offset = map.offset;
+	m32.mtrr = map.mtrr;
+	m32.handle = ptr_to_compat(map.handle);
+	if (map.handle != compat_ptr(m32.handle))
 		pr_err_ratelimited("compat_drm_addmap truncated handle %p for type %d offset %x\n",
-				   handle, m32.type, m32.offset);
+				   map.handle, m32.type, m32.offset);
 
 	if (copy_to_user(argp, &m32, sizeof(m32)))
 		return -EFAULT;
@@ -1021,7 +1014,7 @@ static struct {
 	DRM_IOCTL32_DEF(DRM_IOCTL_GET_CLIENT, compat_drm_getclient),
 	DRM_IOCTL32_DEF(DRM_IOCTL_GET_STATS, compat_drm_getstats),
 	DRM_IOCTL32_DEF(DRM_IOCTL_SET_UNIQUE, compat_drm_setunique),
-	[DRM_IOCTL_NR(DRM_IOCTL_ADD_MAP32)].fn = compat_drm_addmap,
+	DRM_IOCTL32_DEF(DRM_IOCTL_ADD_MAP, compat_drm_addmap),
 	DRM_IOCTL32_DEF(DRM_IOCTL_ADD_BUFS, compat_drm_addbufs),
 	[DRM_IOCTL_NR(DRM_IOCTL_MARK_BUFS32)].fn = compat_drm_markbufs,
 	DRM_IOCTL32_DEF(DRM_IOCTL_INFO_BUFS, compat_drm_infobufs),
