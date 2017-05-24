@@ -152,26 +152,6 @@ static irqreturn_t qcom_pcie_msi_irq_handler(int irq, void *arg)
 	return dw_handle_msi_irq(pp);
 }
 
-static void qcom_pcie_v0_v1_ltssm_enable(struct qcom_pcie *pcie)
-{
-	u32 val;
-
-	/* enable link training */
-	val = readl(pcie->elbi + PCIE20_ELBI_SYS_CTRL);
-	val |= PCIE20_ELBI_SYS_CTRL_LT_ENABLE;
-	writel(val, pcie->elbi + PCIE20_ELBI_SYS_CTRL);
-}
-
-static void qcom_pcie_v2_ltssm_enable(struct qcom_pcie *pcie)
-{
-	u32 val;
-
-	/* enable link training */
-	val = readl(pcie->parf + PCIE20_PARF_LTSSM);
-	val |= BIT(8);
-	writel(val, pcie->parf + PCIE20_PARF_LTSSM);
-}
-
 static int qcom_pcie_establish_link(struct qcom_pcie *pcie)
 {
 	struct dw_pcie *pci = pcie->pci;
@@ -184,6 +164,16 @@ static int qcom_pcie_establish_link(struct qcom_pcie *pcie)
 		pcie->ops->ltssm_enable(pcie);
 
 	return dw_pcie_wait_for_link(pci);
+}
+
+static void qcom_pcie_v0_v1_ltssm_enable(struct qcom_pcie *pcie)
+{
+	u32 val;
+
+	/* enable link training */
+	val = readl(pcie->elbi + PCIE20_ELBI_SYS_CTRL);
+	val |= PCIE20_ELBI_SYS_CTRL_LT_ENABLE;
+	writel(val, pcie->elbi + PCIE20_ELBI_SYS_CTRL);
 }
 
 static int qcom_pcie_get_resources_v0(struct qcom_pcie *pcie)
@@ -234,36 +224,6 @@ static int qcom_pcie_get_resources_v0(struct qcom_pcie *pcie)
 
 	res->phy_reset = devm_reset_control_get(dev, "phy");
 	return PTR_ERR_OR_ZERO(res->phy_reset);
-}
-
-static int qcom_pcie_get_resources_v1(struct qcom_pcie *pcie)
-{
-	struct qcom_pcie_resources_v1 *res = &pcie->res.v1;
-	struct dw_pcie *pci = pcie->pci;
-	struct device *dev = pci->dev;
-
-	res->vdda = devm_regulator_get(dev, "vdda");
-	if (IS_ERR(res->vdda))
-		return PTR_ERR(res->vdda);
-
-	res->iface = devm_clk_get(dev, "iface");
-	if (IS_ERR(res->iface))
-		return PTR_ERR(res->iface);
-
-	res->aux = devm_clk_get(dev, "aux");
-	if (IS_ERR(res->aux))
-		return PTR_ERR(res->aux);
-
-	res->master_bus = devm_clk_get(dev, "master_bus");
-	if (IS_ERR(res->master_bus))
-		return PTR_ERR(res->master_bus);
-
-	res->slave_bus = devm_clk_get(dev, "slave_bus");
-	if (IS_ERR(res->slave_bus))
-		return PTR_ERR(res->slave_bus);
-
-	res->core = devm_reset_control_get(dev, "core");
-	return PTR_ERR_OR_ZERO(res->core);
 }
 
 static void qcom_pcie_deinit_v0(struct qcom_pcie *pcie)
@@ -394,6 +354,36 @@ err_refclk:
 	return ret;
 }
 
+static int qcom_pcie_get_resources_v1(struct qcom_pcie *pcie)
+{
+	struct qcom_pcie_resources_v1 *res = &pcie->res.v1;
+	struct dw_pcie *pci = pcie->pci;
+	struct device *dev = pci->dev;
+
+	res->vdda = devm_regulator_get(dev, "vdda");
+	if (IS_ERR(res->vdda))
+		return PTR_ERR(res->vdda);
+
+	res->iface = devm_clk_get(dev, "iface");
+	if (IS_ERR(res->iface))
+		return PTR_ERR(res->iface);
+
+	res->aux = devm_clk_get(dev, "aux");
+	if (IS_ERR(res->aux))
+		return PTR_ERR(res->aux);
+
+	res->master_bus = devm_clk_get(dev, "master_bus");
+	if (IS_ERR(res->master_bus))
+		return PTR_ERR(res->master_bus);
+
+	res->slave_bus = devm_clk_get(dev, "slave_bus");
+	if (IS_ERR(res->slave_bus))
+		return PTR_ERR(res->slave_bus);
+
+	res->core = devm_reset_control_get(dev, "core");
+	return PTR_ERR_OR_ZERO(res->core);
+}
+
 static void qcom_pcie_deinit_v1(struct qcom_pcie *pcie)
 {
 	struct qcom_pcie_resources_v1 *res = &pcie->res.v1;
@@ -474,6 +464,16 @@ err_res:
 	return ret;
 }
 
+static void qcom_pcie_v2_ltssm_enable(struct qcom_pcie *pcie)
+{
+	u32 val;
+
+	/* enable link training */
+	val = readl(pcie->parf + PCIE20_PARF_LTSSM);
+	val |= BIT(8);
+	writel(val, pcie->parf + PCIE20_PARF_LTSSM);
+}
+
 static int qcom_pcie_get_resources_v2(struct qcom_pcie *pcie)
 {
 	struct qcom_pcie_resources_v2 *res = &pcie->res.v2;
@@ -498,6 +498,17 @@ static int qcom_pcie_get_resources_v2(struct qcom_pcie *pcie)
 
 	res->pipe_clk = devm_clk_get(dev, "pipe");
 	return PTR_ERR_OR_ZERO(res->pipe_clk);
+}
+
+static void qcom_pcie_deinit_v2(struct qcom_pcie *pcie)
+{
+	struct qcom_pcie_resources_v2 *res = &pcie->res.v2;
+
+	clk_disable_unprepare(res->pipe_clk);
+	clk_disable_unprepare(res->slave_clk);
+	clk_disable_unprepare(res->master_clk);
+	clk_disable_unprepare(res->cfg_clk);
+	clk_disable_unprepare(res->aux_clk);
 }
 
 static int qcom_pcie_init_v2(struct qcom_pcie *pcie)
@@ -865,17 +876,6 @@ static int qcom_pcie_link_up(struct dw_pcie *pci)
 	u16 val = readw(pci->dbi_base + PCIE20_CAP + PCI_EXP_LNKSTA);
 
 	return !!(val & PCI_EXP_LNKSTA_DLLLA);
-}
-
-static void qcom_pcie_deinit_v2(struct qcom_pcie *pcie)
-{
-	struct qcom_pcie_resources_v2 *res = &pcie->res.v2;
-
-	clk_disable_unprepare(res->pipe_clk);
-	clk_disable_unprepare(res->slave_clk);
-	clk_disable_unprepare(res->master_clk);
-	clk_disable_unprepare(res->cfg_clk);
-	clk_disable_unprepare(res->aux_clk);
 }
 
 static void qcom_pcie_host_init(struct pcie_port *pp)
