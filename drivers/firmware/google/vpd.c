@@ -118,13 +118,12 @@ static int vpd_section_attrib_add(const u8 *key, s32 key_len,
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
-	info->key = kzalloc(key_len + 1, GFP_KERNEL);
+
+	info->key = kstrndup(key, key_len, GFP_KERNEL);
 	if (!info->key) {
 		ret = -ENOMEM;
 		goto free_info;
 	}
-
-	memcpy(info->key, key, key_len);
 
 	sysfs_bin_attr_init(&info->bin_attr);
 	info->bin_attr.attr.name = info->key;
