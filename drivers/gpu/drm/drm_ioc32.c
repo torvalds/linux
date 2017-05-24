@@ -166,32 +166,23 @@ static int compat_drm_getmap(struct file *file, unsigned int cmd,
 {
 	drm_map32_t __user *argp = (void __user *)arg;
 	drm_map32_t m32;
-	struct drm_map __user *map;
-	int idx, err;
-	void *handle;
+	struct drm_map map;
+	int err;
 
-	if (get_user(idx, &argp->offset))
+	if (copy_from_user(&m32, argp, sizeof(m32)))
 		return -EFAULT;
 
-	map = compat_alloc_user_space(sizeof(*map));
-	if (!map)
-		return -EFAULT;
-	if (__put_user(idx, &map->offset))
-		return -EFAULT;
-
-	err = drm_ioctl(file, DRM_IOCTL_GET_MAP, (unsigned long)map);
+	map.offset = m32.offset;
+	err = drm_ioctl_kernel(file, drm_legacy_getmap_ioctl, &map, DRM_UNLOCKED);
 	if (err)
 		return err;
 
-	if (__get_user(m32.offset, &map->offset)
-	    || __get_user(m32.size, &map->size)
-	    || __get_user(m32.type, &map->type)
-	    || __get_user(m32.flags, &map->flags)
-	    || __get_user(handle, &map->handle)
-	    || __get_user(m32.mtrr, &map->mtrr))
-		return -EFAULT;
-
-	m32.handle = (unsigned long)handle;
+	m32.offset = map.offset;
+	m32.size = map.size;
+	m32.type = map.type;
+	m32.flags = map.flags;
+	m32.handle = ptr_to_compat(map.handle);
+	m32.mtrr = map.mtrr;
 	if (copy_to_user(argp, &m32, sizeof(m32)))
 		return -EFAULT;
 	return 0;
@@ -1055,7 +1046,7 @@ static struct {
 #define DRM_IOCTL32_DEF(n, f) [DRM_IOCTL_NR(n##32)] = {.fn = f, .name = #n}
 	DRM_IOCTL32_DEF(DRM_IOCTL_VERSION, compat_drm_version),
 	DRM_IOCTL32_DEF(DRM_IOCTL_GET_UNIQUE, compat_drm_getunique),
-	[DRM_IOCTL_NR(DRM_IOCTL_GET_MAP32)].fn = compat_drm_getmap,
+	DRM_IOCTL32_DEF(DRM_IOCTL_GET_MAP, compat_drm_getmap),
 	[DRM_IOCTL_NR(DRM_IOCTL_GET_CLIENT32)].fn = compat_drm_getclient,
 	[DRM_IOCTL_NR(DRM_IOCTL_GET_STATS32)].fn = compat_drm_getstats,
 	DRM_IOCTL32_DEF(DRM_IOCTL_SET_UNIQUE, compat_drm_setunique),
