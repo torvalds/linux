@@ -463,19 +463,22 @@ static const int caller_saved[CALLER_SAVED_REGS] = {
 	BPF_REG_0, BPF_REG_1, BPF_REG_2, BPF_REG_3, BPF_REG_4, BPF_REG_5
 };
 
+static void mark_reg_not_init(struct bpf_reg_state *regs, u32 regno)
+{
+	BUG_ON(regno >= MAX_BPF_REG);
+
+	memset(&regs[regno], 0, sizeof(regs[regno]));
+	regs[regno].type = NOT_INIT;
+	regs[regno].min_value = BPF_REGISTER_MIN_RANGE;
+	regs[regno].max_value = BPF_REGISTER_MAX_RANGE;
+}
+
 static void init_reg_state(struct bpf_reg_state *regs)
 {
 	int i;
 
-	for (i = 0; i < MAX_BPF_REG; i++) {
-		regs[i].type = NOT_INIT;
-		regs[i].imm = 0;
-		regs[i].min_value = BPF_REGISTER_MIN_RANGE;
-		regs[i].max_value = BPF_REGISTER_MAX_RANGE;
-		regs[i].min_align = 0;
-		regs[i].aux_off = 0;
-		regs[i].aux_off_align = 0;
-	}
+	for (i = 0; i < MAX_BPF_REG; i++)
+		mark_reg_not_init(regs, i);
 
 	/* frame pointer */
 	regs[BPF_REG_FP].type = FRAME_PTR;
@@ -1346,7 +1349,6 @@ static int check_call(struct bpf_verifier_env *env, int func_id, int insn_idx)
 	struct bpf_verifier_state *state = &env->cur_state;
 	const struct bpf_func_proto *fn = NULL;
 	struct bpf_reg_state *regs = state->regs;
-	struct bpf_reg_state *reg;
 	struct bpf_call_arg_meta meta;
 	bool changes_data;
 	int i, err;
@@ -1413,11 +1415,8 @@ static int check_call(struct bpf_verifier_env *env, int func_id, int insn_idx)
 	}
 
 	/* reset caller saved regs */
-	for (i = 0; i < CALLER_SAVED_REGS; i++) {
-		reg = regs + caller_saved[i];
-		reg->type = NOT_INIT;
-		reg->imm = 0;
-	}
+	for (i = 0; i < CALLER_SAVED_REGS; i++)
+		mark_reg_not_init(regs, caller_saved[i]);
 
 	/* update return register */
 	if (fn->ret_type == RET_INTEGER) {
@@ -2445,7 +2444,6 @@ static int check_ld_abs(struct bpf_verifier_env *env, struct bpf_insn *insn)
 {
 	struct bpf_reg_state *regs = env->cur_state.regs;
 	u8 mode = BPF_MODE(insn->code);
-	struct bpf_reg_state *reg;
 	int i, err;
 
 	if (!may_access_skb(env->prog->type)) {
@@ -2478,11 +2476,8 @@ static int check_ld_abs(struct bpf_verifier_env *env, struct bpf_insn *insn)
 	}
 
 	/* reset caller saved regs to unreadable */
-	for (i = 0; i < CALLER_SAVED_REGS; i++) {
-		reg = regs + caller_saved[i];
-		reg->type = NOT_INIT;
-		reg->imm = 0;
-	}
+	for (i = 0; i < CALLER_SAVED_REGS; i++)
+		mark_reg_not_init(regs, caller_saved[i]);
 
 	/* mark destination R0 register as readable, since it contains
 	 * the value fetched from the packet
