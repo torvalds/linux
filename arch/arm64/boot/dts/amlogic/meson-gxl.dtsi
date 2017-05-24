@@ -404,6 +404,20 @@
 			};
 		};
 
+		eth_link_led_pins: eth_link_led {
+			mux {
+				groups = "eth_link_led";
+				function = "eth_led";
+			};
+		};
+
+		eth_act_led_pins: eth_act_led {
+			mux {
+				groups = "eth_act_led";
+				function = "eth_led";
+			};
+		};
+		
 		pwm_a_pins: pwm_a {
 			mux {
 				groups = "pwm_a";
