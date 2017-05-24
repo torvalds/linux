@@ -751,7 +751,10 @@ static int omap_sham_align_sgs(struct scatterlist *sg,
 	if (final)
 		new_len = DIV_ROUND_UP(new_len, bs) * bs;
 	else
-		new_len = new_len / bs * bs;
+		new_len = (new_len - 1) / bs * bs;
+
+	if (nbytes != new_len)
+		list_ok = false;
 
 	while (nbytes > 0 && sg_tmp) {
 		n++;
@@ -847,6 +850,8 @@ static int omap_sham_prepare_request(struct ahash_request *req, bool update)
 			xmit_len = DIV_ROUND_UP(xmit_len, bs) * bs;
 		else
 			xmit_len = xmit_len / bs * bs;
+	} else if (!final) {
+		xmit_len -= bs;
 	}
 
 	hash_later = rctx->total - xmit_len;
@@ -1138,7 +1143,7 @@ retry:
 	ctx = ahash_request_ctx(req);
 
 	err = omap_sham_prepare_request(req, ctx->op == OP_UPDATE);
-	if (err)
+	if (err || !ctx->total)
 		goto err1;
 
 	dev_dbg(dd->dev, "handling new req, op: %lu, nbytes: %d\n",
