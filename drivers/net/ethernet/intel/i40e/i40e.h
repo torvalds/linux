@@ -629,6 +629,7 @@ struct i40e_vsi {
 	/* These are containers of ring pointers, allocated at run-time */
 	struct i40e_ring **rx_rings;
 	struct i40e_ring **tx_rings;
+	struct i40e_ring **xdp_rings; /* XDP Tx rings */
 
 	u32  active_filters;
 	u32  promisc_threshold;

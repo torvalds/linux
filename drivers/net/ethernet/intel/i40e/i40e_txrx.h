@@ -396,6 +396,7 @@ struct i40e_ring {
 	u16 flags;
 #define I40E_TXR_FLAGS_WB_ON_ITR		BIT(0)
 #define I40E_RXR_FLAGS_BUILD_SKB_ENABLED	BIT(1)
+#define I40E_TXR_FLAGS_XDP			BIT(2)
 
 	/* stats structs */
 	struct i40e_queue_stats	stats;
@@ -436,6 +437,16 @@ static inline void set_ring_build_skb_enabled(struct i40e_ring *ring)
 static inline void clear_ring_build_skb_enabled(struct i40e_ring *ring)
 {
 	ring->flags &= ~I40E_RXR_FLAGS_BUILD_SKB_ENABLED;
+}
+
+static inline bool ring_is_xdp(struct i40e_ring *ring)
+{
+	return !!(ring->flags & I40E_TXR_FLAGS_XDP);
+}
+
+static inline void set_ring_xdp(struct i40e_ring *ring)
+{
+	ring->flags |= I40E_TXR_FLAGS_XDP;
 }
 
 enum i40e_latency_range {
