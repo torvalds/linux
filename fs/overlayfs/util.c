@@ -194,13 +194,6 @@ void ovl_dentry_set_opaque(struct dentry *dentry)
 	oe->opaque = true;
 }
 
-void ovl_dentry_set_impure(struct dentry *dentry)
-{
-	struct ovl_entry *oe = dentry->d_fsdata;
-
-	oe->impure = true;
-}
-
 bool ovl_redirect_dir(struct super_block *sb)
 {
 	struct ovl_fs *ofs = sb->s_fs_info;
@@ -311,6 +304,21 @@ void ovl_copy_up_end(struct dentry *dentry)
 	spin_unlock(&ofs->copyup_wq.lock);
 }
 
+bool ovl_check_dir_xattr(struct dentry *dentry, const char *name)
+{
+	int res;
+	char val;
+
+	if (!d_is_dir(dentry))
+		return false;
+
+	res = vfs_getxattr(dentry, name, &val, 1);
+	if (res == 1 && val == 'y')
+		return true;
+
+	return false;
+}
+
 int ovl_check_setxattr(struct dentry *dentry, struct dentry *upperdentry,
 		       const char *name, const void *value, size_t size,
 		       int xerr)
@@ -328,6 +336,26 @@ int ovl_check_setxattr(struct dentry *dentry, struct dentry *upperdentry,
 		ofs->noxattr = true;
 		return xerr;
 	}
+
+	return err;
+}
+
+int ovl_set_impure(struct dentry *dentry, struct dentry *upperdentry)
+{
+	int err;
+	struct ovl_entry *oe = dentry->d_fsdata;
+
+	if (oe->impure)
+		return 0;
+
+	/*
+	 * Do not fail when upper doesn't support xattrs.
+	 * Upper inodes won't have origin nor redirect xattr anyway.
+	 */
+	err = ovl_check_setxattr(dentry, upperdentry, OVL_XATTR_IMPURE,
+				 "y", 1, 0);
+	if (!err)
+		oe->impure = true;
 
 	return err;
 }

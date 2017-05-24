@@ -167,29 +167,9 @@ invalid:
 	goto out;
 }
 
-static bool ovl_check_dir_xattr(struct dentry *dentry, const char *name)
-{
-	int res;
-	char val;
-
-	if (!d_is_dir(dentry))
-		return false;
-
-	res = vfs_getxattr(dentry, name, &val, 1);
-	if (res == 1 && val == 'y')
-		return true;
-
-	return false;
-}
-
 static bool ovl_is_opaquedir(struct dentry *dentry)
 {
 	return ovl_check_dir_xattr(dentry, OVL_XATTR_OPAQUE);
-}
-
-static bool ovl_is_impuredir(struct dentry *dentry)
-{
-	return ovl_check_dir_xattr(dentry, OVL_XATTR_IMPURE);
 }
 
 static int ovl_lookup_single(struct dentry *base, struct ovl_lookup_data *d,
