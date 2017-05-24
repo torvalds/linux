@@ -1265,6 +1265,16 @@ extern struct pid *cad_pid;
 #define tsk_used_math(p)			((p)->flags & PF_USED_MATH)
 #define used_math()				tsk_used_math(current)
 
+static inline bool is_percpu_thread(void)
+{
+#ifdef CONFIG_SMP
+	return (current->flags & PF_NO_SETAFFINITY) &&
+		(current->nr_cpus_allowed  == 1);
+#else
+	return true;
+#endif
+}
+
 /* Per-process atomic flags. */
 #define PFA_NO_NEW_PRIVS		0	/* May not gain new privileges. */
 #define PFA_SPREAD_PAGE			1	/* Spread page cache over cpuset */
