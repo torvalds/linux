@@ -15,7 +15,7 @@
  */
 
 /* \file ssi_hash.h
-   ARM CryptoCell Hash Crypto API
+ * ARM CryptoCell Hash Crypto API
  */
 
 #ifndef __SSI_HASH_H__
