@@ -107,9 +107,6 @@ static uint32_t binder_debug_mask = BINDER_DEBUG_USER_ERROR |
 	BINDER_DEBUG_FAILED_TRANSACTION | BINDER_DEBUG_DEAD_TRANSACTION;
 module_param_named(debug_mask, binder_debug_mask, uint, S_IWUSR | S_IRUGO);
 
-static bool binder_debug_no_lock;
-module_param_named(proc_no_lock, binder_debug_no_lock, bool, S_IWUSR | S_IRUGO);
-
 static char *binder_devices_param = CONFIG_ANDROID_BINDER_DEVICES;
 module_param_named(devices, binder_devices_param, charp, S_IRUGO);
 
@@ -3509,10 +3506,8 @@ static int binder_state_show(struct seq_file *m, void *unused)
 {
 	struct binder_proc *proc;
 	struct binder_node *node;
-	int do_lock = !binder_debug_no_lock;
 
-	if (do_lock)
-		binder_lock(__func__);
+	binder_lock(__func__);
 
 	seq_puts(m, "binder state:\n");
 
@@ -3523,18 +3518,15 @@ static int binder_state_show(struct seq_file *m, void *unused)
 
 	hlist_for_each_entry(proc, &binder_procs, proc_node)
 		print_binder_proc(m, proc, 1);
-	if (do_lock)
-		binder_unlock(__func__);
+	binder_unlock(__func__);
 	return 0;
 }
 
 static int binder_stats_show(struct seq_file *m, void *unused)
 {
 	struct binder_proc *proc;
-	int do_lock = !binder_debug_no_lock;
 
-	if (do_lock)
-		binder_lock(__func__);
+	binder_lock(__func__);
 
 	seq_puts(m, "binder stats:\n");
 
@@ -3542,24 +3534,20 @@ static int binder_stats_show(struct seq_file *m, void *unused)
 
 	hlist_for_each_entry(proc, &binder_procs, proc_node)
 		print_binder_proc_stats(m, proc);
-	if (do_lock)
-		binder_unlock(__func__);
+	binder_unlock(__func__);
 	return 0;
 }
 
 static int binder_transactions_show(struct seq_file *m, void *unused)
 {
 	struct binder_proc *proc;
-	int do_lock = !binder_debug_no_lock;
 
-	if (do_lock)
-		binder_lock(__func__);
+	binder_lock(__func__);
 
 	seq_puts(m, "binder transactions:\n");
 	hlist_for_each_entry(proc, &binder_procs, proc_node)
 		print_binder_proc(m, proc, 0);
-	if (do_lock)
-		binder_unlock(__func__);
+	binder_unlock(__func__);
 	return 0;
 }
 
@@ -3567,10 +3555,8 @@ static int binder_proc_show(struct seq_file *m, void *unused)
 {
 	struct binder_proc *itr;
 	int pid = (unsigned long)m->private;
-	int do_lock = !binder_debug_no_lock;
 
-	if (do_lock)
-		binder_lock(__func__);
+	binder_lock(__func__);
 
 	hlist_for_each_entry(itr, &binder_procs, proc_node) {
 		if (itr->pid == pid) {
@@ -3578,8 +3564,7 @@ static int binder_proc_show(struct seq_file *m, void *unused)
 			print_binder_proc(m, itr, 1);
 		}
 	}
-	if (do_lock)
-		binder_unlock(__func__);
+	binder_unlock(__func__);
 	return 0;
 }
 
