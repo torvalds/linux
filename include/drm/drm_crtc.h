@@ -214,7 +214,9 @@ struct drm_crtc_state {
 	 *    atomic commit. In that case the event can be send out any time
 	 *    after the hardware has stopped scanning out the current
 	 *    framebuffers. It should contain the timestamp and counter for the
-	 *    last vblank before the display pipeline was shut off.
+	 *    last vblank before the display pipeline was shut off. The simplest
+	 *    way to achieve that is calling drm_crtc_send_vblank_event()
+	 *    somewhen after drm_crtc_vblank_off() has been called.
 	 *
 	 *  - For a CRTC which is enabled at the end of the commit (even when it
 	 *    undergoes an full modeset) the vblank timestamp and counter must
