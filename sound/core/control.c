@@ -757,9 +757,7 @@ static int snd_ctl_elem_list(struct snd_card *card,
 		return -EFAULT;
 	offset = list.offset;
 	space = list.space;
-	/* try limit maximum space */
-	if (space > 16384)
-		return -ENOMEM;
+
 	down_read(&card->controls_rwsem);
 	list.count = card->controls_count;
 	list.used = 0;
