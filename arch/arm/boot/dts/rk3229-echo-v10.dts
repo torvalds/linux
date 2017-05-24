@@ -50,6 +50,11 @@
 	model = "RK3229 Echo Board V1.0";
 	compatible = "rockchip,rk3229-echo", "rockchip,rk3229";
 
+	memory@60000000 {
+		device_type = "memory";
+		reg = <0x60000000 0x40000000>;
+	};
+
 	vcc_host: vcc-host-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
