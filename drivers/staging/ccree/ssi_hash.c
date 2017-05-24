@@ -97,7 +97,8 @@ struct hash_key_req_ctx {
 struct ssi_hash_ctx {
 	struct ssi_drvdata *drvdata;
 	/* holds the origin digest; the digest after "setkey" if HMAC,*
-	   the initial digest if HASH. */
+	 * the initial digest if HASH.
+	 */
 	u8 digest_buff[SSI_MAX_HASH_DIGEST_SIZE]  ____cacheline_aligned;
 	u8 opad_tmp_keys_buff[SSI_MAX_HASH_OPAD_TMP_KEYS_SIZE]  ____cacheline_aligned;
 	dma_addr_t opad_tmp_keys_dma_addr  ____cacheline_aligned;
@@ -250,7 +251,8 @@ static int ssi_hash_map_request(struct device *dev,
 		}
 	} else { /*hash*/
 		/* Copy the initial digests if hash flow. The SRAM contains the
-		initial digests in the expected order for all SHA* */
+		 * initial digests in the expected order for all SHA*
+		 */
 		HW_DESC_INIT(&desc);
 		HW_DESC_SET_DIN_SRAM(&desc, larval_digest_addr, ctx->inter_digestsize);
 		HW_DESC_SET_DOUT_DLLI(&desc, state->digest_buff_dma_addr, ctx->inter_digestsize, NS_BIT, 0);
@@ -1027,7 +1029,8 @@ static int ssi_hash_setkey(void *hash,
 					ctx->drvdata, ctx->hash_mode);
 
 	/* The keylen value distinguishes HASH in case keylen is ZERO bytes,
-	   any NON-ZERO value utilizes HMAC flow */
+	 * any NON-ZERO value utilizes HMAC flow
+	 */
 	ctx->key_params.keylen = keylen;
 	ctx->key_params.key_dma_addr = 0;
 	ctx->is_hmac = true;
