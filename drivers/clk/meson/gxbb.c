@@ -926,6 +926,51 @@ static struct clk_mux gxbb_cts_i958 = {
 	},
 };
 
+static struct clk_divider gxbb_32k_clk_div = {
+	.reg = (void *)HHI_32K_CLK_CNTL,
+	.shift = 0,
+	.width = 14,
+	.lock = &clk_lock,
+	.hw.init = &(struct clk_init_data){
+		.name = "32k_clk_div",
+		.ops = &clk_divider_ops,
+		.parent_names = (const char *[]){ "32k_clk_sel" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT | CLK_DIVIDER_ROUND_CLOSEST,
+	},
+};
+
+static struct clk_gate gxbb_32k_clk = {
+	.reg = (void *)HHI_32K_CLK_CNTL,
+	.bit_idx = 15,
+	.lock = &clk_lock,
+	.hw.init = &(struct clk_init_data){
+		.name = "32k_clk",
+		.ops = &clk_gate_ops,
+		.parent_names = (const char *[]){ "32k_clk_div" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static const char *gxbb_32k_clk_parent_names[] = {
+	"xtal", "cts_slow_oscin", "fclk_div3", "fclk_div5"
+};
+
+static struct clk_mux gxbb_32k_clk_sel = {
+	.reg = (void *)HHI_32K_CLK_CNTL,
+	.mask = 0x3,
+	.shift = 16,
+	.lock = &clk_lock,
+		.hw.init = &(struct clk_init_data){
+		.name = "32k_clk_sel",
+		.ops = &clk_mux_ops,
+		.parent_names = gxbb_32k_clk_parent_names,
+		.num_parents = 4,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
 /* Everything Else (EE) domain gates */
 static MESON_GATE(gxbb_ddr, HHI_GCLK_MPEG0, 0);
 static MESON_GATE(gxbb_dos, HHI_GCLK_MPEG0, 1);
@@ -1132,6 +1177,9 @@ static struct clk_hw_onecell_data gxbb_hw_onecell_data = {
 		[CLKID_CTS_MCLK_I958_SEL]   = &gxbb_cts_mclk_i958_sel.hw,
 		[CLKID_CTS_MCLK_I958_DIV]   = &gxbb_cts_mclk_i958_div.hw,
 		[CLKID_CTS_I958]	    = &gxbb_cts_i958.hw,
+		[CLKID_32K_CLK]		    = &gxbb_32k_clk.hw,
+		[CLKID_32K_CLK_SEL]	    = &gxbb_32k_clk_sel.hw,
+		[CLKID_32K_CLK_DIV]	    = &gxbb_32k_clk_div.hw,
 	},
 	.num = NR_CLKS,
 };
@@ -1251,6 +1299,9 @@ static struct clk_hw_onecell_data gxl_hw_onecell_data = {
 		[CLKID_CTS_MCLK_I958_SEL]   = &gxbb_cts_mclk_i958_sel.hw,
 		[CLKID_CTS_MCLK_I958_DIV]   = &gxbb_cts_mclk_i958_div.hw,
 		[CLKID_CTS_I958]	    = &gxbb_cts_i958.hw,
+		[CLKID_32K_CLK]		    = &gxbb_32k_clk.hw,
+		[CLKID_32K_CLK_SEL]	    = &gxbb_32k_clk_sel.hw,
+		[CLKID_32K_CLK_DIV]	    = &gxbb_32k_clk_div.hw,
 	},
 	.num = NR_CLKS,
 };
@@ -1365,6 +1416,7 @@ static struct clk_gate *const gxbb_clk_gates[] = {
 	&gxbb_mali_1,
 	&gxbb_cts_amclk,
 	&gxbb_cts_mclk_i958,
+	&gxbb_32k_clk,
 };
 
 static struct clk_mux *const gxbb_clk_muxes[] = {
@@ -1376,6 +1428,7 @@ static struct clk_mux *const gxbb_clk_muxes[] = {
 	&gxbb_cts_amclk_sel,
 	&gxbb_cts_mclk_i958_sel,
 	&gxbb_cts_i958,
+	&gxbb_32k_clk_sel,
 };
 
 static struct clk_divider *const gxbb_clk_dividers[] = {
@@ -1384,6 +1437,7 @@ static struct clk_divider *const gxbb_clk_dividers[] = {
 	&gxbb_mali_0_div,
 	&gxbb_mali_1_div,
 	&gxbb_cts_mclk_i958_div,
+	&gxbb_32k_clk_div,
 };
 
 static struct meson_clk_audio_divider *const gxbb_audio_dividers[] = {
