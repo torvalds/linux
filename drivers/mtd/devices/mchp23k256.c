@@ -19,6 +19,7 @@
 #include <linux/sizes.h>
 #include <linux/spi/flash.h>
 #include <linux/spi/spi.h>
+#include <linux/of_device.h>
 
 struct mchp23k256_flash {
 	struct spi_device	*spi;
@@ -166,9 +167,16 @@ static int mchp23k256_remove(struct spi_device *spi)
 	return mtd_device_unregister(&flash->mtd);
 }
 
+static const struct of_device_id mchp23k256_of_table[] = {
+	{ .compatible = "microchip,mchp23k256" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, mchp23k256_of_table);
+
 static struct spi_driver mchp23k256_driver = {
 	.driver = {
 		.name	= "mchp23k256",
+		.of_match_table = of_match_ptr(mchp23k256_of_table),
 	},
 	.probe		= mchp23k256_probe,
 	.remove		= mchp23k256_remove,
