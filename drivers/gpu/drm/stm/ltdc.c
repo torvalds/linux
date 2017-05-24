@@ -1144,8 +1144,6 @@ void ltdc_unload(struct drm_device *ddev)
 
 	DRM_DEBUG_DRIVER("\n");
 
-	drm_vblank_cleanup(ddev);
-
 	if (ldev->panel)
 		drm_panel_detach(ldev->panel);
 
