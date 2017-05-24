@@ -133,12 +133,19 @@ static void __scd_stamp(struct sched_clock_data *scd)
 
 static void __set_sched_clock_stable(void)
 {
-	struct sched_clock_data *scd = this_scd();
+	struct sched_clock_data *scd;
 
+	/*
+	 * Since we're still unstable and the tick is already running, we have
+	 * to disable IRQs in order to get a consistent scd->tick* reading.
+	 */
+	local_irq_disable();
+	scd = this_scd();
 	/*
 	 * Attempt to make the (initial) unstable->stable transition continuous.
 	 */
 	__sched_clock_offset = (scd->tick_gtod + __gtod_offset) - (scd->tick_raw);
+	local_irq_enable();
 
 	printk(KERN_INFO "sched_clock: Marking stable (%lld, %lld)->(%lld, %lld)\n",
 			scd->tick_gtod, __gtod_offset,
