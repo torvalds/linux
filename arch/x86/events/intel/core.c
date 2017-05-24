@@ -3410,12 +3410,10 @@ static void intel_snb_check_microcode(void)
 	int pebs_broken = 0;
 	int cpu;
 
-	get_online_cpus();
 	for_each_online_cpu(cpu) {
 		if ((pebs_broken = intel_snb_pebs_broken(cpu)))
 			break;
 	}
-	put_online_cpus();
 
 	if (pebs_broken == x86_pmu.pebs_broken)
 		return;
@@ -3488,7 +3486,9 @@ static bool check_msr(unsigned long msr, u64 mask)
 static __init void intel_sandybridge_quirk(void)
 {
 	x86_pmu.check_microcode = intel_snb_check_microcode;
+	cpus_read_lock();
 	intel_snb_check_microcode();
+	cpus_read_unlock();
 }
 
 static const struct { int id; char *name; } intel_arch_events_map[] __initconst = {
@@ -4112,13 +4112,12 @@ static __init int fixup_ht_bug(void)
 
 	lockup_detector_resume();
 
-	get_online_cpus();
+	cpus_read_lock();
 
-	for_each_online_cpu(c) {
+	for_each_online_cpu(c)
 		free_excl_cntrs(c);
-	}
 
-	put_online_cpus();
+	cpus_read_unlock();
 	pr_info("PMU erratum BJ122, BV98, HSD29 workaround disabled, HT off\n");
 	return 0;
 }
