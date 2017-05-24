@@ -240,6 +240,8 @@ static inline int cpuhp_setup_state_multi(enum cpuhp_state state,
 
 int __cpuhp_state_add_instance(enum cpuhp_state state, struct hlist_node *node,
 			       bool invoke);
+int __cpuhp_state_add_instance_cpuslocked(enum cpuhp_state state,
+					  struct hlist_node *node, bool invoke);
 
 /**
  * cpuhp_state_add_instance - Add an instance for a state and invoke startup
@@ -270,6 +272,13 @@ static inline int cpuhp_state_add_instance_nocalls(enum cpuhp_state state,
 						   struct hlist_node *node)
 {
 	return __cpuhp_state_add_instance(state, node, false);
+}
+
+static inline int
+cpuhp_state_add_instance_nocalls_cpuslocked(enum cpuhp_state state,
+					    struct hlist_node *node)
+{
+	return __cpuhp_state_add_instance_cpuslocked(state, node, false);
 }
 
 void __cpuhp_remove_state(enum cpuhp_state state, bool invoke);
