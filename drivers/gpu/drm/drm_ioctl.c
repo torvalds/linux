@@ -172,7 +172,7 @@ static int drm_set_busid(struct drm_device *dev, struct drm_file *file_priv)
  * Searches for the client with the specified index and copies its information
  * into userspace
  */
-static int drm_getclient(struct drm_device *dev, void *data,
+int drm_getclient(struct drm_device *dev, void *data,
 		  struct drm_file *file_priv)
 {
 	struct drm_client *client = data;

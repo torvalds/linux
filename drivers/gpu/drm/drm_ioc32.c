@@ -263,29 +263,24 @@ static int compat_drm_getclient(struct file *file, unsigned int cmd,
 {
 	drm_client32_t c32;
 	drm_client32_t __user *argp = (void __user *)arg;
-	struct drm_client __user *client;
-	int idx, err;
+	struct drm_client client;
+	int err;
 
-	if (get_user(idx, &argp->idx))
+	if (copy_from_user(&c32, argp, sizeof(c32)))
 		return -EFAULT;
 
-	client = compat_alloc_user_space(sizeof(*client));
-	if (!client)
-		return -EFAULT;
-	if (__put_user(idx, &client->idx))
-		return -EFAULT;
+	client.idx = c32.idx;
 
-	err = drm_ioctl(file, DRM_IOCTL_GET_CLIENT, (unsigned long)client);
+	err = drm_ioctl_kernel(file, drm_getclient, &client, DRM_UNLOCKED);
 	if (err)
 		return err;
 
-	if (__get_user(c32.idx, &client->idx)
-	    || __get_user(c32.auth, &client->auth)
-	    || __get_user(c32.pid, &client->pid)
-	    || __get_user(c32.uid, &client->uid)
-	    || __get_user(c32.magic, &client->magic)
-	    || __get_user(c32.iocs, &client->iocs))
-		return -EFAULT;
+	c32.idx = client.idx;
+	c32.auth = client.auth;
+	c32.pid = client.pid;
+	c32.uid = client.uid;
+	c32.magic = client.magic;
+	c32.iocs = client.iocs;
 
 	if (copy_to_user(argp, &c32, sizeof(c32)))
 		return -EFAULT;
@@ -1037,7 +1032,7 @@ static struct {
 	DRM_IOCTL32_DEF(DRM_IOCTL_VERSION, compat_drm_version),
 	DRM_IOCTL32_DEF(DRM_IOCTL_GET_UNIQUE, compat_drm_getunique),
 	DRM_IOCTL32_DEF(DRM_IOCTL_GET_MAP, compat_drm_getmap),
-	[DRM_IOCTL_NR(DRM_IOCTL_GET_CLIENT32)].fn = compat_drm_getclient,
+	DRM_IOCTL32_DEF(DRM_IOCTL_GET_CLIENT, compat_drm_getclient),
 	[DRM_IOCTL_NR(DRM_IOCTL_GET_STATS32)].fn = compat_drm_getstats,
 	DRM_IOCTL32_DEF(DRM_IOCTL_SET_UNIQUE, compat_drm_setunique),
 	[DRM_IOCTL_NR(DRM_IOCTL_ADD_MAP32)].fn = compat_drm_addmap,
