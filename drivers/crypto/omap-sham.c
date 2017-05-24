@@ -874,14 +874,21 @@ static int omap_sham_prepare_request(struct ahash_request *req, bool update)
 	}
 
 	if (hash_later) {
-		if (req->nbytes) {
-			scatterwalk_map_and_copy(rctx->buffer, req->src,
-						 req->nbytes - hash_later,
-						 hash_later, 0);
-		} else {
+		int offset = 0;
+
+		if (hash_later > req->nbytes) {
 			memcpy(rctx->buffer, rctx->buffer + xmit_len,
-			       hash_later);
+			       hash_later - req->nbytes);
+			offset = hash_later - req->nbytes;
 		}
+
+		if (req->nbytes) {
+			scatterwalk_map_and_copy(rctx->buffer + offset,
+						 req->src,
+						 offset + req->nbytes -
+						 hash_later, hash_later, 0);
+		}
+
 		rctx->bufcnt = hash_later;
 	} else {
 		rctx->bufcnt = 0;
@@ -1190,11 +1197,10 @@ static int omap_sham_update(struct ahash_request *req)
 	if (!req->nbytes)
 		return 0;
 
-	if (ctx->total + req->nbytes < ctx->buflen) {
+	if (ctx->bufcnt + req->nbytes <= ctx->buflen) {
 		scatterwalk_map_and_copy(ctx->buffer + ctx->bufcnt, req->src,
 					 0, req->nbytes, 0);
 		ctx->bufcnt += req->nbytes;
-		ctx->total += req->nbytes;
 		return 0;
 	}
 
