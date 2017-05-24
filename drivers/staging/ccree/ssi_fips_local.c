@@ -15,8 +15,8 @@
  */
 
 /**************************************************************
-This file defines the driver FIPS internal function, used by the driver itself.
-***************************************************************/
+ * This file defines the driver FIPS internal function, used by the driver itself.
+ ***************************************************************/
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -80,10 +80,10 @@ static enum ssi_fips_error ssi_fips_get_tee_error(struct ssi_drvdata *drvdata)
 
 
 /*
- This function should push the FIPS REE library status towards the TEE library.
- By writing the error state to HOST_GPR0 register. The function is called from  						.
- driver entry point so no need to protect by mutex.
-*/
+ * This function should push the FIPS REE library status towards the TEE library.
+ * By writing the error state to HOST_GPR0 register. The function is called from
+ * driver entry point so no need to protect by mutex.
+ */
 static void ssi_fips_update_tee_upon_ree_status(struct ssi_drvdata *drvdata, ssi_fips_error_t err)
 {
 	void __iomem *cc_base = drvdata->cc_base;
@@ -232,7 +232,8 @@ ssi_fips_error_t cc_fips_run_power_up_tests(struct ssi_drvdata *drvdata)
 
 
 /* The function checks if FIPS supported and FIPS error exists.*
-*  It should be used in every driver API.*/
+ * It should be used in every driver API.
+ */
 int ssi_fips_check_fips_error(void)
 {
 	ssi_fips_state_t fips_state;
@@ -250,14 +251,16 @@ int ssi_fips_check_fips_error(void)
 
 
 /* The function sets the REE FIPS state.*
-*  It should be used while driver is being loaded .*/
+ * It should be used while driver is being loaded.
+ */
 int ssi_fips_set_state(ssi_fips_state_t state)
 {
 	return ssi_fips_ext_set_state(state);
 }
 
 /* The function sets the REE FIPS error, and pushes the error to TEE library. *
-*  It should be used when any of the KAT tests fails .*/
+ * It should be used when any of the KAT tests fails.
+ */
 int ssi_fips_set_error(struct ssi_drvdata *p_drvdata, ssi_fips_error_t err)
 {
 	int rc = 0;
