@@ -148,21 +148,8 @@ static int compat_drm_getunique(struct file *file, unsigned int cmd,
 static int compat_drm_setunique(struct file *file, unsigned int cmd,
 				unsigned long arg)
 {
-	drm_unique32_t uq32;
-	struct drm_unique __user *u;
-
-	if (copy_from_user(&uq32, (void __user *)arg, sizeof(uq32)))
-		return -EFAULT;
-
-	u = compat_alloc_user_space(sizeof(*u));
-	if (!u)
-		return -EFAULT;
-	if (__put_user(uq32.unique_len, &u->unique_len)
-	    || __put_user((void __user *)(unsigned long)uq32.unique,
-			  &u->unique))
-		return -EFAULT;
-
-	return drm_ioctl(file, DRM_IOCTL_SET_UNIQUE, (unsigned long)u);
+	/* it's dead */
+	return -EINVAL;
 }
 
 typedef struct drm_map32 {
@@ -1071,7 +1058,7 @@ static struct {
 	[DRM_IOCTL_NR(DRM_IOCTL_GET_MAP32)].fn = compat_drm_getmap,
 	[DRM_IOCTL_NR(DRM_IOCTL_GET_CLIENT32)].fn = compat_drm_getclient,
 	[DRM_IOCTL_NR(DRM_IOCTL_GET_STATS32)].fn = compat_drm_getstats,
-	[DRM_IOCTL_NR(DRM_IOCTL_SET_UNIQUE32)].fn = compat_drm_setunique,
+	DRM_IOCTL32_DEF(DRM_IOCTL_SET_UNIQUE, compat_drm_setunique),
 	[DRM_IOCTL_NR(DRM_IOCTL_ADD_MAP32)].fn = compat_drm_addmap,
 	DRM_IOCTL32_DEF(DRM_IOCTL_ADD_BUFS, compat_drm_addbufs),
 	[DRM_IOCTL_NR(DRM_IOCTL_MARK_BUFS32)].fn = compat_drm_markbufs,
