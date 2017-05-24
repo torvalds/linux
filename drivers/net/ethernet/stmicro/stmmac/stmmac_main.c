@@ -789,7 +789,7 @@ static void stmmac_adjust_link(struct net_device *dev)
 		 * If not, we operate in half-duplex mode. */
 		if (phydev->duplex != priv->oldduplex) {
 			new_state = true;
-			if (!(phydev->duplex))
+			if (!phydev->duplex)
 				ctrl &= ~priv->hw->link.duplex;
 			else
 				ctrl |= priv->hw->link.duplex;
