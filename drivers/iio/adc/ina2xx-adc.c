@@ -442,6 +442,8 @@ static ssize_t ina2xx_shunt_resistor_store(struct device *dev,
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | \
 			      BIT(IIO_CHAN_INFO_SCALE) | \
 			      BIT(IIO_CHAN_INFO_INT_TIME), \
+	.info_mask_shared_by_dir = BIT(IIO_CHAN_INFO_SAMP_FREQ) | \
+				   BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO), \
 	.scan_index = (_index), \
 	.scan_type = { \
 		.sign = 'u', \
