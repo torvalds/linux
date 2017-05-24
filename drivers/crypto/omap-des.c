@@ -699,15 +699,27 @@ static int omap_des_crypt(struct ablkcipher_request *req, unsigned long mode)
 
 /* ********************** ALG API ************************************ */
 
-static int omap_des_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
+static int omap_des_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 			   unsigned int keylen)
 {
-	struct omap_des_ctx *ctx = crypto_ablkcipher_ctx(tfm);
+	struct omap_des_ctx *ctx = crypto_ablkcipher_ctx(cipher);
+	struct crypto_tfm *tfm = crypto_ablkcipher_tfm(cipher);
 
 	if (keylen != DES_KEY_SIZE && keylen != (3*DES_KEY_SIZE))
 		return -EINVAL;
 
 	pr_debug("enter, keylen: %d\n", keylen);
+
+	/* Do we need to test against weak key? */
+	if (tfm->crt_flags & CRYPTO_TFM_REQ_WEAK_KEY) {
+		u32 tmp[DES_EXPKEY_WORDS];
+		int ret = des_ekey(tmp, key);
+
+		if (!ret) {
+			tfm->crt_flags |= CRYPTO_TFM_RES_WEAK_KEY;
+			return -EINVAL;
+		}
+	}
 
 	memcpy(ctx->key, key, keylen);
 	ctx->keylen = keylen;
