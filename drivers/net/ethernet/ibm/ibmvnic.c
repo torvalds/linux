@@ -505,7 +505,7 @@ rx_pool_alloc_failed:
 	adapter->rx_pool = NULL;
 rx_pool_arr_alloc_failed:
 	for (i = 0; i < adapter->req_rx_queues; i++)
-		napi_enable(&adapter->napi[i]);
+		napi_disable(&adapter->napi[i]);
 alloc_napi_failed:
 	return -ENOMEM;
 }
