@@ -55,7 +55,7 @@ static DEFINE_SPINLOCK(list_lock);
 	_read_ret;						\
 })
 #else
-static inline u32 omap_aes_read(struct omap_aes_dev *dd, u32 offset)
+inline u32 omap_aes_read(struct omap_aes_dev *dd, u32 offset)
 {
 	return __raw_readl(dd->io_base + offset);
 }
@@ -69,7 +69,7 @@ static inline u32 omap_aes_read(struct omap_aes_dev *dd, u32 offset)
 		__raw_writel(value, dd->io_base + offset);		\
 	} while (0)
 #else
-static inline void omap_aes_write(struct omap_aes_dev *dd, u32 offset,
+inline void omap_aes_write(struct omap_aes_dev *dd, u32 offset,
 				  u32 value)
 {
 	__raw_writel(value, dd->io_base + offset);
@@ -112,7 +112,7 @@ static int omap_aes_hw_init(struct omap_aes_dev *dd)
 	return 0;
 }
 
-static int omap_aes_write_ctrl(struct omap_aes_dev *dd)
+int omap_aes_write_ctrl(struct omap_aes_dev *dd)
 {
 	unsigned int key32;
 	int i, err;
@@ -183,7 +183,7 @@ static void omap_aes_dma_stop(struct omap_aes_dev *dd)
 	omap_aes_write_mask(dd, AES_REG_MASK(dd), 0, mask);
 }
 
-static struct omap_aes_dev *omap_aes_find_dev(struct omap_aes_reqctx *rctx)
+struct omap_aes_dev *omap_aes_find_dev(struct omap_aes_reqctx *rctx)
 {
 	struct omap_aes_dev *dd;
 
@@ -321,7 +321,7 @@ static int omap_aes_crypt_dma(struct omap_aes_dev *dd,
 	return 0;
 }
 
-static int omap_aes_crypt_dma_start(struct omap_aes_dev *dd)
+int omap_aes_crypt_dma_start(struct omap_aes_dev *dd)
 {
 	int err;
 
@@ -366,7 +366,7 @@ static void omap_aes_finish_req(struct omap_aes_dev *dd, int err)
 	pm_runtime_put_autosuspend(dd->dev);
 }
 
-static int omap_aes_crypt_dma_stop(struct omap_aes_dev *dd)
+int omap_aes_crypt_dma_stop(struct omap_aes_dev *dd)
 {
 	pr_debug("total: %d\n", dd->total);
 

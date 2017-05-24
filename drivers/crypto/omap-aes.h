@@ -164,4 +164,11 @@ struct omap_aes_dev {
 	const struct omap_aes_pdata	*pdata;
 };
 
+u32 omap_aes_read(struct omap_aes_dev *dd, u32 offset);
+void omap_aes_write(struct omap_aes_dev *dd, u32 offset, u32 value);
+struct omap_aes_dev *omap_aes_find_dev(struct omap_aes_reqctx *rctx);
+int omap_aes_write_ctrl(struct omap_aes_dev *dd);
+int omap_aes_crypt_dma_start(struct omap_aes_dev *dd);
+int omap_aes_crypt_dma_stop(struct omap_aes_dev *dd);
+
 #endif
