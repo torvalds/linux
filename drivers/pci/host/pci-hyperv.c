@@ -70,6 +70,7 @@
 
 enum pci_protocol_version_t {
 	PCI_PROTOCOL_VERSION_1_1 = PCI_MAKE_VERSION(1, 1),	/* Win10 */
+	PCI_PROTOCOL_VERSION_1_2 = PCI_MAKE_VERSION(1, 2),	/* RS1 */
 };
 
 #define CPU_AFFINITY_ALL	-1ULL
@@ -79,6 +80,7 @@ enum pci_protocol_version_t {
  * first.
  */
 static enum pci_protocol_version_t pci_protocol_versions[] = {
+	PCI_PROTOCOL_VERSION_1_2,
 	PCI_PROTOCOL_VERSION_1_1,
 };
 
@@ -124,6 +126,9 @@ enum pci_message_type {
 	PCI_QUERY_PROTOCOL_VERSION      = PCI_MESSAGE_BASE + 0x13,
 	PCI_CREATE_INTERRUPT_MESSAGE    = PCI_MESSAGE_BASE + 0x14,
 	PCI_DELETE_INTERRUPT_MESSAGE    = PCI_MESSAGE_BASE + 0x15,
+	PCI_RESOURCES_ASSIGNED2		= PCI_MESSAGE_BASE + 0x16,
+	PCI_CREATE_INTERRUPT_MESSAGE2	= PCI_MESSAGE_BASE + 0x17,
+	PCI_DELETE_INTERRUPT_MESSAGE2	= PCI_MESSAGE_BASE + 0x18, /* unused */
 	PCI_MESSAGE_MAXIMUM
 };
 
@@ -191,6 +196,30 @@ struct hv_msi_desc {
 	u16	vector_count;
 	u32	reserved;
 	u64	cpu_mask;
+} __packed;
+
+/**
+ * struct hv_msi_desc2 - 1.2 version of hv_msi_desc
+ * @vector:		IDT entry
+ * @delivery_mode:	As defined in Intel's Programmer's
+ *			Reference Manual, Volume 3, Chapter 8.
+ * @vector_count:	Number of contiguous entries in the
+ *			Interrupt Descriptor Table that are
+ *			occupied by this Message-Signaled
+ *			Interrupt. For "MSI", as first defined
+ *			in PCI 2.2, this can be between 1 and
+ *			32. For "MSI-X," as first defined in PCI
+ *			3.0, this must be 1, as each MSI-X table
+ *			entry would have its own descriptor.
+ * @processor_count:	number of bits enabled in array.
+ * @processor_array:	All the target virtual processors.
+ */
+struct hv_msi_desc2 {
+	u8	vector;
+	u8	delivery_mode;
+	u16	vector_count;
+	u16	processor_count;
+	u16	processor_array[32];
 } __packed;
 
 /**
@@ -309,6 +338,14 @@ struct pci_resources_assigned {
 	u32 reserved[4];
 } __packed;
 
+struct pci_resources_assigned2 {
+	struct pci_message message_type;
+	union win_slot_encoding wslot;
+	u8 memory_range[0x14][6];	/* not used here */
+	u32 msi_descriptor_count;
+	u8 reserved[70];
+} __packed;
+
 struct pci_create_interrupt {
 	struct pci_message message_type;
 	union win_slot_encoding wslot;
@@ -319,6 +356,12 @@ struct pci_create_int_response {
 	struct pci_response response;
 	u32 reserved;
 	struct tran_int_desc int_desc;
+} __packed;
+
+struct pci_create_interrupt2 {
+	struct pci_message message_type;
+	union win_slot_encoding wslot;
+	struct hv_msi_desc2 int_desc;
 } __packed;
 
 struct pci_delete_interrupt {
@@ -346,17 +389,42 @@ static int pci_ring_size = (4 * PAGE_SIZE);
 #define HV_PARTITION_ID_SELF		((u64)-1)
 #define HVCALL_RETARGET_INTERRUPT	0x7e
 
-struct retarget_msi_interrupt {
-	u64	partition_id;		/* use "self" */
-	u64	device_id;
+struct hv_interrupt_entry {
 	u32	source;			/* 1 for MSI(-X) */
 	u32	reserved1;
 	u32	address;
 	u32	data;
-	u64	reserved2;
+};
+
+#define HV_VP_SET_BANK_COUNT_MAX	5 /* current implementation limit */
+
+struct hv_vp_set {
+	u64	format;			/* 0 (HvGenericSetSparse4k) */
+	u64	valid_banks;
+	u64	masks[HV_VP_SET_BANK_COUNT_MAX];
+};
+
+/*
+ * flags for hv_device_interrupt_target.flags
+ */
+#define HV_DEVICE_INTERRUPT_TARGET_MULTICAST		1
+#define HV_DEVICE_INTERRUPT_TARGET_PROCESSOR_SET	2
+
+struct hv_device_interrupt_target {
 	u32	vector;
 	u32	flags;
-	u64	vp_mask;
+	union {
+		u64		 vp_mask;
+		struct hv_vp_set vp_set;
+	};
+};
+
+struct retarget_msi_interrupt {
+	u64	partition_id;		/* use "self" */
+	u64	device_id;
+	struct hv_interrupt_entry int_entry;
+	u64	reserved2;
+	struct hv_device_interrupt_target int_target;
 } __packed;
 
 /*
@@ -850,8 +918,11 @@ static void hv_irq_unmask(struct irq_data *data)
 	struct cpumask *dest;
 	struct pci_bus *pbus;
 	struct pci_dev *pdev;
-	int cpu;
 	unsigned long flags;
+	u32 var_size = 0;
+	int cpu_vmbus;
+	int cpu;
+	u64 res;
 
 	dest = irq_data_get_affinity_mask(data);
 	pdev = msi_desc_to_pci_dev(msi_desc);
@@ -863,22 +934,73 @@ static void hv_irq_unmask(struct irq_data *data)
 	params = &hbus->retarget_msi_interrupt_params;
 	memset(params, 0, sizeof(*params));
 	params->partition_id = HV_PARTITION_ID_SELF;
-	params->source = 1; /* MSI(-X) */
-	params->address = msi_desc->msg.address_lo;
-	params->data = msi_desc->msg.data;
+	params->int_entry.source = 1; /* MSI(-X) */
+	params->int_entry.address = msi_desc->msg.address_lo;
+	params->int_entry.data = msi_desc->msg.data;
 	params->device_id = (hbus->hdev->dev_instance.b[5] << 24) |
 			   (hbus->hdev->dev_instance.b[4] << 16) |
 			   (hbus->hdev->dev_instance.b[7] << 8) |
 			   (hbus->hdev->dev_instance.b[6] & 0xf8) |
 			   PCI_FUNC(pdev->devfn);
-	params->vector = cfg->vector;
+	params->int_target.vector = cfg->vector;
 
-	for_each_cpu_and(cpu, dest, cpu_online_mask)
-		params->vp_mask |= (1ULL << hv_tmp_cpu_nr_to_vp_nr(cpu));
+	/*
+	 * Honoring apic->irq_delivery_mode set to dest_Fixed by
+	 * setting the HV_DEVICE_INTERRUPT_TARGET_MULTICAST flag results in a
+	 * spurious interrupt storm. Not doing so does not seem to have a
+	 * negative effect (yet?).
+	 */
 
-	hv_do_hypercall(HVCALL_RETARGET_INTERRUPT, params, NULL);
+	if (pci_protocol_version >= PCI_PROTOCOL_VERSION_1_2) {
+		/*
+		 * PCI_PROTOCOL_VERSION_1_2 supports the VP_SET version of the
+		 * HVCALL_RETARGET_INTERRUPT hypercall, which also coincides
+		 * with >64 VP support.
+		 * ms_hyperv.hints & HV_X64_EX_PROCESSOR_MASKS_RECOMMENDED
+		 * is not sufficient for this hypercall.
+		 */
+		params->int_target.flags |=
+			HV_DEVICE_INTERRUPT_TARGET_PROCESSOR_SET;
+		params->int_target.vp_set.valid_banks =
+			(1ull << HV_VP_SET_BANK_COUNT_MAX) - 1;
 
+		/*
+		 * var-sized hypercall, var-size starts after vp_mask (thus
+		 * vp_set.format does not count, but vp_set.valid_banks does).
+		 */
+		var_size = 1 + HV_VP_SET_BANK_COUNT_MAX;
+
+		for_each_cpu_and(cpu, dest, cpu_online_mask) {
+			cpu_vmbus = hv_tmp_cpu_nr_to_vp_nr(cpu);
+
+			if (cpu_vmbus >= HV_VP_SET_BANK_COUNT_MAX * 64) {
+				dev_err(&hbus->hdev->device,
+					"too high CPU %d", cpu_vmbus);
+				res = 1;
+				goto exit_unlock;
+			}
+
+			params->int_target.vp_set.masks[cpu_vmbus / 64] |=
+				(1ULL << (cpu_vmbus & 63));
+		}
+	} else {
+		for_each_cpu_and(cpu, dest, cpu_online_mask) {
+			params->int_target.vp_mask |=
+				(1ULL << hv_tmp_cpu_nr_to_vp_nr(cpu));
+		}
+	}
+
+	res = hv_do_hypercall(HVCALL_RETARGET_INTERRUPT | (var_size << 17),
+			      params, NULL);
+
+exit_unlock:
 	spin_unlock_irqrestore(&hbus->retarget_msi_interrupt_lock, flags);
+
+	if (res) {
+		dev_err(&hbus->hdev->device,
+			"%s() failed: %#llx", __func__, res);
+		return;
+	}
 
 	pci_msi_unmask_irq(data);
 }
@@ -900,6 +1022,53 @@ static void hv_pci_compose_compl(void *context, struct pci_response *resp,
 	complete(&comp_pkt->comp_pkt.host_event);
 }
 
+static u32 hv_compose_msi_req_v1(
+	struct pci_create_interrupt *int_pkt, struct cpumask *affinity,
+	u32 slot, u8 vector)
+{
+	int_pkt->message_type.type = PCI_CREATE_INTERRUPT_MESSAGE;
+	int_pkt->wslot.slot = slot;
+	int_pkt->int_desc.vector = vector;
+	int_pkt->int_desc.vector_count = 1;
+	int_pkt->int_desc.delivery_mode =
+		(apic->irq_delivery_mode == dest_LowestPrio) ?
+			dest_LowestPrio : dest_Fixed;
+
+	/*
+	 * Create MSI w/ dummy vCPU set, overwritten by subsequent retarget in
+	 * hv_irq_unmask().
+	 */
+	int_pkt->int_desc.cpu_mask = CPU_AFFINITY_ALL;
+
+	return sizeof(*int_pkt);
+}
+
+static u32 hv_compose_msi_req_v2(
+	struct pci_create_interrupt2 *int_pkt, struct cpumask *affinity,
+	u32 slot, u8 vector)
+{
+	int cpu;
+
+	int_pkt->message_type.type = PCI_CREATE_INTERRUPT_MESSAGE2;
+	int_pkt->wslot.slot = slot;
+	int_pkt->int_desc.vector = vector;
+	int_pkt->int_desc.vector_count = 1;
+	int_pkt->int_desc.delivery_mode =
+		(apic->irq_delivery_mode == dest_LowestPrio) ?
+			dest_LowestPrio : dest_Fixed;
+
+	/*
+	 * Create MSI w/ dummy vCPU set targeting just one vCPU, overwritten
+	 * by subsequent retarget in hv_irq_unmask().
+	 */
+	cpu = cpumask_first_and(affinity, cpu_online_mask);
+	int_pkt->int_desc.processor_array[0] =
+		hv_tmp_cpu_nr_to_vp_nr(cpu);
+	int_pkt->int_desc.processor_count = 1;
+
+	return sizeof(*int_pkt);
+}
+
 /**
  * hv_compose_msi_msg() - Supplies a valid MSI address/data
  * @data:	Everything about this MSI
@@ -918,15 +1087,17 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 	struct hv_pci_dev *hpdev;
 	struct pci_bus *pbus;
 	struct pci_dev *pdev;
-	struct pci_create_interrupt *int_pkt;
 	struct compose_comp_ctxt comp;
 	struct tran_int_desc *int_desc;
-	struct cpumask *affinity;
 	struct {
-		struct pci_packet pkt;
-		u8 buffer[sizeof(struct pci_create_interrupt)];
-	} ctxt;
-	int cpu;
+		struct pci_packet pci_pkt;
+		union {
+			struct pci_create_interrupt v1;
+			struct pci_create_interrupt2 v2;
+		} int_pkts;
+	} __packed ctxt;
+
+	u32 size;
 	int ret;
 
 	pdev = msi_desc_to_pci_dev(irq_data_get_msi_desc(data));
@@ -949,36 +1120,44 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 
 	memset(&ctxt, 0, sizeof(ctxt));
 	init_completion(&comp.comp_pkt.host_event);
-	ctxt.pkt.completion_func = hv_pci_compose_compl;
-	ctxt.pkt.compl_ctxt = &comp;
-	int_pkt = (struct pci_create_interrupt *)&ctxt.pkt.message;
-	int_pkt->message_type.type = PCI_CREATE_INTERRUPT_MESSAGE;
-	int_pkt->wslot.slot = hpdev->desc.win_slot.slot;
-	int_pkt->int_desc.vector = cfg->vector;
-	int_pkt->int_desc.vector_count = 1;
-	int_pkt->int_desc.delivery_mode =
-		(apic->irq_delivery_mode == dest_LowestPrio) ? 1 : 0;
+	ctxt.pci_pkt.completion_func = hv_pci_compose_compl;
+	ctxt.pci_pkt.compl_ctxt = &comp;
 
-	/*
-	 * This bit doesn't have to work on machines with more than 64
-	 * processors because Hyper-V only supports 64 in a guest.
-	 */
-	affinity = irq_data_get_affinity_mask(data);
-	if (cpumask_weight(affinity) >= 32) {
-		int_pkt->int_desc.cpu_mask = CPU_AFFINITY_ALL;
-	} else {
-		for_each_cpu_and(cpu, affinity, cpu_online_mask) {
-			int_pkt->int_desc.cpu_mask |=
-				(1ULL << hv_tmp_cpu_nr_to_vp_nr(cpu));
-		}
+	switch (pci_protocol_version) {
+	case PCI_PROTOCOL_VERSION_1_1:
+		size = hv_compose_msi_req_v1(&ctxt.int_pkts.v1,
+					irq_data_get_affinity_mask(data),
+					hpdev->desc.win_slot.slot,
+					cfg->vector);
+		break;
+
+	case PCI_PROTOCOL_VERSION_1_2:
+		size = hv_compose_msi_req_v2(&ctxt.int_pkts.v2,
+					irq_data_get_affinity_mask(data),
+					hpdev->desc.win_slot.slot,
+					cfg->vector);
+		break;
+
+	default:
+		/* As we only negotiate protocol versions known to this driver,
+		 * this path should never hit. However, this is it not a hot
+		 * path so we print a message to aid future updates.
+		 */
+		dev_err(&hbus->hdev->device,
+			"Unexpected vPCI protocol, update driver.");
+		goto free_int_desc;
 	}
 
-	ret = vmbus_sendpacket(hpdev->hbus->hdev->channel, int_pkt,
-			       sizeof(*int_pkt), (unsigned long)&ctxt.pkt,
+	ret = vmbus_sendpacket(hpdev->hbus->hdev->channel, &ctxt.int_pkts,
+			       size, (unsigned long)&ctxt.pci_pkt,
 			       VM_PKT_DATA_INBAND,
 			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
-	if (ret)
+	if (ret) {
+		dev_err(&hbus->hdev->device,
+			"Sending request for interrupt failed: 0x%x",
+			comp.comp_pkt.completion_status);
 		goto free_int_desc;
+	}
 
 	wait_for_completion(&comp.comp_pkt.host_event);
 
@@ -2177,13 +2356,18 @@ static int hv_send_resources_allocated(struct hv_device *hdev)
 {
 	struct hv_pcibus_device *hbus = hv_get_drvdata(hdev);
 	struct pci_resources_assigned *res_assigned;
+	struct pci_resources_assigned2 *res_assigned2;
 	struct hv_pci_compl comp_pkt;
 	struct hv_pci_dev *hpdev;
 	struct pci_packet *pkt;
+	size_t size_res;
 	u32 wslot;
 	int ret;
 
-	pkt = kmalloc(sizeof(*pkt) + sizeof(*res_assigned), GFP_KERNEL);
+	size_res = (pci_protocol_version < PCI_PROTOCOL_VERSION_1_2)
+			? sizeof(*res_assigned) : sizeof(*res_assigned2);
+
+	pkt = kmalloc(sizeof(*pkt) + size_res, GFP_KERNEL);
 	if (!pkt)
 		return -ENOMEM;
 
@@ -2194,22 +2378,30 @@ static int hv_send_resources_allocated(struct hv_device *hdev)
 		if (!hpdev)
 			continue;
 
-		memset(pkt, 0, sizeof(*pkt) + sizeof(*res_assigned));
+		memset(pkt, 0, sizeof(*pkt) + size_res);
 		init_completion(&comp_pkt.host_event);
 		pkt->completion_func = hv_pci_generic_compl;
 		pkt->compl_ctxt = &comp_pkt;
-		res_assigned = (struct pci_resources_assigned *)&pkt->message;
-		res_assigned->message_type.type = PCI_RESOURCES_ASSIGNED;
-		res_assigned->wslot.slot = hpdev->desc.win_slot.slot;
 
+		if (pci_protocol_version < PCI_PROTOCOL_VERSION_1_2) {
+			res_assigned =
+				(struct pci_resources_assigned *)&pkt->message;
+			res_assigned->message_type.type =
+				PCI_RESOURCES_ASSIGNED;
+			res_assigned->wslot.slot = hpdev->desc.win_slot.slot;
+		} else {
+			res_assigned2 =
+				(struct pci_resources_assigned2 *)&pkt->message;
+			res_assigned2->message_type.type =
+				PCI_RESOURCES_ASSIGNED2;
+			res_assigned2->wslot.slot = hpdev->desc.win_slot.slot;
+		}
 		put_pcichild(hpdev, hv_pcidev_ref_by_slot);
 
-		ret = vmbus_sendpacket(
-			hdev->channel, &pkt->message,
-			sizeof(*res_assigned),
-			(unsigned long)pkt,
-			VM_PKT_DATA_INBAND,
-			VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+		ret = vmbus_sendpacket(hdev->channel, &pkt->message,
+				size_res, (unsigned long)pkt,
+				VM_PKT_DATA_INBAND,
+				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 		if (ret)
 			break;
 
