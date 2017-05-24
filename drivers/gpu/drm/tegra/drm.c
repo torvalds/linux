@@ -213,12 +213,10 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 
 	err = tegra_drm_fb_init(drm);
 	if (err < 0)
-		goto vblank;
+		goto device;
 
 	return 0;
 
-vblank:
-	drm_vblank_cleanup(drm);
 device:
 	host1x_device_exit(device);
 fbdev:
@@ -247,7 +245,6 @@ static void tegra_drm_unload(struct drm_device *drm)
 	drm_kms_helper_poll_fini(drm);
 	tegra_drm_fb_exit(drm);
 	drm_mode_config_cleanup(drm);
-	drm_vblank_cleanup(drm);
 
 	err = host1x_device_exit(device);
 	if (err < 0)
