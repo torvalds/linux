@@ -143,8 +143,8 @@ static int drm_set_busid(struct drm_device *dev, struct drm_file *file_priv)
 	if (master->unique != NULL)
 		drm_unset_busid(dev, master);
 
-	if (dev->driver->set_busid) {
-		ret = dev->driver->set_busid(dev, master);
+	if (dev_is_pci(dev->dev)) {
+		ret = drm_pci_set_busid(dev, master);
 		if (ret) {
 			drm_unset_busid(dev, master);
 			return ret;

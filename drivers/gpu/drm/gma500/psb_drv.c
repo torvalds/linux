@@ -480,7 +480,6 @@ static struct drm_driver driver = {
 	.load = psb_driver_load,
 	.unload = psb_driver_unload,
 	.lastclose = psb_driver_lastclose,
-	.set_busid = drm_pci_set_busid,
 
 	.num_ioctls = ARRAY_SIZE(psb_ioctls),
 	.irq_preinstall = psb_irq_preinstall,

@@ -32,6 +32,7 @@ void drm_lastclose(struct drm_device *dev);
 int drm_irq_by_busid(struct drm_device *dev, void *data,
 		     struct drm_file *file_priv);
 void drm_pci_agp_destroy(struct drm_device *dev);
+int drm_pci_set_busid(struct drm_device *dev, struct drm_master *master);
 
 /* drm_prime.c */
 int drm_prime_handle_to_fd_ioctl(struct drm_device *dev, void *data,

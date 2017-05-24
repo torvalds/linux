@@ -149,7 +149,6 @@ int drm_pci_set_busid(struct drm_device *dev, struct drm_master *master)
 	master->unique_len = strlen(master->unique);
 	return 0;
 }
-EXPORT_SYMBOL(drm_pci_set_busid);
 
 static int drm_pci_irq_by_busid(struct drm_device *dev, struct drm_irq_busid *p)
 {

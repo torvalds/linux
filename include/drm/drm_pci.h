@@ -49,17 +49,10 @@ void drm_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver);
 int drm_get_pci_dev(struct pci_dev *pdev,
 		    const struct pci_device_id *ent,
 		    struct drm_driver *driver);
-int drm_pci_set_busid(struct drm_device *dev, struct drm_master *master);
 #else
 static inline int drm_get_pci_dev(struct pci_dev *pdev,
 				  const struct pci_device_id *ent,
 				  struct drm_driver *driver)
-{
-	return -ENOSYS;
-}
-
-static inline int drm_pci_set_busid(struct drm_device *dev,
-				    struct drm_master *master)
 {
 	return -ENOSYS;
 }

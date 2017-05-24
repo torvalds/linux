@@ -172,8 +172,6 @@ struct drm_driver {
 	 */
 	void (*release) (struct drm_device *);
 
-	int (*set_busid)(struct drm_device *dev, struct drm_master *master);
-
 	/**
 	 * @get_vblank_counter:
 	 *

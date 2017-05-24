@@ -104,7 +104,6 @@ static struct drm_driver driver = {
 	.open = sis_driver_open,
 	.preclose = sis_reclaim_buffers_locked,
 	.postclose = sis_driver_postclose,
-	.set_busid = drm_pci_set_busid,
 	.dma_quiescent = sis_idle,
 	.lastclose = sis_lastclose,
 	.ioctls = sis_ioctls,

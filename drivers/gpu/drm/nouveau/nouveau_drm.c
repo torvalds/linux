@@ -1102,7 +1102,6 @@ static int __init
 nouveau_drm_init(void)
 {
 	driver_pci = driver_stub;
-	driver_pci.set_busid = drm_pci_set_busid;
 	driver_platform = driver_stub;
 
 	nouveau_display_options();

@@ -545,7 +545,6 @@ static struct drm_driver kms_driver = {
 	.open = radeon_driver_open_kms,
 	.postclose = radeon_driver_postclose_kms,
 	.lastclose = radeon_driver_lastclose_kms,
-	.set_busid = drm_pci_set_busid,
 	.unload = radeon_driver_unload_kms,
 	.get_vblank_counter = radeon_get_vblank_counter_kms,
 	.enable_vblank = radeon_enable_vblank_kms,

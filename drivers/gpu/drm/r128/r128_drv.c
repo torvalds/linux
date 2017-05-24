@@ -62,7 +62,6 @@ static struct drm_driver driver = {
 	.load = r128_driver_load,
 	.preclose = r128_driver_preclose,
 	.lastclose = r128_driver_lastclose,
-	.set_busid = drm_pci_set_busid,
 	.get_vblank_counter = r128_get_vblank_counter,
 	.enable_vblank = r128_enable_vblank,
 	.disable_vblank = r128_disable_vblank,
