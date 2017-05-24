@@ -348,21 +348,17 @@ static int compat_drm_markbufs(struct file *file, unsigned int cmd,
 {
 	drm_buf_desc32_t b32;
 	drm_buf_desc32_t __user *argp = (void __user *)arg;
-	struct drm_buf_desc __user *buf;
+	struct drm_buf_desc __user buf;
 
 	if (copy_from_user(&b32, argp, sizeof(b32)))
 		return -EFAULT;
 
-	buf = compat_alloc_user_space(sizeof(*buf));
-	if (!buf)
-		return -EFAULT;
+	buf.size = b32.size;
+	buf.low_mark = b32.low_mark;
+	buf.high_mark = b32.high_mark;
 
-	if (__put_user(b32.size, &buf->size)
-	    || __put_user(b32.low_mark, &buf->low_mark)
-	    || __put_user(b32.high_mark, &buf->high_mark))
-		return -EFAULT;
-
-	return drm_ioctl(file, DRM_IOCTL_MARK_BUFS, (unsigned long)buf);
+	return drm_ioctl_kernel(file, drm_legacy_markbufs, &buf,
+				DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY);
 }
 
 typedef struct drm_buf_info32 {
@@ -1016,7 +1012,7 @@ static struct {
 	DRM_IOCTL32_DEF(DRM_IOCTL_SET_UNIQUE, compat_drm_setunique),
 	DRM_IOCTL32_DEF(DRM_IOCTL_ADD_MAP, compat_drm_addmap),
 	DRM_IOCTL32_DEF(DRM_IOCTL_ADD_BUFS, compat_drm_addbufs),
-	[DRM_IOCTL_NR(DRM_IOCTL_MARK_BUFS32)].fn = compat_drm_markbufs,
+	DRM_IOCTL32_DEF(DRM_IOCTL_MARK_BUFS, compat_drm_markbufs),
 	DRM_IOCTL32_DEF(DRM_IOCTL_INFO_BUFS, compat_drm_infobufs),
 	[DRM_IOCTL_NR(DRM_IOCTL_MAP_BUFS32)].fn = compat_drm_mapbufs,
 	[DRM_IOCTL_NR(DRM_IOCTL_FREE_BUFS32)].fn = compat_drm_freebufs,
