@@ -317,9 +317,6 @@ static int __init vpd_platform_init(void)
 	if (!vpd_kobj)
 		return -ENOMEM;
 
-	memset(&ro_vpd, 0, sizeof(ro_vpd));
-	memset(&rw_vpd, 0, sizeof(rw_vpd));
-
 	platform_driver_register(&vpd_driver);
 
 	return 0;
