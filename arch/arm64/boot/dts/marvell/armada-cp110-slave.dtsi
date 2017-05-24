@@ -232,6 +232,7 @@
 				interrupt-names = "mem", "ring0", "ring1",
 						  "ring2", "ring3", "eip";
 				clocks = <&cps_syscon0 1 26>;
+				dma-mask = <0xff 0xffffffff>;
 				status = "disabled";
 			};
 		};
