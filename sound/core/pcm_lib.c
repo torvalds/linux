@@ -44,6 +44,9 @@
 #define trace_hw_ptr_error(substream, reason)
 #endif
 
+static int fill_silence_frames(struct snd_pcm_substream *substream,
+			       snd_pcm_uframes_t off, snd_pcm_uframes_t frames);
+
 /*
  * fill ring buffer with silence
  * runtime->silence_start: starting pointer to silence area
@@ -57,7 +60,6 @@ void snd_pcm_playback_silence(struct snd_pcm_substream *substream, snd_pcm_ufram
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	snd_pcm_uframes_t frames, ofs, transfer;
-	char *hwbuf;
 	int err;
 
 	if (runtime->silence_size < runtime->boundary) {
@@ -111,35 +113,8 @@ void snd_pcm_playback_silence(struct snd_pcm_substream *substream, snd_pcm_ufram
 	ofs = runtime->silence_start % runtime->buffer_size;
 	while (frames > 0) {
 		transfer = ofs + frames > runtime->buffer_size ? runtime->buffer_size - ofs : frames;
-		if (runtime->access == SNDRV_PCM_ACCESS_RW_INTERLEAVED ||
-		    runtime->access == SNDRV_PCM_ACCESS_MMAP_INTERLEAVED) {
-			if (substream->ops->fill_silence) {
-				err = substream->ops->fill_silence(substream, 0,
-								   frames_to_bytes(runtime, ofs),
-								   frames_to_bytes(runtime, transfer));
-				snd_BUG_ON(err < 0);
-			} else {
-				hwbuf = runtime->dma_area + frames_to_bytes(runtime, ofs);
-				snd_pcm_format_set_silence(runtime->format, hwbuf, transfer * runtime->channels);
-			}
-		} else {
-			unsigned int c;
-			unsigned int channels = runtime->channels;
-			if (substream->ops->fill_silence) {
-				for (c = 0; c < channels; ++c) {
-					err = substream->ops->fill_silence(substream, c,
-									   samples_to_bytes(runtime, ofs),
-									   samples_to_bytes(runtime, transfer));
-					snd_BUG_ON(err < 0);
-				}
-			} else {
-				size_t dma_csize = runtime->dma_bytes / channels;
-				for (c = 0; c < channels; ++c) {
-					hwbuf = runtime->dma_area + (c * dma_csize) + samples_to_bytes(runtime, ofs);
-					snd_pcm_format_set_silence(runtime->format, hwbuf, transfer);
-				}
-			}
-		}
+		err = fill_silence_frames(substream, ofs, transfer);
+		snd_BUG_ON(err < 0);
 		runtime->silence_filled += transfer;
 		frames -= transfer;
 		ofs = 0;
@@ -2101,6 +2076,21 @@ static int noninterleaved_copy(struct snd_pcm_substream *substream,
 			return err;
 	}
 	return 0;
+}
+
+/* fill silence on the given buffer position;
+ * called from snd_pcm_playback_silence()
+ */
+static int fill_silence_frames(struct snd_pcm_substream *substream,
+			       snd_pcm_uframes_t off, snd_pcm_uframes_t frames)
+{
+	if (substream->runtime->access == SNDRV_PCM_ACCESS_RW_INTERLEAVED ||
+	    substream->runtime->access == SNDRV_PCM_ACCESS_MMAP_INTERLEAVED)
+		return interleaved_copy(substream, off, NULL, 0, frames,
+					fill_silence);
+	else
+		return noninterleaved_copy(substream, off, NULL, 0, frames,
+					   fill_silence);
 }
 
 /* sanity-check for read/write methods */
