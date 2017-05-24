@@ -348,7 +348,7 @@ static int set_subcores_per_core(int new_mode)
 		state->master = 0;
 	}
 
-	get_online_cpus();
+	cpus_read_lock();
 
 	/* This cpu will update the globals before exiting stop machine */
 	this_cpu_ptr(&split_state)->master = 1;
@@ -356,9 +356,10 @@ static int set_subcores_per_core(int new_mode)
 	/* Ensure state is consistent before we call the other cpus */
 	mb();
 
-	stop_machine(cpu_update_split_mode, &new_mode, cpu_online_mask);
+	stop_machine_cpuslocked(cpu_update_split_mode, &new_mode,
+				cpu_online_mask);
 
-	put_online_cpus();
+	cpus_read_unlock();
 
 	return 0;
 }
