@@ -378,7 +378,7 @@ static int exynos_drm_bind(struct device *dev)
 	/* Probe non kms sub drivers and virtual display driver. */
 	ret = exynos_drm_device_subdrv_probe(drm);
 	if (ret)
-		goto err_cleanup_vblank;
+		goto err_unbind_all;
 
 	drm_mode_config_reset(drm);
 
@@ -409,8 +409,6 @@ err_cleanup_fbdev:
 	exynos_drm_fbdev_fini(drm);
 	drm_kms_helper_poll_fini(drm);
 	exynos_drm_device_subdrv_remove(drm);
-err_cleanup_vblank:
-	drm_vblank_cleanup(drm);
 err_unbind_all:
 	component_unbind_all(drm->dev, drm);
 err_mode_config_cleanup:
