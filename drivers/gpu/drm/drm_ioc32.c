@@ -298,28 +298,14 @@ typedef struct drm_stats32 {
 static int compat_drm_getstats(struct file *file, unsigned int cmd,
 			       unsigned long arg)
 {
-	drm_stats32_t s32;
 	drm_stats32_t __user *argp = (void __user *)arg;
-	struct drm_stats __user *stats;
-	int i, err;
+	int err;
 
-	memset(&s32, 0, sizeof(drm_stats32_t));
-	stats = compat_alloc_user_space(sizeof(*stats));
-	if (!stats)
-		return -EFAULT;
-
-	err = drm_ioctl(file, DRM_IOCTL_GET_STATS, (unsigned long)stats);
+	err = drm_ioctl_kernel(file, drm_noop, NULL, DRM_UNLOCKED);
 	if (err)
 		return err;
 
-	if (__get_user(s32.count, &stats->count))
-		return -EFAULT;
-	for (i = 0; i < 15; ++i)
-		if (__get_user(s32.data[i].value, &stats->data[i].value)
-		    || __get_user(s32.data[i].type, &stats->data[i].type))
-			return -EFAULT;
-
-	if (copy_to_user(argp, &s32, sizeof(s32)))
+	if (clear_user(argp, sizeof(drm_stats32_t)))
 		return -EFAULT;
 	return 0;
 }
@@ -1033,7 +1019,7 @@ static struct {
 	DRM_IOCTL32_DEF(DRM_IOCTL_GET_UNIQUE, compat_drm_getunique),
 	DRM_IOCTL32_DEF(DRM_IOCTL_GET_MAP, compat_drm_getmap),
 	DRM_IOCTL32_DEF(DRM_IOCTL_GET_CLIENT, compat_drm_getclient),
-	[DRM_IOCTL_NR(DRM_IOCTL_GET_STATS32)].fn = compat_drm_getstats,
+	DRM_IOCTL32_DEF(DRM_IOCTL_GET_STATS, compat_drm_getstats),
 	DRM_IOCTL32_DEF(DRM_IOCTL_SET_UNIQUE, compat_drm_setunique),
 	[DRM_IOCTL_NR(DRM_IOCTL_ADD_MAP32)].fn = compat_drm_addmap,
 	DRM_IOCTL32_DEF(DRM_IOCTL_ADD_BUFS, compat_drm_addbufs),
