@@ -105,7 +105,6 @@ struct omap_aes_ctx {
 
 	int		keylen;
 	u32		key[AES_KEYSIZE_256 / sizeof(u32)];
-	unsigned long	flags;
 	struct crypto_skcipher	*fallback;
 };
 
