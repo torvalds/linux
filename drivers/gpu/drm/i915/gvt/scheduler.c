@@ -452,6 +452,10 @@ static void complete_current_workload(struct intel_gvt *gvt, int ring_id)
 
 	atomic_dec(&vgpu->running_workload_num);
 	wake_up(&scheduler->workload_complete_wq);
+
+	if (gvt->scheduler.need_reschedule)
+		intel_gvt_request_service(gvt, INTEL_GVT_REQUEST_EVENT_SCHED);
+
 	mutex_unlock(&gvt->lock);
 }
 
