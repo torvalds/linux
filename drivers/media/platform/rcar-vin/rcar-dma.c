@@ -405,7 +405,21 @@ static void rvin_capture_off(struct rvin_dev *vin)
 
 static int rvin_capture_start(struct rvin_dev *vin)
 {
-	int ret;
+	struct rvin_buffer *buf, *node;
+	int bufs, ret;
+
+	/* Count number of free buffers */
+	bufs = 0;
+	list_for_each_entry_safe(buf, node, &vin->buf_list, list)
+		bufs++;
+
+	/* Continuous capture requires more buffers then there are HW slots */
+	vin->continuous = bufs > HW_BUFFER_NUM;
+
+	if (!rvin_fill_hw(vin)) {
+		vin_err(vin, "HW not ready to start, not enough buffers available\n");
+		return -EINVAL;
+	}
 
 	rvin_crop_scale_comp(vin);
 
@@ -1062,22 +1076,7 @@ static int rvin_start_streaming(struct vb2_queue *vq, unsigned int count)
 	vin->state = RUNNING;
 	vin->sequence = 0;
 
-	/* Continuous capture requires more buffers then there are HW slots */
-	vin->continuous = count > HW_BUFFER_NUM;
-
-	/*
-	 * This should never happen but if we don't have enough
-	 * buffers for HW bail out
-	 */
-	if (!rvin_fill_hw(vin)) {
-		vin_err(vin, "HW not ready to start, not enough buffers available\n");
-		ret = -EINVAL;
-		goto out;
-	}
-
 	ret = rvin_capture_start(vin);
-out:
-	/* Return all buffers if something went wrong */
 	if (ret) {
 		return_all_buffers(vin, VB2_BUF_STATE_QUEUED);
 		v4l2_subdev_call(sd, video, s_stream, 0);
