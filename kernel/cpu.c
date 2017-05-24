@@ -1459,7 +1459,7 @@ unlock:
 EXPORT_SYMBOL_GPL(__cpuhp_state_add_instance);
 
 /**
- * __cpuhp_setup_state - Setup the callbacks for an hotplug machine state
+ * __cpuhp_setup_state_cpuslocked - Setup the callbacks for an hotplug machine state
  * @state:		The state to setup
  * @invoke:		If true, the startup function is invoked for cpus where
  *			cpu state >= @state
@@ -1468,25 +1468,27 @@ EXPORT_SYMBOL_GPL(__cpuhp_state_add_instance);
  * @multi_instance:	State is set up for multiple instances which get
  *			added afterwards.
  *
+ * The caller needs to hold cpus read locked while calling this function.
  * Returns:
  *   On success:
  *      Positive state number if @state is CPUHP_AP_ONLINE_DYN
  *      0 for all other states
  *   On failure: proper (negative) error code
  */
-int __cpuhp_setup_state(enum cpuhp_state state,
-			const char *name, bool invoke,
-			int (*startup)(unsigned int cpu),
-			int (*teardown)(unsigned int cpu),
-			bool multi_instance)
+int __cpuhp_setup_state_cpuslocked(enum cpuhp_state state,
+				   const char *name, bool invoke,
+				   int (*startup)(unsigned int cpu),
+				   int (*teardown)(unsigned int cpu),
+				   bool multi_instance)
 {
 	int cpu, ret = 0;
 	bool dynstate;
 
+	lockdep_assert_cpus_held();
+
 	if (cpuhp_cb_check(state) || !name)
 		return -EINVAL;
 
-	cpus_read_lock();
 	mutex_lock(&cpuhp_state_mutex);
 
 	ret = cpuhp_store_callbacks(state, name, startup, teardown,
@@ -1522,13 +1524,28 @@ int __cpuhp_setup_state(enum cpuhp_state state,
 	}
 out:
 	mutex_unlock(&cpuhp_state_mutex);
-	cpus_read_unlock();
 	/*
 	 * If the requested state is CPUHP_AP_ONLINE_DYN, return the
 	 * dynamically allocated state in case of success.
 	 */
 	if (!ret && dynstate)
 		return state;
+	return ret;
+}
+EXPORT_SYMBOL(__cpuhp_setup_state_cpuslocked);
+
+int __cpuhp_setup_state(enum cpuhp_state state,
+			const char *name, bool invoke,
+			int (*startup)(unsigned int cpu),
+			int (*teardown)(unsigned int cpu),
+			bool multi_instance)
+{
+	int ret;
+
+	cpus_read_lock();
+	ret = __cpuhp_setup_state_cpuslocked(state, name, invoke, startup,
+					     teardown, multi_instance);
+	cpus_read_unlock();
 	return ret;
 }
 EXPORT_SYMBOL(__cpuhp_setup_state);
@@ -1572,22 +1589,23 @@ remove:
 EXPORT_SYMBOL_GPL(__cpuhp_state_remove_instance);
 
 /**
- * __cpuhp_remove_state - Remove the callbacks for an hotplug machine state
+ * __cpuhp_remove_state_cpuslocked - Remove the callbacks for an hotplug machine state
  * @state:	The state to remove
  * @invoke:	If true, the teardown function is invoked for cpus where
  *		cpu state >= @state
  *
+ * The caller needs to hold cpus read locked while calling this function.
  * The teardown callback is currently not allowed to fail. Think
  * about module removal!
  */
-void __cpuhp_remove_state(enum cpuhp_state state, bool invoke)
+void __cpuhp_remove_state_cpuslocked(enum cpuhp_state state, bool invoke)
 {
 	struct cpuhp_step *sp = cpuhp_get_step(state);
 	int cpu;
 
 	BUG_ON(cpuhp_cb_check(state));
 
-	cpus_read_lock();
+	lockdep_assert_cpus_held();
 
 	mutex_lock(&cpuhp_state_mutex);
 	if (sp->multi_instance) {
@@ -1615,6 +1633,13 @@ void __cpuhp_remove_state(enum cpuhp_state state, bool invoke)
 remove:
 	cpuhp_store_callbacks(state, NULL, NULL, NULL, false);
 	mutex_unlock(&cpuhp_state_mutex);
+}
+EXPORT_SYMBOL(__cpuhp_remove_state_cpuslocked);
+
+void __cpuhp_remove_state(enum cpuhp_state state, bool invoke)
+{
+	cpus_read_lock();
+	__cpuhp_remove_state_cpuslocked(state, invoke);
 	cpus_read_unlock();
 }
 EXPORT_SYMBOL(__cpuhp_remove_state);
