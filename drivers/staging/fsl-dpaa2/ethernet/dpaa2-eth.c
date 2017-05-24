@@ -355,7 +355,7 @@ static int build_sg_fd(struct dpaa2_eth_priv *priv,
 
 	sg_init_table(scl, nr_frags + 1);
 	num_sg = skb_to_sgvec(skb, scl, 0, skb->len);
-	num_dma_bufs = dma_map_sg(dev, scl, num_sg, DMA_TO_DEVICE);
+	num_dma_bufs = dma_map_sg(dev, scl, num_sg, DMA_BIDIRECTIONAL);
 	if (unlikely(!num_dma_bufs)) {
 		err = -ENOMEM;
 		goto dma_map_sg_failed;
@@ -406,7 +406,7 @@ static int build_sg_fd(struct dpaa2_eth_priv *priv,
 	swa->num_dma_bufs = num_dma_bufs;
 
 	/* Separately map the SGT buffer */
-	addr = dma_map_single(dev, sgt_buf, sgt_buf_size, DMA_TO_DEVICE);
+	addr = dma_map_single(dev, sgt_buf, sgt_buf_size, DMA_BIDIRECTIONAL);
 	if (unlikely(dma_mapping_error(dev, addr))) {
 		err = -ENOMEM;
 		goto dma_map_single_failed;
@@ -423,7 +423,7 @@ static int build_sg_fd(struct dpaa2_eth_priv *priv,
 dma_map_single_failed:
 	kfree(sgt_buf);
 sgt_buf_alloc_failed:
-	dma_unmap_sg(dev, scl, num_sg, DMA_TO_DEVICE);
+	dma_unmap_sg(dev, scl, num_sg, DMA_BIDIRECTIONAL);
 dma_map_sg_failed:
 	kfree(scl);
 	return err;
@@ -461,7 +461,7 @@ static int build_single_fd(struct dpaa2_eth_priv *priv,
 
 	addr = dma_map_single(dev, buffer_start,
 			      skb_tail_pointer(skb) - buffer_start,
-			      DMA_TO_DEVICE);
+			      DMA_BIDIRECTIONAL);
 	if (unlikely(dma_mapping_error(dev, addr)))
 		return -ENOMEM;
 
@@ -510,7 +510,7 @@ static void free_tx_fd(const struct dpaa2_eth_priv *priv,
 		 */
 		dma_unmap_single(dev, fd_addr,
 				 skb_tail_pointer(skb) - buffer_start,
-				 DMA_TO_DEVICE);
+				 DMA_BIDIRECTIONAL);
 	} else if (fd_format == dpaa2_fd_sg) {
 		swa = (struct dpaa2_eth_swa *)skbh;
 		skb = swa->skb;
@@ -519,13 +519,13 @@ static void free_tx_fd(const struct dpaa2_eth_priv *priv,
 		num_dma_bufs = swa->num_dma_bufs;
 
 		/* Unmap the scatterlist */
-		dma_unmap_sg(dev, scl, num_sg, DMA_TO_DEVICE);
+		dma_unmap_sg(dev, scl, num_sg, DMA_BIDIRECTIONAL);
 		kfree(scl);
 
 		/* Unmap the SGT buffer */
 		unmap_size = priv->tx_data_offset +
 		       sizeof(struct dpaa2_sg_entry) * (1 + num_dma_bufs);
-		dma_unmap_single(dev, fd_addr, unmap_size, DMA_TO_DEVICE);
+		dma_unmap_single(dev, fd_addr, unmap_size, DMA_BIDIRECTIONAL);
 	} else {
 		/* Unsupported format, mark it as errored and give up */
 		if (status)
