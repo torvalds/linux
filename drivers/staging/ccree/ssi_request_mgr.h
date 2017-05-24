@@ -15,7 +15,7 @@
  */
 
 /* \file request_mgr.h
-   Request Manager
+ * Request Manager
  */
 
 #ifndef __REQUEST_MGR_H__
