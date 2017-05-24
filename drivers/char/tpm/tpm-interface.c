@@ -538,6 +538,7 @@ ssize_t tpm_transmit_cmd(struct tpm_chip *chip, struct tpm_space *space,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(tpm_transmit_cmd);
 
 #define TPM_DIGEST_SIZE 20
 #define TPM_RET_CODE_IDX 6

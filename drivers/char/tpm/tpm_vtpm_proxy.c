@@ -371,6 +371,41 @@ static bool vtpm_proxy_tpm_req_canceled(struct tpm_chip  *chip, u8 status)
 	return ret;
 }
 
+static int vtpm_proxy_request_locality(struct tpm_chip *chip, int locality)
+{
+	struct tpm_buf buf;
+	int rc;
+	const struct tpm_output_header *header;
+
+	if (chip->flags & TPM_CHIP_FLAG_TPM2)
+		rc = tpm_buf_init(&buf, TPM2_ST_SESSIONS,
+				  TPM2_CC_SET_LOCALITY);
+	else
+		rc = tpm_buf_init(&buf, TPM_TAG_RQU_COMMAND,
+				  TPM_ORD_SET_LOCALITY);
+	if (rc)
+		return rc;
+	tpm_buf_append_u8(&buf, locality);
+
+	rc = tpm_transmit_cmd(chip, NULL, buf.data, tpm_buf_length(&buf), 0,
+			      TPM_TRANSMIT_UNLOCKED | TPM_TRANSMIT_RAW,
+			      "attempting to set locality");
+	if (rc < 0) {
+		locality = rc;
+		goto out;
+	}
+
+	header = (const struct tpm_output_header *)buf.data;
+	rc = be32_to_cpu(header->return_code);
+	if (rc)
+		locality = -1;
+
+out:
+	tpm_buf_destroy(&buf);
+
+	return locality;
+}
+
 static const struct tpm_class_ops vtpm_proxy_tpm_ops = {
 	.flags = TPM_OPS_AUTO_STARTUP,
 	.recv = vtpm_proxy_tpm_op_recv,
@@ -380,6 +415,7 @@ static const struct tpm_class_ops vtpm_proxy_tpm_ops = {
 	.req_complete_mask = VTPM_PROXY_REQ_COMPLETE_FLAG,
 	.req_complete_val = VTPM_PROXY_REQ_COMPLETE_FLAG,
 	.req_canceled = vtpm_proxy_tpm_req_canceled,
+	.request_locality = vtpm_proxy_request_locality,
 };
 
 /*
