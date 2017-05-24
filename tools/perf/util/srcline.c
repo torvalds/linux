@@ -230,7 +230,10 @@ static int addr2line(const char *dso_name, u64 addr,
 
 	bfd_map_over_sections(a2l->abfd, find_address_in_section, a2l);
 
-	if (a2l->found && unwind_inlines) {
+	if (!a2l->found)
+		return 0;
+
+	if (unwind_inlines) {
 		int cnt = 0;
 
 		while (bfd_find_inliner_info(a2l->abfd, &a2l->filename,
@@ -243,6 +246,8 @@ static int addr2line(const char *dso_name, u64 addr,
 							a2l->line, node,
 							dso) != 0)
 					return 0;
+				// found at least one inline frame
+				ret = 1;
 			}
 		}
 
@@ -252,13 +257,13 @@ static int addr2line(const char *dso_name, u64 addr,
 		}
 	}
 
-	if (a2l->found && a2l->filename) {
-		*file = strdup(a2l->filename);
-		*line = a2l->line;
-
-		if (*file)
-			ret = 1;
+	if (file) {
+		*file = a2l->filename ? strdup(a2l->filename) : NULL;
+		ret = *file ? 1 : 0;
 	}
+
+	if (line)
+		*line = a2l->line;
 
 	return ret;
 }
@@ -278,8 +283,6 @@ void dso__free_a2l(struct dso *dso)
 static struct inline_node *addr2inlines(const char *dso_name, u64 addr,
 	struct dso *dso)
 {
-	char *file = NULL;
-	unsigned int line = 0;
 	struct inline_node *node;
 
 	node = zalloc(sizeof(*node));
@@ -291,7 +294,7 @@ static struct inline_node *addr2inlines(const char *dso_name, u64 addr,
 	INIT_LIST_HEAD(&node->val);
 	node->addr = addr;
 
-	if (!addr2line(dso_name, addr, &file, &line, dso, TRUE, node))
+	if (!addr2line(dso_name, addr, NULL, NULL, dso, TRUE, node))
 		goto out_free_inline_node;
 
 	if (list_empty(&node->val))
