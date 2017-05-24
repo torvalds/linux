@@ -802,12 +802,12 @@ static void stmmac_adjust_link(struct net_device *dev)
 		if (phydev->speed != priv->speed) {
 			new_state = true;
 			switch (phydev->speed) {
-			case 1000:
+			case SPEED_1000:
 				if (priv->plat->has_gmac ||
 				    priv->plat->has_gmac4)
 					ctrl &= ~priv->hw->link.port;
 				break;
-			case 100:
+			case SPEED_100:
 				if (priv->plat->has_gmac ||
 				    priv->plat->has_gmac4) {
 					ctrl |= priv->hw->link.port;
@@ -816,7 +816,7 @@ static void stmmac_adjust_link(struct net_device *dev)
 					ctrl &= ~priv->hw->link.port;
 				}
 				break;
-			case 10:
+			case SPEED_10:
 				if (priv->plat->has_gmac ||
 				    priv->plat->has_gmac4) {
 					ctrl |= priv->hw->link.port;
