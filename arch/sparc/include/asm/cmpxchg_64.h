@@ -6,6 +6,17 @@
 #ifndef __ARCH_SPARC64_CMPXCHG__
 #define __ARCH_SPARC64_CMPXCHG__
 
+static inline unsigned long
+__cmpxchg_u32(volatile int *m, int old, int new)
+{
+	__asm__ __volatile__("cas [%2], %3, %0"
+			     : "=&r" (new)
+			     : "0" (new), "r" (m), "r" (old)
+			     : "memory");
+
+	return new;
+}
+
 static inline unsigned long xchg32(__volatile__ unsigned int *m, unsigned int val)
 {
 	unsigned long tmp1, tmp2;
@@ -44,10 +55,38 @@ static inline unsigned long xchg64(__volatile__ unsigned long *m, unsigned long 
 
 void __xchg_called_with_bad_pointer(void);
 
+/*
+ * Use 4 byte cas instruction to achieve 2 byte xchg. Main logic
+ * here is to get the bit shift of the byte we are interested in.
+ * The XOR is handy for reversing the bits for big-endian byte order.
+ */
+static inline unsigned long
+xchg16(__volatile__ unsigned short *m, unsigned short val)
+{
+	unsigned long maddr = (unsigned long)m;
+	int bit_shift = (((unsigned long)m & 2) ^ 2) << 3;
+	unsigned int mask = 0xffff << bit_shift;
+	unsigned int *ptr = (unsigned int  *) (maddr & ~2);
+	unsigned int old32, new32, load32;
+
+	/* Read the old value */
+	load32 = *ptr;
+
+	do {
+		old32 = load32;
+		new32 = (load32 & (~mask)) | val << bit_shift;
+		load32 = __cmpxchg_u32(ptr, old32, new32);
+	} while (load32 != old32);
+
+	return (load32 & mask) >> bit_shift;
+}
+
 static inline unsigned long __xchg(unsigned long x, __volatile__ void * ptr,
 				       int size)
 {
 	switch (size) {
+	case 2:
+		return xchg16(ptr, x);
 	case 4:
 		return xchg32(ptr, x);
 	case 8:
@@ -65,16 +104,6 @@ static inline unsigned long __xchg(unsigned long x, __volatile__ void * ptr,
 
 #include <asm-generic/cmpxchg-local.h>
 
-static inline unsigned long
-__cmpxchg_u32(volatile int *m, int old, int new)
-{
-	__asm__ __volatile__("cas [%2], %3, %0"
-			     : "=&r" (new)
-			     : "0" (new), "r" (m), "r" (old)
-			     : "memory");
-
-	return new;
-}
 
 static inline unsigned long
 __cmpxchg_u64(volatile long *m, unsigned long old, unsigned long new)
