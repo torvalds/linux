@@ -31,6 +31,20 @@
 
 #define notifier_to_vin(n) container_of(n, struct rvin_dev, notifier)
 
+static int rvin_find_pad(struct v4l2_subdev *sd, int direction)
+{
+	unsigned int pad;
+
+	if (sd->entity.num_pads <= 1)
+		return 0;
+
+	for (pad = 0; pad < sd->entity.num_pads; pad++)
+		if (sd->entity.pads[pad].flags & direction)
+			return pad;
+
+	return -EINVAL;
+}
+
 static bool rvin_mbus_supported(struct rvin_graph_entity *entity)
 {
 	struct v4l2_subdev *sd = entity->subdev;
@@ -101,13 +115,27 @@ static int rvin_digital_notify_bound(struct v4l2_async_notifier *notifier,
 				     struct v4l2_async_subdev *asd)
 {
 	struct rvin_dev *vin = notifier_to_vin(notifier);
+	int ret;
 
 	v4l2_set_subdev_hostdata(subdev, vin);
 
 	if (vin->digital.asd.match.fwnode.fwnode ==
 	    of_fwnode_handle(subdev->dev->of_node)) {
-		vin_dbg(vin, "bound digital subdev %s\n", subdev->name);
+		/* Find source and sink pad of remote subdevice */
+
+		ret = rvin_find_pad(subdev, MEDIA_PAD_FL_SOURCE);
+		if (ret < 0)
+			return ret;
+		vin->digital.source_pad = ret;
+
+		ret = rvin_find_pad(subdev, MEDIA_PAD_FL_SINK);
+		vin->digital.sink_pad = ret < 0 ? 0 : ret;
+
 		vin->digital.subdev = subdev;
+
+		vin_dbg(vin, "bound subdev %s source pad: %u sink pad: %u\n",
+			subdev->name, vin->digital.source_pad,
+			vin->digital.sink_pad);
 		return 0;
 	}
 
