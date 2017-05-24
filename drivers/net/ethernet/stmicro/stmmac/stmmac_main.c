@@ -775,7 +775,7 @@ static void stmmac_adjust_link(struct net_device *dev)
 	struct stmmac_priv *priv = netdev_priv(dev);
 	struct phy_device *phydev = dev->phydev;
 	unsigned long flags;
-	int new_state = 0;
+	bool new_state = false;
 
 	if (!phydev)
 		return;
@@ -788,7 +788,7 @@ static void stmmac_adjust_link(struct net_device *dev)
 		/* Now we make sure that we can be in full duplex mode.
 		 * If not, we operate in half-duplex mode. */
 		if (phydev->duplex != priv->oldduplex) {
-			new_state = 1;
+			new_state = true;
 			if (!(phydev->duplex))
 				ctrl &= ~priv->hw->link.duplex;
 			else
@@ -800,7 +800,7 @@ static void stmmac_adjust_link(struct net_device *dev)
 			stmmac_mac_flow_ctrl(priv, phydev->duplex);
 
 		if (phydev->speed != priv->speed) {
-			new_state = 1;
+			new_state = true;
 			switch (phydev->speed) {
 			case 1000:
 				if (priv->plat->has_gmac ||
@@ -839,11 +839,11 @@ static void stmmac_adjust_link(struct net_device *dev)
 		writel(ctrl, priv->ioaddr + MAC_CTRL_REG);
 
 		if (!priv->oldlink) {
-			new_state = 1;
+			new_state = true;
 			priv->oldlink = 1;
 		}
 	} else if (priv->oldlink) {
-		new_state = 1;
+		new_state = true;
 		priv->oldlink = 0;
 		priv->speed = SPEED_UNKNOWN;
 		priv->oldduplex = DUPLEX_UNKNOWN;
