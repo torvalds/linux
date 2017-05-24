@@ -147,7 +147,9 @@ static int gvt_service_thread(void *data)
 			mutex_unlock(&gvt->lock);
 		}
 
-		if (test_and_clear_bit(INTEL_GVT_REQUEST_SCHED,
+		if (test_bit(INTEL_GVT_REQUEST_SCHED,
+				(void *)&gvt->service_request) ||
+			test_bit(INTEL_GVT_REQUEST_EVENT_SCHED,
 					(void *)&gvt->service_request)) {
 			intel_gvt_schedule(gvt);
 		}
