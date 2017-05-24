@@ -10,6 +10,7 @@
 #include <linux/clk.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_graph.h>
 #include <sound/simple_card_utils.h>
 
 int asoc_simple_card_parse_daifmt(struct device *dev,
@@ -81,15 +82,21 @@ EXPORT_SYMBOL_GPL(asoc_simple_card_set_dailink_name);
 int asoc_simple_card_parse_card_name(struct snd_soc_card *card,
 				     char *prefix)
 {
-	char prop[128];
 	int ret;
 
-	snprintf(prop, sizeof(prop), "%sname", prefix);
+	if (!prefix)
+		prefix = "";
 
 	/* Parse the card name from DT */
-	ret = snd_soc_of_parse_card_name(card, prop);
-	if (ret < 0)
-		return ret;
+	ret = snd_soc_of_parse_card_name(card, "label");
+	if (ret < 0) {
+		char prop[128];
+
+		snprintf(prop, sizeof(prop), "%sname", prefix);
+		ret = snd_soc_of_parse_card_name(card, prop);
+		if (ret < 0)
+			return ret;
+	}
 
 	if (!card->name && card->dai_link)
 		card->name = card->dai_link->name;
@@ -164,6 +171,71 @@ int asoc_simple_card_parse_dai(struct device_node *node,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_card_parse_dai);
+
+static int asoc_simple_card_get_dai_id(struct device_node *ep)
+{
+	struct device_node *node;
+	struct device_node *endpoint;
+	int i, id;
+	int ret;
+
+	ret = snd_soc_get_dai_id(ep);
+	if (ret != -ENOTSUPP)
+		return ret;
+
+	node = of_graph_get_port_parent(ep);
+
+	/*
+	 * Non HDMI sound case, counting port/endpoint on its DT
+	 * is enough. Let's count it.
+	 */
+	i = 0;
+	id = -1;
+	for_each_endpoint_of_node(node, endpoint) {
+		if (endpoint == ep)
+			id = i;
+		i++;
+	}
+	if (id < 0)
+		return -ENODEV;
+
+	return id;
+}
+
+int asoc_simple_card_parse_graph_dai(struct device_node *ep,
+				     struct device_node **dai_of_node,
+				     const char **dai_name)
+{
+	struct device_node *node;
+	struct of_phandle_args args;
+	int ret;
+
+	if (!ep)
+		return 0;
+	if (!dai_name)
+		return 0;
+
+	/*
+	 * of_graph_get_port_parent() will call
+	 * of_node_put(). So, call of_node_get() here
+	 */
+	of_node_get(ep);
+	node = of_graph_get_port_parent(ep);
+
+	/* Get dai->name */
+	args.np		= node;
+	args.args[0]	= asoc_simple_card_get_dai_id(ep);
+	args.args_count	= (of_graph_get_endpoint_count(node) > 1);
+
+	ret = snd_soc_get_dai_name(&args, dai_name);
+	if (ret < 0)
+		return ret;
+
+	*dai_of_node = node;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(asoc_simple_card_parse_graph_dai);
 
 int asoc_simple_card_init_dai(struct snd_soc_dai *dai,
 			      struct asoc_simple_dai *simple_dai)
