@@ -130,14 +130,16 @@ static void icp_opal_cause_ipi(int cpu, unsigned long data)
 {
 	int hw_cpu = get_hard_smp_processor_id(cpu);
 
+	kvmppc_set_host_ipi(cpu, 1);
 	opal_int_set_mfrr(hw_cpu, IPI_PRIORITY);
 }
 
 static irqreturn_t icp_opal_ipi_action(int irq, void *dev_id)
 {
-	int hw_cpu = hard_smp_processor_id();
+	int cpu = smp_processor_id();
 
-	opal_int_set_mfrr(hw_cpu, 0xff);
+	kvmppc_set_host_ipi(cpu, 0);
+	opal_int_set_mfrr(get_hard_smp_processor_id(cpu), 0xff);
 
 	return smp_ipi_demux();
 }
