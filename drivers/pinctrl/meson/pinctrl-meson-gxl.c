@@ -283,6 +283,9 @@ static const unsigned int i2s_out_ch45_ao_pins[] = { PIN(GPIOAO_9, 0) };
 static const unsigned int spdif_out_ao_6_pins[]	= { PIN(GPIOAO_6, 0) };
 static const unsigned int spdif_out_ao_9_pins[]	= { PIN(GPIOAO_9, 0) };
 
+static const unsigned int ao_cec_pins[]		= { PIN(GPIOAO_8, 0) };
+static const unsigned int ee_cec_pins[]		= { PIN(GPIOAO_8, 0) };
+
 static struct meson_pmx_group meson_gxl_periphs_groups[] = {
 	GPIO_GROUP(GPIOZ_0, EE_OFF),
 	GPIO_GROUP(GPIOZ_1, EE_OFF),
@@ -528,6 +531,8 @@ static struct meson_pmx_group meson_gxl_aobus_groups[] = {
 	GROUP(i2s_out_ch45_ao,	1,	1),
 	GROUP(spdif_out_ao_6,	0,	16),
 	GROUP(spdif_out_ao_9,	0,	4),
+	GROUP(ao_cec,		0,	15),
+	GROUP(ee_cec,		0,	14),
 };
 
 static const char * const gpio_periphs_groups[] = {
@@ -703,6 +708,10 @@ static const char * const spdif_out_ao_groups[] = {
 	"spdif_out_ao_6", "spdif_out_ao_9",
 };
 
+static const char * const cec_ao_groups[] = {
+	"ao_cec", "ee_cec",
+};
+
 static struct meson_pmx_func meson_gxl_periphs_functions[] = {
 	FUNCTION(gpio_periphs),
 	FUNCTION(emmc),
@@ -741,6 +750,7 @@ static struct meson_pmx_func meson_gxl_aobus_functions[] = {
 	FUNCTION(pwm_ao_b),
 	FUNCTION(i2s_out_ao),
 	FUNCTION(spdif_out_ao),
+	FUNCTION(cec_ao),
 };
 
 static struct meson_bank meson_gxl_periphs_banks[] = {
