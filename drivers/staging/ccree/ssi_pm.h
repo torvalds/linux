@@ -15,7 +15,7 @@
  */
 
 /* \file ssi_pm.h
-    */
+ */
 
 #ifndef __SSI_POWER_MGR_H__
 #define __SSI_POWER_MGR_H__
