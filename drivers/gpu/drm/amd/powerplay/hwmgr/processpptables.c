@@ -1563,6 +1563,9 @@ static int pp_tables_initialize(struct pp_hwmgr *hwmgr)
 	int result;
 	const ATOM_PPLIB_POWERPLAYTABLE *powerplay_table;
 
+	if (hwmgr->chip_id == CHIP_RAVEN)
+		return 0;
+
 	hwmgr->need_pp_table_upload = true;
 
 	powerplay_table = get_powerplay_table(hwmgr);
@@ -1609,6 +1612,9 @@ static int pp_tables_initialize(struct pp_hwmgr *hwmgr)
 
 static int pp_tables_uninitialize(struct pp_hwmgr *hwmgr)
 {
+	if (hwmgr->chip_id == CHIP_RAVEN)
+		return 0;
+
 	if (NULL != hwmgr->dyn_state.vddc_dependency_on_sclk) {
 		kfree(hwmgr->dyn_state.vddc_dependency_on_sclk);
 		hwmgr->dyn_state.vddc_dependency_on_sclk = NULL;
