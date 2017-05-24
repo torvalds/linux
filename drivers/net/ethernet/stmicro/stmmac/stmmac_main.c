@@ -840,11 +840,11 @@ static void stmmac_adjust_link(struct net_device *dev)
 
 		if (!priv->oldlink) {
 			new_state = true;
-			priv->oldlink = 1;
+			priv->oldlink = true;
 		}
 	} else if (priv->oldlink) {
 		new_state = true;
-		priv->oldlink = 0;
+		priv->oldlink = false;
 		priv->speed = SPEED_UNKNOWN;
 		priv->oldduplex = DUPLEX_UNKNOWN;
 	}
@@ -907,7 +907,7 @@ static int stmmac_init_phy(struct net_device *dev)
 	char bus_id[MII_BUS_ID_SIZE];
 	int interface = priv->plat->interface;
 	int max_speed = priv->plat->max_speed;
-	priv->oldlink = 0;
+	priv->oldlink = false;
 	priv->speed = SPEED_UNKNOWN;
 	priv->oldduplex = DUPLEX_UNKNOWN;
 
@@ -4291,7 +4291,7 @@ int stmmac_suspend(struct device *dev)
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	priv->oldlink = 0;
+	priv->oldlink = false;
 	priv->speed = SPEED_UNKNOWN;
 	priv->oldduplex = DUPLEX_UNKNOWN;
 	return 0;
