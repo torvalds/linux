@@ -26,6 +26,7 @@
 
 #include <linux/prefetch.h>
 #include <net/busy_poll.h>
+#include <linux/bpf_trace.h>
 #include "i40e.h"
 #include "i40e_trace.h"
 #include "i40e_prototype.h"
@@ -1195,6 +1196,7 @@ void i40e_clean_rx_ring(struct i40e_ring *rx_ring)
 void i40e_free_rx_resources(struct i40e_ring *rx_ring)
 {
 	i40e_clean_rx_ring(rx_ring);
+	rx_ring->xdp_prog = NULL;
 	kfree(rx_ring->rx_bi);
 	rx_ring->rx_bi = NULL;
 
@@ -1240,6 +1242,8 @@ int i40e_setup_rx_descriptors(struct i40e_ring *rx_ring)
 	rx_ring->next_to_alloc = 0;
 	rx_ring->next_to_clean = 0;
 	rx_ring->next_to_use = 0;
+
+	rx_ring->xdp_prog = rx_ring->vsi->xdp_prog;
 
 	return 0;
 err:
@@ -1593,6 +1597,7 @@ void i40e_process_skb_fields(struct i40e_ring *rx_ring,
  * i40e_cleanup_headers - Correct empty headers
  * @rx_ring: rx descriptor ring packet is being transacted on
  * @skb: pointer to current skb being fixed
+ * @rx_desc: pointer to the EOP Rx descriptor
  *
  * Also address the case where we are pulling data in on pages only
  * and as such no data is present in the skb header.
@@ -1602,8 +1607,25 @@ void i40e_process_skb_fields(struct i40e_ring *rx_ring,
  *
  * Returns true if an error was encountered and skb was freed.
  **/
-static bool i40e_cleanup_headers(struct i40e_ring *rx_ring, struct sk_buff *skb)
+static bool i40e_cleanup_headers(struct i40e_ring *rx_ring, struct sk_buff *skb,
+				 union i40e_rx_desc *rx_desc)
+
 {
+	/* XDP packets use error pointer so abort at this point */
+	if (IS_ERR(skb))
+		return true;
+
+	/* ERR_MASK will only have valid bits if EOP set, and
+	 * what we are doing here is actually checking
+	 * I40E_RX_DESC_ERROR_RXE_SHIFT, since it is the zeroth bit in
+	 * the error field
+	 */
+	if (unlikely(i40e_test_staterr(rx_desc,
+				       BIT(I40E_RXD_QW1_ERROR_SHIFT)))) {
+		dev_kfree_skb_any(skb);
+		return true;
+	}
+
 	/* if eth_skb_pad returns an error the skb was freed */
 	if (eth_skb_pad(skb))
 		return true;
@@ -1776,7 +1798,7 @@ static struct i40e_rx_buffer *i40e_get_rx_buffer(struct i40e_ring *rx_ring,
  * i40e_construct_skb - Allocate skb and populate it
  * @rx_ring: rx descriptor ring to transact packets on
  * @rx_buffer: rx buffer to pull data from
- * @size: size of buffer to add to skb
+ * @xdp: xdp_buff pointing to the data
  *
  * This function allocates an skb.  It then populates it with the page
  * data from the current receive descriptor, taking care to set up the
@@ -1784,9 +1806,9 @@ static struct i40e_rx_buffer *i40e_get_rx_buffer(struct i40e_ring *rx_ring,
  */
 static struct sk_buff *i40e_construct_skb(struct i40e_ring *rx_ring,
 					  struct i40e_rx_buffer *rx_buffer,
-					  unsigned int size)
+					  struct xdp_buff *xdp)
 {
-	void *va = page_address(rx_buffer->page) + rx_buffer->page_offset;
+	unsigned int size = xdp->data_end - xdp->data;
 #if (PAGE_SIZE < 8192)
 	unsigned int truesize = i40e_rx_pg_size(rx_ring) / 2;
 #else
@@ -1796,9 +1818,9 @@ static struct sk_buff *i40e_construct_skb(struct i40e_ring *rx_ring,
 	struct sk_buff *skb;
 
 	/* prefetch first cache line of first page */
-	prefetch(va);
+	prefetch(xdp->data);
 #if L1_CACHE_BYTES < 128
-	prefetch(va + L1_CACHE_BYTES);
+	prefetch(xdp->data + L1_CACHE_BYTES);
 #endif
 
 	/* allocate a skb to store the frags */
@@ -1811,10 +1833,11 @@ static struct sk_buff *i40e_construct_skb(struct i40e_ring *rx_ring,
 	/* Determine available headroom for copy */
 	headlen = size;
 	if (headlen > I40E_RX_HDR_SIZE)
-		headlen = eth_get_headlen(va, I40E_RX_HDR_SIZE);
+		headlen = eth_get_headlen(xdp->data, I40E_RX_HDR_SIZE);
 
 	/* align pull length to size of long to optimize memcpy performance */
-	memcpy(__skb_put(skb, headlen), va, ALIGN(headlen, sizeof(long)));
+	memcpy(__skb_put(skb, headlen), xdp->data,
+	       ALIGN(headlen, sizeof(long)));
 
 	/* update all of the pointers */
 	size -= headlen;
@@ -1841,16 +1864,16 @@ static struct sk_buff *i40e_construct_skb(struct i40e_ring *rx_ring,
  * i40e_build_skb - Build skb around an existing buffer
  * @rx_ring: Rx descriptor ring to transact packets on
  * @rx_buffer: Rx buffer to pull data from
- * @size: size of buffer to add to skb
+ * @xdp: xdp_buff pointing to the data
  *
  * This function builds an skb around an existing Rx buffer, taking care
  * to set up the skb correctly and avoid any memcpy overhead.
  */
 static struct sk_buff *i40e_build_skb(struct i40e_ring *rx_ring,
 				      struct i40e_rx_buffer *rx_buffer,
-				      unsigned int size)
+				      struct xdp_buff *xdp)
 {
-	void *va = page_address(rx_buffer->page) + rx_buffer->page_offset;
+	unsigned int size = xdp->data_end - xdp->data;
 #if (PAGE_SIZE < 8192)
 	unsigned int truesize = i40e_rx_pg_size(rx_ring) / 2;
 #else
@@ -1860,12 +1883,12 @@ static struct sk_buff *i40e_build_skb(struct i40e_ring *rx_ring,
 	struct sk_buff *skb;
 
 	/* prefetch first cache line of first page */
-	prefetch(va);
+	prefetch(xdp->data);
 #if L1_CACHE_BYTES < 128
-	prefetch(va + L1_CACHE_BYTES);
+	prefetch(xdp->data + L1_CACHE_BYTES);
 #endif
 	/* build an skb around the page buffer */
-	skb = build_skb(va - I40E_SKB_PAD, truesize);
+	skb = build_skb(xdp->data_hard_start, truesize);
 	if (unlikely(!skb))
 		return NULL;
 
@@ -1944,6 +1967,46 @@ static bool i40e_is_non_eop(struct i40e_ring *rx_ring,
 	return true;
 }
 
+#define I40E_XDP_PASS 0
+#define I40E_XDP_CONSUMED 1
+
+/**
+ * i40e_run_xdp - run an XDP program
+ * @rx_ring: Rx ring being processed
+ * @xdp: XDP buffer containing the frame
+ **/
+static struct sk_buff *i40e_run_xdp(struct i40e_ring *rx_ring,
+				    struct xdp_buff *xdp)
+{
+	int result = I40E_XDP_PASS;
+	struct bpf_prog *xdp_prog;
+	u32 act;
+
+	rcu_read_lock();
+	xdp_prog = READ_ONCE(rx_ring->xdp_prog);
+
+	if (!xdp_prog)
+		goto xdp_out;
+
+	act = bpf_prog_run_xdp(xdp_prog, xdp);
+	switch (act) {
+	case XDP_PASS:
+		break;
+	default:
+		bpf_warn_invalid_xdp_action(act);
+	case XDP_TX:
+	case XDP_ABORTED:
+		trace_xdp_exception(rx_ring->netdev, xdp_prog, act);
+		/* fallthrough -- handle aborts by dropping packet */
+	case XDP_DROP:
+		result = I40E_XDP_CONSUMED;
+		break;
+	}
+xdp_out:
+	rcu_read_unlock();
+	return ERR_PTR(-result);
+}
+
 /**
  * i40e_clean_rx_irq - Clean completed descriptors from Rx ring - bounce buf
  * @rx_ring: rx descriptor ring to transact packets on
@@ -1966,6 +2029,7 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 	while (likely(total_rx_packets < budget)) {
 		struct i40e_rx_buffer *rx_buffer;
 		union i40e_rx_desc *rx_desc;
+		struct xdp_buff xdp;
 		unsigned int size;
 		u16 vlan_tag;
 		u8 rx_ptype;
@@ -2006,12 +2070,27 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 		rx_buffer = i40e_get_rx_buffer(rx_ring, size);
 
 		/* retrieve a buffer from the ring */
-		if (skb)
+		if (!skb) {
+			xdp.data = page_address(rx_buffer->page) +
+				   rx_buffer->page_offset;
+			xdp.data_hard_start = xdp.data -
+					      i40e_rx_offset(rx_ring);
+			xdp.data_end = xdp.data + size;
+
+			skb = i40e_run_xdp(rx_ring, &xdp);
+		}
+
+		if (IS_ERR(skb)) {
+			total_rx_bytes += size;
+			total_rx_packets++;
+			rx_buffer->pagecnt_bias++;
+		} else if (skb) {
 			i40e_add_rx_frag(rx_ring, rx_buffer, skb, size);
-		else if (ring_uses_build_skb(rx_ring))
-			skb = i40e_build_skb(rx_ring, rx_buffer, size);
-		else
-			skb = i40e_construct_skb(rx_ring, rx_buffer, size);
+		} else if (ring_uses_build_skb(rx_ring)) {
+			skb = i40e_build_skb(rx_ring, rx_buffer, &xdp);
+		} else {
+			skb = i40e_construct_skb(rx_ring, rx_buffer, &xdp);
+		}
 
 		/* exit if we failed to retrieve a buffer */
 		if (!skb) {
@@ -2026,18 +2105,7 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 		if (i40e_is_non_eop(rx_ring, rx_desc, skb))
 			continue;
 
-		/* ERR_MASK will only have valid bits if EOP set, and
-		 * what we are doing here is actually checking
-		 * I40E_RX_DESC_ERROR_RXE_SHIFT, since it is the zeroth bit in
-		 * the error field
-		 */
-		if (unlikely(i40e_test_staterr(rx_desc, BIT(I40E_RXD_QW1_ERROR_SHIFT)))) {
-			dev_kfree_skb_any(skb);
-			skb = NULL;
-			continue;
-		}
-
-		if (i40e_cleanup_headers(rx_ring, skb)) {
+		if (i40e_cleanup_headers(rx_ring, skb, rx_desc)) {
 			skb = NULL;
 			continue;
 		}

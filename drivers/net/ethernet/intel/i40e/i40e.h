@@ -645,6 +645,8 @@ struct i40e_vsi {
 	u16 max_frame;
 	u16 rx_buf_len;
 
+	struct bpf_prog *xdp_prog;
+
 	/* List of q_vectors allocated to this VSI */
 	struct i40e_q_vector **q_vectors;
 	int num_q_vectors;
@@ -972,4 +974,9 @@ i40e_status i40e_get_npar_bw_setting(struct i40e_pf *pf);
 i40e_status i40e_set_npar_bw_setting(struct i40e_pf *pf);
 i40e_status i40e_commit_npar_bw_setting(struct i40e_pf *pf);
 void i40e_print_link_message(struct i40e_vsi *vsi, bool isup);
+
+static inline bool i40e_enabled_xdp_vsi(struct i40e_vsi *vsi)
+{
+	return !!vsi->xdp_prog;
+}
 #endif /* _I40E_H_ */
