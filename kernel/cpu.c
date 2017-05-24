@@ -235,7 +235,7 @@ static struct {
 #define cpuhp_lock_release()      lock_map_release(&cpu_hotplug.dep_map)
 
 
-void get_online_cpus(void)
+void cpus_read_lock(void)
 {
 	might_sleep();
 	if (cpu_hotplug.active_writer == current)
@@ -245,9 +245,9 @@ void get_online_cpus(void)
 	atomic_inc(&cpu_hotplug.refcount);
 	mutex_unlock(&cpu_hotplug.lock);
 }
-EXPORT_SYMBOL_GPL(get_online_cpus);
+EXPORT_SYMBOL_GPL(cpus_read_lock);
 
-void put_online_cpus(void)
+void cpus_read_unlock(void)
 {
 	int refcount;
 
@@ -264,7 +264,7 @@ void put_online_cpus(void)
 	cpuhp_lock_release();
 
 }
-EXPORT_SYMBOL_GPL(put_online_cpus);
+EXPORT_SYMBOL_GPL(cpus_read_unlock);
 
 /*
  * This ensures that the hotplug operation can begin only when the
@@ -288,7 +288,7 @@ EXPORT_SYMBOL_GPL(put_online_cpus);
  * get_online_cpus() not an api which is called all that often.
  *
  */
-void cpu_hotplug_begin(void)
+void cpus_write_lock(void)
 {
 	DEFINE_WAIT(wait);
 
@@ -306,7 +306,7 @@ void cpu_hotplug_begin(void)
 	finish_wait(&cpu_hotplug.wq, &wait);
 }
 
-void cpu_hotplug_done(void)
+void cpus_write_unlock(void)
 {
 	cpu_hotplug.active_writer = NULL;
 	mutex_unlock(&cpu_hotplug.lock);
@@ -773,7 +773,7 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen,
 	if (!cpu_present(cpu))
 		return -EINVAL;
 
-	cpu_hotplug_begin();
+	cpus_write_lock();
 
 	cpuhp_tasks_frozen = tasks_frozen;
 
@@ -811,7 +811,7 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen,
 	}
 
 out:
-	cpu_hotplug_done();
+	cpus_write_unlock();
 	return ret;
 }
 
@@ -893,7 +893,7 @@ static int _cpu_up(unsigned int cpu, int tasks_frozen, enum cpuhp_state target)
 	struct task_struct *idle;
 	int ret = 0;
 
-	cpu_hotplug_begin();
+	cpus_write_lock();
 
 	if (!cpu_present(cpu)) {
 		ret = -EINVAL;
@@ -941,7 +941,7 @@ static int _cpu_up(unsigned int cpu, int tasks_frozen, enum cpuhp_state target)
 	target = min((int)target, CPUHP_BRINGUP_CPU);
 	ret = cpuhp_up_callbacks(cpu, st, target);
 out:
-	cpu_hotplug_done();
+	cpus_write_unlock();
 	return ret;
 }
 
@@ -1424,7 +1424,7 @@ int __cpuhp_state_add_instance(enum cpuhp_state state, struct hlist_node *node,
 	if (sp->multi_instance == false)
 		return -EINVAL;
 
-	get_online_cpus();
+	cpus_read_lock();
 	mutex_lock(&cpuhp_state_mutex);
 
 	if (!invoke || !sp->startup.multi)
@@ -1453,7 +1453,7 @@ add_node:
 	hlist_add_head(node, &sp->list);
 unlock:
 	mutex_unlock(&cpuhp_state_mutex);
-	put_online_cpus();
+	cpus_read_unlock();
 	return ret;
 }
 EXPORT_SYMBOL_GPL(__cpuhp_state_add_instance);
@@ -1486,7 +1486,7 @@ int __cpuhp_setup_state(enum cpuhp_state state,
 	if (cpuhp_cb_check(state) || !name)
 		return -EINVAL;
 
-	get_online_cpus();
+	cpus_read_lock();
 	mutex_lock(&cpuhp_state_mutex);
 
 	ret = cpuhp_store_callbacks(state, name, startup, teardown,
@@ -1522,7 +1522,7 @@ int __cpuhp_setup_state(enum cpuhp_state state,
 	}
 out:
 	mutex_unlock(&cpuhp_state_mutex);
-	put_online_cpus();
+	cpus_read_unlock();
 	/*
 	 * If the requested state is CPUHP_AP_ONLINE_DYN, return the
 	 * dynamically allocated state in case of success.
@@ -1544,7 +1544,7 @@ int __cpuhp_state_remove_instance(enum cpuhp_state state,
 	if (!sp->multi_instance)
 		return -EINVAL;
 
-	get_online_cpus();
+	cpus_read_lock();
 	mutex_lock(&cpuhp_state_mutex);
 
 	if (!invoke || !cpuhp_get_teardown_cb(state))
@@ -1565,7 +1565,7 @@ int __cpuhp_state_remove_instance(enum cpuhp_state state,
 remove:
 	hlist_del(node);
 	mutex_unlock(&cpuhp_state_mutex);
-	put_online_cpus();
+	cpus_read_unlock();
 
 	return 0;
 }
@@ -1587,7 +1587,7 @@ void __cpuhp_remove_state(enum cpuhp_state state, bool invoke)
 
 	BUG_ON(cpuhp_cb_check(state));
 
-	get_online_cpus();
+	cpus_read_lock();
 
 	mutex_lock(&cpuhp_state_mutex);
 	if (sp->multi_instance) {
@@ -1615,7 +1615,7 @@ void __cpuhp_remove_state(enum cpuhp_state state, bool invoke)
 remove:
 	cpuhp_store_callbacks(state, NULL, NULL, NULL, false);
 	mutex_unlock(&cpuhp_state_mutex);
-	put_online_cpus();
+	cpus_read_unlock();
 }
 EXPORT_SYMBOL(__cpuhp_remove_state);
 
