@@ -396,52 +396,42 @@ typedef struct drm_buf_info32 {
 	u32 list;
 } drm_buf_info32_t;
 
+static int copy_one_buf32(void *data, int count, struct drm_buf_entry *from)
+{
+	drm_buf_info32_t *request = data;
+	drm_buf_desc32_t __user *to = compat_ptr(request->list);
+	drm_buf_desc32_t v = {.count = from->buf_count,
+			      .size = from->buf_size,
+			      .low_mark = from->low_mark,
+			      .high_mark = from->high_mark};
+	return copy_to_user(to + count, &v, offsetof(drm_buf_desc32_t, flags));
+}
+
+static int drm_legacy_infobufs32(struct drm_device *dev, void *data,
+			struct drm_file *file_priv)
+{
+	drm_buf_info32_t *request = data;
+	return __drm_legacy_infobufs(dev, data, &request->count, copy_one_buf32);
+}
+
 static int compat_drm_infobufs(struct file *file, unsigned int cmd,
 			       unsigned long arg)
 {
 	drm_buf_info32_t req32;
 	drm_buf_info32_t __user *argp = (void __user *)arg;
-	drm_buf_desc32_t __user *to;
-	struct drm_buf_info __user *request;
-	struct drm_buf_desc __user *list;
-	size_t nbytes;
-	int i, err;
-	int count, actual;
+	int err;
 
 	if (copy_from_user(&req32, argp, sizeof(req32)))
 		return -EFAULT;
 
-	count = req32.count;
-	to = (drm_buf_desc32_t __user *) (unsigned long)req32.list;
-	if (count < 0)
-		count = 0;
-	if (count > 0
-	    && !access_ok(VERIFY_WRITE, to, count * sizeof(drm_buf_desc32_t)))
-		return -EFAULT;
+	if (req32.count < 0)
+		req32.count = 0;
 
-	nbytes = sizeof(*request) + count * sizeof(struct drm_buf_desc);
-	request = compat_alloc_user_space(nbytes);
-	if (!request)
-		return -EFAULT;
-	list = (struct drm_buf_desc *) (request + 1);
-
-	if (__put_user(count, &request->count)
-	    || __put_user(list, &request->list))
-		return -EFAULT;
-
-	err = drm_ioctl(file, DRM_IOCTL_INFO_BUFS, (unsigned long)request);
+	err = drm_ioctl_kernel(file, drm_legacy_infobufs32, &req32, DRM_AUTH);
 	if (err)
 		return err;
 
-	if (__get_user(actual, &request->count))
-		return -EFAULT;
-	if (count >= actual)
-		for (i = 0; i < actual; ++i)
-			if (__copy_in_user(&to[i], &list[i],
-					   offsetof(struct drm_buf_desc, flags)))
-				return -EFAULT;
-
-	if (__put_user(actual, &argp->count))
+	if (put_user(req32.count, &argp->count))
 		return -EFAULT;
 
 	return 0;
@@ -1053,7 +1043,7 @@ static struct {
 	[DRM_IOCTL_NR(DRM_IOCTL_ADD_MAP32)].fn = compat_drm_addmap,
 	DRM_IOCTL32_DEF(DRM_IOCTL_ADD_BUFS, compat_drm_addbufs),
 	[DRM_IOCTL_NR(DRM_IOCTL_MARK_BUFS32)].fn = compat_drm_markbufs,
-	[DRM_IOCTL_NR(DRM_IOCTL_INFO_BUFS32)].fn = compat_drm_infobufs,
+	DRM_IOCTL32_DEF(DRM_IOCTL_INFO_BUFS, compat_drm_infobufs),
 	[DRM_IOCTL_NR(DRM_IOCTL_MAP_BUFS32)].fn = compat_drm_mapbufs,
 	[DRM_IOCTL_NR(DRM_IOCTL_FREE_BUFS32)].fn = compat_drm_freebufs,
 	[DRM_IOCTL_NR(DRM_IOCTL_RM_MAP32)].fn = compat_drm_rmmap,

@@ -1258,11 +1258,11 @@ int drm_legacy_addbufs(struct drm_device *dev, void *data,
  * lock, preventing of allocating more buffers after this call. Information
  * about each requested buffer is then copied into user space.
  */
-int drm_legacy_infobufs(struct drm_device *dev, void *data,
-			struct drm_file *file_priv)
+int __drm_legacy_infobufs(struct drm_device *dev,
+			void *data, int *p,
+			int (*f)(void *, int, struct drm_buf_entry *))
 {
 	struct drm_device_dma *dma = dev->dma;
-	struct drm_buf_info *request = data;
 	int i;
 	int count;
 
@@ -1290,26 +1290,12 @@ int drm_legacy_infobufs(struct drm_device *dev, void *data,
 
 	DRM_DEBUG("count = %d\n", count);
 
-	if (request->count >= count) {
+	if (*p >= count) {
 		for (i = 0, count = 0; i < DRM_MAX_ORDER + 1; i++) {
-			if (dma->bufs[i].buf_count) {
-				struct drm_buf_desc __user *to =
-				    &request->list[count];
-				struct drm_buf_entry *from = &dma->bufs[i];
-				if (copy_to_user(&to->count,
-						 &from->buf_count,
-						 sizeof(from->buf_count)) ||
-				    copy_to_user(&to->size,
-						 &from->buf_size,
-						 sizeof(from->buf_size)) ||
-				    copy_to_user(&to->low_mark,
-						 &from->low_mark,
-						 sizeof(from->low_mark)) ||
-				    copy_to_user(&to->high_mark,
-						 &from->high_mark,
-						 sizeof(from->high_mark)))
+			struct drm_buf_entry *from = &dma->bufs[i];
+			if (from->buf_count) {
+				if (f(data, count, from) < 0)
 					return -EFAULT;
-
 				DRM_DEBUG("%d %d %d %d %d\n",
 					  i,
 					  dma->bufs[i].buf_count,
@@ -1320,9 +1306,27 @@ int drm_legacy_infobufs(struct drm_device *dev, void *data,
 			}
 		}
 	}
-	request->count = count;
+	*p = count;
 
 	return 0;
+}
+
+static int copy_one_buf(void *data, int count, struct drm_buf_entry *from)
+{
+	struct drm_buf_info *request = data;
+	struct drm_buf_desc __user *to = &request->list[count];
+	struct drm_buf_desc v = {.count = from->buf_count,
+				 .size = from->buf_size,
+				 .low_mark = from->low_mark,
+				 .high_mark = from->high_mark};
+	return copy_to_user(to, &v, offsetof(struct drm_buf_desc, flags));
+}
+
+int drm_legacy_infobufs(struct drm_device *dev, void *data,
+			struct drm_file *file_priv)
+{
+	struct drm_buf_info *request = data;
+	return __drm_legacy_infobufs(dev, data, &request->count, copy_one_buf);
 }
 
 /**

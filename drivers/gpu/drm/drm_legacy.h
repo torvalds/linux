@@ -74,6 +74,9 @@ int drm_legacy_freebufs(struct drm_device *d, void *v, struct drm_file *f);
 int drm_legacy_mapbufs(struct drm_device *d, void *v, struct drm_file *f);
 int drm_legacy_dma_ioctl(struct drm_device *d, void *v, struct drm_file *f);
 
+int __drm_legacy_infobufs(struct drm_device *, void *, int *,
+			  int (*)(void *, int, struct drm_buf_entry *));
+
 #ifdef CONFIG_DRM_VM
 void drm_legacy_vma_flush(struct drm_device *d);
 #else
