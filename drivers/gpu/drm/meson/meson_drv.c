@@ -285,7 +285,6 @@ static void meson_drv_unbind(struct device *dev)
 	drm_kms_helper_poll_fini(drm);
 	drm_fbdev_cma_fini(priv->fbdev);
 	drm_mode_config_cleanup(drm);
-	drm_vblank_cleanup(drm);
 	drm_dev_unref(drm);
 
 }
