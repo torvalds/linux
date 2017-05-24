@@ -744,8 +744,7 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 		int ie_len = 2 + sizeof(struct ieee80211_channel_sw_ie) +
 			     2 + sizeof(struct ieee80211_mesh_chansw_params_ie);
 
-		pos = skb_put(skb, ie_len);
-		memset(pos, 0, ie_len);
+		pos = skb_put_zero(skb, ie_len);
 		*pos++ = WLAN_EID_CHANNEL_SWITCH;
 		*pos++ = 3;
 		*pos++ = 0x0;
@@ -772,8 +771,7 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 		switch (csa->settings.chandef.width) {
 		case NL80211_CHAN_WIDTH_40:
 			ie_len = 2 + sizeof(struct ieee80211_sec_chan_offs_ie);
-			pos = skb_put(skb, ie_len);
-			memset(pos, 0, ie_len);
+			pos = skb_put_zero(skb, ie_len);
 
 			*pos++ = WLAN_EID_SECONDARY_CHANNEL_OFFSET; /* EID */
 			*pos++ = 1;				    /* len */
@@ -789,8 +787,7 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 			/* Channel Switch Wrapper + Wide Bandwidth CSA IE */
 			ie_len = 2 + 2 +
 				 sizeof(struct ieee80211_wide_bw_chansw_ie);
-			pos = skb_put(skb, ie_len);
-			memset(pos, 0, ie_len);
+			pos = skb_put_zero(skb, ie_len);
 
 			*pos++ = WLAN_EID_CHANNEL_SWITCH_WRAPPER; /* EID */
 			*pos++ = 5;				  /* len */
