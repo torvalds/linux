@@ -82,12 +82,12 @@ static int __init i810_init(void)
 		return -EINVAL;
 	}
 	driver.num_ioctls = i810_max_ioctl;
-	return drm_pci_init(&driver, &i810_pci_driver);
+	return drm_legacy_pci_init(&driver, &i810_pci_driver);
 }
 
 static void __exit i810_exit(void)
 {
-	drm_pci_exit(&driver, &i810_pci_driver);
+	drm_legacy_pci_exit(&driver, &i810_pci_driver);
 }
 
 module_init(i810_init);

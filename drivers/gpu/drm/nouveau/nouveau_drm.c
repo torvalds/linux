@@ -1120,7 +1120,12 @@ nouveau_drm_init(void)
 
 	nouveau_register_dsm_handler();
 	nouveau_backlight_ctor();
-	return drm_pci_init(&driver_pci, &nouveau_drm_pci_driver);
+
+#ifdef CONFIG_PCI
+	return pci_register_driver(&nouveau_drm_pci_driver);
+#else
+	return 0;
+#endif
 }
 
 static void __exit
@@ -1129,7 +1134,9 @@ nouveau_drm_exit(void)
 	if (!nouveau_modeset)
 		return;
 
-	drm_pci_exit(&driver_pci, &nouveau_drm_pci_driver);
+#ifdef CONFIG_PCI
+	pci_unregister_driver(&nouveau_drm_pci_driver);
+#endif
 	nouveau_backlight_dtor();
 	nouveau_unregister_dsm_handler();
 

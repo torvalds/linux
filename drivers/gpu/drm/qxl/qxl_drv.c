@@ -301,12 +301,12 @@ static int __init qxl_init(void)
 	if (qxl_modeset == 0)
 		return -EINVAL;
 	qxl_driver.num_ioctls = qxl_max_ioctls;
-	return drm_pci_init(&qxl_driver, &qxl_pci_driver);
+	return pci_register_driver(&qxl_pci_driver);
 }
 
 static void __exit qxl_exit(void)
 {
-	drm_pci_exit(&qxl_driver, &qxl_pci_driver);
+	pci_unregister_driver(&qxl_pci_driver);
 }
 
 module_init(qxl_init);

@@ -220,11 +220,11 @@ static int __init ast_init(void)
 
 	if (ast_modeset == 0)
 		return -EINVAL;
-	return drm_pci_init(&driver, &ast_pci_driver);
+	return pci_register_driver(&ast_pci_driver);
 }
 static void __exit ast_exit(void)
 {
-	drm_pci_exit(&driver, &ast_pci_driver);
+	pci_unregister_driver(&ast_pci_driver);
 }
 
 module_init(ast_init);

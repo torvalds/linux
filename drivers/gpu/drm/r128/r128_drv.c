@@ -95,12 +95,12 @@ static int __init r128_init(void)
 {
 	driver.num_ioctls = r128_max_ioctl;
 
-	return drm_pci_init(&driver, &r128_pci_driver);
+	return drm_legacy_pci_init(&driver, &r128_pci_driver);
 }
 
 static void __exit r128_exit(void)
 {
-	drm_pci_exit(&driver, &r128_pci_driver);
+	drm_legacy_pci_exit(&driver, &r128_pci_driver);
 }
 
 module_init(r128_init);

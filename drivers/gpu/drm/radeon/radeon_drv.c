@@ -619,14 +619,13 @@ static int __init radeon_init(void)
 		return -EINVAL;
 	}
 
-	/* let modprobe override vga console setting */
-	return drm_pci_init(driver, pdriver);
+	return pci_register_driver(pdriver);
 }
 
 static void __exit radeon_exit(void)
 {
 	radeon_kfd_fini();
-	drm_pci_exit(driver, pdriver);
+	pci_unregister_driver(pdriver);
 	radeon_unregister_atpx_handler();
 }
 

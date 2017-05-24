@@ -223,12 +223,12 @@ static int __init bochs_init(void)
 	if (bochs_modeset == 0)
 		return -EINVAL;
 
-	return drm_pci_init(&bochs_driver, &bochs_pci_driver);
+	return pci_register_driver(&bochs_pci_driver);
 }
 
 static void __exit bochs_exit(void)
 {
-	drm_pci_exit(&bochs_driver, &bochs_pci_driver);
+	pci_unregister_driver(&bochs_pci_driver);
 }
 
 module_init(bochs_init);

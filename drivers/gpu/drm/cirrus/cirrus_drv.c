@@ -165,12 +165,12 @@ static int __init cirrus_init(void)
 
 	if (cirrus_modeset == 0)
 		return -EINVAL;
-	return drm_pci_init(&driver, &cirrus_pci_driver);
+	return pci_register_driver(&cirrus_pci_driver);
 }
 
 static void __exit cirrus_exit(void)
 {
-	drm_pci_exit(&driver, &cirrus_pci_driver);
+	pci_unregister_driver(&cirrus_pci_driver);
 }
 
 module_init(cirrus_init);

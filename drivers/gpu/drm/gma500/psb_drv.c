@@ -516,12 +516,12 @@ static struct pci_driver psb_pci_driver = {
 
 static int __init psb_init(void)
 {
-	return drm_pci_init(&driver, &psb_pci_driver);
+	return pci_register_driver(&psb_pci_driver);
 }
 
 static void __exit psb_exit(void)
 {
-	drm_pci_exit(&driver, &psb_pci_driver);
+	pci_unregister_driver(&psb_pci_driver);
 }
 
 late_initcall(psb_init);

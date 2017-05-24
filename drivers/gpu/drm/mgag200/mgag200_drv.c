@@ -119,12 +119,13 @@ static int __init mgag200_init(void)
 
 	if (mgag200_modeset == 0)
 		return -EINVAL;
-	return drm_pci_init(&driver, &mgag200_pci_driver);
+
+	return pci_register_driver(&mgag200_pci_driver);
 }
 
 static void __exit mgag200_exit(void)
 {
-	drm_pci_exit(&driver, &mgag200_pci_driver);
+	pci_unregister_driver(&mgag200_pci_driver);
 }
 
 module_init(mgag200_init);
