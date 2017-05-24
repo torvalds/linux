@@ -31,6 +31,41 @@
 #include "drm_trace.h"
 #include "drm_internal.h"
 
+/**
+ * DOC: vblank handling
+ *
+ * Vertical blanking plays a major role in graphics rendering. To achieve
+ * tear-free display, users must synchronize page flips and/or rendering to
+ * vertical blanking. The DRM API offers ioctls to perform page flips
+ * synchronized to vertical blanking and wait for vertical blanking.
+ *
+ * The DRM core handles most of the vertical blanking management logic, which
+ * involves filtering out spurious interrupts, keeping race-free blanking
+ * counters, coping with counter wrap-around and resets and keeping use counts.
+ * It relies on the driver to generate vertical blanking interrupts and
+ * optionally provide a hardware vertical blanking counter.
+ *
+ * Drivers must initialize the vertical blanking handling core with a call to
+ * drm_vblank_init(). Minimally, a driver needs to implement
+ * &drm_crtc_funcs.enable_vblank and &drm_crtc_funcs.disable_vblank plus call
+ * drm_crtc_handle_vblank() in it's vblank interrupt handler for working vblank
+ * support.
+ *
+ * Vertical blanking interrupts can be enabled by the DRM core or by drivers
+ * themselves (for instance to handle page flipping operations).  The DRM core
+ * maintains a vertical blanking use count to ensure that the interrupts are not
+ * disabled while a user still needs them. To increment the use count, drivers
+ * call drm_crtc_vblank_get() and release the vblank reference again with
+ * drm_crtc_vblank_put(). In between these two calls vblank interrupts are
+ * guaranteed to be enabled.
+ *
+ * On many hardware disabling the vblank interrupt cannot be done in a race-free
+ * manner, see &drm_driver.vblank_disable_immediate and
+ * &drm_driver.max_vblank_count. In that case the vblank core only disables the
+ * vblanks after a timer has expired, which can be configured through the
+ * ``vblankoffdelay`` module parameter.
+ */
+
 /* Retry timestamp calculation up to 3 times to satisfy
  * drm_timestamp_precision before giving up.
  */
@@ -262,11 +297,12 @@ static u32 drm_vblank_count(struct drm_device *dev, unsigned int pipe)
  * drm_accurate_vblank_count - retrieve the master vblank counter
  * @crtc: which counter to retrieve
  *
- * This function is similar to @drm_crtc_vblank_count but this
- * function interpolates to handle a race with vblank irq's.
+ * This function is similar to drm_crtc_vblank_count() but this function
+ * interpolates to handle a race with vblank interrupts using the high precision
+ * timestamping support.
  *
- * This is mostly useful for hardware that can obtain the scanout
- * position, but doesn't have a frame counter.
+ * This is mostly useful for hardware that can obtain the scanout position, but
+ * doesn't have a hardware frame counter.
  */
 u32 drm_accurate_vblank_count(struct drm_crtc *crtc)
 {
@@ -362,10 +398,14 @@ static void vblank_disable_fn(unsigned long arg)
  * drm_vblank_cleanup - cleanup vblank support
  * @dev: DRM device
  *
- * This function cleans up any resources allocated in drm_vblank_init.
+ * This function cleans up any resources allocated in drm_vblank_init(). It is
+ * called by the DRM core when @dev is finalized.
  *
- * Drivers which don't use drm_irq_install() need to set &drm_device.irq_enabled
- * themselves, to signal to the DRM core that vblank interrupts are enabled.
+ * Drivers can call drm_vblank_cleanup() if they need to quiescent the vblank
+ * interrupt in their unload code. But in general this should be handled by
+ * disabling all active &drm_crtc through e.g. drm_atomic_helper_shutdown, which
+ * should end up calling drm_crtc_vblank_off().
+ *
  */
 void drm_vblank_cleanup(struct drm_device *dev)
 {
@@ -396,6 +436,9 @@ EXPORT_SYMBOL(drm_vblank_cleanup);
  * @num_crtcs: number of CRTCs supported by @dev
  *
  * This function initializes vblank support for @num_crtcs display pipelines.
+ * Drivers do not need to call drm_vblank_cleanup(), cleanup is already handled
+ * by the DRM core, or through calling drm_dev_fini() for drivers with a
+ * &drm_driver.release callback.
  *
  * Returns:
  * Zero on success or a negative error code on failure.
@@ -468,11 +511,11 @@ EXPORT_SYMBOL(drm_crtc_vblank_waitqueue);
  * @crtc: drm_crtc whose timestamp constants should be updated.
  * @mode: display mode containing the scanout timings
  *
- * Calculate and store various constants which are later
- * needed by vblank and swap-completion timestamping, e.g,
- * by drm_calc_vbltimestamp_from_scanoutpos(). They are
- * derived from CRTC's true scanout timing, so they take
- * things like panel scaling or other adjustments into account.
+ * Calculate and store various constants which are later needed by vblank and
+ * swap-completion timestamping, e.g, by
+ * drm_calc_vbltimestamp_from_scanoutpos(). They are derived from CRTC's true
+ * scanout timing, so they take things like panel scaling or other adjustments
+ * into account.
  */
 void drm_calc_timestamping_constants(struct drm_crtc *crtc,
 				     const struct drm_display_mode *mode)
@@ -535,25 +578,14 @@ EXPORT_SYMBOL(drm_calc_timestamping_constants);
  *     if flag is set.
  *
  * Implements calculation of exact vblank timestamps from given drm_display_mode
- * timings and current video scanout position of a CRTC. This can be called from
- * within get_vblank_timestamp() implementation of a kms driver to implement the
- * actual timestamping.
+ * timings and current video scanout position of a CRTC. This can be directly
+ * used as the &drm_driver.get_vblank_timestamp implementation of a kms driver
+ * if &drm_driver.get_scanout_position is implemented.
  *
- * Should return timestamps conforming to the OML_sync_control OpenML
- * extension specification. The timestamp corresponds to the end of
- * the vblank interval, aka start of scanout of topmost-leftmost display
- * pixel in the following video frame.
- *
- * Requires support for optional dev->driver->get_scanout_position()
- * in kms driver, plus a bit of setup code to provide a drm_display_mode
- * that corresponds to the true scanout timing.
- *
- * The current implementation only handles standard video modes. It
- * returns as no operation if a doublescan or interlaced video mode is
- * active. Higher level code is expected to handle this.
- *
- * This function can be used to implement the &drm_driver.get_vblank_timestamp
- * directly, if the driver implements the &drm_driver.get_scanout_position hook.
+ * The current implementation only handles standard video modes. For double scan
+ * and interlaced modes the driver is supposed to adjust the hardware mode
+ * (taken from &drm_crtc_state.adjusted mode for atomic modeset drivers) to
+ * match the scanout position reported.
  *
  * Note that atomic drivers must call drm_calc_timestamping_constants() before
  * enabling a CRTC. The atomic helpers already take care of that in
@@ -738,7 +770,9 @@ drm_get_last_vbltimestamp(struct drm_device *dev, unsigned int pipe,
  *
  * Fetches the "cooked" vblank count value that represents the number of
  * vblank events since the system was booted, including lost events due to
- * modesetting activity.
+ * modesetting activity. Note that this timer isn't correct against a racing
+ * vblank interrupt (since it only reports the software vblank counter), see
+ * drm_accurate_vblank_count() for such use-cases.
  *
  * Returns:
  * The software vblank counter.
@@ -749,20 +783,6 @@ u32 drm_crtc_vblank_count(struct drm_crtc *crtc)
 }
 EXPORT_SYMBOL(drm_crtc_vblank_count);
 
-/**
- * drm_vblank_count_and_time - retrieve "cooked" vblank counter value and the
- *     system timestamp corresponding to that vblank counter value.
- * @dev: DRM device
- * @pipe: index of CRTC whose counter to retrieve
- * @vblanktime: Pointer to struct timeval to receive the vblank timestamp.
- *
- * Fetches the "cooked" vblank count value that represents the number of
- * vblank events since the system was booted, including lost events due to
- * modesetting activity. Returns corresponding system timestamp of the time
- * of the vblank interval that corresponds to the current vblank counter value.
- *
- * This is the legacy version of drm_crtc_vblank_count_and_time().
- */
 static u32 drm_vblank_count_and_time(struct drm_device *dev, unsigned int pipe,
 				     struct timeval *vblanktime)
 {
@@ -852,8 +872,8 @@ static void send_vblank_event(struct drm_device *dev,
  * handler by calling drm_crtc_send_vblank_event() and make sure that there's no
  * possible race with the hardware committing the atomic update.
  *
- * Caller must hold event lock. Caller must also hold a vblank reference for
- * the event @e, which will be dropped when the next vblank arrives.
+ * Caller must hold a vblank reference for the event @e, which will be dropped
+ * when the next vblank arrives.
  */
 void drm_crtc_arm_vblank_event(struct drm_crtc *crtc,
 			       struct drm_pending_vblank_event *e)
@@ -913,14 +933,6 @@ static int __enable_vblank(struct drm_device *dev, unsigned int pipe)
 	return dev->driver->enable_vblank(dev, pipe);
 }
 
-/**
- * drm_vblank_enable - enable the vblank interrupt on a CRTC
- * @dev: DRM device
- * @pipe: CRTC index
- *
- * Returns:
- * Zero on success or a negative error code on failure.
- */
 static int drm_vblank_enable(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
@@ -958,19 +970,6 @@ static int drm_vblank_enable(struct drm_device *dev, unsigned int pipe)
 	return ret;
 }
 
-/**
- * drm_vblank_get - get a reference count on vblank events
- * @dev: DRM device
- * @pipe: index of CRTC to own
- *
- * Acquire a reference count on vblank events to avoid having them disabled
- * while in use.
- *
- * This is the legacy version of drm_crtc_vblank_get().
- *
- * Returns:
- * Zero on success or a negative error code on failure.
- */
 static int drm_vblank_get(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
@@ -1014,16 +1013,6 @@ int drm_crtc_vblank_get(struct drm_crtc *crtc)
 }
 EXPORT_SYMBOL(drm_crtc_vblank_get);
 
-/**
- * drm_vblank_put - release ownership of vblank events
- * @dev: DRM device
- * @pipe: index of CRTC to release
- *
- * Release ownership of a given vblank counter, turning off interrupts
- * if possible. Disable interrupts after drm_vblank_offdelay milliseconds.
- *
- * This is the legacy version of drm_crtc_vblank_put().
- */
 static void drm_vblank_put(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
@@ -1067,6 +1056,8 @@ EXPORT_SYMBOL(drm_crtc_vblank_put);
  * This waits for one vblank to pass on @pipe, using the irq driver interfaces.
  * It is a failure to call this when the vblank irq for @pipe is disabled, e.g.
  * due to lack of driver support or because the crtc is off.
+ *
+ * This is the legacy version of drm_crtc_wait_one_vblank().
  */
 void drm_wait_one_vblank(struct drm_device *dev, unsigned int pipe)
 {
@@ -1116,7 +1107,7 @@ EXPORT_SYMBOL(drm_crtc_wait_one_vblank);
  * stored so that drm_vblank_on can restore it again.
  *
  * Drivers must use this function when the hardware vblank counter can get
- * reset, e.g. when suspending.
+ * reset, e.g. when suspending or disabling the @crtc in general.
  */
 void drm_crtc_vblank_off(struct drm_crtc *crtc)
 {
@@ -1184,6 +1175,8 @@ EXPORT_SYMBOL(drm_crtc_vblank_off);
  * drm_crtc_vblank_on() functions. The difference compared to
  * drm_crtc_vblank_off() is that this function doesn't save the vblank counter
  * and hence doesn't need to call any driver hooks.
+ *
+ * This is useful for recovering driver state e.g. on driver load, or on resume.
  */
 void drm_crtc_vblank_reset(struct drm_crtc *crtc)
 {
@@ -1212,9 +1205,10 @@ EXPORT_SYMBOL(drm_crtc_vblank_reset);
  * @crtc: CRTC in question
  *
  * This functions restores the vblank interrupt state captured with
- * drm_crtc_vblank_off() again. Note that calls to drm_crtc_vblank_on() and
- * drm_crtc_vblank_off() can be unbalanced and so can also be unconditionally called
- * in driver load code to reflect the current hardware state of the crtc.
+ * drm_crtc_vblank_off() again and is generally called when enabling @crtc. Note
+ * that calls to drm_crtc_vblank_on() and drm_crtc_vblank_off() can be
+ * unbalanced and so can also be unconditionally called in driver load code to
+ * reflect the current hardware state of the crtc.
  */
 void drm_crtc_vblank_on(struct drm_crtc *crtc)
 {
