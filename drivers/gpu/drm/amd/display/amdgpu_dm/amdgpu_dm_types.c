@@ -2549,6 +2549,9 @@ void amdgpu_dm_atomic_commit_tail(
 		WARN_ON(!status);
 		WARN_ON(!status->surface_count);
 
+		if (!acrtc->stream)
+			continue;
+
 		/*TODO How it works with MPO ?*/
 		if (!dc_commit_surfaces_to_stream(
 				dm->dc,
@@ -2606,8 +2609,12 @@ void amdgpu_dm_atomic_commit_tail(
 	}
 
 	/* update planes when needed per crtc*/
-	for_each_crtc_in_state(state, pcrtc, old_crtc_state, j)
-		amdgpu_dm_commit_surfaces(state, dev, dm, pcrtc, &wait_for_vblank);
+	for_each_crtc_in_state(state, pcrtc, old_crtc_state, j) {
+		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(pcrtc);
+
+		if (acrtc->stream)
+			amdgpu_dm_commit_surfaces(state, dev, dm, pcrtc, &wait_for_vblank);
+	}
 
 	for (i = 0; i < new_crtcs_count; i++) {
 		/*
