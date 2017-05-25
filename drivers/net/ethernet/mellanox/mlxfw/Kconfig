@@ -1,0 +1,6 @@
+#
+# Mellanox firmware flash library configuration
+#
+
+config MLXFW
+        tristate "mlxfw" if COMPILE_TEST
