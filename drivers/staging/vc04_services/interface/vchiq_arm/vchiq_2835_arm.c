@@ -459,6 +459,11 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 								 PAGE_SIZE));
 			size_t bytes = PAGE_SIZE - off;
 
+			if (!pg) {
+				cleanup_pagelistinfo(pagelistinfo);
+				return NULL;
+			}
+
 			if (bytes > length)
 				bytes = length;
 			pages[actual_pages] = pg;
