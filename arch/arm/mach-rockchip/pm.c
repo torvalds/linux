@@ -82,7 +82,7 @@ static void __init rk3288_init_pmu_sram(void)
 	/* setup the params that we know at boot time */
 	params = (struct rk3288_resume_params *)rk3288_bootram_base;
 
-	params->cpu_resume = (void *)virt_to_phys(cpu_resume);
+	params->cpu_resume = (void *)(u32)virt_to_phys(cpu_resume);
 
 	params->l2ctlr_f = 1;
 	params->l2ctlr = rk3288_l2_config();
