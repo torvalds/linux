@@ -151,13 +151,13 @@ int dst_discard_out(struct net *net, struct sock *sk, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(dst_discard_out);
 
-const u32 dst_default_metrics[RTAX_MAX + 1] = {
+const struct dst_metrics dst_default_metrics = {
 	/* This initializer is needed to force linker to place this variable
 	 * into const section. Otherwise it might end into bss section.
 	 * We really want to avoid false sharing on this variable, and catch
 	 * any writes on it.
 	 */
-	[RTAX_MAX] = 0xdeadbeef,
+	.refcnt = ATOMIC_INIT(1),
 };
 
 void dst_init(struct dst_entry *dst, struct dst_ops *ops,
@@ -169,7 +169,7 @@ void dst_init(struct dst_entry *dst, struct dst_ops *ops,
 	if (dev)
 		dev_hold(dev);
 	dst->ops = ops;
-	dst_init_metrics(dst, dst_default_metrics, true);
+	dst_init_metrics(dst, dst_default_metrics.metrics, true);
 	dst->expires = 0UL;
 	dst->path = dst;
 	dst->from = NULL;
@@ -315,25 +315,30 @@ EXPORT_SYMBOL(dst_release);
 
 u32 *dst_cow_metrics_generic(struct dst_entry *dst, unsigned long old)
 {
-	u32 *p = kmalloc(sizeof(u32) * RTAX_MAX, GFP_ATOMIC);
+	struct dst_metrics *p = kmalloc(sizeof(*p), GFP_ATOMIC);
 
 	if (p) {
-		u32 *old_p = __DST_METRICS_PTR(old);
+		struct dst_metrics *old_p = (struct dst_metrics *)__DST_METRICS_PTR(old);
 		unsigned long prev, new;
 
-		memcpy(p, old_p, sizeof(u32) * RTAX_MAX);
+		atomic_set(&p->refcnt, 1);
+		memcpy(p->metrics, old_p->metrics, sizeof(p->metrics));
 
 		new = (unsigned long) p;
 		prev = cmpxchg(&dst->_metrics, old, new);
 
 		if (prev != old) {
 			kfree(p);
-			p = __DST_METRICS_PTR(prev);
+			p = (struct dst_metrics *)__DST_METRICS_PTR(prev);
 			if (prev & DST_METRICS_READ_ONLY)
 				p = NULL;
+		} else if (prev & DST_METRICS_REFCOUNTED) {
+			if (atomic_dec_and_test(&old_p->refcnt))
+				kfree(old_p);
 		}
 	}
-	return p;
+	BUILD_BUG_ON(offsetof(struct dst_metrics, metrics) != 0);
+	return (u32 *)p;
 }
 EXPORT_SYMBOL(dst_cow_metrics_generic);
 
@@ -342,7 +347,7 @@ void __dst_destroy_metrics_generic(struct dst_entry *dst, unsigned long old)
 {
 	unsigned long prev, new;
 
-	new = ((unsigned long) dst_default_metrics) | DST_METRICS_READ_ONLY;
+	new = ((unsigned long) &dst_default_metrics) | DST_METRICS_READ_ONLY;
 	prev = cmpxchg(&dst->_metrics, old, new);
 	if (prev == old)
 		kfree(__DST_METRICS_PTR(old));
