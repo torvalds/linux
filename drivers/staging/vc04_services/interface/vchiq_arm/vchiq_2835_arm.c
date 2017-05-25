@@ -153,7 +153,6 @@ int vchiq_platform_init(struct platform_device *pdev, VCHIQ_STATE_T *state)
 		MAX_FRAGMENTS;
 
 	g_fragments_base = (char *)slot_mem + slot_mem_size;
-	slot_mem_size += frag_mem_size;
 
 	g_free_fragments = g_fragments_base;
 	for (i = 0; i < (MAX_FRAGMENTS - 1); i++) {
