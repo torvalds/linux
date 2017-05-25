@@ -415,54 +415,52 @@ typedef struct drm_buf_map32 {
 	u32 list;		/**< Buffer information */
 } drm_buf_map32_t;
 
+static int map_one_buf32(void *data, int idx, unsigned long virtual,
+			struct drm_buf *buf)
+{
+	drm_buf_map32_t *request = data;
+	drm_buf_pub32_t __user *to = compat_ptr(request->list) + idx;
+	drm_buf_pub32_t v;
+
+	v.idx = buf->idx;
+	v.total = buf->total;
+	v.used = 0;
+	v.address = virtual + buf->offset;
+	if (copy_to_user(to, &v, sizeof(v)))
+		return -EFAULT;
+	return 0;
+}
+
+static int drm_legacy_mapbufs32(struct drm_device *dev, void *data,
+		       struct drm_file *file_priv)
+{
+	drm_buf_map32_t *request = data;
+	void __user *v;
+	int err = __drm_legacy_mapbufs(dev, data, &request->count,
+				    &v, map_one_buf32,
+				    file_priv);
+	request->virtual = ptr_to_compat(v);
+	return err;
+}
+
 static int compat_drm_mapbufs(struct file *file, unsigned int cmd,
 			      unsigned long arg)
 {
 	drm_buf_map32_t __user *argp = (void __user *)arg;
 	drm_buf_map32_t req32;
-	drm_buf_pub32_t __user *list32;
-	struct drm_buf_map __user *request;
-	struct drm_buf_pub __user *list;
-	int i, err;
-	int count, actual;
-	size_t nbytes;
-	void __user *addr;
+	int err;
 
 	if (copy_from_user(&req32, argp, sizeof(req32)))
 		return -EFAULT;
-	count = req32.count;
-	list32 = (void __user *)(unsigned long)req32.list;
-
-	if (count < 0)
+	if (req32.count < 0)
 		return -EINVAL;
-	nbytes = sizeof(*request) + count * sizeof(struct drm_buf_pub);
-	request = compat_alloc_user_space(nbytes);
-	if (!request)
-		return -EFAULT;
-	list = (struct drm_buf_pub *) (request + 1);
 
-	if (__put_user(count, &request->count)
-	    || __put_user(list, &request->list))
-		return -EFAULT;
-
-	err = drm_ioctl(file, DRM_IOCTL_MAP_BUFS, (unsigned long)request);
+	err = drm_ioctl_kernel(file, drm_legacy_mapbufs32, &req32, DRM_AUTH);
 	if (err)
 		return err;
 
-	if (__get_user(actual, &request->count))
-		return -EFAULT;
-	if (count >= actual)
-		for (i = 0; i < actual; ++i)
-			if (__copy_in_user(&list32[i], &list[i],
-					   offsetof(struct drm_buf_pub, address))
-			    || __get_user(addr, &list[i].address)
-			    || __put_user((unsigned long)addr,
-					  &list32[i].address))
-				return -EFAULT;
-
-	if (__put_user(actual, &argp->count)
-	    || __get_user(addr, &request->virtual)
-	    || __put_user((unsigned long)addr, &argp->virtual))
+	if (put_user(req32.count, &argp->count)
+	    || put_user(req32.virtual, &argp->virtual))
 		return -EFAULT;
 
 	return 0;
@@ -910,7 +908,7 @@ static struct {
 	DRM_IOCTL32_DEF(DRM_IOCTL_ADD_BUFS, compat_drm_addbufs),
 	DRM_IOCTL32_DEF(DRM_IOCTL_MARK_BUFS, compat_drm_markbufs),
 	DRM_IOCTL32_DEF(DRM_IOCTL_INFO_BUFS, compat_drm_infobufs),
-	[DRM_IOCTL_NR(DRM_IOCTL_MAP_BUFS32)].fn = compat_drm_mapbufs,
+	DRM_IOCTL32_DEF(DRM_IOCTL_MAP_BUFS, compat_drm_mapbufs),
 	DRM_IOCTL32_DEF(DRM_IOCTL_FREE_BUFS, compat_drm_freebufs),
 	DRM_IOCTL32_DEF(DRM_IOCTL_RM_MAP, compat_drm_rmmap),
 	DRM_IOCTL32_DEF(DRM_IOCTL_SET_SAREA_CTX, compat_drm_setsareactx),
