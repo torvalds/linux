@@ -300,6 +300,8 @@ enum mlx5_event {
 
 	MLX5_EVENT_TYPE_PAGE_FAULT	   = 0xc,
 	MLX5_EVENT_TYPE_NIC_VPORT_CHANGE   = 0xd,
+
+	MLX5_EVENT_TYPE_FPGA_ERROR         = 0x20,
 };
 
 enum {
@@ -967,6 +969,7 @@ enum mlx5_cap_type {
 	MLX5_CAP_RESERVED,
 	MLX5_CAP_VECTOR_CALC,
 	MLX5_CAP_QOS,
+	MLX5_CAP_FPGA,
 	/* NUM OF CAP Types */
 	MLX5_CAP_NUM
 };
@@ -1087,6 +1090,9 @@ enum mlx5_mcam_feature_groups {
 
 #define MLX5_CAP_MCAM_FEATURE(mdev, fld) \
 	MLX5_GET(mcam_reg, (mdev)->caps.mcam, mng_feature_cap_mask.enhanced_features.fld)
+
+#define MLX5_CAP_FPGA(mdev, cap) \
+	MLX5_GET(fpga_cap, (mdev)->caps.hca_cur[MLX5_CAP_FPGA], cap)
 
 enum {
 	MLX5_CMD_STAT_OK			= 0x0,

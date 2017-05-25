@@ -11,6 +11,16 @@ config MLX5_CORE
 	  Core driver for low level functionality of the ConnectX-4 and
 	  Connect-IB cards by Mellanox Technologies.
 
+config MLX5_FPGA
+        bool "Mellanox Technologies Innova support"
+        depends on MLX5_CORE
+        ---help---
+          Build support for the Innova family of network cards by Mellanox
+          Technologies. Innova network cards are comprised of a ConnectX chip
+          and an FPGA chip on one board. If you select this option, the
+          mlx5_core driver will include the Innova FPGA core and allow building
+          sandbox-specific client drivers.
+
 config MLX5_CORE_EN
 	bool "Mellanox Technologies ConnectX-4 Ethernet support"
 	depends on NETDEVICES && ETHERNET && INET && PCI && MLX5_CORE

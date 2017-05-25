@@ -248,11 +248,10 @@ __esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u32 vport, bool rx_rule,
 	if (rx_rule)
 		match_header |= MLX5_MATCH_MISC_PARAMETERS;
 
-	spec = mlx5_vzalloc(sizeof(*spec));
-	if (!spec) {
-		esw_warn(esw->dev, "FDB: Failed to alloc match parameters\n");
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	if (!spec)
 		return NULL;
-	}
+
 	dmac_v = MLX5_ADDR_OF(fte_match_param, spec->match_value,
 			      outer_headers.dmac_47_16);
 	dmac_c = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
@@ -350,10 +349,9 @@ static int esw_create_legacy_fdb_table(struct mlx5_eswitch *esw, int nvports)
 		return -EOPNOTSUPP;
 	}
 
-	flow_group_in = mlx5_vzalloc(inlen);
+	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!flow_group_in)
 		return -ENOMEM;
-	memset(flow_group_in, 0, inlen);
 
 	table_size = BIT(MLX5_CAP_ESW_FLOWTABLE_FDB(dev, log_max_ft_size));
 
@@ -961,7 +959,7 @@ static int esw_vport_enable_egress_acl(struct mlx5_eswitch *esw,
 		return -EOPNOTSUPP;
 	}
 
-	flow_group_in = mlx5_vzalloc(inlen);
+	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!flow_group_in)
 		return -ENOMEM;
 
@@ -1078,7 +1076,7 @@ static int esw_vport_enable_ingress_acl(struct mlx5_eswitch *esw,
 		return -EOPNOTSUPP;
 	}
 
-	flow_group_in = mlx5_vzalloc(inlen);
+	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!flow_group_in)
 		return -ENOMEM;
 
@@ -1241,11 +1239,9 @@ static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
 		  "vport[%d] configure ingress rules, vlan(%d) qos(%d)\n",
 		  vport->vport, vport->info.vlan, vport->info.qos);
 
-	spec = mlx5_vzalloc(sizeof(*spec));
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec) {
 		err = -ENOMEM;
-		esw_warn(esw->dev, "vport[%d] configure ingress rules failed, err(%d)\n",
-			 vport->vport, err);
 		goto out;
 	}
 
@@ -1322,11 +1318,9 @@ static int esw_vport_egress_config(struct mlx5_eswitch *esw,
 		  "vport[%d] configure egress rules, vlan(%d) qos(%d)\n",
 		  vport->vport, vport->info.vlan, vport->info.qos);
 
-	spec = mlx5_vzalloc(sizeof(*spec));
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec) {
 		err = -ENOMEM;
-		esw_warn(esw->dev, "vport[%d] configure egress rules failed, err(%d)\n",
-			 vport->vport, err);
 		goto out;
 	}
 
@@ -2158,7 +2152,7 @@ int mlx5_eswitch_get_vport_stats(struct mlx5_eswitch *esw,
 	if (!LEGAL_VPORT(esw, vport))
 		return -EINVAL;
 
-	out = mlx5_vzalloc(outlen);
+	out = kvzalloc(outlen, GFP_KERNEL);
 	if (!out)
 		return -ENOMEM;
 
