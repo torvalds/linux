@@ -36,6 +36,7 @@
 #include "mv88e6xxx.h"
 #include "global1.h"
 #include "global2.h"
+#include "phy.h"
 #include "port.h"
 
 static void assert_reg_lock(struct mv88e6xxx_chip *chip)
@@ -221,21 +222,7 @@ int mv88e6xxx_write(struct mv88e6xxx_chip *chip, int addr, int reg, u16 val)
 	return 0;
 }
 
-static int mv88e6165_phy_read(struct mv88e6xxx_chip *chip,
-			      struct mii_bus *bus,
-			      int addr, int reg, u16 *val)
-{
-	return mv88e6xxx_read(chip, addr, reg, val);
-}
-
-static int mv88e6165_phy_write(struct mv88e6xxx_chip *chip,
-			       struct mii_bus *bus,
-			       int addr, int reg, u16 val)
-{
-	return mv88e6xxx_write(chip, addr, reg, val);
-}
-
-static struct mii_bus *mv88e6xxx_default_mdio_bus(struct mv88e6xxx_chip *chip)
+struct mii_bus *mv88e6xxx_default_mdio_bus(struct mv88e6xxx_chip *chip)
 {
 	struct mv88e6xxx_mdio_bus *mdio_bus;
 
@@ -245,94 +232,6 @@ static struct mii_bus *mv88e6xxx_default_mdio_bus(struct mv88e6xxx_chip *chip)
 		return NULL;
 
 	return mdio_bus->bus;
-}
-
-static int mv88e6xxx_phy_read(struct mv88e6xxx_chip *chip, int phy,
-			      int reg, u16 *val)
-{
-	int addr = phy; /* PHY devices addresses start at 0x0 */
-	struct mii_bus *bus;
-
-	bus = mv88e6xxx_default_mdio_bus(chip);
-	if (!bus)
-		return -EOPNOTSUPP;
-
-	if (!chip->info->ops->phy_read)
-		return -EOPNOTSUPP;
-
-	return chip->info->ops->phy_read(chip, bus, addr, reg, val);
-}
-
-static int mv88e6xxx_phy_write(struct mv88e6xxx_chip *chip, int phy,
-			       int reg, u16 val)
-{
-	int addr = phy; /* PHY devices addresses start at 0x0 */
-	struct mii_bus *bus;
-
-	bus = mv88e6xxx_default_mdio_bus(chip);
-	if (!bus)
-		return -EOPNOTSUPP;
-
-	if (!chip->info->ops->phy_write)
-		return -EOPNOTSUPP;
-
-	return chip->info->ops->phy_write(chip, bus, addr, reg, val);
-}
-
-static int mv88e6xxx_phy_page_get(struct mv88e6xxx_chip *chip, int phy, u8 page)
-{
-	if (!mv88e6xxx_has(chip, MV88E6XXX_FLAG_PHY_PAGE))
-		return -EOPNOTSUPP;
-
-	return mv88e6xxx_phy_write(chip, phy, PHY_PAGE, page);
-}
-
-static void mv88e6xxx_phy_page_put(struct mv88e6xxx_chip *chip, int phy)
-{
-	int err;
-
-	/* Restore PHY page Copper 0x0 for access via the registered MDIO bus */
-	err = mv88e6xxx_phy_write(chip, phy, PHY_PAGE, PHY_PAGE_COPPER);
-	if (unlikely(err)) {
-		dev_err(chip->dev, "failed to restore PHY %d page Copper (%d)\n",
-			phy, err);
-	}
-}
-
-static int mv88e6xxx_phy_page_read(struct mv88e6xxx_chip *chip, int phy,
-				   u8 page, int reg, u16 *val)
-{
-	int err;
-
-	/* There is no paging for registers 22 */
-	if (reg == PHY_PAGE)
-		return -EINVAL;
-
-	err = mv88e6xxx_phy_page_get(chip, phy, page);
-	if (!err) {
-		err = mv88e6xxx_phy_read(chip, phy, reg, val);
-		mv88e6xxx_phy_page_put(chip, phy);
-	}
-
-	return err;
-}
-
-static int mv88e6xxx_phy_page_write(struct mv88e6xxx_chip *chip, int phy,
-				    u8 page, int reg, u16 val)
-{
-	int err;
-
-	/* There is no paging for registers 22 */
-	if (reg == PHY_PAGE)
-		return -EINVAL;
-
-	err = mv88e6xxx_phy_page_get(chip, phy, page);
-	if (!err) {
-		err = mv88e6xxx_phy_write(chip, phy, PHY_PAGE, page);
-		mv88e6xxx_phy_page_put(chip, phy);
-	}
-
-	return err;
 }
 
 static int mv88e6xxx_serdes_read(struct mv88e6xxx_chip *chip, int reg, u16 *val)
@@ -558,122 +457,6 @@ int mv88e6xxx_update(struct mv88e6xxx_chip *chip, int addr, int reg, u16 update)
 	val = BIT(15) | update;
 
 	return mv88e6xxx_write(chip, addr, reg, val);
-}
-
-static int mv88e6xxx_ppu_disable(struct mv88e6xxx_chip *chip)
-{
-	if (!chip->info->ops->ppu_disable)
-		return 0;
-
-	return chip->info->ops->ppu_disable(chip);
-}
-
-static int mv88e6xxx_ppu_enable(struct mv88e6xxx_chip *chip)
-{
-	if (!chip->info->ops->ppu_enable)
-		return 0;
-
-	return chip->info->ops->ppu_enable(chip);
-}
-
-static void mv88e6xxx_ppu_reenable_work(struct work_struct *ugly)
-{
-	struct mv88e6xxx_chip *chip;
-
-	chip = container_of(ugly, struct mv88e6xxx_chip, ppu_work);
-
-	mutex_lock(&chip->reg_lock);
-
-	if (mutex_trylock(&chip->ppu_mutex)) {
-		if (mv88e6xxx_ppu_enable(chip) == 0)
-			chip->ppu_disabled = 0;
-		mutex_unlock(&chip->ppu_mutex);
-	}
-
-	mutex_unlock(&chip->reg_lock);
-}
-
-static void mv88e6xxx_ppu_reenable_timer(unsigned long _ps)
-{
-	struct mv88e6xxx_chip *chip = (void *)_ps;
-
-	schedule_work(&chip->ppu_work);
-}
-
-static int mv88e6xxx_ppu_access_get(struct mv88e6xxx_chip *chip)
-{
-	int ret;
-
-	mutex_lock(&chip->ppu_mutex);
-
-	/* If the PHY polling unit is enabled, disable it so that
-	 * we can access the PHY registers.  If it was already
-	 * disabled, cancel the timer that is going to re-enable
-	 * it.
-	 */
-	if (!chip->ppu_disabled) {
-		ret = mv88e6xxx_ppu_disable(chip);
-		if (ret < 0) {
-			mutex_unlock(&chip->ppu_mutex);
-			return ret;
-		}
-		chip->ppu_disabled = 1;
-	} else {
-		del_timer(&chip->ppu_timer);
-		ret = 0;
-	}
-
-	return ret;
-}
-
-static void mv88e6xxx_ppu_access_put(struct mv88e6xxx_chip *chip)
-{
-	/* Schedule a timer to re-enable the PHY polling unit. */
-	mod_timer(&chip->ppu_timer, jiffies + msecs_to_jiffies(10));
-	mutex_unlock(&chip->ppu_mutex);
-}
-
-static void mv88e6xxx_ppu_state_init(struct mv88e6xxx_chip *chip)
-{
-	mutex_init(&chip->ppu_mutex);
-	INIT_WORK(&chip->ppu_work, mv88e6xxx_ppu_reenable_work);
-	setup_timer(&chip->ppu_timer, mv88e6xxx_ppu_reenable_timer,
-		    (unsigned long)chip);
-}
-
-static void mv88e6xxx_ppu_state_destroy(struct mv88e6xxx_chip *chip)
-{
-	del_timer_sync(&chip->ppu_timer);
-}
-
-static int mv88e6xxx_phy_ppu_read(struct mv88e6xxx_chip *chip,
-				  struct mii_bus *bus,
-				  int addr, int reg, u16 *val)
-{
-	int err;
-
-	err = mv88e6xxx_ppu_access_get(chip);
-	if (!err) {
-		err = mv88e6xxx_read(chip, addr, reg, val);
-		mv88e6xxx_ppu_access_put(chip);
-	}
-
-	return err;
-}
-
-static int mv88e6xxx_phy_ppu_write(struct mv88e6xxx_chip *chip,
-				   struct mii_bus *bus,
-				   int addr, int reg, u16 val)
-{
-	int err;
-
-	err = mv88e6xxx_ppu_access_get(chip);
-	if (!err) {
-		err = mv88e6xxx_write(chip, addr, reg, val);
-		mv88e6xxx_ppu_access_put(chip);
-	}
-
-	return err;
 }
 
 static int mv88e6xxx_port_setup_mac(struct mv88e6xxx_chip *chip, int port,
@@ -3912,18 +3695,6 @@ static struct mv88e6xxx_chip *mv88e6xxx_alloc_chip(struct device *dev)
 	INIT_LIST_HEAD(&chip->mdios);
 
 	return chip;
-}
-
-static void mv88e6xxx_phy_init(struct mv88e6xxx_chip *chip)
-{
-	if (chip->info->ops->ppu_enable && chip->info->ops->ppu_disable)
-		mv88e6xxx_ppu_state_init(chip);
-}
-
-static void mv88e6xxx_phy_destroy(struct mv88e6xxx_chip *chip)
-{
-	if (chip->info->ops->ppu_enable && chip->info->ops->ppu_disable)
-		mv88e6xxx_ppu_state_destroy(chip);
 }
 
 static int mv88e6xxx_smi_init(struct mv88e6xxx_chip *chip,
