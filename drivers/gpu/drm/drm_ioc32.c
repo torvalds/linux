@@ -228,19 +228,13 @@ static int compat_drm_rmmap(struct file *file, unsigned int cmd,
 			    unsigned long arg)
 {
 	drm_map32_t __user *argp = (void __user *)arg;
-	struct drm_map __user *map;
+	struct drm_map map;
 	u32 handle;
 
 	if (get_user(handle, &argp->handle))
 		return -EFAULT;
-
-	map = compat_alloc_user_space(sizeof(*map));
-	if (!map)
-		return -EFAULT;
-	if (__put_user((void *)(unsigned long)handle, &map->handle))
-		return -EFAULT;
-
-	return drm_ioctl(file, DRM_IOCTL_RM_MAP, (unsigned long)map);
+	map.handle = compat_ptr(handle);
+	return drm_ioctl_kernel(file, drm_legacy_rmmap_ioctl, &map, DRM_AUTH);
 }
 
 typedef struct drm_client32 {
@@ -918,7 +912,7 @@ static struct {
 	DRM_IOCTL32_DEF(DRM_IOCTL_INFO_BUFS, compat_drm_infobufs),
 	[DRM_IOCTL_NR(DRM_IOCTL_MAP_BUFS32)].fn = compat_drm_mapbufs,
 	DRM_IOCTL32_DEF(DRM_IOCTL_FREE_BUFS, compat_drm_freebufs),
-	[DRM_IOCTL_NR(DRM_IOCTL_RM_MAP32)].fn = compat_drm_rmmap,
+	DRM_IOCTL32_DEF(DRM_IOCTL_RM_MAP, compat_drm_rmmap),
 	DRM_IOCTL32_DEF(DRM_IOCTL_SET_SAREA_CTX, compat_drm_setsareactx),
 	DRM_IOCTL32_DEF(DRM_IOCTL_GET_SAREA_CTX, compat_drm_getsareactx),
 	DRM_IOCTL32_DEF(DRM_IOCTL_RES_CTX, compat_drm_resctx),
