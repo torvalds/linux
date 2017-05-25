@@ -79,7 +79,7 @@ struct kpp_alg {
 	int (*generate_public_key)(struct kpp_request *req);
 	int (*compute_shared_secret)(struct kpp_request *req);
 
-	int (*max_size)(struct crypto_kpp *tfm);
+	unsigned int (*max_size)(struct crypto_kpp *tfm);
 
 	int (*init)(struct crypto_kpp *tfm);
 	void (*exit)(struct crypto_kpp *tfm);
@@ -323,13 +323,14 @@ static inline int crypto_kpp_compute_shared_secret(struct kpp_request *req)
 /**
  * crypto_kpp_maxsize() - Get len for output buffer
  *
- * Function returns the output buffer size required
+ * Function returns the output buffer size required for a given key.
+ * Function assumes that the key is already set in the transformation. If this
+ * function is called without a setkey or with a failed setkey, you will end up
+ * in a NULL dereference.
  *
  * @tfm:	KPP tfm handle allocated with crypto_alloc_kpp()
- *
- * Return: minimum len for output buffer or error code if key hasn't been set
  */
-static inline int crypto_kpp_maxsize(struct crypto_kpp *tfm)
+static inline unsigned int crypto_kpp_maxsize(struct crypto_kpp *tfm)
 {
 	struct kpp_alg *alg = crypto_kpp_alg(tfm);
 
