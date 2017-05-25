@@ -2083,8 +2083,11 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	} else {
 		ret = of_property_read_u32(child, "bank-width",
 					   &gpmc_s.device_width);
-		if (ret < 0)
+		if (ret < 0) {
+			dev_err(&pdev->dev, "%s has no 'bank-width' property\n",
+				child->full_name);
 			goto err;
+		}
 	}
 
 	/* Reserve wait pin if it is required and valid */
