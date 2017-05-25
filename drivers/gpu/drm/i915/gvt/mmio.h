@@ -78,7 +78,7 @@ void intel_gvt_clean_mmio_info(struct intel_gvt *gvt);
 })
 
 int intel_vgpu_init_mmio(struct intel_vgpu *vgpu);
-void intel_vgpu_reset_mmio(struct intel_vgpu *vgpu);
+void intel_vgpu_reset_mmio(struct intel_vgpu *vgpu, bool dmlr);
 void intel_vgpu_clean_mmio(struct intel_vgpu *vgpu);
 
 int intel_vgpu_gpa_to_mmio_offset(struct intel_vgpu *vgpu, u64 gpa);

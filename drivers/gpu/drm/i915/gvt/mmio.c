@@ -289,20 +289,32 @@ err:
  * @vgpu: a vGPU
  *
  */
-void intel_vgpu_reset_mmio(struct intel_vgpu *vgpu)
+void intel_vgpu_reset_mmio(struct intel_vgpu *vgpu, bool dmlr)
 {
 	struct intel_gvt *gvt = vgpu->gvt;
 	const struct intel_gvt_device_info *info = &gvt->device_info;
+	void  *mmio = gvt->firmware.mmio;
 
-	memcpy(vgpu->mmio.vreg, gvt->firmware.mmio, info->mmio_size);
-	memcpy(vgpu->mmio.sreg, gvt->firmware.mmio, info->mmio_size);
+	if (dmlr) {
+		memcpy(vgpu->mmio.vreg, mmio, info->mmio_size);
+		memcpy(vgpu->mmio.sreg, mmio, info->mmio_size);
 
-	vgpu_vreg(vgpu, GEN6_GT_THREAD_STATUS_REG) = 0;
+		vgpu_vreg(vgpu, GEN6_GT_THREAD_STATUS_REG) = 0;
 
-	/* set the bit 0:2(Core C-State ) to C0 */
-	vgpu_vreg(vgpu, GEN6_GT_CORE_STATUS) = 0;
+		/* set the bit 0:2(Core C-State ) to C0 */
+		vgpu_vreg(vgpu, GEN6_GT_CORE_STATUS) = 0;
 
-	vgpu->mmio.disable_warn_untrack = false;
+		vgpu->mmio.disable_warn_untrack = false;
+	} else {
+#define GVT_GEN8_MMIO_RESET_OFFSET		(0x44200)
+		/* only reset the engine related, so starting with 0x44200
+		 * interrupt include DE,display mmio related will not be
+		 * touched
+		 */
+		memcpy(vgpu->mmio.vreg, mmio, GVT_GEN8_MMIO_RESET_OFFSET);
+		memcpy(vgpu->mmio.sreg, mmio, GVT_GEN8_MMIO_RESET_OFFSET);
+	}
+
 }
 
 /**
@@ -322,7 +334,7 @@ int intel_vgpu_init_mmio(struct intel_vgpu *vgpu)
 
 	vgpu->mmio.sreg = vgpu->mmio.vreg + info->mmio_size;
 
-	intel_vgpu_reset_mmio(vgpu);
+	intel_vgpu_reset_mmio(vgpu, true);
 
 	return 0;
 }
