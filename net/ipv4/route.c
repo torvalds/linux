@@ -2246,22 +2246,16 @@ add:
  * Major route resolver routine.
  */
 
-struct rtable *__ip_route_output_key_hash(struct net *net, struct flowi4 *fl4,
-					  const struct sk_buff *skb)
+struct rtable *ip_route_output_key_hash(struct net *net, struct flowi4 *fl4,
+					const struct sk_buff *skb)
 {
-	struct net_device *dev_out = NULL;
 	__u8 tos = RT_FL_TOS(fl4);
-	unsigned int flags = 0;
 	struct fib_result res;
 	struct rtable *rth;
-	int orig_oif;
-	int err = -ENETUNREACH;
 
 	res.tclassid	= 0;
 	res.fi		= NULL;
 	res.table	= NULL;
-
-	orig_oif = fl4->flowi4_oif;
 
 	fl4->flowi4_iif = LOOPBACK_IFINDEX;
 	fl4->flowi4_tos = tos & IPTOS_RT_MASK;
@@ -2269,6 +2263,23 @@ struct rtable *__ip_route_output_key_hash(struct net *net, struct flowi4 *fl4,
 			 RT_SCOPE_LINK : RT_SCOPE_UNIVERSE);
 
 	rcu_read_lock();
+	rth = ip_route_output_key_hash_rcu(net, fl4, &res, skb);
+	rcu_read_unlock();
+
+	return rth;
+}
+EXPORT_SYMBOL_GPL(ip_route_output_key_hash);
+
+struct rtable *ip_route_output_key_hash_rcu(struct net *net, struct flowi4 *fl4,
+					    struct fib_result *res,
+					    const struct sk_buff *skb)
+{
+	struct net_device *dev_out = NULL;
+	int orig_oif = fl4->flowi4_oif;
+	unsigned int flags = 0;
+	struct rtable *rth;
+	int err = -ENETUNREACH;
+
 	if (fl4->saddr) {
 		rth = ERR_PTR(-EINVAL);
 		if (ipv4_is_multicast(fl4->saddr) ||
@@ -2354,15 +2365,15 @@ struct rtable *__ip_route_output_key_hash(struct net *net, struct flowi4 *fl4,
 			fl4->daddr = fl4->saddr = htonl(INADDR_LOOPBACK);
 		dev_out = net->loopback_dev;
 		fl4->flowi4_oif = LOOPBACK_IFINDEX;
-		res.type = RTN_LOCAL;
+		res->type = RTN_LOCAL;
 		flags |= RTCF_LOCAL;
 		goto make_route;
 	}
 
-	err = fib_lookup(net, fl4, &res, 0);
+	err = fib_lookup(net, fl4, res, 0);
 	if (err) {
-		res.fi = NULL;
-		res.table = NULL;
+		res->fi = NULL;
+		res->table = NULL;
 		if (fl4->flowi4_oif &&
 		    (ipv4_is_multicast(fl4->daddr) ||
 		    !netif_index_is_l3_master(net, fl4->flowi4_oif))) {
@@ -2387,43 +2398,41 @@ struct rtable *__ip_route_output_key_hash(struct net *net, struct flowi4 *fl4,
 			if (fl4->saddr == 0)
 				fl4->saddr = inet_select_addr(dev_out, 0,
 							      RT_SCOPE_LINK);
-			res.type = RTN_UNICAST;
+			res->type = RTN_UNICAST;
 			goto make_route;
 		}
 		rth = ERR_PTR(err);
 		goto out;
 	}
 
-	if (res.type == RTN_LOCAL) {
+	if (res->type == RTN_LOCAL) {
 		if (!fl4->saddr) {
-			if (res.fi->fib_prefsrc)
-				fl4->saddr = res.fi->fib_prefsrc;
+			if (res->fi->fib_prefsrc)
+				fl4->saddr = res->fi->fib_prefsrc;
 			else
 				fl4->saddr = fl4->daddr;
 		}
 
 		/* L3 master device is the loopback for that domain */
-		dev_out = l3mdev_master_dev_rcu(FIB_RES_DEV(res)) ? :
+		dev_out = l3mdev_master_dev_rcu(FIB_RES_DEV(*res)) ? :
 			net->loopback_dev;
 		fl4->flowi4_oif = dev_out->ifindex;
 		flags |= RTCF_LOCAL;
 		goto make_route;
 	}
 
-	fib_select_path(net, &res, fl4, skb);
+	fib_select_path(net, res, fl4, skb);
 
-	dev_out = FIB_RES_DEV(res);
+	dev_out = FIB_RES_DEV(*res);
 	fl4->flowi4_oif = dev_out->ifindex;
 
 
 make_route:
-	rth = __mkroute_output(&res, fl4, orig_oif, dev_out, flags);
+	rth = __mkroute_output(res, fl4, orig_oif, dev_out, flags);
 
 out:
-	rcu_read_unlock();
 	return rth;
 }
-EXPORT_SYMBOL_GPL(__ip_route_output_key_hash);
 
 static struct dst_entry *ipv4_blackhole_dst_check(struct dst_entry *dst, u32 cookie)
 {
