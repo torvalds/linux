@@ -1060,79 +1060,6 @@ static int haswell_chan_hash(int idx, u64 addr)
 	return idx;
 }
 
-/****************************************************************************
-			Memory check routines
- ****************************************************************************/
-static struct pci_dev *get_pdev_same_bus(u8 bus, u32 id)
-{
-	struct pci_dev *pdev = NULL;
-
-	do {
-		pdev = pci_get_device(PCI_VENDOR_ID_INTEL, id, pdev);
-		if (pdev && pdev->bus->number == bus)
-			break;
-	} while (pdev);
-
-	return pdev;
-}
-
-/**
- * check_if_ecc_is_active() - Checks if ECC is active
- * @bus:	Device bus
- * @type:	Memory controller type
- * returns: 0 in case ECC is active, -ENODEV if it can't be determined or
- *	    disabled
- */
-static int check_if_ecc_is_active(const u8 bus, enum type type)
-{
-	struct pci_dev *pdev = NULL;
-	u32 mcmtr, id;
-
-	switch (type) {
-	case IVY_BRIDGE:
-		id = PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TA;
-		break;
-	case HASWELL:
-		id = PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0_TA;
-		break;
-	case SANDY_BRIDGE:
-		id = PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TA;
-		break;
-	case BROADWELL:
-		id = PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TA;
-		break;
-	case KNIGHTS_LANDING:
-		/*
-		 * KNL doesn't group things by bus the same way
-		 * SB/IB/Haswell does.
-		 */
-		id = PCI_DEVICE_ID_INTEL_KNL_IMC_TA;
-		break;
-	default:
-		return -ENODEV;
-	}
-
-	if (type != KNIGHTS_LANDING)
-		pdev = get_pdev_same_bus(bus, id);
-	else
-		pdev = pci_get_device(PCI_VENDOR_ID_INTEL, id, 0);
-
-	if (!pdev) {
-		sbridge_printk(KERN_ERR, "Couldn't find PCI device "
-					"%04x:%04x! on bus %02d\n",
-					PCI_VENDOR_ID_INTEL, id, bus);
-		return -ENODEV;
-	}
-
-	pci_read_config_dword(pdev,
-			type == KNIGHTS_LANDING ? KNL_MCMTR : MCMTR, &mcmtr);
-	if (!IS_ECC_ENABLED(mcmtr)) {
-		sbridge_printk(KERN_ERR, "ECC is disabled. Aborting\n");
-		return -ENODEV;
-	}
-	return 0;
-}
-
 /* Low bits of TAD limit, and some metadata. */
 static const u32 knl_tad_dram_limit_lo[] = {
 	0x400, 0x500, 0x600, 0x700,
@@ -1620,9 +1547,9 @@ static void get_source_id(struct mem_ctl_info *mci)
 		pvt->sbridge_dev->source_id = SOURCE_ID(reg);
 }
 
-static void __populate_dimms(struct mem_ctl_info *mci,
-			     u64 knl_mc_sizes[KNL_MAX_CHANNELS],
-			     enum edac_type mode)
+static int __populate_dimms(struct mem_ctl_info *mci,
+			    u64 knl_mc_sizes[KNL_MAX_CHANNELS],
+			    enum edac_type mode)
 {
 	struct sbridge_pvt *pvt = mci->pvt_info;
 	int channels = pvt->info.type == KNIGHTS_LANDING ? KNL_MAX_CHANNELS
@@ -1671,6 +1598,12 @@ static void __populate_dimms(struct mem_ctl_info *mci,
 			}
 			edac_dbg(4, "Channel #%d  MTR%d = %x\n", i, j, mtr);
 			if (IS_DIMM_PRESENT(mtr)) {
+				if (!IS_ECC_ENABLED(pvt->info.mcmtr)) {
+					sbridge_printk(KERN_ERR, "CPU SrcID #%d, Ha #%d, Channel #%d has DIMMs, but ECC is disabled\n",
+						       pvt->sbridge_dev->source_id,
+						       pvt->sbridge_dev->dom, i);
+					return -ENODEV;
+				}
 				pvt->channel[i].dimms++;
 
 				ranks = numrank(pvt->info.type, mtr);
@@ -1704,6 +1637,8 @@ static void __populate_dimms(struct mem_ctl_info *mci,
 			}
 		}
 	}
+
+	return 0;
 }
 
 static int get_dimm_config(struct mem_ctl_info *mci)
@@ -1732,6 +1667,7 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 
 		if (knl_get_dimm_capacity(pvt, knl_mc_sizes) != 0)
 			return -1;
+		pci_read_config_dword(pvt->pci_ta, KNL_MCMTR, &pvt->info.mcmtr);
 	} else {
 		pci_read_config_dword(pvt->pci_ras, RASENABLES, &reg);
 		if (IS_MIRROR_ENABLED(reg)) {
@@ -1761,9 +1697,7 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 		}
 	}
 
-	__populate_dimms(mci, knl_mc_sizes, mode);
-
-	return 0;
+	return __populate_dimms(mci, knl_mc_sizes, mode);
 }
 
 static void get_memory_layout(const struct mem_ctl_info *mci)
@@ -3180,11 +3114,6 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 	struct pci_dev *pdev = sbridge_dev->pdev[0];
 	int rc;
 
-	/* Check the number of active and not disabled channels */
-	rc = check_if_ecc_is_active(sbridge_dev->bus, type);
-	if (unlikely(rc < 0))
-		return rc;
-
 	/* allocate a new MC control structure */
 	layers[0].type = EDAC_MC_LAYER_CHANNEL;
 	layers[0].size = type == KNIGHTS_LANDING ?
@@ -3347,7 +3276,11 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 	}
 
 	/* Get dimm basic config and the memory layout */
-	get_dimm_config(mci);
+	rc = get_dimm_config(mci);
+	if (rc < 0) {
+		edac_dbg(0, "MC: failed to get_dimm_config()\n");
+		goto fail;
+	}
 	get_memory_layout(mci);
 
 	/* record ptr to the generic device */
