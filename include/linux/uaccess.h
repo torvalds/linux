@@ -180,12 +180,6 @@ copy_to_user(void __user *to, const void *from, unsigned long n)
 }
 #ifdef CONFIG_COMPAT
 static __always_inline unsigned long __must_check
-__copy_in_user(void __user *to, const void *from, unsigned long n)
-{
-	might_fault();
-	return raw_copy_in_user(to, from, n);
-}
-static __always_inline unsigned long __must_check
 copy_in_user(void __user *to, const void *from, unsigned long n)
 {
 	might_fault();
