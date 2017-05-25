@@ -6,6 +6,7 @@
 #include <linux/rcu.h>
 #include <linux/hardirq.h>
 #include <linux/kern_levels.h>
+#include <linux/err.h>
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
