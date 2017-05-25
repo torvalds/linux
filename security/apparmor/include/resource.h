@@ -34,7 +34,7 @@ struct aa_rlimit {
 	struct rlimit limits[RLIM_NLIMITS];
 };
 
-extern struct aa_fs_entry aa_fs_entry_rlimit[];
+extern struct aa_sfs_entry aa_sfs_entry_rlimit[];
 
 int aa_map_resource(int resource);
 int aa_task_setrlimit(struct aa_profile *profile, struct task_struct *,

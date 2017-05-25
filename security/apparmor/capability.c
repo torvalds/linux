@@ -28,8 +28,8 @@
  */
 #include "capability_names.h"
 
-struct aa_fs_entry aa_fs_entry_caps[] = {
-	AA_FS_FILE_STRING("mask", AA_FS_CAPS_MASK),
+struct aa_sfs_entry aa_sfs_entry_caps[] = {
+	AA_SFS_FILE_STRING("mask", AA_SFS_CAPS_MASK),
 	{ }
 };
 

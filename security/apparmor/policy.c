@@ -160,7 +160,7 @@ static void __remove_profile(struct aa_profile *profile)
 	__aa_profile_list_release(&profile->base.profiles);
 	/* released by free_profile */
 	__aa_update_proxy(profile, profile->ns->unconfined);
-	__aa_fs_profile_rmdir(profile);
+	__aafs_profile_rmdir(profile);
 	__list_remove_profile(profile);
 }
 
@@ -784,7 +784,7 @@ static void __replace_profile(struct aa_profile *old, struct aa_profile *new,
 		/* aafs interface uses proxy */
 		rcu_assign_pointer(new->proxy->profile,
 				   aa_get_profile(new));
-	__aa_fs_profile_migrate_dents(old, new);
+	__aafs_profile_migrate_dents(old, new);
 
 	if (list_empty(&new->base.list)) {
 		/* new is not on a list already */
@@ -971,7 +971,7 @@ ssize_t aa_replace_profiles(struct aa_ns *view, struct aa_profile *profile,
 				parent = prof_child_dir(p);
 			} else
 				parent = ns_subprofs_dir(ent->new->ns);
-			error = __aa_fs_profile_mkdir(ent->new, parent);
+			error = __aafs_profile_mkdir(ent->new, parent);
 		}
 
 		if (error) {

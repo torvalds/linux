@@ -20,7 +20,7 @@ cmd_make-caps = echo "static const char *const capability_names[] = {" > $@ ;\
 	sed $< >>$@ -r -n -e '/CAP_FS_MASK/d' \
 	-e 's/^\#define[ \t]+CAP_([A-Z0-9_]+)[ \t]+([0-9]+)/[\2] = "\L\1",/p';\
 	echo "};" >> $@ ;\
-	printf '%s' '\#define AA_FS_CAPS_MASK "' >> $@ ;\
+	printf '%s' '\#define AA_SFS_CAPS_MASK "' >> $@ ;\
 	sed $< -r -n -e '/CAP_FS_MASK/d' \
 	    -e 's/^\#define[ \t]+CAP_([A-Z0-9_]+)[ \t]+([0-9]+)/\L\1/p' | \
 	     tr '\n' ' ' | sed -e 's/ $$/"\n/' >> $@
@@ -46,7 +46,7 @@ cmd_make-caps = echo "static const char *const capability_names[] = {" > $@ ;\
 #    #define RLIMIT_FSIZE        1   /* Maximum filesize */
 #    #define RLIMIT_STACK		3	/* max stack size */
 # to
-# #define AA_FS_RLIMIT_MASK "fsize stack"
+# #define AA_SFS_RLIMIT_MASK "fsize stack"
 quiet_cmd_make-rlim = GEN     $@
 cmd_make-rlim = echo "static const char *const rlim_names[RLIM_NLIMITS] = {" \
 	> $@ ;\
@@ -56,7 +56,7 @@ cmd_make-rlim = echo "static const char *const rlim_names[RLIM_NLIMITS] = {" \
 	echo "static const int rlim_map[RLIM_NLIMITS] = {" >> $@ ;\
 	sed -r -n "s/^\# ?define[ \t]+(RLIMIT_[A-Z0-9_]+).*/\1,/p" $< >> $@ ;\
 	echo "};" >> $@ ; \
-	printf '%s' '\#define AA_FS_RLIMIT_MASK "' >> $@ ;\
+	printf '%s' '\#define AA_SFS_RLIMIT_MASK "' >> $@ ;\
 	sed -r -n 's/^\# ?define[ \t]+RLIMIT_([A-Z0-9_]+).*/\L\1/p' $< | \
 	    tr '\n' ' ' | sed -e 's/ $$/"\n/' >> $@
 

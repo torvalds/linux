@@ -196,7 +196,7 @@ static struct aa_ns *__aa_create_ns(struct aa_ns *parent, const char *name,
 	if (!ns)
 		return NULL;
 	mutex_lock(&ns->lock);
-	error = __aa_fs_ns_mkdir(ns, ns_subns_dir(parent), name);
+	error = __aafs_ns_mkdir(ns, ns_subns_dir(parent), name);
 	if (error) {
 		AA_ERROR("Failed to create interface for ns %s\n",
 			 ns->base.name);
@@ -284,7 +284,7 @@ static void destroy_ns(struct aa_ns *ns)
 
 	if (ns->parent)
 		__aa_update_proxy(ns->unconfined, ns->parent->unconfined);
-	__aa_fs_ns_rmdir(ns);
+	__aafs_ns_rmdir(ns);
 	mutex_unlock(&ns->lock);
 }
 

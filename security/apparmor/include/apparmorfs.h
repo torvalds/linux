@@ -17,49 +17,49 @@
 
 extern struct path aa_null;
 
-enum aa_fs_type {
-	AA_FS_TYPE_BOOLEAN,
-	AA_FS_TYPE_STRING,
-	AA_FS_TYPE_U64,
-	AA_FS_TYPE_FOPS,
-	AA_FS_TYPE_DIR,
+enum aa_sfs_type {
+	AA_SFS_TYPE_BOOLEAN,
+	AA_SFS_TYPE_STRING,
+	AA_SFS_TYPE_U64,
+	AA_SFS_TYPE_FOPS,
+	AA_SFS_TYPE_DIR,
 };
 
-struct aa_fs_entry;
+struct aa_sfs_entry;
 
-struct aa_fs_entry {
+struct aa_sfs_entry {
 	const char *name;
 	struct dentry *dentry;
 	umode_t mode;
-	enum aa_fs_type v_type;
+	enum aa_sfs_type v_type;
 	union {
 		bool boolean;
 		char *string;
 		unsigned long u64;
-		struct aa_fs_entry *files;
+		struct aa_sfs_entry *files;
 	} v;
 	const struct file_operations *file_ops;
 };
 
-extern const struct file_operations aa_fs_seq_file_ops;
+extern const struct file_operations aa_sfs_seq_file_ops;
 
-#define AA_FS_FILE_BOOLEAN(_name, _value) \
+#define AA_SFS_FILE_BOOLEAN(_name, _value) \
 	{ .name = (_name), .mode = 0444, \
-	  .v_type = AA_FS_TYPE_BOOLEAN, .v.boolean = (_value), \
-	  .file_ops = &aa_fs_seq_file_ops }
-#define AA_FS_FILE_STRING(_name, _value) \
+	  .v_type = AA_SFS_TYPE_BOOLEAN, .v.boolean = (_value), \
+	  .file_ops = &aa_sfs_seq_file_ops }
+#define AA_SFS_FILE_STRING(_name, _value) \
 	{ .name = (_name), .mode = 0444, \
-	  .v_type = AA_FS_TYPE_STRING, .v.string = (_value), \
-	  .file_ops = &aa_fs_seq_file_ops }
-#define AA_FS_FILE_U64(_name, _value) \
+	  .v_type = AA_SFS_TYPE_STRING, .v.string = (_value), \
+	  .file_ops = &aa_sfs_seq_file_ops }
+#define AA_SFS_FILE_U64(_name, _value) \
 	{ .name = (_name), .mode = 0444, \
-	  .v_type = AA_FS_TYPE_U64, .v.u64 = (_value), \
-	  .file_ops = &aa_fs_seq_file_ops }
-#define AA_FS_FILE_FOPS(_name, _mode, _fops) \
-	{ .name = (_name), .v_type = AA_FS_TYPE_FOPS, \
+	  .v_type = AA_SFS_TYPE_U64, .v.u64 = (_value), \
+	  .file_ops = &aa_sfs_seq_file_ops }
+#define AA_SFS_FILE_FOPS(_name, _mode, _fops) \
+	{ .name = (_name), .v_type = AA_SFS_TYPE_FOPS, \
 	  .mode = (_mode), .file_ops = (_fops) }
-#define AA_FS_DIR(_name, _value) \
-	{ .name = (_name), .v_type = AA_FS_TYPE_DIR, .v.files = (_value) }
+#define AA_SFS_DIR(_name, _value) \
+	{ .name = (_name), .v_type = AA_SFS_TYPE_DIR, .v.files = (_value) }
 
 extern void __init aa_destroy_aafs(void);
 
@@ -107,12 +107,12 @@ enum aafs_prof_type {
 #define prof_child_dir(X) ((X)->dents[AAFS_PROF_PROFS])
 
 void __aa_bump_ns_revision(struct aa_ns *ns);
-void __aa_fs_profile_rmdir(struct aa_profile *profile);
-void __aa_fs_profile_migrate_dents(struct aa_profile *old,
+void __aafs_profile_rmdir(struct aa_profile *profile);
+void __aafs_profile_migrate_dents(struct aa_profile *old,
 				   struct aa_profile *new);
-int __aa_fs_profile_mkdir(struct aa_profile *profile, struct dentry *parent);
-void __aa_fs_ns_rmdir(struct aa_ns *ns);
-int __aa_fs_ns_mkdir(struct aa_ns *ns, struct dentry *parent,
+int __aafs_profile_mkdir(struct aa_profile *profile, struct dentry *parent);
+void __aafs_ns_rmdir(struct aa_ns *ns);
+int __aafs_ns_mkdir(struct aa_ns *ns, struct dentry *parent,
 		     const char *name);
 
 struct aa_loaddata;
