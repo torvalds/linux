@@ -1256,11 +1256,11 @@ static int qat_rsa_setprivkey(struct crypto_akcipher *tfm, const void *key,
 	return qat_rsa_setkey(tfm, key, keylen, true);
 }
 
-static int qat_rsa_max_size(struct crypto_akcipher *tfm)
+static unsigned int qat_rsa_max_size(struct crypto_akcipher *tfm)
 {
 	struct qat_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
 
-	return (ctx->n) ? ctx->key_sz : -EINVAL;
+	return ctx->key_sz;
 }
 
 static int qat_rsa_init_tfm(struct crypto_akcipher *tfm)
