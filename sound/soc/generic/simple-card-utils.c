@@ -21,14 +21,13 @@ int asoc_simple_card_parse_daifmt(struct device *dev,
 {
 	struct device_node *bitclkmaster = NULL;
 	struct device_node *framemaster = NULL;
-	int prefix_len = prefix ? strlen(prefix) : 0;
 	unsigned int daifmt;
 
 	daifmt = snd_soc_of_parse_daifmt(node, prefix,
 					 &bitclkmaster, &framemaster);
 	daifmt &= ~SND_SOC_DAIFMT_MASTER_MASK;
 
-	if (prefix_len && !bitclkmaster && !framemaster) {
+	if (!bitclkmaster && !framemaster) {
 		/*
 		 * No dai-link level and master setting was not found from
 		 * sound node level, revert back to legacy DT parsing and
