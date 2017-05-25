@@ -523,7 +523,7 @@ static int __init of_platform_default_populate_init(void)
 arch_initcall_sync(of_platform_default_populate_init);
 #endif
 
-static int of_platform_device_destroy(struct device *dev, void *data)
+int of_platform_device_destroy(struct device *dev, void *data)
 {
 	/* Do not touch devices not populated from the device tree */
 	if (!dev->of_node || !of_node_check_flag(dev->of_node, OF_POPULATED))
@@ -544,6 +544,7 @@ static int of_platform_device_destroy(struct device *dev, void *data)
 	of_node_clear_flag(dev->of_node, OF_POPULATED_BUS);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(of_platform_device_destroy);
 
 /**
  * of_platform_depopulate() - Remove devices populated from device tree
