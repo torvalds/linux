@@ -928,8 +928,7 @@ int ecc_is_key_valid(unsigned int curve_id, unsigned int ndigits,
 }
 
 int ecdh_make_pub_key(unsigned int curve_id, unsigned int ndigits,
-		      const u8 *private_key, unsigned int private_key_len,
-		      u8 *public_key, unsigned int public_key_len)
+		      const u8 *private_key, u8 *public_key)
 {
 	int ret = 0;
 	struct ecc_point *pk;
@@ -967,9 +966,8 @@ out:
 }
 
 int crypto_ecdh_shared_secret(unsigned int curve_id, unsigned int ndigits,
-		       const u8 *private_key, unsigned int private_key_len,
-		       const u8 *public_key, unsigned int public_key_len,
-		       u8 *secret, unsigned int secret_len)
+			      const u8 *private_key, const u8 *public_key,
+			      u8 *secret)
 {
 	int ret = 0;
 	struct ecc_point *product, *pk;
