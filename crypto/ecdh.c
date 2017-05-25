@@ -104,13 +104,12 @@ static int ecdh_compute_value(struct kpp_request *req)
 	return ret;
 }
 
-static int ecdh_max_size(struct crypto_kpp *tfm)
+static unsigned int ecdh_max_size(struct crypto_kpp *tfm)
 {
 	struct ecdh_ctx *ctx = ecdh_get_ctx(tfm);
-	int nbytes = ctx->ndigits << ECC_DIGITS_TO_BYTES_SHIFT;
 
-	/* Public key is made of two coordinates */
-	return 2 * nbytes;
+	/* Public key is made of two coordinates, add one to the left shift */
+	return ctx->ndigits << (ECC_DIGITS_TO_BYTES_SHIFT + 1);
 }
 
 static void no_exit_tfm(struct crypto_kpp *tfm)
