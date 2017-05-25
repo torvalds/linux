@@ -175,7 +175,7 @@ find_service_by_handle(VCHIQ_SERVICE_HANDLE_T handle)
 	service = handle_to_service(handle);
 	if (service && (service->srvstate != VCHIQ_SRVSTATE_FREE) &&
 		(service->handle == handle)) {
-		BUG_ON(service->ref_count == 0);
+		WARN_ON(service->ref_count == 0);
 		service->ref_count++;
 	} else
 		service = NULL;
@@ -197,7 +197,7 @@ find_service_by_port(VCHIQ_STATE_T *state, int localport)
 		spin_lock(&service_spinlock);
 		service = state->services[localport];
 		if (service && (service->srvstate != VCHIQ_SRVSTATE_FREE)) {
-			BUG_ON(service->ref_count == 0);
+			WARN_ON(service->ref_count == 0);
 			service->ref_count++;
 		} else
 			service = NULL;
@@ -221,7 +221,7 @@ find_service_for_instance(VCHIQ_INSTANCE_T instance,
 	if (service && (service->srvstate != VCHIQ_SRVSTATE_FREE) &&
 		(service->handle == handle) &&
 		(service->instance == instance)) {
-		BUG_ON(service->ref_count == 0);
+		WARN_ON(service->ref_count == 0);
 		service->ref_count++;
 	} else
 		service = NULL;
@@ -246,7 +246,7 @@ find_closed_service_for_instance(VCHIQ_INSTANCE_T instance,
 		 (service->srvstate == VCHIQ_SRVSTATE_CLOSED)) &&
 		(service->handle == handle) &&
 		(service->instance == instance)) {
-		BUG_ON(service->ref_count == 0);
+		WARN_ON(service->ref_count == 0);
 		service->ref_count++;
 	} else
 		service = NULL;
@@ -273,7 +273,7 @@ next_service_by_instance(VCHIQ_STATE_T *state, VCHIQ_INSTANCE_T instance,
 		if (srv && (srv->srvstate != VCHIQ_SRVSTATE_FREE) &&
 			(srv->instance == instance)) {
 			service = srv;
-			BUG_ON(service->ref_count == 0);
+			WARN_ON(service->ref_count == 0);
 			service->ref_count++;
 			break;
 		}
@@ -291,7 +291,7 @@ lock_service(VCHIQ_SERVICE_T *service)
 	spin_lock(&service_spinlock);
 	WARN_ON(!service);
 	if (service) {
-		BUG_ON(service->ref_count == 0);
+		WARN_ON(service->ref_count == 0);
 		service->ref_count++;
 	}
 	spin_unlock(&service_spinlock);
@@ -305,7 +305,10 @@ unlock_service(VCHIQ_SERVICE_T *service)
 		WARN(1, "%s: service is NULL\n", __func__);
 		goto unlock;
 	}
-	BUG_ON(service->ref_count == 0);
+	if (!service->ref_count) {
+		WARN(1, "%s: ref_count is zero\n", __func__);
+		goto unlock;
+	}
 	service->ref_count--;
 	if (!service->ref_count) {
 		VCHIQ_STATE_T *state = service->state;
