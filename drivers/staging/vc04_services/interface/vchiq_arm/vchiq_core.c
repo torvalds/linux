@@ -2349,7 +2349,6 @@ vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero,
 	VCHIQ_SHARED_STATE_T *remote;
 	VCHIQ_STATUS_T status;
 	char threadname[16];
-	static int id;
 	int i;
 
 	vchiq_log_warning(vchiq_core_log_level,
@@ -2437,7 +2436,6 @@ vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero,
 
 	memset(state, 0, sizeof(VCHIQ_STATE_T));
 
-	state->id = id++;
 	state->is_master = is_master;
 
 	/*
@@ -2556,8 +2554,7 @@ vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero,
 	set_user_nice(state->sync_thread, -20);
 	wake_up_process(state->sync_thread);
 
-	BUG_ON(state->id >= VCHIQ_MAX_STATES);
-	vchiq_states[state->id] = state;
+	vchiq_states[0] = state;
 
 	/* Indicate readiness to the other side */
 	local->initialised = 1;
