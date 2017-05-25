@@ -358,4 +358,5 @@ out_disable_clock:
 CLOCKSOURCE_OF_DECLARE(fttmr010, "faraday,fttmr010", fttmr010_timer_init);
 CLOCKSOURCE_OF_DECLARE(gemini, "cortina,gemini-timer", fttmr010_timer_init);
 CLOCKSOURCE_OF_DECLARE(moxart, "moxa,moxart-timer", fttmr010_timer_init);
-CLOCKSOURCE_OF_DECLARE(aspeed, "aspeed,ast2400-timer", fttmr010_timer_init);
+CLOCKSOURCE_OF_DECLARE(ast2400, "aspeed,ast2400-timer", fttmr010_timer_init);
+CLOCKSOURCE_OF_DECLARE(ast2500, "aspeed,ast2500-timer", fttmr010_timer_init);
