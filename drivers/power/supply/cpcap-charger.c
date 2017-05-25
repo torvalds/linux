@@ -76,7 +76,7 @@
 #define CPCAP_REG_CRM_VCHRG_4V30	CPCAP_REG_CRM_VCHRG(0x8)
 #define CPCAP_REG_CRM_VCHRG_4V32	CPCAP_REG_CRM_VCHRG(0x9)
 #define CPCAP_REG_CRM_VCHRG_4V34	CPCAP_REG_CRM_VCHRG(0xa)
-#define CPCAP_REG_CRM_VCHRG_4V36	CPCAP_REG_CRM_VCHRG(0xb)
+#define CPCAP_REG_CRM_VCHRG_4V35	CPCAP_REG_CRM_VCHRG(0xb)
 #define CPCAP_REG_CRM_VCHRG_4V38	CPCAP_REG_CRM_VCHRG(0xc)
 #define CPCAP_REG_CRM_VCHRG_4V40	CPCAP_REG_CRM_VCHRG(0xd)
 #define CPCAP_REG_CRM_VCHRG_4V42	CPCAP_REG_CRM_VCHRG(0xe)
@@ -262,7 +262,7 @@ static int cpcap_charger_set_state(struct cpcap_charger_ddata *ddata,
 	bool enable;
 	int error;
 
-	enable = max_voltage && (charge_current || trickle_current);
+	enable = (charge_current || trickle_current);
 	dev_dbg(ddata->dev, "%s enable: %i\n", __func__, enable);
 
 	if (!enable) {
@@ -433,9 +433,8 @@ static void cpcap_usb_detect(struct work_struct *work)
 			max_current = CPCAP_REG_CRM_ICHRG_0A528;
 
 		error = cpcap_charger_set_state(ddata,
-						CPCAP_REG_CRM_VCHRG_4V20,
-						max_current,
-						CPCAP_REG_CRM_TR_0A72);
+						CPCAP_REG_CRM_VCHRG_4V35,
+						max_current, 0);
 		if (error)
 			goto out_err;
 	} else {
@@ -566,7 +565,7 @@ out_err:
 }
 
 static const struct power_supply_desc cpcap_charger_usb_desc = {
-	.name		= "cpcap_usb",
+	.name		= "usb",
 	.type		= POWER_SUPPLY_TYPE_USB,
 	.properties	= cpcap_charger_props,
 	.num_properties	= ARRAY_SIZE(cpcap_charger_props),

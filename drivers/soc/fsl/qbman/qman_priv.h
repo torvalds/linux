@@ -33,6 +33,7 @@
 #include "dpaa_sys.h"
 
 #include <soc/fsl/qman.h>
+#include <linux/dma-mapping.h>
 #include <linux/iommu.h>
 
 #if defined(CONFIG_FSL_PAMU)

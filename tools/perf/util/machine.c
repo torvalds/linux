@@ -796,11 +796,11 @@ const char *ref_reloc_sym_names[] = {"_text", "_stext", NULL};
  * Returns the name of the start symbol in *symbol_name. Pass in NULL as
  * symbol_name if it's not that important.
  */
-static u64 machine__get_running_kernel_start(struct machine *machine,
-					     const char **symbol_name)
+static int machine__get_running_kernel_start(struct machine *machine,
+					     const char **symbol_name, u64 *start)
 {
 	char filename[PATH_MAX];
-	int i;
+	int i, err = -1;
 	const char *name;
 	u64 addr = 0;
 
@@ -810,21 +810,28 @@ static u64 machine__get_running_kernel_start(struct machine *machine,
 		return 0;
 
 	for (i = 0; (name = ref_reloc_sym_names[i]) != NULL; i++) {
-		addr = kallsyms__get_function_start(filename, name);
-		if (addr)
+		err = kallsyms__get_function_start(filename, name, &addr);
+		if (!err)
 			break;
 	}
+
+	if (err)
+		return -1;
 
 	if (symbol_name)
 		*symbol_name = name;
 
-	return addr;
+	*start = addr;
+	return 0;
 }
 
 int __machine__create_kernel_maps(struct machine *machine, struct dso *kernel)
 {
 	int type;
-	u64 start = machine__get_running_kernel_start(machine, NULL);
+	u64 start = 0;
+
+	if (machine__get_running_kernel_start(machine, NULL, &start))
+		return -1;
 
 	/* In case of renewal the kernel map, destroy previous one */
 	machine__destroy_kernel_maps(machine);
@@ -1185,8 +1192,8 @@ static int machine__create_modules(struct machine *machine)
 int machine__create_kernel_maps(struct machine *machine)
 {
 	struct dso *kernel = machine__get_kernel(machine);
-	const char *name;
-	u64 addr;
+	const char *name = NULL;
+	u64 addr = 0;
 	int ret;
 
 	if (kernel == NULL)
@@ -1211,8 +1218,7 @@ int machine__create_kernel_maps(struct machine *machine)
 	 */
 	map_groups__fixup_end(&machine->kmaps);
 
-	addr = machine__get_running_kernel_start(machine, &name);
-	if (!addr) {
+	if (machine__get_running_kernel_start(machine, &name, &addr)) {
 	} else if (maps__set_kallsyms_ref_reloc_sym(machine->vmlinux_maps, name, addr)) {
 		machine__destroy_kernel_maps(machine);
 		return -1;

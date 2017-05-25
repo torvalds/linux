@@ -81,7 +81,7 @@ Example 3:
 	child: power-controller@12341000 {
 		compatible = "foo,power-controller";
 		reg = <0x12341000 0x1000>;
-		power-domains = <&parent 0>;
+		power-domains = <&parent>;
 		#power-domain-cells = <0>;
 		domain-idle-states = <&DOMAIN_PWR_DN>;
 	};

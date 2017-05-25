@@ -11,6 +11,13 @@ controllers), BFQ's main features are:
   groups (switching back to time distribution when needed to keep
   throughput high).
 
+In its default configuration, BFQ privileges latency over
+throughput. So, when needed for achieving a lower latency, BFQ builds
+schedules that may lead to a lower throughput. If your main or only
+goal, for a given device, is to achieve the maximum-possible
+throughput at all times, then do switch off all low-latency heuristics
+for that device, by setting low_latency to 0. Full details in Section 3.
+
 On average CPUs, the current version of BFQ can handle devices
 performing at most ~30K IOPS; at most ~50 KIOPS on faster CPUs. As a
 reference, 30-50 KIOPS correspond to very high bandwidths with
@@ -375,10 +382,18 @@ default, low latency mode is enabled. If enabled, interactive and soft
 real-time applications are privileged and experience a lower latency,
 as explained in more detail in the description of how BFQ works.
 
-DO NOT enable this mode if you need full control on bandwidth
+DISABLE this mode if you need full control on bandwidth
 distribution. In fact, if it is enabled, then BFQ automatically
 increases the bandwidth share of privileged applications, as the main
 means to guarantee a lower latency to them.
+
+In addition, as already highlighted at the beginning of this document,
+DISABLE this mode if your only goal is to achieve a high throughput.
+In fact, privileging the I/O of some application over the rest may
+entail a lower throughput. To achieve the highest-possible throughput
+on a non-rotational device, setting slice_idle to 0 may be needed too
+(at the cost of giving up any strong guarantee on fairness and low
+latency).
 
 timeout_sync
 ------------

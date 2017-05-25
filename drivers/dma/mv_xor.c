@@ -960,7 +960,7 @@ static int mv_chan_memcpy_self_test(struct mv_xor_chan *mv_chan)
 	}
 
 	src_dma = dma_map_page(dma_chan->device->dev, virt_to_page(src),
-			       (size_t)src & ~PAGE_MASK, PAGE_SIZE,
+			       offset_in_page(src), PAGE_SIZE,
 			       DMA_TO_DEVICE);
 	unmap->addr[0] = src_dma;
 
@@ -972,7 +972,7 @@ static int mv_chan_memcpy_self_test(struct mv_xor_chan *mv_chan)
 	unmap->to_cnt = 1;
 
 	dest_dma = dma_map_page(dma_chan->device->dev, virt_to_page(dest),
-				(size_t)dest & ~PAGE_MASK, PAGE_SIZE,
+				offset_in_page(dest), PAGE_SIZE,
 				DMA_FROM_DEVICE);
 	unmap->addr[1] = dest_dma;
 
@@ -1580,11 +1580,6 @@ static int mv_xor_probe(struct platform_device *pdev)
 			int irq;
 
 			cd = &pdata->channels[i];
-			if (!cd) {
-				ret = -ENODEV;
-				goto err_channel_add;
-			}
-
 			irq = platform_get_irq(pdev, i);
 			if (irq < 0) {
 				ret = irq;

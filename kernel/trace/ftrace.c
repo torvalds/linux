@@ -3631,22 +3631,20 @@ ftrace_match_record(struct dyn_ftrace *rec, struct ftrace_glob *func_g,
 		/* blank module name to match all modules */
 		if (!mod_g->len) {
 			/* blank module globbing: modname xor exclude_mod */
-			if ((!exclude_mod) != (!modname))
+			if (!exclude_mod != !modname)
 				goto func_match;
 			return 0;
 		}
 
-		/* not matching the module */
-		if (!modname || !mod_matches) {
-			if (exclude_mod)
-				goto func_match;
-			else
-				return 0;
-		}
-
-		if (mod_matches && exclude_mod)
+		/*
+		 * exclude_mod is set to trace everything but the given
+		 * module. If it is set and the module matches, then
+		 * return 0. If it is not set, and the module doesn't match
+		 * also return 0. Otherwise, check the function to see if
+		 * that matches.
+		 */
+		if (!mod_matches == !exclude_mod)
 			return 0;
-
 func_match:
 		/* blank search means to match all funcs in the mod */
 		if (!func_g->len)
@@ -4146,9 +4144,9 @@ unregister_ftrace_function_probe_func(char *glob, struct trace_array *tr,
 	int i, ret = -ENODEV;
 	int size;
 
-	if (glob && (strcmp(glob, "*") == 0 || !strlen(glob)))
+	if (!glob || !strlen(glob) || !strcmp(glob, "*"))
 		func_g.search = NULL;
-	else if (glob) {
+	else {
 		int not;
 
 		func_g.type = filter_parse_regex(glob, strlen(glob),
@@ -4256,6 +4254,14 @@ unregister_ftrace_function_probe_func(char *glob, struct trace_array *tr,
  err_unlock_ftrace:
 	mutex_unlock(&ftrace_lock);
 	return ret;
+}
+
+void clear_ftrace_function_probes(struct trace_array *tr)
+{
+	struct ftrace_func_probe *probe, *n;
+
+	list_for_each_entry_safe(probe, n, &tr->func_probes, list)
+		unregister_ftrace_function_probe_func(NULL, tr, probe->probe_ops);
 }
 
 static LIST_HEAD(ftrace_commands);

@@ -41,12 +41,16 @@ struct serdev_device_ops {
  * @nr:		Device number on serdev bus.
  * @ctrl:	serdev controller managing this device.
  * @ops:	Device operations.
+ * @write_comp	Completion used by serdev_device_write() internally
+ * @write_lock	Lock to serialize access when writing data
  */
 struct serdev_device {
 	struct device dev;
 	int nr;
 	struct serdev_controller *ctrl;
 	const struct serdev_device_ops *ops;
+	struct completion write_comp;
+	struct mutex write_lock;
 };
 
 static inline struct serdev_device *to_serdev_device(struct device *d)
@@ -170,7 +174,7 @@ static inline void serdev_controller_write_wakeup(struct serdev_controller *ctrl
 	if (!serdev || !serdev->ops->write_wakeup)
 		return;
 
-	serdev->ops->write_wakeup(ctrl->serdev);
+	serdev->ops->write_wakeup(serdev);
 }
 
 static inline int serdev_controller_receive_buf(struct serdev_controller *ctrl,
@@ -182,7 +186,7 @@ static inline int serdev_controller_receive_buf(struct serdev_controller *ctrl,
 	if (!serdev || !serdev->ops->receive_buf)
 		return -EINVAL;
 
-	return serdev->ops->receive_buf(ctrl->serdev, data, count);
+	return serdev->ops->receive_buf(serdev, data, count);
 }
 
 #if IS_ENABLED(CONFIG_SERIAL_DEV_BUS)
@@ -194,7 +198,8 @@ void serdev_device_set_flow_control(struct serdev_device *, bool);
 void serdev_device_wait_until_sent(struct serdev_device *, long);
 int serdev_device_get_tiocm(struct serdev_device *);
 int serdev_device_set_tiocm(struct serdev_device *, int, int);
-int serdev_device_write_buf(struct serdev_device *, const unsigned char *, size_t);
+void serdev_device_write_wakeup(struct serdev_device *);
+int serdev_device_write(struct serdev_device *, const unsigned char *, size_t, unsigned long);
 void serdev_device_write_flush(struct serdev_device *);
 int serdev_device_write_room(struct serdev_device *);
 
@@ -240,7 +245,8 @@ static inline int serdev_device_set_tiocm(struct serdev_device *serdev, int set,
 {
 	return -ENOTSUPP;
 }
-static inline int serdev_device_write_buf(struct serdev_device *sdev, const unsigned char *buf, size_t count)
+static inline int serdev_device_write(struct serdev_device *sdev, const unsigned char *buf,
+				      size_t count, unsigned long timeout)
 {
 	return -ENODEV;
 }
@@ -305,5 +311,12 @@ static inline struct device *serdev_tty_port_register(struct tty_port *port,
 }
 static inline void serdev_tty_port_unregister(struct tty_port *port) {}
 #endif /* CONFIG_SERIAL_DEV_CTRL_TTYPORT */
+
+static inline int serdev_device_write_buf(struct serdev_device *serdev,
+					  const unsigned char *data,
+					  size_t count)
+{
+	return serdev_device_write(serdev, data, count, 0);
+}
 
 #endif /*_LINUX_SERDEV_H */

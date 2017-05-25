@@ -1899,10 +1899,11 @@ ENTRY(system_call)
 	movi	a4, do_syscall_trace_enter
 	s32i	a3, a2, PT_SYSCALL
 	callx4	a4
+	mov	a3, a6
 
 	/* syscall = sys_call_table[syscall_nr] */
 
-	movi	a4, sys_call_table;
+	movi	a4, sys_call_table
 	movi	a5, __NR_syscall_count
 	movi	a6, -ENOSYS
 	bgeu	a3, a5, 1f

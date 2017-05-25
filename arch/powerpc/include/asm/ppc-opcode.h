@@ -86,32 +86,79 @@
 #define OP_TRAP_64 2
 
 #define OP_31_XOP_TRAP      4
+#define OP_31_XOP_LDX       21
 #define OP_31_XOP_LWZX      23
+#define OP_31_XOP_LDUX      53
 #define OP_31_XOP_DCBST     54
 #define OP_31_XOP_LWZUX     55
 #define OP_31_XOP_TRAP_64   68
 #define OP_31_XOP_DCBF      86
 #define OP_31_XOP_LBZX      87
+#define OP_31_XOP_STDX      149
 #define OP_31_XOP_STWX      151
+#define OP_31_XOP_STDUX     181
+#define OP_31_XOP_STWUX     183
 #define OP_31_XOP_STBX      215
 #define OP_31_XOP_LBZUX     119
 #define OP_31_XOP_STBUX     247
 #define OP_31_XOP_LHZX      279
 #define OP_31_XOP_LHZUX     311
 #define OP_31_XOP_MFSPR     339
+#define OP_31_XOP_LWAX      341
 #define OP_31_XOP_LHAX      343
+#define OP_31_XOP_LWAUX     373
 #define OP_31_XOP_LHAUX     375
 #define OP_31_XOP_STHX      407
 #define OP_31_XOP_STHUX     439
 #define OP_31_XOP_MTSPR     467
 #define OP_31_XOP_DCBI      470
+#define OP_31_XOP_LDBRX     532
 #define OP_31_XOP_LWBRX     534
 #define OP_31_XOP_TLBSYNC   566
+#define OP_31_XOP_STDBRX    660
 #define OP_31_XOP_STWBRX    662
+#define OP_31_XOP_STFSX	    663
+#define OP_31_XOP_STFSUX    695
+#define OP_31_XOP_STFDX     727
+#define OP_31_XOP_STFDUX    759
 #define OP_31_XOP_LHBRX     790
+#define OP_31_XOP_LFIWAX    855
+#define OP_31_XOP_LFIWZX    887
 #define OP_31_XOP_STHBRX    918
+#define OP_31_XOP_STFIWX    983
+
+/* VSX Scalar Load Instructions */
+#define OP_31_XOP_LXSDX         588
+#define OP_31_XOP_LXSSPX        524
+#define OP_31_XOP_LXSIWAX       76
+#define OP_31_XOP_LXSIWZX       12
+
+/* VSX Scalar Store Instructions */
+#define OP_31_XOP_STXSDX        716
+#define OP_31_XOP_STXSSPX       652
+#define OP_31_XOP_STXSIWX       140
+
+/* VSX Vector Load Instructions */
+#define OP_31_XOP_LXVD2X        844
+#define OP_31_XOP_LXVW4X        780
+
+/* VSX Vector Load and Splat Instruction */
+#define OP_31_XOP_LXVDSX        332
+
+/* VSX Vector Store Instructions */
+#define OP_31_XOP_STXVD2X       972
+#define OP_31_XOP_STXVW4X       908
+
+#define OP_31_XOP_LFSX          535
+#define OP_31_XOP_LFSUX         567
+#define OP_31_XOP_LFDX          599
+#define OP_31_XOP_LFDUX		631
 
 #define OP_LWZ  32
+#define OP_STFS 52
+#define OP_STFSU 53
+#define OP_STFD 54
+#define OP_STFDU 55
 #define OP_LD   58
 #define OP_LWZU 33
 #define OP_LBZ  34
@@ -127,6 +174,17 @@
 #define OP_LHAU 43
 #define OP_STH  44
 #define OP_STHU 45
+#define OP_LMW  46
+#define OP_STMW 47
+#define OP_LFS  48
+#define OP_LFSU 49
+#define OP_LFD  50
+#define OP_LFDU 51
+#define OP_STFS 52
+#define OP_STFSU 53
+#define OP_STFD  54
+#define OP_STFDU 55
+#define OP_LQ    56
 
 /* sorted alphabetically */
 #define PPC_INST_BHRBE			0x7c00025c

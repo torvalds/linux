@@ -967,3 +967,4 @@ EXPORT_SYMBOL_GPL(opal_leds_set_ind);
 EXPORT_SYMBOL_GPL(opal_write_oppanel_async);
 /* Export this for KVM */
 EXPORT_SYMBOL_GPL(opal_int_set_mfrr);
+EXPORT_SYMBOL_GPL(opal_int_eoi);

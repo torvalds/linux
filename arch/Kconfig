@@ -2,7 +2,11 @@
 # General architecture dependent options
 #
 
+config CRASH_CORE
+	bool
+
 config KEXEC_CORE
+	select CRASH_CORE
 	bool
 
 config HAVE_IMA_KEXEC
@@ -318,6 +322,9 @@ config HAVE_CMPXCHG_LOCAL
 	bool
 
 config HAVE_CMPXCHG_DOUBLE
+	bool
+
+config ARCH_WEAK_RELEASE_ACQUIRE
 	bool
 
 config ARCH_WANT_IPC_PARSE_VERSION

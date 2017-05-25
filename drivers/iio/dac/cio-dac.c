@@ -39,7 +39,7 @@
 
 static unsigned int base[max_num_isa_dev(CIO_DAC_EXTENT)];
 static unsigned int num_cio_dac;
-module_param_array(base, uint, &num_cio_dac, 0);
+module_param_hw_array(base, uint, ioport, &num_cio_dac, 0);
 MODULE_PARM_DESC(base, "Measurement Computing CIO-DAC base addresses");
 
 /**

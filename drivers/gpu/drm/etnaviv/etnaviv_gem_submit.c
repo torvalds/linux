@@ -44,6 +44,7 @@ static struct etnaviv_gem_submit *submit_create(struct drm_device *dev,
 
 		/* initially, until copy_from_user() and bo lookup succeeds: */
 		submit->nr_bos = 0;
+		submit->fence = NULL;
 
 		ww_acquire_init(&submit->ticket, &reservation_ww_class);
 	}
@@ -294,7 +295,8 @@ static void submit_cleanup(struct etnaviv_gem_submit *submit)
 	}
 
 	ww_acquire_fini(&submit->ticket);
-	dma_fence_put(submit->fence);
+	if (submit->fence)
+		dma_fence_put(submit->fence);
 	kfree(submit);
 }
 

@@ -2,9 +2,9 @@
 #define _ASM_POWERPC_BOOK3S_64_HASH_64K_H
 
 #define H_PTE_INDEX_SIZE  8
-#define H_PMD_INDEX_SIZE  5
-#define H_PUD_INDEX_SIZE  5
-#define H_PGD_INDEX_SIZE  15
+#define H_PMD_INDEX_SIZE  10
+#define H_PUD_INDEX_SIZE  7
+#define H_PGD_INDEX_SIZE  8
 
 /*
  * 64k aligned address free up few of the lower bits of RPN for us

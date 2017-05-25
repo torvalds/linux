@@ -1,5 +1,2 @@
 # UAPI Header export list
 include include/uapi/asm-generic/Kbuild.asm
-header-y += elf.h
-header-y += page.h
-header-y += cachectl.h

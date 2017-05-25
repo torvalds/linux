@@ -13,7 +13,7 @@ static void ident_pmd_init(struct x86_mapping_info *info, pmd_t *pmd_page,
 		if (pmd_present(*pmd))
 			continue;
 
-		set_pmd(pmd, __pmd((addr - info->offset) | info->pmd_flag));
+		set_pmd(pmd, __pmd((addr - info->offset) | info->page_flag));
 	}
 }
 
@@ -29,6 +29,18 @@ static int ident_pud_init(struct x86_mapping_info *info, pud_t *pud_page,
 		next = (addr & PUD_MASK) + PUD_SIZE;
 		if (next > end)
 			next = end;
+
+		if (info->direct_gbpages) {
+			pud_t pudval;
+
+			if (pud_present(*pud))
+				continue;
+
+			addr &= PUD_MASK;
+			pudval = __pud((addr - info->offset) | info->page_flag);
+			set_pud(pud, pudval);
+			continue;
+		}
 
 		if (pud_present(*pud)) {
 			pmd = pmd_offset(pud, 0);

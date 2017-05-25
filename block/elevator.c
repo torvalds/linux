@@ -1062,10 +1062,8 @@ static int __elevator_change(struct request_queue *q, const char *name)
 
 	strlcpy(elevator_name, name, sizeof(elevator_name));
 	e = elevator_get(strstrip(elevator_name), true);
-	if (!e) {
-		printk(KERN_ERR "elevator: type %s not found\n", elevator_name);
+	if (!e)
 		return -EINVAL;
-	}
 
 	if (q->elevator &&
 	    !strcmp(elevator_name, q->elevator->type->elevator_name)) {
@@ -1105,7 +1103,6 @@ ssize_t elv_iosched_store(struct request_queue *q, const char *name,
 	if (!ret)
 		return count;
 
-	printk(KERN_ERR "elevator: switch to %s failed\n", name);
 	return ret;
 }
 

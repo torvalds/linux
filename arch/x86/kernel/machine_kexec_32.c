@@ -23,7 +23,7 @@
 #include <asm/io_apic.h>
 #include <asm/cpufeature.h>
 #include <asm/desc.h>
-#include <asm/cacheflush.h>
+#include <asm/set_memory.h>
 #include <asm/debugreg.h>
 
 static void set_idt(void *newidt, __u16 limit)

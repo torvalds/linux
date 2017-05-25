@@ -464,6 +464,8 @@
 			clock-names = "ssc";
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_spi1_default>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 
 			status = "disabled";
 		};
@@ -476,6 +478,8 @@
 			clock-names = "ssc";
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_spi2_default>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 
 			status = "disabled";
 		};
@@ -488,6 +492,8 @@
 			clock-names = "ssc";
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_spi3_default>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 
 			status = "disabled";
 		};
@@ -500,6 +506,8 @@
 			clock-names = "ssc";
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_spi4_default>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 
 			status = "disabled";
 		};
@@ -513,6 +521,8 @@
 			clock-names = "ssc";
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_spi10_default>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 
 			status = "disabled";
 		};
@@ -525,6 +535,8 @@
 			clock-names = "ssc";
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_spi11_default>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 
 			status = "disabled";
 		};
@@ -537,6 +549,8 @@
 			clock-names = "ssc";
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_spi12_default>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 
 			status = "disabled";
 		};
@@ -789,7 +803,7 @@
 			status		= "okay";
 		};
 
-		st231_gp0: remote-processor {
+		st231_gp0: st231-gp0@0 {
 			compatible	= "st,st231-rproc";
 			memory-region	= <&gp0_reserved>;
 			resets		= <&softreset STIH407_ST231_GP0_SOFTRESET>;
@@ -802,7 +816,7 @@
 			mboxes = <&mailbox0 0 2>, <&mailbox2 0 1>, <&mailbox0 0 3>, <&mailbox2 0 0>;
 		};
 
-		st231_delta: remote-processor {
+		st231_delta: st231-delta@0 {
 			compatible	= "st,st231-rproc";
 			memory-region	= <&delta_reserved>;
 			resets		= <&softreset STIH407_ST231_DMU_SOFTRESET>;

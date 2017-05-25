@@ -160,6 +160,8 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		dev_err(adev->dev, "scheduling IB failed (%d).\n", r);
 		return r;
 	}
+	if (ring->funcs->emit_pipeline_sync && job && job->need_pipeline_sync)
+		amdgpu_ring_emit_pipeline_sync(ring);
 
 	if (vm) {
 		r = amdgpu_vm_flush(ring, job);
@@ -217,7 +219,8 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	if (r) {
 		dev_err(adev->dev, "failed to emit fence (%d)\n", r);
 		if (job && job->vm_id)
-			amdgpu_vm_reset_id(adev, job->vm_id);
+			amdgpu_vm_reset_id(adev, ring->funcs->vmhub,
+					   job->vm_id);
 		amdgpu_ring_undo(ring);
 		return r;
 	}

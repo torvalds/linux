@@ -33,11 +33,11 @@
 
 static unsigned int base[MAX_NUM_IDI_48];
 static unsigned int num_idi_48;
-module_param_array(base, uint, &num_idi_48, 0);
+module_param_hw_array(base, uint, ioport, &num_idi_48, 0);
 MODULE_PARM_DESC(base, "ACCES 104-IDI-48 base addresses");
 
 static unsigned int irq[MAX_NUM_IDI_48];
-module_param_array(irq, uint, NULL, 0);
+module_param_hw_array(irq, uint, irq, NULL, 0);
 MODULE_PARM_DESC(irq, "ACCES 104-IDI-48 interrupt line numbers");
 
 /**

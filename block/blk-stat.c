@@ -96,13 +96,16 @@ void blk_stat_add(struct request *rq)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(cb, &q->stats->callbacks, list) {
-		if (blk_stat_is_active(cb)) {
-			bucket = cb->bucket_fn(rq);
-			if (bucket < 0)
-				continue;
-			stat = &this_cpu_ptr(cb->cpu_stat)[bucket];
-			__blk_stat_add(stat, value);
-		}
+		if (!blk_stat_is_active(cb))
+			continue;
+
+		bucket = cb->bucket_fn(rq);
+		if (bucket < 0)
+			continue;
+
+		stat = &get_cpu_ptr(cb->cpu_stat)[bucket];
+		__blk_stat_add(stat, value);
+		put_cpu_ptr(cb->cpu_stat);
 	}
 	rcu_read_unlock();
 }

@@ -203,7 +203,6 @@ static __always_inline void pagefault_disabled_inc(void)
 static __always_inline void pagefault_disabled_dec(void)
 {
 	current->pagefault_disabled--;
-	WARN_ON(current->pagefault_disabled < 0);
 }
 
 /*

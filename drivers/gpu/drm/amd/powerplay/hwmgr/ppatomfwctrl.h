@@ -69,7 +69,7 @@ struct pp_atomfwctrl_clock_dividers_soc15 {
 struct pp_atomfwctrl_avfs_parameters {
 	uint32_t   ulMaxVddc;
 	uint32_t   ulMinVddc;
-	uint8_t    ucMaxVidStep;
+
 	uint32_t   ulMeanNsigmaAcontant0;
 	uint32_t   ulMeanNsigmaAcontant1;
 	uint32_t   ulMeanNsigmaAcontant2;
@@ -82,30 +82,30 @@ struct pp_atomfwctrl_avfs_parameters {
 	uint32_t   ulGbVdroopTableCksonA0;
 	uint32_t   ulGbVdroopTableCksonA1;
 	uint32_t   ulGbVdroopTableCksonA2;
+
 	uint32_t   ulGbFuseTableCksoffM1;
-	uint16_t   usGbFuseTableCksoffM2;
-	uint32_t   ulGbFuseTableCksoffB;\
+	uint32_t   ulGbFuseTableCksoffM2;
+	uint32_t   ulGbFuseTableCksoffB;
+
 	uint32_t   ulGbFuseTableCksonM1;
-	uint16_t   usGbFuseTableCksonM2;
+	uint32_t   ulGbFuseTableCksonM2;
 	uint32_t   ulGbFuseTableCksonB;
-	uint16_t   usMaxVoltage025mv;
-	uint8_t    ucEnableGbVdroopTableCksoff;
+
 	uint8_t    ucEnableGbVdroopTableCkson;
-	uint8_t    ucEnableGbFuseTableCksoff;
 	uint8_t    ucEnableGbFuseTableCkson;
 	uint16_t   usPsmAgeComfactor;
-	uint8_t    ucEnableApplyAvfsCksoffVoltage;
+
 	uint32_t   ulDispclk2GfxclkM1;
-	uint16_t   usDispclk2GfxclkM2;
+	uint32_t   ulDispclk2GfxclkM2;
 	uint32_t   ulDispclk2GfxclkB;
 	uint32_t   ulDcefclk2GfxclkM1;
-	uint16_t   usDcefclk2GfxclkM2;
+	uint32_t   ulDcefclk2GfxclkM2;
 	uint32_t   ulDcefclk2GfxclkB;
 	uint32_t   ulPixelclk2GfxclkM1;
-	uint16_t   usPixelclk2GfxclkM2;
+	uint32_t   ulPixelclk2GfxclkM2;
 	uint32_t   ulPixelclk2GfxclkB;
 	uint32_t   ulPhyclk2GfxclkM1;
-	uint16_t   usPhyclk2GfxclkM2;
+	uint32_t   ulPhyclk2GfxclkM2;
 	uint32_t   ulPhyclk2GfxclkB;
 };
 
@@ -119,6 +119,18 @@ struct pp_atomfwctrl_gpio_parameters {
 	uint8_t   ucFwCtfGpio;
 	uint8_t   ucFwCtfPolarity;
 };
+
+struct pp_atomfwctrl_bios_boot_up_values {
+	uint32_t   ulRevision;
+	uint32_t   ulGfxClk;
+	uint32_t   ulUClk;
+	uint32_t   ulSocClk;
+	uint16_t   usVddc;
+	uint16_t   usVddci;
+	uint16_t   usMvddc;
+	uint16_t   usVddGfx;
+};
+
 int pp_atomfwctrl_get_gpu_pll_dividers_vega10(struct pp_hwmgr *hwmgr,
 		uint32_t clock_type, uint32_t clock_value,
 		struct pp_atomfwctrl_clock_dividers_soc15 *dividers);
@@ -135,6 +147,9 @@ int pp_atomfwctrl_get_avfs_information(struct pp_hwmgr *hwmgr,
 		struct pp_atomfwctrl_avfs_parameters *param);
 int pp_atomfwctrl_get_gpio_information(struct pp_hwmgr *hwmgr,
 		struct pp_atomfwctrl_gpio_parameters *param);
+
+int pp_atomfwctrl_get_vbios_bootup_values(struct pp_hwmgr *hwmgr,
+			struct pp_atomfwctrl_bios_boot_up_values *boot_values);
 
 #endif
 

@@ -963,47 +963,36 @@ void iommu_flush_tce(struct iommu_table *tbl)
 }
 EXPORT_SYMBOL_GPL(iommu_flush_tce);
 
-int iommu_tce_clear_param_check(struct iommu_table *tbl,
-		unsigned long ioba, unsigned long tce_value,
-		unsigned long npages)
+int iommu_tce_check_ioba(unsigned long page_shift,
+		unsigned long offset, unsigned long size,
+		unsigned long ioba, unsigned long npages)
 {
-	/* tbl->it_ops->clear() does not support any value but 0 */
-	if (tce_value)
+	unsigned long mask = (1UL << page_shift) - 1;
+
+	if (ioba & mask)
 		return -EINVAL;
 
-	if (ioba & ~IOMMU_PAGE_MASK(tbl))
+	ioba >>= page_shift;
+	if (ioba < offset)
 		return -EINVAL;
 
-	ioba >>= tbl->it_page_shift;
-	if (ioba < tbl->it_offset)
-		return -EINVAL;
-
-	if ((ioba + npages) > (tbl->it_offset + tbl->it_size))
+	if ((ioba + 1) > (offset + size))
 		return -EINVAL;
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(iommu_tce_clear_param_check);
+EXPORT_SYMBOL_GPL(iommu_tce_check_ioba);
 
-int iommu_tce_put_param_check(struct iommu_table *tbl,
-		unsigned long ioba, unsigned long tce)
+int iommu_tce_check_gpa(unsigned long page_shift, unsigned long gpa)
 {
-	if (tce & ~IOMMU_PAGE_MASK(tbl))
-		return -EINVAL;
+	unsigned long mask = (1UL << page_shift) - 1;
 
-	if (ioba & ~IOMMU_PAGE_MASK(tbl))
-		return -EINVAL;
-
-	ioba >>= tbl->it_page_shift;
-	if (ioba < tbl->it_offset)
-		return -EINVAL;
-
-	if ((ioba + 1) > (tbl->it_offset + tbl->it_size))
+	if (gpa & mask)
 		return -EINVAL;
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(iommu_tce_put_param_check);
+EXPORT_SYMBOL_GPL(iommu_tce_check_gpa);
 
 long iommu_tce_xchg(struct iommu_table *tbl, unsigned long entry,
 		unsigned long *hpa, enum dma_data_direction *direction)

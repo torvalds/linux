@@ -9,6 +9,10 @@
 #ifndef _ASM_ARC_MMU_H
 #define _ASM_ARC_MMU_H
 
+#ifndef __ASSEMBLY__
+#include <linux/threads.h>	/* NR_CPUS */
+#endif
+
 #if defined(CONFIG_ARC_MMU_V1)
 #define CONFIG_ARC_MMU_VER 1
 #elif defined(CONFIG_ARC_MMU_V2)

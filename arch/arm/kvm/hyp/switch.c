@@ -48,7 +48,9 @@ static void __hyp_text __activate_traps(struct kvm_vcpu *vcpu, u32 *fpexc_host)
 	write_sysreg(HSTR_T(15), HSTR);
 	write_sysreg(HCPTR_TTA | HCPTR_TCP(10) | HCPTR_TCP(11), HCPTR);
 	val = read_sysreg(HDCR);
-	write_sysreg(val | HDCR_TPM | HDCR_TPMCR, HDCR);
+	val |= HDCR_TPM | HDCR_TPMCR; /* trap performance monitors */
+	val |= HDCR_TDRA | HDCR_TDOSA | HDCR_TDA; /* trap debug regs */
+	write_sysreg(val, HDCR);
 }
 
 static void __hyp_text __deactivate_traps(struct kvm_vcpu *vcpu)

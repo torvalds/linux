@@ -222,6 +222,12 @@
 			brcm,use-bcm-hdr;
 		};
 
+		crypto0: crypto@612d0000 {
+			compatible = "brcm,spum-crypto";
+			reg = <0x612d0000 0x900>;
+			mboxes = <&pdc0 0>;
+		};
+
 		pdc1: iproc-pdc1@612e0000 {
 			compatible = "brcm,iproc-pdc-mbox";
 			reg = <0x612e0000 0x445>;  /* PDC FS1 regs */
@@ -230,6 +236,12 @@
 			dma-coherent;
 			brcm,rx-status-len = <32>;
 			brcm,use-bcm-hdr;
+		};
+
+		crypto1: crypto@612f0000 {
+			compatible = "brcm,spum-crypto";
+			reg = <0x612f0000 0x900>;
+			mboxes = <&pdc1 0>;
 		};
 
 		pdc2: iproc-pdc2@61300000 {
@@ -242,6 +254,12 @@
 			brcm,use-bcm-hdr;
 		};
 
+		crypto2: crypto@61310000 {
+			compatible = "brcm,spum-crypto";
+			reg = <0x61310000 0x900>;
+			mboxes = <&pdc2 0>;
+		};
+
 		pdc3: iproc-pdc3@61320000 {
 			compatible = "brcm,iproc-pdc-mbox";
 			reg = <0x61320000 0x445>;  /* PDC FS3 regs */
@@ -250,6 +268,12 @@
 			dma-coherent;
 			brcm,rx-status-len = <32>;
 			brcm,use-bcm-hdr;
+		};
+
+		crypto3: crypto@61330000 {
+			compatible = "brcm,spum-crypto";
+			reg = <0x61330000 0x900>;
+			mboxes = <&pdc3 0>;
 		};
 
 		dma0: dma@61360000 {
