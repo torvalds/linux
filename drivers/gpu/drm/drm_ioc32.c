@@ -547,26 +547,20 @@ static int compat_drm_resctx(struct file *file, unsigned int cmd,
 {
 	drm_ctx_res32_t __user *argp = (void __user *)arg;
 	drm_ctx_res32_t res32;
-	struct drm_ctx_res __user *res;
+	struct drm_ctx_res res;
 	int err;
 
 	if (copy_from_user(&res32, argp, sizeof(res32)))
 		return -EFAULT;
 
-	res = compat_alloc_user_space(sizeof(*res));
-	if (!res)
-		return -EFAULT;
-	if (__put_user(res32.count, &res->count)
-	    || __put_user((struct drm_ctx __user *) (unsigned long)res32.contexts,
-			  &res->contexts))
-		return -EFAULT;
-
-	err = drm_ioctl(file, DRM_IOCTL_RES_CTX, (unsigned long)res);
+	res.count = res32.count;
+	res.contexts = compat_ptr(res32.contexts);
+	err = drm_ioctl_kernel(file, drm_legacy_resctx, &res, DRM_AUTH);
 	if (err)
 		return err;
 
-	if (__get_user(res32.count, &res->count)
-	    || __put_user(res32.count, &argp->count))
+	res32.count = res.count;
+	if (copy_to_user(argp, &res32, sizeof(res32)))
 		return -EFAULT;
 
 	return 0;
@@ -1001,7 +995,7 @@ static struct {
 	[DRM_IOCTL_NR(DRM_IOCTL_RM_MAP32)].fn = compat_drm_rmmap,
 	DRM_IOCTL32_DEF(DRM_IOCTL_SET_SAREA_CTX, compat_drm_setsareactx),
 	DRM_IOCTL32_DEF(DRM_IOCTL_GET_SAREA_CTX, compat_drm_getsareactx),
-	[DRM_IOCTL_NR(DRM_IOCTL_RES_CTX32)].fn = compat_drm_resctx,
+	DRM_IOCTL32_DEF(DRM_IOCTL_RES_CTX, compat_drm_resctx),
 	[DRM_IOCTL_NR(DRM_IOCTL_DMA32)].fn = compat_drm_dma,
 #if IS_ENABLED(CONFIG_AGP)
 	[DRM_IOCTL_NR(DRM_IOCTL_AGP_ENABLE32)].fn = compat_drm_agp_enable,
