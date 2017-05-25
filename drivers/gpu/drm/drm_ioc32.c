@@ -34,6 +34,7 @@
 #include <drm/drmP.h>
 #include "drm_legacy.h"
 #include "drm_internal.h"
+#include "drm_crtc_internal.h"
 
 #define DRM_IOCTL_VERSION32		DRM_IOWR(0x00, drm_version32_t)
 #define DRM_IOCTL_GET_UNIQUE32		DRM_IOWR(0x01, drm_unique32_t)
@@ -877,42 +878,23 @@ static int compat_drm_mode_addfb2(struct file *file, unsigned int cmd,
 				  unsigned long arg)
 {
 	struct drm_mode_fb_cmd232 __user *argp = (void __user *)arg;
-	struct drm_mode_fb_cmd232 req32;
-	struct drm_mode_fb_cmd2 __user *req64;
-	int i;
+	struct drm_mode_fb_cmd2 __user req64;
 	int err;
 
-	if (copy_from_user(&req32, argp, sizeof(req32)))
+	if (copy_from_user(&req64, argp,
+			   offsetof(drm_mode_fb_cmd232_t, modifier)))
 		return -EFAULT;
 
-	req64 = compat_alloc_user_space(sizeof(*req64));
-
-	if (!access_ok(VERIFY_WRITE, req64, sizeof(*req64))
-	    || __put_user(req32.width, &req64->width)
-	    || __put_user(req32.height, &req64->height)
-	    || __put_user(req32.pixel_format, &req64->pixel_format)
-	    || __put_user(req32.flags, &req64->flags))
+	if (copy_from_user(&req64.modifier, &argp->modifier,
+			   sizeof(req64.modifier)))
 		return -EFAULT;
 
-	for (i = 0; i < 4; i++) {
-		if (__put_user(req32.handles[i], &req64->handles[i]))
-			return -EFAULT;
-		if (__put_user(req32.pitches[i], &req64->pitches[i]))
-			return -EFAULT;
-		if (__put_user(req32.offsets[i], &req64->offsets[i]))
-			return -EFAULT;
-		if (__put_user(req32.modifier[i], &req64->modifier[i]))
-			return -EFAULT;
-	}
-
-	err = drm_ioctl(file, DRM_IOCTL_MODE_ADDFB2, (unsigned long)req64);
+	err = drm_ioctl_kernel(file, drm_mode_addfb2, &req64,
+				DRM_CONTROL_ALLOW|DRM_UNLOCKED);
 	if (err)
 		return err;
 
-	if (__get_user(req32.fb_id, &req64->fb_id))
-		return -EFAULT;
-
-	if (copy_to_user(argp, &req32, sizeof(req32)))
+	if (put_user(req64.fb_id, &argp->fb_id))
 		return -EFAULT;
 
 	return 0;
@@ -956,7 +938,7 @@ static struct {
 #endif
 	DRM_IOCTL32_DEF(DRM_IOCTL_WAIT_VBLANK, compat_drm_wait_vblank),
 #if defined(CONFIG_X86) || defined(CONFIG_IA64)
-	[DRM_IOCTL_NR(DRM_IOCTL_MODE_ADDFB232)].fn = compat_drm_mode_addfb2,
+	DRM_IOCTL32_DEF(DRM_IOCTL_MODE_ADDFB2, compat_drm_mode_addfb2),
 #endif
 };
 
