@@ -502,21 +502,16 @@ static int compat_drm_setsareactx(struct file *file, unsigned int cmd,
 				  unsigned long arg)
 {
 	drm_ctx_priv_map32_t req32;
-	struct drm_ctx_priv_map __user *request;
+	struct drm_ctx_priv_map request;
 	drm_ctx_priv_map32_t __user *argp = (void __user *)arg;
 
 	if (copy_from_user(&req32, argp, sizeof(req32)))
 		return -EFAULT;
 
-	request = compat_alloc_user_space(sizeof(*request));
-	if (!request)
-		return -EFAULT;
-	if (__put_user(req32.ctx_id, &request->ctx_id)
-	    || __put_user((void *)(unsigned long)req32.handle,
-			  &request->handle))
-		return -EFAULT;
-
-	return drm_ioctl(file, DRM_IOCTL_SET_SAREA_CTX, (unsigned long)request);
+	request.ctx_id = req32.ctx_id;
+	request.handle = compat_ptr(req32.handle);
+	return drm_ioctl_kernel(file, drm_legacy_setsareactx, &request,
+				DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY);
 }
 
 static int compat_drm_getsareactx(struct file *file, unsigned int cmd,
@@ -1011,7 +1006,7 @@ static struct {
 	[DRM_IOCTL_NR(DRM_IOCTL_MAP_BUFS32)].fn = compat_drm_mapbufs,
 	DRM_IOCTL32_DEF(DRM_IOCTL_FREE_BUFS, compat_drm_freebufs),
 	[DRM_IOCTL_NR(DRM_IOCTL_RM_MAP32)].fn = compat_drm_rmmap,
-	[DRM_IOCTL_NR(DRM_IOCTL_SET_SAREA_CTX32)].fn = compat_drm_setsareactx,
+	DRM_IOCTL32_DEF(DRM_IOCTL_SET_SAREA_CTX, compat_drm_setsareactx),
 	[DRM_IOCTL_NR(DRM_IOCTL_GET_SAREA_CTX32)].fn = compat_drm_getsareactx,
 	[DRM_IOCTL_NR(DRM_IOCTL_RES_CTX32)].fn = compat_drm_resctx,
 	[DRM_IOCTL_NR(DRM_IOCTL_DMA32)].fn = compat_drm_dma,
