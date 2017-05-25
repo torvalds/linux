@@ -603,7 +603,7 @@ static struct rockchip_clk_branch rk3328_clk_branches[] __initdata = {
 			RK3328_CLKGATE_CON(5), 6, GFLAGS),
 	DIV(DCLK_HDMIPHY, "dclk_hdmiphy", "dclk_lcdc_src", 0,
 			RK3328_CLKSEL_CON(40), 3, 3, DFLAGS),
-	MUX(DCLK_LCDC, "dclk_lcdc", mux_dclk_lcdc_p, 0,
+	MUX(DCLK_LCDC, "dclk_lcdc", mux_dclk_lcdc_p,  CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 			RK3328_CLKSEL_CON(40), 1, 1, MFLAGS),
 
 	/*
