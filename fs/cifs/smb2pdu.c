@@ -564,8 +564,12 @@ int smb3_validate_negotiate(const unsigned int xid, struct cifs_tcon *tcon)
 	}
 
 	if (rsplen != sizeof(struct validate_negotiate_info_rsp)) {
-		cifs_dbg(VFS, "invalid size of protocol negotiate response\n");
-		return -EIO;
+		cifs_dbg(VFS, "invalid protocol negotiate response size: %d\n",
+			 rsplen);
+
+		/* relax check since Mac returns max bufsize allowed on ioctl */
+		if (rsplen > CIFSMaxBufSize)
+			return -EIO;
 	}
 
 	/* check validate negotiate info response matches what we got earlier */
@@ -1518,8 +1522,12 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 	 * than one credit. Windows typically sets this smaller, but for some
 	 * ioctls it may be useful to allow server to send more. No point
 	 * limiting what the server can send as long as fits in one credit
+	 * Unfortunately - we can not handle more than CIFS_MAX_MSG_SIZE
+	 * (by default, note that it can be overridden to make max larger)
+	 * in responses (except for read responses which can be bigger.
+	 * We may want to bump this limit up
 	 */
-	req->MaxOutputResponse = cpu_to_le32(0xFF00); /* < 64K uses 1 credit */
+	req->MaxOutputResponse = cpu_to_le32(CIFSMaxBufSize);
 
 	if (is_fsctl)
 		req->Flags = cpu_to_le32(SMB2_0_IOCTL_IS_FSCTL);

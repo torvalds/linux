@@ -1105,7 +1105,8 @@ static void _mlx4_ib_mcg_port_cleanup(struct mlx4_ib_demux_ctx *ctx, int destroy
 	while ((p = rb_first(&ctx->mcg_table)) != NULL) {
 		group = rb_entry(p, struct mcast_group, node);
 		if (atomic_read(&group->refcount))
-			mcg_warn_group(group, "group refcount %d!!! (pointer %p)\n", atomic_read(&group->refcount), group);
+			mcg_debug_group(group, "group refcount %d!!! (pointer %p)\n",
+					atomic_read(&group->refcount), group);
 
 		force_clean_group(group);
 	}

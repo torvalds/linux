@@ -2960,6 +2960,12 @@ static int kvm_vcpu_ioctl_x86_set_vcpu_events(struct kvm_vcpu *vcpu,
 			      | KVM_VCPUEVENT_VALID_SMM))
 		return -EINVAL;
 
+	/* INITs are latched while in SMM */
+	if (events->flags & KVM_VCPUEVENT_VALID_SMM &&
+	    (events->smi.smm || events->smi.pending) &&
+	    vcpu->arch.mp_state == KVM_MP_STATE_INIT_RECEIVED)
+		return -EINVAL;
+
 	process_nmi(vcpu);
 	vcpu->arch.exception.pending = events->exception.injected;
 	vcpu->arch.exception.nr = events->exception.nr;
@@ -6991,6 +6997,12 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 {
 	if (!kvm_vcpu_has_lapic(vcpu) &&
 	    mp_state->mp_state != KVM_MP_STATE_RUNNABLE)
+		return -EINVAL;
+
+	/* INITs are latched while in SMM */
+	if ((is_smm(vcpu) || vcpu->arch.smi_pending) &&
+	    (mp_state->mp_state == KVM_MP_STATE_SIPI_RECEIVED ||
+	     mp_state->mp_state == KVM_MP_STATE_INIT_RECEIVED))
 		return -EINVAL;
 
 	if (mp_state->mp_state == KVM_MP_STATE_SIPI_RECEIVED) {
