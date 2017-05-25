@@ -51,4 +51,9 @@ static inline int debug_locks_off(void)
 #define debug_show_all_locks()
 extern void debug_check_no_locks_held(void);
 
+static __used bool __is_kernel_percpu_address(unsigned long addr, void *can_addr)
+{
+	return false;
+}
+
 #endif
