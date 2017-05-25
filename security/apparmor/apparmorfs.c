@@ -488,9 +488,27 @@ SEQ_PROFILE_FOPS(mode);
 SEQ_PROFILE_FOPS(attach);
 SEQ_PROFILE_FOPS(hash);
 
+/*
+ * namespace based files
+ *     several root files and
+ *     policy/ *
+ */
 
+#define SEQ_NS_FOPS(NAME)						      \
+static int seq_ns_ ##NAME ##_open(struct inode *inode, struct file *file)     \
+{									      \
+	return single_open(file, seq_ns_ ##NAME ##_show, inode->i_private);   \
+}									      \
+									      \
+static const struct file_operations seq_ns_ ##NAME ##_fops = {	      \
+	.owner		= THIS_MODULE,					      \
+	.open		= seq_ns_ ##NAME ##_open,			      \
+	.read		= seq_read,					      \
+	.llseek		= seq_lseek,					      \
+	.release	= single_release,				      \
+}									      \
 
-static int aa_fs_seq_show_ns_level(struct seq_file *seq, void *v)
+static int seq_ns_level_show(struct seq_file *seq, void *v)
 {
 	struct aa_ns *ns = aa_current_profile()->ns;
 
@@ -499,20 +517,7 @@ static int aa_fs_seq_show_ns_level(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int aa_fs_seq_open_ns_level(struct inode *inode, struct file *file)
-{
-	return single_open(file, aa_fs_seq_show_ns_level, inode->i_private);
-}
-
-static const struct file_operations aa_fs_ns_level = {
-	.owner		= THIS_MODULE,
-	.open		= aa_fs_seq_open_ns_level,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
-static int aa_fs_seq_show_ns_name(struct seq_file *seq, void *v)
+static int seq_ns_name_show(struct seq_file *seq, void *v)
 {
 	struct aa_ns *ns = aa_current_profile()->ns;
 
@@ -521,18 +526,8 @@ static int aa_fs_seq_show_ns_name(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int aa_fs_seq_open_ns_name(struct inode *inode, struct file *file)
-{
-	return single_open(file, aa_fs_seq_show_ns_name, inode->i_private);
-}
-
-static const struct file_operations aa_fs_ns_name = {
-	.owner		= THIS_MODULE,
-	.open		= aa_fs_seq_open_ns_name,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+SEQ_NS_FOPS(level);
+SEQ_NS_FOPS(name);
 
 
 /* policy/raw_data/ * file ops */
@@ -1363,8 +1358,8 @@ static struct aa_fs_entry aa_fs_entry_features[] = {
 
 static struct aa_fs_entry aa_fs_entry_apparmor[] = {
 	AA_FS_FILE_FOPS(".access", 0640, &aa_fs_access),
-	AA_FS_FILE_FOPS(".ns_level", 0666, &aa_fs_ns_level),
-	AA_FS_FILE_FOPS(".ns_name", 0640, &aa_fs_ns_name),
+	AA_FS_FILE_FOPS(".ns_level", 0666, &seq_ns_level_fops),
+	AA_FS_FILE_FOPS(".ns_name", 0640, &seq_ns_name_fops),
 	AA_FS_FILE_FOPS("profiles", 0440, &aa_fs_profiles_fops),
 	AA_FS_DIR("features", aa_fs_entry_features),
 	{ }
