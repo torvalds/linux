@@ -7,4 +7,6 @@
 #define WRITE_ONCE(x, val) x=(val)
 #define RCU_INIT_POINTER(p, v) p=(v)
 
+#define __packed	__attribute__((packed))
+
 #endif

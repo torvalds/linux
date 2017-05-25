@@ -52,4 +52,6 @@ static inline int lockdep_warn(int condition)
 #define _THIS_IP_ ({ __label__ __here; __here: (unsigned long)&&__here; })
 #endif
 
+#define pr_err(format, ...) fprintf (stderr, format, ## __VA_ARGS__)
+
 #endif
