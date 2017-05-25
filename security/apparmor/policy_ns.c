@@ -196,7 +196,7 @@ static struct aa_ns *__aa_create_ns(struct aa_ns *parent, const char *name,
 	if (!ns)
 		return NULL;
 	mutex_lock(&ns->lock);
-	error = __aafs_ns_mkdir(ns, ns_subns_dir(parent), name);
+	error = __aafs_ns_mkdir(ns, ns_subns_dir(parent), name, dir);
 	if (error) {
 		AA_ERROR("Failed to create interface for ns %s\n",
 			 ns->base.name);

@@ -112,8 +112,8 @@ void __aafs_profile_migrate_dents(struct aa_profile *old,
 				   struct aa_profile *new);
 int __aafs_profile_mkdir(struct aa_profile *profile, struct dentry *parent);
 void __aafs_ns_rmdir(struct aa_ns *ns);
-int __aafs_ns_mkdir(struct aa_ns *ns, struct dentry *parent,
-		     const char *name);
+int __aafs_ns_mkdir(struct aa_ns *ns, struct dentry *parent, const char *name,
+		     struct dentry *dent);
 
 struct aa_loaddata;
 void __aa_fs_remove_rawdata(struct aa_loaddata *rawdata);

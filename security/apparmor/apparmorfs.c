@@ -1339,11 +1339,12 @@ static int __aafs_ns_mkdir_entries(struct aa_ns *ns, struct dentry *dir)
 /*
  * Requires: @ns->lock held
  */
-int __aafs_ns_mkdir(struct aa_ns *ns, struct dentry *parent, const char *name)
+int __aafs_ns_mkdir(struct aa_ns *ns, struct dentry *parent, const char *name,
+		    struct dentry *dent)
 {
 	struct aa_ns *sub;
 	struct aa_profile *child;
-	struct dentry *dent, *dir;
+	struct dentry *dir;
 	int error;
 
 	AA_BUG(!ns);
@@ -1373,7 +1374,7 @@ int __aafs_ns_mkdir(struct aa_ns *ns, struct dentry *parent, const char *name)
 	/* subnamespaces */
 	list_for_each_entry(sub, &ns->sub_ns, base.list) {
 		mutex_lock(&sub->lock);
-		error = __aafs_ns_mkdir(sub, ns_subns_dir(ns), NULL);
+		error = __aafs_ns_mkdir(sub, ns_subns_dir(ns), NULL, NULL);
 		mutex_unlock(&sub->lock);
 		if (error)
 			goto fail2;
@@ -1929,7 +1930,7 @@ static int __init aa_create_aafs(void)
 	ns_subremove(root_ns) = dent;
 
 	mutex_lock(&root_ns->lock);
-	error = __aafs_ns_mkdir(root_ns, aa_sfs_entry.dentry, "policy");
+	error = __aafs_ns_mkdir(root_ns, aa_sfs_entry.dentry, "policy", NULL);
 	mutex_unlock(&root_ns->lock);
 
 	if (error)
