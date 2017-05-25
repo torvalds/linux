@@ -17,19 +17,19 @@
 #define raw_local_irq_disable() do { } while (0)
 #define raw_local_irq_enable() do { } while (0)
 #define raw_local_irq_save(flags) ((flags) = 0)
-#define raw_local_irq_restore(flags) do { } while (0)
+#define raw_local_irq_restore(flags) ((void)(flags))
 #define raw_local_save_flags(flags) ((flags) = 0)
-#define raw_irqs_disabled_flags(flags) do { } while (0)
+#define raw_irqs_disabled_flags(flags) ((void)(flags))
 #define raw_irqs_disabled() 0
 #define raw_safe_halt()
 
 #define local_irq_enable() do { } while (0)
 #define local_irq_disable() do { } while (0)
 #define local_irq_save(flags) ((flags) = 0)
-#define local_irq_restore(flags) do { } while (0)
+#define local_irq_restore(flags) ((void)(flags))
 #define local_save_flags(flags)	((flags) = 0)
 #define irqs_disabled() (1)
-#define irqs_disabled_flags(flags) (0)
+#define irqs_disabled_flags(flags) ((void)(flags), 0)
 #define safe_halt() do { } while (0)
 
 #define trace_lock_release(x, y)
