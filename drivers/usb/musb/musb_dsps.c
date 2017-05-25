@@ -213,6 +213,12 @@ static int dsps_check_status(struct musb *musb, void *unused)
 				msecs_to_jiffies(wrp->poll_timeout));
 		break;
 	case OTG_STATE_A_WAIT_BCON:
+		/* keep VBUS on for host-only mode */
+		if (musb->port_mode == MUSB_PORT_MODE_HOST) {
+			mod_timer(&glue->timer, jiffies +
+					msecs_to_jiffies(wrp->poll_timeout));
+			break;
+		}
 		musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 		skip_session = 1;
 		/* fall */
