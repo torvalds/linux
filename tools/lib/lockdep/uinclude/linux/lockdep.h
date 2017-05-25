@@ -44,16 +44,6 @@ static inline int debug_locks_off(void)
 #define atomic_t unsigned long
 #define atomic_inc(x) ((*(x))++)
 
-static struct new_utsname *init_utsname(void)
-{
-	static struct new_utsname n = (struct new_utsname) {
-		.release = "liblockdep",
-		.version = LIBLOCKDEP_VERSION,
-	};
-
-	return &n;
-}
-
 #define print_tainted() ""
 #define static_obj(x) 1
 
