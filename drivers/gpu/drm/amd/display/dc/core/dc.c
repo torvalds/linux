@@ -97,6 +97,7 @@ static bool create_links(
 		struct core_link *link;
 
 		link_init_params.ctx = dc->ctx;
+		/* next BIOS object table connector */
 		link_init_params.connector_index = i;
 		link_init_params.link_index = dc->link_count;
 		link_init_params.dc = dc;
@@ -106,8 +107,6 @@ static bool create_links(
 			dc->links[dc->link_count] = link;
 			link->dc = dc;
 			++dc->link_count;
-		} else {
-			dm_error("DC: failed to create link!\n");
 		}
 	}
 

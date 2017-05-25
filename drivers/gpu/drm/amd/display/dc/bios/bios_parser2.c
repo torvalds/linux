@@ -410,6 +410,9 @@ enum generic_id generic_id_from_bios_object_id(uint32_t bios_object_id)
 	return id;
 }
 
+/* BIOS oject table displaypath is per connector.
+ * There is extra path not for connector. BIOS fill its encoderid as 0
+ */
 static uint8_t bios_parser_get_connectors_number(struct dc_bios *dcb)
 {
 	struct bios_parser *bp = BP_FROM_DCB(dcb);
@@ -417,9 +420,7 @@ static uint8_t bios_parser_get_connectors_number(struct dc_bios *dcb)
 	unsigned int i;
 
 	for (i = 0; i < bp->object_info_tbl.v1_4->number_of_path; i++) {
-		if (bp->object_info_tbl.v1_4->display_path[i].encoderobjid != 0
-				&&
-		bp->object_info_tbl.v1_4->display_path[i].display_objid != 0)
+		if (bp->object_info_tbl.v1_4->display_path[i].encoderobjid != 0)
 			count++;
 	}
 	return count;
