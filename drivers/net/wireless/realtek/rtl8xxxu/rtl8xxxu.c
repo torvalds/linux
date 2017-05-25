@@ -5375,13 +5375,13 @@ static int rtl8xxxu_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 static int
 rtl8xxxu_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		      enum ieee80211_ampdu_mlme_action action,
-		      struct ieee80211_sta *sta, u16 tid, u16 *ssn, u8 buf_size,
-		      bool amsdu)
+		      struct ieee80211_ampdu_params *params)
 {
 	struct rtl8xxxu_priv *priv = hw->priv;
 	struct device *dev = &priv->udev->dev;
 	u8 ampdu_factor, ampdu_density;
+	struct ieee80211_sta *sta = params->sta;
+	enum ieee80211_ampdu_mlme_action action = params->action;
 
 	switch (action) {
 	case IEEE80211_AMPDU_TX_START:

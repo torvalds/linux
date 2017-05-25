@@ -169,28 +169,25 @@ void core_tpg_add_node_to_devs(
 	mutex_unlock(&tpg->tpg_lun_mutex);
 }
 
-/*      core_set_queue_depth_for_node():
- *
- *
- */
-static int core_set_queue_depth_for_node(
-	struct se_portal_group *tpg,
-	struct se_node_acl *acl)
+static void
+target_set_nacl_queue_depth(struct se_portal_group *tpg,
+			    struct se_node_acl *acl, u32 queue_depth)
 {
+	acl->queue_depth = queue_depth;
+
 	if (!acl->queue_depth) {
-		pr_err("Queue depth for %s Initiator Node: %s is 0,"
+		pr_warn("Queue depth for %s Initiator Node: %s is 0,"
 			"defaulting to 1.\n", tpg->se_tpg_tfo->get_fabric_name(),
 			acl->initiatorname);
 		acl->queue_depth = 1;
 	}
-
-	return 0;
 }
 
 static struct se_node_acl *target_alloc_node_acl(struct se_portal_group *tpg,
 		const unsigned char *initiatorname)
 {
 	struct se_node_acl *acl;
+	u32 queue_depth;
 
 	acl = kzalloc(max(sizeof(*acl), tpg->se_tpg_tfo->node_acl_size),
 			GFP_KERNEL);
@@ -205,24 +202,20 @@ static struct se_node_acl *target_alloc_node_acl(struct se_portal_group *tpg,
 	spin_lock_init(&acl->nacl_sess_lock);
 	mutex_init(&acl->lun_entry_mutex);
 	atomic_set(&acl->acl_pr_ref_count, 0);
+
 	if (tpg->se_tpg_tfo->tpg_get_default_depth)
-		acl->queue_depth = tpg->se_tpg_tfo->tpg_get_default_depth(tpg);
+		queue_depth = tpg->se_tpg_tfo->tpg_get_default_depth(tpg);
 	else
-		acl->queue_depth = 1;
+		queue_depth = 1;
+	target_set_nacl_queue_depth(tpg, acl, queue_depth);
+
 	snprintf(acl->initiatorname, TRANSPORT_IQN_LEN, "%s", initiatorname);
 	acl->se_tpg = tpg;
 	acl->acl_index = scsi_get_new_index(SCSI_AUTH_INTR_INDEX);
 
 	tpg->se_tpg_tfo->set_default_node_attributes(acl);
 
-	if (core_set_queue_depth_for_node(tpg, acl) < 0)
-		goto out_free_acl;
-
 	return acl;
-
-out_free_acl:
-	kfree(acl);
-	return NULL;
 }
 
 static void target_add_node_acl(struct se_node_acl *acl)
@@ -369,7 +362,8 @@ void core_tpg_del_initiator_node_acl(struct se_node_acl *acl)
 		if (sess->sess_tearing_down != 0)
 			continue;
 
-		target_get_session(sess);
+		if (!target_get_session(sess))
+			continue;
 		list_move(&sess->sess_acl_list, &sess_list);
 	}
 	spin_unlock_irqrestore(&acl->nacl_sess_lock, flags);
@@ -406,107 +400,51 @@ void core_tpg_del_initiator_node_acl(struct se_node_acl *acl)
  *
  */
 int core_tpg_set_initiator_node_queue_depth(
-	struct se_portal_group *tpg,
-	unsigned char *initiatorname,
-	u32 queue_depth,
-	int force)
+	struct se_node_acl *acl,
+	u32 queue_depth)
 {
-	struct se_session *sess, *init_sess = NULL;
-	struct se_node_acl *acl;
+	LIST_HEAD(sess_list);
+	struct se_portal_group *tpg = acl->se_tpg;
+	struct se_session *sess, *sess_tmp;
 	unsigned long flags;
-	int dynamic_acl = 0;
-
-	mutex_lock(&tpg->acl_node_mutex);
-	acl = __core_tpg_get_initiator_node_acl(tpg, initiatorname);
-	if (!acl) {
-		pr_err("Access Control List entry for %s Initiator"
-			" Node %s does not exists for TPG %hu, ignoring"
-			" request.\n", tpg->se_tpg_tfo->get_fabric_name(),
-			initiatorname, tpg->se_tpg_tfo->tpg_get_tag(tpg));
-		mutex_unlock(&tpg->acl_node_mutex);
-		return -ENODEV;
-	}
-	if (acl->dynamic_node_acl) {
-		acl->dynamic_node_acl = 0;
-		dynamic_acl = 1;
-	}
-	mutex_unlock(&tpg->acl_node_mutex);
-
-	spin_lock_irqsave(&tpg->session_lock, flags);
-	list_for_each_entry(sess, &tpg->tpg_sess_list, sess_list) {
-		if (sess->se_node_acl != acl)
-			continue;
-
-		if (!force) {
-			pr_err("Unable to change queue depth for %s"
-				" Initiator Node: %s while session is"
-				" operational.  To forcefully change the queue"
-				" depth and force session reinstatement"
-				" use the \"force=1\" parameter.\n",
-				tpg->se_tpg_tfo->get_fabric_name(), initiatorname);
-			spin_unlock_irqrestore(&tpg->session_lock, flags);
-
-			mutex_lock(&tpg->acl_node_mutex);
-			if (dynamic_acl)
-				acl->dynamic_node_acl = 1;
-			mutex_unlock(&tpg->acl_node_mutex);
-			return -EEXIST;
-		}
-		/*
-		 * Determine if the session needs to be closed by our context.
-		 */
-		if (!tpg->se_tpg_tfo->shutdown_session(sess))
-			continue;
-
-		init_sess = sess;
-		break;
-	}
+	int rc;
 
 	/*
 	 * User has requested to change the queue depth for a Initiator Node.
 	 * Change the value in the Node's struct se_node_acl, and call
-	 * core_set_queue_depth_for_node() to add the requested queue depth.
-	 *
-	 * Finally call  tpg->se_tpg_tfo->close_session() to force session
-	 * reinstatement to occur if there is an active session for the
-	 * $FABRIC_MOD Initiator Node in question.
+	 * target_set_nacl_queue_depth() to set the new queue depth.
 	 */
-	acl->queue_depth = queue_depth;
+	target_set_nacl_queue_depth(tpg, acl, queue_depth);
 
-	if (core_set_queue_depth_for_node(tpg, acl) < 0) {
-		spin_unlock_irqrestore(&tpg->session_lock, flags);
+	spin_lock_irqsave(&acl->nacl_sess_lock, flags);
+	list_for_each_entry_safe(sess, sess_tmp, &acl->acl_sess_list,
+				 sess_acl_list) {
+		if (sess->sess_tearing_down != 0)
+			continue;
+		if (!target_get_session(sess))
+			continue;
+		spin_unlock_irqrestore(&acl->nacl_sess_lock, flags);
+
 		/*
-		 * Force session reinstatement if
-		 * core_set_queue_depth_for_node() failed, because we assume
-		 * the $FABRIC_MOD has already the set session reinstatement
-		 * bit from tpg->se_tpg_tfo->shutdown_session() called above.
+		 * Finally call tpg->se_tpg_tfo->close_session() to force session
+		 * reinstatement to occur if there is an active session for the
+		 * $FABRIC_MOD Initiator Node in question.
 		 */
-		if (init_sess)
-			tpg->se_tpg_tfo->close_session(init_sess);
-
-		mutex_lock(&tpg->acl_node_mutex);
-		if (dynamic_acl)
-			acl->dynamic_node_acl = 1;
-		mutex_unlock(&tpg->acl_node_mutex);
-		return -EINVAL;
+		rc = tpg->se_tpg_tfo->shutdown_session(sess);
+		target_put_session(sess);
+		if (!rc) {
+			spin_lock_irqsave(&acl->nacl_sess_lock, flags);
+			continue;
+		}
+		target_put_session(sess);
+		spin_lock_irqsave(&acl->nacl_sess_lock, flags);
 	}
-	spin_unlock_irqrestore(&tpg->session_lock, flags);
-	/*
-	 * If the $FABRIC_MOD session for the Initiator Node ACL exists,
-	 * forcefully shutdown the $FABRIC_MOD session/nexus.
-	 */
-	if (init_sess)
-		tpg->se_tpg_tfo->close_session(init_sess);
+	spin_unlock_irqrestore(&acl->nacl_sess_lock, flags);
 
 	pr_debug("Successfully changed queue depth to: %d for Initiator"
-		" Node: %s on %s Target Portal Group: %u\n", queue_depth,
-		initiatorname, tpg->se_tpg_tfo->get_fabric_name(),
+		" Node: %s on %s Target Portal Group: %u\n", acl->queue_depth,
+		acl->initiatorname, tpg->se_tpg_tfo->get_fabric_name(),
 		tpg->se_tpg_tfo->tpg_get_tag(tpg));
-
-	mutex_lock(&tpg->acl_node_mutex);
-	if (dynamic_acl)
-		acl->dynamic_node_acl = 1;
-	mutex_unlock(&tpg->acl_node_mutex);
 
 	return 0;
 }

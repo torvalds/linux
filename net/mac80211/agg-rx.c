@@ -7,6 +7,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2007-2010, Intel Corporation
+ * Copyright(c) 2015 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -61,6 +62,14 @@ void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 {
 	struct ieee80211_local *local = sta->local;
 	struct tid_ampdu_rx *tid_rx;
+	struct ieee80211_ampdu_params params = {
+		.sta = &sta->sta,
+		.action = IEEE80211_AMPDU_RX_STOP,
+		.tid = tid,
+		.amsdu = false,
+		.timeout = 0,
+		.ssn = 0,
+	};
 
 	lockdep_assert_held(&sta->ampdu_mlme.mtx);
 
@@ -78,8 +87,7 @@ void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 	       initiator == WLAN_BACK_RECIPIENT ? "recipient" : "inititator",
 	       (int)reason);
 
-	if (drv_ampdu_action(local, sta->sdata, IEEE80211_AMPDU_RX_STOP,
-			     &sta->sta, tid, NULL, 0, false))
+	if (drv_ampdu_action(local, sta->sdata, &params))
 		sdata_info(sta->sdata,
 			   "HW problem - can not stop rx aggregation for %pM tid %d\n",
 			   sta->sta.addr, tid);
@@ -237,6 +245,15 @@ void __ieee80211_start_rx_ba_session(struct sta_info *sta,
 {
 	struct ieee80211_local *local = sta->sdata->local;
 	struct tid_ampdu_rx *tid_agg_rx;
+	struct ieee80211_ampdu_params params = {
+		.sta = &sta->sta,
+		.action = IEEE80211_AMPDU_RX_START,
+		.tid = tid,
+		.amsdu = false,
+		.timeout = timeout,
+		.ssn = start_seq_num,
+	};
+
 	int i, ret = -EOPNOTSUPP;
 	u16 status = WLAN_STATUS_REQUEST_DECLINED;
 
@@ -273,8 +290,12 @@ void __ieee80211_start_rx_ba_session(struct sta_info *sta,
 		buf_size = IEEE80211_MAX_AMPDU_BUF;
 
 	/* make sure the size doesn't exceed the maximum supported by the hw */
-	if (buf_size > local->hw.max_rx_aggregation_subframes)
-		buf_size = local->hw.max_rx_aggregation_subframes;
+	if (buf_size > sta->sta.max_rx_aggregation_subframes)
+		buf_size = sta->sta.max_rx_aggregation_subframes;
+	params.buf_size = buf_size;
+
+	ht_dbg(sta->sdata, "AddBA Req buf_size=%d for %pM\n",
+	       buf_size, sta->sta.addr);
 
 	/* examine state machine */
 	mutex_lock(&sta->ampdu_mlme.mtx);
@@ -322,8 +343,7 @@ void __ieee80211_start_rx_ba_session(struct sta_info *sta,
 	for (i = 0; i < buf_size; i++)
 		__skb_queue_head_init(&tid_agg_rx->reorder_buf[i]);
 
-	ret = drv_ampdu_action(local, sta->sdata, IEEE80211_AMPDU_RX_START,
-			       &sta->sta, tid, &start_seq_num, 0, false);
+	ret = drv_ampdu_action(local, sta->sdata, &params);
 	ht_dbg(sta->sdata, "Rx A-MPDU request on %pM tid %d result %d\n",
 	       sta->sta.addr, tid, ret);
 	if (ret) {
