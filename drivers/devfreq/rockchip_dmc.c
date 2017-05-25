@@ -724,7 +724,8 @@ static int rk3288_dmc_init(struct platform_device *pdev)
 	return 0;
 }
 
-static int rk3368_dmc_init(struct platform_device *pdev)
+static int rk3368_dmc_init(struct platform_device *pdev,
+			   struct rockchip_dmcfreq *dmcfreq)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = pdev->dev.of_node;
@@ -791,6 +792,8 @@ static int rk3368_dmc_init(struct platform_device *pdev)
 		dev_err(dev, "ddr init error\n");
 	else
 		dev_dbg(dev, ("%s out\n"), __func__);
+
+	dmcfreq->set_auto_self_refresh = scpi_ddr_set_auto_self_refresh;
 
 	return 0;
 }
