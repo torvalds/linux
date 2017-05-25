@@ -2555,11 +2555,13 @@ static void bond_loadbalance_arp_mon(struct work_struct *work)
 	bond_for_each_slave_rcu(bond, slave, iter) {
 		unsigned long trans_start = dev_trans_start(slave->dev);
 
+		slave->new_link = BOND_LINK_NOCHANGE;
+
 		if (slave->link != BOND_LINK_UP) {
 			if (bond_time_in_interval(bond, trans_start, 1) &&
 			    bond_time_in_interval(bond, slave->last_rx, 1)) {
 
-				slave->link  = BOND_LINK_UP;
+				slave->new_link = BOND_LINK_UP;
 				slave_state_changed = 1;
 
 				/* primary_slave has no meaning in round-robin
@@ -2586,7 +2588,7 @@ static void bond_loadbalance_arp_mon(struct work_struct *work)
 			if (!bond_time_in_interval(bond, trans_start, 2) ||
 			    !bond_time_in_interval(bond, slave->last_rx, 2)) {
 
-				slave->link  = BOND_LINK_DOWN;
+				slave->new_link = BOND_LINK_DOWN;
 				slave_state_changed = 1;
 
 				if (slave->link_failure_count < UINT_MAX)
@@ -2616,6 +2618,11 @@ static void bond_loadbalance_arp_mon(struct work_struct *work)
 	if (do_failover || slave_state_changed) {
 		if (!rtnl_trylock())
 			goto re_arm;
+
+		bond_for_each_slave(bond, slave, iter) {
+			if (slave->new_link != BOND_LINK_NOCHANGE)
+				slave->link = slave->new_link;
+		}
 
 		if (slave_state_changed) {
 			bond_slave_state_change(bond);
