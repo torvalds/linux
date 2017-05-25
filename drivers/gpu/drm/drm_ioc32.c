@@ -584,38 +584,26 @@ static int compat_drm_dma(struct file *file, unsigned int cmd,
 {
 	drm_dma32_t d32;
 	drm_dma32_t __user *argp = (void __user *)arg;
-	struct drm_dma __user *d;
+	struct drm_dma d;
 	int err;
 
 	if (copy_from_user(&d32, argp, sizeof(d32)))
 		return -EFAULT;
 
-	d = compat_alloc_user_space(sizeof(*d));
-	if (!d)
-		return -EFAULT;
-
-	if (__put_user(d32.context, &d->context)
-	    || __put_user(d32.send_count, &d->send_count)
-	    || __put_user((int __user *)(unsigned long)d32.send_indices,
-			  &d->send_indices)
-	    || __put_user((int __user *)(unsigned long)d32.send_sizes,
-			  &d->send_sizes)
-	    || __put_user(d32.flags, &d->flags)
-	    || __put_user(d32.request_count, &d->request_count)
-	    || __put_user((int __user *)(unsigned long)d32.request_indices,
-			  &d->request_indices)
-	    || __put_user((int __user *)(unsigned long)d32.request_sizes,
-			  &d->request_sizes))
-		return -EFAULT;
-
-	err = drm_ioctl(file, DRM_IOCTL_DMA, (unsigned long)d);
+	d.context = d32.context;
+	d.send_count = d32.send_count;
+	d.send_indices = compat_ptr(d32.send_indices);
+	d.send_sizes = compat_ptr(d32.send_sizes);
+	d.flags = d32.flags;
+	d.request_count = d32.request_count;
+	d.request_indices = compat_ptr(d32.request_indices);
+	d.request_sizes = compat_ptr(d32.request_sizes);
+	err = drm_ioctl_kernel(file, drm_legacy_dma_ioctl, &d, DRM_AUTH);
 	if (err)
 		return err;
 
-	if (__get_user(d32.request_size, &d->request_size)
-	    || __get_user(d32.granted_count, &d->granted_count)
-	    || __put_user(d32.request_size, &argp->request_size)
-	    || __put_user(d32.granted_count, &argp->granted_count))
+	if (put_user(d.request_size, &argp->request_size)
+	    || put_user(d.granted_count, &argp->granted_count))
 		return -EFAULT;
 
 	return 0;
@@ -996,7 +984,7 @@ static struct {
 	DRM_IOCTL32_DEF(DRM_IOCTL_SET_SAREA_CTX, compat_drm_setsareactx),
 	DRM_IOCTL32_DEF(DRM_IOCTL_GET_SAREA_CTX, compat_drm_getsareactx),
 	DRM_IOCTL32_DEF(DRM_IOCTL_RES_CTX, compat_drm_resctx),
-	[DRM_IOCTL_NR(DRM_IOCTL_DMA32)].fn = compat_drm_dma,
+	DRM_IOCTL32_DEF(DRM_IOCTL_DMA, compat_drm_dma),
 #if IS_ENABLED(CONFIG_AGP)
 	[DRM_IOCTL_NR(DRM_IOCTL_AGP_ENABLE32)].fn = compat_drm_agp_enable,
 	[DRM_IOCTL_NR(DRM_IOCTL_AGP_INFO32)].fn = compat_drm_agp_info,
