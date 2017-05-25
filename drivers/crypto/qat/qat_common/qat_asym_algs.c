@@ -521,11 +521,11 @@ static int qat_dh_set_secret(struct crypto_kpp *tfm, const void *buf,
 	return 0;
 }
 
-static int qat_dh_max_size(struct crypto_kpp *tfm)
+static unsigned int qat_dh_max_size(struct crypto_kpp *tfm)
 {
 	struct qat_dh_ctx *ctx = kpp_tfm_ctx(tfm);
 
-	return ctx->p ? ctx->p_size : -EINVAL;
+	return ctx->p_size;
 }
 
 static int qat_dh_init_tfm(struct crypto_kpp *tfm)
