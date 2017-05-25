@@ -1376,7 +1376,6 @@ resolve_bulks(VCHIQ_SERVICE_T *service, VCHIQ_BULK_QUEUE_T *queue)
 {
 	VCHIQ_STATE_T *state = service->state;
 	int resolved = 0;
-	int rc;
 
 	while ((queue->process != queue->local_insert) &&
 		(queue->process != queue->remote_insert)) {
@@ -1392,8 +1391,7 @@ resolve_bulks(VCHIQ_SERVICE_T *service, VCHIQ_BULK_QUEUE_T *queue)
 		WARN_ON(!((int)(queue->local_insert - queue->process) > 0));
 		WARN_ON(!((int)(queue->remote_insert - queue->process) > 0));
 
-		rc = mutex_lock_killable(&state->bulk_transfer_mutex);
-		if (rc != 0)
+		if (mutex_lock_killable(&state->bulk_transfer_mutex))
 			break;
 
 		vchiq_transfer_bulk(bulk);
