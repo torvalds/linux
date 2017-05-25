@@ -429,8 +429,9 @@ ssize_t tpm_transmit(struct tpm_chip *chip, struct tpm_space *space,
 
 	rc = chip->ops->send(chip, (u8 *) buf, count);
 	if (rc < 0) {
-		dev_err(&chip->dev,
-			"tpm_transmit: tpm_send: error %d\n", rc);
+		if (rc != -EPIPE)
+			dev_err(&chip->dev,
+				"%s: tpm_send: error %d\n", __func__, rc);
 		goto out;
 	}
 
