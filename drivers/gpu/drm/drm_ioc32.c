@@ -806,22 +806,11 @@ static int compat_drm_update_draw(struct file *file, unsigned int cmd,
 				  unsigned long arg)
 {
 	drm_update_draw32_t update32;
-	struct drm_update_draw __user *request;
-	int err;
-
 	if (copy_from_user(&update32, (void __user *)arg, sizeof(update32)))
 		return -EFAULT;
 
-	request = compat_alloc_user_space(sizeof(*request));
-	if (!request ||
-	    __put_user(update32.handle, &request->handle) ||
-	    __put_user(update32.type, &request->type) ||
-	    __put_user(update32.num, &request->num) ||
-	    __put_user(update32.data, &request->data))
-		return -EFAULT;
-
-	err = drm_ioctl(file, DRM_IOCTL_UPDATE_DRAW, (unsigned long)request);
-	return err;
+	return drm_ioctl_kernel(file, drm_noop, NULL,
+				DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY);
 }
 #endif
 
@@ -969,7 +958,7 @@ static struct {
 	DRM_IOCTL32_DEF(DRM_IOCTL_SG_ALLOC, compat_drm_sg_alloc),
 	DRM_IOCTL32_DEF(DRM_IOCTL_SG_FREE, compat_drm_sg_free),
 #if defined(CONFIG_X86) || defined(CONFIG_IA64)
-	[DRM_IOCTL_NR(DRM_IOCTL_UPDATE_DRAW32)].fn = compat_drm_update_draw,
+	DRM_IOCTL32_DEF(DRM_IOCTL_UPDATE_DRAW, compat_drm_update_draw),
 #endif
 	[DRM_IOCTL_NR(DRM_IOCTL_WAIT_VBLANK32)].fn = compat_drm_wait_vblank,
 #if defined(CONFIG_X86) || defined(CONFIG_IA64)
