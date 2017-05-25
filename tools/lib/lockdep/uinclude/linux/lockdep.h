@@ -8,7 +8,7 @@
 #include <linux/utsname.h>
 #include <linux/compiler.h>
 
-#define MAX_LOCK_DEPTH 2000UL
+#define MAX_LOCK_DEPTH 63UL
 
 #define asmlinkage
 #define __visible
