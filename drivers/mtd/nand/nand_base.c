@@ -4789,6 +4789,11 @@ int nand_scan_tail(struct mtd_info *mtd)
 		goto err_free;
 	}
 	ecc->total = ecc->steps * ecc->bytes;
+	if (ecc->total > mtd->oobsize) {
+		WARN(1, "Total number of ECC bytes exceeded oobsize\n");
+		ret = -EINVAL;
+		goto err_free;
+	}
 
 	/*
 	 * The number of bytes available for a client to place data into
