@@ -164,6 +164,10 @@ static int ohci_platform_probe(struct platform_device *dev)
 		if (of_property_read_bool(dev->dev.of_node, "no-big-frame-no"))
 			ohci->flags |= OHCI_QUIRK_FRAME_NO;
 
+		if (of_property_read_bool(dev->dev.of_node,
+					  "remote-wakeup-connected"))
+			ohci->hc_control = OHCI_CTRL_RWC;
+
 		of_property_read_u32(dev->dev.of_node, "num-ports",
 				     &ohci->num_ports);
 
@@ -358,6 +362,7 @@ static int ohci_platform_resume(struct device *dev)
 static const struct of_device_id ohci_platform_ids[] = {
 	{ .compatible = "generic-ohci", },
 	{ .compatible = "cavium,octeon-6335-ohci", },
+	{ .compatible = "ti,ohci-omap3", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ohci_platform_ids);
