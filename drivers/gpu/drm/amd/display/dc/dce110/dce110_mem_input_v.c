@@ -137,12 +137,12 @@ static void program_addr(
 			addr->grph.addr);
 		break;
 	case PLN_ADDR_TYPE_VIDEO_PROGRESSIVE:
-		program_pri_addr_l(
-			mem_input110,
-			addr->video_progressive.luma_addr);
 		program_pri_addr_c(
 			mem_input110,
 			addr->video_progressive.chroma_addr);
+		program_pri_addr_l(
+			mem_input110,
+			addr->video_progressive.luma_addr);
 		break;
 	default:
 		/* not supported */
