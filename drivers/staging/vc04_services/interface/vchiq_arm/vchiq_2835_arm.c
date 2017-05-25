@@ -364,7 +364,7 @@ vchiq_doorbell_irq(int irq, void *dev_id)
 }
 
 static void
-cleaup_pagelistinfo(struct vchiq_pagelist_info *pagelistinfo)
+cleanup_pagelistinfo(struct vchiq_pagelist_info *pagelistinfo)
 {
 	if (pagelistinfo->scatterlist_mapped) {
 		dma_unmap_sg(g_dev, pagelistinfo->scatterlist,
@@ -488,7 +488,7 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 				actual_pages--;
 				put_page(pages[actual_pages]);
 			}
-			cleaup_pagelistinfo(pagelistinfo);
+			cleanup_pagelistinfo(pagelistinfo);
 			return NULL;
 		}
 		 /* release user pages */
@@ -517,7 +517,7 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 				 pagelistinfo->dma_dir);
 
 	if (dma_buffers == 0) {
-		cleaup_pagelistinfo(pagelistinfo);
+		cleanup_pagelistinfo(pagelistinfo);
 		return NULL;
 	}
 
@@ -554,7 +554,7 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 		char *fragments;
 
 		if (down_interruptible(&g_free_fragments_sema) != 0) {
-			cleaup_pagelistinfo(pagelistinfo);
+			cleanup_pagelistinfo(pagelistinfo);
 			return NULL;
 		}
 
@@ -637,5 +637,5 @@ free_pagelist(struct vchiq_pagelist_info *pagelistinfo,
 			set_page_dirty(pages[i]);
 	}
 
-	cleaup_pagelistinfo(pagelistinfo);
+	cleanup_pagelistinfo(pagelistinfo);
 }
