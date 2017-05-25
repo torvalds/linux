@@ -239,7 +239,9 @@ pci_xr17v35x_setup(struct exar8250 *priv, struct pci_dev *pcidev,
 		/* Setup Multipurpose Input/Output pins. */
 		setup_gpio(p);
 
-		port->port.private_data = xr17v35x_register_gpio(pcidev);
+		if (pcidev->vendor == PCI_VENDOR_ID_EXAR)
+			port->port.private_data =
+				xr17v35x_register_gpio(pcidev);
 	}
 
 	return 0;

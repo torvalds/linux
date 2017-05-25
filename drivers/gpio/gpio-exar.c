@@ -124,9 +124,6 @@ static int gpio_exar_probe(struct platform_device *pdev)
 	void __iomem *p;
 	int index, ret;
 
-	if (pcidev->vendor != PCI_VENDOR_ID_EXAR)
-		return -ENODEV;
-
 	/*
 	 * Map the pci device to get the register addresses.
 	 * We will need to read and write those registers to control
