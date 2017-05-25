@@ -46,4 +46,9 @@ static inline bool __must_check IS_ERR(__force const void *ptr)
 	return IS_ERR_VALUE((unsigned long)ptr);
 }
 
+static inline bool __must_check IS_ERR_OR_NULL(__force const void *ptr)
+{
+	return unlikely(!ptr) || IS_ERR_VALUE((unsigned long)ptr);
+}
+
 #endif /* _LINUX_ERR_H */
