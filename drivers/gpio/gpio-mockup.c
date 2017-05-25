@@ -29,8 +29,8 @@
 #define	GPIO_MOCKUP_MAX_GC	10
 
 enum {
-	DIR_IN = 0,
-	DIR_OUT,
+	DIR_OUT = 0,
+	DIR_IN = 1,
 };
 
 /*
