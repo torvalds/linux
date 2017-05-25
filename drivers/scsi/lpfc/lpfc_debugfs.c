@@ -798,21 +798,22 @@ lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
 				atomic_read(&tgtp->xmt_fcp_rsp));
 
 		len += snprintf(buf + len, size - len,
-				"FCP Rsp: abort %08x drop %08x\n",
-				atomic_read(&tgtp->xmt_fcp_abort),
-				atomic_read(&tgtp->xmt_fcp_drop));
-
-		len += snprintf(buf + len, size - len,
 				"FCP Rsp Cmpl: %08x err %08x drop %08x\n",
 				atomic_read(&tgtp->xmt_fcp_rsp_cmpl),
 				atomic_read(&tgtp->xmt_fcp_rsp_error),
 				atomic_read(&tgtp->xmt_fcp_rsp_drop));
 
 		len += snprintf(buf + len, size - len,
-				"ABORT: Xmt %08x Err %08x Cmpl %08x",
+				"ABORT: Xmt %08x Cmpl %08x\n",
+				atomic_read(&tgtp->xmt_fcp_abort),
+				atomic_read(&tgtp->xmt_fcp_abort_cmpl));
+
+		len += snprintf(buf + len, size - len,
+				"ABORT: Sol %08x  Usol %08x Err %08x Cmpl %08x",
+				atomic_read(&tgtp->xmt_abort_sol),
+				atomic_read(&tgtp->xmt_abort_unsol),
 				atomic_read(&tgtp->xmt_abort_rsp),
-				atomic_read(&tgtp->xmt_abort_rsp_error),
-				atomic_read(&tgtp->xmt_abort_cmpl));
+				atomic_read(&tgtp->xmt_abort_rsp_error));
 
 		len +=  snprintf(buf + len, size - len, "\n");
 
@@ -841,6 +842,12 @@ lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
 			}
 			spin_unlock(&phba->sli4_hba.abts_nvme_buf_list_lock);
 		}
+
+		len += snprintf(buf + len, size - len,
+				"IO_CTX: %08x  outstanding %08x total %08x\n",
+				phba->sli4_hba.nvmet_ctx_cnt,
+				phba->sli4_hba.nvmet_io_wait_cnt,
+				phba->sli4_hba.nvmet_io_wait_total);
 	} else {
 		if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME))
 			return len;
@@ -1959,6 +1966,7 @@ lpfc_debugfs_nvmestat_write(struct file *file, const char __user *buf,
 		atomic_set(&tgtp->rcv_ls_req_out, 0);
 		atomic_set(&tgtp->rcv_ls_req_drop, 0);
 		atomic_set(&tgtp->xmt_ls_abort, 0);
+		atomic_set(&tgtp->xmt_ls_abort_cmpl, 0);
 		atomic_set(&tgtp->xmt_ls_rsp, 0);
 		atomic_set(&tgtp->xmt_ls_drop, 0);
 		atomic_set(&tgtp->xmt_ls_rsp_error, 0);
@@ -1967,19 +1975,22 @@ lpfc_debugfs_nvmestat_write(struct file *file, const char __user *buf,
 		atomic_set(&tgtp->rcv_fcp_cmd_in, 0);
 		atomic_set(&tgtp->rcv_fcp_cmd_out, 0);
 		atomic_set(&tgtp->rcv_fcp_cmd_drop, 0);
-		atomic_set(&tgtp->xmt_fcp_abort, 0);
 		atomic_set(&tgtp->xmt_fcp_drop, 0);
 		atomic_set(&tgtp->xmt_fcp_read_rsp, 0);
 		atomic_set(&tgtp->xmt_fcp_read, 0);
 		atomic_set(&tgtp->xmt_fcp_write, 0);
 		atomic_set(&tgtp->xmt_fcp_rsp, 0);
+		atomic_set(&tgtp->xmt_fcp_release, 0);
 		atomic_set(&tgtp->xmt_fcp_rsp_cmpl, 0);
 		atomic_set(&tgtp->xmt_fcp_rsp_error, 0);
 		atomic_set(&tgtp->xmt_fcp_rsp_drop, 0);
 
+		atomic_set(&tgtp->xmt_fcp_abort, 0);
+		atomic_set(&tgtp->xmt_fcp_abort_cmpl, 0);
+		atomic_set(&tgtp->xmt_abort_sol, 0);
+		atomic_set(&tgtp->xmt_abort_unsol, 0);
 		atomic_set(&tgtp->xmt_abort_rsp, 0);
 		atomic_set(&tgtp->xmt_abort_rsp_error, 0);
-		atomic_set(&tgtp->xmt_abort_cmpl, 0);
 	}
 	return nbytes;
 }
@@ -3070,11 +3081,11 @@ __lpfc_idiag_print_wq(struct lpfc_queue *qp, char *wqtype,
 			qp->assoc_qid, qp->q_cnt_1,
 			(unsigned long long)qp->q_cnt_4);
 	len += snprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len,
-			"\t\tWQID[%02d], QE-CNT[%04d], QE-SIZE[%04d], "
-			"HOST-IDX[%04d], PORT-IDX[%04d]",
+			"\t\tWQID[%02d], QE-CNT[%04d], QE-SZ[%04d], "
+			"HST-IDX[%04d], PRT-IDX[%04d], PST[%03d]",
 			qp->queue_id, qp->entry_count,
 			qp->entry_size, qp->host_index,
-			qp->hba_index);
+			qp->hba_index, qp->entry_repost);
 	len +=  snprintf(pbuffer + len,
 			LPFC_QUE_INFO_GET_BUF_SIZE - len, "\n");
 	return len;
@@ -3121,11 +3132,11 @@ __lpfc_idiag_print_cq(struct lpfc_queue *qp, char *cqtype,
 			qp->assoc_qid, qp->q_cnt_1, qp->q_cnt_2,
 			qp->q_cnt_3, (unsigned long long)qp->q_cnt_4);
 	len += snprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len,
-			"\tCQID[%02d], QE-CNT[%04d], QE-SIZE[%04d], "
-			"HOST-IDX[%04d], PORT-IDX[%04d]",
+			"\tCQID[%02d], QE-CNT[%04d], QE-SZ[%04d], "
+			"HST-IDX[%04d], PRT-IDX[%04d], PST[%03d]",
 			qp->queue_id, qp->entry_count,
 			qp->entry_size, qp->host_index,
-			qp->hba_index);
+			qp->hba_index, qp->entry_repost);
 
 	len +=  snprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len, "\n");
 
@@ -3143,20 +3154,20 @@ __lpfc_idiag_print_rqpair(struct lpfc_queue *qp, struct lpfc_queue *datqp,
 			"\t\t%s RQ info: ", rqtype);
 	len += snprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len,
 			"AssocCQID[%02d]: RQ-STAT[nopost:x%x nobuf:x%x "
-			"trunc:x%x rcv:x%llx]\n",
+			"posted:x%x rcv:x%llx]\n",
 			qp->assoc_qid, qp->q_cnt_1, qp->q_cnt_2,
 			qp->q_cnt_3, (unsigned long long)qp->q_cnt_4);
 	len += snprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len,
-			"\t\tHQID[%02d], QE-CNT[%04d], QE-SIZE[%04d], "
-			"HOST-IDX[%04d], PORT-IDX[%04d]\n",
+			"\t\tHQID[%02d], QE-CNT[%04d], QE-SZ[%04d], "
+			"HST-IDX[%04d], PRT-IDX[%04d], PST[%03d]\n",
 			qp->queue_id, qp->entry_count, qp->entry_size,
-			qp->host_index, qp->hba_index);
+			qp->host_index, qp->hba_index, qp->entry_repost);
 	len += snprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len,
-			"\t\tDQID[%02d], QE-CNT[%04d], QE-SIZE[%04d], "
-			"HOST-IDX[%04d], PORT-IDX[%04d]\n",
+			"\t\tDQID[%02d], QE-CNT[%04d], QE-SZ[%04d], "
+			"HST-IDX[%04d], PRT-IDX[%04d], PST[%03d]\n",
 			datqp->queue_id, datqp->entry_count,
 			datqp->entry_size, datqp->host_index,
-			datqp->hba_index);
+			datqp->hba_index, datqp->entry_repost);
 	return len;
 }
 
@@ -3242,10 +3253,10 @@ __lpfc_idiag_print_eq(struct lpfc_queue *qp, char *eqtype,
 			eqtype, qp->q_cnt_1, qp->q_cnt_2, qp->q_cnt_3,
 			(unsigned long long)qp->q_cnt_4);
 	len += snprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len,
-			"EQID[%02d], QE-CNT[%04d], QE-SIZE[%04d], "
-			"HOST-IDX[%04d], PORT-IDX[%04d]",
+			"EQID[%02d], QE-CNT[%04d], QE-SZ[%04d], "
+			"HST-IDX[%04d], PRT-IDX[%04d], PST[%03d]",
 			qp->queue_id, qp->entry_count, qp->entry_size,
-			qp->host_index, qp->hba_index);
+			qp->host_index, qp->hba_index, qp->entry_repost);
 	len +=  snprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len, "\n");
 
 	return len;
@@ -5855,8 +5866,10 @@ lpfc_debugfs_terminate(struct lpfc_vport *vport)
 			atomic_dec(&lpfc_debugfs_hba_count);
 		}
 
-		debugfs_remove(lpfc_debugfs_root); /* lpfc */
-		lpfc_debugfs_root = NULL;
+		if (atomic_read(&lpfc_debugfs_hba_count) == 0) {
+			debugfs_remove(lpfc_debugfs_root); /* lpfc */
+			lpfc_debugfs_root = NULL;
+		}
 	}
 #endif
 	return;

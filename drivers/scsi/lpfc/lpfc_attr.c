@@ -60,9 +60,9 @@
 #define LPFC_MIN_DEVLOSS_TMO	1
 #define LPFC_MAX_DEVLOSS_TMO	255
 
-#define LPFC_DEF_MRQ_POST	256
-#define LPFC_MIN_MRQ_POST	32
-#define LPFC_MAX_MRQ_POST	512
+#define LPFC_DEF_MRQ_POST	512
+#define LPFC_MIN_MRQ_POST	512
+#define LPFC_MAX_MRQ_POST	2048
 
 /*
  * Write key size should be multiple of 4. If write key is changed
@@ -205,8 +205,9 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 				atomic_read(&tgtp->xmt_ls_rsp_error));
 
 		len += snprintf(buf+len, PAGE_SIZE-len,
-				"FCP: Rcv %08x Drop %08x\n",
+				"FCP: Rcv %08x Release %08x Drop %08x\n",
 				atomic_read(&tgtp->rcv_fcp_cmd_in),
+				atomic_read(&tgtp->xmt_fcp_release),
 				atomic_read(&tgtp->rcv_fcp_cmd_drop));
 
 		if (atomic_read(&tgtp->rcv_fcp_cmd_in) !=
@@ -218,15 +219,12 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 		}
 
 		len += snprintf(buf+len, PAGE_SIZE-len,
-				"FCP Rsp: RD %08x rsp %08x WR %08x rsp %08x\n",
+				"FCP Rsp: RD %08x rsp %08x WR %08x rsp %08x "
+				"drop %08x\n",
 				atomic_read(&tgtp->xmt_fcp_read),
 				atomic_read(&tgtp->xmt_fcp_read_rsp),
 				atomic_read(&tgtp->xmt_fcp_write),
-				atomic_read(&tgtp->xmt_fcp_rsp));
-
-		len += snprintf(buf+len, PAGE_SIZE-len,
-				"FCP Rsp: abort %08x drop %08x\n",
-				atomic_read(&tgtp->xmt_fcp_abort),
+				atomic_read(&tgtp->xmt_fcp_rsp),
 				atomic_read(&tgtp->xmt_fcp_drop));
 
 		len += snprintf(buf+len, PAGE_SIZE-len,
@@ -236,10 +234,22 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 				atomic_read(&tgtp->xmt_fcp_rsp_drop));
 
 		len += snprintf(buf+len, PAGE_SIZE-len,
-				"ABORT: Xmt %08x Err %08x Cmpl %08x",
+				"ABORT: Xmt %08x Cmpl %08x\n",
+				atomic_read(&tgtp->xmt_fcp_abort),
+				atomic_read(&tgtp->xmt_fcp_abort_cmpl));
+
+		len += snprintf(buf + len, PAGE_SIZE - len,
+				"ABORT: Sol %08x  Usol %08x Err %08x Cmpl %08x",
+				atomic_read(&tgtp->xmt_abort_sol),
+				atomic_read(&tgtp->xmt_abort_unsol),
 				atomic_read(&tgtp->xmt_abort_rsp),
-				atomic_read(&tgtp->xmt_abort_rsp_error),
-				atomic_read(&tgtp->xmt_abort_cmpl));
+				atomic_read(&tgtp->xmt_abort_rsp_error));
+
+		len += snprintf(buf + len, PAGE_SIZE - len,
+				"IO_CTX: %08x outstanding %08x total %x",
+				phba->sli4_hba.nvmet_ctx_cnt,
+				phba->sli4_hba.nvmet_io_wait_cnt,
+				phba->sli4_hba.nvmet_io_wait_total);
 
 		len +=  snprintf(buf+len, PAGE_SIZE-len, "\n");
 		return len;
@@ -3312,14 +3322,6 @@ LPFC_ATTR_R(nvmet_mrq,
 	    "Specify number of RQ pairs for processing NVMET cmds");
 
 /*
- * lpfc_nvmet_mrq_post: Specify number buffers to post on every MRQ
- *
- */
-LPFC_ATTR_R(nvmet_mrq_post, LPFC_DEF_MRQ_POST,
-	    LPFC_MIN_MRQ_POST, LPFC_MAX_MRQ_POST,
-	    "Specify number of buffers to post on every MRQ");
-
-/*
  * lpfc_enable_fc4_type: Defines what FC4 types are supported.
  * Supported Values:  1 - register just FCP
  *                    3 - register both FCP and NVME
@@ -5154,7 +5156,6 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_suppress_rsp,
 	&dev_attr_lpfc_nvme_io_channel,
 	&dev_attr_lpfc_nvmet_mrq,
-	&dev_attr_lpfc_nvmet_mrq_post,
 	&dev_attr_lpfc_nvme_enable_fb,
 	&dev_attr_lpfc_nvmet_fb_size,
 	&dev_attr_lpfc_enable_bg,
@@ -6194,7 +6195,6 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 
 	lpfc_enable_fc4_type_init(phba, lpfc_enable_fc4_type);
 	lpfc_nvmet_mrq_init(phba, lpfc_nvmet_mrq);
-	lpfc_nvmet_mrq_post_init(phba, lpfc_nvmet_mrq_post);
 
 	/* Initialize first burst. Target vs Initiator are different. */
 	lpfc_nvme_enable_fb_init(phba, lpfc_nvme_enable_fb);
@@ -6291,7 +6291,6 @@ lpfc_nvme_mod_param_dep(struct lpfc_hba *phba)
 		/* Not NVME Target mode.  Turn off Target parameters. */
 		phba->nvmet_support = 0;
 		phba->cfg_nvmet_mrq = 0;
-		phba->cfg_nvmet_mrq_post = 0;
 		phba->cfg_nvmet_fb_size = 0;
 	}
 
