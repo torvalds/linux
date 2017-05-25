@@ -456,6 +456,7 @@ static void fill_plane_attributes_from_fb(
 {
 	uint64_t tiling_flags;
 	uint64_t fb_location = 0;
+	unsigned int awidth;
 	const struct drm_framebuffer *fb = &amdgpu_fb->base;
 	struct drm_format_name_buf format_name;
 
@@ -484,10 +485,10 @@ static void fill_plane_attributes_from_fb(
 	case DRM_FORMAT_ABGR2101010:
 		surface->format = SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010;
 		break;
-	case DRM_FORMAT_YUV420:
+	case DRM_FORMAT_NV21:
 		surface->format = SURFACE_PIXEL_FORMAT_VIDEO_420_YCbCr;
 		break;
-	case DRM_FORMAT_YVU420:
+	case DRM_FORMAT_NV12:
 		surface->format = SURFACE_PIXEL_FORMAT_VIDEO_420_YCrCb;
 		break;
 	default:
@@ -510,24 +511,25 @@ static void fill_plane_attributes_from_fb(
 		surface->color_space = COLOR_SPACE_SRGB;
 
 	} else {
+		awidth = ALIGN(fb->width, 64);
 		surface->address.type = PLN_ADDR_TYPE_VIDEO_PROGRESSIVE;
 		surface->address.video_progressive.luma_addr.low_part
 						= lower_32_bits(fb_location);
 		surface->address.video_progressive.chroma_addr.low_part
 						= lower_32_bits(fb_location) +
-							(fb->width * fb->height);
+							(awidth * fb->height);
 		surface->plane_size.video.luma_size.x = 0;
 		surface->plane_size.video.luma_size.y = 0;
-		surface->plane_size.video.luma_size.width = fb->width;
+		surface->plane_size.video.luma_size.width = awidth;
 		surface->plane_size.video.luma_size.height = fb->height;
 		/* TODO: unhardcode */
-		surface->plane_size.video.luma_pitch = ALIGN(fb->width, 64);
+		surface->plane_size.video.luma_pitch = awidth;
 
 		surface->plane_size.video.chroma_size.x = 0;
 		surface->plane_size.video.chroma_size.y = 0;
-		surface->plane_size.video.chroma_size.width = fb->width / 2;
-		surface->plane_size.video.chroma_size.height = fb->height / 2;
-		surface->plane_size.video.chroma_pitch = ALIGN(fb->width, 64) / 2;
+		surface->plane_size.video.chroma_size.width = awidth;
+		surface->plane_size.video.chroma_size.height = fb->height;
+		surface->plane_size.video.chroma_pitch = awidth / 2;
 
 		/* TODO: unhardcode */
 		surface->color_space = COLOR_SPACE_YCBCR709;
@@ -1662,8 +1664,8 @@ static uint32_t rgb_formats[] = {
 };
 
 static uint32_t yuv_formats[] = {
-	DRM_FORMAT_YUV420,
-	DRM_FORMAT_YVU420,
+	DRM_FORMAT_NV12,
+	DRM_FORMAT_NV21,
 };
 
 int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
