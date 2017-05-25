@@ -474,7 +474,7 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 	} else {
 		down_read(&task->mm->mmap_sem);
 		actual_pages = get_user_pages(
-				          (unsigned long)buf & ~(PAGE_SIZE - 1),
+					  (unsigned long)buf & PAGE_MASK,
 					  num_pages,
 					  (type == PAGELIST_READ) ? FOLL_WRITE : 0,
 					  pages,
