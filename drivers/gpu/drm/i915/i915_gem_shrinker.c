@@ -65,9 +65,17 @@ static bool any_vma_pinned(struct drm_i915_gem_object *obj)
 {
 	struct i915_vma *vma;
 
-	list_for_each_entry(vma, &obj->vma_list, obj_link)
+	list_for_each_entry(vma, &obj->vma_list, obj_link) {
+		/* Only GGTT vma may be permanently pinned, and are always
+		 * at the start of the list. We can stop hunting as soon
+		 * as we see a ppGTT vma.
+		 */
+		if (!i915_vma_is_ggtt(vma))
+			break;
+
 		if (i915_vma_is_pinned(vma))
 			return true;
+	}
 
 	return false;
 }
