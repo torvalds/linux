@@ -34,9 +34,9 @@
  * ecc_is_key_valid() - Validate a given ECDH private key
  *
  * @curve_id:		id representing the curve to use
- * @ndigits:		curve number of digits
+ * @ndigits:		curve's number of digits
  * @private_key:	private key to be used for the given curve
- * @private_key_len:	private key len
+ * @private_key_len:	private key length
  *
  * Returns 0 if the key is acceptable, a negative value otherwise
  */
@@ -47,9 +47,10 @@ int ecc_is_key_valid(unsigned int curve_id, unsigned int ndigits,
  * ecdh_make_pub_key() - Compute an ECC public key
  *
  * @curve_id:		id representing the curve to use
+ * @ndigits:		curve's number of digits
  * @private_key:	pregenerated private key for the given curve
  * @private_key_len:	length of private_key
- * @public_key:		buffer for storing the public key generated
+ * @public_key:		buffer for storing the generated public key
  * @public_key_len:	length of the public_key buffer
  *
  * Returns 0 if the public key was generated successfully, a negative value
@@ -63,6 +64,7 @@ int ecdh_make_pub_key(const unsigned int curve_id, unsigned int ndigits,
  * crypto_ecdh_shared_secret() - Compute a shared secret
  *
  * @curve_id:		id representing the curve to use
+ * @ndigits:		curve's number of digits
  * @private_key:	private key of part A
  * @private_key_len:	length of private_key
  * @public_key:		public key of counterpart B

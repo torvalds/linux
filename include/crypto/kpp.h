@@ -53,7 +53,7 @@ struct crypto_kpp {
  *
  * @set_secret:		Function invokes the protocol specific function to
  *			store the secret private key along with parameters.
- *			The implementation knows how to decode thie buffer
+ *			The implementation knows how to decode the buffer
  * @generate_public_key: Function generate the public key to be sent to the
  *			counterpart. In case of error, where output is not big
  *			enough req->dst_len will be updated to the size
@@ -102,7 +102,7 @@ struct kpp_alg {
  * @mask: specifies the mask for the algorithm
  *
  * Allocate a handle for kpp algorithm. The returned struct crypto_kpp
- * is requeried for any following API invocation
+ * is required for any following API invocation
  *
  * Return: allocated handle in case of success; IS_ERR() is true in case of
  *	   an error, PTR_ERR() returns the error code.
