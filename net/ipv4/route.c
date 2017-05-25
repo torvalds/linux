@@ -114,6 +114,8 @@
 #include <net/ip_tunnels.h>
 #include <net/l3mdev.h>
 
+#include "fib_lookup.h"
+
 #define RT_FL_TOS(oldflp4) \
 	((oldflp4)->flowi4_tos & (IPTOS_RT_MASK | RTO_ONLINK))
 
@@ -2746,8 +2748,15 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 	if (rtm->rtm_flags & RTM_F_LOOKUP_TABLE)
 		table_id = rt->rt_table_id;
 
-	err = rt_fill_info(net, dst, src, table_id, &fl4, skb,
-			   NETLINK_CB(in_skb).portid, nlh->nlmsg_seq, rt);
+	if (rtm->rtm_flags & RTM_F_FIB_MATCH)
+		err = fib_dump_info(skb, NETLINK_CB(in_skb).portid,
+				    nlh->nlmsg_seq, RTM_NEWROUTE, table_id,
+				    rt->rt_type, res.prefix, res.prefixlen,
+				    fl4.flowi4_tos, res.fi, 0);
+	else
+		err = rt_fill_info(net, dst, src, table_id, &fl4, skb,
+				   NETLINK_CB(in_skb).portid, nlh->nlmsg_seq,
+				   rt);
 	if (err < 0)
 		goto errout_free;
 
