@@ -174,11 +174,6 @@
 	status = "okay";
 };
 
-&usb_otg {
-	dr_mode = "otg";
-	status = "okay";
-};
-
 #include "axp209.dtsi"
 
 &reg_dcdc2 {
@@ -217,6 +212,11 @@
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_pins_a>;
+	status = "okay";
+};
+
+&usb_otg {
+	dr_mode = "otg";
 	status = "okay";
 };
 
