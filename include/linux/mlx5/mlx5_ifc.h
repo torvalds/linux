@@ -8175,7 +8175,7 @@ struct mlx5_ifc_mtpps_reg_bits {
 	u8         out_pulse_duration[0x10];
 	u8         out_periodic_adjustment[0x10];
 
-	u8         reserved_at_1a0[0x60];
+	u8         reserved_at_1a0[0x40];
 };
 
 struct mlx5_ifc_mtppse_reg_bits {
