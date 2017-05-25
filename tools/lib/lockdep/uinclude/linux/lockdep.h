@@ -29,7 +29,11 @@ extern struct task_struct *__curr(void);
 
 #define current (__curr())
 
-#define debug_locks_off() 1
+static inline int debug_locks_off(void)
+{
+	return 1;
+}
+
 #define task_pid_nr(tsk) ((tsk)->pid)
 
 #define KSYM_NAME_LEN 128

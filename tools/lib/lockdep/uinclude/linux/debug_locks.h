@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <linux/compiler.h>
 
-#define DEBUG_LOCKS_WARN_ON(x) (x)
+#define DEBUG_LOCKS_WARN_ON(x) WARN_ON(x)
 
 extern bool debug_locks;
 extern bool debug_locks_silent;
