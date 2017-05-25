@@ -29,8 +29,8 @@
 #define	GPIO_MOCKUP_MAX_GC	10
 
 enum {
-	DIR_OUT = 0,
-	DIR_IN = 1,
+	GPIO_MOCKUP_DIR_OUT = 0,
+	GPIO_MOCKUP_DIR_IN = 1,
 };
 
 /*
@@ -93,7 +93,7 @@ static int gpio_mockup_dirout(struct gpio_chip *gc, unsigned int offset,
 	struct gpio_mockup_chip *chip = gpiochip_get_data(gc);
 
 	gpio_mockup_set(gc, offset, value);
-	chip->lines[offset].dir = DIR_OUT;
+	chip->lines[offset].dir = GPIO_MOCKUP_DIR_OUT;
 
 	return 0;
 }
@@ -102,7 +102,7 @@ static int gpio_mockup_dirin(struct gpio_chip *gc, unsigned int offset)
 {
 	struct gpio_mockup_chip *chip = gpiochip_get_data(gc);
 
-	chip->lines[offset].dir = DIR_IN;
+	chip->lines[offset].dir = GPIO_MOCKUP_DIR_IN;
 
 	return 0;
 }
