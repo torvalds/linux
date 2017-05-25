@@ -2070,7 +2070,7 @@ dump_phys_mem(void *virt_addr, u32 num_bytes)
 	struct page  **pages;
 	u8            *kmapped_virt_ptr;
 
-	/* Align virtAddr and endVirtAddr to 16 byte boundaries. */
+	/* Align virt_addr and end_virt_addr to 16 byte boundaries. */
 
 	virt_addr = (void *)((unsigned long)virt_addr & ~0x0fuL);
 	end_virt_addr = (void *)(((unsigned long)end_virt_addr + 15uL) &
