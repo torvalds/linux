@@ -54,5 +54,8 @@ static inline int lockdep_warn(int condition)
 #endif
 
 #define pr_err(format, ...) fprintf (stderr, format, ## __VA_ARGS__)
+#define pr_warn pr_err
+
+#define current_gfp_context(k) 0
 
 #endif
