@@ -1,4 +1,5 @@
 .. |struct cpufreq_policy| replace:: :c:type:`struct cpufreq_policy <cpufreq_policy>`
+.. |intel_pstate| replace:: :doc:`intel_pstate <intel_pstate>`
 
 =======================
 CPU Performance Scaling
@@ -75,7 +76,7 @@ feedback registers, as that information is typically specific to the hardware
 interface it comes from and may not be easily represented in an abstract,
 platform-independent way.  For this reason, ``CPUFreq`` allows scaling drivers
 to bypass the governor layer and implement their own performance scaling
-algorithms.  That is done by the ``intel_pstate`` scaling driver.
+algorithms.  That is done by the |intel_pstate| scaling driver.
 
 
 ``CPUFreq`` Policy Objects
@@ -174,13 +175,13 @@ necessary to restart the scaling governor so that it can take the new online CPU
 into account.  That is achieved by invoking the governor's ``->stop`` and
 ``->start()`` callbacks, in this order, for the entire policy.
 
-As mentioned before, the ``intel_pstate`` scaling driver bypasses the scaling
+As mentioned before, the |intel_pstate| scaling driver bypasses the scaling
 governor layer of ``CPUFreq`` and provides its own P-state selection algorithms.
-Consequently, if ``intel_pstate`` is used, scaling governors are not attached to
+Consequently, if |intel_pstate| is used, scaling governors are not attached to
 new policy objects.  Instead, the driver's ``->setpolicy()`` callback is invoked
 to register per-CPU utilization update callbacks for each policy.  These
 callbacks are invoked by the CPU scheduler in the same way as for scaling
-governors, but in the ``intel_pstate`` case they both determine the P-state to
+governors, but in the |intel_pstate| case they both determine the P-state to
 use and change the hardware configuration accordingly in one go from scheduler
 context.
 
@@ -257,7 +258,7 @@ are the following:
 
 ``scaling_available_governors``
 	List of ``CPUFreq`` scaling governors present in the kernel that can
-	be attached to this policy or (if the ``intel_pstate`` scaling driver is
+	be attached to this policy or (if the |intel_pstate| scaling driver is
 	in use) list of scaling algorithms provided by the driver that can be
 	applied to this policy.
 
@@ -274,7 +275,7 @@ are the following:
 	the CPU is actually running at (due to hardware design and other
 	limitations).
 
-	Some scaling drivers (e.g. ``intel_pstate``) attempt to provide
+	Some scaling drivers (e.g. |intel_pstate|) attempt to provide
 	information more precisely reflecting the current CPU frequency through
 	this attribute, but that still may not be the exact current CPU
 	frequency as seen by the hardware at the moment.
@@ -284,13 +285,13 @@ are the following:
 
 ``scaling_governor``
 	The scaling governor currently attached to this policy or (if the
-	``intel_pstate`` scaling driver is in use) the scaling algorithm
+	|intel_pstate| scaling driver is in use) the scaling algorithm
 	provided by the driver that is currently applied to this policy.
 
 	This attribute is read-write and writing to it will cause a new scaling
 	governor to be attached to this policy or a new scaling algorithm
 	provided by the scaling driver to be applied to it (in the
-	``intel_pstate`` case), as indicated by the string written to this
+	|intel_pstate| case), as indicated by the string written to this
 	attribute (which must be one of the names listed by the
 	``scaling_available_governors`` attribute described above).
 
@@ -619,7 +620,7 @@ This file is located under :file:`/sys/devices/system/cpu/cpufreq/` and controls
 the "boost" setting for the whole system.  It is not present if the underlying
 scaling driver does not support the frequency boost mechanism (or supports it,
 but provides a driver-specific interface for controlling it, like
-``intel_pstate``).
+|intel_pstate|).
 
 If the value in this file is 1, the frequency boost mechanism is enabled.  This
 means that either the hardware can be put into states in which it is able to

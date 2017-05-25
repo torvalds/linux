@@ -1356,6 +1356,7 @@ struct lpfc_mbx_wq_destroy {
 
 #define LPFC_HDR_BUF_SIZE 128
 #define LPFC_DATA_BUF_SIZE 2048
+#define LPFC_NVMET_DATA_BUF_SIZE 128
 struct rq_context {
 	uint32_t word0;
 #define lpfc_rq_context_rqe_count_SHIFT	16	/* Version 0 Only */
@@ -4420,6 +4421,19 @@ struct fcp_treceive64_wqe {
 };
 #define TXRDY_PAYLOAD_LEN      12
 
+#define CMD_SEND_FRAME	0xE1
+
+struct send_frame_wqe {
+	struct ulp_bde64 bde;          /* words 0-2 */
+	uint32_t frame_len;            /* word 3 */
+	uint32_t fc_hdr_wd0;           /* word 4 */
+	uint32_t fc_hdr_wd1;           /* word 5 */
+	struct wqe_common wqe_com;     /* words 6-11 */
+	uint32_t fc_hdr_wd2;           /* word 12 */
+	uint32_t fc_hdr_wd3;           /* word 13 */
+	uint32_t fc_hdr_wd4;           /* word 14 */
+	uint32_t fc_hdr_wd5;           /* word 15 */
+};
 
 union lpfc_wqe {
 	uint32_t words[16];
@@ -4438,7 +4452,7 @@ union lpfc_wqe {
 	struct fcp_trsp64_wqe fcp_trsp;
 	struct fcp_tsend64_wqe fcp_tsend;
 	struct fcp_treceive64_wqe fcp_treceive;
-
+	struct send_frame_wqe send_frame;
 };
 
 union lpfc_wqe128 {
