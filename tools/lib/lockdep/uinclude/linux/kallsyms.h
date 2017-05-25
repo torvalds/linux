@@ -3,6 +3,7 @@
 
 #include <linux/kernel.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #define KSYM_NAME_LEN 128
 
@@ -24,7 +25,7 @@ static inline void print_ip_sym(unsigned long ip)
 
 	name = backtrace_symbols((void **)&ip, 1);
 
-	printf("%s\n", *name);
+	dprintf(STDOUT_FILENO, "%s\n", *name);
 
 	free(name);
 }

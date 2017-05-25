@@ -4,6 +4,7 @@
 #include <dlfcn.h>
 #include <stdlib.h>
 #include <sysexits.h>
+#include <unistd.h>
 #include "include/liblockdep/mutex.h"
 #include "../../include/linux/rbtree.h"
 
@@ -149,7 +150,7 @@ static struct lock_lookup *alloc_lock(void)
 
 		int idx = __locks_nr++;
 		if (idx >= ARRAY_SIZE(__locks)) {
-			fprintf(stderr,
+			dprintf(STDERR_FILENO,
 		"LOCKDEP error: insufficient LIBLOCKDEP_STATIC_ENTRIES\n");
 			exit(EX_UNAVAILABLE);
 		}

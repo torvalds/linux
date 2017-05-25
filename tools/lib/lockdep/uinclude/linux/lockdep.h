@@ -7,6 +7,7 @@
 #include <limits.h>
 #include <linux/utsname.h>
 #include <linux/compiler.h>
+#include <unistd.h>
 
 #define MAX_LOCK_DEPTH 63UL
 
@@ -37,7 +38,7 @@ static inline int debug_locks_off(void)
 #define task_pid_nr(tsk) ((tsk)->pid)
 
 #define KSYM_NAME_LEN 128
-#define printk printf
+#define printk(...) dprintf(STDOUT_FILENO, __VA_ARGS__)
 
 #define list_del_rcu list_del
 
