@@ -2355,6 +2355,11 @@ vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero,
 		"%s: slot_zero = %pK, is_master = %d",
 		__func__, slot_zero, is_master);
 
+	if (vchiq_states[0]) {
+		pr_err("%s: VCHIQ state already initialized\n", __func__);
+		return VCHIQ_ERROR;
+	}
+
 	/* Check the input configuration */
 
 	if (slot_zero->magic != VCHIQ_MAGIC) {
