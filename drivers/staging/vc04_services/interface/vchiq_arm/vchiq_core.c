@@ -2137,7 +2137,6 @@ slot_handler_func(void *v)
 					vchiq_log_error(vchiq_core_log_level,
 						"Failed to send RESUME "
 						"message");
-					BUG();
 				}
 				break;
 
