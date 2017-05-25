@@ -58,11 +58,15 @@ EXPORT_SYMBOL_GPL(vsp1_du_init);
 /**
  * vsp1_du_setup_lif - Setup the output part of the VSP pipeline
  * @dev: the VSP device
+ * @pipe_index: the DRM pipeline index
  * @cfg: the LIF configuration
  *
  * Configure the output part of VSP DRM pipeline for the given frame @cfg.width
  * and @cfg.height. This sets up formats on the BRU source pad, the WPF0 sink
  * and source pads, and the LIF sink pad.
+ *
+ * The @pipe_index argument selects which DRM pipeline to setup. The number of
+ * available pipelines depend on the VSP instance.
  *
  * As the media bus code on the BRU source pad is conditioned by the
  * configuration of the BRU sink 0 pad, we also set up the formats on all BRU
@@ -72,7 +76,8 @@ EXPORT_SYMBOL_GPL(vsp1_du_init);
  *
  * Return 0 on success or a negative error code on failure.
  */
-int vsp1_du_setup_lif(struct device *dev, const struct vsp1_du_lif_config *cfg)
+int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
+		      const struct vsp1_du_lif_config *cfg)
 {
 	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
 	struct vsp1_pipeline *pipe = &vsp1->drm->pipe;
@@ -80,6 +85,9 @@ int vsp1_du_setup_lif(struct device *dev, const struct vsp1_du_lif_config *cfg)
 	struct v4l2_subdev_format format;
 	unsigned int i;
 	int ret;
+
+	if (pipe_index > 0)
+		return -EINVAL;
 
 	if (!cfg) {
 		/*
@@ -232,8 +240,9 @@ EXPORT_SYMBOL_GPL(vsp1_du_setup_lif);
 /**
  * vsp1_du_atomic_begin - Prepare for an atomic update
  * @dev: the VSP device
+ * @pipe_index: the DRM pipeline index
  */
-void vsp1_du_atomic_begin(struct device *dev)
+void vsp1_du_atomic_begin(struct device *dev, unsigned int pipe_index)
 {
 	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
 	struct vsp1_pipeline *pipe = &vsp1->drm->pipe;
@@ -245,6 +254,7 @@ EXPORT_SYMBOL_GPL(vsp1_du_atomic_begin);
 /**
  * vsp1_du_atomic_update - Setup one RPF input of the VSP pipeline
  * @dev: the VSP device
+ * @pipe_index: the DRM pipeline index
  * @rpf_index: index of the RPF to setup (0-based)
  * @cfg: the RPF configuration
  *
@@ -271,7 +281,8 @@ EXPORT_SYMBOL_GPL(vsp1_du_atomic_begin);
  *
  * Return 0 on success or a negative error code on failure.
  */
-int vsp1_du_atomic_update(struct device *dev, unsigned int rpf_index,
+int vsp1_du_atomic_update(struct device *dev, unsigned int pipe_index,
+			  unsigned int rpf_index,
 			  const struct vsp1_du_atomic_config *cfg)
 {
 	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
@@ -437,8 +448,9 @@ static unsigned int rpf_zpos(struct vsp1_device *vsp1, struct vsp1_rwpf *rpf)
 /**
  * vsp1_du_atomic_flush - Commit an atomic update
  * @dev: the VSP device
+ * @pipe_index: the DRM pipeline index
  */
-void vsp1_du_atomic_flush(struct device *dev)
+void vsp1_du_atomic_flush(struct device *dev, unsigned int pipe_index)
 {
 	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
 	struct vsp1_pipeline *pipe = &vsp1->drm->pipe;

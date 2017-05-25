@@ -81,22 +81,22 @@ void rcar_du_vsp_enable(struct rcar_du_crtc *crtc)
 	 */
 	crtc->group->need_restart = true;
 
-	vsp1_du_setup_lif(crtc->vsp->vsp, &cfg);
+	vsp1_du_setup_lif(crtc->vsp->vsp, 0, &cfg);
 }
 
 void rcar_du_vsp_disable(struct rcar_du_crtc *crtc)
 {
-	vsp1_du_setup_lif(crtc->vsp->vsp, NULL);
+	vsp1_du_setup_lif(crtc->vsp->vsp, 0, NULL);
 }
 
 void rcar_du_vsp_atomic_begin(struct rcar_du_crtc *crtc)
 {
-	vsp1_du_atomic_begin(crtc->vsp->vsp);
+	vsp1_du_atomic_begin(crtc->vsp->vsp, 0);
 }
 
 void rcar_du_vsp_atomic_flush(struct rcar_du_crtc *crtc)
 {
-	vsp1_du_atomic_flush(crtc->vsp->vsp);
+	vsp1_du_atomic_flush(crtc->vsp->vsp, 0);
 }
 
 /* Keep the two tables in sync. */
@@ -192,7 +192,7 @@ static void rcar_du_vsp_plane_setup(struct rcar_du_vsp_plane *plane)
 		}
 	}
 
-	vsp1_du_atomic_update(plane->vsp->vsp, plane->index, &cfg);
+	vsp1_du_atomic_update(plane->vsp->vsp, 0, plane->index, &cfg);
 }
 
 static int rcar_du_vsp_plane_prepare_fb(struct drm_plane *plane,
@@ -292,7 +292,7 @@ static void rcar_du_vsp_plane_atomic_update(struct drm_plane *plane,
 	if (plane->state->crtc)
 		rcar_du_vsp_plane_setup(rplane);
 	else
-		vsp1_du_atomic_update(rplane->vsp->vsp, rplane->index, NULL);
+		vsp1_du_atomic_update(rplane->vsp->vsp, 0, rplane->index, NULL);
 }
 
 static const struct drm_plane_helper_funcs rcar_du_vsp_plane_helper_funcs = {
