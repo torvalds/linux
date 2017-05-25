@@ -148,13 +148,13 @@ static ssize_t vendor_diag_write(struct file *file, const char __user *user_buf,
 		return -EINVAL;
 
 	/* When the diagnostic flags are not persistent and the transport
-	 * is not active, then there is no need for the vendor callback.
-	 *
-	 * Instead just store the desired value. If needed the setting
-	 * will be programmed when the controller gets powered on.
+	 * is not active or in user channel operation, then there is no need
+	 * for the vendor callback. Instead just store the desired value and
+	 * the setting will be programmed when the controller gets powered on.
 	 */
 	if (test_bit(HCI_QUIRK_NON_PERSISTENT_DIAG, &hdev->quirks) &&
-	    !test_bit(HCI_RUNNING, &hdev->flags))
+	    (!test_bit(HCI_RUNNING, &hdev->flags) ||
+	     hci_dev_test_flag(hdev, HCI_USER_CHANNEL)))
 		goto done;
 
 	hci_req_sync_lock(hdev);
@@ -635,6 +635,14 @@ static int hci_init3_req(struct hci_request *req, unsigned long opt)
 						 * Report
 						 */
 
+		/* If the controller supports Channel Selection Algorithm #2
+		 * feature, enable the corresponding event.
+		 */
+		if (hdev->le_features[1] & HCI_LE_CHAN_SEL_ALG2)
+			events[2] |= 0x08;	/* LE Channel Selection
+						 * Algorithm
+						 */
+
 		/* If the controller supports the LE Set Scan Enable command,
 		 * enable the corresponding advertising report event.
 		 */
@@ -676,6 +684,12 @@ static int hci_init3_req(struct hci_request *req, unsigned long opt)
 		 */
 		if (hdev->commands[34] & 0x04)
 			events[1] |= 0x01;	/* LE Generate DHKey Complete */
+
+		/* If the controller supports the LE Set Default PHY or
+		 * LE Set PHY commands, enable the corresponding event.
+		 */
+		if (hdev->commands[35] & (0x20 | 0x40))
+			events[1] |= 0x08;        /* LE PHY Update Complete */
 
 		hci_req_add(req, HCI_OP_LE_SET_EVENT_MASK, sizeof(events),
 			    events);
@@ -769,6 +783,27 @@ static int hci_init4_req(struct hci_request *req, unsigned long opt)
 
 		hci_req_add(req, HCI_OP_WRITE_SC_SUPPORT,
 			    sizeof(support), &support);
+	}
+
+	/* Set Suggested Default Data Length to maximum if supported */
+	if (hdev->le_features[0] & HCI_LE_DATA_LEN_EXT) {
+		struct hci_cp_le_write_def_data_len cp;
+
+		cp.tx_len = hdev->le_max_tx_len;
+		cp.tx_time = hdev->le_max_tx_time;
+		hci_req_add(req, HCI_OP_LE_WRITE_DEF_DATA_LEN, sizeof(cp), &cp);
+	}
+
+	/* Set Default PHY parameters if command is supported */
+	if (hdev->commands[35] & 0x20) {
+		struct hci_cp_le_set_default_phy cp;
+
+		/* No transmitter PHY or receiver PHY preferences */
+		cp.all_phys = 0x03;
+		cp.tx_phys = 0;
+		cp.rx_phys = 0;
+
+		hci_req_add(req, HCI_OP_LE_SET_DEFAULT_PHY, sizeof(cp), &cp);
 	}
 
 	return 0;
@@ -1384,6 +1419,7 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 	 * completed.
 	 */
 	if (test_bit(HCI_QUIRK_NON_PERSISTENT_DIAG, &hdev->quirks) &&
+	    !hci_dev_test_flag(hdev, HCI_USER_CHANNEL) &&
 	    hci_dev_test_flag(hdev, HCI_VENDOR_DIAG) && hdev->set_diag)
 		ret = hdev->set_diag(hdev, true);
 
