@@ -375,8 +375,9 @@ static const struct of_device_id atmel_hlcdc_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, atmel_hlcdc_of_match);
 
-int atmel_hlcdc_dc_mode_valid(struct atmel_hlcdc_dc *dc,
-			      struct drm_display_mode *mode)
+enum drm_mode_status
+atmel_hlcdc_dc_mode_valid(struct atmel_hlcdc_dc *dc,
+			  const struct drm_display_mode *mode)
 {
 	int vfront_porch = mode->vsync_start - mode->vdisplay;
 	int vback_porch = mode->vtotal - mode->vsync_end;
