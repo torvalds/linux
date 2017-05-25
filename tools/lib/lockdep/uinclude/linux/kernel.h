@@ -7,6 +7,8 @@
 #include <linux/hardirq.h>
 #include <linux/kern_levels.h>
 
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+
 #ifndef container_of
 #define container_of(ptr, type, member) ({			\
 	const typeof(((type *)0)->member) * __mptr = (ptr);	\
