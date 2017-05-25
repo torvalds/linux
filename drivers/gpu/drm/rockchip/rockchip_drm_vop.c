@@ -939,6 +939,7 @@ err_disable_hclk:
 static void vop_initial(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
+	uint32_t irqs;
 	int i;
 
 	vop_power_enable(crtc);
@@ -972,6 +973,12 @@ static void vop_initial(struct drm_crtc *crtc)
 		VOP_WIN_SET(vop, win, gate, 1);
 	}
 	VOP_CTRL_SET(vop, afbdc_en, 0);
+
+	irqs = BUS_ERROR_INTR | WIN0_EMPTY_INTR | WIN1_EMPTY_INTR |
+		WIN2_EMPTY_INTR | WIN3_EMPTY_INTR | HWC_EMPTY_INTR |
+		POST_BUF_EMPTY_INTR;
+	VOP_INTR_SET_TYPE(vop, clear, irqs, 1);
+	VOP_INTR_SET_TYPE(vop, enable, irqs, 1);
 }
 
 static void vop_crtc_disable(struct drm_crtc *crtc)
@@ -2608,6 +2615,23 @@ static irqreturn_t vop_isr(int irq, void *data)
 		active_irqs &= ~FS_INTR;
 		ret = IRQ_HANDLED;
 	}
+
+#define ERROR_HANDLER(x) \
+	do { \
+		if (active_irqs & x##_INTR) {\
+			DRM_DEV_ERROR_RATELIMITED(vop->dev, #x " irq err\n"); \
+			active_irqs &= ~x##_INTR; \
+			ret = IRQ_HANDLED; \
+		} \
+	} while (0)
+
+	ERROR_HANDLER(BUS_ERROR);
+	ERROR_HANDLER(WIN0_EMPTY);
+	ERROR_HANDLER(WIN1_EMPTY);
+	ERROR_HANDLER(WIN2_EMPTY);
+	ERROR_HANDLER(WIN3_EMPTY);
+	ERROR_HANDLER(HWC_EMPTY);
+	ERROR_HANDLER(POST_BUF_EMPTY);
 
 	/* Unhandled irqs are spurious. */
 	if (active_irqs)
