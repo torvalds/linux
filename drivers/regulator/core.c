@@ -2938,7 +2938,8 @@ static int regulator_set_voltage_unlocked(struct regulator *regulator,
 	if (rdev->supply &&
 	    regulator_ops_is_valid(rdev->supply->rdev,
 				   REGULATOR_CHANGE_VOLTAGE) &&
-	    (rdev->desc->min_dropout_uV || !rdev->desc->ops->get_voltage)) {
+	    (rdev->desc->min_dropout_uV || !(rdev->desc->ops->get_voltage ||
+					   rdev->desc->ops->get_voltage_sel))) {
 		int current_supply_uV;
 		int selector;
 
