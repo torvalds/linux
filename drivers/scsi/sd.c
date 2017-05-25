@@ -155,7 +155,7 @@ static ssize_t
 cache_type_store(struct device *dev, struct device_attribute *attr,
 		 const char *buf, size_t count)
 {
-	int i, ct = -1, rcd, wce, sp;
+	int ct, rcd, wce, sp;
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 	struct scsi_device *sdp = sdkp->device;
 	char buffer[64];
@@ -178,16 +178,10 @@ cache_type_store(struct device *dev, struct device_attribute *attr,
 		sdkp->cache_override = 0;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(sd_cache_types); i++) {
-		len = strlen(sd_cache_types[i]);
-		if (strncmp(sd_cache_types[i], buf, len) == 0 &&
-		    buf[len] == '\n') {
-			ct = i;
-			break;
-		}
-	}
+	ct = sysfs_match_string(sd_cache_types, buf);
 	if (ct < 0)
 		return -EINVAL;
+
 	rcd = ct & 0x01 ? 1 : 0;
 	wce = (ct & 0x02) && !sdkp->write_prot ? 1 : 0;
 
@@ -227,7 +221,7 @@ manage_start_stop_show(struct device *dev, struct device_attribute *attr,
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 	struct scsi_device *sdp = sdkp->device;
 
-	return snprintf(buf, 20, "%u\n", sdp->manage_start_stop);
+	return sprintf(buf, "%u\n", sdp->manage_start_stop);
 }
 
 static ssize_t
@@ -251,7 +245,7 @@ allow_restart_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 
-	return snprintf(buf, 40, "%d\n", sdkp->device->allow_restart);
+	return sprintf(buf, "%u\n", sdkp->device->allow_restart);
 }
 
 static ssize_t
@@ -279,7 +273,7 @@ cache_type_show(struct device *dev, struct device_attribute *attr, char *buf)
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 	int ct = sdkp->RCD + 2*sdkp->WCE;
 
-	return snprintf(buf, 40, "%s\n", sd_cache_types[ct]);
+	return sprintf(buf, "%s\n", sd_cache_types[ct]);
 }
 static DEVICE_ATTR_RW(cache_type);
 
@@ -288,7 +282,7 @@ FUA_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 
-	return snprintf(buf, 20, "%u\n", sdkp->DPOFUA);
+	return sprintf(buf, "%u\n", sdkp->DPOFUA);
 }
 static DEVICE_ATTR_RO(FUA);
 
@@ -298,7 +292,7 @@ protection_type_show(struct device *dev, struct device_attribute *attr,
 {
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 
-	return snprintf(buf, 20, "%u\n", sdkp->protection_type);
+	return sprintf(buf, "%u\n", sdkp->protection_type);
 }
 
 static ssize_t
@@ -341,9 +335,9 @@ protection_mode_show(struct device *dev, struct device_attribute *attr,
 	}
 
 	if (!dif && !dix)
-		return snprintf(buf, 20, "none\n");
+		return sprintf(buf, "none\n");
 
-	return snprintf(buf, 20, "%s%u\n", dix ? "dix" : "dif", dif);
+	return sprintf(buf, "%s%u\n", dix ? "dix" : "dif", dif);
 }
 static DEVICE_ATTR_RO(protection_mode);
 
@@ -352,7 +346,7 @@ app_tag_own_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 
-	return snprintf(buf, 20, "%u\n", sdkp->ATO);
+	return sprintf(buf, "%u\n", sdkp->ATO);
 }
 static DEVICE_ATTR_RO(app_tag_own);
 
@@ -362,10 +356,11 @@ thin_provisioning_show(struct device *dev, struct device_attribute *attr,
 {
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 
-	return snprintf(buf, 20, "%u\n", sdkp->lbpme);
+	return sprintf(buf, "%u\n", sdkp->lbpme);
 }
 static DEVICE_ATTR_RO(thin_provisioning);
 
+/* sysfs_match_string() requires dense arrays */
 static const char *lbp_mode[] = {
 	[SD_LBP_FULL]		= "full",
 	[SD_LBP_UNMAP]		= "unmap",
@@ -381,7 +376,7 @@ provisioning_mode_show(struct device *dev, struct device_attribute *attr,
 {
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 
-	return snprintf(buf, 20, "%s\n", lbp_mode[sdkp->provisioning_mode]);
+	return sprintf(buf, "%s\n", lbp_mode[sdkp->provisioning_mode]);
 }
 
 static ssize_t
@@ -390,6 +385,7 @@ provisioning_mode_store(struct device *dev, struct device_attribute *attr,
 {
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 	struct scsi_device *sdp = sdkp->device;
+	int mode;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
@@ -402,23 +398,17 @@ provisioning_mode_store(struct device *dev, struct device_attribute *attr,
 	if (sdp->type != TYPE_DISK)
 		return -EINVAL;
 
-	if (!strncmp(buf, lbp_mode[SD_LBP_UNMAP], 20))
-		sd_config_discard(sdkp, SD_LBP_UNMAP);
-	else if (!strncmp(buf, lbp_mode[SD_LBP_WS16], 20))
-		sd_config_discard(sdkp, SD_LBP_WS16);
-	else if (!strncmp(buf, lbp_mode[SD_LBP_WS10], 20))
-		sd_config_discard(sdkp, SD_LBP_WS10);
-	else if (!strncmp(buf, lbp_mode[SD_LBP_ZERO], 20))
-		sd_config_discard(sdkp, SD_LBP_ZERO);
-	else if (!strncmp(buf, lbp_mode[SD_LBP_DISABLE], 20))
-		sd_config_discard(sdkp, SD_LBP_DISABLE);
-	else
+	mode = sysfs_match_string(lbp_mode, buf);
+	if (mode < 0)
 		return -EINVAL;
+
+	sd_config_discard(sdkp, mode);
 
 	return count;
 }
 static DEVICE_ATTR_RW(provisioning_mode);
 
+/* sysfs_match_string() requires dense arrays */
 static const char *zeroing_mode[] = {
 	[SD_ZERO_WRITE]		= "write",
 	[SD_ZERO_WS]		= "writesame",
@@ -432,7 +422,7 @@ zeroing_mode_show(struct device *dev, struct device_attribute *attr,
 {
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 
-	return snprintf(buf, 20, "%s\n", zeroing_mode[sdkp->zeroing_mode]);
+	return sprintf(buf, "%s\n", zeroing_mode[sdkp->zeroing_mode]);
 }
 
 static ssize_t
@@ -440,20 +430,16 @@ zeroing_mode_store(struct device *dev, struct device_attribute *attr,
 		   const char *buf, size_t count)
 {
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
+	int mode;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
-	if (!strncmp(buf, zeroing_mode[SD_ZERO_WRITE], 20))
-		sdkp->zeroing_mode = SD_ZERO_WRITE;
-	else if (!strncmp(buf, zeroing_mode[SD_ZERO_WS], 20))
-		sdkp->zeroing_mode = SD_ZERO_WS;
-	else if (!strncmp(buf, zeroing_mode[SD_ZERO_WS16_UNMAP], 20))
-		sdkp->zeroing_mode = SD_ZERO_WS16_UNMAP;
-	else if (!strncmp(buf, zeroing_mode[SD_ZERO_WS10_UNMAP], 20))
-		sdkp->zeroing_mode = SD_ZERO_WS10_UNMAP;
-	else
+	mode = sysfs_match_string(zeroing_mode, buf);
+	if (mode < 0)
 		return -EINVAL;
+
+	sdkp->zeroing_mode = mode;
 
 	return count;
 }
@@ -465,7 +451,7 @@ max_medium_access_timeouts_show(struct device *dev,
 {
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 
-	return snprintf(buf, 20, "%u\n", sdkp->max_medium_access_timeouts);
+	return sprintf(buf, "%u\n", sdkp->max_medium_access_timeouts);
 }
 
 static ssize_t
@@ -491,7 +477,7 @@ max_write_same_blocks_show(struct device *dev, struct device_attribute *attr,
 {
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 
-	return snprintf(buf, 20, "%u\n", sdkp->max_ws_blocks);
+	return sprintf(buf, "%u\n", sdkp->max_ws_blocks);
 }
 
 static ssize_t
@@ -696,6 +682,7 @@ static void sd_config_discard(struct scsi_disk *sdkp, unsigned int mode)
 
 	switch (mode) {
 
+	case SD_LBP_FULL:
 	case SD_LBP_DISABLE:
 		blk_queue_max_discard_sectors(q, 0);
 		queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, q);
