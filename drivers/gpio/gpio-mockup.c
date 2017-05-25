@@ -364,9 +364,6 @@ static int gpio_mockup_probe(struct platform_device *pdev)
 
 			return ret;
 		}
-
-		dev_info(dev, "gpio<%d..%d> add successful!",
-			 base, base + ngpio);
 	}
 
 	return 0;
