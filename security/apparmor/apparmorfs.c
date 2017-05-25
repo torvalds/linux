@@ -22,8 +22,9 @@
 #include <linux/namei.h>
 #include <linux/capability.h>
 #include <linux/rcupdate.h>
-#include <uapi/linux/major.h>
 #include <linux/fs.h>
+#include <uapi/linux/major.h>
+#include <uapi/linux/magic.h>
 
 #include "include/apparmor.h"
 #include "include/apparmorfs.h"
@@ -73,6 +74,265 @@ static int mangle_name(const char *name, char *target)
 
 	return t - target;
 }
+
+
+/*
+ * aafs - core fns and data for the policy tree
+ */
+
+#define AAFS_NAME		"apparmorfs"
+static struct vfsmount *aafs_mnt;
+static int aafs_count;
+
+
+static int aafs_show_path(struct seq_file *seq, struct dentry *dentry)
+{
+	struct inode *inode = d_inode(dentry);
+
+	seq_printf(seq, "%s:[%lu]", AAFS_NAME, inode->i_ino);
+	return 0;
+}
+
+static void aafs_evict_inode(struct inode *inode)
+{
+	truncate_inode_pages_final(&inode->i_data);
+	clear_inode(inode);
+	if (S_ISLNK(inode->i_mode))
+		kfree(inode->i_link);
+}
+
+static const struct super_operations aafs_super_ops = {
+	.statfs = simple_statfs,
+	.evict_inode = aafs_evict_inode,
+	.show_path = aafs_show_path,
+};
+
+static int fill_super(struct super_block *sb, void *data, int silent)
+{
+	static struct tree_descr files[] = { {""} };
+	int error;
+
+	error = simple_fill_super(sb, AAFS_MAGIC, files);
+	if (error)
+		return error;
+	sb->s_op = &aafs_super_ops;
+
+	return 0;
+}
+
+static struct dentry *aafs_mount(struct file_system_type *fs_type,
+				 int flags, const char *dev_name, void *data)
+{
+	return mount_single(fs_type, flags, data, fill_super);
+}
+
+static struct file_system_type aafs_ops = {
+	.owner = THIS_MODULE,
+	.name = AAFS_NAME,
+	.mount = aafs_mount,
+	.kill_sb = kill_anon_super,
+};
+
+/**
+ * __aafs_setup_d_inode - basic inode setup for apparmorfs
+ * @dir: parent directory for the dentry
+ * @dentry: dentry we are seting the inode up for
+ * @mode: permissions the file should have
+ * @data: data to store on inode.i_private, available in open()
+ * @link: if symlink, symlink target string
+ * @fops: struct file_operations that should be used
+ * @iops: struct of inode_operations that should be used
+ */
+static int __aafs_setup_d_inode(struct inode *dir, struct dentry *dentry,
+			       umode_t mode, void *data, char *link,
+			       const struct file_operations *fops,
+			       const struct inode_operations *iops)
+{
+	struct inode *inode = new_inode(dir->i_sb);
+
+	AA_BUG(!dir);
+	AA_BUG(!dentry);
+
+	if (!inode)
+		return -ENOMEM;
+
+	inode->i_ino = get_next_ino();
+	inode->i_mode = mode;
+	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
+	inode->i_private = data;
+	if (S_ISDIR(mode)) {
+		inode->i_op = iops ? iops : &simple_dir_inode_operations;
+		inode->i_fop = &simple_dir_operations;
+		inc_nlink(inode);
+		inc_nlink(dir);
+	} else if (S_ISLNK(mode)) {
+		inode->i_op = iops ? iops : &simple_symlink_inode_operations;
+		inode->i_link = link;
+	} else {
+		inode->i_fop = fops;
+	}
+	d_instantiate(dentry, inode);
+	dget(dentry);
+
+	return 0;
+}
+
+/**
+ * aafs_create - create a dentry in the apparmorfs filesystem
+ *
+ * @name: name of dentry to create
+ * @mode: permissions the file should have
+ * @parent: parent directory for this dentry
+ * @data: data to store on inode.i_private, available in open()
+ * @link: if symlink, symlink target string
+ * @fops: struct file_operations that should be used for
+ * @iops: struct of inode_operations that should be used
+ *
+ * This is the basic "create a xxx" function for apparmorfs.
+ *
+ * Returns a pointer to a dentry if it succeeds, that must be free with
+ * aafs_remove(). Will return ERR_PTR on failure.
+ */
+static struct dentry *aafs_create(const char *name, umode_t mode,
+				  struct dentry *parent, void *data, void *link,
+				  const struct file_operations *fops,
+				  const struct inode_operations *iops)
+{
+	struct dentry *dentry;
+	struct inode *dir;
+	int error;
+
+	AA_BUG(!name);
+	AA_BUG(!parent);
+
+	if (!(mode & S_IFMT))
+		mode = (mode & S_IALLUGO) | S_IFREG;
+
+	error = simple_pin_fs(&aafs_ops, &aafs_mnt, &aafs_count);
+	if (error)
+		return ERR_PTR(error);
+
+	dir = d_inode(parent);
+
+	inode_lock(dir);
+	dentry = lookup_one_len(name, parent, strlen(name));
+	if (IS_ERR(dentry))
+		goto fail_lock;
+
+	if (d_really_is_positive(dentry)) {
+		error = -EEXIST;
+		goto fail_dentry;
+	}
+
+	error = __aafs_setup_d_inode(dir, dentry, mode, data, link, fops, iops);
+	if (error)
+		goto fail_dentry;
+	inode_unlock(dir);
+
+	return dentry;
+
+fail_dentry:
+	dput(dentry);
+
+fail_lock:
+	inode_unlock(dir);
+	simple_release_fs(&aafs_mnt, &aafs_count);
+
+	return ERR_PTR(error);
+}
+
+/**
+ * aafs_create_file - create a file in the apparmorfs filesystem
+ *
+ * @name: name of dentry to create
+ * @mode: permissions the file should have
+ * @parent: parent directory for this dentry
+ * @data: data to store on inode.i_private, available in open()
+ * @fops: struct file_operations that should be used for
+ *
+ * see aafs_create
+ */
+static struct dentry *aafs_create_file(const char *name, umode_t mode,
+				       struct dentry *parent, void *data,
+				       const struct file_operations *fops)
+{
+	return aafs_create(name, mode, parent, data, NULL, fops, NULL);
+}
+
+/**
+ * aafs_create_dir - create a directory in the apparmorfs filesystem
+ *
+ * @name: name of dentry to create
+ * @parent: parent directory for this dentry
+ *
+ * see aafs_create
+ */
+static struct dentry *aafs_create_dir(const char *name, struct dentry *parent)
+{
+	return aafs_create(name, S_IFDIR | 0755, parent, NULL, NULL, NULL,
+			   NULL);
+}
+
+/**
+ * aafs_create_symlink - create a symlink in the apparmorfs filesystem
+ * @name: name of dentry to create
+ * @parent: parent directory for this dentry
+ * @target: if symlink, symlink target string
+ * @iops: struct of inode_operations that should be used
+ *
+ * If @target parameter is %NULL, then the @iops parameter needs to be
+ * setup to handle .readlink and .get_link inode_operations.
+ */
+static struct dentry *aafs_create_symlink(const char *name,
+					  struct dentry *parent,
+					  const char *target,
+					  const struct inode_operations *iops)
+{
+	struct dentry *dent;
+	char *link = NULL;
+
+	if (target) {
+		link = kstrdup(target, GFP_KERNEL);
+		if (!link)
+			return ERR_PTR(-ENOMEM);
+	}
+	dent = aafs_create(name, S_IFLNK | 0444, parent, NULL, link, NULL,
+			   iops);
+	if (IS_ERR(dent))
+		kfree(link);
+
+	return dent;
+}
+
+/**
+ * aafs_remove - removes a file or directory from the apparmorfs filesystem
+ *
+ * @dentry: dentry of the file/directory/symlink to removed.
+ */
+static void aafs_remove(struct dentry *dentry)
+{
+	struct inode *dir;
+
+	if (!dentry || IS_ERR(dentry))
+		return;
+
+	dir = d_inode(dentry->d_parent);
+	inode_lock(dir);
+	if (simple_positive(dentry)) {
+		if (d_is_dir(dentry))
+			simple_rmdir(dir, dentry);
+		else
+			simple_unlink(dir, dentry);
+		dput(dentry);
+	}
+	inode_unlock(dir);
+	simple_release_fs(&aafs_mnt, &aafs_count);
+}
+
+
+/*
+ * aa_fs - policy load/replace/remove
+ */
 
 /**
  * aa_simple_write_to_buffer - common routine for getting policy from user
@@ -1369,14 +1629,14 @@ static struct aa_fs_entry aa_fs_entry =
 	AA_FS_DIR("apparmor", aa_fs_entry_apparmor);
 
 /**
- * aafs_create_file - create a file entry in the apparmor securityfs
+ * entry_create_file - create a file entry in the apparmor securityfs
  * @fs_file: aa_fs_entry to build an entry for (NOT NULL)
  * @parent: the parent dentry in the securityfs
  *
- * Use aafs_remove_file to remove entries created with this fn.
+ * Use entry_remove_file to remove entries created with this fn.
  */
-static int __init aafs_create_file(struct aa_fs_entry *fs_file,
-				   struct dentry *parent)
+static int __init entry_create_file(struct aa_fs_entry *fs_file,
+				    struct dentry *parent)
 {
 	int error = 0;
 
@@ -1391,15 +1651,15 @@ static int __init aafs_create_file(struct aa_fs_entry *fs_file,
 	return error;
 }
 
-static void __init aafs_remove_dir(struct aa_fs_entry *fs_dir);
+static void __init entry_remove_dir(struct aa_fs_entry *fs_dir);
 /**
- * aafs_create_dir - recursively create a directory entry in the securityfs
+ * entry_create_dir - recursively create a directory entry in the securityfs
  * @fs_dir: aa_fs_entry (and all child entries) to build (NOT NULL)
  * @parent: the parent dentry in the securityfs
  *
- * Use aafs_remove_dir to remove entries created with this fn.
+ * Use entry_remove_dir to remove entries created with this fn.
  */
-static int __init aafs_create_dir(struct aa_fs_entry *fs_dir,
+static int __init entry_create_dir(struct aa_fs_entry *fs_dir,
 				  struct dentry *parent)
 {
 	struct aa_fs_entry *fs_file;
@@ -1413,9 +1673,9 @@ static int __init aafs_create_dir(struct aa_fs_entry *fs_dir,
 
 	for (fs_file = fs_dir->v.files; fs_file && fs_file->name; ++fs_file) {
 		if (fs_file->v_type == AA_FS_TYPE_DIR)
-			error = aafs_create_dir(fs_file, fs_dir->dentry);
+			error = entry_create_dir(fs_file, fs_dir->dentry);
 		else
-			error = aafs_create_file(fs_file, fs_dir->dentry);
+			error = entry_create_file(fs_file, fs_dir->dentry);
 		if (error)
 			goto failed;
 	}
@@ -1423,7 +1683,7 @@ static int __init aafs_create_dir(struct aa_fs_entry *fs_dir,
 	return 0;
 
 failed:
-	aafs_remove_dir(fs_dir);
+	entry_remove_dir(fs_dir);
 
 	return error;
 }
@@ -1442,16 +1702,16 @@ static void __init aafs_remove_file(struct aa_fs_entry *fs_file)
 }
 
 /**
- * aafs_remove_dir - recursively drop a directory entry from the securityfs
+ * entry_remove_dir - recursively drop a directory entry from the securityfs
  * @fs_dir: aa_fs_entry (and all child entries) to detach (NOT NULL)
  */
-static void __init aafs_remove_dir(struct aa_fs_entry *fs_dir)
+static void __init entry_remove_dir(struct aa_fs_entry *fs_dir)
 {
 	struct aa_fs_entry *fs_file;
 
 	for (fs_file = fs_dir->v.files; fs_file && fs_file->name; ++fs_file) {
 		if (fs_file->v_type == AA_FS_TYPE_DIR)
-			aafs_remove_dir(fs_file);
+			entry_remove_dir(fs_file);
 		else
 			aafs_remove_file(fs_file);
 	}
@@ -1466,7 +1726,7 @@ static void __init aafs_remove_dir(struct aa_fs_entry *fs_dir)
  */
 void __init aa_destroy_aafs(void)
 {
-	aafs_remove_dir(&aa_fs_entry);
+	entry_remove_dir(&aa_fs_entry);
 }
 
 
@@ -1515,6 +1775,59 @@ out:
 	return error;
 }
 
+
+
+static const char *policy_get_link(struct dentry *dentry,
+				   struct inode *inode,
+				   struct delayed_call *done)
+{
+	struct aa_ns *ns;
+	struct path path;
+
+	if (!dentry)
+		return ERR_PTR(-ECHILD);
+	ns = aa_get_current_ns();
+	path.mnt = mntget(aafs_mnt);
+	path.dentry = dget(ns_dir(ns));
+	nd_jump_link(&path);
+	aa_put_ns(ns);
+
+	return NULL;
+}
+
+static int ns_get_name(char *buf, size_t size, struct aa_ns *ns,
+		       struct inode *inode)
+{
+	int res = snprintf(buf, size, "%s:[%lu]", AAFS_NAME, inode->i_ino);
+
+	if (res < 0 || res >= size)
+		res = -ENOENT;
+
+	return res;
+}
+
+static int policy_readlink(struct dentry *dentry, char __user *buffer,
+			   int buflen)
+{
+	struct aa_ns *ns;
+	char name[32];
+	int res;
+
+	ns = aa_get_current_ns();
+	res = ns_get_name(name, sizeof(name), ns, d_inode(dentry));
+	if (res >= 0)
+		res = readlink_copy(buffer, buflen, name);
+	aa_put_ns(ns);
+
+	return res;
+}
+
+static const struct inode_operations policy_link_iops = {
+	.readlink	= policy_readlink,
+	.get_link	= policy_get_link,
+};
+
+
 /**
  * aa_create_aafs - create the apparmor security filesystem
  *
@@ -1535,8 +1848,14 @@ static int __init aa_create_aafs(void)
 		return -EEXIST;
 	}
 
+	/* setup apparmorfs used to virtualize policy/ */
+	aafs_mnt = kern_mount(&aafs_ops);
+	if (IS_ERR(aafs_mnt))
+		panic("can't set apparmorfs up\n");
+	aafs_mnt->mnt_sb->s_flags &= ~MS_NOUSER;
+
 	/* Populate fs tree. */
-	error = aafs_create_dir(&aa_fs_entry, NULL);
+	error = entry_create_dir(&aa_fs_entry, NULL);
 	if (error)
 		goto error;
 
