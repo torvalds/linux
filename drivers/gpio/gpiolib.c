@@ -1,4 +1,4 @@
-#include <linux/bitops.h>
+#include <linux/bitmap.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -1482,8 +1482,7 @@ static int gpiochip_irqchip_init_valid_mask(struct gpio_chip *gpiochip)
 		return -ENOMEM;
 
 	/* Assume by default all GPIOs are valid */
-	for (i = 0; i < gpiochip->ngpio; i++)
-		set_bit(i, gpiochip->irq_valid_mask);
+	bitmap_fill(gpiochip->irq_valid_mask, gpiochip->ngpio);
 
 	return 0;
 }
