@@ -1429,13 +1429,15 @@ int lio_get_device_id(void *dev)
 void lio_enable_irq(struct octeon_droq *droq, struct octeon_instr_queue *iq)
 {
 	u64 instr_cnt;
+	u32 pkts_pend;
 	struct octeon_device *oct = NULL;
 
 	/* the whole thing needs to be atomic, ideally */
 	if (droq) {
+		pkts_pend = (u32)atomic_read(&droq->pkts_pending);
 		spin_lock_bh(&droq->lock);
-		writel(droq->pkt_count, droq->pkts_sent_reg);
-		droq->pkt_count = 0;
+		writel(droq->pkt_count - pkts_pend, droq->pkts_sent_reg);
+		droq->pkt_count = pkts_pend;
 		/* this write needs to be flushed before we release the lock */
 		mmiowb();
 		spin_unlock_bh(&droq->lock);

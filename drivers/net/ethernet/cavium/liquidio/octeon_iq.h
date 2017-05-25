@@ -251,7 +251,7 @@ union octeon_instr_64B {
 
 /** The size of each buffer in soft command buffer pool
  */
-#define  SOFT_COMMAND_BUFFER_SIZE	1536
+#define  SOFT_COMMAND_BUFFER_SIZE	2048
 
 struct octeon_soft_command {
 	/** Soft command buffer info. */
