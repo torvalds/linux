@@ -911,12 +911,11 @@ err:
 	return -ENOMEM;
 }
 
-static int caam_rsa_max_size(struct crypto_akcipher *tfm)
+static unsigned int caam_rsa_max_size(struct crypto_akcipher *tfm)
 {
 	struct caam_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
-	struct caam_rsa_key *key = &ctx->key;
 
-	return (key->n) ? key->n_sz : -EINVAL;
+	return ctx->key.n_sz;
 }
 
 /* Per session pkc's driver context creation function */
