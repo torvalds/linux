@@ -101,7 +101,7 @@ include $(srctree)/tools/build/Makefile.include
 
 do_compile_shared_library =			\
 	($(print_shared_lib_compile)		\
-	$(CC) --shared $^ -o $@ -lpthread -ldl -Wl,-soname='"$(@F)"';$(shell ln -sf $(@F) $(@D)/liblockdep.so))
+	$(CC) --shared $^ -o $@ -lpthread -ldl -Wl,-soname='$(@F)';$(shell ln -sf $(@F) $(@D)/liblockdep.so))
 
 do_build_static_lib =				\
 	($(print_static_lib_build)		\
