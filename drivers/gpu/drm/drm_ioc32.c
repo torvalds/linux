@@ -837,29 +837,23 @@ static int compat_drm_wait_vblank(struct file *file, unsigned int cmd,
 {
 	drm_wait_vblank32_t __user *argp = (void __user *)arg;
 	drm_wait_vblank32_t req32;
-	union drm_wait_vblank __user *request;
+	union drm_wait_vblank req;
 	int err;
 
 	if (copy_from_user(&req32, argp, sizeof(req32)))
 		return -EFAULT;
 
-	request = compat_alloc_user_space(sizeof(*request));
-	if (!request
-	    || __put_user(req32.request.type, &request->request.type)
-	    || __put_user(req32.request.sequence, &request->request.sequence)
-	    || __put_user(req32.request.signal, &request->request.signal))
-		return -EFAULT;
-
-	err = drm_ioctl(file, DRM_IOCTL_WAIT_VBLANK, (unsigned long)request);
+	req.request.type = req32.request.type;
+	req.request.sequence = req32.request.sequence;
+	req.request.signal = req32.request.signal;
+	err = drm_ioctl_kernel(file, drm_wait_vblank, &req, DRM_UNLOCKED);
 	if (err)
 		return err;
 
-	if (__get_user(req32.reply.type, &request->reply.type)
-	    || __get_user(req32.reply.sequence, &request->reply.sequence)
-	    || __get_user(req32.reply.tval_sec, &request->reply.tval_sec)
-	    || __get_user(req32.reply.tval_usec, &request->reply.tval_usec))
-		return -EFAULT;
-
+	req32.reply.type = req.reply.type;
+	req32.reply.sequence = req.reply.sequence;
+	req32.reply.tval_sec = req.reply.tval_sec;
+	req32.reply.tval_usec = req.reply.tval_usec;
 	if (copy_to_user(argp, &req32, sizeof(req32)))
 		return -EFAULT;
 
@@ -960,7 +954,7 @@ static struct {
 #if defined(CONFIG_X86) || defined(CONFIG_IA64)
 	DRM_IOCTL32_DEF(DRM_IOCTL_UPDATE_DRAW, compat_drm_update_draw),
 #endif
-	[DRM_IOCTL_NR(DRM_IOCTL_WAIT_VBLANK32)].fn = compat_drm_wait_vblank,
+	DRM_IOCTL32_DEF(DRM_IOCTL_WAIT_VBLANK, compat_drm_wait_vblank),
 #if defined(CONFIG_X86) || defined(CONFIG_IA64)
 	[DRM_IOCTL_NR(DRM_IOCTL_MODE_ADDFB232)].fn = compat_drm_mode_addfb2,
 #endif
