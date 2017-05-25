@@ -618,17 +618,13 @@ static int compat_drm_agp_enable(struct file *file, unsigned int cmd,
 				 unsigned long arg)
 {
 	drm_agp_mode32_t __user *argp = (void __user *)arg;
-	drm_agp_mode32_t m32;
-	struct drm_agp_mode __user *mode;
+	struct drm_agp_mode mode;
 
-	if (get_user(m32.mode, &argp->mode))
+	if (get_user(mode.mode, &argp->mode))
 		return -EFAULT;
 
-	mode = compat_alloc_user_space(sizeof(*mode));
-	if (put_user(m32.mode, &mode->mode))
-		return -EFAULT;
-
-	return drm_ioctl(file, DRM_IOCTL_AGP_ENABLE, (unsigned long)mode);
+	return drm_ioctl_kernel(file,  drm_agp_enable_ioctl, &mode,
+				DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY);
 }
 
 typedef struct drm_agp_info32 {
@@ -650,28 +646,22 @@ static int compat_drm_agp_info(struct file *file, unsigned int cmd,
 {
 	drm_agp_info32_t __user *argp = (void __user *)arg;
 	drm_agp_info32_t i32;
-	struct drm_agp_info __user *info;
+	struct drm_agp_info info;
 	int err;
 
-	info = compat_alloc_user_space(sizeof(*info));
-	if (!info)
-		return -EFAULT;
-
-	err = drm_ioctl(file, DRM_IOCTL_AGP_INFO, (unsigned long)info);
+	err = drm_ioctl_kernel(file, drm_agp_info_ioctl, &info, DRM_AUTH);
 	if (err)
 		return err;
 
-	if (__get_user(i32.agp_version_major, &info->agp_version_major)
-	    || __get_user(i32.agp_version_minor, &info->agp_version_minor)
-	    || __get_user(i32.mode, &info->mode)
-	    || __get_user(i32.aperture_base, &info->aperture_base)
-	    || __get_user(i32.aperture_size, &info->aperture_size)
-	    || __get_user(i32.memory_allowed, &info->memory_allowed)
-	    || __get_user(i32.memory_used, &info->memory_used)
-	    || __get_user(i32.id_vendor, &info->id_vendor)
-	    || __get_user(i32.id_device, &info->id_device))
-		return -EFAULT;
-
+	i32.agp_version_major = info.agp_version_major;
+	i32.agp_version_minor = info.agp_version_minor;
+	i32.mode = info.mode;
+	i32.aperture_base = info.aperture_base;
+	i32.aperture_size = info.aperture_size;
+	i32.memory_allowed = info.memory_allowed;
+	i32.memory_used = info.memory_used;
+	i32.id_vendor = info.id_vendor;
+	i32.id_device = info.id_device;
 	if (copy_to_user(argp, &i32, sizeof(i32)))
 		return -EFAULT;
 
@@ -690,26 +680,24 @@ static int compat_drm_agp_alloc(struct file *file, unsigned int cmd,
 {
 	drm_agp_buffer32_t __user *argp = (void __user *)arg;
 	drm_agp_buffer32_t req32;
-	struct drm_agp_buffer __user *request;
+	struct drm_agp_buffer request;
 	int err;
 
 	if (copy_from_user(&req32, argp, sizeof(req32)))
 		return -EFAULT;
 
-	request = compat_alloc_user_space(sizeof(*request));
-	if (!request
-	    || __put_user(req32.size, &request->size)
-	    || __put_user(req32.type, &request->type))
-		return -EFAULT;
-
-	err = drm_ioctl(file, DRM_IOCTL_AGP_ALLOC, (unsigned long)request);
+	request.size = req32.size;
+	request.type = req32.type;
+	err = drm_ioctl_kernel(file, drm_agp_alloc_ioctl, &request,
+				DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY);
 	if (err)
 		return err;
 
-	if (__get_user(req32.handle, &request->handle)
-	    || __get_user(req32.physical, &request->physical)
-	    || copy_to_user(argp, &req32, sizeof(req32))) {
-		drm_ioctl(file, DRM_IOCTL_AGP_FREE, (unsigned long)request);
+	req32.handle = request.handle;
+	req32.physical = request.physical;
+	if (copy_to_user(argp, &req32, sizeof(req32))) {
+		drm_ioctl_kernel(file, drm_agp_free_ioctl, &request,
+				DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY);
 		return -EFAULT;
 	}
 
@@ -720,16 +708,13 @@ static int compat_drm_agp_free(struct file *file, unsigned int cmd,
 			       unsigned long arg)
 {
 	drm_agp_buffer32_t __user *argp = (void __user *)arg;
-	struct drm_agp_buffer __user *request;
-	u32 handle;
+	struct drm_agp_buffer request;
 
-	request = compat_alloc_user_space(sizeof(*request));
-	if (!request
-	    || get_user(handle, &argp->handle)
-	    || __put_user(handle, &request->handle))
+	if (get_user(request.handle, &argp->handle))
 		return -EFAULT;
 
-	return drm_ioctl(file, DRM_IOCTL_AGP_FREE, (unsigned long)request);
+	return drm_ioctl_kernel(file, drm_agp_free_ioctl, &request,
+				DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY);
 }
 
 typedef struct drm_agp_binding32 {
@@ -742,34 +727,28 @@ static int compat_drm_agp_bind(struct file *file, unsigned int cmd,
 {
 	drm_agp_binding32_t __user *argp = (void __user *)arg;
 	drm_agp_binding32_t req32;
-	struct drm_agp_binding __user *request;
+	struct drm_agp_binding request;
 
 	if (copy_from_user(&req32, argp, sizeof(req32)))
 		return -EFAULT;
 
-	request = compat_alloc_user_space(sizeof(*request));
-	if (!request
-	    || __put_user(req32.handle, &request->handle)
-	    || __put_user(req32.offset, &request->offset))
-		return -EFAULT;
-
-	return drm_ioctl(file, DRM_IOCTL_AGP_BIND, (unsigned long)request);
+	request.handle = req32.handle;
+	request.offset = req32.offset;
+	return drm_ioctl_kernel(file, drm_agp_bind_ioctl, &request,
+				DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY);
 }
 
 static int compat_drm_agp_unbind(struct file *file, unsigned int cmd,
 				 unsigned long arg)
 {
 	drm_agp_binding32_t __user *argp = (void __user *)arg;
-	struct drm_agp_binding __user *request;
-	u32 handle;
+	struct drm_agp_binding request;
 
-	request = compat_alloc_user_space(sizeof(*request));
-	if (!request
-	    || get_user(handle, &argp->handle)
-	    || __put_user(handle, &request->handle))
+	if (get_user(request.handle, &argp->handle))
 		return -EFAULT;
 
-	return drm_ioctl(file, DRM_IOCTL_AGP_UNBIND, (unsigned long)request);
+	return drm_ioctl_kernel(file, drm_agp_unbind_ioctl, &request,
+				DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY);
 }
 #endif /* CONFIG_AGP */
 
@@ -986,12 +965,12 @@ static struct {
 	DRM_IOCTL32_DEF(DRM_IOCTL_RES_CTX, compat_drm_resctx),
 	DRM_IOCTL32_DEF(DRM_IOCTL_DMA, compat_drm_dma),
 #if IS_ENABLED(CONFIG_AGP)
-	[DRM_IOCTL_NR(DRM_IOCTL_AGP_ENABLE32)].fn = compat_drm_agp_enable,
-	[DRM_IOCTL_NR(DRM_IOCTL_AGP_INFO32)].fn = compat_drm_agp_info,
-	[DRM_IOCTL_NR(DRM_IOCTL_AGP_ALLOC32)].fn = compat_drm_agp_alloc,
-	[DRM_IOCTL_NR(DRM_IOCTL_AGP_FREE32)].fn = compat_drm_agp_free,
-	[DRM_IOCTL_NR(DRM_IOCTL_AGP_BIND32)].fn = compat_drm_agp_bind,
-	[DRM_IOCTL_NR(DRM_IOCTL_AGP_UNBIND32)].fn = compat_drm_agp_unbind,
+	DRM_IOCTL32_DEF(DRM_IOCTL_AGP_ENABLE, compat_drm_agp_enable),
+	DRM_IOCTL32_DEF(DRM_IOCTL_AGP_INFO, compat_drm_agp_info),
+	DRM_IOCTL32_DEF(DRM_IOCTL_AGP_ALLOC, compat_drm_agp_alloc),
+	DRM_IOCTL32_DEF(DRM_IOCTL_AGP_FREE, compat_drm_agp_free),
+	DRM_IOCTL32_DEF(DRM_IOCTL_AGP_BIND, compat_drm_agp_bind),
+	DRM_IOCTL32_DEF(DRM_IOCTL_AGP_UNBIND, compat_drm_agp_unbind),
 #endif
 	[DRM_IOCTL_NR(DRM_IOCTL_SG_ALLOC32)].fn = compat_drm_sg_alloc,
 	[DRM_IOCTL_NR(DRM_IOCTL_SG_FREE32)].fn = compat_drm_sg_free,
