@@ -3425,6 +3425,7 @@ struct qla_hw_data {
 	uint8_t 	max_req_queues;
 	uint8_t 	max_rsp_queues;
 	uint8_t		max_qpairs;
+	uint8_t		num_qpairs;
 	struct qla_qpair *base_qpair;
 	struct qla_npiv_entry *npiv_info;
 	uint16_t	nvram_npiv_size;
