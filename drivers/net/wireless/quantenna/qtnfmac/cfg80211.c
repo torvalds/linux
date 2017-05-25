@@ -922,7 +922,7 @@ void qtnf_netdev_updown(struct net_device *ndev, bool up)
 void qtnf_virtual_intf_cleanup(struct net_device *ndev)
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(ndev);
-	struct qtnf_wmac *mac = mac = wiphy_priv(vif->wdev.wiphy);
+	struct qtnf_wmac *mac = wiphy_priv(vif->wdev.wiphy);
 
 	if (vif->wdev.iftype == NL80211_IFTYPE_STATION) {
 		switch (vif->sta_state) {
