@@ -45,7 +45,7 @@ static int tpmrm_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-ssize_t tpmrm_write(struct file *file, const char __user *buf,
+static ssize_t tpmrm_write(struct file *file, const char __user *buf,
 		   size_t size, loff_t *off)
 {
 	struct file_priv *fpriv = file->private_data;
