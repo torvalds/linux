@@ -53,6 +53,15 @@ enum {
 	MLX5E_EVENT_MODE_ONCE_TILL_ARM	= 0x2,
 };
 
+enum {
+	MLX5E_MTPPS_FS_ENABLE			= BIT(0x0),
+	MLX5E_MTPPS_FS_PATTERN			= BIT(0x2),
+	MLX5E_MTPPS_FS_PIN_MODE			= BIT(0x3),
+	MLX5E_MTPPS_FS_TIME_STAMP		= BIT(0x4),
+	MLX5E_MTPPS_FS_OUT_PULSE_DURATION	= BIT(0x5),
+	MLX5E_MTPPS_FS_ENH_OUT_PER_ADJ		= BIT(0x7),
+};
+
 void mlx5e_fill_hwstamp(struct mlx5e_tstamp *tstamp, u64 timestamp,
 			struct skb_shared_hwtstamps *hwts)
 {
@@ -221,7 +230,10 @@ static int mlx5e_ptp_adjfreq(struct ptp_clock_info *ptp, s32 delta)
 
 		/* For future use need to add a loop for finding all 1PPS out pins */
 		MLX5_SET(mtpps_reg, in, pin_mode, MLX5E_PIN_MODE_OUT);
-		MLX5_SET(mtpps_reg, in, out_periodic_adjustment, delta & 0xFFFF);
+		MLX5_SET(mtpps_reg, in, enhanced_out_periodic_adjustment, delta);
+		MLX5_SET(mtpps_reg, in, field_select,
+			 MLX5E_MTPPS_FS_PIN_MODE |
+			 MLX5E_MTPPS_FS_ENH_OUT_PER_ADJ);
 
 		mlx5_set_mtpps(priv->mdev, in, sizeof(in));
 	}
@@ -257,8 +269,7 @@ static int mlx5e_extts_configure(struct ptp_clock_info *ptp,
 	int pin = -1;
 	int err = 0;
 
-	if (!MLX5_CAP_GEN(priv->mdev, pps) ||
-	    !MLX5_CAP_GEN(priv->mdev, pps_modify))
+	if (!MLX5_PPS_CAP(priv->mdev))
 		return -EOPNOTSUPP;
 
 	if (rq->extts.index >= tstamp->ptp_info.n_pins)
@@ -277,6 +288,9 @@ static int mlx5e_extts_configure(struct ptp_clock_info *ptp,
 	MLX5_SET(mtpps_reg, in, pin_mode, MLX5E_PIN_MODE_IN);
 	MLX5_SET(mtpps_reg, in, pattern, pattern);
 	MLX5_SET(mtpps_reg, in, enable, on);
+	MLX5_SET(mtpps_reg, in, field_select, MLX5E_MTPPS_FS_PIN_MODE |
+					      MLX5E_MTPPS_FS_PATTERN |
+					      MLX5E_MTPPS_FS_ENABLE);
 
 	err = mlx5_set_mtpps(priv->mdev, in, sizeof(in));
 	if (err)
@@ -302,7 +316,7 @@ static int mlx5e_perout_configure(struct ptp_clock_info *ptp,
 	int pin = -1;
 	s64 ns;
 
-	if (!MLX5_CAP_GEN(priv->mdev, pps_modify))
+	if (!MLX5_PPS_CAP(priv->mdev))
 		return -EOPNOTSUPP;
 
 	if (rq->perout.index >= tstamp->ptp_info.n_pins)
@@ -337,7 +351,10 @@ static int mlx5e_perout_configure(struct ptp_clock_info *ptp,
 	MLX5_SET(mtpps_reg, in, pattern, MLX5E_OUT_PATTERN_PERIODIC);
 	MLX5_SET(mtpps_reg, in, enable, on);
 	MLX5_SET64(mtpps_reg, in, time_stamp, time_stamp);
-
+	MLX5_SET(mtpps_reg, in, field_select, MLX5E_MTPPS_FS_PIN_MODE |
+					      MLX5E_MTPPS_FS_PATTERN |
+					      MLX5E_MTPPS_FS_ENABLE |
+					      MLX5E_MTPPS_FS_TIME_STAMP);
 	return mlx5_set_mtpps(priv->mdev, in, sizeof(in));
 }
 
@@ -487,7 +504,7 @@ void mlx5e_timestamp_init(struct mlx5e_priv *priv)
 #define MAX_PIN_NUM	8
 	tstamp->pps_pin_caps = kzalloc(sizeof(u8) * MAX_PIN_NUM, GFP_KERNEL);
 	if (tstamp->pps_pin_caps) {
-		if (MLX5_CAP_GEN(priv->mdev, pps))
+		if (MLX5_PPS_CAP(priv->mdev))
 			mlx5e_get_pps_caps(priv, tstamp);
 		if (tstamp->ptp_info.n_pins)
 			mlx5e_init_pin_config(tstamp);
