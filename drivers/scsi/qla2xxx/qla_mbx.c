@@ -3676,15 +3676,6 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 				qlt_update_host_map(vha, id);
 			}
 
-			fc_host_port_name(vha->host) =
-			    wwn_to_u64(vha->port_name);
-
-			if (qla_ini_mode_enabled(vha))
-				ql_dbg(ql_dbg_mbx, vha, 0x1018,
-				    "FA-WWN portname %016llx (%x)\n",
-				    fc_host_port_name(vha->host),
-				    rptid_entry->vp_status);
-
 			set_bit(REGISTER_FC4_NEEDED, &vha->dpc_flags);
 			set_bit(REGISTER_FDMI_NEEDED, &vha->dpc_flags);
 		} else {
