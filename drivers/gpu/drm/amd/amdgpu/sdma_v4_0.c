@@ -103,8 +103,8 @@ static const u32 golden_settings_sdma_4_1[] =
 
 static const u32 golden_settings_sdma_rv1[] =
 {
-	SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_GB_ADDR_CONFIG), 0x0018773f, 0x00003002,
-	SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_GB_ADDR_CONFIG_READ), 0x0018773f, 0x00003002
+	SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_GB_ADDR_CONFIG), 0x0018773f, 0x00000002,
+	SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_GB_ADDR_CONFIG_READ), 0x0018773f, 0x00000002
 };
 
 static u32 sdma_v4_0_get_reg_offset(u32 instance, u32 internal_offset)
