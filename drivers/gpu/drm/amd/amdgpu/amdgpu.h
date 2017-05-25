@@ -1613,6 +1613,9 @@ struct amdgpu_device {
 	/* amdkfd interface */
 	struct kfd_dev          *kfd;
 
+	/* delayed work_func for deferring clockgating during resume */
+	struct delayed_work     late_init_work;
+
 	struct amdgpu_virt	virt;
 
 	/* link all shadow bo */

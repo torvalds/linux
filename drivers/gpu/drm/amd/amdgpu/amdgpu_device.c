@@ -57,6 +57,8 @@
 MODULE_FIRMWARE("amdgpu/vega10_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/raven_gpu_info.bin");
 
+#define AMDGPU_RESUME_MS		2000
+
 static int amdgpu_debugfs_regs_init(struct amdgpu_device *adev);
 static void amdgpu_debugfs_regs_cleanup(struct amdgpu_device *adev);
 
@@ -1669,6 +1671,29 @@ static bool amdgpu_check_vram_lost(struct amdgpu_device *adev)
 			AMDGPU_RESET_MAGIC_NUM);
 }
 
+static int amdgpu_late_set_cg_state(struct amdgpu_device *adev)
+{
+	int i = 0, r;
+
+	for (i = 0; i < adev->num_ip_blocks; i++) {
+		if (!adev->ip_blocks[i].status.valid)
+			continue;
+		/* skip CG for VCE/UVD, it's handled specially */
+		if (adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_UVD &&
+		    adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_VCE) {
+			/* enable clockgating to save power */
+			r = adev->ip_blocks[i].version->funcs->set_clockgating_state((void *)adev,
+										     AMD_CG_STATE_GATE);
+			if (r) {
+				DRM_ERROR("set_clockgating_state(gate) of IP block <%s> failed %d\n",
+					  adev->ip_blocks[i].version->funcs->name, r);
+				return r;
+			}
+		}
+	}
+	return 0;
+}
+
 static int amdgpu_late_init(struct amdgpu_device *adev)
 {
 	int i = 0, r;
@@ -1685,19 +1710,10 @@ static int amdgpu_late_init(struct amdgpu_device *adev)
 			}
 			adev->ip_blocks[i].status.late_initialized = true;
 		}
-		/* skip CG for VCE/UVD, it's handled specially */
-		if (adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_UVD &&
-		    adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_VCE) {
-			/* enable clockgating to save power */
-			r = adev->ip_blocks[i].version->funcs->set_clockgating_state((void *)adev,
-										     AMD_CG_STATE_GATE);
-			if (r) {
-				DRM_ERROR("set_clockgating_state(gate) of IP block <%s> failed %d\n",
-					  adev->ip_blocks[i].version->funcs->name, r);
-				return r;
-			}
-		}
 	}
+
+	mod_delayed_work(system_wq, &adev->late_init_work,
+			msecs_to_jiffies(AMDGPU_RESUME_MS));
 
 	amdgpu_fill_reset_magic(adev);
 
@@ -1789,6 +1805,13 @@ static int amdgpu_fini(struct amdgpu_device *adev)
 	}
 
 	return 0;
+}
+
+static void amdgpu_late_init_func_handler(struct work_struct *work)
+{
+	struct amdgpu_device *adev =
+		container_of(work, struct amdgpu_device, late_init_work.work);
+	amdgpu_late_set_cg_state(adev);
 }
 
 int amdgpu_suspend(struct amdgpu_device *adev)
@@ -2050,6 +2073,8 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	INIT_LIST_HEAD(&adev->gtt_list);
 	spin_lock_init(&adev->gtt_list_lock);
 
+	INIT_DELAYED_WORK(&adev->late_init_work, amdgpu_late_init_func_handler);
+
 	if (adev->asic_type >= CHIP_BONAIRE) {
 		adev->rmmio_base = pci_resource_start(adev->pdev, 5);
 		adev->rmmio_size = pci_resource_len(adev->pdev, 5);
@@ -2247,6 +2272,7 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	amdgpu_fbdev_fini(adev);
 	r = amdgpu_fini(adev);
 	adev->accel_working = false;
+	cancel_delayed_work_sync(&adev->late_init_work);
 	/* free i2c buses */
 	amdgpu_i2c_fini(adev);
 	amdgpu_atombios_fini(adev);
