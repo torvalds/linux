@@ -56,7 +56,6 @@ int mmhub_v1_0_gart_enable(struct amdgpu_device *adev)
 
 	/* Program MC. */
 	/* Update configuration */
-	DRM_INFO("%s -- in\n", __func__);
 	WREG32(SOC15_REG_OFFSET(MMHUB, 0, mmMC_VM_SYSTEM_APERTURE_LOW_ADDR),
 		adev->mc.vram_start >> 18);
 	WREG32(SOC15_REG_OFFSET(MMHUB, 0, mmMC_VM_SYSTEM_APERTURE_HIGH_ADDR),
