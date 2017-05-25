@@ -1963,9 +1963,14 @@ parse_rx_slots(VCHIQ_STATE_T *state)
 					mutex_unlock(&service->bulk_mutex);
 					break;
 				}
-
-				BUG_ON(queue->process == queue->local_insert);
-				BUG_ON(queue->process != queue->remote_insert);
+				if (queue->process != queue->remote_insert) {
+					pr_err("%s: p %x != ri %x\n",
+					       __func__,
+					       queue->process,
+					       queue->remote_insert);
+					mutex_unlock(&service->bulk_mutex);
+					goto bail_not_ready;
+				}
 
 				bulk = &queue->bulks[
 					BULK_INDEX(queue->remote_insert)];
