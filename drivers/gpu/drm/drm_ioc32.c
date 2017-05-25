@@ -761,23 +761,19 @@ static int compat_drm_sg_alloc(struct file *file, unsigned int cmd,
 			       unsigned long arg)
 {
 	drm_scatter_gather32_t __user *argp = (void __user *)arg;
-	struct drm_scatter_gather __user *request;
+	struct drm_scatter_gather request;
 	int err;
-	unsigned long x;
 
-	request = compat_alloc_user_space(sizeof(*request));
-	if (!request || !access_ok(VERIFY_WRITE, argp, sizeof(*argp))
-	    || __get_user(x, &argp->size)
-	    || __put_user(x, &request->size))
+	if (get_user(request.size, &argp->size))
 		return -EFAULT;
 
-	err = drm_ioctl(file, DRM_IOCTL_SG_ALLOC, (unsigned long)request);
+	err = drm_ioctl_kernel(file, drm_legacy_sg_alloc, &request,
+				DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY);
 	if (err)
 		return err;
 
 	/* XXX not sure about the handle conversion here... */
-	if (__get_user(x, &request->handle)
-	    || __put_user(x >> PAGE_SHIFT, &argp->handle))
+	if (put_user(request.handle >> PAGE_SHIFT, &argp->handle))
 		return -EFAULT;
 
 	return 0;
@@ -787,16 +783,14 @@ static int compat_drm_sg_free(struct file *file, unsigned int cmd,
 			      unsigned long arg)
 {
 	drm_scatter_gather32_t __user *argp = (void __user *)arg;
-	struct drm_scatter_gather __user *request;
+	struct drm_scatter_gather request;
 	unsigned long x;
 
-	request = compat_alloc_user_space(sizeof(*request));
-	if (!request || !access_ok(VERIFY_WRITE, argp, sizeof(*argp))
-	    || __get_user(x, &argp->handle)
-	    || __put_user(x << PAGE_SHIFT, &request->handle))
+	if (get_user(x, &argp->handle))
 		return -EFAULT;
-
-	return drm_ioctl(file, DRM_IOCTL_SG_FREE, (unsigned long)request);
+	request.handle = x << PAGE_SHIFT;
+	return drm_ioctl_kernel(file, drm_legacy_sg_free, &request,
+				DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY);
 }
 
 #if defined(CONFIG_X86) || defined(CONFIG_IA64)
@@ -972,8 +966,8 @@ static struct {
 	DRM_IOCTL32_DEF(DRM_IOCTL_AGP_BIND, compat_drm_agp_bind),
 	DRM_IOCTL32_DEF(DRM_IOCTL_AGP_UNBIND, compat_drm_agp_unbind),
 #endif
-	[DRM_IOCTL_NR(DRM_IOCTL_SG_ALLOC32)].fn = compat_drm_sg_alloc,
-	[DRM_IOCTL_NR(DRM_IOCTL_SG_FREE32)].fn = compat_drm_sg_free,
+	DRM_IOCTL32_DEF(DRM_IOCTL_SG_ALLOC, compat_drm_sg_alloc),
+	DRM_IOCTL32_DEF(DRM_IOCTL_SG_FREE, compat_drm_sg_free),
 #if defined(CONFIG_X86) || defined(CONFIG_IA64)
 	[DRM_IOCTL_NR(DRM_IOCTL_UPDATE_DRAW32)].fn = compat_drm_update_draw,
 #endif
