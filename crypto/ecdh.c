@@ -56,7 +56,7 @@ static int ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
 	ctx->ndigits = ndigits;
 
 	if (ecc_is_key_valid(ctx->curve_id, ctx->ndigits,
-			     (const u8 *)params.key, params.key_size) < 0)
+			     (const u64 *)params.key, params.key_size) < 0)
 		return -EINVAL;
 
 	memcpy(ctx->private_key, params.key, params.key_size);
@@ -81,15 +81,14 @@ static int ecdh_compute_value(struct kpp_request *req)
 			return -EINVAL;
 
 		ret = crypto_ecdh_shared_secret(ctx->curve_id, ctx->ndigits,
-						(const u8 *)ctx->private_key,
-						(const u8 *)ctx->public_key,
-						(u8 *)ctx->shared_secret);
+						ctx->private_key,
+						ctx->public_key,
+						ctx->shared_secret);
 
 		buf = ctx->shared_secret;
 	} else {
 		ret = ecdh_make_pub_key(ctx->curve_id, ctx->ndigits,
-					(const u8 *)ctx->private_key,
-					(u8 *)ctx->public_key);
+					ctx->private_key, ctx->public_key);
 		buf = ctx->public_key;
 		/* Public part is a point thus it has both coordinates */
 		nbytes *= 2;

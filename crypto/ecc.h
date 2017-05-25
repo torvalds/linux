@@ -41,7 +41,7 @@
  * Returns 0 if the key is acceptable, a negative value otherwise
  */
 int ecc_is_key_valid(unsigned int curve_id, unsigned int ndigits,
-		     const u8 *private_key, unsigned int private_key_len);
+		     const u64 *private_key, unsigned int private_key_len);
 
 /**
  * ecdh_make_pub_key() - Compute an ECC public key
@@ -55,7 +55,7 @@ int ecc_is_key_valid(unsigned int curve_id, unsigned int ndigits,
  * if an error occurred.
  */
 int ecdh_make_pub_key(const unsigned int curve_id, unsigned int ndigits,
-		      const u8 *private_key, u8 *public_key);
+		      const u64 *private_key, u64 *public_key);
 
 /**
  * crypto_ecdh_shared_secret() - Compute a shared secret
@@ -73,6 +73,6 @@ int ecdh_make_pub_key(const unsigned int curve_id, unsigned int ndigits,
  * if an error occurred.
  */
 int crypto_ecdh_shared_secret(unsigned int curve_id, unsigned int ndigits,
-			      const u8 *private_key, const u8 *public_key,
-			      u8 *secret);
+			      const u64 *private_key, const u64 *public_key,
+			      u64 *secret);
 #endif
