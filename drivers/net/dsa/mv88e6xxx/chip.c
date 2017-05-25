@@ -38,6 +38,7 @@
 #include "global2.h"
 #include "phy.h"
 #include "port.h"
+#include "serdes.h"
 
 static void assert_reg_lock(struct mv88e6xxx_chip *chip)
 {
@@ -232,18 +233,6 @@ struct mii_bus *mv88e6xxx_default_mdio_bus(struct mv88e6xxx_chip *chip)
 		return NULL;
 
 	return mdio_bus->bus;
-}
-
-static int mv88e6xxx_serdes_read(struct mv88e6xxx_chip *chip, int reg, u16 *val)
-{
-	return mv88e6xxx_phy_page_read(chip, ADDR_SERDES, SERDES_PAGE_FIBER,
-				       reg, val);
-}
-
-static int mv88e6xxx_serdes_write(struct mv88e6xxx_chip *chip, int reg, u16 val)
-{
-	return mv88e6xxx_phy_page_write(chip, ADDR_SERDES, SERDES_PAGE_FIBER,
-					reg, val);
 }
 
 static void mv88e6xxx_g1_irq_mask(struct irq_data *d)
@@ -1733,24 +1722,6 @@ static int mv88e6xxx_switch_reset(struct mv88e6xxx_chip *chip)
 	return mv88e6xxx_software_reset(chip);
 }
 
-static int mv88e6xxx_serdes_power_on(struct mv88e6xxx_chip *chip)
-{
-	u16 val;
-	int err;
-
-	/* Clear Power Down bit */
-	err = mv88e6xxx_serdes_read(chip, MII_BMCR, &val);
-	if (err)
-		return err;
-
-	if (val & BMCR_PDOWN) {
-		val &= ~BMCR_PDOWN;
-		err = mv88e6xxx_serdes_write(chip, MII_BMCR, val);
-	}
-
-	return err;
-}
-
 static int mv88e6xxx_set_port_mode(struct mv88e6xxx_chip *chip, int port,
 				   enum mv88e6xxx_frame_mode frame, u16 egress,
 				   u16 etype)
@@ -1832,6 +1803,15 @@ static int mv88e6xxx_setup_egress_floods(struct mv88e6xxx_chip *chip, int port)
 	return 0;
 }
 
+static int mv88e6xxx_serdes_power(struct mv88e6xxx_chip *chip, int port,
+				  bool on)
+{
+	if (chip->info->ops->serdes_power)
+		return chip->info->ops->serdes_power(chip, port, on);
+
+	return 0;
+}
+
 static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 {
 	struct dsa_switch *ds = chip->ds;
@@ -1882,22 +1862,12 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	if (err)
 		return err;
 
-	/* If this port is connected to a SerDes, make sure the SerDes is not
-	 * powered down.
+	/* If this port is connected to a SerDes, make sure the SerDes is
+	 * powered up.
 	 */
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAGS_SERDES)) {
-		err = mv88e6xxx_port_read(chip, port, PORT_STATUS, &reg);
-		if (err)
-			return err;
-		reg &= PORT_STATUS_CMODE_MASK;
-		if ((reg == PORT_STATUS_CMODE_100BASE_X) ||
-		    (reg == PORT_STATUS_CMODE_1000BASE_X) ||
-		    (reg == PORT_STATUS_CMODE_SGMII)) {
-			err = mv88e6xxx_serdes_power_on(chip);
-			if (err < 0)
-				return err;
-		}
-	}
+	err = mv88e6xxx_serdes_power(chip, port, true);
+	if (err)
+		return err;
 
 	/* Port Control 2: don't force a good FCS, set the maximum frame size to
 	 * 10240 bytes, disable 802.1q tags checking, don't discard tagged or
@@ -2662,6 +2632,7 @@ static const struct mv88e6xxx_ops mv88e6172_ops = {
 	.reset = mv88e6352_g1_reset,
 	.vtu_getnext = mv88e6352_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
+	.serdes_power = mv88e6352_serdes_power,
 };
 
 static const struct mv88e6xxx_ops mv88e6175_ops = {
@@ -2726,6 +2697,7 @@ static const struct mv88e6xxx_ops mv88e6176_ops = {
 	.reset = mv88e6352_g1_reset,
 	.vtu_getnext = mv88e6352_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
+	.serdes_power = mv88e6352_serdes_power,
 };
 
 static const struct mv88e6xxx_ops mv88e6185_ops = {
@@ -2882,6 +2854,7 @@ static const struct mv88e6xxx_ops mv88e6240_ops = {
 	.reset = mv88e6352_g1_reset,
 	.vtu_getnext = mv88e6352_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
+	.serdes_power = mv88e6352_serdes_power,
 };
 
 static const struct mv88e6xxx_ops mv88e6290_ops = {
@@ -3104,6 +3077,7 @@ static const struct mv88e6xxx_ops mv88e6352_ops = {
 	.reset = mv88e6352_g1_reset,
 	.vtu_getnext = mv88e6352_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
+	.serdes_power = mv88e6352_serdes_power,
 };
 
 static const struct mv88e6xxx_ops mv88e6390_ops = {

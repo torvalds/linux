@@ -37,9 +37,6 @@
 #define PHY_PAGE		0x16
 #define PHY_PAGE_COPPER		0x00
 
-#define ADDR_SERDES		0x0f
-#define SERDES_PAGE_FIBER	0x01
-
 #define PORT_STATUS		0x00
 #define PORT_STATUS_PAUSE_EN	BIT(15)
 #define PORT_STATUS_MY_PAUSE	BIT(14)
@@ -883,6 +880,9 @@ struct mv88e6xxx_ops {
 
 	/* Can be either in g1 or g2, so don't use a prefix */
 	int (*mgmt_rsvd2cpu)(struct mv88e6xxx_chip *chip);
+
+	/* Power on/off a SERDES interface */
+	int (*serdes_power)(struct mv88e6xxx_chip *chip, int port, bool on);
 
 	/* VLAN Translation Unit operations */
 	int (*vtu_getnext)(struct mv88e6xxx_chip *chip,
