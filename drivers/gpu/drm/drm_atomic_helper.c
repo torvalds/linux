@@ -32,6 +32,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <linux/dma-fence.h>
 
+#include "drm_crtc_helper_internal.h"
 #include "drm_crtc_internal.h"
 
 /**
@@ -452,6 +453,69 @@ mode_fixup(struct drm_atomic_state *state)
 	return 0;
 }
 
+static enum drm_mode_status mode_valid_path(struct drm_connector *connector,
+					    struct drm_encoder *encoder,
+					    struct drm_crtc *crtc,
+					    struct drm_display_mode *mode)
+{
+	enum drm_mode_status ret;
+
+	ret = drm_encoder_mode_valid(encoder, mode);
+	if (ret != MODE_OK) {
+		DRM_DEBUG_ATOMIC("[ENCODER:%d:%s] mode_valid() failed\n",
+				encoder->base.id, encoder->name);
+		return ret;
+	}
+
+	ret = drm_bridge_mode_valid(encoder->bridge, mode);
+	if (ret != MODE_OK) {
+		DRM_DEBUG_ATOMIC("[BRIDGE] mode_valid() failed\n");
+		return ret;
+	}
+
+	ret = drm_crtc_mode_valid(crtc, mode);
+	if (ret != MODE_OK) {
+		DRM_DEBUG_ATOMIC("[CRTC:%d:%s] mode_valid() failed\n",
+				crtc->base.id, crtc->name);
+		return ret;
+	}
+
+	return ret;
+}
+
+static int
+mode_valid(struct drm_atomic_state *state)
+{
+	struct drm_connector_state *conn_state;
+	struct drm_connector *connector;
+	int i;
+
+	for_each_new_connector_in_state(state, connector, conn_state, i) {
+		struct drm_encoder *encoder = conn_state->best_encoder;
+		struct drm_crtc *crtc = conn_state->crtc;
+		struct drm_crtc_state *crtc_state;
+		enum drm_mode_status mode_status;
+		struct drm_display_mode *mode;
+
+		if (!crtc || !encoder)
+			continue;
+
+		crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+		if (!crtc_state)
+			continue;
+		if (!crtc_state->mode_changed && !crtc_state->connectors_changed)
+			continue;
+
+		mode = &crtc_state->mode;
+
+		mode_status = mode_valid_path(connector, encoder, crtc, mode);
+		if (mode_status != MODE_OK)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
 /**
  * drm_atomic_helper_check_modeset - validate state object for modeset changes
  * @dev: DRM device
@@ -466,13 +530,15 @@ mode_fixup(struct drm_atomic_state *state)
  * 2. &drm_connector_helper_funcs.atomic_check to validate the connector state.
  * 3. If it's determined a modeset is needed then all connectors on the affected crtc
  *    crtc are added and &drm_connector_helper_funcs.atomic_check is run on them.
- * 4. &drm_bridge_funcs.mode_fixup is called on all encoder bridges.
- * 5. &drm_encoder_helper_funcs.atomic_check is called to validate any encoder state.
+ * 4. &drm_encoder_helper_funcs.mode_valid, &drm_bridge_funcs.mode_valid and
+ *    &drm_crtc_helper_funcs.mode_valid are called on the affected components.
+ * 5. &drm_bridge_funcs.mode_fixup is called on all encoder bridges.
+ * 6. &drm_encoder_helper_funcs.atomic_check is called to validate any encoder state.
  *    This function is only called when the encoder will be part of a configured crtc,
  *    it must not be used for implementing connector property validation.
  *    If this function is NULL, &drm_atomic_encoder_helper_funcs.mode_fixup is called
  *    instead.
- * 6. &drm_crtc_helper_funcs.mode_fixup is called last, to fix up the mode with crtc constraints.
+ * 7. &drm_crtc_helper_funcs.mode_fixup is called last, to fix up the mode with crtc constraints.
  *
  * &drm_crtc_state.mode_changed is set when the input mode is changed.
  * &drm_crtc_state.connectors_changed is set when a connector is added or
@@ -616,6 +682,10 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 		if (ret)
 			return ret;
 	}
+
+	ret = mode_valid(state);
+	if (ret)
+		return ret;
 
 	return mode_fixup(state);
 }
