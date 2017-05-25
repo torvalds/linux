@@ -136,6 +136,7 @@ struct fib_rule;
 
 struct fib_table;
 struct fib_result {
+	__be32		prefix;
 	unsigned char	prefixlen;
 	unsigned char	nh_sel;
 	unsigned char	type;
