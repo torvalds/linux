@@ -147,7 +147,7 @@ err_free_val:
 	return ret;
 }
 
-static int dh_max_size(struct crypto_kpp *tfm)
+static unsigned int dh_max_size(struct crypto_kpp *tfm)
 {
 	struct dh_ctx *ctx = dh_get_ctx(tfm);
 
