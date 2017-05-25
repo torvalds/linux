@@ -7556,7 +7556,7 @@ S:	Maintained
 F:	drivers/ata/sata_promise.*
 
 LIBLOCKDEP
-M:	Sasha Levin <sasha.levin@oracle.com>
+M:	Sasha Levin <alexander.levin@verizon.com>
 S:	Maintained
 F:	tools/lib/lockdep/
 
