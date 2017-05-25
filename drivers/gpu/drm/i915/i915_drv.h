@@ -2997,23 +2997,24 @@ intel_info(const struct drm_i915_private *dev_priv)
 
 #include "i915_trace.h"
 
-static inline bool intel_scanout_needs_vtd_wa(struct drm_i915_private *dev_priv)
+static inline bool intel_vtd_active(void)
 {
 #ifdef CONFIG_INTEL_IOMMU
-	if (INTEL_GEN(dev_priv) >= 6 && intel_iommu_gfx_mapped)
+	if (intel_iommu_gfx_mapped)
 		return true;
 #endif
 	return false;
 }
 
+static inline bool intel_scanout_needs_vtd_wa(struct drm_i915_private *dev_priv)
+{
+	return INTEL_GEN(dev_priv) >= 6 && intel_vtd_active();
+}
+
 static inline bool
 intel_ggtt_update_needs_vtd_wa(struct drm_i915_private *dev_priv)
 {
-#ifdef CONFIG_INTEL_IOMMU
-	if (IS_BROXTON(dev_priv) && intel_iommu_gfx_mapped)
-		return true;
-#endif
-	return false;
+	return IS_BROXTON(dev_priv) && intel_vtd_active();
 }
 
 int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,

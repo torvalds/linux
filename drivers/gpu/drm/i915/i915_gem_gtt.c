@@ -166,13 +166,11 @@ int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 	if (enable_ppgtt == 3 && has_full_48bit_ppgtt)
 		return 3;
 
-#ifdef CONFIG_INTEL_IOMMU
 	/* Disable ppgtt on SNB if VT-d is on. */
-	if (IS_GEN6(dev_priv) && intel_iommu_gfx_mapped) {
+	if (IS_GEN6(dev_priv) && intel_vtd_active()) {
 		DRM_INFO("Disabling PPGTT because VT-d is on\n");
 		return 0;
 	}
-#endif
 
 	/* Early VLV doesn't have this */
 	if (IS_VALLEYVIEW(dev_priv) && dev_priv->drm.pdev->revision < 0xb) {
@@ -1990,14 +1988,10 @@ void i915_ppgtt_release(struct kref *kref)
  */
 static bool needs_idle_maps(struct drm_i915_private *dev_priv)
 {
-#ifdef CONFIG_INTEL_IOMMU
 	/* Query intel_iommu to see if we need the workaround. Presumably that
 	 * was loaded first.
 	 */
-	if (IS_GEN5(dev_priv) && IS_MOBILE(dev_priv) && intel_iommu_gfx_mapped)
-		return true;
-#endif
-	return false;
+	return IS_GEN5(dev_priv) && IS_MOBILE(dev_priv) && intel_vtd_active();
 }
 
 void i915_check_and_clear_faults(struct drm_i915_private *dev_priv)
@@ -3037,10 +3031,8 @@ int i915_ggtt_probe_hw(struct drm_i915_private *dev_priv)
 		 ggtt->base.total >> 20);
 	DRM_DEBUG_DRIVER("GMADR size = %lldM\n", ggtt->mappable_end >> 20);
 	DRM_DEBUG_DRIVER("GTT stolen size = %uM\n", ggtt->stolen_size >> 20);
-#ifdef CONFIG_INTEL_IOMMU
-	if (intel_iommu_gfx_mapped)
+	if (intel_vtd_active())
 		DRM_INFO("VT-d active for gfx access\n");
-#endif
 
 	return 0;
 }

@@ -1312,14 +1312,12 @@ static int intel_sanitize_fbc_option(struct drm_i915_private *dev_priv)
 
 static bool need_fbc_vtd_wa(struct drm_i915_private *dev_priv)
 {
-#ifdef CONFIG_INTEL_IOMMU
 	/* WaFbcTurnOffFbcWhenHyperVisorIsUsed:skl,bxt */
-	if (intel_iommu_gfx_mapped &&
+	if (intel_vtd_active() &&
 	    (IS_SKYLAKE(dev_priv) || IS_BROXTON(dev_priv))) {
 		DRM_INFO("Disabling framebuffer compression (FBC) to prevent screen flicker with VT-d enabled\n");
 		return true;
 	}
-#endif
 
 	return false;
 }

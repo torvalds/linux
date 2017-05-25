@@ -4728,11 +4728,9 @@ bool intel_sanitize_semaphores(struct drm_i915_private *dev_priv, int value)
 	if (value >= 0)
 		return value;
 
-#ifdef CONFIG_INTEL_IOMMU
 	/* Enable semaphores on SNB when IO remapping is off */
-	if (INTEL_INFO(dev_priv)->gen == 6 && intel_iommu_gfx_mapped)
+	if (IS_GEN6(dev_priv) && intel_vtd_active())
 		return false;
-#endif
 
 	return true;
 }
