@@ -2536,7 +2536,7 @@ EXPORT_SYMBOL_GPL(ip_route_output_flow);
 
 static int rt_fill_info(struct net *net,  __be32 dst, __be32 src, u32 table_id,
 			struct flowi4 *fl4, struct sk_buff *skb, u32 portid,
-			u32 seq, int event)
+			u32 seq)
 {
 	struct rtable *rt = skb_rtable(skb);
 	struct rtmsg *r;
@@ -2545,7 +2545,7 @@ static int rt_fill_info(struct net *net,  __be32 dst, __be32 src, u32 table_id,
 	u32 error;
 	u32 metrics[RTAX_MAX];
 
-	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*r), 0);
+	nlh = nlmsg_put(skb, portid, seq, RTM_NEWROUTE, sizeof(*r), 0);
 	if (!nlh)
 		return -EMSGSIZE;
 
@@ -2745,8 +2745,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 		table_id = rt->rt_table_id;
 
 	err = rt_fill_info(net, dst, src, table_id, &fl4, skb,
-			   NETLINK_CB(in_skb).portid, nlh->nlmsg_seq,
-			   RTM_NEWROUTE);
+			   NETLINK_CB(in_skb).portid, nlh->nlmsg_seq);
 	if (err < 0)
 		goto errout_free;
 
