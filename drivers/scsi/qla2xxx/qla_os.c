@@ -630,29 +630,34 @@ qla2x00_sp_free_dma(void *ptr)
 		sp->flags &= ~SRB_CRC_PROT_DMA_VALID;
 	}
 
+	if (!ctx)
+		goto end;
+
 	if (sp->flags & SRB_CRC_CTX_DSD_VALID) {
 		/* List assured to be having elements */
-		qla2x00_clean_dsd_pool(ha, sp, NULL);
+		qla2x00_clean_dsd_pool(ha, ctx);
 		sp->flags &= ~SRB_CRC_CTX_DSD_VALID;
 	}
 
 	if (sp->flags & SRB_CRC_CTX_DMA_VALID) {
-		dma_pool_free(ha->dl_dma_pool, ctx,
-		    ((struct crc_context *)ctx)->crc_ctx_dma);
+		struct crc_context *ctx0 = ctx;
+
+		dma_pool_free(ha->dl_dma_pool, ctx0, ctx0->crc_ctx_dma);
 		sp->flags &= ~SRB_CRC_CTX_DMA_VALID;
 	}
 
 	if (sp->flags & SRB_FCP_CMND_DMA_VALID) {
-		struct ct6_dsd *ctx1 = (struct ct6_dsd *)ctx;
+		struct ct6_dsd *ctx1 = ctx;
 
 		dma_pool_free(ha->fcp_cmnd_dma_pool, ctx1->fcp_cmnd,
-			ctx1->fcp_cmnd_dma);
+		    ctx1->fcp_cmnd_dma);
 		list_splice(&ctx1->dsd_list, &ha->gbl_dsd_list);
 		ha->gbl_dsd_inuse -= ctx1->dsd_use_cnt;
 		ha->gbl_dsd_avail += ctx1->dsd_use_cnt;
 		mempool_free(ctx1, ha->ctx_mempool);
 	}
 
+end:
 	CMD_SP(cmd) = NULL;
 	qla2x00_rel_sp(sp);
 }
@@ -699,21 +704,24 @@ qla2xxx_qpair_sp_free_dma(void *ptr)
 		sp->flags &= ~SRB_CRC_PROT_DMA_VALID;
 	}
 
+	if (!ctx)
+		goto end;
+
 	if (sp->flags & SRB_CRC_CTX_DSD_VALID) {
 		/* List assured to be having elements */
-		qla2x00_clean_dsd_pool(ha, sp, NULL);
+		qla2x00_clean_dsd_pool(ha, ctx);
 		sp->flags &= ~SRB_CRC_CTX_DSD_VALID;
 	}
 
 	if (sp->flags & SRB_CRC_CTX_DMA_VALID) {
-		dma_pool_free(ha->dl_dma_pool, ctx,
-		    ((struct crc_context *)ctx)->crc_ctx_dma);
+		struct crc_context *ctx0 = ctx;
+
+		dma_pool_free(ha->dl_dma_pool, ctx, ctx0->crc_ctx_dma);
 		sp->flags &= ~SRB_CRC_CTX_DMA_VALID;
 	}
 
 	if (sp->flags & SRB_FCP_CMND_DMA_VALID) {
-		struct ct6_dsd *ctx1 = (struct ct6_dsd *)ctx;
-
+		struct ct6_dsd *ctx1 = ctx;
 		dma_pool_free(ha->fcp_cmnd_dma_pool, ctx1->fcp_cmnd,
 		    ctx1->fcp_cmnd_dma);
 		list_splice(&ctx1->dsd_list, &ha->gbl_dsd_list);
@@ -721,7 +729,7 @@ qla2xxx_qpair_sp_free_dma(void *ptr)
 		ha->gbl_dsd_avail += ctx1->dsd_use_cnt;
 		mempool_free(ctx1, ha->ctx_mempool);
 	}
-
+end:
 	CMD_SP(cmd) = NULL;
 	qla2xxx_rel_qpair_sp(sp->qpair, sp);
 }

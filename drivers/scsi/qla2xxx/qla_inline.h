@@ -129,28 +129,16 @@ qla2x00_clear_loop_id(fc_port_t *fcport) {
 }
 
 static inline void
-qla2x00_clean_dsd_pool(struct qla_hw_data *ha, srb_t *sp,
-	struct qla_tgt_cmd *tc)
+qla2x00_clean_dsd_pool(struct qla_hw_data *ha, struct crc_context *ctx)
 {
-	struct dsd_dma *dsd_ptr, *tdsd_ptr;
-	struct crc_context *ctx;
-
-	if (sp)
-		ctx = (struct crc_context *)GET_CMD_CTX_SP(sp);
-	else if (tc)
-		ctx = (struct crc_context *)tc->ctx;
-	else {
-		BUG();
-		return;
-	}
+	struct dsd_dma *dsd, *tdsd;
 
 	/* clean up allocated prev pool */
-	list_for_each_entry_safe(dsd_ptr, tdsd_ptr,
-	    &ctx->dsd_list, list) {
-		dma_pool_free(ha->dl_dma_pool, dsd_ptr->dsd_addr,
-		    dsd_ptr->dsd_list_dma);
-		list_del(&dsd_ptr->list);
-		kfree(dsd_ptr);
+	list_for_each_entry_safe(dsd, tdsd, &ctx->dsd_list, list) {
+		dma_pool_free(ha->dl_dma_pool, dsd->dsd_addr,
+		    dsd->dsd_list_dma);
+		list_del(&dsd->list);
+		kfree(dsd);
 	}
 	INIT_LIST_HEAD(&ctx->dsd_list);
 }
