@@ -54,6 +54,7 @@ static const void *get_powerplay_table(struct pp_hwmgr *hwmgr)
 						&size, &frev, &crev);
 
 		hwmgr->soft_pp_table = table_address;	/*Cache the result in RAM.*/
+		hwmgr->soft_pp_table_size = size;
 	}
 
 	return table_address;
