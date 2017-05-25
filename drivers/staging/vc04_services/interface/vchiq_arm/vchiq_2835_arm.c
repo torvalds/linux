@@ -577,7 +577,6 @@ static void
 free_pagelist(struct vchiq_pagelist_info *pagelistinfo,
 	      int actual)
 {
-	unsigned int i;
 	PAGELIST_T *pagelist   = pagelistinfo->pagelist;
 	struct page **pages    = pagelistinfo->pages;
 	unsigned int num_pages = pagelistinfo->num_pages;
@@ -633,6 +632,8 @@ free_pagelist(struct vchiq_pagelist_info *pagelistinfo,
 	/* Need to mark all the pages dirty. */
 	if (pagelist->type != PAGELIST_WRITE &&
 	    pagelistinfo->pages_need_release) {
+		unsigned int i;
+
 		for (i = 0; i < num_pages; i++)
 			set_page_dirty(pages[i]);
 	}
