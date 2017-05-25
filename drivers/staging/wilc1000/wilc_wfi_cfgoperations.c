@@ -167,6 +167,7 @@ struct add_key_params {
 	bool pairwise;
 	u8 *mac_addr;
 };
+
 static struct add_key_params g_add_gtk_key_params;
 static struct wilc_wfi_key g_key_gtk_params;
 static struct add_key_params g_add_ptk_key_params;
