@@ -2,10 +2,10 @@
  * Copyright (c) 2012 The Chromium OS Authors. All rights reserved.
  * Use of this source code is governed by the GPLv2 license.
  *
- * test_harness.h: simple C unit test helper.
+ * kselftest_harness.h: simple C unit test helper.
  *
  * Usage:
- *   #include "test_harness.h"
+ *   #include "../kselftest_harness.h"
  *   TEST(standalone_test) {
  *     do_some_stuff;
  *     EXPECT_GT(10, stuff) {
@@ -38,8 +38,9 @@
  *
  * API inspired by code.google.com/p/googletest
  */
-#ifndef TEST_HARNESS_H_
-#define TEST_HARNESS_H_
+
+#ifndef __KSELFTEST_HARNESS_H
+#define __KSELFTEST_HARNESS_H
 
 #define _GNU_SOURCE
 #include <stdint.h>
@@ -532,4 +533,4 @@ static void __attribute__((constructor)) __constructor_order_first(void)
 		__constructor_order = _CONSTRUCTOR_ORDER_FORWARD;
 }
 
-#endif  /* TEST_HARNESS_H_ */
+#endif  /* __KSELFTEST_HARNESS_H */
