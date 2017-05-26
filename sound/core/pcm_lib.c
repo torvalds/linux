@@ -33,6 +33,8 @@
 #include <sound/pcm_params.h>
 #include <sound/timer.h>
 
+#include "pcm_local.h"
+
 #ifdef CONFIG_SND_PCM_XRUN_DEBUG
 #define CREATE_TRACE_POINTS
 #include "pcm_trace.h"

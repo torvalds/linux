@@ -37,6 +37,8 @@
 #include <sound/minors.h>
 #include <linux/uio.h>
 
+#include "pcm_local.h"
+
 /*
  *  Compatibility
  */

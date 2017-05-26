@@ -969,12 +969,6 @@ static inline unsigned int params_buffer_bytes(const struct snd_pcm_hw_params *p
 }
 
 int snd_interval_refine(struct snd_interval *i, const struct snd_interval *v);
-void snd_interval_mul(const struct snd_interval *a, const struct snd_interval *b, struct snd_interval *c);
-void snd_interval_div(const struct snd_interval *a, const struct snd_interval *b, struct snd_interval *c);
-void snd_interval_muldivk(const struct snd_interval *a, const struct snd_interval *b, 
-			  unsigned int k, struct snd_interval *c);
-void snd_interval_mulkdiv(const struct snd_interval *a, unsigned int k,
-			  const struct snd_interval *b, struct snd_interval *c);
 int snd_interval_list(struct snd_interval *i, unsigned int count,
 		      const unsigned int *list, unsigned int mask);
 int snd_interval_ranges(struct snd_interval *i, unsigned int count,
@@ -985,15 +979,9 @@ int snd_interval_ratnum(struct snd_interval *i,
 
 void _snd_pcm_hw_params_any(struct snd_pcm_hw_params *params);
 void _snd_pcm_hw_param_setempty(struct snd_pcm_hw_params *params, snd_pcm_hw_param_t var);
-int snd_pcm_hw_params_choose(struct snd_pcm_substream *substream, struct snd_pcm_hw_params *params);
 
 int snd_pcm_hw_refine(struct snd_pcm_substream *substream, struct snd_pcm_hw_params *params);
 
-int snd_pcm_hw_constraints_init(struct snd_pcm_substream *substream);
-int snd_pcm_hw_constraints_complete(struct snd_pcm_substream *substream);
-
-int snd_pcm_hw_constraint_mask(struct snd_pcm_runtime *runtime, snd_pcm_hw_param_t var,
-			       u_int32_t mask);
 int snd_pcm_hw_constraint_mask64(struct snd_pcm_runtime *runtime, snd_pcm_hw_param_t var,
 				 u_int64_t mask);
 int snd_pcm_hw_constraint_minmax(struct snd_pcm_runtime *runtime, snd_pcm_hw_param_t var,
@@ -1081,10 +1069,6 @@ void snd_pcm_set_ops(struct snd_pcm * pcm, int direction,
 void snd_pcm_set_sync(struct snd_pcm_substream *substream);
 int snd_pcm_lib_ioctl(struct snd_pcm_substream *substream,
 		      unsigned int cmd, void *arg);                      
-int snd_pcm_update_state(struct snd_pcm_substream *substream,
-			 struct snd_pcm_runtime *runtime);
-int snd_pcm_update_hw_ptr(struct snd_pcm_substream *substream);
-void snd_pcm_playback_silence(struct snd_pcm_substream *substream, snd_pcm_uframes_t new_hw_ptr);
 void snd_pcm_period_elapsed(struct snd_pcm_substream *substream);
 snd_pcm_sframes_t snd_pcm_lib_write(struct snd_pcm_substream *substream,
 				    const void __user *buf,
@@ -1095,8 +1079,6 @@ snd_pcm_sframes_t snd_pcm_lib_writev(struct snd_pcm_substream *substream,
 				     void __user **bufs, snd_pcm_uframes_t frames);
 snd_pcm_sframes_t snd_pcm_lib_readv(struct snd_pcm_substream *substream,
 				    void __user **bufs, snd_pcm_uframes_t frames);
-
-extern const struct snd_pcm_hw_constraint_list snd_pcm_known_rates;
 
 int snd_pcm_limit_hw_rates(struct snd_pcm_runtime *runtime);
 unsigned int snd_pcm_rate_to_rate_bit(unsigned int rate);
@@ -1131,20 +1113,6 @@ static inline void snd_pcm_set_runtime_buffer(struct snd_pcm_substream *substrea
 	}
 }
 
-/*
- *  Timer interface
- */
-
-#ifdef CONFIG_SND_PCM_TIMER
-void snd_pcm_timer_resolution_change(struct snd_pcm_substream *substream);
-void snd_pcm_timer_init(struct snd_pcm_substream *substream);
-void snd_pcm_timer_done(struct snd_pcm_substream *substream);
-#else
-static inline void
-snd_pcm_timer_resolution_change(struct snd_pcm_substream *substream) {}
-static inline void snd_pcm_timer_init(struct snd_pcm_substream *substream) {}
-static inline void snd_pcm_timer_done(struct snd_pcm_substream *substream) {}
-#endif
 /**
  * snd_pcm_gettime - Fill the timespec depending on the timestamp mode
  * @runtime: PCM runtime instance
