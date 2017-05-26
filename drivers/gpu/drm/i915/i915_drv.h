@@ -760,6 +760,7 @@ struct intel_csr {
 	func(has_gmbus_irq); \
 	func(has_gmch_display); \
 	func(has_guc); \
+	func(has_guc_ct); \
 	func(has_hotplug); \
 	func(has_l3_dpf); \
 	func(has_llc); \
@@ -2947,6 +2948,7 @@ intel_info(const struct drm_i915_private *dev_priv)
  * properties, so we have separate macros to test them.
  */
 #define HAS_GUC(dev_priv)	((dev_priv)->info.has_guc)
+#define HAS_GUC_CT(dev_priv)	((dev_priv)->info.has_guc_ct)
 #define HAS_GUC_UCODE(dev_priv)	(HAS_GUC(dev_priv))
 #define HAS_GUC_SCHED(dev_priv)	(HAS_GUC(dev_priv))
 #define HAS_HUC_UCODE(dev_priv)	(HAS_GUC(dev_priv))

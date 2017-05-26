@@ -105,6 +105,8 @@ void intel_uc_init_early(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;
 
+	intel_guc_ct_init_early(&guc->ct);
+
 	mutex_init(&guc->send_mutex);
 	guc->send = intel_guc_send_nop;
 	guc->notify = guc_write_irq_trigger;
@@ -288,14 +290,24 @@ static void guc_init_send_regs(struct intel_guc *guc)
 
 static int guc_enable_communication(struct intel_guc *guc)
 {
-	/* XXX: placeholder for alternate setup */
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+
 	guc_init_send_regs(guc);
+
+	if (HAS_GUC_CT(dev_priv))
+		return intel_guc_enable_ct(guc);
+
 	guc->send = intel_guc_send_mmio;
 	return 0;
 }
 
 static void guc_disable_communication(struct intel_guc *guc)
 {
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+
+	if (HAS_GUC_CT(dev_priv))
+		intel_guc_disable_ct(guc);
+
 	guc->send = intel_guc_send_nop;
 }
 
@@ -441,6 +453,11 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len)
 
 	GEM_BUG_ON(!len);
 	GEM_BUG_ON(len > guc->send_regs.count);
+
+	/* If CT is available, we expect to use MMIO only during init/fini */
+	GEM_BUG_ON(HAS_GUC_CT(dev_priv) &&
+		*action != INTEL_GUC_ACTION_REGISTER_COMMAND_TRANSPORT_BUFFER &&
+		*action != INTEL_GUC_ACTION_DEREGISTER_COMMAND_TRANSPORT_BUFFER);
 
 	mutex_lock(&guc->send_mutex);
 	intel_uncore_forcewake_get(dev_priv, guc->send_regs.fw_domains);

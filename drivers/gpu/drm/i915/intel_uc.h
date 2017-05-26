@@ -27,7 +27,7 @@
 #include "intel_guc_fwif.h"
 #include "i915_guc_reg.h"
 #include "intel_ringbuffer.h"
-
+#include "intel_guc_ct.h"
 #include "i915_vma.h"
 
 struct drm_i915_gem_request;
@@ -173,6 +173,7 @@ struct intel_guc_log {
 struct intel_guc {
 	struct intel_uc_fw fw;
 	struct intel_guc_log log;
+	struct intel_guc_ct ct;
 
 	/* intel_guc_recv interrupt related state */
 	bool interrupts_enabled;
