@@ -925,6 +925,7 @@ enum vnic_state {VNIC_PROBING = 1,
 enum ibmvnic_reset_reason {VNIC_RESET_FAILOVER = 1,
 			   VNIC_RESET_MOBILITY,
 			   VNIC_RESET_FATAL,
+			   VNIC_RESET_NON_FATAL,
 			   VNIC_RESET_TIMEOUT};
 
 struct ibmvnic_rwi {
@@ -1031,4 +1032,5 @@ struct ibmvnic_adapter {
 	struct list_head rwi_list;
 	struct work_struct ibmvnic_reset;
 	bool resetting;
+	bool napi_enabled, from_passive_init;
 };
