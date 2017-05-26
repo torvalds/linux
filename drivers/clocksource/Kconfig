@@ -5,7 +5,7 @@ config TIMER_OF
 	bool
 	select TIMER_PROBE
 
-config CLKSRC_ACPI
+config TIMER_ACPI
 	bool
 	select TIMER_PROBE
 
@@ -310,7 +310,7 @@ config ARC_TIMERS_64BIT
 config ARM_ARCH_TIMER
 	bool
 	select TIMER_OF if OF
-	select CLKSRC_ACPI if ACPI
+	select TIMER_ACPI if ACPI
 
 config ARM_ARCH_TIMER_EVTSTREAM
 	bool "Enable ARM architected timer event stream generation by default"
