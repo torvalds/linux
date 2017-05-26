@@ -1320,8 +1320,6 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 		 */
 		adapter->state = VNIC_PROBED;
 
-		release_sub_crqs(adapter);
-
 		rc = ibmvnic_init(adapter);
 		if (rc)
 			return 0;
@@ -1727,6 +1725,45 @@ static const struct ethtool_ops ibmvnic_ethtool_ops = {
 };
 
 /* Routines for managing CRQs/sCRQs  */
+
+static int reset_one_sub_crq_queue(struct ibmvnic_adapter *adapter,
+				   struct ibmvnic_sub_crq_queue *scrq)
+{
+	int rc;
+
+	if (scrq->irq) {
+		free_irq(scrq->irq, scrq);
+		irq_dispose_mapping(scrq->irq);
+		scrq->irq = 0;
+	}
+
+	memset(scrq->msgs, 0, 2 * PAGE_SIZE);
+	scrq->cur = 0;
+
+	rc = h_reg_sub_crq(adapter->vdev->unit_address, scrq->msg_token,
+			   4 * PAGE_SIZE, &scrq->crq_num, &scrq->hw_irq);
+	return rc;
+}
+
+static int reset_sub_crq_queues(struct ibmvnic_adapter *adapter)
+{
+	int i, rc;
+
+	for (i = 0; i < adapter->req_tx_queues; i++) {
+		rc = reset_one_sub_crq_queue(adapter, adapter->tx_scrq[i]);
+		if (rc)
+			return rc;
+	}
+
+	for (i = 0; i < adapter->req_rx_queues; i++) {
+		rc = reset_one_sub_crq_queue(adapter, adapter->rx_scrq[i]);
+		if (rc)
+			return rc;
+	}
+
+	rc = init_sub_crq_irqs(adapter);
+	return rc;
+}
 
 static void release_sub_crq_queue(struct ibmvnic_adapter *adapter,
 				  struct ibmvnic_sub_crq_queue *scrq)
@@ -3607,7 +3644,10 @@ static int ibmvnic_init(struct ibmvnic_adapter *adapter)
 		return -1;
 	}
 
-	rc = init_sub_crqs(adapter);
+	if (adapter->resetting)
+		rc = reset_sub_crq_queues(adapter);
+	else
+		rc = init_sub_crqs(adapter);
 	if (rc) {
 		dev_err(dev, "Initialization of sub crqs failed\n");
 		release_crq_queue(adapter);
