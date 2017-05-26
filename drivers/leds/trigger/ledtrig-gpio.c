@@ -170,6 +170,8 @@ static ssize_t gpio_trig_gpio_store(struct device *dev,
 		if (gpio_data->gpio != 0)
 			free_irq(gpio_to_irq(gpio_data->gpio), led);
 		gpio_data->gpio = gpio;
+		/* After changing the GPIO, we need to update the LED. */
+		schedule_work(&gpio_data->work);
 	}
 
 	return ret ? ret : n;
