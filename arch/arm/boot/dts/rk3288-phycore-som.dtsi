@@ -83,23 +83,6 @@
 		};
 	};
 
-	sound {
-		compatible = "simple-audio-card";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,name = "rockchip,phytec-codec";
-		simple-audio-card,mclk-fs = <512>;
-
-		simple-audio-card,dai-link@0 {
-			format = "i2s";
-			cpu {
-				sound-dai = <&i2s>;
-			};
-			codec {
-				sound-dai = <&hdmi>;
-			};
-		};
-	};
-
 	vdd_emmc_io: vdd-emmc-io {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_emmc_io";
@@ -129,6 +112,22 @@
 
 &cpu0 {
 	cpu0-supply = <&vdd_cpu>;
+	operating-points = <
+		/* KHz    uV */
+		1800000	1400000
+		1608000	1350000
+		1512000 1300000
+		1416000 1200000
+		1200000 1100000
+		1008000 1050000
+		 816000 1000000
+		 696000  950000
+		 600000  900000
+		 408000  900000
+		 312000  900000
+		 216000  900000
+		 126000  900000
+	>;
 };
 
 &emmc {
@@ -150,13 +149,32 @@
 	clock_in_out = "input";
 	pinctrl-names = "default";
 	pinctrl-0 = <&rgmii_pins &phy_rst &phy_int>;
+	phy-handle = <&phy0>;
 	phy-supply = <&vdd_eth_2v5>;
-	phy-mode = "rgmii";
+	phy-mode = "rgmii-id";
 	snps,reset-active-low;
 	snps,reset-delays-us = <0 10000 1000000>;
 	snps,reset-gpio = <&gpio4 8 GPIO_ACTIVE_HIGH>;
-	tx_delay = <0x30>;
-	rx_delay = <0x10>;
+	tx_delay = <0x0>;
+	rx_delay = <0x0>;
+
+	mdio0 {
+		compatible = "snps,dwmac-mdio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		phy0: ethernet-phy@0 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <0>;
+			interrupt-parent = <&gpio4>;
+			interrupts = <2 IRQ_TYPE_EDGE_FALLING>;
+			ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_00_NS>;
+			ti,tx-internal-delay = <DP83867_RGMIIDCTL_2_00_NS>;
+			ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
+			enet-phy-lane-no-swap;
+			ti,clk-output-sel = <DP83867_CLK_O_SEL_CHN_A_TCLK>;
+		};
+	};
 };
 
 &gpu {
@@ -195,7 +213,6 @@
 	rk818: pmic@1c {
 		compatible = "rockchip,rk818";
 		reg = <0x1c>;
-
 		clock-output-names = "xin32k";
 		interrupt-parent = <&gpio0>;
 		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;

@@ -45,6 +45,7 @@
 /dts-v1/;
 
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/leds-pca9532.h>
 #include "rk3288-phycore-som.dtsi"
 
 / {
@@ -119,7 +120,7 @@
 &i2c1 {
 	status = "okay";
 
-	stmpe@44 {
+	touchscreen@44 {
 		compatible = "st,stmpe811";
 		reg = <0x44>;
 	};
@@ -147,6 +148,44 @@
 		reg = <0x51>;
 		pagesize = <32>;
 	};
+};
+
+&i2c4 {
+	status = "okay";
+
+	/* PCA9533 - 4-bit LED dimmer */
+	leddim: leddimmer@62 {
+		compatible = "nxp,pca9533";
+		reg = <0x62>;
+
+		led1 {
+			label = "red:user1";
+			linux,default-trigger = "none";
+			type = <PCA9532_TYPE_LED>;
+		};
+
+		led2 {
+			label = "green:user2";
+			linux,default-trigger = "none";
+			type = <PCA9532_TYPE_LED>;
+		};
+
+		led3 {
+			label = "blue:user3";
+			linux,default-trigger = "none";
+			type = <PCA9532_TYPE_LED>;
+		};
+
+		led4 {
+			label = "red:user4";
+			linux,default-trigger = "none";
+			type = <PCA9532_TYPE_LED>;
+		};
+	};
+};
+
+&i2c5 {
+	status = "okay";
 };
 
 &pinctrl {
@@ -224,10 +263,10 @@
 	cap-sd-highspeed;
 	card-detect-delay = <200>;
 	disable-wp;
+	supports-sd;
 	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd &sdmmc_bus4>;
-	supports-sd;
 	vmmc-supply = <&vdd_io_sd>;
 	vqmmc-supply = <&vdd_io_sd>;
 	status = "okay";
