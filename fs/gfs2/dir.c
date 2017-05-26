@@ -1444,7 +1444,7 @@ static int gfs2_dir_read_leaf(struct inode *inode, struct dir_context *ctx,
 						"g.offset (%u)\n",
 					(unsigned long long)bh->b_blocknr,
 					entries2, g.offset);
-					
+				gfs2_consist_inode(ip);
 				error = -EIO;
 				goto out_free;
 			}
@@ -1612,6 +1612,7 @@ int gfs2_dir_read(struct inode *inode, struct dir_context *ctx,
 				(unsigned long long)dip->i_no_addr,
 				dip->i_entries,
 				g.offset);
+			gfs2_consist_inode(dip);
 			error = -EIO;
 			goto out;
 		}
