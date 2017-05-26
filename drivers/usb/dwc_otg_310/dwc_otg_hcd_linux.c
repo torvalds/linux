@@ -442,6 +442,7 @@ static void otg20_hcd_connect_detect(struct work_struct *work)
 	if (pldata->phy_status == USB_PHY_SUSPEND) {
 		pldata->clock_enable(pldata, 1);
 		pldata->phy_suspend(pldata, USB_PHY_ENABLED);
+		usleep_range(1500, 2000);
 	}
 	dwc_otg_core_init(core_if);
 	dwc_otg_enable_global_interrupts(core_if);
@@ -527,11 +528,10 @@ int otg20_hcd_init(struct platform_device *_dev)
 
 	dwc_otg_hcd_set_priv_data(dwc_otg_hcd, hcd);
 	dwc_otg_hcd->host_enabled = 1;
-	if (dwc_otg_is_host_mode(otg_dev->core_if) ||
-	    (otg_dev->core_if->usb_mode == USB_MODE_FORCE_HOST)) {
+	if (otg_dev->core_if->usb_mode == USB_MODE_FORCE_HOST) {
 		INIT_DELAYED_WORK(&dwc_otg_hcd->host_enable_work,
 				  otg20_hcd_connect_detect);
-		schedule_delayed_work(&dwc_otg_hcd->host_enable_work, 0);
+		schedule_delayed_work(&dwc_otg_hcd->host_enable_work, HZ);
 	}
 	return 0;
 
