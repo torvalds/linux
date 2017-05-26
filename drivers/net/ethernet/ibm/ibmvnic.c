@@ -163,6 +163,16 @@ static long h_reg_sub_crq(unsigned long unit_address, unsigned long token,
 	return rc;
 }
 
+static void reset_long_term_buff(struct ibmvnic_adapter *adapter,
+				 struct ibmvnic_long_term_buff *ltb)
+{
+	memset(ltb->buff, 0, ltb->size);
+
+	init_completion(&adapter->fw_done);
+	send_request_map(adapter, ltb->addr, ltb->size, ltb->map_id);
+	wait_for_completion(&adapter->fw_done);
+}
+
 static int alloc_long_term_buff(struct ibmvnic_adapter *adapter,
 				struct ibmvnic_long_term_buff *ltb, int size)
 {
@@ -352,6 +362,32 @@ static int init_stats_token(struct ibmvnic_adapter *adapter)
 	return 0;
 }
 
+static int reset_rx_pools(struct ibmvnic_adapter *adapter)
+{
+	struct ibmvnic_rx_pool *rx_pool;
+	int rx_scrqs;
+	int i, j;
+
+	rx_scrqs = be32_to_cpu(adapter->login_rsp_buf->num_rxadd_subcrqs);
+	for (i = 0; i < rx_scrqs; i++) {
+		rx_pool = &adapter->rx_pool[i];
+
+		reset_long_term_buff(adapter, &rx_pool->long_term_buff);
+
+		for (j = 0; j < rx_pool->size; j++)
+			rx_pool->free_map[j] = j;
+
+		memset(rx_pool->rx_buff, 0,
+		       rx_pool->size * sizeof(struct ibmvnic_rx_buff));
+
+		atomic_set(&rx_pool->available, 0);
+		rx_pool->next_alloc = 0;
+		rx_pool->next_free = 0;
+	}
+
+	return 0;
+}
+
 static void release_rx_pools(struct ibmvnic_adapter *adapter)
 {
 	struct ibmvnic_rx_pool *rx_pool;
@@ -448,6 +484,32 @@ static int init_rx_pools(struct net_device *netdev)
 		atomic_set(&rx_pool->available, 0);
 		rx_pool->next_alloc = 0;
 		rx_pool->next_free = 0;
+	}
+
+	return 0;
+}
+
+static int reset_tx_pools(struct ibmvnic_adapter *adapter)
+{
+	struct ibmvnic_tx_pool *tx_pool;
+	int tx_scrqs;
+	int i, j;
+
+	tx_scrqs = be32_to_cpu(adapter->login_rsp_buf->num_txsubm_subcrqs);
+	for (i = 0; i < tx_scrqs; i++) {
+		tx_pool = &adapter->tx_pool[i];
+
+		reset_long_term_buff(adapter, &tx_pool->long_term_buff);
+
+		memset(tx_pool->tx_buff, 0,
+		       adapter->req_tx_entries_per_subcrq *
+		       sizeof(struct ibmvnic_tx_buff));
+
+		for (j = 0; j < adapter->req_tx_entries_per_subcrq; j++)
+			tx_pool->free_map[j] = j;
+
+		tx_pool->consumer_index = 0;
+		tx_pool->producer_index = 0;
 	}
 
 	return 0;
@@ -1258,7 +1320,6 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 		 */
 		adapter->state = VNIC_PROBED;
 
-		release_resources(adapter);
 		release_sub_crqs(adapter);
 
 		rc = ibmvnic_init(adapter);
@@ -1277,9 +1338,11 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 			return 0;
 		}
 
-		rtnl_lock();
-		rc = init_resources(adapter);
-		rtnl_unlock();
+		rc = reset_tx_pools(adapter);
+		if (rc)
+			return rc;
+
+		rc = reset_rx_pools(adapter);
 		if (rc)
 			return rc;
 
