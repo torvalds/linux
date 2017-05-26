@@ -153,10 +153,6 @@ MODULE_PARM_DESC(sdma_comp_size, "Size of User SDMA completion ring. Default: 12
 #define TXREQ_FLAGS_REQ_ACK   BIT(0)      /* Set the ACK bit in the header */
 #define TXREQ_FLAGS_REQ_DISABLE_SH BIT(1) /* Disable header suppression */
 
-/* SDMA request flag bits */
-#define SDMA_REQ_HAS_ERROR  1
-#define SDMA_REQ_DONE_ERROR 2
-
 #define SDMA_PKT_Q_INACTIVE BIT(0)
 #define SDMA_PKT_Q_ACTIVE   BIT(1)
 #define SDMA_PKT_Q_DEFERRED BIT(2)
@@ -232,7 +228,6 @@ struct user_sdma_request {
 	/* Writeable fields shared with interrupt */
 	u64 seqcomp ____cacheline_aligned_in_smp;
 	u64 seqsubmitted;
-	unsigned long flags;
 	/* status of the last txreq completed */
 	int status;
 
@@ -257,6 +252,7 @@ struct user_sdma_request {
 	/* progress index moving along the iovs array */
 	u8 iov_idx;
 	u8 done;
+	u8 has_error;
 
 	struct user_sdma_iovec iovs[MAX_VECTORS_PER_REQ];
 } ____cacheline_aligned_in_smp;
@@ -625,9 +621,9 @@ int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
 	req->seqnum = 0;
 	req->seqcomp = 0;
 	req->seqsubmitted = 0;
-	req->flags = 0;
 	req->tids = NULL;
 	req->done = 0;
+	req->has_error = 0;
 	INIT_LIST_HEAD(&req->txps);
 
 	memcpy(&req->info, &info, sizeof(info));
@@ -814,7 +810,7 @@ int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
 		if (ret < 0) {
 			if (ret != -EBUSY) {
 				req->status = ret;
-				set_bit(SDMA_REQ_DONE_ERROR, &req->flags);
+				WRITE_ONCE(req->has_error, 1);
 				if (ACCESS_ONCE(req->seqcomp) ==
 				    req->seqsubmitted - 1)
 					goto free_req;
@@ -916,10 +912,8 @@ static int user_sdma_send_pkts(struct user_sdma_request *req, unsigned maxpkts)
 	pq = req->pq;
 
 	/* If tx completion has reported an error, we are done. */
-	if (test_bit(SDMA_REQ_HAS_ERROR, &req->flags)) {
-		set_bit(SDMA_REQ_DONE_ERROR, &req->flags);
+	if (READ_ONCE(req->has_error))
 		return -EFAULT;
-	}
 
 	/*
 	 * Check if we might have sent the entire request already
@@ -942,10 +936,8 @@ static int user_sdma_send_pkts(struct user_sdma_request *req, unsigned maxpkts)
 		 * with errors. If so, we are not going to process any
 		 * more packets from this request.
 		 */
-		if (test_bit(SDMA_REQ_HAS_ERROR, &req->flags)) {
-			set_bit(SDMA_REQ_DONE_ERROR, &req->flags);
+		if (READ_ONCE(req->has_error))
 			return -EFAULT;
-		}
 
 		tx = kmem_cache_alloc(pq->txreq_cache, GFP_KERNEL);
 		if (!tx)
@@ -1566,7 +1558,7 @@ static void user_sdma_txreq_cb(struct sdma_txreq *txreq, int status)
 	if (status != SDMA_TXREQ_S_OK) {
 		SDMA_DBG(req, "SDMA completion with error %d",
 			 status);
-		set_bit(SDMA_REQ_HAS_ERROR, &req->flags);
+		WRITE_ONCE(req->has_error, 1);
 	}
 
 	req->seqcomp = tx->seqnum;
@@ -1586,7 +1578,7 @@ static void user_sdma_txreq_cb(struct sdma_txreq *txreq, int status)
 			req->status = status;
 		if (req->seqcomp == (ACCESS_ONCE(req->seqsubmitted) - 1) &&
 		    (READ_ONCE(req->done) ||
-		     test_bit(SDMA_REQ_DONE_ERROR, &req->flags))) {
+		     READ_ONCE(req->has_error))) {
 			user_sdma_free_request(req, false);
 			pq_update(pq);
 			set_comp_state(pq, cq, idx, ERROR, req->status);
