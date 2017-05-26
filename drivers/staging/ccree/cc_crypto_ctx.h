@@ -28,7 +28,7 @@
 #define CC_CTX_SIZE_LOG2 7
 #endif
 #endif
-#define CC_CTX_SIZE (1<<CC_CTX_SIZE_LOG2)
+#define CC_CTX_SIZE (1 << CC_CTX_SIZE_LOG2)
 #define CC_DRV_CTX_SIZE_WORDS (CC_CTX_SIZE >> 2)
 
 #define CC_DRV_DES_IV_SIZE 8
@@ -224,7 +224,7 @@ struct drv_ctx_hmac {
 	enum drv_crypto_alg alg; /* DRV_CRYPTO_ALG_HMAC */
 	enum drv_hash_mode mode;
 	u8 digest[CC_DIGEST_SIZE_MAX];
-	u32 k0[CC_HMAC_BLOCK_SIZE_MAX/sizeof(u32)];
+	u32 k0[CC_HMAC_BLOCK_SIZE_MAX / sizeof(u32)];
 	u32 k0_size;
 	/* reserve to end of allocated context size */
 	u8 reserved[CC_CTX_SIZE - 3 * sizeof(u32) -
@@ -248,8 +248,8 @@ struct drv_ctx_cipher {
 	u8 xex_key[CC_AES_KEY_SIZE_MAX];
 	/* reserve to end of allocated context size */
 	u32 reserved[CC_DRV_CTX_SIZE_WORDS - 7 -
-		CC_AES_BLOCK_SIZE/sizeof(u32) - 2 *
-		(CC_AES_KEY_SIZE_MAX/sizeof(u32))];
+		CC_AES_BLOCK_SIZE / sizeof(u32) - 2 *
+		(CC_AES_KEY_SIZE_MAX / sizeof(u32))];
 };
 
 /* authentication and encryption with associated data class */
@@ -269,8 +269,8 @@ struct drv_ctx_aead {
 	u8 key[CC_AES_KEY_SIZE_MAX];
 	/* reserve to end of allocated context size */
 	u32 reserved[CC_DRV_CTX_SIZE_WORDS - 8 -
-		3 * (CC_AES_BLOCK_SIZE/sizeof(u32)) -
-		CC_AES_KEY_SIZE_MAX/sizeof(u32)];
+		3 * (CC_AES_BLOCK_SIZE / sizeof(u32)) -
+		CC_AES_KEY_SIZE_MAX / sizeof(u32)];
 };
 
 /*******************************************************************/
