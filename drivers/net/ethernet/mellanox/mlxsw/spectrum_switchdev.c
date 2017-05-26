@@ -617,7 +617,7 @@ static int mlxsw_sp_port_fid_map(struct mlxsw_sp_port *mlxsw_sp_port, u16 fid,
 	/* If port doesn't have vPorts, then it can use the global
 	 * VID-to-FID mapping.
 	 */
-	if (list_empty(&mlxsw_sp_port->vports_list))
+	if (mlxsw_sp_port->nr_port_vid_map == 0)
 		return 0;
 
 	return mlxsw_sp_port_vid_to_fid_set(mlxsw_sp_port, mt, valid, fid, fid);

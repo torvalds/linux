@@ -253,6 +253,7 @@ struct mlxsw_sp_port {
 		struct delayed_work update_dw;
 	} hw_stats;
 	struct mlxsw_sp_port_sample *sample;
+	unsigned int nr_port_vid_map;  /* {Port, VID} => FID mappings */
 };
 
 bool mlxsw_sp_port_dev_check(const struct net_device *dev);
@@ -341,6 +342,14 @@ mlxsw_sp_port_vport_find_by_fid(const struct mlxsw_sp_port *mlxsw_sp_port,
 	}
 
 	return NULL;
+}
+
+static inline struct mlxsw_sp_port *
+mlxsw_sp_vport_port(const struct mlxsw_sp_port *mlxsw_sp_vport)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_vport->mlxsw_sp;
+
+	return mlxsw_sp->ports[mlxsw_sp_vport->local_port];
 }
 
 static inline struct mlxsw_sp_fid *mlxsw_sp_fid_find(struct mlxsw_sp *mlxsw_sp,
@@ -446,6 +455,8 @@ int mlxsw_sp_port_vid_stp_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid,
 int mlxsw_sp_port_vid_learning_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid,
 				   bool learn_enable);
 int mlxsw_sp_port_pvid_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid);
+int mlxsw_sp_port_vp_mode_trans(struct mlxsw_sp_port *mlxsw_sp_port);
+int mlxsw_sp_port_vlan_mode_trans(struct mlxsw_sp_port *mlxsw_sp_port);
 
 #ifdef CONFIG_MLXSW_SPECTRUM_DCB
 

@@ -1398,7 +1398,7 @@ int mlxsw_sp_port_vlan_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid_begin,
 	return 0;
 }
 
-static int mlxsw_sp_port_vp_mode_trans(struct mlxsw_sp_port *mlxsw_sp_port)
+int mlxsw_sp_port_vp_mode_trans(struct mlxsw_sp_port *mlxsw_sp_port)
 {
 	enum mlxsw_reg_svfa_mt mt = MLXSW_REG_SVFA_MT_PORT_VID_TO_FID;
 	u16 vid, last_visited_vid;
@@ -1428,7 +1428,7 @@ err_port_vid_to_fid_set:
 	return err;
 }
 
-static int mlxsw_sp_port_vlan_mode_trans(struct mlxsw_sp_port *mlxsw_sp_port)
+int mlxsw_sp_port_vlan_mode_trans(struct mlxsw_sp_port *mlxsw_sp_port)
 {
 	enum mlxsw_reg_svfa_mt mt = MLXSW_REG_SVFA_MT_PORT_VID_TO_FID;
 	u16 vid;
@@ -1501,16 +1501,6 @@ static int mlxsw_sp_port_add_vid(struct net_device *dev,
 	if (!mlxsw_sp_vport)
 		return -ENOMEM;
 
-	/* When adding the first VLAN interface on a bridged port we need to
-	 * transition all the active 802.1Q bridge VLANs to use explicit
-	 * {Port, VID} to FID mappings and set the port's mode to Virtual mode.
-	 */
-	if (list_is_singular(&mlxsw_sp_port->vports_list)) {
-		err = mlxsw_sp_port_vp_mode_trans(mlxsw_sp_port);
-		if (err)
-			goto err_port_vp_mode_trans;
-	}
-
 	err = mlxsw_sp_port_vlan_set(mlxsw_sp_vport, vid, vid, true, untagged);
 	if (err)
 		goto err_port_add_vid;
@@ -1518,9 +1508,6 @@ static int mlxsw_sp_port_add_vid(struct net_device *dev,
 	return 0;
 
 err_port_add_vid:
-	if (list_is_singular(&mlxsw_sp_port->vports_list))
-		mlxsw_sp_port_vlan_mode_trans(mlxsw_sp_port);
-err_port_vp_mode_trans:
 	mlxsw_sp_port_vport_destroy(mlxsw_sp_vport);
 	return err;
 }
@@ -1550,13 +1537,6 @@ static int mlxsw_sp_port_kill_vid(struct net_device *dev,
 	f = mlxsw_sp_vport_fid_get(mlxsw_sp_vport);
 	if (f && !WARN_ON(!f->leave))
 		f->leave(mlxsw_sp_vport);
-
-	/* When removing the last VLAN interface on a bridged port we need to
-	 * transition all active 802.1Q bridge VLANs to use VID to FID
-	 * mappings and set port's mode to VLAN mode.
-	 */
-	if (list_is_singular(&mlxsw_sp_port->vports_list))
-		mlxsw_sp_port_vlan_mode_trans(mlxsw_sp_port);
 
 	mlxsw_sp_port_vport_destroy(mlxsw_sp_vport);
 
@@ -4382,9 +4362,12 @@ static int mlxsw_sp_port_ovs_join(struct mlxsw_sp_port *mlxsw_sp_port)
 {
 	int err;
 
-	err = mlxsw_sp_port_stp_set(mlxsw_sp_port, true);
+	err = mlxsw_sp_port_vp_mode_set(mlxsw_sp_port, true);
 	if (err)
 		return err;
+	err = mlxsw_sp_port_stp_set(mlxsw_sp_port, true);
+	if (err)
+		goto err_port_stp_set;
 	err = mlxsw_sp_port_vlan_set(mlxsw_sp_port, 2, VLAN_N_VID - 1,
 				     true, false);
 	if (err)
@@ -4393,6 +4376,8 @@ static int mlxsw_sp_port_ovs_join(struct mlxsw_sp_port *mlxsw_sp_port)
 
 err_port_vlan_set:
 	mlxsw_sp_port_stp_set(mlxsw_sp_port, false);
+err_port_stp_set:
+	mlxsw_sp_port_vp_mode_set(mlxsw_sp_port, false);
 	return err;
 }
 
@@ -4401,6 +4386,7 @@ static void mlxsw_sp_port_ovs_leave(struct mlxsw_sp_port *mlxsw_sp_port)
 	mlxsw_sp_port_vlan_set(mlxsw_sp_port, 2, VLAN_N_VID - 1,
 			       false, false);
 	mlxsw_sp_port_stp_set(mlxsw_sp_port, false);
+	mlxsw_sp_port_vp_mode_set(mlxsw_sp_port, false);
 }
 
 static int mlxsw_sp_netdevice_port_upper_event(struct net_device *dev,
@@ -4695,6 +4681,7 @@ static int mlxsw_sp_vport_fid_map(struct mlxsw_sp_port *mlxsw_sp_vport, u16 fid,
 static int mlxsw_sp_vport_vfid_join(struct mlxsw_sp_port *mlxsw_sp_vport,
 				    struct net_device *br_dev)
 {
+	struct mlxsw_sp_port *mlxsw_sp_port;
 	struct mlxsw_sp_fid *f;
 	int err;
 
@@ -4713,6 +4700,13 @@ static int mlxsw_sp_vport_vfid_join(struct mlxsw_sp_port *mlxsw_sp_vport,
 	if (err)
 		goto err_vport_fid_map;
 
+	mlxsw_sp_port = mlxsw_sp_vport_port(mlxsw_sp_vport);
+	if (mlxsw_sp_port->nr_port_vid_map++ == 0) {
+		err = mlxsw_sp_port_vp_mode_trans(mlxsw_sp_port);
+		if (err)
+			goto err_port_vp_mode_trans;
+	}
+
 	mlxsw_sp_vport_fid_set(mlxsw_sp_vport, f);
 	f->ref_count++;
 
@@ -4720,6 +4714,9 @@ static int mlxsw_sp_vport_vfid_join(struct mlxsw_sp_port *mlxsw_sp_vport,
 
 	return 0;
 
+err_port_vp_mode_trans:
+	mlxsw_sp_port->nr_port_vid_map--;
+	mlxsw_sp_vport_fid_map(mlxsw_sp_vport, f->fid, false);
 err_vport_fid_map:
 	mlxsw_sp_vport_flood_set(mlxsw_sp_vport, f->fid, false);
 err_vport_flood_set:
@@ -4731,8 +4728,17 @@ err_vport_flood_set:
 static void mlxsw_sp_vport_vfid_leave(struct mlxsw_sp_port *mlxsw_sp_vport)
 {
 	struct mlxsw_sp_fid *f = mlxsw_sp_vport_fid_get(mlxsw_sp_vport);
+	struct mlxsw_sp_port *mlxsw_sp_port;
 
 	netdev_dbg(mlxsw_sp_vport->dev, "Left FID=%d\n", f->fid);
+
+	mlxsw_sp_vport_fid_set(mlxsw_sp_vport, NULL);
+	f->ref_count--;
+
+	mlxsw_sp_port = mlxsw_sp_vport_port(mlxsw_sp_vport);
+	if (mlxsw_sp_port->nr_port_vid_map == 1)
+		mlxsw_sp_port_vlan_mode_trans(mlxsw_sp_port);
+	mlxsw_sp_port->nr_port_vid_map--;
 
 	mlxsw_sp_vport_fid_map(mlxsw_sp_vport, f->fid, false);
 
@@ -4740,8 +4746,7 @@ static void mlxsw_sp_vport_vfid_leave(struct mlxsw_sp_port *mlxsw_sp_vport)
 
 	mlxsw_sp_port_fdb_flush(mlxsw_sp_vport, f->fid);
 
-	mlxsw_sp_vport_fid_set(mlxsw_sp_vport, NULL);
-	if (--f->ref_count == 0)
+	if (f->ref_count == 0)
 		mlxsw_sp_vfid_destroy(mlxsw_sp_vport->mlxsw_sp, f);
 }
 
