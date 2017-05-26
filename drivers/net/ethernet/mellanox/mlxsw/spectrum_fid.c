@@ -205,10 +205,24 @@ void mlxsw_sp_fid_rif_set(struct mlxsw_sp_fid *fid, struct mlxsw_sp_rif *rif)
 	fid->rif = rif;
 }
 
+enum mlxsw_sp_rif_type
+mlxsw_sp_fid_type_rif_type(const struct mlxsw_sp *mlxsw_sp,
+			   enum mlxsw_sp_fid_type type)
+{
+	struct mlxsw_sp_fid_core *fid_core = mlxsw_sp->fid_core;
+
+	return fid_core->fid_family_arr[type]->rif_type;
+}
+
 static struct mlxsw_sp_fid_8021q *
 mlxsw_sp_fid_8021q_fid(const struct mlxsw_sp_fid *fid)
 {
 	return container_of(fid, struct mlxsw_sp_fid_8021q, common);
+}
+
+u16 mlxsw_sp_fid_8021q_vid(const struct mlxsw_sp_fid *fid)
+{
+	return mlxsw_sp_fid_8021q_fid(fid)->vid;
 }
 
 static void mlxsw_sp_fid_8021q_setup(struct mlxsw_sp_fid *fid, const void *arg)
@@ -780,7 +794,7 @@ void mlxsw_sp_fid_put(struct mlxsw_sp_fid *fid)
 		/* Destroy the associated RIF and let it drop the last
 		 * reference on the FID.
 		 */
-		return mlxsw_sp_rif_destroy(fid_family->mlxsw_sp, fid->rif);
+		return mlxsw_sp_rif_destroy(fid->rif);
 	} else if (fid->ref_count == 0) {
 		list_del(&fid->list);
 		fid->fid_family->ops->deconfigure(fid);

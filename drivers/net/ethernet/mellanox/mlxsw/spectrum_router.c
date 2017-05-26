@@ -59,6 +59,7 @@
 
 struct mlxsw_sp_vr;
 struct mlxsw_sp_lpm_tree;
+struct mlxsw_sp_rif_ops;
 
 struct mlxsw_sp_router {
 	struct mlxsw_sp *mlxsw_sp;
@@ -80,6 +81,7 @@ struct mlxsw_sp_router {
 	struct list_head nexthop_neighs_list;
 	bool aborted;
 	struct notifier_block fib_nb;
+	const struct mlxsw_sp_rif_ops **rif_ops_arr;
 };
 
 struct mlxsw_sp_rif {
@@ -91,10 +93,23 @@ struct mlxsw_sp_rif {
 	int mtu;
 	u16 rif_index;
 	u16 vr_id;
+	const struct mlxsw_sp_rif_ops *ops;
+	struct mlxsw_sp *mlxsw_sp;
+
 	unsigned int counter_ingress;
 	bool counter_ingress_valid;
 	unsigned int counter_egress;
 	bool counter_egress_valid;
+};
+
+struct mlxsw_sp_rif_params {
+	struct net_device *dev;
+	union {
+		u16 system_port;
+		u16 lag_id;
+	};
+	u16 vid;
+	bool lag;
 };
 
 struct mlxsw_sp_rif_subport {
@@ -105,6 +120,17 @@ struct mlxsw_sp_rif_subport {
 	};
 	u16 vid;
 	bool lag;
+};
+
+struct mlxsw_sp_rif_ops {
+	enum mlxsw_sp_rif_type type;
+	size_t rif_size;
+
+	void (*setup)(struct mlxsw_sp_rif *rif,
+		      const struct mlxsw_sp_rif_params *params);
+	int (*configure)(struct mlxsw_sp_rif *rif);
+	void (*deconfigure)(struct mlxsw_sp_rif *rif);
+	struct mlxsw_sp_fid * (*fid_get)(struct mlxsw_sp_rif *rif);
 };
 
 static unsigned int *
@@ -253,6 +279,25 @@ void mlxsw_sp_rif_counter_free(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_counter_free(mlxsw_sp, MLXSW_SP_COUNTER_SUB_POOL_RIF,
 			      *p_counter_index);
 	mlxsw_sp_rif_counter_valid_set(rif, dir, false);
+}
+
+static void mlxsw_sp_rif_counters_alloc(struct mlxsw_sp_rif *rif)
+{
+	struct mlxsw_sp *mlxsw_sp = rif->mlxsw_sp;
+	struct devlink *devlink;
+
+	devlink = priv_to_devlink(mlxsw_sp->core);
+	if (!devlink_dpipe_table_counter_enabled(devlink,
+						 MLXSW_SP_DPIPE_TABLE_NAME_ERIF))
+		return;
+	mlxsw_sp_rif_counter_alloc(mlxsw_sp, rif, MLXSW_SP_RIF_COUNTER_EGRESS);
+}
+
+static void mlxsw_sp_rif_counters_free(struct mlxsw_sp_rif *rif)
+{
+	struct mlxsw_sp *mlxsw_sp = rif->mlxsw_sp;
+
+	mlxsw_sp_rif_counter_free(mlxsw_sp, rif, MLXSW_SP_RIF_COUNTER_EGRESS);
 }
 
 static struct mlxsw_sp_rif *
@@ -2915,6 +2960,25 @@ static bool mlxsw_sp_rif_should_config(struct mlxsw_sp_rif *rif,
 	return false;
 }
 
+static enum mlxsw_sp_rif_type
+mlxsw_sp_dev_rif_type(const struct mlxsw_sp *mlxsw_sp,
+		      const struct net_device *dev)
+{
+	enum mlxsw_sp_fid_type type;
+
+	/* RIF type is derived from the type of the underlying FID */
+	if (is_vlan_dev(dev) && netif_is_bridge_master(vlan_dev_real_dev(dev)))
+		type = MLXSW_SP_FID_TYPE_8021Q;
+	else if (netif_is_bridge_master(dev) && br_vlan_enabled(dev))
+		type = MLXSW_SP_FID_TYPE_8021Q;
+	else if (netif_is_bridge_master(dev))
+		type = MLXSW_SP_FID_TYPE_8021D;
+	else
+		type = MLXSW_SP_FID_TYPE_RFID;
+
+	return mlxsw_sp_fid_type_rif_type(mlxsw_sp, type);
+}
+
 #define MLXSW_SP_INVALID_INDEX_RIF 0xffff
 static int mlxsw_sp_avail_rif_get(struct mlxsw_sp *mlxsw_sp)
 {
@@ -2927,34 +2991,13 @@ static int mlxsw_sp_avail_rif_get(struct mlxsw_sp *mlxsw_sp)
 	return MLXSW_SP_INVALID_INDEX_RIF;
 }
 
-static int
-mlxsw_sp_port_vlan_rif_sp_op(struct mlxsw_sp *mlxsw_sp,
-			     const struct mlxsw_sp_rif *rif, bool create)
+static struct mlxsw_sp_rif *mlxsw_sp_rif_alloc(size_t rif_size, u16 rif_index,
+					       u16 vr_id,
+					       struct net_device *l3_dev)
 {
-	struct mlxsw_sp_rif_subport *rif_subport;
-	char ritr_pl[MLXSW_REG_RITR_LEN];
-
-	rif_subport = container_of(rif, struct mlxsw_sp_rif_subport, common);
-	mlxsw_reg_ritr_pack(ritr_pl, create, MLXSW_REG_RITR_SP_IF,
-			    rif->rif_index, rif->vr_id, rif->dev->mtu,
-			    rif->dev->dev_addr);
-	mlxsw_reg_ritr_sp_if_pack(ritr_pl, rif_subport->lag,
-				  rif_subport->lag ? rif_subport->lag_id :
-						     rif_subport->system_port,
-				  rif_subport->vid);
-
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ritr), ritr_pl);
-}
-
-static struct mlxsw_sp_rif *
-mlxsw_sp_rif_alloc(u16 rif_index, u16 vr_id, struct net_device *l3_dev,
-		   struct mlxsw_sp_fid *fid, bool is_subport)
-{
-	size_t size = is_subport ? sizeof(struct mlxsw_sp_rif_subport) :
-				   sizeof(struct mlxsw_sp_rif);
 	struct mlxsw_sp_rif *rif;
 
-	rif = kzalloc(size, GFP_KERNEL);
+	rif = kzalloc(rif_size, GFP_KERNEL);
 	if (!rif)
 		return NULL;
 
@@ -2965,7 +3008,6 @@ mlxsw_sp_rif_alloc(u16 rif_index, u16 vr_id, struct net_device *l3_dev,
 	rif->vr_id = vr_id;
 	rif->dev = l3_dev;
 	rif->rif_index = rif_index;
-	rif->fid = fid;
 
 	return rif;
 }
@@ -2987,18 +3029,20 @@ int mlxsw_sp_rif_dev_ifindex(const struct mlxsw_sp_rif *rif)
 }
 
 static struct mlxsw_sp_rif *
-mlxsw_sp_port_vlan_rif_sp_create(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan,
-				 struct net_device *l3_dev)
+mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
+		    const struct mlxsw_sp_rif_params *params)
 {
-	struct mlxsw_sp_port *mlxsw_sp_port = mlxsw_sp_port_vlan->mlxsw_sp_port;
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	struct mlxsw_sp_rif_subport *rif_subport;
-	u32 tb_id = l3mdev_fib_table(l3_dev);
+	u32 tb_id = l3mdev_fib_table(params->dev);
+	const struct mlxsw_sp_rif_ops *ops;
+	enum mlxsw_sp_rif_type type;
 	struct mlxsw_sp_rif *rif;
 	struct mlxsw_sp_fid *fid;
 	struct mlxsw_sp_vr *vr;
 	u16 rif_index;
 	int err;
+
+	type = mlxsw_sp_dev_rif_type(mlxsw_sp, params->dev);
+	ops = mlxsw_sp->router->rif_ops_arr[type];
 
 	vr = mlxsw_sp_vr_get(mlxsw_sp, tb_id ? : RT_TABLE_MAIN);
 	if (IS_ERR(vr))
@@ -3010,46 +3054,34 @@ mlxsw_sp_port_vlan_rif_sp_create(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan,
 		goto err_avail_rif_get;
 	}
 
-	fid = mlxsw_sp_fid_rfid_get(mlxsw_sp, rif_index);
-	if (IS_ERR(fid)) {
-		err = PTR_ERR(fid);
-		goto err_fid_get;
-	}
-
-	rif = mlxsw_sp_rif_alloc(rif_index, vr->id, l3_dev, fid, true);
+	rif = mlxsw_sp_rif_alloc(ops->rif_size, rif_index, vr->id, params->dev);
 	if (!rif) {
 		err = -ENOMEM;
 		goto err_rif_alloc;
 	}
+	rif->mlxsw_sp = mlxsw_sp;
+	rif->ops = ops;
 
-	rif_subport = container_of(rif, struct mlxsw_sp_rif_subport, common);
-	rif_subport->vid = mlxsw_sp_port_vlan->vid;
-	if (mlxsw_sp_port->lagged) {
-		rif_subport->lag = true;
-		rif_subport->lag_id = mlxsw_sp_port->lag_id;
-	} else {
-		rif_subport->lag = false;
-		rif_subport->system_port = mlxsw_sp_port->local_port;
+	fid = ops->fid_get(rif);
+	if (IS_ERR(fid)) {
+		err = PTR_ERR(fid);
+		goto err_fid_get;
 	}
+	rif->fid = fid;
 
-	err = mlxsw_sp_port_vlan_rif_sp_op(mlxsw_sp, rif, true);
+	if (ops->setup)
+		ops->setup(rif, params);
+
+	err = ops->configure(rif);
 	if (err)
-		goto err_port_vlan_rif_sp_op;
+		goto err_configure;
 
-	err = mlxsw_sp_rif_fdb_op(mlxsw_sp, l3_dev->dev_addr,
+	err = mlxsw_sp_rif_fdb_op(mlxsw_sp, params->dev->dev_addr,
 				  mlxsw_sp_fid_index(fid), true);
 	if (err)
 		goto err_rif_fdb_op;
 
-	if (devlink_dpipe_table_counter_enabled(priv_to_devlink(mlxsw_sp->core),
-						MLXSW_SP_DPIPE_TABLE_NAME_ERIF)) {
-		err = mlxsw_sp_rif_counter_alloc(mlxsw_sp, rif,
-						 MLXSW_SP_RIF_COUNTER_EGRESS);
-		if (err)
-			netdev_dbg(mlxsw_sp_port->dev,
-				   "Counter alloc Failed err=%d\n", err);
-	}
-
+	mlxsw_sp_rif_counters_alloc(rif);
 	mlxsw_sp_fid_rif_set(fid, rif);
 	mlxsw_sp->router->rifs[rif_index] = rif;
 	vr->rif_count++;
@@ -3057,41 +3089,51 @@ mlxsw_sp_port_vlan_rif_sp_create(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan,
 	return rif;
 
 err_rif_fdb_op:
-	mlxsw_sp_port_vlan_rif_sp_op(mlxsw_sp, rif, false);
-err_port_vlan_rif_sp_op:
-	kfree(rif);
-err_rif_alloc:
+	ops->deconfigure(rif);
+err_configure:
 	mlxsw_sp_fid_put(fid);
 err_fid_get:
+	kfree(rif);
+err_rif_alloc:
 err_avail_rif_get:
 	mlxsw_sp_vr_put(vr);
 	return ERR_PTR(err);
 }
 
-static void
-mlxsw_sp_port_vlan_rif_sp_destroy(struct mlxsw_sp *mlxsw_sp,
-				  struct mlxsw_sp_rif *rif)
+void mlxsw_sp_rif_destroy(struct mlxsw_sp_rif *rif)
 {
-	struct mlxsw_sp_vr *vr = &mlxsw_sp->router->vrs[rif->vr_id];
-	struct net_device *l3_dev = rif->dev;
+	const struct mlxsw_sp_rif_ops *ops = rif->ops;
+	struct mlxsw_sp *mlxsw_sp = rif->mlxsw_sp;
 	struct mlxsw_sp_fid *fid = rif->fid;
-	u16 rif_index = rif->rif_index;
+	struct mlxsw_sp_vr *vr;
 
 	mlxsw_sp_router_rif_gone_sync(mlxsw_sp, rif);
-
-	mlxsw_sp_rif_counter_free(mlxsw_sp, rif, MLXSW_SP_RIF_COUNTER_EGRESS);
-	mlxsw_sp_rif_counter_free(mlxsw_sp, rif, MLXSW_SP_RIF_COUNTER_INGRESS);
+	vr = &mlxsw_sp->router->vrs[rif->vr_id];
 
 	vr->rif_count--;
-	mlxsw_sp->router->rifs[rif_index] = NULL;
+	mlxsw_sp->router->rifs[rif->rif_index] = NULL;
 	mlxsw_sp_fid_rif_set(fid, NULL);
-
-	mlxsw_sp_rif_fdb_op(mlxsw_sp, l3_dev->dev_addr, mlxsw_sp_fid_index(fid),
-			    false);
-	mlxsw_sp_port_vlan_rif_sp_op(mlxsw_sp, rif, false);
-	kfree(rif);
+	mlxsw_sp_rif_counters_free(rif);
+	mlxsw_sp_rif_fdb_op(mlxsw_sp, rif->dev->dev_addr,
+			    mlxsw_sp_fid_index(fid), false);
+	ops->deconfigure(rif);
 	mlxsw_sp_fid_put(fid);
+	kfree(rif);
 	mlxsw_sp_vr_put(vr);
+}
+
+static void
+mlxsw_sp_rif_subport_params_init(struct mlxsw_sp_rif_params *params,
+				 struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan)
+{
+	struct mlxsw_sp_port *mlxsw_sp_port = mlxsw_sp_port_vlan->mlxsw_sp_port;
+
+	params->vid = mlxsw_sp_port_vlan->vid;
+	params->lag = mlxsw_sp_port->lagged;
+	if (params->lag)
+		params->lag_id = mlxsw_sp_port->lag_id;
+	else
+		params->system_port = mlxsw_sp_port->local_port;
 }
 
 static int
@@ -3107,14 +3149,18 @@ mlxsw_sp_port_vlan_router_join(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan,
 
 	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, l3_dev);
 	if (!rif) {
-		rif = mlxsw_sp_port_vlan_rif_sp_create(mlxsw_sp_port_vlan,
-						       l3_dev);
+		struct mlxsw_sp_rif_params params = {
+			.dev = l3_dev,
+		};
+
+		mlxsw_sp_rif_subport_params_init(&params, mlxsw_sp_port_vlan);
+		rif = mlxsw_sp_rif_create(mlxsw_sp, &params);
 		if (IS_ERR(rif))
 			return PTR_ERR(rif);
 	}
 
 	/* FID was already created, just take a reference */
-	fid = mlxsw_sp_fid_rfid_get(mlxsw_sp_port->mlxsw_sp, rif->rif_index);
+	fid = rif->ops->fid_get(rif);
 	err = mlxsw_sp_fid_port_vid_map(fid, mlxsw_sp_port, vid);
 	if (err)
 		goto err_fid_port_vid_map;
@@ -3225,166 +3271,24 @@ static int mlxsw_sp_inetaddr_lag_event(struct net_device *lag_dev,
 	return __mlxsw_sp_inetaddr_lag_event(lag_dev, lag_dev, event, 1);
 }
 
-static u8 mlxsw_sp_router_port(const struct mlxsw_sp *mlxsw_sp)
-{
-	return mlxsw_core_max_ports(mlxsw_sp->core) + 1;
-}
-
-static enum mlxsw_reg_ritr_if_type
-mlxsw_sp_rif_type_ritr_if_type(enum mlxsw_sp_rif_type rif_type)
-{
-	switch (rif_type) {
-	case MLXSW_SP_RIF_TYPE_SUBPORT:
-		return MLXSW_REG_RITR_SP_IF;
-	case MLXSW_SP_RIF_TYPE_VLAN:
-		return MLXSW_REG_RITR_VLAN_IF;
-	case MLXSW_SP_RIF_TYPE_FID:
-		return MLXSW_REG_RITR_FID_IF;
-	default:
-		WARN_ON(1);
-		return 0;
-	}
-}
-
-static int mlxsw_sp_rif_bridge_op(struct mlxsw_sp *mlxsw_sp,
-				  const struct mlxsw_sp_rif *rif, bool create)
-{
-	enum mlxsw_reg_ritr_if_type ritr_if_type;
-	enum mlxsw_sp_rif_type rif_type;
-	char ritr_pl[MLXSW_REG_RITR_LEN];
-
-	rif_type = mlxsw_sp_fid_rif_type(rif->fid);
-	ritr_if_type = mlxsw_sp_rif_type_ritr_if_type(rif_type);
-	mlxsw_reg_ritr_pack(ritr_pl, create, rif_type, rif->rif_index,
-			    rif->vr_id, rif->dev->mtu, rif->dev->dev_addr);
-	mlxsw_reg_ritr_fid_set(ritr_pl, ritr_if_type,
-			       mlxsw_sp_fid_index(rif->fid));
-
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ritr), ritr_pl);
-}
-
-static struct mlxsw_sp_fid *
-mlxsw_sp_rif_bridge_fid_get(struct mlxsw_sp *mlxsw_sp,
-			    const struct net_device *dev)
-{
-	if (netif_is_bridge_master(dev) && !br_vlan_enabled(dev))
-		return mlxsw_sp_fid_8021d_get(mlxsw_sp, dev->ifindex);
-	else if (netif_is_bridge_master(dev) && br_vlan_enabled(dev))
-		return mlxsw_sp_fid_8021q_get(mlxsw_sp, 1);
-	else if (is_vlan_dev(dev) &&
-		 netif_is_bridge_master(vlan_dev_real_dev(dev)))
-		return mlxsw_sp_fid_8021q_get(mlxsw_sp, vlan_dev_vlan_id(dev));
-	else
-		return ERR_PTR(-EINVAL);
-}
-
-static int mlxsw_sp_rif_bridge_create(struct mlxsw_sp *mlxsw_sp,
-				      struct net_device *l3_dev)
-{
-	u32 tb_id = l3mdev_fib_table(l3_dev);
-	struct mlxsw_sp_rif *rif;
-	struct mlxsw_sp_fid *fid;
-	struct mlxsw_sp_vr *vr;
-	u16 rif_index;
-	int err;
-
-	vr = mlxsw_sp_vr_get(mlxsw_sp, tb_id ? : RT_TABLE_MAIN);
-	if (IS_ERR(vr))
-		return PTR_ERR(vr);
-
-	rif_index = mlxsw_sp_avail_rif_get(mlxsw_sp);
-	if (rif_index == MLXSW_SP_INVALID_INDEX_RIF) {
-		err = -ERANGE;
-		goto err_avail_rif_get;
-	}
-
-	fid = mlxsw_sp_rif_bridge_fid_get(mlxsw_sp, l3_dev);
-	if (IS_ERR(fid)) {
-		err = PTR_ERR(fid);
-		goto err_fid_get;
-	}
-
-	rif = mlxsw_sp_rif_alloc(rif_index, vr->id, l3_dev, fid, false);
-	if (!rif) {
-		err = -ENOMEM;
-		goto err_rif_alloc;
-	}
-
-	err = mlxsw_sp_rif_bridge_op(mlxsw_sp, rif, true);
-	if (err)
-		goto err_rif_bridge_op;
-
-	err = mlxsw_sp_fid_flood_set(fid, MLXSW_SP_FLOOD_TYPE_BC,
-				     mlxsw_sp_router_port(mlxsw_sp), true);
-	if (err)
-		goto err_fid_bc_flood_set;
-
-	err = mlxsw_sp_rif_fdb_op(mlxsw_sp, l3_dev->dev_addr,
-				  mlxsw_sp_fid_index(fid), true);
-	if (err)
-		goto err_rif_fdb_op;
-
-	mlxsw_sp_fid_rif_set(fid, rif);
-	mlxsw_sp->router->rifs[rif_index] = rif;
-	vr->rif_count++;
-
-	netdev_dbg(l3_dev, "RIF=%d created\n", rif_index);
-
-	return 0;
-
-err_rif_fdb_op:
-	mlxsw_sp_fid_flood_set(fid, MLXSW_SP_FLOOD_TYPE_BC,
-			       mlxsw_sp_router_port(mlxsw_sp), false);
-err_fid_bc_flood_set:
-	mlxsw_sp_rif_bridge_op(mlxsw_sp, rif, false);
-err_rif_bridge_op:
-	kfree(rif);
-err_rif_alloc:
-	mlxsw_sp_fid_put(fid);
-err_fid_get:
-err_avail_rif_get:
-	mlxsw_sp_vr_put(vr);
-	return err;
-}
-
-static void mlxsw_sp_rif_bridge_destroy(struct mlxsw_sp *mlxsw_sp,
-					struct mlxsw_sp_rif *rif)
-{
-	struct mlxsw_sp_vr *vr = &mlxsw_sp->router->vrs[rif->vr_id];
-	struct net_device *l3_dev = rif->dev;
-	struct mlxsw_sp_fid *fid = rif->fid;
-	u16 rif_index = rif->rif_index;
-
-	mlxsw_sp_router_rif_gone_sync(mlxsw_sp, rif);
-
-	vr->rif_count--;
-	mlxsw_sp->router->rifs[rif_index] = NULL;
-	mlxsw_sp_fid_rif_set(fid, NULL);
-
-	mlxsw_sp_rif_fdb_op(mlxsw_sp, l3_dev->dev_addr, mlxsw_sp_fid_index(fid),
-			    false);
-	mlxsw_sp_fid_flood_set(fid, MLXSW_SP_FLOOD_TYPE_BC,
-			       mlxsw_sp_router_port(mlxsw_sp), false);
-	mlxsw_sp_rif_bridge_op(mlxsw_sp, rif, false);
-	kfree(rif);
-	mlxsw_sp_fid_put(fid);
-	mlxsw_sp_vr_put(vr);
-
-	netdev_dbg(l3_dev, "RIF=%d destroyed\n", rif_index);
-}
-
 static int mlxsw_sp_inetaddr_bridge_event(struct net_device *l3_dev,
 					  unsigned long event)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_lower_get(l3_dev);
+	struct mlxsw_sp_rif_params params = {
+		.dev = l3_dev,
+	};
 	struct mlxsw_sp_rif *rif;
 
 	switch (event) {
 	case NETDEV_UP:
-		return mlxsw_sp_rif_bridge_create(mlxsw_sp, l3_dev);
+		rif = mlxsw_sp_rif_create(mlxsw_sp, &params);
+		if (IS_ERR(rif))
+			return PTR_ERR(rif);
+		break;
 	case NETDEV_DOWN:
 		rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, l3_dev);
-		mlxsw_sp_rif_bridge_destroy(mlxsw_sp, rif);
+		mlxsw_sp_rif_destroy(rif);
 		break;
 	}
 
@@ -3555,13 +3459,188 @@ int mlxsw_sp_netdevice_vrf_event(struct net_device *l3_dev, unsigned long event,
 	return err;
 }
 
-void mlxsw_sp_rif_destroy(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_rif *rif)
+static struct mlxsw_sp_rif_subport *
+mlxsw_sp_rif_subport_rif(const struct mlxsw_sp_rif *rif)
 {
-	if (mlxsw_sp_fid_rif_type(rif->fid) == MLXSW_SP_RIF_TYPE_SUBPORT)
-		mlxsw_sp_port_vlan_rif_sp_destroy(mlxsw_sp, rif);
-	else
-		mlxsw_sp_rif_bridge_destroy(mlxsw_sp, rif);
+	return container_of(rif, struct mlxsw_sp_rif_subport, common);
 }
+
+static void mlxsw_sp_rif_subport_setup(struct mlxsw_sp_rif *rif,
+				       const struct mlxsw_sp_rif_params *params)
+{
+	struct mlxsw_sp_rif_subport *rif_subport;
+
+	rif_subport = mlxsw_sp_rif_subport_rif(rif);
+	rif_subport->vid = params->vid;
+	rif_subport->lag = params->lag;
+	if (params->lag)
+		rif_subport->lag_id = params->lag_id;
+	else
+		rif_subport->system_port = params->system_port;
+}
+
+static int mlxsw_sp_rif_subport_op(struct mlxsw_sp_rif *rif, bool enable)
+{
+	struct mlxsw_sp *mlxsw_sp = rif->mlxsw_sp;
+	struct mlxsw_sp_rif_subport *rif_subport;
+	char ritr_pl[MLXSW_REG_RITR_LEN];
+
+	rif_subport = mlxsw_sp_rif_subport_rif(rif);
+	mlxsw_reg_ritr_pack(ritr_pl, enable, MLXSW_REG_RITR_SP_IF,
+			    rif->rif_index, rif->vr_id, rif->dev->mtu,
+			    rif->dev->dev_addr);
+	mlxsw_reg_ritr_sp_if_pack(ritr_pl, rif_subport->lag,
+				  rif_subport->lag ? rif_subport->lag_id :
+						     rif_subport->system_port,
+				  rif_subport->vid);
+
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ritr), ritr_pl);
+}
+
+static int mlxsw_sp_rif_subport_configure(struct mlxsw_sp_rif *rif)
+{
+	return mlxsw_sp_rif_subport_op(rif, true);
+}
+
+static void mlxsw_sp_rif_subport_deconfigure(struct mlxsw_sp_rif *rif)
+{
+	mlxsw_sp_rif_subport_op(rif, false);
+}
+
+static struct mlxsw_sp_fid *
+mlxsw_sp_rif_subport_fid_get(struct mlxsw_sp_rif *rif)
+{
+	return mlxsw_sp_fid_rfid_get(rif->mlxsw_sp, rif->rif_index);
+}
+
+static const struct mlxsw_sp_rif_ops mlxsw_sp_rif_subport_ops = {
+	.type			= MLXSW_SP_RIF_TYPE_SUBPORT,
+	.rif_size		= sizeof(struct mlxsw_sp_rif_subport),
+	.setup			= mlxsw_sp_rif_subport_setup,
+	.configure		= mlxsw_sp_rif_subport_configure,
+	.deconfigure		= mlxsw_sp_rif_subport_deconfigure,
+	.fid_get		= mlxsw_sp_rif_subport_fid_get,
+};
+
+static int mlxsw_sp_rif_vlan_fid_op(struct mlxsw_sp_rif *rif,
+				    enum mlxsw_reg_ritr_if_type type,
+				    u16 vid_fid, bool enable)
+{
+	struct mlxsw_sp *mlxsw_sp = rif->mlxsw_sp;
+	char ritr_pl[MLXSW_REG_RITR_LEN];
+
+	mlxsw_reg_ritr_pack(ritr_pl, enable, type, rif->rif_index, rif->vr_id,
+			    rif->dev->mtu, rif->dev->dev_addr);
+	mlxsw_reg_ritr_fid_set(ritr_pl, type, vid_fid);
+
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ritr), ritr_pl);
+}
+
+static u8 mlxsw_sp_router_port(const struct mlxsw_sp *mlxsw_sp)
+{
+	return mlxsw_core_max_ports(mlxsw_sp->core) + 1;
+}
+
+static int mlxsw_sp_rif_vlan_configure(struct mlxsw_sp_rif *rif)
+{
+	struct mlxsw_sp *mlxsw_sp = rif->mlxsw_sp;
+	u16 vid = mlxsw_sp_fid_8021q_vid(rif->fid);
+	int err;
+
+	err = mlxsw_sp_rif_vlan_fid_op(rif, MLXSW_REG_RITR_VLAN_IF, vid, true);
+	if (err)
+		return err;
+
+	err = mlxsw_sp_fid_flood_set(rif->fid, MLXSW_SP_FLOOD_TYPE_BC,
+				     mlxsw_sp_router_port(mlxsw_sp), true);
+	if (err)
+		goto err_fid_bc_flood_set;
+
+	return 0;
+
+err_fid_bc_flood_set:
+	mlxsw_sp_rif_vlan_fid_op(rif, MLXSW_REG_RITR_VLAN_IF, vid, false);
+	return err;
+}
+
+static void mlxsw_sp_rif_vlan_deconfigure(struct mlxsw_sp_rif *rif)
+{
+	struct mlxsw_sp *mlxsw_sp = rif->mlxsw_sp;
+	u16 vid = mlxsw_sp_fid_8021q_vid(rif->fid);
+
+	mlxsw_sp_fid_flood_set(rif->fid, MLXSW_SP_FLOOD_TYPE_BC,
+			       mlxsw_sp_router_port(mlxsw_sp), false);
+	mlxsw_sp_rif_vlan_fid_op(rif, MLXSW_REG_RITR_VLAN_IF, vid, false);
+}
+
+static struct mlxsw_sp_fid *
+mlxsw_sp_rif_vlan_fid_get(struct mlxsw_sp_rif *rif)
+{
+	u16 vid = is_vlan_dev(rif->dev) ? vlan_dev_vlan_id(rif->dev) : 1;
+
+	return mlxsw_sp_fid_8021q_get(rif->mlxsw_sp, vid);
+}
+
+static const struct mlxsw_sp_rif_ops mlxsw_sp_rif_vlan_ops = {
+	.type			= MLXSW_SP_RIF_TYPE_VLAN,
+	.rif_size		= sizeof(struct mlxsw_sp_rif),
+	.configure		= mlxsw_sp_rif_vlan_configure,
+	.deconfigure		= mlxsw_sp_rif_vlan_deconfigure,
+	.fid_get		= mlxsw_sp_rif_vlan_fid_get,
+};
+
+static int mlxsw_sp_rif_fid_configure(struct mlxsw_sp_rif *rif)
+{
+	struct mlxsw_sp *mlxsw_sp = rif->mlxsw_sp;
+	u16 fid_index = mlxsw_sp_fid_index(rif->fid);
+	int err;
+
+	err = mlxsw_sp_rif_vlan_fid_op(rif, MLXSW_REG_RITR_FID_IF, fid_index,
+				       true);
+	if (err)
+		return err;
+
+	err = mlxsw_sp_fid_flood_set(rif->fid, MLXSW_SP_FLOOD_TYPE_BC,
+				     mlxsw_sp_router_port(mlxsw_sp), true);
+	if (err)
+		goto err_fid_bc_flood_set;
+
+	return 0;
+
+err_fid_bc_flood_set:
+	mlxsw_sp_rif_vlan_fid_op(rif, MLXSW_REG_RITR_FID_IF, fid_index, false);
+	return err;
+}
+
+static void mlxsw_sp_rif_fid_deconfigure(struct mlxsw_sp_rif *rif)
+{
+	struct mlxsw_sp *mlxsw_sp = rif->mlxsw_sp;
+	u16 fid_index = mlxsw_sp_fid_index(rif->fid);
+
+	mlxsw_sp_fid_flood_set(rif->fid, MLXSW_SP_FLOOD_TYPE_BC,
+			       mlxsw_sp_router_port(mlxsw_sp), false);
+	mlxsw_sp_rif_vlan_fid_op(rif, MLXSW_REG_RITR_FID_IF, fid_index, false);
+}
+
+static struct mlxsw_sp_fid *
+mlxsw_sp_rif_fid_fid_get(struct mlxsw_sp_rif *rif)
+{
+	return mlxsw_sp_fid_8021d_get(rif->mlxsw_sp, rif->dev->ifindex);
+}
+
+static const struct mlxsw_sp_rif_ops mlxsw_sp_rif_fid_ops = {
+	.type			= MLXSW_SP_RIF_TYPE_FID,
+	.rif_size		= sizeof(struct mlxsw_sp_rif),
+	.configure		= mlxsw_sp_rif_fid_configure,
+	.deconfigure		= mlxsw_sp_rif_fid_deconfigure,
+	.fid_get		= mlxsw_sp_rif_fid_fid_get,
+};
+
+static const struct mlxsw_sp_rif_ops *mlxsw_sp_rif_ops_arr[] = {
+	[MLXSW_SP_RIF_TYPE_SUBPORT]	= &mlxsw_sp_rif_subport_ops,
+	[MLXSW_SP_RIF_TYPE_VLAN]	= &mlxsw_sp_rif_vlan_ops,
+	[MLXSW_SP_RIF_TYPE_FID]		= &mlxsw_sp_rif_fid_ops,
+};
 
 static int mlxsw_sp_rifs_init(struct mlxsw_sp *mlxsw_sp)
 {
@@ -3572,6 +3651,9 @@ static int mlxsw_sp_rifs_init(struct mlxsw_sp *mlxsw_sp)
 					 GFP_KERNEL);
 	if (!mlxsw_sp->router->rifs)
 		return -ENOMEM;
+
+	mlxsw_sp->router->rif_ops_arr = mlxsw_sp_rif_ops_arr;
+
 	return 0;
 }
 
