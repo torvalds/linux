@@ -106,6 +106,7 @@ struct intel_pt_decoder {
 	const unsigned char *buf;
 	size_t len;
 	bool return_compression;
+	bool branch_enable;
 	bool mtc_insn;
 	bool pge;
 	bool have_tma;
@@ -214,6 +215,7 @@ struct intel_pt_decoder *intel_pt_decoder_new(struct intel_pt_params *params)
 	decoder->pgd_ip             = params->pgd_ip;
 	decoder->data               = params->data;
 	decoder->return_compression = params->return_compression;
+	decoder->branch_enable      = params->branch_enable;
 
 	decoder->period             = params->period;
 	decoder->period_type        = params->period_type;
@@ -1650,6 +1652,10 @@ next:
 				break;
 			}
 			intel_pt_set_last_ip(decoder);
+			if (!decoder->branch_enable) {
+				decoder->ip = decoder->last_ip;
+				break;
+			}
 			err = intel_pt_walk_fup(decoder);
 			if (err != -EAGAIN) {
 				if (err)
@@ -1963,6 +1969,13 @@ static int intel_pt_sync_ip(struct intel_pt_decoder *decoder)
 	int err;
 
 	decoder->set_fup_tx_flags = false;
+
+	if (!decoder->branch_enable) {
+		decoder->pkt_state = INTEL_PT_STATE_IN_SYNC;
+		decoder->overflow = false;
+		decoder->state.type = 0; /* Do not have a sample */
+		return 0;
+	}
 
 	intel_pt_log("Scanning for full IP\n");
 	err = intel_pt_walk_to_ip(decoder);

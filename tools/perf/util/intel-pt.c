@@ -668,6 +668,19 @@ static bool intel_pt_return_compression(struct intel_pt *pt)
 	return true;
 }
 
+static bool intel_pt_branch_enable(struct intel_pt *pt)
+{
+	struct perf_evsel *evsel;
+	u64 config;
+
+	evlist__for_each_entry(pt->session->evlist, evsel) {
+		if (intel_pt_get_config(pt, &evsel->attr, &config) &&
+		    (config & 1) && !(config & 0x2000))
+			return false;
+	}
+	return true;
+}
+
 static unsigned int intel_pt_mtc_period(struct intel_pt *pt)
 {
 	struct perf_evsel *evsel;
@@ -799,6 +812,7 @@ static struct intel_pt_queue *intel_pt_alloc_queue(struct intel_pt *pt,
 	params.walk_insn = intel_pt_walk_next_insn;
 	params.data = ptq;
 	params.return_compression = intel_pt_return_compression(pt);
+	params.branch_enable = intel_pt_branch_enable(pt);
 	params.max_non_turbo_ratio = pt->max_non_turbo_ratio;
 	params.mtc_period = intel_pt_mtc_period(pt);
 	params.tsc_ctc_ratio_n = pt->tsc_ctc_ratio_n;
