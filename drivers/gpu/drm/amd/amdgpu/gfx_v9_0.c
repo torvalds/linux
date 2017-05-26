@@ -633,6 +633,56 @@ static void gfx_v9_0_get_csb_buffer(struct amdgpu_device *adev,
 	buffer[count++] = cpu_to_le32(0);
 }
 
+static void gfx_v9_0_init_lbpw(struct amdgpu_device *adev)
+{
+	uint32_t data = 0;
+
+	/* set mmRLC_LB_THR_CONFIG_1/2/3/4 */
+	WREG32_SOC15(GC, 0, mmRLC_LB_THR_CONFIG_1, 0x0000007F);
+	WREG32_SOC15(GC, 0, mmRLC_LB_THR_CONFIG_2, 0x0333A5A7);
+	WREG32_SOC15(GC, 0, mmRLC_LB_THR_CONFIG_3, 0x00000077);
+	WREG32_SOC15(GC, 0, mmRLC_LB_THR_CONFIG_4, (0x30 | 0x40 << 8 | 0x02FA << 16));
+
+	/* set mmRLC_LB_CNTR_INIT = 0x0000_0000 */
+	WREG32_SOC15(GC, 0, mmRLC_LB_CNTR_INIT, 0x00000000);
+
+	/* set mmRLC_LB_CNTR_MAX = 0x0000_0500 */
+	WREG32_SOC15(GC, 0, mmRLC_LB_CNTR_MAX, 0x00000500);
+
+	mutex_lock(&adev->grbm_idx_mutex);
+	/* set mmRLC_LB_INIT_CU_MASK thru broadcast mode to enable all SE/SH*/
+	gfx_v9_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
+	WREG32_SOC15(GC, 0, mmRLC_LB_INIT_CU_MASK, 0xffffffff);
+
+	/* set mmRLC_LB_PARAMS = 0x003F_1006 */
+	data |= (0x0003 << RLC_LB_PARAMS__FIFO_SAMPLES__SHIFT) &
+		RLC_LB_PARAMS__FIFO_SAMPLES_MASK;
+	data |= (0x0010 << RLC_LB_PARAMS__PG_IDLE_SAMPLES__SHIFT) &
+		RLC_LB_PARAMS__PG_IDLE_SAMPLES_MASK;
+	data |= (0x033F << RLC_LB_PARAMS__PG_IDLE_SAMPLE_INTERVAL__SHIFT) &
+		RLC_LB_PARAMS__PG_IDLE_SAMPLE_INTERVAL_MASK;
+	WREG32_SOC15(GC, 0, mmRLC_LB_PARAMS, data);
+
+	/* set mmRLC_GPM_GENERAL_7[31-16] = 0x00C0 */
+	data = RREG32_SOC15(GC, 0, mmRLC_GPM_GENERAL_7);
+	data &= 0x0000FFFF;
+	data |= 0x00C00000;
+	WREG32_SOC15(GC, 0, mmRLC_GPM_GENERAL_7, data);
+
+	/* set RLC_LB_ALWAYS_ACTIVE_CU_MASK = 0xFFF */
+	WREG32_SOC15(GC, 0, mmRLC_LB_ALWAYS_ACTIVE_CU_MASK, 0xFFF);
+
+	/* set RLC_LB_CNTL = 0x8000_0095, 31 bit is reserved,
+	 * but used for RLC_LB_CNTL configuration */
+	data = RLC_LB_CNTL__LB_CNT_SPIM_ACTIVE_MASK;
+	data |= (0x09 << RLC_LB_CNTL__CU_MASK_USED_OFF_HYST__SHIFT) &
+		RLC_LB_CNTL__CU_MASK_USED_OFF_HYST_MASK;
+	data |= (0x80000 << RLC_LB_CNTL__RESERVED__SHIFT) &
+		RLC_LB_CNTL__RESERVED_MASK;
+	WREG32_SOC15(GC, 0, mmRLC_LB_CNTL, data);
+	mutex_unlock(&adev->grbm_idx_mutex);
+}
+
 static void rv_init_cp_jump_table(struct amdgpu_device *adev)
 {
 	const __le32 *fw_data;
@@ -762,6 +812,8 @@ static int gfx_v9_0_rlc_init(struct amdgpu_device *adev)
 		rv_init_cp_jump_table(adev);
 		amdgpu_bo_kunmap(adev->gfx.rlc.cp_table_obj);
 		amdgpu_bo_unreserve(adev->gfx.rlc.cp_table_obj);
+
+		gfx_v9_0_init_lbpw(adev);
 	}
 
 	return 0;
