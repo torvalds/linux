@@ -870,26 +870,13 @@ static int mlxsw_sp_port_swid_set(struct mlxsw_sp_port *mlxsw_sp_port, u8 swid)
 					swid);
 }
 
-static int mlxsw_sp_port_vp_mode_set(struct mlxsw_sp_port *mlxsw_sp_port,
-				     bool enable)
+int mlxsw_sp_port_vp_mode_set(struct mlxsw_sp_port *mlxsw_sp_port, bool enable)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	char svpe_pl[MLXSW_REG_SVPE_LEN];
 
 	mlxsw_reg_svpe_pack(svpe_pl, mlxsw_sp_port->local_port, enable);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(svpe), svpe_pl);
-}
-
-int mlxsw_sp_port_vid_to_fid_set(struct mlxsw_sp_port *mlxsw_sp_port,
-				 enum mlxsw_reg_svfa_mt mt, bool valid, u16 fid,
-				 u16 vid)
-{
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	char svfa_pl[MLXSW_REG_SVFA_LEN];
-
-	mlxsw_reg_svfa_pack(svfa_pl, mlxsw_sp_port->local_port, mt, valid,
-			    fid, vid);
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(svfa), svfa_pl);
 }
 
 int mlxsw_sp_port_vid_learning_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid,
@@ -1398,75 +1385,6 @@ int mlxsw_sp_port_vlan_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid_begin,
 	return 0;
 }
 
-int mlxsw_sp_port_vp_mode_trans(struct mlxsw_sp_port *mlxsw_sp_port)
-{
-	enum mlxsw_reg_svfa_mt mt = MLXSW_REG_SVFA_MT_PORT_VID_TO_FID;
-	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
-	struct mlxsw_sp_fid *fid;
-	u16 vid;
-	int err;
-
-	list_for_each_entry(mlxsw_sp_port_vlan, &mlxsw_sp_port->vlans_list,
-			    list) {
-		fid = mlxsw_sp_port_vlan->fid;
-
-		if (!fid || fid->fid >= MLXSW_SP_VFID_BASE)
-			continue;
-
-		vid = mlxsw_sp_port_vlan->vid;
-		err = mlxsw_sp_port_vid_to_fid_set(mlxsw_sp_port, mt, true,
-						   fid->fid, vid);
-		if (err)
-			goto err_port_vid_to_fid_set;
-	}
-
-	err = mlxsw_sp_port_vp_mode_set(mlxsw_sp_port, true);
-	if (err)
-		goto err_port_vp_mode_set;
-
-	return 0;
-
-err_port_vp_mode_set:
-err_port_vid_to_fid_set:
-	list_for_each_entry_continue_reverse(mlxsw_sp_port_vlan,
-					     &mlxsw_sp_port->vlans_list, list) {
-		fid = mlxsw_sp_port_vlan->fid;
-
-		if (!fid || fid->fid >= MLXSW_SP_VFID_BASE)
-			continue;
-
-		vid = mlxsw_sp_port_vlan->vid;
-		mlxsw_sp_port_vid_to_fid_set(mlxsw_sp_port, mt, false, fid->fid,
-					     vid);
-	}
-	return err;
-}
-
-int mlxsw_sp_port_vlan_mode_trans(struct mlxsw_sp_port *mlxsw_sp_port)
-{
-	enum mlxsw_reg_svfa_mt mt = MLXSW_REG_SVFA_MT_PORT_VID_TO_FID;
-	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
-	int err;
-
-	err = mlxsw_sp_port_vp_mode_set(mlxsw_sp_port, false);
-	if (err)
-		return err;
-
-	list_for_each_entry_reverse(mlxsw_sp_port_vlan,
-				    &mlxsw_sp_port->vlans_list, list) {
-		struct mlxsw_sp_fid *fid = mlxsw_sp_port_vlan->fid;
-		u16 vid = mlxsw_sp_port_vlan->vid;
-
-		if (!fid || fid->fid >= MLXSW_SP_VFID_BASE)
-			continue;
-
-		mlxsw_sp_port_vid_to_fid_set(mlxsw_sp_port, mt, false, fid->fid,
-					     vid);
-	}
-
-	return 0;
-}
-
 static void mlxsw_sp_port_vlan_flush(struct mlxsw_sp_port *mlxsw_sp_port)
 {
 	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan, *tmp;
@@ -1529,10 +1447,12 @@ mlxsw_sp_port_vlan_get(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid)
 
 void mlxsw_sp_port_vlan_put(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan)
 {
+	struct mlxsw_sp_fid *fid = mlxsw_sp_port_vlan->fid;
+
 	if (mlxsw_sp_port_vlan->bridge_port)
 		mlxsw_sp_port_vlan_bridge_leave(mlxsw_sp_port_vlan);
-	else if (mlxsw_sp_port_vlan->fid)
-		mlxsw_sp_port_vlan->fid->leave(mlxsw_sp_port_vlan);
+	else if (fid)
+		mlxsw_sp_port_vlan_router_leave(mlxsw_sp_port_vlan);
 
 	mlxsw_sp_port_vlan_destroy(mlxsw_sp_port_vlan);
 }
@@ -2831,11 +2751,11 @@ static int __mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		goto err_port_dcb_init;
 	}
 
-	err = mlxsw_sp_port_vp_mode_set(mlxsw_sp_port, false);
+	err = mlxsw_sp_port_fids_init(mlxsw_sp_port);
 	if (err) {
-		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to set non-virtual mode\n",
+		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to initialize FIDs\n",
 			mlxsw_sp_port->local_port);
-		goto err_port_vp_mode_set;
+		goto err_port_fids_init;
 	}
 
 	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_get(mlxsw_sp_port, 1);
@@ -2865,7 +2785,8 @@ err_register_netdev:
 	mlxsw_sp_port_switchdev_fini(mlxsw_sp_port);
 	mlxsw_sp_port_vlan_put(mlxsw_sp_port_vlan);
 err_port_vlan_get:
-err_port_vp_mode_set:
+	mlxsw_sp_port_fids_fini(mlxsw_sp_port);
+err_port_fids_init:
 	mlxsw_sp_port_dcb_fini(mlxsw_sp_port);
 err_port_dcb_init:
 err_port_ets_init:
@@ -2919,6 +2840,7 @@ static void __mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	mlxsw_sp->ports[local_port] = NULL;
 	mlxsw_sp_port_switchdev_fini(mlxsw_sp_port);
 	mlxsw_sp_port_vlan_flush(mlxsw_sp_port);
+	mlxsw_sp_port_fids_fini(mlxsw_sp_port);
 	mlxsw_sp_port_dcb_fini(mlxsw_sp_port);
 	mlxsw_sp_port_swid_set(mlxsw_sp_port, MLXSW_PORT_SWID_DISABLED_PORT);
 	mlxsw_sp_port_module_unmap(mlxsw_sp, mlxsw_sp_port->local_port);
@@ -3478,57 +3400,6 @@ static void mlxsw_sp_traps_fini(struct mlxsw_sp *mlxsw_sp)
 	}
 }
 
-static int __mlxsw_sp_flood_init(struct mlxsw_core *mlxsw_core,
-				 enum mlxsw_reg_sfgc_type type,
-				 enum mlxsw_reg_sfgc_bridge_type bridge_type)
-{
-	enum mlxsw_flood_table_type table_type;
-	enum mlxsw_sp_flood_table flood_table;
-	char sfgc_pl[MLXSW_REG_SFGC_LEN];
-
-	if (bridge_type == MLXSW_REG_SFGC_BRIDGE_TYPE_VFID)
-		table_type = MLXSW_REG_SFGC_TABLE_TYPE_FID;
-	else
-		table_type = MLXSW_REG_SFGC_TABLE_TYPE_FID_OFFEST;
-
-	switch (type) {
-	case MLXSW_REG_SFGC_TYPE_UNKNOWN_UNICAST:
-		flood_table = MLXSW_SP_FLOOD_TABLE_UC;
-		break;
-	case MLXSW_REG_SFGC_TYPE_UNREGISTERED_MULTICAST_IPV4:
-		flood_table = MLXSW_SP_FLOOD_TABLE_MC;
-		break;
-	default:
-		flood_table = MLXSW_SP_FLOOD_TABLE_BC;
-	}
-
-	mlxsw_reg_sfgc_pack(sfgc_pl, type, bridge_type, table_type,
-			    flood_table);
-	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(sfgc), sfgc_pl);
-}
-
-static int mlxsw_sp_flood_init(struct mlxsw_sp *mlxsw_sp)
-{
-	int type, err;
-
-	for (type = 0; type < MLXSW_REG_SFGC_TYPE_MAX; type++) {
-		if (type == MLXSW_REG_SFGC_TYPE_RESERVED)
-			continue;
-
-		err = __mlxsw_sp_flood_init(mlxsw_sp->core, type,
-					    MLXSW_REG_SFGC_BRIDGE_TYPE_VFID);
-		if (err)
-			return err;
-
-		err = __mlxsw_sp_flood_init(mlxsw_sp->core, type,
-					    MLXSW_REG_SFGC_BRIDGE_TYPE_1Q_FID);
-		if (err)
-			return err;
-	}
-
-	return 0;
-}
-
 static int mlxsw_sp_lag_init(struct mlxsw_sp *mlxsw_sp)
 {
 	char slcr_pl[MLXSW_REG_SLCR_LEN];
@@ -3576,16 +3447,6 @@ static int mlxsw_sp_basic_trap_groups_set(struct mlxsw_core *mlxsw_core)
 	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(htgt), htgt_pl);
 }
 
-static int mlxsw_sp_dummy_fid_init(struct mlxsw_sp *mlxsw_sp)
-{
-	return mlxsw_sp_fid_op(mlxsw_sp, MLXSW_SP_DUMMY_FID, true);
-}
-
-static void mlxsw_sp_dummy_fid_fini(struct mlxsw_sp *mlxsw_sp)
-{
-	mlxsw_sp_fid_op(mlxsw_sp, MLXSW_SP_DUMMY_FID, false);
-}
-
 static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 			 const struct mlxsw_bus_info *mlxsw_bus_info)
 {
@@ -3594,8 +3455,6 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 
 	mlxsw_sp->core = mlxsw_core;
 	mlxsw_sp->bus_info = mlxsw_bus_info;
-	INIT_LIST_HEAD(&mlxsw_sp->fids);
-	INIT_LIST_HEAD(&mlxsw_sp->vfids.list);
 
 	err = mlxsw_sp_fw_rev_validate(mlxsw_sp);
 	if (err) {
@@ -3609,16 +3468,16 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 		return err;
 	}
 
-	err = mlxsw_sp_traps_init(mlxsw_sp);
+	err = mlxsw_sp_fids_init(mlxsw_sp);
 	if (err) {
-		dev_err(mlxsw_sp->bus_info->dev, "Failed to set traps\n");
+		dev_err(mlxsw_sp->bus_info->dev, "Failed to initialize FIDs\n");
 		return err;
 	}
 
-	err = mlxsw_sp_flood_init(mlxsw_sp);
+	err = mlxsw_sp_traps_init(mlxsw_sp);
 	if (err) {
-		dev_err(mlxsw_sp->bus_info->dev, "Failed to initialize flood tables\n");
-		goto err_flood_init;
+		dev_err(mlxsw_sp->bus_info->dev, "Failed to set traps\n");
+		goto err_traps_init;
 	}
 
 	err = mlxsw_sp_buffers_init(mlxsw_sp);
@@ -3669,12 +3528,6 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 		goto err_dpipe_init;
 	}
 
-	err = mlxsw_sp_dummy_fid_init(mlxsw_sp);
-	if (err) {
-		dev_err(mlxsw_sp->bus_info->dev, "Failed to init dummy FID\n");
-		goto err_dummy_fid_init;
-	}
-
 	err = mlxsw_sp_ports_create(mlxsw_sp);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to create ports\n");
@@ -3684,8 +3537,6 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 	return 0;
 
 err_ports_create:
-	mlxsw_sp_dummy_fid_fini(mlxsw_sp);
-err_dummy_fid_init:
 	mlxsw_sp_dpipe_fini(mlxsw_sp);
 err_dpipe_init:
 	mlxsw_sp_counter_pool_fini(mlxsw_sp);
@@ -3702,8 +3553,9 @@ err_switchdev_init:
 err_lag_init:
 	mlxsw_sp_buffers_fini(mlxsw_sp);
 err_buffers_init:
-err_flood_init:
 	mlxsw_sp_traps_fini(mlxsw_sp);
+err_traps_init:
+	mlxsw_sp_fids_fini(mlxsw_sp);
 	return err;
 }
 
@@ -3712,7 +3564,6 @@ static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 
 	mlxsw_sp_ports_remove(mlxsw_sp);
-	mlxsw_sp_dummy_fid_fini(mlxsw_sp);
 	mlxsw_sp_dpipe_fini(mlxsw_sp);
 	mlxsw_sp_counter_pool_fini(mlxsw_sp);
 	mlxsw_sp_acl_fini(mlxsw_sp);
@@ -3722,8 +3573,7 @@ static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 	mlxsw_sp_lag_fini(mlxsw_sp);
 	mlxsw_sp_buffers_fini(mlxsw_sp);
 	mlxsw_sp_traps_fini(mlxsw_sp);
-	WARN_ON(!list_empty(&mlxsw_sp->vfids.list));
-	WARN_ON(!list_empty(&mlxsw_sp->fids));
+	mlxsw_sp_fids_fini(mlxsw_sp);
 }
 
 static struct mlxsw_config_profile mlxsw_sp_config_profile = {
@@ -3739,7 +3589,7 @@ static struct mlxsw_config_profile mlxsw_sp_config_profile = {
 	.max_fid_offset_flood_tables	= 3,
 	.fid_offset_flood_table_size	= VLAN_N_VID - 1,
 	.max_fid_flood_tables		= 3,
-	.fid_flood_table_size		= MLXSW_SP_VFID_MAX,
+	.fid_flood_table_size		= MLXSW_SP_FID_8021D_MAX,
 	.used_max_ib_mc			= 1,
 	.max_ib_mc			= 0,
 	.used_max_pkey			= 1,
@@ -4009,7 +3859,7 @@ static int mlxsw_sp_port_lag_join(struct mlxsw_sp_port *mlxsw_sp_port,
 	/* Port is no longer usable as a router interface */
 	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_vid(mlxsw_sp_port, 1);
 	if (mlxsw_sp_port_vlan->fid)
-		mlxsw_sp_port_vlan->fid->leave(mlxsw_sp_port_vlan);
+		mlxsw_sp_port_vlan_router_leave(mlxsw_sp_port_vlan);
 
 	return 0;
 
