@@ -469,6 +469,7 @@ struct proc_dir_entry *proc_create_mount_point(const char *name)
 		ent->data = NULL;
 		ent->proc_fops = NULL;
 		ent->proc_iops = NULL;
+		parent->nlink++;
 		if (proc_register(parent, ent) < 0) {
 			kfree(ent);
 			parent->nlink--;

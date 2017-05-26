@@ -333,7 +333,7 @@ int f2fs_fname_disk_to_usr(struct inode *inode,
 		memset(buf + 4, 0, 4);
 	} else
 		memset(buf, 0, 8);
-	memcpy(buf + 8, iname->name + iname->len - 16, 16);
+	memcpy(buf + 8, iname->name + ((iname->len - 17) & ~15), 16);
 	oname->name[0] = '_';
 	ret = digest_encode(buf, 24, oname->name + 1);
 	oname->len = ret + 1;
