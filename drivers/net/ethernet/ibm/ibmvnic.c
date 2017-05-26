@@ -518,6 +518,32 @@ static void release_error_buffers(struct ibmvnic_adapter *adapter)
 	spin_unlock_irqrestore(&adapter->error_list_lock, flags);
 }
 
+static void ibmvnic_napi_enable(struct ibmvnic_adapter *adapter)
+{
+	int i;
+
+	if (adapter->napi_enabled)
+		return;
+
+	for (i = 0; i < adapter->req_rx_queues; i++)
+		napi_enable(&adapter->napi[i]);
+
+	adapter->napi_enabled = true;
+}
+
+static void ibmvnic_napi_disable(struct ibmvnic_adapter *adapter)
+{
+	int i;
+
+	if (!adapter->napi_enabled)
+		return;
+
+	for (i = 0; i < adapter->req_rx_queues; i++)
+		napi_disable(&adapter->napi[i]);
+
+	adapter->napi_enabled = false;
+}
+
 static int ibmvnic_login(struct net_device *netdev)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
@@ -674,9 +700,7 @@ static int __ibmvnic_open(struct net_device *netdev)
 
 	adapter->state = VNIC_OPENING;
 	replenish_pools(adapter);
-
-	for (i = 0; i < adapter->req_rx_queues; i++)
-		napi_enable(&adapter->napi[i]);
+	ibmvnic_napi_enable(adapter);
 
 	/* We're ready to receive frames, enable the sub-crq interrupts and
 	 * set the logical link state to up
@@ -779,12 +803,7 @@ static int __ibmvnic_close(struct net_device *netdev)
 
 	adapter->state = VNIC_CLOSING;
 	netif_tx_stop_all_queues(netdev);
-
-	if (adapter->napi) {
-		for (i = 0; i < adapter->req_rx_queues; i++)
-			napi_disable(&adapter->napi[i]);
-	}
-
+	ibmvnic_napi_disable(adapter);
 	clean_tx_pools(adapter);
 
 	if (adapter->tx_scrq) {
