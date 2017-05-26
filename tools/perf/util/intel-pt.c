@@ -1922,24 +1922,29 @@ static int intel_pt_synth_event(struct perf_session *session,
 					   &id, intel_pt_event_synth);
 }
 
+static struct perf_evsel *intel_pt_evsel(struct intel_pt *pt,
+					 struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel;
+
+	evlist__for_each_entry(evlist, evsel) {
+		if (evsel->attr.type == pt->pmu_type && evsel->ids)
+			return evsel;
+	}
+
+	return NULL;
+}
+
 static int intel_pt_synth_events(struct intel_pt *pt,
 				 struct perf_session *session)
 {
 	struct perf_evlist *evlist = session->evlist;
-	struct perf_evsel *evsel;
+	struct perf_evsel *evsel = intel_pt_evsel(pt, evlist);
 	struct perf_event_attr attr;
-	bool found = false;
 	u64 id;
 	int err;
 
-	evlist__for_each_entry(evlist, evsel) {
-		if (evsel->attr.type == pt->pmu_type && evsel->ids) {
-			found = true;
-			break;
-		}
-	}
-
-	if (!found) {
+	if (!evsel) {
 		pr_debug("There are no selected events with Intel Processor Trace data\n");
 		return 0;
 	}
