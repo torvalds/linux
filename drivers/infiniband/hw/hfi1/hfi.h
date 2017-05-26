@@ -521,7 +521,7 @@ static inline void incr_cntr32(u32 *cntr)
 #define MAX_NAME_SIZE 64
 struct hfi1_msix_entry {
 	enum irq_type type;
-	struct msix_entry msix;
+	int irq;
 	void *arg;
 	char name[MAX_NAME_SIZE];
 	cpumask_t mask;
@@ -1838,9 +1838,7 @@ void hfi1_pcie_cleanup(struct pci_dev *pdev);
 int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev);
 void hfi1_pcie_ddcleanup(struct hfi1_devdata *);
 int pcie_speeds(struct hfi1_devdata *dd);
-void request_msix(struct hfi1_devdata *dd, u32 *nent,
-		  struct hfi1_msix_entry *entry);
-void hfi1_enable_intx(struct pci_dev *pdev);
+int request_msix(struct hfi1_devdata *dd, u32 msireq);
 void restore_pci_variables(struct hfi1_devdata *dd);
 int do_pcie_gen3_transition(struct hfi1_devdata *dd);
 int parse_platform_config(struct hfi1_devdata *dd);

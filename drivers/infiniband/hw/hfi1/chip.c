@@ -12800,30 +12800,24 @@ static void clean_up_interrupts(struct hfi1_devdata *dd)
 		for (i = 0; i < dd->num_msix_entries; i++, me++) {
 			if (!me->arg) /* => no irq, no affinity */
 				continue;
-			hfi1_put_irq_affinity(dd, &dd->msix_entries[i]);
-			free_irq(me->msix.vector, me->arg);
+			hfi1_put_irq_affinity(dd, me);
+			free_irq(me->irq, me->arg);
 		}
+
+		/* clean structures */
+		kfree(dd->msix_entries);
+		dd->msix_entries = NULL;
+		dd->num_msix_entries = 0;
 	} else {
 		/* INTx */
 		if (dd->requested_intx_irq) {
 			free_irq(dd->pcidev->irq, dd);
 			dd->requested_intx_irq = 0;
 		}
-	}
-
-	/* turn off interrupts */
-	if (dd->num_msix_entries) {
-		/* MSI-X */
-		pci_disable_msix(dd->pcidev);
-	} else {
-		/* INTx */
 		disable_intx(dd->pcidev);
 	}
 
-	/* clean structures */
-	kfree(dd->msix_entries);
-	dd->msix_entries = NULL;
-	dd->num_msix_entries = 0;
+	pci_free_irq_vectors(dd->pcidev);
 }
 
 /*
@@ -12972,13 +12966,21 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 			continue;
 		/* make sure the name is terminated */
 		me->name[sizeof(me->name) - 1] = 0;
+		me->irq = pci_irq_vector(dd->pcidev, i);
+		/*
+		 * On err return me->irq.  Don't need to clear this
+		 * because 'arg' has not been set, and cleanup will
+		 * do the right thing.
+		 */
+		if (me->irq < 0)
+			return me->irq;
 
-		ret = request_threaded_irq(me->msix.vector, handler, thread, 0,
+		ret = request_threaded_irq(me->irq, handler, thread, 0,
 					   me->name, arg);
 		if (ret) {
 			dd_dev_err(dd,
-				   "unable to allocate %s interrupt, vector %d, index %d, err %d\n",
-				   err_info, me->msix.vector, idx, ret);
+				   "unable to allocate %s interrupt, irq %d, index %d, err %d\n",
+				   err_info, me->irq, idx, ret);
 			return ret;
 		}
 		/*
@@ -12989,8 +12991,7 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 
 		ret = hfi1_get_irq_affinity(dd, me);
 		if (ret)
-			dd_dev_err(dd,
-				   "unable to pin IRQ %d\n", ret);
+			dd_dev_err(dd, "unable to pin IRQ %d\n", ret);
 	}
 
 	return ret;
@@ -13009,7 +13010,7 @@ void hfi1_vnic_synchronize_irq(struct hfi1_devdata *dd)
 		struct hfi1_ctxtdata *rcd = dd->vnic.ctxt[i];
 		struct hfi1_msix_entry *me = &dd->msix_entries[rcd->msix_intr];
 
-		synchronize_irq(me->msix.vector);
+		synchronize_irq(me->irq);
 	}
 }
 
@@ -13022,7 +13023,7 @@ void hfi1_reset_vnic_msix_info(struct hfi1_ctxtdata *rcd)
 		return;
 
 	hfi1_put_irq_affinity(dd, me);
-	free_irq(me->msix.vector, me->arg);
+	free_irq(me->irq, me->arg);
 
 	me->arg = NULL;
 }
@@ -13050,14 +13051,19 @@ void hfi1_set_vnic_msix_info(struct hfi1_ctxtdata *rcd)
 		 DRIVER_NAME "_%d kctxt%d", dd->unit, idx);
 	me->name[sizeof(me->name) - 1] = 0;
 	me->type = IRQ_RCVCTXT;
-
+	me->irq = pci_irq_vector(dd->pcidev, rcd->msix_intr);
+	if (me->irq < 0) {
+		dd_dev_err(dd, "vnic irq vector request (idx %d) fail %d\n",
+			   idx, me->irq);
+		return;
+	}
 	remap_intr(dd, IS_RCVAVAIL_START + idx, rcd->msix_intr);
 
-	ret = request_threaded_irq(me->msix.vector, receive_context_interrupt,
+	ret = request_threaded_irq(me->irq, receive_context_interrupt,
 				   receive_context_thread, 0, me->name, arg);
 	if (ret) {
-		dd_dev_err(dd, "vnic irq request (vector %d, idx %d) fail %d\n",
-			   me->msix.vector, idx, ret);
+		dd_dev_err(dd, "vnic irq request (irq %d, idx %d) fail %d\n",
+			   me->irq, idx, ret);
 		return;
 	}
 	/*
@@ -13070,7 +13076,7 @@ void hfi1_set_vnic_msix_info(struct hfi1_ctxtdata *rcd)
 	if (ret) {
 		dd_dev_err(dd,
 			   "unable to pin IRQ %d\n", ret);
-		free_irq(me->msix.vector, me->arg);
+		free_irq(me->irq, me->arg);
 	}
 }
 
@@ -13093,9 +13099,8 @@ static void reset_interrupts(struct hfi1_devdata *dd)
 
 static int set_up_interrupts(struct hfi1_devdata *dd)
 {
-	struct hfi1_msix_entry *entries;
-	u32 total, request;
-	int i, ret;
+	u32 total;
+	int ret, request;
 	int single_interrupt = 0; /* we expect to have all the interrupts */
 
 	/*
@@ -13107,39 +13112,31 @@ static int set_up_interrupts(struct hfi1_devdata *dd)
 	 */
 	total = 1 + dd->num_sdma + dd->n_krcv_queues + HFI1_NUM_VNIC_CTXT;
 
-	entries = kcalloc(total, sizeof(*entries), GFP_KERNEL);
-	if (!entries) {
-		ret = -ENOMEM;
-		goto fail;
-	}
-	/* 1-1 MSI-X entry assignment */
-	for (i = 0; i < total; i++)
-		entries[i].msix.entry = i;
-
 	/* ask for MSI-X interrupts */
-	request = total;
-	request_msix(dd, &request, entries);
-
-	if (request == 0) {
+	request = request_msix(dd, total);
+	if (request < 0) {
+		ret = request;
+		goto fail;
+	} else if (request == 0) {
 		/* using INTx */
 		/* dd->num_msix_entries already zero */
-		kfree(entries);
 		single_interrupt = 1;
 		dd_dev_err(dd, "MSI-X failed, using INTx interrupts\n");
+	} else if (request < total) {
+		/* using MSI-X, with reduced interrupts */
+		dd_dev_err(dd, "reduced interrupt found, wanted %u, got %u\n",
+			   total, request);
+		ret = -EINVAL;
+		goto fail;
 	} else {
-		/* using MSI-X */
-		dd->num_msix_entries = request;
-		dd->msix_entries = entries;
-
-		if (request != total) {
-			/* using MSI-X, with reduced interrupts */
-			dd_dev_err(
-				dd,
-				"cannot handle reduced interrupt case, want %u, got %u\n",
-				total, request);
-			ret = -EINVAL;
+		dd->msix_entries = kcalloc(total, sizeof(*dd->msix_entries),
+					   GFP_KERNEL);
+		if (!dd->msix_entries) {
+			ret = -ENOMEM;
 			goto fail;
 		}
+		/* using MSI-X */
+		dd->num_msix_entries = total;
 		dd_dev_info(dd, "%u MSI-X interrupts allocated\n", total);
 	}
 
