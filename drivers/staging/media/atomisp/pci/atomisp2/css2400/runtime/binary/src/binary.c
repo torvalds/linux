@@ -36,10 +36,6 @@
 #endif
 
 #include "camera/pipe/interface/ia_css_pipe_binarydesc.h"
-#if defined(HAS_RES_MGR)
-#include <components/resolutions_mgr/src/host/resolutions_mgr.host.h>
-#include <components/acc_cluster/acc_dvs_stat/host/dvs_stat.host.h>
-#endif
 
 #include "memory_access.h"
 
@@ -110,10 +106,6 @@ ia_css_binary_internal_res(const struct ia_css_frame_info *in_info,
 	internal_res->height = __ISP_INTERNAL_HEIGHT(isp_tmp_internal_height,
 		info->pipeline.top_cropping,
 		binary_dvs_env.height);
-#if defined(HAS_RES_MGR)
-	internal_res->height = (bds_out_info == NULL) ? internal_res->height : bds_out_info->res.height;
-	internal_res->width = (bds_out_info == NULL) ? internal_res->width: bds_out_info->res.width;
-#endif
 }
 
 #ifndef ISP2401
@@ -787,25 +779,6 @@ ia_css_binary_dvs_stat_grid_info(
 	struct ia_css_grid_info *info,
 	struct ia_css_pipe *pipe)
 {
-#if defined(HAS_RES_MGR)
-	struct ia_css_dvs_stat_grid_info *dvs_stat_info;
-	unsigned int i;
-
-	assert(binary != NULL);
-	assert(info != NULL);
-	dvs_stat_info = &info->dvs_grid.dvs_stat_grid_info;
-
-	if (binary->info->sp.enable.dvs_stats) {
-		for (i = 0; i < IA_CSS_SKC_DVS_STAT_NUM_OF_LEVELS; i++) {
-			dvs_stat_info->grd_cfg[i].grd_start.enable = 1;
-		}
-		ia_css_dvs_stat_grid_calculate(pipe, dvs_stat_info);
-	}
-	else {
-		memset(dvs_stat_info, 0, sizeof(struct ia_css_dvs_stat_grid_info));
-	}
-
-#endif
 	(void)pipe;
 	sh_css_binary_common_grid_info(binary, info);
 	return;
@@ -1088,9 +1061,6 @@ binary_in_frame_padded_width(int in_frame_width,
 	/* in other cases, the left padding pixels are always 128 */
 	nr_of_left_paddings = 2*ISP_VEC_NELEMS;
 #endif
-#if defined(HAS_RES_MGR)
-	(void)dvs_env_width;
-#endif
 	if (need_scaling) {
 		/* In SDV use-case, we need to match left-padding of
 		 * primary and the video binary. */
@@ -1101,9 +1071,7 @@ binary_in_frame_padded_width(int in_frame_width,
 					2*ISP_VEC_NELEMS);
 		} else {
 			/* Different than before, we do left&right padding. */
-#if !defined(HAS_RES_MGR) /* dvs env is included already */
 			in_frame_width += dvs_env_width;
-#endif
 			rval =
 				CEIL_MUL(in_frame_width +
 					(left_cropping ? nr_of_left_paddings : 0),
@@ -1214,10 +1182,8 @@ ia_css_binary_fill_info(const struct ia_css_binary_xinfo *xinfo,
 		binary->in_frame_info.res.width = in_info->res.width + info->pipeline.left_cropping;
 		binary->in_frame_info.res.height = in_info->res.height + info->pipeline.top_cropping;
 
-#if !defined(HAS_RES_MGR) /* dvs env is included already */
 		binary->in_frame_info.res.width += dvs_env_width;
 		binary->in_frame_info.res.height += dvs_env_height;
-#endif
 
 		binary->in_frame_info.padded_width =
 			binary_in_frame_padded_width(in_info->res.width,

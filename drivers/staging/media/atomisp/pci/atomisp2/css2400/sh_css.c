@@ -98,10 +98,6 @@ static int thread_alive;
 
 #include "isp/modes/interface/input_buf.isp.h"
 
-#if defined(HAS_RES_MGR)
-#include "components/acc_cluster/gen/host/acc_cluster.host.h"
-#endif
-
 /* Name of the sp program: should not be built-in */
 #define SP_PROG_NAME "sp"
 /* Size of Refcount List */
@@ -6244,9 +6240,6 @@ static enum ia_css_err load_primary_binaries(
 #else
 				 *pipe_vf_out_info;
 #endif
-#if defined(HAS_RES_MGR)
-	struct ia_css_frame_info bds_out_info;
-#endif
 	enum ia_css_err err = IA_CSS_SUCCESS;
 	struct ia_css_capture_settings *mycs;
 	unsigned int i;
@@ -6368,10 +6361,6 @@ static enum ia_css_err load_primary_binaries(
 				&cas_scaler_descr.out_info[i],
 				&cas_scaler_descr.internal_out_info[i],
 				&cas_scaler_descr.vf_info[i]);
-#if defined(HAS_RES_MGR)
-			bds_out_info.res = pipe->config.bayer_ds_out_res;
-			yuv_scaler_descr.bds_out_info = &bds_out_info;
-#endif
 			err = ia_css_binary_find(&yuv_scaler_descr,
 						&mycs->yuv_scaler_binary[i]);
 			if (err != IA_CSS_SUCCESS) {
@@ -6422,10 +6411,6 @@ static enum ia_css_err load_primary_binaries(
 			&capture_pp_descr, &prim_out_info,
 #endif
 			&capt_pp_out_info, &vf_info);
-#if defined(HAS_RES_MGR)
-			bds_out_info.res = pipe->config.bayer_ds_out_res;
-			capture_pp_descr.bds_out_info = &bds_out_info;
-#endif
 		err = ia_css_binary_find(&capture_pp_descr,
 					&mycs->capture_pp_binary);
 		if (err != IA_CSS_SUCCESS) {
@@ -6461,10 +6446,6 @@ static enum ia_css_err load_primary_binaries(
 			if (pipe->enable_viewfinder[IA_CSS_PIPE_OUTPUT_STAGE_0] && (i == mycs->num_primary_stage - 1))
 				local_vf_info = &vf_info;
 			ia_css_pipe_get_primary_binarydesc(pipe, &prim_descr[i], &prim_in_info, &prim_out_info, local_vf_info, i);
-#if defined(HAS_RES_MGR)
-			bds_out_info.res = pipe->config.bayer_ds_out_res;
-			prim_descr[i].bds_out_info = &bds_out_info;
-#endif
 			err = ia_css_binary_find(&prim_descr[i], &mycs->primary_binary[i]);
 			if (err != IA_CSS_SUCCESS) {
 				IA_CSS_LEAVE_ERR_PRIVATE(err);
@@ -6498,10 +6479,6 @@ static enum ia_css_err load_primary_binaries(
 
 		ia_css_pipe_get_vfpp_binarydesc(pipe,
 				&vf_pp_descr, vf_pp_in_info, pipe_vf_out_info);
-#if defined(HAS_RES_MGR)
-		bds_out_info.res = pipe->config.bayer_ds_out_res;
-		vf_pp_descr.bds_out_info = &bds_out_info;
-#endif
 		err = ia_css_binary_find(&vf_pp_descr, &mycs->vf_pp_binary);
 		if (err != IA_CSS_SUCCESS) {
 			IA_CSS_LEAVE_ERR_PRIVATE(err);
@@ -9821,13 +9798,6 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 		err = sh_css_pipe_load_binaries(curr_pipe);
 		if (err != IA_CSS_SUCCESS)
 			goto ERR;
-
-#if defined(HAS_RES_MGR)
-		/* update acc configuration - striping info is ready */
-		err = ia_css_update_cfg_stripe_info(curr_pipe);
-		if (err != IA_CSS_SUCCESS)
-			goto ERR;
-#endif
 
 		/* handle each pipe */
 		pipe_info = &curr_pipe->info;
