@@ -97,8 +97,9 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 
 	switch (variable) {
 	case HW_VAR_BSSID:
-		rtl92e_writel(dev, BSSIDR, ((u32 *)(val))[0]);
-		rtl92e_writew(dev, BSSIDR+2, ((u16 *)(val+2))[0]);
+		/* BSSIDR 2 byte alignment */
+		rtl92e_writew(dev, BSSIDR, *(u16 *)val);
+		rtl92e_writel(dev, BSSIDR + 2, *(u32 *)(val + 2));
 		break;
 
 	case HW_VAR_MEDIA_STATUS:
@@ -626,7 +627,7 @@ void rtl92e_get_eeprom_size(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	RT_TRACE(COMP_INIT, "===========>%s()\n", __func__);
-	curCR = rtl92e_readl(dev, EPROM_CMD);
+	curCR = rtl92e_readw(dev, EPROM_CMD);
 	RT_TRACE(COMP_INIT, "read from Reg Cmd9346CR(%x):%x\n", EPROM_CMD,
 		 curCR);
 	priv->epromtype = (curCR & EPROM_CMD_9356SEL) ? EEPROM_93C56 :
@@ -963,8 +964,8 @@ static void _rtl92e_net_update(struct net_device *dev)
 	rtl92e_config_rate(dev, &rate_config);
 	priv->dot11CurrentPreambleMode = PREAMBLE_AUTO;
 	 priv->basic_rate = rate_config &= 0x15f;
-	rtl92e_writel(dev, BSSIDR, ((u32 *)net->bssid)[0]);
-	rtl92e_writew(dev, BSSIDR+4, ((u16 *)net->bssid)[2]);
+	rtl92e_writew(dev, BSSIDR, *(u16 *)net->bssid);
+	rtl92e_writel(dev, BSSIDR + 2, *(u32 *)(net->bssid + 2));
 
 	if (priv->rtllib->iw_mode == IW_MODE_ADHOC) {
 		rtl92e_writew(dev, ATIMWND, 2);
