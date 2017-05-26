@@ -301,6 +301,14 @@ static int atmel_classd_codec_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
+static int atmel_classd_codec_resume(struct snd_soc_codec *codec)
+{
+	struct snd_soc_card *card = snd_soc_codec_get_drvdata(codec);
+	struct atmel_classd *dd = snd_soc_card_get_drvdata(card);
+
+	return regcache_sync(dd->regmap);
+}
+
 static struct regmap *atmel_classd_codec_get_remap(struct device *dev)
 {
 	return dev_get_regmap(dev, NULL);
@@ -308,6 +316,7 @@ static struct regmap *atmel_classd_codec_get_remap(struct device *dev)
 
 static struct snd_soc_codec_driver soc_codec_dev_classd = {
 	.probe		= atmel_classd_codec_probe,
+	.resume		= atmel_classd_codec_resume,
 	.get_regmap	= atmel_classd_codec_get_remap,
 	.component_driver = {
 		.controls		= atmel_classd_snd_controls,
