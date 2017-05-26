@@ -3025,19 +3025,21 @@ mlxsw_sp_port_vlan_rif_sp_create(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan,
 	u16 fid, rif_index;
 	int err;
 
+	vr = mlxsw_sp_vr_get(mlxsw_sp, tb_id ? : RT_TABLE_MAIN);
+	if (IS_ERR(vr))
+		return ERR_CAST(vr);
+
 	rif_index = mlxsw_sp_avail_rif_get(mlxsw_sp);
-	if (rif_index == MLXSW_SP_INVALID_INDEX_RIF)
-		return ERR_PTR(-ERANGE);
+	if (rif_index == MLXSW_SP_INVALID_INDEX_RIF) {
+		err = -ERANGE;
+		goto err_avail_rif_get;
+	}
 
 	fid = mlxsw_sp_rif_sp_to_fid(rif_index);
 	f = mlxsw_sp_rfid_alloc(fid, l3_dev);
-	if (!f)
-		return ERR_PTR(-ENOMEM);
-
-	vr = mlxsw_sp_vr_get(mlxsw_sp, tb_id ? : RT_TABLE_MAIN);
-	if (IS_ERR(vr)) {
-		err = PTR_ERR(vr);
-		goto err_vr_get;
+	if (!f) {
+		err = -ENOMEM;
+		goto err_rfid_alloc;
 	}
 
 	rif = mlxsw_sp_rif_alloc(rif_index, vr->id, l3_dev, f, true);
@@ -3084,9 +3086,10 @@ err_rif_fdb_op:
 err_port_vlan_rif_sp_op:
 	kfree(rif);
 err_rif_alloc:
-	mlxsw_sp_vr_put(vr);
-err_vr_get:
 	kfree(f);
+err_rfid_alloc:
+err_avail_rif_get:
+	mlxsw_sp_vr_put(vr);
 	return ERR_PTR(err);
 }
 
@@ -3113,8 +3116,8 @@ mlxsw_sp_port_vlan_rif_sp_destroy(struct mlxsw_sp *mlxsw_sp,
 
 	mlxsw_sp_port_vlan_rif_sp_op(mlxsw_sp, rif, false);
 	kfree(rif);
-	mlxsw_sp_vr_put(vr);
 	kfree(f);
+	mlxsw_sp_vr_put(vr);
 }
 
 static int
@@ -3345,13 +3348,15 @@ static int mlxsw_sp_rif_bridge_create(struct mlxsw_sp *mlxsw_sp,
 	u16 rif_index;
 	int err;
 
-	rif_index = mlxsw_sp_avail_rif_get(mlxsw_sp);
-	if (rif_index == MLXSW_SP_INVALID_INDEX_RIF)
-		return -ERANGE;
-
 	vr = mlxsw_sp_vr_get(mlxsw_sp, tb_id ? : RT_TABLE_MAIN);
 	if (IS_ERR(vr))
 		return PTR_ERR(vr);
+
+	rif_index = mlxsw_sp_avail_rif_get(mlxsw_sp);
+	if (rif_index == MLXSW_SP_INVALID_INDEX_RIF) {
+		err = -ERANGE;
+		goto err_avail_rif_get;
+	}
 
 	rif = mlxsw_sp_rif_alloc(rif_index, vr->id, l3_dev, f, false);
 	if (!rif) {
@@ -3386,6 +3391,7 @@ err_port_flood_set:
 err_rif_bridge_op:
 	kfree(rif);
 err_rif_alloc:
+err_avail_rif_get:
 	mlxsw_sp_vr_put(vr);
 	return err;
 }
