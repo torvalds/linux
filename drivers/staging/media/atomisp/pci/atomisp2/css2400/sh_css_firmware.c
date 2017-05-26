@@ -92,12 +92,7 @@ setup_binary(struct ia_css_fw_info *fw, const char *fw_data, struct ia_css_fw_in
 
 	*sh_css_fw = *fw;
 
-#if defined(HRT_UNSCHED)
-	sh_css_fw->blob.code = vmalloc(1);
-#else
 	sh_css_fw->blob.code = vmalloc(fw->blob.size);
-#endif
-
 	if (sh_css_fw->blob.code == NULL)
 		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 

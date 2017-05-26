@@ -1575,7 +1575,6 @@ static bool sh_css_setup_spctrl_config(const struct ia_css_fw_info *fw,
 	spctrl_cfg->sp_entry = 0;
 	spctrl_cfg->program_name = (char *)(program);
 
-#if !defined(HRT_UNSCHED)
 	spctrl_cfg->ddr_data_offset =  fw->blob.data_source;
 	spctrl_cfg->dmem_data_addr = fw->blob.data_target;
 	spctrl_cfg->dmem_bss_addr = fw->blob.bss_target;
@@ -1588,7 +1587,7 @@ static bool sh_css_setup_spctrl_config(const struct ia_css_fw_info *fw,
 	spctrl_cfg->code_size = fw->blob.size;
 	spctrl_cfg->code      = fw->blob.code;
 	spctrl_cfg->sp_entry  = fw->info.sp.sp_entry; /* entry function ptr on SP */
-#endif
+
 	return true;
 }
 void
@@ -8570,9 +8569,7 @@ remove_firmware(struct ia_css_fw_info **l, struct ia_css_fw_info *firmware)
 	return; /* removing single and multiple firmware is handled in acc_unload_extension() */
 }
 
-#if !defined(HRT_UNSCHED)
-static enum ia_css_err
-upload_isp_code(struct ia_css_fw_info *firmware)
+static enum ia_css_err upload_isp_code(struct ia_css_fw_info *firmware)
 {
 	hrt_vaddress binary;
 
@@ -8600,12 +8597,10 @@ upload_isp_code(struct ia_css_fw_info *firmware)
 		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 	return IA_CSS_SUCCESS;
 }
-#endif
 
 static enum ia_css_err
 acc_load_extension(struct ia_css_fw_info *firmware)
 {
-#if !defined(HRT_UNSCHED)
 	enum ia_css_err err;
 	struct ia_css_fw_info *hd = firmware;
 	while (hd){
@@ -8614,7 +8609,6 @@ acc_load_extension(struct ia_css_fw_info *firmware)
 			return err;
 		hd = hd->next;
 	}
-#endif
 
 	if (firmware == NULL)
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
