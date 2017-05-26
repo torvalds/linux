@@ -191,10 +191,9 @@ cfs_trace_get_tage_try(struct cfs_trace_cpu_data *tcd, unsigned long len)
 		} else {
 			tage = cfs_tage_alloc(GFP_ATOMIC);
 			if (unlikely(!tage)) {
-				if ((!memory_pressure_get() ||
-				     in_interrupt()) && printk_ratelimit())
-					pr_warn("cannot allocate a tage (%ld)\n",
-						tcd->tcd_cur_pages);
+				if (!memory_pressure_get() || in_interrupt())
+					pr_warn_ratelimited("cannot allocate a tage (%ld)\n",
+							    tcd->tcd_cur_pages);
 				return NULL;
 			}
 		}
@@ -229,9 +228,8 @@ static void cfs_tcd_shrink(struct cfs_trace_cpu_data *tcd)
 	 * from here: this will lead to infinite recursion.
 	 */
 
-	if (printk_ratelimit())
-		pr_warn("debug daemon buffer overflowed; discarding 10%% of pages (%d of %ld)\n",
-			pgcount + 1, tcd->tcd_cur_pages);
+	pr_warn_ratelimited("debug daemon buffer overflowed; discarding 10%% of pages (%d of %ld)\n",
+			    pgcount + 1, tcd->tcd_cur_pages);
 
 	INIT_LIST_HEAD(&pc.pc_pages);
 
