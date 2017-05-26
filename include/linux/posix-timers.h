@@ -73,12 +73,6 @@ struct k_itimer {
 		} real;
 		struct cpu_timer_list cpu;
 		struct {
-			unsigned int clock;
-			unsigned int node;
-			unsigned long incr;
-			unsigned long expires;
-		} mmtimer;
-		struct {
 			struct alarm alarmtimer;
 			ktime_t interval;
 		} alarm;
