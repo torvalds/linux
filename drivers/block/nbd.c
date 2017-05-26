@@ -400,6 +400,7 @@ static int nbd_send_cmd(struct nbd_device *nbd, struct nbd_cmd *cmd, int index)
 	unsigned long size = blk_rq_bytes(req);
 	struct bio *bio;
 	u32 type;
+	u32 nbd_cmd_flags = 0;
 	u32 tag = blk_mq_unique_tag(req);
 	int sent = nsock->sent, skip = 0;
 
@@ -429,6 +430,9 @@ static int nbd_send_cmd(struct nbd_device *nbd, struct nbd_cmd *cmd, int index)
 		return -EIO;
 	}
 
+	if (req->cmd_flags & REQ_FUA)
+		nbd_cmd_flags |= NBD_CMD_FLAG_FUA;
+
 	/* We did a partial send previously, and we at least sent the whole
 	 * request struct, so just go and send the rest of the pages in the
 	 * request.
@@ -442,7 +446,7 @@ static int nbd_send_cmd(struct nbd_device *nbd, struct nbd_cmd *cmd, int index)
 	}
 	cmd->index = index;
 	cmd->cookie = nsock->cookie;
-	request.type = htonl(type);
+	request.type = htonl(type | nbd_cmd_flags);
 	if (type != NBD_CMD_FLUSH) {
 		request.from = cpu_to_be64((u64)blk_rq_pos(req) << 9);
 		request.len = htonl(size);
@@ -965,8 +969,12 @@ static void nbd_parse_flags(struct nbd_device *nbd)
 		set_disk_ro(nbd->disk, false);
 	if (config->flags & NBD_FLAG_SEND_TRIM)
 		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, nbd->disk->queue);
-	if (config->flags & NBD_FLAG_SEND_FLUSH)
-		blk_queue_write_cache(nbd->disk->queue, true, false);
+	if (config->flags & NBD_FLAG_SEND_FLUSH) {
+		if (config->flags & NBD_FLAG_SEND_FUA)
+			blk_queue_write_cache(nbd->disk->queue, true, true);
+		else
+			blk_queue_write_cache(nbd->disk->queue, true, false);
+	}
 	else
 		blk_queue_write_cache(nbd->disk->queue, false, false);
 }
@@ -1309,6 +1317,8 @@ static int nbd_dbg_flags_show(struct seq_file *s, void *unused)
 		seq_puts(s, "NBD_FLAG_READ_ONLY\n");
 	if (flags & NBD_FLAG_SEND_FLUSH)
 		seq_puts(s, "NBD_FLAG_SEND_FLUSH\n");
+	if (flags & NBD_FLAG_SEND_FUA)
+		seq_puts(s, "NBD_FLAG_SEND_FUA\n");
 	if (flags & NBD_FLAG_SEND_TRIM)
 		seq_puts(s, "NBD_FLAG_SEND_TRIM\n");
 
