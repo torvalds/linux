@@ -113,6 +113,7 @@ int amdgpu_pos_buf_per_se = 0;
 int amdgpu_cntl_sb_buf_per_se = 0;
 int amdgpu_param_buf_per_se = 0;
 int amdgpu_job_hang_limit = 0;
+int amdgpu_lbpw = -1;
 
 MODULE_PARM_DESC(vramlimit, "Restrict VRAM for testing, in megabytes");
 module_param_named(vramlimit, amdgpu_vram_limit, int, 0600);
@@ -238,6 +239,8 @@ module_param_named(param_buf_per_se, amdgpu_param_buf_per_se, int, 0444);
 MODULE_PARM_DESC(job_hang_limit, "how much time allow a job hang and not drop it (default 0)");
 module_param_named(job_hang_limit, amdgpu_job_hang_limit, int ,0444);
 
+MODULE_PARM_DESC(lbpw, "Load Balancing Per Watt (LBPW) support (1 = enable, 0 = disable, -1 = auto)");
+module_param_named(lbpw, amdgpu_lbpw, int, 0444);
 
 static const struct pci_device_id pciidlist[] = {
 #ifdef  CONFIG_DRM_AMDGPU_SI

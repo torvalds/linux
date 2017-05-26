@@ -683,6 +683,18 @@ static void gfx_v9_0_init_lbpw(struct amdgpu_device *adev)
 	mutex_unlock(&adev->grbm_idx_mutex);
 }
 
+static void gfx_v9_0_enable_lbpw(struct amdgpu_device *adev, bool enable)
+{
+        uint32_t data = 0;
+
+        data = RREG32_SOC15(GC, 0, mmRLC_LB_CNTL);
+        if (enable)
+                data |= RLC_LB_CNTL__LOAD_BALANCE_ENABLE_MASK;
+        else
+                data &= ~RLC_LB_CNTL__LOAD_BALANCE_ENABLE_MASK;
+        WREG32_SOC15(GC, 0, mmRLC_LB_CNTL, data);
+}
+
 static void rv_init_cp_jump_table(struct amdgpu_device *adev)
 {
 	const __le32 *fw_data;
@@ -2227,6 +2239,13 @@ static int gfx_v9_0_rlc_resume(struct amdgpu_device *adev)
 		r = gfx_v9_0_rlc_load_microcode(adev);
 		if (r)
 			return r;
+	}
+
+	if (adev->asic_type == CHIP_RAVEN) {
+		if (amdgpu_lbpw != 0)
+			gfx_v9_0_enable_lbpw(adev, true);
+		else
+			gfx_v9_0_enable_lbpw(adev, false);
 	}
 
 	gfx_v9_0_rlc_start(adev);
