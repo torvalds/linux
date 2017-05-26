@@ -97,6 +97,16 @@ struct mlxsw_sp_rif {
 	bool counter_egress_valid;
 };
 
+struct mlxsw_sp_rif_subport {
+	struct mlxsw_sp_rif common;
+	union {
+		u16 system_port;
+		u16 lag_id;
+	};
+	u16 vid;
+	bool lag;
+};
+
 static unsigned int *
 mlxsw_sp_rif_p_counter_get(struct mlxsw_sp_rif *rif,
 			   enum mlxsw_sp_rif_counter_dir dir)
@@ -2965,11 +2975,13 @@ mlxsw_sp_rfid_alloc(u16 fid, struct net_device *l3_dev)
 
 static struct mlxsw_sp_rif *
 mlxsw_sp_rif_alloc(u16 rif_index, u16 vr_id, struct net_device *l3_dev,
-		   struct mlxsw_sp_fid *f)
+		   struct mlxsw_sp_fid *f, bool is_subport)
 {
+	size_t size = is_subport ? sizeof(struct mlxsw_sp_rif_subport) :
+				   sizeof(struct mlxsw_sp_rif);
 	struct mlxsw_sp_rif *rif;
 
-	rif = kzalloc(sizeof(*rif), GFP_KERNEL);
+	rif = kzalloc(size, GFP_KERNEL);
 	if (!rif)
 		return NULL;
 
@@ -3007,6 +3019,7 @@ mlxsw_sp_port_vlan_rif_sp_create(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan,
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = mlxsw_sp_port_vlan->mlxsw_sp_port;
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	struct mlxsw_sp_rif_subport *rif_subport;
 	u32 tb_id = l3mdev_fib_table(l3_dev);
 	struct mlxsw_sp_vr *vr;
 	struct mlxsw_sp_fid *f;
@@ -3029,10 +3042,20 @@ mlxsw_sp_port_vlan_rif_sp_create(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan,
 		goto err_vr_get;
 	}
 
-	rif = mlxsw_sp_rif_alloc(rif_index, vr->id, l3_dev, f);
+	rif = mlxsw_sp_rif_alloc(rif_index, vr->id, l3_dev, f, true);
 	if (!rif) {
 		err = -ENOMEM;
 		goto err_rif_alloc;
+	}
+
+	rif_subport = container_of(rif, struct mlxsw_sp_rif_subport, common);
+	rif_subport->vid = mlxsw_sp_port_vlan->vid;
+	if (mlxsw_sp_port->lagged) {
+		rif_subport->lag = true;
+		rif_subport->lag_id = mlxsw_sp_port->lag_id;
+	} else {
+		rif_subport->lag = false;
+		rif_subport->system_port = mlxsw_sp_port->local_port;
 	}
 
 	err = mlxsw_sp_port_vlan_rif_sp_op(mlxsw_sp_port_vlan, vr->id, l3_dev,
@@ -3341,7 +3364,7 @@ static int mlxsw_sp_rif_bridge_create(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_port_flood_set;
 
-	rif = mlxsw_sp_rif_alloc(rif_index, vr->id, l3_dev, f);
+	rif = mlxsw_sp_rif_alloc(rif_index, vr->id, l3_dev, f, false);
 	if (!rif) {
 		err = -ENOMEM;
 		goto err_rif_alloc;
