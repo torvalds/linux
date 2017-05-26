@@ -1910,16 +1910,25 @@ static int intel_pt_event_synth(struct perf_tool *tool,
 						 NULL);
 }
 
-static int intel_pt_synth_event(struct perf_session *session,
+static int intel_pt_synth_event(struct perf_session *session, const char *name,
 				struct perf_event_attr *attr, u64 id)
 {
 	struct intel_pt_synth intel_pt_synth;
+	int err;
+
+	pr_debug("Synthesizing '%s' event with id %" PRIu64 " sample type %#" PRIx64 "\n",
+		 name, id, (u64)attr->sample_type);
 
 	memset(&intel_pt_synth, 0, sizeof(struct intel_pt_synth));
 	intel_pt_synth.session = session;
 
-	return perf_event__synthesize_attr(&intel_pt_synth.dummy_tool, attr, 1,
-					   &id, intel_pt_event_synth);
+	err = perf_event__synthesize_attr(&intel_pt_synth.dummy_tool, attr, 1,
+					  &id, intel_pt_event_synth);
+	if (err)
+		pr_err("%s: failed to synthesize '%s' event type\n",
+		       __func__, name);
+
+	return err;
 }
 
 static struct perf_evsel *intel_pt_evsel(struct intel_pt *pt,
@@ -1984,14 +1993,9 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 			attr.sample_type |= PERF_SAMPLE_CALLCHAIN;
 		if (pt->synth_opts.last_branch)
 			attr.sample_type |= PERF_SAMPLE_BRANCH_STACK;
-		pr_debug("Synthesizing 'instructions' event with id %" PRIu64 " sample type %#" PRIx64 "\n",
-			 id, (u64)attr.sample_type);
-		err = intel_pt_synth_event(session, &attr, id);
-		if (err) {
-			pr_err("%s: failed to synthesize 'instructions' event type\n",
-			       __func__);
+		err = intel_pt_synth_event(session, "instructions", &attr, id);
+		if (err)
 			return err;
-		}
 		pt->sample_instructions = true;
 		pt->instructions_sample_type = attr.sample_type;
 		pt->instructions_id = id;
@@ -2005,14 +2009,9 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 			attr.sample_type |= PERF_SAMPLE_CALLCHAIN;
 		if (pt->synth_opts.last_branch)
 			attr.sample_type |= PERF_SAMPLE_BRANCH_STACK;
-		pr_debug("Synthesizing 'transactions' event with id %" PRIu64 " sample type %#" PRIx64 "\n",
-			 id, (u64)attr.sample_type);
-		err = intel_pt_synth_event(session, &attr, id);
-		if (err) {
-			pr_err("%s: failed to synthesize 'transactions' event type\n",
-			       __func__);
+		err = intel_pt_synth_event(session, "transactions", &attr, id);
+		if (err)
 			return err;
-		}
 		pt->sample_transactions = true;
 		pt->transactions_sample_type = attr.sample_type;
 		pt->transactions_id = id;
@@ -2033,14 +2032,9 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 		attr.sample_type |= PERF_SAMPLE_ADDR;
 		attr.sample_type &= ~(u64)PERF_SAMPLE_CALLCHAIN;
 		attr.sample_type &= ~(u64)PERF_SAMPLE_BRANCH_STACK;
-		pr_debug("Synthesizing 'branches' event with id %" PRIu64 " sample type %#" PRIx64 "\n",
-			 id, (u64)attr.sample_type);
-		err = intel_pt_synth_event(session, &attr, id);
-		if (err) {
-			pr_err("%s: failed to synthesize 'branches' event type\n",
-			       __func__);
+		err = intel_pt_synth_event(session, "branches", &attr, id);
+		if (err)
 			return err;
-		}
 		pt->sample_branches = true;
 		pt->branches_sample_type = attr.sample_type;
 		pt->branches_id = id;
