@@ -81,7 +81,6 @@ struct intel_pt {
 
 	bool sample_instructions;
 	u64 instructions_sample_type;
-	u64 instructions_sample_period;
 	u64 instructions_id;
 
 	bool sample_branches;
@@ -1978,7 +1977,6 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 				intel_pt_ns_to_ticks(pt, pt->synth_opts.period);
 		else
 			attr.sample_period = pt->synth_opts.period;
-		pt->instructions_sample_period = attr.sample_period;
 		if (pt->synth_opts.callchain)
 			attr.sample_type |= PERF_SAMPLE_CALLCHAIN;
 		if (pt->synth_opts.last_branch)
