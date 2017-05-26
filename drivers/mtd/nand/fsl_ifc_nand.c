@@ -831,6 +831,8 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 	chip->select_chip = fsl_ifc_select_chip;
 	chip->cmdfunc = fsl_ifc_cmdfunc;
 	chip->waitfunc = fsl_ifc_wait;
+	chip->onfi_set_features = nand_onfi_get_set_features_notsupp;
+	chip->onfi_get_features = nand_onfi_get_set_features_notsupp;
 
 	chip->bbt_td = &bbt_main_descr;
 	chip->bbt_md = &bbt_mirror_descr;

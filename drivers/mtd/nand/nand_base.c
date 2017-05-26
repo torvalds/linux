@@ -3421,6 +3421,25 @@ static int nand_onfi_get_features(struct mtd_info *mtd, struct nand_chip *chip,
 }
 
 /**
+ * nand_onfi_get_set_features_notsupp - set/get features stub returning
+ *					-ENOTSUPP
+ * @mtd: MTD device structure
+ * @chip: nand chip info structure
+ * @addr: feature address.
+ * @subfeature_param: the subfeature parameters, a four bytes array.
+ *
+ * Should be used by NAND controller drivers that do not support the SET/GET
+ * FEATURES operations.
+ */
+int nand_onfi_get_set_features_notsupp(struct mtd_info *mtd,
+				       struct nand_chip *chip, int addr,
+				       u8 *subfeature_param)
+{
+	return -ENOTSUPP;
+}
+EXPORT_SYMBOL(nand_onfi_get_set_features_notsupp);
+
+/**
  * nand_suspend - [MTD Interface] Suspend the NAND flash
  * @mtd: MTD device structure
  */

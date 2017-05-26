@@ -1531,6 +1531,8 @@ int denali_init(struct denali_nand_info *denali)
 	chip->cmdfunc = denali_cmdfunc;
 	chip->read_byte = denali_read_byte;
 	chip->waitfunc = denali_waitfunc;
+	chip->onfi_set_features = nand_onfi_get_set_features_notsupp;
+	chip->onfi_get_features = nand_onfi_get_set_features_notsupp;
 
 	/*
 	 * scan for NAND devices attached to the controller

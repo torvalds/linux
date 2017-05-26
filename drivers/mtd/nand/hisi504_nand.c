@@ -764,6 +764,8 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 	chip->write_buf		= hisi_nfc_write_buf;
 	chip->read_buf		= hisi_nfc_read_buf;
 	chip->chip_delay	= HINFC504_CHIP_DELAY;
+	chip->onfi_set_features	= nand_onfi_get_set_features_notsupp;
+	chip->onfi_get_features	= nand_onfi_get_set_features_notsupp;
 
 	hisi_nfc_host_init(host);
 
