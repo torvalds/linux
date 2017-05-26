@@ -74,6 +74,7 @@ enum itrace_period_type {
  * @period: 'instructions' events period
  * @period_type: 'instructions' events period type
  * @initial_skip: skip N events at the beginning.
+ * @cpu_bitmap: CPUs for which to synthesize events, or NULL for all
  */
 struct itrace_synth_opts {
 	bool			set;
@@ -96,6 +97,7 @@ struct itrace_synth_opts {
 	unsigned long long	period;
 	enum itrace_period_type	period_type;
 	unsigned long		initial_skip;
+	unsigned long		*cpu_bitmap;
 };
 
 /**

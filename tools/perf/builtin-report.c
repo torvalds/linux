@@ -557,6 +557,7 @@ static int __cmd_report(struct report *rep)
 			ui__error("failed to set cpu bitmap\n");
 			return ret;
 		}
+		session->itrace_synth_opts->cpu_bitmap = rep->cpu_bitmap;
 	}
 
 	if (rep->show_threads) {
