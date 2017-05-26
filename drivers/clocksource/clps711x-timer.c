@@ -103,7 +103,7 @@ void __init clps711x_clksrc_init(void __iomem *tc1_base, void __iomem *tc2_base,
 	BUG_ON(_clps711x_clkevt_init(tc2, tc2_base, irq));
 }
 
-#ifdef CONFIG_CLKSRC_OF
+#ifdef CONFIG_TIMER_OF
 static int __init clps711x_timer_init(struct device_node *np)
 {
 	unsigned int irq = irq_of_parse_and_map(np, 0);

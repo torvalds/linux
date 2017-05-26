@@ -18,7 +18,7 @@ config ARCH_ALPINE
 
 config ARCH_BCM2835
 	bool "Broadcom BCM2835 family"
-	select CLKSRC_OF
+	select TIMER_OF
 	select GPIOLIB
 	select PINCTRL
 	select PINCTRL_BCM2835
@@ -178,7 +178,7 @@ config ARCH_TEGRA
 	select ARCH_HAS_RESET_CONTROLLER
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
-	select CLKSRC_OF
+	select TIMER_OF
 	select GENERIC_CLOCKEVENTS
 	select GPIOLIB
 	select PINCTRL

@@ -418,7 +418,7 @@ void __init samsung_pwm_clocksource_init(void __iomem *base,
 	_samsung_pwm_clocksource_init();
 }
 
-#ifdef CONFIG_CLKSRC_OF
+#ifdef CONFIG_TIMER_OF
 static int __init samsung_pwm_alloc(struct device_node *np,
 				    const struct samsung_pwm_variant *variant)
 {
