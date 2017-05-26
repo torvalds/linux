@@ -1931,6 +1931,21 @@ static int intel_pt_synth_event(struct perf_session *session, const char *name,
 	return err;
 }
 
+static void intel_pt_set_event_name(struct perf_evlist *evlist, u64 id,
+				    const char *name)
+{
+	struct perf_evsel *evsel;
+
+	evlist__for_each_entry(evlist, evsel) {
+		if (evsel->id && evsel->id[0] == id) {
+			if (evsel->name)
+				zfree(&evsel->name);
+			evsel->name = strdup(name);
+			break;
+		}
+	}
+}
+
 static struct perf_evsel *intel_pt_evsel(struct intel_pt *pt,
 					 struct perf_evlist *evlist)
 {
@@ -2015,15 +2030,8 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 		pt->sample_transactions = true;
 		pt->transactions_sample_type = attr.sample_type;
 		pt->transactions_id = id;
+		intel_pt_set_event_name(evlist, id, "transactions");
 		id += 1;
-		evlist__for_each_entry(evlist, evsel) {
-			if (evsel->id && evsel->id[0] == pt->transactions_id) {
-				if (evsel->name)
-					zfree(&evsel->name);
-				evsel->name = strdup("transactions");
-				break;
-			}
-		}
 	}
 
 	if (pt->synth_opts.branches) {
