@@ -130,7 +130,7 @@ static int intel_pt_get_cbr(const unsigned char *buf, size_t len,
 	if (len < 4)
 		return INTEL_PT_NEED_MORE_BYTES;
 	packet->type = INTEL_PT_CBR;
-	packet->payload = buf[2];
+	packet->payload = le16_to_cpu(*(uint16_t *)(buf + 2));
 	return 4;
 }
 

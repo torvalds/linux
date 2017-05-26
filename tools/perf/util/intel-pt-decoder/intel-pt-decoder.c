@@ -1444,7 +1444,7 @@ static void intel_pt_calc_mtc_timestamp(struct intel_pt_decoder *decoder)
 
 static void intel_pt_calc_cbr(struct intel_pt_decoder *decoder)
 {
-	unsigned int cbr = decoder->packet.payload;
+	unsigned int cbr = decoder->packet.payload & 0xff;
 
 	if (decoder->cbr == cbr)
 		return;
