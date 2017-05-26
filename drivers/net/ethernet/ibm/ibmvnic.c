@@ -1435,6 +1435,10 @@ static int ibmvnic_poll(struct napi_struct *napi, int budget)
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
 	int scrq_num = (int)(napi - adapter->napi);
 	int frames_processed = 0;
+
+	if (adapter->resetting)
+		return 0;
+
 restart_poll:
 	while (frames_processed < budget) {
 		struct sk_buff *skb;
@@ -1493,7 +1497,9 @@ restart_poll:
 		netdev->stats.rx_bytes += length;
 		frames_processed++;
 	}
-	replenish_rx_pool(adapter, &adapter->rx_pool[scrq_num]);
+
+	if (adapter->state != VNIC_CLOSING)
+		replenish_rx_pool(adapter, &adapter->rx_pool[scrq_num]);
 
 	if (frames_processed < budget) {
 		enable_scrq_irq(adapter, adapter->rx_scrq[scrq_num]);
