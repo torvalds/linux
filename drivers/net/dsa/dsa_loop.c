@@ -271,7 +271,7 @@ static int dsa_loop_drv_probe(struct mdio_device *mdiodev)
 
 	dev_set_drvdata(&mdiodev->dev, ds);
 
-	return dsa_register_switch(ds, ds->dev);
+	return dsa_register_switch(ds);
 }
 
 static void dsa_loop_drv_remove(struct mdio_device *mdiodev)

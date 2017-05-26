@@ -3884,7 +3884,7 @@ static int mv88e6xxx_register_switch(struct mv88e6xxx_chip *chip)
 
 	dev_set_drvdata(dev, ds);
 
-	return dsa_register_switch(ds, dev);
+	return dsa_register_switch(ds);
 }
 
 static void mv88e6xxx_unregister_switch(struct mv88e6xxx_chip *chip)

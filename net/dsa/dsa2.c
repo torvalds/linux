@@ -686,10 +686,10 @@ static struct device_node *dsa_get_ports(struct dsa_switch *ds,
 	return ports;
 }
 
-static int _dsa_register_switch(struct dsa_switch *ds, struct device *dev)
+static int _dsa_register_switch(struct dsa_switch *ds)
 {
-	struct dsa_chip_data *pdata = dev->platform_data;
-	struct device_node *np = dev->of_node;
+	struct dsa_chip_data *pdata = ds->dev->platform_data;
+	struct device_node *np = ds->dev->of_node;
 	struct dsa_switch_tree *dst;
 	struct device_node *ports;
 	u32 tree, index;
@@ -803,12 +803,12 @@ struct dsa_switch *dsa_switch_alloc(struct device *dev, size_t n)
 }
 EXPORT_SYMBOL_GPL(dsa_switch_alloc);
 
-int dsa_register_switch(struct dsa_switch *ds, struct device *dev)
+int dsa_register_switch(struct dsa_switch *ds)
 {
 	int err;
 
 	mutex_lock(&dsa2_mutex);
-	err = _dsa_register_switch(ds, dev);
+	err = _dsa_register_switch(ds);
 	mutex_unlock(&dsa2_mutex);
 
 	return err;

@@ -480,7 +480,7 @@ static inline bool netdev_uses_dsa(struct net_device *dev)
 
 struct dsa_switch *dsa_switch_alloc(struct device *dev, size_t n);
 void dsa_unregister_switch(struct dsa_switch *ds);
-int dsa_register_switch(struct dsa_switch *ds, struct device *dev);
+int dsa_register_switch(struct dsa_switch *ds);
 #ifdef CONFIG_PM_SLEEP
 int dsa_switch_suspend(struct dsa_switch *ds);
 int dsa_switch_resume(struct dsa_switch *ds);

@@ -958,7 +958,7 @@ qca8k_sw_probe(struct mdio_device *mdiodev)
 	mutex_init(&priv->reg_mutex);
 	dev_set_drvdata(&mdiodev->dev, priv);
 
-	return dsa_register_switch(priv->ds, &mdiodev->dev);
+	return dsa_register_switch(priv->ds);
 }
 
 static void
