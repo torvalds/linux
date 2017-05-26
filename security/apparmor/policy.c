@@ -690,17 +690,25 @@ bool policy_admin_capable(struct aa_ns *ns)
  *
  * Returns: 0 if the task is allowed to manipulate policy else error
  */
-int aa_may_manage_policy(struct aa_profile *profile, struct aa_ns *ns,
-			 const char *op)
+int aa_may_manage_policy(struct aa_profile *profile, struct aa_ns *ns, u32 mask)
 {
+	const char *op;
+
+	if (mask & AA_MAY_REMOVE_POLICY)
+		op = OP_PROF_RM;
+	else if (mask & AA_MAY_REPLACE_POLICY)
+		op = OP_PROF_REPL;
+	else
+		op = OP_PROF_LOAD;
+
 	/* check if loading policy is locked out */
 	if (aa_g_lock_policy)
-		return audit_policy(profile, op, NULL, NULL,
-			     "policy_locked", -EACCES);
+		return audit_policy(profile, op, NULL, NULL, "policy_locked",
+				    -EACCES);
 
 	if (!policy_admin_capable(ns))
-		return audit_policy(profile, op, NULL, NULL,
-				    "not policy admin", -EACCES);
+		return audit_policy(profile, op, NULL, NULL, "not policy admin",
+				    -EACCES);
 
 	/* TODO: add fine grained mediation of policy loads */
 	return 0;
@@ -825,7 +833,7 @@ static int __lookup_replace(struct aa_ns *ns, const char *hname,
  * aa_replace_profiles - replace profile(s) on the profile list
  * @view: namespace load is viewed from
  * @label: label that is attempting to load/replace policy
- * @noreplace: true if only doing addition, no replacement allowed
+ * @mask: permission mask
  * @udata: serialized data stream  (NOT NULL)
  *
  * unpack and replace a profile on the profile list and uses of that profile
@@ -835,17 +843,17 @@ static int __lookup_replace(struct aa_ns *ns, const char *hname,
  * Returns: size of data consumed else error code on failure.
  */
 ssize_t aa_replace_profiles(struct aa_ns *view, struct aa_profile *profile,
-			    bool noreplace, struct aa_loaddata *udata)
+			    u32 mask, struct aa_loaddata *udata)
 {
 	const char *ns_name, *info = NULL;
 	struct aa_ns *ns = NULL;
 	struct aa_load_ent *ent, *tmp;
 	struct aa_loaddata *rawdata_ent;
-	const char *op = OP_PROF_REPL;
+	const char *op;
 	ssize_t count, error;
-
 	LIST_HEAD(lh);
 
+	op = mask & AA_MAY_REPLACE_POLICY ? OP_PROF_REPL : OP_PROF_LOAD;
 	aa_get_loaddata(udata);
 	/* released below */
 	error = aa_unpack(udata, &lh, &ns_name);
@@ -909,15 +917,16 @@ ssize_t aa_replace_profiles(struct aa_ns *view, struct aa_profile *profile,
 		struct aa_policy *policy;
 
 		ent->new->rawdata = aa_get_loaddata(udata);
-		error = __lookup_replace(ns, ent->new->base.hname, noreplace,
+		error = __lookup_replace(ns, ent->new->base.hname,
+					 !(mask & AA_MAY_REPLACE_POLICY),
 					 &ent->old, &info);
 		if (error)
 			goto fail_lock;
 
 		if (ent->new->rename) {
 			error = __lookup_replace(ns, ent->new->rename,
-						 noreplace, &ent->rename,
-						 &info);
+					!(mask & AA_MAY_REPLACE_POLICY),
+					 &ent->rename, &info);
 			if (error)
 				goto fail_lock;
 		}

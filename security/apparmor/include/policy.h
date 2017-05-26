@@ -188,6 +188,10 @@ struct aa_profile {
 
 extern enum profile_mode aa_g_profile_mode;
 
+#define AA_MAY_LOAD_POLICY	AA_MAY_APPEND
+#define AA_MAY_REPLACE_POLICY	AA_MAY_WRITE
+#define AA_MAY_REMOVE_POLICY	AA_MAY_DELETE
+
 void __aa_update_proxy(struct aa_profile *orig, struct aa_profile *new);
 
 void aa_add_profile(struct aa_policy *common, struct aa_profile *profile);
@@ -208,7 +212,7 @@ struct aa_profile *aa_fqlookupn_profile(struct aa_profile *base,
 struct aa_profile *aa_match_profile(struct aa_ns *ns, const char *name);
 
 ssize_t aa_replace_profiles(struct aa_ns *view, struct aa_profile *profile,
-			    bool noreplace, struct aa_loaddata *udata);
+			    u32 mask, struct aa_loaddata *udata);
 ssize_t aa_remove_profiles(struct aa_ns *view, struct aa_profile *profile,
 			    char *name, size_t size);
 void __aa_profile_list_release(struct list_head *head);
@@ -323,6 +327,6 @@ static inline int AUDIT_MODE(struct aa_profile *profile)
 bool policy_view_capable(struct aa_ns *ns);
 bool policy_admin_capable(struct aa_ns *ns);
 int aa_may_manage_policy(struct aa_profile *profile, struct aa_ns *ns,
-			 const char *op);
+			 u32 mask);
 
 #endif /* __AA_POLICY_H */

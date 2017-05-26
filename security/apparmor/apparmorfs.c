@@ -400,17 +400,16 @@ static struct aa_loaddata *aa_simple_write_to_buffer(const char __user *userbuf,
 	return data;
 }
 
-static ssize_t policy_update(int binop, const char __user *buf, size_t size,
+static ssize_t policy_update(u32 mask, const char __user *buf, size_t size,
 			     loff_t *pos, struct aa_ns *ns)
 {
 	ssize_t error;
 	struct aa_loaddata *data;
 	struct aa_profile *profile = aa_current_profile();
-	const char *op = binop == PROF_ADD ? OP_PROF_LOAD : OP_PROF_REPL;
 	/* high level check about policy management - fine grained in
 	 * below after unpack
 	 */
-	error = aa_may_manage_policy(profile, ns, op);
+	error = aa_may_manage_policy(profile, ns, mask);
 	if (error)
 		return error;
 
@@ -418,7 +417,7 @@ static ssize_t policy_update(int binop, const char __user *buf, size_t size,
 	error = PTR_ERR(data);
 	if (!IS_ERR(data)) {
 		error = aa_replace_profiles(ns ? ns : profile->ns, profile,
-					    binop, data);
+					    mask, data);
 		aa_put_loaddata(data);
 	}
 
@@ -430,7 +429,7 @@ static ssize_t profile_load(struct file *f, const char __user *buf, size_t size,
 			    loff_t *pos)
 {
 	struct aa_ns *ns = aa_get_ns(f->f_inode->i_private);
-	int error = policy_update(PROF_ADD, buf, size, pos, ns);
+	int error = policy_update(AA_MAY_LOAD_POLICY, buf, size, pos, ns);
 
 	aa_put_ns(ns);
 
@@ -447,8 +446,8 @@ static ssize_t profile_replace(struct file *f, const char __user *buf,
 			       size_t size, loff_t *pos)
 {
 	struct aa_ns *ns = aa_get_ns(f->f_inode->i_private);
-	int error = policy_update(PROF_REPLACE, buf, size, pos, ns);
-
+	int error = policy_update(AA_MAY_LOAD_POLICY | AA_MAY_REPLACE_POLICY,
+				  buf, size, pos, ns);
 	aa_put_ns(ns);
 
 	return error;
@@ -472,7 +471,7 @@ static ssize_t profile_remove(struct file *f, const char __user *buf,
 	/* high level check about policy management - fine grained in
 	 * below after unpack
 	 */
-	error = aa_may_manage_policy(profile, ns, OP_PROF_RM);
+	error = aa_may_manage_policy(profile, ns, AA_MAY_REMOVE_POLICY);
 	if (error)
 		goto out;
 
