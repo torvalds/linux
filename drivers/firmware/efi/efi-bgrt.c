@@ -36,6 +36,9 @@ void __init efi_bgrt_init(struct acpi_table_header *table)
 	if (acpi_disabled)
 		return;
 
+	if (!efi_enabled(EFI_BOOT))
+		return;
+
 	if (table->length < sizeof(bgrt_tab)) {
 		pr_notice("Ignoring BGRT: invalid length %u (expected %zu)\n",
 		       table->length, sizeof(bgrt_tab));
