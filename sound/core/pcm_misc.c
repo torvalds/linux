@@ -23,6 +23,9 @@
 #include <linux/export.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
+
+#include "pcm_local.h"
+
 #define SND_PCM_FORMAT_UNKNOWN (-1)
 
 /* NOTE: "signed" prefix must be given below since the default char is

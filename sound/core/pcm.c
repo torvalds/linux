@@ -31,6 +31,8 @@
 #include <sound/control.h>
 #include <sound/info.h>
 
+#include "pcm_local.h"
+
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>, Abramo Bagnara <abramo@alsa-project.org>");
 MODULE_DESCRIPTION("Midlevel PCM code for ALSA.");
 MODULE_LICENSE("GPL");
