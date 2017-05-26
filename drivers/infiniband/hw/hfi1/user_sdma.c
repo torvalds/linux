@@ -117,6 +117,7 @@ MODULE_PARM_DESC(sdma_comp_size, "Size of User SDMA completion ring. Default: 12
 
 #define AHG_KDETH_INTR_SHIFT 12
 #define AHG_KDETH_SH_SHIFT   13
+#define AHG_KDETH_ARRAY_SIZE  9
 
 #define PBC2LRH(x) ((((x) & 0xfff) << 2) - 4)
 #define LRH2PBC(x) ((((x) >> 2) + 1) & 0xfff)
@@ -204,25 +205,42 @@ struct evict_data {
 };
 
 struct user_sdma_request {
-	struct sdma_req_info info;
-	struct hfi1_user_sdma_pkt_q *pq;
-	struct hfi1_user_sdma_comp_q *cq;
 	/* This is the original header from user space */
 	struct hfi1_pkt_header hdr;
+
+	/* Read mostly fields */
+	struct hfi1_user_sdma_pkt_q *pq ____cacheline_aligned_in_smp;
+	struct hfi1_user_sdma_comp_q *cq;
 	/*
 	 * Pointer to the SDMA engine for this request.
 	 * Since different request could be on different VLs,
 	 * each request will need it's own engine pointer.
 	 */
 	struct sdma_engine *sde;
-	s8 ahg_idx;
-	u32 ahg[9];
+	struct sdma_req_info info;
+	/* TID array values copied from the tid_iov vector */
+	u32 *tids;
+	/* total length of the data in the request */
+	u32 data_len;
+	/* number of elements copied to the tids array */
+	u16 n_tids;
 	/*
-	 * KDETH.Offset (Eager) field
-	 * We need to remember the initial value so the headers
-	 * can be updated properly.
+	 * We copy the iovs for this request (based on
+	 * info.iovcnt). These are only the data vectors
 	 */
-	u32 koffset;
+	u8 data_iovs;
+	s8 ahg_idx;
+
+	/* Writeable fields shared with interrupt */
+	u64 seqcomp ____cacheline_aligned_in_smp;
+	u64 seqsubmitted;
+	unsigned long flags;
+	/* status of the last txreq completed */
+	int status;
+
+	/* Send side fields */
+	struct list_head txps ____cacheline_aligned_in_smp;
+	u64 seqnum;
 	/*
 	 * KDETH.OFFSET (TID) field
 	 * The offset can cover multiple packets, depending on the
@@ -230,29 +248,19 @@ struct user_sdma_request {
 	 */
 	u32 tidoffset;
 	/*
-	 * We copy the iovs for this request (based on
-	 * info.iovcnt). These are only the data vectors
+	 * KDETH.Offset (Eager) field
+	 * We need to remember the initial value so the headers
+	 * can be updated properly.
 	 */
-	unsigned data_iovs;
-	/* total length of the data in the request */
-	u32 data_len;
-	/* progress index moving along the iovs array */
-	unsigned iov_idx;
-	struct user_sdma_iovec iovs[MAX_VECTORS_PER_REQ];
-	/* number of elements copied to the tids array */
-	u16 n_tids;
-	/* TID array values copied from the tid_iov vector */
-	u32 *tids;
-	u16 tididx;
+	u32 koffset;
 	u32 sent;
-	u64 seqnum;
-	u64 seqcomp;
-	u64 seqsubmitted;
-	struct list_head txps;
-	unsigned long flags;
-	/* status of the last txreq completed */
-	int status;
-};
+	/* TID index copied from the tid_iov vector */
+	u16 tididx;
+	/* progress index moving along the iovs array */
+	u8 iov_idx;
+
+	struct user_sdma_iovec iovs[MAX_VECTORS_PER_REQ];
+} ____cacheline_aligned_in_smp;
 
 /*
  * A single txreq could span up to 3 physical pages when the MTU
@@ -1034,11 +1042,6 @@ static int user_sdma_send_pkts(struct user_sdma_request *req, unsigned maxpkts)
 							       datalen);
 				if (changes < 0)
 					goto free_tx;
-				sdma_txinit_ahg(&tx->txreq,
-						SDMA_TXREQ_F_USE_AHG,
-						datalen, req->ahg_idx, changes,
-						req->ahg, sizeof(req->hdr),
-						user_sdma_txreq_cb);
 			}
 		} else {
 			ret = sdma_txinit(&tx->txreq, 0, sizeof(req->hdr) +
@@ -1442,21 +1445,22 @@ done:
 }
 
 static int set_txreq_header_ahg(struct user_sdma_request *req,
-				struct user_sdma_txreq *tx, u32 len)
+				struct user_sdma_txreq *tx, u32 datalen)
 {
+	u32 ahg[AHG_KDETH_ARRAY_SIZE];
 	int diff = 0;
 	u8 omfactor; /* KDETH.OM */
 	struct hfi1_user_sdma_pkt_q *pq = req->pq;
 	struct hfi1_pkt_header *hdr = &req->hdr;
 	u16 pbclen = le16_to_cpu(hdr->pbc[0]);
-	u32 val32, tidval = 0, lrhlen = get_lrh_len(*hdr, pad_len(len));
+	u32 val32, tidval = 0, lrhlen = get_lrh_len(*hdr, pad_len(datalen));
 
 	if (PBC2LRH(pbclen) != lrhlen) {
 		/* PBC.PbcLengthDWs */
-		AHG_HEADER_SET(req->ahg, diff, 0, 0, 12,
+		AHG_HEADER_SET(ahg, diff, 0, 0, 12,
 			       cpu_to_le16(LRH2PBC(lrhlen)));
 		/* LRH.PktLen (we need the full 16 bits due to byte swap) */
-		AHG_HEADER_SET(req->ahg, diff, 3, 0, 16,
+		AHG_HEADER_SET(ahg, diff, 3, 0, 16,
 			       cpu_to_be16(lrhlen >> 2));
 	}
 
@@ -1468,13 +1472,12 @@ static int set_txreq_header_ahg(struct user_sdma_request *req,
 		(HFI1_CAP_IS_KSET(EXTENDED_PSN) ? 0x7fffffff : 0xffffff);
 	if (unlikely(tx->flags & TXREQ_FLAGS_REQ_ACK))
 		val32 |= 1UL << 31;
-	AHG_HEADER_SET(req->ahg, diff, 6, 0, 16, cpu_to_be16(val32 >> 16));
-	AHG_HEADER_SET(req->ahg, diff, 6, 16, 16, cpu_to_be16(val32 & 0xffff));
+	AHG_HEADER_SET(ahg, diff, 6, 0, 16, cpu_to_be16(val32 >> 16));
+	AHG_HEADER_SET(ahg, diff, 6, 16, 16, cpu_to_be16(val32 & 0xffff));
 	/* KDETH.Offset */
-	AHG_HEADER_SET(req->ahg, diff, 15, 0, 16,
+	AHG_HEADER_SET(ahg, diff, 15, 0, 16,
 		       cpu_to_le16(req->koffset & 0xffff));
-	AHG_HEADER_SET(req->ahg, diff, 15, 16, 16,
-		       cpu_to_le16(req->koffset >> 16));
+	AHG_HEADER_SET(ahg, diff, 15, 16, 16, cpu_to_le16(req->koffset >> 16));
 	if (req_opcode(req->info.ctrl) == EXPECTED) {
 		__le16 val;
 
@@ -1492,9 +1495,8 @@ static int set_txreq_header_ahg(struct user_sdma_request *req,
 			 * we have to check again.
 			 */
 			if (++req->tididx > req->n_tids - 1 ||
-			    !req->tids[req->tididx]) {
+			    !req->tids[req->tididx])
 				return -EINVAL;
-			}
 			tidval = req->tids[req->tididx];
 		}
 		omfactor = ((EXP_TID_GET(tidval, LEN) *
@@ -1502,7 +1504,7 @@ static int set_txreq_header_ahg(struct user_sdma_request *req,
 				 KDETH_OM_MAX_SIZE) ? KDETH_OM_LARGE_SHIFT :
 				 KDETH_OM_SMALL_SHIFT;
 		/* KDETH.OM and KDETH.OFFSET (TID) */
-		AHG_HEADER_SET(req->ahg, diff, 7, 0, 16,
+		AHG_HEADER_SET(ahg, diff, 7, 0, 16,
 			       ((!!(omfactor - KDETH_OM_SMALL_SHIFT)) << 15 |
 				((req->tidoffset >> omfactor)
 				 & 0x7fff)));
@@ -1522,12 +1524,20 @@ static int set_txreq_header_ahg(struct user_sdma_request *req,
 					     AHG_KDETH_INTR_SHIFT));
 		}
 
-		AHG_HEADER_SET(req->ahg, diff, 7, 16, 14, val);
+		AHG_HEADER_SET(ahg, diff, 7, 16, 14, val);
 	}
+	if (diff < 0)
+		return diff;
 
 	trace_hfi1_sdma_user_header_ahg(pq->dd, pq->ctxt, pq->subctxt,
 					req->info.comp_idx, req->sde->this_idx,
-					req->ahg_idx, req->ahg, diff, tidval);
+					req->ahg_idx, ahg, diff, tidval);
+	sdma_txinit_ahg(&tx->txreq,
+			SDMA_TXREQ_F_USE_AHG,
+			datalen, req->ahg_idx, diff,
+			ahg, sizeof(req->hdr),
+			user_sdma_txreq_cb);
+
 	return diff;
 }
 
