@@ -1322,6 +1322,97 @@ fail2:
 	return error;
 }
 
+static int ns_mkdir_op(struct inode *dir, struct dentry *dentry, umode_t mode)
+{
+	struct aa_ns *ns, *parent;
+	/* TODO: improve permission check */
+	struct aa_profile *profile = aa_current_profile();
+	int error = aa_may_manage_policy(profile, NULL, AA_MAY_LOAD_POLICY);
+
+	if (error)
+		return error;
+
+	parent = aa_get_ns(dir->i_private);
+	AA_BUG(d_inode(ns_subns_dir(parent)) != dir);
+
+	/* we have to unlock and then relock to get locking order right
+	 * for pin_fs
+	 */
+	inode_unlock(dir);
+	error = simple_pin_fs(&aafs_ops, &aafs_mnt, &aafs_count);
+	mutex_lock(&parent->lock);
+	inode_lock_nested(dir, I_MUTEX_PARENT);
+	if (error)
+		goto out;
+
+	error = __aafs_setup_d_inode(dir, dentry, mode | S_IFDIR,  NULL,
+				     NULL, NULL, NULL);
+	if (error)
+		goto out_pin;
+
+	ns = __aa_find_or_create_ns(parent, READ_ONCE(dentry->d_name.name),
+				    dentry);
+	if (IS_ERR(ns)) {
+		error = PTR_ERR(ns);
+		ns = NULL;
+	}
+
+	aa_put_ns(ns);		/* list ref remains */
+out_pin:
+	if (error)
+		simple_release_fs(&aafs_mnt, &aafs_count);
+out:
+	mutex_unlock(&parent->lock);
+	aa_put_ns(parent);
+
+	return error;
+}
+
+static int ns_rmdir_op(struct inode *dir, struct dentry *dentry)
+{
+	struct aa_ns *ns, *parent;
+	/* TODO: improve permission check */
+	struct aa_profile *profile = aa_current_profile();
+	int error = aa_may_manage_policy(profile, NULL, AA_MAY_LOAD_POLICY);
+
+	if (error)
+		return error;
+
+	parent = aa_get_ns(dir->i_private);
+	/* rmdir calls the generic securityfs functions to remove files
+	 * from the apparmor dir. It is up to the apparmor ns locking
+	 * to avoid races.
+	 */
+	inode_unlock(dir);
+	inode_unlock(dentry->d_inode);
+
+	mutex_lock(&parent->lock);
+	ns = aa_get_ns(__aa_findn_ns(&parent->sub_ns, dentry->d_name.name,
+				     dentry->d_name.len));
+	if (!ns) {
+		error = -ENOENT;
+		goto out;
+	}
+	AA_BUG(ns_dir(ns) != dentry);
+
+	__aa_remove_ns(ns);
+	aa_put_ns(ns);
+
+out:
+	mutex_unlock(&parent->lock);
+	inode_lock_nested(dir, I_MUTEX_PARENT);
+	inode_lock(dentry->d_inode);
+	aa_put_ns(parent);
+
+	return error;
+}
+
+static const struct inode_operations ns_dir_inode_operations = {
+	.lookup		= simple_lookup,
+	.mkdir		= ns_mkdir_op,
+	.rmdir		= ns_rmdir_op,
+};
+
 static void __aa_fs_list_remove_rawdata(struct aa_ns *ns)
 {
 	struct aa_loaddata *ent, *tmp;
@@ -1429,7 +1520,9 @@ static int __aafs_ns_mkdir_entries(struct aa_ns *ns, struct dentry *dir)
 	aa_get_ns(ns);
 	ns_subremove(ns) = dent;
 
-	dent = aafs_create_dir("namespaces", dir);
+	  /* use create_dentry so we can supply private data */
+	dent = aafs_create("namespaces", S_IFDIR | 0755, dir, ns, NULL, NULL,
+			   &ns_dir_inode_operations);
 	if (IS_ERR(dent))
 		return PTR_ERR(dent);
 	aa_get_ns(ns);
