@@ -1260,7 +1260,6 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 
 		release_resources(adapter);
 		release_sub_crqs(adapter);
-		release_crq_queue(adapter);
 
 		rc = ibmvnic_init(adapter);
 		if (rc)
@@ -3517,7 +3516,14 @@ static int ibmvnic_init(struct ibmvnic_adapter *adapter)
 	unsigned long timeout = msecs_to_jiffies(30000);
 	int rc;
 
-	rc = init_crq_queue(adapter);
+	if (adapter->resetting) {
+		rc = ibmvnic_reset_crq(adapter);
+		if (!rc)
+			rc = vio_enable_interrupts(adapter->vdev);
+	} else {
+		rc = init_crq_queue(adapter);
+	}
+
 	if (rc) {
 		dev_err(dev, "Couldn't initialize crq. rc=%d\n", rc);
 		return rc;
