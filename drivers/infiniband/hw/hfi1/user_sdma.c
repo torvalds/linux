@@ -1165,14 +1165,23 @@ static int pin_vector_pages(struct user_sdma_request *req,
 	struct hfi1_user_sdma_pkt_q *pq = req->pq;
 	struct sdma_mmu_node *node = NULL;
 	struct mmu_rb_node *rb_node;
+	bool extracted;
 
-	rb_node = hfi1_mmu_rb_extract(pq->handler,
-				      (unsigned long)iovec->iov.iov_base,
-				      iovec->iov.iov_len);
-	if (rb_node)
+	extracted =
+		hfi1_mmu_rb_remove_unless_exact(pq->handler,
+						(unsigned long)
+						iovec->iov.iov_base,
+						iovec->iov.iov_len, &rb_node);
+	if (rb_node) {
 		node = container_of(rb_node, struct sdma_mmu_node, rb);
-	else
-		rb_node = NULL;
+		if (!extracted) {
+			atomic_inc(&node->refcount);
+			iovec->pages = node->pages;
+			iovec->npages = node->npages;
+			iovec->node = node;
+			return 0;
+		}
+	}
 
 	if (!node) {
 		node = kzalloc(sizeof(*node), GFP_KERNEL);
