@@ -80,4 +80,13 @@ static inline bool br_multicast_has_querier_adjacent(struct net_device *dev,
 }
 #endif
 
+#if IS_ENABLED(CONFIG_BRIDGE) && IS_ENABLED(CONFIG_BRIDGE_VLAN_FILTERING)
+bool br_vlan_enabled(const struct net_device *dev);
+#else
+static inline bool br_vlan_enabled(const struct net_device *dev)
+{
+	return false;
+}
+#endif
+
 #endif
