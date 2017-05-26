@@ -3029,6 +3029,12 @@ mlxsw_sp_port_vlan_rif_sp_create(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan,
 		goto err_vr_get;
 	}
 
+	rif = mlxsw_sp_rif_alloc(rif_index, vr->id, l3_dev, f);
+	if (!rif) {
+		err = -ENOMEM;
+		goto err_rif_alloc;
+	}
+
 	err = mlxsw_sp_port_vlan_rif_sp_op(mlxsw_sp_port_vlan, vr->id, l3_dev,
 					   rif_index, true);
 	if (err)
@@ -3037,12 +3043,6 @@ mlxsw_sp_port_vlan_rif_sp_create(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan,
 	err = mlxsw_sp_rif_fdb_op(mlxsw_sp, l3_dev->dev_addr, fid, true);
 	if (err)
 		goto err_rif_fdb_op;
-
-	rif = mlxsw_sp_rif_alloc(rif_index, vr->id, l3_dev, f);
-	if (!rif) {
-		err = -ENOMEM;
-		goto err_rif_alloc;
-	}
 
 	if (devlink_dpipe_table_counter_enabled(priv_to_devlink(mlxsw_sp->core),
 						MLXSW_SP_DPIPE_TABLE_NAME_ERIF)) {
@@ -3059,12 +3059,12 @@ mlxsw_sp_port_vlan_rif_sp_create(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan,
 
 	return rif;
 
-err_rif_alloc:
-	mlxsw_sp_rif_fdb_op(mlxsw_sp, l3_dev->dev_addr, fid, false);
 err_rif_fdb_op:
 	mlxsw_sp_port_vlan_rif_sp_op(mlxsw_sp_port_vlan, vr->id, l3_dev,
 				     rif_index, false);
 err_port_vlan_rif_sp_op:
+	kfree(rif);
+err_rif_alloc:
 	mlxsw_sp_vr_put(vr);
 err_vr_get:
 	kfree(f);
@@ -3092,13 +3092,11 @@ mlxsw_sp_port_vlan_rif_sp_destroy(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan,
 	mlxsw_sp->router->rifs[rif_index] = NULL;
 	f->rif = NULL;
 
-	kfree(rif);
-
 	mlxsw_sp_rif_fdb_op(mlxsw_sp, l3_dev->dev_addr, fid, false);
 
 	mlxsw_sp_port_vlan_rif_sp_op(mlxsw_sp_port_vlan, vr->id, l3_dev,
 				     rif_index, false);
-
+	kfree(rif);
 	mlxsw_sp_vr_put(vr);
 	kfree(f);
 }
@@ -3343,6 +3341,12 @@ static int mlxsw_sp_rif_bridge_create(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_port_flood_set;
 
+	rif = mlxsw_sp_rif_alloc(rif_index, vr->id, l3_dev, f);
+	if (!rif) {
+		err = -ENOMEM;
+		goto err_rif_alloc;
+	}
+
 	err = mlxsw_sp_rif_bridge_op(mlxsw_sp, vr->id, l3_dev, f->fid,
 				     rif_index, true);
 	if (err)
@@ -3352,12 +3356,6 @@ static int mlxsw_sp_rif_bridge_create(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_rif_fdb_op;
 
-	rif = mlxsw_sp_rif_alloc(rif_index, vr->id, l3_dev, f);
-	if (!rif) {
-		err = -ENOMEM;
-		goto err_rif_alloc;
-	}
-
 	f->rif = rif;
 	mlxsw_sp->router->rifs[rif_index] = rif;
 	vr->rif_count++;
@@ -3366,12 +3364,12 @@ static int mlxsw_sp_rif_bridge_create(struct mlxsw_sp *mlxsw_sp,
 
 	return 0;
 
-err_rif_alloc:
-	mlxsw_sp_rif_fdb_op(mlxsw_sp, l3_dev->dev_addr, f->fid, false);
 err_rif_fdb_op:
 	mlxsw_sp_rif_bridge_op(mlxsw_sp, vr->id, l3_dev, f->fid, rif_index,
 			       false);
 err_rif_bridge_op:
+	kfree(rif);
+err_rif_alloc:
 	mlxsw_sp_router_port_flood_set(mlxsw_sp, f->fid, false);
 err_port_flood_set:
 	mlxsw_sp_vr_put(vr);
@@ -3392,12 +3390,12 @@ void mlxsw_sp_rif_bridge_destroy(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp->router->rifs[rif_index] = NULL;
 	f->rif = NULL;
 
-	kfree(rif);
-
 	mlxsw_sp_rif_fdb_op(mlxsw_sp, l3_dev->dev_addr, f->fid, false);
 
 	mlxsw_sp_rif_bridge_op(mlxsw_sp, vr->id, l3_dev, f->fid, rif_index,
 			       false);
+
+	kfree(rif);
 
 	mlxsw_sp_router_port_flood_set(mlxsw_sp, f->fid, false);
 
