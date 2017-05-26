@@ -385,7 +385,7 @@ static int perf_session__check_output_opt(struct perf_session *session)
 		 */
 		if (!evsel && output[j].user_set && !output[j].wildcard_set) {
 			pr_err("%s events do not exist. "
-			       "Remove corresponding -f option to proceed.\n",
+			       "Remove corresponding -F option to proceed.\n",
 			       event_type(j));
 			return -1;
 		}
