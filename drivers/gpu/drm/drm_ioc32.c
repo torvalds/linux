@@ -786,7 +786,7 @@ static int compat_drm_sg_free(struct file *file, unsigned int cmd,
 				DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY);
 }
 
-#if defined(CONFIG_X86) || defined(CONFIG_IA64)
+#if defined(CONFIG_X86)
 typedef struct drm_update_draw32 {
 	drm_drawable_t handle;
 	unsigned int type;
@@ -853,7 +853,7 @@ static int compat_drm_wait_vblank(struct file *file, unsigned int cmd,
 	return 0;
 }
 
-#if defined(CONFIG_X86) || defined(CONFIG_IA64)
+#if defined(CONFIG_X86)
 typedef struct drm_mode_fb_cmd232 {
 	u32 fb_id;
 	u32 width;
