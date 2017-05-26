@@ -364,8 +364,8 @@ static __init int fttmr010_timer_init(struct device_node *np)
 	return fttmr010_common_init(np, false);
 }
 
-CLOCKSOURCE_OF_DECLARE(fttmr010, "faraday,fttmr010", fttmr010_timer_init);
-CLOCKSOURCE_OF_DECLARE(gemini, "cortina,gemini-timer", fttmr010_timer_init);
-CLOCKSOURCE_OF_DECLARE(moxart, "moxa,moxart-timer", fttmr010_timer_init);
-CLOCKSOURCE_OF_DECLARE(ast2400, "aspeed,ast2400-timer", aspeed_timer_init);
-CLOCKSOURCE_OF_DECLARE(ast2500, "aspeed,ast2500-timer", aspeed_timer_init);
+TIMER_OF_DECLARE(fttmr010, "faraday,fttmr010", fttmr010_timer_init);
+TIMER_OF_DECLARE(gemini, "cortina,gemini-timer", fttmr010_timer_init);
+TIMER_OF_DECLARE(moxart, "moxa,moxart-timer", fttmr010_timer_init);
+TIMER_OF_DECLARE(ast2400, "aspeed,ast2400-timer", aspeed_timer_init);
+TIMER_OF_DECLARE(ast2500, "aspeed,ast2500-timer", aspeed_timer_init);

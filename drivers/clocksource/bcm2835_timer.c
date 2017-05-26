@@ -148,5 +148,5 @@ err_iounmap:
 	iounmap(base);
 	return ret;
 }
-CLOCKSOURCE_OF_DECLARE(bcm2835, "brcm,bcm2835-system-timer",
+TIMER_OF_DECLARE(bcm2835, "brcm,bcm2835-system-timer",
 			bcm2835_timer_init);

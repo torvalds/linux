@@ -287,7 +287,7 @@ err:
 	iounmap(base);
 	return ret;
 }
-CLOCKSOURCE_OF_DECLARE(sp804, "arm,sp804", sp804_of_init);
+TIMER_OF_DECLARE(sp804, "arm,sp804", sp804_of_init);
 
 static int __init integrator_cp_of_init(struct device_node *np)
 {
@@ -335,4 +335,4 @@ err:
 	iounmap(base);
 	return ret;
 }
-CLOCKSOURCE_OF_DECLARE(intcp, "arm,integrator-cp-timer", integrator_cp_of_init);
+TIMER_OF_DECLARE(intcp, "arm,integrator-cp-timer", integrator_cp_of_init);

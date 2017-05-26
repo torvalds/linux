@@ -237,7 +237,7 @@ static int __init tegra20_init_timer(struct device_node *np)
 
 	return 0;
 }
-CLOCKSOURCE_OF_DECLARE(tegra20_timer, "nvidia,tegra20-timer", tegra20_init_timer);
+TIMER_OF_DECLARE(tegra20_timer, "nvidia,tegra20-timer", tegra20_init_timer);
 
 static int __init tegra20_init_rtc(struct device_node *np)
 {
@@ -261,4 +261,4 @@ static int __init tegra20_init_rtc(struct device_node *np)
 
 	return register_persistent_clock(NULL, tegra_read_persistent_clock64);
 }
-CLOCKSOURCE_OF_DECLARE(tegra20_rtc, "nvidia,tegra20-rtc", tegra20_init_rtc);
+TIMER_OF_DECLARE(tegra20_rtc, "nvidia,tegra20-rtc", tegra20_init_rtc);
