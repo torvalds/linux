@@ -210,10 +210,9 @@ static irqreturn_t fttmr010_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __init fttmr010_timer_init(struct device_node *np)
+static int __init fttmr010_common_init(struct device_node *np, bool is_aspeed)
 {
 	struct fttmr010 *fttmr010;
-	bool is_ast2400;
 	int irq;
 	struct clk *clk;
 	int ret;
@@ -260,8 +259,7 @@ static int __init fttmr010_timer_init(struct device_node *np)
 	 * The Aspeed AST2400 moves bits around in the control register,
 	 * otherwise it works the same.
 	 */
-	is_ast2400 = of_device_is_compatible(np, "aspeed,ast2400-timer");
-	if (is_ast2400) {
+	if (is_aspeed) {
 		fttmr010->t1_enable_val = TIMER_1_CR_ASPEED_ENABLE |
 			TIMER_1_CR_ASPEED_INT;
 		/* Downward not available */
@@ -280,7 +278,7 @@ static int __init fttmr010_timer_init(struct device_node *np)
 	 * Enable timer 1 count up, timer 2 count up, except on Aspeed,
 	 * where everything just counts down.
 	 */
-	if (is_ast2400)
+	if (is_aspeed)
 		val = TIMER_2_CR_ASPEED_ENABLE;
 	else {
 		val = TIMER_2_CR_ENABLE;
@@ -355,8 +353,19 @@ out_disable_clock:
 
 	return ret;
 }
+
+static __init int aspeed_timer_init(struct device_node *np)
+{
+	return fttmr010_common_init(np, true);
+}
+
+static __init int fttmr010_timer_init(struct device_node *np)
+{
+	return fttmr010_common_init(np, false);
+}
+
 CLOCKSOURCE_OF_DECLARE(fttmr010, "faraday,fttmr010", fttmr010_timer_init);
 CLOCKSOURCE_OF_DECLARE(gemini, "cortina,gemini-timer", fttmr010_timer_init);
 CLOCKSOURCE_OF_DECLARE(moxart, "moxa,moxart-timer", fttmr010_timer_init);
-CLOCKSOURCE_OF_DECLARE(ast2400, "aspeed,ast2400-timer", fttmr010_timer_init);
-CLOCKSOURCE_OF_DECLARE(ast2500, "aspeed,ast2500-timer", fttmr010_timer_init);
+CLOCKSOURCE_OF_DECLARE(ast2400, "aspeed,ast2400-timer", aspeed_timer_init);
+CLOCKSOURCE_OF_DECLARE(ast2500, "aspeed,ast2500-timer", aspeed_timer_init);
