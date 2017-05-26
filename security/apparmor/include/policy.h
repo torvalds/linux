@@ -29,6 +29,7 @@
 #include "domain.h"
 #include "file.h"
 #include "lib.h"
+#include "perms.h"
 #include "resource.h"
 
 

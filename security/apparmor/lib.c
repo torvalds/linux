@@ -21,6 +21,7 @@
 #include "include/audit.h"
 #include "include/apparmor.h"
 #include "include/lib.h"
+#include "include/perms.h"
 #include "include/policy.h"
 
 /**
