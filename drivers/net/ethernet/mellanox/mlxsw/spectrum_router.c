@@ -3018,25 +3018,25 @@ mlxsw_sp_port_vlan_rif_sp_create(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan,
 	if (rif_index == MLXSW_SP_INVALID_INDEX_RIF)
 		return ERR_PTR(-ERANGE);
 
+	fid = mlxsw_sp_rif_sp_to_fid(rif_index);
+	f = mlxsw_sp_rfid_alloc(fid, l3_dev);
+	if (!f)
+		return ERR_PTR(-ENOMEM);
+
 	vr = mlxsw_sp_vr_get(mlxsw_sp, tb_id ? : RT_TABLE_MAIN);
-	if (IS_ERR(vr))
-		return ERR_CAST(vr);
+	if (IS_ERR(vr)) {
+		err = PTR_ERR(vr);
+		goto err_vr_get;
+	}
 
 	err = mlxsw_sp_port_vlan_rif_sp_op(mlxsw_sp_port_vlan, vr->id, l3_dev,
 					   rif_index, true);
 	if (err)
 		goto err_port_vlan_rif_sp_op;
 
-	fid = mlxsw_sp_rif_sp_to_fid(rif_index);
 	err = mlxsw_sp_rif_fdb_op(mlxsw_sp, l3_dev->dev_addr, fid, true);
 	if (err)
 		goto err_rif_fdb_op;
-
-	f = mlxsw_sp_rfid_alloc(fid, l3_dev);
-	if (!f) {
-		err = -ENOMEM;
-		goto err_rfid_alloc;
-	}
 
 	rif = mlxsw_sp_rif_alloc(rif_index, vr->id, l3_dev, f);
 	if (!rif) {
@@ -3060,14 +3060,14 @@ mlxsw_sp_port_vlan_rif_sp_create(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan,
 	return rif;
 
 err_rif_alloc:
-	kfree(f);
-err_rfid_alloc:
 	mlxsw_sp_rif_fdb_op(mlxsw_sp, l3_dev->dev_addr, fid, false);
 err_rif_fdb_op:
 	mlxsw_sp_port_vlan_rif_sp_op(mlxsw_sp_port_vlan, vr->id, l3_dev,
 				     rif_index, false);
 err_port_vlan_rif_sp_op:
 	mlxsw_sp_vr_put(vr);
+err_vr_get:
+	kfree(f);
 	return ERR_PTR(err);
 }
 
@@ -3094,14 +3094,13 @@ mlxsw_sp_port_vlan_rif_sp_destroy(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan,
 
 	kfree(rif);
 
-	kfree(f);
-
 	mlxsw_sp_rif_fdb_op(mlxsw_sp, l3_dev->dev_addr, fid, false);
 
 	mlxsw_sp_port_vlan_rif_sp_op(mlxsw_sp_port_vlan, vr->id, l3_dev,
 				     rif_index, false);
 
 	mlxsw_sp_vr_put(vr);
+	kfree(f);
 }
 
 static int
