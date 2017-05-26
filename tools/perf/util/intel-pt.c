@@ -2035,6 +2035,7 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 			return err;
 		}
 		pt->sample_transactions = true;
+		pt->transactions_sample_type = attr.sample_type;
 		pt->transactions_id = id;
 		id += 1;
 		evlist__for_each_entry(evlist, evsel) {
