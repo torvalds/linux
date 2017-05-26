@@ -1427,30 +1427,30 @@ static inline bool hctx_allow_merges(struct blk_mq_hw_ctx *hctx)
 		!blk_queue_nomerges(hctx->queue);
 }
 
-static inline bool blk_mq_merge_queue_io(struct blk_mq_hw_ctx *hctx,
-					 struct blk_mq_ctx *ctx,
-					 struct request *rq, struct bio *bio)
+/* attempt to merge bio into current sw queue */
+static inline bool blk_mq_merge_bio(struct request_queue *q, struct bio *bio)
 {
-	if (!hctx_allow_merges(hctx) || !bio_mergeable(bio)) {
-		blk_mq_bio_to_request(rq, bio);
-		spin_lock(&ctx->lock);
-insert_rq:
-		__blk_mq_insert_request(hctx, rq, false);
-		spin_unlock(&ctx->lock);
-		return false;
-	} else {
-		struct request_queue *q = hctx->queue;
+	bool ret = false;
+	struct blk_mq_ctx *ctx = blk_mq_get_ctx(q);
+	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, ctx->cpu);
 
+	if (hctx_allow_merges(hctx) && bio_mergeable(bio)) {
 		spin_lock(&ctx->lock);
-		if (!blk_mq_attempt_merge(q, ctx, bio)) {
-			blk_mq_bio_to_request(rq, bio);
-			goto insert_rq;
-		}
-
+		ret = blk_mq_attempt_merge(q, ctx, bio);
 		spin_unlock(&ctx->lock);
-		__blk_mq_finish_request(hctx, ctx, rq);
-		return true;
 	}
+
+	blk_mq_put_ctx(ctx);
+	return ret;
+}
+
+static inline void blk_mq_queue_io(struct blk_mq_hw_ctx *hctx,
+				   struct blk_mq_ctx *ctx,
+				   struct request *rq)
+{
+	spin_lock(&ctx->lock);
+	__blk_mq_insert_request(hctx, rq, false);
+	spin_unlock(&ctx->lock);
 }
 
 static blk_qc_t request_to_qc_t(struct blk_mq_hw_ctx *hctx, struct request *rq)
@@ -1549,6 +1549,9 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	if (blk_mq_sched_bio_merge(q, bio))
 		return BLK_QC_T_NONE;
 
+	if (blk_mq_merge_bio(q, bio))
+		return BLK_QC_T_NONE;
+
 	wb_acct = wbt_wait(q->rq_wb, bio, NULL);
 
 	trace_block_getrq(q, bio, bio->bi_opf);
@@ -1630,11 +1633,12 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		blk_mq_put_ctx(data.ctx);
 		blk_mq_bio_to_request(rq, bio);
 		blk_mq_sched_insert_request(rq, false, true, true, true);
-	} else if (!blk_mq_merge_queue_io(data.hctx, data.ctx, rq, bio)) {
+	} else {
 		blk_mq_put_ctx(data.ctx);
+		blk_mq_bio_to_request(rq, bio);
+		blk_mq_queue_io(data.hctx, data.ctx, rq);
 		blk_mq_run_hw_queue(data.hctx, true);
-	} else
-		blk_mq_put_ctx(data.ctx);
+	}
 
 	return cookie;
 }
