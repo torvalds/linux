@@ -4,4 +4,5 @@ include include/uapi/asm-generic/Kbuild.asm
 generic-y += param.h
 generic-y += poll.h
 generic-y += resource.h
+generic-y += sockios.h
 generic-y += statfs.h
