@@ -154,10 +154,8 @@ MODULE_PARM_DESC(sdma_comp_size, "Size of User SDMA completion ring. Default: 12
 #define TXREQ_FLAGS_REQ_DISABLE_SH BIT(1) /* Disable header suppression */
 
 /* SDMA request flag bits */
-#define SDMA_REQ_FOR_THREAD 1
-#define SDMA_REQ_SEND_DONE  2
-#define SDMA_REQ_HAS_ERROR  3
-#define SDMA_REQ_DONE_ERROR 4
+#define SDMA_REQ_HAS_ERROR  1
+#define SDMA_REQ_DONE_ERROR 2
 
 #define SDMA_PKT_Q_INACTIVE BIT(0)
 #define SDMA_PKT_Q_ACTIVE   BIT(1)
@@ -258,6 +256,7 @@ struct user_sdma_request {
 	u16 tididx;
 	/* progress index moving along the iovs array */
 	u8 iov_idx;
+	u8 done;
 
 	struct user_sdma_iovec iovs[MAX_VECTORS_PER_REQ];
 } ____cacheline_aligned_in_smp;
@@ -628,6 +627,7 @@ int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
 	req->seqsubmitted = 0;
 	req->flags = 0;
 	req->tids = NULL;
+	req->done = 0;
 	INIT_LIST_HEAD(&req->txps);
 
 	memcpy(&req->info, &info, sizeof(info));
@@ -809,7 +809,7 @@ int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
 	 * request have been submitted to the SDMA engine. However, it
 	 * will not wait for send completions.
 	 */
-	while (!test_bit(SDMA_REQ_SEND_DONE, &req->flags)) {
+	while (req->seqsubmitted != req->info.npkts) {
 		ret = user_sdma_send_pkts(req, pcount);
 		if (ret < 0) {
 			if (ret != -EBUSY) {
@@ -1118,7 +1118,7 @@ dosend:
 	ret = sdma_send_txlist(req->sde, &pq->busy, &req->txps, &count);
 	req->seqsubmitted += count;
 	if (req->seqsubmitted == req->info.npkts) {
-		set_bit(SDMA_REQ_SEND_DONE, &req->flags);
+		WRITE_ONCE(req->done, 1);
 		/*
 		 * The txreq has already been submitted to the HW queue
 		 * so we can free the AHG entry now. Corruption will not
@@ -1585,7 +1585,7 @@ static void user_sdma_txreq_cb(struct sdma_txreq *txreq, int status)
 		if (status != SDMA_TXREQ_S_OK)
 			req->status = status;
 		if (req->seqcomp == (ACCESS_ONCE(req->seqsubmitted) - 1) &&
-		    (test_bit(SDMA_REQ_SEND_DONE, &req->flags) ||
+		    (READ_ONCE(req->done) ||
 		     test_bit(SDMA_REQ_DONE_ERROR, &req->flags))) {
 			user_sdma_free_request(req, false);
 			pq_update(pq);
