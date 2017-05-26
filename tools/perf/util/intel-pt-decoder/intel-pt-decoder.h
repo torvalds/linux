@@ -25,11 +25,17 @@
 #define INTEL_PT_IN_TX		(1 << 0)
 #define INTEL_PT_ABORT_TX	(1 << 1)
 #define INTEL_PT_ASYNC		(1 << 2)
+#define INTEL_PT_FUP_IP		(1 << 3)
 
 enum intel_pt_sample_type {
 	INTEL_PT_BRANCH		= 1 << 0,
 	INTEL_PT_INSTRUCTION	= 1 << 1,
 	INTEL_PT_TRANSACTION	= 1 << 2,
+	INTEL_PT_PTW		= 1 << 3,
+	INTEL_PT_MWAIT_OP	= 1 << 4,
+	INTEL_PT_PWR_ENTRY	= 1 << 5,
+	INTEL_PT_EX_STOP	= 1 << 6,
+	INTEL_PT_PWR_EXIT	= 1 << 7,
 };
 
 enum intel_pt_period_type {
@@ -63,6 +69,10 @@ struct intel_pt_state {
 	uint64_t timestamp;
 	uint64_t est_timestamp;
 	uint64_t trace_nr;
+	uint64_t ptw_payload;
+	uint64_t mwait_payload;
+	uint64_t pwre_payload;
+	uint64_t pwrx_payload;
 	uint32_t flags;
 	enum intel_pt_insn_op insn_op;
 	int insn_len;
