@@ -735,6 +735,87 @@ static struct rockchip_mux_route_data rk3228_mux_route_data[] = {
 	},
 };
 
+static struct rockchip_mux_route_data rk3328_mux_route_data[] = {
+	{
+		/* uart2dbg_rxm0 */
+		.bank_num = 1,
+		.pin = 1,
+		.func = 2,
+		.route_offset = 0x50,
+		.route_val = BIT(16) | BIT(16 + 1),
+	}, {
+		/* uart2dbg_rxm1 */
+		.bank_num = 2,
+		.pin = 1,
+		.func = 1,
+		.route_offset = 0x50,
+		.route_val = BIT(16) | BIT(16 + 1) | BIT(0),
+	}, {
+		/* gmac-m1-optimized_rxd0 */
+		.bank_num = 1,
+		.pin = 11,
+		.func = 2,
+		.route_offset = 0x50,
+		.route_val = BIT(16 + 2) | BIT(16 + 10) | BIT(2) | BIT(10),
+	}, {
+		/* pdm_sdi0m0 */
+		.bank_num = 2,
+		.pin = 19,
+		.func = 2,
+		.route_offset = 0x50,
+		.route_val = BIT(16 + 3),
+	}, {
+		/* pdm_sdi0m1 */
+		.bank_num = 1,
+		.pin = 23,
+		.func = 3,
+		.route_offset = 0x50,
+		.route_val =  BIT(16 + 3) | BIT(3),
+	}, {
+		/* spi_rxdm2 */
+		.bank_num = 3,
+		.pin = 2,
+		.func = 4,
+		.route_offset = 0x50,
+		.route_val =  BIT(16 + 4) | BIT(16 + 5) | BIT(5),
+	}, {
+		/* i2s2_sdim0 */
+		.bank_num = 1,
+		.pin = 24,
+		.func = 1,
+		.route_offset = 0x50,
+		.route_val = BIT(16 + 6),
+	}, {
+		/* i2s2_sdim1 */
+		.bank_num = 3,
+		.pin = 2,
+		.func = 6,
+		.route_offset = 0x50,
+		.route_val =  BIT(16 + 6) | BIT(6),
+	}, {
+		/* card_iom1 */
+		.bank_num = 2,
+		.pin = 22,
+		.func = 3,
+		.route_offset = 0x50,
+		.route_val =  BIT(16 + 7) | BIT(7),
+	}, {
+		/* tsp_d5m1 */
+		.bank_num = 2,
+		.pin = 16,
+		.func = 3,
+		.route_offset = 0x50,
+		.route_val =  BIT(16 + 8) | BIT(8),
+	}, {
+		/* cif_data5m1 */
+		.bank_num = 2,
+		.pin = 16,
+		.func = 4,
+		.route_offset = 0x50,
+		.route_val =  BIT(16 + 9) | BIT(9),
+	},
+};
+
 static bool rockchip_get_mux_route(struct rockchip_pin_bank *bank, int pin,
 				   int mux, u32 *reg, u32 *value)
 {
@@ -3097,6 +3178,8 @@ static struct rockchip_pin_ctrl rk3328_pin_ctrl = {
 		.label			= "RK3328-GPIO",
 		.type			= RK3288,
 		.grf_mux_offset		= 0x0,
+		.iomux_routes		= rk3328_mux_route_data,
+		.niomux_routes		= ARRAY_SIZE(rk3328_mux_route_data),
 		.pull_calc_reg		= rk3228_calc_pull_reg_and_bit,
 		.drv_calc_reg		= rk3228_calc_drv_reg_and_bit,
 		.iomux_recalc		= rk3328_recalc_mux,
