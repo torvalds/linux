@@ -192,6 +192,7 @@ static u64 intel_pt_default_config(struct perf_pmu *intel_pt_pmu)
 	int psb_cyc, psb_periods, psb_period;
 	int pos = 0;
 	u64 config;
+	char c;
 
 	pos += scnprintf(buf + pos, sizeof(buf) - pos, "tsc");
 
@@ -224,6 +225,10 @@ static u64 intel_pt_default_config(struct perf_pmu *intel_pt_pmu)
 					 ",psb_period=%d", psb_period);
 		}
 	}
+
+	if (perf_pmu__scan_file(intel_pt_pmu, "format/pt", "%c", &c) == 1 &&
+	    perf_pmu__scan_file(intel_pt_pmu, "format/branch", "%c", &c) == 1)
+		pos += scnprintf(buf + pos, sizeof(buf) - pos, ",pt,branch");
 
 	pr_debug2("%s default config: %s\n", intel_pt_pmu->name, buf);
 
