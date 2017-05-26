@@ -804,7 +804,6 @@ static int __ibmvnic_close(struct net_device *netdev)
 	adapter->state = VNIC_CLOSING;
 	netif_tx_stop_all_queues(netdev);
 	ibmvnic_napi_disable(adapter);
-	clean_tx_pools(adapter);
 
 	if (adapter->tx_scrq) {
 		for (i = 0; i < adapter->req_tx_queues; i++)
@@ -833,6 +832,7 @@ static int __ibmvnic_close(struct net_device *netdev)
 		}
 	}
 
+	clean_tx_pools(adapter);
 	adapter->state = VNIC_CLOSED;
 	return rc;
 }
