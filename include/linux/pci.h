@@ -366,7 +366,7 @@ struct pci_dev {
 	unsigned int	is_thunderbolt:1; /* Thunderbolt controller */
 	unsigned int    __aer_firmware_first_valid:1;
 	unsigned int	__aer_firmware_first:1;
-	unsigned int	broken_intx_masking:1;
+	unsigned int	broken_intx_masking:1; /* INTx masking can't be used */
 	unsigned int	io_window_1k:1;	/* Intel P2P bridge 1K I/O windows */
 	unsigned int	irq_managed:1;
 	unsigned int	has_secondary_link:1;
@@ -1003,6 +1003,15 @@ int __must_check pci_reenable_device(struct pci_dev *);
 int __must_check pcim_enable_device(struct pci_dev *pdev);
 void pcim_pin_device(struct pci_dev *pdev);
 
+static inline bool pci_intx_mask_supported(struct pci_dev *pdev)
+{
+	/*
+	 * INTx masking is supported if PCI_COMMAND_INTX_DISABLE is
+	 * writable and no quirk has marked the feature broken.
+	 */
+	return !pdev->broken_intx_masking;
+}
+
 static inline int pci_is_enabled(struct pci_dev *pdev)
 {
 	return (atomic_read(&pdev->enable_cnt) > 0);
@@ -1026,7 +1035,6 @@ int __must_check pci_set_mwi(struct pci_dev *dev);
 int pci_try_set_mwi(struct pci_dev *dev);
 void pci_clear_mwi(struct pci_dev *dev);
 void pci_intx(struct pci_dev *dev, int enable);
-bool pci_intx_mask_supported(struct pci_dev *dev);
 bool pci_check_and_mask_intx(struct pci_dev *dev);
 bool pci_check_and_unmask_intx(struct pci_dev *dev);
 int pci_wait_for_pending(struct pci_dev *dev, int pos, u16 mask);
