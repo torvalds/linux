@@ -43,6 +43,7 @@
 #include <linux/etherdevice.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/lockdep.h>
 #include <linux/pci.h>
 #include <linux/pci_regs.h>
 #include <linux/msi.h>
@@ -354,9 +355,20 @@ nfp_net_pf_init_vnic(struct nfp_pf *pf, struct nfp_net *nn, unsigned int id)
 
 	nfp_net_debugfs_vnic_add(nn, pf->ddir, id);
 
+	if (nn->port) {
+		err = nfp_devlink_port_register(pf->app, nn->port);
+		if (err)
+			goto err_dfs_clean;
+	}
+
 	nfp_net_info(nn);
 
 	return 0;
+
+err_dfs_clean:
+	nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
+	nfp_net_clean(nn);
+	return err;
 }
 
 static int
@@ -416,6 +428,14 @@ nfp_net_pf_alloc_vnics(struct nfp_pf *pf, void __iomem *ctrl_bar,
 err_free_prev:
 	nfp_net_pf_free_vnics(pf);
 	return err;
+}
+
+static void nfp_net_pf_clean_vnic(struct nfp_pf *pf, struct nfp_net *nn)
+{
+	if (nn->port)
+		nfp_devlink_port_unregister(nn->port);
+	nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
+	nfp_net_clean(nn);
 }
 
 static int
@@ -480,10 +500,8 @@ nfp_net_pf_spawn_vnics(struct nfp_pf *pf,
 	return 0;
 
 err_prev_deinit:
-	list_for_each_entry_continue_reverse(nn, &pf->vnics, vnic_list) {
-		nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
-		nfp_net_clean(nn);
-	}
+	list_for_each_entry_continue_reverse(nn, &pf->vnics, vnic_list)
+		nfp_net_pf_clean_vnic(pf, nn);
 	nfp_net_irqs_disable(pf->pdev);
 err_vec_free:
 	kfree(pf->irq_entries);
@@ -502,6 +520,7 @@ static int nfp_net_pf_app_init(struct nfp_pf *pf)
 static void nfp_net_pf_app_clean(struct nfp_pf *pf)
 {
 	nfp_app_free(pf->app);
+	pf->app = NULL;
 }
 
 static void nfp_net_pci_remove_finish(struct nfp_pf *pf)
@@ -543,19 +562,17 @@ nfp_net_eth_port_update(struct nfp_cpp *cpp, struct nfp_port *port,
 	return 0;
 }
 
-static void nfp_net_refresh_vnics(struct work_struct *work)
+int nfp_net_refresh_port_table_sync(struct nfp_pf *pf)
 {
-	struct nfp_pf *pf = container_of(work, struct nfp_pf,
-					 port_refresh_work);
 	struct nfp_eth_table *eth_table;
 	struct nfp_net *nn, *next;
 	struct nfp_port *port;
 
-	mutex_lock(&pf->lock);
+	lockdep_assert_held(&pf->lock);
 
 	/* Check for nfp_net_pci_remove() racing against us */
 	if (list_empty(&pf->vnics))
-		goto out;
+		return 0;
 
 	/* Update state of all ports */
 	rtnl_lock();
@@ -569,7 +586,7 @@ static void nfp_net_refresh_vnics(struct work_struct *work)
 				set_bit(NFP_PORT_CHANGED, &port->flags);
 		rtnl_unlock();
 		nfp_err(pf->cpp, "Error refreshing port config!\n");
-		goto out;
+		return -EIO;
 	}
 
 	list_for_each_entry(port, &pf->ports, port_list)
@@ -584,15 +601,23 @@ static void nfp_net_refresh_vnics(struct work_struct *work)
 		if (!nn->port || nn->port->type != NFP_PORT_INVALID)
 			continue;
 
-		nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
-		nfp_net_clean(nn);
-
+		nfp_net_pf_clean_vnic(pf, nn);
 		nfp_net_pf_free_vnic(pf, nn);
 	}
 
 	if (list_empty(&pf->vnics))
 		nfp_net_pci_remove_finish(pf);
-out:
+
+	return 0;
+}
+
+static void nfp_net_refresh_vnics(struct work_struct *work)
+{
+	struct nfp_pf *pf = container_of(work, struct nfp_pf,
+					 port_refresh_work);
+
+	mutex_lock(&pf->lock);
+	nfp_net_refresh_port_table_sync(pf);
 	mutex_unlock(&pf->lock);
 }
 
@@ -641,7 +666,6 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 	int err;
 
 	INIT_WORK(&pf->port_refresh_work, nfp_net_refresh_vnics);
-	mutex_init(&pf->lock);
 
 	/* Verify that the board has completed initialization */
 	if (!nfp_is_ready(pf->cpp)) {
@@ -760,11 +784,8 @@ void nfp_net_pci_remove(struct nfp_pf *pf)
 	if (list_empty(&pf->vnics))
 		goto out;
 
-	list_for_each_entry(nn, &pf->vnics, vnic_list) {
-		nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
-
-		nfp_net_clean(nn);
-	}
+	list_for_each_entry(nn, &pf->vnics, vnic_list)
+		nfp_net_pf_clean_vnic(pf, nn);
 
 	nfp_net_pf_free_vnics(pf);
 

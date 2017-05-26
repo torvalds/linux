@@ -34,8 +34,11 @@
 #ifndef _NFP_PORT_H_
 #define _NFP_PORT_H_
 
+#include <net/devlink.h>
+
 struct net_device;
 struct nfp_app;
+struct nfp_pf;
 struct nfp_port;
 
 /**
@@ -66,6 +69,7 @@ enum nfp_port_flags {
  * @type:	what port type does the entity represent
  * @flags:	port flags
  * @app:	backpointer to the app structure
+ * @dl_port:	devlink port structure
  * @eth_id:	for %NFP_PORT_PHYS_PORT port ID in NFP enumeration scheme
  * @eth_port:	for %NFP_PORT_PHYS_PORT translated ETH Table port entry
  * @port_list:	entry on pf's list of ports
@@ -78,6 +82,8 @@ struct nfp_port {
 
 	struct nfp_app *app;
 
+	struct devlink_port dl_port;
+
 	unsigned int eth_id;
 	struct nfp_eth_table_port *eth_port;
 
@@ -85,6 +91,8 @@ struct nfp_port {
 };
 
 struct nfp_port *nfp_port_from_netdev(struct net_device *netdev);
+struct nfp_port *
+nfp_port_from_id(struct nfp_pf *pf, enum nfp_port_type type, unsigned int id);
 struct nfp_eth_table_port *__nfp_port_get_eth_port(struct nfp_port *port);
 struct nfp_eth_table_port *nfp_port_get_eth_port(struct nfp_port *port);
 
@@ -98,5 +106,9 @@ void nfp_port_free(struct nfp_port *port);
 
 int nfp_net_refresh_eth_port(struct nfp_port *port);
 void nfp_net_refresh_port_table(struct nfp_port *port);
+int nfp_net_refresh_port_table_sync(struct nfp_pf *pf);
+
+int nfp_devlink_port_register(struct nfp_app *app, struct nfp_port *port);
+void nfp_devlink_port_unregister(struct nfp_port *port);
 
 #endif

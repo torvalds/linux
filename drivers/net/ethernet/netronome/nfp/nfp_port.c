@@ -31,6 +31,8 @@
  * SOFTWARE.
  */
 
+#include <linux/lockdep.h>
+
 #include "nfpcore/nfp_nsp.h"
 #include "nfp_app.h"
 #include "nfp_main.h"
@@ -46,6 +48,23 @@ struct nfp_port *nfp_port_from_netdev(struct net_device *netdev)
 	nn = netdev_priv(netdev);
 
 	return nn->port;
+}
+
+struct nfp_port *
+nfp_port_from_id(struct nfp_pf *pf, enum nfp_port_type type, unsigned int id)
+{
+	struct nfp_port *port;
+
+	lockdep_assert_held(&pf->lock);
+
+	if (type != NFP_PORT_PHYS_PORT)
+		return NULL;
+
+	list_for_each_entry(port, &pf->ports, port_list)
+		if (port->eth_id == id)
+			return port;
+
+	return NULL;
 }
 
 struct nfp_eth_table_port *__nfp_port_get_eth_port(struct nfp_port *port)

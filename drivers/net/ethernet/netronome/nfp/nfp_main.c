@@ -41,9 +41,11 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/pci.h>
 #include <linux/firmware.h>
 #include <linux/vermagic.h>
+#include <net/devlink.h>
 
 #include "nfpcore/nfp.h"
 #include "nfpcore/nfp_cpp.h"
@@ -315,6 +317,7 @@ static void nfp_fw_unload(struct nfp_pf *pf)
 static int nfp_pci_probe(struct pci_dev *pdev,
 			 const struct pci_device_id *pci_id)
 {
+	struct devlink *devlink;
 	struct nfp_pf *pf;
 	int err;
 
@@ -335,13 +338,15 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 		goto err_pci_disable;
 	}
 
-	pf = kzalloc(sizeof(*pf), GFP_KERNEL);
-	if (!pf) {
+	devlink = devlink_alloc(&nfp_devlink_ops, sizeof(*pf));
+	if (!devlink) {
 		err = -ENOMEM;
 		goto err_rel_regions;
 	}
+	pf = devlink_priv(devlink);
 	INIT_LIST_HEAD(&pf->vnics);
 	INIT_LIST_HEAD(&pf->ports);
+	mutex_init(&pf->lock);
 	pci_set_drvdata(pdev, pf);
 	pf->pdev = pdev;
 
@@ -360,9 +365,13 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 		 nfp_hwinfo_lookup(pf->cpp, "assembly.revision"),
 		 nfp_hwinfo_lookup(pf->cpp, "cpld.version"));
 
-	err = nfp_nsp_init(pdev, pf);
+	err = devlink_register(devlink, &pdev->dev);
 	if (err)
 		goto err_cpp_free;
+
+	err = nfp_nsp_init(pdev, pf);
+	if (err)
+		goto err_devlink_unreg;
 
 	nfp_pcie_sriov_read_nfd_limit(pf);
 
@@ -376,11 +385,14 @@ err_fw_unload:
 	if (pf->fw_loaded)
 		nfp_fw_unload(pf);
 	kfree(pf->eth_tbl);
+err_devlink_unreg:
+	devlink_unregister(devlink);
 err_cpp_free:
 	nfp_cpp_free(pf->cpp);
 err_disable_msix:
 	pci_set_drvdata(pdev, NULL);
-	kfree(pf);
+	mutex_destroy(&pf->lock);
+	devlink_free(devlink);
 err_rel_regions:
 	pci_release_regions(pdev);
 err_pci_disable:
@@ -392,10 +404,15 @@ err_pci_disable:
 static void nfp_pci_remove(struct pci_dev *pdev)
 {
 	struct nfp_pf *pf = pci_get_drvdata(pdev);
+	struct devlink *devlink;
+
+	devlink = priv_to_devlink(pf);
 
 	nfp_net_pci_remove(pf);
 
 	nfp_pcie_sriov_disable(pdev);
+
+	devlink_unregister(devlink);
 
 	if (pf->fw_loaded)
 		nfp_fw_unload(pf);
@@ -404,7 +421,8 @@ static void nfp_pci_remove(struct pci_dev *pdev)
 	nfp_cpp_free(pf->cpp);
 
 	kfree(pf->eth_tbl);
-	kfree(pf);
+	mutex_destroy(&pf->lock);
+	devlink_free(devlink);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 }

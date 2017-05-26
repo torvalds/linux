@@ -96,6 +96,7 @@ enum nfp_eth_aneg {
  * @override_changed: is media reconfig pending?
  *
  * @port_type:	one of %PORT_* defines for ethtool
+ * @port_lanes:	total number of lanes on the port (sum of lanes of all subports)
  * @is_split:	is interface part of a split port
  */
 struct nfp_eth_table {
@@ -126,6 +127,8 @@ struct nfp_eth_table {
 
 		/* Computed fields */
 		u8 port_type;
+
+		unsigned int port_lanes;
 
 		bool is_split;
 	} ports[0];
