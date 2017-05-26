@@ -141,6 +141,7 @@ struct intel_pt_decoder {
 	int pkt_len;
 	int last_packet_type;
 	unsigned int cbr;
+	unsigned int cbr_seen;
 	unsigned int max_non_turbo_ratio;
 	double max_non_turbo_ratio_fp;
 	double cbr_cyc_to_tsc;
@@ -167,6 +168,7 @@ struct intel_pt_decoder {
 	uint64_t fup_ptw_payload;
 	uint64_t fup_mwait_payload;
 	uint64_t fup_pwre_payload;
+	uint64_t cbr_payload;
 	uint64_t timestamp_insn_cnt;
 	uint64_t sample_insn_cnt;
 	uint64_t stuck_ip;
@@ -1446,6 +1448,8 @@ static void intel_pt_calc_cbr(struct intel_pt_decoder *decoder)
 {
 	unsigned int cbr = decoder->packet.payload & 0xff;
 
+	decoder->cbr_payload = decoder->packet.payload;
+
 	if (decoder->cbr == cbr)
 		return;
 
@@ -1806,6 +1810,16 @@ next:
 
 		case INTEL_PT_CBR:
 			intel_pt_calc_cbr(decoder);
+			if (!decoder->branch_enable &&
+			    decoder->cbr != decoder->cbr_seen) {
+				decoder->cbr_seen = decoder->cbr;
+				decoder->state.type = INTEL_PT_CBR_CHG;
+				decoder->state.from_ip = decoder->ip;
+				decoder->state.to_ip = 0;
+				decoder->state.cbr_payload =
+							decoder->packet.payload;
+				return 0;
+			}
 			break;
 
 		case INTEL_PT_MODE_EXEC:
@@ -2343,6 +2357,11 @@ const struct intel_pt_state *intel_pt_decode(struct intel_pt_decoder *decoder)
 		decoder->sample_insn_cnt = decoder->timestamp_insn_cnt;
 	} else {
 		decoder->state.err = 0;
+		if (decoder->cbr != decoder->cbr_seen && decoder->state.type) {
+			decoder->cbr_seen = decoder->cbr;
+			decoder->state.type |= INTEL_PT_CBR_CHG;
+			decoder->state.cbr_payload = decoder->cbr_payload;
+		}
 		if (intel_pt_sample_time(decoder->pkt_state)) {
 			decoder->sample_timestamp = decoder->timestamp;
 			decoder->sample_insn_cnt = decoder->timestamp_insn_cnt;

@@ -36,6 +36,7 @@ enum intel_pt_sample_type {
 	INTEL_PT_PWR_ENTRY	= 1 << 5,
 	INTEL_PT_EX_STOP	= 1 << 6,
 	INTEL_PT_PWR_EXIT	= 1 << 7,
+	INTEL_PT_CBR_CHG	= 1 << 8,
 };
 
 enum intel_pt_period_type {
@@ -73,6 +74,7 @@ struct intel_pt_state {
 	uint64_t mwait_payload;
 	uint64_t pwre_payload;
 	uint64_t pwrx_payload;
+	uint64_t cbr_payload;
 	uint32_t flags;
 	enum intel_pt_insn_op insn_op;
 	int insn_len;
