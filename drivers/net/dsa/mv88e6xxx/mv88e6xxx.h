@@ -37,9 +37,6 @@
 #define PHY_PAGE		0x16
 #define PHY_PAGE_COPPER		0x00
 
-#define ADDR_SERDES		0x0f
-#define SERDES_PAGE_FIBER	0x01
-
 #define PORT_STATUS		0x00
 #define PORT_STATUS_PAUSE_EN	BIT(15)
 #define PORT_STATUS_MY_PAUSE	BIT(14)
@@ -511,14 +508,6 @@ enum mv88e6xxx_cap {
 	MV88E6XXX_CAP_SMI_CMD,		/* (0x00) SMI Command */
 	MV88E6XXX_CAP_SMI_DATA,		/* (0x01) SMI Data */
 
-	/* PHY Registers.
-	 */
-	MV88E6XXX_CAP_PHY_PAGE,		/* (0x16) Page Register */
-
-	/* Fiber/SERDES Registers (SMI address F).
-	 */
-	MV88E6XXX_CAP_SERDES,
-
 	/* Switch Global (1) Registers.
 	 */
 	MV88E6XXX_CAP_G1_ATU_FID,	/* (0x01) ATU FID Register */
@@ -553,10 +542,6 @@ enum mv88e6xxx_cap {
 #define MV88E6XXX_FLAG_SMI_CMD		BIT_ULL(MV88E6XXX_CAP_SMI_CMD)
 #define MV88E6XXX_FLAG_SMI_DATA		BIT_ULL(MV88E6XXX_CAP_SMI_DATA)
 
-#define MV88E6XXX_FLAG_PHY_PAGE		BIT_ULL(MV88E6XXX_CAP_PHY_PAGE)
-
-#define MV88E6XXX_FLAG_SERDES		BIT_ULL(MV88E6XXX_CAP_SERDES)
-
 #define MV88E6XXX_FLAG_G1_VTU_FID	BIT_ULL(MV88E6XXX_CAP_G1_VTU_FID)
 
 #define MV88E6XXX_FLAG_GLOBAL2		BIT_ULL(MV88E6XXX_CAP_GLOBAL2)
@@ -576,11 +561,6 @@ enum mv88e6xxx_cap {
 #define MV88E6XXX_FLAGS_MULTI_CHIP	\
 	(MV88E6XXX_FLAG_SMI_CMD |	\
 	 MV88E6XXX_FLAG_SMI_DATA)
-
-/* Fiber/SERDES Registers at SMI address F, page 1 */
-#define MV88E6XXX_FLAGS_SERDES		\
-	(MV88E6XXX_FLAG_PHY_PAGE |	\
-	 MV88E6XXX_FLAG_SERDES)
 
 #define MV88E6XXX_FLAGS_FAMILY_6095	\
 	(MV88E6XXX_FLAG_GLOBAL2 |	\
@@ -629,8 +609,7 @@ enum mv88e6xxx_cap {
 	 MV88E6XXX_FLAG_G2_INT |	\
 	 MV88E6XXX_FLAG_G2_POT |	\
 	 MV88E6XXX_FLAGS_IRL |		\
-	 MV88E6XXX_FLAGS_MULTI_CHIP |	\
-	 MV88E6XXX_FLAGS_SERDES)
+	 MV88E6XXX_FLAGS_MULTI_CHIP)
 
 #define MV88E6XXX_FLAGS_FAMILY_6351	\
 	(MV88E6XXX_FLAG_G1_VTU_FID |	\
@@ -651,8 +630,7 @@ enum mv88e6xxx_cap {
 	 MV88E6XXX_FLAG_G2_MGMT_EN_0X |	\
 	 MV88E6XXX_FLAG_G2_POT |	\
 	 MV88E6XXX_FLAGS_IRL |		\
-	 MV88E6XXX_FLAGS_MULTI_CHIP |	\
-	 MV88E6XXX_FLAGS_SERDES)
+	 MV88E6XXX_FLAGS_MULTI_CHIP)
 
 #define MV88E6XXX_FLAGS_FAMILY_6390	\
 	(MV88E6XXX_FLAG_EEE |		\
@@ -884,6 +862,9 @@ struct mv88e6xxx_ops {
 	/* Can be either in g1 or g2, so don't use a prefix */
 	int (*mgmt_rsvd2cpu)(struct mv88e6xxx_chip *chip);
 
+	/* Power on/off a SERDES interface */
+	int (*serdes_power)(struct mv88e6xxx_chip *chip, int port, bool on);
+
 	/* VLAN Translation Unit operations */
 	int (*vtu_getnext)(struct mv88e6xxx_chip *chip,
 			   struct mv88e6xxx_vtu_entry *entry);
@@ -942,5 +923,5 @@ int mv88e6xxx_write(struct mv88e6xxx_chip *chip, int addr, int reg, u16 val);
 int mv88e6xxx_update(struct mv88e6xxx_chip *chip, int addr, int reg,
 		     u16 update);
 int mv88e6xxx_wait(struct mv88e6xxx_chip *chip, int addr, int reg, u16 mask);
-
+struct mii_bus *mv88e6xxx_default_mdio_bus(struct mv88e6xxx_chip *chip);
 #endif
