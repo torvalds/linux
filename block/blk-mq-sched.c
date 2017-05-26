@@ -221,19 +221,71 @@ bool blk_mq_sched_try_merge(struct request_queue *q, struct bio *bio,
 }
 EXPORT_SYMBOL_GPL(blk_mq_sched_try_merge);
 
+/*
+ * Reverse check our software queue for entries that we could potentially
+ * merge with. Currently includes a hand-wavy stop count of 8, to not spend
+ * too much time checking for merges.
+ */
+static bool blk_mq_attempt_merge(struct request_queue *q,
+				 struct blk_mq_ctx *ctx, struct bio *bio)
+{
+	struct request *rq;
+	int checked = 8;
+
+	list_for_each_entry_reverse(rq, &ctx->rq_list, queuelist) {
+		bool merged = false;
+
+		if (!checked--)
+			break;
+
+		if (!blk_rq_merge_ok(rq, bio))
+			continue;
+
+		switch (blk_try_merge(rq, bio)) {
+		case ELEVATOR_BACK_MERGE:
+			if (blk_mq_sched_allow_merge(q, rq, bio))
+				merged = bio_attempt_back_merge(q, rq, bio);
+			break;
+		case ELEVATOR_FRONT_MERGE:
+			if (blk_mq_sched_allow_merge(q, rq, bio))
+				merged = bio_attempt_front_merge(q, rq, bio);
+			break;
+		case ELEVATOR_DISCARD_MERGE:
+			merged = bio_attempt_discard_merge(q, rq, bio);
+			break;
+		default:
+			continue;
+		}
+
+		if (merged)
+			ctx->rq_merged++;
+		return merged;
+	}
+
+	return false;
+}
+
 bool __blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio)
 {
 	struct elevator_queue *e = q->elevator;
+	struct blk_mq_ctx *ctx = blk_mq_get_ctx(q);
+	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, ctx->cpu);
+	bool ret = false;
 
-	if (e->type->ops.mq.bio_merge) {
-		struct blk_mq_ctx *ctx = blk_mq_get_ctx(q);
-		struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, ctx->cpu);
-
+	if (e && e->type->ops.mq.bio_merge) {
 		blk_mq_put_ctx(ctx);
 		return e->type->ops.mq.bio_merge(hctx, bio);
 	}
 
-	return false;
+	if (hctx->flags & BLK_MQ_F_SHOULD_MERGE) {
+		/* default per sw-queue merge */
+		spin_lock(&ctx->lock);
+		ret = blk_mq_attempt_merge(q, ctx, bio);
+		spin_unlock(&ctx->lock);
+	}
+
+	blk_mq_put_ctx(ctx);
+	return ret;
 }
 
 bool blk_mq_sched_try_insert_merge(struct request_queue *q, struct request *rq)

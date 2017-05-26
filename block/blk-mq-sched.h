@@ -38,9 +38,7 @@ int blk_mq_sched_init(struct request_queue *q);
 static inline bool
 blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio)
 {
-	struct elevator_queue *e = q->elevator;
-
-	if (!e || blk_queue_nomerges(q) || !bio_mergeable(bio))
+	if (blk_queue_nomerges(q) || !bio_mergeable(bio))
 		return false;
 
 	return __blk_mq_sched_bio_merge(q, bio);

@@ -753,50 +753,6 @@ static void blk_mq_timeout_work(struct work_struct *work)
 	blk_queue_exit(q);
 }
 
-/*
- * Reverse check our software queue for entries that we could potentially
- * merge with. Currently includes a hand-wavy stop count of 8, to not spend
- * too much time checking for merges.
- */
-static bool blk_mq_attempt_merge(struct request_queue *q,
-				 struct blk_mq_ctx *ctx, struct bio *bio)
-{
-	struct request *rq;
-	int checked = 8;
-
-	list_for_each_entry_reverse(rq, &ctx->rq_list, queuelist) {
-		bool merged = false;
-
-		if (!checked--)
-			break;
-
-		if (!blk_rq_merge_ok(rq, bio))
-			continue;
-
-		switch (blk_try_merge(rq, bio)) {
-		case ELEVATOR_BACK_MERGE:
-			if (blk_mq_sched_allow_merge(q, rq, bio))
-				merged = bio_attempt_back_merge(q, rq, bio);
-			break;
-		case ELEVATOR_FRONT_MERGE:
-			if (blk_mq_sched_allow_merge(q, rq, bio))
-				merged = bio_attempt_front_merge(q, rq, bio);
-			break;
-		case ELEVATOR_DISCARD_MERGE:
-			merged = bio_attempt_discard_merge(q, rq, bio);
-			break;
-		default:
-			continue;
-		}
-
-		if (merged)
-			ctx->rq_merged++;
-		return merged;
-	}
-
-	return false;
-}
-
 struct flush_busy_ctx_data {
 	struct blk_mq_hw_ctx *hctx;
 	struct list_head *list;
@@ -1427,23 +1383,6 @@ static inline bool hctx_allow_merges(struct blk_mq_hw_ctx *hctx)
 		!blk_queue_nomerges(hctx->queue);
 }
 
-/* attempt to merge bio into current sw queue */
-static inline bool blk_mq_merge_bio(struct request_queue *q, struct bio *bio)
-{
-	bool ret = false;
-	struct blk_mq_ctx *ctx = blk_mq_get_ctx(q);
-	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, ctx->cpu);
-
-	if (hctx_allow_merges(hctx) && bio_mergeable(bio)) {
-		spin_lock(&ctx->lock);
-		ret = blk_mq_attempt_merge(q, ctx, bio);
-		spin_unlock(&ctx->lock);
-	}
-
-	blk_mq_put_ctx(ctx);
-	return ret;
-}
-
 static inline void blk_mq_queue_io(struct blk_mq_hw_ctx *hctx,
 				   struct blk_mq_ctx *ctx,
 				   struct request *rq)
@@ -1547,9 +1486,6 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		return BLK_QC_T_NONE;
 
 	if (blk_mq_sched_bio_merge(q, bio))
-		return BLK_QC_T_NONE;
-
-	if (blk_mq_merge_bio(q, bio))
 		return BLK_QC_T_NONE;
 
 	wb_acct = wbt_wait(q->rq_wb, bio, NULL);
