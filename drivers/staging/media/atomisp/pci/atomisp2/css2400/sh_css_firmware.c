@@ -63,9 +63,6 @@ static const char *release_version = STR(irci_ecr-master_20150911_0724);
 static char FW_rel_ver_name[MAX_FW_REL_VER_NAME] = "---";
 
 struct ia_css_fw_info	  sh_css_sp_fw;
-#if defined(HAS_BL)
-struct ia_css_fw_info     sh_css_bl_fw;
-#endif /* HAS_BL */
 struct ia_css_blob_descr *sh_css_blob_info; /* Only ISP blob info (no SP) */
 unsigned		  sh_css_num_binaries; /* This includes 1 SP binary */
 
@@ -137,12 +134,7 @@ sh_css_load_blob_info(const char *fw, const struct ia_css_fw_info *bi, struct ia
 	bd->blob = blob;
 	bd->header = *bi;
 
-	if ((bi->type == ia_css_isp_firmware) || (bi->type == ia_css_sp_firmware)
-#if defined(HAS_BL)
-	|| (bi->type == ia_css_bootloader_firmware)
-#endif /* HAS_BL */
-	)
-	{
+	if (bi->type == ia_css_isp_firmware || bi->type == ia_css_sp_firmware) {
 		char *namebuffer;
 		int namelength = (int)strlen(name);
 
@@ -279,15 +271,6 @@ sh_css_load_firmware(const char *fw_data,
 			err = setup_binary(bi, fw_data, &sh_css_sp_fw, i);
 			if (err != IA_CSS_SUCCESS)
 				return err;
-#if defined(HAS_BL)
-		} else if (bi->type == ia_css_bootloader_firmware) {
-			if (i != BOOTLOADER_FIRMWARE)
-				return IA_CSS_ERR_INTERNAL_ERROR;
-			err = setup_binary(bi, fw_data, &sh_css_bl_fw, i);
-			if (err != IA_CSS_SUCCESS)
-				return err;
-			IA_CSS_LOG("Bootloader binary recognized\n");
-#endif
 		} else {
 			/* All subsequent binaries (including bootloaders) (i>NUM_OF_SPS+NUM_OF_BLS) are ISP firmware */
 			if (i < (NUM_OF_SPS + NUM_OF_BLS))
