@@ -2127,7 +2127,7 @@ const struct intel_pt_state *intel_pt_decode(struct intel_pt_decoder *decoder)
 			decoder->have_last_ip = false;
 			decoder->last_ip = 0;
 			decoder->ip = 0;
-			/* Fall through */
+			__fallthrough;
 		case INTEL_PT_STATE_ERR_RESYNC:
 			err = intel_pt_sync_ip(decoder);
 			break;
