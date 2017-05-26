@@ -242,7 +242,7 @@ static int qual_power(struct hfi1_pportdata *ppd)
 
 	if (ppd->offline_disabled_reason ==
 			HFI1_ODR_MASK(OPA_LINKDOWN_REASON_POWER_POLICY)) {
-		dd_dev_info(
+		dd_dev_err(
 			ppd->dd,
 			"%s: Port disabled due to system power restrictions\n",
 			__func__);
@@ -268,7 +268,7 @@ static int qual_bitrate(struct hfi1_pportdata *ppd)
 
 	if (ppd->offline_disabled_reason ==
 			HFI1_ODR_MASK(OPA_LINKDOWN_REASON_LINKSPEED_POLICY)) {
-		dd_dev_info(
+		dd_dev_err(
 			ppd->dd,
 			"%s: Cable failed bitrate check, disabling port\n",
 			__func__);
@@ -709,15 +709,15 @@ static void apply_tunings(
 		ret = load_8051_config(ppd->dd, DC_HOST_COMM_SETTINGS,
 				       GENERAL_CONFIG, config_data);
 		if (ret != HCMD_SUCCESS)
-			dd_dev_info(ppd->dd,
-				    "%s: Failed set ext device config params\n",
-				    __func__);
+			dd_dev_err(ppd->dd,
+				   "%s: Failed set ext device config params\n",
+				   __func__);
 	}
 
 	if (tx_preset_index == OPA_INVALID_INDEX) {
 		if (ppd->port_type == PORT_TYPE_QSFP && limiting_active)
-			dd_dev_info(ppd->dd, "%s: Invalid Tx preset index\n",
-				    __func__);
+			dd_dev_err(ppd->dd, "%s: Invalid Tx preset index\n",
+				   __func__);
 		return;
 	}
 
@@ -900,7 +900,7 @@ static int tune_qsfp(struct hfi1_pportdata *ppd,
 	case 0xD: /* fallthrough */
 	case 0xF:
 	default:
-		dd_dev_info(ppd->dd, "%s: Unknown/unsupported cable\n",
+		dd_dev_warn(ppd->dd, "%s: Unknown/unsupported cable\n",
 			    __func__);
 		break;
 	}
@@ -942,7 +942,7 @@ void tune_serdes(struct hfi1_pportdata *ppd)
 	case PORT_TYPE_DISCONNECTED:
 		ppd->offline_disabled_reason =
 			HFI1_ODR_MASK(OPA_LINKDOWN_REASON_DISCONNECTED);
-		dd_dev_info(dd, "%s: Port disconnected, disabling port\n",
+		dd_dev_warn(dd, "%s: Port disconnected, disabling port\n",
 			    __func__);
 		goto bail;
 	case PORT_TYPE_FIXED:
@@ -1027,7 +1027,7 @@ void tune_serdes(struct hfi1_pportdata *ppd)
 		}
 		break;
 	default:
-		dd_dev_info(ppd->dd, "%s: Unknown port type\n", __func__);
+		dd_dev_warn(ppd->dd, "%s: Unknown port type\n", __func__);
 		ppd->port_type = PORT_TYPE_UNKNOWN;
 		tuning_method = OPA_UNKNOWN_TUNING;
 		total_atten = 0;
