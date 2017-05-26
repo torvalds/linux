@@ -410,11 +410,16 @@ void intel_uc_fini_hw(struct drm_i915_private *dev_priv)
 	if (!i915.enable_guc_loading)
 		return;
 
-	if (i915.enable_guc_submission) {
+	if (i915.enable_guc_submission)
 		i915_guc_submission_disable(dev_priv);
+
+	guc_disable_communication(&dev_priv->guc);
+
+	if (i915.enable_guc_submission) {
 		gen9_disable_guc_interrupts(dev_priv);
 		i915_guc_submission_fini(dev_priv);
 	}
+
 	i915_ggtt_disable_guc(dev_priv);
 }
 
