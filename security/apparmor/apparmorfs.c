@@ -23,6 +23,7 @@
 #include <linux/capability.h>
 #include <linux/rcupdate.h>
 #include <linux/fs.h>
+#include <linux/poll.h>
 #include <uapi/linux/major.h>
 #include <uapi/linux/magic.h>
 
@@ -31,6 +32,7 @@
 #include "include/audit.h"
 #include "include/context.h"
 #include "include/crypto.h"
+#include "include/policy_ns.h"
 #include "include/policy.h"
 #include "include/policy_ns.h"
 #include "include/resource.h"
@@ -498,10 +500,100 @@ static const struct file_operations aa_fs_profile_remove = {
 	.llseek = default_llseek,
 };
 
+struct aa_revision {
+	struct aa_ns *ns;
+	long last_read;
+};
+
+/* revision file hook fn for policy loads */
+static int ns_revision_release(struct inode *inode, struct file *file)
+{
+	struct aa_revision *rev = file->private_data;
+
+	if (rev) {
+		aa_put_ns(rev->ns);
+		kfree(rev);
+	}
+
+	return 0;
+}
+
+static ssize_t ns_revision_read(struct file *file, char __user *buf,
+				size_t size, loff_t *ppos)
+{
+	struct aa_revision *rev = file->private_data;
+	char buffer[32];
+	long last_read;
+	int avail;
+
+	mutex_lock(&rev->ns->lock);
+	last_read = rev->last_read;
+	if (last_read == rev->ns->revision) {
+		mutex_unlock(&rev->ns->lock);
+		if (file->f_flags & O_NONBLOCK)
+			return -EAGAIN;
+		if (wait_event_interruptible(rev->ns->wait,
+					     last_read !=
+					     READ_ONCE(rev->ns->revision)))
+			return -ERESTARTSYS;
+		mutex_lock(&rev->ns->lock);
+	}
+
+	avail = sprintf(buffer, "%ld\n", rev->ns->revision);
+	if (*ppos + size > avail) {
+		rev->last_read = rev->ns->revision;
+		*ppos = 0;
+	}
+	mutex_unlock(&rev->ns->lock);
+
+	return simple_read_from_buffer(buf, size, ppos, buffer, avail);
+}
+
+static int ns_revision_open(struct inode *inode, struct file *file)
+{
+	struct aa_revision *rev = kzalloc(sizeof(*rev), GFP_KERNEL);
+
+	if (!rev)
+		return -ENOMEM;
+
+	rev->ns = aa_get_ns(inode->i_private);
+	if (!rev->ns)
+		rev->ns = aa_get_current_ns();
+	file->private_data = rev;
+
+	return 0;
+}
+
+static unsigned int ns_revision_poll(struct file *file, poll_table *pt)
+{
+	struct aa_revision *rev = file->private_data;
+	unsigned int mask = 0;
+
+	if (rev) {
+		mutex_lock(&rev->ns->lock);
+		poll_wait(file, &rev->ns->wait, pt);
+		if (rev->last_read < rev->ns->revision)
+			mask |= POLLIN | POLLRDNORM;
+		mutex_unlock(&rev->ns->lock);
+	}
+
+	return mask;
+}
+
 void __aa_bump_ns_revision(struct aa_ns *ns)
 {
 	ns->revision++;
+	wake_up_interruptible(&ns->wait);
 }
+
+static const struct file_operations aa_fs_ns_revision_fops = {
+	.owner		= THIS_MODULE,
+	.open		= ns_revision_open,
+	.poll		= ns_revision_poll,
+	.read		= ns_revision_read,
+	.llseek		= generic_file_llseek,
+	.release	= ns_revision_release,
+};
 
 /**
  * query_data - queries a policy and writes its data to buf
@@ -1280,6 +1372,10 @@ void __aafs_ns_rmdir(struct aa_ns *ns)
 		sub = d_inode(ns_subremove(ns))->i_private;
 		aa_put_ns(sub);
 	}
+	if (ns_subrevision(ns)) {
+		sub = d_inode(ns_subrevision(ns))->i_private;
+		aa_put_ns(sub);
+	}
 
 	for (i = AAFS_NS_SIZEOF - 1; i >= 0; --i) {
 		aafs_remove(ns->dents[i]);
@@ -1304,6 +1400,13 @@ static int __aafs_ns_mkdir_entries(struct aa_ns *ns, struct dentry *dir)
 	if (IS_ERR(dent))
 		return PTR_ERR(dent);
 	ns_subdata_dir(ns) = dent;
+
+	dent = aafs_create_file("revision", 0444, dir, ns,
+				&aa_fs_ns_revision_fops);
+	if (IS_ERR(dent))
+		return PTR_ERR(dent);
+	aa_get_ns(ns);
+	ns_subrevision(ns) = dent;
 
 	dent = aafs_create_file(".load", 0640, dir, ns,
 				      &aa_fs_profile_load);
@@ -1930,11 +2033,19 @@ static int __init aa_create_aafs(void)
 	}
 	ns_subremove(root_ns) = dent;
 
+	dent = securityfs_create_file("revision", 0444, aa_sfs_entry.dentry,
+				      NULL, &aa_fs_ns_revision_fops);
+	if (IS_ERR(dent)) {
+		error = PTR_ERR(dent);
+		goto error;
+	}
+	ns_subrevision(root_ns) = dent;
+
+	/* policy tree referenced by magic policy symlink */
 	mutex_lock(&root_ns->lock);
 	error = __aafs_ns_mkdir(root_ns, aafs_mnt->mnt_root, ".policy",
 				aafs_mnt->mnt_root);
 	mutex_unlock(&root_ns->lock);
-
 	if (error)
 		goto error;
 

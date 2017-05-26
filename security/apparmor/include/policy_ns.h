@@ -69,6 +69,7 @@ struct aa_ns {
 	long uniq_id;
 	int level;
 	long revision;
+	wait_queue_head_t wait;
 
 	struct list_head rawdata_list;
 
