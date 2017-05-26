@@ -2923,10 +2923,7 @@ load_preview_binaries(struct ia_css_pipe *pipe)
 #endif
 	/* preview only have 1 output pin now */
 	struct ia_css_frame_info *pipe_out_info = &pipe->output_info[0];
-#ifdef ISP2401
 	struct ia_css_preview_settings *mycs  = &pipe->pipe_settings.preview;
-
-#endif
 
 	IA_CSS_ENTER_PRIVATE("");
 	assert(pipe != NULL);
@@ -2939,11 +2936,7 @@ load_preview_binaries(struct ia_css_pipe *pipe)
 	sensor = pipe->stream->config.mode == IA_CSS_INPUT_MODE_SENSOR;
 #endif
 
-#ifndef ISP2401
-	if (pipe->pipe_settings.preview.preview_binary.info)
-#else
 	if (mycs->preview_binary.info)
-#endif
 		return IA_CSS_SUCCESS;
 
 	err = ia_css_util_check_input(&pipe->stream->config, false, false);
@@ -2996,12 +2989,7 @@ load_preview_binaries(struct ia_css_pipe *pipe)
 			&prev_vf_info);
 	if (err != IA_CSS_SUCCESS)
 		return err;
-	err = ia_css_binary_find(&preview_descr,
-#ifndef ISP2401
-				 &pipe->pipe_settings.preview.preview_binary);
-#else
-				 &mycs->preview_binary);
-#endif
+	err = ia_css_binary_find(&preview_descr, &mycs->preview_binary);
 	if (err != IA_CSS_SUCCESS)
 		return err;
 
@@ -3017,24 +3005,15 @@ load_preview_binaries(struct ia_css_pipe *pipe)
 
 #endif
 	/* The vf_pp binary is needed when (further) YUV downscaling is required */
-#ifndef ISP2401
-	need_vf_pp |= pipe->pipe_settings.preview.preview_binary.out_frame_info[0].res.width != pipe_out_info->res.width;
-	need_vf_pp |= pipe->pipe_settings.preview.preview_binary.out_frame_info[0].res.height != pipe_out_info->res.height;
-#else
 	need_vf_pp |= mycs->preview_binary.out_frame_info[0].res.width != pipe_out_info->res.width;
 	need_vf_pp |= mycs->preview_binary.out_frame_info[0].res.height != pipe_out_info->res.height;
-#endif
 
 	/* When vf_pp is needed, then the output format of the selected
 	 * preview binary must be yuv_line. If this is not the case,
 	 * then the preview binary selection is done again.
 	 */
 	if (need_vf_pp &&
-#ifndef ISP2401
-		(pipe->pipe_settings.preview.preview_binary.out_frame_info[0].format != IA_CSS_FRAME_FORMAT_YUV_LINE)) {
-#else
 		(mycs->preview_binary.out_frame_info[0].format != IA_CSS_FRAME_FORMAT_YUV_LINE)) {
-#endif
 
 		/* Preview step 2 */
 		if (pipe->vf_yuv_ds_input_info.res.width)
@@ -3055,11 +3034,7 @@ load_preview_binaries(struct ia_css_pipe *pipe)
 		if (err != IA_CSS_SUCCESS)
 			return err;
 		err = ia_css_binary_find(&preview_descr,
-#ifndef ISP2401
-				&pipe->pipe_settings.preview.preview_binary);
-#else
 				&mycs->preview_binary);
-#endif
 		if (err != IA_CSS_SUCCESS)
 			return err;
 	}
@@ -3069,18 +3044,10 @@ load_preview_binaries(struct ia_css_pipe *pipe)
 
 		/* Viewfinder post-processing */
 		ia_css_pipe_get_vfpp_binarydesc(pipe, &vf_pp_descr,
-#ifndef ISP2401
-			&pipe->pipe_settings.preview.preview_binary.out_frame_info[0],
-#else
 			&mycs->preview_binary.out_frame_info[0],
-#endif
 			pipe_out_info);
 		err = ia_css_binary_find(&vf_pp_descr,
-#ifndef ISP2401
-				 &pipe->pipe_settings.preview.vf_pp_binary);
-#else
 				 &mycs->vf_pp_binary);
-#endif
 		if (err != IA_CSS_SUCCESS)
 			return err;
 	}
@@ -3106,13 +3073,8 @@ load_preview_binaries(struct ia_css_pipe *pipe)
 	/* Copy */
 	if (need_isp_copy_binary) {
 		err = load_copy_binary(pipe,
-#ifndef ISP2401
-				       &pipe->pipe_settings.preview.copy_binary,
-				       &pipe->pipe_settings.preview.preview_binary);
-#else
 				       &mycs->copy_binary,
 				       &mycs->preview_binary);
-#endif
 		if (err != IA_CSS_SUCCESS)
 			return err;
 	}
