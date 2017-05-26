@@ -1225,37 +1225,41 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 	if (rc)
 		return rc;
 
-	/* remove the closed state so when we call open it appears
-	 * we are coming from the probed state.
-	 */
-	adapter->state = VNIC_PROBED;
-
-	release_resources(adapter);
-	release_sub_crqs(adapter);
-	release_crq_queue(adapter);
-
-	rc = ibmvnic_init(adapter);
-	if (rc)
-		return 0;
-
-	/* If the adapter was in PROBE state prior to the reset, exit here. */
-	if (reset_state == VNIC_PROBED)
-		return 0;
-
-	rc = ibmvnic_login(netdev);
-	if (rc) {
+	if (adapter->reset_reason != VNIC_RESET_NON_FATAL) {
+		/* remove the closed state so when we call open it appears
+		 * we are coming from the probed state.
+		 */
 		adapter->state = VNIC_PROBED;
-		return 0;
+
+		release_resources(adapter);
+		release_sub_crqs(adapter);
+		release_crq_queue(adapter);
+
+		rc = ibmvnic_init(adapter);
+		if (rc)
+			return 0;
+
+		/* If the adapter was in PROBE state prior to the reset,
+		 * exit here.
+		 */
+		if (reset_state == VNIC_PROBED)
+			return 0;
+
+		rc = ibmvnic_login(netdev);
+		if (rc) {
+			adapter->state = VNIC_PROBED;
+			return 0;
+		}
+
+		rtnl_lock();
+		rc = init_resources(adapter);
+		rtnl_unlock();
+		if (rc)
+			return rc;
+
+		if (reset_state == VNIC_CLOSED)
+			return 0;
 	}
-
-	rtnl_lock();
-	rc = init_resources(adapter);
-	rtnl_unlock();
-	if (rc)
-		return rc;
-
-	if (reset_state == VNIC_CLOSED)
-		return 0;
 
 	rc = __ibmvnic_open(netdev);
 	if (rc) {
@@ -2763,6 +2767,8 @@ static void handle_error_indication(union ibmvnic_crq *crq,
 
 	if (crq->error_indication.flags & IBMVNIC_FATAL_ERROR)
 		ibmvnic_reset(adapter, VNIC_RESET_FATAL);
+	else
+		ibmvnic_reset(adapter, VNIC_RESET_NON_FATAL);
 }
 
 static void handle_change_mac_rsp(union ibmvnic_crq *crq,
