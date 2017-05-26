@@ -176,6 +176,12 @@ static const char * const smbus_pnp_ids[] = {
 	NULL
 };
 
+static const char * const forcepad_pnp_ids[] = {
+	"SYN300D",
+	"SYN3014",
+	NULL
+};
+
 /*
  * Send a command to the synpatics touchpad by special commands
  */
@@ -480,13 +486,6 @@ static const struct min_max_quirk min_max_pnpid_table[] = {
 		1264, 5675, 1171, 4688
 	},
 	{ }
-};
-
-/* This list has been kindly provided by Synaptics. */
-static const char * const forcepad_pnp_ids[] = {
-	"SYN300D",
-	"SYN3014",
-	NULL
 };
 
 /*****************************************************************************
@@ -1813,6 +1812,15 @@ int synaptics_init(struct psmouse *psmouse)
 	}
 
 	if (SYN_CAP_INTERTOUCH(info.ext_cap_0c)) {
+		if ((!IS_ENABLED(CONFIG_RMI4_SMB) ||
+		     !IS_ENABLED(CONFIG_MOUSE_PS2_SYNAPTICS_SMBUS)) &&
+		    /* Forcepads need F21, which is not ready */
+		    !psmouse_matches_pnp_id(psmouse, forcepad_pnp_ids)) {
+			psmouse_warn(psmouse,
+				     "The touchpad can support a better bus than the too old PS/2 protocol. "
+				     "Make sure MOUSE_PS2_SYNAPTICS_SMBUS and RMI4_SMB are enabled to get a better touchpad experience.\n");
+		}
+
 		error = synaptics_setup_intertouch(psmouse, &info, true);
 		if (!error)
 			return PSMOUSE_SYNAPTICS_SMBUS;
