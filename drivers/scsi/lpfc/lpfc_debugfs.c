@@ -323,7 +323,7 @@ lpfc_debugfs_hbqinfo_data(struct lpfc_hba *phba, char *buf, int size)
 	raw_index = phba->hbq_get[i];
 	getidx = le32_to_cpu(raw_index);
 	len +=  snprintf(buf+len, size-len,
-		"entrys:%d bufcnt:%d Put:%d nPut:%d localGet:%d hbaGet:%d\n",
+		"entries:%d bufcnt:%d Put:%d nPut:%d localGet:%d hbaGet:%d\n",
 		hbqs->entry_count, hbqs->buffer_count, hbqs->hbqPutIdx,
 		hbqs->next_hbqPutIdx, hbqs->local_hbqGetIdx, getidx);
 
