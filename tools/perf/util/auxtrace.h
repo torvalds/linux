@@ -60,6 +60,7 @@ enum itrace_period_type {
  * @branches: whether to synthesize 'branches' events
  * @transactions: whether to synthesize events for transactions
  * @ptwrites: whether to synthesize events for ptwrites
+ * @pwr_events: whether to synthesize power events
  * @errors: whether to synthesize decoder error events
  * @dont_decode: whether to skip decoding entirely
  * @log: write a decoding log
@@ -81,6 +82,7 @@ struct itrace_synth_opts {
 	bool			branches;
 	bool			transactions;
 	bool			ptwrites;
+	bool			pwr_events;
 	bool			errors;
 	bool			dont_decode;
 	bool			log;
