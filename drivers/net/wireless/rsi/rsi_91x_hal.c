@@ -22,7 +22,7 @@
 /* FLASH Firmware */
 static struct ta_metadata metadata_flash_content[] = {
 	{"flash_content", 0x00010000},
-	{"rs9113_wlan_qspi.rps", 0x00010000},
+	{"rsi/rs9113_wlan_qspi.rps", 0x00010000},
 };
 
 /**
