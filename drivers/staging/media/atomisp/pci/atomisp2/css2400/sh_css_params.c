@@ -3356,15 +3356,8 @@ enum ia_css_err ia_css_pipe_set_bci_scaler_lut(struct ia_css_pipe *pipe,
 	}
 
 	/* Free any existing tables. */
-#ifndef ISP2401
-	if (pipe->scaler_pp_lut != mmgr_NULL) {
-		hmm_free(pipe->scaler_pp_lut);
-		pipe->scaler_pp_lut = mmgr_NULL;
-	}
-#else
 	sh_css_params_free_gdc_lut(pipe->scaler_pp_lut);
 	pipe->scaler_pp_lut = mmgr_NULL;
-#endif
 
 #ifndef ISP2401
 	if (store) {
@@ -3445,15 +3438,8 @@ void sh_css_params_free_default_gdc_lut(void)
 {
 	IA_CSS_ENTER_PRIVATE("void");
 
-#ifndef ISP2401
-	if (default_gdc_lut != mmgr_NULL) {
-		hmm_free(default_gdc_lut);
-		default_gdc_lut = mmgr_NULL;
-	}
-#else
 	sh_css_params_free_gdc_lut(default_gdc_lut);
 	default_gdc_lut = mmgr_NULL;
-#endif
 
 	IA_CSS_LEAVE_PRIVATE("void");
 

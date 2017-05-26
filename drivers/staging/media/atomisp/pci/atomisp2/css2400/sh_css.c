@@ -2533,15 +2533,8 @@ ia_css_pipe_destroy(struct ia_css_pipe *pipe)
 		break;
 	}
 
-#ifndef ISP2401
-	if (pipe->scaler_pp_lut != mmgr_NULL) {
-		hmm_free(pipe->scaler_pp_lut);
-		pipe->scaler_pp_lut = mmgr_NULL;
-	}
-#else
 	sh_css_params_free_gdc_lut(pipe->scaler_pp_lut);
 	pipe->scaler_pp_lut = mmgr_NULL;
-#endif
 
 	my_css.active_pipes[ia_css_pipe_get_pipe_num(pipe)] = NULL;
 	sh_css_pipe_free_shading_table(pipe);
