@@ -55,11 +55,8 @@ static void mwifiex_restore_tdls_packets(struct mwifiex_private *priv,
 			tx_info->flags |= MWIFIEX_BUF_FLAG_TDLS_PKT;
 		} else {
 			tid_list = &priv->wmm.tid_tbl_ptr[tid_down].ra_list;
-			if (!list_empty(tid_list))
-				ra_list = list_first_entry(tid_list,
-					      struct mwifiex_ra_list_tbl, list);
-			else
-				ra_list = NULL;
+			ra_list = list_first_entry_or_null(tid_list,
+					struct mwifiex_ra_list_tbl, list);
 			tx_info->flags &= ~MWIFIEX_BUF_FLAG_TDLS_PKT;
 		}
 

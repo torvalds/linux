@@ -868,12 +868,8 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 			return;
 		default:
 			list_head = priv->wmm.tid_tbl_ptr[tid_down].ra_list;
-			if (!list_empty(&list_head))
-				ra_list = list_first_entry(
-					&list_head, struct mwifiex_ra_list_tbl,
-					list);
-			else
-				ra_list = NULL;
+			ra_list = list_first_entry_or_null(&list_head,
+					struct mwifiex_ra_list_tbl, list);
 			break;
 		}
 	} else {
