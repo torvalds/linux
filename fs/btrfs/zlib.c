@@ -30,6 +30,7 @@
 #include <linux/sched.h>
 #include <linux/pagemap.h>
 #include <linux/bio.h>
+#include <linux/refcount.h>
 #include "compression.h"
 
 struct workspace {
@@ -211,10 +212,7 @@ out:
 	return ret;
 }
 
-static int zlib_decompress_bio(struct list_head *ws, struct page **pages_in,
-				  u64 disk_start,
-				  struct bio *orig_bio,
-				  size_t srclen)
+static int zlib_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 	int ret = 0, ret2;
@@ -222,8 +220,12 @@ static int zlib_decompress_bio(struct list_head *ws, struct page **pages_in,
 	char *data_in;
 	size_t total_out = 0;
 	unsigned long page_in_index = 0;
+	size_t srclen = cb->compressed_len;
 	unsigned long total_pages_in = DIV_ROUND_UP(srclen, PAGE_SIZE);
 	unsigned long buf_start;
+	struct page **pages_in = cb->compressed_pages;
+	u64 disk_start = cb->start;
+	struct bio *orig_bio = cb->orig_bio;
 
 	data_in = kmap(pages_in[page_in_index]);
 	workspace->strm.next_in = data_in;

@@ -25,6 +25,7 @@
 #include <linux/pagemap.h>
 #include <linux/bio.h>
 #include <linux/lzo.h>
+#include <linux/refcount.h>
 #include "compression.h"
 
 #define LZO_LEN	4
@@ -254,16 +255,13 @@ out:
 	return ret;
 }
 
-static int lzo_decompress_bio(struct list_head *ws,
-				 struct page **pages_in,
-				 u64 disk_start,
-				 struct bio *orig_bio,
-				 size_t srclen)
+static int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 	int ret = 0, ret2;
 	char *data_in;
 	unsigned long page_in_index = 0;
+	size_t srclen = cb->compressed_len;
 	unsigned long total_pages_in = DIV_ROUND_UP(srclen, PAGE_SIZE);
 	unsigned long buf_start;
 	unsigned long buf_offset = 0;
@@ -278,6 +276,9 @@ static int lzo_decompress_bio(struct list_head *ws,
 	unsigned long tot_len;
 	char *buf;
 	bool may_late_unmap, need_unmap;
+	struct page **pages_in = cb->compressed_pages;
+	u64 disk_start = cb->start;
+	struct bio *orig_bio = cb->orig_bio;
 
 	data_in = kmap(pages_in[0]);
 	tot_len = read_compress_length(data_in);

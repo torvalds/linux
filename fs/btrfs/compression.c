@@ -42,45 +42,6 @@
 #include "extent_io.h"
 #include "extent_map.h"
 
-struct compressed_bio {
-	/* number of bios pending for this compressed extent */
-	refcount_t pending_bios;
-
-	/* the pages with the compressed data on them */
-	struct page **compressed_pages;
-
-	/* inode that owns this data */
-	struct inode *inode;
-
-	/* starting offset in the inode for our pages */
-	u64 start;
-
-	/* number of bytes in the inode we're working on */
-	unsigned long len;
-
-	/* number of bytes on disk */
-	unsigned long compressed_len;
-
-	/* the compression algorithm for this bio */
-	int compress_type;
-
-	/* number of compressed pages in the array */
-	unsigned long nr_pages;
-
-	/* IO errors */
-	int errors;
-	int mirror_num;
-
-	/* for reads, this is the bio we are copying the data into */
-	struct bio *orig_bio;
-
-	/*
-	 * the start of a variable length array of checksums only
-	 * used by reads
-	 */
-	u32 sums;
-};
-
 static int btrfs_decompress_bio(struct compressed_bio *cb);
 
 static inline int compressed_bio_size(struct btrfs_fs_info *fs_info,
@@ -963,12 +924,9 @@ static int btrfs_decompress_bio(struct compressed_bio *cb)
 	int type = cb->compress_type;
 
 	workspace = find_workspace(type);
-
-	ret = btrfs_compress_op[type - 1]->decompress_bio(workspace,
-			cb->compressed_pages, cb->start, cb->orig_bio,
-			cb->compressed_len);
-
+	ret = btrfs_compress_op[type - 1]->decompress_bio(workspace, cb);
 	free_workspace(type, workspace);
+
 	return ret;
 }
 
