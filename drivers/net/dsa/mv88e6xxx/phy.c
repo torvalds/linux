@@ -124,7 +124,7 @@ static int mv88e6xxx_ppu_disable(struct mv88e6xxx_chip *chip)
 	return chip->info->ops->ppu_disable(chip);
 }
 
-int mv88e6xxx_ppu_enable(struct mv88e6xxx_chip *chip)
+static int mv88e6xxx_ppu_enable(struct mv88e6xxx_chip *chip)
 {
 	if (!chip->info->ops->ppu_enable)
 		return 0;
@@ -240,4 +240,9 @@ void mv88e6xxx_phy_destroy(struct mv88e6xxx_chip *chip)
 {
 	if (chip->info->ops->ppu_enable && chip->info->ops->ppu_disable)
 		mv88e6xxx_ppu_state_destroy(chip);
+}
+
+int mv88e6xxx_phy_setup(struct mv88e6xxx_chip *chip)
+{
+	return mv88e6xxx_ppu_enable(chip);
 }

@@ -30,8 +30,8 @@ int mv88e6xxx_phy_ppu_read(struct mv88e6xxx_chip *chip, struct mii_bus *bus,
 			   int addr, int reg, u16 *val);
 int mv88e6xxx_phy_ppu_write(struct mv88e6xxx_chip *chip, struct mii_bus *bus,
 			    int addr, int reg, u16 val);
-int mv88e6xxx_ppu_enable(struct mv88e6xxx_chip *chip);
 void mv88e6xxx_phy_init(struct mv88e6xxx_chip *chip);
 void mv88e6xxx_phy_destroy(struct mv88e6xxx_chip *chip);
+int mv88e6xxx_phy_setup(struct mv88e6xxx_chip *chip);
 
 #endif /*_MV88E6XXX_PHY_H */

@@ -2034,13 +2034,6 @@ static int mv88e6xxx_g1_setup(struct mv88e6xxx_chip *chip)
 	u32 upstream_port = dsa_upstream_port(ds);
 	int err;
 
-	/* Enable the PHY Polling Unit if present, don't discard any packets,
-	 * and mask all interrupt sources.
-	 */
-	err = mv88e6xxx_ppu_enable(chip);
-	if (err)
-		return err;
-
 	if (chip->info->ops->g1_set_cpu_port) {
 		err = chip->info->ops->g1_set_cpu_port(chip, upstream_port);
 		if (err)
@@ -2139,6 +2132,10 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 		if (err)
 			goto unlock;
 	}
+
+	err = mv88e6xxx_phy_setup(chip);
+	if (err)
+		goto unlock;
 
 	err = mv88e6xxx_vtu_setup(chip);
 	if (err)
