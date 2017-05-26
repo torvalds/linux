@@ -1924,6 +1924,8 @@ static int intel_pt_sync_ip(struct intel_pt_decoder *decoder)
 {
 	int err;
 
+	decoder->set_fup_tx_flags = false;
+
 	intel_pt_log("Scanning for full IP\n");
 	err = intel_pt_walk_to_ip(decoder);
 	if (err)
