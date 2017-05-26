@@ -2945,7 +2945,8 @@ static int mlxsw_sp_vport_rif_sp_op(struct mlxsw_sp_port *mlxsw_sp_vport,
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ritr), ritr_pl);
 }
 
-static void mlxsw_sp_vport_rif_sp_leave(struct mlxsw_sp_port *mlxsw_sp_vport);
+static void
+mlxsw_sp_port_vlan_rif_sp_leave(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan);
 
 static u16 mlxsw_sp_rif_sp_to_fid(u16 rif_index)
 {
@@ -2961,7 +2962,7 @@ mlxsw_sp_rfid_alloc(u16 fid, struct net_device *l3_dev)
 	if (!f)
 		return NULL;
 
-	f->leave = mlxsw_sp_vport_rif_sp_leave;
+	f->leave = mlxsw_sp_port_vlan_rif_sp_leave;
 	f->ref_count = 0;
 	f->dev = l3_dev;
 	f->fid = fid;
@@ -3156,18 +3157,22 @@ err_port_vid_learning_set:
 	return err;
 }
 
-static void mlxsw_sp_vport_rif_sp_leave(struct mlxsw_sp_port *mlxsw_sp_vport)
+static void
+mlxsw_sp_port_vlan_rif_sp_leave(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan)
 {
-	struct mlxsw_sp_fid *f = mlxsw_sp_vport_fid_get(mlxsw_sp_vport);
-	u16 vid = mlxsw_sp_vport_vid_get(mlxsw_sp_vport);
-	struct mlxsw_sp_port *mlxsw_sp_port;
+	struct mlxsw_sp_port *mlxsw_sp_port = mlxsw_sp_port_vlan->mlxsw_sp_port;
+	struct mlxsw_sp_port *mlxsw_sp_vport;
+	u16 vid = mlxsw_sp_port_vlan->vid;
+	struct mlxsw_sp_fid *f;
+
+	mlxsw_sp_vport = mlxsw_sp_port_vport_find(mlxsw_sp_port, vid);
+	f = mlxsw_sp_vport_fid_get(mlxsw_sp_vport);
 
 	netdev_dbg(mlxsw_sp_vport->dev, "Left FID=%d\n", f->fid);
 
 	f->ref_count--;
 	mlxsw_sp_vport_fid_set(mlxsw_sp_vport, NULL);
 
-	mlxsw_sp_port = mlxsw_sp_vport_port(mlxsw_sp_vport);
 	if (mlxsw_sp_port->nr_port_vid_map == 1)
 		mlxsw_sp_port_vlan_mode_trans(mlxsw_sp_port);
 	mlxsw_sp_port->nr_port_vid_map--;
@@ -3183,17 +3188,19 @@ static int mlxsw_sp_inetaddr_vport_event(struct net_device *l3_dev,
 					 unsigned long event, u16 vid)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(port_dev);
+	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
 	struct mlxsw_sp_port *mlxsw_sp_vport;
 
 	mlxsw_sp_vport = mlxsw_sp_port_vport_find(mlxsw_sp_port, vid);
 	if (WARN_ON(!mlxsw_sp_vport))
 		return -EINVAL;
+	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_vid(mlxsw_sp_port, vid);
 
 	switch (event) {
 	case NETDEV_UP:
 		return mlxsw_sp_vport_rif_sp_join(mlxsw_sp_vport, l3_dev);
 	case NETDEV_DOWN:
-		mlxsw_sp_vport_rif_sp_leave(mlxsw_sp_vport);
+		mlxsw_sp_port_vlan_rif_sp_leave(mlxsw_sp_port_vlan);
 		break;
 	}
 

@@ -70,6 +70,7 @@
 #define MLXSW_SP_KVD_LINEAR_SIZE 65536 /* entries */
 #define MLXSW_SP_KVD_GRANULARITY 128
 
+struct mlxsw_sp_port_vlan;
 struct mlxsw_sp_port;
 struct mlxsw_sp_rif;
 
@@ -79,7 +80,7 @@ struct mlxsw_sp_upper {
 };
 
 struct mlxsw_sp_fid {
-	void (*leave)(struct mlxsw_sp_port *mlxsw_sp_vport);
+	void (*leave)(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan);
 	struct list_head list;
 	unsigned int ref_count;
 	struct net_device *dev;

@@ -1574,7 +1574,7 @@ static int mlxsw_sp_port_kill_vid(struct net_device *dev,
 	 */
 	f = mlxsw_sp_vport_fid_get(mlxsw_sp_vport);
 	if (f && !WARN_ON(!f->leave))
-		f->leave(mlxsw_sp_vport);
+		f->leave(mlxsw_sp_port_vlan);
 
 	mlxsw_sp_port_vport_destroy(mlxsw_sp_vport);
 
@@ -4192,6 +4192,7 @@ static void
 mlxsw_sp_port_pvid_vport_lag_join(struct mlxsw_sp_port *mlxsw_sp_port,
 				  struct net_device *lag_dev, u16 lag_id)
 {
+	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
 	struct mlxsw_sp_port *mlxsw_sp_vport;
 	struct mlxsw_sp_fid *f;
 
@@ -4199,12 +4200,13 @@ mlxsw_sp_port_pvid_vport_lag_join(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (WARN_ON(!mlxsw_sp_vport))
 		return;
 
+	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_vid(mlxsw_sp_port, 1);
 	/* If vPort is assigned a RIF, then leave it since it's no
 	 * longer valid.
 	 */
 	f = mlxsw_sp_vport_fid_get(mlxsw_sp_vport);
 	if (f)
-		f->leave(mlxsw_sp_vport);
+		f->leave(mlxsw_sp_port_vlan);
 
 	mlxsw_sp_vport->lag_id = lag_id;
 	mlxsw_sp_vport->lagged = 1;
@@ -4214,6 +4216,7 @@ mlxsw_sp_port_pvid_vport_lag_join(struct mlxsw_sp_port *mlxsw_sp_port,
 static void
 mlxsw_sp_port_pvid_vport_lag_leave(struct mlxsw_sp_port *mlxsw_sp_port)
 {
+	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
 	struct mlxsw_sp_port *mlxsw_sp_vport;
 	struct mlxsw_sp_fid *f;
 
@@ -4221,9 +4224,10 @@ mlxsw_sp_port_pvid_vport_lag_leave(struct mlxsw_sp_port *mlxsw_sp_port)
 	if (WARN_ON(!mlxsw_sp_vport))
 		return;
 
+	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_vid(mlxsw_sp_port, 1);
 	f = mlxsw_sp_vport_fid_get(mlxsw_sp_vport);
 	if (f)
-		f->leave(mlxsw_sp_vport);
+		f->leave(mlxsw_sp_port_vlan);
 
 	mlxsw_sp_vport->dev = mlxsw_sp_port->dev;
 	mlxsw_sp_vport->lagged = 0;
@@ -4652,7 +4656,8 @@ static int mlxsw_sp_vfid_op(struct mlxsw_sp *mlxsw_sp, u16 fid, bool create)
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfmr), sfmr_pl);
 }
 
-static void mlxsw_sp_vport_vfid_leave(struct mlxsw_sp_port *mlxsw_sp_vport);
+static void
+mlxsw_sp_port_vlan_vfid_leave(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan);
 
 static struct mlxsw_sp_fid *mlxsw_sp_vfid_create(struct mlxsw_sp *mlxsw_sp,
 						 struct net_device *br_dev)
@@ -4679,7 +4684,7 @@ static struct mlxsw_sp_fid *mlxsw_sp_vfid_create(struct mlxsw_sp *mlxsw_sp,
 	if (!f)
 		goto err_allocate_vfid;
 
-	f->leave = mlxsw_sp_vport_vfid_leave;
+	f->leave = mlxsw_sp_port_vlan_vfid_leave;
 	f->fid = fid;
 	f->dev = br_dev;
 
@@ -4767,17 +4772,22 @@ err_vport_flood_set:
 	return err;
 }
 
-static void mlxsw_sp_vport_vfid_leave(struct mlxsw_sp_port *mlxsw_sp_vport)
+static void
+mlxsw_sp_port_vlan_vfid_leave(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan)
 {
-	struct mlxsw_sp_fid *f = mlxsw_sp_vport_fid_get(mlxsw_sp_vport);
-	struct mlxsw_sp_port *mlxsw_sp_port;
+	struct mlxsw_sp_port *mlxsw_sp_port = mlxsw_sp_port_vlan->mlxsw_sp_port;
+	struct mlxsw_sp_port *mlxsw_sp_vport;
+	u16 vid = mlxsw_sp_port_vlan->vid;
+	struct mlxsw_sp_fid *f;
+
+	mlxsw_sp_vport = mlxsw_sp_port_vport_find(mlxsw_sp_port, vid);
+	f = mlxsw_sp_vport_fid_get(mlxsw_sp_vport);
 
 	netdev_dbg(mlxsw_sp_vport->dev, "Left FID=%d\n", f->fid);
 
 	mlxsw_sp_vport_fid_set(mlxsw_sp_vport, NULL);
 	f->ref_count--;
 
-	mlxsw_sp_port = mlxsw_sp_vport_port(mlxsw_sp_vport);
 	if (mlxsw_sp_port->nr_port_vid_map == 1)
 		mlxsw_sp_port_vlan_mode_trans(mlxsw_sp_port);
 	mlxsw_sp_port->nr_port_vid_map--;
@@ -4797,11 +4807,15 @@ static int mlxsw_sp_vport_bridge_join(struct mlxsw_sp_port *mlxsw_sp_vport,
 {
 	struct mlxsw_sp_fid *f = mlxsw_sp_vport_fid_get(mlxsw_sp_vport);
 	u16 vid = mlxsw_sp_vport_vid_get(mlxsw_sp_vport);
+	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
 	struct net_device *dev = mlxsw_sp_vport->dev;
+	struct mlxsw_sp_port *mlxsw_sp_port;
 	int err;
 
+	mlxsw_sp_port = mlxsw_sp_vport_port(mlxsw_sp_vport);
+	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_vid(mlxsw_sp_port, vid);
 	if (f && !WARN_ON(!f->leave))
-		f->leave(mlxsw_sp_vport);
+		f->leave(mlxsw_sp_port_vlan);
 
 	err = mlxsw_sp_vport_vfid_join(mlxsw_sp_vport, br_dev);
 	if (err) {
@@ -4826,17 +4840,21 @@ static int mlxsw_sp_vport_bridge_join(struct mlxsw_sp_port *mlxsw_sp_vport,
 	return 0;
 
 err_port_vid_learning_set:
-	mlxsw_sp_vport_vfid_leave(mlxsw_sp_vport);
+	mlxsw_sp_port_vlan_vfid_leave(mlxsw_sp_port_vlan);
 	return err;
 }
 
 static void mlxsw_sp_vport_bridge_leave(struct mlxsw_sp_port *mlxsw_sp_vport)
 {
 	u16 vid = mlxsw_sp_vport_vid_get(mlxsw_sp_vport);
+	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
+	struct mlxsw_sp_port *mlxsw_sp_port;
 
 	mlxsw_sp_port_vid_learning_set(mlxsw_sp_vport, vid, false);
 
-	mlxsw_sp_vport_vfid_leave(mlxsw_sp_vport);
+	mlxsw_sp_port = mlxsw_sp_vport_port(mlxsw_sp_vport);
+	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_vid(mlxsw_sp_port, vid);
+	mlxsw_sp_port_vlan_vfid_leave(mlxsw_sp_port_vlan);
 
 	mlxsw_sp_vport->learning = 0;
 	mlxsw_sp_vport->learning_sync = 0;
