@@ -22,6 +22,8 @@
 #include <linux/kobject.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/of_address.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 
@@ -277,37 +279,47 @@ static int vpd_sections_init(phys_addr_t physaddr)
 		ret = vpd_section_init("rw", &rw_vpd,
 				       physaddr + sizeof(struct vpd_cbmem) +
 				       header.ro_size, header.rw_size);
-		if (ret) {
-			vpd_section_destroy(&ro_vpd);
+		if (ret)
 			return ret;
-		}
 	}
 
 	return 0;
 }
 
+static int vpd_probe(struct platform_device *pdev)
+{
+	int ret;
+	struct lb_cbmem_ref entry;
+
+	ret = coreboot_table_find(CB_TAG_VPD, &entry, sizeof(entry));
+	if (ret)
+		return ret;
+
+	return vpd_sections_init(entry.cbmem_addr);
+}
+
+static struct platform_driver vpd_driver = {
+	.probe = vpd_probe,
+	.driver = {
+		.name = "vpd",
+	},
+};
+
 static int __init vpd_platform_init(void)
 {
-	struct lb_cbmem_ref entry;
-	int err;
+	struct platform_device *pdev;
+
+	pdev = platform_device_register_simple("vpd", -1, NULL, 0);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
 
 	vpd_kobj = kobject_create_and_add("vpd", firmware_kobj);
 	if (!vpd_kobj)
 		return -ENOMEM;
 
-	err = coreboot_table_find(CB_TAG_VPD, &entry, sizeof(entry));
-	if (err)
-		goto err_kobject_put;
-
-	err = vpd_sections_init(entry.cbmem_addr);
-	if (err)
-		goto err_kobject_put;
+	platform_driver_register(&vpd_driver);
 
 	return 0;
-
-err_kobject_put:
-	kobject_put(vpd_kobj);
-	return err;
 }
 
 static void __exit vpd_platform_exit(void)
