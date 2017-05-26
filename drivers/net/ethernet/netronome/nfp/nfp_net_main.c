@@ -502,6 +502,7 @@ static int nfp_net_pf_app_init(struct nfp_pf *pf)
 static void nfp_net_pf_app_clean(struct nfp_pf *pf)
 {
 	nfp_app_free(pf->app);
+	pf->app = NULL;
 }
 
 static void nfp_net_pci_remove_finish(struct nfp_pf *pf)
