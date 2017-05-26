@@ -110,6 +110,7 @@ struct intel_pt_decoder {
 	bool have_tma;
 	bool have_cyc;
 	bool fixup_last_mtc;
+	bool have_last_ip;
 	uint64_t pos;
 	uint64_t last_ip;
 	uint64_t ip;
@@ -417,6 +418,7 @@ static uint64_t intel_pt_calc_ip(const struct intel_pt_pkt *packet,
 static inline void intel_pt_set_last_ip(struct intel_pt_decoder *decoder)
 {
 	decoder->last_ip = intel_pt_calc_ip(&decoder->packet, decoder->last_ip);
+	decoder->have_last_ip = true;
 }
 
 static inline void intel_pt_set_ip(struct intel_pt_decoder *decoder)
@@ -1640,6 +1642,8 @@ next:
 			break;
 
 		case INTEL_PT_PSB:
+			decoder->last_ip = 0;
+			decoder->have_last_ip = true;
 			intel_pt_clear_stack(&decoder->stack);
 			err = intel_pt_walk_psbend(decoder);
 			if (err == -EAGAIN)
@@ -1720,7 +1724,7 @@ next:
 
 static inline bool intel_pt_have_ip(struct intel_pt_decoder *decoder)
 {
-	return decoder->last_ip || decoder->packet.count == 0 ||
+	return decoder->have_last_ip || decoder->packet.count == 0 ||
 	       decoder->packet.count == 3 || decoder->packet.count == 6;
 }
 
@@ -1850,7 +1854,7 @@ static int intel_pt_walk_to_ip(struct intel_pt_decoder *decoder)
 				if (decoder->ip)
 					return 0;
 			}
-			if (decoder->packet.count)
+			if (decoder->packet.count && decoder->have_last_ip)
 				intel_pt_set_last_ip(decoder);
 			break;
 
@@ -1900,6 +1904,8 @@ static int intel_pt_walk_to_ip(struct intel_pt_decoder *decoder)
 			break;
 
 		case INTEL_PT_PSB:
+			decoder->last_ip = 0;
+			decoder->have_last_ip = true;
 			intel_pt_clear_stack(&decoder->stack);
 			err = intel_pt_walk_psb(decoder);
 			if (err)
@@ -2036,6 +2042,7 @@ static int intel_pt_sync(struct intel_pt_decoder *decoder)
 
 	decoder->pge = false;
 	decoder->continuous_period = false;
+	decoder->have_last_ip = false;
 	decoder->last_ip = 0;
 	decoder->ip = 0;
 	intel_pt_clear_stack(&decoder->stack);
@@ -2044,6 +2051,7 @@ static int intel_pt_sync(struct intel_pt_decoder *decoder)
 	if (err)
 		return err;
 
+	decoder->have_last_ip = true;
 	decoder->pkt_state = INTEL_PT_STATE_NO_IP;
 
 	err = intel_pt_walk_psb(decoder);
@@ -2086,6 +2094,7 @@ const struct intel_pt_state *intel_pt_decode(struct intel_pt_decoder *decoder)
 			err = intel_pt_sync(decoder);
 			break;
 		case INTEL_PT_STATE_NO_IP:
+			decoder->have_last_ip = false;
 			decoder->last_ip = 0;
 			decoder->ip = 0;
 			/* Fall through */
