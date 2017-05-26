@@ -3982,17 +3982,6 @@ int mlxsw_sp_port_fdb_flush(struct mlxsw_sp_port *mlxsw_sp_port, u16 fid)
 		return mlxsw_sp_port_fdb_flush_by_port_fid(mlxsw_sp_port, fid);
 }
 
-static void mlxsw_sp_master_bridge_gone_sync(struct mlxsw_sp *mlxsw_sp)
-{
-	struct mlxsw_sp_fid *f, *tmp;
-
-	list_for_each_entry_safe(f, tmp, &mlxsw_sp->fids, list)
-		if (--f->ref_count == 0)
-			mlxsw_sp_fid_destroy(mlxsw_sp, f);
-		else
-			WARN_ON_ONCE(1);
-}
-
 static bool mlxsw_sp_master_bridge_check(struct mlxsw_sp *mlxsw_sp,
 					 struct net_device *br_dev)
 {
@@ -4014,15 +4003,8 @@ static void mlxsw_sp_master_bridge_dec(struct mlxsw_sp *mlxsw_sp)
 {
 	struct mlxsw_sp_upper *master_bridge = mlxsw_sp_master_bridge(mlxsw_sp);
 
-	if (--master_bridge->ref_count == 0) {
+	if (--master_bridge->ref_count == 0)
 		master_bridge->dev = NULL;
-		/* It's possible upper VLAN devices are still holding
-		 * references to underlying FIDs. Drop the reference
-		 * and release the resources if it was the last one.
-		 * If it wasn't, then something bad happened.
-		 */
-		mlxsw_sp_master_bridge_gone_sync(mlxsw_sp);
-	}
 }
 
 static int mlxsw_sp_port_bridge_join(struct mlxsw_sp_port *mlxsw_sp_port,
@@ -4584,79 +4566,6 @@ static int mlxsw_sp_netdevice_lag_event(struct net_device *lag_dev,
 	return 0;
 }
 
-static int mlxsw_sp_master_bridge_vlan_link(struct mlxsw_sp *mlxsw_sp,
-					    struct net_device *vlan_dev)
-{
-	u16 fid = vlan_dev_vlan_id(vlan_dev);
-	struct mlxsw_sp_fid *f;
-
-	f = mlxsw_sp_fid_find(mlxsw_sp, fid);
-	if (!f) {
-		f = mlxsw_sp_fid_create(mlxsw_sp, fid);
-		if (IS_ERR(f))
-			return PTR_ERR(f);
-	}
-
-	f->ref_count++;
-
-	return 0;
-}
-
-static void mlxsw_sp_master_bridge_vlan_unlink(struct mlxsw_sp *mlxsw_sp,
-					       struct net_device *vlan_dev)
-{
-	u16 fid = vlan_dev_vlan_id(vlan_dev);
-	struct mlxsw_sp_fid *f;
-
-	f = mlxsw_sp_fid_find(mlxsw_sp, fid);
-	if (f && f->rif)
-		mlxsw_sp_rif_bridge_destroy(mlxsw_sp, f->rif);
-	if (f && --f->ref_count == 0)
-		mlxsw_sp_fid_destroy(mlxsw_sp, f);
-}
-
-static int mlxsw_sp_netdevice_bridge_event(struct net_device *br_dev,
-					   unsigned long event, void *ptr)
-{
-	struct netdev_notifier_changeupper_info *info;
-	struct net_device *upper_dev;
-	struct mlxsw_sp *mlxsw_sp;
-	int err = 0;
-
-	mlxsw_sp = mlxsw_sp_lower_get(br_dev);
-	if (!mlxsw_sp)
-		return 0;
-
-	info = ptr;
-
-	switch (event) {
-	case NETDEV_PRECHANGEUPPER:
-		upper_dev = info->upper_dev;
-		if (!is_vlan_dev(upper_dev))
-			return -EINVAL;
-		if (is_vlan_dev(upper_dev) &&
-		    br_dev != mlxsw_sp_master_bridge(mlxsw_sp)->dev)
-			return -EINVAL;
-		break;
-	case NETDEV_CHANGEUPPER:
-		upper_dev = info->upper_dev;
-		if (is_vlan_dev(upper_dev)) {
-			if (info->linking)
-				err = mlxsw_sp_master_bridge_vlan_link(mlxsw_sp,
-								       upper_dev);
-			else
-				mlxsw_sp_master_bridge_vlan_unlink(mlxsw_sp,
-								   upper_dev);
-		} else {
-			err = -EINVAL;
-			WARN_ON(1);
-		}
-		break;
-	}
-
-	return err;
-}
-
 static u16 mlxsw_sp_avail_vfid_get(const struct mlxsw_sp *mlxsw_sp)
 {
 	return find_first_zero_bit(mlxsw_sp->vfids.mapped,
@@ -5012,8 +4921,6 @@ static int mlxsw_sp_netdevice_event(struct notifier_block *unused,
 		err = mlxsw_sp_netdevice_port_event(dev, dev, event, ptr);
 	else if (netif_is_lag_master(dev))
 		err = mlxsw_sp_netdevice_lag_event(dev, event, ptr);
-	else if (netif_is_bridge_master(dev))
-		err = mlxsw_sp_netdevice_bridge_event(dev, event, ptr);
 	else if (is_vlan_dev(dev))
 		err = mlxsw_sp_netdevice_vlan_event(dev, event, ptr);
 
