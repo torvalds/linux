@@ -418,6 +418,12 @@ err_free_prev:
 	return err;
 }
 
+static void nfp_net_pf_clean_vnic(struct nfp_pf *pf, struct nfp_net *nn)
+{
+	nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
+	nfp_net_clean(nn);
+}
+
 static int
 nfp_net_pf_spawn_vnics(struct nfp_pf *pf,
 		       void __iomem *ctrl_bar, void __iomem *tx_bar,
@@ -480,10 +486,8 @@ nfp_net_pf_spawn_vnics(struct nfp_pf *pf,
 	return 0;
 
 err_prev_deinit:
-	list_for_each_entry_continue_reverse(nn, &pf->vnics, vnic_list) {
-		nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
-		nfp_net_clean(nn);
-	}
+	list_for_each_entry_continue_reverse(nn, &pf->vnics, vnic_list)
+		nfp_net_pf_clean_vnic(pf, nn);
 	nfp_net_irqs_disable(pf->pdev);
 err_vec_free:
 	kfree(pf->irq_entries);
@@ -585,9 +589,7 @@ static void nfp_net_refresh_vnics(struct work_struct *work)
 		if (!nn->port || nn->port->type != NFP_PORT_INVALID)
 			continue;
 
-		nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
-		nfp_net_clean(nn);
-
+		nfp_net_pf_clean_vnic(pf, nn);
 		nfp_net_pf_free_vnic(pf, nn);
 	}
 
@@ -760,11 +762,8 @@ void nfp_net_pci_remove(struct nfp_pf *pf)
 	if (list_empty(&pf->vnics))
 		goto out;
 
-	list_for_each_entry(nn, &pf->vnics, vnic_list) {
-		nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
-
-		nfp_net_clean(nn);
-	}
+	list_for_each_entry(nn, &pf->vnics, vnic_list)
+		nfp_net_pf_clean_vnic(pf, nn);
 
 	nfp_net_pf_free_vnics(pf);
 
