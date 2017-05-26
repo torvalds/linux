@@ -202,7 +202,7 @@ static void mv88e6xxx_ppu_state_destroy(struct mv88e6xxx_chip *chip)
 	del_timer_sync(&chip->ppu_timer);
 }
 
-int mv88e6xxx_phy_ppu_read(struct mv88e6xxx_chip *chip, struct mii_bus *bus,
+int mv88e6185_phy_ppu_read(struct mv88e6xxx_chip *chip, struct mii_bus *bus,
 			   int addr, int reg, u16 *val)
 {
 	int err;
@@ -216,7 +216,7 @@ int mv88e6xxx_phy_ppu_read(struct mv88e6xxx_chip *chip, struct mii_bus *bus,
 	return err;
 }
 
-int mv88e6xxx_phy_ppu_write(struct mv88e6xxx_chip *chip, struct mii_bus *bus,
+int mv88e6185_phy_ppu_write(struct mv88e6xxx_chip *chip, struct mii_bus *bus,
 			    int addr, int reg, u16 val)
 {
 	int err;
