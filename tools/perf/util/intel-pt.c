@@ -1298,15 +1298,13 @@ static int intel_pt_sample(struct intel_pt_queue *ptq)
 
 	ptq->have_sample = false;
 
-	if (pt->sample_instructions &&
-	    (state->type & INTEL_PT_INSTRUCTION)) {
+	if (pt->sample_instructions && (state->type & INTEL_PT_INSTRUCTION)) {
 		err = intel_pt_synth_instruction_sample(ptq);
 		if (err)
 			return err;
 	}
 
-	if (pt->sample_transactions &&
-	    (state->type & INTEL_PT_TRANSACTION)) {
+	if (pt->sample_transactions && (state->type & INTEL_PT_TRANSACTION)) {
 		err = intel_pt_synth_transaction_sample(ptq);
 		if (err)
 			return err;
