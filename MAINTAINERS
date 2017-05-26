@@ -11495,6 +11495,7 @@ F:	kernel/seccomp.c
 F:	include/uapi/linux/seccomp.h
 F:	include/linux/seccomp.h
 F:	tools/testing/selftests/seccomp/*
+F:	tools/testing/selftests/kselftest_harness.h
 K:	\bsecure_computing
 K:	\bTIF_SECCOMP\b
 
