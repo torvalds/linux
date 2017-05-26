@@ -1480,10 +1480,34 @@ static void mlxsw_sp_port_vport_destroy(struct mlxsw_sp_port *mlxsw_sp_vport)
 	kfree(mlxsw_sp_vport);
 }
 
+static struct mlxsw_sp_port_vlan *
+mlxsw_sp_port_vlan_create(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid)
+{
+	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
+
+	mlxsw_sp_port_vlan = kzalloc(sizeof(*mlxsw_sp_port_vlan), GFP_KERNEL);
+	if (!mlxsw_sp_port_vlan)
+		return ERR_PTR(-ENOMEM);
+
+	mlxsw_sp_port_vlan->mlxsw_sp_port = mlxsw_sp_port;
+	mlxsw_sp_port_vlan->vid = vid;
+	list_add(&mlxsw_sp_port_vlan->list, &mlxsw_sp_port->vlans_list);
+
+	return mlxsw_sp_port_vlan;
+}
+
+static void
+mlxsw_sp_port_vlan_destroy(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan)
+{
+	list_del(&mlxsw_sp_port_vlan->list);
+	kfree(mlxsw_sp_port_vlan);
+}
+
 static int mlxsw_sp_port_add_vid(struct net_device *dev,
 				 __be16 __always_unused proto, u16 vid)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
+	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
 	struct mlxsw_sp_port *mlxsw_sp_vport;
 	bool untagged = vid == 1;
 	int err;
@@ -1494,12 +1518,19 @@ static int mlxsw_sp_port_add_vid(struct net_device *dev,
 	if (!vid)
 		return 0;
 
-	if (mlxsw_sp_port_vport_find(mlxsw_sp_port, vid))
+	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_vid(mlxsw_sp_port, vid);
+	if (mlxsw_sp_port_vlan)
 		return 0;
 
+	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_create(mlxsw_sp_port, vid);
+	if (IS_ERR(mlxsw_sp_port_vlan))
+		return PTR_ERR(mlxsw_sp_port_vlan);
+
 	mlxsw_sp_vport = mlxsw_sp_port_vport_create(mlxsw_sp_port, vid);
-	if (!mlxsw_sp_vport)
-		return -ENOMEM;
+	if (!mlxsw_sp_vport) {
+		err = -ENOMEM;
+		goto err_port_vport_create;
+	}
 
 	err = mlxsw_sp_port_vlan_set(mlxsw_sp_vport, vid, vid, true, untagged);
 	if (err)
@@ -1509,6 +1540,8 @@ static int mlxsw_sp_port_add_vid(struct net_device *dev,
 
 err_port_add_vid:
 	mlxsw_sp_port_vport_destroy(mlxsw_sp_vport);
+err_port_vport_create:
+	mlxsw_sp_port_vlan_destroy(mlxsw_sp_port_vlan);
 	return err;
 }
 
@@ -1516,6 +1549,7 @@ static int mlxsw_sp_port_kill_vid(struct net_device *dev,
 				  __be16 __always_unused proto, u16 vid)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
+	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
 	struct mlxsw_sp_port *mlxsw_sp_vport;
 	struct mlxsw_sp_fid *f;
 
@@ -1523,6 +1557,10 @@ static int mlxsw_sp_port_kill_vid(struct net_device *dev,
 	 * it is reserved in our case, so simply return.
 	 */
 	if (!vid)
+		return 0;
+
+	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_vid(mlxsw_sp_port, vid);
+	if (WARN_ON(!mlxsw_sp_port_vlan))
 		return 0;
 
 	mlxsw_sp_vport = mlxsw_sp_port_vport_find(mlxsw_sp_port, vid);
@@ -1539,6 +1577,8 @@ static int mlxsw_sp_port_kill_vid(struct net_device *dev,
 		f->leave(mlxsw_sp_vport);
 
 	mlxsw_sp_port_vport_destroy(mlxsw_sp_vport);
+
+	mlxsw_sp_port_vlan_destroy(mlxsw_sp_port_vlan);
 
 	return 0;
 }
@@ -2720,6 +2760,7 @@ static int __mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		err = -ENOMEM;
 		goto err_port_untagged_vlans_alloc;
 	}
+	INIT_LIST_HEAD(&mlxsw_sp_port->vlans_list);
 	INIT_LIST_HEAD(&mlxsw_sp_port->vports_list);
 	INIT_LIST_HEAD(&mlxsw_sp_port->mall_tc_list);
 
@@ -2926,6 +2967,7 @@ static void __mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	kfree(mlxsw_sp_port->untagged_vlans);
 	kfree(mlxsw_sp_port->active_vlans);
 	WARN_ON_ONCE(!list_empty(&mlxsw_sp_port->vports_list));
+	WARN_ON_ONCE(!list_empty(&mlxsw_sp_port->vlans_list));
 	free_netdev(mlxsw_sp_port->dev);
 }
 

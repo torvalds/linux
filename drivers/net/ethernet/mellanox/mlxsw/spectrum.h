@@ -203,6 +203,13 @@ struct mlxsw_sp_port_sample {
 	bool truncate;
 };
 
+struct mlxsw_sp_port_vlan {
+	struct list_head list;
+	struct mlxsw_sp_port *mlxsw_sp_port;
+	struct mlxsw_sp_fid *fid;
+	u16 vid;
+};
+
 struct mlxsw_sp_port {
 	struct net_device *dev;
 	struct mlxsw_sp_port_pcpu_stats __percpu *pcpu_stats;
@@ -254,6 +261,7 @@ struct mlxsw_sp_port {
 	} hw_stats;
 	struct mlxsw_sp_port_sample *sample;
 	unsigned int nr_port_vid_map;  /* {Port, VID} => FID mappings */
+	struct list_head vlans_list;
 };
 
 bool mlxsw_sp_port_dev_check(const struct net_device *dev);
@@ -277,6 +285,21 @@ mlxsw_sp_port_lagged_get(struct mlxsw_sp *mlxsw_sp, u16 lag_id, u8 port_index)
 						lag_id, port_index);
 	mlxsw_sp_port = mlxsw_sp->ports[local_port];
 	return mlxsw_sp_port && mlxsw_sp_port->lagged ? mlxsw_sp_port : NULL;
+}
+
+static inline struct mlxsw_sp_port_vlan *
+mlxsw_sp_port_vlan_find_by_vid(const struct mlxsw_sp_port *mlxsw_sp_port,
+			       u16 vid)
+{
+	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
+
+	list_for_each_entry(mlxsw_sp_port_vlan, &mlxsw_sp_port->vlans_list,
+			    list) {
+		if (mlxsw_sp_port_vlan->vid == vid)
+			return mlxsw_sp_port_vlan;
+	}
+
+	return NULL;
 }
 
 static inline u16
