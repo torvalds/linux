@@ -108,7 +108,6 @@ atomisp-objs += \
 	css2400/sh_css_metadata.o \
 	css2400/base/refcount/src/refcount.o \
 	css2400/base/circbuf/src/circbuf.o \
-	css2400/sh_css_irq.o \
 	css2400/camera/pipe/src/pipe_binarydesc.o \
 	css2400/camera/pipe/src/pipe_util.o \
 	css2400/camera/pipe/src/pipe_stagedesc.o \
