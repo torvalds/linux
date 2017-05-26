@@ -490,6 +490,13 @@ config BATTERY_EC
 	  If you say yes here you will get support for the battery of EC.
 	  This driver can give support for EC Battery Interface.
 
+config BATTERY_CW2015
+	bool "CW2015 Battery driver"
+	default n
+	help
+	  If you say yes here you will get support for the battery of CW2015.
+	  This driver can give support for CW2015 Battery Interface.
+
 config BATTERY_GOLDFISH
 	tristate "Goldfish battery driver"
 	depends on GOLDFISH || COMPILE_TEST
