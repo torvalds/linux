@@ -2096,14 +2096,17 @@ const struct intel_pt_state *intel_pt_decode(struct intel_pt_decoder *decoder)
 		}
 	} while (err == -ENOLINK);
 
-	decoder->state.err = err ? intel_pt_ext_err(err) : 0;
+	if (err) {
+		decoder->state.err = intel_pt_ext_err(err);
+		decoder->state.from_ip = decoder->ip;
+	} else {
+		decoder->state.err = 0;
+	}
+
 	decoder->state.timestamp = decoder->timestamp;
 	decoder->state.est_timestamp = intel_pt_est_timestamp(decoder);
 	decoder->state.cr3 = decoder->cr3;
 	decoder->state.tot_insn_cnt = decoder->tot_insn_cnt;
-
-	if (err)
-		decoder->state.from_ip = decoder->ip;
 
 	return &decoder->state;
 }
