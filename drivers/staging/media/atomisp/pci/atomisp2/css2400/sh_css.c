@@ -1469,30 +1469,17 @@ static void start_pipe(
 				copy_ovrd,
 				input_mode,
 				&me->stream->config.metadata_config,
-#ifndef ISP2401
 				&me->stream->info.metadata_info
-#else
-				&me->stream->info.metadata_info,
-#endif
 #if !defined(HAS_NO_INPUT_SYSTEM)
-#ifndef ISP2401
-				, (input_mode==IA_CSS_INPUT_MODE_MEMORY)?
-#else
-				(input_mode == IA_CSS_INPUT_MODE_MEMORY) ?
-#endif
+				,(input_mode==IA_CSS_INPUT_MODE_MEMORY) ?
 					(mipi_port_ID_t)0 :
-#ifndef ISP2401
 					me->stream->config.source.port.port
-#else
-					me->stream->config.source.port.port,
 #endif
+#ifdef ISP2401
+				,&me->config.internal_frame_origin_bqs_on_sctbl,
+				me->stream->isp_params_configs
 #endif
-#ifndef ISP2401
-				);
-#else
-				&me->config.internal_frame_origin_bqs_on_sctbl,
-				me->stream->isp_params_configs);
-#endif
+			);
 
 	if (me->config.mode != IA_CSS_PIPE_MODE_COPY) {
 		struct ia_css_pipeline_stage *stage;
@@ -9815,9 +9802,6 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 		/* take over effective info */
 
 		effective_res = curr_pipe->config.input_effective_res;
-#endif
-
-#ifndef ISP2401
 		err = ia_css_util_check_res(
 					effective_res.width,
 					effective_res.height);
