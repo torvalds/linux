@@ -2610,8 +2610,8 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	host->slot[id] = slot;
 
 	mmc->ops = &dw_mci_ops;
-	if (of_property_read_u32_array(host->dev->of_node,
-				       "clock-freq-min-max", freq, 2)) {
+	if (device_property_read_u32_array(host->dev, "clock-freq-min-max",
+					   freq, 2)) {
 		mmc->f_min = DW_MCI_FREQ_MIN;
 		mmc->f_max = DW_MCI_FREQ_MAX;
 	} else {
@@ -2709,7 +2709,6 @@ static void dw_mci_init_dma(struct dw_mci *host)
 {
 	int addr_config;
 	struct device *dev = host->dev;
-	struct device_node *np = dev->of_node;
 
 	/*
 	* Check tansfer mode from HCON[17:16]
@@ -2770,8 +2769,9 @@ static void dw_mci_init_dma(struct dw_mci *host)
 		dev_info(host->dev, "Using internal DMA controller.\n");
 	} else {
 		/* TRANS_MODE_EDMAC: check dma bindings again */
-		if ((of_property_count_strings(np, "dma-names") < 0) ||
-		    (!of_find_property(np, "dmas", NULL))) {
+		if ((device_property_read_string_array(dev, "dma-names",
+						       NULL, 0) < 0) ||
+		    !device_property_present(dev, "dmas")) {
 			goto no_dma;
 		}
 		host->dma_ops = &dw_mci_edmac_ops;
@@ -2931,7 +2931,6 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 {
 	struct dw_mci_board *pdata;
 	struct device *dev = host->dev;
-	struct device_node *np = dev->of_node;
 	const struct dw_mci_drv_data *drv_data = host->drv_data;
 	int ret;
 	u32 clock_frequency;
@@ -2948,15 +2947,16 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 	}
 
 	/* find out number of slots supported */
-	of_property_read_u32(np, "num-slots", &pdata->num_slots);
+	device_property_read_u32(dev, "num-slots", &pdata->num_slots);
 
-	if (of_property_read_u32(np, "fifo-depth", &pdata->fifo_depth))
+	if (device_property_read_u32(dev, "fifo-depth", &pdata->fifo_depth))
 		dev_info(dev,
 			 "fifo-depth property not found, using value of FIFOTH register as default\n");
 
-	of_property_read_u32(np, "card-detect-delay", &pdata->detect_delay_ms);
+	device_property_read_u32(dev, "card-detect-delay",
+				 &pdata->detect_delay_ms);
 
-	if (!of_property_read_u32(np, "clock-frequency", &clock_frequency))
+	if (!device_property_read_u32(dev, "clock-frequency", &clock_frequency))
 		pdata->bus_hz = clock_frequency;
 
 	if (drv_data && drv_data->parse_dt) {
