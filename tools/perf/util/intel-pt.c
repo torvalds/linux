@@ -1997,6 +1997,25 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 	if (!id)
 		id = 1;
 
+	if (pt->synth_opts.branches) {
+		attr.config = PERF_COUNT_HW_BRANCH_INSTRUCTIONS;
+		attr.sample_period = 1;
+		attr.sample_type |= PERF_SAMPLE_ADDR;
+		err = intel_pt_synth_event(session, "branches", &attr, id);
+		if (err)
+			return err;
+		pt->sample_branches = true;
+		pt->branches_sample_type = attr.sample_type;
+		pt->branches_id = id;
+		id += 1;
+		attr.sample_type &= ~(u64)PERF_SAMPLE_ADDR;
+	}
+
+	if (pt->synth_opts.callchain)
+		attr.sample_type |= PERF_SAMPLE_CALLCHAIN;
+	if (pt->synth_opts.last_branch)
+		attr.sample_type |= PERF_SAMPLE_BRANCH_STACK;
+
 	if (pt->synth_opts.instructions) {
 		attr.config = PERF_COUNT_HW_INSTRUCTIONS;
 		if (pt->synth_opts.period_type == PERF_ITRACE_PERIOD_NANOSECS)
@@ -2004,10 +2023,6 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 				intel_pt_ns_to_ticks(pt, pt->synth_opts.period);
 		else
 			attr.sample_period = pt->synth_opts.period;
-		if (pt->synth_opts.callchain)
-			attr.sample_type |= PERF_SAMPLE_CALLCHAIN;
-		if (pt->synth_opts.last_branch)
-			attr.sample_type |= PERF_SAMPLE_BRANCH_STACK;
 		err = intel_pt_synth_event(session, "instructions", &attr, id);
 		if (err)
 			return err;
@@ -2017,13 +2032,11 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 		id += 1;
 	}
 
+	attr.sample_type &= ~(u64)PERF_SAMPLE_PERIOD;
+	attr.sample_period = 1;
+
 	if (pt->synth_opts.transactions) {
 		attr.config = PERF_COUNT_HW_INSTRUCTIONS;
-		attr.sample_period = 1;
-		if (pt->synth_opts.callchain)
-			attr.sample_type |= PERF_SAMPLE_CALLCHAIN;
-		if (pt->synth_opts.last_branch)
-			attr.sample_type |= PERF_SAMPLE_BRANCH_STACK;
 		err = intel_pt_synth_event(session, "transactions", &attr, id);
 		if (err)
 			return err;
@@ -2032,20 +2045,6 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 		pt->transactions_id = id;
 		intel_pt_set_event_name(evlist, id, "transactions");
 		id += 1;
-	}
-
-	if (pt->synth_opts.branches) {
-		attr.config = PERF_COUNT_HW_BRANCH_INSTRUCTIONS;
-		attr.sample_period = 1;
-		attr.sample_type |= PERF_SAMPLE_ADDR;
-		attr.sample_type &= ~(u64)PERF_SAMPLE_CALLCHAIN;
-		attr.sample_type &= ~(u64)PERF_SAMPLE_BRANCH_STACK;
-		err = intel_pt_synth_event(session, "branches", &attr, id);
-		if (err)
-			return err;
-		pt->sample_branches = true;
-		pt->branches_sample_type = attr.sample_type;
-		pt->branches_id = id;
 	}
 
 	pt->synth_needs_swap = evsel->needs_swap;
