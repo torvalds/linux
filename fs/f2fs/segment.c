@@ -1416,7 +1416,8 @@ find_next:
 					sbi->blocks_per_seg, cur_pos);
 			len = next_pos - cur_pos;
 
-			if (force && len < cpc->trim_minlen)
+			if (f2fs_sb_mounted_blkzoned(sbi->sb) ||
+			    (force && len < cpc->trim_minlen))
 				goto skip;
 
 			f2fs_issue_discard(sbi, entry->start_blkaddr + cur_pos,
