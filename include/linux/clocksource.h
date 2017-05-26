@@ -258,7 +258,7 @@ extern void timer_probe(void);
 static inline void timer_probe(void) {}
 #endif
 
-#define CLOCKSOURCE_ACPI_DECLARE(name, table_id, fn)		\
+#define TIMER_ACPI_DECLARE(name, table_id, fn)		\
 	ACPI_DECLARE_PROBE_ENTRY(clksrc, name, table_id, 0, NULL, 0, fn)
 
 #endif /* _LINUX_CLOCKSOURCE_H */

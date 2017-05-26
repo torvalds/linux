@@ -1516,5 +1516,5 @@ static int __init arch_timer_acpi_init(struct acpi_table_header *table)
 
 	return arch_timer_common_init();
 }
-CLOCKSOURCE_ACPI_DECLARE(arch_timer, ACPI_SIG_GTDT, arch_timer_acpi_init);
+TIMER_ACPI_DECLARE(arch_timer, ACPI_SIG_GTDT, arch_timer_acpi_init);
 #endif
