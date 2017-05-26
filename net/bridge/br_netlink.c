@@ -1251,7 +1251,7 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 	u32 ageing_time = jiffies_to_clock_t(br->ageing_time);
 	u32 stp_enabled = br->stp_enabled;
 	u16 priority = (br->bridge_id.prio[0] << 8) | br->bridge_id.prio[1];
-	u8 vlan_enabled = br_vlan_enabled(br);
+	u8 vlan_enabled = br_vlan_enabled(br->dev);
 	u64 clockval;
 
 	clockval = br_timer_value(&br->hello_timer);
