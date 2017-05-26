@@ -711,6 +711,12 @@ static int intel_pt_calc_cyc_cb(struct intel_pt_pkt_info *pkt_info)
 		break;
 
 	case INTEL_PT_TSC:
+		/*
+		 * For now, do not support using TSC packets - refer
+		 * intel_pt_calc_cyc_to_tsc().
+		 */
+		if (data->from_mtc)
+			return 1;
 		timestamp = pkt_info->packet.payload |
 			    (data->timestamp & (0xffULL << 56));
 		if (data->from_mtc && timestamp < data->timestamp &&
@@ -827,6 +833,14 @@ static void intel_pt_calc_cyc_to_tsc(struct intel_pt_decoder *decoder,
 		.from_mtc       = from_mtc,
 		.cbr_cyc_to_tsc = 0,
 	};
+
+	/*
+	 * For now, do not support using TSC packets for at least the reasons:
+	 * 1) timing might have stopped
+	 * 2) TSC packets within PSB+ can slip against CYC packets
+	 */
+	if (!from_mtc)
+		return;
 
 	intel_pt_pkt_lookahead(decoder, intel_pt_calc_cyc_cb, &data);
 }
