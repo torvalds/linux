@@ -354,9 +354,20 @@ nfp_net_pf_init_vnic(struct nfp_pf *pf, struct nfp_net *nn, unsigned int id)
 
 	nfp_net_debugfs_vnic_add(nn, pf->ddir, id);
 
+	if (nn->port) {
+		err = nfp_devlink_port_register(pf->app, nn->port);
+		if (err)
+			goto err_dfs_clean;
+	}
+
 	nfp_net_info(nn);
 
 	return 0;
+
+err_dfs_clean:
+	nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
+	nfp_net_clean(nn);
+	return err;
 }
 
 static int
@@ -420,6 +431,8 @@ err_free_prev:
 
 static void nfp_net_pf_clean_vnic(struct nfp_pf *pf, struct nfp_net *nn)
 {
+	if (nn->port)
+		nfp_devlink_port_unregister(nn->port);
 	nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
 	nfp_net_clean(nn);
 }
