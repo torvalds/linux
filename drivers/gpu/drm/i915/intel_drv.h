@@ -1886,6 +1886,8 @@ bool skl_ddb_allocation_overlaps(const struct skl_ddb_entry **entries,
 				 int ignore);
 bool ilk_disable_lp_wm(struct drm_device *dev);
 int sanitize_rc6_option(struct drm_i915_private *dev_priv, int enable_rc6);
+int skl_check_pipe_max_pixel_rate(struct intel_crtc *intel_crtc,
+				  struct intel_crtc_state *cstate);
 static inline int intel_enable_rc6(void)
 {
 	return i915.enable_rc6;

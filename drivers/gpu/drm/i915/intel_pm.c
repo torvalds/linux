@@ -3863,6 +3863,93 @@ skl_plane_downscale_amount(const struct intel_crtc_state *cstate,
 	return mul_fixed16(downscale_w, downscale_h);
 }
 
+static uint_fixed_16_16_t
+skl_pipe_downscale_amount(const struct intel_crtc_state *crtc_state)
+{
+	uint_fixed_16_16_t pipe_downscale = u32_to_fixed_16_16(1);
+
+	if (!crtc_state->base.enable)
+		return pipe_downscale;
+
+	if (crtc_state->pch_pfit.enabled) {
+		uint32_t src_w, src_h, dst_w, dst_h;
+		uint32_t pfit_size = crtc_state->pch_pfit.size;
+		uint_fixed_16_16_t fp_w_ratio, fp_h_ratio;
+		uint_fixed_16_16_t downscale_h, downscale_w;
+
+		src_w = crtc_state->pipe_src_w;
+		src_h = crtc_state->pipe_src_h;
+		dst_w = pfit_size >> 16;
+		dst_h = pfit_size & 0xffff;
+
+		if (!dst_w || !dst_h)
+			return pipe_downscale;
+
+		fp_w_ratio = fixed_16_16_div(src_w, dst_w);
+		fp_h_ratio = fixed_16_16_div(src_h, dst_h);
+		downscale_w = max_fixed_16_16(fp_w_ratio, u32_to_fixed_16_16(1));
+		downscale_h = max_fixed_16_16(fp_h_ratio, u32_to_fixed_16_16(1));
+
+		pipe_downscale = mul_fixed16(downscale_w, downscale_h);
+	}
+
+	return pipe_downscale;
+}
+
+int skl_check_pipe_max_pixel_rate(struct intel_crtc *intel_crtc,
+				  struct intel_crtc_state *cstate)
+{
+	struct drm_crtc_state *crtc_state = &cstate->base;
+	struct drm_atomic_state *state = crtc_state->state;
+	struct drm_plane *plane;
+	const struct drm_plane_state *pstate;
+	struct intel_plane_state *intel_pstate;
+	int crtc_clock, cdclk;
+	uint32_t pipe_max_pixel_rate;
+	uint_fixed_16_16_t pipe_downscale;
+	uint_fixed_16_16_t max_downscale = u32_to_fixed_16_16(1);
+
+	if (!cstate->base.enable)
+		return 0;
+
+	drm_atomic_crtc_state_for_each_plane_state(plane, pstate, crtc_state) {
+		uint_fixed_16_16_t plane_downscale;
+		uint_fixed_16_16_t fp_9_div_8 = fixed_16_16_div(9, 8);
+		int bpp;
+
+		if (!intel_wm_plane_visible(cstate,
+					    to_intel_plane_state(pstate)))
+			continue;
+
+		if (WARN_ON(!pstate->fb))
+			return -EINVAL;
+
+		intel_pstate = to_intel_plane_state(pstate);
+		plane_downscale = skl_plane_downscale_amount(cstate,
+							     intel_pstate);
+		bpp = pstate->fb->format->cpp[0] * 8;
+		if (bpp == 64)
+			plane_downscale = mul_fixed16(plane_downscale,
+						      fp_9_div_8);
+
+		max_downscale = max_fixed_16_16(plane_downscale, max_downscale);
+	}
+	pipe_downscale = skl_pipe_downscale_amount(cstate);
+
+	pipe_downscale = mul_fixed16(pipe_downscale, max_downscale);
+
+	crtc_clock = crtc_state->adjusted_mode.crtc_clock;
+	cdclk = to_intel_atomic_state(state)->cdclk.logical.cdclk;
+	pipe_max_pixel_rate = div_round_up_u32_fixed16(cdclk, pipe_downscale);
+
+	if (pipe_max_pixel_rate < crtc_clock) {
+		DRM_ERROR("Max supported pixel clock with scaling exceeded\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static unsigned int
 skl_plane_relative_data_rate(const struct intel_crtc_state *cstate,
 			     const struct drm_plane_state *pstate,
