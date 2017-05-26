@@ -64,7 +64,7 @@
 #include "input_system.h"
 #endif
 #include "mmu_device.h"		/* mmu_set_page_table_base_index(), ... */
-//#include "ia_css_mmu_private.h" /* sh_css_mmu_set_page_table_base_index() */
+#include "ia_css_mmu_private.h" /* sh_css_mmu_set_page_table_base_index() */
 #include "gdc_device.h"		/* HRT_GDC_N */
 #include "dma.h"		/* dma_set_max_burst_size() */
 #include "irq.h"			/* virq */
@@ -242,11 +242,6 @@ ia_css_reset_defaults(struct sh_css* css);
 static void
 sh_css_init_host_sp_control_vars(void);
 
-#ifndef ISP2401
-static void
-sh_css_mmu_set_page_table_base_index(hrt_data base_index);
-
-#endif
 static enum ia_css_err set_num_primary_stages(unsigned int *num, enum ia_css_pipe_version version);
 
 static bool
@@ -2595,23 +2590,6 @@ ia_css_uninit(void)
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_uninit() leave: return_void\n");
 }
 
-#ifndef ISP2401
-/* Deprecated, this is an HRT backend function (memory_access.h) */
-static void
-sh_css_mmu_set_page_table_base_index(hrt_data base_index)
-{
-	int i;
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "sh_css_mmu_set_page_table_base_index() enter: base_index=0x%08x\n",base_index);
-	my_css.page_table_base_index = base_index;
-	for (i = 0; i < (int)N_MMU_ID; i++) {
-		mmu_ID_t mmu_id = (mmu_ID_t)i;
-		mmu_set_page_table_base_index(mmu_id, base_index);
-		mmu_invalidate_cache(mmu_id);
-	}
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "sh_css_mmu_set_page_table_base_index() leave: return_void\n");
-}
-
-#endif
 #if defined(HAS_IRQ_MAP_VERSION_2)
 enum ia_css_err ia_css_irq_translate(
 	unsigned int *irq_infos)
