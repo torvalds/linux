@@ -129,6 +129,65 @@ void aa_info_message(const char *str)
 	printk(KERN_INFO "AppArmor: %s\n", str);
 }
 
+const char aa_file_perm_chrs[] = "xwracd         km l     ";
+const char *aa_file_perm_names[] = {
+	"exec",
+	"write",
+	"read",
+	"append",
+
+	"create",
+	"delete",
+	"open",
+	"rename",
+
+	"setattr",
+	"getattr",
+	"setcred",
+	"getcred",
+
+	"chmod",
+	"chown",
+	"chgrp",
+	"lock",
+
+	"mmap",
+	"mprot",
+	"link",
+	"snapshot",
+
+	"unknown",
+	"unknown",
+	"unknown",
+	"unknown",
+
+	"unknown",
+	"unknown",
+	"unknown",
+	"unknown",
+
+	"stack",
+	"change_onexec",
+	"change_profile",
+	"change_hat",
+};
+
+/**
+ * aa_perm_mask_to_str - convert a perm mask to its short string
+ * @str: character buffer to store string in (at least 10 characters)
+ * @mask: permission mask to convert
+ */
+void aa_perm_mask_to_str(char *str, const char *chrs, u32 mask)
+{
+	unsigned int i, perm = 1;
+
+	for (i = 0; i < 32; perm <<= 1, i++) {
+		if (mask & perm)
+			*str++ = chrs[i];
+	}
+	*str = '\0';
+}
+
 /**
  * aa_policy_init - initialize a policy structure
  * @policy: policy to initialize  (NOT NULL)

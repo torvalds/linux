@@ -22,10 +22,11 @@
 struct aa_profile;
 struct path;
 
+#define mask_mode_t(X) (X & (MAY_EXEC | MAY_WRITE | MAY_READ | MAY_APPEND))
 
 #define AA_AUDIT_FILE_MASK	(MAY_READ | MAY_WRITE | MAY_EXEC | MAY_APPEND |\
 				 AA_MAY_CREATE | AA_MAY_DELETE |	\
-				 AA_MAY_META_READ | AA_MAY_META_WRITE | \
+				 AA_MAY_GETATTR | AA_MAY_SETATTR | \
 				 AA_MAY_CHMOD | AA_MAY_CHOWN | AA_MAY_LOCK | \
 				 AA_EXEC_MMAP | AA_MAY_LINK)
 
@@ -37,7 +38,7 @@ struct path;
  * ctx struct will expand in the future so we keep the struct.
  */
 struct aa_file_ctx {
-	u16 allow;
+	u32 allow;
 };
 
 /**

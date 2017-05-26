@@ -278,7 +278,7 @@ static int apparmor_path_mknod(const struct path *dir, struct dentry *dentry,
 
 static int apparmor_path_truncate(const struct path *path)
 {
-	return common_perm_cond(OP_TRUNC, path, MAY_WRITE | AA_MAY_META_WRITE);
+	return common_perm_cond(OP_TRUNC, path, MAY_WRITE | AA_MAY_SETATTR);
 }
 
 static int apparmor_path_symlink(const struct path *dir, struct dentry *dentry,
@@ -323,12 +323,12 @@ static int apparmor_path_rename(const struct path *old_dir, struct dentry *old_d
 		};
 
 		error = aa_path_perm(OP_RENAME_SRC, profile, &old_path, 0,
-				     MAY_READ | AA_MAY_META_READ | MAY_WRITE |
-				     AA_MAY_META_WRITE | AA_MAY_DELETE,
+				     MAY_READ | AA_MAY_GETATTR | MAY_WRITE |
+				     AA_MAY_SETATTR | AA_MAY_DELETE,
 				     &cond);
 		if (!error)
 			error = aa_path_perm(OP_RENAME_DEST, profile, &new_path,
-					     0, MAY_WRITE | AA_MAY_META_WRITE |
+					     0, MAY_WRITE | AA_MAY_SETATTR |
 					     AA_MAY_CREATE, &cond);
 
 	}
@@ -347,7 +347,7 @@ static int apparmor_path_chown(const struct path *path, kuid_t uid, kgid_t gid)
 
 static int apparmor_inode_getattr(const struct path *path)
 {
-	return common_perm_cond(OP_GETATTR, path, AA_MAY_META_READ);
+	return common_perm_cond(OP_GETATTR, path, AA_MAY_GETATTR);
 }
 
 static int apparmor_file_open(struct file *file, const struct cred *cred)
