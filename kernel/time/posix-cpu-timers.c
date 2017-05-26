@@ -1413,7 +1413,7 @@ static int thread_cpu_timer_create(struct k_itimer *timer)
 	return posix_cpu_timer_create(timer);
 }
 
-struct k_clock clock_posix_cpu = {
+const struct k_clock clock_posix_cpu = {
 	.clock_getres	= posix_cpu_clock_getres,
 	.clock_set	= posix_cpu_clock_set,
 	.clock_get	= posix_cpu_clock_get,
@@ -1425,24 +1425,16 @@ struct k_clock clock_posix_cpu = {
 	.timer_get	= posix_cpu_timer_get,
 };
 
-static __init int init_posix_cpu_timers(void)
-{
-	struct k_clock process = {
-		.clock_getres	= process_cpu_clock_getres,
-		.clock_get	= process_cpu_clock_get,
-		.timer_create	= process_cpu_timer_create,
-		.nsleep		= process_cpu_nsleep,
-		.nsleep_restart	= process_cpu_nsleep_restart,
-	};
-	struct k_clock thread = {
-		.clock_getres	= thread_cpu_clock_getres,
-		.clock_get	= thread_cpu_clock_get,
-		.timer_create	= thread_cpu_timer_create,
-	};
+const struct k_clock clock_process = {
+	.clock_getres	= process_cpu_clock_getres,
+	.clock_get	= process_cpu_clock_get,
+	.timer_create	= process_cpu_timer_create,
+	.nsleep		= process_cpu_nsleep,
+	.nsleep_restart	= process_cpu_nsleep_restart,
+};
 
-	posix_timers_register_clock(CLOCK_PROCESS_CPUTIME_ID, &process);
-	posix_timers_register_clock(CLOCK_THREAD_CPUTIME_ID, &thread);
-
-	return 0;
-}
-__initcall(init_posix_cpu_timers);
+const struct k_clock clock_thread = {
+	.clock_getres	= thread_cpu_clock_getres,
+	.clock_get	= thread_cpu_clock_get,
+	.timer_create	= thread_cpu_timer_create,
+};

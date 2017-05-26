@@ -125,8 +125,6 @@ static DEFINE_SPINLOCK(hash_lock);
  *	    which we beg off on and pass to do_sys_settimeofday().
  */
 
-static struct k_clock posix_clocks[MAX_CLOCKS];
-
 /*
  * These ones are defined below.
  */
@@ -280,74 +278,87 @@ static int posix_get_hrtimer_res(clockid_t which_clock, struct timespec64 *tp)
 	return 0;
 }
 
+
+static const struct k_clock clock_realtime = {
+	.clock_getres	= posix_get_hrtimer_res,
+	.clock_get	= posix_clock_realtime_get,
+	.clock_set	= posix_clock_realtime_set,
+	.clock_adj	= posix_clock_realtime_adj,
+	.nsleep		= common_nsleep,
+	.nsleep_restart	= hrtimer_nanosleep_restart,
+	.timer_create	= common_timer_create,
+	.timer_set	= common_timer_set,
+	.timer_get	= common_timer_get,
+	.timer_del	= common_timer_del,
+};
+
+static const struct k_clock clock_monotonic = {
+	.clock_getres	= posix_get_hrtimer_res,
+	.clock_get	= posix_ktime_get_ts,
+	.nsleep		= common_nsleep,
+	.nsleep_restart	= hrtimer_nanosleep_restart,
+	.timer_create	= common_timer_create,
+	.timer_set	= common_timer_set,
+	.timer_get	= common_timer_get,
+	.timer_del	= common_timer_del,
+};
+
+static const struct k_clock clock_monotonic_raw = {
+	.clock_getres	= posix_get_hrtimer_res,
+	.clock_get	= posix_get_monotonic_raw,
+};
+
+static const struct k_clock clock_realtime_coarse = {
+	.clock_getres	= posix_get_coarse_res,
+	.clock_get	= posix_get_realtime_coarse,
+};
+
+static const struct k_clock clock_monotonic_coarse = {
+	.clock_getres	= posix_get_coarse_res,
+	.clock_get	= posix_get_monotonic_coarse,
+};
+
+static const struct k_clock clock_tai = {
+	.clock_getres	= posix_get_hrtimer_res,
+	.clock_get	= posix_get_tai,
+	.nsleep		= common_nsleep,
+	.nsleep_restart	= hrtimer_nanosleep_restart,
+	.timer_create	= common_timer_create,
+	.timer_set	= common_timer_set,
+	.timer_get	= common_timer_get,
+	.timer_del	= common_timer_del,
+};
+
+static const struct k_clock clock_boottime = {
+	.clock_getres	= posix_get_hrtimer_res,
+	.clock_get	= posix_get_boottime,
+	.nsleep		= common_nsleep,
+	.nsleep_restart	= hrtimer_nanosleep_restart,
+	.timer_create	= common_timer_create,
+	.timer_set	= common_timer_set,
+	.timer_get	= common_timer_get,
+	.timer_del	= common_timer_del,
+};
+
+static const struct k_clock * const posix_clocks[] = {
+	[CLOCK_REALTIME]		= &clock_realtime,
+	[CLOCK_MONOTONIC]		= &clock_monotonic,
+	[CLOCK_PROCESS_CPUTIME_ID]	= &clock_process,
+	[CLOCK_THREAD_CPUTIME_ID]	= &clock_thread,
+	[CLOCK_MONOTONIC_RAW]		= &clock_monotonic_raw,
+	[CLOCK_REALTIME_COARSE]		= &clock_realtime_coarse,
+	[CLOCK_MONOTONIC_COARSE]	= &clock_monotonic_coarse,
+	[CLOCK_BOOTTIME]		= &clock_boottime,
+	[CLOCK_REALTIME_ALARM]		= &alarm_clock,
+	[CLOCK_BOOTTIME_ALARM]		= &alarm_clock,
+	[CLOCK_TAI]			= &clock_tai,
+};
+
 /*
  * Initialize everything, well, just everything in Posix clocks/timers ;)
  */
 static __init int init_posix_timers(void)
 {
-	struct k_clock clock_realtime = {
-		.clock_getres	= posix_get_hrtimer_res,
-		.clock_get	= posix_clock_realtime_get,
-		.clock_set	= posix_clock_realtime_set,
-		.clock_adj	= posix_clock_realtime_adj,
-		.nsleep		= common_nsleep,
-		.nsleep_restart	= hrtimer_nanosleep_restart,
-		.timer_create	= common_timer_create,
-		.timer_set	= common_timer_set,
-		.timer_get	= common_timer_get,
-		.timer_del	= common_timer_del,
-	};
-	struct k_clock clock_monotonic = {
-		.clock_getres	= posix_get_hrtimer_res,
-		.clock_get	= posix_ktime_get_ts,
-		.nsleep		= common_nsleep,
-		.nsleep_restart	= hrtimer_nanosleep_restart,
-		.timer_create	= common_timer_create,
-		.timer_set	= common_timer_set,
-		.timer_get	= common_timer_get,
-		.timer_del	= common_timer_del,
-	};
-	struct k_clock clock_monotonic_raw = {
-		.clock_getres	= posix_get_hrtimer_res,
-		.clock_get	= posix_get_monotonic_raw,
-	};
-	struct k_clock clock_realtime_coarse = {
-		.clock_getres	= posix_get_coarse_res,
-		.clock_get	= posix_get_realtime_coarse,
-	};
-	struct k_clock clock_monotonic_coarse = {
-		.clock_getres	= posix_get_coarse_res,
-		.clock_get	= posix_get_monotonic_coarse,
-	};
-	struct k_clock clock_tai = {
-		.clock_getres	= posix_get_hrtimer_res,
-		.clock_get	= posix_get_tai,
-		.nsleep		= common_nsleep,
-		.nsleep_restart	= hrtimer_nanosleep_restart,
-		.timer_create	= common_timer_create,
-		.timer_set	= common_timer_set,
-		.timer_get	= common_timer_get,
-		.timer_del	= common_timer_del,
-	};
-	struct k_clock clock_boottime = {
-		.clock_getres	= posix_get_hrtimer_res,
-		.clock_get	= posix_get_boottime,
-		.nsleep		= common_nsleep,
-		.nsleep_restart	= hrtimer_nanosleep_restart,
-		.timer_create	= common_timer_create,
-		.timer_set	= common_timer_set,
-		.timer_get	= common_timer_get,
-		.timer_del	= common_timer_del,
-	};
-
-	posix_timers_register_clock(CLOCK_REALTIME, &clock_realtime);
-	posix_timers_register_clock(CLOCK_MONOTONIC, &clock_monotonic);
-	posix_timers_register_clock(CLOCK_MONOTONIC_RAW, &clock_monotonic_raw);
-	posix_timers_register_clock(CLOCK_REALTIME_COARSE, &clock_realtime_coarse);
-	posix_timers_register_clock(CLOCK_MONOTONIC_COARSE, &clock_monotonic_coarse);
-	posix_timers_register_clock(CLOCK_BOOTTIME, &clock_boottime);
-	posix_timers_register_clock(CLOCK_TAI, &clock_tai);
-
 	posix_timers_cache = kmem_cache_create("posix_timers_cache",
 					sizeof (struct k_itimer), 0, SLAB_PANIC,
 					NULL);
@@ -521,30 +532,6 @@ static struct pid *good_sigevent(sigevent_t * event)
 	return task_pid(rtn);
 }
 
-void posix_timers_register_clock(const clockid_t clock_id,
-				 struct k_clock *new_clock)
-{
-	if ((unsigned) clock_id >= MAX_CLOCKS) {
-		printk(KERN_WARNING "POSIX clock register failed for clock_id %d\n",
-		       clock_id);
-		return;
-	}
-
-	if (!new_clock->clock_get) {
-		printk(KERN_WARNING "POSIX clock id %d lacks clock_get()\n",
-		       clock_id);
-		return;
-	}
-	if (!new_clock->clock_getres) {
-		printk(KERN_WARNING "POSIX clock id %d lacks clock_getres()\n",
-		       clock_id);
-		return;
-	}
-
-	posix_clocks[clock_id] = *new_clock;
-}
-EXPORT_SYMBOL_GPL(posix_timers_register_clock);
-
 static struct k_itimer * alloc_posix_timer(void)
 {
 	struct k_itimer *tmr;
@@ -581,15 +568,15 @@ static void release_posix_timer(struct k_itimer *tmr, int it_id_set)
 	call_rcu(&tmr->it.rcu, k_itimer_rcu_free);
 }
 
-static struct k_clock *clockid_to_kclock(const clockid_t id)
+static const struct k_clock *clockid_to_kclock(const clockid_t id)
 {
 	if (id < 0)
 		return (id & CLOCKFD_MASK) == CLOCKFD ?
 			&clock_posix_dynamic : &clock_posix_cpu;
 
-	if (id >= MAX_CLOCKS || !posix_clocks[id].clock_getres)
+	if (id >= ARRAY_SIZE(posix_clocks) || !posix_clocks[id])
 		return NULL;
-	return &posix_clocks[id];
+	return posix_clocks[id];
 }
 
 static int common_timer_create(struct k_itimer *new_timer)
@@ -604,7 +591,7 @@ SYSCALL_DEFINE3(timer_create, const clockid_t, which_clock,
 		struct sigevent __user *, timer_event_spec,
 		timer_t __user *, created_timer_id)
 {
-	struct k_clock *kc = clockid_to_kclock(which_clock);
+	const struct k_clock *kc = clockid_to_kclock(which_clock);
 	struct k_itimer *new_timer;
 	int error, new_timer_id;
 	sigevent_t event;
@@ -781,7 +768,7 @@ SYSCALL_DEFINE2(timer_gettime, timer_t, timer_id,
 	struct itimerspec64 cur_setting64;
 	struct itimerspec cur_setting;
 	struct k_itimer *timr;
-	struct k_clock *kc;
+	const struct k_clock *kc;
 	unsigned long flags;
 	int ret = 0;
 
@@ -890,7 +877,7 @@ SYSCALL_DEFINE4(timer_settime, timer_t, timer_id, int, flags,
 	struct itimerspec new_spec, old_spec;
 	struct k_itimer *timr;
 	unsigned long flag;
-	struct k_clock *kc;
+	const struct k_clock *kc;
 	int error = 0;
 
 	if (!new_setting)
@@ -939,7 +926,7 @@ static int common_timer_del(struct k_itimer *timer)
 
 static inline int timer_delete_hook(struct k_itimer *timer)
 {
-	struct k_clock *kc = clockid_to_kclock(timer->it_clock);
+	const struct k_clock *kc = clockid_to_kclock(timer->it_clock);
 
 	if (WARN_ON_ONCE(!kc || !kc->timer_del))
 		return -EINVAL;
@@ -1018,7 +1005,7 @@ void exit_itimers(struct signal_struct *sig)
 SYSCALL_DEFINE2(clock_settime, const clockid_t, which_clock,
 		const struct timespec __user *, tp)
 {
-	struct k_clock *kc = clockid_to_kclock(which_clock);
+	const struct k_clock *kc = clockid_to_kclock(which_clock);
 	struct timespec64 new_tp64;
 	struct timespec new_tp;
 
@@ -1035,7 +1022,7 @@ SYSCALL_DEFINE2(clock_settime, const clockid_t, which_clock,
 SYSCALL_DEFINE2(clock_gettime, const clockid_t, which_clock,
 		struct timespec __user *,tp)
 {
-	struct k_clock *kc = clockid_to_kclock(which_clock);
+	const struct k_clock *kc = clockid_to_kclock(which_clock);
 	struct timespec64 kernel_tp64;
 	struct timespec kernel_tp;
 	int error;
@@ -1055,7 +1042,7 @@ SYSCALL_DEFINE2(clock_gettime, const clockid_t, which_clock,
 SYSCALL_DEFINE2(clock_adjtime, const clockid_t, which_clock,
 		struct timex __user *, utx)
 {
-	struct k_clock *kc = clockid_to_kclock(which_clock);
+	const struct k_clock *kc = clockid_to_kclock(which_clock);
 	struct timex ktx;
 	int err;
 
@@ -1078,7 +1065,7 @@ SYSCALL_DEFINE2(clock_adjtime, const clockid_t, which_clock,
 SYSCALL_DEFINE2(clock_getres, const clockid_t, which_clock,
 		struct timespec __user *, tp)
 {
-	struct k_clock *kc = clockid_to_kclock(which_clock);
+	const struct k_clock *kc = clockid_to_kclock(which_clock);
 	struct timespec64 rtn_tp64;
 	struct timespec rtn_tp;
 	int error;
@@ -1110,7 +1097,7 @@ SYSCALL_DEFINE4(clock_nanosleep, const clockid_t, which_clock, int, flags,
 		const struct timespec __user *, rqtp,
 		struct timespec __user *, rmtp)
 {
-	struct k_clock *kc = clockid_to_kclock(which_clock);
+	const struct k_clock *kc = clockid_to_kclock(which_clock);
 	struct timespec64 t64;
 	struct timespec t;
 
@@ -1136,7 +1123,7 @@ SYSCALL_DEFINE4(clock_nanosleep, const clockid_t, which_clock, int, flags,
 long clock_nanosleep_restart(struct restart_block *restart_block)
 {
 	clockid_t which_clock = restart_block->nanosleep.clockid;
-	struct k_clock *kc = clockid_to_kclock(which_clock);
+	const struct k_clock *kc = clockid_to_kclock(which_clock);
 
 	if (WARN_ON_ONCE(!kc || !kc->nsleep_restart))
 		return -EINVAL;

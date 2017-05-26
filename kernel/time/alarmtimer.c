@@ -307,38 +307,6 @@ static int alarmtimer_resume(struct device *dev)
 }
 #endif
 
-static void alarmtimer_freezerset(ktime_t absexp, enum alarmtimer_type type)
-{
-	struct alarm_base *base;
-	unsigned long flags;
-	ktime_t delta;
-
-	switch(type) {
-	case ALARM_REALTIME:
-		base = &alarm_bases[ALARM_REALTIME];
-		type = ALARM_REALTIME_FREEZER;
-		break;
-	case ALARM_BOOTTIME:
-		base = &alarm_bases[ALARM_BOOTTIME];
-		type = ALARM_BOOTTIME_FREEZER;
-		break;
-	default:
-		WARN_ONCE(1, "Invalid alarm type: %d\n", type);
-		return;
-	}
-
-	delta = ktime_sub(absexp, base->gettime());
-
-	spin_lock_irqsave(&freezer_delta_lock, flags);
-	if (!freezer_delta || (delta < freezer_delta)) {
-		freezer_delta = delta;
-		freezer_expires = absexp;
-		freezer_alarmtype = type;
-	}
-	spin_unlock_irqrestore(&freezer_delta_lock, flags);
-}
-
-
 /**
  * alarm_init - Initialize an alarm structure
  * @alarm: ptr to alarm to be initialized
@@ -488,6 +456,38 @@ u64 alarm_forward_now(struct alarm *alarm, ktime_t interval)
 }
 EXPORT_SYMBOL_GPL(alarm_forward_now);
 
+#ifdef CONFIG_POSIX_TIMERS
+
+static void alarmtimer_freezerset(ktime_t absexp, enum alarmtimer_type type)
+{
+	struct alarm_base *base;
+	unsigned long flags;
+	ktime_t delta;
+
+	switch(type) {
+	case ALARM_REALTIME:
+		base = &alarm_bases[ALARM_REALTIME];
+		type = ALARM_REALTIME_FREEZER;
+		break;
+	case ALARM_BOOTTIME:
+		base = &alarm_bases[ALARM_BOOTTIME];
+		type = ALARM_BOOTTIME_FREEZER;
+		break;
+	default:
+		WARN_ONCE(1, "Invalid alarm type: %d\n", type);
+		return;
+	}
+
+	delta = ktime_sub(absexp, base->gettime());
+
+	spin_lock_irqsave(&freezer_delta_lock, flags);
+	if (!freezer_delta || (delta < freezer_delta)) {
+		freezer_delta = delta;
+		freezer_expires = absexp;
+		freezer_alarmtype = type;
+	}
+	spin_unlock_irqrestore(&freezer_delta_lock, flags);
+}
 
 /**
  * clock2alarm - helper that converts from clockid to alarmtypes
@@ -846,6 +846,17 @@ out:
 	return ret;
 }
 
+const struct k_clock alarm_clock = {
+	.clock_getres	= alarm_clock_getres,
+	.clock_get	= alarm_clock_get,
+	.timer_create	= alarm_timer_create,
+	.timer_set	= alarm_timer_set,
+	.timer_del	= alarm_timer_del,
+	.timer_get	= alarm_timer_get,
+	.nsleep		= alarm_timer_nsleep,
+};
+#endif /* CONFIG_POSIX_TIMERS */
+
 
 /* Suspend hook structures */
 static const struct dev_pm_ops alarmtimer_pm_ops = {
@@ -871,22 +882,8 @@ static int __init alarmtimer_init(void)
 	struct platform_device *pdev;
 	int error = 0;
 	int i;
-	struct k_clock alarm_clock = {
-		.clock_getres	= alarm_clock_getres,
-		.clock_get	= alarm_clock_get,
-		.timer_create	= alarm_timer_create,
-		.timer_set	= alarm_timer_set,
-		.timer_del	= alarm_timer_del,
-		.timer_get	= alarm_timer_get,
-		.nsleep		= alarm_timer_nsleep,
-	};
 
 	alarmtimer_rtc_timer_init();
-
-	if (IS_ENABLED(CONFIG_POSIX_TIMERS)) {
-		posix_timers_register_clock(CLOCK_REALTIME_ALARM, &alarm_clock);
-		posix_timers_register_clock(CLOCK_BOOTTIME_ALARM, &alarm_clock);
-	}
 
 	/* Initialize alarm bases */
 	alarm_bases[ALARM_REALTIME].base_clockid = CLOCK_REALTIME;
