@@ -1281,8 +1281,7 @@ static void b53_arl_search_rd(struct b53_device *dev, u8 idx,
 	b53_arl_to_entry(ent, mac_vid, fwd_entry);
 }
 
-static int b53_fdb_copy(struct net_device *dev, int port,
-			const struct b53_arl_entry *ent,
+static int b53_fdb_copy(int port, const struct b53_arl_entry *ent,
 			struct switchdev_obj_port_fdb *fdb,
 			switchdev_obj_dump_cb_t *cb)
 {
@@ -1304,7 +1303,6 @@ int b53_fdb_dump(struct dsa_switch *ds, int port,
 		 switchdev_obj_dump_cb_t *cb)
 {
 	struct b53_device *priv = ds->priv;
-	struct net_device *dev = ds->ports[port].netdev;
 	struct b53_arl_entry results[2];
 	unsigned int count = 0;
 	int ret;
@@ -1320,13 +1318,13 @@ int b53_fdb_dump(struct dsa_switch *ds, int port,
 			return ret;
 
 		b53_arl_search_rd(priv, 0, &results[0]);
-		ret = b53_fdb_copy(dev, port, &results[0], fdb, cb);
+		ret = b53_fdb_copy(port, &results[0], fdb, cb);
 		if (ret)
 			return ret;
 
 		if (priv->num_arl_entries > 2) {
 			b53_arl_search_rd(priv, 1, &results[1]);
-			ret = b53_fdb_copy(dev, port, &results[1], fdb, cb);
+			ret = b53_fdb_copy(port, &results[1], fdb, cb);
 			if (ret)
 				return ret;
 
