@@ -214,6 +214,9 @@ intel_uncore_fw_release_timer(struct hrtimer *timer)
 
 	assert_rpm_device_not_suspended(dev_priv);
 
+	if (xchg(&domain->active, false))
+		return HRTIMER_RESTART;
+
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 	if (WARN_ON(domain->wake_count == 0))
 		domain->wake_count++;
@@ -244,6 +247,7 @@ static void intel_uncore_forcewake_reset(struct drm_i915_private *dev_priv,
 		active_domains = 0;
 
 		for_each_fw_domain(domain, dev_priv, tmp) {
+			smp_store_mb(domain->active, false);
 			if (hrtimer_cancel(&domain->timer) == 0)
 				continue;
 
@@ -451,9 +455,12 @@ static void __intel_uncore_forcewake_get(struct drm_i915_private *dev_priv,
 
 	fw_domains &= dev_priv->uncore.fw_domains;
 
-	for_each_fw_domain_masked(domain, fw_domains, dev_priv, tmp)
-		if (domain->wake_count++)
+	for_each_fw_domain_masked(domain, fw_domains, dev_priv, tmp) {
+		if (domain->wake_count++) {
 			fw_domains &= ~domain->mask;
+			domain->active = true;
+		}
+	}
 
 	if (fw_domains)
 		dev_priv->uncore.funcs.force_wake_get(dev_priv, fw_domains);
@@ -518,8 +525,10 @@ static void __intel_uncore_forcewake_put(struct drm_i915_private *dev_priv,
 		if (WARN_ON(domain->wake_count == 0))
 			continue;
 
-		if (--domain->wake_count)
+		if (--domain->wake_count) {
+			domain->active = true;
 			continue;
+		}
 
 		fw_domain_arm_timer(domain);
 	}
