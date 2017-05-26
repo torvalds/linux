@@ -1499,6 +1499,10 @@ mlxsw_sp_port_vlan_create(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid)
 static void
 mlxsw_sp_port_vlan_destroy(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan)
 {
+	struct mlxsw_sp_fid *fid = mlxsw_sp_port_vlan->fid;
+
+	if (fid && !WARN_ON(!fid->leave))
+		fid->leave(mlxsw_sp_port_vlan);
 	list_del(&mlxsw_sp_port_vlan->list);
 	kfree(mlxsw_sp_port_vlan);
 }
