@@ -470,7 +470,7 @@ void __init setup_arch(char **cmdline_p)
 void __init time_init(void)
 {
 	of_clk_init(NULL);
-	clocksource_probe();
+	timer_probe();
 }
 
 static int __init customize_machine(void)
