@@ -1791,6 +1791,8 @@ void igb_down(struct igb_adapter *adapter)
 	wr32(E1000_RCTL, rctl & ~E1000_RCTL_EN);
 	/* flush and sleep below */
 
+	igb_nfc_filter_exit(adapter);
+
 	netif_carrier_off(netdev);
 	netif_tx_stop_all_queues(netdev);
 
@@ -3316,8 +3318,6 @@ static int __igb_close(struct net_device *netdev, bool suspending)
 
 	igb_down(adapter);
 	igb_free_irq(adapter);
-
-	igb_nfc_filter_exit(adapter);
 
 	igb_free_all_tx_resources(adapter);
 	igb_free_all_rx_resources(adapter);
