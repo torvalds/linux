@@ -13,6 +13,14 @@ config DRM_SUN4I
 	  Display Engine. If M is selected the module will be called
 	  sun4i-drm.
 
+config DRM_SUN4I_HDMI
+       tristate "Allwinner A10 HDMI Controller Support"
+       depends on DRM_SUN4I
+       default DRM_SUN4I
+       help
+	  Choose this option if you have an Allwinner SoC with an HDMI
+	  controller.
+
 config DRM_SUN4I_BACKEND
 	tristate "Support for Allwinner A10 Display Engine Backend"
 	depends on DRM_SUN4I
