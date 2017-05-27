@@ -109,6 +109,22 @@ void sun4i_tcon_enable_vblank(struct sun4i_tcon *tcon, bool enable)
 }
 EXPORT_SYMBOL(sun4i_tcon_enable_vblank);
 
+void sun4i_tcon_set_mux(struct sun4i_tcon *tcon, int channel,
+			struct drm_encoder *encoder)
+{
+	if (!tcon->quirks->has_unknown_mux)
+		return;
+
+	if (channel != 1)
+		return;
+
+	/*
+	 * FIXME: Undocumented bits
+	 */
+	regmap_write(tcon->regs, SUN4I_TCON_MUX_CTRL_REG, 1);
+}
+EXPORT_SYMBOL(sun4i_tcon_set_mux);
+
 static int sun4i_tcon_get_clk_delay(struct drm_display_mode *mode,
 				    int channel)
 {
@@ -273,12 +289,6 @@ void sun4i_tcon1_mode_set(struct sun4i_tcon *tcon,
 	regmap_update_bits(tcon->regs, SUN4I_TCON_GCTL_REG,
 			   SUN4I_TCON_GCTL_IOMAP_MASK,
 			   SUN4I_TCON_GCTL_IOMAP_TCON1);
-
-	/*
-	 * FIXME: Undocumented bits
-	 */
-	if (tcon->quirks->has_unknown_mux)
-		regmap_write(tcon->regs, SUN4I_TCON_MUX_CTRL_REG, 1);
 }
 EXPORT_SYMBOL(sun4i_tcon1_mode_set);
 
