@@ -743,8 +743,6 @@ static int mpls_nh_build_from_cfg(struct mpls_route_config *cfg,
 	if (!nh)
 		return -ENOMEM;
 
-	err = -EINVAL;
-
 	nh->nh_labels = cfg->rc_output_labels;
 	for (i = 0; i < nh->nh_labels; i++)
 		nh->nh_label[i] = cfg->rc_output_label[i];
