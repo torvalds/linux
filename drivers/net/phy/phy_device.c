@@ -960,15 +960,27 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 
 	phydev->attached_dev = dev;
 	dev->phydev = phydev;
+
+	/* Some Ethernet drivers try to connect to a PHY device before
+	 * calling register_netdevice() -> netdev_register_kobject() and
+	 * does the dev->dev.kobj initialization. Here we only check for
+	 * success which indicates that the network device kobject is
+	 * ready. Once we do that we still need to keep track of whether
+	 * links were successfully set up or not for phy_detach() to
+	 * remove them accordingly.
+	 */
+	phydev->sysfs_links = false;
+
 	err = sysfs_create_link(&phydev->mdio.dev.kobj, &dev->dev.kobj,
 				"attached_dev");
-	if (err)
-		goto error;
+	if (!err) {
+		err = sysfs_create_link(&dev->dev.kobj, &phydev->mdio.dev.kobj,
+					"phydev");
+		if (err)
+			goto error;
 
-	err = sysfs_create_link(&dev->dev.kobj, &phydev->mdio.dev.kobj,
-				"phydev");
-	if (err)
-		goto error;
+		phydev->sysfs_links = true;
+	}
 
 	phydev->dev_flags = flags;
 
@@ -1059,8 +1071,10 @@ void phy_detach(struct phy_device *phydev)
 	struct mii_bus *bus;
 	int i;
 
-	sysfs_remove_link(&dev->dev.kobj, "phydev");
-	sysfs_remove_link(&phydev->mdio.dev.kobj, "attached_dev");
+	if (phydev->sysfs_links) {
+		sysfs_remove_link(&dev->dev.kobj, "phydev");
+		sysfs_remove_link(&phydev->mdio.dev.kobj, "attached_dev");
+	}
 	phydev->attached_dev->phydev = NULL;
 	phydev->attached_dev = NULL;
 	phy_suspend(phydev);
