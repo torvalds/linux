@@ -1498,7 +1498,7 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 				 dev_priv->stdu_max_height);
 
 		if (size.width > max_width || size.height > max_height) {
-			DRM_ERROR("%ux%u\n, exeeds max surface size %ux%u",
+			DRM_ERROR("%ux%u\n, exceeds max surface size %ux%u",
 				  size.width, size.height,
 				  max_width, max_height);
 			return -EINVAL;
