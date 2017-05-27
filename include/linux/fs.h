@@ -1038,14 +1038,14 @@ static inline struct inode *locks_inode(const struct file *f)
 }
 
 #ifdef CONFIG_FILE_LOCKING
-extern int fcntl_getlk(struct file *, unsigned int, struct flock __user *);
+extern int fcntl_getlk(struct file *, unsigned int, struct flock *);
 extern int fcntl_setlk(unsigned int, struct file *, unsigned int,
-			struct flock __user *);
+			struct flock *);
 
 #if BITS_PER_LONG == 32
-extern int fcntl_getlk64(struct file *, unsigned int, struct flock64 __user *);
+extern int fcntl_getlk64(struct file *, unsigned int, struct flock64 *);
 extern int fcntl_setlk64(unsigned int, struct file *, unsigned int,
-			struct flock64 __user *);
+			struct flock64 *);
 #endif
 
 extern int fcntl_setlease(unsigned int fd, struct file *filp, long arg);

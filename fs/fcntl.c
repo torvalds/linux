@@ -246,6 +246,8 @@ static int f_getowner_uids(struct file *filp, unsigned long arg)
 static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 		struct file *filp)
 {
+	void __user *argp = (void __user *)arg;
+	struct flock flock;
 	long err = -EINVAL;
 
 	switch (cmd) {
@@ -273,7 +275,11 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 	case F_OFD_GETLK:
 #endif
 	case F_GETLK:
-		err = fcntl_getlk(filp, cmd, (struct flock __user *) arg);
+		if (copy_from_user(&flock, argp, sizeof(flock)))
+			return -EFAULT;
+		err = fcntl_getlk(filp, cmd, &flock);
+		if (!err && copy_to_user(argp, &flock, sizeof(flock)))
+			return -EFAULT;
 		break;
 #if BITS_PER_LONG != 32
 	/* 32-bit arches must use fcntl64() */
@@ -283,7 +289,9 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 		/* Fallthrough */
 	case F_SETLK:
 	case F_SETLKW:
-		err = fcntl_setlk(fd, filp, cmd, (struct flock __user *) arg);
+		if (copy_from_user(&flock, argp, sizeof(flock)))
+			return -EFAULT;
+		err = fcntl_setlk(fd, filp, cmd, &flock);
 		break;
 	case F_GETOWN:
 		/*
@@ -383,7 +391,9 @@ out:
 SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
 		unsigned long, arg)
 {	
+	void __user *argp = (void __user *)arg;
 	struct fd f = fdget_raw(fd);
+	struct flock64 flock;
 	long err = -EBADF;
 
 	if (!f.file)
@@ -401,14 +411,21 @@ SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
 	switch (cmd) {
 	case F_GETLK64:
 	case F_OFD_GETLK:
-		err = fcntl_getlk64(f.file, cmd, (struct flock64 __user *) arg);
+		err = -EFAULT;
+		if (copy_from_user(&flock, argp, sizeof(flock)))
+			break;
+		err = fcntl_getlk64(f.file, cmd, &flock);
+		if (!err && copy_to_user(argp, &flock, sizeof(flock)))
+			err = -EFAULT;
 		break;
 	case F_SETLK64:
 	case F_SETLKW64:
 	case F_OFD_SETLK:
 	case F_OFD_SETLKW:
-		err = fcntl_setlk64(fd, f.file, cmd,
-				(struct flock64 __user *) arg);
+		err = -EFAULT;
+		if (copy_from_user(&flock, argp, sizeof(flock)))
+			break;
+		err = fcntl_setlk64(fd, f.file, cmd, &flock);
 		break;
 	default:
 		err = do_fcntl(fd, cmd, arg, f.file);
