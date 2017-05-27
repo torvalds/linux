@@ -159,7 +159,8 @@ drop:
 
 static int mpls_build_state(struct nlattr *nla,
 			    unsigned int family, const void *cfg,
-			    struct lwtunnel_state **ts)
+			    struct lwtunnel_state **ts,
+			    struct netlink_ext_ack *extack)
 {
 	struct mpls_iptunnel_encap *tun_encap_info;
 	struct nlattr *tb[MPLS_IPTUNNEL_MAX + 1];
@@ -168,7 +169,7 @@ static int mpls_build_state(struct nlattr *nla,
 	int ret;
 
 	ret = nla_parse_nested(tb, MPLS_IPTUNNEL_MAX, nla,
-			       mpls_iptunnel_policy, NULL);
+			       mpls_iptunnel_policy, extack);
 	if (ret < 0)
 		return ret;
 
