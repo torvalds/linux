@@ -546,6 +546,8 @@ static void ieee80211_report_used_skb(struct ieee80211_local *local,
 		skb->wifi_acked_valid = 1;
 		skb->wifi_acked = acked;
 	}
+
+	ieee80211_led_tx(local);
 }
 
 /*
@@ -822,8 +824,6 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 			}
 		}
 	}
-
-	ieee80211_led_tx(local);
 
 	/* SNMP counters
 	 * Fragments are passed to low-level drivers as separate skbs, so these
