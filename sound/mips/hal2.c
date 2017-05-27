@@ -264,7 +264,7 @@ static int hal2_gain_put(struct snd_kcontrol *kcontrol,
 	return old != new;
 }
 
-static struct snd_kcontrol_new hal2_ctrl_headphone = {
+static const struct snd_kcontrol_new hal2_ctrl_headphone = {
 	.iface          = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name           = "Headphone Playback Volume",
 	.access         = SNDRV_CTL_ELEM_ACCESS_READWRITE,
@@ -274,7 +274,7 @@ static struct snd_kcontrol_new hal2_ctrl_headphone = {
 	.put            = hal2_gain_put,
 };
 
-static struct snd_kcontrol_new hal2_ctrl_mic = {
+static const struct snd_kcontrol_new hal2_ctrl_mic = {
 	.iface          = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name           = "Mic Capture Volume",
 	.access         = SNDRV_CTL_ELEM_ACCESS_READWRITE,
