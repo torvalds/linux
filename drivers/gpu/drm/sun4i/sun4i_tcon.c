@@ -112,16 +112,23 @@ EXPORT_SYMBOL(sun4i_tcon_enable_vblank);
 void sun4i_tcon_set_mux(struct sun4i_tcon *tcon, int channel,
 			struct drm_encoder *encoder)
 {
+	u32 val;
+
 	if (!tcon->quirks->has_unknown_mux)
 		return;
 
 	if (channel != 1)
 		return;
 
+	if (encoder->encoder_type == DRM_MODE_ENCODER_TVDAC)
+		val = 1;
+	else
+		val = 0;
+
 	/*
 	 * FIXME: Undocumented bits
 	 */
-	regmap_write(tcon->regs, SUN4I_TCON_MUX_CTRL_REG, 1);
+	regmap_write(tcon->regs, SUN4I_TCON_MUX_CTRL_REG, val);
 }
 EXPORT_SYMBOL(sun4i_tcon_set_mux);
 
