@@ -1371,8 +1371,8 @@ int acpi_dma_configure(struct device *dev, enum dev_dma_attr attr)
 	iort_set_dma_mask(dev);
 
 	iommu = iort_iommu_configure(dev);
-	if (IS_ERR(iommu))
-		return PTR_ERR(iommu);
+	if (IS_ERR(iommu) && PTR_ERR(iommu) == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
 
 	size = max(dev->coherent_dma_mask, dev->coherent_dma_mask + 1);
 	/*

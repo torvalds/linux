@@ -782,6 +782,12 @@ const struct iommu_ops *iort_iommu_configure(struct device *dev)
 	if (err)
 		ops = ERR_PTR(err);
 
+	/* Ignore all other errors apart from EPROBE_DEFER */
+	if (IS_ERR(ops) && (PTR_ERR(ops) != -EPROBE_DEFER)) {
+		dev_dbg(dev, "Adding to IOMMU failed: %ld\n", PTR_ERR(ops));
+		ops = NULL;
+	}
+
 	return ops;
 }
 
