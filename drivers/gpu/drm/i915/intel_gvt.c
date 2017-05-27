@@ -100,6 +100,11 @@ int intel_gvt_init(struct drm_i915_private *dev_priv)
 		return -EIO;
 	}
 
+	if (i915.enable_guc_submission) {
+		DRM_ERROR("i915 GVT-g loading failed due to Graphics virtualization is not yet supported with GuC submission\n");
+		return -EIO;
+	}
+
 	/*
 	 * We're not in host or fail to find a MPT module, disable GVT-g
 	 */
