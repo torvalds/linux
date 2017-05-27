@@ -45,11 +45,13 @@ static struct alarm_base {
 	clockid_t		base_clockid;
 } alarm_bases[ALARM_NUMTYPE];
 
+#if defined(CONFIG_POSIX_TIMERS) || defined(CONFIG_RTC_CLASS)
 /* freezer information to handle clock_nanosleep triggered wakeups */
 static enum alarmtimer_type freezer_alarmtype;
 static ktime_t freezer_expires;
 static ktime_t freezer_delta;
 static DEFINE_SPINLOCK(freezer_delta_lock);
+#endif
 
 static struct wakeup_source *ws;
 
