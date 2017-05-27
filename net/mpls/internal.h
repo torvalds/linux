@@ -203,7 +203,7 @@ static inline struct mpls_dev *mpls_dev_get(const struct net_device *dev)
 int nla_put_labels(struct sk_buff *skb, int attrtype,  u8 labels,
 		   const u32 label[]);
 int nla_get_labels(const struct nlattr *nla, u8 max_labels, u8 *labels,
-		   u32 label[]);
+		   u32 label[], struct netlink_ext_ack *extack);
 int nla_get_via(const struct nlattr *nla, u8 *via_alen, u8 *via_table,
 		u8 via[]);
 bool mpls_output_possible(const struct net_device *dev);

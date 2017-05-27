@@ -728,8 +728,8 @@ static int mpls_nh_build(struct net *net, struct mpls_route *rt,
 		goto errout;
 
 	if (newdst) {
-		err = nla_get_labels(newdst, max_labels,
-				     &nh->nh_labels, nh->nh_label);
+		err = nla_get_labels(newdst, max_labels, &nh->nh_labels,
+				     nh->nh_label, NULL);
 		if (err)
 			goto errout;
 	}
@@ -782,7 +782,8 @@ static u8 mpls_count_nexthops(struct rtnexthop *rtnh, int len,
 
 		nla = nla_find(attrs, attrlen, RTA_NEWDST);
 		if (nla &&
-		    nla_get_labels(nla, MAX_NEW_LABELS, &n_labels, NULL) != 0)
+		    nla_get_labels(nla, MAX_NEW_LABELS, &n_labels,
+				   NULL, NULL) != 0)
 			return 0;
 
 		*max_labels = max_t(u8, *max_labels, n_labels);
@@ -1541,8 +1542,8 @@ int nla_put_labels(struct sk_buff *skb, int attrtype,
 }
 EXPORT_SYMBOL_GPL(nla_put_labels);
 
-int nla_get_labels(const struct nlattr *nla,
-		   u8 max_labels, u8 *labels, u32 label[])
+int nla_get_labels(const struct nlattr *nla, u8 max_labels, u8 *labels,
+		   u32 label[], struct netlink_ext_ack *extack)
 {
 	unsigned len = nla_len(nla);
 	struct mpls_shim_hdr *nla_label;
@@ -1553,13 +1554,18 @@ int nla_get_labels(const struct nlattr *nla,
 	/* len needs to be an even multiple of 4 (the label size). Number
 	 * of labels is a u8 so check for overflow.
 	 */
-	if (len & 3 || len / 4 > 255)
+	if (len & 3 || len / 4 > 255) {
+		NL_SET_ERR_MSG_ATTR(extack, nla,
+				    "Invalid length for labels attribute");
 		return -EINVAL;
+	}
 
 	/* Limit the number of new labels allowed */
 	nla_labels = len/4;
-	if (nla_labels > max_labels)
+	if (nla_labels > max_labels) {
+		NL_SET_ERR_MSG(extack, "Too many labels");
 		return -EINVAL;
+	}
 
 	/* when label == NULL, caller wants number of labels */
 	if (!label)
@@ -1574,8 +1580,29 @@ int nla_get_labels(const struct nlattr *nla,
 		/* Ensure the bottom of stack flag is properly set
 		 * and ttl and tc are both clear.
 		 */
-		if ((dec.bos != bos) || dec.ttl || dec.tc)
+		if (dec.ttl) {
+			NL_SET_ERR_MSG_ATTR(extack, nla,
+					    "TTL in label must be 0");
 			return -EINVAL;
+		}
+
+		if (dec.tc) {
+			NL_SET_ERR_MSG_ATTR(extack, nla,
+					    "Traffic class in label must be 0");
+			return -EINVAL;
+		}
+
+		if (dec.bos != bos) {
+			NL_SET_BAD_ATTR(extack, nla);
+			if (bos) {
+				NL_SET_ERR_MSG(extack,
+					       "BOS bit must be set in first label");
+			} else {
+				NL_SET_ERR_MSG(extack,
+					       "BOS bit can only be set in first label");
+			}
+			return -EINVAL;
+		}
 
 		switch (dec.label) {
 		case MPLS_LABEL_IMPLNULL:
@@ -1583,6 +1610,8 @@ int nla_get_labels(const struct nlattr *nla,
 			 * assign and distribute, but which never
 			 * actually appears in the encapsulation.
 			 */
+			NL_SET_ERR_MSG_ATTR(extack, nla,
+					    "Implicit NULL Label (3) can not be used in encapsulation");
 			return -EINVAL;
 		}
 
@@ -1696,14 +1725,14 @@ static int rtm_to_route_config(struct sk_buff *skb,  struct nlmsghdr *nlh,
 		case RTA_NEWDST:
 			if (nla_get_labels(nla, MAX_NEW_LABELS,
 					   &cfg->rc_output_labels,
-					   cfg->rc_output_label))
+					   cfg->rc_output_label, NULL))
 				goto errout;
 			break;
 		case RTA_DST:
 		{
 			u8 label_count;
 			if (nla_get_labels(nla, 1, &label_count,
-					   &cfg->rc_label))
+					   &cfg->rc_label, NULL))
 				goto errout;
 
 			/* Reserved labels may not be set */
