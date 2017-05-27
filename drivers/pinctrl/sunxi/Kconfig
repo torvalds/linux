@@ -23,10 +23,6 @@ config PINCTRL_SUN6I_A31_R
 	depends on RESET_CONTROLLER
 	select PINCTRL_SUNXI
 
-config PINCTRL_SUN7I_A20
-	bool
-	select PINCTRL_SUNXI
-
 config PINCTRL_SUN8I_A23
 	def_bool MACH_SUN8I
 	select PINCTRL_SUNXI
