@@ -2019,7 +2019,7 @@ enum v4l2_exposure_auto_type -
     dynamically vary the frame rate. By default this feature is disabled
     (0) and the frame rate must remain constant.
 
-``V4L2_CID_EXPOSURE_BIAS (integer menu)``
+``V4L2_CID_AUTO_EXPOSURE_BIAS (integer menu)``
     Determines the automatic exposure compensation, it is effective only
     when ``V4L2_CID_EXPOSURE_AUTO`` control is set to ``AUTO``,
     ``SHUTTER_PRIORITY`` or ``APERTURE_PRIORITY``. It is expressed in
