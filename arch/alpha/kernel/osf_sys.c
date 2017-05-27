@@ -952,37 +952,45 @@ struct itimerval32
 static inline long
 get_tv32(struct timeval *o, struct timeval32 __user *i)
 {
-	return (!access_ok(VERIFY_READ, i, sizeof(*i)) ||
-		(__get_user(o->tv_sec, &i->tv_sec) |
-		 __get_user(o->tv_usec, &i->tv_usec)));
+	struct timeval32 tv;
+	if (copy_from_user(&tv, i, sizeof(struct timeval32)))
+		return -EFAULT;
+	o->tv_sec = tv.tv_sec;
+	o->tv_usec = tv.tv_usec;
+	return 0;
 }
 
 static inline long
 put_tv32(struct timeval32 __user *o, struct timeval *i)
 {
-	return (!access_ok(VERIFY_WRITE, o, sizeof(*o)) ||
-		(__put_user(i->tv_sec, &o->tv_sec) |
-		 __put_user(i->tv_usec, &o->tv_usec)));
+	return copy_to_user(o, &(struct timeval32){
+				.tv_sec = o->tv_sec,
+				.tv_usec = o->tv_usec},
+			    sizeof(struct timeval32));
 }
 
 static inline long
 get_it32(struct itimerval *o, struct itimerval32 __user *i)
 {
-	return (!access_ok(VERIFY_READ, i, sizeof(*i)) ||
-		(__get_user(o->it_interval.tv_sec, &i->it_interval.tv_sec) |
-		 __get_user(o->it_interval.tv_usec, &i->it_interval.tv_usec) |
-		 __get_user(o->it_value.tv_sec, &i->it_value.tv_sec) |
-		 __get_user(o->it_value.tv_usec, &i->it_value.tv_usec)));
+	struct itimerval32 itv;
+	if (copy_from_user(&itv, i, sizeof(struct itimerval32)))
+		return -EFAULT;
+	o->it_interval.tv_sec = itv.it_interval.tv_sec;
+	o->it_interval.tv_usec = itv.it_interval.tv_usec;
+	o->it_value.tv_sec = itv.it_value.tv_sec;
+	o->it_value.tv_usec = itv.it_value.tv_usec;
+	return 0;
 }
 
 static inline long
 put_it32(struct itimerval32 __user *o, struct itimerval *i)
 {
-	return (!access_ok(VERIFY_WRITE, o, sizeof(*o)) ||
-		(__put_user(i->it_interval.tv_sec, &o->it_interval.tv_sec) |
-		 __put_user(i->it_interval.tv_usec, &o->it_interval.tv_usec) |
-		 __put_user(i->it_value.tv_sec, &o->it_value.tv_sec) |
-		 __put_user(i->it_value.tv_usec, &o->it_value.tv_usec)));
+	return copy_to_user(o, &(struct itimerval32){
+				.it_interval.tv_sec = o->it_interval.tv_sec,
+				.it_interval.tv_usec = o->it_interval.tv_usec,
+				.it_value.tv_sec = o->it_value.tv_sec,
+				.it_value.tv_usec = o->it_value.tv_usec},
+			    sizeof(struct itimerval32));
 }
 
 static inline void
@@ -1101,20 +1109,17 @@ SYSCALL_DEFINE5(osf_select, int, n, fd_set __user *, inp, fd_set __user *, outp,
 {
 	struct timespec end_time, *to = NULL;
 	if (tvp) {
-		time_t sec, usec;
-
+		struct timeval tv;
 		to = &end_time;
 
-		if (!access_ok(VERIFY_READ, tvp, sizeof(*tvp))
-		    || __get_user(sec, &tvp->tv_sec)
-		    || __get_user(usec, &tvp->tv_usec)) {
+		if (get_tv32(&tv, tvp))
 		    	return -EFAULT;
-		}
 
-		if (sec < 0 || usec < 0)
+		if (tv.tv_sec < 0 || tv.tv_usec < 0)
 			return -EINVAL;
 
-		if (poll_select_set_timeout(to, sec, usec * NSEC_PER_USEC))
+		if (poll_select_set_timeout(to, tv.tv_sec,
+					    tv.tv_usec * NSEC_PER_USEC))
 			return -EINVAL;		
 
 	}
