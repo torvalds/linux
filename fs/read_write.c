@@ -922,6 +922,11 @@ static ssize_t do_iter_read(struct file *file, struct iov_iter *iter,
 	size_t tot_len;
 	ssize_t ret = 0;
 
+	if (!(file->f_mode & FMODE_READ))
+		return -EBADF;
+	if (!(file->f_mode & FMODE_CAN_READ))
+		return -EINVAL;
+
 	tot_len = iov_iter_count(iter);
 	if (!tot_len)
 		goto out;
@@ -944,6 +949,11 @@ static ssize_t do_iter_write(struct file *file, struct iov_iter *iter,
 {
 	size_t tot_len;
 	ssize_t ret = 0;
+
+	if (!(file->f_mode & FMODE_WRITE))
+		return -EBADF;
+	if (!(file->f_mode & FMODE_CAN_WRITE))
+		return -EINVAL;
 
 	tot_len = iov_iter_count(iter);
 	if (!tot_len)
@@ -971,17 +981,12 @@ ssize_t vfs_readv(struct file *file, const struct iovec __user *vec,
 	struct iov_iter iter;
 	ssize_t ret;
 
-	if (!(file->f_mode & FMODE_READ))
-		return -EBADF;
-	if (!(file->f_mode & FMODE_CAN_READ))
-		return -EINVAL;
-
 	ret = import_iovec(READ, vec, vlen, ARRAY_SIZE(iovstack), &iov, &iter);
-	if (ret < 0)
-		return ret;
+	if (ret >= 0) {
+		ret = do_iter_read(file, &iter, pos, flags);
+		kfree(iov);
+	}
 
-	ret = do_iter_read(file, &iter, pos, flags);
-	kfree(iov);
 	return ret;
 }
 EXPORT_SYMBOL(vfs_readv);
@@ -994,17 +999,11 @@ ssize_t vfs_writev(struct file *file, const struct iovec __user *vec,
 	struct iov_iter iter;
 	ssize_t ret;
 
-	if (!(file->f_mode & FMODE_WRITE))
-		return -EBADF;
-	if (!(file->f_mode & FMODE_CAN_WRITE))
-		return -EINVAL;
-
 	ret = import_iovec(WRITE, vec, vlen, ARRAY_SIZE(iovstack), &iov, &iter);
-	if (ret < 0)
-		return ret;
-
-	ret = do_iter_write(file, &iter, pos, flags);
-	kfree(iov);
+	if (ret >= 0) {
+		ret = do_iter_write(file, &iter, pos, flags);
+		kfree(iov);
+	}
 	return ret;
 }
 EXPORT_SYMBOL(vfs_writev);
@@ -1161,21 +1160,13 @@ static size_t compat_readv(struct file *file,
 	struct iovec iovstack[UIO_FASTIOV];
 	struct iovec *iov = iovstack;
 	struct iov_iter iter;
-	ssize_t ret = -EBADF;
-
-	if (!(file->f_mode & FMODE_READ))
-		goto out;
-
-	ret = -EINVAL;
-	if (!(file->f_mode & FMODE_CAN_READ))
-		goto out;
+	ssize_t ret;
 
 	ret = compat_import_iovec(READ, vec, vlen, UIO_FASTIOV, &iov, &iter);
-	if (ret < 0)
-		goto out;
-	ret = do_iter_read(file, &iter, pos, flags);
-	kfree(iov);
-out:
+	if (ret >= 0) {
+		ret = do_iter_read(file, &iter, pos, flags);
+		kfree(iov);
+	}
 	if (ret > 0)
 		add_rchar(current, ret);
 	inc_syscr(current);
@@ -1274,21 +1265,13 @@ static size_t compat_writev(struct file *file,
 	struct iovec iovstack[UIO_FASTIOV];
 	struct iovec *iov = iovstack;
 	struct iov_iter iter;
-	ssize_t ret = -EBADF;
-
-	if (!(file->f_mode & FMODE_WRITE))
-		goto out;
-
-	ret = -EINVAL;
-	if (!(file->f_mode & FMODE_CAN_WRITE))
-		goto out;
+	ssize_t ret;
 
 	ret = compat_import_iovec(WRITE, vec, vlen, UIO_FASTIOV, &iov, &iter);
-	if (ret < 0)
-		goto out;
-	ret = do_iter_write(file, &iter, pos, flags);
-	kfree(iov);
-out:
+	if (ret >= 0) {
+		ret = do_iter_write(file, &iter, pos, flags);
+		kfree(iov);
+	}
 	if (ret > 0)
 		add_wchar(current, ret);
 	inc_syscw(current);
