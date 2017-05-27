@@ -703,7 +703,7 @@ extern struct movsl_mask {
 #define unsafe_put_user(x, ptr, err_label)					\
 do {										\
 	int __pu_err;								\
-	__put_user_size((x), (ptr), sizeof(*(ptr)), __pu_err, -EFAULT);		\
+	__put_user_size((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)), __pu_err, -EFAULT);		\
 	if (unlikely(__pu_err)) goto err_label;					\
 } while (0)
 
