@@ -713,9 +713,8 @@ SYSCALL_DEFINE2(osf_sigstack, struct sigstack __user *, uss,
 
 	if (uoss) {
 		error = -EFAULT;
-		if (! access_ok(VERIFY_WRITE, uoss, sizeof(*uoss))
-		    || __put_user(oss_sp, &uoss->ss_sp)
-		    || __put_user(oss_os, &uoss->ss_onstack))
+		if (put_user(oss_sp, &uoss->ss_sp) ||
+		    put_user(oss_os, &uoss->ss_onstack))
 			goto out;
 	}
 
