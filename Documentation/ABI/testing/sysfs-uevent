@@ -1,6 +1,6 @@
 What:           /sys/.../uevent
 Date:           May 2017
-KernelVersion:  4.12
+KernelVersion:  4.13
 Contact:        Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:
                 Enable passing additional variables for synthetic uevents that
