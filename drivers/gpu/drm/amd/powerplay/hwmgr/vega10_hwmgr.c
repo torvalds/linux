@@ -1542,11 +1542,7 @@ static int vega10_populate_single_gfx_level(struct pp_hwmgr *hwmgr,
 	current_gfxclk_level->FbMult =
 			cpu_to_le32(dividers.ulPll_fb_mult);
 	/* Spread FB Multiplier bit: bit 0:8 int, bit 31:16 frac */
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-				PHM_PlatformCaps_EngineSpreadSpectrumSupport))
-		current_gfxclk_level->SsOn = dividers.ucPll_ss_enable;
-	else
-		current_gfxclk_level->SsOn = 0;
+	current_gfxclk_level->SsOn = dividers.ucPll_ss_enable;
 	current_gfxclk_level->SsFbMult =
 			cpu_to_le32(dividers.ulPll_ss_fbsmult);
 	current_gfxclk_level->SsSlewFrac =
