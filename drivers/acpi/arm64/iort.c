@@ -666,14 +666,6 @@ static const struct iommu_ops *iort_iommu_xlate(struct device *dev,
 	int ret = -ENODEV;
 	struct fwnode_handle *iort_fwnode;
 
-	/*
-	 * If we already translated the fwspec there
-	 * is nothing left to do, return the iommu_ops.
-	 */
-	ops = iort_fwspec_iommu_ops(dev->iommu_fwspec);
-	if (ops)
-		return ops;
-
 	if (node) {
 		iort_fwnode = iort_get_fwnode(node);
 		if (!iort_fwnode)
@@ -734,6 +726,14 @@ const struct iommu_ops *iort_iommu_configure(struct device *dev)
 	const struct iommu_ops *ops = NULL;
 	u32 streamid = 0;
 	int err;
+
+	/*
+	 * If we already translated the fwspec there
+	 * is nothing left to do, return the iommu_ops.
+	 */
+	ops = iort_fwspec_iommu_ops(dev->iommu_fwspec);
+	if (ops)
+		return ops;
 
 	if (dev_is_pci(dev)) {
 		struct pci_bus *bus = to_pci_dev(dev)->bus;
