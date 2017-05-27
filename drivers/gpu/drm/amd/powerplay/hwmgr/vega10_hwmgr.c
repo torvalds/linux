@@ -126,6 +126,9 @@ static void vega10_set_default_registry_data(struct pp_hwmgr *hwmgr)
 	data->registry_data.clock_stretcher_support =
 			hwmgr->feature_mask & PP_CLOCK_STRETCH_MASK ? false : true;
 
+	data->registry_data.ulv_support =
+			hwmgr->feature_mask & PP_ULV_MASK ? true : false;
+
 	data->registry_data.disable_water_mark = 0;
 
 	data->registry_data.fan_control_support = 1;
@@ -2580,6 +2583,22 @@ static int vega10_enable_ulv(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+static int vega10_disable_ulv(struct pp_hwmgr *hwmgr)
+{
+	struct vega10_hwmgr *data =
+			(struct vega10_hwmgr *)(hwmgr->backend);
+
+	if (data->registry_data.ulv_support) {
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+				false, data->smu_features[GNLD_ULV].smu_feature_bitmap),
+				"disable ULV Feature Failed!",
+				return -EINVAL);
+		data->smu_features[GNLD_ULV].enabled = false;
+	}
+
+	return 0;
+}
+
 static int vega10_enable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 {
 	struct vega10_hwmgr *data =
@@ -2747,11 +2766,6 @@ static int vega10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 			"Failed to enable VR hot feature!",
 			result = tmp_result);
 
-	tmp_result = vega10_enable_ulv(hwmgr);
-	PP_ASSERT_WITH_CODE(!tmp_result,
-			"Failed to enable ULV!",
-			result = tmp_result);
-
 	tmp_result = vega10_enable_deep_sleep_master_switch(hwmgr);
 	PP_ASSERT_WITH_CODE(!tmp_result,
 			"Failed to enable deep sleep master switch!",
@@ -2769,6 +2783,11 @@ static int vega10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	tmp_result = vega10_power_control_set_level(hwmgr);
 	PP_ASSERT_WITH_CODE(!tmp_result,
 			"Failed to power control set level!",
+			result = tmp_result);
+
+	tmp_result = vega10_enable_ulv(hwmgr);
+	PP_ASSERT_WITH_CODE(!tmp_result,
+			"Failed to enable ULV!",
 			result = tmp_result);
 
 	return result;
@@ -4531,6 +4550,10 @@ static int vega10_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	tmp_result = vega10_stop_dpm(hwmgr, SMC_DPM_FEATURES);
 	PP_ASSERT_WITH_CODE((tmp_result == 0),
 			"Failed to stop DPM!", result = tmp_result);
+
+	tmp_result = vega10_disable_ulv(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to disable ulv!", result = tmp_result);
 
 	return result;
 }
