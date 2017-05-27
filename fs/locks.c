@@ -1858,8 +1858,8 @@ EXPORT_SYMBOL(generic_setlease);
  *
  * Call this to establish a lease on the file. The "lease" argument is not
  * used for F_UNLCK requests and may be NULL. For commands that set or alter
- * an existing lease, the (*lease)->fl_lmops->lm_break operation must be set;
- * if not, this function will return -ENOLCK (and generate a scary-looking
+ * an existing lease, the ``(*lease)->fl_lmops->lm_break`` operation must be
+ * set; if not, this function will return -ENOLCK (and generate a scary-looking
  * stack trace).
  *
  * The "priv" pointer is passed directly to the lm_setup function as-is. It
@@ -1972,15 +1972,13 @@ EXPORT_SYMBOL(locks_lock_inode_wait);
  *	@cmd: the type of lock to apply.
  *
  *	Apply a %FL_FLOCK style lock to an open file descriptor.
- *	The @cmd can be one of
+ *	The @cmd can be one of:
  *
- *	%LOCK_SH -- a shared lock.
- *
- *	%LOCK_EX -- an exclusive lock.
- *
- *	%LOCK_UN -- remove an existing lock.
- *
- *	%LOCK_MAND -- a `mandatory' flock.  This exists to emulate Windows Share Modes.
+ *	- %LOCK_SH -- a shared lock.
+ *	- %LOCK_EX -- an exclusive lock.
+ *	- %LOCK_UN -- remove an existing lock.
+ *	- %LOCK_MAND -- a 'mandatory' flock.
+ *	  This exists to emulate Windows Share Modes.
  *
  *	%LOCK_MAND can be combined with %LOCK_READ or %LOCK_WRITE to allow other
  *	processes read and write access respectively.
