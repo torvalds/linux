@@ -1928,11 +1928,13 @@ void dwc2_hcd_disconnect(struct dwc2_hsotg *hsotg, bool force)
 	 * Without the extra check here we will end calling disconnect
 	 * and won't get any future interrupts to handle the connect.
 	 */
-	if (!force) {
-		hprt0 = dwc2_readl(hsotg->regs + HPRT0);
-		if (!(hprt0 & HPRT0_CONNDET) && (hprt0 & HPRT0_CONNSTS))
-			dwc2_hcd_connect(hsotg);
-	}
+	hprt0 = dwc2_readl(hsotg->regs + HPRT0);
+
+	if (!force && !(hprt0 & HPRT0_CONNDET) &&
+	    (hprt0 & HPRT0_CONNSTS))
+		dwc2_hcd_connect(hsotg);
+	else if (hsotg->lx_state != DWC2_L0)
+		usb_hcd_resume_root_hub(hsotg->priv);
 }
 
 /**
