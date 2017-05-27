@@ -1099,6 +1099,17 @@ static int fib_insert_alias(struct trie *t, struct key_vector *tp,
 	return 0;
 }
 
+static bool fib_valid_key_len(u32 key, u8 plen)
+{
+	if (plen > KEYLENGTH)
+		return false;
+
+	if ((plen < KEYLENGTH) && (key << plen))
+		return false;
+
+	return true;
+}
+
 /* Caller must hold RTNL. */
 int fib_table_insert(struct net *net, struct fib_table *tb,
 		     struct fib_config *cfg, struct netlink_ext_ack *extack)
@@ -1115,15 +1126,12 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 	u32 key;
 	int err;
 
-	if (plen > KEYLENGTH)
-		return -EINVAL;
-
 	key = ntohl(cfg->fc_dst);
 
-	pr_debug("Insert table=%u %08x/%d\n", tb->tb_id, key, plen);
-
-	if ((plen < KEYLENGTH) && (key << plen))
+	if (!fib_valid_key_len(key, plen))
 		return -EINVAL;
+
+	pr_debug("Insert table=%u %08x/%d\n", tb->tb_id, key, plen);
 
 	fi = fib_create_info(cfg, extack);
 	if (IS_ERR(fi)) {
@@ -1518,12 +1526,9 @@ int fib_table_delete(struct net *net, struct fib_table *tb,
 	u8 tos = cfg->fc_tos;
 	u32 key;
 
-	if (plen > KEYLENGTH)
-		return -EINVAL;
-
 	key = ntohl(cfg->fc_dst);
 
-	if ((plen < KEYLENGTH) && (key << plen))
+	if (!fib_valid_key_len(key, plen))
 		return -EINVAL;
 
 	l = fib_find_node(t, &tp, key);
