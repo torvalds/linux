@@ -144,13 +144,7 @@ static struct pt_regs sip_fiq_debugger_get_pt_regs(void *reg_base,
 
 	/* copy pstate */
 	memcpy(&fiq_pt_regs.pstate, reg_base + 0x110, 8);
-
-	/* EL1 mode */
-	if (fiq_pt_regs.pstate & 0x10)
-		memcpy(&fiq_pt_regs.sp, reg_base + 0xf8, 8);
-	/* EL0 mode */
-	else
-		fiq_pt_regs.sp = sp_el1;
+	fiq_pt_regs.sp = sp_el1;
 
 	/* copy pc */
 	memcpy(&fiq_pt_regs.pc, reg_base + 0x118, 8);
