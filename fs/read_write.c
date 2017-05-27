@@ -916,8 +916,8 @@ out:
 }
 #endif
 
-static ssize_t __do_readv_writev(int type, struct file *file,
-				 struct iov_iter *iter, loff_t *pos, int flags)
+static ssize_t do_iter_read(struct file *file, struct iov_iter *iter,
+		loff_t *pos, int flags)
 {
 	size_t tot_len;
 	ssize_t ret = 0;
@@ -925,29 +925,41 @@ static ssize_t __do_readv_writev(int type, struct file *file,
 	tot_len = iov_iter_count(iter);
 	if (!tot_len)
 		goto out;
-	ret = rw_verify_area(type, file, pos, tot_len);
+	ret = rw_verify_area(READ, file, pos, tot_len);
 	if (ret < 0)
-		goto out;
+		return ret;
 
-	if (type != READ)
-		file_start_write(file);
-
-	if ((type == READ && file->f_op->read_iter) ||
-	    (type == WRITE && file->f_op->write_iter))
-		ret = do_iter_readv_writev(file, iter, pos, type, flags);
+	if (file->f_op->read_iter)
+		ret = do_iter_readv_writev(file, iter, pos, READ, flags);
 	else
-		ret = do_loop_readv_writev(file, iter, pos, type, flags);
-
-	if (type != READ)
-		file_end_write(file);
-
+		ret = do_loop_readv_writev(file, iter, pos, READ, flags);
 out:
-	if ((ret + (type == READ)) > 0) {
-		if (type == READ)
-			fsnotify_access(file);
-		else
-			fsnotify_modify(file);
-	}
+	if (ret >= 0)
+		fsnotify_access(file);
+	return ret;
+}
+
+static ssize_t do_iter_write(struct file *file, struct iov_iter *iter,
+		loff_t *pos, int flags)
+{
+	size_t tot_len;
+	ssize_t ret = 0;
+
+	tot_len = iov_iter_count(iter);
+	if (!tot_len)
+		return 0;
+	ret = rw_verify_area(WRITE, file, pos, tot_len);
+	if (ret < 0)
+		return ret;
+
+	file_start_write(file);
+	if (file->f_op->write_iter)
+		ret = do_iter_readv_writev(file, iter, pos, WRITE, flags);
+	else
+		ret = do_loop_readv_writev(file, iter, pos, WRITE, flags);
+	file_end_write(file);
+	if (ret > 0)
+		fsnotify_modify(file);
 	return ret;
 }
 
@@ -968,7 +980,7 @@ ssize_t vfs_readv(struct file *file, const struct iovec __user *vec,
 	if (ret < 0)
 		return ret;
 
-	ret = __do_readv_writev(READ, file, &iter, pos, flags);
+	ret = do_iter_read(file, &iter, pos, flags);
 	kfree(iov);
 	return ret;
 }
@@ -991,7 +1003,7 @@ ssize_t vfs_writev(struct file *file, const struct iovec __user *vec,
 	if (ret < 0)
 		return ret;
 
-	ret = __do_readv_writev(WRITE, file, &iter, pos, flags);
+	ret = do_iter_write(file, &iter, pos, flags);
 	kfree(iov);
 	return ret;
 }
@@ -1161,7 +1173,7 @@ static size_t compat_readv(struct file *file,
 	ret = compat_import_iovec(READ, vec, vlen, UIO_FASTIOV, &iov, &iter);
 	if (ret < 0)
 		goto out;
-	ret = __do_readv_writev(READ, file, &iter, pos, flags);
+	ret = do_iter_read(file, &iter, pos, flags);
 	kfree(iov);
 out:
 	if (ret > 0)
@@ -1274,7 +1286,7 @@ static size_t compat_writev(struct file *file,
 	ret = compat_import_iovec(WRITE, vec, vlen, UIO_FASTIOV, &iov, &iter);
 	if (ret < 0)
 		goto out;
-	ret = __do_readv_writev(WRITE, file, &iter, pos, flags);
+	ret = do_iter_write(file, &iter, pos, flags);
 	kfree(iov);
 out:
 	if (ret > 0)
