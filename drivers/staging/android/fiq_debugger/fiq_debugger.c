@@ -583,7 +583,13 @@ static bool fiq_debugger_fiq_exec(struct fiq_debugger_state *state,
 			void *svc_sp)
 {
 	bool signal_helper = false;
+	unsigned long va_start;
 
+#ifdef CONFIG_ARM64
+	va_start = VA_START;
+#else
+	va_start = PAGE_OFFSET;
+#endif
 	if (!strcmp(cmd, "help") || !strcmp(cmd, "?")) {
 		fiq_debugger_help(state);
 	} else if (!strcmp(cmd, "pc")) {
@@ -593,11 +599,14 @@ static bool fiq_debugger_fiq_exec(struct fiq_debugger_state *state,
 	} else if (!strcmp(cmd, "allregs")) {
 		fiq_debugger_dump_allregs(&state->output, regs);
 	} else if (!strcmp(cmd, "bt")) {
-		if (!user_mode((struct pt_regs *)regs))
+		if (user_mode((struct pt_regs *)regs) ||
+		    ((unsigned long)svc_sp < va_start) ||
+		    ((unsigned long)svc_sp > -256UL))
+			fiq_debugger_printf(&state->output, "User mode\n");
+		else
 			fiq_debugger_dump_stacktrace(&state->output, regs,
 						     100, svc_sp);
-		else
-			fiq_debugger_printf(&state->output, "User mode\n");
+
 	} else if (!strncmp(cmd, "reset", 5)) {
 		cmd += 5;
 		while (*cmd == ' ')
@@ -1022,13 +1031,8 @@ void fiq_debugger_fiq(void *regs, u32 cpu)
 	if (!state)
 		return;
 
-	if (!user_mode((struct pt_regs *)regs))
-		need_irq = fiq_debugger_handle_uart_interrupt(state,
-						smp_processor_id(),
-						regs, current_thread_info());
-	else
-		need_irq = fiq_debugger_handle_uart_interrupt(state, cpu,
-						regs, current_thread_info());
+	need_irq = fiq_debugger_handle_uart_interrupt(state, cpu, regs,
+						      current_thread_info());
 	if (need_irq)
 		fiq_debugger_force_irq(state);
 }
