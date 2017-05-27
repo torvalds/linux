@@ -684,6 +684,54 @@ errout:
 	return err;
 }
 
+static int nla_get_via(const struct nlattr *nla, u8 *via_alen, u8 *via_table,
+		       u8 via_addr[], struct netlink_ext_ack *extack)
+{
+	struct rtvia *via = nla_data(nla);
+	int err = -EINVAL;
+	int alen;
+
+	if (nla_len(nla) < offsetof(struct rtvia, rtvia_addr)) {
+		NL_SET_ERR_MSG_ATTR(extack, nla,
+				    "Invalid attribute length for RTA_VIA");
+		goto errout;
+	}
+	alen = nla_len(nla) -
+			offsetof(struct rtvia, rtvia_addr);
+	if (alen > MAX_VIA_ALEN) {
+		NL_SET_ERR_MSG_ATTR(extack, nla,
+				    "Invalid address length for RTA_VIA");
+		goto errout;
+	}
+
+	/* Validate the address family */
+	switch (via->rtvia_family) {
+	case AF_PACKET:
+		*via_table = NEIGH_LINK_TABLE;
+		break;
+	case AF_INET:
+		*via_table = NEIGH_ARP_TABLE;
+		if (alen != 4)
+			goto errout;
+		break;
+	case AF_INET6:
+		*via_table = NEIGH_ND_TABLE;
+		if (alen != 16)
+			goto errout;
+		break;
+	default:
+		/* Unsupported address family */
+		goto errout;
+	}
+
+	memcpy(via_addr, via->rtvia_addr, alen);
+	*via_alen = alen;
+	err = 0;
+
+errout:
+	return err;
+}
+
 static int mpls_nh_build_from_cfg(struct mpls_route_config *cfg,
 				  struct mpls_route *rt)
 {
@@ -1640,54 +1688,6 @@ out:
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nla_get_labels);
-
-int nla_get_via(const struct nlattr *nla, u8 *via_alen, u8 *via_table,
-		u8 via_addr[], struct netlink_ext_ack *extack)
-{
-	struct rtvia *via = nla_data(nla);
-	int err = -EINVAL;
-	int alen;
-
-	if (nla_len(nla) < offsetof(struct rtvia, rtvia_addr)) {
-		NL_SET_ERR_MSG_ATTR(extack, nla,
-				    "Invalid attribute length for RTA_VIA");
-		goto errout;
-	}
-	alen = nla_len(nla) -
-			offsetof(struct rtvia, rtvia_addr);
-	if (alen > MAX_VIA_ALEN) {
-		NL_SET_ERR_MSG_ATTR(extack, nla,
-				    "Invalid address length for RTA_VIA");
-		goto errout;
-	}
-
-	/* Validate the address family */
-	switch (via->rtvia_family) {
-	case AF_PACKET:
-		*via_table = NEIGH_LINK_TABLE;
-		break;
-	case AF_INET:
-		*via_table = NEIGH_ARP_TABLE;
-		if (alen != 4)
-			goto errout;
-		break;
-	case AF_INET6:
-		*via_table = NEIGH_ND_TABLE;
-		if (alen != 16)
-			goto errout;
-		break;
-	default:
-		/* Unsupported address family */
-		goto errout;
-	}
-
-	memcpy(via_addr, via->rtvia_addr, alen);
-	*via_alen = alen;
-	err = 0;
-
-errout:
-	return err;
-}
 
 static int rtm_to_route_config(struct sk_buff *skb,
 			       struct nlmsghdr *nlh,
