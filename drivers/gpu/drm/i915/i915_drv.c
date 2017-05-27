@@ -997,6 +997,8 @@ static void intel_sanitize_options(struct drm_i915_private *dev_priv)
 	DRM_DEBUG_DRIVER("use GPU semaphores? %s\n", yesno(i915.semaphores));
 
 	intel_uc_sanitize_options(dev_priv);
+
+	intel_gvt_sanitize_options(dev_priv);
 }
 
 /**
