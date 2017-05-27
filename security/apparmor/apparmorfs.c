@@ -595,6 +595,40 @@ static const struct file_operations aa_fs_ns_revision_fops = {
 	.release	= ns_revision_release,
 };
 
+static void profile_query_cb(struct aa_profile *profile, struct aa_perms *perms,
+			     const char *match_str, size_t match_len)
+{
+	struct aa_perms tmp;
+	struct aa_dfa *dfa;
+	unsigned int state = 0;
+
+	if (unconfined(profile))
+		return;
+	if (profile->file.dfa && *match_str == AA_CLASS_FILE) {
+		dfa = profile->file.dfa;
+		state = aa_dfa_match_len(dfa, profile->file.start,
+					 match_str + 1, match_len - 1);
+		tmp = nullperms;
+		if (state) {
+			struct path_cond cond = { };
+
+			tmp = aa_compute_fperms(dfa, state, &cond);
+		}
+	} else if (profile->policy.dfa) {
+		if (!PROFILE_MEDIATES_SAFE(profile, *match_str))
+			return;	/* no change to current perms */
+		dfa = profile->policy.dfa;
+		state = aa_dfa_match_len(dfa, profile->policy.start[0],
+					 match_str, match_len);
+		if (state)
+			aa_compute_perms(dfa, state, &tmp);
+		else
+			tmp = nullperms;
+	}
+	aa_apply_modes_to_perms(profile, &tmp);
+}
+
+
 /**
  * query_data - queries a policy and writes its data to buf
  * @buf: the resulting data is stored here (NOT NULL)
@@ -671,6 +705,64 @@ static ssize_t query_data(char *buf, size_t buf_len,
 	memcpy(buf + sizeof(bytes), &outle32, sizeof(outle32));
 
 	return out - buf;
+}
+
+/**
+ * query_label - queries a label and writes permissions to buf
+ * @buf: the resulting permissions string is stored here (NOT NULL)
+ * @buf_len: size of buf
+ * @query: binary query string to match against the dfa
+ * @query_len: size of query
+ * @view_only: only compute for querier's view
+ *
+ * The buffers pointed to by buf and query may overlap. The query buffer is
+ * parsed before buf is written to.
+ *
+ * The query should look like "LABEL_NAME\0DFA_STRING" where LABEL_NAME is
+ * the name of the label, in the current namespace, that is to be queried and
+ * DFA_STRING is a binary string to match against the label(s)'s DFA.
+ *
+ * LABEL_NAME must be NUL terminated. DFA_STRING may contain NUL characters
+ * but must *not* be NUL terminated.
+ *
+ * Returns: number of characters written to buf or -errno on failure
+ */
+static ssize_t query_label(char *buf, size_t buf_len,
+			   char *query, size_t query_len, bool view_only)
+{
+	struct aa_profile *profile, *curr;
+	char *label_name, *match_str;
+	size_t label_name_len, match_len;
+	struct aa_perms perms;
+
+	if (!query_len)
+		return -EINVAL;
+
+	label_name = query;
+	label_name_len = strnlen(query, query_len);
+	if (!label_name_len || label_name_len == query_len)
+		return -EINVAL;
+
+	/**
+	 * The extra byte is to account for the null byte between the
+	 * profile name and dfa string. profile_name_len is greater
+	 * than zero and less than query_len, so a byte can be safely
+	 * added or subtracted.
+	 */
+	match_str = label_name + label_name_len + 1;
+	match_len = query_len - label_name_len - 1;
+
+	curr = aa_current_profile();
+	profile = aa_fqlookupn_profile(curr, label_name, label_name_len);
+	if (!profile)
+		return -ENOENT;
+
+	perms = allperms;
+	profile_query_cb(profile, &perms, match_str, match_len);
+
+	return scnprintf(buf, buf_len,
+		      "allow 0x%08x\ndeny 0x%08x\naudit 0x%08x\nquiet 0x%08x\n",
+		      perms.allow, perms.deny, perms.audit, perms.quiet);
 }
 
 /*
@@ -773,6 +865,9 @@ static int multi_transaction_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+#define QUERY_CMD_PROFILE	"profile\0"
+#define QUERY_CMD_PROFILE_LEN	8
+
 #define QUERY_CMD_DATA		"data\0"
 #define QUERY_CMD_DATA_LEN	5
 
@@ -810,7 +905,12 @@ static ssize_t aa_write_access(struct file *file, const char __user *ubuf,
 	if (IS_ERR(t))
 		return PTR_ERR(t);
 
-	if (count > QUERY_CMD_DATA_LEN &&
+	if (count > QUERY_CMD_PROFILE_LEN &&
+	    !memcmp(t->data, QUERY_CMD_PROFILE, QUERY_CMD_PROFILE_LEN)) {
+		len = query_label(t->data, MULTI_TRANSACTION_LIMIT,
+				  t->data + QUERY_CMD_PROFILE_LEN,
+				  count - QUERY_CMD_PROFILE_LEN, true);
+	} else if (count > QUERY_CMD_DATA_LEN &&
 		   !memcmp(t->data, QUERY_CMD_DATA, QUERY_CMD_DATA_LEN)) {
 		len = query_data(t->data, MULTI_TRANSACTION_LIMIT,
 				 t->data + QUERY_CMD_DATA_LEN,
@@ -1952,6 +2052,7 @@ static struct aa_sfs_entry aa_sfs_entry_policy[] = {
 };
 
 static struct aa_sfs_entry aa_sfs_entry_query_label[] = {
+	AA_SFS_FILE_STRING("perms", "allow deny audit quiet"),
 	AA_SFS_FILE_BOOLEAN("data",		1),
 	AA_SFS_FILE_BOOLEAN("multi_transaction",	1),
 	{ }
