@@ -738,7 +738,7 @@
 
 	pinctrl_wdog1: wdog1grp {
 		fsl,pins = <
-			MX7D_PAD_LPSR_GPIO1_IO00__WDOD1_WDOG_B	0x75
+			MX7D_PAD_LPSR_GPIO1_IO00__WDOG1_WDOG_B	0x75
 		>;
 	};
 };

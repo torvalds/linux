@@ -443,7 +443,7 @@
 &iomuxc_lpsr {
 	pinctrl_wdog: wdoggrp {
 		fsl,pins = <
-			MX7D_PAD_LPSR_GPIO1_IO00__WDOD1_WDOG_B	0x74
+			MX7D_PAD_LPSR_GPIO1_IO00__WDOG1_WDOG_B	0x74
 		>;
 	};
 };
