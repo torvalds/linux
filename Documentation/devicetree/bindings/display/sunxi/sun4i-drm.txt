@@ -210,6 +210,7 @@ extra node.
 
 Required properties:
   - compatible: value must be one of:
+    * allwinner,sun5i-a10s-display-engine
     * allwinner,sun5i-a13-display-engine
     * allwinner,sun6i-a31-display-engine
     * allwinner,sun6i-a31s-display-engine
