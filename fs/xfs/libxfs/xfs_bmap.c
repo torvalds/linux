@@ -1280,7 +1280,6 @@ xfs_bmap_read_extents(
 		xfs_bmbt_rec_t	*frp;
 		xfs_fsblock_t	nextbno;
 		xfs_extnum_t	num_recs;
-		xfs_extnum_t	start;
 
 		num_recs = xfs_btree_get_numrecs(block);
 		if (unlikely(i + num_recs > room)) {
@@ -1303,7 +1302,6 @@ xfs_bmap_read_extents(
 		 * Copy records into the extent records.
 		 */
 		frp = XFS_BMBT_REC_ADDR(mp, block, 1);
-		start = i;
 		for (j = 0; j < num_recs; j++, i++, frp++) {
 			xfs_bmbt_rec_host_t *trp = xfs_iext_get_ext(ifp, i);
 			trp->l0 = be64_to_cpu(frp->l0);
@@ -2065,8 +2063,10 @@ xfs_bmap_add_extent_delay_real(
 		}
 		temp = xfs_bmap_worst_indlen(bma->ip, temp);
 		temp2 = xfs_bmap_worst_indlen(bma->ip, temp2);
-		diff = (int)(temp + temp2 - startblockval(PREV.br_startblock) -
-			(bma->cur ? bma->cur->bc_private.b.allocated : 0));
+		diff = (int)(temp + temp2 -
+			     (startblockval(PREV.br_startblock) -
+			      (bma->cur ?
+			       bma->cur->bc_private.b.allocated : 0)));
 		if (diff > 0) {
 			error = xfs_mod_fdblocks(bma->ip->i_mount,
 						 -((int64_t)diff), false);
@@ -2123,7 +2123,6 @@ xfs_bmap_add_extent_delay_real(
 		temp = da_new;
 		if (bma->cur)
 			temp += bma->cur->bc_private.b.allocated;
-		ASSERT(temp <= da_old);
 		if (temp < da_old)
 			xfs_mod_fdblocks(bma->ip->i_mount,
 					(int64_t)(da_old - temp), false);

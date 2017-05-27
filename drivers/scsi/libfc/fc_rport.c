@@ -1422,7 +1422,7 @@ static void fc_rport_recv_rtv_req(struct fc_rport_priv *rdata,
 	fp = fc_frame_alloc(lport, sizeof(*rtv));
 	if (!fp) {
 		rjt_data.reason = ELS_RJT_UNAB;
-		rjt_data.reason = ELS_EXPL_INSUF_RES;
+		rjt_data.explan = ELS_EXPL_INSUF_RES;
 		fc_seq_els_rsp_send(in_fp, ELS_LS_RJT, &rjt_data);
 		goto drop;
 	}

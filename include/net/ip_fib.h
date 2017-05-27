@@ -114,11 +114,11 @@ struct fib_info {
 	__be32			fib_prefsrc;
 	u32			fib_tb_id;
 	u32			fib_priority;
-	u32			*fib_metrics;
-#define fib_mtu fib_metrics[RTAX_MTU-1]
-#define fib_window fib_metrics[RTAX_WINDOW-1]
-#define fib_rtt fib_metrics[RTAX_RTT-1]
-#define fib_advmss fib_metrics[RTAX_ADVMSS-1]
+	struct dst_metrics	*fib_metrics;
+#define fib_mtu fib_metrics->metrics[RTAX_MTU-1]
+#define fib_window fib_metrics->metrics[RTAX_WINDOW-1]
+#define fib_rtt fib_metrics->metrics[RTAX_RTT-1]
+#define fib_advmss fib_metrics->metrics[RTAX_ADVMSS-1]
 	int			fib_nhs;
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	int			fib_weight;

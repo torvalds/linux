@@ -86,6 +86,7 @@ static struct bpf_map *array_map_alloc(union bpf_attr *attr)
 	array->map.key_size = attr->key_size;
 	array->map.value_size = attr->value_size;
 	array->map.max_entries = attr->max_entries;
+	array->map.map_flags = attr->map_flags;
 	array->elem_size = elem_size;
 
 	if (!percpu)

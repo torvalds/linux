@@ -1047,6 +1047,13 @@ stop_rr_fcf_flogi:
 				 irsp->ulpStatus, irsp->un.ulpWord[4],
 				 irsp->ulpTimeout);
 
+
+		/* If this is not a loop open failure, bail out */
+		if (!(irsp->ulpStatus == IOSTAT_LOCAL_REJECT &&
+		      ((irsp->un.ulpWord[4] & IOERR_PARAM_MASK) ==
+					IOERR_LOOP_OPEN_FAILURE)))
+			goto flogifail;
+
 		/* FLOGI failed, so there is no fabric */
 		spin_lock_irq(shost->host_lock);
 		vport->fc_flag &= ~(FC_FABRIC | FC_PUBLIC_LOOP);
@@ -2077,16 +2084,19 @@ lpfc_cmpl_els_prli(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	if (irsp->ulpStatus) {
 		/* Check for retry */
+		ndlp->fc4_prli_sent--;
 		if (lpfc_els_retry(phba, cmdiocb, rspiocb)) {
 			/* ELS command is being retried */
-			ndlp->fc4_prli_sent--;
 			goto out;
 		}
+
 		/* PRLI failed */
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
-				 "2754 PRLI failure DID:%06X Status:x%x/x%x\n",
+				 "2754 PRLI failure DID:%06X Status:x%x/x%x, "
+				 "data: x%x\n",
 				 ndlp->nlp_DID, irsp->ulpStatus,
-				 irsp->un.ulpWord[4]);
+				 irsp->un.ulpWord[4], ndlp->fc4_prli_sent);
+
 		/* Do not call DSM for lpfc_els_abort'ed ELS cmds */
 		if (lpfc_error_lost_link(irsp))
 			goto out;
@@ -7441,6 +7451,13 @@ lpfc_els_flush_cmd(struct lpfc_vport *vport)
 	 */
 	spin_lock_irq(&phba->hbalock);
 	pring = lpfc_phba_elsring(phba);
+
+	/* Bail out if we've no ELS wq, like in PCI error recovery case. */
+	if (unlikely(!pring)) {
+		spin_unlock_irq(&phba->hbalock);
+		return;
+	}
+
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		spin_lock(&pring->ring_lock);
 
@@ -8667,7 +8684,8 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		lpfc_do_scr_ns_plogi(phba, vport);
 	goto out;
 fdisc_failed:
-	if (vport->fc_vport->vport_state != FC_VPORT_NO_FABRIC_RSCS)
+	if (vport->fc_vport &&
+	    (vport->fc_vport->vport_state != FC_VPORT_NO_FABRIC_RSCS))
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 	/* Cancel discovery timer */
 	lpfc_can_disctmo(vport);
