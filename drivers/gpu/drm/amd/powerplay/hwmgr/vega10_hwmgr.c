@@ -129,6 +129,9 @@ static void vega10_set_default_registry_data(struct pp_hwmgr *hwmgr)
 	data->registry_data.ulv_support =
 			hwmgr->feature_mask & PP_ULV_MASK ? true : false;
 
+	data->registry_data.sclk_deep_sleep_support =
+			hwmgr->feature_mask & PP_SCLK_DEEP_SLEEP_MASK ? true : false;
+
 	data->registry_data.disable_water_mark = 0;
 
 	data->registry_data.fan_control_support = 1;
@@ -352,6 +355,7 @@ static void vega10_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 		data->smu_features[GNLD_DS_GFXCLK].supported = true;
 		data->smu_features[GNLD_DS_SOCCLK].supported = true;
 		data->smu_features[GNLD_DS_LCLK].supported = true;
+		data->smu_features[GNLD_DS_DCEFCLK].supported = true;
 	}
 
 	if (data->registry_data.enable_pkg_pwr_tracking_feature)
@@ -2608,24 +2612,72 @@ static int vega10_enable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
 				true, data->smu_features[GNLD_DS_GFXCLK].smu_feature_bitmap),
 				"Attempt to Enable DS_GFXCLK Feature Failed!",
-				return -1);
+				return -EINVAL);
 		data->smu_features[GNLD_DS_GFXCLK].enabled = true;
 	}
 
 	if (data->smu_features[GNLD_DS_SOCCLK].supported) {
 		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
 				true, data->smu_features[GNLD_DS_SOCCLK].smu_feature_bitmap),
-				"Attempt to Enable DS_GFXCLK Feature Failed!",
-				return -1);
+				"Attempt to Enable DS_SOCCLK Feature Failed!",
+				return -EINVAL);
 		data->smu_features[GNLD_DS_SOCCLK].enabled = true;
 	}
 
 	if (data->smu_features[GNLD_DS_LCLK].supported) {
 		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
 				true, data->smu_features[GNLD_DS_LCLK].smu_feature_bitmap),
-				"Attempt to Enable DS_GFXCLK Feature Failed!",
-				return -1);
+				"Attempt to Enable DS_LCLK Feature Failed!",
+				return -EINVAL);
 		data->smu_features[GNLD_DS_LCLK].enabled = true;
+	}
+
+	if (data->smu_features[GNLD_DS_DCEFCLK].supported) {
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+				true, data->smu_features[GNLD_DS_DCEFCLK].smu_feature_bitmap),
+				"Attempt to Enable DS_DCEFCLK Feature Failed!",
+				return -EINVAL);
+		data->smu_features[GNLD_DS_DCEFCLK].enabled = true;
+	}
+
+	return 0;
+}
+
+static int vega10_disable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
+{
+	struct vega10_hwmgr *data =
+			(struct vega10_hwmgr *)(hwmgr->backend);
+
+	if (data->smu_features[GNLD_DS_GFXCLK].supported) {
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+				false, data->smu_features[GNLD_DS_GFXCLK].smu_feature_bitmap),
+				"Attempt to disable DS_GFXCLK Feature Failed!",
+				return -EINVAL);
+		data->smu_features[GNLD_DS_GFXCLK].enabled = false;
+	}
+
+	if (data->smu_features[GNLD_DS_SOCCLK].supported) {
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+				false, data->smu_features[GNLD_DS_SOCCLK].smu_feature_bitmap),
+				"Attempt to disable DS_ Feature Failed!",
+				return -EINVAL);
+		data->smu_features[GNLD_DS_SOCCLK].enabled = false;
+	}
+
+	if (data->smu_features[GNLD_DS_LCLK].supported) {
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+				false, data->smu_features[GNLD_DS_LCLK].smu_feature_bitmap),
+				"Attempt to disable DS_LCLK Feature Failed!",
+				return -EINVAL);
+		data->smu_features[GNLD_DS_LCLK].enabled = false;
+	}
+
+	if (data->smu_features[GNLD_DS_DCEFCLK].supported) {
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+				false, data->smu_features[GNLD_DS_DCEFCLK].smu_feature_bitmap),
+				"Attempt to disable DS_DCEFCLK Feature Failed!",
+				return -EINVAL);
+		data->smu_features[GNLD_DS_DCEFCLK].enabled = false;
 	}
 
 	return 0;
@@ -4550,6 +4602,10 @@ static int vega10_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	tmp_result = vega10_stop_dpm(hwmgr, SMC_DPM_FEATURES);
 	PP_ASSERT_WITH_CODE((tmp_result == 0),
 			"Failed to stop DPM!", result = tmp_result);
+
+	tmp_result = vega10_disable_deep_sleep_master_switch(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to disable deep sleep!", result = tmp_result);
 
 	tmp_result = vega10_disable_ulv(hwmgr);
 	PP_ASSERT_WITH_CODE((tmp_result == 0),
