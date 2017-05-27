@@ -673,6 +673,106 @@ static ssize_t query_data(char *buf, size_t buf_len,
 	return out - buf;
 }
 
+/*
+ * Transaction based IO.
+ * The file expects a write which triggers the transaction, and then
+ * possibly a read(s) which collects the result - which is stored in a
+ * file-local buffer. Once a new write is performed, a new set of results
+ * are stored in the file-local buffer.
+ */
+struct multi_transaction {
+	struct kref count;
+	ssize_t size;
+	char data[0];
+};
+
+#define MULTI_TRANSACTION_LIMIT (PAGE_SIZE - sizeof(struct multi_transaction))
+/* TODO: replace with per file lock */
+static DEFINE_SPINLOCK(multi_transaction_lock);
+
+static void multi_transaction_kref(struct kref *kref)
+{
+	struct multi_transaction *t;
+
+	t = container_of(kref, struct multi_transaction, count);
+	free_page((unsigned long) t);
+}
+
+static struct multi_transaction *
+get_multi_transaction(struct multi_transaction *t)
+{
+	if  (t)
+		kref_get(&(t->count));
+
+	return t;
+}
+
+static void put_multi_transaction(struct multi_transaction *t)
+{
+	if (t)
+		kref_put(&(t->count), multi_transaction_kref);
+}
+
+/* does not increment @new's count */
+static void multi_transaction_set(struct file *file,
+				  struct multi_transaction *new, size_t n)
+{
+	struct multi_transaction *old;
+
+	AA_BUG(n > MULTI_TRANSACTION_LIMIT);
+
+	new->size = n;
+	spin_lock(&multi_transaction_lock);
+	old = (struct multi_transaction *) file->private_data;
+	file->private_data = new;
+	spin_unlock(&multi_transaction_lock);
+	put_multi_transaction(old);
+}
+
+static struct multi_transaction *multi_transaction_new(struct file *file,
+						       const char __user *buf,
+						       size_t size)
+{
+	struct multi_transaction *t;
+
+	if (size > MULTI_TRANSACTION_LIMIT - 1)
+		return ERR_PTR(-EFBIG);
+
+	t = (struct multi_transaction *)get_zeroed_page(GFP_KERNEL);
+	if (!t)
+		return ERR_PTR(-ENOMEM);
+	kref_init(&t->count);
+	if (copy_from_user(t->data, buf, size))
+		return ERR_PTR(-EFAULT);
+
+	return t;
+}
+
+static ssize_t multi_transaction_read(struct file *file, char __user *buf,
+				       size_t size, loff_t *pos)
+{
+	struct multi_transaction *t;
+	ssize_t ret;
+
+	spin_lock(&multi_transaction_lock);
+	t = get_multi_transaction(file->private_data);
+	spin_unlock(&multi_transaction_lock);
+	if (!t)
+		return 0;
+
+	ret = simple_read_from_buffer(buf, size, pos, t->data, t->size);
+	put_multi_transaction(t);
+
+	return ret;
+}
+
+static int multi_transaction_release(struct inode *inode, struct file *file)
+{
+	put_multi_transaction(file->private_data);
+
+	return 0;
+}
+
 #define QUERY_CMD_DATA		"data\0"
 #define QUERY_CMD_DATA_LEN	5
 
@@ -700,36 +800,38 @@ static ssize_t query_data(char *buf, size_t buf_len,
 static ssize_t aa_write_access(struct file *file, const char __user *ubuf,
 			       size_t count, loff_t *ppos)
 {
-	char *buf;
+	struct multi_transaction *t;
 	ssize_t len;
 
 	if (*ppos)
 		return -ESPIPE;
 
-	buf = simple_transaction_get(file, ubuf, count);
-	if (IS_ERR(buf))
-		return PTR_ERR(buf);
+	t = multi_transaction_new(file, ubuf, count);
+	if (IS_ERR(t))
+		return PTR_ERR(t);
 
 	if (count > QUERY_CMD_DATA_LEN &&
-		   !memcmp(buf, QUERY_CMD_DATA, QUERY_CMD_DATA_LEN)) {
-		len = query_data(buf, SIMPLE_TRANSACTION_LIMIT,
-				 buf + QUERY_CMD_DATA_LEN,
+		   !memcmp(t->data, QUERY_CMD_DATA, QUERY_CMD_DATA_LEN)) {
+		len = query_data(t->data, MULTI_TRANSACTION_LIMIT,
+				 t->data + QUERY_CMD_DATA_LEN,
 				 count - QUERY_CMD_DATA_LEN);
 	} else
 		len = -EINVAL;
 
-	if (len < 0)
+	if (len < 0) {
+		put_multi_transaction(t);
 		return len;
+	}
 
-	simple_transaction_set(file, len);
+	multi_transaction_set(file, t, len);
 
 	return count;
 }
 
 static const struct file_operations aa_sfs_access = {
 	.write		= aa_write_access,
-	.read		= simple_transaction_read,
-	.release	= simple_transaction_release,
+	.read		= multi_transaction_read,
+	.release	= multi_transaction_release,
 	.llseek		= generic_file_llseek,
 };
 
@@ -1851,6 +1953,7 @@ static struct aa_sfs_entry aa_sfs_entry_policy[] = {
 
 static struct aa_sfs_entry aa_sfs_entry_query_label[] = {
 	AA_SFS_FILE_BOOLEAN("data",		1),
+	AA_SFS_FILE_BOOLEAN("multi_transaction",	1),
 	{ }
 };
 
