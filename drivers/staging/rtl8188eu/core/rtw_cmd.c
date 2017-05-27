@@ -163,7 +163,8 @@ int rtw_cmd_thread(void *context)
 	pcmdpriv->cmdthd_running = true;
 	complete(&pcmdpriv->terminate_cmdthread_comp);
 
-	RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_, ("start r871x rtw_cmd_thread !!!!\n"));
+	RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_,
+		 ("start r871x %s !!!!\n", __func__));
 
 	while (1) {
 		if (wait_for_completion_interruptible(&pcmdpriv->cmd_queue_comp))
@@ -417,7 +418,8 @@ u8 rtw_joinbss_cmd(struct adapter  *padapter, struct wlan_network *pnetwork)
 
 		res = _FAIL;
 
-		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_, ("rtw_joinbss_cmd :psecnetwork == NULL!!!\n"));
+		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
+			 ("%s :psecnetwork == NULL!!!\n", __func__));
 
 		goto exit;
 	}
@@ -510,7 +512,7 @@ u8 rtw_disassoc_cmd(struct adapter *padapter, u32 deauth_timeout_ms, bool enqueu
 	u8 res = _SUCCESS;
 
 
-	RT_TRACE(_module_rtl871x_cmd_c_, _drv_notice_, ("+rtw_disassoc_cmd\n"));
+	RT_TRACE(_module_rtl871x_cmd_c_, _drv_notice_, ("+%s\n", __func__));
 
 	/* prepare cmd parameter */
 	param = kzalloc(sizeof(*param), GFP_KERNEL);
@@ -740,7 +742,7 @@ u8 rtw_set_chplan_cmd(struct adapter *padapter, u8 chplan, u8 enqueue)
 	u8	res = _SUCCESS;
 
 
-	RT_TRACE(_module_rtl871x_cmd_c_, _drv_notice_, ("+rtw_set_chplan_cmd\n"));
+	RT_TRACE(_module_rtl871x_cmd_c_, _drv_notice_, ("+%s\n", __func__));
 
 	/* check input parameter */
 	if (!rtw_is_channel_plan_valid(chplan)) {
@@ -1233,7 +1235,8 @@ void rtw_createbss_cmd_callback(struct adapter *padapter, struct cmd_obj *pcmd)
 
 
 	if (pcmd->res != H2C_SUCCESS) {
-		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_, ("\n ********Error: rtw_createbss_cmd_callback  Fail ************\n\n."));
+		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
+			 ("\n **** Error: %s  Fail ****\n\n.", __func__));
 		mod_timer(&pmlmepriv->assoc_timer,
 			  jiffies + msecs_to_jiffies(1));
 	}
