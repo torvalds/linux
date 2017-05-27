@@ -951,51 +951,50 @@ out:
 	return ret;
 }
 
-static ssize_t do_readv_writev(int type, struct file *file,
-			       const struct iovec __user *uvector,
-			       unsigned long nr_segs, loff_t *pos,
-			       int flags)
+ssize_t vfs_readv(struct file *file, const struct iovec __user *vec,
+		  unsigned long vlen, loff_t *pos, int flags)
 {
 	struct iovec iovstack[UIO_FASTIOV];
 	struct iovec *iov = iovstack;
 	struct iov_iter iter;
 	ssize_t ret;
 
-	ret = import_iovec(type, uvector, nr_segs,
-			   ARRAY_SIZE(iovstack), &iov, &iter);
-	if (ret < 0)
-		return ret;
-
-	ret = __do_readv_writev(type, file, &iter, pos, flags);
-	kfree(iov);
-
-	return ret;
-}
-
-ssize_t vfs_readv(struct file *file, const struct iovec __user *vec,
-		  unsigned long vlen, loff_t *pos, int flags)
-{
 	if (!(file->f_mode & FMODE_READ))
 		return -EBADF;
 	if (!(file->f_mode & FMODE_CAN_READ))
 		return -EINVAL;
 
-	return do_readv_writev(READ, file, vec, vlen, pos, flags);
-}
+	ret = import_iovec(READ, vec, vlen, ARRAY_SIZE(iovstack), &iov, &iter);
+	if (ret < 0)
+		return ret;
 
+	ret = __do_readv_writev(READ, file, &iter, pos, flags);
+	kfree(iov);
+	return ret;
+}
 EXPORT_SYMBOL(vfs_readv);
 
 ssize_t vfs_writev(struct file *file, const struct iovec __user *vec,
 		   unsigned long vlen, loff_t *pos, int flags)
 {
+	struct iovec iovstack[UIO_FASTIOV];
+	struct iovec *iov = iovstack;
+	struct iov_iter iter;
+	ssize_t ret;
+
 	if (!(file->f_mode & FMODE_WRITE))
 		return -EBADF;
 	if (!(file->f_mode & FMODE_CAN_WRITE))
 		return -EINVAL;
 
-	return do_readv_writev(WRITE, file, vec, vlen, pos, flags);
-}
+	ret = import_iovec(WRITE, vec, vlen, ARRAY_SIZE(iovstack), &iov, &iter);
+	if (ret < 0)
+		return ret;
 
+	ret = __do_readv_writev(WRITE, file, &iter, pos, flags);
+	kfree(iov);
+	return ret;
+}
 EXPORT_SYMBOL(vfs_writev);
 
 static ssize_t do_readv(unsigned long fd, const struct iovec __user *vec,
