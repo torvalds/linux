@@ -34,7 +34,7 @@ coda_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 
 	BUG_ON(!cfi || cfi->cfi_magic != CODA_MAGIC);
 
-	return vfs_iter_read(cfi->cfi_container, to, &iocb->ki_pos);
+	return vfs_iter_read(cfi->cfi_container, to, &iocb->ki_pos, 0);
 }
 
 static ssize_t
