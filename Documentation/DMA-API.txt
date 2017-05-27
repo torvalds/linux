@@ -692,7 +692,7 @@ of preallocated entries is defined per architecture. If it is too low for you
 boot with 'dma_debug_entries=<your_desired_number>' to overwrite the
 architectural default.
 
-void debug_dmap_mapping_error(struct device *dev, dma_addr_t dma_addr);
+void debug_dma_mapping_error(struct device *dev, dma_addr_t dma_addr);
 
 dma-debug interface debug_dma_mapping_error() to debug drivers that fail
 to check DMA mapping errors on addresses returned by dma_map_single() and
