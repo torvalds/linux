@@ -356,26 +356,6 @@ out_putf:
 }
 #endif
 
-ssize_t vfs_iter_write(struct file *file, struct iov_iter *iter, loff_t *ppos)
-{
-	struct kiocb kiocb;
-	ssize_t ret;
-
-	if (!file->f_op->write_iter)
-		return -EINVAL;
-
-	init_sync_kiocb(&kiocb, file);
-	kiocb.ki_pos = *ppos;
-
-	iter->type |= WRITE;
-	ret = call_write_iter(file, &kiocb, iter);
-	BUG_ON(ret == -EIOCBQUEUED);
-	if (ret > 0)
-		*ppos = kiocb.ki_pos;
-	return ret;
-}
-EXPORT_SYMBOL(vfs_iter_write);
-
 int rw_verify_area(int read_write, struct file *file, const loff_t *ppos, size_t count)
 {
 	struct inode *inode;
@@ -961,6 +941,15 @@ static ssize_t do_iter_write(struct file *file, struct iov_iter *iter,
 		fsnotify_modify(file);
 	return ret;
 }
+
+ssize_t vfs_iter_write(struct file *file, struct iov_iter *iter, loff_t *ppos,
+		int flags)
+{
+	if (!file->f_op->write_iter)
+		return -EINVAL;
+	return do_iter_write(file, iter, ppos, flags);
+}
+EXPORT_SYMBOL(vfs_iter_write);
 
 ssize_t vfs_readv(struct file *file, const struct iovec __user *vec,
 		  unsigned long vlen, loff_t *pos, int flags)
