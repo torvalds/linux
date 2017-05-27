@@ -506,76 +506,92 @@ convert_fcntl_cmd(unsigned int cmd)
 	return cmd;
 }
 
+/*
+ * GETLK was successful and we need to return the data, but it needs to fit in
+ * the compat structure.
+ * l_start shouldn't be too big, unless the original start + end is greater than
+ * COMPAT_OFF_T_MAX, in which case the app was asking for trouble, so we return
+ * -EOVERFLOW in that case.  l_len could be too big, in which case we just
+ * truncate it, and only allow the app to see that part of the conflicting lock
+ * that might make sense to it anyway
+ */
+static int fixup_compat_flock(struct flock *flock)
+{
+	if (flock->l_start > COMPAT_OFF_T_MAX)
+		return -EOVERFLOW;
+	if (flock->l_len > COMPAT_OFF_T_MAX)
+		flock->l_len = COMPAT_OFF_T_MAX;
+	return 0;
+}
+
 COMPAT_SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
 		       compat_ulong_t, arg)
 {
-	mm_segment_t old_fs;
-	struct flock f;
-	long ret;
-	unsigned int conv_cmd;
+	struct fd f = fdget_raw(fd);
+	struct flock flock;
+	long err = -EBADF;
+
+	if (!f.file)
+		return err;
+
+	if (unlikely(f.file->f_mode & FMODE_PATH)) {
+		if (!check_fcntl_cmd(cmd))
+			goto out_put;
+	}
+
+	err = security_file_fcntl(f.file, cmd, arg);
+	if (err)
+		goto out_put;
 
 	switch (cmd) {
 	case F_GETLK:
+		err = get_compat_flock(&flock, compat_ptr(arg));
+		if (err)
+			break;
+		err = fcntl_getlk(f.file, convert_fcntl_cmd(cmd), &flock);
+		if (err)
+			break;
+		err = fixup_compat_flock(&flock);
+		if (err)
+			return err;
+		err = put_compat_flock(&flock, compat_ptr(arg));
+		break;
+	case F_GETLK64:
+	case F_OFD_GETLK:
+		err = get_compat_flock64(&flock, compat_ptr(arg));
+		if (err)
+			break;
+		err = fcntl_getlk(f.file, convert_fcntl_cmd(cmd), &flock);
+		if (err)
+			break;
+		err = fixup_compat_flock(&flock);
+		if (err)
+			return err;
+		err = put_compat_flock64(&flock, compat_ptr(arg));
+		break;
 	case F_SETLK:
 	case F_SETLKW:
-		ret = get_compat_flock(&f, compat_ptr(arg));
-		if (ret != 0)
+		err = get_compat_flock(&flock, compat_ptr(arg));
+		if (err)
 			break;
-		old_fs = get_fs();
-		set_fs(KERNEL_DS);
-		ret = sys_fcntl(fd, cmd, (unsigned long)&f);
-		set_fs(old_fs);
-		if (cmd == F_GETLK && ret == 0) {
-			/* GETLK was successful and we need to return the data...
-			 * but it needs to fit in the compat structure.
-			 * l_start shouldn't be too big, unless the original
-			 * start + end is greater than COMPAT_OFF_T_MAX, in which
-			 * case the app was asking for trouble, so we return
-			 * -EOVERFLOW in that case.
-			 * l_len could be too big, in which case we just truncate it,
-			 * and only allow the app to see that part of the conflicting
-			 * lock that might make sense to it anyway
-			 */
-
-			if (f.l_start > COMPAT_OFF_T_MAX)
-				ret = -EOVERFLOW;
-			if (f.l_len > COMPAT_OFF_T_MAX)
-				f.l_len = COMPAT_OFF_T_MAX;
-			if (ret == 0)
-				ret = put_compat_flock(&f, compat_ptr(arg));
-		}
+		err = fcntl_setlk(fd, f.file, convert_fcntl_cmd(cmd), &flock);
 		break;
-
-	case F_GETLK64:
 	case F_SETLK64:
 	case F_SETLKW64:
-	case F_OFD_GETLK:
 	case F_OFD_SETLK:
 	case F_OFD_SETLKW:
-		ret = get_compat_flock64(&f, compat_ptr(arg));
-		if (ret != 0)
+		err = get_compat_flock64(&flock, compat_ptr(arg));
+		if (err)
 			break;
-		old_fs = get_fs();
-		set_fs(KERNEL_DS);
-		conv_cmd = convert_fcntl_cmd(cmd);
-		ret = sys_fcntl(fd, conv_cmd, (unsigned long)&f);
-		set_fs(old_fs);
-		if ((conv_cmd == F_GETLK || conv_cmd == F_OFD_GETLK) && ret == 0) {
-			/* need to return lock information - see above for commentary */
-			if (f.l_start > COMPAT_LOFF_T_MAX)
-				ret = -EOVERFLOW;
-			if (f.l_len > COMPAT_LOFF_T_MAX)
-				f.l_len = COMPAT_LOFF_T_MAX;
-			if (ret == 0)
-				ret = put_compat_flock64(&f, compat_ptr(arg));
-		}
+		err = fcntl_setlk(fd, f.file, convert_fcntl_cmd(cmd), &flock);
 		break;
-
 	default:
-		ret = sys_fcntl(fd, cmd, arg);
+		err = do_fcntl(fd, cmd, arg, f.file);
 		break;
 	}
-	return ret;
+out_put:
+	fdput(f);
+	return err;
 }
 
 COMPAT_SYSCALL_DEFINE3(fcntl, unsigned int, fd, unsigned int, cmd,
