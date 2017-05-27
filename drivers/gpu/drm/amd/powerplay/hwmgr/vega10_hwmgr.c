@@ -1182,7 +1182,6 @@ static int vega10_setup_default_pcie_table(struct pp_hwmgr *hwmgr)
 		else
 			pcie_table->pcie_lane[i] = (uint8_t)encode_pcie_lane_width(
 							bios_pcie_table->entries[i].lane_width);
-		printk("pcie_table->pcie_lane[%d] is %d  %d\n", i, pcie_table->pcie_lane[i], bios_pcie_table->entries[i].lane_width);
 		if (data->registry_data.pcieClockOverride)
 			pcie_table->lclk[i] =
 					data->registry_data.pcieClockOverride;
@@ -3024,7 +3023,7 @@ static int vega10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 
 	/* result = PHM_CheckVBlankTime(hwmgr, &vblankTooShort);*/
 	minimum_clocks.engineClock = hwmgr->display_config.min_core_set_clock;
-	/* minimum_clocks.memoryClock = hwmgr->display_config.min_mem_set_clock; */
+	minimum_clocks.memoryClock = hwmgr->display_config.min_mem_set_clock;
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_StablePState)) {
@@ -3876,7 +3875,7 @@ int vega10_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
 {
 	int result = 0;
 	enum amd_pp_clock_type clk_type = clock_req->clock_type;
-	uint32_t clk_freq = clock_req->clock_freq_in_khz / 100;
+	uint32_t clk_freq = clock_req->clock_freq_in_khz / 1000;
 	DSPCLK_e clk_select = 0;
 	uint32_t clk_request = 0;
 
@@ -3909,6 +3908,26 @@ int vega10_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
 	return result;
 }
 
+static uint8_t vega10_get_uclk_index(struct pp_hwmgr *hwmgr,
+			struct phm_ppt_v1_clock_voltage_dependency_table *mclk_table,
+						uint32_t frequency)
+{
+	uint8_t count;
+	uint8_t i;
+
+	if (mclk_table == NULL || mclk_table->count == 0)
+		return 0;
+
+	count = (uint8_t)(mclk_table->count);
+
+	for(i = 0; i < count; i++) {
+		if(mclk_table->entries[i].clk >= frequency)
+			return i;
+	}
+
+	return i-1;
+}
+
 static int vega10_notify_smc_display_config_after_ps_adjustment(
 		struct pp_hwmgr *hwmgr)
 {
@@ -3916,6 +3935,10 @@ static int vega10_notify_smc_display_config_after_ps_adjustment(
 			(struct vega10_hwmgr *)(hwmgr->backend);
 	struct vega10_single_dpm_table *dpm_table =
 			&data->dpm_table.dcef_table;
+	struct phm_ppt_v2_information *table_info =
+			(struct phm_ppt_v2_information *)hwmgr->pptable;
+	struct phm_ppt_v1_clock_voltage_dependency_table *mclk_table = table_info->vdd_dep_on_mclk;
+	uint32_t idx;
 	uint32_t num_active_disps = 0;
 	struct cgs_display_info info = {0};
 	struct PP_Clocks min_clocks = {0};
@@ -3935,6 +3958,7 @@ static int vega10_notify_smc_display_config_after_ps_adjustment(
 
 	min_clocks.dcefClock = hwmgr->display_config.min_dcef_set_clk;
 	min_clocks.dcefClockInSR = hwmgr->display_config.min_dcef_deep_sleep_set_clk;
+	min_clocks.memoryClock = hwmgr->display_config.min_mem_set_clock;
 
 	for (i = 0; i < dpm_table->count; i++) {
 		if (dpm_table->dpm_levels[i].value == min_clocks.dcefClock)
@@ -3947,12 +3971,20 @@ static int vega10_notify_smc_display_config_after_ps_adjustment(
 		if (!vega10_display_clock_voltage_request(hwmgr, &clock_req)) {
 			PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc_with_parameter(
 					hwmgr->smumgr, PPSMC_MSG_SetMinDeepSleepDcefclk,
-					min_clocks.dcefClockInSR),
+					min_clocks.dcefClockInSR /100),
 					"Attempt to set divider for DCEFCLK Failed!",);
-		} else
+		} else {
 			pr_info("Attempt to set Hard Min for DCEFCLK Failed!");
-	} else
+		}
+	} else {
 		pr_info("Cannot find requested DCEFCLK!");
+	}
+
+	if (min_clocks.memoryClock != 0) {
+		idx = vega10_get_uclk_index(hwmgr, mclk_table, min_clocks.memoryClock);
+		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr, PPSMC_MSG_SetSoftMinUclkByIndex, idx);
+		data->dpm_table.mem_table.dpm_state.soft_min_level= idx;
+	}
 
 	return 0;
 }
