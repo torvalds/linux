@@ -229,7 +229,7 @@ EXPORT_SYMBOL(sun4i_tcon0_mode_set);
 void sun4i_tcon1_mode_set(struct sun4i_tcon *tcon,
 			  struct drm_display_mode *mode)
 {
-	unsigned int bp, hsync, vsync;
+	unsigned int bp, hsync, vsync, vtotal;
 	u8 clk_delay;
 	u32 val;
 
@@ -276,12 +276,30 @@ void sun4i_tcon1_mode_set(struct sun4i_tcon *tcon,
 		     SUN4I_TCON1_BASIC3_H_TOTAL(mode->crtc_htotal) |
 		     SUN4I_TCON1_BASIC3_H_BACKPORCH(bp));
 
-	/* Set vertical display timings */
 	bp = mode->crtc_vtotal - mode->crtc_vsync_start;
 	DRM_DEBUG_DRIVER("Setting vertical total %d, backporch %d\n",
-			 mode->vtotal, bp);
+			 mode->crtc_vtotal, bp);
+
+	/*
+	 * The vertical resolution needs to be doubled in all
+	 * cases. We could use crtc_vtotal and always multiply by two,
+	 * but that leads to a rounding error in interlace when vtotal
+	 * is odd.
+	 *
+	 * This happens with TV's PAL for example, where vtotal will
+	 * be 625, crtc_vtotal 312, and thus crtc_vtotal * 2 will be
+	 * 624, which apparently confuses the hardware.
+	 *
+	 * To work around this, we will always use vtotal, and
+	 * multiply by two only if we're not in interlace.
+	 */
+	vtotal = mode->vtotal;
+	if (!(mode->flags & DRM_MODE_FLAG_INTERLACE))
+		vtotal = vtotal * 2;
+
+	/* Set vertical display timings */
 	regmap_write(tcon->regs, SUN4I_TCON1_BASIC4_REG,
-		     SUN4I_TCON1_BASIC4_V_TOTAL(mode->vtotal) |
+		     SUN4I_TCON1_BASIC4_V_TOTAL(vtotal) |
 		     SUN4I_TCON1_BASIC4_V_BACKPORCH(bp));
 
 	/* Set Hsync and Vsync length */
