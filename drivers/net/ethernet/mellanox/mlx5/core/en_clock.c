@@ -265,6 +265,8 @@ static int mlx5e_extts_configure(struct ptp_clock_info *ptp,
 	struct mlx5e_priv *priv =
 		container_of(tstamp, struct mlx5e_priv, tstamp);
 	u32 in[MLX5_ST_SZ_DW(mtpps_reg)] = {0};
+	u32 field_select = 0;
+	u8 pin_mode = 0;
 	u8 pattern = 0;
 	int pin = -1;
 	int err = 0;
@@ -279,18 +281,21 @@ static int mlx5e_extts_configure(struct ptp_clock_info *ptp,
 		pin = ptp_find_pin(tstamp->ptp, PTP_PF_EXTTS, rq->extts.index);
 		if (pin < 0)
 			return -EBUSY;
+		pin_mode = MLX5E_PIN_MODE_IN;
+		pattern = !!(rq->extts.flags & PTP_FALLING_EDGE);
+		field_select = MLX5E_MTPPS_FS_PIN_MODE |
+			       MLX5E_MTPPS_FS_PATTERN |
+			       MLX5E_MTPPS_FS_ENABLE;
+	} else {
+		pin = rq->extts.index;
+		field_select = MLX5E_MTPPS_FS_ENABLE;
 	}
 
-	if (rq->extts.flags & PTP_FALLING_EDGE)
-		pattern = 1;
-
 	MLX5_SET(mtpps_reg, in, pin, pin);
-	MLX5_SET(mtpps_reg, in, pin_mode, MLX5E_PIN_MODE_IN);
+	MLX5_SET(mtpps_reg, in, pin_mode, pin_mode);
 	MLX5_SET(mtpps_reg, in, pattern, pattern);
 	MLX5_SET(mtpps_reg, in, enable, on);
-	MLX5_SET(mtpps_reg, in, field_select, MLX5E_MTPPS_FS_PIN_MODE |
-					      MLX5E_MTPPS_FS_PATTERN |
-					      MLX5E_MTPPS_FS_ENABLE);
+	MLX5_SET(mtpps_reg, in, field_select, field_select);
 
 	err = mlx5_set_mtpps(priv->mdev, in, sizeof(in));
 	if (err)
@@ -313,6 +318,9 @@ static int mlx5e_perout_configure(struct ptp_clock_info *ptp,
 	u64 cycles_now, cycles_delta;
 	struct timespec64 ts;
 	unsigned long flags;
+	u32 field_select = 0;
+	u8 pin_mode = 0;
+	u8 pattern = 0;
 	int pin = -1;
 	s64 ns;
 
@@ -327,34 +335,43 @@ static int mlx5e_perout_configure(struct ptp_clock_info *ptp,
 				   rq->perout.index);
 		if (pin < 0)
 			return -EBUSY;
-	}
 
-	ts.tv_sec = rq->perout.period.sec;
-	ts.tv_nsec = rq->perout.period.nsec;
-	ns = timespec64_to_ns(&ts);
-	if (on)
+		pin_mode = MLX5E_PIN_MODE_OUT;
+		pattern = MLX5E_OUT_PATTERN_PERIODIC;
+		ts.tv_sec = rq->perout.period.sec;
+		ts.tv_nsec = rq->perout.period.nsec;
+		ns = timespec64_to_ns(&ts);
+
 		if ((ns >> 1) != 500000000LL)
 			return -EINVAL;
-	ts.tv_sec = rq->perout.start.sec;
-	ts.tv_nsec = rq->perout.start.nsec;
-	ns = timespec64_to_ns(&ts);
-	cycles_now = mlx5_read_internal_timer(tstamp->mdev);
-	write_lock_irqsave(&tstamp->lock, flags);
-	nsec_now = timecounter_cyc2time(&tstamp->clock, cycles_now);
-	nsec_delta = ns - nsec_now;
-	cycles_delta = div64_u64(nsec_delta << tstamp->cycles.shift,
-				 tstamp->cycles.mult);
-	write_unlock_irqrestore(&tstamp->lock, flags);
-	time_stamp = cycles_now + cycles_delta;
+
+		ts.tv_sec = rq->perout.start.sec;
+		ts.tv_nsec = rq->perout.start.nsec;
+		ns = timespec64_to_ns(&ts);
+		cycles_now = mlx5_read_internal_timer(tstamp->mdev);
+		write_lock_irqsave(&tstamp->lock, flags);
+		nsec_now = timecounter_cyc2time(&tstamp->clock, cycles_now);
+		nsec_delta = ns - nsec_now;
+		cycles_delta = div64_u64(nsec_delta << tstamp->cycles.shift,
+					 tstamp->cycles.mult);
+		write_unlock_irqrestore(&tstamp->lock, flags);
+		time_stamp = cycles_now + cycles_delta;
+		field_select = MLX5E_MTPPS_FS_PIN_MODE |
+			       MLX5E_MTPPS_FS_PATTERN |
+			       MLX5E_MTPPS_FS_ENABLE |
+			       MLX5E_MTPPS_FS_TIME_STAMP;
+	} else {
+		pin = rq->perout.index;
+		field_select = MLX5E_MTPPS_FS_ENABLE;
+	}
+
 	MLX5_SET(mtpps_reg, in, pin, pin);
-	MLX5_SET(mtpps_reg, in, pin_mode, MLX5E_PIN_MODE_OUT);
-	MLX5_SET(mtpps_reg, in, pattern, MLX5E_OUT_PATTERN_PERIODIC);
+	MLX5_SET(mtpps_reg, in, pin_mode, pin_mode);
+	MLX5_SET(mtpps_reg, in, pattern, pattern);
 	MLX5_SET(mtpps_reg, in, enable, on);
 	MLX5_SET64(mtpps_reg, in, time_stamp, time_stamp);
-	MLX5_SET(mtpps_reg, in, field_select, MLX5E_MTPPS_FS_PIN_MODE |
-					      MLX5E_MTPPS_FS_PATTERN |
-					      MLX5E_MTPPS_FS_ENABLE |
-					      MLX5E_MTPPS_FS_TIME_STAMP);
+	MLX5_SET(mtpps_reg, in, field_select, field_select);
+
 	return mlx5_set_mtpps(priv->mdev, in, sizeof(in));
 }
 
