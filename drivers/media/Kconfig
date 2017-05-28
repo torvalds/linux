@@ -2,6 +2,12 @@
 # Multimedia device configuration
 #
 
+config CEC_CORE
+	tristate
+
+config MEDIA_CEC_NOTIFIER
+	bool
+
 menuconfig MEDIA_SUPPORT
 	tristate "Multimedia support"
 	depends on HAS_IOMEM
