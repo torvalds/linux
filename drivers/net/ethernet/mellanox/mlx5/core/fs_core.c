@@ -104,6 +104,7 @@ struct node_caps {
 	size_t	arr_sz;
 	long	*caps;
 };
+
 static struct init_tree_node {
 	enum fs_node_type	type;
 	struct init_tree_node *children;
@@ -1858,7 +1859,6 @@ static int create_anchor_flow_table(struct mlx5_flow_steering *steering)
 
 static int init_root_ns(struct mlx5_flow_steering *steering)
 {
-
 	steering->root_ns = create_root_ns(steering, FS_FT_NIC_RX);
 	if (!steering->root_ns)
 		goto cleanup;

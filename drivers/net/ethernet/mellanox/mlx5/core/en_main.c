@@ -3067,7 +3067,6 @@ mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	 */
 	stats->multicast =
 		VPORT_COUNTER_GET(vstats, received_eth_multicast.packets);
-
 }
 
 static void mlx5e_set_rx_mode(struct net_device *dev)
