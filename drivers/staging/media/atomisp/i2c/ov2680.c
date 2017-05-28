@@ -1191,9 +1191,8 @@ static int ov2680_detect(struct i2c_client *client)
 					OV2680_SC_CMMN_SUB_ID, &high);
 	revision = (u8) high & 0x0f;
 
-	dev_err(&client->dev, "sensor_revision id  = 0x%x\n", id);
-	dev_err(&client->dev, "detect ov2680 success\n");
-	dev_err(&client->dev, "################5##########\n");
+	dev_info(&client->dev, "sensor_revision id = 0x%x\n", id);
+
 	return 0;
 }
 
@@ -1448,8 +1447,6 @@ static int ov2680_probe(struct i2c_client *client,
 	void *pdata;
 	unsigned int i;
 
-	printk("++++ov2680_probe++++\n");
-	dev_info(&client->dev, "++++ov2680_probe++++\n");
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
 		dev_err(&client->dev, "out of memory\n");
