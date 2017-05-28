@@ -34,6 +34,7 @@
 #define _MLX5_FS_CORE_
 
 #include <linux/mlx5/fs.h>
+#include <linux/rhashtable.h>
 
 enum fs_node_type {
 	FS_TYPE_NAMESPACE,
@@ -168,6 +169,7 @@ struct fs_fte {
 	u32				modify_id;
 	enum fs_fte_status		status;
 	struct mlx5_fc			*counter;
+	struct rhash_head		hash;
 };
 
 /* Type of children is mlx5_flow_table/namespace */
@@ -197,6 +199,7 @@ struct mlx5_flow_group {
 	u32				start_index;
 	u32				max_ftes;
 	u32				id;
+	struct rhashtable		ftes_hash;
 };
 
 struct mlx5_flow_root_namespace {
