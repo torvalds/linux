@@ -15,7 +15,7 @@
 #include <linux/debugfs.h>
 
 /*
- *	Smarter SMP flushing macros.
+ *	TLB flushing, formerly SMP-only
  *		c/o Linus Torvalds.
  *
  *	These mean you can really definitely utterly forget about
@@ -27,8 +27,6 @@
  *
  *	Implement flush IPI by CALL_FUNCTION_VECTOR, Alex Shi
  */
-
-#ifdef CONFIG_SMP
 
 struct flush_tlb_info {
 	struct mm_struct *flush_mm;
@@ -59,8 +57,6 @@ void leave_mm(int cpu)
 }
 EXPORT_SYMBOL_GPL(leave_mm);
 
-#endif /* CONFIG_SMP */
-
 void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	       struct task_struct *tsk)
 {
@@ -77,10 +73,8 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 	unsigned cpu = smp_processor_id();
 
 	if (likely(prev != next)) {
-#ifdef CONFIG_SMP
 		this_cpu_write(cpu_tlbstate.state, TLBSTATE_OK);
 		this_cpu_write(cpu_tlbstate.active_mm, next);
-#endif
 		cpumask_set_cpu(cpu, mm_cpumask(next));
 
 		/*
@@ -137,9 +131,7 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 		if (unlikely(prev->context.ldt != next->context.ldt))
 			load_mm_ldt(next);
 #endif
-	}
-#ifdef CONFIG_SMP
-	  else {
+	} else {
 		this_cpu_write(cpu_tlbstate.state, TLBSTATE_OK);
 		BUG_ON(this_cpu_read(cpu_tlbstate.active_mm) != next);
 
@@ -166,10 +158,7 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 			load_mm_ldt(next);
 		}
 	}
-#endif
 }
-
-#ifdef CONFIG_SMP
 
 /*
  * The flush IPI assumes that a thread switch happens in this order:
@@ -423,5 +412,3 @@ static int __init create_tlb_single_page_flush_ceiling(void)
 	return 0;
 }
 late_initcall(create_tlb_single_page_flush_ceiling);
-
-#endif /* CONFIG_SMP */

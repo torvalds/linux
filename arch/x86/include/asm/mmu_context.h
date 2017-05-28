@@ -98,10 +98,8 @@ static inline void load_mm_ldt(struct mm_struct *mm)
 
 static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 {
-#ifdef CONFIG_SMP
 	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK)
 		this_cpu_write(cpu_tlbstate.state, TLBSTATE_LAZY);
-#endif
 }
 
 extern void switch_mm(struct mm_struct *prev, struct mm_struct *next,
