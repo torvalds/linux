@@ -704,7 +704,7 @@ int gmin_get_config_var(struct device *dev, const char *var, char *out,
 	if (ret == 0) {
 		memcpy(out, ev->var.Data, ev->var.DataSize);
 		*out_len = ev->var.DataSize;
-	} else {
+	} else if (dev) {
 		dev_warn(dev, "Failed to find gmin variable %s\n", var8);
 	}
 
