@@ -3,7 +3,6 @@
 
 #include <linux/cpumask.h>
 
-#ifdef CONFIG_SMP
 struct arch_tlbflush_unmap_batch {
 	/*
 	 * Each bit set is a CPU that potentially has a TLB entry for one of
@@ -11,6 +10,5 @@ struct arch_tlbflush_unmap_batch {
 	 */
 	struct cpumask cpumask;
 };
-#endif
 
 #endif /* _ARCH_X86_TLBBATCH_H */
