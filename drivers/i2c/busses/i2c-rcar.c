@@ -1,5 +1,5 @@
 /*
- * Driver for the Renesas RCar I2C unit
+ * Driver for the Renesas R-Car I2C unit
  *
  * Copyright (C) 2014-15 Wolfram Sang <wsa@sang-engineering.com>
  * Copyright (C) 2011-2015 Renesas Electronics Corporation
