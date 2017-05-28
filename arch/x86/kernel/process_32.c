@@ -78,7 +78,7 @@ void __show_regs(struct pt_regs *regs, int all)
 
 	printk(KERN_DEFAULT "EIP: %pS\n", (void *)regs->ip);
 	printk(KERN_DEFAULT "EFLAGS: %08lx CPU: %d\n", regs->flags,
-		smp_processor_id());
+		raw_smp_processor_id());
 
 	printk(KERN_DEFAULT "EAX: %08lx EBX: %08lx ECX: %08lx EDX: %08lx\n",
 		regs->ax, regs->bx, regs->cx, regs->dx);
