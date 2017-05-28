@@ -30,7 +30,6 @@
  * SOFTWARE.
  */
 
-
 #include <linux/gfp.h>
 #include <linux/export.h>
 #include <linux/mlx5/cmd.h>

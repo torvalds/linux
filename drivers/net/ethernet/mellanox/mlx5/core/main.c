@@ -361,7 +361,6 @@ struct mlx5_reg_host_endianness {
 	u8      rsvd[15];
 };
 
-
 #define CAP_MASK(pos, size) ((u64)((1 << (size)) - 1) << (pos))
 
 enum {
