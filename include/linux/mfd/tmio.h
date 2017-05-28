@@ -66,7 +66,7 @@
  */
 #define TMIO_MMC_SDIO_IRQ		(1 << 2)
 
-/* Some features are only available or tested on RCar Gen2 or later */
+/* Some features are only available or tested on R-Car Gen2 or later */
 #define TMIO_MMC_MIN_RCAR2		(1 << 3)
 
 /*
