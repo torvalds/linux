@@ -481,7 +481,7 @@ static void meson_sar_adc_clear_fifo(struct iio_dev *indio_dev)
 		if (!meson_sar_adc_get_fifo_count(indio_dev))
 			break;
 
-		regmap_read(priv->regmap, MESON_SAR_ADC_FIFO_RD, 0);
+		regmap_read(priv->regmap, MESON_SAR_ADC_FIFO_RD, NULL);
 	}
 }
 
