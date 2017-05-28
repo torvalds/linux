@@ -1151,7 +1151,7 @@ err_alloc:
 }
 
 static void mlx5_free_cmd_msg(struct mlx5_core_dev *dev,
-				  struct mlx5_cmd_msg *msg)
+			      struct mlx5_cmd_msg *msg)
 {
 	struct mlx5_cmd_mailbox *head = msg->next;
 	struct mlx5_cmd_mailbox *next;

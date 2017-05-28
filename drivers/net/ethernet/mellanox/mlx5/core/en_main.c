@@ -124,7 +124,8 @@ static void mlx5e_update_carrier(struct mlx5e_priv *priv)
 	u8 port_state;
 
 	port_state = mlx5_query_vport_state(mdev,
-		MLX5_QUERY_VPORT_STATE_IN_OP_MOD_VNIC_VPORT, 0);
+					    MLX5_QUERY_VPORT_STATE_IN_OP_MOD_VNIC_VPORT,
+					    0);
 
 	if (port_state == VPORT_STATE_UP) {
 		netdev_info(priv->netdev, "Link up\n");
@@ -3850,7 +3851,7 @@ void mlx5e_build_nic_params(struct mlx5_core_dev *mdev,
 	/* set CQE compression */
 	params->rx_cqe_compress_def = false;
 	if (MLX5_CAP_GEN(mdev, cqe_compression) &&
-	     MLX5_CAP_GEN(mdev, vport_group_manager))
+	    MLX5_CAP_GEN(mdev, vport_group_manager))
 		params->rx_cqe_compress_def = cqe_compress_heuristic(link_speed, pci_bw);
 
 	MLX5E_SET_PFLAG(params, MLX5E_PFLAG_RX_CQE_COMPRESS, params->rx_cqe_compress_def);
