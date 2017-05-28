@@ -12,8 +12,8 @@ menuconfig ARC_PLAT_EZNPS
 	help
 	  Support for EZchip development platforms,
 	  based on ARC700 cores.
-	  We handle few flavours:
-	    - Hardware Emulator AKA HE which is FPGA based chasis
+	  We handle few flavors:
+	    - Hardware Emulator AKA HE which is FPGA based chassis
 	    - Simulator based on MetaWare nSIM
 	    - NPS400 chip based on ASIC
 
