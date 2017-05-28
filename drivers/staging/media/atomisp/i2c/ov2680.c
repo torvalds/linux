@@ -885,11 +885,12 @@ static int gpio_ctrl(struct v4l2_subdev *sd, bool flag)
 	if (flag) {
 		ret = dev->platform_data->gpio0_ctrl(sd, 1);
 		usleep_range(10000, 15000);
-		ret |= dev->platform_data->gpio1_ctrl(sd, 1);
+		/* Ignore return from second gpio, it may not be there */
+		dev->platform_data->gpio1_ctrl(sd, 1);
 		usleep_range(10000, 15000);
 	} else {
-		ret = dev->platform_data->gpio1_ctrl(sd, 0);
-		ret |= dev->platform_data->gpio0_ctrl(sd, 0);
+		dev->platform_data->gpio1_ctrl(sd, 0);
+		ret = dev->platform_data->gpio0_ctrl(sd, 0);
 	}
 	return ret;
 }
