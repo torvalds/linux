@@ -4,7 +4,8 @@ subdir-ccflags-y += -I$(src)
 mlx5_core-y :=	main.o cmd.o debugfs.o fw.o eq.o uar.o pagealloc.o \
 		health.o mcg.o cq.o srq.o alloc.o qp.o port.o mr.o pd.o \
 		mad.o transobj.o vport.o sriov.o fs_cmd.o fs_core.o \
-		fs_counters.o rl.o lag.o dev.o wq.o lib/gid.o
+		fs_counters.o rl.o lag.o dev.o wq.o lib/gid.o \
+		diag/fs_tracepoint.o
 
 mlx5_core-$(CONFIG_MLX5_ACCEL) += accel/ipsec.o
 
@@ -22,3 +23,5 @@ mlx5_core-$(CONFIG_MLX5_CORE_IPOIB) += ipoib/ipoib.o ipoib/ethtool.o
 
 mlx5_core-$(CONFIG_MLX5_EN_IPSEC) += en_accel/ipsec.o en_accel/ipsec_rxtx.o \
 		en_accel/ipsec_stats.o
+
+CFLAGS_tracepoint.o := -I$(src)

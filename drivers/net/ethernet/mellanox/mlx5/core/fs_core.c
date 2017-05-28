@@ -36,6 +36,7 @@
 #include "mlx5_core.h"
 #include "fs_core.h"
 #include "fs_cmd.h"
+#include "diag/fs_tracepoint.h"
 
 #define INIT_TREE_NODE_ARRAY_SIZE(...)	(sizeof((struct init_tree_node[]){__VA_ARGS__}) /\
 					 sizeof(struct init_tree_node))
@@ -404,6 +405,7 @@ static void del_rule(struct fs_node *node)
 	fs_get_obj(fte, rule->node.parent);
 	fs_get_obj(fg, fte->node.parent);
 	fs_get_obj(ft, fg->node.parent);
+	trace_mlx5_fs_del_rule(rule);
 	list_del(&rule->node.list);
 	if (rule->sw_action == MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO) {
 		mutex_lock(&rule->dest_attr.ft->lock);
@@ -457,6 +459,7 @@ static void del_fte(struct fs_node *node)
 	fs_get_obj(fte, node);
 	fs_get_obj(fg, fte->node.parent);
 	fs_get_obj(ft, fg->node.parent);
+	trace_mlx5_fs_del_fte(fte);
 
 	dev = get_dev(&ft->node);
 	err = mlx5_cmd_delete_fte(dev, ft,
@@ -479,6 +482,7 @@ static void del_flow_group(struct fs_node *node)
 	fs_get_obj(fg, node);
 	fs_get_obj(ft, fg->node.parent);
 	dev = get_dev(&ft->node);
+	trace_mlx5_fs_del_fg(fg);
 
 	if (ft->autogroup.active)
 		ft->autogroup.num_groups--;
@@ -990,6 +994,7 @@ static struct mlx5_flow_group *create_flow_group_common(struct mlx5_flow_table *
 	/* Add node to group list */
 	list_add(&fg->node.list, prev_fg);
 
+	trace_mlx5_fs_add_fg(fg);
 	return fg;
 
 err_remove_fg:
@@ -1357,6 +1362,7 @@ static struct mlx5_flow_handle *add_rule_fg(struct mlx5_flow_group *fg,
 			fte->action = old_action;
 			goto unlock_fte;
 		} else {
+			trace_mlx5_fs_set_fte(fte, false);
 			goto add_rules;
 		}
 	}
@@ -1378,10 +1384,13 @@ static struct mlx5_flow_handle *add_rule_fg(struct mlx5_flow_group *fg,
 	tree_add_node(&fte->node, &fg->node);
 	/* fte list isn't sorted */
 	list_add_tail(&fte->node.list, &fg->node.children);
+	trace_mlx5_fs_set_fte(fte, true);
 add_rules:
 	for (i = 0; i < handle->num_rules; i++) {
-		if (atomic_read(&handle->rule[i]->node.refcount) == 1)
+		if (atomic_read(&handle->rule[i]->node.refcount) == 1) {
 			tree_add_node(&handle->rule[i]->node, &fte->node);
+			trace_mlx5_fs_add_rule(handle->rule[i]);
+		}
 	}
 unlock_fte:
 	unlock_ref_node(&fte->node);
