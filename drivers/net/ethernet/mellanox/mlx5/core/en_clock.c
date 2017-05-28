@@ -82,6 +82,33 @@ static u64 mlx5e_read_internal_timer(const struct cyclecounter *cc)
 	return mlx5_read_internal_timer(tstamp->mdev) & cc->mask;
 }
 
+static void mlx5e_pps_out(struct work_struct *work)
+{
+	struct mlx5e_pps *pps_info = container_of(work, struct mlx5e_pps,
+						  out_work);
+	struct mlx5e_tstamp *tstamp = container_of(pps_info, struct mlx5e_tstamp,
+						   pps_info);
+	u32 in[MLX5_ST_SZ_DW(mtpps_reg)] = {0};
+	unsigned long flags;
+	int i;
+
+	for (i = 0; i < tstamp->ptp_info.n_pins; i++) {
+		u64 tstart;
+
+		write_lock_irqsave(&tstamp->lock, flags);
+		tstart = tstamp->pps_info.start[i];
+		tstamp->pps_info.start[i] = 0;
+		write_unlock_irqrestore(&tstamp->lock, flags);
+		if (!tstart)
+			continue;
+
+		MLX5_SET(mtpps_reg, in, pin, i);
+		MLX5_SET64(mtpps_reg, in, time_stamp, tstart);
+		MLX5_SET(mtpps_reg, in, field_select, MLX5E_MTPPS_FS_TIME_STAMP);
+		mlx5_set_mtpps(tstamp->mdev, in, sizeof(in));
+	}
+}
+
 static void mlx5e_timestamp_overflow(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
@@ -222,21 +249,6 @@ static int mlx5e_ptp_adjfreq(struct ptp_clock_info *ptp, s32 delta)
 	int neg_adj = 0;
 	struct mlx5e_tstamp *tstamp = container_of(ptp, struct mlx5e_tstamp,
 						  ptp_info);
-	struct mlx5e_priv *priv =
-		container_of(tstamp, struct mlx5e_priv, tstamp);
-
-	if (MLX5_CAP_GEN(priv->mdev, pps_modify)) {
-		u32 in[MLX5_ST_SZ_DW(mtpps_reg)] = {0};
-
-		/* For future use need to add a loop for finding all 1PPS out pins */
-		MLX5_SET(mtpps_reg, in, pin_mode, MLX5E_PIN_MODE_OUT);
-		MLX5_SET(mtpps_reg, in, enhanced_out_periodic_adjustment, delta);
-		MLX5_SET(mtpps_reg, in, field_select,
-			 MLX5E_MTPPS_FS_PIN_MODE |
-			 MLX5E_MTPPS_FS_ENH_OUT_PER_ADJ);
-
-		mlx5_set_mtpps(priv->mdev, in, sizeof(in));
-	}
 
 	if (delta < 0) {
 		neg_adj = 1;
@@ -314,7 +326,7 @@ static int mlx5e_perout_configure(struct ptp_clock_info *ptp,
 	struct mlx5e_priv *priv =
 		container_of(tstamp, struct mlx5e_priv, tstamp);
 	u32 in[MLX5_ST_SZ_DW(mtpps_reg)] = {0};
-	u64 nsec_now, nsec_delta, time_stamp;
+	u64 nsec_now, nsec_delta, time_stamp = 0;
 	u64 cycles_now, cycles_delta;
 	struct timespec64 ts;
 	unsigned long flags;
@@ -322,6 +334,7 @@ static int mlx5e_perout_configure(struct ptp_clock_info *ptp,
 	u8 pin_mode = 0;
 	u8 pattern = 0;
 	int pin = -1;
+	int err = 0;
 	s64 ns;
 
 	if (!MLX5_PPS_CAP(priv->mdev))
@@ -372,7 +385,12 @@ static int mlx5e_perout_configure(struct ptp_clock_info *ptp,
 	MLX5_SET64(mtpps_reg, in, time_stamp, time_stamp);
 	MLX5_SET(mtpps_reg, in, field_select, field_select);
 
-	return mlx5_set_mtpps(priv->mdev, in, sizeof(in));
+	err = mlx5_set_mtpps(priv->mdev, in, sizeof(in));
+	if (err)
+		return err;
+
+	return mlx5_set_mtppse(priv->mdev, pin, 0,
+			       MLX5E_EVENT_MODE_REPETETIVE & on);
 }
 
 static int mlx5e_ptp_enable(struct ptp_clock_info *ptp,
@@ -456,22 +474,50 @@ static void mlx5e_get_pps_caps(struct mlx5e_priv *priv,
 	tstamp->ptp_info.n_per_out = MLX5_GET(mtpps_reg, out,
 					      cap_max_num_of_pps_out_pins);
 
-	tstamp->pps_pin_caps[0] = MLX5_GET(mtpps_reg, out, cap_pin_0_mode);
-	tstamp->pps_pin_caps[1] = MLX5_GET(mtpps_reg, out, cap_pin_1_mode);
-	tstamp->pps_pin_caps[2] = MLX5_GET(mtpps_reg, out, cap_pin_2_mode);
-	tstamp->pps_pin_caps[3] = MLX5_GET(mtpps_reg, out, cap_pin_3_mode);
-	tstamp->pps_pin_caps[4] = MLX5_GET(mtpps_reg, out, cap_pin_4_mode);
-	tstamp->pps_pin_caps[5] = MLX5_GET(mtpps_reg, out, cap_pin_5_mode);
-	tstamp->pps_pin_caps[6] = MLX5_GET(mtpps_reg, out, cap_pin_6_mode);
-	tstamp->pps_pin_caps[7] = MLX5_GET(mtpps_reg, out, cap_pin_7_mode);
+	tstamp->pps_info.pin_caps[0] = MLX5_GET(mtpps_reg, out, cap_pin_0_mode);
+	tstamp->pps_info.pin_caps[1] = MLX5_GET(mtpps_reg, out, cap_pin_1_mode);
+	tstamp->pps_info.pin_caps[2] = MLX5_GET(mtpps_reg, out, cap_pin_2_mode);
+	tstamp->pps_info.pin_caps[3] = MLX5_GET(mtpps_reg, out, cap_pin_3_mode);
+	tstamp->pps_info.pin_caps[4] = MLX5_GET(mtpps_reg, out, cap_pin_4_mode);
+	tstamp->pps_info.pin_caps[5] = MLX5_GET(mtpps_reg, out, cap_pin_5_mode);
+	tstamp->pps_info.pin_caps[6] = MLX5_GET(mtpps_reg, out, cap_pin_6_mode);
+	tstamp->pps_info.pin_caps[7] = MLX5_GET(mtpps_reg, out, cap_pin_7_mode);
 }
 
 void mlx5e_pps_event_handler(struct mlx5e_priv *priv,
 			     struct ptp_clock_event *event)
 {
+	struct net_device *netdev = priv->netdev;
 	struct mlx5e_tstamp *tstamp = &priv->tstamp;
+	struct timespec64 ts;
+	u64 nsec_now, nsec_delta;
+	u64 cycles_now, cycles_delta;
+	int pin = event->index;
+	s64 ns;
+	unsigned long flags;
 
-	ptp_clock_event(tstamp->ptp, event);
+	switch (tstamp->ptp_info.pin_config[pin].func) {
+	case PTP_PF_EXTTS:
+		ptp_clock_event(tstamp->ptp, event);
+		break;
+	case PTP_PF_PEROUT:
+		mlx5e_ptp_gettime(&tstamp->ptp_info, &ts);
+		cycles_now = mlx5_read_internal_timer(tstamp->mdev);
+		ts.tv_sec += 1;
+		ts.tv_nsec = 0;
+		ns = timespec64_to_ns(&ts);
+		write_lock_irqsave(&tstamp->lock, flags);
+		nsec_now = timecounter_cyc2time(&tstamp->clock, cycles_now);
+		nsec_delta = ns - nsec_now;
+		cycles_delta = div64_u64(nsec_delta << tstamp->cycles.shift,
+					 tstamp->cycles.mult);
+		tstamp->pps_info.start[pin] = cycles_now + cycles_delta;
+		queue_work(priv->wq, &tstamp->pps_info.out_work);
+		write_unlock_irqrestore(&tstamp->lock, flags);
+		break;
+	default:
+		netdev_err(netdev, "%s: Unhandled event\n", __func__);
+	}
 }
 
 void mlx5e_timestamp_init(struct mlx5e_priv *priv)
@@ -507,6 +553,7 @@ void mlx5e_timestamp_init(struct mlx5e_priv *priv)
 	do_div(ns, NSEC_PER_SEC / 2 / HZ);
 	tstamp->overflow_period = ns;
 
+	INIT_WORK(&tstamp->pps_info.out_work, mlx5e_pps_out);
 	INIT_DELAYED_WORK(&tstamp->overflow_work, mlx5e_timestamp_overflow);
 	if (tstamp->overflow_period)
 		schedule_delayed_work(&tstamp->overflow_work, 0);
@@ -518,16 +565,10 @@ void mlx5e_timestamp_init(struct mlx5e_priv *priv)
 	snprintf(tstamp->ptp_info.name, 16, "mlx5 ptp");
 
 	/* Initialize 1PPS data structures */
-#define MAX_PIN_NUM	8
-	tstamp->pps_pin_caps = kzalloc(sizeof(u8) * MAX_PIN_NUM, GFP_KERNEL);
-	if (tstamp->pps_pin_caps) {
-		if (MLX5_PPS_CAP(priv->mdev))
-			mlx5e_get_pps_caps(priv, tstamp);
-		if (tstamp->ptp_info.n_pins)
-			mlx5e_init_pin_config(tstamp);
-	} else {
-		mlx5_core_warn(priv->mdev, "1PPS initialization failed\n");
-	}
+	if (MLX5_PPS_CAP(priv->mdev))
+		mlx5e_get_pps_caps(priv, tstamp);
+	if (tstamp->ptp_info.n_pins)
+		mlx5e_init_pin_config(tstamp);
 
 	tstamp->ptp = ptp_clock_register(&tstamp->ptp_info,
 					 &priv->mdev->pdev->dev);
@@ -550,7 +591,8 @@ void mlx5e_timestamp_cleanup(struct mlx5e_priv *priv)
 		priv->tstamp.ptp = NULL;
 	}
 
-	kfree(tstamp->pps_pin_caps);
+	cancel_work_sync(&tstamp->pps_info.out_work);
+
 	kfree(tstamp->ptp_info.pin_config);
 
 	cancel_delayed_work_sync(&tstamp->overflow_work);
