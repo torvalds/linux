@@ -1455,6 +1455,7 @@ out_free:
 
 static struct acpi_device_id gc0310_acpi_match[] = {
 	{"XXGC0310"},
+	{"INT0310"},
 	{},
 };
 
