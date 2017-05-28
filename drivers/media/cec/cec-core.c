@@ -323,7 +323,7 @@ int cec_register_adapter(struct cec_adapter *adap,
 	}
 
 	dev_set_drvdata(&adap->devnode.dev, adap);
-#ifdef CONFIG_MEDIA_CEC_DEBUG
+#ifdef CONFIG_DEBUG_FS
 	if (!top_cec_dir)
 		return 0;
 
@@ -395,7 +395,7 @@ static int __init cec_devnode_init(void)
 		return ret;
 	}
 
-#ifdef CONFIG_MEDIA_CEC_DEBUG
+#ifdef CONFIG_DEBUG_FS
 	top_cec_dir = debugfs_create_dir("cec", NULL);
 	if (IS_ERR_OR_NULL(top_cec_dir)) {
 		pr_warn("cec: Failed to create debugfs cec dir\n");

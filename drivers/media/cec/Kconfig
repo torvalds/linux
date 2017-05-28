@@ -3,9 +3,3 @@ config MEDIA_CEC_RC
 	depends on CEC_CORE && RC_CORE
 	---help---
 	  Pass on CEC remote control messages to the RC framework.
-
-config MEDIA_CEC_DEBUG
-	bool "HDMI CEC debugfs interface"
-	depends on CEC_CORE && DEBUG_FS
-	---help---
-	  Turns on the DebugFS interface for CEC devices.
