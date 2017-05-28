@@ -119,8 +119,6 @@ void mtm_enable_core(unsigned int cpu)
 	mt_ctrl.value = 0;
 	mt_ctrl.hsen = 1;
 	mt_ctrl.hs_cnt = MT_CTRL_HS_CNT;
-	mt_ctrl.sten = 1;
-	mt_ctrl.st_cnt = MT_CTRL_ST_CNT;
 	mt_ctrl.mten = 1;
 	write_aux_reg(CTOP_AUX_MT_CTRL, mt_ctrl.value);
 
