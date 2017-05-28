@@ -1354,7 +1354,10 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 	mvm_sta->mac_id_n_color = FW_CMD_ID_AND_COLOR(mvmvif->id,
 						      mvmvif->color);
 	mvm_sta->vif = vif;
-	mvm_sta->max_agg_bufsize = LINK_QUAL_AGG_FRAME_LIMIT_DEF;
+	if (!mvm->trans->cfg->gen2)
+		mvm_sta->max_agg_bufsize = LINK_QUAL_AGG_FRAME_LIMIT_DEF;
+	else
+		mvm_sta->max_agg_bufsize = LINK_QUAL_AGG_FRAME_LIMIT_GEN2_DEF;
 	mvm_sta->tx_protection = 0;
 	mvm_sta->tt_tx_protection = false;
 	mvm_sta->sta_type = sta->tdls ? IWL_STA_TDLS_LINK : IWL_STA_LINK;
@@ -2677,7 +2680,11 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	BUILD_BUG_ON((sizeof(mvmsta->agg_tids) * BITS_PER_BYTE)
 		     != IWL_MAX_TID_COUNT);
 
-	buf_size = min_t(int, buf_size, LINK_QUAL_AGG_FRAME_LIMIT_DEF);
+	if (!mvm->trans->cfg->gen2)
+		buf_size = min_t(int, buf_size, LINK_QUAL_AGG_FRAME_LIMIT_DEF);
+	else
+		buf_size = min_t(int, buf_size,
+				 LINK_QUAL_AGG_FRAME_LIMIT_GEN2_DEF);
 
 	spin_lock_bh(&mvmsta->lock);
 	ssn = tid_data->ssn;
