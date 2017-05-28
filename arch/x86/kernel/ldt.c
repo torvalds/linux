@@ -22,14 +22,15 @@
 #include <asm/syscalls.h>
 
 /* context.lock is held for us, so we don't need any locking. */
-static void flush_ldt(void *current_mm)
+static void flush_ldt(void *__mm)
 {
+	struct mm_struct *mm = __mm;
 	mm_context_t *pc;
 
-	if (current->active_mm != current_mm)
+	if (this_cpu_read(cpu_tlbstate.loaded_mm) != mm)
 		return;
 
-	pc = &current->active_mm->context;
+	pc = &mm->context;
 	set_ldt(pc->ldt->entries, pc->ldt->size);
 }
 

@@ -975,37 +975,32 @@ static void xen_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
 	spin_unlock(&mm->page_table_lock);
 }
 
-
-#ifdef CONFIG_SMP
-/* Another cpu may still have their %cr3 pointing at the pagetable, so
-   we need to repoint it somewhere else before we can unpin it. */
-static void drop_other_mm_ref(void *info)
+static void drop_mm_ref_this_cpu(void *info)
 {
 	struct mm_struct *mm = info;
-	struct mm_struct *active_mm;
 
-	active_mm = this_cpu_read(cpu_tlbstate.active_mm);
-
-	if (active_mm == mm && this_cpu_read(cpu_tlbstate.state) != TLBSTATE_OK)
+	if (this_cpu_read(cpu_tlbstate.loaded_mm) == mm)
 		leave_mm(smp_processor_id());
 
-	/* If this cpu still has a stale cr3 reference, then make sure
-	   it has been flushed. */
+	/*
+	 * If this cpu still has a stale cr3 reference, then make sure
+	 * it has been flushed.
+	 */
 	if (this_cpu_read(xen_current_cr3) == __pa(mm->pgd))
-		load_cr3(swapper_pg_dir);
+		xen_mc_flush();
 }
 
+#ifdef CONFIG_SMP
+/*
+ * Another cpu may still have their %cr3 pointing at the pagetable, so
+ * we need to repoint it somewhere else before we can unpin it.
+ */
 static void xen_drop_mm_ref(struct mm_struct *mm)
 {
 	cpumask_var_t mask;
 	unsigned cpu;
 
-	if (current->active_mm == mm) {
-		if (current->mm == mm)
-			load_cr3(swapper_pg_dir);
-		else
-			leave_mm(smp_processor_id());
-	}
+	drop_mm_ref_this_cpu(mm);
 
 	/* Get the "official" set of cpus referring to our pagetable. */
 	if (!alloc_cpumask_var(&mask, GFP_ATOMIC)) {
@@ -1013,31 +1008,31 @@ static void xen_drop_mm_ref(struct mm_struct *mm)
 			if (!cpumask_test_cpu(cpu, mm_cpumask(mm))
 			    && per_cpu(xen_current_cr3, cpu) != __pa(mm->pgd))
 				continue;
-			smp_call_function_single(cpu, drop_other_mm_ref, mm, 1);
+			smp_call_function_single(cpu, drop_mm_ref_this_cpu, mm, 1);
 		}
 		return;
 	}
 	cpumask_copy(mask, mm_cpumask(mm));
 
-	/* It's possible that a vcpu may have a stale reference to our
-	   cr3, because its in lazy mode, and it hasn't yet flushed
-	   its set of pending hypercalls yet.  In this case, we can
-	   look at its actual current cr3 value, and force it to flush
-	   if needed. */
+	/*
+	 * It's possible that a vcpu may have a stale reference to our
+	 * cr3, because its in lazy mode, and it hasn't yet flushed
+	 * its set of pending hypercalls yet.  In this case, we can
+	 * look at its actual current cr3 value, and force it to flush
+	 * if needed.
+	 */
 	for_each_online_cpu(cpu) {
 		if (per_cpu(xen_current_cr3, cpu) == __pa(mm->pgd))
 			cpumask_set_cpu(cpu, mask);
 	}
 
-	if (!cpumask_empty(mask))
-		smp_call_function_many(mask, drop_other_mm_ref, mm, 1);
+	smp_call_function_many(mask, drop_mm_ref_this_cpu, mm, 1);
 	free_cpumask_var(mask);
 }
 #else
 static void xen_drop_mm_ref(struct mm_struct *mm)
 {
-	if (current->active_mm == mm)
-		load_cr3(swapper_pg_dir);
+	drop_mm_ref_this_cpu(mm);
 }
 #endif
 

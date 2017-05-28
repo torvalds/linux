@@ -66,7 +66,13 @@ static inline void invpcid_flush_all_nonglobals(void)
 #endif
 
 struct tlb_state {
-	struct mm_struct *active_mm;
+	/*
+	 * cpu_tlbstate.loaded_mm should match CR3 whenever interrupts
+	 * are on.  This means that it may not match current->active_mm,
+	 * which will contain the previous user mm when we're in lazy TLB
+	 * mode even if we've already switched back to swapper_pg_dir.
+	 */
+	struct mm_struct *loaded_mm;
 	int state;
 
 	/*
@@ -256,7 +262,9 @@ void native_flush_tlb_others(const struct cpumask *cpumask,
 static inline void reset_lazy_tlbstate(void)
 {
 	this_cpu_write(cpu_tlbstate.state, 0);
-	this_cpu_write(cpu_tlbstate.active_mm, &init_mm);
+	this_cpu_write(cpu_tlbstate.loaded_mm, &init_mm);
+
+	WARN_ON(read_cr3() != __pa_symbol(swapper_pg_dir));
 }
 
 static inline void arch_tlbbatch_add_mm(struct arch_tlbflush_unmap_batch *batch,
