@@ -187,7 +187,7 @@ static void cec_devnode_unregister(struct cec_devnode *devnode)
 	put_device(&devnode->dev);
 }
 
-#ifdef CONFIG_MEDIA_CEC_NOTIFIER
+#ifdef CONFIG_CEC_NOTIFIER
 static void cec_cec_notify(struct cec_adapter *adap, u16 pa)
 {
 	cec_s_phys_addr(adap, pa, false);
@@ -355,7 +355,7 @@ void cec_unregister_adapter(struct cec_adapter *adap)
 	adap->rc = NULL;
 #endif
 	debugfs_remove_recursive(adap->cec_dir);
-#ifdef CONFIG_MEDIA_CEC_NOTIFIER
+#ifdef CONFIG_CEC_NOTIFIER
 	if (adap->notifier)
 		cec_notifier_unregister(adap->notifier);
 #endif

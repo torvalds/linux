@@ -5,7 +5,7 @@
 config CEC_CORE
 	tristate
 
-config MEDIA_CEC_NOTIFIER
+config CEC_NOTIFIER
 	bool
 
 menuconfig MEDIA_SUPPORT

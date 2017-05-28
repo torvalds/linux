@@ -503,7 +503,7 @@ config VIDEO_SAMSUNG_S5P_CEC
        tristate "Samsung S5P CEC driver"
        depends on PLAT_S5P || ARCH_EXYNOS || COMPILE_TEST
        select CEC_CORE
-       select MEDIA_CEC_NOTIFIER
+       select CEC_NOTIFIER
        ---help---
          This is a driver for Samsung S5P HDMI CEC interface. It uses the
          generic CEC framework interface.
@@ -514,7 +514,7 @@ config VIDEO_STI_HDMI_CEC
        tristate "STMicroelectronics STiH4xx HDMI CEC driver"
        depends on ARCH_STI || COMPILE_TEST
        select CEC_CORE
-       select MEDIA_CEC_NOTIFIER
+       select CEC_NOTIFIER
        ---help---
          This is a driver for STIH4xx HDMI CEC interface. It uses the
          generic CEC framework interface.
