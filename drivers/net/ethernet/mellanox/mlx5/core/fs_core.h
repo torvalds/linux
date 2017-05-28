@@ -120,6 +120,7 @@ struct mlx5_flow_table {
 	struct list_head		fwd_rules;
 	u32				flags;
 	struct ida			fte_allocator;
+	struct rhltable			fgs_hash;
 };
 
 struct mlx5_fc_cache {
@@ -200,6 +201,7 @@ struct mlx5_flow_group {
 	u32				max_ftes;
 	u32				id;
 	struct rhashtable		ftes_hash;
+	struct rhlist_head		hash;
 };
 
 struct mlx5_flow_root_namespace {
