@@ -30,12 +30,6 @@
 
 #ifdef CONFIG_SMP
 
-struct flush_tlb_info {
-	struct mm_struct *flush_mm;
-	unsigned long flush_start;
-	unsigned long flush_end;
-};
-
 /*
  * We cannot call mmdrop() because we are in interrupt context,
  * instead update mm->cpu_vm_mask.
@@ -229,11 +223,11 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
  */
 static void flush_tlb_func(void *info)
 {
-	struct flush_tlb_info *f = info;
+	const struct flush_tlb_info *f = info;
 
 	inc_irq_stat(irq_tlb_count);
 
-	if (f->flush_mm && f->flush_mm != this_cpu_read(cpu_tlbstate.active_mm))
+	if (f->mm && f->mm != this_cpu_read(cpu_tlbstate.active_mm))
 		return;
 
 	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
@@ -243,15 +237,15 @@ static void flush_tlb_func(void *info)
 		return;
 	}
 
-	if (f->flush_end == TLB_FLUSH_ALL) {
+	if (f->end == TLB_FLUSH_ALL) {
 		local_flush_tlb();
 		trace_tlb_flush(TLB_REMOTE_SHOOTDOWN, TLB_FLUSH_ALL);
 	} else {
 		unsigned long addr;
 		unsigned long nr_pages =
-			(f->flush_end - f->flush_start) / PAGE_SIZE;
-		addr = f->flush_start;
-		while (addr < f->flush_end) {
+			(f->end - f->start) / PAGE_SIZE;
+		addr = f->start;
+		while (addr < f->end) {
 			__flush_tlb_single(addr);
 			addr += PAGE_SIZE;
 		}
@@ -260,33 +254,27 @@ static void flush_tlb_func(void *info)
 }
 
 void native_flush_tlb_others(const struct cpumask *cpumask,
-				 struct mm_struct *mm, unsigned long start,
-				 unsigned long end)
+			     const struct flush_tlb_info *info)
 {
-	struct flush_tlb_info info;
-
-	info.flush_mm = mm;
-	info.flush_start = start;
-	info.flush_end = end;
-
 	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH);
-	if (end == TLB_FLUSH_ALL)
+	if (info->end == TLB_FLUSH_ALL)
 		trace_tlb_flush(TLB_REMOTE_SEND_IPI, TLB_FLUSH_ALL);
 	else
 		trace_tlb_flush(TLB_REMOTE_SEND_IPI,
-				(end - start) >> PAGE_SHIFT);
+				(info->end - info->start) >> PAGE_SHIFT);
 
 	if (is_uv_system()) {
 		unsigned int cpu;
 
 		cpu = smp_processor_id();
-		cpumask = uv_flush_tlb_others(cpumask, mm, start, end, cpu);
+		cpumask = uv_flush_tlb_others(cpumask, info);
 		if (cpumask)
 			smp_call_function_many(cpumask, flush_tlb_func,
-								&info, 1);
+					       (void *)info, 1);
 		return;
 	}
-	smp_call_function_many(cpumask, flush_tlb_func, &info, 1);
+	smp_call_function_many(cpumask, flush_tlb_func,
+			       (void *)info, 1);
 }
 
 /*
@@ -305,6 +293,7 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
 				unsigned long end, unsigned long vmflag)
 {
 	unsigned long addr;
+	struct flush_tlb_info info;
 	/* do a global flush by default */
 	unsigned long base_pages_to_flush = TLB_FLUSH_ALL;
 
@@ -347,14 +336,19 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
 	}
 	trace_tlb_flush(TLB_LOCAL_MM_SHOOTDOWN, base_pages_to_flush);
 out:
+	info.mm = mm;
 	if (base_pages_to_flush == TLB_FLUSH_ALL) {
-		start = 0UL;
-		end = TLB_FLUSH_ALL;
+		info.start = 0UL;
+		info.end = TLB_FLUSH_ALL;
+	} else {
+		info.start = start;
+		info.end = end;
 	}
 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
-		flush_tlb_others(mm_cpumask(mm), mm, start, end);
+		flush_tlb_others(mm_cpumask(mm), &info);
 	preempt_enable();
 }
+
 
 static void do_flush_tlb_all(void *info)
 {
@@ -376,7 +370,7 @@ static void do_kernel_range_flush(void *info)
 	unsigned long addr;
 
 	/* flush range by one by one 'invlpg' */
-	for (addr = f->flush_start; addr < f->flush_end; addr += PAGE_SIZE)
+	for (addr = f->start; addr < f->end; addr += PAGE_SIZE)
 		__flush_tlb_single(addr);
 }
 
@@ -389,14 +383,20 @@ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 		on_each_cpu(do_flush_tlb_all, NULL, 1);
 	} else {
 		struct flush_tlb_info info;
-		info.flush_start = start;
-		info.flush_end = end;
+		info.start = start;
+		info.end = end;
 		on_each_cpu(do_kernel_range_flush, &info, 1);
 	}
 }
 
 void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch)
 {
+	struct flush_tlb_info info = {
+		.mm = NULL,
+		.start = 0UL,
+		.end = TLB_FLUSH_ALL,
+	};
+
 	int cpu = get_cpu();
 
 	if (cpumask_test_cpu(cpu, &batch->cpumask)) {
@@ -406,7 +406,7 @@ void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch)
 	}
 
 	if (cpumask_any_but(&batch->cpumask, cpu) < nr_cpu_ids)
-		flush_tlb_others(&batch->cpumask, NULL, 0, TLB_FLUSH_ALL);
+		flush_tlb_others(&batch->cpumask, &info);
 	cpumask_clear(&batch->cpumask);
 
 	put_cpu();
