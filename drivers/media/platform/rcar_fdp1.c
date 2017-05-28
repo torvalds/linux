@@ -1,5 +1,5 @@
 /*
- * Renesas RCar Fine Display Processor
+ * Renesas R-Car Fine Display Processor
  *
  * Video format converter and frame deinterlacer device.
  *
