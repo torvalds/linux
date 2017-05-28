@@ -1,6 +1,6 @@
 * SHDMA Device Tree bindings
 
-Sh-/r-mobile and r-car systems often have multiple identical DMA controller
+Sh-/r-mobile and R-Car systems often have multiple identical DMA controller
 instances, capable of serving any of a common set of DMA slave devices, using
 the same configuration. To describe this topology we require all compatible
 SHDMA DT nodes to be placed under a DMA multiplexer node. All such compatible
