@@ -393,6 +393,17 @@ static int mlx5e_perout_configure(struct ptp_clock_info *ptp,
 			       MLX5E_EVENT_MODE_REPETETIVE & on);
 }
 
+static int mlx5e_pps_configure(struct ptp_clock_info *ptp,
+			       struct ptp_clock_request *rq,
+			       int on)
+{
+	struct mlx5e_tstamp *tstamp =
+		container_of(ptp, struct mlx5e_tstamp, ptp_info);
+
+	tstamp->pps_info.enabled = !!on;
+	return 0;
+}
+
 static int mlx5e_ptp_enable(struct ptp_clock_info *ptp,
 			    struct ptp_clock_request *rq,
 			    int on)
@@ -402,6 +413,8 @@ static int mlx5e_ptp_enable(struct ptp_clock_info *ptp,
 		return mlx5e_extts_configure(ptp, rq, on);
 	case PTP_CLK_REQ_PEROUT:
 		return mlx5e_perout_configure(ptp, rq, on);
+	case PTP_CLK_REQ_PPS:
+		return mlx5e_pps_configure(ptp, rq, on);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -447,6 +460,7 @@ static int mlx5e_init_pin_config(struct mlx5e_tstamp *tstamp)
 		return -ENOMEM;
 	tstamp->ptp_info.enable = mlx5e_ptp_enable;
 	tstamp->ptp_info.verify = mlx5e_ptp_verify;
+	tstamp->ptp_info.pps = 1;
 
 	for (i = 0; i < tstamp->ptp_info.n_pins; i++) {
 		snprintf(tstamp->ptp_info.pin_config[i].name,
@@ -498,6 +512,12 @@ void mlx5e_pps_event_handler(struct mlx5e_priv *priv,
 
 	switch (tstamp->ptp_info.pin_config[pin].func) {
 	case PTP_PF_EXTTS:
+		if (tstamp->pps_info.enabled) {
+			event->type = PTP_CLOCK_PPSUSR;
+			event->pps_times.ts_real = ns_to_timespec64(event->timestamp);
+		} else {
+			event->type = PTP_CLOCK_EXTTS;
+		}
 		ptp_clock_event(tstamp->ptp, event);
 		break;
 	case PTP_PF_PEROUT:

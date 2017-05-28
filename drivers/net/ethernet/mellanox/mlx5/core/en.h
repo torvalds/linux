@@ -271,6 +271,7 @@ struct mlx5e_pps {
 	u8                         pin_caps[MAX_PIN_NUM];
 	struct work_struct         out_work;
 	u64                        start[MAX_PIN_NUM];
+	u8                         enabled;
 };
 
 struct mlx5e_tstamp {
