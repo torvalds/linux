@@ -1093,7 +1093,7 @@ int mlx5_devlink_eswitch_encap_mode_set(struct devlink *devlink, u8 encap)
 	if (err) {
 		esw_warn(esw->dev, "Failed re-creating fast FDB table, err %d\n", err);
 		esw->offloads.encap = !encap;
-		(void) esw_create_offloads_fast_fdb_table(esw);
+		(void)esw_create_offloads_fast_fdb_table(esw);
 	}
 	return err;
 }
