@@ -1521,6 +1521,7 @@ out_free:
 
 static struct acpi_device_id ov2680_acpi_match[] = {
 	{"XXOV2680"},
+	{"OVTI2680"},
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, ov2680_acpi_match);
