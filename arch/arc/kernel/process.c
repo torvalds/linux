@@ -92,7 +92,18 @@ void arch_cpu_idle(void)
 		:"I"(arg)); /* can't be "r" has to be embedded const */
 }
 
-#else
+#elif defined(CONFIG_EZNPS_MTM_EXT)	/* ARC700 variant in NPS */
+
+void arch_cpu_idle(void)
+{
+	/* only the calling HW thread needs to sleep */
+	__asm__ __volatile__(
+		".word %0	\n"
+		:
+		:"i"(CTOP_INST_HWSCHD_WFT_IE12));
+}
+
+#else	/* ARC700 */
 
 void arch_cpu_idle(void)
 {
