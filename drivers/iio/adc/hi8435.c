@@ -476,15 +476,13 @@ static int hi8435_probe(struct spi_device *spi)
 	priv->spi = spi;
 
 	reset_gpio = devm_gpiod_get(&spi->dev, NULL, GPIOD_OUT_LOW);
-	if (!IS_ERR(reset_gpio)) {
-		/* need >=100ns low pulse to reset chip */
-		gpiod_set_raw_value_cansleep(reset_gpio, 0);
-		udelay(1);
-		gpiod_set_raw_value_cansleep(reset_gpio, 1);
-	} else {
-		/* s/w reset chip if h/w reset is not available */
+	if (IS_ERR(reset_gpio)) {
+		/* chip s/w reset if h/w reset failed */
 		hi8435_writeb(priv, HI8435_CTRL_REG, HI8435_CTRL_SRST);
 		hi8435_writeb(priv, HI8435_CTRL_REG, 0);
+	} else {
+		udelay(5);
+		gpiod_set_value(reset_gpio, 1);
 	}
 
 	spi_set_drvdata(spi, idev);
