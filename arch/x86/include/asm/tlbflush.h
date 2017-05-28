@@ -225,7 +225,6 @@ static inline void __flush_tlb_one(unsigned long addr)
  * ..but the i386 has somewhat limited tlb flushing capabilities,
  * and page-granular flushes are available only on i486 and up.
  */
-
 struct flush_tlb_info {
 	struct mm_struct *mm;
 	unsigned long start;
