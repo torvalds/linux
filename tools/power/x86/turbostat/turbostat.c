@@ -150,6 +150,8 @@ size_t cpu_present_setsize, cpu_affinity_setsize, cpu_subset_size;
 #define MAX_ADDED_COUNTERS 16
 
 struct thread_data {
+	struct timeval tv_begin;
+	struct timeval tv_end;
 	unsigned long long tsc;
 	unsigned long long aperf;
 	unsigned long long mperf;
@@ -530,6 +532,8 @@ void print_header(char *delim)
 	struct msr_counter *mp;
 	int printed = 0;
 
+	if (debug)
+		outp += sprintf(outp, "usec %s", delim);
 	if (DO_BIC(BIC_Package))
 		outp += sprintf(outp, "%sPackage", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_Core))
@@ -781,6 +785,14 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	if ((t != &average.threads) &&
 		(cpu_subset && !CPU_ISSET_S(t->cpu_id, cpu_subset_size, cpu_subset)))
 		return 0;
+
+	if (debug) {
+		/* on each row, print how many usec each timestamp took to gather */
+		struct timeval tv;
+
+		timersub(&t->tv_end, &t->tv_begin, &tv);
+		outp += sprintf(outp, "%5ld\t", tv.tv_sec * 1000000 + tv.tv_usec);
+	}
 
 	interval_float = tv_delta.tv_sec + tv_delta.tv_usec/1000000.0;
 
@@ -1503,6 +1515,9 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	struct msr_counter *mp;
 	int i;
 
+
+	gettimeofday(&t->tv_begin, (struct timezone *)NULL);
+
 	if (cpu_migrate(cpu)) {
 		fprintf(outf, "Could not migrate to CPU %d\n", cpu);
 		return -1;
@@ -1586,7 +1601,7 @@ retry:
 
 	/* collect core counters only for 1st thread in core */
 	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
-		return 0;
+		goto done;
 
 	if (DO_BIC(BIC_CPU_c3) && !do_slm_cstates && !do_knl_cstates) {
 		if (get_msr(cpu, MSR_CORE_C3_RESIDENCY, &c->c3))
@@ -1622,7 +1637,7 @@ retry:
 
 	/* collect package counters only for 1st core in package */
 	if (!(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
-		return 0;
+		goto done;
 
 	if (DO_BIC(BIC_Totl_c0)) {
 		if (get_msr(cpu, MSR_PKG_WEIGHTED_CORE_C0_RES, &p->pkg_wtd_core_c0))
@@ -1715,6 +1730,8 @@ retry:
 		if (get_mp(cpu, mp, &p->counter[i]))
 			return -10;
 	}
+done:
+	gettimeofday(&t->tv_end, (struct timezone *)NULL);
 
 	return 0;
 }
