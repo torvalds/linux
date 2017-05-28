@@ -118,6 +118,7 @@ struct mlx5_flow_table {
 	/* FWD rules that point on this flow table */
 	struct list_head		fwd_rules;
 	u32				flags;
+	struct ida			fte_allocator;
 };
 
 struct mlx5_fc_cache {
@@ -183,7 +184,6 @@ struct mlx5_flow_group {
 	struct mlx5_flow_group_mask	mask;
 	u32				start_index;
 	u32				max_ftes;
-	u32				num_ftes;
 	u32				id;
 };
 
