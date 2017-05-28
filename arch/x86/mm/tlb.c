@@ -220,8 +220,7 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
 		trace_tlb_flush(reason, TLB_FLUSH_ALL);
 	} else {
 		unsigned long addr;
-		unsigned long nr_pages =
-			(f->end - f->start) / PAGE_SIZE;
+		unsigned long nr_pages = (f->end - f->start) >> PAGE_SHIFT;
 		addr = f->start;
 		while (addr < f->end) {
 			__flush_tlb_single(addr);
@@ -351,7 +350,7 @@ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 
 	/* Balance as user space task's flush, a bit conservative */
 	if (end == TLB_FLUSH_ALL ||
-	    (end - start) > tlb_single_page_flush_ceiling * PAGE_SIZE) {
+	    (end - start) > tlb_single_page_flush_ceiling << PAGE_SHIFT) {
 		on_each_cpu(do_flush_tlb_all, NULL, 1);
 	} else {
 		struct flush_tlb_info info;
