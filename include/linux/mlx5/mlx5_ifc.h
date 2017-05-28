@@ -661,9 +661,9 @@ enum {
 struct mlx5_ifc_atomic_caps_bits {
 	u8         reserved_at_0[0x40];
 
-	u8         atomic_req_8B_endianess_mode[0x2];
+	u8         atomic_req_8B_endianness_mode[0x2];
 	u8         reserved_at_42[0x4];
-	u8         supported_atomic_req_8B_endianess_mode_1[0x1];
+	u8         supported_atomic_req_8B_endianness_mode_1[0x1];
 
 	u8         reserved_at_47[0x19];
 

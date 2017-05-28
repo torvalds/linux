@@ -356,7 +356,7 @@ static void mlx5_disable_msix(struct mlx5_core_dev *dev)
 	kfree(priv->msix_arr);
 }
 
-struct mlx5_reg_host_endianess {
+struct mlx5_reg_host_endianness {
 	u8	he;
 	u8      rsvd[15];
 };
@@ -475,7 +475,7 @@ static int handle_hca_cap_atomic(struct mlx5_core_dev *dev)
 
 	req_endianness =
 		MLX5_CAP_ATOMIC(dev,
-				supported_atomic_req_8B_endianess_mode_1);
+				supported_atomic_req_8B_endianness_mode_1);
 
 	if (req_endianness != MLX5_ATOMIC_REQ_MODE_HOST_ENDIANNESS)
 		return 0;
@@ -487,7 +487,7 @@ static int handle_hca_cap_atomic(struct mlx5_core_dev *dev)
 	set_hca_cap = MLX5_ADDR_OF(set_hca_cap_in, set_ctx, capability);
 
 	/* Set requestor to host endianness */
-	MLX5_SET(atomic_caps, set_hca_cap, atomic_req_8B_endianess_mode,
+	MLX5_SET(atomic_caps, set_hca_cap, atomic_req_8B_endianness_mode,
 		 MLX5_ATOMIC_REQ_MODE_HOST_ENDIANNESS);
 
 	err = set_caps(dev, set_ctx, set_sz, MLX5_SET_HCA_CAP_OP_MOD_ATOMIC);
@@ -562,8 +562,8 @@ query_ex:
 
 static int set_hca_ctrl(struct mlx5_core_dev *dev)
 {
-	struct mlx5_reg_host_endianess he_in;
-	struct mlx5_reg_host_endianess he_out;
+	struct mlx5_reg_host_endianness he_in;
+	struct mlx5_reg_host_endianness he_out;
 	int err;
 
 	if (!mlx5_core_is_pf(dev))
