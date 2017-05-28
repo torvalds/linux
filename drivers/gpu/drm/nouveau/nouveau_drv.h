@@ -43,7 +43,7 @@
 #include <nvif/device.h>
 #include <nvif/ioctl.h>
 
-#include <drmP.h>
+#include <drm/drmP.h>
 
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>

@@ -4,7 +4,7 @@
 
 FULL_AMD_PATH=$(src)/..
 
-ccflags-y := -Iinclude/drm -I$(FULL_AMD_PATH)/include/asic_reg \
+ccflags-y := -I$(FULL_AMD_PATH)/include/asic_reg \
 	-I$(FULL_AMD_PATH)/include \
 	-I$(FULL_AMD_PATH)/amdgpu \
 	-I$(FULL_AMD_PATH)/scheduler \

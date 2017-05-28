@@ -463,7 +463,7 @@ static void ltdc_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	clk_enable(ldev->pixel_clk);
 
 	/* Configures the HS, VS, DE and PC polarities. */
-	val = HSPOL_AL | HSPOL_AL | DEPOL_AL | PCPOL_IPC;
+	val = HSPOL_AL | VSPOL_AL | DEPOL_AL | PCPOL_IPC;
 
 	if (vm.flags & DISPLAY_FLAGS_HSYNC_HIGH)
 		val |= HSPOL_AH;

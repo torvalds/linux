@@ -16,9 +16,9 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "linux/clk.h"
-#include "linux/component.h"
-#include "linux/pm_runtime.h"
+#include <linux/clk.h>
+#include <linux/component.h>
+#include <linux/pm_runtime.h>
 #include "vc4_drv.h"
 #include "vc4_regs.h"
 

@@ -51,7 +51,7 @@ static void vgem_gem_free_object(struct drm_gem_object *obj)
 {
 	struct drm_vgem_gem_object *vgem_obj = to_vgem_bo(obj);
 
-	drm_free_large(vgem_obj->pages);
+	kvfree(vgem_obj->pages);
 
 	if (obj->import_attach)
 		drm_prime_gem_destroy(obj, vgem_obj->table);
@@ -328,7 +328,7 @@ static struct drm_gem_object *vgem_prime_import_sg_table(struct drm_device *dev,
 	npages = PAGE_ALIGN(attach->dmabuf->size) / PAGE_SIZE;
 
 	obj->table = sg;
-	obj->pages = drm_malloc_ab(npages, sizeof(struct page *));
+	obj->pages = kvmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
 	if (!obj->pages) {
 		__vgem_gem_destroy(obj);
 		return ERR_PTR(-ENOMEM);
@@ -438,8 +438,8 @@ static int __init vgem_init(void)
 
 	vgem_device->platform =
 		platform_device_register_simple("vgem", -1, NULL, 0);
-	if (!vgem_device->platform) {
-		ret = -ENODEV;
+	if (IS_ERR(vgem_device->platform)) {
+		ret = PTR_ERR(vgem_device->platform);
 		goto out_fini;
 	}
 

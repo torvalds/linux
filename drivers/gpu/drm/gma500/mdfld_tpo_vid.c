@@ -30,8 +30,6 @@
 static struct drm_display_mode *tpo_vid_get_config_mode(struct drm_device *dev)
 {
 	struct drm_display_mode *mode;
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct oaktrail_timing_info *ti = &dev_priv->gct_data.DTD;
 
 	mode = kzalloc(sizeof(*mode), GFP_KERNEL);
 	if (!mode)

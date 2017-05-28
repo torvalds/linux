@@ -1,5 +1,3 @@
-ccflags-y := -Iinclude/drm
-
 stm-drm-y := \
 	drv.o \
 	ltdc.o

@@ -50,8 +50,8 @@
  * - Read back hardware state at boot to skip reprogramming the
  *   hardware when doing a no-op modeset.
  *
- * - Use the internal clock divisor to reduce power consumption by
- *   using HCLK (apb_pclk) when appropriate.
+ * - Use the CLKSEL bit to support switching between the two external
+ *   clock parents.
  */
 
 #include <linux/amba/bus.h>
@@ -72,7 +72,7 @@
 
 #define DRIVER_DESC      "DRM module for PL111"
 
-struct drm_mode_config_funcs mode_config_funcs = {
+static struct drm_mode_config_funcs mode_config_funcs = {
 	.fb_create = drm_fb_cma_create,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
@@ -173,6 +173,10 @@ static struct drm_driver pl111_drm_driver = {
 	.gem_prime_import_sg_table = drm_gem_cma_prime_import_sg_table,
 	.gem_prime_export = drm_gem_prime_export,
 	.gem_prime_get_sg_table	= drm_gem_cma_prime_get_sg_table,
+
+#if defined(CONFIG_DEBUG_FS)
+	.debugfs_init = pl111_debugfs_init,
+#endif
 };
 
 #ifdef CONFIG_ARM_AMBA
@@ -195,17 +199,10 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 	priv->drm = drm;
 	drm->dev_private = priv;
 
-	priv->clk = devm_clk_get(dev, "clcdclk");
-	if (IS_ERR(priv->clk)) {
-		dev_err(dev, "CLCD: unable to get clk.\n");
-		ret = PTR_ERR(priv->clk);
-		goto dev_unref;
-	}
-
 	priv->regs = devm_ioremap_resource(dev, &amba_dev->res);
-	if (!priv->regs) {
+	if (IS_ERR(priv->regs)) {
 		dev_err(dev, "%s failed mmio\n", __func__);
-		return -EINVAL;
+		return PTR_ERR(priv->regs);
 	}
 
 	/* turn off interrupts before requesting the irq */

@@ -1,5 +1,3 @@
-ccflags-y := -Iinclude/drm
-
 # Please keep these build lists sorted!
 
 # core driver code

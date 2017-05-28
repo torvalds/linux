@@ -194,7 +194,7 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 		size = p->chunks[i].length_dw;
 		cdata = (void __user *)(uintptr_t)user_chunk.chunk_data;
 
-		p->chunks[i].kdata = drm_malloc_ab(size, sizeof(uint32_t));
+		p->chunks[i].kdata = kvmalloc_array(size, sizeof(uint32_t), GFP_KERNEL);
 		if (p->chunks[i].kdata == NULL) {
 			ret = -ENOMEM;
 			i--;
@@ -247,7 +247,7 @@ free_all_kdata:
 	i = p->nchunks - 1;
 free_partial_kdata:
 	for (; i >= 0; i--)
-		drm_free_large(p->chunks[i].kdata);
+		kvfree(p->chunks[i].kdata);
 	kfree(p->chunks);
 	p->chunks = NULL;
 	p->nchunks = 0;
@@ -505,7 +505,7 @@ static int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 			return r;
 
 		if (binding_userptr) {
-			drm_free_large(lobj->user_pages);
+			kvfree(lobj->user_pages);
 			lobj->user_pages = NULL;
 		}
 	}
@@ -571,7 +571,7 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 				release_pages(e->user_pages,
 					      e->robj->tbo.ttm->num_pages,
 					      false);
-				drm_free_large(e->user_pages);
+				kvfree(e->user_pages);
 				e->user_pages = NULL;
 			}
 
@@ -601,8 +601,9 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 		list_for_each_entry(e, &need_pages, tv.head) {
 			struct ttm_tt *ttm = e->robj->tbo.ttm;
 
-			e->user_pages = drm_calloc_large(ttm->num_pages,
-							 sizeof(struct page*));
+			e->user_pages = kvmalloc_array(ttm->num_pages,
+							 sizeof(struct page*),
+							 GFP_KERNEL | __GFP_ZERO);
 			if (!e->user_pages) {
 				r = -ENOMEM;
 				DRM_ERROR("calloc failure in %s\n", __func__);
@@ -612,7 +613,7 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 			r = amdgpu_ttm_tt_get_user_pages(ttm, e->user_pages);
 			if (r) {
 				DRM_ERROR("amdgpu_ttm_tt_get_user_pages failed.\n");
-				drm_free_large(e->user_pages);
+				kvfree(e->user_pages);
 				e->user_pages = NULL;
 				goto error_free_pages;
 			}
@@ -708,7 +709,7 @@ error_free_pages:
 			release_pages(e->user_pages,
 				      e->robj->tbo.ttm->num_pages,
 				      false);
-			drm_free_large(e->user_pages);
+			kvfree(e->user_pages);
 		}
 	}
 
@@ -761,7 +762,7 @@ static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error, bo
 		amdgpu_bo_list_put(parser->bo_list);
 
 	for (i = 0; i < parser->nchunks; i++)
-		drm_free_large(parser->chunks[i].kdata);
+		kvfree(parser->chunks[i].kdata);
 	kfree(parser->chunks);
 	if (parser->job)
 		amdgpu_job_free(parser->job);

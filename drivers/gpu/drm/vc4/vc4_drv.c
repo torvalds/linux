@@ -31,7 +31,7 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include "drm_fb_cma_helper.h"
+#include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fb_helper.h>
 
 #include "uapi/drm/vc4_drm.h"

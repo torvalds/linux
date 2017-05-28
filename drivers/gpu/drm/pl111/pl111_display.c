@@ -108,7 +108,7 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 	u32 cntl;
 	u32 ppl, hsw, hfp, hbp;
 	u32 lpp, vsw, vfp, vbp;
-	u32 cpl;
+	u32 cpl, tim2;
 	int ret;
 
 	ret = clk_set_rate(priv->clk, mode->clock * 1000);
@@ -142,20 +142,28 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 	       (vfp << 16) |
 	       (vbp << 24),
 	       priv->regs + CLCD_TIM1);
-	/* XXX: We currently always use CLCDCLK with no divisor.  We
-	 * could probably reduce power consumption by using HCLK
-	 * (apb_pclk) with a divisor when it gets us near our target
-	 * pixel clock.
-	 */
-	writel(((mode->flags & DRM_MODE_FLAG_NHSYNC) ? TIM2_IHS : 0) |
-	       ((mode->flags & DRM_MODE_FLAG_NVSYNC) ? TIM2_IVS : 0) |
-	       ((connector->display_info.bus_flags &
-		 DRM_BUS_FLAG_DE_LOW) ? TIM2_IOE : 0) |
-	       ((connector->display_info.bus_flags &
-		 DRM_BUS_FLAG_PIXDATA_NEGEDGE) ? TIM2_IPC : 0) |
-	       TIM2_BCD |
-	       (cpl << 16),
-	       priv->regs + CLCD_TIM2);
+
+	spin_lock(&priv->tim2_lock);
+
+	tim2 = readl(priv->regs + CLCD_TIM2);
+	tim2 &= (TIM2_BCD | TIM2_PCD_LO_MASK | TIM2_PCD_HI_MASK);
+
+	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
+		tim2 |= TIM2_IHS;
+
+	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
+		tim2 |= TIM2_IVS;
+
+	if (connector->display_info.bus_flags & DRM_BUS_FLAG_DE_LOW)
+		tim2 |= TIM2_IOE;
+
+	if (connector->display_info.bus_flags & DRM_BUS_FLAG_PIXDATA_NEGEDGE)
+		tim2 |= TIM2_IPC;
+
+	tim2 |= cpl << 16;
+	writel(tim2, priv->regs + CLCD_TIM2);
+	spin_unlock(&priv->tim2_lock);
+
 	writel(0, priv->regs + CLCD_TIM3);
 
 	drm_panel_prepare(priv->connector.panel);
@@ -280,13 +288,133 @@ static int pl111_display_prepare_fb(struct drm_simple_display_pipe *pipe,
 	return drm_fb_cma_prepare_fb(&pipe->plane, plane_state);
 }
 
-const struct drm_simple_display_pipe_funcs pl111_display_funcs = {
+static const struct drm_simple_display_pipe_funcs pl111_display_funcs = {
 	.check = pl111_display_check,
 	.enable = pl111_display_enable,
 	.disable = pl111_display_disable,
 	.update = pl111_display_update,
 	.prepare_fb = pl111_display_prepare_fb,
 };
+
+static int pl111_clk_div_choose_div(struct clk_hw *hw, unsigned long rate,
+				    unsigned long *prate, bool set_parent)
+{
+	int best_div = 1, div;
+	struct clk_hw *parent = clk_hw_get_parent(hw);
+	unsigned long best_prate = 0;
+	unsigned long best_diff = ~0ul;
+	int max_div = (1 << (TIM2_PCD_LO_BITS + TIM2_PCD_HI_BITS)) - 1;
+
+	for (div = 1; div < max_div; div++) {
+		unsigned long this_prate, div_rate, diff;
+
+		if (set_parent)
+			this_prate = clk_hw_round_rate(parent, rate * div);
+		else
+			this_prate = *prate;
+		div_rate = DIV_ROUND_UP_ULL(this_prate, div);
+		diff = abs(rate - div_rate);
+
+		if (diff < best_diff) {
+			best_div = div;
+			best_diff = diff;
+			best_prate = this_prate;
+		}
+	}
+
+	*prate = best_prate;
+	return best_div;
+}
+
+static long pl111_clk_div_round_rate(struct clk_hw *hw, unsigned long rate,
+				     unsigned long *prate)
+{
+	int div = pl111_clk_div_choose_div(hw, rate, prate, true);
+
+	return DIV_ROUND_UP_ULL(*prate, div);
+}
+
+static unsigned long pl111_clk_div_recalc_rate(struct clk_hw *hw,
+					       unsigned long prate)
+{
+	struct pl111_drm_dev_private *priv =
+		container_of(hw, struct pl111_drm_dev_private, clk_div);
+	u32 tim2 = readl(priv->regs + CLCD_TIM2);
+	int div;
+
+	if (tim2 & TIM2_BCD)
+		return prate;
+
+	div = tim2 & TIM2_PCD_LO_MASK;
+	div |= (tim2 & TIM2_PCD_HI_MASK) >>
+		(TIM2_PCD_HI_SHIFT - TIM2_PCD_LO_BITS);
+	div += 2;
+
+	return DIV_ROUND_UP_ULL(prate, div);
+}
+
+static int pl111_clk_div_set_rate(struct clk_hw *hw, unsigned long rate,
+				  unsigned long prate)
+{
+	struct pl111_drm_dev_private *priv =
+		container_of(hw, struct pl111_drm_dev_private, clk_div);
+	int div = pl111_clk_div_choose_div(hw, rate, &prate, false);
+	u32 tim2;
+
+	spin_lock(&priv->tim2_lock);
+	tim2 = readl(priv->regs + CLCD_TIM2);
+	tim2 &= ~(TIM2_BCD | TIM2_PCD_LO_MASK | TIM2_PCD_HI_MASK);
+
+	if (div == 1) {
+		tim2 |= TIM2_BCD;
+	} else {
+		div -= 2;
+		tim2 |= div & TIM2_PCD_LO_MASK;
+		tim2 |= (div >> TIM2_PCD_LO_BITS) << TIM2_PCD_HI_SHIFT;
+	}
+
+	writel(tim2, priv->regs + CLCD_TIM2);
+	spin_unlock(&priv->tim2_lock);
+
+	return 0;
+}
+
+static const struct clk_ops pl111_clk_div_ops = {
+	.recalc_rate = pl111_clk_div_recalc_rate,
+	.round_rate = pl111_clk_div_round_rate,
+	.set_rate = pl111_clk_div_set_rate,
+};
+
+static int
+pl111_init_clock_divider(struct drm_device *drm)
+{
+	struct pl111_drm_dev_private *priv = drm->dev_private;
+	struct clk *parent = devm_clk_get(drm->dev, "clcdclk");
+	struct clk_hw *div = &priv->clk_div;
+	const char *parent_name;
+	struct clk_init_data init = {
+		.name = "pl111_div",
+		.ops = &pl111_clk_div_ops,
+		.parent_names = &parent_name,
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	};
+	int ret;
+
+	if (IS_ERR(parent)) {
+		dev_err(drm->dev, "CLCD: unable to get clcdclk.\n");
+		return PTR_ERR(parent);
+	}
+	parent_name = __clk_get_name(parent);
+
+	spin_lock_init(&priv->tim2_lock);
+	div->init = &init;
+
+	ret = devm_clk_hw_register(drm->dev, div);
+
+	priv->clk = div->clk;
+	return ret;
+}
 
 int pl111_display_init(struct drm_device *drm)
 {
@@ -332,6 +460,10 @@ int pl111_display_init(struct drm_device *drm)
 		dev_err(dev, "arm,pl11x,tft-r0g0b0-pads != [0,8,16] not yet supported\n");
 		return -EINVAL;
 	}
+
+	ret = pl111_init_clock_divider(drm);
+	if (ret)
+		return ret;
 
 	ret = drm_simple_display_pipe_init(drm, &priv->pipe,
 					   &pl111_display_funcs,

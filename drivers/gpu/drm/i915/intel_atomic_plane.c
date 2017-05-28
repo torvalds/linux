@@ -55,7 +55,7 @@ intel_create_plane_state(struct drm_plane *plane)
 		return NULL;
 
 	state->base.plane = plane;
-	state->base.rotation = DRM_ROTATE_0;
+	state->base.rotation = DRM_MODE_ROTATE_0;
 	state->ckey.flags = I915_SET_COLORKEY_NONE;
 
 	return state;
@@ -178,8 +178,8 @@ int intel_plane_atomic_check_with_state(struct intel_crtc_state *crtc_state,
 
 	/* CHV ignores the mirror bit when the rotate bit is set :( */
 	if (IS_CHERRYVIEW(dev_priv) &&
-	    state->rotation & DRM_ROTATE_180 &&
-	    state->rotation & DRM_REFLECT_X) {
+	    state->rotation & DRM_MODE_ROTATE_180 &&
+	    state->rotation & DRM_MODE_REFLECT_X) {
 		DRM_DEBUG_KMS("Cannot rotate and reflect at the same time\n");
 		return -EINVAL;
 	}

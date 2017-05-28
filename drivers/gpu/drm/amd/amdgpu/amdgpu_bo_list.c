@@ -96,7 +96,7 @@ static int amdgpu_bo_list_set(struct amdgpu_device *adev,
 	int r;
 	unsigned long total_size = 0;
 
-	array = drm_malloc_ab(num_entries, sizeof(struct amdgpu_bo_list_entry));
+	array = kvmalloc_array(num_entries, sizeof(struct amdgpu_bo_list_entry), GFP_KERNEL);
 	if (!array)
 		return -ENOMEM;
 	memset(array, 0, num_entries * sizeof(struct amdgpu_bo_list_entry));
@@ -148,7 +148,7 @@ static int amdgpu_bo_list_set(struct amdgpu_device *adev,
 	for (i = 0; i < list->num_entries; ++i)
 		amdgpu_bo_unref(&list->array[i].robj);
 
-	drm_free_large(list->array);
+	kvfree(list->array);
 
 	list->gds_obj = gds_obj;
 	list->gws_obj = gws_obj;
@@ -163,7 +163,7 @@ static int amdgpu_bo_list_set(struct amdgpu_device *adev,
 error_free:
 	while (i--)
 		amdgpu_bo_unref(&array[i].robj);
-	drm_free_large(array);
+	kvfree(array);
 	return r;
 }
 
@@ -224,7 +224,7 @@ void amdgpu_bo_list_free(struct amdgpu_bo_list *list)
 		amdgpu_bo_unref(&list->array[i].robj);
 
 	mutex_destroy(&list->lock);
-	drm_free_large(list->array);
+	kvfree(list->array);
 	kfree(list);
 }
 
@@ -244,8 +244,8 @@ int amdgpu_bo_list_ioctl(struct drm_device *dev, void *data,
 
 	int r;
 
-	info = drm_malloc_ab(args->in.bo_number,
-			     sizeof(struct drm_amdgpu_bo_list_entry));
+	info = kvmalloc_array(args->in.bo_number,
+			     sizeof(struct drm_amdgpu_bo_list_entry), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
@@ -311,11 +311,11 @@ int amdgpu_bo_list_ioctl(struct drm_device *dev, void *data,
 
 	memset(args, 0, sizeof(*args));
 	args->out.list_handle = handle;
-	drm_free_large(info);
+	kvfree(info);
 
 	return 0;
 
 error_free:
-	drm_free_large(info);
+	kvfree(info);
 	return r;
 }

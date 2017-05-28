@@ -660,14 +660,15 @@ vc4_cl_lookup_bos(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	exec->bo = drm_calloc_large(exec->bo_count,
-				    sizeof(struct drm_gem_cma_object *));
+	exec->bo = kvmalloc_array(exec->bo_count,
+				    sizeof(struct drm_gem_cma_object *),
+				    GFP_KERNEL | __GFP_ZERO);
 	if (!exec->bo) {
 		DRM_ERROR("Failed to allocate validated BO pointers\n");
 		return -ENOMEM;
 	}
 
-	handles = drm_malloc_ab(exec->bo_count, sizeof(uint32_t));
+	handles = kvmalloc_array(exec->bo_count, sizeof(uint32_t), GFP_KERNEL);
 	if (!handles) {
 		ret = -ENOMEM;
 		DRM_ERROR("Failed to allocate incoming GEM handles\n");
@@ -699,7 +700,7 @@ vc4_cl_lookup_bos(struct drm_device *dev,
 	spin_unlock(&file_priv->table_lock);
 
 fail:
-	drm_free_large(handles);
+	kvfree(handles);
 	return ret;
 }
 
@@ -737,7 +738,7 @@ vc4_get_bcl(struct drm_device *dev, struct vc4_exec_info *exec)
 	 * read the contents back for validation, and I think the
 	 * bo->vaddr is uncached access.
 	 */
-	temp = drm_malloc_ab(temp_size, 1);
+	temp = kvmalloc_array(temp_size, 1, GFP_KERNEL);
 	if (!temp) {
 		DRM_ERROR("Failed to allocate storage for copying "
 			  "in bin/render CLs.\n");
@@ -812,7 +813,7 @@ vc4_get_bcl(struct drm_device *dev, struct vc4_exec_info *exec)
 	ret = vc4_wait_for_seqno(dev, exec->bin_dep_seqno, ~0ull, true);
 
 fail:
-	drm_free_large(temp);
+	kvfree(temp);
 	return ret;
 }
 
@@ -832,7 +833,7 @@ vc4_complete_exec(struct drm_device *dev, struct vc4_exec_info *exec)
 	if (exec->bo) {
 		for (i = 0; i < exec->bo_count; i++)
 			drm_gem_object_unreference_unlocked(&exec->bo[i]->base);
-		drm_free_large(exec->bo);
+		kvfree(exec->bo);
 	}
 
 	while (!list_empty(&exec->unref_list)) {

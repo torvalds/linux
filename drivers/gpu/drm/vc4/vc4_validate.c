@@ -172,7 +172,8 @@ vc4_check_tex_size(struct vc4_exec_info *exec, struct drm_gem_cma_object *fbo,
 	 * our math.
 	 */
 	if (width > 4096 || height > 4096) {
-		DRM_ERROR("Surface dimesions (%d,%d) too large", width, height);
+		DRM_ERROR("Surface dimensions (%d,%d) too large",
+			  width, height);
 		return false;
 	}
 

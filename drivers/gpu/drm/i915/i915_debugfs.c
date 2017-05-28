@@ -229,7 +229,7 @@ static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
 	int ret;
 
 	total = READ_ONCE(dev_priv->mm.object_count);
-	objects = drm_malloc_ab(total, sizeof(*objects));
+	objects = kvmalloc_array(total, sizeof(*objects), GFP_KERNEL);
 	if (!objects)
 		return -ENOMEM;
 
@@ -274,7 +274,7 @@ static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
 
 	mutex_unlock(&dev->struct_mutex);
 out:
-	drm_free_large(objects);
+	kvfree(objects);
 	return ret;
 }
 
@@ -3095,17 +3095,17 @@ static const char *plane_rotation(unsigned int rotation)
 {
 	static char buf[48];
 	/*
-	 * According to doc only one DRM_ROTATE_ is allowed but this
+	 * According to doc only one DRM_MODE_ROTATE_ is allowed but this
 	 * will print them all to visualize if the values are misused
 	 */
 	snprintf(buf, sizeof(buf),
 		 "%s%s%s%s%s%s(0x%08x)",
-		 (rotation & DRM_ROTATE_0) ? "0 " : "",
-		 (rotation & DRM_ROTATE_90) ? "90 " : "",
-		 (rotation & DRM_ROTATE_180) ? "180 " : "",
-		 (rotation & DRM_ROTATE_270) ? "270 " : "",
-		 (rotation & DRM_REFLECT_X) ? "FLIPX " : "",
-		 (rotation & DRM_REFLECT_Y) ? "FLIPY " : "",
+		 (rotation & DRM_MODE_ROTATE_0) ? "0 " : "",
+		 (rotation & DRM_MODE_ROTATE_90) ? "90 " : "",
+		 (rotation & DRM_MODE_ROTATE_180) ? "180 " : "",
+		 (rotation & DRM_MODE_ROTATE_270) ? "270 " : "",
+		 (rotation & DRM_MODE_REFLECT_X) ? "FLIPX " : "",
+		 (rotation & DRM_MODE_REFLECT_Y) ? "FLIPY " : "",
 		 rotation);
 
 	return buf;

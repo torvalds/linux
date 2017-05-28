@@ -577,7 +577,7 @@ static void dev_lastclose(struct drm_device *dev)
 
 		drm_object_property_set_value(&crtc->base,
 					      crtc->primary->rotation_property,
-					      DRM_ROTATE_0);
+					      DRM_MODE_ROTATE_0);
 	}
 
 	for (i = 0; i < priv->num_planes; i++) {
@@ -588,7 +588,7 @@ static void dev_lastclose(struct drm_device *dev)
 
 		drm_object_property_set_value(&plane->base,
 					      plane->rotation_property,
-					      DRM_ROTATE_0);
+					      DRM_MODE_ROTATE_0);
 	}
 
 	if (priv->fbdev) {
