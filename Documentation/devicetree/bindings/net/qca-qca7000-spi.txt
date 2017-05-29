@@ -1,29 +1,38 @@
-* Qualcomm QCA7000 (Ethernet over SPI protocol)
+* Qualcomm QCA7000
 
-Note: The QCA7000 is useable as a SPI device. In this case it must be defined
-as a child of a SPI master in the device tree.
+The QCA7000 is a serial-to-powerline bridge with a host interface which could
+be configured either as SPI or UART slave. This configuration is done by
+the QCA7000 firmware.
+
+(a) Ethernet over SPI
+
+In order to use the QCA7000 as SPI device it must be defined as a child of a
+SPI master in the device tree.
 
 Required properties:
-- compatible : Should be "qca,qca7000"
-- reg : Should specify the SPI chip select
-- interrupts : The first cell should specify the index of the source interrupt
-  and the second cell should specify the trigger type as rising edge
-- spi-cpha : Must be set
-- spi-cpol: Must be set
+- compatible	    : Should be "qca,qca7000"
+- reg		    : Should specify the SPI chip select
+- interrupts	    : The first cell should specify the index of the source
+		      interrupt and the second cell should specify the trigger
+		      type as rising edge
+- spi-cpha	    : Must be set
+- spi-cpol	    : Must be set
 
 Optional properties:
-- interrupt-parent : Specify the pHandle of the source interrupt
+- interrupt-parent  : Specify the pHandle of the source interrupt
 - spi-max-frequency : Maximum frequency of the SPI bus the chip can operate at.
-  Numbers smaller than 1000000 or greater than 16000000 are invalid. Missing
-  the property will set the SPI frequency to 8000000 Hertz.
-- local-mac-address: 6 bytes, MAC address
-- qca,legacy-mode : Set the SPI data transfer of the QCA7000 to legacy mode.
-  In this mode the SPI master must toggle the chip select between each data
-  word. In burst mode these gaps aren't necessary, which is faster.
-  This setting depends on how the QCA7000 is setup via GPIO pin strapping.
-  If the property is missing the driver defaults to burst mode.
+		      Numbers smaller than 1000000 or greater than 16000000
+		      are invalid. Missing the property will set the SPI
+		      frequency to 8000000 Hertz.
+- local-mac-address : see ./ethernet.txt
+- qca,legacy-mode   : Set the SPI data transfer of the QCA7000 to legacy mode.
+		      In this mode the SPI master must toggle the chip select
+		      between each data word. In burst mode these gaps aren't
+		      necessary, which is faster. This setting depends on how
+		      the QCA7000 is setup via GPIO pin strapping. If the
+		      property is missing the driver defaults to burst mode.
 
-Example:
+SPI Example:
 
 /* Freescale i.MX28 SPI master*/
 ssp2: spi@80014000 {
