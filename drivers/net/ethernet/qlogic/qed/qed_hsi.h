@@ -3076,6 +3076,29 @@ enum dbg_status qed_dbg_fw_asserts_dump(struct qed_hwfn *p_hwfn,
 					u32 *dump_buf,
 					u32 buf_size_in_dwords,
 					u32 *num_dumped_dwords);
+
+/**
+ * @brief qed_dbg_read_attn - Reads the attention registers of the specified
+ * block and type, and writes the results into the specified buffer.
+ *
+ * @param p_hwfn -	 HW device data
+ * @param p_ptt -	 Ptt window used for writing the registers.
+ * @param block -	 Block ID.
+ * @param attn_type -	 Attention type.
+ * @param clear_status - Indicates if the attention status should be cleared.
+ * @param results -	 OUT: Pointer to write the read results into
+ *
+ * @return error if one of the following holds:
+ *	- the version wasn't set
+ * Otherwise, returns ok.
+ */
+enum dbg_status qed_dbg_read_attn(struct qed_hwfn *p_hwfn,
+				  struct qed_ptt *p_ptt,
+				  enum block_id block,
+				  enum dbg_attn_type attn_type,
+				  bool clear_status,
+				  struct dbg_attn_block_result *results);
+
 /**
  * @brief qed_dbg_print_attn - Prints attention registers values in the
  *	specified results struct.
@@ -3308,6 +3331,20 @@ enum dbg_status qed_print_fw_asserts_results(struct qed_hwfn *p_hwfn,
 					     u32 *dump_buf,
 					     u32 num_dumped_dwords,
 					     char *results_buf);
+
+/**
+ * @brief qed_dbg_parse_attn - Parses and prints attention registers values in
+ * the specified results struct.
+ *
+ * @param p_hwfn -  HW device data
+ * @param results - Pointer to the attention read results
+ *
+ * @return error if one of the following holds:
+ *	- the version wasn't set
+ * Otherwise, returns ok.
+ */
+enum dbg_status qed_dbg_parse_attn(struct qed_hwfn *p_hwfn,
+				   struct dbg_attn_block_result *results);
 
 /* Debug Bus blocks */
 static const u32 dbg_bus_blocks[] = {
