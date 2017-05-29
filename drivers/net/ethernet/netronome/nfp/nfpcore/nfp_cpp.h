@@ -63,6 +63,11 @@
 /* Max size of area it should be safe to request */
 #define NFP_CPP_SAFE_AREA_SIZE		SZ_2M
 
+/* NFP_MUTEX_WAIT_* are timeouts in seconds when waiting for a mutex */
+#define NFP_MUTEX_WAIT_FIRST_WARN	15
+#define NFP_MUTEX_WAIT_NEXT_WARN	5
+#define NFP_MUTEX_WAIT_ERROR		60
+
 struct device;
 
 struct nfp_cpp_area;
