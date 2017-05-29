@@ -90,6 +90,12 @@ struct aeu_invert_reg_bit {
 /* Multiple bits start with this offset */
 #define ATTENTION_OFFSET_MASK           (0x000ff000)
 #define ATTENTION_OFFSET_SHIFT          (12)
+
+#define ATTENTION_BB_MASK               (0x00700000)
+#define ATTENTION_BB_SHIFT              (20)
+#define ATTENTION_BB(value)             (value << ATTENTION_BB_SHIFT)
+#define ATTENTION_BB_DIFFERENT          BIT(23)
+
 	unsigned int flags;
 
 	/* Callback to call if attention will be triggered */
@@ -381,6 +387,25 @@ static int qed_dorq_attn_cb(struct qed_hwfn *p_hwfn)
 	return -EINVAL;
 }
 
+/* Instead of major changes to the data-structure, we have a some 'special'
+ * identifiers for sources that changed meaning between adapters.
+ */
+enum aeu_invert_reg_special_type {
+	AEU_INVERT_REG_SPECIAL_CNIG_0,
+	AEU_INVERT_REG_SPECIAL_CNIG_1,
+	AEU_INVERT_REG_SPECIAL_CNIG_2,
+	AEU_INVERT_REG_SPECIAL_CNIG_3,
+	AEU_INVERT_REG_SPECIAL_MAX,
+};
+
+static struct aeu_invert_reg_bit
+aeu_descs_special[AEU_INVERT_REG_SPECIAL_MAX] = {
+	{"CNIG port 0", ATTENTION_SINGLE, NULL, BLOCK_CNIG},
+	{"CNIG port 1", ATTENTION_SINGLE, NULL, BLOCK_CNIG},
+	{"CNIG port 2", ATTENTION_SINGLE, NULL, BLOCK_CNIG},
+	{"CNIG port 3", ATTENTION_SINGLE, NULL, BLOCK_CNIG},
+};
+
 /* Notice aeu_invert_reg must be defined in the same order of bits as HW;  */
 static struct aeu_invert_reg aeu_descs[NUM_ATTN_REGS] = {
 	{
@@ -427,8 +452,22 @@ static struct aeu_invert_reg aeu_descs[NUM_ATTN_REGS] = {
 			 (33 << ATTENTION_OFFSET_SHIFT), NULL, MAX_BLOCK_ID},
 			{"General Attention 35", ATTENTION_SINGLE,
 			 NULL, MAX_BLOCK_ID},
-			{"CNIG port %d", (4 << ATTENTION_LENGTH_SHIFT),
-			 NULL, BLOCK_CNIG},
+			{"NWS Parity",
+			 ATTENTION_PAR | ATTENTION_BB_DIFFERENT |
+			 ATTENTION_BB(AEU_INVERT_REG_SPECIAL_CNIG_0),
+			 NULL, BLOCK_NWS},
+			{"NWS Interrupt",
+			 ATTENTION_SINGLE | ATTENTION_BB_DIFFERENT |
+			 ATTENTION_BB(AEU_INVERT_REG_SPECIAL_CNIG_1),
+			 NULL, BLOCK_NWS},
+			{"NWM Parity",
+			 ATTENTION_PAR | ATTENTION_BB_DIFFERENT |
+			 ATTENTION_BB(AEU_INVERT_REG_SPECIAL_CNIG_2),
+			 NULL, BLOCK_NWM},
+			{"NWM Interrupt",
+			 ATTENTION_SINGLE | ATTENTION_BB_DIFFERENT |
+			 ATTENTION_BB(AEU_INVERT_REG_SPECIAL_CNIG_3),
+			 NULL, BLOCK_NWM},
 			{"MCP CPU", ATTENTION_SINGLE,
 			 qed_mcp_attn_cb, MAX_BLOCK_ID},
 			{"MCP Watchdog timer", ATTENTION_SINGLE,
@@ -565,6 +604,27 @@ static struct aeu_invert_reg aeu_descs[NUM_ATTN_REGS] = {
 		}
 	},
 };
+
+static struct aeu_invert_reg_bit *
+qed_int_aeu_translate(struct qed_hwfn *p_hwfn,
+		      struct aeu_invert_reg_bit *p_bit)
+{
+	if (!QED_IS_BB(p_hwfn->cdev))
+		return p_bit;
+
+	if (!(p_bit->flags & ATTENTION_BB_DIFFERENT))
+		return p_bit;
+
+	return &aeu_descs_special[(p_bit->flags & ATTENTION_BB_MASK) >>
+				  ATTENTION_BB_SHIFT];
+}
+
+static bool qed_int_is_parity_flag(struct qed_hwfn *p_hwfn,
+				   struct aeu_invert_reg_bit *p_bit)
+{
+	return !!(qed_int_aeu_translate(p_hwfn, p_bit)->flags &
+		   ATTENTION_PARITY);
+}
 
 #define ATTN_STATE_BITS         (0xfff)
 #define ATTN_BITS_MASKABLE      (0x3ff)
@@ -799,7 +859,7 @@ static int qed_int_deassertion(struct qed_hwfn  *p_hwfn,
 		for (j = 0, bit_idx = 0; bit_idx < 32; j++) {
 			struct aeu_invert_reg_bit *p_bit = &p_aeu->bits[j];
 
-			if ((p_bit->flags & ATTENTION_PARITY) &&
+			if (qed_int_is_parity_flag(p_hwfn, p_bit) &&
 			    !!(parities & BIT(bit_idx)))
 				qed_int_deassertion_parity(p_hwfn, p_bit,
 							   bit_idx);
@@ -838,14 +898,11 @@ static int qed_int_deassertion(struct qed_hwfn  *p_hwfn,
 				u32 bitmask;
 
 				p_aeu = &sb_attn_sw->p_aeu_desc[i].bits[j];
-
-				/* No need to handle parity-only bits */
-				if (p_aeu->flags == ATTENTION_PAR)
-					continue;
+				p_aeu = qed_int_aeu_translate(p_hwfn, p_aeu);
 
 				bit = bit_idx;
 				bit_len = ATTENTION_LENGTH(p_aeu->flags);
-				if (p_aeu->flags & ATTENTION_PAR_INT) {
+				if (qed_int_is_parity_flag(p_hwfn, p_aeu)) {
 					/* Skip Parity */
 					bit++;
 					bit_len--;
@@ -1104,12 +1161,13 @@ static void qed_int_sb_attn_init(struct qed_hwfn *p_hwfn,
 	for (i = 0; i < NUM_ATTN_REGS; i++) {
 		/* j is array index, k is bit index */
 		for (j = 0, k = 0; k < 32; j++) {
-			unsigned int flags = aeu_descs[i].bits[j].flags;
+			struct aeu_invert_reg_bit *p_aeu;
 
-			if (flags & ATTENTION_PARITY)
+			p_aeu = &aeu_descs[i].bits[j];
+			if (qed_int_is_parity_flag(p_hwfn, p_aeu))
 				sb_info->parity_mask[i] |= 1 << k;
 
-			k += ATTENTION_LENGTH(flags);
+			k += ATTENTION_LENGTH(p_aeu->flags);
 		}
 		DP_VERBOSE(p_hwfn, NETIF_MSG_INTR,
 			   "Attn Mask [Reg %d]: 0x%08x\n",
