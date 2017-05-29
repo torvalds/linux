@@ -98,7 +98,6 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	struct radeon_device *rdev;
 	int r, acpi_status;
 
-#ifdef CONFIG_DRM_AMDGPU_SI
 	if (!radeon_si_support) {
 		switch (flags & RADEON_FAMILY_MASK) {
 		case CHIP_TAHITI:
@@ -111,8 +110,6 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 			return -ENODEV;
 		}
 	}
-#endif
-#ifdef CONFIG_DRM_AMDGPU_CIK
 	if (!radeon_cik_support) {
 		switch (flags & RADEON_FAMILY_MASK) {
 		case CHIP_KAVERI:
@@ -128,7 +125,6 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 			return -ENODEV;
 		}
 	}
-#endif
 
 	rdev = kzalloc(sizeof(struct radeon_device), GFP_KERNEL);
 	if (rdev == NULL) {
