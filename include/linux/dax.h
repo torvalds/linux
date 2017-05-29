@@ -16,6 +16,9 @@ struct dax_operations {
 	 */
 	long (*direct_access)(struct dax_device *, pgoff_t, long,
 			void **, pfn_t *);
+	/* copy_from_iter: dax-driver override for default copy_from_iter */
+	size_t (*copy_from_iter)(struct dax_device *, pgoff_t, void *, size_t,
+			struct iov_iter *);
 };
 
 #if IS_ENABLED(CONFIG_DAX)

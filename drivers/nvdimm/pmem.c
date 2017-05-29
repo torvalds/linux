@@ -29,6 +29,7 @@
 #include <linux/pfn_t.h>
 #include <linux/slab.h>
 #include <linux/pmem.h>
+#include <linux/uio.h>
 #include <linux/dax.h>
 #include <linux/nd.h>
 #include "pmem.h"
@@ -80,7 +81,7 @@ static void write_pmem(void *pmem_addr, struct page *page,
 {
 	void *mem = kmap_atomic(page);
 
-	memcpy_to_pmem(pmem_addr, mem + off, len);
+	memcpy_flushcache(pmem_addr, mem + off, len);
 	kunmap_atomic(mem);
 }
 
@@ -235,8 +236,15 @@ static long pmem_dax_direct_access(struct dax_device *dax_dev,
 	return __pmem_direct_access(pmem, pgoff, nr_pages, kaddr, pfn);
 }
 
+static size_t pmem_copy_from_iter(struct dax_device *dax_dev, pgoff_t pgoff,
+		void *addr, size_t bytes, struct iov_iter *i)
+{
+	return copy_from_iter_flushcache(addr, bytes, i);
+}
+
 static const struct dax_operations pmem_dax_ops = {
 	.direct_access = pmem_dax_direct_access,
+	.copy_from_iter = pmem_copy_from_iter,
 };
 
 static void pmem_release_queue(void *q)
@@ -294,7 +302,8 @@ static int pmem_attach_disk(struct device *dev,
 	dev_set_drvdata(dev, pmem);
 	pmem->phys_addr = res->start;
 	pmem->size = resource_size(res);
-	if (nvdimm_has_flush(nd_region) < 0)
+	if (!IS_ENABLED(CONFIG_ARCH_HAS_UACCESS_FLUSHCACHE)
+			|| nvdimm_has_flush(nd_region) < 0)
 		dev_warn(dev, "unable to guarantee persistence of writes\n");
 
 	if (!devm_request_mem_region(dev, res->start, resource_size(res),
