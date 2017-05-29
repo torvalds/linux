@@ -24,6 +24,10 @@
 #include "include/perms.h"
 #include "include/policy.h"
 
+struct aa_perms allperms = { .allow = ALL_PERMS_MASK,
+			     .quiet = ALL_PERMS_MASK,
+			     .hide = ALL_PERMS_MASK };
+
 /**
  * aa_split_fqname - split a fqname into a profile and namespace name
  * @fqname: a full qualified name in namespace profile format (NOT NULL)
@@ -186,6 +190,104 @@ void aa_perm_mask_to_str(char *str, const char *chrs, u32 mask)
 			*str++ = chrs[i];
 	}
 	*str = '\0';
+}
+
+void aa_audit_perm_names(struct audit_buffer *ab, const char **names, u32 mask)
+{
+	const char *fmt = "%s";
+	unsigned int i, perm = 1;
+	bool prev = false;
+
+	for (i = 0; i < 32; perm <<= 1, i++) {
+		if (mask & perm) {
+			audit_log_format(ab, fmt, names[i]);
+			if (!prev) {
+				prev = true;
+				fmt = " %s";
+			}
+		}
+	}
+}
+
+void aa_audit_perm_mask(struct audit_buffer *ab, u32 mask, const char *chrs,
+			u32 chrsmask, const char **names, u32 namesmask)
+{
+	char str[33];
+
+	audit_log_format(ab, "\"");
+	if ((mask & chrsmask) && chrs) {
+		aa_perm_mask_to_str(str, chrs, mask & chrsmask);
+		mask &= ~chrsmask;
+		audit_log_format(ab, "%s", str);
+		if (mask & namesmask)
+			audit_log_format(ab, " ");
+	}
+	if ((mask & namesmask) && names)
+		aa_audit_perm_names(ab, names, mask & namesmask);
+	audit_log_format(ab, "\"");
+}
+
+/**
+ * aa_apply_modes_to_perms - apply namespace and profile flags to perms
+ * @profile: that perms where computed from
+ * @perms: perms to apply mode modifiers to
+ *
+ * TODO: split into profile and ns based flags for when accumulating perms
+ */
+void aa_apply_modes_to_perms(struct aa_profile *profile, struct aa_perms *perms)
+{
+	switch (AUDIT_MODE(profile)) {
+	case AUDIT_ALL:
+		perms->audit = ALL_PERMS_MASK;
+		/* fall through */
+	case AUDIT_NOQUIET:
+		perms->quiet = 0;
+		break;
+	case AUDIT_QUIET:
+		perms->audit = 0;
+		/* fall through */
+	case AUDIT_QUIET_DENIED:
+		perms->quiet = ALL_PERMS_MASK;
+		break;
+	}
+
+	if (KILL_MODE(profile))
+		perms->kill = ALL_PERMS_MASK;
+	else if (COMPLAIN_MODE(profile))
+		perms->complain = ALL_PERMS_MASK;
+/*
+ *  TODO:
+ *	else if (PROMPT_MODE(profile))
+ *		perms->prompt = ALL_PERMS_MASK;
+ */
+}
+
+static u32 map_other(u32 x)
+{
+	return ((x & 0x3) << 8) |	/* SETATTR/GETATTR */
+		((x & 0x1c) << 18) |	/* ACCEPT/BIND/LISTEN */
+		((x & 0x60) << 19);	/* SETOPT/GETOPT */
+}
+
+void aa_compute_perms(struct aa_dfa *dfa, unsigned int state,
+		      struct aa_perms *perms)
+{
+	perms->deny = 0;
+	perms->kill = perms->stop = 0;
+	perms->complain = perms->cond = 0;
+	perms->hide = 0;
+	perms->prompt = 0;
+	perms->allow = dfa_user_allow(dfa, state);
+	perms->audit = dfa_user_audit(dfa, state);
+	perms->quiet = dfa_user_quiet(dfa, state);
+
+	/* for v5 perm mapping in the policydb, the other set is used
+	 * to extend the general perm set
+	 */
+	perms->allow |= map_other(dfa_other_allow(dfa, state));
+	perms->audit |= map_other(dfa_other_audit(dfa, state));
+	perms->quiet |= map_other(dfa_other_quiet(dfa, state));
+//	perms->xindex = dfa_user_xindex(dfa, state);
 }
 
 /**

@@ -66,6 +66,40 @@
 extern const char aa_file_perm_chrs[];
 extern const char *aa_file_perm_names[];
 
+struct aa_perms {
+	u32 allow;
+	u32 audit;	/* set only when allow is set */
+
+	u32 deny;	/* explicit deny, or conflict if allow also set */
+	u32 quiet;	/* set only when ~allow | deny */
+	u32 kill;	/* set only when ~allow | deny */
+	u32 stop;	/* set only when ~allow | deny */
+
+	u32 complain;	/* accumulates only used when ~allow & ~deny */
+	u32 cond;	/* set only when ~allow and ~deny */
+
+	u32 hide;	/* set only when  ~allow | deny */
+	u32 prompt;	/* accumulates only used when ~allow & ~deny */
+
+	/* Reserved:
+	 * u32 subtree;	/ * set only when allow is set * /
+	 */
+	u16 xindex;
+};
+
+#define ALL_PERMS_MASK 0xffffffff
+
+extern struct aa_perms allperms;
+
+struct aa_profile;
+
 void aa_perm_mask_to_str(char *str, const char *chrs, u32 mask);
+void aa_audit_perm_names(struct audit_buffer *ab, const char **names, u32 mask);
+void aa_audit_perm_mask(struct audit_buffer *ab, u32 mask, const char *chrs,
+			u32 chrsmask, const char **names, u32 namesmask);
+void aa_apply_modes_to_perms(struct aa_profile *profile,
+			     struct aa_perms *perms);
+void aa_compute_perms(struct aa_dfa *dfa, unsigned int state,
+		      struct aa_perms *perms);
 
 #endif /* __AA_PERM_H */
