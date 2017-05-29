@@ -1406,6 +1406,42 @@ static void calculate_phy_pix_clks(struct validate_context *context)
 	}
 }
 
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+static int acquire_first_split_pipe(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		struct core_stream *stream)
+{
+	int i;
+
+	for (i = 0; i < pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
+
+		if (pipe_ctx->top_pipe &&
+				pipe_ctx->top_pipe->surface == pipe_ctx->surface) {
+			int mpc_idx = pipe_ctx->mpc_idx;
+
+			pipe_ctx->top_pipe->bottom_pipe = pipe_ctx->bottom_pipe;
+			pipe_ctx->bottom_pipe->top_pipe = pipe_ctx->top_pipe;
+
+			memset(pipe_ctx, 0, sizeof(*pipe_ctx));
+			pipe_ctx->tg = pool->timing_generators[i];
+			pipe_ctx->mi = pool->mis[i];
+			pipe_ctx->ipp = pool->ipps[i];
+			pipe_ctx->xfm = pool->transforms[i];
+			pipe_ctx->opp = pool->opps[i];
+			pipe_ctx->dis_clk = pool->display_clock;
+			pipe_ctx->pipe_idx = i;
+			pipe_ctx->mpc_idx = mpc_idx;
+
+			pipe_ctx->stream = stream;
+			return i;
+		}
+	}
+	return -1;
+}
+#endif
+
 enum dc_status resource_map_pool_resources(
 		const struct core_dc *dc,
 		struct validate_context *context,
@@ -1477,8 +1513,11 @@ enum dc_status resource_map_pool_resources(
 		if (old_context && resource_is_stream_unchanged(old_context, stream))
 			continue;
 		/* acquire new resources */
-		pipe_idx = acquire_first_free_pipe(
-				&context->res_ctx, pool, stream);
+		pipe_idx = acquire_first_free_pipe(&context->res_ctx, pool, stream);
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+		if (pipe_idx < 0)
+			acquire_first_split_pipe(&context->res_ctx, pool, stream);
+#endif
 		if (pipe_idx < 0)
 			return DC_NO_CONTROLLER_RESOURCE;
 
