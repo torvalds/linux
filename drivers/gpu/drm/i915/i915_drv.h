@@ -80,8 +80,8 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20170515"
-#define DRIVER_TIMESTAMP	1494832308
+#define DRIVER_DATE		"20170529"
+#define DRIVER_TIMESTAMP	1496041258
 
 /* Use I915_STATE_WARN(x) and I915_STATE_WARN_ON() (rather than WARN() and
  * WARN_ON()) for hw state sanity checks to check for unexpected conditions
