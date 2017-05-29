@@ -103,6 +103,11 @@ SECTIONS
 	 * section placement to work.
 	 */
 	.text BLOCK(0) : AT(ADDR(.text) - LOAD_OFFSET) {
+#ifdef CONFIG_LD_HEAD_STUB_CATCH
+		*(.linker_stub_catch);
+		. = . ;
+#endif
+
 #else
 	.text : AT(ADDR(.text) - LOAD_OFFSET) {
 		ALIGN_FUNCTION();
