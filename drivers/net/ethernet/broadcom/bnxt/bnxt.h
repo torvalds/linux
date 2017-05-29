@@ -938,31 +938,45 @@ struct bnxt {
 #define CHIP_NUM_57402		0x16d0
 #define CHIP_NUM_57404		0x16d1
 #define CHIP_NUM_57406		0x16d2
+#define CHIP_NUM_57407		0x16d5
 
 #define CHIP_NUM_57311		0x16ce
 #define CHIP_NUM_57312		0x16cf
 #define CHIP_NUM_57314		0x16df
+#define CHIP_NUM_57317		0x16e0
 #define CHIP_NUM_57412		0x16d6
 #define CHIP_NUM_57414		0x16d7
 #define CHIP_NUM_57416		0x16d8
 #define CHIP_NUM_57417		0x16d9
+#define CHIP_NUM_57412L		0x16da
+#define CHIP_NUM_57414L		0x16db
+
+#define CHIP_NUM_5745X		0xd730
 
 #define BNXT_CHIP_NUM_5730X(chip_num)		\
 	((chip_num) >= CHIP_NUM_57301 &&	\
 	 (chip_num) <= CHIP_NUM_57304)
 
 #define BNXT_CHIP_NUM_5740X(chip_num)		\
-	((chip_num) >= CHIP_NUM_57402 &&	\
-	 (chip_num) <= CHIP_NUM_57406)
+	(((chip_num) >= CHIP_NUM_57402 &&	\
+	  (chip_num) <= CHIP_NUM_57406) ||	\
+	 (chip_num) == CHIP_NUM_57407)
 
 #define BNXT_CHIP_NUM_5731X(chip_num)		\
 	((chip_num) == CHIP_NUM_57311 ||	\
 	 (chip_num) == CHIP_NUM_57312 ||	\
-	 (chip_num) == CHIP_NUM_57314)
+	 (chip_num) == CHIP_NUM_57314 ||	\
+	 (chip_num) == CHIP_NUM_57317)
 
 #define BNXT_CHIP_NUM_5741X(chip_num)		\
 	((chip_num) >= CHIP_NUM_57412 &&	\
-	 (chip_num) <= CHIP_NUM_57417)
+	 (chip_num) <= CHIP_NUM_57414L)
+
+#define BNXT_CHIP_NUM_58700(chip_num)		\
+	 ((chip_num) == CHIP_NUM_58700)
+
+#define BNXT_CHIP_NUM_5745X(chip_num)		\
+	 ((chip_num) == CHIP_NUM_5745X)
 
 #define BNXT_CHIP_NUM_57X0X(chip_num)		\
 	(BNXT_CHIP_NUM_5730X(chip_num) || BNXT_CHIP_NUM_5740X(chip_num))
@@ -1021,6 +1035,13 @@ struct bnxt {
 #define BNXT_SINGLE_PF(bp)	(BNXT_PF(bp) && !BNXT_NPAR(bp) && !BNXT_MH(bp))
 #define BNXT_CHIP_TYPE_NITRO_A0(bp) ((bp)->flags & BNXT_FLAG_CHIP_NITRO_A0)
 #define BNXT_RX_PAGE_MODE(bp)	((bp)->flags & BNXT_FLAG_RX_PAGE_MODE)
+
+/* Chip class phase 4 and later */
+#define BNXT_CHIP_P4_PLUS(bp)			\
+	(BNXT_CHIP_NUM_57X1X((bp)->chip_num) ||	\
+	 BNXT_CHIP_NUM_5745X((bp)->chip_num) ||	\
+	 (BNXT_CHIP_NUM_58700((bp)->chip_num) &&	\
+	  !BNXT_CHIP_TYPE_NITRO_A0(bp)))
 
 	struct bnxt_en_dev	*edev;
 	struct bnxt_en_dev *	(*ulp_probe)(struct net_device *);
