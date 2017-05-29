@@ -32,7 +32,7 @@
 #include <linux/spi/spi.h>
 #include <linux/types.h>
 
-#include "qca_framing.h"
+#include "qca_7k_common.h"
 
 #define QCASPI_DRV_VERSION "0.2.7-i"
 #define QCASPI_DRV_NAME    "qcaspi"
