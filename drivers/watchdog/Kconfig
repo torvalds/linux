@@ -1688,7 +1688,7 @@ config MEN_A21_WDT
 
 config WATCHDOG_RTAS
 	tristate "RTAS watchdog"
-	depends on PPC_RTAS || (PPC64 && COMPILE_TEST)
+	depends on PPC_RTAS
 	help
 	  This driver adds watchdog support for the RTAS watchdog.
 
