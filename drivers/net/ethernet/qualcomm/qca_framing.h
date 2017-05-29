@@ -103,7 +103,7 @@ struct qcafrm_handle {
 	enum qcafrm_state state;
 
 	/* Offset in buffer (borrowed for length too) */
-	s16 offset;
+	u16 offset;
 
 	/* Frame length as kept by this module */
 	u16 len;
