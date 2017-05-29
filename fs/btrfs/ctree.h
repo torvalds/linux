@@ -1293,6 +1293,8 @@ static inline u32 BTRFS_LEAF_DATA_SIZE(const struct btrfs_fs_info *info)
 	return __BTRFS_LEAF_DATA_SIZE(info->nodesize);
 }
 
+#define BTRFS_LEAF_DATA_OFFSET		offsetof(struct btrfs_leaf, items)
+
 static inline u32 BTRFS_MAX_ITEM_SIZE(const struct btrfs_fs_info *info)
 {
 	return BTRFS_LEAF_DATA_SIZE(info) - sizeof(struct btrfs_item);
@@ -2325,10 +2327,6 @@ static inline int btrfs_super_csum_size(struct btrfs_super_block *s)
 	return btrfs_csum_sizes[t];
 }
 
-static inline unsigned long btrfs_leaf_data(struct extent_buffer *l)
-{
-	return offsetof(struct btrfs_leaf, items);
-}
 
 /*
  * The leaf data grows from end-to-front in the node.
@@ -2539,11 +2537,11 @@ BTRFS_SETGET_STACK_FUNCS(stack_dev_replace_cursor_right,
 
 /* helper function to cast into the data area of the leaf. */
 #define btrfs_item_ptr(leaf, slot, type) \
-	((type *)(btrfs_leaf_data(leaf) + \
+	((type *)(BTRFS_LEAF_DATA_OFFSET + \
 	btrfs_item_offset_nr(leaf, slot)))
 
 #define btrfs_item_ptr_offset(leaf, slot) \
-	((unsigned long)(btrfs_leaf_data(leaf) + \
+	((unsigned long)(BTRFS_LEAF_DATA_OFFSET + \
 	btrfs_item_offset_nr(leaf, slot)))
 
 static inline bool btrfs_mixed_space_info(struct btrfs_space_info *space_info)
