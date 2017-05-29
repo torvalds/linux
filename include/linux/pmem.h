@@ -31,11 +31,6 @@ static inline void arch_memcpy_to_pmem(void *dst, const void *src, size_t n)
 	BUG();
 }
 
-static inline void arch_clear_pmem(void *addr, size_t size)
-{
-	BUG();
-}
-
 static inline void arch_wb_cache_pmem(void *addr, size_t size)
 {
 	BUG();
@@ -70,22 +65,6 @@ static inline void memcpy_to_pmem(void *dst, const void *src, size_t n)
 		arch_memcpy_to_pmem(dst, src, n);
 	else
 		memcpy(dst, src, n);
-}
-
-/**
- * clear_pmem - zero a PMEM memory range
- * @addr:	virtual start address
- * @size:	number of bytes to zero
- *
- * Write zeros into the memory range starting at 'addr' for 'size' bytes.
- * See blkdev_issue_flush() note for memcpy_to_pmem().
- */
-static inline void clear_pmem(void *addr, size_t size)
-{
-	if (arch_has_pmem_api())
-		arch_clear_pmem(addr, size);
-	else
-		memset(addr, 0, size);
 }
 
 /**

@@ -975,7 +975,8 @@ int __dax_zero_page_range(struct block_device *bdev,
 			dax_read_unlock(id);
 			return rc;
 		}
-		clear_pmem(kaddr + offset, size);
+		memset(kaddr + offset, 0, size);
+		dax_flush(dax_dev, pgoff, kaddr + offset, size);
 		dax_read_unlock(id);
 	}
 	return 0;

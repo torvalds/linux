@@ -65,19 +65,6 @@ static inline void arch_wb_cache_pmem(void *addr, size_t size)
 		clwb(p);
 }
 
-/**
- * arch_clear_pmem - zero a PMEM memory range
- * @addr:	virtual start address
- * @size:	number of bytes to zero
- *
- * Write zeros into the memory range starting at 'addr' for 'size' bytes.
- */
-static inline void arch_clear_pmem(void *addr, size_t size)
-{
-	memset(addr, 0, size);
-	arch_wb_cache_pmem(addr, size);
-}
-
 static inline void arch_invalidate_pmem(void *addr, size_t size)
 {
 	clflush_cache_range(addr, size);
