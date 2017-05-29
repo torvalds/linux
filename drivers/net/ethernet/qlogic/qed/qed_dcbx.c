@@ -191,17 +191,19 @@ static void
 qed_dcbx_set_params(struct qed_dcbx_results *p_data,
 		    struct qed_hw_info *p_info,
 		    bool enable,
-		    bool update,
 		    u8 prio,
 		    u8 tc,
 		    enum dcbx_protocol_type type,
 		    enum qed_pci_personality personality)
 {
 	/* PF update ramrod data */
-	p_data->arr[type].update = update;
 	p_data->arr[type].enable = enable;
 	p_data->arr[type].priority = prio;
 	p_data->arr[type].tc = tc;
+	if (enable)
+		p_data->arr[type].update = UPDATE_DCB;
+	else
+		p_data->arr[type].update = DONT_UPDATE_DCB_DSCP;
 
 	/* QM reconf data */
 	if (p_info->personality == personality)
@@ -213,7 +215,6 @@ static void
 qed_dcbx_update_app_info(struct qed_dcbx_results *p_data,
 			 struct qed_hwfn *p_hwfn,
 			 bool enable,
-			 bool update,
 			 u8 prio, u8 tc, enum dcbx_protocol_type type)
 {
 	struct qed_hw_info *p_info = &p_hwfn->hw_info;
@@ -231,7 +232,7 @@ qed_dcbx_update_app_info(struct qed_dcbx_results *p_data,
 		personality = qed_dcbx_app_update[i].personality;
 		name = qed_dcbx_app_update[i].name;
 
-		qed_dcbx_set_params(p_data, p_info, enable, update,
+		qed_dcbx_set_params(p_data, p_info, enable,
 				    prio, tc, type, personality);
 	}
 }
@@ -304,7 +305,7 @@ qed_dcbx_process_tlv(struct qed_hwfn *p_hwfn,
 			 */
 			enable = !(type == DCBX_PROTOCOL_ETH);
 
-			qed_dcbx_update_app_info(p_data, p_hwfn, enable, true,
+			qed_dcbx_update_app_info(p_data, p_hwfn, enable,
 						 priority, tc, type);
 		}
 	}
@@ -316,7 +317,7 @@ qed_dcbx_process_tlv(struct qed_hwfn *p_hwfn,
 	    p_data->arr[DCBX_PROTOCOL_ROCE].update) {
 		tc = p_data->arr[DCBX_PROTOCOL_ROCE].tc;
 		priority = p_data->arr[DCBX_PROTOCOL_ROCE].priority;
-		qed_dcbx_update_app_info(p_data, p_hwfn, true, true,
+		qed_dcbx_update_app_info(p_data, p_hwfn, true,
 					 priority, tc, DCBX_PROTOCOL_ROCE_V2);
 	}
 
@@ -332,8 +333,8 @@ qed_dcbx_process_tlv(struct qed_hwfn *p_hwfn,
 		if (p_data->arr[type].update)
 			continue;
 
-		enable = !(type == DCBX_PROTOCOL_ETH);
-		qed_dcbx_update_app_info(p_data, p_hwfn, enable, true,
+		enable = (type == DCBX_PROTOCOL_ETH) ? false : !!dcbx_version;
+		qed_dcbx_update_app_info(p_data, p_hwfn, enable,
 					 priority, tc, type);
 	}
 
