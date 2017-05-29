@@ -639,19 +639,23 @@ static int enable_bars(struct nfp6000_pcie *nfp, u16 interface)
 		nfp6000_bar_write(nfp, bar, barcfg_msix_general);
 
 		nfp->expl.data = bar->iomem + NFP_PCIE_SRAM + 0x1000;
+
+		if (nfp->pdev->device == PCI_DEVICE_ID_NETRONOME_NFP4000 ||
+		    nfp->pdev->device == PCI_DEVICE_ID_NETRONOME_NFP6000) {
+			nfp->iomem.csr = bar->iomem + NFP_PCIE_BAR(0);
+		} else {
+			int pf = nfp->pdev->devfn & 7;
+
+			nfp->iomem.csr = bar->iomem + NFP_PCIE_BAR(pf);
+		}
+		nfp->iomem.em = bar->iomem + NFP_PCIE_EM;
 	}
 
 	if (nfp->pdev->device == PCI_DEVICE_ID_NETRONOME_NFP4000 ||
-	    nfp->pdev->device == PCI_DEVICE_ID_NETRONOME_NFP6000) {
-		nfp->iomem.csr = bar->iomem + NFP_PCIE_BAR(0);
+	    nfp->pdev->device == PCI_DEVICE_ID_NETRONOME_NFP6000)
 		expl_groups = 4;
-	} else {
-		int pf = nfp->pdev->devfn & 7;
-
-		nfp->iomem.csr = bar->iomem + NFP_PCIE_BAR(pf);
+	else
 		expl_groups = 1;
-	}
-	nfp->iomem.em = bar->iomem + NFP_PCIE_EM;
 
 	/* Configure, and lock, BAR0.1 for PCIe XPB (MSI-X PBA) */
 	bar = &nfp->bar[1];
