@@ -50,11 +50,38 @@
 #define STM32F4_ADC_MAX_CLK_RATE	36000000
 
 /**
+ * stm32_adc_common_regs - stm32 common registers, compatible dependent data
+ * @csr:	common status register offset
+ * @eoc1:	adc1 end of conversion flag in @csr
+ * @eoc2:	adc2 end of conversion flag in @csr
+ * @eoc3:	adc3 end of conversion flag in @csr
+ */
+struct stm32_adc_common_regs {
+	u32 csr;
+	u32 eoc1_msk;
+	u32 eoc2_msk;
+	u32 eoc3_msk;
+};
+
+struct stm32_adc_priv;
+
+/**
+ * stm32_adc_priv_cfg - stm32 core compatible configuration data
+ * @regs:	common registers for all instances
+ * @clk_sel:	clock selection routine
+ */
+struct stm32_adc_priv_cfg {
+	const struct stm32_adc_common_regs *regs;
+	int (*clk_sel)(struct platform_device *, struct stm32_adc_priv *);
+};
+
+/**
  * struct stm32_adc_priv - stm32 ADC core private data
  * @irq:		irq for ADC block
  * @domain:		irq domain reference
  * @aclk:		clock reference for the analog circuitry
  * @vref:		regulator reference
+ * @cfg:		compatible configuration data
  * @common:		common data for all ADC instances
  */
 struct stm32_adc_priv {
@@ -62,6 +89,7 @@ struct stm32_adc_priv {
 	struct irq_domain		*domain;
 	struct clk			*aclk;
 	struct regulator		*vref;
+	const struct stm32_adc_priv_cfg	*cfg;
 	struct stm32_adc_common		common;
 };
 
@@ -112,6 +140,14 @@ static int stm32f4_adc_clk_sel(struct platform_device *pdev,
 	return 0;
 }
 
+/* STM32F4 common registers definitions */
+static const struct stm32_adc_common_regs stm32f4_adc_common_regs = {
+	.csr = STM32F4_ADC_CSR,
+	.eoc1_msk = STM32F4_EOC1,
+	.eoc2_msk = STM32F4_EOC2,
+	.eoc3_msk = STM32F4_EOC3,
+};
+
 /* ADC common interrupt for all instances */
 static void stm32_adc_irq_handler(struct irq_desc *desc)
 {
@@ -120,15 +156,15 @@ static void stm32_adc_irq_handler(struct irq_desc *desc)
 	u32 status;
 
 	chained_irq_enter(chip, desc);
-	status = readl_relaxed(priv->common.base + STM32F4_ADC_CSR);
+	status = readl_relaxed(priv->common.base + priv->cfg->regs->csr);
 
-	if (status & STM32F4_EOC1)
+	if (status & priv->cfg->regs->eoc1_msk)
 		generic_handle_irq(irq_find_mapping(priv->domain, 0));
 
-	if (status & STM32F4_EOC2)
+	if (status & priv->cfg->regs->eoc2_msk)
 		generic_handle_irq(irq_find_mapping(priv->domain, 1));
 
-	if (status & STM32F4_EOC3)
+	if (status & priv->cfg->regs->eoc3_msk)
 		generic_handle_irq(irq_find_mapping(priv->domain, 2));
 
 	chained_irq_exit(chip, desc);
@@ -194,6 +230,7 @@ static void stm32_adc_irq_remove(struct platform_device *pdev,
 static int stm32_adc_probe(struct platform_device *pdev)
 {
 	struct stm32_adc_priv *priv;
+	struct device *dev = &pdev->dev;
 	struct device_node *np = pdev->dev.of_node;
 	struct resource *res;
 	int ret;
@@ -204,6 +241,9 @@ static int stm32_adc_probe(struct platform_device *pdev)
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+
+	priv->cfg = (const struct stm32_adc_priv_cfg *)
+		of_match_device(dev->driver->of_match_table, dev)->data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->common.base = devm_ioremap_resource(&pdev->dev, res);
@@ -251,7 +291,7 @@ static int stm32_adc_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = stm32f4_adc_clk_sel(pdev, priv);
+	ret = priv->cfg->clk_sel(pdev, priv);
 	if (ret < 0)
 		goto err_clk_disable;
 
@@ -296,9 +336,17 @@ static int stm32_adc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct stm32_adc_priv_cfg stm32f4_adc_priv_cfg = {
+	.regs = &stm32f4_adc_common_regs,
+	.clk_sel = stm32f4_adc_clk_sel,
+};
+
 static const struct of_device_id stm32_adc_of_match[] = {
-	{ .compatible = "st,stm32f4-adc-core" },
-	{},
+	{
+		.compatible = "st,stm32f4-adc-core",
+		.data = (void *)&stm32f4_adc_priv_cfg
+	}, {
+	},
 };
 MODULE_DEVICE_TABLE(of, stm32_adc_of_match);
 
