@@ -928,7 +928,7 @@ static void nfp_net_tx_complete(struct nfp_net_tx_ring *tx_ring)
 	if (qcp_rd_p == tx_ring->qcp_rd_p)
 		return;
 
-	todo = D_IDX(tx_ring, qcp_rd_p + tx_ring->cnt - tx_ring->qcp_rd_p);
+	todo = D_IDX(tx_ring, qcp_rd_p - tx_ring->qcp_rd_p);
 
 	while (todo--) {
 		idx = D_IDX(tx_ring, tx_ring->rd_p++);
@@ -999,7 +999,7 @@ static bool nfp_net_xdp_complete(struct nfp_net_tx_ring *tx_ring)
 	if (qcp_rd_p == tx_ring->qcp_rd_p)
 		return true;
 
-	todo = D_IDX(tx_ring, qcp_rd_p + tx_ring->cnt - tx_ring->qcp_rd_p);
+	todo = D_IDX(tx_ring, qcp_rd_p - tx_ring->qcp_rd_p);
 
 	done_all = todo <= NFP_NET_XDP_MAX_COMPLETE;
 	todo = min(todo, NFP_NET_XDP_MAX_COMPLETE);
