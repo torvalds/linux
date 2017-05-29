@@ -21,7 +21,9 @@
  *   by an atheros frame while transmitted over a serial channel;
  */
 
+#include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 
 #include "qca_7k_common.h"
 
@@ -46,6 +48,7 @@ qcafrm_create_header(u8 *buf, u16 length)
 
 	return QCAFRM_HEADER_LEN;
 }
+EXPORT_SYMBOL_GPL(qcafrm_create_header);
 
 u16
 qcafrm_create_footer(u8 *buf)
@@ -57,6 +60,7 @@ qcafrm_create_footer(u8 *buf)
 	buf[1] = 0x55;
 	return QCAFRM_FOOTER_LEN;
 }
+EXPORT_SYMBOL_GPL(qcafrm_create_footer);
 
 /*   Gather received bytes and try to extract a full ethernet frame by
  *   following a simple state machine.
@@ -154,3 +158,9 @@ qcafrm_fsm_decode(struct qcafrm_handle *handle, u8 *buf, u16 buf_len, u8 recv_by
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(qcafrm_fsm_decode);
+
+MODULE_DESCRIPTION("Qualcomm Atheros QCA7000 common");
+MODULE_AUTHOR("Qualcomm Atheros Communications");
+MODULE_AUTHOR("Stefan Wahren <stefan.wahren@i2se.com>");
+MODULE_LICENSE("Dual BSD/GPL");

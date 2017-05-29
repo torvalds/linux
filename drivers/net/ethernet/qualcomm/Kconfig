@@ -16,7 +16,13 @@ config NET_VENDOR_QUALCOMM
 if NET_VENDOR_QUALCOMM
 
 config QCA7000
-	tristate "Qualcomm Atheros QCA7000 support"
+	tristate
+	help
+	  This enables support for the Qualcomm Atheros QCA7000.
+
+config QCA7000_SPI
+	tristate "Qualcomm Atheros QCA7000 SPI support"
+	select QCA7000
 	depends on SPI_MASTER && OF
 	---help---
 	  This SPI protocol driver supports the Qualcomm Atheros QCA7000.
