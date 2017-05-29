@@ -13,10 +13,6 @@
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA        02110-1301, USA.
  */
 
 #include <linux/kernel.h>
@@ -919,7 +915,7 @@ static void tsl2x7x_prox_cal(struct iio_dev *indio_dev)
 		tsl2x7x_chip_on(indio_dev);
 }
 
-static ssize_t tsl2x7x_power_state_show(struct device *dev,
+static ssize_t power_state_show(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
@@ -928,7 +924,7 @@ static ssize_t tsl2x7x_power_state_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", chip->tsl2x7x_chip_status);
 }
 
-static ssize_t tsl2x7x_power_state_store(struct device *dev,
+static ssize_t power_state_store(struct device *dev,
 					 struct device_attribute *attr,
 					 const char *buf, size_t len)
 {
@@ -946,7 +942,7 @@ static ssize_t tsl2x7x_power_state_store(struct device *dev,
 	return len;
 }
 
-static ssize_t tsl2x7x_gain_available_show(struct device *dev,
+static ssize_t in_illuminance0_calibscale_available_show(struct device *dev,
 					   struct device_attribute *attr,
 					   char *buf)
 {
@@ -964,14 +960,14 @@ static ssize_t tsl2x7x_gain_available_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%s\n", "1 8 16 120");
 }
 
-static ssize_t tsl2x7x_prox_gain_available_show(struct device *dev,
+static ssize_t in_proximity0_calibscale_available_show(struct device *dev,
 						struct device_attribute *attr,
 						char *buf)
 {
 		return snprintf(buf, PAGE_SIZE, "%s\n", "1 2 4 8");
 }
 
-static ssize_t tsl2x7x_als_time_show(struct device *dev,
+static ssize_t in_illuminance0_integration_time_show(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf)
 {
@@ -986,7 +982,7 @@ static ssize_t tsl2x7x_als_time_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d.%03d\n", y, z);
 }
 
-static ssize_t tsl2x7x_als_time_store(struct device *dev,
+static ssize_t in_illuminance0_integration_time_store(struct device *dev,
 				      struct device_attribute *attr,
 				      const char *buf, size_t len)
 {
@@ -1014,7 +1010,7 @@ static ssize_t tsl2x7x_als_time_store(struct device *dev,
 static IIO_CONST_ATTR(in_illuminance0_integration_time_available,
 		".00272 - .696");
 
-static ssize_t tsl2x7x_als_cal_target_show(struct device *dev,
+static ssize_t in_illuminance0_target_input_show(struct device *dev,
 					   struct device_attribute *attr,
 					   char *buf)
 {
@@ -1024,7 +1020,7 @@ static ssize_t tsl2x7x_als_cal_target_show(struct device *dev,
 			chip->tsl2x7x_settings.als_cal_target);
 }
 
-static ssize_t tsl2x7x_als_cal_target_store(struct device *dev,
+static ssize_t in_illuminance0_target_input_store(struct device *dev,
 					    struct device_attribute *attr,
 					    const char *buf, size_t len)
 {
@@ -1044,7 +1040,7 @@ static ssize_t tsl2x7x_als_cal_target_store(struct device *dev,
 }
 
 /* persistence settings */
-static ssize_t tsl2x7x_als_persistence_show(struct device *dev,
+static ssize_t in_intensity0_thresh_period_show(struct device *dev,
 					    struct device_attribute *attr,
 					    char *buf)
 {
@@ -1061,7 +1057,7 @@ static ssize_t tsl2x7x_als_persistence_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d.%03d\n", y, z);
 }
 
-static ssize_t tsl2x7x_als_persistence_store(struct device *dev,
+static ssize_t in_intensity0_thresh_period_store(struct device *dev,
 					     struct device_attribute *attr,
 					     const char *buf, size_t len)
 {
@@ -1092,7 +1088,7 @@ static ssize_t tsl2x7x_als_persistence_store(struct device *dev,
 	return IIO_VAL_INT_PLUS_MICRO;
 }
 
-static ssize_t tsl2x7x_prox_persistence_show(struct device *dev,
+static ssize_t in_proximity0_thresh_period_show(struct device *dev,
 					     struct device_attribute *attr,
 					     char *buf)
 {
@@ -1109,7 +1105,7 @@ static ssize_t tsl2x7x_prox_persistence_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d.%03d\n", y, z);
 }
 
-static ssize_t tsl2x7x_prox_persistence_store(struct device *dev,
+static ssize_t in_proximity0_thresh_period_store(struct device *dev,
 					      struct device_attribute *attr,
 					      const char *buf, size_t len)
 {
@@ -1140,7 +1136,7 @@ static ssize_t tsl2x7x_prox_persistence_store(struct device *dev,
 	return IIO_VAL_INT_PLUS_MICRO;
 }
 
-static ssize_t tsl2x7x_do_calibrate(struct device *dev,
+static ssize_t in_illuminance0_calibrate_store(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t len)
 {
@@ -1158,7 +1154,7 @@ static ssize_t tsl2x7x_do_calibrate(struct device *dev,
 	return len;
 }
 
-static ssize_t tsl2x7x_luxtable_show(struct device *dev,
+static ssize_t in_illuminance0_lux_table_show(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf)
 {
@@ -1186,7 +1182,7 @@ static ssize_t tsl2x7x_luxtable_show(struct device *dev,
 	return offset;
 }
 
-static ssize_t tsl2x7x_luxtable_store(struct device *dev,
+static ssize_t in_illuminance0_lux_table_store(struct device *dev,
 				      struct device_attribute *attr,
 				      const char *buf, size_t len)
 {
@@ -1226,7 +1222,7 @@ static ssize_t tsl2x7x_luxtable_store(struct device *dev,
 	return len;
 }
 
-static ssize_t tsl2x7x_do_prox_calibrate(struct device *dev,
+static ssize_t in_proximity0_calibrate_store(struct device *dev,
 					 struct device_attribute *attr,
 					 const char *buf, size_t len)
 {
@@ -1498,35 +1494,25 @@ static int tsl2x7x_write_raw(struct iio_dev *indio_dev,
 	return 0;
 }
 
-static DEVICE_ATTR(power_state, S_IRUGO | S_IWUSR,
-		tsl2x7x_power_state_show, tsl2x7x_power_state_store);
+static DEVICE_ATTR_RW(power_state);
 
-static DEVICE_ATTR(in_proximity0_calibscale_available, S_IRUGO,
-		tsl2x7x_prox_gain_available_show, NULL);
+static DEVICE_ATTR_RO(in_proximity0_calibscale_available);
 
-static DEVICE_ATTR(in_illuminance0_calibscale_available, S_IRUGO,
-		tsl2x7x_gain_available_show, NULL);
+static DEVICE_ATTR_RO(in_illuminance0_calibscale_available);
 
-static DEVICE_ATTR(in_illuminance0_integration_time, S_IRUGO | S_IWUSR,
-		tsl2x7x_als_time_show, tsl2x7x_als_time_store);
+static DEVICE_ATTR_RW(in_illuminance0_integration_time);
 
-static DEVICE_ATTR(in_illuminance0_target_input, S_IRUGO | S_IWUSR,
-		tsl2x7x_als_cal_target_show, tsl2x7x_als_cal_target_store);
+static DEVICE_ATTR_RW(in_illuminance0_target_input);
 
-static DEVICE_ATTR(in_illuminance0_calibrate, S_IWUSR, NULL,
-		tsl2x7x_do_calibrate);
+static DEVICE_ATTR_WO(in_illuminance0_calibrate);
 
-static DEVICE_ATTR(in_proximity0_calibrate, S_IWUSR, NULL,
-		tsl2x7x_do_prox_calibrate);
+static DEVICE_ATTR_WO(in_proximity0_calibrate);
 
-static DEVICE_ATTR(in_illuminance0_lux_table, S_IRUGO | S_IWUSR,
-		tsl2x7x_luxtable_show, tsl2x7x_luxtable_store);
+static DEVICE_ATTR_RW(in_illuminance0_lux_table);
 
-static DEVICE_ATTR(in_intensity0_thresh_period, S_IRUGO | S_IWUSR,
-		tsl2x7x_als_persistence_show, tsl2x7x_als_persistence_store);
+static DEVICE_ATTR_RW(in_intensity0_thresh_period);
 
-static DEVICE_ATTR(in_proximity0_thresh_period, S_IRUGO | S_IWUSR,
-		tsl2x7x_prox_persistence_show, tsl2x7x_prox_persistence_store);
+static DEVICE_ATTR_RW(in_proximity0_thresh_period);
 
 /* Use the default register values to identify the Taos device */
 static int tsl2x7x_device_id(unsigned char *id, int target)
