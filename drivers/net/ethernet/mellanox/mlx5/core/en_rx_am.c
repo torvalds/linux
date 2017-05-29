@@ -270,6 +270,8 @@ static void mlx5e_am_sample(struct mlx5e_rq *rq,
 }
 
 #define MLX5E_AM_NEVENTS 64
+#define BITS_PER_TYPE(type) (sizeof(type) * BITS_PER_BYTE)
+#define BIT_GAP(bits, end, start) ((((end) - (start)) + BIT_ULL(bits)) & (BIT_ULL(bits) - 1))
 
 static void mlx5e_am_calc_stats(struct mlx5e_rx_am_sample *start,
 				struct mlx5e_rx_am_sample *end,
@@ -277,8 +279,9 @@ static void mlx5e_am_calc_stats(struct mlx5e_rx_am_sample *start,
 {
 	/* u32 holds up to 71 minutes, should be enough */
 	u32 delta_us = ktime_us_delta(end->time, start->time);
-	unsigned int npkts = end->pkt_ctr - start->pkt_ctr;
-	unsigned int nbytes = end->byte_ctr - start->byte_ctr;
+	u32 npkts = BIT_GAP(BITS_PER_TYPE(u32), end->pkt_ctr, start->pkt_ctr);
+	u32 nbytes = BIT_GAP(BITS_PER_TYPE(u32), end->byte_ctr,
+			     start->byte_ctr);
 
 	if (!delta_us)
 		return;
@@ -311,7 +314,8 @@ void mlx5e_rx_am(struct mlx5e_rq *rq)
 
 	switch (am->state) {
 	case MLX5E_AM_MEASURE_IN_PROGRESS:
-		nevents = rq->cq.event_ctr - am->start_sample.event_ctr;
+		nevents = BIT_GAP(BITS_PER_TYPE(u16), rq->cq.event_ctr,
+				  am->start_sample.event_ctr);
 		if (nevents < MLX5E_AM_NEVENTS)
 			break;
 		mlx5e_am_sample(rq, &end_sample);
