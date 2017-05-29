@@ -185,6 +185,17 @@ size_t dax_copy_from_iter(struct dax_device *dax_dev, pgoff_t pgoff, void *addr,
 }
 EXPORT_SYMBOL_GPL(dax_copy_from_iter);
 
+void dax_flush(struct dax_device *dax_dev, pgoff_t pgoff, void *addr,
+		size_t size)
+{
+	if (!dax_alive(dax_dev))
+		return;
+
+	if (dax_dev->ops->flush)
+		dax_dev->ops->flush(dax_dev, pgoff, addr, size);
+}
+EXPORT_SYMBOL_GPL(dax_flush);
+
 bool dax_alive(struct dax_device *dax_dev)
 {
 	lockdep_assert_held(&dax_srcu);
