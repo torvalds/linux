@@ -419,6 +419,14 @@ static int nfp_nsp_command_buf(struct nfp_nsp *nsp, u16 code, u32 option,
 		if (err < 0)
 			return err;
 	}
+	/* Zero out remaining part of the buffer */
+	if (out_buf && out_size && out_size > in_size) {
+		memset(out_buf, 0, out_size - in_size);
+		err = nfp_cpp_write(cpp, cpp_id, cpp_buf + in_size,
+				    out_buf, out_size - in_size);
+		if (err < 0)
+			return err;
+	}
 
 	ret = nfp_nsp_command(nsp, code, option, cpp_id, cpp_buf);
 	if (ret < 0)
