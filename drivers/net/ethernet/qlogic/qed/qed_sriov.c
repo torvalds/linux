@@ -747,6 +747,35 @@ static void qed_iov_vf_igu_set_int(struct qed_hwfn *p_hwfn,
 	qed_fid_pretend(p_hwfn, p_ptt, (u16) p_hwfn->hw_info.concrete_fid);
 }
 
+static int
+qed_iov_enable_vf_access_msix(struct qed_hwfn *p_hwfn,
+			      struct qed_ptt *p_ptt, u8 abs_vf_id, u8 num_sbs)
+{
+	u8 current_max = 0;
+	int i;
+
+	/* For AH onward, configuration is per-PF. Find maximum of all
+	 * the currently enabled child VFs, and set the number to be that.
+	 */
+	if (!QED_IS_BB(p_hwfn->cdev)) {
+		qed_for_each_vf(p_hwfn, i) {
+			struct qed_vf_info *p_vf;
+
+			p_vf = qed_iov_get_vf_info(p_hwfn, (u16)i, true);
+			if (!p_vf)
+				continue;
+
+			current_max = max_t(u8, current_max, p_vf->num_sbs);
+		}
+	}
+
+	if (num_sbs > current_max)
+		return qed_mcp_config_vf_msix(p_hwfn, p_ptt,
+					      abs_vf_id, num_sbs);
+
+	return 0;
+}
+
 static int qed_iov_enable_vf_access(struct qed_hwfn *p_hwfn,
 				    struct qed_ptt *p_ptt,
 				    struct qed_vf_info *vf)
@@ -771,7 +800,8 @@ static int qed_iov_enable_vf_access(struct qed_hwfn *p_hwfn,
 
 	qed_iov_vf_igu_reset(p_hwfn, p_ptt, vf);
 
-	rc = qed_mcp_config_vf_msix(p_hwfn, p_ptt, vf->abs_vf_id, vf->num_sbs);
+	rc = qed_iov_enable_vf_access_msix(p_hwfn, p_ptt,
+					   vf->abs_vf_id, vf->num_sbs);
 	if (rc)
 		return rc;
 

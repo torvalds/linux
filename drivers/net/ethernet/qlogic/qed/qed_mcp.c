@@ -1801,8 +1801,9 @@ int qed_mcp_get_flash_size(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
-int qed_mcp_config_vf_msix(struct qed_hwfn *p_hwfn,
-			   struct qed_ptt *p_ptt, u8 vf_id, u8 num)
+static int
+qed_mcp_config_vf_msix_bb(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, u8 vf_id, u8 num)
 {
 	u32 resp = 0, param = 0, rc_param = 0;
 	int rc;
@@ -1830,6 +1831,36 @@ int qed_mcp_config_vf_msix(struct qed_hwfn *p_hwfn,
 	}
 
 	return rc;
+}
+
+static int
+qed_mcp_config_vf_msix_ah(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, u8 num)
+{
+	u32 resp = 0, param = num, rc_param = 0;
+	int rc;
+
+	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_CFG_PF_VFS_MSIX,
+			 param, &resp, &rc_param);
+
+	if (resp != FW_MSG_CODE_DRV_CFG_PF_VFS_MSIX_DONE) {
+		DP_NOTICE(p_hwfn, "MFW failed to set MSI-X for VFs\n");
+		rc = -EINVAL;
+	} else {
+		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+			   "Requested 0x%02x MSI-x interrupts for VFs\n", num);
+	}
+
+	return rc;
+}
+
+int qed_mcp_config_vf_msix(struct qed_hwfn *p_hwfn,
+			   struct qed_ptt *p_ptt, u8 vf_id, u8 num)
+{
+	if (QED_IS_BB(p_hwfn->cdev))
+		return qed_mcp_config_vf_msix_bb(p_hwfn, p_ptt, vf_id, num);
+	else
+		return qed_mcp_config_vf_msix_ah(p_hwfn, p_ptt, num);
 }
 
 int
