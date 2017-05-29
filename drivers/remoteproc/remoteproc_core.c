@@ -856,7 +856,7 @@ static int rproc_start(struct rproc *rproc, const struct firmware *fw)
 	/* look for the resource table */
 	table = rproc_find_rsc_table(rproc, fw, &tablesz);
 	if (!table) {
-		dev_err(dev, "Resouce table look up failed\n");
+		dev_err(dev, "Resource table look up failed\n");
 		return -EINVAL;
 	}
 
