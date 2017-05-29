@@ -160,6 +160,7 @@ struct stm32_adc;
  * @regs:		registers descriptions
  * @adc_info:		per instance input channels definitions
  * @trigs:		external trigger sources
+ * @clk_required:	clock is required
  * @start_conv:		routine to start conversions
  * @stop_conv:		routine to stop conversions
  */
@@ -167,6 +168,7 @@ struct stm32_adc_cfg {
 	const struct stm32_adc_regspec	*regs;
 	const struct stm32_adc_info	*adc_info;
 	struct stm32_adc_trig_info	*trigs;
+	bool clk_required;
 	void (*start_conv)(struct stm32_adc *, bool dma);
 	void (*stop_conv)(struct stm32_adc *);
 };
@@ -1145,14 +1147,21 @@ static int stm32_adc_probe(struct platform_device *pdev)
 
 	adc->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(adc->clk)) {
-		dev_err(&pdev->dev, "Can't get clock\n");
-		return PTR_ERR(adc->clk);
+		ret = PTR_ERR(adc->clk);
+		if (ret == -ENOENT && !adc->cfg->clk_required) {
+			adc->clk = NULL;
+		} else {
+			dev_err(&pdev->dev, "Can't get clock\n");
+			return ret;
+		}
 	}
 
-	ret = clk_prepare_enable(adc->clk);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "clk enable failed\n");
-		return ret;
+	if (adc->clk) {
+		ret = clk_prepare_enable(adc->clk);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "clk enable failed\n");
+			return ret;
+		}
 	}
 
 	ret = stm32_adc_of_get_resolution(indio_dev);
@@ -1196,7 +1205,8 @@ err_dma_disable:
 		dma_release_channel(adc->dma_chan);
 	}
 err_clk_disable:
-	clk_disable_unprepare(adc->clk);
+	if (adc->clk)
+		clk_disable_unprepare(adc->clk);
 
 	return ret;
 }
@@ -1214,7 +1224,8 @@ static int stm32_adc_remove(struct platform_device *pdev)
 				  adc->rx_buf, adc->rx_dma_buf);
 		dma_release_channel(adc->dma_chan);
 	}
-	clk_disable_unprepare(adc->clk);
+	if (adc->clk)
+		clk_disable_unprepare(adc->clk);
 
 	return 0;
 }
@@ -1223,6 +1234,7 @@ static const struct stm32_adc_cfg stm32f4_adc_cfg = {
 	.regs = &stm32f4_adc_regspec,
 	.adc_info = &stm32f4_adc_info,
 	.trigs = stm32f4_adc_trigs,
+	.clk_required = true,
 	.start_conv = stm32f4_adc_start_conv,
 	.stop_conv = stm32f4_adc_stop_conv,
 };
