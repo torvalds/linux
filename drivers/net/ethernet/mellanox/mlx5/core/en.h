@@ -288,10 +288,10 @@ struct mlx5e_rx_am_stats {
 };
 
 struct mlx5e_rx_am_sample {
-	ktime_t		time;
-	unsigned int	pkt_ctr;
-	unsigned int    byte_ctr;
-	u16		event_ctr;
+	ktime_t	time;
+	u32	pkt_ctr;
+	u32	byte_ctr;
+	u16	event_ctr;
 };
 
 struct mlx5e_rx_am { /* Adaptive Moderation */
