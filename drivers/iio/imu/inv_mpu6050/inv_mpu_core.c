@@ -41,6 +41,7 @@ static const int accel_scale[] = {598, 1196, 2392, 4785};
 static const struct inv_mpu6050_reg_map reg_set_6500 = {
 	.sample_rate_div	= INV_MPU6050_REG_SAMPLE_RATE_DIV,
 	.lpf                    = INV_MPU6050_REG_CONFIG,
+	.accel_lpf              = INV_MPU6500_REG_ACCEL_CONFIG_2,
 	.user_ctrl              = INV_MPU6050_REG_USER_CTRL,
 	.fifo_en                = INV_MPU6050_REG_FIFO_EN,
 	.gyro_config            = INV_MPU6050_REG_GYRO_CONFIG,
@@ -205,6 +206,37 @@ int inv_mpu6050_set_power_itg(struct inv_mpu6050_state *st, bool power_on)
 EXPORT_SYMBOL_GPL(inv_mpu6050_set_power_itg);
 
 /**
+ *  inv_mpu6050_set_lpf_regs() - set low pass filter registers, chip dependent
+ *
+ *  MPU60xx/MPU9150 use only 1 register for accelerometer + gyroscope
+ *  MPU6500 and above have a dedicated register for accelerometer
+ */
+static int inv_mpu6050_set_lpf_regs(struct inv_mpu6050_state *st,
+				    enum inv_mpu6050_filter_e val)
+{
+	int result;
+
+	result = regmap_write(st->map, st->reg->lpf, val);
+	if (result)
+		return result;
+
+	switch (st->chip_type) {
+	case INV_MPU6050:
+	case INV_MPU6000:
+	case INV_MPU9150:
+		/* old chips, nothing to do */
+		result = 0;
+		break;
+	default:
+		/* set accel lpf */
+		result = regmap_write(st->map, st->reg->accel_lpf, val);
+		break;
+	}
+
+	return result;
+}
+
+/**
  *  inv_mpu6050_init_config() - Initialize hardware, disable FIFO.
  *
  *  Initial configuration:
@@ -227,8 +259,7 @@ static int inv_mpu6050_init_config(struct iio_dev *indio_dev)
 	if (result)
 		return result;
 
-	d = INV_MPU6050_FILTER_20HZ;
-	result = regmap_write(st->map, st->reg->lpf, d);
+	result = inv_mpu6050_set_lpf_regs(st, INV_MPU6050_FILTER_20HZ);
 	if (result)
 		return result;
 
@@ -531,6 +562,8 @@ error_write_raw:
  *                  would be alising. This function basically search for the
  *                  correct low pass parameters based on the fifo rate, e.g,
  *                  sampling frequency.
+ *
+ *  lpf is set automatically when setting sampling rate to avoid any aliases.
  */
 static int inv_mpu6050_set_lpf(struct inv_mpu6050_state *st, int rate)
 {
@@ -546,7 +579,7 @@ static int inv_mpu6050_set_lpf(struct inv_mpu6050_state *st, int rate)
 	while ((h < hz[i]) && (i < ARRAY_SIZE(d) - 1))
 		i++;
 	data = d[i];
-	result = regmap_write(st->map, st->reg->lpf, data);
+	result = inv_mpu6050_set_lpf_regs(st, data);
 	if (result)
 		return result;
 	st->chip_config.lpf = data;
