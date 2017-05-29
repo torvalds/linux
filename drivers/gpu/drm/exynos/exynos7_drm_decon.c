@@ -656,8 +656,7 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 
 	exynos_plane = &ctx->planes[DEFAULT_WIN];
 	ctx->crtc = exynos_drm_crtc_create(drm_dev, &exynos_plane->base,
-					   ctx->pipe, EXYNOS_DISPLAY_TYPE_LCD,
-					   &decon_crtc_ops, ctx);
+			EXYNOS_DISPLAY_TYPE_LCD, &decon_crtc_ops, ctx);
 	if (IS_ERR(ctx->crtc)) {
 		decon_ctx_remove(ctx);
 		return PTR_ERR(ctx->crtc);

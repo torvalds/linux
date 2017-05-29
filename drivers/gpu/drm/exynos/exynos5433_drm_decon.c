@@ -614,8 +614,7 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 	out_type = (ctx->out_type & IFTYPE_HDMI) ? EXYNOS_DISPLAY_TYPE_HDMI
 						  : EXYNOS_DISPLAY_TYPE_LCD;
 	ctx->crtc = exynos_drm_crtc_create(drm_dev, &exynos_plane->base,
-					ctx->pipe, out_type,
-					&decon_crtc_ops, ctx);
+			out_type, &decon_crtc_ops, ctx);
 	if (IS_ERR(ctx->crtc)) {
 		ret = PTR_ERR(ctx->crtc);
 		goto err;

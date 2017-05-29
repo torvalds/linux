@@ -166,7 +166,6 @@ static const struct drm_crtc_funcs exynos_crtc_funcs = {
 
 struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
 					struct drm_plane *plane,
-					int pipe,
 					enum exynos_drm_output_type type,
 					const struct exynos_drm_crtc_ops *ops,
 					void *ctx)
@@ -179,7 +178,6 @@ struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
 	if (!exynos_crtc)
 		return ERR_PTR(-ENOMEM);
 
-	exynos_crtc->pipe = pipe;
 	exynos_crtc->type = type;
 	exynos_crtc->ops = ops;
 	exynos_crtc->ctx = ctx;
@@ -206,13 +204,9 @@ int exynos_drm_crtc_get_pipe_from_type(struct drm_device *drm_dev,
 {
 	struct drm_crtc *crtc;
 
-	list_for_each_entry(crtc, &drm_dev->mode_config.crtc_list, head) {
-		struct exynos_drm_crtc *exynos_crtc;
-
-		exynos_crtc = to_exynos_crtc(crtc);
-		if (exynos_crtc->type == out_type)
-			return exynos_crtc->pipe;
-	}
+	drm_for_each_crtc(crtc, drm_dev)
+		if (to_exynos_crtc(crtc)->type == out_type)
+			return drm_crtc_index(crtc);
 
 	return -EPERM;
 }
