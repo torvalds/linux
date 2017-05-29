@@ -119,6 +119,11 @@
 #define NFP_PCIE_EM                                     0x020000
 #define NFP_PCIE_SRAM                                   0x000000
 
+/* Minimal size of the PCIe cfg memory we depend on being mapped,
+ * queue controller and DMA controller don't have to be covered.
+ */
+#define NFP_PCI_MIN_MAP_SIZE				0x080000
+
 #define NFP_PCIE_P2C_FIXED_SIZE(bar)               (1 << (bar)->bitsize)
 #define NFP_PCIE_P2C_BULK_SIZE(bar)                (1 << (bar)->bitsize)
 #define NFP_PCIE_P2C_GENERAL_TARGET_OFFSET(bar, x) ((x) << ((bar)->bitsize - 2))
@@ -628,8 +633,9 @@ static int enable_bars(struct nfp6000_pcie *nfp, u16 interface)
 
 	/* Configure, and lock, BAR0.0 for General Target use (MSI-X SRAM) */
 	bar = &nfp->bar[0];
-	bar->iomem = ioremap_nocache(nfp_bar_resource_start(bar),
-				     nfp_bar_resource_len(bar));
+	if (nfp_bar_resource_len(bar) >= NFP_PCI_MIN_MAP_SIZE)
+		bar->iomem = ioremap_nocache(nfp_bar_resource_start(bar),
+					     nfp_bar_resource_len(bar));
 	if (bar->iomem) {
 		dev_info(nfp->dev,
 			 "BAR0.0 RESERVED: General Mapping/MSI-X SRAM\n");
