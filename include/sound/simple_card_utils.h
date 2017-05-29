@@ -60,6 +60,16 @@ int asoc_simple_card_parse_dai(struct device_node *node,
 				  const char *cells_name,
 				  int *is_single_links);
 
+#define asoc_simple_card_parse_graph_cpu(ep, dai_link)			\
+	asoc_simple_card_parse_graph_dai(ep, &dai_link->cpu_of_node,	\
+					 &dai_link->cpu_dai_name)
+#define asoc_simple_card_parse_graph_codec(ep, dai_link)		\
+	asoc_simple_card_parse_graph_dai(ep, &dai_link->codec_of_node,	\
+					 &dai_link->codec_dai_name)
+int asoc_simple_card_parse_graph_dai(struct device_node *ep,
+				     struct device_node **endpoint_np,
+				     const char **dai_name);
+
 int asoc_simple_card_init_dai(struct snd_soc_dai *dai,
 			      struct asoc_simple_dai *simple_dai);
 
