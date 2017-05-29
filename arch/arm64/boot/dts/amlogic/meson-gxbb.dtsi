@@ -671,6 +671,13 @@
 	clock-names = "core", "clkin0", "clkin1";
 };
 
+&spicc {
+	clocks = <&clkc CLKID_SPICC>;
+	clock-names = "core";
+	resets = <&reset RESET_PERIPHS_SPICC>;
+	num-cs = <1>;
+};
+
 &spifc {
 	clocks = <&clkc CLKID_SPI>;
 };
