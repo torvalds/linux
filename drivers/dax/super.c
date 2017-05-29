@@ -18,6 +18,7 @@
 #include <linux/cdev.h>
 #include <linux/hash.h>
 #include <linux/slab.h>
+#include <linux/uio.h>
 #include <linux/dax.h>
 #include <linux/fs.h>
 
@@ -171,6 +172,18 @@ long dax_direct_access(struct dax_device *dax_dev, pgoff_t pgoff, long nr_pages,
 	return min(avail, nr_pages);
 }
 EXPORT_SYMBOL_GPL(dax_direct_access);
+
+size_t dax_copy_from_iter(struct dax_device *dax_dev, pgoff_t pgoff, void *addr,
+		size_t bytes, struct iov_iter *i)
+{
+	if (!dax_alive(dax_dev))
+		return 0;
+
+	if (!dax_dev->ops->copy_from_iter)
+		return copy_from_iter(addr, bytes, i);
+	return dax_dev->ops->copy_from_iter(dax_dev, pgoff, addr, bytes, i);
+}
+EXPORT_SYMBOL_GPL(dax_copy_from_iter);
 
 bool dax_alive(struct dax_device *dax_dev)
 {
