@@ -299,8 +299,8 @@ int radeon_si_support = 1;
 MODULE_PARM_DESC(si_support, "SI support (1 = enabled (default), 0 = disabled)");
 module_param_named(si_support, radeon_si_support, int, 0444);
 
-int radeon_cik_support = 0;
-MODULE_PARM_DESC(cik_support, "CIK support (1 = enabled, 0 = disabled (default))");
+int radeon_cik_support = 1;
+MODULE_PARM_DESC(cik_support, "CIK support (1 = enabled (default), 0 = disabled)");
 module_param_named(cik_support, radeon_cik_support, int, 0444);
 
 static struct pci_device_id pciidlist[] = {

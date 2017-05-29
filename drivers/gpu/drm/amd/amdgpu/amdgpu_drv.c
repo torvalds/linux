@@ -249,8 +249,8 @@ module_param_named(si_support, amdgpu_si_support, int, 0444);
 #endif
 
 #ifdef CONFIG_DRM_AMDGPU_CIK
-int amdgpu_cik_support = 1;
-MODULE_PARM_DESC(cik_support, "CIK support (1 = enabled (default), 0 = disabled)");
+int amdgpu_cik_support = 0;
+MODULE_PARM_DESC(cik_support, "CIK support (1 = enabled, 0 = disabled (default))");
 module_param_named(cik_support, amdgpu_cik_support, int, 0444);
 #endif
 
