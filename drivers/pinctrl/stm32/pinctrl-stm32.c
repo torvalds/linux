@@ -209,6 +209,24 @@ static int stm32_gpio_to_irq(struct gpio_chip *chip, unsigned int offset)
 	return irq_create_fwspec_mapping(&fwspec);
 }
 
+static int stm32_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
+{
+	struct stm32_gpio_bank *bank = gpiochip_get_data(chip);
+	int pin = stm32_gpio_pin(offset);
+	int ret;
+	u32 mode, alt;
+
+	stm32_pmx_get_mode(bank, pin, &mode, &alt);
+	if ((alt == 0) && (mode == 0))
+		ret = 1;
+	else if ((alt == 0) && (mode == 1))
+		ret = 0;
+	else
+		ret = -EINVAL;
+
+	return ret;
+}
+
 static const struct gpio_chip stm32_gpio_template = {
 	.request		= stm32_gpio_request,
 	.free			= stm32_gpio_free,
@@ -217,6 +235,7 @@ static const struct gpio_chip stm32_gpio_template = {
 	.direction_input	= stm32_gpio_direction_input,
 	.direction_output	= stm32_gpio_direction_output,
 	.to_irq			= stm32_gpio_to_irq,
+	.get_direction		= stm32_gpio_get_direction,
 };
 
 static int stm32_gpio_irq_request_resources(struct irq_data *irq_data)
@@ -577,8 +596,8 @@ static void stm32_pmx_set_mode(struct stm32_gpio_bank *bank,
 	clk_disable(bank->clk);
 }
 
-static void stm32_pmx_get_mode(struct stm32_gpio_bank *bank,
-		int pin, u32 *mode, u32 *alt)
+void stm32_pmx_get_mode(struct stm32_gpio_bank *bank, int pin, u32 *mode,
+			u32 *alt)
 {
 	u32 val;
 	int alt_shift = (pin % 8) * 4;
