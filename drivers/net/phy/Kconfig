@@ -234,6 +234,11 @@ config CICADA_PHY
 	---help---
 	  Currently supports the cis8204
 
+config CORTINA_PHY
+	tristate "Cortina EDC CDR 10G Ethernet PHY"
+	---help---
+	  Currently supports the CS4340 phy.
+
 config DAVICOM_PHY
 	tristate "Davicom PHYs"
 	---help---
