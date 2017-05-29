@@ -222,6 +222,16 @@ void __aa_profile_list_release(struct list_head *head);
 
 #define unconfined(X) ((X)->mode == APPARMOR_UNCONFINED)
 
+#define PROFILE_MEDIATES(P, T)  ((P)->policy.start[(T)])
+/* safe version of POLICY_MEDIATES for full range input */
+static inline unsigned int PROFILE_MEDIATES_SAFE(struct aa_profile *profile,
+						 unsigned char class)
+{
+	if (profile->policy.dfa)
+		return aa_dfa_match_len(profile->policy.dfa,
+					profile->policy.start[0], &class, 1);
+	return 0;
+}
 
 /**
  * aa_get_profile - increment refcount on profile @p
