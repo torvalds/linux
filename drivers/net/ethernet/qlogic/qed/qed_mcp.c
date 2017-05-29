@@ -1398,6 +1398,28 @@ static void qed_mcp_update_bw(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		    &param);
 }
 
+static void qed_mcp_update_stag(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	struct public_func shmem_info;
+	u32 resp = 0, param = 0;
+
+	qed_mcp_get_shmem_func(p_hwfn, p_ptt, &shmem_info, MCP_PF_ID(p_hwfn));
+
+	p_hwfn->mcp_info->func_info.ovlan = (u16)shmem_info.ovlan_stag &
+						 FUNC_MF_CFG_OV_STAG_MASK;
+	p_hwfn->hw_info.ovlan = p_hwfn->mcp_info->func_info.ovlan;
+	if ((p_hwfn->hw_info.hw_mode & BIT(MODE_MF_SD)) &&
+	    (p_hwfn->hw_info.ovlan != QED_MCP_VLAN_UNSET)) {
+		qed_wr(p_hwfn, p_ptt,
+		       NIG_REG_LLH_FUNC_TAG_VALUE, p_hwfn->hw_info.ovlan);
+		qed_sp_pf_update_stag(p_hwfn);
+	}
+
+	/* Acknowledge the MFW */
+	qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_S_TAG_UPDATE_ACK, 0,
+		    &resp, &param);
+}
+
 int qed_mcp_handle_events(struct qed_hwfn *p_hwfn,
 			  struct qed_ptt *p_ptt)
 {
@@ -1452,6 +1474,10 @@ int qed_mcp_handle_events(struct qed_hwfn *p_hwfn,
 			break;
 		case MFW_DRV_MSG_BW_UPDATE:
 			qed_mcp_update_bw(p_hwfn, p_ptt);
+			break;
+		case MFW_DRV_MSG_S_TAG_UPDATE:
+			qed_mcp_update_stag(p_hwfn, p_ptt);
+			break;
 			break;
 		default:
 			DP_INFO(p_hwfn, "Unimplemented MFW message %d\n", i);
