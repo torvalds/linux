@@ -122,6 +122,12 @@ static inline void qcafrm_fsm_init_spi(struct qcafrm_handle *handle)
 	handle->state = handle->init;
 }
 
+static inline void qcafrm_fsm_init_uart(struct qcafrm_handle *handle)
+{
+	handle->init = QCAFRM_WAIT_AA1;
+	handle->state = handle->init;
+}
+
 /*   Gather received bytes and try to extract a full Ethernet frame
  *   by following a simple state machine.
  *
