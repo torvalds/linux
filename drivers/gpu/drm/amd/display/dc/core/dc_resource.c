@@ -894,24 +894,6 @@ enum dc_status resource_build_scaling_params_for_context(
 	return DC_OK;
 }
 
-static void detach_surfaces_for_stream(
-		struct validate_context *context,
-		const struct resource_pool *pool,
-		const struct dc_stream *dc_stream)
-{
-	int i;
-	struct core_stream *stream = DC_STREAM_TO_CORE(dc_stream);
-
-	for (i = 0; i < pool->pipe_count; i++) {
-		struct pipe_ctx *cur_pipe = &context->res_ctx.pipe_ctx[i];
-		if (cur_pipe->stream == stream) {
-			cur_pipe->surface = NULL;
-			cur_pipe->top_pipe = NULL;
-			cur_pipe->bottom_pipe = NULL;
-		}
-	}
-}
-
 struct pipe_ctx *find_idle_secondary_pipe(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool)
@@ -1004,9 +986,11 @@ static void release_free_pipes_for_stream(
 	struct core_stream *stream = DC_STREAM_TO_CORE(dc_stream);
 
 	for (i = MAX_PIPES - 1; i >= 0; i--) {
+		/* never release the topmost pipe*/
 		if (res_ctx->pipe_ctx[i].stream == stream &&
+				res_ctx->pipe_ctx[i].top_pipe &&
 				!res_ctx->pipe_ctx[i].surface) {
-			res_ctx->pipe_ctx[i].stream = NULL;
+			memset(&res_ctx->pipe_ctx[i], 0, sizeof(struct pipe_ctx));
 		}
 	}
 }
@@ -1021,6 +1005,7 @@ bool resource_attach_surfaces_to_context(
 	int i;
 	struct pipe_ctx *tail_pipe;
 	struct dc_stream_status *stream_status = NULL;
+	struct core_stream *stream = DC_STREAM_TO_CORE(dc_stream);
 
 
 	if (surface_count > MAX_SURFACE_NUM) {
@@ -1043,7 +1028,12 @@ bool resource_attach_surfaces_to_context(
 	for (i = 0; i < surface_count; i++)
 		dc_surface_retain(surfaces[i]);
 
-	detach_surfaces_for_stream(context, pool, dc_stream);
+	/* detach surfaces from pipes */
+	for (i = 0; i < pool->pipe_count; i++)
+		if (context->res_ctx.pipe_ctx[i].stream == stream) {
+			context->res_ctx.pipe_ctx[i].surface = NULL;
+			context->res_ctx.pipe_ctx[i].bottom_pipe = NULL;
+		}
 
 	/* release existing surfaces*/
 	for (i = 0; i < stream_status->surface_count; i++)
@@ -1051,11 +1041,6 @@ bool resource_attach_surfaces_to_context(
 
 	for (i = surface_count; i < stream_status->surface_count; i++)
 		stream_status->surfaces[i] = NULL;
-
-	stream_status->surface_count = 0;
-
-	if (surface_count == 0)
-		return true;
 
 	tail_pipe = NULL;
 	for (i = 0; i < surface_count; i++) {
