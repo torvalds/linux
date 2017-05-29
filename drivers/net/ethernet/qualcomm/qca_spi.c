@@ -894,6 +894,7 @@ qca_spi_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	qcaspi_netdev_setup(qcaspi_devs);
+	SET_NETDEV_DEV(qcaspi_devs, &spi->dev);
 
 	qca = netdev_priv(qcaspi_devs);
 	if (!qca) {
