@@ -1227,6 +1227,10 @@ static void qed_init_cache_line_size(struct qed_hwfn *p_hwfn,
 			L1_CACHE_BYTES, wr_mbs);
 
 	STORE_RT_REG(p_hwfn, PGLUE_REG_B_CACHE_LINE_SIZE_RT_OFFSET, val);
+	if (val > 0) {
+		STORE_RT_REG(p_hwfn, PSWRQ2_REG_DRAM_ALIGN_WR_RT_OFFSET, val);
+		STORE_RT_REG(p_hwfn, PSWRQ2_REG_DRAM_ALIGN_RD_RT_OFFSET, val);
+	}
 }
 
 static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
@@ -1433,8 +1437,15 @@ qed_hw_init_pf_doorbell_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 static int qed_hw_init_port(struct qed_hwfn *p_hwfn,
 			    struct qed_ptt *p_ptt, int hw_mode)
 {
-	return qed_init_run(p_hwfn, p_ptt, PHASE_PORT,
-			    p_hwfn->port_id, hw_mode);
+	int rc = 0;
+
+	rc = qed_init_run(p_hwfn, p_ptt, PHASE_PORT, p_hwfn->port_id, hw_mode);
+	if (rc)
+		return rc;
+
+	qed_wr(p_hwfn, p_ptt, PGLUE_B_REG_MASTER_WRITE_PAD_ENABLE, 0);
+
+	return 0;
 }
 
 static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
