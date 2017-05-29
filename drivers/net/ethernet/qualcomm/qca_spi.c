@@ -603,7 +603,7 @@ qcaspi_intr_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-int
+static int
 qcaspi_netdev_open(struct net_device *dev)
 {
 	struct qcaspi *qca = netdev_priv(dev);
@@ -640,7 +640,7 @@ qcaspi_netdev_open(struct net_device *dev)
 	return 0;
 }
 
-int
+static int
 qcaspi_netdev_close(struct net_device *dev)
 {
 	struct qcaspi *qca = netdev_priv(dev);
