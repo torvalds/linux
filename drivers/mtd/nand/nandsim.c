@@ -287,11 +287,6 @@ MODULE_PARM_DESC(bch,		 "Enable BCH ecc and set how many bits should "
 /* Maximum page cache pages needed to read or write a NAND page to the cache_file */
 #define NS_MAX_HELD_PAGES 16
 
-struct nandsim_debug_info {
-	struct dentry *dfs_root;
-	struct dentry *dfs_wear_report;
-};
-
 /*
  * A union to represent flash memory contents and flash buffer.
  */
@@ -370,8 +365,6 @@ struct nandsim {
 	void *file_buf;
 	struct page *held_pages[NS_MAX_HELD_PAGES];
 	int held_cnt;
-
-	struct nandsim_debug_info dbg;
 };
 
 /*
@@ -524,39 +517,23 @@ static const struct file_operations dfs_fops = {
  */
 static int nandsim_debugfs_create(struct nandsim *dev)
 {
-	struct nandsim_debug_info *dbg = &dev->dbg;
+	struct dentry *root = nsmtd->dbg.dfs_dir;
 	struct dentry *dent;
 
 	if (!IS_ENABLED(CONFIG_DEBUG_FS))
 		return 0;
 
-	dent = debugfs_create_dir("nandsim", NULL);
-	if (!dent) {
-		NS_ERR("cannot create \"nandsim\" debugfs directory\n");
-		return -ENODEV;
-	}
-	dbg->dfs_root = dent;
+	if (IS_ERR_OR_NULL(root))
+		return -1;
 
-	dent = debugfs_create_file("wear_report", S_IRUSR,
-				   dbg->dfs_root, dev, &dfs_fops);
-	if (!dent)
-		goto out_remove;
-	dbg->dfs_wear_report = dent;
+	dent = debugfs_create_file("nandsim_wear_report", S_IRUSR,
+				   root, dev, &dfs_fops);
+	if (IS_ERR_OR_NULL(dent)) {
+		NS_ERR("cannot create \"nandsim_wear_report\" debugfs entry\n");
+		return -1;
+	}
 
 	return 0;
-
-out_remove:
-	debugfs_remove_recursive(dbg->dfs_root);
-	return -ENODEV;
-}
-
-/**
- * nandsim_debugfs_remove - destroy all debugfs files
- */
-static void nandsim_debugfs_remove(struct nandsim *ns)
-{
-	if (IS_ENABLED(CONFIG_DEBUG_FS))
-		debugfs_remove_recursive(ns->dbg.dfs_root);
 }
 
 /*
@@ -2352,9 +2329,6 @@ static int __init ns_init_module(void)
 	if ((retval = setup_wear_reporting(nsmtd)) != 0)
 		goto err_exit;
 
-	if ((retval = nandsim_debugfs_create(nand)) != 0)
-		goto err_exit;
-
 	if ((retval = init_nandsim(nsmtd)) != 0)
 		goto err_exit;
 
@@ -2368,6 +2342,9 @@ static int __init ns_init_module(void)
 	retval = mtd_device_register(nsmtd, &nand->partitions[0],
 				     nand->nbparts);
 	if (retval != 0)
+		goto err_exit;
+
+	if ((retval = nandsim_debugfs_create(nand)) != 0)
 		goto err_exit;
 
         return 0;
@@ -2395,7 +2372,6 @@ static void __exit ns_cleanup_module(void)
 	struct nandsim *ns = nand_get_controller_data(chip);
 	int i;
 
-	nandsim_debugfs_remove(ns);
 	free_nandsim(ns);    /* Free nandsim private resources */
 	nand_release(nsmtd); /* Unregister driver */
 	for (i = 0;i < ARRAY_SIZE(ns->partitions); ++i)
