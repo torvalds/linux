@@ -1212,14 +1212,12 @@ static void nfp_net_rx_give_one(const struct nfp_net_dp *dp,
 			      dma_addr + dp->rx_dma_off);
 
 	rx_ring->wr_p++;
-	rx_ring->wr_ptr_add++;
-	if (rx_ring->wr_ptr_add >= NFP_NET_FL_BATCH) {
+	if (!(rx_ring->wr_p % NFP_NET_FL_BATCH)) {
 		/* Update write pointer of the freelist queue. Make
 		 * sure all writes are flushed before telling the hardware.
 		 */
 		wmb();
-		nfp_qcp_wr_ptr_add(rx_ring->qcp_fl, rx_ring->wr_ptr_add);
-		rx_ring->wr_ptr_add = 0;
+		nfp_qcp_wr_ptr_add(rx_ring->qcp_fl, NFP_NET_FL_BATCH);
 	}
 }
 
@@ -1245,7 +1243,6 @@ static void nfp_net_rx_ring_reset(struct nfp_net_rx_ring *rx_ring)
 	memset(rx_ring->rxds, 0, sizeof(*rx_ring->rxds) * rx_ring->cnt);
 	rx_ring->wr_p = 0;
 	rx_ring->rd_p = 0;
-	rx_ring->wr_ptr_add = 0;
 }
 
 /**
