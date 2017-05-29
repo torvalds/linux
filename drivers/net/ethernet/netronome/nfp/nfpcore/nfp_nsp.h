@@ -160,6 +160,7 @@ int __nfp_eth_set_split(struct nfp_nsp *nsp, unsigned int lanes);
  * @primary:      version of primarary bootloader
  * @secondary:    version id of secondary bootloader
  * @nsp:          version id of NSP
+ * @sensor_mask:  mask of present sensors available on NIC
  */
 struct nfp_nsp_identify {
 	char version[40];
@@ -170,8 +171,19 @@ struct nfp_nsp_identify {
 	u16 primary;
 	u16 secondary;
 	u16 nsp;
+	u64 sensor_mask;
 };
 
 struct nfp_nsp_identify *__nfp_nsp_identify(struct nfp_nsp *nsp);
+
+enum nfp_nsp_sensor_id {
+	NFP_SENSOR_CHIP_TEMPERATURE,
+	NFP_SENSOR_ASSEMBLY_POWER,
+	NFP_SENSOR_ASSEMBLY_12V_POWER,
+	NFP_SENSOR_ASSEMBLY_3V3_POWER,
+};
+
+int nfp_hwmon_read_sensor(struct nfp_cpp *cpp, enum nfp_nsp_sensor_id id,
+			  long *val);
 
 #endif

@@ -16,6 +16,7 @@ nfp-objs := \
 	    nfpcore/nfp_target.o \
 	    nfp_app.o \
 	    nfp_devlink.o \
+	    nfp_hwmon.o \
 	    nfp_main.o \
 	    nfp_net_common.o \
 	    nfp_net_ethtool.o \
