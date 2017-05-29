@@ -406,7 +406,7 @@ iwl_get_coex_type(struct iwl_mvm *mvm, const struct ieee80211_vif *vif)
 	return ret;
 }
 
-int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
+int iwl_mvm_send_bt_init_conf(struct iwl_mvm *mvm)
 {
 	struct iwl_bt_coex_cmd bt_cmd = {};
 	u32 mode;

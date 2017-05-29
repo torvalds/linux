@@ -644,7 +644,7 @@ iwl_dbgfs_bt_force_ant_write(struct iwl_mvm *mvm, char *buf,
 		       modes_str[mvm->bt_force_ant_mode]);
 
 	if (iwl_mvm_firmware_running(mvm))
-		ret = iwl_send_bt_init_conf(mvm);
+		ret = iwl_mvm_send_bt_init_conf(mvm);
 	else
 		ret = 0;
 
