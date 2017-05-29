@@ -15,3 +15,10 @@ config PHY_RCAR_GEN3_USB2
 	select GENERIC_PHY
 	help
 	  Support for USB 2.0 PHY found on Renesas R-Car generation 3 SoCs.
+
+config PHY_RCAR_GEN3_USB3
+	tristate "Renesas R-Car generation 3 USB 3.0 PHY driver"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	select GENERIC_PHY
+	help
+	  Support for USB 3.0 PHY found on Renesas R-Car generation 3 SoCs.
