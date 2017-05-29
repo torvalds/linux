@@ -2868,6 +2868,32 @@ static int bnxt_alloc_hwrm_resources(struct bnxt *bp)
 	return 0;
 }
 
+static void bnxt_free_hwrm_short_cmd_req(struct bnxt *bp)
+{
+	if (bp->hwrm_short_cmd_req_addr) {
+		struct pci_dev *pdev = bp->pdev;
+
+		dma_free_coherent(&pdev->dev, BNXT_HWRM_MAX_REQ_LEN,
+				  bp->hwrm_short_cmd_req_addr,
+				  bp->hwrm_short_cmd_req_dma_addr);
+		bp->hwrm_short_cmd_req_addr = NULL;
+	}
+}
+
+static int bnxt_alloc_hwrm_short_cmd_req(struct bnxt *bp)
+{
+	struct pci_dev *pdev = bp->pdev;
+
+	bp->hwrm_short_cmd_req_addr =
+		dma_alloc_coherent(&pdev->dev, BNXT_HWRM_MAX_REQ_LEN,
+				   &bp->hwrm_short_cmd_req_dma_addr,
+				   GFP_KERNEL);
+	if (!bp->hwrm_short_cmd_req_addr)
+		return -ENOMEM;
+
+	return 0;
+}
+
 static void bnxt_free_stats(struct bnxt *bp)
 {
 	u32 size, i;
@@ -3215,16 +3241,41 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 	__le32 *resp_len, *valid;
 	u16 cp_ring_id, len = 0;
 	struct hwrm_err_output *resp = bp->hwrm_cmd_resp_addr;
+	u16 max_req_len = BNXT_HWRM_MAX_REQ_LEN;
 
 	req->seq_id = cpu_to_le16(bp->hwrm_cmd_seq++);
 	memset(resp, 0, PAGE_SIZE);
 	cp_ring_id = le16_to_cpu(req->cmpl_ring);
 	intr_process = (cp_ring_id == INVALID_HW_RING_ID) ? 0 : 1;
 
+	if (bp->flags & BNXT_FLAG_SHORT_CMD) {
+		void *short_cmd_req = bp->hwrm_short_cmd_req_addr;
+		struct hwrm_short_input short_input = {0};
+
+		memcpy(short_cmd_req, req, msg_len);
+		memset(short_cmd_req + msg_len, 0, BNXT_HWRM_MAX_REQ_LEN -
+						   msg_len);
+
+		short_input.req_type = req->req_type;
+		short_input.signature =
+				cpu_to_le16(SHORT_REQ_SIGNATURE_SHORT_CMD);
+		short_input.size = cpu_to_le16(msg_len);
+		short_input.req_addr =
+			cpu_to_le64(bp->hwrm_short_cmd_req_dma_addr);
+
+		data = (u32 *)&short_input;
+		msg_len = sizeof(short_input);
+
+		/* Sync memory write before updating doorbell */
+		wmb();
+
+		max_req_len = BNXT_HWRM_SHORT_REQ_LEN;
+	}
+
 	/* Write request msg to hwrm channel */
 	__iowrite32_copy(bp->bar0, data, msg_len / 4);
 
-	for (i = msg_len; i < BNXT_HWRM_MAX_REQ_LEN; i += 4)
+	for (i = msg_len; i < max_req_len; i += 4)
 		writel(0, bp->bar0 + i);
 
 	/* currently supports only one outstanding message */
@@ -4662,6 +4713,7 @@ static int bnxt_hwrm_ver_get(struct bnxt *bp)
 	int rc;
 	struct hwrm_ver_get_input req = {0};
 	struct hwrm_ver_get_output *resp = bp->hwrm_cmd_resp_addr;
+	u32 dev_caps_cfg;
 
 	bp->hwrm_max_req_len = HWRM_MAX_REQ_LEN;
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_VER_GET, -1, -1);
@@ -4698,6 +4750,11 @@ static int bnxt_hwrm_ver_get(struct bnxt *bp)
 	if (bp->chip_num == CHIP_NUM_58700 && !resp->chip_rev &&
 	    !resp->chip_metal)
 		bp->flags |= BNXT_FLAG_CHIP_NITRO_A0;
+
+	dev_caps_cfg = le32_to_cpu(resp->dev_caps_cfg);
+	if ((dev_caps_cfg & VER_GET_RESP_DEV_CAPS_CFG_SHORT_CMD_SUPPORTED) &&
+	    (dev_caps_cfg & VER_GET_RESP_DEV_CAPS_CFG_SHORT_CMD_REQUIRED))
+		bp->flags |= BNXT_FLAG_SHORT_CMD;
 
 hwrm_ver_get_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
@@ -7357,6 +7414,7 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 	bnxt_clear_int_mode(bp);
 	bnxt_hwrm_func_drv_unrgtr(bp);
 	bnxt_free_hwrm_resources(bp);
+	bnxt_free_hwrm_short_cmd_req(bp);
 	bnxt_ethtool_free(bp);
 	bnxt_dcb_free(bp);
 	kfree(bp->edev);
@@ -7606,6 +7664,12 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rc = bnxt_hwrm_ver_get(bp);
 	if (rc)
 		goto init_err_pci_clean;
+
+	if (bp->flags & BNXT_FLAG_SHORT_CMD) {
+		rc = bnxt_alloc_hwrm_short_cmd_req(bp);
+		if (rc)
+			goto init_err_pci_clean;
+	}
 
 	rc = bnxt_hwrm_func_reset(bp);
 	if (rc)

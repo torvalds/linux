@@ -500,6 +500,7 @@ struct rx_tpa_end_cmp_ext {
 #define NEXT_CMP(idx)		RING_CMP(ADV_RAW_CMP(idx, 1))
 
 #define BNXT_HWRM_MAX_REQ_LEN		(bp->hwrm_max_req_len)
+#define BNXT_HWRM_SHORT_REQ_LEN		sizeof(struct hwrm_short_input)
 #define DFLT_HWRM_CMD_TIMEOUT		500
 #define HWRM_CMD_TIMEOUT		(bp->hwrm_cmd_timeout)
 #define HWRM_RESET_TIMEOUT		((HWRM_CMD_TIMEOUT) * 4)
@@ -1006,6 +1007,7 @@ struct bnxt {
 	#define BNXT_FLAG_RX_PAGE_MODE	0x40000
 	#define BNXT_FLAG_FW_LLDP_AGENT	0x80000
 	#define BNXT_FLAG_MULTI_HOST	0x100000
+	#define BNXT_FLAG_SHORT_CMD	0x200000
 	#define BNXT_FLAG_CHIP_NITRO_A0	0x1000000
 
 	#define BNXT_FLAG_ALL_CONFIG_FEATS (BNXT_FLAG_TPA |		\
@@ -1106,6 +1108,8 @@ struct bnxt {
 	u32			hwrm_spec_code;
 	u16			hwrm_cmd_seq;
 	u32			hwrm_intr_seq_id;
+	void			*hwrm_short_cmd_req_addr;
+	dma_addr_t		hwrm_short_cmd_req_dma_addr;
 	void			*hwrm_cmd_resp_addr;
 	dma_addr_t		hwrm_cmd_resp_dma_addr;
 	void			*hwrm_dbg_resp_addr;
