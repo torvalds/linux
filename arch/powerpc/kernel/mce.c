@@ -268,6 +268,7 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 	static const char *mc_ra_types[] = {
 		"Indeterminate",
 		"Instruction fetch (bad)",
+		"Instruction fetch (foreign)",
 		"Page table walk ifetch (bad)",
 		"Page table walk ifetch (foreign)",
 		"Load (bad)",
