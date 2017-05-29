@@ -88,7 +88,7 @@ struct aa_perms {
 };
 
 #define ALL_PERMS_MASK 0xffffffff
-
+extern struct aa_perms nullperms;
 extern struct aa_perms allperms;
 
 struct aa_profile;

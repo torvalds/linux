@@ -93,12 +93,12 @@ out:
  *
  * Returns: permission set
  */
-static struct file_perms change_profile_perms(struct aa_profile *profile,
-					      struct aa_ns *ns,
-					      const char *name, u32 request,
-					      unsigned int start)
+static struct aa_perms change_profile_perms(struct aa_profile *profile,
+					    struct aa_ns *ns,
+					    const char *name, u32 request,
+					    unsigned int start)
 {
-	struct file_perms perms;
+	struct aa_perms perms;
 	struct path_cond cond = { };
 	unsigned int state;
 
@@ -342,7 +342,7 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 	struct aa_ns *ns;
 	char *buffer = NULL;
 	unsigned int state;
-	struct file_perms perms = {};
+	struct aa_perms perms = {};
 	struct path_cond cond = {
 		file_inode(bprm->file)->i_uid,
 		file_inode(bprm->file)->i_mode
@@ -400,7 +400,7 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 	/* find exec permissions for name */
 	state = aa_str_perms(profile->file.dfa, state, name, &cond, &perms);
 	if (ctx->onexec) {
-		struct file_perms cp;
+		struct aa_perms cp;
 		info = "change_profile onexec";
 		new_profile = aa_get_newest_profile(ctx->onexec);
 		if (!(perms.allow & AA_MAY_ONEXEC))
@@ -609,7 +609,7 @@ int aa_change_hat(const char *hats[], int count, u64 token, bool permtest)
 	struct aa_profile *profile, *previous_profile, *hat = NULL;
 	char *name = NULL;
 	int i;
-	struct file_perms perms = {};
+	struct aa_perms perms = {};
 	const char *target = NULL, *info = NULL;
 	int error = 0;
 
@@ -748,7 +748,7 @@ int aa_change_profile(const char *fqname, bool onexec,
 {
 	const struct cred *cred;
 	struct aa_profile *profile, *target = NULL;
-	struct file_perms perms = {};
+	struct aa_perms perms = {};
 	const char *info = NULL, *op;
 	int error = 0;
 	u32 request;

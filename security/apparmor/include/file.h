@@ -90,25 +90,6 @@ struct path_cond {
 	umode_t mode;
 };
 
-/* struct file_perms - file permission
- * @allow: mask of permissions that are allowed
- * @audit: mask of permissions to force an audit message for
- * @quiet: mask of permissions to quiet audit messages for
- * @kill: mask of permissions that when matched will kill the task
- * @xindex: exec transition index if @allow contains MAY_EXEC
- *
- * The @audit and @queit mask should be mutually exclusive.
- */
-struct file_perms {
-	u32 allow;
-	u32 audit;
-	u32 quiet;
-	u32 kill;
-	u16 xindex;
-};
-
-extern struct file_perms nullperms;
-
 #define COMBINED_PERM_MASK(X) ((X).allow | (X).audit | (X).quiet | (X).kill)
 
 /* FIXME: split perms from dfa and match this to description
@@ -159,7 +140,7 @@ static inline u16 dfa_map_xindex(u16 mask)
 #define dfa_other_xindex(dfa, state) \
 	dfa_map_xindex((ACCEPT_TABLE(dfa)[state] >> 14) & 0x3fff)
 
-int aa_audit_file(struct aa_profile *profile, struct file_perms *perms,
+int aa_audit_file(struct aa_profile *profile, struct aa_perms *perms,
 		  const char *op, u32 request, const char *name,
 		  const char *target, kuid_t ouid, const char *info, int error);
 
@@ -182,9 +163,11 @@ struct aa_file_rules {
 	/* TODO: add delegate table */
 };
 
+struct aa_perms aa_compute_fperms(struct aa_dfa *dfa, unsigned int state,
+				    struct path_cond *cond);
 unsigned int aa_str_perms(struct aa_dfa *dfa, unsigned int start,
 			  const char *name, struct path_cond *cond,
-			  struct file_perms *perms);
+			  struct aa_perms *perms);
 
 int aa_path_perm(const char *op, struct aa_profile *profile,
 		 const struct path *path, int flags, u32 request,

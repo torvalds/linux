@@ -19,8 +19,6 @@
 #include "include/path.h"
 #include "include/policy.h"
 
-struct file_perms nullperms;
-
 static u32 map_mask_to_chr_mask(u32 mask)
 {
 	u32 m = mask & PERMS_CHRS_MASK;
@@ -92,7 +90,7 @@ static void file_audit_cb(struct audit_buffer *ab, void *va)
  *
  * Returns: %0 or error on failure
  */
-int aa_audit_file(struct aa_profile *profile, struct file_perms *perms,
+int aa_audit_file(struct aa_profile *profile, struct aa_perms *perms,
 		  const char *op, u32 request, const char *name,
 		  const char *target, kuid_t ouid, const char *info, int error)
 {
@@ -170,7 +168,7 @@ static u32 map_old_perms(u32 old)
 }
 
 /**
- * compute_perms - convert dfa compressed perms to internal perms
+ * aa_compute_fperms - convert dfa compressed perms to internal perms
  * @dfa: dfa to compute perms for   (NOT NULL)
  * @state: state in dfa
  * @cond:  conditions to consider  (NOT NULL)
@@ -180,17 +178,21 @@ static u32 map_old_perms(u32 old)
  *
  * Returns: computed permission set
  */
-static struct file_perms compute_perms(struct aa_dfa *dfa, unsigned int state,
-				       struct path_cond *cond)
+struct aa_perms aa_compute_fperms(struct aa_dfa *dfa, unsigned int state,
+				  struct path_cond *cond)
 {
-	struct file_perms perms;
+	struct aa_perms perms;
 
 	/* FIXME: change over to new dfa format
 	 * currently file perms are encoded in the dfa, new format
 	 * splits the permissions from the dfa.  This mapping can be
 	 * done at profile load
 	 */
-	perms.kill = 0;
+	perms.deny = 0;
+	perms.kill = perms.stop = 0;
+	perms.complain = perms.cond = 0;
+	perms.hide = 0;
+	perms.prompt = 0;
 
 	if (uid_eq(current_fsuid(), cond->uid)) {
 		perms.allow = map_old_perms(dfa_user_allow(dfa, state));
@@ -226,16 +228,11 @@ static struct file_perms compute_perms(struct aa_dfa *dfa, unsigned int state,
  */
 unsigned int aa_str_perms(struct aa_dfa *dfa, unsigned int start,
 			  const char *name, struct path_cond *cond,
-			  struct file_perms *perms)
+			  struct aa_perms *perms)
 {
 	unsigned int state;
-	if (!dfa) {
-		*perms = nullperms;
-		return DFA_NOMATCH;
-	}
-
 	state = aa_dfa_match(dfa, start, name);
-	*perms = compute_perms(dfa, state, cond);
+	*perms = aa_compute_fperms(dfa, state, cond);
 
 	return state;
 }
@@ -269,7 +266,7 @@ int aa_path_perm(const char *op, struct aa_profile *profile,
 		 struct path_cond *cond)
 {
 	char *buffer = NULL;
-	struct file_perms perms = {};
+	struct aa_perms perms = {};
 	const char *name, *info = NULL;
 	int error;
 
@@ -348,7 +345,7 @@ int aa_path_link(struct aa_profile *profile, struct dentry *old_dentry,
 	};
 	char *buffer = NULL, *buffer2 = NULL;
 	const char *lname, *tname = NULL, *info = NULL;
-	struct file_perms lperms, perms;
+	struct aa_perms lperms, perms;
 	u32 request = AA_MAY_LINK;
 	unsigned int state;
 	int error;
