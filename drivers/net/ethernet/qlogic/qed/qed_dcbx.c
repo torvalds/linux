@@ -310,17 +310,6 @@ qed_dcbx_process_tlv(struct qed_hwfn *p_hwfn,
 		}
 	}
 
-	/* If RoCE-V2 TLV is not detected, driver need to use RoCE app
-	 * data for RoCE-v2 not the default app data.
-	 */
-	if (!p_data->arr[DCBX_PROTOCOL_ROCE_V2].update &&
-	    p_data->arr[DCBX_PROTOCOL_ROCE].update) {
-		tc = p_data->arr[DCBX_PROTOCOL_ROCE].tc;
-		priority = p_data->arr[DCBX_PROTOCOL_ROCE].priority;
-		qed_dcbx_update_app_info(p_data, p_hwfn, true,
-					 priority, tc, DCBX_PROTOCOL_ROCE_V2);
-	}
-
 	/* Update ramrod protocol data and hw_info fields
 	 * with default info when corresponding APP TLV's are not detected.
 	 * The enabled field has a different logic for ethernet as only for
