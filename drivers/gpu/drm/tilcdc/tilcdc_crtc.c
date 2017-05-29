@@ -467,7 +467,6 @@ static void tilcdc_crtc_enable(struct drm_crtc *crtc)
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
 	unsigned long flags;
 
-	WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
 	mutex_lock(&tilcdc_crtc->enable_lock);
 	if (tilcdc_crtc->enabled || tilcdc_crtc->shutdown) {
 		mutex_unlock(&tilcdc_crtc->enable_lock);
@@ -564,7 +563,6 @@ static void tilcdc_crtc_off(struct drm_crtc *crtc, bool shutdown)
 
 static void tilcdc_crtc_disable(struct drm_crtc *crtc)
 {
-	WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
 	tilcdc_crtc_off(crtc, false);
 }
 
@@ -625,8 +623,6 @@ int tilcdc_crtc_update_fb(struct drm_crtc *crtc,
 {
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
-
-	WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
 
 	if (tilcdc_crtc->event) {
 		dev_err(dev->dev, "already pending page flip!\n");
