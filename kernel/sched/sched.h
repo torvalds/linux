@@ -1453,7 +1453,11 @@ static inline void set_curr_task(struct rq *rq, struct task_struct *curr)
 	curr->sched_class->set_curr_task(rq);
 }
 
+#ifdef CONFIG_SMP
 #define sched_class_highest (&stop_sched_class)
+#else
+#define sched_class_highest (&dl_sched_class)
+#endif
 #define for_each_class(class) \
    for (class = sched_class_highest; class; class = class->next)
 
