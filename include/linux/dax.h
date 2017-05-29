@@ -19,6 +19,8 @@ struct dax_operations {
 	/* copy_from_iter: dax-driver override for default copy_from_iter */
 	size_t (*copy_from_iter)(struct dax_device *, pgoff_t, void *, size_t,
 			struct iov_iter *);
+	/* flush: optional driver-specific cache management after writes */
+	void (*flush)(struct dax_device *, pgoff_t, void *, size_t);
 };
 
 #if IS_ENABLED(CONFIG_DAX)

@@ -242,9 +242,16 @@ static size_t pmem_copy_from_iter(struct dax_device *dax_dev, pgoff_t pgoff,
 	return copy_from_iter_flushcache(addr, bytes, i);
 }
 
+static void pmem_dax_flush(struct dax_device *dax_dev, pgoff_t pgoff,
+		void *addr, size_t size)
+{
+	wb_cache_pmem(addr, size);
+}
+
 static const struct dax_operations pmem_dax_ops = {
 	.direct_access = pmem_dax_direct_access,
 	.copy_from_iter = pmem_copy_from_iter,
+	.flush = pmem_dax_flush,
 };
 
 static void pmem_release_queue(void *q)
