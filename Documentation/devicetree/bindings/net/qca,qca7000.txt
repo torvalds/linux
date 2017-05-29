@@ -54,3 +54,35 @@ ssp2: spi@80014000 {
 		local-mac-address = [ A0 B0 C0 D0 E0 F0 ];
 	};
 };
+
+(b) Ethernet over UART
+
+In order to use the QCA7000 as UART slave it must be defined as a child of a
+UART master in the device tree. It is possible to preconfigure the UART
+settings of the QCA7000 firmware, but it's not possible to change them during
+runtime.
+
+Required properties:
+- compatible        : Should be "qca,qca7000"
+
+Optional properties:
+- local-mac-address : see ./ethernet.txt
+- current-speed     : current baud rate of QCA7000 which defaults to 115200
+		      if absent, see also ../serial/slave-device.txt
+
+UART Example:
+
+/* Freescale i.MX28 UART */
+auart0: serial@8006a000 {
+	compatible = "fsl,imx28-auart", "fsl,imx23-auart";
+	reg = <0x8006a000 0x2000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&auart0_2pins_a>;
+	status = "okay";
+
+	qca7000: ethernet {
+		compatible = "qca,qca7000";
+		local-mac-address = [ A0 B0 C0 D0 E0 F0 ];
+		current-speed = <38400>;
+	};
+};
