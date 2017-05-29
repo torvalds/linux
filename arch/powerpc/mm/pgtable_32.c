@@ -390,8 +390,3 @@ void __set_fixmap (enum fixed_addresses idx, phys_addr_t phys, pgprot_t flags)
 	map_page(address, phys, pgprot_val(flags));
 	fixmaps++;
 }
-
-void __this_fixmap_does_not_exist(void)
-{
-	WARN_ON(1);
-}
