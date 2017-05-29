@@ -421,7 +421,7 @@ struct sched_dl_entity {
 	u64				dl_runtime;	/* Maximum runtime for each instance	*/
 	u64				dl_deadline;	/* Relative deadline of each instance	*/
 	u64				dl_period;	/* Separation of two instances (period) */
-	u64				dl_bw;		/* dl_runtime / dl_deadline		*/
+	u64				dl_bw;		/* dl_runtime / dl_period		*/
 
 	/*
 	 * Actual scheduling parameters. Initialized with the values above,
