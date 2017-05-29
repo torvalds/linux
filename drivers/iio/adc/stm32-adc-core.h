@@ -43,11 +43,13 @@
  * struct stm32_adc_common - stm32 ADC driver common data (for all instances)
  * @base:		control registers base cpu addr
  * @phys_base:		control registers base physical addr
+ * @rate:		clock rate used for analog circuitry
  * @vref_mv:		vref voltage (mv)
  */
 struct stm32_adc_common {
 	void __iomem			*base;
 	phys_addr_t			phys_base;
+	unsigned long			rate;
 	int				vref_mv;
 };
 

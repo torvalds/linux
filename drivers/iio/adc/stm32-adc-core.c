@@ -49,6 +49,23 @@
 /* STM32 F4 maximum analog clock rate (from datasheet) */
 #define STM32F4_ADC_MAX_CLK_RATE	36000000
 
+/* STM32H7 - common registers for all ADC instances */
+#define STM32H7_ADC_CSR			(STM32_ADCX_COMN_OFFSET + 0x00)
+#define STM32H7_ADC_CCR			(STM32_ADCX_COMN_OFFSET + 0x08)
+
+/* STM32H7_ADC_CSR - bit fields */
+#define STM32H7_EOC_SLV			BIT(18)
+#define STM32H7_EOC_MST			BIT(2)
+
+/* STM32H7_ADC_CCR - bit fields */
+#define STM32H7_PRESC_SHIFT		18
+#define STM32H7_PRESC_MASK		GENMASK(21, 18)
+#define STM32H7_CKMODE_SHIFT		16
+#define STM32H7_CKMODE_MASK		GENMASK(17, 16)
+
+/* STM32 H7 maximum analog clock rate (from datasheet) */
+#define STM32H7_ADC_MAX_CLK_RATE	72000000
+
 /**
  * stm32_adc_common_regs - stm32 common registers, compatible dependent data
  * @csr:	common status register offset
@@ -80,6 +97,7 @@ struct stm32_adc_priv_cfg {
  * @irq:		irq for ADC block
  * @domain:		irq domain reference
  * @aclk:		clock reference for the analog circuitry
+ * @bclk:		bus clock common for all ADCs, depends on part used
  * @vref:		regulator reference
  * @cfg:		compatible configuration data
  * @common:		common data for all ADC instances
@@ -88,6 +106,7 @@ struct stm32_adc_priv {
 	int				irq;
 	struct irq_domain		*domain;
 	struct clk			*aclk;
+	struct clk			*bclk;
 	struct regulator		*vref;
 	const struct stm32_adc_priv_cfg	*cfg;
 	struct stm32_adc_common		common;
@@ -129,6 +148,7 @@ static int stm32f4_adc_clk_sel(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
+	priv->common.rate = rate;
 	val = readl_relaxed(priv->common.base + STM32F4_ADC_CCR);
 	val &= ~STM32F4_ADC_ADCPRE_MASK;
 	val |= i << STM32F4_ADC_ADCPRE_SHIFT;
@@ -140,12 +160,124 @@ static int stm32f4_adc_clk_sel(struct platform_device *pdev,
 	return 0;
 }
 
+/**
+ * struct stm32h7_adc_ck_spec - specification for stm32h7 adc clock
+ * @ckmode: ADC clock mode, Async or sync with prescaler.
+ * @presc: prescaler bitfield for async clock mode
+ * @div: prescaler division ratio
+ */
+struct stm32h7_adc_ck_spec {
+	u32 ckmode;
+	u32 presc;
+	int div;
+};
+
+const struct stm32h7_adc_ck_spec stm32h7_adc_ckmodes_spec[] = {
+	/* 00: CK_ADC[1..3]: Asynchronous clock modes */
+	{ 0, 0, 1 },
+	{ 0, 1, 2 },
+	{ 0, 2, 4 },
+	{ 0, 3, 6 },
+	{ 0, 4, 8 },
+	{ 0, 5, 10 },
+	{ 0, 6, 12 },
+	{ 0, 7, 16 },
+	{ 0, 8, 32 },
+	{ 0, 9, 64 },
+	{ 0, 10, 128 },
+	{ 0, 11, 256 },
+	/* HCLK used: Synchronous clock modes (1, 2 or 4 prescaler) */
+	{ 1, 0, 1 },
+	{ 2, 0, 2 },
+	{ 3, 0, 4 },
+};
+
+static int stm32h7_adc_clk_sel(struct platform_device *pdev,
+			       struct stm32_adc_priv *priv)
+{
+	u32 ckmode, presc, val;
+	unsigned long rate;
+	int i, div;
+
+	/* stm32h7 bus clock is common for all ADC instances (mandatory) */
+	if (!priv->bclk) {
+		dev_err(&pdev->dev, "No 'bus' clock found\n");
+		return -ENOENT;
+	}
+
+	/*
+	 * stm32h7 can use either 'bus' or 'adc' clock for analog circuitry.
+	 * So, choice is to have bus clock mandatory and adc clock optional.
+	 * If optional 'adc' clock has been found, then try to use it first.
+	 */
+	if (priv->aclk) {
+		/*
+		 * Asynchronous clock modes (e.g. ckmode == 0)
+		 * From spec: PLL output musn't exceed max rate
+		 */
+		rate = clk_get_rate(priv->aclk);
+
+		for (i = 0; i < ARRAY_SIZE(stm32h7_adc_ckmodes_spec); i++) {
+			ckmode = stm32h7_adc_ckmodes_spec[i].ckmode;
+			presc = stm32h7_adc_ckmodes_spec[i].presc;
+			div = stm32h7_adc_ckmodes_spec[i].div;
+
+			if (ckmode)
+				continue;
+
+			if ((rate / div) <= STM32H7_ADC_MAX_CLK_RATE)
+				goto out;
+		}
+	}
+
+	/* Synchronous clock modes (e.g. ckmode is 1, 2 or 3) */
+	rate = clk_get_rate(priv->bclk);
+
+	for (i = 0; i < ARRAY_SIZE(stm32h7_adc_ckmodes_spec); i++) {
+		ckmode = stm32h7_adc_ckmodes_spec[i].ckmode;
+		presc = stm32h7_adc_ckmodes_spec[i].presc;
+		div = stm32h7_adc_ckmodes_spec[i].div;
+
+		if (!ckmode)
+			continue;
+
+		if ((rate / div) <= STM32H7_ADC_MAX_CLK_RATE)
+			goto out;
+	}
+
+	dev_err(&pdev->dev, "adc clk selection failed\n");
+	return -EINVAL;
+
+out:
+	/* rate used later by each ADC instance to control BOOST mode */
+	priv->common.rate = rate;
+
+	/* Set common clock mode and prescaler */
+	val = readl_relaxed(priv->common.base + STM32H7_ADC_CCR);
+	val &= ~(STM32H7_CKMODE_MASK | STM32H7_PRESC_MASK);
+	val |= ckmode << STM32H7_CKMODE_SHIFT;
+	val |= presc << STM32H7_PRESC_SHIFT;
+	writel_relaxed(val, priv->common.base + STM32H7_ADC_CCR);
+
+	dev_dbg(&pdev->dev, "Using %s clock/%d source at %ld kHz\n",
+		ckmode ? "bus" : "adc", div, rate / (div * 1000));
+
+	return 0;
+}
+
 /* STM32F4 common registers definitions */
 static const struct stm32_adc_common_regs stm32f4_adc_common_regs = {
 	.csr = STM32F4_ADC_CSR,
 	.eoc1_msk = STM32F4_EOC1,
 	.eoc2_msk = STM32F4_EOC2,
 	.eoc3_msk = STM32F4_EOC3,
+};
+
+/* STM32H7 common registers definitions */
+static const struct stm32_adc_common_regs stm32h7_adc_common_regs = {
+	.csr = STM32H7_ADC_CSR,
+	.eoc1_msk = STM32H7_EOC_MST,
+	.eoc2_msk = STM32H7_EOC_SLV,
 };
 
 /* ADC common interrupt for all instances */
@@ -291,13 +423,32 @@ static int stm32_adc_probe(struct platform_device *pdev)
 		}
 	}
 
+	priv->bclk = devm_clk_get(&pdev->dev, "bus");
+	if (IS_ERR(priv->bclk)) {
+		ret = PTR_ERR(priv->bclk);
+		if (ret == -ENOENT) {
+			priv->bclk = NULL;
+		} else {
+			dev_err(&pdev->dev, "Can't get 'bus' clock\n");
+			goto err_aclk_disable;
+		}
+	}
+
+	if (priv->bclk) {
+		ret = clk_prepare_enable(priv->bclk);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "adc clk enable failed\n");
+			goto err_aclk_disable;
+		}
+	}
+
 	ret = priv->cfg->clk_sel(pdev, priv);
 	if (ret < 0)
-		goto err_clk_disable;
+		goto err_bclk_disable;
 
 	ret = stm32_adc_irq_probe(pdev, priv);
 	if (ret < 0)
-		goto err_clk_disable;
+		goto err_bclk_disable;
 
 	platform_set_drvdata(pdev, &priv->common);
 
@@ -312,7 +463,11 @@ static int stm32_adc_probe(struct platform_device *pdev)
 err_irq_remove:
 	stm32_adc_irq_remove(pdev, priv);
 
-err_clk_disable:
+err_bclk_disable:
+	if (priv->bclk)
+		clk_disable_unprepare(priv->bclk);
+
+err_aclk_disable:
 	if (priv->aclk)
 		clk_disable_unprepare(priv->aclk);
 
@@ -329,6 +484,8 @@ static int stm32_adc_remove(struct platform_device *pdev)
 
 	of_platform_depopulate(&pdev->dev);
 	stm32_adc_irq_remove(pdev, priv);
+	if (priv->bclk)
+		clk_disable_unprepare(priv->bclk);
 	if (priv->aclk)
 		clk_disable_unprepare(priv->aclk);
 	regulator_disable(priv->vref);
@@ -341,10 +498,18 @@ static const struct stm32_adc_priv_cfg stm32f4_adc_priv_cfg = {
 	.clk_sel = stm32f4_adc_clk_sel,
 };
 
+static const struct stm32_adc_priv_cfg stm32h7_adc_priv_cfg = {
+	.regs = &stm32h7_adc_common_regs,
+	.clk_sel = stm32h7_adc_clk_sel,
+};
+
 static const struct of_device_id stm32_adc_of_match[] = {
 	{
 		.compatible = "st,stm32f4-adc-core",
 		.data = (void *)&stm32f4_adc_priv_cfg
+	}, {
+		.compatible = "st,stm32h7-adc-core",
+		.data = (void *)&stm32h7_adc_priv_cfg
 	}, {
 	},
 };
