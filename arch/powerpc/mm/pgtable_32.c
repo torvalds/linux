@@ -189,7 +189,7 @@ __ioremap_caller(phys_addr_t addr, unsigned long size, unsigned long flags,
 
 	err = 0;
 	for (i = 0; i < size && err == 0; i += PAGE_SIZE)
-		err = map_page(v+i, p+i, flags);
+		err = map_kernel_page(v+i, p+i, flags);
 	if (err) {
 		if (slab_is_available())
 			vunmap((void *)v);
@@ -215,7 +215,7 @@ void iounmap(volatile void __iomem *addr)
 }
 EXPORT_SYMBOL(iounmap);
 
-int map_page(unsigned long va, phys_addr_t pa, int flags)
+int map_kernel_page(unsigned long va, phys_addr_t pa, int flags)
 {
 	pmd_t *pd;
 	pte_t *pg;
@@ -255,7 +255,7 @@ void __init __mapin_ram_chunk(unsigned long offset, unsigned long top)
 		ktext = ((char *)v >= _stext && (char *)v < etext) ||
 			((char *)v >= _sinittext && (char *)v < _einittext);
 		f = ktext ? pgprot_val(PAGE_KERNEL_TEXT) : pgprot_val(PAGE_KERNEL);
-		map_page(v, p, f);
+		map_kernel_page(v, p, f);
 #ifdef CONFIG_PPC_STD_MMU_32
 		if (ktext)
 			hash_preload(&init_mm, v, 0, 0x300);
@@ -387,6 +387,6 @@ void __set_fixmap (enum fixed_addresses idx, phys_addr_t phys, pgprot_t flags)
 		return;
 	}
 
-	map_page(address, phys, pgprot_val(flags));
+	map_kernel_page(address, phys, pgprot_val(flags));
 	fixmaps++;
 }

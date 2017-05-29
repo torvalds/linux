@@ -297,6 +297,8 @@ static inline void __ptep_set_access_flags(struct mm_struct *mm,
 extern int get_pteptr(struct mm_struct *mm, unsigned long addr, pte_t **ptep,
 		      pmd_t **pmdp);
 
+int map_kernel_page(unsigned long va, phys_addr_t pa, int flags);
+
 /* Generic accessors to PTE bits */
 static inline int pte_write(pte_t pte)		{ return !!(pte_val(pte) & _PAGE_RW);}
 static inline int pte_dirty(pte_t pte)		{ return !!(pte_val(pte) & _PAGE_DIRTY); }
