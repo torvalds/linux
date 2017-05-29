@@ -853,10 +853,15 @@ static struct platform_driver * const drivers[] = {
 
 static int __init mv64x60_edac_init(void)
 {
-	int ret = 0;
+	int ret;
+
+	ret = platform_register_drivers(drivers, ARRAY_SIZE(drivers));
+	if (ret)
+		return ret;
 
 	printk(KERN_INFO "Marvell MV64x60 EDAC driver " MV64x60_REVISION "\n");
 	printk(KERN_INFO "\t(C) 2006-2007 MontaVista Software\n");
+
 	/* make sure error reporting method is sane */
 	switch (edac_op_state) {
 	case EDAC_OPSTATE_POLL:
@@ -867,7 +872,7 @@ static int __init mv64x60_edac_init(void)
 		break;
 	}
 
-	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
+	return 0;
 }
 module_init(mv64x60_edac_init);
 
