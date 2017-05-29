@@ -85,13 +85,21 @@ static int stm32f4_adc_clk_sel(struct platform_device *pdev,
 	u32 val;
 	int i;
 
+	/* stm32f4 has one clk input for analog (mandatory), enforce it here */
+	if (!priv->aclk) {
+		dev_err(&pdev->dev, "No 'adc' clock found\n");
+		return -ENOENT;
+	}
+
 	rate = clk_get_rate(priv->aclk);
 	for (i = 0; i < ARRAY_SIZE(stm32f4_pclk_div); i++) {
 		if ((rate / stm32f4_pclk_div[i]) <= STM32F4_ADC_MAX_CLK_RATE)
 			break;
 	}
-	if (i >= ARRAY_SIZE(stm32f4_pclk_div))
+	if (i >= ARRAY_SIZE(stm32f4_pclk_div)) {
+		dev_err(&pdev->dev, "adc clk selection failed\n");
 		return -EINVAL;
+	}
 
 	val = readl_relaxed(priv->common.base + STM32F4_ADC_CCR);
 	val &= ~STM32F4_ADC_ADCPRE_MASK;
@@ -227,21 +235,25 @@ static int stm32_adc_probe(struct platform_device *pdev)
 	priv->aclk = devm_clk_get(&pdev->dev, "adc");
 	if (IS_ERR(priv->aclk)) {
 		ret = PTR_ERR(priv->aclk);
-		dev_err(&pdev->dev, "Can't get 'adc' clock\n");
-		goto err_regulator_disable;
+		if (ret == -ENOENT) {
+			priv->aclk = NULL;
+		} else {
+			dev_err(&pdev->dev, "Can't get 'adc' clock\n");
+			goto err_regulator_disable;
+		}
 	}
 
-	ret = clk_prepare_enable(priv->aclk);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "adc clk enable failed\n");
-		goto err_regulator_disable;
+	if (priv->aclk) {
+		ret = clk_prepare_enable(priv->aclk);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "adc clk enable failed\n");
+			goto err_regulator_disable;
+		}
 	}
 
 	ret = stm32f4_adc_clk_sel(pdev, priv);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "adc clk selection failed\n");
+	if (ret < 0)
 		goto err_clk_disable;
-	}
 
 	ret = stm32_adc_irq_probe(pdev, priv);
 	if (ret < 0)
@@ -261,7 +273,8 @@ err_irq_remove:
 	stm32_adc_irq_remove(pdev, priv);
 
 err_clk_disable:
-	clk_disable_unprepare(priv->aclk);
+	if (priv->aclk)
+		clk_disable_unprepare(priv->aclk);
 
 err_regulator_disable:
 	regulator_disable(priv->vref);
@@ -276,7 +289,8 @@ static int stm32_adc_remove(struct platform_device *pdev)
 
 	of_platform_depopulate(&pdev->dev);
 	stm32_adc_irq_remove(pdev, priv);
-	clk_disable_unprepare(priv->aclk);
+	if (priv->aclk)
+		clk_disable_unprepare(priv->aclk);
 	regulator_disable(priv->vref);
 
 	return 0;
