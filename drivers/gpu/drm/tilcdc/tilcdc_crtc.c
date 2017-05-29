@@ -606,9 +606,7 @@ static void tilcdc_crtc_destroy(struct drm_crtc *crtc)
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
 	struct tilcdc_drm_private *priv = crtc->dev->dev_private;
 
-	drm_modeset_lock(&crtc->mutex, NULL);
-	tilcdc_crtc_disable(crtc);
-	drm_modeset_unlock(&crtc->mutex);
+	tilcdc_crtc_shutdown(crtc);
 
 	flush_workqueue(priv->wq);
 
