@@ -352,7 +352,7 @@ http://patchwork.ozlabs.org/ 에 나열되어 있다.
 버그 보고
 ---------
 
-https://bugzilla.kernel.org는 리눅스 커널 개발자들이 커널의 버그를 추적하는
+https://bugzilla.kernel.org 는 리눅스 커널 개발자들이 커널의 버그를 추적하는
 곳이다. 사용자들은 발견한 모든 버그들을 보고하기 위하여 이 툴을 사용할 것을
 권장한다.  kernel bugzilla를 사용하는 자세한 방법은 다음을 참조하라.
 
