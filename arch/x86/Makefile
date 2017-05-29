@@ -159,7 +159,7 @@ ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	# If '-Os' is enabled, disable it and print a warning.
         ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
           undefine CONFIG_CC_OPTIMIZE_FOR_SIZE
-	  $(warning Disabling CONFIG_CC_OPTIMIZE_FOR_SIZE.  Your compiler does not have -mfentry so you cannot optimize for size with CONFIG_FUNCTION_GRAPH_TRACER.)
+          $(warning Disabling CONFIG_CC_OPTIMIZE_FOR_SIZE.  Your compiler does not have -mfentry so you cannot optimize for size with CONFIG_FUNCTION_GRAPH_TRACER.)
         endif
 
     endif

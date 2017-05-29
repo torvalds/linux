@@ -340,6 +340,9 @@ void intel_gvt_restore_render_mmio(struct intel_vgpu *vgpu, int ring_id)
 		} else
 			v = mmio->value;
 
+		if (mmio->in_context)
+			continue;
+
 		I915_WRITE(mmio->reg, v);
 		POSTING_READ(mmio->reg);
 

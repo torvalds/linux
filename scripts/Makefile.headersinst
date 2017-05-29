@@ -8,6 +8,29 @@
 #
 # ==========================================================================
 
+PHONY := __headers
+__headers:
+
+include scripts/Kbuild.include
+
+srcdir        := $(srctree)/$(obj)
+subdirs       := $(patsubst $(srcdir)/%/.,%,$(wildcard $(srcdir)/*/.))
+# caller may set destination dir (when installing to asm/)
+_dst          := $(if $(dst),$(dst),$(obj))
+
+# Recursion
+__headers: $(subdirs)
+
+.PHONY: $(subdirs)
+$(subdirs):
+	$(Q)$(MAKE) $(hdr-inst)=$(obj)/$@ dst=$(_dst)/$@
+
+# Skip header install/check for include/uapi and arch/$(hdr-arch)/include/uapi.
+# We have only sub-directories there.
+skip-inst := $(if $(filter %/uapi,$(obj)),1)
+
+ifeq ($(skip-inst),)
+
 # generated header directory
 gen := $(if $(gen),$(gen),$(subst include/,include/generated/,$(obj)))
 
@@ -15,21 +38,14 @@ gen := $(if $(gen),$(gen),$(subst include/,include/generated/,$(obj)))
 kbuild-file := $(srctree)/$(obj)/Kbuild
 -include $(kbuild-file)
 
-# called may set destination dir (when installing to asm/)
-_dst := $(if $(dst),$(dst),$(obj))
-
 old-kbuild-file := $(srctree)/$(subst uapi/,,$(obj))/Kbuild
 ifneq ($(wildcard $(old-kbuild-file)),)
 include $(old-kbuild-file)
 endif
 
-include scripts/Kbuild.include
-
 installdir    := $(INSTALL_HDR_PATH)/$(subst uapi/,,$(_dst))
 
-srcdir        := $(srctree)/$(obj)
 gendir        := $(objtree)/$(gen)
-subdirs       := $(patsubst $(srcdir)/%/.,%,$(wildcard $(srcdir)/*/.))
 header-files  := $(notdir $(wildcard $(srcdir)/*.h))
 header-files  += $(notdir $(wildcard $(srcdir)/*.agh))
 header-files  := $(filter-out $(no-export-headers), $(header-files))
@@ -88,11 +104,9 @@ quiet_cmd_check = CHECK   $(printdir) ($(words $(all-files)) files)
                   $(PERL) $< $(INSTALL_HDR_PATH)/include $(SRCARCH); \
 	          touch $@
 
-PHONY += __headersinst __headerscheck
-
 ifndef HDRCHECK
 # Rules for installing headers
-__headersinst: $(subdirs) $(install-file)
+__headers: $(install-file)
 	@:
 
 targets += $(install-file)
@@ -104,7 +118,7 @@ $(install-file): scripts/headers_install.sh \
 	$(call if_changed,install)
 
 else
-__headerscheck: $(subdirs) $(check-file)
+__headers: $(check-file)
 	@:
 
 targets += $(check-file)
@@ -113,11 +127,6 @@ $(check-file): scripts/headers_check.pl $(output-files) FORCE
 
 endif
 
-# Recursion
-.PHONY: $(subdirs)
-$(subdirs):
-	$(Q)$(MAKE) $(hdr-inst)=$(obj)/$@ dst=$(_dst)/$@
-
 targets := $(wildcard $(sort $(targets)))
 cmd_files := $(wildcard \
              $(foreach f,$(targets),$(dir $(f)).$(notdir $(f)).cmd))
@@ -125,6 +134,8 @@ cmd_files := $(wildcard \
 ifneq ($(cmd_files),)
 	include $(cmd_files)
 endif
+
+endif # skip-inst
 
 .PHONY: $(PHONY)
 PHONY += FORCE

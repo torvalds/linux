@@ -53,6 +53,9 @@ EXPORT_SYMBOL_GPL(usb_of_get_child_node);
  *
  * Find the companion device from platform bus.
  *
+ * Takes a reference to the returned struct device which needs to be dropped
+ * after use.
+ *
  * Return: On success, a pointer to the companion device, %NULL on failure.
  */
 struct device *usb_of_get_companion_dev(struct device *dev)

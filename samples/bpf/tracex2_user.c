@@ -127,6 +127,7 @@ int main(int ac, char **argv)
 	}
 
 	signal(SIGINT, int_exit);
+	signal(SIGTERM, int_exit);
 
 	/* start 'ping' in the background to have some kfree_skb events */
 	f = popen("ping -c5 localhost", "r");

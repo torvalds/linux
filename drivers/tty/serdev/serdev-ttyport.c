@@ -102,9 +102,6 @@ static int ttyport_open(struct serdev_controller *ctrl)
 		return PTR_ERR(tty);
 	serport->tty = tty;
 
-	serport->port->client_ops = &client_ops;
-	serport->port->client_data = ctrl;
-
 	if (tty->ops->open)
 		tty->ops->open(serport->tty, NULL);
 	else
@@ -215,6 +212,7 @@ struct device *serdev_tty_port_register(struct tty_port *port,
 					struct device *parent,
 					struct tty_driver *drv, int idx)
 {
+	const struct tty_port_client_operations *old_ops;
 	struct serdev_controller *ctrl;
 	struct serport *serport;
 	int ret;
@@ -233,28 +231,37 @@ struct device *serdev_tty_port_register(struct tty_port *port,
 
 	ctrl->ops = &ctrl_ops;
 
+	old_ops = port->client_ops;
+	port->client_ops = &client_ops;
+	port->client_data = ctrl;
+
 	ret = serdev_controller_add(ctrl);
 	if (ret)
-		goto err_controller_put;
+		goto err_reset_data;
 
 	dev_info(&ctrl->dev, "tty port %s%d registered\n", drv->name, idx);
 	return &ctrl->dev;
 
-err_controller_put:
+err_reset_data:
+	port->client_data = NULL;
+	port->client_ops = old_ops;
 	serdev_controller_put(ctrl);
+
 	return ERR_PTR(ret);
 }
 
-void serdev_tty_port_unregister(struct tty_port *port)
+int serdev_tty_port_unregister(struct tty_port *port)
 {
 	struct serdev_controller *ctrl = port->client_data;
 	struct serport *serport = serdev_controller_get_drvdata(ctrl);
 
 	if (!serport)
-		return;
+		return -ENODEV;
 
 	serdev_controller_remove(ctrl);
 	port->client_ops = NULL;
 	port->client_data = NULL;
 	serdev_controller_put(ctrl);
+
+	return 0;
 }

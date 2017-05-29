@@ -306,7 +306,9 @@ int main(int argc, char *argv[])
 	prog_attach_iptables(argv[2]);
 	if (cfg_test_traffic) {
 		if (signal(SIGINT, finish) == SIG_ERR)
-			error(1, errno, "register handler failed");
+			error(1, errno, "register SIGINT handler failed");
+		if (signal(SIGTERM, finish) == SIG_ERR)
+			error(1, errno, "register SIGTERM handler failed");
 		while (!test_finish) {
 			print_table();
 			printf("\n");
