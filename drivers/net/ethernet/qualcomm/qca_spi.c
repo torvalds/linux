@@ -69,7 +69,7 @@ static int qcaspi_pluggable = QCASPI_PLUGGABLE_MIN;
 module_param(qcaspi_pluggable, int, 0);
 MODULE_PARM_DESC(qcaspi_pluggable, "Pluggable SPI connection (yes/no).");
 
-#define QCASPI_MTU QCAFRM_ETHMAXMTU
+#define QCASPI_MTU QCAFRM_MAX_MTU
 #define QCASPI_TX_TIMEOUT (1 * HZ)
 #define QCASPI_QCA7K_REBOOT_TIME_MS 1000
 
@@ -403,7 +403,7 @@ qcaspi_tx_ring_has_space(struct tx_ring *txr)
 	if (txr->skb[txr->tail])
 		return 0;
 
-	return (txr->size + QCAFRM_ETHMAXLEN < QCASPI_HW_BUF_LEN) ? 1 : 0;
+	return (txr->size + QCAFRM_MAX_LEN < QCASPI_HW_BUF_LEN) ? 1 : 0;
 }
 
 /*   Flush the tx ring. This function is only safe to
@@ -667,8 +667,8 @@ qcaspi_netdev_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct sk_buff *tskb;
 	u8 pad_len = 0;
 
-	if (skb->len < QCAFRM_ETHMINLEN)
-		pad_len = QCAFRM_ETHMINLEN - skb->len;
+	if (skb->len < QCAFRM_MIN_LEN)
+		pad_len = QCAFRM_MIN_LEN - skb->len;
 
 	if (qca->txr.skb[qca->txr.tail]) {
 		netdev_warn(qca->net_dev, "queue was unexpectedly full!\n");
@@ -805,8 +805,8 @@ qcaspi_netdev_setup(struct net_device *dev)
 	dev->tx_queue_len = 100;
 
 	/* MTU range: 46 - 1500 */
-	dev->min_mtu = QCAFRM_ETHMINMTU;
-	dev->max_mtu = QCAFRM_ETHMAXMTU;
+	dev->min_mtu = QCAFRM_MIN_MTU;
+	dev->max_mtu = QCAFRM_MAX_MTU;
 
 	qca = netdev_priv(dev);
 	memset(qca, 0, sizeof(struct qcaspi));
