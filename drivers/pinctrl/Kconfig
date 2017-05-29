@@ -312,6 +312,7 @@ config PINCTRL_ZYNQ
 config PINCTRL_INGENIC
 	bool "Pinctrl driver for the Ingenic JZ47xx SoCs"
 	default y
+	depends on OF
 	depends on MACH_INGENIC || COMPILE_TEST
 	select GENERIC_PINCONF
 	select GENERIC_PINCTRL_GROUPS
