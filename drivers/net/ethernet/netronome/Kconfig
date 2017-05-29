@@ -19,6 +19,7 @@ config NFP
 	tristate "Netronome(R) NFP4000/NFP6000 NIC driver"
 	depends on PCI && PCI_MSI
 	depends on VXLAN || VXLAN=n
+	depends on MAY_USE_DEVLINK
 	---help---
 	  This driver supports the Netronome(R) NFP4000/NFP6000 based
 	  cards working as a advanced Ethernet NIC.  It works with both
