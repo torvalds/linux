@@ -4597,6 +4597,24 @@ static void mlx5_ib_wq_event(struct mlx5_core_qp *core_qp, int type)
 	}
 }
 
+static int set_delay_drop(struct mlx5_ib_dev *dev)
+{
+	int err = 0;
+
+	mutex_lock(&dev->delay_drop.lock);
+	if (dev->delay_drop.activate)
+		goto out;
+
+	err = mlx5_core_set_delay_drop(dev->mdev, dev->delay_drop.timeout);
+	if (err)
+		goto out;
+
+	dev->delay_drop.activate = true;
+out:
+	mutex_unlock(&dev->delay_drop.lock);
+	return err;
+}
+
 static int  create_rq(struct mlx5_ib_rwq *rwq, struct ib_pd *pd,
 		      struct ib_wq_init_attr *init_attr)
 {
@@ -4651,9 +4669,28 @@ static int  create_rq(struct mlx5_ib_rwq *rwq, struct ib_pd *pd,
 		}
 		MLX5_SET(rqc, rqc, scatter_fcs, 1);
 	}
+	if (init_attr->create_flags & IB_WQ_FLAGS_DELAY_DROP) {
+		if (!(dev->ib_dev.attrs.raw_packet_caps &
+		      IB_RAW_PACKET_CAP_DELAY_DROP)) {
+			mlx5_ib_dbg(dev, "Delay drop is not supported\n");
+			err = -EOPNOTSUPP;
+			goto out;
+		}
+		MLX5_SET(rqc, rqc, delay_drop_en, 1);
+	}
 	rq_pas0 = (__be64 *)MLX5_ADDR_OF(wq, wq, pas);
 	mlx5_ib_populate_pas(dev, rwq->umem, rwq->page_shift, rq_pas0, 0);
 	err = mlx5_core_create_rq_tracked(dev->mdev, in, inlen, &rwq->core_qp);
+	if (!err && init_attr->create_flags & IB_WQ_FLAGS_DELAY_DROP) {
+		err = set_delay_drop(dev);
+		if (err) {
+			mlx5_ib_warn(dev, "Failed to enable delay drop err=%d\n",
+				     err);
+			mlx5_core_destroy_rq_tracked(dev->mdev, &rwq->core_qp);
+		} else {
+			rwq->create_flags |= MLX5_IB_WQ_FLAGS_DELAY_DROP;
+		}
+	}
 out:
 	kvfree(in);
 	return err;

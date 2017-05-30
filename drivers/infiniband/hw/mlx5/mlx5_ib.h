@@ -247,6 +247,10 @@ struct mlx5_ib_wq {
 	void		       *qend;
 };
 
+enum mlx5_ib_wq_flags {
+	MLX5_IB_WQ_FLAGS_DELAY_DROP = 0x1,
+};
+
 struct mlx5_ib_rwq {
 	struct ib_wq		ibwq;
 	struct mlx5_core_qp	core_qp;
@@ -264,6 +268,7 @@ struct mlx5_ib_rwq {
 	u32			wqe_count;
 	u32			wqe_shift;
 	int			wq_sig;
+	u32			create_flags; /* Use enum mlx5_ib_wq_flags */
 };
 
 enum {
@@ -652,6 +657,19 @@ struct mlx5_ib_dbg_cc_params {
 	struct mlx5_ib_dbg_param	params[MLX5_IB_DBG_CC_MAX];
 };
 
+enum {
+	MLX5_MAX_DELAY_DROP_TIMEOUT_MS = 100,
+};
+
+struct mlx5_ib_delay_drop {
+	struct mlx5_ib_dev     *dev;
+	struct work_struct	delay_drop_work;
+	/* serialize setting of delay drop */
+	struct mutex		lock;
+	u32			timeout;
+	bool			activate;
+};
+
 struct mlx5_ib_dev {
 	struct ib_device		ib_dev;
 	struct mlx5_core_dev		*mdev;
@@ -688,6 +706,7 @@ struct mlx5_ib_dev {
 	struct mlx5_ib_port	*port;
 	struct mlx5_sq_bfreg	bfreg;
 	struct mlx5_sq_bfreg	fp_bfreg;
+	struct mlx5_ib_delay_drop	delay_drop;
 	struct mlx5_ib_dbg_cc_params	*dbg_cc_params;
 
 	/* protect the user_td */

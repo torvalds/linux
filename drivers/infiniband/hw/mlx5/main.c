@@ -697,6 +697,10 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 		props->device_cap_flags |= IB_DEVICE_UD_TSO;
 	}
 
+	if (MLX5_CAP_GEN(dev->mdev, rq_delay_drop) &&
+	    MLX5_CAP_GEN(dev->mdev, general_notification_event))
+		props->raw_packet_caps |= IB_RAW_PACKET_CAP_DELAY_DROP;
+
 	if (MLX5_CAP_GEN(dev->mdev, eth_net_offloads) &&
 	    MLX5_CAP_ETH(dev->mdev, scatter_fcs)) {
 		/* Legacy bit to support old userspace libraries */
@@ -2752,6 +2756,24 @@ static void mlx5_ib_handle_internal_error(struct mlx5_ib_dev *ibdev)
 	spin_unlock_irqrestore(&ibdev->reset_flow_resource_lock, flags);
 }
 
+static void delay_drop_handler(struct work_struct *work)
+{
+	int err;
+	struct mlx5_ib_delay_drop *delay_drop =
+		container_of(work, struct mlx5_ib_delay_drop,
+			     delay_drop_work);
+
+	mutex_lock(&delay_drop->lock);
+	err = mlx5_core_set_delay_drop(delay_drop->dev->mdev,
+				       delay_drop->timeout);
+	if (err) {
+		mlx5_ib_warn(delay_drop->dev, "Failed to set delay drop, timeout=%u\n",
+			     delay_drop->timeout);
+		delay_drop->activate = false;
+	}
+	mutex_unlock(&delay_drop->lock);
+}
+
 static void mlx5_ib_event(struct mlx5_core_dev *dev, void *context,
 			  enum mlx5_dev_event event, unsigned long param)
 {
@@ -2804,8 +2826,11 @@ static void mlx5_ib_event(struct mlx5_core_dev *dev, void *context,
 		ibev.event = IB_EVENT_CLIENT_REREGISTER;
 		port = (u8)param;
 		break;
+	case MLX5_DEV_EVENT_DELAY_DROP_TIMEOUT:
+		schedule_work(&ibdev->delay_drop.delay_drop_work);
+		goto out;
 	default:
-		return;
+		goto out;
 	}
 
 	ibev.device	      = &ibdev->ib_dev;
@@ -2813,7 +2838,7 @@ static void mlx5_ib_event(struct mlx5_core_dev *dev, void *context,
 
 	if (port < 1 || port > ibdev->num_ports) {
 		mlx5_ib_warn(ibdev, "warning: event on port %d\n", port);
-		return;
+		goto out;
 	}
 
 	if (ibdev->ib_active)
@@ -2821,6 +2846,9 @@ static void mlx5_ib_event(struct mlx5_core_dev *dev, void *context,
 
 	if (fatal)
 		ibdev->ib_active = false;
+
+out:
+	return;
 }
 
 static int set_has_smi_cap(struct mlx5_ib_dev *dev)
@@ -3623,6 +3651,26 @@ mlx5_ib_alloc_rdma_netdev(struct ib_device *hca,
 	return netdev;
 }
 
+static void cancel_delay_drop(struct mlx5_ib_dev *dev)
+{
+	if (!(dev->ib_dev.attrs.raw_packet_caps & IB_RAW_PACKET_CAP_DELAY_DROP))
+		return;
+
+	cancel_work_sync(&dev->delay_drop.delay_drop_work);
+}
+
+static void init_delay_drop(struct mlx5_ib_dev *dev)
+{
+	if (!(dev->ib_dev.attrs.raw_packet_caps & IB_RAW_PACKET_CAP_DELAY_DROP))
+		return;
+
+	mutex_init(&dev->delay_drop.lock);
+	dev->delay_drop.dev = dev;
+	dev->delay_drop.activate = false;
+	dev->delay_drop.timeout = MLX5_MAX_DELAY_DROP_TIMEOUT_MS * 1000;
+	INIT_WORK(&dev->delay_drop.delay_drop_work, delay_drop_handler);
+}
+
 static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 {
 	struct mlx5_ib_dev *dev;
@@ -3862,11 +3910,13 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 	if (err)
 		goto err_dev;
 
+	init_delay_drop(dev);
+
 	for (i = 0; i < ARRAY_SIZE(mlx5_class_attributes); i++) {
 		err = device_create_file(&dev->ib_dev.dev,
 					 mlx5_class_attributes[i]);
 		if (err)
-			goto err_umrc;
+			goto err_delay_drop;
 	}
 
 	if ((MLX5_CAP_GEN(mdev, port_type) == MLX5_CAP_PORT_TYPE_ETH) &&
@@ -3877,7 +3927,8 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 
 	return dev;
 
-err_umrc:
+err_delay_drop:
+	cancel_delay_drop(dev);
 	destroy_umrc_res(dev);
 
 err_dev:
@@ -3924,6 +3975,7 @@ static void mlx5_ib_remove(struct mlx5_core_dev *mdev, void *context)
 	struct mlx5_ib_dev *dev = context;
 	enum rdma_link_layer ll = mlx5_ib_port_link_layer(&dev->ib_dev, 1);
 
+	cancel_delay_drop(dev);
 	mlx5_remove_netdev_notifier(dev);
 	ib_unregister_device(&dev->ib_dev);
 	mlx5_free_bfreg(dev->mdev, &dev->fp_bfreg);
