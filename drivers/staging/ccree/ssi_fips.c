@@ -16,8 +16,8 @@
 
 
 /**************************************************************
-This file defines the driver FIPS APIs                                                             *
-***************************************************************/
+ * This file defines the driver FIPS APIs                     *
+ **************************************************************/
 
 #include <linux/module.h>
 #include "ssi_fips.h"
@@ -27,9 +27,9 @@ extern int ssi_fips_ext_get_state(ssi_fips_state_t *p_state);
 extern int ssi_fips_ext_get_error(ssi_fips_error_t *p_err);
 
 /*
-This function returns the REE FIPS state.
-It should be called by kernel module.
-*/
+ * This function returns the REE FIPS state.
+ * It should be called by kernel module.
+ */
 int ssi_fips_get_state(ssi_fips_state_t *p_state)
 {
 	int rc = 0;
@@ -46,9 +46,9 @@ int ssi_fips_get_state(ssi_fips_state_t *p_state)
 EXPORT_SYMBOL(ssi_fips_get_state);
 
 /*
-This function returns the REE FIPS error.
-It should be called by kernel module.
-*/
+ * This function returns the REE FIPS error.
+ * It should be called by kernel module.
+ */
 int ssi_fips_get_error(ssi_fips_error_t *p_err)
 {
 	int rc = 0;
