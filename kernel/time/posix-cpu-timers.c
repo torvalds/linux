@@ -527,6 +527,7 @@ static void cpu_timer_fire(struct k_itimer *timer)
 		 * ticking in case the signal is deliverable next time.
 		 */
 		posix_cpu_timer_schedule(timer);
+		++timer->it_requeue_pending;
 	}
 }
 
@@ -997,12 +998,12 @@ void posix_cpu_timer_schedule(struct k_itimer *timer)
 		cpu_clock_sample(timer->it_clock, p, &now);
 		bump_cpu_timer(timer, now);
 		if (unlikely(p->exit_state))
-			goto out;
+			return;
 
 		/* Protect timer list r/w in arm_timer() */
 		sighand = lock_task_sighand(p, &flags);
 		if (!sighand)
-			goto out;
+			return;
 	} else {
 		/*
 		 * Protect arm_timer() and timer sampling in case of call to
@@ -1015,11 +1016,10 @@ void posix_cpu_timer_schedule(struct k_itimer *timer)
 			 * We can't even collect a sample any more.
 			 */
 			timer->it.cpu.expires = 0;
-			goto out;
+			return;
 		} else if (unlikely(p->exit_state) && thread_group_empty(p)) {
-			unlock_task_sighand(p, &flags);
-			/* Optimizations: if the process is dying, no need to rearm */
-			goto out;
+			/* If the process is dying, no need to rearm */
+			goto unlock;
 		}
 		cpu_timer_sample_group(timer->it_clock, p, &now);
 		bump_cpu_timer(timer, now);
@@ -1031,12 +1031,8 @@ void posix_cpu_timer_schedule(struct k_itimer *timer)
 	 */
 	WARN_ON_ONCE(!irqs_disabled());
 	arm_timer(timer);
+unlock:
 	unlock_task_sighand(p, &flags);
-
-out:
-	timer->it_overrun_last = timer->it_overrun;
-	timer->it_overrun = -1;
-	++timer->it_requeue_pending;
 }
 
 /**
