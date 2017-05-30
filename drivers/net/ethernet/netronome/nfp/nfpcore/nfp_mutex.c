@@ -195,7 +195,8 @@ void nfp_cpp_mutex_free(struct nfp_cpp_mutex *mutex)
  */
 int nfp_cpp_mutex_lock(struct nfp_cpp_mutex *mutex)
 {
-	unsigned long warn_at = jiffies + 15 * HZ;
+	unsigned long warn_at = jiffies + NFP_MUTEX_WAIT_FIRST_WARN * HZ;
+	unsigned long err_at = jiffies + NFP_MUTEX_WAIT_ERROR * HZ;
 	unsigned int timeout_ms = 1;
 	int err;
 
@@ -214,11 +215,15 @@ int nfp_cpp_mutex_lock(struct nfp_cpp_mutex *mutex)
 			return -ERESTARTSYS;
 
 		if (time_is_before_eq_jiffies(warn_at)) {
-			warn_at = jiffies + 60 * HZ;
+			warn_at = jiffies + NFP_MUTEX_WAIT_NEXT_WARN * HZ;
 			nfp_warn(mutex->cpp,
 				 "Warning: waiting for NFP mutex [depth:%hd target:%d addr:%llx key:%08x]\n",
 				 mutex->depth,
 				 mutex->target, mutex->address, mutex->key);
+		}
+		if (time_is_before_eq_jiffies(err_at)) {
+			nfp_err(mutex->cpp, "Error: mutex wait timed out\n");
+			return -EBUSY;
 		}
 	}
 

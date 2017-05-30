@@ -928,7 +928,7 @@ static void nfp_net_tx_complete(struct nfp_net_tx_ring *tx_ring)
 	if (qcp_rd_p == tx_ring->qcp_rd_p)
 		return;
 
-	todo = D_IDX(tx_ring, qcp_rd_p + tx_ring->cnt - tx_ring->qcp_rd_p);
+	todo = D_IDX(tx_ring, qcp_rd_p - tx_ring->qcp_rd_p);
 
 	while (todo--) {
 		idx = D_IDX(tx_ring, tx_ring->rd_p++);
@@ -999,7 +999,7 @@ static bool nfp_net_xdp_complete(struct nfp_net_tx_ring *tx_ring)
 	if (qcp_rd_p == tx_ring->qcp_rd_p)
 		return true;
 
-	todo = D_IDX(tx_ring, qcp_rd_p + tx_ring->cnt - tx_ring->qcp_rd_p);
+	todo = D_IDX(tx_ring, qcp_rd_p - tx_ring->qcp_rd_p);
 
 	done_all = todo <= NFP_NET_XDP_MAX_COMPLETE;
 	todo = min(todo, NFP_NET_XDP_MAX_COMPLETE);
@@ -1212,14 +1212,12 @@ static void nfp_net_rx_give_one(const struct nfp_net_dp *dp,
 			      dma_addr + dp->rx_dma_off);
 
 	rx_ring->wr_p++;
-	rx_ring->wr_ptr_add++;
-	if (rx_ring->wr_ptr_add >= NFP_NET_FL_BATCH) {
+	if (!(rx_ring->wr_p % NFP_NET_FL_BATCH)) {
 		/* Update write pointer of the freelist queue. Make
 		 * sure all writes are flushed before telling the hardware.
 		 */
 		wmb();
-		nfp_qcp_wr_ptr_add(rx_ring->qcp_fl, rx_ring->wr_ptr_add);
-		rx_ring->wr_ptr_add = 0;
+		nfp_qcp_wr_ptr_add(rx_ring->qcp_fl, NFP_NET_FL_BATCH);
 	}
 }
 
@@ -1245,7 +1243,6 @@ static void nfp_net_rx_ring_reset(struct nfp_net_rx_ring *rx_ring)
 	memset(rx_ring->rxds, 0, sizeof(*rx_ring->rxds) * rx_ring->cnt);
 	rx_ring->wr_p = 0;
 	rx_ring->rd_p = 0;
-	rx_ring->wr_ptr_add = 0;
 }
 
 /**
@@ -2123,17 +2120,16 @@ void nfp_net_coalesce_write_cfg(struct nfp_net *nn)
 /**
  * nfp_net_write_mac_addr() - Write mac address to the device control BAR
  * @nn:      NFP Net device to reconfigure
+ * @addr:    MAC address to write
  *
  * Writes the MAC address from the netdev to the device control BAR.  Does not
  * perform the required reconfig.  We do a bit of byte swapping dance because
  * firmware is LE.
  */
-static void nfp_net_write_mac_addr(struct nfp_net *nn)
+static void nfp_net_write_mac_addr(struct nfp_net *nn, const u8 *addr)
 {
-	nn_writel(nn, NFP_NET_CFG_MACADDR + 0,
-		  get_unaligned_be32(nn->dp.netdev->dev_addr));
-	nn_writew(nn, NFP_NET_CFG_MACADDR + 6,
-		  get_unaligned_be16(nn->dp.netdev->dev_addr + 4));
+	nn_writel(nn, NFP_NET_CFG_MACADDR + 0, get_unaligned_be32(addr));
+	nn_writew(nn, NFP_NET_CFG_MACADDR + 6, get_unaligned_be16(addr + 4));
 }
 
 static void nfp_net_vec_clear_ring_data(struct nfp_net *nn, unsigned int idx)
@@ -2238,7 +2234,7 @@ static int nfp_net_set_config_and_enable(struct nfp_net *nn)
 	nn_writeq(nn, NFP_NET_CFG_RXRS_ENABLE, nn->dp.num_rx_rings == 64 ?
 		  0xffffffffffffffffULL : ((u64)1 << nn->dp.num_rx_rings) - 1);
 
-	nfp_net_write_mac_addr(nn);
+	nfp_net_write_mac_addr(nn, nn->dp.netdev->dev_addr);
 
 	nn_writel(nn, NFP_NET_CFG_MTU, nn->dp.netdev->mtu);
 
@@ -2997,6 +2993,27 @@ static int nfp_net_xdp(struct net_device *netdev, struct netdev_xdp *xdp)
 	}
 }
 
+static int nfp_net_set_mac_address(struct net_device *netdev, void *addr)
+{
+	struct nfp_net *nn = netdev_priv(netdev);
+	struct sockaddr *saddr = addr;
+	int err;
+
+	err = eth_prepare_mac_addr_change(netdev, addr);
+	if (err)
+		return err;
+
+	nfp_net_write_mac_addr(nn, saddr->sa_data);
+
+	err = nfp_net_reconfig(nn, NFP_NET_CFG_UPDATE_MACADDR);
+	if (err)
+		return err;
+
+	eth_commit_mac_addr_change(netdev, addr);
+
+	return 0;
+}
+
 const struct net_device_ops nfp_net_netdev_ops = {
 	.ndo_open		= nfp_net_netdev_open,
 	.ndo_stop		= nfp_net_netdev_close,
@@ -3006,7 +3023,7 @@ const struct net_device_ops nfp_net_netdev_ops = {
 	.ndo_tx_timeout		= nfp_net_tx_timeout,
 	.ndo_set_rx_mode	= nfp_net_set_rx_mode,
 	.ndo_change_mtu		= nfp_net_change_mtu,
-	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_set_mac_address	= nfp_net_set_mac_address,
 	.ndo_set_features	= nfp_net_set_features,
 	.ndo_features_check	= nfp_net_features_check,
 	.ndo_get_phys_port_name	= nfp_port_get_phys_port_name,
@@ -3029,7 +3046,7 @@ void nfp_net_info(struct nfp_net *nn)
 		nn->fw_ver.resv, nn->fw_ver.class,
 		nn->fw_ver.major, nn->fw_ver.minor,
 		nn->max_mtu);
-	nn_info(nn, "CAP: %#x %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
+	nn_info(nn, "CAP: %#x %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
 		nn->cap,
 		nn->cap & NFP_NET_CFG_CTRL_PROMISC  ? "PROMISC "  : "",
 		nn->cap & NFP_NET_CFG_CTRL_L2BC     ? "L2BCFILT " : "",
@@ -3051,7 +3068,8 @@ void nfp_net_info(struct nfp_net *nn)
 		nn->cap & NFP_NET_CFG_CTRL_NVGRE    ? "NVGRE "	  : "",
 		nfp_net_ebpf_capable(nn)            ? "BPF "	  : "",
 		nn->cap & NFP_NET_CFG_CTRL_CSUM_COMPLETE ?
-						      "RXCSUM_COMPLETE " : "");
+						      "RXCSUM_COMPLETE " : "",
+		nn->cap & NFP_NET_CFG_CTRL_LIVE_ADDR ? "LIVE_ADDR " : "");
 }
 
 /**
@@ -3211,7 +3229,7 @@ int nfp_net_init(struct nfp_net *nn)
 	if (nn->dp.chained_metadata_format && nn->fw_ver.major != 4)
 		nn->cap &= ~NFP_NET_CFG_CTRL_RSS;
 
-	nfp_net_write_mac_addr(nn);
+	nfp_net_write_mac_addr(nn, nn->dp.netdev->dev_addr);
 
 	/* Determine RX packet/metadata boundary offset */
 	if (nn->fw_ver.major >= 2) {
@@ -3241,6 +3259,9 @@ int nfp_net_init(struct nfp_net *nn)
 	 * and netdev->hw_features advertises which features are
 	 * supported.  By default we enable most features.
 	 */
+	if (nn->cap & NFP_NET_CFG_CTRL_LIVE_ADDR)
+		netdev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
+
 	netdev->hw_features = NETIF_F_HIGHDMA;
 	if (nn->cap & NFP_NET_CFG_CTRL_RXCSUM_ANY) {
 		netdev->hw_features |= NETIF_F_RXCSUM;
