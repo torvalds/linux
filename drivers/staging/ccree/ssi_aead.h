@@ -15,7 +15,7 @@
  */
 
 /* \file ssi_aead.h
-   ARM CryptoCell AEAD Crypto API
+ * ARM CryptoCell AEAD Crypto API
  */
 
 #ifndef __SSI_AEAD_H__
@@ -62,8 +62,9 @@ enum aead_ccm_header_size {
 
 struct aead_req_ctx {
 	/* Allocate cache line although only 4 bytes are needed to
-	*  assure next field falls @ cache line
-	*  Used for both: digest HW compare and CCM/GCM MAC value */
+	 *  assure next field falls @ cache line
+	 *  Used for both: digest HW compare and CCM/GCM MAC value
+	 */
 	u8 mac_buf[MAX_MAC_SIZE] ____cacheline_aligned;
 	u8 ctr_iv[AES_BLOCK_SIZE] ____cacheline_aligned;
 
