@@ -206,7 +206,7 @@ struct jit_context {
 /* emit x64 prologue code for BPF program and check it's size.
  * bpf_tail_call helper will skip it while jumping into another program
  */
-static void emit_prologue(u8 **pprog)
+static void emit_prologue(u8 **pprog, u32 stack_depth)
 {
 	u8 *prog = *pprog;
 	int cnt = 0;
@@ -214,8 +214,9 @@ static void emit_prologue(u8 **pprog)
 	EMIT1(0x55); /* push rbp */
 	EMIT3(0x48, 0x89, 0xE5); /* mov rbp,rsp */
 
-	/* sub rsp, MAX_BPF_STACK + AUX_STACK_SPACE */
-	EMIT3_off32(0x48, 0x81, 0xEC, MAX_BPF_STACK + AUX_STACK_SPACE);
+	/* sub rsp, rounded_stack_depth + AUX_STACK_SPACE */
+	EMIT3_off32(0x48, 0x81, 0xEC,
+		    round_up(stack_depth, 8) + AUX_STACK_SPACE);
 
 	/* sub rbp, AUX_STACK_SPACE */
 	EMIT4(0x48, 0x83, 0xED, AUX_STACK_SPACE);
@@ -363,7 +364,7 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 	int proglen = 0;
 	u8 *prog = temp;
 
-	emit_prologue(&prog);
+	emit_prologue(&prog, bpf_prog->aux->stack_depth);
 
 	if (seen_ld_abs)
 		emit_load_skb_data_hlen(&prog);
