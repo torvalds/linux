@@ -29,6 +29,7 @@
 #include <linux/swab.h>
 #include <linux/fips.h>
 #include <crypto/ecdh.h>
+#include <crypto/rng.h>
 
 #include "ecc.h"
 #include "ecc_curve_defs.h"
@@ -923,6 +924,61 @@ int ecc_is_key_valid(unsigned int curve_id, unsigned int ndigits,
 	/* Make sure the private key is in the range [1, n-1]. */
 	if (vli_cmp(curve->n, private_key, ndigits) != 1)
 		return -EINVAL;
+
+	return 0;
+}
+
+/*
+ * ECC private keys are generated using the method of extra random bits,
+ * equivalent to that described in FIPS 186-4, Appendix B.4.1.
+ *
+ * d = (c mod(n–1)) + 1    where c is a string of random bits, 64 bits longer
+ *                         than requested
+ * 0 <= c mod(n-1) <= n-2  and implies that
+ * 1 <= d <= n-1
+ *
+ * This method generates a private key uniformly distributed in the range
+ * [1, n-1].
+ */
+int ecc_gen_privkey(unsigned int curve_id, unsigned int ndigits, u64 *privkey)
+{
+	const struct ecc_curve *curve = ecc_get_curve(curve_id);
+	u64 priv[ndigits];
+	unsigned int nbytes = ndigits << ECC_DIGITS_TO_BYTES_SHIFT;
+	unsigned int nbits = vli_num_bits(curve->n, ndigits);
+	int err;
+
+	/* Check that N is included in Table 1 of FIPS 186-4, section 6.1.1 */
+	if (nbits < 160)
+		return -EINVAL;
+
+	/*
+	 * FIPS 186-4 recommends that the private key should be obtained from a
+	 * RBG with a security strength equal to or greater than the security
+	 * strength associated with N.
+	 *
+	 * The maximum security strength identified by NIST SP800-57pt1r4 for
+	 * ECC is 256 (N >= 512).
+	 *
+	 * This condition is met by the default RNG because it selects a favored
+	 * DRBG with a security strength of 256.
+	 */
+	if (crypto_get_default_rng())
+		err = -EFAULT;
+
+	err = crypto_rng_get_bytes(crypto_default_rng, (u8 *)priv, nbytes);
+	crypto_put_default_rng();
+	if (err)
+		return err;
+
+	if (vli_is_zero(priv, ndigits))
+		return -EINVAL;
+
+	/* Make sure the private key is in the range [1, n-1]. */
+	if (vli_cmp(curve->n, priv, ndigits) != 1)
+		return -EINVAL;
+
+	ecc_swap_digits(priv, privkey, ndigits);
 
 	return 0;
 }
