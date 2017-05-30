@@ -15,9 +15,9 @@
  */
 
 /**************************************************************
-This file defines the driver FIPS Low Level implmentaion functions,
-that executes the KAT.
-***************************************************************/
+ * This file defines the driver FIPS Low Level implmentaion functions,
+ * that executes the KAT.
+ ***************************************************************/
 #include <linux/kernel.h>
 
 #include "ssi_driver.h"
@@ -816,7 +816,8 @@ ssi_hmac_fips_run_test(struct ssi_drvdata *drvdata,
 		       dma_addr_t digest_bytes_len_dma_addr)
 {
 	/* The implemented flow is not the same as the one implemented in ssi_hash.c (setkey + digest flows).
-	   In this flow, there is no need to store and reload some of the intermidiate results. */
+	 * In this flow, there is no need to store and reload some of the intermidiate results.
+	 */
 
 	/* max number of descriptors used for the flow */
 	#define FIPS_HMAC_MAX_SEQ_LEN 12
@@ -948,9 +949,9 @@ ssi_hmac_fips_run_test(struct ssi_drvdata *drvdata,
 	idx++;
 
 	/* at this point:
-	   tmp_digest = H(o_key_pad)
-	   k0 = H(i_key_pad || m)
-	   */
+	 * tmp_digest = H(o_key_pad)
+	 * k0 = H(i_key_pad || m)
+	 */
 
 	/* Loading hash opad xor key state */
 	HW_DESC_INIT(&desc[idx]);
@@ -1413,8 +1414,10 @@ ssi_gcm_fips_run_test(struct ssi_drvdata *drvdata,
 	idx++;
 
 	/* Configure Hash Engine to work with GHASH.
-	   Since it was not possible to extend HASH submodes to add GHASH,
-	   The following command is necessary in order to select GHASH (according to HW designers)*/
+	 * Since it was not possible to extend HASH submodes to add GHASH,
+	 * The following command is necessary in order to
+	 * select GHASH (according to HW designers)
+	 */
 	HW_DESC_INIT(&desc[idx]);
 	HW_DESC_SET_DIN_NO_DMA(&desc[idx], 0, 0xfffff0);
 	HW_DESC_SET_DOUT_NO_DMA(&desc[idx], 0, 0, 1);
