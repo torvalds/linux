@@ -44,12 +44,12 @@
 #define QCAFRM_INVFRAME (QCAFRM_ERR_BASE - 4)
 
 /* Min/Max Ethernet MTU: 46/1500 */
-#define QCAFRM_ETHMINMTU (ETH_ZLEN - ETH_HLEN)
-#define QCAFRM_ETHMAXMTU ETH_DATA_LEN
+#define QCAFRM_MIN_MTU (ETH_ZLEN - ETH_HLEN)
+#define QCAFRM_MAX_MTU ETH_DATA_LEN
 
 /* Min/Max frame lengths */
-#define QCAFRM_ETHMINLEN (QCAFRM_ETHMINMTU + ETH_HLEN)
-#define QCAFRM_ETHMAXLEN (QCAFRM_ETHMAXMTU + VLAN_ETH_HLEN)
+#define QCAFRM_MIN_LEN (QCAFRM_MIN_MTU + ETH_HLEN)
+#define QCAFRM_MAX_LEN (QCAFRM_MAX_MTU + VLAN_ETH_HLEN)
 
 /* QCA7K header len */
 #define QCAFRM_HEADER_LEN 8
@@ -61,6 +61,7 @@
 #define QCAFRM_ERR_BASE -1000
 
 enum qcafrm_state {
+	/* HW length is only available on SPI */
 	QCAFRM_HW_LEN0 = 0x8000,
 	QCAFRM_HW_LEN1 = QCAFRM_HW_LEN0 - 1,
 	QCAFRM_HW_LEN2 = QCAFRM_HW_LEN1 - 1,
@@ -101,9 +102,11 @@ enum qcafrm_state {
 struct qcafrm_handle {
 	/*  Current decoding state */
 	enum qcafrm_state state;
+	/* Initial state depends on connection type */
+	enum qcafrm_state init;
 
 	/* Offset in buffer (borrowed for length too) */
-	s16 offset;
+	u16 offset;
 
 	/* Frame length as kept by this module */
 	u16 len;
@@ -113,9 +116,16 @@ u16 qcafrm_create_header(u8 *buf, u16 len);
 
 u16 qcafrm_create_footer(u8 *buf);
 
-static inline void qcafrm_fsm_init(struct qcafrm_handle *handle)
+static inline void qcafrm_fsm_init_spi(struct qcafrm_handle *handle)
 {
-	handle->state = QCAFRM_HW_LEN0;
+	handle->init = QCAFRM_HW_LEN0;
+	handle->state = handle->init;
+}
+
+static inline void qcafrm_fsm_init_uart(struct qcafrm_handle *handle)
+{
+	handle->init = QCAFRM_WAIT_AA1;
+	handle->state = handle->init;
 }
 
 /*   Gather received bytes and try to extract a full Ethernet frame

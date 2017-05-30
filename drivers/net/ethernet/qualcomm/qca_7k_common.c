@@ -21,9 +21,11 @@
  *   by an atheros frame while transmitted over a serial channel;
  */
 
+#include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 
-#include "qca_framing.h"
+#include "qca_7k_common.h"
 
 u16
 qcafrm_create_header(u8 *buf, u16 length)
@@ -46,6 +48,7 @@ qcafrm_create_header(u8 *buf, u16 length)
 
 	return QCAFRM_HEADER_LEN;
 }
+EXPORT_SYMBOL_GPL(qcafrm_create_header);
 
 u16
 qcafrm_create_footer(u8 *buf)
@@ -57,6 +60,7 @@ qcafrm_create_footer(u8 *buf)
 	buf[1] = 0x55;
 	return QCAFRM_FOOTER_LEN;
 }
+EXPORT_SYMBOL_GPL(qcafrm_create_footer);
 
 /*   Gather received bytes and try to extract a full ethernet frame by
  *   following a simple state machine.
@@ -83,7 +87,7 @@ qcafrm_fsm_decode(struct qcafrm_handle *handle, u8 *buf, u16 buf_len, u8 recv_by
 
 		if (recv_byte != 0x00) {
 			/* first two bytes of length must be 0 */
-			handle->state = QCAFRM_HW_LEN0;
+			handle->state = handle->init;
 		}
 		break;
 	case QCAFRM_HW_LEN2:
@@ -97,7 +101,7 @@ qcafrm_fsm_decode(struct qcafrm_handle *handle, u8 *buf, u16 buf_len, u8 recv_by
 	case QCAFRM_WAIT_AA4:
 		if (recv_byte != 0xAA) {
 			ret = QCAFRM_NOHEAD;
-			handle->state = QCAFRM_HW_LEN0;
+			handle->state = handle->init;
 		} else {
 			handle->state--;
 		}
@@ -117,9 +121,9 @@ qcafrm_fsm_decode(struct qcafrm_handle *handle, u8 *buf, u16 buf_len, u8 recv_by
 		break;
 	case QCAFRM_WAIT_RSVD_BYTE2:
 		len = handle->offset;
-		if (len > buf_len || len < QCAFRM_ETHMINLEN) {
+		if (len > buf_len || len < QCAFRM_MIN_LEN) {
 			ret = QCAFRM_INVLEN;
-			handle->state = QCAFRM_HW_LEN0;
+			handle->state = handle->init;
 		} else {
 			handle->state = (enum qcafrm_state)(len + 1);
 			/* Remaining number of bytes. */
@@ -135,7 +139,7 @@ qcafrm_fsm_decode(struct qcafrm_handle *handle, u8 *buf, u16 buf_len, u8 recv_by
 	case QCAFRM_WAIT_551:
 		if (recv_byte != 0x55) {
 			ret = QCAFRM_NOTAIL;
-			handle->state = QCAFRM_HW_LEN0;
+			handle->state = handle->init;
 		} else {
 			handle->state = QCAFRM_WAIT_552;
 		}
@@ -143,14 +147,20 @@ qcafrm_fsm_decode(struct qcafrm_handle *handle, u8 *buf, u16 buf_len, u8 recv_by
 	case QCAFRM_WAIT_552:
 		if (recv_byte != 0x55) {
 			ret = QCAFRM_NOTAIL;
-			handle->state = QCAFRM_HW_LEN0;
+			handle->state = handle->init;
 		} else {
 			ret = handle->offset;
 			/* Frame is fully received. */
-			handle->state = QCAFRM_HW_LEN0;
+			handle->state = handle->init;
 		}
 		break;
 	}
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(qcafrm_fsm_decode);
+
+MODULE_DESCRIPTION("Qualcomm Atheros QCA7000 common");
+MODULE_AUTHOR("Qualcomm Atheros Communications");
+MODULE_AUTHOR("Stefan Wahren <stefan.wahren@i2se.com>");
+MODULE_LICENSE("Dual BSD/GPL");

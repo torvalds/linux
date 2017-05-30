@@ -23,11 +23,9 @@
  *   kernel-based SPI device.
  */
 
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/moduleparam.h>
+#include <linux/kernel.h>
+#include <linux/netdevice.h>
 #include <linux/spi/spi.h>
-#include <linux/version.h>
 
 #include "qca_7k.h"
 
@@ -113,30 +111,6 @@ qcaspi_write_register(struct qcaspi *qca, u16 reg, u16 value)
 	transfer->tx_buf = &tx_data[1];
 	transfer->rx_buf = NULL;
 	transfer->len = QCASPI_CMD_LEN;
-	ret = spi_sync(qca->spi_dev, msg);
-
-	if (!ret)
-		ret = msg->status;
-
-	if (ret)
-		qcaspi_spi_error(qca);
-
-	return ret;
-}
-
-int
-qcaspi_tx_cmd(struct qcaspi *qca, u16 cmd)
-{
-	__be16 tx_data;
-	struct spi_message *msg = &qca->spi_msg1;
-	struct spi_transfer *transfer = &qca->spi_xfer1;
-	int ret;
-
-	tx_data = cpu_to_be16(cmd);
-	transfer->len = sizeof(tx_data);
-	transfer->tx_buf = &tx_data;
-	transfer->rx_buf = NULL;
-
 	ret = spi_sync(qca->spi_dev, msg);
 
 	if (!ret)
