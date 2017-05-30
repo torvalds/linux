@@ -15,7 +15,7 @@
  */
 
 /* \file ssi_config.h
-   Definitions for ARM CryptoCell Linux Crypto Driver
+ * Definitions for ARM CryptoCell Linux Crypto Driver
  */
 
 #ifndef __SSI_CONFIG_H__
@@ -49,7 +49,8 @@
 	#define SSI_CACHE_PARAMS (0x000)
 	/* CC attached to NONE-ACP such as HPP/ACE/AMBA4.
 	 * The customer is responsible to enable/disable this feature
-	 * according to his platform type. */
+	 * according to his platform type.
+	 */
 	#define DX_HAS_ACP 0
 #else
 	#define SSI_CACHE_PARAMS (0xEEE)
