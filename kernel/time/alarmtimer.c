@@ -520,8 +520,7 @@ static enum alarmtimer_restart alarm_handle_timer(struct alarm *alarm,
 
 	spin_lock_irqsave(&ptr->it_lock, flags);
 	if ((ptr->it_sigev_notify & ~SIGEV_THREAD_ID) != SIGEV_NONE) {
-		if (IS_ENABLED(CONFIG_POSIX_TIMERS) &&
-		    posix_timer_event(ptr, 0) != 0)
+		if (posix_timer_event(ptr, 0))
 			ptr->it_overrun++;
 	}
 
