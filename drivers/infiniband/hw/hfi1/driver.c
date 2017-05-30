@@ -703,7 +703,6 @@ static inline int process_rcv_packet(struct hfi1_packet *packet, int thread)
 
 	packet->etype = rhf_rcv_type(packet->rhf);
 
-	packet->hlen = (u8 *)packet->rhf_addr - (u8 *)packet->hdr;
 	/* total length */
 	packet->tlen = rhf_pkt_len(packet->rhf); /* in bytes */
 	/* retrieve eager buffer details */
