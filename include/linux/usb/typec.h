@@ -190,6 +190,7 @@ struct typec_partner_desc {
  * @pr_set: Set Power Role
  * @vconn_set: Set VCONN Role
  * @activate_mode: Enter/exit given Alternate Mode
+ * @port_type_set: Set port type
  *
  * Static capabilities of a single USB Type-C port.
  */
@@ -214,6 +215,9 @@ struct typec_capability {
 
 	int		(*activate_mode)(const struct typec_capability *,
 					 int mode, int activate);
+	int		(*port_type_set)(const struct typec_capability *,
+					enum typec_port_type);
+
 };
 
 /* Specific to try_role(). Indicates the user want's to clear the preference. */

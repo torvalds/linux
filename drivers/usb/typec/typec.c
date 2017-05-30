@@ -11,6 +11,7 @@
 
 #include <linux/device.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/usb/typec.h>
 
@@ -69,6 +70,8 @@ struct typec_port {
 	enum typec_role			pwr_role;
 	enum typec_role			vconn_role;
 	enum typec_pwr_opmode		pwr_opmode;
+	enum typec_port_type		port_type;
+	struct mutex			port_type_lock;
 
 	const struct typec_capability	*cap;
 };
@@ -790,6 +793,18 @@ static const char * const typec_data_roles[] = {
 	[TYPEC_HOST]	= "host",
 };
 
+static const char * const typec_port_types[] = {
+	[TYPEC_PORT_DFP] = "source",
+	[TYPEC_PORT_UFP] = "sink",
+	[TYPEC_PORT_DRP] = "dual",
+};
+
+static const char * const typec_port_types_drp[] = {
+	[TYPEC_PORT_DFP] = "dual [source] sink",
+	[TYPEC_PORT_UFP] = "dual source [sink]",
+	[TYPEC_PORT_DRP] = "[dual] source sink",
+};
+
 static ssize_t
 preferred_role_store(struct device *dev, struct device_attribute *attr,
 		     const char *buf, size_t size)
@@ -847,11 +862,6 @@ static ssize_t data_role_store(struct device *dev,
 	struct typec_port *port = to_typec_port(dev);
 	int ret;
 
-	if (port->cap->type != TYPEC_PORT_DRP) {
-		dev_dbg(dev, "data role swap only supported with DRP ports\n");
-		return -EOPNOTSUPP;
-	}
-
 	if (!port->cap->dr_set) {
 		dev_dbg(dev, "data role swapping not supported\n");
 		return -EOPNOTSUPP;
@@ -861,11 +871,22 @@ static ssize_t data_role_store(struct device *dev,
 	if (ret < 0)
 		return ret;
 
+	mutex_lock(&port->port_type_lock);
+	if (port->port_type != TYPEC_PORT_DRP) {
+		dev_dbg(dev, "port type fixed at \"%s\"",
+			     typec_port_types[port->port_type]);
+		ret = -EOPNOTSUPP;
+		goto unlock_and_ret;
+	}
+
 	ret = port->cap->dr_set(port->cap, ret);
 	if (ret)
-		return ret;
+		goto unlock_and_ret;
 
-	return size;
+	ret = size;
+unlock_and_ret:
+	mutex_unlock(&port->port_type_lock);
+	return ret;
 }
 
 static ssize_t data_role_show(struct device *dev,
@@ -886,7 +907,7 @@ static ssize_t power_role_store(struct device *dev,
 				const char *buf, size_t size)
 {
 	struct typec_port *port = to_typec_port(dev);
-	int ret = size;
+	int ret;
 
 	if (!port->cap->pd_revision) {
 		dev_dbg(dev, "USB Power Delivery not supported\n");
@@ -907,11 +928,22 @@ static ssize_t power_role_store(struct device *dev,
 	if (ret < 0)
 		return ret;
 
+	mutex_lock(&port->port_type_lock);
+	if (port->port_type != TYPEC_PORT_DRP) {
+		dev_dbg(dev, "port type fixed at \"%s\"",
+			     typec_port_types[port->port_type]);
+		ret = -EOPNOTSUPP;
+		goto unlock_and_ret;
+	}
+
 	ret = port->cap->pr_set(port->cap, ret);
 	if (ret)
-		return ret;
+		goto unlock_and_ret;
 
-	return size;
+	ret = size;
+unlock_and_ret:
+	mutex_unlock(&port->port_type_lock);
+	return ret;
 }
 
 static ssize_t power_role_show(struct device *dev,
@@ -926,6 +958,57 @@ static ssize_t power_role_show(struct device *dev,
 	return sprintf(buf, "[%s]\n", typec_roles[port->pwr_role]);
 }
 static DEVICE_ATTR_RW(power_role);
+
+static ssize_t
+port_type_store(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t size)
+{
+	struct typec_port *port = to_typec_port(dev);
+	int ret;
+	enum typec_port_type type;
+
+	if (!port->cap->port_type_set || port->cap->type != TYPEC_PORT_DRP) {
+		dev_dbg(dev, "changing port type not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	ret = sysfs_match_string(typec_port_types, buf);
+	if (ret < 0)
+		return ret;
+
+	type = ret;
+	mutex_lock(&port->port_type_lock);
+
+	if (port->port_type == type) {
+		ret = size;
+		goto unlock_and_ret;
+	}
+
+	ret = port->cap->port_type_set(port->cap, type);
+	if (ret)
+		goto unlock_and_ret;
+
+	port->port_type = type;
+	ret = size;
+
+unlock_and_ret:
+	mutex_unlock(&port->port_type_lock);
+	return ret;
+}
+
+static ssize_t
+port_type_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct typec_port *port = to_typec_port(dev);
+
+	if (port->cap->type == TYPEC_PORT_DRP)
+		return sprintf(buf, "%s\n",
+			       typec_port_types_drp[port->port_type]);
+
+	return sprintf(buf, "[%s]\n", typec_port_types[port->cap->type]);
+}
+static DEVICE_ATTR_RW(port_type);
 
 static const char * const typec_pwr_opmodes[] = {
 	[TYPEC_PWR_MODE_USB]	= "default",
@@ -1036,6 +1119,7 @@ static struct attribute *typec_attrs[] = {
 	&dev_attr_usb_power_delivery_revision.attr,
 	&dev_attr_usb_typec_revision.attr,
 	&dev_attr_vconn_source.attr,
+	&dev_attr_port_type.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(typec);
@@ -1231,6 +1315,8 @@ struct typec_port *typec_register_port(struct device *parent,
 
 	port->id = id;
 	port->cap = cap;
+	port->port_type = cap->type;
+	mutex_init(&port->port_type_lock);
 	port->prefer_role = cap->prefer_role;
 
 	port->dev.class = typec_class;
