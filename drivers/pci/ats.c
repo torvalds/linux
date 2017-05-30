@@ -153,6 +153,9 @@ int pci_enable_pri(struct pci_dev *pdev, u32 reqs)
 	u32 max_requests;
 	int pos;
 
+	if (WARN_ON(pdev->pri_enabled))
+		return -EBUSY;
+
 	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_PRI);
 	if (!pos)
 		return -EINVAL;
@@ -170,6 +173,8 @@ int pci_enable_pri(struct pci_dev *pdev, u32 reqs)
 	control |= PCI_PRI_CTRL_ENABLE;
 	pci_write_config_word(pdev, pos + PCI_PRI_CTRL, control);
 
+	pdev->pri_enabled = 1;
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(pci_enable_pri);
@@ -185,6 +190,9 @@ void pci_disable_pri(struct pci_dev *pdev)
 	u16 control;
 	int pos;
 
+	if (WARN_ON(!pdev->pri_enabled))
+		return;
+
 	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_PRI);
 	if (!pos)
 		return;
@@ -192,6 +200,8 @@ void pci_disable_pri(struct pci_dev *pdev)
 	pci_read_config_word(pdev, pos + PCI_PRI_CTRL, &control);
 	control &= ~PCI_PRI_CTRL_ENABLE;
 	pci_write_config_word(pdev, pos + PCI_PRI_CTRL, control);
+
+	pdev->pri_enabled = 0;
 }
 EXPORT_SYMBOL_GPL(pci_disable_pri);
 
@@ -206,6 +216,9 @@ int pci_reset_pri(struct pci_dev *pdev)
 {
 	u16 control;
 	int pos;
+
+	if (WARN_ON(pdev->pri_enabled))
+		return -EBUSY;
 
 	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_PRI);
 	if (!pos)
@@ -239,6 +252,9 @@ int pci_enable_pasid(struct pci_dev *pdev, int features)
 	u16 control, supported;
 	int pos;
 
+	if (WARN_ON(pdev->pasid_enabled))
+		return -EBUSY;
+
 	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_PASID);
 	if (!pos)
 		return -EINVAL;
@@ -259,6 +275,8 @@ int pci_enable_pasid(struct pci_dev *pdev, int features)
 
 	pci_write_config_word(pdev, pos + PCI_PASID_CTRL, control);
 
+	pdev->pasid_enabled = 1;
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(pci_enable_pasid);
@@ -273,11 +291,16 @@ void pci_disable_pasid(struct pci_dev *pdev)
 	u16 control = 0;
 	int pos;
 
+	if (WARN_ON(!pdev->pasid_enabled))
+		return;
+
 	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_PASID);
 	if (!pos)
 		return;
 
 	pci_write_config_word(pdev, pos + PCI_PASID_CTRL, control);
+
+	pdev->pasid_enabled = 0;
 }
 EXPORT_SYMBOL_GPL(pci_disable_pasid);
 
