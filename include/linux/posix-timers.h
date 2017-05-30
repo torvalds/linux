@@ -49,35 +49,54 @@ struct cpu_timer_list {
 #define FD_TO_CLOCKID(fd)	((~(clockid_t) (fd) << 3) | CLOCKFD)
 #define CLOCKID_TO_FD(clk)	((unsigned int) ~((clk) >> 3))
 
-/* POSIX.1b interval timer structure. */
-struct k_itimer {
-	struct list_head list;		/* free/ allocate list */
-	struct hlist_node t_hash;
-	spinlock_t it_lock;
-	clockid_t it_clock;		/* which timer type */
-	timer_t it_id;			/* timer id */
-	int it_overrun;			/* overrun on pending signal  */
-	int it_overrun_last;		/* overrun on last delivered signal */
-	int it_requeue_pending;		/* waiting to requeue this timer */
 #define REQUEUE_PENDING 1
-	int it_sigev_notify;		/* notify word of sigevent struct */
-	struct signal_struct *it_signal;
+
+/**
+ * struct k_itimer - POSIX.1b interval timer structure.
+ * @list:		List head for binding the timer to signals->posix_timers
+ * @t_hash:		Entry in the posix timer hash table
+ * @it_lock:		Lock protecting the timer
+ * @it_clock:		The posix timer clock id
+ * @it_id:		The posix timer id for identifying the timer
+ * @it_overrun:		The overrun counter for pending signals
+ * @it_overrun_last:	The overrun at the time of the last delivered signal
+ * @it_requeue_pending:	Indicator that timer waits for being requeued on
+ *			signal delivery
+ * @it_sigev_notify:	The notify word of sigevent struct for signal delivery
+ * @it_signal:		Pointer to the creators signal struct
+ * @it_pid:		The pid of the process/task targeted by the signal
+ * @it_process:		The task to wakeup on clock_nanosleep (CPU timers)
+ * @sigq:		Pointer to preallocated sigqueue
+ * @it:			Union representing the various posix timer type
+ *			internals. Also used for rcu freeing the timer.
+ */
+struct k_itimer {
+	struct list_head	list;
+	struct hlist_node	t_hash;
+	spinlock_t		it_lock;
+	clockid_t		it_clock;
+	timer_t			it_id;
+	int			it_overrun;
+	int			it_overrun_last;
+	int			it_requeue_pending;
+	int			it_sigev_notify;
+	struct signal_struct	*it_signal;
 	union {
-		struct pid *it_pid;	/* pid of process to send signal to */
-		struct task_struct *it_process;	/* for clock_nanosleep */
+		struct pid		*it_pid;
+		struct task_struct	*it_process;
 	};
-	struct sigqueue *sigq;		/* signal queue entry. */
+	struct sigqueue		*sigq;
 	union {
 		struct {
-			struct hrtimer timer;
-			ktime_t interval;
+			struct hrtimer	timer;
+			ktime_t		interval;
 		} real;
-		struct cpu_timer_list cpu;
+		struct cpu_timer_list	cpu;
 		struct {
-			struct alarm alarmtimer;
-			ktime_t interval;
+			struct alarm	alarmtimer;
+			ktime_t		interval;
 		} alarm;
-		struct rcu_head rcu;
+		struct rcu_head		rcu;
 	} it;
 };
 
