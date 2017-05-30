@@ -1075,6 +1075,22 @@ int intel_ring_workarounds_emit(struct drm_i915_gem_request *req)
 	return 0;
 }
 
+static bool ring_is_idle(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+	bool idle = true;
+
+	intel_runtime_pm_get(dev_priv);
+
+	/* No bit for gen2, so assume the CS parser is idle */
+	if (INTEL_GEN(dev_priv) > 2 && !(I915_READ_MODE(engine) & MODE_IDLE))
+		idle = false;
+
+	intel_runtime_pm_put(dev_priv);
+
+	return idle;
+}
+
 /**
  * intel_engine_is_idle() - Report if the engine has finished process all work
  * @engine: the intel_engine_cs
@@ -1100,7 +1116,7 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 		return false;
 
 	/* Ring stopped? */
-	if (INTEL_GEN(dev_priv) > 2 && !(I915_READ_MODE(engine) & MODE_IDLE))
+	if (!ring_is_idle(engine))
 		return false;
 
 	return true;
