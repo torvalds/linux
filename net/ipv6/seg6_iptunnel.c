@@ -326,7 +326,8 @@ drop:
 
 static int seg6_build_state(struct nlattr *nla,
 			    unsigned int family, const void *cfg,
-			    struct lwtunnel_state **ts)
+			    struct lwtunnel_state **ts,
+			    struct netlink_ext_ack *extack)
 {
 	struct nlattr *tb[SEG6_IPTUNNEL_MAX + 1];
 	struct seg6_iptunnel_encap *tuninfo;
@@ -336,7 +337,7 @@ static int seg6_build_state(struct nlattr *nla,
 	int err;
 
 	err = nla_parse_nested(tb, SEG6_IPTUNNEL_MAX, nla,
-			       seg6_iptunnel_policy, NULL);
+			       seg6_iptunnel_policy, extack);
 
 	if (err < 0)
 		return err;

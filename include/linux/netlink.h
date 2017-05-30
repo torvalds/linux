@@ -102,6 +102,16 @@ struct netlink_ext_ack {
 		(extack)->bad_attr = (attr);		\
 } while (0)
 
+#define NL_SET_ERR_MSG_ATTR(extack, attr, msg) do {	\
+	static const char __msg[] = (msg);		\
+	struct netlink_ext_ack *__extack = (extack);	\
+							\
+	if (__extack) {					\
+		__extack->_msg = __msg;			\
+		__extack->bad_attr = (attr);		\
+	}						\
+} while (0)
+
 extern void netlink_kernel_release(struct sock *sk);
 extern int __netlink_change_ngroups(struct sock *sk, unsigned int groups);
 extern int netlink_change_ngroups(struct sock *sk, unsigned int groups);

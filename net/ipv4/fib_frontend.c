@@ -588,7 +588,8 @@ int ip_rt_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 			if (cmd == SIOCDELRT) {
 				tb = fib_get_table(net, cfg.fc_table);
 				if (tb)
-					err = fib_table_delete(net, tb, &cfg);
+					err = fib_table_delete(net, tb, &cfg,
+							       NULL);
 				else
 					err = -ESRCH;
 			} else {
@@ -684,7 +685,8 @@ static int rtm_to_fib_config(struct net *net, struct sk_buff *skb,
 			break;
 		case RTA_MULTIPATH:
 			err = lwtunnel_valid_encap_type_attr(nla_data(attr),
-							     nla_len(attr));
+							     nla_len(attr),
+							     extack);
 			if (err < 0)
 				goto errout;
 			cfg->fc_mp = nla_data(attr);
@@ -701,7 +703,8 @@ static int rtm_to_fib_config(struct net *net, struct sk_buff *skb,
 			break;
 		case RTA_ENCAP_TYPE:
 			cfg->fc_encap_type = nla_get_u16(attr);
-			err = lwtunnel_valid_encap_type(cfg->fc_encap_type);
+			err = lwtunnel_valid_encap_type(cfg->fc_encap_type,
+							extack);
 			if (err < 0)
 				goto errout;
 			break;
@@ -732,7 +735,7 @@ static int inet_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh,
 		goto errout;
 	}
 
-	err = fib_table_delete(net, tb, &cfg);
+	err = fib_table_delete(net, tb, &cfg, extack);
 errout:
 	return err;
 }
@@ -851,7 +854,7 @@ static void fib_magic(int cmd, int type, __be32 dst, int dst_len, struct in_ifad
 	if (cmd == RTM_NEWROUTE)
 		fib_table_insert(net, tb, &cfg, NULL);
 	else
-		fib_table_delete(net, tb, &cfg);
+		fib_table_delete(net, tb, &cfg, NULL);
 }
 
 void fib_add_ifaddr(struct in_ifaddr *ifa)

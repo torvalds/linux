@@ -266,7 +266,8 @@ int fib_table_lookup(struct fib_table *tb, const struct flowi4 *flp,
 		     struct fib_result *res, int fib_flags);
 int fib_table_insert(struct net *, struct fib_table *, struct fib_config *,
 		     struct netlink_ext_ack *extack);
-int fib_table_delete(struct net *, struct fib_table *, struct fib_config *);
+int fib_table_delete(struct net *, struct fib_table *, struct fib_config *,
+		     struct netlink_ext_ack *extack);
 int fib_table_dump(struct fib_table *table, struct sk_buff *skb,
 		   struct netlink_callback *cb);
 int fib_table_flush(struct net *net, struct fib_table *table);

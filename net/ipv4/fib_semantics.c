@@ -532,7 +532,7 @@ static int fib_get_nhs(struct fib_info *fi, struct rtnexthop *rtnh,
 				ret = lwtunnel_build_state(nla_get_u16(
 							   nla_entype),
 							   nla,  AF_INET, cfg,
-							   &lwtstate);
+							   &lwtstate, extack);
 				if (ret)
 					goto errout;
 				nexthop_nh->nh_lwtstate =
@@ -614,7 +614,8 @@ static inline void fib_add_weight(struct fib_info *fi,
 static int fib_encap_match(u16 encap_type,
 			   struct nlattr *encap,
 			   const struct fib_nh *nh,
-			   const struct fib_config *cfg)
+			   const struct fib_config *cfg,
+			   struct netlink_ext_ack *extack)
 {
 	struct lwtunnel_state *lwtstate;
 	int ret, result = 0;
@@ -622,8 +623,8 @@ static int fib_encap_match(u16 encap_type,
 	if (encap_type == LWTUNNEL_ENCAP_NONE)
 		return 0;
 
-	ret = lwtunnel_build_state(encap_type, encap,
-				   AF_INET, cfg, &lwtstate);
+	ret = lwtunnel_build_state(encap_type, encap, AF_INET,
+				   cfg, &lwtstate, extack);
 	if (!ret) {
 		result = lwtunnel_cmp_encap(lwtstate, nh->nh_lwtstate);
 		lwtstate_free(lwtstate);
@@ -632,7 +633,8 @@ static int fib_encap_match(u16 encap_type,
 	return result;
 }
 
-int fib_nh_match(struct fib_config *cfg, struct fib_info *fi)
+int fib_nh_match(struct fib_config *cfg, struct fib_info *fi,
+		 struct netlink_ext_ack *extack)
 {
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	struct rtnexthop *rtnh;
@@ -644,9 +646,9 @@ int fib_nh_match(struct fib_config *cfg, struct fib_info *fi)
 
 	if (cfg->fc_oif || cfg->fc_gw) {
 		if (cfg->fc_encap) {
-			if (fib_encap_match(cfg->fc_encap_type,
-					    cfg->fc_encap, fi->fib_nh, cfg))
-			    return 1;
+			if (fib_encap_match(cfg->fc_encap_type, cfg->fc_encap,
+					    fi->fib_nh, cfg, extack))
+				return 1;
 		}
 		if ((!cfg->fc_oif || cfg->fc_oif == fi->fib_nh->nh_oif) &&
 		    (!cfg->fc_gw  || cfg->fc_gw == fi->fib_nh->nh_gw))
@@ -1148,7 +1150,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 			}
 			err = lwtunnel_build_state(cfg->fc_encap_type,
 						   cfg->fc_encap, AF_INET, cfg,
-						   &lwtstate);
+						   &lwtstate, extack);
 			if (err)
 				goto failure;
 

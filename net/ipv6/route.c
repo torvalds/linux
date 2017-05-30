@@ -1939,7 +1939,7 @@ static struct rt6_info *ip6_route_info_create(struct fib6_config *cfg,
 
 		err = lwtunnel_build_state(cfg->fc_encap_type,
 					   cfg->fc_encap, AF_INET6, cfg,
-					   &lwtstate);
+					   &lwtstate, extack);
 		if (err)
 			goto out;
 		rt->dst.lwtstate = lwtstate_get(lwtstate);
@@ -3016,7 +3016,7 @@ static int rtm_to_fib6_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 		cfg->fc_mp_len = nla_len(tb[RTA_MULTIPATH]);
 
 		err = lwtunnel_valid_encap_type_attr(cfg->fc_mp,
-						     cfg->fc_mp_len);
+						     cfg->fc_mp_len, extack);
 		if (err < 0)
 			goto errout;
 	}
@@ -3035,7 +3035,7 @@ static int rtm_to_fib6_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (tb[RTA_ENCAP_TYPE]) {
 		cfg->fc_encap_type = nla_get_u16(tb[RTA_ENCAP_TYPE]);
 
-		err = lwtunnel_valid_encap_type(cfg->fc_encap_type);
+		err = lwtunnel_valid_encap_type(cfg->fc_encap_type, extack);
 		if (err < 0)
 			goto errout;
 	}
