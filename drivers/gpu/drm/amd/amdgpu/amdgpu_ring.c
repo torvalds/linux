@@ -153,6 +153,36 @@ void amdgpu_ring_undo(struct amdgpu_ring *ring)
 }
 
 /**
+ * amdgpu_ring_check_compute_vm_bug - check whether this ring has compute vm bug
+ *
+ * @adev: amdgpu_device pointer
+ * @ring: amdgpu_ring structure holding ring information
+ */
+static void amdgpu_ring_check_compute_vm_bug(struct amdgpu_device *adev,
+					struct amdgpu_ring *ring)
+{
+	const struct amdgpu_ip_block *ip_block;
+
+	ring->has_compute_vm_bug = false;
+
+	if (ring->funcs->type != AMDGPU_RING_TYPE_COMPUTE)
+		/* only compute rings */
+		return;
+
+	ip_block = amdgpu_get_ip_block(adev, AMD_IP_BLOCK_TYPE_GFX);
+	if (!ip_block)
+		return;
+
+	/* Compute ring has a VM bug for GFX version < 7.
+           And compute ring has a VM bug for GFX 8 MEC firmware version < 673.*/
+	if (ip_block->version->major <= 7) {
+		ring->has_compute_vm_bug = true;
+	} else if (ip_block->version->major == 8)
+		if (adev->gfx.mec_fw_version < 673)
+			ring->has_compute_vm_bug = true;
+}
+
+/**
  * amdgpu_ring_init - init driver ring struct.
  *
  * @adev: amdgpu_device pointer
@@ -257,6 +287,9 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 	if (amdgpu_debugfs_ring_init(adev, ring)) {
 		DRM_ERROR("Failed to register debugfs file for rings !\n");
 	}
+
+	amdgpu_ring_check_compute_vm_bug(adev, ring);
+
 	return 0;
 }
 

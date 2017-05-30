@@ -656,32 +656,6 @@ unlock:
 	return r;
 }
 
-static bool amdgpu_vm_ring_has_compute_vm_bug(struct amdgpu_ring *ring)
-{
-	struct amdgpu_device *adev = ring->adev;
-	const struct amdgpu_ip_block *ip_block;
-
-	if (ring->funcs->type != AMDGPU_RING_TYPE_COMPUTE)
-		/* only compute rings */
-		return false;
-
-	ip_block = amdgpu_get_ip_block(adev, AMD_IP_BLOCK_TYPE_GFX);
-	if (!ip_block)
-		return false;
-
-	if (ip_block->version->major <= 7) {
-		/* gfx7 has no workaround */
-		return true;
-	} else if (ip_block->version->major == 8) {
-		if (adev->gfx.mec_fw_version >= 673)
-			/* gfx8 is fixed in MEC firmware 673 */
-			return false;
-		else
-			return true;
-	}
-	return false;
-}
-
 bool amdgpu_vm_need_pipeline_sync(struct amdgpu_ring *ring,
 				  struct amdgpu_job *job)
 {
@@ -691,7 +665,7 @@ bool amdgpu_vm_need_pipeline_sync(struct amdgpu_ring *ring,
 	struct amdgpu_vm_id *id;
 	bool gds_switch_needed;
 	bool vm_flush_needed = job->vm_needs_flush ||
-		amdgpu_vm_ring_has_compute_vm_bug(ring);
+		amdgpu_ring_has_compute_vm_bug(ring);
 
 	if (job->vm_id == 0)
 		return false;

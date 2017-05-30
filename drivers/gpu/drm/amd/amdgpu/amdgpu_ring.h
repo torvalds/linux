@@ -185,6 +185,7 @@ struct amdgpu_ring {
 	u64			cond_exe_gpu_addr;
 	volatile u32		*cond_exe_cpu_addr;
 	unsigned		vm_inv_eng;
+	bool			has_compute_vm_bug;
 #if defined(CONFIG_DEBUG_FS)
 	struct dentry *ent;
 #endif
@@ -205,6 +206,11 @@ static inline void amdgpu_ring_clear_ring(struct amdgpu_ring *ring)
 	while (i <= ring->buf_mask)
 		ring->ring[i++] = ring->funcs->nop;
 
+}
+
+static inline bool amdgpu_ring_has_compute_vm_bug(struct amdgpu_ring *ring)
+{
+	return ring->has_compute_vm_bug;
 }
 
 #endif
