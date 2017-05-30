@@ -675,9 +675,13 @@ err_umem:
 	return err;
 }
 
-static void destroy_user_rq(struct ib_pd *pd, struct mlx5_ib_rwq *rwq)
+static void destroy_user_rq(struct mlx5_ib_dev *dev, struct ib_pd *pd,
+			    struct mlx5_ib_rwq *rwq)
 {
 	struct mlx5_ib_ucontext *context;
+
+	if (rwq->create_flags & MLX5_IB_WQ_FLAGS_DELAY_DROP)
+		atomic_dec(&dev->delay_drop.rqs_cnt);
 
 	context = to_mucontext(pd->uobject->context);
 	mlx5_ib_db_unmap_user(context, &rwq->db);
@@ -4612,6 +4616,9 @@ static int set_delay_drop(struct mlx5_ib_dev *dev)
 	dev->delay_drop.activate = true;
 out:
 	mutex_unlock(&dev->delay_drop.lock);
+
+	if (!err)
+		atomic_inc(&dev->delay_drop.rqs_cnt);
 	return err;
 }
 
@@ -4824,7 +4831,7 @@ struct ib_wq *mlx5_ib_create_wq(struct ib_pd *pd,
 err_copy:
 	mlx5_core_destroy_rq_tracked(dev->mdev, &rwq->core_qp);
 err_user_rq:
-	destroy_user_rq(pd, rwq);
+	destroy_user_rq(dev, pd, rwq);
 err:
 	kfree(rwq);
 	return ERR_PTR(err);
@@ -4836,7 +4843,7 @@ int mlx5_ib_destroy_wq(struct ib_wq *wq)
 	struct mlx5_ib_rwq *rwq = to_mrwq(wq);
 
 	mlx5_core_destroy_rq_tracked(dev->mdev, &rwq->core_qp);
-	destroy_user_rq(wq->pd, rwq);
+	destroy_user_rq(dev, wq->pd, rwq);
 	kfree(rwq);
 
 	return 0;

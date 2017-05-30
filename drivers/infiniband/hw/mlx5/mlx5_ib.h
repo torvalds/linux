@@ -661,6 +661,13 @@ enum {
 	MLX5_MAX_DELAY_DROP_TIMEOUT_MS = 100,
 };
 
+struct mlx5_ib_dbg_delay_drop {
+	struct dentry		*dir_debugfs;
+	struct dentry		*rqs_cnt_debugfs;
+	struct dentry		*events_cnt_debugfs;
+	struct dentry		*timeout_debugfs;
+};
+
 struct mlx5_ib_delay_drop {
 	struct mlx5_ib_dev     *dev;
 	struct work_struct	delay_drop_work;
@@ -668,6 +675,9 @@ struct mlx5_ib_delay_drop {
 	struct mutex		lock;
 	u32			timeout;
 	bool			activate;
+	atomic_t		events_cnt;
+	atomic_t		rqs_cnt;
+	struct mlx5_ib_dbg_delay_drop *dbg;
 };
 
 struct mlx5_ib_dev {

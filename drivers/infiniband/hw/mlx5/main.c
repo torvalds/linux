@@ -30,6 +30,7 @@
  * SOFTWARE.
  */
 
+#include <linux/debugfs.h>
 #include <linux/highmem.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -2763,6 +2764,8 @@ static void delay_drop_handler(struct work_struct *work)
 		container_of(work, struct mlx5_ib_delay_drop,
 			     delay_drop_work);
 
+	atomic_inc(&delay_drop->events_cnt);
+
 	mutex_lock(&delay_drop->lock);
 	err = mlx5_core_set_delay_drop(delay_drop->dev->mdev,
 				       delay_drop->timeout);
@@ -3651,12 +3654,107 @@ mlx5_ib_alloc_rdma_netdev(struct ib_device *hca,
 	return netdev;
 }
 
+static void delay_drop_debugfs_cleanup(struct mlx5_ib_dev *dev)
+{
+	if (!dev->delay_drop.dbg)
+		return;
+	debugfs_remove_recursive(dev->delay_drop.dbg->dir_debugfs);
+	kfree(dev->delay_drop.dbg);
+	dev->delay_drop.dbg = NULL;
+}
+
 static void cancel_delay_drop(struct mlx5_ib_dev *dev)
 {
 	if (!(dev->ib_dev.attrs.raw_packet_caps & IB_RAW_PACKET_CAP_DELAY_DROP))
 		return;
 
 	cancel_work_sync(&dev->delay_drop.delay_drop_work);
+	delay_drop_debugfs_cleanup(dev);
+}
+
+static ssize_t delay_drop_timeout_read(struct file *filp, char __user *buf,
+				       size_t count, loff_t *pos)
+{
+	struct mlx5_ib_delay_drop *delay_drop = filp->private_data;
+	char lbuf[20];
+	int len;
+
+	len = snprintf(lbuf, sizeof(lbuf), "%u\n", delay_drop->timeout);
+	return simple_read_from_buffer(buf, count, pos, lbuf, len);
+}
+
+static ssize_t delay_drop_timeout_write(struct file *filp, const char __user *buf,
+					size_t count, loff_t *pos)
+{
+	struct mlx5_ib_delay_drop *delay_drop = filp->private_data;
+	u32 timeout;
+	u32 var;
+
+	if (kstrtouint_from_user(buf, count, 0, &var))
+		return -EFAULT;
+
+	timeout = min_t(u32, roundup(var, 100), MLX5_MAX_DELAY_DROP_TIMEOUT_MS *
+			1000);
+	if (timeout != var)
+		mlx5_ib_dbg(delay_drop->dev, "Round delay drop timeout to %u usec\n",
+			    timeout);
+
+	delay_drop->timeout = timeout;
+
+	return count;
+}
+
+static const struct file_operations fops_delay_drop_timeout = {
+	.owner	= THIS_MODULE,
+	.open	= simple_open,
+	.write	= delay_drop_timeout_write,
+	.read	= delay_drop_timeout_read,
+};
+
+static int delay_drop_debugfs_init(struct mlx5_ib_dev *dev)
+{
+	struct mlx5_ib_dbg_delay_drop *dbg;
+
+	if (!mlx5_debugfs_root)
+		return 0;
+
+	dbg = kzalloc(sizeof(*dbg), GFP_KERNEL);
+	if (!dbg)
+		return -ENOMEM;
+
+	dbg->dir_debugfs =
+		debugfs_create_dir("delay_drop",
+				   dev->mdev->priv.dbg_root);
+	if (!dbg->dir_debugfs)
+		return -ENOMEM;
+
+	dbg->events_cnt_debugfs =
+		debugfs_create_atomic_t("num_timeout_events", 0400,
+					dbg->dir_debugfs,
+					&dev->delay_drop.events_cnt);
+	if (!dbg->events_cnt_debugfs)
+		goto out_debugfs;
+
+	dbg->rqs_cnt_debugfs =
+		debugfs_create_atomic_t("num_rqs", 0400,
+					dbg->dir_debugfs,
+					&dev->delay_drop.rqs_cnt);
+	if (!dbg->rqs_cnt_debugfs)
+		goto out_debugfs;
+
+	dbg->timeout_debugfs =
+		debugfs_create_file("timeout", 0600,
+				    dbg->dir_debugfs,
+				    &dev->delay_drop,
+				    &fops_delay_drop_timeout);
+	if (!dbg->timeout_debugfs)
+		goto out_debugfs;
+
+	return 0;
+
+out_debugfs:
+	delay_drop_debugfs_cleanup(dev);
+	return -ENOMEM;
 }
 
 static void init_delay_drop(struct mlx5_ib_dev *dev)
@@ -3669,6 +3767,11 @@ static void init_delay_drop(struct mlx5_ib_dev *dev)
 	dev->delay_drop.activate = false;
 	dev->delay_drop.timeout = MLX5_MAX_DELAY_DROP_TIMEOUT_MS * 1000;
 	INIT_WORK(&dev->delay_drop.delay_drop_work, delay_drop_handler);
+	atomic_set(&dev->delay_drop.rqs_cnt, 0);
+	atomic_set(&dev->delay_drop.events_cnt, 0);
+
+	if (delay_drop_debugfs_init(dev))
+		mlx5_ib_warn(dev, "Failed to init delay drop debugfs\n");
 }
 
 static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
