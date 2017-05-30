@@ -361,9 +361,24 @@
 				reg = <0xffffe200 0x200>;
 			};
 
+			smc0: smc@ffffe400 {
+				compatible = "atmel,at91sam9260-smc", "syscon";
+				reg = <0xffffe400 0x200>;
+			};
+
 			ramc1: ramc@ffffe800 {
 				compatible = "atmel,at91sam9260-sdramc";
 				reg = <0xffffe800 0x200>;
+			};
+
+			smc1: smc@ffffea00 {
+				compatible = "atmel,at91sam9260-smc", "syscon";
+				reg = <0xffffea00 0x200>;
+			};
+
+			matrix: matrix@ffffec00 {
+				compatible = "atmel,at91sam9263-matrix", "syscon";
+				reg = <0xffffec00 0x200>;
 			};
 
 			pit: timer@fffffd30 {
@@ -1016,6 +1031,52 @@
 			clocks = <&ohci_clk>, <&ohci_clk>, <&uhpck>;
 			clock-names = "ohci_clk", "hclk", "uhpck";
 			status = "disabled";
+		};
+
+		ebi0: ebi@10000000 {
+			compatible = "atmel,at91sam9263-ebi0";
+			#address-cells = <2>;
+			#size-cells = <1>;
+			atmel,smc = <&smc0>;
+			atmel,matrix = <&matrix>;
+			reg = <0x10000000 0x80000000>;
+			ranges = <0x0 0x0 0x10000000 0x10000000
+				  0x1 0x0 0x20000000 0x10000000
+				  0x2 0x0 0x30000000 0x10000000
+				  0x3 0x0 0x40000000 0x10000000
+				  0x4 0x0 0x50000000 0x10000000
+				  0x5 0x0 0x60000000 0x10000000>;
+			clocks = <&mck>;
+			status = "disabled";
+
+			nand_controller0: nand-controller {
+				compatible = "atmel,at91sam9260-nand-controller";
+				#address-cells = <2>;
+				#size-cells = <1>;
+				ranges;
+				status = "disabled";
+			};
+		};
+
+		ebi1: ebi@70000000 {
+			compatible = "atmel,at91sam9263-ebi1";
+			#address-cells = <2>;
+			#size-cells = <1>;
+			atmel,smc = <&smc1>;
+			atmel,matrix = <&matrix>;
+			reg = <0x80000000 0x20000000>;
+			ranges = <0x0 0x0 0x80000000 0x10000000
+				  0x1 0x0 0x90000000 0x10000000>;
+			clocks = <&mck>;
+			status = "disabled";
+
+			nand_controller1: nand-controller {
+				compatible = "atmel,at91sam9260-nand-controller";
+				#address-cells = <2>;
+				#size-cells = <1>;
+				ranges;
+				status = "disabled";
+			};
 		};
 	};
 

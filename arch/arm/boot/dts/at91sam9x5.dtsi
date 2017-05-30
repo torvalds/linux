@@ -97,11 +97,27 @@
 				atmel,external-irqs = <31>;
 			};
 
+			matrix: matrix@ffffde00 {
+				compatible = "atmel,at91sam9x5-matrix", "syscon";
+				reg = <0xffffde00 0x100>;
+			};
+
+			pmecc: ecc-engine@ffffe000 {
+				compatible = "atmel,at91sam9g45-pmecc";
+				reg = <0xffffe000 0x600>,
+				      <0xffffe600 0x200>;
+			};
+
 			ramc0: ramc@ffffe800 {
 				compatible = "atmel,at91sam9g45-ddramc";
 				reg = <0xffffe800 0x200>;
 				clocks = <&ddrck>;
 				clock-names = "ddrck";
+			};
+
+			smc: smc@ffffea00 {
+				compatible = "atmel,at91sam9260-smc", "syscon";
+				reg = <0xffffea00 0x200>;
 			};
 
 			pmc: pmc@fffffc00 {
@@ -1235,6 +1251,32 @@
 			clocks = <&utmi>, <&uhphs_clk>;
 			clock-names = "usb_clk", "ehci_clk";
 			status = "disabled";
+		};
+
+		ebi: ebi@10000000 {
+			compatible = "atmel,at91sam9x5-ebi";
+			#address-cells = <2>;
+			#size-cells = <1>;
+			atmel,smc = <&smc>;
+			atmel,matrix = <&matrix>;
+			reg = <0x10000000 0x60000000>;
+			ranges = <0x0 0x0 0x10000000 0x10000000
+				  0x1 0x0 0x20000000 0x10000000
+				  0x2 0x0 0x30000000 0x10000000
+				  0x3 0x0 0x40000000 0x10000000
+				  0x4 0x0 0x50000000 0x10000000
+				  0x5 0x0 0x60000000 0x10000000>;
+			clocks = <&mck>;
+			status = "disabled";
+
+			nand_controller: nand-controller {
+				compatible = "atmel,at91sam9g45-nand-controller";
+				ecc-engine = <&pmecc>;
+				#address-cells = <2>;
+				#size-cells = <1>;
+				ranges;
+				status = "disabled";
+			};
 		};
 	};
 

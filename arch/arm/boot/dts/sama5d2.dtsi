@@ -135,6 +135,12 @@
 		#size-cells = <1>;
 		ranges;
 
+		nfc_sram: sram@00100000 {
+			compatible = "mmio-sram";
+			no-memory-wc;
+			reg = <0x00100000 0x2400>;
+		};
+
 		usb0: gadget@00300000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -291,6 +297,32 @@
 			cache-level = <2>;
 		};
 
+		ebi: ebi@10000000 {
+			compatible = "atmel,sama5d3-ebi";
+			#address-cells = <2>;
+			#size-cells = <1>;
+			atmel,smc = <&hsmc>;
+			reg = <0x10000000 0x10000000
+			       0x40000000 0x30000000>;
+			ranges = <0x0 0x0 0x10000000 0x10000000
+				  0x1 0x0 0x60000000 0x10000000
+				  0x2 0x0 0x70000000 0x10000000
+				  0x3 0x0 0x80000000 0x10000000>;
+			clocks = <&mck>;
+			status = "disabled";
+
+			nand_controller: nand-controller {
+				compatible = "atmel,sama5d3-nand-controller";
+				atmel,nfc-sram = <&nfc_sram>;
+				atmel,nfc-io = <&nfc_io>;
+				ecc-engine = <&pmecc>;
+				#address-cells = <2>;
+				#size-cells = <1>;
+				ranges;
+				status = "disabled";
+			};
+		};
+
 		nand0: nand@80000000 {
 			compatible = "atmel,sama5d2-nand";
 			#address-cells = <1>;
@@ -345,6 +377,11 @@
 			clocks = <&sdmmc1_hclk>, <&sdmmc1_gclk>, <&main>;
 			clock-names = "hclock", "multclk", "baseclk";
 			status = "disabled";
+		};
+
+		nfc_io: nfc-io@c0000000 {
+			compatible = "atmel,sama5d3-nfc-io", "syscon";
+			reg = <0xc0000000 0x8000000>;
 		};
 
 		apb {
@@ -1008,6 +1045,22 @@
 				interrupts = <36 IRQ_TYPE_LEVEL_HIGH 0>;
 				clocks = <&tcb1_clk>, <&clk32k>;
 				clock-names = "t0_clk", "slow_clk";
+			};
+
+			hsmc: hsmc@f8014000 {
+				compatible = "atmel,sama5d3-smc", "syscon", "simple-mfd";
+				reg = <0xf8014000 0x1000>;
+				interrupts = <5 IRQ_TYPE_LEVEL_HIGH 6>;
+				clocks = <&hsmc_clk>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges;
+
+				pmecc: ecc-engine@ffffc070 {
+					compatible = "atmel,sama5d2-pmecc";
+					reg = <0xffffc070 0x490>,
+					      <0xffffc500 0x100>;
+				};
 			};
 
 			pdmic: pdmic@f8018000 {
