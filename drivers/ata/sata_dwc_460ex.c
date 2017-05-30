@@ -1285,7 +1285,6 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	if (err)
 		dev_err(&ofdev->dev, "failed to activate host");
 
-	dev_set_drvdata(&ofdev->dev, host);
 	return 0;
 
 error_out:
