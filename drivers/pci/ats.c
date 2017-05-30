@@ -160,17 +160,16 @@ int pci_enable_pri(struct pci_dev *pdev, u32 reqs)
 	if (!pos)
 		return -EINVAL;
 
-	pci_read_config_word(pdev, pos + PCI_PRI_CTRL, &control);
 	pci_read_config_word(pdev, pos + PCI_PRI_STATUS, &status);
-	if ((control & PCI_PRI_CTRL_ENABLE) ||
-	    !(status & PCI_PRI_STATUS_STOPPED))
+	if (!(status & PCI_PRI_STATUS_STOPPED))
 		return -EBUSY;
 
 	pci_read_config_dword(pdev, pos + PCI_PRI_MAX_REQ, &max_requests);
 	reqs = min(max_requests, reqs);
+	pdev->pri_reqs_alloc = reqs;
 	pci_write_config_dword(pdev, pos + PCI_PRI_ALLOC_REQ, reqs);
 
-	control |= PCI_PRI_CTRL_ENABLE;
+	control = PCI_PRI_CTRL_ENABLE;
 	pci_write_config_word(pdev, pos + PCI_PRI_CTRL, control);
 
 	pdev->pri_enabled = 1;
@@ -206,6 +205,28 @@ void pci_disable_pri(struct pci_dev *pdev)
 EXPORT_SYMBOL_GPL(pci_disable_pri);
 
 /**
+ * pci_restore_pri_state - Restore PRI
+ * @pdev: PCI device structure
+ */
+void pci_restore_pri_state(struct pci_dev *pdev)
+{
+	u16 control = PCI_PRI_CTRL_ENABLE;
+	u32 reqs = pdev->pri_reqs_alloc;
+	int pos;
+
+	if (!pdev->pri_enabled)
+		return;
+
+	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_PRI);
+	if (!pos)
+		return;
+
+	pci_write_config_dword(pdev, pos + PCI_PRI_ALLOC_REQ, reqs);
+	pci_write_config_word(pdev, pos + PCI_PRI_CTRL, control);
+}
+EXPORT_SYMBOL_GPL(pci_restore_pri_state);
+
+/**
  * pci_reset_pri - Resets device's PRI state
  * @pdev: PCI device structure
  *
@@ -224,12 +245,7 @@ int pci_reset_pri(struct pci_dev *pdev)
 	if (!pos)
 		return -EINVAL;
 
-	pci_read_config_word(pdev, pos + PCI_PRI_CTRL, &control);
-	if (control & PCI_PRI_CTRL_ENABLE)
-		return -EBUSY;
-
-	control |= PCI_PRI_CTRL_RESET;
-
+	control = PCI_PRI_CTRL_RESET;
 	pci_write_config_word(pdev, pos + PCI_PRI_CTRL, control);
 
 	return 0;
@@ -259,12 +275,7 @@ int pci_enable_pasid(struct pci_dev *pdev, int features)
 	if (!pos)
 		return -EINVAL;
 
-	pci_read_config_word(pdev, pos + PCI_PASID_CTRL, &control);
 	pci_read_config_word(pdev, pos + PCI_PASID_CAP, &supported);
-
-	if (control & PCI_PASID_CTRL_ENABLE)
-		return -EINVAL;
-
 	supported &= PCI_PASID_CAP_EXEC | PCI_PASID_CAP_PRIV;
 
 	/* User wants to enable anything unsupported? */
@@ -272,6 +283,7 @@ int pci_enable_pasid(struct pci_dev *pdev, int features)
 		return -EINVAL;
 
 	control = PCI_PASID_CTRL_ENABLE | features;
+	pdev->pasid_features = features;
 
 	pci_write_config_word(pdev, pos + PCI_PASID_CTRL, control);
 
@@ -284,7 +296,6 @@ EXPORT_SYMBOL_GPL(pci_enable_pasid);
 /**
  * pci_disable_pasid - Disable the PASID capability
  * @pdev: PCI device structure
- *
  */
 void pci_disable_pasid(struct pci_dev *pdev)
 {
@@ -303,6 +314,27 @@ void pci_disable_pasid(struct pci_dev *pdev)
 	pdev->pasid_enabled = 0;
 }
 EXPORT_SYMBOL_GPL(pci_disable_pasid);
+
+/**
+ * pci_restore_pasid_state - Restore PASID capabilities
+ * @pdev: PCI device structure
+ */
+void pci_restore_pasid_state(struct pci_dev *pdev)
+{
+	u16 control;
+	int pos;
+
+	if (!pdev->pasid_enabled)
+		return;
+
+	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_PASID);
+	if (!pos)
+		return;
+
+	control = PCI_PASID_CTRL_ENABLE | pdev->pasid_features;
+	pci_write_config_word(pdev, pos + PCI_PASID_CTRL, control);
+}
+EXPORT_SYMBOL_GPL(pci_restore_pasid_state);
 
 /**
  * pci_pasid_features - Check which PASID features are supported
