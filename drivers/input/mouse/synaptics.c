@@ -397,6 +397,8 @@ static int synaptics_query_hardware(struct psmouse *psmouse,
 {
 	int error;
 
+	memset(info, 0, sizeof(*info));
+
 	error = synaptics_identify(psmouse, info);
 	if (error)
 		return error;
