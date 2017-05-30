@@ -91,14 +91,14 @@ void tmio_mmc_enable_mmc_irqs(struct tmio_mmc_host *host, u32 i)
 	host->sdcard_irq_mask &= ~(i & TMIO_MASK_IRQ);
 	sd_ctrl_write32_as_16_and_16(host, CTL_IRQ_MASK, host->sdcard_irq_mask);
 }
-EXPORT_SYMBOL(tmio_mmc_enable_mmc_irqs);
+EXPORT_SYMBOL_GPL(tmio_mmc_enable_mmc_irqs);
 
 void tmio_mmc_disable_mmc_irqs(struct tmio_mmc_host *host, u32 i)
 {
 	host->sdcard_irq_mask |= (i & TMIO_MASK_IRQ);
 	sd_ctrl_write32_as_16_and_16(host, CTL_IRQ_MASK, host->sdcard_irq_mask);
 }
-EXPORT_SYMBOL(tmio_mmc_disable_mmc_irqs);
+EXPORT_SYMBOL_GPL(tmio_mmc_disable_mmc_irqs);
 
 static void tmio_mmc_ack_mmc_irqs(struct tmio_mmc_host *host, u32 i)
 {
@@ -568,7 +568,7 @@ void tmio_mmc_do_data_irq(struct tmio_mmc_host *host)
 
 	schedule_work(&host->done);
 }
-EXPORT_SYMBOL(tmio_mmc_do_data_irq);
+EXPORT_SYMBOL_GPL(tmio_mmc_do_data_irq);
 
 static void tmio_mmc_data_irq(struct tmio_mmc_host *host, unsigned int stat)
 {
@@ -772,7 +772,7 @@ irqreturn_t tmio_mmc_irq(int irq, void *devid)
 
 	return IRQ_HANDLED;
 }
-EXPORT_SYMBOL(tmio_mmc_irq);
+EXPORT_SYMBOL_GPL(tmio_mmc_irq);
 
 static int tmio_mmc_start_data(struct tmio_mmc_host *host,
 	struct mmc_data *data)
@@ -1195,13 +1195,13 @@ tmio_mmc_host_alloc(struct platform_device *pdev)
 
 	return host;
 }
-EXPORT_SYMBOL(tmio_mmc_host_alloc);
+EXPORT_SYMBOL_GPL(tmio_mmc_host_alloc);
 
 void tmio_mmc_host_free(struct tmio_mmc_host *host)
 {
 	mmc_free_host(host->mmc);
 }
-EXPORT_SYMBOL(tmio_mmc_host_free);
+EXPORT_SYMBOL_GPL(tmio_mmc_host_free);
 
 int tmio_mmc_host_probe(struct tmio_mmc_host *_host,
 			struct tmio_mmc_data *pdata,
@@ -1341,7 +1341,7 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host,
 
 	return 0;
 }
-EXPORT_SYMBOL(tmio_mmc_host_probe);
+EXPORT_SYMBOL_GPL(tmio_mmc_host_probe);
 
 void tmio_mmc_host_remove(struct tmio_mmc_host *host)
 {
@@ -1366,7 +1366,7 @@ void tmio_mmc_host_remove(struct tmio_mmc_host *host)
 
 	tmio_mmc_clk_disable(host);
 }
-EXPORT_SYMBOL(tmio_mmc_host_remove);
+EXPORT_SYMBOL_GPL(tmio_mmc_host_remove);
 
 #ifdef CONFIG_PM
 int tmio_mmc_host_runtime_suspend(struct device *dev)
@@ -1383,7 +1383,7 @@ int tmio_mmc_host_runtime_suspend(struct device *dev)
 
 	return 0;
 }
-EXPORT_SYMBOL(tmio_mmc_host_runtime_suspend);
+EXPORT_SYMBOL_GPL(tmio_mmc_host_runtime_suspend);
 
 static bool tmio_mmc_can_retune(struct tmio_mmc_host *host)
 {
@@ -1408,7 +1408,7 @@ int tmio_mmc_host_runtime_resume(struct device *dev)
 
 	return 0;
 }
-EXPORT_SYMBOL(tmio_mmc_host_runtime_resume);
+EXPORT_SYMBOL_GPL(tmio_mmc_host_runtime_resume);
 #endif
 
 MODULE_LICENSE("GPL v2");
