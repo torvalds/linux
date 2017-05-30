@@ -89,7 +89,7 @@ struct device *nd_dax_create(struct nd_region *nd_region)
 	struct device *dev = NULL;
 	struct nd_dax *nd_dax;
 
-	if (!is_nd_pmem(&nd_region->dev))
+	if (!is_memory(&nd_region->dev))
 		return NULL;
 
 	nd_dax = nd_dax_alloc(nd_region);

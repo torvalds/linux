@@ -504,7 +504,7 @@ void nvdimm_badblocks_populate(struct nd_region *nd_region,
 	struct nvdimm_bus *nvdimm_bus;
 	struct list_head *poison_list;
 
-	if (!is_nd_pmem(&nd_region->dev)) {
+	if (!is_memory(&nd_region->dev)) {
 		dev_WARN_ONCE(&nd_region->dev, 1,
 				"%s only valid for pmem regions\n", __func__);
 		return;
