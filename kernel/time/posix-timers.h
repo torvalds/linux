@@ -21,6 +21,9 @@ struct k_clock {
 	void	(*timer_rearm)(struct k_itimer *timr);
 	int	(*timer_forward)(struct k_itimer *timr, ktime_t now);
 	ktime_t	(*timer_remaining)(struct k_itimer *timr, ktime_t now);
+	int	(*timer_try_to_cancel)(struct k_itimer *timr);
+	void	(*timer_arm)(struct k_itimer *timr, ktime_t expires,
+			     bool absolute, bool sigev_none);
 };
 
 extern const struct k_clock clock_posix_cpu;
