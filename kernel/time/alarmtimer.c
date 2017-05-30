@@ -537,6 +537,18 @@ static enum alarmtimer_restart alarm_handle_timer(struct alarm *alarm,
 }
 
 /**
+ * alarm_timer_rearm - Posix timer callback for rearming timer
+ * @timr:	Pointer to the posixtimer data struct
+ */
+static void alarm_timer_rearm(struct k_itimer *timr)
+{
+	struct alarm *alarm = &timr->it.alarm.alarmtimer;
+
+	timr->it_overrun += alarm_forward_now(alarm, timr->it_interval);
+	alarm_start(alarm, alarm->node.expires);
+}
+
+/**
  * alarm_clock_getres - posix getres interface
  * @which_clock: clockid
  * @tp: timespec to fill
@@ -594,7 +606,7 @@ static int alarm_timer_create(struct k_itimer *new_timer)
 
 /**
  * alarm_timer_get - posix timer_get interface
- * @new_timer: k_itimer pointer
+ * @timr: k_itimer pointer
  * @cur_setting: itimerspec data to fill
  *
  * Copies out the current itimerspec data
@@ -863,6 +875,7 @@ const struct k_clock alarm_clock = {
 	.timer_set	= alarm_timer_set,
 	.timer_del	= alarm_timer_del,
 	.timer_get	= alarm_timer_get,
+	.timer_rearm	= alarm_timer_rearm,
 	.nsleep		= alarm_timer_nsleep,
 };
 #endif /* CONFIG_POSIX_TIMERS */
