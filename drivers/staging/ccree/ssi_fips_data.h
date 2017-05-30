@@ -15,53 +15,52 @@
  */
 
 /*
-The test vectors were taken from:
-
-* AES
-NIST Special Publication 800-38A 2001 Edition
-Recommendation for Block Cipher Modes of Operation
-http://csrc.nist.gov/publications/nistpubs/800-38a/sp800-38a.pdf
-Appendix F: Example Vectors for Modes of Operation of the AES
-
-* AES CTS
-Advanced Encryption Standard (AES) Encryption for Kerberos 5
-February 2005
-https://tools.ietf.org/html/rfc3962#appendix-B
-B.  Sample Test Vectors
-
-* AES XTS
-http://csrc.nist.gov/groups/STM/cavp/#08
-http://csrc.nist.gov/groups/STM/cavp/documents/aes/XTSTestVectors.zip
-
-* AES CMAC
-http://csrc.nist.gov/groups/STM/cavp/index.html#07
-http://csrc.nist.gov/groups/STM/cavp/documents/mac/cmactestvectors.zip
-
-* AES-CCM
-http://csrc.nist.gov/groups/STM/cavp/#07
-http://csrc.nist.gov/groups/STM/cavp/documents/mac/ccmtestvectors.zip
-
-* AES-GCM
-http://csrc.nist.gov/groups/STM/cavp/documents/mac/gcmtestvectors.zip
-
-* Triple-DES
-NIST Special Publication 800-67 January 2012
-Recommendation for the Triple Data Encryption Algorithm (TDEA) Block Cipher
-http://csrc.nist.gov/publications/nistpubs/800-67-Rev1/SP-800-67-Rev1.pdf
-APPENDIX B: EXAMPLE OF TDEA FORWARD AND INVERSE CIPHER OPERATIONS
-and
-http://csrc.nist.gov/groups/STM/cavp/#01
-http://csrc.nist.gov/groups/STM/cavp/documents/des/tdesmct_intermediate.zip
-
-* HASH
-http://csrc.nist.gov/groups/STM/cavp/#03
-http://csrc.nist.gov/groups/STM/cavp/documents/shs/shabytetestvectors.zip
-
-* HMAC
-http://csrc.nist.gov/groups/STM/cavp/#07
-http://csrc.nist.gov/groups/STM/cavp/documents/mac/hmactestvectors.zip
-
-*/
+ * The test vectors were taken from:
+ *
+ * * AES
+ * NIST Special Publication 800-38A 2001 Edition
+ * Recommendation for Block Cipher Modes of Operation
+ * http://csrc.nist.gov/publications/nistpubs/800-38a/sp800-38a.pdf
+ * Appendix F: Example Vectors for Modes of Operation of the AES
+ *
+ * * AES CTS
+ * Advanced Encryption Standard (AES) Encryption for Kerberos 5
+ * February 2005
+ * https://tools.ietf.org/html/rfc3962#appendix-B
+ * B.  Sample Test Vectors
+ *
+ * * AES XTS
+ * http://csrc.nist.gov/groups/STM/cavp/#08
+ * http://csrc.nist.gov/groups/STM/cavp/documents/aes/XTSTestVectors.zip
+ *
+ * * AES CMAC
+ * http://csrc.nist.gov/groups/STM/cavp/index.html#07
+ * http://csrc.nist.gov/groups/STM/cavp/documents/mac/cmactestvectors.zip
+ *
+ * * AES-CCM
+ * http://csrc.nist.gov/groups/STM/cavp/#07
+ * http://csrc.nist.gov/groups/STM/cavp/documents/mac/ccmtestvectors.zip
+ *
+ * * AES-GCM
+ * http://csrc.nist.gov/groups/STM/cavp/documents/mac/gcmtestvectors.zip
+ *
+ * * Triple-DES
+ * NIST Special Publication 800-67 January 2012
+ * Recommendation for the Triple Data Encryption Algorithm (TDEA) Block Cipher
+ * http://csrc.nist.gov/publications/nistpubs/800-67-Rev1/SP-800-67-Rev1.pdf
+ * APPENDIX B: EXAMPLE OF TDEA FORWARD AND INVERSE CIPHER OPERATIONS
+ * and
+ * http://csrc.nist.gov/groups/STM/cavp/#01
+ * http://csrc.nist.gov/groups/STM/cavp/documents/des/tdesmct_intermediate.zip
+ *
+ * * HASH
+ * http://csrc.nist.gov/groups/STM/cavp/#03
+ * http://csrc.nist.gov/groups/STM/cavp/documents/shs/shabytetestvectors.zip
+ *
+ * * HMAC
+ * http://csrc.nist.gov/groups/STM/cavp/#07
+ * http://csrc.nist.gov/groups/STM/cavp/documents/mac/hmactestvectors.zip
+ */
 
 /* NIST AES */
 #define AES_128_BIT_KEY_SIZE    16
