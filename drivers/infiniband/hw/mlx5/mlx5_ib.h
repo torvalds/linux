@@ -616,6 +616,7 @@ struct mlx5_roce {
 	struct net_device	*netdev;
 	struct notifier_block	nb;
 	atomic_t		next_port;
+	enum ib_port_state last_port_state;
 };
 
 struct mlx5_ib_dev {

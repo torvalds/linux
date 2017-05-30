@@ -98,6 +98,20 @@ mlx5_ib_port_link_layer(struct ib_device *device, u8 port_num)
 	return mlx5_port_type_cap_to_rdma_ll(port_type_cap);
 }
 
+static int get_port_state(struct ib_device *ibdev,
+			  u8 port_num,
+			  enum ib_port_state *state)
+{
+	struct ib_port_attr attr;
+	int ret;
+
+	memset(&attr, 0, sizeof(attr));
+	ret = mlx5_ib_query_port(ibdev, port_num, &attr);
+	if (!ret)
+		*state = attr.state;
+	return ret;
+}
+
 static int mlx5_netdev_event(struct notifier_block *this,
 			     unsigned long event, void *ptr)
 {
@@ -115,6 +129,7 @@ static int mlx5_netdev_event(struct notifier_block *this,
 		write_unlock(&ibdev->roce.netdev_lock);
 		break;
 
+	case NETDEV_CHANGE:
 	case NETDEV_UP:
 	case NETDEV_DOWN: {
 		struct net_device *lag_ndev = mlx5_lag_get_roce_netdev(ibdev->mdev);
@@ -128,10 +143,23 @@ static int mlx5_netdev_event(struct notifier_block *this,
 		if ((upper == ndev || (!upper && ndev == ibdev->roce.netdev))
 		    && ibdev->ib_active) {
 			struct ib_event ibev = { };
+			enum ib_port_state port_state;
 
+			if (get_port_state(&ibdev->ib_dev, 1, &port_state))
+				return NOTIFY_DONE;
+
+			if (ibdev->roce.last_port_state == port_state)
+				return NOTIFY_DONE;
+
+			ibdev->roce.last_port_state = port_state;
 			ibev.device = &ibdev->ib_dev;
-			ibev.event = (event == NETDEV_UP) ?
-				     IB_EVENT_PORT_ACTIVE : IB_EVENT_PORT_ERR;
+			if (port_state == IB_PORT_DOWN)
+				ibev.event = IB_EVENT_PORT_ERR;
+			else if (port_state == IB_PORT_ACTIVE)
+				ibev.event = IB_EVENT_PORT_ACTIVE;
+			else
+				return NOTIFY_DONE;
+
 			ibev.element.port_num = 1;
 			ib_dispatch_event(&ibev);
 		}
@@ -3793,6 +3821,7 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 		err = mlx5_enable_eth(dev);
 		if (err)
 			goto err_free_port;
+		dev->roce.last_port_state = IB_PORT_DOWN;
 	}
 
 	err = create_dev_resources(&dev->devr);
