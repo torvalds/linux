@@ -69,7 +69,7 @@ static int vx_mic_level_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_v
 
 static const DECLARE_TLV_DB_SCALE(db_scale_mic, -21, 3, 0);
 
-static struct snd_kcontrol_new vx_control_mic_level = {
+static const struct snd_kcontrol_new vx_control_mic_level = {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access =	(SNDRV_CTL_ELEM_ACCESS_READWRITE |
 			 SNDRV_CTL_ELEM_ACCESS_TLV_READ),
@@ -109,7 +109,7 @@ static int vx_mic_boost_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_v
 	return 0;
 }
 
-static struct snd_kcontrol_new vx_control_mic_boost = {
+static const struct snd_kcontrol_new vx_control_mic_boost = {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =		"Mic Boost",
 	.info =		vx_mic_boost_info,
