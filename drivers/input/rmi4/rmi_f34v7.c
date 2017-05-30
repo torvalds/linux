@@ -518,7 +518,7 @@ static int rmi_f34v7_read_queries(struct f34_data *f34)
 			query_1_7.partition_support[1] & HAS_GUEST_CODE;
 
 	if (query_0 & HAS_CONFIG_ID) {
-		char f34_ctrl[CONFIG_ID_SIZE];
+		u8 f34_ctrl[CONFIG_ID_SIZE];
 		int i = 0;
 		u8 *p = f34->configuration_id;
 		*p = '\0';
