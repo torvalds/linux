@@ -1212,6 +1212,11 @@ static bool ring_is_idle(struct intel_engine_cs *engine)
 
 	intel_runtime_pm_get(dev_priv);
 
+	/* First check that no commands are left in the ring */
+	if ((I915_READ_HEAD(engine) & HEAD_ADDR) !=
+	    (I915_READ_TAIL(engine) & TAIL_ADDR))
+		idle = false;
+
 	/* No bit for gen2, so assume the CS parser is idle */
 	if (INTEL_GEN(dev_priv) > 2 && !(I915_READ_MODE(engine) & MODE_IDLE))
 		idle = false;
