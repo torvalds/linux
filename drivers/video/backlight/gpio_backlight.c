@@ -25,7 +25,6 @@ struct gpio_backlight {
 	struct device *fbdev;
 
 	struct gpio_desc *gpiod;
-	int active;
 	int def_value;
 };
 
@@ -39,8 +38,7 @@ static int gpio_backlight_update_status(struct backlight_device *bl)
 	    bl->props.state & (BL_CORE_SUSPENDED | BL_CORE_FBBLANK))
 		brightness = 0;
 
-	gpiod_set_value_cansleep(gbl->gpiod,
-				 brightness ? gbl->active : !gbl->active);
+	gpiod_set_value_cansleep(gbl->gpiod, brightness);
 
 	return 0;
 }
@@ -69,8 +67,6 @@ static int gpio_backlight_probe_dt(struct platform_device *pdev,
 
 	gbl->def_value = of_property_read_bool(np, "default-on");
 	flags = gbl->def_value ? GPIOD_OUT_HIGH : GPIOD_OUT_LOW;
-	/* GPIO descriptors keep track of inversion */
-	gbl->active = 1;
 
 	gbl->gpiod = devm_gpiod_get(dev, NULL, flags);
 	if (IS_ERR(gbl->gpiod)) {
@@ -121,15 +117,8 @@ static int gpio_backlight_probe(struct platform_device *pdev)
 		unsigned long flags = GPIOF_DIR_OUT;
 
 		gbl->fbdev = pdata->fbdev;
-		gbl->active = pdata->active_low ? 0 : 1;
 		gbl->def_value = pdata->def_value;
-
-		if (gbl->active)
-			flags |= gbl->def_value ?
-				GPIOF_INIT_HIGH : GPIOF_INIT_LOW;
-		else
-			flags |= gbl->def_value ?
-				GPIOF_INIT_LOW : GPIOF_INIT_HIGH;
+		flags |= gbl->def_value ? GPIOF_INIT_HIGH : GPIOF_INIT_LOW;
 
 		ret = devm_gpio_request_one(gbl->dev, pdata->gpio, flags,
 					    pdata ? pdata->name : "backlight");
