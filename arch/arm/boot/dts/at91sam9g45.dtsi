@@ -611,10 +611,14 @@
 				};
 
 				nand {
-					pinctrl_nand: nand-0 {
+					pinctrl_nand_rb: nand-rb-0 {
 						atmel,pins =
-							<AT91_PIOC 8 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP	/* PC8 gpio RDY pin pull_up*/
-							 AT91_PIOC 14 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP>;	/* PC14 gpio enable pin pull_up */
+							<AT91_PIOC 8 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP>;
+					};
+
+					pinctrl_nand_cs: nand-cs-0 {
+						atmel,pins =
+							 <AT91_PIOC 14 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP>;
 					};
 				};
 
@@ -1285,25 +1289,6 @@
 			pinctrl-0 = <&pinctrl_fb>;
 			clocks = <&lcd_clk>, <&lcd_clk>;
 			clock-names = "hclk", "lcdc_clk";
-			status = "disabled";
-		};
-
-		nand0: nand@40000000 {
-			compatible = "atmel,at91rm9200-nand";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			reg = <0x40000000 0x10000000
-			       0xffffe200 0x200
-			      >;
-			atmel,nand-addr-offset = <21>;
-			atmel,nand-cmd-offset = <22>;
-			atmel,nand-has-dma;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_nand>;
-			gpios = <&pioC 8 GPIO_ACTIVE_HIGH
-				 &pioC 14 GPIO_ACTIVE_HIGH
-				 0
-				>;
 			status = "disabled";
 		};
 

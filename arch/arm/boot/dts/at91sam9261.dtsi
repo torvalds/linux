@@ -118,22 +118,6 @@
 			};
 		};
 
-		nand0: nand@40000000 {
-			compatible = "atmel,at91rm9200-nand";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			reg = <0x40000000 0x10000000>;
-			atmel,nand-addr-offset = <22>;
-			atmel,nand-cmd-offset = <21>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_nand>;
-
-			gpios = <&pioC 15 GPIO_ACTIVE_HIGH>,
-				<&pioC 14 GPIO_ACTIVE_HIGH>,
-				<0>;
-			status = "disabled";
-		};
-
 		apb {
 			compatible = "simple-bus";
 			#address-cells = <1>;
@@ -394,9 +378,13 @@
 				};
 
 				nand {
-					pinctrl_nand: nand-0 {
+					pinctrl_nand_rb: nand-rb-0 {
 						atmel,pins =
-							<AT91_PIOC 15 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP>,
+							<AT91_PIOC 15 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP>;
+					};
+
+					pinctrl_nand_cs: nand-cs-0 {
+						atmel,pins =
 							<AT91_PIOC 14 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP>;
 					};
 				};

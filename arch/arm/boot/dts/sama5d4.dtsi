@@ -312,37 +312,6 @@
 			};
 		};
 
-		nand0: nand@80000000 {
-			compatible = "atmel,sama5d4-nand", "atmel,at91rm9200-nand";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			ranges;
-			reg = <	0x80000000 0x08000000	/* EBI CS3 */
-				0xfc05c070 0x00000490	/* SMC PMECC regs */
-				0xfc05c500 0x00000100	/* SMC PMECC Error Location regs */
-				>;
-			interrupts = <22 IRQ_TYPE_LEVEL_HIGH 6>;
-			atmel,nand-addr-offset = <21>;
-			atmel,nand-cmd-offset = <22>;
-			atmel,nand-has-dma;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_nand>;
-			status = "disabled";
-
-			nfc@90000000 {
-				compatible = "atmel,sama5d3-nfc";
-				#address-cells = <1>;
-				#size-cells = <1>;
-				reg = <
-					0x90000000 0x08000000	/* NFC Command Registers */
-					0xfc05c000 0x00000070	/* NFC HSMC regs */
-					0x00100000 0x00100000	/* NFC SRAM banks */
-                                         >;
-				clocks = <&hsmc_clk>;
-				atmel,write-by-sram;
-			};
-		};
-
 		nfc_io: nfc-io@90000000 {
 			compatible = "atmel,sama5d3-nfc-io", "syscon";
 			reg = <0x90000000 0x8000000>;
