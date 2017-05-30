@@ -1229,6 +1229,7 @@ config GPIO_PISOSR
 
 config GPIO_XRA1403
 	tristate "EXAR XRA1403 16-bit GPIO expander"
+	select REGMAP_SPI
 	help
 	  GPIO driver for EXAR XRA1403 16-bit SPI-based GPIO expander.
 
