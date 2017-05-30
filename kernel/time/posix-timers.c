@@ -305,7 +305,7 @@ static void schedule_next_timer(struct k_itimer *timr)
  * To protect against the timer going away while the interrupt is queued,
  * we require that the it_requeue_pending flag be set.
  */
-void do_schedule_next_timer(struct siginfo *info)
+void posixtimer_rearm(struct siginfo *info)
 {
 	struct k_itimer *timr;
 	unsigned long flags;
@@ -336,12 +336,12 @@ int posix_timer_event(struct k_itimer *timr, int si_private)
 	int shared, ret = -1;
 	/*
 	 * FIXME: if ->sigq is queued we can race with
-	 * dequeue_signal()->do_schedule_next_timer().
+	 * dequeue_signal()->posixtimer_rearm().
 	 *
 	 * If dequeue_signal() sees the "right" value of
-	 * si_sys_private it calls do_schedule_next_timer().
+	 * si_sys_private it calls posixtimer_rearm().
 	 * We re-queue ->sigq and drop ->it_lock().
-	 * do_schedule_next_timer() locks the timer
+	 * posixtimer_rearm() locks the timer
 	 * and re-schedules it while ->sigq is pending.
 	 * Not really bad, but not that we want.
 	 */
@@ -701,7 +701,7 @@ SYSCALL_DEFINE2(timer_gettime, timer_t, timer_id,
  * accumulating overruns on the next timer.  The overrun is frozen when
  * the signal is delivered, either at the notify time (if the info block
  * is not queued) or at the actual delivery time (as we are informed by
- * the call back to do_schedule_next_timer().  So all we need to do is
+ * the call back to posixtimer_rearm().  So all we need to do is
  * to pick up the frozen overrun.
  */
 SYSCALL_DEFINE1(timer_getoverrun, timer_t, timer_id)

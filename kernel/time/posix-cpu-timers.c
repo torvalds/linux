@@ -981,7 +981,7 @@ static void check_process_timers(struct task_struct *tsk,
 }
 
 /*
- * This is called from the signal code (via do_schedule_next_timer)
+ * This is called from the signal code (via posixtimer_rearm)
  * when the last timer signal was delivered and we have to reload the timer.
  */
 void posix_cpu_timer_schedule(struct k_itimer *timer)

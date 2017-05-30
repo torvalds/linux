@@ -112,6 +112,6 @@ long clock_nanosleep_restart(struct restart_block *restart_block);
 
 void update_rlimit_cpu(struct task_struct *task, unsigned long rlim_new);
 
-void do_schedule_next_timer(struct siginfo *info);
+void posixtimer_rearm(struct siginfo *info);
 
 #endif
