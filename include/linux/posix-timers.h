@@ -100,36 +100,6 @@ struct k_itimer {
 	} it;
 };
 
-struct k_clock {
-	int (*clock_getres) (const clockid_t which_clock, struct timespec64 *tp);
-	int (*clock_set) (const clockid_t which_clock,
-			  const struct timespec64 *tp);
-	int (*clock_get) (const clockid_t which_clock, struct timespec64 *tp);
-	int (*clock_adj) (const clockid_t which_clock, struct timex *tx);
-	int (*timer_create) (struct k_itimer *timer);
-	int (*nsleep) (const clockid_t which_clock, int flags,
-		       struct timespec64 *, struct timespec __user *);
-	long (*nsleep_restart) (struct restart_block *restart_block);
-	int (*timer_set) (struct k_itimer *timr, int flags,
-			  struct itimerspec64 *new_setting,
-			  struct itimerspec64 *old_setting);
-	int (*timer_del) (struct k_itimer *timr);
-#define TIMER_RETRY 1
-	void (*timer_get) (struct k_itimer *timr,
-			   struct itimerspec64 *cur_setting);
-};
-
-extern const struct k_clock clock_posix_cpu;
-extern const struct k_clock clock_posix_dynamic;
-extern const struct k_clock clock_process;
-extern const struct k_clock clock_thread;
-extern const struct k_clock alarm_clock;
-
-/* function to call to trigger timer event */
-int posix_timer_event(struct k_itimer *timr, int si_private);
-
-void posix_cpu_timer_schedule(struct k_itimer *timer);
-
 void run_posix_cpu_timers(struct task_struct *task);
 void posix_cpu_timers_exit(struct task_struct *task);
 void posix_cpu_timers_exit_group(struct task_struct *task);

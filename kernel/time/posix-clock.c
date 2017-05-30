@@ -25,6 +25,8 @@
 #include <linux/syscalls.h>
 #include <linux/uaccess.h>
 
+#include "posix-timers.h"
+
 static void delete_clock(struct kref *kref);
 
 /*

@@ -13,6 +13,8 @@
 #include <linux/tick.h>
 #include <linux/workqueue.h>
 
+#include "posix-timers.h"
+
 /*
  * Called after updating RLIMIT_CPU to run cpu timer and update
  * tsk->signal->cputime_expires expiration cache if necessary. Needs

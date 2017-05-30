@@ -51,6 +51,7 @@
 #include <linux/hashtable.h>
 
 #include "timekeeping.h"
+#include "posix-timers.h"
 
 /*
  * Management arrays for POSIX timers. Timers are now kept in static hash table
