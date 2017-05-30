@@ -995,6 +995,43 @@ static void release_free_pipes_for_stream(
 	}
 }
 
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+static int acquire_first_split_pipe(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		struct core_stream *stream)
+{
+	int i;
+
+	for (i = 0; i < pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
+
+		if (pipe_ctx->top_pipe &&
+				pipe_ctx->top_pipe->surface == pipe_ctx->surface) {
+			int mpc_idx = pipe_ctx->mpc_idx;
+
+			pipe_ctx->top_pipe->bottom_pipe = pipe_ctx->bottom_pipe;
+			if (pipe_ctx->bottom_pipe)
+				pipe_ctx->bottom_pipe->top_pipe = pipe_ctx->top_pipe;
+
+			memset(pipe_ctx, 0, sizeof(*pipe_ctx));
+			pipe_ctx->tg = pool->timing_generators[i];
+			pipe_ctx->mi = pool->mis[i];
+			pipe_ctx->ipp = pool->ipps[i];
+			pipe_ctx->xfm = pool->transforms[i];
+			pipe_ctx->opp = pool->opps[i];
+			pipe_ctx->dis_clk = pool->display_clock;
+			pipe_ctx->pipe_idx = i;
+			pipe_ctx->mpc_idx = mpc_idx;
+
+			pipe_ctx->stream = stream;
+			return i;
+		}
+	}
+	return -1;
+}
+#endif
+
 bool resource_attach_surfaces_to_context(
 		const struct dc_surface * const *surfaces,
 		int surface_count,
@@ -1048,6 +1085,13 @@ bool resource_attach_surfaces_to_context(
 		struct pipe_ctx *free_pipe = acquire_free_pipe_for_stream(
 				context, pool, dc_stream);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+		if (!free_pipe) {
+			int pipe_idx = acquire_first_split_pipe(&context->res_ctx, pool, stream);
+			if (pipe_idx >= 0)
+				free_pipe = &context->res_ctx.pipe_ctx[pipe_idx];
+		}
+#endif
 		if (!free_pipe) {
 			stream_status->surfaces[i] = NULL;
 			return false;
@@ -1390,42 +1434,6 @@ static void calculate_phy_pix_clks(struct validate_context *context)
 				stream->public.timing.pix_clk_khz;
 	}
 }
-
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-static int acquire_first_split_pipe(
-		struct resource_context *res_ctx,
-		const struct resource_pool *pool,
-		struct core_stream *stream)
-{
-	int i;
-
-	for (i = 0; i < pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
-
-		if (pipe_ctx->top_pipe &&
-				pipe_ctx->top_pipe->surface == pipe_ctx->surface) {
-			int mpc_idx = pipe_ctx->mpc_idx;
-
-			pipe_ctx->top_pipe->bottom_pipe = pipe_ctx->bottom_pipe;
-			pipe_ctx->bottom_pipe->top_pipe = pipe_ctx->top_pipe;
-
-			memset(pipe_ctx, 0, sizeof(*pipe_ctx));
-			pipe_ctx->tg = pool->timing_generators[i];
-			pipe_ctx->mi = pool->mis[i];
-			pipe_ctx->ipp = pool->ipps[i];
-			pipe_ctx->xfm = pool->transforms[i];
-			pipe_ctx->opp = pool->opps[i];
-			pipe_ctx->dis_clk = pool->display_clock;
-			pipe_ctx->pipe_idx = i;
-			pipe_ctx->mpc_idx = mpc_idx;
-
-			pipe_ctx->stream = stream;
-			return i;
-		}
-	}
-	return -1;
-}
-#endif
 
 enum dc_status resource_map_pool_resources(
 		const struct core_dc *dc,
