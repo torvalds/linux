@@ -1139,7 +1139,7 @@ static int __prepare_dmabuf(struct vb2_buffer *vb, const void *pb)
 			continue;
 		}
 
-		dprintk(1, "buffer for plane %d changed\n", plane);
+		dprintk(3, "buffer for plane %d changed\n", plane);
 
 		if (!reacquired) {
 			reacquired = true;
@@ -1298,7 +1298,7 @@ int vb2_core_prepare_buf(struct vb2_queue *q, unsigned int index, void *pb)
 	/* Fill buffer information for the userspace */
 	call_void_bufop(q, fill_user_buffer, vb, pb);
 
-	dprintk(1, "prepare of buffer %d succeeded\n", vb->index);
+	dprintk(2, "prepare of buffer %d succeeded\n", vb->index);
 
 	return ret;
 }
@@ -1428,7 +1428,7 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb)
 			return ret;
 	}
 
-	dprintk(1, "qbuf of buffer %d succeeded\n", vb->index);
+	dprintk(2, "qbuf of buffer %d succeeded\n", vb->index);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vb2_core_qbuf);
@@ -1476,7 +1476,7 @@ static int __vb2_wait_for_done_vb(struct vb2_queue *q, int nonblocking)
 		}
 
 		if (nonblocking) {
-			dprintk(1, "nonblocking and no buffers to dequeue, will not wait\n");
+			dprintk(3, "nonblocking and no buffers to dequeue, will not wait\n");
 			return -EAGAIN;
 		}
 
@@ -1623,7 +1623,7 @@ int vb2_core_dqbuf(struct vb2_queue *q, unsigned int *pindex, void *pb,
 	/* go back to dequeued state */
 	__vb2_dqbuf(vb);
 
-	dprintk(1, "dqbuf of buffer %d, with state %d\n",
+	dprintk(2, "dqbuf of buffer %d, with state %d\n",
 			vb->index, vb->state);
 
 	return 0;
