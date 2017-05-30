@@ -149,10 +149,8 @@ def raw_syscalls__sys_enter(event_name, context, common_cpu,
 		print "id=%d, args=%s\n" % \
 		(id, args),
 
-def trace_unhandled(event_name, context, common_cpu, common_secs, common_nsecs,
-		common_pid, common_comm):
-		print_header(event_name, common_cpu, common_secs, common_nsecs,
-		common_pid, common_comm)
+def trace_unhandled(event_name, context, event_fields_dict):
+		print ' '.join(['%s=%s'%(k,str(v))for k,v in sorted(event_fields_dict.items())])
 
 def print_header(event_name, cpu, secs, nsecs, pid, comm):
 	print "%-20s %5u %05u.%09u %8u %-20s " % \
@@ -550,8 +548,7 @@ def trace_end():
  of common arguments are passed into it:
 
 ----
-def trace_unhandled(event_name, context, common_cpu, common_secs,
-        common_nsecs, common_pid, common_comm):
+def trace_unhandled(event_name, context, event_fields_dict):
     pass
 ----
 
