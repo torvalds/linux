@@ -1807,7 +1807,7 @@ static void svm_get_segment(struct kvm_vcpu *vcpu,
 	 * AMD's VMCB does not have an explicit unusable field, so emulate it
 	 * for cross vendor migration purposes by "not present"
 	 */
-	var->unusable = !var->present || (var->type == 0);
+	var->unusable = !var->present;
 
 	switch (seg) {
 	case VCPU_SREG_TR:
