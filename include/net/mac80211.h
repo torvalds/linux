@@ -5452,6 +5452,9 @@ void ieee80211_mark_rx_ba_filtered_frames(struct ieee80211_sta *pubsta, u8 tid,
  */
 void ieee80211_send_bar(struct ieee80211_vif *vif, u8 *ra, u16 tid, u16 ssn);
 
+void ieee80211_manage_rx_ba_offl(struct ieee80211_vif *vif, const u8 *addr,
+				 unsigned int bit);
+
 /**
  * ieee80211_start_rx_ba_session_offl - start a Rx BA session
  *
@@ -5466,8 +5469,13 @@ void ieee80211_send_bar(struct ieee80211_vif *vif, u8 *ra, u16 tid, u16 ssn);
  * @addr: station mac address
  * @tid: the rx tid
  */
-void ieee80211_start_rx_ba_session_offl(struct ieee80211_vif *vif,
-					const u8 *addr, u16 tid);
+static inline void ieee80211_start_rx_ba_session_offl(struct ieee80211_vif *vif,
+						      const u8 *addr, u16 tid)
+{
+	if (WARN_ON(tid >= IEEE80211_NUM_TIDS))
+		return;
+	ieee80211_manage_rx_ba_offl(vif, addr, tid);
+}
 
 /**
  * ieee80211_stop_rx_ba_session_offl - stop a Rx BA session
@@ -5483,8 +5491,13 @@ void ieee80211_start_rx_ba_session_offl(struct ieee80211_vif *vif,
  * @addr: station mac address
  * @tid: the rx tid
  */
-void ieee80211_stop_rx_ba_session_offl(struct ieee80211_vif *vif,
-				       const u8 *addr, u16 tid);
+static inline void ieee80211_stop_rx_ba_session_offl(struct ieee80211_vif *vif,
+						     const u8 *addr, u16 tid)
+{
+	if (WARN_ON(tid >= IEEE80211_NUM_TIDS))
+		return;
+	ieee80211_manage_rx_ba_offl(vif, addr, tid + IEEE80211_NUM_TIDS);
+}
 
 /* Rate control API */
 

@@ -1031,17 +1031,6 @@ ieee80211_vif_get_shift(struct ieee80211_vif *vif)
 	return shift;
 }
 
-struct ieee80211_rx_agg {
-	u8 addr[ETH_ALEN];
-	u16 tid;
-};
-
-enum sdata_queue_type {
-	IEEE80211_SDATA_QUEUE_TYPE_FRAME	= 0,
-	IEEE80211_SDATA_QUEUE_RX_AGG_START	= 3,
-	IEEE80211_SDATA_QUEUE_RX_AGG_STOP	= 4,
-};
-
 enum {
 	IEEE80211_RX_MSG	= 1,
 	IEEE80211_TX_STATUS_MSG	= 2,

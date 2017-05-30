@@ -233,6 +233,8 @@ struct tid_ampdu_rx {
  *	RX timer expired until the work for it runs
  * @tid_rx_stop_requested:  bitmap indicating which BA sessions per TID the
  *	driver requested to close until the work for it runs
+ * @tid_rx_manage_offl: bitmap indicating which BA sessions were requested
+ *	to be treated as started/stopped due to offloading
  * @agg_session_valid: bitmap indicating which TID has a rx BA session open on
  * @unexpected_agg: bitmap indicating which TID already sent a delBA due to
  *	unexpected aggregation related frames outside a session
@@ -250,6 +252,7 @@ struct sta_ampdu_mlme {
 	u8 tid_rx_token[IEEE80211_NUM_TIDS];
 	unsigned long tid_rx_timer_expired[BITS_TO_LONGS(IEEE80211_NUM_TIDS)];
 	unsigned long tid_rx_stop_requested[BITS_TO_LONGS(IEEE80211_NUM_TIDS)];
+	unsigned long tid_rx_manage_offl[BITS_TO_LONGS(2 * IEEE80211_NUM_TIDS)];
 	unsigned long agg_session_valid[BITS_TO_LONGS(IEEE80211_NUM_TIDS)];
 	unsigned long unexpected_agg[BITS_TO_LONGS(IEEE80211_NUM_TIDS)];
 	/* tx */
