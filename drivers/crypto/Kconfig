@@ -541,6 +541,7 @@ config CRYPTO_DEV_MXS_DCP
 
 source "drivers/crypto/qat/Kconfig"
 source "drivers/crypto/cavium/cpt/Kconfig"
+source "drivers/crypto/cavium/nitrox/Kconfig"
 
 config CRYPTO_DEV_CAVIUM_ZIP
 	tristate "Cavium ZIP driver"
