@@ -137,13 +137,16 @@ struct akcipher_testvec {
 
 struct kpp_testvec {
 	const unsigned char *secret;
+	const unsigned char *b_secret;
 	const unsigned char *b_public;
 	const unsigned char *expected_a_public;
 	const unsigned char *expected_ss;
 	unsigned short secret_size;
+	unsigned short b_secret_size;
 	unsigned short b_public_size;
 	unsigned short expected_a_public_size;
 	unsigned short expected_ss_size;
+	bool genkey;
 };
 
 static const char zeroed_string[48];
@@ -840,6 +843,50 @@ static const struct kpp_testvec ecdh_tv_template[] = {
 	.b_public_size = 64,
 	.expected_a_public_size = 64,
 	.expected_ss_size = 32
+	}, {
+	.secret =
+#ifdef __LITTLE_ENDIAN
+	"\x02\x00" /* type */
+	"\x08\x00" /* len */
+	"\x02\x00" /* curve_id */
+	"\x00\x00", /* key_size */
+#else
+	"\x00\x02" /* type */
+	"\x00\x08" /* len */
+	"\x00\x02" /* curve_id */
+	"\x00\x00", /* key_size */
+#endif
+	.b_secret =
+#ifdef __LITTLE_ENDIAN
+	"\x02\x00" /* type */
+	"\x28\x00" /* len */
+	"\x02\x00" /* curve_id */
+	"\x20\x00" /* key_size */
+#else
+	"\x00\x02" /* type */
+	"\x00\x28" /* len */
+	"\x00\x02" /* curve_id */
+	"\x00\x20" /* key_size */
+#endif
+	"\x24\xd1\x21\xeb\xe5\xcf\x2d\x83"
+	"\xf6\x62\x1b\x6e\x43\x84\x3a\xa3"
+	"\x8b\xe0\x86\xc3\x20\x19\xda\x92"
+	"\x50\x53\x03\xe1\xc0\xea\xb8\x82",
+	.b_public =
+	"\x1a\x7f\xeb\x52\x00\xbd\x3c\x31"
+	"\x7d\xb6\x70\xc1\x86\xa6\xc7\xc4"
+	"\x3b\xc5\x5f\x6c\x6f\x58\x3c\xf5"
+	"\xb6\x63\x82\x77\x33\x24\xa1\x5f"
+	"\x6a\xca\x43\x6f\xf7\x7e\xff\x02"
+	"\x37\x08\xcc\x40\x5e\x7a\xfd\x6a"
+	"\x6a\x02\x6e\x41\x87\x68\x38\x77"
+	"\xfa\xa9\x44\x43\x2d\xef\x09\xdf",
+	.secret_size = 8,
+	.b_secret_size = 40,
+	.b_public_size = 64,
+	.expected_a_public_size = 64,
+	.expected_ss_size = 32,
+	.genkey = true,
 	}
 };
 

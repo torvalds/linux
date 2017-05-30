@@ -1997,6 +1997,9 @@ static int do_test_kpp(struct crypto_kpp *tfm, const struct kpp_testvec *vec,
 	struct kpp_request *req;
 	void *input_buf = NULL;
 	void *output_buf = NULL;
+	void *a_public = NULL;
+	void *a_ss = NULL;
+	void *shared_secret = NULL;
 	struct tcrypt_result result;
 	unsigned int out_len_max;
 	int err = -ENOMEM;
@@ -2026,20 +2029,31 @@ static int do_test_kpp(struct crypto_kpp *tfm, const struct kpp_testvec *vec,
 	kpp_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
 				 tcrypt_complete, &result);
 
-	/* Compute public key */
+	/* Compute party A's public key */
 	err = wait_async_op(&result, crypto_kpp_generate_public_key(req));
 	if (err) {
-		pr_err("alg: %s: generate public key test failed. err %d\n",
+		pr_err("alg: %s: Party A: generate public key test failed. err %d\n",
 		       alg, err);
 		goto free_output;
 	}
-	/* Verify calculated public key */
-	if (memcmp(vec->expected_a_public, sg_virt(req->dst),
-		   vec->expected_a_public_size)) {
-		pr_err("alg: %s: generate public key test failed. Invalid output\n",
-		       alg);
-		err = -EINVAL;
-		goto free_output;
+
+	if (vec->genkey) {
+		/* Save party A's public key */
+		a_public = kzalloc(out_len_max, GFP_KERNEL);
+		if (!a_public) {
+			err = -ENOMEM;
+			goto free_output;
+		}
+		memcpy(a_public, sg_virt(req->dst), out_len_max);
+	} else {
+		/* Verify calculated public key */
+		if (memcmp(vec->expected_a_public, sg_virt(req->dst),
+			   vec->expected_a_public_size)) {
+			pr_err("alg: %s: Party A: generate public key test failed. Invalid output\n",
+			       alg);
+			err = -EINVAL;
+			goto free_output;
+		}
 	}
 
 	/* Calculate shared secret key by using counter part (b) public key. */
@@ -2058,15 +2072,53 @@ static int do_test_kpp(struct crypto_kpp *tfm, const struct kpp_testvec *vec,
 				 tcrypt_complete, &result);
 	err = wait_async_op(&result, crypto_kpp_compute_shared_secret(req));
 	if (err) {
-		pr_err("alg: %s: compute shard secret test failed. err %d\n",
+		pr_err("alg: %s: Party A: compute shared secret test failed. err %d\n",
 		       alg, err);
 		goto free_all;
 	}
+
+	if (vec->genkey) {
+		/* Save the shared secret obtained by party A */
+		a_ss = kzalloc(vec->expected_ss_size, GFP_KERNEL);
+		if (!a_ss) {
+			err = -ENOMEM;
+			goto free_all;
+		}
+		memcpy(a_ss, sg_virt(req->dst), vec->expected_ss_size);
+
+		/*
+		 * Calculate party B's shared secret by using party A's
+		 * public key.
+		 */
+		err = crypto_kpp_set_secret(tfm, vec->b_secret,
+					    vec->b_secret_size);
+		if (err < 0)
+			goto free_all;
+
+		sg_init_one(&src, a_public, vec->expected_a_public_size);
+		sg_init_one(&dst, output_buf, out_len_max);
+		kpp_request_set_input(req, &src, vec->expected_a_public_size);
+		kpp_request_set_output(req, &dst, out_len_max);
+		kpp_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+					 tcrypt_complete, &result);
+		err = wait_async_op(&result,
+				    crypto_kpp_compute_shared_secret(req));
+		if (err) {
+			pr_err("alg: %s: Party B: compute shared secret failed. err %d\n",
+			       alg, err);
+			goto free_all;
+		}
+
+		shared_secret = a_ss;
+	} else {
+		shared_secret = (void *)vec->expected_ss;
+	}
+
 	/*
 	 * verify shared secret from which the user will derive
 	 * secret key by executing whatever hash it has chosen
 	 */
-	if (memcmp(vec->expected_ss, sg_virt(req->dst),
+	if (memcmp(shared_secret, sg_virt(req->dst),
 		   vec->expected_ss_size)) {
 		pr_err("alg: %s: compute shared secret test failed. Invalid output\n",
 		       alg);
@@ -2074,8 +2126,10 @@ static int do_test_kpp(struct crypto_kpp *tfm, const struct kpp_testvec *vec,
 	}
 
 free_all:
+	kfree(a_ss);
 	kfree(input_buf);
 free_output:
+	kfree(a_public);
 	kfree(output_buf);
 free_req:
 	kpp_request_free(req);
