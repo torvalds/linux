@@ -180,12 +180,10 @@ static int ibnl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 		cb.skb = skb;
 		cb.nlh = nlh;
 		cb.dump = rdma_nl_types[index].cb_table[op].dump;
-		cb.module = rdma_nl_types[index].cb_table[op].module;
 		return cb.dump(skb, &cb);
 	}
 
 	c.dump = rdma_nl_types[index].cb_table[op].dump;
-	c.module = rdma_nl_types[index].cb_table[op].module;
 	return netlink_dump_start(nls, skb, nlh, &c);
 }
 
