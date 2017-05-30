@@ -1354,7 +1354,7 @@ static int query_port(struct rvt_dev_info *rdi, u8 port_num,
 	props->lmc = ppd->lmc;
 	/* OPA logical states match IB logical states */
 	props->state = driver_lstate(ppd);
-	props->phys_state = hfi1_ibphys_portstate(ppd);
+	props->phys_state = driver_pstate(ppd);
 	props->gid_tbl_len = HFI1_GUIDS_PER_PORT;
 	props->active_width = (u8)opa_width_to_ib(ppd->link_width_active);
 	/* see rate_show() in ib core/sysfs.c */

@@ -1066,6 +1066,8 @@ static int thermal_init(struct hfi1_devdata *dd);
 
 static int wait_logical_linkstate(struct hfi1_pportdata *ppd, u32 state,
 				  int msecs);
+static int wait_physical_linkstate(struct hfi1_pportdata *ppd, u32 state,
+				   int msecs);
 static void read_planned_down_reason_code(struct hfi1_devdata *dd, u8 *pdrrc);
 static void read_link_down_reason(struct hfi1_devdata *dd, u8 *ldr);
 static void handle_temp_err(struct hfi1_devdata *dd);
@@ -10028,28 +10030,6 @@ static void set_lidlmc(struct hfi1_pportdata *ppd)
 	sdma_update_lmc(dd, mask, ppd->lid);
 }
 
-static int wait_phy_linkstate(struct hfi1_devdata *dd, u32 state, u32 msecs)
-{
-	unsigned long timeout;
-	u32 curr_state;
-
-	timeout = jiffies + msecs_to_jiffies(msecs);
-	while (1) {
-		curr_state = read_physical_state(dd);
-		if (curr_state == state)
-			break;
-		if (time_after(jiffies, timeout)) {
-			dd_dev_err(dd,
-				   "timeout waiting for phy link state 0x%x, current state is 0x%x\n",
-				   state, curr_state);
-			return -ETIMEDOUT;
-		}
-		usleep_range(1950, 2050); /* sleep 2ms-ish */
-	}
-
-	return 0;
-}
-
 static const char *state_completed_string(u32 completed)
 {
 	static const char * const state_completed[] = {
@@ -10283,7 +10263,7 @@ static int goto_offline(struct hfi1_pportdata *ppd, u8 rem_reason)
 
 	if (do_wait) {
 		/* it can take a while for the link to go down */
-		ret = wait_phy_linkstate(dd, PLS_OFFLINE, 10000);
+		ret = wait_physical_linkstate(ppd, PLS_OFFLINE, 10000);
 		if (ret < 0)
 			return ret;
 	}
@@ -10536,6 +10516,19 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 			goto unexpected;
 		}
 
+		/*
+		 * Wait for Link_Up physical state.
+		 * Physical and Logical states should already be
+		 * be transitioned to LinkUp and LinkInit respectively.
+		 */
+		ret = wait_physical_linkstate(ppd, PLS_LINKUP, 1000);
+		if (ret) {
+			dd_dev_err(dd,
+				   "%s: physical state did not change to LINK-UP\n",
+				   __func__);
+			break;
+		}
+
 		ret = wait_logical_linkstate(ppd, IB_PORT_INIT, 1000);
 		if (ret) {
 			dd_dev_err(dd,
@@ -10649,6 +10642,8 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 		 */
 		if (ret)
 			goto_offline(ppd, 0);
+		else
+			cache_physical_state(ppd);
 		break;
 	case HLS_DN_DISABLE:
 		/* link is disabled */
@@ -10673,6 +10668,13 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 				ret = -EINVAL;
 				break;
 			}
+			ret = wait_physical_linkstate(ppd, PLS_DISABLED, 10000);
+			if (ret) {
+				dd_dev_err(dd,
+					   "%s: physical state did not change to DISABLED\n",
+					   __func__);
+				break;
+			}
 			dc_shutdown(dd);
 		}
 		ppd->host_link_state = HLS_DN_DISABLE;
@@ -10690,6 +10692,7 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 		if (ppd->host_link_state != HLS_DN_POLL)
 			goto unexpected;
 		ppd->host_link_state = HLS_VERIFY_CAP;
+		cache_physical_state(ppd);
 		break;
 	case HLS_GOING_UP:
 		if (ppd->host_link_state != HLS_VERIFY_CAP)
@@ -12663,21 +12666,56 @@ static int wait_logical_linkstate(struct hfi1_pportdata *ppd, u32 state,
 	return -ETIMEDOUT;
 }
 
-u8 hfi1_ibphys_portstate(struct hfi1_pportdata *ppd)
+/*
+ * Read the physical hardware link state and set the driver's cached value
+ * of it.
+ */
+void cache_physical_state(struct hfi1_pportdata *ppd)
 {
-	u32 pstate;
+	u32 read_pstate;
 	u32 ib_pstate;
 
-	pstate = read_physical_state(ppd->dd);
-	ib_pstate = chip_to_opa_pstate(ppd->dd, pstate);
-	if (ppd->last_pstate != ib_pstate) {
+	read_pstate = read_physical_state(ppd->dd);
+	ib_pstate = chip_to_opa_pstate(ppd->dd, read_pstate);
+	/* check if OPA pstate changed */
+	if (chip_to_opa_pstate(ppd->dd, ppd->pstate) != ib_pstate) {
 		dd_dev_info(ppd->dd,
 			    "%s: physical state changed to %s (0x%x), phy 0x%x\n",
 			    __func__, opa_pstate_name(ib_pstate), ib_pstate,
-			    pstate);
-		ppd->last_pstate = ib_pstate;
+			    read_pstate);
 	}
-	return ib_pstate;
+	ppd->pstate = read_pstate;
+}
+
+/*
+ * wait_physical_linkstate - wait for an physical link state change to occur
+ * @ppd: port device
+ * @state: the state to wait for
+ * @msecs: the number of milliseconds to wait
+ *
+ * Wait up to msecs milliseconds for physical link state change to occur.
+ * Returns 0 if state reached, otherwise -ETIMEDOUT.
+ */
+static int wait_physical_linkstate(struct hfi1_pportdata *ppd, u32 state,
+				   int msecs)
+{
+	unsigned long timeout;
+
+	timeout = jiffies + msecs_to_jiffies(msecs);
+	while (1) {
+		cache_physical_state(ppd);
+		if (ppd->pstate == state)
+			break;
+		if (time_after(jiffies, timeout)) {
+			dd_dev_err(ppd->dd,
+				   "timeout waiting for phy link state 0x%x, current state is 0x%x\n",
+				   state, ppd->pstate);
+			return -ETIMEDOUT;
+		}
+		usleep_range(1950, 2050); /* sleep 2ms-ish */
+	}
+
+	return 0;
 }
 
 #define CLEAR_STATIC_RATE_CONTROL_SMASK(r) \
@@ -14781,7 +14819,7 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 		/* start in offline */
 		ppd->host_link_state = HLS_DN_OFFLINE;
 		init_vl_arb_caches(ppd);
-		ppd->last_pstate = 0xff; /* invalid value */
+		ppd->pstate = PLS_OFFLINE;
 	}
 
 	dd->link_default = HLS_DN_POLL;

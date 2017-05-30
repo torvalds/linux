@@ -906,10 +906,12 @@ static inline int set_armed_to_active(struct hfi1_ctxtdata *rcd,
 		sc = hfi1_9B_get_sc5(hdr, packet->rhf);
 	}
 	if (sc != SC15_PACKET) {
-		int hwstate = read_logical_state(dd);
+		int hwstate = driver_lstate(rcd->ppd);
 
-		if (hwstate != LSTATE_ACTIVE) {
-			dd_dev_info(dd, "Unexpected link state %d\n", hwstate);
+		if (hwstate != IB_PORT_ACTIVE) {
+			dd_dev_info(dd,
+				    "Unexpected link state %s\n",
+				    opa_lstate_name(hwstate));
 			return 0;
 		}
 
