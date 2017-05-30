@@ -714,7 +714,7 @@ static void pnv_npu2_release_context(struct kref *kref)
 void pnv_npu2_destroy_context(struct npu_context *npu_context,
 			struct pci_dev *gpdev)
 {
-	struct pnv_phb *nphb, *phb;
+	struct pnv_phb *nphb;
 	struct npu *npu;
 	struct pci_dev *npdev = pnv_pci_get_npu_dev(gpdev, 0);
 	struct device_node *nvlink_dn;
@@ -728,13 +728,12 @@ void pnv_npu2_destroy_context(struct npu_context *npu_context,
 
 	nphb = pci_bus_to_host(npdev->bus)->private_data;
 	npu = &nphb->npu;
-	phb = pci_bus_to_host(gpdev->bus)->private_data;
 	nvlink_dn = of_parse_phandle(npdev->dev.of_node, "ibm,nvlink", 0);
 	if (WARN_ON(of_property_read_u32(nvlink_dn, "ibm,npu-link-index",
 							&nvlink_index)))
 		return;
 	npu_context->npdev[npu->index][nvlink_index] = NULL;
-	opal_npu_destroy_context(phb->opal_id, npu_context->mm->context.id,
+	opal_npu_destroy_context(nphb->opal_id, npu_context->mm->context.id,
 				PCI_DEVID(gpdev->bus->number, gpdev->devfn));
 	kref_put(&npu_context->kref, pnv_npu2_release_context);
 }

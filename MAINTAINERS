@@ -7143,7 +7143,7 @@ S:	Maintained
 F:	drivers/media/platform/rcar_jpu.c
 
 JSM Neo PCI based serial card
-M:	Gabriel Krisman Bertazi <krisman@linux.vnet.ibm.com>
+M:	Guilherme G. Piccoli <gpiccoli@linux.vnet.ibm.com>
 L:	linux-serial@vger.kernel.org
 S:	Maintained
 F:	drivers/tty/serial/jsm/

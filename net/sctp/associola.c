@@ -1176,7 +1176,9 @@ void sctp_assoc_update(struct sctp_association *asoc,
 
 		asoc->ctsn_ack_point = asoc->next_tsn - 1;
 		asoc->adv_peer_ack_point = asoc->ctsn_ack_point;
-		if (!asoc->stream) {
+
+		if (sctp_state(asoc, COOKIE_WAIT)) {
+			sctp_stream_free(asoc->stream);
 			asoc->stream = new->stream;
 			new->stream = NULL;
 		}
