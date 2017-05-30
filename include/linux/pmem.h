@@ -31,13 +31,6 @@ static inline void arch_memcpy_to_pmem(void *dst, const void *src, size_t n)
 	BUG();
 }
 
-static inline size_t arch_copy_from_iter_pmem(void *addr, size_t bytes,
-		struct iov_iter *i)
-{
-	BUG();
-	return 0;
-}
-
 static inline void arch_clear_pmem(void *addr, size_t size)
 {
 	BUG();
@@ -77,23 +70,6 @@ static inline void memcpy_to_pmem(void *dst, const void *src, size_t n)
 		arch_memcpy_to_pmem(dst, src, n);
 	else
 		memcpy(dst, src, n);
-}
-
-/**
- * copy_from_iter_pmem - copy data from an iterator to PMEM
- * @addr:	PMEM destination address
- * @bytes:	number of bytes to copy
- * @i:		iterator with source data
- *
- * Copy data from the iterator 'i' to the PMEM buffer starting at 'addr'.
- * See blkdev_issue_flush() note for memcpy_to_pmem().
- */
-static inline size_t copy_from_iter_pmem(void *addr, size_t bytes,
-		struct iov_iter *i)
-{
-	if (arch_has_pmem_api())
-		return arch_copy_from_iter_pmem(addr, bytes, i);
-	return copy_from_iter_nocache(addr, bytes, i);
 }
 
 /**

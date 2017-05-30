@@ -1054,7 +1054,8 @@ dax_iomap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 			map_len = end - pos;
 
 		if (iov_iter_rw(iter) == WRITE)
-			map_len = copy_from_iter_pmem(kaddr, map_len, iter);
+			map_len = dax_copy_from_iter(dax_dev, pgoff, kaddr,
+					map_len, iter);
 		else
 			map_len = copy_to_iter(kaddr, map_len, iter);
 		if (map_len <= 0) {
