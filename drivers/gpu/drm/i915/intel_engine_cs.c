@@ -26,68 +26,176 @@
 #include "intel_ringbuffer.h"
 #include "intel_lrc.h"
 
-static const struct engine_info {
+/* Haswell does have the CXT_SIZE register however it does not appear to be
+ * valid. Now, docs explain in dwords what is in the context object. The full
+ * size is 70720 bytes, however, the power context and execlist context will
+ * never be saved (power context is stored elsewhere, and execlists don't work
+ * on HSW) - so the final size, including the extra state required for the
+ * Resource Streamer, is 66944 bytes, which rounds to 17 pages.
+ */
+#define HSW_CXT_TOTAL_SIZE		(17 * PAGE_SIZE)
+/* Same as Haswell, but 72064 bytes now. */
+#define GEN8_CXT_TOTAL_SIZE		(18 * PAGE_SIZE)
+
+#define GEN8_LR_CONTEXT_RENDER_SIZE	(20 * PAGE_SIZE)
+#define GEN9_LR_CONTEXT_RENDER_SIZE	(22 * PAGE_SIZE)
+
+#define GEN8_LR_CONTEXT_OTHER_SIZE	( 2 * PAGE_SIZE)
+
+struct engine_class_info {
 	const char *name;
-	unsigned int exec_id;
-	unsigned int hw_id;
-	u32 mmio_base;
-	unsigned irq_shift;
 	int (*init_legacy)(struct intel_engine_cs *engine);
 	int (*init_execlists)(struct intel_engine_cs *engine);
-} intel_engines[] = {
-	[RCS] = {
+};
+
+static const struct engine_class_info intel_engine_classes[] = {
+	[RENDER_CLASS] = {
 		.name = "rcs",
-		.hw_id = RCS_HW,
-		.exec_id = I915_EXEC_RENDER,
-		.mmio_base = RENDER_RING_BASE,
-		.irq_shift = GEN8_RCS_IRQ_SHIFT,
 		.init_execlists = logical_render_ring_init,
 		.init_legacy = intel_init_render_ring_buffer,
 	},
-	[BCS] = {
+	[COPY_ENGINE_CLASS] = {
 		.name = "bcs",
-		.hw_id = BCS_HW,
-		.exec_id = I915_EXEC_BLT,
-		.mmio_base = BLT_RING_BASE,
-		.irq_shift = GEN8_BCS_IRQ_SHIFT,
 		.init_execlists = logical_xcs_ring_init,
 		.init_legacy = intel_init_blt_ring_buffer,
 	},
-	[VCS] = {
+	[VIDEO_DECODE_CLASS] = {
 		.name = "vcs",
-		.hw_id = VCS_HW,
-		.exec_id = I915_EXEC_BSD,
-		.mmio_base = GEN6_BSD_RING_BASE,
-		.irq_shift = GEN8_VCS1_IRQ_SHIFT,
 		.init_execlists = logical_xcs_ring_init,
 		.init_legacy = intel_init_bsd_ring_buffer,
 	},
-	[VCS2] = {
-		.name = "vcs2",
-		.hw_id = VCS2_HW,
-		.exec_id = I915_EXEC_BSD,
-		.mmio_base = GEN8_BSD2_RING_BASE,
-		.irq_shift = GEN8_VCS2_IRQ_SHIFT,
-		.init_execlists = logical_xcs_ring_init,
-		.init_legacy = intel_init_bsd2_ring_buffer,
-	},
-	[VECS] = {
+	[VIDEO_ENHANCEMENT_CLASS] = {
 		.name = "vecs",
-		.hw_id = VECS_HW,
-		.exec_id = I915_EXEC_VEBOX,
-		.mmio_base = VEBOX_RING_BASE,
-		.irq_shift = GEN8_VECS_IRQ_SHIFT,
 		.init_execlists = logical_xcs_ring_init,
 		.init_legacy = intel_init_vebox_ring_buffer,
 	},
 };
+
+struct engine_info {
+	unsigned int hw_id;
+	unsigned int uabi_id;
+	u8 class;
+	u8 instance;
+	u32 mmio_base;
+	unsigned irq_shift;
+};
+
+static const struct engine_info intel_engines[] = {
+	[RCS] = {
+		.hw_id = RCS_HW,
+		.uabi_id = I915_EXEC_RENDER,
+		.class = RENDER_CLASS,
+		.instance = 0,
+		.mmio_base = RENDER_RING_BASE,
+		.irq_shift = GEN8_RCS_IRQ_SHIFT,
+	},
+	[BCS] = {
+		.hw_id = BCS_HW,
+		.uabi_id = I915_EXEC_BLT,
+		.class = COPY_ENGINE_CLASS,
+		.instance = 0,
+		.mmio_base = BLT_RING_BASE,
+		.irq_shift = GEN8_BCS_IRQ_SHIFT,
+	},
+	[VCS] = {
+		.hw_id = VCS_HW,
+		.uabi_id = I915_EXEC_BSD,
+		.class = VIDEO_DECODE_CLASS,
+		.instance = 0,
+		.mmio_base = GEN6_BSD_RING_BASE,
+		.irq_shift = GEN8_VCS1_IRQ_SHIFT,
+	},
+	[VCS2] = {
+		.hw_id = VCS2_HW,
+		.uabi_id = I915_EXEC_BSD,
+		.class = VIDEO_DECODE_CLASS,
+		.instance = 1,
+		.mmio_base = GEN8_BSD2_RING_BASE,
+		.irq_shift = GEN8_VCS2_IRQ_SHIFT,
+	},
+	[VECS] = {
+		.hw_id = VECS_HW,
+		.uabi_id = I915_EXEC_VEBOX,
+		.class = VIDEO_ENHANCEMENT_CLASS,
+		.instance = 0,
+		.mmio_base = VEBOX_RING_BASE,
+		.irq_shift = GEN8_VECS_IRQ_SHIFT,
+	},
+};
+
+/**
+ * ___intel_engine_context_size() - return the size of the context for an engine
+ * @dev_priv: i915 device private
+ * @class: engine class
+ *
+ * Each engine class may require a different amount of space for a context
+ * image.
+ *
+ * Return: size (in bytes) of an engine class specific context image
+ *
+ * Note: this size includes the HWSP, which is part of the context image
+ * in LRC mode, but does not include the "shared data page" used with
+ * GuC submission. The caller should account for this if using the GuC.
+ */
+static u32
+__intel_engine_context_size(struct drm_i915_private *dev_priv, u8 class)
+{
+	u32 cxt_size;
+
+	BUILD_BUG_ON(I915_GTT_PAGE_SIZE != PAGE_SIZE);
+
+	switch (class) {
+	case RENDER_CLASS:
+		switch (INTEL_GEN(dev_priv)) {
+		default:
+			MISSING_CASE(INTEL_GEN(dev_priv));
+		case 9:
+			return GEN9_LR_CONTEXT_RENDER_SIZE;
+		case 8:
+			return i915.enable_execlists ?
+			       GEN8_LR_CONTEXT_RENDER_SIZE :
+			       GEN8_CXT_TOTAL_SIZE;
+		case 7:
+			if (IS_HASWELL(dev_priv))
+				return HSW_CXT_TOTAL_SIZE;
+
+			cxt_size = I915_READ(GEN7_CXT_SIZE);
+			return round_up(GEN7_CXT_TOTAL_SIZE(cxt_size) * 64,
+					PAGE_SIZE);
+		case 6:
+			cxt_size = I915_READ(CXT_SIZE);
+			return round_up(GEN6_CXT_TOTAL_SIZE(cxt_size) * 64,
+					PAGE_SIZE);
+		case 5:
+		case 4:
+		case 3:
+		case 2:
+		/* For the special day when i810 gets merged. */
+		case 1:
+			return 0;
+		}
+		break;
+	default:
+		MISSING_CASE(class);
+	case VIDEO_DECODE_CLASS:
+	case VIDEO_ENHANCEMENT_CLASS:
+	case COPY_ENGINE_CLASS:
+		if (INTEL_GEN(dev_priv) < 8)
+			return 0;
+		return GEN8_LR_CONTEXT_OTHER_SIZE;
+	}
+}
 
 static int
 intel_engine_setup(struct drm_i915_private *dev_priv,
 		   enum intel_engine_id id)
 {
 	const struct engine_info *info = &intel_engines[id];
+	const struct engine_class_info *class_info;
 	struct intel_engine_cs *engine;
+
+	GEM_BUG_ON(info->class >= ARRAY_SIZE(intel_engine_classes));
+	class_info = &intel_engine_classes[info->class];
 
 	GEM_BUG_ON(dev_priv->engine[id]);
 	engine = kzalloc(sizeof(*engine), GFP_KERNEL);
@@ -96,11 +204,20 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 
 	engine->id = id;
 	engine->i915 = dev_priv;
-	engine->name = info->name;
-	engine->exec_id = info->exec_id;
+	WARN_ON(snprintf(engine->name, sizeof(engine->name), "%s%u",
+			 class_info->name, info->instance) >=
+		sizeof(engine->name));
+	engine->uabi_id = info->uabi_id;
 	engine->hw_id = engine->guc_id = info->hw_id;
 	engine->mmio_base = info->mmio_base;
 	engine->irq_shift = info->irq_shift;
+	engine->class = info->class;
+	engine->instance = info->instance;
+
+	engine->context_size = __intel_engine_context_size(dev_priv,
+							   engine->class);
+	if (WARN_ON(engine->context_size > BIT(20)))
+		engine->context_size = 0;
 
 	/* Nothing to do here, execute in order of dependencies */
 	engine->schedule = NULL;
@@ -112,18 +229,18 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 }
 
 /**
- * intel_engines_init_early() - allocate the Engine Command Streamers
+ * intel_engines_init_mmio() - allocate and prepare the Engine Command Streamers
  * @dev_priv: i915 device private
  *
  * Return: non-zero if the initialization failed.
  */
-int intel_engines_init_early(struct drm_i915_private *dev_priv)
+int intel_engines_init_mmio(struct drm_i915_private *dev_priv)
 {
 	struct intel_device_info *device_info = mkwrite_device_info(dev_priv);
-	unsigned int ring_mask = INTEL_INFO(dev_priv)->ring_mask;
-	unsigned int mask = 0;
+	const unsigned int ring_mask = INTEL_INFO(dev_priv)->ring_mask;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
+	unsigned int mask = 0;
 	unsigned int i;
 	int err;
 
@@ -150,6 +267,12 @@ int intel_engines_init_early(struct drm_i915_private *dev_priv)
 	if (WARN_ON(mask != ring_mask))
 		device_info->ring_mask = mask;
 
+	/* We always presume we have at least RCS available for later probing */
+	if (WARN_ON(!HAS_ENGINE(dev_priv, RCS))) {
+		err = -ENODEV;
+		goto cleanup;
+	}
+
 	device_info->num_rings = hweight32(mask);
 
 	return 0;
@@ -161,7 +284,7 @@ cleanup:
 }
 
 /**
- * intel_engines_init() - allocate, populate and init the Engine Command Streamers
+ * intel_engines_init() - init the Engine Command Streamers
  * @dev_priv: i915 device private
  *
  * Return: non-zero if the initialization failed.
@@ -175,12 +298,14 @@ int intel_engines_init(struct drm_i915_private *dev_priv)
 	int err = 0;
 
 	for_each_engine(engine, dev_priv, id) {
+		const struct engine_class_info *class_info =
+			&intel_engine_classes[engine->class];
 		int (*init)(struct intel_engine_cs *engine);
 
 		if (i915.enable_execlists)
-			init = intel_engines[id].init_execlists;
+			init = class_info->init_execlists;
 		else
-			init = intel_engines[id].init_legacy;
+			init = class_info->init_legacy;
 		if (!init) {
 			kfree(engine);
 			dev_priv->engine[id] = NULL;
@@ -223,6 +348,9 @@ void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 
+	GEM_BUG_ON(!intel_engine_is_idle(engine));
+	GEM_BUG_ON(i915_gem_active_isset(&engine->timeline->last_request));
+
 	/* Our semaphore implementation is strictly monotonic (i.e. we proceed
 	 * so long as the semaphore value in the register/page is greater
 	 * than the sync value), so whenever we reset the seqno,
@@ -253,13 +381,12 @@ void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno)
 	intel_write_status_page(engine, I915_GEM_HWS_INDEX, seqno);
 	clear_bit(ENGINE_IRQ_BREADCRUMB, &engine->irq_posted);
 
-	GEM_BUG_ON(i915_gem_active_isset(&engine->timeline->last_request));
-	engine->hangcheck.seqno = seqno;
-
 	/* After manually advancing the seqno, fake the interrupt in case
 	 * there are any waiters for that seqno.
 	 */
 	intel_engine_wakeup(engine);
+
+	GEM_BUG_ON(intel_engine_get_seqno(engine) != seqno);
 }
 
 static void intel_engine_init_timeline(struct intel_engine_cs *engine)
@@ -342,6 +469,7 @@ static void intel_engine_cleanup_scratch(struct intel_engine_cs *engine)
  */
 int intel_engine_init_common(struct intel_engine_cs *engine)
 {
+	struct intel_ring *ring;
 	int ret;
 
 	engine->set_default_submission(engine);
@@ -353,9 +481,9 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 	 * be available. To avoid this we always pin the default
 	 * context.
 	 */
-	ret = engine->context_pin(engine, engine->i915->kernel_context);
-	if (ret)
-		return ret;
+	ring = engine->context_pin(engine, engine->i915->kernel_context);
+	if (IS_ERR(ring))
+		return PTR_ERR(ring);
 
 	ret = intel_engine_init_breadcrumbs(engine);
 	if (ret)
@@ -723,8 +851,10 @@ static int gen9_init_workarounds(struct intel_engine_cs *engine)
 		 */
 	}
 
+	/* WaEnableYV12BugFixInHalfSliceChicken7:skl,bxt,kbl,glk */
 	/* WaEnableSamplerGPGPUPreemptionSupport:skl,bxt,kbl */
 	WA_SET_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN7,
+			  GEN9_ENABLE_YV12_BUGFIX |
 			  GEN9_ENABLE_GPGPU_PREEMPTION);
 
 	/* Wa4x4STCOptimizationDisable:skl,bxt,kbl,glk */
@@ -1086,17 +1216,24 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 
+	/* More white lies, if wedged, hw state is inconsistent */
+	if (i915_terminally_wedged(&dev_priv->gpu_error))
+		return true;
+
 	/* Any inflight/incomplete requests? */
 	if (!i915_seqno_passed(intel_engine_get_seqno(engine),
 			       intel_engine_last_submit(engine)))
 		return false;
+
+	if (I915_SELFTEST_ONLY(engine->breadcrumbs.mock))
+		return true;
 
 	/* Interrupt/tasklet pending? */
 	if (test_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted))
 		return false;
 
 	/* Both ports drained, no more ELSP submission? */
-	if (engine->execlist_port[0].request)
+	if (port_request(&engine->execlist_port[0]))
 		return false;
 
 	/* Ring stopped? */
@@ -1135,6 +1272,18 @@ void intel_engines_reset_default_submission(struct drm_i915_private *i915)
 
 	for_each_engine(engine, i915, id)
 		engine->set_default_submission(engine);
+}
+
+void intel_engines_mark_idle(struct drm_i915_private *i915)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
+	for_each_engine(engine, i915, id) {
+		intel_engine_disarm_breadcrumbs(engine);
+		i915_gem_batch_pool_fini(&engine->batch_pool);
+		engine->no_priolist = false;
+	}
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

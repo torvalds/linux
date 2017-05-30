@@ -41,6 +41,8 @@
 #define I915_RND_SUBSTATE(name__, parent__) \
 	struct rnd_state name__ = I915_RND_STATE_INITIALIZER(prandom_u32_state(&(parent__)))
 
+u64 i915_prandom_u64_state(struct rnd_state *rnd);
+
 unsigned int *i915_random_order(unsigned int count,
 				struct rnd_state *state);
 void i915_random_reorder(unsigned int *order,

@@ -46,8 +46,6 @@
 #include <linux/dma-buf.h>
 
 static void i915_gem_flush_free_objects(struct drm_i915_private *i915);
-static void i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj);
-static void i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj);
 
 static bool cpu_write_needs_clflush(struct drm_i915_gem_object *obj)
 {
@@ -705,6 +703,61 @@ i915_gem_create_ioctl(struct drm_device *dev, void *data,
 			       args->size, &args->handle);
 }
 
+static inline enum fb_op_origin
+fb_write_origin(struct drm_i915_gem_object *obj, unsigned int domain)
+{
+	return (domain == I915_GEM_DOMAIN_GTT ?
+		obj->frontbuffer_ggtt_origin : ORIGIN_CPU);
+}
+
+static void
+flush_write_domain(struct drm_i915_gem_object *obj, unsigned int flush_domains)
+{
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
+
+	if (!(obj->base.write_domain & flush_domains))
+		return;
+
+	/* No actual flushing is required for the GTT write domain.  Writes
+	 * to it "immediately" go to main memory as far as we know, so there's
+	 * no chipset flush.  It also doesn't land in render cache.
+	 *
+	 * However, we do have to enforce the order so that all writes through
+	 * the GTT land before any writes to the device, such as updates to
+	 * the GATT itself.
+	 *
+	 * We also have to wait a bit for the writes to land from the GTT.
+	 * An uncached read (i.e. mmio) seems to be ideal for the round-trip
+	 * timing. This issue has only been observed when switching quickly
+	 * between GTT writes and CPU reads from inside the kernel on recent hw,
+	 * and it appears to only affect discrete GTT blocks (i.e. on LLC
+	 * system agents we cannot reproduce this behaviour).
+	 */
+	wmb();
+
+	switch (obj->base.write_domain) {
+	case I915_GEM_DOMAIN_GTT:
+		if (INTEL_GEN(dev_priv) >= 6 && !HAS_LLC(dev_priv)) {
+			if (intel_runtime_pm_get_if_in_use(dev_priv)) {
+				spin_lock_irq(&dev_priv->uncore.lock);
+				POSTING_READ_FW(RING_ACTHD(dev_priv->engine[RCS]->mmio_base));
+				spin_unlock_irq(&dev_priv->uncore.lock);
+				intel_runtime_pm_put(dev_priv);
+			}
+		}
+
+		intel_fb_obj_flush(obj,
+				   fb_write_origin(obj, I915_GEM_DOMAIN_GTT));
+		break;
+
+	case I915_GEM_DOMAIN_CPU:
+		i915_gem_clflush_object(obj, I915_CLFLUSH_SYNC);
+		break;
+	}
+
+	obj->base.write_domain = 0;
+}
+
 static inline int
 __copy_to_user_swizzled(char __user *cpu_vaddr,
 			const char *gpu_vaddr, int gpu_offset,
@@ -794,7 +847,7 @@ int i915_gem_obj_prepare_shmem_read(struct drm_i915_gem_object *obj,
 			goto out;
 	}
 
-	i915_gem_object_flush_gtt_write_domain(obj);
+	flush_write_domain(obj, ~I915_GEM_DOMAIN_CPU);
 
 	/* If we're not in the cpu read domain, set ourself into the gtt
 	 * read domain and manually flush cachelines (if required). This
@@ -846,7 +899,7 @@ int i915_gem_obj_prepare_shmem_write(struct drm_i915_gem_object *obj,
 			goto out;
 	}
 
-	i915_gem_object_flush_gtt_write_domain(obj);
+	flush_write_domain(obj, ~I915_GEM_DOMAIN_CPU);
 
 	/* If we're not in the cpu write domain, set ourself into the
 	 * gtt write domain and manually flush cachelines (as required).
@@ -1501,13 +1554,6 @@ err:
 	return ret;
 }
 
-static inline enum fb_op_origin
-write_origin(struct drm_i915_gem_object *obj, unsigned domain)
-{
-	return (domain == I915_GEM_DOMAIN_GTT ?
-		obj->frontbuffer_ggtt_origin : ORIGIN_CPU);
-}
-
 static void i915_gem_object_bump_inactive_ggtt(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *i915;
@@ -1591,10 +1637,12 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	if (err)
 		goto out_unpin;
 
-	if (read_domains & I915_GEM_DOMAIN_GTT)
-		err = i915_gem_object_set_to_gtt_domain(obj, write_domain != 0);
+	if (read_domains & I915_GEM_DOMAIN_WC)
+		err = i915_gem_object_set_to_wc_domain(obj, write_domain);
+	else if (read_domains & I915_GEM_DOMAIN_GTT)
+		err = i915_gem_object_set_to_gtt_domain(obj, write_domain);
 	else
-		err = i915_gem_object_set_to_cpu_domain(obj, write_domain != 0);
+		err = i915_gem_object_set_to_cpu_domain(obj, write_domain);
 
 	/* And bump the LRU for this access */
 	i915_gem_object_bump_inactive_ggtt(obj);
@@ -1602,7 +1650,8 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	mutex_unlock(&dev->struct_mutex);
 
 	if (write_domain != 0)
-		intel_fb_obj_invalidate(obj, write_origin(obj, write_domain));
+		intel_fb_obj_invalidate(obj,
+					fb_write_origin(obj, write_domain));
 
 out_unpin:
 	i915_gem_object_unpin_pages(obj);
@@ -1737,6 +1786,9 @@ static unsigned int tile_row_pages(struct drm_i915_gem_object *obj)
  *     into userspace. (This view is aligned and sized appropriately for
  *     fenced access.)
  *
+ * 2 - Recognise WC as a separate cache domain so that we can flush the
+ *     delayed writes via GTT before performing direct access via WC.
+ *
  * Restrictions:
  *
  *  * snoopable objects cannot be accessed via the GTT. It can cause machine
@@ -1764,7 +1816,7 @@ static unsigned int tile_row_pages(struct drm_i915_gem_object *obj)
  */
 int i915_gem_mmap_gtt_version(void)
 {
-	return 1;
+	return 2;
 }
 
 static inline struct i915_ggtt_view
@@ -2228,7 +2280,7 @@ void __i915_gem_object_put_pages(struct drm_i915_gem_object *obj,
 	if (obj->mm.mapping) {
 		void *ptr;
 
-		ptr = ptr_mask_bits(obj->mm.mapping);
+		ptr = page_mask_bits(obj->mm.mapping);
 		if (is_vmalloc_addr(ptr))
 			vunmap(ptr);
 		else
@@ -2560,7 +2612,7 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 	}
 	GEM_BUG_ON(!obj->mm.pages);
 
-	ptr = ptr_unpack_bits(obj->mm.mapping, has_type);
+	ptr = page_unpack_bits(obj->mm.mapping, &has_type);
 	if (ptr && has_type != type) {
 		if (pinned) {
 			ret = -EBUSY;
@@ -2582,7 +2634,7 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 			goto err_unpin;
 		}
 
-		obj->mm.mapping = ptr_pack_bits(ptr, type);
+		obj->mm.mapping = page_pack_bits(ptr, type);
 	}
 
 out_unlock:
@@ -2967,12 +3019,14 @@ static void engine_set_wedged(struct intel_engine_cs *engine)
 	 */
 
 	if (i915.enable_execlists) {
+		struct execlist_port *port = engine->execlist_port;
 		unsigned long flags;
+		unsigned int n;
 
 		spin_lock_irqsave(&engine->timeline->lock, flags);
 
-		i915_gem_request_put(engine->execlist_port[0].request);
-		i915_gem_request_put(engine->execlist_port[1].request);
+		for (n = 0; n < ARRAY_SIZE(engine->execlist_port); n++)
+			i915_gem_request_put(port_request(&port[n]));
 		memset(engine->execlist_port, 0, sizeof(engine->execlist_port));
 		engine->execlist_queue = RB_ROOT;
 		engine->execlist_first = NULL;
@@ -3101,8 +3155,6 @@ i915_gem_idle_work_handler(struct work_struct *work)
 	struct drm_i915_private *dev_priv =
 		container_of(work, typeof(*dev_priv), gt.idle_work.work);
 	struct drm_device *dev = &dev_priv->drm;
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
 	bool rearm_hangcheck;
 
 	if (!READ_ONCE(dev_priv->gt.awake))
@@ -3140,10 +3192,8 @@ i915_gem_idle_work_handler(struct work_struct *work)
 	if (wait_for(intel_engines_are_idle(dev_priv), 10))
 		DRM_ERROR("Timeout waiting for engines to idle\n");
 
-	for_each_engine(engine, dev_priv, id) {
-		intel_engine_disarm_breadcrumbs(engine);
-		i915_gem_batch_pool_fini(&engine->batch_pool);
-	}
+	intel_engines_mark_idle(dev_priv);
+	i915_gem_timelines_mark_idle(dev_priv);
 
 	GEM_BUG_ON(!dev_priv->gt.awake);
 	dev_priv->gt.awake = false;
@@ -3320,56 +3370,6 @@ int i915_gem_wait_for_idle(struct drm_i915_private *i915, unsigned int flags)
 	return ret;
 }
 
-/** Flushes the GTT write domain for the object if it's dirty. */
-static void
-i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj)
-{
-	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
-
-	if (obj->base.write_domain != I915_GEM_DOMAIN_GTT)
-		return;
-
-	/* No actual flushing is required for the GTT write domain.  Writes
-	 * to it "immediately" go to main memory as far as we know, so there's
-	 * no chipset flush.  It also doesn't land in render cache.
-	 *
-	 * However, we do have to enforce the order so that all writes through
-	 * the GTT land before any writes to the device, such as updates to
-	 * the GATT itself.
-	 *
-	 * We also have to wait a bit for the writes to land from the GTT.
-	 * An uncached read (i.e. mmio) seems to be ideal for the round-trip
-	 * timing. This issue has only been observed when switching quickly
-	 * between GTT writes and CPU reads from inside the kernel on recent hw,
-	 * and it appears to only affect discrete GTT blocks (i.e. on LLC
-	 * system agents we cannot reproduce this behaviour).
-	 */
-	wmb();
-	if (INTEL_GEN(dev_priv) >= 6 && !HAS_LLC(dev_priv)) {
-		if (intel_runtime_pm_get_if_in_use(dev_priv)) {
-			spin_lock_irq(&dev_priv->uncore.lock);
-			POSTING_READ_FW(RING_ACTHD(dev_priv->engine[RCS]->mmio_base));
-			spin_unlock_irq(&dev_priv->uncore.lock);
-			intel_runtime_pm_put(dev_priv);
-		}
-	}
-
-	intel_fb_obj_flush(obj, write_origin(obj, I915_GEM_DOMAIN_GTT));
-
-	obj->base.write_domain = 0;
-}
-
-/** Flushes the CPU write domain for the object if it's dirty. */
-static void
-i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj)
-{
-	if (obj->base.write_domain != I915_GEM_DOMAIN_CPU)
-		return;
-
-	i915_gem_clflush_object(obj, I915_CLFLUSH_SYNC);
-	obj->base.write_domain = 0;
-}
-
 static void __i915_gem_object_flush_for_display(struct drm_i915_gem_object *obj)
 {
 	if (obj->base.write_domain != I915_GEM_DOMAIN_CPU && !obj->cache_dirty)
@@ -3387,6 +3387,69 @@ void i915_gem_object_flush_if_display(struct drm_i915_gem_object *obj)
 	mutex_lock(&obj->base.dev->struct_mutex);
 	__i915_gem_object_flush_for_display(obj);
 	mutex_unlock(&obj->base.dev->struct_mutex);
+}
+
+/**
+ * Moves a single object to the WC read, and possibly write domain.
+ * @obj: object to act on
+ * @write: ask for write access or read only
+ *
+ * This function returns when the move is complete, including waiting on
+ * flushes to occur.
+ */
+int
+i915_gem_object_set_to_wc_domain(struct drm_i915_gem_object *obj, bool write)
+{
+	int ret;
+
+	lockdep_assert_held(&obj->base.dev->struct_mutex);
+
+	ret = i915_gem_object_wait(obj,
+				   I915_WAIT_INTERRUPTIBLE |
+				   I915_WAIT_LOCKED |
+				   (write ? I915_WAIT_ALL : 0),
+				   MAX_SCHEDULE_TIMEOUT,
+				   NULL);
+	if (ret)
+		return ret;
+
+	if (obj->base.write_domain == I915_GEM_DOMAIN_WC)
+		return 0;
+
+	/* Flush and acquire obj->pages so that we are coherent through
+	 * direct access in memory with previous cached writes through
+	 * shmemfs and that our cache domain tracking remains valid.
+	 * For example, if the obj->filp was moved to swap without us
+	 * being notified and releasing the pages, we would mistakenly
+	 * continue to assume that the obj remained out of the CPU cached
+	 * domain.
+	 */
+	ret = i915_gem_object_pin_pages(obj);
+	if (ret)
+		return ret;
+
+	flush_write_domain(obj, ~I915_GEM_DOMAIN_WC);
+
+	/* Serialise direct access to this object with the barriers for
+	 * coherent writes from the GPU, by effectively invalidating the
+	 * WC domain upon first access.
+	 */
+	if ((obj->base.read_domains & I915_GEM_DOMAIN_WC) == 0)
+		mb();
+
+	/* It should now be out of any other write domains, and we can update
+	 * the domain values for our changes.
+	 */
+	GEM_BUG_ON((obj->base.write_domain & ~I915_GEM_DOMAIN_WC) != 0);
+	obj->base.read_domains |= I915_GEM_DOMAIN_WC;
+	if (write) {
+		obj->base.read_domains = I915_GEM_DOMAIN_WC;
+		obj->base.write_domain = I915_GEM_DOMAIN_WC;
+		obj->mm.dirty = true;
+	}
+
+	i915_gem_object_unpin_pages(obj);
+	return 0;
 }
 
 /**
@@ -3428,7 +3491,7 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 	if (ret)
 		return ret;
 
-	i915_gem_object_flush_cpu_write_domain(obj);
+	flush_write_domain(obj, ~I915_GEM_DOMAIN_GTT);
 
 	/* Serialise direct access to this object with the barriers for
 	 * coherent writes from the GPU, by effectively invalidating the
@@ -3802,7 +3865,7 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 	if (obj->base.write_domain == I915_GEM_DOMAIN_CPU)
 		return 0;
 
-	i915_gem_object_flush_gtt_write_domain(obj);
+	flush_write_domain(obj, ~I915_GEM_DOMAIN_CPU);
 
 	/* Flush the CPU cache if it's still invalid. */
 	if ((obj->base.read_domains & I915_GEM_DOMAIN_CPU) == 0) {
@@ -3996,7 +4059,7 @@ __busy_set_if_active(const struct dma_fence *fence,
 	if (i915_gem_request_completed(rq))
 		return 0;
 
-	return flag(rq->engine->exec_id);
+	return flag(rq->engine->uabi_id);
 }
 
 static __always_inline unsigned int
@@ -4195,7 +4258,7 @@ i915_gem_object_create(struct drm_i915_private *dev_priv, u64 size)
 	 * catch if we ever need to fix it. In the meantime, if you do spot
 	 * such a local variable, please consider fixing!
 	 */
-	if (WARN_ON(size >> PAGE_SHIFT > INT_MAX))
+	if (size >> PAGE_SHIFT > INT_MAX)
 		return ERR_PTR(-E2BIG);
 
 	if (overflows_type(size, obj->base.size))
@@ -4302,6 +4365,8 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 	intel_runtime_pm_put(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 
+	cond_resched();
+
 	llist_for_each_entry_safe(obj, on, freed, freed) {
 		GEM_BUG_ON(obj->bind_count);
 		GEM_BUG_ON(atomic_read(&obj->frontbuffer_bits));
@@ -4349,8 +4414,11 @@ static void __i915_gem_free_work(struct work_struct *work)
 	 * unbound now.
 	 */
 
-	while ((freed = llist_del_all(&i915->mm.free_list)))
+	while ((freed = llist_del_all(&i915->mm.free_list))) {
 		__i915_gem_free_objects(i915, freed);
+		if (need_resched())
+			break;
+	}
 }
 
 static void __i915_gem_free_object_rcu(struct rcu_head *head)
@@ -4415,10 +4483,9 @@ void i915_gem_sanitize(struct drm_i915_private *i915)
 	 * try to take over. The only way to remove the earlier state
 	 * is by resetting. However, resetting on earlier gen is tricky as
 	 * it may impact the display and we are uncertain about the stability
-	 * of the reset, so we only reset recent machines with logical
-	 * context support (that must be reset to remove any stray contexts).
+	 * of the reset, so this could be applied to even earlier gen.
 	 */
-	if (HAS_HW_CONTEXTS(i915)) {
+	if (INTEL_GEN(i915) >= 5) {
 		int reset = intel_gpu_reset(i915, ALL_ENGINES);
 		WARN_ON(reset && reset != -ENODEV);
 	}
@@ -4661,11 +4728,9 @@ bool intel_sanitize_semaphores(struct drm_i915_private *dev_priv, int value)
 	if (value >= 0)
 		return value;
 
-#ifdef CONFIG_INTEL_IOMMU
 	/* Enable semaphores on SNB when IO remapping is off */
-	if (INTEL_INFO(dev_priv)->gen == 6 && intel_iommu_gfx_mapped)
+	if (IS_GEN6(dev_priv) && intel_vtd_active())
 		return false;
-#endif
 
 	return true;
 }
@@ -4676,7 +4741,7 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
 
-	i915_gem_clflush_init(dev_priv);
+	dev_priv->mm.unordered_timeline = dma_fence_context_alloc(1);
 
 	if (!i915.enable_execlists) {
 		dev_priv->gt.resume = intel_legacy_submission_resume;
@@ -4799,12 +4864,16 @@ i915_gem_load_init(struct drm_i915_private *dev_priv)
 	if (!dev_priv->dependencies)
 		goto err_requests;
 
+	dev_priv->priorities = KMEM_CACHE(i915_priolist, SLAB_HWCACHE_ALIGN);
+	if (!dev_priv->priorities)
+		goto err_dependencies;
+
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	INIT_LIST_HEAD(&dev_priv->gt.timelines);
 	err = i915_gem_timeline_init__global(dev_priv);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 	if (err)
-		goto err_dependencies;
+		goto err_priorities;
 
 	INIT_LIST_HEAD(&dev_priv->context_list);
 	INIT_WORK(&dev_priv->mm.free_work, __i915_gem_free_work);
@@ -4822,14 +4891,14 @@ i915_gem_load_init(struct drm_i915_private *dev_priv)
 
 	init_waitqueue_head(&dev_priv->pending_flip_queue);
 
-	dev_priv->mm.interruptible = true;
-
 	atomic_set(&dev_priv->mm.bsd_engine_dispatch_index, 0);
 
 	spin_lock_init(&dev_priv->fb_tracking.lock);
 
 	return 0;
 
+err_priorities:
+	kmem_cache_destroy(dev_priv->priorities);
 err_dependencies:
 	kmem_cache_destroy(dev_priv->dependencies);
 err_requests:
@@ -4853,6 +4922,7 @@ void i915_gem_load_cleanup(struct drm_i915_private *dev_priv)
 	WARN_ON(!list_empty(&dev_priv->gt.timelines));
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
+	kmem_cache_destroy(dev_priv->priorities);
 	kmem_cache_destroy(dev_priv->dependencies);
 	kmem_cache_destroy(dev_priv->requests);
 	kmem_cache_destroy(dev_priv->vmas);
@@ -4864,9 +4934,10 @@ void i915_gem_load_cleanup(struct drm_i915_private *dev_priv)
 
 int i915_gem_freeze(struct drm_i915_private *dev_priv)
 {
-	mutex_lock(&dev_priv->drm.struct_mutex);
+	/* Discard all purgeable objects, let userspace recover those as
+	 * required after resuming.
+	 */
 	i915_gem_shrink_all(dev_priv);
-	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	return 0;
 }
@@ -4891,12 +4962,13 @@ int i915_gem_freeze_late(struct drm_i915_private *dev_priv)
 	 * we update that state just before writing out the image.
 	 *
 	 * To try and reduce the hibernation image, we manually shrink
-	 * the objects as well.
+	 * the objects as well, see i915_gem_freeze()
 	 */
 
-	mutex_lock(&dev_priv->drm.struct_mutex);
 	i915_gem_shrink(dev_priv, -1UL, I915_SHRINK_UNBOUND);
+	i915_gem_drain_freed_objects(dev_priv);
 
+	mutex_lock(&dev_priv->drm.struct_mutex);
 	for (p = phases; *p; p++) {
 		list_for_each_entry(obj, *p, global_link) {
 			obj->base.read_domains = I915_GEM_DOMAIN_CPU;

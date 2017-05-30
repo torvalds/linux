@@ -56,7 +56,8 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	 * for MST we always configure max link bw - the spec doesn't
 	 * seem to suggest we should do otherwise.
 	 */
-	lane_count = drm_dp_max_lane_count(intel_dp->dpcd);
+	lane_count = intel_dp_max_lane_count(intel_dp);
+
 	pipe_config->lane_count = lane_count;
 
 	pipe_config->pipe_bpp = bpp;
@@ -329,14 +330,6 @@ intel_dp_mst_detect(struct drm_connector *connector, bool force)
 	return drm_dp_mst_detect_port(connector, &intel_dp->mst_mgr, intel_connector->port);
 }
 
-static int
-intel_dp_mst_set_property(struct drm_connector *connector,
-			  struct drm_property *property,
-			  uint64_t val)
-{
-	return 0;
-}
-
 static void
 intel_dp_mst_connector_destroy(struct drm_connector *connector)
 {
@@ -353,8 +346,7 @@ static const struct drm_connector_funcs intel_dp_mst_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = intel_dp_mst_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.set_property = intel_dp_mst_set_property,
-	.atomic_get_property = intel_connector_atomic_get_property,
+	.set_property = drm_atomic_helper_connector_set_property,
 	.late_register = intel_connector_register,
 	.early_unregister = intel_connector_unregister,
 	.destroy = intel_dp_mst_connector_destroy,
@@ -378,7 +370,7 @@ intel_dp_mst_mode_valid(struct drm_connector *connector,
 	int max_rate, mode_rate, max_lanes, max_link_clock;
 
 	max_link_clock = intel_dp_max_link_rate(intel_dp);
-	max_lanes = drm_dp_max_lane_count(intel_dp->dpcd);
+	max_lanes = intel_dp_max_lane_count(intel_dp);
 
 	max_rate = intel_dp_max_data_rate(max_link_clock, max_lanes);
 	mode_rate = intel_dp_link_required(mode->clock, bpp);
@@ -495,7 +487,6 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 		drm_mode_connector_attach_encoder(&intel_connector->base,
 						  &intel_dp->mst_encoders[i]->base.base);
 	}
-	intel_dp_add_properties(intel_dp, connector);
 
 	drm_object_attach_property(&connector->base, dev->mode_config.path_property, 0);
 	drm_object_attach_property(&connector->base, dev->mode_config.tile_property, 0);

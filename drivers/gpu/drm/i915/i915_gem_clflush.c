@@ -27,7 +27,6 @@
 #include "i915_gem_clflush.h"
 
 static DEFINE_SPINLOCK(clflush_lock);
-static u64 clflush_context;
 
 struct clflush {
 	struct dma_fence dma; /* Must be first for dma_fence_free() */
@@ -157,7 +156,7 @@ void i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 		dma_fence_init(&clflush->dma,
 			       &i915_clflush_ops,
 			       &clflush_lock,
-			       clflush_context,
+			       to_i915(obj->base.dev)->mm.unordered_timeline,
 			       0);
 		i915_sw_fence_init(&clflush->wait, i915_clflush_notify);
 
@@ -181,9 +180,4 @@ void i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 	} else {
 		GEM_BUG_ON(obj->base.write_domain != I915_GEM_DOMAIN_CPU);
 	}
-}
-
-void i915_gem_clflush_init(struct drm_i915_private *i915)
-{
-	clflush_context = dma_fence_context_alloc(1);
 }

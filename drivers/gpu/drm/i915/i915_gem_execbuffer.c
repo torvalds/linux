@@ -1114,6 +1114,18 @@ i915_gem_execbuffer_move_to_gpu(struct drm_i915_gem_request *req,
 	list_for_each_entry(vma, vmas, exec_list) {
 		struct drm_i915_gem_object *obj = vma->obj;
 
+		if (vma->exec_entry->flags & EXEC_OBJECT_CAPTURE) {
+			struct i915_gem_capture_list *capture;
+
+			capture = kmalloc(sizeof(*capture), GFP_KERNEL);
+			if (unlikely(!capture))
+				return -ENOMEM;
+
+			capture->next = req->capture_list;
+			capture->vma = vma;
+			req->capture_list = capture;
+		}
+
 		if (vma->exec_entry->flags & EXEC_OBJECT_ASYNC)
 			continue;
 

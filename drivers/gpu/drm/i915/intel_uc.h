@@ -27,7 +27,7 @@
 #include "intel_guc_fwif.h"
 #include "i915_guc_reg.h"
 #include "intel_ringbuffer.h"
-
+#include "intel_guc_ct.h"
 #include "i915_vma.h"
 
 struct drm_i915_gem_request;
@@ -59,12 +59,6 @@ struct drm_i915_gem_request;
  *                available in the work queue (note, the queue is shared,
  *                not per-engine). It is OK for this to be nonzero, but
  *                it should not be huge!
- *   q_fail: failed to enqueue a work item. This should never happen,
- *           because we check for space beforehand.
- *   b_fail: failed to ring the doorbell. This should never happen, unless
- *           somehow the hardware misbehaves, or maybe if the GuC firmware
- *           crashes? We probably need to reset the GPU to recover.
- *   retcode: errno from last guc_submit()
  */
 struct i915_guc_client {
 	struct i915_vma *vma;
@@ -87,8 +81,6 @@ struct i915_guc_client {
 	uint32_t wq_tail;
 	uint32_t wq_rsvd;
 	uint32_t no_wq_space;
-	uint32_t b_fail;
-	int retcode;
 
 	/* Per-engine counts of GuC submissions */
 	uint64_t submissions[I915_NUM_ENGINES];
@@ -181,6 +173,10 @@ struct intel_guc_log {
 struct intel_guc {
 	struct intel_uc_fw fw;
 	struct intel_guc_log log;
+	struct intel_guc_ct ct;
+
+	/* Log snapshot if GuC errors during load */
+	struct drm_i915_gem_object *load_err_log;
 
 	/* intel_guc_recv interrupt related state */
 	bool interrupts_enabled;
@@ -195,21 +191,21 @@ struct intel_guc {
 	DECLARE_BITMAP(doorbell_bitmap, GUC_NUM_DOORBELLS);
 	uint32_t db_cacheline;		/* Cyclic counter mod pagesize	*/
 
-	/* Action status & statistics */
-	uint64_t action_count;		/* Total commands issued	*/
-	uint32_t action_cmd;		/* Last command word		*/
-	uint32_t action_status;		/* Last return status		*/
-	uint32_t action_fail;		/* Total number of failures	*/
-	int32_t action_err;		/* Last error code		*/
-
-	uint64_t submissions[I915_NUM_ENGINES];
-	uint32_t last_seqno[I915_NUM_ENGINES];
+	/* GuC's FW specific registers used in MMIO send */
+	struct {
+		u32 base;
+		unsigned int count;
+		enum forcewake_domains fw_domains;
+	} send_regs;
 
 	/* To serialize the intel_guc_send actions */
 	struct mutex send_mutex;
 
 	/* GuC's FW specific send function */
 	int (*send)(struct intel_guc *guc, const u32 *data, u32 len);
+
+	/* GuC's FW specific notify function */
+	void (*notify)(struct intel_guc *guc);
 };
 
 struct intel_huc {
@@ -227,10 +223,17 @@ void intel_uc_fini_fw(struct drm_i915_private *dev_priv);
 int intel_uc_init_hw(struct drm_i915_private *dev_priv);
 void intel_uc_fini_hw(struct drm_i915_private *dev_priv);
 int intel_guc_sample_forcewake(struct intel_guc *guc);
+int intel_guc_send_nop(struct intel_guc *guc, const u32 *action, u32 len);
 int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len);
+
 static inline int intel_guc_send(struct intel_guc *guc, const u32 *action, u32 len)
 {
 	return guc->send(guc, action, len);
+}
+
+static inline void intel_guc_notify(struct intel_guc *guc)
+{
+	guc->notify(guc);
 }
 
 /* intel_guc_loader.c */
@@ -266,7 +269,7 @@ static inline u32 guc_ggtt_offset(struct i915_vma *vma)
 
 /* intel_huc.c */
 void intel_huc_select_fw(struct intel_huc *huc);
-int intel_huc_init_hw(struct intel_huc *huc);
+void intel_huc_init_hw(struct intel_huc *huc);
 void intel_guc_auth_huc(struct drm_i915_private *dev_priv);
 
 #endif

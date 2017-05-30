@@ -210,16 +210,14 @@ void intel_pipe_update_end(struct intel_crtc *crtc, struct intel_flip_work *work
 }
 
 static void
-skl_update_plane(struct drm_plane *drm_plane,
+skl_update_plane(struct intel_plane *plane,
 		 const struct intel_crtc_state *crtc_state,
 		 const struct intel_plane_state *plane_state)
 {
-	struct drm_device *dev = drm_plane->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_plane *intel_plane = to_intel_plane(drm_plane);
-	struct drm_framebuffer *fb = plane_state->base.fb;
-	enum plane_id plane_id = intel_plane->id;
-	enum pipe pipe = intel_plane->pipe;
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	enum plane_id plane_id = plane->id;
+	enum pipe pipe = plane->pipe;
 	u32 plane_ctl = plane_state->ctl;
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	u32 surf_addr = plane_state->main.offset;
@@ -288,13 +286,11 @@ skl_update_plane(struct drm_plane *drm_plane,
 }
 
 static void
-skl_disable_plane(struct drm_plane *dplane, struct drm_crtc *crtc)
+skl_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 {
-	struct drm_device *dev = dplane->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_plane *intel_plane = to_intel_plane(dplane);
-	enum plane_id plane_id = intel_plane->id;
-	enum pipe pipe = intel_plane->pipe;
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	enum plane_id plane_id = plane->id;
+	enum pipe pipe = plane->pipe;
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
@@ -308,10 +304,10 @@ skl_disable_plane(struct drm_plane *dplane, struct drm_crtc *crtc)
 }
 
 static void
-chv_update_csc(struct intel_plane *intel_plane, uint32_t format)
+chv_update_csc(struct intel_plane *plane, uint32_t format)
 {
-	struct drm_i915_private *dev_priv = to_i915(intel_plane->base.dev);
-	enum plane_id plane_id = intel_plane->id;
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	enum plane_id plane_id = plane->id;
 
 	/* Seems RGB data bypasses the CSC always */
 	if (!format_is_yuv(format))
@@ -411,16 +407,14 @@ static u32 vlv_sprite_ctl(const struct intel_crtc_state *crtc_state,
 }
 
 static void
-vlv_update_plane(struct drm_plane *dplane,
+vlv_update_plane(struct intel_plane *plane,
 		 const struct intel_crtc_state *crtc_state,
 		 const struct intel_plane_state *plane_state)
 {
-	struct drm_device *dev = dplane->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_plane *intel_plane = to_intel_plane(dplane);
-	struct drm_framebuffer *fb = plane_state->base.fb;
-	enum pipe pipe = intel_plane->pipe;
-	enum plane_id plane_id = intel_plane->id;
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	enum pipe pipe = plane->pipe;
+	enum plane_id plane_id = plane->id;
 	u32 sprctl = plane_state->ctl;
 	u32 sprsurf_offset = plane_state->main.offset;
 	u32 linear_offset;
@@ -442,7 +436,7 @@ vlv_update_plane(struct drm_plane *dplane,
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
 	if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_B)
-		chv_update_csc(intel_plane, fb->format->format);
+		chv_update_csc(plane, fb->format->format);
 
 	if (key->flags) {
 		I915_WRITE_FW(SPKEYMINVAL(pipe, plane_id), key->min_value);
@@ -469,13 +463,11 @@ vlv_update_plane(struct drm_plane *dplane,
 }
 
 static void
-vlv_disable_plane(struct drm_plane *dplane, struct drm_crtc *crtc)
+vlv_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 {
-	struct drm_device *dev = dplane->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_plane *intel_plane = to_intel_plane(dplane);
-	enum pipe pipe = intel_plane->pipe;
-	enum plane_id plane_id = intel_plane->id;
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	enum pipe pipe = plane->pipe;
+	enum plane_id plane_id = plane->id;
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
@@ -545,15 +537,13 @@ static u32 ivb_sprite_ctl(const struct intel_crtc_state *crtc_state,
 }
 
 static void
-ivb_update_plane(struct drm_plane *plane,
+ivb_update_plane(struct intel_plane *plane,
 		 const struct intel_crtc_state *crtc_state,
 		 const struct intel_plane_state *plane_state)
 {
-	struct drm_device *dev = plane->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_plane *intel_plane = to_intel_plane(plane);
-	struct drm_framebuffer *fb = plane_state->base.fb;
-	enum pipe pipe = intel_plane->pipe;
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	enum pipe pipe = plane->pipe;
 	u32 sprctl = plane_state->ctl, sprscale = 0;
 	u32 sprsurf_offset = plane_state->main.offset;
 	u32 linear_offset;
@@ -600,7 +590,7 @@ ivb_update_plane(struct drm_plane *plane,
 		I915_WRITE_FW(SPRLINOFF(pipe), linear_offset);
 
 	I915_WRITE_FW(SPRSIZE(pipe), (crtc_h << 16) | crtc_w);
-	if (intel_plane->can_scale)
+	if (plane->can_scale)
 		I915_WRITE_FW(SPRSCALE(pipe), sprscale);
 	I915_WRITE_FW(SPRCTL(pipe), sprctl);
 	I915_WRITE_FW(SPRSURF(pipe),
@@ -611,19 +601,17 @@ ivb_update_plane(struct drm_plane *plane,
 }
 
 static void
-ivb_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
+ivb_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 {
-	struct drm_device *dev = plane->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_plane *intel_plane = to_intel_plane(plane);
-	int pipe = intel_plane->pipe;
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	enum pipe pipe = plane->pipe;
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
 	I915_WRITE_FW(SPRCTL(pipe), 0);
 	/* Can't leave the scaler enabled... */
-	if (intel_plane->can_scale)
+	if (plane->can_scale)
 		I915_WRITE_FW(SPRSCALE(pipe), 0);
 
 	I915_WRITE_FW(SPRSURF(pipe), 0);
@@ -632,7 +620,7 @@ ivb_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
-static u32 ilk_sprite_ctl(const struct intel_crtc_state *crtc_state,
+static u32 g4x_sprite_ctl(const struct intel_crtc_state *crtc_state,
 			  const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv =
@@ -686,15 +674,13 @@ static u32 ilk_sprite_ctl(const struct intel_crtc_state *crtc_state,
 }
 
 static void
-ilk_update_plane(struct drm_plane *plane,
+g4x_update_plane(struct intel_plane *plane,
 		 const struct intel_crtc_state *crtc_state,
 		 const struct intel_plane_state *plane_state)
 {
-	struct drm_device *dev = plane->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_plane *intel_plane = to_intel_plane(plane);
-	struct drm_framebuffer *fb = plane_state->base.fb;
-	int pipe = intel_plane->pipe;
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	enum pipe pipe = plane->pipe;
 	u32 dvscntr = plane_state->ctl, dvsscale = 0;
 	u32 dvssurf_offset = plane_state->main.offset;
 	u32 linear_offset;
@@ -747,12 +733,10 @@ ilk_update_plane(struct drm_plane *plane,
 }
 
 static void
-ilk_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
+g4x_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 {
-	struct drm_device *dev = plane->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_plane *intel_plane = to_intel_plane(plane);
-	int pipe = intel_plane->pipe;
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	enum pipe pipe = plane->pipe;
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
@@ -768,14 +752,12 @@ ilk_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 }
 
 static int
-intel_check_sprite_plane(struct drm_plane *plane,
+intel_check_sprite_plane(struct intel_plane *plane,
 			 struct intel_crtc_state *crtc_state,
 			 struct intel_plane_state *state)
 {
-	struct drm_i915_private *dev_priv = to_i915(plane->dev);
-	struct drm_crtc *crtc = state->base.crtc;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_plane *intel_plane = to_intel_plane(plane);
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_framebuffer *fb = state->base.fb;
 	int crtc_x, crtc_y;
 	unsigned int crtc_w, crtc_h;
@@ -797,7 +779,7 @@ intel_check_sprite_plane(struct drm_plane *plane,
 	}
 
 	/* Don't modify another pipe's plane */
-	if (intel_plane->pipe != intel_crtc->pipe) {
+	if (plane->pipe != crtc->pipe) {
 		DRM_DEBUG_KMS("Wrong plane <-> crtc mapping\n");
 		return -EINVAL;
 	}
@@ -814,16 +796,16 @@ intel_check_sprite_plane(struct drm_plane *plane,
 		if (state->ckey.flags == I915_SET_COLORKEY_NONE) {
 			can_scale = 1;
 			min_scale = 1;
-			max_scale = skl_max_scale(intel_crtc, crtc_state);
+			max_scale = skl_max_scale(crtc, crtc_state);
 		} else {
 			can_scale = 0;
 			min_scale = DRM_PLANE_HELPER_NO_SCALING;
 			max_scale = DRM_PLANE_HELPER_NO_SCALING;
 		}
 	} else {
-		can_scale = intel_plane->can_scale;
-		max_scale = intel_plane->max_downscale << 16;
-		min_scale = intel_plane->can_scale ? 1 : (1 << 16);
+		can_scale = plane->can_scale;
+		max_scale = plane->max_downscale << 16;
+		min_scale = plane->can_scale ? 1 : (1 << 16);
 	}
 
 	/*
@@ -967,7 +949,7 @@ intel_check_sprite_plane(struct drm_plane *plane,
 		if (ret)
 			return ret;
 
-		state->ctl = ilk_sprite_ctl(crtc_state, state);
+		state->ctl = g4x_sprite_ctl(crtc_state, state);
 	}
 
 	return 0;
@@ -1027,7 +1009,7 @@ out:
 	return ret;
 }
 
-static const uint32_t ilk_plane_formats[] = {
+static const uint32_t g4x_plane_formats[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_YUYV,
 	DRM_FORMAT_YVYU,
@@ -1131,15 +1113,15 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		intel_plane->can_scale = true;
 		intel_plane->max_downscale = 16;
 
-		intel_plane->update_plane = ilk_update_plane;
-		intel_plane->disable_plane = ilk_disable_plane;
+		intel_plane->update_plane = g4x_update_plane;
+		intel_plane->disable_plane = g4x_disable_plane;
 
 		if (IS_GEN6(dev_priv)) {
 			plane_formats = snb_plane_formats;
 			num_plane_formats = ARRAY_SIZE(snb_plane_formats);
 		} else {
-			plane_formats = ilk_plane_formats;
-			num_plane_formats = ARRAY_SIZE(ilk_plane_formats);
+			plane_formats = g4x_plane_formats;
+			num_plane_formats = ARRAY_SIZE(g4x_plane_formats);
 		}
 	}
 

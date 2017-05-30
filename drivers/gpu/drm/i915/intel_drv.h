@@ -88,7 +88,6 @@
 	int cpu, ret, timeout = (US) * 1000; \
 	u64 base; \
 	_WAIT_FOR_ATOMIC_CHECK(ATOMIC); \
-	BUILD_BUG_ON((US) > 50000); \
 	if (!(ATOMIC)) { \
 		preempt_disable(); \
 		cpu = smp_processor_id(); \
@@ -130,8 +129,14 @@
 	ret__; \
 })
 
-#define wait_for_atomic(COND, MS)	_wait_for_atomic((COND), (MS) * 1000, 1)
-#define wait_for_atomic_us(COND, US)	_wait_for_atomic((COND), (US), 1)
+#define wait_for_atomic_us(COND, US) \
+({ \
+	BUILD_BUG_ON(!__builtin_constant_p(US)); \
+	BUILD_BUG_ON((US) > 50000); \
+	_wait_for_atomic((COND), (US), 1); \
+})
+
+#define wait_for_atomic(COND, MS) wait_for_atomic_us((COND), (MS) * 1000)
 
 #define KHz(x) (1000 * (x))
 #define MHz(x) KHz(1000 * (x))
@@ -321,6 +326,9 @@ struct intel_connector {
 	void *port; /* store this opaque as its illegal to dereference it */
 
 	struct intel_dp *mst_port;
+
+	/* Work struct to schedule a uevent on link train failure */
+	struct work_struct modeset_retry_work;
 };
 
 struct dpll {
@@ -504,14 +512,30 @@ enum vlv_wm_level {
 };
 
 struct vlv_wm_state {
-	struct vlv_pipe_wm wm[NUM_VLV_WM_LEVELS];
-	struct vlv_sr_wm sr[NUM_VLV_WM_LEVELS];
+	struct g4x_pipe_wm wm[NUM_VLV_WM_LEVELS];
+	struct g4x_sr_wm sr[NUM_VLV_WM_LEVELS];
 	uint8_t num_levels;
 	bool cxsr;
 };
 
 struct vlv_fifo_state {
 	u16 plane[I915_MAX_PLANES];
+};
+
+enum g4x_wm_level {
+	G4X_WM_LEVEL_NORMAL,
+	G4X_WM_LEVEL_SR,
+	G4X_WM_LEVEL_HPLL,
+	NUM_G4X_WM_LEVELS,
+};
+
+struct g4x_wm_state {
+	struct g4x_pipe_wm wm;
+	struct g4x_sr_wm sr;
+	struct g4x_sr_wm hpll;
+	bool cxsr;
+	bool hpll_en;
+	bool fbc_en;
 };
 
 struct intel_crtc_wm_state {
@@ -541,7 +565,7 @@ struct intel_crtc_wm_state {
 
 		struct {
 			/* "raw" watermarks (not inverted) */
-			struct vlv_pipe_wm raw[NUM_VLV_WM_LEVELS];
+			struct g4x_pipe_wm raw[NUM_VLV_WM_LEVELS];
 			/* intermediate watermarks (inverted) */
 			struct vlv_wm_state intermediate;
 			/* optimal watermarks (inverted) */
@@ -549,6 +573,15 @@ struct intel_crtc_wm_state {
 			/* display FIFO split */
 			struct vlv_fifo_state fifo_state;
 		} vlv;
+
+		struct {
+			/* "raw" watermarks */
+			struct g4x_pipe_wm raw[NUM_G4X_WM_LEVELS];
+			/* intermediate watermarks */
+			struct g4x_wm_state intermediate;
+			/* optimal watermarks */
+			struct g4x_wm_state optimal;
+		} g4x;
 	};
 
 	/*
@@ -766,11 +799,6 @@ struct intel_crtc {
 	int adjusted_x;
 	int adjusted_y;
 
-	uint32_t cursor_addr;
-	uint32_t cursor_cntl;
-	uint32_t cursor_size;
-	uint32_t cursor_base;
-
 	struct intel_crtc_state *config;
 
 	/* global reset count when the last flip was submitted */
@@ -786,6 +814,7 @@ struct intel_crtc {
 		union {
 			struct intel_pipe_wm ilk;
 			struct vlv_wm_state vlv;
+			struct g4x_wm_state g4x;
 		} active;
 	} wm;
 
@@ -811,18 +840,22 @@ struct intel_plane {
 	int max_downscale;
 	uint32_t frontbuffer_bit;
 
+	struct {
+		u32 base, cntl, size;
+	} cursor;
+
 	/*
 	 * NOTE: Do not place new plane state fields here (e.g., when adding
 	 * new plane properties).  New runtime state should now be placed in
 	 * the intel_plane_state structure and accessed via plane_state.
 	 */
 
-	void (*update_plane)(struct drm_plane *plane,
+	void (*update_plane)(struct intel_plane *plane,
 			     const struct intel_crtc_state *crtc_state,
 			     const struct intel_plane_state *plane_state);
-	void (*disable_plane)(struct drm_plane *plane,
-			      struct drm_crtc *crtc);
-	int (*check_plane)(struct drm_plane *plane,
+	void (*disable_plane)(struct intel_plane *plane,
+			      struct intel_crtc *crtc);
+	int (*check_plane)(struct intel_plane *plane,
 			   struct intel_crtc_state *crtc_state,
 			   struct intel_plane_state *state);
 };
@@ -948,13 +981,20 @@ struct intel_dp {
 	uint8_t psr_dpcd[EDP_PSR_RECEIVER_CAP_SIZE];
 	uint8_t downstream_ports[DP_MAX_DOWNSTREAM_PORTS];
 	uint8_t edp_dpcd[EDP_DISPLAY_CTL_CAP_SIZE];
-	/* sink rates as reported by DP_SUPPORTED_LINK_RATES */
-	uint8_t num_sink_rates;
+	/* source rates */
+	int num_source_rates;
+	const int *source_rates;
+	/* sink rates as reported by DP_MAX_LINK_RATE/DP_SUPPORTED_LINK_RATES */
+	int num_sink_rates;
 	int sink_rates[DP_MAX_SUPPORTED_RATES];
-	/* Max lane count for the sink as per DPCD registers */
-	uint8_t max_sink_lane_count;
-	/* Max link BW for the sink as per DPCD registers */
-	int max_sink_link_bw;
+	bool use_rate_select;
+	/* intersection of source and sink rates */
+	int num_common_rates;
+	int common_rates[DP_MAX_SUPPORTED_RATES];
+	/* Max lane count for the current link */
+	int max_link_lane_count;
+	/* Max rate for the current link */
+	int max_link_rate;
 	/* sink or branch descriptor */
 	struct intel_dp_desc desc;
 	struct drm_dp_aux aux;
@@ -1491,10 +1531,10 @@ void intel_edp_backlight_off(struct intel_dp *intel_dp);
 void intel_edp_panel_vdd_on(struct intel_dp *intel_dp);
 void intel_edp_panel_on(struct intel_dp *intel_dp);
 void intel_edp_panel_off(struct intel_dp *intel_dp);
-void intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connector);
 void intel_dp_mst_suspend(struct drm_device *dev);
 void intel_dp_mst_resume(struct drm_device *dev);
 int intel_dp_max_link_rate(struct intel_dp *intel_dp);
+int intel_dp_max_lane_count(struct intel_dp *intel_dp);
 int intel_dp_rate_select(struct intel_dp *intel_dp, int rate);
 void intel_dp_hot_plug(struct intel_encoder *intel_encoder);
 void intel_power_sequencer_reset(struct drm_i915_private *dev_priv);
@@ -1825,6 +1865,7 @@ void gen6_rps_boost(struct drm_i915_private *dev_priv,
 		    struct intel_rps_client *rps,
 		    unsigned long submitted);
 void intel_queue_rps_boost_for_request(struct drm_i915_gem_request *req);
+void g4x_wm_get_hw_state(struct drm_device *dev);
 void vlv_wm_get_hw_state(struct drm_device *dev);
 void ilk_wm_get_hw_state(struct drm_device *dev);
 void skl_wm_get_hw_state(struct drm_device *dev);
@@ -1832,6 +1873,7 @@ void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
 			  struct skl_ddb_allocation *ddb /* out */);
 void skl_pipe_wm_get_hw_state(struct drm_crtc *crtc,
 			      struct skl_pipe_wm *out);
+void g4x_wm_sanitize(struct drm_i915_private *dev_priv);
 void vlv_wm_sanitize(struct drm_i915_private *dev_priv);
 bool intel_can_enable_sagv(struct drm_atomic_state *state);
 int intel_enable_sagv(struct drm_i915_private *dev_priv);

@@ -25,6 +25,8 @@
 #ifndef __I915_GEM_H__
 #define __I915_GEM_H__
 
+#include <linux/bug.h>
+
 #ifdef CONFIG_DRM_I915_DEBUG_GEM
 #define GEM_BUG_ON(expr) BUG_ON(expr)
 #define GEM_WARN_ON(expr) WARN_ON(expr)

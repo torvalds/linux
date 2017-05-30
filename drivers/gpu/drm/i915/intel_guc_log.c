@@ -359,11 +359,15 @@ static int guc_log_runtime_create(struct intel_guc *guc)
 	void *vaddr;
 	struct rchan *guc_log_relay_chan;
 	size_t n_subbufs, subbuf_size;
-	int ret = 0;
+	int ret;
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
 	GEM_BUG_ON(guc_log_has_runtime(guc));
+
+	ret = i915_gem_object_set_to_wc_domain(guc->log.vma->obj, true);
+	if (ret)
+		return ret;
 
 	/* Create a WC (Uncached for read) vmalloc mapping of log
 	 * buffer pages, so that we can directly get the data

@@ -92,33 +92,6 @@
 
 #define ALL_L3_SLICES(dev) (1 << NUM_L3_SLICES(dev)) - 1
 
-static int get_context_size(struct drm_i915_private *dev_priv)
-{
-	int ret;
-	u32 reg;
-
-	switch (INTEL_GEN(dev_priv)) {
-	case 6:
-		reg = I915_READ(CXT_SIZE);
-		ret = GEN6_CXT_TOTAL_SIZE(reg) * 64;
-		break;
-	case 7:
-		reg = I915_READ(GEN7_CXT_SIZE);
-		if (IS_HASWELL(dev_priv))
-			ret = HSW_CXT_TOTAL_SIZE;
-		else
-			ret = GEN7_CXT_TOTAL_SIZE(reg) * 64;
-		break;
-	case 8:
-		ret = GEN8_CXT_TOTAL_SIZE;
-		break;
-	default:
-		BUG();
-	}
-
-	return ret;
-}
-
 void i915_gem_context_free(struct kref *ctx_ref)
 {
 	struct i915_gem_context *ctx = container_of(ctx_ref, typeof(*ctx), ref);
@@ -149,45 +122,6 @@ void i915_gem_context_free(struct kref *ctx_ref)
 
 	ida_simple_remove(&ctx->i915->context_hw_ida, ctx->hw_id);
 	kfree(ctx);
-}
-
-static struct drm_i915_gem_object *
-alloc_context_obj(struct drm_i915_private *dev_priv, u64 size)
-{
-	struct drm_i915_gem_object *obj;
-	int ret;
-
-	lockdep_assert_held(&dev_priv->drm.struct_mutex);
-
-	obj = i915_gem_object_create(dev_priv, size);
-	if (IS_ERR(obj))
-		return obj;
-
-	/*
-	 * Try to make the context utilize L3 as well as LLC.
-	 *
-	 * On VLV we don't have L3 controls in the PTEs so we
-	 * shouldn't touch the cache level, especially as that
-	 * would make the object snooped which might have a
-	 * negative performance impact.
-	 *
-	 * Snooping is required on non-llc platforms in execlist
-	 * mode, but since all GGTT accesses use PAT entry 0 we
-	 * get snooping anyway regardless of cache_level.
-	 *
-	 * This is only applicable for Ivy Bridge devices since
-	 * later platforms don't have L3 control bits in the PTE.
-	 */
-	if (IS_IVYBRIDGE(dev_priv)) {
-		ret = i915_gem_object_set_cache_level(obj, I915_CACHE_L3_LLC);
-		/* Failure shouldn't ever happen this early */
-		if (WARN_ON(ret)) {
-			i915_gem_object_put(obj);
-			return ERR_PTR(ret);
-		}
-	}
-
-	return obj;
 }
 
 static void context_close(struct i915_gem_context *ctx)
@@ -265,26 +199,7 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 	kref_init(&ctx->ref);
 	list_add_tail(&ctx->link, &dev_priv->context_list);
 	ctx->i915 = dev_priv;
-
-	if (dev_priv->hw_context_size) {
-		struct drm_i915_gem_object *obj;
-		struct i915_vma *vma;
-
-		obj = alloc_context_obj(dev_priv, dev_priv->hw_context_size);
-		if (IS_ERR(obj)) {
-			ret = PTR_ERR(obj);
-			goto err_out;
-		}
-
-		vma = i915_vma_instance(obj, &dev_priv->ggtt.base, NULL);
-		if (IS_ERR(vma)) {
-			i915_gem_object_put(obj);
-			ret = PTR_ERR(vma);
-			goto err_out;
-		}
-
-		ctx->engine[RCS].state = vma;
-	}
+	ctx->priority = I915_PRIORITY_NORMAL;
 
 	/* Default context will never have a file_priv */
 	ret = DEFAULT_CONTEXT_HANDLE;
@@ -443,21 +358,6 @@ int i915_gem_context_init(struct drm_i915_private *dev_priv)
 	BUILD_BUG_ON(MAX_CONTEXT_HW_ID > INT_MAX);
 	ida_init(&dev_priv->context_hw_ida);
 
-	if (i915.enable_execlists) {
-		/* NB: intentionally left blank. We will allocate our own
-		 * backing objects as we need them, thank you very much */
-		dev_priv->hw_context_size = 0;
-	} else if (HAS_HW_CONTEXTS(dev_priv)) {
-		dev_priv->hw_context_size =
-			round_up(get_context_size(dev_priv),
-				 I915_GTT_PAGE_SIZE);
-		if (dev_priv->hw_context_size > (1<<20)) {
-			DRM_DEBUG_DRIVER("Disabling HW Contexts; invalid size %d\n",
-					 dev_priv->hw_context_size);
-			dev_priv->hw_context_size = 0;
-		}
-	}
-
 	ctx = i915_gem_create_context(dev_priv, NULL);
 	if (IS_ERR(ctx)) {
 		DRM_ERROR("Failed to create default global context (error %ld)\n",
@@ -477,8 +377,8 @@ int i915_gem_context_init(struct drm_i915_private *dev_priv)
 	GEM_BUG_ON(!i915_gem_context_is_kernel(ctx));
 
 	DRM_DEBUG_DRIVER("%s context support initialized\n",
-			i915.enable_execlists ? "LR" :
-			dev_priv->hw_context_size ? "HW" : "fake");
+			 dev_priv->engine[RCS]->context_size ? "logical" :
+			 "fake");
 	return 0;
 }
 
@@ -941,11 +841,6 @@ int i915_gem_switch_to_kernel_context(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
-static bool contexts_enabled(struct drm_device *dev)
-{
-	return i915.enable_execlists || to_i915(dev)->hw_context_size;
-}
-
 static bool client_is_banned(struct drm_i915_file_private *file_priv)
 {
 	return file_priv->context_bans > I915_MAX_CLIENT_CONTEXT_BANS;
@@ -954,12 +849,13 @@ static bool client_is_banned(struct drm_i915_file_private *file_priv)
 int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file)
 {
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_context_create *args = data;
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 	struct i915_gem_context *ctx;
 	int ret;
 
-	if (!contexts_enabled(dev))
+	if (!dev_priv->engine[RCS]->context_size)
 		return -ENODEV;
 
 	if (args->pad != 0)
@@ -977,7 +873,7 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	ctx = i915_gem_create_context(to_i915(dev), file_priv);
+	ctx = i915_gem_create_context(dev_priv, file_priv);
 	mutex_unlock(&dev->struct_mutex);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);

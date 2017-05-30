@@ -55,6 +55,7 @@
 #include "i915_reg.h"
 #include "i915_utils.h"
 
+#include "intel_uncore.h"
 #include "intel_bios.h"
 #include "intel_dpll_mgr.h"
 #include "intel_uc.h"
@@ -79,8 +80,8 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20170403"
-#define DRIVER_TIMESTAMP	1491198738
+#define DRIVER_DATE		"20170529"
+#define DRIVER_TIMESTAMP	1496041258
 
 /* Use I915_STATE_WARN(x) and I915_STATE_WARN_ON() (rather than WARN() and
  * WARN_ON()) for hw state sanity checks to check for unexpected conditions
@@ -113,6 +114,13 @@ typedef struct {
 	fp.val = UINT_MAX; \
 	fp; \
 })
+
+static inline bool is_fixed16_zero(uint_fixed_16_16_t val)
+{
+	if (val.val == 0)
+		return true;
+	return false;
+}
 
 static inline uint_fixed_16_16_t u32_to_fixed_16_16(uint32_t val)
 {
@@ -152,8 +160,39 @@ static inline uint_fixed_16_16_t max_fixed_16_16(uint_fixed_16_16_t max1,
 	return max;
 }
 
-static inline uint_fixed_16_16_t fixed_16_16_div_round_up(uint32_t val,
-							  uint32_t d)
+static inline uint32_t div_round_up_fixed16(uint_fixed_16_16_t val,
+					    uint_fixed_16_16_t d)
+{
+	return DIV_ROUND_UP(val.val, d.val);
+}
+
+static inline uint32_t mul_round_up_u32_fixed16(uint32_t val,
+						uint_fixed_16_16_t mul)
+{
+	uint64_t intermediate_val;
+	uint32_t result;
+
+	intermediate_val = (uint64_t) val * mul.val;
+	intermediate_val = DIV_ROUND_UP_ULL(intermediate_val, 1 << 16);
+	WARN_ON(intermediate_val >> 32);
+	result = clamp_t(uint32_t, intermediate_val, 0, ~0);
+	return result;
+}
+
+static inline uint_fixed_16_16_t mul_fixed16(uint_fixed_16_16_t val,
+					     uint_fixed_16_16_t mul)
+{
+	uint64_t intermediate_val;
+	uint_fixed_16_16_t fp;
+
+	intermediate_val = (uint64_t) val.val * mul.val;
+	intermediate_val = intermediate_val >> 16;
+	WARN_ON(intermediate_val >> 32);
+	fp.val = clamp_t(uint32_t, intermediate_val, 0, ~0);
+	return fp;
+}
+
+static inline uint_fixed_16_16_t fixed_16_16_div(uint32_t val, uint32_t d)
 {
 	uint_fixed_16_16_t fp, res;
 
@@ -162,8 +201,7 @@ static inline uint_fixed_16_16_t fixed_16_16_div_round_up(uint32_t val,
 	return res;
 }
 
-static inline uint_fixed_16_16_t fixed_16_16_div_round_up_u64(uint32_t val,
-							      uint32_t d)
+static inline uint_fixed_16_16_t fixed_16_16_div_u64(uint32_t val, uint32_t d)
 {
 	uint_fixed_16_16_t res;
 	uint64_t interm_val;
@@ -174,6 +212,17 @@ static inline uint_fixed_16_16_t fixed_16_16_div_round_up_u64(uint32_t val,
 	res.val = (uint32_t) interm_val;
 
 	return res;
+}
+
+static inline uint32_t div_round_up_u32_fixed16(uint32_t val,
+						uint_fixed_16_16_t d)
+{
+	uint64_t interm_val;
+
+	interm_val = (uint64_t)val << 16;
+	interm_val = DIV_ROUND_UP_ULL(interm_val, d.val);
+	WARN_ON(interm_val >> 32);
+	return clamp_t(uint32_t, interm_val, 0, ~0);
 }
 
 static inline uint_fixed_16_16_t mul_u32_fixed_16_16(uint32_t val,
@@ -676,116 +725,6 @@ struct drm_i915_display_funcs {
 	void (*load_luts)(struct drm_crtc_state *crtc_state);
 };
 
-enum forcewake_domain_id {
-	FW_DOMAIN_ID_RENDER = 0,
-	FW_DOMAIN_ID_BLITTER,
-	FW_DOMAIN_ID_MEDIA,
-
-	FW_DOMAIN_ID_COUNT
-};
-
-enum forcewake_domains {
-	FORCEWAKE_RENDER = BIT(FW_DOMAIN_ID_RENDER),
-	FORCEWAKE_BLITTER = BIT(FW_DOMAIN_ID_BLITTER),
-	FORCEWAKE_MEDIA	= BIT(FW_DOMAIN_ID_MEDIA),
-	FORCEWAKE_ALL = (FORCEWAKE_RENDER |
-			 FORCEWAKE_BLITTER |
-			 FORCEWAKE_MEDIA)
-};
-
-#define FW_REG_READ  (1)
-#define FW_REG_WRITE (2)
-
-enum decoupled_power_domain {
-	GEN9_DECOUPLED_PD_BLITTER = 0,
-	GEN9_DECOUPLED_PD_RENDER,
-	GEN9_DECOUPLED_PD_MEDIA,
-	GEN9_DECOUPLED_PD_ALL
-};
-
-enum decoupled_ops {
-	GEN9_DECOUPLED_OP_WRITE = 0,
-	GEN9_DECOUPLED_OP_READ
-};
-
-enum forcewake_domains
-intel_uncore_forcewake_for_reg(struct drm_i915_private *dev_priv,
-			       i915_reg_t reg, unsigned int op);
-
-struct intel_uncore_funcs {
-	void (*force_wake_get)(struct drm_i915_private *dev_priv,
-			       enum forcewake_domains domains);
-	void (*force_wake_put)(struct drm_i915_private *dev_priv,
-			       enum forcewake_domains domains);
-
-	uint8_t  (*mmio_readb)(struct drm_i915_private *dev_priv,
-			       i915_reg_t r, bool trace);
-	uint16_t (*mmio_readw)(struct drm_i915_private *dev_priv,
-			       i915_reg_t r, bool trace);
-	uint32_t (*mmio_readl)(struct drm_i915_private *dev_priv,
-			       i915_reg_t r, bool trace);
-	uint64_t (*mmio_readq)(struct drm_i915_private *dev_priv,
-			       i915_reg_t r, bool trace);
-
-	void (*mmio_writeb)(struct drm_i915_private *dev_priv,
-			    i915_reg_t r, uint8_t val, bool trace);
-	void (*mmio_writew)(struct drm_i915_private *dev_priv,
-			    i915_reg_t r, uint16_t val, bool trace);
-	void (*mmio_writel)(struct drm_i915_private *dev_priv,
-			    i915_reg_t r, uint32_t val, bool trace);
-};
-
-struct intel_forcewake_range {
-	u32 start;
-	u32 end;
-
-	enum forcewake_domains domains;
-};
-
-struct intel_uncore {
-	spinlock_t lock; /** lock is also taken in irq contexts. */
-
-	const struct intel_forcewake_range *fw_domains_table;
-	unsigned int fw_domains_table_entries;
-
-	struct notifier_block pmic_bus_access_nb;
-	struct intel_uncore_funcs funcs;
-
-	unsigned fifo_count;
-
-	enum forcewake_domains fw_domains;
-	enum forcewake_domains fw_domains_active;
-
-	u32 fw_set;
-	u32 fw_clear;
-	u32 fw_reset;
-
-	struct intel_uncore_forcewake_domain {
-		enum forcewake_domain_id id;
-		enum forcewake_domains mask;
-		unsigned wake_count;
-		struct hrtimer timer;
-		i915_reg_t reg_set;
-		i915_reg_t reg_ack;
-	} fw_domain[FW_DOMAIN_ID_COUNT];
-
-	int unclaimed_mmio_check;
-};
-
-#define __mask_next_bit(mask) ({					\
-	int __idx = ffs(mask) - 1;					\
-	mask &= ~BIT(__idx);						\
-	__idx;								\
-})
-
-/* Iterate over initialised fw domains */
-#define for_each_fw_domain_masked(domain__, mask__, dev_priv__, tmp__) \
-	for (tmp__ = (mask__); \
-	     tmp__ ? (domain__ = &(dev_priv__)->uncore.fw_domain[__mask_next_bit(tmp__)]), 1 : 0;)
-
-#define for_each_fw_domain(domain__, dev_priv__, tmp__) \
-	for_each_fw_domain_masked(domain__, (dev_priv__)->uncore.fw_domains, dev_priv__, tmp__)
-
 #define CSR_VERSION(major, minor)	((major) << 16 | (minor))
 #define CSR_VERSION_MAJOR(version)	((version) >> 16)
 #define CSR_VERSION_MINOR(version)	((version) & 0xffff)
@@ -821,8 +760,8 @@ struct intel_csr {
 	func(has_gmbus_irq); \
 	func(has_gmch_display); \
 	func(has_guc); \
+	func(has_guc_ct); \
 	func(has_hotplug); \
-	func(has_hw_contexts); \
 	func(has_l3_dpf); \
 	func(has_llc); \
 	func(has_logical_ring_contexts); \
@@ -1024,6 +963,9 @@ struct i915_gpu_state {
 			int unused;
 			u32 *pages[0];
 		} *ringbuffer, *batchbuffer, *wa_batchbuffer, *ctx, *hws_page;
+
+		struct drm_i915_error_object **user_bo;
+		long user_bo_count;
 
 		struct drm_i915_error_object *wa_ctx;
 
@@ -1511,11 +1453,7 @@ struct i915_gem_mm {
 	/** LRU list of objects with fence regs on them. */
 	struct list_head fence_list;
 
-	/**
-	 * Are we in a non-interruptible section of code like
-	 * modesetting?
-	 */
-	bool interruptible;
+	u64 unordered_timeline;
 
 	/* the indicator for dispatch video commands on two BSD rings */
 	atomic_t bsd_engine_dispatch_index;
@@ -1566,7 +1504,7 @@ struct i915_gpu_error {
 	 *
 	 * This is a counter which gets incremented when reset is triggered,
 	 *
-	 * Before the reset commences, the I915_RESET_IN_PROGRESS bit is set
+	 * Before the reset commences, the I915_RESET_BACKOFF bit is set
 	 * meaning that any waiters holding onto the struct_mutex should
 	 * relinquish the lock immediately in order for the reset to start.
 	 *
@@ -1763,13 +1701,15 @@ struct ilk_wm_values {
 	enum intel_ddb_partitioning partitioning;
 };
 
-struct vlv_pipe_wm {
+struct g4x_pipe_wm {
 	uint16_t plane[I915_MAX_PLANES];
+	uint16_t fbc;
 };
 
-struct vlv_sr_wm {
+struct g4x_sr_wm {
 	uint16_t plane;
 	uint16_t cursor;
+	uint16_t fbc;
 };
 
 struct vlv_wm_ddl_values {
@@ -1777,11 +1717,20 @@ struct vlv_wm_ddl_values {
 };
 
 struct vlv_wm_values {
-	struct vlv_pipe_wm pipe[3];
-	struct vlv_sr_wm sr;
+	struct g4x_pipe_wm pipe[3];
+	struct g4x_sr_wm sr;
 	struct vlv_wm_ddl_values ddl[3];
 	uint8_t level;
 	bool cxsr;
+};
+
+struct g4x_wm_values {
+	struct g4x_pipe_wm pipe[2];
+	struct g4x_sr_wm sr;
+	struct g4x_sr_wm hpll;
+	bool cxsr;
+	bool hpll_en;
+	bool fbc_en;
 };
 
 struct skl_ddb_entry {
@@ -2100,7 +2049,7 @@ struct i915_oa_ops {
 		    size_t *offset);
 
 	/**
-	 * @oa_buffer_is_empty: Check if OA buffer empty (false positives OK)
+	 * @oa_buffer_check: Check for OA buffer data + update tail
 	 *
 	 * This is either called via fops or the poll check hrtimer (atomic
 	 * ctx) without any locks taken.
@@ -2113,7 +2062,7 @@ struct i915_oa_ops {
 	 * here, which will be handled gracefully - likely resulting in an
 	 * %EAGAIN error for userspace.
 	 */
-	bool (*oa_buffer_is_empty)(struct drm_i915_private *dev_priv);
+	bool (*oa_buffer_check)(struct drm_i915_private *dev_priv);
 };
 
 struct intel_cdclk_state {
@@ -2127,6 +2076,7 @@ struct drm_i915_private {
 	struct kmem_cache *vmas;
 	struct kmem_cache *requests;
 	struct kmem_cache *dependencies;
+	struct kmem_cache *priorities;
 
 	const struct intel_device_info info;
 
@@ -2362,7 +2312,6 @@ struct drm_i915_private {
 	 */
 	struct mutex av_mutex;
 
-	uint32_t hw_context_size;
 	struct list_head context_list;
 
 	u32 fdi_rx_config;
@@ -2413,6 +2362,7 @@ struct drm_i915_private {
 			struct ilk_wm_values hw;
 			struct skl_wm_values skl_hw;
 			struct vlv_wm_values vlv;
+			struct g4x_wm_values g4x;
 		};
 
 		uint8_t max_level;
@@ -2454,11 +2404,14 @@ struct drm_i915_private {
 			wait_queue_head_t poll_wq;
 			bool pollin;
 
+			/**
+			 * For rate limiting any notifications of spurious
+			 * invalid OA reports
+			 */
+			struct ratelimit_state spurious_report_rs;
+
 			bool periodic;
 			int period_exponent;
-			int timestamp_frequency;
-
-			int tail_margin;
 
 			int metrics_set;
 
@@ -2472,6 +2425,70 @@ struct drm_i915_private {
 				u8 *vaddr;
 				int format;
 				int format_size;
+
+				/**
+				 * Locks reads and writes to all head/tail state
+				 *
+				 * Consider: the head and tail pointer state
+				 * needs to be read consistently from a hrtimer
+				 * callback (atomic context) and read() fop
+				 * (user context) with tail pointer updates
+				 * happening in atomic context and head updates
+				 * in user context and the (unlikely)
+				 * possibility of read() errors needing to
+				 * reset all head/tail state.
+				 *
+				 * Note: Contention or performance aren't
+				 * currently a significant concern here
+				 * considering the relatively low frequency of
+				 * hrtimer callbacks (5ms period) and that
+				 * reads typically only happen in response to a
+				 * hrtimer event and likely complete before the
+				 * next callback.
+				 *
+				 * Note: This lock is not held *while* reading
+				 * and copying data to userspace so the value
+				 * of head observed in htrimer callbacks won't
+				 * represent any partial consumption of data.
+				 */
+				spinlock_t ptr_lock;
+
+				/**
+				 * One 'aging' tail pointer and one 'aged'
+				 * tail pointer ready to used for reading.
+				 *
+				 * Initial values of 0xffffffff are invalid
+				 * and imply that an update is required
+				 * (and should be ignored by an attempted
+				 * read)
+				 */
+				struct {
+					u32 offset;
+				} tails[2];
+
+				/**
+				 * Index for the aged tail ready to read()
+				 * data up to.
+				 */
+				unsigned int aged_tail_idx;
+
+				/**
+				 * A monotonic timestamp for when the current
+				 * aging tail pointer was read; used to
+				 * determine when it is old enough to trust.
+				 */
+				u64 aging_timestamp;
+
+				/**
+				 * Although we can always read back the head
+				 * pointer register, we prefer to avoid
+				 * trusting the HW state, just to avoid any
+				 * risk that some hardware condition could
+				 * somehow bump the head pointer unpredictably
+				 * and cause us to forward the wrong OA buffer
+				 * data to userspace.
+				 */
+				u32 head;
 			} oa_buffer;
 
 			u32 gen7_latched_oastatus1;
@@ -2870,7 +2887,6 @@ intel_info(const struct drm_i915_private *dev_priv)
 
 #define HWS_NEEDS_PHYSICAL(dev_priv)	((dev_priv)->info.hws_needs_physical)
 
-#define HAS_HW_CONTEXTS(dev_priv)	    ((dev_priv)->info.has_hw_contexts)
 #define HAS_LOGICAL_RING_CONTEXTS(dev_priv) \
 		((dev_priv)->info.has_logical_ring_contexts)
 #define USES_PPGTT(dev_priv)		(i915.enable_ppgtt)
@@ -2909,6 +2925,7 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define HAS_FW_BLC(dev_priv) 	(INTEL_GEN(dev_priv) > 2)
 #define HAS_PIPE_CXSR(dev_priv) ((dev_priv)->info.has_pipe_cxsr)
 #define HAS_FBC(dev_priv)	((dev_priv)->info.has_fbc)
+#define HAS_CUR_FBC(dev_priv)	(!HAS_GMCH_DISPLAY(dev_priv) && INTEL_INFO(dev_priv)->gen >= 7)
 
 #define HAS_IPS(dev_priv)	(IS_HSW_ULT(dev_priv) || IS_BROADWELL(dev_priv))
 
@@ -2931,6 +2948,7 @@ intel_info(const struct drm_i915_private *dev_priv)
  * properties, so we have separate macros to test them.
  */
 #define HAS_GUC(dev_priv)	((dev_priv)->info.has_guc)
+#define HAS_GUC_CT(dev_priv)	((dev_priv)->info.has_guc_ct)
 #define HAS_GUC_UCODE(dev_priv)	(HAS_GUC(dev_priv))
 #define HAS_GUC_SCHED(dev_priv)	(HAS_GUC(dev_priv))
 #define HAS_HUC_UCODE(dev_priv)	(HAS_GUC(dev_priv))
@@ -2981,13 +2999,24 @@ intel_info(const struct drm_i915_private *dev_priv)
 
 #include "i915_trace.h"
 
-static inline bool intel_scanout_needs_vtd_wa(struct drm_i915_private *dev_priv)
+static inline bool intel_vtd_active(void)
 {
 #ifdef CONFIG_INTEL_IOMMU
-	if (INTEL_GEN(dev_priv) >= 6 && intel_iommu_gfx_mapped)
+	if (intel_iommu_gfx_mapped)
 		return true;
 #endif
 	return false;
+}
+
+static inline bool intel_scanout_needs_vtd_wa(struct drm_i915_private *dev_priv)
+{
+	return INTEL_GEN(dev_priv) >= 6 && intel_vtd_active();
+}
+
+static inline bool
+intel_ggtt_update_needs_vtd_wa(struct drm_i915_private *dev_priv)
+{
+	return IS_BROXTON(dev_priv) && intel_vtd_active();
 }
 
 int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
@@ -3026,7 +3055,7 @@ extern unsigned long i915_gfx_val(struct drm_i915_private *dev_priv);
 extern void i915_update_gfx_val(struct drm_i915_private *dev_priv);
 int vlv_force_gfx_clock(struct drm_i915_private *dev_priv, bool on);
 
-int intel_engines_init_early(struct drm_i915_private *dev_priv);
+int intel_engines_init_mmio(struct drm_i915_private *dev_priv);
 int intel_engines_init(struct drm_i915_private *dev_priv);
 
 /* intel_hotplug.c */
@@ -3063,42 +3092,9 @@ void i915_handle_error(struct drm_i915_private *dev_priv,
 		       const char *fmt, ...);
 
 extern void intel_irq_init(struct drm_i915_private *dev_priv);
+extern void intel_irq_fini(struct drm_i915_private *dev_priv);
 int intel_irq_install(struct drm_i915_private *dev_priv);
 void intel_irq_uninstall(struct drm_i915_private *dev_priv);
-
-extern void intel_uncore_sanitize(struct drm_i915_private *dev_priv);
-extern void intel_uncore_init(struct drm_i915_private *dev_priv);
-extern bool intel_uncore_unclaimed_mmio(struct drm_i915_private *dev_priv);
-extern bool intel_uncore_arm_unclaimed_mmio_detection(struct drm_i915_private *dev_priv);
-extern void intel_uncore_fini(struct drm_i915_private *dev_priv);
-extern void intel_uncore_suspend(struct drm_i915_private *dev_priv);
-extern void intel_uncore_resume_early(struct drm_i915_private *dev_priv);
-const char *intel_uncore_forcewake_domain_to_str(const enum forcewake_domain_id id);
-void intel_uncore_forcewake_get(struct drm_i915_private *dev_priv,
-				enum forcewake_domains domains);
-void intel_uncore_forcewake_put(struct drm_i915_private *dev_priv,
-				enum forcewake_domains domains);
-/* Like above but the caller must manage the uncore.lock itself.
- * Must be used with I915_READ_FW and friends.
- */
-void intel_uncore_forcewake_get__locked(struct drm_i915_private *dev_priv,
-					enum forcewake_domains domains);
-void intel_uncore_forcewake_put__locked(struct drm_i915_private *dev_priv,
-					enum forcewake_domains domains);
-u64 intel_uncore_edram_size(struct drm_i915_private *dev_priv);
-
-void assert_forcewakes_inactive(struct drm_i915_private *dev_priv);
-
-int intel_wait_for_register(struct drm_i915_private *dev_priv,
-			    i915_reg_t reg,
-			    const u32 mask,
-			    const u32 value,
-			    const unsigned long timeout_ms);
-int intel_wait_for_register_fw(struct drm_i915_private *dev_priv,
-			       i915_reg_t reg,
-			       const u32 mask,
-			       const u32 value,
-			       const unsigned long timeout_ms);
 
 static inline bool intel_gvt_active(struct drm_i915_private *dev_priv)
 {
@@ -3447,8 +3443,9 @@ int i915_gem_object_wait_priority(struct drm_i915_gem_object *obj,
 #define I915_PRIORITY_DISPLAY I915_PRIORITY_MAX
 
 int __must_check
-i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj,
-				  bool write);
+i915_gem_object_set_to_wc_domain(struct drm_i915_gem_object *obj, bool write);
+int __must_check
+i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write);
 int __must_check
 i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write);
 struct i915_vma * __must_check
@@ -3711,8 +3708,8 @@ int  intel_lpe_audio_init(struct drm_i915_private *dev_priv);
 void intel_lpe_audio_teardown(struct drm_i915_private *dev_priv);
 void intel_lpe_audio_irq_handler(struct drm_i915_private *dev_priv);
 void intel_lpe_audio_notify(struct drm_i915_private *dev_priv,
-			    void *eld, int port, int pipe, int tmds_clk_speed,
-			    bool dp_output, int link_rate);
+			    enum pipe pipe, enum port port,
+			    const void *eld, int ls_clock, bool dp_output);
 
 /* intel_i2c.c */
 extern int intel_setup_gmbus(struct drm_i915_private *dev_priv);

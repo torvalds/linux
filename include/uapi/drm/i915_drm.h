@@ -412,6 +412,12 @@ typedef struct drm_i915_irq_wait {
  */
 #define I915_PARAM_HAS_EXEC_FENCE	 44
 
+/* Query whether DRM_I915_GEM_EXECBUFFER2 supports the ability to capture
+ * user specified bufffers for post-mortem debugging of GPU hangs. See
+ * EXEC_OBJECT_CAPTURE.
+ */
+#define I915_PARAM_HAS_EXEC_CAPTURE	 45
+
 typedef struct drm_i915_getparam {
 	__s32 param;
 	/*
@@ -666,6 +672,8 @@ struct drm_i915_gem_relocation_entry {
 #define I915_GEM_DOMAIN_VERTEX		0x00000020
 /** GTT domain - aperture and scanout */
 #define I915_GEM_DOMAIN_GTT		0x00000040
+/** WC domain - uncached access */
+#define I915_GEM_DOMAIN_WC		0x00000080
 /** @} */
 
 struct drm_i915_gem_exec_object {
@@ -773,8 +781,15 @@ struct drm_i915_gem_exec_object2 {
  * I915_PARAM_HAS_EXEC_FENCE to order execbufs and execute them asynchronously.
  */
 #define EXEC_OBJECT_ASYNC		(1<<6)
+/* Request that the contents of this execobject be copied into the error
+ * state upon a GPU hang involving this batch for post-mortem debugging.
+ * These buffers are recorded in no particular order as "user" in
+ * /sys/class/drm/cardN/error. Query I915_PARAM_HAS_EXEC_CAPTURE to see
+ * if the kernel supports this flag.
+ */
+#define EXEC_OBJECT_CAPTURE		(1<<7)
 /* All remaining bits are MBZ and RESERVED FOR FUTURE USE */
-#define __EXEC_OBJECT_UNKNOWN_FLAGS -(EXEC_OBJECT_ASYNC<<1)
+#define __EXEC_OBJECT_UNKNOWN_FLAGS -(EXEC_OBJECT_CAPTURE<<1)
 	__u64 flags;
 
 	union {

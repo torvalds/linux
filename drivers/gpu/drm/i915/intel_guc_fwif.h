@@ -23,8 +23,8 @@
 #ifndef _INTEL_GUC_FWIF_H
 #define _INTEL_GUC_FWIF_H
 
-#define GFXCORE_FAMILY_GEN9		12
-#define GFXCORE_FAMILY_UNKNOWN		0x7fffffff
+#define GUC_CORE_FAMILY_GEN9		12
+#define GUC_CORE_FAMILY_UNKNOWN		0x7fffffff
 
 #define GUC_CLIENT_PRIORITY_KMD_HIGH	0
 #define GUC_CLIENT_PRIORITY_HIGH	1
@@ -331,6 +331,47 @@ struct guc_stage_desc {
 	u64 desc_private;
 } __packed;
 
+/*
+ * Describes single command transport buffer.
+ * Used by both guc-master and clients.
+ */
+struct guc_ct_buffer_desc {
+	u32 addr;		/* gfx address */
+	u64 host_private;	/* host private data */
+	u32 size;		/* size in bytes */
+	u32 head;		/* offset updated by GuC*/
+	u32 tail;		/* offset updated by owner */
+	u32 is_in_error;	/* error indicator */
+	u32 fence;		/* fence updated by GuC */
+	u32 status;		/* status updated by GuC */
+	u32 owner;		/* id of the channel owner */
+	u32 owner_sub_id;	/* owner-defined field for extra tracking */
+	u32 reserved[5];
+} __packed;
+
+/* Type of command transport buffer */
+#define INTEL_GUC_CT_BUFFER_TYPE_SEND	0x0u
+#define INTEL_GUC_CT_BUFFER_TYPE_RECV	0x1u
+
+/*
+ * Definition of the command transport message header (DW0)
+ *
+ * bit[4..0]	message len (in dwords)
+ * bit[7..5]	reserved
+ * bit[8]	write fence to desc
+ * bit[9]	write status to H2G buff
+ * bit[10]	send status (via G2H)
+ * bit[15..11]	reserved
+ * bit[31..16]	action code
+ */
+#define GUC_CT_MSG_LEN_SHIFT			0
+#define GUC_CT_MSG_LEN_MASK			0x1F
+#define GUC_CT_MSG_WRITE_FENCE_TO_DESC		(1 << 8)
+#define GUC_CT_MSG_WRITE_STATUS_TO_BUFF		(1 << 9)
+#define GUC_CT_MSG_SEND_STATUS			(1 << 10)
+#define GUC_CT_MSG_ACTION_SHIFT			16
+#define GUC_CT_MSG_ACTION_MASK			0xFFFF
+
 #define GUC_FORCEWAKE_RENDER	(1 << 0)
 #define GUC_FORCEWAKE_MEDIA	(1 << 1)
 
@@ -515,6 +556,8 @@ enum intel_guc_action {
 	INTEL_GUC_ACTION_EXIT_S_STATE = 0x502,
 	INTEL_GUC_ACTION_SLPC_REQUEST = 0x3003,
 	INTEL_GUC_ACTION_AUTHENTICATE_HUC = 0x4000,
+	INTEL_GUC_ACTION_REGISTER_COMMAND_TRANSPORT_BUFFER = 0x4505,
+	INTEL_GUC_ACTION_DEREGISTER_COMMAND_TRANSPORT_BUFFER = 0x4506,
 	INTEL_GUC_ACTION_UK_LOG_ENABLE_LOGGING = 0x0E000,
 	INTEL_GUC_ACTION_LIMIT
 };

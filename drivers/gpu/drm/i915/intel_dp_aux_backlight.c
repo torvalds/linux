@@ -28,6 +28,10 @@ static void set_aux_backlight_enable(struct intel_dp *intel_dp, bool enable)
 {
 	uint8_t reg_val = 0;
 
+	/* Early return when display use other mechanism to enable backlight. */
+	if (!(intel_dp->edp_dpcd[1] & DP_EDP_BACKLIGHT_AUX_ENABLE_CAP))
+		return;
+
 	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_EDP_DISPLAY_CONTROL_REGISTER,
 			      &reg_val) < 0) {
 		DRM_DEBUG_KMS("Failed to read DPCD register 0x%x\n",
@@ -97,15 +101,37 @@ static void intel_dp_aux_enable_backlight(struct intel_connector *connector)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&connector->encoder->base);
 	uint8_t dpcd_buf = 0;
+	uint8_t edp_backlight_mode = 0;
+
+	if (drm_dp_dpcd_readb(&intel_dp->aux,
+			DP_EDP_BACKLIGHT_MODE_SET_REGISTER, &dpcd_buf) != 1) {
+		DRM_DEBUG_KMS("Failed to read DPCD register 0x%x\n",
+			      DP_EDP_BACKLIGHT_MODE_SET_REGISTER);
+		return;
+	}
+
+	edp_backlight_mode = dpcd_buf & DP_EDP_BACKLIGHT_CONTROL_MODE_MASK;
+
+	switch (edp_backlight_mode) {
+	case DP_EDP_BACKLIGHT_CONTROL_MODE_PWM:
+	case DP_EDP_BACKLIGHT_CONTROL_MODE_PRESET:
+	case DP_EDP_BACKLIGHT_CONTROL_MODE_PRODUCT:
+		dpcd_buf &= ~DP_EDP_BACKLIGHT_CONTROL_MODE_MASK;
+		dpcd_buf |= DP_EDP_BACKLIGHT_CONTROL_MODE_DPCD;
+		if (drm_dp_dpcd_writeb(&intel_dp->aux,
+			DP_EDP_BACKLIGHT_MODE_SET_REGISTER, dpcd_buf) < 0) {
+			DRM_DEBUG_KMS("Failed to write aux backlight mode\n");
+		}
+		break;
+
+	/* Do nothing when it is already DPCD mode */
+	case DP_EDP_BACKLIGHT_CONTROL_MODE_DPCD:
+	default:
+		break;
+	}
 
 	set_aux_backlight_enable(intel_dp, true);
-
-	if ((drm_dp_dpcd_readb(&intel_dp->aux,
-			       DP_EDP_BACKLIGHT_MODE_SET_REGISTER, &dpcd_buf) == 1) &&
-	    ((dpcd_buf & DP_EDP_BACKLIGHT_CONTROL_MODE_MASK) ==
-	     DP_EDP_BACKLIGHT_CONTROL_MODE_PRESET))
-		drm_dp_dpcd_writeb(&intel_dp->aux, DP_EDP_BACKLIGHT_MODE_SET_REGISTER,
-				   (dpcd_buf | DP_EDP_BACKLIGHT_CONTROL_MODE_DPCD));
+	intel_dp_aux_set_backlight(connector, connector->panel.backlight.level);
 }
 
 static void intel_dp_aux_disable_backlight(struct intel_connector *connector)
@@ -143,9 +169,8 @@ intel_dp_aux_display_control_capable(struct intel_connector *connector)
 	 * the panel can support backlight control over the aux channel
 	 */
 	if (intel_dp->edp_dpcd[1] & DP_EDP_TCON_BACKLIGHT_ADJUSTMENT_CAP &&
-	    (intel_dp->edp_dpcd[1] & DP_EDP_BACKLIGHT_AUX_ENABLE_CAP) &&
-	    !((intel_dp->edp_dpcd[1] & DP_EDP_BACKLIGHT_PIN_ENABLE_CAP) ||
-	      (intel_dp->edp_dpcd[2] & DP_EDP_BACKLIGHT_BRIGHTNESS_PWM_PIN_CAP))) {
+	    (intel_dp->edp_dpcd[2] & DP_EDP_BACKLIGHT_BRIGHTNESS_AUX_SET_CAP) &&
+	    !(intel_dp->edp_dpcd[2] & DP_EDP_BACKLIGHT_BRIGHTNESS_PWM_PIN_CAP)) {
 		DRM_DEBUG_KMS("AUX Backlight Control Supported!\n");
 		return true;
 	}
