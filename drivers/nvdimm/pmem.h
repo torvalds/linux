@@ -5,6 +5,14 @@
 #include <linux/pfn_t.h>
 #include <linux/fs.h>
 
+#ifdef CONFIG_ARCH_HAS_PMEM_API
+void arch_wb_cache_pmem(void *addr, size_t size);
+#else
+static inline void arch_wb_cache_pmem(void *addr, size_t size)
+{
+}
+#endif
+
 /* this definition is in it's own header for tools/testing/nvdimm to consume */
 struct pmem_device {
 	/* One contiguous memory region per device */

@@ -97,6 +97,12 @@ static void clean_cache_range(void *addr, size_t size)
 		clwb(p);
 }
 
+void arch_wb_cache_pmem(void *addr, size_t size)
+{
+	clean_cache_range(addr, size);
+}
+EXPORT_SYMBOL_GPL(arch_wb_cache_pmem);
+
 long __copy_user_flushcache(void *dst, const void __user *src, unsigned size)
 {
 	unsigned long flushed, dest = (unsigned long) dst;
