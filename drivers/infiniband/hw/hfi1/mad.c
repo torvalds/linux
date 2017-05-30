@@ -180,10 +180,10 @@ static void send_trap(struct hfi1_ibport *ibp, void *data, unsigned len)
 }
 
 /*
- * Send a bad [PQ]_Key trap (ch. 14.3.8).
+ * Send a bad P_Key trap (ch. 14.3.8).
  */
-void hfi1_bad_pqkey(struct hfi1_ibport *ibp, __be16 trap_num, u32 key, u32 sl,
-		    u32 qp1, u32 qp2, u16 lid1, u16 lid2)
+void hfi1_bad_pkey(struct hfi1_ibport *ibp, u32 key, u32 sl,
+		   u32 qp1, u32 qp2, u16 lid1, u16 lid2)
 {
 	struct opa_mad_notice_attr data;
 	u32 lid = ppd_from_ibp(ibp)->lid;
@@ -191,17 +191,13 @@ void hfi1_bad_pqkey(struct hfi1_ibport *ibp, __be16 trap_num, u32 key, u32 sl,
 	u32 _lid2 = lid2;
 
 	memset(&data, 0, sizeof(data));
-
-	if (trap_num == OPA_TRAP_BAD_P_KEY)
-		ibp->rvp.pkey_violations++;
-	else
-		ibp->rvp.qkey_violations++;
 	ibp->rvp.n_pkt_drops++;
+	ibp->rvp.pkey_violations++;
 
 	/* Send violation trap */
 	data.generic_type = IB_NOTICE_TYPE_SECURITY;
 	data.prod_type_lsb = IB_NOTICE_PROD_CA;
-	data.trap_num = trap_num;
+	data.trap_num = OPA_TRAP_BAD_P_KEY;
 	data.issuer_lid = cpu_to_be32(lid);
 	data.ntc_257_258.lid1 = cpu_to_be32(_lid1);
 	data.ntc_257_258.lid2 = cpu_to_be32(_lid2);

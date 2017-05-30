@@ -134,24 +134,21 @@ static void qib_send_trap(struct qib_ibport *ibp, void *data, unsigned len)
 }
 
 /*
- * Send a bad [PQ]_Key trap (ch. 14.3.8).
+ * Send a bad P_Key trap (ch. 14.3.8).
  */
-void qib_bad_pqkey(struct qib_ibport *ibp, __be16 trap_num, u32 key, u32 sl,
-		   u32 qp1, u32 qp2, __be16 lid1, __be16 lid2)
+void qib_bad_pkey(struct qib_ibport *ibp, u32 key, u32 sl,
+		  u32 qp1, u32 qp2, __be16 lid1, __be16 lid2)
 {
 	struct ib_mad_notice_attr data;
 
-	if (trap_num == IB_NOTICE_TRAP_BAD_PKEY)
-		ibp->rvp.pkey_violations++;
-	else
-		ibp->rvp.qkey_violations++;
 	ibp->rvp.n_pkt_drops++;
+	ibp->rvp.pkey_violations++;
 
 	/* Send violation trap */
 	data.generic_type = IB_NOTICE_TYPE_SECURITY;
 	data.prod_type_msb = 0;
 	data.prod_type_lsb = IB_NOTICE_PROD_CA;
-	data.trap_num = trap_num;
+	data.trap_num = IB_NOTICE_TRAP_BAD_PKEY;
 	data.issuer_lid = cpu_to_be16(ppd_from_ibp(ibp)->lid);
 	data.toggle_count = 0;
 	memset(&data.details, 0, sizeof(data.details));

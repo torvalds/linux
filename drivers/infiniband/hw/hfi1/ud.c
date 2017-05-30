@@ -110,10 +110,10 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 				   ((1 << ppd->lmc) - 1));
 		if (unlikely(ingress_pkey_check(ppd, pkey, sc5,
 						qp->s_pkey_index, slid))) {
-			hfi1_bad_pqkey(ibp, OPA_TRAP_BAD_P_KEY, pkey,
-				       rdma_ah_get_sl(ah_attr),
-				       sqp->ibqp.qp_num, qp->ibqp.qp_num,
-				       slid, rdma_ah_get_dlid(ah_attr));
+			hfi1_bad_pkey(ibp, pkey,
+				      rdma_ah_get_sl(ah_attr),
+				      sqp->ibqp.qp_num, qp->ibqp.qp_num,
+				      slid, rdma_ah_get_dlid(ah_attr));
 			goto drop;
 		}
 	}
@@ -128,18 +128,8 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 
 		qkey = (int)swqe->ud_wr.remote_qkey < 0 ?
 			sqp->qkey : swqe->ud_wr.remote_qkey;
-		if (unlikely(qkey != qp->qkey)) {
-			u16 lid;
-
-			lid = ppd->lid | (rdma_ah_get_path_bits(ah_attr) &
-					  ((1 << ppd->lmc) - 1));
-			hfi1_bad_pqkey(ibp, OPA_TRAP_BAD_Q_KEY, qkey,
-				       rdma_ah_get_sl(ah_attr),
-				       sqp->ibqp.qp_num, qp->ibqp.qp_num,
-				       lid,
-				       rdma_ah_get_dlid(ah_attr));
-			goto drop;
-		}
+		if (unlikely(qkey != qp->qkey))
+			goto drop; /* silently drop per IBTA spec */
 	}
 
 	/*
@@ -722,10 +712,10 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 				 * for invalid pkeys is optional according to
 				 * IB spec (release 1.3, section 10.9.4)
 				 */
-				hfi1_bad_pqkey(ibp, OPA_TRAP_BAD_P_KEY,
-					       pkey, sl,
-					       src_qp, qp->ibqp.qp_num,
-					       slid, dlid);
+				hfi1_bad_pkey(ibp,
+					      pkey, sl,
+					      src_qp, qp->ibqp.qp_num,
+					      slid, dlid);
 				return;
 			}
 		} else {
@@ -734,12 +724,9 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 			if (mgmt_pkey_idx < 0)
 				goto drop;
 		}
-		if (unlikely(qkey != qp->qkey)) {
-			hfi1_bad_pqkey(ibp, OPA_TRAP_BAD_Q_KEY, qkey, sl,
-				       src_qp, qp->ibqp.qp_num,
-				       slid, dlid);
+		if (unlikely(qkey != qp->qkey)) /* Silent drop */
 			return;
-		}
+
 		/* Drop invalid MAD packets (see 13.5.3.1). */
 		if (unlikely(qp->ibqp.qp_num == 1 &&
 			     (tlen > 2048 || (sc5 == 0xF))))

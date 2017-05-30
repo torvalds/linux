@@ -254,8 +254,8 @@ int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct hfi1_packet *packet)
 		}
 		if (unlikely(rcv_pkey_check(ppd_from_ibp(ibp), (u16)bth0,
 					    sc5, slid))) {
-			hfi1_bad_pqkey(ibp, OPA_TRAP_BAD_P_KEY, (u16)bth0, sl,
-				       0, qp->ibqp.qp_num, slid, dlid);
+			hfi1_bad_pkey(ibp, (u16)bth0, sl,
+				      0, qp->ibqp.qp_num, slid, dlid);
 			return 1;
 		}
 		/* Validate the SLID. See Ch. 9.6.1.5 and 17.2.8 */
@@ -290,8 +290,8 @@ int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct hfi1_packet *packet)
 		}
 		if (unlikely(rcv_pkey_check(ppd_from_ibp(ibp), (u16)bth0,
 					    sc5, slid))) {
-			hfi1_bad_pqkey(ibp, OPA_TRAP_BAD_P_KEY, (u16)bth0, sl,
-				       0, qp->ibqp.qp_num, slid, dlid);
+			hfi1_bad_pkey(ibp, (u16)bth0, sl,
+				      0, qp->ibqp.qp_num, slid, dlid);
 			return 1;
 		}
 		/* Validate the SLID. See Ch. 9.6.1.5 */
