@@ -2896,7 +2896,7 @@ static void rtmsg_ifinfo_event(int type, struct net_device *dev,
 void rtmsg_ifinfo(int type, struct net_device *dev, unsigned int change,
 		  gfp_t flags)
 {
-	rtmsg_ifinfo_event(type, dev, change, IFLA_EVENT_NONE, flags);
+	rtmsg_ifinfo_event(type, dev, change, rtnl_get_event(0), flags);
 }
 EXPORT_SYMBOL(rtmsg_ifinfo);
 
