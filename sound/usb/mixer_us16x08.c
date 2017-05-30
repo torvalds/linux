@@ -1135,7 +1135,7 @@ static const struct snd_us16x08_control_params eq_controls[] = {
 		.control_id = SND_US16X08_ID_EQLOWMIDWIDTH,
 		.type = USB_MIXER_U8,
 		.num_channels = 16,
-		.name = "EQ MidQLow Q",
+		.name = "EQ MidLow Q",
 	},
 	{ /* EQ mid high gain */
 		.kcontrol_new = &snd_us16x08_eq_gain_ctl,
