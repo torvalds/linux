@@ -15,7 +15,7 @@
  */
 
 /* \file ssi_cipher.h
-   ARM CryptoCell Cipher Crypto API
+ * ARM CryptoCell Cipher Crypto API
  */
 
 #ifndef __SSI_CIPHER_H__
