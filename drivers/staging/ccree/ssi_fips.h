@@ -18,9 +18,9 @@
 #define __SSI_FIPS_H__
 
 /*!
-@file
-@brief This file contains FIPS related defintions and APIs.
-*/
+ * @file
+ * @brief This file contains FIPS related defintions and APIs.
+ */
 
 typedef enum ssi_fips_state {
         CC_FIPS_STATE_NOT_SUPPORTED = 0,
