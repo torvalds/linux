@@ -1495,16 +1495,16 @@ config RTC_DRV_ARMADA38X
 	  This driver can also be built as a module. If so, the module
 	  will be called armada38x-rtc.
 
-config RTC_DRV_GEMINI
-	tristate "Gemini SoC RTC"
-	depends on ARCH_GEMINI || COMPILE_TEST
+config RTC_DRV_FTRTC010
+	tristate "Faraday Technology FTRTC010 RTC"
 	depends on HAS_IOMEM
+	default ARCH_GEMINI
 	help
 	  If you say Y here you will get support for the
-	  RTC found on Gemini SoC's.
+	  Faraday Technolog FTRTC010 found on e.g. Gemini SoC's.
 
 	  This driver can also be built as a module. If so, the module
-	  will be called rtc-gemini.
+	  will be called rtc-ftrtc010.
 
 config RTC_DRV_PS3
 	tristate "PS3 RTC"
