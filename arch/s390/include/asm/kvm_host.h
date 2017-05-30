@@ -183,6 +183,7 @@ struct kvm_s390_sie_block {
 #define ECA_IB		0x40000000
 #define ECA_SIGPI	0x10000000
 #define ECA_MVPGI	0x01000000
+#define ECA_AIV		0x00200000
 #define ECA_VX		0x00020000
 #define ECA_PROTEXCI	0x00002000
 #define ECA_SII		0x00000001
@@ -227,7 +228,8 @@ struct kvm_s390_sie_block {
 	__u8    epdx;			/* 0x0069 */
 	__u8    reserved6a[2];		/* 0x006a */
 	__u32	todpr;			/* 0x006c */
-	__u8	reserved70[16];		/* 0x0070 */
+	__u32	gd;			/* 0x0070 */
+	__u8	reserved74[12];		/* 0x0074 */
 	__u64	mso;			/* 0x0080 */
 	__u64	msl;			/* 0x0088 */
 	psw_t	gpsw;			/* 0x0090 */
@@ -716,14 +718,27 @@ struct kvm_s390_crypto_cb {
 	struct kvm_s390_apcb1 apcb1;		/* 0x0080 */
 };
 
+struct kvm_s390_gisa {
+	u32 next_alert;
+	u8 ipm;
+	u8 reserved01;
+	u8 : 6;
+	u8 g : 1;
+	u8 c : 1;
+	u8 iam;
+	u8 reserved02[4];
+	u32 airq_count;
+};
+
 /*
- * sie_page2 has to be allocated as DMA because fac_list and crycb need
- * 31bit addresses in the sie control block.
+ * sie_page2 has to be allocated as DMA because fac_list, crycb and
+ * gisa need 31bit addresses in the sie control block.
  */
 struct sie_page2 {
 	__u64 fac_list[S390_ARCH_FAC_LIST_SIZE_U64];	/* 0x0000 */
 	struct kvm_s390_crypto_cb crycb;		/* 0x0800 */
-	u8 reserved900[0x1000 - 0x900];			/* 0x0900 */
+	struct kvm_s390_gisa gisa;			/* 0x0900 */
+	u8 reserved910[0x1000 - 0x910];			/* 0x0910 */
 };
 
 struct kvm_s390_vsie {
