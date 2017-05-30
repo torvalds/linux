@@ -82,38 +82,6 @@ static unsigned int posix_clock_poll(struct file *fp, poll_table *wait)
 	return result;
 }
 
-static int posix_clock_fasync(int fd, struct file *fp, int on)
-{
-	struct posix_clock *clk = get_posix_clock(fp);
-	int err = 0;
-
-	if (!clk)
-		return -ENODEV;
-
-	if (clk->ops.fasync)
-		err = clk->ops.fasync(clk, fd, fp, on);
-
-	put_posix_clock(clk);
-
-	return err;
-}
-
-static int posix_clock_mmap(struct file *fp, struct vm_area_struct *vma)
-{
-	struct posix_clock *clk = get_posix_clock(fp);
-	int err = -ENODEV;
-
-	if (!clk)
-		return -ENODEV;
-
-	if (clk->ops.mmap)
-		err = clk->ops.mmap(clk, vma);
-
-	put_posix_clock(clk);
-
-	return err;
-}
-
 static long posix_clock_ioctl(struct file *fp,
 			      unsigned int cmd, unsigned long arg)
 {
@@ -199,8 +167,6 @@ static const struct file_operations posix_clock_file_operations = {
 	.unlocked_ioctl	= posix_clock_ioctl,
 	.open		= posix_clock_open,
 	.release	= posix_clock_release,
-	.fasync		= posix_clock_fasync,
-	.mmap		= posix_clock_mmap,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= posix_clock_compat_ioctl,
 #endif
@@ -359,88 +325,9 @@ out:
 	return err;
 }
 
-static int pc_timer_create(struct k_itimer *kit)
-{
-	clockid_t id = kit->it_clock;
-	struct posix_clock_desc cd;
-	int err;
-
-	err = get_clock_desc(id, &cd);
-	if (err)
-		return err;
-
-	if (cd.clk->ops.timer_create)
-		err = cd.clk->ops.timer_create(cd.clk, kit);
-	else
-		err = -EOPNOTSUPP;
-
-	put_clock_desc(&cd);
-
-	return err;
-}
-
-static int pc_timer_delete(struct k_itimer *kit)
-{
-	clockid_t id = kit->it_clock;
-	struct posix_clock_desc cd;
-	int err;
-
-	err = get_clock_desc(id, &cd);
-	if (err)
-		return err;
-
-	if (cd.clk->ops.timer_delete)
-		err = cd.clk->ops.timer_delete(cd.clk, kit);
-	else
-		err = -EOPNOTSUPP;
-
-	put_clock_desc(&cd);
-
-	return err;
-}
-
-static void pc_timer_gettime(struct k_itimer *kit, struct itimerspec64 *ts)
-{
-	clockid_t id = kit->it_clock;
-	struct posix_clock_desc cd;
-
-	if (get_clock_desc(id, &cd))
-		return;
-
-	if (cd.clk->ops.timer_gettime)
-		cd.clk->ops.timer_gettime(cd.clk, kit, ts);
-
-	put_clock_desc(&cd);
-}
-
-static int pc_timer_settime(struct k_itimer *kit, int flags,
-			    struct itimerspec64 *ts, struct itimerspec64 *old)
-{
-	clockid_t id = kit->it_clock;
-	struct posix_clock_desc cd;
-	int err;
-
-	err = get_clock_desc(id, &cd);
-	if (err)
-		return err;
-
-	if (cd.clk->ops.timer_settime)
-		err = cd.clk->ops.timer_settime(cd.clk, kit, flags, ts, old);
-	else
-		err = -EOPNOTSUPP;
-
-	put_clock_desc(&cd);
-
-	return err;
-}
-
 const struct k_clock clock_posix_dynamic = {
 	.clock_getres	= pc_clock_getres,
 	.clock_set	= pc_clock_settime,
 	.clock_get	= pc_clock_gettime,
 	.clock_adj	= pc_clock_adjtime,
-	.timer_create	= pc_timer_create,
-	.timer_set	= pc_timer_settime,
-	.timer_del	= pc_timer_delete,
-	.timer_get	= pc_timer_gettime,
 };
