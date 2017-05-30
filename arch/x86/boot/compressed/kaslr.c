@@ -30,6 +30,7 @@
 
 #include "misc.h"
 #include "error.h"
+#include "../string.h"
 
 #include <generated/compile.h>
 #include <linux/module.h>
