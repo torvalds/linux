@@ -15,6 +15,8 @@
 
 #include "posix-timers.h"
 
+static void posix_cpu_timer_rearm(struct k_itimer *timer);
+
 /*
  * Called after updating RLIMIT_CPU to run cpu timer and update
  * tsk->signal->cputime_expires expiration cache if necessary. Needs
@@ -528,7 +530,7 @@ static void cpu_timer_fire(struct k_itimer *timer)
 		 * reload the timer.  But we need to keep it
 		 * ticking in case the signal is deliverable next time.
 		 */
-		posix_cpu_timer_schedule(timer);
+		posix_cpu_timer_rearm(timer);
 		++timer->it_requeue_pending;
 	}
 }
@@ -984,7 +986,7 @@ static void check_process_timers(struct task_struct *tsk,
  * This is called from the signal code (via posixtimer_rearm)
  * when the last timer signal was delivered and we have to reload the timer.
  */
-void posix_cpu_timer_schedule(struct k_itimer *timer)
+static void posix_cpu_timer_rearm(struct k_itimer *timer)
 {
 	struct sighand_struct *sighand;
 	unsigned long flags;
@@ -1431,6 +1433,7 @@ const struct k_clock clock_posix_cpu = {
 	.timer_set	= posix_cpu_timer_set,
 	.timer_del	= posix_cpu_timer_del,
 	.timer_get	= posix_cpu_timer_get,
+	.timer_rearm	= posix_cpu_timer_rearm,
 };
 
 const struct k_clock clock_process = {

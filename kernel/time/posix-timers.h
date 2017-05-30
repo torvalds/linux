@@ -28,5 +28,3 @@ extern const struct k_clock clock_thread;
 extern const struct k_clock alarm_clock;
 
 int posix_timer_event(struct k_itimer *timr, int si_private);
-
-void posix_cpu_timer_schedule(struct k_itimer *timer);
