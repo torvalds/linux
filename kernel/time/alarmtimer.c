@@ -527,9 +527,8 @@ static enum alarmtimer_restart alarm_handle_timer(struct alarm *alarm,
 	}
 
 	/* Re-add periodic timers */
-	if (ptr->it.alarm.interval) {
-		ptr->it_overrun += alarm_forward(alarm, now,
-						ptr->it.alarm.interval);
+	if (ptr->it_interval) {
+		ptr->it_overrun += alarm_forward(alarm, now, ptr->it_interval);
 		result = ALARMTIMER_RESTART;
 	}
 	spin_unlock_irqrestore(&ptr->it_lock, flags);
@@ -613,7 +612,7 @@ static void alarm_timer_get(struct k_itimer *timr,
 		cur_setting->it_value.tv_nsec = 0;
 	}
 
-	cur_setting->it_interval = ktime_to_timespec64(timr->it.alarm.interval);
+	cur_setting->it_interval = ktime_to_timespec64(timr->it_interval);
 }
 
 /**
@@ -662,14 +661,14 @@ static int alarm_timer_set(struct k_itimer *timr, int flags,
 		return TIMER_RETRY;
 
 	/* start the timer */
-	timr->it.alarm.interval = timespec64_to_ktime(new_setting->it_interval);
+	timr->it_interval = timespec64_to_ktime(new_setting->it_interval);
 
 	/*
 	 * Rate limit to the tick as a hot fix to prevent DOS. Will be
 	 * mopped up later.
 	 */
-	if (timr->it.alarm.interval < TICK_NSEC)
-		timr->it.alarm.interval = TICK_NSEC;
+	if (timr->it_interval < TICK_NSEC)
+		timr->it_interval = TICK_NSEC;
 
 	exp = timespec64_to_ktime(new_setting->it_value);
 	/* Convert (if necessary) to absolute time */

@@ -63,6 +63,7 @@ struct cpu_timer_list {
  * @it_requeue_pending:	Indicator that timer waits for being requeued on
  *			signal delivery
  * @it_sigev_notify:	The notify word of sigevent struct for signal delivery
+ * @it_interval:	The interval for periodic timers
  * @it_signal:		Pointer to the creators signal struct
  * @it_pid:		The pid of the process/task targeted by the signal
  * @it_process:		The task to wakeup on clock_nanosleep (CPU timers)
@@ -80,6 +81,7 @@ struct k_itimer {
 	int			it_overrun_last;
 	int			it_requeue_pending;
 	int			it_sigev_notify;
+	ktime_t			it_interval;
 	struct signal_struct	*it_signal;
 	union {
 		struct pid		*it_pid;
@@ -89,12 +91,10 @@ struct k_itimer {
 	union {
 		struct {
 			struct hrtimer	timer;
-			ktime_t		interval;
 		} real;
 		struct cpu_timer_list	cpu;
 		struct {
 			struct alarm	alarmtimer;
-			ktime_t		interval;
 		} alarm;
 		struct rcu_head		rcu;
 	} it;
