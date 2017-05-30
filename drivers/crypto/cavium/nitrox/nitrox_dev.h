@@ -118,6 +118,7 @@ struct nitrox_bh {
  * @msix: MSI-X information
  * @bh: post processing work
  * @hw: hardware information
+ * @debugfs_dir: debugfs directory
  */
 struct nitrox_device {
 	struct list_head list;
@@ -141,6 +142,9 @@ struct nitrox_device {
 	struct nitrox_bh bh;
 
 	struct nitrox_hw hw;
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+	struct dentry *debugfs_dir;
+#endif
 };
 
 /**

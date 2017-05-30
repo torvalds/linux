@@ -1,5 +1,6 @@
 #include <linux/aer.h>
 #include <linux/delay.h>
+#include <linux/debugfs.h>
 #include <linux/firmware.h>
 #include <linux/list.h>
 #include <linux/module.h>
@@ -305,6 +306,135 @@ static int nitrox_pf_hw_init(struct nitrox_device *ndev)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+static int registers_show(struct seq_file *s, void *v)
+{
+	struct nitrox_device *ndev = s->private;
+	u64 offset;
+
+	/* NPS DMA stats */
+	offset = NPS_STATS_PKT_DMA_RD_CNT;
+	seq_printf(s, "NPS_STATS_PKT_DMA_RD_CNT  0x%016llx\n",
+		   nitrox_read_csr(ndev, offset));
+	offset = NPS_STATS_PKT_DMA_WR_CNT;
+	seq_printf(s, "NPS_STATS_PKT_DMA_WR_CNT  0x%016llx\n",
+		   nitrox_read_csr(ndev, offset));
+
+	/* BMI/BMO stats */
+	offset = BMI_NPS_PKT_CNT;
+	seq_printf(s, "BMI_NPS_PKT_CNT  0x%016llx\n",
+		   nitrox_read_csr(ndev, offset));
+	offset = BMO_NPS_SLC_PKT_CNT;
+	seq_printf(s, "BMO_NPS_PKT_CNT  0x%016llx\n",
+		   nitrox_read_csr(ndev, offset));
+
+	return 0;
+}
+
+static int registers_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, registers_show, inode->i_private);
+}
+
+static const struct file_operations register_fops = {
+	.owner = THIS_MODULE,
+	.open = registers_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int firmware_show(struct seq_file *s, void *v)
+{
+	struct nitrox_device *ndev = s->private;
+
+	seq_printf(s, "Version: %s\n", ndev->hw.fw_name);
+	return 0;
+}
+
+static int firmware_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, firmware_show, inode->i_private);
+}
+
+static const struct file_operations firmware_fops = {
+	.owner = THIS_MODULE,
+	.open = firmware_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int nitrox_show(struct seq_file *s, void *v)
+{
+	struct nitrox_device *ndev = s->private;
+
+	seq_printf(s, "NITROX-5 [idx: %d]\n", ndev->idx);
+	seq_printf(s, "  Revsion ID: 0x%0x\n", ndev->hw.revision_id);
+	seq_printf(s, "  Cores [AE: %u  SE: %u]\n",
+		   ndev->hw.ae_cores, ndev->hw.se_cores);
+	seq_printf(s, "  Number of Queues: %u\n", ndev->nr_queues);
+	seq_printf(s, "  Queue length: %u\n", ndev->qlen);
+	seq_printf(s, "  Node: %u\n", ndev->node);
+
+	return 0;
+}
+
+static int nitrox_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, nitrox_show, inode->i_private);
+}
+
+static const struct file_operations nitrox_fops = {
+	.owner = THIS_MODULE,
+	.open = nitrox_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static void nitrox_debugfs_exit(struct nitrox_device *ndev)
+{
+	debugfs_remove_recursive(ndev->debugfs_dir);
+	ndev->debugfs_dir = NULL;
+}
+
+static int nitrox_debugfs_init(struct nitrox_device *ndev)
+{
+	struct dentry *dir, *f;
+
+	dir = debugfs_create_dir(KBUILD_MODNAME, NULL);
+	if (!dir)
+		return -ENOMEM;
+
+	ndev->debugfs_dir = dir;
+	f = debugfs_create_file("counters", 0400, dir, ndev, &register_fops);
+	if (!f)
+		goto err;
+	f = debugfs_create_file("firmware", 0400, dir, ndev, &firmware_fops);
+	if (!f)
+		goto err;
+	f = debugfs_create_file("nitrox", 0400, dir, ndev, &nitrox_fops);
+	if (!f)
+		goto err;
+
+	return 0;
+
+err:
+	nitrox_debugfs_exit(ndev);
+	return -ENODEV;
+}
+#else
+static int nitrox_debugfs_init(struct nitrox_device *ndev)
+{
+	return 0;
+}
+
+static void nitrox_debugfs_exit(struct nitrox_device *ndev)
+{
+}
+#endif
+
 /**
  * nitrox_probe - NITROX Initialization function.
  * @pdev: PCI device information struct
@@ -389,6 +519,10 @@ static int nitrox_probe(struct pci_dev *pdev,
 	if (err)
 		goto pf_hw_fail;
 
+	err = nitrox_debugfs_init(ndev);
+	if (err)
+		goto pf_hw_fail;
+
 	set_bit(NITROX_READY, &ndev->status);
 	/* barrier to sync with other cpus */
 	smp_mb__after_atomic();
@@ -431,6 +565,7 @@ static void nitrox_remove(struct pci_dev *pdev)
 	smp_mb__after_atomic();
 
 	nitrox_remove_from_devlist(ndev);
+	nitrox_debugfs_exit(ndev);
 	nitrox_pf_sw_cleanup(ndev);
 
 	iounmap(ndev->bar_addr);
