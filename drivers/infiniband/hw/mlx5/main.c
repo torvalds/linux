@@ -58,6 +58,7 @@
 #include <linux/mlx5/vport.h>
 #include "mlx5_ib.h"
 #include "cmd.h"
+#include <linux/mlx5/vport.h>
 
 #define DRIVER_NAME "mlx5_ib"
 #define DRIVER_VERSION "5.0-0"
@@ -1187,6 +1188,45 @@ static int deallocate_uars(struct mlx5_ib_dev *dev, struct mlx5_ib_ucontext *con
 	return 0;
 }
 
+static int mlx5_ib_alloc_transport_domain(struct mlx5_ib_dev *dev, u32 *tdn)
+{
+	int err;
+
+	err = mlx5_core_alloc_transport_domain(dev->mdev, tdn);
+	if (err)
+		return err;
+
+	if ((MLX5_CAP_GEN(dev->mdev, port_type) != MLX5_CAP_PORT_TYPE_ETH) ||
+	    !MLX5_CAP_GEN(dev->mdev, disable_local_lb))
+		return err;
+
+	mutex_lock(&dev->lb_mutex);
+	dev->user_td++;
+
+	if (dev->user_td == 2)
+		err = mlx5_nic_vport_update_local_lb(dev->mdev, true);
+
+	mutex_unlock(&dev->lb_mutex);
+	return err;
+}
+
+static void mlx5_ib_dealloc_transport_domain(struct mlx5_ib_dev *dev, u32 tdn)
+{
+	mlx5_core_dealloc_transport_domain(dev->mdev, tdn);
+
+	if ((MLX5_CAP_GEN(dev->mdev, port_type) != MLX5_CAP_PORT_TYPE_ETH) ||
+	    !MLX5_CAP_GEN(dev->mdev, disable_local_lb))
+		return;
+
+	mutex_lock(&dev->lb_mutex);
+	dev->user_td--;
+
+	if (dev->user_td < 2)
+		mlx5_nic_vport_update_local_lb(dev->mdev, false);
+
+	mutex_unlock(&dev->lb_mutex);
+}
+
 static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 						  struct ib_udata *udata)
 {
@@ -1295,8 +1335,7 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	mutex_init(&context->upd_xlt_page_mutex);
 
 	if (MLX5_CAP_GEN(dev->mdev, log_max_transport_domain)) {
-		err = mlx5_core_alloc_transport_domain(dev->mdev,
-						       &context->tdn);
+		err = mlx5_ib_alloc_transport_domain(dev, &context->tdn);
 		if (err)
 			goto out_page;
 	}
@@ -1362,7 +1401,7 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 
 out_td:
 	if (MLX5_CAP_GEN(dev->mdev, log_max_transport_domain))
-		mlx5_core_dealloc_transport_domain(dev->mdev, context->tdn);
+		mlx5_ib_dealloc_transport_domain(dev, context->tdn);
 
 out_page:
 	free_page(context->upd_xlt_page);
@@ -1390,7 +1429,7 @@ static int mlx5_ib_dealloc_ucontext(struct ib_ucontext *ibcontext)
 
 	bfregi = &context->bfregi;
 	if (MLX5_CAP_GEN(dev->mdev, log_max_transport_domain))
-		mlx5_core_dealloc_transport_domain(dev->mdev, context->tdn);
+		mlx5_ib_dealloc_transport_domain(dev, context->tdn);
 
 	free_page(context->upd_xlt_page);
 	deallocate_uars(dev, context);
@@ -3796,6 +3835,10 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 		if (err)
 			goto err_umrc;
 	}
+
+	if ((MLX5_CAP_GEN(mdev, port_type) == MLX5_CAP_PORT_TYPE_ETH) &&
+	    MLX5_CAP_GEN(mdev, disable_local_lb))
+		mutex_init(&dev->lb_mutex);
 
 	dev->ib_active = true;
 
