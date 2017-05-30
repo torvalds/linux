@@ -332,7 +332,7 @@ right place, you can have your script listed alongside the other
 scripts listed by the 'perf script -l' command e.g.:
 
 ----
-root@tropicana:~# perf script -l
+# perf script -l
 List of available trace scripts:
   wakeup-latency                       system-wide min/max/avg wakeup latency
   rw-by-file <comm>                    r/w activity for a program, by file
@@ -381,8 +381,6 @@ source tree:
 
 ----
 # ls -al kernel-source/tools/perf/scripts/python
-
-root@tropicana:/home/trz/src/tip# ls -al tools/perf/scripts/python
 total 32
 drwxr-xr-x 4 trz trz 4096 2010-01-26 22:30 .
 drwxr-xr-x 4 trz trz 4096 2010-01-26 22:29 ..
@@ -397,7 +395,7 @@ otherwise your script won't show up at run-time), 'perf script -l'
 should show a new entry for your script:
 
 ----
-root@tropicana:~# perf script -l
+# perf script -l
 List of available trace scripts:
   wakeup-latency                       system-wide min/max/avg wakeup latency
   rw-by-file <comm>                    r/w activity for a program, by file
