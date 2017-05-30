@@ -358,22 +358,8 @@ static int sst_acpi_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	/* need to save shim registers in BYT */
-	ctx->shim_regs64 = devm_kzalloc(ctx->dev, sizeof(*ctx->shim_regs64),
-					GFP_KERNEL);
-	if (!ctx->shim_regs64) {
-		ret = -ENOMEM;
-		goto do_sst_cleanup;
-	}
-
 	sst_configure_runtime_pm(ctx);
 	platform_set_drvdata(pdev, ctx);
-	return ret;
-
-do_sst_cleanup:
-	sst_context_cleanup(ctx);
-	platform_set_drvdata(pdev, NULL);
-	dev_err(ctx->dev, "failed with %d\n", ret);
 	return ret;
 }
 

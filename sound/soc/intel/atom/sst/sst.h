@@ -317,26 +317,6 @@ struct sst_ipc_reg {
 	int ipcd;
 };
 
-struct sst_shim_regs64 {
-	u64 csr;
-	u64 pisr;
-	u64 pimr;
-	u64 isrx;
-	u64 isrd;
-	u64 imrx;
-	u64 imrd;
-	u64 ipcx;
-	u64 ipcd;
-	u64 isrsc;
-	u64 isrlpesc;
-	u64 imrsc;
-	u64 imrlpesc;
-	u64 ipcsc;
-	u64 ipclpesc;
-	u64 clkctl;
-	u64 csr2;
-};
-
 struct sst_fw_save {
 	void *iram;
 	void *dram;
@@ -356,7 +336,6 @@ struct sst_fw_save {
  * @dram : SST DRAM pointer
  * @pdata : SST info passed as a part of pci platform data
  * @shim_phy_add : SST shim phy addr
- * @shim_regs64: Struct to save shim registers
  * @ipc_dispatch_list : ipc messages dispatched
  * @rx_list : to copy the process_reply/process_msg from DSP
  * @ipc_post_msg_wq : wq to post IPC messages context
@@ -398,7 +377,6 @@ struct intel_sst_drv {
 	unsigned int		ddr_end;
 	unsigned int		ddr_base;
 	unsigned int		mailbox_recv_offset;
-	struct sst_shim_regs64	*shim_regs64;
 	struct list_head        block_list;
 	struct list_head	ipc_dispatch_list;
 	struct sst_platform_info *pdata;
