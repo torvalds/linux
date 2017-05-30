@@ -607,6 +607,20 @@ static struct k_itimer *__lock_timer(timer_t timer_id, unsigned long *flags)
 	return NULL;
 }
 
+static ktime_t common_hrtimer_remaining(struct k_itimer *timr, ktime_t now)
+{
+	struct hrtimer *timer = &timr->it.real.timer;
+
+	return __hrtimer_expires_remaining_adjusted(timer, now);
+}
+
+static int common_hrtimer_forward(struct k_itimer *timr, ktime_t now)
+{
+	struct hrtimer *timer = &timr->it.real.timer;
+
+	return (int)hrtimer_forward(timer, now, timr->it_interval);
+}
+
 /*
  * Get the time remaining on a POSIX.1b interval timer.  This function
  * is ALWAYS called with spin_lock_irq on the timer, thus it must not
@@ -626,42 +640,54 @@ static struct k_itimer *__lock_timer(timer_t timer_id, unsigned long *flags)
 static void
 common_timer_get(struct k_itimer *timr, struct itimerspec64 *cur_setting)
 {
+	const struct k_clock *kc = timr->kclock;
 	ktime_t now, remaining, iv;
-	struct hrtimer *timer = &timr->it.real.timer;
+	struct timespec64 ts64;
+	bool sig_none;
 
 	memset(cur_setting, 0, sizeof(*cur_setting));
 
+	sig_none = (timr->it_sigev_notify & ~SIGEV_THREAD_ID) != SIGEV_NONE;
 	iv = timr->it_interval;
 
 	/* interval timer ? */
-	if (iv)
+	if (iv) {
 		cur_setting->it_interval = ktime_to_timespec64(iv);
-	else if (!hrtimer_active(timer) &&
-		 (timr->it_sigev_notify & ~SIGEV_THREAD_ID) != SIGEV_NONE)
-		return;
-
-	now = timer->base->get_time();
+	} else if (!timr->it_active) {
+		/*
+		 * SIGEV_NONE oneshot timers are never queued. Check them
+		 * below.
+		 */
+		if (!sig_none)
+			return;
+	}
 
 	/*
-	 * When a requeue is pending or this is a SIGEV_NONE
-	 * timer move the expiry time forward by intervals, so
-	 * expiry is > now.
+	 * The timespec64 based conversion is suboptimal, but it's not
+	 * worth to implement yet another callback.
 	 */
-	if (iv && (timr->it_requeue_pending & REQUEUE_PENDING ||
-		   (timr->it_sigev_notify & ~SIGEV_THREAD_ID) == SIGEV_NONE))
-		timr->it_overrun += (unsigned int) hrtimer_forward(timer, now, iv);
+	kc->clock_get(timr->it_clock, &ts64);
+	now = timespec64_to_ktime(ts64);
 
-	remaining = __hrtimer_expires_remaining_adjusted(timer, now);
+	/*
+	 * When a requeue is pending or this is a SIGEV_NONE timer move the
+	 * expiry time forward by intervals, so expiry is > now.
+	 */
+	if (iv && (timr->it_requeue_pending & REQUEUE_PENDING || sig_none))
+		timr->it_overrun += kc->timer_forward(timr, now);
+
+	remaining = kc->timer_remaining(timr, now);
 	/* Return 0 only, when the timer is expired and not pending */
 	if (remaining <= 0) {
 		/*
 		 * A single shot SIGEV_NONE timer must return 0, when
 		 * it is expired !
 		 */
-		if ((timr->it_sigev_notify & ~SIGEV_THREAD_ID) != SIGEV_NONE)
+		if (!sig_none)
 			cur_setting->it_value.tv_nsec = 1;
-	} else
+	} else {
 		cur_setting->it_value = ktime_to_timespec64(remaining);
+	}
 }
 
 /* Get the time remaining on a POSIX.1b interval timer. */
@@ -1049,6 +1075,8 @@ static const struct k_clock clock_realtime = {
 	.timer_get	= common_timer_get,
 	.timer_del	= common_timer_del,
 	.timer_rearm	= common_hrtimer_rearm,
+	.timer_forward	= common_hrtimer_forward,
+	.timer_remaining= common_hrtimer_remaining,
 };
 
 static const struct k_clock clock_monotonic = {
@@ -1061,6 +1089,8 @@ static const struct k_clock clock_monotonic = {
 	.timer_get	= common_timer_get,
 	.timer_del	= common_timer_del,
 	.timer_rearm	= common_hrtimer_rearm,
+	.timer_forward	= common_hrtimer_forward,
+	.timer_remaining= common_hrtimer_remaining,
 };
 
 static const struct k_clock clock_monotonic_raw = {
@@ -1088,6 +1118,8 @@ static const struct k_clock clock_tai = {
 	.timer_get	= common_timer_get,
 	.timer_del	= common_timer_del,
 	.timer_rearm	= common_hrtimer_rearm,
+	.timer_forward	= common_hrtimer_forward,
+	.timer_remaining= common_hrtimer_remaining,
 };
 
 static const struct k_clock clock_boottime = {
@@ -1100,6 +1132,8 @@ static const struct k_clock clock_boottime = {
 	.timer_get	= common_timer_get,
 	.timer_del	= common_timer_del,
 	.timer_rearm	= common_hrtimer_rearm,
+	.timer_forward	= common_hrtimer_forward,
+	.timer_remaining= common_hrtimer_remaining,
 };
 
 static const struct k_clock * const posix_clocks[] = {
