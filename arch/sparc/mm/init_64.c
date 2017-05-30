@@ -358,7 +358,8 @@ static int __init setup_hugepagesz(char *string)
 	}
 
 	if ((hv_pgsz_mask & cpu_pgsz_mask) == 0U) {
-		pr_warn("hugepagesz=%llu not supported by MMU.\n",
+		hugetlb_bad_size();
+		pr_err("hugepagesz=%llu not supported by MMU.\n",
 			hugepage_size);
 		goto out;
 	}
