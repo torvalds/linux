@@ -1157,7 +1157,7 @@ int iwlagn_suspend(struct iwl_priv *priv, struct cfg80211_wowlan *wowlan)
 	if (ret)
 		goto out;
 
-	if (!iwlwifi_mod_params.sw_crypto) {
+	if (!iwlwifi_mod_params.swcrypto) {
 		/* mark all keys clear */
 		priv->ucode_key_table = 0;
 		ctx->key_mapping_keys = 0;

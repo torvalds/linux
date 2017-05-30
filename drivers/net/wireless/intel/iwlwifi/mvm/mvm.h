@@ -921,7 +921,7 @@ struct iwl_mvm {
 	u8 vif_count;
 
 	/* -1 for always, 0 for never, >0 for that many times */
-	s8 restart_fw;
+	s8 fw_restart;
 	u8 fw_dbg_conf;
 	struct delayed_work fw_dump_wk;
 	const struct iwl_mvm_dump_desc *fw_dump_desc;

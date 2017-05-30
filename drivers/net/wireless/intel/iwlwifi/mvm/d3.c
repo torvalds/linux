@@ -83,7 +83,7 @@ void iwl_mvm_set_rekey_data(struct ieee80211_hw *hw,
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	if (iwlwifi_mod_params.sw_crypto)
+	if (iwlwifi_mod_params.swcrypto)
 		return;
 
 	mutex_lock(&mvm->mutex);
@@ -1054,7 +1054,7 @@ iwl_mvm_wowlan_config(struct iwl_mvm *mvm,
 			return ret;
 	}
 
-	if (!iwlwifi_mod_params.sw_crypto) {
+	if (!iwlwifi_mod_params.swcrypto) {
 		/*
 		 * This needs to be unlocked due to lock ordering
 		 * constraints. Since we're in the suspend path
@@ -1280,8 +1280,8 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 
 		if (!unified_image) {
 			iwl_mvm_ref(mvm, IWL_MVM_REF_UCODE_DOWN);
-			if (mvm->restart_fw > 0) {
-				mvm->restart_fw--;
+			if (mvm->fw_restart > 0) {
+				mvm->fw_restart--;
 				ieee80211_restart_hw(mvm->hw);
 			}
 		}

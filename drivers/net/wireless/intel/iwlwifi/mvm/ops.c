@@ -594,7 +594,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 			goto out_free;
 	}
 
-	mvm->restart_fw = iwlwifi_mod_params.restart_fw ? -1 : 0;
+	mvm->fw_restart = iwlwifi_mod_params.fw_restart ? -1 : 0;
 
 	if (!iwl_mvm_is_dqa_supported(mvm)) {
 		mvm->last_agg_queue = mvm->cfg->base_params->num_of_queues - 1;
@@ -1225,7 +1225,7 @@ void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 	 * If WoWLAN fw asserted, don't restart either, mac80211
 	 * can't recover this since we're already half suspended.
 	 */
-	if (!mvm->restart_fw && fw_error) {
+	if (!mvm->fw_restart && fw_error) {
 		iwl_mvm_fw_dbg_collect_desc(mvm, &iwl_mvm_dump_desc_assert,
 					    NULL);
 	} else if (test_and_set_bit(IWL_MVM_STATUS_IN_HW_RESTART,
@@ -1258,8 +1258,8 @@ void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 		/* don't let the transport/FW power down */
 		iwl_mvm_ref(mvm, IWL_MVM_REF_UCODE_DOWN);
 
-		if (fw_error && mvm->restart_fw > 0)
-			mvm->restart_fw--;
+		if (fw_error && mvm->fw_restart > 0)
+			mvm->fw_restart--;
 		ieee80211_restart_hw(mvm->hw);
 	}
 }

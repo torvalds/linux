@@ -723,7 +723,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		pm_runtime_set_active(&pdev->dev);
 
 		pm_runtime_set_autosuspend_delay(&pdev->dev,
-					 iwlwifi_mod_params.d0i3_entry_delay);
+					 iwlwifi_mod_params.d0i3_timeout);
 		pm_runtime_use_autosuspend(&pdev->dev);
 
 		/* We are not supposed to call pm_runtime_allow() by

@@ -869,8 +869,8 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct iwl_mvm *mvm, char *buf,
 	mutex_lock(&mvm->mutex);
 
 	/* allow one more restart that we're provoking here */
-	if (mvm->restart_fw >= 0)
-		mvm->restart_fw++;
+	if (mvm->fw_restart >= 0)
+		mvm->fw_restart++;
 
 	/* take the return value to make compiler happy - it will fail anyway */
 	ret = iwl_mvm_send_cmd_pdu(mvm, REPLY_ERROR, 0, 0, NULL);

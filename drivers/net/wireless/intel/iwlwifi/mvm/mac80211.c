@@ -493,7 +493,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	 * firmware will interpret some mgmt packets, so enabling it
 	 * with software crypto isn't safe).
 	 */
-	if (!iwlwifi_mod_params.sw_crypto) {
+	if (!iwlwifi_mod_params.swcrypto) {
 		ieee80211_hw_set(hw, MFP_CAPABLE);
 		mvm->ciphers[hw->wiphy->n_cipher_suites] =
 			WLAN_CIPHER_SUITE_AES_CMAC;
@@ -687,7 +687,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 				     WIPHY_WOWLAN_EAP_IDENTITY_REQ |
 				     WIPHY_WOWLAN_RFKILL_RELEASE |
 				     WIPHY_WOWLAN_NET_DETECT;
-		if (!iwlwifi_mod_params.sw_crypto)
+		if (!iwlwifi_mod_params.swcrypto)
 			mvm->wowlan.flags |= WIPHY_WOWLAN_SUPPORTS_GTK_REKEY |
 					     WIPHY_WOWLAN_GTK_REKEY_FAILURE |
 					     WIPHY_WOWLAN_4WAY_HANDSHAKE;
@@ -2888,7 +2888,7 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 	int ret;
 	u8 key_offset;
 
-	if (iwlwifi_mod_params.sw_crypto) {
+	if (iwlwifi_mod_params.swcrypto) {
 		IWL_DEBUG_MAC80211(mvm, "leave - hwcrypto disabled\n");
 		return -EOPNOTSUPP;
 	}

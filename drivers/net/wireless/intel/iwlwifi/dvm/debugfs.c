@@ -2308,10 +2308,10 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct file *file,
 					  size_t count, loff_t *ppos)
 {
 	struct iwl_priv *priv = file->private_data;
-	bool restart_fw = iwlwifi_mod_params.restart_fw;
+	bool fw_restart = iwlwifi_mod_params.fw_restart;
 	int __maybe_unused ret;
 
-	iwlwifi_mod_params.restart_fw = true;
+	iwlwifi_mod_params.fw_restart = true;
 
 	mutex_lock(&priv->mutex);
 
@@ -2320,7 +2320,7 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct file *file,
 
 	mutex_unlock(&priv->mutex);
 
-	iwlwifi_mod_params.restart_fw = restart_fw;
+	iwlwifi_mod_params.fw_restart = fw_restart;
 
 	return count;
 }
