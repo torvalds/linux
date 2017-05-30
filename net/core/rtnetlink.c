@@ -3231,8 +3231,11 @@ static int rtnl_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	int err = 0;
 	int fidx = 0;
 
-	if (nlmsg_parse(cb->nlh, sizeof(struct ifinfomsg), tb,
-			IFLA_MAX, ifla_policy, NULL) == 0) {
+	err = nlmsg_parse(cb->nlh, sizeof(struct ifinfomsg), tb,
+			  IFLA_MAX, ifla_policy, NULL);
+	if (err < 0) {
+		return -EINVAL;
+	} else if (err == 0) {
 		if (tb[IFLA_MASTER])
 			br_idx = nla_get_u32(tb[IFLA_MASTER]);
 	}

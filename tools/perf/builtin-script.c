@@ -2494,6 +2494,8 @@ int cmd_script(int argc, const char **argv)
 			"Enable kernel symbol demangling"),
 	OPT_STRING(0, "time", &script.time_str, "str",
 		   "Time span of interest (start,stop)"),
+	OPT_BOOLEAN(0, "inline", &symbol_conf.inline_name,
+		    "Show inline function"),
 	OPT_END()
 	};
 	const char * const script_subcommands[] = { "record", "report", NULL };

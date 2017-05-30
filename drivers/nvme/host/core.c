@@ -925,6 +925,29 @@ static int nvme_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 }
 
 #ifdef CONFIG_BLK_DEV_INTEGRITY
+static void nvme_prep_integrity(struct gendisk *disk, struct nvme_id_ns *id,
+		u16 bs)
+{
+	struct nvme_ns *ns = disk->private_data;
+	u16 old_ms = ns->ms;
+	u8 pi_type = 0;
+
+	ns->ms = le16_to_cpu(id->lbaf[id->flbas & NVME_NS_FLBAS_LBA_MASK].ms);
+	ns->ext = ns->ms && (id->flbas & NVME_NS_FLBAS_META_EXT);
+
+	/* PI implementation requires metadata equal t10 pi tuple size */
+	if (ns->ms == sizeof(struct t10_pi_tuple))
+		pi_type = id->dps & NVME_NS_DPS_PI_MASK;
+
+	if (blk_get_integrity(disk) &&
+	    (ns->pi_type != pi_type || ns->ms != old_ms ||
+	     bs != queue_logical_block_size(disk->queue) ||
+	     (ns->ms && ns->ext)))
+		blk_integrity_unregister(disk);
+
+	ns->pi_type = pi_type;
+}
+
 static void nvme_init_integrity(struct nvme_ns *ns)
 {
 	struct blk_integrity integrity;
@@ -951,6 +974,10 @@ static void nvme_init_integrity(struct nvme_ns *ns)
 	blk_queue_max_integrity_segments(ns->queue, 1);
 }
 #else
+static void nvme_prep_integrity(struct gendisk *disk, struct nvme_id_ns *id,
+		u16 bs)
+{
+}
 static void nvme_init_integrity(struct nvme_ns *ns)
 {
 }
@@ -997,37 +1024,22 @@ static int nvme_revalidate_ns(struct nvme_ns *ns, struct nvme_id_ns **id)
 static void __nvme_revalidate_disk(struct gendisk *disk, struct nvme_id_ns *id)
 {
 	struct nvme_ns *ns = disk->private_data;
-	u8 lbaf, pi_type;
-	u16 old_ms;
-	unsigned short bs;
-
-	old_ms = ns->ms;
-	lbaf = id->flbas & NVME_NS_FLBAS_LBA_MASK;
-	ns->lba_shift = id->lbaf[lbaf].ds;
-	ns->ms = le16_to_cpu(id->lbaf[lbaf].ms);
-	ns->ext = ns->ms && (id->flbas & NVME_NS_FLBAS_META_EXT);
+	u16 bs;
 
 	/*
 	 * If identify namespace failed, use default 512 byte block size so
 	 * block layer can use before failing read/write for 0 capacity.
 	 */
+	ns->lba_shift = id->lbaf[id->flbas & NVME_NS_FLBAS_LBA_MASK].ds;
 	if (ns->lba_shift == 0)
 		ns->lba_shift = 9;
 	bs = 1 << ns->lba_shift;
-	/* XXX: PI implementation requires metadata equal t10 pi tuple size */
-	pi_type = ns->ms == sizeof(struct t10_pi_tuple) ?
-					id->dps & NVME_NS_DPS_PI_MASK : 0;
 
 	blk_mq_freeze_queue(disk->queue);
-	if (blk_get_integrity(disk) && (ns->pi_type != pi_type ||
-				ns->ms != old_ms ||
-				bs != queue_logical_block_size(disk->queue) ||
-				(ns->ms && ns->ext)))
-		blk_integrity_unregister(disk);
 
-	ns->pi_type = pi_type;
+	if (ns->ctrl->ops->flags & NVME_F_METADATA_SUPPORTED)
+		nvme_prep_integrity(disk, id, bs);
 	blk_queue_logical_block_size(ns->queue, bs);
-
 	if (ns->ms && !blk_get_integrity(disk) && !ns->ext)
 		nvme_init_integrity(ns);
 	if (ns->ms && !(ns->ms == 8 && ns->pi_type) && !blk_get_integrity(disk))
@@ -1605,7 +1617,7 @@ int nvme_init_identify(struct nvme_ctrl *ctrl)
 	}
 	memcpy(ctrl->psd, id->psd, sizeof(ctrl->psd));
 
-	if (ctrl->ops->is_fabrics) {
+	if (ctrl->ops->flags & NVME_F_FABRICS) {
 		ctrl->icdoff = le16_to_cpu(id->icdoff);
 		ctrl->ioccsz = le32_to_cpu(id->ioccsz);
 		ctrl->iorcsz = le32_to_cpu(id->iorcsz);
@@ -2098,7 +2110,6 @@ static void nvme_ns_remove(struct nvme_ns *ns)
 		if (ns->ndev)
 			nvme_nvm_unregister_sysfs(ns);
 		del_gendisk(ns->disk);
-		blk_mq_abort_requeue_list(ns->queue);
 		blk_cleanup_queue(ns->queue);
 	}
 
@@ -2436,8 +2447,16 @@ void nvme_kill_queues(struct nvme_ctrl *ctrl)
 			continue;
 		revalidate_disk(ns->disk);
 		blk_set_queue_dying(ns->queue);
-		blk_mq_abort_requeue_list(ns->queue);
-		blk_mq_start_stopped_hw_queues(ns->queue, true);
+
+		/*
+		 * Forcibly start all queues to avoid having stuck requests.
+		 * Note that we must ensure the queues are not stopped
+		 * when the final removal happens.
+		 */
+		blk_mq_start_hw_queues(ns->queue);
+
+		/* draining requests in requeue list */
+		blk_mq_kick_requeue_list(ns->queue);
 	}
 	mutex_unlock(&ctrl->namespaces_mutex);
 }

@@ -43,15 +43,13 @@ struct ceph_monmap *ceph_monmap_decode(void *p, void *end)
 	int i, err = -EINVAL;
 	struct ceph_fsid fsid;
 	u32 epoch, num_mon;
-	u16 version;
 	u32 len;
 
 	ceph_decode_32_safe(&p, end, len, bad);
 	ceph_decode_need(&p, end, len, bad);
 
 	dout("monmap_decode %p %p len %d\n", p, end, (int)(end-p));
-
-	ceph_decode_16_safe(&p, end, version, bad);
+	p += sizeof(u16);  /* skip version */
 
 	ceph_decode_need(&p, end, sizeof(fsid) + 2*sizeof(u32), bad);
 	ceph_decode_copy(&p, &fsid, sizeof(fsid));

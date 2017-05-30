@@ -2454,16 +2454,11 @@ int sctp_process_init(struct sctp_association *asoc, struct sctp_chunk *chunk,
 	 * stream sequence number shall be set to 0.
 	 */
 
-	/* Allocate storage for the negotiated streams if it is not a temporary
-	 * association.
-	 */
-	if (!asoc->temp) {
-		if (sctp_stream_init(asoc, gfp))
-			goto clean_up;
+	if (sctp_stream_init(asoc, gfp))
+		goto clean_up;
 
-		if (sctp_assoc_set_id(asoc, gfp))
-			goto clean_up;
-	}
+	if (!asoc->temp && sctp_assoc_set_id(asoc, gfp))
+		goto clean_up;
 
 	/* ADDIP Section 4.1 ASCONF Chunk Procedures
 	 *
