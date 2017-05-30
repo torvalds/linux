@@ -3469,7 +3469,7 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 			 * that doesn't support bpf_tail_call yet
 			 */
 			insn->imm = 0;
-			insn->code |= BPF_X;
+			insn->code = BPF_JMP | BPF_TAIL_CALL;
 			continue;
 		}
 

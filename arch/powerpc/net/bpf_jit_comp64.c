@@ -938,7 +938,7 @@ common_load:
 		/*
 		 * Tail call
 		 */
-		case BPF_JMP | BPF_CALL | BPF_X:
+		case BPF_JMP | BPF_TAIL_CALL:
 			ctx->seen |= SEEN_TAILCALL;
 			bpf_jit_emit_tail_call(image, ctx, addrs[i + 1]);
 			break;

@@ -1217,7 +1217,7 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 	}
 
 	/* tail call */
-	case BPF_JMP | BPF_CALL |BPF_X:
+	case BPF_JMP | BPF_TAIL_CALL:
 		emit_tail_call(ctx);
 		break;
 
