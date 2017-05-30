@@ -162,6 +162,13 @@ enum dbg_rsc_type {
 	MLX5_DBG_RSC_CQ,
 };
 
+enum port_state_policy {
+	MLX5_POLICY_DOWN	= 0,
+	MLX5_POLICY_UP		= 1,
+	MLX5_POLICY_FOLLOW	= 2,
+	MLX5_POLICY_INVALID	= 0xffffffff
+};
+
 struct mlx5_field_desc {
 	struct dentry	       *dent;
 	int			i;
@@ -525,6 +532,9 @@ struct mlx5_mkey_table {
 
 struct mlx5_vf_context {
 	int	enabled;
+	u64	port_guid;
+	u64	node_guid;
+	enum port_state_policy	policy;
 };
 
 struct mlx5_core_sriov {
@@ -840,13 +850,6 @@ struct mlx5_cmd_work_ent {
 struct mlx5_pas {
 	u64	pa;
 	u8	log_sz;
-};
-
-enum port_state_policy {
-	MLX5_POLICY_DOWN	= 0,
-	MLX5_POLICY_UP		= 1,
-	MLX5_POLICY_FOLLOW	= 2,
-	MLX5_POLICY_INVALID	= 0xffffffff
 };
 
 enum phy_port_state {
