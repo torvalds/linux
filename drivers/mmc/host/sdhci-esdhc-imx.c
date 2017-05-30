@@ -579,7 +579,7 @@ static void esdhc_writeb_le(struct sdhci_host *host, u8 val, int reg)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct pltfm_imx_data *imx_data = sdhci_pltfm_priv(pltfm_host);
-	u32 new_val;
+	u32 new_val = 0;
 	u32 mask;
 
 	switch (reg) {
@@ -610,29 +610,46 @@ static void esdhc_writeb_le(struct sdhci_host *host, u8 val, int reg)
 
 		esdhc_clrset_le(host, mask, new_val, reg);
 		return;
+	case SDHCI_SOFTWARE_RESET:
+		if (val & SDHCI_RESET_DATA)
+			new_val = readl(host->ioaddr + SDHCI_HOST_CONTROL);
+		break;
 	}
 	esdhc_clrset_le(host, 0xff, val, reg);
 
-	/*
-	 * The esdhc has a design violation to SDHC spec which tells
-	 * that software reset should not affect card detection circuit.
-	 * But esdhc clears its SYSCTL register bits [0..2] during the
-	 * software reset.  This will stop those clocks that card detection
-	 * circuit relies on.  To work around it, we turn the clocks on back
-	 * to keep card detection circuit functional.
-	 */
-	if ((reg == SDHCI_SOFTWARE_RESET) && (val & 1)) {
-		esdhc_clrset_le(host, 0x7, 0x7, ESDHC_SYSTEM_CONTROL);
-		/*
-		 * The reset on usdhc fails to clear MIX_CTRL register.
-		 * Do it manually here.
-		 */
-		if (esdhc_is_usdhc(imx_data)) {
-			/* the tuning bits should be kept during reset */
-			new_val = readl(host->ioaddr + ESDHC_MIX_CTRL);
-			writel(new_val & ESDHC_MIX_CTRL_TUNING_MASK,
-					host->ioaddr + ESDHC_MIX_CTRL);
-			imx_data->is_ddr = 0;
+	if (reg == SDHCI_SOFTWARE_RESET) {
+		if (val & SDHCI_RESET_ALL) {
+			/*
+			 * The esdhc has a design violation to SDHC spec which
+			 * tells that software reset should not affect card
+			 * detection circuit. But esdhc clears its SYSCTL
+			 * register bits [0..2] during the software reset. This
+			 * will stop those clocks that card detection circuit
+			 * relies on. To work around it, we turn the clocks on
+			 * back to keep card detection circuit functional.
+			 */
+			esdhc_clrset_le(host, 0x7, 0x7, ESDHC_SYSTEM_CONTROL);
+			/*
+			 * The reset on usdhc fails to clear MIX_CTRL register.
+			 * Do it manually here.
+			 */
+			if (esdhc_is_usdhc(imx_data)) {
+				/*
+				 * the tuning bits should be kept during reset
+				 */
+				new_val = readl(host->ioaddr + ESDHC_MIX_CTRL);
+				writel(new_val & ESDHC_MIX_CTRL_TUNING_MASK,
+						host->ioaddr + ESDHC_MIX_CTRL);
+				imx_data->is_ddr = 0;
+			}
+		} else if (val & SDHCI_RESET_DATA) {
+			/*
+			 * The eSDHC DAT line software reset clears at least the
+			 * data transfer width on i.MX25, so make sure that the
+			 * Host Control register is unaffected.
+			 */
+			esdhc_clrset_le(host, 0xff, new_val,
+					SDHCI_HOST_CONTROL);
 		}
 	}
 }
