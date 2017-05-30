@@ -549,6 +549,18 @@ static void alarm_timer_rearm(struct k_itimer *timr)
 }
 
 /**
+ * alarm_timer_forward - Posix timer callback for forwarding timer
+ * @timr:	Pointer to the posixtimer data struct
+ * @now:	Current time to forward the timer against
+ */
+static int alarm_timer_forward(struct k_itimer *timr, ktime_t now)
+{
+	struct alarm *alarm = &timr->it.alarm.alarmtimer;
+
+	return (int) alarm_forward(alarm, timr->it_interval, now);
+}
+
+/**
  * alarm_clock_getres - posix getres interface
  * @which_clock: clockid
  * @tp: timespec to fill
@@ -876,6 +888,7 @@ const struct k_clock alarm_clock = {
 	.timer_del	= alarm_timer_del,
 	.timer_get	= alarm_timer_get,
 	.timer_rearm	= alarm_timer_rearm,
+	.timer_forward	= alarm_timer_forward,
 	.nsleep		= alarm_timer_nsleep,
 };
 #endif /* CONFIG_POSIX_TIMERS */
