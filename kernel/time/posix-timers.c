@@ -442,7 +442,6 @@ int posix_timer_event(struct k_itimer *timr, int si_private)
 	/* If we failed to send the signal the timer stops. */
 	return ret > 0;
 }
-EXPORT_SYMBOL_GPL(posix_timer_event);
 
 /*
  * This function gets called when a POSIX.1b interval timer expires.  It
