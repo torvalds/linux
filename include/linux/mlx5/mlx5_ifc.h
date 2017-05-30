@@ -200,6 +200,7 @@ enum {
 	MLX5_CMD_OP_QUERY_SQ                      = 0x907,
 	MLX5_CMD_OP_CREATE_RQ                     = 0x908,
 	MLX5_CMD_OP_MODIFY_RQ                     = 0x909,
+	MLX5_CMD_OP_SET_DELAY_DROP_PARAMS         = 0x910,
 	MLX5_CMD_OP_DESTROY_RQ                    = 0x90a,
 	MLX5_CMD_OP_QUERY_RQ                      = 0x90b,
 	MLX5_CMD_OP_CREATE_RMP                    = 0x90c,
@@ -840,7 +841,7 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         retransmission_q_counters[0x1];
 	u8         reserved_at_183[0x1];
 	u8         modify_rq_counter_set_id[0x1];
-	u8         reserved_at_185[0x1];
+	u8         rq_delay_drop[0x1];
 	u8         max_qp_cnt[0xa];
 	u8         pkey_table_size[0x10];
 
@@ -5851,6 +5852,28 @@ struct mlx5_ifc_destroy_rq_in_bits {
 	u8         rqn[0x18];
 
 	u8         reserved_at_60[0x20];
+};
+
+struct mlx5_ifc_set_delay_drop_params_in_bits {
+	u8         opcode[0x10];
+	u8         reserved_at_10[0x10];
+
+	u8         reserved_at_20[0x10];
+	u8         op_mod[0x10];
+
+	u8         reserved_at_40[0x20];
+
+	u8         reserved_at_60[0x10];
+	u8         delay_drop_timeout[0x10];
+};
+
+struct mlx5_ifc_set_delay_drop_params_out_bits {
+	u8         status[0x8];
+	u8         reserved_at_8[0x18];
+
+	u8         syndrome[0x20];
+
+	u8         reserved_at_40[0x40];
 };
 
 struct mlx5_ifc_destroy_rmp_out_bits {

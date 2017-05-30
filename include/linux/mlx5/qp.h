@@ -561,6 +561,9 @@ int mlx5_core_destroy_qp(struct mlx5_core_dev *dev,
 int mlx5_core_qp_query(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp,
 		       u32 *out, int outlen);
 
+int mlx5_core_set_delay_drop(struct mlx5_core_dev *dev,
+			     u32 timeout_usec);
+
 int mlx5_core_xrcd_alloc(struct mlx5_core_dev *dev, u32 *xrcdn);
 int mlx5_core_xrcd_dealloc(struct mlx5_core_dev *dev, u32 xrcdn);
 void mlx5_init_qp_table(struct mlx5_core_dev *dev);

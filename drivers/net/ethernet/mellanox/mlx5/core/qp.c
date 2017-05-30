@@ -242,6 +242,20 @@ int mlx5_core_destroy_qp(struct mlx5_core_dev *dev,
 }
 EXPORT_SYMBOL_GPL(mlx5_core_destroy_qp);
 
+int mlx5_core_set_delay_drop(struct mlx5_core_dev *dev,
+			     u32 timeout_usec)
+{
+	u32 out[MLX5_ST_SZ_DW(set_delay_drop_params_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(set_delay_drop_params_in)]   = {0};
+
+	MLX5_SET(set_delay_drop_params_in, in, opcode,
+		 MLX5_CMD_OP_SET_DELAY_DROP_PARAMS);
+	MLX5_SET(set_delay_drop_params_in, in, delay_drop_timeout,
+		 timeout_usec / 100);
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+}
+EXPORT_SYMBOL_GPL(mlx5_core_set_delay_drop);
+
 struct mbox_info {
 	u32 *in;
 	u32 *out;
