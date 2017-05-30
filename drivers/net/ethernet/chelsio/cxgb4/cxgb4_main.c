@@ -4956,6 +4956,8 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netif_set_real_num_tx_queues(adapter->port[i], pi->nqsets);
 		netif_set_real_num_rx_queues(adapter->port[i], pi->nqsets);
 
+		netif_carrier_off(adapter->port[i]);
+
 		err = register_netdev(adapter->port[i]);
 		if (err)
 			break;
