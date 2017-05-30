@@ -744,25 +744,49 @@ SYSCALL_DEFINE1(timer_getoverrun, timer_t, timer_id)
 	return overrun;
 }
 
-/* Set a POSIX.1b interval timer. */
-/* timr->it_lock is taken. */
-static int
-common_timer_set(struct k_itimer *timr, int flags,
-		 struct itimerspec64 *new_setting, struct itimerspec64 *old_setting)
+static void common_hrtimer_arm(struct k_itimer *timr, ktime_t expires,
+			       bool absolute, bool sigev_none)
 {
 	struct hrtimer *timer = &timr->it.real.timer;
 	enum hrtimer_mode mode;
 
+	mode = absolute ? HRTIMER_MODE_ABS : HRTIMER_MODE_REL;
+	hrtimer_init(&timr->it.real.timer, timr->it_clock, mode);
+	timr->it.real.timer.function = posix_timer_fn;
+
+	if (!absolute)
+		expires = ktime_add_safe(expires, timer->base->get_time());
+	hrtimer_set_expires(timer, expires);
+
+	if (!sigev_none)
+		hrtimer_start_expires(timer, HRTIMER_MODE_ABS);
+}
+
+static int common_hrtimer_try_to_cancel(struct k_itimer *timr)
+{
+	return hrtimer_try_to_cancel(&timr->it.real.timer);
+}
+
+/* Set a POSIX.1b interval timer. */
+static int
+common_timer_set(struct k_itimer *timr, int flags,
+		 struct itimerspec64 *new_setting,
+		 struct itimerspec64 *old_setting)
+{
+	const struct k_clock *kc = timr->kclock;
+	bool sigev_none;
+	ktime_t expires;
+
 	if (old_setting)
 		common_timer_get(timr, old_setting);
 
-	/* disable the timer */
+	/* Prevent rearming by clearing the interval */
 	timr->it_interval = 0;
 	/*
-	 * careful here.  If smp we could be in the "fire" routine which will
-	 * be spinning as we hold the lock.  But this is ONLY an SMP issue.
+	 * Careful here. On SMP systems the timer expiry function could be
+	 * active and spinning on timr->it_lock.
 	 */
-	if (hrtimer_try_to_cancel(timer) < 0)
+	if (kc->timer_try_to_cancel(timr) < 0)
 		return TIMER_RETRY;
 
 	timr->it_active = 0;
@@ -770,30 +794,16 @@ common_timer_set(struct k_itimer *timr, int flags,
 		~REQUEUE_PENDING;
 	timr->it_overrun_last = 0;
 
-	/* switch off the timer when it_value is zero */
+	/* Switch off the timer when it_value is zero */
 	if (!new_setting->it_value.tv_sec && !new_setting->it_value.tv_nsec)
 		return 0;
 
-	mode = flags & TIMER_ABSTIME ? HRTIMER_MODE_ABS : HRTIMER_MODE_REL;
-	hrtimer_init(&timr->it.real.timer, timr->it_clock, mode);
-	timr->it.real.timer.function = posix_timer_fn;
-
-	hrtimer_set_expires(timer, timespec64_to_ktime(new_setting->it_value));
-
-	/* Convert interval */
 	timr->it_interval = timespec64_to_ktime(new_setting->it_interval);
+	expires = timespec64_to_ktime(new_setting->it_value);
+	sigev_none = (timr->it_sigev_notify & ~SIGEV_THREAD_ID) == SIGEV_NONE;
 
-	/* SIGEV_NONE timers are not queued ! See common_timer_get */
-	if (((timr->it_sigev_notify & ~SIGEV_THREAD_ID) == SIGEV_NONE)) {
-		/* Setup correct expiry time for relative timers */
-		if (mode == HRTIMER_MODE_REL) {
-			hrtimer_add_expires(timer, timer->base->get_time());
-		}
-		return 0;
-	}
-
-	timr->it_active = 1;
-	hrtimer_start_expires(timer, mode);
+	kc->timer_arm(timr, expires, flags & TIMER_ABSTIME, sigev_none);
+	timr->it_active = !sigev_none;
 	return 0;
 }
 
@@ -847,9 +857,10 @@ retry:
 
 static int common_timer_del(struct k_itimer *timer)
 {
-	timer->it_interval = 0;
+	const struct k_clock *kc = timer->kclock;
 
-	if (hrtimer_try_to_cancel(&timer->it.real.timer) < 0)
+	timer->it_interval = 0;
+	if (kc->timer_try_to_cancel(timer) < 0)
 		return TIMER_RETRY;
 	timer->it_active = 0;
 	return 0;
@@ -1063,76 +1074,84 @@ long clock_nanosleep_restart(struct restart_block *restart_block)
 }
 
 static const struct k_clock clock_realtime = {
-	.clock_getres	= posix_get_hrtimer_res,
-	.clock_get	= posix_clock_realtime_get,
-	.clock_set	= posix_clock_realtime_set,
-	.clock_adj	= posix_clock_realtime_adj,
-	.nsleep		= common_nsleep,
-	.nsleep_restart	= hrtimer_nanosleep_restart,
-	.timer_create	= common_timer_create,
-	.timer_set	= common_timer_set,
-	.timer_get	= common_timer_get,
-	.timer_del	= common_timer_del,
-	.timer_rearm	= common_hrtimer_rearm,
-	.timer_forward	= common_hrtimer_forward,
-	.timer_remaining= common_hrtimer_remaining,
+	.clock_getres		= posix_get_hrtimer_res,
+	.clock_get		= posix_clock_realtime_get,
+	.clock_set		= posix_clock_realtime_set,
+	.clock_adj		= posix_clock_realtime_adj,
+	.nsleep			= common_nsleep,
+	.nsleep_restart		= hrtimer_nanosleep_restart,
+	.timer_create		= common_timer_create,
+	.timer_set		= common_timer_set,
+	.timer_get		= common_timer_get,
+	.timer_del		= common_timer_del,
+	.timer_rearm		= common_hrtimer_rearm,
+	.timer_forward		= common_hrtimer_forward,
+	.timer_remaining	= common_hrtimer_remaining,
+	.timer_try_to_cancel	= common_hrtimer_try_to_cancel,
+	.timer_arm		= common_hrtimer_arm,
 };
 
 static const struct k_clock clock_monotonic = {
-	.clock_getres	= posix_get_hrtimer_res,
-	.clock_get	= posix_ktime_get_ts,
-	.nsleep		= common_nsleep,
-	.nsleep_restart	= hrtimer_nanosleep_restart,
-	.timer_create	= common_timer_create,
-	.timer_set	= common_timer_set,
-	.timer_get	= common_timer_get,
-	.timer_del	= common_timer_del,
-	.timer_rearm	= common_hrtimer_rearm,
-	.timer_forward	= common_hrtimer_forward,
-	.timer_remaining= common_hrtimer_remaining,
+	.clock_getres		= posix_get_hrtimer_res,
+	.clock_get		= posix_ktime_get_ts,
+	.nsleep			= common_nsleep,
+	.nsleep_restart		= hrtimer_nanosleep_restart,
+	.timer_create		= common_timer_create,
+	.timer_set		= common_timer_set,
+	.timer_get		= common_timer_get,
+	.timer_del		= common_timer_del,
+	.timer_rearm		= common_hrtimer_rearm,
+	.timer_forward		= common_hrtimer_forward,
+	.timer_remaining	= common_hrtimer_remaining,
+	.timer_try_to_cancel	= common_hrtimer_try_to_cancel,
+	.timer_arm		= common_hrtimer_arm,
 };
 
 static const struct k_clock clock_monotonic_raw = {
-	.clock_getres	= posix_get_hrtimer_res,
-	.clock_get	= posix_get_monotonic_raw,
+	.clock_getres		= posix_get_hrtimer_res,
+	.clock_get		= posix_get_monotonic_raw,
 };
 
 static const struct k_clock clock_realtime_coarse = {
-	.clock_getres	= posix_get_coarse_res,
-	.clock_get	= posix_get_realtime_coarse,
+	.clock_getres		= posix_get_coarse_res,
+	.clock_get		= posix_get_realtime_coarse,
 };
 
 static const struct k_clock clock_monotonic_coarse = {
-	.clock_getres	= posix_get_coarse_res,
-	.clock_get	= posix_get_monotonic_coarse,
+	.clock_getres		= posix_get_coarse_res,
+	.clock_get		= posix_get_monotonic_coarse,
 };
 
 static const struct k_clock clock_tai = {
-	.clock_getres	= posix_get_hrtimer_res,
-	.clock_get	= posix_get_tai,
-	.nsleep		= common_nsleep,
-	.nsleep_restart	= hrtimer_nanosleep_restart,
-	.timer_create	= common_timer_create,
-	.timer_set	= common_timer_set,
-	.timer_get	= common_timer_get,
-	.timer_del	= common_timer_del,
-	.timer_rearm	= common_hrtimer_rearm,
-	.timer_forward	= common_hrtimer_forward,
-	.timer_remaining= common_hrtimer_remaining,
+	.clock_getres		= posix_get_hrtimer_res,
+	.clock_get		= posix_get_tai,
+	.nsleep			= common_nsleep,
+	.nsleep_restart		= hrtimer_nanosleep_restart,
+	.timer_create		= common_timer_create,
+	.timer_set		= common_timer_set,
+	.timer_get		= common_timer_get,
+	.timer_del		= common_timer_del,
+	.timer_rearm		= common_hrtimer_rearm,
+	.timer_forward		= common_hrtimer_forward,
+	.timer_remaining	= common_hrtimer_remaining,
+	.timer_try_to_cancel	= common_hrtimer_try_to_cancel,
+	.timer_arm		= common_hrtimer_arm,
 };
 
 static const struct k_clock clock_boottime = {
-	.clock_getres	= posix_get_hrtimer_res,
-	.clock_get	= posix_get_boottime,
-	.nsleep		= common_nsleep,
-	.nsleep_restart	= hrtimer_nanosleep_restart,
-	.timer_create	= common_timer_create,
-	.timer_set	= common_timer_set,
-	.timer_get	= common_timer_get,
-	.timer_del	= common_timer_del,
-	.timer_rearm	= common_hrtimer_rearm,
-	.timer_forward	= common_hrtimer_forward,
-	.timer_remaining= common_hrtimer_remaining,
+	.clock_getres		= posix_get_hrtimer_res,
+	.clock_get		= posix_get_boottime,
+	.nsleep			= common_nsleep,
+	.nsleep_restart		= hrtimer_nanosleep_restart,
+	.timer_create		= common_timer_create,
+	.timer_set		= common_timer_set,
+	.timer_get		= common_timer_get,
+	.timer_del		= common_timer_del,
+	.timer_rearm		= common_hrtimer_rearm,
+	.timer_forward		= common_hrtimer_forward,
+	.timer_remaining	= common_hrtimer_remaining,
+	.timer_try_to_cancel	= common_hrtimer_try_to_cancel,
+	.timer_arm		= common_hrtimer_arm,
 };
 
 static const struct k_clock * const posix_clocks[] = {
