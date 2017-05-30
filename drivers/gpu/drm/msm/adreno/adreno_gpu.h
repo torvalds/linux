@@ -123,7 +123,7 @@ struct adreno_gpu {
 /* platform config data (ie. from DT, or pdata) */
 struct adreno_platform_config {
 	struct adreno_rev rev;
-	uint32_t fast_rate, slow_rate, bus_freq;
+	uint32_t fast_rate, bus_freq;
 #ifdef DOWNSTREAM_CONFIG_MSM_BUS_SCALING
 	struct msm_bus_scale_pdata *bus_scale_table;
 #endif

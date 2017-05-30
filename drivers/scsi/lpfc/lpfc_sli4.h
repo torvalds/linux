@@ -24,7 +24,6 @@
 #define LPFC_XRI_EXCH_BUSY_WAIT_TMO		10000
 #define LPFC_XRI_EXCH_BUSY_WAIT_T1   		10
 #define LPFC_XRI_EXCH_BUSY_WAIT_T2              30000
-#define LPFC_RELEASE_NOTIFICATION_INTERVAL	32
 #define LPFC_RPI_LOW_WATER_MARK			10
 
 #define LPFC_UNREG_FCF                          1
@@ -155,7 +154,11 @@ struct lpfc_queue {
 	uint32_t entry_count;	/* Number of entries to support on the queue */
 	uint32_t entry_size;	/* Size of each queue entry. */
 	uint32_t entry_repost;	/* Count of entries before doorbell is rung */
-#define LPFC_QUEUE_MIN_REPOST	8
+#define LPFC_EQ_REPOST		8
+#define LPFC_MQ_REPOST		8
+#define LPFC_CQ_REPOST		64
+#define LPFC_RQ_REPOST		64
+#define LPFC_RELEASE_NOTIFICATION_INTERVAL	32  /* For WQs */
 	uint32_t queue_id;	/* Queue ID assigned by the hardware */
 	uint32_t assoc_qid;     /* Queue ID associated with, for CQ/WQ/MQ */
 	uint32_t page_count;	/* Number of pages allocated for this queue */
@@ -195,7 +198,7 @@ struct lpfc_queue {
 /* defines for RQ stats */
 #define	RQ_no_posted_buf	q_cnt_1
 #define	RQ_no_buf_found		q_cnt_2
-#define	RQ_buf_trunc		q_cnt_3
+#define	RQ_buf_posted		q_cnt_3
 #define	RQ_rcv_buf		q_cnt_4
 
 	uint64_t isr_timestamp;
@@ -617,12 +620,17 @@ struct lpfc_sli4_hba {
 	uint16_t scsi_xri_start;
 	uint16_t els_xri_cnt;
 	uint16_t nvmet_xri_cnt;
+	uint16_t nvmet_ctx_cnt;
+	uint16_t nvmet_io_wait_cnt;
+	uint16_t nvmet_io_wait_total;
 	struct list_head lpfc_els_sgl_list;
 	struct list_head lpfc_abts_els_sgl_list;
 	struct list_head lpfc_nvmet_sgl_list;
-	struct list_head lpfc_abts_nvmet_sgl_list;
+	struct list_head lpfc_abts_nvmet_ctx_list;
 	struct list_head lpfc_abts_scsi_buf_list;
 	struct list_head lpfc_abts_nvme_buf_list;
+	struct list_head lpfc_nvmet_ctx_list;
+	struct list_head lpfc_nvmet_io_wait_list;
 	struct lpfc_sglq **lpfc_sglq_active_list;
 	struct list_head lpfc_rpi_hdr_list;
 	unsigned long *rpi_bmask;
@@ -654,6 +662,7 @@ struct lpfc_sli4_hba {
 	spinlock_t abts_scsi_buf_list_lock; /* list of aborted SCSI IOs */
 	spinlock_t sgl_list_lock; /* list of aborted els IOs */
 	spinlock_t nvmet_io_lock;
+	spinlock_t nvmet_io_wait_lock; /* IOs waiting for ctx resources */
 	uint32_t physical_port;
 
 	/* CPU to vector mapping information */
@@ -661,8 +670,6 @@ struct lpfc_sli4_hba {
 	uint16_t num_online_cpu;
 	uint16_t num_present_cpu;
 	uint16_t curr_disp_cpu;
-
-	uint16_t nvmet_mrq_post_idx;
 };
 
 enum lpfc_sge_type {
@@ -698,6 +705,7 @@ struct lpfc_rpi_hdr {
 	struct lpfc_dmabuf *dmabuf;
 	uint32_t page_count;
 	uint32_t start_rpi;
+	uint16_t next_rpi;
 };
 
 struct lpfc_rsrc_blks {
@@ -762,7 +770,6 @@ int lpfc_rq_create(struct lpfc_hba *, struct lpfc_queue *,
 int lpfc_mrq_create(struct lpfc_hba *phba, struct lpfc_queue **hrqp,
 			struct lpfc_queue **drqp, struct lpfc_queue **cqp,
 			uint32_t subtype);
-void lpfc_rq_adjust_repost(struct lpfc_hba *, struct lpfc_queue *, int);
 int lpfc_eq_destroy(struct lpfc_hba *, struct lpfc_queue *);
 int lpfc_cq_destroy(struct lpfc_hba *, struct lpfc_queue *);
 int lpfc_mq_destroy(struct lpfc_hba *, struct lpfc_queue *);

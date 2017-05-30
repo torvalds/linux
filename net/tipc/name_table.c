@@ -416,6 +416,7 @@ static void tipc_nameseq_subscribe(struct name_seq *nseq,
 
 	tipc_subscrp_convert_seq(&s->evt.s.seq, s->swap, &ns);
 
+	tipc_subscrp_get(s);
 	list_add(&s->nameseq_list, &nseq->subscriptions);
 
 	if (!sseq)
@@ -787,6 +788,7 @@ void tipc_nametbl_unsubscribe(struct tipc_subscription *s)
 	if (seq != NULL) {
 		spin_lock_bh(&seq->lock);
 		list_del_init(&s->nameseq_list);
+		tipc_subscrp_put(s);
 		if (!seq->first_free && list_empty(&seq->subscriptions)) {
 			hlist_del_init_rcu(&seq->ns_list);
 			kfree(seq->sseqs);

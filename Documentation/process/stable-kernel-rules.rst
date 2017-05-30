@@ -124,7 +124,7 @@ specified in the following format in the sign-off area:
 
 .. code-block:: none
 
-     Cc: <stable@vger.kernel.org> # 3.3.x-
+     Cc: <stable@vger.kernel.org> # 3.3.x
 
 The tag has the meaning of:
 

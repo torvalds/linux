@@ -87,6 +87,7 @@
 #include <subdev/mc.h>
 #include <subdev/timer.h>
 #include <subdev/pmu.h>
+#include <engine/sec2.h>
 
 const char *
 nvkm_secboot_falcon_name[] = {
@@ -94,21 +95,22 @@ nvkm_secboot_falcon_name[] = {
 	[NVKM_SECBOOT_FALCON_RESERVED] = "<reserved>",
 	[NVKM_SECBOOT_FALCON_FECS] = "FECS",
 	[NVKM_SECBOOT_FALCON_GPCCS] = "GPCCS",
+	[NVKM_SECBOOT_FALCON_SEC2] = "SEC2",
 	[NVKM_SECBOOT_FALCON_END] = "<invalid>",
 };
 /**
  * nvkm_secboot_reset() - reset specified falcon
  */
 int
-nvkm_secboot_reset(struct nvkm_secboot *sb, enum nvkm_secboot_falcon falcon)
+nvkm_secboot_reset(struct nvkm_secboot *sb, unsigned long falcon_mask)
 {
 	/* Unmanaged falcon? */
-	if (!(BIT(falcon) & sb->acr->managed_falcons)) {
+	if ((falcon_mask | sb->acr->managed_falcons) != sb->acr->managed_falcons) {
 		nvkm_error(&sb->subdev, "cannot reset unmanaged falcon!\n");
 		return -EINVAL;
 	}
 
-	return sb->acr->func->reset(sb->acr, sb, falcon);
+	return sb->acr->func->reset(sb->acr, sb, falcon_mask);
 }
 
 /**
@@ -131,13 +133,20 @@ nvkm_secboot_oneinit(struct nvkm_subdev *subdev)
 
 	switch (sb->acr->boot_falcon) {
 	case NVKM_SECBOOT_FALCON_PMU:
-		sb->boot_falcon = subdev->device->pmu->falcon;
+		sb->halt_falcon = sb->boot_falcon = subdev->device->pmu->falcon;
+		break;
+	case NVKM_SECBOOT_FALCON_SEC2:
+		/* we must keep SEC2 alive forever since ACR will run on it */
+		nvkm_engine_ref(&subdev->device->sec2->engine);
+		sb->boot_falcon = subdev->device->sec2->falcon;
+		sb->halt_falcon = subdev->device->pmu->falcon;
 		break;
 	default:
 		nvkm_error(subdev, "Unmanaged boot falcon %s!\n",
 			                nvkm_secboot_falcon_name[sb->acr->boot_falcon]);
 		return -EINVAL;
 	}
+	nvkm_debug(subdev, "using %s falcon for ACR\n", sb->boot_falcon->name);
 
 	/* Call chip-specific init function */
 	if (sb->func->oneinit)

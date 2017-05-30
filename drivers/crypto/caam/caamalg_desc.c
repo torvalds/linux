@@ -265,17 +265,19 @@ static void init_sh_desc_key_aead(u32 * const desc,
  *         split key is to be used, the size of the split key itself is
  *         specified. Valid algorithm values - one of OP_ALG_ALGSEL_{MD5, SHA1,
  *         SHA224, SHA256, SHA384, SHA512} ANDed with OP_ALG_AAI_HMAC_PRECOMP.
+ * @ivsize: initialization vector size
  * @icvsize: integrity check value (ICV) size (truncated or full)
  * @is_rfc3686: true when ctr(aes) is wrapped by rfc3686 template
  * @nonce: pointer to rfc3686 nonce
  * @ctx1_iv_off: IV offset in CONTEXT1 register
+ * @is_qi: true when called from caam/qi
  *
  * Note: Requires an MDHA split key.
  */
 void cnstr_shdsc_aead_encap(u32 * const desc, struct alginfo *cdata,
-			    struct alginfo *adata, unsigned int icvsize,
-			    const bool is_rfc3686, u32 *nonce,
-			    const u32 ctx1_iv_off)
+			    struct alginfo *adata, unsigned int ivsize,
+			    unsigned int icvsize, const bool is_rfc3686,
+			    u32 *nonce, const u32 ctx1_iv_off, const bool is_qi)
 {
 	/* Note: Context registers are saved. */
 	init_sh_desc_key_aead(desc, cdata, adata, is_rfc3686, nonce);
@@ -283,6 +285,25 @@ void cnstr_shdsc_aead_encap(u32 * const desc, struct alginfo *cdata,
 	/* Class 2 operation */
 	append_operation(desc, adata->algtype | OP_ALG_AS_INITFINAL |
 			 OP_ALG_ENCRYPT);
+
+	if (is_qi) {
+		u32 *wait_load_cmd;
+
+		/* REG3 = assoclen */
+		append_seq_load(desc, 4, LDST_CLASS_DECO |
+				LDST_SRCDST_WORD_DECO_MATH3 |
+				(4 << LDST_OFFSET_SHIFT));
+
+		wait_load_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
+					    JUMP_COND_CALM | JUMP_COND_NCP |
+					    JUMP_COND_NOP | JUMP_COND_NIP |
+					    JUMP_COND_NIFP);
+		set_jump_tgt_here(desc, wait_load_cmd);
+
+		append_seq_load(desc, ivsize, LDST_CLASS_1_CCB |
+				LDST_SRCDST_BYTE_CONTEXT |
+				(ctx1_iv_off << LDST_OFFSET_SHIFT));
+	}
 
 	/* Read and write assoclen bytes */
 	append_math_add(desc, VARSEQINLEN, ZERO, REG3, CAAM_CMD_SZ);
@@ -338,6 +359,7 @@ EXPORT_SYMBOL(cnstr_shdsc_aead_encap);
  * @is_rfc3686: true when ctr(aes) is wrapped by rfc3686 template
  * @nonce: pointer to rfc3686 nonce
  * @ctx1_iv_off: IV offset in CONTEXT1 register
+ * @is_qi: true when called from caam/qi
  *
  * Note: Requires an MDHA split key.
  */
@@ -345,7 +367,7 @@ void cnstr_shdsc_aead_decap(u32 * const desc, struct alginfo *cdata,
 			    struct alginfo *adata, unsigned int ivsize,
 			    unsigned int icvsize, const bool geniv,
 			    const bool is_rfc3686, u32 *nonce,
-			    const u32 ctx1_iv_off)
+			    const u32 ctx1_iv_off, const bool is_qi)
 {
 	/* Note: Context registers are saved. */
 	init_sh_desc_key_aead(desc, cdata, adata, is_rfc3686, nonce);
@@ -353,6 +375,26 @@ void cnstr_shdsc_aead_decap(u32 * const desc, struct alginfo *cdata,
 	/* Class 2 operation */
 	append_operation(desc, adata->algtype | OP_ALG_AS_INITFINAL |
 			 OP_ALG_DECRYPT | OP_ALG_ICV_ON);
+
+	if (is_qi) {
+		u32 *wait_load_cmd;
+
+		/* REG3 = assoclen */
+		append_seq_load(desc, 4, LDST_CLASS_DECO |
+				LDST_SRCDST_WORD_DECO_MATH3 |
+				(4 << LDST_OFFSET_SHIFT));
+
+		wait_load_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
+					    JUMP_COND_CALM | JUMP_COND_NCP |
+					    JUMP_COND_NOP | JUMP_COND_NIP |
+					    JUMP_COND_NIFP);
+		set_jump_tgt_here(desc, wait_load_cmd);
+
+		if (!geniv)
+			append_seq_load(desc, ivsize, LDST_CLASS_1_CCB |
+					LDST_SRCDST_BYTE_CONTEXT |
+					(ctx1_iv_off << LDST_OFFSET_SHIFT));
+	}
 
 	/* Read and write assoclen bytes */
 	append_math_add(desc, VARSEQINLEN, ZERO, REG3, CAAM_CMD_SZ);
@@ -423,21 +465,44 @@ EXPORT_SYMBOL(cnstr_shdsc_aead_decap);
  * @is_rfc3686: true when ctr(aes) is wrapped by rfc3686 template
  * @nonce: pointer to rfc3686 nonce
  * @ctx1_iv_off: IV offset in CONTEXT1 register
+ * @is_qi: true when called from caam/qi
  *
  * Note: Requires an MDHA split key.
  */
 void cnstr_shdsc_aead_givencap(u32 * const desc, struct alginfo *cdata,
 			       struct alginfo *adata, unsigned int ivsize,
 			       unsigned int icvsize, const bool is_rfc3686,
-			       u32 *nonce, const u32 ctx1_iv_off)
+			       u32 *nonce, const u32 ctx1_iv_off,
+			       const bool is_qi)
 {
 	u32 geniv, moveiv;
 
 	/* Note: Context registers are saved. */
 	init_sh_desc_key_aead(desc, cdata, adata, is_rfc3686, nonce);
 
-	if (is_rfc3686)
+	if (is_qi) {
+		u32 *wait_load_cmd;
+
+		/* REG3 = assoclen */
+		append_seq_load(desc, 4, LDST_CLASS_DECO |
+				LDST_SRCDST_WORD_DECO_MATH3 |
+				(4 << LDST_OFFSET_SHIFT));
+
+		wait_load_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
+					    JUMP_COND_CALM | JUMP_COND_NCP |
+					    JUMP_COND_NOP | JUMP_COND_NIP |
+					    JUMP_COND_NIFP);
+		set_jump_tgt_here(desc, wait_load_cmd);
+	}
+
+	if (is_rfc3686) {
+		if (is_qi)
+			append_seq_load(desc, ivsize, LDST_CLASS_1_CCB |
+					LDST_SRCDST_BYTE_CONTEXT |
+					(ctx1_iv_off << LDST_OFFSET_SHIFT));
+
 		goto copy_iv;
+	}
 
 	/* Generate IV */
 	geniv = NFIFOENTRY_STYPE_PAD | NFIFOENTRY_DEST_DECO |

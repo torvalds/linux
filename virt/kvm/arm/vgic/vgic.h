@@ -73,6 +73,29 @@
 				      KVM_REG_ARM_VGIC_SYSREG_CRM_MASK | \
 				      KVM_REG_ARM_VGIC_SYSREG_OP2_MASK)
 
+/*
+ * As per Documentation/virtual/kvm/devices/arm-vgic-its.txt,
+ * below macros are defined for ITS table entry encoding.
+ */
+#define KVM_ITS_CTE_VALID_SHIFT		63
+#define KVM_ITS_CTE_VALID_MASK		BIT_ULL(63)
+#define KVM_ITS_CTE_RDBASE_SHIFT	16
+#define KVM_ITS_CTE_ICID_MASK		GENMASK_ULL(15, 0)
+#define KVM_ITS_ITE_NEXT_SHIFT		48
+#define KVM_ITS_ITE_PINTID_SHIFT	16
+#define KVM_ITS_ITE_PINTID_MASK		GENMASK_ULL(47, 16)
+#define KVM_ITS_ITE_ICID_MASK		GENMASK_ULL(15, 0)
+#define KVM_ITS_DTE_VALID_SHIFT		63
+#define KVM_ITS_DTE_VALID_MASK		BIT_ULL(63)
+#define KVM_ITS_DTE_NEXT_SHIFT		49
+#define KVM_ITS_DTE_NEXT_MASK		GENMASK_ULL(62, 49)
+#define KVM_ITS_DTE_ITTADDR_SHIFT	5
+#define KVM_ITS_DTE_ITTADDR_MASK	GENMASK_ULL(48, 5)
+#define KVM_ITS_DTE_SIZE_MASK		GENMASK_ULL(4, 0)
+#define KVM_ITS_L1E_VALID_MASK		BIT_ULL(63)
+/* we only support 64 kB translation table page size */
+#define KVM_ITS_L1E_ADDR_MASK		GENMASK_ULL(51, 16)
+
 static inline bool irq_is_pending(struct vgic_irq *irq)
 {
 	if (irq->config == VGIC_CONFIG_EDGE)
@@ -81,11 +104,18 @@ static inline bool irq_is_pending(struct vgic_irq *irq)
 		return irq->pending_latch || irq->line_level;
 }
 
+/*
+ * This struct provides an intermediate representation of the fields contained
+ * in the GICH_VMCR and ICH_VMCR registers, such that code exporting the GIC
+ * state to userspace can generate either GICv2 or GICv3 CPU interface
+ * registers regardless of the hardware backed GIC used.
+ */
 struct vgic_vmcr {
 	u32	ctlr;
 	u32	abpr;
 	u32	bpr;
-	u32	pmr;
+	u32	pmr;  /* Priority mask field in the GICC_PMR and
+		       * ICC_PMR_EL1 priority field format */
 	/* Below member variable are valid only for GICv3 */
 	u32	grpen0;
 	u32	grpen1;
@@ -112,7 +142,6 @@ void vgic_kick_vcpus(struct kvm *kvm);
 int vgic_check_ioaddr(struct kvm *kvm, phys_addr_t *ioaddr,
 		      phys_addr_t addr, phys_addr_t alignment);
 
-void vgic_v2_process_maintenance(struct kvm_vcpu *vcpu);
 void vgic_v2_fold_lr_state(struct kvm_vcpu *vcpu);
 void vgic_v2_populate_lr(struct kvm_vcpu *vcpu, struct vgic_irq *irq, int lr);
 void vgic_v2_clear_lr(struct kvm_vcpu *vcpu, int lr);
@@ -130,6 +159,10 @@ int vgic_v2_map_resources(struct kvm *kvm);
 int vgic_register_dist_iodev(struct kvm *kvm, gpa_t dist_base_address,
 			     enum vgic_type);
 
+void vgic_v2_init_lrs(void);
+void vgic_v2_load(struct kvm_vcpu *vcpu);
+void vgic_v2_put(struct kvm_vcpu *vcpu);
+
 static inline void vgic_get_irq_kref(struct vgic_irq *irq)
 {
 	if (irq->intid < VGIC_MIN_LPI)
@@ -138,7 +171,6 @@ static inline void vgic_get_irq_kref(struct vgic_irq *irq)
 	kref_get(&irq->refcount);
 }
 
-void vgic_v3_process_maintenance(struct kvm_vcpu *vcpu);
 void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu);
 void vgic_v3_populate_lr(struct kvm_vcpu *vcpu, struct vgic_irq *irq, int lr);
 void vgic_v3_clear_lr(struct kvm_vcpu *vcpu, int lr);
@@ -148,9 +180,15 @@ void vgic_v3_get_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcr);
 void vgic_v3_enable(struct kvm_vcpu *vcpu);
 int vgic_v3_probe(const struct gic_kvm_info *info);
 int vgic_v3_map_resources(struct kvm *kvm);
-int vgic_register_redist_iodevs(struct kvm *kvm, gpa_t dist_base_address);
+int vgic_v3_lpi_sync_pending_status(struct kvm *kvm, struct vgic_irq *irq);
+int vgic_v3_save_pending_tables(struct kvm *kvm);
+int vgic_v3_set_redist_base(struct kvm *kvm, u64 addr);
+int vgic_register_redist_iodev(struct kvm_vcpu *vcpu);
+bool vgic_v3_check_base(struct kvm *kvm);
 
-int vgic_register_its_iodevs(struct kvm *kvm);
+void vgic_v3_load(struct kvm_vcpu *vcpu);
+void vgic_v3_put(struct kvm_vcpu *vcpu);
+
 bool vgic_has_its(struct kvm *kvm);
 int kvm_vgic_register_its_device(void);
 void vgic_enable_lpis(struct kvm_vcpu *vcpu);
@@ -174,5 +212,8 @@ int vgic_init(struct kvm *kvm);
 
 int vgic_debug_init(struct kvm *kvm);
 int vgic_debug_destroy(struct kvm *kvm);
+
+bool lock_all_vcpus(struct kvm *kvm);
+void unlock_all_vcpus(struct kvm *kvm);
 
 #endif

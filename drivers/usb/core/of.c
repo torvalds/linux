@@ -18,6 +18,7 @@
  */
 
 #include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/usb/of.h>
 
 /**
@@ -46,3 +47,28 @@ struct device_node *usb_of_get_child_node(struct device_node *parent,
 }
 EXPORT_SYMBOL_GPL(usb_of_get_child_node);
 
+/**
+ * usb_of_get_companion_dev - Find the companion device
+ * @dev: the device pointer to find a companion
+ *
+ * Find the companion device from platform bus.
+ *
+ * Takes a reference to the returned struct device which needs to be dropped
+ * after use.
+ *
+ * Return: On success, a pointer to the companion device, %NULL on failure.
+ */
+struct device *usb_of_get_companion_dev(struct device *dev)
+{
+	struct device_node *node;
+	struct platform_device *pdev = NULL;
+
+	node = of_parse_phandle(dev->of_node, "companion", 0);
+	if (node)
+		pdev = of_find_device_by_node(node);
+
+	of_node_put(node);
+
+	return pdev ? &pdev->dev : NULL;
+}
+EXPORT_SYMBOL_GPL(usb_of_get_companion_dev);

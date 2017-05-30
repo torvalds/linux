@@ -36,7 +36,7 @@ Optional properties:
                 control gpios
 
  - threshold:   allows setting the "click"-threshold in the range
-                from 20 to 80.
+                from 0 to 80.
 
  - gain:        allows setting the sensitivity in the range from 0 to
                 31. Note that lower values indicate higher

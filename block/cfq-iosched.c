@@ -3761,16 +3761,14 @@ static void cfq_init_cfqq(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 }
 
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
-static bool check_blkcg_changed(struct cfq_io_cq *cic, struct bio *bio)
+static void check_blkcg_changed(struct cfq_io_cq *cic, struct bio *bio)
 {
 	struct cfq_data *cfqd = cic_to_cfqd(cic);
 	struct cfq_queue *cfqq;
 	uint64_t serial_nr;
-	bool nonroot_cg;
 
 	rcu_read_lock();
 	serial_nr = bio_blkcg(bio)->css.serial_nr;
-	nonroot_cg = bio_blkcg(bio) != &blkcg_root;
 	rcu_read_unlock();
 
 	/*
@@ -3778,7 +3776,7 @@ static bool check_blkcg_changed(struct cfq_io_cq *cic, struct bio *bio)
 	 * spuriously on a newly created cic but there's no harm.
 	 */
 	if (unlikely(!cfqd) || likely(cic->blkcg_serial_nr == serial_nr))
-		return nonroot_cg;
+		return;
 
 	/*
 	 * Drop reference to queues.  New queues will be assigned in new
@@ -3799,12 +3797,10 @@ static bool check_blkcg_changed(struct cfq_io_cq *cic, struct bio *bio)
 	}
 
 	cic->blkcg_serial_nr = serial_nr;
-	return nonroot_cg;
 }
 #else
-static inline bool check_blkcg_changed(struct cfq_io_cq *cic, struct bio *bio)
+static inline void check_blkcg_changed(struct cfq_io_cq *cic, struct bio *bio)
 {
-	return false;
 }
 #endif  /* CONFIG_CFQ_GROUP_IOSCHED */
 
@@ -4449,12 +4445,11 @@ cfq_set_request(struct request_queue *q, struct request *rq, struct bio *bio,
 	const int rw = rq_data_dir(rq);
 	const bool is_sync = rq_is_sync(rq);
 	struct cfq_queue *cfqq;
-	bool disable_wbt;
 
 	spin_lock_irq(q->queue_lock);
 
 	check_ioprio_changed(cic, bio);
-	disable_wbt = check_blkcg_changed(cic, bio);
+	check_blkcg_changed(cic, bio);
 new_queue:
 	cfqq = cic_to_cfqq(cic, is_sync);
 	if (!cfqq || cfqq == &cfqd->oom_cfqq) {
@@ -4490,9 +4485,6 @@ new_queue:
 	rq->elv.priv[0] = cfqq;
 	rq->elv.priv[1] = cfqq->cfqg;
 	spin_unlock_irq(q->queue_lock);
-
-	if (disable_wbt)
-		wbt_disable_default(q);
 
 	return 0;
 }
@@ -4706,6 +4698,7 @@ static void cfq_registered_queue(struct request_queue *q)
 	 */
 	if (blk_queue_nonrot(q))
 		cfqd->cfq_slice_idle = 0;
+	wbt_disable_default(q);
 }
 
 /*

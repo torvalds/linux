@@ -456,6 +456,123 @@ bool cfg80211_chandef_dfs_usable(struct wiphy *wiphy,
 	return (r1 + r2 > 0);
 }
 
+/*
+ * Checks if center frequency of chan falls with in the bandwidth
+ * range of chandef.
+ */
+bool cfg80211_is_sub_chan(struct cfg80211_chan_def *chandef,
+			  struct ieee80211_channel *chan)
+{
+	int width;
+	u32 cf_offset, freq;
+
+	if (chandef->chan->center_freq == chan->center_freq)
+		return true;
+
+	width = cfg80211_chandef_get_width(chandef);
+	if (width <= 20)
+		return false;
+
+	cf_offset = width / 2 - 10;
+
+	for (freq = chandef->center_freq1 - width / 2 + 10;
+	     freq <= chandef->center_freq1 + width / 2 - 10; freq += 20) {
+		if (chan->center_freq == freq)
+			return true;
+	}
+
+	if (!chandef->center_freq2)
+		return false;
+
+	for (freq = chandef->center_freq2 - width / 2 + 10;
+	     freq <= chandef->center_freq2 + width / 2 - 10; freq += 20) {
+		if (chan->center_freq == freq)
+			return true;
+	}
+
+	return false;
+}
+
+bool cfg80211_beaconing_iface_active(struct wireless_dev *wdev)
+{
+	bool active = false;
+
+	ASSERT_WDEV_LOCK(wdev);
+
+	if (!wdev->chandef.chan)
+		return false;
+
+	switch (wdev->iftype) {
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_P2P_GO:
+		active = wdev->beacon_interval != 0;
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		active = wdev->ssid_len != 0;
+		break;
+	case NL80211_IFTYPE_MESH_POINT:
+		active = wdev->mesh_id_len != 0;
+		break;
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_OCB:
+	case NL80211_IFTYPE_P2P_CLIENT:
+	case NL80211_IFTYPE_MONITOR:
+	case NL80211_IFTYPE_AP_VLAN:
+	case NL80211_IFTYPE_WDS:
+	case NL80211_IFTYPE_P2P_DEVICE:
+	/* Can NAN type be considered as beaconing interface? */
+	case NL80211_IFTYPE_NAN:
+		break;
+	case NL80211_IFTYPE_UNSPECIFIED:
+	case NUM_NL80211_IFTYPES:
+		WARN_ON(1);
+	}
+
+	return active;
+}
+
+static bool cfg80211_is_wiphy_oper_chan(struct wiphy *wiphy,
+					struct ieee80211_channel *chan)
+{
+	struct wireless_dev *wdev;
+
+	list_for_each_entry(wdev, &wiphy->wdev_list, list) {
+		wdev_lock(wdev);
+		if (!cfg80211_beaconing_iface_active(wdev)) {
+			wdev_unlock(wdev);
+			continue;
+		}
+
+		if (cfg80211_is_sub_chan(&wdev->chandef, chan)) {
+			wdev_unlock(wdev);
+			return true;
+		}
+		wdev_unlock(wdev);
+	}
+
+	return false;
+}
+
+bool cfg80211_any_wiphy_oper_chan(struct wiphy *wiphy,
+				  struct ieee80211_channel *chan)
+{
+	struct cfg80211_registered_device *rdev;
+
+	ASSERT_RTNL();
+
+	if (!(chan->flags & IEEE80211_CHAN_RADAR))
+		return false;
+
+	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
+		if (!reg_dfs_domain_same(wiphy, &rdev->wiphy))
+			continue;
+
+		if (cfg80211_is_wiphy_oper_chan(&rdev->wiphy, chan))
+			return true;
+	}
+
+	return false;
+}
 
 static bool cfg80211_get_chans_dfs_available(struct wiphy *wiphy,
 					     u32 center_freq,

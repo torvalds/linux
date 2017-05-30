@@ -334,11 +334,6 @@ struct mtd_info {
 	int (*_get_device) (struct mtd_info *mtd);
 	void (*_put_device) (struct mtd_info *mtd);
 
-	/* Backing device capabilities for this device
-	 * - provides mmap capabilities
-	 */
-	struct backing_dev_info *backing_dev_info;
-
 	struct notifier_block reboot_notifier;  /* default mode before reboot */
 
 	/* ECC status information */
@@ -393,7 +388,7 @@ static inline void mtd_set_of_node(struct mtd_info *mtd,
 
 static inline struct device_node *mtd_get_of_node(struct mtd_info *mtd)
 {
-	return mtd->dev.of_node;
+	return dev_of_node(&mtd->dev);
 }
 
 static inline int mtd_oobavail(struct mtd_info *mtd, struct mtd_oob_ops *ops)

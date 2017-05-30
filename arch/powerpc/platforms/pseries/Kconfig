@@ -17,9 +17,10 @@ config PPC_PSERIES
 	select PPC_UDBG_16550
 	select PPC_NATIVE
 	select PPC_DOORBELL
-	select HOTPLUG_CPU if SMP
+	select HOTPLUG_CPU
 	select ARCH_RANDOM
 	select PPC_DOORBELL
+	select FORCE_SMP
 	default y
 
 config PPC_SPLPAR

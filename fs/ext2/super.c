@@ -32,12 +32,12 @@
 #include <linux/log2.h>
 #include <linux/quotaops.h>
 #include <linux/uaccess.h>
+#include <linux/dax.h>
 #include "ext2.h"
 #include "xattr.h"
 #include "acl.h"
 
-static void ext2_sync_super(struct super_block *sb,
-			    struct ext2_super_block *es, int wait);
+static void ext2_write_super(struct super_block *sb);
 static int ext2_remount (struct super_block * sb, int * flags, char * data);
 static int ext2_statfs (struct dentry * dentry, struct kstatfs * buf);
 static int ext2_sync_fs(struct super_block *sb, int wait);
@@ -123,13 +123,29 @@ void ext2_update_dynamic_rev(struct super_block *sb)
 	 */
 }
 
+#ifdef CONFIG_QUOTA
+static int ext2_quota_off(struct super_block *sb, int type);
+
+static void ext2_quota_off_umount(struct super_block *sb)
+{
+	int type;
+
+	for (type = 0; type < MAXQUOTAS; type++)
+		ext2_quota_off(sb, type);
+}
+#else
+static inline void ext2_quota_off_umount(struct super_block *sb)
+{
+}
+#endif
+
 static void ext2_put_super (struct super_block * sb)
 {
 	int db_count;
 	int i;
 	struct ext2_sb_info *sbi = EXT2_SB(sb);
 
-	dquot_disable(sb, -1, DQUOT_USAGE_ENABLED | DQUOT_LIMITS_ENABLED);
+	ext2_quota_off_umount(sb);
 
 	if (sbi->s_mb_cache) {
 		ext2_xattr_destroy_cache(sbi->s_mb_cache);
@@ -314,10 +330,23 @@ static int ext2_show_options(struct seq_file *seq, struct dentry *root)
 #ifdef CONFIG_QUOTA
 static ssize_t ext2_quota_read(struct super_block *sb, int type, char *data, size_t len, loff_t off);
 static ssize_t ext2_quota_write(struct super_block *sb, int type, const char *data, size_t len, loff_t off);
+static int ext2_quota_on(struct super_block *sb, int type, int format_id,
+			 const struct path *path);
 static struct dquot **ext2_get_dquots(struct inode *inode)
 {
 	return EXT2_I(inode)->i_dquot;
 }
+
+static const struct quotactl_ops ext2_quotactl_ops = {
+	.quota_on	= ext2_quota_on,
+	.quota_off	= ext2_quota_off,
+	.quota_sync	= dquot_quota_sync,
+	.get_state	= dquot_get_state,
+	.set_info	= dquot_set_dqinfo,
+	.get_dqblk	= dquot_get_dqblk,
+	.set_dqblk	= dquot_set_dqblk,
+	.get_nextdqblk	= dquot_get_next_dqblk,
+};
 #endif
 
 static const struct super_operations ext2_sops = {
@@ -1117,7 +1146,7 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 
 #ifdef CONFIG_QUOTA
 	sb->dq_op = &dquot_operations;
-	sb->s_qcop = &dquot_quotactl_ops;
+	sb->s_qcop = &ext2_quotactl_ops;
 	sb->s_quota_types = QTYPE_MASK_USR | QTYPE_MASK_GRP;
 #endif
 
@@ -1194,8 +1223,8 @@ static void ext2_clear_super_error(struct super_block *sb)
 	}
 }
 
-static void ext2_sync_super(struct super_block *sb, struct ext2_super_block *es,
-			    int wait)
+void ext2_sync_super(struct super_block *sb, struct ext2_super_block *es,
+		     int wait)
 {
 	ext2_clear_super_error(sb);
 	spin_lock(&EXT2_SB(sb)->s_lock);
@@ -1270,7 +1299,7 @@ static int ext2_unfreeze(struct super_block *sb)
 	return 0;
 }
 
-void ext2_write_super(struct super_block *sb)
+static void ext2_write_super(struct super_block *sb)
 {
 	if (!(sb->s_flags & MS_RDONLY))
 		ext2_sync_fs(sb, 1);
@@ -1546,6 +1575,51 @@ out:
 	inode->i_mtime = inode->i_ctime = current_time(inode);
 	mark_inode_dirty(inode);
 	return len - towrite;
+}
+
+static int ext2_quota_on(struct super_block *sb, int type, int format_id,
+			 const struct path *path)
+{
+	int err;
+	struct inode *inode;
+
+	err = dquot_quota_on(sb, type, format_id, path);
+	if (err)
+		return err;
+
+	inode = d_inode(path->dentry);
+	inode_lock(inode);
+	EXT2_I(inode)->i_flags |= EXT2_NOATIME_FL | EXT2_IMMUTABLE_FL;
+	inode_set_flags(inode, S_NOATIME | S_IMMUTABLE,
+			S_NOATIME | S_IMMUTABLE);
+	inode_unlock(inode);
+	mark_inode_dirty(inode);
+
+	return 0;
+}
+
+static int ext2_quota_off(struct super_block *sb, int type)
+{
+	struct inode *inode = sb_dqopt(sb)->files[type];
+	int err;
+
+	if (!inode || !igrab(inode))
+		goto out;
+
+	err = dquot_quota_off(sb, type);
+	if (err)
+		goto out_put;
+
+	inode_lock(inode);
+	EXT2_I(inode)->i_flags &= ~(EXT2_NOATIME_FL | EXT2_IMMUTABLE_FL);
+	inode_set_flags(inode, 0, S_NOATIME | S_IMMUTABLE);
+	inode_unlock(inode);
+	mark_inode_dirty(inode);
+out_put:
+	iput(inode);
+	return err;
+out:
+	return dquot_quota_off(sb, type);
 }
 
 #endif

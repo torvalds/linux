@@ -30,10 +30,12 @@
 #include <scsi/scsi_driver.h>
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_transport.h> /* __scsi_init_queue() */
 #include <scsi/scsi_dh.h>
 
 #include <trace/events/scsi.h>
 
+#include "scsi_debugfs.h"
 #include "scsi_priv.h"
 #include "scsi_logging.h"
 
@@ -229,8 +231,8 @@ void scsi_queue_insert(struct scsi_cmnd *cmd, int reason)
  * @rq_flags:	flags for ->rq_flags
  * @resid:	optional residual length
  *
- * returns the req->errors value which is the scsi_cmnd result
- * field.
+ * Returns the scsi_cmnd result field if a command was executed, or a negative
+ * Linux error code if we didn't get that far.
  */
 int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 		 int data_direction, void *buffer, unsigned bufflen,
@@ -256,7 +258,7 @@ int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 
 	rq->cmd_len = COMMAND_SIZE(cmd[0]);
 	memcpy(rq->cmd, cmd, rq->cmd_len);
-	req->retries = retries;
+	rq->retries = retries;
 	req->timeout = timeout;
 	req->cmd_flags |= flags;
 	req->rq_flags |= rq_flags | RQF_QUIET | RQF_PREEMPT;
@@ -281,7 +283,7 @@ int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 		memcpy(sense, rq->sense, SCSI_SENSE_BUFFERSIZE);
 	if (sshdr)
 		scsi_normalize_sense(rq->sense, rq->sense_len, sshdr);
-	ret = req->errors;
+	ret = rq->result;
  out:
 	blk_put_request(req);
 
@@ -496,7 +498,7 @@ static void scsi_run_queue(struct request_queue *q)
 		scsi_starved_list_run(sdev->host);
 
 	if (q->mq_ops)
-		blk_mq_start_stopped_hw_queues(q, false);
+		blk_mq_run_hw_queues(q, false);
 	else
 		blk_run_queue(q);
 }
@@ -667,7 +669,7 @@ static bool scsi_end_request(struct request *req, int error,
 		    !list_empty(&sdev->host->starved_list))
 			kblockd_schedule_work(&sdev->requeue_work);
 		else
-			blk_mq_start_stopped_hw_queues(q, true);
+			blk_mq_run_hw_queues(q, true);
 	} else {
 		unsigned long flags;
 
@@ -797,8 +799,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 		/*
 		 * __scsi_error_from_host_byte may have reset the host_byte
 		 */
-		req->errors = cmd->result;
-
+		scsi_req(req)->result = cmd->result;
 		scsi_req(req)->resid_len = scsi_get_resid(cmd);
 
 		if (scsi_bidi_cmnd(cmd)) {
@@ -835,7 +836,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	/*
 	 * Recovered errors need reporting, but they're always treated as
 	 * success, so fiddle the result code here.  For passthrough requests
-	 * we already took a copy of the original into rq->errors which
+	 * we already took a copy of the original into sreq->result which
 	 * is what gets returned to the user
 	 */
 	if (sense_valid && (sshdr.sense_key == RECOVERED_ERROR)) {
@@ -1061,10 +1062,10 @@ int scsi_init_io(struct scsi_cmnd *cmd)
 	struct scsi_device *sdev = cmd->device;
 	struct request *rq = cmd->request;
 	bool is_mq = (rq->mq_ctx != NULL);
-	int error;
+	int error = BLKPREP_KILL;
 
 	if (WARN_ON_ONCE(!blk_rq_nr_phys_segments(rq)))
-		return -EINVAL;
+		goto err_exit;
 
 	error = scsi_init_sgtable(rq, &cmd->sdb);
 	if (error)
@@ -1177,7 +1178,7 @@ static int scsi_setup_scsi_cmnd(struct scsi_device *sdev, struct request *req)
 	cmd->cmd_len = scsi_req(req)->cmd_len;
 	cmd->cmnd = scsi_req(req)->cmd;
 	cmd->transfersize = blk_rq_bytes(req);
-	cmd->allowed = req->retries;
+	cmd->allowed = scsi_req(req)->retries;
 	return BLKPREP_OK;
 }
 
@@ -1281,7 +1282,7 @@ scsi_prep_return(struct request_queue *q, struct request *req, int ret)
 	switch (ret) {
 	case BLKPREP_KILL:
 	case BLKPREP_INVALID:
-		req->errors = DID_NO_CONNECT << 16;
+		scsi_req(req)->result = DID_NO_CONNECT << 16;
 		/* release the command and kill it */
 		if (req->special) {
 			struct scsi_cmnd *cmd = req->special;
@@ -1593,8 +1594,8 @@ static void scsi_softirq_done(struct request *rq)
 			scsi_queue_insert(cmd, SCSI_MLQUEUE_DEVICE_BUSY);
 			break;
 		default:
-			if (!scsi_eh_scmd_add(cmd, 0))
-				scsi_finish_command(cmd);
+			scsi_eh_scmd_add(cmd);
+			break;
 	}
 }
 
@@ -1850,7 +1851,7 @@ static int scsi_mq_prep_fn(struct request *req)
 
 	/* zero out the cmd, except for the embedded scsi_request */
 	memset((char *)cmd + sizeof(cmd->req), 0,
-		sizeof(*cmd) - sizeof(cmd->req));
+		sizeof(*cmd) - sizeof(cmd->req) + shost->hostt->cmd_size);
 
 	req->special = cmd;
 
@@ -1905,7 +1906,7 @@ static int scsi_mq_prep_fn(struct request *req)
 static void scsi_mq_done(struct scsi_cmnd *cmd)
 {
 	trace_scsi_dispatch_cmd_done(cmd);
-	blk_mq_complete_request(cmd->request, cmd->request->errors);
+	blk_mq_complete_request(cmd->request);
 }
 
 static int scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
@@ -1974,7 +1975,7 @@ out:
 	case BLK_MQ_RQ_QUEUE_BUSY:
 		if (atomic_read(&sdev->device_busy) == 0 &&
 		    !scsi_device_blocked(sdev))
-			blk_mq_delay_queue(hctx, SCSI_QUEUE_DELAY);
+			blk_mq_delay_run_hw_queue(hctx, SCSI_QUEUE_DELAY);
 		break;
 	case BLK_MQ_RQ_QUEUE_ERROR:
 		/*
@@ -1999,11 +2000,10 @@ static enum blk_eh_timer_return scsi_timeout(struct request *req,
 	return scsi_times_out(req);
 }
 
-static int scsi_init_request(void *data, struct request *rq,
-		unsigned int hctx_idx, unsigned int request_idx,
-		unsigned int numa_node)
+static int scsi_init_request(struct blk_mq_tag_set *set, struct request *rq,
+		unsigned int hctx_idx, unsigned int numa_node)
 {
-	struct Scsi_Host *shost = data;
+	struct Scsi_Host *shost = set->driver_data;
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
 
 	cmd->sense_buffer =
@@ -2014,10 +2014,10 @@ static int scsi_init_request(void *data, struct request *rq,
 	return 0;
 }
 
-static void scsi_exit_request(void *data, struct request *rq,
-		unsigned int hctx_idx, unsigned int request_idx)
+static void scsi_exit_request(struct blk_mq_tag_set *set, struct request *rq,
+		unsigned int hctx_idx)
 {
-	struct Scsi_Host *shost = data;
+	struct Scsi_Host *shost = set->driver_data;
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
 
 	scsi_free_sense_buffer(shost, cmd->sense_buffer);
@@ -2154,10 +2154,13 @@ struct request_queue *scsi_alloc_queue(struct scsi_device *sdev)
 	return q;
 }
 
-static struct blk_mq_ops scsi_mq_ops = {
+static const struct blk_mq_ops scsi_mq_ops = {
 	.queue_rq	= scsi_queue_rq,
 	.complete	= scsi_softirq_done,
 	.timeout	= scsi_timeout,
+#ifdef CONFIG_BLK_DEBUG_FS
+	.show_rq	= scsi_show_rq,
+#endif
 	.init_request	= scsi_init_request,
 	.exit_request	= scsi_exit_request,
 	.map_queues	= scsi_map_queues,

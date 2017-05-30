@@ -580,6 +580,7 @@ const char *hda_get_autocfg_input_label(struct hda_codec *codec,
 		has_multiple_pins = 1;
 	if (has_multiple_pins && type == AUTO_PIN_MIC)
 		has_multiple_pins &= check_mic_location_need(codec, cfg, input);
+	has_multiple_pins |= codec->force_pin_prefix;
 	return hda_get_input_pin_label(codec, &cfg->inputs[input],
 				       cfg->inputs[input].pin,
 				       has_multiple_pins);

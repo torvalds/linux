@@ -174,7 +174,8 @@ void drbd_peer_request_endio(struct bio *bio)
 	struct drbd_peer_request *peer_req = bio->bi_private;
 	struct drbd_device *device = peer_req->peer_device->device;
 	bool is_write = bio_data_dir(bio) == WRITE;
-	bool is_discard = !!(bio_op(bio) == REQ_OP_DISCARD);
+	bool is_discard = bio_op(bio) == REQ_OP_WRITE_ZEROES ||
+			  bio_op(bio) == REQ_OP_DISCARD;
 
 	if (bio->bi_error && __ratelimit(&drbd_ratelimit_state))
 		drbd_warn(device, "%s: error=%d s=%llus\n",
@@ -249,6 +250,7 @@ void drbd_request_endio(struct bio *bio)
 	/* to avoid recursion in __req_mod */
 	if (unlikely(bio->bi_error)) {
 		switch (bio_op(bio)) {
+		case REQ_OP_WRITE_ZEROES:
 		case REQ_OP_DISCARD:
 			if (bio->bi_error == -EOPNOTSUPP)
 				what = DISCARD_COMPLETED_NOTSUPP;

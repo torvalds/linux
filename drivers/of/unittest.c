@@ -8,6 +8,7 @@
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/hashtable.h>
+#include <linux/libfdt.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/of_irq.h>
@@ -1925,6 +1926,324 @@ out:
 static inline void __init of_unittest_overlay(void) { }
 #endif
 
+/*
+ * __dtb_ot_begin[] and __dtb_ot_end[] are created by cmd_dt_S_dtb
+ * in scripts/Makefile.lib
+ */
+
+#define OVERLAY_INFO_EXTERN(name) \
+	extern uint8_t __dtb_##name##_begin[]; \
+	extern uint8_t __dtb_##name##_end[]
+
+#define OVERLAY_INFO(name, expected) \
+{	.dtb_begin	 = __dtb_##name##_begin, \
+	.dtb_end	 = __dtb_##name##_end, \
+	.expected_result = expected, \
+}
+
+struct overlay_info {
+	uint8_t		   *dtb_begin;
+	uint8_t		   *dtb_end;
+	void		   *data;
+	struct device_node *np_overlay;
+	int		   expected_result;
+	int		   overlay_id;
+};
+
+OVERLAY_INFO_EXTERN(overlay_base);
+OVERLAY_INFO_EXTERN(overlay);
+OVERLAY_INFO_EXTERN(overlay_bad_phandle);
+
+#ifdef CONFIG_OF_OVERLAY
+
+/* order of entries is hard-coded into users of overlays[] */
+static struct overlay_info overlays[] = {
+	OVERLAY_INFO(overlay_base, -9999),
+	OVERLAY_INFO(overlay, 0),
+	OVERLAY_INFO(overlay_bad_phandle, -EINVAL),
+	{}
+};
+
+static struct device_node *overlay_base_root;
+
+/*
+ * Create base device tree for the overlay unittest.
+ *
+ * This is called from very early boot code.
+ *
+ * Do as much as possible the same way as done in __unflatten_device_tree
+ * and other early boot steps for the normal FDT so that the overlay base
+ * unflattened tree will have the same characteristics as the real tree
+ * (such as having memory allocated by the early allocator).  The goal
+ * is to test "the real thing" as much as possible, and test "test setup
+ * code" as little as possible.
+ *
+ * Have to stop before resolving phandles, because that uses kmalloc.
+ */
+void __init unittest_unflatten_overlay_base(void)
+{
+	struct overlay_info *info;
+	u32 data_size;
+	u32 size;
+
+	info = &overlays[0];
+
+	if (info->expected_result != -9999) {
+		pr_err("No dtb 'overlay_base' to attach\n");
+		return;
+	}
+
+	data_size = info->dtb_end - info->dtb_begin;
+	if (!data_size) {
+		pr_err("No dtb 'overlay_base' to attach\n");
+		return;
+	}
+
+	size = fdt_totalsize(info->dtb_begin);
+	if (size != data_size) {
+		pr_err("dtb 'overlay_base' header totalsize != actual size");
+		return;
+	}
+
+	info->data = early_init_dt_alloc_memory_arch(size,
+					     roundup_pow_of_two(FDT_V17_SIZE));
+	if (!info->data) {
+		pr_err("alloc for dtb 'overlay_base' failed");
+		return;
+	}
+
+	memcpy(info->data, info->dtb_begin, size);
+
+	__unflatten_device_tree(info->data, NULL, &info->np_overlay,
+				early_init_dt_alloc_memory_arch, true);
+	overlay_base_root = info->np_overlay;
+}
+
+/*
+ * The purpose of of_unittest_overlay_data_add is to add an
+ * overlay in the normal fashion.  This is a test of the whole
+ * picture, instead of testing individual elements.
+ *
+ * A secondary purpose is to be able to verify that the contents of
+ * /proc/device-tree/ contains the updated structure and values from
+ * the overlay.  That must be verified separately in user space.
+ *
+ * Return 0 on unexpected error.
+ */
+static int __init overlay_data_add(int onum)
+{
+	struct overlay_info *info;
+	int k;
+	int ret;
+	u32 size;
+	u32 size_from_header;
+
+	for (k = 0, info = overlays; info; info++, k++) {
+		if (k == onum)
+			break;
+	}
+	if (onum > k)
+		return 0;
+
+	size = info->dtb_end - info->dtb_begin;
+	if (!size) {
+		pr_err("no overlay to attach, %d\n", onum);
+		ret = 0;
+	}
+
+	size_from_header = fdt_totalsize(info->dtb_begin);
+	if (size_from_header != size) {
+		pr_err("overlay header totalsize != actual size, %d", onum);
+		return 0;
+	}
+
+	/*
+	 * Must create permanent copy of FDT because of_fdt_unflatten_tree()
+	 * will create pointers to the passed in FDT in the EDT.
+	 */
+	info->data = kmemdup(info->dtb_begin, size, GFP_KERNEL);
+	if (!info->data) {
+		pr_err("unable to allocate memory for data, %d\n", onum);
+		return 0;
+	}
+
+	of_fdt_unflatten_tree(info->data, NULL, &info->np_overlay);
+	if (!info->np_overlay) {
+		pr_err("unable to unflatten overlay, %d\n", onum);
+		ret = 0;
+		goto out_free_data;
+	}
+	of_node_set_flag(info->np_overlay, OF_DETACHED);
+
+	ret = of_resolve_phandles(info->np_overlay);
+	if (ret) {
+		pr_err("resolve ot phandles (ret=%d), %d\n", ret, onum);
+		goto out_free_np_overlay;
+	}
+
+	ret = of_overlay_create(info->np_overlay);
+	if (ret < 0) {
+		pr_err("of_overlay_create() (ret=%d), %d\n", ret, onum);
+		goto out_free_np_overlay;
+	} else {
+		info->overlay_id = ret;
+		ret = 0;
+	}
+
+	pr_debug("__dtb_overlay_begin applied, overlay id %d\n", ret);
+
+	goto out;
+
+out_free_np_overlay:
+	/*
+	 * info->np_overlay is the unflattened device tree
+	 * It has not been spliced into the live tree.
+	 */
+
+	/* todo: function to free unflattened device tree */
+
+out_free_data:
+	kfree(info->data);
+
+out:
+	return (ret == info->expected_result);
+}
+
+/*
+ * The purpose of of_unittest_overlay_high_level is to add an overlay
+ * in the normal fashion.  This is a test of the whole picture,
+ * instead of individual elements.
+ *
+ * The first part of the function is _not_ normal overlay usage; it is
+ * finishing splicing the base overlay device tree into the live tree.
+ */
+static __init void of_unittest_overlay_high_level(void)
+{
+	struct device_node *last_sibling;
+	struct device_node *np;
+	struct device_node *of_symbols;
+	struct device_node *overlay_base_symbols;
+	struct device_node **pprev;
+	struct property *prop;
+	int ret;
+
+	if (!overlay_base_root) {
+		unittest(0, "overlay_base_root not initialized\n");
+		return;
+	}
+
+	/*
+	 * Could not fixup phandles in unittest_unflatten_overlay_base()
+	 * because kmalloc() was not yet available.
+	 */
+	of_resolve_phandles(overlay_base_root);
+
+	/*
+	 * do not allow overlay_base to duplicate any node already in
+	 * tree, this greatly simplifies the code
+	 */
+
+	/*
+	 * remove overlay_base_root node "__local_fixups", after
+	 * being used by of_resolve_phandles()
+	 */
+	pprev = &overlay_base_root->child;
+	for (np = overlay_base_root->child; np; np = np->sibling) {
+		if (!of_node_cmp(np->name, "__local_fixups__")) {
+			*pprev = np->sibling;
+			break;
+		}
+		pprev = &np->sibling;
+	}
+
+	/* remove overlay_base_root node "__symbols__" if in live tree */
+	of_symbols = of_get_child_by_name(of_root, "__symbols__");
+	if (of_symbols) {
+		/* will have to graft properties from node into live tree */
+		pprev = &overlay_base_root->child;
+		for (np = overlay_base_root->child; np; np = np->sibling) {
+			if (!of_node_cmp(np->name, "__symbols__")) {
+				overlay_base_symbols = np;
+				*pprev = np->sibling;
+				break;
+			}
+			pprev = &np->sibling;
+		}
+	}
+
+	for (np = overlay_base_root->child; np; np = np->sibling) {
+		if (of_get_child_by_name(of_root, np->name)) {
+			unittest(0, "illegal node name in overlay_base %s",
+				np->name);
+			return;
+		}
+	}
+
+	/*
+	 * overlay 'overlay_base' is not allowed to have root
+	 * properties, so only need to splice nodes into main device tree.
+	 *
+	 * root node of *overlay_base_root will not be freed, it is lost
+	 * memory.
+	 */
+
+	for (np = overlay_base_root->child; np; np = np->sibling)
+		np->parent = of_root;
+
+	mutex_lock(&of_mutex);
+
+	for (last_sibling = np = of_root->child; np; np = np->sibling)
+		last_sibling = np;
+
+	if (last_sibling)
+		last_sibling->sibling = overlay_base_root->child;
+	else
+		of_root->child = overlay_base_root->child;
+
+	for_each_of_allnodes_from(overlay_base_root, np)
+		__of_attach_node_sysfs(np);
+
+	if (of_symbols) {
+		for_each_property_of_node(overlay_base_symbols, prop) {
+			ret = __of_add_property(of_symbols, prop);
+			if (ret) {
+				unittest(0,
+					 "duplicate property '%s' in overlay_base node __symbols__",
+					 prop->name);
+				goto err_unlock;
+			}
+			ret = __of_add_property_sysfs(of_symbols, prop);
+			if (ret) {
+				unittest(0,
+					 "unable to add property '%s' in overlay_base node __symbols__ to sysfs",
+					 prop->name);
+				goto err_unlock;
+			}
+		}
+	}
+
+	mutex_unlock(&of_mutex);
+
+
+	/* now do the normal overlay usage test */
+
+	unittest(overlay_data_add(1),
+		 "Adding overlay 'overlay' failed\n");
+
+	unittest(overlay_data_add(2),
+		 "Adding overlay 'overlay_bad_phandle' failed\n");
+	return;
+
+err_unlock:
+	mutex_unlock(&of_mutex);
+}
+
+#else
+
+static inline __init void of_unittest_overlay_high_level(void) {}
+
+#endif
+
 static int __init of_unittest(void)
 {
 	struct device_node *np;
@@ -1961,6 +2280,8 @@ static int __init of_unittest(void)
 
 	/* Double check linkage after removing testcase data */
 	of_unittest_check_tree_linkage();
+
+	of_unittest_overlay_high_level();
 
 	pr_info("end of unittest - %i passed, %i failed\n",
 		unittest_results.passed, unittest_results.failed);

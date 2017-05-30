@@ -611,9 +611,6 @@ extern struct list_head amd_iommu_list;
  */
 extern struct amd_iommu *amd_iommus[MAX_IOMMUS];
 
-/* Number of IOMMUs present in the system */
-extern int amd_iommus_present;
-
 /*
  * Declarations for the global list of all protection domains
  */

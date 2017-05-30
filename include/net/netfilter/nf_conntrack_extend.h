@@ -43,8 +43,8 @@ enum nf_ct_ext_id {
 /* Extensions: optional stuff which isn't permanently in struct. */
 struct nf_ct_ext {
 	struct rcu_head rcu;
-	u16 offset[NF_CT_EXT_NUM];
-	u16 len;
+	u8 offset[NF_CT_EXT_NUM];
+	u8 len;
 	char data[0];
 };
 
@@ -69,12 +69,7 @@ static inline void *__nf_ct_ext_find(const struct nf_conn *ct, u8 id)
 	((id##_TYPE *)__nf_ct_ext_find((ext), (id)))
 
 /* Destroy all relationships */
-void __nf_ct_ext_destroy(struct nf_conn *ct);
-static inline void nf_ct_ext_destroy(struct nf_conn *ct)
-{
-	if (ct->ext)
-		__nf_ct_ext_destroy(ct);
-}
+void nf_ct_ext_destroy(struct nf_conn *ct);
 
 /* Free operation. If you want to free a object referred from private area,
  * please implement __nf_ct_ext_free() and call it.
@@ -86,15 +81,7 @@ static inline void nf_ct_ext_free(struct nf_conn *ct)
 }
 
 /* Add this type, returns pointer to data or NULL. */
-void *__nf_ct_ext_add_length(struct nf_conn *ct, enum nf_ct_ext_id id,
-			     size_t var_alloc_len, gfp_t gfp);
-
-#define nf_ct_ext_add(ct, id, gfp) \
-	((id##_TYPE *)__nf_ct_ext_add_length((ct), (id), 0, (gfp)))
-#define nf_ct_ext_add_length(ct, id, len, gfp) \
-	((id##_TYPE *)__nf_ct_ext_add_length((ct), (id), (len), (gfp)))
-
-#define NF_CT_EXT_F_PREALLOC	0x0001
+void *nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp);
 
 struct nf_ct_ext_type {
 	/* Destroys relationships (can be NULL). */
@@ -102,15 +89,11 @@ struct nf_ct_ext_type {
 
 	enum nf_ct_ext_id id;
 
-	unsigned int flags;
-
 	/* Length and min alignment. */
 	u8 len;
 	u8 align;
-	/* initial size of nf_ct_ext. */
-	u8 alloc_size;
 };
 
-int nf_ct_extend_register(struct nf_ct_ext_type *type);
-void nf_ct_extend_unregister(struct nf_ct_ext_type *type);
+int nf_ct_extend_register(const struct nf_ct_ext_type *type);
+void nf_ct_extend_unregister(const struct nf_ct_ext_type *type);
 #endif /* _NF_CONNTRACK_EXTEND_H */

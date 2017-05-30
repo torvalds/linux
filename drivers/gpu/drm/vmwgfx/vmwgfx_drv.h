@@ -153,7 +153,6 @@ enum vmw_cmdbuf_res_type {
 struct vmw_cmdbuf_res_manager;
 
 struct vmw_cursor_snooper {
-	struct drm_crtc *crtc;
 	size_t age;
 	uint32_t *image;
 };
@@ -415,6 +414,7 @@ struct vmw_private {
 	unsigned num_implicit;
 	struct vmw_framebuffer *implicit_fb;
 	struct mutex global_kms_state_mutex;
+	spinlock_t cursor_lock;
 
 	/*
 	 * Context and surface management.

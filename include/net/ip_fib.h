@@ -114,11 +114,11 @@ struct fib_info {
 	__be32			fib_prefsrc;
 	u32			fib_tb_id;
 	u32			fib_priority;
-	u32			*fib_metrics;
-#define fib_mtu fib_metrics[RTAX_MTU-1]
-#define fib_window fib_metrics[RTAX_WINDOW-1]
-#define fib_rtt fib_metrics[RTAX_RTT-1]
-#define fib_advmss fib_metrics[RTAX_ADVMSS-1]
+	struct dst_metrics	*fib_metrics;
+#define fib_mtu fib_metrics->metrics[RTAX_MTU-1]
+#define fib_window fib_metrics->metrics[RTAX_WINDOW-1]
+#define fib_rtt fib_metrics->metrics[RTAX_RTT-1]
+#define fib_advmss fib_metrics->metrics[RTAX_ADVMSS-1]
 	int			fib_nhs;
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	int			fib_weight;
@@ -213,6 +213,11 @@ struct fib_entry_notifier_info {
 	u32 tb_id;
 };
 
+struct fib_rule_notifier_info {
+	struct fib_notifier_info info; /* must be first */
+	struct fib_rule *rule;
+};
+
 struct fib_nh_notifier_info {
 	struct fib_notifier_info info; /* must be first */
 	struct fib_nh *fib_nh;
@@ -232,8 +237,20 @@ enum fib_event_type {
 int register_fib_notifier(struct notifier_block *nb,
 			  void (*cb)(struct notifier_block *nb));
 int unregister_fib_notifier(struct notifier_block *nb);
+int call_fib_notifier(struct notifier_block *nb, struct net *net,
+		      enum fib_event_type event_type,
+		      struct fib_notifier_info *info);
 int call_fib_notifiers(struct net *net, enum fib_event_type event_type,
 		       struct fib_notifier_info *info);
+
+void fib_notify(struct net *net, struct notifier_block *nb);
+#ifdef CONFIG_IP_MULTIPLE_TABLES
+void fib_rules_notify(struct net *net, struct notifier_block *nb);
+#else
+static inline void fib_rules_notify(struct net *net, struct notifier_block *nb)
+{
+}
+#endif
 
 struct fib_table {
 	struct hlist_node	tb_hlist;
@@ -299,6 +316,11 @@ static inline int fib_lookup(struct net *net, const struct flowi4 *flp,
 	return err;
 }
 
+static inline bool fib4_rule_default(const struct fib_rule *rule)
+{
+	return true;
+}
+
 #else /* CONFIG_IP_MULTIPLE_TABLES */
 int __net_init fib4_rules_init(struct net *net);
 void __net_exit fib4_rules_exit(struct net *net);
@@ -343,6 +365,8 @@ out:
 	return err;
 }
 
+bool fib4_rule_default(const struct fib_rule *rule);
+
 #endif /* CONFIG_IP_MULTIPLE_TABLES */
 
 /* Exported by fib_frontend.c */
@@ -371,17 +395,13 @@ int fib_sync_down_dev(struct net_device *dev, unsigned long event, bool force);
 int fib_sync_down_addr(struct net_device *dev, __be32 local);
 int fib_sync_up(struct net_device *dev, unsigned int nh_flags);
 
-extern u32 fib_multipath_secret __read_mostly;
-
-static inline int fib_multipath_hash(__be32 saddr, __be32 daddr)
-{
-	return jhash_2words((__force u32)saddr, (__force u32)daddr,
-			    fib_multipath_secret) >> 1;
-}
-
+#ifdef CONFIG_IP_ROUTE_MULTIPATH
+int fib_multipath_hash(const struct fib_info *fi, const struct flowi4 *fl4,
+		       const struct sk_buff *skb);
+#endif
 void fib_select_multipath(struct fib_result *res, int hash);
 void fib_select_path(struct net *net, struct fib_result *res,
-		     struct flowi4 *fl4, int mp_hash);
+		     struct flowi4 *fl4, const struct sk_buff *skb);
 
 /* Exported by fib_trie.c */
 void fib_trie_init(void);

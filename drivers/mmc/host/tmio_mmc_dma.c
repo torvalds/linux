@@ -43,6 +43,34 @@ void tmio_mmc_abort_dma(struct tmio_mmc_host *host)
 	tmio_mmc_enable_dma(host, true);
 }
 
+static void tmio_mmc_dma_callback(void *arg)
+{
+	struct tmio_mmc_host *host = arg;
+
+	spin_lock_irq(&host->lock);
+
+	if (!host->data)
+		goto out;
+
+	if (host->data->flags & MMC_DATA_READ)
+		dma_unmap_sg(host->chan_rx->device->dev,
+			     host->sg_ptr, host->sg_len,
+			     DMA_FROM_DEVICE);
+	else
+		dma_unmap_sg(host->chan_tx->device->dev,
+			     host->sg_ptr, host->sg_len,
+			     DMA_TO_DEVICE);
+
+	spin_unlock_irq(&host->lock);
+
+	wait_for_completion(&host->dma_dataend);
+
+	spin_lock_irq(&host->lock);
+	tmio_mmc_do_data_irq(host);
+out:
+	spin_unlock_irq(&host->lock);
+}
+
 static void tmio_mmc_start_dma_rx(struct tmio_mmc_host *host)
 {
 	struct scatterlist *sg = host->sg_ptr, *sg_tmp;
@@ -88,6 +116,10 @@ static void tmio_mmc_start_dma_rx(struct tmio_mmc_host *host)
 			DMA_DEV_TO_MEM, DMA_CTRL_ACK);
 
 	if (desc) {
+		reinit_completion(&host->dma_dataend);
+		desc->callback = tmio_mmc_dma_callback;
+		desc->callback_param = host;
+
 		cookie = dmaengine_submit(desc);
 		if (cookie < 0) {
 			desc = NULL;
@@ -162,6 +194,10 @@ static void tmio_mmc_start_dma_tx(struct tmio_mmc_host *host)
 			DMA_MEM_TO_DEV, DMA_CTRL_ACK);
 
 	if (desc) {
+		reinit_completion(&host->dma_dataend);
+		desc->callback = tmio_mmc_dma_callback;
+		desc->callback_param = host;
+
 		cookie = dmaengine_submit(desc);
 		if (cookie < 0) {
 			desc = NULL;
@@ -219,29 +255,6 @@ static void tmio_mmc_issue_tasklet_fn(unsigned long priv)
 
 	if (chan)
 		dma_async_issue_pending(chan);
-}
-
-static void tmio_mmc_tasklet_fn(unsigned long arg)
-{
-	struct tmio_mmc_host *host = (struct tmio_mmc_host *)arg;
-
-	spin_lock_irq(&host->lock);
-
-	if (!host->data)
-		goto out;
-
-	if (host->data->flags & MMC_DATA_READ)
-		dma_unmap_sg(host->chan_rx->device->dev,
-			     host->sg_ptr, host->sg_len,
-			     DMA_FROM_DEVICE);
-	else
-		dma_unmap_sg(host->chan_tx->device->dev,
-			     host->sg_ptr, host->sg_len,
-			     DMA_TO_DEVICE);
-
-	tmio_mmc_do_data_irq(host);
-out:
-	spin_unlock_irq(&host->lock);
 }
 
 void tmio_mmc_request_dma(struct tmio_mmc_host *host, struct tmio_mmc_data *pdata)
@@ -306,7 +319,7 @@ void tmio_mmc_request_dma(struct tmio_mmc_host *host, struct tmio_mmc_data *pdat
 		if (!host->bounce_buf)
 			goto ebouncebuf;
 
-		tasklet_init(&host->dma_complete, tmio_mmc_tasklet_fn, (unsigned long)host);
+		init_completion(&host->dma_dataend);
 		tasklet_init(&host->dma_issue, tmio_mmc_issue_tasklet_fn, (unsigned long)host);
 	}
 

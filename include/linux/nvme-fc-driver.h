@@ -27,8 +27,8 @@
 
 /* FC Port role bitmask - can merge with FC Port Roles in fc transport */
 #define FC_PORT_ROLE_NVME_INITIATOR	0x10
-#define FC_PORT_ROLE_NVME_TARGET	0x11
-#define FC_PORT_ROLE_NVME_DISCOVERY	0x12
+#define FC_PORT_ROLE_NVME_TARGET	0x20
+#define FC_PORT_ROLE_NVME_DISCOVERY	0x40
 
 
 /**
@@ -137,9 +137,9 @@ enum nvmefc_fcp_datadir {
  *             transferred. Should equal payload_length on success.
  * @rcv_rsplen: length, in bytes, of the FCP RSP IU received.
  * @status:    Completion status of the FCP operation. must be 0 upon success,
- *             NVME_SC_FC_xxx value upon failure. Note: this is NOT a
- *             reflection of the NVME CQE completion status. Only the status
- *             of the FCP operation at the NVME-FC level.
+ *             negative errno value upon failure (ex: -EIO). Note: this is
+ *             NOT a reflection of the NVME CQE completion status. Only the
+ *             status of the FCP operation at the NVME-FC level.
  */
 struct nvmefc_fcp_req {
 	void			*cmdaddr;
@@ -533,9 +533,6 @@ enum {
 					 * rsp as well
 					 */
 	NVMET_FCOP_RSP		= 4,	/* send rsp frame */
-	NVMET_FCOP_ABORT	= 5,	/* abort exchange via ABTS */
-	NVMET_FCOP_BA_ACC	= 6,	/* send BA_ACC */
-	NVMET_FCOP_BA_RJT	= 7,	/* send BA_RJT */
 };
 
 /**
@@ -571,8 +568,6 @@ enum {
  *     list, the transfer length, as well as the done routine to be called
  *     upon compeletion of the operation.  The nvmet-fc layer will also set a
  *     private pointer for its own use in the done routine.
- *
- * Note: the LLDD must never fail a NVMET_FCOP_ABORT request !!
  *
  * Values set by the NVMET-FC layer prior to calling the LLDD fcp_op
  * entrypoint.
@@ -647,13 +642,21 @@ enum {
 		 * sequence in one LLDD operation. Errors during Data
 		 * sequence transmit must not allow RSP sequence to be sent.
 		 */
-	NVMET_FCTGTFEAT_NEEDS_CMD_CPUSCHED = (1 << 1),
-		/* Bit 1: When 0, the LLDD will deliver FCP CMD
-		 * on the CPU it should be affinitized to. Thus work will
-		 * be scheduled on the cpu received on. When 1, the LLDD
-		 * may not deliver the CMD on the CPU it should be worked
-		 * on. The transport should pick a cpu to schedule the work
-		 * on.
+	NVMET_FCTGTFEAT_CMD_IN_ISR = (1 << 1),
+		/* Bit 2: When 0, the LLDD is calling the cmd rcv handler
+		 * in a non-isr context, allowing the transport to finish
+		 * op completion in the calling context. When 1, the LLDD
+		 * is calling the cmd rcv handler in an ISR context,
+		 * requiring the transport to transition to a workqueue
+		 * for op completion.
+		 */
+	NVMET_FCTGTFEAT_OPDONE_IN_ISR = (1 << 2),
+		/* Bit 3: When 0, the LLDD is calling the op done handler
+		 * in a non-isr context, allowing the transport to finish
+		 * op completion in the calling context. When 1, the LLDD
+		 * is calling the op done handler in an ISR context,
+		 * requiring the transport to transition to a workqueue
+		 * for op completion.
 		 */
 };
 
@@ -725,12 +728,12 @@ struct nvmet_fc_target_port {
  *       be freed/released.
  *       Entrypoint is Mandatory.
  *
- * @fcp_op:  Called to perform a data transfer, transmit a response, or
- *       abort an FCP opertion. The nvmefc_tgt_fcp_req structure is the same
- *       LLDD-supplied exchange structure specified in the
- *       nvmet_fc_rcv_fcp_req() call made when the FCP CMD IU was received.
- *       The op field in the structure shall indicate the operation for
- *       the LLDD to perform relative to the io.
+ * @fcp_op:  Called to perform a data transfer or transmit a response.
+ *       The nvmefc_tgt_fcp_req structure is the same LLDD-supplied
+ *       exchange structure specified in the nvmet_fc_rcv_fcp_req() call
+ *       made when the FCP CMD IU was received. The op field in the
+ *       structure shall indicate the operation for the LLDD to perform
+ *       relative to the io.
  *         NVMET_FCOP_READDATA operation: the LLDD is to send the
  *           payload data (described by sglist) to the host in 1 or
  *           more FC sequences (preferrably 1).  Note: the fc-nvme layer
@@ -752,29 +755,31 @@ struct nvmet_fc_target_port {
  *           successfully, the LLDD is to update the nvmefc_tgt_fcp_req
  *           transferred_length field and may subsequently transmit the
  *           FCP_RSP iu payload (described by rspbuf, rspdma, rsplen).
- *           The LLDD is to await FCP_CONF reception to confirm the RSP
- *           reception by the host. The LLDD may retramsit the FCP_RSP iu
- *           if necessary per FC-NVME. Upon reception of FCP_CONF, or upon
- *           FCP_CONF failure, the LLDD is to set the nvmefc_tgt_fcp_req
- *           fcp_error field and consider the operation complete..
- *         NVMET_FCOP_RSP: the LLDD is to transmit the FCP_RSP iu payload
- *           (described by rspbuf, rspdma, rsplen).  The LLDD is to await
- *           FCP_CONF reception to confirm the RSP reception by the host.
- *           The LLDD may retramsit the FCP_RSP iu if necessary per FC-NVME.
- *           Upon reception of FCP_CONF, or upon FCP_CONF failure, the
+ *           If FCP_CONF is supported, the LLDD is to await FCP_CONF
+ *           reception to confirm the RSP reception by the host. The LLDD
+ *           may retramsit the FCP_RSP iu if necessary per FC-NVME. Upon
+ *           transmission of the FCP_RSP iu if FCP_CONF is not supported,
+ *           or upon success/failure of FCP_CONF if it is supported, the
  *           LLDD is to set the nvmefc_tgt_fcp_req fcp_error field and
- *           consider the operation complete..
- *         NVMET_FCOP_ABORT: the LLDD is to terminate the exchange
- *           corresponding to the fcp operation. The LLDD shall send
- *           ABTS and follow FC exchange abort-multi rules, including
- *           ABTS retries and possible logout.
+ *           consider the operation complete.
+ *         NVMET_FCOP_RSP: the LLDD is to transmit the FCP_RSP iu payload
+ *           (described by rspbuf, rspdma, rsplen). If FCP_CONF is
+ *           supported, the LLDD is to await FCP_CONF reception to confirm
+ *           the RSP reception by the host. The LLDD may retramsit the
+ *           FCP_RSP iu if FCP_CONF is not received per FC-NVME. Upon
+ *           transmission of the FCP_RSP iu if FCP_CONF is not supported,
+ *           or upon success/failure of FCP_CONF if it is supported, the
+ *           LLDD is to set the nvmefc_tgt_fcp_req fcp_error field and
+ *           consider the operation complete.
  *       Upon completing the indicated operation, the LLDD is to set the
  *       status fields for the operation (tranferred_length and fcp_error
- *       status) in the request, then all the "done" routine
- *       indicated in the fcp request.  Upon return from the "done"
- *       routine for either a NVMET_FCOP_RSP or NVMET_FCOP_ABORT operation
- *       the fc-nvme layer will not longer reference the fcp request,
- *       allowing the LLDD to free/release the fcp request.
+ *       status) in the request, then call the "done" routine
+ *       indicated in the fcp request. After the operation completes,
+ *       regardless of whether the FCP_RSP iu was successfully transmit,
+ *       the LLDD-supplied exchange structure must remain valid until the
+ *       transport calls the fcp_req_release() callback to return ownership
+ *       of the exchange structure back to the LLDD so that it may be used
+ *       for another fcp command.
  *       Note: when calling the done routine for READDATA or WRITEDATA
  *       operations, the fc-nvme layer may immediate convert, in the same
  *       thread and before returning to the LLDD, the fcp operation to
@@ -785,6 +790,22 @@ struct nvmet_fc_target_port {
  *       routine.
  *       Returns 0 on success, -<errno> on failure (Ex: -EIO)
  *       Entrypoint is Mandatory.
+ *
+ * @fcp_abort:  Called by the transport to abort an active command.
+ *       The command may be in-between operations (nothing active in LLDD)
+ *       or may have an active WRITEDATA operation pending. The LLDD is to
+ *       initiate the ABTS process for the command and return from the
+ *       callback. The ABTS does not need to be complete on the command.
+ *       The fcp_abort callback inherently cannot fail. After the
+ *       fcp_abort() callback completes, the transport will wait for any
+ *       outstanding operation (if there was one) to complete, then will
+ *       call the fcp_req_release() callback to return the command's
+ *       exchange context back to the LLDD.
+ *
+ * @fcp_req_release:  Called by the transport to return a nvmefc_tgt_fcp_req
+ *       to the LLDD after all operations on the fcp operation are complete.
+ *       This may be due to the command completing or upon completion of
+ *       abort cleanup.
  *
  * @max_hw_queues:  indicates the maximum number of hw queues the LLDD
  *       supports for cpu affinitization.
@@ -820,7 +841,11 @@ struct nvmet_fc_target_template {
 	int (*xmt_ls_rsp)(struct nvmet_fc_target_port *tgtport,
 				struct nvmefc_tgt_ls_req *tls_req);
 	int (*fcp_op)(struct nvmet_fc_target_port *tgtport,
-				struct nvmefc_tgt_fcp_req *);
+				struct nvmefc_tgt_fcp_req *fcpreq);
+	void (*fcp_abort)(struct nvmet_fc_target_port *tgtport,
+				struct nvmefc_tgt_fcp_req *fcpreq);
+	void (*fcp_req_release)(struct nvmet_fc_target_port *tgtport,
+				struct nvmefc_tgt_fcp_req *fcpreq);
 
 	u32	max_hw_queues;
 	u16	max_sgl_segments;
@@ -847,5 +872,8 @@ int nvmet_fc_rcv_ls_req(struct nvmet_fc_target_port *tgtport,
 int nvmet_fc_rcv_fcp_req(struct nvmet_fc_target_port *tgtport,
 			struct nvmefc_tgt_fcp_req *fcpreq,
 			void *cmdiubuf, u32 cmdiubuf_len);
+
+void nvmet_fc_rcv_fcp_abort(struct nvmet_fc_target_port *tgtport,
+			struct nvmefc_tgt_fcp_req *fcpreq);
 
 #endif /* _NVME_FC_DRIVER_H */

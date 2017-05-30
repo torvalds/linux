@@ -108,6 +108,12 @@ enum {
 	PAUSE_AUTONEG = 1 << 2
 };
 
+enum {
+	FEC_AUTO      = 1 << 0,	 /* IEEE 802.3 "automatic" */
+	FEC_RS        = 1 << 1,  /* Reed-Solomon */
+	FEC_BASER_RS  = 1 << 2   /* BaseR/Reed-Solomon */
+};
+
 struct port_stats {
 	u64 tx_octets;            /* total # of octets in good frames */
 	u64 tx_frames;            /* all good frames */
@@ -432,6 +438,9 @@ struct link_config {
 	unsigned int   speed;            /* actual link speed */
 	unsigned char  requested_fc;     /* flow control user has requested */
 	unsigned char  fc;               /* actual link flow control */
+	unsigned char  auto_fec;	 /* Forward Error Correction: */
+	unsigned char  requested_fec;	 /* "automatic" (IEEE 802.3), */
+	unsigned char  fec;		 /* requested, and actual in use */
 	unsigned char  autoneg;          /* autonegotiating? */
 	unsigned char  link_ok;          /* link up? */
 	unsigned char  link_down_rc;     /* link down reason */
@@ -1184,8 +1193,6 @@ extern const char cxgb4_driver_version[];
 void t4_os_portmod_changed(const struct adapter *adap, int port_id);
 void t4_os_link_changed(struct adapter *adap, int port_id, int link_stat);
 
-void *t4_alloc_mem(size_t size);
-
 void t4_free_sge_resources(struct adapter *adap);
 void t4_free_ofld_rxqs(struct adapter *adap, int n, struct sge_ofld_rxq *q);
 irq_handler_t t4_intr_handler(struct adapter *adap);
@@ -1557,7 +1564,6 @@ int t4_sched_params(struct adapter *adapter, int type, int level, int mode,
 		    int rateunit, int ratemode, int channel, int class,
 		    int minrate, int maxrate, int weight, int pktsize);
 void t4_sge_decode_idma_state(struct adapter *adapter, int state);
-void t4_free_mem(void *addr);
 void t4_idma_monitor_init(struct adapter *adapter,
 			  struct sge_idma_monitor_state *idma);
 void t4_idma_monitor(struct adapter *adapter,

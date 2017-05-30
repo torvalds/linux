@@ -1542,7 +1542,7 @@ static int snd_emu10k1_pcm_efx_voices_mask_put(struct snd_kcontrol *kcontrol, st
 	return change;
 }
 
-static struct snd_kcontrol_new snd_emu10k1_pcm_efx_voices_mask = {
+static const struct snd_kcontrol_new snd_emu10k1_pcm_efx_voices_mask = {
 	.iface = SNDRV_CTL_ELEM_IFACE_PCM,
 	.name = "Captured FX8010 Outputs",
 	.info = snd_emu10k1_pcm_efx_voices_mask_info,

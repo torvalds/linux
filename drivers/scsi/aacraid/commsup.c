@@ -73,13 +73,13 @@ static int fib_map_alloc(struct aac_dev *dev)
 	}
 
 	dprintk((KERN_INFO
-	  "allocate hardware fibs pci_alloc_consistent(%p, %d * (%d + %d), %p)\n",
-	  dev->pdev, dev->max_cmd_size, dev->scsi_host_ptr->can_queue,
+	  "allocate hardware fibs dma_alloc_coherent(%p, %d * (%d + %d), %p)\n",
+	  &dev->pdev->dev, dev->max_cmd_size, dev->scsi_host_ptr->can_queue,
 	  AAC_NUM_MGT_FIB, &dev->hw_fib_pa));
-	dev->hw_fib_va = pci_alloc_consistent(dev->pdev,
+	dev->hw_fib_va = dma_alloc_coherent(&dev->pdev->dev,
 		(dev->max_cmd_size + sizeof(struct aac_fib_xporthdr))
 		* (dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB) + (ALIGN32 - 1),
-		&dev->hw_fib_pa);
+		&dev->hw_fib_pa, GFP_KERNEL);
 	if (dev->hw_fib_va == NULL)
 		return -ENOMEM;
 	return 0;
@@ -106,8 +106,8 @@ void aac_fib_map_free(struct aac_dev *dev)
 	fib_size = dev->max_fib_size + sizeof(struct aac_fib_xporthdr);
 	alloc_size = fib_size * num_fibs + ALIGN32 - 1;
 
-	pci_free_consistent(dev->pdev, alloc_size, dev->hw_fib_va,
-							dev->hw_fib_pa);
+	dma_free_coherent(&dev->pdev->dev, alloc_size, dev->hw_fib_va,
+			  dev->hw_fib_pa);
 
 	dev->hw_fib_va = NULL;
 	dev->hw_fib_pa = 0;
@@ -1571,7 +1571,8 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 	 * case.
 	 */
 	aac_fib_map_free(aac);
-	pci_free_consistent(aac->pdev, aac->comm_size, aac->comm_addr, aac->comm_phys);
+	dma_free_coherent(&aac->pdev->dev, aac->comm_size, aac->comm_addr,
+			  aac->comm_phys);
 	aac->comm_addr = NULL;
 	aac->comm_phys = 0;
 	kfree(aac->queues);
@@ -1873,7 +1874,8 @@ int aac_check_health(struct aac_dev * aac)
 	spin_unlock_irqrestore(&aac->fib_lock, flagv);
 
 	if (BlinkLED < 0) {
-		printk(KERN_ERR "%s: Host adapter dead %d\n", aac->name, BlinkLED);
+		printk(KERN_ERR "%s: Host adapter is dead (or got a PCI error) %d\n",
+				aac->name, BlinkLED);
 		goto out;
 	}
 
@@ -2318,7 +2320,8 @@ static int aac_send_wellness_command(struct aac_dev *dev, char *wellness_str,
 	if (!fibptr)
 		goto out;
 
-	dma_buf = pci_alloc_consistent(dev->pdev, datasize, &addr);
+	dma_buf = dma_alloc_coherent(&dev->pdev->dev, datasize, &addr,
+				     GFP_KERNEL);
 	if (!dma_buf)
 		goto fib_free_out;
 
@@ -2353,7 +2356,7 @@ static int aac_send_wellness_command(struct aac_dev *dev, char *wellness_str,
 	ret = aac_fib_send(ScsiPortCommand64, fibptr, sizeof(struct aac_srb),
 				FsaNormal, 1, 1, NULL, NULL);
 
-	pci_free_consistent(dev->pdev, datasize, (void *)dma_buf, addr);
+	dma_free_coherent(&dev->pdev->dev, datasize, dma_buf, addr);
 
 	/*
 	 * Do not set XferState to zero unless

@@ -217,7 +217,14 @@ pnfs_generic_alloc_ds_commits(struct nfs_commit_info *cinfo,
 	for (i = 0; i < fl_cinfo->nbuckets; i++, bucket++) {
 		if (list_empty(&bucket->committing))
 			continue;
-		data = nfs_commitdata_alloc();
+		/*
+		 * If the layout segment is invalid, then let
+		 * pnfs_generic_retry_commit() clean up the bucket.
+		 */
+		if (bucket->clseg && !pnfs_is_valid_lseg(bucket->clseg) &&
+		    !test_bit(NFS_LSEG_LAYOUTRETURN, &bucket->clseg->pls_flags))
+			break;
+		data = nfs_commitdata_alloc(false);
 		if (!data)
 			break;
 		data->ds_commit_index = i;
@@ -283,16 +290,10 @@ pnfs_generic_commit_pagelist(struct inode *inode, struct list_head *mds_pages,
 	unsigned int nreq = 0;
 
 	if (!list_empty(mds_pages)) {
-		data = nfs_commitdata_alloc();
-		if (data != NULL) {
-			data->ds_commit_index = -1;
-			list_add(&data->pages, &list);
-			nreq++;
-		} else {
-			nfs_retry_commit(mds_pages, NULL, cinfo, 0);
-			pnfs_generic_retry_commit(cinfo, 0);
-			return -ENOMEM;
-		}
+		data = nfs_commitdata_alloc(true);
+		data->ds_commit_index = -1;
+		list_add(&data->pages, &list);
+		nreq++;
 	}
 
 	nreq += pnfs_generic_alloc_ds_commits(cinfo, &list);
@@ -619,7 +620,6 @@ void nfs4_pnfs_v3_ds_connect_unload(void)
 		get_v3_ds_connect = NULL;
 	}
 }
-EXPORT_SYMBOL_GPL(nfs4_pnfs_v3_ds_connect_unload);
 
 static int _nfs4_pnfs_v3_ds_connect(struct nfs_server *mds_srv,
 				 struct nfs4_pnfs_ds *ds,

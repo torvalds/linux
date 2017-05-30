@@ -11,6 +11,8 @@
 #include <linux/bootmem.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>
+
+#include <asm/e820/api.h>
 #include <asm/efi.h>
 #include <asm/uv/uv.h>
 
@@ -201,6 +203,10 @@ void __init efi_arch_mem_reserve(phys_addr_t addr, u64 size)
 		return;
 	}
 
+	/* No need to reserve regions that will never be freed. */
+	if (md.attribute & EFI_MEMORY_RUNTIME)
+		return;
+
 	size += addr % EFI_PAGE_SIZE;
 	size = round_up(size, EFI_PAGE_SIZE);
 	addr = round_down(addr, EFI_PAGE_SIZE);
@@ -240,14 +246,14 @@ void __init efi_arch_mem_reserve(phys_addr_t addr, u64 size)
  * else. We must only reserve (and then free) regions:
  *
  * - Not within any part of the kernel
- * - Not the BIOS reserved area (E820_RESERVED, E820_NVS, etc)
+ * - Not the BIOS reserved area (E820_TYPE_RESERVED, E820_TYPE_NVS, etc)
  */
 static bool can_free_region(u64 start, u64 size)
 {
 	if (start + size > __pa_symbol(_text) && start <= __pa_symbol(_end))
 		return false;
 
-	if (!e820_all_mapped(start, start+size, E820_RAM))
+	if (!e820__mapped_all(start, start+size, E820_TYPE_RAM))
 		return false;
 
 	return true;
@@ -280,7 +286,7 @@ void __init efi_reserve_boot_services(void)
 		 * A good example of a critical region that must not be
 		 * freed is page zero (first 4Kb of memory), which may
 		 * contain boot services code/data but is marked
-		 * E820_RESERVED by trim_bios_range().
+		 * E820_TYPE_RESERVED by trim_bios_range().
 		 */
 		if (!already_reserved) {
 			memblock_reserve(start, size);

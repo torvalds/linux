@@ -1477,6 +1477,9 @@ int kptr_restrict __read_mostly;
  * by an extra set of alphanumeric characters that are extended format
  * specifiers.
  *
+ * Please update scripts/checkpatch.pl when adding/removing conversion
+ * characters.  (Search for "check for vsprintf extension").
+ *
  * Right now we handle:
  *
  * - 'F' For symbolic function descriptor pointers with offset
@@ -1954,13 +1957,13 @@ set_precision(struct printf_spec *spec, int prec)
  * This function generally follows C99 vsnprintf, but has some
  * extensions and a few limitations:
  *
- * %n is unsupported
- * %p* is handled by pointer()
+ *  - ``%n`` is unsupported
+ *  - ``%p*`` is handled by pointer()
  *
  * See pointer() or Documentation/printk-formats.txt for more
  * extensive description.
  *
- * ** Please update the documentation in both places when making changes **
+ * **Please update the documentation in both places when making changes**
  *
  * The return value is the number of characters which would
  * be generated for the given input, excluding the trailing

@@ -361,8 +361,12 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	case  NLP_STE_PRLI_ISSUE:
 	case  NLP_STE_UNMAPPED_NODE:
 	case  NLP_STE_MAPPED_NODE:
-		/* lpfc_plogi_confirm_nport skips fabric did, handle it here */
-		if (!(ndlp->nlp_type & NLP_FABRIC)) {
+		/* For initiators, lpfc_plogi_confirm_nport skips fabric did.
+		 * For target mode, execute implicit logo.
+		 * Fabric nodes go into NPR.
+		 */
+		if (!(ndlp->nlp_type & NLP_FABRIC) &&
+		    !(phba->nvmet_support)) {
 			lpfc_els_rsp_acc(vport, ELS_CMD_PLOGI, cmdiocb,
 					 ndlp, NULL);
 			return 1;
@@ -1940,7 +1944,13 @@ lpfc_cmpl_prli_prli_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 		/* Target driver cannot solicit NVME FB. */
 		if (bf_get_be32(prli_tgt, nvpr)) {
+			/* Complete the nvme target roles.  The transport
+			 * needs to know if the rport is capable of
+			 * discovery in addition to its role.
+			 */
 			ndlp->nlp_type |= NLP_NVME_TARGET;
+			if (bf_get_be32(prli_disc, nvpr))
+				ndlp->nlp_type |= NLP_NVME_DISCOVERY;
 			if ((bf_get_be32(prli_fba, nvpr) == 1) &&
 			    (bf_get_be32(prli_fb_sz, nvpr) > 0) &&
 			    (phba->cfg_nvme_enable_fb) &&

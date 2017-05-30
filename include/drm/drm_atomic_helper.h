@@ -94,17 +94,23 @@ int drm_atomic_helper_update_plane(struct drm_plane *plane,
 				   int crtc_x, int crtc_y,
 				   unsigned int crtc_w, unsigned int crtc_h,
 				   uint32_t src_x, uint32_t src_y,
-				   uint32_t src_w, uint32_t src_h);
-int drm_atomic_helper_disable_plane(struct drm_plane *plane);
+				   uint32_t src_w, uint32_t src_h,
+				   struct drm_modeset_acquire_ctx *ctx);
+int drm_atomic_helper_disable_plane(struct drm_plane *plane,
+				    struct drm_modeset_acquire_ctx *ctx);
 int __drm_atomic_helper_disable_plane(struct drm_plane *plane,
 		struct drm_plane_state *plane_state);
-int drm_atomic_helper_set_config(struct drm_mode_set *set);
+int drm_atomic_helper_set_config(struct drm_mode_set *set,
+				 struct drm_modeset_acquire_ctx *ctx);
 int __drm_atomic_helper_set_config(struct drm_mode_set *set,
 		struct drm_atomic_state *state);
 
 int drm_atomic_helper_disable_all(struct drm_device *dev,
 				  struct drm_modeset_acquire_ctx *ctx);
+void drm_atomic_helper_shutdown(struct drm_device *dev);
 struct drm_atomic_state *drm_atomic_helper_suspend(struct drm_device *dev);
+int drm_atomic_helper_commit_duplicated_state(struct drm_atomic_state *state,
+					      struct drm_modeset_acquire_ctx *ctx);
 int drm_atomic_helper_resume(struct drm_device *dev,
 			     struct drm_atomic_state *state);
 
@@ -120,13 +126,15 @@ int drm_atomic_helper_connector_set_property(struct drm_connector *connector,
 int drm_atomic_helper_page_flip(struct drm_crtc *crtc,
 				struct drm_framebuffer *fb,
 				struct drm_pending_vblank_event *event,
-				uint32_t flags);
+				uint32_t flags,
+				struct drm_modeset_acquire_ctx *ctx);
 int drm_atomic_helper_page_flip_target(
 				struct drm_crtc *crtc,
 				struct drm_framebuffer *fb,
 				struct drm_pending_vblank_event *event,
 				uint32_t flags,
-				uint32_t target);
+				uint32_t target,
+				struct drm_modeset_acquire_ctx *ctx);
 int drm_atomic_helper_connector_dpms(struct drm_connector *connector,
 				     int mode);
 struct drm_encoder *
@@ -168,7 +176,8 @@ void drm_atomic_helper_connector_destroy_state(struct drm_connector *connector,
 					  struct drm_connector_state *state);
 int drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
 				       u16 *red, u16 *green, u16 *blue,
-				       uint32_t size);
+				       uint32_t size,
+				       struct drm_modeset_acquire_ctx *ctx);
 
 /**
  * drm_atomic_crtc_for_each_plane - iterate over planes currently attached to CRTC
@@ -218,10 +227,10 @@ int drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
 			      __drm_atomic_get_current_plane_state((crtc_state)->state, \
 								   plane)))
 
-/*
+/**
  * drm_atomic_plane_disabling - check whether a plane is being disabled
- * @plane: plane object
- * @old_state: previous atomic state
+ * @old_plane_state: old atomic plane state
+ * @new_plane_state: new atomic plane state
  *
  * Checks the atomic state of a plane to determine whether it's being disabled
  * or not. This also WARNs if it detects an invalid state (both CRTC and FB
@@ -231,28 +240,18 @@ int drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
  * True if the plane is being disabled, false otherwise.
  */
 static inline bool
-drm_atomic_plane_disabling(struct drm_plane *plane,
-			   struct drm_plane_state *old_state)
+drm_atomic_plane_disabling(struct drm_plane_state *old_plane_state,
+			   struct drm_plane_state *new_plane_state)
 {
 	/*
 	 * When disabling a plane, CRTC and FB should always be NULL together.
 	 * Anything else should be considered a bug in the atomic core, so we
 	 * gently warn about it.
 	 */
-	WARN_ON((plane->state->crtc == NULL && plane->state->fb != NULL) ||
-		(plane->state->crtc != NULL && plane->state->fb == NULL));
+	WARN_ON((new_plane_state->crtc == NULL && new_plane_state->fb != NULL) ||
+		(new_plane_state->crtc != NULL && new_plane_state->fb == NULL));
 
-	/*
-	 * When using the transitional helpers, old_state may be NULL. If so,
-	 * we know nothing about the current state and have to assume that it
-	 * might be enabled.
-	 *
-	 * When using the atomic helpers, old_state won't be NULL. Therefore
-	 * this check assumes that either the driver will have reconstructed
-	 * the correct state in ->reset() or that the driver will have taken
-	 * appropriate measures to disable all planes.
-	 */
-	return (!old_state || old_state->crtc) && !plane->state->crtc;
+	return old_plane_state->crtc && !new_plane_state->crtc;
 }
 
 #endif /* DRM_ATOMIC_HELPER_H_ */

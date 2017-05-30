@@ -31,6 +31,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
+#include <linux/of_device.h>
 #include <linux/of.h>
 
 #include <linux/i2c/ads1015.h>
@@ -268,7 +269,12 @@ static int ads1015_probe(struct i2c_client *client,
 			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
-	data->id = id->driver_data;
+
+	if (client->dev.of_node)
+		data->id = (enum ads1015_chips)
+			of_device_get_match_data(&client->dev);
+	else
+		data->id = id->driver_data;
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
 
@@ -303,9 +309,23 @@ static const struct i2c_device_id ads1015_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ads1015_id);
 
+static const struct of_device_id ads1015_of_match[] = {
+	{
+		.compatible = "ti,ads1015",
+		.data = (void *)ads1015
+	},
+	{
+		.compatible = "ti,ads1115",
+		.data = (void *)ads1115
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, ads1015_of_match);
+
 static struct i2c_driver ads1015_driver = {
 	.driver = {
 		.name = "ads1015",
+		.of_match_table = of_match_ptr(ads1015_of_match),
 	},
 	.probe = ads1015_probe,
 	.remove = ads1015_remove,

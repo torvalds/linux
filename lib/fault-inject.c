@@ -56,7 +56,7 @@ static void fail_dump(struct fault_attr *attr)
 
 static bool fail_task(struct fault_attr *attr, struct task_struct *task)
 {
-	return !in_interrupt() && task->make_it_fail;
+	return in_task() && task->make_it_fail;
 }
 
 #define MAX_STACK_TRACE_DEPTH 32

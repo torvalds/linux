@@ -65,7 +65,8 @@ static void vce_v3_0_mc_resume(struct amdgpu_device *adev, int idx);
 static void vce_v3_0_set_ring_funcs(struct amdgpu_device *adev);
 static void vce_v3_0_set_irq_funcs(struct amdgpu_device *adev);
 static int vce_v3_0_wait_for_idle(void *handle);
-
+static int vce_v3_0_set_clockgating_state(void *handle,
+					  enum amd_clockgating_state state);
 /**
  * vce_v3_0_ring_get_rptr - get read pointer
  *
@@ -73,7 +74,7 @@ static int vce_v3_0_wait_for_idle(void *handle);
  *
  * Returns the current hardware read pointer
  */
-static uint32_t vce_v3_0_ring_get_rptr(struct amdgpu_ring *ring)
+static uint64_t vce_v3_0_ring_get_rptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 
@@ -92,7 +93,7 @@ static uint32_t vce_v3_0_ring_get_rptr(struct amdgpu_ring *ring)
  *
  * Returns the current hardware write pointer
  */
-static uint32_t vce_v3_0_ring_get_wptr(struct amdgpu_ring *ring)
+static uint64_t vce_v3_0_ring_get_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 
@@ -116,11 +117,11 @@ static void vce_v3_0_ring_set_wptr(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 
 	if (ring == &adev->vce.ring[0])
-		WREG32(mmVCE_RB_WPTR, ring->wptr);
+		WREG32(mmVCE_RB_WPTR, lower_32_bits(ring->wptr));
 	else if (ring == &adev->vce.ring[1])
-		WREG32(mmVCE_RB_WPTR2, ring->wptr);
+		WREG32(mmVCE_RB_WPTR2, lower_32_bits(ring->wptr));
 	else
-		WREG32(mmVCE_RB_WPTR3, ring->wptr);
+		WREG32(mmVCE_RB_WPTR3, lower_32_bits(ring->wptr));
 }
 
 static void vce_v3_0_override_vce_clock_gating(struct amdgpu_device *adev, bool override)
@@ -231,22 +232,22 @@ static int vce_v3_0_start(struct amdgpu_device *adev)
 	int idx, r;
 
 	ring = &adev->vce.ring[0];
-	WREG32(mmVCE_RB_RPTR, ring->wptr);
-	WREG32(mmVCE_RB_WPTR, ring->wptr);
+	WREG32(mmVCE_RB_RPTR, lower_32_bits(ring->wptr));
+	WREG32(mmVCE_RB_WPTR, lower_32_bits(ring->wptr));
 	WREG32(mmVCE_RB_BASE_LO, ring->gpu_addr);
 	WREG32(mmVCE_RB_BASE_HI, upper_32_bits(ring->gpu_addr));
 	WREG32(mmVCE_RB_SIZE, ring->ring_size / 4);
 
 	ring = &adev->vce.ring[1];
-	WREG32(mmVCE_RB_RPTR2, ring->wptr);
-	WREG32(mmVCE_RB_WPTR2, ring->wptr);
+	WREG32(mmVCE_RB_RPTR2, lower_32_bits(ring->wptr));
+	WREG32(mmVCE_RB_WPTR2, lower_32_bits(ring->wptr));
 	WREG32(mmVCE_RB_BASE_LO2, ring->gpu_addr);
 	WREG32(mmVCE_RB_BASE_HI2, upper_32_bits(ring->gpu_addr));
 	WREG32(mmVCE_RB_SIZE2, ring->ring_size / 4);
 
 	ring = &adev->vce.ring[2];
-	WREG32(mmVCE_RB_RPTR3, ring->wptr);
-	WREG32(mmVCE_RB_WPTR3, ring->wptr);
+	WREG32(mmVCE_RB_RPTR3, lower_32_bits(ring->wptr));
+	WREG32(mmVCE_RB_WPTR3, lower_32_bits(ring->wptr));
 	WREG32(mmVCE_RB_BASE_LO3, ring->gpu_addr);
 	WREG32(mmVCE_RB_BASE_HI3, upper_32_bits(ring->gpu_addr));
 	WREG32(mmVCE_RB_SIZE3, ring->ring_size / 4);
@@ -305,12 +306,8 @@ static int vce_v3_0_stop(struct amdgpu_device *adev)
 		/* hold on ECPU */
 		WREG32_FIELD(VCE_SOFT_RESET, ECPU_SOFT_RESET, 1);
 
-		/* clear BUSY flag */
-		WREG32_FIELD(VCE_STATUS, JOB_BUSY, 0);
-
-		/* Set Clock-Gating off */
-		if (adev->cg_flags & AMD_CG_SUPPORT_VCE_MGCG)
-			vce_v3_0_set_vce_sw_clock_gating(adev, false);
+		/* clear VCE STATUS */
+		WREG32(mmVCE_STATUS, 0);
 	}
 
 	WREG32(mmGRBM_GFX_INDEX, mmGRBM_GFX_INDEX_DEFAULT);
@@ -383,7 +380,7 @@ static int vce_v3_0_sw_init(void *handle)
 	int r, i;
 
 	/* VCE */
-	r = amdgpu_irq_add_id(adev, 167, &adev->vce.irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 167, &adev->vce.irq);
 	if (r)
 		return r;
 
@@ -420,11 +417,7 @@ static int vce_v3_0_sw_fini(void *handle)
 	if (r)
 		return r;
 
-	r = amdgpu_vce_sw_fini(adev);
-	if (r)
-		return r;
-
-	return r;
+	return amdgpu_vce_sw_fini(adev);
 }
 
 static int vce_v3_0_hw_init(void *handle)
@@ -461,7 +454,8 @@ static int vce_v3_0_hw_fini(void *handle)
 	if (r)
 		return r;
 
-	return vce_v3_0_stop(adev);
+	vce_v3_0_stop(adev);
+	return vce_v3_0_set_clockgating_state(adev, AMD_CG_STATE_GATE);
 }
 
 static int vce_v3_0_suspend(void *handle)
@@ -473,11 +467,7 @@ static int vce_v3_0_suspend(void *handle)
 	if (r)
 		return r;
 
-	r = amdgpu_vce_suspend(adev);
-	if (r)
-		return r;
-
-	return r;
+	return amdgpu_vce_suspend(adev);
 }
 
 static int vce_v3_0_resume(void *handle)
@@ -489,11 +479,7 @@ static int vce_v3_0_resume(void *handle)
 	if (r)
 		return r;
 
-	r = vce_v3_0_hw_init(adev);
-	if (r)
-		return r;
-
-	return r;
+	return vce_v3_0_hw_init(adev);
 }
 
 static void vce_v3_0_mc_resume(struct amdgpu_device *adev, int idx)
@@ -695,15 +681,15 @@ static int vce_v3_0_process_interrupt(struct amdgpu_device *adev,
 
 	WREG32_FIELD(VCE_SYS_INT_STATUS, VCE_SYS_INT_TRAP_INTERRUPT_INT, 1);
 
-	switch (entry->src_data) {
+	switch (entry->src_data[0]) {
 	case 0:
 	case 1:
 	case 2:
-		amdgpu_fence_process(&adev->vce.ring[entry->src_data]);
+		amdgpu_fence_process(&adev->vce.ring[entry->src_data[0]]);
 		break;
 	default:
 		DRM_ERROR("Unhandled interrupt: %d %d\n",
-			  entry->src_id, entry->src_data);
+			  entry->src_id, entry->src_data[0]);
 		break;
 	}
 
@@ -728,7 +714,7 @@ static int vce_v3_0_set_clockgating_state(void *handle,
 
 		WREG32(mmGRBM_GFX_INDEX, GET_VCE_INSTANCE(i));
 
-		if (enable) {
+		if (!enable) {
 			/* initialize VCE_CLOCK_GATING_A: Clock ON/OFF delay */
 			uint32_t data = RREG32(mmVCE_CLOCK_GATING_A);
 			data &= ~(0xf | 0xff0);
@@ -785,8 +771,12 @@ static void vce_v3_0_get_clockgating_state(void *handle, u32 *flags)
 
 	mutex_lock(&adev->pm.mutex);
 
-	if (RREG32_SMC(ixCURRENT_PG_STATUS) &
-			CURRENT_PG_STATUS__VCE_PG_STATUS_MASK) {
+	if (adev->flags & AMD_IS_APU)
+		data = RREG32_SMC(ixCURRENT_PG_STATUS_APU);
+	else
+		data = RREG32_SMC(ixCURRENT_PG_STATUS);
+
+	if (data & CURRENT_PG_STATUS__VCE_PG_STATUS_MASK) {
 		DRM_INFO("Cannot get clockgating state when VCE is powergated.\n");
 		goto out;
 	}
@@ -860,6 +850,7 @@ static const struct amdgpu_ring_funcs vce_v3_0_ring_phys_funcs = {
 	.type = AMDGPU_RING_TYPE_VCE,
 	.align_mask = 0xf,
 	.nop = VCE_CMD_NO_OP,
+	.support_64bit_ptrs = false,
 	.get_rptr = vce_v3_0_ring_get_rptr,
 	.get_wptr = vce_v3_0_ring_get_wptr,
 	.set_wptr = vce_v3_0_ring_set_wptr,
@@ -882,6 +873,7 @@ static const struct amdgpu_ring_funcs vce_v3_0_ring_vm_funcs = {
 	.type = AMDGPU_RING_TYPE_VCE,
 	.align_mask = 0xf,
 	.nop = VCE_CMD_NO_OP,
+	.support_64bit_ptrs = false,
 	.get_rptr = vce_v3_0_ring_get_rptr,
 	.get_wptr = vce_v3_0_ring_get_wptr,
 	.set_wptr = vce_v3_0_ring_set_wptr,

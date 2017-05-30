@@ -499,7 +499,7 @@ smb2_tcon_has_lease(struct cifs_tcon *tcon, struct smb2_lease_break *rsp,
 		else
 			cfile->oplock_break_cancelled = true;
 
-		queue_work(cifsiod_wq, &cfile->oplock_break);
+		queue_work(cifsoplockd_wq, &cfile->oplock_break);
 		kfree(lw);
 		return true;
 	}
@@ -643,7 +643,8 @@ smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 					   CIFS_INODE_DOWNGRADE_OPLOCK_TO_L2,
 					   &cinode->flags);
 				spin_unlock(&cfile->file_info_lock);
-				queue_work(cifsiod_wq, &cfile->oplock_break);
+				queue_work(cifsoplockd_wq,
+					   &cfile->oplock_break);
 
 				spin_unlock(&tcon->open_file_lock);
 				spin_unlock(&cifs_tcp_ses_lock);
@@ -658,4 +659,50 @@ smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 	spin_unlock(&cifs_tcp_ses_lock);
 	cifs_dbg(FYI, "Can not process oplock break for non-existent connection\n");
 	return false;
+}
+
+void
+smb2_cancelled_close_fid(struct work_struct *work)
+{
+	struct close_cancelled_open *cancelled = container_of(work,
+					struct close_cancelled_open, work);
+
+	cifs_dbg(VFS, "Close unmatched open\n");
+
+	SMB2_close(0, cancelled->tcon, cancelled->fid.persistent_fid,
+		   cancelled->fid.volatile_fid);
+	cifs_put_tcon(cancelled->tcon);
+	kfree(cancelled);
+}
+
+int
+smb2_handle_cancelled_mid(char *buffer, struct TCP_Server_Info *server)
+{
+	struct smb2_sync_hdr *sync_hdr = get_sync_hdr(buffer);
+	struct smb2_create_rsp *rsp = (struct smb2_create_rsp *)buffer;
+	struct cifs_tcon *tcon;
+	struct close_cancelled_open *cancelled;
+
+	if (sync_hdr->Command != SMB2_CREATE ||
+	    sync_hdr->Status != STATUS_SUCCESS)
+		return 0;
+
+	cancelled = kzalloc(sizeof(*cancelled), GFP_KERNEL);
+	if (!cancelled)
+		return -ENOMEM;
+
+	tcon = smb2_find_smb_tcon(server, sync_hdr->SessionId,
+				  sync_hdr->TreeId);
+	if (!tcon) {
+		kfree(cancelled);
+		return -ENOENT;
+	}
+
+	cancelled->fid.persistent_fid = rsp->PersistentFileId;
+	cancelled->fid.volatile_fid = rsp->VolatileFileId;
+	cancelled->tcon = tcon;
+	INIT_WORK(&cancelled->work, smb2_cancelled_close_fid);
+	queue_work(cifsiod_wq, &cancelled->work);
+
+	return 0;
 }

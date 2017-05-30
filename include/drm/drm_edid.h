@@ -332,11 +332,12 @@ int drm_av_sync_delay(struct drm_connector *connector,
 		      const struct drm_display_mode *mode);
 
 #ifdef CONFIG_DRM_LOAD_EDID_FIRMWARE
-int drm_load_edid_firmware(struct drm_connector *connector);
+struct edid *drm_load_edid_firmware(struct drm_connector *connector);
 #else
-static inline int drm_load_edid_firmware(struct drm_connector *connector)
+static inline struct edid *
+drm_load_edid_firmware(struct drm_connector *connector)
 {
-	return 0;
+	return ERR_PTR(-ENOENT);
 }
 #endif
 
@@ -475,5 +476,4 @@ void drm_edid_get_monitor_name(struct edid *edid, char *name,
 struct drm_display_mode *drm_mode_find_dmt(struct drm_device *dev,
 					   int hsize, int vsize, int fresh,
 					   bool rb);
-
 #endif /* __DRM_EDID_H__ */

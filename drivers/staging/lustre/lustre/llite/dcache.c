@@ -126,6 +126,7 @@ static int ll_ddelete(const struct dentry *de)
 static int ll_d_init(struct dentry *de)
 {
 	struct ll_dentry_data *lld = kzalloc(sizeof(*lld), GFP_KERNEL);
+
 	if (unlikely(!lld))
 		return -ENOMEM;
 	lld->lld_invalid = 1;

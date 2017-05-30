@@ -1362,9 +1362,8 @@ static int img_i2c_probe(struct platform_device *pdev)
 	}
 
 	/* Set up the exception check timer */
-	init_timer(&i2c->check_timer);
-	i2c->check_timer.function = img_i2c_check_timer;
-	i2c->check_timer.data = (unsigned long)i2c;
+	setup_timer(&i2c->check_timer, img_i2c_check_timer,
+		    (unsigned long)i2c);
 
 	i2c->bitrate = timings[0].max_bitrate;
 	if (!of_property_read_u32(node, "clock-frequency", &val))

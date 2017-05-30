@@ -34,20 +34,25 @@
 #include <rdma/ib_marshall.h>
 
 void ib_copy_ah_attr_to_user(struct ib_uverbs_ah_attr *dst,
-			     struct ib_ah_attr *src)
+			     struct rdma_ah_attr *src)
 {
-	memcpy(dst->grh.dgid, src->grh.dgid.raw, sizeof src->grh.dgid);
-	dst->grh.flow_label        = src->grh.flow_label;
-	dst->grh.sgid_index        = src->grh.sgid_index;
-	dst->grh.hop_limit         = src->grh.hop_limit;
-	dst->grh.traffic_class     = src->grh.traffic_class;
 	memset(&dst->grh.reserved, 0, sizeof(dst->grh.reserved));
-	dst->dlid 	    	   = src->dlid;
-	dst->sl   	    	   = src->sl;
-	dst->src_path_bits 	   = src->src_path_bits;
-	dst->static_rate   	   = src->static_rate;
-	dst->is_global             = src->ah_flags & IB_AH_GRH ? 1 : 0;
-	dst->port_num 	    	   = src->port_num;
+	dst->dlid		   = rdma_ah_get_dlid(src);
+	dst->sl			   = rdma_ah_get_sl(src);
+	dst->src_path_bits	   = rdma_ah_get_path_bits(src);
+	dst->static_rate	   = rdma_ah_get_static_rate(src);
+	dst->is_global             = rdma_ah_get_ah_flags(src) &
+					IB_AH_GRH ? 1 : 0;
+	if (dst->is_global) {
+		const struct ib_global_route *grh = rdma_ah_read_grh(src);
+
+		memcpy(dst->grh.dgid, grh->dgid.raw, sizeof(grh->dgid));
+		dst->grh.flow_label        = grh->flow_label;
+		dst->grh.sgid_index        = grh->sgid_index;
+		dst->grh.hop_limit         = grh->hop_limit;
+		dst->grh.traffic_class     = grh->traffic_class;
+	}
+	dst->port_num		   = rdma_ah_get_port_num(src);
 	dst->reserved 		   = 0;
 }
 EXPORT_SYMBOL(ib_copy_ah_attr_to_user);
@@ -91,15 +96,15 @@ void ib_copy_qp_attr_to_user(struct ib_uverbs_qp_attr *dst,
 }
 EXPORT_SYMBOL(ib_copy_qp_attr_to_user);
 
-void ib_copy_path_rec_to_user(struct ib_user_path_rec *dst,
-			      struct ib_sa_path_rec *src)
+void __ib_copy_path_rec_to_user(struct ib_user_path_rec *dst,
+				struct sa_path_rec *src)
 {
 	memcpy(dst->dgid, src->dgid.raw, sizeof src->dgid);
 	memcpy(dst->sgid, src->sgid.raw, sizeof src->sgid);
 
-	dst->dlid		= src->dlid;
-	dst->slid		= src->slid;
-	dst->raw_traffic	= src->raw_traffic;
+	dst->dlid		= htons(ntohl(sa_path_get_dlid(src)));
+	dst->slid		= htons(ntohl(sa_path_get_slid(src)));
+	dst->raw_traffic	= sa_path_get_raw_traffic(src);
 	dst->flow_label		= src->flow_label;
 	dst->hop_limit		= src->hop_limit;
 	dst->traffic_class	= src->traffic_class;
@@ -115,17 +120,43 @@ void ib_copy_path_rec_to_user(struct ib_user_path_rec *dst,
 	dst->preference		= src->preference;
 	dst->packet_life_time_selector = src->packet_life_time_selector;
 }
+
+void ib_copy_path_rec_to_user(struct ib_user_path_rec *dst,
+			      struct sa_path_rec *src)
+{
+	struct sa_path_rec rec;
+
+	if (src->rec_type == SA_PATH_REC_TYPE_OPA) {
+		sa_convert_path_opa_to_ib(&rec, src);
+		__ib_copy_path_rec_to_user(dst, &rec);
+		return;
+	}
+	__ib_copy_path_rec_to_user(dst, src);
+}
 EXPORT_SYMBOL(ib_copy_path_rec_to_user);
 
-void ib_copy_path_rec_from_user(struct ib_sa_path_rec *dst,
+void ib_copy_path_rec_from_user(struct sa_path_rec *dst,
 				struct ib_user_path_rec *src)
 {
+	__be32 slid, dlid;
+
+	memset(dst, 0, sizeof(*dst));
+	if ((ib_is_opa_gid((union ib_gid *)src->sgid)) ||
+	    (ib_is_opa_gid((union ib_gid *)src->dgid))) {
+		dst->rec_type = SA_PATH_REC_TYPE_OPA;
+		slid = htonl(opa_get_lid_from_gid((union ib_gid *)src->sgid));
+		dlid = htonl(opa_get_lid_from_gid((union ib_gid *)src->dgid));
+	} else {
+		dst->rec_type = SA_PATH_REC_TYPE_IB;
+		slid = htonl(ntohs(src->slid));
+		dlid = htonl(ntohs(src->dlid));
+	}
 	memcpy(dst->dgid.raw, src->dgid, sizeof dst->dgid);
 	memcpy(dst->sgid.raw, src->sgid, sizeof dst->sgid);
 
-	dst->dlid		= src->dlid;
-	dst->slid		= src->slid;
-	dst->raw_traffic	= src->raw_traffic;
+	sa_path_set_dlid(dst, dlid);
+	sa_path_set_slid(dst, slid);
+	sa_path_set_raw_traffic(dst, src->raw_traffic);
 	dst->flow_label		= src->flow_label;
 	dst->hop_limit		= src->hop_limit;
 	dst->traffic_class	= src->traffic_class;
@@ -141,9 +172,9 @@ void ib_copy_path_rec_from_user(struct ib_sa_path_rec *dst,
 	dst->preference		= src->preference;
 	dst->packet_life_time_selector = src->packet_life_time_selector;
 
-	memset(dst->dmac, 0, sizeof(dst->dmac));
-	dst->net = NULL;
-	dst->ifindex = 0;
-	dst->gid_type = IB_GID_TYPE_IB;
+	/* TODO: No need to set this */
+	sa_path_set_dmac_zero(dst);
+	sa_path_set_ndev(dst, NULL);
+	sa_path_set_ifindex(dst, 0);
 }
 EXPORT_SYMBOL(ib_copy_path_rec_from_user);

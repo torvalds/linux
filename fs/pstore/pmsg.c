@@ -15,7 +15,6 @@
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/uaccess.h>
-#include <linux/vmalloc.h>
 #include "internal.h"
 
 static DEFINE_MUTEX(pmsg_lock);
@@ -23,19 +22,22 @@ static DEFINE_MUTEX(pmsg_lock);
 static ssize_t write_pmsg(struct file *file, const char __user *buf,
 			  size_t count, loff_t *ppos)
 {
-	u64 id;
+	struct pstore_record record = {
+		.type = PSTORE_TYPE_PMSG,
+		.size = count,
+		.psi = psinfo,
+	};
 	int ret;
 
 	if (!count)
 		return 0;
 
-	/* check outside lock, page in any data. write_buf_user also checks */
+	/* check outside lock, page in any data. write_user also checks */
 	if (!access_ok(VERIFY_READ, buf, count))
 		return -EFAULT;
 
 	mutex_lock(&pmsg_lock);
-	ret = psinfo->write_buf_user(PSTORE_TYPE_PMSG, 0, &id, 0, buf, 0, count,
-				     psinfo);
+	ret = psinfo->write_user(&record, buf);
 	mutex_unlock(&pmsg_lock);
 	return ret ? ret : count;
 }

@@ -510,7 +510,6 @@ struct em28xx_v4l2 {
 
 	struct v4l2_device v4l2_dev;
 	struct v4l2_ctrl_handler ctrl_handler;
-	struct v4l2_clk *clk;
 
 	struct video_device vdev;
 	struct video_device vbi_dev;

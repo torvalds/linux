@@ -100,8 +100,8 @@ Step-by-step instructions for using firescope with early OHCI initialization:
    CardBus and even some Express cards which are fully compliant to OHCI-1394
    specification are available. If it requires no driver for Windows operating
    systems, it most likely is. Only specialized shops have cards which are not
-   compliant, they are based on TI PCILynx chips and require drivers for Win-
-   dows operating systems.
+   compliant, they are based on TI PCILynx chips and require drivers for Windows
+   operating systems.
 
    The mentioned kernel log message contains the string "physUB" if the
    controller implements a writable Physical Upper Bound register.  This is

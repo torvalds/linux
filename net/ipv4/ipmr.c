@@ -631,7 +631,7 @@ static int vif_delete(struct mr_table *mrt, int vifi, int notify,
 	in_dev = __in_dev_get_rtnl(dev);
 	if (in_dev) {
 		IPV4_DEVCONF(in_dev->cnf, MC_FORWARDING)--;
-		inet_netconf_notify_devconf(dev_net(dev),
+		inet_netconf_notify_devconf(dev_net(dev), RTM_NEWNETCONF,
 					    NETCONFA_MC_FORWARDING,
 					    dev->ifindex, &in_dev->cnf);
 		ip_rt_multicast_event(in_dev);
@@ -820,8 +820,8 @@ static int vif_add(struct net *net, struct mr_table *mrt,
 		return -EADDRNOTAVAIL;
 	}
 	IPV4_DEVCONF(in_dev->cnf, MC_FORWARDING)++;
-	inet_netconf_notify_devconf(net, NETCONFA_MC_FORWARDING, dev->ifindex,
-				    &in_dev->cnf);
+	inet_netconf_notify_devconf(net, RTM_NEWNETCONF, NETCONFA_MC_FORWARDING,
+				    dev->ifindex, &in_dev->cnf);
 	ip_rt_multicast_event(in_dev);
 
 	/* Fill in the VIF structures */
@@ -1278,18 +1278,18 @@ static void mrtsock_destruct(struct sock *sk)
 	struct net *net = sock_net(sk);
 	struct mr_table *mrt;
 
-	rtnl_lock();
+	ASSERT_RTNL();
 	ipmr_for_each_table(mrt, net) {
 		if (sk == rtnl_dereference(mrt->mroute_sk)) {
 			IPV4_DEVCONF_ALL(net, MC_FORWARDING)--;
-			inet_netconf_notify_devconf(net, NETCONFA_MC_FORWARDING,
+			inet_netconf_notify_devconf(net, RTM_NEWNETCONF,
+						    NETCONFA_MC_FORWARDING,
 						    NETCONFA_IFINDEX_ALL,
 						    net->ipv4.devconf_all);
 			RCU_INIT_POINTER(mrt->mroute_sk, NULL);
 			mroute_clean_tables(mrt, false);
 		}
 	}
-	rtnl_unlock();
 }
 
 /* Socket options and virtual interface manipulation. The whole
@@ -1344,7 +1344,8 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval,
 		if (ret == 0) {
 			rcu_assign_pointer(mrt->mroute_sk, sk);
 			IPV4_DEVCONF_ALL(net, MC_FORWARDING)++;
-			inet_netconf_notify_devconf(net, NETCONFA_MC_FORWARDING,
+			inet_netconf_notify_devconf(net, RTM_NEWNETCONF,
+						    NETCONFA_MC_FORWARDING,
 						    NETCONFA_IFINDEX_ALL,
 						    net->ipv4.devconf_all);
 		}
@@ -1353,13 +1354,8 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval,
 		if (sk != rcu_access_pointer(mrt->mroute_sk)) {
 			ret = -EACCES;
 		} else {
-			/* We need to unlock here because mrtsock_destruct takes
-			 * care of rtnl itself and we can't change that due to
-			 * the IP_ROUTER_ALERT setsockopt which runs without it.
-			 */
-			rtnl_unlock();
 			ret = ip_ra_control(sk, 0, NULL);
-			goto out;
+			goto out_unlock;
 		}
 		break;
 	case MRT_ADD_VIF:
@@ -1470,7 +1466,6 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval,
 	}
 out_unlock:
 	rtnl_unlock();
-out:
 	return ret;
 }
 
@@ -1985,6 +1980,20 @@ int ip_mr_input(struct sk_buff *skb)
 	struct net *net = dev_net(skb->dev);
 	int local = skb_rtable(skb)->rt_flags & RTCF_LOCAL;
 	struct mr_table *mrt;
+	struct net_device *dev;
+
+	/* skb->dev passed in is the loX master dev for vrfs.
+	 * As there are no vifs associated with loopback devices,
+	 * get the proper interface that does have a vif associated with it.
+	 */
+	dev = skb->dev;
+	if (netif_is_l3_master(skb->dev)) {
+		dev = dev_get_by_index_rcu(net, IPCB(skb)->iif);
+		if (!dev) {
+			kfree_skb(skb);
+			return -ENODEV;
+		}
+	}
 
 	/* Packet is looped back after forward, it should not be
 	 * forwarded second time, but still can be delivered locally.
@@ -2022,7 +2031,7 @@ int ip_mr_input(struct sk_buff *skb)
 	/* already under rcu_read_lock() */
 	cache = ipmr_cache_find(mrt, ip_hdr(skb)->saddr, ip_hdr(skb)->daddr);
 	if (!cache) {
-		int vif = ipmr_find_vif(mrt, skb->dev);
+		int vif = ipmr_find_vif(mrt, dev);
 
 		if (vif >= 0)
 			cache = ipmr_cache_find_any(mrt, ip_hdr(skb)->daddr,
@@ -2042,7 +2051,7 @@ int ip_mr_input(struct sk_buff *skb)
 		}
 
 		read_lock(&mrt_lock);
-		vif = ipmr_find_vif(mrt, skb->dev);
+		vif = ipmr_find_vif(mrt, dev);
 		if (vif >= 0) {
 			int err2 = ipmr_cache_unresolved(mrt, vif, skb);
 			read_unlock(&mrt_lock);
@@ -2428,7 +2437,8 @@ static int ipmr_nla_get_ttls(const struct nlattr *nla, struct mfcctl *mfcc)
 /* returns < 0 on error, 0 for ADD_MFC and 1 for ADD_MFC_PROXY */
 static int rtm_to_ipmr_mfcc(struct net *net, struct nlmsghdr *nlh,
 			    struct mfcctl *mfcc, int *mrtsock,
-			    struct mr_table **mrtret)
+			    struct mr_table **mrtret,
+			    struct netlink_ext_ack *extack)
 {
 	struct net_device *dev = NULL;
 	u32 tblid = RT_TABLE_DEFAULT;
@@ -2437,7 +2447,8 @@ static int rtm_to_ipmr_mfcc(struct net *net, struct nlmsghdr *nlh,
 	struct rtmsg *rtm;
 	int ret, rem;
 
-	ret = nlmsg_validate(nlh, sizeof(*rtm), RTA_MAX, rtm_ipmr_policy);
+	ret = nlmsg_validate(nlh, sizeof(*rtm), RTA_MAX, rtm_ipmr_policy,
+			     extack);
 	if (ret < 0)
 		goto out;
 	rtm = nlmsg_data(nlh);
@@ -2496,7 +2507,8 @@ out:
 }
 
 /* takes care of both newroute and delroute */
-static int ipmr_rtm_route(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int ipmr_rtm_route(struct sk_buff *skb, struct nlmsghdr *nlh,
+			  struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(skb->sk);
 	int ret, mrtsock, parent;
@@ -2505,7 +2517,7 @@ static int ipmr_rtm_route(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 	mrtsock = 0;
 	tbl = NULL;
-	ret = rtm_to_ipmr_mfcc(net, nlh, &mfcc, &mrtsock, &tbl);
+	ret = rtm_to_ipmr_mfcc(net, nlh, &mfcc, &mrtsock, &tbl, extack);
 	if (ret < 0)
 		return ret;
 

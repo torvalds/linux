@@ -441,9 +441,16 @@ static const struct i2c_device_id mag3110_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, mag3110_id);
 
+static const struct of_device_id mag3110_of_match[] = {
+	{ .compatible = "fsl,mag3110" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, mag3110_of_match);
+
 static struct i2c_driver mag3110_driver = {
 	.driver = {
 		.name	= "mag3110",
+		.of_match_table = mag3110_of_match,
 		.pm	= MAG3110_PM_OPS,
 	},
 	.probe = mag3110_probe,

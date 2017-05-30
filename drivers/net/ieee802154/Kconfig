@@ -82,3 +82,25 @@ config IEEE802154_ADF7242
 
 	  This driver can also be built as a module. To do so, say M here.
 	  the module will be called 'adf7242'.
+
+config IEEE802154_CA8210
+	tristate "Cascoda CA8210 transceiver driver"
+	depends on IEEE802154_DRIVERS && MAC802154
+	depends on COMMON_CLK
+	depends on SPI
+	---help---
+	  Say Y here to enable the CA8210 SPI 802.15.4 wireless
+	  controller.
+
+	  This driver can also be built as a module. To do so, say M here.
+	  the module will be called 'ca8210'.
+
+config IEEE802154_CA8210_DEBUGFS
+	bool "CA8210 debugfs interface"
+	depends on IEEE802154_CA8210
+	depends on DEBUG_FS
+	---help---
+	  This option compiles debugfs code for the ca8210 driver. This
+	  exposes a debugfs node for each CA8210 instance which allows
+	  direct use of the Cascoda API, exposing the 802.15.4 MAC
+	  management entities.

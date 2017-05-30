@@ -741,7 +741,6 @@ static int svm_hardware_enable(void)
 
 	struct svm_cpu_data *sd;
 	uint64_t efer;
-	struct desc_ptr gdt_descr;
 	struct desc_struct *gdt;
 	int me = raw_smp_processor_id();
 
@@ -763,8 +762,7 @@ static int svm_hardware_enable(void)
 	sd->max_asid = cpuid_ebx(SVM_CPUID_FUNC) - 1;
 	sd->next_asid = sd->max_asid + 1;
 
-	native_store_gdt(&gdt_descr);
-	gdt = (struct desc_struct *)gdt_descr.address;
+	gdt = get_current_gdt_rw();
 	sd->tss_desc = (struct kvm_ldttss_desc *)(gdt + GDT_ENTRY_TSS);
 
 	wrmsrl(MSR_EFER, efer | EFER_SVME);
@@ -1198,9 +1196,12 @@ static void init_vmcb(struct vcpu_svm *svm)
 	set_intercept(svm, INTERCEPT_CLGI);
 	set_intercept(svm, INTERCEPT_SKINIT);
 	set_intercept(svm, INTERCEPT_WBINVD);
-	set_intercept(svm, INTERCEPT_MONITOR);
-	set_intercept(svm, INTERCEPT_MWAIT);
 	set_intercept(svm, INTERCEPT_XSETBV);
+
+	if (!kvm_mwait_in_guest()) {
+		set_intercept(svm, INTERCEPT_MONITOR);
+		set_intercept(svm, INTERCEPT_MWAIT);
+	}
 
 	control->iopm_base_pa = iopm_base;
 	control->msrpm_base_pa = __pa(svm->msrpm);
@@ -1271,7 +1272,8 @@ static void init_vmcb(struct vcpu_svm *svm)
 
 }
 
-static u64 *avic_get_physical_id_entry(struct kvm_vcpu *vcpu, int index)
+static u64 *avic_get_physical_id_entry(struct kvm_vcpu *vcpu,
+				       unsigned int index)
 {
 	u64 *avic_physical_id_table;
 	struct kvm_arch *vm_data = &vcpu->kvm->arch;
@@ -5256,6 +5258,12 @@ static inline void avic_post_state_restore(struct kvm_vcpu *vcpu)
 	avic_handle_ldr_update(vcpu);
 }
 
+static void svm_setup_mce(struct kvm_vcpu *vcpu)
+{
+	/* [63:9] are reserved. */
+	vcpu->arch.mcg_cap &= 0x1ff;
+}
+
 static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.cpu_has_kvm_support = has_svm,
 	.disabled_by_bios = is_disabled,
@@ -5367,6 +5375,7 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.pmu_ops = &amd_pmu_ops,
 	.deliver_posted_interrupt = svm_deliver_avic_intr,
 	.update_pi_irte = svm_update_pi_irte,
+	.setup_mce = svm_setup_mce,
 };
 
 static int __init svm_init(void)

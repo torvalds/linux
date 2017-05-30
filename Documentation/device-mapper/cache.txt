@@ -290,7 +290,7 @@ message, which takes an arbitrary number of cblock ranges.  Each cblock
 range's end value is "one past the end", meaning 5-10 expresses a range
 of values from 5 to 9.  Each cblock must be expressed as a decimal
 value, in the future a variant message that takes cblock ranges
-expressed in hexidecimal may be needed to better support efficient
+expressed in hexadecimal may be needed to better support efficient
 invalidation of larger caches.  The cache must be in passthrough mode
 when invalidate_cblocks is used.
 

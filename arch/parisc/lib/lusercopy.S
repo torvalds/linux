@@ -201,7 +201,7 @@ ENTRY_CFI(pa_memcpy)
 	add	dst,len,end
 
 	/* short copy with less than 16 bytes? */
-	cmpib,>>=,n 15,len,.Lbyte_loop
+	cmpib,COND(>>=),n 15,len,.Lbyte_loop
 
 	/* same alignment? */
 	xor	src,dst,t0
@@ -216,7 +216,7 @@ ENTRY_CFI(pa_memcpy)
 	/* loop until we are 64-bit aligned */
 .Lalign_loop64:
 	extru	dst,31,3,t1
-	cmpib,=,n	0,t1,.Lcopy_loop_16
+	cmpib,=,n	0,t1,.Lcopy_loop_16_start
 20:	ldb,ma	1(srcspc,src),t1
 21:	stb,ma	t1,1(dstspc,dst)
 	b	.Lalign_loop64
@@ -225,6 +225,7 @@ ENTRY_CFI(pa_memcpy)
 	ASM_EXCEPTIONTABLE_ENTRY(20b,.Lcopy_done)
 	ASM_EXCEPTIONTABLE_ENTRY(21b,.Lcopy_done)
 
+.Lcopy_loop_16_start:
 	ldi	31,t0
 .Lcopy_loop_16:
 	cmpb,COND(>>=),n t0,len,.Lword_loop
@@ -267,7 +268,7 @@ ENTRY_CFI(pa_memcpy)
 	/* loop until we are 32-bit aligned */
 .Lalign_loop32:
 	extru	dst,31,2,t1
-	cmpib,=,n	0,t1,.Lcopy_loop_4
+	cmpib,=,n	0,t1,.Lcopy_loop_8
 20:	ldb,ma	1(srcspc,src),t1
 21:	stb,ma	t1,1(dstspc,dst)
 	b	.Lalign_loop32
@@ -277,7 +278,7 @@ ENTRY_CFI(pa_memcpy)
 	ASM_EXCEPTIONTABLE_ENTRY(21b,.Lcopy_done)
 
 
-.Lcopy_loop_4:
+.Lcopy_loop_8:
 	cmpib,COND(>>=),n 15,len,.Lbyte_loop
 
 10:	ldw	0(srcspc,src),t1
@@ -299,7 +300,7 @@ ENTRY_CFI(pa_memcpy)
 	ASM_EXCEPTIONTABLE_ENTRY(16b,.Lcopy_done)
 	ASM_EXCEPTIONTABLE_ENTRY(17b,.Lcopy_done)
 
-	b	.Lcopy_loop_4
+	b	.Lcopy_loop_8
 	ldo	-16(len),len
 
 .Lbyte_loop:
@@ -324,7 +325,7 @@ ENTRY_CFI(pa_memcpy)
 .Lunaligned_copy:
 	/* align until dst is 32bit-word-aligned */
 	extru	dst,31,2,t1
-	cmpib,COND(=),n	0,t1,.Lcopy_dstaligned
+	cmpib,=,n	0,t1,.Lcopy_dstaligned
 20:	ldb	0(srcspc,src),t1
 	ldo	1(src),src
 21:	stb,ma	t1,1(dstspc,dst)
@@ -362,7 +363,7 @@ ENTRY_CFI(pa_memcpy)
 	cmpiclr,<> 1,t0,%r0
 	b,n .Lcase1
 .Lcase0:
-	cmpb,= %r0,len,.Lcda_finish
+	cmpb,COND(=) %r0,len,.Lcda_finish
 	nop
 
 1:	ldw,ma 4(srcspc,src), a3
@@ -376,7 +377,7 @@ ENTRY_CFI(pa_memcpy)
 1:	ldw,ma 4(srcspc,src), a3
 	ASM_EXCEPTIONTABLE_ENTRY(1b,.Lcda_rdfault)
 	ldo -1(len),len
-	cmpb,=,n %r0,len,.Ldo0
+	cmpb,COND(=),n %r0,len,.Ldo0
 .Ldo4:
 1:	ldw,ma 4(srcspc,src), a0
 	ASM_EXCEPTIONTABLE_ENTRY(1b,.Lcda_rdfault)
@@ -402,7 +403,7 @@ ENTRY_CFI(pa_memcpy)
 1:	stw,ma t0, 4(dstspc,dst)
 	ASM_EXCEPTIONTABLE_ENTRY(1b,.Lcopy_done)
 	ldo -4(len),len
-	cmpb,<> %r0,len,.Ldo4
+	cmpb,COND(<>) %r0,len,.Ldo4
 	nop
 .Ldo0:
 	shrpw a2, a3, %sar, t0
@@ -436,14 +437,14 @@ ENTRY_CFI(pa_memcpy)
 	/* fault exception fixup handlers: */
 #ifdef CONFIG_64BIT
 .Lcopy16_fault:
-10:	b	.Lcopy_done
-	std,ma	t1,8(dstspc,dst)
+	b	.Lcopy_done
+10:	std,ma	t1,8(dstspc,dst)
 	ASM_EXCEPTIONTABLE_ENTRY(10b,.Lcopy_done)
 #endif
 
 .Lcopy8_fault:
-10:	b	.Lcopy_done
-	stw,ma	t1,4(dstspc,dst)
+	b	.Lcopy_done
+10:	stw,ma	t1,4(dstspc,dst)
 	ASM_EXCEPTIONTABLE_ENTRY(10b,.Lcopy_done)
 
 	.exit

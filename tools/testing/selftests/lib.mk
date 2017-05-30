@@ -51,8 +51,12 @@ endef
 emit_tests:
 	$(EMIT_TESTS)
 
-clean:
+define CLEAN
 	$(RM) -r $(TEST_GEN_PROGS) $(TEST_GEN_PROGS_EXTENDED) $(TEST_GEN_FILES) $(EXTRA_CLEAN)
+endef
+
+clean:
+	$(CLEAN)
 
 $(OUTPUT)/%:%.c
 	$(LINK.c) $^ $(LDLIBS) -o $@

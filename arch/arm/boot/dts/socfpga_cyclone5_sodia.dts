@@ -28,7 +28,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@0 {
 		name = "memory";
 		device_type = "memory";
 		reg = <0x0 0x40000000>;
@@ -120,4 +120,25 @@
 
 &usb1 {
 	status = "okay";
+};
+
+&qspi {
+        status = "okay";
+
+        flash0: n25q512a@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "n25q512a";
+		reg = <0>;
+		spi-max-frequency = <100000000>;
+
+		m25p,fast-read;
+		cdns,page-size = <256>;
+		cdns,block-size = <16>;
+		cdns,read-delay = <4>;
+		cdns,tshsl-ns = <50>;
+		cdns,tsd2d-ns = <50>;
+		cdns,tchsh-ns = <4>;
+		cdns,tslch-ns = <4>;
+	};
 };

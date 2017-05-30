@@ -34,7 +34,9 @@ struct drm_i915_gem_request;
 
 /*
  * This structure primarily describes the GEM object shared with the GuC.
- * The GEM object is held for the entire lifetime of our interaction with
+ * The specs sometimes refer to this object as a "GuC context", but we use
+ * the term "client" to avoid confusion with hardware contexts. This
+ * GEM object is held for the entire lifetime of our interaction with
  * the GuC, being allocated before the GuC is loaded with its firmware.
  * Because there's no way to update the address used by the GuC after
  * initialisation, the shared object must stay pinned into the GGTT as
@@ -44,7 +46,7 @@ struct drm_i915_gem_request;
  *
  * The single GEM object described here is actually made up of several
  * separate areas, as far as the GuC is concerned. The first page (kept
- * kmap'd) includes the "process decriptor" which holds sequence data for
+ * kmap'd) includes the "process descriptor" which holds sequence data for
  * the doorbell, and one cacheline which actually *is* the doorbell; a
  * write to this will "ring the doorbell" (i.e. send an interrupt to the
  * GuC). The subsequent  pages of the client object constitute the work
@@ -72,13 +74,12 @@ struct i915_guc_client {
 
 	uint32_t engines;		/* bitmap of (host) engine ids	*/
 	uint32_t priority;
-	uint32_t ctx_index;
+	u32 stage_id;
 	uint32_t proc_desc_offset;
 
-	uint32_t doorbell_offset;
-	uint32_t doorbell_cookie;
-	uint16_t doorbell_id;
-	uint16_t padding[3];		/* Maintain alignment		*/
+	u16 doorbell_id;
+	unsigned long doorbell_offset;
+	u32 doorbell_cookie;
 
 	spinlock_t wq_lock;
 	uint32_t wq_offset;
@@ -100,10 +101,39 @@ enum intel_uc_fw_status {
 	INTEL_UC_FIRMWARE_SUCCESS
 };
 
+/* User-friendly representation of an enum */
+static inline
+const char *intel_uc_fw_status_repr(enum intel_uc_fw_status status)
+{
+	switch (status) {
+	case INTEL_UC_FIRMWARE_FAIL:
+		return "FAIL";
+	case INTEL_UC_FIRMWARE_NONE:
+		return "NONE";
+	case INTEL_UC_FIRMWARE_PENDING:
+		return "PENDING";
+	case INTEL_UC_FIRMWARE_SUCCESS:
+		return "SUCCESS";
+	}
+	return "<invalid>";
+}
+
 enum intel_uc_fw_type {
 	INTEL_UC_FW_TYPE_GUC,
 	INTEL_UC_FW_TYPE_HUC
 };
+
+/* User-friendly representation of an enum */
+static inline const char *intel_uc_fw_type_repr(enum intel_uc_fw_type type)
+{
+	switch (type) {
+	case INTEL_UC_FW_TYPE_GUC:
+		return "GuC";
+	case INTEL_UC_FW_TYPE_HUC:
+		return "HuC";
+	}
+	return "uC";
+}
 
 /*
  * This structure encapsulates all the data needed during the process
@@ -121,7 +151,7 @@ struct intel_uc_fw {
 	uint16_t major_ver_found;
 	uint16_t minor_ver_found;
 
-	enum intel_uc_fw_type fw;
+	enum intel_uc_fw_type type;
 	uint32_t header_size;
 	uint32_t header_offset;
 	uint32_t rsa_size;
@@ -133,11 +163,13 @@ struct intel_uc_fw {
 struct intel_guc_log {
 	uint32_t flags;
 	struct i915_vma *vma;
-	void *buf_addr;
-	struct workqueue_struct *flush_wq;
-	struct work_struct flush_work;
-	struct rchan *relay_chan;
-
+	/* The runtime stuff gets created only when GuC logging gets enabled */
+	struct {
+		void *buf_addr;
+		struct workqueue_struct *flush_wq;
+		struct work_struct flush_work;
+		struct rchan *relay_chan;
+	} runtime;
 	/* logging related stats */
 	u32 capture_miss_count;
 	u32 flush_interrupt_count;
@@ -154,12 +186,13 @@ struct intel_guc {
 	bool interrupts_enabled;
 
 	struct i915_vma *ads_vma;
-	struct i915_vma *ctx_pool_vma;
-	struct ida ctx_ids;
+	struct i915_vma *stage_desc_pool;
+	void *stage_desc_pool_vaddr;
+	struct ida stage_ids;
 
 	struct i915_guc_client *execbuf_client;
 
-	DECLARE_BITMAP(doorbell_bitmap, GUC_MAX_DOORBELLS);
+	DECLARE_BITMAP(doorbell_bitmap, GUC_NUM_DOORBELLS);
 	uint32_t db_cacheline;		/* Cyclic counter mod pagesize	*/
 
 	/* Action status & statistics */
@@ -174,6 +207,9 @@ struct intel_guc {
 
 	/* To serialize the intel_guc_send actions */
 	struct mutex send_mutex;
+
+	/* GuC's FW specific send function */
+	int (*send)(struct intel_guc *guc, const u32 *data, u32 len);
 };
 
 struct intel_huc {
@@ -184,19 +220,24 @@ struct intel_huc {
 };
 
 /* intel_uc.c */
+void intel_uc_sanitize_options(struct drm_i915_private *dev_priv);
 void intel_uc_init_early(struct drm_i915_private *dev_priv);
-int intel_guc_send(struct intel_guc *guc, const u32 *action, u32 len);
+void intel_uc_init_fw(struct drm_i915_private *dev_priv);
+void intel_uc_fini_fw(struct drm_i915_private *dev_priv);
+int intel_uc_init_hw(struct drm_i915_private *dev_priv);
+void intel_uc_fini_hw(struct drm_i915_private *dev_priv);
 int intel_guc_sample_forcewake(struct intel_guc *guc);
+int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len);
+static inline int intel_guc_send(struct intel_guc *guc, const u32 *action, u32 len)
+{
+	return guc->send(guc, action, len);
+}
 
 /* intel_guc_loader.c */
-extern void intel_guc_init(struct drm_i915_private *dev_priv);
-extern int intel_guc_setup(struct drm_i915_private *dev_priv);
-extern void intel_guc_fini(struct drm_i915_private *dev_priv);
-extern const char *intel_uc_fw_status_repr(enum intel_uc_fw_status status);
-extern int intel_guc_suspend(struct drm_i915_private *dev_priv);
-extern int intel_guc_resume(struct drm_i915_private *dev_priv);
-void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
-	struct intel_uc_fw *uc_fw);
+int intel_guc_select_fw(struct intel_guc *guc);
+int intel_guc_init_hw(struct intel_guc *guc);
+int intel_guc_suspend(struct drm_i915_private *dev_priv);
+int intel_guc_resume(struct drm_i915_private *dev_priv);
 u32 intel_guc_wopcm_size(struct drm_i915_private *dev_priv);
 
 /* i915_guc_submission.c */
@@ -209,10 +250,11 @@ void i915_guc_submission_fini(struct drm_i915_private *dev_priv);
 struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size);
 
 /* intel_guc_log.c */
-void intel_guc_log_create(struct intel_guc *guc);
+int intel_guc_log_create(struct intel_guc *guc);
+void intel_guc_log_destroy(struct intel_guc *guc);
+int i915_guc_log_control(struct drm_i915_private *dev_priv, u64 control_val);
 void i915_guc_log_register(struct drm_i915_private *dev_priv);
 void i915_guc_log_unregister(struct drm_i915_private *dev_priv);
-int i915_guc_log_control(struct drm_i915_private *dev_priv, u64 control_val);
 
 static inline u32 guc_ggtt_offset(struct i915_vma *vma)
 {
@@ -223,9 +265,8 @@ static inline u32 guc_ggtt_offset(struct i915_vma *vma)
 }
 
 /* intel_huc.c */
-void intel_huc_init(struct drm_i915_private *dev_priv);
-void intel_huc_fini(struct drm_i915_private  *dev_priv);
-int intel_huc_load(struct drm_i915_private *dev_priv);
+void intel_huc_select_fw(struct intel_huc *huc);
+int intel_huc_init_hw(struct intel_huc *huc);
 void intel_guc_auth_huc(struct drm_i915_private *dev_priv);
 
 #endif

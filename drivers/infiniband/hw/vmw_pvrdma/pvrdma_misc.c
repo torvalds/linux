@@ -194,7 +194,7 @@ int pvrdma_page_dir_insert_umem(struct pvrdma_page_dir *pdir,
 		len = sg_dma_len(sg) >> PAGE_SHIFT;
 		for (j = 0; j < len; j++) {
 			dma_addr_t addr = sg_dma_address(sg) +
-					  umem->page_size * j;
+					  (j << umem->page_shift);
 
 			ret = pvrdma_page_dir_insert_dma(pdir, i, addr);
 			if (ret)
@@ -277,28 +277,29 @@ void ib_global_route_to_pvrdma(struct pvrdma_global_route *dst,
 	dst->traffic_class = src->traffic_class;
 }
 
-void pvrdma_ah_attr_to_ib(struct ib_ah_attr *dst,
-			  const struct pvrdma_ah_attr *src)
+void pvrdma_ah_attr_to_rdma(struct rdma_ah_attr *dst,
+			    const struct pvrdma_ah_attr *src)
 {
-	pvrdma_global_route_to_ib(&dst->grh, &src->grh);
-	dst->dlid = src->dlid;
-	dst->sl = src->sl;
-	dst->src_path_bits = src->src_path_bits;
-	dst->static_rate = src->static_rate;
-	dst->ah_flags = src->ah_flags;
-	dst->port_num = src->port_num;
-	memcpy(&dst->dmac, &src->dmac, sizeof(dst->dmac));
+	dst->type = RDMA_AH_ATTR_TYPE_ROCE;
+	pvrdma_global_route_to_ib(rdma_ah_retrieve_grh(dst), &src->grh);
+	rdma_ah_set_dlid(dst, src->dlid);
+	rdma_ah_set_sl(dst, src->sl);
+	rdma_ah_set_path_bits(dst, src->src_path_bits);
+	rdma_ah_set_static_rate(dst, src->static_rate);
+	rdma_ah_set_ah_flags(dst, src->ah_flags);
+	rdma_ah_set_port_num(dst, src->port_num);
+	memcpy(dst->roce.dmac, &src->dmac, ETH_ALEN);
 }
 
-void ib_ah_attr_to_pvrdma(struct pvrdma_ah_attr *dst,
-			  const struct ib_ah_attr *src)
+void rdma_ah_attr_to_pvrdma(struct pvrdma_ah_attr *dst,
+			    const struct rdma_ah_attr *src)
 {
-	ib_global_route_to_pvrdma(&dst->grh, &src->grh);
-	dst->dlid = src->dlid;
-	dst->sl = src->sl;
-	dst->src_path_bits = src->src_path_bits;
-	dst->static_rate = src->static_rate;
-	dst->ah_flags = src->ah_flags;
-	dst->port_num = src->port_num;
-	memcpy(&dst->dmac, &src->dmac, sizeof(dst->dmac));
+	ib_global_route_to_pvrdma(&dst->grh, rdma_ah_read_grh(src));
+	dst->dlid = rdma_ah_get_dlid(src);
+	dst->sl = rdma_ah_get_sl(src);
+	dst->src_path_bits = rdma_ah_get_path_bits(src);
+	dst->static_rate = rdma_ah_get_static_rate(src);
+	dst->ah_flags = rdma_ah_get_ah_flags(src);
+	dst->port_num = rdma_ah_get_port_num(src);
+	memcpy(&dst->dmac, src->roce.dmac, sizeof(dst->dmac));
 }

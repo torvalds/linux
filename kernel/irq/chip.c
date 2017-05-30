@@ -348,7 +348,10 @@ void handle_nested_irq(unsigned int irq)
 	irqd_set(&desc->irq_data, IRQD_IRQ_INPROGRESS);
 	raw_spin_unlock_irq(&desc->lock);
 
-	action_ret = action->thread_fn(action->irq, action->dev_id);
+	action_ret = IRQ_NONE;
+	for_each_action_of_desc(desc, action)
+		action_ret |= action->thread_fn(action->irq, action->dev_id);
+
 	if (!noirqdebug)
 		note_interrupt(desc, action_ret);
 
@@ -877,8 +880,8 @@ irq_set_chained_handler_and_data(unsigned int irq, irq_flow_handler_t handle,
 	if (!desc)
 		return;
 
-	__irq_do_set_handler(desc, handle, 1, NULL);
 	desc->irq_common_data.handler_data = data;
+	__irq_do_set_handler(desc, handle, 1, NULL);
 
 	irq_put_desc_busunlock(desc, flags);
 }

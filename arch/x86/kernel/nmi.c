@@ -222,17 +222,6 @@ pci_serr_error(unsigned char reason, struct pt_regs *regs)
 	pr_emerg("NMI: PCI system error (SERR) for reason %02x on CPU %d.\n",
 		 reason, smp_processor_id());
 
-	/*
-	 * On some machines, PCI SERR line is used to report memory
-	 * errors. EDAC makes use of it.
-	 */
-#if defined(CONFIG_EDAC)
-	if (edac_handler_set()) {
-		edac_atomic_assert_error();
-		return;
-	}
-#endif
-
 	if (panic_on_unrecovered_nmi)
 		nmi_panic(regs, "NMI: Not continuing");
 

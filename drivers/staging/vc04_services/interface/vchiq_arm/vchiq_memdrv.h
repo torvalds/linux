@@ -41,21 +41,9 @@
 
 /* ---- Constants and Types ---------------------------------------------- */
 
-typedef struct {
-	 void                   *arm_shared_mem_virt;
-	 dma_addr_t              arm_shared_mem_phys;
-	 size_t                  arm_shared_mem_size;
-
-	 void                   *vc_shared_mem_virt;
-	 dma_addr_t              vc_shared_mem_phys;
-	 size_t                  vc_shared_mem_size;
-} VCHIQ_SHARED_MEM_INFO_T;
-
 /* ---- Variable Externs ------------------------------------------------- */
 
 /* ---- Function Prototypes ---------------------------------------------- */
-
-void vchiq_get_shared_mem_info(VCHIQ_SHARED_MEM_INFO_T *info);
 
 VCHIQ_STATUS_T vchiq_memdrv_initialise(void);
 

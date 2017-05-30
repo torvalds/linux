@@ -67,6 +67,7 @@ MODULE_DESCRIPTION("ACPI Battery Driver");
 MODULE_LICENSE("GPL");
 
 static async_cookie_t async_cookie;
+static bool battery_driver_registered;
 static int battery_bix_broken_package;
 static int battery_notification_delay_ms;
 static unsigned int cache_time = 1000;
@@ -92,6 +93,11 @@ static const struct acpi_device_id battery_device_ids[] = {
 };
 
 MODULE_DEVICE_TABLE(acpi, battery_device_ids);
+
+/* Lists of PMIC ACPI HIDs with an (often better) native battery driver */
+static const char * const acpi_battery_blacklist[] = {
+	"INT33F4", /* X-Powers AXP288 PMIC */
+};
 
 enum {
 	ACPI_BATTERY_ALARM_PRESENT,
@@ -776,7 +782,7 @@ static int acpi_battery_update(struct acpi_battery *battery, bool resume)
 	if ((battery->state & ACPI_BATTERY_STATE_CRITICAL) ||
 	    (test_bit(ACPI_BATTERY_ALARM_PRESENT, &battery->flags) &&
             (battery->capacity_now <= battery->alarm)))
-		pm_wakeup_event(&battery->device->dev, 0);
+		pm_wakeup_hard_event(&battery->device->dev);
 
 	return result;
 }
@@ -1315,7 +1321,16 @@ static struct acpi_driver acpi_battery_driver = {
 
 static void __init acpi_battery_init_async(void *unused, async_cookie_t cookie)
 {
+	unsigned int i;
 	int result;
+
+	for (i = 0; i < ARRAY_SIZE(acpi_battery_blacklist); i++)
+		if (acpi_dev_present(acpi_battery_blacklist[i], "1", -1)) {
+			pr_info(PREFIX ACPI_BATTERY_DEVICE_NAME
+				": found native %s PMIC, not loading\n",
+				acpi_battery_blacklist[i]);
+			return;
+		}
 
 	dmi_check_system(bat_dmi_table);
 
@@ -1329,6 +1344,7 @@ static void __init acpi_battery_init_async(void *unused, async_cookie_t cookie)
 	if (result < 0)
 		acpi_unlock_battery_dir(acpi_battery_dir);
 #endif
+	battery_driver_registered = (result == 0);
 }
 
 static int __init acpi_battery_init(void)
@@ -1343,9 +1359,11 @@ static int __init acpi_battery_init(void)
 static void __exit acpi_battery_exit(void)
 {
 	async_synchronize_cookie(async_cookie + 1);
-	acpi_bus_unregister_driver(&acpi_battery_driver);
+	if (battery_driver_registered)
+		acpi_bus_unregister_driver(&acpi_battery_driver);
 #ifdef CONFIG_ACPI_PROCFS_POWER
-	acpi_unlock_battery_dir(acpi_battery_dir);
+	if (acpi_battery_dir)
+		acpi_unlock_battery_dir(acpi_battery_dir);
 #endif
 }
 

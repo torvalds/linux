@@ -26,6 +26,14 @@ struct io_path_stats {
 	atomic64_t sc_null;
 	atomic64_t io_not_found;
 	atomic64_t num_ios;
+	atomic64_t io_btw_0_to_10_msec;
+	atomic64_t io_btw_10_to_100_msec;
+	atomic64_t io_btw_100_to_500_msec;
+	atomic64_t io_btw_500_to_5000_msec;
+	atomic64_t io_btw_5000_to_10000_msec;
+	atomic64_t io_btw_10000_to_30000_msec;
+	atomic64_t io_greater_than_30000_msec;
+	atomic64_t current_max_io_time;
 };
 
 struct abort_stats {
@@ -34,6 +42,13 @@ struct abort_stats {
 	atomic64_t abort_drv_timeouts;
 	atomic64_t abort_fw_timeouts;
 	atomic64_t abort_io_not_found;
+	atomic64_t abort_issued_btw_0_to_6_sec;
+	atomic64_t abort_issued_btw_6_to_20_sec;
+	atomic64_t abort_issued_btw_20_to_30_sec;
+	atomic64_t abort_issued_btw_30_to_40_sec;
+	atomic64_t abort_issued_btw_40_to_50_sec;
+	atomic64_t abort_issued_btw_50_to_60_sec;
+	atomic64_t abort_issued_greater_than_60_sec;
 };
 
 struct terminate_stats {
@@ -88,6 +103,7 @@ struct misc_stats {
 	atomic64_t devrst_cpwq_alloc_failures;
 	atomic64_t io_cpwq_alloc_failures;
 	atomic64_t no_icmnd_itmf_cmpls;
+	atomic64_t check_condition;
 	atomic64_t queue_fulls;
 	atomic64_t rport_not_ready;
 	atomic64_t frame_errors;

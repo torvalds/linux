@@ -70,7 +70,7 @@ static unsigned long level4p;
  * Due to relocation, pointers must be assigned at run time not build time.
  */
 static struct x86_mapping_info mapping_info = {
-	.pmd_flag       = __PAGE_KERNEL_LARGE_EXEC,
+	.page_flag       = __PAGE_KERNEL_LARGE_EXEC,
 };
 
 /* Locates and clears a region for a new top level page table. */

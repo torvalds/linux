@@ -247,10 +247,10 @@ static int ide_cd_breathe(ide_drive_t *drive, struct request *rq)
 
 	struct cdrom_info *info = drive->driver_data;
 
-	if (!rq->errors)
+	if (!scsi_req(rq)->result)
 		info->write_timeout = jiffies +	ATAPI_WAIT_WRITE_BUSY;
 
-	rq->errors = 1;
+	scsi_req(rq)->result = 1;
 
 	if (time_after(jiffies, info->write_timeout))
 		return 0;
@@ -294,8 +294,8 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 	}
 
 	/* if we have an error, pass CHECK_CONDITION as the SCSI status byte */
-	if (blk_rq_is_scsi(rq) && !rq->errors)
-		rq->errors = SAM_STAT_CHECK_CONDITION;
+	if (blk_rq_is_scsi(rq) && !scsi_req(rq)->result)
+		scsi_req(rq)->result = SAM_STAT_CHECK_CONDITION;
 
 	if (blk_noretry_request(rq))
 		do_end_request = 1;
@@ -325,7 +325,7 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 		 * Arrange to retry the request but be sure to give up if we've
 		 * retried too many times.
 		 */
-		if (++rq->errors > ERROR_MAX)
+		if (++scsi_req(rq)->result > ERROR_MAX)
 			do_end_request = 1;
 		break;
 	case ILLEGAL_REQUEST:
@@ -372,7 +372,7 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 			/* go to the default handler for other errors */
 			ide_error(drive, "cdrom_decode_status", stat);
 			return 1;
-		} else if (++rq->errors > ERROR_MAX)
+		} else if (++scsi_req(rq)->result > ERROR_MAX)
 			/* we've racked up too many retries, abort */
 			do_end_request = 1;
 	}
@@ -452,7 +452,8 @@ int ide_cd_queue_pc(ide_drive_t *drive, const unsigned char *cmd,
 			}
 		}
 
-		error = blk_execute_rq(drive->queue, info->disk, rq, 0);
+		blk_execute_rq(drive->queue, info->disk, rq, 0);
+		error = scsi_req(rq)->result ? -EIO : 0;
 
 		if (buffer)
 			*bufflen = scsi_req(rq)->resid_len;
@@ -683,8 +684,8 @@ out_end:
 			if (cmd->nleft == 0)
 				uptodate = 1;
 		} else {
-			if (uptodate <= 0 && rq->errors == 0)
-				rq->errors = -EIO;
+			if (uptodate <= 0 && scsi_req(rq)->result == 0)
+				scsi_req(rq)->result = -EIO;
 		}
 
 		if (uptodate == 0 && rq->bio)
@@ -1379,7 +1380,7 @@ static int ide_cdrom_prep_pc(struct request *rq)
 	 * appropriate action
 	 */
 	if (c[0] == MODE_SENSE || c[0] == MODE_SELECT) {
-		rq->errors = ILLEGAL_REQUEST;
+		scsi_req(rq)->result = ILLEGAL_REQUEST;
 		return BLKPREP_KILL;
 	}
 

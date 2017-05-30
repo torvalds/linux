@@ -125,6 +125,24 @@ static void exynos_drm_crtc_destroy(struct drm_crtc *crtc)
 	kfree(exynos_crtc);
 }
 
+static int exynos_drm_crtc_enable_vblank(struct drm_crtc *crtc)
+{
+	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
+
+	if (exynos_crtc->ops->enable_vblank)
+		return exynos_crtc->ops->enable_vblank(exynos_crtc);
+
+	return 0;
+}
+
+static void exynos_drm_crtc_disable_vblank(struct drm_crtc *crtc)
+{
+	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
+
+	if (exynos_crtc->ops->disable_vblank)
+		exynos_crtc->ops->disable_vblank(exynos_crtc);
+}
+
 static const struct drm_crtc_funcs exynos_crtc_funcs = {
 	.set_config	= drm_atomic_helper_set_config,
 	.page_flip	= drm_atomic_helper_page_flip,
@@ -132,6 +150,8 @@ static const struct drm_crtc_funcs exynos_crtc_funcs = {
 	.reset = drm_atomic_helper_crtc_reset,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.enable_vblank = exynos_drm_crtc_enable_vblank,
+	.disable_vblank = exynos_drm_crtc_disable_vblank,
 };
 
 struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
@@ -169,26 +189,6 @@ err_crtc:
 	plane->funcs->destroy(plane);
 	kfree(exynos_crtc);
 	return ERR_PTR(ret);
-}
-
-int exynos_drm_crtc_enable_vblank(struct drm_device *dev, unsigned int pipe)
-{
-	struct exynos_drm_crtc *exynos_crtc = exynos_drm_crtc_from_pipe(dev,
-									pipe);
-
-	if (exynos_crtc->ops->enable_vblank)
-		return exynos_crtc->ops->enable_vblank(exynos_crtc);
-
-	return 0;
-}
-
-void exynos_drm_crtc_disable_vblank(struct drm_device *dev, unsigned int pipe)
-{
-	struct exynos_drm_crtc *exynos_crtc = exynos_drm_crtc_from_pipe(dev,
-									pipe);
-
-	if (exynos_crtc->ops->disable_vblank)
-		exynos_crtc->ops->disable_vblank(exynos_crtc);
 }
 
 int exynos_drm_crtc_get_pipe_from_type(struct drm_device *drm_dev,

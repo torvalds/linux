@@ -360,26 +360,22 @@ static int idmouse_probe(struct usb_interface *interface,
 	dev->interface = interface;
 
 	/* set up the endpoint information - use only the first bulk-in endpoint */
-	endpoint = &iface_desc->endpoint[0].desc;
-	if (!dev->bulk_in_endpointAddr && usb_endpoint_is_bulk_in(endpoint)) {
-		/* we found a bulk in endpoint */
-		dev->orig_bi_size = usb_endpoint_maxp(endpoint);
-		dev->bulk_in_size = 0x200; /* works _much_ faster */
-		dev->bulk_in_endpointAddr = endpoint->bEndpointAddress;
-		dev->bulk_in_buffer =
-			kmalloc(IMGSIZE + dev->bulk_in_size, GFP_KERNEL);
-
-		if (!dev->bulk_in_buffer) {
-			idmouse_delete(dev);
-			return -ENOMEM;
-		}
-	}
-
-	if (!(dev->bulk_in_endpointAddr)) {
+	result = usb_find_bulk_in_endpoint(iface_desc, &endpoint);
+	if (result) {
 		dev_err(&interface->dev, "Unable to find bulk-in endpoint.\n");
 		idmouse_delete(dev);
-		return -ENODEV;
+		return result;
 	}
+
+	dev->orig_bi_size = usb_endpoint_maxp(endpoint);
+	dev->bulk_in_size = 0x200; /* works _much_ faster */
+	dev->bulk_in_endpointAddr = endpoint->bEndpointAddress;
+	dev->bulk_in_buffer = kmalloc(IMGSIZE + dev->bulk_in_size, GFP_KERNEL);
+	if (!dev->bulk_in_buffer) {
+		idmouse_delete(dev);
+		return -ENOMEM;
+	}
+
 	/* allow device read, write and ioctl */
 	dev->present = 1;
 

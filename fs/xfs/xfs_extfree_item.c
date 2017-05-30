@@ -290,6 +290,7 @@ void
 xfs_efi_release(
 	struct xfs_efi_log_item	*efip)
 {
+	ASSERT(atomic_read(&efip->efi_refcount) > 0);
 	if (atomic_dec_and_test(&efip->efi_refcount)) {
 		xfs_trans_ail_remove(&efip->efi_item, SHUTDOWN_LOG_IO_ERROR);
 		xfs_efi_item_free(efip);

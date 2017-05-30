@@ -34,6 +34,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_scdc_helper.h>
 #include "intel_drv.h"
 #include <drm/i915_drm.h>
 #include <drm/intel_lpe_audio.h>
@@ -902,12 +903,11 @@ static bool intel_hdmi_get_hw_state(struct intel_encoder *encoder,
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
-	enum intel_display_power_domain power_domain;
 	u32 tmp;
 	bool ret;
 
-	power_domain = intel_display_port_power_domain(encoder);
-	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
+	if (!intel_display_power_get_if_enabled(dev_priv,
+						encoder->power_domain))
 		return false;
 
 	ret = false;
@@ -927,7 +927,7 @@ static bool intel_hdmi_get_hw_state(struct intel_encoder *encoder,
 	ret = true;
 
 out:
-	intel_display_power_put(dev_priv, power_domain);
+	intel_display_power_put(dev_priv, encoder->power_domain);
 
 	return ret;
 }
@@ -1209,6 +1209,8 @@ static int intel_hdmi_source_max_tmds_clock(struct drm_i915_private *dev_priv)
 {
 	if (IS_G4X(dev_priv))
 		return 165000;
+	else if (IS_GEMINILAKE(dev_priv))
+		return 594000;
 	else if (IS_HASWELL(dev_priv) || INTEL_INFO(dev_priv)->gen >= 8)
 		return 300000;
 	else
@@ -1335,6 +1337,7 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
+	struct drm_scdc *scdc = &conn_state->connector->display_info.hdmi.scdc;
 	int clock_8bpc = pipe_config->base.adjusted_mode.crtc_clock;
 	int clock_12bpc = clock_8bpc * 3 / 2;
 	int desired_bpp;
@@ -1403,6 +1406,16 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	adjusted_mode->picture_aspect_ratio = intel_hdmi->aspect_ratio;
 
 	pipe_config->lane_count = 4;
+
+	if (scdc->scrambling.supported && IS_GEMINILAKE(dev_priv)) {
+		if (scdc->scrambling.low_rates)
+			pipe_config->hdmi_scrambling = true;
+
+		if (pipe_config->port_clock > 340000) {
+			pipe_config->hdmi_scrambling = true;
+			pipe_config->hdmi_high_tmds_clock_ratio = true;
+		}
+	}
 
 	return true;
 }
@@ -1813,6 +1826,57 @@ intel_hdmi_add_properties(struct intel_hdmi *intel_hdmi, struct drm_connector *c
 	intel_hdmi->aspect_ratio = HDMI_PICTURE_ASPECT_NONE;
 }
 
+/*
+ * intel_hdmi_handle_sink_scrambling: handle sink scrambling/clock ratio setup
+ * @encoder: intel_encoder
+ * @connector: drm_connector
+ * @high_tmds_clock_ratio = bool to indicate if the function needs to set
+ *  or reset the high tmds clock ratio for scrambling
+ * @scrambling: bool to Indicate if the function needs to set or reset
+ *  sink scrambling
+ *
+ * This function handles scrambling on HDMI 2.0 capable sinks.
+ * If required clock rate is > 340 Mhz && scrambling is supported by sink
+ * it enables scrambling. This should be called before enabling the HDMI
+ * 2.0 port, as the sink can choose to disable the scrambling if it doesn't
+ * detect a scrambled clock within 100 ms.
+ */
+void intel_hdmi_handle_sink_scrambling(struct intel_encoder *encoder,
+				       struct drm_connector *connector,
+				       bool high_tmds_clock_ratio,
+				       bool scrambling)
+{
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
+	struct drm_i915_private *dev_priv = connector->dev->dev_private;
+	struct drm_scrambling *sink_scrambling =
+				&connector->display_info.hdmi.scdc.scrambling;
+	struct i2c_adapter *adptr = intel_gmbus_get_adapter(dev_priv,
+							   intel_hdmi->ddc_bus);
+	bool ret;
+
+	if (!sink_scrambling->supported)
+		return;
+
+	DRM_DEBUG_KMS("Setting sink scrambling for enc:%s connector:%s\n",
+		      encoder->base.name, connector->name);
+
+	/* Set TMDS bit clock ratio to 1/40 or 1/10 */
+	ret = drm_scdc_set_high_tmds_clock_ratio(adptr, high_tmds_clock_ratio);
+	if (!ret) {
+		DRM_ERROR("Set TMDS ratio failed\n");
+		return;
+	}
+
+	/* Enable/disable sink scrambling */
+	ret = drm_scdc_set_scrambling(adptr, scrambling);
+	if (!ret) {
+		DRM_ERROR("Set sink scrambling failed\n");
+		return;
+	}
+
+	DRM_DEBUG_KMS("sink scrambling handled\n");
+}
+
 static u8 intel_hdmi_ddc_pin(struct drm_i915_private *dev_priv,
 			     enum port port)
 {
@@ -1887,14 +1951,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 
 	switch (port) {
 	case PORT_B:
-		/*
-		 * On BXT A0/A1, sw needs to activate DDIA HPD logic and
-		 * interrupts to check the external panel connection.
-		 */
-		if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1))
-			intel_encoder->hpd_pin = HPD_PORT_A;
-		else
-			intel_encoder->hpd_pin = HPD_PORT_B;
+		intel_encoder->hpd_pin = HPD_PORT_B;
 		break;
 	case PORT_C:
 		intel_encoder->hpd_pin = HPD_PORT_C;
@@ -2006,6 +2063,7 @@ void intel_hdmi_init(struct drm_i915_private *dev_priv,
 	}
 
 	intel_encoder->type = INTEL_OUTPUT_HDMI;
+	intel_encoder->power_domain = intel_port_to_power_domain(port);
 	intel_encoder->port = port;
 	if (IS_CHERRYVIEW(dev_priv)) {
 		if (port == PORT_D)

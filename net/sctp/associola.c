@@ -246,6 +246,9 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	if (!sctp_ulpq_init(&asoc->ulpq, asoc))
 		goto fail_init;
 
+	if (sctp_stream_new(asoc, gfp))
+		goto fail_init;
+
 	/* Assume that peer would support both address types unless we are
 	 * told otherwise.
 	 */
@@ -264,7 +267,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	/* AUTH related initializations */
 	INIT_LIST_HEAD(&asoc->endpoint_shared_keys);
 	if (sctp_auth_asoc_copy_shkeys(ep, asoc, gfp))
-		goto fail_init;
+		goto stream_free;
 
 	asoc->active_key_id = ep->active_key_id;
 	asoc->prsctp_enable = ep->prsctp_enable;
@@ -287,6 +290,8 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 
 	return asoc;
 
+stream_free:
+	sctp_stream_free(asoc->stream);
 fail_init:
 	sock_put(asoc->base.sk);
 	sctp_endpoint_put(asoc->ep);
@@ -1171,7 +1176,9 @@ void sctp_assoc_update(struct sctp_association *asoc,
 
 		asoc->ctsn_ack_point = asoc->next_tsn - 1;
 		asoc->adv_peer_ack_point = asoc->ctsn_ack_point;
-		if (!asoc->stream) {
+
+		if (sctp_state(asoc, COOKIE_WAIT)) {
+			sctp_stream_free(asoc->stream);
 			asoc->stream = new->stream;
 			new->stream = NULL;
 		}
@@ -1407,7 +1414,7 @@ sctp_assoc_choose_alter_transport(struct sctp_association *asoc,
 /* Update the association's pmtu and frag_point by going through all the
  * transports. This routine is called when a transport's PMTU has changed.
  */
-void sctp_assoc_sync_pmtu(struct sock *sk, struct sctp_association *asoc)
+void sctp_assoc_sync_pmtu(struct sctp_association *asoc)
 {
 	struct sctp_transport *t;
 	__u32 pmtu = 0;
@@ -1419,8 +1426,8 @@ void sctp_assoc_sync_pmtu(struct sock *sk, struct sctp_association *asoc)
 	list_for_each_entry(t, &asoc->peer.transport_addr_list,
 				transports) {
 		if (t->pmtu_pending && t->dst) {
-			sctp_transport_update_pmtu(sk, t,
-						   SCTP_TRUNC4(dst_mtu(t->dst)));
+			sctp_transport_update_pmtu(
+					t, SCTP_TRUNC4(dst_mtu(t->dst)));
 			t->pmtu_pending = 0;
 		}
 		if (!pmtu || (t->pathmtu < pmtu))

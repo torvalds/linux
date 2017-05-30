@@ -122,6 +122,13 @@ struct md_rdev {
 					   * sysfs entry */
 
 	struct badblocks badblocks;
+
+	struct {
+		short offset;	/* Offset from superblock to start of PPL.
+				 * Not used by external metadata. */
+		unsigned int size;	/* Size in sectors of the PPL space */
+		sector_t sector;	/* First sector of the PPL space */
+	} ppl;
 };
 enum flag_bits {
 	Faulty,			/* device is known to have a fault */
@@ -219,9 +226,6 @@ enum mddev_flags {
 				 * it then */
 	MD_JOURNAL_CLEAN,	/* A raid with journal is already clean */
 	MD_HAS_JOURNAL,		/* The raid array has journal feature set */
-	MD_RELOAD_SB,		/* Reload the superblock because another node
-				 * updated it.
-				 */
 	MD_CLUSTER_RESYNC_LOCKED, /* cluster raid only, which means node
 				   * already took resync lock, need to
 				   * release the lock */
@@ -229,6 +233,7 @@ enum mddev_flags {
 				 * supported as calls to md_error() will
 				 * never cause the array to become failed.
 				 */
+	MD_HAS_PPL,		/* The raid array has PPL feature set */
 };
 
 enum mddev_sb_flags {
@@ -404,7 +409,8 @@ struct mddev {
 							 */
 	unsigned int			safemode_delay;
 	struct timer_list		safemode_timer;
-	atomic_t			writes_pending;
+	struct percpu_ref		writes_pending;
+	int				sync_checkers;	/* # of threads checking writes_pending */
 	struct request_queue		*queue;	/* for plugging ... */
 
 	struct bitmap			*bitmap; /* the bitmap for the device */
@@ -540,6 +546,8 @@ struct md_personality
 	/* congested implements bdi.congested_fn().
 	 * Will not be called while array is 'suspended' */
 	int (*congested)(struct mddev *mddev, int bits);
+	/* Changes the consistency policy of an active array. */
+	int (*change_consistency_policy)(struct mddev *mddev, const char *buf);
 };
 
 struct md_sysfs_entry {
@@ -641,6 +649,7 @@ extern void md_wakeup_thread(struct md_thread *thread);
 extern void md_check_recovery(struct mddev *mddev);
 extern void md_reap_sync_thread(struct mddev *mddev);
 extern void md_write_start(struct mddev *mddev, struct bio *bi);
+extern void md_write_inc(struct mddev *mddev, struct bio *bi);
 extern void md_write_end(struct mddev *mddev);
 extern void md_done_sync(struct mddev *mddev, int blocks, int ok);
 extern void md_error(struct mddev *mddev, struct md_rdev *rdev);
@@ -656,7 +665,7 @@ extern int sync_page_io(struct md_rdev *rdev, sector_t sector, int size,
 			bool metadata_op);
 extern void md_do_sync(struct md_thread *thread);
 extern void md_new_event(struct mddev *mddev);
-extern int md_allow_write(struct mddev *mddev);
+extern void md_allow_write(struct mddev *mddev);
 extern void md_wait_for_blocked_rdev(struct md_rdev *rdev, struct mddev *mddev);
 extern void md_set_array_sectors(struct mddev *mddev, sector_t array_sectors);
 extern int md_check_no_bitmap(struct mddev *mddev);
@@ -708,5 +717,66 @@ static inline void mddev_check_writesame(struct mddev *mddev, struct bio *bio)
 	if (bio_op(bio) == REQ_OP_WRITE_SAME &&
 	    !bdev_get_queue(bio->bi_bdev)->limits.max_write_same_sectors)
 		mddev->queue->limits.max_write_same_sectors = 0;
+}
+
+static inline void mddev_check_write_zeroes(struct mddev *mddev, struct bio *bio)
+{
+	if (bio_op(bio) == REQ_OP_WRITE_ZEROES &&
+	    !bdev_get_queue(bio->bi_bdev)->limits.max_write_zeroes_sectors)
+		mddev->queue->limits.max_write_zeroes_sectors = 0;
+}
+
+/* Maximum size of each resync request */
+#define RESYNC_BLOCK_SIZE (64*1024)
+#define RESYNC_PAGES ((RESYNC_BLOCK_SIZE + PAGE_SIZE-1) / PAGE_SIZE)
+
+/* for managing resync I/O pages */
+struct resync_pages {
+	unsigned	idx;	/* for get/put page from the pool */
+	void		*raid_bio;
+	struct page	*pages[RESYNC_PAGES];
+};
+
+static inline int resync_alloc_pages(struct resync_pages *rp,
+				     gfp_t gfp_flags)
+{
+	int i;
+
+	for (i = 0; i < RESYNC_PAGES; i++) {
+		rp->pages[i] = alloc_page(gfp_flags);
+		if (!rp->pages[i])
+			goto out_free;
+	}
+
+	return 0;
+
+out_free:
+	while (--i >= 0)
+		put_page(rp->pages[i]);
+	return -ENOMEM;
+}
+
+static inline void resync_free_pages(struct resync_pages *rp)
+{
+	int i;
+
+	for (i = 0; i < RESYNC_PAGES; i++)
+		put_page(rp->pages[i]);
+}
+
+static inline void resync_get_all_pages(struct resync_pages *rp)
+{
+	int i;
+
+	for (i = 0; i < RESYNC_PAGES; i++)
+		get_page(rp->pages[i]);
+}
+
+static inline struct page *resync_fetch_page(struct resync_pages *rp,
+					     unsigned idx)
+{
+	if (WARN_ON_ONCE(idx >= RESYNC_PAGES))
+		return NULL;
+	return rp->pages[idx];
 }
 #endif /* _MD_MD_H */

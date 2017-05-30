@@ -34,6 +34,8 @@ hostprogs-y += sampleip
 hostprogs-y += tc_l2_redirect
 hostprogs-y += lwt_len_hist
 hostprogs-y += xdp_tx_iptunnel
+hostprogs-y += test_map_in_map
+hostprogs-y += per_socket_stats_example
 
 # Libbpf dependencies
 LIBBPF := ../../tools/lib/bpf/bpf.o
@@ -72,6 +74,8 @@ sampleip-objs := bpf_load.o $(LIBBPF) sampleip_user.o
 tc_l2_redirect-objs := bpf_load.o $(LIBBPF) tc_l2_redirect_user.o
 lwt_len_hist-objs := bpf_load.o $(LIBBPF) lwt_len_hist_user.o
 xdp_tx_iptunnel-objs := bpf_load.o $(LIBBPF) xdp_tx_iptunnel_user.o
+test_map_in_map-objs := bpf_load.o $(LIBBPF) test_map_in_map_user.o
+per_socket_stats_example-objs := $(LIBBPF) cookie_uid_helper_example.o
 
 # Tell kbuild to always build the programs
 always := $(hostprogs-y)
@@ -105,6 +109,8 @@ always += trace_event_kern.o
 always += sampleip_kern.o
 always += lwt_len_hist_kern.o
 always += xdp_tx_iptunnel_kern.o
+always += test_map_in_map_kern.o
+always += cookie_uid_helper_example.o
 
 HOSTCFLAGS += -I$(objtree)/usr/include
 HOSTCFLAGS += -I$(srctree)/tools/lib/
@@ -139,6 +145,7 @@ HOSTLOADLIBES_sampleip += -lelf
 HOSTLOADLIBES_tc_l2_redirect += -l elf
 HOSTLOADLIBES_lwt_len_hist += -l elf
 HOSTLOADLIBES_xdp_tx_iptunnel += -lelf
+HOSTLOADLIBES_test_map_in_map += -lelf
 
 # Allows pointing LLC/CLANG to a LLVM backend with bpf support, redefine on cmdline:
 #  make samples/bpf/ LLC=~/git/llvm/build/bin/llc CLANG=~/git/llvm/build/bin/clang
@@ -182,4 +189,5 @@ $(obj)/%.o: $(src)/%.c
 		-Wno-compare-distinct-pointer-types \
 		-Wno-gnu-variable-sized-type-not-at-end \
 		-Wno-address-of-packed-member -Wno-tautological-compare \
+		-Wno-unknown-warning-option \
 		-O2 -emit-llvm -c $< -o -| $(LLC) -march=bpf -filetype=obj -o $@

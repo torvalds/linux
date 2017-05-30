@@ -18,6 +18,7 @@
 #include <linux/dma-fence.h>
 #include <linux/moduleparam.h>
 #include <linux/of_device.h>
+#include <linux/thermal.h>
 
 #include "etnaviv_cmdbuf.h"
 #include "etnaviv_dump.h"
@@ -409,6 +410,17 @@ static void etnaviv_gpu_load_clock(struct etnaviv_gpu *gpu, u32 clock)
 	gpu_write(gpu, VIVS_HI_CLOCK_CONTROL, clock);
 }
 
+static void etnaviv_gpu_update_clock(struct etnaviv_gpu *gpu)
+{
+	unsigned int fscale = 1 << (6 - gpu->freq_scale);
+	u32 clock;
+
+	clock = VIVS_HI_CLOCK_CONTROL_DISABLE_DEBUG_REGISTERS |
+		VIVS_HI_CLOCK_CONTROL_FSCALE_VAL(fscale);
+
+	etnaviv_gpu_load_clock(gpu, clock);
+}
+
 static int etnaviv_hw_reset(struct etnaviv_gpu *gpu)
 {
 	u32 control, idle;
@@ -426,11 +438,10 @@ static int etnaviv_hw_reset(struct etnaviv_gpu *gpu)
 	timeout = jiffies + msecs_to_jiffies(1000);
 
 	while (time_is_after_jiffies(timeout)) {
-		control = VIVS_HI_CLOCK_CONTROL_DISABLE_DEBUG_REGISTERS |
-			  VIVS_HI_CLOCK_CONTROL_FSCALE_VAL(0x40);
-
 		/* enable clock */
-		etnaviv_gpu_load_clock(gpu, control);
+		etnaviv_gpu_update_clock(gpu);
+
+		control = gpu_read(gpu, VIVS_HI_CLOCK_CONTROL);
 
 		/* Wait for stable clock.  Vivante's code waited for 1ms */
 		usleep_range(1000, 10000);
@@ -490,11 +501,7 @@ static int etnaviv_hw_reset(struct etnaviv_gpu *gpu)
 	}
 
 	/* We rely on the GPU running, so program the clock */
-	control = VIVS_HI_CLOCK_CONTROL_DISABLE_DEBUG_REGISTERS |
-		  VIVS_HI_CLOCK_CONTROL_FSCALE_VAL(0x40);
-
-	/* enable clock */
-	etnaviv_gpu_load_clock(gpu, control);
+	etnaviv_gpu_update_clock(gpu);
 
 	return 0;
 }
@@ -1051,6 +1058,12 @@ static struct dma_fence *etnaviv_gpu_fence_alloc(struct etnaviv_gpu *gpu)
 {
 	struct etnaviv_fence *f;
 
+	/*
+	 * GPU lock must already be held, otherwise fence completion order might
+	 * not match the seqno order assigned here.
+	 */
+	lockdep_assert_held(&gpu->lock);
+
 	f = kzalloc(sizeof(*f), GFP_KERNEL);
 	if (!f)
 		return NULL;
@@ -1064,7 +1077,7 @@ static struct dma_fence *etnaviv_gpu_fence_alloc(struct etnaviv_gpu *gpu)
 }
 
 int etnaviv_gpu_fence_sync_obj(struct etnaviv_gem_object *etnaviv_obj,
-	unsigned int context, bool exclusive)
+	unsigned int context, bool exclusive, bool explicit)
 {
 	struct reservation_object *robj = etnaviv_obj->resv;
 	struct reservation_object_list *fobj;
@@ -1076,6 +1089,9 @@ int etnaviv_gpu_fence_sync_obj(struct etnaviv_gem_object *etnaviv_obj,
 		if (ret)
 			return ret;
 	}
+
+	if (explicit)
+		return 0;
 
 	/*
 	 * If we have any shared fences, then the exclusive fence
@@ -1317,12 +1333,12 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 	if (!fence) {
 		event_free(gpu, event);
 		ret = -ENOMEM;
-		goto out_pm_put;
+		goto out_unlock;
 	}
 
 	gpu->event[event].fence = fence;
-	submit->fence = fence->seqno;
-	gpu->active_fence = submit->fence;
+	submit->fence = dma_fence_get(fence);
+	gpu->active_fence = submit->fence->seqno;
 
 	if (gpu->lastctx != cmdbuf->ctx) {
 		gpu->mmu->need_flush = true;
@@ -1357,6 +1373,7 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 	hangcheck_timer_reset(gpu);
 	ret = 0;
 
+out_unlock:
 	mutex_unlock(&gpu->lock);
 
 out_pm_put:
@@ -1526,17 +1543,13 @@ static int etnaviv_gpu_hw_suspend(struct etnaviv_gpu *gpu)
 #ifdef CONFIG_PM
 static int etnaviv_gpu_hw_resume(struct etnaviv_gpu *gpu)
 {
-	u32 clock;
 	int ret;
 
 	ret = mutex_lock_killable(&gpu->lock);
 	if (ret)
 		return ret;
 
-	clock = VIVS_HI_CLOCK_CONTROL_DISABLE_DEBUG_REGISTERS |
-		VIVS_HI_CLOCK_CONTROL_FSCALE_VAL(0x40);
-
-	etnaviv_gpu_load_clock(gpu, clock);
+	etnaviv_gpu_update_clock(gpu);
 	etnaviv_gpu_hw_init(gpu);
 
 	gpu->switch_context = true;
@@ -1548,6 +1561,47 @@ static int etnaviv_gpu_hw_resume(struct etnaviv_gpu *gpu)
 }
 #endif
 
+static int
+etnaviv_gpu_cooling_get_max_state(struct thermal_cooling_device *cdev,
+				  unsigned long *state)
+{
+	*state = 6;
+
+	return 0;
+}
+
+static int
+etnaviv_gpu_cooling_get_cur_state(struct thermal_cooling_device *cdev,
+				  unsigned long *state)
+{
+	struct etnaviv_gpu *gpu = cdev->devdata;
+
+	*state = gpu->freq_scale;
+
+	return 0;
+}
+
+static int
+etnaviv_gpu_cooling_set_cur_state(struct thermal_cooling_device *cdev,
+				  unsigned long state)
+{
+	struct etnaviv_gpu *gpu = cdev->devdata;
+
+	mutex_lock(&gpu->lock);
+	gpu->freq_scale = state;
+	if (!pm_runtime_suspended(gpu->dev))
+		etnaviv_gpu_update_clock(gpu);
+	mutex_unlock(&gpu->lock);
+
+	return 0;
+}
+
+static struct thermal_cooling_device_ops cooling_ops = {
+	.get_max_state = etnaviv_gpu_cooling_get_max_state,
+	.get_cur_state = etnaviv_gpu_cooling_get_cur_state,
+	.set_cur_state = etnaviv_gpu_cooling_set_cur_state,
+};
+
 static int etnaviv_gpu_bind(struct device *dev, struct device *master,
 	void *data)
 {
@@ -1556,13 +1610,20 @@ static int etnaviv_gpu_bind(struct device *dev, struct device *master,
 	struct etnaviv_gpu *gpu = dev_get_drvdata(dev);
 	int ret;
 
+	gpu->cooling = thermal_of_cooling_device_register(dev->of_node,
+				(char *)dev_name(dev), gpu, &cooling_ops);
+	if (IS_ERR(gpu->cooling))
+		return PTR_ERR(gpu->cooling);
+
 #ifdef CONFIG_PM
 	ret = pm_runtime_get_sync(gpu->dev);
 #else
 	ret = etnaviv_gpu_clk_enable(gpu);
 #endif
-	if (ret < 0)
+	if (ret < 0) {
+		thermal_cooling_device_unregister(gpu->cooling);
 		return ret;
+	}
 
 	gpu->drm = drm;
 	gpu->fence_context = dma_fence_context_alloc(1);
@@ -1616,6 +1677,9 @@ static void etnaviv_gpu_unbind(struct device *dev, struct device *master,
 	}
 
 	gpu->drm = NULL;
+
+	thermal_cooling_device_unregister(gpu->cooling);
+	gpu->cooling = NULL;
 }
 
 static const struct component_ops gpu_ops = {

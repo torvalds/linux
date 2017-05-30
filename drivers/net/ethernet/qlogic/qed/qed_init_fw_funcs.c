@@ -215,13 +215,6 @@ static void qed_cmdq_lines_voq_rt_init(struct qed_hwfn *p_hwfn,
 {
 	u32 qm_line_crd;
 
-	/* In A0 - Limit the size of pbf queue so that only 511 commands with
-	 * the minimum size of 4 (FCoE minimum size)
-	 */
-	bool is_bb_a0 = QED_IS_BB_A0(p_hwfn->cdev);
-
-	if (is_bb_a0)
-		cmdq_lines = min_t(u32, cmdq_lines, 1022);
 	qm_line_crd = QM_VOQ_LINE_CRD(cmdq_lines);
 	OVERWRITE_RT_REG(p_hwfn, PBF_CMDQ_LINES_RT_OFFSET(voq),
 			 (u32)cmdq_lines);
@@ -343,13 +336,11 @@ static void qed_tx_pq_map_rt_init(
 	u16 first_pq_group = p_params->start_pq / QM_PF_QUEUE_GROUP_SIZE;
 	u16 last_pq_group = (p_params->start_pq + num_pqs - 1) /
 			    QM_PF_QUEUE_GROUP_SIZE;
-	bool is_bb_a0 = QED_IS_BB_A0(p_hwfn->cdev);
 	u16 i, pq_id, pq_group;
 
 	/* a bit per Tx PQ indicating if the PQ is associated with a VF */
 	u32 tx_pq_vf_mask[MAX_QM_TX_QUEUES / QM_PF_QUEUE_GROUP_SIZE] = { 0 };
-	u32 tx_pq_vf_mask_width = is_bb_a0 ? 32 : QM_PF_QUEUE_GROUP_SIZE;
-	u32 num_tx_pq_vf_masks = MAX_QM_TX_QUEUES / tx_pq_vf_mask_width;
+	u32 num_tx_pq_vf_masks = MAX_QM_TX_QUEUES / QM_PF_QUEUE_GROUP_SIZE;
 	u32 pq_mem_4kb = QM_PQ_MEM_4KB(p_params->num_pf_cids);
 	u32 vport_pq_mem_4kb = QM_PQ_MEM_4KB(p_params->num_vf_cids);
 	u32 mem_addr_4kb = base_mem_addr_4kb;
@@ -371,6 +362,10 @@ static void qed_tx_pq_map_rt_init(
 		bool is_vf_pq = (i >= p_params->num_pf_pqs);
 		struct qm_rf_pq_map tx_pq_map;
 
+		bool rl_valid = p_params->pq_params[i].rl_valid &&
+				(p_params->pq_params[i].vport_id <
+				 MAX_QM_GLOBAL_RLS);
+
 		/* update first Tx PQ of VPORT/TC */
 		u8 vport_id_in_pf = p_params->pq_params[i].vport_id -
 				    p_params->start_vport;
@@ -389,14 +384,18 @@ static void qed_tx_pq_map_rt_init(
 				     (p_params->pf_id <<
 				      QM_WFQ_VP_PQ_PF_SHIFT));
 		}
+
+		if (p_params->pq_params[i].rl_valid && !rl_valid)
+			DP_NOTICE(p_hwfn,
+				  "Invalid VPORT ID for rate limiter configuration");
 		/* fill PQ map entry */
 		memset(&tx_pq_map, 0, sizeof(tx_pq_map));
 		SET_FIELD(tx_pq_map.reg, QM_RF_PQ_MAP_PQ_VALID, 1);
-		SET_FIELD(tx_pq_map.reg, QM_RF_PQ_MAP_RL_VALID,
-			  p_params->pq_params[i].rl_valid ? 1 : 0);
+		SET_FIELD(tx_pq_map.reg,
+			  QM_RF_PQ_MAP_RL_VALID, rl_valid ? 1 : 0);
 		SET_FIELD(tx_pq_map.reg, QM_RF_PQ_MAP_VP_PQ_ID, first_tx_pq_id);
 		SET_FIELD(tx_pq_map.reg, QM_RF_PQ_MAP_RL_ID,
-			  p_params->pq_params[i].rl_valid ?
+			  rl_valid ?
 			  p_params->pq_params[i].vport_id : 0);
 		SET_FIELD(tx_pq_map.reg, QM_RF_PQ_MAP_VOQ, voq);
 		SET_FIELD(tx_pq_map.reg, QM_RF_PQ_MAP_WRR_WEIGHT_GROUP,
@@ -413,8 +412,9 @@ static void qed_tx_pq_map_rt_init(
 			/* if PQ is associated with a VF, add indication
 			 * to PQ VF mask
 			 */
-			tx_pq_vf_mask[pq_id / tx_pq_vf_mask_width] |=
-				(1 << (pq_id % tx_pq_vf_mask_width));
+			tx_pq_vf_mask[pq_id /
+				      QM_PF_QUEUE_GROUP_SIZE] |=
+			    BIT((pq_id % QM_PF_QUEUE_GROUP_SIZE));
 			mem_addr_4kb += vport_pq_mem_4kb;
 		} else {
 			mem_addr_4kb += pq_mem_4kb;
@@ -480,8 +480,8 @@ static int qed_pf_wfq_rt_init(struct qed_hwfn *p_hwfn,
 	if (p_params->pf_id < MAX_NUM_PFS_BB)
 		crd_reg_offset = QM_REG_WFQPFCRD_RT_OFFSET;
 	else
-		crd_reg_offset = QM_REG_WFQPFCRD_MSB_RT_OFFSET +
-				 (p_params->pf_id % MAX_NUM_PFS_BB);
+		crd_reg_offset = QM_REG_WFQPFCRD_MSB_RT_OFFSET;
+	crd_reg_offset += p_params->pf_id % MAX_NUM_PFS_BB;
 
 	inc_val = QM_WFQ_INC_VAL(p_params->pf_wfq);
 	if (!inc_val || inc_val > QM_WFQ_MAX_INC_VAL) {
@@ -498,11 +498,11 @@ static int qed_pf_wfq_rt_init(struct qed_hwfn *p_hwfn,
 				 QM_WFQ_CRD_REG_SIGN_BIT);
 	}
 
-	STORE_RT_REG(p_hwfn, QM_REG_WFQPFWEIGHT_RT_OFFSET + p_params->pf_id,
-		     inc_val);
 	STORE_RT_REG(p_hwfn,
 		     QM_REG_WFQPFUPPERBOUND_RT_OFFSET + p_params->pf_id,
 		     QM_WFQ_UPPER_BOUND | QM_WFQ_CRD_REG_SIGN_BIT);
+	STORE_RT_REG(p_hwfn, QM_REG_WFQPFWEIGHT_RT_OFFSET + p_params->pf_id,
+		     inc_val);
 	return 0;
 }
 
@@ -575,6 +575,12 @@ static int qed_vport_rl_rt_init(struct qed_hwfn *p_hwfn,
 				struct init_qm_vport_params *vport_params)
 {
 	u8 i, vport_id;
+
+	if (start_vport + num_vports >= MAX_QM_GLOBAL_RLS) {
+		DP_NOTICE(p_hwfn,
+			  "Invalid VPORT ID for rate limiter configuration");
+		return -1;
+	}
 
 	/* go over all PF VPORTs */
 	for (i = 0, vport_id = start_vport; i < num_vports; i++, vport_id++) {
@@ -785,6 +791,12 @@ int qed_init_vport_rl(struct qed_hwfn *p_hwfn,
 {
 	u32 inc_val = QM_RL_INC_VAL(vport_rl);
 
+	if (vport_id >= MAX_QM_GLOBAL_RLS) {
+		DP_NOTICE(p_hwfn,
+			  "Invalid VPORT ID for rate limiter configuration");
+		return -1;
+	}
+
 	if (inc_val > QM_RL_MAX_INC_VAL) {
 		DP_NOTICE(p_hwfn, "Invalid VPORT rate-limit configuration");
 		return -1;
@@ -940,12 +952,6 @@ void qed_set_geneve_enable(struct qed_hwfn *p_hwfn,
 	       eth_geneve_enable ? 1 : 0);
 	qed_wr(p_hwfn, p_ptt, NIG_REG_NGE_IP_ENABLE, ip_geneve_enable ? 1 : 0);
 
-	/* comp ver */
-	reg_val = (ip_geneve_enable || eth_geneve_enable) ? 1 : 0;
-	qed_wr(p_hwfn, p_ptt, NIG_REG_NGE_COMP_VER, reg_val);
-	qed_wr(p_hwfn, p_ptt, PBF_REG_NGE_COMP_VER, reg_val);
-	qed_wr(p_hwfn, p_ptt, PRS_REG_NGE_COMP_VER, reg_val);
-
 	/* EDPM with geneve tunnel not supported in BB_B0 */
 	if (QED_IS_BB_B0(p_hwfn->cdev))
 		return;
@@ -954,4 +960,133 @@ void qed_set_geneve_enable(struct qed_hwfn *p_hwfn,
 	       eth_geneve_enable ? 1 : 0);
 	qed_wr(p_hwfn, p_ptt, DORQ_REG_L2_EDPM_TUNNEL_NGE_IP_EN,
 	       ip_geneve_enable ? 1 : 0);
+}
+
+#define T_ETH_PACKET_MATCH_RFS_EVENTID 25
+#define PARSER_ETH_CONN_CM_HDR (0x0)
+#define CAM_LINE_SIZE sizeof(u32)
+#define RAM_LINE_SIZE sizeof(u64)
+#define REG_SIZE sizeof(u32)
+
+void qed_set_rfs_mode_disable(struct qed_hwfn *p_hwfn,
+			      struct qed_ptt *p_ptt, u16 pf_id)
+{
+	union gft_cam_line_union camline;
+	struct gft_ram_line ramline;
+	u32 *p_ramline, i;
+
+	p_ramline = (u32 *)&ramline;
+
+	/*stop using gft logic */
+	qed_wr(p_hwfn, p_ptt, PRS_REG_SEARCH_GFT, 0);
+	qed_wr(p_hwfn, p_ptt, PRS_REG_CM_HDR_GFT, 0x0);
+	memset(&camline, 0, sizeof(union gft_cam_line_union));
+	qed_wr(p_hwfn, p_ptt, PRS_REG_GFT_CAM + CAM_LINE_SIZE * pf_id,
+	       camline.cam_line_mapped.camline);
+	memset(&ramline, 0, sizeof(ramline));
+
+	for (i = 0; i < RAM_LINE_SIZE / REG_SIZE; i++) {
+		u32 hw_addr = PRS_REG_GFT_PROFILE_MASK_RAM;
+
+		hw_addr += (RAM_LINE_SIZE * pf_id + i * REG_SIZE);
+
+		qed_wr(p_hwfn, p_ptt, hw_addr, *(p_ramline + i));
+	}
+}
+
+void qed_set_rfs_mode_enable(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			     u16 pf_id, bool tcp, bool udp,
+			     bool ipv4, bool ipv6)
+{
+	u32 rfs_cm_hdr_event_id, *p_ramline;
+	union gft_cam_line_union camline;
+	struct gft_ram_line ramline;
+	int i;
+
+	rfs_cm_hdr_event_id = qed_rd(p_hwfn, p_ptt, PRS_REG_CM_HDR_GFT);
+	p_ramline = (u32 *)&ramline;
+
+	if (!ipv6 && !ipv4)
+		DP_NOTICE(p_hwfn,
+			  "set_rfs_mode_enable: must accept at least on of - ipv4 or ipv6");
+	if (!tcp && !udp)
+		DP_NOTICE(p_hwfn,
+			  "set_rfs_mode_enable: must accept at least on of - udp or tcp");
+
+	rfs_cm_hdr_event_id |= T_ETH_PACKET_MATCH_RFS_EVENTID <<
+					PRS_REG_CM_HDR_GFT_EVENT_ID_SHIFT;
+	rfs_cm_hdr_event_id |= PARSER_ETH_CONN_CM_HDR <<
+					PRS_REG_CM_HDR_GFT_CM_HDR_SHIFT;
+	qed_wr(p_hwfn, p_ptt, PRS_REG_CM_HDR_GFT, rfs_cm_hdr_event_id);
+
+	/* Configure Registers for RFS mode */
+	qed_wr(p_hwfn, p_ptt, PRS_REG_SEARCH_GFT, 1);
+	qed_wr(p_hwfn, p_ptt, PRS_REG_LOAD_L2_FILTER, 0);
+	camline.cam_line_mapped.camline = 0;
+
+	/* cam line is now valid!! */
+	SET_FIELD(camline.cam_line_mapped.camline,
+		  GFT_CAM_LINE_MAPPED_VALID, 1);
+
+	/* filters are per PF!! */
+	SET_FIELD(camline.cam_line_mapped.camline,
+		  GFT_CAM_LINE_MAPPED_PF_ID_MASK, 1);
+	SET_FIELD(camline.cam_line_mapped.camline,
+		  GFT_CAM_LINE_MAPPED_PF_ID, pf_id);
+	if (!(tcp && udp)) {
+		SET_FIELD(camline.cam_line_mapped.camline,
+			  GFT_CAM_LINE_MAPPED_UPPER_PROTOCOL_TYPE_MASK, 1);
+		if (tcp)
+			SET_FIELD(camline.cam_line_mapped.camline,
+				  GFT_CAM_LINE_MAPPED_UPPER_PROTOCOL_TYPE,
+				  GFT_PROFILE_TCP_PROTOCOL);
+		else
+			SET_FIELD(camline.cam_line_mapped.camline,
+				  GFT_CAM_LINE_MAPPED_UPPER_PROTOCOL_TYPE,
+				  GFT_PROFILE_UDP_PROTOCOL);
+	}
+
+	if (!(ipv4 && ipv6)) {
+		SET_FIELD(camline.cam_line_mapped.camline,
+			  GFT_CAM_LINE_MAPPED_IP_VERSION_MASK, 1);
+		if (ipv4)
+			SET_FIELD(camline.cam_line_mapped.camline,
+				  GFT_CAM_LINE_MAPPED_IP_VERSION,
+				  GFT_PROFILE_IPV4);
+		else
+			SET_FIELD(camline.cam_line_mapped.camline,
+				  GFT_CAM_LINE_MAPPED_IP_VERSION,
+				  GFT_PROFILE_IPV6);
+	}
+
+	/* write characteristics to cam */
+	qed_wr(p_hwfn, p_ptt, PRS_REG_GFT_CAM + CAM_LINE_SIZE * pf_id,
+	       camline.cam_line_mapped.camline);
+	camline.cam_line_mapped.camline = qed_rd(p_hwfn, p_ptt,
+						 PRS_REG_GFT_CAM +
+						 CAM_LINE_SIZE * pf_id);
+
+	/* write line to RAM - compare to filter 4 tuple */
+	ramline.low32bits = 0;
+	ramline.high32bits = 0;
+	SET_FIELD(ramline.high32bits, GFT_RAM_LINE_DST_IP, 1);
+	SET_FIELD(ramline.high32bits, GFT_RAM_LINE_SRC_IP, 1);
+	SET_FIELD(ramline.low32bits, GFT_RAM_LINE_SRC_PORT, 1);
+	SET_FIELD(ramline.low32bits, GFT_RAM_LINE_DST_PORT, 1);
+
+	/* each iteration write to reg */
+	for (i = 0; i < RAM_LINE_SIZE / REG_SIZE; i++)
+		qed_wr(p_hwfn, p_ptt,
+		       PRS_REG_GFT_PROFILE_MASK_RAM + RAM_LINE_SIZE * pf_id +
+		       i * REG_SIZE, *(p_ramline + i));
+
+	/* set default profile so that no filter match will happen */
+	ramline.low32bits = 0xffff;
+	ramline.high32bits = 0xffff;
+
+	for (i = 0; i < RAM_LINE_SIZE / REG_SIZE; i++)
+		qed_wr(p_hwfn, p_ptt,
+		       PRS_REG_GFT_PROFILE_MASK_RAM + RAM_LINE_SIZE *
+		       PRS_GFT_CAM_LINES_NO_MATCH + i * REG_SIZE,
+		       *(p_ramline + i));
 }

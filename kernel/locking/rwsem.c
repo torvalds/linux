@@ -124,10 +124,8 @@ EXPORT_SYMBOL(up_write);
  */
 void downgrade_write(struct rw_semaphore *sem)
 {
-	/*
-	 * lockdep: a downgraded write will live on as a write
-	 * dependency.
-	 */
+	lock_downgrade(&sem->dep_map, _RET_IP_);
+
 	rwsem_set_reader_owned(sem);
 	__downgrade_write(sem);
 }

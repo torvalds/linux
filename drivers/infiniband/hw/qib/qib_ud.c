@@ -54,7 +54,7 @@ static void qib_ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 	struct qib_devdata *dd = ppd->dd;
 	struct rvt_dev_info *rdi = &dd->verbs_dev.rdi;
 	struct rvt_qp *qp;
-	struct ib_ah_attr *ah_attr;
+	struct rdma_ah_attr *ah_attr;
 	unsigned long flags;
 	struct rvt_sge_state ssge;
 	struct rvt_sge *sge;
@@ -92,13 +92,13 @@ static void qib_ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 		pkey1 = qib_get_pkey(ibp, sqp->s_pkey_index);
 		pkey2 = qib_get_pkey(ibp, qp->s_pkey_index);
 		if (unlikely(!qib_pkey_ok(pkey1, pkey2))) {
-			lid = ppd->lid | (ah_attr->src_path_bits &
+			lid = ppd->lid | (rdma_ah_get_path_bits(ah_attr) &
 					  ((1 << ppd->lmc) - 1));
 			qib_bad_pqkey(ibp, IB_NOTICE_TRAP_BAD_PKEY, pkey1,
-				      ah_attr->sl,
+				      rdma_ah_get_sl(ah_attr),
 				      sqp->ibqp.qp_num, qp->ibqp.qp_num,
 				      cpu_to_be16(lid),
-				      cpu_to_be16(ah_attr->dlid));
+				      cpu_to_be16(rdma_ah_get_dlid(ah_attr)));
 			goto drop;
 		}
 	}
@@ -116,13 +116,13 @@ static void qib_ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 		if (unlikely(qkey != qp->qkey)) {
 			u16 lid;
 
-			lid = ppd->lid | (ah_attr->src_path_bits &
+			lid = ppd->lid | (rdma_ah_get_path_bits(ah_attr) &
 					  ((1 << ppd->lmc) - 1));
 			qib_bad_pqkey(ibp, IB_NOTICE_TRAP_BAD_QKEY, qkey,
-				      ah_attr->sl,
+				      rdma_ah_get_sl(ah_attr),
 				      sqp->ibqp.qp_num, qp->ibqp.qp_num,
 				      cpu_to_be16(lid),
-				      cpu_to_be16(ah_attr->dlid));
+				      cpu_to_be16(rdma_ah_get_dlid(ah_attr)));
 			goto drop;
 		}
 	}
@@ -168,11 +168,11 @@ static void qib_ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 		goto bail_unlock;
 	}
 
-	if (ah_attr->ah_flags & IB_AH_GRH) {
+	if (rdma_ah_get_ah_flags(ah_attr) & IB_AH_GRH) {
 		struct ib_grh grh;
-		struct ib_global_route grd = ah_attr->grh;
+		const struct ib_global_route *grd = rdma_ah_read_grh(ah_attr);
 
-		qib_make_grh(ibp, &grh, &grd, 0, 0);
+		qib_make_grh(ibp, &grh, grd, 0, 0);
 		qib_copy_sge(&qp->r_sge, &grh,
 			     sizeof(grh), 1);
 		wc.wc_flags |= IB_WC_GRH;
@@ -220,9 +220,10 @@ static void qib_ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 	wc.src_qp = sqp->ibqp.qp_num;
 	wc.pkey_index = qp->ibqp.qp_type == IB_QPT_GSI ?
 		swqe->ud_wr.pkey_index : 0;
-	wc.slid = ppd->lid | (ah_attr->src_path_bits & ((1 << ppd->lmc) - 1));
-	wc.sl = ah_attr->sl;
-	wc.dlid_path_bits = ah_attr->dlid & ((1 << ppd->lmc) - 1);
+	wc.slid = ppd->lid | (rdma_ah_get_path_bits(ah_attr) &
+				((1 << ppd->lmc) - 1));
+	wc.sl = rdma_ah_get_sl(ah_attr);
+	wc.dlid_path_bits = rdma_ah_get_dlid(ah_attr) & ((1 << ppd->lmc) - 1);
 	wc.port_num = qp->port_num;
 	/* Signal completion event if the solicited bit is set. */
 	rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.recv_cq), &wc,
@@ -246,7 +247,7 @@ int qib_make_ud_req(struct rvt_qp *qp, unsigned long *flags)
 {
 	struct qib_qp_priv *priv = qp->priv;
 	struct ib_other_headers *ohdr;
-	struct ib_ah_attr *ah_attr;
+	struct rdma_ah_attr *ah_attr;
 	struct qib_pportdata *ppd;
 	struct qib_ibport *ibp;
 	struct rvt_swqe *wqe;
@@ -289,14 +290,15 @@ int qib_make_ud_req(struct rvt_qp *qp, unsigned long *flags)
 	ibp = to_iport(qp->ibqp.device, qp->port_num);
 	ppd = ppd_from_ibp(ibp);
 	ah_attr = &ibah_to_rvtah(wqe->ud_wr.ah)->attr;
-	if (ah_attr->dlid >= be16_to_cpu(IB_MULTICAST_LID_BASE)) {
-		if (ah_attr->dlid != be16_to_cpu(IB_LID_PERMISSIVE))
+	if (rdma_ah_get_dlid(ah_attr) >= be16_to_cpu(IB_MULTICAST_LID_BASE)) {
+		if (rdma_ah_get_dlid(ah_attr) !=
+				be16_to_cpu(IB_LID_PERMISSIVE))
 			this_cpu_inc(ibp->pmastats->n_multicast_xmit);
 		else
 			this_cpu_inc(ibp->pmastats->n_unicast_xmit);
 	} else {
 		this_cpu_inc(ibp->pmastats->n_unicast_xmit);
-		lid = ah_attr->dlid & ~((1 << ppd->lmc) - 1);
+		lid = rdma_ah_get_dlid(ah_attr) & ~((1 << ppd->lmc) - 1);
 		if (unlikely(lid == ppd->lid)) {
 			unsigned long tflags = *flags;
 			/*
@@ -328,17 +330,17 @@ int qib_make_ud_req(struct rvt_qp *qp, unsigned long *flags)
 	qp->s_hdrwords = 7;
 	qp->s_cur_size = wqe->length;
 	qp->s_cur_sge = &qp->s_sge;
-	qp->s_srate = ah_attr->static_rate;
+	qp->s_srate = rdma_ah_get_static_rate(ah_attr);
 	qp->s_wqe = wqe;
 	qp->s_sge.sge = wqe->sg_list[0];
 	qp->s_sge.sg_list = wqe->sg_list + 1;
 	qp->s_sge.num_sge = wqe->wr.num_sge;
 	qp->s_sge.total_len = wqe->length;
 
-	if (ah_attr->ah_flags & IB_AH_GRH) {
+	if (rdma_ah_get_ah_flags(ah_attr) & IB_AH_GRH) {
 		/* Header size in 32-bit words. */
 		qp->s_hdrwords += qib_make_grh(ibp, &priv->s_hdr->u.l.grh,
-					       &ah_attr->grh,
+					       rdma_ah_read_grh(ah_attr),
 					       qp->s_hdrwords, nwords);
 		lrh0 = QIB_LRH_GRH;
 		ohdr = &priv->s_hdr->u.l.oth;
@@ -357,18 +359,20 @@ int qib_make_ud_req(struct rvt_qp *qp, unsigned long *flags)
 		bth0 = IB_OPCODE_UD_SEND_ONLY_WITH_IMMEDIATE << 24;
 	} else
 		bth0 = IB_OPCODE_UD_SEND_ONLY << 24;
-	lrh0 |= ah_attr->sl << 4;
+	lrh0 |= rdma_ah_get_sl(ah_attr) << 4;
 	if (qp->ibqp.qp_type == IB_QPT_SMI)
 		lrh0 |= 0xF000; /* Set VL (see ch. 13.5.3.1) */
 	else
-		lrh0 |= ibp->sl_to_vl[ah_attr->sl] << 12;
+		lrh0 |= ibp->sl_to_vl[rdma_ah_get_sl(ah_attr)] << 12;
 	priv->s_hdr->lrh[0] = cpu_to_be16(lrh0);
-	priv->s_hdr->lrh[1] = cpu_to_be16(ah_attr->dlid);  /* DEST LID */
+	priv->s_hdr->lrh[1] =
+			cpu_to_be16(rdma_ah_get_dlid(ah_attr));  /* DEST LID */
 	priv->s_hdr->lrh[2] =
 			cpu_to_be16(qp->s_hdrwords + nwords + SIZE_OF_CRC);
 	lid = ppd->lid;
 	if (lid) {
-		lid |= ah_attr->src_path_bits & ((1 << ppd->lmc) - 1);
+		lid |= rdma_ah_get_path_bits(ah_attr) &
+			((1 << ppd->lmc) - 1);
 		priv->s_hdr->lrh[3] = cpu_to_be16(lid);
 	} else
 		priv->s_hdr->lrh[3] = IB_LID_PERMISSIVE;
@@ -382,8 +386,9 @@ int qib_make_ud_req(struct rvt_qp *qp, unsigned long *flags)
 	/*
 	 * Use the multicast QP if the destination LID is a multicast LID.
 	 */
-	ohdr->bth[1] = ah_attr->dlid >= be16_to_cpu(IB_MULTICAST_LID_BASE) &&
-		ah_attr->dlid != be16_to_cpu(IB_LID_PERMISSIVE) ?
+	ohdr->bth[1] = rdma_ah_get_dlid(ah_attr) >=
+			be16_to_cpu(IB_MULTICAST_LID_BASE) &&
+		rdma_ah_get_dlid(ah_attr) != be16_to_cpu(IB_LID_PERMISSIVE) ?
 		cpu_to_be32(QIB_MULTICAST_QPN) :
 		cpu_to_be32(wqe->ud_wr.remote_qpn);
 	ohdr->bth[2] = cpu_to_be32(wqe->psn & QIB_PSN_MASK);

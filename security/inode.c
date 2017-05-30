@@ -28,7 +28,7 @@ static int mount_count;
 
 static int fill_super(struct super_block *sb, void *data, int silent)
 {
-	static struct tree_descr files[] = {{""}};
+	static const struct tree_descr files[] = {{""}};
 
 	return simple_fill_super(sb, SECURITYFS_MAGIC, files);
 }

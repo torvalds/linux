@@ -101,14 +101,9 @@ SYSCALL_DEFINE5(add_key, const char __user *, _type,
 
 	if (_payload) {
 		ret = -ENOMEM;
-		payload = kmalloc(plen, GFP_KERNEL | __GFP_NOWARN);
-		if (!payload) {
-			if (plen <= PAGE_SIZE)
-				goto error2;
-			payload = vmalloc(plen);
-			if (!payload)
-				goto error2;
-		}
+		payload = kvmalloc(plen, GFP_KERNEL);
+		if (!payload)
+			goto error2;
 
 		ret = -EFAULT;
 		if (copy_from_user(payload, _payload, plen) != 0)
@@ -273,7 +268,8 @@ error:
  * Create and join an anonymous session keyring or join a named session
  * keyring, creating it if necessary.  A named session keyring must have Search
  * permission for it to be joined.  Session keyrings without this permit will
- * be skipped over.
+ * be skipped over.  It is not permitted for userspace to create or join
+ * keyrings whose name begin with a dot.
  *
  * If successful, the ID of the joined session keyring will be returned.
  */
@@ -290,12 +286,16 @@ long keyctl_join_session_keyring(const char __user *_name)
 			ret = PTR_ERR(name);
 			goto error;
 		}
+
+		ret = -EPERM;
+		if (name[0] == '.')
+			goto error_name;
 	}
 
 	/* join the session */
 	ret = join_session_keyring(name);
+error_name:
 	kfree(name);
-
 error:
 	return ret;
 }
@@ -1066,14 +1066,9 @@ long keyctl_instantiate_key_common(key_serial_t id,
 
 	if (from) {
 		ret = -ENOMEM;
-		payload = kmalloc(plen, GFP_KERNEL);
-		if (!payload) {
-			if (plen <= PAGE_SIZE)
-				goto error;
-			payload = vmalloc(plen);
-			if (!payload)
-				goto error;
-		}
+		payload = kvmalloc(plen, GFP_KERNEL);
+		if (!payload)
+			goto error;
 
 		ret = -EFAULT;
 		if (!copy_from_iter_full(payload, plen, from))
@@ -1253,8 +1248,8 @@ error:
  * Read or set the default keyring in which request_key() will cache keys and
  * return the old setting.
  *
- * If a process keyring is specified then this will be created if it doesn't
- * yet exist.  The old setting will be returned if successful.
+ * If a thread or process keyring is specified then it will be created if it
+ * doesn't yet exist.  The old setting will be returned if successful.
  */
 long keyctl_set_reqkey_keyring(int reqkey_defl)
 {
@@ -1279,11 +1274,8 @@ long keyctl_set_reqkey_keyring(int reqkey_defl)
 
 	case KEY_REQKEY_DEFL_PROCESS_KEYRING:
 		ret = install_process_keyring_to_cred(new);
-		if (ret < 0) {
-			if (ret != -EEXIST)
-				goto error;
-			ret = 0;
-		}
+		if (ret < 0)
+			goto error;
 		goto set;
 
 	case KEY_REQKEY_DEFL_DEFAULT:
@@ -1583,6 +1575,59 @@ error_keyring:
 }
 
 /*
+ * Apply a restriction to a given keyring.
+ *
+ * The caller must have Setattr permission to change keyring restrictions.
+ *
+ * The requested type name may be a NULL pointer to reject all attempts
+ * to link to the keyring. If _type is non-NULL, _restriction can be
+ * NULL or a pointer to a string describing the restriction. If _type is
+ * NULL, _restriction must also be NULL.
+ *
+ * Returns 0 if successful.
+ */
+long keyctl_restrict_keyring(key_serial_t id, const char __user *_type,
+			     const char __user *_restriction)
+{
+	key_ref_t key_ref;
+	bool link_reject = !_type;
+	char type[32];
+	char *restriction = NULL;
+	long ret;
+
+	key_ref = lookup_user_key(id, 0, KEY_NEED_SETATTR);
+	if (IS_ERR(key_ref))
+		return PTR_ERR(key_ref);
+
+	if (_type) {
+		ret = key_get_type_from_user(type, _type, sizeof(type));
+		if (ret < 0)
+			goto error;
+	}
+
+	if (_restriction) {
+		if (!_type) {
+			ret = -EINVAL;
+			goto error;
+		}
+
+		restriction = strndup_user(_restriction, PAGE_SIZE);
+		if (IS_ERR(restriction)) {
+			ret = PTR_ERR(restriction);
+			goto error;
+		}
+	}
+
+	ret = keyring_restrict(key_ref, link_reject ? NULL : type, restriction);
+	kfree(restriction);
+
+error:
+	key_ref_put(key_ref);
+
+	return ret;
+}
+
+/*
  * The key control system call
  */
 SYSCALL_DEFINE5(keyctl, int, option, unsigned long, arg2, unsigned long, arg3,
@@ -1691,7 +1736,12 @@ SYSCALL_DEFINE5(keyctl, int, option, unsigned long, arg2, unsigned long, arg3,
 	case KEYCTL_DH_COMPUTE:
 		return keyctl_dh_compute((struct keyctl_dh_params __user *) arg2,
 					 (char __user *) arg3, (size_t) arg4,
-					 (void __user *) arg5);
+					 (struct keyctl_kdf_params __user *) arg5);
+
+	case KEYCTL_RESTRICT_KEYRING:
+		return keyctl_restrict_keyring((key_serial_t) arg2,
+					       (const char __user *) arg3,
+					       (const char __user *) arg4);
 
 	default:
 		return -EOPNOTSUPP;

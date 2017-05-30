@@ -183,13 +183,23 @@ void br_flood(struct net_bridge *br, struct sk_buff *skb,
 	struct net_bridge_port *p;
 
 	list_for_each_entry_rcu(p, &br->port_list, list) {
-		/* Do not flood unicast traffic to ports that turn it off */
-		if (pkt_type == BR_PKT_UNICAST && !(p->flags & BR_FLOOD))
-			continue;
-		/* Do not flood if mc off, except for traffic we originate */
-		if (pkt_type == BR_PKT_MULTICAST &&
-		    !(p->flags & BR_MCAST_FLOOD) && skb->dev != br->dev)
-			continue;
+		/* Do not flood unicast traffic to ports that turn it off, nor
+		 * other traffic if flood off, except for traffic we originate
+		 */
+		switch (pkt_type) {
+		case BR_PKT_UNICAST:
+			if (!(p->flags & BR_FLOOD))
+				continue;
+			break;
+		case BR_PKT_MULTICAST:
+			if (!(p->flags & BR_MCAST_FLOOD) && skb->dev != br->dev)
+				continue;
+			break;
+		case BR_PKT_BROADCAST:
+			if (!(p->flags & BR_BCAST_FLOOD) && skb->dev != br->dev)
+				continue;
+			break;
+		}
 
 		/* Do not flood to ports that enable proxy ARP */
 		if (p->flags & BR_PROXYARP)

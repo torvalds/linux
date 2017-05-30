@@ -450,9 +450,8 @@ static struct o2net_sock_container *sc_alloc(struct o2nm_node *node)
 	INIT_WORK(&sc->sc_shutdown_work, o2net_shutdown_sc);
 	INIT_DELAYED_WORK(&sc->sc_keepalive_work, o2net_sc_send_keep_req);
 
-	init_timer(&sc->sc_idle_timeout);
-	sc->sc_idle_timeout.function = o2net_idle_timer;
-	sc->sc_idle_timeout.data = (unsigned long)sc;
+	setup_timer(&sc->sc_idle_timeout, o2net_idle_timer,
+		    (unsigned long)sc);
 
 	sclog(sc, "alloced\n");
 
@@ -956,7 +955,7 @@ static void o2net_sendpage(struct o2net_sock_container *sc,
 		mutex_lock(&sc->sc_send_lock);
 		ret = sc->sc_sock->ops->sendpage(sc->sc_sock,
 						 virt_to_page(kmalloced_virt),
-						 (long)kmalloced_virt & ~PAGE_MASK,
+						 offset_in_page(kmalloced_virt),
 						 size, MSG_DONTWAIT);
 		mutex_unlock(&sc->sc_send_lock);
 		if (ret == size)
@@ -1460,27 +1459,10 @@ static void o2net_rx_until_empty(struct work_struct *work)
 
 static int o2net_set_nodelay(struct socket *sock)
 {
-	int ret, val = 1;
-	mm_segment_t oldfs;
+	int val = 1;
 
-	oldfs = get_fs();
-	set_fs(KERNEL_DS);
-
-	/*
-	 * Dear unsuspecting programmer,
-	 *
-	 * Don't use sock_setsockopt() for SOL_TCP.  It doesn't check its level
-	 * argument and assumes SOL_SOCKET so, say, your TCP_NODELAY will
-	 * silently turn into SO_DEBUG.
-	 *
-	 * Yours,
-	 * Keeper of hilariously fragile interfaces.
-	 */
-	ret = sock->ops->setsockopt(sock, SOL_TCP, TCP_NODELAY,
-				    (char __user *)&val, sizeof(val));
-
-	set_fs(oldfs);
-	return ret;
+	return kernel_setsockopt(sock, SOL_TCP, TCP_NODELAY,
+				    (void *)&val, sizeof(val));
 }
 
 static int o2net_set_usertimeout(struct socket *sock)
@@ -1488,7 +1470,7 @@ static int o2net_set_usertimeout(struct socket *sock)
 	int user_timeout = O2NET_TCP_USER_TIMEOUT;
 
 	return kernel_setsockopt(sock, SOL_TCP, TCP_USER_TIMEOUT,
-				(char *)&user_timeout, sizeof(user_timeout));
+				(void *)&user_timeout, sizeof(user_timeout));
 }
 
 static void o2net_initialize_handshake(void)

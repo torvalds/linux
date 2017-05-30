@@ -4,6 +4,7 @@ Copyright (C) 2016 Intel Corporation
 
 Fenghua Yu <fenghua.yu@intel.com>
 Tony Luck <tony.luck@intel.com>
+Vikas Shivappa <vikas.shivappa@intel.com>
 
 This feature is enabled by the CONFIG_INTEL_RDT_A Kconfig and the
 X86 /proc/cpuinfo flag bits "rdt", "cat_l3" and "cdp_l3".
@@ -22,19 +23,34 @@ Info directory
 
 The 'info' directory contains information about the enabled
 resources. Each resource has its own subdirectory. The subdirectory
-names reflect the resource names. Each subdirectory contains the
-following files:
+names reflect the resource names.
+Cache resource(L3/L2)  subdirectory contains the following files:
 
-"num_closids":  The number of CLOSIDs which are valid for this
-	        resource. The kernel uses the smallest number of
-		CLOSIDs of all enabled resources as limit.
+"num_closids":  	The number of CLOSIDs which are valid for this
+			resource. The kernel uses the smallest number of
+			CLOSIDs of all enabled resources as limit.
 
-"cbm_mask":     The bitmask which is valid for this resource. This
-		mask is equivalent to 100%.
+"cbm_mask":     	The bitmask which is valid for this resource.
+			This mask is equivalent to 100%.
 
-"min_cbm_bits": The minimum number of consecutive bits which must be
-		set when writing a mask.
+"min_cbm_bits": 	The minimum number of consecutive bits which
+			must be set when writing a mask.
 
+Memory bandwitdh(MB) subdirectory contains the following files:
+
+"min_bandwidth":	The minimum memory bandwidth percentage which
+			user can request.
+
+"bandwidth_gran":	The granularity in which the memory bandwidth
+			percentage is allocated. The allocated
+			b/w percentage is rounded off to the next
+			control step available on the hardware. The
+			available bandwidth control steps are:
+			min_bandwidth + N * bandwidth_gran.
+
+"delay_linear": 	Indicates if the delay scale is linear or
+			non-linear. This field is purely informational
+			only.
 
 Resource groups
 ---------------
@@ -58,6 +74,9 @@ There are three files associated with each group:
 	are removed from their previous group. Removed ones are
 	given to the default (root) group. You cannot remove CPUs
 	from the default group.
+
+"cpus_list": One or more CPU ranges of logical CPUs assigned to this
+	     group. Same rules apply like for the "cpus" file.
 
 "schemata": A list of all the resources available to this group.
 	Each resource has its own line and format - see below for
@@ -107,6 +126,22 @@ and 0xA are not.  On a system with a 20-bit mask each bit represents 5%
 of the capacity of the cache. You could partition the cache into four
 equal parts with masks: 0x1f, 0x3e0, 0x7c00, 0xf8000.
 
+Memory bandwidth(b/w) percentage
+--------------------------------
+For Memory b/w resource, user controls the resource by indicating the
+percentage of total memory b/w.
+
+The minimum bandwidth percentage value for each cpu model is predefined
+and can be looked up through "info/MB/min_bandwidth". The bandwidth
+granularity that is allocated is also dependent on the cpu model and can
+be looked up at "info/MB/bandwidth_gran". The available bandwidth
+control steps are: min_bw + N * bw_gran. Intermediate values are rounded
+to the next control step available on the hardware.
+
+The bandwidth throttling is a core specific mechanism on some of Intel
+SKUs. Using a high bandwidth and a low bandwidth setting on two threads
+sharing a core will result in both threads being throttled to use the
+low bandwidth.
 
 L3 details (code and data prioritization disabled)
 --------------------------------------------------
@@ -129,16 +164,38 @@ schemata format is always:
 
 	L2:<cache_id0>=<cbm>;<cache_id1>=<cbm>;...
 
+Memory b/w Allocation details
+-----------------------------
+
+Memory b/w domain is L3 cache.
+
+	MB:<cache_id0>=bandwidth0;<cache_id1>=bandwidth1;...
+
+Reading/writing the schemata file
+---------------------------------
+Reading the schemata file will show the state of all resources
+on all domains. When writing you only need to specify those values
+which you wish to change.  E.g.
+
+# cat schemata
+L3DATA:0=fffff;1=fffff;2=fffff;3=fffff
+L3CODE:0=fffff;1=fffff;2=fffff;3=fffff
+# echo "L3DATA:2=3c0;" > schemata
+# cat schemata
+L3DATA:0=fffff;1=fffff;2=3c0;3=fffff
+L3CODE:0=fffff;1=fffff;2=fffff;3=fffff
+
 Example 1
 ---------
 On a two socket machine (one L3 cache per socket) with just four bits
-for cache bit masks
+for cache bit masks, minimum b/w of 10% with a memory bandwidth
+granularity of 10%
 
 # mount -t resctrl resctrl /sys/fs/resctrl
 # cd /sys/fs/resctrl
 # mkdir p0 p1
-# echo "L3:0=3;1=c" > /sys/fs/resctrl/p0/schemata
-# echo "L3:0=3;1=3" > /sys/fs/resctrl/p1/schemata
+# echo "L3:0=3;1=c\nMB:0=50;1=50" > /sys/fs/resctrl/p0/schemata
+# echo "L3:0=3;1=3\nMB:0=50;1=50" > /sys/fs/resctrl/p1/schemata
 
 The default resource group is unmodified, so we have access to all parts
 of all caches (its schemata file reads "L3:0=f;1=f").
@@ -146,6 +203,14 @@ of all caches (its schemata file reads "L3:0=f;1=f").
 Tasks that are under the control of group "p0" may only allocate from the
 "lower" 50% on cache ID 0, and the "upper" 50% of cache ID 1.
 Tasks in group "p1" use the "lower" 50% of cache on both sockets.
+
+Similarly, tasks that are under the control of group "p0" may use a
+maximum memory b/w of 50% on socket0 and 50% on socket 1.
+Tasks in group "p1" may also use 50% memory b/w on both sockets.
+Note that unlike cache masks, memory b/w cannot specify whether these
+allocations can overlap or not. The allocations specifies the maximum
+b/w that the group may be able to use and the system admin can configure
+the b/w accordingly.
 
 Example 2
 ---------
@@ -160,9 +225,10 @@ of L3 cache on socket 0.
 # cd /sys/fs/resctrl
 
 First we reset the schemata for the default group so that the "upper"
-50% of the L3 cache on socket 0 cannot be used by ordinary tasks:
+50% of the L3 cache on socket 0 and 50% of memory b/w cannot be used by
+ordinary tasks:
 
-# echo "L3:0=3ff;1=fffff" > schemata
+# echo "L3:0=3ff;1=fffff\nMB:0=50;1=100" > schemata
 
 Next we make a resource group for our first real time task and give
 it access to the "top" 25% of the cache on socket 0.
@@ -185,6 +251,20 @@ Ditto for the second real time task (with the remaining 25% of cache):
 # echo 5678 > p1/tasks
 # taskset -cp 2 5678
 
+For the same 2 socket system with memory b/w resource and CAT L3 the
+schemata would look like(Assume min_bandwidth 10 and bandwidth_gran is
+10):
+
+For our first real time task this would request 20% memory b/w on socket
+0.
+
+# echo -e "L3:0=f8000;1=fffff\nMB:0=20;1=100" > p0/schemata
+
+For our second real time task this would request an other 20% memory b/w
+on socket 0.
+
+# echo -e "L3:0=f8000;1=fffff\nMB:0=20;1=100" > p0/schemata
+
 Example 3
 ---------
 
@@ -198,20 +278,24 @@ the tasks.
 # cd /sys/fs/resctrl
 
 First we reset the schemata for the default group so that the "upper"
-50% of the L3 cache on socket 0 cannot be used by ordinary tasks:
+50% of the L3 cache on socket 0, and 50% of memory bandwidth on socket 0
+cannot be used by ordinary tasks:
 
-# echo "L3:0=3ff" > schemata
+# echo "L3:0=3ff\nMB:0=50" > schemata
 
-Next we make a resource group for our real time cores and give
-it access to the "top" 50% of the cache on socket 0.
+Next we make a resource group for our real time cores and give it access
+to the "top" 50% of the cache on socket 0 and 50% of memory bandwidth on
+socket 0.
 
 # mkdir p0
-# echo "L3:0=ffc00;" > p0/schemata
+# echo "L3:0=ffc00\nMB:0=50" > p0/schemata
 
 Finally we move core 4-7 over to the new group and make sure that the
-kernel and the tasks running there get 50% of the cache.
+kernel and the tasks running there get 50% of the cache. They should
+also get 50% of memory bandwidth assuming that the cores 4-7 are SMT
+siblings and only the real time threads are scheduled on the cores 4-7.
 
-# echo C0 > p0/cpus
+# echo F0 > p0/cpus
 
 4) Locking between applications
 

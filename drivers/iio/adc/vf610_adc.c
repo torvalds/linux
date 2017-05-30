@@ -584,7 +584,7 @@ static int vf610_adc_read_data(struct vf610_adc *info)
 
 static irqreturn_t vf610_adc_isr(int irq, void *dev_id)
 {
-	struct iio_dev *indio_dev = (struct iio_dev *)dev_id;
+	struct iio_dev *indio_dev = dev_id;
 	struct vf610_adc *info = iio_priv(indio_dev);
 	int coco;
 

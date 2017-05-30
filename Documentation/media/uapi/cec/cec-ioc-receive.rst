@@ -51,13 +51,13 @@ A received message can be:
    be non-zero).
 
 To send a CEC message the application has to fill in the struct
-:c:type:` cec_msg` and pass it to :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>`.
+:c:type:`cec_msg` and pass it to :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>`.
 The :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>` is only available if
 ``CEC_CAP_TRANSMIT`` is set. If there is no more room in the transmit
 queue, then it will return -1 and set errno to the ``EBUSY`` error code.
 The transmit queue has enough room for 18 messages (about 1 second worth
 of 2-byte messages). Note that the CEC kernel framework will also reply
-to core messages (see :ref:cec-core-processing), so it is not a good
+to core messages (see :ref:`cec-core-processing`), so it is not a good
 idea to fully fill up the transmit queue.
 
 If the file descriptor is in non-blocking mode then the transmit will
@@ -69,6 +69,18 @@ The ``sequence`` field is filled in for every transmit and this can be
 checked against the received messages to find the corresponding transmit
 result.
 
+Normally calling :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>` when the physical
+address is invalid (due to e.g. a disconnect) will return ``ENONET``.
+
+However, the CEC specification allows sending messages from 'Unregistered' to
+'TV' when the physical address is invalid since some TVs pull the hotplug detect
+pin of the HDMI connector low when they go into standby, or when switching to
+another input.
+
+When the hotplug detect pin goes low the EDID disappears, and thus the
+physical address, but the cable is still connected and CEC still works.
+In order to detect/wake up the device it is allowed to send poll and 'Image/Text
+View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
 
 .. tabularcolumns:: |p{1.0cm}|p{3.5cm}|p{13.0cm}|
 
@@ -289,3 +301,42 @@ Return Value
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
+
+The :ref:`ioctl CEC_RECEIVE <CEC_RECEIVE>` can return the following
+error codes:
+
+EAGAIN
+    No messages are in the receive queue, and the filehandle is in non-blocking mode.
+
+ETIMEDOUT
+    The ``timeout`` was reached while waiting for a message.
+
+ERESTARTSYS
+    The wait for a message was interrupted (e.g. by Ctrl-C).
+
+The :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>` can return the following
+error codes:
+
+ENOTTY
+    The ``CEC_CAP_TRANSMIT`` capability wasn't set, so this ioctl is not supported.
+
+EPERM
+    The CEC adapter is not configured, i.e. :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
+    has never been called.
+
+ENONET
+    The CEC adapter is not configured, i.e. :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
+    was called, but the physical address is invalid so no logical address was claimed.
+    An exception is made in this case for transmits from initiator 0xf ('Unregistered')
+    to destination 0 ('TV'). In that case the transmit will proceed as usual.
+
+EBUSY
+    Another filehandle is in exclusive follower or initiator mode, or the filehandle
+    is in mode ``CEC_MODE_NO_INITIATOR``. This is also returned if the transmit
+    queue is full.
+
+EINVAL
+    The contents of struct :c:type:`cec_msg` is invalid.
+
+ERESTARTSYS
+    The wait for a successful transmit was interrupted (e.g. by Ctrl-C).

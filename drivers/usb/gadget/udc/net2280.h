@@ -187,7 +187,7 @@ struct net2280 {
 	struct usb338x_ll_chi_regs	__iomem *ll_chicken_reg;
 	struct usb338x_pl_regs		__iomem *plregs;
 
-	struct pci_pool			*requests;
+	struct dma_pool			*requests;
 	/* statistics...*/
 };
 

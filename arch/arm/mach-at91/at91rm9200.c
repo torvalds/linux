@@ -14,23 +14,10 @@
 #include <asm/mach/arch.h>
 
 #include "generic.h"
-#include "soc.h"
-
-static const struct at91_soc rm9200_socs[] = {
-	AT91_SOC(AT91RM9200_CIDR_MATCH, 0, "at91rm9200 BGA", "at91rm9200"),
-	{ /* sentinel */ },
-};
 
 static void __init at91rm9200_dt_device_init(void)
 {
-	struct soc_device *soc;
-	struct device *soc_dev = NULL;
-
-	soc = at91_soc_init(rm9200_socs);
-	if (soc != NULL)
-		soc_dev = soc_device_to_device(soc);
-
-	of_platform_default_populate(NULL, NULL, soc_dev);
+	of_platform_default_populate(NULL, NULL, NULL);
 
 	at91rm9200_pm_init();
 }

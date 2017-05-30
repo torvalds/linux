@@ -14,17 +14,72 @@
 
 struct dw_hdmi;
 
+/**
+ * DOC: Supported input formats and encodings
+ *
+ * Depending on the Hardware configuration of the Controller IP, it supports
+ * a subset of the following input formats and encodings on its internal
+ * 48bit bus.
+ *
+ * +----------------------+----------------------------------+------------------------------+
+ * + Format Name          + Format Code                      + Encodings                    +
+ * +----------------------+----------------------------------+------------------------------+
+ * + RGB 4:4:4 8bit       + ``MEDIA_BUS_FMT_RGB888_1X24``    + ``V4L2_YCBCR_ENC_DEFAULT``   +
+ * +----------------------+----------------------------------+------------------------------+
+ * + RGB 4:4:4 10bits     + ``MEDIA_BUS_FMT_RGB101010_1X30`` + ``V4L2_YCBCR_ENC_DEFAULT``   +
+ * +----------------------+----------------------------------+------------------------------+
+ * + RGB 4:4:4 12bits     + ``MEDIA_BUS_FMT_RGB121212_1X36`` + ``V4L2_YCBCR_ENC_DEFAULT``   +
+ * +----------------------+----------------------------------+------------------------------+
+ * + RGB 4:4:4 16bits     + ``MEDIA_BUS_FMT_RGB161616_1X48`` + ``V4L2_YCBCR_ENC_DEFAULT``   +
+ * +----------------------+----------------------------------+------------------------------+
+ * + YCbCr 4:4:4 8bit     + ``MEDIA_BUS_FMT_YUV8_1X24``      + ``V4L2_YCBCR_ENC_601``       +
+ * +                      +                                  + or ``V4L2_YCBCR_ENC_709``    +
+ * +                      +                                  + or ``V4L2_YCBCR_ENC_XV601``  +
+ * +                      +                                  + or ``V4L2_YCBCR_ENC_XV709``  +
+ * +----------------------+----------------------------------+------------------------------+
+ * + YCbCr 4:4:4 10bits   + ``MEDIA_BUS_FMT_YUV10_1X30``     + ``V4L2_YCBCR_ENC_601``       +
+ * +                      +                                  + or ``V4L2_YCBCR_ENC_709``    +
+ * +                      +                                  + or ``V4L2_YCBCR_ENC_XV601``  +
+ * +                      +                                  + or ``V4L2_YCBCR_ENC_XV709``  +
+ * +----------------------+----------------------------------+------------------------------+
+ * + YCbCr 4:4:4 12bits   + ``MEDIA_BUS_FMT_YUV12_1X36``     + ``V4L2_YCBCR_ENC_601``       +
+ * +                      +                                  + or ``V4L2_YCBCR_ENC_709``    +
+ * +                      +                                  + or ``V4L2_YCBCR_ENC_XV601``  +
+ * +                      +                                  + or ``V4L2_YCBCR_ENC_XV709``  +
+ * +----------------------+----------------------------------+------------------------------+
+ * + YCbCr 4:4:4 16bits   + ``MEDIA_BUS_FMT_YUV16_1X48``     + ``V4L2_YCBCR_ENC_601``       +
+ * +                      +                                  + or ``V4L2_YCBCR_ENC_709``    +
+ * +                      +                                  + or ``V4L2_YCBCR_ENC_XV601``  +
+ * +                      +                                  + or ``V4L2_YCBCR_ENC_XV709``  +
+ * +----------------------+----------------------------------+------------------------------+
+ * + YCbCr 4:2:2 8bit     + ``MEDIA_BUS_FMT_UYVY8_1X16``     + ``V4L2_YCBCR_ENC_601``       +
+ * +                      +                                  + or ``V4L2_YCBCR_ENC_709``    +
+ * +----------------------+----------------------------------+------------------------------+
+ * + YCbCr 4:2:2 10bits   + ``MEDIA_BUS_FMT_UYVY10_1X20``    + ``V4L2_YCBCR_ENC_601``       +
+ * +                      +                                  + or ``V4L2_YCBCR_ENC_709``    +
+ * +----------------------+----------------------------------+------------------------------+
+ * + YCbCr 4:2:2 12bits   + ``MEDIA_BUS_FMT_UYVY12_1X24``    + ``V4L2_YCBCR_ENC_601``       +
+ * +                      +                                  + or ``V4L2_YCBCR_ENC_709``    +
+ * +----------------------+----------------------------------+------------------------------+
+ * + YCbCr 4:2:0 8bit     + ``MEDIA_BUS_FMT_UYYVYY8_0_5X24`` + ``V4L2_YCBCR_ENC_601``       +
+ * +                      +                                  + or ``V4L2_YCBCR_ENC_709``    +
+ * +----------------------+----------------------------------+------------------------------+
+ * + YCbCr 4:2:0 10bits   + ``MEDIA_BUS_FMT_UYYVYY10_0_5X30``+ ``V4L2_YCBCR_ENC_601``       +
+ * +                      +                                  + or ``V4L2_YCBCR_ENC_709``    +
+ * +----------------------+----------------------------------+------------------------------+
+ * + YCbCr 4:2:0 12bits   + ``MEDIA_BUS_FMT_UYYVYY12_0_5X36``+ ``V4L2_YCBCR_ENC_601``       +
+ * +                      +                                  + or ``V4L2_YCBCR_ENC_709``    +
+ * +----------------------+----------------------------------+------------------------------+
+ * + YCbCr 4:2:0 16bits   + ``MEDIA_BUS_FMT_UYYVYY16_0_5X48``+ ``V4L2_YCBCR_ENC_601``       +
+ * +                      +                                  + or ``V4L2_YCBCR_ENC_709``    +
+ * +----------------------+----------------------------------+------------------------------+
+ */
+
 enum {
 	DW_HDMI_RES_8,
 	DW_HDMI_RES_10,
 	DW_HDMI_RES_12,
 	DW_HDMI_RES_MAX,
-};
-
-enum dw_hdmi_devtype {
-	IMX6Q_HDMI,
-	IMX6DL_HDMI,
-	RK3288_HDMI,
 };
 
 enum dw_hdmi_phy_type {
@@ -57,13 +112,35 @@ struct dw_hdmi_phy_config {
 	u16 vlev_ctr;   /* voltage level control */
 };
 
+struct dw_hdmi_phy_ops {
+	int (*init)(struct dw_hdmi *hdmi, void *data,
+		    struct drm_display_mode *mode);
+	void (*disable)(struct dw_hdmi *hdmi, void *data);
+	enum drm_connector_status (*read_hpd)(struct dw_hdmi *hdmi, void *data);
+	void (*update_hpd)(struct dw_hdmi *hdmi, void *data,
+			   bool force, bool disabled, bool rxsense);
+	void (*setup_hpd)(struct dw_hdmi *hdmi, void *data);
+};
+
 struct dw_hdmi_plat_data {
-	enum dw_hdmi_devtype dev_type;
+	struct regmap *regm;
+	enum drm_mode_status (*mode_valid)(struct drm_connector *connector,
+					   struct drm_display_mode *mode);
+	unsigned long input_bus_format;
+	unsigned long input_bus_encoding;
+
+	/* Vendor PHY support */
+	const struct dw_hdmi_phy_ops *phy_ops;
+	const char *phy_name;
+	void *phy_data;
+
+	/* Synopsys PHY support */
 	const struct dw_hdmi_mpll_config *mpll_cfg;
 	const struct dw_hdmi_curr_ctrl *cur_ctr;
 	const struct dw_hdmi_phy_config *phy_config;
-	enum drm_mode_status (*mode_valid)(struct drm_connector *connector,
-					   struct drm_display_mode *mode);
+	int (*configure_phy)(struct dw_hdmi *hdmi,
+			     const struct dw_hdmi_plat_data *pdata,
+			     unsigned long mpixelclock);
 };
 
 int dw_hdmi_probe(struct platform_device *pdev,
@@ -73,8 +150,14 @@ void dw_hdmi_unbind(struct device *dev);
 int dw_hdmi_bind(struct platform_device *pdev, struct drm_encoder *encoder,
 		 const struct dw_hdmi_plat_data *plat_data);
 
+void dw_hdmi_setup_rx_sense(struct device *dev, bool hpd, bool rx_sense);
+
 void dw_hdmi_set_sample_rate(struct dw_hdmi *hdmi, unsigned int rate);
 void dw_hdmi_audio_enable(struct dw_hdmi *hdmi);
 void dw_hdmi_audio_disable(struct dw_hdmi *hdmi);
+
+/* PHY configuration */
+void dw_hdmi_phy_i2c_write(struct dw_hdmi *hdmi, unsigned short data,
+			   unsigned char addr);
 
 #endif /* __IMX_HDMI_H__ */

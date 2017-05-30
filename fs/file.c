@@ -42,7 +42,7 @@ static void *alloc_fdmem(size_t size)
 		if (data != NULL)
 			return data;
 	}
-	return __vmalloc(size, GFP_KERNEL_ACCOUNT | __GFP_HIGHMEM, PAGE_KERNEL);
+	return __vmalloc(size, GFP_KERNEL_ACCOUNT, PAGE_KERNEL);
 }
 
 static void __free_fdtable(struct fdtable *fdt)

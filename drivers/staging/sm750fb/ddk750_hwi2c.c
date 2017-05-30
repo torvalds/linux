@@ -217,7 +217,7 @@ unsigned char sm750_hw_i2c_read_reg(
 	unsigned char reg
 )
 {
-	unsigned char value = (0xFF);
+	unsigned char value = 0xFF;
 
 	if (hw_i2c_write_data(addr, 1, &reg) == 1)
 		hw_i2c_read_data(addr, 1, &value);

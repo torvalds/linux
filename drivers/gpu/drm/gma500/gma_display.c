@@ -177,7 +177,8 @@ void gma_crtc_load_lut(struct drm_crtc *crtc)
 }
 
 int gma_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green, u16 *blue,
-		       u32 size)
+		       u32 size,
+		       struct drm_modeset_acquire_ctx *ctx)
 {
 	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	int i;
@@ -514,17 +515,18 @@ void gma_crtc_destroy(struct drm_crtc *crtc)
 	kfree(gma_crtc);
 }
 
-int gma_crtc_set_config(struct drm_mode_set *set)
+int gma_crtc_set_config(struct drm_mode_set *set,
+			struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_device *dev = set->crtc->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	int ret;
 
 	if (!dev_priv->rpm_enabled)
-		return drm_crtc_helper_set_config(set);
+		return drm_crtc_helper_set_config(set, ctx);
 
 	pm_runtime_forbid(&dev->pdev->dev);
-	ret = drm_crtc_helper_set_config(set);
+	ret = drm_crtc_helper_set_config(set, ctx);
 	pm_runtime_allow(&dev->pdev->dev);
 
 	return ret;

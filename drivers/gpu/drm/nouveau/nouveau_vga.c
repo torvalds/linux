@@ -41,13 +41,13 @@ nouveau_switcheroo_set_state(struct pci_dev *pdev,
 		return;
 
 	if (state == VGA_SWITCHEROO_ON) {
-		printk(KERN_ERR "VGA switcheroo: switched nouveau on\n");
+		pr_err("VGA switcheroo: switched nouveau on\n");
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 		nouveau_pmops_resume(&pdev->dev);
 		drm_kms_helper_poll_enable(dev);
 		dev->switch_power_state = DRM_SWITCH_POWER_ON;
 	} else {
-		printk(KERN_ERR "VGA switcheroo: switched nouveau off\n");
+		pr_err("VGA switcheroo: switched nouveau off\n");
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 		drm_kms_helper_poll_disable(dev);
 		nouveau_switcheroo_optimus_dsm();
@@ -95,6 +95,10 @@ nouveau_vga_init(struct nouveau_drm *drm)
 
 	vga_client_register(dev->pdev, dev, NULL, nouveau_vga_set_decode);
 
+	/* don't register Thunderbolt eGPU with vga_switcheroo */
+	if (pci_is_thunderbolt_attached(dev->pdev))
+		return;
+
 	if (nouveau_runtime_pm == 1)
 		runtime = true;
 	if ((nouveau_runtime_pm == -1) && (nouveau_is_optimus() || nouveau_is_v1_dsm()))
@@ -111,6 +115,11 @@ nouveau_vga_fini(struct nouveau_drm *drm)
 	struct drm_device *dev = drm->dev;
 	bool runtime = false;
 
+	vga_client_register(dev->pdev, NULL, NULL, NULL);
+
+	if (pci_is_thunderbolt_attached(dev->pdev))
+		return;
+
 	if (nouveau_runtime_pm == 1)
 		runtime = true;
 	if ((nouveau_runtime_pm == -1) && (nouveau_is_optimus() || nouveau_is_v1_dsm()))
@@ -119,7 +128,6 @@ nouveau_vga_fini(struct nouveau_drm *drm)
 	vga_switcheroo_unregister_client(dev->pdev);
 	if (runtime && nouveau_is_v1_dsm() && !nouveau_is_optimus())
 		vga_switcheroo_fini_domain_pm_ops(drm->dev->dev);
-	vga_client_register(dev->pdev, NULL, NULL, NULL);
 }
 
 

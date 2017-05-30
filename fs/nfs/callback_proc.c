@@ -131,10 +131,11 @@ restart:
 			if (!inode)
 				continue;
 			if (!nfs_sb_active(inode->i_sb)) {
-				rcu_read_lock();
+				rcu_read_unlock();
 				spin_unlock(&clp->cl_lock);
 				iput(inode);
 				spin_lock(&clp->cl_lock);
+				rcu_read_lock();
 				goto restart;
 			}
 			return inode;
@@ -170,10 +171,11 @@ restart:
 			if (!inode)
 				continue;
 			if (!nfs_sb_active(inode->i_sb)) {
-				rcu_read_lock();
+				rcu_read_unlock();
 				spin_unlock(&clp->cl_lock);
 				iput(inode);
 				spin_lock(&clp->cl_lock);
+				rcu_read_lock();
 				goto restart;
 			}
 			return inode;
@@ -317,31 +319,18 @@ static u32 initiate_bulk_draining(struct nfs_client *clp,
 static u32 do_callback_layoutrecall(struct nfs_client *clp,
 				    struct cb_layoutrecallargs *args)
 {
-	u32 res;
-
-	dprintk("%s enter, type=%i\n", __func__, args->cbl_recall_type);
 	if (args->cbl_recall_type == RETURN_FILE)
-		res = initiate_file_draining(clp, args);
-	else
-		res = initiate_bulk_draining(clp, args);
-	dprintk("%s returning %i\n", __func__, res);
-	return res;
-
+		return initiate_file_draining(clp, args);
+	return initiate_bulk_draining(clp, args);
 }
 
 __be32 nfs4_callback_layoutrecall(struct cb_layoutrecallargs *args,
 				  void *dummy, struct cb_process_state *cps)
 {
-	u32 res;
-
-	dprintk("%s: -->\n", __func__);
+	u32 res = NFS4ERR_OP_NOT_IN_SESSION;
 
 	if (cps->clp)
 		res = do_callback_layoutrecall(cps->clp, args);
-	else
-		res = NFS4ERR_OP_NOT_IN_SESSION;
-
-	dprintk("%s: exit with status = %d\n", __func__, res);
 	return cpu_to_be32(res);
 }
 
@@ -364,8 +353,6 @@ __be32 nfs4_callback_devicenotify(struct cb_devicenotifyargs *args,
 	struct nfs_client *clp = cps->clp;
 	struct nfs_server *server = NULL;
 
-	dprintk("%s: -->\n", __func__);
-
 	if (!clp) {
 		res = cpu_to_be32(NFS4ERR_OP_NOT_IN_SESSION);
 		goto out;
@@ -384,8 +371,6 @@ __be32 nfs4_callback_devicenotify(struct cb_devicenotifyargs *args,
 					goto found;
 				}
 			rcu_read_unlock();
-			dprintk("%s: layout type %u not found\n",
-				__func__, dev->cbd_layout_type);
 			continue;
 		}
 
@@ -395,8 +380,6 @@ __be32 nfs4_callback_devicenotify(struct cb_devicenotifyargs *args,
 
 out:
 	kfree(args->devs);
-	dprintk("%s: exit with status = %u\n",
-		__func__, be32_to_cpu(res));
 	return res;
 }
 
@@ -417,16 +400,11 @@ static __be32
 validate_seqid(const struct nfs4_slot_table *tbl, const struct nfs4_slot *slot,
 		const struct cb_sequenceargs * args)
 {
-	dprintk("%s enter. slotid %u seqid %u, slot table seqid: %u\n",
-		__func__, args->csa_slotid, args->csa_sequenceid, slot->seq_nr);
-
 	if (args->csa_slotid > tbl->server_highest_slotid)
 		return htonl(NFS4ERR_BADSLOT);
 
 	/* Replay */
 	if (args->csa_sequenceid == slot->seq_nr) {
-		dprintk("%s seqid %u is a replay\n",
-			__func__, args->csa_sequenceid);
 		if (nfs4_test_locked_slot(tbl, slot->slot_nr))
 			return htonl(NFS4ERR_DELAY);
 		/* Signal process_op to set this error on next op */
@@ -480,15 +458,6 @@ static bool referring_call_exists(struct nfs_client *clp,
 
 		for (j = 0; j < rclist->rcl_nrefcalls; j++) {
 			ref = &rclist->rcl_refcalls[j];
-
-			dprintk("%s: sessionid %x:%x:%x:%x sequenceid %u "
-				"slotid %u\n", __func__,
-				((u32 *)&rclist->rcl_sessionid.data)[0],
-				((u32 *)&rclist->rcl_sessionid.data)[1],
-				((u32 *)&rclist->rcl_sessionid.data)[2],
-				((u32 *)&rclist->rcl_sessionid.data)[3],
-				ref->rc_sequenceid, ref->rc_slotid);
-
 			status = nfs4_slot_wait_on_seqid(tbl, ref->rc_slotid,
 					ref->rc_sequenceid, HZ >> 1) < 0;
 			if (status)
@@ -593,8 +562,6 @@ out:
 		res->csr_status = status;
 
 	trace_nfs4_cb_sequence(args, res, status);
-	dprintk("%s: exit with status = %d res->csr_status %d\n", __func__,
-		ntohl(status), ntohl(res->csr_status));
 	return status;
 }
 

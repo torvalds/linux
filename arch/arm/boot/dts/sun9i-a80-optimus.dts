@@ -46,7 +46,6 @@
 #include "sun9i-a80.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "Merrii A80 Optimus Board";

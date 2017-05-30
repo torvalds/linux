@@ -44,20 +44,21 @@ struct intel_vgpu;
 #define D_HSW   (1 << 2)
 #define D_BDW   (1 << 3)
 #define D_SKL	(1 << 4)
+#define D_KBL	(1 << 5)
 
-#define D_GEN9PLUS	(D_SKL)
-#define D_GEN8PLUS	(D_BDW | D_SKL)
-#define D_GEN75PLUS	(D_HSW | D_BDW | D_SKL)
-#define D_GEN7PLUS	(D_IVB | D_HSW | D_BDW | D_SKL)
+#define D_GEN9PLUS	(D_SKL | D_KBL)
+#define D_GEN8PLUS	(D_BDW | D_SKL | D_KBL)
+#define D_GEN75PLUS	(D_HSW | D_BDW | D_SKL | D_KBL)
+#define D_GEN7PLUS	(D_IVB | D_HSW | D_BDW | D_SKL | D_KBL)
 
-#define D_SKL_PLUS	(D_SKL)
-#define D_BDW_PLUS	(D_BDW | D_SKL)
-#define D_HSW_PLUS	(D_HSW | D_BDW | D_SKL)
-#define D_IVB_PLUS	(D_IVB | D_HSW | D_BDW | D_SKL)
+#define D_SKL_PLUS	(D_SKL | D_KBL)
+#define D_BDW_PLUS	(D_BDW | D_SKL | D_KBL)
+#define D_HSW_PLUS	(D_HSW | D_BDW | D_SKL | D_KBL)
+#define D_IVB_PLUS	(D_IVB | D_HSW | D_BDW | D_SKL | D_KBL)
 
 #define D_PRE_BDW	(D_SNB | D_IVB | D_HSW)
 #define D_PRE_SKL	(D_SNB | D_IVB | D_HSW | D_BDW)
-#define D_ALL		(D_SNB | D_IVB | D_HSW | D_BDW | D_SKL)
+#define D_ALL		(D_SNB | D_IVB | D_HSW | D_BDW | D_SKL | D_KBL)
 
 struct intel_gvt_mmio_info {
 	u32 offset;

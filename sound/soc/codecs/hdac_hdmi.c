@@ -469,7 +469,7 @@ static int hdac_hdmi_set_hw_params(struct snd_pcm_substream *substream,
 
 	format = snd_hdac_calc_stream_format(params_rate(hparams),
 			params_channels(hparams), params_format(hparams),
-			24, 0);
+			dai->driver->playback.sig_bits, 0);
 
 	pcm = hdac_hdmi_get_pcm_from_cvt(hdmi, dai_map->cvt);
 	if (!pcm)
@@ -1419,8 +1419,8 @@ static int hdac_hdmi_create_dais(struct hdac_device *hdac,
 		hdmi_dais[i].playback.rate_min = rate_min;
 		hdmi_dais[i].playback.channels_min = 2;
 		hdmi_dais[i].playback.channels_max = 2;
+		hdmi_dais[i].playback.sig_bits = bps;
 		hdmi_dais[i].ops = &hdmi_dai_ops;
-
 		i++;
 	}
 

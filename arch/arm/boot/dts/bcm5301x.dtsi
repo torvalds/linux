@@ -18,10 +18,6 @@
 / {
 	interrupt-parent = <&gic>;
 
-	chosen {
-		stdout-path = &uart0;
-	};
-
 	chipcommonA {
 		compatible = "simple-bus";
 		ranges = <0x00000000 0x18000000 0x00001000>;
@@ -70,10 +66,19 @@
 			clocks = <&periph_clk>;
 		};
 
-		local-timer@20600 {
+		timer@20600 {
 			compatible = "arm,cortex-a9-twd-timer";
-			reg = <0x20600 0x100>;
-			interrupts = <GIC_PPI 13 IRQ_TYPE_EDGE_RISING>;
+			reg = <0x20600 0x20>;
+			interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(2) |
+						  IRQ_TYPE_EDGE_RISING)>;
+			clocks = <&periph_clk>;
+		};
+
+		watchdog@20620 {
+			compatible = "arm,cortex-a9-twd-wdt";
+			reg = <0x20620 0x20>;
+			interrupts = <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(2) |
+						  IRQ_TYPE_EDGE_RISING)>;
 			clocks = <&periph_clk>;
 		};
 
@@ -298,20 +303,6 @@
 			};
 		};
 
-		spi@29000 {
-			reg = <0x00029000 0x1000>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			spi_nor: spi-nor@0 {
-				compatible = "jedec,spi-nor";
-				reg = <0>;
-				spi-max-frequency = <20000000>;
-				linux,part-probe = "ofpart", "bcm47xxpart";
-				status = "disabled";
-			};
-		};
-
 		gmac0: ethernet@24000 {
 			reg = <0x24000 0x800>;
 		};
@@ -327,6 +318,16 @@
 		gmac3: ethernet@27000 {
 			reg = <0x27000 0x800>;
 		};
+	};
+
+	i2c0: i2c@18009000 {
+		compatible = "brcm,iproc-i2c";
+		reg = <0x18009000 0x50>;
+		interrupts = <GIC_SPI 121 IRQ_TYPE_NONE>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clock-frequency = <100000>;
+		status = "disabled";
 	};
 
 	lcpll0: lcpll0@1800c100 {
@@ -374,5 +375,41 @@
 		#size-cells = <0>;
 
 		brcm,nand-has-wp;
+	};
+
+	spi@18029200 {
+		compatible = "brcm,spi-bcm-qspi", "brcm,spi-nsp-qspi";
+		reg = <0x18029200 0x184>,
+		      <0x18029000 0x124>,
+		      <0x1811b408 0x004>,
+		      <0x180293a0 0x01c>;
+		reg-names = "mspi", "bspi", "intr_regs", "intr_status_reg";
+		interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "spi_lr_fullness_reached",
+				  "spi_lr_session_aborted",
+				  "spi_lr_impatient",
+				  "spi_lr_session_done",
+				  "spi_lr_overhead",
+				  "mspi_done",
+				  "mspi_halted";
+		clocks = <&iprocmed>;
+		clock-names = "iprocmed";
+		num-cs = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		spi_nor: spi-nor@0 {
+			compatible = "jedec,spi-nor";
+			reg = <0>;
+			spi-max-frequency = <20000000>;
+			linux,part-probe = "ofpart", "bcm47xxpart";
+			status = "disabled";
+		};
 	};
 };

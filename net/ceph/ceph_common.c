@@ -45,18 +45,16 @@ bool libceph_compatible(void *data)
 }
 EXPORT_SYMBOL(libceph_compatible);
 
-/*
- * find filename portion of a path (/foo/bar/baz -> baz)
- */
-const char *ceph_file_part(const char *s, int len)
+static int param_get_supported_features(char *buffer,
+					const struct kernel_param *kp)
 {
-	const char *e = s + len;
-
-	while (e != s && *(e-1) != '/')
-		e--;
-	return e;
+	return sprintf(buffer, "0x%llx", CEPH_FEATURES_SUPPORTED_DEFAULT);
 }
-EXPORT_SYMBOL(ceph_file_part);
+static const struct kernel_param_ops param_ops_supported_features = {
+	.get = param_get_supported_features,
+};
+module_param_cb(supported_features, &param_ops_supported_features, NULL,
+		S_IRUGO);
 
 const char *ceph_msg_type_name(int type)
 {
@@ -187,7 +185,7 @@ void *ceph_kvmalloc(size_t size, gfp_t flags)
 			return ptr;
 	}
 
-	return __vmalloc(size, flags | __GFP_HIGHMEM, PAGE_KERNEL);
+	return __vmalloc(size, flags, PAGE_KERNEL);
 }
 
 
@@ -596,9 +594,7 @@ EXPORT_SYMBOL(ceph_client_gid);
 /*
  * create a fresh client instance
  */
-struct ceph_client *ceph_create_client(struct ceph_options *opt, void *private,
-				       u64 supported_features,
-				       u64 required_features)
+struct ceph_client *ceph_create_client(struct ceph_options *opt, void *private)
 {
 	struct ceph_client *client;
 	struct ceph_entity_addr *myaddr = NULL;
@@ -615,14 +611,12 @@ struct ceph_client *ceph_create_client(struct ceph_options *opt, void *private,
 	init_waitqueue_head(&client->auth_wq);
 	client->auth_err = 0;
 
-	if (!ceph_test_opt(client, NOMSGAUTH))
-		required_features |= CEPH_FEATURE_MSG_AUTH;
-
 	client->extra_mon_dispatch = NULL;
-	client->supported_features = CEPH_FEATURES_SUPPORTED_DEFAULT |
-		supported_features;
-	client->required_features = CEPH_FEATURES_REQUIRED_DEFAULT |
-		required_features;
+	client->supported_features = CEPH_FEATURES_SUPPORTED_DEFAULT;
+	client->required_features = CEPH_FEATURES_REQUIRED_DEFAULT;
+
+	if (!ceph_test_opt(client, NOMSGAUTH))
+		client->required_features |= CEPH_FEATURE_MSG_AUTH;
 
 	/* msgr */
 	if (ceph_test_opt(client, MYIP))

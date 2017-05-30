@@ -1,6 +1,7 @@
 /* Broadcom NetXtreme-C/E network driver.
  *
  * Copyright (c) 2014-2016 Broadcom Corporation
+ * Copyright (c) 2016-2017 Broadcom Limited
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,6 +15,7 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/etherdevice.h>
+#include <rdma/ib_verbs.h>
 #include "bnxt_hsi.h"
 #include "bnxt.h"
 #include "bnxt_dcb.h"
@@ -241,6 +243,92 @@ static int bnxt_hwrm_queue_pfc_qcfg(struct bnxt *bp, struct ieee_pfc *pfc)
 	return 0;
 }
 
+static int bnxt_hwrm_set_dcbx_app(struct bnxt *bp, struct dcb_app *app,
+				  bool add)
+{
+	struct hwrm_fw_set_structured_data_input set = {0};
+	struct hwrm_fw_get_structured_data_input get = {0};
+	struct hwrm_struct_data_dcbx_app *fw_app;
+	struct hwrm_struct_hdr *data;
+	dma_addr_t mapping;
+	size_t data_len;
+	int rc, n, i;
+
+	if (bp->hwrm_spec_code < 0x10601)
+		return 0;
+
+	n = IEEE_8021QAZ_MAX_TCS;
+	data_len = sizeof(*data) + sizeof(*fw_app) * n;
+	data = dma_alloc_coherent(&bp->pdev->dev, data_len, &mapping,
+				  GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	memset(data, 0, data_len);
+	bnxt_hwrm_cmd_hdr_init(bp, &get, HWRM_FW_GET_STRUCTURED_DATA, -1, -1);
+	get.dest_data_addr = cpu_to_le64(mapping);
+	get.structure_id = cpu_to_le16(STRUCT_HDR_STRUCT_ID_DCBX_APP);
+	get.subtype = cpu_to_le16(HWRM_STRUCT_DATA_SUBTYPE_HOST_OPERATIONAL);
+	get.count = 0;
+	rc = hwrm_send_message(bp, &get, sizeof(get), HWRM_CMD_TIMEOUT);
+	if (rc)
+		goto set_app_exit;
+
+	fw_app = (struct hwrm_struct_data_dcbx_app *)(data + 1);
+
+	if (data->struct_id != cpu_to_le16(STRUCT_HDR_STRUCT_ID_DCBX_APP)) {
+		rc = -ENODEV;
+		goto set_app_exit;
+	}
+
+	n = data->count;
+	for (i = 0; i < n; i++, fw_app++) {
+		if (fw_app->protocol_id == cpu_to_be16(app->protocol) &&
+		    fw_app->protocol_selector == app->selector &&
+		    fw_app->priority == app->priority) {
+			if (add)
+				goto set_app_exit;
+			else
+				break;
+		}
+	}
+	if (add) {
+		/* append */
+		n++;
+		fw_app->protocol_id = cpu_to_be16(app->protocol);
+		fw_app->protocol_selector = app->selector;
+		fw_app->priority = app->priority;
+		fw_app->valid = 1;
+	} else {
+		size_t len = 0;
+
+		/* not found, nothing to delete */
+		if (n == i)
+			goto set_app_exit;
+
+		len = (n - 1 - i) * sizeof(*fw_app);
+		if (len)
+			memmove(fw_app, fw_app + 1, len);
+		n--;
+		memset(fw_app + n, 0, sizeof(*fw_app));
+	}
+	data->count = n;
+	data->len = cpu_to_le16(sizeof(*fw_app) * n);
+	data->subtype = cpu_to_le16(HWRM_STRUCT_DATA_SUBTYPE_HOST_OPERATIONAL);
+
+	bnxt_hwrm_cmd_hdr_init(bp, &set, HWRM_FW_SET_STRUCTURED_DATA, -1, -1);
+	set.src_data_addr = cpu_to_le64(mapping);
+	set.data_len = cpu_to_le16(sizeof(*data) + sizeof(*fw_app) * n);
+	set.hdr_cnt = 1;
+	rc = hwrm_send_message(bp, &set, sizeof(set), HWRM_CMD_TIMEOUT);
+	if (rc)
+		rc = -EIO;
+
+set_app_exit:
+	dma_free_coherent(&bp->pdev->dev, data_len, data, mapping);
+	return rc;
+}
+
 static int bnxt_ets_validate(struct bnxt *bp, struct ieee_ets *ets, u8 *tc)
 {
 	int total_ets_bw = 0;
@@ -417,6 +505,15 @@ static int bnxt_dcbnl_ieee_setapp(struct net_device *dev, struct dcb_app *app)
 		return -EINVAL;
 
 	rc = dcb_ieee_setapp(dev, app);
+	if (rc)
+		return rc;
+
+	if ((app->selector == IEEE_8021QAZ_APP_SEL_ETHERTYPE &&
+	     app->protocol == ETH_P_IBOE) ||
+	    (app->selector == IEEE_8021QAZ_APP_SEL_DGRAM &&
+	     app->protocol == ROCE_V2_UDP_DPORT))
+		rc = bnxt_hwrm_set_dcbx_app(bp, app, true);
+
 	return rc;
 }
 
@@ -425,10 +522,19 @@ static int bnxt_dcbnl_ieee_delapp(struct net_device *dev, struct dcb_app *app)
 	struct bnxt *bp = netdev_priv(dev);
 	int rc;
 
-	if (!(bp->dcbx_cap & DCB_CAP_DCBX_VER_IEEE))
+	if (!(bp->dcbx_cap & DCB_CAP_DCBX_VER_IEEE) ||
+	    !(bp->dcbx_cap & DCB_CAP_DCBX_HOST))
 		return -EINVAL;
 
 	rc = dcb_ieee_delapp(dev, app);
+	if (rc)
+		return rc;
+	if ((app->selector == IEEE_8021QAZ_APP_SEL_ETHERTYPE &&
+	     app->protocol == ETH_P_IBOE) ||
+	    (app->selector == IEEE_8021QAZ_APP_SEL_DGRAM &&
+	     app->protocol == ROCE_V2_UDP_DPORT))
+		rc = bnxt_hwrm_set_dcbx_app(bp, app, false);
+
 	return rc;
 }
 
@@ -447,8 +553,10 @@ static u8 bnxt_dcbnl_setdcbx(struct net_device *dev, u8 mode)
 	if ((mode & DCB_CAP_DCBX_VER_CEE) || !(mode & DCB_CAP_DCBX_VER_IEEE))
 		return 1;
 
-	if ((mode & DCB_CAP_DCBX_HOST) && BNXT_VF(bp))
-		return 1;
+	if (mode & DCB_CAP_DCBX_HOST) {
+		if (BNXT_VF(bp) || (bp->flags & BNXT_FLAG_FW_LLDP_AGENT))
+			return 1;
+	}
 
 	if (mode == bp->dcbx_cap)
 		return 0;

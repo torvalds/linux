@@ -85,8 +85,7 @@ static void dw_i2c_acpi_params(struct platform_device *pdev, char method[],
 
 		*hcnt = (u16)objs[0].integer.value;
 		*lcnt = (u16)objs[1].integer.value;
-		if (sda_hold)
-			*sda_hold = (u32)objs[2].integer.value;
+		*sda_hold = (u32)objs[2].integer.value;
 	}
 
 	kfree(buf.pointer);
@@ -95,25 +94,56 @@ static void dw_i2c_acpi_params(struct platform_device *pdev, char method[],
 static int dw_i2c_acpi_configure(struct platform_device *pdev)
 {
 	struct dw_i2c_dev *dev = platform_get_drvdata(pdev);
+	u32 ss_ht = 0, fp_ht = 0, hs_ht = 0, fs_ht = 0;
+	acpi_handle handle = ACPI_HANDLE(&pdev->dev);
 	const struct acpi_device_id *id;
+	struct acpi_device *adev;
+	const char *uid;
 
 	dev->adapter.nr = -1;
 	dev->tx_fifo_depth = 32;
 	dev->rx_fifo_depth = 32;
 
 	/*
-	 * Try to get SDA hold time and *CNT values from an ACPI method if
-	 * it exists for both supported speed modes.
+	 * Try to get SDA hold time and *CNT values from an ACPI method for
+	 * selected speed modes.
 	 */
-	dw_i2c_acpi_params(pdev, "SSCN", &dev->ss_hcnt, &dev->ss_lcnt, NULL);
-	dw_i2c_acpi_params(pdev, "FMCN", &dev->fs_hcnt, &dev->fs_lcnt,
-			   &dev->sda_hold_time);
-	dw_i2c_acpi_params(pdev, "FPCN", &dev->fp_hcnt, &dev->fp_lcnt, NULL);
-	dw_i2c_acpi_params(pdev, "HSCN", &dev->hs_hcnt, &dev->hs_lcnt, NULL);
+	dw_i2c_acpi_params(pdev, "SSCN", &dev->ss_hcnt, &dev->ss_lcnt, &ss_ht);
+	dw_i2c_acpi_params(pdev, "FPCN", &dev->fp_hcnt, &dev->fp_lcnt, &fp_ht);
+	dw_i2c_acpi_params(pdev, "HSCN", &dev->hs_hcnt, &dev->hs_lcnt, &hs_ht);
+	dw_i2c_acpi_params(pdev, "FMCN", &dev->fs_hcnt, &dev->fs_lcnt, &fs_ht);
+
+	switch (dev->clk_freq) {
+	case 100000:
+		dev->sda_hold_time = ss_ht;
+		break;
+	case 1000000:
+		dev->sda_hold_time = fp_ht;
+		break;
+	case 3400000:
+		dev->sda_hold_time = hs_ht;
+		break;
+	case 400000:
+	default:
+		dev->sda_hold_time = fs_ht;
+		break;
+	}
 
 	id = acpi_match_device(pdev->dev.driver->acpi_match_table, &pdev->dev);
 	if (id && id->driver_data)
-		dev->accessor_flags |= (u32)id->driver_data;
+		dev->flags |= (u32)id->driver_data;
+
+	if (acpi_bus_get_device(handle, &adev))
+		return -ENODEV;
+
+	/*
+	 * Cherrytrail I2C7 gets used for the PMIC which gets accessed
+	 * through ACPI opregions during late suspend / early resume
+	 * disable pm for it.
+	 */
+	uid = adev->pnp.unique_id;
+	if ((dev->flags & MODEL_CHERRYTRAIL) && !strcmp(uid, "7"))
+		dev->pm_disabled = true;
 
 	return 0;
 }
@@ -124,11 +154,13 @@ static const struct acpi_device_id dw_i2c_acpi_match[] = {
 	{ "INT3432", 0 },
 	{ "INT3433", 0 },
 	{ "80860F41", 0 },
-	{ "808622C1", 0 },
+	{ "808622C1", MODEL_CHERRYTRAIL },
 	{ "AMD0010", ACCESS_INTR_MASK },
 	{ "AMDI0010", ACCESS_INTR_MASK },
 	{ "AMDI0510", 0 },
 	{ "APMC0D0F", 0 },
+	{ "HISI02A1", 0 },
+	{ "HISI02A2", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, dw_i2c_acpi_match);
@@ -248,7 +280,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 		goto exit_reset;
 	}
 
-	r = i2c_dw_eval_lock_support(dev);
+	r = i2c_dw_probe_lock_support(dev);
 	if (r)
 		goto exit_reset;
 
@@ -286,7 +318,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	ACPI_COMPANION_SET(&adap->dev, ACPI_COMPANION(&pdev->dev));
 	adap->dev.of_node = pdev->dev.of_node;
 
-	if (dev->pm_runtime_disabled) {
+	if (dev->pm_disabled) {
 		pm_runtime_forbid(&pdev->dev);
 	} else {
 		pm_runtime_set_autosuspend_delay(&pdev->dev, 1000);
@@ -302,7 +334,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	return r;
 
 exit_probe:
-	if (!dev->pm_runtime_disabled)
+	if (!dev->pm_disabled)
 		pm_runtime_disable(&pdev->dev);
 exit_reset:
 	if (!IS_ERR_OR_NULL(dev->rst))
@@ -322,10 +354,12 @@ static int dw_i2c_plat_remove(struct platform_device *pdev)
 
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_put_sync(&pdev->dev);
-	if (!dev->pm_runtime_disabled)
+	if (!dev->pm_disabled)
 		pm_runtime_disable(&pdev->dev);
 	if (!IS_ERR_OR_NULL(dev->rst))
 		reset_control_assert(dev->rst);
+
+	i2c_dw_remove_lock_support(dev);
 
 	return 0;
 }
@@ -372,9 +406,7 @@ static int dw_i2c_plat_resume(struct device *dev)
 	struct dw_i2c_dev *i_dev = platform_get_drvdata(pdev);
 
 	i2c_dw_plat_prepare_clk(i_dev, true);
-
-	if (!i_dev->pm_runtime_disabled)
-		i2c_dw_init(i_dev);
+	i2c_dw_init(i_dev);
 
 	return 0;
 }

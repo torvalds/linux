@@ -51,6 +51,8 @@
 #define GROUP1_NR_IRQS		6
 #define IRQ_MASK_BASE		0x4e19
 #define IRQ_STATUS_BASE		0x4e0b
+#define GPIO_IRQ0_MASK		GENMASK(6, 0)
+#define GPIO_IRQ1_MASK		GENMASK(5, 0)
 #define UPDATE_IRQ_TYPE		BIT(0)
 #define UPDATE_IRQ_MASK		BIT(1)
 
@@ -309,7 +311,7 @@ static irqreturn_t wcove_gpio_irq_handler(int irq, void *data)
 		return IRQ_NONE;
 	}
 
-	pending = p[0] | (p[1] << 8);
+	pending = (p[0] & GPIO_IRQ0_MASK) | ((p[1] & GPIO_IRQ1_MASK) << 7);
 	if (!pending)
 		return IRQ_NONE;
 
@@ -317,7 +319,7 @@ static irqreturn_t wcove_gpio_irq_handler(int irq, void *data)
 	while (pending) {
 		/* One iteration is for all pending bits */
 		for_each_set_bit(gpio, (const unsigned long *)&pending,
-						 GROUP0_NR_IRQS) {
+						 WCOVE_GPIO_NUM) {
 			offset = (gpio > GROUP0_NR_IRQS) ? 1 : 0;
 			mask = (offset == 1) ? BIT(gpio - GROUP0_NR_IRQS) :
 								BIT(gpio);
@@ -333,7 +335,7 @@ static irqreturn_t wcove_gpio_irq_handler(int irq, void *data)
 			break;
 		}
 
-		pending = p[0] | (p[1] << 8);
+		pending = (p[0] & GPIO_IRQ0_MASK) | ((p[1] & GPIO_IRQ1_MASK) << 7);
 	}
 
 	return IRQ_HANDLED;

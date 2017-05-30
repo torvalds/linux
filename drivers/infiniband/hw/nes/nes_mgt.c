@@ -1040,9 +1040,8 @@ int nes_init_mgt_qp(struct nes_device *nesdev, struct net_device *netdev, struct
 			mgtvnic->mgt.rx_skb[counter] = skb;
 		}
 
-		init_timer(&mgtvnic->rq_wqes_timer);
-		mgtvnic->rq_wqes_timer.function = nes_mgt_rq_wqes_timeout;
-		mgtvnic->rq_wqes_timer.data = (unsigned long)mgtvnic;
+		setup_timer(&mgtvnic->rq_wqes_timer, nes_mgt_rq_wqes_timeout,
+			    (unsigned long)mgtvnic);
 
 		wqe_count = NES_MGT_WQ_COUNT - 1;
 		mgtvnic->mgt.rq_head = wqe_count;

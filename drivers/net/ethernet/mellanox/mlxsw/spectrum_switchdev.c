@@ -568,8 +568,8 @@ void mlxsw_sp_fid_destroy(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_fid *f)
 
 	list_del(&f->list);
 
-	if (f->r)
-		mlxsw_sp_rif_bridge_destroy(mlxsw_sp, f->r);
+	if (f->rif)
+		mlxsw_sp_rif_bridge_destroy(mlxsw_sp, f->rif);
 
 	kfree(f);
 
@@ -745,27 +745,6 @@ err_port_allow_untagged_set:
 	return err;
 }
 
-static int __mlxsw_sp_port_vlans_set(struct mlxsw_sp_port *mlxsw_sp_port,
-				     u16 vid_begin, u16 vid_end, bool is_member,
-				     bool untagged)
-{
-	u16 vid, vid_e;
-	int err;
-
-	for (vid = vid_begin; vid <= vid_end;
-	     vid += MLXSW_REG_SPVM_REC_MAX_COUNT) {
-		vid_e = min((u16) (vid + MLXSW_REG_SPVM_REC_MAX_COUNT - 1),
-			    vid_end);
-
-		err = mlxsw_sp_port_vlan_set(mlxsw_sp_port, vid, vid_e,
-					     is_member, untagged);
-		if (err)
-			return err;
-	}
-
-	return 0;
-}
-
 static int mlxsw_sp_port_vid_learning_set(struct mlxsw_sp_port *mlxsw_sp_port,
 					  u16 vid_begin, u16 vid_end,
 					  bool learn_enable)
@@ -804,8 +783,8 @@ static int __mlxsw_sp_port_vlans_add(struct mlxsw_sp_port *mlxsw_sp_port,
 		return err;
 	}
 
-	err = __mlxsw_sp_port_vlans_set(mlxsw_sp_port, vid_begin, vid_end,
-					true, flag_untagged);
+	err = mlxsw_sp_port_vlan_set(mlxsw_sp_port, vid_begin, vid_end,
+				     true, flag_untagged);
 	if (err) {
 		netdev_err(dev, "Unable to add VIDs %d-%d\n", vid_begin,
 			   vid_end);
@@ -863,8 +842,8 @@ err_port_vid_learning_set:
 	if (old_pvid != mlxsw_sp_port->pvid)
 		mlxsw_sp_port_pvid_set(mlxsw_sp_port, old_pvid);
 err_port_pvid_set:
-	__mlxsw_sp_port_vlans_set(mlxsw_sp_port, vid_begin, vid_end, false,
-				  false);
+	mlxsw_sp_port_vlan_set(mlxsw_sp_port, vid_begin, vid_end,
+			       false, false);
 err_port_vlans_set:
 	mlxsw_sp_port_fid_leave(mlxsw_sp_port, vid_begin, vid_end);
 	return err;
@@ -1012,7 +991,7 @@ static int mlxsw_sp_port_smid_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 mid,
 
 	mlxsw_reg_smid_pack(smid_pl, mid, mlxsw_sp_port->local_port, add);
 	if (clear_all_ports) {
-		for (i = 1; i < MLXSW_PORT_MAX_PORTS; i++)
+		for (i = 1; i < mlxsw_core_max_ports(mlxsw_sp->core); i++)
 			if (mlxsw_sp->ports[i])
 				mlxsw_reg_smid_port_mask_set(smid_pl, i, 1);
 	}
@@ -1171,8 +1150,8 @@ static int __mlxsw_sp_port_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (pvid >= vid_begin && pvid <= vid_end)
 		mlxsw_sp_port_pvid_set(mlxsw_sp_port, 0);
 
-	__mlxsw_sp_port_vlans_set(mlxsw_sp_port, vid_begin, vid_end, false,
-				  false);
+	mlxsw_sp_port_vlan_set(mlxsw_sp_port, vid_begin, vid_end,
+			       false, false);
 
 	mlxsw_sp_port_fid_leave(mlxsw_sp_port, vid_begin, vid_end);
 
@@ -1518,8 +1497,7 @@ do_fdb_op:
 	err = mlxsw_sp_port_fdb_uc_op(mlxsw_sp, local_port, mac, fid,
 				      adding, true);
 	if (err) {
-		if (net_ratelimit())
-			netdev_err(mlxsw_sp_port->dev, "Failed to set FDB entry\n");
+		dev_err_ratelimited(mlxsw_sp->bus_info->dev, "Failed to set FDB entry\n");
 		return;
 	}
 
@@ -1579,8 +1557,7 @@ do_fdb_op:
 	err = mlxsw_sp_port_fdb_uc_lag_op(mlxsw_sp, lag_id, mac, fid, lag_vid,
 					  adding, true);
 	if (err) {
-		if (net_ratelimit())
-			netdev_err(mlxsw_sp_port->dev, "Failed to set FDB entry\n");
+		dev_err_ratelimited(mlxsw_sp->bus_info->dev, "Failed to set FDB entry\n");
 		return;
 	}
 

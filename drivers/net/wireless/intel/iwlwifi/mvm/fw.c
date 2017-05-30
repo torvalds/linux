@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,6 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -269,6 +270,27 @@ static int iwl_fill_paging_mem(struct iwl_mvm *mvm, const struct fw_img *image)
 	}
 
 	return 0;
+}
+
+void iwl_mvm_mfu_assert_dump_notif(struct iwl_mvm *mvm,
+				   struct iwl_rx_cmd_buffer *rxb)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_mfu_assert_dump_notif *mfu_dump_notif = (void *)pkt->data;
+	__le32 *dump_data = mfu_dump_notif->data;
+	int n_words = le32_to_cpu(mfu_dump_notif->data_size) / sizeof(__le32);
+	int i;
+
+	if (mfu_dump_notif->index_num == 0)
+		IWL_INFO(mvm, "MFUART assert id 0x%x occurred\n",
+			 le32_to_cpu(mfu_dump_notif->assert_id));
+
+	for (i = 0; i < n_words; i++)
+		IWL_DEBUG_INFO(mvm,
+			       "MFUART assert dump, dword %u: 0x%08x\n",
+			       le16_to_cpu(mfu_dump_notif->index_num) *
+			       n_words + i,
+			       le32_to_cpu(dump_data[i]));
 }
 
 static int iwl_alloc_fw_paging_mem(struct iwl_mvm *mvm,
@@ -617,11 +639,18 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	ret = iwl_wait_notification(&mvm->notif_wait, &alive_wait,
 				    MVM_UCODE_ALIVE_TIMEOUT);
 	if (ret) {
-		if (mvm->trans->cfg->device_family == IWL_DEVICE_FAMILY_8000)
+		struct iwl_trans *trans = mvm->trans;
+
+		if (trans->cfg->gen2)
 			IWL_ERR(mvm,
 				"SecBoot CPU1 Status: 0x%x, CPU2 Status: 0x%x\n",
-				iwl_read_prph(mvm->trans, SB_CPU_1_STATUS),
-				iwl_read_prph(mvm->trans, SB_CPU_2_STATUS));
+				iwl_read_prph(trans, UMAG_SB_CPU_1_STATUS),
+				iwl_read_prph(trans, UMAG_SB_CPU_2_STATUS));
+		else if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000)
+			IWL_ERR(mvm,
+				"SecBoot CPU1 Status: 0x%x, CPU2 Status: 0x%x\n",
+				iwl_read_prph(trans, SB_CPU_1_STATUS),
+				iwl_read_prph(trans, SB_CPU_2_STATUS));
 		mvm->cur_ucode = old_type;
 		return ret;
 	}
@@ -669,6 +698,82 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	return 0;
 }
 
+static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
+{
+	struct iwl_notification_wait init_wait;
+	struct iwl_nvm_access_complete_cmd nvm_complete = {};
+	struct iwl_init_extended_cfg_cmd init_cfg = {
+		.init_flags = cpu_to_le32(BIT(IWL_INIT_NVM)),
+	};
+	static const u16 init_complete[] = {
+		INIT_COMPLETE_NOTIF,
+	};
+	int ret;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	iwl_init_notification_wait(&mvm->notif_wait,
+				   &init_wait,
+				   init_complete,
+				   ARRAY_SIZE(init_complete),
+				   iwl_wait_init_complete,
+				   NULL);
+
+	/* Will also start the device */
+	ret = iwl_mvm_load_ucode_wait_alive(mvm, IWL_UCODE_REGULAR);
+	if (ret) {
+		IWL_ERR(mvm, "Failed to start RT ucode: %d\n", ret);
+		goto error;
+	}
+
+	/* Send init config command to mark that we are sending NVM access
+	 * commands
+	 */
+	ret = iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(SYSTEM_GROUP,
+						INIT_EXTENDED_CFG_CMD), 0,
+				   sizeof(init_cfg), &init_cfg);
+	if (ret) {
+		IWL_ERR(mvm, "Failed to run init config command: %d\n",
+			ret);
+		goto error;
+	}
+
+	/* Read the NVM only at driver load time, no need to do this twice */
+	if (read_nvm) {
+		/* Read nvm */
+		ret = iwl_nvm_init(mvm, true);
+		if (ret) {
+			IWL_ERR(mvm, "Failed to read NVM: %d\n", ret);
+			goto error;
+		}
+	}
+
+	/* In case we read the NVM from external file, load it to the NIC */
+	if (mvm->nvm_file_name)
+		iwl_mvm_load_nvm_to_nic(mvm);
+
+	ret = iwl_nvm_check_version(mvm->nvm_data, mvm->trans);
+	if (WARN_ON(ret))
+		goto error;
+
+	ret = iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(REGULATORY_AND_NVM_GROUP,
+						NVM_ACCESS_COMPLETE), 0,
+				   sizeof(nvm_complete), &nvm_complete);
+	if (ret) {
+		IWL_ERR(mvm, "Failed to run complete NVM access: %d\n",
+			ret);
+		goto error;
+	}
+
+	/* We wait for the INIT complete notification */
+	return iwl_wait_notification(&mvm->notif_wait, &init_wait,
+				     MVM_UCODE_ALIVE_TIMEOUT);
+
+error:
+	iwl_remove_notification(&mvm->notif_wait, &init_wait);
+	return ret;
+}
+
 static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
 {
 	struct iwl_phy_cfg_cmd phy_cfg_cmd;
@@ -696,6 +801,9 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 		CALIB_RES_NOTIF_PHY_DB
 	};
 	int ret;
+
+	if (iwl_mvm_has_new_tx_api(mvm))
+		return iwl_run_unified_mvm_ucode(mvm, true);
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -803,97 +911,31 @@ out:
 	return ret;
 }
 
-int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
-{
-	struct iwl_notification_wait init_wait;
-	struct iwl_nvm_access_complete_cmd nvm_complete = {};
-	static const u16 init_complete[] = {
-		INIT_COMPLETE_NOTIF,
-	};
-	int ret;
-
-	lockdep_assert_held(&mvm->mutex);
-
-	iwl_init_notification_wait(&mvm->notif_wait,
-				   &init_wait,
-				   init_complete,
-				   ARRAY_SIZE(init_complete),
-				   iwl_wait_init_complete,
-				   NULL);
-
-	/* Will also start the device */
-	ret = iwl_mvm_load_ucode_wait_alive(mvm, IWL_UCODE_REGULAR);
-	if (ret) {
-		IWL_ERR(mvm, "Failed to start RT ucode: %d\n", ret);
-		goto error;
-	}
-
-	/* TODO: remove when integrating context info */
-	ret = iwl_mvm_init_paging(mvm);
-	if (ret) {
-		IWL_ERR(mvm, "Failed to init paging: %d\n",
-			ret);
-		goto error;
-	}
-
-	/* Read the NVM only at driver load time, no need to do this twice */
-	if (read_nvm) {
-		/* Read nvm */
-		ret = iwl_nvm_init(mvm, true);
-		if (ret) {
-			IWL_ERR(mvm, "Failed to read NVM: %d\n", ret);
-			goto error;
-		}
-	}
-
-	/* In case we read the NVM from external file, load it to the NIC */
-	if (mvm->nvm_file_name)
-		iwl_mvm_load_nvm_to_nic(mvm);
-
-	ret = iwl_nvm_check_version(mvm->nvm_data, mvm->trans);
-	if (WARN_ON(ret))
-		goto error;
-
-	ret = iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(REGULATORY_AND_NVM_GROUP,
-						NVM_ACCESS_COMPLETE), 0,
-				   sizeof(nvm_complete), &nvm_complete);
-	if (ret) {
-		IWL_ERR(mvm, "Failed to run complete NVM access: %d\n",
-			ret);
-		goto error;
-	}
-
-	/* We wait for the INIT complete notification */
-	return iwl_wait_notification(&mvm->notif_wait, &init_wait,
-				     MVM_UCODE_ALIVE_TIMEOUT);
-
-error:
-	iwl_remove_notification(&mvm->notif_wait, &init_wait);
-	return ret;
-}
-
 static void iwl_mvm_parse_shared_mem_a000(struct iwl_mvm *mvm,
 					  struct iwl_rx_packet *pkt)
 {
 	struct iwl_shared_mem_cfg *mem_cfg = (void *)pkt->data;
-	int i;
+	int i, lmac;
+	int lmac_num = le32_to_cpu(mem_cfg->lmac_num);
 
-	mvm->shared_mem_cfg.num_txfifo_entries =
-		ARRAY_SIZE(mvm->shared_mem_cfg.txfifo_size);
-	for (i = 0; i < ARRAY_SIZE(mem_cfg->txfifo_size); i++)
-		mvm->shared_mem_cfg.txfifo_size[i] =
-			le32_to_cpu(mem_cfg->txfifo_size[i]);
-	for (i = 0; i < ARRAY_SIZE(mvm->shared_mem_cfg.rxfifo_size); i++)
-		mvm->shared_mem_cfg.rxfifo_size[i] =
-			le32_to_cpu(mem_cfg->rxfifo_size[i]);
+	if (WARN_ON(lmac_num > ARRAY_SIZE(mem_cfg->lmac_smem)))
+		return;
 
-	BUILD_BUG_ON(sizeof(mvm->shared_mem_cfg.internal_txfifo_size) !=
-		     sizeof(mem_cfg->internal_txfifo_size));
+	mvm->smem_cfg.num_lmacs = lmac_num;
+	mvm->smem_cfg.num_txfifo_entries =
+		ARRAY_SIZE(mem_cfg->lmac_smem[0].txfifo_size);
+	mvm->smem_cfg.rxfifo2_size = le32_to_cpu(mem_cfg->rxfifo2_size);
 
-	for (i = 0; i < ARRAY_SIZE(mvm->shared_mem_cfg.internal_txfifo_size);
-	     i++)
-		mvm->shared_mem_cfg.internal_txfifo_size[i] =
-			le32_to_cpu(mem_cfg->internal_txfifo_size[i]);
+	for (lmac = 0; lmac < lmac_num; lmac++) {
+		struct iwl_shared_mem_lmac_cfg *lmac_cfg =
+			&mem_cfg->lmac_smem[lmac];
+
+		for (i = 0; i < ARRAY_SIZE(lmac_cfg->txfifo_size); i++)
+			mvm->smem_cfg.lmac[lmac].txfifo_size[i] =
+				le32_to_cpu(lmac_cfg->txfifo_size[i]);
+		mvm->smem_cfg.lmac[lmac].rxfifo1_size =
+			le32_to_cpu(lmac_cfg->rxfifo1_size);
+	}
 }
 
 static void iwl_mvm_parse_shared_mem(struct iwl_mvm *mvm,
@@ -902,25 +944,27 @@ static void iwl_mvm_parse_shared_mem(struct iwl_mvm *mvm,
 	struct iwl_shared_mem_cfg_v1 *mem_cfg = (void *)pkt->data;
 	int i;
 
-	mvm->shared_mem_cfg.num_txfifo_entries =
-		ARRAY_SIZE(mvm->shared_mem_cfg.txfifo_size);
+	mvm->smem_cfg.num_lmacs = 1;
+
+	mvm->smem_cfg.num_txfifo_entries = ARRAY_SIZE(mem_cfg->txfifo_size);
 	for (i = 0; i < ARRAY_SIZE(mem_cfg->txfifo_size); i++)
-		mvm->shared_mem_cfg.txfifo_size[i] =
+		mvm->smem_cfg.lmac[0].txfifo_size[i] =
 			le32_to_cpu(mem_cfg->txfifo_size[i]);
-	for (i = 0; i < ARRAY_SIZE(mvm->shared_mem_cfg.rxfifo_size); i++)
-		mvm->shared_mem_cfg.rxfifo_size[i] =
-			le32_to_cpu(mem_cfg->rxfifo_size[i]);
+
+	mvm->smem_cfg.lmac[0].rxfifo1_size =
+		le32_to_cpu(mem_cfg->rxfifo_size[0]);
+	mvm->smem_cfg.rxfifo2_size = le32_to_cpu(mem_cfg->rxfifo_size[1]);
 
 	/* new API has more data, from rxfifo_addr field and on */
 	if (fw_has_capa(&mvm->fw->ucode_capa,
 			IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG)) {
-		BUILD_BUG_ON(sizeof(mvm->shared_mem_cfg.internal_txfifo_size) !=
+		BUILD_BUG_ON(sizeof(mvm->smem_cfg.internal_txfifo_size) !=
 			     sizeof(mem_cfg->internal_txfifo_size));
 
 		for (i = 0;
-		     i < ARRAY_SIZE(mvm->shared_mem_cfg.internal_txfifo_size);
+		     i < ARRAY_SIZE(mvm->smem_cfg.internal_txfifo_size);
 		     i++)
-			mvm->shared_mem_cfg.internal_txfifo_size[i] =
+			mvm->smem_cfg.internal_txfifo_size[i] =
 				le32_to_cpu(mem_cfg->internal_txfifo_size[i]);
 	}
 }
@@ -969,85 +1013,94 @@ static int iwl_mvm_config_ltr(struct iwl_mvm *mvm)
 				    sizeof(cmd), &cmd);
 }
 
-#define ACPI_WRDS_METHOD	"WRDS"
-#define ACPI_WRDS_WIFI		(0x07)
-#define ACPI_WRDS_TABLE_SIZE	10
-
-struct iwl_mvm_sar_table {
-	bool enabled;
-	u8 values[ACPI_WRDS_TABLE_SIZE];
-};
-
 #ifdef CONFIG_ACPI
-static int iwl_mvm_sar_get_wrds(struct iwl_mvm *mvm, union acpi_object *wrds,
-				struct iwl_mvm_sar_table *sar_table)
+#define ACPI_WRDS_METHOD		"WRDS"
+#define ACPI_EWRD_METHOD		"EWRD"
+#define ACPI_WGDS_METHOD		"WGDS"
+#define ACPI_WIFI_DOMAIN		(0x07)
+#define ACPI_WRDS_WIFI_DATA_SIZE	(IWL_MVM_SAR_TABLE_SIZE + 2)
+#define ACPI_EWRD_WIFI_DATA_SIZE	((IWL_MVM_SAR_PROFILE_NUM - 1) * \
+					 IWL_MVM_SAR_TABLE_SIZE + 3)
+#define ACPI_WGDS_WIFI_DATA_SIZE	18
+#define ACPI_WGDS_NUM_BANDS		2
+#define ACPI_WGDS_TABLE_SIZE		3
+
+static int iwl_mvm_sar_set_profile(struct iwl_mvm *mvm,
+				   union acpi_object *table,
+				   struct iwl_mvm_sar_profile *profile,
+				   bool enabled)
 {
-	union acpi_object *data_pkg;
-	u32 i;
+	int i;
 
-	/* We need at least two packages, one for the revision and one
-	 * for the data itself.  Also check that the revision is valid
-	 * (i.e. it is an integer set to 0).
-	*/
-	if (wrds->type != ACPI_TYPE_PACKAGE ||
-	    wrds->package.count < 2 ||
-	    wrds->package.elements[0].type != ACPI_TYPE_INTEGER ||
-	    wrds->package.elements[0].integer.value != 0) {
-		IWL_DEBUG_RADIO(mvm, "Unsupported wrds structure\n");
-		return -EINVAL;
-	}
+	profile->enabled = enabled;
 
-	/* loop through all the packages to find the one for WiFi */
-	for (i = 1; i < wrds->package.count; i++) {
-		union acpi_object *domain;
-
-		data_pkg = &wrds->package.elements[i];
-
-		/* Skip anything that is not a package with the right
-		 * amount of elements (i.e. domain_type,
-		 * enabled/disabled plus the sar table size.
-		 */
-		if (data_pkg->type != ACPI_TYPE_PACKAGE ||
-		    data_pkg->package.count != ACPI_WRDS_TABLE_SIZE + 2)
-			continue;
-
-		domain = &data_pkg->package.elements[0];
-		if (domain->type == ACPI_TYPE_INTEGER &&
-		    domain->integer.value == ACPI_WRDS_WIFI)
-			break;
-
-		data_pkg = NULL;
-	}
-
-	if (!data_pkg)
-		return -ENOENT;
-
-	if (data_pkg->package.elements[1].type != ACPI_TYPE_INTEGER)
-		return -EINVAL;
-
-	sar_table->enabled = !!(data_pkg->package.elements[1].integer.value);
-
-	for (i = 0; i < ACPI_WRDS_TABLE_SIZE; i++) {
-		union acpi_object *entry;
-
-		entry = &data_pkg->package.elements[i + 2];
-		if ((entry->type != ACPI_TYPE_INTEGER) ||
-		    (entry->integer.value > U8_MAX))
+	for (i = 0; i < IWL_MVM_SAR_TABLE_SIZE; i++) {
+		if ((table[i].type != ACPI_TYPE_INTEGER) ||
+		    (table[i].integer.value > U8_MAX))
 			return -EINVAL;
 
-		sar_table->values[i] = entry->integer.value;
+		profile->table[i] = table[i].integer.value;
 	}
 
 	return 0;
 }
 
-static int iwl_mvm_sar_get_table(struct iwl_mvm *mvm,
-				 struct iwl_mvm_sar_table *sar_table)
+static union acpi_object *iwl_mvm_sar_find_wifi_pkg(struct iwl_mvm *mvm,
+						    union acpi_object *data,
+						    int data_size)
 {
+	int i;
+	union acpi_object *wifi_pkg;
+
+	/*
+	 * We need at least two packages, one for the revision and one
+	 * for the data itself.  Also check that the revision is valid
+	 * (i.e. it is an integer set to 0).
+	 */
+	if (data->type != ACPI_TYPE_PACKAGE ||
+	    data->package.count < 2 ||
+	    data->package.elements[0].type != ACPI_TYPE_INTEGER ||
+	    data->package.elements[0].integer.value != 0) {
+		IWL_DEBUG_RADIO(mvm, "Unsupported packages structure\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	/* loop through all the packages to find the one for WiFi */
+	for (i = 1; i < data->package.count; i++) {
+		union acpi_object *domain;
+
+		wifi_pkg = &data->package.elements[i];
+
+		/* Skip anything that is not a package with the right
+		 * amount of elements (i.e. domain_type,
+		 * enabled/disabled plus the actual data size.
+		 */
+		if (wifi_pkg->type != ACPI_TYPE_PACKAGE ||
+		    wifi_pkg->package.count != data_size)
+			continue;
+
+		domain = &wifi_pkg->package.elements[0];
+		if (domain->type == ACPI_TYPE_INTEGER &&
+		    domain->integer.value == ACPI_WIFI_DOMAIN)
+			break;
+
+		wifi_pkg = NULL;
+	}
+
+	if (!wifi_pkg)
+		return ERR_PTR(-ENOENT);
+
+	return wifi_pkg;
+}
+
+static int iwl_mvm_sar_get_wrds_table(struct iwl_mvm *mvm)
+{
+	union acpi_object *wifi_pkg, *table;
 	acpi_handle root_handle;
 	acpi_handle handle;
 	struct acpi_buffer wrds = {ACPI_ALLOCATE_BUFFER, NULL};
 	acpi_status status;
+	bool enabled;
 	int ret;
 
 	root_handle = ACPI_HANDLE(mvm->dev);
@@ -1072,62 +1125,307 @@ static int iwl_mvm_sar_get_table(struct iwl_mvm *mvm,
 		return -ENOENT;
 	}
 
-	ret = iwl_mvm_sar_get_wrds(mvm, wrds.pointer, sar_table);
-	kfree(wrds.pointer);
+	wifi_pkg = iwl_mvm_sar_find_wifi_pkg(mvm, wrds.pointer,
+					     ACPI_WRDS_WIFI_DATA_SIZE);
+	if (IS_ERR(wifi_pkg)) {
+		ret = PTR_ERR(wifi_pkg);
+		goto out_free;
+	}
 
+	if (wifi_pkg->package.elements[1].type != ACPI_TYPE_INTEGER) {
+		ret = -EINVAL;
+		goto out_free;
+	}
+
+	enabled = !!(wifi_pkg->package.elements[1].integer.value);
+
+	/* position of the actual table */
+	table = &wifi_pkg->package.elements[2];
+
+	/* The profile from WRDS is officially profile 1, but goes
+	 * into sar_profiles[0] (because we don't have a profile 0).
+	 */
+	ret = iwl_mvm_sar_set_profile(mvm, table, &mvm->sar_profiles[0],
+				      enabled);
+
+out_free:
+	kfree(wrds.pointer);
 	return ret;
 }
-#else /* CONFIG_ACPI */
-static int iwl_mvm_sar_get_table(struct iwl_mvm *mvm,
-				 struct iwl_mvm_sar_table *sar_table)
-{
-	return -ENOENT;
-}
-#endif /* CONFIG_ACPI */
 
-static int iwl_mvm_sar_init(struct iwl_mvm *mvm)
+static int iwl_mvm_sar_get_ewrd_table(struct iwl_mvm *mvm)
 {
-	struct iwl_mvm_sar_table sar_table;
+	union acpi_object *wifi_pkg;
+	acpi_handle root_handle;
+	acpi_handle handle;
+	struct acpi_buffer ewrd = {ACPI_ALLOCATE_BUFFER, NULL};
+	acpi_status status;
+	bool enabled;
+	int i, n_profiles, ret;
+
+	root_handle = ACPI_HANDLE(mvm->dev);
+	if (!root_handle) {
+		IWL_DEBUG_RADIO(mvm,
+				"Could not retrieve root port ACPI handle\n");
+		return -ENOENT;
+	}
+
+	/* Get the method's handle */
+	status = acpi_get_handle(root_handle, (acpi_string)ACPI_EWRD_METHOD,
+				 &handle);
+	if (ACPI_FAILURE(status)) {
+		IWL_DEBUG_RADIO(mvm, "EWRD method not found\n");
+		return -ENOENT;
+	}
+
+	/* Call EWRD with no arguments */
+	status = acpi_evaluate_object(handle, NULL, NULL, &ewrd);
+	if (ACPI_FAILURE(status)) {
+		IWL_DEBUG_RADIO(mvm, "EWRD invocation failed (0x%x)\n", status);
+		return -ENOENT;
+	}
+
+	wifi_pkg = iwl_mvm_sar_find_wifi_pkg(mvm, ewrd.pointer,
+					     ACPI_EWRD_WIFI_DATA_SIZE);
+	if (IS_ERR(wifi_pkg)) {
+		ret = PTR_ERR(wifi_pkg);
+		goto out_free;
+	}
+
+	if ((wifi_pkg->package.elements[1].type != ACPI_TYPE_INTEGER) ||
+	    (wifi_pkg->package.elements[2].type != ACPI_TYPE_INTEGER)) {
+		ret = -EINVAL;
+		goto out_free;
+	}
+
+	enabled = !!(wifi_pkg->package.elements[1].integer.value);
+	n_profiles = wifi_pkg->package.elements[2].integer.value;
+
+	/* in case of BIOS bug */
+	if (n_profiles <= 0) {
+		ret = -EINVAL;
+		goto out_free;
+	}
+
+	for (i = 0; i < n_profiles; i++) {
+		/* the tables start at element 3 */
+		static int pos = 3;
+
+		/* The EWRD profiles officially go from 2 to 4, but we
+		 * save them in sar_profiles[1-3] (because we don't
+		 * have profile 0).  So in the array we start from 1.
+		 */
+		ret = iwl_mvm_sar_set_profile(mvm,
+					      &wifi_pkg->package.elements[pos],
+					      &mvm->sar_profiles[i + 1],
+					      enabled);
+		if (ret < 0)
+			break;
+
+		/* go to the next table */
+		pos += IWL_MVM_SAR_TABLE_SIZE;
+	}
+
+out_free:
+	kfree(ewrd.pointer);
+	return ret;
+}
+
+static int iwl_mvm_sar_get_wgds_table(struct iwl_mvm *mvm,
+				      struct iwl_mvm_geo_table *geo_table)
+{
+	union acpi_object *wifi_pkg;
+	acpi_handle root_handle;
+	acpi_handle handle;
+	struct acpi_buffer wgds = {ACPI_ALLOCATE_BUFFER, NULL};
+	acpi_status status;
+	int i, ret;
+
+	root_handle = ACPI_HANDLE(mvm->dev);
+	if (!root_handle) {
+		IWL_DEBUG_RADIO(mvm,
+				"Could not retrieve root port ACPI handle\n");
+		return -ENOENT;
+	}
+
+	/* Get the method's handle */
+	status = acpi_get_handle(root_handle, (acpi_string)ACPI_WGDS_METHOD,
+				 &handle);
+	if (ACPI_FAILURE(status)) {
+		IWL_DEBUG_RADIO(mvm, "WGDS method not found\n");
+		return -ENOENT;
+	}
+
+	/* Call WGDS with no arguments */
+	status = acpi_evaluate_object(handle, NULL, NULL, &wgds);
+	if (ACPI_FAILURE(status)) {
+		IWL_DEBUG_RADIO(mvm, "WGDS invocation failed (0x%x)\n", status);
+		return -ENOENT;
+	}
+
+	wifi_pkg = iwl_mvm_sar_find_wifi_pkg(mvm, wgds.pointer,
+					     ACPI_WGDS_WIFI_DATA_SIZE);
+	if (IS_ERR(wifi_pkg)) {
+		ret = PTR_ERR(wifi_pkg);
+		goto out_free;
+	}
+
+	for (i = 0; i < ACPI_WGDS_WIFI_DATA_SIZE; i++) {
+		union acpi_object *entry;
+
+		entry = &wifi_pkg->package.elements[i + 1];
+		if ((entry->type != ACPI_TYPE_INTEGER) ||
+		    (entry->integer.value > U8_MAX))
+			return -EINVAL;
+
+		geo_table->values[i] = entry->integer.value;
+	}
+	ret = 0;
+out_free:
+	kfree(wgds.pointer);
+	return ret;
+}
+
+int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
+{
 	struct iwl_dev_tx_power_cmd cmd = {
 		.v3.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_CHAINS),
 	};
-	int ret, i, j, idx;
+	int i, j, idx;
+	int profs[IWL_NUM_CHAIN_LIMITS] = { prof_a, prof_b };
 	int len = sizeof(cmd);
+
+	BUILD_BUG_ON(IWL_NUM_CHAIN_LIMITS < 2);
+	BUILD_BUG_ON(IWL_NUM_CHAIN_LIMITS * IWL_NUM_SUB_BANDS !=
+		     IWL_MVM_SAR_TABLE_SIZE);
 
 	if (!fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_TX_POWER_ACK))
 		len = sizeof(cmd.v3);
 
-	ret = iwl_mvm_sar_get_table(mvm, &sar_table);
+	for (i = 0; i < IWL_NUM_CHAIN_LIMITS; i++) {
+		struct iwl_mvm_sar_profile *prof;
+
+		/* don't allow SAR to be disabled (profile 0 means disable) */
+		if (profs[i] == 0)
+			return -EPERM;
+
+		/* we are off by one, so allow up to IWL_MVM_SAR_PROFILE_NUM */
+		if (profs[i] > IWL_MVM_SAR_PROFILE_NUM)
+			return -EINVAL;
+
+		/* profiles go from 1 to 4, so decrement to access the array */
+		prof = &mvm->sar_profiles[profs[i] - 1];
+
+		/* if the profile is disabled, do nothing */
+		if (!prof->enabled) {
+			IWL_DEBUG_RADIO(mvm, "SAR profile %d is disabled.\n",
+					profs[i]);
+			/* if one of the profiles is disabled, we fail all */
+			return -ENOENT;
+		}
+
+		IWL_DEBUG_RADIO(mvm, "  Chain[%d]:\n", i);
+		for (j = 0; j < IWL_NUM_SUB_BANDS; j++) {
+			idx = (i * IWL_NUM_SUB_BANDS) + j;
+			cmd.v3.per_chain_restriction[i][j] =
+				cpu_to_le16(prof->table[idx]);
+			IWL_DEBUG_RADIO(mvm, "    Band[%d] = %d * .125dBm\n",
+					j, prof->table[idx]);
+		}
+	}
+
+	IWL_DEBUG_RADIO(mvm, "Sending REDUCE_TX_POWER_CMD per chain\n");
+
+	return iwl_mvm_send_cmd_pdu(mvm, REDUCE_TX_POWER_CMD, 0, len, &cmd);
+}
+
+static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
+{
+	struct iwl_mvm_geo_table geo_table;
+	struct iwl_geo_tx_power_profiles_cmd cmd = {
+		.ops = cpu_to_le32(IWL_PER_CHAIN_OFFSET_SET_TABLES),
+	};
+	int ret, i, j, idx;
+	u16 cmd_wide_id =  WIDE_ID(PHY_OPS_GROUP, GEO_TX_POWER_LIMIT);
+
+	ret = iwl_mvm_sar_get_wgds_table(mvm, &geo_table);
 	if (ret < 0) {
 		IWL_DEBUG_RADIO(mvm,
-				"SAR BIOS table invalid or unavailable. (%d)\n",
+				"Geo SAR BIOS table invalid or unavailable. (%d)\n",
 				ret);
 		/* we don't fail if the table is not available */
 		return 0;
 	}
 
-	if (!sar_table.enabled)
-		return 0;
+	IWL_DEBUG_RADIO(mvm, "Sending GEO_TX_POWER_LIMIT\n");
 
-	IWL_DEBUG_RADIO(mvm, "Sending REDUCE_TX_POWER_CMD per chain\n");
+	BUILD_BUG_ON(IWL_NUM_GEO_PROFILES * ACPI_WGDS_NUM_BANDS *
+		     ACPI_WGDS_TABLE_SIZE !=  ACPI_WGDS_WIFI_DATA_SIZE);
 
-	BUILD_BUG_ON(IWL_NUM_CHAIN_LIMITS * IWL_NUM_SUB_BANDS !=
-		     ACPI_WRDS_TABLE_SIZE);
+	for (i = 0; i < IWL_NUM_GEO_PROFILES; i++) {
+		struct iwl_per_chain_offset *chain =
+			(struct iwl_per_chain_offset *)&cmd.table[i];
 
-	for (i = 0; i < IWL_NUM_CHAIN_LIMITS; i++) {
-		IWL_DEBUG_RADIO(mvm, "  Chain[%d]:\n", i);
-		for (j = 0; j < IWL_NUM_SUB_BANDS; j++) {
-			idx = (i * IWL_NUM_SUB_BANDS) + j;
-			cmd.v3.per_chain_restriction[i][j] =
-				cpu_to_le16(sar_table.values[idx]);
-			IWL_DEBUG_RADIO(mvm, "    Band[%d] = %d * .125dBm\n",
-					j, sar_table.values[idx]);
+		for (j = 0; j < ACPI_WGDS_NUM_BANDS; j++) {
+			u8 *value;
+
+			idx = i * ACPI_WGDS_NUM_BANDS * ACPI_WGDS_TABLE_SIZE +
+				j * ACPI_WGDS_TABLE_SIZE;
+			value = &geo_table.values[idx];
+			chain[j].max_tx_power = cpu_to_le16(value[0]);
+			chain[j].chain_a = value[1];
+			chain[j].chain_b = value[2];
+			IWL_DEBUG_RADIO(mvm,
+					"SAR geographic profile[%d] Band[%d]: chain A = %d chain B = %d max_tx_power = %d\n",
+					i, j, value[1], value[2], value[0]);
 		}
 	}
+	return iwl_mvm_send_cmd_pdu(mvm, cmd_wide_id, 0, sizeof(cmd), &cmd);
+}
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, REDUCE_TX_POWER_CMD, 0, len, &cmd);
-	if (ret)
-		IWL_ERR(mvm, "failed to set per-chain TX power: %d\n", ret);
+#else /* CONFIG_ACPI */
+static int iwl_mvm_sar_get_wrds_table(struct iwl_mvm *mvm)
+{
+	return -ENOENT;
+}
+
+static int iwl_mvm_sar_get_ewrd_table(struct iwl_mvm *mvm)
+{
+	return -ENOENT;
+}
+
+static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
+{
+	return 0;
+}
+#endif /* CONFIG_ACPI */
+
+static int iwl_mvm_sar_init(struct iwl_mvm *mvm)
+{
+	int ret;
+
+	ret = iwl_mvm_sar_get_wrds_table(mvm);
+	if (ret < 0) {
+		IWL_DEBUG_RADIO(mvm,
+				"WRDS SAR BIOS table invalid or unavailable. (%d)\n",
+				ret);
+		/* if not available, don't fail and don't bother with EWRD */
+		return 0;
+	}
+
+	ret = iwl_mvm_sar_get_ewrd_table(mvm);
+	/* if EWRD is not available, we can still use WRDS, so don't fail */
+	if (ret < 0)
+		IWL_DEBUG_RADIO(mvm,
+				"EWRD SAR BIOS table invalid or unavailable. (%d)\n",
+				ret);
+
+	/* choose profile 1 (WRDS) as default for both chains */
+	ret = iwl_mvm_sar_select_profile(mvm, 1, 1);
+
+	/* if we don't have profile 0 from BIOS, just skip it */
+	if (ret == -ENOENT)
+		return 0;
 
 	return ret;
 }
@@ -1219,7 +1517,8 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	}
 
 	/* Init RSS configuration */
-	if (iwl_mvm_has_new_rx_api(mvm)) {
+	/* TODO - remove a000 disablement when we have RXQ config API */
+	if (iwl_mvm_has_new_rx_api(mvm) && !iwl_mvm_has_new_tx_api(mvm)) {
 		ret = iwl_send_rss_cfg_cmd(mvm);
 		if (ret) {
 			IWL_ERR(mvm, "Failed to configure RSS queues: %d\n",
@@ -1229,10 +1528,10 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	}
 
 	/* init the fw <-> mac80211 STA mapping */
-	for (i = 0; i < IWL_MVM_STATION_COUNT; i++)
+	for (i = 0; i < ARRAY_SIZE(mvm->fw_id_to_mac_id); i++)
 		RCU_INIT_POINTER(mvm->fw_id_to_mac_id[i], NULL);
 
-	mvm->tdls_cs.peer.sta_id = IWL_MVM_STATION_COUNT;
+	mvm->tdls_cs.peer.sta_id = IWL_MVM_INVALID_STA;
 
 	/* reset quota debouncing buffer - 0xff will yield invalid data */
 	memset(&mvm->last_quota_cmd, 0xff, sizeof(mvm->last_quota_cmd));
@@ -1313,15 +1612,15 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 			goto error;
 	}
 
-	if (iwl_mvm_is_csum_supported(mvm) &&
-	    mvm->cfg->features & NETIF_F_RXCSUM)
-		iwl_trans_write_prph(mvm->trans, RX_EN_CSUM, 0x3);
-
 	/* allow FW/transport low power modes if not during restart */
 	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
 		iwl_mvm_unref(mvm, IWL_MVM_REF_UCODE_DOWN);
 
 	ret = iwl_mvm_sar_init(mvm);
+	if (ret)
+		goto error;
+
+	ret = iwl_mvm_sar_geo_init(mvm);
 	if (ret)
 		goto error;
 
@@ -1362,7 +1661,7 @@ int iwl_mvm_load_d3_fw(struct iwl_mvm *mvm)
 		goto error;
 
 	/* init the fw <-> mac80211 STA mapping */
-	for (i = 0; i < IWL_MVM_STATION_COUNT; i++)
+	for (i = 0; i < ARRAY_SIZE(mvm->fw_id_to_mac_id); i++)
 		RCU_INIT_POINTER(mvm->fw_id_to_mac_id[i], NULL);
 
 	/* Add auxiliary station for scanning */

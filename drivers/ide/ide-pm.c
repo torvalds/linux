@@ -27,7 +27,8 @@ int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 		mesg.event = PM_EVENT_FREEZE;
 	rqpm.pm_state = mesg.event;
 
-	ret = blk_execute_rq(drive->queue, NULL, rq, 0);
+	blk_execute_rq(drive->queue, NULL, rq, 0);
+	ret = scsi_req(rq)->result ? -EIO : 0;
 	blk_put_request(rq);
 
 	if (ret == 0 && ide_port_acpi(hwif)) {
@@ -55,8 +56,8 @@ static int ide_pm_execute_rq(struct request *rq)
 	spin_lock_irq(q->queue_lock);
 	if (unlikely(blk_queue_dying(q))) {
 		rq->rq_flags |= RQF_QUIET;
-		rq->errors = -ENXIO;
-		__blk_end_request_all(rq, rq->errors);
+		scsi_req(rq)->result = -ENXIO;
+		__blk_end_request_all(rq, 0);
 		spin_unlock_irq(q->queue_lock);
 		return -ENXIO;
 	}
@@ -66,7 +67,7 @@ static int ide_pm_execute_rq(struct request *rq)
 
 	wait_for_completion_io(&wait);
 
-	return rq->errors ? -EIO : 0;
+	return scsi_req(rq)->result ? -EIO : 0;
 }
 
 int generic_ide_resume(struct device *dev)

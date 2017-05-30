@@ -2,7 +2,198 @@
 #define __LINUX_UACCESS_H__
 
 #include <linux/sched.h>
+#include <linux/thread_info.h>
+#include <linux/kasan-checks.h>
+
+#define VERIFY_READ 0
+#define VERIFY_WRITE 1
+
+#define uaccess_kernel() segment_eq(get_fs(), KERNEL_DS)
+
 #include <asm/uaccess.h>
+
+/*
+ * Architectures should provide two primitives (raw_copy_{to,from}_user())
+ * and get rid of their private instances of copy_{to,from}_user() and
+ * __copy_{to,from}_user{,_inatomic}().
+ *
+ * raw_copy_{to,from}_user(to, from, size) should copy up to size bytes and
+ * return the amount left to copy.  They should assume that access_ok() has
+ * already been checked (and succeeded); they should *not* zero-pad anything.
+ * No KASAN or object size checks either - those belong here.
+ *
+ * Both of these functions should attempt to copy size bytes starting at from
+ * into the area starting at to.  They must not fetch or store anything
+ * outside of those areas.  Return value must be between 0 (everything
+ * copied successfully) and size (nothing copied).
+ *
+ * If raw_copy_{to,from}_user(to, from, size) returns N, size - N bytes starting
+ * at to must become equal to the bytes fetched from the corresponding area
+ * starting at from.  All data past to + size - N must be left unmodified.
+ *
+ * If copying succeeds, the return value must be 0.  If some data cannot be
+ * fetched, it is permitted to copy less than had been fetched; the only
+ * hard requirement is that not storing anything at all (i.e. returning size)
+ * should happen only when nothing could be copied.  In other words, you don't
+ * have to squeeze as much as possible - it is allowed, but not necessary.
+ *
+ * For raw_copy_from_user() to always points to kernel memory and no faults
+ * on store should happen.  Interpretation of from is affected by set_fs().
+ * For raw_copy_to_user() it's the other way round.
+ *
+ * Both can be inlined - it's up to architectures whether it wants to bother
+ * with that.  They should not be used directly; they are used to implement
+ * the 6 functions (copy_{to,from}_user(), __copy_{to,from}_user_inatomic())
+ * that are used instead.  Out of those, __... ones are inlined.  Plain
+ * copy_{to,from}_user() might or might not be inlined.  If you want them
+ * inlined, have asm/uaccess.h define INLINE_COPY_{TO,FROM}_USER.
+ *
+ * NOTE: only copy_from_user() zero-pads the destination in case of short copy.
+ * Neither __copy_from_user() nor __copy_from_user_inatomic() zero anything
+ * at all; their callers absolutely must check the return value.
+ *
+ * Biarch ones should also provide raw_copy_in_user() - similar to the above,
+ * but both source and destination are __user pointers (affected by set_fs()
+ * as usual) and both source and destination can trigger faults.
+ */
+
+static __always_inline unsigned long
+__copy_from_user_inatomic(void *to, const void __user *from, unsigned long n)
+{
+	kasan_check_write(to, n);
+	check_object_size(to, n, false);
+	return raw_copy_from_user(to, from, n);
+}
+
+static __always_inline unsigned long
+__copy_from_user(void *to, const void __user *from, unsigned long n)
+{
+	might_fault();
+	kasan_check_write(to, n);
+	check_object_size(to, n, false);
+	return raw_copy_from_user(to, from, n);
+}
+
+/**
+ * __copy_to_user_inatomic: - Copy a block of data into user space, with less checking.
+ * @to:   Destination address, in user space.
+ * @from: Source address, in kernel space.
+ * @n:    Number of bytes to copy.
+ *
+ * Context: User context only.
+ *
+ * Copy data from kernel space to user space.  Caller must check
+ * the specified block with access_ok() before calling this function.
+ * The caller should also make sure he pins the user space address
+ * so that we don't result in page fault and sleep.
+ */
+static __always_inline unsigned long
+__copy_to_user_inatomic(void __user *to, const void *from, unsigned long n)
+{
+	kasan_check_read(from, n);
+	check_object_size(from, n, true);
+	return raw_copy_to_user(to, from, n);
+}
+
+static __always_inline unsigned long
+__copy_to_user(void __user *to, const void *from, unsigned long n)
+{
+	might_fault();
+	kasan_check_read(from, n);
+	check_object_size(from, n, true);
+	return raw_copy_to_user(to, from, n);
+}
+
+#ifdef INLINE_COPY_FROM_USER
+static inline unsigned long
+_copy_from_user(void *to, const void __user *from, unsigned long n)
+{
+	unsigned long res = n;
+	if (likely(access_ok(VERIFY_READ, from, n)))
+		res = raw_copy_from_user(to, from, n);
+	if (unlikely(res))
+		memset(to + (n - res), 0, res);
+	return res;
+}
+#else
+extern unsigned long
+_copy_from_user(void *, const void __user *, unsigned long);
+#endif
+
+#ifdef INLINE_COPY_TO_USER
+static inline unsigned long
+_copy_to_user(void __user *to, const void *from, unsigned long n)
+{
+	if (access_ok(VERIFY_WRITE, to, n))
+		n = raw_copy_to_user(to, from, n);
+	return n;
+}
+#else
+extern unsigned long
+_copy_to_user(void __user *, const void *, unsigned long);
+#endif
+
+extern void __compiletime_error("usercopy buffer size is too small")
+__bad_copy_user(void);
+
+static inline void copy_user_overflow(int size, unsigned long count)
+{
+	WARN(1, "Buffer overflow detected (%d < %lu)!\n", size, count);
+}
+
+static __always_inline unsigned long __must_check
+copy_from_user(void *to, const void __user *from, unsigned long n)
+{
+	int sz = __compiletime_object_size(to);
+
+	might_fault();
+	kasan_check_write(to, n);
+
+	if (likely(sz < 0 || sz >= n)) {
+		check_object_size(to, n, false);
+		n = _copy_from_user(to, from, n);
+	} else if (!__builtin_constant_p(n))
+		copy_user_overflow(sz, n);
+	else
+		__bad_copy_user();
+
+	return n;
+}
+
+static __always_inline unsigned long __must_check
+copy_to_user(void __user *to, const void *from, unsigned long n)
+{
+	int sz = __compiletime_object_size(from);
+
+	kasan_check_read(from, n);
+	might_fault();
+
+	if (likely(sz < 0 || sz >= n)) {
+		check_object_size(from, n, true);
+		n = _copy_to_user(to, from, n);
+	} else if (!__builtin_constant_p(n))
+		copy_user_overflow(sz, n);
+	else
+		__bad_copy_user();
+
+	return n;
+}
+#ifdef CONFIG_COMPAT
+static __always_inline unsigned long __must_check
+__copy_in_user(void __user *to, const void *from, unsigned long n)
+{
+	might_fault();
+	return raw_copy_in_user(to, from, n);
+}
+static __always_inline unsigned long __must_check
+copy_in_user(void __user *to, const void *from, unsigned long n)
+{
+	might_fault();
+	if (access_ok(VERIFY_WRITE, to, n) && access_ok(VERIFY_READ, from, n))
+		n = raw_copy_in_user(to, from, n);
+	return n;
+}
+#endif
 
 static __always_inline void pagefault_disabled_inc(void)
 {
@@ -12,7 +203,6 @@ static __always_inline void pagefault_disabled_inc(void)
 static __always_inline void pagefault_disabled_dec(void)
 {
 	current->pagefault_disabled--;
-	WARN_ON(current->pagefault_disabled < 0);
 }
 
 /*
@@ -65,12 +255,6 @@ static inline unsigned long __copy_from_user_inatomic_nocache(void *to,
 				const void __user *from, unsigned long n)
 {
 	return __copy_from_user_inatomic(to, from, n);
-}
-
-static inline unsigned long __copy_from_user_nocache(void *to,
-				const void __user *from, unsigned long n)
-{
-	return __copy_from_user(to, from, n);
 }
 
 #endif		/* ARCH_HAS_NOCACHE_UACCESS */

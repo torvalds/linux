@@ -1082,6 +1082,8 @@ static int ieee_hw_init(struct ieee80211_hw *hw)
 	 * hw->wiphy->flags |= WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD;
 	 */
 
+	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
+
 	hw->rate_control_algorithm = "minstrel_ht";
 
 	hw->sta_data_size = 0;

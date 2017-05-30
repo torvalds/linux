@@ -1259,7 +1259,8 @@ nfsd4_layout_verify(struct svc_export *exp, unsigned int layout_type)
 		return NULL;
 	}
 
-	if (!(exp->ex_layout_types & (1 << layout_type))) {
+	if (layout_type >= LAYOUT_TYPE_MAX ||
+	    !(exp->ex_layout_types & (1 << layout_type))) {
 		dprintk("%s: layout type %d not supported\n",
 			__func__, layout_type);
 		return NULL;
@@ -2489,7 +2490,7 @@ bool nfsd4_spo_must_allow(struct svc_rqst *rqstp)
 
 int nfsd4_max_reply(struct svc_rqst *rqstp, struct nfsd4_op *op)
 {
-	if (op->opnum == OP_ILLEGAL)
+	if (op->opnum == OP_ILLEGAL || op->status == nfserr_notsupp)
 		return op_encode_hdr_size * sizeof(__be32);
 
 	BUG_ON(OPDESC(op)->op_rsize_bop == NULL);

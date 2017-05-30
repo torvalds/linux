@@ -29,8 +29,9 @@
 #include <linux/export.h>
 #include <linux/dma-buf.h>
 #include <linux/rbtree.h>
-#include <drm/drmP.h>
+#include <drm/drm_prime.h>
 #include <drm/drm_gem.h>
+#include <drm/drmP.h>
 
 #include "drm_internal.h"
 
@@ -318,7 +319,7 @@ struct dma_buf *drm_gem_dmabuf_export(struct drm_device *dev,
 		return dma_buf;
 
 	drm_dev_ref(dev);
-	drm_gem_object_reference(exp_info->priv);
+	drm_gem_object_get(exp_info->priv);
 
 	return dma_buf;
 }
@@ -339,7 +340,7 @@ void drm_gem_dmabuf_release(struct dma_buf *dma_buf)
 	struct drm_device *dev = obj->dev;
 
 	/* drop the reference on the export fd holds */
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 
 	drm_dev_unref(dev);
 }
@@ -402,10 +403,10 @@ static const struct dma_buf_ops drm_gem_prime_dmabuf_ops =  {
 	.map_dma_buf = drm_gem_map_dma_buf,
 	.unmap_dma_buf = drm_gem_unmap_dma_buf,
 	.release = drm_gem_dmabuf_release,
-	.kmap = drm_gem_dmabuf_kmap,
-	.kmap_atomic = drm_gem_dmabuf_kmap_atomic,
-	.kunmap = drm_gem_dmabuf_kunmap,
-	.kunmap_atomic = drm_gem_dmabuf_kunmap_atomic,
+	.map = drm_gem_dmabuf_kmap,
+	.map_atomic = drm_gem_dmabuf_kmap_atomic,
+	.unmap = drm_gem_dmabuf_kunmap,
+	.unmap_atomic = drm_gem_dmabuf_kunmap_atomic,
 	.mmap = drm_gem_dmabuf_mmap,
 	.vmap = drm_gem_dmabuf_vmap,
 	.vunmap = drm_gem_dmabuf_vunmap,
@@ -585,7 +586,7 @@ out_have_handle:
 fail_put_dmabuf:
 	dma_buf_put(dmabuf);
 out:
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 out_unlock:
 	mutex_unlock(&file_priv->prime.lock);
 
@@ -616,7 +617,7 @@ struct drm_gem_object *drm_gem_prime_import(struct drm_device *dev,
 			 * Importing dmabuf exported from out own gem increases
 			 * refcount on gem itself instead of f_count of dmabuf.
 			 */
-			drm_gem_object_reference(obj);
+			drm_gem_object_get(obj);
 			return obj;
 		}
 	}
@@ -704,7 +705,7 @@ int drm_gem_prime_fd_to_handle(struct drm_device *dev,
 
 	/* _handle_create_tail unconditionally unlocks dev->object_name_lock. */
 	ret = drm_gem_handle_create_tail(file_priv, obj, handle);
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 	if (ret)
 		goto out_put;
 

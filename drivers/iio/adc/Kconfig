@@ -130,6 +130,17 @@ config AD799X
 	  To compile this driver as a module, choose M here: the module will be
 	  called ad799x.
 
+config ASPEED_ADC
+	tristate "Aspeed ADC"
+	depends on ARCH_ASPEED || COMPILE_TEST
+	depends on COMMON_CLK
+	help
+	  If you say yes here you get support for the ADC included in Aspeed
+	  BMC SoCs.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called aspeed_adc.
+
 config AT91_ADC
 	tristate "Atmel AT91 ADC"
 	depends on ARCH_AT91
@@ -153,6 +164,16 @@ config AT91_SAMA5D2_ADC
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called at91-sama5d2_adc.
+
+config AXP20X_ADC
+	tristate "X-Powers AXP20X and AXP22X ADC driver"
+	depends on MFD_AXP20X
+	help
+	  Say yes here to have support for X-Powers power management IC (PMIC)
+	  AXP20X and AXP22X ADC devices.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called axp20x_adc.
 
 config AXP288_ADC
 	tristate "X-Powers AXP288 ADC driver"
@@ -195,6 +216,17 @@ config CC10001_ADC
 	  This driver can also be built as a module. If so, the module will be
 	  called cc10001_adc.
 
+config CPCAP_ADC
+	tristate "Motorola CPCAP PMIC ADC driver"
+	depends on MFD_CPCAP
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Motorola CPCAP PMIC ADC.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called cpcap-adc.
+
 config DA9150_GPADC
 	tristate "Dialog DA9150 GPADC driver support"
 	depends on MFD_DA9150
@@ -228,6 +260,19 @@ config EXYNOS_ADC
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called exynos_adc.
+
+config MXS_LRADC_ADC
+	tristate "Freescale i.MX23/i.MX28 LRADC ADC"
+	depends on MFD_MXS_LRADC
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for the ADC functions of the
+	  i.MX23/i.MX28 LRADC. This includes general-purpose ADC readings,
+	  battery voltage measurement, and die temperature measurement.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called mxs-lradc-adc.
 
 config FSL_MX25_ADC
 	tristate "Freescale MX25 ADC driver"
@@ -305,6 +350,18 @@ config LPC18XX_ADC
 	  To compile this driver as a module, choose M here: the module will be
 	  called lpc18xx_adc.
 
+config LPC32XX_ADC
+	tristate "NXP LPC32XX ADC"
+	depends on ARCH_LPC32XX || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Say yes here to build support for the integrated ADC inside the
+	  LPC32XX SoC. Note that this feature uses the same hardware as the
+	  touchscreen driver, so you should either select only one of the two
+	  drivers (lpc32xx_adc or lpc32xx_ts) or, in the OpenFirmware case,
+	  activate only one via device tree selection.  Provides direct access
+	  via sysfs.
+
 config LTC2485
 	tristate "Linear Technology LTC2485 ADC driver"
 	depends on I2C
@@ -313,6 +370,16 @@ config LTC2485
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called ltc2485.
+
+config LTC2497
+	tristate "Linear Technology LTC2497 ADC driver"
+	depends on I2C
+	help
+	  Say yes here to build support for Linear Technology LTC2497
+	  16-Bit 8-/16-Channel Delta Sigma ADC.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ltc2497.
 
 config MAX1027
 	tristate "Maxim max1027 ADC driver"
@@ -335,6 +402,18 @@ config MAX11100
 	  To compile this driver as a module, choose M here: the module will be
 	  called max11100.
 
+config MAX1118
+	tristate "Maxim max1117/max1118/max1119 ADCs driver"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Maxim max1117/max1118/max1119
+	  8-bit, dual-channel ADCs.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called max1118.
+
 config MAX1363
 	tristate "Maxim max1363 ADC driver"
 	depends on I2C
@@ -353,6 +432,16 @@ config MAX1363
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called max1363.
+
+config	MAX9611
+	tristate "Maxim max9611/max9612 ADC driver"
+	depends on I2C
+	help
+	  Say yes here to build support for Maxim max9611/max9612 current sense
+	  amplifier with 12-bits ADC interface.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called max9611.
 
 config MCP320X
 	tristate "Microchip Technology MCP3x01/02/04/08"
@@ -411,20 +500,6 @@ config MESON_SARADC
 	  To compile this driver as a module, choose M here: the
 	  module will be called meson_saradc.
 
-config MXS_LRADC
-        tristate "Freescale i.MX23/i.MX28 LRADC"
-        depends on (ARCH_MXS || COMPILE_TEST) && HAS_IOMEM
-        depends on INPUT
-        select STMP_DEVICE
-        select IIO_BUFFER
-        select IIO_TRIGGERED_BUFFER
-        help
-          Say yes here to build support for i.MX23/i.MX28 LRADC convertor
-          built into these chips.
-
-          To compile this driver as a module, choose M here: the
-          module will be called mxs-lradc.
-
 config NAU7802
 	tristate "Nuvoton NAU7802 ADC driver"
 	depends on I2C
@@ -441,6 +516,20 @@ config PALMAS_GPADC
 	  Palmas series pmic chip by Texas Instruments (twl6035/6037)
 	  is used in smartphones and tablets and supports a 16 channel
 	  general purpose ADC.
+
+config QCOM_VADC_COMMON
+	tristate
+
+config QCOM_PM8XXX_XOADC
+	tristate "Qualcomm SSBI PM8xxx PMIC XOADCs"
+	depends on MFD_PM8XXX
+	select QCOM_VADC_COMMON
+	help
+	  ADC driver for the XOADC portions of the Qualcomm PM8xxx PMICs
+	  using SSBI transport: PM8018, PM8038, PM8058, PM8921.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called qcom-pm8xxx-xoadc.
 
 config QCOM_SPMI_IADC
 	tristate "Qualcomm SPMI PMIC current ADC"
@@ -460,6 +549,7 @@ config QCOM_SPMI_VADC
 	tristate "Qualcomm SPMI PMIC voltage ADC"
 	depends on SPMI
 	select REGMAP_SPMI
+	select QCOM_VADC_COMMON
 	help
 	  This is the IIO Voltage ADC driver for Qualcomm QPNP VADC Chip.
 
@@ -494,6 +584,17 @@ config ROCKCHIP_SARADC
 	  To compile this driver as a module, choose M here: the
 	  module will be called rockchip_saradc.
 
+config SPEAR_ADC
+	tristate "ST SPEAr ADC"
+	depends on PLAT_SPEAR || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Say yes here to build support for the integrated ADC inside the
+	  ST SPEAr SoC. Provides direct access via sysfs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called spear_adc.
+
 config STM32_ADC_CORE
 	tristate "STMicroelectronics STM32 adc core"
 	depends on ARCH_STM32 || COMPILE_TEST
@@ -523,7 +624,7 @@ config STM32_ADC
 
 config STX104
 	tristate "Apex Embedded Systems STX104 driver"
-	depends on X86 && ISA_BUS_API
+	depends on PC104 && X86 && ISA_BUS_API
 	select GPIOLIB
 	help
 	  Say yes here to build support for the Apex Embedded Systems STX104
@@ -535,6 +636,24 @@ config STX104
 
 	  The base port addresses for the devices may be configured via the base
 	  array module parameter.
+
+config SUN4I_GPADC
+	tristate "Support for the Allwinner SoCs GPADC"
+	depends on IIO
+	depends on MFD_SUN4I_GPADC || MACH_SUN8I
+	depends on THERMAL || !THERMAL_OF
+	help
+	  Say yes here to build support for Allwinner (A10, A13 and A31) SoCs
+	  GPADC. This ADC provides 4 channels which can be used as an ADC or as
+	  a touchscreen input and one channel for thermal sensor.
+
+	  The thermal sensor slows down ADC readings and can be disabled by
+	  disabling CONFIG_THERMAL_OF. However, the thermal sensor should be
+	  enabled by default since the SoC temperature is usually more critical
+	  than ADC readings.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called sun4i-gpadc-iio.
 
 config TI_ADC081C
 	tristate "Texas Instruments ADC081C/ADC101C/ADC121C family"

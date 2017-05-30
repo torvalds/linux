@@ -152,12 +152,10 @@ static int __init dell_wmi_aio_input_setup(void)
 	err = input_register_device(dell_wmi_aio_input_dev);
 	if (err) {
 		pr_info("Unable to register input device\n");
-		goto err_free_keymap;
+		goto err_free_dev;
 	}
 	return 0;
 
-err_free_keymap:
-	sparse_keymap_free(dell_wmi_aio_input_dev);
 err_free_dev:
 	input_free_device(dell_wmi_aio_input_dev);
 	return err;
@@ -192,7 +190,6 @@ static int __init dell_wmi_aio_init(void)
 	err = wmi_install_notify_handler(guid, dell_wmi_aio_notify, NULL);
 	if (err) {
 		pr_err("Unable to register notify handler - %d\n", err);
-		sparse_keymap_free(dell_wmi_aio_input_dev);
 		input_unregister_device(dell_wmi_aio_input_dev);
 		return err;
 	}
@@ -206,7 +203,6 @@ static void __exit dell_wmi_aio_exit(void)
 
 	guid = dell_wmi_aio_find();
 	wmi_remove_notify_handler(guid);
-	sparse_keymap_free(dell_wmi_aio_input_dev);
 	input_unregister_device(dell_wmi_aio_input_dev);
 }
 

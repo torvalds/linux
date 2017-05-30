@@ -350,7 +350,10 @@ INPUT_PROP_ACCELEROMETER
 ------------------------
 
 Directional axes on this device (absolute and/or relative x, y, z) represent
-accelerometer data. All other axes retain their meaning. A device must not mix
+accelerometer data. Some devices also report gyroscope data, which devices
+can report through the rotational axes (absolute and/or relative rx, ry, rz).
+
+All other axes retain their meaning. A device must not mix
 regular directional axes and accelerometer axes on the same event node.
 
 Guidelines

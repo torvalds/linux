@@ -30,7 +30,7 @@ Arguments
 
 ``request``
     CEC ioctl request code as defined in the cec.h header file, for
-    example :c:func:`CEC_ADAP_G_CAPS`.
+    example :ref:`CEC_ADAP_G_CAPS <CEC_ADAP_G_CAPS>`.
 
 ``argp``
     Pointer to a request-specific structure.

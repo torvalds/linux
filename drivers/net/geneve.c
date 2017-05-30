@@ -1244,7 +1244,7 @@ static int geneve_newlink(struct net *net, struct net_device *dev,
 		metadata = true;
 
 	if (data[IFLA_GENEVE_UDP_CSUM] &&
-	    !nla_get_u8(data[IFLA_GENEVE_UDP_CSUM]))
+	    nla_get_u8(data[IFLA_GENEVE_UDP_CSUM]))
 		info.key.tun_flags |= TUNNEL_CSUM;
 
 	if (data[IFLA_GENEVE_UDP_ZERO_CSUM6_TX] &&
@@ -1293,7 +1293,7 @@ static int geneve_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	if (nla_put_u32(skb, IFLA_GENEVE_ID, vni))
 		goto nla_put_failure;
 
-	if (ip_tunnel_info_af(info) == AF_INET) {
+	if (rtnl_dereference(geneve->sock4)) {
 		if (nla_put_in_addr(skb, IFLA_GENEVE_REMOTE,
 				    info->key.u.ipv4.dst))
 			goto nla_put_failure;
@@ -1302,8 +1302,10 @@ static int geneve_fill_info(struct sk_buff *skb, const struct net_device *dev)
 			       !!(info->key.tun_flags & TUNNEL_CSUM)))
 			goto nla_put_failure;
 
+	}
+
 #if IS_ENABLED(CONFIG_IPV6)
-	} else {
+	if (rtnl_dereference(geneve->sock6)) {
 		if (nla_put_in6_addr(skb, IFLA_GENEVE_REMOTE6,
 				     &info->key.u.ipv6.dst))
 			goto nla_put_failure;
@@ -1315,8 +1317,8 @@ static int geneve_fill_info(struct sk_buff *skb, const struct net_device *dev)
 		if (nla_put_u8(skb, IFLA_GENEVE_UDP_ZERO_CSUM6_RX,
 			       !geneve->use_udp6_rx_checksums))
 			goto nla_put_failure;
-#endif
 	}
+#endif
 
 	if (nla_put_u8(skb, IFLA_GENEVE_TTL, info->key.ttl) ||
 	    nla_put_u8(skb, IFLA_GENEVE_TOS, info->key.tos) ||

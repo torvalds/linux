@@ -131,7 +131,7 @@ static void __slb_flush_and_rebolt(void)
 		     "slbmte	%2,%3\n"
 		     "isync"
 		     :: "r"(mk_vsid_data(VMALLOC_START, mmu_kernel_ssize, vflags)),
-		        "r"(mk_esid_data(VMALLOC_START, mmu_kernel_ssize, 1)),
+		        "r"(mk_esid_data(VMALLOC_START, mmu_kernel_ssize, VMALLOC_INDEX)),
 		        "r"(ksp_vsid_data),
 		        "r"(ksp_esid_data)
 		     : "memory");
@@ -229,7 +229,7 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 		asm volatile("slbie %0" : : "r" (slbie_data));
 
 	get_paca()->slb_cache_ptr = 0;
-	copy_mm_to_paca(&mm->context);
+	copy_mm_to_paca(mm);
 
 	/*
 	 * preload some userspace segments into the SLB.

@@ -18,14 +18,10 @@
 /*
  * User space memory access functions
  */
-#include <linux/sched.h>
 #include <linux/mm.h>
 #include <asm-generic/uaccess-unaligned.h>
 #include <asm/processor.h>
 #include <asm/page.h>
-
-#define VERIFY_READ	0
-#define VERIFY_WRITE	1
 
 /*
  * The fs value determines whether argument validity checking should be
@@ -102,24 +98,7 @@ int __range_ok(unsigned long addr, unsigned long size);
 	likely(__range_ok((unsigned long)(addr), (size)) == 0);	\
 })
 
-/*
- * The exception table consists of pairs of addresses: the first is the
- * address of an instruction that is allowed to fault, and the second is
- * the address at which the program should continue.  No registers are
- * modified, so it is entirely up to the continuation code to figure out
- * what to do.
- *
- * All the routines below use bits of fixup code that are out of line
- * with the main instruction path.  This means when everything is well,
- * we don't even have to jump over them.  Further, they do not intrude
- * on our cache or tlb entries.
- */
-
-struct exception_table_entry {
-	unsigned long insn, fixup;
-};
-
-extern int fixup_exception(struct pt_regs *regs);
+#include <asm/extable.h>
 
 /*
  * This is a type: either unsigned long, if the argument fits into
@@ -334,145 +313,16 @@ extern int __put_user_bad(void)
 		((x) = 0, -EFAULT);					\
 })
 
-/**
- * __copy_to_user() - copy data into user space, with less checking.
- * @to:   Destination address, in user space.
- * @from: Source address, in kernel space.
- * @n:    Number of bytes to copy.
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * Copy data from kernel space to user space.  Caller must check
- * the specified block with access_ok() before calling this function.
- *
- * Returns number of bytes that could not be copied.
- * On success, this will be zero.
- *
- * An alternate version - __copy_to_user_inatomic() - is designed
- * to be called from atomic context, typically bracketed by calls
- * to pagefault_disable() and pagefault_enable().
- */
-extern unsigned long __must_check __copy_to_user_inatomic(
-	void __user *to, const void *from, unsigned long n);
-
-static inline unsigned long __must_check
-__copy_to_user(void __user *to, const void *from, unsigned long n)
-{
-	might_fault();
-	return __copy_to_user_inatomic(to, from, n);
-}
-
-static inline unsigned long __must_check
-copy_to_user(void __user *to, const void *from, unsigned long n)
-{
-	if (access_ok(VERIFY_WRITE, to, n))
-		n = __copy_to_user(to, from, n);
-	return n;
-}
-
-/**
- * __copy_from_user() - copy data from user space, with less checking.
- * @to:   Destination address, in kernel space.
- * @from: Source address, in user space.
- * @n:    Number of bytes to copy.
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * Copy data from user space to kernel space.  Caller must check
- * the specified block with access_ok() before calling this function.
- *
- * Returns number of bytes that could not be copied.
- * On success, this will be zero.
- *
- * If some data could not be copied, this function will pad the copied
- * data to the requested size using zero bytes.
- *
- * An alternate version - __copy_from_user_inatomic() - is designed
- * to be called from atomic context, typically bracketed by calls
- * to pagefault_disable() and pagefault_enable().  This version
- * does *NOT* pad with zeros.
- */
-extern unsigned long __must_check __copy_from_user_inatomic(
-	void *to, const void __user *from, unsigned long n);
-extern unsigned long __must_check __copy_from_user_zeroing(
-	void *to, const void __user *from, unsigned long n);
-
-static inline unsigned long __must_check
-__copy_from_user(void *to, const void __user *from, unsigned long n)
-{
-       might_fault();
-       return __copy_from_user_zeroing(to, from, n);
-}
-
-static inline unsigned long __must_check
-_copy_from_user(void *to, const void __user *from, unsigned long n)
-{
-	if (access_ok(VERIFY_READ, from, n))
-		n = __copy_from_user(to, from, n);
-	else
-		memset(to, 0, n);
-	return n;
-}
-
-extern void __compiletime_error("usercopy buffer size is too small")
-__bad_copy_user(void);
-
-static inline void copy_user_overflow(int size, unsigned long count)
-{
-	WARN(1, "Buffer overflow detected (%d < %lu)!\n", size, count);
-}
-
-static inline unsigned long __must_check copy_from_user(void *to,
-					  const void __user *from,
-					  unsigned long n)
-{
-	int sz = __compiletime_object_size(to);
-
-	if (likely(sz == -1 || sz >= n))
-		n = _copy_from_user(to, from, n);
-	else if (!__builtin_constant_p(n))
-		copy_user_overflow(sz, n);
-	else
-		__bad_copy_user();
-
-	return n;
-}
+extern unsigned long __must_check
+raw_copy_to_user(void __user *to, const void *from, unsigned long n);
+extern unsigned long __must_check
+raw_copy_from_user(void *to, const void __user *from, unsigned long n);
+#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_TO_USER
 
 #ifdef __tilegx__
-/**
- * __copy_in_user() - copy data within user space, with less checking.
- * @to:   Destination address, in user space.
- * @from: Source address, in user space.
- * @n:    Number of bytes to copy.
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * Copy data from user space to user space.  Caller must check
- * the specified blocks with access_ok() before calling this function.
- *
- * Returns number of bytes that could not be copied.
- * On success, this will be zero.
- */
-extern unsigned long __copy_in_user_inatomic(
+extern unsigned long raw_copy_in_user(
 	void __user *to, const void __user *from, unsigned long n);
-
-static inline unsigned long __must_check
-__copy_in_user(void __user *to, const void __user *from, unsigned long n)
-{
-	might_fault();
-	return __copy_in_user_inatomic(to, from, n);
-}
-
-static inline unsigned long __must_check
-copy_in_user(void __user *to, const void __user *from, unsigned long n)
-{
-	if (access_ok(VERIFY_WRITE, to, n) && access_ok(VERIFY_READ, from, n))
-		n = __copy_in_user(to, from, n);
-	return n;
-}
 #endif
 
 

@@ -26,6 +26,7 @@ struct kstat {
 	unsigned int	nlink;
 	uint32_t	blksize;	/* Preferred I/O size */
 	u64		attributes;
+	u64		attributes_mask;
 #define KSTAT_ATTR_FS_IOC_FLAGS				\
 	(STATX_ATTR_COMPRESSED |			\
 	 STATX_ATTR_IMMUTABLE |				\

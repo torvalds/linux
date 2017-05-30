@@ -439,8 +439,10 @@ void ndisc_update(const struct net_device *dev, struct neighbour *neigh,
  *	IGMP
  */
 int igmp6_init(void);
+int igmp6_late_init(void);
 
 void igmp6_cleanup(void);
+void igmp6_late_cleanup(void);
 
 int igmp6_event_query(struct sk_buff *skb);
 

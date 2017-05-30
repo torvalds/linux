@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016        Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,7 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016        Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -320,12 +320,14 @@ enum iwl_phy_ops_subcmd_ids {
 	CMD_DTS_MEASUREMENT_TRIGGER_WIDE = 0x0,
 	CTDP_CONFIG_CMD = 0x03,
 	TEMP_REPORTING_THRESHOLDS_CMD = 0x04,
+	GEO_TX_POWER_LIMIT = 0x05,
 	CT_KILL_NOTIFICATION = 0xFE,
 	DTS_MEASUREMENT_NOTIF_WIDE = 0xFF,
 };
 
 enum iwl_system_subcmd_ids {
 	SHARED_MEM_CFG_CMD = 0x0,
+	INIT_EXTENDED_CFG_CMD = 0x03,
 };
 
 enum iwl_data_path_subcmd_ids {
@@ -345,9 +347,10 @@ enum iwl_regulatory_and_nvm_subcmd_ids {
 	NVM_ACCESS_COMPLETE = 0x0,
 };
 
-enum iwl_fmac_debug_cmds {
+enum iwl_debug_cmds {
 	LMAC_RD_WR = 0x0,
 	UMAC_RD_WR = 0x1,
+	MFU_ASSERT_DUMP_NTF = 0xFE,
 };
 
 /* command groups */
@@ -673,10 +676,8 @@ struct iwl_error_resp {
 
 
 /* Common PHY, MAC and Bindings definitions */
-
 #define MAX_MACS_IN_BINDING	(3)
 #define MAX_BINDINGS		(4)
-#define AUX_BINDING_INDEX	(3)
 
 /* Used to extract ID and color from the context dword */
 #define FW_CTXT_ID_POS	  (0)
@@ -689,7 +690,7 @@ struct iwl_error_resp {
 					  (_color << FW_CTXT_COLOR_POS))
 
 /* Possible actions on PHYs, MACs and Bindings */
-enum {
+enum iwl_phy_ctxt_action {
 	FW_CTXT_ACTION_STUB = 0,
 	FW_CTXT_ACTION_ADD,
 	FW_CTXT_ACTION_MODIFY,
@@ -960,6 +961,7 @@ struct iwl_time_event_notif {
  * @action: action to perform, one of FW_CTXT_ACTION_*
  * @macs: array of MAC id and colors which belong to the binding
  * @phy: PHY id and color which belongs to the binding
+ * @lmac_id: the lmac id the binding belongs to
  */
 struct iwl_binding_cmd {
 	/* COMMON_INDEX_HDR_API_S_VER_1 */
@@ -968,7 +970,13 @@ struct iwl_binding_cmd {
 	/* BINDING_DATA_API_S_VER_1 */
 	__le32 macs[MAX_MACS_IN_BINDING];
 	__le32 phy;
-} __packed; /* BINDING_CMD_API_S_VER_1 */
+	/* BINDING_CMD_API_S_VER_1 */
+	__le32 lmac_id;
+} __packed; /* BINDING_CMD_API_S_VER_2 */
+
+#define IWL_BINDING_CMD_SIZE_V1	offsetof(struct iwl_binding_cmd, lmac_id)
+#define IWL_LMAC_24G_INDEX		0
+#define IWL_LMAC_5G_INDEX		1
 
 /* The maximal number of fragments in the FW's schedule session */
 #define IWL_MVM_MAX_QUOTA 128
@@ -990,6 +998,9 @@ struct iwl_time_quota_data {
  * struct iwl_time_quota_cmd - configuration of time quota between bindings
  * ( TIME_QUOTA_CMD = 0x2c )
  * @quotas: allocations per binding
+ * Note: on non-CDB the fourth one is the auxilary mac and is
+ *	essentially zero.
+ *	On CDB the fourth one is a regular binding.
  */
 struct iwl_time_quota_cmd {
 	struct iwl_time_quota_data quotas[MAX_BINDINGS];
@@ -1229,6 +1240,25 @@ struct iwl_mfuart_load_notif {
 	/* image size valid only in v2 of the command */
 	__le32 image_size;
 } __packed; /*MFU_LOADER_NTFY_API_S_VER_2*/
+
+/**
+ * struct iwl_mfu_assert_dump_notif - mfuart dump logs
+ * ( MFU_ASSERT_DUMP_NTF = 0xfe )
+ * @assert_id: mfuart assert id that cause the notif
+ * @curr_reset_num: number of asserts since uptime
+ * @index_num: current chunk id
+ * @parts_num: total number of chunks
+ * @data_size: number of data bytes sent
+ * @data: data buffer
+ */
+struct iwl_mfu_assert_dump_notif {
+	__le32   assert_id;
+	__le32   curr_reset_num;
+	__le16   index_num;
+	__le16   parts_num;
+	__le32   data_size;
+	__le32   data[0];
+} __packed; /*MFU_DUMP_ASSERT_API_S_VER_1*/
 
 /**
  * struct iwl_set_calib_default_cmd - set default value for calibration.
@@ -1998,19 +2028,48 @@ struct iwl_shared_mem_cfg_v1 {
 	__le32 internal_txfifo_size[TX_FIFO_INTERNAL_MAX_NUM];
 } __packed; /* SHARED_MEM_ALLOC_API_S_VER_2 */
 
+/**
+ * struct iwl_shared_mem_lmac_cfg - LMAC shared memory configuration
+ *
+ * @txfifo_addr: start addr of TXF0 (excluding the context table 0.5KB)
+ * @txfifo_size: size of TX FIFOs
+ * @rxfifo1_addr: RXF1 addr
+ * @rxfifo1_size: RXF1 size
+ */
+struct iwl_shared_mem_lmac_cfg {
+	__le32 txfifo_addr;
+	__le32 txfifo_size[TX_FIFO_MAX_NUM];
+	__le32 rxfifo1_addr;
+	__le32 rxfifo1_size;
+
+} __packed; /* SHARED_MEM_ALLOC_LMAC_API_S_VER_1 */
+
+/**
+ * Shared memory configuration information from the FW
+ *
+ * @shared_mem_addr: shared memory address
+ * @shared_mem_size: shared memory size
+ * @sample_buff_addr: internal sample (mon/adc) buff addr
+ * @sample_buff_size: internal sample buff size
+ * @rxfifo2_addr: start addr of RXF2
+ * @rxfifo2_size: size of RXF2
+ * @page_buff_addr: used by UMAC and performance debug (page miss analysis),
+ *	when paging is not supported this should be 0
+ * @page_buff_size: size of %page_buff_addr
+ * @lmac_num: number of LMACs (1 or 2)
+ * @lmac_smem: per - LMAC smem data
+ */
 struct iwl_shared_mem_cfg {
 	__le32 shared_mem_addr;
 	__le32 shared_mem_size;
 	__le32 sample_buff_addr;
 	__le32 sample_buff_size;
-	__le32 txfifo_addr;
-	__le32 txfifo_size[TX_FIFO_MAX_NUM];
-	__le32 rxfifo_size[RX_FIFO_MAX_NUM];
+	__le32 rxfifo2_addr;
+	__le32 rxfifo2_size;
 	__le32 page_buff_addr;
 	__le32 page_buff_size;
-	__le32 rxfifo_addr;
-	__le32 internal_txfifo_addr;
-	__le32 internal_txfifo_size[TX_FIFO_INTERNAL_MAX_NUM];
+	__le32 lmac_num;
+	struct iwl_shared_mem_lmac_cfg lmac_smem[2];
 } __packed; /* SHARED_MEM_ALLOC_API_S_VER_3 */
 
 /**
@@ -2177,5 +2236,27 @@ struct iwl_dbg_mem_access_rsp {
 struct iwl_nvm_access_complete_cmd {
 	__le32 reserved;
 } __packed; /* NVM_ACCESS_COMPLETE_CMD_API_S_VER_1 */
+
+/**
+ * enum iwl_extended_cfg_flag - commands driver may send before
+ *	finishing init flow
+ * @IWL_INIT_DEBUG_CFG: driver is going to send debug config command
+ * @IWL_INIT_NVM: driver is going to send NVM_ACCESS commands
+ * @IWL_INIT_PHY: driver is going to send PHY_DB commands
+ */
+enum iwl_extended_cfg_flags {
+	IWL_INIT_DEBUG_CFG,
+	IWL_INIT_NVM,
+	IWL_INIT_PHY,
+};
+
+/**
+ * struct iwl_extended_cfg_cmd - mark what commands ucode should wait for
+ * before finishing init flows
+ * @init_flags: values from iwl_extended_cfg_flags
+ */
+struct iwl_init_extended_cfg_cmd {
+	__le32 init_flags;
+} __packed; /* INIT_EXTENDED_CFG_CMD_API_S_VER_1 */
 
 #endif /* __fw_api_h__ */

@@ -409,6 +409,8 @@ typedef struct elf64_shdr {
 #define NT_S390_TDB	0x308		/* s390 transaction diagnostic block */
 #define NT_S390_VXRS_LOW	0x309	/* s390 vector registers 0-15 upper half */
 #define NT_S390_VXRS_HIGH	0x30a	/* s390 vector registers 16-31 */
+#define NT_S390_GS_CB	0x30b		/* s390 guarded storage registers */
+#define NT_S390_GS_BC	0x30c		/* s390 guarded storage broadcast control block */
 #define NT_ARM_VFP	0x400		/* ARM VFP/NEON registers */
 #define NT_ARM_TLS	0x401		/* ARM TLS register */
 #define NT_ARM_HW_BREAK	0x402		/* ARM hardware breakpoint registers */
@@ -417,7 +419,7 @@ typedef struct elf64_shdr {
 #define NT_METAG_CBUF	0x500		/* Metag catch buffer registers */
 #define NT_METAG_RPIPE	0x501		/* Metag read pipeline state */
 #define NT_METAG_TLS	0x502		/* Metag TLS pointer */
-
+#define NT_ARC_V2	0x600		/* ARCv2 accumulator/extra registers */
 
 /* Note header in a PT_NOTE section */
 typedef struct elf32_note {

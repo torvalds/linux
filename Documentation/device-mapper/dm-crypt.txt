@@ -11,14 +11,31 @@ Parameters: <cipher> <key> <iv_offset> <device path> \
 	      <offset> [<#opt_params> <opt_params>]
 
 <cipher>
-    Encryption cipher and an optional IV generation mode.
-    (In format cipher[:keycount]-chainmode-ivmode[:ivopts]).
-    Examples:
-       des
-       aes-cbc-essiv:sha256
-       twofish-ecb
+    Encryption cipher, encryption mode and Initial Vector (IV) generator.
 
-    /proc/crypto contains supported crypto modes
+    The cipher specifications format is:
+       cipher[:keycount]-chainmode-ivmode[:ivopts]
+    Examples:
+       aes-cbc-essiv:sha256
+       aes-xts-plain64
+       serpent-xts-plain64
+
+    Cipher format also supports direct specification with kernel crypt API
+    format (selected by capi: prefix). The IV specification is the same
+    as for the first format type.
+    This format is mainly used for specification of authenticated modes.
+
+    The crypto API cipher specifications format is:
+        capi:cipher_api_spec-ivmode[:ivopts]
+    Examples:
+        capi:cbc(aes)-essiv:sha256
+        capi:xts(aes)-plain64
+    Examples of authenticated modes:
+        capi:gcm(aes)-random
+        capi:authenc(hmac(sha256),xts(aes))-random
+        capi:rfc7539(chacha20,poly1305)-random
+
+    The /proc/crypto contains a list of curently loaded crypto modes.
 
 <key>
     Key used for encryption. It is encoded either as a hexadecimal number
@@ -92,6 +109,32 @@ submit_from_crypt_cpus
     significantly.  The default is to offload write bios to the same
     thread because it benefits CFQ to have writes submitted using the
     same context.
+
+integrity:<bytes>:<type>
+    The device requires additional <bytes> metadata per-sector stored
+    in per-bio integrity structure. This metadata must by provided
+    by underlying dm-integrity target.
+
+    The <type> can be "none" if metadata is used only for persistent IV.
+
+    For Authenticated Encryption with Additional Data (AEAD)
+    the <type> is "aead". An AEAD mode additionally calculates and verifies
+    integrity for the encrypted device. The additional space is then
+    used for storing authentication tag (and persistent IV if needed).
+
+sector_size:<bytes>
+    Use <bytes> as the encryption unit instead of 512 bytes sectors.
+    This option can be in range 512 - 4096 bytes and must be power of two.
+    Virtual device will announce this size as a minimal IO and logical sector.
+
+iv_large_sectors
+   IV generators will use sector number counted in <sector_size> units
+   instead of default 512 bytes sectors.
+
+   For example, if <sector_size> is 4096 bytes, plain64 IV for the second
+   sector will be 8 (without flag) and 1 if iv_large_sectors is present.
+   The <iv_offset> must be multiple of <sector_size> (in 512 bytes units)
+   if this flag is specified.
 
 Example scripts
 ===============

@@ -537,13 +537,14 @@ static inline int ip6gre_xmit_ipv4(struct sk_buff *skb, struct net_device *dev)
 
 	memcpy(&fl6, &t->fl.u.ip6, sizeof(fl6));
 
-	dsfield = ipv4_get_dsfield(iph);
-
 	if (t->parms.flags & IP6_TNL_F_USE_ORIG_TCLASS)
-		fl6.flowlabel |= htonl((__u32)iph->tos << IPV6_TCLASS_SHIFT)
-					  & IPV6_TCLASS_MASK;
+		dsfield = ipv4_get_dsfield(iph);
+	else
+		dsfield = ip6_tclass(t->parms.flowinfo);
 	if (t->parms.flags & IP6_TNL_F_USE_ORIG_FWMARK)
 		fl6.flowi6_mark = skb->mark;
+	else
+		fl6.flowi6_mark = t->parms.fwmark;
 
 	fl6.flowi6_uid = sock_net_uid(dev_net(dev), NULL);
 
@@ -596,13 +597,17 @@ static inline int ip6gre_xmit_ipv6(struct sk_buff *skb, struct net_device *dev)
 
 	memcpy(&fl6, &t->fl.u.ip6, sizeof(fl6));
 
-	dsfield = ipv6_get_dsfield(ipv6h);
 	if (t->parms.flags & IP6_TNL_F_USE_ORIG_TCLASS)
-		fl6.flowlabel |= (*(__be32 *) ipv6h & IPV6_TCLASS_MASK);
+		dsfield = ipv6_get_dsfield(ipv6h);
+	else
+		dsfield = ip6_tclass(t->parms.flowinfo);
+
 	if (t->parms.flags & IP6_TNL_F_USE_ORIG_FLOWLABEL)
 		fl6.flowlabel |= ip6_flowlabel(ipv6h);
 	if (t->parms.flags & IP6_TNL_F_USE_ORIG_FWMARK)
 		fl6.flowi6_mark = skb->mark;
+	else
+		fl6.flowi6_mark = t->parms.fwmark;
 
 	fl6.flowi6_uid = sock_net_uid(dev_net(dev), NULL);
 
@@ -780,6 +785,7 @@ static int ip6gre_tnl_change(struct ip6_tnl *t,
 	t->parms.o_key = p->o_key;
 	t->parms.i_flags = p->i_flags;
 	t->parms.o_flags = p->o_flags;
+	t->parms.fwmark = p->fwmark;
 	dst_cache_reset(&t->dst_cache);
 	ip6gre_tnl_link_config(t, set_mtu);
 	return 0;
@@ -1249,6 +1255,9 @@ static void ip6gre_netlink_parms(struct nlattr *data[],
 
 	if (data[IFLA_GRE_FLAGS])
 		parms->flags = nla_get_u32(data[IFLA_GRE_FLAGS]);
+
+	if (data[IFLA_GRE_FWMARK])
+		parms->fwmark = nla_get_u32(data[IFLA_GRE_FWMARK]);
 }
 
 static int ip6gre_tap_init(struct net_device *dev)
@@ -1470,6 +1479,8 @@ static size_t ip6gre_get_size(const struct net_device *dev)
 		nla_total_size(2) +
 		/* IFLA_GRE_ENCAP_DPORT */
 		nla_total_size(2) +
+		/* IFLA_GRE_FWMARK */
+		nla_total_size(4) +
 		0;
 }
 
@@ -1490,7 +1501,8 @@ static int ip6gre_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	    nla_put_u8(skb, IFLA_GRE_TTL, p->hop_limit) ||
 	    nla_put_u8(skb, IFLA_GRE_ENCAP_LIMIT, p->encap_limit) ||
 	    nla_put_be32(skb, IFLA_GRE_FLOWINFO, p->flowinfo) ||
-	    nla_put_u32(skb, IFLA_GRE_FLAGS, p->flags))
+	    nla_put_u32(skb, IFLA_GRE_FLAGS, p->flags) ||
+	    nla_put_u32(skb, IFLA_GRE_FWMARK, p->fwmark))
 		goto nla_put_failure;
 
 	if (nla_put_u16(skb, IFLA_GRE_ENCAP_TYPE,
@@ -1525,6 +1537,7 @@ static const struct nla_policy ip6gre_policy[IFLA_GRE_MAX + 1] = {
 	[IFLA_GRE_ENCAP_FLAGS]  = { .type = NLA_U16 },
 	[IFLA_GRE_ENCAP_SPORT]  = { .type = NLA_U16 },
 	[IFLA_GRE_ENCAP_DPORT]  = { .type = NLA_U16 },
+	[IFLA_GRE_FWMARK]       = { .type = NLA_U32 },
 };
 
 static struct rtnl_link_ops ip6gre_link_ops __read_mostly = {

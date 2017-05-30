@@ -665,6 +665,19 @@ static int iwl_mvm_d3_reprogram(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	struct iwl_binding_cmd binding_cmd = {};
 	struct iwl_time_quota_cmd quota_cmd = {};
 	u32 status;
+	int size;
+
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_BINDING_CDB_SUPPORT)) {
+		size = sizeof(binding_cmd);
+		if (mvmvif->phy_ctxt->channel->band == NL80211_BAND_2GHZ ||
+		    !iwl_mvm_is_cdb_supported(mvm))
+			binding_cmd.lmac_id = cpu_to_le32(IWL_LMAC_24G_INDEX);
+		else
+			binding_cmd.lmac_id = cpu_to_le32(IWL_LMAC_5G_INDEX);
+	} else {
+		size = IWL_BINDING_CMD_SIZE_V1;
+	}
 
 	/* add back the PHY */
 	if (WARN_ON(!mvmvif->phy_ctxt))
@@ -711,8 +724,7 @@ static int iwl_mvm_d3_reprogram(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	status = 0;
 	ret = iwl_mvm_send_cmd_pdu_status(mvm, BINDING_CONTEXT_CMD,
-					  sizeof(binding_cmd), &binding_cmd,
-					  &status);
+					  size, &binding_cmd, &status);
 	if (ret) {
 		IWL_ERR(mvm, "Failed to add binding: %d\n", ret);
 		return ret;
@@ -986,7 +998,9 @@ int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 			goto out;
 	}
 
-	if (key_data.use_tkip) {
+	if (key_data.use_tkip &&
+	    !fw_has_api(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_API_TKIP_MIC_KEYS)) {
 		ret = iwl_mvm_send_cmd_pdu(mvm,
 					   WOWLAN_TKIP_PARAM,
 					   cmd_flags, sizeof(tkip_cmd),
@@ -1194,7 +1208,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	if (mvmvif->ap_sta_id == IWL_MVM_STATION_COUNT) {
+	if (mvmvif->ap_sta_id == IWL_MVM_INVALID_STA) {
 		/* if we're not associated, this must be netdetect */
 		if (!wowlan->nd_config) {
 			ret = 1;
@@ -2101,6 +2115,10 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 	 * can play it back when we re-intiailize the D0 firmware
 	 */
 	iwl_mvm_update_changed_regdom(mvm);
+
+	if (!unified_image)
+		/*  Re-configure default SAR profile */
+		iwl_mvm_sar_select_profile(mvm, 1, 1);
 
 	if (mvm->net_detect) {
 		/* If this is a non-unified image, we restart the FW,

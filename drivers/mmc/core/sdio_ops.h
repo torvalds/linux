@@ -26,9 +26,15 @@ int mmc_io_rw_extended(struct mmc_card *card, int write, unsigned fn,
 int sdio_reset(struct mmc_host *host);
 unsigned int mmc_align_data_size(struct mmc_card *card, unsigned int sz);
 
-static inline bool mmc_is_io_op(u32 opcode)
+static inline bool sdio_is_io_busy(u32 opcode, u32 arg)
 {
-	return opcode == SD_IO_RW_DIRECT || opcode == SD_IO_RW_EXTENDED;
+	u32 addr;
+
+	addr = (arg >> 9) & 0x1FFFF;
+
+	return (opcode == SD_IO_RW_EXTENDED ||
+		(opcode == SD_IO_RW_DIRECT &&
+		!(addr == SDIO_CCCR_ABORT || addr == SDIO_CCCR_SUSPEND)));
 }
 
 #endif

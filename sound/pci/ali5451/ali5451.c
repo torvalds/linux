@@ -1339,7 +1339,7 @@ static int snd_ali_prepare(struct snd_pcm_substream *substream)
 		rate = snd_ali_get_spdif_in_rate(codec);
 		if (rate == 0) {
 			dev_warn(codec->card->dev,
-				 "ali_capture_preapre: spdif rate detect err!\n");
+				 "ali_capture_prepare: spdif rate detect err!\n");
 			rate = 48000;
 		}
 		spin_lock_irq(&codec->reg_lock);
