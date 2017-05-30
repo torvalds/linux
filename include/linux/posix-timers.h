@@ -59,6 +59,7 @@ struct cpu_timer_list {
  * @kclock:		Pointer to the k_clock struct handling this timer
  * @it_clock:		The posix timer clock id
  * @it_id:		The posix timer id for identifying the timer
+ * @it_active:		Marker that timer is active
  * @it_overrun:		The overrun counter for pending signals
  * @it_overrun_last:	The overrun at the time of the last delivered signal
  * @it_requeue_pending:	Indicator that timer waits for being requeued on
@@ -79,6 +80,7 @@ struct k_itimer {
 	const struct k_clock	*kclock;
 	clockid_t		it_clock;
 	timer_t			it_id;
+	int			it_active;
 	int			it_overrun;
 	int			it_overrun_last;
 	int			it_requeue_pending;
