@@ -56,6 +56,7 @@ struct cpu_timer_list {
  * @list:		List head for binding the timer to signals->posix_timers
  * @t_hash:		Entry in the posix timer hash table
  * @it_lock:		Lock protecting the timer
+ * @kclock:		Pointer to the k_clock struct handling this timer
  * @it_clock:		The posix timer clock id
  * @it_id:		The posix timer id for identifying the timer
  * @it_overrun:		The overrun counter for pending signals
@@ -75,6 +76,7 @@ struct k_itimer {
 	struct list_head	list;
 	struct hlist_node	t_hash;
 	spinlock_t		it_lock;
+	const struct k_clock	*kclock;
 	clockid_t		it_clock;
 	timer_t			it_id;
 	int			it_overrun;

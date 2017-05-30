@@ -324,6 +324,8 @@ static int posix_cpu_timer_create(struct k_itimer *new_timer)
 	if (CPUCLOCK_WHICH(new_timer->it_clock) >= CPUCLOCK_MAX)
 		return -EINVAL;
 
+	new_timer->kclock = &clock_posix_cpu;
+
 	INIT_LIST_HEAD(&new_timer->it.cpu.entry);
 
 	rcu_read_lock();
