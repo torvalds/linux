@@ -6906,7 +6906,7 @@ static void reset_neighbor_info(struct hfi1_pportdata *ppd)
 
 static const char * const link_down_reason_strs[] = {
 	[OPA_LINKDOWN_REASON_NONE] = "None",
-	[OPA_LINKDOWN_REASON_RCV_ERROR_0] = "Recive error 0",
+	[OPA_LINKDOWN_REASON_RCV_ERROR_0] = "Receive error 0",
 	[OPA_LINKDOWN_REASON_BAD_PKT_LEN] = "Bad packet length",
 	[OPA_LINKDOWN_REASON_PKT_TOO_LONG] = "Packet too long",
 	[OPA_LINKDOWN_REASON_PKT_TOO_SHORT] = "Packet too short",
