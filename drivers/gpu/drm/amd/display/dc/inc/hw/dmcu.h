@@ -41,6 +41,7 @@ struct dmcu_funcs {
 	void (*setup_psr)(struct dmcu *dmcu,
 			struct core_link *link,
 			struct psr_context *psr_context);
+	void (*get_psr_state)(struct dmcu *dmcu, uint32_t *psr_state);
 };
 
 #endif

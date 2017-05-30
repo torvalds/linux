@@ -470,6 +470,7 @@ static const struct dmcu_funcs dce_funcs = {
 	.load_iram = dce_dmcu_load_iram,
 	.set_psr_enable = dce_dmcu_set_psr_enable,
 	.setup_psr = dce_dmcu_setup_psr,
+	.get_psr_state = dce_get_dmcu_psr_state
 };
 
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
@@ -477,6 +478,7 @@ static const struct dmcu_funcs dcn10_funcs = {
 	.load_iram = dcn10_dmcu_load_iram,
 	.set_psr_enable = dcn10_dmcu_set_psr_enable,
 	.setup_psr = dcn10_dmcu_setup_psr,
+	.get_psr_state = dcn10_get_dmcu_psr_state
 };
 #endif
 

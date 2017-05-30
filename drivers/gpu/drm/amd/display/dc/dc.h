@@ -702,6 +702,8 @@ bool dc_link_set_abm_disable(const struct dc_link *dc_link);
 
 bool dc_link_set_psr_enable(const struct dc_link *dc_link, bool enable);
 
+bool dc_link_get_psr_state(const struct dc_link *dc_link, uint32_t *psr_state);
+
 bool dc_link_setup_psr(const struct dc_link *dc_link,
 		const struct dc_stream *stream, struct psr_config *psr_config);
 

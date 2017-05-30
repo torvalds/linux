@@ -1444,6 +1444,19 @@ bool dc_link_set_psr_enable(const struct dc_link *dc_link, bool enable)
 	return true;
 }
 
+bool dc_link_get_psr_state(const struct dc_link *dc_link, uint32_t *psr_state)
+{
+	struct core_link *link = DC_LINK_TO_CORE(dc_link);
+	struct dc_context *ctx = link->ctx;
+	struct core_dc *core_dc = DC_TO_CORE(ctx->dc);
+	struct dmcu *dmcu = core_dc->res_pool->dmcu;
+
+	if (dmcu != NULL && link->psr_enabled)
+		dmcu->funcs->get_psr_state(dmcu, psr_state);
+
+	return true;
+}
+
 bool dc_link_setup_psr(const struct dc_link *dc_link,
 		const struct dc_stream *stream, struct psr_config *psr_config)
 {
