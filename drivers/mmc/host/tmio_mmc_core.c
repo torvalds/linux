@@ -3,8 +3,9 @@
  *
  * TC6393XB, TC6391XB, TC6387XB, T7L66XB, ASIC3, SH-Mobile SoCs
  *
- * Copyright (C) 2016 Sang Engineering, Wolfram Sang
- * Copyright (C) 2015-16 Renesas Electronics Corporation
+ * Copyright (C) 2015-17 Renesas Electronics Corporation
+ * Copyright (C) 2016-17 Sang Engineering, Wolfram Sang
+ * Copyright (C) 2017 Horms Solutions, Simon Horman
  * Copyright (C) 2011 Guennadi Liakhovetski
  * Copyright (C) 2007 Ian Molton
  * Copyright (C) 2004 Ian Molton

@@ -1,6 +1,9 @@
 /*
  * DMA function for TMIO MMC implementations
  *
+ * Copyright (C) 2016-17 Renesas Electronics Corporation
+ * Copyright (C) 2016-17 Sang Engineering, Wolfram Sang
+ * Copyright (C) 2017 Horms Solutions, Simon Horman
  * Copyright (C) 2010-2011 Guennadi Liakhovetski
  *
  * This program is free software; you can redistribute it and/or modify

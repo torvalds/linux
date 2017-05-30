@@ -3,6 +3,8 @@
  *
  * TC6393XB TC6391XB TC6387XB T7L66XB ASIC3
  *
+ * Copyright (C) 2017 Renesas Electronics Corporation
+ * Copyright (C) 2017 Horms Solutions, Simon Horman
  * Copyright (C) 2007 Ian Molton
  * Copyright (C) 2004 Ian Molton
  *
