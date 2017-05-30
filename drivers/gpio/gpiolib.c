@@ -1471,8 +1471,6 @@ static struct gpio_chip *find_chip_by_name(const char *name)
 
 static int gpiochip_irqchip_init_valid_mask(struct gpio_chip *gpiochip)
 {
-	int i;
-
 	if (!gpiochip->irq_need_valid_mask)
 		return 0;
 
