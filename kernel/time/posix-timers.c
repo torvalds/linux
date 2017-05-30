@@ -645,8 +645,6 @@ common_timer_get(struct k_itimer *timr, struct itimerspec64 *cur_setting)
 	struct timespec64 ts64;
 	bool sig_none;
 
-	memset(cur_setting, 0, sizeof(*cur_setting));
-
 	sig_none = (timr->it_sigev_notify & ~SIGEV_THREAD_ID) != SIGEV_NONE;
 	iv = timr->it_interval;
 
@@ -705,6 +703,7 @@ SYSCALL_DEFINE2(timer_gettime, timer_t, timer_id,
 	if (!timr)
 		return -EINVAL;
 
+	memset(&cur_setting64, 0, sizeof(cur_setting64));
 	kc = timr->kclock;
 	if (WARN_ON_ONCE(!kc || !kc->timer_get))
 		ret = -EINVAL;

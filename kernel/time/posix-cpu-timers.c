@@ -719,10 +719,8 @@ static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec64 *itp
 	 */
 	itp->it_interval = ns_to_timespec64(timer->it.cpu.incr);
 
-	if (timer->it.cpu.expires == 0) {	/* Timer not armed at all.  */
-		itp->it_value.tv_sec = itp->it_value.tv_nsec = 0;
+	if (!timer->it.cpu.expires)
 		return;
-	}
 
 	/*
 	 * Sample the clock to take the difference with the expiry time.
@@ -746,7 +744,6 @@ static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec64 *itp
 			 * Call the timer disarmed, nothing else to do.
 			 */
 			timer->it.cpu.expires = 0;
-			itp->it_value = ns_to_timespec64(timer->it.cpu.expires);
 			return;
 		} else {
 			cpu_timer_sample_group(timer->it_clock, p, &now);
