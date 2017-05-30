@@ -26,6 +26,7 @@
 #include <linux/platform_device.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/clk.h>
 
 #define DRV_NAME        "rtc-gemini"
 
@@ -38,6 +39,8 @@ struct gemini_rtc {
 	struct rtc_device	*rtc_dev;
 	void __iomem		*rtc_base;
 	int			rtc_irq;
+	struct clk		*pclk;
+	struct clk		*extclk;
 };
 
 enum gemini_rtc_offsets {
@@ -127,6 +130,27 @@ static int gemini_rtc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, rtc);
 
+	rtc->pclk = devm_clk_get(dev, "PCLK");
+	if (IS_ERR(rtc->pclk)) {
+		dev_err(dev, "could not get PCLK\n");
+	} else {
+		ret = clk_prepare_enable(rtc->pclk);
+		if (ret) {
+			dev_err(dev, "failed to enable PCLK\n");
+			return ret;
+		}
+	}
+	rtc->extclk = devm_clk_get(dev, "EXTCLK");
+	if (IS_ERR(rtc->extclk)) {
+		dev_err(dev, "could not get EXTCLK\n");
+	} else {
+		ret = clk_prepare_enable(rtc->extclk);
+		if (ret) {
+			dev_err(dev, "failed to enable EXTCLK\n");
+			return ret;
+		}
+	}
+
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res)
 		return -ENODEV;
@@ -156,6 +180,10 @@ static int gemini_rtc_remove(struct platform_device *pdev)
 {
 	struct gemini_rtc *rtc = platform_get_drvdata(pdev);
 
+	if (!IS_ERR(rtc->extclk))
+		clk_disable_unprepare(rtc->extclk);
+	if (!IS_ERR(rtc->pclk))
+		clk_disable_unprepare(rtc->pclk);
 	rtc_device_unregister(rtc->rtc_dev);
 
 	return 0;
