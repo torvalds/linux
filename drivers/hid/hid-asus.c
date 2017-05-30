@@ -537,6 +537,8 @@ static void asus_remove(struct hid_device *hdev)
 		drvdata->kbd_backlight->removed = true;
 		cancel_work_sync(&drvdata->kbd_backlight->work);
 	}
+
+	hid_hw_stop(hdev);
 }
 
 static __u8 *asus_report_fixup(struct hid_device *hdev, __u8 *rdesc,
