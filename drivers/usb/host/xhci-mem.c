@@ -56,7 +56,7 @@ static struct xhci_segment *xhci_segment_alloc(struct xhci_hcd *xhci,
 	}
 
 	if (max_packet) {
-		seg->bounce_buf = kzalloc(max_packet, flags | GFP_DMA);
+		seg->bounce_buf = kzalloc(max_packet, flags);
 		if (!seg->bounce_buf) {
 			dma_pool_free(xhci->segment_pool, seg->trbs, dma);
 			kfree(seg);
@@ -1724,7 +1724,7 @@ static int scratchpad_alloc(struct xhci_hcd *xhci, gfp_t flags)
 	xhci->dcbaa->dev_context_ptrs[0] = cpu_to_le64(xhci->scratchpad->sp_dma);
 	for (i = 0; i < num_sp; i++) {
 		dma_addr_t dma;
-		void *buf = dma_alloc_coherent(dev, xhci->page_size, &dma,
+		void *buf = dma_zalloc_coherent(dev, xhci->page_size, &dma,
 				flags);
 		if (!buf)
 			goto fail_sp4;
@@ -2307,10 +2307,11 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 	/* Place limits on the number of roothub ports so that the hub
 	 * descriptors aren't longer than the USB core will allocate.
 	 */
-	if (xhci->num_usb3_ports > 15) {
+	if (xhci->num_usb3_ports > USB_SS_MAXPORTS) {
 		xhci_dbg_trace(xhci, trace_xhci_dbg_init,
-				"Limiting USB 3.0 roothub ports to 15.");
-		xhci->num_usb3_ports = 15;
+				"Limiting USB 3.0 roothub ports to %u.",
+				USB_SS_MAXPORTS);
+		xhci->num_usb3_ports = USB_SS_MAXPORTS;
 	}
 	if (xhci->num_usb2_ports > USB_MAXCHILDREN) {
 		xhci_dbg_trace(xhci, trace_xhci_dbg_init,

@@ -206,6 +206,7 @@ struct cdc_state {
 };
 
 extern int usbnet_generic_cdc_bind(struct usbnet *, struct usb_interface *);
+extern int usbnet_ether_cdc_bind(struct usbnet *dev, struct usb_interface *intf);
 extern int usbnet_cdc_bind(struct usbnet *, struct usb_interface *);
 extern void usbnet_cdc_unbind(struct usbnet *, struct usb_interface *);
 extern void usbnet_cdc_status(struct usbnet *, struct urb *);

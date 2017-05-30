@@ -306,16 +306,15 @@ static int iTCO_wdt_ping(struct watchdog_device *wd_dev)
 
 	iTCO_vendor_pre_keepalive(p->smi_res, wd_dev->timeout);
 
-	/* Reload the timer by writing to the TCO Timer Counter register */
-	if (p->iTCO_version >= 2) {
-		outw(0x01, TCO_RLD(p));
-	} else if (p->iTCO_version == 1) {
-		/* Reset the timeout status bit so that the timer
-		 * needs to count down twice again before rebooting */
-		outw(0x0008, TCO1_STS(p));	/* write 1 to clear bit */
+	/* Reset the timeout status bit so that the timer
+	 * needs to count down twice again before rebooting */
+	outw(0x0008, TCO1_STS(p));	/* write 1 to clear bit */
 
+	/* Reload the timer by writing to the TCO Timer Counter register */
+	if (p->iTCO_version >= 2)
+		outw(0x01, TCO_RLD(p));
+	else if (p->iTCO_version == 1)
 		outb(0x01, TCO_RLD(p));
-	}
 
 	spin_unlock(&p->io_lock);
 	return 0;
@@ -328,11 +327,8 @@ static int iTCO_wdt_set_timeout(struct watchdog_device *wd_dev, unsigned int t)
 	unsigned char val8;
 	unsigned int tmrval;
 
-	tmrval = seconds_to_ticks(p, t);
-
-	/* For TCO v1 the timer counts down twice before rebooting */
-	if (p->iTCO_version == 1)
-		tmrval /= 2;
+	/* The timer counts down twice before rebooting */
+	tmrval = seconds_to_ticks(p, t) / 2;
 
 	/* from the specs: */
 	/* "Values of 0h-3h are ignored and should not be attempted" */
@@ -385,6 +381,8 @@ static unsigned int iTCO_wdt_get_timeleft(struct watchdog_device *wd_dev)
 		spin_lock(&p->io_lock);
 		val16 = inw(TCO_RLD(p));
 		val16 &= 0x3ff;
+		if (!(inw(TCO1_STS(p)) & 0x0008))
+			val16 += (inw(TCOv2_TMR(p)) & 0x3ff);
 		spin_unlock(&p->io_lock);
 
 		time_left = ticks_to_seconds(p, val16);

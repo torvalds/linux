@@ -478,6 +478,7 @@ static int altera_jtaguart_remove(struct platform_device *pdev)
 
 	port = &altera_jtaguart_ports[i].port;
 	uart_remove_one_port(&altera_jtaguart_driver, port);
+	iounmap(port->membase);
 
 	return 0;
 }

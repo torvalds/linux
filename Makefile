@@ -1,7 +1,7 @@
 VERSION = 4
 PATCHLEVEL = 12
 SUBLEVEL = 0
-EXTRAVERSION = -rc1
+EXTRAVERSION = -rc3
 NAME = Fearless Coyote
 
 # *DOCUMENTATION*
@@ -1172,7 +1172,7 @@ headers_check_all: headers_install_all
 PHONY += headers_check
 headers_check: headers_install
 	$(Q)$(MAKE) $(hdr-inst)=include/uapi HDRCHECK=1
-	$(Q)$(MAKE) $(hdr-inst)=arch/$(hdr-arch)/include/uapi/ $(hdr-dst) HDRCHECK=1
+	$(Q)$(MAKE) $(hdr-inst)=arch/$(hdr-arch)/include/uapi $(hdr-dst) HDRCHECK=1
 
 # ---------------------------------------------------------------------------
 # Kernel selftest

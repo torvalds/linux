@@ -2281,6 +2281,7 @@ bool bpf_helper_changes_pkt_data(void *func)
 	    func == bpf_skb_change_head ||
 	    func == bpf_skb_change_tail ||
 	    func == bpf_skb_pull_data ||
+	    func == bpf_clone_redirect ||
 	    func == bpf_l3_csum_replace ||
 	    func == bpf_l4_csum_replace ||
 	    func == bpf_xdp_adjust_head)

@@ -1120,8 +1120,6 @@ static bool clean_target_met(struct smq_policy *mq, bool idle)
 	 * Cache entries may not be populated.  So we cannot rely on the
 	 * size of the clean queue.
 	 */
-	unsigned nr_clean;
-
 	if (idle) {
 		/*
 		 * We'd like to clean everything.
@@ -1129,17 +1127,15 @@ static bool clean_target_met(struct smq_policy *mq, bool idle)
 		return q_size(&mq->dirty) == 0u;
 	}
 
-	nr_clean = from_cblock(mq->cache_size) - q_size(&mq->dirty);
-	return (nr_clean + btracker_nr_writebacks_queued(mq->bg_work)) >=
-		percent_to_target(mq, CLEAN_TARGET);
+	/*
+	 * If we're busy we don't worry about cleaning at all.
+	 */
+	return true;
 }
 
-static bool free_target_met(struct smq_policy *mq, bool idle)
+static bool free_target_met(struct smq_policy *mq)
 {
 	unsigned nr_free;
-
-	if (!idle)
-		return true;
 
 	nr_free = from_cblock(mq->cache_size) - mq->cache_alloc.nr_allocated;
 	return (nr_free + btracker_nr_demotions_queued(mq->bg_work)) >=
@@ -1190,9 +1186,9 @@ static void queue_demotion(struct smq_policy *mq)
 	if (unlikely(WARN_ON_ONCE(!mq->migrations_allowed)))
 		return;
 
-	e = q_peek(&mq->clean, mq->clean.nr_levels, true);
+	e = q_peek(&mq->clean, mq->clean.nr_levels / 2, true);
 	if (!e) {
-		if (!clean_target_met(mq, false))
+		if (!clean_target_met(mq, true))
 			queue_writeback(mq);
 		return;
 	}
@@ -1220,7 +1216,7 @@ static void queue_promotion(struct smq_policy *mq, dm_oblock_t oblock,
 		 * We always claim to be 'idle' to ensure some demotions happen
 		 * with continuous loads.
 		 */
-		if (!free_target_met(mq, true))
+		if (!free_target_met(mq))
 			queue_demotion(mq);
 		return;
 	}
@@ -1421,14 +1417,10 @@ static int smq_get_background_work(struct dm_cache_policy *p, bool idle,
 	spin_lock_irqsave(&mq->lock, flags);
 	r = btracker_issue(mq->bg_work, result);
 	if (r == -ENODATA) {
-		/* find some writeback work to do */
-		if (mq->migrations_allowed && !free_target_met(mq, idle))
-			queue_demotion(mq);
-
-		else if (!clean_target_met(mq, idle))
+		if (!clean_target_met(mq, idle)) {
 			queue_writeback(mq);
-
-		r = btracker_issue(mq->bg_work, result);
+			r = btracker_issue(mq->bg_work, result);
+		}
 	}
 	spin_unlock_irqrestore(&mq->lock, flags);
 
@@ -1452,6 +1444,7 @@ static void __complete_background_work(struct smq_policy *mq,
 		clear_pending(mq, e);
 		if (success) {
 			e->oblock = work->oblock;
+			e->level = NR_CACHE_LEVELS - 1;
 			push(mq, e);
 			// h, q, a
 		} else {

@@ -104,6 +104,11 @@ static inline unsigned long *last_frame(struct unwind_state *state)
 	return (unsigned long *)task_pt_regs(state->task) - 2;
 }
 
+static bool is_last_frame(struct unwind_state *state)
+{
+	return state->bp == last_frame(state);
+}
+
 #ifdef CONFIG_X86_32
 #define GCC_REALIGN_WORDS 3
 #else
@@ -115,16 +120,15 @@ static inline unsigned long *last_aligned_frame(struct unwind_state *state)
 	return last_frame(state) - GCC_REALIGN_WORDS;
 }
 
-static bool is_last_task_frame(struct unwind_state *state)
+static bool is_last_aligned_frame(struct unwind_state *state)
 {
 	unsigned long *last_bp = last_frame(state);
 	unsigned long *aligned_bp = last_aligned_frame(state);
 
 	/*
-	 * We have to check for the last task frame at two different locations
-	 * because gcc can occasionally decide to realign the stack pointer and
-	 * change the offset of the stack frame in the prologue of a function
-	 * called by head/entry code.  Examples:
+	 * GCC can occasionally decide to realign the stack pointer and change
+	 * the offset of the stack frame in the prologue of a function called
+	 * by head/entry code.  Examples:
 	 *
 	 * <start_secondary>:
 	 *      push   %edi
@@ -141,11 +145,38 @@ static bool is_last_task_frame(struct unwind_state *state)
 	 *      push   %rbp
 	 *      mov    %rsp,%rbp
 	 *
-	 * Note that after aligning the stack, it pushes a duplicate copy of
-	 * the return address before pushing the frame pointer.
+	 * After aligning the stack, it pushes a duplicate copy of the return
+	 * address before pushing the frame pointer.
 	 */
-	return (state->bp == last_bp ||
-		(state->bp == aligned_bp && *(aligned_bp+1) == *(last_bp+1)));
+	return (state->bp == aligned_bp && *(aligned_bp + 1) == *(last_bp + 1));
+}
+
+static bool is_last_ftrace_frame(struct unwind_state *state)
+{
+	unsigned long *last_bp = last_frame(state);
+	unsigned long *last_ftrace_bp = last_bp - 3;
+
+	/*
+	 * When unwinding from an ftrace handler of a function called by entry
+	 * code, the stack layout of the last frame is:
+	 *
+	 *   bp
+	 *   parent ret addr
+	 *   bp
+	 *   function ret addr
+	 *   parent ret addr
+	 *   pt_regs
+	 *   -----------------
+	 */
+	return (state->bp == last_ftrace_bp &&
+		*state->bp == *(state->bp + 2) &&
+		*(state->bp + 1) == *(state->bp + 4));
+}
+
+static bool is_last_task_frame(struct unwind_state *state)
+{
+	return is_last_frame(state) || is_last_aligned_frame(state) ||
+	       is_last_ftrace_frame(state);
 }
 
 /*
