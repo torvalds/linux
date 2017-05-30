@@ -8508,7 +8508,7 @@ S:	Odd Fixes
 F:	drivers/media/radio/radio-miropcm20*
 
 MELLANOX MLX4 core VPI driver
-M:	Yishai Hadas <yishaih@mellanox.com>
+M:	Tariq Toukan <tariqt@mellanox.com>
 L:	netdev@vger.kernel.org
 L:	linux-rdma@vger.kernel.org
 W:	http://www.mellanox.com
