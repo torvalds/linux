@@ -37,9 +37,32 @@
 		};
 
 		ebi@10000000 {
-			pinctrl-0 = <&pinctrl_ebi_nand_addr>;
-			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_ebi_addr &pinctrl_ebi_cs0>;
+			pinctr-name = "default";
 			status = "okay";
+
+			nor: flash@0,0 {
+				compatible = "cfi-flash";
+				linux,mtd-name = "physmap-flash.0";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0x0 0x0 0x1000000>;
+				bank-width = <2>;
+				atmel,smc-read-mode = "nrd";
+				atmel,smc-write-mode = "nwe";
+				atmel,smc-bus-width = <16>;
+				atmel,smc-ncs-rd-setup-ns = <0>;
+				atmel,smc-ncs-wr-setup-ns = <0>;
+				atmel,smc-nwe-setup-ns = <8>;
+				atmel,smc-nrd-setup-ns = <16>;
+				atmel,smc-ncs-rd-pulse-ns = <84>;
+				atmel,smc-ncs-wr-pulse-ns = <84>;
+				atmel,smc-nrd-pulse-ns = <76>;
+				atmel,smc-nwe-pulse-ns = <76>;
+				atmel,smc-nrd-cycle-ns = <107>;
+				atmel,smc-nwe-cycle-ns = <84>;
+				atmel,smc-tdf-ns = <16>;
+			};
 
 			nand_controller: nand-controller {
 				status = "okay";
