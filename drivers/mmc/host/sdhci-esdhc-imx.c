@@ -115,11 +115,6 @@
  */
 #define ESDHC_FLAG_MULTIBLK_NO_INT	BIT(1)
 /*
- * The flag enables the workaround for ESDHC erratum ENGcm07207 which
- * affects i.MX25 and i.MX35.
- */
-#define ESDHC_FLAG_ENGCM07207		BIT(2)
-/*
  * The flag tells that the ESDHC controller is an USDHC block that is
  * integrated on the i.MX6 series.
  */
@@ -134,6 +129,8 @@
  * The IP has erratum ERR004536
  * uSDHC: ADMA Length Mismatch Error occurs if the AHB read access is slow,
  * when reading data from the card
+ * This flag is also set for i.MX25 and i.MX35 in order to get
+ * SDHCI_QUIRK_BROKEN_ADMA, but for different reasons (ADMA capability bits).
  */
 #define ESDHC_FLAG_ERR004536		BIT(7)
 /* The IP supports HS200 mode */
@@ -149,11 +146,11 @@ struct esdhc_soc_data {
 };
 
 static struct esdhc_soc_data esdhc_imx25_data = {
-	.flags = ESDHC_FLAG_ENGCM07207,
+	.flags = ESDHC_FLAG_ERR004536,
 };
 
 static struct esdhc_soc_data esdhc_imx35_data = {
-	.flags = ESDHC_FLAG_ENGCM07207,
+	.flags = ESDHC_FLAG_ERR004536,
 };
 
 static struct esdhc_soc_data esdhc_imx51_data = {
@@ -1284,11 +1281,6 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 						PINCTRL_STATE_DEFAULT);
 	if (IS_ERR(imx_data->pins_default))
 		dev_warn(mmc_dev(host->mmc), "could not get default state\n");
-
-	if (imx_data->socdata->flags & ESDHC_FLAG_ENGCM07207)
-		/* Fix erratum ENGcm07207 present on i.MX25 and i.MX35 */
-		host->quirks |= SDHCI_QUIRK_NO_MULTIBLOCK
-			| SDHCI_QUIRK_BROKEN_ADMA;
 
 	if (esdhc_is_usdhc(imx_data)) {
 		host->quirks2 |= SDHCI_QUIRK2_PRESET_VALUE_BROKEN;
