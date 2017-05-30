@@ -37,6 +37,8 @@
 #include <net/route.h>
 #include <net/sock.h>
 #include <net/pkt_sched.h>
+#include <net/checksum.h>
+#include <net/ip6_checksum.h>
 
 #include "hyperv_net.h"
 
