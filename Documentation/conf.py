@@ -15,6 +15,9 @@
 import sys
 import os
 import sphinx
+import subprocess
+
+from distutils.version import LooseVersion
 
 # Get Sphinx version
 major, minor, patch = sphinx.version_info[:3]
@@ -41,6 +44,13 @@ if major == 1 and minor > 3:
     extensions.append("sphinx.ext.imgmath")
 else:
     extensions.append("sphinx.ext.pngmath")
+
+try:
+    hglyph_ver = subprocess.check_output(["hieroglyph", "--version"])
+    if LooseVersion(hglyph_ver) > LooseVersion("1.0.0"):
+	    extensions.append('hieroglyph')
+except:
+    None
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
