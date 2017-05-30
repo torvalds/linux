@@ -7,8 +7,12 @@
 
 #ifdef CONFIG_ARCH_HAS_PMEM_API
 void arch_wb_cache_pmem(void *addr, size_t size);
+void arch_invalidate_pmem(void *addr, size_t size);
 #else
 static inline void arch_wb_cache_pmem(void *addr, size_t size)
+{
+}
+static inline void arch_invalidate_pmem(void *addr, size_t size)
 {
 }
 #endif

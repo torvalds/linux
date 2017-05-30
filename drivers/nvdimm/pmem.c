@@ -71,7 +71,7 @@ static int pmem_clear_poison(struct pmem_device *pmem, phys_addr_t offset,
 		badblocks_clear(&pmem->bb, sector, cleared);
 	}
 
-	invalidate_pmem(pmem->virt_addr + offset, len);
+	arch_invalidate_pmem(pmem->virt_addr + offset, len);
 
 	return rc;
 }

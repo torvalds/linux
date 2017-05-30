@@ -43,10 +43,5 @@ static inline void arch_memcpy_to_pmem(void *dst, const void *src, size_t n)
 				__func__, dst, src, rem))
 		BUG();
 }
-
-static inline void arch_invalidate_pmem(void *addr, size_t size)
-{
-	clflush_cache_range(addr, size);
-}
 #endif /* CONFIG_ARCH_HAS_PMEM_API */
 #endif /* __ASM_X86_PMEM_H__ */

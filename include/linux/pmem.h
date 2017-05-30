@@ -30,11 +30,6 @@ static inline void arch_memcpy_to_pmem(void *dst, const void *src, size_t n)
 {
 	BUG();
 }
-
-static inline void arch_invalidate_pmem(void *addr, size_t size)
-{
-	BUG();
-}
 #endif
 
 static inline bool arch_has_pmem_api(void)
@@ -60,19 +55,5 @@ static inline void memcpy_to_pmem(void *dst, const void *src, size_t n)
 		arch_memcpy_to_pmem(dst, src, n);
 	else
 		memcpy(dst, src, n);
-}
-
-/**
- * invalidate_pmem - flush a pmem range from the cache hierarchy
- * @addr:	virtual start address
- * @size:	bytes to invalidate (internally aligned to cache line size)
- *
- * For platforms that support clearing poison this flushes any poisoned
- * ranges out of the cache
- */
-static inline void invalidate_pmem(void *addr, size_t size)
-{
-	if (arch_has_pmem_api())
-		arch_invalidate_pmem(addr, size);
 }
 #endif /* __PMEM_H__ */
