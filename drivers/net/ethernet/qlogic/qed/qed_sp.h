@@ -418,6 +418,15 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 int qed_sp_pf_update(struct qed_hwfn *p_hwfn);
 
 /**
+ * @brief qed_sp_pf_update_stag - Update firmware of new outer tag
+ *
+ * @param p_hwfn
+ *
+ * @return int
+ */
+int qed_sp_pf_update_stag(struct qed_hwfn *p_hwfn);
+
+/**
  * @brief qed_sp_pf_stop - PF Function Stop Ramrod
  *
  * This ramrod is sent to close a Physical Function (PF). It is the last ramrod

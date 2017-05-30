@@ -3076,6 +3076,29 @@ enum dbg_status qed_dbg_fw_asserts_dump(struct qed_hwfn *p_hwfn,
 					u32 *dump_buf,
 					u32 buf_size_in_dwords,
 					u32 *num_dumped_dwords);
+
+/**
+ * @brief qed_dbg_read_attn - Reads the attention registers of the specified
+ * block and type, and writes the results into the specified buffer.
+ *
+ * @param p_hwfn -	 HW device data
+ * @param p_ptt -	 Ptt window used for writing the registers.
+ * @param block -	 Block ID.
+ * @param attn_type -	 Attention type.
+ * @param clear_status - Indicates if the attention status should be cleared.
+ * @param results -	 OUT: Pointer to write the read results into
+ *
+ * @return error if one of the following holds:
+ *	- the version wasn't set
+ * Otherwise, returns ok.
+ */
+enum dbg_status qed_dbg_read_attn(struct qed_hwfn *p_hwfn,
+				  struct qed_ptt *p_ptt,
+				  enum block_id block,
+				  enum dbg_attn_type attn_type,
+				  bool clear_status,
+				  struct dbg_attn_block_result *results);
+
 /**
  * @brief qed_dbg_print_attn - Prints attention registers values in the
  *	specified results struct.
@@ -3308,6 +3331,20 @@ enum dbg_status qed_print_fw_asserts_results(struct qed_hwfn *p_hwfn,
 					     u32 *dump_buf,
 					     u32 num_dumped_dwords,
 					     char *results_buf);
+
+/**
+ * @brief qed_dbg_parse_attn - Parses and prints attention registers values in
+ * the specified results struct.
+ *
+ * @param p_hwfn -  HW device data
+ * @param results - Pointer to the attention read results
+ *
+ * @return error if one of the following holds:
+ *	- the version wasn't set
+ * Otherwise, returns ok.
+ */
+enum dbg_status qed_dbg_parse_attn(struct qed_hwfn *p_hwfn,
+				   struct dbg_attn_block_result *results);
 
 /* Debug Bus blocks */
 static const u32 dbg_bus_blocks[] = {
@@ -11474,9 +11511,11 @@ struct public_drv_mb {
 
 #define DRV_MSG_CODE_BW_UPDATE_ACK		0x32000000
 #define DRV_MSG_CODE_NIG_DRAIN			0x30000000
+#define DRV_MSG_CODE_S_TAG_UPDATE_ACK		0x3b000000
 #define DRV_MSG_CODE_INITIATE_PF_FLR            0x02010000
 #define DRV_MSG_CODE_VF_DISABLED_DONE		0xc0000000
 #define DRV_MSG_CODE_CFG_VF_MSIX		0xc0010000
+#define DRV_MSG_CODE_CFG_PF_VFS_MSIX		0xc0020000
 #define DRV_MSG_CODE_NVM_GET_FILE_ATT		0x00030000
 #define DRV_MSG_CODE_NVM_READ_NVRAM		0x00050000
 #define DRV_MSG_CODE_MCP_RESET			0x00090000
@@ -11633,6 +11672,7 @@ struct public_drv_mb {
 #define FW_MSG_CODE_RESOURCE_ALLOC_OK           0x34000000
 #define FW_MSG_CODE_RESOURCE_ALLOC_UNKNOWN      0x35000000
 #define FW_MSG_CODE_RESOURCE_ALLOC_DEPRECATED   0x36000000
+#define FW_MSG_CODE_S_TAG_UPDATE_ACK_DONE	0x3b000000
 #define FW_MSG_CODE_DRV_CFG_VF_MSIX_DONE	0xb0010000
 
 #define FW_MSG_CODE_NVM_OK			0x00010000
@@ -11640,7 +11680,7 @@ struct public_drv_mb {
 
 #define FW_MSG_CODE_OS_WOL_SUPPORTED            0x00800000
 #define FW_MSG_CODE_OS_WOL_NOT_SUPPORTED        0x00810000
-
+#define FW_MSG_CODE_DRV_CFG_PF_VFS_MSIX_DONE	0x00870000
 #define FW_MSG_SEQ_NUMBER_MASK			0x0000ffff
 
 	u32 fw_mb_param;
@@ -11680,7 +11720,7 @@ enum MFW_DRV_MSG_TYPE {
 	MFW_DRV_MSG_DCBX_OPERATIONAL_MIB_UPDATED,
 	MFW_DRV_MSG_RESERVED4,
 	MFW_DRV_MSG_BW_UPDATE,
-	MFW_DRV_MSG_BW_UPDATE5,
+	MFW_DRV_MSG_S_TAG_UPDATE,
 	MFW_DRV_MSG_GET_LAN_STATS,
 	MFW_DRV_MSG_GET_FCOE_STATS,
 	MFW_DRV_MSG_GET_ISCSI_STATS,

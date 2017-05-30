@@ -5352,7 +5352,84 @@ enum dbg_status qed_dbg_fw_asserts_dump(struct qed_hwfn *p_hwfn,
 	return DBG_STATUS_OK;
 }
 
+enum dbg_status qed_dbg_read_attn(struct qed_hwfn *p_hwfn,
+				  struct qed_ptt *p_ptt,
+				  enum block_id block_id,
+				  enum dbg_attn_type attn_type,
+				  bool clear_status,
+				  struct dbg_attn_block_result *results)
+{
+	enum dbg_status status = qed_dbg_dev_init(p_hwfn, p_ptt);
+	u8 reg_idx, num_attn_regs, num_result_regs = 0;
+	const struct dbg_attn_reg *attn_reg_arr;
+
+	if (status != DBG_STATUS_OK)
+		return status;
+
+	if (!s_dbg_arrays[BIN_BUF_DBG_MODE_TREE].ptr ||
+	    !s_dbg_arrays[BIN_BUF_DBG_ATTN_BLOCKS].ptr ||
+	    !s_dbg_arrays[BIN_BUF_DBG_ATTN_REGS].ptr)
+		return DBG_STATUS_DBG_ARRAY_NOT_SET;
+
+	attn_reg_arr = qed_get_block_attn_regs(block_id,
+					       attn_type, &num_attn_regs);
+
+	for (reg_idx = 0; reg_idx < num_attn_regs; reg_idx++) {
+		const struct dbg_attn_reg *reg_data = &attn_reg_arr[reg_idx];
+		struct dbg_attn_reg_result *reg_result;
+		u32 sts_addr, sts_val;
+		u16 modes_buf_offset;
+		bool eval_mode;
+
+		/* Check mode */
+		eval_mode = GET_FIELD(reg_data->mode.data,
+				      DBG_MODE_HDR_EVAL_MODE) > 0;
+		modes_buf_offset = GET_FIELD(reg_data->mode.data,
+					     DBG_MODE_HDR_MODES_BUF_OFFSET);
+		if (eval_mode && !qed_is_mode_match(p_hwfn, &modes_buf_offset))
+			continue;
+
+		/* Mode match - read attention status register */
+		sts_addr = DWORDS_TO_BYTES(clear_status ?
+					   reg_data->sts_clr_address :
+					   GET_FIELD(reg_data->data,
+						     DBG_ATTN_REG_STS_ADDRESS));
+		sts_val = qed_rd(p_hwfn, p_ptt, sts_addr);
+		if (!sts_val)
+			continue;
+
+		/* Non-zero attention status - add to results */
+		reg_result = &results->reg_results[num_result_regs];
+		SET_FIELD(reg_result->data,
+			  DBG_ATTN_REG_RESULT_STS_ADDRESS, sts_addr);
+		SET_FIELD(reg_result->data,
+			  DBG_ATTN_REG_RESULT_NUM_REG_ATTN,
+			  GET_FIELD(reg_data->data, DBG_ATTN_REG_NUM_REG_ATTN));
+		reg_result->block_attn_offset = reg_data->block_attn_offset;
+		reg_result->sts_val = sts_val;
+		reg_result->mask_val = qed_rd(p_hwfn,
+					      p_ptt,
+					      DWORDS_TO_BYTES
+					      (reg_data->mask_address));
+		num_result_regs++;
+	}
+
+	results->block_id = (u8)block_id;
+	results->names_offset =
+	    qed_get_block_attn_data(block_id, attn_type)->names_offset;
+	SET_FIELD(results->data, DBG_ATTN_BLOCK_RESULT_ATTN_TYPE, attn_type);
+	SET_FIELD(results->data,
+		  DBG_ATTN_BLOCK_RESULT_NUM_REGS, num_result_regs);
+
+	return DBG_STATUS_OK;
+}
+
 /******************************* Data Types **********************************/
+
+struct block_info {
+	const char *name;
+	enum block_id id;
+};
 
 struct mcp_trace_format {
 	u32 data;
@@ -5533,6 +5610,97 @@ struct user_dbg_array {
 /* Debug arrays */
 static struct user_dbg_array
 s_user_dbg_arrays[MAX_BIN_DBG_BUFFER_TYPE] = { {NULL} };
+
+/* Block names array */
+static struct block_info s_block_info_arr[] = {
+	{"grc", BLOCK_GRC},
+	{"miscs", BLOCK_MISCS},
+	{"misc", BLOCK_MISC},
+	{"dbu", BLOCK_DBU},
+	{"pglue_b", BLOCK_PGLUE_B},
+	{"cnig", BLOCK_CNIG},
+	{"cpmu", BLOCK_CPMU},
+	{"ncsi", BLOCK_NCSI},
+	{"opte", BLOCK_OPTE},
+	{"bmb", BLOCK_BMB},
+	{"pcie", BLOCK_PCIE},
+	{"mcp", BLOCK_MCP},
+	{"mcp2", BLOCK_MCP2},
+	{"pswhst", BLOCK_PSWHST},
+	{"pswhst2", BLOCK_PSWHST2},
+	{"pswrd", BLOCK_PSWRD},
+	{"pswrd2", BLOCK_PSWRD2},
+	{"pswwr", BLOCK_PSWWR},
+	{"pswwr2", BLOCK_PSWWR2},
+	{"pswrq", BLOCK_PSWRQ},
+	{"pswrq2", BLOCK_PSWRQ2},
+	{"pglcs", BLOCK_PGLCS},
+	{"ptu", BLOCK_PTU},
+	{"dmae", BLOCK_DMAE},
+	{"tcm", BLOCK_TCM},
+	{"mcm", BLOCK_MCM},
+	{"ucm", BLOCK_UCM},
+	{"xcm", BLOCK_XCM},
+	{"ycm", BLOCK_YCM},
+	{"pcm", BLOCK_PCM},
+	{"qm", BLOCK_QM},
+	{"tm", BLOCK_TM},
+	{"dorq", BLOCK_DORQ},
+	{"brb", BLOCK_BRB},
+	{"src", BLOCK_SRC},
+	{"prs", BLOCK_PRS},
+	{"tsdm", BLOCK_TSDM},
+	{"msdm", BLOCK_MSDM},
+	{"usdm", BLOCK_USDM},
+	{"xsdm", BLOCK_XSDM},
+	{"ysdm", BLOCK_YSDM},
+	{"psdm", BLOCK_PSDM},
+	{"tsem", BLOCK_TSEM},
+	{"msem", BLOCK_MSEM},
+	{"usem", BLOCK_USEM},
+	{"xsem", BLOCK_XSEM},
+	{"ysem", BLOCK_YSEM},
+	{"psem", BLOCK_PSEM},
+	{"rss", BLOCK_RSS},
+	{"tmld", BLOCK_TMLD},
+	{"muld", BLOCK_MULD},
+	{"yuld", BLOCK_YULD},
+	{"xyld", BLOCK_XYLD},
+	{"ptld", BLOCK_PTLD},
+	{"ypld", BLOCK_YPLD},
+	{"prm", BLOCK_PRM},
+	{"pbf_pb1", BLOCK_PBF_PB1},
+	{"pbf_pb2", BLOCK_PBF_PB2},
+	{"rpb", BLOCK_RPB},
+	{"btb", BLOCK_BTB},
+	{"pbf", BLOCK_PBF},
+	{"rdif", BLOCK_RDIF},
+	{"tdif", BLOCK_TDIF},
+	{"cdu", BLOCK_CDU},
+	{"ccfc", BLOCK_CCFC},
+	{"tcfc", BLOCK_TCFC},
+	{"igu", BLOCK_IGU},
+	{"cau", BLOCK_CAU},
+	{"rgfs", BLOCK_RGFS},
+	{"rgsrc", BLOCK_RGSRC},
+	{"tgfs", BLOCK_TGFS},
+	{"tgsrc", BLOCK_TGSRC},
+	{"umac", BLOCK_UMAC},
+	{"xmac", BLOCK_XMAC},
+	{"dbg", BLOCK_DBG},
+	{"nig", BLOCK_NIG},
+	{"wol", BLOCK_WOL},
+	{"bmbn", BLOCK_BMBN},
+	{"ipc", BLOCK_IPC},
+	{"nwm", BLOCK_NWM},
+	{"nws", BLOCK_NWS},
+	{"ms", BLOCK_MS},
+	{"phy_pcie", BLOCK_PHY_PCIE},
+	{"led", BLOCK_LED},
+	{"avs_wrap", BLOCK_AVS_WRAP},
+	{"misc_aeu", BLOCK_MISC_AEU},
+	{"bar0_map", BLOCK_BAR0_MAP}
+};
 
 /* Status string array */
 static const char * const s_status_str[] = {
@@ -7191,6 +7359,88 @@ enum dbg_status qed_print_fw_asserts_results(struct qed_hwfn *p_hwfn,
 					 dump_buf,
 					 num_dumped_dwords,
 					 results_buf, &parsed_buf_size);
+}
+
+enum dbg_status qed_dbg_parse_attn(struct qed_hwfn *p_hwfn,
+				   struct dbg_attn_block_result *results)
+{
+	struct user_dbg_array *block_attn, *pstrings;
+	const u32 *block_attn_name_offsets;
+	enum dbg_attn_type attn_type;
+	const char *block_name;
+	u8 num_regs, i, j;
+
+	num_regs = GET_FIELD(results->data, DBG_ATTN_BLOCK_RESULT_NUM_REGS);
+	attn_type = (enum dbg_attn_type)
+		    GET_FIELD(results->data,
+			      DBG_ATTN_BLOCK_RESULT_ATTN_TYPE);
+	block_name = s_block_info_arr[results->block_id].name;
+
+	if (!s_user_dbg_arrays[BIN_BUF_DBG_ATTN_INDEXES].ptr ||
+	    !s_user_dbg_arrays[BIN_BUF_DBG_ATTN_NAME_OFFSETS].ptr ||
+	    !s_user_dbg_arrays[BIN_BUF_DBG_PARSING_STRINGS].ptr)
+		return DBG_STATUS_DBG_ARRAY_NOT_SET;
+
+	block_attn = &s_user_dbg_arrays[BIN_BUF_DBG_ATTN_NAME_OFFSETS];
+	block_attn_name_offsets = &block_attn->ptr[results->names_offset];
+
+	/* Go over registers with a non-zero attention status */
+	for (i = 0; i < num_regs; i++) {
+		struct dbg_attn_reg_result *reg_result;
+		struct dbg_attn_bit_mapping *mapping;
+		u8 num_reg_attn, bit_idx = 0;
+
+		reg_result = &results->reg_results[i];
+		num_reg_attn = GET_FIELD(reg_result->data,
+					 DBG_ATTN_REG_RESULT_NUM_REG_ATTN);
+		block_attn = &s_user_dbg_arrays[BIN_BUF_DBG_ATTN_INDEXES];
+		mapping = &((struct dbg_attn_bit_mapping *)
+			    block_attn->ptr)[reg_result->block_attn_offset];
+
+		pstrings = &s_user_dbg_arrays[BIN_BUF_DBG_PARSING_STRINGS];
+
+		/* Go over attention status bits */
+		for (j = 0; j < num_reg_attn; j++) {
+			u16 attn_idx_val = GET_FIELD(mapping[j].data,
+						     DBG_ATTN_BIT_MAPPING_VAL);
+			const char *attn_name, *attn_type_str, *masked_str;
+			u32 name_offset, sts_addr;
+
+			/* Check if bit mask should be advanced (due to unused
+			 * bits).
+			 */
+			if (GET_FIELD(mapping[j].data,
+				      DBG_ATTN_BIT_MAPPING_IS_UNUSED_BIT_CNT)) {
+				bit_idx += (u8)attn_idx_val;
+				continue;
+			}
+
+			/* Check current bit index */
+			if (!(reg_result->sts_val & BIT(bit_idx))) {
+				bit_idx++;
+				continue;
+			}
+
+			/* Find attention name */
+			name_offset = block_attn_name_offsets[attn_idx_val];
+			attn_name = &((const char *)
+				      pstrings->ptr)[name_offset];
+			attn_type_str = attn_type == ATTN_TYPE_INTERRUPT ?
+					"Interrupt" : "Parity";
+			masked_str = reg_result->mask_val & BIT(bit_idx) ?
+				     " [masked]" : "";
+			sts_addr = GET_FIELD(reg_result->data,
+					     DBG_ATTN_REG_RESULT_STS_ADDRESS);
+			DP_NOTICE(p_hwfn,
+				  "%s (%s) : %s [address 0x%08x, bit %d]%s\n",
+				  block_name, attn_type_str, attn_name,
+				  sts_addr, bit_idx, masked_str);
+
+			bit_idx++;
+		}
+	}
+
+	return DBG_STATUS_OK;
 }
 
 /* Wrapper for unifying the idle_chk and mcp_trace api */

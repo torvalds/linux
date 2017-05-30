@@ -90,6 +90,12 @@ struct aeu_invert_reg_bit {
 /* Multiple bits start with this offset */
 #define ATTENTION_OFFSET_MASK           (0x000ff000)
 #define ATTENTION_OFFSET_SHIFT          (12)
+
+#define ATTENTION_BB_MASK               (0x00700000)
+#define ATTENTION_BB_SHIFT              (20)
+#define ATTENTION_BB(value)             (value << ATTENTION_BB_SHIFT)
+#define ATTENTION_BB_DIFFERENT          BIT(23)
+
 	unsigned int flags;
 
 	/* Callback to call if attention will be triggered */
@@ -104,1215 +110,6 @@ struct aeu_invert_reg {
 
 #define MAX_ATTN_GRPS           (8)
 #define NUM_ATTN_REGS           (9)
-
-/* HW Attention register */
-struct attn_hw_reg {
-	u16 reg_idx;             /* Index of this register in its block */
-	u16 num_of_bits;         /* number of valid attention bits */
-	u32 sts_addr;            /* Address of the STS register */
-	u32 sts_clr_addr;        /* Address of the STS_CLR register */
-	u32 sts_wr_addr;         /* Address of the STS_WR register */
-	u32 mask_addr;           /* Address of the MASK register */
-};
-
-/* HW block attention registers */
-struct attn_hw_regs {
-	u16 num_of_int_regs;            /* Number of interrupt regs */
-	u16 num_of_prty_regs;           /* Number of parity regs */
-	struct attn_hw_reg **int_regs;  /* interrupt regs */
-	struct attn_hw_reg **prty_regs; /* parity regs */
-};
-
-/* HW block attention registers */
-struct attn_hw_block {
-	const char *name;                 /* Block name */
-	struct attn_hw_regs chip_regs[1];
-};
-
-static struct attn_hw_reg grc_int0_bb_b0 = {
-	0, 4, 0x50180, 0x5018c, 0x50188, 0x50184};
-
-static struct attn_hw_reg *grc_int_bb_b0_regs[1] = {
-	&grc_int0_bb_b0};
-
-static struct attn_hw_reg grc_prty1_bb_b0 = {
-	0, 2, 0x50200, 0x5020c, 0x50208, 0x50204};
-
-static struct attn_hw_reg *grc_prty_bb_b0_regs[1] = {
-	&grc_prty1_bb_b0};
-
-static struct attn_hw_reg miscs_int0_bb_b0 = {
-	0, 3, 0x9180, 0x918c, 0x9188, 0x9184};
-
-static struct attn_hw_reg miscs_int1_bb_b0 = {
-	1, 11, 0x9190, 0x919c, 0x9198, 0x9194};
-
-static struct attn_hw_reg *miscs_int_bb_b0_regs[2] = {
-	&miscs_int0_bb_b0, &miscs_int1_bb_b0};
-
-static struct attn_hw_reg miscs_prty0_bb_b0 = {
-	0, 1, 0x91a0, 0x91ac, 0x91a8, 0x91a4};
-
-static struct attn_hw_reg *miscs_prty_bb_b0_regs[1] = {
-	&miscs_prty0_bb_b0};
-
-static struct attn_hw_reg misc_int0_bb_b0 = {
-	0, 1, 0x8180, 0x818c, 0x8188, 0x8184};
-
-static struct attn_hw_reg *misc_int_bb_b0_regs[1] = {
-	&misc_int0_bb_b0};
-
-static struct attn_hw_reg pglue_b_int0_bb_b0 = {
-	0, 23, 0x2a8180, 0x2a818c, 0x2a8188, 0x2a8184};
-
-static struct attn_hw_reg *pglue_b_int_bb_b0_regs[1] = {
-	&pglue_b_int0_bb_b0};
-
-static struct attn_hw_reg pglue_b_prty0_bb_b0 = {
-	0, 1, 0x2a8190, 0x2a819c, 0x2a8198, 0x2a8194};
-
-static struct attn_hw_reg pglue_b_prty1_bb_b0 = {
-	1, 22, 0x2a8200, 0x2a820c, 0x2a8208, 0x2a8204};
-
-static struct attn_hw_reg *pglue_b_prty_bb_b0_regs[2] = {
-	&pglue_b_prty0_bb_b0, &pglue_b_prty1_bb_b0};
-
-static struct attn_hw_reg cnig_int0_bb_b0 = {
-	0, 6, 0x2182e8, 0x2182f4, 0x2182f0, 0x2182ec};
-
-static struct attn_hw_reg *cnig_int_bb_b0_regs[1] = {
-	&cnig_int0_bb_b0};
-
-static struct attn_hw_reg cnig_prty0_bb_b0 = {
-	0, 2, 0x218348, 0x218354, 0x218350, 0x21834c};
-
-static struct attn_hw_reg *cnig_prty_bb_b0_regs[1] = {
-	&cnig_prty0_bb_b0};
-
-static struct attn_hw_reg cpmu_int0_bb_b0 = {
-	0, 1, 0x303e0, 0x303ec, 0x303e8, 0x303e4};
-
-static struct attn_hw_reg *cpmu_int_bb_b0_regs[1] = {
-	&cpmu_int0_bb_b0};
-
-static struct attn_hw_reg ncsi_int0_bb_b0 = {
-	0, 1, 0x404cc, 0x404d8, 0x404d4, 0x404d0};
-
-static struct attn_hw_reg *ncsi_int_bb_b0_regs[1] = {
-	&ncsi_int0_bb_b0};
-
-static struct attn_hw_reg ncsi_prty1_bb_b0 = {
-	0, 1, 0x40000, 0x4000c, 0x40008, 0x40004};
-
-static struct attn_hw_reg *ncsi_prty_bb_b0_regs[1] = {
-	&ncsi_prty1_bb_b0};
-
-static struct attn_hw_reg opte_prty1_bb_b0 = {
-	0, 11, 0x53000, 0x5300c, 0x53008, 0x53004};
-
-static struct attn_hw_reg opte_prty0_bb_b0 = {
-	1, 1, 0x53208, 0x53214, 0x53210, 0x5320c};
-
-static struct attn_hw_reg *opte_prty_bb_b0_regs[2] = {
-	&opte_prty1_bb_b0, &opte_prty0_bb_b0};
-
-static struct attn_hw_reg bmb_int0_bb_b0 = {
-	0, 16, 0x5400c0, 0x5400cc, 0x5400c8, 0x5400c4};
-
-static struct attn_hw_reg bmb_int1_bb_b0 = {
-	1, 28, 0x5400d8, 0x5400e4, 0x5400e0, 0x5400dc};
-
-static struct attn_hw_reg bmb_int2_bb_b0 = {
-	2, 26, 0x5400f0, 0x5400fc, 0x5400f8, 0x5400f4};
-
-static struct attn_hw_reg bmb_int3_bb_b0 = {
-	3, 31, 0x540108, 0x540114, 0x540110, 0x54010c};
-
-static struct attn_hw_reg bmb_int4_bb_b0 = {
-	4, 27, 0x540120, 0x54012c, 0x540128, 0x540124};
-
-static struct attn_hw_reg bmb_int5_bb_b0 = {
-	5, 29, 0x540138, 0x540144, 0x540140, 0x54013c};
-
-static struct attn_hw_reg bmb_int6_bb_b0 = {
-	6, 30, 0x540150, 0x54015c, 0x540158, 0x540154};
-
-static struct attn_hw_reg bmb_int7_bb_b0 = {
-	7, 32, 0x540168, 0x540174, 0x540170, 0x54016c};
-
-static struct attn_hw_reg bmb_int8_bb_b0 = {
-	8, 32, 0x540184, 0x540190, 0x54018c, 0x540188};
-
-static struct attn_hw_reg bmb_int9_bb_b0 = {
-	9, 32, 0x54019c, 0x5401a8, 0x5401a4, 0x5401a0};
-
-static struct attn_hw_reg bmb_int10_bb_b0 = {
-	10, 3, 0x5401b4, 0x5401c0, 0x5401bc, 0x5401b8};
-
-static struct attn_hw_reg bmb_int11_bb_b0 = {
-	11, 4, 0x5401cc, 0x5401d8, 0x5401d4, 0x5401d0};
-
-static struct attn_hw_reg *bmb_int_bb_b0_regs[12] = {
-	&bmb_int0_bb_b0, &bmb_int1_bb_b0, &bmb_int2_bb_b0, &bmb_int3_bb_b0,
-	&bmb_int4_bb_b0, &bmb_int5_bb_b0, &bmb_int6_bb_b0, &bmb_int7_bb_b0,
-	&bmb_int8_bb_b0, &bmb_int9_bb_b0, &bmb_int10_bb_b0, &bmb_int11_bb_b0};
-
-static struct attn_hw_reg bmb_prty0_bb_b0 = {
-	0, 5, 0x5401dc, 0x5401e8, 0x5401e4, 0x5401e0};
-
-static struct attn_hw_reg bmb_prty1_bb_b0 = {
-	1, 31, 0x540400, 0x54040c, 0x540408, 0x540404};
-
-static struct attn_hw_reg bmb_prty2_bb_b0 = {
-	2, 15, 0x540410, 0x54041c, 0x540418, 0x540414};
-
-static struct attn_hw_reg *bmb_prty_bb_b0_regs[3] = {
-	&bmb_prty0_bb_b0, &bmb_prty1_bb_b0, &bmb_prty2_bb_b0};
-
-static struct attn_hw_reg pcie_prty1_bb_b0 = {
-	0, 17, 0x54000, 0x5400c, 0x54008, 0x54004};
-
-static struct attn_hw_reg *pcie_prty_bb_b0_regs[1] = {
-	&pcie_prty1_bb_b0};
-
-static struct attn_hw_reg mcp2_prty0_bb_b0 = {
-	0, 1, 0x52040, 0x5204c, 0x52048, 0x52044};
-
-static struct attn_hw_reg mcp2_prty1_bb_b0 = {
-	1, 12, 0x52204, 0x52210, 0x5220c, 0x52208};
-
-static struct attn_hw_reg *mcp2_prty_bb_b0_regs[2] = {
-	&mcp2_prty0_bb_b0, &mcp2_prty1_bb_b0};
-
-static struct attn_hw_reg pswhst_int0_bb_b0 = {
-	0, 18, 0x2a0180, 0x2a018c, 0x2a0188, 0x2a0184};
-
-static struct attn_hw_reg *pswhst_int_bb_b0_regs[1] = {
-	&pswhst_int0_bb_b0};
-
-static struct attn_hw_reg pswhst_prty0_bb_b0 = {
-	0, 1, 0x2a0190, 0x2a019c, 0x2a0198, 0x2a0194};
-
-static struct attn_hw_reg pswhst_prty1_bb_b0 = {
-	1, 17, 0x2a0200, 0x2a020c, 0x2a0208, 0x2a0204};
-
-static struct attn_hw_reg *pswhst_prty_bb_b0_regs[2] = {
-	&pswhst_prty0_bb_b0, &pswhst_prty1_bb_b0};
-
-static struct attn_hw_reg pswhst2_int0_bb_b0 = {
-	0, 5, 0x29e180, 0x29e18c, 0x29e188, 0x29e184};
-
-static struct attn_hw_reg *pswhst2_int_bb_b0_regs[1] = {
-	&pswhst2_int0_bb_b0};
-
-static struct attn_hw_reg pswhst2_prty0_bb_b0 = {
-	0, 1, 0x29e190, 0x29e19c, 0x29e198, 0x29e194};
-
-static struct attn_hw_reg *pswhst2_prty_bb_b0_regs[1] = {
-	&pswhst2_prty0_bb_b0};
-
-static struct attn_hw_reg pswrd_int0_bb_b0 = {
-	0, 3, 0x29c180, 0x29c18c, 0x29c188, 0x29c184};
-
-static struct attn_hw_reg *pswrd_int_bb_b0_regs[1] = {
-	&pswrd_int0_bb_b0};
-
-static struct attn_hw_reg pswrd_prty0_bb_b0 = {
-	0, 1, 0x29c190, 0x29c19c, 0x29c198, 0x29c194};
-
-static struct attn_hw_reg *pswrd_prty_bb_b0_regs[1] = {
-	&pswrd_prty0_bb_b0};
-
-static struct attn_hw_reg pswrd2_int0_bb_b0 = {
-	0, 5, 0x29d180, 0x29d18c, 0x29d188, 0x29d184};
-
-static struct attn_hw_reg *pswrd2_int_bb_b0_regs[1] = {
-	&pswrd2_int0_bb_b0};
-
-static struct attn_hw_reg pswrd2_prty0_bb_b0 = {
-	0, 1, 0x29d190, 0x29d19c, 0x29d198, 0x29d194};
-
-static struct attn_hw_reg pswrd2_prty1_bb_b0 = {
-	1, 31, 0x29d200, 0x29d20c, 0x29d208, 0x29d204};
-
-static struct attn_hw_reg pswrd2_prty2_bb_b0 = {
-	2, 3, 0x29d210, 0x29d21c, 0x29d218, 0x29d214};
-
-static struct attn_hw_reg *pswrd2_prty_bb_b0_regs[3] = {
-	&pswrd2_prty0_bb_b0, &pswrd2_prty1_bb_b0, &pswrd2_prty2_bb_b0};
-
-static struct attn_hw_reg pswwr_int0_bb_b0 = {
-	0, 16, 0x29a180, 0x29a18c, 0x29a188, 0x29a184};
-
-static struct attn_hw_reg *pswwr_int_bb_b0_regs[1] = {
-	&pswwr_int0_bb_b0};
-
-static struct attn_hw_reg pswwr_prty0_bb_b0 = {
-	0, 1, 0x29a190, 0x29a19c, 0x29a198, 0x29a194};
-
-static struct attn_hw_reg *pswwr_prty_bb_b0_regs[1] = {
-	&pswwr_prty0_bb_b0};
-
-static struct attn_hw_reg pswwr2_int0_bb_b0 = {
-	0, 19, 0x29b180, 0x29b18c, 0x29b188, 0x29b184};
-
-static struct attn_hw_reg *pswwr2_int_bb_b0_regs[1] = {
-	&pswwr2_int0_bb_b0};
-
-static struct attn_hw_reg pswwr2_prty0_bb_b0 = {
-	0, 1, 0x29b190, 0x29b19c, 0x29b198, 0x29b194};
-
-static struct attn_hw_reg pswwr2_prty1_bb_b0 = {
-	1, 31, 0x29b200, 0x29b20c, 0x29b208, 0x29b204};
-
-static struct attn_hw_reg pswwr2_prty2_bb_b0 = {
-	2, 31, 0x29b210, 0x29b21c, 0x29b218, 0x29b214};
-
-static struct attn_hw_reg pswwr2_prty3_bb_b0 = {
-	3, 31, 0x29b220, 0x29b22c, 0x29b228, 0x29b224};
-
-static struct attn_hw_reg pswwr2_prty4_bb_b0 = {
-	4, 20, 0x29b230, 0x29b23c, 0x29b238, 0x29b234};
-
-static struct attn_hw_reg *pswwr2_prty_bb_b0_regs[5] = {
-	&pswwr2_prty0_bb_b0, &pswwr2_prty1_bb_b0, &pswwr2_prty2_bb_b0,
-	&pswwr2_prty3_bb_b0, &pswwr2_prty4_bb_b0};
-
-static struct attn_hw_reg pswrq_int0_bb_b0 = {
-	0, 21, 0x280180, 0x28018c, 0x280188, 0x280184};
-
-static struct attn_hw_reg *pswrq_int_bb_b0_regs[1] = {
-	&pswrq_int0_bb_b0};
-
-static struct attn_hw_reg pswrq_prty0_bb_b0 = {
-	0, 1, 0x280190, 0x28019c, 0x280198, 0x280194};
-
-static struct attn_hw_reg *pswrq_prty_bb_b0_regs[1] = {
-	&pswrq_prty0_bb_b0};
-
-static struct attn_hw_reg pswrq2_int0_bb_b0 = {
-	0, 15, 0x240180, 0x24018c, 0x240188, 0x240184};
-
-static struct attn_hw_reg *pswrq2_int_bb_b0_regs[1] = {
-	&pswrq2_int0_bb_b0};
-
-static struct attn_hw_reg pswrq2_prty1_bb_b0 = {
-	0, 9, 0x240200, 0x24020c, 0x240208, 0x240204};
-
-static struct attn_hw_reg *pswrq2_prty_bb_b0_regs[1] = {
-	&pswrq2_prty1_bb_b0};
-
-static struct attn_hw_reg pglcs_int0_bb_b0 = {
-	0, 1, 0x1d00, 0x1d0c, 0x1d08, 0x1d04};
-
-static struct attn_hw_reg *pglcs_int_bb_b0_regs[1] = {
-	&pglcs_int0_bb_b0};
-
-static struct attn_hw_reg dmae_int0_bb_b0 = {
-	0, 2, 0xc180, 0xc18c, 0xc188, 0xc184};
-
-static struct attn_hw_reg *dmae_int_bb_b0_regs[1] = {
-	&dmae_int0_bb_b0};
-
-static struct attn_hw_reg dmae_prty1_bb_b0 = {
-	0, 3, 0xc200, 0xc20c, 0xc208, 0xc204};
-
-static struct attn_hw_reg *dmae_prty_bb_b0_regs[1] = {
-	&dmae_prty1_bb_b0};
-
-static struct attn_hw_reg ptu_int0_bb_b0 = {
-	0, 8, 0x560180, 0x56018c, 0x560188, 0x560184};
-
-static struct attn_hw_reg *ptu_int_bb_b0_regs[1] = {
-	&ptu_int0_bb_b0};
-
-static struct attn_hw_reg ptu_prty1_bb_b0 = {
-	0, 18, 0x560200, 0x56020c, 0x560208, 0x560204};
-
-static struct attn_hw_reg *ptu_prty_bb_b0_regs[1] = {
-	&ptu_prty1_bb_b0};
-
-static struct attn_hw_reg tcm_int0_bb_b0 = {
-	0, 8, 0x1180180, 0x118018c, 0x1180188, 0x1180184};
-
-static struct attn_hw_reg tcm_int1_bb_b0 = {
-	1, 32, 0x1180190, 0x118019c, 0x1180198, 0x1180194};
-
-static struct attn_hw_reg tcm_int2_bb_b0 = {
-	2, 1, 0x11801a0, 0x11801ac, 0x11801a8, 0x11801a4};
-
-static struct attn_hw_reg *tcm_int_bb_b0_regs[3] = {
-	&tcm_int0_bb_b0, &tcm_int1_bb_b0, &tcm_int2_bb_b0};
-
-static struct attn_hw_reg tcm_prty1_bb_b0 = {
-	0, 31, 0x1180200, 0x118020c, 0x1180208, 0x1180204};
-
-static struct attn_hw_reg tcm_prty2_bb_b0 = {
-	1, 2, 0x1180210, 0x118021c, 0x1180218, 0x1180214};
-
-static struct attn_hw_reg *tcm_prty_bb_b0_regs[2] = {
-	&tcm_prty1_bb_b0, &tcm_prty2_bb_b0};
-
-static struct attn_hw_reg mcm_int0_bb_b0 = {
-	0, 14, 0x1200180, 0x120018c, 0x1200188, 0x1200184};
-
-static struct attn_hw_reg mcm_int1_bb_b0 = {
-	1, 26, 0x1200190, 0x120019c, 0x1200198, 0x1200194};
-
-static struct attn_hw_reg mcm_int2_bb_b0 = {
-	2, 1, 0x12001a0, 0x12001ac, 0x12001a8, 0x12001a4};
-
-static struct attn_hw_reg *mcm_int_bb_b0_regs[3] = {
-	&mcm_int0_bb_b0, &mcm_int1_bb_b0, &mcm_int2_bb_b0};
-
-static struct attn_hw_reg mcm_prty1_bb_b0 = {
-	0, 31, 0x1200200, 0x120020c, 0x1200208, 0x1200204};
-
-static struct attn_hw_reg mcm_prty2_bb_b0 = {
-	1, 4, 0x1200210, 0x120021c, 0x1200218, 0x1200214};
-
-static struct attn_hw_reg *mcm_prty_bb_b0_regs[2] = {
-	&mcm_prty1_bb_b0, &mcm_prty2_bb_b0};
-
-static struct attn_hw_reg ucm_int0_bb_b0 = {
-	0, 17, 0x1280180, 0x128018c, 0x1280188, 0x1280184};
-
-static struct attn_hw_reg ucm_int1_bb_b0 = {
-	1, 29, 0x1280190, 0x128019c, 0x1280198, 0x1280194};
-
-static struct attn_hw_reg ucm_int2_bb_b0 = {
-	2, 1, 0x12801a0, 0x12801ac, 0x12801a8, 0x12801a4};
-
-static struct attn_hw_reg *ucm_int_bb_b0_regs[3] = {
-	&ucm_int0_bb_b0, &ucm_int1_bb_b0, &ucm_int2_bb_b0};
-
-static struct attn_hw_reg ucm_prty1_bb_b0 = {
-	0, 31, 0x1280200, 0x128020c, 0x1280208, 0x1280204};
-
-static struct attn_hw_reg ucm_prty2_bb_b0 = {
-	1, 7, 0x1280210, 0x128021c, 0x1280218, 0x1280214};
-
-static struct attn_hw_reg *ucm_prty_bb_b0_regs[2] = {
-	&ucm_prty1_bb_b0, &ucm_prty2_bb_b0};
-
-static struct attn_hw_reg xcm_int0_bb_b0 = {
-	0, 16, 0x1000180, 0x100018c, 0x1000188, 0x1000184};
-
-static struct attn_hw_reg xcm_int1_bb_b0 = {
-	1, 25, 0x1000190, 0x100019c, 0x1000198, 0x1000194};
-
-static struct attn_hw_reg xcm_int2_bb_b0 = {
-	2, 8, 0x10001a0, 0x10001ac, 0x10001a8, 0x10001a4};
-
-static struct attn_hw_reg *xcm_int_bb_b0_regs[3] = {
-	&xcm_int0_bb_b0, &xcm_int1_bb_b0, &xcm_int2_bb_b0};
-
-static struct attn_hw_reg xcm_prty1_bb_b0 = {
-	0, 31, 0x1000200, 0x100020c, 0x1000208, 0x1000204};
-
-static struct attn_hw_reg xcm_prty2_bb_b0 = {
-	1, 11, 0x1000210, 0x100021c, 0x1000218, 0x1000214};
-
-static struct attn_hw_reg *xcm_prty_bb_b0_regs[2] = {
-	&xcm_prty1_bb_b0, &xcm_prty2_bb_b0};
-
-static struct attn_hw_reg ycm_int0_bb_b0 = {
-	0, 13, 0x1080180, 0x108018c, 0x1080188, 0x1080184};
-
-static struct attn_hw_reg ycm_int1_bb_b0 = {
-	1, 23, 0x1080190, 0x108019c, 0x1080198, 0x1080194};
-
-static struct attn_hw_reg ycm_int2_bb_b0 = {
-	2, 1, 0x10801a0, 0x10801ac, 0x10801a8, 0x10801a4};
-
-static struct attn_hw_reg *ycm_int_bb_b0_regs[3] = {
-	&ycm_int0_bb_b0, &ycm_int1_bb_b0, &ycm_int2_bb_b0};
-
-static struct attn_hw_reg ycm_prty1_bb_b0 = {
-	0, 31, 0x1080200, 0x108020c, 0x1080208, 0x1080204};
-
-static struct attn_hw_reg ycm_prty2_bb_b0 = {
-	1, 3, 0x1080210, 0x108021c, 0x1080218, 0x1080214};
-
-static struct attn_hw_reg *ycm_prty_bb_b0_regs[2] = {
-	&ycm_prty1_bb_b0, &ycm_prty2_bb_b0};
-
-static struct attn_hw_reg pcm_int0_bb_b0 = {
-	0, 5, 0x1100180, 0x110018c, 0x1100188, 0x1100184};
-
-static struct attn_hw_reg pcm_int1_bb_b0 = {
-	1, 14, 0x1100190, 0x110019c, 0x1100198, 0x1100194};
-
-static struct attn_hw_reg pcm_int2_bb_b0 = {
-	2, 1, 0x11001a0, 0x11001ac, 0x11001a8, 0x11001a4};
-
-static struct attn_hw_reg *pcm_int_bb_b0_regs[3] = {
-	&pcm_int0_bb_b0, &pcm_int1_bb_b0, &pcm_int2_bb_b0};
-
-static struct attn_hw_reg pcm_prty1_bb_b0 = {
-	0, 11, 0x1100200, 0x110020c, 0x1100208, 0x1100204};
-
-static struct attn_hw_reg *pcm_prty_bb_b0_regs[1] = {
-	&pcm_prty1_bb_b0};
-
-static struct attn_hw_reg qm_int0_bb_b0 = {
-	0, 22, 0x2f0180, 0x2f018c, 0x2f0188, 0x2f0184};
-
-static struct attn_hw_reg *qm_int_bb_b0_regs[1] = {
-	&qm_int0_bb_b0};
-
-static struct attn_hw_reg qm_prty0_bb_b0 = {
-	0, 11, 0x2f0190, 0x2f019c, 0x2f0198, 0x2f0194};
-
-static struct attn_hw_reg qm_prty1_bb_b0 = {
-	1, 31, 0x2f0200, 0x2f020c, 0x2f0208, 0x2f0204};
-
-static struct attn_hw_reg qm_prty2_bb_b0 = {
-	2, 31, 0x2f0210, 0x2f021c, 0x2f0218, 0x2f0214};
-
-static struct attn_hw_reg qm_prty3_bb_b0 = {
-	3, 11, 0x2f0220, 0x2f022c, 0x2f0228, 0x2f0224};
-
-static struct attn_hw_reg *qm_prty_bb_b0_regs[4] = {
-	&qm_prty0_bb_b0, &qm_prty1_bb_b0, &qm_prty2_bb_b0, &qm_prty3_bb_b0};
-
-static struct attn_hw_reg tm_int0_bb_b0 = {
-	0, 32, 0x2c0180, 0x2c018c, 0x2c0188, 0x2c0184};
-
-static struct attn_hw_reg tm_int1_bb_b0 = {
-	1, 11, 0x2c0190, 0x2c019c, 0x2c0198, 0x2c0194};
-
-static struct attn_hw_reg *tm_int_bb_b0_regs[2] = {
-	&tm_int0_bb_b0, &tm_int1_bb_b0};
-
-static struct attn_hw_reg tm_prty1_bb_b0 = {
-	0, 17, 0x2c0200, 0x2c020c, 0x2c0208, 0x2c0204};
-
-static struct attn_hw_reg *tm_prty_bb_b0_regs[1] = {
-	&tm_prty1_bb_b0};
-
-static struct attn_hw_reg dorq_int0_bb_b0 = {
-	0, 9, 0x100180, 0x10018c, 0x100188, 0x100184};
-
-static struct attn_hw_reg *dorq_int_bb_b0_regs[1] = {
-	&dorq_int0_bb_b0};
-
-static struct attn_hw_reg dorq_prty0_bb_b0 = {
-	0, 1, 0x100190, 0x10019c, 0x100198, 0x100194};
-
-static struct attn_hw_reg dorq_prty1_bb_b0 = {
-	1, 6, 0x100200, 0x10020c, 0x100208, 0x100204};
-
-static struct attn_hw_reg *dorq_prty_bb_b0_regs[2] = {
-	&dorq_prty0_bb_b0, &dorq_prty1_bb_b0};
-
-static struct attn_hw_reg brb_int0_bb_b0 = {
-	0, 32, 0x3400c0, 0x3400cc, 0x3400c8, 0x3400c4};
-
-static struct attn_hw_reg brb_int1_bb_b0 = {
-	1, 30, 0x3400d8, 0x3400e4, 0x3400e0, 0x3400dc};
-
-static struct attn_hw_reg brb_int2_bb_b0 = {
-	2, 28, 0x3400f0, 0x3400fc, 0x3400f8, 0x3400f4};
-
-static struct attn_hw_reg brb_int3_bb_b0 = {
-	3, 31, 0x340108, 0x340114, 0x340110, 0x34010c};
-
-static struct attn_hw_reg brb_int4_bb_b0 = {
-	4, 27, 0x340120, 0x34012c, 0x340128, 0x340124};
-
-static struct attn_hw_reg brb_int5_bb_b0 = {
-	5, 1, 0x340138, 0x340144, 0x340140, 0x34013c};
-
-static struct attn_hw_reg brb_int6_bb_b0 = {
-	6, 8, 0x340150, 0x34015c, 0x340158, 0x340154};
-
-static struct attn_hw_reg brb_int7_bb_b0 = {
-	7, 32, 0x340168, 0x340174, 0x340170, 0x34016c};
-
-static struct attn_hw_reg brb_int8_bb_b0 = {
-	8, 17, 0x340184, 0x340190, 0x34018c, 0x340188};
-
-static struct attn_hw_reg brb_int9_bb_b0 = {
-	9, 1, 0x34019c, 0x3401a8, 0x3401a4, 0x3401a0};
-
-static struct attn_hw_reg brb_int10_bb_b0 = {
-	10, 14, 0x3401b4, 0x3401c0, 0x3401bc, 0x3401b8};
-
-static struct attn_hw_reg brb_int11_bb_b0 = {
-	11, 8, 0x3401cc, 0x3401d8, 0x3401d4, 0x3401d0};
-
-static struct attn_hw_reg *brb_int_bb_b0_regs[12] = {
-	&brb_int0_bb_b0, &brb_int1_bb_b0, &brb_int2_bb_b0, &brb_int3_bb_b0,
-	&brb_int4_bb_b0, &brb_int5_bb_b0, &brb_int6_bb_b0, &brb_int7_bb_b0,
-	&brb_int8_bb_b0, &brb_int9_bb_b0, &brb_int10_bb_b0, &brb_int11_bb_b0};
-
-static struct attn_hw_reg brb_prty0_bb_b0 = {
-	0, 5, 0x3401dc, 0x3401e8, 0x3401e4, 0x3401e0};
-
-static struct attn_hw_reg brb_prty1_bb_b0 = {
-	1, 31, 0x340400, 0x34040c, 0x340408, 0x340404};
-
-static struct attn_hw_reg brb_prty2_bb_b0 = {
-	2, 14, 0x340410, 0x34041c, 0x340418, 0x340414};
-
-static struct attn_hw_reg *brb_prty_bb_b0_regs[3] = {
-	&brb_prty0_bb_b0, &brb_prty1_bb_b0, &brb_prty2_bb_b0};
-
-static struct attn_hw_reg src_int0_bb_b0 = {
-	0, 1, 0x2381d8, 0x2381dc, 0x2381e0, 0x2381e4};
-
-static struct attn_hw_reg *src_int_bb_b0_regs[1] = {
-	&src_int0_bb_b0};
-
-static struct attn_hw_reg prs_int0_bb_b0 = {
-	0, 2, 0x1f0040, 0x1f004c, 0x1f0048, 0x1f0044};
-
-static struct attn_hw_reg *prs_int_bb_b0_regs[1] = {
-	&prs_int0_bb_b0};
-
-static struct attn_hw_reg prs_prty0_bb_b0 = {
-	0, 2, 0x1f0050, 0x1f005c, 0x1f0058, 0x1f0054};
-
-static struct attn_hw_reg prs_prty1_bb_b0 = {
-	1, 31, 0x1f0204, 0x1f0210, 0x1f020c, 0x1f0208};
-
-static struct attn_hw_reg prs_prty2_bb_b0 = {
-	2, 5, 0x1f0214, 0x1f0220, 0x1f021c, 0x1f0218};
-
-static struct attn_hw_reg *prs_prty_bb_b0_regs[3] = {
-	&prs_prty0_bb_b0, &prs_prty1_bb_b0, &prs_prty2_bb_b0};
-
-static struct attn_hw_reg tsdm_int0_bb_b0 = {
-	0, 26, 0xfb0040, 0xfb004c, 0xfb0048, 0xfb0044};
-
-static struct attn_hw_reg *tsdm_int_bb_b0_regs[1] = {
-	&tsdm_int0_bb_b0};
-
-static struct attn_hw_reg tsdm_prty1_bb_b0 = {
-	0, 10, 0xfb0200, 0xfb020c, 0xfb0208, 0xfb0204};
-
-static struct attn_hw_reg *tsdm_prty_bb_b0_regs[1] = {
-	&tsdm_prty1_bb_b0};
-
-static struct attn_hw_reg msdm_int0_bb_b0 = {
-	0, 26, 0xfc0040, 0xfc004c, 0xfc0048, 0xfc0044};
-
-static struct attn_hw_reg *msdm_int_bb_b0_regs[1] = {
-	&msdm_int0_bb_b0};
-
-static struct attn_hw_reg msdm_prty1_bb_b0 = {
-	0, 11, 0xfc0200, 0xfc020c, 0xfc0208, 0xfc0204};
-
-static struct attn_hw_reg *msdm_prty_bb_b0_regs[1] = {
-	&msdm_prty1_bb_b0};
-
-static struct attn_hw_reg usdm_int0_bb_b0 = {
-	0, 26, 0xfd0040, 0xfd004c, 0xfd0048, 0xfd0044};
-
-static struct attn_hw_reg *usdm_int_bb_b0_regs[1] = {
-	&usdm_int0_bb_b0};
-
-static struct attn_hw_reg usdm_prty1_bb_b0 = {
-	0, 10, 0xfd0200, 0xfd020c, 0xfd0208, 0xfd0204};
-
-static struct attn_hw_reg *usdm_prty_bb_b0_regs[1] = {
-	&usdm_prty1_bb_b0};
-
-static struct attn_hw_reg xsdm_int0_bb_b0 = {
-	0, 26, 0xf80040, 0xf8004c, 0xf80048, 0xf80044};
-
-static struct attn_hw_reg *xsdm_int_bb_b0_regs[1] = {
-	&xsdm_int0_bb_b0};
-
-static struct attn_hw_reg xsdm_prty1_bb_b0 = {
-	0, 10, 0xf80200, 0xf8020c, 0xf80208, 0xf80204};
-
-static struct attn_hw_reg *xsdm_prty_bb_b0_regs[1] = {
-	&xsdm_prty1_bb_b0};
-
-static struct attn_hw_reg ysdm_int0_bb_b0 = {
-	0, 26, 0xf90040, 0xf9004c, 0xf90048, 0xf90044};
-
-static struct attn_hw_reg *ysdm_int_bb_b0_regs[1] = {
-	&ysdm_int0_bb_b0};
-
-static struct attn_hw_reg ysdm_prty1_bb_b0 = {
-	0, 9, 0xf90200, 0xf9020c, 0xf90208, 0xf90204};
-
-static struct attn_hw_reg *ysdm_prty_bb_b0_regs[1] = {
-	&ysdm_prty1_bb_b0};
-
-static struct attn_hw_reg psdm_int0_bb_b0 = {
-	0, 26, 0xfa0040, 0xfa004c, 0xfa0048, 0xfa0044};
-
-static struct attn_hw_reg *psdm_int_bb_b0_regs[1] = {
-	&psdm_int0_bb_b0};
-
-static struct attn_hw_reg psdm_prty1_bb_b0 = {
-	0, 9, 0xfa0200, 0xfa020c, 0xfa0208, 0xfa0204};
-
-static struct attn_hw_reg *psdm_prty_bb_b0_regs[1] = {
-	&psdm_prty1_bb_b0};
-
-static struct attn_hw_reg tsem_int0_bb_b0 = {
-	0, 32, 0x1700040, 0x170004c, 0x1700048, 0x1700044};
-
-static struct attn_hw_reg tsem_int1_bb_b0 = {
-	1, 13, 0x1700050, 0x170005c, 0x1700058, 0x1700054};
-
-static struct attn_hw_reg tsem_fast_memory_int0_bb_b0 = {
-	2, 1, 0x1740040, 0x174004c, 0x1740048, 0x1740044};
-
-static struct attn_hw_reg *tsem_int_bb_b0_regs[3] = {
-	&tsem_int0_bb_b0, &tsem_int1_bb_b0, &tsem_fast_memory_int0_bb_b0};
-
-static struct attn_hw_reg tsem_prty0_bb_b0 = {
-	0, 3, 0x17000c8, 0x17000d4, 0x17000d0, 0x17000cc};
-
-static struct attn_hw_reg tsem_prty1_bb_b0 = {
-	1, 6, 0x1700200, 0x170020c, 0x1700208, 0x1700204};
-
-static struct attn_hw_reg tsem_fast_memory_vfc_config_prty1_bb_b0 = {
-	2, 6, 0x174a200, 0x174a20c, 0x174a208, 0x174a204};
-
-static struct attn_hw_reg *tsem_prty_bb_b0_regs[3] = {
-	&tsem_prty0_bb_b0, &tsem_prty1_bb_b0,
-	&tsem_fast_memory_vfc_config_prty1_bb_b0};
-
-static struct attn_hw_reg msem_int0_bb_b0 = {
-	0, 32, 0x1800040, 0x180004c, 0x1800048, 0x1800044};
-
-static struct attn_hw_reg msem_int1_bb_b0 = {
-	1, 13, 0x1800050, 0x180005c, 0x1800058, 0x1800054};
-
-static struct attn_hw_reg msem_fast_memory_int0_bb_b0 = {
-	2, 1, 0x1840040, 0x184004c, 0x1840048, 0x1840044};
-
-static struct attn_hw_reg *msem_int_bb_b0_regs[3] = {
-	&msem_int0_bb_b0, &msem_int1_bb_b0, &msem_fast_memory_int0_bb_b0};
-
-static struct attn_hw_reg msem_prty0_bb_b0 = {
-	0, 3, 0x18000c8, 0x18000d4, 0x18000d0, 0x18000cc};
-
-static struct attn_hw_reg msem_prty1_bb_b0 = {
-	1, 6, 0x1800200, 0x180020c, 0x1800208, 0x1800204};
-
-static struct attn_hw_reg *msem_prty_bb_b0_regs[2] = {
-	&msem_prty0_bb_b0, &msem_prty1_bb_b0};
-
-static struct attn_hw_reg usem_int0_bb_b0 = {
-	0, 32, 0x1900040, 0x190004c, 0x1900048, 0x1900044};
-
-static struct attn_hw_reg usem_int1_bb_b0 = {
-	1, 13, 0x1900050, 0x190005c, 0x1900058, 0x1900054};
-
-static struct attn_hw_reg usem_fast_memory_int0_bb_b0 = {
-	2, 1, 0x1940040, 0x194004c, 0x1940048, 0x1940044};
-
-static struct attn_hw_reg *usem_int_bb_b0_regs[3] = {
-	&usem_int0_bb_b0, &usem_int1_bb_b0, &usem_fast_memory_int0_bb_b0};
-
-static struct attn_hw_reg usem_prty0_bb_b0 = {
-	0, 3, 0x19000c8, 0x19000d4, 0x19000d0, 0x19000cc};
-
-static struct attn_hw_reg usem_prty1_bb_b0 = {
-	1, 6, 0x1900200, 0x190020c, 0x1900208, 0x1900204};
-
-static struct attn_hw_reg *usem_prty_bb_b0_regs[2] = {
-	&usem_prty0_bb_b0, &usem_prty1_bb_b0};
-
-static struct attn_hw_reg xsem_int0_bb_b0 = {
-	0, 32, 0x1400040, 0x140004c, 0x1400048, 0x1400044};
-
-static struct attn_hw_reg xsem_int1_bb_b0 = {
-	1, 13, 0x1400050, 0x140005c, 0x1400058, 0x1400054};
-
-static struct attn_hw_reg xsem_fast_memory_int0_bb_b0 = {
-	2, 1, 0x1440040, 0x144004c, 0x1440048, 0x1440044};
-
-static struct attn_hw_reg *xsem_int_bb_b0_regs[3] = {
-	&xsem_int0_bb_b0, &xsem_int1_bb_b0, &xsem_fast_memory_int0_bb_b0};
-
-static struct attn_hw_reg xsem_prty0_bb_b0 = {
-	0, 3, 0x14000c8, 0x14000d4, 0x14000d0, 0x14000cc};
-
-static struct attn_hw_reg xsem_prty1_bb_b0 = {
-	1, 7, 0x1400200, 0x140020c, 0x1400208, 0x1400204};
-
-static struct attn_hw_reg *xsem_prty_bb_b0_regs[2] = {
-	&xsem_prty0_bb_b0, &xsem_prty1_bb_b0};
-
-static struct attn_hw_reg ysem_int0_bb_b0 = {
-	0, 32, 0x1500040, 0x150004c, 0x1500048, 0x1500044};
-
-static struct attn_hw_reg ysem_int1_bb_b0 = {
-	1, 13, 0x1500050, 0x150005c, 0x1500058, 0x1500054};
-
-static struct attn_hw_reg ysem_fast_memory_int0_bb_b0 = {
-	2, 1, 0x1540040, 0x154004c, 0x1540048, 0x1540044};
-
-static struct attn_hw_reg *ysem_int_bb_b0_regs[3] = {
-	&ysem_int0_bb_b0, &ysem_int1_bb_b0, &ysem_fast_memory_int0_bb_b0};
-
-static struct attn_hw_reg ysem_prty0_bb_b0 = {
-	0, 3, 0x15000c8, 0x15000d4, 0x15000d0, 0x15000cc};
-
-static struct attn_hw_reg ysem_prty1_bb_b0 = {
-	1, 7, 0x1500200, 0x150020c, 0x1500208, 0x1500204};
-
-static struct attn_hw_reg *ysem_prty_bb_b0_regs[2] = {
-	&ysem_prty0_bb_b0, &ysem_prty1_bb_b0};
-
-static struct attn_hw_reg psem_int0_bb_b0 = {
-	0, 32, 0x1600040, 0x160004c, 0x1600048, 0x1600044};
-
-static struct attn_hw_reg psem_int1_bb_b0 = {
-	1, 13, 0x1600050, 0x160005c, 0x1600058, 0x1600054};
-
-static struct attn_hw_reg psem_fast_memory_int0_bb_b0 = {
-	2, 1, 0x1640040, 0x164004c, 0x1640048, 0x1640044};
-
-static struct attn_hw_reg *psem_int_bb_b0_regs[3] = {
-	&psem_int0_bb_b0, &psem_int1_bb_b0, &psem_fast_memory_int0_bb_b0};
-
-static struct attn_hw_reg psem_prty0_bb_b0 = {
-	0, 3, 0x16000c8, 0x16000d4, 0x16000d0, 0x16000cc};
-
-static struct attn_hw_reg psem_prty1_bb_b0 = {
-	1, 6, 0x1600200, 0x160020c, 0x1600208, 0x1600204};
-
-static struct attn_hw_reg psem_fast_memory_vfc_config_prty1_bb_b0 = {
-	2, 6, 0x164a200, 0x164a20c, 0x164a208, 0x164a204};
-
-static struct attn_hw_reg *psem_prty_bb_b0_regs[3] = {
-	&psem_prty0_bb_b0, &psem_prty1_bb_b0,
-	&psem_fast_memory_vfc_config_prty1_bb_b0};
-
-static struct attn_hw_reg rss_int0_bb_b0 = {
-	0, 12, 0x238980, 0x23898c, 0x238988, 0x238984};
-
-static struct attn_hw_reg *rss_int_bb_b0_regs[1] = {
-	&rss_int0_bb_b0};
-
-static struct attn_hw_reg rss_prty1_bb_b0 = {
-	0, 4, 0x238a00, 0x238a0c, 0x238a08, 0x238a04};
-
-static struct attn_hw_reg *rss_prty_bb_b0_regs[1] = {
-	&rss_prty1_bb_b0};
-
-static struct attn_hw_reg tmld_int0_bb_b0 = {
-	0, 6, 0x4d0180, 0x4d018c, 0x4d0188, 0x4d0184};
-
-static struct attn_hw_reg *tmld_int_bb_b0_regs[1] = {
-	&tmld_int0_bb_b0};
-
-static struct attn_hw_reg tmld_prty1_bb_b0 = {
-	0, 8, 0x4d0200, 0x4d020c, 0x4d0208, 0x4d0204};
-
-static struct attn_hw_reg *tmld_prty_bb_b0_regs[1] = {
-	&tmld_prty1_bb_b0};
-
-static struct attn_hw_reg muld_int0_bb_b0 = {
-	0, 6, 0x4e0180, 0x4e018c, 0x4e0188, 0x4e0184};
-
-static struct attn_hw_reg *muld_int_bb_b0_regs[1] = {
-	&muld_int0_bb_b0};
-
-static struct attn_hw_reg muld_prty1_bb_b0 = {
-	0, 10, 0x4e0200, 0x4e020c, 0x4e0208, 0x4e0204};
-
-static struct attn_hw_reg *muld_prty_bb_b0_regs[1] = {
-	&muld_prty1_bb_b0};
-
-static struct attn_hw_reg yuld_int0_bb_b0 = {
-	0, 6, 0x4c8180, 0x4c818c, 0x4c8188, 0x4c8184};
-
-static struct attn_hw_reg *yuld_int_bb_b0_regs[1] = {
-	&yuld_int0_bb_b0};
-
-static struct attn_hw_reg yuld_prty1_bb_b0 = {
-	0, 6, 0x4c8200, 0x4c820c, 0x4c8208, 0x4c8204};
-
-static struct attn_hw_reg *yuld_prty_bb_b0_regs[1] = {
-	&yuld_prty1_bb_b0};
-
-static struct attn_hw_reg xyld_int0_bb_b0 = {
-	0, 6, 0x4c0180, 0x4c018c, 0x4c0188, 0x4c0184};
-
-static struct attn_hw_reg *xyld_int_bb_b0_regs[1] = {
-	&xyld_int0_bb_b0};
-
-static struct attn_hw_reg xyld_prty1_bb_b0 = {
-	0, 9, 0x4c0200, 0x4c020c, 0x4c0208, 0x4c0204};
-
-static struct attn_hw_reg *xyld_prty_bb_b0_regs[1] = {
-	&xyld_prty1_bb_b0};
-
-static struct attn_hw_reg prm_int0_bb_b0 = {
-	0, 11, 0x230040, 0x23004c, 0x230048, 0x230044};
-
-static struct attn_hw_reg *prm_int_bb_b0_regs[1] = {
-	&prm_int0_bb_b0};
-
-static struct attn_hw_reg prm_prty0_bb_b0 = {
-	0, 1, 0x230050, 0x23005c, 0x230058, 0x230054};
-
-static struct attn_hw_reg prm_prty1_bb_b0 = {
-	1, 24, 0x230200, 0x23020c, 0x230208, 0x230204};
-
-static struct attn_hw_reg *prm_prty_bb_b0_regs[2] = {
-	&prm_prty0_bb_b0, &prm_prty1_bb_b0};
-
-static struct attn_hw_reg pbf_pb1_int0_bb_b0 = {
-	0, 9, 0xda0040, 0xda004c, 0xda0048, 0xda0044};
-
-static struct attn_hw_reg *pbf_pb1_int_bb_b0_regs[1] = {
-	&pbf_pb1_int0_bb_b0};
-
-static struct attn_hw_reg pbf_pb1_prty0_bb_b0 = {
-	0, 1, 0xda0050, 0xda005c, 0xda0058, 0xda0054};
-
-static struct attn_hw_reg *pbf_pb1_prty_bb_b0_regs[1] = {
-	&pbf_pb1_prty0_bb_b0};
-
-static struct attn_hw_reg pbf_pb2_int0_bb_b0 = {
-	0, 9, 0xda4040, 0xda404c, 0xda4048, 0xda4044};
-
-static struct attn_hw_reg *pbf_pb2_int_bb_b0_regs[1] = {
-	&pbf_pb2_int0_bb_b0};
-
-static struct attn_hw_reg pbf_pb2_prty0_bb_b0 = {
-	0, 1, 0xda4050, 0xda405c, 0xda4058, 0xda4054};
-
-static struct attn_hw_reg *pbf_pb2_prty_bb_b0_regs[1] = {
-	&pbf_pb2_prty0_bb_b0};
-
-static struct attn_hw_reg rpb_int0_bb_b0 = {
-	0, 9, 0x23c040, 0x23c04c, 0x23c048, 0x23c044};
-
-static struct attn_hw_reg *rpb_int_bb_b0_regs[1] = {
-	&rpb_int0_bb_b0};
-
-static struct attn_hw_reg rpb_prty0_bb_b0 = {
-	0, 1, 0x23c050, 0x23c05c, 0x23c058, 0x23c054};
-
-static struct attn_hw_reg *rpb_prty_bb_b0_regs[1] = {
-	&rpb_prty0_bb_b0};
-
-static struct attn_hw_reg btb_int0_bb_b0 = {
-	0, 16, 0xdb00c0, 0xdb00cc, 0xdb00c8, 0xdb00c4};
-
-static struct attn_hw_reg btb_int1_bb_b0 = {
-	1, 16, 0xdb00d8, 0xdb00e4, 0xdb00e0, 0xdb00dc};
-
-static struct attn_hw_reg btb_int2_bb_b0 = {
-	2, 4, 0xdb00f0, 0xdb00fc, 0xdb00f8, 0xdb00f4};
-
-static struct attn_hw_reg btb_int3_bb_b0 = {
-	3, 32, 0xdb0108, 0xdb0114, 0xdb0110, 0xdb010c};
-
-static struct attn_hw_reg btb_int4_bb_b0 = {
-	4, 23, 0xdb0120, 0xdb012c, 0xdb0128, 0xdb0124};
-
-static struct attn_hw_reg btb_int5_bb_b0 = {
-	5, 32, 0xdb0138, 0xdb0144, 0xdb0140, 0xdb013c};
-
-static struct attn_hw_reg btb_int6_bb_b0 = {
-	6, 1, 0xdb0150, 0xdb015c, 0xdb0158, 0xdb0154};
-
-static struct attn_hw_reg btb_int8_bb_b0 = {
-	7, 1, 0xdb0184, 0xdb0190, 0xdb018c, 0xdb0188};
-
-static struct attn_hw_reg btb_int9_bb_b0 = {
-	8, 1, 0xdb019c, 0xdb01a8, 0xdb01a4, 0xdb01a0};
-
-static struct attn_hw_reg btb_int10_bb_b0 = {
-	9, 1, 0xdb01b4, 0xdb01c0, 0xdb01bc, 0xdb01b8};
-
-static struct attn_hw_reg btb_int11_bb_b0 = {
-	10, 2, 0xdb01cc, 0xdb01d8, 0xdb01d4, 0xdb01d0};
-
-static struct attn_hw_reg *btb_int_bb_b0_regs[11] = {
-	&btb_int0_bb_b0, &btb_int1_bb_b0, &btb_int2_bb_b0, &btb_int3_bb_b0,
-	&btb_int4_bb_b0, &btb_int5_bb_b0, &btb_int6_bb_b0, &btb_int8_bb_b0,
-	&btb_int9_bb_b0, &btb_int10_bb_b0, &btb_int11_bb_b0};
-
-static struct attn_hw_reg btb_prty0_bb_b0 = {
-	0, 5, 0xdb01dc, 0xdb01e8, 0xdb01e4, 0xdb01e0};
-
-static struct attn_hw_reg btb_prty1_bb_b0 = {
-	1, 23, 0xdb0400, 0xdb040c, 0xdb0408, 0xdb0404};
-
-static struct attn_hw_reg *btb_prty_bb_b0_regs[2] = {
-	&btb_prty0_bb_b0, &btb_prty1_bb_b0};
-
-static struct attn_hw_reg pbf_int0_bb_b0 = {
-	0, 1, 0xd80180, 0xd8018c, 0xd80188, 0xd80184};
-
-static struct attn_hw_reg *pbf_int_bb_b0_regs[1] = {
-	&pbf_int0_bb_b0};
-
-static struct attn_hw_reg pbf_prty0_bb_b0 = {
-	0, 1, 0xd80190, 0xd8019c, 0xd80198, 0xd80194};
-
-static struct attn_hw_reg pbf_prty1_bb_b0 = {
-	1, 31, 0xd80200, 0xd8020c, 0xd80208, 0xd80204};
-
-static struct attn_hw_reg pbf_prty2_bb_b0 = {
-	2, 27, 0xd80210, 0xd8021c, 0xd80218, 0xd80214};
-
-static struct attn_hw_reg *pbf_prty_bb_b0_regs[3] = {
-	&pbf_prty0_bb_b0, &pbf_prty1_bb_b0, &pbf_prty2_bb_b0};
-
-static struct attn_hw_reg rdif_int0_bb_b0 = {
-	0, 8, 0x300180, 0x30018c, 0x300188, 0x300184};
-
-static struct attn_hw_reg *rdif_int_bb_b0_regs[1] = {
-	&rdif_int0_bb_b0};
-
-static struct attn_hw_reg rdif_prty0_bb_b0 = {
-	0, 1, 0x300190, 0x30019c, 0x300198, 0x300194};
-
-static struct attn_hw_reg *rdif_prty_bb_b0_regs[1] = {
-	&rdif_prty0_bb_b0};
-
-static struct attn_hw_reg tdif_int0_bb_b0 = {
-	0, 8, 0x310180, 0x31018c, 0x310188, 0x310184};
-
-static struct attn_hw_reg *tdif_int_bb_b0_regs[1] = {
-	&tdif_int0_bb_b0};
-
-static struct attn_hw_reg tdif_prty0_bb_b0 = {
-	0, 1, 0x310190, 0x31019c, 0x310198, 0x310194};
-
-static struct attn_hw_reg tdif_prty1_bb_b0 = {
-	1, 11, 0x310200, 0x31020c, 0x310208, 0x310204};
-
-static struct attn_hw_reg *tdif_prty_bb_b0_regs[2] = {
-	&tdif_prty0_bb_b0, &tdif_prty1_bb_b0};
-
-static struct attn_hw_reg cdu_int0_bb_b0 = {
-	0, 8, 0x5801c0, 0x5801c4, 0x5801c8, 0x5801cc};
-
-static struct attn_hw_reg *cdu_int_bb_b0_regs[1] = {
-	&cdu_int0_bb_b0};
-
-static struct attn_hw_reg cdu_prty1_bb_b0 = {
-	0, 5, 0x580200, 0x58020c, 0x580208, 0x580204};
-
-static struct attn_hw_reg *cdu_prty_bb_b0_regs[1] = {
-	&cdu_prty1_bb_b0};
-
-static struct attn_hw_reg ccfc_int0_bb_b0 = {
-	0, 2, 0x2e0180, 0x2e018c, 0x2e0188, 0x2e0184};
-
-static struct attn_hw_reg *ccfc_int_bb_b0_regs[1] = {
-	&ccfc_int0_bb_b0};
-
-static struct attn_hw_reg ccfc_prty1_bb_b0 = {
-	0, 2, 0x2e0200, 0x2e020c, 0x2e0208, 0x2e0204};
-
-static struct attn_hw_reg ccfc_prty0_bb_b0 = {
-	1, 6, 0x2e05e4, 0x2e05f0, 0x2e05ec, 0x2e05e8};
-
-static struct attn_hw_reg *ccfc_prty_bb_b0_regs[2] = {
-	&ccfc_prty1_bb_b0, &ccfc_prty0_bb_b0};
-
-static struct attn_hw_reg tcfc_int0_bb_b0 = {
-	0, 2, 0x2d0180, 0x2d018c, 0x2d0188, 0x2d0184};
-
-static struct attn_hw_reg *tcfc_int_bb_b0_regs[1] = {
-	&tcfc_int0_bb_b0};
-
-static struct attn_hw_reg tcfc_prty1_bb_b0 = {
-	0, 2, 0x2d0200, 0x2d020c, 0x2d0208, 0x2d0204};
-
-static struct attn_hw_reg tcfc_prty0_bb_b0 = {
-	1, 6, 0x2d05e4, 0x2d05f0, 0x2d05ec, 0x2d05e8};
-
-static struct attn_hw_reg *tcfc_prty_bb_b0_regs[2] = {
-	&tcfc_prty1_bb_b0, &tcfc_prty0_bb_b0};
-
-static struct attn_hw_reg igu_int0_bb_b0 = {
-	0, 11, 0x180180, 0x18018c, 0x180188, 0x180184};
-
-static struct attn_hw_reg *igu_int_bb_b0_regs[1] = {
-	&igu_int0_bb_b0};
-
-static struct attn_hw_reg igu_prty0_bb_b0 = {
-	0, 1, 0x180190, 0x18019c, 0x180198, 0x180194};
-
-static struct attn_hw_reg igu_prty1_bb_b0 = {
-	1, 31, 0x180200, 0x18020c, 0x180208, 0x180204};
-
-static struct attn_hw_reg igu_prty2_bb_b0 = {
-	2, 1, 0x180210, 0x18021c, 0x180218, 0x180214};
-
-static struct attn_hw_reg *igu_prty_bb_b0_regs[3] = {
-	&igu_prty0_bb_b0, &igu_prty1_bb_b0, &igu_prty2_bb_b0};
-
-static struct attn_hw_reg cau_int0_bb_b0 = {
-	0, 11, 0x1c00d4, 0x1c00d8, 0x1c00dc, 0x1c00e0};
-
-static struct attn_hw_reg *cau_int_bb_b0_regs[1] = {
-	&cau_int0_bb_b0};
-
-static struct attn_hw_reg cau_prty1_bb_b0 = {
-	0, 13, 0x1c0200, 0x1c020c, 0x1c0208, 0x1c0204};
-
-static struct attn_hw_reg *cau_prty_bb_b0_regs[1] = {
-	&cau_prty1_bb_b0};
-
-static struct attn_hw_reg dbg_int0_bb_b0 = {
-	0, 1, 0x10180, 0x1018c, 0x10188, 0x10184};
-
-static struct attn_hw_reg *dbg_int_bb_b0_regs[1] = {
-	&dbg_int0_bb_b0};
-
-static struct attn_hw_reg dbg_prty1_bb_b0 = {
-	0, 1, 0x10200, 0x1020c, 0x10208, 0x10204};
-
-static struct attn_hw_reg *dbg_prty_bb_b0_regs[1] = {
-	&dbg_prty1_bb_b0};
-
-static struct attn_hw_reg nig_int0_bb_b0 = {
-	0, 12, 0x500040, 0x50004c, 0x500048, 0x500044};
-
-static struct attn_hw_reg nig_int1_bb_b0 = {
-	1, 32, 0x500050, 0x50005c, 0x500058, 0x500054};
-
-static struct attn_hw_reg nig_int2_bb_b0 = {
-	2, 20, 0x500060, 0x50006c, 0x500068, 0x500064};
-
-static struct attn_hw_reg nig_int3_bb_b0 = {
-	3, 18, 0x500070, 0x50007c, 0x500078, 0x500074};
-
-static struct attn_hw_reg nig_int4_bb_b0 = {
-	4, 20, 0x500080, 0x50008c, 0x500088, 0x500084};
-
-static struct attn_hw_reg nig_int5_bb_b0 = {
-	5, 18, 0x500090, 0x50009c, 0x500098, 0x500094};
-
-static struct attn_hw_reg *nig_int_bb_b0_regs[6] = {
-	&nig_int0_bb_b0, &nig_int1_bb_b0, &nig_int2_bb_b0, &nig_int3_bb_b0,
-	&nig_int4_bb_b0, &nig_int5_bb_b0};
-
-static struct attn_hw_reg nig_prty0_bb_b0 = {
-	0, 1, 0x5000a0, 0x5000ac, 0x5000a8, 0x5000a4};
-
-static struct attn_hw_reg nig_prty1_bb_b0 = {
-	1, 31, 0x500200, 0x50020c, 0x500208, 0x500204};
-
-static struct attn_hw_reg nig_prty2_bb_b0 = {
-	2, 31, 0x500210, 0x50021c, 0x500218, 0x500214};
-
-static struct attn_hw_reg nig_prty3_bb_b0 = {
-	3, 31, 0x500220, 0x50022c, 0x500228, 0x500224};
-
-static struct attn_hw_reg nig_prty4_bb_b0 = {
-	4, 17, 0x500230, 0x50023c, 0x500238, 0x500234};
-
-static struct attn_hw_reg *nig_prty_bb_b0_regs[5] = {
-	&nig_prty0_bb_b0, &nig_prty1_bb_b0, &nig_prty2_bb_b0,
-	&nig_prty3_bb_b0, &nig_prty4_bb_b0};
-
-static struct attn_hw_reg ipc_int0_bb_b0 = {
-	0, 13, 0x2050c, 0x20518, 0x20514, 0x20510};
-
-static struct attn_hw_reg *ipc_int_bb_b0_regs[1] = {
-	&ipc_int0_bb_b0};
-
-static struct attn_hw_reg ipc_prty0_bb_b0 = {
-	0, 1, 0x2051c, 0x20528, 0x20524, 0x20520};
-
-static struct attn_hw_reg *ipc_prty_bb_b0_regs[1] = {
-	&ipc_prty0_bb_b0};
-
-static struct attn_hw_block attn_blocks[] = {
-	{"grc", {{1, 1, grc_int_bb_b0_regs, grc_prty_bb_b0_regs} } },
-	{"miscs", {{2, 1, miscs_int_bb_b0_regs, miscs_prty_bb_b0_regs} } },
-	{"misc", {{1, 0, misc_int_bb_b0_regs, NULL} } },
-	{"dbu", {{0, 0, NULL, NULL} } },
-	{"pglue_b", {{1, 2, pglue_b_int_bb_b0_regs,
-		      pglue_b_prty_bb_b0_regs} } },
-	{"cnig", {{1, 1, cnig_int_bb_b0_regs, cnig_prty_bb_b0_regs} } },
-	{"cpmu", {{1, 0, cpmu_int_bb_b0_regs, NULL} } },
-	{"ncsi", {{1, 1, ncsi_int_bb_b0_regs, ncsi_prty_bb_b0_regs} } },
-	{"opte", {{0, 2, NULL, opte_prty_bb_b0_regs} } },
-	{"bmb", {{12, 3, bmb_int_bb_b0_regs, bmb_prty_bb_b0_regs} } },
-	{"pcie", {{0, 1, NULL, pcie_prty_bb_b0_regs} } },
-	{"mcp", {{0, 0, NULL, NULL} } },
-	{"mcp2", {{0, 2, NULL, mcp2_prty_bb_b0_regs} } },
-	{"pswhst", {{1, 2, pswhst_int_bb_b0_regs, pswhst_prty_bb_b0_regs} } },
-	{"pswhst2", {{1, 1, pswhst2_int_bb_b0_regs,
-		      pswhst2_prty_bb_b0_regs} } },
-	{"pswrd", {{1, 1, pswrd_int_bb_b0_regs, pswrd_prty_bb_b0_regs} } },
-	{"pswrd2", {{1, 3, pswrd2_int_bb_b0_regs, pswrd2_prty_bb_b0_regs} } },
-	{"pswwr", {{1, 1, pswwr_int_bb_b0_regs, pswwr_prty_bb_b0_regs} } },
-	{"pswwr2", {{1, 5, pswwr2_int_bb_b0_regs, pswwr2_prty_bb_b0_regs} } },
-	{"pswrq", {{1, 1, pswrq_int_bb_b0_regs, pswrq_prty_bb_b0_regs} } },
-	{"pswrq2", {{1, 1, pswrq2_int_bb_b0_regs, pswrq2_prty_bb_b0_regs} } },
-	{"pglcs", {{1, 0, pglcs_int_bb_b0_regs, NULL} } },
-	{"dmae", {{1, 1, dmae_int_bb_b0_regs, dmae_prty_bb_b0_regs} } },
-	{"ptu", {{1, 1, ptu_int_bb_b0_regs, ptu_prty_bb_b0_regs} } },
-	{"tcm", {{3, 2, tcm_int_bb_b0_regs, tcm_prty_bb_b0_regs} } },
-	{"mcm", {{3, 2, mcm_int_bb_b0_regs, mcm_prty_bb_b0_regs} } },
-	{"ucm", {{3, 2, ucm_int_bb_b0_regs, ucm_prty_bb_b0_regs} } },
-	{"xcm", {{3, 2, xcm_int_bb_b0_regs, xcm_prty_bb_b0_regs} } },
-	{"ycm", {{3, 2, ycm_int_bb_b0_regs, ycm_prty_bb_b0_regs} } },
-	{"pcm", {{3, 1, pcm_int_bb_b0_regs, pcm_prty_bb_b0_regs} } },
-	{"qm", {{1, 4, qm_int_bb_b0_regs, qm_prty_bb_b0_regs} } },
-	{"tm", {{2, 1, tm_int_bb_b0_regs, tm_prty_bb_b0_regs} } },
-	{"dorq", {{1, 2, dorq_int_bb_b0_regs, dorq_prty_bb_b0_regs} } },
-	{"brb", {{12, 3, brb_int_bb_b0_regs, brb_prty_bb_b0_regs} } },
-	{"src", {{1, 0, src_int_bb_b0_regs, NULL} } },
-	{"prs", {{1, 3, prs_int_bb_b0_regs, prs_prty_bb_b0_regs} } },
-	{"tsdm", {{1, 1, tsdm_int_bb_b0_regs, tsdm_prty_bb_b0_regs} } },
-	{"msdm", {{1, 1, msdm_int_bb_b0_regs, msdm_prty_bb_b0_regs} } },
-	{"usdm", {{1, 1, usdm_int_bb_b0_regs, usdm_prty_bb_b0_regs} } },
-	{"xsdm", {{1, 1, xsdm_int_bb_b0_regs, xsdm_prty_bb_b0_regs} } },
-	{"ysdm", {{1, 1, ysdm_int_bb_b0_regs, ysdm_prty_bb_b0_regs} } },
-	{"psdm", {{1, 1, psdm_int_bb_b0_regs, psdm_prty_bb_b0_regs} } },
-	{"tsem", {{3, 3, tsem_int_bb_b0_regs, tsem_prty_bb_b0_regs} } },
-	{"msem", {{3, 2, msem_int_bb_b0_regs, msem_prty_bb_b0_regs} } },
-	{"usem", {{3, 2, usem_int_bb_b0_regs, usem_prty_bb_b0_regs} } },
-	{"xsem", {{3, 2, xsem_int_bb_b0_regs, xsem_prty_bb_b0_regs} } },
-	{"ysem", {{3, 2, ysem_int_bb_b0_regs, ysem_prty_bb_b0_regs} } },
-	{"psem", {{3, 3, psem_int_bb_b0_regs, psem_prty_bb_b0_regs} } },
-	{"rss", {{1, 1, rss_int_bb_b0_regs, rss_prty_bb_b0_regs} } },
-	{"tmld", {{1, 1, tmld_int_bb_b0_regs, tmld_prty_bb_b0_regs} } },
-	{"muld", {{1, 1, muld_int_bb_b0_regs, muld_prty_bb_b0_regs} } },
-	{"yuld", {{1, 1, yuld_int_bb_b0_regs, yuld_prty_bb_b0_regs} } },
-	{"xyld", {{1, 1, xyld_int_bb_b0_regs, xyld_prty_bb_b0_regs} } },
-	{"prm", {{1, 2, prm_int_bb_b0_regs, prm_prty_bb_b0_regs} } },
-	{"pbf_pb1", {{1, 1, pbf_pb1_int_bb_b0_regs,
-		      pbf_pb1_prty_bb_b0_regs} } },
-	{"pbf_pb2", {{1, 1, pbf_pb2_int_bb_b0_regs,
-		      pbf_pb2_prty_bb_b0_regs} } },
-	{"rpb", { {1, 1, rpb_int_bb_b0_regs, rpb_prty_bb_b0_regs} } },
-	{"btb", { {11, 2, btb_int_bb_b0_regs, btb_prty_bb_b0_regs} } },
-	{"pbf", { {1, 3, pbf_int_bb_b0_regs, pbf_prty_bb_b0_regs} } },
-	{"rdif", { {1, 1, rdif_int_bb_b0_regs, rdif_prty_bb_b0_regs} } },
-	{"tdif", { {1, 2, tdif_int_bb_b0_regs, tdif_prty_bb_b0_regs} } },
-	{"cdu", { {1, 1, cdu_int_bb_b0_regs, cdu_prty_bb_b0_regs} } },
-	{"ccfc", { {1, 2, ccfc_int_bb_b0_regs, ccfc_prty_bb_b0_regs} } },
-	{"tcfc", { {1, 2, tcfc_int_bb_b0_regs, tcfc_prty_bb_b0_regs} } },
-	{"igu", { {1, 3, igu_int_bb_b0_regs, igu_prty_bb_b0_regs} } },
-	{"cau", { {1, 1, cau_int_bb_b0_regs, cau_prty_bb_b0_regs} } },
-	{"umac", { {0, 0, NULL, NULL} } },
-	{"xmac", { {0, 0, NULL, NULL} } },
-	{"dbg", { {1, 1, dbg_int_bb_b0_regs, dbg_prty_bb_b0_regs} } },
-	{"nig", { {6, 5, nig_int_bb_b0_regs, nig_prty_bb_b0_regs} } },
-	{"wol", { {0, 0, NULL, NULL} } },
-	{"bmbn", { {0, 0, NULL, NULL} } },
-	{"ipc", { {1, 1, ipc_int_bb_b0_regs, ipc_prty_bb_b0_regs} } },
-	{"nwm", { {0, 0, NULL, NULL} } },
-	{"nws", { {0, 0, NULL, NULL} } },
-	{"ms", { {0, 0, NULL, NULL} } },
-	{"phy_pcie", { {0, 0, NULL, NULL} } },
-	{"misc_aeu", { {0, 0, NULL, NULL} } },
-	{"bar0_map", { {0, 0, NULL, NULL} } },};
 
 /* Specific HW attention callbacks */
 static int qed_mcp_attn_cb(struct qed_hwfn *p_hwfn)
@@ -1590,6 +387,25 @@ static int qed_dorq_attn_cb(struct qed_hwfn *p_hwfn)
 	return -EINVAL;
 }
 
+/* Instead of major changes to the data-structure, we have a some 'special'
+ * identifiers for sources that changed meaning between adapters.
+ */
+enum aeu_invert_reg_special_type {
+	AEU_INVERT_REG_SPECIAL_CNIG_0,
+	AEU_INVERT_REG_SPECIAL_CNIG_1,
+	AEU_INVERT_REG_SPECIAL_CNIG_2,
+	AEU_INVERT_REG_SPECIAL_CNIG_3,
+	AEU_INVERT_REG_SPECIAL_MAX,
+};
+
+static struct aeu_invert_reg_bit
+aeu_descs_special[AEU_INVERT_REG_SPECIAL_MAX] = {
+	{"CNIG port 0", ATTENTION_SINGLE, NULL, BLOCK_CNIG},
+	{"CNIG port 1", ATTENTION_SINGLE, NULL, BLOCK_CNIG},
+	{"CNIG port 2", ATTENTION_SINGLE, NULL, BLOCK_CNIG},
+	{"CNIG port 3", ATTENTION_SINGLE, NULL, BLOCK_CNIG},
+};
+
 /* Notice aeu_invert_reg must be defined in the same order of bits as HW;  */
 static struct aeu_invert_reg aeu_descs[NUM_ATTN_REGS] = {
 	{
@@ -1636,8 +452,22 @@ static struct aeu_invert_reg aeu_descs[NUM_ATTN_REGS] = {
 			 (33 << ATTENTION_OFFSET_SHIFT), NULL, MAX_BLOCK_ID},
 			{"General Attention 35", ATTENTION_SINGLE,
 			 NULL, MAX_BLOCK_ID},
-			{"CNIG port %d", (4 << ATTENTION_LENGTH_SHIFT),
-			 NULL, BLOCK_CNIG},
+			{"NWS Parity",
+			 ATTENTION_PAR | ATTENTION_BB_DIFFERENT |
+			 ATTENTION_BB(AEU_INVERT_REG_SPECIAL_CNIG_0),
+			 NULL, BLOCK_NWS},
+			{"NWS Interrupt",
+			 ATTENTION_SINGLE | ATTENTION_BB_DIFFERENT |
+			 ATTENTION_BB(AEU_INVERT_REG_SPECIAL_CNIG_1),
+			 NULL, BLOCK_NWS},
+			{"NWM Parity",
+			 ATTENTION_PAR | ATTENTION_BB_DIFFERENT |
+			 ATTENTION_BB(AEU_INVERT_REG_SPECIAL_CNIG_2),
+			 NULL, BLOCK_NWM},
+			{"NWM Interrupt",
+			 ATTENTION_SINGLE | ATTENTION_BB_DIFFERENT |
+			 ATTENTION_BB(AEU_INVERT_REG_SPECIAL_CNIG_3),
+			 NULL, BLOCK_NWM},
 			{"MCP CPU", ATTENTION_SINGLE,
 			 qed_mcp_attn_cb, MAX_BLOCK_ID},
 			{"MCP Watchdog timer", ATTENTION_SINGLE,
@@ -1775,6 +605,27 @@ static struct aeu_invert_reg aeu_descs[NUM_ATTN_REGS] = {
 	},
 };
 
+static struct aeu_invert_reg_bit *
+qed_int_aeu_translate(struct qed_hwfn *p_hwfn,
+		      struct aeu_invert_reg_bit *p_bit)
+{
+	if (!QED_IS_BB(p_hwfn->cdev))
+		return p_bit;
+
+	if (!(p_bit->flags & ATTENTION_BB_DIFFERENT))
+		return p_bit;
+
+	return &aeu_descs_special[(p_bit->flags & ATTENTION_BB_MASK) >>
+				  ATTENTION_BB_SHIFT];
+}
+
+static bool qed_int_is_parity_flag(struct qed_hwfn *p_hwfn,
+				   struct aeu_invert_reg_bit *p_bit)
+{
+	return !!(qed_int_aeu_translate(p_hwfn, p_bit)->flags &
+		   ATTENTION_PARITY);
+}
+
 #define ATTN_STATE_BITS         (0xfff)
 #define ATTN_BITS_MASKABLE      (0x3ff)
 struct qed_sb_attn_info {
@@ -1863,26 +714,23 @@ static int qed_int_assertion(struct qed_hwfn *p_hwfn, u16 asserted_bits)
 	return 0;
 }
 
-static void qed_int_deassertion_print_bit(struct qed_hwfn *p_hwfn,
-					  struct attn_hw_reg *p_reg_desc,
-					  struct attn_hw_block *p_block,
-					  enum qed_attention_type type,
-					  u32 val, u32 mask)
+static void qed_int_attn_print(struct qed_hwfn *p_hwfn,
+			       enum block_id id,
+			       enum dbg_attn_type type, bool b_clear)
 {
-	int j;
+	struct dbg_attn_block_result attn_results;
+	enum dbg_status status;
 
-	for (j = 0; j < p_reg_desc->num_of_bits; j++) {
-		if (!(val & (1 << j)))
-			continue;
+	memset(&attn_results, 0, sizeof(attn_results));
 
+	status = qed_dbg_read_attn(p_hwfn, p_hwfn->p_dpc_ptt, id, type,
+				   b_clear, &attn_results);
+	if (status != DBG_STATUS_OK)
 		DP_NOTICE(p_hwfn,
-			  "%s (%s): reg %d [0x%08x], bit %d [%s]\n",
-			  p_block->name,
-			  type == QED_ATTN_TYPE_ATTN ? "Interrupt" :
-						       "Parity",
-			  p_reg_desc->reg_idx, p_reg_desc->sts_addr,
-			  j, (mask & (1 << j)) ? " [MASKED]" : "");
-	}
+			  "Failed to parse attention information [status: %s]\n",
+			  qed_dbg_get_status_str(status));
+	else
+		qed_dbg_parse_attn(p_hwfn, &attn_results);
 }
 
 /**
@@ -1901,53 +749,30 @@ static int
 qed_int_deassertion_aeu_bit(struct qed_hwfn *p_hwfn,
 			    struct aeu_invert_reg_bit *p_aeu,
 			    u32 aeu_en_reg,
-			    u32 bitmask)
+			    const char *p_bit_name, u32 bitmask)
 {
+	bool b_fatal = false;
 	int rc = -EINVAL;
 	u32 val;
 
 	DP_INFO(p_hwfn, "Deasserted attention `%s'[%08x]\n",
-		p_aeu->bit_name, bitmask);
+		p_bit_name, bitmask);
 
 	/* Call callback before clearing the interrupt status */
 	if (p_aeu->cb) {
 		DP_INFO(p_hwfn, "`%s (attention)': Calling Callback function\n",
-			p_aeu->bit_name);
+			p_bit_name);
 		rc = p_aeu->cb(p_hwfn);
 	}
 
-	/* Handle HW block interrupt registers */
-	if (p_aeu->block_index != MAX_BLOCK_ID) {
-		struct attn_hw_block *p_block;
-		u32 mask;
-		int i;
+	if (rc)
+		b_fatal = true;
 
-		p_block = &attn_blocks[p_aeu->block_index];
+	/* Print HW block interrupt registers */
+	if (p_aeu->block_index != MAX_BLOCK_ID)
+		qed_int_attn_print(p_hwfn, p_aeu->block_index,
+				   ATTN_TYPE_INTERRUPT, !b_fatal);
 
-		/* Handle each interrupt register */
-		for (i = 0; i < p_block->chip_regs[0].num_of_int_regs; i++) {
-			struct attn_hw_reg *p_reg_desc;
-			u32 sts_addr;
-
-			p_reg_desc = p_block->chip_regs[0].int_regs[i];
-
-			/* In case of fatal attention, don't clear the status
-			 * so it would appear in following idle check.
-			 */
-			if (rc == 0)
-				sts_addr = p_reg_desc->sts_clr_addr;
-			else
-				sts_addr = p_reg_desc->sts_addr;
-
-			val = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt, sts_addr);
-			mask = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt,
-				      p_reg_desc->mask_addr);
-			qed_int_deassertion_print_bit(p_hwfn, p_reg_desc,
-						      p_block,
-						      QED_ATTN_TYPE_ATTN,
-						      val, mask);
-		}
-	}
 
 	/* If the attention is benign, no need to prevent it */
 	if (!rc)
@@ -1957,34 +782,10 @@ qed_int_deassertion_aeu_bit(struct qed_hwfn *p_hwfn,
 	val = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt, aeu_en_reg);
 	qed_wr(p_hwfn, p_hwfn->p_dpc_ptt, aeu_en_reg, (val & ~bitmask));
 	DP_INFO(p_hwfn, "`%s' - Disabled future attentions\n",
-		p_aeu->bit_name);
+		p_bit_name);
 
 out:
 	return rc;
-}
-
-static void qed_int_parity_print(struct qed_hwfn *p_hwfn,
-				 struct aeu_invert_reg_bit *p_aeu,
-				 struct attn_hw_block *p_block,
-				 u8 bit_index)
-{
-	int i;
-
-	for (i = 0; i < p_block->chip_regs[0].num_of_prty_regs; i++) {
-		struct attn_hw_reg *p_reg_desc;
-		u32 val, mask;
-
-		p_reg_desc = p_block->chip_regs[0].prty_regs[i];
-
-		val = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt,
-			     p_reg_desc->sts_clr_addr);
-		mask = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt,
-			      p_reg_desc->mask_addr);
-		qed_int_deassertion_print_bit(p_hwfn, p_reg_desc,
-					      p_block,
-					      QED_ATTN_TYPE_PARITY,
-					      val, mask);
-	}
 }
 
 /**
@@ -1992,31 +793,37 @@ static void qed_int_parity_print(struct qed_hwfn *p_hwfn,
  *
  * @param p_hwfn
  * @param p_aeu - descriptor of an AEU bit which caused the parity
+ * @param aeu_en_reg - address of the AEU enable register
  * @param bit_index
  */
 static void qed_int_deassertion_parity(struct qed_hwfn *p_hwfn,
 				       struct aeu_invert_reg_bit *p_aeu,
-				       u8 bit_index)
+				       u32 aeu_en_reg, u8 bit_index)
 {
-	u32 block_id = p_aeu->block_index;
+	u32 block_id = p_aeu->block_index, mask, val;
 
-	DP_INFO(p_hwfn->cdev, "%s[%d] parity attention is set\n",
-		p_aeu->bit_name, bit_index);
+	DP_NOTICE(p_hwfn->cdev,
+		  "%s parity attention is set [address 0x%08x, bit %d]\n",
+		  p_aeu->bit_name, aeu_en_reg, bit_index);
 
 	if (block_id != MAX_BLOCK_ID) {
-		qed_int_parity_print(p_hwfn, p_aeu, &attn_blocks[block_id],
-				     bit_index);
+		qed_int_attn_print(p_hwfn, block_id, ATTN_TYPE_PARITY, false);
 
 		/* In BB, there's a single parity bit for several blocks */
 		if (block_id == BLOCK_BTB) {
-			qed_int_parity_print(p_hwfn, p_aeu,
-					     &attn_blocks[BLOCK_OPTE],
-					     bit_index);
-			qed_int_parity_print(p_hwfn, p_aeu,
-					     &attn_blocks[BLOCK_MCP],
-					     bit_index);
+			qed_int_attn_print(p_hwfn, BLOCK_OPTE,
+					   ATTN_TYPE_PARITY, false);
+			qed_int_attn_print(p_hwfn, BLOCK_MCP,
+					   ATTN_TYPE_PARITY, false);
 		}
 	}
+
+	/* Prevent this parity error from being re-asserted */
+	mask = ~BIT(bit_index);
+	val = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt, aeu_en_reg);
+	qed_wr(p_hwfn, p_hwfn->p_dpc_ptt, aeu_en_reg, val & mask);
+	DP_INFO(p_hwfn, "`%s' - Disabled future parity errors\n",
+		p_aeu->bit_name);
 }
 
 /**
@@ -2031,7 +838,7 @@ static int qed_int_deassertion(struct qed_hwfn  *p_hwfn,
 			       u16 deasserted_bits)
 {
 	struct qed_sb_attn_info *sb_attn_sw = p_hwfn->p_sb_attn;
-	u32 aeu_inv_arr[NUM_ATTN_REGS], aeu_mask;
+	u32 aeu_inv_arr[NUM_ATTN_REGS], aeu_mask, aeu_en, en;
 	u8 i, j, k, bit_idx;
 	int rc = 0;
 
@@ -2048,10 +855,10 @@ static int qed_int_deassertion(struct qed_hwfn  *p_hwfn,
 	/* Find parity attentions first */
 	for (i = 0; i < NUM_ATTN_REGS; i++) {
 		struct aeu_invert_reg *p_aeu = &sb_attn_sw->p_aeu_desc[i];
-		u32 en = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt,
-				MISC_REG_AEU_ENABLE1_IGU_OUT_0 +
-				i * sizeof(u32));
 		u32 parities;
+
+		aeu_en = MISC_REG_AEU_ENABLE1_IGU_OUT_0 + i * sizeof(u32);
+		en = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt, aeu_en);
 
 		/* Skip register in which no parity bit is currently set */
 		parities = sb_attn_sw->parity_mask[i] & aeu_inv_arr[i] & en;
@@ -2061,10 +868,10 @@ static int qed_int_deassertion(struct qed_hwfn  *p_hwfn,
 		for (j = 0, bit_idx = 0; bit_idx < 32; j++) {
 			struct aeu_invert_reg_bit *p_bit = &p_aeu->bits[j];
 
-			if ((p_bit->flags & ATTENTION_PARITY) &&
+			if (qed_int_is_parity_flag(p_hwfn, p_bit) &&
 			    !!(parities & BIT(bit_idx)))
 				qed_int_deassertion_parity(p_hwfn, p_bit,
-							   bit_idx);
+							   aeu_en, bit_idx);
 
 			bit_idx += ATTENTION_LENGTH(p_bit->flags);
 		}
@@ -2079,10 +886,11 @@ static int qed_int_deassertion(struct qed_hwfn  *p_hwfn,
 			continue;
 
 		for (i = 0; i < NUM_ATTN_REGS; i++) {
-			u32 aeu_en = MISC_REG_AEU_ENABLE1_IGU_OUT_0 +
-				     i * sizeof(u32) +
-				     k * sizeof(u32) * NUM_ATTN_REGS;
-			u32 en, bits;
+			u32 bits;
+
+			aeu_en = MISC_REG_AEU_ENABLE1_IGU_OUT_0 +
+				 i * sizeof(u32) +
+				 k * sizeof(u32) * NUM_ATTN_REGS;
 
 			en = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt, aeu_en);
 			bits = aeu_inv_arr[i] & en;
@@ -2096,29 +904,54 @@ static int qed_int_deassertion(struct qed_hwfn  *p_hwfn,
 			 * previous assertion.
 			 */
 			for (j = 0, bit_idx = 0; bit_idx < 32; j++) {
+				long unsigned int bitmask;
 				u8 bit, bit_len;
-				u32 bitmask;
 
 				p_aeu = &sb_attn_sw->p_aeu_desc[i].bits[j];
-
-				/* No need to handle parity-only bits */
-				if (p_aeu->flags == ATTENTION_PAR)
-					continue;
+				p_aeu = qed_int_aeu_translate(p_hwfn, p_aeu);
 
 				bit = bit_idx;
 				bit_len = ATTENTION_LENGTH(p_aeu->flags);
-				if (p_aeu->flags & ATTENTION_PAR_INT) {
+				if (qed_int_is_parity_flag(p_hwfn, p_aeu)) {
 					/* Skip Parity */
 					bit++;
 					bit_len--;
 				}
 
 				bitmask = bits & (((1 << bit_len) - 1) << bit);
+				bitmask >>= bit;
+
 				if (bitmask) {
+					u32 flags = p_aeu->flags;
+					char bit_name[30];
+					u8 num;
+
+					num = (u8)find_first_bit(&bitmask,
+								 bit_len);
+
+					/* Some bits represent more than a
+					 * a single interrupt. Correctly print
+					 * their name.
+					 */
+					if (ATTENTION_LENGTH(flags) > 2 ||
+					    ((flags & ATTENTION_PAR_INT) &&
+					     ATTENTION_LENGTH(flags) > 1))
+						snprintf(bit_name, 30,
+							 p_aeu->bit_name, num);
+					else
+						strncpy(bit_name,
+							p_aeu->bit_name, 30);
+
+					/* We now need to pass bitmask in its
+					 * correct position.
+					 */
+					bitmask <<= bit;
+
 					/* Handle source of the attention */
 					qed_int_deassertion_aeu_bit(p_hwfn,
 								    p_aeu,
 								    aeu_en,
+								    bit_name,
 								    bitmask);
 				}
 
@@ -2366,12 +1199,13 @@ static void qed_int_sb_attn_init(struct qed_hwfn *p_hwfn,
 	for (i = 0; i < NUM_ATTN_REGS; i++) {
 		/* j is array index, k is bit index */
 		for (j = 0, k = 0; k < 32; j++) {
-			unsigned int flags = aeu_descs[i].bits[j].flags;
+			struct aeu_invert_reg_bit *p_aeu;
 
-			if (flags & ATTENTION_PARITY)
+			p_aeu = &aeu_descs[i].bits[j];
+			if (qed_int_is_parity_flag(p_hwfn, p_aeu))
 				sb_info->parity_mask[i] |= 1 << k;
 
-			k += ATTENTION_LENGTH(flags);
+			k += ATTENTION_LENGTH(p_aeu->flags);
 		}
 		DP_VERBOSE(p_hwfn, NETIF_MSG_INTR,
 			   "Attn Mask [Reg %d]: 0x%08x\n",
