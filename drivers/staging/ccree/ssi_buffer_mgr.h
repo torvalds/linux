@@ -15,7 +15,7 @@
  */
 
 /* \file buffer_mgr.h
-   Buffer Manager
+ * Buffer Manager
  */
 
 #ifndef __SSI_BUFFER_MGR_H__
