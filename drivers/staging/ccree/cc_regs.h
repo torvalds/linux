@@ -56,8 +56,9 @@ do {								            \
 	BITFIELD_GET(reg_val, CC_ ## reg_name ## _ ## fld_name ## _BIT_SHIFT, \
 		     CC_ ## reg_name ## _ ## fld_name ## _BIT_SIZE))
 
-/* yael TBD !!! -       				      *
-* all HW includes should start with CC_ and not DX_ !!	      */
+/* yael TBD !!!
+ * all HW includes should start with CC_ and not DX_ !!
+ */
 
 
 /*! Bit fields set */
@@ -87,10 +88,10 @@ do {                                                                     \
 } while (0)
 
 /* Usage example:
-   u32 reg_shadow = READ_REGISTER(CC_REG_ADDR(CRY_KERNEL,AES_CONTROL));
-   CC_REG_FLD_SET(CRY_KERNEL,AES_CONTROL,NK_KEY0,reg_shadow, 3);
-   CC_REG_FLD_SET(CRY_KERNEL,AES_CONTROL,NK_KEY1,reg_shadow, 1);
-   WRITE_REGISTER(CC_REG_ADDR(CRY_KERNEL,AES_CONTROL), reg_shadow);
+ * u32 reg_shadow = READ_REGISTER(CC_REG_ADDR(CRY_KERNEL,AES_CONTROL));
+ * CC_REG_FLD_SET(CRY_KERNEL,AES_CONTROL,NK_KEY0,reg_shadow, 3);
+ * CC_REG_FLD_SET(CRY_KERNEL,AES_CONTROL,NK_KEY1,reg_shadow, 1);
+ * WRITE_REGISTER(CC_REG_ADDR(CRY_KERNEL,AES_CONTROL), reg_shadow);
  */
 
 #endif /*_CC_REGS_H_*/
