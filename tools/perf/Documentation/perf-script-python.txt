@@ -321,7 +321,7 @@ So those are the essential steps in writing and running a script.  The
 process can be generalized to any tracepoint or set of tracepoints
 you're interested in - basically find the tracepoint(s) you're
 interested in by looking at the list of available events shown by
-'perf list' and/or look in /sys/kernel/debug/tracing events for
+'perf list' and/or look in /sys/kernel/debug/tracing/events/ for
 detailed event and field info, record the corresponding trace data
 using 'perf record', passing it the list of interesting events,
 generate a skeleton script using 'perf script -g python' and modify the
@@ -437,7 +437,7 @@ EVENT HANDLERS
 When perf script is invoked using a trace script, a user-defined
 'handler function' is called for each event in the trace.  If there's
 no handler function defined for a given event type, the event is
-ignored (or passed to a 'trace_handled' function, see below) and the
+ignored (or passed to a 'trace_unhandled' function, see below) and the
 next event is processed.
 
 Most of the event's field values are passed as arguments to the
