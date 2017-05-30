@@ -582,6 +582,27 @@ static int alarm_timer_try_to_cancel(struct k_itimer *timr)
 }
 
 /**
+ * alarm_timer_arm - Posix timer callback to arm a timer
+ * @timr:	Pointer to the posixtimer data struct
+ * @expires:	The new expiry time
+ * @absolute:	Expiry value is absolute time
+ * @sigev_none:	Posix timer does not deliver signals
+ */
+static void alarm_timer_arm(struct k_itimer *timr, ktime_t expires,
+			    bool absolute, bool sigev_none)
+{
+	struct alarm *alarm = &timr->it.alarm.alarmtimer;
+	struct alarm_base *base = &alarm_bases[alarm->type];
+
+	if (!absolute)
+		expires = ktime_add_safe(expires, base->gettime());
+	if (sigev_none)
+		alarm->node.expires = expires;
+	else
+		alarm_start(&timr->it.alarm.alarmtimer, expires);
+}
+
+/**
  * alarm_clock_getres - posix getres interface
  * @which_clock: clockid
  * @tp: timespec to fill
@@ -908,6 +929,7 @@ const struct k_clock alarm_clock = {
 	.timer_set		= alarm_timer_set,
 	.timer_del		= alarm_timer_del,
 	.timer_get		= alarm_timer_get,
+	.timer_arm		= alarm_timer_arm,
 	.timer_rearm		= alarm_timer_rearm,
 	.timer_forward		= alarm_timer_forward,
 	.timer_remaining	= alarm_timer_remaining,
