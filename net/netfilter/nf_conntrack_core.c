@@ -1720,6 +1720,8 @@ EXPORT_SYMBOL_GPL(nf_ct_iterate_cleanup_net);
  * Like nf_ct_iterate_cleanup, but first marks conntracks on the
  * unconfirmed list as dying (so they will not be inserted into
  * main table).
+ *
+ * Can only be called in module exit path.
  */
 void
 nf_ct_iterate_destroy(int (*iter)(struct nf_conn *i, void *data), void *data)
@@ -1733,6 +1735,13 @@ nf_ct_iterate_destroy(int (*iter)(struct nf_conn *i, void *data), void *data)
 		__nf_ct_unconfirmed_destroy(net);
 	}
 	rtnl_unlock();
+
+	/* Need to wait for netns cleanup worker to finish, if its
+	 * running -- it might have deleted a net namespace from
+	 * the global list, so our __nf_ct_unconfirmed_destroy() might
+	 * not have affected all namespaces.
+	 */
+	net_ns_barrier();
 
 	/* a conntrack could have been unlinked from unconfirmed list
 	 * before we grabbed pcpu lock in __nf_ct_unconfirmed_destroy().
