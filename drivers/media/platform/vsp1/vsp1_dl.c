@@ -483,8 +483,6 @@ void vsp1_dl_list_commit(struct vsp1_dl_list *dl)
 	unsigned long flags;
 	bool update;
 
-	spin_lock_irqsave(&dlm->lock, flags);
-
 	if (dl->dlm->mode == VSP1_DL_MODE_HEADER) {
 		struct vsp1_dl_list *dl_child;
 
@@ -501,7 +499,11 @@ void vsp1_dl_list_commit(struct vsp1_dl_list *dl)
 
 			vsp1_dl_list_fill_header(dl_child, last);
 		}
+	}
 
+	spin_lock_irqsave(&dlm->lock, flags);
+
+	if (dl->dlm->mode == VSP1_DL_MODE_HEADER) {
 		/*
 		 * Commit the head display list to hardware. Chained headers
 		 * will auto-start.
