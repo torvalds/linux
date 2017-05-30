@@ -59,7 +59,21 @@ Required properties:
 - reg: should contain 2 register ranges. The first one is pointing to the PMECC
        block, and the second one to the PMECC_ERRLOC block.
 
+* SAMA5 NFC I/O bindings:
+
+SAMA5 SoCs embed an advanced NAND controller logic to automate READ/WRITE page
+operations. This interface to this logic is placed in a separate I/O range and
+should thus have its own DT node.
+
+- compatible: should be "atmel,sama5d3-nfc-io", "syscon".
+- reg: should contain the I/O range used to interact with the NFC logic.
+
 Example:
+
+	nfc_io: nfc-io@70000000 {
+		compatible = "atmel,sama5d3-nfc-io", "syscon";
+		reg = <0x70000000 0x8000000>;
+	};
 
 	pmecc: ecc-engine@ffffc070 {
 		compatible = "atmel,at91sam9g45-pmecc";
