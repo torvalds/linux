@@ -3838,9 +3838,13 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 			goto err_odp;
 	}
 
+	err = mlx5_ib_init_cong_debugfs(dev);
+	if (err)
+		goto err_cnt;
+
 	dev->mdev->priv.uar = mlx5_get_uars_page(dev->mdev);
 	if (!dev->mdev->priv.uar)
-		goto err_cnt;
+		goto err_cong;
 
 	err = mlx5_alloc_bfreg(dev->mdev, &dev->bfreg, false, false);
 	if (err)
@@ -3889,6 +3893,8 @@ err_uar_page:
 	mlx5_put_uars_page(dev->mdev, dev->mdev->priv.uar);
 
 err_cnt:
+	mlx5_ib_cleanup_cong_debugfs(dev);
+err_cong:
 	if (MLX5_CAP_GEN(dev->mdev, max_qp_cnt))
 		mlx5_ib_dealloc_counters(dev);
 
@@ -3923,6 +3929,7 @@ static void mlx5_ib_remove(struct mlx5_core_dev *mdev, void *context)
 	mlx5_free_bfreg(dev->mdev, &dev->fp_bfreg);
 	mlx5_free_bfreg(dev->mdev, &dev->bfreg);
 	mlx5_put_uars_page(dev->mdev, mdev->priv.uar);
+	mlx5_ib_cleanup_cong_debugfs(dev);
 	if (MLX5_CAP_GEN(dev->mdev, max_qp_cnt))
 		mlx5_ib_dealloc_counters(dev);
 	destroy_umrc_res(dev);

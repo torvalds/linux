@@ -1188,7 +1188,8 @@ struct mlx5_ifc_cong_control_r_roce_ecn_np_bits {
 
 	u8         reserved_at_c0[0x12];
 	u8         cnp_dscp[0x6];
-	u8         reserved_at_d8[0x5];
+	u8         reserved_at_d8[0x4];
+	u8         cnp_prio_mode[0x1];
 	u8         cnp_802p_prio[0x3];
 
 	u8         reserved_at_e0[0x720];
