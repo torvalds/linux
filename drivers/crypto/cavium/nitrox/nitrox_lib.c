@@ -137,6 +137,44 @@ static void destroy_crypto_dma_pool(struct nitrox_device *ndev)
 	ndev->ctx_pool = NULL;
 }
 
+/*
+ * crypto_alloc_context - Allocate crypto context from pool
+ * @ndev: NITROX Device
+ */
+void *crypto_alloc_context(struct nitrox_device *ndev)
+{
+	struct ctx_hdr *ctx;
+	void *vaddr;
+	dma_addr_t dma;
+
+	vaddr = dma_pool_alloc(ndev->ctx_pool, (GFP_ATOMIC | __GFP_ZERO), &dma);
+	if (!vaddr)
+		return NULL;
+
+	/* fill meta data */
+	ctx = vaddr;
+	ctx->pool = ndev->ctx_pool;
+	ctx->dma = dma;
+	ctx->ctx_dma = dma + sizeof(struct ctx_hdr);
+
+	return ((u8 *)vaddr + sizeof(struct ctx_hdr));
+}
+
+/**
+ * crypto_free_context - Free crypto context to pool
+ * @ctx: context to free
+ */
+void crypto_free_context(void *ctx)
+{
+	struct ctx_hdr *ctxp;
+
+	if (!ctx)
+		return;
+
+	ctxp = (struct ctx_hdr *)((u8 *)ctx - sizeof(struct ctx_hdr));
+	dma_pool_free(ctxp->pool, ctxp, ctxp->dma);
+}
+
 /**
  * nitrox_common_sw_init - allocate software resources.
  * @ndev: NITROX device

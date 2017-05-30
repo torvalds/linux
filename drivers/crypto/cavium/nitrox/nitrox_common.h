@@ -4,6 +4,13 @@
 #include "nitrox_dev.h"
 #include "nitrox_req.h"
 
+int nitrox_crypto_register(void);
+void nitrox_crypto_unregister(void);
+void *crypto_alloc_context(struct nitrox_device *ndev);
+void crypto_free_context(void *ctx);
+struct nitrox_device *nitrox_get_first_device(void);
+void nitrox_put_device(struct nitrox_device *ndev);
+
 void nitrox_pf_cleanup_isr(struct nitrox_device *ndev);
 int nitrox_pf_init_isr(struct nitrox_device *ndev);
 

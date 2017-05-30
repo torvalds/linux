@@ -180,6 +180,35 @@ static void nitrox_remove_from_devlist(struct nitrox_device *ndev)
 	mutex_unlock(&devlist_lock);
 }
 
+struct nitrox_device *nitrox_get_first_device(void)
+{
+	struct nitrox_device *ndev = NULL;
+
+	mutex_lock(&devlist_lock);
+	list_for_each_entry(ndev, &ndevlist, list) {
+		if (nitrox_ready(ndev))
+			break;
+	}
+	mutex_unlock(&devlist_lock);
+	if (!ndev)
+		return NULL;
+
+	refcount_inc(&ndev->refcnt);
+	/* barrier to sync with other cpus */
+	smp_mb__after_atomic();
+	return ndev;
+}
+
+void nitrox_put_device(struct nitrox_device *ndev)
+{
+	if (!ndev)
+		return;
+
+	refcount_dec(&ndev->refcnt);
+	/* barrier to sync with other cpus */
+	smp_mb__after_atomic();
+}
+
 static int nitrox_reset_device(struct pci_dev *pdev)
 {
 	int pos = 0;
@@ -526,8 +555,18 @@ static int nitrox_probe(struct pci_dev *pdev,
 	set_bit(NITROX_READY, &ndev->status);
 	/* barrier to sync with other cpus */
 	smp_mb__after_atomic();
+
+	err = nitrox_crypto_register();
+	if (err)
+		goto crypto_fail;
+
 	return 0;
 
+crypto_fail:
+	nitrox_debugfs_exit(ndev);
+	clear_bit(NITROX_READY, &ndev->status);
+	/* barrier to sync with other cpus */
+	smp_mb__after_atomic();
 pf_hw_fail:
 	nitrox_pf_sw_cleanup(ndev);
 ioremap_err:
@@ -565,6 +604,7 @@ static void nitrox_remove(struct pci_dev *pdev)
 	smp_mb__after_atomic();
 
 	nitrox_remove_from_devlist(ndev);
+	nitrox_crypto_unregister();
 	nitrox_debugfs_exit(ndev);
 	nitrox_pf_sw_cleanup(ndev);
 

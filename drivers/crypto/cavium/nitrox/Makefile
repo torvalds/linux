@@ -4,4 +4,5 @@ n5pf-objs := nitrox_main.o \
 	nitrox_isr.o \
 	nitrox_lib.o \
 	nitrox_hal.o \
-	nitrox_reqmgr.o
+	nitrox_reqmgr.o \
+	nitrox_algs.o
