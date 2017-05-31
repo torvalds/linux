@@ -37,7 +37,7 @@
 #include <linux/bit_spinlock.h>
 #include <linux/security.h>
 #include <linux/xattr.h>
-#include <linux/vmalloc.h>
+#include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/blkdev.h>
 #include <linux/uuid.h>
@@ -4588,7 +4588,7 @@ static long btrfs_ioctl_logical_to_ino(struct btrfs_fs_info *fs_info,
 
 out:
 	btrfs_free_path(path);
-	vfree(inodes);
+	kvfree(inodes);
 	kfree(loi);
 
 	return ret;
