@@ -103,6 +103,7 @@ static void iwl_pcie_ctxt_info_free_fw_img(struct iwl_trans *trans)
 
 	kfree(dram->fw);
 	dram->fw_cnt = 0;
+	dram->fw = NULL;
 }
 
 void iwl_pcie_ctxt_info_free_paging(struct iwl_trans *trans)
@@ -124,6 +125,7 @@ void iwl_pcie_ctxt_info_free_paging(struct iwl_trans *trans)
 
 	kfree(dram->paging);
 	dram->paging_cnt = 0;
+	dram->paging = NULL;
 }
 
 static int iwl_pcie_ctxt_info_init_fw_sec(struct iwl_trans *trans,
