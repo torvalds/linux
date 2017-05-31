@@ -538,11 +538,9 @@ static void athub_update_medium_grain_light_sleep(struct amdgpu_device *adev,
 		WREG32(SOC15_REG_OFFSET(ATHUB, 0, mmATHUB_MISC_CNTL), data);
 }
 
-static int mmhub_v1_0_set_clockgating_state(void *handle,
-					enum amd_clockgating_state state)
+int mmhub_v1_0_set_clockgating(struct amdgpu_device *adev,
+			       enum amd_clockgating_state state)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
 	if (amdgpu_sriov_vf(adev))
 		return 0;
 
@@ -562,6 +560,12 @@ static int mmhub_v1_0_set_clockgating_state(void *handle,
 		break;
 	}
 
+	return 0;
+}
+
+static int mmhub_v1_0_set_clockgating_state(void *handle,
+					    enum amd_clockgating_state state)
+{
 	return 0;
 }
 

@@ -809,7 +809,9 @@ static int gmc_v9_0_soft_reset(void *handle)
 static int gmc_v9_0_set_clockgating_state(void *handle,
 					enum amd_clockgating_state state)
 {
-	return 0;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	return mmhub_v1_0_set_clockgating(adev, state);
 }
 
 static int gmc_v9_0_set_powergating_state(void *handle,
