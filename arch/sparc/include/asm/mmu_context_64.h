@@ -19,12 +19,6 @@ extern unsigned long mmu_context_bmap[];
 
 DECLARE_PER_CPU(struct mm_struct *, per_cpu_secondary_mm);
 void get_new_mmu_context(struct mm_struct *mm);
-#ifdef CONFIG_SMP
-void smp_new_mmu_context_version(void);
-#else
-#define smp_new_mmu_context_version() do { } while (0)
-#endif
-
 int init_new_context(struct task_struct *tsk, struct mm_struct *mm);
 void destroy_context(struct mm_struct *mm);
 
