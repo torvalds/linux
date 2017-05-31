@@ -935,6 +935,13 @@ void irq_modify_status(unsigned int irq, unsigned long clr, unsigned long set)
 
 	if (!desc)
 		return;
+
+	/*
+	 * Warn when a driver sets the no autoenable flag on an already
+	 * active interrupt.
+	 */
+	WARN_ON_ONCE(!desc->depth && (set & _IRQ_NOAUTOEN));
+
 	irq_settings_clr_and_set(desc, clr, set);
 
 	irqd_clear(&desc->irq_data, IRQD_NO_BALANCING | IRQD_PER_CPU |
