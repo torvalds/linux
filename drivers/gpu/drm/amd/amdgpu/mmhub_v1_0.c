@@ -348,19 +348,8 @@ void mmhub_v1_0_set_fault_enable_default(struct amdgpu_device *adev, bool value)
 	WREG32(SOC15_REG_OFFSET(MMHUB, 0, mmVM_L2_PROTECTION_FAULT_CNTL), tmp);
 }
 
-static int mmhub_v1_0_early_init(void *handle)
+void mmhub_v1_0_init(struct amdgpu_device *adev)
 {
-	return 0;
-}
-
-static int mmhub_v1_0_late_init(void *handle)
-{
-	return 0;
-}
-
-static int mmhub_v1_0_sw_init(void *handle)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_MMHUB];
 
 	hub->ctx0_ptb_addr_lo32 =
@@ -380,6 +369,20 @@ static int mmhub_v1_0_sw_init(void *handle)
 	hub->vm_l2_pro_fault_cntl =
 		SOC15_REG_OFFSET(MMHUB, 0, mmVM_L2_PROTECTION_FAULT_CNTL);
 
+}
+
+static int mmhub_v1_0_early_init(void *handle)
+{
+	return 0;
+}
+
+static int mmhub_v1_0_late_init(void *handle)
+{
+	return 0;
+}
+
+static int mmhub_v1_0_sw_init(void *handle)
+{
 	return 0;
 }
 
