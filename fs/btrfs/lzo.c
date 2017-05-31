@@ -18,7 +18,7 @@
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/vmalloc.h>
+#include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/sched.h>
@@ -41,9 +41,9 @@ static void lzo_free_workspace(struct list_head *ws)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 
-	vfree(workspace->buf);
-	vfree(workspace->cbuf);
-	vfree(workspace->mem);
+	kvfree(workspace->buf);
+	kvfree(workspace->cbuf);
+	kvfree(workspace->mem);
 	kfree(workspace);
 }
 
@@ -55,9 +55,9 @@ static struct list_head *lzo_alloc_workspace(void)
 	if (!workspace)
 		return ERR_PTR(-ENOMEM);
 
-	workspace->mem = vmalloc(LZO1X_MEM_COMPRESS);
-	workspace->buf = vmalloc(lzo1x_worst_compress(PAGE_SIZE));
-	workspace->cbuf = vmalloc(lzo1x_worst_compress(PAGE_SIZE));
+	workspace->mem = kvmalloc(LZO1X_MEM_COMPRESS, GFP_KERNEL);
+	workspace->buf = kvmalloc(lzo1x_worst_compress(PAGE_SIZE), GFP_KERNEL);
+	workspace->cbuf = kvmalloc(lzo1x_worst_compress(PAGE_SIZE), GFP_KERNEL);
 	if (!workspace->mem || !workspace->buf || !workspace->cbuf)
 		goto fail;
 
