@@ -427,44 +427,6 @@ COMPAT_SYSCALL_DEFINE3(sigprocmask, int, how,
 
 #endif
 
-COMPAT_SYSCALL_DEFINE2(setrlimit, unsigned int, resource,
-		       struct compat_rlimit __user *, rlim)
-{
-	struct rlimit r;
-
-	if (!access_ok(VERIFY_READ, rlim, sizeof(*rlim)) ||
-	    __get_user(r.rlim_cur, &rlim->rlim_cur) ||
-	    __get_user(r.rlim_max, &rlim->rlim_max))
-		return -EFAULT;
-
-	if (r.rlim_cur == COMPAT_RLIM_INFINITY)
-		r.rlim_cur = RLIM_INFINITY;
-	if (r.rlim_max == COMPAT_RLIM_INFINITY)
-		r.rlim_max = RLIM_INFINITY;
-	return do_prlimit(current, resource, &r, NULL);
-}
-
-COMPAT_SYSCALL_DEFINE2(getrlimit, unsigned int, resource,
-		       struct compat_rlimit __user *, rlim)
-{
-	struct rlimit r;
-	int ret;
-
-	ret = do_prlimit(current, resource, NULL, &r);
-	if (!ret) {
-		if (r.rlim_cur > COMPAT_RLIM_INFINITY)
-			r.rlim_cur = COMPAT_RLIM_INFINITY;
-		if (r.rlim_max > COMPAT_RLIM_INFINITY)
-			r.rlim_max = COMPAT_RLIM_INFINITY;
-
-		if (!access_ok(VERIFY_WRITE, rlim, sizeof(*rlim)) ||
-		    __put_user(r.rlim_cur, &rlim->rlim_cur) ||
-		    __put_user(r.rlim_max, &rlim->rlim_max))
-			return -EFAULT;
-	}
-	return ret;
-}
-
 int put_compat_rusage(const struct rusage *r, struct compat_rusage __user *ru)
 {
 	if (!access_ok(VERIFY_WRITE, ru, sizeof(*ru)) ||
