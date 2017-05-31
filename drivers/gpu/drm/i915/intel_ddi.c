@@ -1732,11 +1732,17 @@ static void intel_ddi_post_disable(struct intel_encoder *intel_encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->dev);
 	enum port port = intel_ddi_get_encoder_port(intel_encoder);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
+	struct intel_dp *intel_dp = NULL;
 	int type = intel_encoder->type;
 	uint32_t val;
 	bool wait = false;
 
 	/* old_crtc_state and old_conn_state are NULL when called from DP_MST */
+
+	if (type == INTEL_OUTPUT_DP || type == INTEL_OUTPUT_EDP) {
+		intel_dp = enc_to_intel_dp(encoder);
+		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
+	}
 
 	val = I915_READ(DDI_BUF_CTL(port));
 	if (val & DDI_BUF_CTL_ENABLE) {
@@ -1753,9 +1759,7 @@ static void intel_ddi_post_disable(struct intel_encoder *intel_encoder,
 	if (wait)
 		intel_wait_ddi_buf_idle(dev_priv, port);
 
-	if (type == INTEL_OUTPUT_DP || type == INTEL_OUTPUT_EDP) {
-		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
+	if (intel_dp) {
 		intel_edp_panel_vdd_on(intel_dp);
 		intel_edp_panel_off(intel_dp);
 	}
