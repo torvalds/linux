@@ -44,7 +44,8 @@ static char *ap806_unique_name(struct device *dev, struct device_node *np,
 			(unsigned long long)addr, name);
 }
 
-static int ap806_syscon_clk_probe(struct platform_device *pdev)
+static int ap806_syscon_common_probe(struct platform_device *pdev,
+				     struct device_node *syscon_node)
 {
 	unsigned int freq_mode, cpuclk_freq;
 	const char *name, *fixedclk_name;
@@ -54,7 +55,7 @@ static int ap806_syscon_clk_probe(struct platform_device *pdev)
 	u32 reg;
 	int ret;
 
-	regmap = syscon_node_to_regmap(np);
+	regmap = syscon_node_to_regmap(syscon_node);
 	if (IS_ERR(regmap)) {
 		dev_err(dev, "cannot get regmap\n");
 		return PTR_ERR(regmap);
@@ -110,7 +111,7 @@ static int ap806_syscon_clk_probe(struct platform_device *pdev)
 	cpuclk_freq *= 1000 * 1000;
 
 	/* CPU clocks depend on the Sample At Reset configuration */
-	name = ap806_unique_name(dev, np, "cpu-cluster-0");
+	name = ap806_unique_name(dev, syscon_node, "cpu-cluster-0");
 	ap806_clks[0] = clk_register_fixed_rate(dev, name, NULL,
 						0, cpuclk_freq);
 	if (IS_ERR(ap806_clks[0])) {
@@ -118,7 +119,7 @@ static int ap806_syscon_clk_probe(struct platform_device *pdev)
 		goto fail0;
 	}
 
-	name = ap806_unique_name(dev, np, "cpu-cluster-1");
+	name = ap806_unique_name(dev, syscon_node, "cpu-cluster-1");
 	ap806_clks[1] = clk_register_fixed_rate(dev, name, NULL, 0,
 						cpuclk_freq);
 	if (IS_ERR(ap806_clks[1])) {
@@ -127,7 +128,7 @@ static int ap806_syscon_clk_probe(struct platform_device *pdev)
 	}
 
 	/* Fixed clock is always 1200 Mhz */
-	fixedclk_name = ap806_unique_name(dev, np, "fixed");
+	fixedclk_name = ap806_unique_name(dev, syscon_node, "fixed");
 	ap806_clks[2] = clk_register_fixed_rate(dev, fixedclk_name, NULL,
 						0, 1200 * 1000 * 1000);
 	if (IS_ERR(ap806_clks[2])) {
@@ -136,7 +137,7 @@ static int ap806_syscon_clk_probe(struct platform_device *pdev)
 	}
 
 	/* MSS Clock is fixed clock divided by 6 */
-	name = ap806_unique_name(dev, np, "mss");
+	name = ap806_unique_name(dev, syscon_node, "mss");
 	ap806_clks[3] = clk_register_fixed_factor(NULL, name, fixedclk_name,
 						  0, 1, 6);
 	if (IS_ERR(ap806_clks[3])) {
@@ -145,7 +146,7 @@ static int ap806_syscon_clk_probe(struct platform_device *pdev)
 	}
 
 	/* SDIO(/eMMC) Clock is fixed clock divided by 3 */
-	name = ap806_unique_name(dev, np, "sdio");
+	name = ap806_unique_name(dev, syscon_node, "sdio");
 	ap806_clks[4] = clk_register_fixed_factor(NULL, name,
 						  fixedclk_name,
 						  0, 1, 3);
@@ -175,17 +176,48 @@ fail0:
 	return ret;
 }
 
-static const struct of_device_id ap806_syscon_of_match[] = {
+static int ap806_syscon_legacy_probe(struct platform_device *pdev)
+{
+	dev_warn(&pdev->dev, FW_WARN "Using legacy device tree binding\n");
+	dev_warn(&pdev->dev, FW_WARN "Update your device tree:\n");
+	dev_warn(&pdev->dev, FW_WARN
+		 "This binding won't be supported in future kernel\n");
+
+	return ap806_syscon_common_probe(pdev, pdev->dev.of_node);
+
+}
+
+static int ap806_clock_probe(struct platform_device *pdev)
+{
+	return ap806_syscon_common_probe(pdev, pdev->dev.of_node->parent);
+}
+
+static const struct of_device_id ap806_syscon_legacy_of_match[] = {
 	{ .compatible = "marvell,ap806-system-controller", },
 	{ }
 };
 
-static struct platform_driver ap806_syscon_driver = {
-	.probe = ap806_syscon_clk_probe,
+static struct platform_driver ap806_syscon_legacy_driver = {
+	.probe = ap806_syscon_legacy_probe,
 	.driver		= {
 		.name	= "marvell-ap806-system-controller",
-		.of_match_table = ap806_syscon_of_match,
+		.of_match_table = ap806_syscon_legacy_of_match,
 		.suppress_bind_attrs = true,
 	},
 };
-builtin_platform_driver(ap806_syscon_driver);
+builtin_platform_driver(ap806_syscon_legacy_driver);
+
+static const struct of_device_id ap806_clock_of_match[] = {
+	{ .compatible = "marvell,ap806-clock", },
+	{ }
+};
+
+static struct platform_driver ap806_clock_driver = {
+	.probe = ap806_clock_probe,
+	.driver		= {
+		.name	= "marvell-ap806-clock",
+		.of_match_table = ap806_clock_of_match,
+		.suppress_bind_attrs = true,
+	},
+};
+builtin_platform_driver(ap806_clock_driver);
