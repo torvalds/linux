@@ -279,6 +279,7 @@ static int nfp_nsp_init(struct pci_dev *pdev, struct nfp_pf *pf)
 
 	err = nfp_fw_load(pdev, pf, nsp);
 	if (err < 0) {
+		kfree(pf->nspi);
 		kfree(pf->eth_tbl);
 		dev_err(&pdev->dev, "Failed to load FW\n");
 		goto exit_close_nsp;
