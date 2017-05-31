@@ -1473,7 +1473,7 @@ static int __event_process_build_id(struct build_id_event *bev,
 			struct kmod_path m = { .name = NULL, };
 
 			if (!kmod_path__parse_name(&m, filename) && m.kmod)
-				dso__set_short_name(dso, strdup(m.name), true);
+				dso__set_module_info(dso, &m, machine);
 			else
 				dso->kernel = dso_type;
 
