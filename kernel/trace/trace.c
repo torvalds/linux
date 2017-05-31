@@ -120,8 +120,8 @@ enum ftrace_dump_mode ftrace_dump_on_oops;
 /* When set, tracing will stop when a WARN*() is hit */
 int __disable_trace_on_warning;
 
-#ifdef CONFIG_TRACE_ENUM_MAP_FILE
-/* Map of enums to their values, for "enum_map" file */
+#ifdef CONFIG_TRACE_EVAL_MAP_FILE
+/* Map of enums to their values, for "eval_map" file */
 struct trace_eval_map_head {
 	struct module			*mod;
 	unsigned long			length;
@@ -145,7 +145,7 @@ static DEFINE_MUTEX(trace_eval_mutex);
  * one at the beginning, and one at the end. The beginning item contains
  * the count of the saved maps (head.length), and the module they
  * belong to if not built in (head.mod). The ending item contains a
- * pointer to the next array of saved enum_eval/enum_map items.
+ * pointer to the next array of saved eval_map items.
  */
 union trace_eval_map_item {
 	struct trace_eval_map		map;
@@ -154,7 +154,7 @@ union trace_eval_map_item {
 };
 
 static union trace_eval_map_item *trace_eval_maps;
-#endif /* CONFIG_TRACE_ENUM_MAP_FILE */
+#endif /* CONFIG_TRACE_EVAL_MAP_FILE */
 
 static int tracing_set_tracer(struct trace_array *tr, const char *buf);
 
@@ -4744,7 +4744,7 @@ static const struct file_operations tracing_saved_cmdlines_size_fops = {
 	.write		= tracing_saved_cmdlines_size_write,
 };
 
-#ifdef CONFIG_TRACE_ENUM_MAP_FILE
+#ifdef CONFIG_TRACE_EVAL_MAP_FILE
 static union trace_eval_map_item *
 update_eval_map(union trace_eval_map_item *ptr)
 {
@@ -4895,15 +4895,15 @@ trace_insert_eval_map_file(struct module *mod, struct trace_eval_map **start,
 
 static void trace_create_eval_file(struct dentry *d_tracer)
 {
-	trace_create_file("enum_map", 0444, d_tracer,
+	trace_create_file("eval_map", 0444, d_tracer,
 			  NULL, &tracing_eval_map_fops);
 }
 
-#else /* CONFIG_TRACE_ENUM_MAP_FILE */
+#else /* CONFIG_TRACE_EVAL_MAP_FILE */
 static inline void trace_create_eval_file(struct dentry *d_tracer) { }
 static inline void trace_insert_eval_map_file(struct module *mod,
 			      struct trace_eval_map **start, int len) { }
-#endif /* !CONFIG_TRACE_ENUM_MAP_FILE */
+#endif /* !CONFIG_TRACE_EVAL_MAP_FILE */
 
 static void trace_insert_eval_map(struct module *mod,
 				  struct trace_eval_map **start, int len)
@@ -7759,7 +7759,7 @@ static void trace_module_add_evals(struct module *mod)
 	trace_insert_eval_map(mod, mod->trace_evals, mod->num_trace_evals);
 }
 
-#ifdef CONFIG_TRACE_ENUM_MAP_FILE
+#ifdef CONFIG_TRACE_EVAL_MAP_FILE
 static void trace_module_remove_evals(struct module *mod)
 {
 	union trace_eval_map_item *map;
@@ -7789,7 +7789,7 @@ static void trace_module_remove_evals(struct module *mod)
 }
 #else
 static inline void trace_module_remove_evals(struct module *mod) { }
-#endif /* CONFIG_TRACE_ENUM_MAP_FILE */
+#endif /* CONFIG_TRACE_EVAL_MAP_FILE */
 
 static int trace_module_notify(struct notifier_block *self,
 			       unsigned long val, void *data)
