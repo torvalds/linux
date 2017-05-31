@@ -36,6 +36,19 @@
 #define SKL_IN_DIR_BIT_MASK		BIT(0)
 #define SKL_PIN_COUNT_MASK		GENMASK(7, 4)
 
+static const int mic_mono_list[] = {
+0, 1, 2, 3,
+};
+static const int mic_stereo_list[][SKL_CH_STEREO] = {
+{0, 1}, {0, 2}, {0, 3}, {1, 2}, {1, 3}, {2, 3},
+};
+static const int mic_trio_list[][SKL_CH_TRIO] = {
+{0, 1, 2}, {0, 1, 3}, {0, 2, 3}, {1, 2, 3},
+};
+static const int mic_quatro_list[][SKL_CH_QUATRO] = {
+{0, 1, 2, 3},
+};
+
 void skl_tplg_d0i3_get(struct skl *skl, enum d0i3_capability caps)
 {
 	struct skl_d0i3_data *d0i3 =  &skl->skl_sst->d0i3;
@@ -1314,6 +1327,111 @@ static int skl_tplg_tlv_control_set(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int skl_tplg_mic_control_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_widget *w = snd_soc_dapm_kcontrol_widget(kcontrol);
+	struct skl_module_cfg *mconfig = w->priv;
+	struct soc_enum *ec = (struct soc_enum *)kcontrol->private_value;
+	u32 ch_type = *((u32 *)ec->dobj.private);
+
+	if (mconfig->dmic_ch_type == ch_type)
+		ucontrol->value.enumerated.item[0] =
+					mconfig->dmic_ch_combo_index;
+	else
+		ucontrol->value.enumerated.item[0] = 0;
+
+	return 0;
+}
+
+static int skl_fill_mic_sel_params(struct skl_module_cfg *mconfig,
+	struct skl_mic_sel_config *mic_cfg, struct device *dev)
+{
+	struct skl_specific_cfg *sp_cfg = &mconfig->formats_config;
+
+	sp_cfg->caps_size = sizeof(struct skl_mic_sel_config);
+	sp_cfg->set_params = SKL_PARAM_SET;
+	sp_cfg->param_id = 0x00;
+	if (!sp_cfg->caps) {
+		sp_cfg->caps = devm_kzalloc(dev, sp_cfg->caps_size, GFP_KERNEL);
+		if (!sp_cfg->caps)
+			return -ENOMEM;
+	}
+
+	mic_cfg->mic_switch = SKL_MIC_SEL_SWITCH;
+	mic_cfg->flags = 0;
+	memcpy(sp_cfg->caps, mic_cfg, sp_cfg->caps_size);
+
+	return 0;
+}
+
+static int skl_tplg_mic_control_set(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_widget *w = snd_soc_dapm_kcontrol_widget(kcontrol);
+	struct skl_module_cfg *mconfig = w->priv;
+	struct skl_mic_sel_config mic_cfg = {0};
+	struct soc_enum *ec = (struct soc_enum *)kcontrol->private_value;
+	u32 ch_type = *((u32 *)ec->dobj.private);
+	const int *list;
+	u8 in_ch, out_ch, index;
+
+	mconfig->dmic_ch_type = ch_type;
+	mconfig->dmic_ch_combo_index = ucontrol->value.enumerated.item[0];
+
+	/* enum control index 0 is INVALID, so no channels to be set */
+	if (mconfig->dmic_ch_combo_index == 0)
+		return 0;
+
+	/* No valid channel selection map for index 0, so offset by 1 */
+	index = mconfig->dmic_ch_combo_index - 1;
+
+	switch (ch_type) {
+	case SKL_CH_MONO:
+		if (mconfig->dmic_ch_combo_index > ARRAY_SIZE(mic_mono_list))
+			return -EINVAL;
+
+		list = &mic_mono_list[index];
+		break;
+
+	case SKL_CH_STEREO:
+		if (mconfig->dmic_ch_combo_index > ARRAY_SIZE(mic_stereo_list))
+			return -EINVAL;
+
+		list = mic_stereo_list[index];
+		break;
+
+	case SKL_CH_TRIO:
+		if (mconfig->dmic_ch_combo_index > ARRAY_SIZE(mic_trio_list))
+			return -EINVAL;
+
+		list = mic_trio_list[index];
+		break;
+
+	case SKL_CH_QUATRO:
+		if (mconfig->dmic_ch_combo_index > ARRAY_SIZE(mic_quatro_list))
+			return -EINVAL;
+
+		list = mic_quatro_list[index];
+		break;
+
+	default:
+		dev_err(w->dapm->dev,
+				"Invalid channel %d for mic_select module\n",
+				ch_type);
+		return -EINVAL;
+
+	}
+
+	/* channel type enum map to number of chanels for that type */
+	for (out_ch = 0; out_ch < ch_type; out_ch++) {
+		in_ch = list[out_ch];
+		mic_cfg.blob[out_ch][in_ch] = SKL_DEFAULT_MIC_SEL_GAIN;
+	}
+
+	return skl_fill_mic_sel_params(mconfig, &mic_cfg, w->dapm->dev);
+}
+
 /*
  * Fill the dma id for host and link. In case of passthrough
  * pipeline, this will both host and link in the same
@@ -1664,6 +1782,14 @@ static const struct snd_soc_tplg_widget_events skl_tplg_widget_ops[] = {
 static const struct snd_soc_tplg_bytes_ext_ops skl_tlv_ops[] = {
 	{SKL_CONTROL_TYPE_BYTE_TLV, skl_tplg_tlv_control_get,
 					skl_tplg_tlv_control_set},
+};
+
+static const struct snd_soc_tplg_kcontrol_ops skl_tplg_kcontrol_ops[] = {
+	{
+		.id = SKL_CONTROL_TYPE_MIC_SELECT,
+		.get = skl_tplg_mic_control_get,
+		.put = skl_tplg_mic_control_set,
+	},
 };
 
 static int skl_tplg_fill_pipe_tkn(struct device *dev,
@@ -2390,14 +2516,34 @@ static int skl_init_algo_data(struct device *dev, struct soc_bytes_ext *be,
 	return 0;
 }
 
+static int skl_init_enum_data(struct device *dev, struct soc_enum *se,
+				struct snd_soc_tplg_enum_control *ec)
+{
+
+	void *data;
+
+	if (ec->priv.size) {
+		data = devm_kzalloc(dev, sizeof(ec->priv.size), GFP_KERNEL);
+		if (!data)
+			return -ENOMEM;
+		memcpy(data, ec->priv.data, ec->priv.size);
+		se->dobj.private = data;
+	}
+
+	return 0;
+
+}
+
 static int skl_tplg_control_load(struct snd_soc_component *cmpnt,
 				struct snd_kcontrol_new *kctl,
 				struct snd_soc_tplg_ctl_hdr *hdr)
 {
 	struct soc_bytes_ext *sb;
 	struct snd_soc_tplg_bytes_control *tplg_bc;
+	struct snd_soc_tplg_enum_control *tplg_ec;
 	struct hdac_ext_bus *ebus  = snd_soc_component_get_drvdata(cmpnt);
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct soc_enum *se;
 
 	switch (hdr->ops.info) {
 	case SND_SOC_TPLG_CTL_BYTES:
@@ -2408,6 +2554,17 @@ static int skl_tplg_control_load(struct snd_soc_component *cmpnt,
 			if (tplg_bc->priv.size)
 				return skl_init_algo_data(
 						bus->dev, sb, tplg_bc);
+		}
+		break;
+
+	case SND_SOC_TPLG_CTL_ENUM:
+		tplg_ec = container_of(hdr,
+				struct snd_soc_tplg_enum_control, hdr);
+		if (kctl->access & SNDRV_CTL_ELEM_ACCESS_READWRITE) {
+			se = (struct soc_enum *)kctl->private_value;
+			if (tplg_ec->priv.size)
+				return skl_init_enum_data(bus->dev, se,
+						tplg_ec);
 		}
 		break;
 
@@ -2639,6 +2796,8 @@ static struct snd_soc_tplg_ops skl_tplg_ops  = {
 	.control_load = skl_tplg_control_load,
 	.bytes_ext_ops = skl_tlv_ops,
 	.bytes_ext_ops_count = ARRAY_SIZE(skl_tlv_ops),
+	.io_ops = skl_tplg_kcontrol_ops,
+	.io_ops_count = ARRAY_SIZE(skl_tplg_kcontrol_ops),
 	.manifest = skl_manifest_load,
 };
 
