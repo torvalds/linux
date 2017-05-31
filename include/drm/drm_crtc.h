@@ -674,6 +674,13 @@ struct drm_connector_state {
 	struct drm_atomic_state *state;
 
 	struct drm_tv_connector_state tv;
+
+	/**
+	 * @metadata_blob_ptr:
+	 * DRM blob property for HDR metadata
+	 */
+	struct drm_property_blob *hdr_source_metadata_blob_ptr;
+	bool hdr_metadata_changed : 1;
 };
 
 /**
@@ -982,6 +989,10 @@ struct drm_connector {
 	uint8_t num_h_tile, num_v_tile;
 	uint8_t tile_h_loc, tile_v_loc;
 	uint16_t tile_h_size, tile_v_size;
+
+	/* HDR metdata */
+	struct hdr_static_metadata *hdr_panel_metadata;
+	struct hdr_static_metadata *hdr_source_metadata;
 };
 
 /**
@@ -1620,6 +1631,12 @@ struct drm_mode_config {
 	/* properties for virtual machine layout */
 	struct drm_property *suggested_x_property;
 	struct drm_property *suggested_y_property;
+
+	/**
+	 * hdr_metadata_property: Connector property containing hdr metatda
+	 * This will be provided by userspace compositors based on HDR content
+	 */
+	struct drm_property *hdr_source_metadata_property;
 
 	/* dumb ioctl parameters */
 	uint32_t preferred_depth, prefer_shadow;

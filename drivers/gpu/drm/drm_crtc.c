@@ -1662,6 +1662,13 @@ static int drm_mode_create_standard_properties(struct drm_device *dev)
 		return -ENOMEM;
 	dev->mode_config.tile_property = prop;
 
+	prop = drm_property_create(dev, DRM_MODE_PROP_BLOB,
+				   "HDR_SOURCE_METADATA", 0);
+
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.hdr_source_metadata_property = prop;
+
 	prop = drm_property_create_enum(dev, DRM_MODE_PROP_IMMUTABLE,
 					"type", drm_plane_type_enum_list,
 					ARRAY_SIZE(drm_plane_type_enum_list));
