@@ -36,20 +36,21 @@ static int ap806_syscon_clk_probe(struct platform_device *pdev)
 {
 	unsigned int freq_mode, cpuclk_freq;
 	const char *name, *fixedclk_name;
-	struct device_node *np = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
 	struct regmap *regmap;
 	u32 reg;
 	int ret;
 
 	regmap = syscon_node_to_regmap(np);
 	if (IS_ERR(regmap)) {
-		dev_err(&pdev->dev, "cannot get regmap\n");
+		dev_err(dev, "cannot get regmap\n");
 		return PTR_ERR(regmap);
 	}
 
 	ret = regmap_read(regmap, AP806_SAR_REG, &reg);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot read from regmap\n");
+		dev_err(dev, "cannot read from regmap\n");
 		return ret;
 	}
 
@@ -89,7 +90,7 @@ static int ap806_syscon_clk_probe(struct platform_device *pdev)
 		cpuclk_freq = 600;
 		break;
 	default:
-		dev_err(&pdev->dev, "invalid SAR value\n");
+		dev_err(dev, "invalid SAR value\n");
 		return -EINVAL;
 	}
 
@@ -99,7 +100,7 @@ static int ap806_syscon_clk_probe(struct platform_device *pdev)
 	/* CPU clocks depend on the Sample At Reset configuration */
 	of_property_read_string_index(np, "clock-output-names",
 				      0, &name);
-	ap806_clks[0] = clk_register_fixed_rate(&pdev->dev, name, NULL,
+	ap806_clks[0] = clk_register_fixed_rate(dev, name, NULL,
 						0, cpuclk_freq);
 	if (IS_ERR(ap806_clks[0])) {
 		ret = PTR_ERR(ap806_clks[0]);
@@ -108,7 +109,7 @@ static int ap806_syscon_clk_probe(struct platform_device *pdev)
 
 	of_property_read_string_index(np, "clock-output-names",
 				      1, &name);
-	ap806_clks[1] = clk_register_fixed_rate(&pdev->dev, name, NULL, 0,
+	ap806_clks[1] = clk_register_fixed_rate(dev, name, NULL, 0,
 						cpuclk_freq);
 	if (IS_ERR(ap806_clks[1])) {
 		ret = PTR_ERR(ap806_clks[1]);
@@ -118,7 +119,7 @@ static int ap806_syscon_clk_probe(struct platform_device *pdev)
 	/* Fixed clock is always 1200 Mhz */
 	of_property_read_string_index(np, "clock-output-names",
 				      2, &fixedclk_name);
-	ap806_clks[2] = clk_register_fixed_rate(&pdev->dev, fixedclk_name, NULL,
+	ap806_clks[2] = clk_register_fixed_rate(dev, fixedclk_name, NULL,
 						0, 1200 * 1000 * 1000);
 	if (IS_ERR(ap806_clks[2])) {
 		ret = PTR_ERR(ap806_clks[2]);
