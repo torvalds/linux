@@ -193,8 +193,8 @@
 #define GPSR6_9		F_(SSI_WS4,		IP15_27_24)
 #define GPSR6_8		F_(SSI_SCK4,		IP15_23_20)
 #define GPSR6_7		F_(SSI_SDATA3,		IP15_19_16)
-#define GPSR6_6		F_(SSI_WS34,		IP15_15_12)
-#define GPSR6_5		F_(SSI_SCK34,		IP15_11_8)
+#define GPSR6_6		F_(SSI_WS349,		IP15_15_12)
+#define GPSR6_5		F_(SSI_SCK349,		IP15_11_8)
 #define GPSR6_4		F_(SSI_SDATA2_A,	IP15_7_4)
 #define GPSR6_3		F_(SSI_SDATA1_A,	IP15_3_0)
 #define GPSR6_2		F_(SSI_SDATA0,		IP14_31_28)
@@ -339,8 +339,8 @@
 #define IP14_31_28	FM(SSI_SDATA0)		F_(0, 0)	FM(MSIOF1_SS2_F)	F_(0, 0)			F_(0, 0)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP15_3_0	FM(SSI_SDATA1_A)	F_(0, 0)	F_(0, 0)		F_(0, 0)			F_(0, 0)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP15_7_4	FM(SSI_SDATA2_A)	F_(0, 0)	F_(0, 0)		F_(0, 0)			FM(SSI_SCK1_B)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
-#define IP15_11_8	FM(SSI_SCK34)		F_(0, 0)	FM(MSIOF1_SS1_A)	F_(0, 0)			F_(0, 0)	F_(0, 0)	FM(STP_OPWM_0_A)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
-#define IP15_15_12	FM(SSI_WS34)		FM(HCTS2_N_A)	FM(MSIOF1_SS2_A)	F_(0, 0)			F_(0, 0)	F_(0, 0)	FM(STP_IVCXO27_0_A)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
+#define IP15_11_8	FM(SSI_SCK349)		F_(0, 0)	FM(MSIOF1_SS1_A)	F_(0, 0)			F_(0, 0)	F_(0, 0)	FM(STP_OPWM_0_A)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
+#define IP15_15_12	FM(SSI_WS349)		FM(HCTS2_N_A)	FM(MSIOF1_SS2_A)	F_(0, 0)			F_(0, 0)	F_(0, 0)	FM(STP_IVCXO27_0_A)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP15_19_16	FM(SSI_SDATA3)		FM(HRTS2_N_A)	FM(MSIOF1_TXD_A)	F_(0, 0)			F_(0, 0)	FM(TS_SCK0_A)	FM(STP_ISCLK_0_A)	FM(RIF0_D1_A)	FM(RIF2_D0_A)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP15_23_20	FM(SSI_SCK4)		FM(HRX2_A)	FM(MSIOF1_SCK_A)	F_(0, 0)			F_(0, 0)	FM(TS_SDAT0_A)	FM(STP_ISD_0_A)		FM(RIF0_CLK_A)	FM(RIF2_CLK_A)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP15_27_24	FM(SSI_WS4)		FM(HTX2_A)	FM(MSIOF1_SYNC_A)	F_(0, 0)			F_(0, 0)	FM(TS_SDEN0_A)	FM(STP_ISEN_0_A)	FM(RIF0_SYNC_A)	FM(RIF2_SYNC_A)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
@@ -1315,11 +1315,11 @@ static const u16 pinmux_data[] = {
 	PINMUX_IPSR_MSEL(IP15_7_4,	SSI_SDATA2_A,		SEL_SSI_0),
 	PINMUX_IPSR_MSEL(IP15_7_4,	SSI_SCK1_B,		SEL_SSI_1),
 
-	PINMUX_IPSR_GPSR(IP15_11_8,	SSI_SCK34),
+	PINMUX_IPSR_GPSR(IP15_11_8,	SSI_SCK349),
 	PINMUX_IPSR_MSEL(IP15_11_8,	MSIOF1_SS1_A,		SEL_MSIOF1_0),
 	PINMUX_IPSR_MSEL(IP15_11_8,	STP_OPWM_0_A,		SEL_SSP1_0_0),
 
-	PINMUX_IPSR_GPSR(IP15_15_12,	SSI_WS34),
+	PINMUX_IPSR_GPSR(IP15_15_12,	SSI_WS349),
 	PINMUX_IPSR_MSEL(IP15_15_12,	HCTS2_N_A,		SEL_HSCIF2_0),
 	PINMUX_IPSR_MSEL(IP15_15_12,	MSIOF1_SS2_A,		SEL_MSIOF1_0),
 	PINMUX_IPSR_MSEL(IP15_15_12,	STP_IVCXO27_0_A,	SEL_SSP1_0_0),
@@ -2653,8 +2653,8 @@ static const struct pinmux_drive_reg pinmux_drive_regs[] = {
 		{ RCAR_GP_PIN(6,  2), 24, 3 },	/* SSI_SDATA0 */
 		{ RCAR_GP_PIN(6,  3), 20, 3 },	/* SSI_SDATA1 */
 		{ RCAR_GP_PIN(6,  4), 16, 3 },	/* SSI_SDATA2 */
-		{ RCAR_GP_PIN(6,  5), 12, 3 },	/* SSI_SCK34 */
-		{ RCAR_GP_PIN(6,  6),  8, 3 },	/* SSI_WS34 */
+		{ RCAR_GP_PIN(6,  5), 12, 3 },	/* SSI_SCK349 */
+		{ RCAR_GP_PIN(6,  6),  8, 3 },	/* SSI_WS349 */
 		{ RCAR_GP_PIN(6,  7),  4, 3 },	/* SSI_SDATA3 */
 		{ RCAR_GP_PIN(6,  8),  0, 3 },	/* SSI_SCK4 */
 	} },
@@ -2900,8 +2900,8 @@ static const struct sh_pfc_bias_info bias_info[] = {
 	{ RCAR_GP_PIN(6,  9),    PU5, 16 },	/* SSI_WS4 */
 	{ RCAR_GP_PIN(6,  8),    PU5, 15 },	/* SSI_SCK4 */
 	{ RCAR_GP_PIN(6,  7),    PU5, 14 },	/* SSI_SDATA3 */
-	{ RCAR_GP_PIN(6,  6),    PU5, 13 },	/* SSI_WS34 */
-	{ RCAR_GP_PIN(6,  5),    PU5, 12 },	/* SSI_SCK34 */
+	{ RCAR_GP_PIN(6,  6),    PU5, 13 },	/* SSI_WS349 */
+	{ RCAR_GP_PIN(6,  5),    PU5, 12 },	/* SSI_SCK349 */
 	{ RCAR_GP_PIN(6,  4),    PU5, 11 },	/* SSI_SDATA2_A */
 	{ RCAR_GP_PIN(6,  3),    PU5, 10 },	/* SSI_SDATA1_A */
 	{ RCAR_GP_PIN(6,  2),    PU5,  9 },	/* SSI_SDATA0 */
