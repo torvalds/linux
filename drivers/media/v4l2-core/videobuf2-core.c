@@ -956,9 +956,9 @@ void vb2_discard_done(struct vb2_queue *q)
 EXPORT_SYMBOL_GPL(vb2_discard_done);
 
 /**
- * __qbuf_mmap() - handle qbuf of an MMAP buffer
+ * __prepare_mmap() - prepare an MMAP buffer
  */
-static int __qbuf_mmap(struct vb2_buffer *vb, const void *pb)
+static int __prepare_mmap(struct vb2_buffer *vb, const void *pb)
 {
 	int ret = 0;
 
@@ -969,9 +969,9 @@ static int __qbuf_mmap(struct vb2_buffer *vb, const void *pb)
 }
 
 /**
- * __qbuf_userptr() - handle qbuf of a USERPTR buffer
+ * __prepare_userptr() - prepare a USERPTR buffer
  */
-static int __qbuf_userptr(struct vb2_buffer *vb, const void *pb)
+static int __prepare_userptr(struct vb2_buffer *vb, const void *pb)
 {
 	struct vb2_plane planes[VB2_MAX_PLANES];
 	struct vb2_queue *q = vb->vb2_queue;
@@ -1087,9 +1087,9 @@ err:
 }
 
 /**
- * __qbuf_dmabuf() - handle qbuf of a DMABUF buffer
+ * __prepare_dmabuf() - prepare a DMABUF buffer
  */
-static int __qbuf_dmabuf(struct vb2_buffer *vb, const void *pb)
+static int __prepare_dmabuf(struct vb2_buffer *vb, const void *pb)
 {
 	struct vb2_plane planes[VB2_MAX_PLANES];
 	struct vb2_queue *q = vb->vb2_queue;
@@ -1255,13 +1255,13 @@ static int __buf_prepare(struct vb2_buffer *vb, const void *pb)
 
 	switch (q->memory) {
 	case VB2_MEMORY_MMAP:
-		ret = __qbuf_mmap(vb, pb);
+		ret = __prepare_mmap(vb, pb);
 		break;
 	case VB2_MEMORY_USERPTR:
-		ret = __qbuf_userptr(vb, pb);
+		ret = __prepare_userptr(vb, pb);
 		break;
 	case VB2_MEMORY_DMABUF:
-		ret = __qbuf_dmabuf(vb, pb);
+		ret = __prepare_dmabuf(vb, pb);
 		break;
 	default:
 		WARN(1, "Invalid queue type\n");
