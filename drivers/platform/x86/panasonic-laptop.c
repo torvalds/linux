@@ -228,10 +228,6 @@ struct pcc_acpi {
 	struct backlight_device	*backlight;
 };
 
-struct pcc_keyinput {
-	struct acpi_hotkey      *hotkey;
-};
-
 /* method access functions */
 static int acpi_pcc_write_sset(struct pcc_acpi *pcc, int func, int val)
 {
