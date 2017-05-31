@@ -2034,13 +2034,6 @@ static int mv88e6xxx_g1_setup(struct mv88e6xxx_chip *chip)
 	u32 upstream_port = dsa_upstream_port(ds);
 	int err;
 
-	/* Enable the PHY Polling Unit if present, don't discard any packets,
-	 * and mask all interrupt sources.
-	 */
-	err = mv88e6xxx_ppu_enable(chip);
-	if (err)
-		return err;
-
 	if (chip->info->ops->g1_set_cpu_port) {
 		err = chip->info->ops->g1_set_cpu_port(chip, upstream_port);
 		if (err)
@@ -2139,6 +2132,10 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 		if (err)
 			goto unlock;
 	}
+
+	err = mv88e6xxx_phy_setup(chip);
+	if (err)
+		goto unlock;
 
 	err = mv88e6xxx_vtu_setup(chip);
 	if (err)
@@ -2374,8 +2371,8 @@ static int mv88e6xxx_set_eeprom(struct dsa_switch *ds,
 static const struct mv88e6xxx_ops mv88e6085_ops = {
 	/* MV88E6XXX_FAMILY_6097 */
 	.set_switch_mac = mv88e6xxx_g1_set_switch_mac,
-	.phy_read = mv88e6xxx_phy_ppu_read,
-	.phy_write = mv88e6xxx_phy_ppu_write,
+	.phy_read = mv88e6185_phy_ppu_read,
+	.phy_write = mv88e6185_phy_ppu_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_speed = mv88e6185_port_set_speed,
@@ -2405,8 +2402,8 @@ static const struct mv88e6xxx_ops mv88e6085_ops = {
 static const struct mv88e6xxx_ops mv88e6095_ops = {
 	/* MV88E6XXX_FAMILY_6095 */
 	.set_switch_mac = mv88e6xxx_g1_set_switch_mac,
-	.phy_read = mv88e6xxx_phy_ppu_read,
-	.phy_write = mv88e6xxx_phy_ppu_write,
+	.phy_read = mv88e6185_phy_ppu_read,
+	.phy_write = mv88e6185_phy_ppu_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_speed = mv88e6185_port_set_speed,
@@ -2483,8 +2480,8 @@ static const struct mv88e6xxx_ops mv88e6123_ops = {
 static const struct mv88e6xxx_ops mv88e6131_ops = {
 	/* MV88E6XXX_FAMILY_6185 */
 	.set_switch_mac = mv88e6xxx_g1_set_switch_mac,
-	.phy_read = mv88e6xxx_phy_ppu_read,
-	.phy_write = mv88e6xxx_phy_ppu_write,
+	.phy_read = mv88e6185_phy_ppu_read,
+	.phy_write = mv88e6185_phy_ppu_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_speed = mv88e6185_port_set_speed,
@@ -2730,8 +2727,8 @@ static const struct mv88e6xxx_ops mv88e6176_ops = {
 static const struct mv88e6xxx_ops mv88e6185_ops = {
 	/* MV88E6XXX_FAMILY_6185 */
 	.set_switch_mac = mv88e6xxx_g1_set_switch_mac,
-	.phy_read = mv88e6xxx_phy_ppu_read,
-	.phy_write = mv88e6xxx_phy_ppu_write,
+	.phy_read = mv88e6185_phy_ppu_read,
+	.phy_write = mv88e6185_phy_ppu_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_speed = mv88e6185_port_set_speed,
