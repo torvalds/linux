@@ -138,7 +138,7 @@
 			logo,kernel = "logo_kernel.bmp";
 			logo,mode = "center";
 			charge_logo,mode = "center";
-			connect = <&vopb_out_mipi>;
+			connect = <&vopb_out_dsi>;
 		};
 
 		route_edp: route-edp {
