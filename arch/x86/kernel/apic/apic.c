@@ -563,6 +563,7 @@ static void setup_APIC_timer(void)
 	levt->cpumask = cpumask_of(smp_processor_id());
 
 	if (this_cpu_has(X86_FEATURE_TSC_DEADLINE_TIMER)) {
+		levt->name = "lapic-deadline";
 		levt->features &= ~(CLOCK_EVT_FEAT_PERIODIC |
 				    CLOCK_EVT_FEAT_DUMMY);
 		levt->set_next_event = lapic_next_deadline;
