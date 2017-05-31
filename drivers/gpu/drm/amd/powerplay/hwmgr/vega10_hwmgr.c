@@ -124,7 +124,7 @@ static void vega10_set_default_registry_data(struct pp_hwmgr *hwmgr)
 	}
 
 	data->registry_data.clock_stretcher_support =
-			hwmgr->feature_mask & PP_CLOCK_STRETCH_MASK ? false : true;
+			hwmgr->feature_mask & PP_CLOCK_STRETCH_MASK ? true : false;
 
 	data->registry_data.ulv_support =
 			hwmgr->feature_mask & PP_ULV_MASK ? true : false;
