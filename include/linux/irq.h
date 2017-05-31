@@ -962,6 +962,9 @@ struct irq_chip_generic *
 devm_irq_alloc_generic_chip(struct device *dev, const char *name, int num_ct,
 			    unsigned int irq_base, void __iomem *reg_base,
 			    irq_flow_handler_t handler);
+int devm_irq_setup_generic_chip(struct device *dev, struct irq_chip_generic *gc,
+				u32 msk, enum irq_gc_flags flags,
+				unsigned int clr, unsigned int set);
 
 struct irq_chip_generic *irq_get_domain_generic_chip(struct irq_domain *d, unsigned int hw_irq);
 

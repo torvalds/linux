@@ -231,4 +231,56 @@ devm_irq_alloc_generic_chip(struct device *dev, const char *name, int num_ct,
 	return gc;
 }
 EXPORT_SYMBOL_GPL(devm_irq_alloc_generic_chip);
+
+struct irq_generic_chip_devres {
+	struct irq_chip_generic *gc;
+	u32 msk;
+	unsigned int clr;
+	unsigned int set;
+};
+
+static void devm_irq_remove_generic_chip(struct device *dev, void *res)
+{
+	struct irq_generic_chip_devres *this = res;
+
+	irq_remove_generic_chip(this->gc, this->msk, this->clr, this->set);
+}
+
+/**
+ * devm_irq_setup_generic_chip - Setup a range of interrupts with a generic
+ *                               chip for a managed device
+ *
+ * @dev:	Device to setup the generic chip for
+ * @gc:		Generic irq chip holding all data
+ * @msk:	Bitmask holding the irqs to initialize relative to gc->irq_base
+ * @flags:	Flags for initialization
+ * @clr:	IRQ_* bits to clear
+ * @set:	IRQ_* bits to set
+ *
+ * Set up max. 32 interrupts starting from gc->irq_base. Note, this
+ * initializes all interrupts to the primary irq_chip_type and its
+ * associated handler.
+ */
+int devm_irq_setup_generic_chip(struct device *dev, struct irq_chip_generic *gc,
+				u32 msk, enum irq_gc_flags flags,
+				unsigned int clr, unsigned int set)
+{
+	struct irq_generic_chip_devres *dr;
+
+	dr = devres_alloc(devm_irq_remove_generic_chip,
+			  sizeof(*dr), GFP_KERNEL);
+	if (!dr)
+		return -ENOMEM;
+
+	irq_setup_generic_chip(gc, msk, flags, clr, set);
+
+	dr->gc = gc;
+	dr->msk = msk;
+	dr->clr = clr;
+	dr->set = set;
+	devres_add(dev, dr);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devm_irq_setup_generic_chip);
 #endif /* CONFIG_GENERIC_IRQ_CHIP */
