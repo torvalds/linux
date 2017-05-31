@@ -891,6 +891,19 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 				dput(temp);
 			else
 				pr_warn("overlayfs: upper fs does not support tmpfile.\n");
+
+			/*
+			 * Check if upper/work fs supports trusted.overlay.*
+			 * xattr
+			 */
+			err = ovl_do_setxattr(ufs->workdir, OVL_XATTR_OPAQUE,
+					      "0", 1, 0);
+			if (err) {
+				ufs->noxattr = true;
+				pr_warn("overlayfs: upper fs does not support xattr.\n");
+			} else {
+				vfs_removexattr(ufs->workdir, OVL_XATTR_OPAQUE);
+			}
 		}
 	}
 
@@ -961,7 +974,10 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	path_put(&workpath);
 	kfree(lowertmp);
 
-	oe->__upperdentry = upperpath.dentry;
+	if (upperpath.dentry) {
+		oe->__upperdentry = upperpath.dentry;
+		oe->impure = ovl_is_impuredir(upperpath.dentry);
+	}
 	for (i = 0; i < numlower; i++) {
 		oe->lowerstack[i].dentry = stack[i].dentry;
 		oe->lowerstack[i].mnt = ufs->lower_mnt[i];
