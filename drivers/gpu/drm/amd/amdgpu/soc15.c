@@ -484,7 +484,6 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
 		amdgpu_ip_block_add(adev, &vega10_common_ip_block);
-		amdgpu_ip_block_add(adev, &gfxhub_v1_0_ip_block);
 		amdgpu_ip_block_add(adev, &mmhub_v1_0_ip_block);
 		amdgpu_ip_block_add(adev, &gmc_v9_0_ip_block);
 		amdgpu_ip_block_add(adev, &vega10_ih_ip_block);
@@ -501,7 +500,6 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		break;
 	case CHIP_RAVEN:
 		amdgpu_ip_block_add(adev, &vega10_common_ip_block);
-		amdgpu_ip_block_add(adev, &gfxhub_v1_0_ip_block);
 		amdgpu_ip_block_add(adev, &mmhub_v1_0_ip_block);
 		amdgpu_ip_block_add(adev, &gmc_v9_0_ip_block);
 		amdgpu_ip_block_add(adev, &vega10_ih_ip_block);
