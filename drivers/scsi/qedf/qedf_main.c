@@ -640,27 +640,17 @@ void qedf_wait_for_upload(struct qedf_ctx *qedf)
 	}
 }
 
-/* Reset the host by gracefully logging out and then logging back in */
-static int qedf_eh_host_reset(struct scsi_cmnd *sc_cmd)
+/* Performs soft reset of qedf_ctx by simulating a link down/up */
+static void qedf_ctx_soft_reset(struct fc_lport *lport)
 {
-	struct fc_lport *lport;
 	struct qedf_ctx *qedf;
-
-	lport = shost_priv(sc_cmd->device->host);
 
 	if (lport->vport) {
 		QEDF_ERR(NULL, "Cannot issue host reset on NPIV port.\n");
-		return SUCCESS;
+		return;
 	}
 
-	qedf = (struct qedf_ctx *)lport_priv(lport);
-
-	if (atomic_read(&qedf->link_state) == QEDF_LINK_DOWN ||
-	    test_bit(QEDF_UNLOADING, &qedf->flags) ||
-	    test_bit(QEDF_DBG_STOP_IO, &qedf->flags))
-		return FAILED;
-
-	QEDF_ERR(&(qedf->dbg_ctx), "HOST RESET Issued...");
+	qedf = lport_priv(lport);
 
 	/* For host reset, essentially do a soft link up/down */
 	atomic_set(&qedf->link_state, QEDF_LINK_DOWN);
@@ -672,6 +662,24 @@ static int qedf_eh_host_reset(struct scsi_cmnd *sc_cmd)
 	qedf->vlan_id  = 0;
 	queue_delayed_work(qedf->link_update_wq, &qedf->link_update,
 	    0);
+}
+
+/* Reset the host by gracefully logging out and then logging back in */
+static int qedf_eh_host_reset(struct scsi_cmnd *sc_cmd)
+{
+	struct fc_lport *lport;
+	struct qedf_ctx *qedf;
+
+	lport = shost_priv(sc_cmd->device->host);
+	qedf = lport_priv(lport);
+
+	if (atomic_read(&qedf->link_state) == QEDF_LINK_DOWN ||
+	    test_bit(QEDF_UNLOADING, &qedf->flags))
+		return FAILED;
+
+	QEDF_ERR(&(qedf->dbg_ctx), "HOST RESET Issued...");
+
+	qedf_ctx_soft_reset(lport);
 
 	return SUCCESS;
 }
@@ -1669,8 +1677,7 @@ static int qedf_fcoe_reset(struct Scsi_Host *shost)
 {
 	struct fc_lport *lport = shost_priv(shost);
 
-	fc_fabric_logoff(lport);
-	fc_fabric_login(lport);
+	qedf_ctx_soft_reset(lport);
 	return 0;
 }
 
