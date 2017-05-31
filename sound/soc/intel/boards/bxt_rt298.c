@@ -222,16 +222,13 @@ static int broxton_dmic_fixup(struct snd_soc_pcm_runtime *rtd,
 {
 	struct snd_interval *channels = hw_param_interval(params,
 						SNDRV_PCM_HW_PARAM_CHANNELS);
-	if (params_channels(params) == 2)
-		channels->min = channels->max = 2;
-	else
-		channels->min = channels->max = 4;
+	channels->min = channels->max = 4;
 
 	return 0;
 }
 
 static unsigned int channels_dmic[] = {
-	2, 4,
+	1, 2, 3, 4,
 };
 
 static struct snd_pcm_hw_constraint_list constraints_dmic_channels = {
