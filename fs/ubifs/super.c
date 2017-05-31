@@ -446,6 +446,8 @@ static int ubifs_show_options(struct seq_file *s, struct dentry *root)
 			   ubifs_compr_name(c->mount_opts.compr_type));
 	}
 
+	seq_printf(s, ",ubi=%d,vol=%d", c->vi.ubi_num, c->vi.vol_id);
+
 	return 0;
 }
 
@@ -931,6 +933,7 @@ enum {
 	Opt_chk_data_crc,
 	Opt_no_chk_data_crc,
 	Opt_override_compr,
+	Opt_ignore,
 	Opt_err,
 };
 
@@ -942,6 +945,8 @@ static const match_table_t tokens = {
 	{Opt_chk_data_crc, "chk_data_crc"},
 	{Opt_no_chk_data_crc, "no_chk_data_crc"},
 	{Opt_override_compr, "compr=%s"},
+	{Opt_ignore, "ubi=%s"},
+	{Opt_ignore, "vol=%s"},
 	{Opt_err, NULL},
 };
 
@@ -1042,6 +1047,8 @@ static int ubifs_parse_options(struct ubifs_info *c, char *options,
 			c->default_compr = c->mount_opts.compr_type;
 			break;
 		}
+		case Opt_ignore:
+			break;
 		default:
 		{
 			unsigned long flag;
