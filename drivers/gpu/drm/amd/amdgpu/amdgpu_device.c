@@ -1862,7 +1862,6 @@ static int amdgpu_sriov_reinit_early(struct amdgpu_device *adev)
 	static enum amd_ip_block_type ip_order[] = {
 		AMD_IP_BLOCK_TYPE_GMC,
 		AMD_IP_BLOCK_TYPE_COMMON,
-		AMD_IP_BLOCK_TYPE_MMHUB,
 		AMD_IP_BLOCK_TYPE_IH,
 	};
 

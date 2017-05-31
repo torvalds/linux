@@ -371,61 +371,6 @@ void mmhub_v1_0_init(struct amdgpu_device *adev)
 
 }
 
-static int mmhub_v1_0_early_init(void *handle)
-{
-	return 0;
-}
-
-static int mmhub_v1_0_late_init(void *handle)
-{
-	return 0;
-}
-
-static int mmhub_v1_0_sw_init(void *handle)
-{
-	return 0;
-}
-
-static int mmhub_v1_0_sw_fini(void *handle)
-{
-	return 0;
-}
-
-static int mmhub_v1_0_hw_init(void *handle)
-{
-	return 0;
-}
-
-static int mmhub_v1_0_hw_fini(void *handle)
-{
-	return 0;
-}
-
-static int mmhub_v1_0_suspend(void *handle)
-{
-	return 0;
-}
-
-static int mmhub_v1_0_resume(void *handle)
-{
-	return 0;
-}
-
-static bool mmhub_v1_0_is_idle(void *handle)
-{
-	return true;
-}
-
-static int mmhub_v1_0_wait_for_idle(void *handle)
-{
-	return 0;
-}
-
-static int mmhub_v1_0_soft_reset(void *handle)
-{
-	return 0;
-}
-
 static void mmhub_v1_0_update_medium_grain_clock_gating(struct amdgpu_device *adev,
 							bool enable)
 {
@@ -563,12 +508,6 @@ int mmhub_v1_0_set_clockgating(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int mmhub_v1_0_set_clockgating_state(void *handle,
-					    enum amd_clockgating_state state)
-{
-	return 0;
-}
-
 void mmhub_v1_0_get_clockgating(struct amdgpu_device *adev, u32 *flags)
 {
 	int data;
@@ -586,35 +525,3 @@ void mmhub_v1_0_get_clockgating(struct amdgpu_device *adev, u32 *flags)
 	if (data & ATC_L2_MISC_CG__MEM_LS_ENABLE_MASK)
 		*flags |= AMD_CG_SUPPORT_MC_LS;
 }
-
-static int mmhub_v1_0_set_powergating_state(void *handle,
-					enum amd_powergating_state state)
-{
-	return 0;
-}
-
-const struct amd_ip_funcs mmhub_v1_0_ip_funcs = {
-	.name = "mmhub_v1_0",
-	.early_init = mmhub_v1_0_early_init,
-	.late_init = mmhub_v1_0_late_init,
-	.sw_init = mmhub_v1_0_sw_init,
-	.sw_fini = mmhub_v1_0_sw_fini,
-	.hw_init = mmhub_v1_0_hw_init,
-	.hw_fini = mmhub_v1_0_hw_fini,
-	.suspend = mmhub_v1_0_suspend,
-	.resume = mmhub_v1_0_resume,
-	.is_idle = mmhub_v1_0_is_idle,
-	.wait_for_idle = mmhub_v1_0_wait_for_idle,
-	.soft_reset = mmhub_v1_0_soft_reset,
-	.set_clockgating_state = mmhub_v1_0_set_clockgating_state,
-	.set_powergating_state = mmhub_v1_0_set_powergating_state,
-};
-
-const struct amdgpu_ip_block_version mmhub_v1_0_ip_block =
-{
-	.type = AMD_IP_BLOCK_TYPE_MMHUB,
-	.major = 1,
-	.minor = 0,
-	.rev = 0,
-	.funcs = &mmhub_v1_0_ip_funcs,
-};
