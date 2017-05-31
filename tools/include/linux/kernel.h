@@ -32,6 +32,7 @@
 	(type *)((char *)__mptr - offsetof(type, member)); })
 #endif
 
+#define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
 #define BUILD_BUG_ON_ZERO(e) (sizeof(struct { int:-!!(e); }))
 
 #ifndef max
@@ -88,5 +89,8 @@ int scnprintf(char * buf, size_t size, const char * fmt, ...);
 #define __round_mask(x, y) ((__typeof__(x))((y)-1))
 #define round_up(x, y) ((((x)-1) | __round_mask(x, y))+1)
 #define round_down(x, y) ((x) & ~__round_mask(x, y))
+
+#define current_gfp_context(k) 0
+#define synchronize_sched()
 
 #endif

@@ -19,5 +19,6 @@ static inline bool rcu_is_watching(void)
 }
 
 #define rcu_assign_pointer(p, v) ((p) = (v))
+#define RCU_INIT_POINTER(p, v) p=(v)
 
 #endif

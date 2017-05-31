@@ -45,6 +45,10 @@
 # define __maybe_unused		__attribute__((unused))
 #endif
 
+#ifndef __used
+# define __used		__attribute__((__unused__))
+#endif
+
 #ifndef __packed
 # define __packed		__attribute__((__packed__))
 #endif
@@ -63,6 +67,14 @@
 
 #ifndef unlikely
 # define unlikely(x)		__builtin_expect(!!(x), 0)
+#endif
+
+#ifndef __init
+# define __init
+#endif
+
+#ifndef noinline
+# define noinline
 #endif
 
 #define uninitialized_var(x) x = *(&(x))

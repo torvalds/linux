@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <linux/compiler.h>
+#include <asm/bug.h>
 
 #define DEBUG_LOCKS_WARN_ON(x) WARN_ON(x)
 

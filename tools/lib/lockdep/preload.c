@@ -123,8 +123,6 @@ static struct rb_node **__get_lock_node(void *lock, struct rb_node **parent)
 #define LIBLOCKDEP_STATIC_ENTRIES	1024
 #endif
 
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
-
 static struct lock_lookup __locks[LIBLOCKDEP_STATIC_ENTRIES];
 static int __locks_nr;
 
