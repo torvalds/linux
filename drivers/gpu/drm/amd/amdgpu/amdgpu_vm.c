@@ -680,9 +680,8 @@ bool amdgpu_vm_need_pipeline_sync(struct amdgpu_ring *ring,
 
 	if (amdgpu_vm_had_gpu_reset(adev, id))
 		return true;
-	if (!vm_flush_needed && !gds_switch_needed)
-		return false;
-	return true;
+
+	return vm_flush_needed || gds_switch_needed;
 }
 
 /**
