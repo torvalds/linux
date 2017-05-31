@@ -463,7 +463,7 @@ normal_tx:
 	prod = NEXT_TX(prod);
 	txr->tx_prod = prod;
 
-	if (!skb->xmit_more)
+	if (!skb->xmit_more || netif_xmit_stopped(txq))
 		bnxt_db_write(bp, txr->tx_doorbell, DB_KEY_TX | prod);
 
 tx_done:
