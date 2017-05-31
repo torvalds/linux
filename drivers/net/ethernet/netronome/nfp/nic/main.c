@@ -51,6 +51,7 @@ static int nfp_nic_init(struct nfp_app *app)
 
 const struct nfp_app_type app_nic = {
 	.id		= NFP_APP_CORE_NIC,
+	.name		= "nic",
 
 	.init		= nfp_nic_init,
 	.vnic_init	= nfp_app_nic_vnic_init,

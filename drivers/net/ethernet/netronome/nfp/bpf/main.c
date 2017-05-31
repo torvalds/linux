@@ -53,6 +53,7 @@ nfp_bpf_vnic_init(struct nfp_app *app, struct nfp_net *nn, unsigned int id)
 
 const struct nfp_app_type app_bpf = {
 	.id		= NFP_APP_BPF_NIC,
+	.name		= "ebpf",
 
 	.vnic_init	= nfp_bpf_vnic_init,
 };

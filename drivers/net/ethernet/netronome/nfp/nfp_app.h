@@ -51,6 +51,7 @@ extern const struct nfp_app_type app_bpf;
 /**
  * struct nfp_app_type - application definition
  * @id:		application ID
+ * @name:	application name
  *
  * Callbacks
  * @init:	perform basic app checks
@@ -58,6 +59,7 @@ extern const struct nfp_app_type app_bpf;
  */
 struct nfp_app_type {
 	enum nfp_app_id id;
+	const char *name;
 
 	int (*init)(struct nfp_app *app);
 
@@ -91,6 +93,13 @@ static inline int nfp_app_vnic_init(struct nfp_app *app, struct nfp_net *nn,
 				    unsigned int id)
 {
 	return app->type->vnic_init(app, nn, id);
+}
+
+static inline const char *nfp_app_name(struct nfp_app *app)
+{
+	if (!app)
+		return "";
+	return app->type->name;
 }
 
 struct nfp_app *nfp_app_alloc(struct nfp_pf *pf, enum nfp_app_id id);

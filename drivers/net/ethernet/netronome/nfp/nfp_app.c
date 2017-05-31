@@ -55,7 +55,7 @@ struct nfp_app *nfp_app_alloc(struct nfp_pf *pf, enum nfp_app_id id)
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (WARN_ON(!apps[i]->vnic_init))
+	if (WARN_ON(!apps[i]->name || !apps[i]->vnic_init))
 		return ERR_PTR(-EINVAL);
 
 	app = kzalloc(sizeof(*app), GFP_KERNEL);
