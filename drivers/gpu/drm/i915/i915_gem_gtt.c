@@ -3100,7 +3100,8 @@ void i915_ggtt_enable_guc(struct drm_i915_private *i915)
 
 void i915_ggtt_disable_guc(struct drm_i915_private *i915)
 {
-	i915->ggtt.invalidate = gen6_ggtt_invalidate;
+	if (i915->ggtt.invalidate == guc_ggtt_invalidate)
+		i915->ggtt.invalidate = gen6_ggtt_invalidate;
 }
 
 void i915_gem_restore_gtt_mappings(struct drm_i915_private *dev_priv)
