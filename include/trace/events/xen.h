@@ -30,6 +30,8 @@ DECLARE_EVENT_CLASS(xen_mc__batch,
 DEFINE_XEN_MC_BATCH(xen_mc_batch);
 DEFINE_XEN_MC_BATCH(xen_mc_issue);
 
+TRACE_DEFINE_SIZEOF(ulong);
+
 TRACE_EVENT(xen_mc_entry,
 	    TP_PROTO(struct multicall_entry *mc, unsigned nargs),
 	    TP_ARGS(mc, nargs),
@@ -40,8 +42,8 @@ TRACE_EVENT(xen_mc_entry,
 		    ),
 	    TP_fast_assign(__entry->op = mc->op;
 			   __entry->nargs = nargs;
-			   memcpy(__entry->args, mc->args, sizeof(unsigned long) * nargs);
-			   memset(__entry->args + nargs, 0, sizeof(unsigned long) * (6 - nargs));
+			   memcpy(__entry->args, mc->args, sizeof(ulong) * nargs);
+			   memset(__entry->args + nargs, 0, sizeof(ulong) * (6 - nargs));
 		    ),
 	    TP_printk("op %u%s args [%lx, %lx, %lx, %lx, %lx, %lx]",
 		      __entry->op, xen_hypercall_name(__entry->op),
@@ -122,6 +124,7 @@ TRACE_EVENT(xen_mc_extend_args,
 		      __entry->res == XEN_MC_XE_NO_SPACE ? "NO_SPACE" : "???")
 	);
 
+TRACE_DEFINE_SIZEOF(pteval_t);
 /* mmu */
 DECLARE_EVENT_CLASS(xen_mmu__set_pte,
 	    TP_PROTO(pte_t *ptep, pte_t pteval),
@@ -199,6 +202,8 @@ TRACE_EVENT(xen_mmu_pte_clear,
 		      __entry->mm, __entry->addr, __entry->ptep)
 	);
 
+TRACE_DEFINE_SIZEOF(pmdval_t);
+
 TRACE_EVENT(xen_mmu_set_pmd,
 	    TP_PROTO(pmd_t *pmdp, pmd_t pmdval),
 	    TP_ARGS(pmdp, pmdval),
@@ -226,6 +231,8 @@ TRACE_EVENT(xen_mmu_pmd_clear,
 
 #if CONFIG_PGTABLE_LEVELS >= 4
 
+TRACE_DEFINE_SIZEOF(pudval_t);
+
 TRACE_EVENT(xen_mmu_set_pud,
 	    TP_PROTO(pud_t *pudp, pud_t pudval),
 	    TP_ARGS(pudp, pudval),
@@ -240,6 +247,8 @@ TRACE_EVENT(xen_mmu_set_pud,
 		      (int)sizeof(pudval_t) * 2, (unsigned long long)pud_val(native_make_pud(__entry->pudval)),
 		      (int)sizeof(pudval_t) * 2, (unsigned long long)__entry->pudval)
 	);
+
+TRACE_DEFINE_SIZEOF(p4dval_t);
 
 TRACE_EVENT(xen_mmu_set_p4d,
 	    TP_PROTO(p4d_t *p4dp, p4d_t *user_p4dp, p4d_t p4dval),
