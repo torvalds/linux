@@ -130,6 +130,12 @@
 		#size-cells = <1>;
 		ranges;
 
+		syscon: syscon@1c00000 {
+			compatible = "allwinner,sun50i-a64-system-controller",
+				"syscon";
+			reg = <0x01c00000 0x1000>;
+		};
+
 		mmc0: mmc@1c0f000 {
 			compatible = "allwinner,sun50i-a64-mmc";
 			reg = <0x01c0f000 0x1000>;
