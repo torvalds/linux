@@ -141,7 +141,7 @@ err_area:
  * First try to get the MAC address from NSP ETH table. If that
  * fails try HWInfo.  As a last resort generate a random address.
  */
-static void
+void
 nfp_net_get_mac_addr(struct nfp_net *nn, struct nfp_cpp *cpp, unsigned int id)
 {
 	struct nfp_eth_table_port *eth_port;
@@ -179,7 +179,7 @@ nfp_net_get_mac_addr(struct nfp_net *nn, struct nfp_cpp *cpp, unsigned int id)
 	ether_addr_copy(dp->netdev->perm_addr, mac_addr);
 }
 
-static struct nfp_eth_table_port *
+struct nfp_eth_table_port *
 nfp_net_find_port(struct nfp_eth_table *eth_tbl, unsigned int id)
 {
 	int i;
@@ -191,24 +191,36 @@ nfp_net_find_port(struct nfp_eth_table *eth_tbl, unsigned int id)
 	return NULL;
 }
 
-static unsigned int nfp_net_pf_get_num_ports(struct nfp_pf *pf)
+static int
+nfp_net_pf_rtsym_read_optional(struct nfp_pf *pf, const char *format,
+			       unsigned int default_val)
 {
 	char name[256];
 	int err = 0;
 	u64 val;
 
-	snprintf(name, sizeof(name), "nfd_cfg_pf%u_num_ports",
-		 nfp_cppcore_pcie_unit(pf->cpp));
+	snprintf(name, sizeof(name), format, nfp_cppcore_pcie_unit(pf->cpp));
 
 	val = nfp_rtsym_read_le(pf->cpp, name, &err);
-	/* Default to one port/vNIC */
 	if (err) {
-		if (err != -ENOENT)
-			nfp_err(pf->cpp, "Unable to read adapter vNIC count\n");
-		val = 1;
+		if (err == -ENOENT)
+			return default_val;
+		nfp_err(pf->cpp, "Unable to read symbol %s\n", name);
+		return err;
 	}
 
 	return val;
+}
+
+static int nfp_net_pf_get_num_ports(struct nfp_pf *pf)
+{
+	return nfp_net_pf_rtsym_read_optional(pf, "nfd_cfg_pf%u_num_ports", 1);
+}
+
+static int nfp_net_pf_get_app_id(struct nfp_pf *pf)
+{
+	return nfp_net_pf_rtsym_read_optional(pf, "_pf%u_net_app_id",
+					      NFP_APP_CORE_NIC);
 }
 
 static unsigned int
@@ -296,9 +308,9 @@ nfp_net_pf_alloc_vnic(struct nfp_pf *pf, void __iomem *ctrl_bar,
 		      int stride, struct nfp_net_fw_version *fw_ver,
 		      unsigned int eth_id)
 {
-	struct nfp_eth_table_port *eth_port;
 	u32 n_tx_rings, n_rx_rings;
 	struct nfp_net *nn;
+	int err;
 
 	n_tx_rings = readl(ctrl_bar + NFP_NET_CFG_MAX_TXRINGS);
 	n_rx_rings = readl(ctrl_bar + NFP_NET_CFG_MAX_RXRINGS);
@@ -317,16 +329,10 @@ nfp_net_pf_alloc_vnic(struct nfp_pf *pf, void __iomem *ctrl_bar,
 	nn->stride_rx = stride;
 	nn->stride_tx = stride;
 
-	eth_port = nfp_net_find_port(pf->eth_tbl, eth_id);
-	if (eth_port) {
-		nn->port = nfp_port_alloc(pf->app, NFP_PORT_PHYS_PORT,
-					  nn->dp.netdev);
-		if (IS_ERR(nn->port)) {
-			nfp_net_free(nn);
-			return ERR_CAST(nn->port);
-		}
-		nn->port->eth_id = eth_id;
-		nn->port->eth_port = eth_port;
+	err = nfp_app_vnic_init(pf->app, nn, eth_id);
+	if (err) {
+		nfp_net_free(nn);
+		return ERR_PTR(err);
 	}
 
 	pf->num_vnics++;
@@ -339,9 +345,6 @@ static int
 nfp_net_pf_init_vnic(struct nfp_pf *pf, struct nfp_net *nn, unsigned int id)
 {
 	int err;
-
-	/* Get MAC address */
-	nfp_net_get_mac_addr(nn, pf->cpp, id);
 
 	/* Get ME clock frequency from ctrl BAR
 	 * XXX for now frequency is hardcoded until we figure out how
@@ -381,12 +384,6 @@ nfp_net_pf_alloc_vnics(struct nfp_pf *pf, void __iomem *ctrl_bar,
 	unsigned int i;
 	int err;
 
-	if (pf->eth_tbl && pf->max_data_vnics != pf->eth_tbl->count) {
-		nfp_err(pf->cpp, "ETH entries don't match vNICs (%d vs %d)\n",
-			pf->max_data_vnics, pf->eth_tbl->count);
-		return -EINVAL;
-	}
-
 	prev_tx_base = readl(ctrl_bar + NFP_NET_CFG_START_TXQ);
 	prev_rx_base = readl(ctrl_bar + NFP_NET_CFG_START_RXQ);
 
@@ -407,14 +404,8 @@ nfp_net_pf_alloc_vnics(struct nfp_pf *pf, void __iomem *ctrl_bar,
 
 		ctrl_bar += NFP_PF_CSR_SLICE_SIZE;
 
-		/* Check if vNIC has external port associated and cfg is OK */
-		if (pf->eth_tbl && !nn->port) {
-			nfp_err(pf->cpp, "NSP port entries don't match vNICs (no entry for port #%d)\n", i);
-			err = -EINVAL;
-			goto err_free_prev;
-		}
-		if (nn->port && nn->port->eth_port->override_changed) {
-			nfp_warn(pf->cpp, "Config changed for port #%d, reboot required before port will be operational\n", i);
+		/* Kill the vNIC if app init marked it as invalid */
+		if (nn->port && nn->port->type == NFP_PORT_INVALID) {
 			nfp_net_pf_free_vnic(pf, nn);
 			continue;
 		}
@@ -436,6 +427,7 @@ static void nfp_net_pf_clean_vnic(struct nfp_pf *pf, struct nfp_net *nn)
 		nfp_devlink_port_unregister(nn->port);
 	nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
 	nfp_net_clean(nn);
+	nfp_app_vnic_clean(pf->app, nn);
 }
 
 static int
@@ -512,9 +504,21 @@ err_nn_free:
 
 static int nfp_net_pf_app_init(struct nfp_pf *pf)
 {
-	pf->app = nfp_app_alloc(pf);
+	int err;
 
-	return PTR_ERR_OR_ZERO(pf->app);
+	pf->app = nfp_app_alloc(pf, nfp_net_pf_get_app_id(pf));
+	if (IS_ERR(pf->app))
+		return PTR_ERR(pf->app);
+
+	err = nfp_app_init(pf->app);
+	if (err)
+		goto err_free;
+
+	return 0;
+
+err_free:
+	nfp_app_free(pf->app);
+	return err;
 }
 
 static void nfp_net_pf_app_clean(struct nfp_pf *pf)
@@ -675,6 +679,10 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 
 	mutex_lock(&pf->lock);
 	pf->max_data_vnics = nfp_net_pf_get_num_ports(pf);
+	if ((int)pf->max_data_vnics < 0) {
+		err = pf->max_data_vnics;
+		goto err_unlock;
+	}
 
 	ctrl_bar = nfp_net_pf_map_ctrl_bar(pf);
 	if (!ctrl_bar) {

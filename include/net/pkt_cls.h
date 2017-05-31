@@ -157,6 +157,25 @@ static inline void tcf_exts_to_list(const struct tcf_exts *exts,
 #endif
 }
 
+static inline void
+tcf_exts_stats_update(const struct tcf_exts *exts,
+		      u64 bytes, u64 packets, u64 lastuse)
+{
+#ifdef CONFIG_NET_CLS_ACT
+	int i;
+
+	preempt_disable();
+
+	for (i = 0; i < exts->nr_actions; i++) {
+		struct tc_action *a = exts->actions[i];
+
+		tcf_action_stats_update(a, bytes, packets, lastuse);
+	}
+
+	preempt_enable();
+#endif
+}
+
 /**
  * tcf_exts_exec - execute tc filter extensions
  * @skb: socket buffer

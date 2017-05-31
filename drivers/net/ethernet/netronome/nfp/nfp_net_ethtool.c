@@ -166,9 +166,10 @@ static void nfp_net_get_drvinfo(struct net_device *netdev,
 
 	nfp_net_get_nspinfo(nn->app, nsp_version);
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
-		 "%d.%d.%d.%d %s",
+		 "%d.%d.%d.%d %s %s",
 		 nn->fw_ver.resv, nn->fw_ver.class,
-		 nn->fw_ver.major, nn->fw_ver.minor, nsp_version);
+		 nn->fw_ver.major, nn->fw_ver.minor, nsp_version,
+		 nfp_app_name(nn->app));
 	strlcpy(drvinfo->bus_info, pci_name(nn->pdev),
 		sizeof(drvinfo->bus_info));
 

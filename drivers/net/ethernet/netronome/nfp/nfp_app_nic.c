@@ -31,46 +31,56 @@
  * SOFTWARE.
  */
 
-#include <linux/slab.h>
-
 #include "nfpcore/nfp_cpp.h"
+#include "nfpcore/nfp_nsp.h"
 #include "nfp_app.h"
 #include "nfp_main.h"
+#include "nfp_net.h"
+#include "nfp_port.h"
 
-static const struct nfp_app_type *apps[] = {
-	&app_nic,
-	&app_bpf,
-};
-
-struct nfp_app *nfp_app_alloc(struct nfp_pf *pf, enum nfp_app_id id)
+static int
+nfp_app_nic_vnic_init_phy_port(struct nfp_pf *pf, struct nfp_app *app,
+			       struct nfp_net *nn, unsigned int id)
 {
-	struct nfp_app *app;
-	unsigned int i;
+	if (!pf->eth_tbl)
+		return 0;
 
-	for (i = 0; i < ARRAY_SIZE(apps); i++)
-		if (apps[i]->id == id)
-			break;
-	if (i == ARRAY_SIZE(apps)) {
-		nfp_err(pf->cpp, "failed to find app with ID 0x%02hhx\n", id);
-		return ERR_PTR(-EINVAL);
+	nn->port = nfp_port_alloc(app, NFP_PORT_PHYS_PORT, nn->dp.netdev);
+	if (IS_ERR(nn->port))
+		return PTR_ERR(nn->port);
+
+	nn->port->eth_id = id;
+	nn->port->eth_port = nfp_net_find_port(pf->eth_tbl, id);
+
+	/* Check if vNIC has external port associated and cfg is OK */
+	if (!nn->port->eth_port) {
+		nfp_err(app->cpp,
+			"NSP port entries don't match vNICs (no entry for port #%d)\n",
+			id);
+		nfp_port_free(nn->port);
+		return -EINVAL;
+	}
+	if (nn->port->eth_port->override_changed) {
+		nfp_warn(app->cpp,
+			 "Config changed for port #%d, reboot required before port will be operational\n",
+			 id);
+		nn->port->type = NFP_PORT_INVALID;
+		return 1;
 	}
 
-	if (WARN_ON(!apps[i]->name || !apps[i]->vnic_init))
-		return ERR_PTR(-EINVAL);
-
-	app = kzalloc(sizeof(*app), GFP_KERNEL);
-	if (!app)
-		return ERR_PTR(-ENOMEM);
-
-	app->pf = pf;
-	app->cpp = pf->cpp;
-	app->pdev = pf->pdev;
-	app->type = apps[i];
-
-	return app;
+	return 0;
 }
 
-void nfp_app_free(struct nfp_app *app)
+int nfp_app_nic_vnic_init(struct nfp_app *app, struct nfp_net *nn,
+			  unsigned int id)
 {
-	kfree(app);
+	int err;
+
+	err = nfp_app_nic_vnic_init_phy_port(app->pf, app, nn, id);
+	if (err)
+		return err < 0 ? err : 0;
+
+	nfp_net_get_mac_addr(nn, app->cpp, id);
+
+	return 0;
 }

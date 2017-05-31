@@ -517,11 +517,6 @@ struct nfp_net_dp {
  * @rss_cfg:            RSS configuration
  * @rss_key:            RSS secret key
  * @rss_itbl:           RSS indirection table
- * @rx_filter:		Filter offload statistics - dropped packets/bytes
- * @rx_filter_prev:	Filter offload statistics - values from previous update
- * @rx_filter_change:	Jiffies when statistics last changed
- * @rx_filter_stats_timer:  Timer for polling filter offload statistics
- * @rx_filter_lock:	Lock protecting timer state changes (teardown)
  * @max_r_vecs:		Number of allocated interrupt vectors for RX/TX
  * @max_tx_rings:       Maximum number of TX rings supported by the Firmware
  * @max_rx_rings:       Maximum number of RX rings supported by the Firmware
@@ -556,6 +551,7 @@ struct nfp_net_dp {
  * @pdev:		Backpointer to PCI device
  * @app:		APP handle if available
  * @port:		Pointer to nfp_port structure if vNIC is a port
+ * @app_priv:		APP private data for this vNIC
  */
 struct nfp_net {
 	struct nfp_net_dp dp;
@@ -569,11 +565,6 @@ struct nfp_net {
 	u32 rss_cfg;
 	u8 rss_key[NFP_NET_CFG_RSS_KEY_SZ];
 	u8 rss_itbl[NFP_NET_CFG_RSS_ITBL_SZ];
-
-	struct nfp_stat_pair rx_filter, rx_filter_prev;
-	unsigned long rx_filter_change;
-	struct timer_list rx_filter_stats_timer;
-	spinlock_t rx_filter_lock;
 
 	unsigned int max_tx_rings;
 	unsigned int max_rx_rings;
@@ -627,6 +618,8 @@ struct nfp_net {
 	struct nfp_app *app;
 
 	struct nfp_port *port;
+
+	void *app_priv;
 };
 
 /* Functions to read/write from/to a BAR
@@ -866,8 +859,5 @@ static inline void nfp_net_debugfs_dir_clean(struct dentry **dir)
 {
 }
 #endif /* CONFIG_NFP_DEBUG */
-
-void nfp_net_filter_stats_timer(unsigned long data);
-int nfp_net_bpf_offload(struct nfp_net *nn, struct tc_cls_bpf_offload *cls_bpf);
 
 #endif /* _NFP_NET_H_ */
