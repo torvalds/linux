@@ -175,6 +175,26 @@ static void gfxhub_v1_0_enable_system_domain(struct amdgpu_device *adev)
 	WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_CONTEXT0_CNTL), tmp);
 }
 
+static void gfxhub_v1_0_disable_identity_aperture(struct amdgpu_device *adev)
+{
+	WREG32(SOC15_REG_OFFSET(GC, 0,
+				mmVM_L2_CONTEXT1_IDENTITY_APERTURE_LOW_ADDR_LO32),
+	       0XFFFFFFFF);
+	WREG32(SOC15_REG_OFFSET(GC, 0,
+		mmVM_L2_CONTEXT1_IDENTITY_APERTURE_LOW_ADDR_HI32), 0x0000000F);
+
+	WREG32(SOC15_REG_OFFSET(GC, 0,
+		mmVM_L2_CONTEXT1_IDENTITY_APERTURE_HIGH_ADDR_LO32), 0);
+	WREG32(SOC15_REG_OFFSET(GC, 0,
+		mmVM_L2_CONTEXT1_IDENTITY_APERTURE_HIGH_ADDR_HI32), 0);
+
+	WREG32(SOC15_REG_OFFSET(GC, 0,
+		mmVM_L2_CONTEXT_IDENTITY_PHYSICAL_OFFSET_LO32), 0);
+	WREG32(SOC15_REG_OFFSET(GC, 0,
+		mmVM_L2_CONTEXT_IDENTITY_PHYSICAL_OFFSET_HI32), 0);
+
+}
+
 int gfxhub_v1_0_gart_enable(struct amdgpu_device *adev)
 {
 	u32 tmp;
@@ -199,22 +219,7 @@ int gfxhub_v1_0_gart_enable(struct amdgpu_device *adev)
 	gfxhub_v1_0_init_cache_regs(adev);
 
 	gfxhub_v1_0_enable_system_domain(adev);
-
-	/* Disable identity aperture.*/
-	WREG32(SOC15_REG_OFFSET(GC, 0,
-		mmVM_L2_CONTEXT1_IDENTITY_APERTURE_LOW_ADDR_LO32), 0XFFFFFFFF);
-	WREG32(SOC15_REG_OFFSET(GC, 0,
-		mmVM_L2_CONTEXT1_IDENTITY_APERTURE_LOW_ADDR_HI32), 0x0000000F);
-
-	WREG32(SOC15_REG_OFFSET(GC, 0,
-		mmVM_L2_CONTEXT1_IDENTITY_APERTURE_HIGH_ADDR_LO32), 0);
-	WREG32(SOC15_REG_OFFSET(GC, 0,
-		mmVM_L2_CONTEXT1_IDENTITY_APERTURE_HIGH_ADDR_HI32), 0);
-
-	WREG32(SOC15_REG_OFFSET(GC, 0,
-		mmVM_L2_CONTEXT_IDENTITY_PHYSICAL_OFFSET_LO32), 0);
-	WREG32(SOC15_REG_OFFSET(GC, 0,
-		mmVM_L2_CONTEXT_IDENTITY_PHYSICAL_OFFSET_HI32), 0);
+	gfxhub_v1_0_disable_identity_aperture(adev);
 
 	for (i = 0; i <= 14; i++) {
 		tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmVM_CONTEXT1_CNTL) + i);
