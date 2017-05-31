@@ -32,6 +32,7 @@ enum hdmi_infoframe_type {
 	HDMI_INFOFRAME_TYPE_AVI = 0x82,
 	HDMI_INFOFRAME_TYPE_SPD = 0x83,
 	HDMI_INFOFRAME_TYPE_AUDIO = 0x84,
+	HDMI_INFOFRAME_TYPE_DRM = 0x87,
 };
 
 #define HDMI_IEEE_OUI 0x000c03
@@ -160,9 +161,28 @@ struct hdmi_avi_infoframe {
 	unsigned short right_bar;
 };
 
+struct hdmi_drm_infoframe {
+	enum hdmi_infoframe_type type;
+	unsigned char version;
+	unsigned char length;
+	uint16_t eotf;
+	uint16_t metadata_type;
+	uint16_t display_primaries_x[3];
+	uint16_t display_primaries_y[3];
+	uint16_t white_point_x;
+	uint16_t white_point_y;
+	uint16_t max_mastering_display_luminance;
+	uint16_t min_mastering_display_luminance;
+	uint16_t max_fall;
+	uint16_t max_cll;
+	uint16_t min_cll;
+};
+
 int hdmi_avi_infoframe_init(struct hdmi_avi_infoframe *frame);
 ssize_t hdmi_avi_infoframe_pack(struct hdmi_avi_infoframe *frame, void *buffer,
 				size_t size);
+
+int hdmi_drm_infoframe_init(struct hdmi_drm_infoframe *frame);
 
 enum hdmi_spd_sdi {
 	HDMI_SPD_SDI_UNKNOWN,
@@ -328,6 +348,7 @@ union hdmi_infoframe {
 	struct hdmi_spd_infoframe spd;
 	union hdmi_vendor_any_infoframe vendor;
 	struct hdmi_audio_infoframe audio;
+	struct hdmi_drm_infoframe drm;
 };
 
 ssize_t

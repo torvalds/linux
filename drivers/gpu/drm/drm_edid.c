@@ -4645,6 +4645,57 @@ void drm_set_preferred_mode(struct drm_connector *connector,
 EXPORT_SYMBOL(drm_set_preferred_mode);
 
 /**
+ * drm_hdmi_infoframe_set_hdr_metadata() - fill an HDMI AVI infoframe with
+ *                                              HDR metadata from userspace
+ * @frame: HDMI AVI infoframe
+ * @hdr_source_metadata: hdr_source_metadata info from userspace
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int
+drm_hdmi_infoframe_set_hdr_metadata(struct hdmi_drm_infoframe *frame,
+				   void *hdr_metadata)
+{
+	struct hdr_static_metadata *hdr_source_metadata;
+	int err, i;
+
+	if (!frame || !hdr_metadata)
+		return -EINVAL;
+
+	err = hdmi_drm_infoframe_init(frame);
+	if (err < 0)
+		return err;
+
+	hdr_source_metadata = (struct hdr_static_metadata *)hdr_metadata;
+
+	frame->length = sizeof(struct hdr_static_metadata);
+
+	frame->eotf = hdr_source_metadata->eotf;
+	frame->type = hdr_source_metadata->type;
+
+	for (i = 0; i < 3; i++) {
+		frame->display_primaries_x[i] =
+			hdr_source_metadata->display_primaries_x[i];
+		frame->display_primaries_y[i] =
+			hdr_source_metadata->display_primaries_y[i];
+	}
+
+	frame->white_point_x = hdr_source_metadata->white_point_x;
+	frame->white_point_y = hdr_source_metadata->white_point_y;
+
+	frame->max_mastering_display_luminance =
+		hdr_source_metadata->max_mastering_display_luminance;
+	frame->min_mastering_display_luminance =
+		hdr_source_metadata->min_mastering_display_luminance;
+
+	frame->max_cll = hdr_source_metadata->max_cll;
+	frame->max_fall = hdr_source_metadata->max_fall;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_hdmi_infoframe_set_hdr_metadata);
+
+/**
  * drm_hdmi_avi_infoframe_from_display_mode() - fill an HDMI AVI infoframe with
  *                                              data from a DRM display mode
  * @frame: HDMI AVI infoframe
