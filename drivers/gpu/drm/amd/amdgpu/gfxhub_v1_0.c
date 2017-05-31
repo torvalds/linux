@@ -114,6 +114,27 @@ static void gfxhub_v1_0_init_system_aperture_regs(struct amdgpu_device *adev)
 	WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_L2_PROTECTION_FAULT_CNTL2), tmp);
 }
 
+static void gfxhub_v1_0_init_tlb_regs(struct amdgpu_device *adev)
+{
+	uint32_t tmp;
+
+	/* Setup TLB control */
+	tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmMC_VM_MX_L1_TLB_CNTL));
+
+	tmp = REG_SET_FIELD(tmp, MC_VM_MX_L1_TLB_CNTL, ENABLE_L1_TLB, 1);
+	tmp = REG_SET_FIELD(tmp, MC_VM_MX_L1_TLB_CNTL, SYSTEM_ACCESS_MODE, 3);
+	tmp = REG_SET_FIELD(tmp, MC_VM_MX_L1_TLB_CNTL,
+			    ENABLE_ADVANCED_DRIVER_MODEL, 1);
+	tmp = REG_SET_FIELD(tmp, MC_VM_MX_L1_TLB_CNTL,
+			    SYSTEM_APERTURE_UNMAPPED_ACCESS, 0);
+	tmp = REG_SET_FIELD(tmp, MC_VM_MX_L1_TLB_CNTL, ECO_BITS, 0);
+	tmp = REG_SET_FIELD(tmp, MC_VM_MX_L1_TLB_CNTL,
+			    MTYPE, MTYPE_UC);/* XXX for emulation. */
+	tmp = REG_SET_FIELD(tmp, MC_VM_MX_L1_TLB_CNTL, ATC_EN, 1);
+
+	WREG32(SOC15_REG_OFFSET(GC, 0, mmMC_VM_MX_L1_TLB_CNTL), tmp);
+}
+
 int gfxhub_v1_0_gart_enable(struct amdgpu_device *adev)
 {
 	u32 tmp;
@@ -131,35 +152,7 @@ int gfxhub_v1_0_gart_enable(struct amdgpu_device *adev)
 	/* GART Enable. */
 	gfxhub_v1_0_init_gart_aperture_regs(adev);
 	gfxhub_v1_0_init_system_aperture_regs(adev);
-
-	/* Setup TLB control */
-	tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmMC_VM_MX_L1_TLB_CNTL));
-	tmp = REG_SET_FIELD(tmp, MC_VM_MX_L1_TLB_CNTL, ENABLE_L1_TLB, 1);
-	tmp = REG_SET_FIELD(tmp,
-				MC_VM_MX_L1_TLB_CNTL,
-				SYSTEM_ACCESS_MODE,
-				3);
-	tmp = REG_SET_FIELD(tmp,
-				MC_VM_MX_L1_TLB_CNTL,
-				ENABLE_ADVANCED_DRIVER_MODEL,
-				1);
-	tmp = REG_SET_FIELD(tmp,
-				MC_VM_MX_L1_TLB_CNTL,
-				SYSTEM_APERTURE_UNMAPPED_ACCESS,
-				0);
-	tmp = REG_SET_FIELD(tmp,
-				MC_VM_MX_L1_TLB_CNTL,
-				ECO_BITS,
-				0);
-	tmp = REG_SET_FIELD(tmp,
-				MC_VM_MX_L1_TLB_CNTL,
-				MTYPE,
-				MTYPE_UC);/* XXX for emulation. */
-	tmp = REG_SET_FIELD(tmp,
-				MC_VM_MX_L1_TLB_CNTL,
-				ATC_EN,
-				1);
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmMC_VM_MX_L1_TLB_CNTL), tmp);
+	gfxhub_v1_0_init_tlb_regs(adev);
 
 	/* Setup L2 cache */
 	tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmVM_L2_CNTL));
