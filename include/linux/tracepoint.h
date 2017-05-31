@@ -88,6 +88,7 @@ extern void syscall_unregfunc(void);
 #define PARAMS(args...) args
 
 #define TRACE_DEFINE_ENUM(x)
+#define TRACE_DEFINE_SIZEOF(x)
 
 #endif /* _LINUX_TRACEPOINT_H */
 

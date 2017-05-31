@@ -46,6 +46,19 @@ TRACE_MAKE_SYSTEM_STR();
 	__attribute__((section("_ftrace_eval_map")))	\
 	*TRACE_SYSTEM##_##a = &__##TRACE_SYSTEM##_##a
 
+#undef TRACE_DEFINE_SIZEOF
+#define TRACE_DEFINE_SIZEOF(a)				\
+	static struct trace_eval_map __used __initdata	\
+	__##TRACE_SYSTEM##_##a =			\
+	{						\
+		.system = TRACE_SYSTEM_STRING,		\
+		.eval_string = "sizeof(" #a ")",	\
+		.eval_value = sizeof(a)			\
+	};						\
+	static struct trace_eval_map __used		\
+	__attribute__((section("_ftrace_eval_map")))	\
+	*TRACE_SYSTEM##_##a = &__##TRACE_SYSTEM##_##a
+
 /*
  * DECLARE_EVENT_CLASS can be used to add a generic function
  * handlers for events. That is, if all events have the same
@@ -157,6 +170,9 @@ TRACE_MAKE_SYSTEM_STR();
 
 #undef TRACE_DEFINE_ENUM
 #define TRACE_DEFINE_ENUM(a)
+
+#undef TRACE_DEFINE_SIZEOF
+#define TRACE_DEFINE_SIZEOF(a)
 
 #undef __field
 #define __field(type, item)
