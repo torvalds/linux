@@ -201,10 +201,9 @@ static void irq_writel_be(u32 val, void __iomem *addr)
 	iowrite32be(val, addr);
 }
 
-static void
-irq_init_generic_chip(struct irq_chip_generic *gc, const char *name,
-		      int num_ct, unsigned int irq_base,
-		      void __iomem *reg_base, irq_flow_handler_t handler)
+void irq_init_generic_chip(struct irq_chip_generic *gc, const char *name,
+			   int num_ct, unsigned int irq_base,
+			   void __iomem *reg_base, irq_flow_handler_t handler)
 {
 	raw_spin_lock_init(&gc->lock);
 	gc->num_ct = num_ct;

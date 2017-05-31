@@ -226,3 +226,14 @@ irq_pm_install_action(struct irq_desc *desc, struct irqaction *action) { }
 static inline void
 irq_pm_remove_action(struct irq_desc *desc, struct irqaction *action) { }
 #endif
+
+#ifdef CONFIG_GENERIC_IRQ_CHIP
+void irq_init_generic_chip(struct irq_chip_generic *gc, const char *name,
+			   int num_ct, unsigned int irq_base,
+			   void __iomem *reg_base, irq_flow_handler_t handler);
+#else
+static inline void
+irq_init_generic_chip(struct irq_chip_generic *gc, const char *name,
+		      int num_ct, unsigned int irq_base,
+		      void __iomem *reg_base, irq_flow_handler_t handler) { }
+#endif /* CONFIG_GENERIC_IRQ_CHIP */
