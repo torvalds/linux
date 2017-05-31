@@ -28,6 +28,7 @@ int gfxhub_v1_0_gart_enable(struct amdgpu_device *adev);
 void gfxhub_v1_0_gart_disable(struct amdgpu_device *adev);
 void gfxhub_v1_0_set_fault_enable_default(struct amdgpu_device *adev,
 					  bool value);
+void gfxhub_v1_0_init(struct amdgpu_device *adev);
 u64 gfxhub_v1_0_get_mc_fb_offset(struct amdgpu_device *adev);
 extern const struct amd_ip_funcs gfxhub_v1_0_ip_funcs;
 extern const struct amdgpu_ip_block_version gfxhub_v1_0_ip_block;

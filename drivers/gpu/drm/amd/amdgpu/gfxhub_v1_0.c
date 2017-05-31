@@ -337,19 +337,8 @@ void gfxhub_v1_0_set_fault_enable_default(struct amdgpu_device *adev,
 	WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_L2_PROTECTION_FAULT_CNTL), tmp);
 }
 
-static int gfxhub_v1_0_early_init(void *handle)
+void gfxhub_v1_0_init(struct amdgpu_device *adev)
 {
-	return 0;
-}
-
-static int gfxhub_v1_0_late_init(void *handle)
-{
-	return 0;
-}
-
-static int gfxhub_v1_0_sw_init(void *handle)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_GFXHUB];
 
 	hub->ctx0_ptb_addr_lo32 =
@@ -368,7 +357,20 @@ static int gfxhub_v1_0_sw_init(void *handle)
 		SOC15_REG_OFFSET(GC, 0, mmVM_L2_PROTECTION_FAULT_STATUS);
 	hub->vm_l2_pro_fault_cntl =
 		SOC15_REG_OFFSET(GC, 0, mmVM_L2_PROTECTION_FAULT_CNTL);
+}
 
+static int gfxhub_v1_0_early_init(void *handle)
+{
+	return 0;
+}
+
+static int gfxhub_v1_0_late_init(void *handle)
+{
+	return 0;
+}
+
+static int gfxhub_v1_0_sw_init(void *handle)
+{
 	return 0;
 }
 

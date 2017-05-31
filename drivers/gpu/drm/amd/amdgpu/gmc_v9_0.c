@@ -532,6 +532,8 @@ static int gmc_v9_0_sw_init(void *handle)
 	int dma_bits;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	gfxhub_v1_0_init(adev);
+
 	spin_lock_init(&adev->mc.invalidate_lock);
 
 	if (adev->flags & AMD_IS_APU) {
