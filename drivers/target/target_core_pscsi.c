@@ -599,12 +599,11 @@ static void pscsi_destroy_device(struct se_device *dev)
 	}
 }
 
-static void pscsi_transport_complete(struct se_cmd *cmd, struct scatterlist *sg,
-				     unsigned char *sense_buffer)
+static void pscsi_complete_cmd(struct se_cmd *cmd, u8 scsi_status,
+			       unsigned char *req_sense)
 {
 	struct pscsi_dev_virt *pdv = PSCSI_DEV(cmd->se_dev);
 	struct scsi_device *sd = pdv->pdv_sd;
-	int result;
 	struct pscsi_plugin_task *pt = cmd->priv;
 	unsigned char *cdb;
 	/*
@@ -615,7 +614,6 @@ static void pscsi_transport_complete(struct se_cmd *cmd, struct scatterlist *sg,
 		return;
 
 	cdb = &pt->pscsi_cdb[0];
-	result = pt->pscsi_result;
 	/*
 	 * Hack to make sure that Write-Protect modepage is set if R/O mode is
 	 * forced.
@@ -624,7 +622,7 @@ static void pscsi_transport_complete(struct se_cmd *cmd, struct scatterlist *sg,
 		goto after_mode_sense;
 
 	if (((cdb[0] == MODE_SENSE) || (cdb[0] == MODE_SENSE_10)) &&
-	     (status_byte(result) << 1) == SAM_STAT_GOOD) {
+	    scsi_status == SAM_STAT_GOOD) {
 		bool read_only = target_lun_is_rdonly(cmd);
 
 		if (read_only) {
@@ -659,12 +657,12 @@ after_mode_sense:
 	 * storage engine.
 	 */
 	if (((cdb[0] == MODE_SELECT) || (cdb[0] == MODE_SELECT_10)) &&
-	      (status_byte(result) << 1) == SAM_STAT_GOOD) {
+	     scsi_status == SAM_STAT_GOOD) {
 		unsigned char *buf;
 		u16 bdl;
 		u32 blocksize;
 
-		buf = sg_virt(&sg[0]);
+		buf = sg_virt(&cmd->t_data_sg[0]);
 		if (!buf) {
 			pr_err("Unable to get buf for scatterlist\n");
 			goto after_mode_select;
@@ -687,10 +685,8 @@ after_mode_sense:
 	}
 after_mode_select:
 
-	if (sense_buffer && (status_byte(result) & CHECK_CONDITION)) {
-		memcpy(sense_buffer, pt->pscsi_sense, TRANSPORT_SENSE_BUFFER);
-		cmd->se_cmd_flags |= SCF_TRANSPORT_TASK_SENSE;
-	}
+	if (scsi_status == SAM_STAT_CHECK_CONDITION)
+		transport_copy_sense_to_cmd(cmd, req_sense);
 }
 
 enum {
@@ -1049,30 +1045,29 @@ static void pscsi_req_done(struct request *req, int uptodate)
 {
 	struct se_cmd *cmd = req->end_io_data;
 	struct pscsi_plugin_task *pt = cmd->priv;
+	int result = scsi_req(req)->result;
+	u8 scsi_status = status_byte(result) << 1;
 
-	pt->pscsi_result = scsi_req(req)->result;
-	pt->pscsi_resid = scsi_req(req)->resid_len;
-
-	cmd->scsi_status = status_byte(pt->pscsi_result) << 1;
-	if (cmd->scsi_status) {
+	if (scsi_status) {
 		pr_debug("PSCSI Status Byte exception at cmd: %p CDB:"
 			" 0x%02x Result: 0x%08x\n", cmd, pt->pscsi_cdb[0],
-			pt->pscsi_result);
+			result);
 	}
 
-	switch (host_byte(pt->pscsi_result)) {
+	pscsi_complete_cmd(cmd, scsi_status, scsi_req(req)->sense);
+
+	switch (host_byte(result)) {
 	case DID_OK:
-		target_complete_cmd(cmd, cmd->scsi_status);
+		target_complete_cmd(cmd, scsi_status);
 		break;
 	default:
 		pr_debug("PSCSI Host Byte exception at cmd: %p CDB:"
 			" 0x%02x Result: 0x%08x\n", cmd, pt->pscsi_cdb[0],
-			pt->pscsi_result);
+			result);
 		target_complete_cmd(cmd, SAM_STAT_CHECK_CONDITION);
 		break;
 	}
 
-	memcpy(pt->pscsi_sense, scsi_req(req)->sense, TRANSPORT_SENSE_BUFFER);
 	__blk_put_request(req->q, req);
 	kfree(pt);
 }
@@ -1090,7 +1085,6 @@ static const struct target_backend_ops pscsi_ops = {
 	.configure_device	= pscsi_configure_device,
 	.destroy_device		= pscsi_destroy_device,
 	.free_device		= pscsi_free_device,
-	.transport_complete	= pscsi_transport_complete,
 	.parse_cdb		= pscsi_parse_cdb,
 	.set_configfs_dev_params = pscsi_set_configfs_dev_params,
 	.show_configfs_dev_params = pscsi_show_configfs_dev_params,
