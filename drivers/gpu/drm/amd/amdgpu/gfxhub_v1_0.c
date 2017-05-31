@@ -36,6 +36,25 @@ u64 gfxhub_v1_0_get_mc_fb_offset(struct amdgpu_device *adev)
 	return (u64)RREG32(SOC15_REG_OFFSET(GC, 0, mmMC_VM_FB_OFFSET)) << 24;
 }
 
+static void gfxhub_v1_0_init_gart_pt_regs(struct amdgpu_device *adev)
+{
+	uint64_t value;
+
+	BUG_ON(adev->gart.table_addr & (~0x0000FFFFFFFFF000ULL));
+	value = adev->gart.table_addr - adev->mc.vram_start
+		+ adev->vm_manager.vram_base_offset;
+	value &= 0x0000FFFFFFFFF000ULL;
+	value |= 0x1; /*valid bit*/
+
+	WREG32(SOC15_REG_OFFSET(GC, 0,
+				mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32),
+	       lower_32_bits(value));
+
+	WREG32(SOC15_REG_OFFSET(GC, 0,
+				mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32),
+	       upper_32_bits(value));
+}
+
 int gfxhub_v1_0_gart_enable(struct amdgpu_device *adev)
 {
 	u32 tmp;
@@ -43,6 +62,8 @@ int gfxhub_v1_0_gart_enable(struct amdgpu_device *adev)
 	u32 i;
 
 	/* Program MC. */
+	gfxhub_v1_0_init_gart_pt_regs(adev);
+
 	/* Update configuration */
 	WREG32(SOC15_REG_OFFSET(GC, 0, mmMC_VM_SYSTEM_APERTURE_LOW_ADDR),
 		adev->mc.vram_start >> 18);
@@ -158,19 +179,6 @@ int gfxhub_v1_0_gart_enable(struct amdgpu_device *adev)
 	WREG32(SOC15_REG_OFFSET(GC, 0,
 				mmVM_CONTEXT0_PAGE_TABLE_END_ADDR_HI32),
 		(u32)(adev->mc.gtt_end >> 44));
-
-	BUG_ON(adev->gart.table_addr & (~0x0000FFFFFFFFF000ULL));
-	value = adev->gart.table_addr - adev->mc.vram_start
-		+ adev->vm_manager.vram_base_offset;
-	value &= 0x0000FFFFFFFFF000ULL;
-	value |= 0x1; /*valid bit*/
-
-	WREG32(SOC15_REG_OFFSET(GC, 0,
-				mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32),
-		(u32)value);
-	WREG32(SOC15_REG_OFFSET(GC, 0,
-				mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32),
-		(u32)(value >> 32));
 
 	WREG32(SOC15_REG_OFFSET(GC, 0,
 				mmVM_L2_PROTECTION_FAULT_DEFAULT_ADDR_LO32),
