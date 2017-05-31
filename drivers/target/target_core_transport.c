@@ -732,12 +732,6 @@ void target_complete_cmd(struct se_cmd *cmd, u8 scsi_status)
 
 
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
-
-	if (dev && dev->transport->transport_complete) {
-		dev->transport->transport_complete(cmd,
-				cmd->t_data_sg,
-				transport_get_sense_buffer(cmd));
-	}
 	if (cmd->se_cmd_flags & SCF_TRANSPORT_TASK_SENSE)
 		success = 1;
 

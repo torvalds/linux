@@ -37,10 +37,6 @@ struct target_backend_ops {
 					   const char *, ssize_t);
 	ssize_t (*show_configfs_dev_params)(struct se_device *, char *);
 
-	void (*transport_complete)(struct se_cmd *cmd,
-				   struct scatterlist *,
-				   unsigned char *);
-
 	sense_reason_t (*parse_cdb)(struct se_cmd *cmd);
 	u32 (*get_device_type)(struct se_device *);
 	sector_t (*get_blocks)(struct se_device *);
