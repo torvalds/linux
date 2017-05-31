@@ -7,6 +7,14 @@ registers giving access to numerous features: clocks, pin-muxing and
 many other SoC configuration items. This DT binding allows to describe
 this system controller.
 
+For the top level node:
+ - compatible: must be: "syscon", "simple-mfd";
+  - reg: register area of the AP806 system controller
+
+Clocks:
+-------
+
+
 The Device Tree node representing the AP806 system controller provides
 a number of clocks:
 
@@ -17,15 +25,17 @@ a number of clocks:
 
 Required properties:
 
- - compatible: must be:
-     "marvell,ap806-system-controller", "syscon"
- - reg: register area of the AP806 system controller
+ - compatible: must be: "marvell,ap806-clock"
  - #clock-cells: must be set to 1
 
 Example:
 
 	syscon: system-controller@6f4000 {
-		compatible = "marvell,ap806-system-controller", "syscon";
-		#clock-cells = <1>;
+		compatible = "syscon", "simple-mfd";
 		reg = <0x6f4000 0x1000>;
+
+		ap_clk: clock {
+			compatible = "marvell,ap806-clock";
+			#clock-cells = <1>;
+		};
 	};
