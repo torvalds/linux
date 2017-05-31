@@ -2165,7 +2165,7 @@ static void update_event_printk(struct trace_event_call *call,
 	}
 }
 
-void trace_event_enum_update(struct trace_eval_map **map, int len)
+void trace_event_eval_update(struct trace_eval_map **map, int len)
 {
 	struct trace_event_call *call, *p;
 	const char *last_system = NULL;
