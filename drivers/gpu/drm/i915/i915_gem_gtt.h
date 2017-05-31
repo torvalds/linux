@@ -255,6 +255,7 @@ struct i915_address_space {
 	struct drm_i915_file_private *file;
 	struct list_head global_link;
 	u64 total;		/* size addr space maps (ex. 2GB for ggtt) */
+	u64 reserved;		/* size addr space reserved */
 
 	bool closed;
 
