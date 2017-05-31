@@ -205,31 +205,10 @@ static void mmhub_v1_0_disable_identity_aperture(struct amdgpu_device *adev)
 		mmVM_L2_CONTEXT_IDENTITY_PHYSICAL_OFFSET_HI32), 0);
 }
 
-int mmhub_v1_0_gart_enable(struct amdgpu_device *adev)
+static void mmhub_v1_0_setup_vmid_config(struct amdgpu_device *adev)
 {
-	u32 tmp;
-	u32 i;
-
-	if (amdgpu_sriov_vf(adev)) {
-		/*
-		 * MC_VM_FB_LOCATION_BASE/TOP is NULL for VF, becuase they are
-		 * VF copy registers so vbios post doesn't program them, for
-		 * SRIOV driver need to program them
-		 */
-		WREG32(SOC15_REG_OFFSET(MMHUB, 0, mmMC_VM_FB_LOCATION_BASE),
-			adev->mc.vram_start >> 24);
-		WREG32(SOC15_REG_OFFSET(MMHUB, 0, mmMC_VM_FB_LOCATION_TOP),
-			adev->mc.vram_end >> 24);
-	}
-
-	/* GART Enable. */
-	mmhub_v1_0_init_gart_aperture_regs(adev);
-	mmhub_v1_0_init_system_aperture_regs(adev);
-	mmhub_v1_0_init_tlb_regs(adev);
-	mmhub_v1_0_init_cache_regs(adev);
-
-	mmhub_v1_0_enable_system_domain(adev);
-	mmhub_v1_0_disable_identity_aperture(adev);
+	int i;
+	uint32_t tmp;
 
 	for (i = 0; i <= 14; i++) {
 		tmp = RREG32(SOC15_REG_OFFSET(MMHUB, 0, mmVM_CONTEXT1_CNTL)
@@ -263,6 +242,31 @@ int mmhub_v1_0_gart_enable(struct amdgpu_device *adev)
 		WREG32(SOC15_REG_OFFSET(MMHUB, 0, mmVM_CONTEXT1_PAGE_TABLE_END_ADDR_HI32) + i*2,
 			upper_32_bits(adev->vm_manager.max_pfn - 1));
 	}
+}
+
+int mmhub_v1_0_gart_enable(struct amdgpu_device *adev)
+{
+	if (amdgpu_sriov_vf(adev)) {
+		/*
+		 * MC_VM_FB_LOCATION_BASE/TOP is NULL for VF, becuase they are
+		 * VF copy registers so vbios post doesn't program them, for
+		 * SRIOV driver need to program them
+		 */
+		WREG32(SOC15_REG_OFFSET(MMHUB, 0, mmMC_VM_FB_LOCATION_BASE),
+			adev->mc.vram_start >> 24);
+		WREG32(SOC15_REG_OFFSET(MMHUB, 0, mmMC_VM_FB_LOCATION_TOP),
+			adev->mc.vram_end >> 24);
+	}
+
+	/* GART Enable. */
+	mmhub_v1_0_init_gart_aperture_regs(adev);
+	mmhub_v1_0_init_system_aperture_regs(adev);
+	mmhub_v1_0_init_tlb_regs(adev);
+	mmhub_v1_0_init_cache_regs(adev);
+
+	mmhub_v1_0_enable_system_domain(adev);
+	mmhub_v1_0_disable_identity_aperture(adev);
+	mmhub_v1_0_setup_vmid_config(adev);
 
 	return 0;
 }
