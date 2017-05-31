@@ -783,7 +783,8 @@ static void write_journal(struct dm_integrity_c *ic, unsigned commit_start, unsi
 			for (i = 0; i < commit_sections; i++)
 				rw_section_mac(ic, commit_start + i, true);
 		}
-		rw_journal(ic, REQ_OP_WRITE, REQ_FUA, commit_start, commit_sections, &io_comp);
+		rw_journal(ic, REQ_OP_WRITE, REQ_FUA | REQ_SYNC, commit_start,
+			   commit_sections, &io_comp);
 	} else {
 		unsigned to_end;
 		io_comp.in_flight = (atomic_t)ATOMIC_INIT(2);
