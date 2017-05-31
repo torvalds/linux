@@ -84,8 +84,6 @@ static void nfp_net_bpf_stats_reset(struct nfp_net *nn)
 static int
 nfp_net_bpf_stats_update(struct nfp_net *nn, struct tc_cls_bpf_offload *cls_bpf)
 {
-	struct tc_action *a;
-	LIST_HEAD(actions);
 	u64 bytes, pkts;
 
 	pkts = nn->rx_filter.pkts - nn->rx_filter_prev.pkts;
@@ -94,13 +92,8 @@ nfp_net_bpf_stats_update(struct nfp_net *nn, struct tc_cls_bpf_offload *cls_bpf)
 
 	nn->rx_filter_prev = nn->rx_filter;
 
-	preempt_disable();
-
-	tcf_exts_to_list(cls_bpf->exts, &actions);
-	list_for_each_entry(a, &actions, list)
-		tcf_action_stats_update(a, bytes, pkts, nn->rx_filter_change);
-
-	preempt_enable();
+	tcf_exts_stats_update(cls_bpf->exts,
+			      bytes, pkts, nn->rx_filter_change);
 
 	return 0;
 }
