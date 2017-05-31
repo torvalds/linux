@@ -42,6 +42,9 @@ struct dmcu_funcs {
 			struct core_link *link,
 			struct psr_context *psr_context);
 	void (*get_psr_state)(struct dmcu *dmcu, uint32_t *psr_state);
+	void (*set_psr_wait_loop)(struct dmcu *dmcu,
+			unsigned int wait_loop_number);
+	void (*get_psr_wait_loop)(unsigned int *psr_wait_loop_number);
 };
 
 #endif

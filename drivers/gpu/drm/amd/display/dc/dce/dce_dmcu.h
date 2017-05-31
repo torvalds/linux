@@ -197,6 +197,14 @@ union dce_dmcu_psr_config_data_reg3 {
 	unsigned int u32All;
 };
 
+union dce_dmcu_psr_config_data_wait_loop_reg1 {
+	struct {
+		unsigned int wait_loop:16; /* [15:0] */
+		unsigned int reserved:16; /* [31:16] */
+	} bits;
+	unsigned int u32;
+};
+
 struct dmcu *dce_dmcu_create(
 	struct dc_context *ctx,
 	const struct dce_dmcu_registers *regs,

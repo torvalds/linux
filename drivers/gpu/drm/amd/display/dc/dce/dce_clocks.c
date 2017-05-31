@@ -31,6 +31,7 @@
 #include "dc.h"
 #include "core_dc.h"
 #include "dce_abm.h"
+#include "dmcu.h"
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 #include "dcn_calcs.h"
 #include "core_dc.h"
@@ -331,44 +332,18 @@ static void dce_set_clock(
 		clk->cur_min_clks_state = DM_PP_CLOCKS_STATE_NOMINAL;
 }
 
-#define PSR_SET_WAITLOOP 0x31
-
-union dce110_dmcu_psr_config_data_wait_loop_reg1 {
-	struct {
-		unsigned int wait_loop:16; /* [15:0] */
-		unsigned int reserved:16; /* [31:16] */
-	} bits;
-	unsigned int u32;
-};
-
-static void dce_psr_wait_loop(
-		struct dce_disp_clk *clk_dce, unsigned int display_clk_khz)
-{
-	struct dc_context *ctx = clk_dce->base.ctx;
-	union dce110_dmcu_psr_config_data_wait_loop_reg1 masterCmdData1;
-
-	/* waitDMCUReadyForCmd */
-	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0, 100, 100);
-
-	masterCmdData1.u32 = 0;
-	masterCmdData1.bits.wait_loop = display_clk_khz / 1000 / 7;
-	dm_write_reg(ctx, REG(MASTER_COMM_DATA_REG1), masterCmdData1.u32);
-
-	/* setDMCUParam_Cmd */
-	REG_UPDATE(MASTER_COMM_CMD_REG, MASTER_COMM_CMD_REG_BYTE0, PSR_SET_WAITLOOP);
-
-	/* notifyDMCUMsg */
-	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
-}
-
 static void dce_psr_set_clock(
 	struct display_clock *clk,
 	int requested_clk_khz)
 {
 	struct dce_disp_clk *clk_dce = TO_DCE_CLOCKS(clk);
+	struct dc_context *ctx = clk_dce->base.ctx;
+	struct core_dc *core_dc = DC_TO_CORE(ctx->dc);
+	struct dmcu *dmcu = core_dc->res_pool->dmcu;
 
 	dce_set_clock(clk, requested_clk_khz);
-	dce_psr_wait_loop(clk_dce, requested_clk_khz);
+
+	dmcu->funcs->set_psr_wait_loop(dmcu, requested_clk_khz / 1000 / 7);
 }
 
 static void dce112_set_clock(
@@ -380,6 +355,7 @@ static void dce112_set_clock(
 	struct dc_bios *bp = clk->ctx->dc_bios;
 	struct core_dc *core_dc = DC_TO_CORE(clk->ctx->dc);
 	struct abm *abm =  core_dc->res_pool->abm;
+	struct dmcu *dmcu = core_dc->res_pool->dmcu;
 
 	/* Prepare to program display clock*/
 	memset(&dce_clk_params, 0, sizeof(dce_clk_params));
@@ -411,7 +387,8 @@ static void dce112_set_clock(
 	bp->funcs->set_dce_clock(bp, &dce_clk_params);
 
 	if (abm->funcs->is_dmcu_initialized(abm))
-		dce_psr_wait_loop(clk_dce, requested_clk_khz);
+		dmcu->funcs->set_psr_wait_loop(dmcu,
+				requested_clk_khz / 1000 / 7);
 
 }
 

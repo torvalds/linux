@@ -1458,17 +1458,17 @@ bool dc_link_get_psr_state(const struct dc_link *dc_link, uint32_t *psr_state)
 }
 
 bool dc_link_setup_psr(const struct dc_link *dc_link,
-		const struct dc_stream *stream, struct psr_config *psr_config)
+		const struct dc_stream *stream, struct psr_config *psr_config,
+		struct psr_context *psr_context)
 {
 	struct core_link *link = DC_LINK_TO_CORE(dc_link);
 	struct dc_context *ctx = link->ctx;
 	struct core_dc *core_dc = DC_TO_CORE(ctx->dc);
 	struct dmcu *dmcu = core_dc->res_pool->dmcu;
 	struct core_stream *core_stream = DC_STREAM_TO_CORE(stream);
-	struct psr_context psr_context = {0};
 	int i;
 
-	psr_context.controllerId = CONTROLLER_ID_UNDEFINED;
+	psr_context->controllerId = CONTROLLER_ID_UNDEFINED;
 
 	if (dc_link != NULL &&
 		dmcu != NULL) {
@@ -1503,9 +1503,9 @@ bool dc_link_setup_psr(const struct dc_link *dc_link,
 			&psr_configuration.raw,
 			sizeof(psr_configuration.raw));
 
-		psr_context.channel = link->public.ddc->ddc_pin->hw_info.ddc_channel;
-		psr_context.transmitterId = link->link_enc->transmitter;
-		psr_context.engineId = link->link_enc->preferred_engine;
+		psr_context->channel = link->public.ddc->ddc_pin->hw_info.ddc_channel;
+		psr_context->transmitterId = link->link_enc->transmitter;
+		psr_context->engineId = link->link_enc->preferred_engine;
 
 		for (i = 0; i < MAX_PIPES; i++) {
 			if (core_dc->current_context->res_ctx.pipe_ctx[i].stream
@@ -1513,7 +1513,7 @@ bool dc_link_setup_psr(const struct dc_link *dc_link,
 				/* dmcu -1 for all controller id values,
 				 * therefore +1 here
 				 */
-				psr_context.controllerId =
+				psr_context->controllerId =
 					core_dc->current_context->res_ctx.
 					pipe_ctx[i].tg->inst + 1;
 				break;
@@ -1521,60 +1521,60 @@ bool dc_link_setup_psr(const struct dc_link *dc_link,
 		}
 
 		/* Hardcoded for now.  Can be Pcie or Uniphy (or Unknown)*/
-		psr_context.phyType = PHY_TYPE_UNIPHY;
+		psr_context->phyType = PHY_TYPE_UNIPHY;
 		/*PhyId is associated with the transmitter id*/
-		psr_context.smuPhyId = link->link_enc->transmitter;
+		psr_context->smuPhyId = link->link_enc->transmitter;
 
-		psr_context.crtcTimingVerticalTotal = stream->timing.v_total;
-		psr_context.vsyncRateHz = div64_u64(div64_u64((stream->
+		psr_context->crtcTimingVerticalTotal = stream->timing.v_total;
+		psr_context->vsyncRateHz = div64_u64(div64_u64((stream->
 						timing.pix_clk_khz * 1000),
 						stream->timing.v_total),
 						stream->timing.h_total);
 
-		psr_context.psrSupportedDisplayConfig = true;
-		psr_context.psrExitLinkTrainingRequired =
+		psr_context->psrSupportedDisplayConfig = true;
+		psr_context->psrExitLinkTrainingRequired =
 			psr_config->psr_exit_link_training_required;
-		psr_context.sdpTransmitLineNumDeadline =
+		psr_context->sdpTransmitLineNumDeadline =
 			psr_config->psr_sdp_transmit_line_num_deadline;
-		psr_context.psrFrameCaptureIndicationReq =
+		psr_context->psrFrameCaptureIndicationReq =
 			psr_config->psr_frame_capture_indication_req;
 
-		psr_context.skipPsrWaitForPllLock = 0; /* only = 1 in KV */
+		psr_context->skipPsrWaitForPllLock = 0; /* only = 1 in KV */
 
-		psr_context.numberOfControllers =
+		psr_context->numberOfControllers =
 				link->dc->res_pool->res_cap->num_timing_generator;
 
-		psr_context.rfb_update_auto_en = true;
+		psr_context->rfb_update_auto_en = true;
 
 		/* 2 frames before enter PSR. */
-		psr_context.timehyst_frames = 2;
+		psr_context->timehyst_frames = 2;
 		/* half a frame
 		 * (units in 100 lines, i.e. a value of 1 represents 100 lines)
 		 */
-		psr_context.hyst_lines = stream->timing.v_total / 2 / 100;
-		psr_context.aux_repeats = 10;
+		psr_context->hyst_lines = stream->timing.v_total / 2 / 100;
+		psr_context->aux_repeats = 10;
 
-		psr_context.psr_level.u32all = 0;
+		psr_context->psr_level.u32all = 0;
 
 		/* SMU will perform additional powerdown sequence.
 		 * For unsupported ASICs, set psr_level flag to skip PSR
 		 *  static screen notification to SMU.
 		 *  (Always set for DAL2, did not check ASIC)
 		 */
-		psr_context.psr_level.bits.SKIP_SMU_NOTIFICATION = 1;
+		psr_context->psr_level.bits.SKIP_SMU_NOTIFICATION = 1;
 
 		/* Complete PSR entry before aborting to prevent intermittent
 		 * freezes on certain eDPs
 		 */
-		psr_context.psr_level.bits.DISABLE_PSR_ENTRY_ABORT = 1;
+		psr_context->psr_level.bits.DISABLE_PSR_ENTRY_ABORT = 1;
 
 		/* Controls additional delay after remote frame capture before
 		 * continuing power down, default = 0
 		 */
-		psr_context.frame_delay = 0;
+		psr_context->frame_delay = 0;
 
 		link->psr_enabled = true;
-		dmcu->funcs->setup_psr(dmcu, link, &psr_context);
+		dmcu->funcs->setup_psr(dmcu, link, psr_context);
 		return true;
 	} else
 		return false;

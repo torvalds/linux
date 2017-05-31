@@ -48,7 +48,9 @@
 #define PSR_ENABLE 0x20
 #define PSR_EXIT 0x21
 #define PSR_SET 0x23
+#define PSR_SET_WAITLOOP 0x31
 #define MASTER_COMM_CNTL_REG__MASTER_COMM_INTERRUPT_MASK   0x00000001L
+unsigned int cached_wait_loop_number = 0;
 
 bool dce_dmcu_load_iram(struct dmcu *dmcu,
 		unsigned int start_offset,
@@ -250,6 +252,34 @@ static void dce_dmcu_setup_psr(struct dmcu *dmcu,
 
 	/* notifyDMCUMsg */
 	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
+}
+
+static void dce_psr_wait_loop(
+	struct dmcu *dmcu,
+	unsigned int wait_loop_number)
+{
+	struct dce_dmcu *dmcu_dce = TO_DCE_DMCU(dmcu);
+	union dce_dmcu_psr_config_data_wait_loop_reg1 masterCmdData1;
+
+	/* waitDMCUReadyForCmd */
+	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0, 100, 100);
+
+	masterCmdData1.u32 = 0;
+	masterCmdData1.bits.wait_loop = wait_loop_number;
+	cached_wait_loop_number = wait_loop_number;
+	dm_write_reg(dmcu->ctx, REG(MASTER_COMM_DATA_REG1), masterCmdData1.u32);
+
+	/* setDMCUParam_Cmd */
+	REG_UPDATE(MASTER_COMM_CMD_REG, MASTER_COMM_CMD_REG_BYTE0, PSR_SET_WAITLOOP);
+
+	/* notifyDMCUMsg */
+	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
+}
+
+static void dce_get_psr_wait_loop(unsigned int *psr_wait_loop_number)
+{
+	*psr_wait_loop_number = cached_wait_loop_number;
+	return;
 }
 
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
@@ -464,13 +494,43 @@ static void dcn10_dmcu_setup_psr(struct dmcu *dmcu,
 	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
 }
 
+static void dcn10_psr_wait_loop(
+	struct dmcu *dmcu,
+	unsigned int wait_loop_number)
+{
+	struct dce_dmcu *dmcu_dce = TO_DCE_DMCU(dmcu);
+	union dce_dmcu_psr_config_data_wait_loop_reg1 masterCmdData1;
+
+	/* waitDMCUReadyForCmd */
+	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0, 100, 100);
+
+	masterCmdData1.u32 = 0;
+	masterCmdData1.bits.wait_loop = wait_loop_number;
+	cached_wait_loop_number = wait_loop_number;
+	dm_write_reg(dmcu->ctx, REG(MASTER_COMM_DATA_REG1), masterCmdData1.u32);
+
+	/* setDMCUParam_Cmd */
+	REG_UPDATE(MASTER_COMM_CMD_REG, MASTER_COMM_CMD_REG_BYTE0, PSR_SET_WAITLOOP);
+
+	/* notifyDMCUMsg */
+	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
+}
+
+static void dcn10_get_psr_wait_loop(unsigned int *psr_wait_loop_number)
+{
+	*psr_wait_loop_number = cached_wait_loop_number;
+	return;
+}
+
 #endif
 
 static const struct dmcu_funcs dce_funcs = {
 	.load_iram = dce_dmcu_load_iram,
 	.set_psr_enable = dce_dmcu_set_psr_enable,
 	.setup_psr = dce_dmcu_setup_psr,
-	.get_psr_state = dce_get_dmcu_psr_state
+	.get_psr_state = dce_get_dmcu_psr_state,
+	.set_psr_wait_loop = dce_psr_wait_loop,
+	.get_psr_wait_loop = dce_get_psr_wait_loop
 };
 
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
@@ -478,7 +538,9 @@ static const struct dmcu_funcs dcn10_funcs = {
 	.load_iram = dcn10_dmcu_load_iram,
 	.set_psr_enable = dcn10_dmcu_set_psr_enable,
 	.setup_psr = dcn10_dmcu_setup_psr,
-	.get_psr_state = dcn10_get_dmcu_psr_state
+	.get_psr_state = dcn10_get_dmcu_psr_state,
+	.set_psr_wait_loop = dcn10_psr_wait_loop,
+	.get_psr_wait_loop = dcn10_get_psr_wait_loop
 };
 #endif
 
