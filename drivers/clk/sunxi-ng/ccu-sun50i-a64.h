@@ -31,7 +31,9 @@
 #define CLK_PLL_VIDEO0_2X		8
 #define CLK_PLL_VE			9
 #define CLK_PLL_DDR0			10
-#define CLK_PLL_PERIPH0			11
+
+/* PLL_PERIPH0 exported for PRCM */
+
 #define CLK_PLL_PERIPH0_2X		12
 #define CLK_PLL_PERIPH1			13
 #define CLK_PLL_PERIPH1_2X		14
