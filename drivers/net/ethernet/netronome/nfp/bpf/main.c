@@ -31,46 +31,28 @@
  * SOFTWARE.
  */
 
-#include <linux/slab.h>
+#include "../nfpcore/nfp_cpp.h"
+#include "../nfp_app.h"
+#include "../nfp_main.h"
+#include "../nfp_net.h"
+#include "../nfp_port.h"
 
-#include "nfpcore/nfp_cpp.h"
-#include "nfp_app.h"
-#include "nfp_main.h"
-
-static const struct nfp_app_type *apps[] = {
-	&app_nic,
-	&app_bpf,
-};
-
-struct nfp_app *nfp_app_alloc(struct nfp_pf *pf, enum nfp_app_id id)
+static int
+nfp_bpf_vnic_init(struct nfp_app *app, struct nfp_net *nn, unsigned int id)
 {
-	struct nfp_app *app;
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(apps); i++)
-		if (apps[i]->id == id)
-			break;
-	if (i == ARRAY_SIZE(apps)) {
-		nfp_err(pf->cpp, "failed to find app with ID 0x%02hhx\n", id);
-		return ERR_PTR(-EINVAL);
+	/* Limit to single port, otherwise it's just a NIC */
+	if (id > 0) {
+		nfp_warn(app->cpp,
+			 "BPF NIC doesn't support more than one port right now\n");
+		nn->port = nfp_port_alloc(app, NFP_PORT_INVALID, nn->dp.netdev);
+		return PTR_ERR_OR_ZERO(nn->port);
 	}
 
-	if (WARN_ON(!apps[i]->vnic_init))
-		return ERR_PTR(-EINVAL);
-
-	app = kzalloc(sizeof(*app), GFP_KERNEL);
-	if (!app)
-		return ERR_PTR(-ENOMEM);
-
-	app->pf = pf;
-	app->cpp = pf->cpp;
-	app->pdev = pf->pdev;
-	app->type = apps[i];
-
-	return app;
+	return nfp_app_nic_vnic_init(app, nn, id);
 }
 
-void nfp_app_free(struct nfp_app *app)
-{
-	kfree(app);
-}
+const struct nfp_app_type app_bpf = {
+	.id		= NFP_APP_BPF_NIC,
+
+	.vnic_init	= nfp_bpf_vnic_init,
+};

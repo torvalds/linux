@@ -35,22 +35,70 @@
 #define _NFP_APP_H 1
 
 struct pci_dev;
+struct nfp_app;
 struct nfp_cpp;
 struct nfp_pf;
+struct nfp_net;
+
+enum nfp_app_id {
+	NFP_APP_CORE_NIC	= 0x1,
+	NFP_APP_BPF_NIC		= 0x2,
+};
+
+extern const struct nfp_app_type app_nic;
+extern const struct nfp_app_type app_bpf;
+
+/**
+ * struct nfp_app_type - application definition
+ * @id:		application ID
+ *
+ * Callbacks
+ * @init:	perform basic app checks
+ * @vnic_init:	init vNICs (assign port types, etc.)
+ */
+struct nfp_app_type {
+	enum nfp_app_id id;
+
+	int (*init)(struct nfp_app *app);
+
+	int (*vnic_init)(struct nfp_app *app, struct nfp_net *nn,
+			 unsigned int id);
+};
 
 /**
  * struct nfp_app - NFP application container
  * @pdev:	backpointer to PCI device
  * @pf:		backpointer to NFP PF structure
  * @cpp:	pointer to the CPP handle
+ * @type:	pointer to const application ops and info
  */
 struct nfp_app {
 	struct pci_dev *pdev;
 	struct nfp_pf *pf;
 	struct nfp_cpp *cpp;
+
+	const struct nfp_app_type *type;
 };
 
-struct nfp_app *nfp_app_alloc(struct nfp_pf *pf);
+static inline int nfp_app_init(struct nfp_app *app)
+{
+	if (!app->type->init)
+		return 0;
+	return app->type->init(app);
+}
+
+static inline int nfp_app_vnic_init(struct nfp_app *app, struct nfp_net *nn,
+				    unsigned int id)
+{
+	return app->type->vnic_init(app, nn, id);
+}
+
+struct nfp_app *nfp_app_alloc(struct nfp_pf *pf, enum nfp_app_id id);
 void nfp_app_free(struct nfp_app *app);
+
+/* Callbacks shared between apps */
+
+int nfp_app_nic_vnic_init(struct nfp_app *app, struct nfp_net *nn,
+			  unsigned int id);
 
 #endif
