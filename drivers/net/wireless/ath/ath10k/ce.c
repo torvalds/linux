@@ -594,6 +594,7 @@ int ath10k_ce_completed_send_next_nolock(struct ath10k_ce_pipe *ce_state,
 	unsigned int nentries_mask = src_ring->nentries_mask;
 	unsigned int sw_index = src_ring->sw_index;
 	unsigned int read_index;
+	struct ce_desc *desc;
 
 	if (src_ring->hw_index == sw_index) {
 		/*
@@ -623,6 +624,9 @@ int ath10k_ce_completed_send_next_nolock(struct ath10k_ce_pipe *ce_state,
 
 	/* sanity */
 	src_ring->per_transfer_context[sw_index] = NULL;
+	desc = CE_SRC_RING_TO_DESC(src_ring->base_addr_owner_space,
+				   sw_index);
+	desc->nbytes = 0;
 
 	/* Update sw_index */
 	sw_index = CE_RING_IDX_INCR(nentries_mask, sw_index);
