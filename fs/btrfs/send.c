@@ -1083,7 +1083,7 @@ static int iterate_dir_item(struct btrfs_root *root, struct btrfs_path *path,
 				buf = tmp;
 			}
 			if (!buf) {
-				buf = vmalloc(buf_len);
+				buf = kvmalloc(buf_len, GFP_KERNEL);
 				if (!buf) {
 					ret = -ENOMEM;
 					goto out;
