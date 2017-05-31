@@ -39,7 +39,7 @@ static int __init get_cpu_for_node(struct device_node *node)
 
 	for_each_possible_cpu(cpu) {
 		if (of_get_cpu_node(cpu, NULL) == cpu_node) {
-			parse_cpu_capacity(cpu_node, cpu);
+			topology_parse_cpu_capacity(cpu_node, cpu);
 			of_node_put(cpu_node);
 			return cpu;
 		}
@@ -191,7 +191,7 @@ static int __init parse_dt_topology(void)
 	if (ret != 0)
 		goto out_map;
 
-	normalize_cpu_capacity();
+	topology_normalize_cpu_scale();
 
 	/*
 	 * Check that all cores are in the topology; the SMP code will
