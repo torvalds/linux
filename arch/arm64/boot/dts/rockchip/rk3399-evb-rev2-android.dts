@@ -71,21 +71,22 @@
 	status = "okay";
 };
 
-&mipi_dsi {
+&dsi {
 	status = "okay";
-	panel {
+
+	panel@0 {
 		compatible ="simple-panel-dsi";
 		reg = <0>;
 		backlight = <&backlight>;
 		enable-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
-		dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-				MIPI_DSI_MODE_VIDEO_SYNC_PULSE)>;
+
+		dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST)>;
 		dsi,format = <MIPI_DSI_FMT_RGB888>;
 		dsi,lanes = <4>;
-		status = "okay";
 
 		display-timings {
 			native-mode = <&timing0>;
+
 			timing0: timing0 {
 				clock-frequency = <160000000>;
 				hactive = <1200>;
@@ -105,6 +106,6 @@
 	};
 };
 
-&route_mipi {
+&route_dsi {
 	status = "okay";
 };

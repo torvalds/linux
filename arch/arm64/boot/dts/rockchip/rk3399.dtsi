@@ -1731,9 +1731,9 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			vopl_out_mipi: endpoint@0 {
+			vopl_out_dsi: endpoint@0 {
 				reg = <0>;
-				remote-endpoint = <&mipi_in_vopl>;
+				remote-endpoint = <&dsi_in_vopl>;
 			};
 
 			vopl_out_edp: endpoint@1 {
@@ -1800,9 +1800,9 @@
 				remote-endpoint = <&edp_in_vopb>;
 			};
 
-			vopb_out_mipi: endpoint@1 {
+			vopb_out_dsi: endpoint@1 {
 				reg = <1>;
-				remote-endpoint = <&mipi_in_vopb>;
+				remote-endpoint = <&dsi_in_vopb>;
 			};
 
 			vopb_out_hdmi: endpoint@2 {
@@ -1895,7 +1895,7 @@
 		};
 	};
 
-	mipi_dsi: mipi@ff960000 {
+	dsi: dsi@ff960000 {
 		compatible = "rockchip,rk3399-mipi-dsi", "snps,dw-mipi-dsi";
 		reg = <0x0 0xff960000 0x0 0x8000>;
 		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH 0>;
@@ -1909,21 +1909,18 @@
 		status = "disabled";
 
 		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <1>;
-
-			mipi_in: port {
+			port {
 				#address-cells = <1>;
 				#size-cells = <0>;
 
-				mipi_in_vopb: endpoint@0 {
+				dsi_in_vopb: endpoint@0 {
 					reg = <0>;
-					remote-endpoint = <&vopb_out_mipi>;
+					remote-endpoint = <&vopb_out_dsi>;
 				};
-				mipi_in_vopl: endpoint@1 {
+
+				dsi_in_vopl: endpoint@1 {
 					reg = <1>;
-					remote-endpoint = <&vopl_out_mipi>;
+					remote-endpoint = <&vopl_out_dsi>;
 				};
 			};
 		};

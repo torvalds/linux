@@ -830,7 +830,7 @@
 	gpio1830-supply = <&vcc_3v0>;
 };
 
-&mipi_dsi {
+&dsi {
 	status = "disabled";
 };
 
