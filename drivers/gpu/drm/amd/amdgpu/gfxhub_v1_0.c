@@ -165,14 +165,27 @@ static void gfxhub_v1_0_init_cache_regs(struct amdgpu_device *adev)
 	WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_L2_CNTL4), tmp);
 }
 
+static void gfxhub_v1_0_enable_system_domain(struct amdgpu_device *adev)
+{
+	uint32_t tmp;
+
+	tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmVM_CONTEXT0_CNTL));
+	tmp = REG_SET_FIELD(tmp, VM_CONTEXT0_CNTL, ENABLE_CONTEXT, 1);
+	tmp = REG_SET_FIELD(tmp, VM_CONTEXT0_CNTL, PAGE_TABLE_DEPTH, 0);
+	WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_CONTEXT0_CNTL), tmp);
+}
+
 int gfxhub_v1_0_gart_enable(struct amdgpu_device *adev)
 {
 	u32 tmp;
 	u32 i;
 
 	if (amdgpu_sriov_vf(adev)) {
-		/* MC_VM_FB_LOCATION_BASE/TOP is NULL for VF, becuase they are VF copy registers so
-		vbios post doesn't program them, for SRIOV driver need to program them */
+		/*
+		 * MC_VM_FB_LOCATION_BASE/TOP is NULL for VF, becuase they are
+		 * VF copy registers so vbios post doesn't program them, for
+		 * SRIOV driver need to program them
+		 */
 		WREG32(SOC15_REG_OFFSET(GC, 0, mmMC_VM_FB_LOCATION_BASE),
 				adev->mc.vram_start >> 24);
 		WREG32(SOC15_REG_OFFSET(GC, 0, mmMC_VM_FB_LOCATION_TOP),
@@ -185,10 +198,7 @@ int gfxhub_v1_0_gart_enable(struct amdgpu_device *adev)
 	gfxhub_v1_0_init_tlb_regs(adev);
 	gfxhub_v1_0_init_cache_regs(adev);
 
-	tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmVM_CONTEXT0_CNTL));
-	tmp = REG_SET_FIELD(tmp, VM_CONTEXT0_CNTL, ENABLE_CONTEXT, 1);
-	tmp = REG_SET_FIELD(tmp, VM_CONTEXT0_CNTL, PAGE_TABLE_DEPTH, 0);
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_CONTEXT0_CNTL), tmp);
+	gfxhub_v1_0_enable_system_domain(adev);
 
 	/* Disable identity aperture.*/
 	WREG32(SOC15_REG_OFFSET(GC, 0,
