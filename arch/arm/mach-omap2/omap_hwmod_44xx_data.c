@@ -775,6 +775,7 @@ static struct omap_hwmod_dma_info omap44xx_dss_hdmi_sdma_reqs[] = {
 
 static struct omap_hwmod_opt_clk dss_hdmi_opt_clks[] = {
 	{ .role = "sys_clk", .clk = "dss_sys_clk" },
+	{ .role = "hdmi_clk", .clk = "dss_48mhz_clk" },
 };
 
 static struct omap_hwmod omap44xx_dss_hdmi_hwmod = {
@@ -785,7 +786,7 @@ static struct omap_hwmod omap44xx_dss_hdmi_hwmod = {
 	 * HDMI audio requires to use no-idle mode. Hence,
 	 * set idle mode by software.
 	 */
-	.flags		= HWMOD_SWSUP_SIDLE,
+	.flags		= HWMOD_SWSUP_SIDLE | HWMOD_OPT_CLKS_NEEDED,
 	.mpu_irqs	= omap44xx_dss_hdmi_irqs,
 	.xlate_irq	= omap4_xlate_irq,
 	.sdma_reqs	= omap44xx_dss_hdmi_sdma_reqs,
@@ -858,11 +859,16 @@ static struct omap_hwmod_class omap44xx_venc_hwmod_class = {
 };
 
 /* dss_venc */
+static struct omap_hwmod_opt_clk dss_venc_opt_clks[] = {
+	{ .role = "tv_clk", .clk = "dss_tv_clk" },
+};
+
 static struct omap_hwmod omap44xx_dss_venc_hwmod = {
 	.name		= "dss_venc",
 	.class		= &omap44xx_venc_hwmod_class,
 	.clkdm_name	= "l3_dss_clkdm",
 	.main_clk	= "dss_tv_clk",
+	.flags		= HWMOD_OPT_CLKS_NEEDED,
 	.prcm = {
 		.omap4 = {
 			.clkctrl_offs = OMAP4_CM_DSS_DSS_CLKCTRL_OFFSET,
@@ -870,6 +876,8 @@ static struct omap_hwmod omap44xx_dss_venc_hwmod = {
 		},
 	},
 	.parent_hwmod	= &omap44xx_dss_hwmod,
+	.opt_clks	= dss_venc_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(dss_venc_opt_clks),
 };
 
 /*
