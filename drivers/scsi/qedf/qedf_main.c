@@ -628,6 +628,16 @@ static int qedf_eh_device_reset(struct scsi_cmnd *sc_cmd)
 	return qedf_initiate_tmf(sc_cmd, FCP_TMF_LUN_RESET);
 }
 
+static int qedf_eh_bus_reset(struct scsi_cmnd *sc_cmd)
+{
+	QEDF_ERR(NULL, "BUS RESET Issued...\n");
+	/*
+	 * Essentially a no-op but return SUCCESS to prevent
+	 * unnecessary escalation to the host reset handler.
+	 */
+	return SUCCESS;
+}
+
 void qedf_wait_for_upload(struct qedf_ctx *qedf)
 {
 	while (1) {
@@ -705,6 +715,7 @@ static struct scsi_host_template qedf_host_template = {
 	.eh_abort_handler	= qedf_eh_abort,
 	.eh_device_reset_handler = qedf_eh_device_reset, /* lun reset */
 	.eh_target_reset_handler = qedf_eh_target_reset, /* target reset */
+	.eh_bus_reset_handler = qedf_eh_bus_reset,
 	.eh_host_reset_handler  = qedf_eh_host_reset,
 	.slave_configure	= qedf_slave_configure,
 	.dma_boundary = QED_HW_DMA_BOUNDARY,
