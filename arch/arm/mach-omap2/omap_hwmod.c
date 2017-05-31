@@ -2334,24 +2334,21 @@ static int __init _init(struct omap_hwmod *oh, void *data)
 {
 	int r, index;
 	struct device_node *np = NULL;
+	struct device_node *bus;
 
 	if (oh->_state != _HWMOD_STATE_REGISTERED)
 		return 0;
 
-	if (of_have_populated_dt()) {
-		struct device_node *bus;
+	bus = of_find_node_by_name(NULL, "ocp");
+	if (!bus)
+		return -ENODEV;
 
-		bus = of_find_node_by_name(NULL, "ocp");
-		if (!bus)
-			return -ENODEV;
-
-		r = of_dev_hwmod_lookup(bus, oh, &index, &np);
-		if (r)
-			pr_debug("omap_hwmod: %s missing dt data\n", oh->name);
-		else if (np && index)
-			pr_warn("omap_hwmod: %s using broken dt data from %s\n",
-				oh->name, np->name);
-	}
+	r = of_dev_hwmod_lookup(bus, oh, &index, &np);
+	if (r)
+		pr_debug("omap_hwmod: %s missing dt data\n", oh->name);
+	else if (np && index)
+		pr_warn("omap_hwmod: %s using broken dt data from %s\n",
+			oh->name, np->name);
 
 	r = _init_mpu_rt_base(oh, NULL, index, np);
 	if (r < 0) {
