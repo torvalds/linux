@@ -656,7 +656,7 @@ EXPORT_SYMBOL(__flush_dcache_range);
 
 /* get_new_mmu_context() uses "cache + 1".  */
 DEFINE_SPINLOCK(ctx_alloc_lock);
-unsigned long tlb_context_cache = CTX_FIRST_VERSION - 1;
+unsigned long tlb_context_cache = CTX_FIRST_VERSION;
 #define MAX_CTX_NR	(1UL << CTX_NR_BITS)
 #define CTX_BMAP_SLOTS	BITS_TO_LONGS(MAX_CTX_NR)
 DECLARE_BITMAP(mmu_context_bmap, MAX_CTX_NR);
@@ -687,9 +687,9 @@ void get_new_mmu_context(struct mm_struct *mm)
 		if (new_ctx >= ctx) {
 			int i;
 			new_ctx = (tlb_context_cache & CTX_VERSION_MASK) +
-				CTX_FIRST_VERSION;
+				CTX_FIRST_VERSION + 1;
 			if (new_ctx == 1)
-				new_ctx = CTX_FIRST_VERSION;
+				new_ctx = CTX_FIRST_VERSION + 1;
 
 			/* Don't call memset, for 16 entries that's just
 			 * plain silly...
