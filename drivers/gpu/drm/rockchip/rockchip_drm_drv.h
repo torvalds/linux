@@ -45,13 +45,13 @@ struct rockchip_crtc_state {
  *
  * @crtc: array of enabled CRTCs, used to map from "pipe" to drm_crtc.
  * @num_pipe: number of pipes for this device.
+ * @mm_lock: protect drm_mm on multi-threads.
  */
 struct rockchip_drm_private {
 	struct drm_fb_helper fbdev_helper;
 	struct drm_gem_object *fbdev_bo;
 	struct drm_atomic_state *state;
 	struct iommu_domain *domain;
-	/* protect drm_mm on multi-threads */
 	struct mutex mm_lock;
 	struct drm_mm mm;
 	struct list_head psr_list;
