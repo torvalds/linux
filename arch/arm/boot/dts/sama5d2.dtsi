@@ -1142,6 +1142,14 @@
 				status = "disabled";
 			};
 
+			pwm0: pwm@f802c000 {
+				compatible = "atmel,sama5d2-pwm";
+				reg = <0xf802c000 0x4000>;
+				interrupts = <38 IRQ_TYPE_LEVEL_HIGH 7>;
+				#pwm-cells = <3>;
+				clocks = <&pwm_clk>;
+			};
+
 			sfr: sfr@f8030000 {
 				compatible = "atmel,sama5d2-sfr", "syscon";
 				reg = <0xf8030000 0x98>;

@@ -227,6 +227,10 @@
 				};
 			};
 
+			pwm0: pwm@f802c000 {
+				status = "okay";
+			};
+
 			flx0: flexcom@f8034000 {
 				atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_USART>;
 				status = "disabled"; /* conflict with ISC_D2 & ISC_D3 data pins */
