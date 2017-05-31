@@ -43,7 +43,7 @@ TRACE_MAKE_SYSTEM_STR();
 		.enum_value = a				\
 	};						\
 	static struct trace_enum_map __used		\
-	__attribute__((section("_ftrace_enum_map")))	\
+	__attribute__((section("_ftrace_eval_map")))	\
 	*TRACE_SYSTEM##_##a = &__##TRACE_SYSTEM##_##a
 
 /*

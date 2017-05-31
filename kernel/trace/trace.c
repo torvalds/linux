@@ -7732,15 +7732,15 @@ struct dentry *tracing_init_dentry(void)
 	return NULL;
 }
 
-extern struct trace_enum_map *__start_ftrace_enum_maps[];
-extern struct trace_enum_map *__stop_ftrace_enum_maps[];
+extern struct trace_enum_map *__start_ftrace_eval_maps[];
+extern struct trace_enum_map *__stop_ftrace_eval_maps[];
 
 static void __init trace_enum_init(void)
 {
 	int len;
 
-	len = __stop_ftrace_enum_maps - __start_ftrace_enum_maps;
-	trace_insert_enum_map(NULL, __start_ftrace_enum_maps, len);
+	len = __stop_ftrace_eval_maps - __start_ftrace_eval_maps;
+	trace_insert_enum_map(NULL, __start_ftrace_eval_maps, len);
 }
 
 #ifdef CONFIG_MODULES

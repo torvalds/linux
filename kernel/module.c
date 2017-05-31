@@ -3077,7 +3077,7 @@ static int find_module_sections(struct module *mod, struct load_info *info)
 	mod->trace_events = section_objs(info, "_ftrace_events",
 					 sizeof(*mod->trace_events),
 					 &mod->num_trace_events);
-	mod->trace_enums = section_objs(info, "_ftrace_enum_map",
+	mod->trace_enums = section_objs(info, "_ftrace_eval_map",
 					sizeof(*mod->trace_enums),
 					&mod->num_trace_enums);
 #endif

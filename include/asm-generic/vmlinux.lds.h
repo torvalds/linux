@@ -125,9 +125,9 @@
 			VMLINUX_SYMBOL(__start_ftrace_events) = .;	\
 			KEEP(*(_ftrace_events))				\
 			VMLINUX_SYMBOL(__stop_ftrace_events) = .;	\
-			VMLINUX_SYMBOL(__start_ftrace_enum_maps) = .;	\
-			KEEP(*(_ftrace_enum_map))			\
-			VMLINUX_SYMBOL(__stop_ftrace_enum_maps) = .;
+			VMLINUX_SYMBOL(__start_ftrace_eval_maps) = .;	\
+			KEEP(*(_ftrace_eval_map))			\
+			VMLINUX_SYMBOL(__stop_ftrace_eval_maps) = .;
 #else
 #define FTRACE_EVENTS()
 #endif
