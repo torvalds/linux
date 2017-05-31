@@ -191,24 +191,30 @@ nfp_net_find_port(struct nfp_eth_table *eth_tbl, unsigned int id)
 	return NULL;
 }
 
-static unsigned int nfp_net_pf_get_num_ports(struct nfp_pf *pf)
+static int
+nfp_net_pf_rtsym_read_optional(struct nfp_pf *pf, const char *format,
+			       unsigned int default_val)
 {
 	char name[256];
 	int err = 0;
 	u64 val;
 
-	snprintf(name, sizeof(name), "nfd_cfg_pf%u_num_ports",
-		 nfp_cppcore_pcie_unit(pf->cpp));
+	snprintf(name, sizeof(name), format, nfp_cppcore_pcie_unit(pf->cpp));
 
 	val = nfp_rtsym_read_le(pf->cpp, name, &err);
-	/* Default to one port/vNIC */
 	if (err) {
-		if (err != -ENOENT)
-			nfp_err(pf->cpp, "Unable to read adapter vNIC count\n");
-		val = 1;
+		if (err == -ENOENT)
+			return default_val;
+		nfp_err(pf->cpp, "Unable to read symbol %s\n", name);
+		return err;
 	}
 
 	return val;
+}
+
+static int nfp_net_pf_get_num_ports(struct nfp_pf *pf)
+{
+	return nfp_net_pf_rtsym_read_optional(pf, "nfd_cfg_pf%u_num_ports", 1);
 }
 
 static unsigned int
@@ -675,6 +681,10 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 
 	mutex_lock(&pf->lock);
 	pf->max_data_vnics = nfp_net_pf_get_num_ports(pf);
+	if ((int)pf->max_data_vnics < 0) {
+		err = pf->max_data_vnics;
+		goto err_unlock;
+	}
 
 	ctrl_bar = nfp_net_pf_map_ctrl_bar(pf);
 	if (!ctrl_bar) {
