@@ -66,7 +66,7 @@ static struct irq_chip_generic **prcm_irq_chips;
 static struct omap_prcm_irq_setup *prcm_irq_setup;
 
 /* prm_base: base virtual address of the PRM IP block */
-void __iomem *prm_base;
+struct omap_domain_base prm_base;
 
 u16 prm_features;
 
@@ -325,7 +325,7 @@ int omap_prcm_register_chain_handler(struct omap_prcm_irq_setup *irq_setup)
 
 	for (i = 0; i < irq_setup->nr_regs; i++) {
 		gc = irq_alloc_generic_chip("PRCM", 1,
-			irq_setup->base_irq + i * 32, prm_base,
+			irq_setup->base_irq + i * 32, prm_base.va,
 			handle_level_irq);
 
 		if (!gc) {
@@ -364,7 +364,7 @@ err:
  */
 void __init omap2_set_globals_prm(void __iomem *prm)
 {
-	prm_base = prm;
+	prm_base.va = prm;
 }
 
 /**
@@ -755,19 +755,22 @@ int __init omap2_prm_base_init(void)
 	struct device_node *np;
 	const struct of_device_id *match;
 	struct omap_prcm_init_data *data;
-	void __iomem *mem;
+	struct resource res;
+	int ret;
 
 	for_each_matching_node_and_match(np, omap_prcm_dt_match_table, &match) {
 		data = (struct omap_prcm_init_data *)match->data;
 
-		mem = of_iomap(np, 0);
-		if (!mem)
-			return -ENOMEM;
+		ret = of_address_to_resource(np, 0, &res);
+		if (ret)
+			return ret;
 
-		if (data->index == TI_CLKM_PRM)
-			prm_base = mem + data->offset;
+		data->mem = ioremap(res.start, resource_size(&res));
 
-		data->mem = mem;
+		if (data->index == TI_CLKM_PRM) {
+			prm_base.va = data->mem + data->offset;
+			prm_base.pa = res.start + data->offset;
+		}
 
 		data->np = np;
 

@@ -55,7 +55,7 @@
 #define CLKCTRL_IDLEST_INTERFACE_IDLE		0x2
 #define CLKCTRL_IDLEST_DISABLED			0x3
 
-static void __iomem *_cm_bases[OMAP4_MAX_PRCM_PARTITIONS];
+static struct omap_domain_base _cm_bases[OMAP4_MAX_PRCM_PARTITIONS];
 
 /**
  * omap_cm_base_init - Populates the cm partitions
@@ -65,10 +65,11 @@ static void __iomem *_cm_bases[OMAP4_MAX_PRCM_PARTITIONS];
  */
 static void omap_cm_base_init(void)
 {
-	_cm_bases[OMAP4430_PRM_PARTITION] = prm_base;
-	_cm_bases[OMAP4430_CM1_PARTITION] = cm_base;
-	_cm_bases[OMAP4430_CM2_PARTITION] = cm2_base;
-	_cm_bases[OMAP4430_PRCM_MPU_PARTITION] = prcm_mpu_base;
+	memcpy(&_cm_bases[OMAP4430_PRM_PARTITION], &prm_base, sizeof(prm_base));
+	memcpy(&_cm_bases[OMAP4430_CM1_PARTITION], &cm_base, sizeof(cm_base));
+	memcpy(&_cm_bases[OMAP4430_CM2_PARTITION], &cm2_base, sizeof(cm2_base));
+	memcpy(&_cm_bases[OMAP4430_PRCM_MPU_PARTITION], &prcm_mpu_base,
+	       sizeof(prcm_mpu_base));
 }
 
 /* Private functions */
@@ -116,8 +117,8 @@ static u32 omap4_cminst_read_inst_reg(u8 part, u16 inst, u16 idx)
 {
 	BUG_ON(part >= OMAP4_MAX_PRCM_PARTITIONS ||
 	       part == OMAP4430_INVALID_PRCM_PARTITION ||
-	       !_cm_bases[part]);
-	return readl_relaxed(_cm_bases[part] + inst + idx);
+	       !_cm_bases[part].va);
+	return readl_relaxed(_cm_bases[part].va + inst + idx);
 }
 
 /* Write into a register in a CM instance */
@@ -125,8 +126,8 @@ static void omap4_cminst_write_inst_reg(u32 val, u8 part, u16 inst, u16 idx)
 {
 	BUG_ON(part >= OMAP4_MAX_PRCM_PARTITIONS ||
 	       part == OMAP4430_INVALID_PRCM_PARTITION ||
-	       !_cm_bases[part]);
-	writel_relaxed(val, _cm_bases[part] + inst + idx);
+	       !_cm_bases[part].va);
+	writel_relaxed(val, _cm_bases[part].va + inst + idx);
 }
 
 /* Read-modify-write a register in CM1. Caller must lock */
