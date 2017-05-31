@@ -7746,7 +7746,7 @@ static void __init trace_enum_init(void)
 #ifdef CONFIG_MODULES
 static void trace_module_add_enums(struct module *mod)
 {
-	if (!mod->num_trace_enums)
+	if (!mod->num_trace_evals)
 		return;
 
 	/*
@@ -7756,7 +7756,7 @@ static void trace_module_add_enums(struct module *mod)
 	if (trace_module_has_bad_taint(mod))
 		return;
 
-	trace_insert_enum_map(mod, mod->trace_enums, mod->num_trace_enums);
+	trace_insert_enum_map(mod, mod->trace_evals, mod->num_trace_evals);
 }
 
 #ifdef CONFIG_TRACE_ENUM_MAP_FILE
@@ -7765,7 +7765,7 @@ static void trace_module_remove_enums(struct module *mod)
 	union trace_enum_map_item *map;
 	union trace_enum_map_item **last = &trace_enum_maps;
 
-	if (!mod->num_trace_enums)
+	if (!mod->num_trace_evals)
 		return;
 
 	mutex_lock(&trace_enum_mutex);
