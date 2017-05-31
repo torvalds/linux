@@ -405,6 +405,16 @@ static int camsys_mrv_drm_iommu_cb(void *ptr, camsys_sysctrl_t *devctl)
 			attach = camsys_dev->dma_buf[index].attach;
 			dma_buf = camsys_dev->dma_buf[index].dma_buf;
 			sgt = camsys_dev->dma_buf[index].sgt;
+			camsys_trace
+			(
+			2,
+			"exist mapped buf, release it before map: attach %p,"
+			"dma_buf %p,sgt %p,fd %d,index %d",
+			attach,
+			dma_buf,
+			sgt,
+			iommu->map_fd,
+			index);
 			dma_buf_unmap_attachment
 				(attach,
 				sgt,
@@ -477,7 +487,7 @@ static int camsys_mrv_drm_iommu_cb(void *ptr, camsys_sysctrl_t *devctl)
 		}
 		if (index == camsys_dev->dma_buf_cnt) {
 			camsys_warn("can't find map fd %d", iommu->map_fd);
-			return 0;
+			return -EINVAL;
 		}
 		attach = camsys_dev->dma_buf[index].attach;
 		dma_buf = camsys_dev->dma_buf[index].dma_buf;

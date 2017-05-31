@@ -164,8 +164,10 @@
 	2) add csi-phy timing setting for 3368.
 *v0.0x21.0xf:
 	1) add reference count for marvin.
+*v0.0x22.0:
+	1) delete node in irqpool list when thread disconnect.
 */
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x21, 0xf)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x22, 0)
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"
 #define CAMSYS_PLATFORM_MARVIN_NAME             "Platform_MarvinDev"

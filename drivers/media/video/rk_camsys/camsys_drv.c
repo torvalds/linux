@@ -548,7 +548,8 @@ static int camsys_irq_connect(camsys_irqcnnt_t *irqcnnt, camsys_dev_t
 	*camsys_dev)
 {
 	int err = 0, i;
-	camsys_irqpool_t *irqpool;
+	bool find_pool = false;
+	camsys_irqpool_t *irqpool, *n;
 	unsigned long int flags;
 
 	if ((irqcnnt->mis != MRV_ISP_MIS) &&
@@ -567,17 +568,25 @@ static int camsys_irq_connect(camsys_irqcnnt_t *irqcnnt, camsys_dev_t
 
 	spin_lock_irqsave(&camsys_dev->irq.lock, flags);
 	if (!list_empty(&camsys_dev->irq.irq_pool)) {
-		list_for_each_entry(irqpool, &camsys_dev->irq.irq_pool, list) {
-			if (irqpool->pid == irqcnnt->pid) {
-				camsys_warn("this thread(pid: %d) had been connect irq!",
-					     current->pid);
-				spin_unlock_irqrestore(&camsys_dev->irq.lock,
-						       flags);
-				goto end;
+		list_for_each_entry_safe(irqpool, n,
+					&camsys_dev->irq.irq_pool, list) {
+			if (irqpool->pid == -1) {
+				list_del_init(&irqpool->list);
+				kfree(irqpool);
+				irqpool = NULL;
+			} else {
+				if (irqpool->pid == irqcnnt->pid)
+					find_pool = true;
 			}
 		}
 	}
 	spin_unlock_irqrestore(&camsys_dev->irq.lock, flags);
+
+	if (find_pool) {
+		camsys_warn("this thread(pid: %d) had been connect irq!",
+						     irqcnnt->pid);
+		goto end;
+	}
 
 	irqpool = kzalloc(sizeof(camsys_irqpool_t), GFP_KERNEL);
 	if (!irqpool) {
@@ -712,7 +721,7 @@ static int camsys_irq_disconnect(camsys_irqcnnt_t *irqcnnt, camsys_dev_t
 		list_for_each_entry(irqpool, &camsys_dev->irq.irq_pool, list) {
 			if (irqpool->pid == irqcnnt->pid) {
 				find_pool = true;
-				irqpool->pid = 0;
+				irqpool->pid = -1;
 				break;
 			}
 		}
@@ -723,7 +732,7 @@ static int camsys_irq_disconnect(camsys_irqcnnt_t *irqcnnt, camsys_dev_t
 		camsys_err(
 			"this thread(pid: %d) have not been connect irq!"
 			"disconnect failed",
-			current->pid);
+			irqcnnt->pid);
 	} else {
 		wake_up_all(&irqpool->done);
 	}
