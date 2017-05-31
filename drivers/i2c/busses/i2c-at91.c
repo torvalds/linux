@@ -1083,12 +1083,16 @@ static int at91_twi_probe(struct platform_device *pdev)
 		dev_err(dev->dev, "no clock defined\n");
 		return -ENODEV;
 	}
-	clk_prepare_enable(dev->clk);
+	rc = clk_prepare_enable(dev->clk);
+	if (rc)
+		return rc;
 
 	if (dev->dev->of_node) {
 		rc = at91_twi_configure_dma(dev, phy_addr);
-		if (rc == -EPROBE_DEFER)
+		if (rc == -EPROBE_DEFER) {
+			clk_disable_unprepare(dev->clk);
 			return rc;
+		}
 	}
 
 	if (!of_property_read_u32(pdev->dev.of_node, "atmel,fifo-size",
