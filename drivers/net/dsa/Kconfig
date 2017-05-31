@@ -39,6 +39,8 @@ config NET_DSA_MV88E6060
 	  This enables support for the Marvell 88E6060 ethernet switch
 	  chip.
 
+source "drivers/net/dsa/microchip/Kconfig"
+
 source "drivers/net/dsa/mv88e6xxx/Kconfig"
 
 config NET_DSA_QCA8K
