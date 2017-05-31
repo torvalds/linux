@@ -558,7 +558,6 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 		} else {
 			set_kvm_facility(kvm->arch.model.fac_mask, 72);
 			set_kvm_facility(kvm->arch.model.fac_list, 72);
-			kvm->arch.float_int.ais_enabled = 1;
 			r = 0;
 		}
 		mutex_unlock(&kvm->lock);
@@ -1533,7 +1532,6 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	mutex_init(&kvm->arch.float_int.ais_lock);
 	kvm->arch.float_int.simm = 0;
 	kvm->arch.float_int.nimm = 0;
-	kvm->arch.float_int.ais_enabled = 0;
 	spin_lock_init(&kvm->arch.float_int.lock);
 	for (i = 0; i < FIRQ_LIST_COUNT; i++)
 		INIT_LIST_HEAD(&kvm->arch.float_int.lists[i]);
