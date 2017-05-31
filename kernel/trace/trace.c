@@ -138,7 +138,7 @@ struct trace_eval_map_tail {
 	const char			*end;	/* points to NULL */
 };
 
-static DEFINE_MUTEX(trace_enum_mutex);
+static DEFINE_MUTEX(trace_eval_mutex);
 
 /*
  * The trace_eval_maps are saved in an array with two extra elements,
@@ -4785,7 +4785,7 @@ static void *enum_map_start(struct seq_file *m, loff_t *pos)
 	union trace_eval_map_item *v;
 	loff_t l = 0;
 
-	mutex_lock(&trace_enum_mutex);
+	mutex_lock(&trace_eval_mutex);
 
 	v = trace_eval_maps;
 	if (v)
@@ -4800,7 +4800,7 @@ static void *enum_map_start(struct seq_file *m, loff_t *pos)
 
 static void enum_map_stop(struct seq_file *m, void *v)
 {
-	mutex_unlock(&trace_enum_mutex);
+	mutex_unlock(&trace_eval_mutex);
 }
 
 static int enum_map_show(struct seq_file *m, void *v)
@@ -4865,7 +4865,7 @@ trace_insert_enum_map_file(struct module *mod, struct trace_eval_map **start,
 		return;
 	}
 
-	mutex_lock(&trace_enum_mutex);
+	mutex_lock(&trace_eval_mutex);
 
 	if (!trace_eval_maps)
 		trace_eval_maps = map_array;
@@ -4890,7 +4890,7 @@ trace_insert_enum_map_file(struct module *mod, struct trace_eval_map **start,
 	}
 	memset(map_array, 0, sizeof(*map_array));
 
-	mutex_unlock(&trace_enum_mutex);
+	mutex_unlock(&trace_eval_mutex);
 }
 
 static void trace_create_enum_file(struct dentry *d_tracer)
@@ -7768,7 +7768,7 @@ static void trace_module_remove_enums(struct module *mod)
 	if (!mod->num_trace_evals)
 		return;
 
-	mutex_lock(&trace_enum_mutex);
+	mutex_lock(&trace_eval_mutex);
 
 	map = trace_eval_maps;
 
@@ -7785,7 +7785,7 @@ static void trace_module_remove_enums(struct module *mod)
 	*last = trace_enum_jmp_to_tail(map)->tail.next;
 	kfree(map);
  out:
-	mutex_unlock(&trace_enum_mutex);
+	mutex_unlock(&trace_eval_mutex);
 }
 #else
 static inline void trace_module_remove_enums(struct module *mod) { }
