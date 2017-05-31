@@ -94,7 +94,7 @@
 #include <linux/mutex.h>
 #include <linux/genhd.h>
 #include <linux/blkdev.h>
-#include <linux/vmalloc.h>
+#include <linux/mm.h>
 #include <linux/string.h>
 #include "ctree.h"
 #include "disk-io.h"
@@ -2920,13 +2920,10 @@ int btrfsic_mount(struct btrfs_fs_info *fs_info,
 		       fs_info->sectorsize, PAGE_SIZE);
 		return -1;
 	}
-	state = kzalloc(sizeof(*state), GFP_KERNEL | __GFP_NOWARN | __GFP_REPEAT);
+	state = kvzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state) {
-		state = vzalloc(sizeof(*state));
-		if (!state) {
-			pr_info("btrfs check-integrity: vzalloc() failed!\n");
-			return -1;
-		}
+		pr_info("btrfs check-integrity: allocation failed!\n");
+		return -1;
 	}
 
 	if (!btrfsic_is_initialized) {
