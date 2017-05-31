@@ -26,6 +26,8 @@
 
 #include "hwmgr.h"
 
+typedef enum atom_smu9_syspll0_clock_id BIOS_CLKID;
+
 #define GetIndexIntoMasterCmdTable(FieldName) \
 	(((char*)(&((struct atom_master_list_of_command_functions_v2_1*)0)->FieldName)-(char*)0)/sizeof(uint16_t))
 #define GetIndexIntoMasterDataTable(FieldName) \
@@ -125,6 +127,7 @@ struct pp_atomfwctrl_bios_boot_up_values {
 	uint32_t   ulGfxClk;
 	uint32_t   ulUClk;
 	uint32_t   ulSocClk;
+	uint32_t   ulDCEFClk;
 	uint16_t   usVddc;
 	uint16_t   usVddci;
 	uint16_t   usMvddc;

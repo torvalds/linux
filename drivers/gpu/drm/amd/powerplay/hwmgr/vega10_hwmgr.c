@@ -2451,6 +2451,7 @@ static int vega10_init_smc_table(struct pp_hwmgr *hwmgr)
 		data->vbios_boot_state.gfx_clock = boot_up_values.ulGfxClk;
 		data->vbios_boot_state.mem_clock = boot_up_values.ulUClk;
 		data->vbios_boot_state.soc_clock = boot_up_values.ulSocClk;
+		data->vbios_boot_state.dcef_clock = boot_up_values.ulDCEFClk;
 		if (0 != boot_up_values.usVddc) {
 			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
 						PPSMC_MSG_SetFloorSocVoltage,
@@ -2459,6 +2460,9 @@ static int vega10_init_smc_table(struct pp_hwmgr *hwmgr)
 		} else {
 			data->vbios_boot_state.bsoc_vddc_lock = false;
 		}
+		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+				PPSMC_MSG_SetMinDeepSleepDcefclk,
+			(uint32_t)(data->vbios_boot_state.dcef_clock / 100));
 	}
 
 	result = vega10_populate_avfs_parameters(hwmgr);
