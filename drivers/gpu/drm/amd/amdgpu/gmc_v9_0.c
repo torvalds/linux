@@ -814,6 +814,13 @@ static int gmc_v9_0_set_clockgating_state(void *handle,
 	return mmhub_v1_0_set_clockgating(adev, state);
 }
 
+static void gmc_v9_0_get_clockgating_state(void *handle, u32 *flags)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	mmhub_v1_0_get_clockgating(adev, flags);
+}
+
 static int gmc_v9_0_set_powergating_state(void *handle,
 					enum amd_powergating_state state)
 {
@@ -835,6 +842,7 @@ const struct amd_ip_funcs gmc_v9_0_ip_funcs = {
 	.soft_reset = gmc_v9_0_soft_reset,
 	.set_clockgating_state = gmc_v9_0_set_clockgating_state,
 	.set_powergating_state = gmc_v9_0_set_powergating_state,
+	.get_clockgating_state = gmc_v9_0_get_clockgating_state,
 };
 
 const struct amdgpu_ip_block_version gmc_v9_0_ip_block =
