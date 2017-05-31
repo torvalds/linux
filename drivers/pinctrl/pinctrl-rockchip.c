@@ -76,7 +76,7 @@ enum rockchip_pinctrl_type {
 #define IOMUX_SOURCE_PMU	BIT(2)
 #define IOMUX_UNROUTED		BIT(3)
 #define IOMUX_WIDTH_3BIT	BIT(4)
-#define IOMUX_RECALCED_FLAG	BIT(5)
+#define IOMUX_RECALCED		BIT(5)
 
 /**
  * @type: iomux variant using IOMUX_* constants
@@ -364,7 +364,7 @@ struct rockchip_pin_ctrl {
 				      int pin_num, struct regmap **regmap,
 				      int *reg, u8 *bit);
 	void	(*iomux_recalc)(u8 bank_num, int pin, int *reg,
-				int *mask, u8 *bit);
+				u8 *bit, int *mask);
 };
 
 struct rockchip_pin_config {
@@ -418,20 +418,18 @@ struct rockchip_pinctrl {
 
 /**
  * struct rockchip_mux_recalced_data: represent a pin iomux data.
- * @num: bank num.
- * @bit: index at register or used to calc index.
- * @min_pin: the min pin.
- * @max_pin: the max pin.
- * @reg: the register offset.
+ * @num: bank number.
+ * @pin: pin number.
+ * @bit: index at register.
+ * @reg: register offset.
  * @mask: mask bit
  */
 struct rockchip_mux_recalced_data {
 	u8 num;
+	u8 pin;
+	u8 reg;
 	u8 bit;
-	int min_pin;
-	int max_pin;
-	int reg;
-	int mask;
+	u8 mask;
 };
 
 static struct regmap_config rockchip_regmap_config = {
@@ -601,56 +599,34 @@ static const struct pinctrl_ops rockchip_pctrl_ops = {
 static const struct rockchip_mux_recalced_data rk3328_mux_recalced_data[] = {
 	{
 		.num = 2,
-		.bit = 0x2,
-		.min_pin = 8,
-		.max_pin = 14,
+		.pin = 12,
 		.reg = 0x24,
+		.bit = 8,
 		.mask = 0x3
-	},
-	{
+	}, {
 		.num = 2,
-		.bit = 0,
-		.min_pin = 15,
-		.max_pin = 15,
+		.pin = 15,
 		.reg = 0x28,
-		.mask = 0x7
-	},
-	{
-		.num = 2,
-		.bit = 14,
-		.min_pin = 23,
-		.max_pin = 23,
-		.reg = 0x30,
-		.mask = 0x3
-	},
-	{
-		.num = 3,
 		.bit = 0,
-		.min_pin = 8,
-		.max_pin = 8,
-		.reg = 0x40,
 		.mask = 0x7
-	},
-	{
-		.num = 3,
-		.bit = 0x2,
-		.min_pin = 9,
-		.max_pin = 15,
-		.reg = 0x44,
+	}, {
+		.num = 2,
+		.pin = 23,
+		.reg = 0x30,
+		.bit = 14,
 		.mask = 0x3
 	},
 };
 
 static void rk3328_recalc_mux(u8 bank_num, int pin, int *reg,
-			      int *mask, u8 *bit)
+			      u8 *bit, int *mask)
 {
 	const struct rockchip_mux_recalced_data *data = NULL;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(rk3328_mux_recalced_data); i++)
 		if (rk3328_mux_recalced_data[i].num == bank_num &&
-		    rk3328_mux_recalced_data[i].min_pin <= pin &&
-		    rk3328_mux_recalced_data[i].max_pin >= pin) {
+		    rk3328_mux_recalced_data[i].pin == pin) {
 			data = &rk3328_mux_recalced_data[i];
 			break;
 		}
@@ -660,11 +636,7 @@ static void rk3328_recalc_mux(u8 bank_num, int pin, int *reg,
 
 	*reg = data->reg;
 	*mask = data->mask;
-
-	if (data->min_pin == data->max_pin)
-		*bit = data->bit;
-	else
-		*bit = (pin % 8) * data->bit;
+	*bit = data->bit;
 }
 
 static int rockchip_get_mux(struct rockchip_pin_bank *bank, int pin)
@@ -695,25 +667,22 @@ static int rockchip_get_mux(struct rockchip_pin_bank *bank, int pin)
 	mux_type = bank->iomux[iomux_num].type;
 	reg = bank->iomux[iomux_num].offset;
 	if (mux_type & IOMUX_WIDTH_4BIT) {
-		mask = 0xf;
 		if ((pin % 8) >= 4)
 			reg += 0x4;
 		bit = (pin % 4) * 4;
+		mask = 0xf;
 	} else if (mux_type & IOMUX_WIDTH_3BIT) {
-		mask = 0x7;
-		if ((pin % 8) >= 5) {
+		if ((pin % 8) >= 5)
 			reg += 0x4;
-			bit = ((pin % 8) % 5) * 3;
-		} else {
-			bit = (pin % 8) * 3;
-		}
+		bit = (pin % 8 % 5) * 3;
+		mask = 0x7;
 	} else {
-		mask = 0x3;
 		bit = (pin % 8) * 2;
+		mask = 0x3;
 	}
 
-	if (ctrl->iomux_recalc && (mux_type & IOMUX_RECALCED_FLAG))
-		ctrl->iomux_recalc(bank->bank_num, pin, &reg, &mask, &bit);
+	if (ctrl->iomux_recalc && (mux_type & IOMUX_RECALCED))
+		ctrl->iomux_recalc(bank->bank_num, pin, &reg, &bit, &mask);
 
 	ret = regmap_read(regmap, reg, &val);
 	if (ret)
@@ -774,25 +743,22 @@ static int rockchip_set_mux(struct rockchip_pin_bank *bank, int pin, int mux)
 	mux_type = bank->iomux[iomux_num].type;
 	reg = bank->iomux[iomux_num].offset;
 	if (mux_type & IOMUX_WIDTH_4BIT) {
-		mask = 0xf;
 		if ((pin % 8) >= 4)
 			reg += 0x4;
 		bit = (pin % 4) * 4;
+		mask = 0xf;
 	} else if (mux_type & IOMUX_WIDTH_3BIT) {
-		mask = 0x7;
-		if ((pin % 8) >= 5) {
+		if ((pin % 8) >= 5)
 			reg += 0x4;
-			bit = ((pin % 8) % 5) * 3;
-		} else {
-			bit = (pin % 8) * 3;
-		}
+		bit = (pin % 8 % 5) * 3;
+		mask = 0x7;
 	} else {
-		mask = 0x3;
 		bit = (pin % 8) * 2;
+		mask = 0x3;
 	}
 
-	if (ctrl->iomux_recalc && (mux_type & IOMUX_RECALCED_FLAG))
-		ctrl->iomux_recalc(bank->bank_num, pin, &reg, &mask, &bit);
+	if (ctrl->iomux_recalc && (mux_type & IOMUX_RECALCED))
+		ctrl->iomux_recalc(bank->bank_num, pin, &reg, &bit, &mask);
 
 	spin_lock_irqsave(&bank->slock, flags);
 
@@ -3049,12 +3015,12 @@ static struct rockchip_pin_bank rk3328_pin_banks[] = {
 	PIN_BANK_IOMUX_FLAGS(0, 32, "gpio0", 0, 0, 0, 0),
 	PIN_BANK_IOMUX_FLAGS(1, 32, "gpio1", 0, 0, 0, 0),
 	PIN_BANK_IOMUX_FLAGS(2, 32, "gpio2", 0,
-			     IOMUX_WIDTH_3BIT | IOMUX_RECALCED_FLAG,
-			     IOMUX_WIDTH_3BIT | IOMUX_RECALCED_FLAG,
+			     IOMUX_WIDTH_3BIT | IOMUX_RECALCED,
+			     IOMUX_WIDTH_3BIT | IOMUX_RECALCED,
 			     0),
 	PIN_BANK_IOMUX_FLAGS(3, 32, "gpio3",
 			     IOMUX_WIDTH_3BIT,
-			     IOMUX_WIDTH_3BIT | IOMUX_RECALCED_FLAG,
+			     IOMUX_WIDTH_3BIT | IOMUX_RECALCED,
 			     0,
 			     0),
 };
