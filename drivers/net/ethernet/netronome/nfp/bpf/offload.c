@@ -54,46 +54,52 @@
 void nfp_net_filter_stats_timer(unsigned long data)
 {
 	struct nfp_net *nn = (void *)data;
+	struct nfp_net_bpf_priv *priv;
 	struct nfp_stat_pair latest;
 
-	spin_lock_bh(&nn->rx_filter_lock);
+	priv = nn->app_priv;
+
+	spin_lock_bh(&priv->rx_filter_lock);
 
 	if (nn->dp.ctrl & NFP_NET_CFG_CTRL_BPF)
-		mod_timer(&nn->rx_filter_stats_timer,
+		mod_timer(&priv->rx_filter_stats_timer,
 			  jiffies + NFP_NET_STAT_POLL_IVL);
 
-	spin_unlock_bh(&nn->rx_filter_lock);
+	spin_unlock_bh(&priv->rx_filter_lock);
 
 	latest.pkts = nn_readq(nn, NFP_NET_CFG_STATS_APP1_FRAMES);
 	latest.bytes = nn_readq(nn, NFP_NET_CFG_STATS_APP1_BYTES);
 
-	if (latest.pkts != nn->rx_filter.pkts)
-		nn->rx_filter_change = jiffies;
+	if (latest.pkts != priv->rx_filter.pkts)
+		priv->rx_filter_change = jiffies;
 
-	nn->rx_filter = latest;
+	priv->rx_filter = latest;
 }
 
 static void nfp_net_bpf_stats_reset(struct nfp_net *nn)
 {
-	nn->rx_filter.pkts = nn_readq(nn, NFP_NET_CFG_STATS_APP1_FRAMES);
-	nn->rx_filter.bytes = nn_readq(nn, NFP_NET_CFG_STATS_APP1_BYTES);
-	nn->rx_filter_prev = nn->rx_filter;
-	nn->rx_filter_change = jiffies;
+	struct nfp_net_bpf_priv *priv = nn->app_priv;
+
+	priv->rx_filter.pkts = nn_readq(nn, NFP_NET_CFG_STATS_APP1_FRAMES);
+	priv->rx_filter.bytes = nn_readq(nn, NFP_NET_CFG_STATS_APP1_BYTES);
+	priv->rx_filter_prev = priv->rx_filter;
+	priv->rx_filter_change = jiffies;
 }
 
 static int
 nfp_net_bpf_stats_update(struct nfp_net *nn, struct tc_cls_bpf_offload *cls_bpf)
 {
+	struct nfp_net_bpf_priv *priv = nn->app_priv;
 	u64 bytes, pkts;
 
-	pkts = nn->rx_filter.pkts - nn->rx_filter_prev.pkts;
-	bytes = nn->rx_filter.bytes - nn->rx_filter_prev.bytes;
+	pkts = priv->rx_filter.pkts - priv->rx_filter_prev.pkts;
+	bytes = priv->rx_filter.bytes - priv->rx_filter_prev.bytes;
 	bytes -= pkts * ETH_HLEN;
 
-	nn->rx_filter_prev = nn->rx_filter;
+	priv->rx_filter_prev = priv->rx_filter;
 
 	tcf_exts_stats_update(cls_bpf->exts,
-			      bytes, pkts, nn->rx_filter_change);
+			      bytes, pkts, priv->rx_filter_change);
 
 	return 0;
 }
@@ -183,6 +189,7 @@ nfp_net_bpf_load_and_start(struct nfp_net *nn, u32 tc_flags,
 			   unsigned int code_sz, unsigned int n_instr,
 			   bool dense_mode)
 {
+	struct nfp_net_bpf_priv *priv = nn->app_priv;
 	u64 bpf_addr = dma_addr;
 	int err;
 
@@ -209,20 +216,23 @@ nfp_net_bpf_load_and_start(struct nfp_net *nn, u32 tc_flags,
 	dma_free_coherent(nn->dp.dev, code_sz, code, dma_addr);
 
 	nfp_net_bpf_stats_reset(nn);
-	mod_timer(&nn->rx_filter_stats_timer, jiffies + NFP_NET_STAT_POLL_IVL);
+	mod_timer(&priv->rx_filter_stats_timer,
+		  jiffies + NFP_NET_STAT_POLL_IVL);
 }
 
 static int nfp_net_bpf_stop(struct nfp_net *nn)
 {
+	struct nfp_net_bpf_priv *priv = nn->app_priv;
+
 	if (!(nn->dp.ctrl & NFP_NET_CFG_CTRL_BPF))
 		return 0;
 
-	spin_lock_bh(&nn->rx_filter_lock);
+	spin_lock_bh(&priv->rx_filter_lock);
 	nn->dp.ctrl &= ~NFP_NET_CFG_CTRL_BPF;
-	spin_unlock_bh(&nn->rx_filter_lock);
+	spin_unlock_bh(&priv->rx_filter_lock);
 	nn_writel(nn, NFP_NET_CFG_CTRL, nn->dp.ctrl);
 
-	del_timer_sync(&nn->rx_filter_stats_timer);
+	del_timer_sync(&priv->rx_filter_stats_timer);
 	nn->dp.bpf_offload_skip_sw = 0;
 
 	return nfp_net_reconfig(nn, NFP_NET_CFG_UPDATE_GEN);

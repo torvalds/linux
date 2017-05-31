@@ -39,6 +39,8 @@
 #include <linux/list.h>
 #include <linux/types.h>
 
+#include "../nfp_net.h"
+
 /* For branch fixup logic use up-most byte of branch instruction as scratch
  * area.  Remember to clear this before sending instructions to HW!
  */
@@ -201,6 +203,22 @@ int nfp_prog_verify(struct nfp_prog *nfp_prog, struct bpf_prog *prog);
 struct nfp_net;
 struct tc_cls_bpf_offload;
 
+/**
+ * struct nfp_net_bpf_priv - per-vNIC BPF private data
+ * @rx_filter:		Filter offload statistics - dropped packets/bytes
+ * @rx_filter_prev:	Filter offload statistics - values from previous update
+ * @rx_filter_change:	Jiffies when statistics last changed
+ * @rx_filter_stats_timer:  Timer for polling filter offload statistics
+ * @rx_filter_lock:	Lock protecting timer state changes (teardown)
+ */
+struct nfp_net_bpf_priv {
+	struct nfp_stat_pair rx_filter, rx_filter_prev;
+	unsigned long rx_filter_change;
+	struct timer_list rx_filter_stats_timer;
+	spinlock_t rx_filter_lock;
+};
+
 int nfp_net_bpf_offload(struct nfp_net *nn, struct tc_cls_bpf_offload *cls_bpf);
+void nfp_net_filter_stats_timer(unsigned long data);
 
 #endif

@@ -86,6 +86,9 @@ static const char *nfp_bpf_extra_cap(struct nfp_app *app, struct nfp_net *nn)
 static int
 nfp_bpf_vnic_init(struct nfp_app *app, struct nfp_net *nn, unsigned int id)
 {
+	struct nfp_net_bpf_priv *priv;
+	int ret;
+
 	/* Limit to single port, otherwise it's just a NIC */
 	if (id > 0) {
 		nfp_warn(app->cpp,
@@ -94,13 +97,27 @@ nfp_bpf_vnic_init(struct nfp_app *app, struct nfp_net *nn, unsigned int id)
 		return PTR_ERR_OR_ZERO(nn->port);
 	}
 
-	return nfp_app_nic_vnic_init(app, nn, id);
+	priv = kmalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	nn->app_priv = priv;
+	spin_lock_init(&priv->rx_filter_lock);
+	setup_timer(&priv->rx_filter_stats_timer,
+		    nfp_net_filter_stats_timer, (unsigned long)nn);
+
+	ret = nfp_app_nic_vnic_init(app, nn, id);
+	if (ret)
+		kfree(priv);
+
+	return ret;
 }
 
 static void nfp_bpf_vnic_clean(struct nfp_app *app, struct nfp_net *nn)
 {
 	if (nn->dp.bpf_offload_xdp)
 		nfp_bpf_xdp_offload(app, nn, NULL);
+	kfree(nn->app_priv);
 }
 
 static int nfp_bpf_setup_tc(struct nfp_app *app, struct net_device *netdev,
