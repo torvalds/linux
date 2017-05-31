@@ -3958,7 +3958,7 @@ sctp_disposition_t sctp_sf_eat_fwd_tsn(struct net *net,
 
 	/* Silently discard the chunk if stream-id is not valid */
 	sctp_walk_fwdtsn(skip, chunk) {
-		if (ntohs(skip->stream) >= asoc->stream->incnt)
+		if (ntohs(skip->stream) >= asoc->stream.incnt)
 			goto discard_noforce;
 	}
 
@@ -4029,7 +4029,7 @@ sctp_disposition_t sctp_sf_eat_fwd_tsn_fast(
 
 	/* Silently discard the chunk if stream-id is not valid */
 	sctp_walk_fwdtsn(skip, chunk) {
-		if (ntohs(skip->stream) >= asoc->stream->incnt)
+		if (ntohs(skip->stream) >= asoc->stream.incnt)
 			goto gen_shutdown;
 	}
 
@@ -6365,7 +6365,7 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	 * and discard the DATA chunk.
 	 */
 	sid = ntohs(data_hdr->stream);
-	if (sid >= asoc->stream->incnt) {
+	if (sid >= asoc->stream.incnt) {
 		/* Mark tsn as received even though we drop it */
 		sctp_add_cmd_sf(commands, SCTP_CMD_REPORT_TSN, SCTP_U32(tsn));
 
@@ -6387,7 +6387,7 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	 * and is invalid.
 	 */
 	ssn = ntohs(data_hdr->ssn);
-	if (ordered && SSN_lt(ssn, sctp_ssn_peek(asoc->stream, in, sid)))
+	if (ordered && SSN_lt(ssn, sctp_ssn_peek(&asoc->stream, in, sid)))
 		return SCTP_IERROR_PROTO_VIOLATION;
 
 	/* Send the data up to the user.  Note:  Schedule  the

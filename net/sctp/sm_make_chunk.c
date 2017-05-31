@@ -1544,7 +1544,7 @@ void sctp_chunk_assign_ssn(struct sctp_chunk *chunk)
 
 	/* All fragments will be on the same stream */
 	sid = ntohs(chunk->subh.data_hdr->stream);
-	stream = chunk->asoc->stream;
+	stream = &chunk->asoc->stream;
 
 	/* Now assign the sequence number to the entire message.
 	 * All fragments must have the same stream sequence number.

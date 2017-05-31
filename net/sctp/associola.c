@@ -291,7 +291,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	return asoc;
 
 stream_free:
-	sctp_stream_free(asoc->stream);
+	sctp_stream_free(&asoc->stream);
 fail_init:
 	sock_put(asoc->base.sk);
 	sctp_endpoint_put(asoc->ep);
@@ -365,7 +365,7 @@ void sctp_association_free(struct sctp_association *asoc)
 	sctp_tsnmap_free(&asoc->peer.tsn_map);
 
 	/* Free stream information. */
-	sctp_stream_free(asoc->stream);
+	sctp_stream_free(&asoc->stream);
 
 	if (asoc->strreset_chunk)
 		sctp_chunk_free(asoc->strreset_chunk);
@@ -1151,7 +1151,7 @@ void sctp_assoc_update(struct sctp_association *asoc,
 		/* Reinitialize SSN for both local streams
 		 * and peer's streams.
 		 */
-		sctp_stream_clear(asoc->stream);
+		sctp_stream_clear(&asoc->stream);
 
 		/* Flush the ULP reassembly and ordered queue.
 		 * Any data there will now be stale and will
@@ -1177,11 +1177,8 @@ void sctp_assoc_update(struct sctp_association *asoc,
 		asoc->ctsn_ack_point = asoc->next_tsn - 1;
 		asoc->adv_peer_ack_point = asoc->ctsn_ack_point;
 
-		if (sctp_state(asoc, COOKIE_WAIT)) {
-			sctp_stream_free(asoc->stream);
-			asoc->stream = new->stream;
-			new->stream = NULL;
-		}
+		if (sctp_state(asoc, COOKIE_WAIT))
+			sctp_stream_update(&asoc->stream, &new->stream);
 
 		if (!asoc->assoc_id) {
 			/* get a new association id since we don't have one

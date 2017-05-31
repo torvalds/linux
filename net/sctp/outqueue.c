@@ -363,7 +363,7 @@ static int sctp_prsctp_prune_sent(struct sctp_association *asoc,
 		sctp_insert_list(&asoc->outqueue.abandoned,
 				 &chk->transmitted_list);
 
-		streamout = &asoc->stream->out[chk->sinfo.sinfo_stream];
+		streamout = &asoc->stream.out[chk->sinfo.sinfo_stream];
 		asoc->sent_cnt_removable--;
 		asoc->abandoned_sent[SCTP_PR_INDEX(PRIO)]++;
 		streamout->abandoned_sent[SCTP_PR_INDEX(PRIO)]++;
@@ -400,9 +400,9 @@ static int sctp_prsctp_prune_unsent(struct sctp_association *asoc,
 		q->out_qlen -= chk->skb->len;
 		asoc->sent_cnt_removable--;
 		asoc->abandoned_unsent[SCTP_PR_INDEX(PRIO)]++;
-		if (chk->sinfo.sinfo_stream < asoc->stream->outcnt) {
+		if (chk->sinfo.sinfo_stream < asoc->stream.outcnt) {
 			struct sctp_stream_out *streamout =
-				&asoc->stream->out[chk->sinfo.sinfo_stream];
+				&asoc->stream.out[chk->sinfo.sinfo_stream];
 
 			streamout->abandoned_unsent[SCTP_PR_INDEX(PRIO)]++;
 		}
@@ -1036,7 +1036,7 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 			/* RFC 2960 6.5 Every DATA chunk MUST carry a valid
 			 * stream identifier.
 			 */
-			if (chunk->sinfo.sinfo_stream >= asoc->stream->outcnt) {
+			if (chunk->sinfo.sinfo_stream >= asoc->stream.outcnt) {
 
 				/* Mark as failed send. */
 				sctp_chunk_fail(chunk, SCTP_ERROR_INV_STRM);
@@ -1054,7 +1054,7 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 				continue;
 			}
 
-			if (asoc->stream->out[sid].state == SCTP_STREAM_CLOSED) {
+			if (asoc->stream.out[sid].state == SCTP_STREAM_CLOSED) {
 				sctp_outq_head_data(q, chunk);
 				goto sctp_flush_out;
 			}
