@@ -53,8 +53,9 @@ int drm_name_info(struct seq_file *m, void *data);
 int drm_clients_info(struct seq_file *m, void* data);
 int drm_gem_name_info(struct seq_file *m, void *data);
 
-/* drm_irq.c */
+/* drm_vblank.c */
 extern unsigned int drm_timestamp_monotonic;
+void drm_vblank_disable_and_save(struct drm_device *dev, unsigned int pipe);
 
 /* IOCTLS */
 int drm_wait_vblank(struct drm_device *dev, void *data,

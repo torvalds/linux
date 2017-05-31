@@ -40,6 +40,7 @@
 struct dma_fence;
 struct drm_file;
 struct drm_device;
+struct device;
 
 /*
  * FIXME: Not sure we want to have drm_minor here in the end, but to avoid

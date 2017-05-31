@@ -204,6 +204,15 @@ drm_device <drm_device>` irq_enabled field to 1 upon
 registration of the IRQs, and clear it to 0 after unregistering the
 IRQs.
 
+IRQ Helper Library
+~~~~~~~~~~~~~~~~~~
+
+.. kernel-doc:: drivers/gpu/drm/drm_irq.c
+   :doc: irq helpers
+
+.. kernel-doc:: drivers/gpu/drm/drm_irq.c
+   :export:
+
 Memory Manager Initialization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
