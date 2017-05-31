@@ -197,7 +197,7 @@
 				#size-cells = <0>;
 				cell-index = <0>;
 				interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&ap_syscon 3>;
+				clocks = <&ap_clk 3>;
 				status = "disabled";
 			};
 
@@ -208,7 +208,7 @@
 				#size-cells = <0>;
 				interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
 				timeout-ms = <1000>;
-				clocks = <&ap_syscon 3>;
+				clocks = <&ap_clk 3>;
 				status = "disabled";
 			};
 
@@ -218,7 +218,7 @@
 				reg-shift = <2>;
 				interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
 				reg-io-width = <1>;
-				clocks = <&ap_syscon 3>;
+				clocks = <&ap_clk 3>;
 				status = "disabled";
 			};
 
@@ -228,7 +228,7 @@
 				reg-shift = <2>;
 				interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
 				reg-io-width = <1>;
-				clocks = <&ap_syscon 3>;
+				clocks = <&ap_clk 3>;
 				status = "disabled";
 
 			};
@@ -238,17 +238,20 @@
 				reg = <0x6e0000 0x300>;
 				interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
 				clock-names = "core";
-				clocks = <&ap_syscon 4>;
+				clocks = <&ap_clk 4>;
 				dma-coherent;
 				marvell,xenon-phy-slow-mode;
 				status = "disabled";
 			};
 
 			ap_syscon: system-controller@6f4000 {
-				compatible = "marvell,ap806-system-controller",
-					     "syscon";
-				#clock-cells = <1>;
+				compatible = "syscon", "simple-mfd";
 				reg = <0x6f4000 0x1000>;
+
+				ap_clk: clock {
+					compatible = "marvell,ap806-clock";
+					#clock-cells = <1>;
+				};
 			};
 		};
 	};
