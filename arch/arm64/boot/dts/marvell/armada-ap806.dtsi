@@ -248,10 +248,6 @@
 				compatible = "marvell,ap806-system-controller",
 					     "syscon";
 				#clock-cells = <1>;
-				clock-output-names = "ap-cpu-cluster-0",
-						     "ap-cpu-cluster-1",
-						     "ap-fixed", "ap-mss",
-						     "ap-emmc";
 				reg = <0x6f4000 0x1000>;
 			};
 		};
