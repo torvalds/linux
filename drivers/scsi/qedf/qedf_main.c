@@ -722,6 +722,7 @@ static struct scsi_host_template qedf_host_template = {
 	.dma_boundary = QED_HW_DMA_BOUNDARY,
 	.sg_tablesize = QEDF_MAX_BDS_PER_CMD,
 	.can_queue = FCOE_PARAMS_NUM_TASKS,
+	.change_queue_depth = scsi_change_queue_depth,
 };
 
 static int qedf_get_paged_crc_eof(struct sk_buff *skb, int tlen)
