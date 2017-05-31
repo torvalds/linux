@@ -270,5 +270,15 @@
 			#interrupt-cells = <3>;
 			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_HIGH)>;
 		};
+
+		r_ccu: clock@1f01400 {
+			compatible = "allwinner,sun8i-a83t-r-ccu";
+			reg = <0x01f01400 0x400>;
+			clocks = <&osc24M>, <&osc16Md512>, <&osc16M>,
+				 <&ccu 6>;
+			clock-names = "hosc", "losc", "iosc", "pll-periph";
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+		};
 	};
 };
