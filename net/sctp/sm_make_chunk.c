@@ -2454,7 +2454,8 @@ int sctp_process_init(struct sctp_association *asoc, struct sctp_chunk *chunk,
 	 * stream sequence number shall be set to 0.
 	 */
 
-	if (sctp_stream_init(asoc, gfp))
+	if (sctp_stream_init(&asoc->stream, asoc->c.sinit_num_ostreams,
+			     asoc->c.sinit_max_instreams, gfp))
 		goto clean_up;
 
 	if (!asoc->temp && sctp_assoc_set_id(asoc, gfp))

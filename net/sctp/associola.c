@@ -246,7 +246,8 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	if (!sctp_ulpq_init(&asoc->ulpq, asoc))
 		goto fail_init;
 
-	if (sctp_stream_new(asoc, gfp))
+	if (sctp_stream_init(&asoc->stream, asoc->c.sinit_num_ostreams,
+			     0, gfp))
 		goto fail_init;
 
 	/* Assume that peer would support both address types unless we are
