@@ -711,6 +711,7 @@ unsigned long tlb_context_cache = CTX_FIRST_VERSION;
 #define MAX_CTX_NR	(1UL << CTX_NR_BITS)
 #define CTX_BMAP_SLOTS	BITS_TO_LONGS(MAX_CTX_NR)
 DECLARE_BITMAP(mmu_context_bmap, MAX_CTX_NR);
+DEFINE_PER_CPU(struct mm_struct *, per_cpu_secondary_mm) = {0};
 
 /* Caller does TLB context flushing on local CPU if necessary.
  * The caller also ensures that CTX_VALID(mm->context) is false.
