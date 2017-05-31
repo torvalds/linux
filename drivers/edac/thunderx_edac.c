@@ -2080,7 +2080,7 @@ static int thunderx_l2c_probe(struct pci_dev *pdev,
 	if (IS_ENABLED(CONFIG_EDAC_DEBUG)) {
 		l2c->debugfs = edac_debugfs_create_dir(pdev->dev.kobj.name);
 
-		thunderx_create_debugfs_nodes(l2c->debugfs, l2c_devattr,
+		ret = thunderx_create_debugfs_nodes(l2c->debugfs, l2c_devattr,
 					      l2c, dfs_entries);
 
 		if (ret != dfs_entries) {
