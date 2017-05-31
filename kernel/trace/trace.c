@@ -132,7 +132,7 @@ union trace_enum_map_item;
 struct trace_enum_map_tail {
 	/*
 	 * "end" is first and points to NULL as it must be different
-	 * than "mod" or "enum_string"
+	 * than "mod" or "eval_string"
 	 */
 	union trace_enum_map_item	*next;
 	const char			*end;	/* points to NULL */
@@ -148,7 +148,7 @@ static DEFINE_MUTEX(trace_enum_mutex);
  * pointer to the next array of saved enum_map items.
  */
 union trace_enum_map_item {
-	struct trace_enum_map		map;
+	struct trace_eval_map		map;
 	struct trace_enum_map_head	head;
 	struct trace_enum_map_tail	tail;
 };
@@ -4748,7 +4748,7 @@ static const struct file_operations tracing_saved_cmdlines_size_fops = {
 static union trace_enum_map_item *
 update_enum_map(union trace_enum_map_item *ptr)
 {
-	if (!ptr->map.enum_string) {
+	if (!ptr->map.eval_string) {
 		if (ptr->tail.next) {
 			ptr = ptr->tail.next;
 			/* Set ptr to the next real item (skip head) */
@@ -4808,7 +4808,7 @@ static int enum_map_show(struct seq_file *m, void *v)
 	union trace_enum_map_item *ptr = v;
 
 	seq_printf(m, "%s %ld (%s)\n",
-		   ptr->map.enum_string, ptr->map.enum_value,
+		   ptr->map.eval_string, ptr->map.eval_value,
 		   ptr->map.system);
 
 	return 0;
@@ -4844,11 +4844,11 @@ trace_enum_jmp_to_tail(union trace_enum_map_item *ptr)
 }
 
 static void
-trace_insert_enum_map_file(struct module *mod, struct trace_enum_map **start,
+trace_insert_enum_map_file(struct module *mod, struct trace_eval_map **start,
 			   int len)
 {
-	struct trace_enum_map **stop;
-	struct trace_enum_map **map;
+	struct trace_eval_map **stop;
+	struct trace_eval_map **map;
 	union trace_enum_map_item *map_array;
 	union trace_enum_map_item *ptr;
 
@@ -4902,13 +4902,13 @@ static void trace_create_enum_file(struct dentry *d_tracer)
 #else /* CONFIG_TRACE_ENUM_MAP_FILE */
 static inline void trace_create_enum_file(struct dentry *d_tracer) { }
 static inline void trace_insert_enum_map_file(struct module *mod,
-			      struct trace_enum_map **start, int len) { }
+			      struct trace_eval_map **start, int len) { }
 #endif /* !CONFIG_TRACE_ENUM_MAP_FILE */
 
 static void trace_insert_enum_map(struct module *mod,
-				  struct trace_enum_map **start, int len)
+				  struct trace_eval_map **start, int len)
 {
-	struct trace_enum_map **map;
+	struct trace_eval_map **map;
 
 	if (len <= 0)
 		return;
@@ -7732,8 +7732,8 @@ struct dentry *tracing_init_dentry(void)
 	return NULL;
 }
 
-extern struct trace_enum_map *__start_ftrace_eval_maps[];
-extern struct trace_enum_map *__stop_ftrace_eval_maps[];
+extern struct trace_eval_map *__start_ftrace_eval_maps[];
+extern struct trace_eval_map *__stop_ftrace_eval_maps[];
 
 static void __init trace_enum_init(void)
 {

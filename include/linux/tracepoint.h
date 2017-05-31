@@ -25,10 +25,10 @@ struct module;
 struct tracepoint;
 struct notifier_block;
 
-struct trace_enum_map {
+struct trace_eval_map {
 	const char		*system;
-	const char		*enum_string;
-	unsigned long		enum_value;
+	const char		*eval_string;
+	unsigned long		eval_value;
 };
 
 #define TRACEPOINT_DEFAULT_PRIO	10

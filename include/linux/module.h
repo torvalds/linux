@@ -442,7 +442,7 @@ struct module {
 #ifdef CONFIG_EVENT_TRACING
 	struct trace_event_call **trace_events;
 	unsigned int num_trace_events;
-	struct trace_enum_map **trace_enums;
+	struct trace_eval_map **trace_enums;
 	unsigned int num_trace_enums;
 #endif
 #ifdef CONFIG_FTRACE_MCOUNT_RECORD
