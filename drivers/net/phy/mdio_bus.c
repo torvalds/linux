@@ -263,21 +263,10 @@ static void of_mdiobus_link_mdiodev(struct mii_bus *bus,
 
 	for_each_available_child_of_node(bus->dev.of_node, child) {
 		int addr;
-		int ret;
 
-		ret = of_property_read_u32(child, "reg", &addr);
-		if (ret < 0) {
-			dev_err(dev, "%s has invalid MDIO address\n",
-				child->full_name);
+		addr = of_mdio_parse_addr(dev, child);
+		if (addr < 0)
 			continue;
-		}
-
-		/* A MDIO device must have a reg property in the range [0-31] */
-		if (addr >= PHY_MAX_ADDR) {
-			dev_err(dev, "%s MDIO address %i is too large\n",
-				child->full_name, addr);
-			continue;
-		}
 
 		if (addr == mdiodev->addr) {
 			dev->of_node = child;
