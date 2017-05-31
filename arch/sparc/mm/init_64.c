@@ -759,6 +759,8 @@ void get_new_mmu_context(struct mm_struct *mm)
 			goto out;
 		}
 	}
+	if (mm->context.sparc64_ctx_val)
+		cpumask_clear(mm_cpumask(mm));
 	mmu_context_bmap[new_ctx>>6] |= (1UL << (new_ctx & 63));
 	new_ctx |= (tlb_context_cache & CTX_VERSION_MASK);
 out:
