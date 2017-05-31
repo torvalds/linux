@@ -516,34 +516,6 @@ GENERATE_TESTCASE(double_unlock_rsem)
 #undef E
 
 /*
- * Bad unlock ordering:
- */
-#define E()					\
-						\
-	LOCK(A);				\
-	LOCK(B);				\
-	UNLOCK(A); /* fail */			\
-	UNLOCK(B);
-
-/*
- * 6 testcases:
- */
-#include "locking-selftest-spin.h"
-GENERATE_TESTCASE(bad_unlock_order_spin)
-#include "locking-selftest-wlock.h"
-GENERATE_TESTCASE(bad_unlock_order_wlock)
-#include "locking-selftest-rlock.h"
-GENERATE_TESTCASE(bad_unlock_order_rlock)
-#include "locking-selftest-mutex.h"
-GENERATE_TESTCASE(bad_unlock_order_mutex)
-#include "locking-selftest-wsem.h"
-GENERATE_TESTCASE(bad_unlock_order_wsem)
-#include "locking-selftest-rsem.h"
-GENERATE_TESTCASE(bad_unlock_order_rsem)
-
-#undef E
-
-/*
  * initializing a held lock:
  */
 #define E()					\
@@ -1825,7 +1797,6 @@ void locking_selftest(void)
 	DO_TESTCASE_6R("A-B-C-D-B-C-D-A deadlock", ABCDBCDA);
 	DO_TESTCASE_6("double unlock", double_unlock);
 	DO_TESTCASE_6("initialize held", init_held);
-	DO_TESTCASE_6_SUCCESS("bad unlock order", bad_unlock_order);
 
 	printk("  --------------------------------------------------------------------------\n");
 	print_testname("recursive read-lock");
