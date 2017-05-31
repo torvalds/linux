@@ -309,6 +309,12 @@ static int stmmac_dt_phy(struct plat_stmmacenet_data *plat,
 			 struct device_node *np, struct device *dev)
 {
 	bool mdio = true;
+	static const struct of_device_id need_mdio_ids[] = {
+		{ .compatible = "snps,dwc-qos-ethernet-4.10" },
+		{ .compatible = "allwinner,sun8i-a83t-emac" },
+		{ .compatible = "allwinner,sun8i-h3-emac" },
+		{ .compatible = "allwinner,sun50i-a64-emac" },
+	};
 
 	/* If phy-handle property is passed from DT, use it as the PHY */
 	plat->phy_node = of_parse_phandle(np, "phy-handle", 0);
@@ -325,8 +331,7 @@ static int stmmac_dt_phy(struct plat_stmmacenet_data *plat,
 		mdio = false;
 	}
 
-	/* exception for dwmac-dwc-qos-eth glue logic */
-	if (of_device_is_compatible(np, "snps,dwc-qos-ethernet-4.10")) {
+	if (of_match_node(need_mdio_ids, np)) {
 		plat->mdio_node = of_get_child_by_name(np, "mdio");
 	} else {
 		/**
