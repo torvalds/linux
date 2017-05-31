@@ -1847,7 +1847,7 @@ static int qedf_execute_tmf(struct qedf_rport *fcport, struct scsi_cmnd *sc_cmd,
 		return FAILED;
 	}
 
-	if (!(test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags))) {
+	if (!test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags)) {
 		QEDF_ERR(&(qedf->dbg_ctx), "fcport not offloaded\n");
 		rc = FAILED;
 		return FAILED;

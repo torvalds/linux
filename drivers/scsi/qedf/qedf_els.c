@@ -44,7 +44,7 @@ static int qedf_initiate_els(struct qedf_rport *fcport, unsigned int op,
 		goto els_err;
 	}
 
-	if (!(test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags))) {
+	if (!test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags)) {
 		QEDF_ERR(&(qedf->dbg_ctx), "els 0x%x: fcport not ready\n", op);
 		rc = -EINVAL;
 		goto els_err;
@@ -225,7 +225,7 @@ int qedf_send_rrq(struct qedf_ioreq *aborted_io_req)
 	fcport = aborted_io_req->fcport;
 
 	/* Check that fcport is still offloaded */
-	if (!(test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags))) {
+	if (!test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags)) {
 		QEDF_ERR(NULL, "fcport is no longer offloaded.\n");
 		return -EINVAL;
 	}
@@ -550,7 +550,7 @@ static int qedf_send_srr(struct qedf_ioreq *orig_io_req, u32 offset, u8 r_ctl)
 	fcport = orig_io_req->fcport;
 
 	/* Check that fcport is still offloaded */
-	if (!(test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags))) {
+	if (!test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags)) {
 		QEDF_ERR(NULL, "fcport is no longer offloaded.\n");
 		return -EINVAL;
 	}
