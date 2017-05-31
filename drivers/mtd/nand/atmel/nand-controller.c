@@ -2510,7 +2510,7 @@ static int atmel_nand_controller_remove(struct platform_device *pdev)
 	return nc->caps->ops->remove(nc);
 }
 
-static int atmel_nand_controller_resume(struct device *dev)
+static __maybe_unused int atmel_nand_controller_resume(struct device *dev)
 {
 	struct atmel_nand_controller *nc = dev_get_drvdata(dev);
 	struct atmel_nand *nand;
