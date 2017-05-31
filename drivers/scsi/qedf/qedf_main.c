@@ -2035,6 +2035,8 @@ static int qedf_setup_int(struct qedf_ctx *qedf)
 	 * Learn interrupt configuration
 	 */
 	rc = qed_ops->common->set_fp_int(qedf->cdev, num_online_cpus());
+	if (rc <= 0)
+		return 0;
 
 	rc  = qed_ops->common->get_fp_int(qedf->cdev, &qedf->int_info);
 	if (rc)
