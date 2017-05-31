@@ -315,13 +315,13 @@ int pp_atomfwctrl_get_avfs_information(struct pp_hwmgr *hwmgr,
 	param->ulGbFuseTableCksoffM1 =
 			le32_to_cpu(profile->avfsgb_fuse_table_cksoff_m1);
 	param->ulGbFuseTableCksoffM2 =
-			le16_to_cpu(profile->avfsgb_fuse_table_cksoff_m2);
+			le32_to_cpu(profile->avfsgb_fuse_table_cksoff_m2);
 	param->ulGbFuseTableCksoffB =
 			le32_to_cpu(profile->avfsgb_fuse_table_cksoff_b);
 	param->ulGbFuseTableCksonM1 =
 			le32_to_cpu(profile->avfsgb_fuse_table_ckson_m1);
 	param->ulGbFuseTableCksonM2 =
-			le16_to_cpu(profile->avfsgb_fuse_table_ckson_m2);
+			le32_to_cpu(profile->avfsgb_fuse_table_ckson_m2);
 	param->ulGbFuseTableCksonB =
 			le32_to_cpu(profile->avfsgb_fuse_table_ckson_b);
 
@@ -335,25 +335,25 @@ int pp_atomfwctrl_get_avfs_information(struct pp_hwmgr *hwmgr,
 	param->ulDispclk2GfxclkM1 =
 			le32_to_cpu(profile->dispclk2gfxclk_a);
 	param->ulDispclk2GfxclkM2 =
-			le16_to_cpu(profile->dispclk2gfxclk_b);
+			le32_to_cpu(profile->dispclk2gfxclk_b);
 	param->ulDispclk2GfxclkB =
 			le32_to_cpu(profile->dispclk2gfxclk_c);
 	param->ulDcefclk2GfxclkM1 =
 			le32_to_cpu(profile->dcefclk2gfxclk_a);
 	param->ulDcefclk2GfxclkM2 =
-			le16_to_cpu(profile->dcefclk2gfxclk_b);
+			le32_to_cpu(profile->dcefclk2gfxclk_b);
 	param->ulDcefclk2GfxclkB =
 			le32_to_cpu(profile->dcefclk2gfxclk_c);
 	param->ulPixelclk2GfxclkM1 =
 			le32_to_cpu(profile->pixclk2gfxclk_a);
 	param->ulPixelclk2GfxclkM2 =
-			le16_to_cpu(profile->pixclk2gfxclk_b);
+			le32_to_cpu(profile->pixclk2gfxclk_b);
 	param->ulPixelclk2GfxclkB =
 			le32_to_cpu(profile->pixclk2gfxclk_c);
 	param->ulPhyclk2GfxclkM1 =
 			le32_to_cpu(profile->phyclk2gfxclk_a);
 	param->ulPhyclk2GfxclkM2 =
-			le16_to_cpu(profile->phyclk2gfxclk_b);
+			le32_to_cpu(profile->phyclk2gfxclk_b);
 	param->ulPhyclk2GfxclkB =
 			le32_to_cpu(profile->phyclk2gfxclk_c);
 

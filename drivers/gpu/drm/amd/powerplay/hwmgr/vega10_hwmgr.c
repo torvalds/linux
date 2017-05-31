@@ -2097,7 +2097,7 @@ static int vega10_populate_avfs_parameters(struct pp_hwmgr *hwmgr)
 			pp_table->AvfsGbCksOn.m1 =
 					cpu_to_le32(avfs_params.ulGbFuseTableCksonM1);
 			pp_table->AvfsGbCksOn.m2 =
-					cpu_to_le16(avfs_params.ulGbFuseTableCksonM2);
+					cpu_to_le32(avfs_params.ulGbFuseTableCksonM2);
 			pp_table->AvfsGbCksOn.b =
 					cpu_to_le32(avfs_params.ulGbFuseTableCksonB);
 			pp_table->AvfsGbCksOn.m1_shift = 24;
@@ -2109,7 +2109,7 @@ static int vega10_populate_avfs_parameters(struct pp_hwmgr *hwmgr)
 			pp_table->AvfsGbCksOff.m1 =
 					cpu_to_le32(avfs_params.ulGbFuseTableCksoffM1);
 			pp_table->AvfsGbCksOff.m2 =
-					cpu_to_le16(avfs_params.ulGbFuseTableCksoffM2);
+					cpu_to_le32(avfs_params.ulGbFuseTableCksoffM2);
 			pp_table->AvfsGbCksOff.b =
 					cpu_to_le32(avfs_params.ulGbFuseTableCksoffB);
 			pp_table->AvfsGbCksOff.m1_shift = 24;
