@@ -4,6 +4,8 @@
 #include <linux/gfp.h>
 #include <linux/irq.h>
 
+#include "internals.h"
+
 /*
  * Device resource management aware IRQ request/free implementation.
  */
@@ -198,3 +200,35 @@ int __devm_irq_alloc_descs(struct device *dev, int irq, unsigned int from,
 	return base;
 }
 EXPORT_SYMBOL_GPL(__devm_irq_alloc_descs);
+
+#ifdef CONFIG_GENERIC_IRQ_CHIP
+/**
+ * devm_irq_alloc_generic_chip - Allocate and initialize a generic chip
+ *                               for a managed device
+ * @dev:	Device to allocate the generic chip for
+ * @name:	Name of the irq chip
+ * @num_ct:	Number of irq_chip_type instances associated with this
+ * @irq_base:	Interrupt base nr for this chip
+ * @reg_base:	Register base address (virtual)
+ * @handler:	Default flow handler associated with this chip
+ *
+ * Returns an initialized irq_chip_generic structure. The chip defaults
+ * to the primary (index 0) irq_chip_type and @handler
+ */
+struct irq_chip_generic *
+devm_irq_alloc_generic_chip(struct device *dev, const char *name, int num_ct,
+			    unsigned int irq_base, void __iomem *reg_base,
+			    irq_flow_handler_t handler)
+{
+	struct irq_chip_generic *gc;
+	unsigned long sz = sizeof(*gc) + num_ct * sizeof(struct irq_chip_type);
+
+	gc = devm_kzalloc(dev, sz, GFP_KERNEL);
+	if (gc)
+		irq_init_generic_chip(gc, name, num_ct,
+				      irq_base, reg_base, handler);
+
+	return gc;
+}
+EXPORT_SYMBOL_GPL(devm_irq_alloc_generic_chip);
+#endif /* CONFIG_GENERIC_IRQ_CHIP */

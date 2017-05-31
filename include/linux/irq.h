@@ -958,6 +958,11 @@ int irq_setup_alt_chip(struct irq_data *d, unsigned int type);
 void irq_remove_generic_chip(struct irq_chip_generic *gc, u32 msk,
 			     unsigned int clr, unsigned int set);
 
+struct irq_chip_generic *
+devm_irq_alloc_generic_chip(struct device *dev, const char *name, int num_ct,
+			    unsigned int irq_base, void __iomem *reg_base,
+			    irq_flow_handler_t handler);
+
 struct irq_chip_generic *irq_get_domain_generic_chip(struct irq_domain *d, unsigned int hw_irq);
 
 int __irq_alloc_domain_generic_chips(struct irq_domain *d, int irqs_per_chip,
