@@ -21,15 +21,11 @@ Required properties:
      "marvell,ap806-system-controller", "syscon"
  - reg: register area of the AP806 system controller
  - #clock-cells: must be set to 1
- - clock-output-names: must be defined to:
-    "ap-cpu-cluster-0", "ap-cpu-cluster-1", "ap-fixed", "ap-mss"
 
 Example:
 
 	syscon: system-controller@6f4000 {
 		compatible = "marvell,ap806-system-controller", "syscon";
 		#clock-cells = <1>;
-		clock-output-names = "ap-cpu-cluster-0", "ap-cpu-cluster-1",
-				     "ap-fixed", "ap-mss";
 		reg = <0x6f4000 0x1000>;
 	};
