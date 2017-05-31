@@ -60,6 +60,7 @@ config SOC_AT91RM9200
 	bool "AT91RM9200"
 	depends on ARCH_MULTI_V4T
 	select ATMEL_AIC_IRQ
+	select ATMEL_PM if PM
 	select ATMEL_ST
 	select CPU_ARM920T
 	select HAVE_AT91_USB_CLK
@@ -73,6 +74,7 @@ config SOC_AT91SAM9
 	bool "AT91SAM9"
 	depends on ARCH_MULTI_V5
 	select ATMEL_AIC_IRQ
+	select ATMEL_PM if PM
 	select ATMEL_SDRAMC
 	select CPU_ARM926T
 	select HAVE_AT91_SMD
@@ -131,9 +133,13 @@ config SOC_SAM_V7
 config SOC_SAMA5
 	bool
 	select ATMEL_AIC5_IRQ
+	select ATMEL_PM if PM
 	select ATMEL_SDRAMC
 	select MEMORY
 	select SOC_SAM_V7
 	select SRAM if PM
+
+config ATMEL_PM
+	bool
 
 endif

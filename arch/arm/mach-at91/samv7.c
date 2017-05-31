@@ -15,6 +15,15 @@
 #include <asm/system_misc.h>
 #include "generic.h"
 
+#ifdef CONFIG_PM
+/* This function has to be defined for various drivers that are using it */
+int at91_suspend_entering_slow_clock(void)
+{
+	return 0;
+}
+EXPORT_SYMBOL(at91_suspend_entering_slow_clock);
+#endif
+
 static const char *const samv7_dt_board_compat[] __initconst = {
 	"atmel,samv7",
 	NULL
