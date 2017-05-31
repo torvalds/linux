@@ -32,6 +32,7 @@
 #include <linux/writeback.h>
 #include <linux/bit_spinlock.h>
 #include <linux/slab.h>
+#include <linux/sched/mm.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -757,6 +758,7 @@ static struct list_head *find_workspace(int type)
 	struct list_head *workspace;
 	int cpus = num_online_cpus();
 	int idx = type - 1;
+	unsigned nofs_flag;
 
 	struct list_head *idle_ws	= &btrfs_comp_ws[idx].idle_ws;
 	spinlock_t *ws_lock		= &btrfs_comp_ws[idx].ws_lock;
@@ -786,7 +788,15 @@ again:
 	atomic_inc(total_ws);
 	spin_unlock(ws_lock);
 
+	/*
+	 * Allocation helpers call vmalloc that can't use GFP_NOFS, so we have
+	 * to turn it off here because we might get called from the restricted
+	 * context of btrfs_compress_bio/btrfs_compress_pages
+	 */
+	nofs_flag = memalloc_nofs_save();
 	workspace = btrfs_compress_op[idx]->alloc_workspace();
+	memalloc_nofs_restore(nofs_flag);
+
 	if (IS_ERR(workspace)) {
 		atomic_dec(total_ws);
 		wake_up(ws_wait);
