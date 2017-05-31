@@ -689,6 +689,19 @@
 			samsung,syscon-phandle = <&pmu_system_controller>;
 		};
 
+		hdmicec: cec@101B0000 {
+			compatible = "samsung,s5p-cec";
+			reg = <0x101B0000 0x200>;
+			interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clock CLK_HDMI_CEC>;
+			clock-names = "hdmicec";
+			samsung,syscon-phandle = <&pmu_system_controller>;
+			hdmi-phandle = <&hdmi>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&hdmi_cec>;
+			status = "disabled";
+		};
+
 		mixer@14450000 {
 			compatible = "samsung,exynos5250-mixer";
 			reg = <0x14450000 0x10000>;

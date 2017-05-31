@@ -264,6 +264,10 @@
 	vdd-supply = <&ldo6_reg>;
 };
 
+&hdmicec {
+	status = "okay";
+};
+
 &hsi2c_4 {
 	status = "okay";
 
