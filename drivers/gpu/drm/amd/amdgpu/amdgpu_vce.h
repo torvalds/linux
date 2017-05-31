@@ -33,6 +33,7 @@
 struct amdgpu_vce {
 	struct amdgpu_bo	*vcpu_bo;
 	uint64_t		gpu_addr;
+	void			*cpu_addr;
 	unsigned		fw_version;
 	unsigned		fb_version;
 	atomic_t		handles[AMDGPU_MAX_VCE_HANDLES];
