@@ -95,7 +95,7 @@ module_param_named(dp_module, qedf_dp_module, uint, S_IRUGO);
 MODULE_PARM_DESC(dp_module, " bit flags control for verbose printk passed "
 	"qed module during probe.");
 
-static uint qedf_dp_level;
+static uint qedf_dp_level = QED_LEVEL_NOTICE;
 module_param_named(dp_level, qedf_dp_level, uint, S_IRUGO);
 MODULE_PARM_DESC(dp_level, " printk verbosity control passed to qed module  "
 	"during probe (0-3: 0 more verbose).");
