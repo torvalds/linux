@@ -264,6 +264,7 @@ static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy)
 		q->queuedata = shost;
 
 	queue_flag_set_unlocked(QUEUE_FLAG_BIDI, q);
+	queue_flag_set_unlocked(QUEUE_FLAG_SCSI_PASSTHROUGH, q);
 	return 0;
 
 out_cleanup_queue:
