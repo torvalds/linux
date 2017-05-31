@@ -62,18 +62,38 @@
 #include "drm_internal.h"
 
 /**
+ * DOC: irq helpers
+ *
+ * The DRM core provides very simple support helpers to enable IRQ handling on a
+ * device through the drm_irq_install() and drm_irq_uninstall() functions. This
+ * only supports devices with a single interrupt on the main device stored in
+ * &drm_device.dev and set as the device paramter in drm_dev_alloc().
+ *
+ * These IRQ helpers are strictly optional. Drivers which roll their own only
+ * need to set &drm_device.irq_enabled to signal the DRM core that vblank
+ * interrupts are working. Since these helpers don't automatically clean up the
+ * requested interrupt like e.g. devm_request_irq() they're not really
+ * recommended.
+ */
+
+/**
  * drm_irq_install - install IRQ handler
  * @dev: DRM device
  * @irq: IRQ number to install the handler for
  *
  * Initializes the IRQ related data. Installs the handler, calling the driver
- * irq_preinstall() and irq_postinstall() functions before and after the
- * installation.
+ * &drm_driver.irq_preinstall and &drm_driver.irq_postinstall functions before
+ * and after the installation.
  *
  * This is the simplified helper interface provided for drivers with no special
  * needs. Drivers which need to install interrupt handlers for multiple
  * interrupts must instead set &drm_device.irq_enabled to signal the DRM core
  * that vblank interrupts are available.
+ *
+ * @irq must match the interrupt number that would be passed to request_irq(),
+ * if called directly instead of using this helper function.
+ *
+ * &drm_driver.irq_handler is called to handle the registered interrupt.
  *
  * Returns:
  * Zero on success or a negative error code on failure.
@@ -136,9 +156,9 @@ EXPORT_SYMBOL(drm_irq_install);
  * drm_irq_uninstall - uninstall the IRQ handler
  * @dev: DRM device
  *
- * Calls the driver's irq_uninstall() function and unregisters the IRQ handler.
- * This should only be called by drivers which used drm_irq_install() to set up
- * their interrupt handler. Other drivers must only reset
+ * Calls the driver's &drm_driver.irq_uninstall function and unregisters the IRQ
+ * handler.  This should only be called by drivers which used drm_irq_install()
+ * to set up their interrupt handler. Other drivers must only reset
  * &drm_device.irq_enabled to false.
  *
  * Note that for kernel modesetting drivers it is a bug if this function fails.

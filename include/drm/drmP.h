@@ -377,8 +377,13 @@ struct drm_device {
 	int last_context;		/**< Last current context */
 	/*@} */
 
-	/** \name VBLANK IRQ support */
-	/*@{ */
+	/**
+	 * @irq_enabled:
+	 *
+	 * Indicates that interrupt handling is enabled, specifically vblank
+	 * handling. Drivers which don't use drm_irq_install() need to set this
+	 * to true manually.
+	 */
 	bool irq_enabled;
 	int irq;
 

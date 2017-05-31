@@ -363,6 +363,9 @@ static void vblank_disable_fn(unsigned long arg)
  * @dev: DRM device
  *
  * This function cleans up any resources allocated in drm_vblank_init.
+ *
+ * Drivers which don't use drm_irq_install() need to set &drm_device.irq_enabled
+ * themselves, to signal to the DRM core that vblank interrupts are enabled.
  */
 void drm_vblank_cleanup(struct drm_device *dev)
 {
