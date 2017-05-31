@@ -74,6 +74,7 @@ config MLXSW_SPECTRUM
 	tristate "Mellanox Technologies Spectrum support"
 	depends on MLXSW_CORE && MLXSW_PCI && NET_SWITCHDEV && VLAN_8021Q
 	depends on PSAMPLE || PSAMPLE=n
+	depends on BRIDGE || BRIDGE=n
 	select PARMAN
 	select MLXFW
 	default m
