@@ -540,16 +540,15 @@ static s32 ixgbe_set_vf_lpe(struct ixgbe_adapter *adapter, u32 *msgbuf, u32 vf)
 		case ixgbe_mbox_api_11:
 		case ixgbe_mbox_api_12:
 		case ixgbe_mbox_api_13:
-			/*
-			 * Version 1.1 supports jumbo frames on VFs if PF has
+			/* Version 1.1 supports jumbo frames on VFs if PF has
 			 * jumbo frames enabled which means legacy VFs are
 			 * disabled
 			 */
 			if (pf_max_frame > ETH_FRAME_LEN)
 				break;
+			/* fall through */
 		default:
-			/*
-			 * If the PF or VF are running w/ jumbo frames enabled
+			/* If the PF or VF are running w/ jumbo frames enabled
 			 * we need to shut down the VF Rx path as we cannot
 			 * support jumbo frames on legacy VFs
 			 */
