@@ -1476,8 +1476,8 @@ int qedf_initiate_abts(struct qedf_ioreq *io_req, bool return_scsi_cmd_on_abts)
 {
 	struct fc_lport *lport;
 	struct qedf_rport *fcport = io_req->fcport;
-	struct fc_rport_priv *rdata = fcport->rdata;
-	struct qedf_ctx *qedf = fcport->qedf;
+	struct fc_rport_priv *rdata;
+	struct qedf_ctx *qedf;
 	u16 xid;
 	u32 r_a_tov = 0;
 	int rc = 0;
@@ -1485,14 +1485,17 @@ int qedf_initiate_abts(struct qedf_ioreq *io_req, bool return_scsi_cmd_on_abts)
 	struct fcoe_wqe *sqe;
 	u16 sqe_idx;
 
-	r_a_tov = rdata->r_a_tov;
-	lport = qedf->lport;
-
+	/* Sanity check qedf_rport before dereferencing any pointers */
 	if (!test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags)) {
-		QEDF_ERR(&(qedf->dbg_ctx), "tgt not offloaded\n");
+		QEDF_ERR(NULL, "tgt not offloaded\n");
 		rc = 1;
 		goto abts_err;
 	}
+
+	rdata = fcport->rdata;
+	r_a_tov = rdata->r_a_tov;
+	qedf = fcport->qedf;
+	lport = qedf->lport;
 
 	if (lport->state != LPORT_ST_READY || !(lport->link_up)) {
 		QEDF_ERR(&(qedf->dbg_ctx), "link is not ready\n");
@@ -1726,6 +1729,13 @@ int qedf_initiate_cleanup(struct qedf_ioreq *io_req,
 	fcport = io_req->fcport;
 	if (!fcport) {
 		QEDF_ERR(NULL, "fcport is NULL.\n");
+		return SUCCESS;
+	}
+
+	/* Sanity check qedf_rport before dereferencing any pointers */
+	if (!test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags)) {
+		QEDF_ERR(NULL, "tgt not offloaded\n");
+		rc = 1;
 		return SUCCESS;
 	}
 
