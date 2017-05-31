@@ -1938,6 +1938,9 @@ static int __init init_cpum_sampling_pmu(void)
 		return -ENODEV;
 	}
 
+	if (!si.as && !si.ad)
+		return -ENODEV;
+
 	if (si.bsdes != sizeof(struct hws_basic_entry)) {
 		pr_cpumsf_err(RS_INIT_FAILURE_BSDES);
 		return -EINVAL;
