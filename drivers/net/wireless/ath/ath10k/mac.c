@@ -6073,15 +6073,26 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 			   ar->num_stations + 1, ar->max_num_stations,
 			   ar->num_peers + 1, ar->max_num_peers);
 
+		num_tdls_stations = ath10k_mac_tdls_vif_stations_count(hw, vif);
+		num_tdls_vifs = ath10k_mac_tdls_vifs_count(hw);
+
+		if (sta->tdls) {
+			if (num_tdls_stations >= ar->max_num_tdls_vdevs) {
+				ath10k_warn(ar, "vdev %i exceeded maximum number of tdls vdevs %i\n",
+					    arvif->vdev_id,
+					    ar->max_num_tdls_vdevs);
+				ret = -ELNRNG;
+				goto exit;
+			}
+			peer_type = WMI_PEER_TYPE_TDLS;
+		}
+
 		ret = ath10k_mac_inc_num_stations(arvif, sta);
 		if (ret) {
 			ath10k_warn(ar, "refusing to associate station: too many connected already (%d)\n",
 				    ar->max_num_stations);
 			goto exit;
 		}
-
-		if (sta->tdls)
-			peer_type = WMI_PEER_TYPE_TDLS;
 
 		ret = ath10k_peer_create(ar, vif, sta, arvif->vdev_id,
 					 sta->addr, peer_type);
@@ -6113,33 +6124,15 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 		if (!sta->tdls)
 			goto exit;
 
-		num_tdls_stations = ath10k_mac_tdls_vif_stations_count(hw, vif);
-		num_tdls_vifs = ath10k_mac_tdls_vifs_count(hw);
-
-		if (num_tdls_vifs >= ar->max_num_tdls_vdevs &&
-		    num_tdls_stations == 0) {
-			ath10k_warn(ar, "vdev %i exceeded maximum number of tdls vdevs %i\n",
-				    arvif->vdev_id, ar->max_num_tdls_vdevs);
-			ath10k_peer_delete(ar, arvif->vdev_id, sta->addr);
+		ret = ath10k_wmi_update_fw_tdls_state(ar, arvif->vdev_id,
+						      WMI_TDLS_ENABLE_ACTIVE);
+		if (ret) {
+			ath10k_warn(ar, "failed to update fw tdls state on vdev %i: %i\n",
+				    arvif->vdev_id, ret);
+			ath10k_peer_delete(ar, arvif->vdev_id,
+					   sta->addr);
 			ath10k_mac_dec_num_stations(arvif, sta);
-			ret = -ENOBUFS;
 			goto exit;
-		}
-
-		if (num_tdls_stations == 0) {
-			/* This is the first tdls peer in current vif */
-			enum wmi_tdls_state state = WMI_TDLS_ENABLE_ACTIVE;
-
-			ret = ath10k_wmi_update_fw_tdls_state(ar, arvif->vdev_id,
-							      state);
-			if (ret) {
-				ath10k_warn(ar, "failed to update fw tdls state on vdev %i: %i\n",
-					    arvif->vdev_id, ret);
-				ath10k_peer_delete(ar, arvif->vdev_id,
-						   sta->addr);
-				ath10k_mac_dec_num_stations(arvif, sta);
-				goto exit;
-			}
 		}
 
 		ret = ath10k_mac_tdls_peer_update(ar, arvif->vdev_id, sta,
