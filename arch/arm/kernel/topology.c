@@ -11,6 +11,7 @@
  * for more details.
  */
 
+#include <linux/arch_topology.h>
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
 #include <linux/cpumask.h>
@@ -45,10 +46,6 @@
  * updated during this sequence.
  */
 
-extern unsigned long
-arch_scale_cpu_capacity(struct sched_domain *sd, int cpu);
-extern void set_capacity_scale(unsigned int cpu, unsigned long capacity);
-
 #ifdef CONFIG_OF
 struct cpu_efficiency {
 	const char *compatible;
@@ -76,8 +73,6 @@ static unsigned long *__cpu_capacity;
 
 static unsigned long middle_capacity = 1;
 static bool cap_from_dt = true;
-extern void normalize_cpu_capacity(void);
-extern int __init parse_cpu_capacity(struct device_node *cpu_node, int cpu);
 
 /*
  * Iterate all CPUs' descriptor in DT and compute the efficiency

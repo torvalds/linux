@@ -11,6 +11,7 @@
  * for more details.
  */
 
+#include <linux/arch_topology.h>
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
 #include <linux/init.h>
@@ -26,9 +27,6 @@
 #include <asm/cpu.h>
 #include <asm/cputype.h>
 #include <asm/topology.h>
-
-extern void normalize_cpu_capacity(void);
-extern int __init parse_cpu_capacity(struct device_node *cpu_node, int cpu);
 
 static int __init get_cpu_for_node(struct device_node *node)
 {
