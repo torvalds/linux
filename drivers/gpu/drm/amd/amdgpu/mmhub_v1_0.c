@@ -244,6 +244,20 @@ static void mmhub_v1_0_setup_vmid_config(struct amdgpu_device *adev)
 	}
 }
 
+static void mmhub_v1_0_program_invalidation(struct amdgpu_device *adev)
+{
+	unsigned i;
+
+	for (i = 0; i < 18; ++i) {
+		WREG32(SOC15_REG_OFFSET(MMHUB, 0,
+					mmVM_INVALIDATE_ENG0_ADDR_RANGE_LO32) +
+		       2 * i, 0xffffffff);
+		WREG32(SOC15_REG_OFFSET(MMHUB, 0,
+					mmVM_INVALIDATE_ENG0_ADDR_RANGE_HI32) +
+		       2 * i, 0x1f);
+	}
+}
+
 int mmhub_v1_0_gart_enable(struct amdgpu_device *adev)
 {
 	if (amdgpu_sriov_vf(adev)) {
@@ -267,6 +281,7 @@ int mmhub_v1_0_gart_enable(struct amdgpu_device *adev)
 	mmhub_v1_0_enable_system_domain(adev);
 	mmhub_v1_0_disable_identity_aperture(adev);
 	mmhub_v1_0_setup_vmid_config(adev);
+	mmhub_v1_0_program_invalidation(adev);
 
 	return 0;
 }
@@ -375,18 +390,6 @@ static int mmhub_v1_0_sw_fini(void *handle)
 
 static int mmhub_v1_0_hw_init(void *handle)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	unsigned i;
-
-	for (i = 0; i < 18; ++i) {
-		WREG32(SOC15_REG_OFFSET(MMHUB, 0,
-					mmVM_INVALIDATE_ENG0_ADDR_RANGE_LO32) +
-		       2 * i, 0xffffffff);
-		WREG32(SOC15_REG_OFFSET(MMHUB, 0,
-					mmVM_INVALIDATE_ENG0_ADDR_RANGE_HI32) +
-		       2 * i, 0x1f);
-	}
-
 	return 0;
 }
 
