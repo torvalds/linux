@@ -227,7 +227,8 @@ static unsigned char spk_ttyio_in_nowait(void)
 
 static void spk_ttyio_flush_buffer(void)
 {
-	speakup_tty->ops->flush_buffer(speakup_tty);
+	if (speakup_tty->ops->flush_buffer)
+		speakup_tty->ops->flush_buffer(speakup_tty);
 }
 
 int spk_ttyio_synth_probe(struct spk_synth *synth)
