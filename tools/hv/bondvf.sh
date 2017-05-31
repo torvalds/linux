@@ -170,7 +170,11 @@ function create_eth_cfg_suse {
 }
 
 function create_eth_cfg_pri_suse {
-	create_eth_cfg_suse $1
+	local fn=$cfgdir/ifcfg-$1
+
+	rm -f $fn
+	echo BOOTPROTO=none >>$fn
+	echo STARTMODE=hotplug >>$fn
 }
 
 function create_bond_cfg_suse {
