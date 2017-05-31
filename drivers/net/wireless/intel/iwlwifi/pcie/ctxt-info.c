@@ -137,6 +137,11 @@ static int iwl_pcie_ctxt_info_init_fw_sec(struct iwl_trans *trans,
 	struct iwl_context_info_dram *ctxt_dram = &ctxt_info->dram;
 	int i, ret, lmac_cnt, umac_cnt, paging_cnt;
 
+	if (WARN(dram->paging,
+		 "paging shouldn't already be initialized (%d pages)\n",
+		 dram->paging_cnt))
+		iwl_pcie_ctxt_info_free_paging(trans);
+
 	lmac_cnt = iwl_pcie_get_num_sections(fw, 0);
 	/* add 1 due to separator */
 	umac_cnt = iwl_pcie_get_num_sections(fw, lmac_cnt + 1);
