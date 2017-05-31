@@ -38,7 +38,7 @@
 #include <linux/kernel.h>
 #include <linux/pkt_cls.h>
 
-#include "nfp_bpf.h"
+#include "main.h"
 
 /* Analyzer/verifier definitions */
 struct nfp_bpf_analyzer_priv {

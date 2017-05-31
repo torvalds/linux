@@ -47,9 +47,9 @@
 #include <net/tc_act/tc_gact.h>
 #include <net/tc_act/tc_mirred.h>
 
-#include "nfp_bpf.h"
-#include "nfp_net_ctrl.h"
-#include "nfp_net.h"
+#include "main.h"
+#include "../nfp_net_ctrl.h"
+#include "../nfp_net.h"
 
 void nfp_net_filter_stats_timer(unsigned long data)
 {

@@ -21,17 +21,17 @@ nfp-objs := \
 	    nfp_main.o \
 	    nfp_net_common.o \
 	    nfp_net_ethtool.o \
-	    nfp_net_offload.o \
 	    nfp_net_main.o \
 	    nfp_netvf_main.o \
 	    nfp_port.o \
 	    bpf/main.o \
+	    bpf/offload.o \
 	    nic/main.o
 
 ifeq ($(CONFIG_BPF_SYSCALL),y)
 nfp-objs += \
-	    nfp_bpf_verifier.o \
-	    nfp_bpf_jit.o
+	    bpf/verifier.o \
+	    bpf/jit.o
 endif
 
 nfp-$(CONFIG_NFP_DEBUG) += nfp_net_debugfs.o
