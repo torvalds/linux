@@ -69,7 +69,6 @@ obj-$(CONFIG_ARCH_OMAP2)		+= sdrc2xxx.o
 
 # OPP table initialization
 ifeq ($(CONFIG_PM_OPP),y)
-obj-y					+= opp.o
 obj-$(CONFIG_ARCH_OMAP3)		+= opp3xxx_data.o
 obj-$(CONFIG_ARCH_OMAP4)		+= opp4xxx_data.o
 endif
