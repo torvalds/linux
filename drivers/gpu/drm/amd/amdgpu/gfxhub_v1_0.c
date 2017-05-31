@@ -135,6 +135,36 @@ static void gfxhub_v1_0_init_tlb_regs(struct amdgpu_device *adev)
 	WREG32(SOC15_REG_OFFSET(GC, 0, mmMC_VM_MX_L1_TLB_CNTL), tmp);
 }
 
+static void gfxhub_v1_0_init_cache_regs(struct amdgpu_device *adev)
+{
+	uint32_t tmp;
+
+	/* Setup L2 cache */
+	tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmVM_L2_CNTL));
+	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, ENABLE_L2_CACHE, 1);
+	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, ENABLE_L2_FRAGMENT_PROCESSING, 0);
+	/* XXX for emulation, Refer to closed source code.*/
+	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, L2_PDE0_CACHE_TAG_GENERATION_MODE,
+			    0);
+	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, PDE_FAULT_CLASSIFICATION, 1);
+	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, CONTEXT1_IDENTITY_ACCESS_MODE, 1);
+	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, IDENTITY_MODE_FRAGMENT_SIZE, 0);
+	WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_L2_CNTL), tmp);
+
+	tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmVM_L2_CNTL2));
+	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL2, INVALIDATE_ALL_L1_TLBS, 1);
+	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL2, INVALIDATE_L2_CACHE, 1);
+	WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_L2_CNTL2), tmp);
+
+	tmp = mmVM_L2_CNTL3_DEFAULT;
+	WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_L2_CNTL3), tmp);
+
+	tmp = mmVM_L2_CNTL4_DEFAULT;
+	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL4, VMC_TAP_PDE_REQUEST_PHYSICAL, 0);
+	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL4, VMC_TAP_PTE_REQUEST_PHYSICAL, 0);
+	WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_L2_CNTL4), tmp);
+}
+
 int gfxhub_v1_0_gart_enable(struct amdgpu_device *adev)
 {
 	u32 tmp;
@@ -153,47 +183,7 @@ int gfxhub_v1_0_gart_enable(struct amdgpu_device *adev)
 	gfxhub_v1_0_init_gart_aperture_regs(adev);
 	gfxhub_v1_0_init_system_aperture_regs(adev);
 	gfxhub_v1_0_init_tlb_regs(adev);
-
-	/* Setup L2 cache */
-	tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmVM_L2_CNTL));
-	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, ENABLE_L2_CACHE, 1);
-	tmp = REG_SET_FIELD(tmp,
-				VM_L2_CNTL,
-				ENABLE_L2_FRAGMENT_PROCESSING,
-				0);
-	tmp = REG_SET_FIELD(tmp,
-				VM_L2_CNTL,
-				L2_PDE0_CACHE_TAG_GENERATION_MODE,
-				0);/* XXX for emulation, Refer to closed source code.*/
-	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, PDE_FAULT_CLASSIFICATION, 1);
-	tmp = REG_SET_FIELD(tmp,
-				VM_L2_CNTL,
-				CONTEXT1_IDENTITY_ACCESS_MODE,
-				1);
-	tmp = REG_SET_FIELD(tmp,
-				VM_L2_CNTL,
-				IDENTITY_MODE_FRAGMENT_SIZE,
-				0);
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_L2_CNTL), tmp);
-
-	tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmVM_L2_CNTL2));
-	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL2, INVALIDATE_ALL_L1_TLBS, 1);
-	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL2, INVALIDATE_L2_CACHE, 1);
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_L2_CNTL2), tmp);
-
-	tmp = mmVM_L2_CNTL3_DEFAULT;
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_L2_CNTL3), tmp);
-
-	tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmVM_L2_CNTL4));
-	tmp = REG_SET_FIELD(tmp,
-			    VM_L2_CNTL4,
-			    VMC_TAP_PDE_REQUEST_PHYSICAL,
-			    0);
-	tmp = REG_SET_FIELD(tmp,
-			    VM_L2_CNTL4,
-			    VMC_TAP_PTE_REQUEST_PHYSICAL,
-			    0);
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_L2_CNTL4), tmp);
+	gfxhub_v1_0_init_cache_regs(adev);
 
 	tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmVM_CONTEXT0_CNTL));
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT0_CNTL, ENABLE_CONTEXT, 1);
