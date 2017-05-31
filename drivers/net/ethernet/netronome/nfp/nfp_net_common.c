@@ -64,10 +64,10 @@
 
 #include <linux/ktime.h>
 
-#include <net/pkt_cls.h>
 #include <net/vxlan.h>
 
 #include "nfpcore/nfp_nsp.h"
+#include "nfp_app.h"
 #include "nfp_net_ctrl.h"
 #include "nfp_net.h"
 #include "nfp_port.h"
@@ -2681,33 +2681,13 @@ static void nfp_net_stat64(struct net_device *netdev,
 	}
 }
 
-static bool nfp_net_ebpf_capable(struct nfp_net *nn)
-{
-	if (nn->cap & NFP_NET_CFG_CTRL_BPF &&
-	    nn_readb(nn, NFP_NET_CFG_BPF_ABI) == NFP_NET_BPF_ABI)
-		return true;
-	return false;
-}
-
 static int
 nfp_net_setup_tc(struct net_device *netdev, u32 handle, __be16 proto,
 		 struct tc_to_netdev *tc)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
 
-	if (TC_H_MAJ(handle) != TC_H_MAJ(TC_H_INGRESS))
-		return -EOPNOTSUPP;
-	if (proto != htons(ETH_P_ALL))
-		return -EOPNOTSUPP;
-
-	if (tc->type == TC_SETUP_CLSBPF && nfp_net_ebpf_capable(nn)) {
-		if (!nn->dp.bpf_offload_xdp)
-			return nfp_net_bpf_offload(nn, tc->cls_bpf);
-		else
-			return -EBUSY;
-	}
-
-	return -EINVAL;
+	return nfp_app_setup_tc(nn->app, netdev, handle, proto, tc);
 }
 
 static int nfp_net_set_features(struct net_device *netdev,
@@ -2765,7 +2745,7 @@ static int nfp_net_set_features(struct net_device *netdev,
 			new_ctrl &= ~NFP_NET_CFG_CTRL_GATHER;
 	}
 
-	if (changed & NETIF_F_HW_TC && nn->dp.ctrl & NFP_NET_CFG_CTRL_BPF) {
+	if (changed & NETIF_F_HW_TC && nfp_app_tc_busy(nn->app, nn)) {
 		nn_err(nn, "Cannot disable HW TC offload while in use\n");
 		return -EBUSY;
 	}
@@ -2914,34 +2894,6 @@ static void nfp_net_del_vxlan_port(struct net_device *netdev,
 		nfp_net_set_vxlan_port(nn, idx, 0);
 }
 
-static int nfp_net_xdp_offload(struct nfp_net *nn, struct bpf_prog *prog)
-{
-	struct tc_cls_bpf_offload cmd = {
-		.prog = prog,
-	};
-	int ret;
-
-	if (!nfp_net_ebpf_capable(nn))
-		return -EINVAL;
-
-	if (nn->dp.ctrl & NFP_NET_CFG_CTRL_BPF) {
-		if (!nn->dp.bpf_offload_xdp)
-			return prog ? -EBUSY : 0;
-		cmd.command = prog ? TC_CLSBPF_REPLACE : TC_CLSBPF_DESTROY;
-	} else {
-		if (!prog)
-			return 0;
-		cmd.command = TC_CLSBPF_ADD;
-	}
-
-	ret = nfp_net_bpf_offload(nn, &cmd);
-	/* Stop offload if replace not possible */
-	if (ret && cmd.command == TC_CLSBPF_REPLACE)
-		nfp_net_xdp_offload(nn, NULL);
-	nn->dp.bpf_offload_xdp = prog && !ret;
-	return ret;
-}
-
 static int nfp_net_xdp_setup(struct nfp_net *nn, struct netdev_xdp *xdp)
 {
 	struct bpf_prog *old_prog = nn->dp.xdp_prog;
@@ -2954,7 +2906,7 @@ static int nfp_net_xdp_setup(struct nfp_net *nn, struct netdev_xdp *xdp)
 	if (prog && nn->dp.xdp_prog) {
 		prog = xchg(&nn->dp.xdp_prog, prog);
 		bpf_prog_put(prog);
-		nfp_net_xdp_offload(nn, nn->dp.xdp_prog);
+		nfp_app_xdp_offload(nn->app, nn, nn->dp.xdp_prog);
 		return 0;
 	}
 
@@ -2975,7 +2927,7 @@ static int nfp_net_xdp_setup(struct nfp_net *nn, struct netdev_xdp *xdp)
 	if (old_prog)
 		bpf_prog_put(old_prog);
 
-	nfp_net_xdp_offload(nn, nn->dp.xdp_prog);
+	nfp_app_xdp_offload(nn->app, nn, nn->dp.xdp_prog);
 
 	return 0;
 }
@@ -3068,10 +3020,10 @@ void nfp_net_info(struct nfp_net *nn)
 		nn->cap & NFP_NET_CFG_CTRL_IRQMOD   ? "IRQMOD "   : "",
 		nn->cap & NFP_NET_CFG_CTRL_VXLAN    ? "VXLAN "    : "",
 		nn->cap & NFP_NET_CFG_CTRL_NVGRE    ? "NVGRE "	  : "",
-		nfp_net_ebpf_capable(nn)            ? "BPF "	  : "",
 		nn->cap & NFP_NET_CFG_CTRL_CSUM_COMPLETE ?
 						      "RXCSUM_COMPLETE " : "",
-		nn->cap & NFP_NET_CFG_CTRL_LIVE_ADDR ? "LIVE_ADDR " : "");
+		nn->cap & NFP_NET_CFG_CTRL_LIVE_ADDR ? "LIVE_ADDR " : "",
+		nfp_app_extra_cap(nn->app, nn));
 }
 
 /**
@@ -3316,7 +3268,7 @@ int nfp_net_init(struct nfp_net *nn)
 
 	netdev->features = netdev->hw_features;
 
-	if (nfp_net_ebpf_capable(nn))
+	if (nfp_app_has_tc(nn->app))
 		netdev->hw_features |= NETIF_F_HW_TC;
 
 	/* Advertise but disable TSO by default. */
@@ -3373,6 +3325,4 @@ void nfp_net_clean(struct nfp_net *nn)
 
 	if (nn->dp.xdp_prog)
 		bpf_prog_put(nn->dp.xdp_prog);
-	if (nn->dp.bpf_offload_xdp)
-		nfp_net_xdp_offload(nn, NULL);
 }
