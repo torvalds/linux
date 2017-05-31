@@ -6800,7 +6800,7 @@ static int __init ata_parse_force_one(char **cur,
 	}
 
 	force_ent->port = simple_strtoul(id, &endp, 10);
-	if (p == endp || *endp != '\0') {
+	if (id == endp || *endp != '\0') {
 		*reason = "invalid port/link";
 		return -EINVAL;
 	}
