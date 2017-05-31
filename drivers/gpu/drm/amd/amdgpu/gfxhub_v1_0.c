@@ -74,28 +74,50 @@ static void gfxhub_v1_0_init_gart_aperture_regs(struct amdgpu_device *adev)
 		(u32)(adev->mc.gtt_end >> 44));
 }
 
-int gfxhub_v1_0_gart_enable(struct amdgpu_device *adev)
+static void gfxhub_v1_0_init_system_aperture_regs(struct amdgpu_device *adev)
 {
-	u32 tmp;
-	u64 value;
-	u32 i;
+	uint64_t value;
+	uint32_t tmp;
 
-	/* Program MC. */
-	gfxhub_v1_0_init_gart_aperture_regs(adev);
+	/* Disable AGP. */
+	WREG32(SOC15_REG_OFFSET(GC, 0, mmMC_VM_AGP_BASE), 0);
+	WREG32(SOC15_REG_OFFSET(GC, 0, mmMC_VM_AGP_TOP), 0);
+	WREG32(SOC15_REG_OFFSET(GC, 0, mmMC_VM_AGP_BOT), 0xFFFFFFFF);
 
+	/* Program the system aperture low logical page number. */
 	WREG32(SOC15_REG_OFFSET(GC, 0, mmMC_VM_SYSTEM_APERTURE_LOW_ADDR),
 		adev->mc.vram_start >> 18);
 	WREG32(SOC15_REG_OFFSET(GC, 0, mmMC_VM_SYSTEM_APERTURE_HIGH_ADDR),
 		adev->mc.vram_end >> 18);
 
+	/* Set default page address. */
 	value = adev->vram_scratch.gpu_addr - adev->mc.vram_start
 		+ adev->vm_manager.vram_base_offset;
 	WREG32(SOC15_REG_OFFSET(GC, 0,
 				mmMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB),
-				(u32)(value >> 12));
+	       (u32)(value >> 12));
 	WREG32(SOC15_REG_OFFSET(GC, 0,
 				mmMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB),
-				(u32)(value >> 44));
+	       (u32)(value >> 44));
+
+	/* Program "protection fault". */
+	WREG32(SOC15_REG_OFFSET(GC, 0,
+				mmVM_L2_PROTECTION_FAULT_DEFAULT_ADDR_LO32),
+	       (u32)(adev->dummy_page.addr >> 12));
+	WREG32(SOC15_REG_OFFSET(GC, 0,
+				mmVM_L2_PROTECTION_FAULT_DEFAULT_ADDR_HI32),
+	       (u32)((u64)adev->dummy_page.addr >> 44));
+
+	tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmVM_L2_PROTECTION_FAULT_CNTL2));
+	tmp = REG_SET_FIELD(tmp, VM_L2_PROTECTION_FAULT_CNTL2,
+			    ACTIVE_PAGE_MIGRATION_PTE_READ_RETRY, 1);
+	WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_L2_PROTECTION_FAULT_CNTL2), tmp);
+}
+
+int gfxhub_v1_0_gart_enable(struct amdgpu_device *adev)
+{
+	u32 tmp;
+	u32 i;
 
 	if (amdgpu_sriov_vf(adev)) {
 		/* MC_VM_FB_LOCATION_BASE/TOP is NULL for VF, becuase they are VF copy registers so
@@ -106,12 +128,9 @@ int gfxhub_v1_0_gart_enable(struct amdgpu_device *adev)
 				adev->mc.vram_end >> 24);
 	}
 
-	/* Disable AGP. */
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmMC_VM_AGP_BASE), 0);
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmMC_VM_AGP_TOP), 0);
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmMC_VM_AGP_BOT), 0xFFFFFFFF);
-
 	/* GART Enable. */
+	gfxhub_v1_0_init_gart_aperture_regs(adev);
+	gfxhub_v1_0_init_system_aperture_regs(adev);
 
 	/* Setup TLB control */
 	tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmMC_VM_MX_L1_TLB_CNTL));
@@ -182,19 +201,6 @@ int gfxhub_v1_0_gart_enable(struct amdgpu_device *adev)
 			    VMC_TAP_PTE_REQUEST_PHYSICAL,
 			    0);
 	WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_L2_CNTL4), tmp);
-
-	WREG32(SOC15_REG_OFFSET(GC, 0,
-				mmVM_L2_PROTECTION_FAULT_DEFAULT_ADDR_LO32),
-		(u32)(adev->dummy_page.addr >> 12));
-	WREG32(SOC15_REG_OFFSET(GC, 0,
-				mmVM_L2_PROTECTION_FAULT_DEFAULT_ADDR_HI32),
-		(u32)((u64)adev->dummy_page.addr >> 44));
-
-	tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmVM_L2_PROTECTION_FAULT_CNTL2));
-	tmp = REG_SET_FIELD(tmp, VM_L2_PROTECTION_FAULT_CNTL2,
-			    ACTIVE_PAGE_MIGRATION_PTE_READ_RETRY,
-			    1);
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_L2_PROTECTION_FAULT_CNTL2), tmp);
 
 	tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmVM_CONTEXT0_CNTL));
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT0_CNTL, ENABLE_CONTEXT, 1);
