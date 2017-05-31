@@ -408,7 +408,7 @@ static int mtk_nfc_hw_runtime_config(struct mtd_info *mtd)
 
 	fmt |= mtk_nand->fdm.reg_size << PAGEFMT_FDM_SHIFT;
 	fmt |= mtk_nand->fdm.ecc_size << PAGEFMT_FDM_ECC_SHIFT;
-	nfi_writew(nfc, fmt, NFI_PAGEFMT);
+	nfi_writel(nfc, fmt, NFI_PAGEFMT);
 
 	nfc->ecc_cfg.strength = chip->ecc.strength;
 	nfc->ecc_cfg.len = chip->ecc.size + mtk_nand->fdm.ecc_size;
@@ -1009,7 +1009,7 @@ static inline void mtk_nfc_hw_init(struct mtk_nfc *nfc)
 	 * 0  : poll the status of the busy/ready signal after [7:4]*16 cycles.
 	 */
 	nfi_writew(nfc, 0xf1, NFI_CNRNB);
-	nfi_writew(nfc, PAGEFMT_8K_16K, NFI_PAGEFMT);
+	nfi_writel(nfc, PAGEFMT_8K_16K, NFI_PAGEFMT);
 
 	mtk_nfc_hw_reset(nfc);
 
