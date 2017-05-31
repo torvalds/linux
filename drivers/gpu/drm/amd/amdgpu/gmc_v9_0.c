@@ -572,6 +572,12 @@ static int gmc_v9_0_sw_init(void *handle)
 	 */
 	adev->mc.mc_mask = 0xffffffffffffULL; /* 48 bit MC */
 
+	/*
+	 * It needs to reserve 8M stolen memory for vega10
+	 * TODO: Figure out how to avoid that...
+	 */
+	adev->mc.stolen_size = 8 * 1024 * 1024;
+
 	/* set DMA mask + need_dma32 flags.
 	 * PCIE - can handle 44-bits.
 	 * IGP - can handle 44-bits

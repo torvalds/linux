@@ -834,6 +834,8 @@ static int gmc_v6_0_sw_init(void *handle)
 
 	adev->mc.mc_mask = 0xffffffffffULL;
 
+	adev->mc.stolen_size = 256 * 1024;
+
 	adev->need_dma32 = false;
 	dma_bits = adev->need_dma32 ? 32 : 40;
 	r = pci_set_dma_mask(adev->pdev, DMA_BIT_MASK(dma_bits));

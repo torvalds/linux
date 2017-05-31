@@ -1054,6 +1054,8 @@ static int gmc_v8_0_sw_init(void *handle)
 	 */
 	adev->mc.mc_mask = 0xffffffffffULL; /* 40 bit MC */
 
+	adev->mc.stolen_size = 256 * 1024;
+
 	/* set DMA mask + need_dma32 flags.
 	 * PCIE - can handle 40-bits.
 	 * IGP - can handle 40-bits
