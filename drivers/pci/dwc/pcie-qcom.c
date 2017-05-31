@@ -695,7 +695,7 @@ static int qcom_pcie_init_v3(struct qcom_pcie *pcie)
 
 	ret = reset_control_assert(res->axi_s_reset);
 	if (ret) {
-		dev_err(dev, "cannot asser axi slave reset\n");
+		dev_err(dev, "cannot assert axi slave reset\n");
 		return ret;
 	}
 
