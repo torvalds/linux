@@ -350,29 +350,6 @@ COMPAT_SYSCALL_DEFINE3(setitimer, int, which,
 	return 0;
 }
 
-#ifdef __ARCH_WANT_SYS_SIGPENDING
-
-/*
- * Assumption: old_sigset_t and compat_old_sigset_t are both
- * types that can be passed to put_user()/get_user().
- */
-
-COMPAT_SYSCALL_DEFINE1(sigpending, compat_old_sigset_t __user *, set)
-{
-	old_sigset_t s;
-	long ret;
-	mm_segment_t old_fs = get_fs();
-
-	set_fs(KERNEL_DS);
-	ret = sys_sigpending((old_sigset_t __user *) &s);
-	set_fs(old_fs);
-	if (ret == 0)
-		ret = put_user(s, set);
-	return ret;
-}
-
-#endif
-
 #ifdef __ARCH_WANT_SYS_SIGPROCMASK
 
 /*
