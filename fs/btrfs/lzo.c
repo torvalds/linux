@@ -51,7 +51,7 @@ static struct list_head *lzo_alloc_workspace(void)
 {
 	struct workspace *workspace;
 
-	workspace = kzalloc(sizeof(*workspace), GFP_NOFS);
+	workspace = kzalloc(sizeof(*workspace), GFP_KERNEL);
 	if (!workspace)
 		return ERR_PTR(-ENOMEM);
 
