@@ -2726,6 +2726,22 @@ add_detailed_modes(struct drm_connector *connector, struct edid *edid,
 #define EDID_CEA_YCRCB422	(1 << 4)
 #define EDID_CEA_VCDB_QS	(1 << 6)
 
+#define DATA_BLOCK_EXTENDED_TAG		0x07
+#define VIDEO_CAPABILITY_DATA_BLOCK	0x0
+#define VSVD_DATA_BLOCK			0x1
+#define COLORIMETRY_DATA_BLOCK		0x5
+#define HDR_STATIC_METADATA_BLOCK	0x6
+
+/* HDR Metadata Block: Bit fields */
+#define SUPPORTED_EOTF_MASK            0x3f
+#define TRADITIONAL_GAMMA_SDR          (0x1 << 0)
+#define TRADITIONAL_GAMMA_HDR          (0x1 << 1)
+#define SMPTE_ST2084                   (0x1 << 2)
+#define FUTURE_EOTF                    (0x1 << 3)
+#define RESERVED_EOTF                  (0x3 << 4)
+
+#define STATIC_METADATA_TYPE1          (0x1 << 0)
+
 /*
  * Search EDID for CEA extension block.
  */
