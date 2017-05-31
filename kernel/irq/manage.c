@@ -533,9 +533,15 @@ void __enable_irq(struct irq_desc *desc)
 			goto err_out;
 		/* Prevent probing on this irq: */
 		irq_settings_set_noprobe(desc);
-		irq_enable(desc);
-		check_irq_resend(desc);
-		/* fall-through */
+		/*
+		 * Call irq_startup() not irq_enable() here because the
+		 * interrupt might be marked NOAUTOEN. So irq_startup()
+		 * needs to be invoked when it gets enabled the first
+		 * time. If it was already started up, then irq_startup()
+		 * will invoke irq_enable() under the hood.
+		 */
+		irq_startup(desc, true);
+		break;
 	}
 	default:
 		desc->depth--;
