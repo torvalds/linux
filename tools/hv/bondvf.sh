@@ -134,7 +134,6 @@ function create_eth_cfg_ubuntu {
 	local fn=$cfgdir/interfaces
 
 	del_eth_cfg_ubuntu $1
-
 	echo $'\n'auto $1 >>$fn
 	echo iface $1 inet manual >>$fn
 	echo bond-master $2 >>$fn
@@ -143,7 +142,10 @@ function create_eth_cfg_ubuntu {
 function create_eth_cfg_pri_ubuntu {
 	local fn=$cfgdir/interfaces
 
-	create_eth_cfg_ubuntu $1 $2
+	del_eth_cfg_ubuntu $1
+	echo $'\n'allow-hotplug $1 >>$fn
+	echo iface $1 inet manual >>$fn
+	echo bond-master $2 >>$fn
 	echo bond-primary $1 >>$fn
 }
 
