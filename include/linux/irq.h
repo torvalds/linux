@@ -22,6 +22,7 @@
 #include <linux/topology.h>
 #include <linux/wait.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include <asm/irq.h>
 #include <asm/ptrace.h>
@@ -972,6 +973,11 @@ int __irq_alloc_domain_generic_chips(struct irq_domain *d, int irqs_per_chip,
 	__irq_alloc_domain_generic_chips(d, irqs_per_chip, num_ct, name,\
 					 handler, clr, set, flags);	\
 })
+
+static inline void irq_free_generic_chip(struct irq_chip_generic *gc)
+{
+	kfree(gc);
+}
 
 static inline struct irq_chip_type *irq_data_get_chip_type(struct irq_data *d)
 {
