@@ -1990,46 +1990,7 @@ static int gfx_v8_0_gpu_early_init(struct amdgpu_device *adev)
 		adev->gfx.config.max_tile_pipes = 2;
 		adev->gfx.config.max_sh_per_se = 1;
 		adev->gfx.config.max_backends_per_se = 2;
-
-		switch (adev->pdev->revision) {
-		case 0xc4:
-		case 0x84:
-		case 0xc8:
-		case 0xcc:
-		case 0xe1:
-		case 0xe3:
-			/* B10 */
-			adev->gfx.config.max_cu_per_sh = 8;
-			break;
-		case 0xc5:
-		case 0x81:
-		case 0x85:
-		case 0xc9:
-		case 0xcd:
-		case 0xe2:
-		case 0xe4:
-			/* B8 */
-			adev->gfx.config.max_cu_per_sh = 6;
-			break;
-		case 0xc6:
-		case 0xca:
-		case 0xce:
-		case 0x88:
-		case 0xe6:
-			/* B6 */
-			adev->gfx.config.max_cu_per_sh = 6;
-			break;
-		case 0xc7:
-		case 0x87:
-		case 0xcb:
-		case 0xe5:
-		case 0x89:
-		default:
-			/* B4 */
-			adev->gfx.config.max_cu_per_sh = 4;
-			break;
-		}
-
+		adev->gfx.config.max_cu_per_sh = 8;
 		adev->gfx.config.max_texture_channel_caches = 2;
 		adev->gfx.config.max_gprs = 256;
 		adev->gfx.config.max_gs_threads = 32;
@@ -2046,35 +2007,7 @@ static int gfx_v8_0_gpu_early_init(struct amdgpu_device *adev)
 		adev->gfx.config.max_tile_pipes = 2;
 		adev->gfx.config.max_sh_per_se = 1;
 		adev->gfx.config.max_backends_per_se = 1;
-
-		switch (adev->pdev->revision) {
-		case 0x80:
-		case 0x81:
-		case 0xc0:
-		case 0xc1:
-		case 0xc2:
-		case 0xc4:
-		case 0xc8:
-		case 0xc9:
-		case 0xd6:
-		case 0xda:
-		case 0xe9:
-		case 0xea:
-			adev->gfx.config.max_cu_per_sh = 3;
-			break;
-		case 0x83:
-		case 0xd0:
-		case 0xd1:
-		case 0xd2:
-		case 0xd4:
-		case 0xdb:
-		case 0xe1:
-		case 0xe2:
-		default:
-			adev->gfx.config.max_cu_per_sh = 2;
-			break;
-		}
-
+		adev->gfx.config.max_cu_per_sh = 3;
 		adev->gfx.config.max_texture_channel_caches = 2;
 		adev->gfx.config.max_gprs = 256;
 		adev->gfx.config.max_gs_threads = 16;
