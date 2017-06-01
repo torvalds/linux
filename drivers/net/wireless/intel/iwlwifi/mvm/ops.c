@@ -68,7 +68,7 @@
 #include <linux/vmalloc.h>
 #include <net/mac80211.h>
 
-#include "iwl-notif-wait.h"
+#include "fw/notif-wait.h"
 #include "iwl-trans.h"
 #include "iwl-op-mode.h"
 #include "fw/img.h"

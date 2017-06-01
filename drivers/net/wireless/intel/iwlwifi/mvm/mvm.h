@@ -79,7 +79,7 @@
 
 #include "iwl-op-mode.h"
 #include "iwl-trans.h"
-#include "iwl-notif-wait.h"
+#include "fw/notif-wait.h"
 #include "iwl-eeprom-parse.h"
 #include "fw/file.h"
 #include "iwl-config.h"
