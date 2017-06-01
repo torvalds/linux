@@ -816,7 +816,8 @@
 		};
 
 		crypto: crypto-engine@01c15000 {
-			compatible = "allwinner,sun4i-a10-crypto";
+			compatible = "allwinner,sun6i-a31-crypto",
+				     "allwinner,sun4i-a10-crypto";
 			reg = <0x01c15000 0x1000>;
 			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ccu CLK_AHB1_SS>, <&ccu CLK_SS>;
