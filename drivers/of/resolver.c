@@ -165,8 +165,8 @@ err_fail:
 static int node_name_cmp(const struct device_node *dn1,
 		const struct device_node *dn2)
 {
-	const char *n1 = strrchr(dn1->full_name, '/') ? : "/";
-	const char *n2 = strrchr(dn2->full_name, '/') ? : "/";
+	const char *n1 = kbasename(dn1->full_name);
+	const char *n2 = kbasename(dn2->full_name);
 
 	return of_node_cmp(n1, n2);
 }
