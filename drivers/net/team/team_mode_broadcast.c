@@ -75,4 +75,4 @@ module_exit(bc_cleanup_module);
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Jiri Pirko <jpirko@redhat.com>");
 MODULE_DESCRIPTION("Broadcast mode for team");
-MODULE_ALIAS("team-mode-broadcast");
+MODULE_ALIAS_TEAM_MODE("broadcast");
