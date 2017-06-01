@@ -341,8 +341,6 @@ static int __init omap1_system_dma_init(void)
 
 	d = kzalloc(sizeof(*d), GFP_KERNEL);
 	if (!d) {
-		dev_err(&pdev->dev, "%s: Unable to allocate 'd' for %s\n",
-			__func__, pdev->name);
 		ret = -ENOMEM;
 		goto exit_iounmap;
 	}
