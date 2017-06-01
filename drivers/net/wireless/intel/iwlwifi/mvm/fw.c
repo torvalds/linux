@@ -78,7 +78,7 @@
 #include "iwl-eeprom-parse.h"
 
 #include "mvm.h"
-#include "fw-dbg.h"
+#include "fw/dbg.h"
 #include "iwl-phy-db.h"
 
 #define MVM_UCODE_ALIVE_TIMEOUT	HZ
@@ -1091,11 +1091,11 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	if (ret)
 		IWL_ERR(mvm, "Failed to initialize Smart Fifo\n");
 
-	mvm->fw_dbg_conf = FW_DBG_INVALID;
+	mvm->fwrt.dump.conf = FW_DBG_INVALID;
 	/* if we have a destination, assume EARLY START */
 	if (mvm->fw->dbg_dest_tlv)
-		mvm->fw_dbg_conf = FW_DBG_START_FROM_ALIVE;
-	iwl_mvm_start_fw_dbg_conf(mvm, FW_DBG_START_FROM_ALIVE);
+		mvm->fwrt.dump.conf = FW_DBG_START_FROM_ALIVE;
+	iwl_fw_start_dbg_conf(&mvm->fwrt, FW_DBG_START_FROM_ALIVE);
 
 	ret = iwl_send_tx_ant_cfg(mvm, iwl_mvm_get_valid_tx_ant(mvm));
 	if (ret)

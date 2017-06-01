@@ -73,7 +73,6 @@
 #include "mvm.h"
 #include "iwl-io.h"
 #include "iwl-prph.h"
-#include "fw-dbg.h"
 
 /*
  * For the high priority TE use a time event type that has similar priority to
@@ -248,7 +247,9 @@ static void iwl_mvm_te_check_trigger(struct iwl_mvm *mvm,
 	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_TIME_EVENT);
 	te_trig = (void *)trig->data;
 
-	if (!iwl_fw_dbg_trigger_check_stop(mvm, te_data->vif, trig))
+	if (!iwl_fw_dbg_trigger_check_stop(&mvm->fwrt,
+					   ieee80211_vif_to_wdev(te_data->vif),
+					   trig))
 		return;
 
 	for (i = 0; i < ARRAY_SIZE(te_trig->time_events); i++) {
@@ -263,11 +264,11 @@ static void iwl_mvm_te_check_trigger(struct iwl_mvm *mvm,
 		    !(trig_status_bitmap & BIT(le32_to_cpu(notif->status))))
 			continue;
 
-		iwl_mvm_fw_dbg_collect_trig(mvm, trig,
-					    "Time event %d Action 0x%x received status: %d",
-					    te_data->id,
-					    le32_to_cpu(notif->action),
-					    le32_to_cpu(notif->status));
+		iwl_fw_dbg_collect_trig(&mvm->fwrt, trig,
+					"Time event %d Action 0x%x received status: %d",
+					te_data->id,
+					le32_to_cpu(notif->action),
+					le32_to_cpu(notif->status));
 		break;
 	}
 }

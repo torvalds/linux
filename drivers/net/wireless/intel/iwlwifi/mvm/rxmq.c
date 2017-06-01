@@ -63,7 +63,6 @@
 #include "iwl-trans.h"
 #include "mvm.h"
 #include "fw-api.h"
-#include "fw-dbg.h"
 
 static inline int iwl_mvm_check_pn(struct iwl_mvm *mvm, struct sk_buff *skb,
 				   int queue, struct ieee80211_sta *sta)
@@ -906,10 +905,12 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 			rssi = le32_to_cpu(rssi_trig->rssi);
 
 			trig_check =
-				iwl_fw_dbg_trigger_check_stop(mvm, mvmsta->vif,
+				iwl_fw_dbg_trigger_check_stop(&mvm->fwrt,
+							      ieee80211_vif_to_wdev(mvmsta->vif),
 							      trig);
 			if (trig_check && rx_status->signal < rssi)
-				iwl_mvm_fw_dbg_collect_trig(mvm, trig, NULL);
+				iwl_fw_dbg_collect_trig(&mvm->fwrt, trig,
+							NULL);
 		}
 
 		if (ieee80211_is_data(hdr->frame_control))

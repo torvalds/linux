@@ -88,6 +88,7 @@
 #include "constants.h"
 #include "tof.h"
 #include "fw/runtime.h"
+#include "fw/dbg.h"
 
 #define IWL_MVM_MAX_ADDRESSES		5
 /* RSSI offset for WkP */
@@ -137,34 +138,6 @@ struct iwl_mvm_mod_params {
 	int power_scheme;
 };
 extern struct iwl_mvm_mod_params iwlmvm_mod_params;
-
-/**
- * struct iwl_mvm_dump_ptrs - set of pointers needed for the fw-error-dump
- *
- * @op_mode_ptr: pointer to the buffer coming from the mvm op_mode
- * @trans_ptr: pointer to struct %iwl_trans_dump_data which contains the
- *	transport's data.
- * @trans_len: length of the valid data in trans_ptr
- * @op_mode_len: length of the valid data in op_mode_ptr
- */
-struct iwl_mvm_dump_ptrs {
-	struct iwl_trans_dump_data *trans_ptr;
-	void *op_mode_ptr;
-	u32 op_mode_len;
-};
-
-/**
- * struct iwl_mvm_dump_desc - describes the dump
- * @len: length of trig_desc->data
- * @trig_desc: the description of the dump
- */
-struct iwl_mvm_dump_desc {
-	size_t len;
-	/* must be last */
-	struct iwl_fw_error_dump_trigger_desc trig_desc;
-};
-
-extern const struct iwl_mvm_dump_desc iwl_mvm_dump_desc_assert;
 
 struct iwl_mvm_phy_ctxt {
 	u16 id;
@@ -831,9 +804,6 @@ struct iwl_mvm {
 	/* max number of simultaneous scans the FW supports */
 	unsigned int max_scans;
 
-	/* ts of the beginning of a non-collect fw dbg data period */
-	unsigned long fw_dbg_non_collect_ts_start[FW_DBG_TRIGGER_MAX - 1];
-
 	/* UMAC scan tracking */
 	u32 scan_uid_status[IWL_MVM_MAX_UMAC_SCANS];
 
@@ -909,10 +879,6 @@ struct iwl_mvm {
 
 	/* -1 for always, 0 for never, >0 for that many times */
 	s8 fw_restart;
-	u8 fw_dbg_conf;
-	struct delayed_work fw_dump_wk;
-	const struct iwl_mvm_dump_desc *fw_dump_desc;
-	const struct iwl_fw_dbg_trigger_tlv *fw_dump_trig;
 
 #ifdef CONFIG_IWLWIFI_LEDS
 	struct led_classdev led;
@@ -1077,7 +1043,6 @@ struct iwl_mvm {
  * @IWL_MVM_STATUS_IN_D0I3: NIC is in D0i3
  * @IWL_MVM_STATUS_ROC_AUX_RUNNING: AUX remain-on-channel is running
  * @IWL_MVM_STATUS_D3_RECONFIG: D3 reconfiguration is being done
- * @IWL_MVM_STATUS_DUMPING_FW_LOG: FW log is being dumped
  * @IWL_MVM_STATUS_FIRMWARE_RUNNING: firmware is running
  */
 enum iwl_mvm_status {
@@ -1088,7 +1053,6 @@ enum iwl_mvm_status {
 	IWL_MVM_STATUS_IN_D0I3,
 	IWL_MVM_STATUS_ROC_AUX_RUNNING,
 	IWL_MVM_STATUS_D3_RECONFIG,
-	IWL_MVM_STATUS_DUMPING_FW_LOG,
 	IWL_MVM_STATUS_FIRMWARE_RUNNING,
 };
 
@@ -1780,7 +1744,7 @@ static inline void iwl_mvm_stop_device(struct iwl_mvm *mvm)
 {
 	iwl_free_fw_paging(&mvm->fwrt);
 	clear_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status);
-	mvm->fw_dbg_conf = FW_DBG_INVALID;
+	iwl_fw_dump_conf_clear(&mvm->fwrt);
 	iwl_trans_stop_device(mvm->trans);
 }
 

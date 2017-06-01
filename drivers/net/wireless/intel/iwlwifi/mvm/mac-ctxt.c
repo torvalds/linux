@@ -72,7 +72,6 @@
 #include "fw-api.h"
 #include "mvm.h"
 #include "time-event.h"
-#include "fw-dbg.h"
 
 const u8 iwl_mvm_ac_to_tx_fifo[] = {
 	IWL_MVM_TX_FIFO_VO,
@@ -1559,12 +1558,14 @@ static void iwl_mvm_beacon_loss_iterator(void *_data, u8 *mac,
 
 	/* TODO: implement start trigger */
 
-	if (!iwl_fw_dbg_trigger_check_stop(mvm, vif, trigger))
+	if (!iwl_fw_dbg_trigger_check_stop(&mvm->fwrt,
+					   ieee80211_vif_to_wdev(vif),
+					   trigger))
 		return;
 
 	if (rx_missed_bcon_since_rx >= stop_trig_missed_bcon_since_rx ||
 	    rx_missed_bcon >= stop_trig_missed_bcon)
-		iwl_mvm_fw_dbg_collect_trig(mvm, trigger, NULL);
+		iwl_fw_dbg_collect_trig(&mvm->fwrt, trigger, NULL);
 }
 
 void iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,

@@ -87,7 +87,6 @@
 #include "fw/error-dump.h"
 #include "iwl-prph.h"
 #include "iwl-nvm-parse.h"
-#include "fw-dbg.h"
 
 static const struct ieee80211_iface_limit iwl_mvm_limits[] = {
 	{
@@ -845,11 +844,11 @@ static inline bool iwl_enable_tx_ampdu(const struct iwl_cfg *cfg)
 	return true;
 }
 
-#define CHECK_BA_TRIGGER(_mvm, _trig, _tid_bm, _tid, _fmt...)	\
-	do {							\
-		if (!(le16_to_cpu(_tid_bm) & BIT(_tid)))	\
-			break;					\
-		iwl_mvm_fw_dbg_collect_trig(_mvm, _trig, _fmt);	\
+#define CHECK_BA_TRIGGER(_mvm, _trig, _tid_bm, _tid, _fmt...)		\
+	do {								\
+		if (!(le16_to_cpu(_tid_bm) & BIT(_tid)))		\
+			break;						\
+		iwl_fw_dbg_collect_trig(&(_mvm)->fwrt, _trig, _fmt);	\
 	} while (0)
 
 static void
@@ -866,7 +865,8 @@ iwl_mvm_ampdu_check_trigger(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_BA);
 	ba_trig = (void *)trig->data;
 
-	if (!iwl_fw_dbg_trigger_check_stop(mvm, vif, trig))
+	if (!iwl_fw_dbg_trigger_check_stop(&mvm->fwrt,
+					   ieee80211_vif_to_wdev(vif), trig))
 		return;
 
 	switch (action) {
@@ -1029,8 +1029,8 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 	 * on D3->D0 transition
 	 */
 	if (!test_and_clear_bit(IWL_MVM_STATUS_D3_RECONFIG, &mvm->status)) {
-		mvm->fw_dump_desc = &iwl_mvm_dump_desc_assert;
-		iwl_mvm_fw_error_dump(mvm);
+		mvm->fwrt.dump.desc = &iwl_dump_desc_assert;
+		iwl_fw_error_dump(&mvm->fwrt);
 	}
 
 	/* cleanup all stale references (scan, roc), but keep the
@@ -1072,7 +1072,7 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 
 	mvm->vif_count = 0;
 	mvm->rx_ba_sessions = 0;
-	mvm->fw_dbg_conf = FW_DBG_INVALID;
+	mvm->fwrt.dump.conf = FW_DBG_INVALID;
 
 	/* keep statistics ticking */
 	iwl_mvm_accu_radio_stats(mvm);
@@ -1249,16 +1249,16 @@ static void iwl_mvm_mac_stop(struct ieee80211_hw *hw)
 	 * Lock and clear the firmware running bit here already, so that
 	 * new commands coming in elsewhere, e.g. from debugfs, will not
 	 * be able to proceed. This is important here because one of those
-	 * debugfs files causes the fw_dump_wk to be triggered, and if we
+	 * debugfs files causes the firmware dump to be triggered, and if we
 	 * don't stop debugfs accesses before canceling that it could be
 	 * retriggered after we flush it but before we've cleared the bit.
 	 */
 	clear_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status);
 
-	cancel_delayed_work_sync(&mvm->fw_dump_wk);
+	iwl_fw_cancel_dump(&mvm->fwrt);
 	cancel_delayed_work_sync(&mvm->cs_tx_unblock_dwork);
 	cancel_delayed_work_sync(&mvm->scan_timeout_dwork);
-	iwl_mvm_free_fw_dump_desc(mvm);
+	iwl_fw_free_dump_desc(&mvm->fwrt);
 
 	mutex_lock(&mvm->mutex);
 	__iwl_mvm_mac_stop(mvm);
@@ -2566,7 +2566,8 @@ iwl_mvm_tdls_check_trigger(struct iwl_mvm *mvm,
 
 	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_TDLS);
 	tdls_trig = (void *)trig->data;
-	if (!iwl_fw_dbg_trigger_check_stop(mvm, vif, trig))
+	if (!iwl_fw_dbg_trigger_check_stop(&mvm->fwrt,
+					   ieee80211_vif_to_wdev(vif), trig))
 		return;
 
 	if (!(tdls_trig->action_bitmap & BIT(action)))
@@ -2576,9 +2577,9 @@ iwl_mvm_tdls_check_trigger(struct iwl_mvm *mvm,
 	    memcmp(tdls_trig->peer, peer_addr, ETH_ALEN) != 0)
 		return;
 
-	iwl_mvm_fw_dbg_collect_trig(mvm, trig,
-				    "TDLS event occurred, peer %pM, action %d",
-				    peer_addr, action);
+	iwl_fw_dbg_collect_trig(&mvm->fwrt, trig,
+				"TDLS event occurred, peer %pM, action %d",
+				peer_addr, action);
 }
 
 static void iwl_mvm_purge_deferred_tx_frames(struct iwl_mvm *mvm,
@@ -3876,7 +3877,9 @@ static int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(mvm, "pre CSA to freq %d\n",
 			   chsw->chandef.center_freq1);
 
-	iwl_fw_dbg_trigger_simple_stop(mvm, vif, FW_DBG_TRIGGER_CHANNEL_SWITCH);
+	iwl_fw_dbg_trigger_simple_stop(&mvm->fwrt,
+				       ieee80211_vif_to_wdev(vif),
+				       FW_DBG_TRIGGER_CHANNEL_SWITCH);
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_AP:
@@ -4151,11 +4154,11 @@ static void iwl_mvm_event_mlme_callback(struct iwl_mvm *mvm,
 					struct ieee80211_vif *vif,
 					const struct ieee80211_event *event)
 {
-#define CHECK_MLME_TRIGGER(_cnt, _fmt...)			\
-	do {							\
-		if ((trig_mlme->_cnt) && --(trig_mlme->_cnt))	\
-			break;					\
-		iwl_mvm_fw_dbg_collect_trig(mvm, trig, _fmt);	\
+#define CHECK_MLME_TRIGGER(_cnt, _fmt...)				\
+	do {								\
+		if ((trig_mlme->_cnt) && --(trig_mlme->_cnt))		\
+			break;						\
+		iwl_fw_dbg_collect_trig(&(mvm)->fwrt, trig, _fmt);	\
 	} while (0)
 
 	struct iwl_fw_dbg_trigger_tlv *trig;
@@ -4166,7 +4169,8 @@ static void iwl_mvm_event_mlme_callback(struct iwl_mvm *mvm,
 
 	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_MLME);
 	trig_mlme = (void *)trig->data;
-	if (!iwl_fw_dbg_trigger_check_stop(mvm, vif, trig))
+	if (!iwl_fw_dbg_trigger_check_stop(&mvm->fwrt,
+					   ieee80211_vif_to_wdev(vif), trig))
 		return;
 
 	if (event->u.mlme.data == ASSOC_EVENT) {
@@ -4207,16 +4211,17 @@ static void iwl_mvm_event_bar_rx_callback(struct iwl_mvm *mvm,
 
 	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_BA);
 	ba_trig = (void *)trig->data;
-	if (!iwl_fw_dbg_trigger_check_stop(mvm, vif, trig))
+	if (!iwl_fw_dbg_trigger_check_stop(&mvm->fwrt,
+					   ieee80211_vif_to_wdev(vif), trig))
 		return;
 
 	if (!(le16_to_cpu(ba_trig->rx_bar) & BIT(event->u.ba.tid)))
 		return;
 
-	iwl_mvm_fw_dbg_collect_trig(mvm, trig,
-				    "BAR received from %pM, tid %d, ssn %d",
-				    event->u.ba.sta->addr, event->u.ba.tid,
-				    event->u.ba.ssn);
+	iwl_fw_dbg_collect_trig(&mvm->fwrt, trig,
+				"BAR received from %pM, tid %d, ssn %d",
+				event->u.ba.sta->addr, event->u.ba.tid,
+				event->u.ba.ssn);
 }
 
 static void
@@ -4232,15 +4237,16 @@ iwl_mvm_event_frame_timeout_callback(struct iwl_mvm *mvm,
 
 	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_BA);
 	ba_trig = (void *)trig->data;
-	if (!iwl_fw_dbg_trigger_check_stop(mvm, vif, trig))
+	if (!iwl_fw_dbg_trigger_check_stop(&mvm->fwrt,
+					   ieee80211_vif_to_wdev(vif), trig))
 		return;
 
 	if (!(le16_to_cpu(ba_trig->frame_timeout) & BIT(event->u.ba.tid)))
 		return;
 
-	iwl_mvm_fw_dbg_collect_trig(mvm, trig,
-				    "Frame from %pM timed out, tid %d",
-				    event->u.ba.sta->addr, event->u.ba.tid);
+	iwl_fw_dbg_collect_trig(&mvm->fwrt, trig,
+				"Frame from %pM timed out, tid %d",
+				event->u.ba.sta->addr, event->u.ba.tid);
 }
 
 static void iwl_mvm_mac_event_callback(struct ieee80211_hw *hw,

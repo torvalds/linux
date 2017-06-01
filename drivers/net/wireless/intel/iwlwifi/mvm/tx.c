@@ -74,7 +74,6 @@
 #include "iwl-eeprom-parse.h"
 #include "mvm.h"
 #include "sta.h"
-#include "fw-dbg.h"
 
 static void
 iwl_mvm_bar_check_trigger(struct iwl_mvm *mvm, const u8 *addr,
@@ -89,15 +88,15 @@ iwl_mvm_bar_check_trigger(struct iwl_mvm *mvm, const u8 *addr,
 	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_BA);
 	ba_trig = (void *)trig->data;
 
-	if (!iwl_fw_dbg_trigger_check_stop(mvm, NULL, trig))
+	if (!iwl_fw_dbg_trigger_check_stop(&mvm->fwrt, NULL, trig))
 		return;
 
 	if (!(le16_to_cpu(ba_trig->tx_bar) & BIT(tid)))
 		return;
 
-	iwl_mvm_fw_dbg_collect_trig(mvm, trig,
-				    "BAR sent to %pM, tid %d, ssn %d",
-				    addr, tid, ssn);
+	iwl_fw_dbg_collect_trig(&mvm->fwrt, trig,
+				"BAR sent to %pM, tid %d, ssn %d",
+				addr, tid, ssn);
 }
 
 #define OPT_HDR(type, skb, off) \
@@ -1296,7 +1295,7 @@ static void iwl_mvm_tx_status_check_trigger(struct iwl_mvm *mvm,
 	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_TX_STATUS);
 	status_trig = (void *)trig->data;
 
-	if (!iwl_fw_dbg_trigger_check_stop(mvm, NULL, trig))
+	if (!iwl_fw_dbg_trigger_check_stop(&mvm->fwrt, NULL, trig))
 		return;
 
 	for (i = 0; i < ARRAY_SIZE(status_trig->statuses); i++) {
@@ -1307,9 +1306,9 @@ static void iwl_mvm_tx_status_check_trigger(struct iwl_mvm *mvm,
 		if (status_trig->statuses[i].status != (status & TX_STATUS_MSK))
 			continue;
 
-		iwl_mvm_fw_dbg_collect_trig(mvm, trig,
-					    "Tx status %d was received",
-					    status & TX_STATUS_MSK);
+		iwl_fw_dbg_collect_trig(&mvm->fwrt, trig,
+					"Tx status %d was received",
+					status & TX_STATUS_MSK);
 		break;
 	}
 }
