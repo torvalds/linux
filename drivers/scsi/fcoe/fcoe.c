@@ -2258,7 +2258,7 @@ static int _fcoe_create(struct net_device *netdev, enum fip_mode fip_mode,
 		fcoe_interface_cleanup(fcoe);
 		mutex_unlock(&fcoe_config_mutex);
 		fcoe_ctlr_device_delete(ctlr_dev);
-		goto out;
+		return rc;
 	}
 
 	/* Make this the "master" N_Port */
@@ -2299,7 +2299,7 @@ static int _fcoe_create(struct net_device *netdev, enum fip_mode fip_mode,
 out_nodev:
 	rtnl_unlock();
 	mutex_unlock(&fcoe_config_mutex);
-out:
+
 	return rc;
 }
 
