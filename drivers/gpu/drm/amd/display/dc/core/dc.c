@@ -1250,8 +1250,15 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 		}
 	}
 
-	/* only proceed if we need to make a surface update */
-	if (!srf_updates)
+	/* do not perform surface update if surface has invalid dimensions
+	 * (all zero) and no scaling_info is provided
+	 */
+	if (surface_count > 0 &&
+			srf_updates->surface->src_rect.width == 0 &&
+			srf_updates->surface->src_rect.height == 0 &&
+			srf_updates->surface->dst_rect.width == 0 &&
+			srf_updates->surface->dst_rect.height == 0 &&
+			!srf_updates->scaling_info)
 		return;
 
 	update_type = dc_check_update_surfaces_for_stream(
