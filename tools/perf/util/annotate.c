@@ -239,10 +239,20 @@ static int jump__parse(struct arch *arch __maybe_unused, struct ins_operands *op
 	const char *s = strchr(ops->raw, '+');
 	const char *c = strchr(ops->raw, ',');
 
-	if (c++ != NULL)
+	/*
+	 * skip over possible up to 2 operands to get to address, e.g.:
+	 * tbnz	 w0, #26, ffff0000083cd190 <security_file_permission+0xd0>
+	 */
+	if (c++ != NULL) {
 		ops->target.addr = strtoull(c, NULL, 16);
-	else
+		if (!ops->target.addr) {
+			c = strchr(c, ',');
+			if (c++ != NULL)
+				ops->target.addr = strtoull(c, NULL, 16);
+		}
+	} else {
 		ops->target.addr = strtoull(ops->raw, NULL, 16);
+	}
 
 	if (s++ != NULL) {
 		ops->target.offset = strtoull(s, NULL, 16);
@@ -257,10 +267,27 @@ static int jump__parse(struct arch *arch __maybe_unused, struct ins_operands *op
 static int jump__scnprintf(struct ins *ins, char *bf, size_t size,
 			   struct ins_operands *ops)
 {
+	const char *c = strchr(ops->raw, ',');
+
 	if (!ops->target.addr || ops->target.offset < 0)
 		return ins__raw_scnprintf(ins, bf, size, ops);
 
-	return scnprintf(bf, size, "%-6.6s %" PRIx64, ins->name, ops->target.offset);
+	if (c != NULL) {
+		const char *c2 = strchr(c + 1, ',');
+
+		/* check for 3-op insn */
+		if (c2 != NULL)
+			c = c2;
+		c++;
+
+		/* mirror arch objdump's space-after-comma style */
+		if (*c == ' ')
+			c++;
+	}
+
+	return scnprintf(bf, size, "%-6.6s %.*s%" PRIx64,
+			 ins->name, c ? c - ops->raw : 0, ops->raw,
+			 ops->target.offset);
 }
 
 static struct ins_ops jump_ops = {
