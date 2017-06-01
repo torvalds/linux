@@ -5231,7 +5231,7 @@ int sd_power_off_card3v3(struct rtsx_chip *chip)
 			return STATUS_FAIL;
 		}
 
-		wait_timeout(50);
+		mdelay(50);
 	}
 
 	if (chip->asic_code) {
