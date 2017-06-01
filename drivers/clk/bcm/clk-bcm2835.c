@@ -530,6 +530,7 @@ struct bcm2835_clock_data {
 
 	bool is_vpu_clock;
 	bool is_mash_clock;
+	bool low_jitter;
 
 	u32 tcnt_mux;
 };
@@ -1126,7 +1127,8 @@ static unsigned long bcm2835_clock_choose_div_and_prate(struct clk_hw *hw,
 							int parent_idx,
 							unsigned long rate,
 							u32 *div,
-							unsigned long *prate)
+							unsigned long *prate,
+							unsigned long *avgrate)
 {
 	struct bcm2835_clock *clock = bcm2835_clock_from_hw(hw);
 	struct bcm2835_cprman *cprman = clock->cprman;
@@ -1141,8 +1143,25 @@ static unsigned long bcm2835_clock_choose_div_and_prate(struct clk_hw *hw,
 		*prate = clk_hw_get_rate(parent);
 		*div = bcm2835_clock_choose_div(hw, rate, *prate, true);
 
-		return bcm2835_clock_rate_from_divisor(clock, *prate,
-						       *div);
+		*avgrate = bcm2835_clock_rate_from_divisor(clock, *prate, *div);
+
+		if (data->low_jitter && (*div & CM_DIV_FRAC_MASK)) {
+			unsigned long high, low;
+			u32 int_div = *div & ~CM_DIV_FRAC_MASK;
+
+			high = bcm2835_clock_rate_from_divisor(clock, *prate,
+							       int_div);
+			int_div += CM_DIV_FRAC_MASK + 1;
+			low = bcm2835_clock_rate_from_divisor(clock, *prate,
+							      int_div);
+
+			/*
+			 * Return a value which is the maximum deviation
+			 * below the ideal rate, for use as a metric.
+			 */
+			return *avgrate - max(*avgrate - low, high - *avgrate);
+		}
+		return *avgrate;
 	}
 
 	if (data->frac_bits)
@@ -1169,6 +1188,7 @@ static unsigned long bcm2835_clock_choose_div_and_prate(struct clk_hw *hw,
 
 	*div = curdiv << CM_DIV_FRAC_BITS;
 	*prate = curdiv * best_rate;
+	*avgrate = best_rate;
 
 	return best_rate;
 }
@@ -1180,6 +1200,7 @@ static int bcm2835_clock_determine_rate(struct clk_hw *hw,
 	bool current_parent_is_pllc;
 	unsigned long rate, best_rate = 0;
 	unsigned long prate, best_prate = 0;
+	unsigned long avgrate, best_avgrate = 0;
 	size_t i;
 	u32 div;
 
@@ -1204,11 +1225,13 @@ static int bcm2835_clock_determine_rate(struct clk_hw *hw,
 			continue;
 
 		rate = bcm2835_clock_choose_div_and_prate(hw, i, req->rate,
-							  &div, &prate);
+							  &div, &prate,
+							  &avgrate);
 		if (rate > best_rate && rate <= req->rate) {
 			best_parent = parent;
 			best_prate = prate;
 			best_rate = rate;
+			best_avgrate = avgrate;
 		}
 	}
 
@@ -1218,7 +1241,7 @@ static int bcm2835_clock_determine_rate(struct clk_hw *hw,
 	req->best_parent_hw = best_parent;
 	req->best_parent_rate = best_prate;
 
-	req->rate = best_rate;
+	req->rate = best_avgrate;
 
 	return 0;
 }
@@ -2027,6 +2050,7 @@ static const struct bcm2835_clk_desc clk_desc_array[] = {
 		.int_bits = 12,
 		.frac_bits = 12,
 		.is_mash_clock = true,
+		.low_jitter = true,
 		.tcnt_mux = 23),
 	[BCM2835_CLOCK_PWM]	= REGISTER_PER_CLK(
 		.name = "pwm",
