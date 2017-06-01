@@ -1616,10 +1616,9 @@ void qed_int_igu_enable_int(struct qed_hwfn *p_hwfn,
 	qed_wr(p_hwfn, p_ptt, IGU_REG_PF_CONFIGURATION, igu_pf_conf);
 }
 
-int qed_int_igu_enable(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
-		       enum qed_int_mode int_mode)
+static void qed_int_igu_enable_attn(struct qed_hwfn *p_hwfn,
+				    struct qed_ptt *p_ptt)
 {
-	int rc = 0;
 
 	/* Configure AEU signal change to produce attentions */
 	qed_wr(p_hwfn, p_ptt, IGU_REG_ATTENTION_ENABLE, 0);
@@ -1632,6 +1631,16 @@ int qed_int_igu_enable(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 
 	/* Unmask AEU signals toward IGU */
 	qed_wr(p_hwfn, p_ptt, MISC_REG_AEU_MASK_ATTN_IGU, 0xff);
+}
+
+int
+qed_int_igu_enable(struct qed_hwfn *p_hwfn,
+		   struct qed_ptt *p_ptt, enum qed_int_mode int_mode)
+{
+	int rc = 0;
+
+	qed_int_igu_enable_attn(p_hwfn, p_ptt);
+
 	if ((int_mode != QED_INT_MODE_INTA) || IS_LEAD_HWFN(p_hwfn)) {
 		rc = qed_slowpath_irq_req(p_hwfn);
 		if (rc) {
