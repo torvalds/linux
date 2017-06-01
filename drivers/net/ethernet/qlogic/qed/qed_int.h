@@ -216,11 +216,11 @@ struct qed_igu_block {
 struct qed_igu_info {
 	struct qed_igu_block entry[MAX_TOT_SB_PER_PATH];
 	u16 igu_dsb_id;
-	u16			igu_base_sb;
-	u16			igu_base_sb_iov;
-	u16			igu_sb_cnt;
-	u16			igu_sb_cnt_iov;
-	u16			free_blks;
+
+	u16 igu_base_sb;
+	u16 igu_base_sb_iov;
+	struct qed_sb_cnt_info usage;
+
 };
 
 /* TODO Names of function may change... */

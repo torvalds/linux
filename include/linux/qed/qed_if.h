@@ -886,9 +886,15 @@ struct qed_eth_stats {
 #define TX_PI(tc)       (RX_PI + 1 + tc)
 
 struct qed_sb_cnt_info {
-	int	sb_cnt;
-	int	sb_iov_cnt;
-	int	sb_free_blk;
+	/* Original, current, and free SBs for PF */
+	int orig;
+	int cnt;
+	int free_cnt;
+
+	/* Original, current and free SBS for child VFs */
+	int iov_orig;
+	int iov_cnt;
+	int free_cnt_iov;
 };
 
 static inline u16 qed_sb_update_sb_idx(struct qed_sb_info *sb_info)

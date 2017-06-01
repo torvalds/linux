@@ -1769,7 +1769,7 @@ void qed_int_igu_init_pure_rt(struct qed_hwfn *p_hwfn,
 			      bool b_set, bool b_slowpath)
 {
 	u32 igu_base_sb = p_hwfn->hw_info.p_igu_info->igu_base_sb;
-	u32 igu_sb_cnt = p_hwfn->hw_info.p_igu_info->igu_sb_cnt;
+	u32 igu_sb_cnt = p_hwfn->hw_info.p_igu_info->usage.cnt;
 	u32 igu_sb_id = 0, val = 0;
 
 	val = qed_rd(p_hwfn, p_ptt, IGU_REG_BLOCK_CONFIGURATION);
@@ -1827,7 +1827,6 @@ int qed_int_igu_read_cam(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 
        /* Initialize base sb / sb cnt for PFs and VFs */
 	p_igu_info->igu_base_sb = 0xffff;
-	p_igu_info->igu_sb_cnt = 0;
 	p_igu_info->igu_base_sb_iov = 0xffff;
 
 	/* Distinguish between existent and non-existent default SB */
@@ -1856,7 +1855,7 @@ int qed_int_igu_read_cam(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 			if (p_igu_info->igu_dsb_id != QED_SB_INVALID_IDX) {
 				if (p_igu_info->igu_base_sb == 0xffff)
 					p_igu_info->igu_base_sb = igu_sb_id;
-				p_igu_info->igu_sb_cnt++;
+				p_igu_info->usage.cnt++;
 			}
 		} else if (!(p_block->is_pf) &&
 			   (p_block->function_id >= min_vf) &&
@@ -1867,7 +1866,7 @@ int qed_int_igu_read_cam(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 
 			if (p_igu_info->igu_base_sb_iov == 0xffff)
 				p_igu_info->igu_base_sb_iov = igu_sb_id;
-			p_igu_info->free_blks++;
+			p_igu_info->usage.iov_cnt++;
 		}
 
 		/* Mark the First entry belonging to the PF or its VFs
@@ -1900,12 +1899,13 @@ int qed_int_igu_read_cam(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	}
 
 	/* All non default SB are considered free at this point */
-	p_igu_info->igu_sb_cnt_iov = p_igu_info->free_blks;
+	p_igu_info->usage.free_cnt = p_igu_info->usage.cnt;
+	p_igu_info->usage.free_cnt_iov = p_igu_info->usage.iov_cnt;
 
 	DP_VERBOSE(p_hwfn, NETIF_MSG_INTR,
 		   "igu_dsb_id=0x%x, num Free SBs - PF: %04x VF: %04x\n",
 		   p_igu_info->igu_dsb_id,
-		   p_igu_info->igu_sb_cnt, p_igu_info->igu_sb_cnt_iov);
+		   p_igu_info->usage.cnt, p_igu_info->usage.iov_cnt);
 
 	return 0;
 }
@@ -2003,9 +2003,7 @@ void qed_int_get_num_sbs(struct qed_hwfn	*p_hwfn,
 	if (!info || !p_sb_cnt_info)
 		return;
 
-	p_sb_cnt_info->sb_cnt		= info->igu_sb_cnt;
-	p_sb_cnt_info->sb_iov_cnt	= info->igu_sb_cnt_iov;
-	p_sb_cnt_info->sb_free_blk	= info->free_blks;
+	memcpy(p_sb_cnt_info, &info->usage, sizeof(*p_sb_cnt_info));
 }
 
 u16 qed_int_queue_id_from_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id)
@@ -2014,10 +2012,10 @@ u16 qed_int_queue_id_from_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id)
 
 	/* Determine origin of SB id */
 	if ((sb_id >= p_info->igu_base_sb) &&
-	    (sb_id < p_info->igu_base_sb + p_info->igu_sb_cnt)) {
+	    (sb_id < p_info->igu_base_sb + p_info->usage.cnt)) {
 		return sb_id - p_info->igu_base_sb;
 	} else if ((sb_id >= p_info->igu_base_sb_iov) &&
-		   (sb_id < p_info->igu_base_sb_iov + p_info->igu_sb_cnt_iov)) {
+		   (sb_id < p_info->igu_base_sb_iov + p_info->usage.iov_cnt)) {
 		/* We want the first VF queue to be adjacent to the
 		 * last PF queue. Since L2 queues can be partial to
 		 * SBs, we'll use the feature instead.

@@ -874,9 +874,9 @@ static u8 qed_iov_alloc_vf_igu_sbs(struct qed_hwfn *p_hwfn,
 
 	igu_blocks = p_hwfn->hw_info.p_igu_info->entry;
 
-	if (num_rx_queues > p_hwfn->hw_info.p_igu_info->free_blks)
-		num_rx_queues = p_hwfn->hw_info.p_igu_info->free_blks;
-	p_hwfn->hw_info.p_igu_info->free_blks -= num_rx_queues;
+	if (num_rx_queues > p_hwfn->hw_info.p_igu_info->usage.free_cnt_iov)
+		num_rx_queues = p_hwfn->hw_info.p_igu_info->usage.free_cnt_iov;
+	p_hwfn->hw_info.p_igu_info->usage.free_cnt_iov -= num_rx_queues;
 
 	SET_FIELD(val, IGU_MAPPING_LINE_FUNCTION_NUMBER, vf->abs_vf_id);
 	SET_FIELD(val, IGU_MAPPING_LINE_VALID, 1);
@@ -932,8 +932,7 @@ static void qed_iov_free_vf_igu_sbs(struct qed_hwfn *p_hwfn,
 		qed_wr(p_hwfn, p_ptt, addr, val);
 
 		p_info->entry[igu_id].status |= QED_IGU_STATUS_FREE;
-
-		p_hwfn->hw_info.p_igu_info->free_blks++;
+		p_hwfn->hw_info.p_igu_info->usage.free_cnt_iov++;
 	}
 
 	vf->num_sbs = 0;

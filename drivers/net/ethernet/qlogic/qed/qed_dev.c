@@ -2061,7 +2061,7 @@ static void qed_hw_set_feat(struct qed_hwfn *p_hwfn)
 		qed_int_get_num_sbs(p_hwfn, &sb_cnt_info);
 		feat_num[QED_VF_L2_QUE] = min_t(u32,
 						RESC_NUM(p_hwfn, QED_L2_QUEUE),
-						sb_cnt_info.sb_iov_cnt);
+						sb_cnt_info.iov_cnt);
 		feat_num[QED_PF_L2_QUE] = min_t(u32,
 						RESC_NUM(p_hwfn, QED_SB) -
 						non_l2_sbs,
@@ -2255,7 +2255,7 @@ int qed_hw_get_dflt_resc(struct qed_hwfn *p_hwfn,
 	case QED_SB:
 		memset(&sb_cnt_info, 0, sizeof(sb_cnt_info));
 		qed_int_get_num_sbs(p_hwfn, &sb_cnt_info);
-		*p_resc_num = sb_cnt_info.sb_cnt;
+		*p_resc_num = sb_cnt_info.cnt;
 		break;
 	default:
 		return -EINVAL;
