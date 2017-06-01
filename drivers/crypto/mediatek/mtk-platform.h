@@ -200,7 +200,6 @@ struct mtk_sha_rec {
  * struct mtk_cryp - Cryptographic device
  * @base:	pointer to mapped register I/O base
  * @dev:	pointer to device
- * @clk_ethif:	pointer to ethif clock
  * @clk_cryp:	pointer to crypto clock
  * @irq:	global system and rings IRQ
  * @ring:	pointer to descriptor rings
@@ -215,7 +214,6 @@ struct mtk_sha_rec {
 struct mtk_cryp {
 	void __iomem *base;
 	struct device *dev;
-	struct clk *clk_ethif;
 	struct clk *clk_cryp;
 	int irq[MTK_IRQ_NUM];
 
