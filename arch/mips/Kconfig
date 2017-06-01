@@ -1424,7 +1424,8 @@ config CPU_LOONGSON1B
 	select LEDS_GPIO_REGISTER
 	help
 	  The Loongson 1B is a 32-bit SoC, which implements the MIPS32
-	  release 2 instruction set.
+	  Release 1 instruction set and part of the MIPS32 Release 2
+	  instruction set.
 
 config CPU_LOONGSON1C
 	bool "Loongson 1C"
@@ -1433,7 +1434,8 @@ config CPU_LOONGSON1C
 	select LEDS_GPIO_REGISTER
 	help
 	  The Loongson 1C is a 32-bit SoC, which implements the MIPS32
-	  release 2 instruction set.
+	  Release 1 instruction set and part of the MIPS32 Release 2
+	  instruction set.
 
 config CPU_MIPS32_R1
 	bool "MIPS32 Release 1"
@@ -1833,7 +1835,7 @@ config CPU_LOONGSON2
 config CPU_LOONGSON1
 	bool
 	select CPU_MIPS32
-	select CPU_MIPSR2
+	select CPU_MIPSR1
 	select CPU_HAS_PREFETCH
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
