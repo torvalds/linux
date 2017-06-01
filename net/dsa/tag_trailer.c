@@ -70,25 +70,22 @@ static struct sk_buff *trailer_rcv(struct sk_buff *skb, struct net_device *dev,
 	ds = dst->cpu_dp->ds;
 
 	if (skb_linearize(skb))
-		goto out_drop;
+		return NULL;
 
 	trailer = skb_tail_pointer(skb) - 4;
 	if (trailer[0] != 0x80 || (trailer[1] & 0xf8) != 0x00 ||
 	    (trailer[2] & 0xef) != 0x00 || trailer[3] != 0x00)
-		goto out_drop;
+		return NULL;
 
 	source_port = trailer[1] & 7;
 	if (source_port >= ds->num_ports || !ds->ports[source_port].netdev)
-		goto out_drop;
+		return NULL;
 
 	pskb_trim_rcsum(skb, skb->len - 4);
 
 	skb->dev = ds->ports[source_port].netdev;
 
 	return skb;
-
-out_drop:
-	return NULL;
 }
 
 const struct dsa_device_ops trailer_netdev_ops = {

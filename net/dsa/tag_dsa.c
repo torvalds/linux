@@ -79,7 +79,7 @@ static struct sk_buff *dsa_rcv(struct sk_buff *skb, struct net_device *dev,
 	int source_port;
 
 	if (unlikely(!pskb_may_pull(skb, DSA_HLEN)))
-		goto out_drop;
+		return NULL;
 
 	/*
 	 * The ethertype field is part of the DSA header.
@@ -90,7 +90,7 @@ static struct sk_buff *dsa_rcv(struct sk_buff *skb, struct net_device *dev,
 	 * Check that frame type is either TO_CPU or FORWARD.
 	 */
 	if ((dsa_header[0] & 0xc0) != 0x00 && (dsa_header[0] & 0xc0) != 0xc0)
-		goto out_drop;
+		return NULL;
 
 	/*
 	 * Determine source device and port.
@@ -103,14 +103,14 @@ static struct sk_buff *dsa_rcv(struct sk_buff *skb, struct net_device *dev,
 	 * port is a registered DSA port.
 	 */
 	if (source_device >= DSA_MAX_SWITCHES)
-		goto out_drop;
+		return NULL;
 
 	ds = dst->ds[source_device];
 	if (!ds)
-		goto out_drop;
+		return NULL;
 
 	if (source_port >= ds->num_ports || !ds->ports[source_port].netdev)
-		goto out_drop;
+		return NULL;
 
 	/*
 	 * Convert the DSA header to an 802.1q header if the 'tagged'
@@ -161,9 +161,6 @@ static struct sk_buff *dsa_rcv(struct sk_buff *skb, struct net_device *dev,
 	skb->dev = ds->ports[source_port].netdev;
 
 	return skb;
-
-out_drop:
-	return NULL;
 }
 
 const struct dsa_device_ops dsa_netdev_ops = {
