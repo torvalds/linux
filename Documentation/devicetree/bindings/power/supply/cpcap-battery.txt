@@ -1,0 +1,27 @@
+Motorola CPCAP PMIC battery driver binding
+
+Required properties:
+- compatible: Shall be "motorola,cpcap-battery"
+- interrupts: Interrupt specifier for each name in interrupt-names
+- interrupt-names: Should contain the following entries:
+		   "lowbph", "lowbpl", "chrgcurr1", "battdetb"
+- io-channels: IIO ADC channel specifier for each name in io-channel-names
+- io-channel-names: Should contain the following entries:
+		    "battdetb", "battp", "chg_isense", "batti"
+
+Example:
+
+cpcap_battery: battery {
+	compatible = "motorola,cpcap-battery";
+	interrupts-extended = <
+		&cpcap 5 0 &cpcap 3 0
+		&cpcap 20 0 &cpcap 54 0
+	>;
+	interrupt-names =
+		"lowbph", "lowbpl",
+		"chrgcurr1", "battdetb";
+	io-channels = <&cpcap_adc 0 &cpcap_adc 1
+		       &cpcap_adc 5 &cpcap_adc 6>;
+	io-channel-names = "battdetb", "battp",
+			   "chg_isense", "batti";
+};
