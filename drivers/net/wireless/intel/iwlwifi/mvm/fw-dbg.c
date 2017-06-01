@@ -694,8 +694,8 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	/* Make room for fw's virtual image pages, if it exists */
 	if (!mvm->trans->cfg->gen2 &&
 	    mvm->fw->img[mvm->cur_ucode].paging_mem_size &&
-	    mvm->fw_paging_db[0].fw_paging_block)
-		file_len += mvm->num_of_paging_blk *
+	    mvm->fwrt.fw_paging_db[0].fw_paging_block)
+		file_len += mvm->fwrt.num_of_paging_blk *
 			(sizeof(*dump_data) +
 			 sizeof(struct iwl_fw_error_dump_paging) +
 			 PAGING_BLOCK_SIZE);
@@ -833,12 +833,12 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	/* Dump fw's virtual image */
 	if (!mvm->trans->cfg->gen2 &&
 	    mvm->fw->img[mvm->cur_ucode].paging_mem_size &&
-	    mvm->fw_paging_db[0].fw_paging_block) {
-		for (i = 1; i < mvm->num_of_paging_blk + 1; i++) {
+	    mvm->fwrt.fw_paging_db[0].fw_paging_block) {
+		for (i = 1; i < mvm->fwrt.num_of_paging_blk + 1; i++) {
 			struct iwl_fw_error_dump_paging *paging;
 			struct page *pages =
-				mvm->fw_paging_db[i].fw_paging_block;
-			dma_addr_t addr = mvm->fw_paging_db[i].fw_paging_phys;
+				mvm->fwrt.fw_paging_db[i].fw_paging_block;
+			dma_addr_t addr = mvm->fwrt.fw_paging_db[i].fw_paging_phys;
 
 			dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_PAGING);
 			dump_data->len = cpu_to_le32(sizeof(*paging) +

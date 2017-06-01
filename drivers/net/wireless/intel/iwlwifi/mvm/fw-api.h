@@ -1000,44 +1000,6 @@ struct iwl_nvm_access_cmd {
 	u8 data[];
 } __packed; /* NVM_ACCESS_CMD_API_S_VER_2 */
 
-#define NUM_OF_FW_PAGING_BLOCKS	33 /* 32 for data and 1 block for CSS */
-
-/**
- * struct iwl_fw_paging_cmd - paging layout
- *
- * (FW_PAGING_BLOCK_CMD = 0x4f)
- *
- * Send to FW the paging layout in the driver.
- *
- * @flags: various flags for the command
- * @block_size: the block size in powers of 2
- * @block_num: number of blocks specified in the command.
- * @device_phy_addr: virtual addresses from device side
- */
-struct iwl_fw_paging_cmd {
-	__le32 flags;
-	__le32 block_size;
-	__le32 block_num;
-	__le32 device_phy_addr[NUM_OF_FW_PAGING_BLOCKS];
-} __packed; /* FW_PAGING_BLOCK_CMD_API_S_VER_1 */
-
-/*
- * Fw items ID's
- *
- * @IWL_FW_ITEM_ID_PAGING: Address of the pages that the FW will upload
- *	download
- */
-enum iwl_fw_item_id {
-	IWL_FW_ITEM_ID_PAGING = 3,
-};
-
-/*
- * struct iwl_fw_get_item_cmd - get an item from the fw
- */
-struct iwl_fw_get_item_cmd {
-	__le32 item_id;
-} __packed; /* FW_GET_ITEM_CMD_API_S_VER_1 */
-
 #define CONT_REC_COMMAND_SIZE	80
 #define ENABLE_CONT_RECORDING	0x15
 #define DISABLE_CONT_RECORDING	0x16
@@ -1057,12 +1019,6 @@ struct iwl_continuous_record_cmd {
 	u8 pad[CONT_REC_COMMAND_SIZE -
 		sizeof(struct iwl_continuous_record_mode)];
 } __packed;
-
-struct iwl_fw_get_item_resp {
-	__le32 item_id;
-	__le32 item_byte_cnt;
-	__le32 item_val;
-} __packed; /* FW_GET_ITEM_RSP_S_VER_1 */
 
 /**
  * struct iwl_nvm_access_resp_ver2 - response to NVM_ACCESS_CMD
