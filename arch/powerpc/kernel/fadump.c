@@ -113,6 +113,18 @@ int __init early_init_dt_scan_fw_dump(unsigned long node,
 	return 1;
 }
 
+/*
+ * If fadump is registered, check if the memory provided
+ * falls within boot memory area.
+ */
+int is_fadump_boot_memory_area(u64 addr, ulong size)
+{
+	if (!fw_dump.dump_registered)
+		return 0;
+
+	return (addr + size) > RMA_START && addr <= fw_dump.boot_memory_size;
+}
+
 int is_fadump_active(void)
 {
 	return fw_dump.dump_active;
