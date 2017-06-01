@@ -3904,7 +3904,7 @@ int skl_check_pipe_max_pixel_rate(struct intel_crtc *intel_crtc,
 	struct drm_plane *plane;
 	const struct drm_plane_state *pstate;
 	struct intel_plane_state *intel_pstate;
-	int crtc_clock, cdclk;
+	int crtc_clock, dotclk;
 	uint32_t pipe_max_pixel_rate;
 	uint_fixed_16_16_t pipe_downscale;
 	uint_fixed_16_16_t max_downscale = u32_to_fixed_16_16(1);
@@ -3939,11 +3939,15 @@ int skl_check_pipe_max_pixel_rate(struct intel_crtc *intel_crtc,
 	pipe_downscale = mul_fixed16(pipe_downscale, max_downscale);
 
 	crtc_clock = crtc_state->adjusted_mode.crtc_clock;
-	cdclk = to_intel_atomic_state(state)->cdclk.logical.cdclk;
-	pipe_max_pixel_rate = div_round_up_u32_fixed16(cdclk, pipe_downscale);
+	dotclk = to_intel_atomic_state(state)->cdclk.logical.cdclk;
+
+	if (IS_GEMINILAKE(to_i915(intel_crtc->base.dev)))
+		dotclk *= 2;
+
+	pipe_max_pixel_rate = div_round_up_u32_fixed16(dotclk, pipe_downscale);
 
 	if (pipe_max_pixel_rate < crtc_clock) {
-		DRM_ERROR("Max supported pixel clock with scaling exceeded\n");
+		DRM_DEBUG_KMS("Max supported pixel clock with scaling exceeded\n");
 		return -EINVAL;
 	}
 
