@@ -250,7 +250,7 @@ static int sun4i_hash(struct ahash_request *areq)
 			i = 0;
 		in_sg = sg_next(in_sg);
 	}
-	if (i == 1 && !op->len)
+	if (i == 1 && !op->len && areq->nbytes)
 		dev_dbg(ss->dev, "We can DMA\n");
 
 	i = 0;
