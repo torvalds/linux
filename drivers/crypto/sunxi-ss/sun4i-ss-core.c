@@ -96,7 +96,8 @@ static struct sun4i_ss_alg_template ss_algs[] = {
 			.cra_driver_name = "cbc-aes-sun4i-ss",
 			.cra_priority = 300,
 			.cra_blocksize = AES_BLOCK_SIZE,
-			.cra_flags = CRYPTO_ALG_TYPE_SKCIPHER,
+			.cra_flags = CRYPTO_ALG_TYPE_SKCIPHER |
+				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_ctxsize = sizeof(struct sun4i_tfm_ctx),
 			.cra_module = THIS_MODULE,
 			.cra_alignmask = 3,
@@ -117,7 +118,8 @@ static struct sun4i_ss_alg_template ss_algs[] = {
 			.cra_driver_name = "ecb-aes-sun4i-ss",
 			.cra_priority = 300,
 			.cra_blocksize = AES_BLOCK_SIZE,
-			.cra_flags = CRYPTO_ALG_TYPE_SKCIPHER,
+			.cra_flags = CRYPTO_ALG_TYPE_SKCIPHER |
+				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_ctxsize = sizeof(struct sun4i_tfm_ctx),
 			.cra_module = THIS_MODULE,
 			.cra_alignmask = 3,
@@ -138,7 +140,8 @@ static struct sun4i_ss_alg_template ss_algs[] = {
 			.cra_driver_name = "cbc-des-sun4i-ss",
 			.cra_priority = 300,
 			.cra_blocksize = DES_BLOCK_SIZE,
-			.cra_flags = CRYPTO_ALG_TYPE_SKCIPHER,
+			.cra_flags = CRYPTO_ALG_TYPE_SKCIPHER |
+				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_ctxsize = sizeof(struct sun4i_req_ctx),
 			.cra_module = THIS_MODULE,
 			.cra_alignmask = 3,
@@ -158,7 +161,8 @@ static struct sun4i_ss_alg_template ss_algs[] = {
 			.cra_driver_name = "ecb-des-sun4i-ss",
 			.cra_priority = 300,
 			.cra_blocksize = DES_BLOCK_SIZE,
-			.cra_flags = CRYPTO_ALG_TYPE_SKCIPHER,
+			.cra_flags = CRYPTO_ALG_TYPE_SKCIPHER |
+				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_ctxsize = sizeof(struct sun4i_req_ctx),
 			.cra_module = THIS_MODULE,
 			.cra_alignmask = 3,
@@ -179,7 +183,8 @@ static struct sun4i_ss_alg_template ss_algs[] = {
 			.cra_driver_name = "cbc-des3-sun4i-ss",
 			.cra_priority = 300,
 			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
-			.cra_flags = CRYPTO_ALG_TYPE_SKCIPHER,
+			.cra_flags = CRYPTO_ALG_TYPE_SKCIPHER |
+				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_ctxsize = sizeof(struct sun4i_req_ctx),
 			.cra_module = THIS_MODULE,
 			.cra_alignmask = 3,
