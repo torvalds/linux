@@ -245,5 +245,6 @@ void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint64_t vm_size);
 int amdgpu_vm_ioctl(struct drm_device *dev, void *data, struct drm_file *filp);
 bool amdgpu_vm_need_pipeline_sync(struct amdgpu_ring *ring,
 				  struct amdgpu_job *job);
+void amdgpu_vm_check_compute_bug(struct amdgpu_device *adev);
 
 #endif

@@ -212,9 +212,4 @@ static inline void amdgpu_ring_clear_ring(struct amdgpu_ring *ring)
 
 }
 
-static inline bool amdgpu_ring_has_compute_vm_bug(struct amdgpu_ring *ring)
-{
-	return ring->has_compute_vm_bug;
-}
-
 #endif

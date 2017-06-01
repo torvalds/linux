@@ -2190,6 +2190,8 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 
 	adev->accel_working = true;
 
+	amdgpu_vm_check_compute_bug(adev);
+
 	/* Initialize the buffer migration limit. */
 	if (amdgpu_moverate >= 0)
 		max_MBps = amdgpu_moverate;
