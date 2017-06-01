@@ -1372,13 +1372,12 @@ static int mlx5e_set_pauseparam(struct net_device *netdev,
 	return err;
 }
 
-static int mlx5e_get_ts_info(struct net_device *dev,
-			     struct ethtool_ts_info *info)
+int mlx5e_ethtool_get_ts_info(struct mlx5e_priv *priv,
+			      struct ethtool_ts_info *info)
 {
-	struct mlx5e_priv *priv = netdev_priv(dev);
 	int ret;
 
-	ret = ethtool_op_get_ts_info(dev, info);
+	ret = ethtool_op_get_ts_info(priv->netdev, info);
 	if (ret)
 		return ret;
 
@@ -1399,6 +1398,14 @@ static int mlx5e_get_ts_info(struct net_device *dev,
 			   (BIT(1) << HWTSTAMP_FILTER_ALL);
 
 	return 0;
+}
+
+static int mlx5e_get_ts_info(struct net_device *dev,
+			     struct ethtool_ts_info *info)
+{
+	struct mlx5e_priv *priv = netdev_priv(dev);
+
+	return mlx5e_ethtool_get_ts_info(priv, info);
 }
 
 static __u32 mlx5e_get_wol_supported(struct mlx5_core_dev *mdev)

@@ -113,6 +113,14 @@ static int mlx5i_get_coalesce(struct net_device *netdev,
 	return mlx5e_ethtool_get_coalesce(priv, coal);
 }
 
+static int mlx5i_get_ts_info(struct net_device *netdev,
+			     struct ethtool_ts_info *info)
+{
+	struct mlx5e_priv *priv = mlx5i_epriv(netdev);
+
+	return mlx5e_ethtool_get_ts_info(priv, info);
+}
+
 const struct ethtool_ops mlx5i_ethtool_ops = {
 	.get_drvinfo       = mlx5i_get_drvinfo,
 	.get_strings       = mlx5i_get_strings,
@@ -124,4 +132,5 @@ const struct ethtool_ops mlx5i_ethtool_ops = {
 	.set_channels      = mlx5i_set_channels,
 	.get_coalesce      = mlx5i_get_coalesce,
 	.set_coalesce      = mlx5i_set_coalesce,
+	.get_ts_info       = mlx5i_get_ts_info,
 };
