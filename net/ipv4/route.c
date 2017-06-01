@@ -2547,8 +2547,9 @@ EXPORT_SYMBOL_GPL(ip_route_output_flow);
 /* called with rcu_read_lock held */
 static int rt_fill_info(struct net *net,  __be32 dst, __be32 src, u32 table_id,
 			struct flowi4 *fl4, struct sk_buff *skb, u32 portid,
-			u32 seq, struct rtable *rt)
+			u32 seq)
 {
+	struct rtable *rt = skb_rtable(skb);
 	struct rtmsg *r;
 	struct nlmsghdr *nlh;
 	unsigned long expires = 0;
@@ -2750,6 +2751,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 	if (err)
 		goto errout_free;
 
+	skb_dst_set(skb, &rt->dst);
 	if (rtm->rtm_flags & RTM_F_NOTIFY)
 		rt->rt_flags |= RTCF_NOTIFY;
 
@@ -2763,8 +2765,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 				    fl4.flowi4_tos, res.fi, 0);
 	else
 		err = rt_fill_info(net, dst, src, table_id, &fl4, skb,
-				   NETLINK_CB(in_skb).portid, nlh->nlmsg_seq,
-				   rt);
+				   NETLINK_CB(in_skb).portid, nlh->nlmsg_seq);
 	if (err < 0)
 		goto errout_free;
 
