@@ -199,24 +199,23 @@ void qed_int_disable_post_isr_release(struct qed_dev *cdev);
 #define SB_ALIGNED_SIZE(p_hwfn)	\
 	ALIGNED_TYPE_SIZE(struct status_block, p_hwfn)
 
+#define QED_SB_INVALID_IDX      0xffff
+
 struct qed_igu_block {
 	u8	status;
 #define QED_IGU_STATUS_FREE     0x01
 #define QED_IGU_STATUS_VALID    0x02
 #define QED_IGU_STATUS_PF       0x04
+#define QED_IGU_STATUS_DSB      0x08
 
 	u8	vector_number;
 	u8	function_id;
 	u8	is_pf;
 };
 
-struct qed_igu_map {
-	struct qed_igu_block igu_blocks[MAX_TOT_SB_PER_PATH];
-};
-
 struct qed_igu_info {
-	struct qed_igu_map	igu_map;
-	u16			igu_dsb_id;
+	struct qed_igu_block entry[MAX_TOT_SB_PER_PATH];
+	u16 igu_dsb_id;
 	u16			igu_base_sb;
 	u16			igu_base_sb_iov;
 	u16			igu_sb_cnt;

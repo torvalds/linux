@@ -1167,7 +1167,7 @@ static void qed_init_cau_rt_data(struct qed_dev *cdev)
 
 		for (sb_id = 0; sb_id < QED_MAPPING_MEMORY_SIZE(cdev);
 		     sb_id++) {
-			p_block = &p_igu_info->igu_map.igu_blocks[sb_id];
+			p_block = &p_igu_info->entry[sb_id];
 			if (!p_block->is_pf)
 				continue;
 
