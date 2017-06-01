@@ -72,8 +72,9 @@ static struct sk_buff *ksz_xmit(struct sk_buff *skb, struct net_device *dev)
 	return nskb;
 }
 
-struct sk_buff *ksz_rcv(struct sk_buff *skb, struct net_device *dev,
-			struct packet_type *pt, struct net_device *orig_dev)
+static struct sk_buff *ksz_rcv(struct sk_buff *skb, struct net_device *dev,
+			       struct packet_type *pt,
+			       struct net_device *orig_dev)
 {
 	struct dsa_switch_tree *dst = dev->dsa_ptr;
 	struct dsa_switch *ds;
