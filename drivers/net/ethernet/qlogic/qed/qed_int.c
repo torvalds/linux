@@ -1412,15 +1412,26 @@ void qed_int_sb_setup(struct qed_hwfn *p_hwfn,
 				    sb_info->igu_sb_id, 0, 0);
 }
 
-/**
- * @brief qed_get_igu_sb_id - given a sw sb_id return the
- *        igu_sb_id
- *
- * @param p_hwfn
- * @param sb_id
- *
- * @return u16
- */
+static u16 qed_get_pf_igu_sb_id(struct qed_hwfn *p_hwfn, u16 vector_id)
+{
+	struct qed_igu_block *p_block;
+	u16 igu_id;
+
+	for (igu_id = 0; igu_id < QED_MAPPING_MEMORY_SIZE(p_hwfn->cdev);
+	     igu_id++) {
+		p_block = &p_hwfn->hw_info.p_igu_info->entry[igu_id];
+
+		if (!(p_block->status & QED_IGU_STATUS_VALID) ||
+		    !p_block->is_pf ||
+		    p_block->vector_number != vector_id)
+			continue;
+
+		return igu_id;
+	}
+
+	return QED_SB_INVALID_IDX;
+}
+
 static u16 qed_get_igu_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id)
 {
 	u16 igu_sb_id;
@@ -1429,7 +1440,7 @@ static u16 qed_get_igu_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id)
 	if (sb_id == QED_SP_SB_ID)
 		igu_sb_id = p_hwfn->hw_info.p_igu_info->igu_dsb_id;
 	else if (IS_PF(p_hwfn->cdev))
-		igu_sb_id = sb_id + p_hwfn->hw_info.p_igu_info->igu_base_sb;
+		igu_sb_id = qed_get_pf_igu_sb_id(p_hwfn, sb_id + 1);
 	else
 		igu_sb_id = qed_vf_get_igu_sb_id(p_hwfn, sb_id);
 
