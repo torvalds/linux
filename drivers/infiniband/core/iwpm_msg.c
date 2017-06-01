@@ -42,7 +42,6 @@ int iwpm_valid_pid(void)
 {
 	return iwpm_user_pid > 0;
 }
-EXPORT_SYMBOL(iwpm_valid_pid);
 
 /*
  * iwpm_register_pid - Send a netlink query to user space
@@ -122,7 +121,6 @@ pid_query_error:
 		iwpm_free_nlmsg_request(&nlmsg_request->kref);
 	return ret;
 }
-EXPORT_SYMBOL(iwpm_register_pid);
 
 /*
  * iwpm_add_mapping - Send a netlink add mapping message
@@ -191,7 +189,6 @@ add_mapping_error:
 		iwpm_free_nlmsg_request(&nlmsg_request->kref);
 	return ret;
 }
-EXPORT_SYMBOL(iwpm_add_mapping);
 
 /*
  * iwpm_add_and_query_mapping - Send a netlink add and query
@@ -267,7 +264,6 @@ query_mapping_error:
 		iwpm_free_nlmsg_request(&nlmsg_request->kref);
 	return ret;
 }
-EXPORT_SYMBOL(iwpm_add_and_query_mapping);
 
 /*
  * iwpm_remove_mapping - Send a netlink remove mapping message
@@ -328,7 +324,6 @@ remove_mapping_error:
 		dev_kfree_skb_any(skb);
 	return ret;
 }
-EXPORT_SYMBOL(iwpm_remove_mapping);
 
 /* netlink attribute policy for the received response to register pid request */
 static const struct nla_policy resp_reg_policy[IWPM_NLA_RREG_PID_MAX] = {
@@ -397,7 +392,6 @@ register_pid_response_exit:
 	up(&nlmsg_request->sem);
 	return 0;
 }
-EXPORT_SYMBOL(iwpm_register_pid_cb);
 
 /* netlink attribute policy for the received response to add mapping request */
 static const struct nla_policy resp_add_policy[IWPM_NLA_RMANAGE_MAPPING_MAX] = {
@@ -466,7 +460,6 @@ add_mapping_response_exit:
 	up(&nlmsg_request->sem);
 	return 0;
 }
-EXPORT_SYMBOL(iwpm_add_mapping_cb);
 
 /* netlink attribute policy for the response to add and query mapping request
  * and response with remote address info */
@@ -558,7 +551,6 @@ query_mapping_response_exit:
 	up(&nlmsg_request->sem);
 	return 0;
 }
-EXPORT_SYMBOL(iwpm_add_and_query_mapping_cb);
 
 /*
  * iwpm_remote_info_cb - Process a port mapper message, containing
@@ -627,7 +619,6 @@ int iwpm_remote_info_cb(struct sk_buff *skb, struct netlink_callback *cb)
 			"remote_info: Mapped remote sockaddr:");
 	return ret;
 }
-EXPORT_SYMBOL(iwpm_remote_info_cb);
 
 /* netlink attribute policy for the received request for mapping info */
 static const struct nla_policy resp_mapinfo_policy[IWPM_NLA_MAPINFO_REQ_MAX] = {
@@ -677,7 +668,6 @@ int iwpm_mapping_info_cb(struct sk_buff *skb, struct netlink_callback *cb)
 	ret = iwpm_send_mapinfo(nl_client, iwpm_user_pid);
 	return ret;
 }
-EXPORT_SYMBOL(iwpm_mapping_info_cb);
 
 /* netlink attribute policy for the received mapping info ack */
 static const struct nla_policy ack_mapinfo_policy[IWPM_NLA_MAPINFO_NUM_MAX] = {
@@ -707,7 +697,6 @@ int iwpm_ack_mapping_info_cb(struct sk_buff *skb, struct netlink_callback *cb)
 	atomic_set(&echo_nlmsg_seq, cb->nlh->nlmsg_seq);
 	return 0;
 }
-EXPORT_SYMBOL(iwpm_ack_mapping_info_cb);
 
 /* netlink attribute policy for the received port mapper error message */
 static const struct nla_policy map_error_policy[IWPM_NLA_ERR_MAX] = {
@@ -751,4 +740,3 @@ int iwpm_mapping_error_cb(struct sk_buff *skb, struct netlink_callback *cb)
 	up(&nlmsg_request->sem);
 	return 0;
 }
-EXPORT_SYMBOL(iwpm_mapping_error_cb);

@@ -81,7 +81,6 @@ init_exit:
 	}
 	return ret;
 }
-EXPORT_SYMBOL(iwpm_init);
 
 static void free_hash_bucket(void);
 static void free_reminfo_bucket(void);
@@ -107,7 +106,6 @@ int iwpm_exit(u8 nl_client)
 	iwpm_set_registration(nl_client, IWPM_REG_UNDEF);
 	return 0;
 }
-EXPORT_SYMBOL(iwpm_exit);
 
 static struct hlist_head *get_mapinfo_hash_bucket(struct sockaddr_storage *,
 					       struct sockaddr_storage *);
@@ -146,7 +144,6 @@ int iwpm_create_mapinfo(struct sockaddr_storage *local_sockaddr,
 	spin_unlock_irqrestore(&iwpm_mapinfo_lock, flags);
 	return ret;
 }
-EXPORT_SYMBOL(iwpm_create_mapinfo);
 
 int iwpm_remove_mapinfo(struct sockaddr_storage *local_sockaddr,
 			struct sockaddr_storage *mapped_local_addr)
@@ -182,7 +179,6 @@ remove_mapinfo_exit:
 	spin_unlock_irqrestore(&iwpm_mapinfo_lock, flags);
 	return ret;
 }
-EXPORT_SYMBOL(iwpm_remove_mapinfo);
 
 static void free_hash_bucket(void)
 {
@@ -295,7 +291,6 @@ get_remote_info_exit:
 	spin_unlock_irqrestore(&iwpm_reminfo_lock, flags);
 	return ret;
 }
-EXPORT_SYMBOL(iwpm_get_remote_info);
 
 struct iwpm_nlmsg_request *iwpm_get_nlmsg_request(__u32 nlmsg_seq,
 					u8 nl_client, gfp_t gfp)
