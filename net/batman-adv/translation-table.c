@@ -2488,18 +2488,16 @@ static bool
 _batadv_is_ap_isolated(struct batadv_tt_local_entry *tt_local_entry,
 		       struct batadv_tt_global_entry *tt_global_entry)
 {
-	bool ret = false;
-
 	if (tt_local_entry->common.flags & BATADV_TT_CLIENT_WIFI &&
 	    tt_global_entry->common.flags & BATADV_TT_CLIENT_WIFI)
-		ret = true;
+		return true;
 
 	/* check if the two clients are marked as isolated */
 	if (tt_local_entry->common.flags & BATADV_TT_CLIENT_ISOLA &&
 	    tt_global_entry->common.flags & BATADV_TT_CLIENT_ISOLA)
-		ret = true;
+		return true;
 
-	return ret;
+	return false;
 }
 
 /**
@@ -4010,8 +4008,6 @@ bool batadv_tt_add_temporary_global_entry(struct batadv_priv *bat_priv,
 					  const unsigned char *addr,
 					  unsigned short vid)
 {
-	bool ret = false;
-
 	/* ignore loop detect macs, they are not supposed to be in the tt local
 	 * data as well.
 	 */
@@ -4021,14 +4017,13 @@ bool batadv_tt_add_temporary_global_entry(struct batadv_priv *bat_priv,
 	if (!batadv_tt_global_add(bat_priv, orig_node, addr, vid,
 				  BATADV_TT_CLIENT_TEMP,
 				  atomic_read(&orig_node->last_ttvn)))
-		goto out;
+		return false;
 
 	batadv_dbg(BATADV_DBG_TT, bat_priv,
 		   "Added temporary global client (addr: %pM, vid: %d, orig: %pM)\n",
 		   addr, batadv_print_vid(vid), orig_node->orig);
-	ret = true;
-out:
-	return ret;
+
+	return true;
 }
 
 /**
