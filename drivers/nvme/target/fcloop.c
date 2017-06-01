@@ -698,7 +698,6 @@ static struct nvmet_fc_target_template tgttemplate = {
 	.dma_boundary		= FCLOOP_DMABOUND_4G,
 	/* optional features */
 	.target_features	= NVMET_FCTGTFEAT_CMD_IN_ISR |
-				  NVMET_FCTGTFEAT_NEEDS_CMD_CPUSCHED |
 				  NVMET_FCTGTFEAT_OPDONE_IN_ISR,
 	/* sizes of additional private data for data structures */
 	.target_priv_sz		= sizeof(struct fcloop_tport),

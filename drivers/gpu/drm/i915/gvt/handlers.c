@@ -1244,7 +1244,7 @@ static int dma_ctrl_write(struct intel_vgpu *vgpu, unsigned int offset,
 	mode = vgpu_vreg(vgpu, offset);
 
 	if (GFX_MODE_BIT_SET_IN_MASK(mode, START_DMA)) {
-		WARN_ONCE(1, "VM(%d): iGVT-g doesn't supporte GuC\n",
+		WARN_ONCE(1, "VM(%d): iGVT-g doesn't support GuC\n",
 				vgpu->id);
 		return 0;
 	}

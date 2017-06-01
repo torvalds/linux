@@ -92,6 +92,16 @@ static inline unsigned int pd_header_type_le(__le16 header)
 	return pd_header_type(le16_to_cpu(header));
 }
 
+static inline unsigned int pd_header_msgid(u16 header)
+{
+	return (header >> PD_HEADER_ID_SHIFT) & PD_HEADER_ID_MASK;
+}
+
+static inline unsigned int pd_header_msgid_le(__le16 header)
+{
+	return pd_header_msgid(le16_to_cpu(header));
+}
+
 #define PD_MAX_PAYLOAD		7
 
 struct pd_message {

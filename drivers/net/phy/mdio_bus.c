@@ -364,9 +364,6 @@ int __mdiobus_register(struct mii_bus *bus, struct module *owner)
 
 	mutex_init(&bus->mdio_lock);
 
-	if (bus->reset)
-		bus->reset(bus);
-
 	/* de-assert bus level PHY GPIO resets */
 	if (bus->num_reset_gpios > 0) {
 		bus->reset_gpiod = devm_kcalloc(&bus->dev,
@@ -395,6 +392,9 @@ int __mdiobus_register(struct mii_bus *bus, struct module *owner)
 			gpiod_set_value_cansleep(gpiod, 0);
 		}
 	}
+
+	if (bus->reset)
+		bus->reset(bus);
 
 	for (i = 0; i < PHY_MAX_ADDR; i++) {
 		if ((bus->phy_mask & (1 << i)) == 0) {

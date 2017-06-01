@@ -416,6 +416,7 @@ static int xgene_slimpro_i2c_probe(struct platform_device *pdev)
 	adapter->class = I2C_CLASS_HWMON;
 	adapter->dev.parent = &pdev->dev;
 	adapter->dev.of_node = pdev->dev.of_node;
+	ACPI_COMPANION_SET(&adapter->dev, ACPI_COMPANION(&pdev->dev));
 	i2c_set_adapdata(adapter, ctx);
 	rc = i2c_add_adapter(adapter);
 	if (rc) {
