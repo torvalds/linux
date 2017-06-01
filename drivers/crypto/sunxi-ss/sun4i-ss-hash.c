@@ -392,12 +392,8 @@ hash_final:
 	}
 
 	/* write the remaining bytes of the nbw buffer */
-	if (nbw) {
-		wb |= ((1 << 7) << (nbw * 8));
-		bf[j++] = wb;
-	} else {
-		bf[j++] = 1 << 7;
-	}
+	wb |= ((1 << 7) << (nbw * 8));
+	bf[j++] = wb;
 
 	/*
 	 * number of space to pad to obtain 64o minus 8(size) minus 4 (final 1)
