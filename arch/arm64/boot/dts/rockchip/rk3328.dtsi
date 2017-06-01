@@ -151,8 +151,8 @@
 
 	cpuinfo {
 		compatible = "rockchip,cpuinfo";
-		nvmem-cells = <&efuse_id>;
-		nvmem-cell-names = "id";
+		nvmem-cells = <&efuse_id>, <&efuse_cpu_version>;
+		nvmem-cell-names = "id", "cpu-version";
 	};
 
 	psci {
@@ -556,6 +556,10 @@
 		};
 		logic_leakage: logic-leakage@19 {
 			reg = <0x19 0x1>;
+		};
+		efuse_cpu_version: cpu-version@1a {
+			reg = <0x1a 0x1>;
+			bits = <3 3>;
 		};
 	};
 
