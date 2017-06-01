@@ -114,10 +114,12 @@ static ssize_t queue_state_write(void *data, const char __user *buf,
 		blk_mq_run_hw_queues(q, true);
 	} else if (strcmp(op, "start") == 0) {
 		blk_mq_start_stopped_hw_queues(q, true);
+	} else if (strcmp(op, "kick") == 0) {
+		blk_mq_kick_requeue_list(q);
 	} else {
 		pr_err("%s: unsupported operation '%s'\n", __func__, op);
 inval:
-		pr_err("%s: use either 'run' or 'start'\n", __func__);
+		pr_err("%s: use 'run', 'start' or 'kick'\n", __func__);
 		return -EINVAL;
 	}
 	return count;
