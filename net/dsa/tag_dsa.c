@@ -28,7 +28,7 @@ static struct sk_buff *dsa_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	if (skb->protocol == htons(ETH_P_8021Q)) {
 		if (skb_cow_head(skb, 0) < 0)
-			goto out_free;
+			return NULL;
 
 		/*
 		 * Construct tagged FROM_CPU DSA tag from 802.1q tag.
@@ -46,7 +46,7 @@ static struct sk_buff *dsa_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	} else {
 		if (skb_cow_head(skb, DSA_HLEN) < 0)
-			goto out_free;
+			return NULL;
 		skb_push(skb, DSA_HLEN);
 
 		memmove(skb->data, skb->data + DSA_HLEN, 2 * ETH_ALEN);
@@ -62,10 +62,6 @@ static struct sk_buff *dsa_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	return skb;
-
-out_free:
-	kfree_skb(skb);
-	return NULL;
 }
 
 static struct sk_buff *dsa_rcv(struct sk_buff *skb, struct net_device *dev,

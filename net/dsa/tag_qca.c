@@ -45,7 +45,7 @@ static struct sk_buff *qca_tag_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev->stats.tx_bytes += skb->len;
 
 	if (skb_cow_head(skb, 0) < 0)
-		goto out_free;
+		return NULL;
 
 	skb_push(skb, QCA_HDR_LEN);
 
@@ -60,10 +60,6 @@ static struct sk_buff *qca_tag_xmit(struct sk_buff *skb, struct net_device *dev)
 	*phdr = htons(hdr);
 
 	return skb;
-
-out_free:
-	kfree_skb(skb);
-	return NULL;
 }
 
 static struct sk_buff *qca_tag_rcv(struct sk_buff *skb, struct net_device *dev,
