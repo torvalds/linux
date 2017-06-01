@@ -1518,6 +1518,31 @@ static const char *const bcm2835_clock_per_parents[] = {
 	.parents = bcm2835_clock_per_parents,				\
 	__VA_ARGS__)
 
+/*
+ * Restrict clock sources for the PCM peripheral to the oscillator and
+ * PLLD_PER because other source may have varying rates or be switched
+ * off.
+ *
+ * Prevent other sources from being selected by replacing their names in
+ * the list of potential parents with dummy entries (entry index is
+ * significant).
+ */
+static const char *const bcm2835_pcm_per_parents[] = {
+	"-",
+	"xosc",
+	"-",
+	"-",
+	"-",
+	"-",
+	"plld_per",
+	"-",
+};
+
+#define REGISTER_PCM_CLK(...)	REGISTER_CLK(				\
+	.num_mux_parents = ARRAY_SIZE(bcm2835_pcm_per_parents),		\
+	.parents = bcm2835_pcm_per_parents,				\
+	__VA_ARGS__)
+
 /* main vpu parent mux */
 static const char *const bcm2835_clock_vpu_parents[] = {
 	"gnd",
@@ -1995,7 +2020,7 @@ static const struct bcm2835_clk_desc clk_desc_array[] = {
 		.int_bits = 4,
 		.frac_bits = 8,
 		.tcnt_mux = 22),
-	[BCM2835_CLOCK_PCM]	= REGISTER_PER_CLK(
+	[BCM2835_CLOCK_PCM]	= REGISTER_PCM_CLK(
 		.name = "pcm",
 		.ctl_reg = CM_PCMCTL,
 		.div_reg = CM_PCMDIV,
