@@ -724,7 +724,7 @@ enum iwl_system_subcmd_ids {
 	/**
 	 * @SHARED_MEM_CFG_CMD:
 	 * response in &struct iwl_shared_mem_cfg or
-	 * &struct iwl_shared_mem_cfg_v1
+	 * &struct iwl_shared_mem_cfg_v2
 	 */
 	SHARED_MEM_CFG_CMD = 0x0,
 
@@ -2546,7 +2546,7 @@ struct iwl_tdls_config_res {
 #define TX_FIFO_INTERNAL_MAX_NUM	6
 
 /**
- * struct iwl_shared_mem_cfg_v1 - Shared memory configuration information
+ * struct iwl_shared_mem_cfg_v2 - Shared memory configuration information
  *
  * @shared_mem_addr: shared memory addr (pre 8000 HW set to 0x0 as MARBH is not
  *	accessible)
@@ -2568,7 +2568,7 @@ struct iwl_tdls_config_res {
  * NOTE: on firmware that don't have IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG
  *	 set, the last 3 members don't exist.
  */
-struct iwl_shared_mem_cfg_v1 {
+struct iwl_shared_mem_cfg_v2 {
 	__le32 shared_mem_addr;
 	__le32 shared_mem_size;
 	__le32 sample_buff_addr;

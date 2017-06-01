@@ -955,7 +955,7 @@ static void iwl_mvm_parse_shared_mem_a000(struct iwl_mvm *mvm,
 static void iwl_mvm_parse_shared_mem(struct iwl_mvm *mvm,
 				     struct iwl_rx_packet *pkt)
 {
-	struct iwl_shared_mem_cfg_v1 *mem_cfg = (void *)pkt->data;
+	struct iwl_shared_mem_cfg_v2 *mem_cfg = (void *)pkt->data;
 	int i;
 
 	mvm->smem_cfg.num_lmacs = 1;
