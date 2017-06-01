@@ -82,6 +82,14 @@ config BATTERY_ACT8945A
 	  Say Y here to enable support for power supply provided by
 	  Active-semi ActivePath ACT8945A charger.
 
+config BATTERY_CPCAP
+	tristate "Motorola CPCAP PMIC battery driver"
+	depends on MFD_CPCAP && IIO
+	default MFD_CPCAP
+	help
+	  Say Y here to enable support for battery on Motorola
+	  phones and tablets such as droid 4.
+
 config BATTERY_DS2760
 	tristate "DS2760 battery driver (HP iPAQ & others)"
 	depends on W1 && W1_SLAVE_DS2760
