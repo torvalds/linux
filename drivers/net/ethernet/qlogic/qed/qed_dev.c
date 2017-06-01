@@ -1155,7 +1155,7 @@ static int qed_calc_hw_mode(struct qed_hwfn *p_hwfn)
 static void qed_init_cau_rt_data(struct qed_dev *cdev)
 {
 	u32 offset = CAU_REG_SB_VAR_MEMORY_RT_OFFSET;
-	int i, sb_id;
+	int i, igu_sb_id;
 
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
@@ -1165,15 +1165,17 @@ static void qed_init_cau_rt_data(struct qed_dev *cdev)
 
 		p_igu_info = p_hwfn->hw_info.p_igu_info;
 
-		for (sb_id = 0; sb_id < QED_MAPPING_MEMORY_SIZE(cdev);
-		     sb_id++) {
-			p_block = &p_igu_info->entry[sb_id];
+		for (igu_sb_id = 0;
+		     igu_sb_id < QED_MAPPING_MEMORY_SIZE(cdev); igu_sb_id++) {
+			p_block = &p_igu_info->entry[igu_sb_id];
+
 			if (!p_block->is_pf)
 				continue;
 
 			qed_init_cau_sb_entry(p_hwfn, &sb_entry,
 					      p_block->function_id, 0, 0);
-			STORE_RT_REG_AGG(p_hwfn, offset + sb_id * 2, sb_entry);
+			STORE_RT_REG_AGG(p_hwfn, offset + igu_sb_id * 2,
+					 sb_entry);
 		}
 	}
 }

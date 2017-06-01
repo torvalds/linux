@@ -302,13 +302,13 @@ u16 qed_int_get_sp_sb_id(struct qed_hwfn *p_hwfn);
  *
  * @param p_hwfn
  * @param p_ptt
- * @param sb_id		- igu status block id
+ * @param igu_sb_id	- igu status block id
  * @param opaque	- opaque fid of the sb owner.
  * @param b_set		- set(1) / clear(0)
  */
 void qed_int_igu_init_pure_rt_single(struct qed_hwfn *p_hwfn,
 				     struct qed_ptt *p_ptt,
-				     u32 sb_id,
+				     u16 igu_sb_id,
 				     u16 opaque,
 				     bool b_set);
 

@@ -1669,10 +1669,11 @@ void qed_int_igu_disable_int(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 #define IGU_CLEANUP_SLEEP_LENGTH                (1000)
 static void qed_int_igu_cleanup_sb(struct qed_hwfn *p_hwfn,
 				   struct qed_ptt *p_ptt,
-				   u32 sb_id, bool cleanup_set, u16 opaque_fid)
+				   u16 igu_sb_id,
+				   bool cleanup_set, u16 opaque_fid)
 {
 	u32 cmd_ctrl = 0, val = 0, sb_bit = 0, sb_bit_addr = 0, data = 0;
-	u32 pxp_addr = IGU_CMD_INT_ACK_BASE + sb_id;
+	u32 pxp_addr = IGU_CMD_INT_ACK_BASE + igu_sb_id;
 	u32 sleep_cnt = IGU_CLEANUP_SLEEP_LENGTH;
 
 	/* Set the data field */
@@ -1695,8 +1696,8 @@ static void qed_int_igu_cleanup_sb(struct qed_hwfn *p_hwfn,
 	mmiowb();
 
 	/* calculate where to read the status bit from */
-	sb_bit = 1 << (sb_id % 32);
-	sb_bit_addr = sb_id / 32 * sizeof(u32);
+	sb_bit = 1 << (igu_sb_id % 32);
+	sb_bit_addr = igu_sb_id / 32 * sizeof(u32);
 
 	sb_bit_addr += IGU_REG_CLEANUP_STATUS_0;
 
@@ -1713,29 +1714,30 @@ static void qed_int_igu_cleanup_sb(struct qed_hwfn *p_hwfn,
 	if (!sleep_cnt)
 		DP_NOTICE(p_hwfn,
 			  "Timeout waiting for clear status 0x%08x [for sb %d]\n",
-			  val, sb_id);
+			  val, igu_sb_id);
 }
 
 void qed_int_igu_init_pure_rt_single(struct qed_hwfn *p_hwfn,
 				     struct qed_ptt *p_ptt,
-				     u32 sb_id, u16 opaque, bool b_set)
+				     u16 igu_sb_id, u16 opaque, bool b_set)
 {
 	int pi, i;
 
 	/* Set */
 	if (b_set)
-		qed_int_igu_cleanup_sb(p_hwfn, p_ptt, sb_id, 1, opaque);
+		qed_int_igu_cleanup_sb(p_hwfn, p_ptt, igu_sb_id, 1, opaque);
 
 	/* Clear */
-	qed_int_igu_cleanup_sb(p_hwfn, p_ptt, sb_id, 0, opaque);
+	qed_int_igu_cleanup_sb(p_hwfn, p_ptt, igu_sb_id, 0, opaque);
 
 	/* Wait for the IGU SB to cleanup */
 	for (i = 0; i < IGU_CLEANUP_SLEEP_LENGTH; i++) {
 		u32 val;
 
 		val = qed_rd(p_hwfn, p_ptt,
-			     IGU_REG_WRITE_DONE_PENDING + ((sb_id / 32) * 4));
-		if (val & (1 << (sb_id % 32)))
+			     IGU_REG_WRITE_DONE_PENDING +
+			     ((igu_sb_id / 32) * 4));
+		if (val & BIT((igu_sb_id % 32)))
 			usleep_range(10, 20);
 		else
 			break;
@@ -1743,12 +1745,12 @@ void qed_int_igu_init_pure_rt_single(struct qed_hwfn *p_hwfn,
 	if (i == IGU_CLEANUP_SLEEP_LENGTH)
 		DP_NOTICE(p_hwfn,
 			  "Failed SB[0x%08x] still appearing in WRITE_DONE_PENDING\n",
-			  sb_id);
+			  igu_sb_id);
 
 	/* Clear the CAU for the SB */
 	for (pi = 0; pi < 12; pi++)
 		qed_wr(p_hwfn, p_ptt,
-		       CAU_REG_PI_MEMORY + (sb_id * 12 + pi) * 4, 0);
+		       CAU_REG_PI_MEMORY + (igu_sb_id * 12 + pi) * 4, 0);
 }
 
 void qed_int_igu_init_pure_rt(struct qed_hwfn *p_hwfn,
@@ -1757,7 +1759,7 @@ void qed_int_igu_init_pure_rt(struct qed_hwfn *p_hwfn,
 {
 	u32 igu_base_sb = p_hwfn->hw_info.p_igu_info->igu_base_sb;
 	u32 igu_sb_cnt = p_hwfn->hw_info.p_igu_info->igu_sb_cnt;
-	u32 sb_id = 0, val = 0;
+	u32 igu_sb_id = 0, val = 0;
 
 	val = qed_rd(p_hwfn, p_ptt, IGU_REG_BLOCK_CONFIGURATION);
 	val |= IGU_REG_BLOCK_CONFIGURATION_VF_CLEANUP_EN;
@@ -1768,18 +1770,19 @@ void qed_int_igu_init_pure_rt(struct qed_hwfn *p_hwfn,
 		   "IGU cleaning SBs [%d,...,%d]\n",
 		   igu_base_sb, igu_base_sb + igu_sb_cnt - 1);
 
-	for (sb_id = igu_base_sb; sb_id < igu_base_sb + igu_sb_cnt; sb_id++)
-		qed_int_igu_init_pure_rt_single(p_hwfn, p_ptt, sb_id,
+	for (igu_sb_id = igu_base_sb; igu_sb_id < igu_base_sb + igu_sb_cnt;
+	     igu_sb_id++)
+		qed_int_igu_init_pure_rt_single(p_hwfn, p_ptt, igu_sb_id,
 						p_hwfn->hw_info.opaque_fid,
 						b_set);
 
 	if (!b_slowpath)
 		return;
 
-	sb_id = p_hwfn->hw_info.p_igu_info->igu_dsb_id;
+	igu_sb_id = p_hwfn->hw_info.p_igu_info->igu_dsb_id;
 	DP_VERBOSE(p_hwfn, NETIF_MSG_INTR,
-		   "IGU cleaning slowpath SB [%d]\n", sb_id);
-	qed_int_igu_init_pure_rt_single(p_hwfn, p_ptt, sb_id,
+		   "IGU cleaning slowpath SB [%d]\n", igu_sb_id);
+	qed_int_igu_init_pure_rt_single(p_hwfn, p_ptt, igu_sb_id,
 					p_hwfn->hw_info.opaque_fid, b_set);
 }
 
