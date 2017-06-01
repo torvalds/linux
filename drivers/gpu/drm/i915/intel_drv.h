@@ -1332,6 +1332,8 @@ void intel_set_cdclk(struct drm_i915_private *dev_priv,
 		     const struct intel_cdclk_state *cdclk_state);
 
 /* intel_display.c */
+void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe);
+void i830_disable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe);
 enum transcoder intel_crtc_pch_transcoder(struct intel_crtc *crtc);
 void intel_update_rawclk(struct drm_i915_private *dev_priv);
 int vlv_get_hpll_vco(struct drm_i915_private *dev_priv);

@@ -1041,6 +1041,38 @@ static bool i9xx_always_on_power_well_enabled(struct drm_i915_private *dev_priv,
 	return true;
 }
 
+static void i830_pipes_power_well_enable(struct drm_i915_private *dev_priv,
+					 struct i915_power_well *power_well)
+{
+	if ((I915_READ(PIPECONF(PIPE_A)) & PIPECONF_ENABLE) == 0)
+		i830_enable_pipe(dev_priv, PIPE_A);
+	if ((I915_READ(PIPECONF(PIPE_B)) & PIPECONF_ENABLE) == 0)
+		i830_enable_pipe(dev_priv, PIPE_B);
+}
+
+static void i830_pipes_power_well_disable(struct drm_i915_private *dev_priv,
+					  struct i915_power_well *power_well)
+{
+	i830_disable_pipe(dev_priv, PIPE_B);
+	i830_disable_pipe(dev_priv, PIPE_A);
+}
+
+static bool i830_pipes_power_well_enabled(struct drm_i915_private *dev_priv,
+					  struct i915_power_well *power_well)
+{
+	return I915_READ(PIPECONF(PIPE_A)) & PIPECONF_ENABLE &&
+		I915_READ(PIPECONF(PIPE_B)) & PIPECONF_ENABLE;
+}
+
+static void i830_pipes_power_well_sync_hw(struct drm_i915_private *dev_priv,
+					  struct i915_power_well *power_well)
+{
+	if (power_well->count > 0)
+		i830_pipes_power_well_enable(dev_priv, power_well);
+	else
+		i830_pipes_power_well_disable(dev_priv, power_well);
+}
+
 static void vlv_set_power_well(struct drm_i915_private *dev_priv,
 			       struct i915_power_well *power_well, bool enable)
 {
@@ -1929,6 +1961,15 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	BIT_ULL(POWER_DOMAIN_AUX_D) |		\
 	BIT_ULL(POWER_DOMAIN_INIT))
 
+#define I830_PIPES_POWER_DOMAINS (		\
+	BIT_ULL(POWER_DOMAIN_PIPE_A) |		\
+	BIT_ULL(POWER_DOMAIN_PIPE_B) |		\
+	BIT_ULL(POWER_DOMAIN_PIPE_A_PANEL_FITTER) |	\
+	BIT_ULL(POWER_DOMAIN_PIPE_B_PANEL_FITTER) |	\
+	BIT_ULL(POWER_DOMAIN_TRANSCODER_A) |	\
+	BIT_ULL(POWER_DOMAIN_TRANSCODER_B) |	\
+	BIT_ULL(POWER_DOMAIN_INIT))
+
 static const struct i915_power_well_ops i9xx_always_on_power_well_ops = {
 	.sync_hw = i9xx_power_well_sync_hw_noop,
 	.enable = i9xx_always_on_power_well_noop,
@@ -1956,6 +1997,27 @@ static struct i915_power_well i9xx_always_on_power_well[] = {
 		.always_on = 1,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
+	},
+};
+
+static const struct i915_power_well_ops i830_pipes_power_well_ops = {
+	.sync_hw = i830_pipes_power_well_sync_hw,
+	.enable = i830_pipes_power_well_enable,
+	.disable = i830_pipes_power_well_disable,
+	.is_enabled = i830_pipes_power_well_enabled,
+};
+
+static struct i915_power_well i830_power_wells[] = {
+	{
+		.name = "always-on",
+		.always_on = 1,
+		.domains = POWER_DOMAIN_MASK,
+		.ops = &i9xx_always_on_power_well_ops,
+	},
+	{
+		.name = "pipes",
+		.domains = I830_PIPES_POWER_DOMAINS,
+		.ops = &i830_pipes_power_well_ops,
 	},
 };
 
@@ -2504,6 +2566,8 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 		set_power_wells(power_domains, chv_power_wells);
 	} else if (IS_VALLEYVIEW(dev_priv)) {
 		set_power_wells(power_domains, vlv_power_wells);
+	} else if (IS_I830(dev_priv)) {
+		set_power_wells(power_domains, i830_power_wells);
 	} else {
 		set_power_wells(power_domains, i9xx_always_on_power_well);
 	}

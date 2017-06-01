@@ -5836,6 +5836,10 @@ static void i9xx_crtc_disable(struct intel_crtc_state *old_crtc_state,
 
 	if (!dev_priv->display.initial_watermarks)
 		intel_update_watermarks(intel_crtc);
+
+	/* clock the pipe down to 640x480@60 to potentially save power */
+	if (IS_I830(dev_priv))
+		i830_enable_pipe(dev_priv, pipe);
 }
 
 static void intel_crtc_disable_noatomic(struct drm_crtc *crtc,
@@ -15145,6 +15149,91 @@ int intel_modeset_init(struct drm_device *dev)
 	return 0;
 }
 
+void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
+{
+	/* 640x480@60Hz, ~25175 kHz */
+	struct dpll clock = {
+		.m1 = 18,
+		.m2 = 7,
+		.p1 = 13,
+		.p2 = 4,
+		.n = 2,
+	};
+	u32 dpll, fp;
+	int i;
+
+	WARN_ON(i9xx_calc_dpll_params(48000, &clock) != 25154);
+
+	DRM_DEBUG_KMS("enabling pipe %c due to force quirk (vco=%d dot=%d)\n",
+		      pipe_name(pipe), clock.vco, clock.dot);
+
+	fp = i9xx_dpll_compute_fp(&clock);
+	dpll = (I915_READ(DPLL(pipe)) & DPLL_DVO_2X_MODE) |
+		DPLL_VGA_MODE_DIS |
+		((clock.p1 - 2) << DPLL_FPA01_P1_POST_DIV_SHIFT) |
+		PLL_P2_DIVIDE_BY_4 |
+		PLL_REF_INPUT_DREFCLK |
+		DPLL_VCO_ENABLE;
+
+	I915_WRITE(FP0(pipe), fp);
+	I915_WRITE(FP1(pipe), fp);
+
+	I915_WRITE(HTOTAL(pipe), (640 - 1) | ((800 - 1) << 16));
+	I915_WRITE(HBLANK(pipe), (640 - 1) | ((800 - 1) << 16));
+	I915_WRITE(HSYNC(pipe), (656 - 1) | ((752 - 1) << 16));
+	I915_WRITE(VTOTAL(pipe), (480 - 1) | ((525 - 1) << 16));
+	I915_WRITE(VBLANK(pipe), (480 - 1) | ((525 - 1) << 16));
+	I915_WRITE(VSYNC(pipe), (490 - 1) | ((492 - 1) << 16));
+	I915_WRITE(PIPESRC(pipe), ((640 - 1) << 16) | (480 - 1));
+
+	/*
+	 * Apparently we need to have VGA mode enabled prior to changing
+	 * the P1/P2 dividers. Otherwise the DPLL will keep using the old
+	 * dividers, even though the register value does change.
+	 */
+	I915_WRITE(DPLL(pipe), dpll & ~DPLL_VGA_MODE_DIS);
+	I915_WRITE(DPLL(pipe), dpll);
+
+	/* Wait for the clocks to stabilize. */
+	POSTING_READ(DPLL(pipe));
+	udelay(150);
+
+	/* The pixel multiplier can only be updated once the
+	 * DPLL is enabled and the clocks are stable.
+	 *
+	 * So write it again.
+	 */
+	I915_WRITE(DPLL(pipe), dpll);
+
+	/* We do this three times for luck */
+	for (i = 0; i < 3 ; i++) {
+		I915_WRITE(DPLL(pipe), dpll);
+		POSTING_READ(DPLL(pipe));
+		udelay(150); /* wait for warmup */
+	}
+
+	I915_WRITE(PIPECONF(pipe), PIPECONF_ENABLE | PIPECONF_PROGRESSIVE);
+	POSTING_READ(PIPECONF(pipe));
+}
+
+void i830_disable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
+{
+	DRM_DEBUG_KMS("disabling pipe %c due to force quirk\n",
+		      pipe_name(pipe));
+
+	assert_plane_disabled(dev_priv, PLANE_A);
+	assert_plane_disabled(dev_priv, PLANE_B);
+
+	I915_WRITE(PIPECONF(pipe), 0);
+	POSTING_READ(PIPECONF(pipe));
+
+	if (wait_for(pipe_dsl_stopped(dev_priv, pipe), 100))
+		DRM_ERROR("pipe %c off wait timed out\n", pipe_name(pipe));
+
+	I915_WRITE(DPLL(pipe), DPLL_VGA_MODE_DIS);
+	POSTING_READ(DPLL(pipe));
+}
+
 static void intel_enable_pipe_a(struct drm_device *dev,
 				struct drm_modeset_acquire_ctx *ctx)
 {
@@ -15274,7 +15363,8 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc,
 		crtc->plane = plane;
 	}
 
-	if (dev_priv->quirks & QUIRK_PIPEA_FORCE &&
+	if (!IS_I830(dev_priv) &&
+	    dev_priv->quirks & QUIRK_PIPEA_FORCE &&
 	    crtc->pipe == PIPE_A && !crtc->active) {
 		/* BIOS forgot to enable pipe A, this mostly happens after
 		 * resume. Force-enable the pipe to fix this, the update_dpms
