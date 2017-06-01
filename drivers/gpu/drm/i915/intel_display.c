@@ -5826,7 +5826,8 @@ static void i9xx_crtc_disable(struct intel_crtc_state *old_crtc_state,
 		intel_update_watermarks(intel_crtc);
 }
 
-static void intel_crtc_disable_noatomic(struct drm_crtc *crtc)
+static void intel_crtc_disable_noatomic(struct drm_crtc *crtc,
+					struct drm_modeset_acquire_ctx *ctx)
 {
 	struct intel_encoder *encoder;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -5856,7 +5857,7 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc)
 		return;
 	}
 
-	state->acquire_ctx = crtc->dev->mode_config.acquire_ctx;
+	state->acquire_ctx = ctx;
 
 	/* Everything's already locked, -EDEADLK can't happen. */
 	crtc_state = intel_atomic_get_crtc_state(state, intel_crtc);
@@ -15193,7 +15194,7 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc,
 		plane = crtc->plane;
 		crtc->base.primary->state->visible = true;
 		crtc->plane = !plane;
-		intel_crtc_disable_noatomic(&crtc->base);
+		intel_crtc_disable_noatomic(&crtc->base, ctx);
 		crtc->plane = plane;
 	}
 
@@ -15209,7 +15210,7 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc,
 	/* Adjust the state of the output pipe according to whether we
 	 * have active connectors/encoders. */
 	if (crtc->active && !intel_crtc_has_encoders(crtc))
-		intel_crtc_disable_noatomic(&crtc->base);
+		intel_crtc_disable_noatomic(&crtc->base, ctx);
 
 	if (crtc->active || HAS_GMCH_DISPLAY(dev_priv)) {
 		/*
