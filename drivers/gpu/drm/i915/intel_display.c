@@ -1550,6 +1550,7 @@ static void i9xx_enable_pll(struct intel_crtc *crtc)
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	i915_reg_t reg = DPLL(crtc->pipe);
 	u32 dpll = crtc->config->dpll_hw_state.dpll;
+	int i;
 
 	assert_pipe_disabled(dev_priv, crtc->pipe);
 
@@ -1596,15 +1597,11 @@ static void i9xx_enable_pll(struct intel_crtc *crtc)
 	}
 
 	/* We do this three times for luck */
-	I915_WRITE(reg, dpll);
-	POSTING_READ(reg);
-	udelay(150); /* wait for warmup */
-	I915_WRITE(reg, dpll);
-	POSTING_READ(reg);
-	udelay(150); /* wait for warmup */
-	I915_WRITE(reg, dpll);
-	POSTING_READ(reg);
-	udelay(150); /* wait for warmup */
+	for (i = 0; i < 3; i++) {
+		I915_WRITE(reg, dpll);
+		POSTING_READ(reg);
+		udelay(150); /* wait for warmup */
+	}
 }
 
 /**
