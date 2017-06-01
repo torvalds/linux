@@ -54,8 +54,6 @@ static struct iwpm_admin_data iwpm_admin;
 int iwpm_init(u8 nl_client)
 {
 	int ret = 0;
-	if (iwpm_valid_client(nl_client))
-		return -EINVAL;
 	mutex_lock(&iwpm_admin_lock);
 	if (atomic_read(&iwpm_admin.refcount) == 0) {
 		iwpm_hash_bucket = kzalloc(IWPM_MAPINFO_HASH_SIZE *
@@ -383,15 +381,11 @@ int iwpm_get_nlmsg_seq(void)
 
 int iwpm_valid_client(u8 nl_client)
 {
-	if (nl_client >= RDMA_NL_NUM_CLIENTS)
-		return 0;
 	return iwpm_admin.client_list[nl_client];
 }
 
 void iwpm_set_valid(u8 nl_client, int valid)
 {
-	if (nl_client >= RDMA_NL_NUM_CLIENTS)
-		return;
 	iwpm_admin.client_list[nl_client] = valid;
 }
 
