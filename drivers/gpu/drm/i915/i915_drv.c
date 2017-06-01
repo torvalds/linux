@@ -2470,9 +2470,6 @@ static int intel_runtime_resume(struct device *kdev)
 
 	intel_guc_resume(dev_priv);
 
-	if (IS_GEN6(dev_priv))
-		intel_init_pch_refclk(dev_priv);
-
 	if (IS_GEN9_LP(dev_priv)) {
 		bxt_disable_dc9(dev_priv);
 		bxt_display_core_init(dev_priv, true);
