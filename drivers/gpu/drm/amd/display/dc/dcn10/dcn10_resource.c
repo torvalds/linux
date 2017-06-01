@@ -438,7 +438,6 @@ static const struct dc_debug debug_defaults_drv = {
 };
 
 static const struct dc_debug debug_defaults_diags = {
-		.disable_clock_gate = true,
 		.disable_dmcu = true,
 		.force_abm_enable = false,
 		.timing_trace = true,

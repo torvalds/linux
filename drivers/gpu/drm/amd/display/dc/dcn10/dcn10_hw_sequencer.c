@@ -397,19 +397,6 @@ static void enable_power_gating_plane(
 	HWSEQ_REG_UPDATE(DOMAIN3_PG_CONFIG, DOMAIN3_POWER_FORCEON, force_on);
 	HWSEQ_REG_UPDATE(DOMAIN5_PG_CONFIG, DOMAIN5_POWER_FORCEON, force_on);
 	HWSEQ_REG_UPDATE(DOMAIN7_PG_CONFIG, DOMAIN7_POWER_FORCEON, force_on);
-
-	if (ctx->dc->debug.disable_clock_gate) {
-		/* probably better to just write entire register to 0xffff to
-		 * ensure all clock gating is disabled
-		 */
-		HWSEQ_REG_UPDATE_3(DCCG_GATE_DISABLE_CNTL,
-				DISPCLK_R_DCCG_GATE_DISABLE, 1,
-				DPREFCLK_R_DCCG_GATE_DISABLE, 1,
-				REFCLK_R_DIG_GATE_DISABLE, 1);
-		HWSEQ_REG_UPDATE(DCFCLK_CNTL,
-				DCFCLK_GATE_DIS, 1);
-	}
-
 }
 
 static void dpp_pg_control(
@@ -513,29 +500,12 @@ static void power_on_plane(
 {
 	uint32_t inst_offset = 0;
 
-	/* disable clock power gating */
-
-	/* DCCG_GATE_DISABLE_CNTL only has one instance */
-	if (ctx->dc->debug.disable_clock_gate) {
-		HWSEQ_REG_UPDATE_2(DCCG_GATE_DISABLE_CNTL,
-				DISPCLK_DCCG_GATE_DISABLE, 1,
-				DPPCLK_GATE_DISABLE, 1);
-		/* DCFCLK_CNTL only has one instance */
-		HWSEQ_REG_UPDATE(DCFCLK_CNTL,
-				DCFCLK_GATE_DIS, 1);
-	}
-
 	HWSEQ_REG_SET(DC_IP_REQUEST_CNTL,
 			IP_REQUEST_EN, 1);
 	dpp_pg_control(ctx, plane_id, true);
 	hubp_pg_control(ctx, plane_id, true);
 	HWSEQ_REG_SET(DC_IP_REQUEST_CNTL,
 			IP_REQUEST_EN, 0);
-
-	if (ctx->dc->debug.disable_clock_gate) {
-		HWSEQ_REG_UPDATE(DCCG_GATE_DISABLE_CNTL,
-				DISPCLK_DCCG_GATE_DISABLE, 0);
-	}
 }
 
 /* fully check bios enabledisplaypowergating table. dal only need dce init
