@@ -111,19 +111,6 @@
 					     "syscon";
 				reg = <0x440000 0x1000>;
 				#clock-cells = <2>;
-				core-clock-output-names =
-					"cpm-apll", "cpm-ppv2-core", "cpm-eip",
-					"cpm-core", "cpm-nand-core";
-				gate-clock-output-names =
-					"cpm-audio", "cpm-communit", "cpm-nand",
-					"cpm-ppv2", "cpm-sdio", "cpm-mg-domain",
-					"cpm-mg-core", "cpm-xor1", "cpm-xor0",
-					"cpm-gop-dp", "none", "cpm-pcie_x10",
-					"cpm-pcie_x11", "cpm-pcie_x4", "cpm-pcie-xor",
-					"cpm-sata", "cpm-sata-usb", "cpm-main",
-					"cpm-sd-mmc-gop", "none", "none",
-					"cpm-slow-io", "cpm-usb3h0", "cpm-usb3h1",
-					"cpm-usb3dev", "cpm-eip150", "cpm-eip197";
 			};
 
 			cpm_rtc: rtc@284000 {
