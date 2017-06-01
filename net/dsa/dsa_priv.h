@@ -73,6 +73,7 @@ struct dsa_device_ops {
 };
 
 struct dsa_slave_priv {
+	/* Copy of dp->ds->dst->tag_ops->xmit for faster access in hot path */
 	struct sk_buff *	(*xmit)(struct sk_buff *skb,
 					struct net_device *dev);
 
