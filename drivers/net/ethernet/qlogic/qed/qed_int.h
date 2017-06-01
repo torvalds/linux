@@ -211,14 +211,15 @@ struct qed_igu_block {
 	u8	vector_number;
 	u8	function_id;
 	u8	is_pf;
+
+	/* Index inside IGU [meant for back reference] */
+	u16	igu_sb_id;
 };
 
 struct qed_igu_info {
 	struct qed_igu_block entry[MAX_TOT_SB_PER_PATH];
 	u16 igu_dsb_id;
 
-	u16 igu_base_sb;
-	u16 igu_base_sb_iov;
 	struct qed_sb_cnt_info usage;
 
 };
@@ -356,16 +357,6 @@ void qed_int_free(struct qed_hwfn *p_hwfn);
  */
 void qed_int_setup(struct qed_hwfn *p_hwfn,
 		   struct qed_ptt *p_ptt);
-
-/**
- * @brief - Returns an Rx queue index appropriate for usage with given SB.
- *
- * @param p_hwfn
- * @param sb_id - absolute index of SB
- *
- * @return index of Rx queue
- */
-u16 qed_int_queue_id_from_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id);
 
 /**
  * @brief - Enable Interrupt & Attention for hw function
