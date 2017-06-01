@@ -445,7 +445,7 @@ static int gmc_v9_0_mc_init(struct amdgpu_device *adev)
 	/* hbm memory channel size */
 	chansize = 128;
 
-	tmp = RREG32(SOC15_REG_OFFSET(DF, 0, mmDF_CS_AON0_DramBaseAddress0));
+	tmp = RREG32_SOC15(DF, 0, mmDF_CS_AON0_DramBaseAddress0);
 	tmp &= DF_CS_AON0_DramBaseAddress0__IntLvNumChan_MASK;
 	tmp >>= DF_CS_AON0_DramBaseAddress0__IntLvNumChan__SHIFT;
 	switch (tmp) {
@@ -703,12 +703,12 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
-	tmp = RREG32(SOC15_REG_OFFSET(HDP, 0, mmHDP_MISC_CNTL));
+	tmp = RREG32_SOC15(HDP, 0, mmHDP_MISC_CNTL);
 	tmp |= HDP_MISC_CNTL__FLUSH_INVALIDATE_CACHE_MASK;
-	WREG32(SOC15_REG_OFFSET(HDP, 0, mmHDP_MISC_CNTL), tmp);
+	WREG32_SOC15(HDP, 0, mmHDP_MISC_CNTL, tmp);
 
-	tmp = RREG32(SOC15_REG_OFFSET(HDP, 0, mmHDP_HOST_PATH_CNTL));
-	WREG32(SOC15_REG_OFFSET(HDP, 0, mmHDP_HOST_PATH_CNTL), tmp);
+	tmp = RREG32_SOC15(HDP, 0, mmHDP_HOST_PATH_CNTL);
+	WREG32_SOC15(HDP, 0, mmHDP_HOST_PATH_CNTL, tmp);
 
 
 	if (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_ALWAYS)
