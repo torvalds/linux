@@ -14817,9 +14817,6 @@ static const struct intel_dmi_quirk intel_dmi_quirks[] = {
 };
 
 static struct intel_quirk intel_quirks[] = {
-	/* Toshiba Protege R-205, S-209 needs pipe A force quirk */
-	{ 0x2592, 0x1179, 0x0001, quirk_pipea_force },
-
 	/* ThinkPad T60 needs pipe A force quirk (bug #16494) */
 	{ 0x2782, 0x17aa, 0x201a, quirk_pipea_force },
 
