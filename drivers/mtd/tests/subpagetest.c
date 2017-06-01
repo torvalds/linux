@@ -102,7 +102,7 @@ static int write_eraseblock2(int ebnum)
 		if (unlikely(err || written != subpgsize * k)) {
 			pr_err("error: write failed at %#llx\n",
 			       (long long)addr);
-			if (written != subpgsize) {
+			if (written != subpgsize * k) {
 				pr_err("  write size: %#x\n",
 				       subpgsize * k);
 				pr_err("  written: %#08zx\n",
