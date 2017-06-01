@@ -77,13 +77,26 @@ static int vce_v3_0_set_clockgating_state(void *handle,
 static uint64_t vce_v3_0_ring_get_rptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
+	u32 v;
+
+	mutex_lock(&adev->grbm_idx_mutex);
+	if (adev->vce.harvest_config == 0 ||
+		adev->vce.harvest_config == AMDGPU_VCE_HARVEST_VCE1)
+		WREG32(mmGRBM_GFX_INDEX, GET_VCE_INSTANCE(0));
+	else if (adev->vce.harvest_config == AMDGPU_VCE_HARVEST_VCE0)
+		WREG32(mmGRBM_GFX_INDEX, GET_VCE_INSTANCE(1));
 
 	if (ring == &adev->vce.ring[0])
-		return RREG32(mmVCE_RB_RPTR);
+		v = RREG32(mmVCE_RB_RPTR);
 	else if (ring == &adev->vce.ring[1])
-		return RREG32(mmVCE_RB_RPTR2);
+		v = RREG32(mmVCE_RB_RPTR2);
 	else
-		return RREG32(mmVCE_RB_RPTR3);
+		v = RREG32(mmVCE_RB_RPTR3);
+
+	WREG32(mmGRBM_GFX_INDEX, mmGRBM_GFX_INDEX_DEFAULT);
+	mutex_unlock(&adev->grbm_idx_mutex);
+
+	return v;
 }
 
 /**
@@ -96,13 +109,26 @@ static uint64_t vce_v3_0_ring_get_rptr(struct amdgpu_ring *ring)
 static uint64_t vce_v3_0_ring_get_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
+	u32 v;
+
+	mutex_lock(&adev->grbm_idx_mutex);
+	if (adev->vce.harvest_config == 0 ||
+		adev->vce.harvest_config == AMDGPU_VCE_HARVEST_VCE1)
+		WREG32(mmGRBM_GFX_INDEX, GET_VCE_INSTANCE(0));
+	else if (adev->vce.harvest_config == AMDGPU_VCE_HARVEST_VCE0)
+		WREG32(mmGRBM_GFX_INDEX, GET_VCE_INSTANCE(1));
 
 	if (ring == &adev->vce.ring[0])
-		return RREG32(mmVCE_RB_WPTR);
+		v = RREG32(mmVCE_RB_WPTR);
 	else if (ring == &adev->vce.ring[1])
-		return RREG32(mmVCE_RB_WPTR2);
+		v = RREG32(mmVCE_RB_WPTR2);
 	else
-		return RREG32(mmVCE_RB_WPTR3);
+		v = RREG32(mmVCE_RB_WPTR3);
+
+	WREG32(mmGRBM_GFX_INDEX, mmGRBM_GFX_INDEX_DEFAULT);
+	mutex_unlock(&adev->grbm_idx_mutex);
+
+	return v;
 }
 
 /**
@@ -116,12 +142,22 @@ static void vce_v3_0_ring_set_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 
+	mutex_lock(&adev->grbm_idx_mutex);
+	if (adev->vce.harvest_config == 0 ||
+		adev->vce.harvest_config == AMDGPU_VCE_HARVEST_VCE1)
+		WREG32(mmGRBM_GFX_INDEX, GET_VCE_INSTANCE(0));
+	else if (adev->vce.harvest_config == AMDGPU_VCE_HARVEST_VCE0)
+		WREG32(mmGRBM_GFX_INDEX, GET_VCE_INSTANCE(1));
+
 	if (ring == &adev->vce.ring[0])
 		WREG32(mmVCE_RB_WPTR, lower_32_bits(ring->wptr));
 	else if (ring == &adev->vce.ring[1])
 		WREG32(mmVCE_RB_WPTR2, lower_32_bits(ring->wptr));
 	else
 		WREG32(mmVCE_RB_WPTR3, lower_32_bits(ring->wptr));
+
+	WREG32(mmGRBM_GFX_INDEX, mmGRBM_GFX_INDEX_DEFAULT);
+	mutex_unlock(&adev->grbm_idx_mutex);
 }
 
 static void vce_v3_0_override_vce_clock_gating(struct amdgpu_device *adev, bool override)
@@ -231,33 +267,38 @@ static int vce_v3_0_start(struct amdgpu_device *adev)
 	struct amdgpu_ring *ring;
 	int idx, r;
 
-	ring = &adev->vce.ring[0];
-	WREG32(mmVCE_RB_RPTR, lower_32_bits(ring->wptr));
-	WREG32(mmVCE_RB_WPTR, lower_32_bits(ring->wptr));
-	WREG32(mmVCE_RB_BASE_LO, ring->gpu_addr);
-	WREG32(mmVCE_RB_BASE_HI, upper_32_bits(ring->gpu_addr));
-	WREG32(mmVCE_RB_SIZE, ring->ring_size / 4);
-
-	ring = &adev->vce.ring[1];
-	WREG32(mmVCE_RB_RPTR2, lower_32_bits(ring->wptr));
-	WREG32(mmVCE_RB_WPTR2, lower_32_bits(ring->wptr));
-	WREG32(mmVCE_RB_BASE_LO2, ring->gpu_addr);
-	WREG32(mmVCE_RB_BASE_HI2, upper_32_bits(ring->gpu_addr));
-	WREG32(mmVCE_RB_SIZE2, ring->ring_size / 4);
-
-	ring = &adev->vce.ring[2];
-	WREG32(mmVCE_RB_RPTR3, lower_32_bits(ring->wptr));
-	WREG32(mmVCE_RB_WPTR3, lower_32_bits(ring->wptr));
-	WREG32(mmVCE_RB_BASE_LO3, ring->gpu_addr);
-	WREG32(mmVCE_RB_BASE_HI3, upper_32_bits(ring->gpu_addr));
-	WREG32(mmVCE_RB_SIZE3, ring->ring_size / 4);
-
 	mutex_lock(&adev->grbm_idx_mutex);
 	for (idx = 0; idx < 2; ++idx) {
 		if (adev->vce.harvest_config & (1 << idx))
 			continue;
 
 		WREG32(mmGRBM_GFX_INDEX, GET_VCE_INSTANCE(idx));
+
+		/* Program instance 0 reg space for two instances or instance 0 case
+		program instance 1 reg space for only instance 1 available case */
+		if (idx != 1 || adev->vce.harvest_config == AMDGPU_VCE_HARVEST_VCE0) {
+			ring = &adev->vce.ring[0];
+			WREG32(mmVCE_RB_RPTR, lower_32_bits(ring->wptr));
+			WREG32(mmVCE_RB_WPTR, lower_32_bits(ring->wptr));
+			WREG32(mmVCE_RB_BASE_LO, ring->gpu_addr);
+			WREG32(mmVCE_RB_BASE_HI, upper_32_bits(ring->gpu_addr));
+			WREG32(mmVCE_RB_SIZE, ring->ring_size / 4);
+
+			ring = &adev->vce.ring[1];
+			WREG32(mmVCE_RB_RPTR2, lower_32_bits(ring->wptr));
+			WREG32(mmVCE_RB_WPTR2, lower_32_bits(ring->wptr));
+			WREG32(mmVCE_RB_BASE_LO2, ring->gpu_addr);
+			WREG32(mmVCE_RB_BASE_HI2, upper_32_bits(ring->gpu_addr));
+			WREG32(mmVCE_RB_SIZE2, ring->ring_size / 4);
+
+			ring = &adev->vce.ring[2];
+			WREG32(mmVCE_RB_RPTR3, lower_32_bits(ring->wptr));
+			WREG32(mmVCE_RB_WPTR3, lower_32_bits(ring->wptr));
+			WREG32(mmVCE_RB_BASE_LO3, ring->gpu_addr);
+			WREG32(mmVCE_RB_BASE_HI3, upper_32_bits(ring->gpu_addr));
+			WREG32(mmVCE_RB_SIZE3, ring->ring_size / 4);
+		}
+
 		vce_v3_0_mc_resume(adev, idx);
 		WREG32_FIELD(VCE_STATUS, JOB_BUSY, 1);
 
