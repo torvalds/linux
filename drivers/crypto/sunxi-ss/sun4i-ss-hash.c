@@ -167,37 +167,28 @@ int sun4i_hash_import_sha1(struct ahash_request *areq, const void *in)
  */
 static int sun4i_hash(struct ahash_request *areq)
 {
-	u32 v, ivmode = 0;
-	unsigned int i = 0;
 	/*
 	 * i is the total bytes read from SGs, to be compared to areq->nbytes
 	 * i is important because we cannot rely on SG length since the sum of
 	 * SG->length could be greater than areq->nbytes
+	 *
+	 * end is the position when we need to stop writing to the device,
+	 * to be compared to i
+	 *
+	 * in_i: advancement in the current SG
 	 */
-
+	unsigned int i = 0, end, index, padlen, nwait, nbw = 0, j = 0, todo;
+	unsigned int in_i = 0;
+	u32 spaces, rx_cnt = SS_RX_DEFAULT, bf[32], wb = 0, v, ivmode = 0;
 	struct sun4i_req_ctx *op = ahash_request_ctx(areq);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(areq);
 	struct sun4i_tfm_ctx *tfmctx = crypto_ahash_ctx(tfm);
 	struct sun4i_ss_ctx *ss = tfmctx->ss;
-	unsigned int in_i = 0; /* advancement in the current SG */
-	unsigned int end;
-	/*
-	 * end is the position when we need to stop writing to the device,
-	 * to be compared to i
-	 */
-	int in_r, err = 0;
-	unsigned int todo;
-	u32 spaces, rx_cnt = SS_RX_DEFAULT;
-	size_t copied = 0;
-	struct sg_mapping_iter mi;
-	unsigned int j = 0;
-	int zeros;
-	unsigned int index, padlen;
-	__be64 bits;
-	u32 bf[32];
-	u32 wb = 0;
-	unsigned int nwait, nbw = 0;
 	struct scatterlist *in_sg = areq->src;
+	struct sg_mapping_iter mi;
+	int in_r, err = 0, zeros;
+	size_t copied = 0;
+	__be64 bits;
 
 	dev_dbg(ss->dev, "%s %s bc=%llu len=%u mode=%x wl=%u h0=%0x",
 		__func__, crypto_tfm_alg_name(areq->base.tfm),
