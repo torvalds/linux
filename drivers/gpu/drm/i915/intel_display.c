@@ -1193,9 +1193,8 @@ void assert_pipe(struct drm_i915_private *dev_priv,
 								      pipe);
 	enum intel_display_power_domain power_domain;
 
-	/* if we need the pipe quirk it must be always on */
-	if ((pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE) ||
-	    (pipe == PIPE_B && dev_priv->quirks & QUIRK_PIPEB_FORCE))
+	/* we keep both pipes enabled on 830 */
+	if (IS_I830(dev_priv))
 		state = true;
 
 	power_domain = POWER_DOMAIN_TRANSCODER(cpu_transcoder);
@@ -1629,8 +1628,7 @@ static void i9xx_disable_pll(struct intel_crtc *crtc)
 	}
 
 	/* Don't disable pipe or pipe PLLs if needed */
-	if ((pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE) ||
-	    (pipe == PIPE_B && dev_priv->quirks & QUIRK_PIPEB_FORCE))
+	if (IS_I830(dev_priv))
 		return;
 
 	/* Make sure the pipe isn't still relying on us */
@@ -1913,8 +1911,8 @@ static void intel_enable_pipe(struct intel_crtc *crtc)
 	reg = PIPECONF(cpu_transcoder);
 	val = I915_READ(reg);
 	if (val & PIPECONF_ENABLE) {
-		WARN_ON(!((pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE) ||
-			  (pipe == PIPE_B && dev_priv->quirks & QUIRK_PIPEB_FORCE)));
+		/* we keep both pipes enabled on 830 */
+		WARN_ON(!IS_I830(dev_priv));
 		return;
 	}
 
@@ -1974,8 +1972,7 @@ static void intel_disable_pipe(struct intel_crtc *crtc)
 		val &= ~PIPECONF_DOUBLE_WIDE;
 
 	/* Don't disable pipe or pipe PLLs if needed */
-	if (!(pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE) &&
-	    !(pipe == PIPE_B && dev_priv->quirks & QUIRK_PIPEB_FORCE))
+	if (!IS_I830(dev_priv))
 		val &= ~PIPECONF_ENABLE;
 
 	I915_WRITE(reg, val);
@@ -7045,8 +7042,8 @@ static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc)
 
 	pipeconf = 0;
 
-	if ((intel_crtc->pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE) ||
-	    (intel_crtc->pipe == PIPE_B && dev_priv->quirks & QUIRK_PIPEB_FORCE))
+	/* we keep both pipes enabled on 830 */
+	if (IS_I830(dev_priv))
 		pipeconf |= I915_READ(PIPECONF(intel_crtc->pipe)) & PIPECONF_ENABLE;
 
 	if (intel_crtc->config->double_wide)
@@ -12231,9 +12228,8 @@ verify_crtc_state(struct drm_crtc *crtc,
 
 	active = dev_priv->display.get_pipe_config(intel_crtc, pipe_config);
 
-	/* hw state is inconsistent with the pipe quirk */
-	if ((intel_crtc->pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE) ||
-	    (intel_crtc->pipe == PIPE_B && dev_priv->quirks & QUIRK_PIPEB_FORCE))
+	/* we keep both pipes enabled on 830 */
+	if (IS_I830(dev_priv))
 		active = new_crtc_state->active;
 
 	I915_STATE_WARN(new_crtc_state->active != active,
@@ -14732,27 +14728,6 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 }
 
 /*
- * Some BIOSes insist on assuming the GPU's pipe A is enabled at suspend,
- * resume, or other times.  This quirk makes sure that's the case for
- * affected systems.
- */
-static void quirk_pipea_force(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
-	dev_priv->quirks |= QUIRK_PIPEA_FORCE;
-	DRM_INFO("applying pipe a force quirk\n");
-}
-
-static void quirk_pipeb_force(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
-	dev_priv->quirks |= QUIRK_PIPEB_FORCE;
-	DRM_INFO("applying pipe b force quirk\n");
-}
-
-/*
  * Some machines (Lenovo U160) do not work with SSC on LVDS for some reason
  */
 static void quirk_ssc_force_disable(struct drm_device *dev)
@@ -14817,12 +14792,6 @@ static const struct intel_dmi_quirk intel_dmi_quirks[] = {
 };
 
 static struct intel_quirk intel_quirks[] = {
-	/* 830 needs to leave pipe A & dpll A up */
-	{ 0x3577, PCI_ANY_ID, PCI_ANY_ID, quirk_pipea_force },
-
-	/* 830 needs to leave pipe B & dpll B up */
-	{ 0x3577, PCI_ANY_ID, PCI_ANY_ID, quirk_pipeb_force },
-
 	/* Lenovo U160 cannot use SSC on LVDS */
 	{ 0x0046, 0x17aa, 0x3920, quirk_ssc_force_disable },
 
@@ -15228,37 +15197,6 @@ void i830_disable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 	POSTING_READ(DPLL(pipe));
 }
 
-static void intel_enable_pipe_a(struct drm_device *dev,
-				struct drm_modeset_acquire_ctx *ctx)
-{
-	struct intel_connector *connector;
-	struct drm_connector_list_iter conn_iter;
-	struct drm_connector *crt = NULL;
-	struct intel_load_detect_pipe load_detect_temp;
-	int ret;
-
-	/* We can't just switch on the pipe A, we need to set things up with a
-	 * proper mode and output configuration. As a gross hack, enable pipe A
-	 * by enabling the load detect pipe once. */
-	drm_connector_list_iter_begin(dev, &conn_iter);
-	for_each_intel_connector_iter(connector, &conn_iter) {
-		if (connector->encoder->type == INTEL_OUTPUT_ANALOG) {
-			crt = &connector->base;
-			break;
-		}
-	}
-	drm_connector_list_iter_end(&conn_iter);
-
-	if (!crt)
-		return;
-
-	ret = intel_get_load_detect_pipe(crt, NULL, &load_detect_temp, ctx);
-	WARN(ret < 0, "All modeset mutexes are locked, but intel_get_load_detect_pipe failed\n");
-
-	if (ret > 0)
-		intel_release_load_detect_pipe(crt, &load_detect_temp, ctx);
-}
-
 static bool
 intel_check_plane_mapping(struct intel_crtc *crtc)
 {
@@ -15355,16 +15293,6 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc,
 		crtc->plane = !plane;
 		intel_crtc_disable_noatomic(&crtc->base, ctx);
 		crtc->plane = plane;
-	}
-
-	if (!IS_I830(dev_priv) &&
-	    dev_priv->quirks & QUIRK_PIPEA_FORCE &&
-	    crtc->pipe == PIPE_A && !crtc->active) {
-		/* BIOS forgot to enable pipe A, this mostly happens after
-		 * resume. Force-enable the pipe to fix this, the update_dpms
-		 * call below we restore the pipe to the right state, but leave
-		 * the required bits on. */
-		intel_enable_pipe_a(dev, ctx);
 	}
 
 	/* Adjust the state of the output pipe according to whether we
