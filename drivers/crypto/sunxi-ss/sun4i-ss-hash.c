@@ -358,6 +358,15 @@ static int sun4i_hash(struct ahash_request *areq)
 		goto release_ss;
 	}
 
+	/*
+	 * The datasheet isn't very clear about when to retrieve the digest. The
+	 * bit SS_DATA_END is cleared when the engine has processed the data and
+	 * when the digest is computed *but* it doesn't mean the digest is
+	 * available in the digest registers. Hence the delay to be sure we can
+	 * read it.
+	 */
+	ndelay(1);
+
 	for (i = 0; i < crypto_ahash_digestsize(tfm) / 4; i++)
 		op->hash[i] = readl(ss->base + SS_MD0 + i * 4);
 
@@ -445,6 +454,15 @@ hash_final:
 		err = -EIO;
 		goto release_ss;
 	}
+
+	/*
+	 * The datasheet isn't very clear about when to retrieve the digest. The
+	 * bit SS_DATA_END is cleared when the engine has processed the data and
+	 * when the digest is computed *but* it doesn't mean the digest is
+	 * available in the digest registers. Hence the delay to be sure we can
+	 * read it.
+	 */
+	ndelay(1);
 
 	/* Get the hash from the device */
 	if (op->mode == SS_OP_SHA1) {
