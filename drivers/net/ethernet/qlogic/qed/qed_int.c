@@ -1412,6 +1412,26 @@ void qed_int_sb_setup(struct qed_hwfn *p_hwfn,
 				    sb_info->igu_sb_id, 0, 0);
 }
 
+struct qed_igu_block *qed_get_igu_free_sb(struct qed_hwfn *p_hwfn, bool b_is_pf)
+{
+	struct qed_igu_block *p_block;
+	u16 igu_id;
+
+	for (igu_id = 0; igu_id < QED_MAPPING_MEMORY_SIZE(p_hwfn->cdev);
+	     igu_id++) {
+		p_block = &p_hwfn->hw_info.p_igu_info->entry[igu_id];
+
+		if (!(p_block->status & QED_IGU_STATUS_VALID) ||
+		    !(p_block->status & QED_IGU_STATUS_FREE))
+			continue;
+
+		if (!!(p_block->status & QED_IGU_STATUS_PF) == b_is_pf)
+			return p_block;
+	}
+
+	return NULL;
+}
+
 static u16 qed_get_pf_igu_sb_id(struct qed_hwfn *p_hwfn, u16 vector_id)
 {
 	struct qed_igu_block *p_block;

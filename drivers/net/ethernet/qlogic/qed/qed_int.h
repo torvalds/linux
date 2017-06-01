@@ -225,6 +225,17 @@ struct qed_igu_info {
 };
 
 /* TODO Names of function may change... */
+/**
+ * @brief return a pointer to an unused valid SB
+ *
+ * @param p_hwfn
+ * @param b_is_pf - true iff we want a SB belonging to a PF
+ *
+ * @return point to an igu_block, NULL if none is available
+ */
+struct qed_igu_block *qed_get_igu_free_sb(struct qed_hwfn *p_hwfn,
+					  bool b_is_pf);
+
 void qed_int_igu_init_pure_rt(struct qed_hwfn *p_hwfn,
 			      struct qed_ptt *p_ptt,
 			      bool b_set,
