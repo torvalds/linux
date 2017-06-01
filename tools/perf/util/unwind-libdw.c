@@ -224,7 +224,7 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 
 	err = dwfl_getthread_frames(ui->dwfl, thread->tid, frame_callback, ui);
 
-	if (err && !ui->max_stack)
+	if (err && ui->max_stack != max_stack)
 		err = 0;
 
 	/*
