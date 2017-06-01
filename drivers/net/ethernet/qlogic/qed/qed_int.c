@@ -1300,6 +1300,40 @@ void qed_init_cau_sb_entry(struct qed_hwfn *p_hwfn,
 	SET_FIELD(p_sb_entry->data, CAU_SB_ENTRY_STATE1, cau_state);
 }
 
+static void qed_int_cau_conf_pi(struct qed_hwfn *p_hwfn,
+				struct qed_ptt *p_ptt,
+				u16 igu_sb_id,
+				u32 pi_index,
+				enum qed_coalescing_fsm coalescing_fsm,
+				u8 timeset)
+{
+	struct cau_pi_entry pi_entry;
+	u32 sb_offset, pi_offset;
+
+	if (IS_VF(p_hwfn->cdev))
+		return;
+
+	sb_offset = igu_sb_id * PIS_PER_SB;
+	memset(&pi_entry, 0, sizeof(struct cau_pi_entry));
+
+	SET_FIELD(pi_entry.prod, CAU_PI_ENTRY_PI_TIMESET, timeset);
+	if (coalescing_fsm == QED_COAL_RX_STATE_MACHINE)
+		SET_FIELD(pi_entry.prod, CAU_PI_ENTRY_FSM_SEL, 0);
+	else
+		SET_FIELD(pi_entry.prod, CAU_PI_ENTRY_FSM_SEL, 1);
+
+	pi_offset = sb_offset + pi_index;
+	if (p_hwfn->hw_init_done) {
+		qed_wr(p_hwfn, p_ptt,
+		       CAU_REG_PI_MEMORY + pi_offset * sizeof(u32),
+		       *((u32 *)&(pi_entry)));
+	} else {
+		STORE_RT_REG(p_hwfn,
+			     CAU_REG_PI_MEMORY_RT_OFFSET + pi_offset,
+			     *((u32 *)&(pi_entry)));
+	}
+}
+
 void qed_int_cau_conf_sb(struct qed_hwfn *p_hwfn,
 			 struct qed_ptt *p_ptt,
 			 dma_addr_t sb_phys,
@@ -1366,40 +1400,6 @@ void qed_int_cau_conf_sb(struct qed_hwfn *p_hwfn,
 	}
 }
 
-void qed_int_cau_conf_pi(struct qed_hwfn *p_hwfn,
-			 struct qed_ptt *p_ptt,
-			 u16 igu_sb_id,
-			 u32 pi_index,
-			 enum qed_coalescing_fsm coalescing_fsm,
-			 u8 timeset)
-{
-	struct cau_pi_entry pi_entry;
-	u32 sb_offset, pi_offset;
-
-	if (IS_VF(p_hwfn->cdev))
-		return;
-
-	sb_offset = igu_sb_id * PIS_PER_SB;
-	memset(&pi_entry, 0, sizeof(struct cau_pi_entry));
-
-	SET_FIELD(pi_entry.prod, CAU_PI_ENTRY_PI_TIMESET, timeset);
-	if (coalescing_fsm == QED_COAL_RX_STATE_MACHINE)
-		SET_FIELD(pi_entry.prod, CAU_PI_ENTRY_FSM_SEL, 0);
-	else
-		SET_FIELD(pi_entry.prod, CAU_PI_ENTRY_FSM_SEL, 1);
-
-	pi_offset = sb_offset + pi_index;
-	if (p_hwfn->hw_init_done) {
-		qed_wr(p_hwfn, p_ptt,
-		       CAU_REG_PI_MEMORY + pi_offset * sizeof(u32),
-		       *((u32 *)&(pi_entry)));
-	} else {
-		STORE_RT_REG(p_hwfn,
-			     CAU_REG_PI_MEMORY_RT_OFFSET + pi_offset,
-			     *((u32 *)&(pi_entry)));
-	}
-}
-
 void qed_int_sb_setup(struct qed_hwfn *p_hwfn,
 		      struct qed_ptt *p_ptt, struct qed_sb_info *sb_info)
 {
@@ -1412,16 +1412,47 @@ void qed_int_sb_setup(struct qed_hwfn *p_hwfn,
 				    sb_info->igu_sb_id, 0, 0);
 }
 
-/**
- * @brief qed_get_igu_sb_id - given a sw sb_id return the
- *        igu_sb_id
- *
- * @param p_hwfn
- * @param sb_id
- *
- * @return u16
- */
-static u16 qed_get_igu_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id)
+struct qed_igu_block *qed_get_igu_free_sb(struct qed_hwfn *p_hwfn, bool b_is_pf)
+{
+	struct qed_igu_block *p_block;
+	u16 igu_id;
+
+	for (igu_id = 0; igu_id < QED_MAPPING_MEMORY_SIZE(p_hwfn->cdev);
+	     igu_id++) {
+		p_block = &p_hwfn->hw_info.p_igu_info->entry[igu_id];
+
+		if (!(p_block->status & QED_IGU_STATUS_VALID) ||
+		    !(p_block->status & QED_IGU_STATUS_FREE))
+			continue;
+
+		if (!!(p_block->status & QED_IGU_STATUS_PF) == b_is_pf)
+			return p_block;
+	}
+
+	return NULL;
+}
+
+static u16 qed_get_pf_igu_sb_id(struct qed_hwfn *p_hwfn, u16 vector_id)
+{
+	struct qed_igu_block *p_block;
+	u16 igu_id;
+
+	for (igu_id = 0; igu_id < QED_MAPPING_MEMORY_SIZE(p_hwfn->cdev);
+	     igu_id++) {
+		p_block = &p_hwfn->hw_info.p_igu_info->entry[igu_id];
+
+		if (!(p_block->status & QED_IGU_STATUS_VALID) ||
+		    !p_block->is_pf ||
+		    p_block->vector_number != vector_id)
+			continue;
+
+		return igu_id;
+	}
+
+	return QED_SB_INVALID_IDX;
+}
+
+u16 qed_get_igu_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id)
 {
 	u16 igu_sb_id;
 
@@ -1429,7 +1460,7 @@ static u16 qed_get_igu_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id)
 	if (sb_id == QED_SP_SB_ID)
 		igu_sb_id = p_hwfn->hw_info.p_igu_info->igu_dsb_id;
 	else if (IS_PF(p_hwfn->cdev))
-		igu_sb_id = sb_id + p_hwfn->hw_info.p_igu_info->igu_base_sb;
+		igu_sb_id = qed_get_pf_igu_sb_id(p_hwfn, sb_id + 1);
 	else
 		igu_sb_id = qed_vf_get_igu_sb_id(p_hwfn, sb_id);
 
@@ -1454,8 +1485,19 @@ int qed_int_sb_init(struct qed_hwfn *p_hwfn,
 	sb_info->igu_sb_id = qed_get_igu_sb_id(p_hwfn, sb_id);
 
 	if (sb_id != QED_SP_SB_ID) {
-		p_hwfn->sbs_info[sb_id] = sb_info;
-		p_hwfn->num_sbs++;
+		if (IS_PF(p_hwfn->cdev)) {
+			struct qed_igu_info *p_info;
+			struct qed_igu_block *p_block;
+
+			p_info = p_hwfn->hw_info.p_igu_info;
+			p_block = &p_info->entry[sb_info->igu_sb_id];
+
+			p_block->sb_info = sb_info;
+			p_block->status &= ~QED_IGU_STATUS_FREE;
+			p_info->usage.free_cnt--;
+		} else {
+			qed_vf_set_sb_info(p_hwfn, sb_id, sb_info);
+		}
 	}
 
 	sb_info->cdev = p_hwfn->cdev;
@@ -1484,19 +1526,34 @@ int qed_int_sb_init(struct qed_hwfn *p_hwfn,
 int qed_int_sb_release(struct qed_hwfn *p_hwfn,
 		       struct qed_sb_info *sb_info, u16 sb_id)
 {
-	if (sb_id == QED_SP_SB_ID) {
-		DP_ERR(p_hwfn, "Do Not free sp sb using this function");
-		return -EINVAL;
-	}
+	struct qed_igu_block *p_block;
+	struct qed_igu_info *p_info;
+
+	if (!sb_info)
+		return 0;
 
 	/* zero status block and ack counter */
 	sb_info->sb_ack = 0;
 	memset(sb_info->sb_virt, 0, sizeof(*sb_info->sb_virt));
 
-	if (p_hwfn->sbs_info[sb_id] != NULL) {
-		p_hwfn->sbs_info[sb_id] = NULL;
-		p_hwfn->num_sbs--;
+	if (IS_VF(p_hwfn->cdev)) {
+		qed_vf_set_sb_info(p_hwfn, sb_id, NULL);
+		return 0;
 	}
+
+	p_info = p_hwfn->hw_info.p_igu_info;
+	p_block = &p_info->entry[sb_info->igu_sb_id];
+
+	/* Vector 0 is reserved to Default SB */
+	if (!p_block->vector_number) {
+		DP_ERR(p_hwfn, "Do Not free sp sb using this function");
+		return -EINVAL;
+	}
+
+	/* Lose reference to client's SB info, and fix counters */
+	p_block->sb_info = NULL;
+	p_block->status |= QED_IGU_STATUS_FREE;
+	p_info->usage.free_cnt++;
 
 	return 0;
 }
@@ -1616,10 +1673,9 @@ void qed_int_igu_enable_int(struct qed_hwfn *p_hwfn,
 	qed_wr(p_hwfn, p_ptt, IGU_REG_PF_CONFIGURATION, igu_pf_conf);
 }
 
-int qed_int_igu_enable(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
-		       enum qed_int_mode int_mode)
+static void qed_int_igu_enable_attn(struct qed_hwfn *p_hwfn,
+				    struct qed_ptt *p_ptt)
 {
-	int rc = 0;
 
 	/* Configure AEU signal change to produce attentions */
 	qed_wr(p_hwfn, p_ptt, IGU_REG_ATTENTION_ENABLE, 0);
@@ -1632,6 +1688,16 @@ int qed_int_igu_enable(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 
 	/* Unmask AEU signals toward IGU */
 	qed_wr(p_hwfn, p_ptt, MISC_REG_AEU_MASK_ATTN_IGU, 0xff);
+}
+
+int
+qed_int_igu_enable(struct qed_hwfn *p_hwfn,
+		   struct qed_ptt *p_ptt, enum qed_int_mode int_mode)
+{
+	int rc = 0;
+
+	qed_int_igu_enable_attn(p_hwfn, p_ptt);
+
 	if ((int_mode != QED_INT_MODE_INTA) || IS_LEAD_HWFN(p_hwfn)) {
 		rc = qed_slowpath_irq_req(p_hwfn);
 		if (rc) {
@@ -1660,10 +1726,11 @@ void qed_int_igu_disable_int(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 #define IGU_CLEANUP_SLEEP_LENGTH                (1000)
 static void qed_int_igu_cleanup_sb(struct qed_hwfn *p_hwfn,
 				   struct qed_ptt *p_ptt,
-				   u32 sb_id, bool cleanup_set, u16 opaque_fid)
+				   u16 igu_sb_id,
+				   bool cleanup_set, u16 opaque_fid)
 {
 	u32 cmd_ctrl = 0, val = 0, sb_bit = 0, sb_bit_addr = 0, data = 0;
-	u32 pxp_addr = IGU_CMD_INT_ACK_BASE + sb_id;
+	u32 pxp_addr = IGU_CMD_INT_ACK_BASE + igu_sb_id;
 	u32 sleep_cnt = IGU_CLEANUP_SLEEP_LENGTH;
 
 	/* Set the data field */
@@ -1686,8 +1753,8 @@ static void qed_int_igu_cleanup_sb(struct qed_hwfn *p_hwfn,
 	mmiowb();
 
 	/* calculate where to read the status bit from */
-	sb_bit = 1 << (sb_id % 32);
-	sb_bit_addr = sb_id / 32 * sizeof(u32);
+	sb_bit = 1 << (igu_sb_id % 32);
+	sb_bit_addr = igu_sb_id / 32 * sizeof(u32);
 
 	sb_bit_addr += IGU_REG_CLEANUP_STATUS_0;
 
@@ -1704,29 +1771,38 @@ static void qed_int_igu_cleanup_sb(struct qed_hwfn *p_hwfn,
 	if (!sleep_cnt)
 		DP_NOTICE(p_hwfn,
 			  "Timeout waiting for clear status 0x%08x [for sb %d]\n",
-			  val, sb_id);
+			  val, igu_sb_id);
 }
 
 void qed_int_igu_init_pure_rt_single(struct qed_hwfn *p_hwfn,
 				     struct qed_ptt *p_ptt,
-				     u32 sb_id, u16 opaque, bool b_set)
+				     u16 igu_sb_id, u16 opaque, bool b_set)
 {
+	struct qed_igu_block *p_block;
 	int pi, i;
+
+	p_block = &p_hwfn->hw_info.p_igu_info->entry[igu_sb_id];
+	DP_VERBOSE(p_hwfn, NETIF_MSG_INTR,
+		   "Cleaning SB [%04x]: func_id= %d is_pf = %d vector_num = 0x%0x\n",
+		   igu_sb_id,
+		   p_block->function_id,
+		   p_block->is_pf, p_block->vector_number);
 
 	/* Set */
 	if (b_set)
-		qed_int_igu_cleanup_sb(p_hwfn, p_ptt, sb_id, 1, opaque);
+		qed_int_igu_cleanup_sb(p_hwfn, p_ptt, igu_sb_id, 1, opaque);
 
 	/* Clear */
-	qed_int_igu_cleanup_sb(p_hwfn, p_ptt, sb_id, 0, opaque);
+	qed_int_igu_cleanup_sb(p_hwfn, p_ptt, igu_sb_id, 0, opaque);
 
 	/* Wait for the IGU SB to cleanup */
 	for (i = 0; i < IGU_CLEANUP_SLEEP_LENGTH; i++) {
 		u32 val;
 
 		val = qed_rd(p_hwfn, p_ptt,
-			     IGU_REG_WRITE_DONE_PENDING + ((sb_id / 32) * 4));
-		if (val & (1 << (sb_id % 32)))
+			     IGU_REG_WRITE_DONE_PENDING +
+			     ((igu_sb_id / 32) * 4));
+		if (val & BIT((igu_sb_id % 32)))
 			usleep_range(10, 20);
 		else
 			break;
@@ -1734,84 +1810,205 @@ void qed_int_igu_init_pure_rt_single(struct qed_hwfn *p_hwfn,
 	if (i == IGU_CLEANUP_SLEEP_LENGTH)
 		DP_NOTICE(p_hwfn,
 			  "Failed SB[0x%08x] still appearing in WRITE_DONE_PENDING\n",
-			  sb_id);
+			  igu_sb_id);
 
 	/* Clear the CAU for the SB */
 	for (pi = 0; pi < 12; pi++)
 		qed_wr(p_hwfn, p_ptt,
-		       CAU_REG_PI_MEMORY + (sb_id * 12 + pi) * 4, 0);
+		       CAU_REG_PI_MEMORY + (igu_sb_id * 12 + pi) * 4, 0);
 }
 
 void qed_int_igu_init_pure_rt(struct qed_hwfn *p_hwfn,
 			      struct qed_ptt *p_ptt,
 			      bool b_set, bool b_slowpath)
 {
-	u32 igu_base_sb = p_hwfn->hw_info.p_igu_info->igu_base_sb;
-	u32 igu_sb_cnt = p_hwfn->hw_info.p_igu_info->igu_sb_cnt;
-	u32 sb_id = 0, val = 0;
+	struct qed_igu_info *p_info = p_hwfn->hw_info.p_igu_info;
+	struct qed_igu_block *p_block;
+	u16 igu_sb_id = 0;
+	u32 val = 0;
 
 	val = qed_rd(p_hwfn, p_ptt, IGU_REG_BLOCK_CONFIGURATION);
 	val |= IGU_REG_BLOCK_CONFIGURATION_VF_CLEANUP_EN;
 	val &= ~IGU_REG_BLOCK_CONFIGURATION_PXP_TPH_INTERFACE_EN;
 	qed_wr(p_hwfn, p_ptt, IGU_REG_BLOCK_CONFIGURATION, val);
 
-	DP_VERBOSE(p_hwfn, NETIF_MSG_INTR,
-		   "IGU cleaning SBs [%d,...,%d]\n",
-		   igu_base_sb, igu_base_sb + igu_sb_cnt - 1);
+	for (igu_sb_id = 0;
+	     igu_sb_id < QED_MAPPING_MEMORY_SIZE(p_hwfn->cdev); igu_sb_id++) {
+		p_block = &p_info->entry[igu_sb_id];
 
-	for (sb_id = igu_base_sb; sb_id < igu_base_sb + igu_sb_cnt; sb_id++)
-		qed_int_igu_init_pure_rt_single(p_hwfn, p_ptt, sb_id,
+		if (!(p_block->status & QED_IGU_STATUS_VALID) ||
+		    !p_block->is_pf ||
+		    (p_block->status & QED_IGU_STATUS_DSB))
+			continue;
+
+		qed_int_igu_init_pure_rt_single(p_hwfn, p_ptt, igu_sb_id,
 						p_hwfn->hw_info.opaque_fid,
 						b_set);
+	}
 
-	if (!b_slowpath)
-		return;
-
-	sb_id = p_hwfn->hw_info.p_igu_info->igu_dsb_id;
-	DP_VERBOSE(p_hwfn, NETIF_MSG_INTR,
-		   "IGU cleaning slowpath SB [%d]\n", sb_id);
-	qed_int_igu_init_pure_rt_single(p_hwfn, p_ptt, sb_id,
-					p_hwfn->hw_info.opaque_fid, b_set);
+	if (b_slowpath)
+		qed_int_igu_init_pure_rt_single(p_hwfn, p_ptt,
+						p_info->igu_dsb_id,
+						p_hwfn->hw_info.opaque_fid,
+						b_set);
 }
 
-static u32 qed_int_igu_read_cam_block(struct qed_hwfn *p_hwfn,
-				      struct qed_ptt *p_ptt, u16 sb_id)
+int qed_int_igu_reset_cam(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	struct qed_igu_info *p_info = p_hwfn->hw_info.p_igu_info;
+	struct qed_igu_block *p_block;
+	int pf_sbs, vf_sbs;
+	u16 igu_sb_id;
+	u32 val, rval;
+
+	if (!RESC_NUM(p_hwfn, QED_SB)) {
+		p_info->b_allow_pf_vf_change = false;
+	} else {
+		/* Use the numbers the MFW have provided -
+		 * don't forget MFW accounts for the default SB as well.
+		 */
+		p_info->b_allow_pf_vf_change = true;
+
+		if (p_info->usage.cnt != RESC_NUM(p_hwfn, QED_SB) - 1) {
+			DP_INFO(p_hwfn,
+				"MFW notifies of 0x%04x PF SBs; IGU indicates of only 0x%04x\n",
+				RESC_NUM(p_hwfn, QED_SB) - 1,
+				p_info->usage.cnt);
+			p_info->usage.cnt = RESC_NUM(p_hwfn, QED_SB) - 1;
+		}
+
+		if (IS_PF_SRIOV(p_hwfn)) {
+			u16 vfs = p_hwfn->cdev->p_iov_info->total_vfs;
+
+			if (vfs != p_info->usage.iov_cnt)
+				DP_VERBOSE(p_hwfn,
+					   NETIF_MSG_INTR,
+					   "0x%04x VF SBs in IGU CAM != PCI configuration 0x%04x\n",
+					   p_info->usage.iov_cnt, vfs);
+
+			/* At this point we know how many SBs we have totally
+			 * in IGU + number of PF SBs. So we can validate that
+			 * we'd have sufficient for VF.
+			 */
+			if (vfs > p_info->usage.free_cnt +
+			    p_info->usage.free_cnt_iov - p_info->usage.cnt) {
+				DP_NOTICE(p_hwfn,
+					  "Not enough SBs for VFs - 0x%04x SBs, from which %04x PFs and %04x are required\n",
+					  p_info->usage.free_cnt +
+					  p_info->usage.free_cnt_iov,
+					  p_info->usage.cnt, vfs);
+				return -EINVAL;
+			}
+
+			/* Currently cap the number of VFs SBs by the
+			 * number of VFs.
+			 */
+			p_info->usage.iov_cnt = vfs;
+		}
+	}
+
+	/* Mark all SBs as free, now in the right PF/VFs division */
+	p_info->usage.free_cnt = p_info->usage.cnt;
+	p_info->usage.free_cnt_iov = p_info->usage.iov_cnt;
+	p_info->usage.orig = p_info->usage.cnt;
+	p_info->usage.iov_orig = p_info->usage.iov_cnt;
+
+	/* We now proceed to re-configure the IGU cam to reflect the initial
+	 * configuration. We can start with the Default SB.
+	 */
+	pf_sbs = p_info->usage.cnt;
+	vf_sbs = p_info->usage.iov_cnt;
+
+	for (igu_sb_id = p_info->igu_dsb_id;
+	     igu_sb_id < QED_MAPPING_MEMORY_SIZE(p_hwfn->cdev); igu_sb_id++) {
+		p_block = &p_info->entry[igu_sb_id];
+		val = 0;
+
+		if (!(p_block->status & QED_IGU_STATUS_VALID))
+			continue;
+
+		if (p_block->status & QED_IGU_STATUS_DSB) {
+			p_block->function_id = p_hwfn->rel_pf_id;
+			p_block->is_pf = 1;
+			p_block->vector_number = 0;
+			p_block->status = QED_IGU_STATUS_VALID |
+					  QED_IGU_STATUS_PF |
+					  QED_IGU_STATUS_DSB;
+		} else if (pf_sbs) {
+			pf_sbs--;
+			p_block->function_id = p_hwfn->rel_pf_id;
+			p_block->is_pf = 1;
+			p_block->vector_number = p_info->usage.cnt - pf_sbs;
+			p_block->status = QED_IGU_STATUS_VALID |
+					  QED_IGU_STATUS_PF |
+					  QED_IGU_STATUS_FREE;
+		} else if (vf_sbs) {
+			p_block->function_id =
+			    p_hwfn->cdev->p_iov_info->first_vf_in_pf +
+			    p_info->usage.iov_cnt - vf_sbs;
+			p_block->is_pf = 0;
+			p_block->vector_number = 0;
+			p_block->status = QED_IGU_STATUS_VALID |
+					  QED_IGU_STATUS_FREE;
+			vf_sbs--;
+		} else {
+			p_block->function_id = 0;
+			p_block->is_pf = 0;
+			p_block->vector_number = 0;
+		}
+
+		SET_FIELD(val, IGU_MAPPING_LINE_FUNCTION_NUMBER,
+			  p_block->function_id);
+		SET_FIELD(val, IGU_MAPPING_LINE_PF_VALID, p_block->is_pf);
+		SET_FIELD(val, IGU_MAPPING_LINE_VECTOR_NUMBER,
+			  p_block->vector_number);
+
+		/* VF entries would be enabled when VF is initializaed */
+		SET_FIELD(val, IGU_MAPPING_LINE_VALID, p_block->is_pf);
+
+		rval = qed_rd(p_hwfn, p_ptt,
+			      IGU_REG_MAPPING_MEMORY + sizeof(u32) * igu_sb_id);
+
+		if (rval != val) {
+			qed_wr(p_hwfn, p_ptt,
+			       IGU_REG_MAPPING_MEMORY +
+			       sizeof(u32) * igu_sb_id, val);
+
+			DP_VERBOSE(p_hwfn,
+				   NETIF_MSG_INTR,
+				   "IGU reset: [SB 0x%04x] func_id = %d is_pf = %d vector_num = 0x%x [%08x -> %08x]\n",
+				   igu_sb_id,
+				   p_block->function_id,
+				   p_block->is_pf,
+				   p_block->vector_number, rval, val);
+		}
+	}
+
+	return 0;
+}
+
+static void qed_int_igu_read_cam_block(struct qed_hwfn *p_hwfn,
+				       struct qed_ptt *p_ptt, u16 igu_sb_id)
 {
 	u32 val = qed_rd(p_hwfn, p_ptt,
-			 IGU_REG_MAPPING_MEMORY + sizeof(u32) * sb_id);
+			 IGU_REG_MAPPING_MEMORY + sizeof(u32) * igu_sb_id);
 	struct qed_igu_block *p_block;
 
-	p_block = &p_hwfn->hw_info.p_igu_info->igu_map.igu_blocks[sb_id];
-
-	/* stop scanning when hit first invalid PF entry */
-	if (!GET_FIELD(val, IGU_MAPPING_LINE_VALID) &&
-	    GET_FIELD(val, IGU_MAPPING_LINE_PF_VALID))
-		goto out;
+	p_block = &p_hwfn->hw_info.p_igu_info->entry[igu_sb_id];
 
 	/* Fill the block information */
-	p_block->status		= QED_IGU_STATUS_VALID;
-	p_block->function_id	= GET_FIELD(val,
-					    IGU_MAPPING_LINE_FUNCTION_NUMBER);
-	p_block->is_pf		= GET_FIELD(val, IGU_MAPPING_LINE_PF_VALID);
-	p_block->vector_number	= GET_FIELD(val,
-					    IGU_MAPPING_LINE_VECTOR_NUMBER);
-
-	DP_VERBOSE(p_hwfn, NETIF_MSG_INTR,
-		   "IGU_BLOCK: [SB 0x%04x, Value in CAM 0x%08x] func_id = %d is_pf = %d vector_num = 0x%x\n",
-		   sb_id, val, p_block->function_id,
-		   p_block->is_pf, p_block->vector_number);
-
-out:
-	return val;
+	p_block->function_id = GET_FIELD(val, IGU_MAPPING_LINE_FUNCTION_NUMBER);
+	p_block->is_pf = GET_FIELD(val, IGU_MAPPING_LINE_PF_VALID);
+	p_block->vector_number = GET_FIELD(val, IGU_MAPPING_LINE_VECTOR_NUMBER);
+	p_block->igu_sb_id = igu_sb_id;
 }
 
 int qed_int_igu_read_cam(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	struct qed_igu_info *p_igu_info;
-	u32 val, min_vf = 0, max_vf = 0;
-	u16 sb_id, last_iov_sb_id = 0;
-	struct qed_igu_block *blk;
-	u16 prev_sb_id = 0xFF;
+	struct qed_igu_block *p_block;
+	u32 min_vf = 0, max_vf = 0;
+	u16 igu_sb_id;
 
 	p_hwfn->hw_info.p_igu_info = kzalloc(sizeof(*p_igu_info), GFP_KERNEL);
 	if (!p_hwfn->hw_info.p_igu_info)
@@ -1819,12 +2016,10 @@ int qed_int_igu_read_cam(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 
 	p_igu_info = p_hwfn->hw_info.p_igu_info;
 
-	/* Initialize base sb / sb cnt for PFs and VFs */
-	p_igu_info->igu_base_sb		= 0xffff;
-	p_igu_info->igu_sb_cnt		= 0;
-	p_igu_info->igu_dsb_id		= 0xffff;
-	p_igu_info->igu_base_sb_iov	= 0xffff;
+	/* Distinguish between existent and non-existent default SB */
+	p_igu_info->igu_dsb_id = QED_SB_INVALID_IDX;
 
+	/* Find the range of VF ids whose SB belong to this PF */
 	if (p_hwfn->cdev->p_iov_info) {
 		struct qed_hw_sriov_info *p_iov = p_hwfn->cdev->p_iov_info;
 
@@ -1832,112 +2027,68 @@ int qed_int_igu_read_cam(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		max_vf	= p_iov->first_vf_in_pf + p_iov->total_vfs;
 	}
 
-	for (sb_id = 0; sb_id < QED_MAPPING_MEMORY_SIZE(p_hwfn->cdev);
-	     sb_id++) {
-		blk = &p_igu_info->igu_map.igu_blocks[sb_id];
+	for (igu_sb_id = 0;
+	     igu_sb_id < QED_MAPPING_MEMORY_SIZE(p_hwfn->cdev); igu_sb_id++) {
+		/* Read current entry; Notice it might not belong to this PF */
+		qed_int_igu_read_cam_block(p_hwfn, p_ptt, igu_sb_id);
+		p_block = &p_igu_info->entry[igu_sb_id];
 
-		val	= qed_int_igu_read_cam_block(p_hwfn, p_ptt, sb_id);
+		if ((p_block->is_pf) &&
+		    (p_block->function_id == p_hwfn->rel_pf_id)) {
+			p_block->status = QED_IGU_STATUS_PF |
+					  QED_IGU_STATUS_VALID |
+					  QED_IGU_STATUS_FREE;
 
-		/* stop scanning when hit first invalid PF entry */
-		if (!GET_FIELD(val, IGU_MAPPING_LINE_VALID) &&
-		    GET_FIELD(val, IGU_MAPPING_LINE_PF_VALID))
-			break;
+			if (p_igu_info->igu_dsb_id != QED_SB_INVALID_IDX)
+				p_igu_info->usage.cnt++;
+		} else if (!(p_block->is_pf) &&
+			   (p_block->function_id >= min_vf) &&
+			   (p_block->function_id < max_vf)) {
+			/* Available for VFs of this PF */
+			p_block->status = QED_IGU_STATUS_VALID |
+					  QED_IGU_STATUS_FREE;
 
-		if (blk->is_pf) {
-			if (blk->function_id == p_hwfn->rel_pf_id) {
-				blk->status |= QED_IGU_STATUS_PF;
+			if (p_igu_info->igu_dsb_id != QED_SB_INVALID_IDX)
+				p_igu_info->usage.iov_cnt++;
+		}
 
-				if (blk->vector_number == 0) {
-					if (p_igu_info->igu_dsb_id == 0xffff)
-						p_igu_info->igu_dsb_id = sb_id;
-				} else {
-					if (p_igu_info->igu_base_sb ==
-					    0xffff) {
-						p_igu_info->igu_base_sb = sb_id;
-					} else if (prev_sb_id != sb_id - 1) {
-						DP_NOTICE(p_hwfn->cdev,
-							  "consecutive igu vectors for HWFN %x broken",
-							  p_hwfn->rel_pf_id);
-						break;
-					}
-					prev_sb_id = sb_id;
-					/* we don't count the default */
-					(p_igu_info->igu_sb_cnt)++;
-				}
-			}
-		} else {
-			if ((blk->function_id >= min_vf) &&
-			    (blk->function_id < max_vf)) {
-				/* Available for VFs of this PF */
-				if (p_igu_info->igu_base_sb_iov == 0xffff) {
-					p_igu_info->igu_base_sb_iov = sb_id;
-				} else if (last_iov_sb_id != sb_id - 1) {
-					if (!val) {
-						DP_VERBOSE(p_hwfn->cdev,
-							   NETIF_MSG_INTR,
-							   "First uninitialized IGU CAM entry at index 0x%04x\n",
-							   sb_id);
-					} else {
-						DP_NOTICE(p_hwfn->cdev,
-							  "Consecutive igu vectors for HWFN %x vfs is broken [jumps from %04x to %04x]\n",
-							  p_hwfn->rel_pf_id,
-							  last_iov_sb_id,
-							  sb_id); }
-					break;
-				}
-				blk->status |= QED_IGU_STATUS_FREE;
-				p_hwfn->hw_info.p_igu_info->free_blks++;
-				last_iov_sb_id = sb_id;
-			}
+		/* Mark the First entry belonging to the PF or its VFs
+		 * as the default SB [we'll reset IGU prior to first usage].
+		 */
+		if ((p_block->status & QED_IGU_STATUS_VALID) &&
+		    (p_igu_info->igu_dsb_id == QED_SB_INVALID_IDX)) {
+			p_igu_info->igu_dsb_id = igu_sb_id;
+			p_block->status |= QED_IGU_STATUS_DSB;
+		}
+
+		/* limit number of prints by having each PF print only its
+		 * entries with the exception of PF0 which would print
+		 * everything.
+		 */
+		if ((p_block->status & QED_IGU_STATUS_VALID) ||
+		    (p_hwfn->abs_pf_id == 0)) {
+			DP_VERBOSE(p_hwfn, NETIF_MSG_INTR,
+				   "IGU_BLOCK: [SB 0x%04x] func_id = %d is_pf = %d vector_num = 0x%x\n",
+				   igu_sb_id, p_block->function_id,
+				   p_block->is_pf, p_block->vector_number);
 		}
 	}
 
-	/* There's a possibility the igu_sb_cnt_iov doesn't properly reflect
-	 * the number of VF SBs [especially for first VF on engine, as we can't
-	 * differentiate between empty entries and its entries].
-	 * Since we don't really support more SBs than VFs today, prevent any
-	 * such configuration by sanitizing the number of SBs to equal the
-	 * number of VFs.
-	 */
-	if (IS_PF_SRIOV(p_hwfn)) {
-		u16 total_vfs = p_hwfn->cdev->p_iov_info->total_vfs;
-
-		if (total_vfs < p_igu_info->free_blks) {
-			DP_VERBOSE(p_hwfn,
-				   (NETIF_MSG_INTR | QED_MSG_IOV),
-				   "Limiting number of SBs for IOV - %04x --> %04x\n",
-				   p_igu_info->free_blks,
-				   p_hwfn->cdev->p_iov_info->total_vfs);
-			p_igu_info->free_blks = total_vfs;
-		} else if (total_vfs > p_igu_info->free_blks) {
-			DP_NOTICE(p_hwfn,
-				  "IGU has only %04x SBs for VFs while the device has %04x VFs\n",
-				  p_igu_info->free_blks, total_vfs);
-			return -EINVAL;
-		}
-	}
-	p_igu_info->igu_sb_cnt_iov = p_igu_info->free_blks;
-
-	DP_VERBOSE(
-		p_hwfn,
-		NETIF_MSG_INTR,
-		"IGU igu_base_sb=0x%x [IOV 0x%x] igu_sb_cnt=%d [IOV 0x%x] igu_dsb_id=0x%x\n",
-		p_igu_info->igu_base_sb,
-		p_igu_info->igu_base_sb_iov,
-		p_igu_info->igu_sb_cnt,
-		p_igu_info->igu_sb_cnt_iov,
-		p_igu_info->igu_dsb_id);
-
-	if (p_igu_info->igu_base_sb == 0xffff ||
-	    p_igu_info->igu_dsb_id == 0xffff ||
-	    p_igu_info->igu_sb_cnt == 0) {
+	if (p_igu_info->igu_dsb_id == QED_SB_INVALID_IDX) {
 		DP_NOTICE(p_hwfn,
-			  "IGU CAM returned invalid values igu_base_sb=0x%x igu_sb_cnt=%d igu_dsb_id=0x%x\n",
-			   p_igu_info->igu_base_sb,
-			   p_igu_info->igu_sb_cnt,
-			   p_igu_info->igu_dsb_id);
+			  "IGU CAM returned invalid values igu_dsb_id=0x%x\n",
+			  p_igu_info->igu_dsb_id);
 		return -EINVAL;
 	}
+
+	/* All non default SB are considered free at this point */
+	p_igu_info->usage.free_cnt = p_igu_info->usage.cnt;
+	p_igu_info->usage.free_cnt_iov = p_igu_info->usage.iov_cnt;
+
+	DP_VERBOSE(p_hwfn, NETIF_MSG_INTR,
+		   "igu_dsb_id=0x%x, num Free SBs - PF: %04x VF: %04x [might change after resource allocation]\n",
+		   p_igu_info->igu_dsb_id,
+		   p_igu_info->usage.cnt, p_igu_info->usage.iov_cnt);
 
 	return 0;
 }
@@ -2035,31 +2186,7 @@ void qed_int_get_num_sbs(struct qed_hwfn	*p_hwfn,
 	if (!info || !p_sb_cnt_info)
 		return;
 
-	p_sb_cnt_info->sb_cnt		= info->igu_sb_cnt;
-	p_sb_cnt_info->sb_iov_cnt	= info->igu_sb_cnt_iov;
-	p_sb_cnt_info->sb_free_blk	= info->free_blks;
-}
-
-u16 qed_int_queue_id_from_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id)
-{
-	struct qed_igu_info *p_info = p_hwfn->hw_info.p_igu_info;
-
-	/* Determine origin of SB id */
-	if ((sb_id >= p_info->igu_base_sb) &&
-	    (sb_id < p_info->igu_base_sb + p_info->igu_sb_cnt)) {
-		return sb_id - p_info->igu_base_sb;
-	} else if ((sb_id >= p_info->igu_base_sb_iov) &&
-		   (sb_id < p_info->igu_base_sb_iov + p_info->igu_sb_cnt_iov)) {
-		/* We want the first VF queue to be adjacent to the
-		 * last PF queue. Since L2 queues can be partial to
-		 * SBs, we'll use the feature instead.
-		 */
-		return sb_id - p_info->igu_base_sb_iov +
-		       FEAT_NUM(p_hwfn, QED_PF_L2_QUE);
-	} else {
-		DP_NOTICE(p_hwfn, "SB %d not in range for function\n", sb_id);
-		return 0;
-	}
+	memcpy(p_sb_cnt_info, &info->usage, sizeof(*p_sb_cnt_info));
 }
 
 void qed_int_disable_post_isr_release(struct qed_dev *cdev)

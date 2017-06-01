@@ -762,7 +762,7 @@ static int qed_slowpath_setup_int(struct qed_dev *cdev,
 	for_each_hwfn(cdev, i) {
 		memset(&sb_cnt_info, 0, sizeof(sb_cnt_info));
 		qed_int_get_num_sbs(&cdev->hwfns[i], &sb_cnt_info);
-		cdev->int_params.in.num_vectors += sb_cnt_info.sb_cnt;
+		cdev->int_params.in.num_vectors += sb_cnt_info.cnt;
 		cdev->int_params.in.num_vectors++; /* slowpath */
 	}
 

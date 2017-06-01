@@ -792,9 +792,12 @@ int qed_vf_pf_vport_start(struct qed_hwfn *p_hwfn,
 	req->only_untagged = only_untagged;
 
 	/* status blocks */
-	for (i = 0; i < p_hwfn->vf_iov_info->acquire_resp.resc.num_sbs; i++)
-		if (p_hwfn->sbs_info[i])
-			req->sb_addr[i] = p_hwfn->sbs_info[i]->sb_phys;
+	for (i = 0; i < p_hwfn->vf_iov_info->acquire_resp.resc.num_sbs; i++) {
+		struct qed_sb_info *p_sb = p_hwfn->vf_iov_info->sbs_info[i];
+
+		if (p_sb)
+			req->sb_addr[i] = p_sb->sb_phys;
+	}
 
 	/* add list termination tlv */
 	qed_add_tlv(p_hwfn, &p_iov->offset,
@@ -1238,6 +1241,24 @@ u16 qed_vf_get_igu_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id)
 	}
 
 	return p_iov->acquire_resp.resc.hw_sbs[sb_id].hw_sb_id;
+}
+
+void qed_vf_set_sb_info(struct qed_hwfn *p_hwfn,
+			u16 sb_id, struct qed_sb_info *p_sb)
+{
+	struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
+
+	if (!p_iov) {
+		DP_NOTICE(p_hwfn, "vf_sriov_info isn't initialized\n");
+		return;
+	}
+
+	if (sb_id >= PFVF_MAX_SBS_PER_VF) {
+		DP_NOTICE(p_hwfn, "Can't configure SB %04x\n", sb_id);
+		return;
+	}
+
+	p_iov->sbs_info[sb_id] = p_sb;
 }
 
 int qed_vf_read_bulletin(struct qed_hwfn *p_hwfn, u8 *p_change)

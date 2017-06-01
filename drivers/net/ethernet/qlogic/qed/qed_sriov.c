@@ -378,33 +378,6 @@ static int qed_iov_pci_cfg_info(struct qed_dev *cdev)
 	return 0;
 }
 
-static void qed_iov_clear_vf_igu_blocks(struct qed_hwfn *p_hwfn,
-					struct qed_ptt *p_ptt)
-{
-	struct qed_igu_block *p_sb;
-	u16 sb_id;
-	u32 val;
-
-	if (!p_hwfn->hw_info.p_igu_info) {
-		DP_ERR(p_hwfn,
-		       "qed_iov_clear_vf_igu_blocks IGU Info not initialized\n");
-		return;
-	}
-
-	for (sb_id = 0; sb_id < QED_MAPPING_MEMORY_SIZE(p_hwfn->cdev);
-	     sb_id++) {
-		p_sb = &p_hwfn->hw_info.p_igu_info->igu_map.igu_blocks[sb_id];
-		if ((p_sb->status & QED_IGU_STATUS_FREE) &&
-		    !(p_sb->status & QED_IGU_STATUS_PF)) {
-			val = qed_rd(p_hwfn, p_ptt,
-				     IGU_REG_MAPPING_MEMORY + sb_id * 4);
-			SET_FIELD(val, IGU_MAPPING_LINE_VALID, 0);
-			qed_wr(p_hwfn, p_ptt,
-			       IGU_REG_MAPPING_MEMORY + 4 * sb_id, val);
-		}
-	}
-}
-
 static void qed_iov_setup_vfdb(struct qed_hwfn *p_hwfn)
 {
 	struct qed_hw_sriov_info *p_iov = p_hwfn->cdev->p_iov_info;
@@ -555,13 +528,12 @@ int qed_iov_alloc(struct qed_hwfn *p_hwfn)
 	return qed_iov_allocate_vfdb(p_hwfn);
 }
 
-void qed_iov_setup(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+void qed_iov_setup(struct qed_hwfn *p_hwfn)
 {
 	if (!IS_PF_SRIOV(p_hwfn) || !IS_PF_SRIOV_ALLOC(p_hwfn))
 		return;
 
 	qed_iov_setup_vfdb(p_hwfn);
-	qed_iov_clear_vf_igu_blocks(p_hwfn, p_ptt);
 }
 
 void qed_iov_free(struct qed_hwfn *p_hwfn)
@@ -868,45 +840,36 @@ static u8 qed_iov_alloc_vf_igu_sbs(struct qed_hwfn *p_hwfn,
 				   struct qed_ptt *p_ptt,
 				   struct qed_vf_info *vf, u16 num_rx_queues)
 {
-	struct qed_igu_block *igu_blocks;
-	int qid = 0, igu_id = 0;
+	struct qed_igu_block *p_block;
+	struct cau_sb_entry sb_entry;
+	int qid = 0;
 	u32 val = 0;
 
-	igu_blocks = p_hwfn->hw_info.p_igu_info->igu_map.igu_blocks;
-
-	if (num_rx_queues > p_hwfn->hw_info.p_igu_info->free_blks)
-		num_rx_queues = p_hwfn->hw_info.p_igu_info->free_blks;
-	p_hwfn->hw_info.p_igu_info->free_blks -= num_rx_queues;
+	if (num_rx_queues > p_hwfn->hw_info.p_igu_info->usage.free_cnt_iov)
+		num_rx_queues = p_hwfn->hw_info.p_igu_info->usage.free_cnt_iov;
+	p_hwfn->hw_info.p_igu_info->usage.free_cnt_iov -= num_rx_queues;
 
 	SET_FIELD(val, IGU_MAPPING_LINE_FUNCTION_NUMBER, vf->abs_vf_id);
 	SET_FIELD(val, IGU_MAPPING_LINE_VALID, 1);
 	SET_FIELD(val, IGU_MAPPING_LINE_PF_VALID, 0);
 
-	while ((qid < num_rx_queues) &&
-	       (igu_id < QED_MAPPING_MEMORY_SIZE(p_hwfn->cdev))) {
-		if (igu_blocks[igu_id].status & QED_IGU_STATUS_FREE) {
-			struct cau_sb_entry sb_entry;
+	for (qid = 0; qid < num_rx_queues; qid++) {
+		p_block = qed_get_igu_free_sb(p_hwfn, false);
+		vf->igu_sbs[qid] = p_block->igu_sb_id;
+		p_block->status &= ~QED_IGU_STATUS_FREE;
+		SET_FIELD(val, IGU_MAPPING_LINE_VECTOR_NUMBER, qid);
 
-			vf->igu_sbs[qid] = (u16)igu_id;
-			igu_blocks[igu_id].status &= ~QED_IGU_STATUS_FREE;
+		qed_wr(p_hwfn, p_ptt,
+		       IGU_REG_MAPPING_MEMORY +
+		       sizeof(u32) * p_block->igu_sb_id, val);
 
-			SET_FIELD(val, IGU_MAPPING_LINE_VECTOR_NUMBER, qid);
-
-			qed_wr(p_hwfn, p_ptt,
-			       IGU_REG_MAPPING_MEMORY + sizeof(u32) * igu_id,
-			       val);
-
-			/* Configure igu sb in CAU which were marked valid */
-			qed_init_cau_sb_entry(p_hwfn, &sb_entry,
-					      p_hwfn->rel_pf_id,
-					      vf->abs_vf_id, 1);
-			qed_dmae_host2grc(p_hwfn, p_ptt,
-					  (u64)(uintptr_t)&sb_entry,
-					  CAU_REG_SB_VAR_MEMORY +
-					  igu_id * sizeof(u64), 2, 0);
-			qid++;
-		}
-		igu_id++;
+		/* Configure igu sb in CAU which were marked valid */
+		qed_init_cau_sb_entry(p_hwfn, &sb_entry,
+				      p_hwfn->rel_pf_id, vf->abs_vf_id, 1);
+		qed_dmae_host2grc(p_hwfn, p_ptt,
+				  (u64)(uintptr_t)&sb_entry,
+				  CAU_REG_SB_VAR_MEMORY +
+				  p_block->igu_sb_id * sizeof(u64), 2, 0);
 	}
 
 	vf->num_sbs = (u8) num_rx_queues;
@@ -931,10 +894,8 @@ static void qed_iov_free_vf_igu_sbs(struct qed_hwfn *p_hwfn,
 		SET_FIELD(val, IGU_MAPPING_LINE_VALID, 0);
 		qed_wr(p_hwfn, p_ptt, addr, val);
 
-		p_info->igu_map.igu_blocks[igu_id].status |=
-		    QED_IGU_STATUS_FREE;
-
-		p_hwfn->hw_info.p_igu_info->free_blks++;
+		p_info->entry[igu_id].status |= QED_IGU_STATUS_FREE;
+		p_hwfn->hw_info.p_igu_info->usage.free_cnt_iov++;
 	}
 
 	vf->num_sbs = 0;

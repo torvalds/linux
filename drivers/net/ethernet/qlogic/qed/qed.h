@@ -495,10 +495,6 @@ struct qed_hwfn {
 	bool b_rdma_enabled_in_prs;
 	u32 rdma_prs_search_reg;
 
-	/* Array of sb_info of all status blocks */
-	struct qed_sb_info		*sbs_info[MAX_SB_PER_PF_MIMD];
-	u16				num_sbs;
-
 	struct qed_cxt_mngr		*p_cxt_mngr;
 
 	/* Flag indicating whether interrupts are enabled or not*/

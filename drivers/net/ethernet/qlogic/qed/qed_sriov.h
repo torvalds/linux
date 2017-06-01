@@ -316,9 +316,8 @@ int qed_iov_alloc(struct qed_hwfn *p_hwfn);
  * @brief qed_iov_setup - setup sriov related resources
  *
  * @param p_hwfn
- * @param p_ptt
  */
-void qed_iov_setup(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+void qed_iov_setup(struct qed_hwfn *p_hwfn);
 
 /**
  * @brief qed_iov_free - free sriov related resources
@@ -397,7 +396,7 @@ static inline int qed_iov_alloc(struct qed_hwfn *p_hwfn)
 	return 0;
 }
 
-static inline void qed_iov_setup(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+static inline void qed_iov_setup(struct qed_hwfn *p_hwfn)
 {
 }
 
