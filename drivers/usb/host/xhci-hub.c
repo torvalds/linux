@@ -419,7 +419,7 @@ static int xhci_stop_device(struct xhci_hcd *xhci, int slot_id, int suspend)
 	wait_for_completion(cmd->completion);
 
 	if (cmd->status == COMP_COMMAND_ABORTED ||
-			cmd->status == COMP_STOPPED) {
+	    cmd->status == COMP_COMMAND_RING_STOPPED) {
 		xhci_warn(xhci, "Timeout while waiting for stop endpoint command\n");
 		ret = -ETIME;
 	}

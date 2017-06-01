@@ -249,9 +249,9 @@
 			OMAP3_CORE1_IOPAD(0x2110, PIN_INPUT | MUX_MODE0)   /* cam_xclka.cam_xclka */
 			OMAP3_CORE1_IOPAD(0x2112, PIN_INPUT | MUX_MODE0)   /* cam_pclk.cam_pclk */
 
-			OMAP3_CORE1_IOPAD(0x2114, PIN_INPUT | MUX_MODE0)   /* cam_d0.cam_d0 */
-			OMAP3_CORE1_IOPAD(0x2116, PIN_INPUT | MUX_MODE0)   /* cam_d1.cam_d1 */
-			OMAP3_CORE1_IOPAD(0x2118, PIN_INPUT | MUX_MODE0)   /* cam_d2.cam_d2 */
+			OMAP3_CORE1_IOPAD(0x2116, PIN_INPUT | MUX_MODE0)   /* cam_d0.cam_d0 */
+			OMAP3_CORE1_IOPAD(0x2118, PIN_INPUT | MUX_MODE0)   /* cam_d1.cam_d1 */
+			OMAP3_CORE1_IOPAD(0x211a, PIN_INPUT | MUX_MODE0)   /* cam_d2.cam_d2 */
 			OMAP3_CORE1_IOPAD(0x211c, PIN_INPUT | MUX_MODE0)   /* cam_d3.cam_d3 */
 			OMAP3_CORE1_IOPAD(0x211e, PIN_INPUT | MUX_MODE0)   /* cam_d4.cam_d4 */
 			OMAP3_CORE1_IOPAD(0x2120, PIN_INPUT | MUX_MODE0)   /* cam_d5.cam_d5 */

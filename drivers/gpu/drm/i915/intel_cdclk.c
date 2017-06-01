@@ -1798,13 +1798,11 @@ static int g4x_hrawclk(struct drm_i915_private *dev_priv)
 	case CLKCFG_FSB_800:
 		return 200000;
 	case CLKCFG_FSB_1067:
+	case CLKCFG_FSB_1067_ALT:
 		return 266667;
 	case CLKCFG_FSB_1333:
+	case CLKCFG_FSB_1333_ALT:
 		return 333333;
-	/* these two are just a guess; one of them might be right */
-	case CLKCFG_FSB_1600:
-	case CLKCFG_FSB_1600_ALT:
-		return 400000;
 	default:
 		return 133333;
 	}

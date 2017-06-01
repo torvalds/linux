@@ -425,7 +425,7 @@ static const struct regmap_config tcpci_regmap_config = {
 	.max_register = 0x7F, /* 0x80 .. 0xFF are vendor defined */
 };
 
-const struct tcpc_config tcpci_tcpc_config = {
+static const struct tcpc_config tcpci_tcpc_config = {
 	.type = TYPEC_PORT_DFP,
 	.default_role = TYPEC_SINK,
 };

@@ -60,6 +60,9 @@ struct tcpc_config {
 	const u32 *snk_pdo;
 	unsigned int nr_snk_pdo;
 
+	const u32 *snk_vdo;
+	unsigned int nr_snk_vdo;
+
 	unsigned int max_snk_mv;
 	unsigned int max_snk_ma;
 	unsigned int max_snk_mw;
