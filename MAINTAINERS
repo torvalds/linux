@@ -7787,6 +7787,7 @@ F:	drivers/pci/hotplug/rpa*
 F:	drivers/rtc/rtc-opal.c
 F:	drivers/scsi/ibmvscsi/
 F:	drivers/tty/hvc/hvc_opal.c
+F:	drivers/watchdog/wdrtas.c
 F:	tools/testing/selftests/powerpc
 N:	/pmac
 N:	powermac
