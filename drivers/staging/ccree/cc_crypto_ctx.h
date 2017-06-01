@@ -14,7 +14,6 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-
 #ifndef _CC_CRYPTO_CTX_H_
 #define _CC_CRYPTO_CTX_H_
 
@@ -91,9 +90,7 @@
 #define	CC_MULTI2_MIN_NUM_ROUNDS				8
 #define	CC_MULTI2_MAX_NUM_ROUNDS				128
 
-
 #define CC_DRV_ALG_MAX_BLOCK_SIZE CC_HASH_BLOCK_SIZE_MAX
-
 
 enum drv_engine_type {
 	DRV_ENGINE_NULL = 0,
@@ -178,7 +175,6 @@ enum drv_multi2_mode {
 	DRV_MULTI2_RESERVE32B = S32_MAX
 };
 
-
 /* drv_crypto_key_type[1:0] is mapped to cipher_do[1:0] */
 /* drv_crypto_key_type[2] is mapped to cipher_config2 */
 enum drv_crypto_key_type {
@@ -207,7 +203,6 @@ enum drv_crypto_padding_type {
 struct drv_ctx_generic {
 	enum drv_crypto_alg alg;
 } __attribute__((__may_alias__));
-
 
 struct drv_ctx_hash {
 	enum drv_crypto_alg alg; /* DRV_CRYPTO_ALG_HASH */
@@ -276,7 +271,6 @@ struct drv_ctx_aead {
 /*******************************************************************/
 /***************** MESSAGE BASED CONTEXTS **************************/
 /*******************************************************************/
-
 
 /* Get the address of a @member within a given @ctx address
    @ctx: The context address
