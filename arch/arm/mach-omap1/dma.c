@@ -240,7 +240,6 @@ static void omap1_show_dma_caps(void)
 		w |= 1 << 3;
 		dma_write(w, GSCR, 0);
 	}
-	return;
 }
 
 static unsigned configure_dma_errata(void)
