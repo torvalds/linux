@@ -1300,6 +1300,40 @@ void qed_init_cau_sb_entry(struct qed_hwfn *p_hwfn,
 	SET_FIELD(p_sb_entry->data, CAU_SB_ENTRY_STATE1, cau_state);
 }
 
+static void qed_int_cau_conf_pi(struct qed_hwfn *p_hwfn,
+				struct qed_ptt *p_ptt,
+				u16 igu_sb_id,
+				u32 pi_index,
+				enum qed_coalescing_fsm coalescing_fsm,
+				u8 timeset)
+{
+	struct cau_pi_entry pi_entry;
+	u32 sb_offset, pi_offset;
+
+	if (IS_VF(p_hwfn->cdev))
+		return;
+
+	sb_offset = igu_sb_id * PIS_PER_SB;
+	memset(&pi_entry, 0, sizeof(struct cau_pi_entry));
+
+	SET_FIELD(pi_entry.prod, CAU_PI_ENTRY_PI_TIMESET, timeset);
+	if (coalescing_fsm == QED_COAL_RX_STATE_MACHINE)
+		SET_FIELD(pi_entry.prod, CAU_PI_ENTRY_FSM_SEL, 0);
+	else
+		SET_FIELD(pi_entry.prod, CAU_PI_ENTRY_FSM_SEL, 1);
+
+	pi_offset = sb_offset + pi_index;
+	if (p_hwfn->hw_init_done) {
+		qed_wr(p_hwfn, p_ptt,
+		       CAU_REG_PI_MEMORY + pi_offset * sizeof(u32),
+		       *((u32 *)&(pi_entry)));
+	} else {
+		STORE_RT_REG(p_hwfn,
+			     CAU_REG_PI_MEMORY_RT_OFFSET + pi_offset,
+			     *((u32 *)&(pi_entry)));
+	}
+}
+
 void qed_int_cau_conf_sb(struct qed_hwfn *p_hwfn,
 			 struct qed_ptt *p_ptt,
 			 dma_addr_t sb_phys,
@@ -1363,40 +1397,6 @@ void qed_int_cau_conf_sb(struct qed_hwfn *p_hwfn,
 					    QED_COAL_TX_STATE_MACHINE,
 					    timeset);
 		}
-	}
-}
-
-void qed_int_cau_conf_pi(struct qed_hwfn *p_hwfn,
-			 struct qed_ptt *p_ptt,
-			 u16 igu_sb_id,
-			 u32 pi_index,
-			 enum qed_coalescing_fsm coalescing_fsm,
-			 u8 timeset)
-{
-	struct cau_pi_entry pi_entry;
-	u32 sb_offset, pi_offset;
-
-	if (IS_VF(p_hwfn->cdev))
-		return;
-
-	sb_offset = igu_sb_id * PIS_PER_SB;
-	memset(&pi_entry, 0, sizeof(struct cau_pi_entry));
-
-	SET_FIELD(pi_entry.prod, CAU_PI_ENTRY_PI_TIMESET, timeset);
-	if (coalescing_fsm == QED_COAL_RX_STATE_MACHINE)
-		SET_FIELD(pi_entry.prod, CAU_PI_ENTRY_FSM_SEL, 0);
-	else
-		SET_FIELD(pi_entry.prod, CAU_PI_ENTRY_FSM_SEL, 1);
-
-	pi_offset = sb_offset + pi_index;
-	if (p_hwfn->hw_init_done) {
-		qed_wr(p_hwfn, p_ptt,
-		       CAU_REG_PI_MEMORY + pi_offset * sizeof(u32),
-		       *((u32 *)&(pi_entry)));
-	} else {
-		STORE_RT_REG(p_hwfn,
-			     CAU_REG_PI_MEMORY_RT_OFFSET + pi_offset,
-			     *((u32 *)&(pi_entry)));
 	}
 }
 

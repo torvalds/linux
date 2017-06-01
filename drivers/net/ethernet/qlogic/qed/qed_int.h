@@ -79,24 +79,6 @@ enum qed_coalescing_fsm {
 };
 
 /**
- * @brief qed_int_cau_conf_pi - configure cau for a given
- *        status block
- *
- * @param p_hwfn
- * @param p_ptt
- * @param igu_sb_id
- * @param pi_index
- * @param state
- * @param timeset
- */
-void qed_int_cau_conf_pi(struct qed_hwfn *p_hwfn,
-			 struct qed_ptt *p_ptt,
-			 u16 igu_sb_id,
-			 u32 pi_index,
-			 enum qed_coalescing_fsm coalescing_fsm,
-			 u8 timeset);
-
-/**
  * @brief qed_int_igu_enable_int - enable device interrupts
  *
  * @param p_hwfn
