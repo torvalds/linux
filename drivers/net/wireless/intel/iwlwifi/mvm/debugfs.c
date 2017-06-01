@@ -73,7 +73,7 @@
 #include "sta.h"
 #include "iwl-io.h"
 #include "debugfs.h"
-#include "iwl-fw-error-dump.h"
+#include "fw/error-dump.h"
 
 static ssize_t iwl_dbgfs_ctdp_budget_read(struct file *file,
 					  char __user *user_buf,

@@ -80,7 +80,7 @@
 #include "iwl-prph.h"
 #include "iwl-scd.h"
 #include "iwl-agn-hw.h"
-#include "iwl-fw-error-dump.h"
+#include "fw/error-dump.h"
 #include "internal.h"
 #include "iwl-fh.h"
 

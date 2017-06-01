@@ -38,7 +38,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 
-#include "iwl-fw.h"
+#include "fw/img.h"
 #include "iwl-eeprom-parse.h"
 #include "iwl-csr.h"
 #include "iwl-debug.h"

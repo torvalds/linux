@@ -76,7 +76,7 @@
 #include "iwl-trans.h"
 #include "iwl-op-mode.h"
 #include "iwl-agn-hw.h"
-#include "iwl-fw.h"
+#include "fw/img.h"
 #include "iwl-config.h"
 #include "iwl-modparams.h"
 

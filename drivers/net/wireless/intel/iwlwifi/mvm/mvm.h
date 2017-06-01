@@ -81,7 +81,7 @@
 #include "iwl-trans.h"
 #include "iwl-notif-wait.h"
 #include "iwl-eeprom-parse.h"
-#include "iwl-fw-file.h"
+#include "fw/file.h"
 #include "iwl-config.h"
 #include "sta.h"
 #include "fw-api.h"

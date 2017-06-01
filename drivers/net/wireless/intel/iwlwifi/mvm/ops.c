@@ -71,7 +71,7 @@
 #include "iwl-notif-wait.h"
 #include "iwl-trans.h"
 #include "iwl-op-mode.h"
-#include "iwl-fw.h"
+#include "fw/img.h"
 #include "iwl-debug.h"
 #include "iwl-drv.h"
 #include "iwl-modparams.h"
