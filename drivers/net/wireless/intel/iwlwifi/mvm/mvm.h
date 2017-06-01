@@ -607,19 +607,6 @@ enum iwl_mvm_tdls_cs_state {
 	IWL_MVM_TDLS_SW_ACTIVE,
 };
 
-#define MAX_NUM_LMAC 2
-struct iwl_mvm_shared_mem_cfg {
-	int num_lmacs;
-	int num_txfifo_entries;
-	struct {
-		u32 txfifo_size[TX_FIFO_MAX_NUM];
-		u32 rxfifo1_size;
-	} lmac[MAX_NUM_LMAC];
-	u32 rxfifo2_size;
-	u32 internal_txfifo_addr;
-	u32 internal_txfifo_size[TX_FIFO_INTERNAL_MAX_NUM];
-};
-
 /**
  * struct iwl_mvm_reorder_buffer - per ra/tid/queue reorder buffer
  * @head_sn: reorder window head sn
@@ -1053,7 +1040,6 @@ struct iwl_mvm {
 		} peer;
 	} tdls_cs;
 
-	struct iwl_mvm_shared_mem_cfg smem_cfg;
 
 	u32 ciphers[IWL_MVM_NUM_CIPHERS];
 	struct ieee80211_cipher_scheme cs[IWL_UCODE_MAX_CS];

@@ -212,7 +212,7 @@ static void iwl_mvm_dump_fifos(struct iwl_mvm *mvm,
 			       struct iwl_fw_error_dump_data **dump_data)
 {
 	struct iwl_fw_error_dump_fifo *fifo_hdr;
-	struct iwl_mvm_shared_mem_cfg *cfg = &mvm->smem_cfg;
+	struct iwl_fwrt_shared_mem_cfg *cfg = &mvm->fwrt.smem_cfg;
 	u32 *fifo_data;
 	u32 fifo_len;
 	unsigned long flags;
@@ -227,12 +227,12 @@ static void iwl_mvm_dump_fifos(struct iwl_mvm *mvm,
 	iwl_mvm_dump_rxf(mvm, dump_data, cfg->rxfifo2_size,
 			 RXF_DIFF_FROM_PREV, 1);
 	/* Pull LMAC2 RXF1 */
-	if (mvm->smem_cfg.num_lmacs > 1)
+	if (mvm->fwrt.smem_cfg.num_lmacs > 1)
 		iwl_mvm_dump_rxf(mvm, dump_data, cfg->lmac[1].rxfifo1_size,
 				 LMAC2_PRPH_OFFSET, 2);
 
 	/* Pull TXF data from LMAC1 */
-	for (i = 0; i < mvm->smem_cfg.num_txfifo_entries; i++) {
+	for (i = 0; i < mvm->fwrt.smem_cfg.num_txfifo_entries; i++) {
 		/* Mark the number of TXF we're pulling now */
 		iwl_trans_write_prph(mvm->trans, TXF_LARC_NUM, i);
 		iwl_mvm_dump_txf(mvm, dump_data, cfg->lmac[0].txfifo_size[i],
@@ -240,8 +240,8 @@ static void iwl_mvm_dump_fifos(struct iwl_mvm *mvm,
 	}
 
 	/* Pull TXF data from LMAC2 */
-	if (mvm->smem_cfg.num_lmacs > 1) {
-		for (i = 0; i < mvm->smem_cfg.num_txfifo_entries; i++) {
+	if (mvm->fwrt.smem_cfg.num_lmacs > 1) {
+		for (i = 0; i < mvm->fwrt.smem_cfg.num_txfifo_entries; i++) {
 			/* Mark the number of TXF we're pulling now */
 			iwl_trans_write_prph(mvm->trans,
 					     TXF_LARC_NUM + LMAC2_PRPH_OFFSET,
@@ -257,11 +257,11 @@ static void iwl_mvm_dump_fifos(struct iwl_mvm *mvm,
 			IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG)) {
 		/* Pull UMAC internal TXF data from all TXFs */
 		for (i = 0;
-		     i < ARRAY_SIZE(mvm->smem_cfg.internal_txfifo_size);
+		     i < ARRAY_SIZE(mvm->fwrt.smem_cfg.internal_txfifo_size);
 		     i++) {
 			fifo_hdr = (void *)(*dump_data)->data;
 			fifo_data = (void *)fifo_hdr->data;
-			fifo_len = mvm->smem_cfg.internal_txfifo_size[i];
+			fifo_len = mvm->fwrt.smem_cfg.internal_txfifo_size[i];
 
 			/* No need to try to read the data if the length is 0 */
 			if (fifo_len == 0)
@@ -277,7 +277,7 @@ static void iwl_mvm_dump_fifos(struct iwl_mvm *mvm,
 
 			/* Mark the number of TXF we're pulling now */
 			iwl_trans_write_prph(mvm->trans, TXF_CPU2_NUM, i +
-				mvm->smem_cfg.num_txfifo_entries);
+				mvm->fwrt.smem_cfg.num_txfifo_entries);
 
 			fifo_hdr->available_bytes =
 				cpu_to_le32(iwl_trans_read_prph(mvm->trans,
@@ -582,7 +582,7 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 
 	/* reading RXF/TXF sizes */
 	if (test_bit(STATUS_FW_ERROR, &mvm->trans->status)) {
-		struct iwl_mvm_shared_mem_cfg *mem_cfg = &mvm->smem_cfg;
+		struct iwl_fwrt_shared_mem_cfg *mem_cfg = &mvm->fwrt.smem_cfg;
 
 		fifo_data_len = 0;
 

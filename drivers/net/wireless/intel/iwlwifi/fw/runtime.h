@@ -63,6 +63,19 @@
 #include "img.h"
 #include "api.h"
 
+#define MAX_NUM_LMAC 2
+struct iwl_fwrt_shared_mem_cfg {
+	int num_lmacs;
+	int num_txfifo_entries;
+	struct {
+		u32 txfifo_size[TX_FIFO_MAX_NUM];
+		u32 rxfifo1_size;
+	} lmac[MAX_NUM_LMAC];
+	u32 rxfifo2_size;
+	u32 internal_txfifo_addr;
+	u32 internal_txfifo_size[TX_FIFO_INTERNAL_MAX_NUM];
+};
+
 /**
  * struct iwl_fw_runtime - runtime data for firmware
  * @fw: firmware image
@@ -71,6 +84,7 @@
  * @fw_paging_db: paging database
  * @num_of_paging_blk: number of paging blocks
  * @num_of_pages_in_last_blk: number of pages in the last block
+ * @smem_cfg: saved firmware SMEM configuration
  */
 struct iwl_fw_runtime {
 	struct iwl_trans *trans;
@@ -81,6 +95,9 @@ struct iwl_fw_runtime {
 	struct iwl_fw_paging fw_paging_db[NUM_OF_FW_PAGING_BLOCKS];
 	u16 num_of_paging_blk;
 	u16 num_of_pages_in_last_blk;
+
+	/* memory configuration */
+	struct iwl_fwrt_shared_mem_cfg smem_cfg;
 };
 
 static inline void iwl_fw_runtime_init(struct iwl_fw_runtime *fwrt,
@@ -95,5 +112,7 @@ static inline void iwl_fw_runtime_init(struct iwl_fw_runtime *fwrt,
 
 int iwl_init_paging(struct iwl_fw_runtime *fwrt, enum iwl_ucode_type type);
 void iwl_free_fw_paging(struct iwl_fw_runtime *fwrt);
+
+void iwl_get_shared_mem_conf(struct iwl_fw_runtime *fwrt);
 
 #endif /* __iwl_fw_runtime_h__ */
