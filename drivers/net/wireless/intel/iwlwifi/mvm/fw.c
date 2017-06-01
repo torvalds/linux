@@ -384,44 +384,29 @@ static int iwl_save_fw_paging(struct iwl_mvm *mvm,
 /* send paging cmd to FW in case CPU2 has paging image */
 static int iwl_send_paging_cmd(struct iwl_mvm *mvm, const struct fw_img *fw)
 {
-	union {
-		struct iwl_fw_paging_cmd v2;
-		struct iwl_fw_paging_cmd_v1 v1;
-	} paging_cmd = {
-		.v2.flags =
-			cpu_to_le32(PAGING_CMD_IS_SECURED |
-				    PAGING_CMD_IS_ENABLED |
-				    (mvm->num_of_pages_in_last_blk <<
-				    PAGING_CMD_NUM_OF_PAGES_IN_LAST_GRP_POS)),
-		.v2.block_size = cpu_to_le32(BLOCK_2_EXP_SIZE),
-		.v2.block_num = cpu_to_le32(mvm->num_of_paging_blk),
+	struct iwl_fw_paging_cmd paging_cmd = {
+		.flags = cpu_to_le32(PAGING_CMD_IS_SECURED |
+				     PAGING_CMD_IS_ENABLED |
+				     (mvm->num_of_pages_in_last_blk <<
+				      PAGING_CMD_NUM_OF_PAGES_IN_LAST_GRP_POS)),
+		.block_size = cpu_to_le32(BLOCK_2_EXP_SIZE),
+		.block_num = cpu_to_le32(mvm->num_of_paging_blk),
 	};
-	int blk_idx, size = sizeof(paging_cmd.v2);
-
-	/* A bit hard coded - but this is the old API and will be deprecated */
-	if (!iwl_mvm_has_new_tx_api(mvm))
-		size = sizeof(paging_cmd.v1);
+	int blk_idx;
 
 	/* loop for for all paging blocks + CSS block */
 	for (blk_idx = 0; blk_idx < mvm->num_of_paging_blk + 1; blk_idx++) {
 		dma_addr_t addr = mvm->fw_paging_db[blk_idx].fw_paging_phys;
+		__le32 phy_addr;
 
 		addr = addr >> PAGE_2_EXP_SIZE;
-
-		if (iwl_mvm_has_new_tx_api(mvm)) {
-			__le64 phy_addr = cpu_to_le64(addr);
-
-			paging_cmd.v2.device_phy_addr[blk_idx] = phy_addr;
-		} else {
-			__le32 phy_addr = cpu_to_le32(addr);
-
-			paging_cmd.v1.device_phy_addr[blk_idx] = phy_addr;
-		}
+		phy_addr = cpu_to_le32(addr);
+		paging_cmd.device_phy_addr[blk_idx] = phy_addr;
 	}
 
 	return iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(FW_PAGING_BLOCK_CMD,
 						    IWL_ALWAYS_LONG_GROUP, 0),
-				    0, size, &paging_cmd);
+				    0, sizeof(paging_cmd), &paging_cmd);
 }
 
 /*
