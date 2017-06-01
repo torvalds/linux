@@ -1527,11 +1527,6 @@ static const struct drm_plane_helper_funcs dm_plane_helper_funcs = {
  * check will succeed, and let DC to implement proper check
  */
 static uint32_t rgb_formats[] = {
-	DRM_FORMAT_XRGB4444,
-	DRM_FORMAT_ARGB4444,
-	DRM_FORMAT_RGBA4444,
-	DRM_FORMAT_ARGB1555,
-	DRM_FORMAT_RGB565,
 	DRM_FORMAT_RGB888,
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_ARGB8888,
