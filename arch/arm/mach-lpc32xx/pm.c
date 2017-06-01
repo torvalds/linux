@@ -87,12 +87,8 @@ static int lpc32xx_pm_enter(suspend_state_t state)
 
 	/* Allocate some space for temporary IRAM storage */
 	iram_swap_area = kmalloc(lpc32xx_sys_suspend_sz, GFP_KERNEL);
-	if (!iram_swap_area) {
-		printk(KERN_ERR
-		       "PM Suspend: cannot allocate memory to save portion "
-			"of SRAM\n");
+	if (!iram_swap_area)
 		return -ENOMEM;
-	}
 
 	/* Backup a small area of IRAM used for the suspend code */
 	memcpy(iram_swap_area, (void *) TEMP_IRAM_AREA,
