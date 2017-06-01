@@ -288,7 +288,8 @@ static int dwapb_irq_set_type(struct irq_data *d, u32 type)
 	irq_setup_alt_chip(d, type);
 
 	dwapb_write(gpio, GPIO_INTTYPE_LEVEL, level);
-	dwapb_write(gpio, GPIO_INT_POLARITY, polarity);
+	if (type != IRQ_TYPE_EDGE_BOTH)
+		dwapb_write(gpio, GPIO_INT_POLARITY, polarity);
 	spin_unlock_irqrestore(&gc->bgpio_lock, flags);
 
 	return 0;
