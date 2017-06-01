@@ -177,7 +177,7 @@ static int sun4i_hash(struct ahash_request *areq)
 	 *
 	 * in_i: advancement in the current SG
 	 */
-	unsigned int i = 0, end, index, padlen, nwait, nbw = 0, j = 0, todo;
+	unsigned int i = 0, end, fill, min_fill, nwait, nbw = 0, j = 0, todo;
 	unsigned int in_i = 0;
 	u32 spaces, rx_cnt = SS_RX_DEFAULT, bf[32] = {0}, wb = 0, v, ivmode = 0;
 	struct sun4i_req_ctx *op = ahash_request_ctx(areq);
@@ -186,7 +186,7 @@ static int sun4i_hash(struct ahash_request *areq)
 	struct sun4i_ss_ctx *ss = tfmctx->ss;
 	struct scatterlist *in_sg = areq->src;
 	struct sg_mapping_iter mi;
-	int in_r, err = 0, zeros;
+	int in_r, err = 0;
 	size_t copied = 0;
 
 	dev_dbg(ss->dev, "%s %s bc=%llu len=%u mode=%x wl=%u h0=%0x",
@@ -387,6 +387,8 @@ hash_final:
 		nbw = op->len - 4 * nwait;
 		wb = *(u32 *)(op->buf + nwait * 4);
 		wb &= (0xFFFFFFFF >> (4 - nbw) * 8);
+
+		op->byte_count += nbw;
 	}
 
 	/* write the remaining bytes of the nbw buffer */
@@ -402,22 +404,15 @@ hash_final:
 	 * I take the operations from other MD5/SHA1 implementations
 	 */
 
-	/* we have already send 4 more byte of which nbw data */
-	if (op->mode == SS_OP_MD5) {
-		index = (op->byte_count + 4) & 0x3f;
-		op->byte_count += nbw;
-		if (index > 56)
-			zeros = (120 - index) / 4;
-		else
-			zeros = (56 - index) / 4;
-	} else {
-		op->byte_count += nbw;
-		index = op->byte_count & 0x3f;
-		padlen = (index < 56) ? (56 - index) : ((64 + 56) - index);
-		zeros = (padlen - 1) / 4;
-	}
+	/* last block size */
+	fill = 64 - (op->byte_count % 64);
+	min_fill = 2 * sizeof(u32) + (nbw ? 0 : sizeof(u32));
 
-	j += zeros;
+	/* if we can't fill all data, jump to the next 64 block */
+	if (fill < min_fill)
+		fill += 64;
+
+	j += (fill - min_fill) / sizeof(u32);
 
 	/* write the length of data */
 	if (op->mode == SS_OP_SHA1) {
