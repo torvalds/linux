@@ -235,6 +235,17 @@ static void stmmac_clk_csr_set(struct stmmac_priv *priv)
 		else if ((clk_rate >= CSR_F_250M) && (clk_rate < CSR_F_300M))
 			priv->clk_csr = STMMAC_CSR_250_300M;
 	}
+
+	if (priv->plat->has_sun8i) {
+		if (clk_rate > 160000000)
+			priv->clk_csr = 0x03;
+		else if (clk_rate > 80000000)
+			priv->clk_csr = 0x02;
+		else if (clk_rate > 40000000)
+			priv->clk_csr = 0x01;
+		else
+			priv->clk_csr = 0;
+	}
 }
 
 static void print_pkt(unsigned char *buf, int len)
@@ -3933,7 +3944,9 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 	struct mac_device_info *mac;
 
 	/* Identify the MAC HW device */
-	if (priv->plat->has_gmac) {
+	if (priv->plat->setup) {
+		mac = priv->plat->setup(priv);
+	} else if (priv->plat->has_gmac) {
 		priv->dev->priv_flags |= IFF_UNICAST_FLT;
 		mac = dwmac1000_setup(priv->ioaddr,
 				      priv->plat->multicast_filter_bins,
@@ -3952,6 +3965,10 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 		return -ENOMEM;
 
 	priv->hw = mac;
+
+	/* dwmac-sun8i only work in chain mode */
+	if (priv->plat->has_sun8i)
+		chain_mode = 1;
 
 	/* To use the chained or ring mode */
 	if (priv->synopsys_id >= DWMAC_CORE_4_00) {
