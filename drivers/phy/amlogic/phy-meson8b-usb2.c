@@ -1,5 +1,5 @@
 /*
- * Meson8b and GXBB USB2 PHY driver
+ * Meson8, Meson8b and GXBB USB2 PHY driver
  *
  * Copyright (C) 2016 Martin Blumenstingl <martin.blumenstingl@googlemail.com>
  *
@@ -266,6 +266,7 @@ static int phy_meson8b_usb2_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id phy_meson8b_usb2_of_match[] = {
+	{ .compatible = "amlogic,meson8-usb2-phy", },
 	{ .compatible = "amlogic,meson8b-usb2-phy", },
 	{ .compatible = "amlogic,meson-gxbb-usb2-phy", },
 	{ },
@@ -282,5 +283,5 @@ static struct platform_driver phy_meson8b_usb2_driver = {
 module_platform_driver(phy_meson8b_usb2_driver);
 
 MODULE_AUTHOR("Martin Blumenstingl <martin.blumenstingl@googlemail.com>");
-MODULE_DESCRIPTION("Meson8b and GXBB USB2 PHY driver");
+MODULE_DESCRIPTION("Meson8, Meson8b and GXBB USB2 PHY driver");
 MODULE_LICENSE("GPL");
