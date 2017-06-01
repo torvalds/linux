@@ -2068,6 +2068,17 @@ csio_hw_flash_fw(struct csio_hw *hw, int *reset)
 	return ret;
 }
 
+static int csio_hw_check_fwver(struct csio_hw *hw)
+{
+	if (csio_is_t6(hw->pdev->device & CSIO_HW_CHIP_MASK) &&
+	    (hw->fwrev < CSIO_MIN_T6_FW)) {
+		csio_hw_print_fw_version(hw, "T6 unsupported fw");
+		return -1;
+	}
+
+	return 0;
+}
+
 /*
  * csio_hw_configure - Configure HW
  * @hw - HW module
@@ -2135,6 +2146,10 @@ csio_hw_configure(struct csio_hw *hw)
 		if (rv != 0)
 			goto out;
 
+		rv = csio_hw_check_fwver(hw);
+		if (rv < 0)
+			goto out;
+
 		/* If the firmware doesn't support Configuration Files,
 		 * return an error.
 		 */
@@ -2162,6 +2177,10 @@ csio_hw_configure(struct csio_hw *hw)
 		}
 
 	} else {
+		rv = csio_hw_check_fwver(hw);
+		if (rv < 0)
+			goto out;
+
 		if (hw->fw_state == CSIO_DEV_STATE_INIT) {
 
 			hw->flags |= CSIO_HWF_USING_SOFT_PARAMS;
