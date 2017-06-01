@@ -1152,28 +1152,71 @@ void fadump_cleanup(void)
 	}
 }
 
+static void fadump_free_reserved_memory(unsigned long start_pfn,
+					unsigned long end_pfn)
+{
+	unsigned long pfn;
+	unsigned long time_limit = jiffies + HZ;
+
+	pr_info("freeing reserved memory (0x%llx - 0x%llx)\n",
+		PFN_PHYS(start_pfn), PFN_PHYS(end_pfn));
+
+	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
+		free_reserved_page(pfn_to_page(pfn));
+
+		if (time_after(jiffies, time_limit)) {
+			cond_resched();
+			time_limit = jiffies + HZ;
+		}
+	}
+}
+
+/*
+ * Skip memory holes and free memory that was actually reserved.
+ */
+static void fadump_release_reserved_area(unsigned long start, unsigned long end)
+{
+	struct memblock_region *reg;
+	unsigned long tstart, tend;
+	unsigned long start_pfn = PHYS_PFN(start);
+	unsigned long end_pfn = PHYS_PFN(end);
+
+	for_each_memblock(memory, reg) {
+		tstart = max(start_pfn, memblock_region_memory_base_pfn(reg));
+		tend = min(end_pfn, memblock_region_memory_end_pfn(reg));
+		if (tstart < tend) {
+			fadump_free_reserved_memory(tstart, tend);
+
+			if (tend == end_pfn)
+				break;
+
+			start_pfn = tend + 1;
+		}
+	}
+}
+
 /*
  * Release the memory that was reserved in early boot to preserve the memory
  * contents. The released memory will be available for general use.
  */
 static void fadump_release_memory(unsigned long begin, unsigned long end)
 {
-	unsigned long addr;
 	unsigned long ra_start, ra_end;
 
 	ra_start = fw_dump.reserve_dump_area_start;
 	ra_end = ra_start + fw_dump.reserve_dump_area_size;
 
-	for (addr = begin; addr < end; addr += PAGE_SIZE) {
-		/*
-		 * exclude the dump reserve area. Will reuse it for next
-		 * fadump registration.
-		 */
-		if (addr <= ra_end && ((addr + PAGE_SIZE) > ra_start))
-			continue;
-
-		free_reserved_page(pfn_to_page(addr >> PAGE_SHIFT));
-	}
+	/*
+	 * exclude the dump reserve area. Will reuse it for next
+	 * fadump registration.
+	 */
+	if (begin < ra_end && end > ra_start) {
+		if (begin < ra_start)
+			fadump_release_reserved_area(begin, ra_start);
+		if (end > ra_end)
+			fadump_release_reserved_area(ra_end, end);
+	} else
+		fadump_release_reserved_area(begin, end);
 }
 
 static void fadump_invalidate_release_mem(void)
