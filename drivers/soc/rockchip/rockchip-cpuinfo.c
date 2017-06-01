@@ -18,6 +18,10 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <asm/system_info.h>
+#include <linux/rockchip/cpu.h>
+
+unsigned long rockchip_soc_id;
+EXPORT_SYMBOL(rockchip_soc_id);
 
 static int rockchip_cpuinfo_probe(struct platform_device *pdev)
 {
@@ -26,6 +30,16 @@ static int rockchip_cpuinfo_probe(struct platform_device *pdev)
 	unsigned char *efuse_buf, buf[16];
 	size_t len;
 	int i;
+
+	cell = nvmem_cell_get(dev, "cpu-version");
+	if (!IS_ERR(cell)) {
+		efuse_buf = nvmem_cell_read(cell, &len);
+		nvmem_cell_put(cell);
+
+		if (len == 1)
+			rockchip_set_cpu_version(efuse_buf[0]);
+		kfree(efuse_buf);
+	}
 
 	cell = nvmem_cell_get(dev, "id");
 	if (IS_ERR(cell)) {
@@ -72,4 +86,9 @@ static struct platform_driver rockchip_cpuinfo_driver = {
 		.of_match_table = rockchip_cpuinfo_of_match,
 	},
 };
-module_platform_driver(rockchip_cpuinfo_driver);
+
+static int __init rockchip_cpuinfo_init(void)
+{
+	return platform_driver_register(&rockchip_cpuinfo_driver);
+}
+subsys_initcall_sync(rockchip_cpuinfo_init);

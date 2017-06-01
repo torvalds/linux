@@ -1,6 +1,8 @@
 #ifndef __MACH_ROCKCHIP_CPU_H
 #define __MACH_ROCKCHIP_CPU_H
 
+#ifdef CONFIG_ROCKCHIP_CPUINFO
+
 extern unsigned long rockchip_soc_id;
 
 static inline bool cpu_is_rockchip(void)
@@ -24,6 +26,24 @@ static inline void rockchip_set_cpu_version(unsigned long ver)
 		(ver << ROCKCHIP_CPU_VERION_SHIFT) & ROCKCHIP_CPU_VERION_MASK;
 }
 
+#else
+
+static inline bool cpu_is_rockchip(void)
+{
+	return true;
+}
+
+static inline unsigned long rockchip_get_cpu_version(void)
+{
+	return 0;
+}
+
+static inline void rockchip_set_cpu_version(unsigned long ver)
+{
+}
+
+#endif
+
 #define ROCKCHIP_CPU_MASK       0xffff0000
 #define ROCKCHIP_CPU_RK2928     0x29280000
 #define ROCKCHIP_CPU_RK3026     0x30260000
@@ -36,7 +56,7 @@ static inline void rockchip_set_cpu_version(unsigned long ver)
 #define ROCKCHIP_CPU_RK3288     0x32880000
 #define ROCKCHIP_CPU_RK3228     0x32280000
 
-#ifdef CONFIG_ARM
+#ifdef CONFIG_ROCKCHIP_CPUINFO
 #define ROCKCHIP_CPU(id, ID) \
 static inline bool cpu_is_rk##id(void) \
 { \
@@ -80,7 +100,7 @@ ROCKCHIP_CPU(3228, 3228)
 #define ROCKCHIP_SOC_RK3288     (ROCKCHIP_CPU_RK3288 | 0x00)
 #define ROCKCHIP_SOC_RK3228     (ROCKCHIP_CPU_RK3228 | 0x00)
 
-#ifdef CONFIG_ARM
+#ifdef CONFIG_ROCKCHIP_CPUINFO
 #define ROCKCHIP_SOC(id, ID) \
 static inline bool soc_is_rk##id(void) \
 { \

@@ -4,8 +4,9 @@ if ARCH_ROCKCHIP || COMPILE_TEST
 # Rockchip Soc drivers
 #
 config ROCKCHIP_CPUINFO
-	tristate "Rockchip cpuinfo support"
+	bool "Rockchip cpuinfo support"
 	depends on ROCKCHIP_EFUSE && (ARM64 || ARM)
+	default y
 	help
 	  Say y here to enable Rockchip cpuinfo support.
 	  Set system_serial_low/high from eFuse ID.
