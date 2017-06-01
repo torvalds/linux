@@ -370,6 +370,36 @@ static const struct seq_operations hctx_dispatch_seq_ops = {
 	.show	= blk_mq_debugfs_rq_show,
 };
 
+struct show_busy_params {
+	struct seq_file		*m;
+	struct blk_mq_hw_ctx	*hctx;
+};
+
+/*
+ * Note: the state of a request may change while this function is in progress,
+ * e.g. due to a concurrent blk_mq_finish_request() call.
+ */
+static void hctx_show_busy_rq(struct request *rq, void *data, bool reserved)
+{
+	const struct show_busy_params *params = data;
+
+	if (blk_mq_map_queue(rq->q, rq->mq_ctx->cpu) == params->hctx &&
+	    test_bit(REQ_ATOM_STARTED, &rq->atomic_flags))
+		__blk_mq_debugfs_rq_show(params->m,
+					 list_entry_rq(&rq->queuelist));
+}
+
+static int hctx_busy_show(void *data, struct seq_file *m)
+{
+	struct blk_mq_hw_ctx *hctx = data;
+	struct show_busy_params params = { .m = m, .hctx = hctx };
+
+	blk_mq_tagset_busy_iter(hctx->queue->tag_set, hctx_show_busy_rq,
+				&params);
+
+	return 0;
+}
+
 static int hctx_ctx_map_show(void *data, struct seq_file *m)
 {
 	struct blk_mq_hw_ctx *hctx = data;
@@ -705,6 +735,7 @@ static const struct blk_mq_debugfs_attr blk_mq_debugfs_hctx_attrs[] = {
 	{"state", 0400, hctx_state_show},
 	{"flags", 0400, hctx_flags_show},
 	{"dispatch", 0400, .seq_ops = &hctx_dispatch_seq_ops},
+	{"busy", 0400, hctx_busy_show},
 	{"ctx_map", 0400, hctx_ctx_map_show},
 	{"tags", 0400, hctx_tags_show},
 	{"tags_bitmap", 0400, hctx_tags_bitmap_show},
