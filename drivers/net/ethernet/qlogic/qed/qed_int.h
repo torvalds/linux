@@ -224,7 +224,16 @@ struct qed_igu_info {
 
 	struct qed_sb_cnt_info usage;
 
+	bool b_allow_pf_vf_change;
 };
+
+/**
+ * @brief - Make sure the IGU CAM reflects the resources provided by MFW
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ */
+int qed_int_igu_reset_cam(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 
 /**
  * @brief Translate the weakly-defined client sb-id into an IGU sb-id
