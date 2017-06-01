@@ -25,6 +25,9 @@ config NET_DSA_TAG_DSA
 config NET_DSA_TAG_EDSA
 	bool
 
+config NET_DSA_TAG_KSZ
+	bool
+
 config NET_DSA_TAG_LAN9303
 	bool
 
