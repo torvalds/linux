@@ -242,8 +242,11 @@ int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)
 	 * If we are creating a VCPU with a GICv3 we must also register the
 	 * KVM io device for the redistributor that belongs to this VCPU.
 	 */
-	if (dist->vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3)
+	if (dist->vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3) {
+		mutex_lock(&vcpu->kvm->lock);
 		ret = vgic_register_redist_iodev(vcpu);
+		mutex_unlock(&vcpu->kvm->lock);
+	}
 	return ret;
 }
 

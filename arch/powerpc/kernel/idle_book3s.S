@@ -416,7 +416,7 @@ power9_dd1_recover_paca:
 	 * which needs to be restored from the stack.
 	 */
 	li	r3, 1
-	stb	r0,PACA_NAPSTATELOST(r13)
+	stb	r3,PACA_NAPSTATELOST(r13)
 	blr
 
 /*

@@ -259,7 +259,7 @@ struct qedf_io_log {
 	uint16_t task_id;
 	uint32_t port_id; /* Remote port fabric ID */
 	int lun;
-	char op; /* SCSI CDB */
+	unsigned char op; /* SCSI CDB */
 	uint8_t lba[4];
 	unsigned int bufflen; /* SCSI buffer length */
 	unsigned int sg_count; /* Number of SG elements */

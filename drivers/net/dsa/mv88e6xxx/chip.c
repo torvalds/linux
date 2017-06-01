@@ -849,6 +849,9 @@ static uint64_t _mv88e6xxx_get_ethtool_stat(struct mv88e6xxx_chip *chip,
 		mv88e6xxx_g1_stats_read(chip, reg, &low);
 		if (s->sizeof_stat == 8)
 			mv88e6xxx_g1_stats_read(chip, reg + 1, &high);
+		break;
+	default:
+		return UINT64_MAX;
 	}
 	value = (((u64)high) << 16) | low;
 	return value;

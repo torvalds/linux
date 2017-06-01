@@ -140,7 +140,7 @@ struct bpf_verifier_stack_elem {
 	struct bpf_verifier_stack_elem *next;
 };
 
-#define BPF_COMPLEXITY_LIMIT_INSNS	65536
+#define BPF_COMPLEXITY_LIMIT_INSNS	98304
 #define BPF_COMPLEXITY_LIMIT_STACK	1024
 
 #define BPF_MAP_PTR_POISON ((void *)0xeB9F + POISON_POINTER_DELTA)
@@ -241,6 +241,12 @@ static void print_verifier_state(struct bpf_verifier_state *state)
 		if (reg->max_value != BPF_REGISTER_MAX_RANGE)
 			verbose(",max_value=%llu",
 				(unsigned long long)reg->max_value);
+		if (reg->min_align)
+			verbose(",min_align=%u", reg->min_align);
+		if (reg->aux_off)
+			verbose(",aux_off=%u", reg->aux_off);
+		if (reg->aux_off_align)
+			verbose(",aux_off_align=%u", reg->aux_off_align);
 	}
 	for (i = 0; i < MAX_BPF_STACK; i += BPF_REG_SIZE) {
 		if (state->stack_slot_type[i] == STACK_SPILL)
@@ -466,6 +472,9 @@ static void init_reg_state(struct bpf_reg_state *regs)
 		regs[i].imm = 0;
 		regs[i].min_value = BPF_REGISTER_MIN_RANGE;
 		regs[i].max_value = BPF_REGISTER_MAX_RANGE;
+		regs[i].min_align = 0;
+		regs[i].aux_off = 0;
+		regs[i].aux_off_align = 0;
 	}
 
 	/* frame pointer */
@@ -492,6 +501,7 @@ static void reset_reg_range_values(struct bpf_reg_state *regs, u32 regno)
 {
 	regs[regno].min_value = BPF_REGISTER_MIN_RANGE;
 	regs[regno].max_value = BPF_REGISTER_MAX_RANGE;
+	regs[regno].min_align = 0;
 }
 
 static void mark_reg_unknown_value_and_range(struct bpf_reg_state *regs,
@@ -779,17 +789,33 @@ static bool is_pointer_value(struct bpf_verifier_env *env, int regno)
 }
 
 static int check_pkt_ptr_alignment(const struct bpf_reg_state *reg,
-				   int off, int size)
+				   int off, int size, bool strict)
 {
-	if (reg->id && size != 1) {
-		verbose("Unknown alignment. Only byte-sized access allowed in packet access.\n");
-		return -EACCES;
+	int ip_align;
+	int reg_off;
+
+	/* Byte size accesses are always allowed. */
+	if (!strict || size == 1)
+		return 0;
+
+	reg_off = reg->off;
+	if (reg->id) {
+		if (reg->aux_off_align % size) {
+			verbose("Packet access is only %u byte aligned, %d byte access not allowed\n",
+				reg->aux_off_align, size);
+			return -EACCES;
+		}
+		reg_off += reg->aux_off;
 	}
 
-	/* skb->data is NET_IP_ALIGN-ed */
-	if ((NET_IP_ALIGN + reg->off + off) % size != 0) {
+	/* skb->data is NET_IP_ALIGN-ed, but for strict alignment checking
+	 * we force this to 2 which is universally what architectures use
+	 * when they don't set CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS.
+	 */
+	ip_align = strict ? 2 : NET_IP_ALIGN;
+	if ((ip_align + reg_off + off) % size != 0) {
 		verbose("misaligned packet access off %d+%d+%d size %d\n",
-			NET_IP_ALIGN, reg->off, off, size);
+			ip_align, reg_off, off, size);
 		return -EACCES;
 	}
 
@@ -797,9 +823,9 @@ static int check_pkt_ptr_alignment(const struct bpf_reg_state *reg,
 }
 
 static int check_val_ptr_alignment(const struct bpf_reg_state *reg,
-				   int size)
+				   int size, bool strict)
 {
-	if (size != 1) {
+	if (strict && size != 1) {
 		verbose("Unknown alignment. Only byte-sized access allowed in value access.\n");
 		return -EACCES;
 	}
@@ -807,16 +833,20 @@ static int check_val_ptr_alignment(const struct bpf_reg_state *reg,
 	return 0;
 }
 
-static int check_ptr_alignment(const struct bpf_reg_state *reg,
+static int check_ptr_alignment(struct bpf_verifier_env *env,
+			       const struct bpf_reg_state *reg,
 			       int off, int size)
 {
+	bool strict = env->strict_alignment;
+
+	if (!IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS))
+		strict = true;
+
 	switch (reg->type) {
 	case PTR_TO_PACKET:
-		return IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) ? 0 :
-		       check_pkt_ptr_alignment(reg, off, size);
+		return check_pkt_ptr_alignment(reg, off, size, strict);
 	case PTR_TO_MAP_VALUE_ADJ:
-		return IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) ? 0 :
-		       check_val_ptr_alignment(reg, size);
+		return check_val_ptr_alignment(reg, size, strict);
 	default:
 		if (off % size != 0) {
 			verbose("misaligned access off %d size %d\n",
@@ -849,7 +879,7 @@ static int check_mem_access(struct bpf_verifier_env *env, u32 regno, int off,
 	if (size < 0)
 		return size;
 
-	err = check_ptr_alignment(reg, off, size);
+	err = check_ptr_alignment(env, reg, off, size);
 	if (err)
 		return err;
 
@@ -883,6 +913,8 @@ static int check_mem_access(struct bpf_verifier_env *env, u32 regno, int off,
 							 value_regno);
 			/* note that reg.[id|off|range] == 0 */
 			state->regs[value_regno].type = reg_type;
+			state->regs[value_regno].aux_off = 0;
+			state->regs[value_regno].aux_off_align = 0;
 		}
 
 	} else if (reg->type == FRAME_PTR || reg->type == PTR_TO_STACK) {
@@ -1455,6 +1487,8 @@ add_imm:
 		 */
 		dst_reg->off += imm;
 	} else {
+		bool had_id;
+
 		if (src_reg->type == PTR_TO_PACKET) {
 			/* R6=pkt(id=0,off=0,r=62) R7=imm22; r7 += r6 */
 			tmp_reg = *dst_reg;  /* save r7 state */
@@ -1488,14 +1522,23 @@ add_imm:
 				src_reg->imm);
 			return -EACCES;
 		}
+
+		had_id = (dst_reg->id != 0);
+
 		/* dst_reg stays as pkt_ptr type and since some positive
 		 * integer value was added to the pointer, increment its 'id'
 		 */
 		dst_reg->id = ++env->id_gen;
 
-		/* something was added to pkt_ptr, set range and off to zero */
+		/* something was added to pkt_ptr, set range to zero */
+		dst_reg->aux_off += dst_reg->off;
 		dst_reg->off = 0;
 		dst_reg->range = 0;
+		if (had_id)
+			dst_reg->aux_off_align = min(dst_reg->aux_off_align,
+						     src_reg->min_align);
+		else
+			dst_reg->aux_off_align = src_reg->min_align;
 	}
 	return 0;
 }
@@ -1669,6 +1712,13 @@ static void check_reg_overflow(struct bpf_reg_state *reg)
 		reg->min_value = BPF_REGISTER_MIN_RANGE;
 }
 
+static u32 calc_align(u32 imm)
+{
+	if (!imm)
+		return 1U << 31;
+	return imm - ((imm - 1) & imm);
+}
+
 static void adjust_reg_min_max_vals(struct bpf_verifier_env *env,
 				    struct bpf_insn *insn)
 {
@@ -1676,8 +1726,10 @@ static void adjust_reg_min_max_vals(struct bpf_verifier_env *env,
 	s64 min_val = BPF_REGISTER_MIN_RANGE;
 	u64 max_val = BPF_REGISTER_MAX_RANGE;
 	u8 opcode = BPF_OP(insn->code);
+	u32 dst_align, src_align;
 
 	dst_reg = &regs[insn->dst_reg];
+	src_align = 0;
 	if (BPF_SRC(insn->code) == BPF_X) {
 		check_reg_overflow(&regs[insn->src_reg]);
 		min_val = regs[insn->src_reg].min_value;
@@ -1693,11 +1745,17 @@ static void adjust_reg_min_max_vals(struct bpf_verifier_env *env,
 		    regs[insn->src_reg].type != UNKNOWN_VALUE) {
 			min_val = BPF_REGISTER_MIN_RANGE;
 			max_val = BPF_REGISTER_MAX_RANGE;
+			src_align = 0;
+		} else {
+			src_align = regs[insn->src_reg].min_align;
 		}
 	} else if (insn->imm < BPF_REGISTER_MAX_RANGE &&
 		   (s64)insn->imm > BPF_REGISTER_MIN_RANGE) {
 		min_val = max_val = insn->imm;
+		src_align = calc_align(insn->imm);
 	}
+
+	dst_align = dst_reg->min_align;
 
 	/* We don't know anything about what was done to this register, mark it
 	 * as unknown.
@@ -1723,18 +1781,21 @@ static void adjust_reg_min_max_vals(struct bpf_verifier_env *env,
 			dst_reg->min_value += min_val;
 		if (dst_reg->max_value != BPF_REGISTER_MAX_RANGE)
 			dst_reg->max_value += max_val;
+		dst_reg->min_align = min(src_align, dst_align);
 		break;
 	case BPF_SUB:
 		if (dst_reg->min_value != BPF_REGISTER_MIN_RANGE)
 			dst_reg->min_value -= min_val;
 		if (dst_reg->max_value != BPF_REGISTER_MAX_RANGE)
 			dst_reg->max_value -= max_val;
+		dst_reg->min_align = min(src_align, dst_align);
 		break;
 	case BPF_MUL:
 		if (dst_reg->min_value != BPF_REGISTER_MIN_RANGE)
 			dst_reg->min_value *= min_val;
 		if (dst_reg->max_value != BPF_REGISTER_MAX_RANGE)
 			dst_reg->max_value *= max_val;
+		dst_reg->min_align = max(src_align, dst_align);
 		break;
 	case BPF_AND:
 		/* Disallow AND'ing of negative numbers, ain't nobody got time
@@ -1746,17 +1807,23 @@ static void adjust_reg_min_max_vals(struct bpf_verifier_env *env,
 		else
 			dst_reg->min_value = 0;
 		dst_reg->max_value = max_val;
+		dst_reg->min_align = max(src_align, dst_align);
 		break;
 	case BPF_LSH:
 		/* Gotta have special overflow logic here, if we're shifting
 		 * more than MAX_RANGE then just assume we have an invalid
 		 * range.
 		 */
-		if (min_val > ilog2(BPF_REGISTER_MAX_RANGE))
+		if (min_val > ilog2(BPF_REGISTER_MAX_RANGE)) {
 			dst_reg->min_value = BPF_REGISTER_MIN_RANGE;
-		else if (dst_reg->min_value != BPF_REGISTER_MIN_RANGE)
-			dst_reg->min_value <<= min_val;
-
+			dst_reg->min_align = 1;
+		} else {
+			if (dst_reg->min_value != BPF_REGISTER_MIN_RANGE)
+				dst_reg->min_value <<= min_val;
+			if (!dst_reg->min_align)
+				dst_reg->min_align = 1;
+			dst_reg->min_align <<= min_val;
+		}
 		if (max_val > ilog2(BPF_REGISTER_MAX_RANGE))
 			dst_reg->max_value = BPF_REGISTER_MAX_RANGE;
 		else if (dst_reg->max_value != BPF_REGISTER_MAX_RANGE)
@@ -1766,11 +1833,19 @@ static void adjust_reg_min_max_vals(struct bpf_verifier_env *env,
 		/* RSH by a negative number is undefined, and the BPF_RSH is an
 		 * unsigned shift, so make the appropriate casts.
 		 */
-		if (min_val < 0 || dst_reg->min_value < 0)
+		if (min_val < 0 || dst_reg->min_value < 0) {
 			dst_reg->min_value = BPF_REGISTER_MIN_RANGE;
-		else
+		} else {
 			dst_reg->min_value =
 				(u64)(dst_reg->min_value) >> min_val;
+		}
+		if (min_val < 0) {
+			dst_reg->min_align = 1;
+		} else {
+			dst_reg->min_align >>= (u64) min_val;
+			if (!dst_reg->min_align)
+				dst_reg->min_align = 1;
+		}
 		if (dst_reg->max_value != BPF_REGISTER_MAX_RANGE)
 			dst_reg->max_value >>= max_val;
 		break;
@@ -1872,6 +1947,7 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 			regs[insn->dst_reg].imm = insn->imm;
 			regs[insn->dst_reg].max_value = insn->imm;
 			regs[insn->dst_reg].min_value = insn->imm;
+			regs[insn->dst_reg].min_align = calc_align(insn->imm);
 		}
 
 	} else if (opcode > BPF_END) {
@@ -2564,6 +2640,7 @@ peek_stack:
 				env->explored_states[t + 1] = STATE_LIST_MARK;
 		} else {
 			/* conditional jump with two edges */
+			env->explored_states[t] = STATE_LIST_MARK;
 			ret = push_insn(t, t + 1, FALLTHROUGH, env);
 			if (ret == 1)
 				goto peek_stack;
@@ -2722,6 +2799,12 @@ static bool states_equal(struct bpf_verifier_env *env,
 		     rcur->type != NOT_INIT))
 			continue;
 
+		/* Don't care about the reg->id in this case. */
+		if (rold->type == PTR_TO_MAP_VALUE_OR_NULL &&
+		    rcur->type == PTR_TO_MAP_VALUE_OR_NULL &&
+		    rold->map_ptr == rcur->map_ptr)
+			continue;
+
 		if (rold->type == PTR_TO_PACKET && rcur->type == PTR_TO_PACKET &&
 		    compare_ptrs_to_packet(rold, rcur))
 			continue;
@@ -2856,8 +2939,15 @@ static int do_check(struct bpf_verifier_env *env)
 			goto process_bpf_exit;
 		}
 
-		if (log_level && do_print_state) {
-			verbose("\nfrom %d to %d:", prev_insn_idx, insn_idx);
+		if (need_resched())
+			cond_resched();
+
+		if (log_level > 1 || (log_level && do_print_state)) {
+			if (log_level > 1)
+				verbose("%d:", insn_idx);
+			else
+				verbose("\nfrom %d to %d:",
+					prev_insn_idx, insn_idx);
 			print_verifier_state(&env->cur_state);
 			do_print_state = false;
 		}
@@ -3494,6 +3584,10 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr)
 	} else {
 		log_level = 0;
 	}
+	if (attr->prog_flags & BPF_F_STRICT_ALIGNMENT)
+		env->strict_alignment = true;
+	else
+		env->strict_alignment = false;
 
 	ret = replace_map_fd_with_map_ptr(env);
 	if (ret < 0)
@@ -3599,6 +3693,7 @@ int bpf_analyzer(struct bpf_prog *prog, const struct bpf_ext_analyzer_ops *ops,
 	mutex_lock(&bpf_verifier_lock);
 
 	log_level = 0;
+	env->strict_alignment = false;
 
 	env->explored_states = kcalloc(env->prog->len,
 				       sizeof(struct bpf_verifier_state_list *),
