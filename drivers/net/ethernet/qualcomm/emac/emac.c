@@ -50,29 +50,13 @@
 #define DMAR_DLY_CNT_DEF				    15
 #define DMAW_DLY_CNT_DEF				     4
 
-#define IMR_NORMAL_MASK         (\
-		ISR_ERROR       |\
-		ISR_GPHY_LINK   |\
-		ISR_TX_PKT      |\
-		GPHY_WAKEUP_INT)
-
-#define IMR_EXTENDED_MASK       (\
-		SW_MAN_INT      |\
-		ISR_OVER        |\
-		ISR_ERROR       |\
-		ISR_GPHY_LINK   |\
-		ISR_TX_PKT      |\
-		GPHY_WAKEUP_INT)
+#define IMR_NORMAL_MASK		(ISR_ERROR | ISR_OVER | ISR_TX_PKT)
 
 #define ISR_TX_PKT      (\
 	TX_PKT_INT      |\
 	TX_PKT_INT1     |\
 	TX_PKT_INT2     |\
 	TX_PKT_INT3)
-
-#define ISR_GPHY_LINK        (\
-	GPHY_LINK_UP_INT     |\
-	GPHY_LINK_DOWN_INT)
 
 #define ISR_OVER        (\
 	RFD0_UR_INT     |\
@@ -186,10 +170,6 @@ irqreturn_t emac_isr(int _irq, void *data)
 
 	if (status & ISR_OVER)
 		net_warn_ratelimited("warning: TX/RX overflow\n");
-
-	/* link event */
-	if (status & ISR_GPHY_LINK)
-		phy_mac_interrupt(adpt->phydev, !!(status & GPHY_LINK_UP_INT));
 
 exit:
 	/* enable the interrupt */
