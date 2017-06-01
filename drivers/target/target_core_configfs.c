@@ -2236,7 +2236,11 @@ static void target_core_dev_release(struct config_item *item)
 	target_free_device(dev);
 }
 
-static struct configfs_item_operations target_core_dev_item_ops = {
+/*
+ * Used in target_core_fabric_configfs.c to verify valid se_device symlink
+ * within target_fabric_port_link()
+ */
+struct configfs_item_operations target_core_dev_item_ops = {
 	.release		= target_core_dev_release,
 };
 

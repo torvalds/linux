@@ -620,6 +620,8 @@ static struct configfs_attribute *target_fabric_port_attrs[] = {
 	NULL,
 };
 
+extern struct configfs_item_operations target_core_dev_item_ops;
+
 static int target_fabric_port_link(
 	struct config_item *lun_ci,
 	struct config_item *se_dev_ci)
@@ -628,16 +630,16 @@ static int target_fabric_port_link(
 	struct se_lun *lun = container_of(to_config_group(lun_ci),
 				struct se_lun, lun_group);
 	struct se_portal_group *se_tpg;
-	struct se_device *dev =
-		container_of(to_config_group(se_dev_ci), struct se_device, dev_group);
+	struct se_device *dev;
 	struct target_fabric_configfs *tf;
 	int ret;
 
-	if (dev->dev_link_magic != SE_DEV_LINK_MAGIC) {
-		pr_err("Bad dev->dev_link_magic, not a valid se_dev_ci pointer:"
-			" %p to struct se_device: %p\n", se_dev_ci, dev);
+	if (!se_dev_ci->ci_type ||
+	    se_dev_ci->ci_type->ct_item_ops != &target_core_dev_item_ops) {
+		pr_err("Bad se_dev_ci, not a valid se_dev_ci pointer: %p\n", se_dev_ci);
 		return -EFAULT;
 	}
+	dev = container_of(to_config_group(se_dev_ci), struct se_device, dev_group);
 
 	if (!(dev->dev_flags & DF_CONFIGURED)) {
 		pr_err("se_device not configured yet, cannot port link\n");

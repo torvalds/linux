@@ -746,8 +746,6 @@ struct se_dev_stat_grps {
 };
 
 struct se_device {
-#define SE_DEV_LINK_MAGIC			0xfeeddeef
-	u32			dev_link_magic;
 	/* RELATIVE TARGET PORT IDENTIFER Counter */
 	u16			dev_rpti_counter;
 	/* Used for SAM Task Attribute ordering */
