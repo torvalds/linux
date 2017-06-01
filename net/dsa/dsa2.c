@@ -454,7 +454,7 @@ static int dsa_dst_apply(struct dsa_switch_tree *dst)
 	 * sent to the tag format's receive function.
 	 */
 	wmb();
-	dst->master_netdev->dsa_ptr = (void *)dst;
+	dst->master_netdev->dsa_ptr = dst;
 	dst->applied = true;
 
 	return 0;
