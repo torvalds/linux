@@ -280,7 +280,7 @@ struct drv_ctx_aead {
  * @type: Type of context structure
  * @member: Associated context field
  */
-#define GET_CTX_FIELD_ADDR(ctx, type, member) (ctx + offsetof(type, member))
+#define GET_CTX_FIELD_ADDR(ctx, type, member) ((ctx) + offsetof(type, member))
 
 #endif /* _CC_CRYPTO_CTX_H_ */
 
