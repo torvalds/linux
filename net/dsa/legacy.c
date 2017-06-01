@@ -651,7 +651,7 @@ static int dsa_setup_dst(struct dsa_switch_tree *dst, struct net_device *dev,
 	 * sent to the tag format's receive function.
 	 */
 	wmb();
-	dev->dsa_ptr = (void *)dst;
+	dev->dsa_ptr = dst;
 
 	return 0;
 }

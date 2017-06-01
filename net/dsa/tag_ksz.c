@@ -46,10 +46,8 @@ static struct sk_buff *ksz_xmit(struct sk_buff *skb, struct net_device *dev)
 	} else {
 		nskb = alloc_skb(NET_IP_ALIGN + skb->len +
 				 padlen + KSZ_INGRESS_TAG_LEN, GFP_ATOMIC);
-		if (!nskb) {
-			kfree_skb(skb);
+		if (!nskb)
 			return NULL;
-		}
 		skb_reserve(nskb, NET_IP_ALIGN);
 
 		skb_reset_mac_header(nskb);

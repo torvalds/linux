@@ -27,7 +27,7 @@ static struct sk_buff *mtk_tag_xmit(struct sk_buff *skb,
 	u8 *mtk_tag;
 
 	if (skb_cow_head(skb, MTK_HDR_LEN) < 0)
-		goto out_free;
+		return NULL;
 
 	skb_push(skb, MTK_HDR_LEN);
 
@@ -41,10 +41,6 @@ static struct sk_buff *mtk_tag_xmit(struct sk_buff *skb,
 	mtk_tag[3] = 0;
 
 	return skb;
-
-out_free:
-	kfree_skb(skb);
-	return NULL;
 }
 
 static struct sk_buff *mtk_tag_rcv(struct sk_buff *skb, struct net_device *dev,
@@ -57,7 +53,7 @@ static struct sk_buff *mtk_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 	__be16 *phdr, hdr;
 
 	if (unlikely(!pskb_may_pull(skb, MTK_HDR_LEN)))
-		goto out_drop;
+		return NULL;
 
 	/* The MTK header is added by the switch between src addr
 	 * and ethertype at this point, skb->data points to 2 bytes
@@ -79,19 +75,16 @@ static struct sk_buff *mtk_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 	 */
 	ds = dst->ds[0];
 	if (!ds)
-		goto out_drop;
+		return NULL;
 
 	/* Get source port information */
 	port = (hdr & MTK_HDR_RECV_SOURCE_PORT_MASK);
 	if (!ds->ports[port].netdev)
-		goto out_drop;
+		return NULL;
 
 	skb->dev = ds->ports[port].netdev;
 
 	return skb;
-
-out_drop:
-	return NULL;
 }
 
 const struct dsa_device_ops mtk_netdev_ops = {

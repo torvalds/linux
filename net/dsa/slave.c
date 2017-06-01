@@ -357,10 +357,14 @@ static netdev_tx_t dsa_slave_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
 
-	/* Transmit function may have to reallocate the original SKB */
+	/* Transmit function may have to reallocate the original SKB,
+	 * in which case it must have freed it. Only free it here on error.
+	 */
 	nskb = p->xmit(skb, dev);
-	if (!nskb)
+	if (!nskb) {
+		kfree_skb(skb);
 		return NETDEV_TX_OK;
+	}
 
 	/* SKB for netpoll still need to be mangled with the protocol-specific
 	 * tag to be successfully transmitted

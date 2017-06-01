@@ -45,7 +45,7 @@ static struct sk_buff *qca_tag_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev->stats.tx_bytes += skb->len;
 
 	if (skb_cow_head(skb, 0) < 0)
-		goto out_free;
+		return NULL;
 
 	skb_push(skb, QCA_HDR_LEN);
 
@@ -60,10 +60,6 @@ static struct sk_buff *qca_tag_xmit(struct sk_buff *skb, struct net_device *dev)
 	*phdr = htons(hdr);
 
 	return skb;
-
-out_free:
-	kfree_skb(skb);
-	return NULL;
 }
 
 static struct sk_buff *qca_tag_rcv(struct sk_buff *skb, struct net_device *dev,
@@ -77,7 +73,7 @@ static struct sk_buff *qca_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 	__be16 *phdr, hdr;
 
 	if (unlikely(!pskb_may_pull(skb, QCA_HDR_LEN)))
-		goto out_drop;
+		return NULL;
 
 	/* The QCA header is added by the switch between src addr and Ethertype
 	 * At this point, skb->data points to ethertype so header should be
@@ -89,7 +85,7 @@ static struct sk_buff *qca_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 	/* Make sure the version is correct */
 	ver = (hdr & QCA_HDR_RECV_VERSION_MASK) >> QCA_HDR_RECV_VERSION_S;
 	if (unlikely(ver != QCA_HDR_VERSION))
-		goto out_drop;
+		return NULL;
 
 	/* Remove QCA tag and recalculate checksum */
 	skb_pull_rcsum(skb, QCA_HDR_LEN);
@@ -101,20 +97,17 @@ static struct sk_buff *qca_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 	 */
 	ds = dst->cpu_dp->ds;
 	if (!ds)
-		goto out_drop;
+		return NULL;
 
 	/* Get source port information */
 	port = (hdr & QCA_HDR_RECV_SOURCE_PORT_MASK);
 	if (!ds->ports[port].netdev)
-		goto out_drop;
+		return NULL;
 
 	/* Update skb & forward the frame accordingly */
 	skb->dev = ds->ports[port].netdev;
 
 	return skb;
-
-out_drop:
-	return NULL;
 }
 
 const struct dsa_device_ops qca_netdev_ops = {

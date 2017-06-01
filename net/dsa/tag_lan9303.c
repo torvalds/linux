@@ -52,7 +52,7 @@ static struct sk_buff *lan9303_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (skb_cow_head(skb, LAN9303_TAG_LEN) < 0) {
 		dev_dbg(&dev->dev,
 			"Cannot make room for the special tag. Dropping packet\n");
-		goto out_free;
+		return NULL;
 	}
 
 	/* provide 'LAN9303_TAG_LEN' bytes additional space */
@@ -66,9 +66,6 @@ static struct sk_buff *lan9303_xmit(struct sk_buff *skb, struct net_device *dev)
 	lan9303_tag[1] = htons(p->dp->index | BIT(4));
 
 	return skb;
-out_free:
-	kfree_skb(skb);
-	return NULL;
 }
 
 static struct sk_buff *lan9303_rcv(struct sk_buff *skb, struct net_device *dev,
