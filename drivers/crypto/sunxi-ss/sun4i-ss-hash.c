@@ -188,7 +188,6 @@ static int sun4i_hash(struct ahash_request *areq)
 	struct sg_mapping_iter mi;
 	int in_r, err = 0, zeros;
 	size_t copied = 0;
-	__be64 bits;
 
 	dev_dbg(ss->dev, "%s %s bc=%llu len=%u mode=%x wl=%u h0=%0x",
 		__func__, crypto_tfm_alg_name(areq->base.tfm),
@@ -423,12 +422,13 @@ hash_final:
 
 	/* write the length of data */
 	if (op->mode == SS_OP_SHA1) {
-		bits = cpu_to_be64(op->byte_count << 3);
-		bf[j++] = bits & 0xffffffff;
-		bf[j++] = (bits >> 32) & 0xffffffff;
+		__be64 bits = cpu_to_be64(op->byte_count << 3);
+		bf[j++] = lower_32_bits(bits);
+		bf[j++] = upper_32_bits(bits);
 	} else {
-		bf[j++] = (op->byte_count << 3) & 0xffffffff;
-		bf[j++] = (op->byte_count >> 29) & 0xffffffff;
+		__le64 bits = op->byte_count << 3;
+		bf[j++] = lower_32_bits(bits);
+		bf[j++] = upper_32_bits(bits);
 	}
 	writesl(ss->base + SS_RXFIFO, bf, j);
 
