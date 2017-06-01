@@ -155,8 +155,8 @@
 
 	cpuinfo {
 		compatible = "rockchip,cpuinfo";
-		nvmem-cells = <&efuse_id>;
-		nvmem-cell-names = "id";
+		nvmem-cells = <&efuse_id>, <&efuse_cpu_version>;
+		nvmem-cell-names = "id", "cpu-version";
 	};
 
 	psci {
