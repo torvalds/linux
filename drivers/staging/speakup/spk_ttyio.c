@@ -247,13 +247,10 @@ EXPORT_SYMBOL_GPL(spk_ttyio_synth_probe);
 
 void spk_ttyio_release(void)
 {
-	int idx;
-
 	if (!speakup_tty)
 		return;
 
 	tty_lock(speakup_tty);
-	idx = speakup_tty->index;
 
 	if (speakup_tty->ops->close)
 		speakup_tty->ops->close(speakup_tty, NULL);
