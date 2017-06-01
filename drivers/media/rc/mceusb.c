@@ -789,9 +789,6 @@ static void mce_request_packet(struct mceusb_dev *ir, unsigned char *data,
 
 	dev_dbg(dev, "send request called (size=%#x)", size);
 
-	async_urb->transfer_buffer_length = size;
-	async_urb->dev = ir->usbdev;
-
 	res = usb_submit_urb(async_urb, GFP_ATOMIC);
 	if (res) {
 		dev_err(dev, "send request FAILED! (res=%d)", res);
