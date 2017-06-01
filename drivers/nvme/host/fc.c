@@ -45,8 +45,6 @@ enum nvme_fc_queue_flags {
 
 #define NVMEFC_QUEUE_DELAY	3		/* ms units */
 
-#define NVME_FC_MAX_CONNECT_ATTEMPTS	1
-
 struct nvme_fc_queue {
 	struct nvme_fc_ctrl	*ctrl;
 	struct device		*dev;
@@ -165,8 +163,6 @@ struct nvme_fc_ctrl {
 	struct work_struct	delete_work;
 	struct work_struct	reset_work;
 	struct delayed_work	connect_work;
-	int			reconnect_delay;
-	int			connect_attempts;
 
 	struct kref		ref;
 	u32			flags;
@@ -1376,9 +1372,9 @@ done:
 	complete_rq = __nvme_fc_fcpop_chk_teardowns(ctrl, op);
 	if (!complete_rq) {
 		if (unlikely(op->flags & FCOP_FLAGS_TERMIO)) {
-			status = cpu_to_le16(NVME_SC_ABORT_REQ);
+			status = cpu_to_le16(NVME_SC_ABORT_REQ << 1);
 			if (blk_queue_dying(rq->q))
-				status |= cpu_to_le16(NVME_SC_DNR);
+				status |= cpu_to_le16(NVME_SC_DNR << 1);
 		}
 		nvme_end_request(rq, status, result);
 	} else
@@ -1751,7 +1747,7 @@ nvme_fc_error_recovery(struct nvme_fc_ctrl *ctrl, char *errmsg)
 	dev_warn(ctrl->ctrl.device,
 		"NVME-FC{%d}: transport association error detected: %s\n",
 		ctrl->cnum, errmsg);
-	dev_info(ctrl->ctrl.device,
+	dev_warn(ctrl->ctrl.device,
 		"NVME-FC{%d}: resetting controller\n", ctrl->cnum);
 
 	/* stop the queues on error, cleanup is in reset thread */
@@ -2195,9 +2191,6 @@ nvme_fc_create_io_queues(struct nvme_fc_ctrl *ctrl)
 	if (!opts->nr_io_queues)
 		return 0;
 
-	dev_info(ctrl->ctrl.device, "creating %d I/O queues.\n",
-			opts->nr_io_queues);
-
 	nvme_fc_init_io_queues(ctrl);
 
 	memset(&ctrl->tag_set, 0, sizeof(ctrl->tag_set));
@@ -2268,9 +2261,6 @@ nvme_fc_reinit_io_queues(struct nvme_fc_ctrl *ctrl)
 	if (ctrl->queue_count == 1)
 		return 0;
 
-	dev_info(ctrl->ctrl.device, "Recreating %d I/O queues.\n",
-			opts->nr_io_queues);
-
 	nvme_fc_init_io_queues(ctrl);
 
 	ret = blk_mq_reinit_tagset(&ctrl->tag_set);
@@ -2306,7 +2296,7 @@ nvme_fc_create_association(struct nvme_fc_ctrl *ctrl)
 	int ret;
 	bool changed;
 
-	ctrl->connect_attempts++;
+	++ctrl->ctrl.opts->nr_reconnects;
 
 	/*
 	 * Create the admin queue
@@ -2403,9 +2393,7 @@ nvme_fc_create_association(struct nvme_fc_ctrl *ctrl)
 	changed = nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_LIVE);
 	WARN_ON_ONCE(!changed);
 
-	ctrl->connect_attempts = 0;
-
-	kref_get(&ctrl->ctrl.kref);
+	ctrl->ctrl.opts->nr_reconnects = 0;
 
 	if (ctrl->queue_count > 1) {
 		nvme_start_queues(&ctrl->ctrl);
@@ -2536,26 +2524,32 @@ nvme_fc_delete_ctrl_work(struct work_struct *work)
 
 	/*
 	 * tear down the controller
-	 * This will result in the last reference on the nvme ctrl to
-	 * expire, calling the transport nvme_fc_nvme_ctrl_freed() callback.
-	 * From there, the transport will tear down it's logical queues and
-	 * association.
+	 * After the last reference on the nvme ctrl is removed,
+	 * the transport nvme_fc_nvme_ctrl_freed() callback will be
+	 * invoked. From there, the transport will tear down it's
+	 * logical queues and association.
 	 */
 	nvme_uninit_ctrl(&ctrl->ctrl);
 
 	nvme_put_ctrl(&ctrl->ctrl);
 }
 
+static bool
+__nvme_fc_schedule_delete_work(struct nvme_fc_ctrl *ctrl)
+{
+	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_DELETING))
+		return true;
+
+	if (!queue_work(nvme_fc_wq, &ctrl->delete_work))
+		return true;
+
+	return false;
+}
+
 static int
 __nvme_fc_del_ctrl(struct nvme_fc_ctrl *ctrl)
 {
-	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_DELETING))
-		return -EBUSY;
-
-	if (!queue_work(nvme_fc_wq, &ctrl->delete_work))
-		return -EBUSY;
-
-	return 0;
+	return __nvme_fc_schedule_delete_work(ctrl) ? -EBUSY : 0;
 }
 
 /*
@@ -2581,6 +2575,35 @@ nvme_fc_del_nvme_ctrl(struct nvme_ctrl *nctrl)
 }
 
 static void
+nvme_fc_reconnect_or_delete(struct nvme_fc_ctrl *ctrl, int status)
+{
+	/* If we are resetting/deleting then do nothing */
+	if (ctrl->ctrl.state != NVME_CTRL_RECONNECTING) {
+		WARN_ON_ONCE(ctrl->ctrl.state == NVME_CTRL_NEW ||
+			ctrl->ctrl.state == NVME_CTRL_LIVE);
+		return;
+	}
+
+	dev_info(ctrl->ctrl.device,
+		"NVME-FC{%d}: reset: Reconnect attempt failed (%d)\n",
+		ctrl->cnum, status);
+
+	if (nvmf_should_reconnect(&ctrl->ctrl)) {
+		dev_info(ctrl->ctrl.device,
+			"NVME-FC{%d}: Reconnect attempt in %d seconds.\n",
+			ctrl->cnum, ctrl->ctrl.opts->reconnect_delay);
+		queue_delayed_work(nvme_fc_wq, &ctrl->connect_work,
+				ctrl->ctrl.opts->reconnect_delay * HZ);
+	} else {
+		dev_warn(ctrl->ctrl.device,
+				"NVME-FC{%d}: Max reconnect attempts (%d) "
+				"reached. Removing controller\n",
+				ctrl->cnum, ctrl->ctrl.opts->nr_reconnects);
+		WARN_ON(__nvme_fc_schedule_delete_work(ctrl));
+	}
+}
+
+static void
 nvme_fc_reset_ctrl_work(struct work_struct *work)
 {
 	struct nvme_fc_ctrl *ctrl =
@@ -2591,34 +2614,9 @@ nvme_fc_reset_ctrl_work(struct work_struct *work)
 	nvme_fc_delete_association(ctrl);
 
 	ret = nvme_fc_create_association(ctrl);
-	if (ret) {
-		dev_warn(ctrl->ctrl.device,
-			"NVME-FC{%d}: reset: Reconnect attempt failed (%d)\n",
-			ctrl->cnum, ret);
-		if (ctrl->connect_attempts >= NVME_FC_MAX_CONNECT_ATTEMPTS) {
-			dev_warn(ctrl->ctrl.device,
-				"NVME-FC{%d}: Max reconnect attempts (%d) "
-				"reached. Removing controller\n",
-				ctrl->cnum, ctrl->connect_attempts);
-
-			if (!nvme_change_ctrl_state(&ctrl->ctrl,
-				NVME_CTRL_DELETING)) {
-				dev_err(ctrl->ctrl.device,
-					"NVME-FC{%d}: failed to change state "
-					"to DELETING\n", ctrl->cnum);
-				return;
-			}
-
-			WARN_ON(!queue_work(nvme_fc_wq, &ctrl->delete_work));
-			return;
-		}
-
-		dev_warn(ctrl->ctrl.device,
-			"NVME-FC{%d}: Reconnect attempt in %d seconds.\n",
-			ctrl->cnum, ctrl->reconnect_delay);
-		queue_delayed_work(nvme_fc_wq, &ctrl->connect_work,
-				ctrl->reconnect_delay * HZ);
-	} else
+	if (ret)
+		nvme_fc_reconnect_or_delete(ctrl, ret);
+	else
 		dev_info(ctrl->ctrl.device,
 			"NVME-FC{%d}: controller reset complete\n", ctrl->cnum);
 }
@@ -2632,7 +2630,7 @@ nvme_fc_reset_nvme_ctrl(struct nvme_ctrl *nctrl)
 {
 	struct nvme_fc_ctrl *ctrl = to_fc_ctrl(nctrl);
 
-	dev_warn(ctrl->ctrl.device,
+	dev_info(ctrl->ctrl.device,
 		"NVME-FC{%d}: admin requested controller reset\n", ctrl->cnum);
 
 	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_RESETTING))
@@ -2649,7 +2647,7 @@ nvme_fc_reset_nvme_ctrl(struct nvme_ctrl *nctrl)
 static const struct nvme_ctrl_ops nvme_fc_ctrl_ops = {
 	.name			= "fc",
 	.module			= THIS_MODULE,
-	.is_fabrics		= true,
+	.flags			= NVME_F_FABRICS,
 	.reg_read32		= nvmf_reg_read32,
 	.reg_read64		= nvmf_reg_read64,
 	.reg_write32		= nvmf_reg_write32,
@@ -2671,34 +2669,9 @@ nvme_fc_connect_ctrl_work(struct work_struct *work)
 				struct nvme_fc_ctrl, connect_work);
 
 	ret = nvme_fc_create_association(ctrl);
-	if (ret) {
-		dev_warn(ctrl->ctrl.device,
-			"NVME-FC{%d}: Reconnect attempt failed (%d)\n",
-			ctrl->cnum, ret);
-		if (ctrl->connect_attempts >= NVME_FC_MAX_CONNECT_ATTEMPTS) {
-			dev_warn(ctrl->ctrl.device,
-				"NVME-FC{%d}: Max reconnect attempts (%d) "
-				"reached. Removing controller\n",
-				ctrl->cnum, ctrl->connect_attempts);
-
-			if (!nvme_change_ctrl_state(&ctrl->ctrl,
-				NVME_CTRL_DELETING)) {
-				dev_err(ctrl->ctrl.device,
-					"NVME-FC{%d}: failed to change state "
-					"to DELETING\n", ctrl->cnum);
-				return;
-			}
-
-			WARN_ON(!queue_work(nvme_fc_wq, &ctrl->delete_work));
-			return;
-		}
-
-		dev_warn(ctrl->ctrl.device,
-			"NVME-FC{%d}: Reconnect attempt in %d seconds.\n",
-			ctrl->cnum, ctrl->reconnect_delay);
-		queue_delayed_work(nvme_fc_wq, &ctrl->connect_work,
-				ctrl->reconnect_delay * HZ);
-	} else
+	if (ret)
+		nvme_fc_reconnect_or_delete(ctrl, ret);
+	else
 		dev_info(ctrl->ctrl.device,
 			"NVME-FC{%d}: controller reconnect complete\n",
 			ctrl->cnum);
@@ -2755,7 +2728,6 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 	INIT_WORK(&ctrl->delete_work, nvme_fc_delete_ctrl_work);
 	INIT_WORK(&ctrl->reset_work, nvme_fc_reset_ctrl_work);
 	INIT_DELAYED_WORK(&ctrl->connect_work, nvme_fc_connect_ctrl_work);
-	ctrl->reconnect_delay = opts->reconnect_delay;
 	spin_lock_init(&ctrl->lock);
 
 	/* io queue count */
@@ -2819,7 +2791,6 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 		ctrl->ctrl.opts = NULL;
 		/* initiate nvme ctrl ref counting teardown */
 		nvme_uninit_ctrl(&ctrl->ctrl);
-		nvme_put_ctrl(&ctrl->ctrl);
 
 		/* as we're past the point where we transition to the ref
 		 * counting teardown path, if we return a bad pointer here,
@@ -2834,6 +2805,8 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 			ret = -EIO;
 		return ERR_PTR(ret);
 	}
+
+	kref_get(&ctrl->ctrl.kref);
 
 	dev_info(ctrl->ctrl.device,
 		"NVME-FC{%d}: new ctrl: NQN \"%s\"\n",
@@ -2971,7 +2944,7 @@ nvme_fc_create_ctrl(struct device *dev, struct nvmf_ctrl_options *opts)
 static struct nvmf_transport_ops nvme_fc_transport = {
 	.name		= "fc",
 	.required_opts	= NVMF_OPT_TRADDR | NVMF_OPT_HOST_TRADDR,
-	.allowed_opts	= NVMF_OPT_RECONNECT_DELAY,
+	.allowed_opts	= NVMF_OPT_RECONNECT_DELAY | NVMF_OPT_CTRL_LOSS_TMO,
 	.create_ctrl	= nvme_fc_create_ctrl,
 };
 
