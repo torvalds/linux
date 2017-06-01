@@ -1272,10 +1272,6 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	dev_priv->ipc_enabled = false;
 
-	/* Everything is in place, we can now relax! */
-	DRM_INFO("Initialized %s %d.%d.%d %s for %s on minor %d\n",
-		 driver.name, driver.major, driver.minor, driver.patchlevel,
-		 driver.date, pci_name(pdev), dev_priv->drm.primary->index);
 	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG))
 		DRM_INFO("DRM_I915_DEBUG enabled\n");
 	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
