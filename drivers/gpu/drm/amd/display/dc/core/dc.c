@@ -1258,8 +1258,10 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 			srf_updates->surface->src_rect.height == 0 &&
 			srf_updates->surface->dst_rect.width == 0 &&
 			srf_updates->surface->dst_rect.height == 0 &&
-			!srf_updates->scaling_info)
+			!srf_updates->scaling_info) {
+		ASSERT(false);
 		return;
+	}
 
 	update_type = dc_check_update_surfaces_for_stream(
 			dc, srf_updates, surface_count, stream_update, stream_status);
