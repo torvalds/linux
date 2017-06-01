@@ -3317,11 +3317,13 @@ out:
 
 static int mlx5e_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
+	struct mlx5e_priv *priv = netdev_priv(dev);
+
 	switch (cmd) {
 	case SIOCSHWTSTAMP:
-		return mlx5e_hwstamp_set(dev, ifr);
+		return mlx5e_hwstamp_set(priv, ifr);
 	case SIOCGHWTSTAMP:
-		return mlx5e_hwstamp_get(dev, ifr);
+		return mlx5e_hwstamp_get(priv, ifr);
 	default:
 		return -EOPNOTSUPP;
 	}
