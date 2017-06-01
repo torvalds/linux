@@ -815,7 +815,9 @@ static int bpf_prog_load(union bpf_attr *attr)
 	    attr->kern_version != LINUX_VERSION_CODE)
 		return -EINVAL;
 
-	if (type != BPF_PROG_TYPE_SOCKET_FILTER && !capable(CAP_SYS_ADMIN))
+	if (type != BPF_PROG_TYPE_SOCKET_FILTER &&
+	    type != BPF_PROG_TYPE_CGROUP_SKB &&
+	    !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	/* plain bpf_prog allocation */
