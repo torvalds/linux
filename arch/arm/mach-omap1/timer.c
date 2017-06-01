@@ -134,8 +134,6 @@ static int __init omap1_dm_timer_init(void)
 
 		pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
 		if (!pdata) {
-			dev_err(&pdev->dev, "%s: Failed to allocate pdata.\n",
-				__func__);
 			ret = -ENOMEM;
 			goto err_free_pdata;
 		}
