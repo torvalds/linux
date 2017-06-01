@@ -61,7 +61,7 @@ struct ima_rule_entry {
 	enum ima_hooks func;
 	int mask;
 	unsigned long fsmagic;
-	u8 fsuuid[16];
+	uuid_t fsuuid;
 	kuid_t uid;
 	kuid_t fowner;
 	bool (*uid_op)(kuid_t, kuid_t);    /* Handlers for operators       */
@@ -244,7 +244,7 @@ static bool ima_match_rules(struct ima_rule_entry *rule, struct inode *inode,
 	    && rule->fsmagic != inode->i_sb->s_magic)
 		return false;
 	if ((rule->flags & IMA_FSUUID) &&
-	    memcmp(rule->fsuuid, inode->i_sb->s_uuid, sizeof(rule->fsuuid)))
+	    memcmp(&rule->fsuuid, inode->i_sb->s_uuid, sizeof(rule->fsuuid)))
 		return false;
 	if ((rule->flags & IMA_UID) && !rule->uid_op(cred->uid, rule->uid))
 		return false;
@@ -711,13 +711,12 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 		case Opt_fsuuid:
 			ima_log_string(ab, "fsuuid", args[0].from);
 
-			if (memchr_inv(entry->fsuuid, 0x00,
-				       sizeof(entry->fsuuid))) {
+			if (uuid_is_null(&entry->fsuuid)) {
 				result = -EINVAL;
 				break;
 			}
 
-			result = uuid_parse(args[0].from, (uuid_t *)&entry->fsuuid);
+			result = uuid_parse(args[0].from, &entry->fsuuid);
 			if (!result)
 				entry->flags |= IMA_FSUUID;
 			break;
@@ -1086,7 +1085,7 @@ int ima_policy_show(struct seq_file *m, void *v)
 	}
 
 	if (entry->flags & IMA_FSUUID) {
-		seq_printf(m, "fsuuid=%pU", entry->fsuuid);
+		seq_printf(m, "fsuuid=%pU", &entry->fsuuid);
 		seq_puts(m, " ");
 	}
 
