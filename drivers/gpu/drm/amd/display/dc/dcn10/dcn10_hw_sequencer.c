@@ -592,9 +592,19 @@ static void init_hw(struct core_dc *dc)
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct timing_generator *tg =
 				dc->res_pool->timing_generators[i];
+		struct mpcc *mpcc =
+				dc->res_pool->mpcc[i];
+		struct mpcc_cfg mpcc_cfg;
+
+		lock_otg_master_update(dc->ctx, tg->inst);
+		mpcc_cfg.opp_id = 0xf;
+		mpcc_cfg.top_dpp_id = 0xf;
+		mpcc_cfg.bot_mpcc_id = 0xf;
+		mpcc_cfg.top_of_tree = true;
+		mpcc->funcs->set(mpcc, &mpcc_cfg);
+		unlock_otg_master(dc->ctx, tg->inst);
 
 		tg->funcs->disable_vga(tg);
-
 		/* Blank controller using driver code instead of
 		 * command table.
 		 */
@@ -819,8 +829,7 @@ static void reset_front_end_for_pipe(
 		struct pipe_ctx *pipe_ctx,
 		struct validate_context *context)
 {
-	struct dcn10_mpc *mpc = TO_DCN10_MPC(dc->res_pool->mpc);
-	struct mpc_tree_cfg *tree_cfg = NULL;
+	struct mpcc_cfg mpcc_cfg;
 
 	if (!pipe_ctx->surface)
 		return;
@@ -829,28 +838,20 @@ static void reset_front_end_for_pipe(
 
 	lock_otg_master_update(dc->ctx, pipe_ctx->tg->inst);
 
-	/* TODO: build stream pipes group id. For now, use stream otg
-	 * id as pipe group id
-	 */
-	tree_cfg = &dc->current_context->res_ctx.mpc_tree[pipe_ctx->mpc_idx];
-
-	if (!dcn10_remove_dpp(mpc, tree_cfg, pipe_ctx->pipe_idx)) {
-		dm_logger_write(dc->ctx->logger, LOG_RESOURCE,
-			"%s: failed to find dpp to be removed!\n",
-			__func__);
-	}
+	mpcc_cfg.opp_id = 0xf;
+	mpcc_cfg.top_dpp_id = 0xf;
+	mpcc_cfg.bot_mpcc_id = 0xf;
+	mpcc_cfg.top_of_tree = !pipe_ctx->top_pipe;
+	pipe_ctx->mpcc->funcs->set(pipe_ctx->mpcc, &mpcc_cfg);
 
 	pipe_ctx->top_pipe = NULL;
 	pipe_ctx->bottom_pipe = NULL;
-	pipe_ctx->mpc_idx = -1;
 
 	unlock_master_tg_and_wait(dc->ctx, pipe_ctx->tg->inst);
 
 	pipe_ctx->mi->funcs->set_blank(pipe_ctx->mi, true);
 
 	wait_no_outstanding_request(dc->ctx, pipe_ctx->pipe_idx);
-
-	wait_mpcc_idle(mpc, pipe_ctx->pipe_idx);
 
 	disable_clocks(dc->ctx, pipe_ctx->pipe_idx);
 
@@ -893,14 +894,10 @@ static void reset_hw_ctx_wrap(
 	reset_hw_ctx(dc, context, reset_front_end_for_pipe);
 	/* Reset Back End*/
 	reset_hw_ctx(dc, context, reset_back_end_for_pipe);
-
-	memcpy(context->res_ctx.mpc_tree,
-			dc->current_context->res_ctx.mpc_tree,
-			sizeof(struct mpc_tree_cfg) * dc->res_pool->pipe_count);
 }
 
-static bool patch_address_for_sbs_tb_stereo(struct pipe_ctx *pipe_ctx,
-											PHYSICAL_ADDRESS_LOC *addr)
+static bool patch_address_for_sbs_tb_stereo(
+		struct pipe_ctx *pipe_ctx, PHYSICAL_ADDRESS_LOC *addr)
 {
 	struct core_surface *surface = pipe_ctx->surface;
 	bool sec_split = pipe_ctx->top_pipe &&
@@ -1670,14 +1667,10 @@ static void update_dchubp_dpp(
 	struct input_pixel_processor *ipp = pipe_ctx->ipp;
 	struct core_surface *surface = pipe_ctx->surface;
 	union plane_size size = surface->public.plane_size;
-	struct mpc_tree_cfg *tree_cfg = NULL;
 	struct default_adjustment ocsc = {0};
-	enum dc_color_space color_space;
 	struct tg_color black_color = {0};
-	struct dcn10_mpc *mpc = TO_DCN10_MPC(dc->res_pool->mpc);
-	struct pipe_ctx *temp_pipe;
-	int i;
-	int tree_pos = 0;
+	struct mpcc_cfg mpcc_cfg;
+	struct pipe_ctx *top_pipe;
 	bool per_pixel_alpha = surface->public.per_pixel_alpha && pipe_ctx->bottom_pipe;
 
 	/* TODO: proper fix once fpga works */
@@ -1716,39 +1709,23 @@ static void update_dchubp_dpp(
 			1,
 			IPP_OUTPUT_FORMAT_12_BIT_FIX);
 
-	/* mpc TODO un-hardcode object ids
-	 * for pseudo code pipe_move.c :
-	 * add_plane_mpcc(added_plane_inst, mpcc_inst, ...);
-	 * Do we want to cache the tree_cfg?
-	 */
-
-	/* TODO: build stream pipes group id. For now, use stream otg
-	 * id as pipe group id
-	 */
 	pipe_ctx->scl_data.lb_params.alpha_en = per_pixel_alpha;
-	pipe_ctx->mpc_idx = pipe_ctx->tg->inst;
-	tree_cfg = &context->res_ctx.mpc_tree[pipe_ctx->mpc_idx];
-	if (tree_cfg->num_pipes == 0) {
-		tree_cfg->opp_id = pipe_ctx->tg->inst;
-		for (i = 0; i < MAX_PIPES; i++) {
-			tree_cfg->dpp[i] = 0xf;
-			tree_cfg->mpcc[i] = 0xf;
-		}
-	}
+	for (top_pipe = pipe_ctx; top_pipe != NULL; top_pipe = top_pipe->top_pipe)
+		mpcc_cfg.opp_id = top_pipe->opp->inst;
+	mpcc_cfg.top_dpp_id = pipe_ctx->pipe_idx;
+	if (pipe_ctx->bottom_pipe)
+		mpcc_cfg.bot_mpcc_id = pipe_ctx->bottom_pipe->mpcc->inst;
+	else
+		mpcc_cfg.bot_mpcc_id = 0xf;
+	mpcc_cfg.top_of_tree = !pipe_ctx->top_pipe;
+	mpcc_cfg.per_pixel_alpha = per_pixel_alpha;
+	if (!dc->current_context->res_ctx.pipe_ctx[pipe_ctx->pipe_idx].surface)
+		pipe_ctx->mpcc->funcs->wait_for_idle(pipe_ctx->mpcc);
+	pipe_ctx->mpcc->funcs->set(pipe_ctx->mpcc, &mpcc_cfg);
 
-	for (temp_pipe = pipe_ctx->top_pipe;
-			temp_pipe != NULL; temp_pipe = temp_pipe->top_pipe)
-		tree_pos++;
-
-	tree_cfg->dpp[tree_pos] = pipe_ctx->pipe_idx;
-	tree_cfg->mpcc[tree_pos] = pipe_ctx->pipe_idx;
-	tree_cfg->per_pixel_alpha[tree_pos] = per_pixel_alpha;
-	tree_cfg->num_pipes = tree_pos + 1;
-	dcn10_set_mpc_tree(mpc, tree_cfg);
-
-	color_space = pipe_ctx->stream->public.output_color_space;
-	color_space_to_black_color(dc, color_space, &black_color);
-	dcn10_set_mpc_background_color(mpc, pipe_ctx->pipe_idx, &black_color);
+	color_space_to_black_color(
+		dc, pipe_ctx->stream->public.output_color_space, &black_color);
+	pipe_ctx->mpcc->funcs->set_bg_color(pipe_ctx->mpcc, &black_color);
 
 	pipe_ctx->scl_data.lb_params.depth = LB_PIXEL_DEPTH_30BPP;
 	/* scaler configuration */
@@ -1853,13 +1830,8 @@ static void dcn10_apply_ctx_for_surface(
 
 
 		/* looking for top pipe to program */
-		if (!pipe_ctx->top_pipe) {
-			memcpy(context->res_ctx.mpc_tree,
-					dc->current_context->res_ctx.mpc_tree,
-					sizeof(struct mpc_tree_cfg) * dc->res_pool->pipe_count);
-
+		if (!pipe_ctx->top_pipe)
 			program_all_pipe_in_tree(dc, pipe_ctx, context);
-		}
 	}
 
 	dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_CALCS,
@@ -1927,8 +1899,7 @@ static void dcn10_apply_ctx_for_surface(
 
 		if ((!pipe_ctx->surface && old_pipe_ctx->surface)
 				|| (!pipe_ctx->stream && old_pipe_ctx->stream))
-			reset_front_end_for_pipe(dc,
-					old_pipe_ctx, dc->current_context);
+			reset_front_end_for_pipe(dc, old_pipe_ctx, dc->current_context);
 	}
 }
 

@@ -27,34 +27,26 @@
 #include "dcn10_mpc.h"
 
 #define REG(reg)\
-	mpc->mpc_regs->reg
+	mpcc10->mpcc_regs->reg
 
 #define CTX \
-	mpc->base.ctx
+	mpcc10->base.ctx
 
 #undef FN
 #define FN(reg_name, field_name) \
-	mpc->mpc_shift->field_name, mpc->mpc_mask->field_name
+	mpcc10->mpcc_shift->field_name, mpcc10->mpcc_mask->field_name
 
 #define MODE_TOP_ONLY 1
 #define MODE_BLEND 3
+#define BLND_PP_ALPHA 0
+#define BLND_GLOBAL_ALPHA 2
 
-/* Internal function to set mpc output mux */
-static void set_output_mux(struct dcn10_mpc *mpc,
-	uint8_t opp_id,
-	uint8_t mpcc_id)
+
+void dcn10_mpcc_set_bg_color(
+		struct mpcc *mpcc,
+		struct tg_color *bg_color)
 {
-	if (mpcc_id != 0xf)
-		REG_UPDATE(OPP_PIPE_CONTROL[opp_id],
-				OPP_PIPE_CLOCK_EN, 1);
-
-	REG_SET(MUX[opp_id], 0, MPC_OUT_MUX, mpcc_id);
-}
-
-void dcn10_set_mpc_background_color(struct dcn10_mpc *mpc,
-	unsigned int mpcc_inst,
-	struct tg_color *bg_color)
-{
+	struct dcn10_mpcc *mpcc10 = TO_DCN10_MPCC(mpcc);
 	/* mpc color is 12 bit.  tg_color is 10 bit */
 	/* todo: might want to use 16 bit to represent color and have each
 	 * hw block translate to correct color depth.
@@ -63,277 +55,89 @@ void dcn10_set_mpc_background_color(struct dcn10_mpc *mpc,
 	uint32_t bg_g_y = bg_color->color_g_y << 2;
 	uint32_t bg_b_cb = bg_color->color_b_cb << 2;
 
-	REG_SET(MPCC_BG_R_CR[mpcc_inst], 0,
+	REG_SET(MPCC_BG_R_CR, 0,
 			MPCC_BG_R_CR, bg_r_cr);
-	REG_SET(MPCC_BG_G_Y[mpcc_inst], 0,
+	REG_SET(MPCC_BG_G_Y, 0,
 			MPCC_BG_G_Y, bg_g_y);
-	REG_SET(MPCC_BG_B_CB[mpcc_inst], 0,
+	REG_SET(MPCC_BG_B_CB, 0,
 			MPCC_BG_B_CB, bg_b_cb);
 }
 
-/* This function programs MPC tree configuration
- * Assume it is the initial time to setup MPC tree_configure, means
- * the instance of dpp/mpcc/opp specified in structure tree_cfg are
- * in idle status.
- * Before invoke this function, ensure that master lock of OPTC specified
- * by opp_id is set.
- *
- * tree_cfg[in] - new MPC_TREE_CFG
- */
-
-void dcn10_set_mpc_tree(struct dcn10_mpc *mpc,
-	struct mpc_tree_cfg *tree_cfg)
+static void set_output_mux(struct dcn10_mpcc *mpcc10, int opp_id, int mpcc_id)
 {
-	int i;
-
-	for (i = 0; i < tree_cfg->num_pipes; i++) {
-		uint8_t mpcc_inst = tree_cfg->mpcc[i];
-
-		REG_SET(MPCC_OPP_ID[mpcc_inst], 0,
-			MPCC_OPP_ID, tree_cfg->opp_id);
-
-		REG_SET(MPCC_TOP_SEL[mpcc_inst], 0,
-			MPCC_TOP_SEL, tree_cfg->dpp[i]);
-
-		if (i == tree_cfg->num_pipes-1) {
-			REG_SET(MPCC_BOT_SEL[mpcc_inst], 0,
-				MPCC_BOT_SEL, 0xF);
-
-			REG_UPDATE(MPCC_CONTROL[mpcc_inst],
-					MPCC_MODE, MODE_TOP_ONLY);
-		} else {
-			REG_SET(MPCC_BOT_SEL[mpcc_inst], 0,
-				MPCC_BOT_SEL, tree_cfg->dpp[i+1]);
-
-			REG_UPDATE(MPCC_CONTROL[mpcc_inst],
-					MPCC_MODE, MODE_BLEND);
-		}
-
-		if (i == 0)
-			set_output_mux(
-				mpc, tree_cfg->opp_id, mpcc_inst);
-
-		REG_UPDATE_2(MPCC_CONTROL[mpcc_inst],
-				MPCC_ALPHA_BLND_MODE,
-				tree_cfg->per_pixel_alpha[i] ? 0 : 2,
-				MPCC_ALPHA_MULTIPLIED_MODE, 0);
-	}
+	ASSERT(mpcc10->opp_id == 0xf || opp_id == mpcc10->opp_id);
+	mpcc10->opp_id = opp_id;
+	REG_UPDATE(OPP_PIPE_CONTROL[opp_id], OPP_PIPE_CLOCK_EN, 1);
+	REG_SET(MUX[opp_id], 0, MPC_OUT_MUX, mpcc_id);
 }
 
-/*
- * This is the function to remove current MPC tree specified by tree_cfg
- * Before invoke this function, ensure that master lock of OPTC specified
- * by opp_id is set.
- *
- *tree_cfg[in/out] - current MPC_TREE_CFG
- */
-void dcn10_delete_mpc_tree(struct dcn10_mpc *mpc,
-	struct mpc_tree_cfg *tree_cfg)
+static void reset_output_mux(struct dcn10_mpcc *mpcc10)
 {
-	int i;
-
-	for (i = 0; i < tree_cfg->num_pipes; i++) {
-		uint8_t mpcc_inst = tree_cfg->mpcc[i];
-
-		REG_SET(MPCC_OPP_ID[mpcc_inst], 0,
-			MPCC_OPP_ID, 0xf);
-
-		REG_SET(MPCC_TOP_SEL[mpcc_inst], 0,
-			MPCC_TOP_SEL, 0xf);
-
-		REG_SET(MPCC_BOT_SEL[mpcc_inst], 0,
-			MPCC_BOT_SEL, 0xF);
-
-		/* add remove dpp/mpcc pair into pending list
-		 * TODO FPGA AddToPendingList if empty from pseudo code
-		 */
-		tree_cfg->dpp[i] = 0xf;
-		tree_cfg->mpcc[i] = 0xf;
-		tree_cfg->per_pixel_alpha[i] = false;
-	}
-	set_output_mux(mpc, tree_cfg->opp_id, 0xf);
-	tree_cfg->opp_id = 0xf;
-	tree_cfg->num_pipes = 0;
+	REG_SET(MUX[mpcc10->opp_id], 0, MPC_OUT_MUX, 0xf);
+	REG_UPDATE(OPP_PIPE_CONTROL[mpcc10->opp_id], OPP_PIPE_CLOCK_EN, 0);
+	mpcc10->opp_id = 0xf;
 }
 
-/* TODO FPGA: how to handle DPP?
- * Function to remove one of pipe from MPC configure tree by dpp idx
- * Before invoke this function, ensure that master lock of OPTC specified
- * by opp_id is set
- * This function can be invoke multiple times to remove more than 1 dpps.
- *
- * tree_cfg[in/out] - current MPC_TREE_CFG
- * idx[in] - index of dpp from tree_cfg to be removed.
- */
-bool dcn10_remove_dpp(struct dcn10_mpc *mpc,
-	struct mpc_tree_cfg *tree_cfg,
-	uint8_t idx)
+static void dcn10_mpcc_set(struct mpcc *mpcc, struct mpcc_cfg *cfg)
 {
-	int i;
-	uint8_t mpcc_inst;
-	bool found = false;
+	struct dcn10_mpcc *mpcc10 = TO_DCN10_MPCC(mpcc);
+	int alpha_blnd_mode = cfg->per_pixel_alpha ?
+			BLND_PP_ALPHA : BLND_GLOBAL_ALPHA;
+	int mpcc_mode = cfg->bot_mpcc_id != 0xf ?
+				MODE_BLEND : MODE_TOP_ONLY;
 
-	/* find dpp_idx from dpp array of tree_cfg */
-	for (i = 0; i < tree_cfg->num_pipes; i++) {
-		if (tree_cfg->dpp[i] == idx) {
-			found = true;
-			break;
-		}
-	}
+	REG_SET(MPCC_OPP_ID, 0,
+		MPCC_OPP_ID, cfg->opp_id);
 
-	if (!found) {
-		BREAK_TO_DEBUGGER();
-		return false;
-	}
-	mpcc_inst = tree_cfg->mpcc[i];
+	REG_SET(MPCC_TOP_SEL, 0,
+		MPCC_TOP_SEL, cfg->top_dpp_id);
 
-	REG_SET(MPCC_OPP_ID[mpcc_inst], 0,
-			MPCC_OPP_ID, 0xf);
+	REG_SET(MPCC_BOT_SEL, 0,
+		MPCC_BOT_SEL, cfg->bot_mpcc_id);
 
-	REG_SET(MPCC_TOP_SEL[mpcc_inst], 0,
-			MPCC_TOP_SEL, 0xf);
+	REG_SET_4(MPCC_CONTROL, 0xffffffff,
+		MPCC_MODE, mpcc_mode,
+		MPCC_ALPHA_BLND_MODE, alpha_blnd_mode,
+		MPCC_ALPHA_MULTIPLIED_MODE, 0/*TODO: cfg->per_pixel_alpha*/,
+		MPCC_BLND_ACTIVE_OVERLAP_ONLY, cfg->top_of_tree);
 
-	REG_SET(MPCC_BOT_SEL[mpcc_inst], 0,
-			MPCC_BOT_SEL, 0xf);
-
-	if (i == 0) {
-		if (tree_cfg->num_pipes > 1)
-			set_output_mux(mpc,
-				tree_cfg->opp_id, tree_cfg->mpcc[i+1]);
+	if (cfg->top_of_tree) {
+		if (cfg->opp_id != 0xf)
+			set_output_mux(mpcc10, cfg->opp_id, mpcc->inst);
 		else
-			set_output_mux(mpc, tree_cfg->opp_id, 0xf);
-	} else if (i == tree_cfg->num_pipes-1) {
-		mpcc_inst = tree_cfg->mpcc[i - 1];
-
-		REG_SET(MPCC_BOT_SEL[mpcc_inst], 0,
-				MPCC_BOT_SEL, 0xF);
-
-		/* prev mpc is now last, set to top only*/
-		REG_UPDATE(MPCC_CONTROL[mpcc_inst],
-				MPCC_MODE, MODE_TOP_ONLY);
-	} else {
-		mpcc_inst = tree_cfg->mpcc[i - 1];
-
-		REG_SET(MPCC_BOT_SEL[mpcc_inst], 0,
-			MPCC_BOT_SEL, tree_cfg->mpcc[i+1]);
+			reset_output_mux(mpcc10);
 	}
-
-	/* update tree_cfg structure */
-	while (i < tree_cfg->num_pipes - 1) {
-		tree_cfg->dpp[i] = tree_cfg->dpp[i+1];
-		tree_cfg->mpcc[i] = tree_cfg->mpcc[i+1];
-		tree_cfg->per_pixel_alpha[i] = tree_cfg->per_pixel_alpha[i+1];
-		i++;
-	}
-	tree_cfg->num_pipes--;
-
-	return true;
 }
 
-/* TODO FPGA: how to handle DPP?
- * Function to add DPP/MPCC pair into MPC configure tree by position.
- * Before invoke this function, ensure that master lock of OPTC specified
- * by opp_id is set
- * This function can be invoke multiple times to add more than 1 pipes.
- *
- * tree_cfg[in/out] - current MPC_TREE_CFG
- * dpp_idx[in]	 - index of an idle dpp insatnce to be added.
- * mpcc_idx[in]	 - index of an idle mpcc instance to be added.
- * poistion[in]	 - position of dpp/mpcc pair to be added into current tree_cfg
- *                 0 means insert to the most top layer of MPC tree
- */
-void dcn10_add_dpp(struct dcn10_mpc *mpc,
-	struct mpc_tree_cfg *tree_cfg,
-	uint8_t dpp_idx,
-	uint8_t mpcc_idx,
-	uint8_t per_pixel_alpha,
-	uint8_t position)
+static void dcn10_mpcc_wait_idle(struct mpcc *mpcc)
 {
-	uint8_t prev;
-	uint8_t next;
+	struct dcn10_mpcc *mpcc10 = TO_DCN10_MPCC(mpcc);
 
-	REG_SET(MPCC_OPP_ID[mpcc_idx], 0,
-			MPCC_OPP_ID, tree_cfg->opp_id);
-	REG_SET(MPCC_TOP_SEL[mpcc_idx], 0,
-			MPCC_TOP_SEL, dpp_idx);
-
-	if (position == 0) {
-		/* idle dpp/mpcc is added to the top layer of tree */
-		REG_SET(MPCC_BOT_SEL[mpcc_idx], 0,
-				MPCC_BOT_SEL, tree_cfg->mpcc[0]);
-
-		/* bottom mpc is always top only */
-		REG_UPDATE(MPCC_CONTROL[mpcc_idx],
-				MPCC_MODE, MODE_TOP_ONLY);
-		/* opp will get new output. from new added mpcc */
-		set_output_mux(mpc, tree_cfg->opp_id, mpcc_idx);
-
-	} else if (position == tree_cfg->num_pipes) {
-		/* idle dpp/mpcc is added to the bottom layer of tree */
-
-		/* get instance of previous bottom mpcc, set to middle layer */
-		prev = tree_cfg->mpcc[position - 1];
-
-		REG_SET(MPCC_BOT_SEL[prev], 0,
-				MPCC_BOT_SEL, mpcc_idx);
-
-		/* all mpcs other than bottom need to blend */
-		REG_UPDATE(MPCC_CONTROL[prev],
-				MPCC_MODE, MODE_BLEND);
-
-		/* mpcc_idx become new bottom mpcc*/
-		REG_SET(MPCC_BOT_SEL[mpcc_idx], 0,
-				MPCC_BOT_SEL, 0xf);
-
-		/* bottom mpc is always top only */
-		REG_UPDATE(MPCC_CONTROL[mpcc_idx],
-				MPCC_MODE, MODE_TOP_ONLY);
-	} else {
-		/* idle dpp/mpcc is added to middle of tree */
-		prev = tree_cfg->mpcc[position - 1]; /* mpc a */
-		next = tree_cfg->mpcc[position]; /* mpc b */
-
-		/* connect mpc inserted below mpc a*/
-		REG_SET(MPCC_BOT_SEL[prev], 0,
-				MPCC_BOT_SEL, mpcc_idx);
-
-		/* blend on mpc being inserted */
-		REG_UPDATE(MPCC_CONTROL[mpcc_idx],
-				MPCC_MODE, MODE_BLEND);
-
-		/* Connect mpc b below one inserted */
-		REG_SET(MPCC_BOT_SEL[mpcc_idx], 0,
-				MPCC_BOT_SEL, next);
-
-	}
-	/* premultiplied mode only if alpha is on for the layer*/
-	REG_UPDATE_2(MPCC_CONTROL[mpcc_idx],
-			MPCC_ALPHA_BLND_MODE,
-			tree_cfg->per_pixel_alpha[position] ? 0 : 2,
-			MPCC_ALPHA_MULTIPLIED_MODE, 0);
-
-	/*
-	 * iterating from the last mpc/dpp pair to the one being added, shift
-	 * them down one position
-	 */
-	for (next = tree_cfg->num_pipes; next > position; next--) {
-		tree_cfg->dpp[next] = tree_cfg->dpp[next - 1];
-		tree_cfg->mpcc[next] = tree_cfg->mpcc[next - 1];
-		tree_cfg->per_pixel_alpha[next] = tree_cfg->per_pixel_alpha[next - 1];
-	}
-
-	/* insert the new mpc/dpp pair into the tree_cfg*/
-	tree_cfg->dpp[position] = dpp_idx;
-	tree_cfg->mpcc[position] = mpcc_idx;
-	tree_cfg->per_pixel_alpha[position] = per_pixel_alpha;
-	tree_cfg->num_pipes++;
+	REG_WAIT(MPCC_STATUS, MPCC_IDLE, 1, 1000, 1000);
 }
 
-void wait_mpcc_idle(struct dcn10_mpc *mpc,
-	uint8_t mpcc_id)
+
+const struct mpcc_funcs dcn10_mpcc_funcs = {
+		.set = dcn10_mpcc_set,
+		.wait_for_idle = dcn10_mpcc_wait_idle,
+		.set_bg_color = dcn10_mpcc_set_bg_color,
+};
+
+void dcn10_mpcc_construct(struct dcn10_mpcc *mpcc10,
+	struct dc_context *ctx,
+	const struct dcn_mpcc_registers *mpcc_regs,
+	const struct dcn_mpcc_shift *mpcc_shift,
+	const struct dcn_mpcc_mask *mpcc_mask,
+	int inst)
 {
-	REG_WAIT(MPCC_STATUS[mpcc_id],
-			MPCC_IDLE, 1,
-			1000, 1000);
-}
+	mpcc10->base.ctx = ctx;
 
+	mpcc10->base.inst = inst;
+	mpcc10->base.funcs = &dcn10_mpcc_funcs;
+
+	mpcc10->mpcc_regs = mpcc_regs;
+	mpcc10->mpcc_shift = mpcc_shift;
+	mpcc10->mpcc_mask = mpcc_mask;
+
+	mpcc10->opp_id = inst;
+}

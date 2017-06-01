@@ -1008,8 +1008,6 @@ static int acquire_first_split_pipe(
 
 		if (pipe_ctx->top_pipe &&
 				pipe_ctx->top_pipe->surface == pipe_ctx->surface) {
-			int mpc_idx = pipe_ctx->mpc_idx;
-
 			pipe_ctx->top_pipe->bottom_pipe = pipe_ctx->bottom_pipe;
 			if (pipe_ctx->bottom_pipe)
 				pipe_ctx->bottom_pipe->top_pipe = pipe_ctx->top_pipe;
@@ -1021,8 +1019,8 @@ static int acquire_first_split_pipe(
 			pipe_ctx->xfm = pool->transforms[i];
 			pipe_ctx->opp = pool->opps[i];
 			pipe_ctx->dis_clk = pool->display_clock;
+			pipe_ctx->mpcc = pool->mpcc[i];
 			pipe_ctx->pipe_idx = i;
-			pipe_ctx->mpc_idx = mpc_idx;
 
 			pipe_ctx->stream = stream;
 			return i;
@@ -1243,6 +1241,9 @@ static int acquire_first_free_pipe(
 		if (!res_ctx->pipe_ctx[i].stream) {
 			struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
 
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+			pipe_ctx->mpcc = pool->mpcc[i];
+#endif
 			pipe_ctx->tg = pool->timing_generators[i];
 			pipe_ctx->mi = pool->mis[i];
 			pipe_ctx->ipp = pool->ipps[i];
@@ -1251,9 +1252,6 @@ static int acquire_first_free_pipe(
 			pipe_ctx->dis_clk = pool->display_clock;
 			pipe_ctx->pipe_idx = i;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-			pipe_ctx->mpc_idx = -1;
-#endif
 
 			pipe_ctx->stream = stream;
 			return i;

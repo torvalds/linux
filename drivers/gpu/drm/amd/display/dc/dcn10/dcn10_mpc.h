@@ -22,45 +22,45 @@
  *
  */
 
-#ifndef __DC_MPC_DCN10_H__
-#define __DC_MPC_DCN10_H__
+#ifndef __DC_MPCC_DCN10_H__
+#define __DC_MPCC_DCN10_H__
 
 #include "mpc.h"
 
-#define TO_DCN10_MPC(mpc_base)\
-	container_of(mpc_base, struct dcn10_mpc, base)
+#define TO_DCN10_MPCC(mpcc_base) \
+	container_of(mpcc_base, struct dcn10_mpcc, base)
 
-#define MAX_MPCC 4
-#define MAX_MPC_OUT 4
 #define MAX_OPP 4
 
 #define MPC_COMMON_REG_LIST_DCN1_0(inst) \
-	SRII(MPCC_TOP_SEL, MPCC, inst),\
-	SRII(MPCC_BOT_SEL, MPCC, inst),\
-	SRII(MPCC_CONTROL, MPCC, inst),\
-	SRII(MPCC_STATUS, MPCC, inst),\
-	SRII(MPCC_OPP_ID, MPCC, inst),\
-	SRII(MPCC_BG_G_Y, MPCC, inst),\
-	SRII(MPCC_BG_R_CR, MPCC, inst),\
-	SRII(MPCC_BG_B_CB, MPCC, inst),\
-	SRII(MPCC_BG_B_CB, MPCC, inst),\
 	SRII(MUX, MPC_OUT, inst),\
 	SRII(OPP_PIPE_CONTROL, OPP_PIPE, inst)
 
-struct dcn_mpc_registers {
-	uint32_t MPCC_TOP_SEL[MAX_MPCC];
-	uint32_t MPCC_BOT_SEL[MAX_MPCC];
-	uint32_t MPCC_CONTROL[MAX_MPCC];
-	uint32_t MPCC_STATUS[MAX_MPCC];
-	uint32_t MPCC_OPP_ID[MAX_MPCC];
-	uint32_t MPCC_BG_G_Y[MAX_MPCC];
-	uint32_t MPCC_BG_R_CR[MAX_MPCC];
-	uint32_t MPCC_BG_B_CB[MAX_MPCC];
-	uint32_t MUX[MAX_MPC_OUT];
+#define MPCC_COMMON_REG_LIST_DCN1_0(inst) \
+	SRI(MPCC_TOP_SEL, MPCC, inst),\
+	SRI(MPCC_BOT_SEL, MPCC, inst),\
+	SRI(MPCC_CONTROL, MPCC, inst),\
+	SRI(MPCC_STATUS, MPCC, inst),\
+	SRI(MPCC_OPP_ID, MPCC, inst),\
+	SRI(MPCC_BG_G_Y, MPCC, inst),\
+	SRI(MPCC_BG_R_CR, MPCC, inst),\
+	SRI(MPCC_BG_B_CB, MPCC, inst),\
+	SRI(MPCC_BG_B_CB, MPCC, inst)
+
+struct dcn_mpcc_registers {
+	uint32_t MPCC_TOP_SEL;
+	uint32_t MPCC_BOT_SEL;
+	uint32_t MPCC_CONTROL;
+	uint32_t MPCC_STATUS;
+	uint32_t MPCC_OPP_ID;
+	uint32_t MPCC_BG_G_Y;
+	uint32_t MPCC_BG_R_CR;
+	uint32_t MPCC_BG_B_CB;
 	uint32_t OPP_PIPE_CONTROL[MAX_OPP];
+	uint32_t MUX[MAX_OPP];
 };
 
-#define MPC_COMMON_MASK_SH_LIST_DCN1_0(mask_sh)\
+#define MPCC_COMMON_MASK_SH_LIST_DCN1_0(mask_sh)\
 	SF(MPCC0_MPCC_TOP_SEL, MPCC_TOP_SEL, mask_sh),\
 	SF(MPCC0_MPCC_BOT_SEL, MPCC_BOT_SEL, mask_sh),\
 	SF(MPCC0_MPCC_CONTROL, MPCC_MODE, mask_sh),\
@@ -75,7 +75,7 @@ struct dcn_mpc_registers {
 	SF(MPC_OUT0_MUX, MPC_OUT_MUX, mask_sh),\
 	SF(OPP_PIPE0_OPP_PIPE_CONTROL, OPP_PIPE_CLOCK_EN, mask_sh)
 
-#define MPC_REG_FIELD_LIST(type) \
+#define MPCC_REG_FIELD_LIST(type) \
 	type MPCC_TOP_SEL;\
 	type MPCC_BOT_SEL;\
 	type MPCC_MODE;\
@@ -90,42 +90,28 @@ struct dcn_mpc_registers {
 	type MPC_OUT_MUX;\
 	type OPP_PIPE_CLOCK_EN;\
 
-struct dcn_mpc_shift {
-	MPC_REG_FIELD_LIST(uint8_t)
+struct dcn_mpcc_shift {
+	MPCC_REG_FIELD_LIST(uint8_t)
 };
 
-struct dcn_mpc_mask {
-	MPC_REG_FIELD_LIST(uint32_t)
+struct dcn_mpcc_mask {
+	MPCC_REG_FIELD_LIST(uint32_t)
 };
 
-struct dcn10_mpc {
-	struct mpc base;
-	const struct dcn_mpc_registers *mpc_regs;
-	const struct dcn_mpc_shift *mpc_shift;
-	const struct dcn_mpc_mask *mpc_mask;
+struct dcn10_mpcc {
+	struct mpcc base;
+	const struct dcn_mpcc_registers *mpcc_regs;
+	const struct dcn_mpcc_shift *mpcc_shift;
+	const struct dcn_mpcc_mask *mpcc_mask;
+
+	int opp_id;
 };
 
-void dcn10_delete_mpc_tree(struct dcn10_mpc *mpc,
-	struct mpc_tree_cfg *tree_cfg);
+void dcn10_mpcc_construct(struct dcn10_mpcc *mpcc10,
+	struct dc_context *ctx,
+	const struct dcn_mpcc_registers *mpcc_regs,
+	const struct dcn_mpcc_shift *mpcc_shift,
+	const struct dcn_mpcc_mask *mpcc_mask,
+	int inst);
 
-bool dcn10_remove_dpp(struct dcn10_mpc *mpc,
-	struct mpc_tree_cfg *tree_cfg,
-	uint8_t idx);
-
-void dcn10_add_dpp(struct dcn10_mpc *mpc,
-	struct mpc_tree_cfg *tree_cfg,
-	uint8_t dpp_idx,
-	uint8_t mpcc_idx,
-	uint8_t per_pixel_alpha,
-	uint8_t position);
-
-void wait_mpcc_idle(struct dcn10_mpc *mpc,
-	uint8_t mpcc_id);
-
-void dcn10_set_mpc_tree(struct dcn10_mpc *mpc,
-	struct mpc_tree_cfg *tree_cfg);
-
-void dcn10_set_mpc_background_color(struct dcn10_mpc *mpc,
-	unsigned int mpcc_inst,
-	struct tg_color *bg_color);
 #endif

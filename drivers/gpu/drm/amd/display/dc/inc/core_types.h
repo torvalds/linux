@@ -236,6 +236,9 @@ struct resource_pool {
 	struct output_pixel_processor *opps[MAX_PIPES];
 	struct timing_generator *timing_generators[MAX_PIPES];
 	struct stream_encoder *stream_enc[MAX_PIPES * 2];
+#ifdef CONFIG_DRM_AMD_DC_DCN1_0
+	struct mpcc *mpcc[MAX_PIPES];
+#endif
 
 	unsigned int pipe_count;
 	unsigned int underlay_pipe_index;
@@ -259,9 +262,6 @@ struct resource_pool {
 
 	struct abm *abm;
 	struct dmcu *dmcu;
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-	struct mpc *mpc;
-#endif
 
 	const struct resource_funcs *funcs;
 	const struct resource_caps *res_cap;
@@ -295,8 +295,9 @@ struct pipe_ctx {
 
 	struct pipe_ctx *top_pipe;
 	struct pipe_ctx *bottom_pipe;
+
 #ifdef CONFIG_DRM_AMD_DC_DCN1_0
-	uint8_t mpc_idx;
+	struct mpcc *mpcc;
 	struct _vcs_dpi_display_dlg_regs_st dlg_regs;
 	struct _vcs_dpi_display_ttu_regs_st ttu_regs;
 	struct _vcs_dpi_display_rq_regs_st rq_regs;
@@ -306,9 +307,6 @@ struct pipe_ctx {
 
 struct resource_context {
 	struct pipe_ctx pipe_ctx[MAX_PIPES];
-#ifdef CONFIG_DRM_AMD_DC_DCN1_0
-	struct mpc_tree_cfg mpc_tree[MAX_PIPES];
-#endif
 	bool is_stream_enc_acquired[MAX_PIPES * 2];
 	bool is_audio_acquired[MAX_PIPES];
 	uint8_t clock_source_ref_count[MAX_CLOCK_SOURCES];

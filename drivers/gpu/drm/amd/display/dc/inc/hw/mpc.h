@@ -22,76 +22,29 @@
  *
  */
 
-#ifndef __DC_MPC_H__
-#define __DC_MPC_H__
+#ifndef __DC_MPCC_H__
+#define __DC_MPCC_H__
 
-/* This structure define the mpc tree configuration
- * num_pipes - number of pipes of the tree
- * opp_id - instance id of OPP to drive MPC
- * dpp- array of DPP index
- * mpcc - array of MPCC index
- * mode	- the most bottom layer MPCC mode control.
- *  All other layers need to be program to 3
- *
- * The connection will be:
- * mpcc[num_pipes-1]->mpcc[num_pipes-2]->...->mpcc[1]->mpcc[0]->OPP[opp_id]
- * dpp[0]->mpcc[0]
- * dpp[1]->mpcc[1]
- * ...
- * dpp[num_pipes-1]->mpcc[num_pipes-1]
- * mpcc[0] is the most top layer of MPC tree,
- * mpcc[num_pipes-1] is the most bottom layer.
- */
+#include "dc_hw_types.h"
 
-struct mpc_tree_cfg {
-	uint8_t num_pipes;
-	uint8_t opp_id;
-	/* dpp pipes for blend */
-	uint8_t dpp[6];
-	/* mpcc insatnces for blend */
-	uint8_t mpcc[6];
-	bool per_pixel_alpha[6];
+struct mpcc_cfg {
+	int top_dpp_id;
+	int bot_mpcc_id;
+	int opp_id;
+	bool per_pixel_alpha;
+	bool top_of_tree;
 };
 
-struct mpcc_blnd_cfg {
-	/* 0- perpixel alpha, 1- perpixel alpha combined with global gain,
-	 * 2- global alpha
-	 */
-	uint8_t alpha_mode;
-	uint8_t global_gain;
-	uint8_t global_alpha;
-	bool overlap_only;
-	bool pre_multiplied_alpha;
-};
-
-struct mpcc_sm_cfg {
-	bool enable;
-	/* 0-single plane, 2-row subsampling, 4-column subsampling,
-	 * 6-checkboard subsampling
-	 */
-	uint8_t sm_mode;
-	bool frame_alt; /* 0- disable, 1- enable */
-	bool field_alt; /* 0- disable, 1- enable */
-	/* 0-no force, 2-force frame polarity from top,
-	 * 3-force frame polarity from bottom
-	 */
-	uint8_t force_next_frame_porlarity;
-	/* 0-no force, 2-force field polarity from top,
-	 * 3-force field polarity from bottom
-	 */
-	uint8_t force_next_field_polarity;
-};
-
-struct mpcc_vupdate_lock_cfg {
-	bool cfg_lock;
-	bool adr_lock;
-	bool adr_cfg_lock;
-	bool cur0_lock;
-	bool cur1_lock;
-};
-
-struct mpc {
+struct mpcc {
+	const struct mpcc_funcs *funcs;
 	struct dc_context *ctx;
+	int inst;
+};
+
+struct mpcc_funcs {
+	void (*set)(struct mpcc *mpcc, struct mpcc_cfg *cfg);
+	void (*wait_for_idle)(struct mpcc *mpcc);
+	void (*set_bg_color)( struct mpcc *mpcc, struct tg_color *bg_color);
 };
 
 #endif
