@@ -868,16 +868,10 @@ static void reset_front_end_for_pipe(
 	 */
 	tree_cfg = &dc->current_context->res_ctx.mpc_tree[pipe_ctx->mpc_idx];
 
-	if (pipe_ctx->top_pipe == NULL)
-		dcn10_delete_mpc_tree(mpc, tree_cfg);
-	else {
-		if (dcn10_remove_dpp(mpc, tree_cfg, pipe_ctx->pipe_idx))
-			pipe_ctx->top_pipe->bottom_pipe = NULL;
-		else {
-			dm_logger_write(dc->ctx->logger, LOG_RESOURCE,
-				"%s: failed to find dpp to be removed!\n",
-				__func__);
-		}
+	if (!dcn10_remove_dpp(mpc, tree_cfg, pipe_ctx->pipe_idx)) {
+		dm_logger_write(dc->ctx->logger, LOG_RESOURCE,
+			"%s: failed to find dpp to be removed!\n",
+			__func__);
 	}
 
 	pipe_ctx->top_pipe = NULL;
