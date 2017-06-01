@@ -313,23 +313,6 @@ int bnxt_re_query_port(struct ib_device *ibdev, u8 port_num,
 	return 0;
 }
 
-int bnxt_re_modify_port(struct ib_device *ibdev, u8 port_num,
-			int port_modify_mask,
-			struct ib_port_modify *port_modify)
-{
-	switch (port_modify_mask) {
-	case IB_PORT_SHUTDOWN:
-		break;
-	case IB_PORT_INIT_TYPE:
-		break;
-	case IB_PORT_RESET_QKEY_CNTR:
-		break;
-	default:
-		break;
-	}
-	return 0;
-}
-
 int bnxt_re_get_port_immutable(struct ib_device *ibdev, u8 port_num,
 			       struct ib_port_immutable *immutable)
 {
