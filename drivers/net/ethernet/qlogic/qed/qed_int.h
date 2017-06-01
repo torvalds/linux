@@ -202,18 +202,20 @@ void qed_int_disable_post_isr_release(struct qed_dev *cdev);
 #define QED_SB_INVALID_IDX      0xffff
 
 struct qed_igu_block {
-	u8	status;
+	u8 status;
 #define QED_IGU_STATUS_FREE     0x01
 #define QED_IGU_STATUS_VALID    0x02
 #define QED_IGU_STATUS_PF       0x04
 #define QED_IGU_STATUS_DSB      0x08
 
-	u8	vector_number;
-	u8	function_id;
-	u8	is_pf;
+	u8 vector_number;
+	u8 function_id;
+	u8 is_pf;
 
 	/* Index inside IGU [meant for back reference] */
-	u16	igu_sb_id;
+	u16 igu_sb_id;
+
+	struct qed_sb_info *sb_info;
 };
 
 struct qed_igu_info {
@@ -224,7 +226,16 @@ struct qed_igu_info {
 
 };
 
-/* TODO Names of function may change... */
+/**
+ * @brief Translate the weakly-defined client sb-id into an IGU sb-id
+ *
+ * @param p_hwfn
+ * @param sb_id - user provided sb_id
+ *
+ * @return an index inside IGU CAM where the SB resides
+ */
+u16 qed_get_igu_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id);
+
 /**
  * @brief return a pointer to an unused valid SB
  *

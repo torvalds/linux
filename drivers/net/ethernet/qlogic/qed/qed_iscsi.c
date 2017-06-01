@@ -220,7 +220,7 @@ qed_sp_iscsi_func_start(struct qed_hwfn *p_hwfn,
 	p_queue->cmdq_sb_pi = p_params->gl_cmd_pi;
 
 	for (i = 0; i < p_params->num_queues; i++) {
-		val = p_hwfn->sbs_info[i]->igu_sb_id;
+		val = qed_get_igu_sb_id(p_hwfn, i);
 		p_queue->cq_cmdq_sb_num_arr[i] = cpu_to_le16(val);
 	}
 

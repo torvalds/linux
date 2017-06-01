@@ -627,6 +627,14 @@ struct qed_vf_iov {
 	 * this has to be propagated as it affects the fastpath.
 	 */
 	bool b_pre_fp_hsi;
+
+	/* Current day VFs are passing the SBs physical address on vport
+	 * start, and as they lack an IGU mapping they need to store the
+	 * addresses of previously registered SBs.
+	 * Even if we were to change configuration flow, due to backward
+	 * compatibility [with older PFs] we'd still need to store these.
+	 */
+	struct qed_sb_info *sbs_info[PFVF_MAX_SBS_PER_VF];
 };
 
 #ifdef CONFIG_QED_SRIOV
@@ -835,6 +843,16 @@ int qed_vf_pf_release(struct qed_hwfn *p_hwfn);
  * @return INLINE u16
  */
 u16 qed_vf_get_igu_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id);
+
+/**
+ * @brief Stores [or removes] a configured sb_info.
+ *
+ * @param p_hwfn
+ * @param sb_id - zero-based SB index [for fastpath]
+ * @param sb_info - may be NULL [during removal].
+ */
+void qed_vf_set_sb_info(struct qed_hwfn *p_hwfn,
+			u16 sb_id, struct qed_sb_info *p_sb);
 
 /**
  * @brief qed_vf_pf_vport_start - perform vport start for VF.

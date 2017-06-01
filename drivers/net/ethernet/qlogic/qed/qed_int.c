@@ -1452,7 +1452,7 @@ static u16 qed_get_pf_igu_sb_id(struct qed_hwfn *p_hwfn, u16 vector_id)
 	return QED_SB_INVALID_IDX;
 }
 
-static u16 qed_get_igu_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id)
+u16 qed_get_igu_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id)
 {
 	u16 igu_sb_id;
 
@@ -1485,8 +1485,19 @@ int qed_int_sb_init(struct qed_hwfn *p_hwfn,
 	sb_info->igu_sb_id = qed_get_igu_sb_id(p_hwfn, sb_id);
 
 	if (sb_id != QED_SP_SB_ID) {
-		p_hwfn->sbs_info[sb_id] = sb_info;
-		p_hwfn->num_sbs++;
+		if (IS_PF(p_hwfn->cdev)) {
+			struct qed_igu_info *p_info;
+			struct qed_igu_block *p_block;
+
+			p_info = p_hwfn->hw_info.p_igu_info;
+			p_block = &p_info->entry[sb_info->igu_sb_id];
+
+			p_block->sb_info = sb_info;
+			p_block->status &= ~QED_IGU_STATUS_FREE;
+			p_info->usage.free_cnt--;
+		} else {
+			qed_vf_set_sb_info(p_hwfn, sb_id, sb_info);
+		}
 	}
 
 	sb_info->cdev = p_hwfn->cdev;
@@ -1515,19 +1526,34 @@ int qed_int_sb_init(struct qed_hwfn *p_hwfn,
 int qed_int_sb_release(struct qed_hwfn *p_hwfn,
 		       struct qed_sb_info *sb_info, u16 sb_id)
 {
-	if (sb_id == QED_SP_SB_ID) {
-		DP_ERR(p_hwfn, "Do Not free sp sb using this function");
-		return -EINVAL;
-	}
+	struct qed_igu_block *p_block;
+	struct qed_igu_info *p_info;
+
+	if (!sb_info)
+		return 0;
 
 	/* zero status block and ack counter */
 	sb_info->sb_ack = 0;
 	memset(sb_info->sb_virt, 0, sizeof(*sb_info->sb_virt));
 
-	if (p_hwfn->sbs_info[sb_id] != NULL) {
-		p_hwfn->sbs_info[sb_id] = NULL;
-		p_hwfn->num_sbs--;
+	if (IS_VF(p_hwfn->cdev)) {
+		qed_vf_set_sb_info(p_hwfn, sb_id, NULL);
+		return 0;
 	}
+
+	p_info = p_hwfn->hw_info.p_igu_info;
+	p_block = &p_info->entry[sb_info->igu_sb_id];
+
+	/* Vector 0 is reserved to Default SB */
+	if (!p_block->vector_number) {
+		DP_ERR(p_hwfn, "Do Not free sp sb using this function");
+		return -EINVAL;
+	}
+
+	/* Lose reference to client's SB info, and fix counters */
+	p_block->sb_info = NULL;
+	p_block->status |= QED_IGU_STATUS_FREE;
+	p_info->usage.free_cnt++;
 
 	return 0;
 }

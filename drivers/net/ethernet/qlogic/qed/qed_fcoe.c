@@ -183,7 +183,10 @@ qed_sp_fcoe_func_start(struct qed_hwfn *p_hwfn,
 	p_data->q_params.queue_relative_offset = (u8)tmp;
 
 	for (i = 0; i < fcoe_pf_params->num_cqs; i++) {
-		tmp = cpu_to_le16(p_hwfn->sbs_info[i]->igu_sb_id);
+		u16 igu_sb_id;
+
+		igu_sb_id = qed_get_igu_sb_id(p_hwfn, i);
+		tmp = cpu_to_le16(igu_sb_id);
 		p_data->q_params.cq_cmdq_sb_num_arr[i] = tmp;
 	}
 
