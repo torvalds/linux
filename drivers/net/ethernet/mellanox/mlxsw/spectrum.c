@@ -321,6 +321,21 @@ static const struct mlxfw_dev_ops mlxsw_sp_mlxfw_dev_ops = {
 	.fsm_release		= mlxsw_sp_fsm_release
 };
 
+static int mlxsw_sp_firmware_flash(struct mlxsw_sp *mlxsw_sp,
+				   const struct firmware *firmware)
+{
+	struct mlxsw_sp_mlxfw_dev mlxsw_sp_mlxfw_dev = {
+		.mlxfw_dev = {
+			.ops = &mlxsw_sp_mlxfw_dev_ops,
+			.psid = mlxsw_sp->bus_info->psid,
+			.psid_size = strlen(mlxsw_sp->bus_info->psid),
+		},
+		.mlxsw_sp = mlxsw_sp
+	};
+
+	return mlxfw_firmware_flash(&mlxsw_sp_mlxfw_dev.mlxfw_dev, firmware);
+}
+
 static bool mlxsw_sp_fw_rev_ge(const struct mlxsw_fw_rev *a,
 			       const struct mlxsw_fw_rev *b)
 {
@@ -334,14 +349,6 @@ static bool mlxsw_sp_fw_rev_ge(const struct mlxsw_fw_rev *a,
 static int mlxsw_sp_fw_rev_validate(struct mlxsw_sp *mlxsw_sp)
 {
 	const struct mlxsw_fw_rev *rev = &mlxsw_sp->bus_info->fw_rev;
-	struct mlxsw_sp_mlxfw_dev mlxsw_sp_mlxfw_dev = {
-		.mlxfw_dev = {
-			.ops = &mlxsw_sp_mlxfw_dev_ops,
-			.psid = mlxsw_sp->bus_info->psid,
-			.psid_size = strlen(mlxsw_sp->bus_info->psid),
-		},
-		.mlxsw_sp = mlxsw_sp
-	};
 	const struct firmware *firmware;
 	int err;
 
@@ -361,7 +368,7 @@ static int mlxsw_sp_fw_rev_validate(struct mlxsw_sp *mlxsw_sp)
 		return err;
 	}
 
-	err = mlxfw_firmware_flash(&mlxsw_sp_mlxfw_dev.mlxfw_dev, firmware);
+	err = mlxsw_sp_firmware_flash(mlxsw_sp, firmware);
 	release_firmware(firmware);
 	return err;
 }
@@ -2495,6 +2502,31 @@ mlxsw_sp_port_set_link_ksettings(struct net_device *dev,
 	return 0;
 }
 
+static int mlxsw_sp_flash_device(struct net_device *dev,
+				 struct ethtool_flash *flash)
+{
+	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	const struct firmware *firmware;
+	int err;
+
+	if (flash->region != ETHTOOL_FLASH_ALL_REGIONS)
+		return -EOPNOTSUPP;
+
+	dev_hold(dev);
+	rtnl_unlock();
+
+	err = request_firmware_direct(&firmware, flash->data, &dev->dev);
+	if (err)
+		goto out;
+	err = mlxsw_sp_firmware_flash(mlxsw_sp, firmware);
+	release_firmware(firmware);
+out:
+	rtnl_lock();
+	dev_put(dev);
+	return err;
+}
+
 static const struct ethtool_ops mlxsw_sp_port_ethtool_ops = {
 	.get_drvinfo		= mlxsw_sp_port_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
@@ -2506,6 +2538,7 @@ static const struct ethtool_ops mlxsw_sp_port_ethtool_ops = {
 	.get_sset_count		= mlxsw_sp_port_get_sset_count,
 	.get_link_ksettings	= mlxsw_sp_port_get_link_ksettings,
 	.set_link_ksettings	= mlxsw_sp_port_set_link_ksettings,
+	.flash_device		= mlxsw_sp_flash_device,
 };
 
 static int
