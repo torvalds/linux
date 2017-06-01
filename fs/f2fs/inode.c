@@ -425,9 +425,10 @@ no_delete:
 	if (is_inode_flag_set(inode, FI_FREE_NID)) {
 		alloc_nid_failed(sbi, inode->i_ino);
 		clear_inode_flag(inode, FI_FREE_NID);
+	} else {
+		f2fs_bug_on(sbi, err &&
+			!exist_written_data(sbi, inode->i_ino, ORPHAN_INO));
 	}
-	f2fs_bug_on(sbi, err &&
-		!exist_written_data(sbi, inode->i_ino, ORPHAN_INO));
 out_clear:
 	fscrypt_put_encryption_info(inode, NULL);
 	clear_inode(inode);
