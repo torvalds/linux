@@ -559,7 +559,7 @@ static u64 __of_translate_address(struct device_node *dev,
 	int na, ns, pna, pns;
 	u64 result = OF_BAD_ADDR;
 
-	pr_debug("** translation for device %s **\n", of_node_full_name(dev));
+	pr_debug("** translation for device %pOF **\n", dev);
 
 	/* Increase refcount at current level */
 	of_node_get(dev);
@@ -573,13 +573,13 @@ static u64 __of_translate_address(struct device_node *dev,
 	/* Count address cells & copy address locally */
 	bus->count_cells(dev, &na, &ns);
 	if (!OF_CHECK_COUNTS(na, ns)) {
-		pr_debug("Bad cell count for %s\n", of_node_full_name(dev));
+		pr_debug("Bad cell count for %pOF\n", dev);
 		goto bail;
 	}
 	memcpy(addr, in_addr, na * 4);
 
-	pr_debug("bus is %s (na=%d, ns=%d) on %s\n",
-	    bus->name, na, ns, of_node_full_name(parent));
+	pr_debug("bus is %s (na=%d, ns=%d) on %pOF\n",
+	    bus->name, na, ns, parent);
 	of_dump_addr("translating address:", addr, na);
 
 	/* Translate */
@@ -600,13 +600,12 @@ static u64 __of_translate_address(struct device_node *dev,
 		pbus = of_match_bus(parent);
 		pbus->count_cells(dev, &pna, &pns);
 		if (!OF_CHECK_COUNTS(pna, pns)) {
-			pr_err("Bad cell count for %s\n",
-			       of_node_full_name(dev));
+			pr_err("Bad cell count for %pOF\n", dev);
 			break;
 		}
 
-		pr_debug("parent bus is %s (na=%d, ns=%d) on %s\n",
-		    pbus->name, pna, pns, of_node_full_name(parent));
+		pr_debug("parent bus is %s (na=%d, ns=%d) on %pOF\n",
+		    pbus->name, pna, pns, parent);
 
 		/* Apply bus translation */
 		if (of_translate_one(dev, bus, pbus, addr, na, ns, pna, rprop))
@@ -855,7 +854,7 @@ int of_dma_get_range(struct device_node *np, u64 *dma_addr, u64 *paddr, u64 *siz
 	}
 
 	if (!ranges) {
-		pr_debug("no dma-ranges found for node(%s)\n", np->full_name);
+		pr_debug("no dma-ranges found for node(%pOF)\n", np);
 		ret = -ENODEV;
 		goto out;
 	}
@@ -872,8 +871,8 @@ int of_dma_get_range(struct device_node *np, u64 *dma_addr, u64 *paddr, u64 *siz
 	dmaaddr = of_read_number(ranges, naddr);
 	*paddr = of_translate_dma_address(np, ranges);
 	if (*paddr == OF_BAD_ADDR) {
-		pr_err("translation of DMA address(%pad) to CPU address failed node(%s)\n",
-		       dma_addr, np->full_name);
+		pr_err("translation of DMA address(%pad) to CPU address failed node(%pOF)\n",
+		       dma_addr, np);
 		ret = -EINVAL;
 		goto out;
 	}

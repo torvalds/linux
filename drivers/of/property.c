@@ -55,8 +55,8 @@ int of_property_count_elems_of_size(const struct device_node *np,
 		return -ENODATA;
 
 	if (prop->length % elem_size != 0) {
-		pr_err("size of %s in node %s is not a multiple of %d\n",
-		       propname, np->full_name, elem_size);
+		pr_err("size of %s in node %pOF is not a multiple of %d\n",
+		       propname, np, elem_size);
 		return -EINVAL;
 	}
 
@@ -537,8 +537,8 @@ int of_graph_parse_endpoint(const struct device_node *node,
 {
 	struct device_node *port_node = of_get_parent(node);
 
-	WARN_ONCE(!port_node, "%s(): endpoint %s has no parent node\n",
-		  __func__, node->full_name);
+	WARN_ONCE(!port_node, "%s(): endpoint %pOF has no parent node\n",
+		  __func__, node);
 
 	memset(endpoint, 0, sizeof(*endpoint));
 
@@ -621,14 +621,13 @@ struct device_node *of_graph_get_next_endpoint(const struct device_node *parent,
 		of_node_put(node);
 
 		if (!port) {
-			pr_err("graph: no port node found in %s\n",
-			       parent->full_name);
+			pr_err("graph: no port node found in %pOF\n", parent);
 			return NULL;
 		}
 	} else {
 		port = of_get_parent(prev);
-		if (WARN_ONCE(!port, "%s(): endpoint %s has no parent node\n",
-			      __func__, prev->full_name))
+		if (WARN_ONCE(!port, "%s(): endpoint %pOF has no parent node\n",
+			      __func__, prev))
 			return NULL;
 	}
 
@@ -784,8 +783,8 @@ struct device_node *of_graph_get_remote_node(const struct device_node *node,
 
 	endpoint_node = of_graph_get_endpoint_by_regs(node, port, endpoint);
 	if (!endpoint_node) {
-		pr_debug("no valid endpoint (%d, %d) for node %s\n",
-			 port, endpoint, node->full_name);
+		pr_debug("no valid endpoint (%d, %d) for node %pOF\n",
+			 port, endpoint, node);
 		return NULL;
 	}
 

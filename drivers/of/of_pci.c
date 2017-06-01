@@ -204,15 +204,15 @@ int of_pci_get_host_bridge_resources(struct device_node *dev,
 	if (!bus_range)
 		return -ENOMEM;
 
-	pr_info("host bridge %s ranges:\n", dev->full_name);
+	pr_info("host bridge %pOF ranges:\n", dev);
 
 	err = of_pci_parse_bus_range(dev, bus_range);
 	if (err) {
 		bus_range->start = busno;
 		bus_range->end = bus_max;
 		bus_range->flags = IORESOURCE_BUS;
-		pr_info("  No bus range found for %s, using %pR\n",
-			dev->full_name, bus_range);
+		pr_info("  No bus range found for %pOF, using %pR\n",
+			dev, bus_range);
 	} else {
 		if (bus_range->end > bus_range->start + bus_max)
 			bus_range->end = bus_range->start + bus_max;
@@ -258,14 +258,14 @@ int of_pci_get_host_bridge_resources(struct device_node *dev,
 
 		if (resource_type(res) == IORESOURCE_IO) {
 			if (!io_base) {
-				pr_err("I/O range found for %s. Please provide an io_base pointer to save CPU base address\n",
-					dev->full_name);
+				pr_err("I/O range found for %pOF. Please provide an io_base pointer to save CPU base address\n",
+					dev);
 				err = -EINVAL;
 				goto conversion_failed;
 			}
 			if (*io_base != (resource_size_t)OF_BAD_ADDR)
-				pr_warn("More than one I/O resource converted for %s. CPU base address for old range lost!\n",
-					dev->full_name);
+				pr_warn("More than one I/O resource converted for %pOF. CPU base address for old range lost!\n",
+					dev);
 			*io_base = range.cpu_addr;
 		}
 
@@ -325,7 +325,7 @@ int of_pci_map_rid(struct device_node *np, u32 rid,
 	}
 
 	if (!map_len || map_len % (4 * sizeof(*map))) {
-		pr_err("%s: Error: Bad %s length: %d\n", np->full_name,
+		pr_err("%pOF: Error: Bad %s length: %d\n", np,
 			map_name, map_len);
 		return -EINVAL;
 	}
@@ -349,8 +349,8 @@ int of_pci_map_rid(struct device_node *np, u32 rid,
 		u32 rid_len = be32_to_cpup(map + 3);
 
 		if (rid_base & ~map_mask) {
-			pr_err("%s: Invalid %s translation - %s-mask (0x%x) ignores rid-base (0x%x)\n",
-				np->full_name, map_name, map_name,
+			pr_err("%pOF: Invalid %s translation - %s-mask (0x%x) ignores rid-base (0x%x)\n",
+				np, map_name, map_name,
 				map_mask, rid_base);
 			return -EFAULT;
 		}
@@ -375,14 +375,13 @@ int of_pci_map_rid(struct device_node *np, u32 rid,
 		if (id_out)
 			*id_out = masked_rid - rid_base + out_base;
 
-		pr_debug("%s: %s, using mask %08x, rid-base: %08x, out-base: %08x, length: %08x, rid: %08x -> %08x\n",
-			np->full_name, map_name, map_mask, rid_base, out_base,
+		pr_debug("%pOF: %s, using mask %08x, rid-base: %08x, out-base: %08x, length: %08x, rid: %08x -> %08x\n",
+			np, map_name, map_mask, rid_base, out_base,
 			rid_len, rid, *id_out);
 		return 0;
 	}
 
-	pr_err("%s: Invalid %s translation - no match for rid 0x%x on %s\n",
-		np->full_name, map_name, rid,
-		target && *target ? (*target)->full_name : "any target");
+	pr_err("%pOF: Invalid %s translation - no match for rid 0x%x on %pOF\n",
+		np, map_name, rid, target && *target ? *target : NULL);
 	return -EFAULT;
 }

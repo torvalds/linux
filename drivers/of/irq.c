@@ -131,7 +131,7 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 		goto fail;
 	}
 
-	pr_debug("of_irq_parse_raw: ipar=%s, size=%d\n", of_node_full_name(ipar), intsize);
+	pr_debug("of_irq_parse_raw: ipar=%pOF, size=%d\n", ipar, intsize);
 
 	if (out_irq->args_count != intsize)
 		goto fail;
@@ -269,7 +269,7 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 	skiplevel:
 		/* Iterate again with new parent */
 		out_irq->np = newpar;
-		pr_debug(" -> new parent: %s\n", of_node_full_name(newpar));
+		pr_debug(" -> new parent: %pOF\n", newpar);
 		of_node_put(ipar);
 		ipar = newpar;
 		newpar = NULL;
@@ -301,7 +301,7 @@ int of_irq_parse_one(struct device_node *device, int index, struct of_phandle_ar
 	u32 intsize, intlen;
 	int i, res;
 
-	pr_debug("of_irq_parse_one: dev=%s, index=%d\n", of_node_full_name(device), index);
+	pr_debug("of_irq_parse_one: dev=%pOF, index=%d\n", device, index);
 
 	/* OldWorld mac stuff is "special", handle out of line */
 	if (of_irq_workarounds & OF_IMAP_OLDWORLD_MAC)
@@ -555,8 +555,8 @@ void __init of_irq_init(const struct of_device_id *matches)
 
 			of_node_set_flag(desc->dev, OF_POPULATED);
 
-			pr_debug("of_irq_init: init %s (%p), parent %p\n",
-				 desc->dev->full_name,
+			pr_debug("of_irq_init: init %pOF (%p), parent %p\n",
+				 desc->dev,
 				 desc->dev, desc->interrupt_parent);
 			ret = desc->irq_init_cb(desc->dev,
 						desc->interrupt_parent);

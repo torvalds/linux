@@ -294,7 +294,7 @@ void of_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 		return;
 
 	add_uevent_var(env, "OF_NAME=%s", dev->of_node->name);
-	add_uevent_var(env, "OF_FULLNAME=%s", dev->of_node->full_name);
+	add_uevent_var(env, "OF_FULLNAME=%pOF", dev->of_node);
 	if (dev->of_node->type && strcmp("<NULL>", dev->of_node->type) != 0)
 		add_uevent_var(env, "OF_TYPE=%s", dev->of_node->type);
 
