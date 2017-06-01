@@ -266,12 +266,12 @@ static int sun4i_ss_probe(struct platform_device *pdev)
 
 	/* Enable both clocks */
 	err = clk_prepare_enable(ss->busclk);
-	if (err != 0) {
+	if (err) {
 		dev_err(&pdev->dev, "Cannot prepare_enable busclk\n");
 		return err;
 	}
 	err = clk_prepare_enable(ss->ssclk);
-	if (err != 0) {
+	if (err) {
 		dev_err(&pdev->dev, "Cannot prepare_enable ssclk\n");
 		goto error_ssclk;
 	}
@@ -281,7 +281,7 @@ static int sun4i_ss_probe(struct platform_device *pdev)
 	 * Try to set the clock to the maximum allowed
 	 */
 	err = clk_set_rate(ss->ssclk, cr_mod);
-	if (err != 0) {
+	if (err) {
 		dev_err(&pdev->dev, "Cannot set clock rate to ssclk\n");
 		goto error_clk;
 	}
@@ -342,7 +342,7 @@ static int sun4i_ss_probe(struct platform_device *pdev)
 		switch (ss_algs[i].type) {
 		case CRYPTO_ALG_TYPE_ABLKCIPHER:
 			err = crypto_register_alg(&ss_algs[i].alg.crypto);
-			if (err != 0) {
+			if (err) {
 				dev_err(ss->dev, "Fail to register %s\n",
 					ss_algs[i].alg.crypto.cra_name);
 				goto error_alg;
@@ -350,7 +350,7 @@ static int sun4i_ss_probe(struct platform_device *pdev)
 			break;
 		case CRYPTO_ALG_TYPE_AHASH:
 			err = crypto_register_ahash(&ss_algs[i].alg.hash);
-			if (err != 0) {
+			if (err) {
 				dev_err(ss->dev, "Fail to register %s\n",
 					ss_algs[i].alg.hash.halg.base.cra_name);
 				goto error_alg;

@@ -38,7 +38,7 @@ static int sun4i_ss_opti_poll(struct ablkcipher_request *areq)
 	unsigned int oi, oo; /* offset for in and out */
 	unsigned long flags;
 
-	if (areq->nbytes == 0)
+	if (!areq->nbytes)
 		return 0;
 
 	if (!areq->info) {
@@ -82,7 +82,7 @@ static int sun4i_ss_opti_poll(struct ablkcipher_request *areq)
 	oo = 0;
 	do {
 		todo = min3(rx_cnt, ileft, (mi.length - oi) / 4);
-		if (todo > 0) {
+		if (todo) {
 			ileft -= todo;
 			writesl(ss->base + SS_RXFIFO, mi.addr + oi, todo);
 			oi += todo * 4;
@@ -97,7 +97,7 @@ static int sun4i_ss_opti_poll(struct ablkcipher_request *areq)
 		tx_cnt = SS_TXFIFO_SPACES(spaces);
 
 		todo = min3(tx_cnt, oleft, (mo.length - oo) / 4);
-		if (todo > 0) {
+		if (todo) {
 			oleft -= todo;
 			readsl(ss->base + SS_TXFIFO, mo.addr + oo, todo);
 			oo += todo * 4;
@@ -106,7 +106,7 @@ static int sun4i_ss_opti_poll(struct ablkcipher_request *areq)
 			sg_miter_next(&mo);
 			oo = 0;
 		}
-	} while (oleft > 0);
+	} while (oleft);
 
 	if (areq->info) {
 		for (i = 0; i < 4 && i < ivsize / 4; i++) {
@@ -154,7 +154,7 @@ static int sun4i_ss_cipher_poll(struct ablkcipher_request *areq)
 	unsigned int obl = 0;	/* length of data in bufo */
 	unsigned long flags;
 
-	if (areq->nbytes == 0)
+	if (!areq->nbytes)
 		return 0;
 
 	if (!areq->info) {
@@ -172,12 +172,12 @@ static int sun4i_ss_cipher_poll(struct ablkcipher_request *areq)
 	 * we can use the SS optimized function
 	 */
 	while (in_sg && no_chunk == 1) {
-		if ((in_sg->length % 4) != 0)
+		if (in_sg->length % 4)
 			no_chunk = 0;
 		in_sg = sg_next(in_sg);
 	}
 	while (out_sg && no_chunk == 1) {
-		if ((out_sg->length % 4) != 0)
+		if (out_sg->length % 4)
 			no_chunk = 0;
 		out_sg = sg_next(out_sg);
 	}
@@ -214,14 +214,14 @@ static int sun4i_ss_cipher_poll(struct ablkcipher_request *areq)
 	oi = 0;
 	oo = 0;
 
-	while (oleft > 0) {
-		if (ileft > 0) {
+	while (oleft) {
+		if (ileft) {
 			/*
 			 * todo is the number of consecutive 4byte word that we
 			 * can read from current SG
 			 */
 			todo = min3(rx_cnt, ileft / 4, (mi.length - oi) / 4);
-			if (todo > 0 && ob == 0) {
+			if (todo && !ob) {
 				writesl(ss->base + SS_RXFIFO, mi.addr + oi,
 					todo);
 				ileft -= todo * 4;
@@ -240,7 +240,7 @@ static int sun4i_ss_cipher_poll(struct ablkcipher_request *areq)
 				ileft -= todo;
 				oi += todo;
 				ob += todo;
-				if (ob % 4 == 0) {
+				if (!(ob % 4)) {
 					writesl(ss->base + SS_RXFIFO, buf,
 						ob / 4);
 					ob = 0;
@@ -260,11 +260,11 @@ static int sun4i_ss_cipher_poll(struct ablkcipher_request *areq)
 			oi, mi.length, ileft, areq->nbytes, rx_cnt,
 			oo, mo.length, oleft, areq->nbytes, tx_cnt, ob);
 
-		if (tx_cnt == 0)
+		if (!tx_cnt)
 			continue;
 		/* todo in 4bytes word */
 		todo = min3(tx_cnt, oleft / 4, (mo.length - oo) / 4);
-		if (todo > 0) {
+		if (todo) {
 			readsl(ss->base + SS_TXFIFO, mo.addr + oo, todo);
 			oleft -= todo * 4;
 			oo += todo * 4;
@@ -516,7 +516,7 @@ int sun4i_ss_des_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 	flags = crypto_ablkcipher_get_flags(tfm);
 
 	ret = des_ekey(tmp, key);
-	if (unlikely(ret == 0) && (flags & CRYPTO_TFM_REQ_WEAK_KEY)) {
+	if (unlikely(!ret) && (flags & CRYPTO_TFM_REQ_WEAK_KEY)) {
 		crypto_ablkcipher_set_flags(tfm, CRYPTO_TFM_RES_WEAK_KEY);
 		dev_dbg(ss->dev, "Weak key %u\n", keylen);
 		return -EINVAL;
