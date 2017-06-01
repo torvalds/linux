@@ -378,33 +378,6 @@ static int qed_iov_pci_cfg_info(struct qed_dev *cdev)
 	return 0;
 }
 
-static void qed_iov_clear_vf_igu_blocks(struct qed_hwfn *p_hwfn,
-					struct qed_ptt *p_ptt)
-{
-	struct qed_igu_block *p_sb;
-	u16 sb_id;
-	u32 val;
-
-	if (!p_hwfn->hw_info.p_igu_info) {
-		DP_ERR(p_hwfn,
-		       "qed_iov_clear_vf_igu_blocks IGU Info not initialized\n");
-		return;
-	}
-
-	for (sb_id = 0; sb_id < QED_MAPPING_MEMORY_SIZE(p_hwfn->cdev);
-	     sb_id++) {
-		p_sb = &p_hwfn->hw_info.p_igu_info->entry[sb_id];
-		if ((p_sb->status & QED_IGU_STATUS_FREE) &&
-		    !(p_sb->status & QED_IGU_STATUS_PF)) {
-			val = qed_rd(p_hwfn, p_ptt,
-				     IGU_REG_MAPPING_MEMORY + sb_id * 4);
-			SET_FIELD(val, IGU_MAPPING_LINE_VALID, 0);
-			qed_wr(p_hwfn, p_ptt,
-			       IGU_REG_MAPPING_MEMORY + 4 * sb_id, val);
-		}
-	}
-}
-
 static void qed_iov_setup_vfdb(struct qed_hwfn *p_hwfn)
 {
 	struct qed_hw_sriov_info *p_iov = p_hwfn->cdev->p_iov_info;
@@ -555,13 +528,12 @@ int qed_iov_alloc(struct qed_hwfn *p_hwfn)
 	return qed_iov_allocate_vfdb(p_hwfn);
 }
 
-void qed_iov_setup(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+void qed_iov_setup(struct qed_hwfn *p_hwfn)
 {
 	if (!IS_PF_SRIOV(p_hwfn) || !IS_PF_SRIOV_ALLOC(p_hwfn))
 		return;
 
 	qed_iov_setup_vfdb(p_hwfn);
-	qed_iov_clear_vf_igu_blocks(p_hwfn, p_ptt);
 }
 
 void qed_iov_free(struct qed_hwfn *p_hwfn)
