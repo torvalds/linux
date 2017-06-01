@@ -379,6 +379,9 @@ Optional properties:
 - clock-frequency		: for all audio_clkout0/1/2/3
 - clkout-lr-asynchronous	: boolean property. it indicates that audio_clkoutn
 				  is asynchronizes with lr-clock.
+- resets			: References to SSI resets.
+- reset-names			: List of valid reset names.
+				  "ssi-all", "ssi.X"
 
 SSI subnode properties:
 - interrupts			: Should contain SSI interrupt for PIO transfer
