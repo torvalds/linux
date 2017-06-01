@@ -265,7 +265,7 @@ get_framebuffer_by_node(struct drm_device *drm_dev, struct device_node *node)
 		mode_cmd.pixel_format = DRM_FORMAT_BGR888;
 		break;
 	case 32:
-		mode_cmd.pixel_format = DRM_FORMAT_XBGR8888;
+		mode_cmd.pixel_format = DRM_FORMAT_XRGB8888;
 		break;
 	default:
 		pr_err("%s: unsupport to logo bpp %d\n", __func__, bpp);
