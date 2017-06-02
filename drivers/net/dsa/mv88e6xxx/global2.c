@@ -15,7 +15,8 @@
 
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
-#include "mv88e6xxx.h"
+
+#include "chip.h"
 #include "global2.h"
 
 #define ADDR_GLOBAL2	0x1c

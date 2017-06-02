@@ -12,7 +12,7 @@
  * (at your option) any later version.
  */
 
-#include "mv88e6xxx.h"
+#include "chip.h"
 #include "global1.h"
 
 int mv88e6xxx_g1_read(struct mv88e6xxx_chip *chip, int reg, u16 *val)

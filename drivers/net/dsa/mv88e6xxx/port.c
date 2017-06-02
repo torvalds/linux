@@ -13,7 +13,8 @@
  */
 
 #include <linux/phy.h>
-#include "mv88e6xxx.h"
+
+#include "chip.h"
 #include "port.h"
 
 int mv88e6xxx_port_read(struct mv88e6xxx_chip *chip, int port, int reg,

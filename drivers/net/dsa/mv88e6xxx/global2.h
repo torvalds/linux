@@ -15,7 +15,7 @@
 #ifndef _MV88E6XXX_GLOBAL2_H
 #define _MV88E6XXX_GLOBAL2_H
 
-#include "mv88e6xxx.h"
+#include "chip.h"
 
 #ifdef CONFIG_NET_DSA_MV88E6XXX_GLOBAL2
 

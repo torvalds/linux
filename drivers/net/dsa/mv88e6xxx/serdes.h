@@ -14,7 +14,7 @@
 #ifndef _MV88E6XXX_SERDES_H
 #define _MV88E6XXX_SERDES_H
 
-#include "mv88e6xxx.h"
+#include "chip.h"
 
 #define MV88E6352_ADDR_SERDES		0x0f
 #define MV88E6352_SERDES_PAGE_FIBER	0x01

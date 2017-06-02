@@ -13,8 +13,8 @@
 
 #include <linux/mii.h>
 
+#include "chip.h"
 #include "global2.h"
-#include "mv88e6xxx.h"
 #include "phy.h"
 #include "port.h"
 #include "serdes.h"

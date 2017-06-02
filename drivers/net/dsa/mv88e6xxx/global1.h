@@ -15,7 +15,7 @@
 #ifndef _MV88E6XXX_GLOBAL1_H
 #define _MV88E6XXX_GLOBAL1_H
 
-#include "mv88e6xxx.h"
+#include "chip.h"
 
 int mv88e6xxx_g1_read(struct mv88e6xxx_chip *chip, int reg, u16 *val);
 int mv88e6xxx_g1_write(struct mv88e6xxx_chip *chip, int reg, u16 val);

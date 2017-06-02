@@ -15,7 +15,7 @@
 #ifndef _MV88E6XXX_PORT_H
 #define _MV88E6XXX_PORT_H
 
-#include "mv88e6xxx.h"
+#include "chip.h"
 
 int mv88e6xxx_port_read(struct mv88e6xxx_chip *chip, int port, int reg,
 			u16 *val);

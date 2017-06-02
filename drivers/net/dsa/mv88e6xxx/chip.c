@@ -33,7 +33,7 @@
 #include <linux/phy.h>
 #include <net/dsa.h>
 
-#include "mv88e6xxx.h"
+#include "chip.h"
 #include "global1.h"
 #include "global2.h"
 #include "phy.h"

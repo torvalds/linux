@@ -1,5 +1,5 @@
 /*
- * Marvell 88e6xxx common definitions
+ * Marvell 88E6xxx Ethernet switch single-chip definition
  *
  * Copyright (c) 2008 Marvell Semiconductor
  *
@@ -9,8 +9,8 @@
  * (at your option) any later version.
  */
 
-#ifndef __MV88E6XXX_H
-#define __MV88E6XXX_H
+#ifndef _MV88E6XXX_CHIP_H
+#define _MV88E6XXX_CHIP_H
 
 #include <linux/if_vlan.h>
 #include <linux/irq.h>
@@ -924,4 +924,5 @@ int mv88e6xxx_update(struct mv88e6xxx_chip *chip, int addr, int reg,
 		     u16 update);
 int mv88e6xxx_wait(struct mv88e6xxx_chip *chip, int addr, int reg, u16 mask);
 struct mii_bus *mv88e6xxx_default_mdio_bus(struct mv88e6xxx_chip *chip);
-#endif
+
+#endif /* _MV88E6XXX_CHIP_H */
