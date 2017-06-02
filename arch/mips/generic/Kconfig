@@ -9,9 +9,17 @@ config LEGACY_BOARDS
 	  kernel is booted without being provided with an FDT via the UHI
 	  boot protocol.
 
+config YAMON_DT_SHIM
+	bool
+	help
+	  Select this from your board if the board uses the YAMON bootloader
+	  and you wish to include code which helps translate various
+	  YAMON-provided environment variables into a device tree properties.
+
 config LEGACY_BOARD_SEAD3
 	bool "Support MIPS SEAD-3 boards"
 	select LEGACY_BOARDS
+	select YAMON_DT_SHIM
 	help
 	  Enable this to include support for booting on MIPS SEAD-3 FPGA-based
 	  development boards, which boot using a legacy boot protocol.
