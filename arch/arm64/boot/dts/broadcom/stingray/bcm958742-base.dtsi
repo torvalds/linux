@@ -54,6 +54,28 @@
 	status = "okay";
 };
 
+&i2c0 {
+	status = "okay";
+
+	pca9505: pca9505@20 {
+		compatible = "nxp,pca9505";
+		gpio-controller;
+		#gpio-cells = <2>;
+		reg = <0x20>;
+	};
+};
+
+&i2c1 {
+	status = "okay";
+
+	pcf8574: pcf8574@20 {
+		compatible = "nxp,pcf8574a";
+		gpio-controller;
+		#gpio-cells = <2>;
+		reg = <0x27>;
+	};
+};
+
 &nand {
 	status = "ok";
 	nandcs@0 {
