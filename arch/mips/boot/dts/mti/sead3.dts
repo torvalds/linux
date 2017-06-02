@@ -14,12 +14,12 @@
 	interrupt-parent = <&gic>;
 
 	chosen {
-		stdout-path = "uart1:115200";
+		stdout-path = "serial1:115200";
 	};
 
 	aliases {
-		uart0 = &uart0;
-		uart1 = &uart1;
+		serial0 = &uart0;
+		serial1 = &uart1;
 	};
 
 	cpus {

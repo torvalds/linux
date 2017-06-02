@@ -163,7 +163,7 @@ __init int yamon_dt_append_memory(void *fdt,
 __init int yamon_dt_serial_config(void *fdt)
 {
 	const char *yamontty, *mode_var;
-	char mode_var_name[9], path[18], parity;
+	char mode_var_name[9], path[20], parity;
 	unsigned int uart, baud, stop_bits;
 	bool hw_flow;
 	int chosen_off, err;
@@ -214,7 +214,7 @@ __init int yamon_dt_serial_config(void *fdt)
 	if (stop_bits != 7 && stop_bits != 8)
 		stop_bits = 8;
 
-	WARN_ON(snprintf(path, sizeof(path), "uart%u:%u%c%u%s",
+	WARN_ON(snprintf(path, sizeof(path), "serial%u:%u%c%u%s",
 			 uart, baud, parity, stop_bits,
 			 hw_flow ? "r" : "") >= sizeof(path));
 
