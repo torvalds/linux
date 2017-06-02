@@ -89,25 +89,6 @@ LIST_HEAD(ioapic_map);
 LIST_HEAD(hpet_map);
 LIST_HEAD(acpihid_map);
 
-#define FLUSH_QUEUE_SIZE 256
-
-struct flush_queue_entry {
-	unsigned long iova_pfn;
-	unsigned long pages;
-	struct dma_ops_domain *dma_dom;
-};
-
-struct flush_queue {
-	spinlock_t lock;
-	unsigned next;
-	struct flush_queue_entry *entries;
-};
-
-static DEFINE_PER_CPU(struct flush_queue, flush_queue);
-
-static atomic_t queue_timer_on;
-static struct timer_list queue_timer;
-
 /*
  * Domain for untranslated devices - only allocated
  * if iommu=pt passed on kernel cmd line.
@@ -2253,92 +2234,6 @@ static struct iommu_group *amd_iommu_device_group(struct device *dev)
  *
  *****************************************************************************/
 
-static void __queue_flush(struct flush_queue *queue)
-{
-	struct protection_domain *domain;
-	unsigned long flags;
-	int idx;
-
-	/* First flush TLB of all known domains */
-	spin_lock_irqsave(&amd_iommu_pd_lock, flags);
-	list_for_each_entry(domain, &amd_iommu_pd_list, list)
-		domain_flush_tlb(domain);
-	spin_unlock_irqrestore(&amd_iommu_pd_lock, flags);
-
-	/* Wait until flushes have completed */
-	domain_flush_complete(NULL);
-
-	for (idx = 0; idx < queue->next; ++idx) {
-		struct flush_queue_entry *entry;
-
-		entry = queue->entries + idx;
-
-		free_iova_fast(&entry->dma_dom->iovad,
-				entry->iova_pfn,
-				entry->pages);
-
-		/* Not really necessary, just to make sure we catch any bugs */
-		entry->dma_dom = NULL;
-	}
-
-	queue->next = 0;
-}
-
-static void queue_flush_all(void)
-{
-	int cpu;
-
-	for_each_possible_cpu(cpu) {
-		struct flush_queue *queue;
-		unsigned long flags;
-
-		queue = per_cpu_ptr(&flush_queue, cpu);
-		spin_lock_irqsave(&queue->lock, flags);
-		if (queue->next > 0)
-			__queue_flush(queue);
-		spin_unlock_irqrestore(&queue->lock, flags);
-	}
-}
-
-static void queue_flush_timeout(unsigned long unsused)
-{
-	atomic_set(&queue_timer_on, 0);
-	queue_flush_all();
-}
-
-static void queue_add(struct dma_ops_domain *dma_dom,
-		      unsigned long address, unsigned long pages)
-{
-	struct flush_queue_entry *entry;
-	struct flush_queue *queue;
-	unsigned long flags;
-	int idx;
-
-	pages     = __roundup_pow_of_two(pages);
-	address >>= PAGE_SHIFT;
-
-	queue = get_cpu_ptr(&flush_queue);
-	spin_lock_irqsave(&queue->lock, flags);
-
-	if (queue->next == FLUSH_QUEUE_SIZE)
-		__queue_flush(queue);
-
-	idx   = queue->next++;
-	entry = queue->entries + idx;
-
-	entry->iova_pfn = address;
-	entry->pages    = pages;
-	entry->dma_dom  = dma_dom;
-
-	spin_unlock_irqrestore(&queue->lock, flags);
-
-	if (atomic_cmpxchg(&queue_timer_on, 0, 1) == 0)
-		mod_timer(&queue_timer, jiffies + msecs_to_jiffies(10));
-
-	put_cpu_ptr(&flush_queue);
-}
-
-
 /*
  * In the dma_ops path we only have the struct device. This function
  * finds the corresponding IOMMU, the protection domain and the
@@ -2490,7 +2385,10 @@ static void __unmap_single(struct dma_ops_domain *dma_dom,
 		domain_flush_tlb(&dma_dom->domain);
 		domain_flush_complete(&dma_dom->domain);
 	} else {
-		queue_add(dma_dom, dma_addr, pages);
+		/* Keep the if() around, we need it later again */
+		dma_ops_free_iova(dma_dom, dma_addr, pages);
+		domain_flush_tlb(&dma_dom->domain);
+		domain_flush_complete(&dma_dom->domain);
 	}
 }
 
@@ -2825,7 +2723,7 @@ static int init_reserved_iova_ranges(void)
 
 int __init amd_iommu_init_api(void)
 {
-	int ret, cpu, err = 0;
+	int ret, err = 0;
 
 	ret = iova_cache_get();
 	if (ret)
@@ -2834,18 +2732,6 @@ int __init amd_iommu_init_api(void)
 	ret = init_reserved_iova_ranges();
 	if (ret)
 		return ret;
-
-	for_each_possible_cpu(cpu) {
-		struct flush_queue *queue = per_cpu_ptr(&flush_queue, cpu);
-
-		queue->entries = kzalloc(FLUSH_QUEUE_SIZE *
-					 sizeof(*queue->entries),
-					 GFP_KERNEL);
-		if (!queue->entries)
-			goto out_put_iova;
-
-		spin_lock_init(&queue->lock);
-	}
 
 	err = bus_set_iommu(&pci_bus_type, &amd_iommu_ops);
 	if (err)
@@ -2858,23 +2744,12 @@ int __init amd_iommu_init_api(void)
 	err = bus_set_iommu(&platform_bus_type, &amd_iommu_ops);
 	if (err)
 		return err;
+
 	return 0;
-
-out_put_iova:
-	for_each_possible_cpu(cpu) {
-		struct flush_queue *queue = per_cpu_ptr(&flush_queue, cpu);
-
-		kfree(queue->entries);
-	}
-
-	return -ENOMEM;
 }
 
 int __init amd_iommu_init_dma_ops(void)
 {
-	setup_timer(&queue_timer, queue_flush_timeout, 0);
-	atomic_set(&queue_timer_on, 0);
-
 	swiotlb        = iommu_pass_through ? 1 : 0;
 	iommu_detected = 1;
 
@@ -3030,12 +2905,6 @@ static void amd_iommu_domain_free(struct iommu_domain *dom)
 
 	switch (dom->type) {
 	case IOMMU_DOMAIN_DMA:
-		/*
-		 * First make sure the domain is no longer referenced from the
-		 * flush queue
-		 */
-		queue_flush_all();
-
 		/* Now release the domain */
 		dma_dom = to_dma_ops_domain(domain);
 		dma_ops_domain_free(dma_dom);
