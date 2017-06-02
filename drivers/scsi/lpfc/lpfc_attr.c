@@ -148,8 +148,7 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 	struct lpfc_hba   *phba = vport->phba;
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct nvme_fc_local_port *localport;
-	struct lpfc_nvme_lport *lport;
-	struct lpfc_nvme_rport *rport;
+	struct lpfc_nodelist *ndlp;
 	struct nvme_fc_remote_port *nrport;
 	char *statep;
 	int len = 0;
@@ -265,7 +264,6 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 	len = snprintf(buf, PAGE_SIZE, "NVME Initiator Enabled\n");
 
 	spin_lock_irq(shost->host_lock);
-	lport = (struct lpfc_nvme_lport *)localport->private;
 
 	/* Port state is only one of two values for now. */
 	if (localport->port_id)
@@ -281,9 +279,12 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 			wwn_to_u64(vport->fc_nodename.u.wwn),
 			localport->port_id, statep);
 
-	list_for_each_entry(rport, &lport->rport_list, list) {
+	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
+		if (!ndlp->nrport)
+			continue;
+
 		/* local short-hand pointer. */
-		nrport = rport->remoteport;
+		nrport = ndlp->nrport->remoteport;
 
 		/* Port state is only one of two values for now. */
 		switch (nrport->port_state) {

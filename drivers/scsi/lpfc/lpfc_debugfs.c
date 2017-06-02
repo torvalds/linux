@@ -550,8 +550,6 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 	struct lpfc_nodelist *ndlp;
 	unsigned char *statep;
 	struct nvme_fc_local_port *localport;
-	struct lpfc_nvme_lport *lport;
-	struct lpfc_nvme_rport *rport;
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct nvme_fc_remote_port *nrport;
 
@@ -660,7 +658,6 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 		goto out_exit;
 
 	spin_lock_irq(shost->host_lock);
-	lport = (struct lpfc_nvme_lport *)localport->private;
 
 	/* Port state is only one of two values for now. */
 	if (localport->port_id)
@@ -673,9 +670,12 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 			localport->port_id, statep);
 
 	len += snprintf(buf + len, size - len, "\tRport List:\n");
-	list_for_each_entry(rport, &lport->rport_list, list) {
+	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
 		/* local short-hand pointer. */
-		nrport = rport->remoteport;
+		if (!ndlp->nrport)
+			continue;
+
+		nrport = ndlp->nrport->remoteport;
 
 		/* Port state is only one of two values for now. */
 		switch (nrport->port_state) {

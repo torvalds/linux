@@ -191,7 +191,6 @@ lpfc_nvme_remoteport_delete(struct nvme_fc_remote_port *remoteport)
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_DISC,
 			"6146 remoteport delete complete %p\n",
 			remoteport);
-	list_del(&rport->list);
 	ndlp->nrport = NULL;
 	lpfc_nlp_put(ndlp);
 
@@ -2208,7 +2207,6 @@ lpfc_nvme_create_localport(struct lpfc_vport *vport)
 		lport = (struct lpfc_nvme_lport *)localport->private;
 		vport->localport = localport;
 		lport->vport = vport;
-		INIT_LIST_HEAD(&lport->rport_list);
 		vport->nvmei_support = 1;
 		len  = lpfc_new_nvme_buf(vport, phba->sli4_hba.nvme_xri_max);
 		vport->phba->total_nvme_bufs += len;
@@ -2233,7 +2231,6 @@ lpfc_nvme_destroy_localport(struct lpfc_vport *vport)
 #if (IS_ENABLED(CONFIG_NVME_FC))
 	struct nvme_fc_local_port *localport;
 	struct lpfc_nvme_lport *lport;
-	struct lpfc_nvme_rport *rport = NULL, *rport_next = NULL;
 	int ret;
 
 	if (vport->nvmei_support == 0)
@@ -2246,19 +2243,6 @@ lpfc_nvme_destroy_localport(struct lpfc_vport *vport)
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME,
 			 "6011 Destroying NVME localport %p\n",
 			 localport);
-	list_for_each_entry_safe(rport, rport_next, &lport->rport_list, list) {
-		/* The last node ref has to get released now before the rport
-		 * private memory area is released by the transport.
-		 */
-		list_del(&rport->list);
-
-		init_completion(&rport->rport_unreg_done);
-		ret = nvme_fc_unregister_remoteport(rport->remoteport);
-		if (ret)
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_DISC,
-					 "6008 rport fail destroy %x\n", ret);
-		wait_for_completion_timeout(&rport->rport_unreg_done, 5);
-	}
 
 	/* lport's rport list is clear.  Unregister
 	 * lport and release resources.
@@ -2384,8 +2368,6 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 			if (!rport->ndlp)
 				return -1;
 			ndlp->nrport = rport;
-			INIT_LIST_HEAD(&rport->list);
-			list_add_tail(&rport->list, &lport->rport_list);
 			lpfc_printf_vlog(vport, KERN_INFO,
 					 LOG_NVME_DISC | LOG_NODE,
 					 "6022 Binding new rport to "
