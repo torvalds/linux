@@ -170,6 +170,9 @@ static void intel_detect_pch(struct drm_i915_private *dev_priv)
 	while ((pch = pci_get_class(PCI_CLASS_BRIDGE_ISA << 8, pch))) {
 		if (pch->vendor == PCI_VENDOR_ID_INTEL) {
 			unsigned short id = pch->device & INTEL_PCH_DEVICE_ID_MASK;
+			unsigned short id_ext = pch->device &
+				INTEL_PCH_DEVICE_ID_MASK_EXT;
+
 			dev_priv->pch_id = id;
 
 			if (id == INTEL_PCH_IBX_DEVICE_ID_TYPE) {
@@ -206,7 +209,7 @@ static void intel_detect_pch(struct drm_i915_private *dev_priv)
 				DRM_DEBUG_KMS("Found SunrisePoint PCH\n");
 				WARN_ON(!IS_SKYLAKE(dev_priv) &&
 					!IS_KABYLAKE(dev_priv));
-			} else if (id == INTEL_PCH_SPT_LP_DEVICE_ID_TYPE) {
+			} else if (id_ext == INTEL_PCH_SPT_LP_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_SPT;
 				DRM_DEBUG_KMS("Found SunrisePoint LP PCH\n");
 				WARN_ON(!IS_SKYLAKE(dev_priv) &&
@@ -219,6 +222,9 @@ static void intel_detect_pch(struct drm_i915_private *dev_priv)
 			} else if (id == INTEL_PCH_CNP_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_CNP;
 				DRM_DEBUG_KMS("Found CannonPoint PCH\n");
+			} else if (id_ext == INTEL_PCH_CNP_LP_DEVICE_ID_TYPE) {
+				dev_priv->pch_type = PCH_CNP;
+				DRM_DEBUG_KMS("Found CannonPoint LP PCH\n");
 			} else if ((id == INTEL_PCH_P2X_DEVICE_ID_TYPE) ||
 				   (id == INTEL_PCH_P3X_DEVICE_ID_TYPE) ||
 				   ((id == INTEL_PCH_QEMU_DEVICE_ID_TYPE) &&
