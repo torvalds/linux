@@ -13,6 +13,7 @@
 #include <linux/errno.h>
 #include <linux/libfdt.h>
 #include <linux/printk.h>
+#include <linux/sizes.h>
 
 #include <asm/fw/fw.h>
 #include <asm/io.h>
@@ -26,12 +27,26 @@
 #define MIPS_REVISION_MACHINE		(0xf << 4)
 #define MIPS_REVISION_MACHINE_SEAD3	(0x4 << 4)
 
+/*
+ * Maximum 384MB RAM at physical address 0, preceding any I/O.
+ */
+static struct yamon_mem_region mem_regions[] __initdata = {
+	/* start	size */
+	{ 0,		SZ_256M + SZ_128M },
+	{}
+};
+
 static __init bool sead3_detect(void)
 {
 	uint32_t rev;
 
 	rev = __raw_readl((void *)MIPS_REVISION);
 	return (rev & MIPS_REVISION_MACHINE) == MIPS_REVISION_MACHINE_SEAD3;
+}
+
+static __init int append_memory(void *fdt)
+{
+	return yamon_dt_append_memory(fdt, mem_regions);
 }
 
 static __init int remove_gic(void *fdt)
@@ -145,7 +160,7 @@ static __init const void *sead3_fixup_fdt(const void *fdt,
 	if (err)
 		panic("Unable to patch FDT: %d", err);
 
-	err = yamon_dt_append_memory(fdt_buf);
+	err = append_memory(fdt_buf);
 	if (err)
 		panic("Unable to patch FDT: %d", err);
 

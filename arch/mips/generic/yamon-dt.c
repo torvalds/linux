@@ -17,6 +17,9 @@
 #include <linux/printk.h>
 
 #include <asm/fw/fw.h>
+#include <asm/yamon-dt.h>
+
+#define MAX_MEM_ARRAY_ENTRIES	2
 
 __init int yamon_dt_append_cmdline(void *fdt)
 {
@@ -43,23 +46,64 @@ __init int yamon_dt_append_cmdline(void *fdt)
 	return 0;
 }
 
-__init int yamon_dt_append_memory(void *fdt)
+static unsigned int __init gen_fdt_mem_array(
+					const struct yamon_mem_region *regions,
+					__be32 *mem_array,
+					unsigned int max_entries,
+					unsigned long memsize)
+{
+	const struct yamon_mem_region *mr;
+	unsigned long size;
+	unsigned int entries = 0;
+
+	for (mr = regions; mr->size && memsize; ++mr) {
+		if (entries >= max_entries) {
+			pr_warn("Number of regions exceeds max %u\n",
+				max_entries);
+			break;
+		}
+
+		/* How much of the remaining RAM fits in the next region? */
+		size = min_t(unsigned long, memsize, mr->size);
+		memsize -= size;
+
+		/* Emit a memory region */
+		*(mem_array++) = cpu_to_be32(mr->start);
+		*(mem_array++) = cpu_to_be32(size);
+		++entries;
+
+		/* Discard the next mr->discard bytes */
+		memsize -= min_t(unsigned long, memsize, mr->discard);
+	}
+	return entries;
+}
+
+__init int yamon_dt_append_memory(void *fdt,
+				  const struct yamon_mem_region *regions)
 {
 	unsigned long phys_memsize, memsize;
-	__be32 mem_array[2];
-	int err, mem_off;
-	char *var;
+	__be32 mem_array[2 * MAX_MEM_ARRAY_ENTRIES];
+	unsigned int mem_entries;
+	int i, err, mem_off;
+	char *var, param_name[10], *var_names[] = {
+		"ememsize", "memsize",
+	};
 
 	/* find memory size from the bootloader environment */
-	var = fw_getenv("memsize");
-	if (var) {
+	for (i = 0; i < ARRAY_SIZE(var_names); i++) {
+		var = fw_getenv(var_names[i]);
+		if (!var)
+			continue;
+
 		err = kstrtoul(var, 0, &phys_memsize);
-		if (err) {
-			pr_err("Failed to read memsize env variable '%s'\n",
-			       var);
-			return -EINVAL;
-		}
-	} else {
+		if (!err)
+			break;
+
+		pr_warn("Failed to read the '%s' env variable '%s'\n",
+			var_names[i], var);
+	}
+
+	if (!phys_memsize) {
 		pr_warn("The bootloader didn't provide memsize: defaulting to 32MB\n");
 		phys_memsize = 32 << 20;
 	}
@@ -68,9 +112,14 @@ __init int yamon_dt_append_memory(void *fdt)
 	memsize = phys_memsize;
 
 	/* allow the user to override the usable memory */
-	var = strstr(arcs_cmdline, "memsize=");
-	if (var)
-		memsize = memparse(var + strlen("memsize="), NULL);
+	for (i = 0; i < ARRAY_SIZE(var_names); i++) {
+		snprintf(param_name, sizeof(param_name), "%s=", var_names[i]);
+		var = strstr(arcs_cmdline, param_name);
+		if (!var)
+			continue;
+
+		memsize = memparse(var + strlen(param_name), NULL);
+	}
 
 	/* if the user says there's more RAM than we thought, believe them */
 	phys_memsize = max_t(unsigned long, phys_memsize, memsize);
@@ -90,18 +139,19 @@ __init int yamon_dt_append_memory(void *fdt)
 		return err;
 	}
 
-	mem_array[0] = 0;
-	mem_array[1] = cpu_to_be32(phys_memsize);
-	err = fdt_setprop(fdt, mem_off, "reg", mem_array, sizeof(mem_array));
+	mem_entries = gen_fdt_mem_array(regions, mem_array,
+					MAX_MEM_ARRAY_ENTRIES, phys_memsize);
+	err = fdt_setprop(fdt, mem_off, "reg",
+			  mem_array, mem_entries * 2 * sizeof(mem_array[0]));
 	if (err) {
 		pr_err("Unable to set memory regs property: %d\n", err);
 		return err;
 	}
 
-	mem_array[0] = 0;
-	mem_array[1] = cpu_to_be32(memsize);
+	mem_entries = gen_fdt_mem_array(regions, mem_array,
+					MAX_MEM_ARRAY_ENTRIES, memsize);
 	err = fdt_setprop(fdt, mem_off, "linux,usable-memory",
-			  mem_array, sizeof(mem_array));
+			  mem_array, mem_entries * 2 * sizeof(mem_array[0]));
 	if (err) {
 		pr_err("Unable to set linux,usable-memory property: %d\n", err);
 		return err;

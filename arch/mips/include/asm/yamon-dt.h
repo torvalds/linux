@@ -11,6 +11,20 @@
 #ifndef __MIPS_ASM_YAMON_DT_H__
 #define __MIPS_ASM_YAMON_DT_H__
 
+#include <linux/types.h>
+
+/**
+ * struct yamon_mem_region - Represents a contiguous range of physical RAM.
+ * @start:	Start physical address.
+ * @size:	Maximum size of region.
+ * @discard:	Length of additional memory to discard after the region.
+ */
+struct yamon_mem_region {
+	phys_addr_t	start;
+	phys_addr_t	size;
+	phys_addr_t	discard;
+};
+
 /**
  * yamon_dt_append_cmdline() - Append YAMON-provided command line to /chosen
  * @fdt: the FDT blob
@@ -24,14 +38,16 @@ extern __init int yamon_dt_append_cmdline(void *fdt);
 
 /**
  * yamon_dt_append_memory() - Append YAMON-provided memory info to /memory
- * @fdt: the FDT blob
+ * @fdt:	the FDT blob
+ * @regions:	zero size terminated array of physical memory regions
  *
  * Generate a /memory node in @fdt based upon memory size information provided
- * by YAMON in its environment.
+ * by YAMON in its environment and the @regions array.
  *
  * Return: 0 on success, else -errno
  */
-extern __init int yamon_dt_append_memory(void *fdt);
+extern __init int yamon_dt_append_memory(void *fdt,
+					const struct yamon_mem_region *regions);
 
 /**
  * yamon_dt_serial_config() - Append YAMON-provided serial config to /chosen
