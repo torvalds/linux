@@ -92,7 +92,6 @@ struct spi_imx_data {
 
 	unsigned int speed_hz;
 	unsigned int bits_per_word;
-	unsigned int bytes_per_word;
 	unsigned int spi_drctl;
 
 	unsigned int count;
@@ -215,9 +214,7 @@ static bool spi_imx_can_dma(struct spi_master *master, struct spi_device *spi,
 	if (!master->dma_rx)
 		return false;
 
-	bpw = transfer->bits_per_word;
-
-	bpw = spi_imx_bytes_per_word(bpw);
+	bpw = spi_imx_bytes_per_word(transfer->bits_per_word);
 
 	if (bpw != 1 && bpw != 2 && bpw != 4)
 		return false;
@@ -833,15 +830,14 @@ static irqreturn_t spi_imx_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int spi_imx_dma_configure(struct spi_master *master,
-				 int bytes_per_word)
+static int spi_imx_dma_configure(struct spi_master *master)
 {
 	int ret;
 	enum dma_slave_buswidth buswidth;
 	struct dma_slave_config rx = {}, tx = {};
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(master);
 
-	switch (bytes_per_word) {
+	switch (spi_imx_bytes_per_word(spi_imx->bits_per_word)) {
 	case 4:
 		buswidth = DMA_SLAVE_BUSWIDTH_4_BYTES;
 		break;
@@ -874,8 +870,6 @@ static int spi_imx_dma_configure(struct spi_master *master,
 		dev_err(spi_imx->dev, "RX dma configuration failed with %d\n", ret);
 		return ret;
 	}
-
-	spi_imx->bytes_per_word = bytes_per_word;
 
 	return 0;
 }
@@ -910,8 +904,7 @@ static int spi_imx_setupxfer(struct spi_device *spi,
 		spi_imx->usedma = 0;
 
 	if (spi_imx->usedma) {
-		ret = spi_imx_dma_configure(spi->master,
-					    spi_imx_bytes_per_word(spi_imx->bits_per_word));
+		ret = spi_imx_dma_configure(spi->master);
 		if (ret)
 			return ret;
 	}
