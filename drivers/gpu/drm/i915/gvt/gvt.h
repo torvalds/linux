@@ -477,6 +477,16 @@ enum {
 	GVT_FAILSAFE_INSUFFICIENT_RESOURCE,
 };
 
+static inline void mmio_hw_access_pre(struct drm_i915_private *dev_priv)
+{
+	intel_runtime_pm_get(dev_priv);
+}
+
+static inline void mmio_hw_access_post(struct drm_i915_private *dev_priv)
+{
+	intel_runtime_pm_put(dev_priv);
+}
+
 #include "trace.h"
 #include "mpt.h"
 

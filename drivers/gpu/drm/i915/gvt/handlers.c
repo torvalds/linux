@@ -209,6 +209,7 @@ static int fence_mmio_read(struct intel_vgpu *vgpu, unsigned int off,
 static int fence_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 		void *p_data, unsigned int bytes)
 {
+	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	unsigned int fence_num = offset_to_fence_num(off);
 	int ret;
 
@@ -217,8 +218,10 @@ static int fence_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 		return ret;
 	write_vreg(vgpu, off, p_data, bytes);
 
+	mmio_hw_access_pre(dev_priv);
 	intel_vgpu_write_fence(vgpu, fence_num,
 			vgpu_vreg64(vgpu, fence_num_to_offset(fence_num)));
+	mmio_hw_access_post(dev_priv);
 	return 0;
 }
 
@@ -1265,7 +1268,10 @@ static int gen9_trtte_write(struct intel_vgpu *vgpu, unsigned int offset,
 	}
 	write_vreg(vgpu, offset, p_data, bytes);
 	/* TRTTE is not per-context */
+
+	mmio_hw_access_pre(dev_priv);
 	I915_WRITE(_MMIO(offset), vgpu_vreg(vgpu, offset));
+	mmio_hw_access_post(dev_priv);
 
 	return 0;
 }
@@ -1278,7 +1284,9 @@ static int gen9_trtt_chicken_write(struct intel_vgpu *vgpu, unsigned int offset,
 
 	if (val & 1) {
 		/* unblock hw logic */
+		mmio_hw_access_pre(dev_priv);
 		I915_WRITE(_MMIO(offset), val);
+		mmio_hw_access_post(dev_priv);
 	}
 	write_vreg(vgpu, offset, p_data, bytes);
 	return 0;
@@ -1405,7 +1413,9 @@ static int ring_timestamp_mmio_read(struct intel_vgpu *vgpu,
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 
+	mmio_hw_access_pre(dev_priv);
 	vgpu_vreg(vgpu, offset) = I915_READ(_MMIO(offset));
+	mmio_hw_access_post(dev_priv);
 	return intel_vgpu_default_mmio_read(vgpu, offset, p_data, bytes);
 }
 
@@ -1414,7 +1424,9 @@ static int instdone_mmio_read(struct intel_vgpu *vgpu,
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 
+	mmio_hw_access_pre(dev_priv);
 	vgpu_vreg(vgpu, offset) = I915_READ(_MMIO(offset));
+	mmio_hw_access_post(dev_priv);
 	return intel_vgpu_default_mmio_read(vgpu, offset, p_data, bytes);
 }
 
