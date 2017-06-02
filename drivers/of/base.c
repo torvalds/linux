@@ -780,6 +780,24 @@ static struct device_node *__of_find_node_by_path(struct device_node *parent,
 	return NULL;
 }
 
+struct device_node *__of_find_node_by_full_path(struct device_node *node,
+						const char *path)
+{
+	const char *separator = strchr(path, ':');
+
+	while (node && *path == '/') {
+		struct device_node *tmp = node;
+
+		path++; /* Increment past '/' delimiter */
+		node = __of_find_node_by_path(node, path);
+		of_node_put(tmp);
+		path = strchrnul(path, '/');
+		if (separator && separator < path)
+			break;
+	}
+	return node;
+}
+
 /**
  *	of_find_node_opts_by_path - Find a node matching a full OF path
  *	@path: Either the full path to match, or if the path does not
@@ -839,16 +857,7 @@ struct device_node *of_find_node_opts_by_path(const char *path, const char **opt
 	raw_spin_lock_irqsave(&devtree_lock, flags);
 	if (!np)
 		np = of_node_get(of_root);
-	while (np && *path == '/') {
-		struct device_node *tmp = np;
-
-		path++; /* Increment past '/' delimiter */
-		np = __of_find_node_by_path(np, path);
-		of_node_put(tmp);
-		path = strchrnul(path, '/');
-		if (separator && separator < path)
-			break;
-	}
+	np = __of_find_node_by_full_path(np, path);
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
 	return np;
 }
