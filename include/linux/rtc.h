@@ -116,7 +116,6 @@ struct rtc_device {
 	struct module *owner;
 
 	int id;
-	char name[RTC_DEVICE_NAME_SIZE];
 
 	const struct rtc_class_ops *ops;
 	struct mutex ops_lock;

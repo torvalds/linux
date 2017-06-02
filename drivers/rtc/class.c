@@ -224,7 +224,6 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 	rtc->pie_timer.function = rtc_pie_update_irq;
 	rtc->pie_enabled = 0;
 
-	strlcpy(rtc->name, name, RTC_DEVICE_NAME_SIZE);
 	dev_set_name(&rtc->dev, "rtc%d", id);
 
 	/* Check to see if there is an ALARM already set in hw */
@@ -238,20 +237,20 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 	err = cdev_device_add(&rtc->char_dev, &rtc->dev);
 	if (err) {
 		dev_warn(&rtc->dev, "%s: failed to add char device %d:%d\n",
-			 rtc->name, MAJOR(rtc->dev.devt), rtc->id);
+			 name, MAJOR(rtc->dev.devt), rtc->id);
 
 		/* This will free both memory and the ID */
 		put_device(&rtc->dev);
 		goto exit;
 	} else {
-		dev_dbg(&rtc->dev, "%s: dev (%d:%d)\n", rtc->name,
+		dev_dbg(&rtc->dev, "%s: dev (%d:%d)\n", name,
 			MAJOR(rtc->dev.devt), rtc->id);
 	}
 
 	rtc_proc_add_device(rtc);
 
 	dev_info(dev, "rtc core: registered %s as %s\n",
-			rtc->name, dev_name(&rtc->dev));
+			name, dev_name(&rtc->dev));
 
 	return rtc;
 
