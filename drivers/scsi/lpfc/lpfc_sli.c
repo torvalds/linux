@@ -7513,7 +7513,8 @@ lpfc_sli_issue_mbox_s3(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox,
 				"(%d):0308 Mbox cmd issue - BUSY Data: "
 				"x%x x%x x%x x%x\n",
 				pmbox->vport ? pmbox->vport->vpi : 0xffffff,
-				mbx->mbxCommand, phba->pport->port_state,
+				mbx->mbxCommand,
+				phba->pport ? phba->pport->port_state : 0xff,
 				psli->sli_flag, flag);
 
 		psli->slistat.mbox_busy++;
@@ -7565,7 +7566,8 @@ lpfc_sli_issue_mbox_s3(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox,
 			"(%d):0309 Mailbox cmd x%x issue Data: x%x x%x "
 			"x%x\n",
 			pmbox->vport ? pmbox->vport->vpi : 0,
-			mbx->mbxCommand, phba->pport->port_state,
+			mbx->mbxCommand,
+			phba->pport ? phba->pport->port_state : 0xff,
 			psli->sli_flag, flag);
 
 	if (mbx->mbxCommand != MBX_HEARTBEAT) {
