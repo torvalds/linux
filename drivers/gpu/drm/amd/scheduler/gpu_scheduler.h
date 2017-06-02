@@ -39,6 +39,7 @@ struct amd_sched_rq;
 struct amd_sched_entity {
 	struct list_head		list;
 	struct amd_sched_rq		*rq;
+	spinlock_t			rq_lock;
 	struct amd_gpu_scheduler	*sched;
 
 	spinlock_t			queue_lock;
@@ -154,6 +155,8 @@ int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 void amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
 			   struct amd_sched_entity *entity);
 void amd_sched_entity_push_job(struct amd_sched_job *sched_job);
+void amd_sched_entity_set_rq(struct amd_sched_entity *entity,
+			     struct amd_sched_rq *rq);
 
 int amd_sched_fence_slab_init(void);
 void amd_sched_fence_slab_fini(void);
