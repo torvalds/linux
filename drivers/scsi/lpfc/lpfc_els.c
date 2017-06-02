@@ -3332,6 +3332,19 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		 */
 		switch (stat.un.b.lsRjtRsnCode) {
 		case LSRJT_UNABLE_TPC:
+			/* The driver has a VALID PLOGI but the rport has
+			 * rejected the PRLI - can't do it now.  Delay
+			 * for 1 second and try again - don't care about
+			 * the explanation.
+			 */
+			if (cmd == ELS_CMD_PRLI || cmd == ELS_CMD_NVMEPRLI) {
+				delay = 1000;
+				maxretry = lpfc_max_els_tries + 1;
+				retry = 1;
+				break;
+			}
+
+			/* Legacy bug fix code for targets with PLOGI delays. */
 			if (stat.un.b.lsRjtRsnCodeExp ==
 			    LSEXP_CMD_IN_PROGRESS) {
 				if (cmd == ELS_CMD_PLOGI) {
@@ -3350,9 +3363,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				retry = 1;
 				break;
 			}
-			if ((cmd == ELS_CMD_PLOGI) ||
-			    (cmd == ELS_CMD_PRLI) ||
-			    (cmd == ELS_CMD_NVMEPRLI)) {
+			if (cmd == ELS_CMD_PLOGI) {
 				delay = 1000;
 				maxretry = lpfc_max_els_tries + 1;
 				retry = 1;
