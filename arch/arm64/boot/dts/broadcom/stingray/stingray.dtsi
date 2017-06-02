@@ -307,5 +307,18 @@
 			compatible = "brcm,iproc-rng200";
 			reg = <0x00220000 0x28>;
 		};
+
+		nand: nand@00360000 {
+			compatible = "brcm,nand-iproc", "brcm,brcmnand-v6.1";
+			reg = <0x00360000 0x600>,
+			      <0x0050a408 0x600>,
+			      <0x00360f00 0x20>;
+			reg-names = "nand", "iproc-idm", "iproc-ext";
+			interrupts = <GIC_SPI 203 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			brcm,nand-has-wp;
+			status = "disabled";
+		};
 	};
 };
