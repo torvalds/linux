@@ -536,7 +536,7 @@ static int gb_lights_light_v4l2_register(struct gb_light *light)
 	struct device *dev = &connection->bundle->dev;
 	struct v4l2_flash_config *sd_cfg;
 	struct led_classdev_flash *fled;
-	struct led_classdev_flash *iled = NULL;
+	struct led_classdev *iled = NULL;
 	struct gb_channel *channel_torch, *channel_ind, *channel_flash;
 	int ret = 0;
 
@@ -553,7 +553,7 @@ static int gb_lights_light_v4l2_register(struct gb_light *light)
 	if (channel_ind) {
 		__gb_lights_channel_v4l2_config(&channel_ind->intensity_uA,
 						&sd_cfg->indicator_intensity);
-		iled = &channel_ind->fled;
+		iled = &channel_ind->fled.led_cdev;
 	}
 
 	channel_flash = get_channel_from_mode(light, GB_CHANNEL_MODE_FLASH);

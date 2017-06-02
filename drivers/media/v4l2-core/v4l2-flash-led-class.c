@@ -110,7 +110,7 @@ static void v4l2_flash_set_led_brightness(struct v4l2_flash *v4l2_flash,
 		led_set_brightness_sync(&v4l2_flash->fled_cdev->led_cdev,
 					brightness);
 	} else {
-		led_set_brightness_sync(&v4l2_flash->iled_cdev->led_cdev,
+		led_set_brightness_sync(v4l2_flash->iled_cdev,
 					brightness);
 	}
 }
@@ -133,7 +133,7 @@ static int v4l2_flash_update_led_brightness(struct v4l2_flash *v4l2_flash,
 			return 0;
 		led_cdev = &v4l2_flash->fled_cdev->led_cdev;
 	} else {
-		led_cdev = &v4l2_flash->iled_cdev->led_cdev;
+		led_cdev = v4l2_flash->iled_cdev;
 	}
 
 	ret = led_update_brightness(led_cdev);
@@ -529,8 +529,7 @@ static int v4l2_flash_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	struct v4l2_flash *v4l2_flash = v4l2_subdev_to_v4l2_flash(sd);
 	struct led_classdev_flash *fled_cdev = v4l2_flash->fled_cdev;
 	struct led_classdev *led_cdev = &fled_cdev->led_cdev;
-	struct led_classdev_flash *iled_cdev = v4l2_flash->iled_cdev;
-	struct led_classdev *led_cdev_ind = NULL;
+	struct led_classdev *led_cdev_ind = v4l2_flash->iled_cdev;
 	int ret = 0;
 
 	if (!v4l2_fh_is_singular(&fh->vfh))
@@ -543,9 +542,7 @@ static int v4l2_flash_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 	mutex_unlock(&led_cdev->led_access);
 
-	if (iled_cdev) {
-		led_cdev_ind = &iled_cdev->led_cdev;
-
+	if (led_cdev_ind) {
 		mutex_lock(&led_cdev_ind->led_access);
 
 		led_sysfs_disable(led_cdev_ind);
@@ -578,7 +575,7 @@ static int v4l2_flash_close(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	struct v4l2_flash *v4l2_flash = v4l2_subdev_to_v4l2_flash(sd);
 	struct led_classdev_flash *fled_cdev = v4l2_flash->fled_cdev;
 	struct led_classdev *led_cdev = &fled_cdev->led_cdev;
-	struct led_classdev_flash *iled_cdev = v4l2_flash->iled_cdev;
+	struct led_classdev *led_cdev_ind = v4l2_flash->iled_cdev;
 	int ret = 0;
 
 	if (!v4l2_fh_is_singular(&fh->vfh))
@@ -593,9 +590,7 @@ static int v4l2_flash_close(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 	mutex_unlock(&led_cdev->led_access);
 
-	if (iled_cdev) {
-		struct led_classdev *led_cdev_ind = &iled_cdev->led_cdev;
-
+	if (led_cdev_ind) {
 		mutex_lock(&led_cdev_ind->led_access);
 		led_sysfs_enable(led_cdev_ind);
 		mutex_unlock(&led_cdev_ind->led_access);
@@ -614,7 +609,7 @@ static const struct v4l2_subdev_ops v4l2_flash_subdev_ops;
 struct v4l2_flash *v4l2_flash_init(
 	struct device *dev, struct fwnode_handle *fwn,
 	struct led_classdev_flash *fled_cdev,
-	struct led_classdev_flash *iled_cdev,
+	struct led_classdev *iled_cdev,
 	const struct v4l2_flash_ops *ops,
 	struct v4l2_flash_config *config)
 {
