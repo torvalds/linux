@@ -691,7 +691,7 @@ static void xhci_handle_cmd_stop_ep(struct xhci_hcd *xhci, int slot_id,
 	struct xhci_td *last_unlinked_td;
 	struct xhci_ep_ctx *ep_ctx;
 	struct xhci_virt_device *vdev;
-
+	u64 hw_deq;
 	struct xhci_dequeue_state deq_state;
 
 	if (unlikely(TRB_TO_SUSPEND_PORT(le32_to_cpu(trb->generic.field[3])))) {
@@ -752,12 +752,19 @@ static void xhci_handle_cmd_stop_ep(struct xhci_hcd *xhci, int slot_id,
 		 * If we stopped on the TD we need to cancel, then we have to
 		 * move the xHC endpoint ring dequeue pointer past this TD.
 		 */
-		if (cur_td == ep->stopped_td)
+		hw_deq = xhci_get_hw_deq(xhci, vdev, ep_index,
+					 cur_td->urb->stream_id);
+		hw_deq &= ~0xf;
+
+		if (trb_in_td(xhci, cur_td->start_seg, cur_td->first_trb,
+			      cur_td->last_trb, hw_deq, false)) {
 			xhci_find_new_dequeue_state(xhci, slot_id, ep_index,
-					cur_td->urb->stream_id,
-					cur_td, &deq_state);
-		else
+						    cur_td->urb->stream_id,
+						    cur_td, &deq_state);
+		} else {
 			td_to_noop(xhci, ep_ring, cur_td, false);
+		}
+
 remove_finished_td:
 		/*
 		 * The event handler won't see a completion for this TD anymore,
