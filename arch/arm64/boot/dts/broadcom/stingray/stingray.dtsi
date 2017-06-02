@@ -259,6 +259,8 @@
 		#size-cells = <1>;
 		ranges = <0x0 0x0 0x68900000 0x17700000>;
 
+		#include "stingray-pinctrl.dtsi"
+
 		uart0: uart@00100000 {
 			device_type = "serial";
 			compatible = "snps,dw-apb-uart";
