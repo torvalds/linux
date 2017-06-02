@@ -44,7 +44,7 @@
 
 		home_key {
 			interrupt-parent = <&gpx2>;
-			interrupts = <2 0>;
+			interrupts = <2 IRQ_TYPE_NONE>;
 			gpios = <&gpx2 2 GPIO_ACTIVE_HIGH>;
 			linux,code = <KEY_HOME>;
 			label = "home key";
