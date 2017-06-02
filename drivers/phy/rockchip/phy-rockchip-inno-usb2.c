@@ -463,6 +463,9 @@ static int rockchip_usb2phy_power_on(struct phy *phy)
 	if (ret)
 		return ret;
 
+	/* waiting for the utmi_clk to become stable */
+	usleep_range(1500, 2000);
+
 	rport->suspended = false;
 	return 0;
 }
