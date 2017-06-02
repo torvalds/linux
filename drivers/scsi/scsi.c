@@ -108,14 +108,7 @@ EXPORT_SYMBOL(scsi_sd_pm_domain);
  */
 void scsi_put_command(struct scsi_cmnd *cmd)
 {
-	unsigned long flags;
-
-	/* serious error if the command hasn't come from a device list */
-	spin_lock_irqsave(&cmd->device->list_lock, flags);
-	BUG_ON(list_empty(&cmd->list));
-	list_del_init(&cmd->list);
-	spin_unlock_irqrestore(&cmd->device->list_lock, flags);
-
+	scsi_del_cmd_from_list(cmd);
 	BUG_ON(delayed_work_pending(&cmd->abort_work));
 }
 

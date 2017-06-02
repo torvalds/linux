@@ -584,19 +584,9 @@ static void scsi_mq_free_sgtables(struct scsi_cmnd *cmd)
 
 static void scsi_mq_uninit_cmd(struct scsi_cmnd *cmd)
 {
-	struct scsi_device *sdev = cmd->device;
-	struct Scsi_Host *shost = sdev->host;
-	unsigned long flags;
-
 	scsi_mq_free_sgtables(cmd);
 	scsi_uninit_cmd(cmd);
-
-	if (shost->use_cmd_list) {
-		BUG_ON(list_empty(&cmd->list));
-		spin_lock_irqsave(&sdev->list_lock, flags);
-		list_del_init(&cmd->list);
-		spin_unlock_irqrestore(&sdev->list_lock, flags);
-	}
+	scsi_del_cmd_from_list(cmd);
 }
 
 /*
@@ -1134,12 +1124,40 @@ err_exit:
 }
 EXPORT_SYMBOL(scsi_init_io);
 
+/* Add a command to the list used by the aacraid and dpt_i2o drivers */
+void scsi_add_cmd_to_list(struct scsi_cmnd *cmd)
+{
+	struct scsi_device *sdev = cmd->device;
+	struct Scsi_Host *shost = sdev->host;
+	unsigned long flags;
+
+	if (shost->use_cmd_list) {
+		spin_lock_irqsave(&sdev->list_lock, flags);
+		list_add_tail(&cmd->list, &sdev->cmd_list);
+		spin_unlock_irqrestore(&sdev->list_lock, flags);
+	}
+}
+
+/* Remove a command from the list used by the aacraid and dpt_i2o drivers */
+void scsi_del_cmd_from_list(struct scsi_cmnd *cmd)
+{
+	struct scsi_device *sdev = cmd->device;
+	struct Scsi_Host *shost = sdev->host;
+	unsigned long flags;
+
+	if (shost->use_cmd_list) {
+		spin_lock_irqsave(&sdev->list_lock, flags);
+		BUG_ON(list_empty(&cmd->list));
+		list_del_init(&cmd->list);
+		spin_unlock_irqrestore(&sdev->list_lock, flags);
+	}
+}
+
 void scsi_init_command(struct scsi_device *dev, struct scsi_cmnd *cmd)
 {
 	void *buf = cmd->sense_buffer;
 	void *prot = cmd->prot_sdb;
 	unsigned int unchecked_isa_dma = cmd->flags & SCMD_UNCHECKED_ISA_DMA;
-	unsigned long flags;
 
 	/* zero out the cmd, except for the embedded scsi_request */
 	memset((char *)cmd + sizeof(cmd->req), 0,
@@ -1152,9 +1170,7 @@ void scsi_init_command(struct scsi_device *dev, struct scsi_cmnd *cmd)
 	INIT_DELAYED_WORK(&cmd->abort_work, scmd_eh_abort_handler);
 	cmd->jiffies_at_alloc = jiffies;
 
-	spin_lock_irqsave(&dev->list_lock, flags);
-	list_add_tail(&cmd->list, &dev->cmd_list);
-	spin_unlock_irqrestore(&dev->list_lock, flags);
+	scsi_add_cmd_to_list(cmd);
 }
 
 static int scsi_setup_scsi_cmnd(struct scsi_device *sdev, struct request *req)
@@ -1871,11 +1887,7 @@ static int scsi_mq_prep_fn(struct request *req)
 	INIT_DELAYED_WORK(&cmd->abort_work, scmd_eh_abort_handler);
 	cmd->jiffies_at_alloc = jiffies;
 
-	if (shost->use_cmd_list) {
-		spin_lock_irq(&sdev->list_lock);
-		list_add_tail(&cmd->list, &sdev->cmd_list);
-		spin_unlock_irq(&sdev->list_lock);
-	}
+	scsi_add_cmd_to_list(cmd);
 
 	sg = (void *)cmd + sizeof(struct scsi_cmnd) + shost->hostt->cmd_size;
 	cmd->sdb.table.sgl = sg;
