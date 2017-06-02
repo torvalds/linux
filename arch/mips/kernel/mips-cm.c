@@ -282,7 +282,7 @@ void mips_cm_lock_other(unsigned int core, unsigned int vp)
 		spin_lock_irqsave(this_cpu_ptr(&cm_core_lock),
 				  *this_cpu_ptr(&cm_core_lock_flags));
 	} else {
-		BUG_ON(vp != 0);
+		WARN_ON(vp != 0);
 
 		/*
 		 * We only have a GCR_CL_OTHER per core in systems with
