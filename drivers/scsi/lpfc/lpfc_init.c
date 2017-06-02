@@ -6731,6 +6731,16 @@ lpfc_create_shost(struct lpfc_hba *phba)
 	phba->fc_arbtov = FF_DEF_ARBTOV;
 
 	atomic_set(&phba->sdev_cnt, 0);
+	atomic_set(&phba->fc4ScsiInputRequests, 0);
+	atomic_set(&phba->fc4ScsiOutputRequests, 0);
+	atomic_set(&phba->fc4ScsiControlRequests, 0);
+	atomic_set(&phba->fc4ScsiIoCmpls, 0);
+	atomic_set(&phba->fc4NvmeInputRequests, 0);
+	atomic_set(&phba->fc4NvmeOutputRequests, 0);
+	atomic_set(&phba->fc4NvmeControlRequests, 0);
+	atomic_set(&phba->fc4NvmeIoCmpls, 0);
+	atomic_set(&phba->fc4NvmeLsRequests, 0);
+	atomic_set(&phba->fc4NvmeLsCmpls, 0);
 	vport = lpfc_create_port(phba, phba->brd_no, &phba->pcidev->dev);
 	if (!vport)
 		return -ENODEV;

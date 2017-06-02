@@ -150,6 +150,7 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 	struct nvme_fc_local_port *localport;
 	struct lpfc_nodelist *ndlp;
 	struct nvme_fc_remote_port *nrport;
+	uint64_t data1, data2, data3, tot;
 	char *statep;
 	int len = 0;
 
@@ -244,11 +245,18 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 				atomic_read(&tgtp->xmt_abort_rsp),
 				atomic_read(&tgtp->xmt_abort_rsp_error));
 
+		spin_lock(&phba->sli4_hba.nvmet_io_lock);
+		tot = phba->sli4_hba.nvmet_xri_cnt -
+			phba->sli4_hba.nvmet_ctx_cnt;
+		spin_unlock(&phba->sli4_hba.nvmet_io_lock);
+
 		len += snprintf(buf + len, PAGE_SIZE - len,
-				"IO_CTX: %08x outstanding %08x total %x",
+				"IO_CTX: %08x  WAIT: cur %08x tot %08x\n"
+				"CTX Outstanding %08llx\n",
 				phba->sli4_hba.nvmet_ctx_cnt,
 				phba->sli4_hba.nvmet_io_wait_cnt,
-				phba->sli4_hba.nvmet_io_wait_total);
+				phba->sli4_hba.nvmet_io_wait_total,
+				tot);
 
 		len +=  snprintf(buf+len, PAGE_SIZE-len, "\n");
 		return len;
@@ -337,19 +345,21 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 
 	len += snprintf(buf + len, PAGE_SIZE - len, "\nNVME Statistics\n");
 	len += snprintf(buf+len, PAGE_SIZE-len,
-			"LS: Xmt %016llx Cmpl %016llx\n",
-			phba->fc4NvmeLsRequests,
-			phba->fc4NvmeLsCmpls);
+			"LS: Xmt %016x Cmpl %016x\n",
+			atomic_read(&phba->fc4NvmeLsRequests),
+			atomic_read(&phba->fc4NvmeLsCmpls));
 
+	tot = atomic_read(&phba->fc4NvmeIoCmpls);
+	data1 = atomic_read(&phba->fc4NvmeInputRequests);
+	data2 = atomic_read(&phba->fc4NvmeOutputRequests);
+	data3 = atomic_read(&phba->fc4NvmeControlRequests);
 	len += snprintf(buf+len, PAGE_SIZE-len,
 			"FCP: Rd %016llx Wr %016llx IO %016llx\n",
-			phba->fc4NvmeInputRequests,
-			phba->fc4NvmeOutputRequests,
-			phba->fc4NvmeControlRequests);
+			data1, data2, data3);
 
 	len += snprintf(buf+len, PAGE_SIZE-len,
-			"    Cmpl %016llx\n", phba->fc4NvmeIoCmpls);
-
+			"    Cmpl %016llx Outstanding %016llx\n",
+			tot, (data1 + data2 + data3) - tot);
 	return len;
 }
 

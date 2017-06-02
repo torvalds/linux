@@ -211,7 +211,7 @@ lpfc_nvme_cmpl_gen_req(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	struct lpfc_dmabuf *buf_ptr;
 	struct lpfc_nodelist *ndlp;
 
-	vport->phba->fc4NvmeLsCmpls++;
+	atomic_inc(&vport->phba->fc4NvmeLsCmpls);
 
 	pnvme_lsreq = (struct nvmefc_ls_req *)cmdwqe->context2;
 	status = bf_get(lpfc_wcqe_c_status, wcqe) & LPFC_IOCB_STATUS_MASK;
@@ -478,7 +478,7 @@ lpfc_nvme_ls_req(struct nvme_fc_local_port *pnvme_lport,
 			 pnvme_lsreq->rsplen, &pnvme_lsreq->rqstdma,
 			 &pnvme_lsreq->rspdma);
 
-	vport->phba->fc4NvmeLsRequests++;
+	atomic_inc(&vport->phba->fc4NvmeLsRequests);
 
 	/* Hardcode the wait to 30 seconds.  Connections are failing otherwise.
 	 * This code allows it all to work.
@@ -773,7 +773,7 @@ lpfc_nvme_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 				 wcqe);
 		return;
 	}
-	phba->fc4NvmeIoCmpls++;
+	atomic_inc(&phba->fc4NvmeIoCmpls);
 
 	nCmd = lpfc_ncmd->nvmeCmd;
 	rport = lpfc_ncmd->nrport;
@@ -998,7 +998,7 @@ lpfc_nvme_prep_io_cmd(struct lpfc_vport *vport,
 			bf_set(wqe_cmd_type, &wqe->generic.wqe_com,
 			       NVME_WRITE_CMD);
 
-			phba->fc4NvmeOutputRequests++;
+			atomic_inc(&phba->fc4NvmeOutputRequests);
 		} else {
 			/* Word 7 */
 			bf_set(wqe_cmnd, &wqe->generic.wqe_com,
@@ -1019,7 +1019,7 @@ lpfc_nvme_prep_io_cmd(struct lpfc_vport *vport,
 			bf_set(wqe_cmd_type, &wqe->generic.wqe_com,
 			       NVME_READ_CMD);
 
-			phba->fc4NvmeInputRequests++;
+			atomic_inc(&phba->fc4NvmeInputRequests);
 		}
 	} else {
 		/* Word 4 */
@@ -1040,7 +1040,7 @@ lpfc_nvme_prep_io_cmd(struct lpfc_vport *vport,
 		/* Word 11 */
 		bf_set(wqe_cmd_type, &wqe->generic.wqe_com, NVME_READ_CMD);
 
-		phba->fc4NvmeControlRequests++;
+		atomic_inc(&phba->fc4NvmeControlRequests);
 	}
 	/*
 	 * Finish initializing those WQE fields that are independent
@@ -1361,6 +1361,13 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 	return 0;
 
  out_free_nvme_buf:
+	if (lpfc_ncmd->nvmeCmd->sg_cnt) {
+		if (lpfc_ncmd->nvmeCmd->io_dir == NVMEFC_FCP_WRITE)
+			atomic_dec(&phba->fc4NvmeOutputRequests);
+		else
+			atomic_dec(&phba->fc4NvmeInputRequests);
+	} else
+		atomic_dec(&phba->fc4NvmeControlRequests);
 	lpfc_release_nvme_buf(phba, lpfc_ncmd);
  out_fail:
 	return ret;

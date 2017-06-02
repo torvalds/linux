@@ -913,16 +913,16 @@ struct lpfc_hba {
 	/*
 	 * stat  counters
 	 */
-	uint64_t fc4ScsiInputRequests;
-	uint64_t fc4ScsiOutputRequests;
-	uint64_t fc4ScsiControlRequests;
-	uint64_t fc4ScsiIoCmpls;
-	uint64_t fc4NvmeInputRequests;
-	uint64_t fc4NvmeOutputRequests;
-	uint64_t fc4NvmeControlRequests;
-	uint64_t fc4NvmeIoCmpls;
-	uint64_t fc4NvmeLsRequests;
-	uint64_t fc4NvmeLsCmpls;
+	atomic_t fc4ScsiInputRequests;
+	atomic_t fc4ScsiOutputRequests;
+	atomic_t fc4ScsiControlRequests;
+	atomic_t fc4ScsiIoCmpls;
+	atomic_t fc4NvmeInputRequests;
+	atomic_t fc4NvmeOutputRequests;
+	atomic_t fc4NvmeControlRequests;
+	atomic_t fc4NvmeIoCmpls;
+	atomic_t fc4NvmeLsRequests;
+	atomic_t fc4NvmeLsCmpls;
 
 	uint64_t bg_guard_err_cnt;
 	uint64_t bg_apptag_err_cnt;
