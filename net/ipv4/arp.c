@@ -1113,13 +1113,17 @@ static int arp_invalidate(struct net_device *dev, __be32 ip)
 {
 	struct neighbour *neigh = neigh_lookup(&arp_tbl, &ip, dev);
 	int err = -ENXIO;
+	struct neigh_table *tbl = &arp_tbl;
 
 	if (neigh) {
 		if (neigh->nud_state & ~NUD_NOARP)
 			err = neigh_update(neigh, NULL, NUD_FAILED,
 					   NEIGH_UPDATE_F_OVERRIDE|
 					   NEIGH_UPDATE_F_ADMIN, 0);
+		write_lock_bh(&tbl->lock);
 		neigh_release(neigh);
+		neigh_remove_one(neigh, tbl);
+		write_unlock_bh(&tbl->lock);
 	}
 
 	return err;

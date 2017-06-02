@@ -118,6 +118,50 @@ unsigned long neigh_rand_reach_time(unsigned long base)
 EXPORT_SYMBOL(neigh_rand_reach_time);
 
 
+static bool neigh_del(struct neighbour *n, __u8 state,
+		      struct neighbour __rcu **np, struct neigh_table *tbl)
+{
+	bool retval = false;
+
+	write_lock(&n->lock);
+	if (atomic_read(&n->refcnt) == 1 && !(n->nud_state & state)) {
+		struct neighbour *neigh;
+
+		neigh = rcu_dereference_protected(n->next,
+						  lockdep_is_held(&tbl->lock));
+		rcu_assign_pointer(*np, neigh);
+		n->dead = 1;
+		retval = true;
+	}
+	write_unlock(&n->lock);
+	if (retval)
+		neigh_cleanup_and_release(n);
+	return retval;
+}
+
+bool neigh_remove_one(struct neighbour *ndel, struct neigh_table *tbl)
+{
+	struct neigh_hash_table *nht;
+	void *pkey = ndel->primary_key;
+	u32 hash_val;
+	struct neighbour *n;
+	struct neighbour __rcu **np;
+
+	nht = rcu_dereference_protected(tbl->nht,
+					lockdep_is_held(&tbl->lock));
+	hash_val = tbl->hash(pkey, ndel->dev, nht->hash_rnd);
+	hash_val = hash_val >> (32 - nht->hash_shift);
+
+	np = &nht->hash_buckets[hash_val];
+	while ((n = rcu_dereference_protected(*np,
+					      lockdep_is_held(&tbl->lock)))) {
+		if (n == ndel)
+			return neigh_del(n, 0, np, tbl);
+		np = &n->next;
+	}
+	return false;
+}
+
 static int neigh_forced_gc(struct neigh_table *tbl)
 {
 	int shrunk = 0;
@@ -140,19 +184,10 @@ static int neigh_forced_gc(struct neigh_table *tbl)
 			 * - nobody refers to it.
 			 * - it is not permanent
 			 */
-			write_lock(&n->lock);
-			if (atomic_read(&n->refcnt) == 1 &&
-			    !(n->nud_state & NUD_PERMANENT)) {
-				rcu_assign_pointer(*np,
-					rcu_dereference_protected(n->next,
-						  lockdep_is_held(&tbl->lock)));
-				n->dead = 1;
-				shrunk	= 1;
-				write_unlock(&n->lock);
-				neigh_cleanup_and_release(n);
+			if (neigh_del(n, NUD_PERMANENT, np, tbl)) {
+				shrunk = 1;
 				continue;
 			}
-			write_unlock(&n->lock);
 			np = &n->next;
 		}
 	}
@@ -1649,7 +1684,10 @@ static int neigh_delete(struct sk_buff *skb, struct nlmsghdr *nlh,
 			   NEIGH_UPDATE_F_OVERRIDE |
 			   NEIGH_UPDATE_F_ADMIN,
 			   NETLINK_CB(skb).portid);
+	write_lock_bh(&tbl->lock);
 	neigh_release(neigh);
+	neigh_remove_one(neigh, tbl);
+	write_unlock_bh(&tbl->lock);
 
 out:
 	return err;
