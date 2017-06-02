@@ -8647,8 +8647,7 @@ free_ordered:
 	 * callbacks - they require an allocated dip and a clone of dio_bio.
 	 */
 	if (bio && dip) {
-		bio->bi_error = -EIO;
-		bio_endio(bio);
+		bio_io_error(bio);
 		/*
 		 * The end io callbacks free our dip, do the final put on bio
 		 * and all the cleanup and final put for dio_bio (through
