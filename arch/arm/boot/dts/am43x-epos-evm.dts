@@ -442,8 +442,6 @@
 
 		dcdc3: regulator-dcdc3 {
 			regulator-name = "vdcdc3";
-			regulator-min-microvolt = <1500000>;
-			regulator-max-microvolt = <1500000>;
 			regulator-boot-on;
 			regulator-always-on;
 		};

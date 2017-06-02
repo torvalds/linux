@@ -451,8 +451,6 @@
 
 		dcdc3: regulator-dcdc3 {
 			regulator-name = "vdds_ddr";
-			regulator-min-microvolt = <1500000>;
-			regulator-max-microvolt = <1500000>;
 			regulator-boot-on;
 			regulator-always-on;
 			regulator-state-mem {
