@@ -1,21 +1,21 @@
 # Common objects
-obj-$(CONFIG_SUNXI_CCU)		+= ccu_common.o
-obj-$(CONFIG_SUNXI_CCU)		+= ccu_reset.o
+lib-$(CONFIG_SUNXI_CCU)		+= ccu_common.o
+lib-$(CONFIG_SUNXI_CCU)		+= ccu_reset.o
 
 # Base clock types
-obj-$(CONFIG_SUNXI_CCU_DIV)	+= ccu_div.o
-obj-$(CONFIG_SUNXI_CCU_FRAC)	+= ccu_frac.o
-obj-$(CONFIG_SUNXI_CCU_GATE)	+= ccu_gate.o
-obj-$(CONFIG_SUNXI_CCU_MUX)	+= ccu_mux.o
-obj-$(CONFIG_SUNXI_CCU_MULT)	+= ccu_mult.o
-obj-$(CONFIG_SUNXI_CCU_PHASE)	+= ccu_phase.o
+lib-$(CONFIG_SUNXI_CCU)		+= ccu_div.o
+lib-$(CONFIG_SUNXI_CCU)		+= ccu_frac.o
+lib-$(CONFIG_SUNXI_CCU)		+= ccu_gate.o
+lib-$(CONFIG_SUNXI_CCU)		+= ccu_mux.o
+lib-$(CONFIG_SUNXI_CCU)		+= ccu_mult.o
+lib-$(CONFIG_SUNXI_CCU)		+= ccu_phase.o
 
 # Multi-factor clocks
-obj-$(CONFIG_SUNXI_CCU_NK)	+= ccu_nk.o
-obj-$(CONFIG_SUNXI_CCU_NKM)	+= ccu_nkm.o
-obj-$(CONFIG_SUNXI_CCU_NKMP)	+= ccu_nkmp.o
-obj-$(CONFIG_SUNXI_CCU_NM)	+= ccu_nm.o
-obj-$(CONFIG_SUNXI_CCU_MP)	+= ccu_mp.o
+lib-$(CONFIG_SUNXI_CCU)		+= ccu_nk.o
+lib-$(CONFIG_SUNXI_CCU)		+= ccu_nkm.o
+lib-$(CONFIG_SUNXI_CCU)		+= ccu_nkmp.o
+lib-$(CONFIG_SUNXI_CCU)		+= ccu_nm.o
+lib-$(CONFIG_SUNXI_CCU)		+= ccu_mp.o
 
 # SoC support
 obj-$(CONFIG_SUN50I_A64_CCU)	+= ccu-sun50i-a64.o
@@ -31,3 +31,12 @@ obj-$(CONFIG_SUN8I_R_CCU)	+= ccu-sun8i-r.o
 obj-$(CONFIG_SUN9I_A80_CCU)	+= ccu-sun9i-a80.o
 obj-$(CONFIG_SUN9I_A80_CCU)	+= ccu-sun9i-a80-de.o
 obj-$(CONFIG_SUN9I_A80_CCU)	+= ccu-sun9i-a80-usb.o
+
+# The lib-y file goals is supposed to work only in arch/*/lib or lib/. In our
+# case, we want to use that goal, but even though lib.a will be properly
+# generated, it will not be linked in, eventually resulting in a linker error
+# for missing symbols.
+#
+# We can work around that by explicitly adding lib.a to the obj-y goal. This is
+# an undocumented behaviour, but works well for now.
+obj-$(CONFIG_SUNXI_CCU)		+= lib.a
