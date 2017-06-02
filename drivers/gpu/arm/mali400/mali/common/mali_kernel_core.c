@@ -752,8 +752,12 @@ _mali_osk_errcode_t mali_initialize_subsystems(void)
 
 	mali_pp_job_initialize();
 
-	mali_timeline_initialize();
-
+	err = mali_timeline_initialize();
+	if (_MALI_OSK_ERR_OK != err) {
+		mali_terminate_subsystems();
+		return err;
+	}
+	
 	err = mali_session_initialize();
 	if (_MALI_OSK_ERR_OK != err) {
 		mali_terminate_subsystems();

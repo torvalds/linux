@@ -189,6 +189,7 @@ struct mali_timeline_tracker {
 	struct sync_fence_waiter       sync_fence_waiter; /**< Used to connect sync fence and tracker in sync fence wait callback. */
 	struct sync_fence             *sync_fence;   /**< The sync fence this tracker is waiting on. */
 	_mali_osk_list_t               sync_fence_cancel_list; /**< List node used to cancel sync fence waiters. */
+	_mali_osk_list_t	        sync_fence_signal_list; /** < List node used to singal sync fence callback function. */
 #endif /* defined(CONFIG_SYNC) */
 
 #if defined(CONFIG_MALI_DMA_BUF_FENCE)
@@ -466,7 +467,7 @@ MALI_STATIC_INLINE mali_bool mali_timeline_tracker_activation_error(
  */
 void mali_timeline_fence_copy_uk_fence(struct mali_timeline_fence *fence, _mali_uk_fence_t *uk_fence);
 
-void mali_timeline_initialize(void);
+_mali_osk_errcode_t mali_timeline_initialize(void);
 
 void mali_timeline_terminate(void);
 
