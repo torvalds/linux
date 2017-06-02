@@ -314,7 +314,7 @@ static int virtio_rpmsg_announce_create(struct rpmsg_device *rpdev)
 	int err = 0;
 
 	/* need to tell remote processor's name service about this channel ? */
-	if (rpdev->announce &&
+	if (rpdev->announce && rpdev->ept &&
 	    virtio_has_feature(vrp->vdev, VIRTIO_RPMSG_F_NS)) {
 		struct rpmsg_ns_msg nsm;
 
@@ -338,7 +338,7 @@ static int virtio_rpmsg_announce_destroy(struct rpmsg_device *rpdev)
 	int err = 0;
 
 	/* tell remote processor's name service we're removing this channel */
-	if (rpdev->announce &&
+	if (rpdev->announce && rpdev->ept &&
 	    virtio_has_feature(vrp->vdev, VIRTIO_RPMSG_F_NS)) {
 		struct rpmsg_ns_msg nsm;
 
