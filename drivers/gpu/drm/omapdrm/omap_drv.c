@@ -324,6 +324,32 @@ static int omap_modeset_init(struct drm_device *dev)
 }
 
 /*
+ * Enable the HPD in external components if supported
+ */
+static void omap_modeset_enable_external_hpd(void)
+{
+	struct omap_dss_device *dssdev = NULL;
+
+	for_each_dss_dev(dssdev) {
+		if (dssdev->driver->enable_hpd)
+			dssdev->driver->enable_hpd(dssdev);
+	}
+}
+
+/*
+ * Disable the HPD in external components if supported
+ */
+static void omap_modeset_disable_external_hpd(void)
+{
+	struct omap_dss_device *dssdev = NULL;
+
+	for_each_dss_dev(dssdev) {
+		if (dssdev->driver->disable_hpd)
+			dssdev->driver->disable_hpd(dssdev);
+	}
+}
+
+/*
  * drm ioctl funcs
  */
 
@@ -602,6 +628,7 @@ static int pdev_probe(struct platform_device *pdev)
 	priv->fbdev = omap_fbdev_init(ddev);
 
 	drm_kms_helper_poll_init(ddev);
+	omap_modeset_enable_external_hpd();
 
 	/*
 	 * Register the DRM device with the core and the connectors with
@@ -614,6 +641,7 @@ static int pdev_probe(struct platform_device *pdev)
 	return 0;
 
 err_cleanup_helpers:
+	omap_modeset_disable_external_hpd();
 	drm_kms_helper_poll_fini(ddev);
 	if (priv->fbdev)
 		omap_fbdev_free(ddev);
@@ -642,6 +670,7 @@ static int pdev_remove(struct platform_device *pdev)
 
 	drm_dev_unregister(ddev);
 
+	omap_modeset_disable_external_hpd();
 	drm_kms_helper_poll_fini(ddev);
 
 	if (priv->fbdev)
