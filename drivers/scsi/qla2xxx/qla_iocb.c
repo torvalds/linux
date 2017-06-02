@@ -464,7 +464,9 @@ qla2x00_start_iocbs(struct scsi_qla_host *vha, struct req_que *req)
 			req->ring_ptr++;
 
 		/* Set chip new ring index. */
-		if (ha->mqenable || IS_QLA83XX(ha) || IS_QLA27XX(ha)) {
+		if (ha->mqenable || IS_QLA27XX(ha)) {
+			WRT_REG_DWORD(req->req_q_in, req->ring_index);
+		} else if (IS_QLA83XX(ha)) {
 			WRT_REG_DWORD(req->req_q_in, req->ring_index);
 			RD_REG_DWORD_RELAXED(&ha->iobase->isp24.hccr);
 		} else if (IS_QLAFX00(ha)) {
