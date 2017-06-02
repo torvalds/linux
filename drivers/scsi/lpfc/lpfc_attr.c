@@ -312,25 +312,23 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 		len += snprintf(buf + len, PAGE_SIZE - len, "DID x%06x ",
 				nrport->port_id);
 
-		switch (nrport->port_role) {
-		case FC_PORT_ROLE_NVME_INITIATOR:
+		/* An NVME rport can have multiple roles. */
+		if (nrport->port_role & FC_PORT_ROLE_NVME_INITIATOR)
 			len +=  snprintf(buf + len, PAGE_SIZE - len,
 					 "INITIATOR ");
-			break;
-		case FC_PORT_ROLE_NVME_TARGET:
+		if (nrport->port_role & FC_PORT_ROLE_NVME_TARGET)
 			len +=  snprintf(buf + len, PAGE_SIZE - len,
 					 "TARGET ");
-			break;
-		case FC_PORT_ROLE_NVME_DISCOVERY:
+		if (nrport->port_role & FC_PORT_ROLE_NVME_DISCOVERY)
 			len +=  snprintf(buf + len, PAGE_SIZE - len,
-					 "DISCOVERY ");
-			break;
-		default:
+					 "DISCSRVC ");
+		if (nrport->port_role & ~(FC_PORT_ROLE_NVME_INITIATOR |
+					  FC_PORT_ROLE_NVME_TARGET |
+					  FC_PORT_ROLE_NVME_DISCOVERY))
 			len +=  snprintf(buf + len, PAGE_SIZE - len,
-					 "UNKNOWN_ROLE x%x",
+					 "UNKNOWN ROLE x%x",
 					 nrport->port_role);
-			break;
-		}
+
 		len +=  snprintf(buf + len, PAGE_SIZE - len, "%s  ", statep);
 		/* Terminate the string. */
 		len +=  snprintf(buf + len, PAGE_SIZE - len, "\n");

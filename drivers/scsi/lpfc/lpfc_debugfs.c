@@ -621,6 +621,13 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 				ndlp->nlp_sid);
 		if (ndlp->nlp_type & NLP_FCP_INITIATOR)
 			len += snprintf(buf+len, size-len, "FCP_INITIATOR ");
+		if (ndlp->nlp_type & NLP_NVME_TARGET)
+			len += snprintf(buf + len,
+					size - len, "NVME_TGT sid:%d ",
+					NLP_NO_SID);
+		if (ndlp->nlp_type & NLP_NVME_INITIATOR)
+			len += snprintf(buf + len,
+					size - len, "NVME_INITIATOR ");
 		len += snprintf(buf+len, size-len, "usgmap:%x ",
 			ndlp->nlp_usg_map);
 		len += snprintf(buf+len, size-len, "refcnt:%x",
@@ -698,26 +705,23 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 				nrport->port_name);
 		len += snprintf(buf + len, size - len, "WWNN x%llx ",
 				nrport->node_name);
-		switch (nrport->port_role) {
-		case FC_PORT_ROLE_NVME_INITIATOR:
+
+		/* An NVME rport can have multiple roles. */
+		if (nrport->port_role & FC_PORT_ROLE_NVME_INITIATOR)
 			len +=  snprintf(buf + len, size - len,
-					 "NVME INITIATOR ");
-			break;
-		case FC_PORT_ROLE_NVME_TARGET:
+					 "INITIATOR ");
+		if (nrport->port_role & FC_PORT_ROLE_NVME_TARGET)
 			len +=  snprintf(buf + len, size - len,
-					 "NVME TARGET ");
-			break;
-		case FC_PORT_ROLE_NVME_DISCOVERY:
+					 "TARGET ");
+		if (nrport->port_role & FC_PORT_ROLE_NVME_DISCOVERY)
 			len +=  snprintf(buf + len, size - len,
-					 "NVME DISCOVERY ");
-			break;
-		default:
+					 "DISCSRVC ");
+		if (nrport->port_role & ~(FC_PORT_ROLE_NVME_INITIATOR |
+					  FC_PORT_ROLE_NVME_TARGET |
+					  FC_PORT_ROLE_NVME_DISCOVERY))
 			len +=  snprintf(buf + len, size - len,
 					 "UNKNOWN ROLE x%x",
 					 nrport->port_role);
-			break;
-		}
-
 		/* Terminate the string. */
 		len +=  snprintf(buf + len, size - len, "\n");
 	}
