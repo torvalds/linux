@@ -1355,6 +1355,11 @@ vmw_stdu_primary_plane_atomic_update(struct drm_plane *plane,
 		DRM_ERROR("Failed to bind surface to STDU.\n");
 	else
 		crtc->primary->fb = plane->state->fb;
+
+	ret = vmw_stdu_update_st(dev_priv, stdu);
+
+	if (ret)
+		DRM_ERROR("Failed to update STDU.\n");
 }
 
 
