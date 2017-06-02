@@ -33,10 +33,6 @@
 #define SMI_CMD_OP_45_READ_DATA_INC	((3 << 10) | SMI_CMD_BUSY)
 #define SMI_DATA		0x01
 
-/* PHY Registers */
-#define PHY_PAGE		0x16
-#define PHY_PAGE_COPPER		0x00
-
 #define PORT_STATUS		0x00
 #define PORT_STATUS_PAUSE_EN	BIT(15)
 #define PORT_STATUS_MY_PAUSE	BIT(14)

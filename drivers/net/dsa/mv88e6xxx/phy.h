@@ -14,6 +14,9 @@
 #ifndef _MV88E6XXX_PHY_H
 #define _MV88E6XXX_PHY_H
 
+#define PHY_PAGE		0x16
+#define PHY_PAGE_COPPER		0x00
+
 /* PHY Registers accesses implementations */
 int mv88e6165_phy_read(struct mv88e6xxx_chip *chip, struct mii_bus *bus,
 		       int addr, int reg, u16 *val);
