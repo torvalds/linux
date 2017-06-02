@@ -54,11 +54,6 @@
 		 * controller & should be probed first.
 		 */
 		interrupt-parent = <&cpu_intc>;
-
-		timer {
-			compatible = "mti,gic-timer";
-			interrupts = <GIC_LOCAL 1 IRQ_TYPE_NONE>;
-		};
 	};
 
 	ehci@1b200000 {
