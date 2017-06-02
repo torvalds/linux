@@ -3198,9 +3198,12 @@ lpfc_update_rport_devloss_tmo(struct lpfc_vport *vport)
 
 	shost = lpfc_shost_from_vport(vport);
 	spin_lock_irq(shost->host_lock);
-	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp)
-		if (NLP_CHK_NODE_ACT(ndlp) && ndlp->rport)
+	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
+		if (!NLP_CHK_NODE_ACT(ndlp))
+			continue;
+		if (ndlp->rport)
 			ndlp->rport->dev_loss_tmo = vport->cfg_devloss_tmo;
+	}
 	spin_unlock_irq(shost->host_lock);
 }
 
