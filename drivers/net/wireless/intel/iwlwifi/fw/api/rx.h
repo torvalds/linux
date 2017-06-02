@@ -18,11 +18,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
@@ -65,8 +60,8 @@
  *
  *****************************************************************************/
 
-#ifndef __fw_api_rx_h__
-#define __fw_api_rx_h__
+#ifndef __iwl_fw_api_rx_h__
+#define __iwl_fw_api_rx_h__
 
 /* API for pre-9000 hardware */
 
@@ -571,4 +566,24 @@ struct iwl_mvm_pm_state_notification {
 	__le16 reserved;
 } __packed; /* PEER_PM_NTFY_API_S_VER_1 */
 
-#endif /* __fw_api_rx_h__ */
+#define BA_WINDOW_STREAMS_MAX		16
+#define BA_WINDOW_STATUS_TID_MSK	0x000F
+#define BA_WINDOW_STATUS_STA_ID_POS	4
+#define BA_WINDOW_STATUS_STA_ID_MSK	0x01F0
+#define BA_WINDOW_STATUS_VALID_MSK	BIT(9)
+
+/**
+ * struct iwl_ba_window_status_notif - reordering window's status notification
+ * @bitmap: bitmap of received frames [start_seq_num + 0]..[start_seq_num + 63]
+ * @ra_tid: bit 3:0 - TID, bit 8:4 - STA_ID, bit 9 - valid
+ * @start_seq_num: the start sequence number of the bitmap
+ * @mpdu_rx_count: the number of received MPDUs since entering D0i3
+ */
+struct iwl_ba_window_status_notif {
+	__le64 bitmap[BA_WINDOW_STREAMS_MAX];
+	__le16 ra_tid[BA_WINDOW_STREAMS_MAX];
+	__le32 start_seq_num[BA_WINDOW_STREAMS_MAX];
+	__le16 mpdu_rx_count[BA_WINDOW_STREAMS_MAX];
+} __packed; /* BA_WINDOW_STATUS_NTFY_API_S_VER_1 */
+
+#endif /* __iwl_fw_api_rx_h__ */

@@ -17,11 +17,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
@@ -62,10 +57,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
-#ifndef __fw_api_rs_h__
-#define __fw_api_rs_h__
+#ifndef __iwl_fw_api_rs_h__
+#define __iwl_fw_api_rs_h__
 
-#include "fw-api-mac.h"
+#include "mac.h"
 
 /*
  * These serve as indexes into
@@ -410,4 +405,4 @@ struct iwl_lq_cmd {
 	__le32 ss_params;
 }; /* LINK_QUALITY_CMD_API_S_VER_1 */
 
-#endif /* __fw_api_rs_h__ */
+#endif /* __iwl_fw_api_rs_h__ */

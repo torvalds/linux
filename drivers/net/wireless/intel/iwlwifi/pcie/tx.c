@@ -43,8 +43,7 @@
 #include "iwl-scd.h"
 #include "iwl-op-mode.h"
 #include "internal.h"
-/* FIXME: need to abstract out TX command (once we know what it looks like) */
-#include "dvm/commands.h"
+#include "fw/api/tx.h"
 
 #define IWL_TX_CRC_SIZE 4
 #define IWL_TX_DELIMITER_SIZE 4
@@ -2367,7 +2366,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		tb1_len = ALIGN(len, 4);
 		/* Tell NIC about any 2-byte padding after MAC header */
 		if (tb1_len != len)
-			tx_cmd->tx_flags |= TX_CMD_FLG_MH_PAD_MSK;
+			tx_cmd->tx_flags |= cpu_to_le32(TX_CMD_FLG_MH_PAD);
 	} else {
 		tb1_len = len;
 	}

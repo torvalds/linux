@@ -61,7 +61,8 @@
 #include "iwl-config.h"
 #include "iwl-trans.h"
 #include "img.h"
-#include "api.h"
+#include "fw/api/debug.h"
+#include "fw/api/paging.h"
 
 struct iwl_fw_runtime_ops {
 	int (*dump_start)(void *ctx);

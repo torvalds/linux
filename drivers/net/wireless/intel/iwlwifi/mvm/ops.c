@@ -82,10 +82,10 @@
 #include "iwl-io.h"
 #include "iwl-prph.h"
 #include "rs.h"
-#include "fw-api-scan.h"
+#include "fw/api/scan.h"
 #include "time-event.h"
 #include "fw-api.h"
-#include "fw-api-scan.h"
+#include "fw/api/scan.h"
 
 #define DRV_DESCRIPTION	"The new Intel(R) wireless AGN driver for Linux"
 MODULE_DESCRIPTION(DRV_DESCRIPTION);

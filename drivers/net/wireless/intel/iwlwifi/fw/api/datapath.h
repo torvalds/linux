@@ -59,94 +59,69 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-#include "iwl-drv.h"
-#include "runtime.h"
-#include "fw/api/commands.h"
 
-static void iwl_parse_shared_mem_a000(struct iwl_fw_runtime *fwrt,
-				      struct iwl_rx_packet *pkt)
-{
-	struct iwl_shared_mem_cfg *mem_cfg = (void *)pkt->data;
-	int i, lmac;
-	int lmac_num = le32_to_cpu(mem_cfg->lmac_num);
+#ifndef __iwl_fw_api_datapath_h__
+#define __iwl_fw_api_datapath_h__
 
-	if (WARN_ON(lmac_num > ARRAY_SIZE(mem_cfg->lmac_smem)))
-		return;
+/**
+ * enum iwl_data_path_subcmd_ids - data path group commands
+ */
+enum iwl_data_path_subcmd_ids {
+	/**
+	 * @DQA_ENABLE_CMD: &struct iwl_dqa_enable_cmd
+	 */
+	DQA_ENABLE_CMD = 0x0,
 
-	fwrt->smem_cfg.num_lmacs = lmac_num;
-	fwrt->smem_cfg.num_txfifo_entries =
-		ARRAY_SIZE(mem_cfg->lmac_smem[0].txfifo_size);
-	fwrt->smem_cfg.rxfifo2_size = le32_to_cpu(mem_cfg->rxfifo2_size);
+	/**
+	 * @UPDATE_MU_GROUPS_CMD: &struct iwl_mu_group_mgmt_cmd
+	 */
+	UPDATE_MU_GROUPS_CMD = 0x1,
 
-	for (lmac = 0; lmac < lmac_num; lmac++) {
-		struct iwl_shared_mem_lmac_cfg *lmac_cfg =
-			&mem_cfg->lmac_smem[lmac];
+	/**
+	 * @TRIGGER_RX_QUEUES_NOTIF_CMD: &struct iwl_rxq_sync_cmd
+	 */
+	TRIGGER_RX_QUEUES_NOTIF_CMD = 0x2,
 
-		for (i = 0; i < ARRAY_SIZE(lmac_cfg->txfifo_size); i++)
-			fwrt->smem_cfg.lmac[lmac].txfifo_size[i] =
-				le32_to_cpu(lmac_cfg->txfifo_size[i]);
-		fwrt->smem_cfg.lmac[lmac].rxfifo1_size =
-			le32_to_cpu(lmac_cfg->rxfifo1_size);
-	}
-}
+	/**
+	 * @STA_PM_NOTIF: &struct iwl_mvm_pm_state_notification
+	 */
+	STA_PM_NOTIF = 0xFD,
 
-static void iwl_parse_shared_mem(struct iwl_fw_runtime *fwrt,
-				 struct iwl_rx_packet *pkt)
-{
-	struct iwl_shared_mem_cfg_v2 *mem_cfg = (void *)pkt->data;
-	int i;
+	/**
+	 * @MU_GROUP_MGMT_NOTIF: &struct iwl_mu_group_mgmt_notif
+	 */
+	MU_GROUP_MGMT_NOTIF = 0xFE,
 
-	fwrt->smem_cfg.num_lmacs = 1;
+	/**
+	 * @RX_QUEUES_NOTIFICATION: &struct iwl_rxq_sync_notification
+	 */
+	RX_QUEUES_NOTIFICATION = 0xFF,
+};
 
-	fwrt->smem_cfg.num_txfifo_entries = ARRAY_SIZE(mem_cfg->txfifo_size);
-	for (i = 0; i < ARRAY_SIZE(mem_cfg->txfifo_size); i++)
-		fwrt->smem_cfg.lmac[0].txfifo_size[i] =
-			le32_to_cpu(mem_cfg->txfifo_size[i]);
+/**
+ * struct iwl_mu_group_mgmt_cmd - VHT MU-MIMO group configuration
+ *
+ * @reserved: reserved
+ * @membership_status: a bitmap of MU groups
+ * @user_position:the position of station in a group. If the station is in the
+ *	group then bits (group * 2) is the position -1
+ */
+struct iwl_mu_group_mgmt_cmd {
+	__le32 reserved;
+	__le32 membership_status[2];
+	__le32 user_position[4];
+} __packed; /* MU_GROUP_ID_MNG_TABLE_API_S_VER_1 */
 
-	fwrt->smem_cfg.lmac[0].rxfifo1_size =
-		le32_to_cpu(mem_cfg->rxfifo_size[0]);
-	fwrt->smem_cfg.rxfifo2_size = le32_to_cpu(mem_cfg->rxfifo_size[1]);
+/**
+ * struct iwl_mu_group_mgmt_notif - VHT MU-MIMO group id notification
+ *
+ * @membership_status: a bitmap of MU groups
+ * @user_position: the position of station in a group. If the station is in the
+ *	group then bits (group * 2) is the position -1
+ */
+struct iwl_mu_group_mgmt_notif {
+	__le32 membership_status[2];
+	__le32 user_position[4];
+} __packed; /* MU_GROUP_MNG_NTFY_API_S_VER_1 */
 
-	/* new API has more data, from rxfifo_addr field and on */
-	if (fw_has_capa(&fwrt->fw->ucode_capa,
-			IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG)) {
-		BUILD_BUG_ON(sizeof(fwrt->smem_cfg.internal_txfifo_size) !=
-			     sizeof(mem_cfg->internal_txfifo_size));
-
-		for (i = 0;
-		     i < ARRAY_SIZE(fwrt->smem_cfg.internal_txfifo_size);
-		     i++)
-			fwrt->smem_cfg.internal_txfifo_size[i] =
-				le32_to_cpu(mem_cfg->internal_txfifo_size[i]);
-	}
-}
-
-void iwl_get_shared_mem_conf(struct iwl_fw_runtime *fwrt)
-{
-	struct iwl_host_cmd cmd = {
-		.flags = CMD_WANT_SKB,
-		.data = { NULL, },
-		.len = { 0, },
-	};
-	struct iwl_rx_packet *pkt;
-
-	if (fw_has_capa(&fwrt->fw->ucode_capa,
-			IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG))
-		cmd.id = iwl_cmd_id(SHARED_MEM_CFG_CMD, SYSTEM_GROUP, 0);
-	else
-		cmd.id = SHARED_MEM_CFG;
-
-	if (WARN_ON(iwl_trans_send_cmd(fwrt->trans, &cmd)))
-		return;
-
-	pkt = cmd.resp_pkt;
-	if (fwrt->trans->cfg->device_family == IWL_DEVICE_FAMILY_A000)
-		iwl_parse_shared_mem_a000(fwrt, pkt);
-	else
-		iwl_parse_shared_mem(fwrt, pkt);
-
-	IWL_DEBUG_INFO(fwrt, "SHARED MEM CFG: got memory offsets/sizes\n");
-
-	iwl_free_resp(&cmd);
-}
-IWL_EXPORT_SYMBOL(iwl_get_shared_mem_conf);
+#endif /* __iwl_fw_api_datapath_h__ */

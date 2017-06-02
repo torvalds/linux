@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2017        Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -15,11 +16,6 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
  *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
@@ -31,6 +27,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2017        Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,8 +57,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
-#ifndef __fw_api_mac_h__
-#define __fw_api_mac_h__
+#ifndef __iwl_fw_api_mac_h__
+#define __iwl_fw_api_mac_h__
 
 /*
  * The first MAC indices (starting from 0) are available to the driver,
@@ -75,8 +72,6 @@
 
 #define IWL_MVM_STATION_COUNT		16
 #define IWL_MVM_INVALID_STA		0xFF
-
-#define IWL_MVM_TDLS_STA_COUNT	4
 
 enum iwl_ac {
 	AC_BK,
@@ -393,4 +388,22 @@ struct iwl_nonqos_seq_query_cmd {
 	__le16 reserved;
 } __packed; /* NON_QOS_TX_COUNTER_GET_SET_API_S_VER_1 */
 
-#endif /* __fw_api_mac_h__ */
+/**
+ * struct iwl_missed_beacons_notif - information on missed beacons
+ * ( MISSED_BEACONS_NOTIFICATION = 0xa2 )
+ * @mac_id: interface ID
+ * @consec_missed_beacons_since_last_rx: number of consecutive missed
+ *	beacons since last RX.
+ * @consec_missed_beacons: number of consecutive missed beacons
+ * @num_expected_beacons: number of expected beacons
+ * @num_recvd_beacons: number of received beacons
+ */
+struct iwl_missed_beacons_notif {
+	__le32 mac_id;
+	__le32 consec_missed_beacons_since_last_rx;
+	__le32 consec_missed_beacons;
+	__le32 num_expected_beacons;
+	__le32 num_recvd_beacons;
+} __packed; /* MISSED_BEACON_NTFY_API_S_VER_3 */
+
+#endif /* __iwl_fw_api_mac_h__ */

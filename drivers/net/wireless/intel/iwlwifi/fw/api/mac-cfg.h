@@ -59,94 +59,94 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-#include "iwl-drv.h"
-#include "runtime.h"
-#include "fw/api/commands.h"
 
-static void iwl_parse_shared_mem_a000(struct iwl_fw_runtime *fwrt,
-				      struct iwl_rx_packet *pkt)
-{
-	struct iwl_shared_mem_cfg *mem_cfg = (void *)pkt->data;
-	int i, lmac;
-	int lmac_num = le32_to_cpu(mem_cfg->lmac_num);
+#ifndef __iwl_fw_api_mac_cfg_h__
+#define __iwl_fw_api_mac_cfg_h__
 
-	if (WARN_ON(lmac_num > ARRAY_SIZE(mem_cfg->lmac_smem)))
-		return;
+/**
+ * enum iwl_mac_conf_subcmd_ids - mac configuration command IDs
+ */
+enum iwl_mac_conf_subcmd_ids {
+	/**
+	 * @LINK_QUALITY_MEASUREMENT_CMD: &struct iwl_link_qual_msrmnt_cmd
+	 */
+	LINK_QUALITY_MEASUREMENT_CMD = 0x1,
 
-	fwrt->smem_cfg.num_lmacs = lmac_num;
-	fwrt->smem_cfg.num_txfifo_entries =
-		ARRAY_SIZE(mem_cfg->lmac_smem[0].txfifo_size);
-	fwrt->smem_cfg.rxfifo2_size = le32_to_cpu(mem_cfg->rxfifo2_size);
+	/**
+	 * @LINK_QUALITY_MEASUREMENT_COMPLETE_NOTIF:
+	 * &struct iwl_link_qual_msrmnt_notif
+	 */
+	LINK_QUALITY_MEASUREMENT_COMPLETE_NOTIF = 0xFE,
 
-	for (lmac = 0; lmac < lmac_num; lmac++) {
-		struct iwl_shared_mem_lmac_cfg *lmac_cfg =
-			&mem_cfg->lmac_smem[lmac];
+	/**
+	 * @CHANNEL_SWITCH_NOA_NOTIF: &struct iwl_channel_switch_noa_notif
+	 */
+	CHANNEL_SWITCH_NOA_NOTIF = 0xFF,
+};
 
-		for (i = 0; i < ARRAY_SIZE(lmac_cfg->txfifo_size); i++)
-			fwrt->smem_cfg.lmac[lmac].txfifo_size[i] =
-				le32_to_cpu(lmac_cfg->txfifo_size[i]);
-		fwrt->smem_cfg.lmac[lmac].rxfifo1_size =
-			le32_to_cpu(lmac_cfg->rxfifo1_size);
-	}
-}
+#define LQM_NUMBER_OF_STATIONS_IN_REPORT 16
 
-static void iwl_parse_shared_mem(struct iwl_fw_runtime *fwrt,
-				 struct iwl_rx_packet *pkt)
-{
-	struct iwl_shared_mem_cfg_v2 *mem_cfg = (void *)pkt->data;
-	int i;
+enum iwl_lqm_cmd_operatrions {
+	LQM_CMD_OPERATION_START_MEASUREMENT = 0x01,
+	LQM_CMD_OPERATION_STOP_MEASUREMENT = 0x02,
+};
 
-	fwrt->smem_cfg.num_lmacs = 1;
+enum iwl_lqm_status {
+	LQM_STATUS_SUCCESS = 0,
+	LQM_STATUS_TIMEOUT = 1,
+	LQM_STATUS_ABORT = 2,
+};
 
-	fwrt->smem_cfg.num_txfifo_entries = ARRAY_SIZE(mem_cfg->txfifo_size);
-	for (i = 0; i < ARRAY_SIZE(mem_cfg->txfifo_size); i++)
-		fwrt->smem_cfg.lmac[0].txfifo_size[i] =
-			le32_to_cpu(mem_cfg->txfifo_size[i]);
+/**
+ * struct iwl_link_qual_msrmnt_cmd - Link Quality Measurement command
+ * @cmd_operation: command operation to be performed (start or stop)
+ *	as defined above.
+ * @mac_id: MAC ID the measurement applies to.
+ * @measurement_time: time of the total measurement to be performed, in uSec.
+ * @timeout: maximum time allowed until a response is sent, in uSec.
+ */
+struct iwl_link_qual_msrmnt_cmd {
+	__le32 cmd_operation;
+	__le32 mac_id;
+	__le32 measurement_time;
+	__le32 timeout;
+} __packed /* LQM_CMD_API_S_VER_1 */;
 
-	fwrt->smem_cfg.lmac[0].rxfifo1_size =
-		le32_to_cpu(mem_cfg->rxfifo_size[0]);
-	fwrt->smem_cfg.rxfifo2_size = le32_to_cpu(mem_cfg->rxfifo_size[1]);
+/**
+ * struct iwl_link_qual_msrmnt_notif - Link Quality Measurement notification
+ *
+ * @frequent_stations_air_time: an array containing the total air time
+ *	(in uSec) used by the most frequently transmitting stations.
+ * @number_of_stations: the number of uniqe stations included in the array
+ *	(a number between 0 to 16)
+ * @total_air_time_other_stations: the total air time (uSec) used by all the
+ *	stations which are not included in the above report.
+ * @time_in_measurement_window: the total time in uSec in which a measurement
+ *	took place.
+ * @tx_frame_dropped: the number of TX frames dropped due to retry limit during
+ *	measurement
+ * @mac_id: MAC ID the measurement applies to.
+ * @status: return status. may be one of the LQM_STATUS_* defined above.
+ * @reserved: reserved.
+ */
+struct iwl_link_qual_msrmnt_notif {
+	__le32 frequent_stations_air_time[LQM_NUMBER_OF_STATIONS_IN_REPORT];
+	__le32 number_of_stations;
+	__le32 total_air_time_other_stations;
+	__le32 time_in_measurement_window;
+	__le32 tx_frame_dropped;
+	__le32 mac_id;
+	__le32 status;
+	u8 reserved[12];
+} __packed; /* LQM_MEASUREMENT_COMPLETE_NTF_API_S_VER1 */
 
-	/* new API has more data, from rxfifo_addr field and on */
-	if (fw_has_capa(&fwrt->fw->ucode_capa,
-			IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG)) {
-		BUILD_BUG_ON(sizeof(fwrt->smem_cfg.internal_txfifo_size) !=
-			     sizeof(mem_cfg->internal_txfifo_size));
+/**
+ * struct iwl_channel_switch_noa_notif - Channel switch NOA notification
+ *
+ * @id_and_color: ID and color of the MAC
+ */
+struct iwl_channel_switch_noa_notif {
+	__le32 id_and_color;
+} __packed; /* CHANNEL_SWITCH_START_NTFY_API_S_VER_1 */
 
-		for (i = 0;
-		     i < ARRAY_SIZE(fwrt->smem_cfg.internal_txfifo_size);
-		     i++)
-			fwrt->smem_cfg.internal_txfifo_size[i] =
-				le32_to_cpu(mem_cfg->internal_txfifo_size[i]);
-	}
-}
-
-void iwl_get_shared_mem_conf(struct iwl_fw_runtime *fwrt)
-{
-	struct iwl_host_cmd cmd = {
-		.flags = CMD_WANT_SKB,
-		.data = { NULL, },
-		.len = { 0, },
-	};
-	struct iwl_rx_packet *pkt;
-
-	if (fw_has_capa(&fwrt->fw->ucode_capa,
-			IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG))
-		cmd.id = iwl_cmd_id(SHARED_MEM_CFG_CMD, SYSTEM_GROUP, 0);
-	else
-		cmd.id = SHARED_MEM_CFG;
-
-	if (WARN_ON(iwl_trans_send_cmd(fwrt->trans, &cmd)))
-		return;
-
-	pkt = cmd.resp_pkt;
-	if (fwrt->trans->cfg->device_family == IWL_DEVICE_FAMILY_A000)
-		iwl_parse_shared_mem_a000(fwrt, pkt);
-	else
-		iwl_parse_shared_mem(fwrt, pkt);
-
-	IWL_DEBUG_INFO(fwrt, "SHARED MEM CFG: got memory offsets/sizes\n");
-
-	iwl_free_resp(&cmd);
-}
-IWL_EXPORT_SYMBOL(iwl_get_shared_mem_conf);
+#endif /* __iwl_fw_api_mac_cfg_h__ */

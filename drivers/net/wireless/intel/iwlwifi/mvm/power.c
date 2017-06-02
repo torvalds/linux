@@ -75,7 +75,7 @@
 #include "iwl-debug.h"
 #include "mvm.h"
 #include "iwl-modparams.h"
-#include "fw-api-power.h"
+#include "fw/api/power.h"
 
 #define POWER_KEEP_ALIVE_PERIOD_SEC    25
 

@@ -59,94 +59,86 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-#include "iwl-drv.h"
-#include "runtime.h"
-#include "fw/api/commands.h"
 
-static void iwl_parse_shared_mem_a000(struct iwl_fw_runtime *fwrt,
-				      struct iwl_rx_packet *pkt)
-{
-	struct iwl_shared_mem_cfg *mem_cfg = (void *)pkt->data;
-	int i, lmac;
-	int lmac_num = le32_to_cpu(mem_cfg->lmac_num);
+#ifndef __iwl_fw_api_binding_h__
+#define __iwl_fw_api_binding_h__
 
-	if (WARN_ON(lmac_num > ARRAY_SIZE(mem_cfg->lmac_smem)))
-		return;
+#define MAX_MACS_IN_BINDING	(3)
+#define MAX_BINDINGS		(4)
 
-	fwrt->smem_cfg.num_lmacs = lmac_num;
-	fwrt->smem_cfg.num_txfifo_entries =
-		ARRAY_SIZE(mem_cfg->lmac_smem[0].txfifo_size);
-	fwrt->smem_cfg.rxfifo2_size = le32_to_cpu(mem_cfg->rxfifo2_size);
+/**
+ * struct iwl_binding_cmd_v1 - configuring bindings
+ * ( BINDING_CONTEXT_CMD = 0x2b )
+ * @id_and_color: ID and color of the relevant Binding,
+ *	&enum iwl_ctxt_id_and_color
+ * @action: action to perform, one of FW_CTXT_ACTION_*
+ * @macs: array of MAC id and colors which belong to the binding,
+ *	&enum iwl_ctxt_id_and_color
+ * @phy: PHY id and color which belongs to the binding,
+ *	&enum iwl_ctxt_id_and_color
+ */
+struct iwl_binding_cmd_v1 {
+	/* COMMON_INDEX_HDR_API_S_VER_1 */
+	__le32 id_and_color;
+	__le32 action;
+	/* BINDING_DATA_API_S_VER_1 */
+	__le32 macs[MAX_MACS_IN_BINDING];
+	__le32 phy;
+} __packed; /* BINDING_CMD_API_S_VER_1 */
 
-	for (lmac = 0; lmac < lmac_num; lmac++) {
-		struct iwl_shared_mem_lmac_cfg *lmac_cfg =
-			&mem_cfg->lmac_smem[lmac];
+/**
+ * struct iwl_binding_cmd - configuring bindings
+ * ( BINDING_CONTEXT_CMD = 0x2b )
+ * @id_and_color: ID and color of the relevant Binding,
+ *	&enum iwl_ctxt_id_and_color
+ * @action: action to perform, one of FW_CTXT_ACTION_*
+ * @macs: array of MAC id and colors which belong to the binding
+ *	&enum iwl_ctxt_id_and_color
+ * @phy: PHY id and color which belongs to the binding
+ *	&enum iwl_ctxt_id_and_color
+ * @lmac_id: the lmac id the binding belongs to
+ */
+struct iwl_binding_cmd {
+	/* COMMON_INDEX_HDR_API_S_VER_1 */
+	__le32 id_and_color;
+	__le32 action;
+	/* BINDING_DATA_API_S_VER_1 */
+	__le32 macs[MAX_MACS_IN_BINDING];
+	__le32 phy;
+	__le32 lmac_id;
+} __packed; /* BINDING_CMD_API_S_VER_2 */
 
-		for (i = 0; i < ARRAY_SIZE(lmac_cfg->txfifo_size); i++)
-			fwrt->smem_cfg.lmac[lmac].txfifo_size[i] =
-				le32_to_cpu(lmac_cfg->txfifo_size[i]);
-		fwrt->smem_cfg.lmac[lmac].rxfifo1_size =
-			le32_to_cpu(lmac_cfg->rxfifo1_size);
-	}
-}
+#define IWL_BINDING_CMD_SIZE_V1	sizeof(struct iwl_binding_cmd_v1)
+#define IWL_LMAC_24G_INDEX		0
+#define IWL_LMAC_5G_INDEX		1
 
-static void iwl_parse_shared_mem(struct iwl_fw_runtime *fwrt,
-				 struct iwl_rx_packet *pkt)
-{
-	struct iwl_shared_mem_cfg_v2 *mem_cfg = (void *)pkt->data;
-	int i;
+/* The maximal number of fragments in the FW's schedule session */
+#define IWL_MVM_MAX_QUOTA 128
 
-	fwrt->smem_cfg.num_lmacs = 1;
+/**
+ * struct iwl_time_quota_data - configuration of time quota per binding
+ * @id_and_color: ID and color of the relevant Binding,
+ *	&enum iwl_ctxt_id_and_color
+ * @quota: absolute time quota in TU. The scheduler will try to divide the
+ *	remainig quota (after Time Events) according to this quota.
+ * @max_duration: max uninterrupted context duration in TU
+ */
+struct iwl_time_quota_data {
+	__le32 id_and_color;
+	__le32 quota;
+	__le32 max_duration;
+} __packed; /* TIME_QUOTA_DATA_API_S_VER_1 */
 
-	fwrt->smem_cfg.num_txfifo_entries = ARRAY_SIZE(mem_cfg->txfifo_size);
-	for (i = 0; i < ARRAY_SIZE(mem_cfg->txfifo_size); i++)
-		fwrt->smem_cfg.lmac[0].txfifo_size[i] =
-			le32_to_cpu(mem_cfg->txfifo_size[i]);
+/**
+ * struct iwl_time_quota_cmd - configuration of time quota between bindings
+ * ( TIME_QUOTA_CMD = 0x2c )
+ * @quotas: allocations per binding
+ * Note: on non-CDB the fourth one is the auxilary mac and is
+ *	essentially zero.
+ *	On CDB the fourth one is a regular binding.
+ */
+struct iwl_time_quota_cmd {
+	struct iwl_time_quota_data quotas[MAX_BINDINGS];
+} __packed; /* TIME_QUOTA_ALLOCATION_CMD_API_S_VER_1 */
 
-	fwrt->smem_cfg.lmac[0].rxfifo1_size =
-		le32_to_cpu(mem_cfg->rxfifo_size[0]);
-	fwrt->smem_cfg.rxfifo2_size = le32_to_cpu(mem_cfg->rxfifo_size[1]);
-
-	/* new API has more data, from rxfifo_addr field and on */
-	if (fw_has_capa(&fwrt->fw->ucode_capa,
-			IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG)) {
-		BUILD_BUG_ON(sizeof(fwrt->smem_cfg.internal_txfifo_size) !=
-			     sizeof(mem_cfg->internal_txfifo_size));
-
-		for (i = 0;
-		     i < ARRAY_SIZE(fwrt->smem_cfg.internal_txfifo_size);
-		     i++)
-			fwrt->smem_cfg.internal_txfifo_size[i] =
-				le32_to_cpu(mem_cfg->internal_txfifo_size[i]);
-	}
-}
-
-void iwl_get_shared_mem_conf(struct iwl_fw_runtime *fwrt)
-{
-	struct iwl_host_cmd cmd = {
-		.flags = CMD_WANT_SKB,
-		.data = { NULL, },
-		.len = { 0, },
-	};
-	struct iwl_rx_packet *pkt;
-
-	if (fw_has_capa(&fwrt->fw->ucode_capa,
-			IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG))
-		cmd.id = iwl_cmd_id(SHARED_MEM_CFG_CMD, SYSTEM_GROUP, 0);
-	else
-		cmd.id = SHARED_MEM_CFG;
-
-	if (WARN_ON(iwl_trans_send_cmd(fwrt->trans, &cmd)))
-		return;
-
-	pkt = cmd.resp_pkt;
-	if (fwrt->trans->cfg->device_family == IWL_DEVICE_FAMILY_A000)
-		iwl_parse_shared_mem_a000(fwrt, pkt);
-	else
-		iwl_parse_shared_mem(fwrt, pkt);
-
-	IWL_DEBUG_INFO(fwrt, "SHARED MEM CFG: got memory offsets/sizes\n");
-
-	iwl_free_resp(&cmd);
-}
-IWL_EXPORT_SYMBOL(iwl_get_shared_mem_conf);
+#endif /* __iwl_fw_api_binding_h__ */

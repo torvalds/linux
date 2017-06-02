@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
@@ -27,7 +27,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
@@ -59,94 +59,50 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-#include "iwl-drv.h"
-#include "runtime.h"
-#include "fw/api/commands.h"
+#ifndef __iwl_fw_api_paging_h__
+#define __iwl_fw_api_paging_h__
 
-static void iwl_parse_shared_mem_a000(struct iwl_fw_runtime *fwrt,
-				      struct iwl_rx_packet *pkt)
-{
-	struct iwl_shared_mem_cfg *mem_cfg = (void *)pkt->data;
-	int i, lmac;
-	int lmac_num = le32_to_cpu(mem_cfg->lmac_num);
+#define NUM_OF_FW_PAGING_BLOCKS	33 /* 32 for data and 1 block for CSS */
 
-	if (WARN_ON(lmac_num > ARRAY_SIZE(mem_cfg->lmac_smem)))
-		return;
+/**
+ * struct iwl_fw_paging_cmd - paging layout
+ *
+ * Send to FW the paging layout in the driver.
+ *
+ * @flags: various flags for the command
+ * @block_size: the block size in powers of 2
+ * @block_num: number of blocks specified in the command.
+ * @device_phy_addr: virtual addresses from device side
+ */
+struct iwl_fw_paging_cmd {
+	__le32 flags;
+	__le32 block_size;
+	__le32 block_num;
+	__le32 device_phy_addr[NUM_OF_FW_PAGING_BLOCKS];
+} __packed; /* FW_PAGING_BLOCK_CMD_API_S_VER_1 */
 
-	fwrt->smem_cfg.num_lmacs = lmac_num;
-	fwrt->smem_cfg.num_txfifo_entries =
-		ARRAY_SIZE(mem_cfg->lmac_smem[0].txfifo_size);
-	fwrt->smem_cfg.rxfifo2_size = le32_to_cpu(mem_cfg->rxfifo2_size);
+/**
+ * enum iwl_fw_item_id - FW item IDs
+ *
+ * @IWL_FW_ITEM_ID_PAGING: Address of the pages that the FW will upload
+ *	download
+ */
+enum iwl_fw_item_id {
+	IWL_FW_ITEM_ID_PAGING = 3,
+};
 
-	for (lmac = 0; lmac < lmac_num; lmac++) {
-		struct iwl_shared_mem_lmac_cfg *lmac_cfg =
-			&mem_cfg->lmac_smem[lmac];
+/**
+ * struct iwl_fw_get_item_cmd - get an item from the fw
+ * @item_id: ID of item to obtain, see &enum iwl_fw_item_id
+ */
+struct iwl_fw_get_item_cmd {
+	__le32 item_id;
+} __packed; /* FW_GET_ITEM_CMD_API_S_VER_1 */
 
-		for (i = 0; i < ARRAY_SIZE(lmac_cfg->txfifo_size); i++)
-			fwrt->smem_cfg.lmac[lmac].txfifo_size[i] =
-				le32_to_cpu(lmac_cfg->txfifo_size[i]);
-		fwrt->smem_cfg.lmac[lmac].rxfifo1_size =
-			le32_to_cpu(lmac_cfg->rxfifo1_size);
-	}
-}
+struct iwl_fw_get_item_resp {
+	__le32 item_id;
+	__le32 item_byte_cnt;
+	__le32 item_val;
+} __packed; /* FW_GET_ITEM_RSP_S_VER_1 */
 
-static void iwl_parse_shared_mem(struct iwl_fw_runtime *fwrt,
-				 struct iwl_rx_packet *pkt)
-{
-	struct iwl_shared_mem_cfg_v2 *mem_cfg = (void *)pkt->data;
-	int i;
-
-	fwrt->smem_cfg.num_lmacs = 1;
-
-	fwrt->smem_cfg.num_txfifo_entries = ARRAY_SIZE(mem_cfg->txfifo_size);
-	for (i = 0; i < ARRAY_SIZE(mem_cfg->txfifo_size); i++)
-		fwrt->smem_cfg.lmac[0].txfifo_size[i] =
-			le32_to_cpu(mem_cfg->txfifo_size[i]);
-
-	fwrt->smem_cfg.lmac[0].rxfifo1_size =
-		le32_to_cpu(mem_cfg->rxfifo_size[0]);
-	fwrt->smem_cfg.rxfifo2_size = le32_to_cpu(mem_cfg->rxfifo_size[1]);
-
-	/* new API has more data, from rxfifo_addr field and on */
-	if (fw_has_capa(&fwrt->fw->ucode_capa,
-			IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG)) {
-		BUILD_BUG_ON(sizeof(fwrt->smem_cfg.internal_txfifo_size) !=
-			     sizeof(mem_cfg->internal_txfifo_size));
-
-		for (i = 0;
-		     i < ARRAY_SIZE(fwrt->smem_cfg.internal_txfifo_size);
-		     i++)
-			fwrt->smem_cfg.internal_txfifo_size[i] =
-				le32_to_cpu(mem_cfg->internal_txfifo_size[i]);
-	}
-}
-
-void iwl_get_shared_mem_conf(struct iwl_fw_runtime *fwrt)
-{
-	struct iwl_host_cmd cmd = {
-		.flags = CMD_WANT_SKB,
-		.data = { NULL, },
-		.len = { 0, },
-	};
-	struct iwl_rx_packet *pkt;
-
-	if (fw_has_capa(&fwrt->fw->ucode_capa,
-			IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG))
-		cmd.id = iwl_cmd_id(SHARED_MEM_CFG_CMD, SYSTEM_GROUP, 0);
-	else
-		cmd.id = SHARED_MEM_CFG;
-
-	if (WARN_ON(iwl_trans_send_cmd(fwrt->trans, &cmd)))
-		return;
-
-	pkt = cmd.resp_pkt;
-	if (fwrt->trans->cfg->device_family == IWL_DEVICE_FAMILY_A000)
-		iwl_parse_shared_mem_a000(fwrt, pkt);
-	else
-		iwl_parse_shared_mem(fwrt, pkt);
-
-	IWL_DEBUG_INFO(fwrt, "SHARED MEM CFG: got memory offsets/sizes\n");
-
-	iwl_free_resp(&cmd);
-}
-IWL_EXPORT_SYMBOL(iwl_get_shared_mem_conf);
+#endif /* __iwl_fw_api_paging_h__ */

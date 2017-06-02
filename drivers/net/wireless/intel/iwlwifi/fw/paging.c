@@ -61,10 +61,7 @@
  *****************************************************************************/
 #include "iwl-drv.h"
 #include "runtime.h"
-
-/* FIXME */
-#define FW_PAGING_BLOCK_CMD 0x4f
-#define FW_GET_ITEM_CMD 0x1a
+#include "fw/api/commands.h"
 
 void iwl_free_fw_paging(struct iwl_fw_runtime *fwrt)
 {

@@ -59,94 +59,80 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-#include "iwl-drv.h"
-#include "runtime.h"
-#include "fw/api/commands.h"
 
-static void iwl_parse_shared_mem_a000(struct iwl_fw_runtime *fwrt,
-				      struct iwl_rx_packet *pkt)
-{
-	struct iwl_shared_mem_cfg *mem_cfg = (void *)pkt->data;
-	int i, lmac;
-	int lmac_num = le32_to_cpu(mem_cfg->lmac_num);
+#ifndef __iwl_fw_api_sf_h__
+#define __iwl_fw_api_sf_h__
 
-	if (WARN_ON(lmac_num > ARRAY_SIZE(mem_cfg->lmac_smem)))
-		return;
+/* Smart Fifo state */
+enum iwl_sf_state {
+	SF_LONG_DELAY_ON = 0, /* should never be called by driver */
+	SF_FULL_ON,
+	SF_UNINIT,
+	SF_INIT_OFF,
+	SF_HW_NUM_STATES
+};
 
-	fwrt->smem_cfg.num_lmacs = lmac_num;
-	fwrt->smem_cfg.num_txfifo_entries =
-		ARRAY_SIZE(mem_cfg->lmac_smem[0].txfifo_size);
-	fwrt->smem_cfg.rxfifo2_size = le32_to_cpu(mem_cfg->rxfifo2_size);
+/* Smart Fifo possible scenario */
+enum iwl_sf_scenario {
+	SF_SCENARIO_SINGLE_UNICAST,
+	SF_SCENARIO_AGG_UNICAST,
+	SF_SCENARIO_MULTICAST,
+	SF_SCENARIO_BA_RESP,
+	SF_SCENARIO_TX_RESP,
+	SF_NUM_SCENARIO
+};
 
-	for (lmac = 0; lmac < lmac_num; lmac++) {
-		struct iwl_shared_mem_lmac_cfg *lmac_cfg =
-			&mem_cfg->lmac_smem[lmac];
+#define SF_TRANSIENT_STATES_NUMBER 2	/* SF_LONG_DELAY_ON and SF_FULL_ON */
+#define SF_NUM_TIMEOUT_TYPES 2		/* Aging timer and Idle timer */
 
-		for (i = 0; i < ARRAY_SIZE(lmac_cfg->txfifo_size); i++)
-			fwrt->smem_cfg.lmac[lmac].txfifo_size[i] =
-				le32_to_cpu(lmac_cfg->txfifo_size[i]);
-		fwrt->smem_cfg.lmac[lmac].rxfifo1_size =
-			le32_to_cpu(lmac_cfg->rxfifo1_size);
-	}
-}
+/* smart FIFO default values */
+#define SF_W_MARK_SISO 6144
+#define SF_W_MARK_MIMO2 8192
+#define SF_W_MARK_MIMO3 6144
+#define SF_W_MARK_LEGACY 4096
+#define SF_W_MARK_SCAN 4096
 
-static void iwl_parse_shared_mem(struct iwl_fw_runtime *fwrt,
-				 struct iwl_rx_packet *pkt)
-{
-	struct iwl_shared_mem_cfg_v2 *mem_cfg = (void *)pkt->data;
-	int i;
+/* SF Scenarios timers for default configuration (aligned to 32 uSec) */
+#define SF_SINGLE_UNICAST_IDLE_TIMER_DEF 160	/* 150 uSec  */
+#define SF_SINGLE_UNICAST_AGING_TIMER_DEF 400	/* 0.4 mSec */
+#define SF_AGG_UNICAST_IDLE_TIMER_DEF 160		/* 150 uSec */
+#define SF_AGG_UNICAST_AGING_TIMER_DEF 400		/* 0.4 mSec */
+#define SF_MCAST_IDLE_TIMER_DEF 160		/* 150 mSec */
+#define SF_MCAST_AGING_TIMER_DEF 400		/* 0.4 mSec */
+#define SF_BA_IDLE_TIMER_DEF 160			/* 150 uSec */
+#define SF_BA_AGING_TIMER_DEF 400			/* 0.4 mSec */
+#define SF_TX_RE_IDLE_TIMER_DEF 160			/* 150 uSec */
+#define SF_TX_RE_AGING_TIMER_DEF 400		/* 0.4 mSec */
 
-	fwrt->smem_cfg.num_lmacs = 1;
+/* SF Scenarios timers for BSS MAC configuration (aligned to 32 uSec) */
+#define SF_SINGLE_UNICAST_IDLE_TIMER 320	/* 300 uSec  */
+#define SF_SINGLE_UNICAST_AGING_TIMER 2016	/* 2 mSec */
+#define SF_AGG_UNICAST_IDLE_TIMER 320		/* 300 uSec */
+#define SF_AGG_UNICAST_AGING_TIMER 2016		/* 2 mSec */
+#define SF_MCAST_IDLE_TIMER 2016		/* 2 mSec */
+#define SF_MCAST_AGING_TIMER 10016		/* 10 mSec */
+#define SF_BA_IDLE_TIMER 320			/* 300 uSec */
+#define SF_BA_AGING_TIMER 2016			/* 2 mSec */
+#define SF_TX_RE_IDLE_TIMER 320			/* 300 uSec */
+#define SF_TX_RE_AGING_TIMER 2016		/* 2 mSec */
 
-	fwrt->smem_cfg.num_txfifo_entries = ARRAY_SIZE(mem_cfg->txfifo_size);
-	for (i = 0; i < ARRAY_SIZE(mem_cfg->txfifo_size); i++)
-		fwrt->smem_cfg.lmac[0].txfifo_size[i] =
-			le32_to_cpu(mem_cfg->txfifo_size[i]);
+#define SF_LONG_DELAY_AGING_TIMER 1000000	/* 1 Sec */
 
-	fwrt->smem_cfg.lmac[0].rxfifo1_size =
-		le32_to_cpu(mem_cfg->rxfifo_size[0]);
-	fwrt->smem_cfg.rxfifo2_size = le32_to_cpu(mem_cfg->rxfifo_size[1]);
+#define SF_CFG_DUMMY_NOTIF_OFF	BIT(16)
 
-	/* new API has more data, from rxfifo_addr field and on */
-	if (fw_has_capa(&fwrt->fw->ucode_capa,
-			IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG)) {
-		BUILD_BUG_ON(sizeof(fwrt->smem_cfg.internal_txfifo_size) !=
-			     sizeof(mem_cfg->internal_txfifo_size));
+/**
+ * struct iwl_sf_cfg_cmd - Smart Fifo configuration command.
+ * @state: smart fifo state, types listed in &enum iwl_sf_state.
+ * @watermark: Minimum allowed available free space in RXF for transient state.
+ * @long_delay_timeouts: aging and idle timer values for each scenario
+ * in long delay state.
+ * @full_on_timeouts: timer values for each scenario in full on state.
+ */
+struct iwl_sf_cfg_cmd {
+	__le32 state;
+	__le32 watermark[SF_TRANSIENT_STATES_NUMBER];
+	__le32 long_delay_timeouts[SF_NUM_SCENARIO][SF_NUM_TIMEOUT_TYPES];
+	__le32 full_on_timeouts[SF_NUM_SCENARIO][SF_NUM_TIMEOUT_TYPES];
+} __packed; /* SF_CFG_API_S_VER_2 */
 
-		for (i = 0;
-		     i < ARRAY_SIZE(fwrt->smem_cfg.internal_txfifo_size);
-		     i++)
-			fwrt->smem_cfg.internal_txfifo_size[i] =
-				le32_to_cpu(mem_cfg->internal_txfifo_size[i]);
-	}
-}
-
-void iwl_get_shared_mem_conf(struct iwl_fw_runtime *fwrt)
-{
-	struct iwl_host_cmd cmd = {
-		.flags = CMD_WANT_SKB,
-		.data = { NULL, },
-		.len = { 0, },
-	};
-	struct iwl_rx_packet *pkt;
-
-	if (fw_has_capa(&fwrt->fw->ucode_capa,
-			IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG))
-		cmd.id = iwl_cmd_id(SHARED_MEM_CFG_CMD, SYSTEM_GROUP, 0);
-	else
-		cmd.id = SHARED_MEM_CFG;
-
-	if (WARN_ON(iwl_trans_send_cmd(fwrt->trans, &cmd)))
-		return;
-
-	pkt = cmd.resp_pkt;
-	if (fwrt->trans->cfg->device_family == IWL_DEVICE_FAMILY_A000)
-		iwl_parse_shared_mem_a000(fwrt, pkt);
-	else
-		iwl_parse_shared_mem(fwrt, pkt);
-
-	IWL_DEBUG_INFO(fwrt, "SHARED MEM CFG: got memory offsets/sizes\n");
-
-	iwl_free_resp(&cmd);
-}
-IWL_EXPORT_SYMBOL(iwl_get_shared_mem_conf);
+#endif /* __iwl_fw_api_sf_h__ */
