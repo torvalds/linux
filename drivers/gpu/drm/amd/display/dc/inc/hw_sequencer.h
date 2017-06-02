@@ -67,6 +67,9 @@ struct hw_sequencer_funcs {
 			struct pipe_ctx *pipe_ctx,
 			struct resource_context *res_ctx);
 
+	void (*program_gamut_remap)(
+			struct pipe_ctx *pipe_ctx);
+
 	void (*update_plane_addr)(
 		const struct core_dc *dc,
 		struct pipe_ctx *pipe_ctx);

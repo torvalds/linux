@@ -213,8 +213,7 @@ static bool set_gamut_remap(struct dc *dc, const struct dc_stream *stream)
 				== core_stream) {
 
 			pipes = &core_dc->current_context->res_ctx.pipe_ctx[i];
-			core_dc->hwss.set_plane_config(core_dc, pipes,
-					&core_dc->current_context->res_ctx);
+			core_dc->hwss.program_gamut_remap(pipes);
 			ret = true;
 		}
 	}
