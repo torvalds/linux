@@ -2415,7 +2415,7 @@ trace_process_export(struct trace_export *export,
 
 	entry = ring_buffer_event_data(event);
 	size = ring_buffer_event_length(event);
-	export->write(entry, size);
+	export->write(export, entry, size);
 }
 
 static DEFINE_MUTEX(ftrace_export_lock);
