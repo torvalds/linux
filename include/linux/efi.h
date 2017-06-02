@@ -143,7 +143,7 @@ struct capsule_info {
 	long			index;
 	size_t			count;
 	size_t			total_size;
-	struct page		**pages;
+	phys_addr_t		*pages;
 	size_t			page_bytes_remain;
 };
 
@@ -1415,7 +1415,7 @@ extern int efi_capsule_supported(efi_guid_t guid, u32 flags,
 				 size_t size, int *reset);
 
 extern int efi_capsule_update(efi_capsule_header_t *capsule,
-			      struct page **pages);
+			      phys_addr_t *pages);
 
 #ifdef CONFIG_EFI_RUNTIME_MAP
 int efi_runtime_map_init(struct kobject *);

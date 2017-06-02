@@ -20,6 +20,10 @@
 
 #define NO_FURTHER_WRITE_ACTION -1
 
+#ifndef phys_to_page
+#define phys_to_page(x)		pfn_to_page((x) >> PAGE_SHIFT)
+#endif
+
 /**
  * efi_free_all_buff_pages - free all previous allocated buffer pages
  * @cap_info: pointer to current instance of capsule_info structure
@@ -31,7 +35,7 @@
 static void efi_free_all_buff_pages(struct capsule_info *cap_info)
 {
 	while (cap_info->index > 0)
-		__free_page(cap_info->pages[--cap_info->index]);
+		__free_page(phys_to_page(cap_info->pages[--cap_info->index]));
 
 	cap_info->index = NO_FURTHER_WRITE_ACTION;
 }
@@ -161,11 +165,11 @@ static ssize_t efi_capsule_write(struct file *file, const char __user *buff,
 			goto failed;
 		}
 
-		cap_info->pages[cap_info->index++] = page;
+		cap_info->pages[cap_info->index++] = page_to_phys(page);
 		cap_info->page_bytes_remain = PAGE_SIZE;
+	} else {
+		page = phys_to_page(cap_info->pages[cap_info->index - 1]);
 	}
-
-	page = cap_info->pages[cap_info->index - 1];
 
 	kbuff = kmap(page);
 	kbuff += PAGE_SIZE - cap_info->page_bytes_remain;
