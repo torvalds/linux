@@ -17,6 +17,7 @@
 #include <linux/irqdomain.h>
 
 #include "chip.h"
+#include "global1.h" /* for GLOBAL_STATUS_IRQ_DEVICE */
 #include "global2.h"
 
 #define ADDR_GLOBAL2	0x1c
