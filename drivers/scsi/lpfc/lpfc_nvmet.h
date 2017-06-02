@@ -93,12 +93,14 @@ struct lpfc_nvmet_rcv_ctx {
 	uint16_t cpu;
 	uint16_t state;
 	/* States */
-#define LPFC_NVMET_STE_FREE		0
-#define LPFC_NVMET_STE_RCV		1
-#define LPFC_NVMET_STE_DATA		2
-#define LPFC_NVMET_STE_ABORT		3
-#define LPFC_NVMET_STE_RSP		4
-#define LPFC_NVMET_STE_DONE		5
+#define LPFC_NVMET_STE_LS_RCV		1
+#define LPFC_NVMET_STE_LS_ABORT		2
+#define LPFC_NVMET_STE_LS_RSP		3
+#define LPFC_NVMET_STE_RCV		4
+#define LPFC_NVMET_STE_DATA		5
+#define LPFC_NVMET_STE_ABORT		6
+#define LPFC_NVMET_STE_DONE		7
+#define LPFC_NVMET_STE_FREE		0xff
 	uint16_t flag;
 #define LPFC_NVMET_IO_INP		0x1  /* IO is in progress on exchange */
 #define LPFC_NVMET_ABORT_OP		0x2  /* Abort WQE issued on exchange */
