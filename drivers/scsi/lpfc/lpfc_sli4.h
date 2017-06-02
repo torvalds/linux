@@ -168,7 +168,7 @@ struct lpfc_queue {
 	struct lpfc_sli_ring *pring; /* ptr to io ring associated with q */
 	struct lpfc_rqb *rqbp;	/* ptr to RQ buffers */
 
-	uint16_t sgl_list_cnt;
+	uint32_t q_mode;
 	uint16_t db_format;
 #define LPFC_DB_RING_FORMAT	0x01
 #define LPFC_DB_LIST_FORMAT	0x02
@@ -181,7 +181,7 @@ struct lpfc_queue {
 /* defines for EQ stats */
 #define	EQ_max_eqe		q_cnt_1
 #define	EQ_no_entry		q_cnt_2
-#define	EQ_badstate		q_cnt_3
+#define	EQ_cqe_cnt		q_cnt_3
 #define	EQ_processed		q_cnt_4
 
 /* defines for CQ stats */
@@ -523,6 +523,7 @@ struct lpfc_sli4_hba {
 #define SLIPORT_ERR2_REG_FAILURE_CQ		0x4
 #define SLIPORT_ERR2_REG_FAILURE_BUS		0x5
 #define SLIPORT_ERR2_REG_FAILURE_RQ		0x6
+			void __iomem *EQDregaddr;
 		} if_type2;
 	} u;
 
@@ -755,7 +756,8 @@ struct lpfc_queue *lpfc_sli4_queue_alloc(struct lpfc_hba *, uint32_t,
 			uint32_t);
 void lpfc_sli4_queue_free(struct lpfc_queue *);
 int lpfc_eq_create(struct lpfc_hba *, struct lpfc_queue *, uint32_t);
-int lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq);
+int lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq,
+			     uint32_t numq, uint32_t imax);
 int lpfc_cq_create(struct lpfc_hba *, struct lpfc_queue *,
 			struct lpfc_queue *, uint32_t, uint32_t);
 int lpfc_cq_create_set(struct lpfc_hba *phba, struct lpfc_queue **cqp,

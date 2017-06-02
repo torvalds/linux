@@ -13478,6 +13478,7 @@ process_cq:
 	/* Track the max number of CQEs processed in 1 EQ */
 	if (ecount > cq->CQ_max_cqe)
 		cq->CQ_max_cqe = ecount;
+	cq->assoc_qp->EQ_cqe_cnt += ecount;
 
 	/* Catch the no cq entry condition */
 	if (unlikely(ecount == 0))
@@ -13569,6 +13570,7 @@ lpfc_sli4_fof_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe)
 	/* Track the max number of CQEs processed in 1 EQ */
 	if (ecount > cq->CQ_max_cqe)
 		cq->CQ_max_cqe = ecount;
+	cq->assoc_qp->EQ_cqe_cnt += ecount;
 
 	/* Catch the no cq entry condition */
 	if (unlikely(ecount == 0))
@@ -13629,7 +13631,6 @@ lpfc_sli4_fof_intr_handler(int irq, void *dev_id)
 
 	/* Check device state for handling interrupt */
 	if (unlikely(lpfc_intr_state_check(phba))) {
-		eq->EQ_badstate++;
 		/* Check again for link_state with lock held */
 		spin_lock_irqsave(&phba->hbalock, iflag);
 		if (phba->link_state < LPFC_LINK_DOWN)
@@ -13741,7 +13742,6 @@ lpfc_sli4_hba_intr_handler(int irq, void *dev_id)
 
 	/* Check device state for handling interrupt */
 	if (unlikely(lpfc_intr_state_check(phba))) {
-		fpeq->EQ_badstate++;
 		/* Check again for link_state with lock held */
 		spin_lock_irqsave(&phba->hbalock, iflag);
 		if (phba->link_state < LPFC_LINK_DOWN)
@@ -14000,14 +14000,15 @@ lpfc_dual_chute_pci_bar_map(struct lpfc_hba *phba, uint16_t pci_barset)
  * fails this function will return -ENXIO.
  **/
 int
-lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq)
+lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq,
+			 uint32_t numq, uint32_t imax)
 {
 	struct lpfc_mbx_modify_eq_delay *eq_delay;
 	LPFC_MBOXQ_t *mbox;
 	struct lpfc_queue *eq;
 	int cnt, rc, length, status = 0;
 	uint32_t shdr_status, shdr_add_status;
-	uint32_t result;
+	uint32_t result, val;
 	int qidx;
 	union lpfc_sli4_cfg_shdr *shdr;
 	uint16_t dmult;
@@ -14026,22 +14027,45 @@ lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq)
 	eq_delay = &mbox->u.mqe.un.eq_delay;
 
 	/* Calculate delay multiper from maximum interrupt per second */
-	result = phba->cfg_fcp_imax / phba->io_channel_irqs;
+	result = imax / phba->io_channel_irqs;
 	if (result > LPFC_DMULT_CONST || result == 0)
 		dmult = 0;
 	else
 		dmult = LPFC_DMULT_CONST/result - 1;
+	if (dmult > LPFC_DMULT_MAX)
+		dmult = LPFC_DMULT_MAX;
 
 	cnt = 0;
 	for (qidx = startq; qidx < phba->io_channel_irqs; qidx++) {
 		eq = phba->sli4_hba.hba_eq[qidx];
 		if (!eq)
 			continue;
+		eq->q_mode = imax;
 		eq_delay->u.request.eq[cnt].eq_id = eq->queue_id;
 		eq_delay->u.request.eq[cnt].phase = 0;
 		eq_delay->u.request.eq[cnt].delay_multi = dmult;
 		cnt++;
-		if (cnt >= LPFC_MAX_EQ_DELAY_EQID_CNT)
+
+		/* q_mode is only used for auto_imax */
+		if (phba->sli.sli_flag & LPFC_SLI_USE_EQDR) {
+			/* Use EQ Delay Register method for q_mode */
+
+			/* Convert for EQ Delay register */
+			val =  phba->cfg_fcp_imax;
+			if (val) {
+				/* First, interrupts per sec per EQ */
+				val = phba->cfg_fcp_imax /
+					phba->io_channel_irqs;
+
+				/* us delay between each interrupt */
+				val = LPFC_SEC_TO_USEC / val;
+			}
+			eq->q_mode = val;
+		} else {
+			eq->q_mode = imax;
+		}
+
+		if (cnt >= numq)
 			break;
 	}
 	eq_delay->u.request.num_eq = cnt;

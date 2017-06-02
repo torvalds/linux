@@ -1249,6 +1249,12 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 	int retval, i;
 	struct lpfc_sli *psli = &phba->sli;
 	LIST_HEAD(completions);
+	struct lpfc_queue *qp;
+	unsigned long time_elapsed;
+	uint32_t tick_cqe, max_cqe, val;
+	uint64_t tot, data1, data2, data3;
+	struct lpfc_register reg_data;
+	void __iomem *eqdreg = phba->sli4_hba.u.if_type2.EQDregaddr;
 
 	vports = lpfc_create_vport_work_array(phba);
 	if (vports != NULL)
@@ -1263,6 +1269,95 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 		(phba->pport->fc_flag & FC_OFFLINE_MODE))
 		return;
 
+	if (phba->cfg_auto_imax) {
+		if (!phba->last_eqdelay_time) {
+			phba->last_eqdelay_time = jiffies;
+			goto skip_eqdelay;
+		}
+		time_elapsed = jiffies - phba->last_eqdelay_time;
+		phba->last_eqdelay_time = jiffies;
+
+		tot = 0xffff;
+		/* Check outstanding IO count */
+		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
+			if (phba->nvmet_support) {
+				spin_lock(&phba->sli4_hba.nvmet_io_lock);
+				tot = phba->sli4_hba.nvmet_xri_cnt -
+					phba->sli4_hba.nvmet_ctx_cnt;
+				spin_unlock(&phba->sli4_hba.nvmet_io_lock);
+			} else {
+				tot = atomic_read(&phba->fc4NvmeIoCmpls);
+				data1 = atomic_read(
+					&phba->fc4NvmeInputRequests);
+				data2 = atomic_read(
+					&phba->fc4NvmeOutputRequests);
+				data3 = atomic_read(
+					&phba->fc4NvmeControlRequests);
+				tot =  (data1 + data2 + data3) - tot;
+			}
+		}
+
+		/* Interrupts per sec per EQ */
+		val = phba->cfg_fcp_imax / phba->io_channel_irqs;
+		tick_cqe = val / CONFIG_HZ; /* Per tick per EQ */
+
+		/* Assume 1 CQE/ISR, calc max CQEs allowed for time duration */
+		max_cqe = time_elapsed * tick_cqe;
+
+		for (i = 0; i < phba->io_channel_irqs; i++) {
+			/* Fast-path EQ */
+			qp = phba->sli4_hba.hba_eq[i];
+			if (!qp)
+				continue;
+
+			/* Use no EQ delay if we don't have many outstanding
+			 * IOs, or if we are only processing 1 CQE/ISR or less.
+			 * Otherwise, assume we can process up to lpfc_fcp_imax
+			 * interrupts per HBA.
+			 */
+			if (tot < LPFC_NODELAY_MAX_IO ||
+			    qp->EQ_cqe_cnt <= max_cqe)
+				val = 0;
+			else
+				val = phba->cfg_fcp_imax;
+
+			if (phba->sli.sli_flag & LPFC_SLI_USE_EQDR) {
+				/* Use EQ Delay Register method */
+
+				/* Convert for EQ Delay register */
+				if (val) {
+					/* First, interrupts per sec per EQ */
+					val = phba->cfg_fcp_imax /
+						phba->io_channel_irqs;
+
+					/* us delay between each interrupt */
+					val = LPFC_SEC_TO_USEC / val;
+				}
+				if (val != qp->q_mode) {
+					reg_data.word0 = 0;
+					bf_set(lpfc_sliport_eqdelay_id,
+					       &reg_data, qp->queue_id);
+					bf_set(lpfc_sliport_eqdelay_delay,
+					       &reg_data, val);
+					writel(reg_data.word0, eqdreg);
+				}
+			} else {
+				/* Use mbox command method */
+				if (val != qp->q_mode)
+					lpfc_modify_hba_eq_delay(phba, i,
+								 1, val);
+			}
+
+			/*
+			 * val is cfg_fcp_imax or 0 for mbox delay or us delay
+			 * between interrupts for EQDR.
+			 */
+			qp->q_mode = val;
+			qp->EQ_cqe_cnt = 0;
+		}
+	}
+
+skip_eqdelay:
 	spin_lock_irq(&phba->pport->work_port_lock);
 
 	if (time_after(phba->last_completion_time +
@@ -7257,6 +7352,9 @@ lpfc_sli4_bar0_register_memmap(struct lpfc_hba *phba, uint32_t if_type)
 			phba->sli4_hba.conf_regs_memmap_p + LPFC_SLI_INTF;
 		break;
 	case LPFC_SLI_INTF_IF_TYPE_2:
+		phba->sli4_hba.u.if_type2.EQDregaddr =
+			phba->sli4_hba.conf_regs_memmap_p +
+						LPFC_CTL_PORT_EQ_DELAY_OFFSET;
 		phba->sli4_hba.u.if_type2.ERR1regaddr =
 			phba->sli4_hba.conf_regs_memmap_p +
 						LPFC_CTL_PORT_ER1_OFFSET;
@@ -8783,7 +8881,8 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 	}
 
 	for (qidx = 0; qidx < io_channel; qidx += LPFC_MAX_EQ_DELAY_EQID_CNT)
-		lpfc_modify_hba_eq_delay(phba, qidx);
+		lpfc_modify_hba_eq_delay(phba, qidx, LPFC_MAX_EQ_DELAY_EQID_CNT,
+					 phba->cfg_fcp_imax);
 
 	return 0;
 
@@ -10251,6 +10350,9 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 
 	if (bf_get(cfg_xib, mbx_sli4_parameters) && phba->cfg_suppress_rsp)
 		phba->sli.sli_flag |= LPFC_SLI_SUPPRESS_RSP;
+
+	if (bf_get(cfg_eqdr, mbx_sli4_parameters))
+		phba->sli.sli_flag |= LPFC_SLI_USE_EQDR;
 
 	/* Make sure that sge_supp_len can be handled by the driver */
 	if (sli4_params->sge_supp_len > LPFC_MAX_SGE_SIZE)
