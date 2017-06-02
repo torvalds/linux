@@ -124,6 +124,7 @@ qla2x00_chk_ms_status(scsi_qla_host_t *vha, ms_iocb_entry_t *ms_pkt,
 	int rval;
 	uint16_t comp_status;
 	struct qla_hw_data *ha = vha->hw;
+	bool lid_is_sns = false;
 
 	rval = QLA_FUNCTION_FAILED;
 	if (ms_pkt->entry_status != 0) {
@@ -154,6 +155,25 @@ qla2x00_chk_ms_status(scsi_qla_host_t *vha, ms_iocb_entry_t *ms_pkt,
 				rval = QLA_INVALID_COMMAND;
 			} else
 				rval = QLA_SUCCESS;
+			break;
+		case CS_PORT_LOGGED_OUT:
+			if (IS_FWI2_CAPABLE(ha)) {
+				if (le16_to_cpu(ms_pkt->loop_id.extended) ==
+				    NPH_SNS)
+					lid_is_sns = true;
+			} else {
+				if (le16_to_cpu(ms_pkt->loop_id.extended) ==
+				    SIMPLE_NAME_SERVER)
+					lid_is_sns = true;
+			}
+			if (lid_is_sns) {
+				ql_dbg(ql_dbg_async, vha, 0x502b,
+					"%s failed, Name server has logged out",
+					routine);
+				rval = QLA_NOT_LOGGED_IN;
+				set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
+				set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
+			}
 			break;
 		default:
 			ql_dbg(ql_dbg_disc, vha, 0x2033,

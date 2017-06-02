@@ -973,6 +973,23 @@ skip_rio:
 			if (mb[1] == 0xffff)
 				goto global_port_update;
 
+			if (mb[1] == NPH_SNS_LID(ha)) {
+				set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
+				set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
+				break;
+			}
+
+			/* use handle_cnt for loop id/nport handle */
+			if (IS_FWI2_CAPABLE(ha))
+				handle_cnt = NPH_SNS;
+			else
+				handle_cnt = SIMPLE_NAME_SERVER;
+			if (mb[1] == handle_cnt) {
+				set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
+				set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
+				break;
+			}
+
 			/* Port logout */
 			fcport = qla2x00_find_fcport_by_loopid(vha, mb[1]);
 			if (!fcport)

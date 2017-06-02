@@ -1041,6 +1041,20 @@ void qla2x00_fcport_event_handler(scsi_qla_host_t *vha, struct event_arg *ea)
 
 	switch (ea->event) {
 	case FCME_RELOGIN:
+	case FCME_RSCN:
+	case FCME_GIDPN_DONE:
+	case FCME_GPSC_DONE:
+	case FCME_GPNID_DONE:
+		if (test_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags) ||
+		    test_bit(LOOP_RESYNC_ACTIVE, &vha->dpc_flags))
+			return;
+		break;
+	default:
+		break;
+	}
+
+	switch (ea->event) {
+	case FCME_RELOGIN:
 		if (test_bit(UNLOADING, &vha->dpc_flags))
 			return;
 
@@ -4451,20 +4465,31 @@ qla2x00_configure_fabric(scsi_qla_host_t *vha)
 				/* EMPTY */
 				ql_dbg(ql_dbg_disc, vha, 0x2045,
 				    "Register FC-4 TYPE failed.\n");
+				if (test_bit(LOOP_RESYNC_NEEDED,
+				    &vha->dpc_flags))
+					break;
 			}
 			if (qla2x00_rff_id(vha)) {
 				/* EMPTY */
 				ql_dbg(ql_dbg_disc, vha, 0x2049,
 				    "Register FC-4 Features failed.\n");
+				if (test_bit(LOOP_RESYNC_NEEDED,
+				    &vha->dpc_flags))
+					break;
 			}
 			if (qla2x00_rnn_id(vha)) {
 				/* EMPTY */
 				ql_dbg(ql_dbg_disc, vha, 0x204f,
 				    "Register Node Name failed.\n");
+				if (test_bit(LOOP_RESYNC_NEEDED,
+				    &vha->dpc_flags))
+					break;
 			} else if (qla2x00_rsnn_nn(vha)) {
 				/* EMPTY */
 				ql_dbg(ql_dbg_disc, vha, 0x2053,
 				    "Register Symobilic Node Name failed.\n");
+				if (test_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags))
+					break;
 			}
 		}
 
@@ -4536,17 +4561,28 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha)
 		memset(swl, 0, ha->max_fibre_devices * sizeof(sw_info_t));
 		if (qla2x00_gid_pt(vha, swl) != QLA_SUCCESS) {
 			swl = NULL;
+			if (test_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags))
+				return rval;
 		} else if (qla2x00_gpn_id(vha, swl) != QLA_SUCCESS) {
 			swl = NULL;
+			if (test_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags))
+				return rval;
 		} else if (qla2x00_gnn_id(vha, swl) != QLA_SUCCESS) {
 			swl = NULL;
+			if (test_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags))
+				return rval;
 		} else if (qla2x00_gfpn_id(vha, swl) != QLA_SUCCESS) {
 			swl = NULL;
+			if (test_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags))
+				return rval;
 		}
 
 		/* If other queries succeeded probe for FC-4 type */
-		if (swl)
+		if (swl) {
 			qla2x00_gff_id(vha, swl);
+			if (test_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags))
+				return rval;
+		}
 	}
 	swl_idx = 0;
 

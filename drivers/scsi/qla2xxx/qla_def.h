@@ -252,6 +252,8 @@
 #define NPH_F_PORT		0x7fe		/*  FFFFFE */
 #define NPH_IP_BROADCAST	0x7ff		/*  FFFFFF */
 
+#define NPH_SNS_LID(ha)	(IS_FWI2_CAPABLE(ha) ? NPH_SNS : SIMPLE_NAME_SERVER)
+
 #define MAX_CMDSZ	16		/* SCSI maximum CDB size. */
 #include "qla_fw.h"
 
