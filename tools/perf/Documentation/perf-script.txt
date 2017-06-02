@@ -130,6 +130,14 @@ OPTIONS
 	i.e., the specified fields apply to all event types if the type string
 	is not given.
 
+	In addition to overriding fields, it is also possible to add or remove
+	fields from the defaults. For example
+
+		-F -cpu,+insn
+
+	removes the cpu field and adds the insn field. Adding/removing fields
+	cannot be mixed with normal overriding.
+
 	The arguments are processed in the order received. A later usage can
 	reset a prior request. e.g.:
 
