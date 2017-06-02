@@ -1041,10 +1041,13 @@ static void qedf_parse_fcp_rsp(struct qedf_ioreq *io_req,
 		fcp_sns_len = SCSI_SENSE_BUFFERSIZE;
 	}
 
-	memset(sc_cmd->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
-	if (fcp_sns_len)
-		memcpy(sc_cmd->sense_buffer, sense_data,
-		    fcp_sns_len);
+	/* The sense buffer can be NULL for TMF commands */
+	if (sc_cmd->sense_buffer) {
+		memset(sc_cmd->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
+		if (fcp_sns_len)
+			memcpy(sc_cmd->sense_buffer, sense_data,
+			    fcp_sns_len);
+	}
 }
 
 static void qedf_unmap_sg_list(struct qedf_ctx *qedf, struct qedf_ioreq *io_req)
