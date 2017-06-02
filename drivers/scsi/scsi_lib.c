@@ -1871,36 +1871,21 @@ static int scsi_mq_prep_fn(struct request *req)
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
 	struct scsi_device *sdev = req->q->queuedata;
 	struct Scsi_Host *shost = sdev->host;
-	unsigned char *sense_buf = cmd->sense_buffer;
-	unsigned int unchecked_isa_dma = cmd->flags & SCMD_UNCHECKED_ISA_DMA;
 	struct scatterlist *sg;
 
-	/* zero out the cmd, except for the embedded scsi_request */
-	memset((char *)cmd + sizeof(cmd->req), 0,
-		sizeof(*cmd) - sizeof(cmd->req) + shost->hostt->cmd_size);
+	scsi_init_command(sdev, cmd);
 
 	req->special = cmd;
 
 	cmd->request = req;
-	cmd->device = sdev;
-	cmd->sense_buffer = sense_buf;
-	cmd->flags = unchecked_isa_dma;
 
 	cmd->tag = req->tag;
-
 	cmd->prot_op = SCSI_PROT_NORMAL;
-
-	INIT_LIST_HEAD(&cmd->list);
-	INIT_DELAYED_WORK(&cmd->abort_work, scmd_eh_abort_handler);
-	cmd->jiffies_at_alloc = jiffies;
-
-	scsi_add_cmd_to_list(cmd);
 
 	sg = (void *)cmd + sizeof(struct scsi_cmnd) + shost->hostt->cmd_size;
 	cmd->sdb.table.sgl = sg;
 
 	if (scsi_host_get_prot(shost)) {
-		cmd->prot_sdb = (void *)sg + scsi_mq_sgl_size(shost);
 		memset(cmd->prot_sdb, 0, sizeof(struct scsi_data_buffer));
 
 		cmd->prot_sdb->table.sgl =
@@ -2026,6 +2011,7 @@ static int scsi_init_request(struct blk_mq_tag_set *set, struct request *rq,
 	struct Scsi_Host *shost = set->driver_data;
 	const bool unchecked_isa_dma = shost->unchecked_isa_dma;
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
+	struct scatterlist *sg;
 
 	if (unchecked_isa_dma)
 		cmd->flags |= SCMD_UNCHECKED_ISA_DMA;
@@ -2034,6 +2020,13 @@ static int scsi_init_request(struct blk_mq_tag_set *set, struct request *rq,
 	if (!cmd->sense_buffer)
 		return -ENOMEM;
 	cmd->req.sense = cmd->sense_buffer;
+
+	if (scsi_host_get_prot(shost)) {
+		sg = (void *)cmd + sizeof(struct scsi_cmnd) +
+			shost->hostt->cmd_size;
+		cmd->prot_sdb = (void *)sg + scsi_mq_sgl_size(shost);
+	}
+
 	return 0;
 }
 
