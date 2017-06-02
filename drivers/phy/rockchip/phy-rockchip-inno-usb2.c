@@ -406,7 +406,8 @@ static int rockchip_usb2phy_init(struct phy *phy)
 	mutex_lock(&rport->mutex);
 
 	if (rport->port_id == USB2PHY_PORT_OTG) {
-		if (rport->mode != USB_DR_MODE_HOST) {
+		if (rport->mode != USB_DR_MODE_HOST &&
+		    rport->mode != USB_DR_MODE_UNKNOWN) {
 			/* clear bvalid status and enable bvalid detect irq */
 			ret = property_enable(rphy,
 					      &rport->port_cfg->bvalid_det_clr,
@@ -496,7 +497,8 @@ static int rockchip_usb2phy_exit(struct phy *phy)
 	struct rockchip_usb2phy_port *rport = phy_get_drvdata(phy);
 
 	if (rport->port_id == USB2PHY_PORT_OTG &&
-	    rport->mode != USB_DR_MODE_HOST) {
+	    rport->mode != USB_DR_MODE_HOST &&
+	    rport->mode != USB_DR_MODE_UNKNOWN) {
 		cancel_delayed_work_sync(&rport->otg_sm_work);
 		cancel_delayed_work_sync(&rport->chg_work);
 	} else if (rport->port_id == USB2PHY_PORT_HOST)
@@ -973,7 +975,8 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 	mutex_init(&rport->mutex);
 
 	rport->mode = of_usb_get_dr_mode_by_phy(child_np, -1);
-	if (rport->mode == USB_DR_MODE_HOST) {
+	if (rport->mode == USB_DR_MODE_HOST ||
+	    rport->mode == USB_DR_MODE_UNKNOWN) {
 		ret = 0;
 		goto out;
 	}
