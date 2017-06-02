@@ -5282,7 +5282,7 @@ S:	Maintained
 F:	drivers/video/fbdev/fsl-diu-fb.*
 
 FREESCALE DMA DRIVER
-M:	Li Yang <leoli@freescale.com>
+M:	Li Yang <leoyang.li@nxp.com>
 M:	Zhang Wei <zw@zh-kernel.org>
 L:	linuxppc-dev@lists.ozlabs.org
 S:	Maintained
@@ -5364,14 +5364,14 @@ F:	include/soc/fsl/*qe*.h
 F:	include/soc/fsl/*ucc*.h
 
 FREESCALE USB PERIPHERAL DRIVERS
-M:	Li Yang <leoli@freescale.com>
+M:	Li Yang <leoyang.li@nxp.com>
 L:	linux-usb@vger.kernel.org
 L:	linuxppc-dev@lists.ozlabs.org
 S:	Maintained
 F:	drivers/usb/gadget/udc/fsl*
 
 FREESCALE QUICC ENGINE UCC ETHERNET DRIVER
-M:	Li Yang <leoli@freescale.com>
+M:	Li Yang <leoyang.li@nxp.com>
 L:	netdev@vger.kernel.org
 L:	linuxppc-dev@lists.ozlabs.org
 S:	Maintained
