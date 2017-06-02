@@ -70,7 +70,7 @@ qla2x00_dfs_tgt_port_database_show(struct seq_file *s, void *unused)
 		    qla2x00_gid_list_size(ha),
 		    &gid_list_dma, GFP_KERNEL);
 		if (!gid_list) {
-			ql_dbg(ql_dbg_user, vha, 0x705c,
+			ql_dbg(ql_dbg_user, vha, 0x7018,
 			    "DMA allocation failed for %u\n",
 			     qla2x00_gid_list_size(ha));
 			return 0;
@@ -370,7 +370,7 @@ create_nodes:
 	ha->tgt.dfs_tgt_port_database = debugfs_create_file("tgt_port_database",
 	    S_IRUSR,  ha->dfs_dir, vha, &dfs_tgt_port_database_ops);
 	if (!ha->tgt.dfs_tgt_port_database) {
-		ql_log(ql_log_warn, vha, 0xffff,
+		ql_log(ql_log_warn, vha, 0xd03f,
 		    "Unable to create debugFS tgt_port_database node.\n");
 		goto out;
 	}
@@ -386,8 +386,8 @@ create_nodes:
 	ha->tgt.dfs_tgt_sess = debugfs_create_file("tgt_sess",
 		S_IRUSR, ha->dfs_dir, vha, &dfs_tgt_sess_ops);
 	if (!ha->tgt.dfs_tgt_sess) {
-		ql_log(ql_log_warn, vha, 0xffff,
-			"Unable to create debugFS tgt_sess node.\n");
+		ql_log(ql_log_warn, vha, 0xd040,
+		    "Unable to create debugFS tgt_sess node.\n");
 		goto out;
 	}
 

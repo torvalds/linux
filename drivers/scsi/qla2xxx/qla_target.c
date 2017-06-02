@@ -200,8 +200,8 @@ struct scsi_qla_host *qlt_find_host_by_d_id(struct scsi_qla_host *vha,
 
 	host = btree_lookup32(&vha->hw->tgt.host_map, key);
 	if (!host)
-		ql_dbg(ql_dbg_tgt_mgt, vha, 0xffff,
-			   "Unable to find host %06x\n", key);
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf005,
+		    "Unable to find host %06x\n", key);
 
 	return host;
 }
@@ -252,19 +252,15 @@ static void qlt_queue_unknown_atio(scsi_qla_host_t *vha,
 	unsigned long flags;
 
 	if (tgt->tgt_stop) {
-		ql_dbg(ql_dbg_async, vha, 0xffff,
-			   "qla_target(%d): dropping unknown ATIO_TYPE7, "
-			   "because tgt is being stopped", vha->vp_idx);
+		ql_dbg(ql_dbg_async, vha, 0x502c,
+		    "qla_target(%d): dropping unknown ATIO_TYPE7, because tgt is being stopped",
+		    vha->vp_idx);
 		goto out_term;
 	}
 
 	u = kzalloc(sizeof(*u), GFP_ATOMIC);
-	if (u == NULL) {
-		ql_dbg(ql_dbg_async, vha, 0xffff,
-		    "Alloc of struct unknown_atio (size %zd) failed", sizeof(*u));
-		/* It should be harmless and on the next retry should work well */
+	if (u == NULL)
 		goto out_term;
-	}
 
 	u->vha = vha;
 	memcpy(&u->atio, atio, sizeof(*atio));
@@ -295,8 +291,8 @@ static void qlt_try_to_dequeue_unknown_atios(struct scsi_qla_host *vha,
 
 	list_for_each_entry_safe(u, t, &vha->unknown_atio_list, cmd_list) {
 		if (u->aborted) {
-			ql_dbg(ql_dbg_async, vha, 0xffff,
-			    "Freeing unknown %s %p, because of Abort",
+			ql_dbg(ql_dbg_async, vha, 0x502e,
+			    "Freeing unknown %s %p, because of Abort\n",
 			    "ATIO_TYPE7", u);
 			qlt_send_term_exchange(vha, NULL, &u->atio,
 			    ha_locked, 0);
@@ -305,19 +301,18 @@ static void qlt_try_to_dequeue_unknown_atios(struct scsi_qla_host *vha,
 
 		host = qlt_find_host_by_d_id(vha, u->atio.u.isp24.fcp_hdr.d_id);
 		if (host != NULL) {
-			ql_dbg(ql_dbg_async, vha, 0xffff,
-				"Requeuing unknown ATIO_TYPE7 %p", u);
+			ql_dbg(ql_dbg_async, vha, 0x502f,
+			    "Requeuing unknown ATIO_TYPE7 %p\n", u);
 			qlt_24xx_atio_pkt(host, &u->atio, ha_locked);
 		} else if (tgt->tgt_stop) {
-			ql_dbg(ql_dbg_async, vha, 0xffff,
-				"Freeing unknown %s %p, because tgt is being stopped",
-				"ATIO_TYPE7", u);
+			ql_dbg(ql_dbg_async, vha, 0x503a,
+			    "Freeing unknown %s %p, because tgt is being stopped\n",
+			    "ATIO_TYPE7", u);
 			qlt_send_term_exchange(vha, NULL, &u->atio,
 			    ha_locked, 0);
 		} else {
-			ql_dbg(ql_dbg_async, vha, 0xffff,
-				"u %p, vha %p, host %p, sched again..", u,
-				vha, host);
+			ql_dbg(ql_dbg_async, vha, 0x503d,
+			    "Reschedule u %p, vha %p, host %p\n", u, vha, host);
 			if (!queued) {
 				queued = 1;
 				schedule_delayed_work(&vha->unknown_atio_work,
@@ -411,7 +406,7 @@ static bool qlt_24xx_atio_pkt_all_vps(struct scsi_qla_host *vha,
 		unsigned long flags;
 
 		if (unlikely(!host)) {
-			ql_dbg(ql_dbg_tgt, vha, 0xffff,
+			ql_dbg(ql_dbg_tgt, vha, 0xe00a,
 			    "qla_target(%d): Response pkt (ABTS_RECV_24XX) "
 			    "received, with unknown vp_index %d\n",
 			    vha->vp_idx, entry->vp_index);
@@ -565,9 +560,9 @@ void qla2x00_async_nack_sp_done(void *s, int res)
 	struct scsi_qla_host *vha = sp->vha;
 	unsigned long flags;
 
-	ql_dbg(ql_dbg_disc, vha, 0xffff,
-		"Async done-%s res %x %8phC  type %d\n",
-		sp->name, res, sp->fcport->port_name, sp->type);
+	ql_dbg(ql_dbg_disc, vha, 0x20f2,
+	    "Async done-%s res %x %8phC  type %d\n",
+	    sp->name, res, sp->fcport->port_name, sp->type);
 
 	spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
 	sp->fcport->flags &= ~FCF_ASYNC_SENT;
@@ -593,19 +588,19 @@ void qla2x00_async_nack_sp_done(void *s, int res)
 
 			if (!IS_IIDMA_CAPABLE(vha->hw) ||
 			    !vha->hw->flags.gpsc_supported) {
-				ql_dbg(ql_dbg_disc, vha, 0xffff,
-					"%s %d %8phC post upd_fcport fcp_cnt %d\n",
-					__func__, __LINE__,
-					sp->fcport->port_name,
-					vha->fcport_count);
+				ql_dbg(ql_dbg_disc, vha, 0x20f3,
+				    "%s %d %8phC post upd_fcport fcp_cnt %d\n",
+				    __func__, __LINE__,
+				    sp->fcport->port_name,
+				    vha->fcport_count);
 
 				qla24xx_post_upd_fcport_work(vha, sp->fcport);
 			} else {
-				ql_dbg(ql_dbg_disc, vha, 0xffff,
-					"%s %d %8phC post gpsc fcp_cnt %d\n",
-					__func__, __LINE__,
-					sp->fcport->port_name,
-					vha->fcport_count);
+				ql_dbg(ql_dbg_disc, vha, 0x20f5,
+				    "%s %d %8phC post gpsc fcp_cnt %d\n",
+				    __func__, __LINE__,
+				    sp->fcport->port_name,
+				    vha->fcport_count);
 
 				qla24xx_post_gpsc_work(vha, sp->fcport);
 			}
@@ -664,9 +659,9 @@ int qla24xx_async_notify_ack(scsi_qla_host_t *vha, fc_port_t *fcport,
 	if (rval != QLA_SUCCESS)
 		goto done_free_sp;
 
-	ql_dbg(ql_dbg_disc, vha, 0xffff,
-		"Async-%s %8phC hndl %x %s\n",
-		sp->name, fcport->port_name, sp->handle, c);
+	ql_dbg(ql_dbg_disc, vha, 0x20f4,
+	    "Async-%s %8phC hndl %x %s\n",
+	    sp->name, fcport->port_name, sp->handle, c);
 
 	return rval;
 
@@ -688,7 +683,7 @@ void qla24xx_do_nack_work(struct scsi_qla_host *vha, struct qla_work_evt *e)
 		t = qlt_create_sess(vha, e->u.nack.fcport, 0);
 		mutex_unlock(&vha->vha_tgt.tgt_mutex);
 		if (t) {
-			ql_log(ql_log_info, vha, 0xffff,
+			ql_log(ql_log_info, vha, 0xd034,
 			    "%s create sess success %p", __func__, t);
 			spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
 			/* create sess has an extra kref */
@@ -757,7 +752,7 @@ void qlt_fc_port_added(struct scsi_qla_host *vha, fc_port_t *fcport)
 		}
 
 		if (!kref_get_unless_zero(&sess->sess_kref)) {
-			ql_dbg(ql_dbg_disc, vha, 0xffff,
+			ql_dbg(ql_dbg_disc, vha, 0x2107,
 			    "%s: kref_get fail sess %8phC \n",
 			    __func__, sess->port_name);
 			spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
@@ -1098,7 +1093,7 @@ void qlt_unreg_sess(struct fc_port *sess)
 {
 	struct scsi_qla_host *vha = sess->vha;
 
-	ql_dbg(ql_dbg_disc, sess->vha, 0xffff,
+	ql_dbg(ql_dbg_disc, sess->vha, 0x210a,
 	    "%s sess %p for deletion %8phC\n",
 	    __func__, sess, sess->port_name);
 
@@ -1288,7 +1283,7 @@ static struct fc_port *qlt_create_sess(
 
 	if (fcport->se_sess) {
 		if (!kref_get_unless_zero(&sess->sess_kref)) {
-			ql_dbg(ql_dbg_disc, vha, 0xffff,
+			ql_dbg(ql_dbg_disc, vha, 0x20f6,
 			    "%s: kref_get_unless_zero failed for %8phC\n",
 			    __func__, sess->port_name);
 			return NULL;
@@ -1310,7 +1305,7 @@ static struct fc_port *qlt_create_sess(
 
 	if (ha->tgt.tgt_ops->check_initiator_node_acl(vha,
 	    &fcport->port_name[0], sess) < 0) {
-		ql_dbg(ql_dbg_tgt_mgt, vha, 0xffff,
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf015,
 		    "(%d) %8phC check_initiator_node_acl failed\n",
 		    vha->vp_idx, fcport->port_name);
 		return NULL;
@@ -1321,7 +1316,7 @@ static struct fc_port *qlt_create_sess(
 		 * fc_port access across ->tgt.sess_lock reaquire.
 		 */
 		if (!kref_get_unless_zero(&sess->sess_kref)) {
-			ql_dbg(ql_dbg_disc, vha, 0xffff,
+			ql_dbg(ql_dbg_disc, vha, 0x20f7,
 			    "%s: kref_get_unless_zero failed for %8phC\n",
 			    __func__, sess->port_name);
 			return NULL;
@@ -2139,7 +2134,7 @@ void qlt_xmit_tm_rsp(struct qla_tgt_mgmt_cmd *mcmd)
 		    ELS_PRLO ||
 		    mcmd->orig_iocb.imm_ntfy.u.isp24.status_subcode ==
 		    ELS_TPRLO) {
-			ql_dbg(ql_dbg_disc, vha, 0xffff,
+			ql_dbg(ql_dbg_disc, vha, 0x2106,
 			    "TM response logo %phC status %#x state %#x",
 			    mcmd->sess->port_name, mcmd->fc_tm_rsp,
 			    mcmd->flags);
@@ -2497,35 +2492,35 @@ static void qlt_print_dif_err(struct qla_tgt_prm *prm)
 		/* ASCQ */
 		switch (prm->sense_buffer[13]) {
 		case 1:
-			ql_dbg(ql_dbg_tgt_dif, vha, 0xffff,
+			ql_dbg(ql_dbg_tgt_dif, vha, 0xe00b,
 			    "BE detected Guard TAG ERR: lba[0x%llx|%lld] len[0x%x] "
 			    "se_cmd=%p tag[%x]",
 			    cmd->lba, cmd->lba, cmd->num_blks, &cmd->se_cmd,
 			    cmd->atio.u.isp24.exchange_addr);
 			break;
 		case 2:
-			ql_dbg(ql_dbg_tgt_dif, vha, 0xffff,
+			ql_dbg(ql_dbg_tgt_dif, vha, 0xe00c,
 			    "BE detected APP TAG ERR: lba[0x%llx|%lld] len[0x%x] "
 			    "se_cmd=%p tag[%x]",
 			    cmd->lba, cmd->lba, cmd->num_blks, &cmd->se_cmd,
 			    cmd->atio.u.isp24.exchange_addr);
 			break;
 		case 3:
-			ql_dbg(ql_dbg_tgt_dif, vha, 0xffff,
+			ql_dbg(ql_dbg_tgt_dif, vha, 0xe00f,
 			    "BE detected REF TAG ERR: lba[0x%llx|%lld] len[0x%x] "
 			    "se_cmd=%p tag[%x]",
 			    cmd->lba, cmd->lba, cmd->num_blks, &cmd->se_cmd,
 			    cmd->atio.u.isp24.exchange_addr);
 			break;
 		default:
-			ql_dbg(ql_dbg_tgt_dif, vha, 0xffff,
+			ql_dbg(ql_dbg_tgt_dif, vha, 0xe010,
 			    "BE detected Dif ERR: lba[%llx|%lld] len[%x] "
 			    "se_cmd=%p tag[%x]",
 			    cmd->lba, cmd->lba, cmd->num_blks, &cmd->se_cmd,
 			    cmd->atio.u.isp24.exchange_addr);
 			break;
 		}
-		ql_dump_buffer(ql_dbg_tgt_dif, vha, 0xffff, cmd->cdb, 16);
+		ql_dump_buffer(ql_dbg_tgt_dif, vha, 0xe011, cmd->cdb, 16);
 	}
 }
 
@@ -3285,15 +3280,12 @@ qlt_handle_dif_error(struct scsi_qla_host *vha, struct qla_tgt_cmd *cmd,
 
 	/* check appl tag */
 	if (cmd->e_app_tag != cmd->a_app_tag) {
-		ql_dbg(ql_dbg_tgt_dif, vha, 0xffff,
-			"App Tag ERR: cdb[%x] lba[%llx %llx] blks[%x] [Actual|Expected] "
-			"Ref[%x|%x], App[%x|%x], "
-			"Guard [%x|%x] cmd=%p ox_id[%04x]",
-			cmd->cdb[0], lba, (lba+cmd->num_blks), cmd->num_blks,
-			cmd->a_ref_tag, cmd->e_ref_tag,
-			cmd->a_app_tag, cmd->e_app_tag,
-			cmd->a_guard, cmd->e_guard,
-			cmd, cmd->atio.u.isp24.fcp_hdr.ox_id);
+		ql_dbg(ql_dbg_tgt_dif, vha, 0xe00d,
+		    "App Tag ERR: cdb[%x] lba[%llx %llx] blks[%x] [Actual|Expected] Ref[%x|%x], App[%x|%x], Guard [%x|%x] cmd=%p ox_id[%04x]",
+		    cmd->cdb[0], lba, (lba+cmd->num_blks), cmd->num_blks,
+		    cmd->a_ref_tag, cmd->e_ref_tag, cmd->a_app_tag,
+		    cmd->e_app_tag, cmd->a_guard, cmd->e_guard, cmd,
+		    cmd->atio.u.isp24.fcp_hdr.ox_id);
 
 		cmd->dif_err_code = DIF_ERR_APP;
 		scsi_status = SAM_STAT_CHECK_CONDITION;
@@ -3304,15 +3296,12 @@ qlt_handle_dif_error(struct scsi_qla_host *vha, struct qla_tgt_cmd *cmd,
 
 	/* check ref tag */
 	if (cmd->e_ref_tag != cmd->a_ref_tag) {
-		ql_dbg(ql_dbg_tgt_dif, vha, 0xffff,
-			"Ref Tag ERR: cdb[%x] lba[%llx %llx] blks[%x] [Actual|Expected] "
-			"Ref[%x|%x], App[%x|%x], "
-			"Guard[%x|%x] cmd=%p ox_id[%04x] ",
-			cmd->cdb[0], lba, (lba+cmd->num_blks), cmd->num_blks,
-			cmd->a_ref_tag, cmd->e_ref_tag,
-			cmd->a_app_tag, cmd->e_app_tag,
-			cmd->a_guard, cmd->e_guard,
-			cmd, cmd->atio.u.isp24.fcp_hdr.ox_id);
+		ql_dbg(ql_dbg_tgt_dif, vha, 0xe00e,
+		    "Ref Tag ERR: cdb[%x] lba[%llx %llx] blks[%x] [Actual|Expected] Ref[%x|%x], App[%x|%x], Guard[%x|%x] cmd=%p ox_id[%04x] ",
+		    cmd->cdb[0], lba, (lba+cmd->num_blks), cmd->num_blks,
+		    cmd->a_ref_tag, cmd->e_ref_tag, cmd->a_app_tag,
+		    cmd->e_app_tag, cmd->a_guard, cmd->e_guard, cmd,
+		    cmd->atio.u.isp24.fcp_hdr.ox_id);
 
 		cmd->dif_err_code = DIF_ERR_REF;
 		scsi_status = SAM_STAT_CHECK_CONDITION;
@@ -3324,15 +3313,13 @@ qlt_handle_dif_error(struct scsi_qla_host *vha, struct qla_tgt_cmd *cmd,
 
 	/* check guard */
 	if (cmd->e_guard != cmd->a_guard) {
-		ql_dbg(ql_dbg_tgt_dif, vha, 0xffff,
-			"Guard ERR: cdb[%x] lba[%llx %llx] blks[%x] [Actual|Expected] "
-			"Ref[%x|%x], App[%x|%x], "
-			"Guard [%x|%x] cmd=%p ox_id[%04x]",
-			cmd->cdb[0], lba, (lba+cmd->num_blks), cmd->num_blks,
-			cmd->a_ref_tag, cmd->e_ref_tag,
-			cmd->a_app_tag, cmd->e_app_tag,
-			cmd->a_guard, cmd->e_guard,
-			cmd, cmd->atio.u.isp24.fcp_hdr.ox_id);
+		ql_dbg(ql_dbg_tgt_dif, vha, 0xe012,
+		    "Guard ERR: cdb[%x] lba[%llx %llx] blks[%x] [Actual|Expected] Ref[%x|%x], App[%x|%x], Guard [%x|%x] cmd=%p ox_id[%04x]",
+		    cmd->cdb[0], lba, (lba+cmd->num_blks), cmd->num_blks,
+		    cmd->a_ref_tag, cmd->e_ref_tag, cmd->a_app_tag,
+		    cmd->e_app_tag, cmd->a_guard, cmd->e_guard, cmd,
+		    cmd->atio.u.isp24.fcp_hdr.ox_id);
+
 		cmd->dif_err_code = DIF_ERR_GRD;
 		scsi_status = SAM_STAT_CHECK_CONDITION;
 		sense_key = ABORTED_COMMAND;
@@ -3450,8 +3437,10 @@ done:
 		spin_unlock_irqrestore(&vha->hw->hardware_lock, flags);
 }
 
-/* If hardware_lock held on entry, might drop it, then reaquire */
-/* This function sends the appropriate CTIO to ISP 2xxx or 24xx */
+/*
+ * If hardware_lock held on entry, might drop it, then reaquire
+ * This function sends the appropriate CTIO to ISP 2xxx or 24xx
+ */
 static int __qlt_send_term_exchange(struct scsi_qla_host *vha,
 	struct qla_tgt_cmd *cmd,
 	struct atio_from_isp *atio)
@@ -3462,7 +3451,7 @@ static int __qlt_send_term_exchange(struct scsi_qla_host *vha,
 	int ret = 0;
 	uint16_t temp;
 
-	ql_dbg(ql_dbg_tgt, vha, 0xe01c, "Sending TERM EXCH CTIO (ha=%p)\n", ha);
+	ql_dbg(ql_dbg_tgt, vha, 0xe009, "Sending TERM EXCH CTIO (ha=%p)\n", ha);
 
 	pkt = (request_t *)qla2x00_alloc_iocbs_ready(vha, NULL);
 	if (pkt == NULL) {
@@ -3615,10 +3604,10 @@ int qlt_abort_cmd(struct qla_tgt_cmd *cmd)
 		 *  1) XFER Rdy completion + CMD_T_ABORT
 		 *  2) TCM TMR - drain_state_list
 		 */
-	        ql_dbg(ql_dbg_tgt_mgt, vha, 0xffff,
-			"multiple abort. %p transport_state %x, t_state %x,"
-			" se_cmd_flags %x \n", cmd, cmd->se_cmd.transport_state,
-			cmd->se_cmd.t_state,cmd->se_cmd.se_cmd_flags);
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf016,
+		    "multiple abort. %p transport_state %x, t_state %x, "
+		    "se_cmd_flags %x\n", cmd, cmd->se_cmd.transport_state,
+		    cmd->se_cmd.t_state, cmd->se_cmd.se_cmd_flags);
 		return EIO;
 	}
 	cmd->aborted = 1;
@@ -3670,7 +3659,7 @@ static int qlt_term_ctio_exchange(struct scsi_qla_host *vha, void *ctio,
 	int term = 0;
 
 	if (cmd->se_cmd.prot_op)
-		ql_dbg(ql_dbg_tgt_dif, vha, 0xffff,
+		ql_dbg(ql_dbg_tgt_dif, vha, 0xe013,
 		    "Term DIF cmd: lba[0x%llx|%lld] len[0x%x] "
 		    "se_cmd=%p tag[%x] op %#x/%s",
 		     cmd->lba, cmd->lba,
@@ -3884,7 +3873,7 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha, uint32_t handle,
 				 */
 				cmd->sess->logout_on_delete = 0;
 				cmd->sess->send_els_logo = 1;
-				ql_dbg(ql_dbg_disc, vha, 0xffff,
+				ql_dbg(ql_dbg_disc, vha, 0x20f8,
 				    "%s %d %8phC post del sess\n",
 				    __func__, __LINE__, cmd->sess->port_name);
 
@@ -4227,7 +4216,7 @@ static int qlt_handle_cmd_for_atio(struct scsi_qla_host *vha,
 	/* Another WWN used to have our s_id. Our PLOGI scheduled its
 	 * session deletion, but it's still in sess_del_work wq */
 	if (sess->deleted) {
-		ql_dbg(ql_dbg_io, vha, 0x3061,
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf002,
 		    "New command while old session %p is being deleted\n",
 		    sess);
 		return -EFAULT;
@@ -4237,7 +4226,7 @@ static int qlt_handle_cmd_for_atio(struct scsi_qla_host *vha,
 	 * Do kref_get() before returning + dropping qla_hw_data->hardware_lock.
 	 */
 	if (!kref_get_unless_zero(&sess->sess_kref)) {
-		ql_dbg(ql_dbg_tgt, vha, 0xffff,
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf004,
 		    "%s: kref_get fail, %8phC oxid %x \n",
 		    __func__, sess->port_name,
 		     be16_to_cpu(atio->u.isp24.fcp_hdr.ox_id));
@@ -4492,7 +4481,7 @@ qlt_find_sess_invalidate_other(scsi_qla_host_t *vha, uint64_t wwn,
 				 * Another wwn used to have our s_id/loop_id
 				 * kill the session, but don't free the loop_id
 				 */
-				ql_dbg(ql_dbg_tgt_tmr, vha, 0xffff,
+				ql_dbg(ql_dbg_tgt_tmr, vha, 0xf01b,
 				    "Invalidating sess %p loop_id %d wwn %llx.\n",
 				    other_sess, other_sess->loop_id, other_wwn);
 
@@ -4672,9 +4661,9 @@ static int qlt_24xx_handle_els(struct scsi_qla_host *vha,
 			sess->keep_nport_handle = ((sess->loop_id == loop_id) &&
 			   (sess->d_id.b24 == port_id.b24));
 
-			ql_dbg(ql_dbg_disc, vha, 0xffff,
-				   "%s %d %8phC post del sess\n",
-				   __func__, __LINE__, sess->port_name);
+			ql_dbg(ql_dbg_disc, vha, 0x20f9,
+			    "%s %d %8phC post del sess\n",
+			    __func__, __LINE__, sess->port_name);
 
 
 			qlt_schedule_sess_for_deletion_lock(sess);
@@ -4744,7 +4733,7 @@ static int qlt_24xx_handle_els(struct scsi_qla_host *vha,
 		/* Make session global (not used in fabric mode) */
 		if (ha->current_topology != ISP_CFG_F) {
 			if (sess) {
-				ql_dbg(ql_dbg_disc, vha, 0xffff,
+				ql_dbg(ql_dbg_disc, vha, 0x20fa,
 				    "%s %d %8phC post nack\n",
 				    __func__, __LINE__, sess->port_name);
 				qla24xx_post_nack_work(vha, sess, iocb,
@@ -4757,7 +4746,7 @@ static int qlt_24xx_handle_els(struct scsi_qla_host *vha,
 			}
 		} else {
 			if (sess) {
-				ql_dbg(ql_dbg_disc, vha, 0xffff,
+				ql_dbg(ql_dbg_disc, vha, 0x20fb,
 				    "%s %d %8phC post nack\n",
 				    __func__, __LINE__, sess->port_name);
 				qla24xx_post_nack_work(vha, sess, iocb,
@@ -4791,7 +4780,7 @@ static int qlt_24xx_handle_els(struct scsi_qla_host *vha,
 
 		res = qlt_reset(vha, iocb, QLA_TGT_NEXUS_LOSS_SESS);
 
-		ql_dbg(ql_dbg_disc, vha, 0xffff,
+		ql_dbg(ql_dbg_disc, vha, 0x20fc,
 		    "%s: logo %llx res %d sess %p ",
 		    __func__, wwn, res, sess);
 		if (res == 0) {
@@ -4823,7 +4812,7 @@ static int qlt_24xx_handle_els(struct scsi_qla_host *vha,
 		sess = qla2x00_find_fcport_by_wwpn(vha,
 		    iocb->u.isp24.port_name, 1);
 		if (sess) {
-			ql_dbg(ql_dbg_disc, vha, 0xffff,
+			ql_dbg(ql_dbg_disc, vha, 0x20fd,
 				"sess %p lid %d|%d DS %d LS %d\n",
 				sess, sess->loop_id, loop_id,
 				sess->disc_state, sess->fw_login_state);
@@ -5597,17 +5586,17 @@ void qlt_async_event(uint16_t code, struct scsi_qla_host *vha,
 		break;
 
 	case MBA_REJECTED_FCP_CMD:
-		ql_dbg(ql_dbg_tgt_mgt, vha, 0xffff,
-			"qla_target(%d): Async event LS_REJECT occurred "
-			"(m[0]=%x, m[1]=%x, m[2]=%x, m[3]=%x)", vha->vp_idx,
-			le16_to_cpu(mailbox[0]), le16_to_cpu(mailbox[1]),
-			le16_to_cpu(mailbox[2]), le16_to_cpu(mailbox[3]));
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf017,
+		    "qla_target(%d): Async event LS_REJECT occurred (m[0]=%x, m[1]=%x, m[2]=%x, m[3]=%x)",
+		    vha->vp_idx,
+		    le16_to_cpu(mailbox[0]), le16_to_cpu(mailbox[1]),
+		    le16_to_cpu(mailbox[2]), le16_to_cpu(mailbox[3]));
 
 		if (le16_to_cpu(mailbox[3]) == 1) {
 			/* exchange starvation. */
 			vha->hw->exch_starvation++;
 			if (vha->hw->exch_starvation > 5) {
-				ql_log(ql_log_warn, vha, 0xffff,
+				ql_log(ql_log_warn, vha, 0xd03a,
 				    "Exchange starvation-. Resetting RISC\n");
 
 				vha->hw->exch_starvation = 0;
@@ -5707,12 +5696,12 @@ static fc_port_t *qlt_get_port_database(struct scsi_qla_host *vha,
 	case MODE_DUAL:
 		if (newfcport) {
 			if (!IS_IIDMA_CAPABLE(vha->hw) || !vha->hw->flags.gpsc_supported) {
-				ql_dbg(ql_dbg_disc, vha, 0xffff,
+				ql_dbg(ql_dbg_disc, vha, 0x20fe,
 				   "%s %d %8phC post upd_fcport fcp_cnt %d\n",
 				   __func__, __LINE__, fcport->port_name, vha->fcport_count);
 				qla24xx_post_upd_fcport_work(vha, fcport);
 			} else {
-				ql_dbg(ql_dbg_disc, vha, 0xffff,
+				ql_dbg(ql_dbg_disc, vha, 0x20ff,
 				   "%s %d %8phC post gpsc fcp_cnt %d\n",
 				   __func__, __LINE__, fcport->port_name, vha->fcport_count);
 				qla24xx_post_gpsc_work(vha, fcport);
@@ -5838,7 +5827,7 @@ static void qlt_abort_work(struct qla_tgt *tgt,
 		}
 
 		if (!kref_get_unless_zero(&sess->sess_kref)) {
-			ql_dbg(ql_dbg_tgt_tmr, vha, 0xffff,
+			ql_dbg(ql_dbg_tgt_tmr, vha, 0xf01c,
 			    "%s: kref_get fail %8phC \n",
 			     __func__, sess->port_name);
 			sess = NULL;
@@ -5902,7 +5891,7 @@ static void qlt_tmr_work(struct qla_tgt *tgt,
 		}
 
 		if (!kref_get_unless_zero(&sess->sess_kref)) {
-			ql_dbg(ql_dbg_tgt_tmr, vha, 0xffff,
+			ql_dbg(ql_dbg_tgt_tmr, vha, 0xf020,
 			    "%s: kref_get fail %8phC\n",
 			     __func__, sess->port_name);
 			sess = NULL;
@@ -6251,7 +6240,7 @@ qlt_enable_vha(struct scsi_qla_host *vha)
 		qla24xx_enable_vp(vha);
 	} else {
 		if (ha->msix_entries) {
-			ql_dbg(ql_dbg_tgt, vha, 0xffff,
+			ql_dbg(ql_dbg_tgt, vha, 0xe081,
 			    "%s: host%ld : vector %d cpu %d\n",
 			    __func__, vha->host_no,
 			    ha->msix_entries[rspq_ent].vector,
@@ -6387,7 +6376,7 @@ qlt_24xx_process_atio_queue(struct scsi_qla_host *vha, uint8_t ha_locked)
 			 * can not be trusted. There is no point in passing
 			 * it further up.
 			 */
-			ql_log(ql_log_warn, vha, 0xffff,
+			ql_log(ql_log_warn, vha, 0xd03c,
 			    "corrupted fcp frame SID[%3phN] OXID[%04x] EXCG[%x] %64phN\n",
 			    pkt->u.isp24.fcp_hdr.s_id,
 			    be16_to_cpu(pkt->u.isp24.fcp_hdr.ox_id),
@@ -6744,7 +6733,7 @@ qlt_probe_one_stage1(struct scsi_qla_host *base_vha, struct qla_hw_data *ha)
 
 	rc = btree_init32(&ha->tgt.host_map);
 	if (rc)
-		ql_log(ql_log_info, base_vha, 0xffff,
+		ql_log(ql_log_info, base_vha, 0xd03d,
 		    "Unable to initialize ha->host_map btree\n");
 
 	qlt_update_vp_map(base_vha, SET_VP_IDX);
@@ -6872,25 +6861,25 @@ qlt_update_vp_map(struct scsi_qla_host *vha, int cmd)
 	case SET_AL_PA:
 		slot = btree_lookup32(&vha->hw->tgt.host_map, key);
 		if (!slot) {
-			ql_dbg(ql_dbg_tgt_mgt, vha, 0xffff,
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf018,
 			    "Save vha in host_map %p %06x\n", vha, key);
 			rc = btree_insert32(&vha->hw->tgt.host_map,
 				key, vha, GFP_ATOMIC);
 			if (rc)
-				ql_log(ql_log_info, vha, 0xffff,
+				ql_log(ql_log_info, vha, 0xd03e,
 				    "Unable to insert s_id into host_map: %06x\n",
 				    key);
 			return;
 		}
-		ql_dbg(ql_dbg_tgt_mgt, vha, 0xffff,
-			"replace existing vha in host_map %p %06x\n", vha, key);
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf019,
+		    "replace existing vha in host_map %p %06x\n", vha, key);
 		btree_update32(&vha->hw->tgt.host_map, key, vha);
 		break;
 	case RESET_VP_IDX:
 		vha->hw->tgt.tgt_vp_map[vha->vp_idx].vha = NULL;
 		break;
 	case RESET_AL_PA:
-		ql_dbg(ql_dbg_tgt_mgt, vha, 0xffff,
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf01a,
 		   "clear vha in host_map %p %06x\n", vha, key);
 		slot = btree_lookup32(&vha->hw->tgt.host_map, key);
 		if (slot)
@@ -6952,7 +6941,7 @@ int __init qlt_init(void)
 	    sizeof(struct qla_tgt_mgmt_cmd), __alignof__(struct
 	    qla_tgt_mgmt_cmd), 0, NULL);
 	if (!qla_tgt_mgmt_cmd_cachep) {
-		ql_log(ql_log_fatal, NULL, 0xe06d,
+		ql_log(ql_log_fatal, NULL, 0xd04b,
 		    "kmem_cache_create for qla_tgt_mgmt_cmd_cachep failed\n");
 		return -ENOMEM;
 	}

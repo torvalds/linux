@@ -377,7 +377,7 @@ static int qla2x00_alloc_queues(struct qla_hw_data *ha, struct req_que *req,
 		}
 		ha->base_qpair = kzalloc(sizeof(struct qla_qpair), GFP_KERNEL);
 		if (ha->base_qpair == NULL) {
-			ql_log(ql_log_warn, vha, 0x0182,
+			ql_log(ql_log_warn, vha, 0x00e0,
 			    "Failed to allocate base queue pair memory.\n");
 			goto fail_base_qpair;
 		}
@@ -1062,9 +1062,9 @@ static inline int test_fcport_count(scsi_qla_host_t *vha)
 	int res;
 
 	spin_lock_irqsave(&ha->tgt.sess_lock, flags);
-	ql_dbg(ql_dbg_init, vha, 0xffff,
-		"tgt %p, fcport_count=%d\n",
-		vha, vha->fcport_count);
+	ql_dbg(ql_dbg_init, vha, 0x00ec,
+	    "tgt %p, fcport_count=%d\n",
+	    vha, vha->fcport_count);
 	res = (vha->fcport_count == 0);
 	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
 
@@ -1975,7 +1975,7 @@ qla83xx_iospace_config(struct qla_hw_data *ha)
 			/* Queue pairs is the max value minus
 			 * the base queue pair */
 			ha->max_qpairs = ha->max_req_queues - 1;
-			ql_dbg_pci(ql_dbg_init, ha->pdev, 0x0190,
+			ql_dbg_pci(ql_dbg_init, ha->pdev, 0x00e3,
 			    "Max no of queues pairs: %d.\n", ha->max_qpairs);
 		}
 		ql_log_pci(ql_log_info, ha->pdev, 0x011c,
@@ -3601,10 +3601,10 @@ qla2x00_schedule_rport_del(struct scsi_qla_host *vha, fc_port_t *fcport,
 	} else {
 		int now;
 		if (rport) {
-			ql_dbg(ql_dbg_disc, fcport->vha, 0xffff,
-				"%s %8phN. rport %p roles %x \n",
-				__func__, fcport->port_name, rport,
-				rport->roles);
+			ql_dbg(ql_dbg_disc, fcport->vha, 0x2109,
+			    "%s %8phN. rport %p roles %x\n",
+			    __func__, fcport->port_name, rport,
+			    rport->roles);
 			fc_remote_port_delete(rport);
 		}
 		qlt_do_generation_tick(vha, &now);
@@ -3649,7 +3649,7 @@ void qla2x00_mark_device_lost(scsi_qla_host_t *vha, fc_port_t *fcport,
 	if (fcport->login_retry == 0) {
 		fcport->login_retry = vha->hw->login_retry_count;
 
-		ql_dbg(ql_dbg_disc, vha, 0x2067,
+		ql_dbg(ql_dbg_disc, vha, 0x20a3,
 		    "Port login retry %8phN, lid 0x%04x retry cnt=%d.\n",
 		    fcport->port_name, fcport->loop_id, fcport->login_retry);
 	}
@@ -3673,8 +3673,8 @@ qla2x00_mark_all_devices_lost(scsi_qla_host_t *vha, int defer)
 {
 	fc_port_t *fcport;
 
-	ql_dbg(ql_dbg_disc, vha, 0xffff,
-		   "Mark all dev lost\n");
+	ql_dbg(ql_dbg_disc, vha, 0x20f1,
+	    "Mark all dev lost\n");
 
 	list_for_each_entry(fcport, &vha->vp_fcports, list) {
 		fcport->scan_state = 0;
@@ -4016,7 +4016,7 @@ qla2x00_set_exlogins_buffer(scsi_qla_host_t *vha)
 	/* Now configure the dma buffer */
 	rval = qla_set_exlogin_mem_cfg(vha, ha->exlogin_buf_dma);
 	if (rval) {
-		ql_log(ql_log_fatal, vha, 0x00cf,
+		ql_log(ql_log_fatal, vha, 0xd033,
 		    "Setup extended login buffer  ****FAILED****.\n");
 		qla2x00_free_exlogin_buffer(ha);
 	}
@@ -4303,7 +4303,7 @@ struct scsi_qla_host *qla2x00_create_host(struct scsi_host_template *sht,
 	vha->gnl.l = dma_alloc_coherent(&ha->pdev->dev,
 	    vha->gnl.size, &vha->gnl.ldma, GFP_KERNEL);
 	if (!vha->gnl.l) {
-		ql_log(ql_log_fatal, vha, 0xffff,
+		ql_log(ql_log_fatal, vha, 0xd04a,
 		    "Alloc failed for name list.\n");
 		scsi_remove_host(vha->host);
 		return NULL;
@@ -4620,7 +4620,7 @@ void qla2x00_relogin(struct scsi_qla_host *vha)
 		    fcport->login_retry && !(fcport->flags & FCF_ASYNC_SENT)) {
 			fcport->login_retry--;
 			if (fcport->flags & FCF_FABRIC_DEVICE) {
-				ql_dbg(ql_dbg_disc, fcport->vha, 0xffff,
+				ql_dbg(ql_dbg_disc, fcport->vha, 0x2108,
 				    "%s %8phC DS %d LS %d\n", __func__,
 				    fcport->port_name, fcport->disc_state,
 				    fcport->fw_login_state);
