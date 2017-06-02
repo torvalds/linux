@@ -1,0 +1,15 @@
+config SECURITY_WHITELIST
+	bool "Whitelist Security Module"
+	depends on SECURITY
+	depends on NET
+	select SECURITYFS
+	select SECURITY_PATH
+	select SECURITY_NETWORK
+	select SRCU
+	select BUILD_BIN2C
+	default n
+	help
+	  This selects an attr-based access control.
+          Binaries with a particular xattr setting will be
+          permitted to be executed by non-root users.
+
