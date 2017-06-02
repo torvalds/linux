@@ -112,6 +112,31 @@
 	status = "okay";
 };
 
+&sdmmc {
+	status = "okay";
+	bus-width = <4>;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+	card-detect-delay = <200>;
+	disable-wp;
+	max-frequency = <50000000>;
+	num-slots = <1>;
+	supports-sd;
+};
+
+&sdio {
+	status = "okay";
+	bus-width = <4>;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+	cap-sdio-irq;
+	non-removable;
+	ignore-pm-notify;
+	keep-power-in-suspend;
+	max-frequency = <150000000>;
+	supports-sdio;
+};
+
 &pinctrl {
 	keys {
 		pwr_key: pwr-key {
