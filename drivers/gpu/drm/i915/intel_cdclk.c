@@ -1780,6 +1780,30 @@ void intel_update_cdclk(struct drm_i915_private *dev_priv)
 			   DIV_ROUND_UP(dev_priv->cdclk.hw.cdclk, 1000));
 }
 
+static int cnp_rawclk(struct drm_i915_private *dev_priv)
+{
+	u32 rawclk;
+	int divider, fraction;
+
+	if (I915_READ(SFUSE_STRAP) & SFUSE_STRAP_RAW_FREQUENCY) {
+		/* 24 MHz */
+		divider = 24000;
+		fraction = 0;
+	} else {
+		/* 19.2 MHz */
+		divider = 19000;
+		fraction = 200;
+	}
+
+	rawclk = CNP_RAWCLK_DIV((divider / 1000) - 1);
+	if (fraction)
+		rawclk |= CNP_RAWCLK_FRAC(DIV_ROUND_CLOSEST(1000,
+							    fraction) - 1);
+
+	I915_WRITE(PCH_RAWCLK_FREQ, rawclk);
+	return divider + fraction;
+}
+
 static int pch_rawclk(struct drm_i915_private *dev_priv)
 {
 	return (I915_READ(PCH_RAWCLK_FREQ) & RAWCLK_FREQ_MASK) * 1000;
@@ -1827,7 +1851,10 @@ static int g4x_hrawclk(struct drm_i915_private *dev_priv)
  */
 void intel_update_rawclk(struct drm_i915_private *dev_priv)
 {
-	if (HAS_PCH_SPLIT(dev_priv))
+
+	if (HAS_PCH_CNP(dev_priv))
+		dev_priv->rawclk_freq = cnp_rawclk(dev_priv);
+	else if (HAS_PCH_SPLIT(dev_priv))
 		dev_priv->rawclk_freq = pch_rawclk(dev_priv);
 	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		dev_priv->rawclk_freq = vlv_hrawclk(dev_priv);
