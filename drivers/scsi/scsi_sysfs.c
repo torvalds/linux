@@ -1290,7 +1290,17 @@ void __scsi_remove_device(struct scsi_device *sdev)
 		 * wait until it has finished before changing the device state.
 		 */
 		mutex_lock(&sdev->state_mutex);
+		/*
+		 * If blocked, we go straight to DEL and restart the queue so
+		 * any commands issued during driver shutdown (like sync
+		 * cache) are errored immediately.
+		 */
 		res = scsi_device_set_state(sdev, SDEV_CANCEL);
+		if (res != 0) {
+			res = scsi_device_set_state(sdev, SDEV_DEL);
+			if (res == 0)
+				scsi_start_queue(sdev);
+		}
 		mutex_unlock(&sdev->state_mutex);
 
 		if (res != 0)
