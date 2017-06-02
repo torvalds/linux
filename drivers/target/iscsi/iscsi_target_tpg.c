@@ -311,11 +311,9 @@ int iscsit_tpg_enable_portal_group(struct iscsi_portal_group *tpg)
 	struct iscsi_tiqn *tiqn = tpg->tpg_tiqn;
 	int ret;
 
-	spin_lock(&tpg->tpg_state_lock);
 	if (tpg->tpg_state == TPG_STATE_ACTIVE) {
 		pr_err("iSCSI target portal group: %hu is already"
 			" active, ignoring request.\n", tpg->tpgt);
-		spin_unlock(&tpg->tpg_state_lock);
 		return -EINVAL;
 	}
 	/*
@@ -324,10 +322,8 @@ int iscsit_tpg_enable_portal_group(struct iscsi_portal_group *tpg)
 	 * is enforced (as per default), and remove the NONE option.
 	 */
 	param = iscsi_find_param_from_key(AUTHMETHOD, tpg->param_list);
-	if (!param) {
-		spin_unlock(&tpg->tpg_state_lock);
+	if (!param)
 		return -EINVAL;
-	}
 
 	if (tpg->tpg_attrib.authentication) {
 		if (!strcmp(param->value, NONE)) {
@@ -341,6 +337,7 @@ int iscsit_tpg_enable_portal_group(struct iscsi_portal_group *tpg)
 			goto err;
 	}
 
+	spin_lock(&tpg->tpg_state_lock);
 	tpg->tpg_state = TPG_STATE_ACTIVE;
 	spin_unlock(&tpg->tpg_state_lock);
 
@@ -353,7 +350,6 @@ int iscsit_tpg_enable_portal_group(struct iscsi_portal_group *tpg)
 	return 0;
 
 err:
-	spin_unlock(&tpg->tpg_state_lock);
 	return ret;
 }
 
