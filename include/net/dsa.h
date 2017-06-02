@@ -254,7 +254,7 @@ struct dsa_switch {
 
 static inline bool dsa_is_cpu_port(struct dsa_switch *ds, int p)
 {
-	return ds->dst->cpu_dp == &ds->ports[p];
+	return !!(ds->cpu_port_mask & (1 << p));
 }
 
 static inline bool dsa_is_dsa_port(struct dsa_switch *ds, int p)

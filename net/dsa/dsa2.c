@@ -250,8 +250,6 @@ static int dsa_cpu_port_apply(struct dsa_port *port)
 		return err;
 	}
 
-	ds->cpu_port_mask |= BIT(port->index);
-
 	memset(&port->devlink_port, 0, sizeof(port->devlink_port));
 	err = devlink_port_register(ds->devlink, &port->devlink_port,
 				    port->index);
@@ -522,6 +520,12 @@ static int dsa_cpu_parse(struct dsa_port *port, u32 index,
 
 	dst->rcv = dst->tag_ops->rcv;
 
+	/* Initialize cpu_port_mask now for drv->setup()
+	 * to have access to a correct value, just like what
+	 * net/dsa/dsa.c::dsa_switch_setup_one does.
+	 */
+	ds->cpu_port_mask |= BIT(index);
+
 	return 0;
 }
 
@@ -533,14 +537,22 @@ static int dsa_ds_parse(struct dsa_switch_tree *dst, struct dsa_switch *ds)
 
 	for (index = 0; index < ds->num_ports; index++) {
 		port = &ds->ports[index];
-		if (!dsa_port_is_valid(port))
+		if (!dsa_port_is_valid(port) ||
+		    dsa_port_is_dsa(port))
 			continue;
 
 		if (dsa_port_is_cpu(port)) {
 			err = dsa_cpu_parse(port, index, dst, ds);
 			if (err)
 				return err;
+		} else {
+			/* Initialize enabled_port_mask now for drv->setup()
+			 * to have access to a correct value, just like what
+			 * net/dsa/dsa.c::dsa_switch_setup_one does.
+			 */
+			ds->enabled_port_mask |= BIT(index);
 		}
+
 	}
 
 	pr_info("DSA: switch %d %d parsed\n", dst->tree, ds->index);
@@ -589,13 +601,6 @@ static int dsa_parse_ports_dn(struct device_node *ports, struct dsa_switch *ds)
 			return -EINVAL;
 
 		ds->ports[reg].dn = port;
-
-		/* Initialize enabled_port_mask now for ops->setup()
-		 * to have access to a correct value, just like what
-		 * net/dsa/dsa.c::dsa_switch_setup_one does.
-		 */
-		if (!dsa_port_is_cpu(&ds->ports[reg]))
-			ds->enabled_port_mask |= 1 << reg;
 	}
 
 	return 0;
@@ -611,14 +616,6 @@ static int dsa_parse_ports(struct dsa_chip_data *cd, struct dsa_switch *ds)
 			continue;
 
 		ds->ports[i].name = cd->port_names[i];
-
-		/* Initialize enabled_port_mask now for drv->setup()
-		 * to have access to a correct value, just like what
-		 * net/dsa/dsa.c::dsa_switch_setup_one does.
-		 */
-		if (!dsa_port_is_cpu(&ds->ports[i]))
-			ds->enabled_port_mask |= 1 << i;
-
 		valid_name_found = true;
 	}
 
