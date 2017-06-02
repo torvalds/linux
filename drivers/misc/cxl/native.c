@@ -1066,13 +1066,16 @@ int cxl_native_register_psl_err_irq(struct cxl *adapter)
 
 void cxl_native_release_psl_err_irq(struct cxl *adapter)
 {
-	if (adapter->native->err_virq != irq_find_mapping(NULL, adapter->native->err_hwirq))
+	if (adapter->native->err_virq == 0 ||
+	    adapter->native->err_virq !=
+	    irq_find_mapping(NULL, adapter->native->err_hwirq))
 		return;
 
 	cxl_p1_write(adapter, CXL_PSL_ErrIVTE, 0x0000000000000000);
 	cxl_unmap_irq(adapter->native->err_virq, adapter);
 	cxl_ops->release_one_irq(adapter, adapter->native->err_hwirq);
 	kfree(adapter->irq_name);
+	adapter->native->err_virq = 0;
 }
 
 int cxl_native_register_serr_irq(struct cxl_afu *afu)
@@ -1102,13 +1105,15 @@ int cxl_native_register_serr_irq(struct cxl_afu *afu)
 
 void cxl_native_release_serr_irq(struct cxl_afu *afu)
 {
-	if (afu->serr_virq != irq_find_mapping(NULL, afu->serr_hwirq))
+	if (afu->serr_virq == 0 ||
+	    afu->serr_virq != irq_find_mapping(NULL, afu->serr_hwirq))
 		return;
 
 	cxl_p1n_write(afu, CXL_PSL_SERR_An, 0x0000000000000000);
 	cxl_unmap_irq(afu->serr_virq, afu);
 	cxl_ops->release_one_irq(afu->adapter, afu->serr_hwirq);
 	kfree(afu->err_irq_name);
+	afu->serr_virq = 0;
 }
 
 int cxl_native_register_psl_irq(struct cxl_afu *afu)
@@ -1131,12 +1136,15 @@ int cxl_native_register_psl_irq(struct cxl_afu *afu)
 
 void cxl_native_release_psl_irq(struct cxl_afu *afu)
 {
-	if (afu->native->psl_virq != irq_find_mapping(NULL, afu->native->psl_hwirq))
+	if (afu->native->psl_virq == 0 ||
+	    afu->native->psl_virq !=
+	    irq_find_mapping(NULL, afu->native->psl_hwirq))
 		return;
 
 	cxl_unmap_irq(afu->native->psl_virq, afu);
 	cxl_ops->release_one_irq(afu->adapter, afu->native->psl_hwirq);
 	kfree(afu->psl_irq_name);
+	afu->native->psl_virq = 0;
 }
 
 static void recover_psl_err(struct cxl_afu *afu, u64 errstat)
