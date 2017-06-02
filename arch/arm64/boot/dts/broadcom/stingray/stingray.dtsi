@@ -269,6 +269,14 @@
 
 		#include "stingray-pinctrl.dtsi"
 
+		pwm: pwm@00010000 {
+			compatible = "brcm,iproc-pwm";
+			reg = <0x00010000 0x1000>;
+			clocks = <&crmu_ref25m>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
 		i2c0: i2c@000b0000 {
 			compatible = "brcm,iproc-i2c";
 			reg = <0x000b0000 0x100>;
@@ -426,6 +434,26 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			brcm,nand-has-wp;
+			status = "disabled";
+		};
+
+		sdio0: sdhci@003f1000 {
+			compatible = "brcm,sdhci-iproc";
+			reg = <0x003f1000 0x100>;
+			interrupts = <GIC_SPI 204 IRQ_TYPE_LEVEL_HIGH>;
+			bus-width = <8>;
+			clocks = <&sdio0_clk>;
+			iommus = <&smmu 0x6002 0x0000>;
+			status = "disabled";
+		};
+
+		sdio1: sdhci@003f2000 {
+			compatible = "brcm,sdhci-iproc";
+			reg = <0x003f2000 0x100>;
+			interrupts = <GIC_SPI 205 IRQ_TYPE_LEVEL_HIGH>;
+			bus-width = <8>;
+			clocks = <&sdio1_clk>;
+			iommus = <&smmu 0x6003 0x0000>;
 			status = "disabled";
 		};
 	};

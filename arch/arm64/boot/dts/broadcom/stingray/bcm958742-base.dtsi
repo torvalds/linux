@@ -43,6 +43,28 @@
 		serial2 = &uart2;
 		serial3 = &uart3;
 	};
+
+	sdio0_vddo_ctrl_reg: sdio0_vddo_ctrl {
+		compatible = "regulator-gpio";
+		regulator-name = "sdio0_vddo_ctrl_reg";
+		regulator-type = "voltage";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&pca9505 18 0>;
+		states = <3300000 0x0
+			  1800000 0x1>;
+	};
+
+	sdio1_vddo_ctrl_reg: sdio1_vddo_ctrl {
+		compatible = "regulator-gpio";
+		regulator-name = "sdio1_vddo_ctrl_reg";
+		regulator-type = "voltage";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&pca9505 19 0>;
+		states = <3300000 0x0
+			  1800000 0x1>;
+	};
 };
 
 &memory { /* Default DRAM banks */
@@ -51,6 +73,10 @@
 };
 
 &uart1 {
+	status = "okay";
+};
+
+&pwm {
 	status = "okay";
 };
 
@@ -89,4 +115,17 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 	};
+};
+
+&sdio0 {
+	vqmmc-supply = <&sdio0_vddo_ctrl_reg>;
+	non-removable;
+	full-pwr-cycle;
+	status = "okay";
+};
+
+&sdio1 {
+	vqmmc-supply = <&sdio1_vddo_ctrl_reg>;
+	full-pwr-cycle;
+	status = "okay";
 };
