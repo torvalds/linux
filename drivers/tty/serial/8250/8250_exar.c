@@ -63,6 +63,11 @@
 
 struct exar8250;
 
+struct exar8250_platform {
+	int (*rs485_config)(struct uart_port *, struct serial_rs485 *);
+	int (*register_gpio)(struct pci_dev *, struct uart_8250_port *);
+};
+
 /**
  * struct exar8250_board - board information
  * @num_ports: number of serial ports
@@ -189,7 +194,7 @@ static void setup_gpio(u8 __iomem *p)
 }
 
 static void *
-xr17v35x_register_gpio(struct pci_dev *pcidev)
+__xr17v35x_register_gpio(struct pci_dev *pcidev)
 {
 	struct platform_device *pdev;
 
@@ -208,17 +213,36 @@ xr17v35x_register_gpio(struct pci_dev *pcidev)
 	return pdev;
 }
 
+static int xr17v35x_register_gpio(struct pci_dev *pcidev,
+				  struct uart_8250_port *port)
+{
+	if (pcidev->vendor == PCI_VENDOR_ID_EXAR)
+		port->port.private_data =
+			__xr17v35x_register_gpio(pcidev);
+
+	return 0;
+}
+
+static const struct exar8250_platform exar8250_default_platform = {
+	.register_gpio = xr17v35x_register_gpio,
+};
+
 static int
 pci_xr17v35x_setup(struct exar8250 *priv, struct pci_dev *pcidev,
 		   struct uart_8250_port *port, int idx)
 {
 	const struct exar8250_board *board = priv->board;
+	const struct exar8250_platform *platform;
 	unsigned int offset = idx * 0x400;
 	unsigned int baud = 7812500;
 	u8 __iomem *p;
 	int ret;
 
+	platform = &exar8250_default_platform;
+
 	port->port.uartclk = baud * 16;
+	port->port.rs485_config = platform->rs485_config;
+
 	/*
 	 * Setup the uart clock for the devices on expansion slot to
 	 * half the clock speed of the main chip (which is 125MHz)
@@ -241,12 +265,10 @@ pci_xr17v35x_setup(struct exar8250 *priv, struct pci_dev *pcidev,
 		/* Setup Multipurpose Input/Output pins. */
 		setup_gpio(p);
 
-		if (pcidev->vendor == PCI_VENDOR_ID_EXAR)
-			port->port.private_data =
-				xr17v35x_register_gpio(pcidev);
+		ret = platform->register_gpio(pcidev, port);
 	}
 
-	return 0;
+	return ret;
 }
 
 static void pci_xr17v35x_exit(struct pci_dev *pcidev)
