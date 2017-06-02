@@ -2016,8 +2016,9 @@ static void qlt_24xx_send_task_mgmt_ctio(struct scsi_qla_host *ha,
 	ctio->initiator_id[1] = atio->u.isp24.fcp_hdr.s_id[1];
 	ctio->initiator_id[2] = atio->u.isp24.fcp_hdr.s_id[0];
 	ctio->exchange_addr = atio->u.isp24.exchange_addr;
-	ctio->u.status1.flags = (atio->u.isp24.attr << 9) |
-	    cpu_to_le16(CTIO7_FLAGS_STATUS_MODE_1 | CTIO7_FLAGS_SEND_STATUS);
+	temp = (atio->u.isp24.attr << 9)|
+		CTIO7_FLAGS_STATUS_MODE_1 | CTIO7_FLAGS_SEND_STATUS;
+	ctio->u.status1.flags = cpu_to_le16(temp);
 	temp = be16_to_cpu(atio->u.isp24.fcp_hdr.ox_id);
 	ctio->u.status1.ox_id = cpu_to_le16(temp);
 	ctio->u.status1.scsi_status =
@@ -2070,8 +2071,9 @@ void qlt_send_resp_ctio(scsi_qla_host_t *vha, struct qla_tgt_cmd *cmd,
 	ctio->initiator_id[1] = atio->u.isp24.fcp_hdr.s_id[1];
 	ctio->initiator_id[2] = atio->u.isp24.fcp_hdr.s_id[0];
 	ctio->exchange_addr = atio->u.isp24.exchange_addr;
-	ctio->u.status1.flags = (atio->u.isp24.attr << 9) |
-	    cpu_to_le16(CTIO7_FLAGS_STATUS_MODE_1 | CTIO7_FLAGS_SEND_STATUS);
+	temp = (atio->u.isp24.attr << 9) |
+	    CTIO7_FLAGS_STATUS_MODE_1 | CTIO7_FLAGS_SEND_STATUS;
+	ctio->u.status1.flags = cpu_to_le16(temp);
 	temp = be16_to_cpu(atio->u.isp24.fcp_hdr.ox_id);
 	ctio->u.status1.ox_id = cpu_to_le16(temp);
 	ctio->u.status1.scsi_status =
@@ -2359,7 +2361,8 @@ static int qlt_24xx_build_ctio_pkt(struct qla_tgt_prm *prm,
 	pkt->initiator_id[1] = atio->u.isp24.fcp_hdr.s_id[1];
 	pkt->initiator_id[2] = atio->u.isp24.fcp_hdr.s_id[0];
 	pkt->exchange_addr = atio->u.isp24.exchange_addr;
-	pkt->u.status0.flags |= (atio->u.isp24.attr << 9);
+	temp = atio->u.isp24.attr << 9;
+	pkt->u.status0.flags |= cpu_to_le16(temp);
 	temp = be16_to_cpu(atio->u.isp24.fcp_hdr.ox_id);
 	pkt->u.status0.ox_id = cpu_to_le16(temp);
 	pkt->u.status0.relative_offset = cpu_to_le32(prm->cmd->offset);
@@ -3484,9 +3487,9 @@ static int __qlt_send_term_exchange(struct scsi_qla_host *vha,
 	ctio24->initiator_id[1] = atio->u.isp24.fcp_hdr.s_id[1];
 	ctio24->initiator_id[2] = atio->u.isp24.fcp_hdr.s_id[0];
 	ctio24->exchange_addr = atio->u.isp24.exchange_addr;
-	ctio24->u.status1.flags = (atio->u.isp24.attr << 9) |
-	    cpu_to_le16(CTIO7_FLAGS_STATUS_MODE_1 |
-		CTIO7_FLAGS_TERMINATE);
+	temp = (atio->u.isp24.attr << 9) | CTIO7_FLAGS_STATUS_MODE_1 |
+		CTIO7_FLAGS_TERMINATE;
+	ctio24->u.status1.flags = cpu_to_le16(temp);
 	temp = be16_to_cpu(atio->u.isp24.fcp_hdr.ox_id);
 	ctio24->u.status1.ox_id = cpu_to_le16(temp);
 
@@ -4978,6 +4981,7 @@ static int __qlt_send_busy(struct scsi_qla_host *vha,
 	request_t *pkt;
 	struct fc_port *sess = NULL;
 	unsigned long flags;
+	u16 temp;
 
 	spin_lock_irqsave(&ha->tgt.sess_lock, flags);
 	sess = ha->tgt.tgt_ops->find_sess_by_s_id(vha,
@@ -5010,10 +5014,10 @@ static int __qlt_send_busy(struct scsi_qla_host *vha,
 	ctio24->initiator_id[1] = atio->u.isp24.fcp_hdr.s_id[1];
 	ctio24->initiator_id[2] = atio->u.isp24.fcp_hdr.s_id[0];
 	ctio24->exchange_addr = atio->u.isp24.exchange_addr;
-	ctio24->u.status1.flags = (atio->u.isp24.attr << 9) |
-	    cpu_to_le16(
+	temp = (atio->u.isp24.attr << 9) |
 		CTIO7_FLAGS_STATUS_MODE_1 | CTIO7_FLAGS_SEND_STATUS |
-		CTIO7_FLAGS_DONT_RET_CTIO);
+		CTIO7_FLAGS_DONT_RET_CTIO;
+	ctio24->u.status1.flags = cpu_to_le16(temp);
 	/*
 	 * CTIO from fw w/o se_cmd doesn't provide enough info to retry it,
 	 * if the explicit conformation is used.

@@ -2969,6 +2969,18 @@ qla24xx_update_fw_options(scsi_qla_host_t *vha)
 			ha->fw_options[2] &= ~BIT_11;
 	}
 
+	if (IS_QLA25XX(ha) || IS_QLA83XX(ha) || IS_QLA27XX(ha)) {
+		/*
+		 * Tell FW to track each exchange to prevent
+		 * driver from using stale exchange.
+		 */
+		if (qla_tgt_mode_enabled(vha) ||
+		    qla_dual_mode_enabled(vha))
+			ha->fw_options[2] |= BIT_4;
+		else
+			ha->fw_options[2] &= ~BIT_4;
+	}
+
 	ql_dbg(ql_dbg_init, vha, 0x00e8,
 	    "%s, add FW options 1-3 = 0x%04x 0x%04x 0x%04x mode %x\n",
 	    __func__, ha->fw_options[1], ha->fw_options[2],
@@ -7360,6 +7372,12 @@ qla81xx_update_fw_options(scsi_qla_host_t *vha)
 		else
 			ha->fw_options[2] &= ~BIT_11;
 	}
+
+	if (qla_tgt_mode_enabled(vha) ||
+	    qla_dual_mode_enabled(vha))
+		ha->fw_options[2] |= BIT_4;
+	else
+		ha->fw_options[2] &= ~BIT_4;
 
 	if (ql2xetsenable) {
 		/* Enable ETS Burst. */

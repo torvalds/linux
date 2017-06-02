@@ -426,7 +426,7 @@ struct ctio7_to_24xx {
 		} status0;
 		struct {
 			uint16_t sense_length;
-			uint16_t flags;
+			__le16 flags;
 			uint32_t residual;
 			__le16 ox_id;
 			uint16_t scsi_status;
