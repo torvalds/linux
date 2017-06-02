@@ -9665,6 +9665,7 @@ static int
 lpfc_sli4_enable_msix(struct lpfc_hba *phba)
 {
 	int vectors, rc, index;
+	char *name;
 
 	/* Set up MSI-X multi-message vectors */
 	vectors = phba->io_channel_irqs;
@@ -9683,9 +9684,9 @@ lpfc_sli4_enable_msix(struct lpfc_hba *phba)
 
 	/* Assign MSI-X vectors to interrupt handlers */
 	for (index = 0; index < vectors; index++) {
-		memset(&phba->sli4_hba.handler_name[index], 0, 16);
-		snprintf((char *)&phba->sli4_hba.handler_name[index],
-			 LPFC_SLI4_HANDLER_NAME_SZ,
+		name = phba->sli4_hba.hba_eq_hdl[index].handler_name;
+		memset(name, 0, LPFC_SLI4_HANDLER_NAME_SZ);
+		snprintf(name, LPFC_SLI4_HANDLER_NAME_SZ,
 			 LPFC_DRIVER_HANDLER_NAME"%d", index);
 
 		phba->sli4_hba.hba_eq_hdl[index].idx = index;
@@ -9694,12 +9695,12 @@ lpfc_sli4_enable_msix(struct lpfc_hba *phba)
 		if (phba->cfg_fof && (index == (vectors - 1)))
 			rc = request_irq(pci_irq_vector(phba->pcidev, index),
 				 &lpfc_sli4_fof_intr_handler, 0,
-				 (char *)&phba->sli4_hba.handler_name[index],
+				 name,
 				 &phba->sli4_hba.hba_eq_hdl[index]);
 		else
 			rc = request_irq(pci_irq_vector(phba->pcidev, index),
 				 &lpfc_sli4_hba_intr_handler, 0,
-				 (char *)&phba->sli4_hba.handler_name[index],
+				 name,
 				 &phba->sli4_hba.hba_eq_hdl[index]);
 		if (rc) {
 			lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
