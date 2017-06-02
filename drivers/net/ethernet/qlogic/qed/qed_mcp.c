@@ -1736,10 +1736,10 @@ int qed_mcp_fill_shmem_func_info(struct qed_hwfn *p_hwfn,
 		DP_NOTICE(p_hwfn, "MAC is 0 in shmem\n");
 	}
 
-	info->wwn_port = (u64)shmem_info.fcoe_wwn_port_name_upper |
-			 (((u64)shmem_info.fcoe_wwn_port_name_lower) << 32);
-	info->wwn_node = (u64)shmem_info.fcoe_wwn_node_name_upper |
-			 (((u64)shmem_info.fcoe_wwn_node_name_lower) << 32);
+	info->wwn_port = (u64)shmem_info.fcoe_wwn_port_name_lower |
+			 (((u64)shmem_info.fcoe_wwn_port_name_upper) << 32);
+	info->wwn_node = (u64)shmem_info.fcoe_wwn_node_name_lower |
+			 (((u64)shmem_info.fcoe_wwn_node_name_upper) << 32);
 
 	info->ovlan = (u16)(shmem_info.ovlan_stag & FUNC_MF_CFG_OV_STAG_MASK);
 
@@ -2308,6 +2308,95 @@ int qed_mcp_bist_nvm_test_get_image_att(struct qed_hwfn *p_hwfn,
 		rc = -EINVAL;
 
 	return rc;
+}
+
+static int
+qed_mcp_get_nvm_image_att(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt,
+			  enum qed_nvm_images image_id,
+			  struct qed_nvm_image_att *p_image_att)
+{
+	struct bist_nvm_image_att mfw_image_att;
+	enum nvm_image_type type;
+	u32 num_images, i;
+	int rc;
+
+	/* Translate image_id into MFW definitions */
+	switch (image_id) {
+	case QED_NVM_IMAGE_ISCSI_CFG:
+		type = NVM_TYPE_ISCSI_CFG;
+		break;
+	case QED_NVM_IMAGE_FCOE_CFG:
+		type = NVM_TYPE_FCOE_CFG;
+		break;
+	default:
+		DP_NOTICE(p_hwfn, "Unknown request of image_id %08x\n",
+			  image_id);
+		return -EINVAL;
+	}
+
+	/* Learn number of images, then traverse and see if one fits */
+	rc = qed_mcp_bist_nvm_test_get_num_images(p_hwfn, p_ptt, &num_images);
+	if (rc || !num_images)
+		return -EINVAL;
+
+	for (i = 0; i < num_images; i++) {
+		rc = qed_mcp_bist_nvm_test_get_image_att(p_hwfn, p_ptt,
+							 &mfw_image_att, i);
+		if (rc)
+			return rc;
+
+		if (type == mfw_image_att.image_type)
+			break;
+	}
+	if (i == num_images) {
+		DP_VERBOSE(p_hwfn, QED_MSG_STORAGE,
+			   "Failed to find nvram image of type %08x\n",
+			   image_id);
+		return -EINVAL;
+	}
+
+	p_image_att->start_addr = mfw_image_att.nvm_start_addr;
+	p_image_att->length = mfw_image_att.len;
+
+	return 0;
+}
+
+int qed_mcp_get_nvm_image(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt,
+			  enum qed_nvm_images image_id,
+			  u8 *p_buffer, u32 buffer_len)
+{
+	struct qed_nvm_image_att image_att;
+	int rc;
+
+	memset(p_buffer, 0, buffer_len);
+
+	rc = qed_mcp_get_nvm_image_att(p_hwfn, p_ptt, image_id, &image_att);
+	if (rc)
+		return rc;
+
+	/* Validate sizes - both the image's and the supplied buffer's */
+	if (image_att.length <= 4) {
+		DP_VERBOSE(p_hwfn, QED_MSG_STORAGE,
+			   "Image [%d] is too small - only %d bytes\n",
+			   image_id, image_att.length);
+		return -EINVAL;
+	}
+
+	/* Each NVM image is suffixed by CRC; Upper-layer has no need for it */
+	image_att.length -= 4;
+
+	if (image_att.length > buffer_len) {
+		DP_VERBOSE(p_hwfn,
+			   QED_MSG_STORAGE,
+			   "Image [%d] is too big - %08x bytes where only %08x are available\n",
+			   image_id, image_att.length, buffer_len);
+		return -ENOMEM;
+	}
+
+	return qed_mcp_nvm_read(p_hwfn->cdev, image_att.start_addr,
+				p_buffer, image_att.length);
 }
 
 static enum resource_id_enum qed_mcp_get_mfw_res_id(enum qed_resources res_id)

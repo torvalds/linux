@@ -269,6 +269,8 @@ int qed_fill_dev_info(struct qed_dev *cdev,
 		if (QED_LEADING_HWFN(cdev)->hw_info.b_wol_support ==
 		    QED_WOL_SUPPORT_PME)
 			dev_info->wol_support = true;
+
+		dev_info->abs_pf_id = QED_LEADING_HWFN(cdev)->abs_pf_id;
 	} else {
 		qed_vf_get_fw_version(&cdev->hwfns[0], &dev_info->fw_major,
 				      &dev_info->fw_minor, &dev_info->fw_rev,
@@ -1533,6 +1535,21 @@ static int qed_drain(struct qed_dev *cdev)
 	return 0;
 }
 
+static int qed_nvm_get_image(struct qed_dev *cdev, enum qed_nvm_images type,
+			     u8 *buf, u16 len)
+{
+	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_ptt *ptt = qed_ptt_acquire(hwfn);
+	int rc;
+
+	if (!ptt)
+		return -EAGAIN;
+
+	rc = qed_mcp_get_nvm_image(hwfn, ptt, type, buf, len);
+	qed_ptt_release(hwfn, ptt);
+	return rc;
+}
+
 static void qed_get_coalesce(struct qed_dev *cdev, u16 *rx_coal, u16 *tx_coal)
 {
 	*rx_coal = cdev->rx_coalesce_usecs;
@@ -1710,6 +1727,7 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.dbg_all_data_size = &qed_dbg_all_data_size,
 	.chain_alloc = &qed_chain_alloc,
 	.chain_free = &qed_chain_free,
+	.nvm_get_image = &qed_nvm_get_image,
 	.get_coalesce = &qed_get_coalesce,
 	.set_coalesce = &qed_set_coalesce,
 	.set_led = &qed_set_led,

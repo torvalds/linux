@@ -141,6 +141,15 @@ qed_sp_fcoe_func_start(struct qed_hwfn *p_hwfn,
 	p_data = &p_ramrod->init_ramrod_data;
 	fcoe_pf_params = &p_hwfn->pf_params.fcoe_pf_params;
 
+	/* Sanity */
+	if (fcoe_pf_params->num_cqs > p_hwfn->hw_info.feat_num[QED_FCOE_CQ]) {
+		DP_ERR(p_hwfn,
+		       "Cannot satisfy CQ amount. CQs requested %d, CQs available %d. Aborting function start\n",
+		       fcoe_pf_params->num_cqs,
+		       p_hwfn->hw_info.feat_num[QED_FCOE_CQ]);
+		return -EINVAL;
+	}
+
 	p_data->mtu = cpu_to_le16(fcoe_pf_params->mtu);
 	tmp = cpu_to_le16(fcoe_pf_params->sq_num_pbl_pages);
 	p_data->sq_num_pages_in_pbl = tmp;
@@ -738,6 +747,11 @@ static int qed_fill_fcoe_dev_info(struct qed_dev *cdev,
 	    qed_fcoe_get_primary_bdq_prod(hwfn, BDQ_ID_RQ);
 	info->secondary_bdq_rq_addr =
 	    qed_fcoe_get_secondary_bdq_prod(hwfn, BDQ_ID_RQ);
+
+	info->wwpn = hwfn->mcp_info->func_info.wwn_port;
+	info->wwnn = hwfn->mcp_info->func_info.wwn_node;
+
+	info->num_cqs = FEAT_NUM(hwfn, QED_FCOE_CQ);
 
 	return rc;
 }

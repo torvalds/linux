@@ -120,6 +120,7 @@ union ramrod_data {
 	struct iscsi_spe_func_dstry iscsi_destroy;
 	struct iscsi_spe_conn_offload iscsi_conn_offload;
 	struct iscsi_conn_update_ramrod_params iscsi_conn_update;
+	struct iscsi_spe_conn_mac_update iscsi_conn_mac_update;
 	struct iscsi_spe_conn_termination iscsi_conn_terminate;
 
 	struct vf_start_ramrod_data vf_start;

@@ -156,6 +156,11 @@ struct qed_dcbx_get {
 	struct qed_dcbx_admin_params local;
 };
 
+enum qed_nvm_images {
+	QED_NVM_IMAGE_ISCSI_CFG,
+	QED_NVM_IMAGE_FCOE_CFG,
+};
+
 enum qed_led_mode {
 	QED_LED_MODE_OFF,
 	QED_LED_MODE_ON,
@@ -360,6 +365,8 @@ struct qed_dev_info {
 	bool		vxlan_enable;
 	bool		gre_enable;
 	bool		geneve_enable;
+
+	u8		abs_pf_id;
 };
 
 enum qed_sb_type {
@@ -627,6 +634,19 @@ struct qed_common_ops {
 
 	void		(*chain_free)(struct qed_dev *cdev,
 				      struct qed_chain *p_chain);
+
+/**
+ * @brief nvm_get_image - reads an entire image from nvram
+ *
+ * @param cdev
+ * @param type - type of the request nvram image
+ * @param buf - preallocated buffer to fill with the image
+ * @param len - length of the allocated buffer
+ *
+ * @return 0 on success, error otherwise
+ */
+	int (*nvm_get_image)(struct qed_dev *cdev,
+			     enum qed_nvm_images type, u8 *buf, u16 len);
 
 /**
  * @brief get_coalesce - Get coalesce parameters in usec

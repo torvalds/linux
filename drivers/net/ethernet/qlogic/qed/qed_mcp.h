@@ -430,6 +430,27 @@ int qed_mcp_set_led(struct qed_hwfn *p_hwfn,
  */
 int qed_mcp_nvm_read(struct qed_dev *cdev, u32 addr, u8 *p_buf, u32 len);
 
+struct qed_nvm_image_att {
+	u32 start_addr;
+	u32 length;
+};
+
+/**
+ * @brief Allows reading a whole nvram image
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param image_id - image requested for reading
+ * @param p_buffer - allocated buffer into which to fill data
+ * @param buffer_len - length of the allocated buffer.
+ *
+ * @return 0 iff p_buffer now contains the nvram image.
+ */
+int qed_mcp_get_nvm_image(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt,
+			  enum qed_nvm_images image_id,
+			  u8 *p_buffer, u32 buffer_len);
+
 /**
  * @brief Bist register test
  *
