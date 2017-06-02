@@ -2946,7 +2946,8 @@ qla24xx_update_fw_options(scsi_qla_host_t *vha)
 	}
 
 	/* Move PUREX, ABTS RX & RIDA to ATIOQ */
-	if (ql2xmvasynctoatio) {
+	if (ql2xmvasynctoatio &&
+	    (IS_QLA83XX(ha) || IS_QLA27XX(ha))) {
 		if (qla_tgt_mode_enabled(vha) ||
 		    qla_dual_mode_enabled(vha))
 			ha->fw_options[2] |= BIT_11;
@@ -2958,7 +2959,9 @@ qla24xx_update_fw_options(scsi_qla_host_t *vha)
 		"%s, add FW options 1-3 = 0x%04x 0x%04x 0x%04x mode %x\n",
 		__func__, ha->fw_options[1], ha->fw_options[2],
 		ha->fw_options[3], vha->host->active_mode);
-	qla2x00_set_fw_options(vha, ha->fw_options);
+
+	if (ha->fw_options[1] || ha->fw_options[2] || ha->fw_options[3])
+		qla2x00_set_fw_options(vha, ha->fw_options);
 
 	/* Update Serial Link options. */
 	if ((le16_to_cpu(ha->fw_seriallink_options24[0]) & BIT_0) == 0)
