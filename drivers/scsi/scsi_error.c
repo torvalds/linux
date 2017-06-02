@@ -1628,11 +1628,17 @@ static void scsi_eh_offline_sdevs(struct list_head *work_q,
 				  struct list_head *done_q)
 {
 	struct scsi_cmnd *scmd, *next;
+	struct scsi_device *sdev;
 
 	list_for_each_entry_safe(scmd, next, work_q, eh_entry) {
 		sdev_printk(KERN_INFO, scmd->device, "Device offlined - "
 			    "not ready after error recovery\n");
-		scsi_device_set_state(scmd->device, SDEV_OFFLINE);
+		sdev = scmd->device;
+
+		mutex_lock(&sdev->state_mutex);
+		scsi_device_set_state(sdev, SDEV_OFFLINE);
+		mutex_unlock(&sdev->state_mutex);
+
 		scsi_eh_finish_cmd(scmd, done_q);
 	}
 	return;
