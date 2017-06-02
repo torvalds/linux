@@ -503,26 +503,23 @@ lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 				Did, vport->fc_flag, vport->fc_rscn_id_cnt);
 
 			/*
-			 * This NPortID was previously a FCP target,
+			 * This NPortID was previously a FCP/NVMe target,
 			 * Don't even bother to send GFF_ID.
 			 */
 			ndlp = lpfc_findnode_did(vport, Did);
-			if (ndlp && NLP_CHK_NODE_ACT(ndlp))
-				ndlp->nlp_fc4_type = fc4_type;
-
-			if (ndlp && NLP_CHK_NODE_ACT(ndlp)) {
-				ndlp->nlp_fc4_type = fc4_type;
-
-				if (ndlp->nlp_type & NLP_FCP_TARGET)
-					lpfc_setup_disc_node(vport, Did);
-
-				else if (lpfc_ns_cmd(vport, SLI_CTNS_GFF_ID,
-							0, Did) == 0)
-					vport->num_disc_nodes++;
-
-				else
-					lpfc_setup_disc_node(vport, Did);
-			}
+			if (ndlp && NLP_CHK_NODE_ACT(ndlp) &&
+			    (ndlp->nlp_type &
+			    (NLP_FCP_TARGET | NLP_NVME_TARGET))) {
+				if (fc4_type == FC_TYPE_FCP)
+					ndlp->nlp_fc4_type |= NLP_FC4_FCP;
+				if (fc4_type == FC_TYPE_NVME)
+					ndlp->nlp_fc4_type |= NLP_FC4_NVME;
+				lpfc_setup_disc_node(vport, Did);
+			} else if (lpfc_ns_cmd(vport, SLI_CTNS_GFF_ID,
+				   0, Did) == 0)
+				vport->num_disc_nodes++;
+			else
+				lpfc_setup_disc_node(vport, Did);
 		} else {
 			lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
 				"Skip2 GID_FTrsp: did:x%x flg:x%x cnt:%d",
