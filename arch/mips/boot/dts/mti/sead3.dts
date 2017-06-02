@@ -11,7 +11,6 @@
 	#size-cells = <1>;
 	compatible = "mti,sead-3";
 	model = "MIPS SEAD-3";
-	interrupt-parent = <&gic>;
 
 	chosen {
 		stdout-path = "serial1:115200";
@@ -60,6 +59,7 @@
 		compatible = "generic-ehci";
 		reg = <0x1b200000 0x1000>;
 
+		interrupt-parent = <&gic>;
 		interrupts = <0>; /* GIC 0 or CPU 6 */
 
 		has-transaction-translator;
@@ -222,6 +222,7 @@
 
 		clock-frequency = <14745600>;
 
+		interrupt-parent = <&gic>;
 		interrupts = <3>; /* GIC 3 or CPU 4 */
 
 		no-loopback-test;
@@ -236,6 +237,7 @@
 
 		clock-frequency = <14745600>;
 
+		interrupt-parent = <&gic>;
 		interrupts = <2>; /* GIC 2 or CPU 4 */
 
 		no-loopback-test;
@@ -246,6 +248,7 @@
 		reg = <0x1f010000 0x10000>;
 		reg-io-width = <4>;
 
+		interrupt-parent = <&gic>;
 		interrupts = <0>; /* GIC 0 or CPU 6 */
 
 		phy-mode = "mii";

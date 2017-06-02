@@ -87,14 +87,16 @@ static __init int remove_gic(void *fdt)
 		return -EINVAL;
 	}
 
-	err = fdt_setprop_u32(fdt, 0, "interrupt-parent", cpu_phandle);
-	if (err) {
-		pr_err("unable to set root interrupt-parent: %d\n", err);
-		return err;
-	}
-
 	uart_off = fdt_node_offset_by_compatible(fdt, -1, "ns16550a");
 	while (uart_off >= 0) {
+		err = fdt_setprop_u32(fdt, uart_off, "interrupt-parent",
+				      cpu_phandle);
+		if (err) {
+			pr_warn("unable to set UART interrupt-parent: %d\n",
+				err);
+			return err;
+		}
+
 		err = fdt_setprop_u32(fdt, uart_off, "interrupts",
 				      cpu_uart_int);
 		if (err) {
@@ -117,6 +119,12 @@ static __init int remove_gic(void *fdt)
 		return eth_off;
 	}
 
+	err = fdt_setprop_u32(fdt, eth_off, "interrupt-parent", cpu_phandle);
+	if (err) {
+		pr_err("unable to set ethernet interrupt-parent: %d\n", err);
+		return err;
+	}
+
 	err = fdt_setprop_u32(fdt, eth_off, "interrupts", cpu_eth_int);
 	if (err) {
 		pr_err("unable to set ethernet interrupts property: %d\n", err);
@@ -127,6 +135,12 @@ static __init int remove_gic(void *fdt)
 	if (ehci_off < 0) {
 		pr_err("unable to find EHCI DT node: %d\n", ehci_off);
 		return ehci_off;
+	}
+
+	err = fdt_setprop_u32(fdt, ehci_off, "interrupt-parent", cpu_phandle);
+	if (err) {
+		pr_err("unable to set EHCI interrupt-parent: %d\n", err);
+		return err;
 	}
 
 	err = fdt_setprop_u32(fdt, ehci_off, "interrupts", cpu_ehci_int);
