@@ -75,6 +75,7 @@ struct rvt_ibport {
 	__be64 mkey;
 	u64 tid;
 	u32 port_cap_flags;
+	u16 port_cap3_flags;
 	u32 pma_sample_start;
 	u32 pma_sample_interval;
 	__be16 pma_counter_select[5];

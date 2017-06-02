@@ -1537,9 +1537,13 @@ static void init_ibport(struct hfi1_pportdata *ppd)
 	/* Set the prefix to the default value (see ch. 4.1.1) */
 	ibp->rvp.gid_prefix = IB_DEFAULT_GID_PREFIX;
 	ibp->rvp.sm_lid = 0;
-	/* Below should only set bits defined in OPA PortInfo.CapabilityMask */
+	/*
+	 * Below should only set bits defined in OPA PortInfo.CapabilityMask
+	 * and PortInfo.CapabilityMask3
+	 */
 	ibp->rvp.port_cap_flags = IB_PORT_AUTO_MIGR_SUP |
 		IB_PORT_CAP_MASK_NOTICE_SUP;
+	ibp->rvp.port_cap3_flags = OPA_CAP_MASK3_IsSharedSpaceSupported;
 	ibp->rvp.pma_counter_select[0] = IB_PMA_PORT_XMIT_DATA;
 	ibp->rvp.pma_counter_select[1] = IB_PMA_PORT_RCV_DATA;
 	ibp->rvp.pma_counter_select[2] = IB_PMA_PORT_XMIT_PKTS;

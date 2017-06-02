@@ -260,6 +260,7 @@ void hfi1_cap_mask_chg(struct rvt_dev_info *rdi, u8 port_num)
 	data.issuer_lid = cpu_to_be32(lid);
 	data.ntc_144.lid = data.issuer_lid;
 	data.ntc_144.new_cap_mask = cpu_to_be32(ibp->rvp.port_cap_flags);
+	data.ntc_144.cap_mask3 = cpu_to_be16(ibp->rvp.port_cap3_flags);
 
 	send_trap(ibp, &data, sizeof(data));
 }
@@ -704,11 +705,7 @@ static int __subn_get_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 	buffer_units |= (dd->vl15_init << 11) & OPA_PI_MASK_BUF_UNIT_VL15_INIT;
 	pi->buffer_units = cpu_to_be32(buffer_units);
 
-	pi->opa_cap_mask = cpu_to_be16(OPA_CAP_MASK3_IsSharedSpaceSupported |
-				       OPA_CAP_MASK3_IsEthOnFabricSupported);
-	/* Driver does not support mcast/collective configuration */
-	pi->opa_cap_mask &=
-		cpu_to_be16(~OPA_CAP_MASK3_IsAddrRangeConfigSupported);
+	pi->opa_cap_mask = cpu_to_be16(ibp->rvp.port_cap3_flags);
 	pi->collectivemask_multicastmask = ((HFI1_COLLECTIVE_NR & 0x7)
 					    << 3 | (HFI1_MCAST_NR & 0x7));
 
