@@ -124,7 +124,8 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 	}
 
 	/* if PCI error, then avoid mbx processing.*/
-	if (test_bit(PCI_ERR, &base_vha->dpc_flags)) {
+	if (test_bit(PFLG_DISCONNECTED, &base_vha->dpc_flags) &&
+	    test_bit(UNLOADING, &base_vha->dpc_flags)) {
 		ql_log(ql_log_warn, vha, 0x1191,
 		    "PCI error, exiting.\n");
 		return QLA_FUNCTION_TIMEOUT;
@@ -384,8 +385,6 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 				 * then only PCI ERR flag would be set.
 				 * we will do premature exit for above case.
 				 */
-				if (test_bit(UNLOADING, &base_vha->dpc_flags))
-					set_bit(PCI_ERR, &base_vha->dpc_flags);
 				ha->flags.mbox_busy = 0;
 				rval = QLA_FUNCTION_TIMEOUT;
 				goto premature_exit;
