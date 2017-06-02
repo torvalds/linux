@@ -473,8 +473,8 @@ static inline int scsi_device_created(struct scsi_device *sdev)
 }
 
 int scsi_internal_device_block_nowait(struct scsi_device *sdev);
-int scsi_internal_device_unblock(struct scsi_device *sdev,
-				 enum scsi_device_state new_state);
+int scsi_internal_device_unblock_nowait(struct scsi_device *sdev,
+					enum scsi_device_state new_state);
 
 /* accessor functions for the SCSI parameters */
 static inline int scsi_device_sync(struct scsi_device *sdev)
