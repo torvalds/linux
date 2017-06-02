@@ -701,7 +701,7 @@ static struct clk_gate gxbb_sar_adc_clk = {
  */
 
 static u32 mux_table_mali_0_1[] = {0, 1, 2, 3, 4, 5, 6, 7};
-static const char *gxbb_mali_0_1_parent_names[] = {
+static const char * const gxbb_mali_0_1_parent_names[] = {
 	"xtal", "gp0_pll", "mpll2", "mpll1", "fclk_div7",
 	"fclk_div4", "fclk_div3", "fclk_div5"
 };
@@ -801,7 +801,7 @@ static struct clk_gate gxbb_mali_1 = {
 };
 
 static u32 mux_table_mali[] = {0, 1};
-static const char *gxbb_mali_parent_names[] = {
+static const char * const gxbb_mali_parent_names[] = {
 	"mali_0", "mali_1"
 };
 
@@ -953,7 +953,7 @@ static struct clk_gate gxbb_32k_clk = {
 	},
 };
 
-static const char *gxbb_32k_clk_parent_names[] = {
+static const char * const gxbb_32k_clk_parent_names[] = {
 	"xtal", "cts_slow_oscin", "fclk_div3", "fclk_div5"
 };
 
