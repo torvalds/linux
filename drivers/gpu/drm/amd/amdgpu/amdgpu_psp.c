@@ -435,16 +435,11 @@ static int psp_hw_fini(void *handle)
 
 	psp_ring_destroy(psp, PSP_RING_TYPE__KM);
 
-	if (psp->tmr_buf)
-		amdgpu_bo_free_kernel(&psp->tmr_bo, &psp->tmr_mc_addr, &psp->tmr_buf);
-
-	if (psp->fw_pri_buf)
-		amdgpu_bo_free_kernel(&psp->fw_pri_bo,
-				      &psp->fw_pri_mc_addr, &psp->fw_pri_buf);
-
-	if (psp->fence_buf_bo)
-		amdgpu_bo_free_kernel(&psp->fence_buf_bo,
-				      &psp->fence_buf_mc_addr, &psp->fence_buf);
+	amdgpu_bo_free_kernel(&psp->tmr_bo, &psp->tmr_mc_addr, &psp->tmr_buf);
+	amdgpu_bo_free_kernel(&psp->fw_pri_bo,
+			      &psp->fw_pri_mc_addr, &psp->fw_pri_buf);
+	amdgpu_bo_free_kernel(&psp->fence_buf_bo,
+			      &psp->fence_buf_mc_addr, &psp->fence_buf);
 
 	kfree(psp->cmd);
 	psp->cmd = NULL;

@@ -341,10 +341,10 @@ int psp_v3_1_ring_destroy(struct psp_context *psp, enum psp_ring_type ring_type)
 	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64),
 			   0x80000000, 0x80000000, false);
 
-	if (ring->ring_mem)
-		amdgpu_bo_free_kernel(&adev->firmware.rbuf,
-				      &ring->ring_mem_mc_addr,
-				      (void **)&ring->ring_mem);
+	amdgpu_bo_free_kernel(&adev->firmware.rbuf,
+			      &ring->ring_mem_mc_addr,
+			      (void **)&ring->ring_mem);
+
 	return ret;
 }
 
