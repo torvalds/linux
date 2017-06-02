@@ -138,6 +138,14 @@ static __init int remove_gic(void *fdt)
 	return 0;
 }
 
+static const struct mips_fdt_fixup sead3_fdt_fixups[] __initconst = {
+	{ yamon_dt_append_cmdline, "append command line" },
+	{ append_memory, "append memory" },
+	{ remove_gic, "remove GIC when not present" },
+	{ yamon_dt_serial_config, "append serial configuration" },
+	{ },
+};
+
 static __init const void *sead3_fixup_fdt(const void *fdt,
 					  const void *match_data)
 {
@@ -152,29 +160,10 @@ static __init const void *sead3_fixup_fdt(const void *fdt,
 
 	fw_init_cmdline();
 
-	err = fdt_open_into(fdt, fdt_buf, sizeof(fdt_buf));
+	err = apply_mips_fdt_fixups(fdt_buf, sizeof(fdt_buf),
+				    fdt, sead3_fdt_fixups);
 	if (err)
-		panic("Unable to open FDT: %d", err);
-
-	err = yamon_dt_append_cmdline(fdt_buf);
-	if (err)
-		panic("Unable to patch FDT: %d", err);
-
-	err = append_memory(fdt_buf);
-	if (err)
-		panic("Unable to patch FDT: %d", err);
-
-	err = remove_gic(fdt_buf);
-	if (err)
-		panic("Unable to patch FDT: %d", err);
-
-	err = yamon_dt_serial_config(fdt_buf);
-	if (err)
-		panic("Unable to patch FDT: %d", err);
-
-	err = fdt_pack(fdt_buf);
-	if (err)
-		panic("Unable to pack FDT: %d\n", err);
+		panic("Unable to fixup FDT: %d", err);
 
 	return fdt_buf;
 }
