@@ -1498,6 +1498,7 @@ vmw_kms_new_framebuffer(struct vmw_private *dev_priv,
 	 */
 	if (vmw_kms_srf_ok(dev_priv, mode_cmd->width, mode_cmd->height)  &&
 	    dmabuf && only_2d &&
+	    mode_cmd->width > 64 &&  /* Don't create a proxy for cursor */
 	    dev_priv->active_display_unit == vmw_du_screen_target) {
 		ret = vmw_create_dmabuf_proxy(dev_priv->dev, mode_cmd,
 					      dmabuf, &surface);
