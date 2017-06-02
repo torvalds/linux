@@ -495,7 +495,7 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 	nouveau_fbcon_init(dev);
 	nouveau_led_init(dev);
 
-	if (nouveau_runtime_pm != 0) {
+	if (nouveau_pmops_runtime()) {
 		pm_runtime_use_autosuspend(dev->dev);
 		pm_runtime_set_autosuspend_delay(dev->dev, 5000);
 		pm_runtime_set_active(dev->dev);
@@ -527,7 +527,7 @@ nouveau_drm_unload(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 
-	if (nouveau_runtime_pm != 0) {
+	if (nouveau_pmops_runtime()) {
 		pm_runtime_get_sync(dev->dev);
 		pm_runtime_forbid(dev->dev);
 	}
