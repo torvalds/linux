@@ -257,8 +257,10 @@ bool mod_freesync_add_stream(struct mod_freesync *mod_freesync,
 		nom_refresh_rate_micro_hz = (unsigned int) temp;
 
 		if (core_freesync->opts.min_refresh_from_edid != 0 &&
-				dc_is_embedded_signal(
-					stream->sink->sink_signal)) {
+				dc_is_embedded_signal(stream->sink->sink_signal)
+				&& (nom_refresh_rate_micro_hz -
+				core_freesync->opts.min_refresh_from_edid *
+				1000000) >= 10000000) {
 			caps->supported = true;
 			caps->min_refresh_in_micro_hz =
 				core_freesync->opts.min_refresh_from_edid *
@@ -683,9 +685,20 @@ static void set_static_ramp_variables(struct core_freesync *core_freesync,
 		unsigned int index, bool enable_static_screen)
 {
 	unsigned int frame_duration = 0;
-
+	unsigned int nominal_refresh_rate = core_freesync->map[index].state.
+			nominal_refresh_rate_in_micro_hz;
+	unsigned int min_refresh_rate= core_freesync->map[index].caps->
+			min_refresh_in_micro_hz;
 	struct gradual_static_ramp *static_ramp_variables =
 			&core_freesync->map[index].state.static_ramp;
+
+	/* If we are ENABLING static screen, refresh rate should go DOWN.
+	 * If we are DISABLING static screen, refresh rate should go UP.
+	 */
+	if (enable_static_screen)
+		static_ramp_variables->ramp_direction_is_up = false;
+	else
+		static_ramp_variables->ramp_direction_is_up = true;
 
 	/* If ramp is not active, set initial frame duration depending on
 	 * whether we are enabling/disabling static screen mode. If the ramp is
@@ -693,34 +706,26 @@ static void set_static_ramp_variables(struct core_freesync *core_freesync,
 	 * starting with the current frame duration
 	 */
 	if (!static_ramp_variables->ramp_is_active) {
-
-		static_ramp_variables->ramp_is_active = true;
-
 		if (enable_static_screen == true) {
 			/* Going to lower refresh rate, so start from max
 			 * refresh rate (min frame duration)
 			 */
 			frame_duration = ((unsigned int) (div64_u64(
 				(1000000000ULL * 1000000),
-				core_freesync->map[index].state.
-				nominal_refresh_rate_in_micro_hz)));
+				nominal_refresh_rate)));
 		} else {
 			/* Going to higher refresh rate, so start from min
 			 * refresh rate (max frame duration)
 			 */
 			frame_duration = ((unsigned int) (div64_u64(
 				(1000000000ULL * 1000000),
-				core_freesync->map[index].caps->min_refresh_in_micro_hz)));
+				min_refresh_rate)));
 		}
-
 		static_ramp_variables->
 			ramp_current_frame_duration_in_ns = frame_duration;
-	}
 
-	/* If we are ENABLING static screen, refresh rate should go DOWN.
-	 * If we are DISABLING static screen, refresh rate should go UP.
-	 */
-	static_ramp_variables->ramp_direction_is_up = !enable_static_screen;
+		static_ramp_variables->ramp_is_active = true;
+	}
 }
 
 void mod_freesync_handle_v_update(struct mod_freesync *mod_freesync,
@@ -841,6 +846,7 @@ void mod_freesync_update_state(struct mod_freesync *mod_freesync,
 	unsigned int stream_index;
 	struct freesync_state *state;
 	struct core_freesync *core_freesync = NULL;
+	struct dc_static_screen_events triggers = {0};
 
 	if (mod_freesync == NULL)
 		return;
@@ -901,6 +907,14 @@ void mod_freesync_update_state(struct mod_freesync *mod_freesync,
 			break;
 		}
 	}
+
+	/* Update mask */
+	triggers.overlay_update = true;
+	triggers.surface_update = true;
+
+	core_freesync->dc->stream_funcs.set_static_screen_events(
+		core_freesync->dc, streams, num_streams,
+		&triggers);
 
 	if (freesync_program_required)
 		/* Program freesync according to current state*/
@@ -1017,7 +1031,8 @@ bool mod_freesync_get_user_enable(struct mod_freesync *mod_freesync,
 bool mod_freesync_override_min_max(struct mod_freesync *mod_freesync,
 		const struct dc_stream *streams,
 		unsigned int min_refresh,
-		unsigned int max_refresh)
+		unsigned int max_refresh,
+		struct mod_freesync_caps *caps)
 {
 	unsigned int index = 0;
 	struct core_freesync *core_freesync;
@@ -1030,7 +1045,10 @@ bool mod_freesync_override_min_max(struct mod_freesync *mod_freesync,
 	index = map_index_from_stream(core_freesync, streams);
 	state = &core_freesync->map[index].state;
 
-	if (min_refresh == 0 || max_refresh == 0) {
+	if (max_refresh == 0)
+		max_refresh = state->nominal_refresh_rate_in_micro_hz;
+
+	if (min_refresh == 0) {
 		/* Restore defaults */
 		calc_freesync_range(core_freesync, streams, state,
 			core_freesync->map[index].caps->
@@ -1048,6 +1066,17 @@ bool mod_freesync_override_min_max(struct mod_freesync *mod_freesync,
 			state->freesync_range.vmin,
 			state->freesync_range.vmax);
 	}
+
+	if (min_refresh != 0 &&
+			dc_is_embedded_signal(streams->sink->sink_signal) &&
+			(max_refresh - min_refresh >= 10000000)) {
+		caps->supported = true;
+		caps->min_refresh_in_micro_hz = min_refresh;
+		caps->max_refresh_in_micro_hz = max_refresh;
+	}
+
+	/* Update the stream */
+	update_stream(core_freesync, streams);
 
 	return true;
 }
@@ -1115,8 +1144,8 @@ bool mod_freesync_get_v_position(struct mod_freesync *mod_freesync,
 			core_freesync->dc, &stream, 1,
 			&position.vertical_count, &position.nominal_vcount)) {
 
-		*nom_v_pos = position.vertical_count;
-		*v_pos = position.nominal_vcount;
+		*nom_v_pos = position.nominal_vcount;
+		*v_pos = position.vertical_count;
 
 		return true;
 	}
@@ -1131,6 +1160,7 @@ void mod_freesync_notify_mode_change(struct mod_freesync *mod_freesync,
 	struct freesync_state *state;
 	struct core_freesync *core_freesync = NULL;
 	struct dc_static_screen_events triggers = {0};
+	unsigned long long temp = 0;
 
 	if (mod_freesync == NULL)
 		return;
@@ -1143,21 +1173,20 @@ void mod_freesync_notify_mode_change(struct mod_freesync *mod_freesync,
 
 		state = &core_freesync->map[map_index].state;
 
+		/* Update the field rate for new timing */
+		temp = streams[stream_index]->timing.pix_clk_khz;
+		temp *= 1000ULL * 1000ULL * 1000ULL;
+		temp = div_u64(temp,
+				streams[stream_index]->timing.h_total);
+		temp = div_u64(temp,
+				streams[stream_index]->timing.v_total);
+		state->nominal_refresh_rate_in_micro_hz =
+				(unsigned int) temp;
+
 		if (core_freesync->map[map_index].caps->supported) {
-			/* Update the field rate for new timing */
-			unsigned long long temp;
-			temp = streams[stream_index]->timing.pix_clk_khz;
-			temp *= 1000ULL * 1000ULL * 1000ULL;
-			temp = div_u64(temp,
-					streams[stream_index]->timing.h_total);
-			temp = div_u64(temp,
-					streams[stream_index]->timing.v_total);
-			state->nominal_refresh_rate_in_micro_hz =
-					(unsigned int) temp;
 
 			/* Update the stream */
 			update_stream(core_freesync, streams[stream_index]);
-
 
 			/* Calculate vmin/vmax and refresh rate for
 			 * current mode

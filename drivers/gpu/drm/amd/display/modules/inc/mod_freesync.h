@@ -132,7 +132,8 @@ bool mod_freesync_get_user_enable(struct mod_freesync *mod_freesync,
 bool mod_freesync_override_min_max(struct mod_freesync *mod_freesync,
 		const struct dc_stream *streams,
 		unsigned int min_refresh,
-		unsigned int max_refresh);
+		unsigned int max_refresh,
+		struct mod_freesync_caps *caps);
 
 bool mod_freesync_get_min_max(struct mod_freesync *mod_freesync,
 		const struct dc_stream *stream,
