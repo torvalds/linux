@@ -223,10 +223,24 @@ static inline unsigned long fadump_calculate_reserve_size(void)
 	ret = parse_crashkernel(boot_command_line, memblock_phys_mem_size(),
 				&size, &base);
 	if (ret == 0 && size > 0) {
+		unsigned long max_size;
+
 		if (fw_dump.reserve_bootvar)
 			pr_info("Using 'crashkernel=' parameter for memory reservation.\n");
 
 		fw_dump.reserve_bootvar = (unsigned long)size;
+
+		/*
+		 * Adjust if the boot memory size specified is above
+		 * the upper limit.
+		 */
+		max_size = memblock_phys_mem_size() / MAX_BOOT_MEM_RATIO;
+		if (fw_dump.reserve_bootvar > max_size) {
+			fw_dump.reserve_bootvar = max_size;
+			pr_info("Adjusted boot memory size to %luMB\n",
+				(fw_dump.reserve_bootvar >> 20));
+		}
+
 		return fw_dump.reserve_bootvar;
 	} else if (fw_dump.reserve_bootvar) {
 		/*
@@ -237,7 +251,7 @@ static inline unsigned long fadump_calculate_reserve_size(void)
 	}
 
 	/* divide by 20 to get 5% of value */
-	size = memblock_end_of_DRAM() / 20;
+	size = memblock_phys_mem_size() / 20;
 
 	/* round it down in multiples of 256 */
 	size = size & ~0x0FFFFFFFUL;

@@ -43,6 +43,9 @@
 #define MIN_BOOT_MEM	(((RMA_END < (0x1UL << 28)) ? (0x1UL << 28) : RMA_END) \
 			+ (0x1UL << 26))
 
+/* The upper limit percentage for user specified boot memory size (25%) */
+#define MAX_BOOT_MEM_RATIO			4
+
 #define memblock_num_regions(memblock_type)	(memblock.memblock_type.cnt)
 
 /* Firmware provided dump sections */
