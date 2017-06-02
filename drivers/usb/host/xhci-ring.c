@@ -480,6 +480,30 @@ struct xhci_ring *xhci_triad_to_transfer_ring(struct xhci_hcd *xhci,
 	return NULL;
 }
 
+
+/*
+ * Get the hw dequeue pointer xHC stopped on, either directly from the
+ * endpoint context, or if streams are in use from the stream context.
+ * The returned hw_dequeue contains the lowest four bits with cycle state
+ * and possbile stream context type.
+ */
+static u64 xhci_get_hw_deq(struct xhci_hcd *xhci, struct xhci_virt_device *vdev,
+			   unsigned int ep_index, unsigned int stream_id)
+{
+	struct xhci_ep_ctx *ep_ctx;
+	struct xhci_stream_ctx *st_ctx;
+	struct xhci_virt_ep *ep;
+
+	ep = &vdev->eps[ep_index];
+
+	if (ep->ep_state & EP_HAS_STREAMS) {
+		st_ctx = &ep->stream_info->stream_ctx_array[stream_id];
+		return le64_to_cpu(st_ctx->stream_ring);
+	}
+	ep_ctx = xhci_get_ep_ctx(xhci, vdev->out_ctx, ep_index);
+	return le64_to_cpu(ep_ctx->deq);
+}
+
 /*
  * Move the xHC's endpoint ring dequeue pointer past cur_td.
  * Record the new state of the xHC's endpoint ring dequeue segment,
@@ -521,21 +545,11 @@ void xhci_find_new_dequeue_state(struct xhci_hcd *xhci,
 				stream_id);
 		return;
 	}
-
 	/* Dig out the cycle state saved by the xHC during the stop ep cmd */
 	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
 			"Finding endpoint context");
-	/* 4.6.9 the css flag is written to the stream context for streams */
-	if (ep->ep_state & EP_HAS_STREAMS) {
-		struct xhci_stream_ctx *ctx =
-			&ep->stream_info->stream_ctx_array[stream_id];
-		hw_dequeue = le64_to_cpu(ctx->stream_ring);
-	} else {
-		struct xhci_ep_ctx *ep_ctx
-			= xhci_get_ep_ctx(xhci, dev->out_ctx, ep_index);
-		hw_dequeue = le64_to_cpu(ep_ctx->deq);
-	}
 
+	hw_dequeue = xhci_get_hw_deq(xhci, dev, ep_index, stream_id);
 	new_seg = ep_ring->deq_seg;
 	new_deq = ep_ring->dequeue;
 	state->new_cycle_state = hw_dequeue & 0x1;
