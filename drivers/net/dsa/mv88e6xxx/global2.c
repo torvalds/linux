@@ -20,8 +20,6 @@
 #include "global1.h" /* for GLOBAL_STATUS_IRQ_DEVICE */
 #include "global2.h"
 
-#define ADDR_GLOBAL2	0x1c
-
 static int mv88e6xxx_g2_read(struct mv88e6xxx_chip *chip, int reg, u16 *val)
 {
 	return mv88e6xxx_read(chip, ADDR_GLOBAL2, reg, val);
