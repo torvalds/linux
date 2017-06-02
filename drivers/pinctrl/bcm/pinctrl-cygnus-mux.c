@@ -1,8 +1,5 @@
 /*
- * Broadcom Cygnus IOMUX driver
- *
- * Author: Ray Jui <rjui@broadcom.com>
- * Copyright (C) 2014-2015 Broadcom Corporation
+ * Copyright (C) 2014-2017 Broadcom
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -12,6 +9,10 @@
  * kind, whether express or implied; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
+ */
+
+/*
+ * Broadcom Cygnus IOMUX driver
  *
  * This file contains the Cygnus IOMUX driver that supports group based PINMUX
  * configuration. Although PINMUX configuration is mainly group based, the

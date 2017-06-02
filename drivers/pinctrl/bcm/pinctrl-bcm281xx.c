@@ -1,11 +1,5 @@
 /*
- * Broadcom BCM281xx pinctrl driver
- *
- * Author(s):
- *	Sherman Yin <syin@broadcom.com>
- *	Broadcom Corporation <bcm-kernel-feedback-list@broadcom.com>
- *
- * Copyright (C) 2013 Broadcom Corporation
+ * Copyright (C) 2013-2017 Broadcom
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -16,6 +10,7 @@
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/init.h>
