@@ -56,6 +56,8 @@ enum stdu_content_type {
  * @right: Right side of bounding box.
  * @top: Top side of bounding box.
  * @bottom: Bottom side of bounding box.
+ * @fb_left: Left side of the framebuffer/content bounding box
+ * @fb_top: Top of the framebuffer/content bounding box
  * @buf: DMA buffer when DMA-ing between buffer and screen targets.
  * @sid: Surface ID when copying between surface and screen targets.
  */
@@ -63,6 +65,7 @@ struct vmw_stdu_dirty {
 	struct vmw_kms_dirty base;
 	SVGA3dTransferType  transfer;
 	s32 left, right, top, bottom;
+	s32 fb_left, fb_top;
 	u32 pitch;
 	union {
 		struct vmw_dma_buffer *buf;
@@ -647,7 +650,7 @@ static void vmw_stdu_dmabuf_fifo_commit(struct vmw_kms_dirty *dirty)
  *
  * @dirty: The closure structure.
  *
- * This function calculates the bounding box for all the incoming clips
+ * This function calculates the bounding box for all the incoming clips.
  */
 static void vmw_stdu_dmabuf_cpu_clip(struct vmw_kms_dirty *dirty)
 {
@@ -656,11 +659,19 @@ static void vmw_stdu_dmabuf_cpu_clip(struct vmw_kms_dirty *dirty)
 
 	dirty->num_hits = 1;
 
-	/* Calculate bounding box */
+	/* Calculate destination bounding box */
 	ddirty->left = min_t(s32, ddirty->left, dirty->unit_x1);
 	ddirty->top = min_t(s32, ddirty->top, dirty->unit_y1);
 	ddirty->right = max_t(s32, ddirty->right, dirty->unit_x2);
 	ddirty->bottom = max_t(s32, ddirty->bottom, dirty->unit_y2);
+
+	/*
+	 * Calculate content bounding box.  We only need the top-left
+	 * coordinate because width and height will be the same as the
+	 * destination bounding box above
+	 */
+	ddirty->fb_left = min_t(s32, ddirty->fb_left, dirty->fb_x);
+	ddirty->fb_top  = min_t(s32, ddirty->fb_top, dirty->fb_y);
 }
 
 
@@ -697,11 +708,11 @@ static void vmw_stdu_dmabuf_cpu_commit(struct vmw_kms_dirty *dirty)
 	/* Assume we are blitting from Host (display_srf) to Guest (dmabuf) */
 	src_pitch = stdu->display_srf->base_size.width * stdu->cpp;
 	src = ttm_kmap_obj_virtual(&stdu->host_map, &not_used);
-	src += dirty->unit_y1 * src_pitch + dirty->unit_x1 * stdu->cpp;
+	src += ddirty->top * src_pitch + ddirty->left * stdu->cpp;
 
 	dst_pitch = ddirty->pitch;
 	dst = ttm_kmap_obj_virtual(&stdu->guest_map, &not_used);
-	dst += dirty->fb_y * dst_pitch + dirty->fb_x * stdu->cpp;
+	dst += ddirty->fb_top * dst_pitch + ddirty->fb_left * stdu->cpp;
 
 
 	/* Figure out the real direction */
@@ -760,7 +771,7 @@ static void vmw_stdu_dmabuf_cpu_commit(struct vmw_kms_dirty *dirty)
 	}
 
 out_cleanup:
-	ddirty->left = ddirty->top = S32_MAX;
+	ddirty->left = ddirty->top = ddirty->fb_left = ddirty->fb_top = S32_MAX;
 	ddirty->right = ddirty->bottom = S32_MIN;
 }
 
@@ -812,6 +823,7 @@ int vmw_kms_stdu_dma(struct vmw_private *dev_priv,
 		SVGA3D_READ_HOST_VRAM;
 	ddirty.left = ddirty.top = S32_MAX;
 	ddirty.right = ddirty.bottom = S32_MIN;
+	ddirty.fb_left = ddirty.fb_top = S32_MAX;
 	ddirty.pitch = vfb->base.pitches[0];
 	ddirty.buf = buf;
 	ddirty.base.fifo_commit = vmw_stdu_dmabuf_fifo_commit;
