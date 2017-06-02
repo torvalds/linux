@@ -171,7 +171,7 @@
  * to be exposed to client nodes in DT: include/dt-bindings/clock/gxbb-clkc.h
  */
 #define CLKID_SYS_PLL		  0
-/* CLKID_CPUCLK */
+/* ID 1 is unused (it was used by the non-existing CLKID_CPUCLK before) */
 /* CLKID_HDMI_PLL */
 #define CLKID_FIXED_PLL		  3
 /* CLKID_FCLK_DIV2 */
@@ -191,12 +191,12 @@
 #define CLKID_ISA		  18
 #define CLKID_PL301		  19
 #define CLKID_PERIPHS		  20
-#define CLKID_SPICC		  21
+/* CLKID_SPICC */
 /* CLKID_I2C */
 /* #define CLKID_SAR_ADC */
 #define CLKID_SMART_CARD	  24
 /* CLKID_RNG0 */
-#define CLKID_UART0		  26
+/* CLKID_UART0 */
 #define CLKID_SDHC		  27
 #define CLKID_STREAM		  28
 #define CLKID_ASYNC_FIFO	  29
@@ -209,7 +209,7 @@
 /* CLKID_ETH */
 #define CLKID_DEMUX		  37
 /* CLKID_AIU_GLUE */
-#define CLKID_IEC958		  39
+/* CLKID_IEC958 */
 /* CLKID_I2S_OUT */
 #define CLKID_AMCLK		  41
 #define CLKID_AIFIFO2		  42
@@ -218,7 +218,7 @@
 #define CLKID_ADC		  45
 #define CLKID_BLKMV		  46
 /* CLKID_AIU */
-#define CLKID_UART1		  48
+/* CLKID_UART1 */
 #define CLKID_G2D		  49
 /* CLKID_USB0 */
 /* CLKID_USB1 */
@@ -238,7 +238,7 @@
 /* CLKID_USB0_DDR_BRIDGE */
 #define CLKID_MMC_PCLK		  66
 #define CLKID_DVIN		  67
-#define CLKID_UART2		  68
+/* CLKID_UART2 */
 /* #define CLKID_SANA */
 #define CLKID_VPU_INTR		  70
 #define CLKID_SEC_AHB_AHB3_BRIDGE 71
@@ -251,7 +251,7 @@
 #define CLKID_GCLK_VENCI_INT	  78
 #define CLKID_DAC_CLK		  79
 /* CLKID_AOCLK_GATE */
-#define CLKID_IEC958_GATE	  81
+/* CLKID_IEC958_GATE */
 #define CLKID_ENC480P		  82
 #define CLKID_RNG1		  83
 #define CLKID_GCLK_VENCI_INT1	  84
@@ -277,15 +277,18 @@
 #define CLKID_MALI_1_DIV	 104
 /* CLKID_MALI_1	*/
 /* CLKID_MALI	*/
-#define CLKID_CTS_AMCLK		  107
+/* CLKID_CTS_AMCLK */
 #define CLKID_CTS_AMCLK_SEL	  108
 #define CLKID_CTS_AMCLK_DIV	  109
-#define CLKID_CTS_MCLK_I958	  110
+/* CLKID_CTS_MCLK_I958 */
 #define CLKID_CTS_MCLK_I958_SEL	  111
 #define CLKID_CTS_MCLK_I958_DIV	  112
-#define CLKID_CTS_I958		  113
+/* CLKID_CTS_I958 */
+#define CLKID_32K_CLK		  114
+#define CLKID_32K_CLK_SEL	  115
+#define CLKID_32K_CLK_DIV	  116
 
-#define NR_CLKS			  114
+#define NR_CLKS			  117
 
 /* include the CLKIDs that have been made part of the stable DT binding */
 #include <dt-bindings/clock/gxbb-clkc.h>
