@@ -1327,6 +1327,33 @@ static void snd_timer_user_tinterrupt(struct snd_timer_instance *timeri,
 	wake_up(&tu->qchange_sleep);
 }
 
+static int realloc_user_queue(struct snd_timer_user *tu, int size)
+{
+	struct snd_timer_read *queue = NULL;
+	struct snd_timer_tread *tqueue = NULL;
+
+	if (tu->tread) {
+		tqueue = kcalloc(size, sizeof(*tqueue), GFP_KERNEL);
+		if (!tqueue)
+			return -ENOMEM;
+	} else {
+		queue = kcalloc(size, sizeof(*queue), GFP_KERNEL);
+		if (!queue)
+			return -ENOMEM;
+	}
+
+	spin_lock_irq(&tu->qlock);
+	kfree(tu->queue);
+	kfree(tu->tqueue);
+	tu->queue_size = size;
+	tu->queue = queue;
+	tu->tqueue = tqueue;
+	tu->qhead = tu->qtail = tu->qused = 0;
+	spin_unlock_irq(&tu->qlock);
+
+	return 0;
+}
+
 static int snd_timer_user_open(struct inode *inode, struct file *file)
 {
 	struct snd_timer_user *tu;
@@ -1343,10 +1370,7 @@ static int snd_timer_user_open(struct inode *inode, struct file *file)
 	init_waitqueue_head(&tu->qchange_sleep);
 	mutex_init(&tu->ioctl_lock);
 	tu->ticks = 1;
-	tu->queue_size = 128;
-	tu->queue = kmalloc(tu->queue_size * sizeof(struct snd_timer_read),
-			    GFP_KERNEL);
-	if (tu->queue == NULL) {
+	if (realloc_user_queue(tu, 128) < 0) {
 		kfree(tu);
 		return -ENOMEM;
 	}
@@ -1618,34 +1642,12 @@ static int snd_timer_user_tselect(struct file *file,
 	if (err < 0)
 		goto __err;
 
-	tu->qhead = tu->qtail = tu->qused = 0;
-	kfree(tu->queue);
-	tu->queue = NULL;
-	kfree(tu->tqueue);
-	tu->tqueue = NULL;
-	if (tu->tread) {
-		tu->tqueue = kmalloc(tu->queue_size * sizeof(struct snd_timer_tread),
-				     GFP_KERNEL);
-		if (tu->tqueue == NULL)
-			err = -ENOMEM;
-	} else {
-		tu->queue = kmalloc(tu->queue_size * sizeof(struct snd_timer_read),
-				    GFP_KERNEL);
-		if (tu->queue == NULL)
-			err = -ENOMEM;
-	}
-
-      	if (err < 0) {
-		snd_timer_close(tu->timeri);
-      		tu->timeri = NULL;
-      	} else {
-		tu->timeri->flags |= SNDRV_TIMER_IFLG_FAST;
-		tu->timeri->callback = tu->tread
+	tu->timeri->flags |= SNDRV_TIMER_IFLG_FAST;
+	tu->timeri->callback = tu->tread
 			? snd_timer_user_tinterrupt : snd_timer_user_interrupt;
-		tu->timeri->ccallback = snd_timer_user_ccallback;
-		tu->timeri->callback_data = (void *)tu;
-		tu->timeri->disconnect = snd_timer_user_disconnect;
-	}
+	tu->timeri->ccallback = snd_timer_user_ccallback;
+	tu->timeri->callback_data = (void *)tu;
+	tu->timeri->disconnect = snd_timer_user_disconnect;
 
       __err:
 	return err;
@@ -1687,8 +1689,6 @@ static int snd_timer_user_params(struct file *file,
 	struct snd_timer_user *tu;
 	struct snd_timer_params params;
 	struct snd_timer *t;
-	struct snd_timer_read *tr;
-	struct snd_timer_tread *ttr;
 	int err;
 
 	tu = file->private_data;
@@ -1751,23 +1751,9 @@ static int snd_timer_user_params(struct file *file,
 	spin_unlock_irq(&t->lock);
 	if (params.queue_size > 0 &&
 	    (unsigned int)tu->queue_size != params.queue_size) {
-		if (tu->tread) {
-			ttr = kmalloc(params.queue_size * sizeof(*ttr),
-				      GFP_KERNEL);
-			if (ttr) {
-				kfree(tu->tqueue);
-				tu->queue_size = params.queue_size;
-				tu->tqueue = ttr;
-			}
-		} else {
-			tr = kmalloc(params.queue_size * sizeof(*tr),
-				     GFP_KERNEL);
-			if (tr) {
-				kfree(tu->queue);
-				tu->queue_size = params.queue_size;
-				tu->queue = tr;
-			}
-		}
+		err = realloc_user_queue(tu, params.queue_size);
+		if (err < 0)
+			goto _end;
 	}
 	tu->qhead = tu->qtail = tu->qused = 0;
 	if (tu->timeri->flags & SNDRV_TIMER_IFLG_EARLY_EVENT) {
@@ -1891,13 +1877,19 @@ static long __snd_timer_user_ioctl(struct file *file, unsigned int cmd,
 		return snd_timer_user_next_device(argp);
 	case SNDRV_TIMER_IOCTL_TREAD:
 	{
-		int xarg;
+		int xarg, old_tread;
 
 		if (tu->timeri)	/* too late */
 			return -EBUSY;
 		if (get_user(xarg, p))
 			return -EFAULT;
+		old_tread = tu->tread;
 		tu->tread = xarg ? 1 : 0;
+		if (tu->tread != old_tread &&
+		    realloc_user_queue(tu, tu->queue_size) < 0) {
+			tu->tread = old_tread;
+			return -ENOMEM;
+		}
 		return 0;
 	}
 	case SNDRV_TIMER_IOCTL_GINFO:
