@@ -3118,16 +3118,27 @@ void qla24xx_handle_gpnid_event(scsi_qla_host_t *vha, struct event_arg *ea)
 
 	if (fcport) {
 		/* cable moved. just plugged in */
-		ql_dbg(ql_dbg_disc, vha, 0xffff,
-			   "%s %d %8phC post del sess\n",
-			   __func__, __LINE__, fcport->port_name);
-
 		fcport->rscn_gen++;
 		fcport->d_id = ea->id;
 		fcport->scan_state = QLA_FCPORT_FOUND;
 		fcport->flags |= FCF_FABRIC_DEVICE;
 
-		qlt_schedule_sess_for_deletion_lock(fcport);
+		switch (fcport->disc_state) {
+		case DSC_DELETED:
+			ql_dbg(ql_dbg_disc, vha, 0x210d,
+			    "%s %d %8phC login\n", __func__, __LINE__,
+			    fcport->port_name);
+			qla24xx_fcport_handle_login(vha, fcport);
+			break;
+		case DSC_DELETE_PEND:
+			break;
+		default:
+			ql_dbg(ql_dbg_disc, vha, 0x2064,
+			    "%s %d %8phC post del sess\n",
+			    __func__, __LINE__, fcport->port_name);
+			qlt_schedule_sess_for_deletion_lock(fcport);
+			break;
+		}
 	} else {
 		/* create new fcport */
 		ql_dbg(ql_dbg_disc, vha, 0xffff,
