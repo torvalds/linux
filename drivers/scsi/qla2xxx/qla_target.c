@@ -1762,13 +1762,13 @@ static int abort_cmd_for_tag(struct scsi_qla_host *vha, uint32_t tag)
 {
 	struct qla_tgt_sess_op *op;
 	struct qla_tgt_cmd *cmd;
+	unsigned long flags;
 
-	spin_lock(&vha->cmd_list_lock);
-
+	spin_lock_irqsave(&vha->cmd_list_lock, flags);
 	list_for_each_entry(op, &vha->qla_sess_op_cmd_list, cmd_list) {
 		if (tag == op->atio.u.isp24.exchange_addr) {
 			op->aborted = true;
-			spin_unlock(&vha->cmd_list_lock);
+			spin_unlock_irqrestore(&vha->cmd_list_lock, flags);
 			return 1;
 		}
 	}
@@ -1776,7 +1776,7 @@ static int abort_cmd_for_tag(struct scsi_qla_host *vha, uint32_t tag)
 	list_for_each_entry(op, &vha->unknown_atio_list, cmd_list) {
 		if (tag == op->atio.u.isp24.exchange_addr) {
 			op->aborted = true;
-			spin_unlock(&vha->cmd_list_lock);
+			spin_unlock_irqrestore(&vha->cmd_list_lock, flags);
 			return 1;
 		}
 	}
@@ -1784,12 +1784,12 @@ static int abort_cmd_for_tag(struct scsi_qla_host *vha, uint32_t tag)
 	list_for_each_entry(cmd, &vha->qla_cmd_list, cmd_list) {
 		if (tag == cmd->atio.u.isp24.exchange_addr) {
 			cmd->aborted = 1;
-			spin_unlock(&vha->cmd_list_lock);
+			spin_unlock_irqrestore(&vha->cmd_list_lock, flags);
 			return 1;
 		}
 	}
+	spin_unlock_irqrestore(&vha->cmd_list_lock, flags);
 
-	spin_unlock(&vha->cmd_list_lock);
 	return 0;
 }
 
@@ -1804,9 +1804,10 @@ static void abort_cmds_for_lun(struct scsi_qla_host *vha,
 	struct qla_tgt_sess_op *op;
 	struct qla_tgt_cmd *cmd;
 	uint32_t key;
+	unsigned long flags;
 
 	key = sid_to_key(s_id);
-	spin_lock(&vha->cmd_list_lock);
+	spin_lock_irqsave(&vha->cmd_list_lock, flags);
 	list_for_each_entry(op, &vha->qla_sess_op_cmd_list, cmd_list) {
 		uint32_t op_key;
 		uint32_t op_lun;
@@ -1839,7 +1840,7 @@ static void abort_cmds_for_lun(struct scsi_qla_host *vha,
 		if (cmd_key == key && cmd_lun == lun)
 			cmd->aborted = 1;
 	}
-	spin_unlock(&vha->cmd_list_lock);
+	spin_unlock_irqrestore(&vha->cmd_list_lock, flags);
 }
 
 /* ha->hardware_lock supposed to be held on entry */
@@ -4216,9 +4217,9 @@ static int qlt_handle_cmd_for_atio(struct scsi_qla_host *vha,
 		memcpy(&op->atio, atio, sizeof(*atio));
 		op->vha = vha;
 
-		spin_lock(&vha->cmd_list_lock);
+		spin_lock_irqsave(&vha->cmd_list_lock, flags);
 		list_add_tail(&op->cmd_list, &vha->qla_sess_op_cmd_list);
-		spin_unlock(&vha->cmd_list_lock);
+		spin_unlock_irqrestore(&vha->cmd_list_lock, flags);
 
 		INIT_WORK(&op->work, qlt_create_sess_from_atio);
 		queue_work(qla_tgt_wq, &op->work);
@@ -4529,12 +4530,13 @@ static int abort_cmds_for_s_id(struct scsi_qla_host *vha, port_id_t *s_id)
 	struct qla_tgt_cmd *cmd;
 	uint32_t key;
 	int count = 0;
+	unsigned long flags;
 
 	key = (((u32)s_id->b.domain << 16) |
 	       ((u32)s_id->b.area   <<  8) |
 	       ((u32)s_id->b.al_pa));
 
-	spin_lock(&vha->cmd_list_lock);
+	spin_lock_irqsave(&vha->cmd_list_lock, flags);
 	list_for_each_entry(op, &vha->qla_sess_op_cmd_list, cmd_list) {
 		uint32_t op_key = sid_to_key(op->atio.u.isp24.fcp_hdr.s_id);
 
@@ -4559,7 +4561,7 @@ static int abort_cmds_for_s_id(struct scsi_qla_host *vha, port_id_t *s_id)
 			count++;
 		}
 	}
-	spin_unlock(&vha->cmd_list_lock);
+	spin_unlock_irqrestore(&vha->cmd_list_lock, flags);
 
 	return count;
 }
