@@ -44,9 +44,9 @@ static const char i40evf_driver_string[] =
 
 #define DRV_KERN "-k"
 
-#define DRV_VERSION_MAJOR 2
-#define DRV_VERSION_MINOR 1
-#define DRV_VERSION_BUILD 14
+#define DRV_VERSION_MAJOR 3
+#define DRV_VERSION_MINOR 0
+#define DRV_VERSION_BUILD 0
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD) \
@@ -67,6 +67,7 @@ static const struct pci_device_id i40evf_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_VF), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_VF_HV), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_X722_VF), 0},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_ADAPTIVE_VF), 0},
 	/* required last entry */
 	{0, }
 };
@@ -1131,7 +1132,7 @@ void i40evf_down(struct i40evf_adapter *adapter)
 	if (!(adapter->flags & I40EVF_FLAG_PF_COMMS_FAILED) &&
 	    adapter->state != __I40EVF_RESETTING) {
 		/* cancel any current operation */
-		adapter->current_op = I40E_VIRTCHNL_OP_UNKNOWN;
+		adapter->current_op = VIRTCHNL_OP_UNKNOWN;
 		/* Schedule operations to close down the HW. Don't wait
 		 * here for this to complete. The watchdog is still running
 		 * and it will take care of this.
@@ -1311,7 +1312,7 @@ static int i40evf_config_rss_aq(struct i40evf_adapter *adapter)
 	struct i40e_hw *hw = &adapter->hw;
 	int ret = 0;
 
-	if (adapter->current_op != I40E_VIRTCHNL_OP_UNKNOWN) {
+	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
 		/* bail because we already have a command pending */
 		dev_err(&adapter->pdev->dev, "Cannot configure RSS, command %d pending\n",
 			adapter->current_op);
@@ -1410,7 +1411,7 @@ static int i40evf_init_rss(struct i40evf_adapter *adapter)
 	if (!RSS_PF(adapter)) {
 		/* Enable PCTYPES for RSS, TCP/UDP with IPv4/IPv6 */
 		if (adapter->vf_res->vf_offload_flags &
-		    I40E_VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2)
+		    VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2)
 			adapter->hena = I40E_DEFAULT_RSS_HENA_EXPANDED;
 		else
 			adapter->hena = I40E_DEFAULT_RSS_HENA;
@@ -1588,8 +1589,8 @@ static void i40evf_watchdog_task(struct work_struct *work)
 	if (adapter->flags & I40EVF_FLAG_PF_COMMS_FAILED) {
 		reg_val = rd32(hw, I40E_VFGEN_RSTAT) &
 			  I40E_VFGEN_RSTAT_VFR_STATE_MASK;
-		if ((reg_val == I40E_VFR_VFACTIVE) ||
-		    (reg_val == I40E_VFR_COMPLETED)) {
+		if ((reg_val == VIRTCHNL_VFR_VFACTIVE) ||
+		    (reg_val == VIRTCHNL_VFR_COMPLETED)) {
 			/* A chance for redemption! */
 			dev_err(&adapter->pdev->dev, "Hardware came out of reset. Attempting reinit.\n");
 			adapter->state = __I40EVF_STARTUP;
@@ -1605,7 +1606,7 @@ static void i40evf_watchdog_task(struct work_struct *work)
 			return;
 		}
 		adapter->aq_required = 0;
-		adapter->current_op = I40E_VIRTCHNL_OP_UNKNOWN;
+		adapter->current_op = VIRTCHNL_OP_UNKNOWN;
 		goto watchdog_done;
 	}
 
@@ -1621,7 +1622,7 @@ static void i40evf_watchdog_task(struct work_struct *work)
 		dev_err(&adapter->pdev->dev, "Hardware reset detected\n");
 		schedule_work(&adapter->reset_task);
 		adapter->aq_required = 0;
-		adapter->current_op = I40E_VIRTCHNL_OP_UNKNOWN;
+		adapter->current_op = VIRTCHNL_OP_UNKNOWN;
 		goto watchdog_done;
 	}
 
@@ -1707,13 +1708,13 @@ static void i40evf_watchdog_task(struct work_struct *work)
 	}
 
 	if (adapter->aq_required & I40EVF_FLAG_AQ_REQUEST_PROMISC) {
-		i40evf_set_promiscuous(adapter, I40E_FLAG_VF_UNICAST_PROMISC |
-				       I40E_FLAG_VF_MULTICAST_PROMISC);
+		i40evf_set_promiscuous(adapter, FLAG_VF_UNICAST_PROMISC |
+				       FLAG_VF_MULTICAST_PROMISC);
 		goto watchdog_done;
 	}
 
 	if (adapter->aq_required & I40EVF_FLAG_AQ_REQUEST_ALLMULTI) {
-		i40evf_set_promiscuous(adapter, I40E_FLAG_VF_MULTICAST_PROMISC);
+		i40evf_set_promiscuous(adapter, FLAG_VF_MULTICAST_PROMISC);
 		goto watchdog_done;
 	}
 
@@ -1854,7 +1855,7 @@ static void i40evf_reset_task(struct work_struct *work)
 
 		reg_val = rd32(hw, I40E_VFGEN_RSTAT) &
 			  I40E_VFGEN_RSTAT_VFR_STATE_MASK;
-		if (reg_val == I40E_VFR_VFACTIVE)
+		if (reg_val == VIRTCHNL_VFR_VFACTIVE)
 			break;
 	}
 
@@ -1888,7 +1889,7 @@ continue_reset:
 
 	/* kill and reinit the admin queue */
 	i40evf_shutdown_adminq(hw);
-	adapter->current_op = I40E_VIRTCHNL_OP_UNKNOWN;
+	adapter->current_op = VIRTCHNL_OP_UNKNOWN;
 	err = i40evf_init_adminq(hw);
 	if (err)
 		dev_info(&adapter->pdev->dev, "Failed to init adminq: %d\n",
@@ -1949,7 +1950,7 @@ static void i40evf_adminq_task(struct work_struct *work)
 		container_of(work, struct i40evf_adapter, adminq_task);
 	struct i40e_hw *hw = &adapter->hw;
 	struct i40e_arq_event_info event;
-	struct i40e_virtchnl_msg *v_msg;
+	struct virtchnl_msg *v_msg;
 	i40e_status ret;
 	u32 val, oldval;
 	u16 pending;
@@ -1962,14 +1963,15 @@ static void i40evf_adminq_task(struct work_struct *work)
 	if (!event.msg_buf)
 		goto out;
 
-	v_msg = (struct i40e_virtchnl_msg *)&event.desc;
+	v_msg = (struct virtchnl_msg *)&event.desc;
 	do {
 		ret = i40evf_clean_arq_element(hw, &event, &pending);
 		if (ret || !v_msg->v_opcode)
 			break; /* No event to process or error cleaning ARQ */
 
 		i40evf_virtchnl_completion(adapter, v_msg->v_opcode,
-					   v_msg->v_retval, event.msg_buf,
+					   (i40e_status)v_msg->v_retval,
+					   event.msg_buf,
 					   event.msg_len);
 		if (pending != 0)
 			memset(event.msg_buf, 0, I40EVF_MAX_AQ_BUF_SIZE);
@@ -2347,7 +2349,7 @@ static netdev_features_t i40evf_fix_features(struct net_device *netdev,
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 
 	features &= ~I40EVF_VLAN_FEATURES;
-	if (adapter->vf_res->vf_offload_flags & I40E_VIRTCHNL_VF_OFFLOAD_VLAN)
+	if (adapter->vf_res->vf_offload_flags & VIRTCHNL_VF_OFFLOAD_VLAN)
 		features |= I40EVF_VLAN_FEATURES;
 	return features;
 }
@@ -2384,8 +2386,8 @@ static int i40evf_check_reset_complete(struct i40e_hw *hw)
 	for (i = 0; i < 100; i++) {
 		rstat = rd32(hw, I40E_VFGEN_RSTAT) &
 			    I40E_VFGEN_RSTAT_VFR_STATE_MASK;
-		if ((rstat == I40E_VFR_VFACTIVE) ||
-		    (rstat == I40E_VFR_COMPLETED))
+		if ((rstat == VIRTCHNL_VFR_VFACTIVE) ||
+		    (rstat == VIRTCHNL_VFR_COMPLETED))
 			return 0;
 		usleep_range(10, 20);
 	}
@@ -2401,7 +2403,7 @@ static int i40evf_check_reset_complete(struct i40e_hw *hw)
  **/
 int i40evf_process_config(struct i40evf_adapter *adapter)
 {
-	struct i40e_virtchnl_vf_resource *vfres = adapter->vf_res;
+	struct virtchnl_vf_resource *vfres = adapter->vf_res;
 	struct net_device *netdev = adapter->netdev;
 	struct i40e_vsi *vsi = &adapter->vsi;
 	int i;
@@ -2410,7 +2412,7 @@ int i40evf_process_config(struct i40evf_adapter *adapter)
 
 	/* got VF config message back from PF, now we can parse it */
 	for (i = 0; i < vfres->num_vsis; i++) {
-		if (vfres->vsi_res[i].vsi_type == I40E_VSI_SRIOV)
+		if (vfres->vsi_res[i].vsi_type == VIRTCHNL_VSI_SRIOV)
 			adapter->vsi_res = &vfres->vsi_res[i];
 	}
 	if (!adapter->vsi_res) {
@@ -2434,7 +2436,7 @@ int i40evf_process_config(struct i40evf_adapter *adapter)
 	/* advertise to stack only if offloads for encapsulated packets is
 	 * supported
 	 */
-	if (vfres->vf_offload_flags & I40E_VIRTCHNL_VF_OFFLOAD_ENCAP) {
+	if (vfres->vf_offload_flags & VIRTCHNL_VF_OFFLOAD_ENCAP) {
 		hw_enc_features |= NETIF_F_GSO_UDP_TUNNEL	|
 				   NETIF_F_GSO_GRE		|
 				   NETIF_F_GSO_GRE_CSUM		|
@@ -2445,7 +2447,7 @@ int i40evf_process_config(struct i40evf_adapter *adapter)
 				   0;
 
 		if (!(vfres->vf_offload_flags &
-		      I40E_VIRTCHNL_VF_OFFLOAD_ENCAP_CSUM))
+		      VIRTCHNL_VF_OFFLOAD_ENCAP_CSUM))
 			netdev->gso_partial_features |=
 				NETIF_F_GSO_UDP_TUNNEL_CSUM;
 
@@ -2472,7 +2474,7 @@ int i40evf_process_config(struct i40evf_adapter *adapter)
 	adapter->vsi.work_limit = I40E_DEFAULT_IRQ_WORK;
 	vsi->netdev = adapter->netdev;
 	vsi->qs_handle = adapter->vsi_res->qset_handle;
-	if (vfres->vf_offload_flags & I40E_VIRTCHNL_VF_OFFLOAD_RSS_PF) {
+	if (vfres->vf_offload_flags & VIRTCHNL_VF_OFFLOAD_RSS_PF) {
 		adapter->rss_key_size = vfres->rss_key_size;
 		adapter->rss_lut_size = vfres->rss_lut_size;
 	} else {
@@ -2558,8 +2560,8 @@ static void i40evf_init_task(struct work_struct *work)
 				dev_err(&pdev->dev, "Unsupported PF API version %d.%d, expected %d.%d\n",
 					adapter->pf_version.major,
 					adapter->pf_version.minor,
-					I40E_VIRTCHNL_VERSION_MAJOR,
-					I40E_VIRTCHNL_VERSION_MINOR);
+					VIRTCHNL_VERSION_MAJOR,
+					VIRTCHNL_VERSION_MINOR);
 			goto err;
 		}
 		err = i40evf_send_vf_config_msg(adapter);
@@ -2573,9 +2575,9 @@ static void i40evf_init_task(struct work_struct *work)
 	case __I40EVF_INIT_GET_RESOURCES:
 		/* aq msg sent, awaiting reply */
 		if (!adapter->vf_res) {
-			bufsz = sizeof(struct i40e_virtchnl_vf_resource) +
+			bufsz = sizeof(struct virtchnl_vf_resource) +
 				(I40E_MAX_VF_VSI *
-				 sizeof(struct i40e_virtchnl_vsi_resource));
+				 sizeof(struct virtchnl_vsi_resource));
 			adapter->vf_res = kzalloc(bufsz, GFP_KERNEL);
 			if (!adapter->vf_res)
 				goto err;
@@ -2606,7 +2608,7 @@ static void i40evf_init_task(struct work_struct *work)
 
 	if (i40evf_process_config(adapter))
 		goto err_alloc;
-	adapter->current_op = I40E_VIRTCHNL_OP_UNKNOWN;
+	adapter->current_op = VIRTCHNL_OP_UNKNOWN;
 
 	adapter->flags |= I40EVF_FLAG_RX_CSUM_ENABLED;
 
@@ -2644,7 +2646,7 @@ static void i40evf_init_task(struct work_struct *work)
 		goto err_sw_init;
 	i40evf_map_rings_to_vectors(adapter);
 	if (adapter->vf_res->vf_offload_flags &
-	    I40E_VIRTCHNL_VF_OFFLOAD_WB_ON_ITR)
+	    VIRTCHNL_VF_OFFLOAD_WB_ON_ITR)
 		adapter->flags |= I40EVF_FLAG_WB_ON_ITR_CAPABLE;
 
 	err = i40evf_request_misc_irq(adapter);

@@ -236,12 +236,14 @@ config I40E_DCB
 	  If unsure, say N.
 
 config I40EVF
-	tristate "Intel(R) XL710 X710 Virtual Function Ethernet support"
+	tristate "Intel(R) Ethernet Adaptive Virtual Function support"
 	depends on PCI_MSI
 	---help---
-	  This driver supports Intel(R) XL710 and X710 virtual functions.
-	  For more information on how to identify your adapter, go to the
-	  Adapter & Driver ID Guide that can be located at:
+	  This driver supports virtual functions for Intel XL710,
+	  X710, X722, and all devices advertising support for Intel
+	  Ethernet Adaptive Virtual Function devices. For more
+	  information on how to identify your adapter, go to the Adapter
+	  & Driver ID Guide that can be located at:
 
 	  <http://support.intel.com>
 
