@@ -516,6 +516,7 @@ static int amdgpu_kick_out_firmware_fb(struct pci_dev *pdev)
 static int amdgpu_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *ent)
 {
+	struct drm_device *dev;
 	unsigned long flags = ent->driver_data;
 	int ret;
 
@@ -538,7 +539,29 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 
-	return drm_get_pci_dev(pdev, ent, &kms_driver);
+	dev = drm_dev_alloc(&kms_driver, &pdev->dev);
+	if (IS_ERR(dev))
+		return PTR_ERR(dev);
+
+	ret = pci_enable_device(pdev);
+	if (ret)
+		goto err_free;
+
+	dev->pdev = pdev;
+
+	pci_set_drvdata(pdev, dev);
+
+	ret = drm_dev_register(dev, ent->driver_data);
+	if (ret)
+		goto err_pci;
+
+	return 0;
+
+err_pci:
+	pci_disable_device(pdev);
+err_free:
+	drm_dev_unref(dev);
+	return ret;
 }
 
 static void
@@ -546,7 +569,8 @@ amdgpu_pci_remove(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
 
-	drm_put_dev(dev);
+	drm_dev_unregister(dev);
+	drm_dev_unref(dev);
 }
 
 static void
