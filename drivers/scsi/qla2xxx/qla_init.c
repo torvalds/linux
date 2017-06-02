@@ -7374,10 +7374,19 @@ qla81xx_update_fw_options(scsi_qla_host_t *vha)
 	}
 
 	if (qla_tgt_mode_enabled(vha) ||
-	    qla_dual_mode_enabled(vha))
+	    qla_dual_mode_enabled(vha)) {
+		/* FW auto send SCSI status during */
+		ha->fw_options[1] |= BIT_8;
+		ha->fw_options[10] |= (u16)SAM_STAT_BUSY << 8;
+
+		/* FW perform Exchange validation */
 		ha->fw_options[2] |= BIT_4;
-	else
+	} else {
+		ha->fw_options[1]  &= ~BIT_8;
+		ha->fw_options[10] &= 0x00ff;
+
 		ha->fw_options[2] &= ~BIT_4;
+	}
 
 	if (ql2xetsenable) {
 		/* Enable ETS Burst. */
