@@ -116,7 +116,7 @@ static int mdss_hw_irqdomain_map(struct irq_domain *d, unsigned int irq,
 	return 0;
 }
 
-static struct irq_domain_ops mdss_hw_irqdomain_ops = {
+static const struct irq_domain_ops mdss_hw_irqdomain_ops = {
 	.map = mdss_hw_irqdomain_map,
 	.xlate = irq_domain_xlate_onecell,
 };
