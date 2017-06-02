@@ -200,27 +200,27 @@ out:
 	return i;
 }
 
-static int spi_imx_bytes_per_word(const int bpw)
+static int spi_imx_bytes_per_word(const int bits_per_word)
 {
-	return DIV_ROUND_UP(bpw, BITS_PER_BYTE);
+	return DIV_ROUND_UP(bits_per_word, BITS_PER_BYTE);
 }
 
 static bool spi_imx_can_dma(struct spi_master *master, struct spi_device *spi,
 			 struct spi_transfer *transfer)
 {
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(master);
-	unsigned int bpw, i;
+	unsigned int bytes_per_word, i;
 
 	if (!master->dma_rx)
 		return false;
 
-	bpw = spi_imx_bytes_per_word(transfer->bits_per_word);
+	bytes_per_word = spi_imx_bytes_per_word(transfer->bits_per_word);
 
-	if (bpw != 1 && bpw != 2 && bpw != 4)
+	if (bytes_per_word != 1 && bytes_per_word != 2 && bytes_per_word != 4)
 		return false;
 
 	for (i = spi_imx_get_fifosize(spi_imx) / 2; i > 0; i--) {
-		if (!(transfer->len % (i * bpw)))
+		if (!(transfer->len % (i * bytes_per_word)))
 			break;
 	}
 
