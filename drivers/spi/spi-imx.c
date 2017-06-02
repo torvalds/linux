@@ -218,8 +218,6 @@ static bool spi_imx_can_dma(struct spi_master *master, struct spi_device *spi,
 		return false;
 
 	bpw = transfer->bits_per_word;
-	if (!bpw)
-		bpw = spi->bits_per_word;
 
 	bpw = spi_imx_bytes_per_word(bpw);
 
@@ -897,11 +895,6 @@ static int spi_imx_setupxfer(struct spi_device *spi,
 
 	config.bpw = t->bits_per_word;
 	config.speed_hz  = t->speed_hz;
-
-	if (!config.speed_hz)
-		config.speed_hz = spi->max_speed_hz;
-	if (!config.bpw)
-		config.bpw = spi->bits_per_word;
 
 	/* Initialize the functions for transfer */
 	if (config.bpw <= 8) {
