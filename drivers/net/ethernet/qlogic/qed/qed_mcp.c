@@ -1736,10 +1736,10 @@ int qed_mcp_fill_shmem_func_info(struct qed_hwfn *p_hwfn,
 		DP_NOTICE(p_hwfn, "MAC is 0 in shmem\n");
 	}
 
-	info->wwn_port = (u64)shmem_info.fcoe_wwn_port_name_upper |
-			 (((u64)shmem_info.fcoe_wwn_port_name_lower) << 32);
-	info->wwn_node = (u64)shmem_info.fcoe_wwn_node_name_upper |
-			 (((u64)shmem_info.fcoe_wwn_node_name_lower) << 32);
+	info->wwn_port = (u64)shmem_info.fcoe_wwn_port_name_lower |
+			 (((u64)shmem_info.fcoe_wwn_port_name_upper) << 32);
+	info->wwn_node = (u64)shmem_info.fcoe_wwn_node_name_lower |
+			 (((u64)shmem_info.fcoe_wwn_node_name_upper) << 32);
 
 	info->ovlan = (u16)(shmem_info.ovlan_stag & FUNC_MF_CFG_OV_STAG_MASK);
 
