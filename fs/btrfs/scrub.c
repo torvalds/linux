@@ -1738,11 +1738,6 @@ static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
 
 		WARN_ON(!page->page);
 		bio = btrfs_io_bio_alloc(GFP_NOFS, 1);
-		if (!bio) {
-			page->io_error = 1;
-			sblock->no_io_error_seen = 0;
-			continue;
-		}
 		bio->bi_bdev = page->dev->bdev;
 
 		bio_add_page(bio, page->page, PAGE_SIZE, 0);
@@ -1831,8 +1826,6 @@ static int scrub_repair_page_from_good_copy(struct scrub_block *sblock_bad,
 		}
 
 		bio = btrfs_io_bio_alloc(GFP_NOFS, 1);
-		if (!bio)
-			return -EIO;
 		bio->bi_bdev = page_bad->dev->bdev;
 		bio->bi_iter.bi_sector = page_bad->physical >> 9;
 		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
@@ -1924,10 +1917,6 @@ again:
 		if (!bio) {
 			bio = btrfs_io_bio_alloc(GFP_KERNEL,
 					sctx->pages_per_wr_bio);
-			if (!bio) {
-				mutex_unlock(&sctx->wr_lock);
-				return -ENOMEM;
-			}
 			sbio->bio = bio;
 		}
 
@@ -2329,8 +2318,6 @@ again:
 		if (!bio) {
 			bio = btrfs_io_bio_alloc(GFP_KERNEL,
 					sctx->pages_per_rd_bio);
-			if (!bio)
-				return -ENOMEM;
 			sbio->bio = bio;
 		}
 
@@ -2457,9 +2444,6 @@ static void scrub_missing_raid56_pages(struct scrub_block *sblock)
 	}
 
 	bio = btrfs_io_bio_alloc(GFP_NOFS, 0);
-	if (!bio)
-		goto bbio_out;
-
 	bio->bi_iter.bi_sector = logical >> 9;
 	bio->bi_private = sblock;
 	bio->bi_end_io = scrub_missing_raid56_end_io;
@@ -3036,9 +3020,6 @@ static void scrub_parity_check_and_repair(struct scrub_parity *sparity)
 		goto bbio_out;
 
 	bio = btrfs_io_bio_alloc(GFP_NOFS, 0);
-	if (!bio)
-		goto bbio_out;
-
 	bio->bi_iter.bi_sector = sparity->logic_start >> 9;
 	bio->bi_private = sparity;
 	bio->bi_end_io = scrub_parity_bio_endio;
@@ -4646,12 +4627,6 @@ static int write_page_nocow(struct scrub_ctx *sctx,
 		return -EIO;
 	}
 	bio = btrfs_io_bio_alloc(GFP_NOFS, 1);
-	if (!bio) {
-		spin_lock(&sctx->stat_lock);
-		sctx->stat.malloc_errors++;
-		spin_unlock(&sctx->stat_lock);
-		return -ENOMEM;
-	}
 	bio->bi_iter.bi_size = 0;
 	bio->bi_iter.bi_sector = physical_for_dev_replace >> 9;
 	bio->bi_bdev = dev->bdev;

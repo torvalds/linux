@@ -1988,8 +1988,6 @@ int repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
 	BUG_ON(!mirror_num);
 
 	bio = btrfs_io_bio_alloc(GFP_NOFS, 1);
-	if (!bio)
-		return -EIO;
 	bio->bi_iter.bi_size = 0;
 	map_length = length;
 
@@ -2334,9 +2332,6 @@ struct bio *btrfs_create_repair_bio(struct inode *inode, struct bio *failed_bio,
 	struct btrfs_io_bio *btrfs_bio;
 
 	bio = btrfs_io_bio_alloc(GFP_NOFS, 1);
-	if (!bio)
-		return NULL;
-
 	bio->bi_end_io = endio_func;
 	bio->bi_iter.bi_sector = failrec->logical >> 9;
 	bio->bi_bdev = fs_info->fs_devices->latest_bdev;

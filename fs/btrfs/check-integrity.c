@@ -1639,11 +1639,6 @@ static int btrfsic_read_block(struct btrfsic_state *state,
 		unsigned int j;
 
 		bio = btrfs_io_bio_alloc(GFP_NOFS, num_pages - i);
-		if (!bio) {
-			pr_info("btrfsic: bio_alloc() for %u pages failed!\n",
-			       num_pages - i);
-			return -1;
-		}
 		bio->bi_bdev = block_ctx->dev->bdev;
 		bio->bi_iter.bi_sector = dev_bytenr >> 9;
 		bio_set_op_attrs(bio, REQ_OP_READ, 0);
