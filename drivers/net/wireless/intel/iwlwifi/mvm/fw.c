@@ -251,7 +251,7 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	struct iwl_mvm_alive_data alive_data;
 	const struct fw_img *fw;
 	int ret, i;
-	enum iwl_ucode_type old_type = mvm->cur_ucode;
+	enum iwl_ucode_type old_type = mvm->fwrt.cur_fw_img;
 	static const u16 alive_cmd[] = { MVM_ALIVE };
 	struct iwl_sf_region st_fwrd_space;
 
@@ -264,7 +264,7 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 		fw = iwl_get_ucode_image(mvm->fw, ucode_type);
 	if (WARN_ON(!fw))
 		return -EINVAL;
-	mvm->cur_ucode = ucode_type;
+	iwl_fw_set_current_image(&mvm->fwrt, ucode_type);
 	clear_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status);
 
 	iwl_init_notification_wait(&mvm->notif_wait, &alive_wait,
@@ -273,7 +273,7 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 
 	ret = iwl_trans_start_fw(mvm->trans, fw, ucode_type == IWL_UCODE_INIT);
 	if (ret) {
-		mvm->cur_ucode = old_type;
+		iwl_fw_set_current_image(&mvm->fwrt, old_type);
 		iwl_remove_notification(&mvm->notif_wait, &alive_wait);
 		return ret;
 	}
@@ -297,13 +297,13 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 				"SecBoot CPU1 Status: 0x%x, CPU2 Status: 0x%x\n",
 				iwl_read_prph(trans, SB_CPU_1_STATUS),
 				iwl_read_prph(trans, SB_CPU_2_STATUS));
-		mvm->cur_ucode = old_type;
+		iwl_fw_set_current_image(&mvm->fwrt, old_type);
 		return ret;
 	}
 
 	if (!alive_data.valid) {
 		IWL_ERR(mvm, "Loaded ucode is not valid!\n");
-		mvm->cur_ucode = old_type;
+		iwl_fw_set_current_image(&mvm->fwrt, old_type);
 		return -EIO;
 	}
 
@@ -432,7 +432,7 @@ error:
 static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
 {
 	struct iwl_phy_cfg_cmd phy_cfg_cmd;
-	enum iwl_ucode_type ucode_type = mvm->cur_ucode;
+	enum iwl_ucode_type ucode_type = mvm->fwrt.cur_fw_img;
 
 	/* Set parameters */
 	phy_cfg_cmd.phy_cfg = cpu_to_le32(iwl_mvm_get_phy_config(mvm));
@@ -1064,7 +1064,7 @@ static int iwl_mvm_load_rt_fw(struct iwl_mvm *mvm)
 	if (ret)
 		return ret;
 
-	return iwl_init_paging(&mvm->fwrt, mvm->cur_ucode);
+	return iwl_init_paging(&mvm->fwrt, mvm->fwrt.cur_fw_img);
 }
 
 int iwl_mvm_up(struct iwl_mvm *mvm)

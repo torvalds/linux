@@ -621,9 +621,9 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	}
 	mvm->sf_state = SF_UNINIT;
 	if (iwl_mvm_has_new_tx_api(mvm))
-		mvm->cur_ucode = IWL_UCODE_REGULAR;
+		iwl_fw_set_current_image(&mvm->fwrt, IWL_UCODE_REGULAR);
 	else
-		mvm->cur_ucode = IWL_UCODE_INIT;
+		iwl_fw_set_current_image(&mvm->fwrt, IWL_UCODE_INIT);
 	mvm->drop_bcn_ap_mode = true;
 
 	mutex_init(&mvm->mutex);
@@ -1133,7 +1133,7 @@ static bool iwl_mvm_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)
 	 * Stop the device if we run OPERATIONAL firmware or if we are in the
 	 * middle of the calibrations.
 	 */
-	return state && (mvm->cur_ucode != IWL_UCODE_INIT || calibrating);
+	return state && (mvm->fwrt.cur_fw_img != IWL_UCODE_INIT || calibrating);
 }
 
 static void iwl_mvm_free_skb(struct iwl_op_mode *op_mode, struct sk_buff *skb)
@@ -1263,7 +1263,7 @@ void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 		reprobe->dev = mvm->trans->dev;
 		INIT_WORK(&reprobe->work, iwl_mvm_reprobe_wk);
 		schedule_work(&reprobe->work);
-	} else if (mvm->cur_ucode == IWL_UCODE_REGULAR &&
+	} else if (mvm->fwrt.cur_fw_img == IWL_UCODE_REGULAR &&
 		   mvm->hw_registered) {
 		/* don't let the transport/FW power down */
 		iwl_mvm_ref(mvm, IWL_MVM_REF_UCODE_DOWN);
@@ -1441,7 +1441,7 @@ int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 
 	IWL_DEBUG_RPM(mvm, "MVM entering D0i3\n");
 
-	if (WARN_ON_ONCE(mvm->cur_ucode != IWL_UCODE_REGULAR))
+	if (WARN_ON_ONCE(mvm->fwrt.cur_fw_img != IWL_UCODE_REGULAR))
 		return -EINVAL;
 
 	set_bit(IWL_MVM_STATUS_IN_D0I3, &mvm->status);
@@ -1667,7 +1667,7 @@ int _iwl_mvm_exit_d0i3(struct iwl_mvm *mvm)
 
 	IWL_DEBUG_RPM(mvm, "MVM exiting D0i3\n");
 
-	if (WARN_ON_ONCE(mvm->cur_ucode != IWL_UCODE_REGULAR))
+	if (WARN_ON_ONCE(mvm->fwrt.cur_fw_img != IWL_UCODE_REGULAR))
 		return -EINVAL;
 
 	mutex_lock(&mvm->d0i3_suspend_mutex);

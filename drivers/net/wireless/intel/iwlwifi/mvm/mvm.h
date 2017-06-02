@@ -754,7 +754,6 @@ struct iwl_mvm {
 	 */
 	struct iwl_mvm_vif *bf_allowed_vif;
 
-	enum iwl_ucode_type cur_ucode;
 	bool hw_registered;
 	bool calibrating;
 	u32 error_event_table[2];

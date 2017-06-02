@@ -85,6 +85,8 @@ struct iwl_fwrt_shared_mem_cfg {
  * @num_of_paging_blk: number of paging blocks
  * @num_of_pages_in_last_blk: number of pages in the last block
  * @smem_cfg: saved firmware SMEM configuration
+ * @cur_fw_img: current firmware image, must be maintained by
+ *	the driver by calling &iwl_fw_set_current_image()
  */
 struct iwl_fw_runtime {
 	struct iwl_trans *trans;
@@ -95,6 +97,8 @@ struct iwl_fw_runtime {
 	struct iwl_fw_paging fw_paging_db[NUM_OF_FW_PAGING_BLOCKS];
 	u16 num_of_paging_blk;
 	u16 num_of_pages_in_last_blk;
+
+	enum iwl_ucode_type cur_fw_img;
 
 	/* memory configuration */
 	struct iwl_fwrt_shared_mem_cfg smem_cfg;
@@ -108,6 +112,12 @@ static inline void iwl_fw_runtime_init(struct iwl_fw_runtime *fwrt,
 	fwrt->trans = trans;
 	fwrt->fw = fw;
 	fwrt->dev = trans->dev;
+}
+
+static inline void iwl_fw_set_current_image(struct iwl_fw_runtime *fwrt,
+					    enum iwl_ucode_type cur_fw_img)
+{
+	fwrt->cur_fw_img = cur_fw_img;
 }
 
 int iwl_init_paging(struct iwl_fw_runtime *fwrt, enum iwl_ucode_type type);
