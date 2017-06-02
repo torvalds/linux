@@ -418,6 +418,10 @@ enum cpu_type_enum {
 #define MIPS_CPU_GUESTID	MBIT_ULL(51)	/* CPU uses VZ ASE GuestID feature */
 #define MIPS_CPU_DRG		MBIT_ULL(52)	/* CPU has VZ Direct Root to Guest (DRG) */
 #define MIPS_CPU_UFR		MBIT_ULL(53)	/* CPU supports User mode FR switching */
+#define MIPS_CPU_SHARED_FTLB_RAM \
+				MBIT_ULL(54)	/* CPU shares FTLB RAM with another */
+#define MIPS_CPU_SHARED_FTLB_ENTRIES \
+				MBIT_ULL(55)	/* CPU shares FTLB entries with another */
 
 /*
  * CPU ASE encodings

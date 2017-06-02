@@ -1653,6 +1653,17 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 	decode_configs(c);
 
 	spram_config();
+
+	switch (__get_cpu_type(c->cputype)) {
+	case CPU_I6500:
+		c->options |= MIPS_CPU_SHARED_FTLB_ENTRIES;
+		/* fall-through */
+	case CPU_I6400:
+		c->options |= MIPS_CPU_SHARED_FTLB_RAM;
+		/* fall-through */
+	default:
+		break;
+	}
 }
 
 static inline void cpu_probe_alchemy(struct cpuinfo_mips *c, unsigned int cpu)
