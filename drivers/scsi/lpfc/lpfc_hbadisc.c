@@ -4167,14 +4167,14 @@ lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			lpfc_unregister_remote_port(ndlp);
 		}
 
-		/* Notify the NVME transport of this rport's loss on the
-		 * Initiator.  For NVME Target, should upcall transport
-		 * in the else clause when API available.
-		 */
 		if (ndlp->nlp_fc4_type & NLP_FC4_NVME) {
 			vport->phba->nport_event_cnt++;
 			if (vport->phba->nvmet_support == 0)
+				/* Start devloss */
 				lpfc_nvme_unregister_port(vport, ndlp);
+			else
+				/* NVMET has no upcall. */
+				lpfc_nlp_put(ndlp);
 		}
 	}
 
