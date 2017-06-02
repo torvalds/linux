@@ -24,6 +24,19 @@ Required nodes:
   global control registers, with the compatible string
   "cortina,gemini-syscon", "syscon";
 
+  Required properties on the syscon:
+  - reg: syscon register location and size.
+  - #clock-cells: should be set to <1> - the system controller is also a
+                  clock provider.
+  - #reset-cells: should be set to <1> - the system controller is also a
+                  reset line provider.
+
+  The clock sources have shorthand defines in the include file:
+  <dt-bindings/clock/cortina,gemini-clock.h>
+
+  The reset lines have shorthand defines in the include file:
+  <dt-bindings/reset/cortina,gemini-reset.h>
+
 - timer: the soc bus node must have a timer node pointing to the SoC timer
   block, with the compatible string "cortina,gemini-timer"
   See: clocksource/cortina,gemini-timer.txt
@@ -56,12 +69,15 @@ Example:
 		syscon: syscon@40000000 {
 			compatible = "cortina,gemini-syscon", "syscon";
 			reg = <0x40000000 0x1000>;
+			#clock-cells = <1>;
+			#reset-cells = <1>;
 		};
 
 		uart0: serial@42000000 {
 			compatible = "ns16550a";
 			reg = <0x42000000 0x100>;
-			clock-frequency = <48000000>;
+			resets = <&syscon GEMINI_RESET_UART>;
+			clocks = <&syscon GEMINI_CLK_UART>;
 			interrupts = <18 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 		};
@@ -73,12 +89,18 @@ Example:
 			interrupts = <14 IRQ_TYPE_EDGE_FALLING>, /* Timer 1 */
 				     <15 IRQ_TYPE_EDGE_FALLING>, /* Timer 2 */
 				     <16 IRQ_TYPE_EDGE_FALLING>; /* Timer 3 */
+			resets = <&syscon GEMINI_RESET_TIMER>;
+			/* APB clock or RTC clock */
+			clocks = <&syscon GEMINI_CLK_APB>,
+				 <&syscon GEMINI_CLK_RTC>;
+			clock-names = "PCLK", "EXTCLK";
 			syscon = <&syscon>;
 		};
 
 		intcon: interrupt-controller@48000000 {
 			compatible = "cortina,gemini-interrupt-controller";
 			reg = <0x48000000 0x1000>;
+			resets = <&syscon GEMINI_RESET_INTCON0>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 		};
