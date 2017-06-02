@@ -1567,7 +1567,7 @@ read_rtc:
 		err = devm_request_threaded_irq(ds1307->dev,
 						ds1307->irq, NULL, irq_handler,
 						IRQF_SHARED | IRQF_ONESHOT,
-						ds1307->rtc->name, ds1307);
+						ds1307->name, ds1307);
 		if (err) {
 			client->irq = 0;
 			device_set_wakeup_capable(ds1307->dev, false);
