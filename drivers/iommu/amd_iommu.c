@@ -182,6 +182,13 @@ struct dma_ops_domain {
 	 * flushed out of the IOTLB of the domain.
 	 */
 	atomic64_t flush_finish_cnt;
+
+	/*
+	 * Timer to make sure we don't keep IOVAs around unflushed
+	 * for too long
+	 */
+	struct timer_list flush_timer;
+	atomic_t flush_timer_on;
 };
 
 static struct iova_domain reserved_iova_ranges;
@@ -1834,6 +1841,14 @@ static int dma_ops_domain_alloc_flush_queue(struct dma_ops_domain *dom)
 	return 0;
 }
 
+static void dma_ops_domain_flush_tlb(struct dma_ops_domain *dom)
+{
+	atomic64_inc(&dom->flush_start_cnt);
+	domain_flush_tlb(&dom->domain);
+	domain_flush_complete(&dom->domain);
+	atomic64_inc(&dom->flush_finish_cnt);
+}
+
 static inline bool queue_ring_full(struct flush_queue *queue)
 {
 	assert_spin_locked(&queue->lock);
@@ -1875,21 +1890,11 @@ static inline void queue_ring_remove_head(struct flush_queue *queue)
 	queue->head = (queue->head + 1) % FLUSH_QUEUE_SIZE;
 }
 
-static void queue_add(struct dma_ops_domain *dom,
-		      unsigned long address, unsigned long pages)
+static void queue_ring_free_flushed(struct dma_ops_domain *dom,
+				    struct flush_queue *queue)
 {
-	struct flush_queue *queue;
-	unsigned long flags;
-	u64 counter;
+	u64 counter = atomic64_read(&dom->flush_finish_cnt);
 	int idx;
-
-	pages     = __roundup_pow_of_two(pages);
-	address >>= PAGE_SHIFT;
-
-	counter = atomic64_read(&dom->flush_finish_cnt);
-
-	queue = get_cpu_ptr(dom->flush_queue);
-	spin_lock_irqsave(&queue->lock, flags);
 
 	queue_ring_for_each(idx, queue) {
 		/*
@@ -1905,12 +1910,25 @@ static void queue_add(struct dma_ops_domain *dom,
 
 		queue_ring_remove_head(queue);
 	}
+}
+
+static void queue_add(struct dma_ops_domain *dom,
+		      unsigned long address, unsigned long pages)
+{
+	struct flush_queue *queue;
+	unsigned long flags;
+	int idx;
+
+	pages     = __roundup_pow_of_two(pages);
+	address >>= PAGE_SHIFT;
+
+	queue = get_cpu_ptr(dom->flush_queue);
+	spin_lock_irqsave(&queue->lock, flags);
+
+	queue_ring_free_flushed(dom, queue);
 
 	if (queue_ring_full(queue)) {
-		atomic64_inc(&dom->flush_start_cnt);
-		domain_flush_tlb(&dom->domain);
-		domain_flush_complete(&dom->domain);
-		atomic64_inc(&dom->flush_finish_cnt);
+		dma_ops_domain_flush_tlb(dom);
 		queue_release(dom, queue);
 	}
 
@@ -1921,7 +1939,31 @@ static void queue_add(struct dma_ops_domain *dom,
 	queue->entries[idx].counter  = atomic64_read(&dom->flush_start_cnt);
 
 	spin_unlock_irqrestore(&queue->lock, flags);
+
+	if (atomic_cmpxchg(&dom->flush_timer_on, 0, 1) == 0)
+		mod_timer(&dom->flush_timer, jiffies + msecs_to_jiffies(10));
+
 	put_cpu_ptr(dom->flush_queue);
+}
+
+static void queue_flush_timeout(unsigned long data)
+{
+	struct dma_ops_domain *dom = (struct dma_ops_domain *)data;
+	int cpu;
+
+	atomic_set(&dom->flush_timer_on, 0);
+
+	dma_ops_domain_flush_tlb(dom);
+
+	for_each_possible_cpu(cpu) {
+		struct flush_queue *queue;
+		unsigned long flags;
+
+		queue = per_cpu_ptr(dom->flush_queue, cpu);
+		spin_lock_irqsave(&queue->lock, flags);
+		queue_ring_free_flushed(dom, queue);
+		spin_unlock_irqrestore(&queue->lock, flags);
+	}
 }
 
 /*
@@ -1934,6 +1976,9 @@ static void dma_ops_domain_free(struct dma_ops_domain *dom)
 		return;
 
 	del_domain_from_list(&dom->domain);
+
+	if (timer_pending(&dom->flush_timer))
+		del_timer(&dom->flush_timer);
 
 	dma_ops_domain_free_flush_queue(dom);
 
@@ -1977,6 +2022,11 @@ static struct dma_ops_domain *dma_ops_domain_alloc(void)
 
 	if (dma_ops_domain_alloc_flush_queue(dma_dom))
 		goto free_dma_dom;
+
+	setup_timer(&dma_dom->flush_timer, queue_flush_timeout,
+		    (unsigned long)dma_dom);
+
+	atomic_set(&dma_dom->flush_timer_on, 0);
 
 	add_domain_to_list(&dma_dom->domain);
 
