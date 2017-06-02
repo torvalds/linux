@@ -58,7 +58,7 @@ enum teec_rpc_result tee_supp_cmd(struct tee *tee,
 				break;
 
 			alloc->size = size;
-			alloc->data = (void *)shmint->paddr;
+			alloc->data = (void *)(unsigned long)shmint->paddr;
 			alloc->shm = shmint;
 			res = TEEC_RPC_OK;
 
@@ -229,7 +229,7 @@ ssize_t tee_supp_write(struct file *filp, const char __user *buffer,
 						buffer,
 						(unsigned int)shm->paddr);
 					rpc->commFromUser.cmds[i].buffer =
-					    (void *)shm->paddr;
+					    (void *)(unsigned long)shm->paddr;
 				} else
 					dev_dbg(tee->dev,
 						" gid2pa(0x%p => NULL\n)",

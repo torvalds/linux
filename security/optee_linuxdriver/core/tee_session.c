@@ -589,8 +589,8 @@ static int _init_tee_cmd(struct tee_session *sess, struct tee_cmd_io *cmd_io,
 			if (IS_ERR_OR_NULL(param->params[idx].shm))
 				goto out;
 
-			dev_dbg(_DEV_TEE, "< %d %p:%zd\n", idx,
-					(void *)param->params[idx].shm->paddr,
+			dev_dbg(_DEV_TEE, "< %d %pad:%zd\n", idx,
+					&param->params[idx].shm->paddr,
 					param->params[idx].shm->size_alloc);
 			break;
 
@@ -638,8 +638,8 @@ static int _init_tee_cmd(struct tee_session *sess, struct tee_cmd_io *cmd_io,
 					goto out;
 			}
 
-			dev_dbg(_DEV_TEE, "< %d %p:%zd\n", idx,
-				(void *)param->params[idx].shm->paddr,
+			dev_dbg(_DEV_TEE, "< %d %pad:%zd\n", idx,
+				&param->params[idx].shm->paddr,
 				param->params[idx].shm->size_req);
 			break;
 

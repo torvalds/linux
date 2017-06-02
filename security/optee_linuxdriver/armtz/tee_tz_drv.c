@@ -914,8 +914,8 @@ static struct tee_shm *tz_alloc(struct tee *tee, size_t size, uint32_t flags)
 	}
 	shm->kaddr = tee_shm_pool_p2v(tee->dev, ptee->shm_pool, shm->paddr);
 	if (!shm->kaddr) {
-		dev_err(tee->dev, "%s: p2v(%p)=0\n", __func__,
-			(void *)shm->paddr);
+		dev_err(tee->dev, "%s: p2v(%pad)=0\n", __func__,
+			&shm->paddr);
 		tee_shm_pool_free(tee->dev, ptee->shm_pool, shm->paddr, NULL);
 		devm_kfree(tee->dev, shm);
 		return ERR_PTR(-EFAULT);
@@ -924,8 +924,8 @@ static struct tee_shm *tz_alloc(struct tee *tee, size_t size, uint32_t flags)
 	if (ptee->shm_cached)
 		shm->flags |= TEE_SHM_CACHED;
 
-	dev_dbg(tee->dev, "%s: kaddr=%p, paddr=%p, shm=%p, size %x:%x\n",
-		__func__, shm->kaddr, (void *)shm->paddr, shm,
+	dev_dbg(tee->dev, "%s: kaddr=%p, paddr=%pad, shm=%p, size %x:%x\n",
+		__func__, shm->kaddr, &shm->paddr, shm,
 		(unsigned int)shm->size_req, (unsigned int)shm->size_alloc);
 
 	return shm;
