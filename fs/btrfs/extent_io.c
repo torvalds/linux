@@ -2658,14 +2658,14 @@ readpage_ok:
  * never fail.  We're returning a bio right now but you can call btrfs_io_bio
  * for the appropriate container_of magic
  */
-struct bio *btrfs_bio_alloc(struct block_device *bdev, u64 first_sector)
+struct bio *btrfs_bio_alloc(struct block_device *bdev, u64 first_byte)
 {
 	struct btrfs_io_bio *btrfs_bio;
 	struct bio *bio;
 
 	bio = bio_alloc_bioset(GFP_NOFS, BIO_MAX_PAGES, btrfs_bioset);
 	bio->bi_bdev = bdev;
-	bio->bi_iter.bi_sector = first_sector;
+	bio->bi_iter.bi_sector = first_byte >> 9;
 	btrfs_bio = btrfs_io_bio(bio);
 	btrfs_bio->csum = NULL;
 	btrfs_bio->csum_allocated = NULL;
@@ -2799,7 +2799,7 @@ static int submit_extent_page(int op, int op_flags, struct extent_io_tree *tree,
 		}
 	}
 
-	bio = btrfs_bio_alloc(bdev, sector);
+	bio = btrfs_bio_alloc(bdev, sector << 9);
 	bio_add_page(bio, page, page_size, offset);
 	bio->bi_end_io = end_io_func;
 	bio->bi_private = tree;
