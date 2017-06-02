@@ -59,7 +59,7 @@ MODULE_PARM_DESC(qlini_mode,
 	"when ready "
 	"\"enabled\" (default) - initiator mode will always stay enabled.");
 
-static int ql_dm_tgt_ex_pct = 50;
+static int ql_dm_tgt_ex_pct = 0;
 module_param(ql_dm_tgt_ex_pct, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ql_dm_tgt_ex_pct,
 	"For Dual Mode (qlini_mode=dual), this parameter determines "
@@ -6438,8 +6438,9 @@ void
 qlt_24xx_config_nvram_stage1(struct scsi_qla_host *vha, struct nvram_24xx *nv)
 {
 	struct qla_hw_data *ha = vha->hw;
-	u32 tmp;
-	u16 t;
+
+	if (!QLA_TGT_MODE_ENABLED())
+		return;
 
 	if (qla_tgt_mode_enabled(vha) || qla_dual_mode_enabled(vha)) {
 		if (!ha->tgt.saved_set) {
@@ -6454,24 +6455,10 @@ qlt_24xx_config_nvram_stage1(struct scsi_qla_host *vha, struct nvram_24xx *nv)
 			ha->tgt.saved_set = 1;
 		}
 
-		if (qla_tgt_mode_enabled(vha)) {
+		if (qla_tgt_mode_enabled(vha))
 			nv->exchange_count = cpu_to_le16(0xFFFF);
-		} else {			/* dual */
-			if (ql_dm_tgt_ex_pct > 100) {
-				ql_dm_tgt_ex_pct = 50;
-			} else if (ql_dm_tgt_ex_pct == 100) {
-				/* leave some for FW */
-				ql_dm_tgt_ex_pct = 95;
-			}
-
-			tmp = ha->orig_fw_xcb_count * ql_dm_tgt_ex_pct;
-			tmp = tmp/100;
-			if (tmp > 0xffff)
-				tmp = 0xffff;
-
-			t = tmp & 0xffff;
-			nv->exchange_count = cpu_to_le16(t);
-		}
+		else			/* dual */
+			nv->exchange_count = cpu_to_le16(ql2xexchoffld);
 
 		/* Enable target mode */
 		nv->firmware_options_1 |= cpu_to_le32(BIT_4);
@@ -6556,8 +6543,6 @@ void
 qlt_81xx_config_nvram_stage1(struct scsi_qla_host *vha, struct nvram_81xx *nv)
 {
 	struct qla_hw_data *ha = vha->hw;
-	u32 tmp;
-	u16 t;
 
 	if (!QLA_TGT_MODE_ENABLED())
 		return;
@@ -6575,23 +6560,10 @@ qlt_81xx_config_nvram_stage1(struct scsi_qla_host *vha, struct nvram_81xx *nv)
 			ha->tgt.saved_set = 1;
 		}
 
-		if (qla_tgt_mode_enabled(vha)) {
+		if (qla_tgt_mode_enabled(vha))
 			nv->exchange_count = cpu_to_le16(0xFFFF);
-		} else {			/* dual */
-			if (ql_dm_tgt_ex_pct > 100) {
-				ql_dm_tgt_ex_pct = 50;
-			} else if (ql_dm_tgt_ex_pct == 100) {
-				/* leave some for FW */
-				ql_dm_tgt_ex_pct = 95;
-			}
-
-			tmp = ha->orig_fw_xcb_count * ql_dm_tgt_ex_pct;
-			tmp = tmp/100;
-			if (tmp > 0xffff)
-				tmp = 0xffff;
-			t = tmp & 0xffff;
-			nv->exchange_count = cpu_to_le16(t);
-		}
+		else			/* dual */
+			nv->exchange_count = cpu_to_le16(ql2xexchoffld);
 
 		/* Enable target mode */
 		nv->firmware_options_1 |= cpu_to_le32(BIT_4);

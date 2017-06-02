@@ -224,11 +224,15 @@ MODULE_PARM_DESC(ql2xexlogins,
 		 "Number of extended Logins. "
 		 "0 (Default)- Disabled.");
 
-int ql2xexchoffld = 0;
-module_param(ql2xexchoffld, uint, S_IRUGO|S_IWUSR);
+int ql2xexchoffld = 1024;
+module_param(ql2xexchoffld, uint, 0644);
 MODULE_PARM_DESC(ql2xexchoffld,
-		 "Number of exchanges to offload. "
-		 "0 (Default)- Disabled.");
+	"Number of target exchanges.");
+
+int ql2xiniexchg = 1024;
+module_param(ql2xiniexchg, uint, 0644);
+MODULE_PARM_DESC(ql2xiniexchg,
+	"Number of initiator exchanges.");
 
 int ql2xfwholdabts = 0;
 module_param(ql2xfwholdabts, int, S_IRUGO);
@@ -3986,6 +3990,9 @@ qla2x00_set_exlogins_buffer(scsi_qla_host_t *vha)
 	if (!ql2xexlogins)
 		return QLA_SUCCESS;
 
+	if (!IS_EXLOGIN_OFFLD_CAPABLE(ha))
+		return QLA_SUCCESS;
+
 	ql_log(ql_log_info, vha, 0xd021, "EXLOGIN count: %d.\n", ql2xexlogins);
 	max_cnt = 0;
 	rval = qla_get_exlogin_status(vha, &size, &max_cnt);
@@ -3996,21 +4003,27 @@ qla2x00_set_exlogins_buffer(scsi_qla_host_t *vha)
 	}
 
 	temp = (ql2xexlogins > max_cnt) ? max_cnt : ql2xexlogins;
-	ha->exlogin_size = (size * temp);
-	ql_log(ql_log_info, vha, 0xd024,
-		"EXLOGIN: max_logins=%d, portdb=0x%x, total=%d.\n",
-		max_cnt, size, temp);
+	temp *= size;
 
-	ql_log(ql_log_info, vha, 0xd025, "EXLOGIN: requested size=0x%x\n",
-		ha->exlogin_size);
+	if (temp != ha->exlogin_size) {
+		qla2x00_free_exlogin_buffer(ha);
+		ha->exlogin_size = temp;
 
-	/* Get consistent memory for extended logins */
-	ha->exlogin_buf = dma_alloc_coherent(&ha->pdev->dev,
-	    ha->exlogin_size, &ha->exlogin_buf_dma, GFP_KERNEL);
-	if (!ha->exlogin_buf) {
-		ql_log_pci(ql_log_fatal, ha->pdev, 0xd02a,
+		ql_log(ql_log_info, vha, 0xd024,
+		    "EXLOGIN: max_logins=%d, portdb=0x%x, total=%d.\n",
+		    max_cnt, size, temp);
+
+		ql_log(ql_log_info, vha, 0xd025,
+		    "EXLOGIN: requested size=0x%x\n", ha->exlogin_size);
+
+		/* Get consistent memory for extended logins */
+		ha->exlogin_buf = dma_alloc_coherent(&ha->pdev->dev,
+			ha->exlogin_size, &ha->exlogin_buf_dma, GFP_KERNEL);
+		if (!ha->exlogin_buf) {
+			ql_log_pci(ql_log_fatal, ha->pdev, 0xd02a,
 		    "Failed to allocate memory for exlogin_buf_dma.\n");
-		return -ENOMEM;
+			return -ENOMEM;
+		}
 	}
 
 	/* Now configure the dma buffer */
@@ -4041,15 +4054,49 @@ qla2x00_free_exlogin_buffer(struct qla_hw_data *ha)
 	}
 }
 
+static void
+qla2x00_number_of_exch(scsi_qla_host_t *vha, u32 *ret_cnt, u16 max_cnt)
+{
+	u32 temp;
+	*ret_cnt = FW_DEF_EXCHANGES_CNT;
+
+	if (qla_ini_mode_enabled(vha)) {
+		if (ql2xiniexchg > max_cnt)
+			ql2xiniexchg = max_cnt;
+
+		if (ql2xiniexchg > FW_DEF_EXCHANGES_CNT)
+			*ret_cnt = ql2xiniexchg;
+	} else if (qla_tgt_mode_enabled(vha)) {
+		if (ql2xexchoffld > max_cnt)
+			ql2xexchoffld = max_cnt;
+
+		if (ql2xexchoffld > FW_DEF_EXCHANGES_CNT)
+			*ret_cnt = ql2xexchoffld;
+	} else if (qla_dual_mode_enabled(vha)) {
+		temp = ql2xiniexchg + ql2xexchoffld;
+		if (temp > max_cnt) {
+			ql2xiniexchg -= (temp - max_cnt)/2;
+			ql2xexchoffld -= (((temp - max_cnt)/2) + 1);
+			temp = max_cnt;
+		}
+
+		if (temp > FW_DEF_EXCHANGES_CNT)
+			*ret_cnt = temp;
+	}
+}
+
 int
 qla2x00_set_exchoffld_buffer(scsi_qla_host_t *vha)
 {
 	int rval;
-	uint16_t	size, max_cnt, temp;
+	u16 size, max_cnt;
+	u32 temp;
 	struct qla_hw_data *ha = vha->hw;
 
-	/* Return if we don't need to alloacate any extended logins */
-	if (!ql2xexchoffld)
+	if (!ha->flags.exchoffld_enabled)
+		return QLA_SUCCESS;
+
+	if (!IS_EXCHG_OFFLD_CAPABLE(ha))
 		return QLA_SUCCESS;
 
 	ql_log(ql_log_info, vha, 0xd014,
@@ -4063,30 +4110,45 @@ qla2x00_set_exchoffld_buffer(scsi_qla_host_t *vha)
 		return rval;
 	}
 
-	temp = (ql2xexchoffld > max_cnt) ? max_cnt : ql2xexchoffld;
-	ha->exchoffld_size = (size * temp);
-	ql_log(ql_log_info, vha, 0xd016,
-		"Exchange offload: max_count=%d, buffers=0x%x, total=%d.\n",
-		max_cnt, size, temp);
+	qla2x00_number_of_exch(vha, &temp, max_cnt);
+	temp *= size;
 
-	ql_log(ql_log_info, vha, 0xd017,
-	    "Exchange Buffers requested size = 0x%x\n", ha->exchoffld_size);
+	if (temp != ha->exchoffld_size) {
+		qla2x00_free_exchoffld_buffer(ha);
+		ha->exchoffld_size = temp;
 
-	/* Get consistent memory for extended logins */
-	ha->exchoffld_buf = dma_alloc_coherent(&ha->pdev->dev,
-	    ha->exchoffld_size, &ha->exchoffld_buf_dma, GFP_KERNEL);
-	if (!ha->exchoffld_buf) {
-		ql_log_pci(ql_log_fatal, ha->pdev, 0xd013,
-		    "Failed to allocate memory for exchoffld_buf_dma.\n");
-		return -ENOMEM;
+		ql_log(ql_log_info, vha, 0xd016,
+		    "Exchange offload: max_count=%d, buffers=0x%x, total=%d.\n",
+		    max_cnt, size, temp);
+
+		ql_log(ql_log_info, vha, 0xd017,
+		    "Exchange Buffers requested size = 0x%x\n",
+		    ha->exchoffld_size);
+
+		/* Get consistent memory for extended logins */
+		ha->exchoffld_buf = dma_alloc_coherent(&ha->pdev->dev,
+			ha->exchoffld_size, &ha->exchoffld_buf_dma, GFP_KERNEL);
+		if (!ha->exchoffld_buf) {
+			ql_log_pci(ql_log_fatal, ha->pdev, 0xd013,
+			"Failed to allocate memory for exchoffld_buf_dma.\n");
+			return -ENOMEM;
+		}
 	}
 
 	/* Now configure the dma buffer */
-	rval = qla_set_exchoffld_mem_cfg(vha, ha->exchoffld_buf_dma);
+	rval = qla_set_exchoffld_mem_cfg(vha);
 	if (rval) {
 		ql_log(ql_log_fatal, vha, 0xd02e,
 		    "Setup exchange offload buffer ****FAILED****.\n");
 		qla2x00_free_exchoffld_buffer(ha);
+	} else {
+		/* re-adjust number of target exchange */
+		struct init_cb_81xx *icb = (struct init_cb_81xx *)ha->init_cb;
+
+		if (qla_ini_mode_enabled(vha))
+			icb->exchange_count = 0;
+		else
+			icb->exchange_count = cpu_to_le16(ql2xexchoffld);
 	}
 
 	return rval;

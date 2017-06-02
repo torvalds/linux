@@ -286,7 +286,7 @@ struct name_list_extended {
 #define RESPONSE_ENTRY_CNT_MQ		128	/* Number of response entries.*/
 #define ATIO_ENTRY_CNT_24XX		4096	/* Number of ATIO entries. */
 #define RESPONSE_ENTRY_CNT_FX00		256     /* Number of response entries.*/
-#define EXTENDED_EXCH_ENTRY_CNT		32768   /* Entries for offload case */
+#define FW_DEF_EXCHANGES_CNT 2048
 
 struct req_que;
 struct qla_tgt_sess;
@@ -3593,6 +3593,10 @@ struct qla_hw_data {
 #define IS_SHADOW_REG_CAPABLE(ha)  (IS_QLA27XX(ha))
 #define IS_DPORT_CAPABLE(ha)  (IS_QLA83XX(ha) || IS_QLA27XX(ha))
 #define IS_FAWWN_CAPABLE(ha)	(IS_QLA83XX(ha) || IS_QLA27XX(ha))
+#define IS_EXCHG_OFFLD_CAPABLE(ha) \
+	(IS_QLA81XX(ha) || IS_QLA83XX(ha) || IS_QLA27XX(ha))
+#define IS_EXLOGIN_OFFLD_CAPABLE(ha) \
+	(IS_QLA25XX(ha) || IS_QLA81XX(ha) || IS_QLA83XX(ha) || IS_QLA27XX(ha))
 
 	/* HBA serial number */
 	uint8_t		serial0;

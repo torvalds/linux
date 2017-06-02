@@ -2723,7 +2723,7 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 			if (ql2xexlogins)
 				ha->flags.exlogins_enabled = 1;
 
-			if (ql2xexchoffld)
+			if (qla_is_exch_offld_enabled(vha))
 				ha->flags.exchoffld_enabled = 1;
 
 			rval = qla2x00_execute_fw(vha, srisc_address);

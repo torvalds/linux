@@ -821,7 +821,7 @@ qla_get_exchoffld_status(scsi_qla_host_t *vha, uint16_t *buf_sz,
  */
 #define CONFIG_XCHOFFLD_MEM	0x3
 int
-qla_set_exchoffld_mem_cfg(scsi_qla_host_t *vha, dma_addr_t phys_addr)
+qla_set_exchoffld_mem_cfg(scsi_qla_host_t *vha)
 {
 	int		rval;
 	mbx_cmd_t	mc;
@@ -834,12 +834,12 @@ qla_set_exchoffld_mem_cfg(scsi_qla_host_t *vha, dma_addr_t phys_addr)
 	memset(mcp->mb, 0 , sizeof(mcp->mb));
 	mcp->mb[0] = MBC_GET_MEM_OFFLOAD_CNTRL_STAT;
 	mcp->mb[1] = CONFIG_XCHOFFLD_MEM;
-	mcp->mb[2] = MSW(phys_addr);
-	mcp->mb[3] = LSW(phys_addr);
-	mcp->mb[6] = MSW(MSD(phys_addr));
-	mcp->mb[7] = LSW(MSD(phys_addr));
-	mcp->mb[8] = MSW(ha->exlogin_size);
-	mcp->mb[9] = LSW(ha->exlogin_size);
+	mcp->mb[2] = MSW(ha->exchoffld_buf_dma);
+	mcp->mb[3] = LSW(ha->exchoffld_buf_dma);
+	mcp->mb[6] = MSW(MSD(ha->exchoffld_buf_dma));
+	mcp->mb[7] = LSW(MSD(ha->exchoffld_buf_dma));
+	mcp->mb[8] = MSW(ha->exchoffld_size);
+	mcp->mb[9] = LSW(ha->exchoffld_size);
 	mcp->out_mb = MBX_9|MBX_8|MBX_7|MBX_6|MBX_3|MBX_2|MBX_1|MBX_0;
 	mcp->in_mb = MBX_11|MBX_0;
 	mcp->tov = MBX_TOV_SECONDS;
