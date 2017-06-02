@@ -7070,6 +7070,12 @@ S:	Supported
 F:	Documentation/mips/
 F:	arch/mips/
 
+MIPS GENERIC PLATFORM
+M:	Paul Burton <paul.burton@imgtec.com>
+L:	linux-mips@linux-mips.org
+S:	Supported
+F:	arch/mips/generic/
+
 MIPS RINT INSTRUCTION EMULATION
 M:	Aleksandar Markovic <aleksandar.markovic@mips.com>
 L:	linux-mips@linux-mips.org
