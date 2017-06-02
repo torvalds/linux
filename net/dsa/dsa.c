@@ -112,8 +112,9 @@ const struct dsa_device_ops *dsa_resolve_tag_protocol(int tag_protocol)
 	return ops;
 }
 
-int dsa_cpu_port_ethtool_setup(struct dsa_switch *ds)
+int dsa_cpu_port_ethtool_setup(struct dsa_port *cpu_dp)
 {
+	struct dsa_switch *ds = cpu_dp->ds;
 	struct net_device *master;
 	struct ethtool_ops *cpu_ops;
 
@@ -136,8 +137,9 @@ int dsa_cpu_port_ethtool_setup(struct dsa_switch *ds)
 	return 0;
 }
 
-void dsa_cpu_port_ethtool_restore(struct dsa_switch *ds)
+void dsa_cpu_port_ethtool_restore(struct dsa_port *cpu_dp)
 {
+	struct dsa_switch *ds = cpu_dp->ds;
 	struct net_device *master;
 
 	master = ds->dst->master_netdev;

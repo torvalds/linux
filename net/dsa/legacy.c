@@ -205,7 +205,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 		netdev_err(dst->master_netdev, "[%d] : can't configure CPU and DSA ports\n",
 			   index);
 
-	ret = dsa_cpu_port_ethtool_setup(ds);
+	ret = dsa_cpu_port_ethtool_setup(ds->dst->cpu_dp);
 	if (ret)
 		return ret;
 
@@ -733,7 +733,7 @@ static void dsa_remove_dst(struct dsa_switch_tree *dst)
 			dsa_switch_destroy(ds);
 	}
 
-	dsa_cpu_port_ethtool_restore(dst->cpu_dp->ds);
+	dsa_cpu_port_ethtool_restore(dst->cpu_dp);
 
 	dev_put(dst->master_netdev);
 }
