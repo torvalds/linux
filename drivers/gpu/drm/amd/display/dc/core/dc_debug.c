@@ -221,10 +221,12 @@ void update_surface_trace(
 			SURFACE_TRACE(
 					"plane_info->tiling_info.gfx8.pipe_config = %d;\n"
 					"plane_info->tiling_info.gfx8.array_mode = %d;\n"
-					"plane_info->visible = %d;\n",
+					"plane_info->visible = %d;\n"
+					"plane_info->per_pixel_alpha = %d;\n",
 					update->plane_info->tiling_info.gfx8.pipe_config,
 					update->plane_info->tiling_info.gfx8.array_mode,
-					update->plane_info->visible);
+					update->plane_info->visible,
+					update->plane_info->per_pixel_alpha);
 
 			SURFACE_TRACE("surface->tiling_info.gfx9.swizzle = %d;\n",
 					update->plane_info->tiling_info.gfx9.swizzle);

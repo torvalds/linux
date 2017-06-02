@@ -998,6 +998,7 @@ bool dc_commit_surfaces_to_stream(
 		plane_info[i].stereo_format = new_surfaces[i]->stereo_format;
 		plane_info[i].tiling_info = new_surfaces[i]->tiling_info;
 		plane_info[i].visible = new_surfaces[i]->visible;
+		plane_info[i].per_pixel_alpha = new_surfaces[i]->per_pixel_alpha;
 		plane_info[i].dcc = new_surfaces[i]->dcc;
 		scaling_info[i].scaling_quality = new_surfaces[i]->scaling_quality;
 		scaling_info[i].src_rect = new_surfaces[i]->src_rect;
@@ -1068,7 +1069,7 @@ static enum surface_update_type get_plane_info_update_type(
 		const struct dc_surface_update *u,
 		int surface_index)
 {
-	struct dc_plane_info temp_plane_info = { { { { 0 } } } };
+	struct dc_plane_info temp_plane_info = { 0 };
 
 	if (!u->plane_info)
 		return UPDATE_TYPE_FAST;
@@ -1091,6 +1092,7 @@ static enum surface_update_type get_plane_info_update_type(
 
 	/* Special Validation parameters */
 	temp_plane_info.format = u->plane_info->format;
+	temp_plane_info.per_pixel_alpha = u->plane_info->per_pixel_alpha;
 
 	if (surface_index == 0)
 		temp_plane_info.visible = u->plane_info->visible;
@@ -1327,6 +1329,8 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 					srf_updates[i].plane_info->tiling_info;
 			surface->public.visible =
 					srf_updates[i].plane_info->visible;
+			surface->public.per_pixel_alpha =
+					srf_updates[i].plane_info->per_pixel_alpha;
 			surface->public.dcc =
 					srf_updates[i].plane_info->dcc;
 		}

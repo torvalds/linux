@@ -1559,7 +1559,9 @@ static void update_dchubp_dpp(
 	struct pipe_ctx *temp_pipe;
 	int i;
 	int tree_pos = 0;
+	bool per_pixel_alpha = surface->public.per_pixel_alpha && pipe_ctx->bottom_pipe;
 
+	/* TODO: proper fix once fpga works */
 	/* depends on DML calculation, DPP clock value may change dynamically */
 	enable_dppclk(
 		dc->ctx,
@@ -1604,11 +1606,7 @@ static void update_dchubp_dpp(
 	/* TODO: build stream pipes group id. For now, use stream otg
 	 * id as pipe group id
 	 */
-	/*pipe_ctx->scl_data.lb_params.alpha_en = pipe_ctx->surface->public.per_pixel_alpha;*/
-	if (pipe_ctx->bottom_pipe && surface != pipe_ctx->bottom_pipe->surface)
-		pipe_ctx->scl_data.lb_params.alpha_en = 1;
-	else
-		pipe_ctx->scl_data.lb_params.alpha_en = 0;
+	pipe_ctx->scl_data.lb_params.alpha_en = per_pixel_alpha;
 	pipe_ctx->mpc_idx = pipe_ctx->tg->inst;
 	tree_cfg = &context->res_ctx.mpc_tree[pipe_ctx->mpc_idx];
 	if (tree_cfg->num_pipes == 0) {
@@ -1625,7 +1623,7 @@ static void update_dchubp_dpp(
 
 	tree_cfg->dpp[tree_pos] = pipe_ctx->pipe_idx;
 	tree_cfg->mpcc[tree_pos] = pipe_ctx->pipe_idx;
-	tree_cfg->per_pixel_alpha[tree_pos] = pipe_ctx->scl_data.lb_params.alpha_en;
+	tree_cfg->per_pixel_alpha[tree_pos] = per_pixel_alpha;
 	tree_cfg->num_pipes = tree_pos + 1;
 	dcn10_set_mpc_tree(mpc, tree_cfg);
 

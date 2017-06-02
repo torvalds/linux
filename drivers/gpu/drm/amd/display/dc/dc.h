@@ -290,6 +290,7 @@ struct dc_transfer_func {
 };
 
 struct dc_surface {
+	bool per_pixel_alpha;
 	bool visible;
 	bool flip_immediate;
 	struct dc_plane_address address;
@@ -316,6 +317,7 @@ struct dc_surface {
 };
 
 struct dc_plane_info {
+	bool per_pixel_alpha;
 	union plane_size plane_size;
 	union dc_tiling_info tiling_info;
 	struct dc_plane_dcc_param dcc;

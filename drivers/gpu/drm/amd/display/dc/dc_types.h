@@ -97,7 +97,7 @@ struct dc_context {
 
 #define MAX_EDID_BUFFER_SIZE 512
 #define EDID_BLOCK_SIZE 128
-#define MAX_SURFACE_NUM 2
+#define MAX_SURFACE_NUM 4
 #define NUM_PIXEL_FORMATS 10
 
 #include "dc_ddc_types.h"
