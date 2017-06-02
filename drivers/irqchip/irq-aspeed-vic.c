@@ -186,7 +186,7 @@ static int avic_map(struct irq_domain *d, unsigned int irq,
 	return 0;
 }
 
-static struct irq_domain_ops avic_dom_ops = {
+static const struct irq_domain_ops avic_dom_ops = {
 	.map = avic_map,
 	.xlate = irq_domain_xlate_onetwocell,
 };
