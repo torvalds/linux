@@ -170,7 +170,6 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct fc_frame_header *fc_hdr;
 	struct rqb_dmabuf *nvmebuf;
-	struct lpfc_dmabuf *hbufp;
 	uint32_t *payload;
 	uint32_t size, oxid, sid, rc;
 	unsigned long iflag;
@@ -191,7 +190,6 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 
 	spin_lock_irqsave(&phba->sli4_hba.nvmet_io_wait_lock, iflag);
 	if (phba->sli4_hba.nvmet_io_wait_cnt) {
-		hbufp = &nvmebuf->hbuf;
 		list_remove_head(&phba->sli4_hba.lpfc_nvmet_io_wait_list,
 				 nvmebuf, struct rqb_dmabuf,
 				 hbuf.list);
@@ -2164,10 +2162,6 @@ lpfc_nvmet_unsol_fcp_abort_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	status = bf_get(lpfc_wcqe_c_status, wcqe);
 	result = wcqe->parameter;
 
-	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
-	if (ctxp->flag & LPFC_NVMET_ABORT_OP)
-		atomic_inc(&tgtp->xmt_fcp_abort_cmpl);
-
 	if (!ctxp) {
 		/* if context is clear, related io alrady complete */
 		lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
@@ -2176,6 +2170,10 @@ lpfc_nvmet_unsol_fcp_abort_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 				result, wcqe->word3);
 		return;
 	}
+
+	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
+	if (ctxp->flag & LPFC_NVMET_ABORT_OP)
+		atomic_inc(&tgtp->xmt_fcp_abort_cmpl);
 
 	/* Sanity check */
 	if (ctxp->state != LPFC_NVMET_STE_ABORT) {

@@ -13267,6 +13267,7 @@ lpfc_sli4_nvmet_handle_rcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 	case FC_STATUS_RQ_BUF_LEN_EXCEEDED:
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"6126 Receive Frame Truncated!!\n");
+		/* Drop thru */
 	case FC_STATUS_RQ_SUCCESS:
 		lpfc_sli4_rq_release(hrq, drq);
 		spin_lock_irqsave(&phba->hbalock, iflags);
@@ -16137,9 +16138,6 @@ lpfc_sli4_post_scsi_sgl_block(struct lpfc_hba *phba,
 	return rc;
 }
 
-static char *lpfc_rctl_names[] = FC_RCTL_NAMES_INIT;
-static char *lpfc_type_names[] = FC_TYPE_NAMES_INIT;
-
 /**
  * lpfc_fc_frame_check - Check that this frame is a valid frame to handle
  * @phba: pointer to lpfc_hba struct that the frame was received on
@@ -16214,22 +16212,18 @@ lpfc_fc_frame_check(struct lpfc_hba *phba, struct fc_frame_header *fc_hdr)
 	}
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
-			"2538 Received frame rctl:%s (x%x), type:%s (x%x), "
+			"2538 Received frame rctl:x%x, type:x%x, "
 			"frame Data:%08x %08x %08x %08x %08x %08x %08x\n",
-			(fc_hdr->fh_r_ctl == FC_RCTL_MDS_DIAGS) ? "MDS Diags" :
-			lpfc_rctl_names[fc_hdr->fh_r_ctl], fc_hdr->fh_r_ctl,
-			(fc_hdr->fh_type == FC_TYPE_VENDOR_UNIQUE) ?
-			"Vendor Unique" : lpfc_type_names[fc_hdr->fh_type],
-			fc_hdr->fh_type, be32_to_cpu(header[0]),
-			be32_to_cpu(header[1]), be32_to_cpu(header[2]),
-			be32_to_cpu(header[3]), be32_to_cpu(header[4]),
-			be32_to_cpu(header[5]), be32_to_cpu(header[6]));
+			fc_hdr->fh_r_ctl, fc_hdr->fh_type,
+			be32_to_cpu(header[0]), be32_to_cpu(header[1]),
+			be32_to_cpu(header[2]), be32_to_cpu(header[3]),
+			be32_to_cpu(header[4]), be32_to_cpu(header[5]),
+			be32_to_cpu(header[6]));
 	return 0;
 drop:
 	lpfc_printf_log(phba, KERN_WARNING, LOG_ELS,
-			"2539 Dropped frame rctl:%s type:%s\n",
-			lpfc_rctl_names[fc_hdr->fh_r_ctl],
-			lpfc_type_names[fc_hdr->fh_type]);
+			"2539 Dropped frame rctl:x%x type:x%x\n",
+			fc_hdr->fh_r_ctl, fc_hdr->fh_type);
 	return 1;
 }
 
