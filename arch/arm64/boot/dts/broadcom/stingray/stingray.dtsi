@@ -244,6 +244,15 @@
 		};
 	};
 
+	crmu: crmu {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x0 0x66400000 0x100000>;
+
+		#include "stingray-clock.dtsi"
+	};
+
 	hsls {
 		compatible = "simple-bus";
 		#address-cells = <1>;
