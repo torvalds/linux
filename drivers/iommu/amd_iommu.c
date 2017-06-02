@@ -136,6 +136,18 @@ static void update_domain(struct protection_domain *domain);
 static int protection_domain_init(struct protection_domain *domain);
 static void detach_device(struct device *dev);
 
+#define FLUSH_QUEUE_SIZE 256
+
+struct flush_queue_entry {
+	unsigned long iova_pfn;
+	unsigned long pages;
+};
+
+struct flush_queue {
+	struct flush_queue_entry *entries;
+	unsigned head, tail;
+};
+
 /*
  * Data container for a dma_ops specific protection domain
  */
@@ -145,6 +157,8 @@ struct dma_ops_domain {
 
 	/* IOVA RB-Tree */
 	struct iova_domain iovad;
+
+	struct flush_queue __percpu *flush_queue;
 };
 
 static struct iova_domain reserved_iova_ranges;
@@ -1742,6 +1756,56 @@ static void free_gcr3_table(struct protection_domain *domain)
 	free_page((unsigned long)domain->gcr3_tbl);
 }
 
+static void dma_ops_domain_free_flush_queue(struct dma_ops_domain *dom)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		struct flush_queue *queue;
+
+		queue = per_cpu_ptr(dom->flush_queue, cpu);
+		kfree(queue->entries);
+	}
+
+	free_percpu(dom->flush_queue);
+
+	dom->flush_queue = NULL;
+}
+
+static int dma_ops_domain_alloc_flush_queue(struct dma_ops_domain *dom)
+{
+	int cpu;
+
+	dom->flush_queue = alloc_percpu(struct flush_queue);
+	if (!dom->flush_queue)
+		return -ENOMEM;
+
+	/* First make sure everything is cleared */
+	for_each_possible_cpu(cpu) {
+		struct flush_queue *queue;
+
+		queue = per_cpu_ptr(dom->flush_queue, cpu);
+		queue->head    = 0;
+		queue->tail    = 0;
+		queue->entries = NULL;
+	}
+
+	/* Now start doing the allocation */
+	for_each_possible_cpu(cpu) {
+		struct flush_queue *queue;
+
+		queue = per_cpu_ptr(dom->flush_queue, cpu);
+		queue->entries = kzalloc(FLUSH_QUEUE_SIZE * sizeof(*queue->entries),
+					 GFP_KERNEL);
+		if (!queue->entries) {
+			dma_ops_domain_free_flush_queue(dom);
+			return -ENOMEM;
+		}
+	}
+
+	return 0;
+}
+
 /*
  * Free a domain, only used if something went wrong in the
  * allocation path and we need to free an already allocated page table
@@ -1752,6 +1816,8 @@ static void dma_ops_domain_free(struct dma_ops_domain *dom)
 		return;
 
 	del_domain_from_list(&dom->domain);
+
+	dma_ops_domain_free_flush_queue(dom);
 
 	put_iova_domain(&dom->iovad);
 
@@ -1790,6 +1856,9 @@ static struct dma_ops_domain *dma_ops_domain_alloc(void)
 
 	/* Initialize reserved ranges */
 	copy_reserved_iova(&reserved_iova_ranges, &dma_dom->iovad);
+
+	if (dma_ops_domain_alloc_flush_queue(dma_dom))
+		goto free_dma_dom;
 
 	add_domain_to_list(&dma_dom->domain);
 
