@@ -1910,6 +1910,8 @@ static int tc358743_probe(struct i2c_client *client,
 	if (err < 0)
 		goto err_hdl;
 
+	state->mbus_fmt_code = MEDIA_BUS_FMT_RGB888_1X24;
+
 	sd->dev = &client->dev;
 	err = v4l2_async_register_subdev(sd);
 	if (err < 0)
@@ -1924,7 +1926,6 @@ static int tc358743_probe(struct i2c_client *client,
 
 	tc358743_s_dv_timings(sd, &default_timing);
 
-	state->mbus_fmt_code = MEDIA_BUS_FMT_RGB888_1X24;
 	tc358743_set_csi_color_space(sd);
 
 	tc358743_init_interrupts(sd);
