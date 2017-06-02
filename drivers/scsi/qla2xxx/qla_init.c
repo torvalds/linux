@@ -6356,8 +6356,8 @@ qla24xx_load_risc_flash(scsi_qla_host_t *vha, uint32_t *srisc_addr,
 	    "-> template size %x bytes\n", dlen);
 	if (dlen > risc_size * sizeof(*dcode)) {
 		ql_log(ql_log_warn, vha, 0x0167,
-		    "Failed fwdump template exceeds array by %x bytes\n",
-		    (uint32_t)(dlen - risc_size * sizeof(*dcode)));
+		    "Failed fwdump template exceeds array by %lx bytes\n",
+		    (size_t)(dlen - risc_size * sizeof(*dcode)));
 		goto default_template;
 	}
 	ha->fw_dump_template_len = dlen;
@@ -6658,8 +6658,8 @@ qla24xx_load_risc_blob(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 	    "-> template size %x bytes\n", dlen);
 	if (dlen > risc_size * sizeof(*fwcode)) {
 		ql_log(ql_log_warn, vha, 0x0177,
-		    "Failed fwdump template exceeds array by %x bytes\n",
-		    (uint32_t)(dlen - risc_size * sizeof(*fwcode)));
+		    "Failed fwdump template exceeds array by %lx bytes\n",
+		    (size_t)(dlen - risc_size * sizeof(*fwcode)));
 		goto default_template;
 	}
 	ha->fw_dump_template_len = dlen;
