@@ -57,7 +57,7 @@ static inline int compressed_bio_size(struct btrfs_fs_info *fs_info,
 static struct bio *compressed_bio_alloc(struct block_device *bdev,
 					u64 first_byte, gfp_t gfp_flags)
 {
-	return btrfs_bio_alloc(bdev, first_byte >> 9, BIO_MAX_PAGES, gfp_flags);
+	return btrfs_bio_alloc(bdev, first_byte >> 9);
 }
 
 static int check_compressed_csum(struct btrfs_inode *inode,
