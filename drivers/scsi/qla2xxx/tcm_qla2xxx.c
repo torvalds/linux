@@ -595,7 +595,7 @@ static int tcm_qla2xxx_dif_tags(struct qla_tgt_cmd *cmd,
 /*
  * Called from qla_target.c:qlt_issue_task_mgmt()
  */
-static int tcm_qla2xxx_handle_tmr(struct qla_tgt_mgmt_cmd *mcmd, uint32_t lun,
+static int tcm_qla2xxx_handle_tmr(struct qla_tgt_mgmt_cmd *mcmd, u64 lun,
 	uint16_t tmr_func, uint32_t tag)
 {
 	struct fc_port *sess = mcmd->sess;
