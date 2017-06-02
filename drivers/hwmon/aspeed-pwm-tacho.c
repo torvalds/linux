@@ -808,7 +808,6 @@ static int aspeed_pwm_tacho_probe(struct platform_device *pdev)
 		if (ret)
 			return ret;
 	}
-	of_node_put(np);
 
 	priv->groups[0] = &pwm_dev_group;
 	priv->groups[1] = &fan_dev_group;
