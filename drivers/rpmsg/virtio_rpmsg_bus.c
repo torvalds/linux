@@ -398,9 +398,6 @@ static struct rpmsg_device *rpmsg_create_channel(struct virtproc_info *vrp,
 	/* Link the channel to our vrp */
 	vch->vrp = vrp;
 
-	/* Assign callbacks for rpmsg_channel */
-	vch->rpdev.ops = &virtio_rpmsg_ops;
-
 	/* Assign public information to the rpmsg_device */
 	rpdev = &vch->rpdev;
 	rpdev->src = chinfo->src;
