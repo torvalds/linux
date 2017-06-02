@@ -279,6 +279,14 @@
 			status = "disabled";
 		};
 
+		wdt0: watchdog@000c0000 {
+			compatible = "arm,sp805", "arm,primecell";
+			reg = <0x000c0000 0x1000>;
+			interrupts = <GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&hsls_25m_div2_clk>, <&hsls_div4_clk>;
+			clock-names = "wdogclk", "apb_pclk";
+		};
+
 		gpio_hsls: gpio@000d0000 {
 			compatible = "brcm,iproc-gpio";
 			reg = <0x000d0000 0x864>;
@@ -359,9 +367,53 @@
 			status = "disabled";
 		};
 
+		ssp0: ssp@00180000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x00180000 0x1000>;
+			interrupts = <GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&hsls_div2_clk>, <&hsls_div2_clk>;
+			clock-names = "spiclk", "apb_pclk";
+			num-cs = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		ssp1: ssp@00190000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x00190000 0x1000>;
+			interrupts = <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&hsls_div2_clk>, <&hsls_div2_clk>;
+			clock-names = "spiclk", "apb_pclk";
+			num-cs = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
 		hwrng: hwrng@00220000 {
 			compatible = "brcm,iproc-rng200";
 			reg = <0x00220000 0x28>;
+		};
+
+		dma0: dma@00310000 {
+			compatible = "arm,pl330", "arm,primecell";
+			reg = <0x00310000 0x1000>;
+			interrupts = <GIC_SPI 193 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 194 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 195 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 196 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 197 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 198 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 199 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 200 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 201 IRQ_TYPE_LEVEL_HIGH>;
+			#dma-cells = <1>;
+			#dma-channels = <8>;
+			#dma-requests = <32>;
+			clocks = <&hsls_div2_clk>;
+			clock-names = "apb_pclk";
+			iommus = <&smmu 0x6000 0x0000>;
 		};
 
 		nand: nand@00360000 {
