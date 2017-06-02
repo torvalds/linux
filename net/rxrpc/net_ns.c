@@ -59,7 +59,6 @@ static __net_init int rxrpc_init_net(struct net *net)
 	proc_create("conns", 0444, rxnet->proc_net, &rxrpc_connection_seq_fops);
 	return 0;
 
-	proc_remove(rxnet->proc_net);
 err_proc:
 	return ret;
 }
