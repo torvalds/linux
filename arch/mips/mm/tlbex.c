@@ -153,8 +153,7 @@ static int scratchpad_offset(int i)
  */
 static int m4kc_tlbp_war(void)
 {
-	return (current_cpu_data.processor_id & 0xffff00) ==
-	       (PRID_COMP_MIPS | PRID_IMP_4KC);
+	return current_cpu_type() == CPU_4KC;
 }
 
 /* Handle labels (which must be positive integers). */
