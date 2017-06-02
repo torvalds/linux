@@ -1802,19 +1802,21 @@ static u8 intel_hdmi_ddc_pin(struct drm_i915_private *dev_priv,
 
 	switch (port) {
 	case PORT_B:
-		if (IS_GEN9_LP(dev_priv))
+		if (IS_GEN9_LP(dev_priv) || HAS_PCH_CNP(dev_priv))
 			ddc_pin = GMBUS_PIN_1_BXT;
 		else
 			ddc_pin = GMBUS_PIN_DPB;
 		break;
 	case PORT_C:
-		if (IS_GEN9_LP(dev_priv))
+		if (IS_GEN9_LP(dev_priv) || HAS_PCH_CNP(dev_priv))
 			ddc_pin = GMBUS_PIN_2_BXT;
 		else
 			ddc_pin = GMBUS_PIN_DPC;
 		break;
 	case PORT_D:
-		if (IS_CHERRYVIEW(dev_priv))
+		if (HAS_PCH_CNP(dev_priv))
+			ddc_pin = GMBUS_PIN_4_CNP;
+		else if (IS_CHERRYVIEW(dev_priv))
 			ddc_pin = GMBUS_PIN_DPD_CHV;
 		else
 			ddc_pin = GMBUS_PIN_DPD;
