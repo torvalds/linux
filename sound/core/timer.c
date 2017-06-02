@@ -1755,6 +1755,7 @@ static int snd_timer_user_params(struct file *file,
 		if (err < 0)
 			goto _end;
 	}
+	spin_lock_irq(&tu->qlock);
 	tu->qhead = tu->qtail = tu->qused = 0;
 	if (tu->timeri->flags & SNDRV_TIMER_IFLG_EARLY_EVENT) {
 		if (tu->tread) {
@@ -1775,6 +1776,7 @@ static int snd_timer_user_params(struct file *file,
 	}
 	tu->filter = params.filter;
 	tu->ticks = params.ticks;
+	spin_unlock_irq(&tu->qlock);
 	err = 0;
  _end:
 	if (copy_to_user(_params, &params, sizeof(params)))
@@ -2022,10 +2024,12 @@ static unsigned int snd_timer_user_poll(struct file *file, poll_table * wait)
         poll_wait(file, &tu->qchange_sleep, wait);
 
 	mask = 0;
+	spin_lock_irq(&tu->qlock);
 	if (tu->qused)
 		mask |= POLLIN | POLLRDNORM;
 	if (tu->disconnected)
 		mask |= POLLERR;
+	spin_unlock_irq(&tu->qlock);
 
 	return mask;
 }
