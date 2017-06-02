@@ -2675,13 +2675,13 @@ btrfs_bio_alloc(struct block_device *bdev, u64 first_sector, int nr_vecs,
 	return bio;
 }
 
-struct bio *btrfs_bio_clone(struct bio *bio, gfp_t gfp_mask)
+struct bio *btrfs_bio_clone(struct bio *bio)
 {
 	struct btrfs_io_bio *btrfs_bio;
 	struct bio *new;
 
 	/* Bio allocation backed by a bioset does not fail */
-	new = bio_clone_fast(bio, gfp_mask, btrfs_bioset);
+	new = bio_clone_fast(bio, GFP_NOFS, btrfs_bioset);
 	btrfs_bio = btrfs_io_bio(new);
 	btrfs_bio->csum = NULL;
 	btrfs_bio->csum_allocated = NULL;

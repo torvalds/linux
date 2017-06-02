@@ -8583,7 +8583,7 @@ static void btrfs_submit_direct(struct bio *dio_bio, struct inode *inode,
 
 	skip_sum = BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM;
 
-	bio = btrfs_bio_clone(dio_bio, GFP_NOFS);
+	bio = btrfs_bio_clone(dio_bio);
 
 	dip = kzalloc(sizeof(*dip), GFP_NOFS);
 	if (!dip) {
