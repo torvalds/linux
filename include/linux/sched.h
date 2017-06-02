@@ -1096,8 +1096,6 @@ static inline struct pid *task_session(struct task_struct *task)
  *                     current.
  * task_xid_nr_ns()  : id seen from the ns specified;
  *
- * set_task_vxid()   : assigns a virtual id to a task;
- *
  * see also pid_nr() etc in include/linux/pid.h
  */
 pid_t __task_pid_nr_ns(struct task_struct *task, enum pid_type type, struct pid_namespace *ns);
