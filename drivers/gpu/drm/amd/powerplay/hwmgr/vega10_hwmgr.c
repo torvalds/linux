@@ -3119,11 +3119,10 @@ static int vega10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	vega10_ps->performance_levels[0].gfx_clock = sclk;
 	vega10_ps->performance_levels[0].mem_clock = mclk;
 
-	vega10_ps->performance_levels[1].gfx_clock =
-		(vega10_ps->performance_levels[1].gfx_clock >=
-				vega10_ps->performance_levels[0].gfx_clock) ?
-						vega10_ps->performance_levels[1].gfx_clock :
-						vega10_ps->performance_levels[0].gfx_clock;
+	if (vega10_ps->performance_levels[1].gfx_clock <
+			vega10_ps->performance_levels[0].gfx_clock)
+		vega10_ps->performance_levels[0].gfx_clock =
+				vega10_ps->performance_levels[1].gfx_clock;
 
 	if (disable_mclk_switching) {
 		/* Set Mclk the max of level 0 and level 1 */
@@ -3146,8 +3145,8 @@ static int vega10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	} else {
 		if (vega10_ps->performance_levels[1].mem_clock <
 				vega10_ps->performance_levels[0].mem_clock)
-			vega10_ps->performance_levels[1].mem_clock =
-					vega10_ps->performance_levels[0].mem_clock;
+			vega10_ps->performance_levels[0].mem_clock =
+					vega10_ps->performance_levels[1].mem_clock;
 	}
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
