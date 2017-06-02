@@ -2808,9 +2808,6 @@ static int submit_extent_page(int op, int op_flags, struct extent_io_tree *tree,
 
 	bio = btrfs_bio_alloc(bdev, sector, BIO_MAX_PAGES,
 			GFP_NOFS | __GFP_HIGH);
-	if (!bio)
-		return -ENOMEM;
-
 	bio_add_page(bio, page, page_size, offset);
 	bio->bi_end_io = end_io_func;
 	bio->bi_private = tree;
