@@ -42,6 +42,10 @@ vc4_atomic_complete_commit(struct vc4_commit *c)
 	struct drm_device *dev = state->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 
+	drm_atomic_helper_wait_for_fences(dev, state, false);
+
+	drm_atomic_helper_wait_for_dependencies(state);
+
 	drm_atomic_helper_commit_modeset_disables(dev, state);
 
 	drm_atomic_helper_commit_planes(dev, state, 0);
@@ -57,9 +61,13 @@ vc4_atomic_complete_commit(struct vc4_commit *c)
 	 */
 	state->legacy_cursor_update = false;
 
+	drm_atomic_helper_commit_hw_done(state);
+
 	drm_atomic_helper_wait_for_vblanks(dev, state);
 
 	drm_atomic_helper_cleanup_planes(dev, state);
+
+	drm_atomic_helper_commit_cleanup_done(state);
 
 	drm_atomic_state_put(state);
 
@@ -117,32 +125,10 @@ static int vc4_atomic_commit(struct drm_device *dev,
 	if (!c)
 		return -ENOMEM;
 
-	/* Make sure that any outstanding modesets have finished. */
-	if (nonblock) {
-		struct drm_crtc *crtc;
-		struct drm_crtc_state *crtc_state;
-		unsigned long flags;
-		bool busy = false;
+	ret = drm_atomic_helper_setup_commit(state, nonblock);
+	if (ret)
+		return ret;
 
-		/*
-		 * If there's an undispatched event to send then we're
-		 * obviously still busy.  If there isn't, then we can
-		 * unconditionally wait for the semaphore because it
-		 * shouldn't be contended (for long).
-		 *
-		 * This is to prevent a race where queuing a new flip
-		 * from userspace immediately on receipt of an event
-		 * beats our clean-up and returns EBUSY.
-		 */
-		spin_lock_irqsave(&dev->event_lock, flags);
-		for_each_crtc_in_state(state, crtc, crtc_state, i)
-			busy |= vc4_event_pending(crtc);
-		spin_unlock_irqrestore(&dev->event_lock, flags);
-		if (busy) {
-			kfree(c);
-			return -EBUSY;
-		}
-	}
 	ret = down_interruptible(&vc4->async_modeset);
 	if (ret) {
 		kfree(c);
