@@ -6255,10 +6255,9 @@ int btrfs_map_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
 			continue;
 		}
 
-		if (dev_nr < total_devs - 1) {
+		if (dev_nr < total_devs - 1)
 			bio = btrfs_bio_clone(first_bio, GFP_NOFS);
-			BUG_ON(!bio); /* -ENOMEM */
-		} else
+		else
 			bio = first_bio;
 
 		submit_stripe_bio(bbio, bio, bbio->stripes[dev_nr].physical,
