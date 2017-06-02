@@ -842,7 +842,7 @@ static int __init amdgpu_init(void)
 	driver->num_ioctls = amdgpu_max_kms_ioctl;
 	amdgpu_register_atpx_handler();
 	/* let modprobe override vga console setting */
-	return drm_pci_init(driver, pdriver);
+	return pci_register_driver(pdriver);
 
 error_sched:
 	amdgpu_fence_slab_fini();
@@ -857,7 +857,7 @@ error_sync:
 static void __exit amdgpu_exit(void)
 {
 	amdgpu_amdkfd_fini();
-	drm_pci_exit(driver, pdriver);
+	pci_unregister_driver(pdriver);
 	amdgpu_unregister_atpx_handler();
 	amdgpu_sync_fini();
 	amd_sched_fence_slab_fini();
