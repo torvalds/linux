@@ -564,6 +564,7 @@ static int set_ftlb_enable(struct cpuinfo_mips *c, enum ftlb_flags flags)
 		back_to_back_c0_hazard();
 		break;
 	case CPU_I6400:
+	case CPU_I6500:
 		/* There's no way to disable the FTLB */
 		if (!(flags & FTLB_EN))
 			return 1;
@@ -1634,6 +1635,10 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 	case PRID_IMP_I6400:
 		c->cputype = CPU_I6400;
 		__cpu_name[cpu] = "MIPS I6400";
+		break;
+	case PRID_IMP_I6500:
+		c->cputype = CPU_I6500;
+		__cpu_name[cpu] = "MIPS I6500";
 		break;
 	case PRID_IMP_M5150:
 		c->cputype = CPU_M5150;
