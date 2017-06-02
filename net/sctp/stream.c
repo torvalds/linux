@@ -35,70 +35,43 @@
 #include <net/sctp/sctp.h>
 #include <net/sctp/sm.h>
 
-int sctp_stream_new(struct sctp_association *asoc, gfp_t gfp)
+int sctp_stream_init(struct sctp_stream *stream, __u16 outcnt, __u16 incnt,
+		     gfp_t gfp)
 {
-	struct sctp_stream *stream;
-	int i;
-
-	stream = kzalloc(sizeof(*stream), gfp);
-	if (!stream)
-		return -ENOMEM;
-
-	stream->outcnt = asoc->c.sinit_num_ostreams;
-	stream->out = kcalloc(stream->outcnt, sizeof(*stream->out), gfp);
-	if (!stream->out) {
-		kfree(stream);
-		return -ENOMEM;
-	}
-	for (i = 0; i < stream->outcnt; i++)
-		stream->out[i].state = SCTP_STREAM_OPEN;
-
-	asoc->stream = stream;
-
-	return 0;
-}
-
-int sctp_stream_init(struct sctp_association *asoc, gfp_t gfp)
-{
-	struct sctp_stream *stream = asoc->stream;
 	int i;
 
 	/* Initial stream->out size may be very big, so free it and alloc
 	 * a new one with new outcnt to save memory.
 	 */
 	kfree(stream->out);
-	stream->outcnt = asoc->c.sinit_num_ostreams;
-	stream->out = kcalloc(stream->outcnt, sizeof(*stream->out), gfp);
-	if (!stream->out)
-		goto nomem;
 
+	stream->out = kcalloc(outcnt, sizeof(*stream->out), gfp);
+	if (!stream->out)
+		return -ENOMEM;
+
+	stream->outcnt = outcnt;
 	for (i = 0; i < stream->outcnt; i++)
 		stream->out[i].state = SCTP_STREAM_OPEN;
 
-	stream->incnt = asoc->c.sinit_max_instreams;
-	stream->in = kcalloc(stream->incnt, sizeof(*stream->in), gfp);
+	if (!incnt)
+		return 0;
+
+	stream->in = kcalloc(incnt, sizeof(*stream->in), gfp);
 	if (!stream->in) {
 		kfree(stream->out);
-		goto nomem;
+		stream->out = NULL;
+		return -ENOMEM;
 	}
 
+	stream->incnt = incnt;
+
 	return 0;
-
-nomem:
-	asoc->stream = NULL;
-	kfree(stream);
-
-	return -ENOMEM;
 }
 
 void sctp_stream_free(struct sctp_stream *stream)
 {
-	if (unlikely(!stream))
-		return;
-
 	kfree(stream->out);
 	kfree(stream->in);
-	kfree(stream);
 }
 
 void sctp_stream_clear(struct sctp_stream *stream)
@@ -110,6 +83,19 @@ void sctp_stream_clear(struct sctp_stream *stream)
 
 	for (i = 0; i < stream->incnt; i++)
 		stream->in[i].ssn = 0;
+}
+
+void sctp_stream_update(struct sctp_stream *stream, struct sctp_stream *new)
+{
+	sctp_stream_free(stream);
+
+	stream->out = new->out;
+	stream->in  = new->in;
+	stream->outcnt = new->outcnt;
+	stream->incnt  = new->incnt;
+
+	new->out = NULL;
+	new->in  = NULL;
 }
 
 static int sctp_send_reconf(struct sctp_association *asoc,
@@ -128,7 +114,7 @@ static int sctp_send_reconf(struct sctp_association *asoc,
 int sctp_send_reset_streams(struct sctp_association *asoc,
 			    struct sctp_reset_streams *params)
 {
-	struct sctp_stream *stream = asoc->stream;
+	struct sctp_stream *stream = &asoc->stream;
 	__u16 i, str_nums, *str_list;
 	struct sctp_chunk *chunk;
 	int retval = -EINVAL;
@@ -214,6 +200,7 @@ out:
 
 int sctp_send_reset_assoc(struct sctp_association *asoc)
 {
+	struct sctp_stream *stream = &asoc->stream;
 	struct sctp_chunk *chunk = NULL;
 	int retval;
 	__u16 i;
@@ -230,8 +217,8 @@ int sctp_send_reset_assoc(struct sctp_association *asoc)
 		return -ENOMEM;
 
 	/* Block further xmit of data until this request is completed */
-	for (i = 0; i < asoc->stream->outcnt; i++)
-		asoc->stream->out[i].state = SCTP_STREAM_CLOSED;
+	for (i = 0; i < stream->outcnt; i++)
+		stream->out[i].state = SCTP_STREAM_CLOSED;
 
 	asoc->strreset_chunk = chunk;
 	sctp_chunk_hold(asoc->strreset_chunk);
@@ -241,8 +228,8 @@ int sctp_send_reset_assoc(struct sctp_association *asoc)
 		sctp_chunk_put(asoc->strreset_chunk);
 		asoc->strreset_chunk = NULL;
 
-		for (i = 0; i < asoc->stream->outcnt; i++)
-			asoc->stream->out[i].state = SCTP_STREAM_OPEN;
+		for (i = 0; i < stream->outcnt; i++)
+			stream->out[i].state = SCTP_STREAM_OPEN;
 
 		return retval;
 	}
@@ -255,7 +242,7 @@ int sctp_send_reset_assoc(struct sctp_association *asoc)
 int sctp_send_add_streams(struct sctp_association *asoc,
 			  struct sctp_add_streams *params)
 {
-	struct sctp_stream *stream = asoc->stream;
+	struct sctp_stream *stream = &asoc->stream;
 	struct sctp_chunk *chunk = NULL;
 	int retval = -ENOMEM;
 	__u32 outcnt, incnt;
@@ -357,7 +344,7 @@ struct sctp_chunk *sctp_process_strreset_outreq(
 				struct sctp_ulpevent **evp)
 {
 	struct sctp_strreset_outreq *outreq = param.v;
-	struct sctp_stream *stream = asoc->stream;
+	struct sctp_stream *stream = &asoc->stream;
 	__u16 i, nums, flags = 0, *str_p = NULL;
 	__u32 result = SCTP_STRRESET_DENIED;
 	__u32 request_seq;
@@ -449,7 +436,7 @@ struct sctp_chunk *sctp_process_strreset_inreq(
 				struct sctp_ulpevent **evp)
 {
 	struct sctp_strreset_inreq *inreq = param.v;
-	struct sctp_stream *stream = asoc->stream;
+	struct sctp_stream *stream = &asoc->stream;
 	__u32 result = SCTP_STRRESET_DENIED;
 	struct sctp_chunk *chunk = NULL;
 	__u16 i, nums, *str_p;
@@ -523,7 +510,7 @@ struct sctp_chunk *sctp_process_strreset_tsnreq(
 {
 	__u32 init_tsn = 0, next_tsn = 0, max_tsn_seen;
 	struct sctp_strreset_tsnreq *tsnreq = param.v;
-	struct sctp_stream *stream = asoc->stream;
+	struct sctp_stream *stream = &asoc->stream;
 	__u32 result = SCTP_STRRESET_DENIED;
 	__u32 request_seq;
 	__u16 i;
@@ -612,7 +599,7 @@ struct sctp_chunk *sctp_process_strreset_addstrm_out(
 				struct sctp_ulpevent **evp)
 {
 	struct sctp_strreset_addstrm *addstrm = param.v;
-	struct sctp_stream *stream = asoc->stream;
+	struct sctp_stream *stream = &asoc->stream;
 	__u32 result = SCTP_STRRESET_DENIED;
 	struct sctp_stream_in *streamin;
 	__u32 request_seq, incnt;
@@ -687,7 +674,7 @@ struct sctp_chunk *sctp_process_strreset_addstrm_in(
 				struct sctp_ulpevent **evp)
 {
 	struct sctp_strreset_addstrm *addstrm = param.v;
-	struct sctp_stream *stream = asoc->stream;
+	struct sctp_stream *stream = &asoc->stream;
 	__u32 result = SCTP_STRRESET_DENIED;
 	struct sctp_stream_out *streamout;
 	struct sctp_chunk *chunk = NULL;
@@ -758,8 +745,8 @@ struct sctp_chunk *sctp_process_strreset_resp(
 				union sctp_params param,
 				struct sctp_ulpevent **evp)
 {
+	struct sctp_stream *stream = &asoc->stream;
 	struct sctp_strreset_resp *resp = param.v;
-	struct sctp_stream *stream = asoc->stream;
 	struct sctp_transport *t;
 	__u16 i, nums, flags = 0;
 	sctp_paramhdr_t *req;

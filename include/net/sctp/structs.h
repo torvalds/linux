@@ -377,10 +377,11 @@ typedef struct sctp_sender_hb_info {
 	__u64 hb_nonce;
 } sctp_sender_hb_info_t;
 
-int sctp_stream_new(struct sctp_association *asoc, gfp_t gfp);
-int sctp_stream_init(struct sctp_association *asoc, gfp_t gfp);
+int sctp_stream_init(struct sctp_stream *stream, __u16 outcnt, __u16 incnt,
+		     gfp_t gfp);
 void sctp_stream_free(struct sctp_stream *stream);
 void sctp_stream_clear(struct sctp_stream *stream);
+void sctp_stream_update(struct sctp_stream *stream, struct sctp_stream *new);
 
 /* What is the current SSN number for this stream? */
 #define sctp_ssn_peek(stream, type, sid) \
@@ -1750,7 +1751,7 @@ struct sctp_association {
 	__u32 default_rcv_context;
 
 	/* Stream arrays */
-	struct sctp_stream *stream;
+	struct sctp_stream stream;
 
 	/* All outbound chunks go through this structure.  */
 	struct sctp_outq outqueue;
