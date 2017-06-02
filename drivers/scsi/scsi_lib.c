@@ -2944,28 +2944,20 @@ scsi_target_resume(struct scsi_target *starget)
 EXPORT_SYMBOL(scsi_target_resume);
 
 /**
- * scsi_internal_device_block - internal function to put a device temporarily into the SDEV_BLOCK state
- * @sdev:	device to block
- * @wait:	Whether or not to wait until ongoing .queuecommand() /
- *		.queue_rq() calls have finished.
+ * scsi_internal_device_block_nowait - try to transition to the SDEV_BLOCK state
+ * @sdev: device to block
  *
- * Block request made by scsi lld's to temporarily stop all
- * scsi commands on the specified device. May sleep.
+ * Pause SCSI command processing on the specified device. Does not sleep.
  *
- * Returns zero if successful or error if not
+ * Returns zero if successful or a negative error code upon failure.
  *
- * Notes:       
- *	This routine transitions the device to the SDEV_BLOCK state
- *	(which must be a legal transition).  When the device is in this
- *	state, all commands are deferred until the scsi lld reenables
- *	the device with scsi_device_unblock or device_block_tmo fires.
- *
- * To do: avoid that scsi_send_eh_cmnd() calls queuecommand() after
- * scsi_internal_device_block() has blocked a SCSI device and also
- * remove the rport mutex lock and unlock calls from srp_queuecommand().
+ * Notes:
+ * This routine transitions the device to the SDEV_BLOCK state (which must be
+ * a legal transition). When the device is in this state, command processing
+ * is paused until the device leaves the SDEV_BLOCK state. See also
+ * scsi_internal_device_unblock_nowait().
  */
-int
-scsi_internal_device_block(struct scsi_device *sdev, bool wait)
+int scsi_internal_device_block_nowait(struct scsi_device *sdev)
 {
 	struct request_queue *q = sdev->request_queue;
 	unsigned long flags;
@@ -2985,21 +2977,50 @@ scsi_internal_device_block(struct scsi_device *sdev, bool wait)
 	 * request queue. 
 	 */
 	if (q->mq_ops) {
-		if (wait)
-			blk_mq_quiesce_queue(q);
-		else
-			blk_mq_stop_hw_queues(q);
+		blk_mq_stop_hw_queues(q);
 	} else {
 		spin_lock_irqsave(q->queue_lock, flags);
 		blk_stop_queue(q);
 		spin_unlock_irqrestore(q->queue_lock, flags);
-		if (wait)
-			scsi_wait_for_queuecommand(sdev);
 	}
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(scsi_internal_device_block);
+EXPORT_SYMBOL_GPL(scsi_internal_device_block_nowait);
+
+/**
+ * scsi_internal_device_block - try to transition to the SDEV_BLOCK state
+ * @sdev: device to block
+ *
+ * Pause SCSI command processing on the specified device and wait until all
+ * ongoing scsi_request_fn() / scsi_queue_rq() calls have finished. May sleep.
+ *
+ * Returns zero if successful or a negative error code upon failure.
+ *
+ * Note:
+ * This routine transitions the device to the SDEV_BLOCK state (which must be
+ * a legal transition). When the device is in this state, command processing
+ * is paused until the device leaves the SDEV_BLOCK state. See also
+ * scsi_internal_device_unblock().
+ *
+ * To do: avoid that scsi_send_eh_cmnd() calls queuecommand() after
+ * scsi_internal_device_block() has blocked a SCSI device and also
+ * remove the rport mutex lock and unlock calls from srp_queuecommand().
+ */
+static int scsi_internal_device_block(struct scsi_device *sdev)
+{
+	struct request_queue *q = sdev->request_queue;
+	int err;
+
+	err = scsi_internal_device_block_nowait(sdev);
+	if (err == 0) {
+		if (q->mq_ops)
+			blk_mq_quiesce_queue(q);
+		else
+			scsi_wait_for_queuecommand(sdev);
+	}
+	return err;
+}
  
 /**
  * scsi_internal_device_unblock - resume a device after a block request
@@ -3056,7 +3077,7 @@ EXPORT_SYMBOL_GPL(scsi_internal_device_unblock);
 static void
 device_block(struct scsi_device *sdev, void *data)
 {
-	scsi_internal_device_block(sdev, true);
+	scsi_internal_device_block(sdev);
 }
 
 static int
