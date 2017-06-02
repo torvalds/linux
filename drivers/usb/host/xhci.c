@@ -2849,7 +2849,7 @@ void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci,
 		xhci_dbg_trace(xhci, trace_xhci_dbg_reset_ep,
 				"Queueing new dequeue state");
 		xhci_queue_new_dequeue_state(xhci, udev->slot_id,
-				ep_index, ep->stopped_stream, &deq_state);
+				ep_index, &deq_state);
 	} else {
 		/* Better hope no one uses the input context between now and the
 		 * reset endpoint completion!
