@@ -142,7 +142,7 @@
 		interrupt-controller;
 	};
 
-	pfc: pfc@fffc0000 {
+	pfc: pin-controller@fffc0000 {
 		compatible = "renesas,pfc-r8a7778";
 		reg = <0xfffc0000 0x118>;
 	};
