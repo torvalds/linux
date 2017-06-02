@@ -170,10 +170,6 @@ static ssize_t efi_capsule_write(struct file *file, const char __user *buff,
 	page = cap_info->pages[cap_info->index - 1];
 
 	kbuff = kmap(page);
-	if (!kbuff) {
-		ret = -ENOMEM;
-		goto failed;
-	}
 	kbuff += PAGE_SIZE - cap_info->page_bytes_remain;
 
 	/* Copy capsule binary data from user space to kernel space buffer */

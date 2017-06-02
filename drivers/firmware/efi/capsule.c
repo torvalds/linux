@@ -247,10 +247,6 @@ int efi_capsule_update(efi_capsule_header_t *capsule, struct page **pages)
 		efi_capsule_block_desc_t *sglist;
 
 		sglist = kmap(sg_pages[i]);
-		if (!sglist) {
-			rv = -ENOMEM;
-			goto out;
-		}
 
 		for (j = 0; j < SGLIST_PER_PAGE && count > 0; j++) {
 			u64 sz = min_t(u64, imagesize, PAGE_SIZE);
