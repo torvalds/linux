@@ -796,6 +796,19 @@ static void bxt_disable_backlight(struct intel_connector *connector)
 	}
 }
 
+static void cnp_disable_backlight(struct intel_connector *connector)
+{
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct intel_panel *panel = &connector->panel;
+	u32 tmp;
+
+	intel_panel_actually_set_backlight(connector, 0);
+
+	tmp = I915_READ(BXT_BLC_PWM_CTL(panel->backlight.controller));
+	I915_WRITE(BXT_BLC_PWM_CTL(panel->backlight.controller),
+		   tmp & ~BXT_BLC_PWM_ENABLE);
+}
+
 static void pwm_disable_backlight(struct intel_connector *connector)
 {
 	struct intel_panel *panel = &connector->panel;
@@ -1086,6 +1099,35 @@ static void bxt_enable_backlight(struct intel_connector *connector)
 			pwm_ctl | BXT_BLC_PWM_ENABLE);
 }
 
+static void cnp_enable_backlight(struct intel_connector *connector)
+{
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct intel_panel *panel = &connector->panel;
+	u32 pwm_ctl;
+
+	pwm_ctl = I915_READ(BXT_BLC_PWM_CTL(panel->backlight.controller));
+	if (pwm_ctl & BXT_BLC_PWM_ENABLE) {
+		DRM_DEBUG_KMS("backlight already enabled\n");
+		pwm_ctl &= ~BXT_BLC_PWM_ENABLE;
+		I915_WRITE(BXT_BLC_PWM_CTL(panel->backlight.controller),
+			   pwm_ctl);
+	}
+
+	I915_WRITE(BXT_BLC_PWM_FREQ(panel->backlight.controller),
+		   panel->backlight.max);
+
+	intel_panel_actually_set_backlight(connector, panel->backlight.level);
+
+	pwm_ctl = 0;
+	if (panel->backlight.active_low_pwm)
+		pwm_ctl |= BXT_BLC_PWM_POLARITY;
+
+	I915_WRITE(BXT_BLC_PWM_CTL(panel->backlight.controller), pwm_ctl);
+	POSTING_READ(BXT_BLC_PWM_CTL(panel->backlight.controller));
+	I915_WRITE(BXT_BLC_PWM_CTL(panel->backlight.controller),
+		   pwm_ctl | BXT_BLC_PWM_ENABLE);
+}
+
 static void pwm_enable_backlight(struct intel_connector *connector)
 {
 	struct intel_panel *panel = &connector->panel;
@@ -1248,6 +1290,17 @@ void intel_backlight_device_unregister(struct intel_connector *connector)
 	}
 }
 #endif /* CONFIG_BACKLIGHT_CLASS_DEVICE */
+
+/*
+ * CNP: PWM clock frequency is 19.2 MHz or 24 MHz.
+ *      PWM increment = 1
+ */
+static u32 cnp_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
+{
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+
+	return DIV_ROUND_CLOSEST(KHz(dev_priv->rawclk_freq), pwm_freq_hz);
+}
 
 /*
  * BXT: PWM clock frequency = 19.2 MHz.
@@ -1644,6 +1697,42 @@ bxt_setup_backlight(struct intel_connector *connector, enum pipe unused)
 	return 0;
 }
 
+static int
+cnp_setup_backlight(struct intel_connector *connector, enum pipe unused)
+{
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct intel_panel *panel = &connector->panel;
+	u32 pwm_ctl, val;
+
+	/*
+	 * CNP has the BXT implementation of backlight, but with only
+	 * one controller. Future platforms could have multiple controllers
+	 * so let's make this extensible and prepared for the future.
+	 */
+	panel->backlight.controller = 0;
+
+	pwm_ctl = I915_READ(BXT_BLC_PWM_CTL(panel->backlight.controller));
+
+	panel->backlight.active_low_pwm = pwm_ctl & BXT_BLC_PWM_POLARITY;
+	panel->backlight.max =
+		I915_READ(BXT_BLC_PWM_FREQ(panel->backlight.controller));
+
+	if (!panel->backlight.max)
+		panel->backlight.max = get_backlight_max_vbt(connector);
+
+	if (!panel->backlight.max)
+		return -ENODEV;
+
+	val = bxt_get_backlight(connector);
+	val = intel_panel_compute_brightness(connector, val);
+	panel->backlight.level = clamp(val, panel->backlight.min,
+				       panel->backlight.max);
+
+	panel->backlight.enabled = pwm_ctl & BXT_BLC_PWM_ENABLE;
+
+	return 0;
+}
+
 static int pwm_setup_backlight(struct intel_connector *connector,
 			       enum pipe pipe)
 {
@@ -1760,6 +1849,13 @@ intel_panel_init_backlight_funcs(struct intel_panel *panel)
 		panel->backlight.set = bxt_set_backlight;
 		panel->backlight.get = bxt_get_backlight;
 		panel->backlight.hz_to_pwm = bxt_hz_to_pwm;
+	} else if (HAS_PCH_CNP(dev_priv)) {
+		panel->backlight.setup = cnp_setup_backlight;
+		panel->backlight.enable = cnp_enable_backlight;
+		panel->backlight.disable = cnp_disable_backlight;
+		panel->backlight.set = bxt_set_backlight;
+		panel->backlight.get = bxt_get_backlight;
+		panel->backlight.hz_to_pwm = cnp_hz_to_pwm;
 	} else if (HAS_PCH_LPT(dev_priv) || HAS_PCH_SPT(dev_priv) ||
 		   HAS_PCH_KBP(dev_priv)) {
 		panel->backlight.setup = lpt_setup_backlight;
