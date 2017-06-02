@@ -79,14 +79,28 @@ done:
 	return uval;
 }
 
+#ifdef CONFIG_ISA_ARCV2
+
 void arch_cpu_idle(void)
 {
-	/* sleep, but enable all interrupts before committing */
+	/* Re-enable interrupts <= default irq priority before commiting SLEEP */
+	const unsigned int arg = 0x10 | ARCV2_IRQ_DEF_PRIO;
+
 	__asm__ __volatile__(
 		"sleep %0	\n"
 		:
-		:"I"(ISA_SLEEP_ARG)); /* can't be "r" has to be embedded const */
+		:"I"(arg)); /* can't be "r" has to be embedded const */
 }
+
+#else
+
+void arch_cpu_idle(void)
+{
+	/* sleep, but enable both set E1/E2 (levels of interrutps) before committing */
+	__asm__ __volatile__("sleep 0x3	\n");
+}
+
+#endif
 
 asmlinkage void ret_from_fork(void);
 
