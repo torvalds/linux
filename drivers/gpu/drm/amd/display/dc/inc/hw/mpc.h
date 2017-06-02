@@ -25,19 +25,6 @@
 #ifndef __DC_MPC_H__
 #define __DC_MPC_H__
 
-/* define the maximum number of pipes
- * MAX_NUM_PIPPES = MAX_PIPES defined in core_type.h
- */
-enum {
-	MAX_NUM_PIPPES = 6
-};
-
-enum blend_mode {
-	DIGI_BYPASS = 0,	/* digital bypass */
-	TOP_PASSTHRU,		/* top layer pass through */
-	TOP_BLND		/* top layer blend */
-};
-
 /* This structure define the mpc tree configuration
  * num_pipes - number of pipes of the tree
  * opp_id - instance id of OPP to drive MPC
@@ -60,10 +47,10 @@ struct mpc_tree_cfg {
 	uint8_t num_pipes;
 	uint8_t opp_id;
 	/* dpp pipes for blend */
-	uint8_t dpp[MAX_NUM_PIPPES];
+	uint8_t dpp[6];
 	/* mpcc insatnces for blend */
-	uint8_t mpcc[MAX_NUM_PIPPES];
-	enum blend_mode mode;
+	uint8_t mpcc[6];
+	bool per_pixel_alpha[6];
 };
 
 struct mpcc_blnd_cfg {

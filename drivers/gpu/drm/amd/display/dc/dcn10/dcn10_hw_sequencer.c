@@ -125,14 +125,8 @@ static void lock_otg_master_update(
 	HWSEQ_REG_UPDATE(OTG0_OTG_GLOBAL_CONTROL0,
 			OTG_MASTER_UPDATE_LOCK_SEL, inst);
 
-	/* unlock master locker */
 	HWSEQ_REG_UPDATE(OTG0_OTG_MASTER_UPDATE_LOCK,
 			OTG_MASTER_UPDATE_LOCK, 1);
-
-	/* wait for unlock happens */
-	if (!wait_reg(ctx, inst_offset, OTG0_OTG_MASTER_UPDATE_LOCK, UPDATE_LOCK_STATUS, 1))
-			BREAK_TO_DEBUGGER();
-
 }
 
 static bool unlock_master_tg_and_wait(
@@ -1562,8 +1556,9 @@ static void update_dchubp_dpp(
 	enum dc_color_space color_space;
 	struct tg_color black_color = {0};
 	struct dcn10_mpc *mpc = TO_DCN10_MPC(dc->res_pool->mpc);
-
-	struct pipe_ctx *cur_pipe_ctx = &dc->current_context->res_ctx.pipe_ctx[pipe_ctx->pipe_idx];
+	struct pipe_ctx *temp_pipe;
+	int i;
+	int tree_pos = 0;
 
 	/* depends on DML calculation, DPP clock value may change dynamically */
 	enable_dppclk(
@@ -1609,41 +1604,30 @@ static void update_dchubp_dpp(
 	/* TODO: build stream pipes group id. For now, use stream otg
 	 * id as pipe group id
 	 */
+	/*pipe_ctx->scl_data.lb_params.alpha_en = pipe_ctx->surface->public.per_pixel_alpha;*/
+	if (pipe_ctx->bottom_pipe && surface != pipe_ctx->bottom_pipe->surface)
+		pipe_ctx->scl_data.lb_params.alpha_en = 1;
+	else
+		pipe_ctx->scl_data.lb_params.alpha_en = 0;
 	pipe_ctx->mpc_idx = pipe_ctx->tg->inst;
 	tree_cfg = &context->res_ctx.mpc_tree[pipe_ctx->mpc_idx];
-
-	/* enable when bottom pipe is present and
-	 * it does not share a surface with current pipe
-	 */
-	if (pipe_ctx->bottom_pipe && surface != pipe_ctx->bottom_pipe->surface) {
-		pipe_ctx->scl_data.lb_params.alpha_en = 1;
-		tree_cfg->mode = TOP_BLND;
-	} else {
-		pipe_ctx->scl_data.lb_params.alpha_en = 0;
-		tree_cfg->mode = TOP_PASSTHRU;
-	}
-	if (!pipe_ctx->top_pipe && !cur_pipe_ctx->bottom_pipe) {
-		/* primary pipe, set mpc tree index 0 only */
-		tree_cfg->num_pipes = 1;
+	if (tree_cfg->num_pipes == 0) {
 		tree_cfg->opp_id = pipe_ctx->tg->inst;
-		tree_cfg->dpp[0] = pipe_ctx->pipe_idx;
-		tree_cfg->mpcc[0] = pipe_ctx->pipe_idx;
+		for (i = 0; i < MAX_PIPES; i++) {
+			tree_cfg->dpp[i] = 0xf;
+			tree_cfg->mpcc[i] = 0xf;
+		}
 	}
 
-	if (!cur_pipe_ctx->top_pipe && !pipe_ctx->top_pipe) {
+	for (temp_pipe = pipe_ctx->top_pipe;
+			temp_pipe != NULL; temp_pipe = temp_pipe->top_pipe)
+		tree_pos++;
 
-		if (!cur_pipe_ctx->bottom_pipe)
-			dcn10_set_mpc_tree(mpc, tree_cfg);
-
-	} else if (!cur_pipe_ctx->top_pipe && pipe_ctx->top_pipe) {
-
-		dcn10_add_dpp(mpc, tree_cfg,
-			pipe_ctx->pipe_idx, pipe_ctx->pipe_idx, 1);
-	} else {
-		/* nothing to be done here */
-		ASSERT(cur_pipe_ctx->top_pipe && pipe_ctx->top_pipe);
-	}
-
+	tree_cfg->dpp[tree_pos] = pipe_ctx->pipe_idx;
+	tree_cfg->mpcc[tree_pos] = pipe_ctx->pipe_idx;
+	tree_cfg->per_pixel_alpha[tree_pos] = pipe_ctx->scl_data.lb_params.alpha_en;
+	tree_cfg->num_pipes = tree_pos + 1;
+	dcn10_set_mpc_tree(mpc, tree_cfg);
 
 	color_space = pipe_ctx->stream->public.output_color_space;
 	color_space_to_black_color(dc, color_space, &black_color);
@@ -1680,18 +1664,15 @@ static void program_all_pipe_in_tree(
 {
 	unsigned int ref_clk_mhz = dc->res_pool->ref_clock_inKhz/1000;
 
-	if (pipe_ctx->surface->public.visible || pipe_ctx->top_pipe == NULL) {
-		dcn10_power_on_fe(dc, pipe_ctx, context);
+	if (pipe_ctx->top_pipe == NULL) {
 
 		/* lock otg_master_update to process all pipes associated with
 		 * this OTG. this is done only one time.
 		 */
-		if (pipe_ctx->top_pipe == NULL) {
-			/* watermark is for all pipes */
-			pipe_ctx->mi->funcs->program_watermarks(
-					pipe_ctx->mi, &context->bw.dcn.watermarks, ref_clk_mhz);
-			lock_otg_master_update(dc->ctx, pipe_ctx->tg->inst);
-		}
+		/* watermark is for all pipes */
+		pipe_ctx->mi->funcs->program_watermarks(
+				pipe_ctx->mi, &context->bw.dcn.watermarks, ref_clk_mhz);
+		lock_otg_master_update(dc->ctx, pipe_ctx->tg->inst);
 
 		pipe_ctx->tg->dlg_otg_param.vready_offset = pipe_ctx->pipe_dlg_param.vready_offset;
 		pipe_ctx->tg->dlg_otg_param.vstartup_start = pipe_ctx->pipe_dlg_param.vstartup_start;
@@ -1702,12 +1683,11 @@ static void program_all_pipe_in_tree(
 		pipe_ctx->tg->funcs->program_global_sync(
 				pipe_ctx->tg);
 		pipe_ctx->tg->funcs->set_blank(pipe_ctx->tg, !is_pipe_tree_visible(pipe_ctx));
+	}
 
-
-
+	if (pipe_ctx->surface->public.visible) {
+		dcn10_power_on_fe(dc, pipe_ctx, context);
 		update_dchubp_dpp(dc, pipe_ctx, context);
-
-		/* Only support one plane for now. */
 	}
 
 	if (pipe_ctx->bottom_pipe != NULL)

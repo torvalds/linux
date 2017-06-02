@@ -105,11 +105,6 @@ struct dcn10_mpc {
 	const struct dcn_mpc_mask *mpc_mask;
 };
 
-void dcn10_set_mpc_passthrough(struct dcn10_mpc *mpc,
-	uint8_t dpp_idx,
-	uint8_t mpcc_idx,
-	uint8_t opp_idx);
-
 void dcn10_delete_mpc_tree(struct dcn10_mpc *mpc,
 	struct mpc_tree_cfg *tree_cfg);
 
@@ -121,6 +116,7 @@ void dcn10_add_dpp(struct dcn10_mpc *mpc,
 	struct mpc_tree_cfg *tree_cfg,
 	uint8_t dpp_idx,
 	uint8_t mpcc_idx,
+	uint8_t per_pixel_alpha,
 	uint8_t position);
 
 void wait_mpcc_idle(struct dcn10_mpc *mpc,
