@@ -958,7 +958,16 @@ void __ref xen_setup_vcpu_info_placement(void)
 	for_each_possible_cpu(cpu) {
 		/* Set up direct vCPU id mapping for PV guests. */
 		per_cpu(xen_vcpu_id, cpu) = cpu;
-		xen_vcpu_setup(cpu);
+
+		/*
+		 * xen_vcpu_setup(cpu) can fail  -- in which case it
+		 * falls back to the shared_info version for cpus
+		 * where xen_vcpu_nr(cpu) < MAX_VIRT_CPUS.
+		 *
+		 * xen_cpu_up_prepare_pv() handles the rest by failing
+		 * them in hotplug.
+		 */
+		(void) xen_vcpu_setup(cpu);
 	}
 
 	/*
@@ -1431,6 +1440,9 @@ asmlinkage __visible void __init xen_start_kernel(void)
 static int xen_cpu_up_prepare_pv(unsigned int cpu)
 {
 	int rc;
+
+	if (per_cpu(xen_vcpu, cpu) == NULL)
+		return -ENODEV;
 
 	xen_setup_timer(cpu);
 

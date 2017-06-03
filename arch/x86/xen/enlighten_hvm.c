@@ -89,7 +89,7 @@ static void xen_hvm_crash_shutdown(struct pt_regs *regs)
 
 static int xen_cpu_up_prepare_hvm(unsigned int cpu)
 {
-	int rc;
+	int rc = 0;
 
 	/*
 	 * This can happen if CPU was offlined earlier and
@@ -104,7 +104,9 @@ static int xen_cpu_up_prepare_hvm(unsigned int cpu)
 		per_cpu(xen_vcpu_id, cpu) = cpu_acpi_id(cpu);
 	else
 		per_cpu(xen_vcpu_id, cpu) = cpu;
-	xen_vcpu_setup(cpu);
+	rc = xen_vcpu_setup(cpu);
+	if (rc)
+		return rc;
 
 	if (xen_have_vector_callback && xen_feature(XENFEAT_hvm_safe_pvclock))
 		xen_setup_timer(cpu);
@@ -113,9 +115,8 @@ static int xen_cpu_up_prepare_hvm(unsigned int cpu)
 	if (rc) {
 		WARN(1, "xen_smp_intr_init() for CPU %d failed: %d\n",
 		     cpu, rc);
-		return rc;
 	}
-	return 0;
+	return rc;
 }
 
 static int xen_cpu_dead_hvm(unsigned int cpu)
