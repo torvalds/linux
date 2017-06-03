@@ -560,7 +560,6 @@ struct iscsi_conn {
 #define LOGIN_FLAGS_INITIAL_PDU		8
 	unsigned long		login_flags;
 	struct delayed_work	login_work;
-	struct delayed_work	login_cleanup_work;
 	struct iscsi_login	*login;
 	struct timer_list	nopin_timer;
 	struct timer_list	nopin_response_timer;
