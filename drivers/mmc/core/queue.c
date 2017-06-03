@@ -133,7 +133,7 @@ static void mmc_request_fn(struct request_queue *q)
 	if (!mq) {
 		while ((req = blk_fetch_request(q)) != NULL) {
 			req->rq_flags |= RQF_QUIET;
-			__blk_end_request_all(req, -EIO);
+			__blk_end_request_all(req, BLK_STS_IOERR);
 		}
 		return;
 	}

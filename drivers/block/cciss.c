@@ -1864,7 +1864,8 @@ static void cciss_softirq_done(struct request *rq)
 	/* set the residual count for pc requests */
 	if (blk_rq_is_passthrough(rq))
 		scsi_req(rq)->resid_len = c->err_info->ResidualCnt;
-	blk_end_request_all(rq, scsi_req(rq)->result ? -EIO : 0);
+	blk_end_request_all(rq, scsi_req(rq)->result ?
+			BLK_STS_IOERR : BLK_STS_OK);
 
 	spin_lock_irqsave(&h->lock, flags);
 	cmd_free(h, c);

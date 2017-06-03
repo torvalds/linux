@@ -320,7 +320,7 @@ static int osst_chk_result(struct osst_tape * STp, struct osst_request * SRpnt)
 
 
 /* Wakeup from interrupt */
-static void osst_end_async(struct request *req, int update)
+static void osst_end_async(struct request *req, blk_status_t status)
 {
 	struct scsi_request *rq = scsi_req(req);
 	struct osst_request *SRpnt = req->end_io_data;

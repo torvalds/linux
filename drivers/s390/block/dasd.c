@@ -2672,7 +2672,7 @@ static void __dasd_process_request_queue(struct dasd_block *block)
 	 */
 	if (basedev->state < DASD_STATE_READY) {
 		while ((req = blk_fetch_request(block->request_queue)))
-			__blk_end_request_all(req, -EIO);
+			__blk_end_request_all(req, BLK_STS_IOERR);
 		return;
 	}
 
@@ -2692,7 +2692,7 @@ static void __dasd_process_request_queue(struct dasd_block *block)
 				      "Rejecting write request %p",
 				      req);
 			blk_start_request(req);
-			__blk_end_request_all(req, -EIO);
+			__blk_end_request_all(req, BLK_STS_IOERR);
 			continue;
 		}
 		if (test_bit(DASD_FLAG_ABORTALL, &basedev->flags) &&
@@ -2702,7 +2702,7 @@ static void __dasd_process_request_queue(struct dasd_block *block)
 				      "Rejecting failfast request %p",
 				      req);
 			blk_start_request(req);
-			__blk_end_request_all(req, -ETIMEDOUT);
+			__blk_end_request_all(req, BLK_STS_TIMEOUT);
 			continue;
 		}
 		cqr = basedev->discipline->build_cp(basedev, block, req);
@@ -2734,7 +2734,7 @@ static void __dasd_process_request_queue(struct dasd_block *block)
 				      "on request %p",
 				      PTR_ERR(cqr), req);
 			blk_start_request(req);
-			__blk_end_request_all(req, -EIO);
+			__blk_end_request_all(req, BLK_STS_IOERR);
 			continue;
 		}
 		/*
@@ -2755,21 +2755,29 @@ static void __dasd_cleanup_cqr(struct dasd_ccw_req *cqr)
 {
 	struct request *req;
 	int status;
-	int error = 0;
+	blk_status_t error = BLK_STS_OK;
 
 	req = (struct request *) cqr->callback_data;
 	dasd_profile_end(cqr->block, cqr, req);
+
 	status = cqr->block->base->discipline->free_cp(cqr, req);
 	if (status < 0)
-		error = status;
+		error = errno_to_blk_status(status);
 	else if (status == 0) {
-		if (cqr->intrc == -EPERM)
-			error = -EBADE;
-		else if (cqr->intrc == -ENOLINK ||
-			 cqr->intrc == -ETIMEDOUT)
-			error = cqr->intrc;
-		else
-			error = -EIO;
+		switch (cqr->intrc) {
+		case -EPERM:
+			error = BLK_STS_NEXUS;
+			break;
+		case -ENOLINK:
+			error = BLK_STS_TRANSPORT;
+			break;
+		case -ETIMEDOUT:
+			error = BLK_STS_TIMEOUT;
+			break;
+		default:
+			error = BLK_STS_IOERR;
+			break;
+		}
 	}
 	__blk_end_request_all(req, error);
 }
@@ -3190,7 +3198,7 @@ static void dasd_flush_request_queue(struct dasd_block *block)
 
 	spin_lock_irq(&block->request_queue_lock);
 	while ((req = blk_fetch_request(block->request_queue)))
-		__blk_end_request_all(req, -EIO);
+		__blk_end_request_all(req, BLK_STS_IOERR);
 	spin_unlock_irq(&block->request_queue_lock);
 }
 

@@ -229,11 +229,11 @@ static void end_cmd(struct nullb_cmd *cmd)
 
 	switch (queue_mode)  {
 	case NULL_Q_MQ:
-		blk_mq_end_request(cmd->rq, 0);
+		blk_mq_end_request(cmd->rq, BLK_STS_OK);
 		return;
 	case NULL_Q_RQ:
 		INIT_LIST_HEAD(&cmd->rq->queuelist);
-		blk_end_request_all(cmd->rq, 0);
+		blk_end_request_all(cmd->rq, BLK_STS_OK);
 		break;
 	case NULL_Q_BIO:
 		bio_endio(cmd->bio);
@@ -422,11 +422,12 @@ static void cleanup_queues(struct nullb *nullb)
 
 #ifdef CONFIG_NVM
 
-static void null_lnvm_end_io(struct request *rq, int error)
+static void null_lnvm_end_io(struct request *rq, blk_status_t status)
 {
 	struct nvm_rq *rqd = rq->end_io_data;
 
-	rqd->error = error;
+	/* XXX: lighnvm core seems to expect NVM_RSP_* values here.. */
+	rqd->error = status ? -EIO : 0;
 	nvm_end_io(rqd);
 
 	blk_put_request(rq);

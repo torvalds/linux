@@ -438,7 +438,7 @@ static void run_fsm(void)
 				phase = NULL;
 				spin_lock_irqsave(&pd_lock, saved_flags);
 				if (!__blk_end_request_cur(pd_req,
-						res == Ok ? 0 : -EIO)) {
+						res == Ok ? 0 : BLK_STS_IOERR)) {
 					if (!set_next_request())
 						stop = 1;
 				}

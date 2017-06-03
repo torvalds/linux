@@ -129,11 +129,66 @@ void blk_rq_init(struct request_queue *q, struct request *rq)
 }
 EXPORT_SYMBOL(blk_rq_init);
 
+static const struct {
+	int		errno;
+	const char	*name;
+} blk_errors[] = {
+	[BLK_STS_OK]		= { 0,		"" },
+	[BLK_STS_NOTSUPP]	= { -EOPNOTSUPP, "operation not supported" },
+	[BLK_STS_TIMEOUT]	= { -ETIMEDOUT,	"timeout" },
+	[BLK_STS_NOSPC]		= { -ENOSPC,	"critical space allocation" },
+	[BLK_STS_TRANSPORT]	= { -ENOLINK,	"recoverable transport" },
+	[BLK_STS_TARGET]	= { -EREMOTEIO,	"critical target" },
+	[BLK_STS_NEXUS]		= { -EBADE,	"critical nexus" },
+	[BLK_STS_MEDIUM]	= { -ENODATA,	"critical medium" },
+	[BLK_STS_PROTECTION]	= { -EILSEQ,	"protection" },
+	[BLK_STS_RESOURCE]	= { -ENOMEM,	"kernel resource" },
+
+	/* everything else not covered above: */
+	[BLK_STS_IOERR]		= { -EIO,	"I/O" },
+};
+
+blk_status_t errno_to_blk_status(int errno)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(blk_errors); i++) {
+		if (blk_errors[i].errno == errno)
+			return (__force blk_status_t)i;
+	}
+
+	return BLK_STS_IOERR;
+}
+EXPORT_SYMBOL_GPL(errno_to_blk_status);
+
+int blk_status_to_errno(blk_status_t status)
+{
+	int idx = (__force int)status;
+
+	if (WARN_ON_ONCE(idx > ARRAY_SIZE(blk_errors)))
+		return -EIO;
+	return blk_errors[idx].errno;
+}
+EXPORT_SYMBOL_GPL(blk_status_to_errno);
+
+static void print_req_error(struct request *req, blk_status_t status)
+{
+	int idx = (__force int)status;
+
+	if (WARN_ON_ONCE(idx > ARRAY_SIZE(blk_errors)))
+		return;
+
+	printk_ratelimited(KERN_ERR "%s: %s error, dev %s, sector %llu\n",
+			   __func__, blk_errors[idx].name, req->rq_disk ?
+			   req->rq_disk->disk_name : "?",
+			   (unsigned long long)blk_rq_pos(req));
+}
+
 static void req_bio_endio(struct request *rq, struct bio *bio,
-			  unsigned int nbytes, int error)
+			  unsigned int nbytes, blk_status_t error)
 {
 	if (error)
-		bio->bi_error = error;
+		bio->bi_error = blk_status_to_errno(error);
 
 	if (unlikely(rq->rq_flags & RQF_QUIET))
 		bio_set_flag(bio, BIO_QUIET);
@@ -2177,29 +2232,29 @@ static int blk_cloned_rq_check_limits(struct request_queue *q,
  * @q:  the queue to submit the request
  * @rq: the request being queued
  */
-int blk_insert_cloned_request(struct request_queue *q, struct request *rq)
+blk_status_t blk_insert_cloned_request(struct request_queue *q, struct request *rq)
 {
 	unsigned long flags;
 	int where = ELEVATOR_INSERT_BACK;
 
 	if (blk_cloned_rq_check_limits(q, rq))
-		return -EIO;
+		return BLK_STS_IOERR;
 
 	if (rq->rq_disk &&
 	    should_fail_request(&rq->rq_disk->part0, blk_rq_bytes(rq)))
-		return -EIO;
+		return BLK_STS_IOERR;
 
 	if (q->mq_ops) {
 		if (blk_queue_io_stat(q))
 			blk_account_io_start(rq, true);
 		blk_mq_sched_insert_request(rq, false, true, false, false);
-		return 0;
+		return BLK_STS_OK;
 	}
 
 	spin_lock_irqsave(q->queue_lock, flags);
 	if (unlikely(blk_queue_dying(q))) {
 		spin_unlock_irqrestore(q->queue_lock, flags);
-		return -ENODEV;
+		return BLK_STS_IOERR;
 	}
 
 	/*
@@ -2216,7 +2271,7 @@ int blk_insert_cloned_request(struct request_queue *q, struct request *rq)
 		__blk_run_queue(q);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 
-	return 0;
+	return BLK_STS_OK;
 }
 EXPORT_SYMBOL_GPL(blk_insert_cloned_request);
 
@@ -2450,15 +2505,14 @@ struct request *blk_peek_request(struct request_queue *q)
 			rq = NULL;
 			break;
 		} else if (ret == BLKPREP_KILL || ret == BLKPREP_INVALID) {
-			int err = (ret == BLKPREP_INVALID) ? -EREMOTEIO : -EIO;
-
 			rq->rq_flags |= RQF_QUIET;
 			/*
 			 * Mark this request as started so we don't trigger
 			 * any debug logic in the end I/O path.
 			 */
 			blk_start_request(rq);
-			__blk_end_request_all(rq, err);
+			__blk_end_request_all(rq, ret == BLKPREP_INVALID ?
+					BLK_STS_TARGET : BLK_STS_IOERR);
 		} else {
 			printk(KERN_ERR "%s: bad return=%d\n", __func__, ret);
 			break;
@@ -2547,7 +2601,7 @@ EXPORT_SYMBOL(blk_fetch_request);
 /**
  * blk_update_request - Special helper function for request stacking drivers
  * @req:      the request being processed
- * @error:    %0 for success, < %0 for error
+ * @error:    block status code
  * @nr_bytes: number of bytes to complete @req
  *
  * Description:
@@ -2566,49 +2620,19 @@ EXPORT_SYMBOL(blk_fetch_request);
  *     %false - this request doesn't have any more data
  *     %true  - this request has more data
  **/
-bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
+bool blk_update_request(struct request *req, blk_status_t error,
+		unsigned int nr_bytes)
 {
 	int total_bytes;
 
-	trace_block_rq_complete(req, error, nr_bytes);
+	trace_block_rq_complete(req, blk_status_to_errno(error), nr_bytes);
 
 	if (!req->bio)
 		return false;
 
-	if (error && !blk_rq_is_passthrough(req) &&
-	    !(req->rq_flags & RQF_QUIET)) {
-		char *error_type;
-
-		switch (error) {
-		case -ENOLINK:
-			error_type = "recoverable transport";
-			break;
-		case -EREMOTEIO:
-			error_type = "critical target";
-			break;
-		case -EBADE:
-			error_type = "critical nexus";
-			break;
-		case -ETIMEDOUT:
-			error_type = "timeout";
-			break;
-		case -ENOSPC:
-			error_type = "critical space allocation";
-			break;
-		case -ENODATA:
-			error_type = "critical medium";
-			break;
-		case -EIO:
-		default:
-			error_type = "I/O";
-			break;
-		}
-		printk_ratelimited(KERN_ERR "%s: %s error, dev %s, sector %llu\n",
-				   __func__, error_type, req->rq_disk ?
-				   req->rq_disk->disk_name : "?",
-				   (unsigned long long)blk_rq_pos(req));
-
-	}
+	if (unlikely(error && !blk_rq_is_passthrough(req) &&
+		     !(req->rq_flags & RQF_QUIET)))
+		print_req_error(req, error);
 
 	blk_account_io_completion(req, nr_bytes);
 
@@ -2674,7 +2698,7 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 }
 EXPORT_SYMBOL_GPL(blk_update_request);
 
-static bool blk_update_bidi_request(struct request *rq, int error,
+static bool blk_update_bidi_request(struct request *rq, blk_status_t error,
 				    unsigned int nr_bytes,
 				    unsigned int bidi_bytes)
 {
@@ -2715,7 +2739,7 @@ EXPORT_SYMBOL_GPL(blk_unprep_request);
 /*
  * queue lock must be held
  */
-void blk_finish_request(struct request *req, int error)
+void blk_finish_request(struct request *req, blk_status_t error)
 {
 	struct request_queue *q = req->q;
 
@@ -2752,7 +2776,7 @@ EXPORT_SYMBOL(blk_finish_request);
 /**
  * blk_end_bidi_request - Complete a bidi request
  * @rq:         the request to complete
- * @error:      %0 for success, < %0 for error
+ * @error:      block status code
  * @nr_bytes:   number of bytes to complete @rq
  * @bidi_bytes: number of bytes to complete @rq->next_rq
  *
@@ -2766,7 +2790,7 @@ EXPORT_SYMBOL(blk_finish_request);
  *     %false - we are done with this request
  *     %true  - still buffers pending for this request
  **/
-static bool blk_end_bidi_request(struct request *rq, int error,
+static bool blk_end_bidi_request(struct request *rq, blk_status_t error,
 				 unsigned int nr_bytes, unsigned int bidi_bytes)
 {
 	struct request_queue *q = rq->q;
@@ -2785,7 +2809,7 @@ static bool blk_end_bidi_request(struct request *rq, int error,
 /**
  * __blk_end_bidi_request - Complete a bidi request with queue lock held
  * @rq:         the request to complete
- * @error:      %0 for success, < %0 for error
+ * @error:      block status code
  * @nr_bytes:   number of bytes to complete @rq
  * @bidi_bytes: number of bytes to complete @rq->next_rq
  *
@@ -2797,7 +2821,7 @@ static bool blk_end_bidi_request(struct request *rq, int error,
  *     %false - we are done with this request
  *     %true  - still buffers pending for this request
  **/
-static bool __blk_end_bidi_request(struct request *rq, int error,
+static bool __blk_end_bidi_request(struct request *rq, blk_status_t error,
 				   unsigned int nr_bytes, unsigned int bidi_bytes)
 {
 	if (blk_update_bidi_request(rq, error, nr_bytes, bidi_bytes))
@@ -2811,7 +2835,7 @@ static bool __blk_end_bidi_request(struct request *rq, int error,
 /**
  * blk_end_request - Helper function for drivers to complete the request.
  * @rq:       the request being processed
- * @error:    %0 for success, < %0 for error
+ * @error:    block status code
  * @nr_bytes: number of bytes to complete
  *
  * Description:
@@ -2822,7 +2846,8 @@ static bool __blk_end_bidi_request(struct request *rq, int error,
  *     %false - we are done with this request
  *     %true  - still buffers pending for this request
  **/
-bool blk_end_request(struct request *rq, int error, unsigned int nr_bytes)
+bool blk_end_request(struct request *rq, blk_status_t error,
+		unsigned int nr_bytes)
 {
 	return blk_end_bidi_request(rq, error, nr_bytes, 0);
 }
@@ -2831,12 +2856,12 @@ EXPORT_SYMBOL(blk_end_request);
 /**
  * blk_end_request_all - Helper function for drives to finish the request.
  * @rq: the request to finish
- * @error: %0 for success, < %0 for error
+ * @error: block status code
  *
  * Description:
  *     Completely finish @rq.
  */
-void blk_end_request_all(struct request *rq, int error)
+void blk_end_request_all(struct request *rq, blk_status_t error)
 {
 	bool pending;
 	unsigned int bidi_bytes = 0;
@@ -2852,7 +2877,7 @@ EXPORT_SYMBOL(blk_end_request_all);
 /**
  * __blk_end_request - Helper function for drivers to complete the request.
  * @rq:       the request being processed
- * @error:    %0 for success, < %0 for error
+ * @error:    block status code
  * @nr_bytes: number of bytes to complete
  *
  * Description:
@@ -2862,7 +2887,8 @@ EXPORT_SYMBOL(blk_end_request_all);
  *     %false - we are done with this request
  *     %true  - still buffers pending for this request
  **/
-bool __blk_end_request(struct request *rq, int error, unsigned int nr_bytes)
+bool __blk_end_request(struct request *rq, blk_status_t error,
+		unsigned int nr_bytes)
 {
 	return __blk_end_bidi_request(rq, error, nr_bytes, 0);
 }
@@ -2871,12 +2897,12 @@ EXPORT_SYMBOL(__blk_end_request);
 /**
  * __blk_end_request_all - Helper function for drives to finish the request.
  * @rq: the request to finish
- * @error: %0 for success, < %0 for error
+ * @error:    block status code
  *
  * Description:
  *     Completely finish @rq.  Must be called with queue lock held.
  */
-void __blk_end_request_all(struct request *rq, int error)
+void __blk_end_request_all(struct request *rq, blk_status_t error)
 {
 	bool pending;
 	unsigned int bidi_bytes = 0;
@@ -2892,7 +2918,7 @@ EXPORT_SYMBOL(__blk_end_request_all);
 /**
  * __blk_end_request_cur - Helper function to finish the current request chunk.
  * @rq: the request to finish the current chunk for
- * @error: %0 for success, < %0 for error
+ * @error:    block status code
  *
  * Description:
  *     Complete the current consecutively mapped chunk from @rq.  Must
@@ -2902,7 +2928,7 @@ EXPORT_SYMBOL(__blk_end_request_all);
  *     %false - we are done with this request
  *     %true  - still buffers pending for this request
  */
-bool __blk_end_request_cur(struct request *rq, int error)
+bool __blk_end_request_cur(struct request *rq, blk_status_t error)
 {
 	return __blk_end_request(rq, error, blk_rq_cur_bytes(rq));
 }
@@ -3243,7 +3269,7 @@ void blk_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 		 * Short-circuit if @q is dead
 		 */
 		if (unlikely(blk_queue_dying(q))) {
-			__blk_end_request_all(rq, -ENODEV);
+			__blk_end_request_all(rq, BLK_STS_IOERR);
 			continue;
 		}
 

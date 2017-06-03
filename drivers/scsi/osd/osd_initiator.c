@@ -446,7 +446,7 @@ static void _put_request(struct request *rq)
 	 *       code paths.
 	 */
 	if (unlikely(rq->bio))
-		blk_end_request(rq, -ENOMEM, blk_rq_bytes(rq));
+		blk_end_request(rq, BLK_STS_IOERR, blk_rq_bytes(rq));
 	else
 		blk_put_request(rq);
 }
@@ -474,7 +474,7 @@ void osd_end_request(struct osd_request *or)
 EXPORT_SYMBOL(osd_end_request);
 
 static void _set_error_resid(struct osd_request *or, struct request *req,
-			     int error)
+			     blk_status_t error)
 {
 	or->async_error = error;
 	or->req_errors = scsi_req(req)->result;
@@ -489,17 +489,19 @@ static void _set_error_resid(struct osd_request *or, struct request *req,
 
 int osd_execute_request(struct osd_request *or)
 {
-	int error;
-
 	blk_execute_rq(or->request->q, NULL, or->request, 0);
-	error = scsi_req(or->request)->result ? -EIO : 0;
 
-	_set_error_resid(or, or->request, error);
-	return error;
+	if (scsi_req(or->request)->result) {
+		_set_error_resid(or, or->request, BLK_STS_IOERR);
+		return -EIO;
+	}
+
+	_set_error_resid(or, or->request, BLK_STS_OK);
+	return 0;
 }
 EXPORT_SYMBOL(osd_execute_request);
 
-static void osd_request_async_done(struct request *req, int error)
+static void osd_request_async_done(struct request *req, blk_status_t error)
 {
 	struct osd_request *or = req->end_io_data;
 
@@ -1914,7 +1916,7 @@ analyze:
 		/* scsi sense is Empty, the request was never issued to target
 		 * linux return code might tell us what happened.
 		 */
-		if (or->async_error == -ENOMEM)
+		if (or->async_error == BLK_STS_RESOURCE)
 			osi->osd_err_pri = OSD_ERR_PRI_RESOURCE;
 		else
 			osi->osd_err_pri = OSD_ERR_PRI_UNREACHABLE;

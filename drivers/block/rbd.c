@@ -2293,11 +2293,13 @@ static bool rbd_img_obj_end_request(struct rbd_obj_request *obj_request)
 		rbd_assert(img_request->obj_request != NULL);
 		more = obj_request->which < img_request->obj_request_count - 1;
 	} else {
+		blk_status_t status = errno_to_blk_status(result);
+
 		rbd_assert(img_request->rq != NULL);
 
-		more = blk_update_request(img_request->rq, result, xferred);
+		more = blk_update_request(img_request->rq, status, xferred);
 		if (!more)
-			__blk_mq_end_request(img_request->rq, result);
+			__blk_mq_end_request(img_request->rq, status);
 	}
 
 	return more;
@@ -4149,7 +4151,7 @@ err_rq:
 			 obj_op_name(op_type), length, offset, result);
 	ceph_put_snap_context(snapc);
 err:
-	blk_mq_end_request(rq, result);
+	blk_mq_end_request(rq, errno_to_blk_status(result));
 }
 
 static int rbd_queue_rq(struct blk_mq_hw_ctx *hctx,

@@ -71,7 +71,7 @@ void scm_driver_unregister(struct scm_driver *scmdrv)
 }
 EXPORT_SYMBOL_GPL(scm_driver_unregister);
 
-void scm_irq_handler(struct aob *aob, int error)
+void scm_irq_handler(struct aob *aob, blk_status_t error)
 {
 	struct aob_rq_header *aobrq = (void *) aob->request.data;
 	struct scm_device *scmdev = aobrq->scmdev;

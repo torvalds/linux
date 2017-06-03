@@ -706,7 +706,7 @@ static int nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if (ns && ns->ms && !blk_integrity_rq(req)) {
 		if (!(ns->pi_type && ns->ms == 8) &&
 		    !blk_rq_is_passthrough(req)) {
-			blk_mq_end_request(req, -EFAULT);
+			blk_mq_end_request(req, BLK_STS_NOTSUPP);
 			return BLK_MQ_RQ_QUEUE_OK;
 		}
 	}
@@ -939,7 +939,7 @@ static int adapter_delete_sq(struct nvme_dev *dev, u16 sqid)
 	return adapter_delete_queue(dev, nvme_admin_delete_sq, sqid);
 }
 
-static void abort_endio(struct request *req, int error)
+static void abort_endio(struct request *req, blk_status_t error)
 {
 	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
 	struct nvme_queue *nvmeq = iod->nvmeq;
@@ -1586,7 +1586,7 @@ static int nvme_setup_io_queues(struct nvme_dev *dev)
 	return nvme_create_io_queues(dev);
 }
 
-static void nvme_del_queue_end(struct request *req, int error)
+static void nvme_del_queue_end(struct request *req, blk_status_t error)
 {
 	struct nvme_queue *nvmeq = req->end_io_data;
 
@@ -1594,7 +1594,7 @@ static void nvme_del_queue_end(struct request *req, int error)
 	complete(&nvmeq->dev->ioq_wait);
 }
 
-static void nvme_del_cq_end(struct request *req, int error)
+static void nvme_del_cq_end(struct request *req, blk_status_t error)
 {
 	struct nvme_queue *nvmeq = req->end_io_data;
 

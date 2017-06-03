@@ -532,7 +532,7 @@ static int mtip_read_log_page(struct mtip_port *port, u8 page, u16 *buffer,
 static int mtip_get_smart_attr(struct mtip_port *port, unsigned int id,
 						struct smart_attr *attrib);
 
-static void mtip_complete_command(struct mtip_cmd *cmd, int status)
+static void mtip_complete_command(struct mtip_cmd *cmd, blk_status_t status)
 {
 	struct request *req = blk_mq_rq_from_pdu(cmd);
 
@@ -568,7 +568,7 @@ static void mtip_handle_tfe(struct driver_data *dd)
 	if (test_bit(MTIP_PF_IC_ACTIVE_BIT, &port->flags)) {
 		cmd = mtip_cmd_from_tag(dd, MTIP_TAG_INTERNAL);
 		dbg_printk(MTIP_DRV_NAME " TFE for the internal command\n");
-		mtip_complete_command(cmd, -EIO);
+		mtip_complete_command(cmd, BLK_STS_IOERR);
 		return;
 	}
 
@@ -667,7 +667,7 @@ static void mtip_handle_tfe(struct driver_data *dd)
 					tag,
 					fail_reason != NULL ?
 						fail_reason : "unknown");
-					mtip_complete_command(cmd, -ENODATA);
+					mtip_complete_command(cmd, BLK_STS_MEDIUM);
 					continue;
 				}
 			}
@@ -690,7 +690,7 @@ static void mtip_handle_tfe(struct driver_data *dd)
 			dev_warn(&port->dd->pdev->dev,
 				"retiring tag %d\n", tag);
 
-			mtip_complete_command(cmd, -EIO);
+			mtip_complete_command(cmd, BLK_STS_IOERR);
 		}
 	}
 	print_tags(dd, "reissued (TFE)", tagaccum, cmd_cnt);
@@ -2753,7 +2753,7 @@ static void mtip_abort_cmd(struct request *req, void *data,
 	dbg_printk(MTIP_DRV_NAME " Aborting request, tag = %d\n", req->tag);
 
 	clear_bit(req->tag, dd->port->cmds_to_issue);
-	cmd->status = -EIO;
+	cmd->status = BLK_STS_IOERR;
 	mtip_softirq_done_fn(req);
 }
 
@@ -3597,7 +3597,7 @@ static int mtip_submit_request(struct blk_mq_hw_ctx *hctx, struct request *rq)
 		int err;
 
 		err = mtip_send_trim(dd, blk_rq_pos(rq), blk_rq_sectors(rq));
-		blk_mq_end_request(rq, err);
+		blk_mq_end_request(rq, err ? BLK_STS_IOERR : BLK_STS_OK);
 		return 0;
 	}
 
@@ -3730,7 +3730,7 @@ static enum blk_eh_timer_return mtip_cmd_timeout(struct request *req,
 	if (reserved) {
 		struct mtip_cmd *cmd = blk_mq_rq_to_pdu(req);
 
-		cmd->status = -ETIME;
+		cmd->status = BLK_STS_TIMEOUT;
 		return BLK_EH_HANDLED;
 	}
 
@@ -3961,7 +3961,7 @@ static void mtip_no_dev_cleanup(struct request *rq, void *data, bool reserv)
 {
 	struct mtip_cmd *cmd = blk_mq_rq_to_pdu(rq);
 
-	cmd->status = -ENODEV;
+	cmd->status = BLK_STS_IOERR;
 	blk_mq_complete_request(rq);
 }
 

@@ -783,7 +783,7 @@ static void pcd_request(void)
 			ps_set_intr(do_pcd_read, NULL, 0, nice);
 			return;
 		} else {
-			__blk_end_request_all(pcd_req, -EIO);
+			__blk_end_request_all(pcd_req, BLK_STS_IOERR);
 			pcd_req = NULL;
 		}
 	}
@@ -794,7 +794,7 @@ static void do_pcd_request(struct request_queue *q)
 	pcd_request();
 }
 
-static inline void next_request(int err)
+static inline void next_request(blk_status_t err)
 {
 	unsigned long saved_flags;
 
@@ -837,7 +837,7 @@ static void pcd_start(void)
 
 	if (pcd_command(pcd_current, rd_cmd, 2048, "read block")) {
 		pcd_bufblk = -1;
-		next_request(-EIO);
+		next_request(BLK_STS_IOERR);
 		return;
 	}
 
@@ -871,7 +871,7 @@ static void do_pcd_read_drq(void)
 			return;
 		}
 		pcd_bufblk = -1;
-		next_request(-EIO);
+		next_request(BLK_STS_IOERR);
 		return;
 	}
 

@@ -480,7 +480,7 @@ static inline void nvme_nvm_rqtocmd(struct nvm_rq *rqd, struct nvme_ns *ns,
 					rqd->bio->bi_iter.bi_sector));
 }
 
-static void nvme_nvm_end_io(struct request *rq, int error)
+static void nvme_nvm_end_io(struct request *rq, blk_status_t status)
 {
 	struct nvm_rq *rqd = rq->end_io_data;
 

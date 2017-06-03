@@ -70,29 +70,21 @@ static DEFINE_SPINLOCK(dev_list_lock);
 
 static struct class *nvme_class;
 
-static int nvme_error_status(struct request *req)
+static blk_status_t nvme_error_status(struct request *req)
 {
 	switch (nvme_req(req)->status & 0x7ff) {
 	case NVME_SC_SUCCESS:
-		return 0;
+		return BLK_STS_OK;
 	case NVME_SC_CAP_EXCEEDED:
-		return -ENOSPC;
-	default:
-		return -EIO;
-
-	/*
-	 * XXX: these errors are a nasty side-band protocol to
-	 * drivers/md/dm-mpath.c:noretry_error() that aren't documented
-	 * anywhere..
-	 */
-	case NVME_SC_CMD_SEQ_ERROR:
-		return -EILSEQ;
+		return BLK_STS_NOSPC;
 	case NVME_SC_ONCS_NOT_SUPPORTED:
-		return -EOPNOTSUPP;
+		return BLK_STS_NOTSUPP;
 	case NVME_SC_WRITE_FAULT:
 	case NVME_SC_READ_ERROR:
 	case NVME_SC_UNWRITTEN_BLOCK:
-		return -ENODATA;
+		return BLK_STS_MEDIUM;
+	default:
+		return BLK_STS_IOERR;
 	}
 }
 
@@ -555,15 +547,16 @@ int nvme_submit_user_cmd(struct request_queue *q, struct nvme_command *cmd,
 			result, timeout);
 }
 
-static void nvme_keep_alive_end_io(struct request *rq, int error)
+static void nvme_keep_alive_end_io(struct request *rq, blk_status_t status)
 {
 	struct nvme_ctrl *ctrl = rq->end_io_data;
 
 	blk_mq_free_request(rq);
 
-	if (error) {
+	if (status) {
 		dev_err(ctrl->device,
-			"failed nvme_keep_alive_end_io error=%d\n", error);
+			"failed nvme_keep_alive_end_io error=%d\n",
+				status);
 		return;
 	}
 

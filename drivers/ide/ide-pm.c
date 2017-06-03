@@ -40,7 +40,7 @@ int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 	return ret;
 }
 
-static void ide_end_sync_rq(struct request *rq, int error)
+static void ide_end_sync_rq(struct request *rq, blk_status_t error)
 {
 	complete(rq->end_io_data);
 }
@@ -57,7 +57,7 @@ static int ide_pm_execute_rq(struct request *rq)
 	if (unlikely(blk_queue_dying(q))) {
 		rq->rq_flags |= RQF_QUIET;
 		scsi_req(rq)->result = -ENXIO;
-		__blk_end_request_all(rq, 0);
+		__blk_end_request_all(rq, BLK_STS_OK);
 		spin_unlock_irq(q->queue_lock);
 		return -ENXIO;
 	}
@@ -235,7 +235,7 @@ void ide_complete_pm_rq(ide_drive_t *drive, struct request *rq)
 
 	drive->hwif->rq = NULL;
 
-	if (blk_end_request(rq, 0, 0))
+	if (blk_end_request(rq, BLK_STS_OK, 0))
 		BUG();
 }
 

@@ -635,7 +635,7 @@ static void scsi_release_bidi_buffers(struct scsi_cmnd *cmd)
 	cmd->request->next_rq->special = NULL;
 }
 
-static bool scsi_end_request(struct request *req, int error,
+static bool scsi_end_request(struct request *req, blk_status_t error,
 		unsigned int bytes, unsigned int bidi_bytes)
 {
 	struct scsi_cmnd *cmd = req->special;
@@ -694,45 +694,28 @@ static bool scsi_end_request(struct request *req, int error,
  * @cmd:	SCSI command (unused)
  * @result:	scsi error code
  *
- * Translate SCSI error code into standard UNIX errno.
- * Return values:
- * -ENOLINK	temporary transport failure
- * -EREMOTEIO	permanent target failure, do not retry
- * -EBADE	permanent nexus failure, retry on other path
- * -ENOSPC	No write space available
- * -ENODATA	Medium error
- * -EIO		unspecified I/O error
+ * Translate SCSI error code into block errors.
  */
-static int __scsi_error_from_host_byte(struct scsi_cmnd *cmd, int result)
+static blk_status_t __scsi_error_from_host_byte(struct scsi_cmnd *cmd,
+		int result)
 {
-	int error = 0;
-
-	switch(host_byte(result)) {
+	switch (host_byte(result)) {
 	case DID_TRANSPORT_FAILFAST:
-		error = -ENOLINK;
-		break;
+		return BLK_STS_TRANSPORT;
 	case DID_TARGET_FAILURE:
 		set_host_byte(cmd, DID_OK);
-		error = -EREMOTEIO;
-		break;
+		return BLK_STS_TARGET;
 	case DID_NEXUS_FAILURE:
-		set_host_byte(cmd, DID_OK);
-		error = -EBADE;
-		break;
+		return BLK_STS_NEXUS;
 	case DID_ALLOC_FAILURE:
 		set_host_byte(cmd, DID_OK);
-		error = -ENOSPC;
-		break;
+		return BLK_STS_NOSPC;
 	case DID_MEDIUM_ERROR:
 		set_host_byte(cmd, DID_OK);
-		error = -ENODATA;
-		break;
+		return BLK_STS_MEDIUM;
 	default:
-		error = -EIO;
-		break;
+		return BLK_STS_IOERR;
 	}
-
-	return error;
 }
 
 /*
@@ -769,7 +752,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	int result = cmd->result;
 	struct request_queue *q = cmd->device->request_queue;
 	struct request *req = cmd->request;
-	int error = 0;
+	blk_status_t error = BLK_STS_OK;
 	struct scsi_sense_hdr sshdr;
 	bool sense_valid = false;
 	int sense_deferred = 0, level = 0;
@@ -808,7 +791,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 			 * both sides at once.
 			 */
 			scsi_req(req->next_rq)->resid_len = scsi_in(cmd)->resid;
-			if (scsi_end_request(req, 0, blk_rq_bytes(req),
+			if (scsi_end_request(req, BLK_STS_OK, blk_rq_bytes(req),
 					blk_rq_bytes(req->next_rq)))
 				BUG();
 			return;
@@ -850,7 +833,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 			scsi_print_sense(cmd);
 		result = 0;
 		/* for passthrough error may be set */
-		error = 0;
+		error = BLK_STS_OK;
 	}
 
 	/*
@@ -922,18 +905,18 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 				action = ACTION_REPREP;
 			} else if (sshdr.asc == 0x10) /* DIX */ {
 				action = ACTION_FAIL;
-				error = -EILSEQ;
+				error = BLK_STS_PROTECTION;
 			/* INVALID COMMAND OPCODE or INVALID FIELD IN CDB */
 			} else if (sshdr.asc == 0x20 || sshdr.asc == 0x24) {
 				action = ACTION_FAIL;
-				error = -EREMOTEIO;
+				error = BLK_STS_TARGET;
 			} else
 				action = ACTION_FAIL;
 			break;
 		case ABORTED_COMMAND:
 			action = ACTION_FAIL;
 			if (sshdr.asc == 0x10) /* DIF */
-				error = -EILSEQ;
+				error = BLK_STS_PROTECTION;
 			break;
 		case NOT_READY:
 			/* If the device is in the process of becoming

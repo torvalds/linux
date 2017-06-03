@@ -230,8 +230,8 @@ static inline u16 blk_mq_unique_tag_to_tag(u32 unique_tag)
 
 int blk_mq_request_started(struct request *rq);
 void blk_mq_start_request(struct request *rq);
-void blk_mq_end_request(struct request *rq, int error);
-void __blk_mq_end_request(struct request *rq, int error);
+void blk_mq_end_request(struct request *rq, blk_status_t error);
+void __blk_mq_end_request(struct request *rq, blk_status_t error);
 
 void blk_mq_requeue_request(struct request *rq, bool kick_requeue_list);
 void blk_mq_add_to_requeue_list(struct request *rq, bool at_head,

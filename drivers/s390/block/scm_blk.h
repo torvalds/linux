@@ -35,7 +35,7 @@ struct scm_request {
 	struct aob *aob;
 	struct list_head list;
 	u8 retries;
-	int error;
+	blk_status_t error;
 #ifdef CONFIG_SCM_BLOCK_CLUSTER_WRITE
 	struct {
 		enum {CLUSTER_NONE, CLUSTER_READ, CLUSTER_WRITE} state;
@@ -50,7 +50,7 @@ struct scm_request {
 int scm_blk_dev_setup(struct scm_blk_dev *, struct scm_device *);
 void scm_blk_dev_cleanup(struct scm_blk_dev *);
 void scm_blk_set_available(struct scm_blk_dev *);
-void scm_blk_irq(struct scm_device *, void *, int);
+void scm_blk_irq(struct scm_device *, void *, blk_status_t);
 
 void scm_request_finish(struct scm_request *);
 void scm_request_requeue(struct scm_request *);

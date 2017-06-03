@@ -316,7 +316,7 @@ static void vdc_end_one(struct vdc_port *port, struct vio_dring_state *dr,
 
 	rqe->req = NULL;
 
-	__blk_end_request(req, (desc->status ? -EIO : 0), desc->size);
+	__blk_end_request(req, (desc->status ? BLK_STS_IOERR : 0), desc->size);
 
 	vdc_blk_queue_start(port);
 }
@@ -1023,7 +1023,7 @@ static void vdc_queue_drain(struct vdc_port *port)
 	struct request *req;
 
 	while ((req = blk_fetch_request(port->disk->queue)) != NULL)
-		__blk_end_request_all(req, -EIO);
+		__blk_end_request_all(req, BLK_STS_IOERR);
 }
 
 static void vdc_ldc_reset_timer(unsigned long _arg)
