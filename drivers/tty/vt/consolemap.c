@@ -322,15 +322,13 @@ int con_set_trans_old(unsigned char __user * arg)
 {
 	int i;
 	unsigned short inbuf[E_TABSZ];
+	unsigned char ubuf[E_TABSZ];
 
-	if (!access_ok(VERIFY_READ, arg, E_TABSZ))
+	if (copy_from_user(ubuf, arg, E_TABSZ))
 		return -EFAULT;
 
-	for (i = 0; i < E_TABSZ ; i++) {
-		unsigned char uc;
-		__get_user(uc, arg+i);
-		inbuf[i] = UNI_DIRECT_BASE | uc;
-	}
+	for (i = 0; i < E_TABSZ ; i++)
+		inbuf[i] = UNI_DIRECT_BASE | ubuf[i];
 
 	console_lock();
 	memcpy(translations[USER_MAP], inbuf, sizeof(inbuf));
@@ -345,9 +343,6 @@ int con_get_trans_old(unsigned char __user * arg)
 	unsigned short *p = translations[USER_MAP];
 	unsigned char outbuf[E_TABSZ];
 
-	if (!access_ok(VERIFY_WRITE, arg, E_TABSZ))
-		return -EFAULT;
-
 	console_lock();
 	for (i = 0; i < E_TABSZ ; i++)
 	{
@@ -356,21 +351,15 @@ int con_get_trans_old(unsigned char __user * arg)
 	}
 	console_unlock();
 
-	for (i = 0; i < E_TABSZ ; i++)
-		__put_user(outbuf[i], arg+i);
-	return 0;
+	return copy_to_user(arg, outbuf, sizeof(outbuf)) ? -EFAULT : 0;
 }
 
 int con_set_trans_new(ushort __user * arg)
 {
-	int i;
 	unsigned short inbuf[E_TABSZ];
 
-	if (!access_ok(VERIFY_READ, arg, E_TABSZ*sizeof(unsigned short)))
+	if (copy_from_user(inbuf, arg, sizeof(inbuf)))
 		return -EFAULT;
-
-	for (i = 0; i < E_TABSZ ; i++)
-		__get_user(inbuf[i], arg+i);
 
 	console_lock();
 	memcpy(translations[USER_MAP], inbuf, sizeof(inbuf));
@@ -381,19 +370,13 @@ int con_set_trans_new(ushort __user * arg)
 
 int con_get_trans_new(ushort __user * arg)
 {
-	int i;
 	unsigned short outbuf[E_TABSZ];
-
-	if (!access_ok(VERIFY_WRITE, arg, E_TABSZ*sizeof(unsigned short)))
-		return -EFAULT;
 
 	console_lock();
 	memcpy(outbuf, translations[USER_MAP], sizeof(outbuf));
 	console_unlock();
 
-	for (i = 0; i < E_TABSZ ; i++)
-		__put_user(outbuf[i], arg+i);
-	return 0;
+	return copy_to_user(arg, outbuf, sizeof(outbuf)) ? -EFAULT : 0;
 }
 
 /*
