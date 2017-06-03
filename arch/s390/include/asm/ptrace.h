@@ -46,16 +46,16 @@ struct psw_bits {
 };
 
 enum {
-	PSW_AMODE_24BIT = 0,
-	PSW_AMODE_31BIT = 1,
-	PSW_AMODE_64BIT = 3
+	PSW_BITS_AMODE_24BIT = 0,
+	PSW_BITS_AMODE_31BIT = 1,
+	PSW_BITS_AMODE_64BIT = 3
 };
 
 enum {
-	PSW_AS_PRIMARY	 = 0,
-	PSW_AS_ACCREG	 = 1,
-	PSW_AS_SECONDARY = 2,
-	PSW_AS_HOME	 = 3
+	PSW_BITS_AS_PRIMARY	= 0,
+	PSW_BITS_AS_ACCREG	= 1,
+	PSW_BITS_AS_SECONDARY	= 2,
+	PSW_BITS_AS_HOME	= 3
 };
 
 #define psw_bits(__psw) (*({			\

@@ -557,20 +557,20 @@ static int get_vcpu_asce(struct kvm_vcpu *vcpu, union asce *asce,
 		return 0;
 	}
 
-	if (mode == GACC_IFETCH)
-		psw.as = psw.as == PSW_AS_HOME ? PSW_AS_HOME : PSW_AS_PRIMARY;
+	if ((mode == GACC_IFETCH) && (psw.as != PSW_BITS_AS_HOME))
+		psw.as = PSW_BITS_AS_PRIMARY;
 
 	switch (psw.as) {
-	case PSW_AS_PRIMARY:
+	case PSW_BITS_AS_PRIMARY:
 		asce->val = vcpu->arch.sie_block->gcr[1];
 		return 0;
-	case PSW_AS_SECONDARY:
+	case PSW_BITS_AS_SECONDARY:
 		asce->val = vcpu->arch.sie_block->gcr[7];
 		return 0;
-	case PSW_AS_HOME:
+	case PSW_BITS_AS_HOME:
 		asce->val = vcpu->arch.sie_block->gcr[13];
 		return 0;
-	case PSW_AS_ACCREG:
+	case PSW_BITS_AS_ACCREG:
 		rc = ar_translation(vcpu, asce, ar, mode);
 		if (rc > 0)
 			return trans_exc(vcpu, rc, ga, ar, mode, PROT_TYPE_ALC);

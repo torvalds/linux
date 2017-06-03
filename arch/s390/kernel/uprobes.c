@@ -27,9 +27,9 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm,
 
 int arch_uprobe_pre_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
-	if (psw_bits(regs->psw).eaba == PSW_AMODE_24BIT)
+	if (psw_bits(regs->psw).eaba == PSW_BITS_AMODE_24BIT)
 		return -EINVAL;
-	if (!is_compat_task() && psw_bits(regs->psw).eaba == PSW_AMODE_31BIT)
+	if (!is_compat_task() && psw_bits(regs->psw).eaba == PSW_BITS_AMODE_31BIT)
 		return -EINVAL;
 	clear_pt_regs_flag(regs, PIF_PER_TRAP);
 	auprobe->saved_per = psw_bits(regs->psw).r;
@@ -372,8 +372,8 @@ static void handle_insn_ril(struct arch_uprobe *auprobe, struct pt_regs *regs)
 
 bool arch_uprobe_skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
-	if ((psw_bits(regs->psw).eaba == PSW_AMODE_24BIT) ||
-	    ((psw_bits(regs->psw).eaba == PSW_AMODE_31BIT) &&
+	if ((psw_bits(regs->psw).eaba == PSW_BITS_AMODE_24BIT) ||
+	    ((psw_bits(regs->psw).eaba == PSW_BITS_AMODE_31BIT) &&
 	     !is_compat_task())) {
 		regs->psw.addr = __rewind_psw(regs->psw, UPROBE_SWBP_INSN_SIZE);
 		do_report_trap(regs, SIGILL, ILL_ILLADR, NULL);
