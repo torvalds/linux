@@ -287,10 +287,8 @@ static int pxa3xx_u2d_probe(struct platform_device *pdev)
 	int err;
 
 	u2d = kzalloc(sizeof(*u2d), GFP_KERNEL);
-	if (!u2d) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+	if (!u2d)
 		return -ENOMEM;
-	}
 
 	u2d->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(u2d->clk)) {
