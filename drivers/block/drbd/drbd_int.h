@@ -1627,7 +1627,7 @@ static inline void drbd_generic_make_request(struct drbd_device *device,
 	__release(local);
 	if (!bio->bi_bdev) {
 		drbd_err(device, "drbd_generic_make_request: bio->bi_bdev == NULL\n");
-		bio->bi_error = -ENODEV;
+		bio->bi_status = BLK_STS_IOERR;
 		bio_endio(bio);
 		return;
 	}

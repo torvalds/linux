@@ -271,7 +271,7 @@ static void write_super_endio(struct bio *bio)
 {
 	struct cache *ca = bio->bi_private;
 
-	bch_count_io_errors(ca, bio->bi_error, "writing superblock");
+	bch_count_io_errors(ca, bio->bi_status, "writing superblock");
 	closure_put(&ca->set->sb_write);
 }
 
@@ -321,7 +321,7 @@ static void uuid_endio(struct bio *bio)
 	struct closure *cl = bio->bi_private;
 	struct cache_set *c = container_of(cl, struct cache_set, uuid_write);
 
-	cache_set_err_on(bio->bi_error, c, "accessing uuids");
+	cache_set_err_on(bio->bi_status, c, "accessing uuids");
 	bch_bbio_free(bio, c);
 	closure_put(cl);
 }
@@ -494,7 +494,7 @@ static void prio_endio(struct bio *bio)
 {
 	struct cache *ca = bio->bi_private;
 
-	cache_set_err_on(bio->bi_error, ca->set, "accessing priorities");
+	cache_set_err_on(bio->bi_status, ca->set, "accessing priorities");
 	bch_bbio_free(bio, ca->set);
 	closure_put(&ca->prio);
 }

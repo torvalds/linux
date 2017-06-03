@@ -262,8 +262,8 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
 	if (vecs != inline_vecs)
 		kfree(vecs);
 
-	if (unlikely(bio.bi_error))
-		return bio.bi_error;
+	if (unlikely(bio.bi_status))
+		return blk_status_to_errno(bio.bi_status);
 	return ret;
 }
 
@@ -288,16 +288,18 @@ static void blkdev_bio_end_io(struct bio *bio)
 	bool should_dirty = dio->should_dirty;
 
 	if (dio->multi_bio && !atomic_dec_and_test(&dio->ref)) {
-		if (bio->bi_error && !dio->bio.bi_error)
-			dio->bio.bi_error = bio->bi_error;
+		if (bio->bi_status && !dio->bio.bi_status)
+			dio->bio.bi_status = bio->bi_status;
 	} else {
 		if (!dio->is_sync) {
 			struct kiocb *iocb = dio->iocb;
-			ssize_t ret = dio->bio.bi_error;
+			ssize_t ret;
 
-			if (likely(!ret)) {
+			if (likely(!dio->bio.bi_status)) {
 				ret = dio->size;
 				iocb->ki_pos += ret;
+			} else {
+				ret = blk_status_to_errno(dio->bio.bi_status);
 			}
 
 			dio->iocb->ki_complete(iocb, ret, 0);
@@ -363,7 +365,7 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 
 		ret = bio_iov_iter_get_pages(bio, iter);
 		if (unlikely(ret)) {
-			bio->bi_error = -EIO;
+			bio->bi_status = BLK_STS_IOERR;
 			bio_endio(bio);
 			break;
 		}
@@ -413,7 +415,7 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 	__set_current_state(TASK_RUNNING);
 
 	if (!ret)
-		ret = dio->bio.bi_error;
+		ret = blk_status_to_errno(dio->bio.bi_status);
 	if (likely(!ret))
 		ret = dio->size;
 

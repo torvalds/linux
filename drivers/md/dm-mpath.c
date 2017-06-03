@@ -565,7 +565,7 @@ static int __multipath_map_bio(struct multipath *m, struct bio *bio, struct dm_m
 	mpio->pgpath = pgpath;
 	mpio->nr_bytes = nr_bytes;
 
-	bio->bi_error = 0;
+	bio->bi_status = 0;
 	bio->bi_bdev = pgpath->path.dev->bdev;
 	bio->bi_opf |= REQ_FAILFAST_TRANSPORT;
 
@@ -623,10 +623,10 @@ static void process_queued_bios(struct work_struct *work)
 		r = __multipath_map_bio(m, bio, get_mpio_from_bio(bio));
 		switch (r) {
 		case DM_MAPIO_KILL:
-			r = -EIO;
-			/*FALLTHRU*/
+			bio->bi_status = BLK_STS_IOERR;
+			bio_endio(bio);
 		case DM_MAPIO_REQUEUE:
-			bio->bi_error = r;
+			bio->bi_status = BLK_STS_DM_REQUEUE;
 			bio_endio(bio);
 			break;
 		case DM_MAPIO_REMAPPED:
@@ -1510,7 +1510,8 @@ static int multipath_end_io(struct dm_target *ti, struct request *clone,
 	return r;
 }
 
-static int multipath_end_io_bio(struct dm_target *ti, struct bio *clone, int *error)
+static int multipath_end_io_bio(struct dm_target *ti, struct bio *clone,
+		blk_status_t *error)
 {
 	struct multipath *m = ti->private;
 	struct dm_mpath_io *mpio = get_mpio_from_bio(clone);
@@ -1518,7 +1519,7 @@ static int multipath_end_io_bio(struct dm_target *ti, struct bio *clone, int *er
 	unsigned long flags;
 	int r = DM_ENDIO_DONE;
 
-	if (!*error || noretry_error(errno_to_blk_status(*error)))
+	if (!*error || noretry_error(*error))
 		goto done;
 
 	if (pgpath)
@@ -1527,7 +1528,7 @@ static int multipath_end_io_bio(struct dm_target *ti, struct bio *clone, int *er
 	if (atomic_read(&m->nr_valid_paths) == 0 &&
 	    !test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags)) {
 		dm_report_EIO(m);
-		*error = -EIO;
+		*error = BLK_STS_IOERR;
 		goto done;
 	}
 

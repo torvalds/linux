@@ -143,7 +143,7 @@ static void bounce_end_io(struct bio *bio, mempool_t *pool)
 		mempool_free(bvec->bv_page, pool);
 	}
 
-	bio_orig->bi_error = bio->bi_error;
+	bio_orig->bi_status = bio->bi_status;
 	bio_endio(bio_orig);
 	bio_put(bio);
 }
@@ -163,7 +163,7 @@ static void __bounce_end_io_read(struct bio *bio, mempool_t *pool)
 {
 	struct bio *bio_orig = bio->bi_private;
 
-	if (!bio->bi_error)
+	if (!bio->bi_status)
 		copy_to_high_bio_irq(bio_orig, bio);
 
 	bounce_end_io(bio, pool);

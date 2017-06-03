@@ -246,7 +246,7 @@ struct dm_integrity_io {
 	unsigned metadata_offset;
 
 	atomic_t in_flight;
-	int bi_error;
+	blk_status_t bi_status;
 
 	struct completion *completion;
 
@@ -1114,8 +1114,8 @@ static void submit_flush_bio(struct dm_integrity_c *ic, struct dm_integrity_io *
 static void do_endio(struct dm_integrity_c *ic, struct bio *bio)
 {
 	int r = dm_integrity_failed(ic);
-	if (unlikely(r) && !bio->bi_error)
-		bio->bi_error = r;
+	if (unlikely(r) && !bio->bi_status)
+		bio->bi_status = errno_to_blk_status(r);
 	bio_endio(bio);
 }
 
@@ -1123,7 +1123,7 @@ static void do_endio_flush(struct dm_integrity_c *ic, struct dm_integrity_io *di
 {
 	struct bio *bio = dm_bio_from_per_bio_data(dio, sizeof(struct dm_integrity_io));
 
-	if (unlikely(dio->fua) && likely(!bio->bi_error) && likely(!dm_integrity_failed(ic)))
+	if (unlikely(dio->fua) && likely(!bio->bi_status) && likely(!dm_integrity_failed(ic)))
 		submit_flush_bio(ic, dio);
 	else
 		do_endio(ic, bio);
@@ -1142,9 +1142,9 @@ static void dec_in_flight(struct dm_integrity_io *dio)
 
 		bio = dm_bio_from_per_bio_data(dio, sizeof(struct dm_integrity_io));
 
-		if (unlikely(dio->bi_error) && !bio->bi_error)
-			bio->bi_error = dio->bi_error;
-		if (likely(!bio->bi_error) && unlikely(bio_sectors(bio) != dio->range.n_sectors)) {
+		if (unlikely(dio->bi_status) && !bio->bi_status)
+			bio->bi_status = dio->bi_status;
+		if (likely(!bio->bi_status) && unlikely(bio_sectors(bio) != dio->range.n_sectors)) {
 			dio->range.logical_sector += dio->range.n_sectors;
 			bio_advance(bio, dio->range.n_sectors << SECTOR_SHIFT);
 			INIT_WORK(&dio->work, integrity_bio_wait);
@@ -1318,7 +1318,7 @@ skip_io:
 	dec_in_flight(dio);
 	return;
 error:
-	dio->bi_error = r;
+	dio->bi_status = errno_to_blk_status(r);
 	dec_in_flight(dio);
 }
 
@@ -1331,7 +1331,7 @@ static int dm_integrity_map(struct dm_target *ti, struct bio *bio)
 	sector_t area, offset;
 
 	dio->ic = ic;
-	dio->bi_error = 0;
+	dio->bi_status = 0;
 
 	if (unlikely(bio->bi_opf & REQ_PREFLUSH)) {
 		submit_flush_bio(ic, dio);

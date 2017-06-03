@@ -294,7 +294,7 @@ static void dio_aio_complete_work(struct work_struct *work)
 	dio_complete(dio, 0, true);
 }
 
-static int dio_bio_complete(struct dio *dio, struct bio *bio);
+static blk_status_t dio_bio_complete(struct dio *dio, struct bio *bio);
 
 /*
  * Asynchronous IO callback. 
@@ -473,11 +473,11 @@ static struct bio *dio_await_one(struct dio *dio)
 /*
  * Process one completed BIO.  No locks are held.
  */
-static int dio_bio_complete(struct dio *dio, struct bio *bio)
+static blk_status_t dio_bio_complete(struct dio *dio, struct bio *bio)
 {
 	struct bio_vec *bvec;
 	unsigned i;
-	int err = bio->bi_error;
+	blk_status_t err = bio->bi_status;
 
 	if (err)
 		dio->io_error = -EIO;
@@ -536,7 +536,7 @@ static inline int dio_bio_reap(struct dio *dio, struct dio_submit *sdio)
 			bio = dio->bio_list;
 			dio->bio_list = bio->bi_private;
 			spin_unlock_irqrestore(&dio->bio_lock, flags);
-			ret2 = dio_bio_complete(dio, bio);
+			ret2 = blk_status_to_errno(dio_bio_complete(dio, bio));
 			if (ret == 0)
 				ret = ret2;
 		}

@@ -397,7 +397,7 @@ static void ppl_log_endio(struct bio *bio)
 
 	pr_debug("%s: seq: %llu\n", __func__, io->seq);
 
-	if (bio->bi_error)
+	if (bio->bi_status)
 		md_error(ppl_conf->mddev, log->rdev);
 
 	list_for_each_entry_safe(sh, next, &io->stripe_list, log_list) {

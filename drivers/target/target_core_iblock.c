@@ -296,8 +296,8 @@ static void iblock_bio_done(struct bio *bio)
 	struct se_cmd *cmd = bio->bi_private;
 	struct iblock_req *ibr = cmd->priv;
 
-	if (bio->bi_error) {
-		pr_err("bio error: %p,  err: %d\n", bio, bio->bi_error);
+	if (bio->bi_status) {
+		pr_err("bio error: %p,  err: %d\n", bio, bio->bi_status);
 		/*
 		 * Bump the ib_bio_err_cnt and release bio.
 		 */
@@ -354,11 +354,11 @@ static void iblock_end_io_flush(struct bio *bio)
 {
 	struct se_cmd *cmd = bio->bi_private;
 
-	if (bio->bi_error)
-		pr_err("IBLOCK: cache flush failed: %d\n", bio->bi_error);
+	if (bio->bi_status)
+		pr_err("IBLOCK: cache flush failed: %d\n", bio->bi_status);
 
 	if (cmd) {
-		if (bio->bi_error)
+		if (bio->bi_status)
 			target_complete_cmd(cmd, SAM_STAT_CHECK_CONDITION);
 		else
 			target_complete_cmd(cmd, SAM_STAT_GOOD);

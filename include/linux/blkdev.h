@@ -1782,7 +1782,7 @@ struct blk_integrity_iter {
 	const char		*disk_name;
 };
 
-typedef int (integrity_processing_fn) (struct blk_integrity_iter *);
+typedef blk_status_t (integrity_processing_fn) (struct blk_integrity_iter *);
 
 struct blk_integrity_profile {
 	integrity_processing_fn		*generate_fn;

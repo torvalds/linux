@@ -516,9 +516,9 @@ static void o2hb_bio_end_io(struct bio *bio)
 {
 	struct o2hb_bio_wait_ctxt *wc = bio->bi_private;
 
-	if (bio->bi_error) {
-		mlog(ML_ERROR, "IO Error %d\n", bio->bi_error);
-		wc->wc_error = bio->bi_error;
+	if (bio->bi_status) {
+		mlog(ML_ERROR, "IO Error %d\n", bio->bi_status);
+		wc->wc_error = blk_status_to_errno(bio->bi_status);
 	}
 
 	o2hb_bio_wait_dec(wc, 1);

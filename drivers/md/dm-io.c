@@ -124,7 +124,7 @@ static void complete_io(struct io *io)
 	fn(error_bits, context);
 }
 
-static void dec_count(struct io *io, unsigned int region, int error)
+static void dec_count(struct io *io, unsigned int region, blk_status_t error)
 {
 	if (error)
 		set_bit(region, &io->error_bits);
@@ -137,9 +137,9 @@ static void endio(struct bio *bio)
 {
 	struct io *io;
 	unsigned region;
-	int error;
+	blk_status_t error;
 
-	if (bio->bi_error && bio_data_dir(bio) == READ)
+	if (bio->bi_status && bio_data_dir(bio) == READ)
 		zero_fill_bio(bio);
 
 	/*
@@ -147,7 +147,7 @@ static void endio(struct bio *bio)
 	 */
 	retrieve_io_and_region_from_bio(bio, &io, &region);
 
-	error = bio->bi_error;
+	error = bio->bi_status;
 	bio_put(bio);
 
 	dec_count(io, region, error);
@@ -319,7 +319,7 @@ static void do_region(int op, int op_flags, unsigned region,
 	if ((op == REQ_OP_DISCARD || op == REQ_OP_WRITE_ZEROES ||
 	     op == REQ_OP_WRITE_SAME)  &&
 	    special_cmd_max_sectors == 0) {
-		dec_count(io, region, -EOPNOTSUPP);
+		dec_count(io, region, BLK_STS_NOTSUPP);
 		return;
 	}
 

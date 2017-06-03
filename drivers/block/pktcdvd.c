@@ -952,9 +952,9 @@ static void pkt_end_io_read(struct bio *bio)
 
 	pkt_dbg(2, pd, "bio=%p sec0=%llx sec=%llx err=%d\n",
 		bio, (unsigned long long)pkt->sector,
-		(unsigned long long)bio->bi_iter.bi_sector, bio->bi_error);
+		(unsigned long long)bio->bi_iter.bi_sector, bio->bi_status);
 
-	if (bio->bi_error)
+	if (bio->bi_status)
 		atomic_inc(&pkt->io_errors);
 	if (atomic_dec_and_test(&pkt->io_wait)) {
 		atomic_inc(&pkt->run_sm);
@@ -969,7 +969,7 @@ static void pkt_end_io_packet_write(struct bio *bio)
 	struct pktcdvd_device *pd = pkt->pd;
 	BUG_ON(!pd);
 
-	pkt_dbg(2, pd, "id=%d, err=%d\n", pkt->id, bio->bi_error);
+	pkt_dbg(2, pd, "id=%d, err=%d\n", pkt->id, bio->bi_status);
 
 	pd->stats.pkt_ended++;
 
@@ -1305,16 +1305,16 @@ static void pkt_start_write(struct pktcdvd_device *pd, struct packet_data *pkt)
 	pkt_queue_bio(pd, pkt->w_bio);
 }
 
-static void pkt_finish_packet(struct packet_data *pkt, int error)
+static void pkt_finish_packet(struct packet_data *pkt, blk_status_t status)
 {
 	struct bio *bio;
 
-	if (error)
+	if (status)
 		pkt->cache_valid = 0;
 
 	/* Finish all bios corresponding to this packet */
 	while ((bio = bio_list_pop(&pkt->orig_bios))) {
-		bio->bi_error = error;
+		bio->bi_status = status;
 		bio_endio(bio);
 	}
 }
@@ -1349,7 +1349,7 @@ static void pkt_run_state_machine(struct pktcdvd_device *pd, struct packet_data 
 			if (atomic_read(&pkt->io_wait) > 0)
 				return;
 
-			if (!pkt->w_bio->bi_error) {
+			if (!pkt->w_bio->bi_status) {
 				pkt_set_state(pkt, PACKET_FINISHED_STATE);
 			} else {
 				pkt_set_state(pkt, PACKET_RECOVERY_STATE);
@@ -1366,7 +1366,7 @@ static void pkt_run_state_machine(struct pktcdvd_device *pd, struct packet_data 
 			break;
 
 		case PACKET_FINISHED_STATE:
-			pkt_finish_packet(pkt, pkt->w_bio->bi_error);
+			pkt_finish_packet(pkt, pkt->w_bio->bi_status);
 			return;
 
 		default:
@@ -2301,7 +2301,7 @@ static void pkt_end_io_read_cloned(struct bio *bio)
 	struct packet_stacked_data *psd = bio->bi_private;
 	struct pktcdvd_device *pd = psd->pd;
 
-	psd->bio->bi_error = bio->bi_error;
+	psd->bio->bi_status = bio->bi_status;
 	bio_put(bio);
 	bio_endio(psd->bio);
 	mempool_free(psd, psd_pool);

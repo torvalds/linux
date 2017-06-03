@@ -572,7 +572,7 @@ static void r5l_log_endio(struct bio *bio)
 	struct r5l_log *log = io->log;
 	unsigned long flags;
 
-	if (bio->bi_error)
+	if (bio->bi_status)
 		md_error(log->rdev->mddev, log->rdev);
 
 	bio_put(bio);
@@ -1247,7 +1247,7 @@ static void r5l_log_flush_endio(struct bio *bio)
 	unsigned long flags;
 	struct r5l_io_unit *io;
 
-	if (bio->bi_error)
+	if (bio->bi_status)
 		md_error(log->rdev->mddev, log->rdev);
 
 	spin_lock_irqsave(&log->io_list_lock, flags);

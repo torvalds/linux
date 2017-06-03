@@ -114,7 +114,7 @@ static void pblk_end_io_read(struct nvm_rq *rqd)
 		pblk_log_read_err(pblk, rqd);
 #ifdef CONFIG_NVM_DEBUG
 	else
-		WARN_ONCE(bio->bi_error, "pblk: corrupted read error\n");
+		WARN_ONCE(bio->bi_status, "pblk: corrupted read error\n");
 #endif
 
 	if (rqd->nr_ppas > 1)
@@ -123,7 +123,7 @@ static void pblk_end_io_read(struct nvm_rq *rqd)
 	bio_put(bio);
 	if (r_ctx->orig_bio) {
 #ifdef CONFIG_NVM_DEBUG
-		WARN_ONCE(r_ctx->orig_bio->bi_error,
+		WARN_ONCE(r_ctx->orig_bio->bi_status,
 						"pblk: corrupted read bio\n");
 #endif
 		bio_endio(r_ctx->orig_bio);

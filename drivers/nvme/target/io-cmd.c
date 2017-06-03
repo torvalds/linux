@@ -21,7 +21,7 @@ static void nvmet_bio_done(struct bio *bio)
 	struct nvmet_req *req = bio->bi_private;
 
 	nvmet_req_complete(req,
-		bio->bi_error ? NVME_SC_INTERNAL | NVME_SC_DNR : 0);
+		bio->bi_status ? NVME_SC_INTERNAL | NVME_SC_DNR : 0);
 
 	if (bio != &req->inline_bio)
 		bio_put(bio);
@@ -145,7 +145,7 @@ static void nvmet_execute_discard(struct nvmet_req *req)
 		bio->bi_private = req;
 		bio->bi_end_io = nvmet_bio_done;
 		if (status) {
-			bio->bi_error = -EIO;
+			bio->bi_status = BLK_STS_IOERR;
 			bio_endio(bio);
 		} else {
 			submit_bio(bio);

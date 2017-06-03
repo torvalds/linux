@@ -310,7 +310,8 @@ struct btrfs_dio_private {
 	 * The original bio may be split to several sub-bios, this is
 	 * done during endio of sub-bios
 	 */
-	int (*subio_endio)(struct inode *, struct btrfs_io_bio *, int);
+	blk_status_t (*subio_endio)(struct inode *, struct btrfs_io_bio *,
+			blk_status_t);
 };
 
 /*

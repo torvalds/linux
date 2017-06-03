@@ -149,7 +149,7 @@ static blk_qc_t rsxx_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct rsxx_cardinfo *card = q->queuedata;
 	struct rsxx_bio_meta *bio_meta;
-	int st = -EINVAL;
+	blk_status_t st = BLK_STS_IOERR;
 
 	blk_queue_split(q, &bio, q->bio_split);
 
@@ -161,15 +161,11 @@ static blk_qc_t rsxx_make_request(struct request_queue *q, struct bio *bio)
 	if (bio_end_sector(bio) > get_capacity(card->gendisk))
 		goto req_err;
 
-	if (unlikely(card->halt)) {
-		st = -EFAULT;
+	if (unlikely(card->halt))
 		goto req_err;
-	}
 
-	if (unlikely(card->dma_fault)) {
-		st = (-EFAULT);
+	if (unlikely(card->dma_fault))
 		goto req_err;
-	}
 
 	if (bio->bi_iter.bi_size == 0) {
 		dev_err(CARD_TO_DEV(card), "size zero BIO!\n");
@@ -178,7 +174,7 @@ static blk_qc_t rsxx_make_request(struct request_queue *q, struct bio *bio)
 
 	bio_meta = kmem_cache_alloc(bio_meta_pool, GFP_KERNEL);
 	if (!bio_meta) {
-		st = -ENOMEM;
+		st = BLK_STS_RESOURCE;
 		goto req_err;
 	}
 
@@ -205,7 +201,7 @@ queue_err:
 	kmem_cache_free(bio_meta_pool, bio_meta);
 req_err:
 	if (st)
-		bio->bi_error = st;
+		bio->bi_status = st;
 	bio_endio(bio);
 	return BLK_QC_T_NONE;
 }

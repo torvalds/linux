@@ -414,7 +414,7 @@ extern void bio_endio(struct bio *);
 
 static inline void bio_io_error(struct bio *bio)
 {
-	bio->bi_error = -EIO;
+	bio->bi_status = BLK_STS_IOERR;
 	bio_endio(bio);
 }
 

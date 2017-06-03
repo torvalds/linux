@@ -186,7 +186,7 @@ static void pblk_end_io_write(struct nvm_rq *rqd)
 	}
 #ifdef CONFIG_NVM_DEBUG
 	else
-		WARN_ONCE(rqd->bio->bi_error, "pblk: corrupted write error\n");
+		WARN_ONCE(rqd->bio->bi_status, "pblk: corrupted write error\n");
 #endif
 
 	pblk_complete_write(pblk, rqd, c_ctx);

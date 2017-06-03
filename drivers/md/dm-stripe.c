@@ -375,7 +375,8 @@ static void stripe_status(struct dm_target *ti, status_type_t type,
 	}
 }
 
-static int stripe_end_io(struct dm_target *ti, struct bio *bio, int *error)
+static int stripe_end_io(struct dm_target *ti, struct bio *bio,
+		blk_status_t *error)
 {
 	unsigned i;
 	char major_minor[16];
@@ -387,7 +388,7 @@ static int stripe_end_io(struct dm_target *ti, struct bio *bio, int *error)
 	if (bio->bi_opf & REQ_RAHEAD)
 		return DM_ENDIO_DONE;
 
-	if (*error == -EOPNOTSUPP)
+	if (*error == BLK_STS_NOTSUPP)
 		return DM_ENDIO_DONE;
 
 	memset(major_minor, 0, sizeof(major_minor));

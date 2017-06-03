@@ -871,7 +871,7 @@ static void free_raid_bio(struct btrfs_raid_bio *rbio)
  * this frees the rbio and runs through all the bios in the
  * bio_list and calls end_io on them
  */
-static void rbio_orig_end_io(struct btrfs_raid_bio *rbio, int err)
+static void rbio_orig_end_io(struct btrfs_raid_bio *rbio, blk_status_t err)
 {
 	struct bio *cur = bio_list_get(&rbio->bio_list);
 	struct bio *next;
@@ -884,7 +884,7 @@ static void rbio_orig_end_io(struct btrfs_raid_bio *rbio, int err)
 	while (cur) {
 		next = cur->bi_next;
 		cur->bi_next = NULL;
-		cur->bi_error = err;
+		cur->bi_status = err;
 		bio_endio(cur);
 		cur = next;
 	}
@@ -897,7 +897,7 @@ static void rbio_orig_end_io(struct btrfs_raid_bio *rbio, int err)
 static void raid_write_end_io(struct bio *bio)
 {
 	struct btrfs_raid_bio *rbio = bio->bi_private;
-	int err = bio->bi_error;
+	blk_status_t err = bio->bi_status;
 	int max_errors;
 
 	if (err)
@@ -914,7 +914,7 @@ static void raid_write_end_io(struct bio *bio)
 	max_errors = (rbio->operation == BTRFS_RBIO_PARITY_SCRUB) ?
 		     0 : rbio->bbio->max_errors;
 	if (atomic_read(&rbio->error) > max_errors)
-		err = -EIO;
+		err = BLK_STS_IOERR;
 
 	rbio_orig_end_io(rbio, err);
 }
@@ -1092,7 +1092,7 @@ static int rbio_add_io_page(struct btrfs_raid_bio *rbio,
 		 * devices or if they are not contiguous
 		 */
 		if (last_end == disk_start && stripe->dev->bdev &&
-		    !last->bi_error &&
+		    !last->bi_status &&
 		    last->bi_bdev == stripe->dev->bdev) {
 			ret = bio_add_page(last, page, PAGE_SIZE, 0);
 			if (ret == PAGE_SIZE)
@@ -1448,7 +1448,7 @@ static void raid_rmw_end_io(struct bio *bio)
 {
 	struct btrfs_raid_bio *rbio = bio->bi_private;
 
-	if (bio->bi_error)
+	if (bio->bi_status)
 		fail_bio_stripe(rbio, bio);
 	else
 		set_bio_pages_uptodate(bio);
@@ -1991,7 +1991,7 @@ static void raid_recover_end_io(struct bio *bio)
 	 * we only read stripe pages off the disk, set them
 	 * up to date if there were no errors
 	 */
-	if (bio->bi_error)
+	if (bio->bi_status)
 		fail_bio_stripe(rbio, bio);
 	else
 		set_bio_pages_uptodate(bio);
@@ -2530,7 +2530,7 @@ static void raid56_parity_scrub_end_io(struct bio *bio)
 {
 	struct btrfs_raid_bio *rbio = bio->bi_private;
 
-	if (bio->bi_error)
+	if (bio->bi_status)
 		fail_bio_stripe(rbio, bio);
 	else
 		set_bio_pages_uptodate(bio);

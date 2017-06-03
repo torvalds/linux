@@ -2006,7 +2006,7 @@ static void split_bio_end(struct bio *bio)
 
 	if (atomic_dec_and_test(&split_bio->pending)) {
 		split_bio->bio->bi_phys_segments = 0;
-		split_bio->bio->bi_error = bio->bi_error;
+		split_bio->bio->bi_status = bio->bi_status;
 		bio_endio(split_bio->bio);
 		kfree(split_bio);
 	}

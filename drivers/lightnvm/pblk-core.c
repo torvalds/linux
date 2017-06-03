@@ -296,8 +296,8 @@ void pblk_flush_writer(struct pblk *pblk)
 		pr_err("pblk: tear down bio failed\n");
 	}
 
-	if (bio->bi_error)
-		pr_err("pblk: flush sync write failed (%u)\n", bio->bi_error);
+	if (bio->bi_status)
+		pr_err("pblk: flush sync write failed (%u)\n", bio->bi_status);
 
 	bio_put(bio);
 }

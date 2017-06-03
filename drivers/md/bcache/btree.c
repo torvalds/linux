@@ -307,7 +307,7 @@ static void bch_btree_node_read(struct btree *b)
 	bch_submit_bbio(bio, b->c, &b->key, 0);
 	closure_sync(&cl);
 
-	if (bio->bi_error)
+	if (bio->bi_status)
 		set_btree_node_io_error(b);
 
 	bch_bbio_free(bio, b->c);
@@ -374,10 +374,10 @@ static void btree_node_write_endio(struct bio *bio)
 	struct closure *cl = bio->bi_private;
 	struct btree *b = container_of(cl, struct btree, io);
 
-	if (bio->bi_error)
+	if (bio->bi_status)
 		set_btree_node_io_error(b);
 
-	bch_bbio_count_io_errors(b->c, bio, bio->bi_error, "writing btree");
+	bch_bbio_count_io_errors(b->c, bio, bio->bi_status, "writing btree");
 	closure_put(cl);
 }
 

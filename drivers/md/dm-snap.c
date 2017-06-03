@@ -1590,7 +1590,7 @@ static void full_bio_end_io(struct bio *bio)
 {
 	void *callback_data = bio->bi_private;
 
-	dm_kcopyd_do_callback(callback_data, 0, bio->bi_error ? 1 : 0);
+	dm_kcopyd_do_callback(callback_data, 0, bio->bi_status ? 1 : 0);
 }
 
 static void start_full_bio(struct dm_snap_pending_exception *pe,
@@ -1851,7 +1851,8 @@ out_unlock:
 	return r;
 }
 
-static int snapshot_end_io(struct dm_target *ti, struct bio *bio, int *error)
+static int snapshot_end_io(struct dm_target *ti, struct bio *bio,
+		blk_status_t *error)
 {
 	struct dm_snapshot *s = ti->private;
 
