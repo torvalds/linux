@@ -4693,6 +4693,13 @@ S:	Maintained
 F:	drivers/media/usb/dvb-usb-v2/dvb_usb*
 F:	drivers/media/usb/dvb-usb-v2/usb_urb.c
 
+DONGWOON DW9714 LENS VOICE COIL DRIVER
+M:	Sakari Ailus <sakari.ailus@linux.intel.com>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/i2c/dw9714.c
+
 DYNAMIC DEBUG
 M:	Jason Baron <jbaron@akamai.com>
 S:	Maintained
