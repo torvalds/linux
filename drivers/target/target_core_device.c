@@ -168,11 +168,20 @@ int transport_lookup_tmr_lun(struct se_cmd *se_cmd, u64 unpacked_lun)
 	rcu_read_lock();
 	deve = target_nacl_find_deve(nacl, unpacked_lun);
 	if (deve) {
-		se_cmd->se_lun = rcu_dereference(deve->se_lun);
 		se_lun = rcu_dereference(deve->se_lun);
+
+		if (!percpu_ref_tryget_live(&se_lun->lun_ref)) {
+			se_lun = NULL;
+			goto out_unlock;
+		}
+
+		se_cmd->se_lun = rcu_dereference(deve->se_lun);
 		se_cmd->pr_res_key = deve->pr_res_key;
 		se_cmd->orig_fe_lun = unpacked_lun;
+		se_cmd->se_cmd_flags |= SCF_SE_LUN_CMD;
+		se_cmd->lun_ref_active = true;
 	}
+out_unlock:
 	rcu_read_unlock();
 
 	if (!se_lun) {
@@ -182,9 +191,6 @@ int transport_lookup_tmr_lun(struct se_cmd *se_cmd, u64 unpacked_lun)
 			unpacked_lun);
 		return -ENODEV;
 	}
-	/*
-	 * XXX: Add percpu se_lun->lun_ref reference count for TMR
-	 */
 	se_cmd->se_dev = rcu_dereference_raw(se_lun->lun_se_dev);
 	se_tmr->tmr_dev = rcu_dereference_raw(se_lun->lun_se_dev);
 

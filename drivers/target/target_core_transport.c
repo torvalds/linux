@@ -1590,6 +1590,7 @@ static void target_complete_tmr_failure(struct work_struct *work)
 	se_cmd->se_tmr_req->response = TMR_LUN_DOES_NOT_EXIST;
 	se_cmd->se_tfo->queue_tm_rsp(se_cmd);
 
+	transport_lun_remove_cmd(se_cmd);
 	transport_cmd_check_stop_to_fabric(se_cmd);
 }
 
@@ -3201,6 +3202,7 @@ static void target_tmr_work(struct work_struct *work)
 	cmd->se_tfo->queue_tm_rsp(cmd);
 
 check_stop:
+	transport_lun_remove_cmd(cmd);
 	transport_cmd_check_stop_to_fabric(cmd);
 }
 
@@ -3223,6 +3225,7 @@ int transport_generic_handle_tmr(
 		pr_warn_ratelimited("handle_tmr caught CMD_T_ABORTED TMR %d"
 			"ref_tag: %llu tag: %llu\n", cmd->se_tmr_req->function,
 			cmd->se_tmr_req->ref_task_tag, cmd->tag);
+		transport_lun_remove_cmd(cmd);
 		transport_cmd_check_stop_to_fabric(cmd);
 		return 0;
 	}
