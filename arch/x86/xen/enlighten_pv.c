@@ -107,35 +107,6 @@ struct tls_descs {
  */
 static DEFINE_PER_CPU(struct tls_descs, shadow_tls_desc);
 
-/*
- * On restore, set the vcpu placement up again.
- * If it fails, then we're in a bad state, since
- * we can't back out from using it...
- */
-void xen_vcpu_restore(void)
-{
-	int cpu;
-
-	for_each_possible_cpu(cpu) {
-		bool other_cpu = (cpu != smp_processor_id());
-		bool is_up = HYPERVISOR_vcpu_op(VCPUOP_is_up, xen_vcpu_nr(cpu),
-						NULL);
-
-		if (other_cpu && is_up &&
-		    HYPERVISOR_vcpu_op(VCPUOP_down, xen_vcpu_nr(cpu), NULL))
-			BUG();
-
-		xen_setup_runstate_info(cpu);
-
-		if (xen_have_vcpu_info_placement)
-			xen_vcpu_setup(cpu);
-
-		if (other_cpu && is_up &&
-		    HYPERVISOR_vcpu_op(VCPUOP_up, xen_vcpu_nr(cpu), NULL))
-			BUG();
-	}
-}
-
 static void __init xen_banner(void)
 {
 	unsigned version = HYPERVISOR_xen_version(XENVER_version, NULL);
@@ -1332,9 +1303,17 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	 */
 	acpi_numa = -1;
 #endif
-	/* Don't do the full vcpu_info placement stuff until we have a
-	   possible map and a non-dummy shared_info. */
-	per_cpu(xen_vcpu, 0) = &HYPERVISOR_shared_info->vcpu_info[0];
+	/* Let's presume PV guests always boot on vCPU with id 0. */
+	per_cpu(xen_vcpu_id, 0) = 0;
+
+	/*
+	 * Setup xen_vcpu early because start_kernel needs it for
+	 * local_irq_disable(), irqs_disabled().
+	 *
+	 * Don't do the full vcpu_info placement stuff until we have
+	 * the cpu_possible_mask and a non-dummy shared_info.
+	 */
+	xen_vcpu_info_reset(0);
 
 	WARN_ON(xen_cpuhp_setup(xen_cpu_up_prepare_pv, xen_cpu_dead_pv));
 
@@ -1431,9 +1410,7 @@ asmlinkage __visible void __init xen_start_kernel(void)
 #endif
 	xen_raw_console_write("about to get started...\n");
 
-	/* Let's presume PV guests always boot on vCPU with id 0. */
-	per_cpu(xen_vcpu_id, 0) = 0;
-
+	/* We need this for printk timestamps */
 	xen_setup_runstate_info(0);
 
 	xen_efi_init();

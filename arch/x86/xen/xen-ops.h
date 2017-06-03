@@ -79,6 +79,7 @@ bool xen_vcpu_stolen(int vcpu);
 extern int xen_have_vcpu_info_placement;
 
 void xen_vcpu_setup(int cpu);
+void xen_vcpu_info_reset(int cpu);
 void xen_setup_vcpu_info_placement(void);
 
 #ifdef CONFIG_SMP

@@ -106,12 +106,52 @@ int xen_cpuhp_setup(int (*cpu_up_prepare_cb)(unsigned int),
 	return rc >= 0 ? 0 : rc;
 }
 
+/*
+ * On restore, set the vcpu placement up again.
+ * If it fails, then we're in a bad state, since
+ * we can't back out from using it...
+ */
+void xen_vcpu_restore(void)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		bool other_cpu = (cpu != smp_processor_id());
+		bool is_up = HYPERVISOR_vcpu_op(VCPUOP_is_up, xen_vcpu_nr(cpu),
+						NULL);
+
+		if (other_cpu && is_up &&
+		    HYPERVISOR_vcpu_op(VCPUOP_down, xen_vcpu_nr(cpu), NULL))
+			BUG();
+
+		xen_setup_runstate_info(cpu);
+
+		if (xen_have_vcpu_info_placement)
+			xen_vcpu_setup(cpu);
+
+		if (other_cpu && is_up &&
+		    HYPERVISOR_vcpu_op(VCPUOP_up, xen_vcpu_nr(cpu), NULL))
+			BUG();
+	}
+}
+
 static void clamp_max_cpus(void)
 {
 #ifdef CONFIG_SMP
 	if (setup_max_cpus > MAX_VIRT_CPUS)
 		setup_max_cpus = MAX_VIRT_CPUS;
 #endif
+}
+
+void xen_vcpu_info_reset(int cpu)
+{
+	if (xen_vcpu_nr(cpu) < MAX_VIRT_CPUS) {
+		per_cpu(xen_vcpu, cpu) =
+			&HYPERVISOR_shared_info->vcpu_info[xen_vcpu_nr(cpu)];
+	} else {
+		/* Set to NULL so that if somebody accesses it we get an OOPS */
+		per_cpu(xen_vcpu, cpu) = NULL;
+	}
 }
 
 void xen_vcpu_setup(int cpu)
@@ -137,39 +177,44 @@ void xen_vcpu_setup(int cpu)
 		if (per_cpu(xen_vcpu, cpu) == &per_cpu(xen_vcpu_info, cpu))
 			return;
 	}
-	if (xen_vcpu_nr(cpu) < MAX_VIRT_CPUS)
-		per_cpu(xen_vcpu, cpu) =
-			&HYPERVISOR_shared_info->vcpu_info[xen_vcpu_nr(cpu)];
+
+	xen_vcpu_info_reset(cpu);
+
+	if (xen_have_vcpu_info_placement) {
+		vcpup = &per_cpu(xen_vcpu_info, cpu);
+		info.mfn = arbitrary_virt_to_mfn(vcpup);
+		info.offset = offset_in_page(vcpup);
+
+		/*
+		 * Check to see if the hypervisor will put the vcpu_info
+		 * structure where we want it, which allows direct access via
+		 * a percpu-variable.
+		 * N.B. This hypercall can _only_ be called once per CPU.
+		 * Subsequent calls will error out with -EINVAL. This is due to
+		 * the fact that hypervisor has no unregister variant and this
+		 * hypercall does not allow to over-write info.mfn and
+		 * info.offset.
+		 */
+		err = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_info,
+					 xen_vcpu_nr(cpu), &info);
+
+		if (err) {
+			pr_warn_once("register_vcpu_info failed: cpu=%d err=%d\n",
+				     cpu, err);
+			xen_have_vcpu_info_placement = 0;
+		} else {
+			/*
+			 * This cpu is using the registered vcpu info, even if
+			 * later ones fail to.
+			 */
+			per_cpu(xen_vcpu, cpu) = vcpup;
+		}
+	}
 
 	if (!xen_have_vcpu_info_placement) {
 		if (cpu >= MAX_VIRT_CPUS)
 			clamp_max_cpus();
 		return;
-	}
-
-	vcpup = &per_cpu(xen_vcpu_info, cpu);
-	info.mfn = arbitrary_virt_to_mfn(vcpup);
-	info.offset = offset_in_page(vcpup);
-
-	/* Check to see if the hypervisor will put the vcpu_info
-	   structure where we want it, which allows direct access via
-	   a percpu-variable.
-	   N.B. This hypercall can _only_ be called once per CPU. Subsequent
-	   calls will error out with -EINVAL. This is due to the fact that
-	   hypervisor has no unregister variant and this hypercall does not
-	   allow to over-write info.mfn and info.offset.
-	 */
-	err = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_info, xen_vcpu_nr(cpu),
-				 &info);
-
-	if (err) {
-		printk(KERN_DEBUG "register_vcpu_info failed: err=%d\n", err);
-		xen_have_vcpu_info_placement = 0;
-		clamp_max_cpus();
-	} else {
-		/* This cpu is using the registered vcpu info, even if
-		   later ones fail to. */
-		per_cpu(xen_vcpu, cpu) = vcpup;
 	}
 }
 

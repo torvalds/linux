@@ -12,7 +12,8 @@ static void __init xen_hvm_smp_prepare_boot_cpu(void)
 	native_smp_prepare_boot_cpu();
 
 	/*
-	 * Setup vcpu_info for boot CPU.
+	 * Setup vcpu_info for boot CPU. Secondary CPUs get their vcpu_info
+	 * in xen_cpu_up_prepare_hvm().
 	 */
 	xen_vcpu_setup(0);
 
