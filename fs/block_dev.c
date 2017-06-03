@@ -334,7 +334,7 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 	bool is_read = (iov_iter_rw(iter) == READ), is_sync;
 	loff_t pos = iocb->ki_pos;
 	blk_qc_t qc = BLK_QC_T_NONE;
-	int ret;
+	int ret = 0;
 
 	if ((pos | iov_iter_alignment(iter)) &
 	    (bdev_logical_block_size(bdev) - 1))
@@ -363,7 +363,7 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 
 		ret = bio_iov_iter_get_pages(bio, iter);
 		if (unlikely(ret)) {
-			bio->bi_error = ret;
+			bio->bi_error = -EIO;
 			bio_endio(bio);
 			break;
 		}
@@ -412,7 +412,8 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 	}
 	__set_current_state(TASK_RUNNING);
 
-	ret = dio->bio.bi_error;
+	if (!ret)
+		ret = dio->bio.bi_error;
 	if (likely(!ret))
 		ret = dio->size;
 
