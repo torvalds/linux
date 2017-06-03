@@ -384,7 +384,7 @@ static int stripe_end_io(struct dm_target *ti, struct bio *bio, int error)
 	if (!error)
 		return 0; /* I/O complete */
 
-	if ((error == -EWOULDBLOCK) && (bio->bi_opf & REQ_RAHEAD))
+	if (bio->bi_opf & REQ_RAHEAD)
 		return error;
 
 	if (error == -EOPNOTSUPP)
