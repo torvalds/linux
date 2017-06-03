@@ -223,12 +223,13 @@ static void tango_dma_callback(void *arg)
 	complete(arg);
 }
 
-static int do_dma(struct tango_nfc *nfc, int dir, int cmd, const void *buf,
-		  int len, int page)
+static int do_dma(struct tango_nfc *nfc, enum dma_data_direction dir, int cmd,
+		  const void *buf, int len, int page)
 {
 	void __iomem *addr = nfc->reg_base + NFC_STATUS;
 	struct dma_chan *chan = nfc->chan;
 	struct dma_async_tx_descriptor *desc;
+	enum dma_transfer_direction tdir;
 	struct scatterlist sg;
 	struct completion tx_done;
 	int err = -EIO;
@@ -238,7 +239,8 @@ static int do_dma(struct tango_nfc *nfc, int dir, int cmd, const void *buf,
 	if (dma_map_sg(chan->device->dev, &sg, 1, dir) != 1)
 		return -EIO;
 
-	desc = dmaengine_prep_slave_sg(chan, &sg, 1, dir, DMA_PREP_INTERRUPT);
+	tdir = dir == DMA_TO_DEVICE ? DMA_MEM_TO_DEV : DMA_DEV_TO_MEM;
+	desc = dmaengine_prep_slave_sg(chan, &sg, 1, tdir, DMA_PREP_INTERRUPT);
 	if (!desc)
 		goto dma_unmap;
 

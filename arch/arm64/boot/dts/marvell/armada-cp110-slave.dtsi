@@ -59,6 +59,50 @@
 			interrupt-parent = <&gic>;
 			ranges = <0x0 0x0 0xf4000000 0x2000000>;
 
+			cps_rtc: rtc@284000 {
+				compatible = "marvell,armada-8k-rtc";
+				reg = <0x284000 0x20>, <0x284080 0x24>;
+				reg-names = "rtc", "rtc-soc";
+				interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			cps_ethernet: ethernet@0 {
+				compatible = "marvell,armada-7k-pp22";
+				reg = <0x0 0x100000>, <0x129000 0xb000>;
+				clocks = <&cps_syscon0 1 3>, <&cps_syscon0 1 9>, <&cps_syscon0 1 5>;
+				clock-names = "pp_clk", "gop_clk", "mg_clk";
+				status = "disabled";
+				dma-coherent;
+
+				cps_eth0: eth0 {
+					interrupts = <GIC_SPI 261 IRQ_TYPE_LEVEL_HIGH>;
+					port-id = <0>;
+					gop-port-id = <0>;
+					status = "disabled";
+				};
+
+				cps_eth1: eth1 {
+					interrupts = <GIC_SPI 262 IRQ_TYPE_LEVEL_HIGH>;
+					port-id = <1>;
+					gop-port-id = <2>;
+					status = "disabled";
+				};
+
+				cps_eth2: eth2 {
+					interrupts = <GIC_SPI 263 IRQ_TYPE_LEVEL_HIGH>;
+					port-id = <2>;
+					gop-port-id = <3>;
+					status = "disabled";
+				};
+			};
+
+			cps_mdio: mdio@12a200 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "marvell,orion-mdio";
+				reg = <0x12a200 0x10>;
+			};
+
 			cps_syscon0: system-controller@440000 {
 				compatible = "marvell,cp110-system-controller0",
 					     "syscon";
@@ -172,6 +216,22 @@
 				interrupts = <GIC_SPI 312 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&cps_syscon0 1 25>;
 				status = "okay";
+			};
+
+			cps_crypto: crypto@800000 {
+				compatible = "inside-secure,safexcel-eip197";
+				reg = <0x800000 0x200000>;
+				interrupts = <GIC_SPI 34 (IRQ_TYPE_EDGE_RISING
+				| IRQ_TYPE_LEVEL_HIGH)>,
+					     <GIC_SPI 278 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 279 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 280 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 281 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 282 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "mem", "ring0", "ring1",
+						  "ring2", "ring3", "eip";
+				clocks = <&cps_syscon0 1 26>;
+				status = "disabled";
 			};
 		};
 

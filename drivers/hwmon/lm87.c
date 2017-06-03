@@ -66,6 +66,7 @@
 #include <linux/hwmon-vid.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
+#include <linux/regulator/consumer.h>
 
 /*
  * Addresses to scan
@@ -73,8 +74,6 @@
  */
 
 static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
-
-enum chips { lm87, adm1024 };
 
 /*
  * The LM87 registers
@@ -855,8 +854,26 @@ static int lm87_init_client(struct i2c_client *client)
 {
 	struct lm87_data *data = i2c_get_clientdata(client);
 	int rc;
+	struct device_node *of_node = client->dev.of_node;
+	u8 val = 0;
+	struct regulator *vcc = NULL;
 
-	if (dev_get_platdata(&client->dev)) {
+	if (of_node) {
+		if (of_property_read_bool(of_node, "has-temp3"))
+			val |= CHAN_TEMP3;
+		if (of_property_read_bool(of_node, "has-in6"))
+			val |= CHAN_NO_FAN(0);
+		if (of_property_read_bool(of_node, "has-in7"))
+			val |= CHAN_NO_FAN(1);
+		vcc = devm_regulator_get_optional(&client->dev, "vcc");
+		if (!IS_ERR(vcc)) {
+			if (regulator_get_voltage(vcc) == 5000000)
+				val |= CHAN_VCC_5V;
+		}
+		data->channel = val;
+		lm87_write_value(client,
+				LM87_REG_CHANNEL_MODE, data->channel);
+	} else if (dev_get_platdata(&client->dev)) {
 		data->channel = *(u8 *)dev_get_platdata(&client->dev);
 		lm87_write_value(client,
 				 LM87_REG_CHANNEL_MODE, data->channel);
@@ -962,16 +979,24 @@ static int lm87_probe(struct i2c_client *client, const struct i2c_device_id *id)
  */
 
 static const struct i2c_device_id lm87_id[] = {
-	{ "lm87", lm87 },
-	{ "adm1024", adm1024 },
+	{ "lm87", 0 },
+	{ "adm1024", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm87_id);
+
+static const struct of_device_id lm87_of_match[] = {
+	{ .compatible = "ti,lm87" },
+	{ .compatible = "adi,adm1024" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, lm87_of_match);
 
 static struct i2c_driver lm87_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "lm87",
+		.of_match_table = lm87_of_match,
 	},
 	.probe		= lm87_probe,
 	.id_table	= lm87_id,

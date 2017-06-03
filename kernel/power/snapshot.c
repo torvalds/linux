@@ -36,6 +36,9 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/io.h>
+#ifdef CONFIG_STRICT_KERNEL_RWX
+#include <asm/set_memory.h>
+#endif
 
 #include "power.h"
 
@@ -1422,7 +1425,7 @@ static unsigned int nr_meta_pages;
  * Numbers of normal and highmem page frames allocated for hibernation image
  * before suspending devices.
  */
-unsigned int alloc_normal, alloc_highmem;
+static unsigned int alloc_normal, alloc_highmem;
 /*
  * Memory bitmap used for marking saveable pages (during hibernation) or
  * hibernation image pages (during restore)

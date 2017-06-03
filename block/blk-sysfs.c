@@ -13,6 +13,7 @@
 
 #include "blk.h"
 #include "blk-mq.h"
+#include "blk-mq-debugfs.h"
 #include "blk-wbt.h"
 
 struct queue_sysfs_entry {
@@ -208,7 +209,7 @@ static ssize_t queue_discard_max_store(struct request_queue *q,
 
 static ssize_t queue_discard_zeroes_data_show(struct request_queue *q, char *page)
 {
-	return queue_var_show(queue_discard_zeroes_data(q), page);
+	return queue_var_show(0, page);
 }
 
 static ssize_t queue_write_same_max_show(struct request_queue *q, char *page)
@@ -503,26 +504,6 @@ static ssize_t queue_dax_show(struct request_queue *q, char *page)
 	return queue_var_show(blk_queue_dax(q), page);
 }
 
-static ssize_t print_stat(char *page, struct blk_rq_stat *stat, const char *pre)
-{
-	return sprintf(page, "%s samples=%llu, mean=%lld, min=%lld, max=%lld\n",
-			pre, (long long) stat->nr_samples,
-			(long long) stat->mean, (long long) stat->min,
-			(long long) stat->max);
-}
-
-static ssize_t queue_stats_show(struct request_queue *q, char *page)
-{
-	struct blk_rq_stat stat[2];
-	ssize_t ret;
-
-	blk_queue_stat_get(q, stat);
-
-	ret = print_stat(page, &stat[BLK_STAT_READ], "read :");
-	ret += print_stat(page + ret, &stat[BLK_STAT_WRITE], "write:");
-	return ret;
-}
-
 static struct queue_sysfs_entry queue_requests_entry = {
 	.attr = {.name = "nr_requests", .mode = S_IRUGO | S_IWUSR },
 	.show = queue_requests_show,
@@ -691,16 +672,19 @@ static struct queue_sysfs_entry queue_dax_entry = {
 	.show = queue_dax_show,
 };
 
-static struct queue_sysfs_entry queue_stats_entry = {
-	.attr = {.name = "stats", .mode = S_IRUGO },
-	.show = queue_stats_show,
-};
-
 static struct queue_sysfs_entry queue_wb_lat_entry = {
 	.attr = {.name = "wbt_lat_usec", .mode = S_IRUGO | S_IWUSR },
 	.show = queue_wb_lat_show,
 	.store = queue_wb_lat_store,
 };
+
+#ifdef CONFIG_BLK_DEV_THROTTLING_LOW
+static struct queue_sysfs_entry throtl_sample_time_entry = {
+	.attr = {.name = "throttle_sample_time", .mode = S_IRUGO | S_IWUSR },
+	.show = blk_throtl_sample_time_show,
+	.store = blk_throtl_sample_time_store,
+};
+#endif
 
 static struct attribute *default_attrs[] = {
 	&queue_requests_entry.attr,
@@ -733,9 +717,11 @@ static struct attribute *default_attrs[] = {
 	&queue_poll_entry.attr,
 	&queue_wc_entry.attr,
 	&queue_dax_entry.attr,
-	&queue_stats_entry.attr,
 	&queue_wb_lat_entry.attr,
 	&queue_poll_delay_entry.attr,
+#ifdef CONFIG_BLK_DEV_THROTTLING_LOW
+	&throtl_sample_time_entry.attr,
+#endif
 	NULL,
 };
 
@@ -810,14 +796,18 @@ static void blk_release_queue(struct kobject *kobj)
 	struct request_queue *q =
 		container_of(kobj, struct request_queue, kobj);
 
-	wbt_exit(q);
+	if (test_bit(QUEUE_FLAG_POLL_STATS, &q->queue_flags))
+		blk_stat_remove_callback(q, q->poll_cb);
+	blk_stat_free_callback(q->poll_cb);
 	bdi_put(q->backing_dev_info);
 	blkcg_exit_queue(q);
 
 	if (q->elevator) {
 		ioc_clear_queue(q);
-		elevator_exit(q->elevator);
+		elevator_exit(q, q->elevator);
 	}
+
+	blk_free_queue_stats(q->stats);
 
 	blk_exit_rl(&q->root_rl);
 
@@ -855,23 +845,6 @@ struct kobj_type blk_queue_ktype = {
 	.release	= blk_release_queue,
 };
 
-static void blk_wb_init(struct request_queue *q)
-{
-#ifndef CONFIG_BLK_WBT_MQ
-	if (q->mq_ops)
-		return;
-#endif
-#ifndef CONFIG_BLK_WBT_SQ
-	if (q->request_fn)
-		return;
-#endif
-
-	/*
-	 * If this fails, we don't get throttling
-	 */
-	wbt_init(q);
-}
-
 int blk_register_queue(struct gendisk *disk)
 {
 	int ret;
@@ -880,6 +853,11 @@ int blk_register_queue(struct gendisk *disk)
 
 	if (WARN_ON(!q))
 		return -ENXIO;
+
+	WARN_ONCE(test_bit(QUEUE_FLAG_REGISTERED, &q->queue_flags),
+		  "%s is registering an already registered queue\n",
+		  kobject_name(&dev->kobj));
+	queue_flag_set_unlocked(QUEUE_FLAG_REGISTERED, q);
 
 	/*
 	 * SCSI probing may synchronously create and destroy a lot of
@@ -900,9 +878,6 @@ int blk_register_queue(struct gendisk *disk)
 	if (ret)
 		return ret;
 
-	if (q->mq_ops)
-		blk_mq_register_dev(dev, q);
-
 	/* Prevent changes through sysfs until registration is completed. */
 	mutex_lock(&q->sysfs_lock);
 
@@ -912,9 +887,16 @@ int blk_register_queue(struct gendisk *disk)
 		goto unlock;
 	}
 
+	if (q->mq_ops) {
+		__blk_mq_register_dev(dev, q);
+		blk_mq_debugfs_register(q);
+	}
+
 	kobject_uevent(&q->kobj, KOBJ_ADD);
 
-	blk_wb_init(q);
+	wbt_enable_default(q);
+
+	blk_throtl_register_queue(q);
 
 	if (q->request_fn || (q->mq_ops && q->elevator)) {
 		ret = elv_register_queue(q);
@@ -938,6 +920,11 @@ void blk_unregister_queue(struct gendisk *disk)
 
 	if (WARN_ON(!q))
 		return;
+
+	queue_flag_clear_unlocked(QUEUE_FLAG_REGISTERED, q);
+
+	wbt_exit(q);
+
 
 	if (q->mq_ops)
 		blk_mq_unregister_dev(disk_to_dev(disk), q);

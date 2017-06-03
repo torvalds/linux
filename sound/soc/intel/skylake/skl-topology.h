@@ -257,6 +257,8 @@ struct skl_pipe_params {
 	snd_pcm_format_t format;
 	int link_index;
 	int stream;
+	unsigned int host_bps;
+	unsigned int link_bps;
 };
 
 struct skl_pipe {
@@ -334,17 +336,10 @@ struct skl_pipeline {
 	struct list_head node;
 };
 
-#define SKL_LIB_NAME_LENGTH 128
-#define SKL_MAX_LIB 16
-
-struct skl_lib_info {
-	char name[SKL_LIB_NAME_LENGTH];
-	const struct firmware *fw;
-};
-
-struct skl_manifest {
-	u32 lib_count;
-	struct skl_lib_info lib[SKL_MAX_LIB];
+struct skl_module_deferred_bind {
+	struct skl_module_cfg *src;
+	struct skl_module_cfg *dst;
+	struct list_head node;
 };
 
 static inline struct skl *get_skl_ctx(struct device *dev)

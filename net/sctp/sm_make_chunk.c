@@ -1512,14 +1512,12 @@ int sctp_user_addto_chunk(struct sctp_chunk *chunk, int len,
 			  struct iov_iter *from)
 {
 	void *target;
-	ssize_t copied;
 
 	/* Make room in chunk for data.  */
 	target = skb_put(chunk->skb, len);
 
 	/* Copy data (whole iovec) into chunk */
-	copied = copy_from_iter(target, len, from);
-	if (copied != len)
+	if (!copy_from_iter_full(target, len, from))
 		return -EFAULT;
 
 	/* Adjust the chunk length field.  */
@@ -2456,21 +2454,11 @@ int sctp_process_init(struct sctp_association *asoc, struct sctp_chunk *chunk,
 	 * stream sequence number shall be set to 0.
 	 */
 
-	/* Allocate storage for the negotiated streams if it is not a temporary
-	 * association.
-	 */
-	if (!asoc->temp) {
-		int error;
+	if (sctp_stream_init(asoc, gfp))
+		goto clean_up;
 
-		asoc->stream = sctp_stream_new(asoc->c.sinit_max_instreams,
-					       asoc->c.sinit_num_ostreams, gfp);
-		if (!asoc->stream)
-			goto clean_up;
-
-		error = sctp_assoc_set_id(asoc, gfp);
-		if (error)
-			goto clean_up;
-	}
+	if (!asoc->temp && sctp_assoc_set_id(asoc, gfp))
+		goto clean_up;
 
 	/* ADDIP Section 4.1 ASCONF Chunk Procedures
 	 *

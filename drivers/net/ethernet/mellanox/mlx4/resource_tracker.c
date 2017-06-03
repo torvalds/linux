@@ -311,7 +311,7 @@ static inline int mlx4_grant_resource(struct mlx4_dev *dev, int slave,
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct resource_allocator *res_alloc =
 		&priv->mfunc.master.res_tracker.res_alloc[res_type];
-	int err = -EINVAL;
+	int err = -EDQUOT;
 	int allocated, free, reserved, guaranteed, from_free;
 	int from_rsvd;
 
@@ -2749,7 +2749,7 @@ int mlx4_SW2HW_MPT_wrapper(struct mlx4_dev *dev, int slave,
 	int err;
 	int index = vhcr->in_modifier;
 	struct res_mtt *mtt;
-	struct res_mpt *mpt;
+	struct res_mpt *mpt = NULL;
 	int mtt_base = mr_get_mtt_addr(inbox->buf) / dev->caps.mtt_entry_sz;
 	int phys;
 	int id;

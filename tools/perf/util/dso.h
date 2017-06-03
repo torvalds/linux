@@ -1,7 +1,7 @@
 #ifndef __PERF_DSO
 #define __PERF_DSO
 
-#include <linux/atomic.h>
+#include <linux/refcount.h>
 #include <linux/types.h>
 #include <linux/rbtree.h>
 #include <sys/types.h>
@@ -187,7 +187,7 @@ struct dso {
 		void	 *priv;
 		u64	 db_id;
 	};
-	atomic_t	 refcnt;
+	refcount_t	 refcnt;
 	char		 name[0];
 };
 

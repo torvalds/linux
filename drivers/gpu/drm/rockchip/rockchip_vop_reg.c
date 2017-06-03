@@ -404,7 +404,7 @@ static int vop_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver vop_platform_driver = {
+struct platform_driver vop_platform_driver = {
 	.probe = vop_probe,
 	.remove = vop_remove,
 	.driver = {
@@ -412,9 +412,3 @@ static struct platform_driver vop_platform_driver = {
 		.of_match_table = of_match_ptr(vop_driver_dt_match),
 	},
 };
-
-module_platform_driver(vop_platform_driver);
-
-MODULE_AUTHOR("Mark Yao <mark.yao@rock-chips.com>");
-MODULE_DESCRIPTION("ROCKCHIP VOP Driver");
-MODULE_LICENSE("GPL v2");

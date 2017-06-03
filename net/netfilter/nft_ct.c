@@ -32,6 +32,12 @@ struct nft_ct {
 	};
 };
 
+struct nft_ct_helper_obj  {
+	struct nf_conntrack_helper *helper4;
+	struct nf_conntrack_helper *helper6;
+	u8 l4proto;
+};
+
 #ifdef CONFIG_NF_CONNTRACK_ZONES
 static DEFINE_PER_CPU(struct nf_conn *, nft_ct_pcpu_template);
 static unsigned int nft_ct_pcpu_template_refcnt __read_mostly;
@@ -66,12 +72,12 @@ static void nft_ct_get_eval(const struct nft_expr *expr,
 
 	switch (priv->key) {
 	case NFT_CT_STATE:
-		if (ct == NULL)
-			state = NF_CT_STATE_INVALID_BIT;
-		else if (nf_ct_is_untracked(ct))
+		if (ct)
+			state = NF_CT_STATE_BIT(ctinfo);
+		else if (ctinfo == IP_CT_UNTRACKED)
 			state = NF_CT_STATE_UNTRACKED_BIT;
 		else
-			state = NF_CT_STATE_BIT(ctinfo);
+			state = NF_CT_STATE_INVALID_BIT;
 		*dest = state;
 		return;
 	default:
@@ -258,7 +264,7 @@ static void nft_ct_set_eval(const struct nft_expr *expr,
 	struct nf_conn *ct;
 
 	ct = nf_ct_get(skb, &ctinfo);
-	if (ct == NULL)
+	if (ct == NULL || nf_ct_is_template(ct))
 		return;
 
 	switch (priv->key) {
@@ -277,6 +283,22 @@ static void nft_ct_set_eval(const struct nft_expr *expr,
 				      &regs->data[priv->sreg],
 				      NF_CT_LABELS_MAX_SIZE / sizeof(u32));
 		break;
+#endif
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
+	case NFT_CT_EVENTMASK: {
+		struct nf_conntrack_ecache *e = nf_ct_ecache_find(ct);
+		u32 ctmask = regs->data[priv->sreg];
+
+		if (e) {
+			if (e->ctmask != ctmask)
+				e->ctmask = ctmask;
+			break;
+		}
+
+		if (ctmask && !nf_ct_is_confirmed(ct))
+			nf_ct_ecache_ext_add(ct, ctmask, 0, GFP_ATOMIC);
+		break;
+	}
 #endif
 	default:
 		break;
@@ -533,6 +555,13 @@ static int nft_ct_set_init(const struct nft_ctx *ctx,
 		len = sizeof(u16);
 		break;
 #endif
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
+	case NFT_CT_EVENTMASK:
+		if (tb[NFTA_CT_DIRECTION])
+			return -EINVAL;
+		len = sizeof(u32);
+		break;
+#endif
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -696,7 +725,7 @@ nft_ct_select_ops(const struct nft_ctx *ctx,
 
 static struct nft_expr_type nft_ct_type __read_mostly = {
 	.name		= "ct",
-	.select_ops	= &nft_ct_select_ops,
+	.select_ops	= nft_ct_select_ops,
 	.policy		= nft_ct_policy,
 	.maxattr	= NFTA_CT_MAX,
 	.owner		= THIS_MODULE,
@@ -712,12 +741,10 @@ static void nft_notrack_eval(const struct nft_expr *expr,
 
 	ct = nf_ct_get(pkt->skb, &ctinfo);
 	/* Previously seen (loopback or untracked)?  Ignore. */
-	if (ct)
+	if (ct || ctinfo == IP_CT_UNTRACKED)
 		return;
 
-	ct = nf_ct_untracked_get();
-	atomic_inc(&ct->ct_general.use);
-	nf_ct_set(skb, ct, IP_CT_NEW);
+	nf_ct_set(skb, ct, IP_CT_UNTRACKED);
 }
 
 static struct nft_expr_type nft_notrack_type;
@@ -730,6 +757,162 @@ static const struct nft_expr_ops nft_notrack_ops = {
 static struct nft_expr_type nft_notrack_type __read_mostly = {
 	.name		= "notrack",
 	.ops		= &nft_notrack_ops,
+	.owner		= THIS_MODULE,
+};
+
+static int nft_ct_helper_obj_init(const struct nft_ctx *ctx,
+				  const struct nlattr * const tb[],
+				  struct nft_object *obj)
+{
+	struct nft_ct_helper_obj *priv = nft_obj_data(obj);
+	struct nf_conntrack_helper *help4, *help6;
+	char name[NF_CT_HELPER_NAME_LEN];
+	int family = ctx->afi->family;
+
+	if (!tb[NFTA_CT_HELPER_NAME] || !tb[NFTA_CT_HELPER_L4PROTO])
+		return -EINVAL;
+
+	priv->l4proto = nla_get_u8(tb[NFTA_CT_HELPER_L4PROTO]);
+	if (!priv->l4proto)
+		return -ENOENT;
+
+	nla_strlcpy(name, tb[NFTA_CT_HELPER_NAME], sizeof(name));
+
+	if (tb[NFTA_CT_HELPER_L3PROTO])
+		family = ntohs(nla_get_be16(tb[NFTA_CT_HELPER_L3PROTO]));
+
+	help4 = NULL;
+	help6 = NULL;
+
+	switch (family) {
+	case NFPROTO_IPV4:
+		if (ctx->afi->family == NFPROTO_IPV6)
+			return -EINVAL;
+
+		help4 = nf_conntrack_helper_try_module_get(name, family,
+							   priv->l4proto);
+		break;
+	case NFPROTO_IPV6:
+		if (ctx->afi->family == NFPROTO_IPV4)
+			return -EINVAL;
+
+		help6 = nf_conntrack_helper_try_module_get(name, family,
+							   priv->l4proto);
+		break;
+	case NFPROTO_NETDEV: /* fallthrough */
+	case NFPROTO_BRIDGE: /* same */
+	case NFPROTO_INET:
+		help4 = nf_conntrack_helper_try_module_get(name, NFPROTO_IPV4,
+							   priv->l4proto);
+		help6 = nf_conntrack_helper_try_module_get(name, NFPROTO_IPV6,
+							   priv->l4proto);
+		break;
+	default:
+		return -EAFNOSUPPORT;
+	}
+
+	/* && is intentional; only error if INET found neither ipv4 or ipv6 */
+	if (!help4 && !help6)
+		return -ENOENT;
+
+	priv->helper4 = help4;
+	priv->helper6 = help6;
+
+	return 0;
+}
+
+static void nft_ct_helper_obj_destroy(struct nft_object *obj)
+{
+	struct nft_ct_helper_obj *priv = nft_obj_data(obj);
+
+	if (priv->helper4)
+		nf_conntrack_helper_put(priv->helper4);
+	if (priv->helper6)
+		nf_conntrack_helper_put(priv->helper6);
+}
+
+static void nft_ct_helper_obj_eval(struct nft_object *obj,
+				   struct nft_regs *regs,
+				   const struct nft_pktinfo *pkt)
+{
+	const struct nft_ct_helper_obj *priv = nft_obj_data(obj);
+	struct nf_conn *ct = (struct nf_conn *)skb_nfct(pkt->skb);
+	struct nf_conntrack_helper *to_assign = NULL;
+	struct nf_conn_help *help;
+
+	if (!ct ||
+	    nf_ct_is_confirmed(ct) ||
+	    nf_ct_is_template(ct) ||
+	    priv->l4proto != nf_ct_protonum(ct))
+		return;
+
+	switch (nf_ct_l3num(ct)) {
+	case NFPROTO_IPV4:
+		to_assign = priv->helper4;
+		break;
+	case NFPROTO_IPV6:
+		to_assign = priv->helper6;
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		return;
+	}
+
+	if (!to_assign)
+		return;
+
+	if (test_bit(IPS_HELPER_BIT, &ct->status))
+		return;
+
+	help = nf_ct_helper_ext_add(ct, to_assign, GFP_ATOMIC);
+	if (help) {
+		rcu_assign_pointer(help->helper, to_assign);
+		set_bit(IPS_HELPER_BIT, &ct->status);
+	}
+}
+
+static int nft_ct_helper_obj_dump(struct sk_buff *skb,
+				  struct nft_object *obj, bool reset)
+{
+	const struct nft_ct_helper_obj *priv = nft_obj_data(obj);
+	const struct nf_conntrack_helper *helper = priv->helper4;
+	u16 family;
+
+	if (nla_put_string(skb, NFTA_CT_HELPER_NAME, helper->name))
+		return -1;
+
+	if (nla_put_u8(skb, NFTA_CT_HELPER_L4PROTO, priv->l4proto))
+		return -1;
+
+	if (priv->helper4 && priv->helper6)
+		family = NFPROTO_INET;
+	else if (priv->helper6)
+		family = NFPROTO_IPV6;
+	else
+		family = NFPROTO_IPV4;
+
+	if (nla_put_be16(skb, NFTA_CT_HELPER_L3PROTO, htons(family)))
+		return -1;
+
+	return 0;
+}
+
+static const struct nla_policy nft_ct_helper_policy[NFTA_CT_HELPER_MAX + 1] = {
+	[NFTA_CT_HELPER_NAME] = { .type = NLA_STRING,
+				  .len = NF_CT_HELPER_NAME_LEN - 1 },
+	[NFTA_CT_HELPER_L3PROTO] = { .type = NLA_U16 },
+	[NFTA_CT_HELPER_L4PROTO] = { .type = NLA_U8 },
+};
+
+static struct nft_object_type nft_ct_helper_obj __read_mostly = {
+	.type		= NFT_OBJECT_CT_HELPER,
+	.size		= sizeof(struct nft_ct_helper_obj),
+	.maxattr	= NFTA_CT_HELPER_MAX,
+	.policy		= nft_ct_helper_policy,
+	.eval		= nft_ct_helper_obj_eval,
+	.init		= nft_ct_helper_obj_init,
+	.destroy	= nft_ct_helper_obj_destroy,
+	.dump		= nft_ct_helper_obj_dump,
 	.owner		= THIS_MODULE,
 };
 
@@ -747,7 +930,14 @@ static int __init nft_ct_module_init(void)
 	if (err < 0)
 		goto err1;
 
+	err = nft_register_obj(&nft_ct_helper_obj);
+	if (err < 0)
+		goto err2;
+
 	return 0;
+
+err2:
+	nft_unregister_expr(&nft_notrack_type);
 err1:
 	nft_unregister_expr(&nft_ct_type);
 	return err;
@@ -755,6 +945,7 @@ err1:
 
 static void __exit nft_ct_module_exit(void)
 {
+	nft_unregister_obj(&nft_ct_helper_obj);
 	nft_unregister_expr(&nft_notrack_type);
 	nft_unregister_expr(&nft_ct_type);
 }
@@ -766,3 +957,4 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
 MODULE_ALIAS_NFT_EXPR("ct");
 MODULE_ALIAS_NFT_EXPR("notrack");
+MODULE_ALIAS_NFT_OBJ(NFT_OBJECT_CT_HELPER);

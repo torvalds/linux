@@ -31,6 +31,7 @@ struct rcar_du_lvdsenc {
 	bool enabled;
 
 	enum rcar_lvds_input input;
+	enum rcar_lvds_mode mode;
 };
 
 static void rcar_lvds_write(struct rcar_du_lvdsenc *lvds, u32 reg, u32 data)
@@ -61,7 +62,7 @@ static void rcar_du_lvdsenc_start_gen2(struct rcar_du_lvdsenc *lvds,
 	/* Select the input, hardcode mode 0, enable LVDS operation and turn
 	 * bias circuitry on.
 	 */
-	lvdcr0 = LVDCR0_BEN | LVDCR0_LVEN;
+	lvdcr0 = (lvds->mode << LVDCR0_LVMD_SHIFT) | LVDCR0_BEN | LVDCR0_LVEN;
 	if (rcrtc->index == 2)
 		lvdcr0 |= LVDCR0_DUSEL;
 	rcar_lvds_write(lvds, LVDCR0, lvdcr0);
@@ -114,7 +115,7 @@ static void rcar_du_lvdsenc_start_gen3(struct rcar_du_lvdsenc *lvds,
 	 * Turn the PLL on, set it to LVDS normal mode, wait for the startup
 	 * delay and turn the output on.
 	 */
-	lvdcr0 = LVDCR0_PLLON;
+	lvdcr0 = (lvds->mode << LVDCR0_LVMD_SHIFT) | LVDCR0_PLLON;
 	rcar_lvds_write(lvds, LVDCR0, lvdcr0);
 
 	lvdcr0 |= LVDCR0_PWD;
@@ -209,6 +210,12 @@ void rcar_du_lvdsenc_atomic_check(struct rcar_du_lvdsenc *lvds,
 		mode->clock = clamp(mode->clock, 30000, 150000);
 	else
 		mode->clock = clamp(mode->clock, 25175, 148500);
+}
+
+void rcar_du_lvdsenc_set_mode(struct rcar_du_lvdsenc *lvds,
+			      enum rcar_lvds_mode mode)
+{
+	lvds->mode = mode;
 }
 
 static int rcar_du_lvdsenc_get_resources(struct rcar_du_lvdsenc *lvds,

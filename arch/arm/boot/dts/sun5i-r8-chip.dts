@@ -128,6 +128,10 @@
 
 #include "axp209.dtsi"
 
+&ac_power_supply {
+	status = "okay";
+};
+
 &i2c1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c1_pins_a>;
@@ -281,7 +285,7 @@
 &uart3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart3_pins_a>,
-		    <&uart3_pins_cts_rts_a>;
+		    <&uart3_cts_rts_pins_a>;
 	status = "okay";
 };
 

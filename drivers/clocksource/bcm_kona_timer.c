@@ -179,7 +179,7 @@ static int __init kona_timer_init(struct device_node *node)
 	} else if (!of_property_read_u32(node, "clock-frequency", &freq)) {
 		arch_timer_rate = freq;
 	} else {
-		pr_err("Kona Timer v1 unable to determine clock-frequency");
+		pr_err("Kona Timer v1 unable to determine clock-frequency\n");
 		return -EINVAL;
 	}
 

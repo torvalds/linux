@@ -122,7 +122,7 @@ void flush_tsb_user(struct tlb_batch *tb)
 
 	spin_lock_irqsave(&mm->context.lock, flags);
 
-	if (tb->hugepage_shift < HPAGE_SHIFT) {
+	if (tb->hugepage_shift < REAL_HPAGE_SHIFT) {
 		base = (unsigned long) mm->context.tsb_block[MM_TSB_BASE].tsb;
 		nentries = mm->context.tsb_block[MM_TSB_BASE].tsb_nentries;
 		if (tlb_type == cheetah_plus || tlb_type == hypervisor)
@@ -155,7 +155,7 @@ void flush_tsb_user_page(struct mm_struct *mm, unsigned long vaddr,
 
 	spin_lock_irqsave(&mm->context.lock, flags);
 
-	if (hugepage_shift < HPAGE_SHIFT) {
+	if (hugepage_shift < REAL_HPAGE_SHIFT) {
 		base = (unsigned long) mm->context.tsb_block[MM_TSB_BASE].tsb;
 		nentries = mm->context.tsb_block[MM_TSB_BASE].tsb_nentries;
 		if (tlb_type == cheetah_plus || tlb_type == hypervisor)

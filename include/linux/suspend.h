@@ -189,6 +189,8 @@ struct platform_suspend_ops {
 struct platform_freeze_ops {
 	int (*begin)(void);
 	int (*prepare)(void);
+	void (*wake)(void);
+	void (*sync)(void);
 	void (*restore)(void);
 	void (*end)(void);
 };
@@ -428,7 +430,8 @@ extern unsigned int pm_wakeup_irq;
 
 extern bool pm_wakeup_pending(void);
 extern void pm_system_wakeup(void);
-extern void pm_wakeup_clear(void);
+extern void pm_system_cancel_wakeup(void);
+extern void pm_wakeup_clear(bool reset);
 extern void pm_system_irq_wakeup(unsigned int irq_number);
 extern bool pm_get_wakeup_count(unsigned int *count, bool block);
 extern bool pm_save_wakeup_count(unsigned int count);
@@ -478,7 +481,7 @@ static inline int unregister_pm_notifier(struct notifier_block *nb)
 
 static inline bool pm_wakeup_pending(void) { return false; }
 static inline void pm_system_wakeup(void) {}
-static inline void pm_wakeup_clear(void) {}
+static inline void pm_wakeup_clear(bool reset) {}
 static inline void pm_system_irq_wakeup(unsigned int irq_number) {}
 
 static inline void lock_system_sleep(void) {}

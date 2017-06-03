@@ -94,7 +94,7 @@ static int cdn_dp_grf_write(struct cdn_dp_device *dp,
 static int cdn_dp_clk_enable(struct cdn_dp_device *dp)
 {
 	int ret;
-	u32 rate;
+	unsigned long rate;
 
 	ret = clk_prepare_enable(dp->pclk);
 	if (ret < 0) {
@@ -123,7 +123,8 @@ static int cdn_dp_clk_enable(struct cdn_dp_device *dp)
 
 	rate = clk_get_rate(dp->core_clk);
 	if (!rate) {
-		DRM_DEV_ERROR(dp->dev, "get clk rate failed: %d\n", rate);
+		DRM_DEV_ERROR(dp->dev, "get clk rate failed\n");
+		ret = -EINVAL;
 		goto err_set_rate;
 	}
 
@@ -1052,6 +1053,7 @@ static int cdn_dp_bind(struct device *dev, struct device *master, void *data)
 	dp->connected = false;
 	dp->active = false;
 	dp->active_port = -1;
+	dp->fw_loaded = false;
 
 	INIT_WORK(&dp->event_work, cdn_dp_pd_event_work);
 
@@ -1090,8 +1092,6 @@ static int cdn_dp_bind(struct device *dev, struct device *master, void *data)
 		goto err_free_connector;
 	}
 
-	cdn_dp_audio_codec_init(dp, dev);
-
 	for (i = 0; i < dp->ports; i++) {
 		port = dp->port[i];
 
@@ -1126,13 +1126,13 @@ static void cdn_dp_unbind(struct device *dev, struct device *master, void *data)
 	struct drm_connector *connector = &dp->connector;
 
 	cancel_work_sync(&dp->event_work);
-	platform_device_unregister(dp->audio_pdev);
 	cdn_dp_encoder_disable(encoder);
 	encoder->funcs->destroy(encoder);
 	connector->funcs->destroy(connector);
 
 	pm_runtime_disable(dev);
-	release_firmware(dp->fw);
+	if (dp->fw_loaded)
+		release_firmware(dp->fw);
 	kfree(dp->edid);
 	dp->edid = NULL;
 }
@@ -1218,6 +1218,8 @@ static int cdn_dp_probe(struct platform_device *pdev)
 	mutex_init(&dp->lock);
 	dev_set_drvdata(dev, dp);
 
+	cdn_dp_audio_codec_init(dp, dev);
+
 	return component_add(dev, &cdn_dp_component_ops);
 }
 
@@ -1225,6 +1227,7 @@ static int cdn_dp_remove(struct platform_device *pdev)
 {
 	struct cdn_dp_device *dp = platform_get_drvdata(pdev);
 
+	platform_device_unregister(dp->audio_pdev);
 	cdn_dp_suspend(dp->dev);
 	component_del(&pdev->dev, &cdn_dp_component_ops);
 
@@ -1243,7 +1246,7 @@ static const struct dev_pm_ops cdn_dp_pm_ops = {
 				cdn_dp_resume)
 };
 
-static struct platform_driver cdn_dp_driver = {
+struct platform_driver cdn_dp_driver = {
 	.probe = cdn_dp_probe,
 	.remove = cdn_dp_remove,
 	.shutdown = cdn_dp_shutdown,
@@ -1254,9 +1257,3 @@ static struct platform_driver cdn_dp_driver = {
 		   .pm = &cdn_dp_pm_ops,
 	},
 };
-
-module_platform_driver(cdn_dp_driver);
-
-MODULE_AUTHOR("Chris Zhong <zyw@rock-chips.com>");
-MODULE_DESCRIPTION("cdn DP Driver");
-MODULE_LICENSE("GPL v2");

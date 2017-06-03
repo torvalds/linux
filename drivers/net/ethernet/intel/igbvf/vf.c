@@ -36,6 +36,7 @@ static void e1000_update_mc_addr_list_vf(struct e1000_hw *hw, u8 *,
 					 u32, u32, u32);
 static void e1000_rar_set_vf(struct e1000_hw *, u8 *, u32);
 static s32 e1000_read_mac_addr_vf(struct e1000_hw *);
+static s32 e1000_set_uc_addr_vf(struct e1000_hw *hw, u32 subcmd, u8 *addr);
 static s32 e1000_set_vfta_vf(struct e1000_hw *, u16, bool);
 
 /**
@@ -66,6 +67,8 @@ static s32 e1000_init_mac_params_vf(struct e1000_hw *hw)
 	mac->ops.rar_set = e1000_rar_set_vf;
 	/* read mac address */
 	mac->ops.read_mac_addr = e1000_read_mac_addr_vf;
+	/* set mac filter */
+	mac->ops.set_uc_addr = e1000_set_uc_addr_vf;
 	/* set vlan filter table array */
 	mac->ops.set_vfta = e1000_set_vfta_vf;
 
@@ -335,6 +338,44 @@ static s32 e1000_read_mac_addr_vf(struct e1000_hw *hw)
 	memcpy(hw->mac.addr, hw->mac.perm_addr, ETH_ALEN);
 
 	return E1000_SUCCESS;
+}
+
+/**
+ *  e1000_set_uc_addr_vf - Set or clear unicast filters
+ *  @hw: pointer to the HW structure
+ *  @sub_cmd: add or clear filters
+ *  @addr: pointer to the filter MAC address
+ **/
+static s32 e1000_set_uc_addr_vf(struct e1000_hw *hw, u32 sub_cmd, u8 *addr)
+{
+	struct e1000_mbx_info *mbx = &hw->mbx;
+	u32 msgbuf[3], msgbuf_chk;
+	u8 *msg_addr = (u8 *)(&msgbuf[1]);
+	s32 ret_val;
+
+	memset(msgbuf, 0, sizeof(msgbuf));
+	msgbuf[0] |= sub_cmd;
+	msgbuf[0] |= E1000_VF_SET_MAC_ADDR;
+	msgbuf_chk = msgbuf[0];
+
+	if (addr)
+		memcpy(msg_addr, addr, ETH_ALEN);
+
+	ret_val = mbx->ops.write_posted(hw, msgbuf, 3);
+
+	if (!ret_val)
+		ret_val = mbx->ops.read_posted(hw, msgbuf, 3);
+
+	msgbuf[0] &= ~E1000_VT_MSGTYPE_CTS;
+
+	if (!ret_val) {
+		msgbuf[0] &= ~E1000_VT_MSGTYPE_CTS;
+
+		if (msgbuf[0] == (msgbuf_chk | E1000_VT_MSGTYPE_NACK))
+			return -ENOSPC;
+	}
+
+	return ret_val;
 }
 
 /**

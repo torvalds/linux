@@ -243,6 +243,7 @@ struct smb_version_operations {
 	/* verify the message */
 	int (*check_message)(char *, unsigned int, struct TCP_Server_Info *);
 	bool (*is_oplock_break)(char *, struct TCP_Server_Info *);
+	int (*handle_cancelled_mid)(char *, struct TCP_Server_Info *);
 	void (*downgrade_oplock)(struct TCP_Server_Info *,
 					struct cifsInodeInfo *, bool);
 	/* process transaction2 response */
@@ -407,16 +408,17 @@ struct smb_version_operations {
 	char * (*create_lease_buf)(u8 *, u8);
 	/* parse lease context buffer and return oplock/epoch info */
 	__u8 (*parse_lease_buf)(void *, unsigned int *);
-	int (*clone_range)(const unsigned int, struct cifsFileInfo *src_file,
-			struct cifsFileInfo *target_file, u64 src_off, u64 len,
-			u64 dest_off);
+	ssize_t (*copychunk_range)(const unsigned int,
+			struct cifsFileInfo *src_file,
+			struct cifsFileInfo *target_file,
+			u64 src_off, u64 len, u64 dest_off);
 	int (*duplicate_extents)(const unsigned int, struct cifsFileInfo *src,
 			struct cifsFileInfo *target_file, u64 src_off, u64 len,
 			u64 dest_off);
 	int (*validate_negotiate)(const unsigned int, struct cifs_tcon *);
 	ssize_t (*query_all_EAs)(const unsigned int, struct cifs_tcon *,
 			const unsigned char *, const unsigned char *, char *,
-			size_t, const struct nls_table *, int);
+			size_t, struct cifs_sb_info *);
 	int (*set_EA)(const unsigned int, struct cifs_tcon *, const char *,
 			const char *, const void *, const __u16,
 			const struct nls_table *, int);
@@ -946,7 +948,6 @@ struct cifs_tcon {
 	bool use_persistent:1; /* use persistent instead of durable handles */
 #ifdef CONFIG_CIFS_SMB2
 	bool print:1;		/* set if connection to printer share */
-	bool bad_network_name:1; /* set if ret status STATUS_BAD_NETWORK_NAME */
 	__le32 capabilities;
 	__u32 share_flags;
 	__u32 maximal_access;
@@ -1114,6 +1115,23 @@ struct cifs_io_parms {
 	struct cifs_tcon *tcon;
 };
 
+struct cifs_aio_ctx {
+	struct kref		refcount;
+	struct list_head	list;
+	struct mutex		aio_mutex;
+	struct completion	done;
+	struct iov_iter		iter;
+	struct kiocb		*iocb;
+	struct cifsFileInfo	*cfile;
+	struct bio_vec		*bv;
+	loff_t			pos;
+	unsigned int		npages;
+	ssize_t			rc;
+	unsigned int		len;
+	unsigned int		total_len;
+	bool			should_dirty;
+};
+
 struct cifs_readdata;
 
 /* asynchronous read support */
@@ -1123,6 +1141,7 @@ struct cifs_readdata {
 	struct completion		done;
 	struct cifsFileInfo		*cfile;
 	struct address_space		*mapping;
+	struct cifs_aio_ctx		*ctx;
 	__u64				offset;
 	unsigned int			bytes;
 	unsigned int			got_bytes;
@@ -1153,6 +1172,7 @@ struct cifs_writedata {
 	enum writeback_sync_modes	sync_mode;
 	struct work_struct		work;
 	struct cifsFileInfo		*cfile;
+	struct cifs_aio_ctx		*ctx;
 	__u64				offset;
 	pid_t				pid;
 	unsigned int			bytes;
@@ -1343,11 +1363,18 @@ struct mid_q_entry {
 	void *callback_data;	  /* general purpose pointer for callback */
 	void *resp_buf;		/* pointer to received SMB header */
 	int mid_state;	/* wish this were enum but can not pass to wait_event */
+	unsigned int mid_flags;
 	__le16 command;		/* smb command code */
 	bool large_buf:1;	/* if valid response, is pointer to large buf */
 	bool multiRsp:1;	/* multiple trans2 responses for one request  */
 	bool multiEnd:1;	/* both received */
 	bool decrypted:1;	/* decrypted entry */
+};
+
+struct close_cancelled_open {
+	struct cifs_fid         fid;
+	struct cifs_tcon        *tcon;
+	struct work_struct      work;
 };
 
 /*	Make code in transport.c a little cleaner by moving
@@ -1480,6 +1507,9 @@ static inline void free_dfs_info_array(struct dfs_info3_param *param,
 #define   MID_RETRY_NEEDED      8 /* session closed while this request out */
 #define   MID_RESPONSE_MALFORMED 0x10
 #define   MID_SHUTDOWN		 0x20
+
+/* Flags */
+#define   MID_WAIT_CANCELLED	 1 /* Cancelled while waiting for response */
 
 /* Types of response buffer returned from SendReceive2 */
 #define   CIFS_NO_BUFFER        0    /* Response buffer not returned */
@@ -1672,6 +1702,7 @@ void cifs_oplock_break(struct work_struct *work);
 
 extern const struct slow_work_ops cifs_oplock_break_ops;
 extern struct workqueue_struct *cifsiod_wq;
+extern struct workqueue_struct *cifsoplockd_wq;
 extern __u32 cifs_lock_secret;
 
 extern mempool_t *cifs_mid_poolp;

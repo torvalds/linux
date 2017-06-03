@@ -7,6 +7,7 @@ struct nvkm_pmu {
 	const struct nvkm_pmu_func *func;
 	struct nvkm_subdev subdev;
 	struct nvkm_falcon *falcon;
+	struct nvkm_msgqueue *queue;
 
 	struct {
 		u32 base;

@@ -58,7 +58,7 @@
 
 / {
 	model = "Marvell Bobcat2 Evaluation Board";
-	compatible = "marvell,db-dxbc2", "marvell,armadaxp-98dx4251", "marvell,armadaxp", "marvell,armada-370-xp";
+	compatible = "marvell,db-dxbc2", "marvell,armadaxp-98dx4251", "marvell,armada-370-xp";
 
 	chosen {
 		bootargs = "console=ttyS0,115200 earlyprintk";

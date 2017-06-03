@@ -29,6 +29,8 @@ struct ovl_fs {
 	const struct cred *creator_cred;
 	bool tmpfile;
 	wait_queue_head_t copyup_wq;
+	/* sb common to all layers */
+	struct super_block *same_sb;
 };
 
 /* private information held for every overlayfs dentry */

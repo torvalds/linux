@@ -126,7 +126,7 @@ static void icp_opal_eoi(struct irq_data *d)
 
 #ifdef CONFIG_SMP
 
-static void icp_opal_cause_ipi(int cpu, unsigned long data)
+static void icp_opal_cause_ipi(int cpu)
 {
 	int hw_cpu = get_hard_smp_processor_id(cpu);
 

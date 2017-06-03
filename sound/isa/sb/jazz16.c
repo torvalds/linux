@@ -50,17 +50,17 @@ module_param_array(id, charp, NULL, 0444);
 MODULE_PARM_DESC(id, "ID string for Media Vision Jazz16 based soundcard.");
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable Media Vision Jazz16 based soundcard.");
-module_param_array(port, long, NULL, 0444);
+module_param_hw_array(port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(port, "Port # for jazz16 driver.");
-module_param_array(mpu_port, long, NULL, 0444);
+module_param_hw_array(mpu_port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(mpu_port, "MPU-401 port # for jazz16 driver.");
-module_param_array(irq, int, NULL, 0444);
+module_param_hw_array(irq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(irq, "IRQ # for jazz16 driver.");
-module_param_array(mpu_irq, int, NULL, 0444);
+module_param_hw_array(mpu_irq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(mpu_irq, "MPU-401 IRQ # for jazz16 driver.");
-module_param_array(dma8, int, NULL, 0444);
+module_param_hw_array(dma8, int, dma, NULL, 0444);
 MODULE_PARM_DESC(dma8, "DMA8 # for jazz16 driver.");
-module_param_array(dma16, int, NULL, 0444);
+module_param_hw_array(dma16, int, dma, NULL, 0444);
 MODULE_PARM_DESC(dma16, "DMA16 # for jazz16 driver.");
 
 #define SB_JAZZ16_WAKEUP	0xaf

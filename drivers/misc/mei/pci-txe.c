@@ -161,6 +161,33 @@ end:
 }
 
 /**
+ * mei_txe_remove - Device Shutdown Routine
+ *
+ * @pdev: PCI device structure
+ *
+ *  mei_txe_shutdown is called from the reboot notifier
+ *  it's a simplified version of remove so we go down
+ *  faster.
+ */
+static void mei_txe_shutdown(struct pci_dev *pdev)
+{
+	struct mei_device *dev;
+
+	dev = pci_get_drvdata(pdev);
+	if (!dev)
+		return;
+
+	dev_dbg(&pdev->dev, "shutdown\n");
+	mei_stop(dev);
+
+	if (!pci_dev_run_wake(pdev))
+		mei_txe_unset_pm_domain(dev);
+
+	mei_disable_interrupts(dev);
+	free_irq(pdev->irq, dev);
+}
+
+/**
  * mei_txe_remove - Device Removal Routine
  *
  * @pdev: PCI device structure
@@ -386,7 +413,7 @@ static struct pci_driver mei_txe_driver = {
 	.id_table = mei_txe_pci_tbl,
 	.probe = mei_txe_probe,
 	.remove = mei_txe_remove,
-	.shutdown = mei_txe_remove,
+	.shutdown = mei_txe_shutdown,
 	.driver.pm = MEI_TXE_PM_OPS,
 };
 

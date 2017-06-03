@@ -43,6 +43,7 @@ static int port_forced;
 static unsigned int synth_portlist[] = {
 		 0x25e, 0x29e, 0x2de, 0x31e, 0x35e, 0x39e, 0
 };
+
 static u_char synth_status;
 
 static struct var_t vars[] = {
@@ -128,6 +129,7 @@ static struct spk_synth synth_dtlk = {
 	.startup = SYNTH_START,
 	.checkval = SYNTH_CHECK,
 	.vars = vars,
+	.io_ops = &spk_serial_io_ops,
 	.probe = synth_probe,
 	.release = dtlk_release,
 	.synth_immediate = synth_immediate,
@@ -209,6 +211,7 @@ static void do_catch_up(struct spk_synth *synth)
 			synth->flush(synth);
 			continue;
 		}
+		synth_buffer_skip_nonlatin1();
 		if (synth_buffer_empty()) {
 			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 			break;
@@ -297,7 +300,7 @@ static struct synth_settings *synth_interrogate(struct spk_synth *synth)
 	t += 2;
 	for (i = 0; *t != '\r'; t++) {
 		status.rom_version[i] = *t;
-		if (i < sizeof(status.rom_version)-1)
+		if (i < sizeof(status.rom_version) - 1)
 			i++;
 	}
 	status.rom_version[i] = 0;
@@ -373,12 +376,13 @@ static int synth_probe(struct spk_synth *synth)
 
 static void dtlk_release(void)
 {
+	spk_stop_serial_interrupt();
 	if (speakup_info.port_tts)
 		synth_release_region(speakup_info.port_tts-1, SYNTH_IO_EXTENT);
 	speakup_info.port_tts = 0;
 }
 
-module_param_named(port, port_forced, int, 0444);
+module_param_hw_named(port, port_forced, int, ioport, 0444);
 module_param_named(start, synth_dtlk.startup, short, 0444);
 
 MODULE_PARM_DESC(port, "Set the port for the synthesizer (override probing).");

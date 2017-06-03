@@ -355,8 +355,8 @@ struct pch_udc_dev {
 			vbus_session:1,
 			set_cfg_not_acked:1,
 			waiting_zlp_ack:1;
-	struct pci_pool		*data_requests;
-	struct pci_pool		*stp_requests;
+	struct dma_pool		*data_requests;
+	struct dma_pool		*stp_requests;
 	dma_addr_t			dma_addr;
 	struct usb_ctrlrequest		setup_data;
 	void __iomem			*base_addr;
@@ -1522,7 +1522,8 @@ static void pch_udc_free_dma_chain(struct pch_udc_dev *dev,
 		/* do not free first desc., will be done by free for request */
 		td = phys_to_virt(addr);
 		addr2 = (dma_addr_t)td->next;
-		pci_pool_free(dev->data_requests, td, addr);
+		dma_pool_free(dev->data_requests, td, addr);
+		td->next = 0x00;
 		addr = addr2;
 	}
 	req->chain_len = 1;
@@ -1538,7 +1539,7 @@ static void pch_udc_free_dma_chain(struct pch_udc_dev *dev,
  *
  * Return codes:
  *	0:		success,
- *	-ENOMEM:	pci_pool_alloc invocation fails
+ *	-ENOMEM:	dma_pool_alloc invocation fails
  */
 static int pch_udc_create_dma_chain(struct pch_udc_ep *ep,
 				    struct pch_udc_request *req,
@@ -1564,7 +1565,7 @@ static int pch_udc_create_dma_chain(struct pch_udc_ep *ep,
 		if (bytes <= buf_len)
 			break;
 		last = td;
-		td = pci_pool_alloc(ep->dev->data_requests, gfp_flags,
+		td = dma_pool_alloc(ep->dev->data_requests, gfp_flags,
 				    &dma_addr);
 		if (!td)
 			goto nomem;
@@ -1769,7 +1770,7 @@ static struct usb_request *pch_udc_alloc_request(struct usb_ep *usbep,
 	if (!ep->dev->dma_addr)
 		return &req->req;
 	/* ep0 in requests are allocated from data pool here */
-	dma_desc = pci_pool_alloc(ep->dev->data_requests, gfp,
+	dma_desc = dma_pool_alloc(ep->dev->data_requests, gfp,
 				  &req->td_data_phys);
 	if (NULL == dma_desc) {
 		kfree(req);
@@ -1808,7 +1809,7 @@ static void pch_udc_free_request(struct usb_ep *usbep,
 	if (req->td_data != NULL) {
 		if (req->chain_len > 1)
 			pch_udc_free_dma_chain(ep->dev, req);
-		pci_pool_free(ep->dev->data_requests, req->td_data,
+		dma_pool_free(ep->dev->data_requests, req->td_data,
 			      req->td_data_phys);
 	}
 	kfree(req);
@@ -2913,7 +2914,7 @@ static int init_dma_pools(struct pch_udc_dev *dev)
 	void				*ep0out_buf;
 
 	/* DMA setup */
-	dev->data_requests = pci_pool_create("data_requests", dev->pdev,
+	dev->data_requests = dma_pool_create("data_requests", &dev->pdev->dev,
 		sizeof(struct pch_udc_data_dma_desc), 0, 0);
 	if (!dev->data_requests) {
 		dev_err(&dev->pdev->dev, "%s: can't get request data pool\n",
@@ -2922,7 +2923,7 @@ static int init_dma_pools(struct pch_udc_dev *dev)
 	}
 
 	/* dma desc for setup data */
-	dev->stp_requests = pci_pool_create("setup requests", dev->pdev,
+	dev->stp_requests = dma_pool_create("setup requests", &dev->pdev->dev,
 		sizeof(struct pch_udc_stp_dma_desc), 0, 0);
 	if (!dev->stp_requests) {
 		dev_err(&dev->pdev->dev, "%s: can't get setup request pool\n",
@@ -2930,7 +2931,7 @@ static int init_dma_pools(struct pch_udc_dev *dev)
 		return -ENOMEM;
 	}
 	/* setup */
-	td_stp = pci_pool_alloc(dev->stp_requests, GFP_KERNEL,
+	td_stp = dma_pool_alloc(dev->stp_requests, GFP_KERNEL,
 				&dev->ep[UDC_EP0OUT_IDX].td_stp_phys);
 	if (!td_stp) {
 		dev_err(&dev->pdev->dev,
@@ -2940,7 +2941,7 @@ static int init_dma_pools(struct pch_udc_dev *dev)
 	dev->ep[UDC_EP0OUT_IDX].td_stp = td_stp;
 
 	/* data: 0 packets !? */
-	td_data = pci_pool_alloc(dev->data_requests, GFP_KERNEL,
+	td_data = dma_pool_alloc(dev->data_requests, GFP_KERNEL,
 				&dev->ep[UDC_EP0OUT_IDX].td_data_phys);
 	if (!td_data) {
 		dev_err(&dev->pdev->dev,
@@ -3020,22 +3021,21 @@ static void pch_udc_remove(struct pci_dev *pdev)
 		dev_err(&pdev->dev,
 			"%s: gadget driver still bound!!!\n", __func__);
 	/* dma pool cleanup */
-	if (dev->data_requests)
-		pci_pool_destroy(dev->data_requests);
+	dma_pool_destroy(dev->data_requests);
 
 	if (dev->stp_requests) {
 		/* cleanup DMA desc's for ep0in */
 		if (dev->ep[UDC_EP0OUT_IDX].td_stp) {
-			pci_pool_free(dev->stp_requests,
+			dma_pool_free(dev->stp_requests,
 				dev->ep[UDC_EP0OUT_IDX].td_stp,
 				dev->ep[UDC_EP0OUT_IDX].td_stp_phys);
 		}
 		if (dev->ep[UDC_EP0OUT_IDX].td_data) {
-			pci_pool_free(dev->stp_requests,
+			dma_pool_free(dev->stp_requests,
 				dev->ep[UDC_EP0OUT_IDX].td_data,
 				dev->ep[UDC_EP0OUT_IDX].td_data_phys);
 		}
-		pci_pool_destroy(dev->stp_requests);
+		dma_pool_destroy(dev->stp_requests);
 	}
 
 	if (dev->dma_addr)

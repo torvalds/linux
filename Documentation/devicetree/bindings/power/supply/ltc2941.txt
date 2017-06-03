@@ -6,8 +6,8 @@ temperature monitoring, and uses a slightly different conversion
 formula for the charge counter.
 
 Required properties:
-- compatible: Should contain "ltc2941" or "ltc2943" which also indicates the
-    type of I2C chip attached.
+- compatible: Should contain "lltc,ltc2941" or "lltc,ltc2943" which also
+    indicates the type of I2C chip attached.
 - reg: The 7-bit I2C address.
 - lltc,resistor-sense: The sense resistor value in milli-ohms. Can be a 32-bit
     negative value when the battery has been connected to the wrong end of the
@@ -20,7 +20,7 @@ Required properties:
 Example from the Topic Miami Florida board:
 
 	fuelgauge: ltc2943@64 {
-		compatible = "ltc2943";
+		compatible = "lltc,ltc2943";
 		reg = <0x64>;
 		lltc,resistor-sense = <15>;
 		lltc,prescaler-exponent = <5>; /* 2^(2*5) = 1024 */

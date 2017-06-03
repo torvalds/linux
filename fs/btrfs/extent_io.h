@@ -2,6 +2,7 @@
 #define __EXTENTIO__
 
 #include <linux/rbtree.h>
+#include <linux/refcount.h>
 #include "ulist.h"
 
 /* bits for the extent state */
@@ -14,14 +15,17 @@
 #define EXTENT_DEFRAG		(1U << 6)
 #define EXTENT_BOUNDARY		(1U << 9)
 #define EXTENT_NODATASUM	(1U << 10)
-#define EXTENT_DO_ACCOUNTING	(1U << 11)
+#define EXTENT_CLEAR_META_RESV	(1U << 11)
 #define EXTENT_FIRST_DELALLOC	(1U << 12)
 #define EXTENT_NEED_WAIT	(1U << 13)
 #define EXTENT_DAMAGED		(1U << 14)
 #define EXTENT_NORESERVE	(1U << 15)
 #define EXTENT_QGROUP_RESERVED	(1U << 16)
 #define EXTENT_CLEAR_DATA_RESV	(1U << 17)
+#define EXTENT_DELALLOC_NEW	(1U << 18)
 #define EXTENT_IOBITS		(EXTENT_LOCKED | EXTENT_WRITEBACK)
+#define EXTENT_DO_ACCOUNTING    (EXTENT_CLEAR_META_RESV | \
+				 EXTENT_CLEAR_DATA_RESV)
 #define EXTENT_CTLBITS		(EXTENT_DO_ACCOUNTING | EXTENT_FIRST_DELALLOC)
 
 /*
@@ -143,7 +147,7 @@ struct extent_state {
 
 	/* ADD NEW ELEMENTS AFTER THIS */
 	wait_queue_head_t wq;
-	atomic_t refs;
+	refcount_t refs;
 	unsigned state;
 
 	struct io_failure_record *failrec;

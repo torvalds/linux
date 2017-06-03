@@ -274,25 +274,24 @@ static void __cls_bpf_delete(struct tcf_proto *tp, struct cls_bpf_prog *prog)
 	call_rcu(&prog->rcu, cls_bpf_delete_prog_rcu);
 }
 
-static int cls_bpf_delete(struct tcf_proto *tp, unsigned long arg)
+static int cls_bpf_delete(struct tcf_proto *tp, unsigned long arg, bool *last)
 {
+	struct cls_bpf_head *head = rtnl_dereference(tp->root);
+
 	__cls_bpf_delete(tp, (struct cls_bpf_prog *) arg);
+	*last = list_empty(&head->plist);
 	return 0;
 }
 
-static bool cls_bpf_destroy(struct tcf_proto *tp, bool force)
+static void cls_bpf_destroy(struct tcf_proto *tp)
 {
 	struct cls_bpf_head *head = rtnl_dereference(tp->root);
 	struct cls_bpf_prog *prog, *tmp;
-
-	if (!force && !list_empty(&head->plist))
-		return false;
 
 	list_for_each_entry_safe(prog, tmp, &head->plist, link)
 		__cls_bpf_delete(tp, prog);
 
 	kfree_rcu(head, rcu);
-	return true;
 }
 
 static unsigned long cls_bpf_get(struct tcf_proto *tp, u32 handle)
@@ -478,7 +477,8 @@ static int cls_bpf_change(struct net *net, struct sk_buff *in_skb,
 	if (tca[TCA_OPTIONS] == NULL)
 		return -EINVAL;
 
-	ret = nla_parse_nested(tb, TCA_BPF_MAX, tca[TCA_OPTIONS], bpf_policy);
+	ret = nla_parse_nested(tb, TCA_BPF_MAX, tca[TCA_OPTIONS], bpf_policy,
+			       NULL);
 	if (ret < 0)
 		return ret;
 

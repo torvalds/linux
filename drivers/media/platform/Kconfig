@@ -151,7 +151,7 @@ if V4L_MEM2MEM_DRIVERS
 
 config VIDEO_CODA
 	tristate "Chips&Media Coda multi-standard codec IP"
-	depends on VIDEO_DEV && VIDEO_V4L2 && ARCH_MXC
+	depends on VIDEO_DEV && VIDEO_V4L2 && (ARCH_MXC || COMPILE_TEST)
 	depends on HAS_DMA
 	select SRAM
 	select VIDEOBUF2_DMA_CONTIG
@@ -164,6 +164,21 @@ config VIDEO_CODA
 
 config VIDEO_IMX_VDOA
 	def_tristate VIDEO_CODA if SOC_IMX6Q || COMPILE_TEST
+
+config VIDEO_MEDIATEK_JPEG
+	tristate "Mediatek JPEG Codec driver"
+	depends on MTK_IOMMU_V1 || COMPILE_TEST
+	depends on VIDEO_DEV && VIDEO_V4L2
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on HAS_DMA
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_MEM2MEM_DEV
+	---help---
+	  Mediatek jpeg codec driver provides HW capability to decode
+	  JPEG format
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mtk-jpeg
 
 config VIDEO_MEDIATEK_VPU
 	tristate "Mediatek Video Processor Unit"
@@ -405,6 +420,7 @@ config VIDEO_RENESAS_VSP1
 	depends on (ARCH_RENESAS && OF) || COMPILE_TEST
 	depends on (!ARM64 && !VIDEO_RENESAS_FCP) || VIDEO_RENESAS_FCP
 	select VIDEOBUF2_DMA_CONTIG
+	select VIDEOBUF2_VMALLOC
 	---help---
 	  This is a V4L2 driver for the Renesas VSP1 video processing engine.
 
@@ -451,6 +467,8 @@ menuconfig V4L_TEST_DRIVERS
 
 if V4L_TEST_DRIVERS
 
+source "drivers/media/platform/vimc/Kconfig"
+
 source "drivers/media/platform/vivid/Kconfig"
 
 config VIDEO_VIM2M
@@ -474,3 +492,31 @@ menuconfig DVB_PLATFORM_DRIVERS
 if DVB_PLATFORM_DRIVERS
 source "drivers/media/platform/sti/c8sectpfe/Kconfig"
 endif #DVB_PLATFORM_DRIVERS
+
+menuconfig CEC_PLATFORM_DRIVERS
+	bool "CEC platform devices"
+	depends on MEDIA_CEC_SUPPORT
+
+if CEC_PLATFORM_DRIVERS
+
+config VIDEO_SAMSUNG_S5P_CEC
+       tristate "Samsung S5P CEC driver"
+       depends on CEC_CORE && (PLAT_S5P || ARCH_EXYNOS || COMPILE_TEST)
+       select MEDIA_CEC_NOTIFIER
+       ---help---
+         This is a driver for Samsung S5P HDMI CEC interface. It uses the
+         generic CEC framework interface.
+         CEC bus is present in the HDMI connector and enables communication
+         between compatible devices.
+
+config VIDEO_STI_HDMI_CEC
+       tristate "STMicroelectronics STiH4xx HDMI CEC driver"
+       depends on CEC_CORE && (ARCH_STI || COMPILE_TEST)
+       select MEDIA_CEC_NOTIFIER
+       ---help---
+         This is a driver for STIH4xx HDMI CEC interface. It uses the
+         generic CEC framework interface.
+         CEC bus is present in the HDMI connector and enables communication
+         between compatible devices.
+
+endif #CEC_PLATFORM_DRIVERS

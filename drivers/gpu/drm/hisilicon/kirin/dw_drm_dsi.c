@@ -17,7 +17,6 @@
 
 #include <linux/clk.h>
 #include <linux/component.h>
-#include <linux/of_graph.h>
 
 #include <drm/drm_of.h>
 #include <drm/drm_crtc_helper.h>
@@ -754,34 +753,16 @@ static int dsi_parse_dt(struct platform_device *pdev, struct dw_dsi *dsi)
 {
 	struct dsi_hw_ctx *ctx = dsi->ctx;
 	struct device_node *np = pdev->dev.of_node;
-	struct device_node *endpoint, *bridge_node;
-	struct drm_bridge *bridge;
 	struct resource *res;
+	int ret;
 
 	/*
 	 * Get the endpoint node. In our case, dsi has one output port1
 	 * to which the external HDMI bridge is connected.
 	 */
-	endpoint = of_graph_get_endpoint_by_regs(np, 1, -1);
-	if (!endpoint) {
-		DRM_ERROR("no valid endpoint node\n");
-		return -ENODEV;
-	}
-	of_node_put(endpoint);
-
-	bridge_node = of_graph_get_remote_port_parent(endpoint);
-	if (!bridge_node) {
-		DRM_ERROR("no valid bridge node\n");
-		return -ENODEV;
-	}
-	of_node_put(bridge_node);
-
-	bridge = of_drm_find_bridge(bridge_node);
-	if (!bridge) {
-		DRM_INFO("wait for external HDMI bridge driver.\n");
-		return -EPROBE_DEFER;
-	}
-	dsi->bridge = bridge;
+	ret = drm_of_find_panel_or_bridge(np, 0, 0, NULL, &dsi->bridge);
+	if (ret)
+		return ret;
 
 	ctx->pclk = devm_clk_get(&pdev->dev, "pclk");
 	if (IS_ERR(ctx->pclk)) {

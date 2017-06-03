@@ -846,6 +846,7 @@ ff_layout_pg_init_read(struct nfs_pageio_descriptor *pgio,
 	int ds_idx;
 
 retry:
+	pnfs_generic_pg_check_layout(pgio);
 	/* Use full layout for now */
 	if (!pgio->pg_lseg)
 		ff_layout_pg_get_read(pgio, req, false);
@@ -894,6 +895,7 @@ ff_layout_pg_init_write(struct nfs_pageio_descriptor *pgio,
 	int status;
 
 retry:
+	pnfs_generic_pg_check_layout(pgio);
 	if (!pgio->pg_lseg) {
 		pgio->pg_lseg = pnfs_update_layout(pgio->pg_inode,
 						   req->wb_context,
@@ -1800,16 +1802,16 @@ ff_layout_write_pagelist(struct nfs_pgio_header *hdr, int sync)
 
 	ds = nfs4_ff_layout_prepare_ds(lseg, idx, true);
 	if (!ds)
-		return PNFS_NOT_ATTEMPTED;
+		goto out_failed;
 
 	ds_clnt = nfs4_ff_find_or_create_ds_client(lseg, idx, ds->ds_clp,
 						   hdr->inode);
 	if (IS_ERR(ds_clnt))
-		return PNFS_NOT_ATTEMPTED;
+		goto out_failed;
 
 	ds_cred = ff_layout_get_ds_cred(lseg, idx, hdr->cred);
 	if (!ds_cred)
-		return PNFS_NOT_ATTEMPTED;
+		goto out_failed;
 
 	vers = nfs4_ff_layout_ds_version(lseg, idx);
 
@@ -1839,6 +1841,11 @@ ff_layout_write_pagelist(struct nfs_pgio_header *hdr, int sync)
 			  sync, RPC_TASK_SOFTCONN);
 	put_rpccred(ds_cred);
 	return PNFS_ATTEMPTED;
+
+out_failed:
+	if (ff_layout_avoid_mds_available_ds(lseg))
+		return PNFS_TRY_AGAIN;
+	return PNFS_NOT_ATTEMPTED;
 }
 
 static u32 calc_ds_index_from_commit(struct pnfs_layout_segment *lseg, u32 i)
@@ -2354,10 +2361,21 @@ ff_layout_prepare_layoutstats(struct nfs42_layoutstat_args *args)
 	return 0;
 }
 
+static int
+ff_layout_set_layoutdriver(struct nfs_server *server,
+		const struct nfs_fh *dummy)
+{
+#if IS_ENABLED(CONFIG_NFS_V4_2)
+	server->caps |= NFS_CAP_LAYOUTSTATS;
+#endif
+	return 0;
+}
+
 static struct pnfs_layoutdriver_type flexfilelayout_type = {
 	.id			= LAYOUT_FLEX_FILES,
 	.name			= "LAYOUT_FLEX_FILES",
 	.owner			= THIS_MODULE,
+	.set_layoutdriver	= ff_layout_set_layoutdriver,
 	.alloc_layout_hdr	= ff_layout_alloc_layout_hdr,
 	.free_layout_hdr	= ff_layout_free_layout_hdr,
 	.alloc_lseg		= ff_layout_alloc_lseg,

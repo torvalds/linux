@@ -395,7 +395,7 @@ static void batadv_bla_send_claim(struct batadv_priv *bat_priv, u8 *mac,
 		ether_addr_copy(ethhdr->h_source, mac);
 		batadv_dbg(BATADV_DBG_BLA, bat_priv,
 			   "bla_send_claim(): CLAIM %pM on vid %d\n", mac,
-			   BATADV_PRINT_VID(vid));
+			   batadv_print_vid(vid));
 		break;
 	case BATADV_CLAIM_TYPE_UNCLAIM:
 		/* unclaim frame
@@ -404,7 +404,7 @@ static void batadv_bla_send_claim(struct batadv_priv *bat_priv, u8 *mac,
 		ether_addr_copy(hw_src, mac);
 		batadv_dbg(BATADV_DBG_BLA, bat_priv,
 			   "bla_send_claim(): UNCLAIM %pM on vid %d\n", mac,
-			   BATADV_PRINT_VID(vid));
+			   batadv_print_vid(vid));
 		break;
 	case BATADV_CLAIM_TYPE_ANNOUNCE:
 		/* announcement frame
@@ -413,7 +413,7 @@ static void batadv_bla_send_claim(struct batadv_priv *bat_priv, u8 *mac,
 		ether_addr_copy(hw_src, mac);
 		batadv_dbg(BATADV_DBG_BLA, bat_priv,
 			   "bla_send_claim(): ANNOUNCE of %pM on vid %d\n",
-			   ethhdr->h_source, BATADV_PRINT_VID(vid));
+			   ethhdr->h_source, batadv_print_vid(vid));
 		break;
 	case BATADV_CLAIM_TYPE_REQUEST:
 		/* request frame
@@ -425,14 +425,14 @@ static void batadv_bla_send_claim(struct batadv_priv *bat_priv, u8 *mac,
 		batadv_dbg(BATADV_DBG_BLA, bat_priv,
 			   "bla_send_claim(): REQUEST of %pM to %pM on vid %d\n",
 			   ethhdr->h_source, ethhdr->h_dest,
-			   BATADV_PRINT_VID(vid));
+			   batadv_print_vid(vid));
 		break;
 	case BATADV_CLAIM_TYPE_LOOPDETECT:
 		ether_addr_copy(ethhdr->h_source, mac);
 		batadv_dbg(BATADV_DBG_BLA, bat_priv,
 			   "bla_send_claim(): LOOPDETECT of %pM to %pM on vid %d\n",
 			   ethhdr->h_source, ethhdr->h_dest,
-			   BATADV_PRINT_VID(vid));
+			   batadv_print_vid(vid));
 
 		break;
 	}
@@ -475,9 +475,9 @@ static void batadv_bla_loopdetect_report(struct work_struct *work)
 
 	batadv_info(bat_priv->soft_iface,
 		    "Possible loop on VLAN %d detected which can't be handled by BLA - please check your network setup!\n",
-		    BATADV_PRINT_VID(backbone_gw->vid));
+		    batadv_print_vid(backbone_gw->vid));
 	snprintf(vid_str, sizeof(vid_str), "%d",
-		 BATADV_PRINT_VID(backbone_gw->vid));
+		 batadv_print_vid(backbone_gw->vid));
 	vid_str[sizeof(vid_str) - 1] = 0;
 
 	batadv_throw_uevent(bat_priv, BATADV_UEV_BLA, BATADV_UEV_LOOPDETECT,
@@ -510,7 +510,7 @@ batadv_bla_get_backbone_gw(struct batadv_priv *bat_priv, u8 *orig,
 
 	batadv_dbg(BATADV_DBG_BLA, bat_priv,
 		   "bla_get_backbone_gw(): not found (%pM, %d), creating new entry\n",
-		   orig, BATADV_PRINT_VID(vid));
+		   orig, batadv_print_vid(vid));
 
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 	if (!entry)
@@ -719,7 +719,7 @@ static void batadv_bla_add_claim(struct batadv_priv *bat_priv,
 
 		batadv_dbg(BATADV_DBG_BLA, bat_priv,
 			   "bla_add_claim(): adding new entry %pM, vid %d to hash ...\n",
-			   mac, BATADV_PRINT_VID(vid));
+			   mac, batadv_print_vid(vid));
 
 		kref_get(&claim->refcount);
 		hash_added = batadv_hash_add(bat_priv->bla.claim_hash,
@@ -739,8 +739,8 @@ static void batadv_bla_add_claim(struct batadv_priv *bat_priv,
 			goto claim_free_ref;
 
 		batadv_dbg(BATADV_DBG_BLA, bat_priv,
-			   "bla_add_claim(): changing ownership for %pM, vid %d\n",
-			   mac, BATADV_PRINT_VID(vid));
+			   "bla_add_claim(): changing ownership for %pM, vid %d to gw %pM\n",
+			   mac, batadv_print_vid(vid), backbone_gw->orig);
 
 		remove_crc = true;
 	}
@@ -809,7 +809,7 @@ static void batadv_bla_del_claim(struct batadv_priv *bat_priv,
 		return;
 
 	batadv_dbg(BATADV_DBG_BLA, bat_priv, "bla_del_claim(): %pM, vid %d\n",
-		   mac, BATADV_PRINT_VID(vid));
+		   mac, batadv_print_vid(vid));
 
 	batadv_hash_remove(bat_priv->bla.claim_hash, batadv_compare_claim,
 			   batadv_choose_claim, claim);
@@ -849,7 +849,7 @@ static bool batadv_handle_announce(struct batadv_priv *bat_priv, u8 *an_addr,
 
 	batadv_dbg(BATADV_DBG_BLA, bat_priv,
 		   "handle_announce(): ANNOUNCE vid %d (sent by %pM)... CRC = %#.4x\n",
-		   BATADV_PRINT_VID(vid), backbone_gw->orig, crc);
+		   batadv_print_vid(vid), backbone_gw->orig, crc);
 
 	spin_lock_bh(&backbone_gw->crc_lock);
 	backbone_crc = backbone_gw->crc;
@@ -859,7 +859,7 @@ static bool batadv_handle_announce(struct batadv_priv *bat_priv, u8 *an_addr,
 		batadv_dbg(BATADV_DBG_BLA, backbone_gw->bat_priv,
 			   "handle_announce(): CRC FAILED for %pM/%d (my = %#.4x, sent = %#.4x)\n",
 			   backbone_gw->orig,
-			   BATADV_PRINT_VID(backbone_gw->vid),
+			   batadv_print_vid(backbone_gw->vid),
 			   backbone_crc, crc);
 
 		batadv_bla_send_request(backbone_gw);
@@ -904,7 +904,7 @@ static bool batadv_handle_request(struct batadv_priv *bat_priv,
 
 	batadv_dbg(BATADV_DBG_BLA, bat_priv,
 		   "handle_request(): REQUEST vid %d (sent by %pM)...\n",
-		   BATADV_PRINT_VID(vid), ethhdr->h_source);
+		   batadv_print_vid(vid), ethhdr->h_source);
 
 	batadv_bla_answer_request(bat_priv, primary_if, vid);
 	return true;
@@ -941,7 +941,7 @@ static bool batadv_handle_unclaim(struct batadv_priv *bat_priv,
 	/* this must be an UNCLAIM frame */
 	batadv_dbg(BATADV_DBG_BLA, bat_priv,
 		   "handle_unclaim(): UNCLAIM %pM on vid %d (sent by %pM)...\n",
-		   claim_addr, BATADV_PRINT_VID(vid), backbone_gw->orig);
+		   claim_addr, batadv_print_vid(vid), backbone_gw->orig);
 
 	batadv_bla_del_claim(bat_priv, claim_addr, vid);
 	batadv_backbone_gw_put(backbone_gw);
@@ -1161,7 +1161,7 @@ static bool batadv_bla_process_claim(struct batadv_priv *bat_priv,
 	if (ret == 1)
 		batadv_dbg(BATADV_DBG_BLA, bat_priv,
 			   "bla_process_claim(): received a claim frame from another group. From: %pM on vid %d ...(hw_src %pM, hw_dst %pM)\n",
-			   ethhdr->h_source, BATADV_PRINT_VID(vid), hw_src,
+			   ethhdr->h_source, batadv_print_vid(vid), hw_src,
 			   hw_dst);
 
 	if (ret < 2)
@@ -1197,7 +1197,7 @@ static bool batadv_bla_process_claim(struct batadv_priv *bat_priv,
 
 	batadv_dbg(BATADV_DBG_BLA, bat_priv,
 		   "bla_process_claim(): ERROR - this looks like a claim frame, but is useless. eth src %pM on vid %d ...(hw_src %pM, hw_dst %pM)\n",
-		   ethhdr->h_source, BATADV_PRINT_VID(vid), hw_src, hw_dst);
+		   ethhdr->h_source, batadv_print_vid(vid), hw_src, hw_dst);
 	return true;
 }
 
@@ -1295,10 +1295,13 @@ static void batadv_bla_purge_claims(struct batadv_priv *bat_priv,
 				goto skip;
 
 			batadv_dbg(BATADV_DBG_BLA, bat_priv,
-				   "bla_purge_claims(): %pM, vid %d, time out\n",
-				   claim->addr, claim->vid);
+				   "bla_purge_claims(): timed out.\n");
 
 purge_now:
+			batadv_dbg(BATADV_DBG_BLA, bat_priv,
+				   "bla_purge_claims(): %pM, vid %d\n",
+				   claim->addr, claim->vid);
+
 			batadv_handle_unclaim(bat_priv, primary_if,
 					      backbone_gw->orig,
 					      claim->addr, claim->vid);
@@ -1846,6 +1849,13 @@ bool batadv_bla_rx(struct batadv_priv *bat_priv, struct sk_buff *skb,
 		/* possible optimization: race for a claim */
 		/* No claim exists yet, claim it for us!
 		 */
+
+		batadv_dbg(BATADV_DBG_BLA, bat_priv,
+			   "bla_rx(): Unclaimed MAC %pM found. Claim it. Local: %s\n",
+			   ethhdr->h_source,
+			   batadv_is_my_client(bat_priv,
+					       ethhdr->h_source, vid) ?
+			   "yes" : "no");
 		batadv_handle_claim(bat_priv, primary_if,
 				    primary_if->net_dev->dev_addr,
 				    ethhdr->h_source, vid);
@@ -1963,10 +1973,22 @@ bool batadv_bla_tx(struct batadv_priv *bat_priv, struct sk_buff *skb,
 		/* if yes, the client has roamed and we have
 		 * to unclaim it.
 		 */
-		batadv_handle_unclaim(bat_priv, primary_if,
-				      primary_if->net_dev->dev_addr,
-				      ethhdr->h_source, vid);
-		goto allow;
+		if (batadv_has_timed_out(claim->lasttime, 100)) {
+			/* only unclaim if the last claim entry is
+			 * older than 100 ms to make sure we really
+			 * have a roaming client here.
+			 */
+			batadv_dbg(BATADV_DBG_BLA, bat_priv, "bla_tx(): Roaming client %pM detected. Unclaim it.\n",
+				   ethhdr->h_source);
+			batadv_handle_unclaim(bat_priv, primary_if,
+					      primary_if->net_dev->dev_addr,
+					      ethhdr->h_source, vid);
+			goto allow;
+		} else {
+			batadv_dbg(BATADV_DBG_BLA, bat_priv, "bla_tx(): Race for claim %pM detected. Drop packet.\n",
+				   ethhdr->h_source);
+			goto handled;
+		}
 	}
 
 	/* check if it is a multicast/broadcast frame */
@@ -2042,7 +2064,7 @@ int batadv_bla_claim_table_seq_print_text(struct seq_file *seq, void *offset)
 			backbone_crc = backbone_gw->crc;
 			spin_unlock_bh(&backbone_gw->crc_lock);
 			seq_printf(seq, " * %pM on %5d by %pM [%c] (%#.4x)\n",
-				   claim->addr, BATADV_PRINT_VID(claim->vid),
+				   claim->addr, batadv_print_vid(claim->vid),
 				   backbone_gw->orig,
 				   (is_own ? 'x' : ' '),
 				   backbone_crc);
@@ -2274,7 +2296,7 @@ int batadv_bla_backbone_table_seq_print_text(struct seq_file *seq, void *offset)
 
 			seq_printf(seq, " * %pM on %5d %4i.%03is (%#.4x)\n",
 				   backbone_gw->orig,
-				   BATADV_PRINT_VID(backbone_gw->vid), secs,
+				   batadv_print_vid(backbone_gw->vid), secs,
 				   msecs, backbone_crc);
 		}
 		rcu_read_unlock();
@@ -2449,3 +2471,52 @@ out:
 
 	return ret;
 }
+
+#ifdef CONFIG_BATMAN_ADV_DAT
+/**
+ * batadv_bla_check_claim - check if address is claimed
+ *
+ * @bat_priv: the bat priv with all the soft interface information
+ * @addr: mac address of which the claim status is checked
+ * @vid: the VLAN ID
+ *
+ * addr is checked if this address is claimed by the local device itself.
+ *
+ * Return: true if bla is disabled or the mac is claimed by the device,
+ * false if the device addr is already claimed by another gateway
+ */
+bool batadv_bla_check_claim(struct batadv_priv *bat_priv,
+			    u8 *addr, unsigned short vid)
+{
+	struct batadv_bla_claim search_claim;
+	struct batadv_bla_claim *claim = NULL;
+	struct batadv_hard_iface *primary_if = NULL;
+	bool ret = true;
+
+	if (!atomic_read(&bat_priv->bridge_loop_avoidance))
+		return ret;
+
+	primary_if = batadv_primary_if_get_selected(bat_priv);
+	if (!primary_if)
+		return ret;
+
+	/* First look if the mac address is claimed */
+	ether_addr_copy(search_claim.addr, addr);
+	search_claim.vid = vid;
+
+	claim = batadv_claim_hash_find(bat_priv, &search_claim);
+
+	/* If there is a claim and we are not owner of the claim,
+	 * return false.
+	 */
+	if (claim) {
+		if (!batadv_compare_eth(claim->backbone_gw->orig,
+					primary_if->net_dev->dev_addr))
+			ret = false;
+		batadv_claim_put(claim);
+	}
+
+	batadv_hardif_put(primary_if);
+	return ret;
+}
+#endif

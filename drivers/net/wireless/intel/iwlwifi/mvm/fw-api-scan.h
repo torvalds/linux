@@ -516,7 +516,7 @@ struct iwl_scan_dwell {
  *				scan_config_channel_flag
  * @channel_array:		default supported channels
  */
-struct iwl_scan_config {
+struct iwl_scan_config_v1 {
 	__le32 flags;
 	__le32 tx_chains;
 	__le32 rx_chains;
@@ -532,7 +532,7 @@ struct iwl_scan_config {
 
 #define SCAN_TWO_LMACS 2
 
-struct iwl_scan_config_cdb {
+struct iwl_scan_config {
 	__le32 flags;
 	__le32 tx_chains;
 	__le32 rx_chains;
@@ -669,7 +669,7 @@ struct iwl_scan_req_umac {
 			u8 n_channels;
 			__le16 reserved;
 			u8 data[];
-		} no_cdb; /* SCAN_REQUEST_CMD_UMAC_API_S_VER_1 */
+		} v1; /* SCAN_REQUEST_CMD_UMAC_API_S_VER_1 */
 		struct {
 			__le32 max_out_time[SCAN_TWO_LMACS];
 			__le32 suspend_time[SCAN_TWO_LMACS];
@@ -679,13 +679,13 @@ struct iwl_scan_req_umac {
 			u8 n_channels;
 			__le16 reserved;
 			u8 data[];
-		} cdb; /* SCAN_REQUEST_CMD_UMAC_API_S_VER_5 */
+		} v6; /* SCAN_REQUEST_CMD_UMAC_API_S_VER_6 */
 	};
 } __packed;
 
-#define IWL_SCAN_REQ_UMAC_SIZE_CDB sizeof(struct iwl_scan_req_umac)
-#define IWL_SCAN_REQ_UMAC_SIZE (sizeof(struct iwl_scan_req_umac) - \
-				2 * sizeof(__le32))
+#define IWL_SCAN_REQ_UMAC_SIZE sizeof(struct iwl_scan_req_umac)
+#define IWL_SCAN_REQ_UMAC_SIZE_V1 (sizeof(struct iwl_scan_req_umac) - \
+				   2 * sizeof(__le32))
 
 /**
  * struct iwl_umac_scan_abort

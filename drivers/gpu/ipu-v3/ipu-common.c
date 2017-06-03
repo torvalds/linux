@@ -51,15 +51,17 @@ int ipu_get_num(struct ipu_soc *ipu)
 }
 EXPORT_SYMBOL_GPL(ipu_get_num);
 
-void ipu_srm_dp_sync_update(struct ipu_soc *ipu)
+void ipu_srm_dp_update(struct ipu_soc *ipu, bool sync)
 {
 	u32 val;
 
 	val = ipu_cm_read(ipu, IPU_SRM_PRI2);
-	val |= 0x8;
+	val &= ~DP_S_SRM_MODE_MASK;
+	val |= sync ? DP_S_SRM_MODE_NEXT_FRAME :
+		      DP_S_SRM_MODE_NOW;
 	ipu_cm_write(ipu, val, IPU_SRM_PRI2);
 }
-EXPORT_SYMBOL_GPL(ipu_srm_dp_sync_update);
+EXPORT_SYMBOL_GPL(ipu_srm_dp_update);
 
 enum ipu_color_space ipu_drm_fourcc_to_colorspace(u32 drm_fourcc)
 {
@@ -81,6 +83,12 @@ enum ipu_color_space ipu_drm_fourcc_to_colorspace(u32 drm_fourcc)
 	case DRM_FORMAT_ABGR8888:
 	case DRM_FORMAT_RGBA8888:
 	case DRM_FORMAT_BGRA8888:
+	case DRM_FORMAT_RGB565_A8:
+	case DRM_FORMAT_BGR565_A8:
+	case DRM_FORMAT_RGB888_A8:
+	case DRM_FORMAT_BGR888_A8:
+	case DRM_FORMAT_RGBX8888_A8:
+	case DRM_FORMAT_BGRX8888_A8:
 		return IPUV3_COLORSPACE_RGB;
 	case DRM_FORMAT_YUYV:
 	case DRM_FORMAT_UYVY:
@@ -931,6 +939,7 @@ static const struct of_device_id imx_ipu_dt_ids[] = {
 	{ .compatible = "fsl,imx51-ipu", .data = &ipu_type_imx51, },
 	{ .compatible = "fsl,imx53-ipu", .data = &ipu_type_imx53, },
 	{ .compatible = "fsl,imx6q-ipu", .data = &ipu_type_imx6q, },
+	{ .compatible = "fsl,imx6qp-ipu", .data = &ipu_type_imx6q, },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, imx_ipu_dt_ids);
@@ -1390,11 +1399,20 @@ static int ipu_probe(struct platform_device *pdev)
 	if (!ipu)
 		return -ENODEV;
 
+	ipu->id = of_alias_get_id(np, "ipu");
+
+	if (of_device_is_compatible(np, "fsl,imx6qp-ipu") &&
+	    IS_ENABLED(CONFIG_DRM)) {
+		ipu->prg_priv = ipu_prg_lookup_by_phandle(&pdev->dev,
+							  "fsl,prg", ipu->id);
+		if (!ipu->prg_priv)
+			return -EPROBE_DEFER;
+	}
+
 	for (i = 0; i < 64; i++)
 		ipu->channel[i].ipu = ipu;
 	ipu->devtype = devtype;
 	ipu->ipu_type = devtype->type;
-	ipu->id = of_alias_get_id(np, "ipu");
 
 	spin_lock_init(&ipu->lock);
 	mutex_init(&ipu->channel_lock);
@@ -1520,7 +1538,25 @@ static struct platform_driver imx_ipu_driver = {
 	.remove = ipu_remove,
 };
 
-module_platform_driver(imx_ipu_driver);
+static struct platform_driver * const drivers[] = {
+#if IS_ENABLED(CONFIG_DRM)
+	&ipu_pre_drv,
+	&ipu_prg_drv,
+#endif
+	&imx_ipu_driver,
+};
+
+static int __init imx_ipu_init(void)
+{
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
+}
+module_init(imx_ipu_init);
+
+static void __exit imx_ipu_exit(void)
+{
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
+}
+module_exit(imx_ipu_exit);
 
 MODULE_ALIAS("platform:imx-ipuv3");
 MODULE_DESCRIPTION("i.MX IPU v3 driver");

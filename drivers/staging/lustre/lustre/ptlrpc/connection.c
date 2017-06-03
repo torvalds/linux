@@ -41,7 +41,7 @@ static struct cfs_hash *conn_hash;
 static struct cfs_hash_ops conn_hash_ops;
 
 struct ptlrpc_connection *
-ptlrpc_connection_get(lnet_process_id_t peer, lnet_nid_t self,
+ptlrpc_connection_get(struct lnet_process_id peer, lnet_nid_t self,
 		      struct obd_uuid *uuid)
 {
 	struct ptlrpc_connection *conn, *conn2;
@@ -155,14 +155,14 @@ void ptlrpc_connection_fini(void)
 static unsigned int
 conn_hashfn(struct cfs_hash *hs, const void *key, unsigned int mask)
 {
-	return cfs_hash_djb2_hash(key, sizeof(lnet_process_id_t), mask);
+	return cfs_hash_djb2_hash(key, sizeof(struct lnet_process_id), mask);
 }
 
 static int
 conn_keycmp(const void *key, struct hlist_node *hnode)
 {
 	struct ptlrpc_connection *conn;
-	const lnet_process_id_t *conn_key;
+	const struct lnet_process_id *conn_key;
 
 	LASSERT(key);
 	conn_key = key;

@@ -35,7 +35,6 @@
 #include "../include/lustre_debug.h"
 #include "../include/lustre_ver.h"
 #include "../include/lustre_disk.h"	/* for s2sbi */
-#include "../include/lustre_eacl.h"
 #include "../include/lustre_linkea.h"
 
 /* for struct cl_lock_descr and struct cl_io */
@@ -1330,7 +1329,7 @@ int cl_setattr_ost(struct cl_object *obj, const struct iattr *attr,
 		   unsigned int attr_flags);
 
 extern struct lu_env *cl_inode_fini_env;
-extern int cl_inode_fini_refcheck;
+extern u16 cl_inode_fini_refcheck;
 
 int cl_file_inode_init(struct inode *inode, struct lustre_md *md);
 void cl_inode_fini(struct inode *inode);

@@ -91,7 +91,7 @@ static int oxnas_nand_probe(struct platform_device *pdev)
 	int err = 0;
 
 	/* Allocate memory for the device structure (and zero it) */
-	oxnas = devm_kzalloc(&pdev->dev, sizeof(struct nand_chip),
+	oxnas = devm_kzalloc(&pdev->dev, sizeof(*oxnas),
 			     GFP_KERNEL);
 	if (!oxnas)
 		return -ENOMEM;

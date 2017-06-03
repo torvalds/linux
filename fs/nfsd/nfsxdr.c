@@ -257,6 +257,9 @@ nfssvc_decode_readargs(struct svc_rqst *rqstp, __be32 *p,
 	len = args->count     = ntohl(*p++);
 	p++; /* totalcount - unused */
 
+	if (!xdr_argsize_check(rqstp, p))
+		return 0;
+
 	len = min_t(unsigned int, len, NFSSVC_MAXBLKSIZE_V2);
 
 	/* set up somewhere to store response.
@@ -272,7 +275,7 @@ nfssvc_decode_readargs(struct svc_rqst *rqstp, __be32 *p,
 		v++;
 	}
 	args->vlen = v;
-	return xdr_argsize_check(rqstp, p);
+	return 1;
 }
 
 int
@@ -280,6 +283,7 @@ nfssvc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p,
 					struct nfsd_writeargs *args)
 {
 	unsigned int len, hdr, dlen;
+	struct kvec *head = rqstp->rq_arg.head;
 	int v;
 
 	p = decode_fh(p, &args->fh);
@@ -300,9 +304,10 @@ nfssvc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p,
 	 * Check to make sure that we got the right number of
 	 * bytes.
 	 */
-	hdr = (void*)p - rqstp->rq_arg.head[0].iov_base;
-	dlen = rqstp->rq_arg.head[0].iov_len + rqstp->rq_arg.page_len
-		- hdr;
+	hdr = (void*)p - head->iov_base;
+	if (hdr > head->iov_len)
+		return 0;
+	dlen = head->iov_len + rqstp->rq_arg.page_len - hdr;
 
 	/*
 	 * Round the length of the data which was specified up to
@@ -316,7 +321,7 @@ nfssvc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p,
 		return 0;
 
 	rqstp->rq_vec[0].iov_base = (void*)p;
-	rqstp->rq_vec[0].iov_len = rqstp->rq_arg.head[0].iov_len - hdr;
+	rqstp->rq_vec[0].iov_len = head->iov_len - hdr;
 	v = 0;
 	while (len > rqstp->rq_vec[v].iov_len) {
 		len -= rqstp->rq_vec[v].iov_len;
@@ -360,9 +365,11 @@ nfssvc_decode_readlinkargs(struct svc_rqst *rqstp, __be32 *p, struct nfsd_readli
 	p = decode_fh(p, &args->fh);
 	if (!p)
 		return 0;
+	if (!xdr_argsize_check(rqstp, p))
+		return 0;
 	args->buffer = page_address(*(rqstp->rq_next_page++));
 
-	return xdr_argsize_check(rqstp, p);
+	return 1;
 }
 
 int
@@ -400,9 +407,11 @@ nfssvc_decode_readdirargs(struct svc_rqst *rqstp, __be32 *p,
 	args->cookie = ntohl(*p++);
 	args->count  = ntohl(*p++);
 	args->count  = min_t(u32, args->count, PAGE_SIZE);
+	if (!xdr_argsize_check(rqstp, p))
+		return 0;
 	args->buffer = page_address(*(rqstp->rq_next_page++));
 
-	return xdr_argsize_check(rqstp, p);
+	return 1;
 }
 
 /*

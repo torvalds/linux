@@ -45,9 +45,6 @@
 
 #define __KVM_HAVE_ARCH_INTC_INITIALIZED
 
-#ifdef CONFIG_KVM_MMIO
-#define KVM_COALESCED_MMIO_PAGE_OFFSET 1
-#endif
 #define KVM_HALT_POLL_NS_DEFAULT 10000	/* 10 us */
 
 /* These values are internal and can be increased later */
@@ -191,6 +188,13 @@ struct kvmppc_pginfo {
 	atomic_t refcnt;
 };
 
+struct kvmppc_spapr_tce_iommu_table {
+	struct rcu_head rcu;
+	struct list_head next;
+	struct iommu_table *tbl;
+	struct kref kref;
+};
+
 struct kvmppc_spapr_tce_table {
 	struct list_head list;
 	struct kvm *kvm;
@@ -199,12 +203,19 @@ struct kvmppc_spapr_tce_table {
 	u32 page_shift;
 	u64 offset;		/* in pages */
 	u64 size;		/* window size in pages */
+	struct list_head iommu_tables;
 	struct page *pages[0];
 };
 
 /* XICS components, defined in book3s_xics.c */
 struct kvmppc_xics;
 struct kvmppc_icp;
+extern struct kvm_device_ops kvm_xics_ops;
+
+/* XIVE components, defined in book3s_xive.c */
+struct kvmppc_xive;
+struct kvmppc_xive_vcpu;
+extern struct kvm_device_ops kvm_xive_ops;
 
 struct kvmppc_passthru_irqmap;
 
@@ -293,6 +304,7 @@ struct kvm_arch {
 #endif
 #ifdef CONFIG_KVM_XICS
 	struct kvmppc_xics *xics;
+	struct kvmppc_xive *xive;
 	struct kvmppc_passthru_irqmap *pimap;
 #endif
 	struct kvmppc_ops *kvm_ops;
@@ -345,6 +357,7 @@ struct kvmppc_pte {
 	bool may_read		: 1;
 	bool may_write		: 1;
 	bool may_execute	: 1;
+	unsigned long wimg;
 	u8 page_size;		/* MMU_PAGE_xxx */
 };
 
@@ -421,7 +434,7 @@ struct kvmppc_passthru_irqmap {
 
 #define KVMPPC_IRQ_DEFAULT	0
 #define KVMPPC_IRQ_MPIC		1
-#define KVMPPC_IRQ_XICS		2
+#define KVMPPC_IRQ_XICS		2 /* Includes a XIVE option */
 
 #define MMIO_HPTE_CACHE_SIZE	4
 
@@ -441,7 +454,27 @@ struct mmio_hpte_cache {
 	unsigned int index;
 };
 
+#define KVMPPC_VSX_COPY_NONE		0
+#define KVMPPC_VSX_COPY_WORD		1
+#define KVMPPC_VSX_COPY_DWORD		2
+#define KVMPPC_VSX_COPY_DWORD_LOAD_DUMP	3
+
 struct openpic;
+
+/* W0 and W1 of a XIVE thread management context */
+union xive_tma_w01 {
+	struct {
+		u8	nsr;
+		u8	cppr;
+		u8	ipb;
+		u8	lsmfb;
+		u8	ack;
+		u8	inc;
+		u8	age;
+		u8	pipr;
+	};
+	__be64 w01;
+};
 
 struct kvm_vcpu_arch {
 	ulong host_stack;
@@ -644,6 +677,21 @@ struct kvm_vcpu_arch {
 	u8 io_gpr; /* GPR used as IO source/target */
 	u8 mmio_host_swabbed;
 	u8 mmio_sign_extend;
+	/* conversion between single and double precision */
+	u8 mmio_sp64_extend;
+	/*
+	 * Number of simulations for vsx.
+	 * If we use 2*8bytes to simulate 1*16bytes,
+	 * then the number should be 2 and
+	 * mmio_vsx_copy_type=KVMPPC_VSX_COPY_DWORD.
+	 * If we use 4*4bytes to simulate 1*16bytes,
+	 * the number should be 4 and
+	 * mmio_vsx_copy_type=KVMPPC_VSX_COPY_WORD.
+	 */
+	u8 mmio_vsx_copy_nums;
+	u8 mmio_vsx_offset;
+	u8 mmio_vsx_copy_type;
+	u8 mmio_vsx_tx_sx_enabled;
 	u8 osi_needed;
 	u8 osi_enabled;
 	u8 papr_enabled;
@@ -688,6 +736,10 @@ struct kvm_vcpu_arch {
 	struct openpic *mpic;	/* KVM_IRQ_MPIC */
 #ifdef CONFIG_KVM_XICS
 	struct kvmppc_icp *icp; /* XICS presentation controller */
+	struct kvmppc_xive_vcpu *xive_vcpu; /* XIVE virtual CPU data */
+	__be32 xive_cam_word;    /* Cooked W2 in proper endian with valid bit */
+	u32 xive_pushed;	 /* Is the VP pushed on the physical CPU ? */
+	union xive_tma_w01 xive_saved_state; /* W0..1 of XIVE thread state */
 #endif
 
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
@@ -732,6 +784,8 @@ struct kvm_vcpu_arch {
 };
 
 #define VCPU_FPR(vcpu, i)	(vcpu)->arch.fp.fpr[i][TS_FPROFFSET]
+#define VCPU_VSX_FPR(vcpu, i, j)	((vcpu)->arch.fp.fpr[i][j])
+#define VCPU_VSX_VR(vcpu, i)		((vcpu)->arch.vr.vr[i])
 
 /* Values for vcpu->arch.state */
 #define KVMPPC_VCPU_NOTREADY		0
@@ -745,6 +799,7 @@ struct kvm_vcpu_arch {
 #define KVM_MMIO_REG_FPR	0x0020
 #define KVM_MMIO_REG_QPR	0x0040
 #define KVM_MMIO_REG_FQPR	0x0060
+#define KVM_MMIO_REG_VSX	0x0080
 
 #define __KVM_HAVE_ARCH_WQP
 #define __KVM_HAVE_CREATE_DEVICE

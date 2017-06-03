@@ -1195,7 +1195,8 @@ static int osc_brw_prep_request(int cmd, struct client_obd *cli,
 	return rc;
 }
 
-static int check_write_checksum(struct obdo *oa, const lnet_process_id_t *peer,
+static int check_write_checksum(struct obdo *oa,
+				const struct lnet_process_id *peer,
 				__u32 client_cksum, __u32 server_cksum, int nob,
 				u32 page_count, struct brw_page **pga,
 				enum cksum_type client_cksum_type)
@@ -1245,7 +1246,7 @@ static int check_write_checksum(struct obdo *oa, const lnet_process_id_t *peer,
 static int osc_brw_fini_request(struct ptlrpc_request *req, int rc)
 {
 	struct osc_brw_async_args *aa = (void *)&req->rq_async_args;
-	const lnet_process_id_t *peer =
+	const struct lnet_process_id *peer =
 			&req->rq_import->imp_connection->c_peer;
 	struct client_obd *cli = aa->aa_cli;
 	struct ost_body *body;
@@ -2011,7 +2012,7 @@ int osc_enqueue_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 	}
 
 no_match:
-	if (*flags & LDLM_FL_TEST_LOCK)
+	if (*flags & (LDLM_FL_TEST_LOCK | LDLM_FL_MATCH_LOCK))
 		return -ENOLCK;
 	if (intent) {
 		req = ptlrpc_request_alloc(class_exp2cliimp(exp),
@@ -2495,7 +2496,13 @@ static int osc_ldlm_resource_invalidate(struct cfs_hash *hs,
 			osc = lock->l_ast_data;
 			cl_object_get(osc2cl(osc));
 		}
-		lock->l_ast_data = NULL;
+
+		/*
+		 * clear LDLM_FL_CLEANED flag to make sure it will be canceled
+		 * by the 2nd round of ldlm_namespace_clean() call in
+		 * osc_import_event().
+		 */
+		ldlm_clear_cleaned(lock);
 	}
 	unlock_res(res);
 
@@ -2532,7 +2539,7 @@ static int osc_import_event(struct obd_device *obd,
 	case IMP_EVENT_INVALIDATE: {
 		struct ldlm_namespace *ns = obd->obd_namespace;
 		struct lu_env *env;
-		int refcheck;
+		u16 refcheck;
 
 		ldlm_namespace_cleanup(ns, LDLM_FL_LOCAL_ONLY);
 

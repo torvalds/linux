@@ -966,6 +966,8 @@ static int __clk_notify(struct clk_core *core, unsigned long msg,
 			cnd.clk = cn->clk;
 			ret = srcu_notifier_call_chain(&cn->notifier_head, msg,
 					&cnd);
+			if (ret & NOTIFY_STOP_MASK)
+				return ret;
 		}
 	}
 
@@ -2081,11 +2083,11 @@ static void clk_dump_subtree(struct seq_file *s, struct clk_core *c, int level)
 	clk_dump_one(s, c, level);
 
 	hlist_for_each_entry(child, &c->children, child_node) {
-		seq_printf(s, ",");
+		seq_putc(s, ',');
 		clk_dump_subtree(s, child, level + 1);
 	}
 
-	seq_printf(s, "}");
+	seq_putc(s, '}');
 }
 
 static int clk_dump(struct seq_file *s, void *data)
@@ -2094,14 +2096,13 @@ static int clk_dump(struct seq_file *s, void *data)
 	bool first_node = true;
 	struct hlist_head **lists = (struct hlist_head **)s->private;
 
-	seq_printf(s, "{");
-
+	seq_putc(s, '{');
 	clk_prepare_lock();
 
 	for (; *lists; lists++) {
 		hlist_for_each_entry(c, *lists, child_node) {
 			if (!first_node)
-				seq_puts(s, ",");
+				seq_putc(s, ',');
 			first_node = false;
 			clk_dump_subtree(s, c, 0);
 		}
@@ -2121,6 +2122,31 @@ static int clk_dump_open(struct inode *inode, struct file *file)
 
 static const struct file_operations clk_dump_fops = {
 	.open		= clk_dump_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int possible_parents_dump(struct seq_file *s, void *data)
+{
+	struct clk_core *core = s->private;
+	int i;
+
+	for (i = 0; i < core->num_parents - 1; i++)
+		seq_printf(s, "%s ", core->parent_names[i]);
+
+	seq_printf(s, "%s\n", core->parent_names[i]);
+
+	return 0;
+}
+
+static int possible_parents_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, possible_parents_dump, inode->i_private);
+}
+
+static const struct file_operations possible_parents_fops = {
+	.open		= possible_parents_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= single_release,
@@ -2176,6 +2202,13 @@ static int clk_debug_create_one(struct clk_core *core, struct dentry *pdentry)
 			(u32 *)&core->notifier_count);
 	if (!d)
 		goto err_out;
+
+	if (core->num_parents > 1) {
+		d = debugfs_create_file("clk_possible_parents", S_IRUGO,
+				core->dentry, core, &possible_parents_fops);
+		if (!d)
+			goto err_out;
+	}
 
 	if (core->ops->debug_init) {
 		ret = core->ops->debug_init(core->hw, core->dentry);
@@ -2940,7 +2973,7 @@ int clk_notifier_register(struct clk *clk, struct notifier_block *nb)
 
 	/* if clk wasn't in the notifier list, allocate new clk_notifier */
 	if (cn->clk != clk) {
-		cn = kzalloc(sizeof(struct clk_notifier), GFP_KERNEL);
+		cn = kzalloc(sizeof(*cn), GFP_KERNEL);
 		if (!cn)
 			goto out;
 
@@ -3088,7 +3121,7 @@ int of_clk_add_provider(struct device_node *np,
 	struct of_clk_provider *cp;
 	int ret;
 
-	cp = kzalloc(sizeof(struct of_clk_provider), GFP_KERNEL);
+	cp = kzalloc(sizeof(*cp), GFP_KERNEL);
 	if (!cp)
 		return -ENOMEM;
 

@@ -2499,7 +2499,7 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 				int attr_mask)
 {
 	int status;
-	struct ib_ah_attr *ah_attr = &attrs->ah_attr;
+	struct rdma_ah_attr *ah_attr = &attrs->ah_attr;
 	union ib_gid sgid, zgid;
 	struct ib_gid_attr sgid_attr;
 	u32 vlan_id = 0xFFFF;
@@ -2510,25 +2510,28 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 		struct sockaddr_in6 _sockaddr_in6;
 	} sgid_addr, dgid_addr;
 	struct ocrdma_dev *dev = get_ocrdma_dev(qp->ibqp.device);
+	const struct ib_global_route *grh;
 
-	if ((ah_attr->ah_flags & IB_AH_GRH) == 0)
+	if ((rdma_ah_get_ah_flags(ah_attr) & IB_AH_GRH) == 0)
 		return -EINVAL;
+	grh = rdma_ah_read_grh(ah_attr);
 	if (atomic_cmpxchg(&dev->update_sl, 1, 0))
 		ocrdma_init_service_level(dev);
 	cmd->params.tclass_sq_psn |=
-	    (ah_attr->grh.traffic_class << OCRDMA_QP_PARAMS_TCLASS_SHIFT);
+	    (grh->traffic_class << OCRDMA_QP_PARAMS_TCLASS_SHIFT);
 	cmd->params.rnt_rc_sl_fl |=
-	    (ah_attr->grh.flow_label & OCRDMA_QP_PARAMS_FLOW_LABEL_MASK);
-	cmd->params.rnt_rc_sl_fl |= (ah_attr->sl << OCRDMA_QP_PARAMS_SL_SHIFT);
+	    (grh->flow_label & OCRDMA_QP_PARAMS_FLOW_LABEL_MASK);
+	cmd->params.rnt_rc_sl_fl |= (rdma_ah_get_sl(ah_attr) <<
+				     OCRDMA_QP_PARAMS_SL_SHIFT);
 	cmd->params.hop_lmt_rq_psn |=
-	    (ah_attr->grh.hop_limit << OCRDMA_QP_PARAMS_HOP_LMT_SHIFT);
+	    (grh->hop_limit << OCRDMA_QP_PARAMS_HOP_LMT_SHIFT);
 	cmd->flags |= OCRDMA_QP_PARA_FLOW_LBL_VALID;
 
 	/* GIDs */
-	memcpy(&cmd->params.dgid[0], &ah_attr->grh.dgid.raw[0],
+	memcpy(&cmd->params.dgid[0], &grh->dgid.raw[0],
 	       sizeof(cmd->params.dgid));
 
-	status = ib_get_cached_gid(&dev->ibdev, 1, ah_attr->grh.sgid_index,
+	status = ib_get_cached_gid(&dev->ibdev, 1, grh->sgid_index,
 				   &sgid, &sgid_attr);
 	if (!status && sgid_attr.ndev) {
 		vlan_id = rdma_vlan_dev_vlan_id(sgid_attr.ndev);
@@ -2540,7 +2543,7 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 	if (!memcmp(&sgid, &zgid, sizeof(zgid)))
 		return -EINVAL;
 
-	qp->sgid_idx = ah_attr->grh.sgid_index;
+	qp->sgid_idx = grh->sgid_index;
 	memcpy(&cmd->params.sgid[0], &sgid.raw[0], sizeof(cmd->params.sgid));
 	status = ocrdma_resolve_dmac(dev, ah_attr, &mac_addr[0]);
 	if (status)
@@ -2551,7 +2554,7 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 	hdr_type = ib_gid_to_network_type(sgid_attr.gid_type, &sgid);
 	if (hdr_type == RDMA_NETWORK_IPV4) {
 		rdma_gid2ip(&sgid_addr._sockaddr, &sgid);
-		rdma_gid2ip(&dgid_addr._sockaddr, &ah_attr->grh.dgid);
+		rdma_gid2ip(&dgid_addr._sockaddr, &grh->dgid);
 		memcpy(&cmd->params.dgid[0],
 		       &dgid_addr._sockaddr_in.sin_addr.s_addr, 4);
 		memcpy(&cmd->params.sgid[0],

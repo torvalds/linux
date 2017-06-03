@@ -114,6 +114,7 @@
  *     THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/kmod.h>
 #include <linux/mdio.h>

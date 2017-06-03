@@ -742,6 +742,9 @@ void ath9k_cmn_spectral_scan_trigger(struct ath_common *common,
 		return;
 	}
 
+	if (!spec_priv->spec_config.enabled)
+		return;
+
 	ath_ps_ops(common)->wakeup(common);
 	rxfilter = ath9k_hw_getrxfilter(ah);
 	ath9k_hw_setrxfilter(ah, rxfilter |

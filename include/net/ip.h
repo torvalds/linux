@@ -33,6 +33,8 @@
 #include <net/flow.h>
 #include <net/flow_dissector.h>
 
+#define IPV4_MAX_PMTU		65535U		/* RFC 2675, Section 5.1 */
+
 struct sock;
 
 struct inet_skb_parm {

@@ -37,6 +37,7 @@
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_displayid.h>
+#include <drm/drm_scdc_helper.h>
 
 #include "drm_crtc_internal.h"
 
@@ -79,6 +80,8 @@
 #define EDID_QUIRK_FORCE_12BPC			(1 << 9)
 /* Force 6bpc */
 #define EDID_QUIRK_FORCE_6BPC			(1 << 10)
+/* Force 10bpc */
+#define EDID_QUIRK_FORCE_10BPC			(1 << 11)
 
 struct detailed_mode_closure {
 	struct drm_connector *connector;
@@ -120,6 +123,9 @@ static const struct edid_quirk {
 	/* Funai Electronics PM36B */
 	{ "FCM", 13600, EDID_QUIRK_PREFER_LARGE_75 |
 	  EDID_QUIRK_DETAILED_IN_CM },
+
+	/* LGD panel of HP zBook 17 G2, eDP 10 bpc, but reports unknown bpc */
+	{ "LGD", 764, EDID_QUIRK_FORCE_10BPC },
 
 	/* LG Philips LCD LP154W01-A5 */
 	{ "LPL", 0, EDID_QUIRK_DETAILED_USE_MAXIMUM_SIZE },
@@ -1134,23 +1140,26 @@ bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid,
 
 	csum = drm_edid_block_checksum(raw_edid);
 	if (csum) {
-		if (print_bad_edid) {
-			DRM_ERROR("EDID checksum is invalid, remainder is %d\n", csum);
-		}
-
 		if (edid_corrupt)
 			*edid_corrupt = true;
 
 		/* allow CEA to slide through, switches mangle this */
-		if (raw_edid[0] != 0x02)
+		if (raw_edid[0] == CEA_EXT) {
+			DRM_DEBUG("EDID checksum is invalid, remainder is %d\n", csum);
+			DRM_DEBUG("Assuming a KVM switch modified the CEA block but left the original checksum\n");
+		} else {
+			if (print_bad_edid)
+				DRM_NOTE("EDID checksum is invalid, remainder is %d\n", csum);
+
 			goto bad;
+		}
 	}
 
 	/* per-block-type checks */
 	switch (raw_edid[0]) {
 	case 0: /* base */
 		if (edid->version != 1) {
-			DRM_ERROR("EDID has major version %d, instead of 1\n", edid->version);
+			DRM_NOTE("EDID has major version %d, instead of 1\n", edid->version);
 			goto bad;
 		}
 
@@ -1167,11 +1176,12 @@ bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid,
 bad:
 	if (print_bad_edid) {
 		if (drm_edid_is_zero(raw_edid, EDID_LENGTH)) {
-			printk(KERN_ERR "EDID block is all zeroes\n");
+			pr_notice("EDID block is all zeroes\n");
 		} else {
-			printk(KERN_ERR "Raw EDID:\n");
-			print_hex_dump(KERN_ERR, " \t", DUMP_PREFIX_NONE, 16, 1,
-			       raw_edid, EDID_LENGTH, false);
+			pr_notice("Raw EDID:\n");
+			print_hex_dump(KERN_NOTICE,
+				       " \t", DUMP_PREFIX_NONE, 16, 1,
+				       raw_edid, EDID_LENGTH, false);
 		}
 	}
 	return false;
@@ -1427,7 +1437,10 @@ struct edid *drm_get_edid(struct drm_connector *connector,
 {
 	struct edid *edid;
 
-	if (!drm_probe_ddc(adapter))
+	if (connector->force == DRM_FORCE_OFF)
+		return NULL;
+
+	if (connector->force == DRM_FORCE_UNSPECIFIED && !drm_probe_ddc(adapter))
 		return NULL;
 
 	edid = drm_do_get_edid(connector, drm_do_probe_ddc_edid, adapter);
@@ -3244,6 +3257,21 @@ static bool cea_db_is_hdmi_vsdb(const u8 *db)
 	return hdmi_id == HDMI_IEEE_OUI;
 }
 
+static bool cea_db_is_hdmi_forum_vsdb(const u8 *db)
+{
+	unsigned int oui;
+
+	if (cea_db_tag(db) != VENDOR_BLOCK)
+		return false;
+
+	if (cea_db_payload_len(db) < 7)
+		return false;
+
+	oui = db[3] << 16 | db[2] << 8 | db[1];
+
+	return oui == HDMI_FORUM_IEEE_OUI;
+}
+
 #define for_each_cea_db(cea, i, start, end) \
 	for ((i) = (start); (i) < (end) && (i) + cea_db_payload_len(&(cea)[(i)]) < (end); (i) += cea_db_payload_len(&(cea)[(i)]) + 1)
 
@@ -3435,6 +3463,9 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 	connector->audio_latency[0] = 0;
 	connector->video_latency[1] = 0;
 	connector->audio_latency[1] = 0;
+
+	if (!edid)
+		return;
 
 	cea = drm_find_cea_extension(edid);
 	if (!cea) {
@@ -3792,6 +3823,48 @@ drm_default_rgb_quant_range(const struct drm_display_mode *mode)
 }
 EXPORT_SYMBOL(drm_default_rgb_quant_range);
 
+static void drm_parse_hdmi_forum_vsdb(struct drm_connector *connector,
+				 const u8 *hf_vsdb)
+{
+	struct drm_display_info *display = &connector->display_info;
+	struct drm_hdmi_info *hdmi = &display->hdmi;
+
+	if (hf_vsdb[6] & 0x80) {
+		hdmi->scdc.supported = true;
+		if (hf_vsdb[6] & 0x40)
+			hdmi->scdc.read_request = true;
+	}
+
+	/*
+	 * All HDMI 2.0 monitors must support scrambling at rates > 340 MHz.
+	 * And as per the spec, three factors confirm this:
+	 * * Availability of a HF-VSDB block in EDID (check)
+	 * * Non zero Max_TMDS_Char_Rate filed in HF-VSDB (let's check)
+	 * * SCDC support available (let's check)
+	 * Lets check it out.
+	 */
+
+	if (hf_vsdb[5]) {
+		/* max clock is 5000 KHz times block value */
+		u32 max_tmds_clock = hf_vsdb[5] * 5000;
+		struct drm_scdc *scdc = &hdmi->scdc;
+
+		if (max_tmds_clock > 340000) {
+			display->max_tmds_clock = max_tmds_clock;
+			DRM_DEBUG_KMS("HF-VSDB: max TMDS clock %d kHz\n",
+				display->max_tmds_clock);
+		}
+
+		if (scdc->supported) {
+			scdc->scrambling.supported = true;
+
+			/* Few sinks support scrambling for cloks < 340M */
+			if ((hf_vsdb[6] & 0x8))
+				scdc->scrambling.low_rates = true;
+		}
+	}
+}
+
 static void drm_parse_hdmi_deep_color_info(struct drm_connector *connector,
 					   const u8 *hdmi)
 {
@@ -3906,6 +3979,8 @@ static void drm_parse_cea_ext(struct drm_connector *connector,
 
 		if (cea_db_is_hdmi_vsdb(db))
 			drm_parse_hdmi_vsdb_video(connector, db);
+		if (cea_db_is_hdmi_forum_vsdb(db))
+			drm_parse_hdmi_forum_vsdb(connector, db);
 	}
 }
 
@@ -4002,7 +4077,7 @@ static int validate_displayid(u8 *displayid, int length, int idx)
 		csum += displayid[i];
 	}
 	if (csum) {
-		DRM_ERROR("DisplayID checksum invalid, remainder is %d\n", csum);
+		DRM_NOTE("DisplayID checksum invalid, remainder is %d\n", csum);
 		return -EINVAL;
 	}
 	return 0;
@@ -4173,6 +4248,9 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 
 	if (quirks & EDID_QUIRK_FORCE_8BPC)
 		connector->display_info.bpc = 8;
+
+	if (quirks & EDID_QUIRK_FORCE_10BPC)
+		connector->display_info.bpc = 10;
 
 	if (quirks & EDID_QUIRK_FORCE_12BPC)
 		connector->display_info.bpc = 12;

@@ -468,6 +468,7 @@ void __init orion_ge11_init(struct mv643xx_eth_platform_data *eth_data,
 		    eth_data, &orion_ge11);
 }
 
+#ifdef CONFIG_ARCH_ORION5X
 /*****************************************************************************
  * Ethernet switch
  ****************************************************************************/
@@ -479,6 +480,9 @@ void __init orion_ge00_switch_init(struct dsa_chip_data *d)
 {
 	struct mdio_board_info *bd;
 	unsigned int i;
+
+	if (!IS_BUILTIN(CONFIG_PHYLIB))
+		return;
 
 	for (i = 0; i < ARRAY_SIZE(d->port_names); i++)
 		if (!strcmp(d->port_names[i], "cpu"))
@@ -493,6 +497,7 @@ void __init orion_ge00_switch_init(struct dsa_chip_data *d)
 
 	mdiobus_register_board_info(&orion_ge00_switch_board_info, 1);
 }
+#endif
 
 /*****************************************************************************
  * I2C

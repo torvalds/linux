@@ -39,6 +39,27 @@
 #define E1000_WUFC_MC   0x00000008 /* Directed Multicast Wakeup Enable */
 #define E1000_WUFC_BC   0x00000010 /* Broadcast Wakeup Enable */
 
+/* Wake Up Status */
+#define E1000_WUS_EX	0x00000004 /* Directed Exact */
+#define E1000_WUS_ARPD	0x00000020 /* Directed ARP Request */
+#define E1000_WUS_IPV4	0x00000040 /* Directed IPv4 */
+#define E1000_WUS_IPV6	0x00000080 /* Directed IPv6 */
+#define E1000_WUS_NSD	0x00000400 /* Directed IPv6 Neighbor Solicitation */
+
+/* Packet types that are enabled for wake packet delivery */
+#define WAKE_PKT_WUS ( \
+	E1000_WUS_EX   | \
+	E1000_WUS_ARPD | \
+	E1000_WUS_IPV4 | \
+	E1000_WUS_IPV6 | \
+	E1000_WUS_NSD)
+
+/* Wake Up Packet Length */
+#define E1000_WUPL_MASK	0x00000FFF
+
+/* Wake Up Packet Memory stores the first 128 bytes of the wake up packet */
+#define E1000_WUPM_BYTES	128
+
 /* Extended Device Control */
 #define E1000_CTRL_EXT_SDP2_DATA 0x00000040 /* Value of SW Defineable Pin 2 */
 #define E1000_CTRL_EXT_SDP3_DATA 0x00000080 /* Value of SW Defineable Pin 3 */

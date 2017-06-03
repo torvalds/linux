@@ -7,7 +7,10 @@
  * Released under the GPL v2. (and only v2, not any later version)
  */
 
+#include <errno.h>
+#include <inttypes.h>
 #include <linux/compiler.h>
+#include <linux/kernel.h>
 #include <babeltrace/ctf-writer/writer.h>
 #include <babeltrace/ctf-writer/clock.h>
 #include <babeltrace/ctf-writer/stream.h>
@@ -27,6 +30,7 @@
 #include "evsel.h"
 #include "machine.h"
 #include "config.h"
+#include "sane_ctype.h"
 
 #define pr_N(n, fmt, ...) \
 	eprintf(n, debug_data_convert, fmt, ##__VA_ARGS__)
@@ -1468,6 +1472,7 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 			.lost            = perf_event__process_lost,
 			.tracing_data    = perf_event__process_tracing_data,
 			.build_id        = perf_event__process_build_id,
+			.namespaces      = perf_event__process_namespaces,
 			.ordered_events  = true,
 			.ordering_requires_timestamps = true,
 		},

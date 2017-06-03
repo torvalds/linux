@@ -178,14 +178,11 @@ errout:
 	return ERR_PTR(err);
 }
 
-static bool tcf_proto_destroy(struct tcf_proto *tp, bool force)
+static void tcf_proto_destroy(struct tcf_proto *tp)
 {
-	if (tp->ops->destroy(tp, force)) {
-		module_put(tp->ops->owner);
-		kfree_rcu(tp, rcu);
-		return true;
-	}
-	return false;
+	tp->ops->destroy(tp);
+	module_put(tp->ops->owner);
+	kfree_rcu(tp, rcu);
 }
 
 void tcf_destroy_chain(struct tcf_proto __rcu **fl)
@@ -194,14 +191,15 @@ void tcf_destroy_chain(struct tcf_proto __rcu **fl)
 
 	while ((tp = rtnl_dereference(*fl)) != NULL) {
 		RCU_INIT_POINTER(*fl, tp->next);
-		tcf_proto_destroy(tp, true);
+		tcf_proto_destroy(tp);
 	}
 }
 EXPORT_SYMBOL(tcf_destroy_chain);
 
 /* Add/change/delete/get a filter node */
 
-static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n)
+static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
+			  struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *tca[TCA_MAX + 1];
@@ -229,7 +227,7 @@ static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n)
 replay:
 	tp_created = 0;
 
-	err = nlmsg_parse(n, sizeof(*t), tca, TCA_MAX, NULL);
+	err = nlmsg_parse(n, sizeof(*t), tca, TCA_MAX, NULL, extack);
 	if (err < 0)
 		return err;
 
@@ -360,7 +358,7 @@ replay:
 			RCU_INIT_POINTER(*back, next);
 			tfilter_notify(net, skb, n, tp, fh,
 				       RTM_DELTFILTER, false);
-			tcf_proto_destroy(tp, true);
+			tcf_proto_destroy(tp);
 			err = 0;
 			goto errout;
 		}
@@ -371,24 +369,28 @@ replay:
 			goto errout;
 		}
 	} else {
+		bool last;
+
 		switch (n->nlmsg_type) {
 		case RTM_NEWTFILTER:
 			if (n->nlmsg_flags & NLM_F_EXCL) {
 				if (tp_created)
-					tcf_proto_destroy(tp, true);
+					tcf_proto_destroy(tp);
 				err = -EEXIST;
 				goto errout;
 			}
 			break;
 		case RTM_DELTFILTER:
-			err = tp->ops->delete(tp, fh);
+			err = tp->ops->delete(tp, fh, &last);
 			if (err)
 				goto errout;
 			next = rtnl_dereference(tp->next);
 			tfilter_notify(net, skb, n, tp, t->tcm_handle,
 				       RTM_DELTFILTER, false);
-			if (tcf_proto_destroy(tp, false))
+			if (last) {
 				RCU_INIT_POINTER(*back, next);
+				tcf_proto_destroy(tp);
+			}
 			goto errout;
 		case RTM_GETTFILTER:
 			err = tfilter_notify(net, skb, n, tp, fh,
@@ -410,7 +412,7 @@ replay:
 		tfilter_notify(net, skb, n, tp, fh, RTM_NEWTFILTER, false);
 	} else {
 		if (tp_created)
-			tcf_proto_destroy(tp, true);
+			tcf_proto_destroy(tp);
 	}
 
 errout:

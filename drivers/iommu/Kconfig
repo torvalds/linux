@@ -327,6 +327,14 @@ config S390_IOMMU
 	help
 	  Support for the IOMMU API for s390 PCI devices.
 
+config S390_CCW_IOMMU
+	bool "S390 CCW IOMMU Support"
+	depends on S390 && CCW
+	select IOMMU_API
+	help
+	  Enables bits of IOMMU API required by VFIO. The iommu_ops
+	  is not implemented as it is not necessary for VFIO.
+
 config MTK_IOMMU
 	bool "MTK IOMMU Support"
 	depends on ARM || ARM64

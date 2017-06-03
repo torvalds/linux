@@ -26,11 +26,34 @@ config KVM
 	select SRCU
 	---help---
 	  Support for hosting Guest kernels.
-	  Currently supported on MIPS32 processors.
+
+choice
+	prompt "Virtualization mode"
+	depends on KVM
+	default KVM_MIPS_TE
+
+config KVM_MIPS_TE
+	bool "Trap & Emulate"
+	---help---
+	  Use trap and emulate to virtualize 32-bit guests in user mode. This
+	  does not require any special hardware Virtualization support beyond
+	  standard MIPS32/64 r2 or later, but it does require the guest kernel
+	  to be configured with CONFIG_KVM_GUEST=y so that it resides in the
+	  user address segment.
+
+config KVM_MIPS_VZ
+	bool "MIPS Virtualization (VZ) ASE"
+	---help---
+	  Use the MIPS Virtualization (VZ) ASE to virtualize guests. This
+	  supports running unmodified guest kernels (with CONFIG_KVM_GUEST=n),
+	  but requires hardware support.
+
+endchoice
 
 config KVM_MIPS_DYN_TRANS
 	bool "KVM/MIPS: Dynamic binary translation to reduce traps"
-	depends on KVM
+	depends on KVM_MIPS_TE
+	default y
 	---help---
 	  When running in Trap & Emulate mode patch privileged
 	  instructions to reduce the number of traps.

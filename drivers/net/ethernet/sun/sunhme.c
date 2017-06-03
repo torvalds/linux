@@ -933,7 +933,7 @@ static void happy_meal_stop(struct happy_meal *hp, void __iomem *gregs)
 /* hp->happy_lock must be held */
 static void happy_meal_get_counters(struct happy_meal *hp, void __iomem *bregs)
 {
-	struct net_device_stats *stats = &hp->net_stats;
+	struct net_device_stats *stats = &hp->dev->stats;
 
 	stats->rx_crc_errors += hme_read32(hp, bregs + BMAC_RCRCECTR);
 	hme_write32(hp, bregs + BMAC_RCRCECTR, 0);
@@ -1294,9 +1294,10 @@ static void happy_meal_init_rings(struct happy_meal *hp)
 }
 
 /* hp->happy_lock must be held */
-static void happy_meal_begin_auto_negotiation(struct happy_meal *hp,
-					      void __iomem *tregs,
-					      struct ethtool_cmd *ep)
+static void
+happy_meal_begin_auto_negotiation(struct happy_meal *hp,
+				  void __iomem *tregs,
+				  const struct ethtool_link_ksettings *ep)
 {
 	int timeout;
 
@@ -1309,7 +1310,7 @@ static void happy_meal_begin_auto_negotiation(struct happy_meal *hp,
 	/* XXX Check BMSR_ANEGCAPABLE, should not be necessary though. */
 
 	hp->sw_advertise = happy_meal_tcvr_read(hp, tregs, MII_ADVERTISE);
-	if (ep == NULL || ep->autoneg == AUTONEG_ENABLE) {
+	if (!ep || ep->base.autoneg == AUTONEG_ENABLE) {
 		/* Advertise everything we can support. */
 		if (hp->sw_bmsr & BMSR_10HALF)
 			hp->sw_advertise |= (ADVERTISE_10HALF);
@@ -1384,14 +1385,14 @@ force_link:
 		/* Disable auto-negotiation in BMCR, enable the duplex and
 		 * speed setting, init the timer state machine, and fire it off.
 		 */
-		if (ep == NULL || ep->autoneg == AUTONEG_ENABLE) {
+		if (!ep || ep->base.autoneg == AUTONEG_ENABLE) {
 			hp->sw_bmcr = BMCR_SPEED100;
 		} else {
-			if (ethtool_cmd_speed(ep) == SPEED_100)
+			if (ep->base.speed == SPEED_100)
 				hp->sw_bmcr = BMCR_SPEED100;
 			else
 				hp->sw_bmcr = 0;
-			if (ep->duplex == DUPLEX_FULL)
+			if (ep->base.duplex == DUPLEX_FULL)
 				hp->sw_bmcr |= BMCR_FULLDPLX;
 		}
 		happy_meal_tcvr_write(hp, tregs, MII_BMCR, hp->sw_bmcr);
@@ -1856,7 +1857,7 @@ static int happy_meal_is_not_so_happy(struct happy_meal *hp, u32 status)
 		if (status & GREG_STAT_TXLERR)
 			printk("LateError ");
 		if (status & GREG_STAT_TXPERR)
-			printk("ParityErro ");
+			printk("ParityError ");
 		if (status & GREG_STAT_TXTERR)
 			printk("TagBotch ");
 		printk("]\n");
@@ -1946,7 +1947,7 @@ static void happy_meal_tx(struct happy_meal *hp)
 				break;
 		}
 		hp->tx_skbs[elem] = NULL;
-		hp->net_stats.tx_bytes += skb->len;
+		dev->stats.tx_bytes += skb->len;
 
 		for (frag = 0; frag <= skb_shinfo(skb)->nr_frags; frag++) {
 			dma_addr = hme_read_desc32(hp, &this->tx_addr);
@@ -1963,7 +1964,7 @@ static void happy_meal_tx(struct happy_meal *hp)
 		}
 
 		dev_kfree_skb_irq(skb);
-		hp->net_stats.tx_packets++;
+		dev->stats.tx_packets++;
 	}
 	hp->tx_old = elem;
 	TXD((">"));
@@ -2008,17 +2009,17 @@ static void happy_meal_rx(struct happy_meal *hp, struct net_device *dev)
 		/* Check for errors. */
 		if ((len < ETH_ZLEN) || (flags & RXFLAG_OVERFLOW)) {
 			RXD(("ERR(%08x)]", flags));
-			hp->net_stats.rx_errors++;
+			dev->stats.rx_errors++;
 			if (len < ETH_ZLEN)
-				hp->net_stats.rx_length_errors++;
+				dev->stats.rx_length_errors++;
 			if (len & (RXFLAG_OVERFLOW >> 16)) {
-				hp->net_stats.rx_over_errors++;
-				hp->net_stats.rx_fifo_errors++;
+				dev->stats.rx_over_errors++;
+				dev->stats.rx_fifo_errors++;
 			}
 
 			/* Return it to the Happy meal. */
 	drop_it:
-			hp->net_stats.rx_dropped++;
+			dev->stats.rx_dropped++;
 			hme_write_rxd(hp, this,
 				      (RXFLAG_OWN|((RX_BUF_ALLOC_SIZE-RX_OFFSET)<<16)),
 				      dma_addr);
@@ -2083,8 +2084,8 @@ static void happy_meal_rx(struct happy_meal *hp, struct net_device *dev)
 		skb->protocol = eth_type_trans(skb, dev);
 		netif_rx(skb);
 
-		hp->net_stats.rx_packets++;
-		hp->net_stats.rx_bytes += len;
+		dev->stats.rx_packets++;
+		dev->stats.rx_bytes += len;
 	next:
 		elem = NEXT_RX(elem);
 		this = &rxbase[elem];
@@ -2395,7 +2396,7 @@ static struct net_device_stats *happy_meal_get_stats(struct net_device *dev)
 	happy_meal_get_counters(hp, hp->bigmacregs);
 	spin_unlock_irq(&hp->happy_lock);
 
-	return &hp->net_stats;
+	return &dev->stats;
 }
 
 static void happy_meal_set_multicast(struct net_device *dev)
@@ -2434,20 +2435,21 @@ static void happy_meal_set_multicast(struct net_device *dev)
 }
 
 /* Ethtool support... */
-static int hme_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int hme_get_link_ksettings(struct net_device *dev,
+				  struct ethtool_link_ksettings *cmd)
 {
 	struct happy_meal *hp = netdev_priv(dev);
 	u32 speed;
+	u32 supported;
 
-	cmd->supported =
+	supported =
 		(SUPPORTED_10baseT_Half | SUPPORTED_10baseT_Full |
 		 SUPPORTED_100baseT_Half | SUPPORTED_100baseT_Full |
 		 SUPPORTED_Autoneg | SUPPORTED_TP | SUPPORTED_MII);
 
 	/* XXX hardcoded stuff for now */
-	cmd->port = PORT_TP; /* XXX no MII support */
-	cmd->transceiver = XCVR_INTERNAL; /* XXX no external xcvr support */
-	cmd->phy_address = 0; /* XXX fixed PHYAD */
+	cmd->base.port = PORT_TP; /* XXX no MII support */
+	cmd->base.phy_address = 0; /* XXX fixed PHYAD */
 
 	/* Record PHY settings. */
 	spin_lock_irq(&hp->happy_lock);
@@ -2456,41 +2458,45 @@ static int hme_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	spin_unlock_irq(&hp->happy_lock);
 
 	if (hp->sw_bmcr & BMCR_ANENABLE) {
-		cmd->autoneg = AUTONEG_ENABLE;
+		cmd->base.autoneg = AUTONEG_ENABLE;
 		speed = ((hp->sw_lpa & (LPA_100HALF | LPA_100FULL)) ?
 			 SPEED_100 : SPEED_10);
 		if (speed == SPEED_100)
-			cmd->duplex =
+			cmd->base.duplex =
 				(hp->sw_lpa & (LPA_100FULL)) ?
 				DUPLEX_FULL : DUPLEX_HALF;
 		else
-			cmd->duplex =
+			cmd->base.duplex =
 				(hp->sw_lpa & (LPA_10FULL)) ?
 				DUPLEX_FULL : DUPLEX_HALF;
 	} else {
-		cmd->autoneg = AUTONEG_DISABLE;
+		cmd->base.autoneg = AUTONEG_DISABLE;
 		speed = (hp->sw_bmcr & BMCR_SPEED100) ? SPEED_100 : SPEED_10;
-		cmd->duplex =
+		cmd->base.duplex =
 			(hp->sw_bmcr & BMCR_FULLDPLX) ?
 			DUPLEX_FULL : DUPLEX_HALF;
 	}
-	ethtool_cmd_speed_set(cmd, speed);
+	cmd->base.speed = speed;
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
+						supported);
+
 	return 0;
 }
 
-static int hme_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int hme_set_link_ksettings(struct net_device *dev,
+				  const struct ethtool_link_ksettings *cmd)
 {
 	struct happy_meal *hp = netdev_priv(dev);
 
 	/* Verify the settings we care about. */
-	if (cmd->autoneg != AUTONEG_ENABLE &&
-	    cmd->autoneg != AUTONEG_DISABLE)
+	if (cmd->base.autoneg != AUTONEG_ENABLE &&
+	    cmd->base.autoneg != AUTONEG_DISABLE)
 		return -EINVAL;
-	if (cmd->autoneg == AUTONEG_DISABLE &&
-	    ((ethtool_cmd_speed(cmd) != SPEED_100 &&
-	      ethtool_cmd_speed(cmd) != SPEED_10) ||
-	     (cmd->duplex != DUPLEX_HALF &&
-	      cmd->duplex != DUPLEX_FULL)))
+	if (cmd->base.autoneg == AUTONEG_DISABLE &&
+	    ((cmd->base.speed != SPEED_100 &&
+	      cmd->base.speed != SPEED_10) ||
+	     (cmd->base.duplex != DUPLEX_HALF &&
+	      cmd->base.duplex != DUPLEX_FULL)))
 		return -EINVAL;
 
 	/* Ok, do it to it. */
@@ -2537,10 +2543,10 @@ static u32 hme_get_link(struct net_device *dev)
 }
 
 static const struct ethtool_ops hme_ethtool_ops = {
-	.get_settings		= hme_get_settings,
-	.set_settings		= hme_set_settings,
 	.get_drvinfo		= hme_get_drvinfo,
 	.get_link		= hme_get_link,
+	.get_link_ksettings	= hme_get_link_ksettings,
+	.set_link_ksettings	= hme_set_link_ksettings,
 };
 
 static int hme_version_printed;

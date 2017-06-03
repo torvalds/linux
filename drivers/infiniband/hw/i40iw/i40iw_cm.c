@@ -3184,9 +3184,8 @@ void i40iw_setup_cm_core(struct i40iw_device *iwdev)
 	INIT_LIST_HEAD(&cm_core->connected_nodes);
 	INIT_LIST_HEAD(&cm_core->listen_nodes);
 
-	init_timer(&cm_core->tcp_timer);
-	cm_core->tcp_timer.function = i40iw_cm_timer_tick;
-	cm_core->tcp_timer.data = (unsigned long)cm_core;
+	setup_timer(&cm_core->tcp_timer, i40iw_cm_timer_tick,
+		    (unsigned long)cm_core);
 
 	spin_lock_init(&cm_core->ht_lock);
 	spin_lock_init(&cm_core->listen_list_lock);

@@ -86,43 +86,53 @@ void sctp_packet_config(struct sctp_packet *packet, __u32 vtag,
 {
 	struct sctp_transport *tp = packet->transport;
 	struct sctp_association *asoc = tp->asoc;
+	struct sock *sk;
 
 	pr_debug("%s: packet:%p vtag:0x%x\n", __func__, packet, vtag);
-
 	packet->vtag = vtag;
 
-	if (asoc && tp->dst) {
-		struct sock *sk = asoc->base.sk;
+	/* do the following jobs only once for a flush schedule */
+	if (!sctp_packet_empty(packet))
+		return;
 
-		rcu_read_lock();
-		if (__sk_dst_get(sk) != tp->dst) {
-			dst_hold(tp->dst);
-			sk_setup_caps(sk, tp->dst);
-		}
+	/* set packet max_size with pathmtu */
+	packet->max_size = tp->pathmtu;
+	if (!asoc)
+		return;
 
-		if (sk_can_gso(sk)) {
-			struct net_device *dev = tp->dst->dev;
-
-			packet->max_size = dev->gso_max_size;
-		} else {
-			packet->max_size = asoc->pathmtu;
-		}
-		rcu_read_unlock();
-
-	} else {
-		packet->max_size = tp->pathmtu;
+	/* update dst or transport pathmtu if in need */
+	sk = asoc->base.sk;
+	if (!sctp_transport_dst_check(tp)) {
+		sctp_transport_route(tp, NULL, sctp_sk(sk));
+		if (asoc->param_flags & SPP_PMTUD_ENABLE)
+			sctp_assoc_sync_pmtu(asoc);
+	} else if (!sctp_transport_pmtu_check(tp)) {
+		if (asoc->param_flags & SPP_PMTUD_ENABLE)
+			sctp_assoc_sync_pmtu(asoc);
 	}
 
-	if (ecn_capable && sctp_packet_empty(packet)) {
-		struct sctp_chunk *chunk;
+	/* If there a is a prepend chunk stick it on the list before
+	 * any other chunks get appended.
+	 */
+	if (ecn_capable) {
+		struct sctp_chunk *chunk = sctp_get_ecne_prepend(asoc);
 
-		/* If there a is a prepend chunk stick it on the list before
-		 * any other chunks get appended.
-		 */
-		chunk = sctp_get_ecne_prepend(asoc);
 		if (chunk)
 			sctp_packet_append_chunk(packet, chunk);
 	}
+
+	if (!tp->dst)
+		return;
+
+	/* set packet max_size with gso_max_size if gso is enabled*/
+	rcu_read_lock();
+	if (__sk_dst_get(sk) != tp->dst) {
+		dst_hold(tp->dst);
+		sk_setup_caps(sk, tp->dst);
+	}
+	packet->max_size = sk_can_gso(sk) ? tp->dst->dev->gso_max_size
+					  : asoc->pathmtu;
+	rcu_read_unlock();
 }
 
 /* Initialize the packet structure. */
@@ -582,12 +592,7 @@ int sctp_packet_transmit(struct sctp_packet *packet, gfp_t gfp)
 	sh->vtag = htonl(packet->vtag);
 	sh->checksum = 0;
 
-	/* update dst if in need */
-	if (!sctp_transport_dst_check(tp)) {
-		sctp_transport_route(tp, NULL, sctp_sk(sk));
-		if (asoc && asoc->param_flags & SPP_PMTUD_ENABLE)
-			sctp_assoc_sync_pmtu(sk, asoc);
-	}
+	/* drop packet if no dst */
 	dst = dst_clone(tp->dst);
 	if (!dst) {
 		IP_INC_STATS(sock_net(sk), IPSTATS_MIB_OUTNOROUTES);
@@ -704,7 +709,7 @@ static sctp_xmit_t sctp_packet_can_append_data(struct sctp_packet *packet,
 	 */
 
 	if ((sctp_sk(asoc->base.sk)->nodelay || inflight == 0) &&
-	    !chunk->msg->force_delay)
+	    !asoc->force_delay)
 		/* Nothing unacked */
 		return SCTP_XMIT_OK;
 

@@ -283,28 +283,30 @@ static int xt_obj_to_user(u16 __user *psize, u16 size,
 		       &U->u.user.revision, K->u.kernel.TYPE->revision)
 
 int xt_data_to_user(void __user *dst, const void *src,
-		    int usersize, int size)
+		    int usersize, int size, int aligned_size)
 {
 	usersize = usersize ? : size;
 	if (copy_to_user(dst, src, usersize))
 		return -EFAULT;
-	if (usersize != size && clear_user(dst + usersize, size - usersize))
+	if (usersize != aligned_size &&
+	    clear_user(dst + usersize, aligned_size - usersize))
 		return -EFAULT;
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xt_data_to_user);
 
-#define XT_DATA_TO_USER(U, K, TYPE, C_SIZE)				\
+#define XT_DATA_TO_USER(U, K, TYPE)					\
 	xt_data_to_user(U->data, K->data,				\
 			K->u.kernel.TYPE->usersize,			\
-			C_SIZE ? : K->u.kernel.TYPE->TYPE##size)
+			K->u.kernel.TYPE->TYPE##size,			\
+			XT_ALIGN(K->u.kernel.TYPE->TYPE##size))
 
 int xt_match_to_user(const struct xt_entry_match *m,
 		     struct xt_entry_match __user *u)
 {
 	return XT_OBJ_TO_USER(u, m, match, 0) ||
-	       XT_DATA_TO_USER(u, m, match, 0);
+	       XT_DATA_TO_USER(u, m, match);
 }
 EXPORT_SYMBOL_GPL(xt_match_to_user);
 
@@ -312,7 +314,7 @@ int xt_target_to_user(const struct xt_entry_target *t,
 		      struct xt_entry_target __user *u)
 {
 	return XT_OBJ_TO_USER(u, t, target, 0) ||
-	       XT_DATA_TO_USER(u, t, target, 0);
+	       XT_DATA_TO_USER(u, t, target);
 }
 EXPORT_SYMBOL_GPL(xt_target_to_user);
 
@@ -611,6 +613,12 @@ void xt_compat_match_from_user(struct xt_entry_match *m, void **dstptr,
 }
 EXPORT_SYMBOL_GPL(xt_compat_match_from_user);
 
+#define COMPAT_XT_DATA_TO_USER(U, K, TYPE, C_SIZE)			\
+	xt_data_to_user(U->data, K->data,				\
+			K->u.kernel.TYPE->usersize,			\
+			C_SIZE,						\
+			COMPAT_XT_ALIGN(C_SIZE))
+
 int xt_compat_match_to_user(const struct xt_entry_match *m,
 			    void __user **dstptr, unsigned int *size)
 {
@@ -626,7 +634,7 @@ int xt_compat_match_to_user(const struct xt_entry_match *m,
 		if (match->compat_to_user((void __user *)cm->data, m->data))
 			return -EFAULT;
 	} else {
-		if (XT_DATA_TO_USER(cm, m, match, msize - sizeof(*cm)))
+		if (COMPAT_XT_DATA_TO_USER(cm, m, match, msize - sizeof(*cm)))
 			return -EFAULT;
 	}
 
@@ -763,17 +771,8 @@ EXPORT_SYMBOL(xt_check_entry_offsets);
  */
 unsigned int *xt_alloc_entry_offsets(unsigned int size)
 {
-	unsigned int *off;
+	return kvmalloc_array(size, sizeof(unsigned int), GFP_KERNEL | __GFP_ZERO);
 
-	off = kcalloc(size, sizeof(unsigned int), GFP_KERNEL | __GFP_NOWARN);
-
-	if (off)
-		return off;
-
-	if (size < (SIZE_MAX / sizeof(unsigned int)))
-		off = vmalloc(size * sizeof(unsigned int));
-
-	return off;
 }
 EXPORT_SYMBOL(xt_alloc_entry_offsets);
 
@@ -981,7 +980,7 @@ int xt_compat_target_to_user(const struct xt_entry_target *t,
 		if (target->compat_to_user((void __user *)ct->data, t->data))
 			return -EFAULT;
 	} else {
-		if (XT_DATA_TO_USER(ct, t, target, tsize - sizeof(*ct)))
+		if (COMPAT_XT_DATA_TO_USER(ct, t, target, tsize - sizeof(*ct)))
 			return -EFAULT;
 	}
 
@@ -1007,8 +1006,7 @@ struct xt_table_info *xt_alloc_table_info(unsigned int size)
 	if (sz <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER))
 		info = kmalloc(sz, GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
 	if (!info) {
-		info = __vmalloc(sz, GFP_KERNEL | __GFP_NOWARN |
-				     __GFP_NORETRY | __GFP_HIGHMEM,
+		info = __vmalloc(sz, GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY,
 				 PAGE_KERNEL);
 		if (!info)
 			return NULL;
@@ -1051,8 +1049,10 @@ struct xt_table *xt_find_table_lock(struct net *net, u_int8_t af,
 	list_for_each_entry(t, &init_net.xt.tables[af], list) {
 		if (strcmp(t->name, name))
 			continue;
-		if (!try_module_get(t->me))
+		if (!try_module_get(t->me)) {
+			mutex_unlock(&xt[af].mutex);
 			return NULL;
+		}
 
 		mutex_unlock(&xt[af].mutex);
 		if (t->table_init(net) != 0) {
@@ -1114,7 +1114,7 @@ static int xt_jumpstack_alloc(struct xt_table_info *i)
 
 	size = sizeof(void **) * nr_cpu_ids;
 	if (size > PAGE_SIZE)
-		i->jumpstack = vzalloc(size);
+		i->jumpstack = kvzalloc(size, GFP_KERNEL);
 	else
 		i->jumpstack = kzalloc(size, GFP_KERNEL);
 	if (i->jumpstack == NULL)
@@ -1136,12 +1136,8 @@ static int xt_jumpstack_alloc(struct xt_table_info *i)
 	 */
 	size = sizeof(void *) * i->stacksize * 2u;
 	for_each_possible_cpu(cpu) {
-		if (size > PAGE_SIZE)
-			i->jumpstack[cpu] = vmalloc_node(size,
-				cpu_to_node(cpu));
-		else
-			i->jumpstack[cpu] = kmalloc_node(size,
-				GFP_KERNEL, cpu_to_node(cpu));
+		i->jumpstack[cpu] = kvmalloc_node(size, GFP_KERNEL,
+			cpu_to_node(cpu));
 		if (i->jumpstack[cpu] == NULL)
 			/*
 			 * Freeing will be done later on by the callers. The

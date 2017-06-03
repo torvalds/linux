@@ -344,7 +344,8 @@ struct perf_event_attr {
 				use_clockid    :  1, /* use @clockid for time fields */
 				context_switch :  1, /* context switch data */
 				write_backward :  1, /* Write ring buffer from end to beginning */
-				__reserved_1   : 36;
+				namespaces     :  1, /* include namespaces data */
+				__reserved_1   : 35;
 
 	union {
 		__u32		wakeup_events;	  /* wakeup every n events */
@@ -610,6 +611,23 @@ struct perf_event_header {
 	__u16	size;
 };
 
+struct perf_ns_link_info {
+	__u64	dev;
+	__u64	ino;
+};
+
+enum {
+	NET_NS_INDEX		= 0,
+	UTS_NS_INDEX		= 1,
+	IPC_NS_INDEX		= 2,
+	PID_NS_INDEX		= 3,
+	USER_NS_INDEX		= 4,
+	MNT_NS_INDEX		= 5,
+	CGROUP_NS_INDEX		= 6,
+
+	NR_NAMESPACES,		/* number of available namespaces */
+};
+
 enum perf_event_type {
 
 	/*
@@ -862,6 +880,18 @@ enum perf_event_type {
 	 */
 	PERF_RECORD_SWITCH_CPU_WIDE		= 15,
 
+	/*
+	 * struct {
+	 *	struct perf_event_header	header;
+	 *	u32				pid;
+	 *	u32				tid;
+	 *	u64				nr_namespaces;
+	 *	{ u64				dev, inode; } [nr_namespaces];
+	 *	struct sample_id		sample_id;
+	 * };
+	 */
+	PERF_RECORD_NAMESPACES			= 16,
+
 	PERF_RECORD_MAX,			/* non-ABI */
 };
 
@@ -885,12 +915,14 @@ enum perf_callchain_context {
  */
 #define PERF_AUX_FLAG_TRUNCATED		0x01	/* record was truncated to fit */
 #define PERF_AUX_FLAG_OVERWRITE		0x02	/* snapshot from overwrite mode */
+#define PERF_AUX_FLAG_PARTIAL		0x04	/* record contains gaps */
 
 #define PERF_FLAG_FD_NO_GROUP		(1UL << 0)
 #define PERF_FLAG_FD_OUTPUT		(1UL << 1)
 #define PERF_FLAG_PID_CGROUP		(1UL << 2) /* pid=cgroup id, per-cpu mode only */
 #define PERF_FLAG_FD_CLOEXEC		(1UL << 3) /* O_CLOEXEC */
 
+#if defined(__LITTLE_ENDIAN_BITFIELD)
 union perf_mem_data_src {
 	__u64 val;
 	struct {
@@ -902,6 +934,21 @@ union perf_mem_data_src {
 			mem_rsvd:31;
 	};
 };
+#elif defined(__BIG_ENDIAN_BITFIELD)
+union perf_mem_data_src {
+	__u64 val;
+	struct {
+		__u64	mem_rsvd:31,
+			mem_dtlb:7,	/* tlb access */
+			mem_lock:2,	/* lock instr */
+			mem_snoop:5,	/* snoop mode */
+			mem_lvl:14,	/* memory hierarchy level */
+			mem_op:5;	/* type of opcode */
+	};
+};
+#else
+#error "Unknown endianness"
+#endif
 
 /* type of opcode (load/store/prefetch,code) */
 #define PERF_MEM_OP_NA		0x01 /* not available */

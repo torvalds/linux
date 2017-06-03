@@ -16,19 +16,9 @@
 extern const struct dma_map_ops arm_dma_ops;
 extern const struct dma_map_ops arm_coherent_dma_ops;
 
-static inline const struct dma_map_ops *__generic_dma_ops(struct device *dev)
-{
-	if (dev && dev->dma_ops)
-		return dev->dma_ops;
-	return &arm_dma_ops;
-}
-
 static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 {
-	if (xen_initial_domain())
-		return xen_dma_ops;
-	else
-		return __generic_dma_ops(NULL);
+	return &arm_dma_ops;
 }
 
 #define HAVE_ARCH_DMA_SUPPORTED 1

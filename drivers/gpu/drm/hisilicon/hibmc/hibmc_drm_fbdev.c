@@ -147,7 +147,6 @@ static int hibmc_drm_fb_create(struct drm_fb_helper *helper,
 	return 0;
 
 out_release_fbi:
-	drm_fb_helper_release_fbi(helper);
 	ret1 = ttm_bo_reserve(&bo->bo, true, false, NULL);
 	if (ret1) {
 		DRM_ERROR("failed to rsv ttm_bo when release fbi: %d\n", ret1);
@@ -170,7 +169,6 @@ static void hibmc_fbdev_destroy(struct hibmc_fbdev *fbdev)
 	struct drm_fb_helper *fbh = &fbdev->helper;
 
 	drm_fb_helper_unregister_fbi(fbh);
-	drm_fb_helper_release_fbi(fbh);
 
 	drm_fb_helper_fini(fbh);
 

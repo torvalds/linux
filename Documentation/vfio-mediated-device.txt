@@ -217,9 +217,9 @@ Directories and files under the sysfs for Each Physical Device
 
 * [<type-id>]
 
-  The [<type-id>] name is created by adding the the device driver string as a
-  prefix to the string provided by the vendor driver. This format of this name
-  is as follows:
+  The [<type-id>] name is created by adding the device driver string as a prefix
+  to the string provided by the vendor driver. This format of this name is as
+  follows:
 
 	sprintf(buf, "%s-%s", dev_driver_string(parent->dev), group->name);
 
@@ -380,7 +380,7 @@ card.
    /dev/ttyS1, UART: 16550A, Port: 0xc150, IRQ: 10
    /dev/ttyS2, UART: 16550A, Port: 0xc158, IRQ: 10
 
-6. Using a minicom or any terminal enulation program, open port /dev/ttyS1 or
+6. Using minicom or any terminal emulation program, open port /dev/ttyS1 or
    /dev/ttyS2 with hardware flow control disabled.
 
 7. Type data on the minicom terminal or send data to the terminal emulation

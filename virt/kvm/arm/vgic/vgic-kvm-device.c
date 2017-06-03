@@ -37,6 +37,14 @@ int vgic_check_ioaddr(struct kvm *kvm, phys_addr_t *ioaddr,
 	return 0;
 }
 
+static int vgic_check_type(struct kvm *kvm, int type_needed)
+{
+	if (kvm->arch.vgic.vgic_model != type_needed)
+		return -ENODEV;
+	else
+		return 0;
+}
+
 /**
  * kvm_vgic_addr - set or get vgic VM base addresses
  * @kvm:   pointer to the vm struct
@@ -57,40 +65,41 @@ int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write)
 {
 	int r = 0;
 	struct vgic_dist *vgic = &kvm->arch.vgic;
-	int type_needed;
 	phys_addr_t *addr_ptr, alignment;
 
 	mutex_lock(&kvm->lock);
 	switch (type) {
 	case KVM_VGIC_V2_ADDR_TYPE_DIST:
-		type_needed = KVM_DEV_TYPE_ARM_VGIC_V2;
+		r = vgic_check_type(kvm, KVM_DEV_TYPE_ARM_VGIC_V2);
 		addr_ptr = &vgic->vgic_dist_base;
 		alignment = SZ_4K;
 		break;
 	case KVM_VGIC_V2_ADDR_TYPE_CPU:
-		type_needed = KVM_DEV_TYPE_ARM_VGIC_V2;
+		r = vgic_check_type(kvm, KVM_DEV_TYPE_ARM_VGIC_V2);
 		addr_ptr = &vgic->vgic_cpu_base;
 		alignment = SZ_4K;
 		break;
 	case KVM_VGIC_V3_ADDR_TYPE_DIST:
-		type_needed = KVM_DEV_TYPE_ARM_VGIC_V3;
+		r = vgic_check_type(kvm, KVM_DEV_TYPE_ARM_VGIC_V3);
 		addr_ptr = &vgic->vgic_dist_base;
 		alignment = SZ_64K;
 		break;
 	case KVM_VGIC_V3_ADDR_TYPE_REDIST:
-		type_needed = KVM_DEV_TYPE_ARM_VGIC_V3;
+		r = vgic_check_type(kvm, KVM_DEV_TYPE_ARM_VGIC_V3);
+		if (r)
+			break;
+		if (write) {
+			r = vgic_v3_set_redist_base(kvm, *addr);
+			goto out;
+		}
 		addr_ptr = &vgic->vgic_redist_base;
-		alignment = SZ_64K;
 		break;
 	default:
 		r = -ENODEV;
-		goto out;
 	}
 
-	if (vgic->vgic_model != type_needed) {
-		r = -ENODEV;
+	if (r)
 		goto out;
-	}
 
 	if (write) {
 		r = vgic_check_ioaddr(kvm, addr_ptr, *addr, alignment);
@@ -259,13 +268,13 @@ static void unlock_vcpus(struct kvm *kvm, int vcpu_lock_idx)
 	}
 }
 
-static void unlock_all_vcpus(struct kvm *kvm)
+void unlock_all_vcpus(struct kvm *kvm)
 {
 	unlock_vcpus(kvm, atomic_read(&kvm->online_vcpus) - 1);
 }
 
 /* Returns true if all vcpus were locked, false otherwise */
-static bool lock_all_vcpus(struct kvm *kvm)
+bool lock_all_vcpus(struct kvm *kvm)
 {
 	struct kvm_vcpu *tmp_vcpu;
 	int c;
@@ -580,6 +589,24 @@ static int vgic_v3_set_attr(struct kvm_device *dev,
 		reg = tmp32;
 		return vgic_v3_attr_regs_access(dev, attr, &reg, true);
 	}
+	case KVM_DEV_ARM_VGIC_GRP_CTRL: {
+		int ret;
+
+		switch (attr->attr) {
+		case KVM_DEV_ARM_VGIC_SAVE_PENDING_TABLES:
+			mutex_lock(&dev->kvm->lock);
+
+			if (!lock_all_vcpus(dev->kvm)) {
+				mutex_unlock(&dev->kvm->lock);
+				return -EBUSY;
+			}
+			ret = vgic_v3_save_pending_tables(dev->kvm);
+			unlock_all_vcpus(dev->kvm);
+			mutex_unlock(&dev->kvm->lock);
+			return ret;
+		}
+		break;
+	}
 	}
 	return -ENXIO;
 }
@@ -657,6 +684,8 @@ static int vgic_v3_has_attr(struct kvm_device *dev,
 	case KVM_DEV_ARM_VGIC_GRP_CTRL:
 		switch (attr->attr) {
 		case KVM_DEV_ARM_VGIC_CTRL_INIT:
+			return 0;
+		case KVM_DEV_ARM_VGIC_SAVE_PENDING_TABLES:
 			return 0;
 		}
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015-2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -542,7 +542,7 @@ static ssize_t show_nctxts(struct device *device,
 	 * give a more accurate picture of total contexts available.
 	 */
 	return scnprintf(buf, PAGE_SIZE, "%u\n",
-			 min(dd->num_rcv_contexts - dd->first_user_ctxt,
+			 min(dd->num_rcv_contexts - dd->first_dyn_alloc_ctxt,
 			     (u32)dd->sc_sizes[SC_USER].count));
 }
 

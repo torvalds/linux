@@ -342,7 +342,7 @@ static void print_error_buffers(struct drm_i915_error_state_buf *m,
 }
 
 static void error_print_instdone(struct drm_i915_error_state_buf *m,
-				 struct drm_i915_error_engine *ee)
+				 const struct drm_i915_error_engine *ee)
 {
 	int slice;
 	int subslice;
@@ -372,7 +372,7 @@ static void error_print_instdone(struct drm_i915_error_state_buf *m,
 
 static void error_print_request(struct drm_i915_error_state_buf *m,
 				const char *prefix,
-				struct drm_i915_error_request *erq)
+				const struct drm_i915_error_request *erq)
 {
 	if (!erq->seqno)
 		return;
@@ -384,8 +384,17 @@ static void error_print_request(struct drm_i915_error_state_buf *m,
 		   erq->head, erq->tail);
 }
 
+static void error_print_context(struct drm_i915_error_state_buf *m,
+				const char *header,
+				const struct drm_i915_error_context *ctx)
+{
+	err_printf(m, "%s%s[%d] user_handle %d hw_id %d, ban score %d guilty %d active %d\n",
+		   header, ctx->comm, ctx->pid, ctx->handle, ctx->hw_id,
+		   ctx->ban_score, ctx->guilty, ctx->active);
+}
+
 static void error_print_engine(struct drm_i915_error_state_buf *m,
-			       struct drm_i915_error_engine *ee)
+			       const struct drm_i915_error_engine *ee)
 {
 	err_printf(m, "%s command stream:\n", engine_str(ee->engine_id));
 	err_printf(m, "  START: 0x%08x\n", ee->start);
@@ -457,6 +466,7 @@ static void error_print_engine(struct drm_i915_error_state_buf *m,
 
 	error_print_request(m, "  ELSP[0]: ", &ee->execlist[0]);
 	error_print_request(m, "  ELSP[1]: ", &ee->execlist[1]);
+	error_print_context(m, "  Active context: ", &ee->context);
 }
 
 void i915_error_printf(struct drm_i915_error_state_buf *e, const char *f, ...)
@@ -536,21 +546,57 @@ static void err_print_capabilities(struct drm_i915_error_state_buf *m,
 #undef PRINT_FLAG
 }
 
-int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
-			    const struct i915_error_state_file_priv *error_priv)
+static __always_inline void err_print_param(struct drm_i915_error_state_buf *m,
+					    const char *name,
+					    const char *type,
+					    const void *x)
 {
-	struct drm_i915_private *dev_priv = error_priv->i915;
-	struct pci_dev *pdev = dev_priv->drm.pdev;
-	struct drm_i915_error_state *error = error_priv->error;
+	if (!__builtin_strcmp(type, "bool"))
+		err_printf(m, "i915.%s=%s\n", name, yesno(*(const bool *)x));
+	else if (!__builtin_strcmp(type, "int"))
+		err_printf(m, "i915.%s=%d\n", name, *(const int *)x);
+	else if (!__builtin_strcmp(type, "unsigned int"))
+		err_printf(m, "i915.%s=%u\n", name, *(const unsigned int *)x);
+	else if (!__builtin_strcmp(type, "char *"))
+		err_printf(m, "i915.%s=%s\n", name, *(const char **)x);
+	else
+		BUILD_BUG();
+}
+
+static void err_print_params(struct drm_i915_error_state_buf *m,
+			     const struct i915_params *p)
+{
+#define PRINT(T, x) err_print_param(m, #x, #T, &p->x);
+	I915_PARAMS_FOR_EACH(PRINT);
+#undef PRINT
+}
+
+static void err_print_pciid(struct drm_i915_error_state_buf *m,
+			    struct drm_i915_private *i915)
+{
+	struct pci_dev *pdev = i915->drm.pdev;
+
+	err_printf(m, "PCI ID: 0x%04x\n", pdev->device);
+	err_printf(m, "PCI Revision: 0x%02x\n", pdev->revision);
+	err_printf(m, "PCI Subsystem: %04x:%04x\n",
+		   pdev->subsystem_vendor,
+		   pdev->subsystem_device);
+}
+
+int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
+			    const struct i915_gpu_state *error)
+{
+	struct drm_i915_private *dev_priv = m->i915;
 	struct drm_i915_error_object *obj;
 	int i, j;
 
 	if (!error) {
-		err_printf(m, "no error state collected\n");
-		goto out;
+		err_printf(m, "No error state collected\n");
+		return 0;
 	}
 
-	err_printf(m, "%s\n", error->error_msg);
+	if (*error->error_msg)
+		err_printf(m, "%s\n", error->error_msg);
 	err_printf(m, "Kernel: " UTS_RELEASE "\n");
 	err_printf(m, "Time: %ld s %ld us\n",
 		   error->time.tv_sec, error->time.tv_usec);
@@ -558,26 +604,22 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 		   error->boottime.tv_sec, error->boottime.tv_usec);
 	err_printf(m, "Uptime: %ld s %ld us\n",
 		   error->uptime.tv_sec, error->uptime.tv_usec);
-	err_print_capabilities(m, &error->device_info);
 
 	for (i = 0; i < ARRAY_SIZE(error->engine); i++) {
 		if (error->engine[i].hangcheck_stalled &&
-		    error->engine[i].pid != -1) {
-			err_printf(m, "Active process (on ring %s): %s [%d], context bans %d\n",
+		    error->engine[i].context.pid) {
+			err_printf(m, "Active process (on ring %s): %s [%d], score %d\n",
 				   engine_str(i),
-				   error->engine[i].comm,
-				   error->engine[i].pid,
-				   error->engine[i].context_bans);
+				   error->engine[i].context.comm,
+				   error->engine[i].context.pid,
+				   error->engine[i].context.ban_score);
 		}
 	}
 	err_printf(m, "Reset count: %u\n", error->reset_count);
 	err_printf(m, "Suspend count: %u\n", error->suspend_count);
 	err_printf(m, "Platform: %s\n", intel_platform_name(error->device_info.platform));
-	err_printf(m, "PCI ID: 0x%04x\n", pdev->device);
-	err_printf(m, "PCI Revision: 0x%02x\n", pdev->revision);
-	err_printf(m, "PCI Subsystem: %04x:%04x\n",
-		   pdev->subsystem_vendor,
-		   pdev->subsystem_device);
+	err_print_pciid(m, error->i915);
+
 	err_printf(m, "IOMMU enabled?: %d\n", error->iommu);
 
 	if (HAS_CSR(dev_priv)) {
@@ -590,21 +632,20 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			   CSR_VERSION_MINOR(csr->version));
 	}
 
+	err_printf(m, "GT awake: %s\n", yesno(error->awake));
+	err_printf(m, "RPM wakelock: %s\n", yesno(error->wakelock));
+	err_printf(m, "PM suspended: %s\n", yesno(error->suspended));
 	err_printf(m, "EIR: 0x%08x\n", error->eir);
 	err_printf(m, "IER: 0x%08x\n", error->ier);
-	if (INTEL_GEN(dev_priv) >= 8) {
-		for (i = 0; i < 4; i++)
-			err_printf(m, "GTIER gt %d: 0x%08x\n", i,
-				   error->gtier[i]);
-	} else if (HAS_PCH_SPLIT(dev_priv) || IS_VALLEYVIEW(dev_priv))
-		err_printf(m, "GTIER: 0x%08x\n", error->gtier[0]);
+	for (i = 0; i < error->ngtier; i++)
+		err_printf(m, "GTIER[%d]: 0x%08x\n", i, error->gtier[i]);
 	err_printf(m, "PGTBL_ER: 0x%08x\n", error->pgtbl_er);
 	err_printf(m, "FORCEWAKE: 0x%08x\n", error->forcewake);
 	err_printf(m, "DERRMR: 0x%08x\n", error->derrmr);
 	err_printf(m, "CCID: 0x%08x\n", error->ccid);
 	err_printf(m, "Missed interrupts: 0x%08lx\n", dev_priv->gpu_error.missed_irq_rings);
 
-	for (i = 0; i < dev_priv->num_fence_regs; i++)
+	for (i = 0; i < error->nfence; i++)
 		err_printf(m, "  fence[%d] = %08llx\n", i, error->fence[i]);
 
 	if (INTEL_GEN(dev_priv) >= 6) {
@@ -653,16 +694,18 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			    error->pinned_bo_count);
 
 	for (i = 0; i < ARRAY_SIZE(error->engine); i++) {
-		struct drm_i915_error_engine *ee = &error->engine[i];
+		const struct drm_i915_error_engine *ee = &error->engine[i];
 
 		obj = ee->batchbuffer;
 		if (obj) {
 			err_puts(m, dev_priv->engine[i]->name);
-			if (ee->pid != -1)
-				err_printf(m, " (submitted by %s [%d], bans %d)",
-					   ee->comm,
-					   ee->pid,
-					   ee->context_bans);
+			if (ee->context.pid)
+				err_printf(m, " (submitted by %s [%d], ctx %d [%d], score %d)",
+					   ee->context.comm,
+					   ee->context.pid,
+					   ee->context.handle,
+					   ee->context.hw_id,
+					   ee->context.ban_score);
 			err_printf(m, " --- gtt_offset = 0x%08x %08x\n",
 				   upper_32_bits(obj->gtt_offset),
 				   lower_32_bits(obj->gtt_offset));
@@ -716,9 +759,11 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 		intel_overlay_print_error_state(m, error->overlay);
 
 	if (error->display)
-		intel_display_print_error_state(m, dev_priv, error->display);
+		intel_display_print_error_state(m, error->display);
 
-out:
+	err_print_capabilities(m, &error->device_info);
+	err_print_params(m, &error->params);
+
 	if (m->bytes == 0 && m->err)
 		return m->err;
 
@@ -770,10 +815,16 @@ static void i915_error_object_free(struct drm_i915_error_object *obj)
 	kfree(obj);
 }
 
-static void i915_error_state_free(struct kref *error_ref)
+static __always_inline void free_param(const char *type, void *x)
 {
-	struct drm_i915_error_state *error = container_of(error_ref,
-							  typeof(*error), ref);
+	if (!__builtin_strcmp(type, "char *"))
+		kfree(*(void **)x);
+}
+
+void __i915_gpu_state_free(struct kref *error_ref)
+{
+	struct i915_gpu_state *error =
+		container_of(error_ref, typeof(*error), ref);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(error->engine); i++) {
@@ -800,6 +851,11 @@ static void i915_error_state_free(struct kref *error_ref)
 
 	kfree(error->overlay);
 	kfree(error->display);
+
+#define FREE(T, x) free_param(#T, &error->params.x);
+	I915_PARAMS_FOR_EACH(FREE);
+#undef FREE
+
 	kfree(error);
 }
 
@@ -938,7 +994,7 @@ static u32 capture_error_bo(struct drm_i915_error_buffer *err,
  * It's only a small step better than a random number in its current form.
  */
 static uint32_t i915_error_generate_code(struct drm_i915_private *dev_priv,
-					 struct drm_i915_error_state *error,
+					 struct i915_gpu_state *error,
 					 int *engine_id)
 {
 	uint32_t error_code = 0;
@@ -963,20 +1019,21 @@ static uint32_t i915_error_generate_code(struct drm_i915_private *dev_priv,
 }
 
 static void i915_gem_record_fences(struct drm_i915_private *dev_priv,
-				   struct drm_i915_error_state *error)
+				   struct i915_gpu_state *error)
 {
 	int i;
 
-	if (IS_GEN3(dev_priv) || IS_GEN2(dev_priv)) {
-		for (i = 0; i < dev_priv->num_fence_regs; i++)
-			error->fence[i] = I915_READ(FENCE_REG(i));
-	} else if (IS_GEN5(dev_priv) || IS_GEN4(dev_priv)) {
-		for (i = 0; i < dev_priv->num_fence_regs; i++)
-			error->fence[i] = I915_READ64(FENCE_REG_965_LO(i));
-	} else if (INTEL_GEN(dev_priv) >= 6) {
+	if (INTEL_GEN(dev_priv) >= 6) {
 		for (i = 0; i < dev_priv->num_fence_regs; i++)
 			error->fence[i] = I915_READ64(FENCE_REG_GEN6_LO(i));
+	} else if (INTEL_GEN(dev_priv) >= 4) {
+		for (i = 0; i < dev_priv->num_fence_regs; i++)
+			error->fence[i] = I915_READ64(FENCE_REG_965_LO(i));
+	} else {
+		for (i = 0; i < dev_priv->num_fence_regs; i++)
+			error->fence[i] = I915_READ(FENCE_REG(i));
 	}
+	error->nfence = i;
 }
 
 static inline u32
@@ -1000,7 +1057,7 @@ gen8_engine_sync_index(struct intel_engine_cs *engine,
 	return idx;
 }
 
-static void gen8_record_semaphore_state(struct drm_i915_error_state *error,
+static void gen8_record_semaphore_state(struct i915_gpu_state *error,
 					struct intel_engine_cs *engine,
 					struct drm_i915_error_engine *ee)
 {
@@ -1054,7 +1111,7 @@ static void error_record_engine_waiters(struct intel_engine_cs *engine,
 	if (RB_EMPTY_ROOT(&b->waiters))
 		return;
 
-	if (!spin_trylock_irq(&b->lock)) {
+	if (!spin_trylock_irq(&b->rb_lock)) {
 		ee->waiters = ERR_PTR(-EDEADLK);
 		return;
 	}
@@ -1062,7 +1119,7 @@ static void error_record_engine_waiters(struct intel_engine_cs *engine,
 	count = 0;
 	for (rb = rb_first(&b->waiters); rb != NULL; rb = rb_next(rb))
 		count++;
-	spin_unlock_irq(&b->lock);
+	spin_unlock_irq(&b->rb_lock);
 
 	waiter = NULL;
 	if (count)
@@ -1072,7 +1129,7 @@ static void error_record_engine_waiters(struct intel_engine_cs *engine,
 	if (!waiter)
 		return;
 
-	if (!spin_trylock_irq(&b->lock)) {
+	if (!spin_trylock_irq(&b->rb_lock)) {
 		kfree(waiter);
 		ee->waiters = ERR_PTR(-EDEADLK);
 		return;
@@ -1080,7 +1137,7 @@ static void error_record_engine_waiters(struct intel_engine_cs *engine,
 
 	ee->waiters = waiter;
 	for (rb = rb_first(&b->waiters); rb; rb = rb_next(rb)) {
-		struct intel_wait *w = container_of(rb, typeof(*w), node);
+		struct intel_wait *w = rb_entry(rb, typeof(*w), node);
 
 		strcpy(waiter->comm, w->tsk->comm);
 		waiter->pid = w->tsk->pid;
@@ -1090,10 +1147,10 @@ static void error_record_engine_waiters(struct intel_engine_cs *engine,
 		if (++ee->num_waiters == count)
 			break;
 	}
-	spin_unlock_irq(&b->lock);
+	spin_unlock_irq(&b->rb_lock);
 }
 
-static void error_record_engine_registers(struct drm_i915_error_state *error,
+static void error_record_engine_registers(struct i915_gpu_state *error,
 					  struct intel_engine_cs *engine,
 					  struct drm_i915_error_engine *ee)
 {
@@ -1267,8 +1324,30 @@ static void error_record_engine_execlists(struct intel_engine_cs *engine,
 				       &ee->execlist[n]);
 }
 
+static void record_context(struct drm_i915_error_context *e,
+			   struct i915_gem_context *ctx)
+{
+	if (ctx->pid) {
+		struct task_struct *task;
+
+		rcu_read_lock();
+		task = pid_task(ctx->pid, PIDTYPE_PID);
+		if (task) {
+			strcpy(e->comm, task->comm);
+			e->pid = task->pid;
+		}
+		rcu_read_unlock();
+	}
+
+	e->handle = ctx->user_handle;
+	e->hw_id = ctx->hw_id;
+	e->ban_score = ctx->ban_score;
+	e->guilty = ctx->guilty_count;
+	e->active = ctx->active_count;
+}
+
 static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
-				  struct drm_i915_error_state *error)
+				  struct i915_gpu_state *error)
 {
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	int i;
@@ -1281,7 +1360,6 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 		struct drm_i915_error_engine *ee = &error->engine[i];
 		struct drm_i915_gem_request *request;
 
-		ee->pid = -1;
 		ee->engine_id = -1;
 
 		if (!engine)
@@ -1296,10 +1374,11 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 		request = i915_gem_find_active_request(engine);
 		if (request) {
 			struct intel_ring *ring;
-			struct pid *pid;
 
 			ee->vm = request->ctx->ppgtt ?
 				&request->ctx->ppgtt->base : &ggtt->base;
+
+			record_context(&ee->context, request->ctx);
 
 			/* We need to copy these to an anonymous buffer
 			 * as the simplest method to avoid being overwritten
@@ -1317,19 +1396,6 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 			ee->ctx =
 				i915_error_object_create(dev_priv,
 							 request->ctx->engine[i].state);
-
-			pid = request->ctx->pid;
-			if (pid) {
-				struct task_struct *task;
-
-				rcu_read_lock();
-				task = pid_task(pid, PIDTYPE_PID);
-				if (task) {
-					strcpy(ee->comm, task->comm);
-					ee->pid = task->pid;
-				}
-				rcu_read_unlock();
-			}
 
 			error->simulated |=
 				i915_gem_context_no_error_capture(request->ctx);
@@ -1357,7 +1423,7 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 }
 
 static void i915_gem_capture_vm(struct drm_i915_private *dev_priv,
-				struct drm_i915_error_state *error,
+				struct i915_gpu_state *error,
 				struct i915_address_space *vm,
 				int idx)
 {
@@ -1383,7 +1449,7 @@ static void i915_gem_capture_vm(struct drm_i915_private *dev_priv,
 }
 
 static void i915_capture_active_buffers(struct drm_i915_private *dev_priv,
-					struct drm_i915_error_state *error)
+					struct i915_gpu_state *error)
 {
 	int cnt = 0, i, j;
 
@@ -1408,7 +1474,7 @@ static void i915_capture_active_buffers(struct drm_i915_private *dev_priv,
 }
 
 static void i915_capture_pinned_buffers(struct drm_i915_private *dev_priv,
-					struct drm_i915_error_state *error)
+					struct i915_gpu_state *error)
 {
 	struct i915_address_space *vm = &dev_priv->ggtt.base;
 	struct drm_i915_error_buffer *bo;
@@ -1439,7 +1505,7 @@ static void i915_capture_pinned_buffers(struct drm_i915_private *dev_priv,
 }
 
 static void i915_gem_capture_guc_log_buffer(struct drm_i915_private *dev_priv,
-					    struct drm_i915_error_state *error)
+					    struct i915_gpu_state *error)
 {
 	/* Capturing log buf contents won't be useful if logging was disabled */
 	if (!dev_priv->guc.log.vma || (i915.guc_log_level < 0))
@@ -1451,7 +1517,7 @@ static void i915_gem_capture_guc_log_buffer(struct drm_i915_private *dev_priv,
 
 /* Capture all registers which don't fit into another category. */
 static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
-				   struct drm_i915_error_state *error)
+				   struct i915_gpu_state *error)
 {
 	int i;
 
@@ -1508,9 +1574,11 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 		error->ier = I915_READ(GEN8_DE_MISC_IER);
 		for (i = 0; i < 4; i++)
 			error->gtier[i] = I915_READ(GEN8_GT_IER(i));
+		error->ngtier = 4;
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
 		error->ier = I915_READ(DEIER);
 		error->gtier[0] = I915_READ(GTIER);
+		error->ngtier = 1;
 	} else if (IS_GEN2(dev_priv)) {
 		error->ier = I915_READ16(IER);
 	} else if (!IS_VALLEYVIEW(dev_priv)) {
@@ -1521,7 +1589,7 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 }
 
 static void i915_error_capture_msg(struct drm_i915_private *dev_priv,
-				   struct drm_i915_error_state *error,
+				   struct i915_gpu_state *error,
 				   u32 engine_mask,
 				   const char *error_msg)
 {
@@ -1534,12 +1602,12 @@ static void i915_error_capture_msg(struct drm_i915_private *dev_priv,
 			"GPU HANG: ecode %d:%d:0x%08x",
 			INTEL_GEN(dev_priv), engine_id, ecode);
 
-	if (engine_id != -1 && error->engine[engine_id].pid != -1)
+	if (engine_id != -1 && error->engine[engine_id].context.pid)
 		len += scnprintf(error->error_msg + len,
 				 sizeof(error->error_msg) - len,
 				 ", in %s [%d]",
-				 error->engine[engine_id].comm,
-				 error->engine[engine_id].pid);
+				 error->engine[engine_id].context.comm,
+				 error->engine[engine_id].context.pid);
 
 	scnprintf(error->error_msg + len, sizeof(error->error_msg) - len,
 		  ", reason: %s, action: %s",
@@ -1548,8 +1616,12 @@ static void i915_error_capture_msg(struct drm_i915_private *dev_priv,
 }
 
 static void i915_capture_gen_state(struct drm_i915_private *dev_priv,
-				   struct drm_i915_error_state *error)
+				   struct i915_gpu_state *error)
 {
+	error->awake = dev_priv->gt.awake;
+	error->wakelock = atomic_read(&dev_priv->pm.wakeref_count);
+	error->suspended = dev_priv->pm.suspended;
+
 	error->iommu = -1;
 #ifdef CONFIG_INTEL_IOMMU
 	error->iommu = intel_iommu_gfx_mapped;
@@ -1562,9 +1634,26 @@ static void i915_capture_gen_state(struct drm_i915_private *dev_priv,
 	       sizeof(error->device_info));
 }
 
+static __always_inline void dup_param(const char *type, void *x)
+{
+	if (!__builtin_strcmp(type, "char *"))
+		*(void **)x = kstrdup(*(void **)x, GFP_ATOMIC);
+}
+
 static int capture(void *data)
 {
-	struct drm_i915_error_state *error = data;
+	struct i915_gpu_state *error = data;
+
+	do_gettimeofday(&error->time);
+	error->boottime = ktime_to_timeval(ktime_get_boottime());
+	error->uptime =
+		ktime_to_timeval(ktime_sub(ktime_get(),
+					   error->i915->gt.last_init_time));
+
+	error->params = i915;
+#define DUP(T, x) dup_param(#T, &error->params.x);
+	I915_PARAMS_FOR_EACH(DUP);
+#undef DUP
 
 	i915_capture_gen_state(error->i915, error);
 	i915_capture_reg_state(error->i915, error);
@@ -1574,12 +1663,6 @@ static int capture(void *data)
 	i915_capture_pinned_buffers(error->i915, error);
 	i915_gem_capture_guc_log_buffer(error->i915, error);
 
-	do_gettimeofday(&error->time);
-	error->boottime = ktime_to_timeval(ktime_get_boottime());
-	error->uptime =
-		ktime_to_timeval(ktime_sub(ktime_get(),
-					   error->i915->gt.last_init_time));
-
 	error->overlay = intel_overlay_capture_error_state(error->i915);
 	error->display = intel_display_capture_error_state(error->i915);
 
@@ -1587,6 +1670,23 @@ static int capture(void *data)
 }
 
 #define DAY_AS_SECONDS(x) (24 * 60 * 60 * (x))
+
+struct i915_gpu_state *
+i915_capture_gpu_state(struct drm_i915_private *i915)
+{
+	struct i915_gpu_state *error;
+
+	error = kzalloc(sizeof(*error), GFP_ATOMIC);
+	if (!error)
+		return NULL;
+
+	kref_init(&error->ref);
+	error->i915 = i915;
+
+	stop_machine(capture, error, NULL);
+
+	return error;
+}
 
 /**
  * i915_capture_error_state - capture an error record for later analysis
@@ -1602,7 +1702,7 @@ void i915_capture_error_state(struct drm_i915_private *dev_priv,
 			      const char *error_msg)
 {
 	static bool warned;
-	struct drm_i915_error_state *error;
+	struct i915_gpu_state *error;
 	unsigned long flags;
 
 	if (!i915.error_capture)
@@ -1611,17 +1711,11 @@ void i915_capture_error_state(struct drm_i915_private *dev_priv,
 	if (READ_ONCE(dev_priv->gpu_error.first_error))
 		return;
 
-	/* Account for pipe specific data like PIPE*STAT */
-	error = kzalloc(sizeof(*error), GFP_ATOMIC);
+	error = i915_capture_gpu_state(dev_priv);
 	if (!error) {
 		DRM_DEBUG_DRIVER("out of memory, not capturing error state\n");
 		return;
 	}
-
-	kref_init(&error->ref);
-	error->i915 = dev_priv;
-
-	stop_machine(capture, error, NULL);
 
 	i915_error_capture_msg(dev_priv, error, engine_mask, error_msg);
 	DRM_INFO("%s\n", error->error_msg);
@@ -1636,7 +1730,7 @@ void i915_capture_error_state(struct drm_i915_private *dev_priv,
 	}
 
 	if (error) {
-		i915_error_state_free(&error->ref);
+		__i915_gpu_state_free(&error->ref);
 		return;
 	}
 
@@ -1652,33 +1746,28 @@ void i915_capture_error_state(struct drm_i915_private *dev_priv,
 	}
 }
 
-void i915_error_state_get(struct drm_device *dev,
-			  struct i915_error_state_file_priv *error_priv)
+struct i915_gpu_state *
+i915_first_error_state(struct drm_i915_private *i915)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct i915_gpu_state *error;
 
-	spin_lock_irq(&dev_priv->gpu_error.lock);
-	error_priv->error = dev_priv->gpu_error.first_error;
-	if (error_priv->error)
-		kref_get(&error_priv->error->ref);
-	spin_unlock_irq(&dev_priv->gpu_error.lock);
-}
-
-void i915_error_state_put(struct i915_error_state_file_priv *error_priv)
-{
-	if (error_priv->error)
-		kref_put(&error_priv->error->ref, i915_error_state_free);
-}
-
-void i915_destroy_error_state(struct drm_i915_private *dev_priv)
-{
-	struct drm_i915_error_state *error;
-
-	spin_lock_irq(&dev_priv->gpu_error.lock);
-	error = dev_priv->gpu_error.first_error;
-	dev_priv->gpu_error.first_error = NULL;
-	spin_unlock_irq(&dev_priv->gpu_error.lock);
-
+	spin_lock_irq(&i915->gpu_error.lock);
+	error = i915->gpu_error.first_error;
 	if (error)
-		kref_put(&error->ref, i915_error_state_free);
+		i915_gpu_state_get(error);
+	spin_unlock_irq(&i915->gpu_error.lock);
+
+	return error;
+}
+
+void i915_reset_error_state(struct drm_i915_private *i915)
+{
+	struct i915_gpu_state *error;
+
+	spin_lock_irq(&i915->gpu_error.lock);
+	error = i915->gpu_error.first_error;
+	i915->gpu_error.first_error = NULL;
+	spin_unlock_irq(&i915->gpu_error.lock);
+
+	i915_gpu_state_put(error);
 }

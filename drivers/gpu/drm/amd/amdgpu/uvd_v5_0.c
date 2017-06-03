@@ -51,7 +51,7 @@ static void uvd_v5_0_enable_mgcg(struct amdgpu_device *adev,
  *
  * Returns the current hardware read pointer
  */
-static uint32_t uvd_v5_0_ring_get_rptr(struct amdgpu_ring *ring)
+static uint64_t uvd_v5_0_ring_get_rptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 
@@ -65,7 +65,7 @@ static uint32_t uvd_v5_0_ring_get_rptr(struct amdgpu_ring *ring)
  *
  * Returns the current hardware write pointer
  */
-static uint32_t uvd_v5_0_ring_get_wptr(struct amdgpu_ring *ring)
+static uint64_t uvd_v5_0_ring_get_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 
@@ -83,7 +83,7 @@ static void uvd_v5_0_ring_set_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 
-	WREG32(mmUVD_RBC_RB_WPTR, ring->wptr);
+	WREG32(mmUVD_RBC_RB_WPTR, lower_32_bits(ring->wptr));
 }
 
 static int uvd_v5_0_early_init(void *handle)
@@ -103,7 +103,7 @@ static int uvd_v5_0_sw_init(void *handle)
 	int r;
 
 	/* UVD TRAP */
-	r = amdgpu_irq_add_id(adev, 124, &adev->uvd.irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 124, &adev->uvd.irq);
 	if (r)
 		return r;
 
@@ -131,11 +131,7 @@ static int uvd_v5_0_sw_fini(void *handle)
 	if (r)
 		return r;
 
-	r = amdgpu_uvd_sw_fini(adev);
-	if (r)
-		return r;
-
-	return r;
+	return amdgpu_uvd_sw_fini(adev);
 }
 
 /**
@@ -228,11 +224,7 @@ static int uvd_v5_0_suspend(void *handle)
 		return r;
 	uvd_v5_0_set_clockgating_state(adev, AMD_CG_STATE_GATE);
 
-	r = amdgpu_uvd_suspend(adev);
-	if (r)
-		return r;
-
-	return r;
+	return amdgpu_uvd_suspend(adev);
 }
 
 static int uvd_v5_0_resume(void *handle)
@@ -244,11 +236,7 @@ static int uvd_v5_0_resume(void *handle)
 	if (r)
 		return r;
 
-	r = uvd_v5_0_hw_init(adev);
-	if (r)
-		return r;
-
-	return r;
+	return uvd_v5_0_hw_init(adev);
 }
 
 /**
@@ -424,7 +412,7 @@ static int uvd_v5_0_start(struct amdgpu_device *adev)
 	WREG32(mmUVD_RBC_RB_RPTR, 0);
 
 	ring->wptr = RREG32(mmUVD_RBC_RB_RPTR);
-	WREG32(mmUVD_RBC_RB_WPTR, ring->wptr);
+	WREG32(mmUVD_RBC_RB_WPTR, lower_32_bits(ring->wptr));
 
 	WREG32_P(mmUVD_RBC_RB_CNTL, 0, ~UVD_RBC_RB_CNTL__RB_NO_FETCH_MASK);
 
@@ -879,6 +867,7 @@ static const struct amdgpu_ring_funcs uvd_v5_0_ring_funcs = {
 	.type = AMDGPU_RING_TYPE_UVD,
 	.align_mask = 0xf,
 	.nop = PACKET0(mmUVD_NO_OP, 0),
+	.support_64bit_ptrs = false,
 	.get_rptr = uvd_v5_0_ring_get_rptr,
 	.get_wptr = uvd_v5_0_ring_get_wptr,
 	.set_wptr = uvd_v5_0_ring_set_wptr,

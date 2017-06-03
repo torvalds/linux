@@ -68,7 +68,7 @@ void btrfs_leak_debug_check(void)
 		pr_err("BTRFS: state leak: start %llu end %llu state %u in tree %d refs %d\n",
 		       state->start, state->end, state->state,
 		       extent_state_in_tree(state),
-		       atomic_read(&state->refs));
+		       refcount_read(&state->refs));
 		list_del(&state->leak_list);
 		kmem_cache_free(extent_state_cache, state);
 	}
@@ -238,7 +238,7 @@ static struct extent_state *alloc_extent_state(gfp_t mask)
 	state->failrec = NULL;
 	RB_CLEAR_NODE(&state->rb_node);
 	btrfs_leak_debug_add(&state->leak_list, &states);
-	atomic_set(&state->refs, 1);
+	refcount_set(&state->refs, 1);
 	init_waitqueue_head(&state->wq);
 	trace_alloc_extent_state(state, mask, _RET_IP_);
 	return state;
@@ -248,7 +248,7 @@ void free_extent_state(struct extent_state *state)
 {
 	if (!state)
 		return;
-	if (atomic_dec_and_test(&state->refs)) {
+	if (refcount_dec_and_test(&state->refs)) {
 		WARN_ON(extent_state_in_tree(state));
 		btrfs_leak_debug_del(&state->leak_list);
 		trace_free_extent_state(state, _RET_IP_);
@@ -641,7 +641,7 @@ again:
 		if (cached && extent_state_in_tree(cached) &&
 		    cached->start <= start && cached->end > start) {
 			if (clear)
-				atomic_dec(&cached->refs);
+				refcount_dec(&cached->refs);
 			state = cached;
 			goto hit_next;
 		}
@@ -793,7 +793,7 @@ process_node:
 
 		if (state->state & bits) {
 			start = state->start;
-			atomic_inc(&state->refs);
+			refcount_inc(&state->refs);
 			wait_on_state(tree, state);
 			free_extent_state(state);
 			goto again;
@@ -834,7 +834,7 @@ static void cache_state_if_flags(struct extent_state *state,
 	if (cached_ptr && !(*cached_ptr)) {
 		if (!flags || (state->state & flags)) {
 			*cached_ptr = state;
-			atomic_inc(&state->refs);
+			refcount_inc(&state->refs);
 		}
 	}
 }
@@ -1538,7 +1538,7 @@ static noinline u64 find_delalloc_range(struct extent_io_tree *tree,
 		if (!found) {
 			*start = state->start;
 			*cached_state = state;
-			atomic_inc(&state->refs);
+			refcount_inc(&state->refs);
 		}
 		found++;
 		*end = state->end;
@@ -2004,15 +2004,10 @@ int repair_io_failure(struct btrfs_inode *inode, u64 start, u64 length,
 	u64 map_length = 0;
 	u64 sector;
 	struct btrfs_bio *bbio = NULL;
-	struct btrfs_mapping_tree *map_tree = &fs_info->mapping_tree;
 	int ret;
 
 	ASSERT(!(fs_info->sb->s_flags & MS_RDONLY));
 	BUG_ON(!mirror_num);
-
-	/* we can't repair anything in raid56 yet */
-	if (btrfs_is_parity_mirror(map_tree, logical, length, mirror_num))
-		return 0;
 
 	bio = btrfs_io_bio_alloc(GFP_NOFS, 1);
 	if (!bio)
@@ -2026,17 +2021,35 @@ int repair_io_failure(struct btrfs_inode *inode, u64 start, u64 length,
 	 * read repair operation.
 	 */
 	btrfs_bio_counter_inc_blocked(fs_info);
-	ret = btrfs_map_block(fs_info, BTRFS_MAP_WRITE, logical,
-			      &map_length, &bbio, mirror_num);
-	if (ret) {
-		btrfs_bio_counter_dec(fs_info);
-		bio_put(bio);
-		return -EIO;
+	if (btrfs_is_parity_mirror(fs_info, logical, length, mirror_num)) {
+		/*
+		 * Note that we don't use BTRFS_MAP_WRITE because it's supposed
+		 * to update all raid stripes, but here we just want to correct
+		 * bad stripe, thus BTRFS_MAP_READ is abused to only get the bad
+		 * stripe's dev and sector.
+		 */
+		ret = btrfs_map_block(fs_info, BTRFS_MAP_READ, logical,
+				      &map_length, &bbio, 0);
+		if (ret) {
+			btrfs_bio_counter_dec(fs_info);
+			bio_put(bio);
+			return -EIO;
+		}
+		ASSERT(bbio->mirror_num == 1);
+	} else {
+		ret = btrfs_map_block(fs_info, BTRFS_MAP_WRITE, logical,
+				      &map_length, &bbio, mirror_num);
+		if (ret) {
+			btrfs_bio_counter_dec(fs_info);
+			bio_put(bio);
+			return -EIO;
+		}
+		BUG_ON(mirror_num != bbio->mirror_num);
 	}
-	BUG_ON(mirror_num != bbio->mirror_num);
-	sector = bbio->stripes[mirror_num-1].physical >> 9;
+
+	sector = bbio->stripes[bbio->mirror_num - 1].physical >> 9;
 	bio->bi_iter.bi_sector = sector;
-	dev = bbio->stripes[mirror_num-1].dev;
+	dev = bbio->stripes[bbio->mirror_num - 1].dev;
 	btrfs_put_bbio(bbio);
 	if (!dev || !dev->bdev || !dev->writeable) {
 		btrfs_bio_counter_dec(fs_info);
@@ -2859,7 +2872,7 @@ __get_extent_map(struct inode *inode, struct page *page, size_t pg_offset,
 		em = *em_cached;
 		if (extent_map_in_tree(em) && start >= em->start &&
 		    start < extent_map_end(em)) {
-			atomic_inc(&em->refs);
+			refcount_inc(&em->refs);
 			return em;
 		}
 
@@ -2870,7 +2883,7 @@ __get_extent_map(struct inode *inode, struct page *page, size_t pg_offset,
 	em = get_extent(BTRFS_I(inode), page, pg_offset, start, len, 0);
 	if (em_cached && !IS_ERR_OR_NULL(em)) {
 		BUG_ON(*em_cached);
-		atomic_inc(&em->refs);
+		refcount_inc(&em->refs);
 		*em_cached = em;
 	}
 	return em;

@@ -35,7 +35,6 @@
 #define PCIE8897_B0_FW_NAME "mrvl/pcie8897_uapsta.bin"
 #define PCIEUART8997_FW_NAME_V4 "mrvl/pcieuart8997_combo_v4.bin"
 #define PCIEUSB8997_FW_NAME_V4 "mrvl/pcieusb8997_combo_v4.bin"
-#define PCIE8997_DEFAULT_WIFIFW_NAME "mrvl/pcie8997_wlan_v4.bin"
 
 #define PCIE_VENDOR_ID_MARVELL              (0x11ab)
 #define PCIE_VENDOR_ID_V2_MARVELL           (0x1b4b)
@@ -77,8 +76,9 @@
 #define PCIE_SCRATCH_10_REG				0xCE8
 #define PCIE_SCRATCH_11_REG				0xCEC
 #define PCIE_SCRATCH_12_REG				0xCF0
-#define PCIE_SCRATCH_13_REG				0xCF8
-#define PCIE_SCRATCH_14_REG				0xCFC
+#define PCIE_SCRATCH_13_REG				0xCF4
+#define PCIE_SCRATCH_14_REG				0xCF8
+#define PCIE_SCRATCH_15_REG				0xCFC
 #define PCIE_RD_DATA_PTR_Q0_Q1                          0xC08C
 #define PCIE_WR_DATA_PTR_Q0_Q1                          0xC05C
 
@@ -118,6 +118,8 @@
 #define MWIFIEX_DEF_SLEEP_COOKIE			0xBEEFBEEF
 #define MWIFIEX_SLEEP_COOKIE_SIZE			4
 #define MWIFIEX_MAX_DELAY_COUNT				100
+
+#define MWIFIEX_PCIE_FLR_HAPPENS 0xFEDCBABA
 
 struct mwifiex_pcie_card_reg {
 	u16 cmd_addr_lo;
@@ -217,8 +219,8 @@ static const struct mwifiex_pcie_card_reg mwifiex_reg_8897 = {
 	.ring_tx_start_ptr = MWIFIEX_BD_FLAG_TX_START_PTR,
 	.pfu_enabled = 1,
 	.sleep_cookie = 0,
-	.fw_dump_ctrl = 0xcf4,
-	.fw_dump_start = 0xcf8,
+	.fw_dump_ctrl = PCIE_SCRATCH_13_REG,
+	.fw_dump_start = PCIE_SCRATCH_14_REG,
 	.fw_dump_end = 0xcff,
 	.fw_dump_host_ready = 0xee,
 	.fw_dump_read_done = 0xfe,
@@ -254,8 +256,8 @@ static const struct mwifiex_pcie_card_reg mwifiex_reg_8997 = {
 	.ring_tx_start_ptr = MWIFIEX_BD_FLAG_TX_START_PTR,
 	.pfu_enabled = 1,
 	.sleep_cookie = 0,
-	.fw_dump_ctrl = 0xcf4,
-	.fw_dump_start = 0xcf8,
+	.fw_dump_ctrl = PCIE_SCRATCH_13_REG,
+	.fw_dump_start = PCIE_SCRATCH_14_REG,
 	.fw_dump_end = 0xcff,
 	.fw_dump_host_ready = 0xcc,
 	.fw_dump_read_done = 0xdd,

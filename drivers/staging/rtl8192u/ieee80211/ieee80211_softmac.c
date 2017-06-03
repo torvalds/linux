@@ -466,7 +466,7 @@ void ieee80211_softmac_scan_syncro(struct ieee80211_device *ieee)
 			goto out;
 		ieee->set_chan(ieee->dev, ch);
 		if(channel_map[ch] == 1)
-		ieee80211_send_probe_requests(ieee);
+			ieee80211_send_probe_requests(ieee);
 
 		/* this prevent excessive time wait when we
 		 * need to wait for a syncro scan to end..
@@ -3025,7 +3025,7 @@ static int ieee80211_wpa_set_encryption(struct ieee80211_device *ieee,
 		ieee80211_crypt_delayed_deinit(ieee, crypt);
 
 		new_crypt = kzalloc(sizeof(*new_crypt), GFP_KERNEL);
-		if (new_crypt == NULL) {
+		if (!new_crypt) {
 			ret = -ENOMEM;
 			goto done;
 		}

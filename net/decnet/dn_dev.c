@@ -565,7 +565,8 @@ static const struct nla_policy dn_ifa_policy[IFA_MAX+1] = {
 	[IFA_FLAGS]		= { .type = NLA_U32 },
 };
 
-static int dn_nl_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int dn_nl_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh,
+			 struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *tb[IFA_MAX+1];
@@ -581,7 +582,8 @@ static int dn_nl_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh)
 	if (!net_eq(net, &init_net))
 		goto errout;
 
-	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, dn_ifa_policy);
+	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, dn_ifa_policy,
+			  extack);
 	if (err < 0)
 		goto errout;
 
@@ -609,7 +611,8 @@ errout:
 	return err;
 }
 
-static int dn_nl_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int dn_nl_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
+			 struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *tb[IFA_MAX+1];
@@ -625,7 +628,8 @@ static int dn_nl_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh)
 	if (!net_eq(net, &init_net))
 		return -EINVAL;
 
-	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, dn_ifa_policy);
+	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, dn_ifa_policy,
+			  extack);
 	if (err < 0)
 		return err;
 

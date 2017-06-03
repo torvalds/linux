@@ -15,13 +15,13 @@
 #include <pmem.h>
 #include <nd.h>
 
-long pmem_direct_access(struct block_device *bdev, sector_t sector,
-		void **kaddr, pfn_t *pfn, long size)
+long __pmem_direct_access(struct pmem_device *pmem, pgoff_t pgoff,
+		long nr_pages, void **kaddr, pfn_t *pfn)
 {
-	struct pmem_device *pmem = bdev->bd_queue->queuedata;
-	resource_size_t offset = sector * 512 + pmem->data_offset;
+	resource_size_t offset = PFN_PHYS(pgoff) + pmem->data_offset;
 
-	if (unlikely(is_bad_pmem(&pmem->bb, sector, size)))
+	if (unlikely(is_bad_pmem(&pmem->bb, PFN_PHYS(pgoff) / 512,
+					PFN_PHYS(nr_pages))))
 		return -EIO;
 
 	/*
@@ -34,11 +34,10 @@ long pmem_direct_access(struct block_device *bdev, sector_t sector,
 		*kaddr = pmem->virt_addr + offset;
 		page = vmalloc_to_page(pmem->virt_addr + offset);
 		*pfn = page_to_pfn_t(page);
-		dev_dbg_ratelimited(disk_to_dev(bdev->bd_disk)->parent,
-				"%s: sector: %#llx pfn: %#lx\n", __func__,
-				(unsigned long long) sector, page_to_pfn(page));
+		pr_debug_ratelimited("%s: pmem: %p pgoff: %#lx pfn: %#lx\n",
+				__func__, pmem, pgoff, page_to_pfn(page));
 
-		return PAGE_SIZE;
+		return 1;
 	}
 
 	*kaddr = pmem->virt_addr + offset;
@@ -49,6 +48,6 @@ long pmem_direct_access(struct block_device *bdev, sector_t sector,
 	 * requested range.
 	 */
 	if (unlikely(pmem->bb.count))
-		return size;
-	return pmem->size - pmem->pfn_pad - offset;
+		return nr_pages;
+	return PHYS_PFN(pmem->size - pmem->pfn_pad - offset);
 }

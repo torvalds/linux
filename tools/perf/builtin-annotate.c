@@ -33,6 +33,7 @@
 #include "util/block-range.h"
 
 #include <dlfcn.h>
+#include <errno.h>
 #include <linux/bitmap.h>
 
 struct perf_annotate {
@@ -383,7 +384,7 @@ static const char * const annotate_usage[] = {
 	NULL
 };
 
-int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_annotate(int argc, const char **argv)
 {
 	struct perf_annotate annotate = {
 		.tool = {
@@ -393,6 +394,9 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 			.comm	= perf_event__process_comm,
 			.exit	= perf_event__process_exit,
 			.fork	= perf_event__process_fork,
+			.namespaces = perf_event__process_namespaces,
+			.attr	= perf_event__process_attr,
+			.build_id = perf_event__process_build_id,
 			.ordered_events = true,
 			.ordering_requires_timestamps = true,
 		},

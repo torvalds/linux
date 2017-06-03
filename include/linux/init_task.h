@@ -15,6 +15,7 @@
 #include <linux/sched/autogroup.h>
 #include <net/net_namespace.h>
 #include <linux/sched/rt.h>
+#include <linux/livepatch.h>
 #include <linux/mm_types.h>
 
 #include <asm/thread_info.h>
@@ -181,6 +182,7 @@ extern struct cred init_cred;
 #ifdef CONFIG_RT_MUTEXES
 # define INIT_RT_MUTEXES(tsk)						\
 	.pi_waiters = RB_ROOT,						\
+	.pi_top_task = NULL,						\
 	.pi_waiters_leftmost = NULL,
 #else
 # define INIT_RT_MUTEXES(tsk)
@@ -202,12 +204,25 @@ extern struct cred init_cred;
 # define INIT_KASAN(tsk)
 #endif
 
+#ifdef CONFIG_LIVEPATCH
+# define INIT_LIVEPATCH(tsk)						\
+	.patch_state = KLP_UNDEFINED,
+#else
+# define INIT_LIVEPATCH(tsk)
+#endif
+
 #ifdef CONFIG_THREAD_INFO_IN_TASK
 # define INIT_TASK_TI(tsk)			\
 	.thread_info = INIT_THREAD_INFO(tsk),	\
 	.stack_refcount = ATOMIC_INIT(1),
 #else
 # define INIT_TASK_TI(tsk)
+#endif
+
+#ifdef CONFIG_SECURITY
+#define INIT_TASK_SECURITY .security = NULL,
+#else
+#define INIT_TASK_SECURITY
 #endif
 
 /*
@@ -288,6 +303,8 @@ extern struct cred init_cred;
 	INIT_VTIME(tsk)							\
 	INIT_NUMA_BALANCING(tsk)					\
 	INIT_KASAN(tsk)							\
+	INIT_LIVEPATCH(tsk)						\
+	INIT_TASK_SECURITY						\
 }
 
 

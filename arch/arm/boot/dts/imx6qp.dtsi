@@ -56,40 +56,59 @@
 			clocks = <&clks IMX6QDL_CLK_OCRAM>;
 		};
 
-		ipu1: ipu@02400000 {
-			compatible = "fsl,imx6qp-ipu", "fsl,imx6q-ipu";
-			clocks = <&clks IMX6QDL_CLK_IPU1>,
-				 <&clks IMX6QDL_CLK_IPU1_DI0>, <&clks IMX6QDL_CLK_IPU1_DI1>,
-				 <&clks IMX6QDL_CLK_IPU1_DI0_SEL>, <&clks IMX6QDL_CLK_IPU1_DI1_SEL>,
-				 <&clks IMX6QDL_CLK_LDB_DI0_PODF>, <&clks IMX6QDL_CLK_LDB_DI1_PODF>,
-				 <&clks IMX6QDL_CLK_PRG0_APB>;
-			clock-names = "bus",
-				      "di0", "di1",
-				      "di0_sel", "di1_sel",
-				      "ldb_di0", "ldb_di1", "prg";
-		};
-
-		ipu2: ipu@02800000 {
-			compatible = "fsl,imx6qp-ipu", "fsl,imx6q-ipu";
-			clocks = <&clks IMX6QDL_CLK_IPU2>,
-				 <&clks IMX6QDL_CLK_IPU2_DI0>, <&clks IMX6QDL_CLK_IPU2_DI1>,
-				 <&clks IMX6QDL_CLK_IPU2_DI0_SEL>, <&clks IMX6QDL_CLK_IPU2_DI1_SEL>,
-				 <&clks IMX6QDL_CLK_LDB_DI0_PODF>, <&clks IMX6QDL_CLK_LDB_DI1_PODF>,
-				 <&clks IMX6QDL_CLK_PRG1_APB>;
-			clock-names = "bus",
-				      "di0", "di1",
-				      "di0_sel", "di1_sel",
-				      "ldb_di0", "ldb_di1", "prg";
-		};
-
-		pcie: pcie@0x01000000 {
-			compatible = "fsl,imx6qp-pcie", "snps,dw-pcie";
-		};
-
 		aips-bus@02100000 {
-			mmdc0: mmdc@021b0000 { /* MMDC0 */
-				compatible = "fsl,imx6qp-mmdc", "fsl,imx6q-mmdc";
-				reg = <0x021b0000 0x4000>;
+			pre1: pre@21c8000 {
+				compatible = "fsl,imx6qp-pre";
+				reg = <0x021c8000 0x1000>;
+				interrupts = <GIC_SPI 90 IRQ_TYPE_EDGE_RISING>;
+				clocks = <&clks IMX6QDL_CLK_PRE0>;
+				clock-names = "axi";
+				fsl,iram = <&ocram2>;
+			};
+
+			pre2: pre@21c9000 {
+				compatible = "fsl,imx6qp-pre";
+				reg = <0x021c9000 0x1000>;
+				interrupts = <GIC_SPI 97 IRQ_TYPE_EDGE_RISING>;
+				clocks = <&clks IMX6QDL_CLK_PRE1>;
+				clock-names = "axi";
+				fsl,iram = <&ocram2>;
+			};
+
+			pre3: pre@21ca000 {
+				compatible = "fsl,imx6qp-pre";
+				reg = <0x021ca000 0x1000>;
+				interrupts = <GIC_SPI 98 IRQ_TYPE_EDGE_RISING>;
+				clocks = <&clks IMX6QDL_CLK_PRE2>;
+				clock-names = "axi";
+				fsl,iram = <&ocram3>;
+			};
+
+			pre4: pre@21cb000 {
+				compatible = "fsl,imx6qp-pre";
+				reg = <0x021cb000 0x1000>;
+				interrupts = <GIC_SPI 99 IRQ_TYPE_EDGE_RISING>;
+				clocks = <&clks IMX6QDL_CLK_PRE3>;
+				clock-names = "axi";
+				fsl,iram = <&ocram3>;
+			};
+
+			prg1: prg@21cc000 {
+				compatible = "fsl,imx6qp-prg";
+				reg = <0x021cc000 0x1000>;
+				clocks = <&clks IMX6QDL_CLK_PRG0_APB>,
+					 <&clks IMX6QDL_CLK_PRG0_AXI>;
+				clock-names = "ipg", "axi";
+				fsl,pres = <&pre1>, <&pre2>, <&pre3>;
+			};
+
+			prg2: prg@21cd000 {
+				compatible = "fsl,imx6qp-prg";
+				reg = <0x021cd000 0x1000>;
+				clocks = <&clks IMX6QDL_CLK_PRG1_APB>,
+					 <&clks IMX6QDL_CLK_PRG1_AXI>;
+				clock-names = "ipg", "axi";
+				fsl,pres = <&pre4>, <&pre2>, <&pre3>;
 			};
 		};
 	};
@@ -101,6 +120,16 @@
 		     <0 119 IRQ_TYPE_LEVEL_HIGH>;
 };
 
+&ipu1 {
+	compatible = "fsl,imx6qp-ipu", "fsl,imx6q-ipu";
+	fsl,prg = <&prg1>;
+};
+
+&ipu2 {
+	compatible = "fsl,imx6qp-ipu", "fsl,imx6q-ipu";
+	fsl,prg = <&prg2>;
+};
+
 &ldb {
 	clocks = <&clks IMX6QDL_CLK_LDB_DI0_SEL>, <&clks IMX6QDL_CLK_LDB_DI1_SEL>,
 		 <&clks IMX6QDL_CLK_IPU1_DI0_SEL>, <&clks IMX6QDL_CLK_IPU1_DI1_SEL>,
@@ -109,4 +138,12 @@
 	clock-names = "di0_pll", "di1_pll",
 		      "di0_sel", "di1_sel", "di2_sel", "di3_sel",
 		      "di0", "di1";
+};
+
+&mmdc0 {
+	compatible = "fsl,imx6qp-mmdc", "fsl,imx6q-mmdc";
+};
+
+&pcie {
+	compatible = "fsl,imx6qp-pcie", "snps,dw-pcie";
 };

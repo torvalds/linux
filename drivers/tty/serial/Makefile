@@ -3,7 +3,6 @@
 #
 
 obj-$(CONFIG_SERIAL_CORE) += serial_core.o
-obj-$(CONFIG_SERIAL_21285) += 21285.o
 
 obj-$(CONFIG_SERIAL_EARLYCON) += earlycon.o
 obj-$(CONFIG_SERIAL_EARLYCON_ARM_SEMIHOST) += earlycon-arm-semihost.o
@@ -16,6 +15,8 @@ obj-$(CONFIG_SERIAL_SUNHV) += sunhv.o
 obj-$(CONFIG_SERIAL_SUNZILOG) += sunzilog.o
 obj-$(CONFIG_SERIAL_SUNSU) += sunsu.o
 obj-$(CONFIG_SERIAL_SUNSAB) += sunsab.o
+
+obj-$(CONFIG_SERIAL_21285) += 21285.o
 
 # Now bring in any enabled 8250/16450/16550 type drivers.
 obj-$(CONFIG_SERIAL_8250) += 8250/

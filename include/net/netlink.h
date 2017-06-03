@@ -233,14 +233,17 @@ struct nl_info {
 };
 
 int netlink_rcv_skb(struct sk_buff *skb,
-		    int (*cb)(struct sk_buff *, struct nlmsghdr *));
+		    int (*cb)(struct sk_buff *, struct nlmsghdr *,
+			      struct netlink_ext_ack *));
 int nlmsg_notify(struct sock *sk, struct sk_buff *skb, u32 portid,
 		 unsigned int group, int report, gfp_t flags);
 
 int nla_validate(const struct nlattr *head, int len, int maxtype,
-		 const struct nla_policy *policy);
+		 const struct nla_policy *policy,
+		 struct netlink_ext_ack *extack);
 int nla_parse(struct nlattr **tb, int maxtype, const struct nlattr *head,
-	      int len, const struct nla_policy *policy);
+	      int len, const struct nla_policy *policy,
+	      struct netlink_ext_ack *extack);
 int nla_policy_len(const struct nla_policy *, int);
 struct nlattr *nla_find(const struct nlattr *head, int len, int attrtype);
 size_t nla_strlcpy(char *dst, const struct nlattr *nla, size_t dstsize);
@@ -374,18 +377,20 @@ nlmsg_next(const struct nlmsghdr *nlh, int *remaining)
  * @tb: destination array with maxtype+1 elements
  * @maxtype: maximum attribute type to be expected
  * @policy: validation policy
+ * @extack: extended ACK report struct
  *
  * See nla_parse()
  */
 static inline int nlmsg_parse(const struct nlmsghdr *nlh, int hdrlen,
 			      struct nlattr *tb[], int maxtype,
-			      const struct nla_policy *policy)
+			      const struct nla_policy *policy,
+			      struct netlink_ext_ack *extack)
 {
 	if (nlh->nlmsg_len < nlmsg_msg_size(hdrlen))
 		return -EINVAL;
 
 	return nla_parse(tb, maxtype, nlmsg_attrdata(nlh, hdrlen),
-			 nlmsg_attrlen(nlh, hdrlen), policy);
+			 nlmsg_attrlen(nlh, hdrlen), policy, extack);
 }
 
 /**
@@ -409,16 +414,19 @@ static inline struct nlattr *nlmsg_find_attr(const struct nlmsghdr *nlh,
  * @hdrlen: length of familiy specific header
  * @maxtype: maximum attribute type to be expected
  * @policy: validation policy
+ * @extack: extended ACK report struct
  */
 static inline int nlmsg_validate(const struct nlmsghdr *nlh,
 				 int hdrlen, int maxtype,
-				 const struct nla_policy *policy)
+				 const struct nla_policy *policy,
+				 struct netlink_ext_ack *extack)
 {
 	if (nlh->nlmsg_len < nlmsg_msg_size(hdrlen))
 		return -EINVAL;
 
 	return nla_validate(nlmsg_attrdata(nlh, hdrlen),
-			    nlmsg_attrlen(nlh, hdrlen), maxtype, policy);
+			    nlmsg_attrlen(nlh, hdrlen), maxtype, policy,
+			    extack);
 }
 
 /**
@@ -739,14 +747,17 @@ nla_find_nested(const struct nlattr *nla, int attrtype)
  * @maxtype: maximum attribute type to be expected
  * @nla: attribute containing the nested attributes
  * @policy: validation policy
+ * @extack: extended ACK report struct
  *
  * See nla_parse()
  */
 static inline int nla_parse_nested(struct nlattr *tb[], int maxtype,
 				   const struct nlattr *nla,
-				   const struct nla_policy *policy)
+				   const struct nla_policy *policy,
+				   struct netlink_ext_ack *extack)
 {
-	return nla_parse(tb, maxtype, nla_data(nla), nla_len(nla), policy);
+	return nla_parse(tb, maxtype, nla_data(nla), nla_len(nla), policy,
+			 extack);
 }
 
 /**
@@ -1252,6 +1263,7 @@ static inline void nla_nest_cancel(struct sk_buff *skb, struct nlattr *start)
  * @start: container attribute
  * @maxtype: maximum attribute type to be expected
  * @policy: validation policy
+ * @extack: extended ACK report struct
  *
  * Validates all attributes in the nested attribute stream against the
  * specified policy. Attributes with a type exceeding maxtype will be
@@ -1260,9 +1272,11 @@ static inline void nla_nest_cancel(struct sk_buff *skb, struct nlattr *start)
  * Returns 0 on success or a negative error code.
  */
 static inline int nla_validate_nested(const struct nlattr *start, int maxtype,
-				      const struct nla_policy *policy)
+				      const struct nla_policy *policy,
+				      struct netlink_ext_ack *extack)
 {
-	return nla_validate(nla_data(start), nla_len(start), maxtype, policy);
+	return nla_validate(nla_data(start), nla_len(start), maxtype, policy,
+			    extack);
 }
 
 /**

@@ -15,6 +15,9 @@ int reset_control_status(struct reset_control *rstc);
 struct reset_control *__of_reset_control_get(struct device_node *node,
 				     const char *id, int index, bool shared,
 				     bool optional);
+struct reset_control *__reset_control_get(struct device *dev, const char *id,
+					  int index, bool shared,
+					  bool optional);
 void reset_control_put(struct reset_control *rstc);
 struct reset_control *__devm_reset_control_get(struct device *dev,
 				     const char *id, int index, bool shared,
@@ -72,6 +75,13 @@ static inline struct reset_control *__of_reset_control_get(
 	return optional ? NULL : ERR_PTR(-ENOTSUPP);
 }
 
+static inline struct reset_control *__reset_control_get(
+					struct device *dev, const char *id,
+					int index, bool shared, bool optional)
+{
+	return optional ? NULL : ERR_PTR(-ENOTSUPP);
+}
+
 static inline struct reset_control *__devm_reset_control_get(
 					struct device *dev, const char *id,
 					int index, bool shared, bool optional)
@@ -102,8 +112,7 @@ __must_check reset_control_get_exclusive(struct device *dev, const char *id)
 #ifndef CONFIG_RESET_CONTROLLER
 	WARN_ON(1);
 #endif
-	return __of_reset_control_get(dev ? dev->of_node : NULL, id, 0, false,
-									false);
+	return __reset_control_get(dev, id, 0, false, false);
 }
 
 /**
@@ -131,22 +140,19 @@ __must_check reset_control_get_exclusive(struct device *dev, const char *id)
 static inline struct reset_control *reset_control_get_shared(
 					struct device *dev, const char *id)
 {
-	return __of_reset_control_get(dev ? dev->of_node : NULL, id, 0, true,
-									false);
+	return __reset_control_get(dev, id, 0, true, false);
 }
 
 static inline struct reset_control *reset_control_get_optional_exclusive(
 					struct device *dev, const char *id)
 {
-	return __of_reset_control_get(dev ? dev->of_node : NULL, id, 0, false,
-									true);
+	return __reset_control_get(dev, id, 0, false, true);
 }
 
 static inline struct reset_control *reset_control_get_optional_shared(
 					struct device *dev, const char *id)
 {
-	return __of_reset_control_get(dev ? dev->of_node : NULL, id, 0, true,
-									true);
+	return __reset_control_get(dev, id, 0, true, true);
 }
 
 /**

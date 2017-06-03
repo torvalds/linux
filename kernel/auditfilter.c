@@ -338,7 +338,7 @@ static int audit_field_valid(struct audit_entry *entry, struct audit_field *f)
 		    entry->rule.listnr != AUDIT_FILTER_USER)
 			return -EINVAL;
 		break;
-	};
+	}
 
 	switch(f->type) {
 	default:
@@ -412,7 +412,7 @@ static int audit_field_valid(struct audit_entry *entry, struct audit_field *f)
 		if (entry->rule.listnr != AUDIT_FILTER_EXIT)
 			return -EINVAL;
 		break;
-	};
+	}
 	return 0;
 }
 
@@ -1033,7 +1033,7 @@ out:
 }
 
 /* List rules using struct audit_rule_data. */
-static void audit_list_rules(__u32 portid, int seq, struct sk_buff_head *q)
+static void audit_list_rules(int seq, struct sk_buff_head *q)
 {
 	struct sk_buff *skb;
 	struct audit_krule *r;
@@ -1048,15 +1048,15 @@ static void audit_list_rules(__u32 portid, int seq, struct sk_buff_head *q)
 			data = audit_krule_to_data(r);
 			if (unlikely(!data))
 				break;
-			skb = audit_make_reply(portid, seq, AUDIT_LIST_RULES,
-					       0, 1, data,
+			skb = audit_make_reply(seq, AUDIT_LIST_RULES, 0, 1,
+					       data,
 					       sizeof(*data) + data->buflen);
 			if (skb)
 				skb_queue_tail(q, skb);
 			kfree(data);
 		}
 	}
-	skb = audit_make_reply(portid, seq, AUDIT_LIST_RULES, 1, 1, NULL, 0);
+	skb = audit_make_reply(seq, AUDIT_LIST_RULES, 1, 1, NULL, 0);
 	if (skb)
 		skb_queue_tail(q, skb);
 }
@@ -1085,13 +1085,11 @@ static void audit_log_rule_change(char *action, struct audit_krule *rule, int re
 /**
  * audit_rule_change - apply all rules to the specified message type
  * @type: audit message type
- * @portid: target port id for netlink audit messages
  * @seq: netlink audit message sequence (serial) number
  * @data: payload data
  * @datasz: size of payload data
  */
-int audit_rule_change(int type, __u32 portid, int seq, void *data,
-			size_t datasz)
+int audit_rule_change(int type, int seq, void *data, size_t datasz)
 {
 	int err = 0;
 	struct audit_entry *entry;
@@ -1150,7 +1148,7 @@ int audit_list_rules_send(struct sk_buff *request_skb, int seq)
 	skb_queue_head_init(&dest->q);
 
 	mutex_lock(&audit_filter_mutex);
-	audit_list_rules(portid, seq, &dest->q);
+	audit_list_rules(seq, &dest->q);
 	mutex_unlock(&audit_filter_mutex);
 
 	tsk = kthread_run(audit_send_list, dest, "audit_send_list");

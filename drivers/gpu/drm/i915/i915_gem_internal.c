@@ -35,8 +35,10 @@ static void internal_free_pages(struct sg_table *st)
 {
 	struct scatterlist *sg;
 
-	for (sg = st->sgl; sg; sg = __sg_next(sg))
-		__free_pages(sg_page(sg), get_order(sg->length));
+	for (sg = st->sgl; sg; sg = __sg_next(sg)) {
+		if (sg_page(sg))
+			__free_pages(sg_page(sg), get_order(sg->length));
+	}
 
 	sg_free_table(st);
 	kfree(st);
@@ -133,6 +135,7 @@ create_st:
 	return st;
 
 err:
+	sg_set_page(sg, NULL, 0, 0);
 	sg_mark_end(sg);
 	internal_free_pages(st);
 	return ERR_PTR(-ENOMEM);

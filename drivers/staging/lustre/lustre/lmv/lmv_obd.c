@@ -373,7 +373,6 @@ static void lmv_del_target(struct lmv_obd *lmv, int index)
 
 	kfree(lmv->tgts[index]);
 	lmv->tgts[index] = NULL;
-	return;
 }
 
 static int lmv_add_target(struct obd_device *obd, struct obd_uuid *uuidp,
@@ -640,7 +639,7 @@ static int lmv_fid2path(struct obd_export *exp, int len, void *karg,
 	int			remote_gf_size = 0;
 	int			rc;
 
-	gf = (struct getinfo_fid2path *)karg;
+	gf = karg;
 	tgt = lmv_find_target(lmv, &gf->gf_fid);
 	if (IS_ERR(tgt))
 		return PTR_ERR(tgt);
@@ -657,7 +656,7 @@ repeat_fid2path:
 		struct getinfo_fid2path *ori_gf;
 		char *ptr;
 
-		ori_gf = (struct getinfo_fid2path *)karg;
+		ori_gf = karg;
 		if (strlen(ori_gf->gf_path) +
 		    strlen(gf->gf_path) > ori_gf->gf_pathlen) {
 			rc = -EOVERFLOW;

@@ -42,6 +42,8 @@
 #include <asm/thread_info.h>
 #include <asm/virt.h>
 
+#include "efi-header.S"
+
 #define __PHYS_OFFSET	(KERNEL_START - TEXT_OFFSET)
 
 #if (TEXT_OFFSET & 0xfff) != 0
@@ -89,166 +91,14 @@ _head:
 	.quad	0				// reserved
 	.quad	0				// reserved
 	.quad	0				// reserved
-	.byte	0x41				// Magic number, "ARM\x64"
-	.byte	0x52
-	.byte	0x4d
-	.byte	0x64
+	.ascii	"ARM\x64"			// Magic number
 #ifdef CONFIG_EFI
 	.long	pe_header - _head		// Offset to the PE header.
-#else
-	.word	0				// reserved
-#endif
 
-#ifdef CONFIG_EFI
-	.align 3
 pe_header:
-	.ascii	"PE"
-	.short 	0
-coff_header:
-	.short	0xaa64				// AArch64
-	.short	2				// nr_sections
-	.long	0 				// TimeDateStamp
-	.long	0				// PointerToSymbolTable
-	.long	1				// NumberOfSymbols
-	.short	section_table - optional_header	// SizeOfOptionalHeader
-	.short	0x206				// Characteristics.
-						// IMAGE_FILE_DEBUG_STRIPPED |
-						// IMAGE_FILE_EXECUTABLE_IMAGE |
-						// IMAGE_FILE_LINE_NUMS_STRIPPED
-optional_header:
-	.short	0x20b				// PE32+ format
-	.byte	0x02				// MajorLinkerVersion
-	.byte	0x14				// MinorLinkerVersion
-	.long	_end - efi_header_end		// SizeOfCode
-	.long	0				// SizeOfInitializedData
-	.long	0				// SizeOfUninitializedData
-	.long	__efistub_entry - _head		// AddressOfEntryPoint
-	.long	efi_header_end - _head		// BaseOfCode
-
-extra_header_fields:
-	.quad	0				// ImageBase
-	.long	0x1000				// SectionAlignment
-	.long	PECOFF_FILE_ALIGNMENT		// FileAlignment
-	.short	0				// MajorOperatingSystemVersion
-	.short	0				// MinorOperatingSystemVersion
-	.short	0				// MajorImageVersion
-	.short	0				// MinorImageVersion
-	.short	0				// MajorSubsystemVersion
-	.short	0				// MinorSubsystemVersion
-	.long	0				// Win32VersionValue
-
-	.long	_end - _head			// SizeOfImage
-
-	// Everything before the kernel image is considered part of the header
-	.long	efi_header_end - _head		// SizeOfHeaders
-	.long	0				// CheckSum
-	.short	0xa				// Subsystem (EFI application)
-	.short	0				// DllCharacteristics
-	.quad	0				// SizeOfStackReserve
-	.quad	0				// SizeOfStackCommit
-	.quad	0				// SizeOfHeapReserve
-	.quad	0				// SizeOfHeapCommit
-	.long	0				// LoaderFlags
-	.long	(section_table - .) / 8		// NumberOfRvaAndSizes
-
-	.quad	0				// ExportTable
-	.quad	0				// ImportTable
-	.quad	0				// ResourceTable
-	.quad	0				// ExceptionTable
-	.quad	0				// CertificationTable
-	.quad	0				// BaseRelocationTable
-
-#ifdef CONFIG_DEBUG_EFI
-	.long	efi_debug_table - _head		// DebugTable
-	.long	efi_debug_table_size
-#endif
-
-	// Section table
-section_table:
-
-	/*
-	 * The EFI application loader requires a relocation section
-	 * because EFI applications must be relocatable.  This is a
-	 * dummy section as far as we are concerned.
-	 */
-	.ascii	".reloc"
-	.byte	0
-	.byte	0			// end of 0 padding of section name
-	.long	0
-	.long	0
-	.long	0			// SizeOfRawData
-	.long	0			// PointerToRawData
-	.long	0			// PointerToRelocations
-	.long	0			// PointerToLineNumbers
-	.short	0			// NumberOfRelocations
-	.short	0			// NumberOfLineNumbers
-	.long	0x42100040		// Characteristics (section flags)
-
-
-	.ascii	".text"
-	.byte	0
-	.byte	0
-	.byte	0        		// end of 0 padding of section name
-	.long	_end - efi_header_end	// VirtualSize
-	.long	efi_header_end - _head	// VirtualAddress
-	.long	_edata - efi_header_end	// SizeOfRawData
-	.long	efi_header_end - _head	// PointerToRawData
-
-	.long	0		// PointerToRelocations (0 for executables)
-	.long	0		// PointerToLineNumbers (0 for executables)
-	.short	0		// NumberOfRelocations  (0 for executables)
-	.short	0		// NumberOfLineNumbers  (0 for executables)
-	.long	0xe0500020	// Characteristics (section flags)
-
-#ifdef CONFIG_DEBUG_EFI
-	/*
-	 * The debug table is referenced via its Relative Virtual Address (RVA),
-	 * which is only defined for those parts of the image that are covered
-	 * by a section declaration. Since this header is not covered by any
-	 * section, the debug table must be emitted elsewhere. So stick it in
-	 * the .init.rodata section instead.
-	 *
-	 * Note that the EFI debug entry itself may legally have a zero RVA,
-	 * which means we can simply put it right after the section headers.
-	 */
-	__INITRODATA
-
-	.align	2
-efi_debug_table:
-	// EFI_IMAGE_DEBUG_DIRECTORY_ENTRY
-	.long	0			// Characteristics
-	.long	0			// TimeDateStamp
-	.short	0			// MajorVersion
-	.short	0			// MinorVersion
-	.long	2			// Type == EFI_IMAGE_DEBUG_TYPE_CODEVIEW
-	.long	efi_debug_entry_size	// SizeOfData
-	.long	0			// RVA
-	.long	efi_debug_entry - _head	// FileOffset
-
-	.set	efi_debug_table_size, . - efi_debug_table
-	.previous
-
-efi_debug_entry:
-	// EFI_IMAGE_DEBUG_CODEVIEW_NB10_ENTRY
-	.ascii	"NB10"			// Signature
-	.long	0			// Unknown
-	.long	0			// Unknown2
-	.long	0			// Unknown3
-
-	.asciz	VMLINUX_PATH
-
-	.set	efi_debug_entry_size, . - efi_debug_entry
-#endif
-
-	/*
-	 * EFI will load .text onwards at the 4k section alignment
-	 * described in the PE/COFF header. To ensure that instruction
-	 * sequences using an adrp and a :lo12: immediate will function
-	 * correctly at this alignment, we must ensure that .text is
-	 * placed at a 4k boundary in the Image to begin with.
-	 */
-	.align 12
-efi_header_end:
+	__EFI_PE_HEADER
+#else
+	.long	0				// reserved
 #endif
 
 	__INIT
@@ -534,13 +384,8 @@ ENTRY(kimage_vaddr)
 ENTRY(el2_setup)
 	mrs	x0, CurrentEL
 	cmp	x0, #CurrentEL_EL2
-	b.ne	1f
-	mrs	x0, sctlr_el2
-CPU_BE(	orr	x0, x0, #(1 << 25)	)	// Set the EE bit for EL2
-CPU_LE(	bic	x0, x0, #(1 << 25)	)	// Clear the EE bit for EL2
-	msr	sctlr_el2, x0
-	b	2f
-1:	mrs	x0, sctlr_el1
+	b.eq	1f
+	mrs	x0, sctlr_el1
 CPU_BE(	orr	x0, x0, #(3 << 24)	)	// Set the EE and E0E bits for EL1
 CPU_LE(	bic	x0, x0, #(3 << 24)	)	// Clear the EE and E0E bits for EL1
 	msr	sctlr_el1, x0
@@ -548,7 +393,11 @@ CPU_LE(	bic	x0, x0, #(3 << 24)	)	// Clear the EE and E0E bits for EL1
 	isb
 	ret
 
-2:
+1:	mrs	x0, sctlr_el2
+CPU_BE(	orr	x0, x0, #(1 << 25)	)	// Set the EE bit for EL2
+CPU_LE(	bic	x0, x0, #(1 << 25)	)	// Clear the EE bit for EL2
+	msr	sctlr_el2, x0
+
 #ifdef CONFIG_ARM64_VHE
 	/*
 	 * Check for VHE being present. For the rest of the EL2 setup,
@@ -594,14 +443,14 @@ set_hcr:
 	cmp	x0, #1
 	b.ne	3f
 
-	mrs_s	x0, ICC_SRE_EL2
+	mrs_s	x0, SYS_ICC_SRE_EL2
 	orr	x0, x0, #ICC_SRE_EL2_SRE	// Set ICC_SRE_EL2.SRE==1
 	orr	x0, x0, #ICC_SRE_EL2_ENABLE	// Set ICC_SRE_EL2.Enable==1
-	msr_s	ICC_SRE_EL2, x0
+	msr_s	SYS_ICC_SRE_EL2, x0
 	isb					// Make sure SRE is now set
-	mrs_s	x0, ICC_SRE_EL2			// Read SRE back,
+	mrs_s	x0, SYS_ICC_SRE_EL2		// Read SRE back,
 	tbz	x0, #0, 3f			// and check that it sticks
-	msr_s	ICH_HCR_EL2, xzr		// Reset ICC_HCR_EL2 to defaults
+	msr_s	SYS_ICH_HCR_EL2, xzr		// Reset ICC_HCR_EL2 to defaults
 
 3:
 #endif
@@ -611,26 +460,6 @@ set_hcr:
 	mrs	x1, mpidr_el1
 	msr	vpidr_el2, x0
 	msr	vmpidr_el2, x1
-
-	/*
-	 * When VHE is not in use, early init of EL2 and EL1 needs to be
-	 * done here.
-	 * When VHE _is_ in use, EL1 will not be used in the host and
-	 * requires no configuration, and all non-hyp-specific EL2 setup
-	 * will be done via the _EL1 system register aliases in __cpu_setup.
-	 */
-	cbnz	x2, 1f
-
-	/* sctlr_el1 */
-	mov	x0, #0x0800			// Set/clear RES{1,0} bits
-CPU_BE(	movk	x0, #0x33d0, lsl #16	)	// Set EE and E0E on BE systems
-CPU_LE(	movk	x0, #0x30d0, lsl #16	)	// Clear EE and E0E on LE systems
-	msr	sctlr_el1, x0
-
-	/* Coprocessor traps. */
-	mov	x0, #0x33ff
-	msr	cptr_el2, x0			// Disable copro. traps to EL2
-1:
 
 #ifdef CONFIG_COMPAT
 	msr	hstr_el2, xzr			// Disable CP15 traps to EL2
@@ -668,6 +497,23 @@ CPU_LE(	movk	x0, #0x30d0, lsl #16	)	// Clear EE and E0E on LE systems
 	ret
 
 install_el2_stub:
+	/*
+	 * When VHE is not in use, early init of EL2 and EL1 needs to be
+	 * done here.
+	 * When VHE _is_ in use, EL1 will not be used in the host and
+	 * requires no configuration, and all non-hyp-specific EL2 setup
+	 * will be done via the _EL1 system register aliases in __cpu_setup.
+	 */
+	/* sctlr_el1 */
+	mov	x0, #0x0800			// Set/clear RES{1,0} bits
+CPU_BE(	movk	x0, #0x33d0, lsl #16	)	// Set EE and E0E on BE systems
+CPU_LE(	movk	x0, #0x30d0, lsl #16	)	// Clear EE and E0E on LE systems
+	msr	sctlr_el1, x0
+
+	/* Coprocessor traps. */
+	mov	x0, #0x33ff
+	msr	cptr_el2, x0			// Disable copro. traps to EL2
+
 	/* Hypervisor stub */
 	adr_l	x0, __hyp_stub_vectors
 	msr	vbar_el2, x0

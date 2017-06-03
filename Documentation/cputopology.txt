@@ -100,7 +100,7 @@ not defined by include/asm-XXX/topology.h:
 
 For architectures that don't support books (CONFIG_SCHED_BOOK) there are no
 default definitions for topology_book_id() and topology_book_cpumask().
-For architectures that don't support drawes (CONFIG_SCHED_DRAWER) there are
+For architectures that don't support drawers (CONFIG_SCHED_DRAWER) there are
 no default definitions for topology_drawer_id() and topology_drawer_cpumask().
 
 Additionally, CPU topology information is provided under

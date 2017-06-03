@@ -34,6 +34,8 @@ source "drivers/staging/rtl8192u/Kconfig"
 
 source "drivers/staging/rtl8192e/Kconfig"
 
+source "drivers/staging/rtl8723bs/Kconfig"
+
 source "drivers/staging/rtl8712/Kconfig"
 
 source "drivers/staging/rtl8188eu/Kconfig"
@@ -92,6 +94,8 @@ source "drivers/staging/fbtft/Kconfig"
 
 source "drivers/staging/fsl-mc/Kconfig"
 
+source "drivers/staging/fsl-dpaa2/Kconfig"
+
 source "drivers/staging/wilc1000/Kconfig"
 
 source "drivers/staging/most/Kconfig"
@@ -102,6 +106,8 @@ source "drivers/staging/greybus/Kconfig"
 
 source "drivers/staging/vc04_services/Kconfig"
 
-source "drivers/staging/bcm2835-audio/Kconfig"
+source "drivers/staging/ccree/Kconfig"
+
+source "drivers/staging/typec/Kconfig"
 
 endif # STAGING

@@ -718,6 +718,26 @@ static void get_free_fb(struct vdec_vp9_inst *inst, struct vdec_fb **out_fb)
 	*out_fb = fb;
 }
 
+static int validate_vsi_array_indexes(struct vdec_vp9_inst *inst,
+		struct vdec_vp9_vsi *vsi) {
+	if (vsi->sf_frm_idx >= VP9_MAX_FRM_BUF_NUM - 1) {
+		mtk_vcodec_err(inst, "Invalid vsi->sf_frm_idx=%u.",
+				vsi->sf_frm_idx);
+		return -EIO;
+	}
+	if (vsi->frm_to_show_idx >= VP9_MAX_FRM_BUF_NUM) {
+		mtk_vcodec_err(inst, "Invalid vsi->frm_to_show_idx=%u.",
+				vsi->frm_to_show_idx);
+		return -EIO;
+	}
+	if (vsi->new_fb_idx >= VP9_MAX_FRM_BUF_NUM) {
+		mtk_vcodec_err(inst, "Invalid vsi->new_fb_idx=%u.",
+				vsi->new_fb_idx);
+		return -EIO;
+	}
+	return 0;
+}
+
 static void vdec_vp9_deinit(unsigned long h_vdec)
 {
 	struct vdec_vp9_inst *inst = (struct vdec_vp9_inst *)h_vdec;
@@ -831,6 +851,12 @@ static int vdec_vp9_decode(unsigned long h_vdec, struct mtk_vcodec_mem *bs,
 		ret = vpu_dec_start(&inst->vpu, data, 3);
 		if (ret) {
 			mtk_vcodec_err(inst, "vpu_dec_start failed");
+			goto DECODE_ERROR;
+		}
+
+		ret = validate_vsi_array_indexes(inst, vsi);
+		if (ret) {
+			mtk_vcodec_err(inst, "Invalid values from VPU.");
 			goto DECODE_ERROR;
 		}
 

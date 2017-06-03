@@ -489,7 +489,7 @@ void qib_qp_iter_print(struct seq_file *s, struct qib_qp_iter *iter)
 		   qp->s_last, qp->s_acked, qp->s_cur,
 		   qp->s_tail, qp->s_head, qp->s_size,
 		   qp->remote_qpn,
-		   qp->remote_ah_attr.dlid);
+		   rdma_ah_get_dlid(&qp->remote_ah_attr));
 }
 
 #endif

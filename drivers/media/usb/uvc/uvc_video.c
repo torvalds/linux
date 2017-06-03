@@ -818,7 +818,7 @@ static void uvc_video_stats_decode(struct uvc_streaming *stream,
 
 	/* Update the packets counters. */
 	stream->stats.frame.nb_packets++;
-	if (len > header_size)
+	if (len <= header_size)
 		stream->stats.frame.nb_empty++;
 
 	if (data[1] & UVC_STREAM_ERR)
@@ -868,14 +868,8 @@ size_t uvc_video_stats_dump(struct uvc_streaming *stream, char *buf,
 	struct timespec ts;
 	size_t count = 0;
 
-	ts.tv_sec = stream->stats.stream.stop_ts.tv_sec
-		  - stream->stats.stream.start_ts.tv_sec;
-	ts.tv_nsec = stream->stats.stream.stop_ts.tv_nsec
-		   - stream->stats.stream.start_ts.tv_nsec;
-	if (ts.tv_nsec < 0) {
-		ts.tv_sec--;
-		ts.tv_nsec += 1000000000;
-	}
+	ts = timespec_sub(stream->stats.stream.stop_ts,
+			  stream->stats.stream.start_ts);
 
 	/* Compute the SCR.SOF frequency estimate. At the nominal 1kHz SOF
 	 * frequency this will not overflow before more than 1h.

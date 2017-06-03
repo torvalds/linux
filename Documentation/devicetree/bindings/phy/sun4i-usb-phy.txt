@@ -15,6 +15,7 @@ Required properties:
 - reg : a list of offset + length pairs
 - reg-names :
   * "phy_ctrl"
+  * "pmu0" for H3, V3s and A64
   * "pmu1"
   * "pmu2" for sun4i, sun6i or sun7i
 - #phy-cells : from the generic phy bindings, must be 1

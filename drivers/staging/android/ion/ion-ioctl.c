@@ -19,14 +19,9 @@
 #include <linux/uaccess.h>
 
 #include "ion.h"
-#include "ion_priv.h"
-#include "compat_ion.h"
 
 union ion_ioctl_arg {
-	struct ion_fd_data fd;
 	struct ion_allocation_data allocation;
-	struct ion_handle_data handle;
-	struct ion_custom_data custom;
 	struct ion_heap_query query;
 };
 
@@ -51,10 +46,6 @@ static int validate_ioctl_arg(unsigned int cmd, union ion_ioctl_arg *arg)
 static unsigned int ion_ioctl_dir(unsigned int cmd)
 {
 	switch (cmd) {
-	case ION_IOC_SYNC:
-	case ION_IOC_FREE:
-	case ION_IOC_CUSTOM:
-		return _IOC_WRITE;
 	default:
 		return _IOC_DIR(cmd);
 	}
@@ -62,9 +53,6 @@ static unsigned int ion_ioctl_dir(unsigned int cmd)
 
 long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	struct ion_client *client = filp->private_data;
-	struct ion_device *dev = client->dev;
-	struct ion_handle *cleanup_handle = NULL;
 	int ret = 0;
 	unsigned int dir;
 	union ion_ioctl_arg data;
@@ -92,87 +80,28 @@ long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	case ION_IOC_ALLOC:
 	{
-		struct ion_handle *handle;
+		int fd;
 
-		handle = ion_alloc(client, data.allocation.len,
-						data.allocation.align,
+		fd = ion_alloc(data.allocation.len,
 						data.allocation.heap_id_mask,
 						data.allocation.flags);
-		if (IS_ERR(handle))
-			return PTR_ERR(handle);
+		if (fd < 0)
+			return fd;
 
-		data.allocation.handle = handle->id;
+		data.allocation.fd = fd;
 
-		cleanup_handle = handle;
-		break;
-	}
-	case ION_IOC_FREE:
-	{
-		struct ion_handle *handle;
-
-		mutex_lock(&client->lock);
-		handle = ion_handle_get_by_id_nolock(client,
-						     data.handle.handle);
-		if (IS_ERR(handle)) {
-			mutex_unlock(&client->lock);
-			return PTR_ERR(handle);
-		}
-		ion_free_nolock(client, handle);
-		ion_handle_put_nolock(handle);
-		mutex_unlock(&client->lock);
-		break;
-	}
-	case ION_IOC_SHARE:
-	case ION_IOC_MAP:
-	{
-		struct ion_handle *handle;
-
-		handle = ion_handle_get_by_id(client, data.handle.handle);
-		if (IS_ERR(handle))
-			return PTR_ERR(handle);
-		data.fd.fd = ion_share_dma_buf_fd(client, handle);
-		ion_handle_put(handle);
-		if (data.fd.fd < 0)
-			ret = data.fd.fd;
-		break;
-	}
-	case ION_IOC_IMPORT:
-	{
-		struct ion_handle *handle;
-
-		handle = ion_import_dma_buf_fd(client, data.fd.fd);
-		if (IS_ERR(handle))
-			ret = PTR_ERR(handle);
-		else
-			data.handle.handle = handle->id;
-		break;
-	}
-	case ION_IOC_SYNC:
-	{
-		ret = ion_sync_for_device(client, data.fd.fd);
-		break;
-	}
-	case ION_IOC_CUSTOM:
-	{
-		if (!dev->custom_ioctl)
-			return -ENOTTY;
-		ret = dev->custom_ioctl(client, data.custom.cmd,
-						data.custom.arg);
 		break;
 	}
 	case ION_IOC_HEAP_QUERY:
-		ret = ion_query_heaps(client, &data.query);
+		ret = ion_query_heaps(&data.query);
 		break;
 	default:
 		return -ENOTTY;
 	}
 
 	if (dir & _IOC_READ) {
-		if (copy_to_user((void __user *)arg, &data, _IOC_SIZE(cmd))) {
-			if (cleanup_handle)
-				ion_free(client, cleanup_handle);
+		if (copy_to_user((void __user *)arg, &data, _IOC_SIZE(cmd)))
 			return -EFAULT;
-		}
 	}
 	return ret;
 }

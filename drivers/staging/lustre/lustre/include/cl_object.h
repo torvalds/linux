@@ -1640,9 +1640,14 @@ enum cl_enq_flags {
 	 */
 	CEF_PEEK	= 0x00000040,
 	/**
+	 * Lock match only. Used by group lock in I/O as group lock
+	 * is known to exist.
+	 */
+	CEF_LOCK_MATCH	= BIT(7),
+	/**
 	 * mask of enq_flags.
 	 */
-	CEF_MASK         = 0x0000007f,
+	CEF_MASK	= 0x000000ff,
 };
 
 /**
@@ -2432,9 +2437,9 @@ void cl_sync_io_end(const struct lu_env *env, struct cl_sync_io *anchor);
  * @{
  */
 
-struct lu_env *cl_env_get(int *refcheck);
-struct lu_env *cl_env_alloc(int *refcheck, __u32 tags);
-void cl_env_put(struct lu_env *env, int *refcheck);
+struct lu_env *cl_env_get(u16 *refcheck);
+struct lu_env *cl_env_alloc(u16 *refcheck, __u32 tags);
+void cl_env_put(struct lu_env *env, u16 *refcheck);
 unsigned int cl_env_cache_purge(unsigned int nr);
 struct lu_env *cl_env_percpu_get(void);
 void cl_env_percpu_put(struct lu_env *env);

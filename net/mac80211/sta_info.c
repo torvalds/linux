@@ -2,7 +2,7 @@
  * Copyright 2002-2005, Instant802 Networks, Inc.
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright (C) 2015 - 2016 Intel Deutschland GmbH
+ * Copyright (C) 2015 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -395,10 +395,15 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	sta->sta.smps_mode = IEEE80211_SMPS_OFF;
 	if (sdata->vif.type == NL80211_IFTYPE_AP ||
 	    sdata->vif.type == NL80211_IFTYPE_AP_VLAN) {
-		struct ieee80211_supported_band *sband =
-			hw->wiphy->bands[ieee80211_get_sdata_band(sdata)];
-		u8 smps = (sband->ht_cap.cap & IEEE80211_HT_CAP_SM_PS) >>
-				IEEE80211_HT_CAP_SM_PS_SHIFT;
+		struct ieee80211_supported_band *sband;
+		u8 smps;
+
+		sband = ieee80211_get_sband(sdata);
+		if (!sband)
+			goto free_txq;
+
+		smps = (sband->ht_cap.cap & IEEE80211_HT_CAP_SM_PS) >>
+			IEEE80211_HT_CAP_SM_PS_SHIFT;
 		/*
 		 * Assume that hostapd advertises our caps in the beacon and
 		 * this is the known_smps_mode for a station that just assciated
@@ -1957,24 +1962,32 @@ sta_get_last_rx_stats(struct sta_info *sta)
 static void sta_stats_decode_rate(struct ieee80211_local *local, u16 rate,
 				  struct rate_info *rinfo)
 {
-	rinfo->bw = (rate & STA_STATS_RATE_BW_MASK) >>
-		STA_STATS_RATE_BW_SHIFT;
+	rinfo->bw = STA_STATS_GET(BW, rate);
 
-	if (rate & STA_STATS_RATE_VHT) {
+	switch (STA_STATS_GET(TYPE, rate)) {
+	case STA_STATS_RATE_TYPE_VHT:
 		rinfo->flags = RATE_INFO_FLAGS_VHT_MCS;
-		rinfo->mcs = rate & 0xf;
-		rinfo->nss = (rate & 0xf0) >> 4;
-	} else if (rate & STA_STATS_RATE_HT) {
+		rinfo->mcs = STA_STATS_GET(VHT_MCS, rate);
+		rinfo->nss = STA_STATS_GET(VHT_NSS, rate);
+		if (STA_STATS_GET(SGI, rate))
+			rinfo->flags |= RATE_INFO_FLAGS_SHORT_GI;
+		break;
+	case STA_STATS_RATE_TYPE_HT:
 		rinfo->flags = RATE_INFO_FLAGS_MCS;
-		rinfo->mcs = rate & 0xff;
-	} else if (rate & STA_STATS_RATE_LEGACY) {
+		rinfo->mcs = STA_STATS_GET(HT_MCS, rate);
+		if (STA_STATS_GET(SGI, rate))
+			rinfo->flags |= RATE_INFO_FLAGS_SHORT_GI;
+		break;
+	case STA_STATS_RATE_TYPE_LEGACY: {
 		struct ieee80211_supported_band *sband;
 		u16 brate;
 		unsigned int shift;
+		int band = STA_STATS_GET(LEGACY_BAND, rate);
+		int rate_idx = STA_STATS_GET(LEGACY_IDX, rate);
 
 		rinfo->flags = 0;
-		sband = local->hw.wiphy->bands[(rate >> 4) & 0xf];
-		brate = sband->bitrates[rate & 0xf].bitrate;
+		sband = local->hw.wiphy->bands[band];
+		brate = sband->bitrates[rate_idx].bitrate;
 		if (rinfo->bw == RATE_INFO_BW_5)
 			shift = 2;
 		else if (rinfo->bw == RATE_INFO_BW_10)
@@ -1982,10 +1995,9 @@ static void sta_stats_decode_rate(struct ieee80211_local *local, u16 rate,
 		else
 			shift = 0;
 		rinfo->legacy = DIV_ROUND_UP(brate, 1 << shift);
+		break;
+		}
 	}
-
-	if (rate & STA_STATS_RATE_SGI)
-		rinfo->flags |= RATE_INFO_FLAGS_SHORT_GI;
 }
 
 static int sta_set_rate_info_rx(struct sta_info *sta, struct rate_info *rinfo)

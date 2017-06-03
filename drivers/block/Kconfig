@@ -219,7 +219,7 @@ config BLK_DEV_LOOP
 
 	  To use the loop device, you need the losetup utility, found in the
 	  util-linux package, see
-	  <ftp://ftp.kernel.org/pub/linux/utils/util-linux/>.
+	  <https://www.kernel.org/pub/linux/utils/util-linux/>.
 
 	  The loop device driver can also be used to "hide" a file system in
 	  a disk partition, floppy, or regular file, either using encryption
@@ -312,22 +312,6 @@ config BLK_DEV_SKD
 
 	Use device /dev/skd$N amd /dev/skd$Np$M.
 
-config BLK_DEV_OSD
-	tristate "OSD object-as-blkdev support"
-	depends on SCSI_OSD_ULD
-	---help---
-	  Saying Y or M here will allow the exporting of a single SCSI
-	  OSD (object-based storage) object as a Linux block device.
-
-	  For example, if you create a 2G object on an OSD device,
-	  you can then use this module to present that 2G object as
-	  a Linux block device.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called osdblk.
-
-	  If unsure, say N.
-
 config BLK_DEV_SX8
 	tristate "Promise SATA SX8 support"
 	depends on PCI
@@ -339,6 +323,7 @@ config BLK_DEV_SX8
 
 config BLK_DEV_RAM
 	tristate "RAM block device support"
+	select DAX if BLK_DEV_RAM_DAX
 	---help---
 	  Saying Y here will allow you to use a portion of your RAM memory as
 	  a block device, so that you can make file systems on it, read and
@@ -434,23 +419,6 @@ config ATA_OVER_ETH
 	This driver provides Support for ATA over Ethernet block
 	devices like the Coraid EtherDrive (R) Storage Blade.
 
-config MG_DISK
-	tristate "mGine mflash, gflash support"
-	depends on ARM && GPIOLIB
-	help
-	  mGine mFlash(gFlash) block device driver
-
-config MG_DISK_RES
-	int "Size of reserved area before MBR"
-	depends on MG_DISK
-	default 0
-	help
-	  Define size of reserved area that usually used for boot. Unit is KB.
-	  All of the block device operation will be taken this value as start
-	  offset
-	  Examples:
-			1024 => 1 MB
-
 config SUNVDC
 	tristate "Sun Virtual Disk Client support"
 	depends on SUN_LDOMS
@@ -512,19 +480,7 @@ config VIRTIO_BLK_SCSI
 	  Enable support for SCSI passthrough (e.g. the SG_IO ioctl) on
 	  virtio-blk devices.  This is only supported for the legacy
 	  virtio protocol and not enabled by default by any hypervisor.
-	  Your probably want to virtio-scsi instead.
-
-config BLK_DEV_HD
-	bool "Very old hard disk (MFM/RLL/IDE) driver"
-	depends on HAVE_IDE
-	depends on !ARM || ARCH_RPC || BROKEN
-	help
-	  This is a very old hard disk driver that lacks the enhanced
-	  functionality of the newer ones.
-
-	  It is required for systems with ancient MFM/RLL/ESDI drives.
-
-	  If unsure, say N.
+	  You probably want to use virtio-scsi instead.
 
 config BLK_DEV_RBD
 	tristate "Rados block device (RBD)"

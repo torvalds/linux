@@ -14,8 +14,8 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
+#include <linux/init.h>
 #include <linux/mfd/syscon.h>
-#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
@@ -228,7 +228,6 @@ static const struct of_device_id exynos_pcie_phy_match[] = {
 	},
 	{},
 };
-MODULE_DEVICE_TABLE(of, exynos_pcie_phy_match);
 
 static int exynos_pcie_phy_probe(struct platform_device *pdev)
 {
@@ -278,8 +277,5 @@ static struct platform_driver exynos_pcie_phy_driver = {
 		.name		= "exynos_pcie_phy",
 	}
 };
-module_platform_driver(exynos_pcie_phy_driver);
 
-MODULE_DESCRIPTION("Samsung S5P/EXYNOS SoC PCIe PHY driver");
-MODULE_AUTHOR("Jaehoon Chung <jh80.chung@samsung.com>");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(exynos_pcie_phy_driver);

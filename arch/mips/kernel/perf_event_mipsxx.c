@@ -618,7 +618,7 @@ static int mipspmu_event_init(struct perf_event *event)
 		return -ENOENT;
 	}
 
-	if (event->cpu >= nr_cpumask_bits ||
+	if ((unsigned int)event->cpu >= nr_cpumask_bits ||
 	    (event->cpu >= 0 && !cpu_online(event->cpu)))
 		return -ENODEV;
 
@@ -1446,6 +1446,11 @@ static int mipsxx_pmu_handle_shared_irq(void)
 	HANDLE_COUNTER(0)
 	}
 
+#ifdef CONFIG_MIPS_PERF_SHARED_TC_COUNTERS
+	read_unlock(&pmuint_rwlock);
+#endif
+	resume_local_counters();
+
 	/*
 	 * Do all the work for the pending perf events. We can do this
 	 * in here because the performance counter interrupt is a regular
@@ -1454,10 +1459,6 @@ static int mipsxx_pmu_handle_shared_irq(void)
 	if (handled == IRQ_HANDLED)
 		irq_work_run();
 
-#ifdef CONFIG_MIPS_PERF_SHARED_TC_COUNTERS
-	read_unlock(&pmuint_rwlock);
-#endif
-	resume_local_counters();
 	return handled;
 }
 

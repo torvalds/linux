@@ -1635,7 +1635,7 @@ static int dsi_host_parse_dt(struct msm_dsi_host *msm_host)
 	}
 
 	/* Get panel node from the output port's endpoint data */
-	device_node = of_graph_get_remote_port_parent(endpoint);
+	device_node = of_graph_get_remote_node(np, 1, 0);
 	if (!device_node) {
 		dev_dbg(dev, "%s: no valid device\n", __func__);
 		goto err;
@@ -1740,6 +1740,7 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 
 	msm_host->rx_buf = devm_kzalloc(&pdev->dev, SZ_4K, GFP_KERNEL);
 	if (!msm_host->rx_buf) {
+		ret = -ENOMEM;
 		pr_err("%s: alloc rx temp buf failed\n", __func__);
 		goto fail;
 	}

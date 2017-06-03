@@ -85,11 +85,6 @@
 	assigned-clock-rates = <786432000>;
 };
 
-&cpu0 {
-	arm-supply = <&reg_arm>;
-	soc-supply = <&reg_soc>;
-};
-
 &i2c2 {
 	clock_frequency = <100000>;
 	pinctrl-names = "default";

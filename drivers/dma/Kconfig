@@ -514,12 +514,12 @@ config TIMB_DMA
 	  Enable support for the Timberdale FPGA DMA engine.
 
 config TI_CPPI41
-	tristate "AM33xx CPPI41 DMA support"
-	depends on ARCH_OMAP
+	tristate "CPPI 4.1 DMA support"
+	depends on (ARCH_OMAP || ARCH_DAVINCI_DA8XX)
 	select DMA_ENGINE
 	help
 	  The Communications Port Programming Interface (CPPI) 4.1 DMA engine
-	  is currently used by the USB driver on AM335x platforms.
+	  is currently used by the USB driver on AM335x and DA8xx platforms.
 
 config TI_DMA_CROSSBAR
 	bool
@@ -608,6 +608,7 @@ config ASYNC_TX_DMA
 config DMATEST
 	tristate "DMA Test client"
 	depends on DMA_ENGINE
+	select DMA_ENGINE_RAID
 	help
 	  Simple DMA test client. Say N unless you're debugging a
 	  DMA Device driver.

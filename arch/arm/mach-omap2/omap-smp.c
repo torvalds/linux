@@ -21,6 +21,7 @@
 #include <linux/io.h>
 #include <linux/irqchip/arm-gic.h>
 
+#include <asm/sections.h>
 #include <asm/smp_scu.h>
 #include <asm/virt.h>
 
@@ -40,10 +41,14 @@
 
 #define OMAP5_CORE_COUNT	0x2
 
+#define AUX_CORE_BOOT0_GP_RELEASE	0x020
+#define AUX_CORE_BOOT0_HS_RELEASE	0x200
+
 struct omap_smp_config {
 	unsigned long cpu1_rstctrl_pa;
 	void __iomem *cpu1_rstctrl_va;
 	void __iomem *scu_base;
+	void __iomem *wakeupgen_base;
 	void *startup_addr;
 };
 
@@ -140,7 +145,6 @@ static int omap4_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	static struct clockdomain *cpu1_clkdm;
 	static bool booted;
 	static struct powerdomain *cpu1_pwrdm;
-	void __iomem *base = omap_get_wakeupgen_base();
 
 	/*
 	 * Set synchronisation state between this boot processor
@@ -155,9 +159,11 @@ static int omap4_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 * A barrier is added to ensure that write buffer is drained
 	 */
 	if (omap_secure_apis_support())
-		omap_modify_auxcoreboot0(0x200, 0xfffffdff);
+		omap_modify_auxcoreboot0(AUX_CORE_BOOT0_HS_RELEASE,
+					 0xfffffdff);
 	else
-		writel_relaxed(0x20, base + OMAP_AUX_CORE_BOOT_0);
+		writel_relaxed(AUX_CORE_BOOT0_GP_RELEASE,
+			       cfg.wakeupgen_base + OMAP_AUX_CORE_BOOT_0);
 
 	if (!cpu1_clkdm && !cpu1_pwrdm) {
 		cpu1_clkdm = clkdm_lookup("mpu1_clkdm");
@@ -261,9 +267,75 @@ static void __init omap4_smp_init_cpus(void)
 		set_cpu_possible(i, true);
 }
 
+/*
+ * For now, just make sure the start-up address is not within the booting
+ * kernel space as that means we just overwrote whatever secondary_startup()
+ * code there was.
+ */
+static bool __init omap4_smp_cpu1_startup_valid(unsigned long addr)
+{
+	if ((addr >= __pa(PAGE_OFFSET)) && (addr <= __pa(__bss_start)))
+		return false;
+
+	return true;
+}
+
+/*
+ * We may need to reset CPU1 before configuring, otherwise kexec boot can end
+ * up trying to use old kernel startup address or suspend-resume will
+ * occasionally fail to bring up CPU1 on 4430 if CPU1 fails to enter deeper
+ * idle states.
+ */
+static void __init omap4_smp_maybe_reset_cpu1(struct omap_smp_config *c)
+{
+	unsigned long cpu1_startup_pa, cpu1_ns_pa_addr;
+	bool needs_reset = false;
+	u32 released;
+
+	if (omap_secure_apis_support())
+		released = omap_read_auxcoreboot0() & AUX_CORE_BOOT0_HS_RELEASE;
+	else
+		released = readl_relaxed(cfg.wakeupgen_base +
+					 OMAP_AUX_CORE_BOOT_0) &
+						AUX_CORE_BOOT0_GP_RELEASE;
+	if (released) {
+		pr_warn("smp: CPU1 not parked?\n");
+
+		return;
+	}
+
+	cpu1_startup_pa = readl_relaxed(cfg.wakeupgen_base +
+					OMAP_AUX_CORE_BOOT_1);
+
+	/* Did the configured secondary_startup() get overwritten? */
+	if (!omap4_smp_cpu1_startup_valid(cpu1_startup_pa))
+		needs_reset = true;
+
+	/*
+	 * If omap4 or 5 has NS_PA_ADDR configured, CPU1 may be in a
+	 * deeper idle state in WFI and will wake to an invalid address.
+	 */
+	if ((soc_is_omap44xx() || soc_is_omap54xx())) {
+		cpu1_ns_pa_addr = omap4_get_cpu1_ns_pa_addr();
+		if (!omap4_smp_cpu1_startup_valid(cpu1_ns_pa_addr))
+			needs_reset = true;
+	} else {
+		cpu1_ns_pa_addr = 0;
+	}
+
+	if (!needs_reset || !c->cpu1_rstctrl_va)
+		return;
+
+	pr_info("smp: CPU1 parked within kernel, needs reset (0x%lx 0x%lx)\n",
+		cpu1_startup_pa, cpu1_ns_pa_addr);
+
+	writel_relaxed(1, c->cpu1_rstctrl_va);
+	readl_relaxed(c->cpu1_rstctrl_va);
+	writel_relaxed(0, c->cpu1_rstctrl_va);
+}
+
 static void __init omap4_smp_prepare_cpus(unsigned int max_cpus)
 {
-	void __iomem *base = omap_get_wakeupgen_base();
 	const struct omap_smp_config *c = NULL;
 
 	if (soc_is_omap443x())
@@ -281,6 +353,7 @@ static void __init omap4_smp_prepare_cpus(unsigned int max_cpus)
 	/* Must preserve cfg.scu_base set earlier */
 	cfg.cpu1_rstctrl_pa = c->cpu1_rstctrl_pa;
 	cfg.startup_addr = c->startup_addr;
+	cfg.wakeupgen_base = omap_get_wakeupgen_base();
 
 	if (soc_is_dra74x() || soc_is_omap54xx()) {
 		if ((__boot_cpu_mode & MODE_MASK) == HYP_MODE)
@@ -299,15 +372,7 @@ static void __init omap4_smp_prepare_cpus(unsigned int max_cpus)
 	if (cfg.scu_base)
 		scu_enable(cfg.scu_base);
 
-	/*
-	 * Reset CPU1 before configuring, otherwise kexec will
-	 * end up trying to use old kernel startup address.
-	 */
-	if (cfg.cpu1_rstctrl_va) {
-		writel_relaxed(1, cfg.cpu1_rstctrl_va);
-		readl_relaxed(cfg.cpu1_rstctrl_va);
-		writel_relaxed(0, cfg.cpu1_rstctrl_va);
-	}
+	omap4_smp_maybe_reset_cpu1(&cfg);
 
 	/*
 	 * Write the address of secondary startup routine into the
@@ -319,7 +384,7 @@ static void __init omap4_smp_prepare_cpus(unsigned int max_cpus)
 		omap_auxcoreboot_addr(__pa_symbol(cfg.startup_addr));
 	else
 		writel_relaxed(__pa_symbol(cfg.startup_addr),
-			       base + OMAP_AUX_CORE_BOOT_1);
+			       cfg.wakeupgen_base + OMAP_AUX_CORE_BOOT_1);
 }
 
 const struct smp_operations omap4_smp_ops __initconst = {

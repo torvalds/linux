@@ -397,7 +397,7 @@ static struct tda10086_config tda10086_config = {
 	.xtal_freq = TDA10086_XTAL_16M,
 };
 
-static struct stv0299_config alps_bsru6_config_activy = {
+static const struct stv0299_config alps_bsru6_config_activy = {
 	.demod_address = 0x68,
 	.inittab = alps_bsru6_inittab,
 	.mclk = 88000000UL,
@@ -407,7 +407,7 @@ static struct stv0299_config alps_bsru6_config_activy = {
 	.set_symbol_rate = alps_bsru6_set_symbol_rate,
 };
 
-static struct stv0299_config alps_bsbe1_config_activy = {
+static const struct stv0299_config alps_bsbe1_config_activy = {
 	.demod_address = 0x68,
 	.inittab = alps_bsbe1_inittab,
 	.mclk = 88000000UL,

@@ -40,11 +40,11 @@
 
 /* must be called with lnet_res_lock held */
 void
-lnet_md_unlink(lnet_libmd_t *md)
+lnet_md_unlink(struct lnet_libmd *md)
 {
 	if (!(md->md_flags & LNET_MD_FLAG_ZOMBIE)) {
 		/* first unlink attempt... */
-		lnet_me_t *me = md->md_me;
+		struct lnet_me *me = md->md_me;
 
 		md->md_flags |= LNET_MD_FLAG_ZOMBIE;
 
@@ -84,7 +84,7 @@ lnet_md_unlink(lnet_libmd_t *md)
 }
 
 static int
-lnet_md_build(lnet_libmd_t *lmd, lnet_md_t *umd, int unlink)
+lnet_md_build(struct lnet_libmd *lmd, struct lnet_md *umd, int unlink)
 {
 	int i;
 	unsigned int niov;
@@ -165,7 +165,7 @@ lnet_md_build(lnet_libmd_t *lmd, lnet_md_t *umd, int unlink)
 
 /* must be called with resource lock held */
 static int
-lnet_md_link(lnet_libmd_t *md, lnet_handle_eq_t eq_handle, int cpt)
+lnet_md_link(struct lnet_libmd *md, struct lnet_handle_eq eq_handle, int cpt)
 {
 	struct lnet_res_container *container = the_lnet.ln_md_containers[cpt];
 
@@ -185,7 +185,7 @@ lnet_md_link(lnet_libmd_t *md, lnet_handle_eq_t eq_handle, int cpt)
 	 * maybe there we shouldn't even allow LNET_EQ_NONE!)
 	 * LASSERT(!eq);
 	 */
-	if (!LNetHandleIsInvalid(eq_handle)) {
+	if (!LNetEQHandleIsInvalid(eq_handle)) {
 		md->md_eq = lnet_handle2eq(&eq_handle);
 
 		if (!md->md_eq)
@@ -204,7 +204,7 @@ lnet_md_link(lnet_libmd_t *md, lnet_handle_eq_t eq_handle, int cpt)
 
 /* must be called with lnet_res_lock held */
 void
-lnet_md_deconstruct(lnet_libmd_t *lmd, lnet_md_t *umd)
+lnet_md_deconstruct(struct lnet_libmd *lmd, struct lnet_md *umd)
 {
 	/* NB this doesn't copy out all the iov entries so when a
 	 * discontiguous MD is copied out, the target gets to know the
@@ -223,7 +223,7 @@ lnet_md_deconstruct(lnet_libmd_t *lmd, lnet_md_t *umd)
 }
 
 static int
-lnet_md_validate(lnet_md_t *umd)
+lnet_md_validate(struct lnet_md *umd)
 {
 	if (!umd->start && umd->length) {
 		CERROR("MD start pointer can not be NULL with length %u\n",
@@ -267,8 +267,8 @@ lnet_md_validate(lnet_md_t *umd)
  * a MD.
  */
 int
-LNetMDAttach(lnet_handle_me_t meh, lnet_md_t umd,
-	     lnet_unlink_t unlink, lnet_handle_md_t *handle)
+LNetMDAttach(struct lnet_handle_me meh, struct lnet_md umd,
+	     enum lnet_unlink unlink, struct lnet_handle_md *handle)
 {
 	LIST_HEAD(matches);
 	LIST_HEAD(drops);
@@ -350,9 +350,10 @@ EXPORT_SYMBOL(LNetMDAttach);
  * LNetInvalidateHandle() on it.
  */
 int
-LNetMDBind(lnet_md_t umd, lnet_unlink_t unlink, lnet_handle_md_t *handle)
+LNetMDBind(struct lnet_md umd, enum lnet_unlink unlink,
+	   struct lnet_handle_md *handle)
 {
-	lnet_libmd_t *md;
+	struct lnet_libmd *md;
 	int cpt;
 	int rc;
 
@@ -425,10 +426,10 @@ EXPORT_SYMBOL(LNetMDBind);
  * \retval -ENOENT If \a mdh does not point to a valid MD object.
  */
 int
-LNetMDUnlink(lnet_handle_md_t mdh)
+LNetMDUnlink(struct lnet_handle_md mdh)
 {
-	lnet_event_t ev;
-	lnet_libmd_t *md;
+	struct lnet_event ev;
+	struct lnet_libmd *md;
 	int cpt;
 
 	LASSERT(the_lnet.ln_refcount > 0);

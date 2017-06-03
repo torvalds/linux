@@ -4125,6 +4125,60 @@ MLXSW_ITEM32(reg, ritr, sp_if_system_port, 0x08, 0, 16);
  */
 MLXSW_ITEM32(reg, ritr, sp_if_vid, 0x18, 0, 12);
 
+/* Shared between ingress/egress */
+enum mlxsw_reg_ritr_counter_set_type {
+	/* No Count. */
+	MLXSW_REG_RITR_COUNTER_SET_TYPE_NO_COUNT = 0x0,
+	/* Basic. Used for router interfaces, counting the following:
+	 *	- Error and Discard counters.
+	 *	- Unicast, Multicast and Broadcast counters. Sharing the
+	 *	  same set of counters for the different type of traffic
+	 *	  (IPv4, IPv6 and mpls).
+	 */
+	MLXSW_REG_RITR_COUNTER_SET_TYPE_BASIC = 0x9,
+};
+
+/* reg_ritr_ingress_counter_index
+ * Counter Index for flow counter.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ritr, ingress_counter_index, 0x38, 0, 24);
+
+/* reg_ritr_ingress_counter_set_type
+ * Igress Counter Set Type for router interface counter.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ritr, ingress_counter_set_type, 0x38, 24, 8);
+
+/* reg_ritr_egress_counter_index
+ * Counter Index for flow counter.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ritr, egress_counter_index, 0x3C, 0, 24);
+
+/* reg_ritr_egress_counter_set_type
+ * Egress Counter Set Type for router interface counter.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ritr, egress_counter_set_type, 0x3C, 24, 8);
+
+static inline void mlxsw_reg_ritr_counter_pack(char *payload, u32 index,
+					       bool enable, bool egress)
+{
+	enum mlxsw_reg_ritr_counter_set_type set_type;
+
+	if (enable)
+		set_type = MLXSW_REG_RITR_COUNTER_SET_TYPE_BASIC;
+	else
+		set_type = MLXSW_REG_RITR_COUNTER_SET_TYPE_NO_COUNT;
+	mlxsw_reg_ritr_egress_counter_set_type_set(payload, set_type);
+
+	if (egress)
+		mlxsw_reg_ritr_egress_counter_index_set(payload, index);
+	else
+		mlxsw_reg_ritr_ingress_counter_index_set(payload, index);
+}
+
 static inline void mlxsw_reg_ritr_rif_pack(char *payload, u16 rif)
 {
 	MLXSW_REG_ZERO(ritr, payload);
@@ -4141,7 +4195,8 @@ static inline void mlxsw_reg_ritr_sp_if_pack(char *payload, bool lag,
 
 static inline void mlxsw_reg_ritr_pack(char *payload, bool enable,
 				       enum mlxsw_reg_ritr_if_type type,
-				       u16 rif, u16 mtu, const char *mac)
+				       u16 rif, u16 vr_id, u16 mtu,
+				       const char *mac)
 {
 	bool op = enable ? MLXSW_REG_RITR_RIF_CREATE : MLXSW_REG_RITR_RIF_DEL;
 
@@ -4153,6 +4208,7 @@ static inline void mlxsw_reg_ritr_pack(char *payload, bool enable,
 	mlxsw_reg_ritr_rif_set(payload, rif);
 	mlxsw_reg_ritr_ipv4_fe_set(payload, 1);
 	mlxsw_reg_ritr_lb_en_set(payload, 1);
+	mlxsw_reg_ritr_virtual_router_set(payload, vr_id);
 	mlxsw_reg_ritr_mtu_set(payload, mtu);
 	mlxsw_reg_ritr_if_mac_memcpy_to(payload, mac);
 }
@@ -4283,6 +4339,129 @@ static inline void mlxsw_reg_ratr_eth_entry_pack(char *payload,
 						 const char *dest_mac)
 {
 	mlxsw_reg_ratr_eth_destination_mac_memcpy_to(payload, dest_mac);
+}
+
+/* RICNT - Router Interface Counter Register
+ * -----------------------------------------
+ * The RICNT register retrieves per port performance counters
+ */
+#define MLXSW_REG_RICNT_ID 0x800B
+#define MLXSW_REG_RICNT_LEN 0x100
+
+MLXSW_REG_DEFINE(ricnt, MLXSW_REG_RICNT_ID, MLXSW_REG_RICNT_LEN);
+
+/* reg_ricnt_counter_index
+ * Counter index
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ricnt, counter_index, 0x04, 0, 24);
+
+enum mlxsw_reg_ricnt_counter_set_type {
+	/* No Count. */
+	MLXSW_REG_RICNT_COUNTER_SET_TYPE_NO_COUNT = 0x00,
+	/* Basic. Used for router interfaces, counting the following:
+	 *	- Error and Discard counters.
+	 *	- Unicast, Multicast and Broadcast counters. Sharing the
+	 *	  same set of counters for the different type of traffic
+	 *	  (IPv4, IPv6 and mpls).
+	 */
+	MLXSW_REG_RICNT_COUNTER_SET_TYPE_BASIC = 0x09,
+};
+
+/* reg_ricnt_counter_set_type
+ * Counter Set Type for router interface counter
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ricnt, counter_set_type, 0x04, 24, 8);
+
+enum mlxsw_reg_ricnt_opcode {
+	/* Nop. Supported only for read access*/
+	MLXSW_REG_RICNT_OPCODE_NOP = 0x00,
+	/* Clear. Setting the clr bit will reset the counter value for
+	 * all counters of the specified Router Interface.
+	 */
+	MLXSW_REG_RICNT_OPCODE_CLEAR = 0x08,
+};
+
+/* reg_ricnt_opcode
+ * Opcode
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ricnt, op, 0x00, 28, 4);
+
+/* reg_ricnt_good_unicast_packets
+ * good unicast packets.
+ * Access: RW
+ */
+MLXSW_ITEM64(reg, ricnt, good_unicast_packets, 0x08, 0, 64);
+
+/* reg_ricnt_good_multicast_packets
+ * good multicast packets.
+ * Access: RW
+ */
+MLXSW_ITEM64(reg, ricnt, good_multicast_packets, 0x10, 0, 64);
+
+/* reg_ricnt_good_broadcast_packets
+ * good broadcast packets
+ * Access: RW
+ */
+MLXSW_ITEM64(reg, ricnt, good_broadcast_packets, 0x18, 0, 64);
+
+/* reg_ricnt_good_unicast_bytes
+ * A count of L3 data and padding octets not including L2 headers
+ * for good unicast frames.
+ * Access: RW
+ */
+MLXSW_ITEM64(reg, ricnt, good_unicast_bytes, 0x20, 0, 64);
+
+/* reg_ricnt_good_multicast_bytes
+ * A count of L3 data and padding octets not including L2 headers
+ * for good multicast frames.
+ * Access: RW
+ */
+MLXSW_ITEM64(reg, ricnt, good_multicast_bytes, 0x28, 0, 64);
+
+/* reg_ritr_good_broadcast_bytes
+ * A count of L3 data and padding octets not including L2 headers
+ * for good broadcast frames.
+ * Access: RW
+ */
+MLXSW_ITEM64(reg, ricnt, good_broadcast_bytes, 0x30, 0, 64);
+
+/* reg_ricnt_error_packets
+ * A count of errored frames that do not pass the router checks.
+ * Access: RW
+ */
+MLXSW_ITEM64(reg, ricnt, error_packets, 0x38, 0, 64);
+
+/* reg_ricnt_discrad_packets
+ * A count of non-errored frames that do not pass the router checks.
+ * Access: RW
+ */
+MLXSW_ITEM64(reg, ricnt, discard_packets, 0x40, 0, 64);
+
+/* reg_ricnt_error_bytes
+ * A count of L3 data and padding octets not including L2 headers
+ * for errored frames.
+ * Access: RW
+ */
+MLXSW_ITEM64(reg, ricnt, error_bytes, 0x48, 0, 64);
+
+/* reg_ricnt_discard_bytes
+ * A count of L3 data and padding octets not including L2 headers
+ * for non-errored frames that do not pass the router checks.
+ * Access: RW
+ */
+MLXSW_ITEM64(reg, ricnt, discard_bytes, 0x50, 0, 64);
+
+static inline void mlxsw_reg_ricnt_pack(char *payload, u32 index,
+					enum mlxsw_reg_ricnt_opcode op)
+{
+	MLXSW_REG_ZERO(ricnt, payload);
+	mlxsw_reg_ricnt_op_set(payload, op);
+	mlxsw_reg_ricnt_counter_index_set(payload, index);
+	mlxsw_reg_ricnt_counter_set_type_set(payload,
+					     MLXSW_REG_RICNT_COUNTER_SET_TYPE_BASIC);
 }
 
 /* RALTA - Router Algorithmic LPM Tree Allocation Register
@@ -5504,6 +5683,70 @@ static inline void mlxsw_reg_mpsc_pack(char *payload, u8 local_port, bool e,
 	mlxsw_reg_mpsc_rate_set(payload, rate);
 }
 
+/* MGPC - Monitoring General Purpose Counter Set Register
+ * The MGPC register retrieves and sets the General Purpose Counter Set.
+ */
+#define MLXSW_REG_MGPC_ID 0x9081
+#define MLXSW_REG_MGPC_LEN 0x18
+
+MLXSW_REG_DEFINE(mgpc, MLXSW_REG_MGPC_ID, MLXSW_REG_MGPC_LEN);
+
+enum mlxsw_reg_mgpc_counter_set_type {
+	/* No count */
+	MLXSW_REG_MGPC_COUNTER_SET_TYPE_NO_COUT = 0x00,
+	/* Count packets and bytes */
+	MLXSW_REG_MGPC_COUNTER_SET_TYPE_PACKETS_BYTES = 0x03,
+	/* Count only packets */
+	MLXSW_REG_MGPC_COUNTER_SET_TYPE_PACKETS = 0x05,
+};
+
+/* reg_mgpc_counter_set_type
+ * Counter set type.
+ * Access: OP
+ */
+MLXSW_ITEM32(reg, mgpc, counter_set_type, 0x00, 24, 8);
+
+/* reg_mgpc_counter_index
+ * Counter index.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, mgpc, counter_index, 0x00, 0, 24);
+
+enum mlxsw_reg_mgpc_opcode {
+	/* Nop */
+	MLXSW_REG_MGPC_OPCODE_NOP = 0x00,
+	/* Clear counters */
+	MLXSW_REG_MGPC_OPCODE_CLEAR = 0x08,
+};
+
+/* reg_mgpc_opcode
+ * Opcode.
+ * Access: OP
+ */
+MLXSW_ITEM32(reg, mgpc, opcode, 0x04, 28, 4);
+
+/* reg_mgpc_byte_counter
+ * Byte counter value.
+ * Access: RW
+ */
+MLXSW_ITEM64(reg, mgpc, byte_counter, 0x08, 0, 64);
+
+/* reg_mgpc_packet_counter
+ * Packet counter value.
+ * Access: RW
+ */
+MLXSW_ITEM64(reg, mgpc, packet_counter, 0x10, 0, 64);
+
+static inline void mlxsw_reg_mgpc_pack(char *payload, u32 counter_index,
+				       enum mlxsw_reg_mgpc_opcode opcode,
+				       enum mlxsw_reg_mgpc_counter_set_type set_type)
+{
+	MLXSW_REG_ZERO(mgpc, payload);
+	mlxsw_reg_mgpc_counter_index_set(payload, counter_index);
+	mlxsw_reg_mgpc_counter_set_type_set(payload, set_type);
+	mlxsw_reg_mgpc_opcode_set(payload, opcode);
+}
+
 /* SBPR - Shared Buffer Pools Register
  * -----------------------------------
  * The SBPR configures and retrieves the shared buffer pools and configuration.
@@ -5960,6 +6203,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(rgcr),
 	MLXSW_REG(ritr),
 	MLXSW_REG(ratr),
+	MLXSW_REG(ricnt),
 	MLXSW_REG(ralta),
 	MLXSW_REG(ralst),
 	MLXSW_REG(raltb),
@@ -5977,6 +6221,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(mpar),
 	MLXSW_REG(mlcr),
 	MLXSW_REG(mpsc),
+	MLXSW_REG(mgpc),
 	MLXSW_REG(sbpr),
 	MLXSW_REG(sbcm),
 	MLXSW_REG(sbpm),

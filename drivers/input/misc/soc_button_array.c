@@ -320,9 +320,10 @@ static int soc_button_probe(struct platform_device *pdev)
 		button_info = (struct soc_button_info *)id->driver_data;
 	}
 
-	if (gpiod_count(dev, NULL) <= 0) {
+	error = gpiod_count(dev, NULL);
+	if (error < 0) {
 		dev_dbg(dev, "no GPIO attached, ignoring...\n");
-		return -ENODEV;
+		return error;
 	}
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);

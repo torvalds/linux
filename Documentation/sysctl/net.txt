@@ -188,7 +188,16 @@ netdev_budget
 
 Maximum number of packets taken from all interfaces in one polling cycle (NAPI
 poll). In one polling cycle interfaces which are registered to polling are
-probed in a round-robin manner.
+probed in a round-robin manner. Also, a polling cycle may not exceed
+netdev_budget_usecs microseconds, even if netdev_budget has not been
+exhausted.
+
+netdev_budget_usecs
+---------------------
+
+Maximum number of microseconds in one NAPI polling cycle. Polling
+will exit when either netdev_budget_usecs have elapsed during the
+poll cycle or the number of packets processed reaches netdev_budget.
 
 netdev_max_backlog
 ------------------

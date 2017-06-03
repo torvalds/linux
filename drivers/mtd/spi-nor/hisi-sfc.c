@@ -448,8 +448,11 @@ static int hisi_spi_nor_probe(struct platform_device *pdev)
 	if (!host->buffer)
 		return -ENOMEM;
 
+	ret = clk_prepare_enable(host->clk);
+	if (ret)
+		return ret;
+
 	mutex_init(&host->lock);
-	clk_prepare_enable(host->clk);
 	hisi_spi_nor_init(host);
 	ret = hisi_spi_nor_register_all(host);
 	if (ret)

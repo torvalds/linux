@@ -138,12 +138,12 @@ struct drm_crtc_commit {
 
 struct __drm_planes_state {
 	struct drm_plane *ptr;
-	struct drm_plane_state *state;
+	struct drm_plane_state *state, *old_state, *new_state;
 };
 
 struct __drm_crtcs_state {
 	struct drm_crtc *ptr;
-	struct drm_crtc_state *state;
+	struct drm_crtc_state *state, *old_state, *new_state;
 	struct drm_crtc_commit *commit;
 	s32 __user *out_fence_ptr;
 	unsigned last_vblank_count;
@@ -151,7 +151,7 @@ struct __drm_crtcs_state {
 
 struct __drm_connnectors_state {
 	struct drm_connector *ptr;
-	struct drm_connector_state *state;
+	struct drm_connector_state *state, *old_state, *new_state;
 };
 
 /**
@@ -160,7 +160,6 @@ struct __drm_connnectors_state {
  * @dev: parent DRM device
  * @allow_modeset: allow full modeset
  * @legacy_cursor_update: hint to enforce legacy cursor IOCTL semantics
- * @legacy_set_config: Disable conflicting encoders instead of failing with -EINVAL.
  * @planes: pointer to array of structures with per-plane data
  * @crtcs: pointer to array of CRTC pointers
  * @num_connector: size of the @connectors and @connector_states arrays
@@ -173,7 +172,6 @@ struct drm_atomic_state {
 	struct drm_device *dev;
 	bool allow_modeset : 1;
 	bool legacy_cursor_update : 1;
-	bool legacy_set_config : 1;
 	struct __drm_planes_state *planes;
 	struct __drm_crtcs_state *crtcs;
 	int num_connector;
@@ -277,6 +275,9 @@ int drm_atomic_connector_set_property(struct drm_connector *connector,
  *
  * This function returns the crtc state for the given crtc, or NULL
  * if the crtc is not part of the global atomic state.
+ *
+ * This function is deprecated, @drm_atomic_get_old_crtc_state or
+ * @drm_atomic_get_new_crtc_state should be used instead.
  */
 static inline struct drm_crtc_state *
 drm_atomic_get_existing_crtc_state(struct drm_atomic_state *state,
@@ -286,12 +287,44 @@ drm_atomic_get_existing_crtc_state(struct drm_atomic_state *state,
 }
 
 /**
+ * drm_atomic_get_old_crtc_state - get old crtc state, if it exists
+ * @state: global atomic state object
+ * @crtc: crtc to grab
+ *
+ * This function returns the old crtc state for the given crtc, or
+ * NULL if the crtc is not part of the global atomic state.
+ */
+static inline struct drm_crtc_state *
+drm_atomic_get_old_crtc_state(struct drm_atomic_state *state,
+			      struct drm_crtc *crtc)
+{
+	return state->crtcs[drm_crtc_index(crtc)].old_state;
+}
+/**
+ * drm_atomic_get_new_crtc_state - get new crtc state, if it exists
+ * @state: global atomic state object
+ * @crtc: crtc to grab
+ *
+ * This function returns the new crtc state for the given crtc, or
+ * NULL if the crtc is not part of the global atomic state.
+ */
+static inline struct drm_crtc_state *
+drm_atomic_get_new_crtc_state(struct drm_atomic_state *state,
+			      struct drm_crtc *crtc)
+{
+	return state->crtcs[drm_crtc_index(crtc)].new_state;
+}
+
+/**
  * drm_atomic_get_existing_plane_state - get plane state, if it exists
  * @state: global atomic state object
  * @plane: plane to grab
  *
  * This function returns the plane state for the given plane, or NULL
  * if the plane is not part of the global atomic state.
+ *
+ * This function is deprecated, @drm_atomic_get_old_plane_state or
+ * @drm_atomic_get_new_plane_state should be used instead.
  */
 static inline struct drm_plane_state *
 drm_atomic_get_existing_plane_state(struct drm_atomic_state *state,
@@ -301,12 +334,45 @@ drm_atomic_get_existing_plane_state(struct drm_atomic_state *state,
 }
 
 /**
+ * drm_atomic_get_old_plane_state - get plane state, if it exists
+ * @state: global atomic state object
+ * @plane: plane to grab
+ *
+ * This function returns the old plane state for the given plane, or
+ * NULL if the plane is not part of the global atomic state.
+ */
+static inline struct drm_plane_state *
+drm_atomic_get_old_plane_state(struct drm_atomic_state *state,
+			       struct drm_plane *plane)
+{
+	return state->planes[drm_plane_index(plane)].old_state;
+}
+
+/**
+ * drm_atomic_get_new_plane_state - get plane state, if it exists
+ * @state: global atomic state object
+ * @plane: plane to grab
+ *
+ * This function returns the new plane state for the given plane, or
+ * NULL if the plane is not part of the global atomic state.
+ */
+static inline struct drm_plane_state *
+drm_atomic_get_new_plane_state(struct drm_atomic_state *state,
+			       struct drm_plane *plane)
+{
+	return state->planes[drm_plane_index(plane)].new_state;
+}
+
+/**
  * drm_atomic_get_existing_connector_state - get connector state, if it exists
  * @state: global atomic state object
  * @connector: connector to grab
  *
  * This function returns the connector state for the given connector,
  * or NULL if the connector is not part of the global atomic state.
+ *
+ * This function is deprecated, @drm_atomic_get_old_connector_state or
+ * @drm_atomic_get_new_connector_state should be used instead.
  */
 static inline struct drm_connector_state *
 drm_atomic_get_existing_connector_state(struct drm_atomic_state *state,
@@ -318,6 +384,46 @@ drm_atomic_get_existing_connector_state(struct drm_atomic_state *state,
 		return NULL;
 
 	return state->connectors[index].state;
+}
+
+/**
+ * drm_atomic_get_old_connector_state - get connector state, if it exists
+ * @state: global atomic state object
+ * @connector: connector to grab
+ *
+ * This function returns the old connector state for the given connector,
+ * or NULL if the connector is not part of the global atomic state.
+ */
+static inline struct drm_connector_state *
+drm_atomic_get_old_connector_state(struct drm_atomic_state *state,
+				   struct drm_connector *connector)
+{
+	int index = drm_connector_index(connector);
+
+	if (index >= state->num_connector)
+		return NULL;
+
+	return state->connectors[index].old_state;
+}
+
+/**
+ * drm_atomic_get_new_connector_state - get connector state, if it exists
+ * @state: global atomic state object
+ * @connector: connector to grab
+ *
+ * This function returns the new connector state for the given connector,
+ * or NULL if the connector is not part of the global atomic state.
+ */
+static inline struct drm_connector_state *
+drm_atomic_get_new_connector_state(struct drm_atomic_state *state,
+				   struct drm_connector *connector)
+{
+	int index = drm_connector_index(connector);
+
+	if (index >= state->num_connector)
+		return NULL;
+
+	return state->connectors[index].new_state;
 }
 
 /**
@@ -390,6 +496,23 @@ int __must_check drm_atomic_nonblocking_commit(struct drm_atomic_state *state);
 
 void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 
+/**
+ * for_each_connector_in_state - iterate over all connectors in an atomic update
+ * @__state: &struct drm_atomic_state pointer
+ * @connector: &struct drm_connector iteration cursor
+ * @connector_state: &struct drm_connector_state iteration cursor
+ * @__i: int iteration cursor, for macro-internal use
+ *
+ * This iterates over all connectors in an atomic update. Note that before the
+ * software state is committed (by calling drm_atomic_helper_swap_state(), this
+ * points to the new state, while afterwards it points to the old state. Due to
+ * this tricky confusion this macro is deprecated.
+ *
+ * FIXME:
+ *
+ * Replace all usage of this with one of the explicit iterators below and then
+ * remove this macro.
+ */
 #define for_each_connector_in_state(__state, connector, connector_state, __i) \
 	for ((__i) = 0;							\
 	     (__i) < (__state)->num_connector &&				\
@@ -398,6 +521,86 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (__i)++)							\
 		for_each_if (connector)
 
+/**
+ * for_each_oldnew_connector_in_state - iterate over all connectors in an atomic update
+ * @__state: &struct drm_atomic_state pointer
+ * @connector: &struct drm_connector iteration cursor
+ * @old_connector_state: &struct drm_connector_state iteration cursor for the
+ * 	old state
+ * @new_connector_state: &struct drm_connector_state iteration cursor for the
+ * 	new state
+ * @__i: int iteration cursor, for macro-internal use
+ *
+ * This iterates over all connectors in an atomic update, tracking both old and
+ * new state. This is useful in places where the state delta needs to be
+ * considered, for example in atomic check functions.
+ */
+#define for_each_oldnew_connector_in_state(__state, connector, old_connector_state, new_connector_state, __i) \
+	for ((__i) = 0;								\
+	     (__i) < (__state)->num_connector &&				\
+	     ((connector) = (__state)->connectors[__i].ptr,			\
+	     (old_connector_state) = (__state)->connectors[__i].old_state,	\
+	     (new_connector_state) = (__state)->connectors[__i].new_state, 1); 	\
+	     (__i)++)							\
+		for_each_if (connector)
+
+/**
+ * for_each_old_connector_in_state - iterate over all connectors in an atomic update
+ * @__state: &struct drm_atomic_state pointer
+ * @connector: &struct drm_connector iteration cursor
+ * @old_connector_state: &struct drm_connector_state iteration cursor for the
+ * 	old state
+ * @__i: int iteration cursor, for macro-internal use
+ *
+ * This iterates over all connectors in an atomic update, tracking only the old
+ * state. This is useful in disable functions, where we need the old state the
+ * hardware is still in.
+ */
+#define for_each_old_connector_in_state(__state, connector, old_connector_state, __i) \
+	for ((__i) = 0;								\
+	     (__i) < (__state)->num_connector &&				\
+	     ((connector) = (__state)->connectors[__i].ptr,			\
+	     (old_connector_state) = (__state)->connectors[__i].old_state, 1); 	\
+	     (__i)++)							\
+		for_each_if (connector)
+
+/**
+ * for_each_new_connector_in_state - iterate over all connectors in an atomic update
+ * @__state: &struct drm_atomic_state pointer
+ * @connector: &struct drm_connector iteration cursor
+ * @new_connector_state: &struct drm_connector_state iteration cursor for the
+ * 	new state
+ * @__i: int iteration cursor, for macro-internal use
+ *
+ * This iterates over all connectors in an atomic update, tracking only the new
+ * state. This is useful in enable functions, where we need the new state the
+ * hardware should be in when the atomic commit operation has completed.
+ */
+#define for_each_new_connector_in_state(__state, connector, new_connector_state, __i) \
+	for ((__i) = 0;								\
+	     (__i) < (__state)->num_connector &&				\
+	     ((connector) = (__state)->connectors[__i].ptr,			\
+	     (new_connector_state) = (__state)->connectors[__i].new_state, 1); 	\
+	     (__i)++)							\
+		for_each_if (connector)
+
+/**
+ * for_each_crtc_in_state - iterate over all connectors in an atomic update
+ * @__state: &struct drm_atomic_state pointer
+ * @crtc: &struct drm_crtc iteration cursor
+ * @crtc_state: &struct drm_crtc_state iteration cursor
+ * @__i: int iteration cursor, for macro-internal use
+ *
+ * This iterates over all CRTCs in an atomic update. Note that before the
+ * software state is committed (by calling drm_atomic_helper_swap_state(), this
+ * points to the new state, while afterwards it points to the old state. Due to
+ * this tricky confusion this macro is deprecated.
+ *
+ * FIXME:
+ *
+ * Replace all usage of this with one of the explicit iterators below and then
+ * remove this macro.
+ */
 #define for_each_crtc_in_state(__state, crtc, crtc_state, __i)	\
 	for ((__i) = 0;						\
 	     (__i) < (__state)->dev->mode_config.num_crtc &&	\
@@ -406,6 +609,82 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (__i)++)						\
 		for_each_if (crtc_state)
 
+/**
+ * for_each_oldnew_crtc_in_state - iterate over all CRTCs in an atomic update
+ * @__state: &struct drm_atomic_state pointer
+ * @crtc: &struct drm_crtc iteration cursor
+ * @old_crtc_state: &struct drm_crtc_state iteration cursor for the old state
+ * @new_crtc_state: &struct drm_crtc_state iteration cursor for the new state
+ * @__i: int iteration cursor, for macro-internal use
+ *
+ * This iterates over all CRTCs in an atomic update, tracking both old and
+ * new state. This is useful in places where the state delta needs to be
+ * considered, for example in atomic check functions.
+ */
+#define for_each_oldnew_crtc_in_state(__state, crtc, old_crtc_state, new_crtc_state, __i) \
+	for ((__i) = 0;							\
+	     (__i) < (__state)->dev->mode_config.num_crtc &&		\
+	     ((crtc) = (__state)->crtcs[__i].ptr,			\
+	     (old_crtc_state) = (__state)->crtcs[__i].old_state,	\
+	     (new_crtc_state) = (__state)->crtcs[__i].new_state, 1);	\
+	     (__i)++)							\
+		for_each_if (crtc)
+
+/**
+ * for_each_old_crtc_in_state - iterate over all CRTCs in an atomic update
+ * @__state: &struct drm_atomic_state pointer
+ * @crtc: &struct drm_crtc iteration cursor
+ * @old_crtc_state: &struct drm_crtc_state iteration cursor for the old state
+ * @__i: int iteration cursor, for macro-internal use
+ *
+ * This iterates over all CRTCs in an atomic update, tracking only the old
+ * state. This is useful in disable functions, where we need the old state the
+ * hardware is still in.
+ */
+#define for_each_old_crtc_in_state(__state, crtc, old_crtc_state, __i)	\
+	for ((__i) = 0;							\
+	     (__i) < (__state)->dev->mode_config.num_crtc &&		\
+	     ((crtc) = (__state)->crtcs[__i].ptr,			\
+	     (old_crtc_state) = (__state)->crtcs[__i].old_state, 1);	\
+	     (__i)++)							\
+		for_each_if (crtc)
+
+/**
+ * for_each_new_crtc_in_state - iterate over all CRTCs in an atomic update
+ * @__state: &struct drm_atomic_state pointer
+ * @crtc: &struct drm_crtc iteration cursor
+ * @new_crtc_state: &struct drm_crtc_state iteration cursor for the new state
+ * @__i: int iteration cursor, for macro-internal use
+ *
+ * This iterates over all CRTCs in an atomic update, tracking only the new
+ * state. This is useful in enable functions, where we need the new state the
+ * hardware should be in when the atomic commit operation has completed.
+ */
+#define for_each_new_crtc_in_state(__state, crtc, new_crtc_state, __i)	\
+	for ((__i) = 0;							\
+	     (__i) < (__state)->dev->mode_config.num_crtc &&		\
+	     ((crtc) = (__state)->crtcs[__i].ptr,			\
+	     (new_crtc_state) = (__state)->crtcs[__i].new_state, 1);	\
+	     (__i)++)							\
+		for_each_if (crtc)
+
+/**
+ * for_each_plane_in_state - iterate over all planes in an atomic update
+ * @__state: &struct drm_atomic_state pointer
+ * @plane: &struct drm_plane iteration cursor
+ * @plane_state: &struct drm_plane_state iteration cursor
+ * @__i: int iteration cursor, for macro-internal use
+ *
+ * This iterates over all planes in an atomic update. Note that before the
+ * software state is committed (by calling drm_atomic_helper_swap_state(), this
+ * points to the new state, while afterwards it points to the old state. Due to
+ * this tricky confusion this macro is deprecated.
+ *
+ * FIXME:
+ *
+ * Replace all usage of this with one of the explicit iterators below and then
+ * remove this macro.
+ */
 #define for_each_plane_in_state(__state, plane, plane_state, __i)		\
 	for ((__i) = 0;							\
 	     (__i) < (__state)->dev->mode_config.num_total_plane &&	\
@@ -415,12 +694,71 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 		for_each_if (plane_state)
 
 /**
+ * for_each_oldnew_plane_in_state - iterate over all planes in an atomic update
+ * @__state: &struct drm_atomic_state pointer
+ * @plane: &struct drm_plane iteration cursor
+ * @old_plane_state: &struct drm_plane_state iteration cursor for the old state
+ * @new_plane_state: &struct drm_plane_state iteration cursor for the new state
+ * @__i: int iteration cursor, for macro-internal use
+ *
+ * This iterates over all planes in an atomic update, tracking both old and
+ * new state. This is useful in places where the state delta needs to be
+ * considered, for example in atomic check functions.
+ */
+#define for_each_oldnew_plane_in_state(__state, plane, old_plane_state, new_plane_state, __i) \
+	for ((__i) = 0;							\
+	     (__i) < (__state)->dev->mode_config.num_total_plane &&	\
+	     ((plane) = (__state)->planes[__i].ptr,			\
+	     (old_plane_state) = (__state)->planes[__i].old_state,	\
+	     (new_plane_state) = (__state)->planes[__i].new_state, 1);	\
+	     (__i)++)							\
+		for_each_if (plane)
+
+/**
+ * for_each_old_plane_in_state - iterate over all planes in an atomic update
+ * @__state: &struct drm_atomic_state pointer
+ * @plane: &struct drm_plane iteration cursor
+ * @old_plane_state: &struct drm_plane_state iteration cursor for the old state
+ * @__i: int iteration cursor, for macro-internal use
+ *
+ * This iterates over all planes in an atomic update, tracking only the old
+ * state. This is useful in disable functions, where we need the old state the
+ * hardware is still in.
+ */
+#define for_each_old_plane_in_state(__state, plane, old_plane_state, __i) \
+	for ((__i) = 0;							\
+	     (__i) < (__state)->dev->mode_config.num_total_plane &&	\
+	     ((plane) = (__state)->planes[__i].ptr,			\
+	     (old_plane_state) = (__state)->planes[__i].old_state, 1);	\
+	     (__i)++)							\
+		for_each_if (plane)
+
+/**
+ * for_each_new_plane_in_state - iterate over all planes in an atomic update
+ * @__state: &struct drm_atomic_state pointer
+ * @plane: &struct drm_plane iteration cursor
+ * @new_plane_state: &struct drm_plane_state iteration cursor for the new state
+ * @__i: int iteration cursor, for macro-internal use
+ *
+ * This iterates over all planes in an atomic update, tracking only the new
+ * state. This is useful in enable functions, where we need the new state the
+ * hardware should be in when the atomic commit operation has completed.
+ */
+#define for_each_new_plane_in_state(__state, plane, new_plane_state, __i) \
+	for ((__i) = 0;							\
+	     (__i) < (__state)->dev->mode_config.num_total_plane &&	\
+	     ((plane) = (__state)->planes[__i].ptr,			\
+	     (new_plane_state) = (__state)->planes[__i].new_state, 1);	\
+	     (__i)++)							\
+		for_each_if (plane)
+
+/**
  * drm_atomic_crtc_needs_modeset - compute combined modeset need
  * @state: &drm_crtc_state for the CRTC
  *
  * To give drivers flexibility &struct drm_crtc_state has 3 booleans to track
  * whether the state CRTC changed enough to need a full modeset cycle:
- * connectors_changed, mode_changed and active_changed. This helper simply
+ * planes_changed, mode_changed and active_changed. This helper simply
  * combines these three to compute the overall need for a modeset for @state.
  *
  * The atomic helper code sets these booleans, but drivers can and should

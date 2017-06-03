@@ -709,6 +709,7 @@ void free_xenballooned_pages(int nr_pages, struct page **pages)
 }
 EXPORT_SYMBOL(free_xenballooned_pages);
 
+#ifdef CONFIG_XEN_PV
 static void __init balloon_add_region(unsigned long start_pfn,
 				      unsigned long pages)
 {
@@ -732,19 +733,22 @@ static void __init balloon_add_region(unsigned long start_pfn,
 
 	balloon_stats.total_pages += extra_pfn_end - start_pfn;
 }
+#endif
 
 static int __init balloon_init(void)
 {
-	int i;
-
 	if (!xen_domain())
 		return -ENODEV;
 
 	pr_info("Initialising balloon driver\n");
 
+#ifdef CONFIG_XEN_PV
 	balloon_stats.current_pages = xen_pv_domain()
 		? min(xen_start_info->nr_pages - xen_released_pages, max_pfn)
 		: get_num_physpages();
+#else
+	balloon_stats.current_pages = get_num_physpages();
+#endif
 	balloon_stats.target_pages  = balloon_stats.current_pages;
 	balloon_stats.balloon_low   = 0;
 	balloon_stats.balloon_high  = 0;
@@ -761,14 +765,20 @@ static int __init balloon_init(void)
 	register_sysctl_table(xen_root);
 #endif
 
-	/*
-	 * Initialize the balloon with pages from the extra memory
-	 * regions (see arch/x86/xen/setup.c).
-	 */
-	for (i = 0; i < XEN_EXTRA_MEM_MAX_REGIONS; i++)
-		if (xen_extra_mem[i].n_pfns)
-			balloon_add_region(xen_extra_mem[i].start_pfn,
-					   xen_extra_mem[i].n_pfns);
+#ifdef CONFIG_XEN_PV
+	{
+		int i;
+
+		/*
+		 * Initialize the balloon with pages from the extra memory
+		 * regions (see arch/x86/xen/setup.c).
+		 */
+		for (i = 0; i < XEN_EXTRA_MEM_MAX_REGIONS; i++)
+			if (xen_extra_mem[i].n_pfns)
+				balloon_add_region(xen_extra_mem[i].start_pfn,
+						   xen_extra_mem[i].n_pfns);
+	}
+#endif
 
 	return 0;
 }

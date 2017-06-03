@@ -2805,10 +2805,10 @@ static int __initdata dma = -1;
 static int __initdata dma2 = -1;
 static int __initdata type = 0;
 
-module_param(io, int, 0);		/* I/O for a raw AD1848 card */
-module_param(irq, int, 0);		/* IRQ to use */
-module_param(dma, int, 0);		/* First DMA channel */
-module_param(dma2, int, 0);		/* Second DMA channel */
+module_param_hw(io, int, ioport, 0);	/* I/O for a raw AD1848 card */
+module_param_hw(irq, int, irq, 0);	/* IRQ to use */
+module_param_hw(dma, int, dma, 0);	/* First DMA channel */
+module_param_hw(dma2, int, dma, 0);	/* Second DMA channel */
 module_param(type, int, 0);		/* Card type */
 module_param(deskpro_xl, bool, 0);	/* Special magic for Deskpro XL boxen */
 module_param(deskpro_m, bool, 0);	/* Special magic for Deskpro M box */

@@ -229,11 +229,6 @@ int brcmf_attach(struct device *dev, struct brcmf_mp_device *settings);
 void brcmf_detach(struct device *dev);
 /* Indication from bus module that dongle should be reset */
 void brcmf_dev_reset(struct device *dev);
-/* Indication from bus module to change flow-control state */
-void brcmf_txflowblock(struct device *dev, bool state);
-
-/* Notify the bus has transferred the tx packet to firmware */
-void brcmf_txcomplete(struct device *dev, struct sk_buff *txp, bool success);
 
 /* Configure the "global" bus state used by upper layers */
 void brcmf_bus_change_state(struct brcmf_bus *bus, enum brcmf_bus_state state);

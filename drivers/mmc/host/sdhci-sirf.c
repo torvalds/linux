@@ -237,6 +237,9 @@ static int sdhci_sirf_suspend(struct device *dev)
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	int ret;
 
+	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
+		mmc_retune_needed(host->mmc);
+
 	ret = sdhci_suspend_host(host);
 	if (ret)
 		return ret;

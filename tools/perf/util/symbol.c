@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <linux/kernel.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/param.h>
@@ -18,6 +19,8 @@
 #include "strlist.h"
 #include "intlist.h"
 #include "header.h"
+#include "path.h"
+#include "sane_ctype.h"
 
 #include <elf.h>
 #include <limits.h>
@@ -85,6 +88,17 @@ static int prefix_underscores_count(const char *str)
 		tail++;
 
 	return tail - str;
+}
+
+int __weak arch__compare_symbol_names(const char *namea, const char *nameb)
+{
+	return strcmp(namea, nameb);
+}
+
+int __weak arch__compare_symbol_names_n(const char *namea, const char *nameb,
+					unsigned int n)
+{
+	return strncmp(namea, nameb, n);
 }
 
 int __weak arch__choose_best_symbol(struct symbol *syma,
@@ -396,8 +410,26 @@ static void symbols__sort_by_name(struct rb_root *symbols,
 	}
 }
 
+int symbol__match_symbol_name(const char *name, const char *str,
+			      enum symbol_tag_include includes)
+{
+	const char *versioning;
+
+	if (includes == SYMBOL_TAG_INCLUDE__DEFAULT_ONLY &&
+	    (versioning = strstr(name, "@@"))) {
+		int len = strlen(str);
+
+		if (len < versioning - name)
+			len = versioning - name;
+
+		return arch__compare_symbol_names_n(name, str, len);
+	} else
+		return arch__compare_symbol_names(name, str);
+}
+
 static struct symbol *symbols__find_by_name(struct rb_root *symbols,
-					    const char *name)
+					    const char *name,
+					    enum symbol_tag_include includes)
 {
 	struct rb_node *n;
 	struct symbol_name_rb_node *s = NULL;
@@ -411,11 +443,11 @@ static struct symbol *symbols__find_by_name(struct rb_root *symbols,
 		int cmp;
 
 		s = rb_entry(n, struct symbol_name_rb_node, rb_node);
-		cmp = arch__compare_symbol_names(name, s->sym.name);
+		cmp = symbol__match_symbol_name(s->sym.name, name, includes);
 
-		if (cmp < 0)
+		if (cmp > 0)
 			n = n->rb_left;
-		else if (cmp > 0)
+		else if (cmp < 0)
 			n = n->rb_right;
 		else
 			break;
@@ -424,16 +456,17 @@ static struct symbol *symbols__find_by_name(struct rb_root *symbols,
 	if (n == NULL)
 		return NULL;
 
-	/* return first symbol that has same name (if any) */
-	for (n = rb_prev(n); n; n = rb_prev(n)) {
-		struct symbol_name_rb_node *tmp;
+	if (includes != SYMBOL_TAG_INCLUDE__DEFAULT_ONLY)
+		/* return first symbol that has same name (if any) */
+		for (n = rb_prev(n); n; n = rb_prev(n)) {
+			struct symbol_name_rb_node *tmp;
 
-		tmp = rb_entry(n, struct symbol_name_rb_node, rb_node);
-		if (arch__compare_symbol_names(tmp->sym.name, s->sym.name))
-			break;
+			tmp = rb_entry(n, struct symbol_name_rb_node, rb_node);
+			if (arch__compare_symbol_names(tmp->sym.name, s->sym.name))
+				break;
 
-		s = tmp;
-	}
+			s = tmp;
+		}
 
 	return &s->sym;
 }
@@ -463,7 +496,7 @@ void dso__insert_symbol(struct dso *dso, enum map_type type, struct symbol *sym)
 struct symbol *dso__find_symbol(struct dso *dso,
 				enum map_type type, u64 addr)
 {
-	if (dso->last_find_result[type].addr != addr) {
+	if (dso->last_find_result[type].addr != addr || dso->last_find_result[type].symbol == NULL) {
 		dso->last_find_result[type].addr   = addr;
 		dso->last_find_result[type].symbol = symbols__find(&dso->symbols[type], addr);
 	}
@@ -500,7 +533,12 @@ struct symbol *symbol__next_by_name(struct symbol *sym)
 struct symbol *dso__find_symbol_by_name(struct dso *dso, enum map_type type,
 					const char *name)
 {
-	return symbols__find_by_name(&dso->symbol_names[type], name);
+	struct symbol *s = symbols__find_by_name(&dso->symbol_names[type], name,
+						 SYMBOL_TAG_INCLUDE__NONE);
+	if (!s)
+		s = symbols__find_by_name(&dso->symbol_names[type], name,
+					  SYMBOL_TAG_INCLUDE__DEFAULT_ONLY);
+	return s;
 }
 
 void dso__sort_by_name(struct dso *dso, enum map_type type)
@@ -1072,8 +1110,9 @@ static int validate_kcore_addresses(const char *kallsyms_filename,
 	if (kmap->ref_reloc_sym && kmap->ref_reloc_sym->name) {
 		u64 start;
 
-		start = kallsyms__get_function_start(kallsyms_filename,
-						     kmap->ref_reloc_sym->name);
+		if (kallsyms__get_function_start(kallsyms_filename,
+						 kmap->ref_reloc_sym->name, &start))
+			return -ENOENT;
 		if (start != kmap->ref_reloc_sym->addr)
 			return -EINVAL;
 	}
@@ -1245,9 +1284,7 @@ static int kallsyms__delta(struct map *map, const char *filename, u64 *delta)
 	if (!kmap->ref_reloc_sym || !kmap->ref_reloc_sym->name)
 		return 0;
 
-	addr = kallsyms__get_function_start(filename,
-					    kmap->ref_reloc_sym->name);
-	if (!addr)
+	if (kallsyms__get_function_start(filename, kmap->ref_reloc_sym->name, &addr))
 		return -1;
 
 	*delta = addr - kmap->ref_reloc_sym->addr;

@@ -494,9 +494,8 @@ static bool batadv_mcast_mla_tvlv_update(struct batadv_priv *bat_priv)
 	if (!bridged)
 		goto update;
 
-#if !IS_ENABLED(CONFIG_BRIDGE_IGMP_SNOOPING)
-	pr_warn_once("No bridge IGMP snooping compiled - multicast optimizations disabled\n");
-#endif
+	if (!IS_ENABLED(CONFIG_BRIDGE_IGMP_SNOOPING))
+		pr_warn_once("No bridge IGMP snooping compiled - multicast optimizations disabled\n");
 
 	querier4.exists = br_multicast_has_querier_anywhere(dev, ETH_P_IP);
 	querier4.shadowing = br_multicast_has_querier_adjacent(dev, ETH_P_IP);
@@ -671,7 +670,6 @@ static int batadv_mcast_forw_mode_check_ipv4(struct batadv_priv *bat_priv,
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_IPV6)
 /**
  * batadv_mcast_is_report_ipv6 - check for MLD reports
  * @skb: the ethernet frame destined for the mesh
@@ -736,7 +734,6 @@ static int batadv_mcast_forw_mode_check_ipv6(struct batadv_priv *bat_priv,
 
 	return 0;
 }
-#endif
 
 /**
  * batadv_mcast_forw_mode_check - check for optimized forwarding potential
@@ -765,11 +762,12 @@ static int batadv_mcast_forw_mode_check(struct batadv_priv *bat_priv,
 	case ETH_P_IP:
 		return batadv_mcast_forw_mode_check_ipv4(bat_priv, skb,
 							 is_unsnoopable);
-#if IS_ENABLED(CONFIG_IPV6)
 	case ETH_P_IPV6:
+		if (!IS_ENABLED(CONFIG_IPV6))
+			return -EINVAL;
+
 		return batadv_mcast_forw_mode_check_ipv6(bat_priv, skb,
 							 is_unsnoopable);
-#endif
 	default:
 		return -EINVAL;
 	}

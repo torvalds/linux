@@ -16,6 +16,7 @@
 #include <linux/virtio_ids.h>
 #include <linux/virtio_config.h>
 #include <linux/virtio_vsock.h>
+#include <uapi/linux/vsockmon.h>
 
 #include <net/sock.h>
 #include <net/af_vsock.h>
@@ -84,6 +85,69 @@ out_pkt:
 	kfree(pkt);
 	return NULL;
 }
+
+/* Packet capture */
+static struct sk_buff *virtio_transport_build_skb(void *opaque)
+{
+	struct virtio_vsock_pkt *pkt = opaque;
+	unsigned char *t_hdr, *payload;
+	struct af_vsockmon_hdr *hdr;
+	struct sk_buff *skb;
+
+	skb = alloc_skb(sizeof(*hdr) + sizeof(pkt->hdr) + pkt->len,
+			GFP_ATOMIC);
+	if (!skb)
+		return NULL;
+
+	hdr = (struct af_vsockmon_hdr *)skb_put(skb, sizeof(*hdr));
+
+	/* pkt->hdr is little-endian so no need to byteswap here */
+	hdr->src_cid = pkt->hdr.src_cid;
+	hdr->src_port = pkt->hdr.src_port;
+	hdr->dst_cid = pkt->hdr.dst_cid;
+	hdr->dst_port = pkt->hdr.dst_port;
+
+	hdr->transport = cpu_to_le16(AF_VSOCK_TRANSPORT_VIRTIO);
+	hdr->len = cpu_to_le16(sizeof(pkt->hdr));
+	memset(hdr->reserved, 0, sizeof(hdr->reserved));
+
+	switch (le16_to_cpu(pkt->hdr.op)) {
+	case VIRTIO_VSOCK_OP_REQUEST:
+	case VIRTIO_VSOCK_OP_RESPONSE:
+		hdr->op = cpu_to_le16(AF_VSOCK_OP_CONNECT);
+		break;
+	case VIRTIO_VSOCK_OP_RST:
+	case VIRTIO_VSOCK_OP_SHUTDOWN:
+		hdr->op = cpu_to_le16(AF_VSOCK_OP_DISCONNECT);
+		break;
+	case VIRTIO_VSOCK_OP_RW:
+		hdr->op = cpu_to_le16(AF_VSOCK_OP_PAYLOAD);
+		break;
+	case VIRTIO_VSOCK_OP_CREDIT_UPDATE:
+	case VIRTIO_VSOCK_OP_CREDIT_REQUEST:
+		hdr->op = cpu_to_le16(AF_VSOCK_OP_CONTROL);
+		break;
+	default:
+		hdr->op = cpu_to_le16(AF_VSOCK_OP_UNKNOWN);
+		break;
+	}
+
+	t_hdr = skb_put(skb, sizeof(pkt->hdr));
+	memcpy(t_hdr, &pkt->hdr, sizeof(pkt->hdr));
+
+	if (pkt->len) {
+		payload = skb_put(skb, pkt->len);
+		memcpy(payload, pkt->buf, pkt->len);
+	}
+
+	return skb;
+}
+
+void virtio_transport_deliver_tap_pkt(struct virtio_vsock_pkt *pkt)
+{
+	vsock_deliver_tap(virtio_transport_build_skb, pkt);
+}
+EXPORT_SYMBOL_GPL(virtio_transport_deliver_tap_pkt);
 
 static int virtio_transport_send_pkt_info(struct vsock_sock *vsk,
 					  struct virtio_vsock_pkt_info *info)

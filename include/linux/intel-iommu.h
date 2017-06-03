@@ -30,6 +30,8 @@
 #include <linux/mmu_notifier.h>
 #include <linux/list.h>
 #include <linux/iommu.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
+
 #include <asm/cacheflush.h>
 #include <asm/iommu.h>
 
@@ -72,24 +74,8 @@
 
 #define OFFSET_STRIDE		(9)
 
-#ifdef CONFIG_64BIT
 #define dmar_readq(a) readq(a)
 #define dmar_writeq(a,v) writeq(v,a)
-#else
-static inline u64 dmar_readq(void __iomem *addr)
-{
-	u32 lo, hi;
-	lo = readl(addr);
-	hi = readl(addr + 4);
-	return (((u64) hi) << 32) + lo;
-}
-
-static inline void dmar_writeq(void __iomem *addr, u64 val)
-{
-	writel((u32)val, addr);
-	writel((u32)(val >> 32), addr + 4);
-}
-#endif
 
 #define DMAR_VER_MAJOR(v)		(((v) & 0xf0) >> 4)
 #define DMAR_VER_MINOR(v)		((v) & 0x0f)

@@ -6,8 +6,10 @@ nfp-objs := \
 	    nfpcore/nfp_cpplib.o \
 	    nfpcore/nfp_hwinfo.o \
 	    nfpcore/nfp_mip.o \
+	    nfpcore/nfp_mutex.o \
 	    nfpcore/nfp_nffw.o \
 	    nfpcore/nfp_nsp.o \
+	    nfpcore/nfp_nsp_cmds.o \
 	    nfpcore/nfp_nsp_eth.o \
 	    nfpcore/nfp_resource.o \
 	    nfpcore/nfp_rtsym.o \

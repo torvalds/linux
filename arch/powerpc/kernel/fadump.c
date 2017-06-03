@@ -30,17 +30,16 @@
 #include <linux/string.h>
 #include <linux/memblock.h>
 #include <linux/delay.h>
-#include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/crash_dump.h>
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 
+#include <asm/debugfs.h>
 #include <asm/page.h>
 #include <asm/prom.h>
 #include <asm/rtas.h>
 #include <asm/fadump.h>
-#include <asm/debug.h>
 #include <asm/setup.h>
 
 static struct fw_dump fw_dump;
@@ -210,14 +209,20 @@ static unsigned long init_fadump_mem_struct(struct fadump_mem_struct *fdm,
  */
 static inline unsigned long fadump_calculate_reserve_size(void)
 {
-	unsigned long size;
+	int ret;
+	unsigned long long base, size;
 
 	/*
-	 * Check if the size is specified through fadump_reserve_mem= cmdline
-	 * option. If yes, then use that.
+	 * Check if the size is specified through crashkernel= cmdline
+	 * option. If yes, then use that but ignore base as fadump
+	 * reserves memory at end of RAM.
 	 */
-	if (fw_dump.reserve_bootvar)
+	ret = parse_crashkernel(boot_command_line, memblock_phys_mem_size(),
+				&size, &base);
+	if (ret == 0 && size > 0) {
+		fw_dump.reserve_bootvar = (unsigned long)size;
 		return fw_dump.reserve_bootvar;
+	}
 
 	/* divide by 20 to get 5% of value */
 	size = memblock_end_of_DRAM() / 20;
@@ -319,15 +324,34 @@ int __init fadump_reserve_mem(void)
 		pr_debug("fadumphdr_addr = %p\n",
 				(void *) fw_dump.fadumphdr_addr);
 	} else {
-		/* Reserve the memory at the top of memory. */
 		size = get_fadump_area_size();
-		base = memory_boundary - size;
-		memblock_reserve(base, size);
-		printk(KERN_INFO "Reserved %ldMB of memory at %ldMB "
-				"for firmware-assisted dump\n",
-				(unsigned long)(size >> 20),
-				(unsigned long)(base >> 20));
+
+		/*
+		 * Reserve memory at an offset closer to bottom of the RAM to
+		 * minimize the impact of memory hot-remove operation. We can't
+		 * use memblock_find_in_range() here since it doesn't allocate
+		 * from bottom to top.
+		 */
+		for (base = fw_dump.boot_memory_size;
+		     base <= (memory_boundary - size);
+		     base += size) {
+			if (memblock_is_region_memory(base, size) &&
+			    !memblock_is_region_reserved(base, size))
+				break;
+		}
+		if ((base > (memory_boundary - size)) ||
+		    memblock_reserve(base, size)) {
+			pr_err("Failed to reserve memory\n");
+			return 0;
+		}
+
+		pr_info("Reserved %ldMB of memory at %ldMB for firmware-"
+			"assisted dump (System RAM: %ldMB)\n",
+			(unsigned long)(size >> 20),
+			(unsigned long)(base >> 20),
+			(unsigned long)(memblock_phys_mem_size() >> 20));
 	}
+
 	fw_dump.reserve_dump_area_start = base;
 	fw_dump.reserve_dump_area_size = size;
 	return 1;
@@ -352,15 +376,6 @@ static int __init early_fadump_param(char *p)
 	return 0;
 }
 early_param("fadump", early_fadump_param);
-
-/* Look for fadump_reserve_mem= cmdline option */
-static int __init early_fadump_reserve_mem(char *p)
-{
-	if (p)
-		fw_dump.reserve_bootvar = memparse(p, &p);
-	return 0;
-}
-early_param("fadump_reserve_mem", early_fadump_reserve_mem);
 
 static void register_fw_dump(struct fadump_mem_struct *fdm)
 {
@@ -509,34 +524,6 @@ fadump_read_registers(struct fadump_reg_entry *reg_entry, struct pt_regs *regs)
 	return reg_entry;
 }
 
-static u32 *fadump_append_elf_note(u32 *buf, char *name, unsigned type,
-						void *data, size_t data_len)
-{
-	struct elf_note note;
-
-	note.n_namesz = strlen(name) + 1;
-	note.n_descsz = data_len;
-	note.n_type   = type;
-	memcpy(buf, &note, sizeof(note));
-	buf += (sizeof(note) + 3)/4;
-	memcpy(buf, name, note.n_namesz);
-	buf += (note.n_namesz + 3)/4;
-	memcpy(buf, data, note.n_descsz);
-	buf += (note.n_descsz + 3)/4;
-
-	return buf;
-}
-
-static void fadump_final_note(u32 *buf)
-{
-	struct elf_note note;
-
-	note.n_namesz = 0;
-	note.n_descsz = 0;
-	note.n_type   = 0;
-	memcpy(buf, &note, sizeof(note));
-}
-
 static u32 *fadump_regs_to_elf_notes(u32 *buf, struct pt_regs *regs)
 {
 	struct elf_prstatus prstatus;
@@ -547,8 +534,8 @@ static u32 *fadump_regs_to_elf_notes(u32 *buf, struct pt_regs *regs)
 	 * prstatus.pr_pid = ????
 	 */
 	elf_core_copy_kernel_regs(&prstatus.pr_reg, regs);
-	buf = fadump_append_elf_note(buf, KEXEC_CORE_NOTE_NAME, NT_PRSTATUS,
-				&prstatus, sizeof(prstatus));
+	buf = append_elf_note(buf, CRASH_CORE_NOTE_NAME, NT_PRSTATUS,
+			      &prstatus, sizeof(prstatus));
 	return buf;
 }
 
@@ -689,7 +676,7 @@ static int __init fadump_build_cpu_notes(const struct fadump_mem_struct *fdm)
 			note_buf = fadump_regs_to_elf_notes(note_buf, &regs);
 		}
 	}
-	fadump_final_note(note_buf);
+	final_note(note_buf);
 
 	if (fdh) {
 		pr_debug("Updating elfcore header (%llx) with cpu notes\n",

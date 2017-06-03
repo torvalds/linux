@@ -30,8 +30,13 @@
 
 #define C_TI        (_ULCAST_(1) << 30)
 
+#ifdef CONFIG_KVM_MIPS_VZ
+#define KVM_MIPS_IRQ_DELIVER_ALL_AT_ONCE (1)
+#define KVM_MIPS_IRQ_CLEAR_ALL_AT_ONCE   (1)
+#else
 #define KVM_MIPS_IRQ_DELIVER_ALL_AT_ONCE (0)
 #define KVM_MIPS_IRQ_CLEAR_ALL_AT_ONCE   (0)
+#endif
 
 void kvm_mips_queue_irq(struct kvm_vcpu *vcpu, unsigned int priority);
 void kvm_mips_dequeue_irq(struct kvm_vcpu *vcpu, unsigned int priority);

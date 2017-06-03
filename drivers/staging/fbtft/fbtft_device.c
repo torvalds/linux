@@ -131,7 +131,7 @@ static void adafruit18_green_tab_set_addr_win(struct fbtft_par *par,
 		"D0 00 14 15 13 2C 42 43 4E 09 16 14 18 21\n" \
 		"D0 00 14 15 13 0B 43 55 53 0C 17 14 23 20"
 
-static s16 cberry28_init_sequence[] = {
+static const s16 cberry28_init_sequence[] = {
 	/* turn off sleep mode */
 	-1, MIPI_DCS_EXIT_SLEEP_MODE,
 	-2, 120,
@@ -180,7 +180,7 @@ static s16 cberry28_init_sequence[] = {
 	-3,
 };
 
-static s16 hy28b_init_sequence[] = {
+static const s16 hy28b_init_sequence[] = {
 	-1, 0x00e7, 0x0010, -1, 0x0000, 0x0001,
 	-1, 0x0001, 0x0100, -1, 0x0002, 0x0700,
 	-1, 0x0003, 0x1030, -1, 0x0004, 0x0000,
@@ -211,7 +211,7 @@ static s16 hy28b_init_sequence[] = {
 	"04 1F 4 7 7 0 7 7 6 0\n" \
 	"0F 00 1 7 4 0 0 0 6 7"
 
-static s16 pitft_init_sequence[] = {
+static const s16 pitft_init_sequence[] = {
 	-1, MIPI_DCS_SOFT_RESET,
 	-2, 5,
 	-1, MIPI_DCS_SET_DISPLAY_OFF,
@@ -242,7 +242,7 @@ static s16 pitft_init_sequence[] = {
 	-3
 };
 
-static s16 waveshare32b_init_sequence[] = {
+static const s16 waveshare32b_init_sequence[] = {
 	-1, 0xCB, 0x39, 0x2C, 0x00, 0x34, 0x02,
 	-1, 0xCF, 0x00, 0xC1, 0x30,
 	-1, 0xE8, 0x85, 0x00, 0x78,
@@ -1448,11 +1448,10 @@ static int __init fbtft_device_init(void)
 	if (fbtft_device_param_gpios[0].name[0])
 		gpio = fbtft_device_param_gpios;
 
-	if (verbose > 2)
+	if (verbose > 2) {
 		pr_spi_devices(); /* print list of registered SPI devices */
-
-	if (verbose > 2)
 		pr_p_devices(); /* print list of 'fb' platform devices */
+	}
 
 	pr_debug("name='%s', busnum=%d, cs=%d\n", name, busnum, cs);
 
@@ -1483,13 +1482,19 @@ static int __init fbtft_device_init(void)
 			displays[i].pdev->name = name;
 			displays[i].spi = NULL;
 		} else {
-			strncpy(displays[i].spi->modalias, name, SPI_NAME_SIZE);
+			size_t len;
+
+			len = strlcpy(displays[i].spi->modalias, name,
+				SPI_NAME_SIZE);
+			if (len >= SPI_NAME_SIZE)
+				pr_warn("modalias (name) truncated to: %s\n",
+					displays[i].spi->modalias);
 			displays[i].pdev = NULL;
 		}
 	}
 
 	for (i = 0; i < ARRAY_SIZE(displays); i++) {
-		if (strncmp(name, displays[i].name, 32) == 0) {
+		if (strncmp(name, displays[i].name, SPI_NAME_SIZE) == 0) {
 			if (displays[i].spi) {
 				spi = displays[i].spi;
 				spi->chip_select = cs;

@@ -15,6 +15,7 @@
 #include <linux/cred.h>
 #include <linux/syscalls.h>
 #include <linux/pagemap.h>
+#include <linux/compat.h>
 
 #include <linux/uaccess.h>
 #include <asm/unistd.h>
@@ -130,9 +131,13 @@ EXPORT_SYMBOL(vfs_getattr);
 int vfs_statx_fd(unsigned int fd, struct kstat *stat,
 		 u32 request_mask, unsigned int query_flags)
 {
-	struct fd f = fdget_raw(fd);
+	struct fd f;
 	int error = -EBADF;
 
+	if (query_flags & ~KSTAT_QUERY_FLAGS)
+		return -EINVAL;
+
+	f = fdget_raw(fd);
 	if (f.file) {
 		error = vfs_getattr(&f.file->f_path, stat,
 				    request_mask, query_flags);
@@ -154,9 +159,6 @@ EXPORT_SYMBOL(vfs_statx_fd);
  * that it uses a filename and base directory to determine the file location.
  * Additionally, the use of AT_SYMLINK_NOFOLLOW in flags will prevent a symlink
  * at the given name from being referenced.
- *
- * The caller must have preset stat->request_mask as for vfs_getattr().  The
- * flags are also used to load up stat->query_flags.
  *
  * 0 will be returned on success, and a -ve error code if unsuccessful.
  */
@@ -509,58 +511,50 @@ SYSCALL_DEFINE4(fstatat64, int, dfd, const char __user *, filename,
 }
 #endif /* __ARCH_WANT_STAT64 || __ARCH_WANT_COMPAT_STAT64 */
 
-static inline int __put_timestamp(struct timespec *kts,
-				  struct statx_timestamp __user *uts)
+static noinline_for_stack int
+cp_statx(const struct kstat *stat, struct statx __user *buffer)
 {
-	return (__put_user(kts->tv_sec,		&uts->tv_sec		) ||
-		__put_user(kts->tv_nsec,	&uts->tv_nsec		) ||
-		__put_user(0,			&uts->__reserved	));
-}
+	struct statx tmp;
 
-/*
- * Set the statx results.
- */
-static long statx_set_result(struct kstat *stat, struct statx __user *buffer)
-{
-	uid_t uid = from_kuid_munged(current_user_ns(), stat->uid);
-	gid_t gid = from_kgid_munged(current_user_ns(), stat->gid);
+	memset(&tmp, 0, sizeof(tmp));
 
-	if (__put_user(stat->result_mask,	&buffer->stx_mask	) ||
-	    __put_user(stat->mode,		&buffer->stx_mode	) ||
-	    __clear_user(&buffer->__spare0, sizeof(buffer->__spare0))	  ||
-	    __put_user(stat->nlink,		&buffer->stx_nlink	) ||
-	    __put_user(uid,			&buffer->stx_uid	) ||
-	    __put_user(gid,			&buffer->stx_gid	) ||
-	    __put_user(stat->attributes,	&buffer->stx_attributes	) ||
-	    __put_user(stat->blksize,		&buffer->stx_blksize	) ||
-	    __put_user(MAJOR(stat->rdev),	&buffer->stx_rdev_major	) ||
-	    __put_user(MINOR(stat->rdev),	&buffer->stx_rdev_minor	) ||
-	    __put_user(MAJOR(stat->dev),	&buffer->stx_dev_major	) ||
-	    __put_user(MINOR(stat->dev),	&buffer->stx_dev_minor	) ||
-	    __put_timestamp(&stat->atime,	&buffer->stx_atime	) ||
-	    __put_timestamp(&stat->btime,	&buffer->stx_btime	) ||
-	    __put_timestamp(&stat->ctime,	&buffer->stx_ctime	) ||
-	    __put_timestamp(&stat->mtime,	&buffer->stx_mtime	) ||
-	    __put_user(stat->ino,		&buffer->stx_ino	) ||
-	    __put_user(stat->size,		&buffer->stx_size	) ||
-	    __put_user(stat->blocks,		&buffer->stx_blocks	) ||
-	    __clear_user(&buffer->__spare1, sizeof(buffer->__spare1))	  ||
-	    __clear_user(&buffer->__spare2, sizeof(buffer->__spare2)))
-		return -EFAULT;
+	tmp.stx_mask = stat->result_mask;
+	tmp.stx_blksize = stat->blksize;
+	tmp.stx_attributes = stat->attributes;
+	tmp.stx_nlink = stat->nlink;
+	tmp.stx_uid = from_kuid_munged(current_user_ns(), stat->uid);
+	tmp.stx_gid = from_kgid_munged(current_user_ns(), stat->gid);
+	tmp.stx_mode = stat->mode;
+	tmp.stx_ino = stat->ino;
+	tmp.stx_size = stat->size;
+	tmp.stx_blocks = stat->blocks;
+	tmp.stx_attributes_mask = stat->attributes_mask;
+	tmp.stx_atime.tv_sec = stat->atime.tv_sec;
+	tmp.stx_atime.tv_nsec = stat->atime.tv_nsec;
+	tmp.stx_btime.tv_sec = stat->btime.tv_sec;
+	tmp.stx_btime.tv_nsec = stat->btime.tv_nsec;
+	tmp.stx_ctime.tv_sec = stat->ctime.tv_sec;
+	tmp.stx_ctime.tv_nsec = stat->ctime.tv_nsec;
+	tmp.stx_mtime.tv_sec = stat->mtime.tv_sec;
+	tmp.stx_mtime.tv_nsec = stat->mtime.tv_nsec;
+	tmp.stx_rdev_major = MAJOR(stat->rdev);
+	tmp.stx_rdev_minor = MINOR(stat->rdev);
+	tmp.stx_dev_major = MAJOR(stat->dev);
+	tmp.stx_dev_minor = MINOR(stat->dev);
 
-	return 0;
+	return copy_to_user(buffer, &tmp, sizeof(tmp)) ? -EFAULT : 0;
 }
 
 /**
  * sys_statx - System call to get enhanced stats
  * @dfd: Base directory to pathwalk from *or* fd to stat.
- * @filename: File to stat *or* NULL.
+ * @filename: File to stat or "" with AT_EMPTY_PATH
  * @flags: AT_* flags to control pathwalk.
  * @mask: Parts of statx struct actually required.
  * @buffer: Result buffer.
  *
- * Note that if filename is NULL, then it does the equivalent of fstat() using
- * dfd to indicate the file of interest.
+ * Note that fstat() can be emulated by setting dfd to the fd of interest,
+ * supplying "" as the filename and setting AT_EMPTY_PATH in the flags.
  */
 SYSCALL_DEFINE5(statx,
 		int, dfd, const char __user *, filename, unsigned, flags,
@@ -570,19 +564,102 @@ SYSCALL_DEFINE5(statx,
 	struct kstat stat;
 	int error;
 
+	if (mask & STATX__RESERVED)
+		return -EINVAL;
 	if ((flags & AT_STATX_SYNC_TYPE) == AT_STATX_SYNC_TYPE)
 		return -EINVAL;
-	if (!access_ok(VERIFY_WRITE, buffer, sizeof(*buffer)))
-		return -EFAULT;
 
-	if (filename)
-		error = vfs_statx(dfd, filename, flags, &stat, mask);
-	else
-		error = vfs_statx_fd(dfd, &stat, mask, flags);
+	error = vfs_statx(dfd, filename, flags, &stat, mask);
 	if (error)
 		return error;
-	return statx_set_result(&stat, buffer);
+
+	return cp_statx(&stat, buffer);
 }
+
+#ifdef CONFIG_COMPAT
+static int cp_compat_stat(struct kstat *stat, struct compat_stat __user *ubuf)
+{
+	struct compat_stat tmp;
+
+	if (!old_valid_dev(stat->dev) || !old_valid_dev(stat->rdev))
+		return -EOVERFLOW;
+
+	memset(&tmp, 0, sizeof(tmp));
+	tmp.st_dev = old_encode_dev(stat->dev);
+	tmp.st_ino = stat->ino;
+	if (sizeof(tmp.st_ino) < sizeof(stat->ino) && tmp.st_ino != stat->ino)
+		return -EOVERFLOW;
+	tmp.st_mode = stat->mode;
+	tmp.st_nlink = stat->nlink;
+	if (tmp.st_nlink != stat->nlink)
+		return -EOVERFLOW;
+	SET_UID(tmp.st_uid, from_kuid_munged(current_user_ns(), stat->uid));
+	SET_GID(tmp.st_gid, from_kgid_munged(current_user_ns(), stat->gid));
+	tmp.st_rdev = old_encode_dev(stat->rdev);
+	if ((u64) stat->size > MAX_NON_LFS)
+		return -EOVERFLOW;
+	tmp.st_size = stat->size;
+	tmp.st_atime = stat->atime.tv_sec;
+	tmp.st_atime_nsec = stat->atime.tv_nsec;
+	tmp.st_mtime = stat->mtime.tv_sec;
+	tmp.st_mtime_nsec = stat->mtime.tv_nsec;
+	tmp.st_ctime = stat->ctime.tv_sec;
+	tmp.st_ctime_nsec = stat->ctime.tv_nsec;
+	tmp.st_blocks = stat->blocks;
+	tmp.st_blksize = stat->blksize;
+	return copy_to_user(ubuf, &tmp, sizeof(tmp)) ? -EFAULT : 0;
+}
+
+COMPAT_SYSCALL_DEFINE2(newstat, const char __user *, filename,
+		       struct compat_stat __user *, statbuf)
+{
+	struct kstat stat;
+	int error;
+
+	error = vfs_stat(filename, &stat);
+	if (error)
+		return error;
+	return cp_compat_stat(&stat, statbuf);
+}
+
+COMPAT_SYSCALL_DEFINE2(newlstat, const char __user *, filename,
+		       struct compat_stat __user *, statbuf)
+{
+	struct kstat stat;
+	int error;
+
+	error = vfs_lstat(filename, &stat);
+	if (error)
+		return error;
+	return cp_compat_stat(&stat, statbuf);
+}
+
+#ifndef __ARCH_WANT_STAT64
+COMPAT_SYSCALL_DEFINE4(newfstatat, unsigned int, dfd,
+		       const char __user *, filename,
+		       struct compat_stat __user *, statbuf, int, flag)
+{
+	struct kstat stat;
+	int error;
+
+	error = vfs_fstatat(dfd, filename, &stat, flag);
+	if (error)
+		return error;
+	return cp_compat_stat(&stat, statbuf);
+}
+#endif
+
+COMPAT_SYSCALL_DEFINE2(newfstat, unsigned int, fd,
+		       struct compat_stat __user *, statbuf)
+{
+	struct kstat stat;
+	int error = vfs_fstat(fd, &stat);
+
+	if (!error)
+		error = cp_compat_stat(&stat, statbuf);
+	return error;
+}
+#endif
 
 /* Caller is here responsible for sufficient locking (ie. inode->i_lock) */
 void __inode_add_bytes(struct inode *inode, loff_t bytes)

@@ -7700,11 +7700,11 @@ static int si_dpm_sw_init(void *handle)
 	int ret;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	ret = amdgpu_irq_add_id(adev, 230, &adev->pm.dpm.thermal.irq);
+	ret = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 230, &adev->pm.dpm.thermal.irq);
 	if (ret)
 		return ret;
 
-	ret = amdgpu_irq_add_id(adev, 231, &adev->pm.dpm.thermal.irq);
+	ret = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 231, &adev->pm.dpm.thermal.irq);
 	if (ret)
 		return ret;
 
@@ -7982,6 +7982,46 @@ static int si_check_state_equal(struct amdgpu_device *adev,
 	return 0;
 }
 
+static int si_dpm_read_sensor(struct amdgpu_device *adev, int idx,
+			      void *value, int *size)
+{
+	struct evergreen_power_info *eg_pi = evergreen_get_pi(adev);
+	struct amdgpu_ps *rps = &eg_pi->current_rps;
+	struct  si_ps *ps = si_get_ps(rps);
+	uint32_t sclk, mclk;
+	u32 pl_index =
+		(RREG32(TARGET_AND_CURRENT_PROFILE_INDEX) & CURRENT_STATE_INDEX_MASK) >>
+		CURRENT_STATE_INDEX_SHIFT;
+
+	/* size must be at least 4 bytes for all sensors */
+	if (*size < 4)
+		return -EINVAL;
+
+	switch (idx) {
+	case AMDGPU_PP_SENSOR_GFX_SCLK:
+		if (pl_index < ps->performance_level_count) {
+			sclk = ps->performance_levels[pl_index].sclk;
+			*((uint32_t *)value) = sclk;
+			*size = 4;
+			return 0;
+		}
+		return -EINVAL;
+	case AMDGPU_PP_SENSOR_GFX_MCLK:
+		if (pl_index < ps->performance_level_count) {
+			mclk = ps->performance_levels[pl_index].mclk;
+			*((uint32_t *)value) = mclk;
+			*size = 4;
+			return 0;
+		}
+		return -EINVAL;
+	case AMDGPU_PP_SENSOR_GPU_TEMP:
+		*((uint32_t *)value) = si_dpm_get_temp(adev);
+		*size = 4;
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
 
 const struct amd_ip_funcs si_dpm_ip_funcs = {
 	.name = "si_dpm",
@@ -8018,6 +8058,7 @@ static const struct amdgpu_dpm_funcs si_dpm_funcs = {
 	.get_fan_speed_percent = &si_dpm_get_fan_speed_percent,
 	.check_state_equal = &si_check_state_equal,
 	.get_vce_clock_state = amdgpu_get_vce_clock_state,
+	.read_sensor = &si_dpm_read_sensor,
 };
 
 static void si_dpm_set_dpm_funcs(struct amdgpu_device *adev)

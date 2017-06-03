@@ -172,8 +172,8 @@ It's reported to the input system via::
 
 	input_report_key(struct input_dev *dev, int code, int value)
 
-See linux/input.h for the allowable values of code (from 0 to KEY_MAX).
-Value is interpreted as a truth value, ie any nonzero value means key
+See uapi/linux/input-event-codes.h for the allowable values of code (from 0 to
+KEY_MAX). Value is interpreted as a truth value, ie any nonzero value means key
 pressed, zero value means key released. The input code generates events only
 in case the value is different from before.
 

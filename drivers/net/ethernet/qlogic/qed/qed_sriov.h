@@ -270,6 +270,9 @@ enum qed_iov_wq_flag {
  */
 u16 qed_iov_get_next_active_vf(struct qed_hwfn *p_hwfn, u16 rel_vf_id);
 
+void qed_iov_bulletin_set_udp_ports(struct qed_hwfn *p_hwfn,
+				    int vfid, u16 vxlan_port, u16 geneve_port);
+
 /**
  * @brief Read sriov related information and allocated resources
  *  reads from configuraiton space, shmem, etc.
@@ -348,9 +351,9 @@ int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn,
  * @param p_hwfn
  * @param disabled_vfs - bitmask of all VFs on path that were FLRed
  *
- * @return 1 iff one of the PF's vfs got FLRed. 0 otherwise.
+ * @return true iff one of the PF's vfs got FLRed. false otherwise.
  */
-int qed_iov_mark_vf_flr(struct qed_hwfn *p_hwfn, u32 *disabled_vfs);
+bool qed_iov_mark_vf_flr(struct qed_hwfn *p_hwfn, u32 *disabled_vfs);
 
 /**
  * @brief Search extended TLVs in request/reply buffer.
@@ -376,6 +379,12 @@ static inline u16 qed_iov_get_next_active_vf(struct qed_hwfn *p_hwfn,
 					     u16 rel_vf_id)
 {
 	return MAX_NUM_VFS;
+}
+
+static inline void
+qed_iov_bulletin_set_udp_ports(struct qed_hwfn *p_hwfn, int vfid,
+			       u16 vxlan_port, u16 geneve_port)
+{
 }
 
 static inline int qed_iov_hw_info(struct qed_hwfn *p_hwfn)
@@ -407,10 +416,10 @@ static inline int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn,
 	return -EINVAL;
 }
 
-static inline int qed_iov_mark_vf_flr(struct qed_hwfn *p_hwfn,
-				      u32 *disabled_vfs)
+static inline bool qed_iov_mark_vf_flr(struct qed_hwfn *p_hwfn,
+				       u32 *disabled_vfs)
 {
-	return 0;
+	return false;
 }
 
 static inline void qed_iov_wq_stop(struct qed_dev *cdev, bool schedule_first)

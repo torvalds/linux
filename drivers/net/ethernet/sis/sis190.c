@@ -1734,18 +1734,20 @@ static void sis190_set_speed_auto(struct net_device *dev)
 		   BMCR_ANENABLE | BMCR_ANRESTART | BMCR_RESET);
 }
 
-static int sis190_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int sis190_get_link_ksettings(struct net_device *dev,
+				     struct ethtool_link_ksettings *cmd)
 {
 	struct sis190_private *tp = netdev_priv(dev);
 
-	return mii_ethtool_gset(&tp->mii_if, cmd);
+	return mii_ethtool_get_link_ksettings(&tp->mii_if, cmd);
 }
 
-static int sis190_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int sis190_set_link_ksettings(struct net_device *dev,
+				     const struct ethtool_link_ksettings *cmd)
 {
 	struct sis190_private *tp = netdev_priv(dev);
 
-	return mii_ethtool_sset(&tp->mii_if, cmd);
+	return mii_ethtool_set_link_ksettings(&tp->mii_if, cmd);
 }
 
 static void sis190_get_drvinfo(struct net_device *dev,
@@ -1797,8 +1799,6 @@ static void sis190_set_msglevel(struct net_device *dev, u32 value)
 }
 
 static const struct ethtool_ops sis190_ethtool_ops = {
-	.get_settings	= sis190_get_settings,
-	.set_settings	= sis190_set_settings,
 	.get_drvinfo	= sis190_get_drvinfo,
 	.get_regs_len	= sis190_get_regs_len,
 	.get_regs	= sis190_get_regs,
@@ -1806,6 +1806,8 @@ static const struct ethtool_ops sis190_ethtool_ops = {
 	.get_msglevel	= sis190_get_msglevel,
 	.set_msglevel	= sis190_set_msglevel,
 	.nway_reset	= sis190_nway_reset,
+	.get_link_ksettings = sis190_get_link_ksettings,
+	.set_link_ksettings = sis190_set_link_ksettings,
 };
 
 static int sis190_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)

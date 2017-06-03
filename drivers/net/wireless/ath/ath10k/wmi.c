@@ -3210,7 +3210,8 @@ static void ath10k_wmi_update_tim(struct ath10k *ar,
 	tim_len = tim_info->tim_len ? __le32_to_cpu(tim_info->tim_len) : 1;
 
 	/* if next SWBA has no tim_changed the tim_bitmap is garbage.
-	 * we must copy the bitmap upon change and reuse it later */
+	 * we must copy the bitmap upon change and reuse it later
+	 */
 	if (__le32_to_cpu(tim_info->tim_changed)) {
 		int i;
 
@@ -3529,7 +3530,8 @@ void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 		 * before telling mac80211 to decrement CSA counter
 		 *
 		 * Once CSA counter is completed stop sending beacons until
-		 * actual channel switch is done */
+		 * actual channel switch is done
+		 */
 		if (arvif->vif->csa_active &&
 		    ieee80211_csa_is_complete(arvif->vif)) {
 			ieee80211_csa_finish(arvif->vif);
@@ -3643,6 +3645,11 @@ static void ath10k_dfs_radar_report(struct ath10k *ar,
 
 	spin_lock_bh(&ar->data_lock);
 	ch = ar->rx_channel;
+
+	/* fetch target operating channel during channel change */
+	if (!ch)
+		ch = ar->tgt_oper_chan;
+
 	spin_unlock_bh(&ar->data_lock);
 
 	if (!ch) {
@@ -3686,7 +3693,8 @@ radar_detected:
 	ATH10K_DFS_STAT_INC(ar, radar_detected);
 
 	/* Control radar events reporting in debugfs file
-	   dfs_block_radar_events */
+	 * dfs_block_radar_events
+	 */
 	if (ar->dfs_block_radar_events) {
 		ath10k_info(ar, "DFS Radar detected, but ignored as requested\n");
 		return;
@@ -4593,6 +4601,8 @@ ath10k_wmi_main_op_pull_svc_rdy_ev(struct ath10k *ar, struct sk_buff *skb,
 	arg->phy_capab = ev->phy_capability;
 	arg->num_rf_chains = ev->num_rf_chains;
 	arg->eeprom_rd = ev->hal_reg_capabilities.eeprom_rd;
+	arg->low_5ghz_chan = ev->hal_reg_capabilities.low_5ghz_chan;
+	arg->high_5ghz_chan = ev->hal_reg_capabilities.high_5ghz_chan;
 	arg->num_mem_reqs = ev->num_mem_reqs;
 	arg->service_map = ev->wmi_service_bitmap;
 	arg->service_map_len = sizeof(ev->wmi_service_bitmap);
@@ -4629,6 +4639,8 @@ ath10k_wmi_10x_op_pull_svc_rdy_ev(struct ath10k *ar, struct sk_buff *skb,
 	arg->phy_capab = ev->phy_capability;
 	arg->num_rf_chains = ev->num_rf_chains;
 	arg->eeprom_rd = ev->hal_reg_capabilities.eeprom_rd;
+	arg->low_5ghz_chan = ev->hal_reg_capabilities.low_5ghz_chan;
+	arg->high_5ghz_chan = ev->hal_reg_capabilities.high_5ghz_chan;
 	arg->num_mem_reqs = ev->num_mem_reqs;
 	arg->service_map = ev->wmi_service_bitmap;
 	arg->service_map_len = sizeof(ev->wmi_service_bitmap);
@@ -4682,6 +4694,8 @@ static void ath10k_wmi_event_service_ready_work(struct work_struct *work)
 	ar->phy_capability = __le32_to_cpu(arg.phy_capab);
 	ar->num_rf_chains = __le32_to_cpu(arg.num_rf_chains);
 	ar->hw_eeprom_rd = __le32_to_cpu(arg.eeprom_rd);
+	ar->low_5ghz_chan = __le32_to_cpu(arg.low_5ghz_chan);
+	ar->high_5ghz_chan = __le32_to_cpu(arg.high_5ghz_chan);
 
 	ath10k_dbg_dump(ar, ATH10K_DBG_WMI, NULL, "wmi svc: ",
 			arg.service_map, arg.service_map_len);
@@ -4758,9 +4772,10 @@ static void ath10k_wmi_event_service_ready_work(struct work_struct *work)
 				num_units = ar->max_num_peers + 1;
 		} else if (num_unit_info & NUM_UNITS_IS_NUM_PEERS) {
 			/* number of units to allocate is number of
-			 * peers, 1 extra for self peer on target */
-			/* this needs to be tied, host and target
-			 * can get out of sync */
+			 * peers, 1 extra for self peer on target
+			 * this needs to be tied, host and target
+			 * can get out of sync
+			 */
 			num_units = ar->max_num_peers + 1;
 		} else if (num_unit_info & NUM_UNITS_IS_NUM_VDEVS) {
 			num_units = ar->max_num_vdevs + 1;

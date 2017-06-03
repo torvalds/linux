@@ -124,7 +124,7 @@ void ath10k_thermal_event_temperature(struct ath10k *ar, int temperature)
 	complete(&ar->thermal.wmi_sync);
 }
 
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, ath10k_thermal_show_temp,
+static SENSOR_DEVICE_ATTR(temp1_input, 0444, ath10k_thermal_show_temp,
 			  NULL, 0);
 
 static struct attribute *ath10k_hwmon_attrs[] = {
@@ -191,7 +191,8 @@ int ath10k_thermal_register(struct ath10k *ar)
 		return 0;
 
 	/* Avoid linking error on devm_hwmon_device_register_with_groups, I
-	 * guess linux/hwmon.h is missing proper stubs. */
+	 * guess linux/hwmon.h is missing proper stubs.
+	 */
 	if (!IS_REACHABLE(CONFIG_HWMON))
 		return 0;
 

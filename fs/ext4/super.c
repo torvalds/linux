@@ -37,6 +37,7 @@
 #include <linux/ctype.h>
 #include <linux/log2.h>
 #include <linux/crc16.h>
+#include <linux/dax.h>
 #include <linux/cleancache.h>
 #include <linux/uaccess.h>
 
@@ -49,6 +50,7 @@
 #include "xattr.h"
 #include "acl.h"
 #include "mballoc.h"
+#include "fsmap.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/ext4.h>
@@ -839,6 +841,28 @@ static void dump_orphan_list(struct super_block *sb, struct ext4_sb_info *sbi)
 	}
 }
 
+#ifdef CONFIG_QUOTA
+static int ext4_quota_off(struct super_block *sb, int type);
+
+static inline void ext4_quota_off_umount(struct super_block *sb)
+{
+	int type;
+
+	if (ext4_has_feature_quota(sb)) {
+		dquot_disable(sb, -1,
+			      DQUOT_USAGE_ENABLED | DQUOT_LIMITS_ENABLED);
+	} else {
+		/* Use our quota_off function to clear inode flags etc. */
+		for (type = 0; type < EXT4_MAXQUOTAS; type++)
+			ext4_quota_off(sb, type);
+	}
+}
+#else
+static inline void ext4_quota_off_umount(struct super_block *sb)
+{
+}
+#endif
+
 static void ext4_put_super(struct super_block *sb)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
@@ -847,7 +871,7 @@ static void ext4_put_super(struct super_block *sb)
 	int i, err;
 
 	ext4_unregister_li_request(sb);
-	dquot_disable(sb, -1, DQUOT_USAGE_ENABLED | DQUOT_LIMITS_ENABLED);
+	ext4_quota_off_umount(sb);
 
 	flush_workqueue(sbi->rsv_conversion_wq);
 	destroy_workqueue(sbi->rsv_conversion_wq);
@@ -1208,7 +1232,7 @@ static const struct fscrypt_operations ext4_cryptops = {
 #endif
 
 #ifdef CONFIG_QUOTA
-static char *quotatypes[] = INITQFNAMES;
+static const char * const quotatypes[] = INITQFNAMES;
 #define QTYPE2NAME(t) (quotatypes[t])
 
 static int ext4_write_dquot(struct dquot *dquot);
@@ -1218,7 +1242,6 @@ static int ext4_mark_dquot_dirty(struct dquot *dquot);
 static int ext4_write_info(struct super_block *sb, int type);
 static int ext4_quota_on(struct super_block *sb, int type, int format_id,
 			 const struct path *path);
-static int ext4_quota_off(struct super_block *sb, int type);
 static int ext4_quota_on_mount(struct super_block *sb, int type);
 static ssize_t ext4_quota_read(struct super_block *sb, int type, char *data,
 			       size_t len, loff_t off);
@@ -1422,7 +1445,8 @@ static ext4_fsblk_t get_sb_block(void **data)
 }
 
 #define DEFAULT_JOURNAL_IOPRIO (IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE, 3))
-static char deprecated_msg[] = "Mount option \"%s\" will be removed by %s\n"
+static const char deprecated_msg[] =
+	"Mount option \"%s\" will be removed by %s\n"
 	"Contact linux-ext4@vger.kernel.org if you think we should keep it.\n";
 
 #ifdef CONFIG_QUOTA
@@ -2132,7 +2156,7 @@ int ext4_alloc_flex_bg_array(struct super_block *sb, ext4_group_t ngroup)
 		return 0;
 
 	size = roundup_pow_of_two(size * sizeof(struct flex_groups));
-	new_groups = ext4_kvzalloc(size, GFP_KERNEL);
+	new_groups = kvzalloc(size, GFP_KERNEL);
 	if (!new_groups) {
 		ext4_msg(sb, KERN_ERR, "not enough memory for %d flex groups",
 			 size / (int) sizeof(struct flex_groups));
@@ -3866,7 +3890,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 			goto failed_mount;
 		}
 	}
-	sbi->s_group_desc = ext4_kvmalloc(db_count *
+	sbi->s_group_desc = kvmalloc(db_count *
 					  sizeof(struct buffer_head *),
 					  GFP_KERNEL);
 	if (sbi->s_group_desc == NULL) {
@@ -3876,6 +3900,12 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	bgl_lock_init(sbi->s_blockgroup_lock);
+
+	/* Pre-read the descriptors into the buffer cache */
+	for (i = 0; i < db_count; i++) {
+		block = descriptor_loc(sb, logical_sb_block, i);
+		sb_breadahead(sb, block);
+	}
 
 	for (i = 0; i < db_count; i++) {
 		block = descriptor_loc(sb, logical_sb_block, i);
@@ -4629,7 +4659,7 @@ static int ext4_commit_super(struct super_block *sb, int sync)
 	if (sync) {
 		unlock_buffer(sbh);
 		error = __sync_dirty_buffer(sbh,
-			test_opt(sb, BARRIER) ? REQ_FUA : REQ_SYNC);
+			REQ_SYNC | (test_opt(sb, BARRIER) ? REQ_FUA : 0));
 		if (error)
 			return error;
 
@@ -5344,11 +5374,33 @@ static int ext4_quota_on(struct super_block *sb, int type, int format_id,
 		if (err)
 			return err;
 	}
+
 	lockdep_set_quota_inode(path->dentry->d_inode, I_DATA_SEM_QUOTA);
 	err = dquot_quota_on(sb, type, format_id, path);
-	if (err)
+	if (err) {
 		lockdep_set_quota_inode(path->dentry->d_inode,
 					     I_DATA_SEM_NORMAL);
+	} else {
+		struct inode *inode = d_inode(path->dentry);
+		handle_t *handle;
+
+		/*
+		 * Set inode flags to prevent userspace from messing with quota
+		 * files. If this fails, we return success anyway since quotas
+		 * are already enabled and this is not a hard failure.
+		 */
+		inode_lock(inode);
+		handle = ext4_journal_start(inode, EXT4_HT_QUOTA, 1);
+		if (IS_ERR(handle))
+			goto unlock_inode;
+		EXT4_I(inode)->i_flags |= EXT4_NOATIME_FL | EXT4_IMMUTABLE_FL;
+		inode_set_flags(inode, S_NOATIME | S_IMMUTABLE,
+				S_NOATIME | S_IMMUTABLE);
+		ext4_mark_inode_dirty(handle, inode);
+		ext4_journal_stop(handle);
+	unlock_inode:
+		inode_unlock(inode);
+	}
 	return err;
 }
 
@@ -5422,24 +5474,39 @@ static int ext4_quota_off(struct super_block *sb, int type)
 {
 	struct inode *inode = sb_dqopt(sb)->files[type];
 	handle_t *handle;
+	int err;
 
 	/* Force all delayed allocation blocks to be allocated.
 	 * Caller already holds s_umount sem */
 	if (test_opt(sb, DELALLOC))
 		sync_filesystem(sb);
 
-	if (!inode)
+	if (!inode || !igrab(inode))
 		goto out;
 
-	/* Update modification times of quota files when userspace can
-	 * start looking at them */
+	err = dquot_quota_off(sb, type);
+	if (err)
+		goto out_put;
+
+	inode_lock(inode);
+	/*
+	 * Update modification times of quota files when userspace can
+	 * start looking at them. If we fail, we return success anyway since
+	 * this is not a hard failure and quotas are already disabled.
+	 */
 	handle = ext4_journal_start(inode, EXT4_HT_QUOTA, 1);
 	if (IS_ERR(handle))
-		goto out;
+		goto out_unlock;
+	EXT4_I(inode)->i_flags &= ~(EXT4_NOATIME_FL | EXT4_IMMUTABLE_FL);
+	inode_set_flags(inode, 0, S_NOATIME | S_IMMUTABLE);
 	inode->i_mtime = inode->i_ctime = current_time(inode);
 	ext4_mark_inode_dirty(handle, inode);
 	ext4_journal_stop(handle);
-
+out_unlock:
+	inode_unlock(inode);
+out_put:
+	iput(inode);
+	return err;
 out:
 	return dquot_quota_off(sb, type);
 }

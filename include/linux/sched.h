@@ -186,7 +186,7 @@ extern long io_schedule_timeout(long timeout);
 extern void io_schedule(void);
 
 /**
- * struct prev_cputime - snaphsot of system and user cputime
+ * struct prev_cputime - snapshot of system and user cputime
  * @utime: time spent in user mode
  * @stime: time spent in system mode
  * @lock: protects the above two fields
@@ -604,6 +604,10 @@ struct task_struct {
 #ifdef CONFIG_COMPAT_BRK
 	unsigned			brk_randomized:1;
 #endif
+#ifdef CONFIG_CGROUPS
+	/* disallow userland-initiated cgroup migration */
+	unsigned			no_cgroup_migration:1;
+#endif
 
 	unsigned long			atomic_flags; /* Flags requiring atomic access. */
 
@@ -775,6 +779,8 @@ struct task_struct {
 	/* PI waiters blocked on a rt_mutex held by this task: */
 	struct rb_root			pi_waiters;
 	struct rb_node			*pi_waiters_leftmost;
+	/* Updated under owner's pi_lock and rq lock */
+	struct task_struct		*pi_top_task;
 	/* Deadlock detection and priority inheritance handling: */
 	struct rt_mutex_waiter		*pi_blocked_on;
 #endif
@@ -1038,6 +1044,13 @@ struct task_struct {
 	/* A live task holds one reference: */
 	atomic_t			stack_refcount;
 #endif
+#ifdef CONFIG_LIVEPATCH
+	int patch_state;
+#endif
+#ifdef CONFIG_SECURITY
+	/* Used by LSM modules for access restriction: */
+	void				*security;
+#endif
 	/* CPU-specific state of this task: */
 	struct thread_struct		thread;
 
@@ -1211,9 +1224,9 @@ extern struct pid *cad_pid;
 #define PF_USED_ASYNC		0x00004000	/* Used async_schedule*(), used by module init */
 #define PF_NOFREEZE		0x00008000	/* This thread should not be frozen */
 #define PF_FROZEN		0x00010000	/* Frozen for system suspend */
-#define PF_FSTRANS		0x00020000	/* Inside a filesystem transaction */
-#define PF_KSWAPD		0x00040000	/* I am kswapd */
-#define PF_MEMALLOC_NOIO	0x00080000	/* Allocating memory without IO involved */
+#define PF_KSWAPD		0x00020000	/* I am kswapd */
+#define PF_MEMALLOC_NOFS	0x00040000	/* All allocation requests will inherit GFP_NOFS */
+#define PF_MEMALLOC_NOIO	0x00080000	/* All allocation requests will inherit GFP_NOIO */
 #define PF_LESS_THROTTLE	0x00100000	/* Throttle me less: I clean memory */
 #define PF_KTHREAD		0x00200000	/* I am a kernel thread */
 #define PF_RANDOMIZE		0x00400000	/* Randomize virtual address space */
@@ -1256,7 +1269,6 @@ extern struct pid *cad_pid;
 #define PFA_NO_NEW_PRIVS		0	/* May not gain new privileges. */
 #define PFA_SPREAD_PAGE			1	/* Spread page cache over cpuset */
 #define PFA_SPREAD_SLAB			2	/* Spread some slab caches over cpuset */
-#define PFA_LMK_WAITING			3	/* Lowmemorykiller is waiting */
 
 
 #define TASK_PFA_TEST(name, func)					\
@@ -1282,14 +1294,11 @@ TASK_PFA_TEST(SPREAD_SLAB, spread_slab)
 TASK_PFA_SET(SPREAD_SLAB, spread_slab)
 TASK_PFA_CLEAR(SPREAD_SLAB, spread_slab)
 
-TASK_PFA_TEST(LMK_WAITING, lmk_waiting)
-TASK_PFA_SET(LMK_WAITING, lmk_waiting)
-
 static inline void
-tsk_restore_flags(struct task_struct *task, unsigned long orig_flags, unsigned long flags)
+current_restore_flags(unsigned long orig_flags, unsigned long flags)
 {
-	task->flags &= ~flags;
-	task->flags |= orig_flags & flags;
+	current->flags &= ~flags;
+	current->flags |= orig_flags & flags;
 }
 
 extern int cpuset_cpumask_can_shrink(const struct cpumask *cur, const struct cpumask *trial);

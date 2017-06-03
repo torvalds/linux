@@ -23,6 +23,7 @@
 #include <linux/rwsem.h>
 #include <linux/atomic.h>
 #include <linux/assoc_array.h>
+#include <linux/refcount.h>
 
 #ifdef __KERNEL__
 #include <linux/uidgid.h>
@@ -126,6 +127,17 @@ static inline bool is_key_possessed(const key_ref_t key_ref)
 	return (unsigned long) key_ref & 1UL;
 }
 
+typedef int (*key_restrict_link_func_t)(struct key *dest_keyring,
+					const struct key_type *type,
+					const union key_payload *payload,
+					struct key *restriction_key);
+
+struct key_restriction {
+	key_restrict_link_func_t check;
+	struct key *key;
+	struct key_type *keytype;
+};
+
 /*****************************************************************************/
 /*
  * authentication token / access credential / keyring
@@ -135,7 +147,7 @@ static inline bool is_key_possessed(const key_ref_t key_ref)
  *   - Kerberos TGTs and tickets
  */
 struct key {
-	atomic_t		usage;		/* number of references */
+	refcount_t		usage;		/* number of references */
 	key_serial_t		serial;		/* key serial number */
 	union {
 		struct list_head graveyard_link;
@@ -205,18 +217,17 @@ struct key {
 	};
 
 	/* This is set on a keyring to restrict the addition of a link to a key
-	 * to it.  If this method isn't provided then it is assumed that the
+	 * to it.  If this structure isn't provided then it is assumed that the
 	 * keyring is open to any addition.  It is ignored for non-keyring
-	 * keys.
+	 * keys. Only set this value using keyring_restrict(), keyring_alloc(),
+	 * or key_alloc().
 	 *
 	 * This is intended for use with rings of trusted keys whereby addition
 	 * to the keyring needs to be controlled.  KEY_ALLOC_BYPASS_RESTRICTION
 	 * overrides this, allowing the kernel to add extra keys without
 	 * restriction.
 	 */
-	int (*restrict_link)(struct key *keyring,
-			     const struct key_type *type,
-			     const union key_payload *payload);
+	struct key_restriction *restrict_link;
 };
 
 extern struct key *key_alloc(struct key_type *type,
@@ -225,9 +236,7 @@ extern struct key *key_alloc(struct key_type *type,
 			     const struct cred *cred,
 			     key_perm_t perm,
 			     unsigned long flags,
-			     int (*restrict_link)(struct key *,
-						  const struct key_type *,
-						  const union key_payload *));
+			     struct key_restriction *restrict_link);
 
 
 #define KEY_ALLOC_IN_QUOTA		0x0000	/* add to quota, reject if would overrun */
@@ -242,7 +251,7 @@ extern void key_put(struct key *key);
 
 static inline struct key *__key_get(struct key *key)
 {
-	atomic_inc(&key->usage);
+	refcount_inc(&key->usage);
 	return key;
 }
 
@@ -303,14 +312,13 @@ extern struct key *keyring_alloc(const char *description, kuid_t uid, kgid_t gid
 				 const struct cred *cred,
 				 key_perm_t perm,
 				 unsigned long flags,
-				 int (*restrict_link)(struct key *,
-						      const struct key_type *,
-						      const union key_payload *),
+				 struct key_restriction *restrict_link,
 				 struct key *dest);
 
 extern int restrict_link_reject(struct key *keyring,
 				const struct key_type *type,
-				const union key_payload *payload);
+				const union key_payload *payload,
+				struct key *restriction_key);
 
 extern int keyring_clear(struct key *keyring);
 
@@ -320,6 +328,9 @@ extern key_ref_t keyring_search(key_ref_t keyring,
 
 extern int keyring_add_key(struct key *keyring,
 			   struct key *key);
+
+extern int keyring_restrict(key_ref_t keyring, const char *type,
+			    const char *restriction);
 
 extern struct key *key_lookup(key_serial_t id);
 

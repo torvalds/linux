@@ -31,6 +31,12 @@ The following is a list of provided IDs and clock names on Armada 39x:
  4 = dclk    (SDRAM Interface Clock)
  5 = refclk  (Reference Clock)
 
+The following is a list of provided IDs and clock names on 98dx3236:
+ 0 = tclk    (Internal Bus clock)
+ 1 = cpuclk  (CPU clock)
+ 2 = ddrclk   (DDR clock)
+ 3 = mpll    (MPLL Clock)
+
 The following is a list of provided IDs and clock names on Kirkwood and Dove:
  0 = tclk   (Internal Bus clock)
  1 = cpuclk (CPU0 clock)
@@ -49,6 +55,7 @@ Required properties:
 	"marvell,armada-380-core-clock" - For Armada 380/385 SoC core clocks
 	"marvell,armada-390-core-clock" - For Armada 39x SoC core clocks
 	"marvell,armada-xp-core-clock" - For Armada XP SoC core clocks
+	"marvell,mv98dx3236-core-clock" - For 98dx3236 family SoC core clocks
 	"marvell,dove-core-clock" - for Dove SoC core clocks
 	"marvell,kirkwood-core-clock" - for Kirkwood SoC (except mv88f6180)
 	"marvell,mv88f6180-core-clock" - for Kirkwood MV88f6180 SoC

@@ -176,8 +176,9 @@ void cond_policydb_destroy(struct policydb *p)
 int cond_init_bool_indexes(struct policydb *p)
 {
 	kfree(p->bool_val_to_struct);
-	p->bool_val_to_struct =
-		kmalloc(p->p_bools.nprim * sizeof(struct cond_bool_datum *), GFP_KERNEL);
+	p->bool_val_to_struct = kmalloc_array(p->p_bools.nprim,
+					      sizeof(*p->bool_val_to_struct),
+					      GFP_KERNEL);
 	if (!p->bool_val_to_struct)
 		return -ENOMEM;
 	return 0;
@@ -226,7 +227,7 @@ int cond_read_bool(struct policydb *p, struct hashtab *h, void *fp)
 	u32 len;
 	int rc;
 
-	booldatum = kzalloc(sizeof(struct cond_bool_datum), GFP_KERNEL);
+	booldatum = kzalloc(sizeof(*booldatum), GFP_KERNEL);
 	if (!booldatum)
 		return -ENOMEM;
 
@@ -331,7 +332,7 @@ static int cond_insertf(struct avtab *a, struct avtab_key *k, struct avtab_datum
 		goto err;
 	}
 
-	list = kzalloc(sizeof(struct cond_av_list), GFP_KERNEL);
+	list = kzalloc(sizeof(*list), GFP_KERNEL);
 	if (!list) {
 		rc = -ENOMEM;
 		goto err;
@@ -420,7 +421,7 @@ static int cond_read_node(struct policydb *p, struct cond_node *node, void *fp)
 			goto err;
 
 		rc = -ENOMEM;
-		expr = kzalloc(sizeof(struct cond_expr), GFP_KERNEL);
+		expr = kzalloc(sizeof(*expr), GFP_KERNEL);
 		if (!expr)
 			goto err;
 
@@ -471,7 +472,7 @@ int cond_read_list(struct policydb *p, void *fp)
 
 	for (i = 0; i < len; i++) {
 		rc = -ENOMEM;
-		node = kzalloc(sizeof(struct cond_node), GFP_KERNEL);
+		node = kzalloc(sizeof(*node), GFP_KERNEL);
 		if (!node)
 			goto err;
 
@@ -663,5 +664,4 @@ void cond_compute_av(struct avtab *ctab, struct avtab_key *key,
 				(node->key.specified & AVTAB_XPERMS))
 			services_compute_xperms_drivers(xperms, node);
 	}
-	return;
 }

@@ -676,7 +676,8 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 
 	set_bit(SDATA_STATE_RUNNING, &sdata->state);
 
-	if (sdata->vif.type == NL80211_IFTYPE_WDS) {
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_WDS:
 		/* Create STA entry for the WDS peer */
 		sta = sta_info_alloc(sdata, sdata->u.wds.remote_addr,
 				     GFP_KERNEL);
@@ -697,8 +698,17 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 
 		rate_control_rate_init(sta);
 		netif_carrier_on(dev);
-	} else if (sdata->vif.type == NL80211_IFTYPE_P2P_DEVICE) {
+		break;
+	case NL80211_IFTYPE_P2P_DEVICE:
 		rcu_assign_pointer(local->p2p_sdata, sdata);
+		break;
+	case NL80211_IFTYPE_MONITOR:
+		if (sdata->u.mntr.flags & MONITOR_FLAG_COOK_FRAMES)
+			break;
+		list_add_tail_rcu(&sdata->u.mntr.list, &local->mon_list);
+		break;
+	default:
+		break;
 	}
 
 	/*
@@ -718,7 +728,8 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 	ieee80211_recalc_ps(local);
 
 	if (sdata->vif.type == NL80211_IFTYPE_MONITOR ||
-	    sdata->vif.type == NL80211_IFTYPE_AP_VLAN) {
+	    sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
+	    local->ops->wake_tx_queue) {
 		/* XXX: for AP_VLAN, actually track AP queues */
 		netif_tx_start_all_queues(dev);
 	} else if (dev) {
@@ -815,6 +826,11 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		break;
 	case NL80211_IFTYPE_AP:
 		cancel_work_sync(&sdata->u.ap.request_smps_work);
+		break;
+	case NL80211_IFTYPE_MONITOR:
+		if (sdata->u.mntr.flags & MONITOR_FLAG_COOK_FRAMES)
+			break;
+		list_del_rcu(&sdata->u.mntr.list);
 		break;
 	default:
 		break;

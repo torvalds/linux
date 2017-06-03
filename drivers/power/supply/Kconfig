@@ -117,6 +117,12 @@ config BATTERY_DS2782
 	  Say Y here to enable support for the DS2782/DS2786 standalone battery
 	  gas-gauge.
 
+config BATTERY_LEGO_EV3
+	tristate "LEGO MINDSTORMS EV3 battery"
+	depends on OF && IIO && GPIOLIB
+	help
+	  Say Y here to enable support for the LEGO MINDSTORMS EV3 battery.
+
 config BATTERY_PMU
 	tristate "Apple PMU battery"
 	depends on PPC32 && ADB_PMU
@@ -232,6 +238,26 @@ config CHARGER_AXP20X
 	  This driver can also be built as a module. If so, the module will be
 	  called axp20x_ac_power.
 
+config BATTERY_AXP20X
+	tristate "X-Powers AXP20X battery driver"
+	depends on MFD_AXP20X
+	depends on AXP20X_ADC
+	depends on IIO
+	help
+	  Say Y here to enable support for X-Powers AXP20X PMICs' battery power
+	  supply.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called axp20x_battery.
+
+config AXP20X_POWER
+	tristate "AXP20x power supply driver"
+	depends on MFD_AXP20X
+	depends on IIO
+	help
+	  This driver provides support for the power supply features of
+	  AXP20x PMIC.
+
 config AXP288_CHARGER
 	tristate "X-Powers AXP288 Charger"
 	depends on MFD_AXP20X && EXTCON_AXP288
@@ -316,6 +342,14 @@ config BATTERY_RX51
 	help
 	  Say Y here to enable support for battery information on Nokia
 	  RX-51, also known as N900 tablet.
+
+config CHARGER_CPCAP
+	tristate "CPCAP PMIC Charger Driver"
+	depends on MFD_CPCAP && IIO
+	default MFD_CPCAP
+	help
+	  Say Y to enable support for CPCAP PMIC charger driver for Motorola
+	  mobile devices such as Droid 4.
 
 config CHARGER_ISP1704
 	tristate "ISP1704 USB Charger Detection"
@@ -438,6 +472,7 @@ config CHARGER_BQ2415X
 config CHARGER_BQ24190
 	tristate "TI BQ24190 battery charger driver"
 	depends on I2C
+	depends on EXTCON
 	depends on GPIOLIB || COMPILE_TEST
 	help
 	  Say Y to enable support for the TI BQ24190 battery charger.
@@ -525,12 +560,5 @@ config CHARGER_RT9455
 	select REGMAP_I2C
 	help
 	  Say Y to enable support for Richtek RT9455 battery charger.
-
-config AXP20X_POWER
-	tristate "AXP20x power supply driver"
-	depends on MFD_AXP20X
-	help
-	  This driver provides support for the power supply features of
-	  AXP20x PMIC.
 
 endif # POWER_SUPPLY

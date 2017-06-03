@@ -340,19 +340,11 @@ static void haswell_load_luts(struct drm_crtc_state *crtc_state)
 		hsw_enable_ips(intel_crtc);
 }
 
-/* Loads the palette/gamma unit for the CRTC on Broadwell+. */
-static void broadwell_load_luts(struct drm_crtc_state *state)
+static void bdw_load_degamma_lut(struct drm_crtc_state *state)
 {
-	struct drm_crtc *crtc = state->crtc;
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_crtc_state *intel_state = to_intel_crtc_state(state);
-	enum pipe pipe = to_intel_crtc(crtc)->pipe;
+	struct drm_i915_private *dev_priv = to_i915(state->crtc->dev);
+	enum pipe pipe = to_intel_crtc(state->crtc)->pipe;
 	uint32_t i, lut_size = INTEL_INFO(dev_priv)->color.degamma_lut_size;
-
-	if (crtc_state_is_legacy(state)) {
-		haswell_load_luts(state);
-		return;
-	}
 
 	I915_WRITE(PREC_PAL_INDEX(pipe),
 		   PAL_PREC_SPLIT_MODE | PAL_PREC_AUTO_INCREMENT);
@@ -377,6 +369,20 @@ static void broadwell_load_luts(struct drm_crtc_state *state)
 				   (v << 20) | (v << 10) | v);
 		}
 	}
+}
+
+static void bdw_load_gamma_lut(struct drm_crtc_state *state, u32 offset)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->crtc->dev);
+	enum pipe pipe = to_intel_crtc(state->crtc)->pipe;
+	uint32_t i, lut_size = INTEL_INFO(dev_priv)->color.gamma_lut_size;
+
+	WARN_ON(offset & ~PAL_PREC_INDEX_VALUE_MASK);
+
+	I915_WRITE(PREC_PAL_INDEX(pipe),
+		   (offset ? PAL_PREC_SPLIT_MODE : 0) |
+		   PAL_PREC_AUTO_INCREMENT |
+		   offset);
 
 	if (state->gamma_lut) {
 		struct drm_color_lut *lut =
@@ -410,6 +416,23 @@ static void broadwell_load_luts(struct drm_crtc_state *state)
 		I915_WRITE(PREC_PAL_GC_MAX(pipe, 1), (1 << 16) - 1);
 		I915_WRITE(PREC_PAL_GC_MAX(pipe, 2), (1 << 16) - 1);
 	}
+}
+
+/* Loads the palette/gamma unit for the CRTC on Broadwell+. */
+static void broadwell_load_luts(struct drm_crtc_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->crtc->dev);
+	struct intel_crtc_state *intel_state = to_intel_crtc_state(state);
+	enum pipe pipe = to_intel_crtc(state->crtc)->pipe;
+
+	if (crtc_state_is_legacy(state)) {
+		haswell_load_luts(state);
+		return;
+	}
+
+	bdw_load_degamma_lut(state);
+	bdw_load_gamma_lut(state,
+			   INTEL_INFO(dev_priv)->color.degamma_lut_size);
 
 	intel_state->gamma_mode = GAMMA_MODE_MODE_SPLIT;
 	I915_WRITE(GAMMA_MODE(pipe), GAMMA_MODE_MODE_SPLIT);
@@ -420,6 +443,58 @@ static void broadwell_load_luts(struct drm_crtc_state *state)
 	 * written properly.
 	 */
 	I915_WRITE(PREC_PAL_INDEX(pipe), 0);
+}
+
+static void glk_load_degamma_lut(struct drm_crtc_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->crtc->dev);
+	enum pipe pipe = to_intel_crtc(state->crtc)->pipe;
+	const uint32_t lut_size = 33;
+	uint32_t i;
+
+	/*
+	 * When setting the auto-increment bit, the hardware seems to
+	 * ignore the index bits, so we need to reset it to index 0
+	 * separately.
+	 */
+	I915_WRITE(PRE_CSC_GAMC_INDEX(pipe), 0);
+	I915_WRITE(PRE_CSC_GAMC_INDEX(pipe), PRE_CSC_GAMC_AUTO_INCREMENT);
+
+	/*
+	 *  FIXME: The pipe degamma table in geminilake doesn't support
+	 *  different values per channel, so this just loads a linear table.
+	 */
+	for (i = 0; i < lut_size; i++) {
+		uint32_t v = (i * (1 << 16)) / (lut_size - 1);
+
+		I915_WRITE(PRE_CSC_GAMC_DATA(pipe), v);
+	}
+
+	/* Clamp values > 1.0. */
+	while (i++ < 35)
+		I915_WRITE(PRE_CSC_GAMC_DATA(pipe), (1 << 16));
+}
+
+static void glk_load_luts(struct drm_crtc_state *state)
+{
+	struct drm_crtc *crtc = state->crtc;
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_crtc_state *intel_state = to_intel_crtc_state(state);
+	enum pipe pipe = to_intel_crtc(crtc)->pipe;
+
+	glk_load_degamma_lut(state);
+
+	if (crtc_state_is_legacy(state)) {
+		haswell_load_luts(state);
+		return;
+	}
+
+	bdw_load_gamma_lut(state, 0);
+
+	intel_state->gamma_mode = GAMMA_MODE_MODE_10BIT;
+	I915_WRITE(GAMMA_MODE(pipe), GAMMA_MODE_MODE_10BIT);
+	POSTING_READ(GAMMA_MODE(pipe));
 }
 
 /* Loads the palette/gamma unit for the CRTC on CherryView. */
@@ -536,10 +611,13 @@ void intel_color_init(struct drm_crtc *crtc)
 	} else if (IS_HASWELL(dev_priv)) {
 		dev_priv->display.load_csc_matrix = i9xx_load_csc_matrix;
 		dev_priv->display.load_luts = haswell_load_luts;
-	} else if (IS_BROADWELL(dev_priv) || IS_SKYLAKE(dev_priv) ||
-		   IS_BROXTON(dev_priv) || IS_KABYLAKE(dev_priv)) {
+	} else if (IS_BROADWELL(dev_priv) || IS_GEN9_BC(dev_priv) ||
+		   IS_BROXTON(dev_priv)) {
 		dev_priv->display.load_csc_matrix = i9xx_load_csc_matrix;
 		dev_priv->display.load_luts = broadwell_load_luts;
+	} else if (IS_GEMINILAKE(dev_priv)) {
+		dev_priv->display.load_csc_matrix = i9xx_load_csc_matrix;
+		dev_priv->display.load_luts = glk_load_luts;
 	} else {
 		dev_priv->display.load_luts = i9xx_load_luts;
 	}

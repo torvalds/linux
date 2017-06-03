@@ -63,6 +63,7 @@
 #include <linux/acpi.h>
 #include <linux/device.h>
 #include <linux/pci.h>
+#include <linux/pm_runtime.h>
 
 #include "i915_drv.h"
 #include <linux/delay.h>
@@ -121,6 +122,10 @@ lpe_audio_platdev_create(struct drm_i915_private *dev_priv)
 
 	kfree(rsc);
 
+	pm_runtime_forbid(&platdev->dev);
+	pm_runtime_set_active(&platdev->dev);
+	pm_runtime_enable(&platdev->dev);
+
 	return platdev;
 
 err:
@@ -131,8 +136,15 @@ err:
 
 static void lpe_audio_platdev_destroy(struct drm_i915_private *dev_priv)
 {
+	/* XXX Note that platform_device_register_full() allocates a dma_mask
+	 * and never frees it. We can't free it here as we cannot guarantee
+	 * this is the last reference (i.e. that the dma_mask will not be
+	 * used after our unregister). So ee choose to leak the sizeof(u64)
+	 * allocation here - it should be fixed in the platform_device rather
+	 * than us fiddle with its internals.
+	 */
+
 	platform_device_unregister(dev_priv->lpe_audio.platdev);
-	kfree(dev_priv->lpe_audio.platdev->dev.dma_mask);
 }
 
 static void lpe_audio_irq_unmask(struct irq_data *d)
@@ -331,6 +343,7 @@ void intel_lpe_audio_teardown(struct drm_i915_private *dev_priv)
  * audio driver and i915
  * @dev_priv: the i915 drm device private data
  * @eld : ELD data
+ * @pipe: pipe id
  * @port: port id
  * @tmds_clk_speed: tmds clock frequency in Hz
  *

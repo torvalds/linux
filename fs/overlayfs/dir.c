@@ -138,36 +138,6 @@ static int ovl_set_opaque(struct dentry *dentry, struct dentry *upperdentry)
 	return err;
 }
 
-static int ovl_dir_getattr(const struct path *path, struct kstat *stat,
-			   u32 request_mask, unsigned int flags)
-{
-	struct dentry *dentry = path->dentry;
-	int err;
-	enum ovl_path_type type;
-	struct path realpath;
-	const struct cred *old_cred;
-
-	type = ovl_path_real(dentry, &realpath);
-	old_cred = ovl_override_creds(dentry->d_sb);
-	err = vfs_getattr(&realpath, stat, request_mask, flags);
-	revert_creds(old_cred);
-	if (err)
-		return err;
-
-	stat->dev = dentry->d_sb->s_dev;
-	stat->ino = dentry->d_inode->i_ino;
-
-	/*
-	 * It's probably not worth it to count subdirs to get the
-	 * correct link count.  nlink=1 seems to pacify 'find' and
-	 * other utilities.
-	 */
-	if (OVL_TYPE_MERGE(type))
-		stat->nlink = 1;
-
-	return 0;
-}
-
 /* Common operations required to be done after creation of file on upper */
 static void ovl_instantiate(struct dentry *dentry, struct inode *inode,
 			    struct dentry *newdentry, bool hardlink)
@@ -182,6 +152,9 @@ static void ovl_instantiate(struct dentry *dentry, struct inode *inode,
 		inc_nlink(inode);
 	}
 	d_instantiate(dentry, inode);
+	/* Force lookup of new upper hardlink to find its lower */
+	if (hardlink)
+		d_drop(dentry);
 }
 
 static bool ovl_type_merge(struct dentry *dentry)
@@ -210,7 +183,7 @@ static int ovl_create_upper(struct dentry *dentry, struct inode *inode,
 	if (err)
 		goto out_dput;
 
-	if (ovl_type_merge(dentry->d_parent)) {
+	if (ovl_type_merge(dentry->d_parent) && d_is_dir(newdentry)) {
 		/* Setting opaque here is just an optimization, allow to fail */
 		ovl_set_opaque(dentry, newdentry);
 	}
@@ -1070,7 +1043,7 @@ const struct inode_operations ovl_dir_inode_operations = {
 	.create		= ovl_create,
 	.mknod		= ovl_mknod,
 	.permission	= ovl_permission,
-	.getattr	= ovl_dir_getattr,
+	.getattr	= ovl_getattr,
 	.listxattr	= ovl_listxattr,
 	.get_acl	= ovl_get_acl,
 	.update_time	= ovl_update_time,

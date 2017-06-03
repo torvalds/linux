@@ -35,7 +35,7 @@ static struct bus_type ccwgroup_bus_type;
 static void __ccwgroup_remove_symlinks(struct ccwgroup_device *gdev)
 {
 	int i;
-	char str[8];
+	char str[16];
 
 	for (i = 0; i < gdev->count; i++) {
 		sprintf(str, "cdev%d", i);
@@ -238,7 +238,7 @@ static void ccwgroup_release(struct device *dev)
 
 static int __ccwgroup_create_symlinks(struct ccwgroup_device *gdev)
 {
-	char str[8];
+	char str[16];
 	int i, rc;
 
 	for (i = 0; i < gdev->count; i++) {

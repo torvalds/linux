@@ -283,7 +283,7 @@ static int __init ls_pcie_probe(struct platform_device *pdev)
 	pcie->pci = pci;
 
 	dbi_base = platform_get_resource_byname(pdev, IORESOURCE_MEM, "regs");
-	pci->dbi_base = devm_ioremap_resource(dev, dbi_base);
+	pci->dbi_base = devm_pci_remap_cfg_resource(dev, dbi_base);
 	if (IS_ERR(pci->dbi_base))
 		return PTR_ERR(pci->dbi_base);
 
@@ -305,6 +305,7 @@ static struct platform_driver ls_pcie_driver = {
 	.driver = {
 		.name = "layerscape-pcie",
 		.of_match_table = ls_pcie_of_match,
+		.suppress_bind_attrs = true,
 	},
 };
 builtin_platform_driver_probe(ls_pcie_driver, ls_pcie_probe);

@@ -51,11 +51,11 @@ enum {
 	OCRDMA_AH_L3_TYPE_SHIFT		= 0x1D /* 29 bits */
 };
 
-struct ib_ah *ocrdma_create_ah(struct ib_pd *, struct ib_ah_attr *,
-			       struct ib_udata *);
-int ocrdma_destroy_ah(struct ib_ah *);
-int ocrdma_query_ah(struct ib_ah *, struct ib_ah_attr *);
-int ocrdma_modify_ah(struct ib_ah *, struct ib_ah_attr *);
+struct ib_ah *ocrdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
+			       struct ib_udata *udata);
+int ocrdma_destroy_ah(struct ib_ah *ah);
+int ocrdma_query_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
+int ocrdma_modify_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 
 int ocrdma_process_mad(struct ib_device *,
 		       int process_mad_flags,

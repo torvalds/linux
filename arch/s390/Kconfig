@@ -105,6 +105,7 @@ config S390
 	select ARCH_INLINE_WRITE_UNLOCK_IRQRESTORE
 	select ARCH_SAVE_PAGE_KEYS if HIBERNATION
 	select ARCH_SUPPORTS_ATOMIC_RMW
+	select ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
 	select ARCH_SUPPORTS_NUMA_BALANCING
 	select ARCH_USE_BUILTIN_BSWAP
 	select ARCH_USE_CMPXCHG_LOCKREF
@@ -123,8 +124,6 @@ config S390
 	select GENERIC_TIME_VSYSCALL
 	select HAVE_ALIGNED_STRUCT_PAGE if SLUB
 	select HAVE_ARCH_AUDITSYSCALL
-	select HAVE_ARCH_EARLY_PFN_TO_NID
-	select HAVE_ARCH_HARDENED_USERCOPY
 	select HAVE_ARCH_JUMP_LABEL
 	select CPU_NO_EFFICIENT_FFS if !HAVE_MARCH_Z9_109_FEATURES
 	select HAVE_ARCH_SECCOMP_FILTER
@@ -507,6 +506,21 @@ source kernel/Kconfig.preempt
 
 source kernel/Kconfig.hz
 
+config ARCH_RANDOM
+	def_bool y
+	prompt "s390 architectural random number generation API"
+	help
+	  Enable the s390 architectural random number generation API
+	  to provide random data for all consumers within the Linux
+	  kernel.
+
+	  When enabled the arch_random_* functions declared in linux/random.h
+	  are implemented. The implementation is based on the s390 CPACF
+	  instruction subfunction TRNG which provides a real true random
+	  number generator.
+
+	  If unsure, say Y.
+
 endmenu
 
 menu "Memory setup"
@@ -536,6 +550,16 @@ config FORCE_MAX_ZONEORDER
 	default "9"
 
 source "mm/Kconfig"
+
+config MAX_PHYSMEM_BITS
+	int "Maximum size of supported physical memory in bits (42-53)"
+	range 42 53
+	default "46"
+	help
+	  This option specifies the maximum supported size of physical memory
+	  in bits. Supported is any size between 2^42 (4TB) and 2^53 (8PB).
+	  Increasing the number of bits also increases the kernel image size.
+	  By default 46 bits (64TB) are supported.
 
 config PACK_STACK
 	def_bool y
@@ -614,7 +638,7 @@ if PCI
 config PCI_NR_FUNCTIONS
 	int "Maximum number of PCI functions (1-4096)"
 	range 1 4096
-	default "64"
+	default "128"
 	help
 	  This allows you to specify the maximum number of PCI functions which
 	  this kernel will support.
@@ -671,6 +695,16 @@ config EADM_SCH
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called eadm_sch.
+
+config VFIO_CCW
+	def_tristate n
+	prompt "Support for VFIO-CCW subchannels"
+	depends on S390_CCW_IOMMU && VFIO_MDEV
+	help
+	  This driver allows usage of I/O subchannels via VFIO-CCW.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called vfio_ccw.
 
 endmenu
 

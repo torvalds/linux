@@ -7,6 +7,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/cpufeature.h>
+#include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/sched/mm.h>
 #include <linux/init.h>
@@ -91,11 +92,23 @@ int cpu_have_feature(unsigned int num)
 }
 EXPORT_SYMBOL(cpu_have_feature);
 
+static void show_facilities(struct seq_file *m)
+{
+	unsigned int bit;
+	long *facilities;
+
+	facilities = (long *)&S390_lowcore.stfle_fac_list;
+	seq_puts(m, "facilities      :");
+	for_each_set_bit_inv(bit, facilities, MAX_FACILITY_BIT)
+		seq_printf(m, " %d", bit);
+	seq_putc(m, '\n');
+}
+
 static void show_cpu_summary(struct seq_file *m, void *v)
 {
 	static const char *hwcap_str[] = {
 		"esan3", "zarch", "stfle", "msa", "ldisp", "eimm", "dfp",
-		"edat", "etf3eh", "highgprs", "te", "vx", "vxd", "vxe"
+		"edat", "etf3eh", "highgprs", "te", "vx", "vxd", "vxe", "gs"
 	};
 	static const char * const int_hwcap_str[] = {
 		"sie"
@@ -116,6 +129,7 @@ static void show_cpu_summary(struct seq_file *m, void *v)
 		if (int_hwcap_str[i] && (int_hwcap & (1UL << i)))
 			seq_printf(m, "%s ", int_hwcap_str[i]);
 	seq_puts(m, "\n");
+	show_facilities(m);
 	show_cacheinfo(m);
 	for_each_online_cpu(cpu) {
 		struct cpuid *id = &per_cpu(cpu_info.cpu_id, cpu);

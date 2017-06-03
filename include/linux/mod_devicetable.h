@@ -428,6 +428,16 @@ struct i2c_device_id {
 	kernel_ulong_t driver_data;	/* Data private to the driver */
 };
 
+/* pci_epf */
+
+#define PCI_EPF_NAME_SIZE	20
+#define PCI_EPF_MODULE_PREFIX	"pci_epf:"
+
+struct pci_epf_device_id {
+	char name[PCI_EPF_NAME_SIZE];
+	kernel_ulong_t driver_data;
+};
+
 /* spi */
 
 #define SPI_NAME_SIZE	32

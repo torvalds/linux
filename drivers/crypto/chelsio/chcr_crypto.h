@@ -41,15 +41,15 @@
 
 #define CCM_B0_SIZE             16
 #define CCM_AAD_FIELD_SIZE      2
-#define T5_MAX_AAD_SIZE 512
+#define T6_MAX_AAD_SIZE 511
 
 
 /* Define following if h/w is not dropping the AAD and IV data before
  * giving the processed data
  */
 
-#define CHCR_CRA_PRIORITY 3000
-
+#define CHCR_CRA_PRIORITY 500
+#define CHCR_AEAD_PRIORITY 6000
 #define CHCR_AES_MAX_KEY_LEN  (2 * (AES_MAX_KEY_SIZE)) /* consider xts */
 #define CHCR_MAX_CRYPTO_IV_LEN 16 /* AES IV len */
 
@@ -188,6 +188,7 @@ struct chcr_aead_ctx {
 	__be32 key_ctx_hdr;
 	unsigned int enckey_len;
 	struct crypto_skcipher *null;
+	struct crypto_aead *sw_cipher;
 	u8 salt[MAX_SALT];
 	u8 key[CHCR_AES_MAX_KEY_LEN];
 	u16 hmac_ctrl;
@@ -211,7 +212,8 @@ struct __crypto_ctx {
 
 struct chcr_context {
 	struct chcr_dev *dev;
-	unsigned char tx_channel_id;
+	unsigned char tx_qidx;
+	unsigned char rx_qidx;
 	struct __crypto_ctx crypto_ctx[0];
 };
 

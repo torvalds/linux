@@ -1657,7 +1657,7 @@ static int lbs_cfg_get_station(struct wiphy *wiphy, struct net_device *dev,
  */
 
 static int lbs_change_intf(struct wiphy *wiphy, struct net_device *dev,
-	enum nl80211_iftype type, u32 *flags,
+	enum nl80211_iftype type,
 	       struct vif_params *params)
 {
 	struct lbs_private *priv = wiphy_priv(wiphy);

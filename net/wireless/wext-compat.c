@@ -62,7 +62,7 @@ int cfg80211_wext_siwmode(struct net_device *dev, struct iw_request_info *info,
 
 	memset(&vifparams, 0, sizeof(vifparams));
 
-	return cfg80211_change_iface(rdev, dev, type, NULL, &vifparams);
+	return cfg80211_change_iface(rdev, dev, type, &vifparams);
 }
 EXPORT_WEXT_HANDLER(cfg80211_wext_siwmode);
 

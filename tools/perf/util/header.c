@@ -1,4 +1,8 @@
+#include <errno.h>
+#include <inttypes.h>
 #include "util.h"
+#include "string2.h"
+#include <sys/param.h>
 #include <sys/types.h>
 #include <byteswap.h>
 #include <unistd.h>
@@ -7,11 +11,15 @@
 #include <linux/list.h>
 #include <linux/kernel.h>
 #include <linux/bitops.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <sys/utsname.h>
+#include <unistd.h>
 
 #include "evlist.h"
 #include "evsel.h"
 #include "header.h"
+#include "memswap.h"
 #include "../perf.h"
 #include "trace-event.h"
 #include "session.h"
@@ -25,6 +33,8 @@
 #include "data.h"
 #include <api/fs/fs.h>
 #include "asm/bug.h"
+
+#include "sane_ctype.h"
 
 /*
  * magic2 = "PERFILE2"
@@ -370,15 +380,11 @@ static int write_cmdline(int fd, struct perf_header *h __maybe_unused,
 			 struct perf_evlist *evlist __maybe_unused)
 {
 	char buf[MAXPATHLEN];
-	char proc[32];
 	u32 n;
 	int i, ret;
 
-	/*
-	 * actual atual path to perf binary
-	 */
-	sprintf(proc, "/proc/%d/exe", getpid());
-	ret = readlink(proc, buf, sizeof(buf));
+	/* actual path to perf binary */
+	ret = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
 	if (ret <= 0)
 		return -1;
 
@@ -2273,6 +2279,9 @@ int perf_header__fprintf_info(struct perf_session *session, FILE *fp, bool full)
 
 	perf_header__process_sections(header, fd, &hd,
 				      perf_file_section__fprintf_info);
+
+	if (session->file->is_pipe)
+		return 0;
 
 	fprintf(fp, "# missing features: ");
 	for_each_clear_bit(bit, header->adds_features, HEADER_LAST_FEATURE) {

@@ -334,8 +334,11 @@ nfs3svc_decode_readargs(struct svc_rqst *rqstp, __be32 *p,
 	if (!p)
 		return 0;
 	p = xdr_decode_hyper(p, &args->offset);
-
 	args->count = ntohl(*p++);
+
+	if (!xdr_argsize_check(rqstp, p))
+		return 0;
+
 	len = min(args->count, max_blocksize);
 
 	/* set up the kvec */
@@ -349,7 +352,7 @@ nfs3svc_decode_readargs(struct svc_rqst *rqstp, __be32 *p,
 		v++;
 	}
 	args->vlen = v;
-	return xdr_argsize_check(rqstp, p);
+	return 1;
 }
 
 int
@@ -358,6 +361,8 @@ nfs3svc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p,
 {
 	unsigned int len, v, hdr, dlen;
 	u32 max_blocksize = svc_max_payload(rqstp);
+	struct kvec *head = rqstp->rq_arg.head;
+	struct kvec *tail = rqstp->rq_arg.tail;
 
 	p = decode_fh(p, &args->fh);
 	if (!p)
@@ -367,6 +372,8 @@ nfs3svc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p,
 	args->count = ntohl(*p++);
 	args->stable = ntohl(*p++);
 	len = args->len = ntohl(*p++);
+	if ((void *)p > head->iov_base + head->iov_len)
+		return 0;
 	/*
 	 * The count must equal the amount of data passed.
 	 */
@@ -377,9 +384,8 @@ nfs3svc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p,
 	 * Check to make sure that we got the right number of
 	 * bytes.
 	 */
-	hdr = (void*)p - rqstp->rq_arg.head[0].iov_base;
-	dlen = rqstp->rq_arg.head[0].iov_len + rqstp->rq_arg.page_len
-		+ rqstp->rq_arg.tail[0].iov_len - hdr;
+	hdr = (void*)p - head->iov_base;
+	dlen = head->iov_len + rqstp->rq_arg.page_len + tail->iov_len - hdr;
 	/*
 	 * Round the length of the data which was specified up to
 	 * the next multiple of XDR units and then compare that
@@ -396,7 +402,7 @@ nfs3svc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p,
 		len = args->len = max_blocksize;
 	}
 	rqstp->rq_vec[0].iov_base = (void*)p;
-	rqstp->rq_vec[0].iov_len = rqstp->rq_arg.head[0].iov_len - hdr;
+	rqstp->rq_vec[0].iov_len = head->iov_len - hdr;
 	v = 0;
 	while (len > rqstp->rq_vec[v].iov_len) {
 		len -= rqstp->rq_vec[v].iov_len;
@@ -471,6 +477,8 @@ nfs3svc_decode_symlinkargs(struct svc_rqst *rqstp, __be32 *p,
 	/* first copy and check from the first page */
 	old = (char*)p;
 	vec = &rqstp->rq_arg.head[0];
+	if ((void *)old > vec->iov_base + vec->iov_len)
+		return 0;
 	avail = vec->iov_len - (old - (char*)vec->iov_base);
 	while (len && avail && *old) {
 		*new++ = *old++;
@@ -536,9 +544,11 @@ nfs3svc_decode_readlinkargs(struct svc_rqst *rqstp, __be32 *p,
 	p = decode_fh(p, &args->fh);
 	if (!p)
 		return 0;
+	if (!xdr_argsize_check(rqstp, p))
+		return 0;
 	args->buffer = page_address(*(rqstp->rq_next_page++));
 
-	return xdr_argsize_check(rqstp, p);
+	return 1;
 }
 
 int
@@ -564,10 +574,14 @@ nfs3svc_decode_readdirargs(struct svc_rqst *rqstp, __be32 *p,
 	args->verf   = p; p += 2;
 	args->dircount = ~0;
 	args->count  = ntohl(*p++);
+
+	if (!xdr_argsize_check(rqstp, p))
+		return 0;
+
 	args->count  = min_t(u32, args->count, PAGE_SIZE);
 	args->buffer = page_address(*(rqstp->rq_next_page++));
 
-	return xdr_argsize_check(rqstp, p);
+	return 1;
 }
 
 int
@@ -585,6 +599,9 @@ nfs3svc_decode_readdirplusargs(struct svc_rqst *rqstp, __be32 *p,
 	args->dircount = ntohl(*p++);
 	args->count    = ntohl(*p++);
 
+	if (!xdr_argsize_check(rqstp, p))
+		return 0;
+
 	len = args->count = min(args->count, max_blocksize);
 	while (len > 0) {
 		struct page *p = *(rqstp->rq_next_page++);
@@ -592,8 +609,7 @@ nfs3svc_decode_readdirplusargs(struct svc_rqst *rqstp, __be32 *p,
 			args->buffer = page_address(p);
 		len -= PAGE_SIZE;
 	}
-
-	return xdr_argsize_check(rqstp, p);
+	return 1;
 }
 
 int

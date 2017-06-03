@@ -55,6 +55,14 @@
 #define PPC_BITEXTRACT(bits, ppc_bit, dst_bit)			\
 	((((bits) >> PPC_BITLSHIFT(ppc_bit)) & 1) << (dst_bit))
 
+#define PPC_BITLSHIFT32(be)	(32 - 1 - (be))
+#define PPC_BIT32(bit)		(1UL << PPC_BITLSHIFT32(bit))
+#define PPC_BITMASK32(bs, be)	((PPC_BIT32(bs) - PPC_BIT32(be))|PPC_BIT32(bs))
+
+#define PPC_BITLSHIFT8(be)	(8 - 1 - (be))
+#define PPC_BIT8(bit)		(1UL << PPC_BITLSHIFT8(bit))
+#define PPC_BITMASK8(bs, be)	((PPC_BIT8(bs) - PPC_BIT8(be))|PPC_BIT8(bs))
+
 #include <asm/barrier.h>
 
 /* Macro for generating the ***_bits() functions */

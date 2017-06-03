@@ -2500,8 +2500,9 @@ void qed_int_cau_conf_sb(struct qed_hwfn *p_hwfn,
 
 	/* Configure pi coalescing if set */
 	if (p_hwfn->cdev->int_coalescing_mode == QED_COAL_MODE_ENABLE) {
+		u8 num_tc = p_hwfn->hw_info.num_hw_tc;
 		u8 timeset, timer_res;
-		u8 num_tc = 1, i;
+		u8 i;
 
 		/* timeset = (coalesce >> timer-res), timeset is 7bit wide */
 		if (p_hwfn->cdev->rx_coalesce_usecs <= 0x7F)
@@ -3057,7 +3058,7 @@ int qed_int_igu_read_cam(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 
 	/* There's a possibility the igu_sb_cnt_iov doesn't properly reflect
 	 * the number of VF SBs [especially for first VF on engine, as we can't
-	 * diffrentiate between empty entries and its entries].
+	 * differentiate between empty entries and its entries].
 	 * Since we don't really support more SBs than VFs today, prevent any
 	 * such configuration by sanitizing the number of SBs to equal the
 	 * number of VFs.

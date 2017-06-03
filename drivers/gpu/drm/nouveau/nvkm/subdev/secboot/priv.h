@@ -30,10 +30,9 @@ struct nvkm_secboot_func {
 	int (*oneinit)(struct nvkm_secboot *);
 	int (*fini)(struct nvkm_secboot *, bool suspend);
 	void *(*dtor)(struct nvkm_secboot *);
-	int (*run_blob)(struct nvkm_secboot *, struct nvkm_gpuobj *);
+	int (*run_blob)(struct nvkm_secboot *, struct nvkm_gpuobj *,
+			struct nvkm_falcon *);
 };
-
-extern const char *nvkm_secboot_falcon_name[];
 
 int nvkm_secboot_ctor(const struct nvkm_secboot_func *, struct nvkm_acr *,
 		      struct nvkm_device *, int, struct nvkm_secboot *);

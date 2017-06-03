@@ -45,6 +45,7 @@
 #include "accommon.h"
 #include "acparser.h"
 #include "amlcode.h"
+#include "acconvert.h"
 
 #define _COMPONENT          ACPI_PARSER
 ACPI_MODULE_NAME("psutils")
@@ -152,6 +153,15 @@ union acpi_parse_object *acpi_ps_alloc_op(u16 opcode, u8 *aml)
 		acpi_ps_init_op(op, opcode);
 		op->common.aml = aml;
 		op->common.flags = flags;
+		ASL_CV_CLEAR_OP_COMMENTS(op);
+
+		if (opcode == AML_SCOPE_OP) {
+			acpi_gbl_current_scope = op;
+		}
+	}
+
+	if (gbl_capture_comments) {
+		ASL_CV_TRANSFER_COMMENTS(op);
 	}
 
 	return (op);
@@ -174,6 +184,7 @@ void acpi_ps_free_op(union acpi_parse_object *op)
 {
 	ACPI_FUNCTION_NAME(ps_free_op);
 
+	ASL_CV_CLEAR_OP_COMMENTS(op);
 	if (op->common.aml_opcode == AML_INT_RETURN_VALUE_OP) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
 				  "Free retval op: %p\n", op));

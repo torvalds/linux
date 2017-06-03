@@ -48,6 +48,8 @@
 	 ((crn) << CRn_shift) | ((crm) << CRm_shift) | \
 	 ((op2) << Op2_shift))
 
+#define sys_insn	sys_reg
+
 #define sys_reg_Op0(id)	(((id) >> Op0_shift) & Op0_mask)
 #define sys_reg_Op1(id)	(((id) >> Op1_shift) & Op1_mask)
 #define sys_reg_CRn(id)	(((id) >> CRn_shift) & CRn_mask)
@@ -81,6 +83,41 @@
 
 #endif	/* CONFIG_BROKEN_GAS_INST */
 
+#define REG_PSTATE_PAN_IMM		sys_reg(0, 0, 4, 0, 4)
+#define REG_PSTATE_UAO_IMM		sys_reg(0, 0, 4, 0, 3)
+
+#define SET_PSTATE_PAN(x) __emit_inst(0xd5000000 | REG_PSTATE_PAN_IMM |	\
+				      (!!x)<<8 | 0x1f)
+#define SET_PSTATE_UAO(x) __emit_inst(0xd5000000 | REG_PSTATE_UAO_IMM |	\
+				      (!!x)<<8 | 0x1f)
+
+#define SYS_DC_ISW			sys_insn(1, 0, 7, 6, 2)
+#define SYS_DC_CSW			sys_insn(1, 0, 7, 10, 2)
+#define SYS_DC_CISW			sys_insn(1, 0, 7, 14, 2)
+
+#define SYS_OSDTRRX_EL1			sys_reg(2, 0, 0, 0, 2)
+#define SYS_MDCCINT_EL1			sys_reg(2, 0, 0, 2, 0)
+#define SYS_MDSCR_EL1			sys_reg(2, 0, 0, 2, 2)
+#define SYS_OSDTRTX_EL1			sys_reg(2, 0, 0, 3, 2)
+#define SYS_OSECCR_EL1			sys_reg(2, 0, 0, 6, 2)
+#define SYS_DBGBVRn_EL1(n)		sys_reg(2, 0, 0, n, 4)
+#define SYS_DBGBCRn_EL1(n)		sys_reg(2, 0, 0, n, 5)
+#define SYS_DBGWVRn_EL1(n)		sys_reg(2, 0, 0, n, 6)
+#define SYS_DBGWCRn_EL1(n)		sys_reg(2, 0, 0, n, 7)
+#define SYS_MDRAR_EL1			sys_reg(2, 0, 1, 0, 0)
+#define SYS_OSLAR_EL1			sys_reg(2, 0, 1, 0, 4)
+#define SYS_OSLSR_EL1			sys_reg(2, 0, 1, 1, 4)
+#define SYS_OSDLR_EL1			sys_reg(2, 0, 1, 3, 4)
+#define SYS_DBGPRCR_EL1			sys_reg(2, 0, 1, 4, 4)
+#define SYS_DBGCLAIMSET_EL1		sys_reg(2, 0, 7, 8, 6)
+#define SYS_DBGCLAIMCLR_EL1		sys_reg(2, 0, 7, 9, 6)
+#define SYS_DBGAUTHSTATUS_EL1		sys_reg(2, 0, 7, 14, 6)
+#define SYS_MDCCSR_EL0			sys_reg(2, 3, 0, 1, 0)
+#define SYS_DBGDTR_EL0			sys_reg(2, 3, 0, 4, 0)
+#define SYS_DBGDTRRX_EL0		sys_reg(2, 3, 0, 5, 0)
+#define SYS_DBGDTRTX_EL0		sys_reg(2, 3, 0, 5, 0)
+#define SYS_DBGVCR32_EL2		sys_reg(2, 4, 0, 7, 0)
+
 #define SYS_MIDR_EL1			sys_reg(3, 0, 0, 0, 0)
 #define SYS_MPIDR_EL1			sys_reg(3, 0, 0, 0, 5)
 #define SYS_REVIDR_EL1			sys_reg(3, 0, 0, 0, 6)
@@ -88,6 +125,7 @@
 #define SYS_ID_PFR0_EL1			sys_reg(3, 0, 0, 1, 0)
 #define SYS_ID_PFR1_EL1			sys_reg(3, 0, 0, 1, 1)
 #define SYS_ID_DFR0_EL1			sys_reg(3, 0, 0, 1, 2)
+#define SYS_ID_AFR0_EL1			sys_reg(3, 0, 0, 1, 3)
 #define SYS_ID_MMFR0_EL1		sys_reg(3, 0, 0, 1, 4)
 #define SYS_ID_MMFR1_EL1		sys_reg(3, 0, 0, 1, 5)
 #define SYS_ID_MMFR2_EL1		sys_reg(3, 0, 0, 1, 6)
@@ -118,17 +156,127 @@
 #define SYS_ID_AA64MMFR1_EL1		sys_reg(3, 0, 0, 7, 1)
 #define SYS_ID_AA64MMFR2_EL1		sys_reg(3, 0, 0, 7, 2)
 
-#define SYS_CNTFRQ_EL0			sys_reg(3, 3, 14, 0, 0)
+#define SYS_SCTLR_EL1			sys_reg(3, 0, 1, 0, 0)
+#define SYS_ACTLR_EL1			sys_reg(3, 0, 1, 0, 1)
+#define SYS_CPACR_EL1			sys_reg(3, 0, 1, 0, 2)
+
+#define SYS_TTBR0_EL1			sys_reg(3, 0, 2, 0, 0)
+#define SYS_TTBR1_EL1			sys_reg(3, 0, 2, 0, 1)
+#define SYS_TCR_EL1			sys_reg(3, 0, 2, 0, 2)
+
+#define SYS_ICC_PMR_EL1			sys_reg(3, 0, 4, 6, 0)
+
+#define SYS_AFSR0_EL1			sys_reg(3, 0, 5, 1, 0)
+#define SYS_AFSR1_EL1			sys_reg(3, 0, 5, 1, 1)
+#define SYS_ESR_EL1			sys_reg(3, 0, 5, 2, 0)
+#define SYS_FAR_EL1			sys_reg(3, 0, 6, 0, 0)
+#define SYS_PAR_EL1			sys_reg(3, 0, 7, 4, 0)
+
+#define SYS_PMINTENSET_EL1		sys_reg(3, 0, 9, 14, 1)
+#define SYS_PMINTENCLR_EL1		sys_reg(3, 0, 9, 14, 2)
+
+#define SYS_MAIR_EL1			sys_reg(3, 0, 10, 2, 0)
+#define SYS_AMAIR_EL1			sys_reg(3, 0, 10, 3, 0)
+
+#define SYS_VBAR_EL1			sys_reg(3, 0, 12, 0, 0)
+
+#define SYS_ICC_DIR_EL1			sys_reg(3, 0, 12, 11, 1)
+#define SYS_ICC_SGI1R_EL1		sys_reg(3, 0, 12, 11, 5)
+#define SYS_ICC_IAR1_EL1		sys_reg(3, 0, 12, 12, 0)
+#define SYS_ICC_EOIR1_EL1		sys_reg(3, 0, 12, 12, 1)
+#define SYS_ICC_BPR1_EL1		sys_reg(3, 0, 12, 12, 3)
+#define SYS_ICC_CTLR_EL1		sys_reg(3, 0, 12, 12, 4)
+#define SYS_ICC_SRE_EL1			sys_reg(3, 0, 12, 12, 5)
+#define SYS_ICC_GRPEN1_EL1		sys_reg(3, 0, 12, 12, 7)
+
+#define SYS_CONTEXTIDR_EL1		sys_reg(3, 0, 13, 0, 1)
+#define SYS_TPIDR_EL1			sys_reg(3, 0, 13, 0, 4)
+
+#define SYS_CNTKCTL_EL1			sys_reg(3, 0, 14, 1, 0)
+
+#define SYS_CLIDR_EL1			sys_reg(3, 1, 0, 0, 1)
+#define SYS_AIDR_EL1			sys_reg(3, 1, 0, 0, 7)
+
+#define SYS_CSSELR_EL1			sys_reg(3, 2, 0, 0, 0)
+
 #define SYS_CTR_EL0			sys_reg(3, 3, 0, 0, 1)
 #define SYS_DCZID_EL0			sys_reg(3, 3, 0, 0, 7)
 
-#define REG_PSTATE_PAN_IMM		sys_reg(0, 0, 4, 0, 4)
-#define REG_PSTATE_UAO_IMM		sys_reg(0, 0, 4, 0, 3)
+#define SYS_PMCR_EL0			sys_reg(3, 3, 9, 12, 0)
+#define SYS_PMCNTENSET_EL0		sys_reg(3, 3, 9, 12, 1)
+#define SYS_PMCNTENCLR_EL0		sys_reg(3, 3, 9, 12, 2)
+#define SYS_PMOVSCLR_EL0		sys_reg(3, 3, 9, 12, 3)
+#define SYS_PMSWINC_EL0			sys_reg(3, 3, 9, 12, 4)
+#define SYS_PMSELR_EL0			sys_reg(3, 3, 9, 12, 5)
+#define SYS_PMCEID0_EL0			sys_reg(3, 3, 9, 12, 6)
+#define SYS_PMCEID1_EL0			sys_reg(3, 3, 9, 12, 7)
+#define SYS_PMCCNTR_EL0			sys_reg(3, 3, 9, 13, 0)
+#define SYS_PMXEVTYPER_EL0		sys_reg(3, 3, 9, 13, 1)
+#define SYS_PMXEVCNTR_EL0		sys_reg(3, 3, 9, 13, 2)
+#define SYS_PMUSERENR_EL0		sys_reg(3, 3, 9, 14, 0)
+#define SYS_PMOVSSET_EL0		sys_reg(3, 3, 9, 14, 3)
 
-#define SET_PSTATE_PAN(x) __emit_inst(0xd5000000 | REG_PSTATE_PAN_IMM |	\
-				      (!!x)<<8 | 0x1f)
-#define SET_PSTATE_UAO(x) __emit_inst(0xd5000000 | REG_PSTATE_UAO_IMM |	\
-				      (!!x)<<8 | 0x1f)
+#define SYS_TPIDR_EL0			sys_reg(3, 3, 13, 0, 2)
+#define SYS_TPIDRRO_EL0			sys_reg(3, 3, 13, 0, 3)
+
+#define SYS_CNTFRQ_EL0			sys_reg(3, 3, 14, 0, 0)
+
+#define SYS_CNTP_TVAL_EL0		sys_reg(3, 3, 14, 2, 0)
+#define SYS_CNTP_CTL_EL0		sys_reg(3, 3, 14, 2, 1)
+#define SYS_CNTP_CVAL_EL0		sys_reg(3, 3, 14, 2, 2)
+
+#define __PMEV_op2(n)			((n) & 0x7)
+#define __CNTR_CRm(n)			(0x8 | (((n) >> 3) & 0x3))
+#define SYS_PMEVCNTRn_EL0(n)		sys_reg(3, 3, 14, __CNTR_CRm(n), __PMEV_op2(n))
+#define __TYPER_CRm(n)			(0xc | (((n) >> 3) & 0x3))
+#define SYS_PMEVTYPERn_EL0(n)		sys_reg(3, 3, 14, __TYPER_CRm(n), __PMEV_op2(n))
+
+#define SYS_PMCCFILTR_EL0		sys_reg (3, 3, 14, 15, 7)
+
+#define SYS_DACR32_EL2			sys_reg(3, 4, 3, 0, 0)
+#define SYS_IFSR32_EL2			sys_reg(3, 4, 5, 0, 1)
+#define SYS_FPEXC32_EL2			sys_reg(3, 4, 5, 3, 0)
+
+#define __SYS__AP0Rx_EL2(x)		sys_reg(3, 4, 12, 8, x)
+#define SYS_ICH_AP0R0_EL2		__SYS__AP0Rx_EL2(0)
+#define SYS_ICH_AP0R1_EL2		__SYS__AP0Rx_EL2(1)
+#define SYS_ICH_AP0R2_EL2		__SYS__AP0Rx_EL2(2)
+#define SYS_ICH_AP0R3_EL2		__SYS__AP0Rx_EL2(3)
+
+#define __SYS__AP1Rx_EL2(x)		sys_reg(3, 4, 12, 9, x)
+#define SYS_ICH_AP1R0_EL2		__SYS__AP1Rx_EL2(0)
+#define SYS_ICH_AP1R1_EL2		__SYS__AP1Rx_EL2(1)
+#define SYS_ICH_AP1R2_EL2		__SYS__AP1Rx_EL2(2)
+#define SYS_ICH_AP1R3_EL2		__SYS__AP1Rx_EL2(3)
+
+#define SYS_ICH_VSEIR_EL2		sys_reg(3, 4, 12, 9, 4)
+#define SYS_ICC_SRE_EL2			sys_reg(3, 4, 12, 9, 5)
+#define SYS_ICH_HCR_EL2			sys_reg(3, 4, 12, 11, 0)
+#define SYS_ICH_VTR_EL2			sys_reg(3, 4, 12, 11, 1)
+#define SYS_ICH_MISR_EL2		sys_reg(3, 4, 12, 11, 2)
+#define SYS_ICH_EISR_EL2		sys_reg(3, 4, 12, 11, 3)
+#define SYS_ICH_ELSR_EL2		sys_reg(3, 4, 12, 11, 5)
+#define SYS_ICH_VMCR_EL2		sys_reg(3, 4, 12, 11, 7)
+
+#define __SYS__LR0_EL2(x)		sys_reg(3, 4, 12, 12, x)
+#define SYS_ICH_LR0_EL2			__SYS__LR0_EL2(0)
+#define SYS_ICH_LR1_EL2			__SYS__LR0_EL2(1)
+#define SYS_ICH_LR2_EL2			__SYS__LR0_EL2(2)
+#define SYS_ICH_LR3_EL2			__SYS__LR0_EL2(3)
+#define SYS_ICH_LR4_EL2			__SYS__LR0_EL2(4)
+#define SYS_ICH_LR5_EL2			__SYS__LR0_EL2(5)
+#define SYS_ICH_LR6_EL2			__SYS__LR0_EL2(6)
+#define SYS_ICH_LR7_EL2			__SYS__LR0_EL2(7)
+
+#define __SYS__LR8_EL2(x)		sys_reg(3, 4, 12, 13, x)
+#define SYS_ICH_LR8_EL2			__SYS__LR8_EL2(0)
+#define SYS_ICH_LR9_EL2			__SYS__LR8_EL2(1)
+#define SYS_ICH_LR10_EL2		__SYS__LR8_EL2(2)
+#define SYS_ICH_LR11_EL2		__SYS__LR8_EL2(3)
+#define SYS_ICH_LR12_EL2		__SYS__LR8_EL2(4)
+#define SYS_ICH_LR13_EL2		__SYS__LR8_EL2(5)
+#define SYS_ICH_LR14_EL2		__SYS__LR8_EL2(6)
+#define SYS_ICH_LR15_EL2		__SYS__LR8_EL2(7)
 
 /* Common SCTLR_ELx flags. */
 #define SCTLR_ELx_EE    (1 << 25)
@@ -155,6 +303,11 @@
 #define ID_AA64ISAR0_SHA2_SHIFT		12
 #define ID_AA64ISAR0_SHA1_SHIFT		8
 #define ID_AA64ISAR0_AES_SHIFT		4
+
+/* id_aa64isar1 */
+#define ID_AA64ISAR1_LRCPC_SHIFT	20
+#define ID_AA64ISAR1_FCMA_SHIFT		16
+#define ID_AA64ISAR1_JSCVT_SHIFT	12
 
 /* id_aa64pfr0 */
 #define ID_AA64PFR0_GIC_SHIFT		24

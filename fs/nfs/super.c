@@ -2315,8 +2315,6 @@ inline void nfs_initialise_sb(struct super_block *sb)
 		sb->s_blocksize = nfs_block_bits(server->wsize,
 						 &sb->s_blocksize_bits);
 
-	sb->s_bdi = &server->backing_dev_info;
-
 	nfs_super_set_maxbytes(sb, server->maxfilesize);
 }
 
@@ -2522,11 +2520,6 @@ static void nfs_get_cache_cookie(struct super_block *sb,
 }
 #endif
 
-static int nfs_bdi_register(struct nfs_server *server)
-{
-	return bdi_register_dev(&server->backing_dev_info, server->s_dev);
-}
-
 int nfs_set_sb_security(struct super_block *s, struct dentry *mntroot,
 			struct nfs_mount_info *mount_info)
 {
@@ -2594,11 +2587,13 @@ struct dentry *nfs_fs_mount_common(struct nfs_server *server,
 		nfs_free_server(server);
 		server = NULL;
 	} else {
-		error = nfs_bdi_register(server);
+		error = super_setup_bdi_name(s, "%u:%u", MAJOR(server->s_dev),
+					     MINOR(server->s_dev));
 		if (error) {
 			mntroot = ERR_PTR(error);
 			goto error_splat_super;
 		}
+		s->s_bdi->ra_pages = server->rpages * NFS_MAX_READAHEAD;
 		server->super = s;
 	}
 

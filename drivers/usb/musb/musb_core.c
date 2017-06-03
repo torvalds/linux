@@ -2332,7 +2332,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	setup_timer(&musb->otg_timer, musb_otg_timer_func, (unsigned long) musb);
 
 	/* attach to the IRQ */
-	if (request_irq(nIrq, musb->isr, 0, dev_name(dev), musb)) {
+	if (request_irq(nIrq, musb->isr, IRQF_SHARED, dev_name(dev), musb)) {
 		dev_err(dev, "request_irq %d failed!\n", nIrq);
 		status = -ENODEV;
 		goto fail3;

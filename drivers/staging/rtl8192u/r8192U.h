@@ -793,12 +793,12 @@ typedef struct _phy_cck_rx_status_report_819xusb {
 } phy_sts_cck_819xusb_t;
 
 
-typedef struct _phy_ofdm_rx_status_rxsc_sgien_exintfflag {
+struct phy_ofdm_rx_status_rxsc_sgien_exintfflag {
 	u8			reserved:4;
 	u8			rxsc:2;
 	u8			sgi_en:1;
 	u8			ex_intf_flag:1;
-} phy_ofdm_rx_status_rxsc_sgien_exintfflag;
+};
 
 typedef enum _RT_CUSTOMER_ID {
 	RT_CID_DEFAULT = 0,
@@ -1041,10 +1041,10 @@ typedef struct r8192_priv {
 	u8 rfc_txpowertrackingindex;
 	u8 rfc_txpowertrackingindex_real;
 
-	s8 cck_present_attentuation;
-	u8 cck_present_attentuation_20Mdefault;
-	u8 cck_present_attentuation_40Mdefault;
-	s8 cck_present_attentuation_difference;
+	s8 cck_present_attenuation;
+	u8 cck_present_attenuation_20Mdefault;
+	u8 cck_present_attenuation_40Mdefault;
+	s8 cck_present_attenuation_difference;
 	bool btxpower_tracking;
 	bool bcck_in_ch14;
 	bool btxpowerdata_readfromEEPORM;

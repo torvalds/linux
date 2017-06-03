@@ -171,7 +171,7 @@ dsi_mgr_phy_enable(int id,
 			}
 		}
 	} else {
-		msm_dsi_host_reset_phy(mdsi->host);
+		msm_dsi_host_reset_phy(msm_dsi->host);
 		ret = enable_phy(msm_dsi, src_pll_id, &shared_timings[id]);
 		if (ret)
 			return ret;

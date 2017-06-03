@@ -980,7 +980,7 @@ static int ssip_pn_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto drop;
 	/* Pad to 32-bits - FIXME: Revisit*/
 	if ((skb->len & 3) && skb_pad(skb, 4 - (skb->len & 3)))
-		goto drop;
+		goto inc_dropped;
 
 	/*
 	 * Modem sends Phonet messages over SSI with its own endianess...
@@ -1032,8 +1032,9 @@ static int ssip_pn_xmit(struct sk_buff *skb, struct net_device *dev)
 drop2:
 	hsi_free_msg(msg);
 drop:
-	dev->stats.tx_dropped++;
 	dev_kfree_skb(skb);
+inc_dropped:
+	dev->stats.tx_dropped++;
 
 	return 0;
 }

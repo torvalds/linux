@@ -57,6 +57,7 @@
 
 #define ACPI_BUTTON_LID_INIT_IGNORE	0x00
 #define ACPI_BUTTON_LID_INIT_OPEN	0x01
+#define ACPI_BUTTON_LID_INIT_METHOD	0x02
 
 #define _COMPONENT		ACPI_BUTTON_COMPONENT
 ACPI_MODULE_NAME("button");
@@ -216,7 +217,7 @@ static int acpi_lid_notify_state(struct acpi_device *device, int state)
 	}
 
 	if (state)
-		pm_wakeup_event(&device->dev, 0);
+		pm_wakeup_hard_event(&device->dev);
 
 	ret = blocking_notifier_call_chain(&acpi_lid_notifier, state, device);
 	if (ret == NOTIFY_DONE)
@@ -376,6 +377,9 @@ static void acpi_lid_initialize_state(struct acpi_device *device)
 	case ACPI_BUTTON_LID_INIT_OPEN:
 		(void)acpi_lid_notify_state(device, 1);
 		break;
+	case ACPI_BUTTON_LID_INIT_METHOD:
+		(void)acpi_lid_update_state(device);
+		break;
 	case ACPI_BUTTON_LID_INIT_IGNORE:
 	default:
 		break;
@@ -398,7 +402,7 @@ static void acpi_button_notify(struct acpi_device *device, u32 event)
 		} else {
 			int keycode;
 
-			pm_wakeup_event(&device->dev, 0);
+			pm_wakeup_hard_event(&device->dev);
 			if (button->suspended)
 				break;
 
@@ -530,6 +534,7 @@ static int acpi_button_add(struct acpi_device *device)
 		lid_device = device;
 	}
 
+	device_init_wakeup(&device->dev, true);
 	printk(KERN_INFO PREFIX "%s [%s]\n", name, acpi_device_bid(device));
 	return 0;
 
@@ -559,6 +564,9 @@ static int param_set_lid_init_state(const char *val, struct kernel_param *kp)
 	if (!strncmp(val, "open", sizeof("open") - 1)) {
 		lid_init_state = ACPI_BUTTON_LID_INIT_OPEN;
 		pr_info("Notify initial lid state as open\n");
+	} else if (!strncmp(val, "method", sizeof("method") - 1)) {
+		lid_init_state = ACPI_BUTTON_LID_INIT_METHOD;
+		pr_info("Notify initial lid state with _LID return value\n");
 	} else if (!strncmp(val, "ignore", sizeof("ignore") - 1)) {
 		lid_init_state = ACPI_BUTTON_LID_INIT_IGNORE;
 		pr_info("Do not notify initial lid state\n");
@@ -572,6 +580,8 @@ static int param_get_lid_init_state(char *buffer, struct kernel_param *kp)
 	switch (lid_init_state) {
 	case ACPI_BUTTON_LID_INIT_OPEN:
 		return sprintf(buffer, "open");
+	case ACPI_BUTTON_LID_INIT_METHOD:
+		return sprintf(buffer, "method");
 	case ACPI_BUTTON_LID_INIT_IGNORE:
 		return sprintf(buffer, "ignore");
 	default:

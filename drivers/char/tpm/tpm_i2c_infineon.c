@@ -278,22 +278,22 @@ enum tis_defaults {
 #define	TPM_DATA_FIFO(l)		(0x0005 | ((l) << 4))
 #define	TPM_DID_VID(l)			(0x0006 | ((l) << 4))
 
-static int check_locality(struct tpm_chip *chip, int loc)
+static bool check_locality(struct tpm_chip *chip, int loc)
 {
 	u8 buf;
 	int rc;
 
 	rc = iic_tpm_read(TPM_ACCESS(loc), &buf, 1);
 	if (rc < 0)
-		return rc;
+		return false;
 
 	if ((buf & (TPM_ACCESS_ACTIVE_LOCALITY | TPM_ACCESS_VALID)) ==
 	    (TPM_ACCESS_ACTIVE_LOCALITY | TPM_ACCESS_VALID)) {
 		tpm_dev.locality = loc;
-		return loc;
+		return true;
 	}
 
-	return -EIO;
+	return false;
 }
 
 /* implementation similar to tpm_tis */
@@ -315,7 +315,7 @@ static int request_locality(struct tpm_chip *chip, int loc)
 	unsigned long stop;
 	u8 buf = TPM_ACCESS_REQUEST_USE;
 
-	if (check_locality(chip, loc) >= 0)
+	if (check_locality(chip, loc))
 		return loc;
 
 	iic_tpm_write(TPM_ACCESS(loc), &buf, 1);
@@ -323,7 +323,7 @@ static int request_locality(struct tpm_chip *chip, int loc)
 	/* wait for burstcount */
 	stop = jiffies + chip->timeout_a;
 	do {
-		if (check_locality(chip, loc) >= 0)
+		if (check_locality(chip, loc))
 			return loc;
 		usleep_range(TPM_TIMEOUT_US_LOW, TPM_TIMEOUT_US_HI);
 	} while (time_before(jiffies, stop));

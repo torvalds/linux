@@ -470,7 +470,6 @@ ide_devset_get(multcount, mult_count);
 static int set_multcount(ide_drive_t *drive, int arg)
 {
 	struct request *rq;
-	int error;
 
 	if (arg < 0 || arg > (drive->id[ATA_ID_MAX_MULTSECT] & 0xff))
 		return -EINVAL;
@@ -484,7 +483,7 @@ static int set_multcount(ide_drive_t *drive, int arg)
 
 	drive->mult_req = arg;
 	drive->special_flags |= IDE_SFLAG_SET_MULTMODE;
-	error = blk_execute_rq(drive->queue, NULL, rq, 0);
+	blk_execute_rq(drive->queue, NULL, rq, 0);
 	blk_put_request(rq);
 
 	return (drive->mult_count == arg) ? 0 : -EIO;

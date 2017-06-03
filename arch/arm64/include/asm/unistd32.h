@@ -456,7 +456,7 @@ __SYSCALL(__NR_setfsuid32, sys_setfsuid)
 #define __NR_setfsgid32 216
 __SYSCALL(__NR_setfsgid32, sys_setfsgid)
 #define __NR_getdents64 217
-__SYSCALL(__NR_getdents64, compat_sys_getdents64)
+__SYSCALL(__NR_getdents64, sys_getdents64)
 #define __NR_pivot_root 218
 __SYSCALL(__NR_pivot_root, sys_pivot_root)
 #define __NR_mincore 219

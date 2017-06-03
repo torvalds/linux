@@ -409,6 +409,7 @@ static int ashmem_mmap(struct file *file, struct vm_area_struct *vma)
 			ret = PTR_ERR(vmfile);
 			goto out;
 		}
+		vmfile->f_mode |= FMODE_LSEEK;
 		asma->file = vmfile;
 	}
 	get_file(asma->file);

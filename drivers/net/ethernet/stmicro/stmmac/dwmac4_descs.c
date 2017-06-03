@@ -304,12 +304,13 @@ static void dwmac4_rd_init_tx_desc(struct dma_desc *p, int mode, int end)
 
 static void dwmac4_rd_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
 				      bool csum_flag, int mode, bool tx_own,
-				      bool ls)
+				      bool ls, unsigned int tot_pkt_len)
 {
 	unsigned int tdes3 = le32_to_cpu(p->des3);
 
 	p->des2 |= cpu_to_le32(len & TDES2_BUFFER1_SIZE_MASK);
 
+	tdes3 |= tot_pkt_len & TDES3_PACKET_SIZE_MASK;
 	if (is_fs)
 		tdes3 |= TDES3_FIRST_DESCRIPTOR;
 	else

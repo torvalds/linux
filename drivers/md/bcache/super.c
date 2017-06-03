@@ -767,16 +767,12 @@ static int bcache_device_init(struct bcache_device *d, unsigned block_size,
 	}
 
 	n = d->nr_stripes * sizeof(atomic_t);
-	d->stripe_sectors_dirty = n < PAGE_SIZE << 6
-		? kzalloc(n, GFP_KERNEL)
-		: vzalloc(n);
+	d->stripe_sectors_dirty = kvzalloc(n, GFP_KERNEL);
 	if (!d->stripe_sectors_dirty)
 		return -ENOMEM;
 
 	n = BITS_TO_LONGS(d->nr_stripes) * sizeof(unsigned long);
-	d->full_dirty_stripes = n < PAGE_SIZE << 6
-		? kzalloc(n, GFP_KERNEL)
-		: vzalloc(n);
+	d->full_dirty_stripes = kvzalloc(n, GFP_KERNEL);
 	if (!d->full_dirty_stripes)
 		return -ENOMEM;
 

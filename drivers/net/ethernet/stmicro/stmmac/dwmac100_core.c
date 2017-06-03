@@ -131,7 +131,8 @@ static void dwmac100_set_filter(struct mac_device_info *hw,
 }
 
 static void dwmac100_flow_ctrl(struct mac_device_info *hw, unsigned int duplex,
-			       unsigned int fc, unsigned int pause_time)
+			       unsigned int fc, unsigned int pause_time,
+			       u32 tx_cnt)
 {
 	void __iomem *ioaddr = hw->pcsr;
 	unsigned int flow = MAC_FLOW_CTRL_ENABLE;
@@ -149,6 +150,7 @@ static void dwmac100_pmt(struct mac_device_info *hw, unsigned long mode)
 
 static const struct stmmac_ops dwmac100_ops = {
 	.core_init = dwmac100_core_init,
+	.set_mac = stmmac_set_mac,
 	.rx_ipc = dwmac100_rx_ipc_enable,
 	.dump_regs = dwmac100_dump_mac_regs,
 	.host_irq_status = dwmac100_irq_status,

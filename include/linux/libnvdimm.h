@@ -20,9 +20,11 @@
 
 enum {
 	/* when a dimm supports both PMEM and BLK access a label is required */
-	NDD_ALIASING = 1 << 0,
+	NDD_ALIASING = 0,
 	/* unarmed memory devices may not persist writes */
-	NDD_UNARMED = 1 << 1,
+	NDD_UNARMED = 1,
+	/* locked memory devices should not be accessed */
+	NDD_LOCKED = 2,
 
 	/* need to set a limit somewhere, but yes, this is likely overkill */
 	ND_IOCTL_MAX_BUFLEN = SZ_4M,
@@ -120,7 +122,7 @@ static inline struct nd_blk_region_desc *to_blk_region_desc(
 }
 
 int nvdimm_bus_add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length);
-void nvdimm_clear_from_poison_list(struct nvdimm_bus *nvdimm_bus,
+void nvdimm_forget_poison(struct nvdimm_bus *nvdimm_bus,
 		phys_addr_t start, unsigned int len);
 struct nvdimm_bus *nvdimm_bus_register(struct device *parent,
 		struct nvdimm_bus_descriptor *nfit_desc);

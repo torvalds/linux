@@ -49,62 +49,62 @@
 		cluster_a15_opp_table: opp_table0 {
 			compatible = "operating-points-v2";
 			opp-shared;
-			opp@1800000000 {
+			opp-1800000000 {
 				opp-hz = /bits/ 64 <1800000000>;
 				opp-microvolt = <1250000>;
 				clock-latency-ns = <140000>;
 			};
-			opp@1700000000 {
+			opp-1700000000 {
 				opp-hz = /bits/ 64 <1700000000>;
 				opp-microvolt = <1212500>;
 				clock-latency-ns = <140000>;
 			};
-			opp@1600000000 {
+			opp-1600000000 {
 				opp-hz = /bits/ 64 <1600000000>;
 				opp-microvolt = <1175000>;
 				clock-latency-ns = <140000>;
 			};
-			opp@1500000000 {
+			opp-1500000000 {
 				opp-hz = /bits/ 64 <1500000000>;
 				opp-microvolt = <1137500>;
 				clock-latency-ns = <140000>;
 			};
-			opp@1400000000 {
+			opp-1400000000 {
 				opp-hz = /bits/ 64 <1400000000>;
 				opp-microvolt = <1112500>;
 				clock-latency-ns = <140000>;
 			};
-			opp@1300000000 {
+			opp-1300000000 {
 				opp-hz = /bits/ 64 <1300000000>;
 				opp-microvolt = <1062500>;
 				clock-latency-ns = <140000>;
 			};
-			opp@1200000000 {
+			opp-1200000000 {
 				opp-hz = /bits/ 64 <1200000000>;
 				opp-microvolt = <1037500>;
 				clock-latency-ns = <140000>;
 			};
-			opp@1100000000 {
+			opp-1100000000 {
 				opp-hz = /bits/ 64 <1100000000>;
 				opp-microvolt = <1012500>;
 				clock-latency-ns = <140000>;
 			};
-			opp@1000000000 {
+			opp-1000000000 {
 				opp-hz = /bits/ 64 <1000000000>;
 				opp-microvolt = < 987500>;
 				clock-latency-ns = <140000>;
 			};
-			opp@900000000 {
+			opp-900000000 {
 				opp-hz = /bits/ 64 <900000000>;
 				opp-microvolt = < 962500>;
 				clock-latency-ns = <140000>;
 			};
-			opp@800000000 {
+			opp-800000000 {
 				opp-hz = /bits/ 64 <800000000>;
 				opp-microvolt = < 937500>;
 				clock-latency-ns = <140000>;
 			};
-			opp@700000000 {
+			opp-700000000 {
 				opp-hz = /bits/ 64 <700000000>;
 				opp-microvolt = < 912500>;
 				clock-latency-ns = <140000>;
@@ -114,42 +114,42 @@
 		cluster_a7_opp_table: opp_table1 {
 			compatible = "operating-points-v2";
 			opp-shared;
-			opp@1300000000 {
+			opp-1300000000 {
 				opp-hz = /bits/ 64 <1300000000>;
 				opp-microvolt = <1275000>;
 				clock-latency-ns = <140000>;
 			};
-			opp@1200000000 {
+			opp-1200000000 {
 				opp-hz = /bits/ 64 <1200000000>;
 				opp-microvolt = <1212500>;
 				clock-latency-ns = <140000>;
 			};
-			opp@1100000000 {
+			opp-1100000000 {
 				opp-hz = /bits/ 64 <1100000000>;
 				opp-microvolt = <1162500>;
 				clock-latency-ns = <140000>;
 			};
-			opp@1000000000 {
+			opp-1000000000 {
 				opp-hz = /bits/ 64 <1000000000>;
 				opp-microvolt = <1112500>;
 				clock-latency-ns = <140000>;
 			};
-			opp@900000000 {
+			opp-900000000 {
 				opp-hz = /bits/ 64 <900000000>;
 				opp-microvolt = <1062500>;
 				clock-latency-ns = <140000>;
 			};
-			opp@800000000 {
+			opp-800000000 {
 				opp-hz = /bits/ 64 <800000000>;
 				opp-microvolt = <1025000>;
 				clock-latency-ns = <140000>;
 			};
-			opp@700000000 {
+			opp-700000000 {
 				opp-hz = /bits/ 64 <700000000>;
 				opp-microvolt = <975000>;
 				clock-latency-ns = <140000>;
 			};
-			opp@600000000 {
+			opp-600000000 {
 				opp-hz = /bits/ 64 <600000000>;
 				opp-microvolt = <937500>;
 				clock-latency-ns = <140000>;
@@ -699,7 +699,7 @@
 			interrupts = <0 65 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clock CLK_TMU>;
 			clock-names = "tmu_apbif";
-			#include "exynos4412-tmu-sensor-conf.dtsi"
+			#include "exynos5420-tmu-sensor-conf.dtsi"
 		};
 
 		tmu_cpu1: tmu@10064000 {
@@ -708,7 +708,7 @@
 			interrupts = <0 183 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clock CLK_TMU>;
 			clock-names = "tmu_apbif";
-			#include "exynos4412-tmu-sensor-conf.dtsi"
+			#include "exynos5420-tmu-sensor-conf.dtsi"
 		};
 
 		tmu_cpu2: tmu@10068000 {
@@ -717,7 +717,7 @@
 			interrupts = <0 184 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clock CLK_TMU>, <&clock CLK_TMU>;
 			clock-names = "tmu_apbif", "tmu_triminfo_apbif";
-			#include "exynos4412-tmu-sensor-conf.dtsi"
+			#include "exynos5420-tmu-sensor-conf.dtsi"
 		};
 
 		tmu_cpu3: tmu@1006c000 {
@@ -726,7 +726,7 @@
 			interrupts = <0 185 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clock CLK_TMU>, <&clock CLK_TMU_GPU>;
 			clock-names = "tmu_apbif", "tmu_triminfo_apbif";
-			#include "exynos4412-tmu-sensor-conf.dtsi"
+			#include "exynos5420-tmu-sensor-conf.dtsi"
 		};
 
 		tmu_gpu: tmu@100a0000 {
@@ -735,7 +735,7 @@
 			interrupts = <0 215 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clock CLK_TMU_GPU>, <&clock CLK_TMU>;
 			clock-names = "tmu_apbif", "tmu_triminfo_apbif";
-			#include "exynos4412-tmu-sensor-conf.dtsi"
+			#include "exynos5420-tmu-sensor-conf.dtsi"
 		};
 
 		sysmmu_g2dr: sysmmu@0x10A60000 {

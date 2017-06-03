@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015 - 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -125,7 +125,6 @@ struct hfi1_qp_priv {
 	struct sdma_engine *s_sde;                /* current sde */
 	struct send_context *s_sendcontext;       /* current sendcontext */
 	u8 s_sc;		                  /* SC[0..4] for next packet */
-	u8 r_adefered;                            /* number of acks defered */
 	struct iowait s_iowait;
 	struct rvt_qp *owner;
 };
@@ -140,6 +139,10 @@ struct hfi1_pkt_state {
 	struct hfi1_pportdata *ppd;
 	struct verbs_txreq *s_txreq;
 	unsigned long flags;
+	unsigned long timeout;
+	unsigned long timeout_int;
+	int cpu;
+	bool in_thread;
 };
 
 #define HFI1_PSN_CREDIT  16
@@ -195,6 +198,11 @@ struct hfi1_ibdev {
 	struct dentry *hfi1_ibdev_dbg;
 	/* per HFI symlinks to above */
 	struct dentry *hfi1_ibdev_link;
+#ifdef CONFIG_FAULT_INJECTION
+	struct fault_opcode *fault_opcode;
+	struct fault_packet *fault_packet;
+	bool fault_suppress_err;
+#endif
 #endif
 };
 
@@ -303,7 +311,7 @@ void hfi1_rc_hdrerr(
 	u32 rcv_flags,
 	struct rvt_qp *qp);
 
-u8 ah_to_sc(struct ib_device *ibdev, struct ib_ah_attr *ah_attr);
+u8 ah_to_sc(struct ib_device *ibdev, struct rdma_ah_attr *ah_attr);
 
 struct ib_ah *hfi1_create_qp0_ah(struct hfi1_ibport *ibp, u16 dlid);
 
@@ -342,7 +350,7 @@ int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct ib_header *hdr,
 		       int has_grh, struct rvt_qp *qp, u32 bth0);
 
 u32 hfi1_make_grh(struct hfi1_ibport *ibp, struct ib_grh *hdr,
-		  struct ib_global_route *grh, u32 hwords, u32 nwords);
+		  const struct ib_global_route *grh, u32 hwords, u32 nwords);
 
 void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 			  u32 bth0, u32 bth2, int middle,
@@ -350,7 +358,9 @@ void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 
 void _hfi1_do_send(struct work_struct *work);
 
-void hfi1_do_send(struct rvt_qp *qp);
+void hfi1_do_send_from_rvt(struct rvt_qp *qp);
+
+void hfi1_do_send(struct rvt_qp *qp, bool in_thread);
 
 void hfi1_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 			enum ib_wc_status status);

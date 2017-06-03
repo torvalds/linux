@@ -234,7 +234,7 @@ int qib_make_rc_req(struct rvt_qp *qp, unsigned long *flags)
 	int delta;
 
 	ohdr = &priv->s_hdr->u.oth;
-	if (qp->remote_ah_attr.ah_flags & IB_AH_GRH)
+	if (rdma_ah_get_ah_flags(&qp->remote_ah_attr) & IB_AH_GRH)
 		ohdr = &priv->s_hdr->u.l.oth;
 
 	/* Sending responses has higher priority over sending requests. */
@@ -637,9 +637,11 @@ void qib_send_rc_ack(struct rvt_qp *qp)
 	lrh0 = QIB_LRH_BTH;
 	/* header size in 32-bit words LRH+BTH+AETH = (8+12+4)/4. */
 	hwords = 6;
-	if (unlikely(qp->remote_ah_attr.ah_flags & IB_AH_GRH)) {
+	if (unlikely(rdma_ah_get_ah_flags(&qp->remote_ah_attr) &
+		     IB_AH_GRH)) {
 		hwords += qib_make_grh(ibp, &hdr.u.l.grh,
-				       &qp->remote_ah_attr.grh, hwords, 0);
+				       rdma_ah_read_grh(&qp->remote_ah_attr),
+				       hwords, 0);
 		ohdr = &hdr.u.l.oth;
 		lrh0 = QIB_LRH_GRH;
 	}
@@ -653,12 +655,13 @@ void qib_send_rc_ack(struct rvt_qp *qp)
 					     IB_AETH_CREDIT_SHIFT));
 	else
 		ohdr->u.aeth = rvt_compute_aeth(qp);
-	lrh0 |= ibp->sl_to_vl[qp->remote_ah_attr.sl] << 12 |
-		qp->remote_ah_attr.sl << 4;
+	lrh0 |= ibp->sl_to_vl[rdma_ah_get_sl(&qp->remote_ah_attr)] << 12 |
+		rdma_ah_get_sl(&qp->remote_ah_attr) << 4;
 	hdr.lrh[0] = cpu_to_be16(lrh0);
-	hdr.lrh[1] = cpu_to_be16(qp->remote_ah_attr.dlid);
+	hdr.lrh[1] = cpu_to_be16(rdma_ah_get_dlid(&qp->remote_ah_attr));
 	hdr.lrh[2] = cpu_to_be16(hwords + SIZE_OF_CRC);
-	hdr.lrh[3] = cpu_to_be16(ppd->lid | qp->remote_ah_attr.src_path_bits);
+	hdr.lrh[3] = cpu_to_be16(ppd->lid |
+				 rdma_ah_get_path_bits(&qp->remote_ah_attr));
 	ohdr->bth[0] = cpu_to_be32(bth0);
 	ohdr->bth[1] = cpu_to_be32(qp->remote_qpn);
 	ohdr->bth[2] = cpu_to_be32(qp->r_ack_psn & QIB_PSN_MASK);
@@ -938,7 +941,10 @@ void qib_rc_send_complete(struct rvt_qp *qp, struct ib_header *hdr)
 		/* see post_send() */
 		barrier();
 		rvt_put_swqe(wqe);
-		rvt_qp_swqe_complete(qp, wqe, IB_WC_SUCCESS);
+		rvt_qp_swqe_complete(qp,
+				     wqe,
+				     ib_qib_wc_opcode[wqe->wr.opcode],
+				     IB_WC_SUCCESS);
 	}
 	/*
 	 * If we were waiting for sends to complete before resending,
@@ -983,7 +989,10 @@ static struct rvt_swqe *do_rc_completion(struct rvt_qp *qp,
 		qp->s_last = s_last;
 		/* see post_send() */
 		barrier();
-		rvt_qp_swqe_complete(qp, wqe, IB_WC_SUCCESS);
+		rvt_qp_swqe_complete(qp,
+				     wqe,
+				     ib_qib_wc_opcode[wqe->wr.opcode],
+				     IB_WC_SUCCESS);
 	} else
 		this_cpu_inc(*ibp->rvp.rc_delayed_comp);
 
@@ -1898,8 +1907,8 @@ send_last:
 			wc.opcode = IB_WC_RECV;
 		wc.qp = &qp->ibqp;
 		wc.src_qp = qp->remote_qpn;
-		wc.slid = qp->remote_ah_attr.dlid;
-		wc.sl = qp->remote_ah_attr.sl;
+		wc.slid = rdma_ah_get_dlid(&qp->remote_ah_attr);
+		wc.sl = rdma_ah_get_sl(&qp->remote_ah_attr);
 		/* zero fields that are N/A */
 		wc.vendor_err = 0;
 		wc.pkey_index = 0;

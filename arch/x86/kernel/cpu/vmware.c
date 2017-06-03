@@ -113,6 +113,24 @@ static void __init vmware_paravirt_ops_setup(void)
 #define vmware_paravirt_ops_setup() do {} while (0)
 #endif
 
+/*
+ * VMware hypervisor takes care of exporting a reliable TSC to the guest.
+ * Still, due to timing difference when running on virtual cpus, the TSC can
+ * be marked as unstable in some cases. For example, the TSC sync check at
+ * bootup can fail due to a marginal offset between vcpus' TSCs (though the
+ * TSCs do not drift from each other).  Also, the ACPI PM timer clocksource
+ * is not suitable as a watchdog when running on a hypervisor because the
+ * kernel may miss a wrap of the counter if the vcpu is descheduled for a
+ * long time. To skip these checks at runtime we set these capability bits,
+ * so that the kernel could just trust the hypervisor with providing a
+ * reliable virtual TSC that is suitable for timekeeping.
+ */
+static void __init vmware_set_capabilities(void)
+{
+	setup_force_cpu_cap(X86_FEATURE_CONSTANT_TSC);
+	setup_force_cpu_cap(X86_FEATURE_TSC_RELIABLE);
+}
+
 static void __init vmware_platform_setup(void)
 {
 	uint32_t eax, ebx, ecx, edx;
@@ -152,6 +170,8 @@ static void __init vmware_platform_setup(void)
 #ifdef CONFIG_X86_IO_APIC
 	no_timer_check = 1;
 #endif
+
+	vmware_set_capabilities();
 }
 
 /*
@@ -176,24 +196,6 @@ static uint32_t __init vmware_platform(void)
 	return 0;
 }
 
-/*
- * VMware hypervisor takes care of exporting a reliable TSC to the guest.
- * Still, due to timing difference when running on virtual cpus, the TSC can
- * be marked as unstable in some cases. For example, the TSC sync check at
- * bootup can fail due to a marginal offset between vcpus' TSCs (though the
- * TSCs do not drift from each other).  Also, the ACPI PM timer clocksource
- * is not suitable as a watchdog when running on a hypervisor because the
- * kernel may miss a wrap of the counter if the vcpu is descheduled for a
- * long time. To skip these checks at runtime we set these capability bits,
- * so that the kernel could just trust the hypervisor with providing a
- * reliable virtual TSC that is suitable for timekeeping.
- */
-static void vmware_set_cpu_features(struct cpuinfo_x86 *c)
-{
-	set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
-	set_cpu_cap(c, X86_FEATURE_TSC_RELIABLE);
-}
-
 /* Checks if hypervisor supports x2apic without VT-D interrupt remapping. */
 static bool __init vmware_legacy_x2apic_available(void)
 {
@@ -206,7 +208,6 @@ static bool __init vmware_legacy_x2apic_available(void)
 const __refconst struct hypervisor_x86 x86_hyper_vmware = {
 	.name			= "VMware",
 	.detect			= vmware_platform,
-	.set_cpu_features	= vmware_set_cpu_features,
 	.init_platform		= vmware_platform_setup,
 	.x2apic_available	= vmware_legacy_x2apic_available,
 };

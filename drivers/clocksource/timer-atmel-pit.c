@@ -226,7 +226,7 @@ static int __init at91sam926x_pit_dt_init(struct device_node *node)
 	
 	ret = clocksource_register_hz(&data->clksrc, pit_rate);
 	if (ret) {
-		pr_err("Failed to register clocksource");
+		pr_err("Failed to register clocksource\n");
 		return ret;
 	}
 

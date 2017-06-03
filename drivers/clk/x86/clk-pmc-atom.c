@@ -54,6 +54,7 @@ struct clk_plt_data {
 	struct clk_plt_fixed **parents;
 	u8 nparents;
 	struct clk_plt *clks[PMC_CLK_NUM];
+	struct clk_lookup *mclk_lookup;
 };
 
 /* Return an index in parent table */
@@ -337,6 +338,11 @@ static int plt_clk_probe(struct platform_device *pdev)
 			goto err_unreg_clk_plt;
 		}
 	}
+	data->mclk_lookup = clkdev_hw_create(&data->clks[3]->hw, "mclk", NULL);
+	if (!data->mclk_lookup) {
+		err = -ENOMEM;
+		goto err_unreg_clk_plt;
+	}
 
 	plt_clk_free_parent_names_loop(parent_names, data->nparents);
 
@@ -356,6 +362,7 @@ static int plt_clk_remove(struct platform_device *pdev)
 
 	data = platform_get_drvdata(pdev);
 
+	clkdev_drop(data->mclk_lookup);
 	plt_clk_unregister_loop(data, PMC_CLK_NUM);
 	plt_clk_unregister_parents(data);
 	return 0;

@@ -100,6 +100,8 @@ The system configuration dump (if --quiet is not used) is followed by statistics
 \fBCPU%c1, CPU%c3, CPU%c6, CPU%c7\fP show the percentage residency in hardware core idle states.  These numbers are from hardware residency counters.
 \fBCoreTmp\fP Degrees Celsius reported by the per-core Digital Thermal Sensor.
 \fBPkgTtmp\fP Degrees Celsius reported by the per-package Package Thermal Monitor.
+\fBGFX%rc6\fP The percentage of time the GPU is in the "render C6" state, rc6, during the measurement interval. From /sys/class/drm/card0/power/rc6_residency_ms.
+\fBGFXMHz\fP Instantaneous snapshot of what sysfs presents at the end of the measurement interval. From /sys/class/graphics/fb0/device/drm/card0/gt_cur_freq_mhz.
 \fBPkg%pc2, Pkg%pc3, Pkg%pc6, Pkg%pc7\fP percentage residency in hardware package idle states.  These numbers are from hardware residency counters.
 \fBPkgWatt\fP Watts consumed by the whole package.
 \fBCorWatt\fP Watts consumed by the core part of the package.

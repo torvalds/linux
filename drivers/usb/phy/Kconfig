@@ -74,13 +74,6 @@ config AM335X_PHY_USB
 	  This driver provides PHY support for that phy which part for the
 	  AM335x SoC.
 
-config SAMSUNG_USBPHY
-	tristate
-	help
-	  Enable this to support Samsung USB phy helper driver for Samsung SoCs.
-	  This driver provides common interface to interact, for Samsung USB 2.0 PHY
-	  driver and later for Samsung USB 3.0 PHY driver.
-
 config TWL6030_USB
 	tristate "TWL6030 USB Transceiver Driver"
 	depends on TWL4030_CORE && OMAP_USB2 && USB_MUSB_OMAP2PLUS

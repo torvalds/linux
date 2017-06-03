@@ -408,10 +408,6 @@ static void next_entry(struct ctl_table_header **phead, struct ctl_table **pentr
 	*pentry = entry;
 }
 
-void register_sysctl_root(struct ctl_table_root *root)
-{
-}
-
 /*
  * sysctl_perm does NOT grant the superuser all rights automatically, because
  * some sysctl variables are readonly even to root.
@@ -1074,6 +1070,7 @@ static int sysctl_check_table(const char *path, struct ctl_table *table)
 
 		if ((table->proc_handler == proc_dostring) ||
 		    (table->proc_handler == proc_dointvec) ||
+		    (table->proc_handler == proc_douintvec) ||
 		    (table->proc_handler == proc_dointvec_minmax) ||
 		    (table->proc_handler == proc_dointvec_jiffies) ||
 		    (table->proc_handler == proc_dointvec_userhz_jiffies) ||

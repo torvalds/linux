@@ -14,16 +14,6 @@ config ASHMEM
 	  It is, in theory, a good memory allocator for low-memory devices,
 	  because it can discard shared memory units when under memory pressure.
 
-config ANDROID_LOW_MEMORY_KILLER
-	bool "Android Low Memory Killer"
-	---help---
-	  Registers processes to be killed when low memory conditions, this is useful
-	  as there is no particular swap space on android.
-
-	  The registered process will kill according to the priorities in android init
-	  scripts (/init.rc), and it defines priority values with minimum free memory size
-	  for each priority.
-
 source "drivers/staging/android/ion/Kconfig"
 
 endif # if ANDROID

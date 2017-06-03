@@ -198,6 +198,7 @@ struct vfio_device_info {
 #define VFIO_DEVICE_FLAGS_PCI	(1 << 1)	/* vfio-pci device */
 #define VFIO_DEVICE_FLAGS_PLATFORM (1 << 2)	/* vfio-platform device */
 #define VFIO_DEVICE_FLAGS_AMBA  (1 << 3)	/* vfio-amba device */
+#define VFIO_DEVICE_FLAGS_CCW	(1 << 4)	/* vfio-ccw device */
 	__u32	num_regions;	/* Max region index + 1 */
 	__u32	num_irqs;	/* Max IRQ index + 1 */
 };
@@ -212,6 +213,7 @@ struct vfio_device_info {
 #define VFIO_DEVICE_API_PCI_STRING		"vfio-pci"
 #define VFIO_DEVICE_API_PLATFORM_STRING		"vfio-platform"
 #define VFIO_DEVICE_API_AMBA_STRING		"vfio-amba"
+#define VFIO_DEVICE_API_CCW_STRING		"vfio-ccw"
 
 /**
  * VFIO_DEVICE_GET_REGION_INFO - _IOWR(VFIO_TYPE, VFIO_BASE + 8,
@@ -444,6 +446,22 @@ enum {
 	VFIO_PCI_ERR_IRQ_INDEX,
 	VFIO_PCI_REQ_IRQ_INDEX,
 	VFIO_PCI_NUM_IRQS
+};
+
+/*
+ * The vfio-ccw bus driver makes use of the following fixed region and
+ * IRQ index mapping. Unimplemented regions return a size of zero.
+ * Unimplemented IRQ types return a count of zero.
+ */
+
+enum {
+	VFIO_CCW_CONFIG_REGION_INDEX,
+	VFIO_CCW_NUM_REGIONS
+};
+
+enum {
+	VFIO_CCW_IO_IRQ_INDEX,
+	VFIO_CCW_NUM_IRQS
 };
 
 /**

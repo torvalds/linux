@@ -40,6 +40,7 @@ msm-y := \
 	mdp/mdp5/mdp5_mdss.o \
 	mdp/mdp5/mdp5_kms.o \
 	mdp/mdp5/mdp5_pipe.o \
+	mdp/mdp5/mdp5_mixer.o \
 	mdp/mdp5/mdp5_plane.o \
 	mdp/mdp5/mdp5_smp.o \
 	msm_atomic.o \

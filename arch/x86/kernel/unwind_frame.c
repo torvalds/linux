@@ -1,6 +1,8 @@
 #include <linux/sched.h>
 #include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>
+#include <linux/interrupt.h>
+#include <asm/sections.h>
 #include <asm/ptrace.h>
 #include <asm/bitops.h>
 #include <asm/stacktrace.h>
@@ -23,53 +25,53 @@
 	val;						\
 })
 
-static void unwind_dump(struct unwind_state *state, unsigned long *sp)
+static void unwind_dump(struct unwind_state *state)
 {
 	static bool dumped_before = false;
 	bool prev_zero, zero = false;
-	unsigned long word;
+	unsigned long word, *sp;
+	struct stack_info stack_info = {0};
+	unsigned long visit_mask = 0;
 
 	if (dumped_before)
 		return;
 
 	dumped_before = true;
 
-	printk_deferred("unwind stack type:%d next_sp:%p mask:%lx graph_idx:%d\n",
+	printk_deferred("unwind stack type:%d next_sp:%p mask:0x%lx graph_idx:%d\n",
 			state->stack_info.type, state->stack_info.next_sp,
 			state->stack_mask, state->graph_idx);
 
-	for (sp = state->orig_sp; sp < state->stack_info.end; sp++) {
-		word = READ_ONCE_NOCHECK(*sp);
+	for (sp = state->orig_sp; sp; sp = PTR_ALIGN(stack_info.next_sp, sizeof(long))) {
+		if (get_stack_info(sp, state->task, &stack_info, &visit_mask))
+			break;
 
-		prev_zero = zero;
-		zero = word == 0;
+		for (; sp < stack_info.end; sp++) {
 
-		if (zero) {
-			if (!prev_zero)
-				printk_deferred("%p: %016x ...\n", sp, 0);
-			continue;
+			word = READ_ONCE_NOCHECK(*sp);
+
+			prev_zero = zero;
+			zero = word == 0;
+
+			if (zero) {
+				if (!prev_zero)
+					printk_deferred("%p: %0*x ...\n",
+							sp, BITS_PER_LONG/4, 0);
+				continue;
+			}
+
+			printk_deferred("%p: %0*lx (%pB)\n",
+					sp, BITS_PER_LONG/4, word, (void *)word);
 		}
-
-		printk_deferred("%p: %016lx (%pB)\n", sp, word, (void *)word);
 	}
 }
 
 unsigned long unwind_get_return_address(struct unwind_state *state)
 {
-	unsigned long addr;
-	unsigned long *addr_p = unwind_get_return_address_ptr(state);
-
 	if (unwind_done(state))
 		return 0;
 
-	if (state->regs && user_mode(state->regs))
-		return 0;
-
-	addr = READ_ONCE_TASK_STACK(state->task, *addr_p);
-	addr = ftrace_graph_ret_addr(state->task, &state->graph_idx, addr,
-				     addr_p);
-
-	return __kernel_text_address(addr) ? addr : 0;
+	return __kernel_text_address(state->ip) ? state->ip : 0;
 }
 EXPORT_SYMBOL_GPL(unwind_get_return_address);
 
@@ -82,22 +84,51 @@ static size_t regs_size(struct pt_regs *regs)
 	return sizeof(*regs);
 }
 
+static bool in_entry_code(unsigned long ip)
+{
+	char *addr = (char *)ip;
+
+	if (addr >= __entry_text_start && addr < __entry_text_end)
+		return true;
+
+#if defined(CONFIG_FUNCTION_GRAPH_TRACER) || defined(CONFIG_KASAN)
+	if (addr >= __irqentry_text_start && addr < __irqentry_text_end)
+		return true;
+#endif
+
+	return false;
+}
+
+static inline unsigned long *last_frame(struct unwind_state *state)
+{
+	return (unsigned long *)task_pt_regs(state->task) - 2;
+}
+
+static bool is_last_frame(struct unwind_state *state)
+{
+	return state->bp == last_frame(state);
+}
+
 #ifdef CONFIG_X86_32
 #define GCC_REALIGN_WORDS 3
 #else
 #define GCC_REALIGN_WORDS 1
 #endif
 
-static bool is_last_task_frame(struct unwind_state *state)
+static inline unsigned long *last_aligned_frame(struct unwind_state *state)
 {
-	unsigned long *last_bp = (unsigned long *)task_pt_regs(state->task) - 2;
-	unsigned long *aligned_bp = last_bp - GCC_REALIGN_WORDS;
+	return last_frame(state) - GCC_REALIGN_WORDS;
+}
+
+static bool is_last_aligned_frame(struct unwind_state *state)
+{
+	unsigned long *last_bp = last_frame(state);
+	unsigned long *aligned_bp = last_aligned_frame(state);
 
 	/*
-	 * We have to check for the last task frame at two different locations
-	 * because gcc can occasionally decide to realign the stack pointer and
-	 * change the offset of the stack frame in the prologue of a function
-	 * called by head/entry code.  Examples:
+	 * GCC can occasionally decide to realign the stack pointer and change
+	 * the offset of the stack frame in the prologue of a function called
+	 * by head/entry code.  Examples:
 	 *
 	 * <start_secondary>:
 	 *      push   %edi
@@ -114,11 +145,38 @@ static bool is_last_task_frame(struct unwind_state *state)
 	 *      push   %rbp
 	 *      mov    %rsp,%rbp
 	 *
-	 * Note that after aligning the stack, it pushes a duplicate copy of
-	 * the return address before pushing the frame pointer.
+	 * After aligning the stack, it pushes a duplicate copy of the return
+	 * address before pushing the frame pointer.
 	 */
-	return (state->bp == last_bp ||
-		(state->bp == aligned_bp && *(aligned_bp+1) == *(last_bp+1)));
+	return (state->bp == aligned_bp && *(aligned_bp + 1) == *(last_bp + 1));
+}
+
+static bool is_last_ftrace_frame(struct unwind_state *state)
+{
+	unsigned long *last_bp = last_frame(state);
+	unsigned long *last_ftrace_bp = last_bp - 3;
+
+	/*
+	 * When unwinding from an ftrace handler of a function called by entry
+	 * code, the stack layout of the last frame is:
+	 *
+	 *   bp
+	 *   parent ret addr
+	 *   bp
+	 *   function ret addr
+	 *   parent ret addr
+	 *   pt_regs
+	 *   -----------------
+	 */
+	return (state->bp == last_ftrace_bp &&
+		*state->bp == *(state->bp + 2) &&
+		*(state->bp + 1) == *(state->bp + 4));
+}
+
+static bool is_last_task_frame(struct unwind_state *state)
+{
+	return is_last_frame(state) || is_last_aligned_frame(state) ||
+	       is_last_ftrace_frame(state);
 }
 
 /*
@@ -135,26 +193,70 @@ static struct pt_regs *decode_frame_pointer(unsigned long *bp)
 	return (struct pt_regs *)(regs & ~0x1);
 }
 
-static bool update_stack_state(struct unwind_state *state, void *addr,
-			       size_t len)
+static bool update_stack_state(struct unwind_state *state,
+			       unsigned long *next_bp)
 {
 	struct stack_info *info = &state->stack_info;
-	enum stack_type orig_type = info->type;
+	enum stack_type prev_type = info->type;
+	struct pt_regs *regs;
+	unsigned long *frame, *prev_frame_end, *addr_p, addr;
+	size_t len;
+
+	if (state->regs)
+		prev_frame_end = (void *)state->regs + regs_size(state->regs);
+	else
+		prev_frame_end = (void *)state->bp + FRAME_HEADER_SIZE;
+
+	/* Is the next frame pointer an encoded pointer to pt_regs? */
+	regs = decode_frame_pointer(next_bp);
+	if (regs) {
+		frame = (unsigned long *)regs;
+		len = regs_size(regs);
+		state->got_irq = true;
+	} else {
+		frame = next_bp;
+		len = FRAME_HEADER_SIZE;
+	}
 
 	/*
-	 * If addr isn't on the current stack, switch to the next one.
+	 * If the next bp isn't on the current stack, switch to the next one.
 	 *
 	 * We may have to traverse multiple stacks to deal with the possibility
-	 * that 'info->next_sp' could point to an empty stack and 'addr' could
-	 * be on a subsequent stack.
+	 * that info->next_sp could point to an empty stack and the next bp
+	 * could be on a subsequent stack.
 	 */
-	while (!on_stack(info, addr, len))
+	while (!on_stack(info, frame, len))
 		if (get_stack_info(info->next_sp, state->task, info,
 				   &state->stack_mask))
 			return false;
 
-	if (!state->orig_sp || info->type != orig_type)
-		state->orig_sp = addr;
+	/* Make sure it only unwinds up and doesn't overlap the prev frame: */
+	if (state->orig_sp && state->stack_info.type == prev_type &&
+	    frame < prev_frame_end)
+		return false;
+
+	/* Move state to the next frame: */
+	if (regs) {
+		state->regs = regs;
+		state->bp = NULL;
+	} else {
+		state->bp = next_bp;
+		state->regs = NULL;
+	}
+
+	/* Save the return address: */
+	if (state->regs && user_mode(state->regs))
+		state->ip = 0;
+	else {
+		addr_p = unwind_get_return_address_ptr(state);
+		addr = READ_ONCE_TASK_STACK(state->task, *addr_p);
+		state->ip = ftrace_graph_ret_addr(state->task, &state->graph_idx,
+						  addr, addr_p);
+	}
+
+	/* Save the original stack pointer for unwind_dump(): */
+	if (!state->orig_sp)
+		state->orig_sp = frame;
 
 	return true;
 }
@@ -162,14 +264,12 @@ static bool update_stack_state(struct unwind_state *state, void *addr,
 bool unwind_next_frame(struct unwind_state *state)
 {
 	struct pt_regs *regs;
-	unsigned long *next_bp, *next_frame;
-	size_t next_len;
-	enum stack_type prev_type = state->stack_info.type;
+	unsigned long *next_bp;
 
 	if (unwind_done(state))
 		return false;
 
-	/* have we reached the end? */
+	/* Have we reached the end? */
 	if (state->regs && user_mode(state->regs))
 		goto the_end;
 
@@ -197,58 +297,25 @@ bool unwind_next_frame(struct unwind_state *state)
 		 */
 		state->regs = regs;
 		state->bp = NULL;
+		state->ip = 0;
 		return true;
 	}
 
-	/* get the next frame pointer */
+	/* Get the next frame pointer: */
 	if (state->regs)
 		next_bp = (unsigned long *)state->regs->bp;
 	else
-		next_bp = (unsigned long *)READ_ONCE_TASK_STACK(state->task,*state->bp);
+		next_bp = (unsigned long *)READ_ONCE_TASK_STACK(state->task, *state->bp);
 
-	/* is the next frame pointer an encoded pointer to pt_regs? */
-	regs = decode_frame_pointer(next_bp);
-	if (regs) {
-		next_frame = (unsigned long *)regs;
-		next_len = sizeof(*regs);
-	} else {
-		next_frame = next_bp;
-		next_len = FRAME_HEADER_SIZE;
-	}
-
-	/* make sure the next frame's data is accessible */
-	if (!update_stack_state(state, next_frame, next_len)) {
-		/*
-		 * Don't warn on bad regs->bp.  An interrupt in entry code
-		 * might cause a false positive warning.
-		 */
-		if (state->regs)
-			goto the_end;
-
+	/* Move to the next frame if it's safe: */
+	if (!update_stack_state(state, next_bp))
 		goto bad_address;
-	}
-
-	/* Make sure it only unwinds up and doesn't overlap the last frame: */
-	if (state->stack_info.type == prev_type) {
-		if (state->regs && (void *)next_frame < (void *)state->regs + regs_size(state->regs))
-			goto bad_address;
-
-		if (state->bp && (void *)next_frame < (void *)state->bp + FRAME_HEADER_SIZE)
-			goto bad_address;
-	}
-
-	/* move to the next frame */
-	if (regs) {
-		state->regs = regs;
-		state->bp = NULL;
-	} else {
-		state->bp = next_bp;
-		state->regs = NULL;
-	}
 
 	return true;
 
 bad_address:
+	state->error = true;
+
 	/*
 	 * When unwinding a non-current task, the task might actually be
 	 * running on another CPU, in which case it could be modifying its
@@ -259,18 +326,29 @@ bad_address:
 	if (state->task != current)
 		goto the_end;
 
+	/*
+	 * Don't warn if the unwinder got lost due to an interrupt in entry
+	 * code or in the C handler before the first frame pointer got set up:
+	 */
+	if (state->got_irq && in_entry_code(state->ip))
+		goto the_end;
+	if (state->regs &&
+	    state->regs->sp >= (unsigned long)last_aligned_frame(state) &&
+	    state->regs->sp < (unsigned long)task_pt_regs(state->task))
+		goto the_end;
+
 	if (state->regs) {
 		printk_deferred_once(KERN_WARNING
 			"WARNING: kernel stack regs at %p in %s:%d has bad 'bp' value %p\n",
 			state->regs, state->task->comm,
-			state->task->pid, next_frame);
-		unwind_dump(state, (unsigned long *)state->regs);
+			state->task->pid, next_bp);
+		unwind_dump(state);
 	} else {
 		printk_deferred_once(KERN_WARNING
 			"WARNING: kernel stack frame pointer at %p in %s:%d has bad value %p\n",
 			state->bp, state->task->comm,
-			state->task->pid, next_frame);
-		unwind_dump(state, state->bp);
+			state->task->pid, next_bp);
+		unwind_dump(state);
 	}
 the_end:
 	state->stack_info.type = STACK_TYPE_UNKNOWN;
@@ -281,35 +359,24 @@ EXPORT_SYMBOL_GPL(unwind_next_frame);
 void __unwind_start(struct unwind_state *state, struct task_struct *task,
 		    struct pt_regs *regs, unsigned long *first_frame)
 {
-	unsigned long *bp, *frame;
-	size_t len;
+	unsigned long *bp;
 
 	memset(state, 0, sizeof(*state));
 	state->task = task;
+	state->got_irq = (regs);
 
-	/* don't even attempt to start from user mode regs */
+	/* Don't even attempt to start from user mode regs: */
 	if (regs && user_mode(regs)) {
 		state->stack_info.type = STACK_TYPE_UNKNOWN;
 		return;
 	}
 
-	/* set up the starting stack frame */
 	bp = get_frame_pointer(task, regs);
-	regs = decode_frame_pointer(bp);
-	if (regs) {
-		state->regs = regs;
-		frame = (unsigned long *)regs;
-		len = sizeof(*regs);
-	} else {
-		state->bp = bp;
-		frame = bp;
-		len = FRAME_HEADER_SIZE;
-	}
 
-	/* initialize stack info and make sure the frame data is accessible */
-	get_stack_info(frame, state->task, &state->stack_info,
+	/* Initialize stack info and make sure the frame data is accessible: */
+	get_stack_info(bp, state->task, &state->stack_info,
 		       &state->stack_mask);
-	update_stack_state(state, frame, len);
+	update_stack_state(state, bp);
 
 	/*
 	 * The caller can provide the address of the first frame directly

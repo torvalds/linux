@@ -139,6 +139,11 @@ extern ssize_t	cifs_listxattr(struct dentry *, char *, size_t);
 # define cifs_listxattr NULL
 #endif
 
+extern ssize_t cifs_file_copychunk_range(unsigned int xid,
+					struct file *src_file, loff_t off,
+					struct file *dst_file, loff_t destoff,
+					size_t len, unsigned int flags);
+
 extern long cifs_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
 #ifdef CONFIG_CIFS_NFSD_EXPORT
 extern const struct export_operations cifs_export_ops;

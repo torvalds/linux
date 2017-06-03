@@ -117,6 +117,7 @@ enum transport_state_table {
 	TRANSPORT_ISTATE_PROCESSING = 11,
 	TRANSPORT_COMPLETE_QF_WP = 18,
 	TRANSPORT_COMPLETE_QF_OK = 19,
+	TRANSPORT_COMPLETE_QF_ERR = 20,
 };
 
 /* Used for struct se_cmd->se_cmd_flags */
@@ -279,8 +280,6 @@ struct t10_alua_tg_pt_gp {
 	u16	tg_pt_gp_id;
 	int	tg_pt_gp_valid_id;
 	int	tg_pt_gp_alua_supported_states;
-	int	tg_pt_gp_alua_pending_state;
-	int	tg_pt_gp_alua_previous_state;
 	int	tg_pt_gp_alua_access_status;
 	int	tg_pt_gp_alua_access_type;
 	int	tg_pt_gp_nonop_delay_msecs;
@@ -289,18 +288,16 @@ struct t10_alua_tg_pt_gp {
 	int	tg_pt_gp_pref;
 	int	tg_pt_gp_write_metadata;
 	u32	tg_pt_gp_members;
-	atomic_t tg_pt_gp_alua_access_state;
+	int	tg_pt_gp_alua_access_state;
 	atomic_t tg_pt_gp_ref_cnt;
 	spinlock_t tg_pt_gp_lock;
-	struct mutex tg_pt_gp_md_mutex;
+	struct mutex tg_pt_gp_transition_mutex;
 	struct se_device *tg_pt_gp_dev;
 	struct config_group tg_pt_gp_group;
 	struct list_head tg_pt_gp_list;
 	struct list_head tg_pt_gp_lun_list;
 	struct se_lun *tg_pt_gp_alua_lun;
 	struct se_node_acl *tg_pt_gp_alua_nacl;
-	struct work_struct tg_pt_gp_transition_work;
-	struct completion *tg_pt_gp_transition_complete;
 };
 
 struct t10_vpd {
@@ -667,6 +664,7 @@ struct se_dev_attrib {
 	int		pi_prot_format;
 	enum target_prot_type pi_prot_type;
 	enum target_prot_type hw_pi_prot_type;
+	int		pi_prot_verify;
 	int		enforce_pr_isids;
 	int		force_pr_aptpl;
 	int		is_nonrot;
@@ -705,6 +703,7 @@ struct se_lun {
 	u64			unpacked_lun;
 #define SE_LUN_LINK_MAGIC			0xffff7771
 	u32			lun_link_magic;
+	bool			lun_shutdown;
 	bool			lun_access_ro;
 	u32			lun_index;
 

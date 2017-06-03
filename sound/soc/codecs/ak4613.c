@@ -75,6 +75,12 @@
 #define DFS_DOUBLE_SPEED	(1 << 2)
 #define DFS_QUAD_SPEED		(2 << 2)
 
+/* ICTRL */
+#define ICTRL_MASK	(0x3)
+
+/* OCTRL */
+#define OCTRL_MASK	(0x3F)
+
 struct ak4613_formats {
 	unsigned int width;
 	unsigned int fmt;
@@ -365,8 +371,8 @@ static int ak4613_dai_hw_params(struct snd_pcm_substream *substream,
 	snd_soc_update_bits(codec, CTRL1, FMT_MASK, fmt_ctrl);
 	snd_soc_update_bits(codec, CTRL2, DFS_MASK, ctrl2);
 
-	snd_soc_write(codec, ICTRL, priv->ic);
-	snd_soc_write(codec, OCTRL, priv->oc);
+	snd_soc_update_bits(codec, ICTRL, ICTRL_MASK, priv->ic);
+	snd_soc_update_bits(codec, OCTRL, OCTRL_MASK, priv->oc);
 
 hw_params_end:
 	if (ret < 0)

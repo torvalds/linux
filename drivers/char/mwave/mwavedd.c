@@ -80,10 +80,10 @@ int mwave_3780i_io = 0;
 int mwave_uart_irq = 0;
 int mwave_uart_io = 0;
 module_param(mwave_debug, int, 0);
-module_param(mwave_3780i_irq, int, 0);
-module_param(mwave_3780i_io, int, 0);
-module_param(mwave_uart_irq, int, 0);
-module_param(mwave_uart_io, int, 0);
+module_param_hw(mwave_3780i_irq, int, irq, 0);
+module_param_hw(mwave_3780i_io, int, ioport, 0);
+module_param_hw(mwave_uart_irq, int, irq, 0);
+module_param_hw(mwave_uart_io, int, ioport, 0);
 
 static int mwave_open(struct inode *inode, struct file *file);
 static int mwave_close(struct inode *inode, struct file *file);

@@ -865,6 +865,20 @@ bailout:
 	return rc;
 }
 
+static void hidma_shutdown(struct platform_device *pdev)
+{
+	struct hidma_dev *dmadev = platform_get_drvdata(pdev);
+
+	dev_info(dmadev->ddev.dev, "HI-DMA engine shutdown\n");
+
+	pm_runtime_get_sync(dmadev->ddev.dev);
+	if (hidma_ll_disable(dmadev->lldev))
+		dev_warn(dmadev->ddev.dev, "channel did not stop\n");
+	pm_runtime_mark_last_busy(dmadev->ddev.dev);
+	pm_runtime_put_autosuspend(dmadev->ddev.dev);
+
+}
+
 static int hidma_remove(struct platform_device *pdev)
 {
 	struct hidma_dev *dmadev = platform_get_drvdata(pdev);
@@ -908,6 +922,7 @@ MODULE_DEVICE_TABLE(of, hidma_match);
 static struct platform_driver hidma_driver = {
 	.probe = hidma_probe,
 	.remove = hidma_remove,
+	.shutdown = hidma_shutdown,
 	.driver = {
 		   .name = "hidma",
 		   .of_match_table = hidma_match,

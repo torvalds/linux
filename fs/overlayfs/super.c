@@ -49,11 +49,28 @@ static void ovl_dentry_release(struct dentry *dentry)
 	}
 }
 
+static int ovl_check_append_only(struct inode *inode, int flag)
+{
+	/*
+	 * This test was moot in vfs may_open() because overlay inode does
+	 * not have the S_APPEND flag, so re-check on real upper inode
+	 */
+	if (IS_APPEND(inode)) {
+		if  ((flag & O_ACCMODE) != O_RDONLY && !(flag & O_APPEND))
+			return -EPERM;
+		if (flag & O_TRUNC)
+			return -EPERM;
+	}
+
+	return 0;
+}
+
 static struct dentry *ovl_d_real(struct dentry *dentry,
 				 const struct inode *inode,
 				 unsigned int open_flags)
 {
 	struct dentry *real;
+	int err;
 
 	if (!d_is_reg(dentry)) {
 		if (!inode || inode == d_inode(dentry))
@@ -65,15 +82,20 @@ static struct dentry *ovl_d_real(struct dentry *dentry,
 		return dentry;
 
 	if (open_flags) {
-		int err = ovl_open_maybe_copy_up(dentry, open_flags);
-
+		err = ovl_open_maybe_copy_up(dentry, open_flags);
 		if (err)
 			return ERR_PTR(err);
 	}
 
 	real = ovl_dentry_upper(dentry);
-	if (real && (!inode || inode == d_inode(real)))
+	if (real && (!inode || inode == d_inode(real))) {
+		if (!inode) {
+			err = ovl_check_append_only(d_inode(real), open_flags);
+			if (err)
+				return ERR_PTR(err);
+		}
 		return real;
+	}
 
 	real = ovl_dentry_lower(dentry);
 	if (!real)
@@ -709,8 +731,8 @@ static const struct xattr_handler *ovl_xattr_handlers[] = {
 
 static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 {
-	struct path upperpath = { NULL, NULL };
-	struct path workpath = { NULL, NULL };
+	struct path upperpath = { };
+	struct path workpath = { };
 	struct dentry *root_dentry;
 	struct inode *realinode;
 	struct ovl_entry *oe;
@@ -892,11 +914,19 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 		ufs->lower_mnt[ufs->numlower] = mnt;
 		ufs->numlower++;
+
+		/* Check if all lower layers are on same sb */
+		if (i == 0)
+			ufs->same_sb = mnt->mnt_sb;
+		else if (ufs->same_sb != mnt->mnt_sb)
+			ufs->same_sb = NULL;
 	}
 
 	/* If the upper fs is nonexistent, we mark overlayfs r/o too */
 	if (!ufs->upper_mnt)
 		sb->s_flags |= MS_RDONLY;
+	else if (ufs->upper_mnt->mnt_sb != ufs->same_sb)
+		ufs->same_sb = NULL;
 
 	if (remote)
 		sb->s_d_op = &ovl_reval_dentry_operations;

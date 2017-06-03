@@ -39,6 +39,7 @@
 #include <linux/completion.h>
 #include <linux/of.h>
 #include <linux/irq_work.h>
+#include <linux/kexec.h>
 
 #include <asm/alternative.h>
 #include <asm/atomic.h>
@@ -76,6 +77,7 @@ enum ipi_msg_type {
 	IPI_RESCHEDULE,
 	IPI_CALL_FUNC,
 	IPI_CPU_STOP,
+	IPI_CPU_CRASH_STOP,
 	IPI_TIMER,
 	IPI_IRQ_WORK,
 	IPI_WAKEUP
@@ -434,6 +436,7 @@ void __init smp_cpus_done(unsigned int max_cpus)
 	setup_cpu_features();
 	hyp_mode_check();
 	apply_alternatives_all();
+	mark_linear_text_alias_ro();
 }
 
 void __init smp_prepare_boot_cpu(void)
@@ -518,6 +521,13 @@ static bool bootcpu_valid __initdata;
 static unsigned int cpu_count = 1;
 
 #ifdef CONFIG_ACPI
+static struct acpi_madt_generic_interrupt cpu_madt_gicc[NR_CPUS];
+
+struct acpi_madt_generic_interrupt *acpi_cpu_get_madt_gicc(int cpu)
+{
+	return &cpu_madt_gicc[cpu];
+}
+
 /*
  * acpi_map_gic_cpu_interface - parse processor MADT entry
  *
@@ -552,6 +562,7 @@ acpi_map_gic_cpu_interface(struct acpi_madt_generic_interrupt *processor)
 			return;
 		}
 		bootcpu_valid = true;
+		cpu_madt_gicc[0] = *processor;
 		early_map_cpu_to_node(0, acpi_numa_get_nid(0, hwid));
 		return;
 	}
@@ -561,6 +572,8 @@ acpi_map_gic_cpu_interface(struct acpi_madt_generic_interrupt *processor)
 
 	/* map the logical cpu id to cpu MPIDR */
 	cpu_logical_map(cpu_count) = hwid;
+
+	cpu_madt_gicc[cpu_count] = *processor;
 
 	/*
 	 * Set-up the ACPI parking protocol cpu entries
@@ -755,6 +768,7 @@ static const char *ipi_types[NR_IPI] __tracepoint_string = {
 	S(IPI_RESCHEDULE, "Rescheduling interrupts"),
 	S(IPI_CALL_FUNC, "Function call interrupts"),
 	S(IPI_CPU_STOP, "CPU stop interrupts"),
+	S(IPI_CPU_CRASH_STOP, "CPU stop (for crash dump) interrupts"),
 	S(IPI_TIMER, "Timer broadcast interrupts"),
 	S(IPI_IRQ_WORK, "IRQ work interrupts"),
 	S(IPI_WAKEUP, "CPU wake-up interrupts"),
@@ -829,6 +843,29 @@ static void ipi_cpu_stop(unsigned int cpu)
 		cpu_relax();
 }
 
+#ifdef CONFIG_KEXEC_CORE
+static atomic_t waiting_for_crash_ipi = ATOMIC_INIT(0);
+#endif
+
+static void ipi_cpu_crash_stop(unsigned int cpu, struct pt_regs *regs)
+{
+#ifdef CONFIG_KEXEC_CORE
+	crash_save_cpu(regs, cpu);
+
+	atomic_dec(&waiting_for_crash_ipi);
+
+	local_irq_disable();
+
+#ifdef CONFIG_HOTPLUG_CPU
+	if (cpu_ops[cpu]->cpu_die)
+		cpu_ops[cpu]->cpu_die(cpu);
+#endif
+
+	/* just in case */
+	cpu_park_loop();
+#endif
+}
+
 /*
  * Main handler for inter-processor interrupts
  */
@@ -857,6 +894,15 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 		irq_enter();
 		ipi_cpu_stop(cpu);
 		irq_exit();
+		break;
+
+	case IPI_CPU_CRASH_STOP:
+		if (IS_ENABLED(CONFIG_KEXEC_CORE)) {
+			irq_enter();
+			ipi_cpu_crash_stop(cpu, regs);
+
+			unreachable();
+		}
 		break;
 
 #ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
@@ -930,6 +976,39 @@ void smp_send_stop(void)
 		pr_warning("SMP: failed to stop secondary CPUs %*pbl\n",
 			   cpumask_pr_args(cpu_online_mask));
 }
+
+#ifdef CONFIG_KEXEC_CORE
+void smp_send_crash_stop(void)
+{
+	cpumask_t mask;
+	unsigned long timeout;
+
+	if (num_online_cpus() == 1)
+		return;
+
+	cpumask_copy(&mask, cpu_online_mask);
+	cpumask_clear_cpu(smp_processor_id(), &mask);
+
+	atomic_set(&waiting_for_crash_ipi, num_online_cpus() - 1);
+
+	pr_crit("SMP: stopping secondary CPUs\n");
+	smp_cross_call(&mask, IPI_CPU_CRASH_STOP);
+
+	/* Wait up to one second for other CPUs to stop */
+	timeout = USEC_PER_SEC;
+	while ((atomic_read(&waiting_for_crash_ipi) > 0) && timeout--)
+		udelay(1);
+
+	if (atomic_read(&waiting_for_crash_ipi) > 0)
+		pr_warning("SMP: failed to stop secondary CPUs %*pbl\n",
+			   cpumask_pr_args(&mask));
+}
+
+bool smp_crash_stop_failed(void)
+{
+	return (atomic_read(&waiting_for_crash_ipi) > 0);
+}
+#endif
 
 /*
  * not supported here

@@ -28,6 +28,7 @@ config PPC_MSI_BITMAP
 	default y if PPC_POWERNV
 
 source "arch/powerpc/sysdev/xics/Kconfig"
+source "arch/powerpc/sysdev/xive/Kconfig"
 
 config PPC_SCOM
 	bool

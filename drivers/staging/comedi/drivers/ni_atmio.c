@@ -216,7 +216,7 @@ static const int ni_irqpin[] = {
 
 #include "ni_mio_common.c"
 
-static struct pnp_device_id device_ids[] = {
+static const struct pnp_device_id device_ids[] = {
 	{.id = "NIC1900", .driver_data = 0},
 	{.id = "NIC2400", .driver_data = 0},
 	{.id = "NIC2500", .driver_data = 0},

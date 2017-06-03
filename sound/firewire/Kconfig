@@ -140,4 +140,24 @@ config SND_FIREWIRE_TASCAM
 	 To compile this driver as a module, choose M here: the module
 	 will be called snd-firewire-tascam.
 
+config SND_FIREWIRE_MOTU
+	tristate "Mark of the unicorn FireWire series support"
+	select SND_FIREWIRE_LIB
+	select SND_HWDEP
+	help
+	 Say Y here to enable support for FireWire devices which MOTU produced:
+	  * 828mk2
+	  * 828mk3
+
+	 To compile this driver as a module, choose M here: the module
+	 will be called snd-firewire-motu.
+
+config SND_FIREFACE
+	tristate "RME Fireface series support"
+	select SND_FIREWIRE_LIB
+	select SND_HWDEP
+	help
+	 Say Y here to include support for RME fireface series.
+	  * Fireface 400
+
 endif # SND_FIREWIRE

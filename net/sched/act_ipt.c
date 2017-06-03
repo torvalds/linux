@@ -107,7 +107,7 @@ static int __tcf_ipt_init(struct tc_action_net *tn, struct nlattr *nla,
 	if (nla == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_IPT_MAX, nla, ipt_policy);
+	err = nla_parse_nested(tb, TCA_IPT_MAX, nla, ipt_policy, NULL);
 	if (err < 0)
 		return err;
 

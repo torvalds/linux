@@ -479,7 +479,7 @@ struct rndis_wlan_private {
  */
 static int rndis_change_virtual_intf(struct wiphy *wiphy,
 					struct net_device *dev,
-					enum nl80211_iftype type, u32 *flags,
+					enum nl80211_iftype type,
 					struct vif_params *params);
 
 static int rndis_scan(struct wiphy *wiphy,
@@ -1857,7 +1857,7 @@ error:
  */
 static int rndis_change_virtual_intf(struct wiphy *wiphy,
 					struct net_device *dev,
-					enum nl80211_iftype type, u32 *flags,
+					enum nl80211_iftype type,
 					struct vif_params *params)
 {
 	struct rndis_wlan_private *priv = wiphy_priv(wiphy);
@@ -2830,15 +2830,22 @@ static void rndis_wlan_do_link_up_work(struct usbnet *usbdev)
 	}
 
 	if (priv->infra_mode == NDIS_80211_INFRA_INFRA) {
-		if (!roamed)
+		if (!roamed) {
 			cfg80211_connect_result(usbdev->net, bssid, req_ie,
 						req_ie_len, resp_ie,
 						resp_ie_len, 0, GFP_KERNEL);
-		else
-			cfg80211_roamed(usbdev->net,
-					get_current_channel(usbdev, NULL),
-					bssid, req_ie, req_ie_len,
-					resp_ie, resp_ie_len, GFP_KERNEL);
+		} else {
+			struct cfg80211_roam_info roam_info = {
+				.channel = get_current_channel(usbdev, NULL),
+				.bssid = bssid,
+				.req_ie = req_ie,
+				.req_ie_len = req_ie_len,
+				.resp_ie = resp_ie,
+				.resp_ie_len = resp_ie_len,
+			};
+
+			cfg80211_roamed(usbdev->net, &roam_info, GFP_KERNEL);
+		}
 	} else if (priv->infra_mode == NDIS_80211_INFRA_ADHOC)
 		cfg80211_ibss_joined(usbdev->net, bssid,
 				     get_current_channel(usbdev, NULL),
@@ -3392,6 +3399,7 @@ static const struct net_device_ops rndis_wlan_netdev_ops = {
 	.ndo_stop		= usbnet_stop,
 	.ndo_start_xmit		= usbnet_start_xmit,
 	.ndo_tx_timeout		= usbnet_tx_timeout,
+	.ndo_get_stats64	= usbnet_get_stats64,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_rx_mode	= rndis_wlan_set_multicast_list,
@@ -3427,6 +3435,10 @@ static int rndis_wlan_bind(struct usbnet *usbdev, struct usb_interface *intf)
 
 	/* because rndis_command() sleeps we need to use workqueue */
 	priv->workqueue = create_singlethread_workqueue("rndis_wlan");
+	if (!priv->workqueue) {
+		wiphy_free(wiphy);
+		return -ENOMEM;
+	}
 	INIT_WORK(&priv->work, rndis_wlan_worker);
 	INIT_DELAYED_WORK(&priv->dev_poller_work, rndis_device_poller);
 	INIT_DELAYED_WORK(&priv->scan_work, rndis_get_scan_results);

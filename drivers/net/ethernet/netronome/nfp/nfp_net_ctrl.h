@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Netronome Systems, Inc.
+ * Copyright (C) 2015-2017 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -177,6 +177,19 @@
 #define   NFP_NET_CFG_VERSION_MINOR(x)    (((x) & 0xff) <<  0)
 #define NFP_NET_CFG_STS                 0x0034
 #define   NFP_NET_CFG_STS_LINK            (0x1 << 0) /* Link up or down */
+/* Link rate */
+#define   NFP_NET_CFG_STS_LINK_RATE_SHIFT 1
+#define   NFP_NET_CFG_STS_LINK_RATE_MASK  0xF
+#define   NFP_NET_CFG_STS_LINK_RATE       \
+	(NFP_NET_CFG_STS_LINK_RATE_MASK << NFP_NET_CFG_STS_LINK_RATE_SHIFT)
+#define   NFP_NET_CFG_STS_LINK_RATE_UNSUPPORTED   0
+#define   NFP_NET_CFG_STS_LINK_RATE_UNKNOWN       1
+#define   NFP_NET_CFG_STS_LINK_RATE_1G            2
+#define   NFP_NET_CFG_STS_LINK_RATE_10G           3
+#define   NFP_NET_CFG_STS_LINK_RATE_25G           4
+#define   NFP_NET_CFG_STS_LINK_RATE_40G           5
+#define   NFP_NET_CFG_STS_LINK_RATE_50G           6
+#define   NFP_NET_CFG_STS_LINK_RATE_100G          7
 #define NFP_NET_CFG_CAP                 0x0038
 #define NFP_NET_CFG_MAX_TXRINGS         0x003c
 #define NFP_NET_CFG_MAX_RXRINGS         0x0040
@@ -190,6 +203,14 @@
  */
 #define NFP_NET_CFG_RX_OFFSET		0x0050
 #define NFP_NET_CFG_RX_OFFSET_DYNAMIC		0	/* Prepend mode */
+
+/**
+ * RSS capabilities
+ * @NFP_NET_CFG_RSS_CAP_HFUNC:	supported hash functions (same bits as
+ *				@NFP_NET_CFG_RSS_HFUNC)
+ */
+#define NFP_NET_CFG_RSS_CAP		0x0054
+#define   NFP_NET_CFG_RSS_CAP_HFUNC	  0xff000000
 
 /**
  * VXLAN/UDP encap configuration
@@ -249,7 +270,11 @@
 #define   NFP_NET_CFG_RSS_IPV4_UDP        (1 << 11) /* RSS for IPv4/UDP */
 #define   NFP_NET_CFG_RSS_IPV6_TCP        (1 << 12) /* RSS for IPv6/TCP */
 #define   NFP_NET_CFG_RSS_IPV6_UDP        (1 << 13) /* RSS for IPv6/UDP */
+#define   NFP_NET_CFG_RSS_HFUNC		  0xff000000
 #define   NFP_NET_CFG_RSS_TOEPLITZ        (1 << 24) /* Use Toeplitz hash */
+#define   NFP_NET_CFG_RSS_XOR		  (1 << 25) /* Use XOR as hash */
+#define   NFP_NET_CFG_RSS_CRC32		  (1 << 26) /* Use CRC32 as hash */
+#define   NFP_NET_CFG_RSS_HFUNCS	  3
 #define NFP_NET_CFG_RSS_KEY             (NFP_NET_CFG_RSS_BASE + 0x4)
 #define NFP_NET_CFG_RSS_KEY_SZ          0x28
 #define NFP_NET_CFG_RSS_ITBL            (NFP_NET_CFG_RSS_BASE + 0x4 + \

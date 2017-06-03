@@ -816,7 +816,7 @@ cl_echo_object_find(struct echo_device *d, const struct ost_id *oi)
 	struct echo_object *eco;
 	struct cl_object   *obj;
 	struct lu_fid *fid;
-	int refcheck;
+	u16 refcheck;
 	int rc;
 
 	LASSERTF(ostid_id(oi), DOSTID "\n", POSTID(oi));
@@ -882,7 +882,7 @@ static int cl_echo_object_put(struct echo_object *eco)
 {
 	struct lu_env *env;
 	struct cl_object *obj = echo_obj2cl(eco);
-	int refcheck;
+	u16 refcheck;
 
 	env = cl_env_get(&refcheck);
 	if (IS_ERR(env))
@@ -999,7 +999,7 @@ static int cl_echo_object_brw(struct echo_object *eco, int rw, u64 offset,
 	struct cl_page	  *clp;
 	struct lustre_handle    lh = { 0 };
 	size_t page_size = cl_page_size(obj);
-	int refcheck;
+	u16 refcheck;
 	int rc;
 	int i;
 

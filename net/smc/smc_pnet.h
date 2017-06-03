@@ -16,7 +16,6 @@ struct smc_ib_device;
 int smc_pnet_init(void) __init;
 void smc_pnet_exit(void);
 int smc_pnet_remove_by_ibdev(struct smc_ib_device *ibdev);
-struct smc_ib_device *smc_pnet_find_ib(char *ib_name);
 void smc_pnet_find_roce_resource(struct sock *sk,
 				 struct smc_ib_device **smcibdev, u8 *ibport);
 

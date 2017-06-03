@@ -81,7 +81,7 @@ static const struct efi efi_xen __initconst = {
 	.update_capsule           = xen_efi_update_capsule,
 	.query_capsule_caps       = xen_efi_query_capsule_caps,
 	.get_next_high_mono_count = xen_efi_get_next_high_mono_count,
-	.reset_system             = NULL, /* Functionality provided by Xen. */
+	.reset_system             = xen_efi_reset_system,
 	.set_virtual_address_map  = NULL, /* Not used under Xen. */
 	.flags			  = 0     /* Initialized later. */
 };

@@ -8,18 +8,56 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/uuid.h>
 
 enum ovl_path_type {
 	__OVL_PATH_UPPER	= (1 << 0),
 	__OVL_PATH_MERGE	= (1 << 1),
+	__OVL_PATH_ORIGIN	= (1 << 2),
 };
 
 #define OVL_TYPE_UPPER(type)	((type) & __OVL_PATH_UPPER)
 #define OVL_TYPE_MERGE(type)	((type) & __OVL_PATH_MERGE)
+#define OVL_TYPE_ORIGIN(type)	((type) & __OVL_PATH_ORIGIN)
 
 #define OVL_XATTR_PREFIX XATTR_TRUSTED_PREFIX "overlay."
 #define OVL_XATTR_OPAQUE OVL_XATTR_PREFIX "opaque"
 #define OVL_XATTR_REDIRECT OVL_XATTR_PREFIX "redirect"
+#define OVL_XATTR_ORIGIN OVL_XATTR_PREFIX "origin"
+
+/*
+ * The tuple (fh,uuid) is a universal unique identifier for a copy up origin,
+ * where:
+ * origin.fh	- exported file handle of the lower file
+ * origin.uuid	- uuid of the lower filesystem
+ */
+#define OVL_FH_VERSION	0
+#define OVL_FH_MAGIC	0xfb
+
+/* CPU byte order required for fid decoding:  */
+#define OVL_FH_FLAG_BIG_ENDIAN	(1 << 0)
+#define OVL_FH_FLAG_ANY_ENDIAN	(1 << 1)
+
+#define OVL_FH_FLAG_ALL (OVL_FH_FLAG_BIG_ENDIAN | OVL_FH_FLAG_ANY_ENDIAN)
+
+#if defined(__LITTLE_ENDIAN)
+#define OVL_FH_FLAG_CPU_ENDIAN 0
+#elif defined(__BIG_ENDIAN)
+#define OVL_FH_FLAG_CPU_ENDIAN OVL_FH_FLAG_BIG_ENDIAN
+#else
+#error Endianness not defined
+#endif
+
+/* On-disk and in-memeory format for redirect by file handle */
+struct ovl_fh {
+	u8 version;	/* 0 */
+	u8 magic;	/* 0xfb */
+	u8 len;		/* size of this header + size of fid */
+	u8 flags;	/* OVL_FH_FLAG_* */
+	u8 type;	/* fid_type of fid */
+	uuid_be uuid;	/* uuid of filesystem */
+	u8 fid[0];	/* file identifier */
+} __packed;
 
 #define OVL_ISUPPER_MASK 1UL
 
@@ -151,6 +189,7 @@ int ovl_want_write(struct dentry *dentry);
 void ovl_drop_write(struct dentry *dentry);
 struct dentry *ovl_workdir(struct dentry *dentry);
 const struct cred *ovl_override_creds(struct super_block *sb);
+struct super_block *ovl_same_sb(struct super_block *sb);
 struct ovl_entry *ovl_alloc_entry(unsigned int numlower);
 bool ovl_dentry_remote(struct dentry *dentry);
 bool ovl_dentry_weird(struct dentry *dentry);
@@ -197,6 +236,8 @@ void ovl_workdir_cleanup(struct inode *dir, struct vfsmount *mnt,
 
 /* inode.c */
 int ovl_setattr(struct dentry *dentry, struct iattr *attr);
+int ovl_getattr(const struct path *path, struct kstat *stat,
+		u32 request_mask, unsigned int flags);
 int ovl_permission(struct inode *inode, int mask);
 int ovl_xattr_set(struct dentry *dentry, const char *name, const void *value,
 		  size_t size, int flags);

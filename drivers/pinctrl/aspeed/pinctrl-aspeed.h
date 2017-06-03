@@ -514,6 +514,20 @@ struct aspeed_pin_desc {
 	SIG_EXPR_LIST_DECL_SINGLE(gpio, gpio); \
 	MS_PIN_DECL_(pin, SIG_EXPR_LIST_PTR(gpio))
 
+/**
+ * @param The pinconf parameter type
+ * @pins The pin range this config struct covers, [low, high]
+ * @reg The register housing the configuration bits
+ * @mask The mask to select the bits of interest in @reg
+ */
+struct aspeed_pin_config {
+	enum pin_config_param param;
+	unsigned int pins[2];
+	unsigned int reg;
+	u8 bit;
+	u8 value;
+};
+
 struct aspeed_pinctrl_data {
 	struct regmap *maps[ASPEED_NR_PINMUX_IPS];
 
@@ -525,6 +539,9 @@ struct aspeed_pinctrl_data {
 
 	const struct aspeed_pin_function *functions;
 	const unsigned int nfunctions;
+
+	const struct aspeed_pin_config *configs;
+	const unsigned int nconfigs;
 };
 
 #define ASPEED_PINCTRL_PIN(name_) \
@@ -580,5 +597,16 @@ int aspeed_gpio_request_enable(struct pinctrl_dev *pctldev,
 int aspeed_pinctrl_probe(struct platform_device *pdev,
 		struct pinctrl_desc *pdesc,
 		struct aspeed_pinctrl_data *pdata);
+int aspeed_pin_config_get(struct pinctrl_dev *pctldev, unsigned int offset,
+		unsigned long *config);
+int aspeed_pin_config_set(struct pinctrl_dev *pctldev, unsigned int offset,
+		unsigned long *configs, unsigned int num_configs);
+int aspeed_pin_config_group_get(struct pinctrl_dev *pctldev,
+		unsigned int selector,
+		unsigned long *config);
+int aspeed_pin_config_group_set(struct pinctrl_dev *pctldev,
+		unsigned int selector,
+		unsigned long *configs,
+		unsigned int num_configs);
 
 #endif /* PINCTRL_ASPEED */

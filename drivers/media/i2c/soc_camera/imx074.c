@@ -180,7 +180,7 @@ static int imx074_set_fmt(struct v4l2_subdev *sd,
 	mf->field	= V4L2_FIELD_NONE;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
-		priv->fmt = imx074_find_datafmt(mf->code);
+		priv->fmt = fmt;
 	else
 		cfg->try_fmt = *mf;
 
@@ -271,12 +271,12 @@ static int imx074_g_mbus_config(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static struct v4l2_subdev_video_ops imx074_subdev_video_ops = {
+static const struct v4l2_subdev_video_ops imx074_subdev_video_ops = {
 	.s_stream	= imx074_s_stream,
 	.g_mbus_config	= imx074_g_mbus_config,
 };
 
-static struct v4l2_subdev_core_ops imx074_subdev_core_ops = {
+static const struct v4l2_subdev_core_ops imx074_subdev_core_ops = {
 	.s_power	= imx074_s_power,
 };
 
@@ -287,7 +287,7 @@ static const struct v4l2_subdev_pad_ops imx074_subdev_pad_ops = {
 	.set_fmt	= imx074_set_fmt,
 };
 
-static struct v4l2_subdev_ops imx074_subdev_ops = {
+static const struct v4l2_subdev_ops imx074_subdev_ops = {
 	.core	= &imx074_subdev_core_ops,
 	.video	= &imx074_subdev_video_ops,
 	.pad	= &imx074_subdev_pad_ops,

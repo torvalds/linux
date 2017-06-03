@@ -1,6 +1,6 @@
 config USB_PULSE8_CEC
 	tristate "Pulse Eight HDMI CEC"
-	depends on USB_ACM && MEDIA_CEC_SUPPORT
+	depends on USB_ACM && CEC_CORE
 	select SERIO
 	select SERIO_SERPORT
 	---help---

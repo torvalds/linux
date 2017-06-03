@@ -51,13 +51,12 @@ u8 ibhdr_exhdr_len(struct ib_header *hdr)
 {
 	struct ib_other_headers *ohdr;
 	u8 opcode;
-	u8 lnh = (u8)(be16_to_cpu(hdr->lrh[0]) & 3);
 
-	if (lnh == HFI1_LRH_BTH)
+	if (ib_get_lnh(hdr) == HFI1_LRH_BTH)
 		ohdr = &hdr->u.oth;
 	else
 		ohdr = &hdr->u.l.oth;
-	opcode = be32_to_cpu(ohdr->bth[0]) >> 24;
+	opcode = ib_bth_get_opcode(ohdr);
 	return hdr_len_by_opcode[opcode] == 0 ?
 	       0 : hdr_len_by_opcode[opcode] - (12 + 8);
 }

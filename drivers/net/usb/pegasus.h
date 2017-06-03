@@ -83,7 +83,6 @@ typedef struct pegasus {
 	struct usb_device	*usb;
 	struct usb_interface	*intf;
 	struct net_device	*net;
-	struct net_device_stats	stats;
 	struct mii_if_info	mii;
 	unsigned		flags;
 	unsigned		features;

@@ -710,6 +710,10 @@ static int register_cpu_online(unsigned int cpu)
 	struct device_attribute *attrs, *pmc_attrs;
 	int i, nattrs;
 
+	/* For cpus present at boot a reference was already grabbed in register_cpu() */
+	if (!s->of_node)
+		s->of_node = of_get_cpu_node(cpu, NULL);
+
 #ifdef CONFIG_PPC64
 	if (cpu_has_feature(CPU_FTR_SMT))
 		device_create_file(s, &dev_attr_smt_snooze_delay);
@@ -785,9 +789,9 @@ static int register_cpu_online(unsigned int cpu)
 	return 0;
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
 static int unregister_cpu_online(unsigned int cpu)
 {
-#ifdef CONFIG_HOTPLUG_CPU
 	struct cpu *c = &per_cpu(cpu_devices, cpu);
 	struct device *s = &c->dev;
 	struct device_attribute *attrs, *pmc_attrs;
@@ -864,9 +868,13 @@ static int unregister_cpu_online(unsigned int cpu)
 	}
 #endif
 	cacheinfo_cpu_offline(cpu);
-#endif /* CONFIG_HOTPLUG_CPU */
+	of_node_put(s->of_node);
+	s->of_node = NULL;
 	return 0;
 }
+#else /* !CONFIG_HOTPLUG_CPU */
+#define unregister_cpu_online NULL
+#endif
 
 #ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
 ssize_t arch_cpu_probe(const char *buf, size_t count)

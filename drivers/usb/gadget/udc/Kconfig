@@ -62,8 +62,9 @@ config USB_ATMEL_USBA
 
 	  The fifo_mode parameter is used to select endpoint allocation mode.
 	  fifo_mode = 0 is used to let the driver autoconfigure the endpoints.
-	  In this case 2 banks are allocated for isochronous endpoints and
-	  only one bank is allocated for the rest of the endpoints.
+	  In this case, for ep1 2 banks are allocated if it works in isochronous
+	  mode and only 1 bank otherwise. For the rest of the endpoints
+	  only 1 bank is allocated.
 
 	  fifo_mode = 1 is a generic maximum fifo size (1024 bytes) configuration
 	  allowing the usage of ep1 - ep6
@@ -191,6 +192,7 @@ config USB_RENESAS_USBHS_UDC
 config USB_RENESAS_USB3
 	tristate 'Renesas USB3.0 Peripheral controller'
 	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on EXTCON
 	help
 	   Renesas USB3.0 Peripheral controller is a USB peripheral controller
 	   that supports super, high, and full speed USB 3.0 data transfers.
@@ -253,6 +255,20 @@ config USB_MV_U3D
 	  MARVELL PXA2128 Processor series include a super speed USB3.0 device
 	  controller, which support super speed USB peripheral.
 
+config USB_SNP_CORE
+	depends on USB_AMD5536UDC
+	tristate
+	help
+	  This enables core driver support for Synopsys USB 2.0 Device
+	  controller.
+
+	  This will be enabled when PCI or Platform driver for this UDC is
+	  selected. Currently, this will be enabled by USB_SNP_UDC_PLAT or
+	  USB_AMD5536UDC options.
+
+	  This IP is different to the High Speed OTG IP that can be enabled
+	  by selecting USB_DWC2 or USB_DWC3 options.
+
 #
 # Controllers available in both integrated and discrete versions
 #
@@ -277,13 +293,17 @@ source "drivers/usb/gadget/udc/bdc/Kconfig"
 
 config USB_AMD5536UDC
 	tristate "AMD5536 UDC"
-	depends on PCI
+	depends on USB_PCI
+	select USB_SNP_CORE
 	help
 	   The AMD5536 UDC is part of the AMD Geode CS5536, an x86 southbridge.
 	   It is a USB Highspeed DMA capable USB device controller. Beside ep0
 	   it provides 4 IN and 4 OUT endpoints (bulk or interrupt type).
 	   The UDC port supports OTG operation, and may be used as a host port
 	   if it's not being used to implement peripheral or OTG roles.
+
+	   This UDC is based on Synopsys USB device controller IP and selects
+	   CONFIG_USB_SNP_CORE option to build the core driver.
 
 	   Say "y" to link the driver statically, or "m" to build a
 	   dynamically linked module called "amd5536udc" and force all
@@ -327,7 +347,7 @@ config USB_NET2272_DMA
 
 config USB_NET2280
 	tristate "NetChip NET228x / PLX USB3x8x"
-	depends on PCI
+	depends on USB_PCI
 	help
 	   NetChip 2280 / 2282 is a PCI based USB peripheral controller which
 	   supports both full and high speed USB 2.0 data transfers.
@@ -352,7 +372,7 @@ config USB_NET2280
 
 config USB_GOKU
 	tristate "Toshiba TC86C001 'Goku-S'"
-	depends on PCI
+	depends on USB_PCI
 	help
 	   The Toshiba TC86C001 is a PCI device which includes controllers
 	   for full speed USB devices, IDE, I2C, SIO, plus a USB host (OHCI).
@@ -366,7 +386,7 @@ config USB_GOKU
 
 config USB_EG20T
 	tristate "Intel QUARK X1000/EG20T PCH/LAPIS Semiconductor IOH(ML7213/ML7831) UDC"
-	depends on PCI
+	depends on USB_PCI
 	help
 	  This is a USB device driver for EG20T PCH.
 	  EG20T PCH is the platform controller hub that is used in Intel's

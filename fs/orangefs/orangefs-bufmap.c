@@ -521,13 +521,11 @@ int orangefs_bufmap_copy_from_iovec(struct iov_iter *iter,
 		size_t n = size;
 		if (n > PAGE_SIZE)
 			n = PAGE_SIZE;
-		n = copy_page_from_iter(page, 0, n, iter);
-		if (!n)
+		if (copy_page_from_iter(page, 0, n, iter) != n)
 			return -EFAULT;
 		size -= n;
 	}
 	return 0;
-
 }
 
 /*

@@ -59,7 +59,7 @@ static int get_nodes_in_cpumask(const struct cpumask *mask, nodemask_t *nodemsk)
 struct cpumask *
 irq_create_affinity_masks(int nvecs, const struct irq_affinity *affd)
 {
-	int n, nodes, vecs_per_node, cpus_per_vec, extra_vecs, curvec;
+	int n, nodes, cpus_per_vec, extra_vecs, curvec;
 	int affv = nvecs - affd->pre_vectors - affd->post_vectors;
 	int last_affv = affv + affd->pre_vectors;
 	nodemask_t nodemsk = NODE_MASK_NONE;
@@ -94,19 +94,21 @@ irq_create_affinity_masks(int nvecs, const struct irq_affinity *affd)
 		goto done;
 	}
 
-	/* Spread the vectors per node */
-	vecs_per_node = affv / nodes;
-	/* Account for rounding errors */
-	extra_vecs = affv - (nodes * vecs_per_node);
-
 	for_each_node_mask(n, nodemsk) {
-		int ncpus, v, vecs_to_assign = vecs_per_node;
+		int ncpus, v, vecs_to_assign, vecs_per_node;
+
+		/* Spread the vectors per node */
+		vecs_per_node = (affv - (curvec - affd->pre_vectors)) / nodes;
 
 		/* Get the cpus on this node which are in the mask */
 		cpumask_and(nmsk, cpu_online_mask, cpumask_of_node(n));
 
 		/* Calculate the number of cpus per vector */
 		ncpus = cpumask_weight(nmsk);
+		vecs_to_assign = min(vecs_per_node, ncpus);
+
+		/* Account for rounding errors */
+		extra_vecs = ncpus - vecs_to_assign * (ncpus / vecs_to_assign);
 
 		for (v = 0; curvec < last_affv && v < vecs_to_assign;
 		     curvec++, v++) {
@@ -115,14 +117,14 @@ irq_create_affinity_masks(int nvecs, const struct irq_affinity *affd)
 			/* Account for extra vectors to compensate rounding errors */
 			if (extra_vecs) {
 				cpus_per_vec++;
-				if (!--extra_vecs)
-					vecs_per_node++;
+				--extra_vecs;
 			}
 			irq_spread_init_one(masks + curvec, nmsk, cpus_per_vec);
 		}
 
 		if (curvec >= last_affv)
 			break;
+		--nodes;
 	}
 
 done:

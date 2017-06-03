@@ -604,7 +604,7 @@ static int mkimage(struct imgchunk *clist, unsigned int *ccnt)
  */
 static int mkpdrlist(struct pda *pda)
 {
-	u16 *pda16 = (u16 *)pda->buf;
+	__le16 *pda16 = (__le16 *)pda->buf;
 	int curroff;		/* in 'words' */
 
 	pda->nrec = 0;

@@ -679,7 +679,7 @@ static void __cvmx_increment_ba(union cvmx_sli_mem_access_subidx *pmas)
 	if (OCTEON_IS_MODEL(OCTEON_CN68XX))
 		pmas->cn68xx.ba++;
 	else
-		pmas->cn63xx.ba++;
+		pmas->s.ba++;
 }
 
 /**
@@ -1351,7 +1351,7 @@ static int __cvmx_pcie_rc_initialize_gen2(int pcie_port)
 	if (OCTEON_IS_MODEL(OCTEON_CN68XX))
 		mem_access_subid.cn68xx.ba = 0;
 	else
-		mem_access_subid.cn63xx.ba = 0;
+		mem_access_subid.s.ba = 0;
 
 	/*
 	 * Setup mem access 12-15 for port 0, 16-19 for port 1,

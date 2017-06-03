@@ -47,7 +47,7 @@
 /* configurable via /proc/sys/fs/inotify/ */
 static int inotify_max_queued_events __read_mostly;
 
-static struct kmem_cache *inotify_inode_mark_cachep __read_mostly;
+struct kmem_cache *inotify_inode_mark_cachep __read_mostly;
 
 #ifdef CONFIG_SYSCTL
 
@@ -395,21 +395,6 @@ static struct inotify_inode_mark *inotify_idr_find(struct fsnotify_group *group,
 	return i_mark;
 }
 
-static void do_inotify_remove_from_idr(struct fsnotify_group *group,
-				       struct inotify_inode_mark *i_mark)
-{
-	struct idr *idr = &group->inotify_data.idr;
-	spinlock_t *idr_lock = &group->inotify_data.idr_lock;
-	int wd = i_mark->wd;
-
-	assert_spin_locked(idr_lock);
-
-	idr_remove(idr, wd);
-
-	/* removed from the idr, drop that ref */
-	fsnotify_put_mark(&i_mark->fsn_mark);
-}
-
 /*
  * Remove the mark from the idr (if present) and drop the reference
  * on the mark because it was in the idr.
@@ -417,6 +402,7 @@ static void do_inotify_remove_from_idr(struct fsnotify_group *group,
 static void inotify_remove_from_idr(struct fsnotify_group *group,
 				    struct inotify_inode_mark *i_mark)
 {
+	struct idr *idr = &group->inotify_data.idr;
 	spinlock_t *idr_lock = &group->inotify_data.idr_lock;
 	struct inotify_inode_mark *found_i_mark = NULL;
 	int wd;
@@ -429,18 +415,16 @@ static void inotify_remove_from_idr(struct fsnotify_group *group,
 	 * if it wasn't....
 	 */
 	if (wd == -1) {
-		WARN_ONCE(1, "%s: i_mark=%p i_mark->wd=%d i_mark->group=%p"
-			" i_mark->inode=%p\n", __func__, i_mark, i_mark->wd,
-			i_mark->fsn_mark.group, i_mark->fsn_mark.inode);
+		WARN_ONCE(1, "%s: i_mark=%p i_mark->wd=%d i_mark->group=%p\n",
+			__func__, i_mark, i_mark->wd, i_mark->fsn_mark.group);
 		goto out;
 	}
 
 	/* Lets look in the idr to see if we find it */
 	found_i_mark = inotify_idr_find_locked(group, wd);
 	if (unlikely(!found_i_mark)) {
-		WARN_ONCE(1, "%s: i_mark=%p i_mark->wd=%d i_mark->group=%p"
-			" i_mark->inode=%p\n", __func__, i_mark, i_mark->wd,
-			i_mark->fsn_mark.group, i_mark->fsn_mark.inode);
+		WARN_ONCE(1, "%s: i_mark=%p i_mark->wd=%d i_mark->group=%p\n",
+			__func__, i_mark, i_mark->wd, i_mark->fsn_mark.group);
 		goto out;
 	}
 
@@ -451,35 +435,33 @@ static void inotify_remove_from_idr(struct fsnotify_group *group,
 	 */
 	if (unlikely(found_i_mark != i_mark)) {
 		WARN_ONCE(1, "%s: i_mark=%p i_mark->wd=%d i_mark->group=%p "
-			"mark->inode=%p found_i_mark=%p found_i_mark->wd=%d "
-			"found_i_mark->group=%p found_i_mark->inode=%p\n",
-			__func__, i_mark, i_mark->wd, i_mark->fsn_mark.group,
-			i_mark->fsn_mark.inode, found_i_mark, found_i_mark->wd,
-			found_i_mark->fsn_mark.group,
-			found_i_mark->fsn_mark.inode);
+			"found_i_mark=%p found_i_mark->wd=%d "
+			"found_i_mark->group=%p\n", __func__, i_mark,
+			i_mark->wd, i_mark->fsn_mark.group, found_i_mark,
+			found_i_mark->wd, found_i_mark->fsn_mark.group);
 		goto out;
 	}
 
 	/*
 	 * One ref for being in the idr
-	 * one ref held by the caller trying to kill us
 	 * one ref grabbed by inotify_idr_find
 	 */
-	if (unlikely(atomic_read(&i_mark->fsn_mark.refcnt) < 3)) {
-		printk(KERN_ERR "%s: i_mark=%p i_mark->wd=%d i_mark->group=%p"
-			" i_mark->inode=%p\n", __func__, i_mark, i_mark->wd,
-			i_mark->fsn_mark.group, i_mark->fsn_mark.inode);
+	if (unlikely(atomic_read(&i_mark->fsn_mark.refcnt) < 2)) {
+		printk(KERN_ERR "%s: i_mark=%p i_mark->wd=%d i_mark->group=%p\n",
+			 __func__, i_mark, i_mark->wd, i_mark->fsn_mark.group);
 		/* we can't really recover with bad ref cnting.. */
 		BUG();
 	}
 
-	do_inotify_remove_from_idr(group, i_mark);
+	idr_remove(idr, wd);
+	/* Removed from the idr, drop that ref. */
+	fsnotify_put_mark(&i_mark->fsn_mark);
 out:
+	i_mark->wd = -1;
+	spin_unlock(idr_lock);
 	/* match the ref taken by inotify_idr_find_locked() */
 	if (found_i_mark)
 		fsnotify_put_mark(&found_i_mark->fsn_mark);
-	i_mark->wd = -1;
-	spin_unlock(idr_lock);
 }
 
 /*
@@ -492,23 +474,13 @@ void inotify_ignored_and_remove_idr(struct fsnotify_mark *fsn_mark,
 
 	/* Queue ignore event for the watch */
 	inotify_handle_event(group, NULL, fsn_mark, NULL, FS_IN_IGNORED,
-			     NULL, FSNOTIFY_EVENT_NONE, NULL, 0);
+			     NULL, FSNOTIFY_EVENT_NONE, NULL, 0, NULL);
 
 	i_mark = container_of(fsn_mark, struct inotify_inode_mark, fsn_mark);
 	/* remove this mark from the idr */
 	inotify_remove_from_idr(group, i_mark);
 
 	dec_inotify_watches(group->inotify_data.ucounts);
-}
-
-/* ding dong the mark is dead */
-static void inotify_free_mark(struct fsnotify_mark *fsn_mark)
-{
-	struct inotify_inode_mark *i_mark;
-
-	i_mark = container_of(fsn_mark, struct inotify_inode_mark, fsn_mark);
-
-	kmem_cache_free(inotify_inode_mark_cachep, i_mark);
 }
 
 static int inotify_update_existing_watch(struct fsnotify_group *group,
@@ -524,21 +496,19 @@ static int inotify_update_existing_watch(struct fsnotify_group *group,
 
 	mask = inotify_arg_to_mask(arg);
 
-	fsn_mark = fsnotify_find_inode_mark(group, inode);
+	fsn_mark = fsnotify_find_mark(&inode->i_fsnotify_marks, group);
 	if (!fsn_mark)
 		return -ENOENT;
 
 	i_mark = container_of(fsn_mark, struct inotify_inode_mark, fsn_mark);
 
 	spin_lock(&fsn_mark->lock);
-
 	old_mask = fsn_mark->mask;
 	if (add)
-		fsnotify_set_mark_mask_locked(fsn_mark, (fsn_mark->mask | mask));
+		fsn_mark->mask |= mask;
 	else
-		fsnotify_set_mark_mask_locked(fsn_mark, mask);
+		fsn_mark->mask = mask;
 	new_mask = fsn_mark->mask;
-
 	spin_unlock(&fsn_mark->lock);
 
 	if (old_mask != new_mask) {
@@ -549,7 +519,7 @@ static int inotify_update_existing_watch(struct fsnotify_group *group,
 
 		/* update the inode with this new fsn_mark */
 		if (dropped || do_inode)
-			fsnotify_recalc_inode_mask(inode);
+			fsnotify_recalc_mask(inode->i_fsnotify_marks);
 
 	}
 
@@ -578,7 +548,7 @@ static int inotify_new_watch(struct fsnotify_group *group,
 	if (unlikely(!tmp_i_mark))
 		return -ENOMEM;
 
-	fsnotify_init_mark(&tmp_i_mark->fsn_mark, inotify_free_mark);
+	fsnotify_init_mark(&tmp_i_mark->fsn_mark, group);
 	tmp_i_mark->fsn_mark.mask = mask;
 	tmp_i_mark->wd = -1;
 
@@ -594,8 +564,7 @@ static int inotify_new_watch(struct fsnotify_group *group,
 	}
 
 	/* we are on the idr, now get on the inode */
-	ret = fsnotify_add_mark_locked(&tmp_i_mark->fsn_mark, group, inode,
-				       NULL, 0);
+	ret = fsnotify_add_mark_locked(&tmp_i_mark->fsn_mark, inode, NULL, 0);
 	if (ret) {
 		/* we failed to get on the inode, get off the idr */
 		inotify_remove_from_idr(group, tmp_i_mark);

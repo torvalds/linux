@@ -37,6 +37,8 @@
 #  define __NR_bpf 321
 # elif defined(__aarch64__)
 #  define __NR_bpf 280
+# elif defined(__sparc__)
+#  define __NR_bpf 349
 # else
 #  error __NR_bpf not defined. libbpf does not support your arch.
 # endif
@@ -69,6 +71,23 @@ int bpf_create_map(enum bpf_map_type map_type, int key_size,
 	return sys_bpf(BPF_MAP_CREATE, &attr, sizeof(attr));
 }
 
+int bpf_create_map_in_map(enum bpf_map_type map_type, int key_size,
+			  int inner_map_fd, int max_entries, __u32 map_flags)
+{
+	union bpf_attr attr;
+
+	memset(&attr, '\0', sizeof(attr));
+
+	attr.map_type = map_type;
+	attr.key_size = key_size;
+	attr.value_size = 4;
+	attr.inner_map_fd = inner_map_fd;
+	attr.max_entries = max_entries;
+	attr.map_flags = map_flags;
+
+	return sys_bpf(BPF_MAP_CREATE, &attr, sizeof(attr));
+}
+
 int bpf_load_program(enum bpf_prog_type type, const struct bpf_insn *insns,
 		     size_t insns_cnt, const char *license,
 		     __u32 kern_version, char *log_buf, size_t log_buf_sz)
@@ -95,6 +114,28 @@ int bpf_load_program(enum bpf_prog_type type, const struct bpf_insn *insns,
 	attr.log_size = log_buf_sz;
 	attr.log_level = 1;
 	log_buf[0] = 0;
+	return sys_bpf(BPF_PROG_LOAD, &attr, sizeof(attr));
+}
+
+int bpf_verify_program(enum bpf_prog_type type, const struct bpf_insn *insns,
+		       size_t insns_cnt, int strict_alignment,
+		       const char *license, __u32 kern_version,
+		       char *log_buf, size_t log_buf_sz)
+{
+	union bpf_attr attr;
+
+	bzero(&attr, sizeof(attr));
+	attr.prog_type = type;
+	attr.insn_cnt = (__u32)insns_cnt;
+	attr.insns = ptr_to_u64(insns);
+	attr.license = ptr_to_u64(license);
+	attr.log_buf = ptr_to_u64(log_buf);
+	attr.log_size = log_buf_sz;
+	attr.log_level = 2;
+	log_buf[0] = 0;
+	attr.kern_version = kern_version;
+	attr.prog_flags = strict_alignment ? BPF_F_STRICT_ALIGNMENT : 0;
+
 	return sys_bpf(BPF_PROG_LOAD, &attr, sizeof(attr));
 }
 
@@ -191,4 +232,28 @@ int bpf_prog_detach(int target_fd, enum bpf_attach_type type)
 	attr.attach_type = type;
 
 	return sys_bpf(BPF_PROG_DETACH, &attr, sizeof(attr));
+}
+
+int bpf_prog_test_run(int prog_fd, int repeat, void *data, __u32 size,
+		      void *data_out, __u32 *size_out, __u32 *retval,
+		      __u32 *duration)
+{
+	union bpf_attr attr;
+	int ret;
+
+	bzero(&attr, sizeof(attr));
+	attr.test.prog_fd = prog_fd;
+	attr.test.data_in = ptr_to_u64(data);
+	attr.test.data_out = ptr_to_u64(data_out);
+	attr.test.data_size_in = size;
+	attr.test.repeat = repeat;
+
+	ret = sys_bpf(BPF_PROG_TEST_RUN, &attr, sizeof(attr));
+	if (size_out)
+		*size_out = attr.test.data_size_out;
+	if (retval)
+		*retval = attr.test.retval;
+	if (duration)
+		*duration = attr.test.duration;
+	return ret;
 }

@@ -420,6 +420,11 @@ static void mtk_vdec_worker(struct work_struct *work)
 			dst_buf->index,
 			ret, res_chg);
 		src_buf = v4l2_m2m_src_buf_remove(ctx->m2m_ctx);
+		if (ret == -EIO) {
+			mutex_lock(&ctx->lock);
+			src_buf_info->error = true;
+			mutex_unlock(&ctx->lock);
+		}
 		v4l2_m2m_buf_done(&src_buf_info->vb, VB2_BUF_STATE_ERROR);
 	} else if (res_chg == false) {
 		/*
@@ -1170,8 +1175,16 @@ static void vb2ops_vdec_buf_queue(struct vb2_buffer *vb)
 		 */
 
 		src_buf = v4l2_m2m_src_buf_remove(ctx->m2m_ctx);
-		v4l2_m2m_buf_done(to_vb2_v4l2_buffer(src_buf),
-					VB2_BUF_STATE_DONE);
+		if (ret == -EIO) {
+			mtk_v4l2_err("[%d] Unrecoverable error in vdec_if_decode.",
+					ctx->id);
+			ctx->state = MTK_STATE_ABORT;
+			v4l2_m2m_buf_done(to_vb2_v4l2_buffer(src_buf),
+						VB2_BUF_STATE_ERROR);
+		} else {
+			v4l2_m2m_buf_done(to_vb2_v4l2_buffer(src_buf),
+						VB2_BUF_STATE_DONE);
+		}
 		mtk_v4l2_debug(ret ? 0 : 1,
 			       "[%d] vdec_if_decode() src_buf=%d, size=%zu, fail=%d, res_chg=%d",
 			       ctx->id, src_buf->index,
@@ -1216,16 +1229,22 @@ static void vb2ops_vdec_buf_finish(struct vb2_buffer *vb)
 	struct mtk_vcodec_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 	struct vb2_v4l2_buffer *vb2_v4l2;
 	struct mtk_video_dec_buf *buf;
-
-	if (vb->vb2_queue->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
-		return;
+	bool buf_error;
 
 	vb2_v4l2 = container_of(vb, struct vb2_v4l2_buffer, vb2_buf);
 	buf = container_of(vb2_v4l2, struct mtk_video_dec_buf, vb);
 	mutex_lock(&ctx->lock);
-	buf->queued_in_v4l2 = false;
-	buf->queued_in_vb2 = false;
+	if (vb->vb2_queue->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+		buf->queued_in_v4l2 = false;
+		buf->queued_in_vb2 = false;
+	}
+	buf_error = buf->error;
 	mutex_unlock(&ctx->lock);
+
+	if (buf_error) {
+		mtk_v4l2_err("Unrecoverable error on buffer.");
+		ctx->state = MTK_STATE_ABORT;
+	}
 }
 
 static int vb2ops_vdec_buf_init(struct vb2_buffer *vb)

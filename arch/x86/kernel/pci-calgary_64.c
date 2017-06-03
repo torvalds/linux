@@ -1007,9 +1007,8 @@ static void __init calgary_enable_translation(struct pci_dev *dev)
 	writel(cpu_to_be32(val32), target);
 	readl(target); /* flush */
 
-	init_timer(&tbl->watchdog_timer);
-	tbl->watchdog_timer.function = &calgary_watchdog;
-	tbl->watchdog_timer.data = (unsigned long)dev;
+	setup_timer(&tbl->watchdog_timer, &calgary_watchdog,
+		    (unsigned long)dev);
 	mod_timer(&tbl->watchdog_timer, jiffies);
 }
 

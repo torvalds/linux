@@ -1404,6 +1404,47 @@ fail:
 
 }
 
+static int btrfs_find_new_delalloc_bytes(struct btrfs_inode *inode,
+					 const u64 start,
+					 const u64 len,
+					 struct extent_state **cached_state)
+{
+	u64 search_start = start;
+	const u64 end = start + len - 1;
+
+	while (search_start < end) {
+		const u64 search_len = end - search_start + 1;
+		struct extent_map *em;
+		u64 em_len;
+		int ret = 0;
+
+		em = btrfs_get_extent(inode, NULL, 0, search_start,
+				      search_len, 0);
+		if (IS_ERR(em))
+			return PTR_ERR(em);
+
+		if (em->block_start != EXTENT_MAP_HOLE)
+			goto next;
+
+		em_len = em->len;
+		if (em->start < search_start)
+			em_len -= search_start - em->start;
+		if (em_len > search_len)
+			em_len = search_len;
+
+		ret = set_extent_bit(&inode->io_tree, search_start,
+				     search_start + em_len - 1,
+				     EXTENT_DELALLOC_NEW,
+				     NULL, cached_state, GFP_NOFS);
+next:
+		search_start = extent_map_end(em);
+		free_extent_map(em);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+
 /*
  * This function locks the extent and properly waits for data=ordered extents
  * to finish before allowing the pages to be modified if need.
@@ -1432,8 +1473,11 @@ lock_and_cleanup_extent_if_need(struct btrfs_inode *inode, struct page **pages,
 		+ round_up(pos + write_bytes - start_pos,
 			   fs_info->sectorsize) - 1;
 
-	if (start_pos < inode->vfs_inode.i_size) {
+	if (start_pos < inode->vfs_inode.i_size ||
+	    (inode->flags & BTRFS_INODE_PREALLOC)) {
 		struct btrfs_ordered_extent *ordered;
+		unsigned int clear_bits;
+
 		lock_extent_bits(&inode->io_tree, start_pos, last_pos,
 				cached_state);
 		ordered = btrfs_lookup_ordered_range(inode, start_pos,
@@ -1454,11 +1498,19 @@ lock_and_cleanup_extent_if_need(struct btrfs_inode *inode, struct page **pages,
 		}
 		if (ordered)
 			btrfs_put_ordered_extent(ordered);
-
+		ret = btrfs_find_new_delalloc_bytes(inode, start_pos,
+						    last_pos - start_pos + 1,
+						    cached_state);
+		clear_bits = EXTENT_DIRTY | EXTENT_DELALLOC |
+			EXTENT_DO_ACCOUNTING | EXTENT_DEFRAG;
+		if (ret)
+			clear_bits |= EXTENT_DELALLOC_NEW | EXTENT_LOCKED;
 		clear_extent_bit(&inode->io_tree, start_pos,
-				  last_pos, EXTENT_DIRTY | EXTENT_DELALLOC |
-				  EXTENT_DO_ACCOUNTING | EXTENT_DEFRAG,
-				  0, 0, cached_state, GFP_NOFS);
+				 last_pos, clear_bits,
+				 (clear_bits & EXTENT_LOCKED) ? 1 : 0,
+				 0, cached_state, GFP_NOFS);
+		if (ret)
+			return ret;
 		*lockstart = start_pos;
 		*lockend = last_pos;
 		ret = 1;
@@ -2342,13 +2394,8 @@ static int find_first_non_hole(struct inode *inode, u64 *start, u64 *len)
 	int ret = 0;
 
 	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, *start, *len, 0);
-	if (IS_ERR_OR_NULL(em)) {
-		if (!em)
-			ret = -ENOMEM;
-		else
-			ret = PTR_ERR(em);
-		return ret;
-	}
+	if (IS_ERR(em))
+		return PTR_ERR(em);
 
 	/* Hole or vacuum extent(only exists in no-hole mode) */
 	if (em->block_start == EXTENT_MAP_HOLE) {
@@ -2835,11 +2882,8 @@ static long btrfs_fallocate(struct file *file, int mode,
 	while (1) {
 		em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, cur_offset,
 				      alloc_end - cur_offset, 0);
-		if (IS_ERR_OR_NULL(em)) {
-			if (!em)
-				ret = -ENOMEM;
-			else
-				ret = PTR_ERR(em);
+		if (IS_ERR(em)) {
+			ret = PTR_ERR(em);
 			break;
 		}
 		last_byte = min(extent_map_end(em), alloc_end);
@@ -2856,8 +2900,10 @@ static long btrfs_fallocate(struct file *file, int mode,
 			}
 			ret = btrfs_qgroup_reserve_data(inode, cur_offset,
 					last_byte - cur_offset);
-			if (ret < 0)
+			if (ret < 0) {
+				free_extent_map(em);
 				break;
+			}
 		} else {
 			/*
 			 * Do not need to reserve unwritten extent for this

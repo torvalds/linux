@@ -13,6 +13,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/mm.h>
+#include <linux/refcount.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -26,7 +27,7 @@ struct vb2_vmalloc_buf {
 	struct frame_vector		*vec;
 	enum dma_data_direction		dma_dir;
 	unsigned long			size;
-	atomic_t			refcount;
+	refcount_t			refcount;
 	struct vb2_vmarea_handler	handler;
 	struct dma_buf			*dbuf;
 };
@@ -56,7 +57,7 @@ static void *vb2_vmalloc_alloc(struct device *dev, unsigned long attrs,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	atomic_inc(&buf->refcount);
+	refcount_set(&buf->refcount, 1);
 	return buf;
 }
 
@@ -64,7 +65,7 @@ static void vb2_vmalloc_put(void *buf_priv)
 {
 	struct vb2_vmalloc_buf *buf = buf_priv;
 
-	if (atomic_dec_and_test(&buf->refcount)) {
+	if (refcount_dec_and_test(&buf->refcount)) {
 		vfree(buf->vaddr);
 		kfree(buf);
 	}
@@ -161,7 +162,7 @@ static void *vb2_vmalloc_vaddr(void *buf_priv)
 static unsigned int vb2_vmalloc_num_users(void *buf_priv)
 {
 	struct vb2_vmalloc_buf *buf = buf_priv;
-	return atomic_read(&buf->refcount);
+	return refcount_read(&buf->refcount);
 }
 
 static int vb2_vmalloc_mmap(void *buf_priv, struct vm_area_struct *vma)
@@ -342,8 +343,8 @@ static struct dma_buf_ops vb2_vmalloc_dmabuf_ops = {
 	.detach = vb2_vmalloc_dmabuf_ops_detach,
 	.map_dma_buf = vb2_vmalloc_dmabuf_ops_map,
 	.unmap_dma_buf = vb2_vmalloc_dmabuf_ops_unmap,
-	.kmap = vb2_vmalloc_dmabuf_ops_kmap,
-	.kmap_atomic = vb2_vmalloc_dmabuf_ops_kmap,
+	.map = vb2_vmalloc_dmabuf_ops_kmap,
+	.map_atomic = vb2_vmalloc_dmabuf_ops_kmap,
 	.vmap = vb2_vmalloc_dmabuf_ops_vmap,
 	.mmap = vb2_vmalloc_dmabuf_ops_mmap,
 	.release = vb2_vmalloc_dmabuf_ops_release,
@@ -368,7 +369,7 @@ static struct dma_buf *vb2_vmalloc_get_dmabuf(void *buf_priv, unsigned long flag
 		return NULL;
 
 	/* dmabuf keeps reference to vb2 buffer */
-	atomic_inc(&buf->refcount);
+	refcount_inc(&buf->refcount);
 
 	return dbuf;
 }

@@ -138,10 +138,6 @@ static int nft_nat_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 		return -EINVAL;
 	}
 
-	err = nft_nat_validate(ctx, expr, NULL);
-	if (err < 0)
-		return err;
-
 	if (tb[NFTA_NAT_FAMILY] == NULL)
 		return -EINVAL;
 

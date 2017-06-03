@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2016 Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -124,6 +125,20 @@ enum iwl_tx_flags {
 }; /* TX_FLAGS_BITS_API_S_VER_1 */
 
 /**
+ * enum iwl_tx_cmd_flags - bitmasks for tx_flags in TX command for a000
+ * @IWL_TX_FLAGS_CMD_RATE: use rate from the TX command
+ * @IWL_TX_FLAGS_ENCRYPT_DIS: frame should not be encrypted, even if it belongs
+ *	to a secured STA
+ * @IWL_TX_FLAGS_HIGH_PRI: high priority frame (like EAPOL) - can affect rate
+ *	selection, retry limits and BT kill
+ */
+enum iwl_tx_cmd_flags {
+	IWL_TX_FLAGS_CMD_RATE		= BIT(0),
+	IWL_TX_FLAGS_ENCRYPT_DIS	= BIT(1),
+	IWL_TX_FLAGS_HIGH_PRI		= BIT(2),
+}; /* TX_FLAGS_BITS_API_S_VER_3 */
+
+/**
  * enum iwl_tx_pm_timeouts - pm timeout values in TX command
  * @PM_FRAME_NONE: no need to suspend sleep mode
  * @PM_FRAME_MGMT: fw suspend sleep mode for 100TU
@@ -159,7 +174,7 @@ enum iwl_tx_cmd_sec_ctrl {
 	TX_CMD_SEC_EXT			= 0x04,
 	TX_CMD_SEC_GCMP			= 0x05,
 	TX_CMD_SEC_KEY128		= 0x08,
-	TX_CMD_SEC_KEY_FROM_TABLE	= 0x08,
+	TX_CMD_SEC_KEY_FROM_TABLE	= 0x10,
 };
 
 /* TODO: how does these values are OK with only 16 bit variable??? */
@@ -300,6 +315,31 @@ struct iwl_tx_cmd {
 	u8 payload[0];
 	struct ieee80211_hdr hdr[0];
 } __packed; /* TX_CMD_API_S_VER_6 */
+
+struct iwl_dram_sec_info {
+	__le32 pn_low;
+	__le16 pn_high;
+	__le16 aux_info;
+} __packed; /* DRAM_SEC_INFO_API_S_VER_1 */
+
+/**
+ * struct iwl_tx_cmd_gen2 - TX command struct to FW for a000 devices
+ * ( TX_CMD = 0x1c )
+ * @len: in bytes of the payload, see below for details
+ * @offload_assist: TX offload configuration
+ * @tx_flags: combination of &iwl_tx_cmd_flags
+ * @dram_info: FW internal DRAM storage
+ * @rate_n_flags: rate for *all* Tx attempts, if TX_CMD_FLG_STA_RATE_MSK is
+ *	cleared. Combination of RATE_MCS_*
+ */
+struct iwl_tx_cmd_gen2 {
+	__le16 len;
+	__le16 offload_assist;
+	__le32 flags;
+	struct iwl_dram_sec_info dram_info;
+	__le32 rate_n_flags;
+	struct ieee80211_hdr hdr[0];
+} __packed; /* TX_CMD_API_S_VER_7 */
 
 /*
  * TX response related data
@@ -508,9 +548,11 @@ struct agg_tx_status {
  * @tlc_info: TLC rate info
  * @ra_tid: bits [3:0] = ra, bits [7:4] = tid
  * @frame_ctrl: frame control
+ * @tx_queue: TX queue for this response
  * @status: for non-agg:  frame status TX_STATUS_*
  *	for agg: status of 1st frame, AGG_TX_STATE_*; other frame status fields
  *	follow this one, up to frame_count.
+ *	For version 6 TX response isn't received for aggregation at all.
  *
  * After the array of statuses comes the SSN of the SCD. Look at
  * %iwl_mvm_get_scd_ssn for more details.
@@ -537,9 +579,17 @@ struct iwl_mvm_tx_resp {
 	u8 tlc_info;
 	u8 ra_tid;
 	__le16 frame_ctrl;
-
-	struct agg_tx_status status;
-} __packed; /* TX_RSP_API_S_VER_3 */
+	union {
+		struct {
+			struct agg_tx_status status;
+		} v3;/* TX_RSP_API_S_VER_3 */
+		struct {
+			__le16 tx_queue;
+			__le16 reserved2;
+			struct agg_tx_status status;
+		} v6;
+	};
+} __packed; /* TX_RSP_API_S_VER_6 */
 
 /**
  * struct iwl_mvm_ba_notif - notifies about reception of BA
@@ -579,11 +629,14 @@ struct iwl_mvm_ba_notif {
  * struct iwl_mvm_compressed_ba_tfd - progress of a TFD queue
  * @q_num: TFD queue number
  * @tfd_index: Index of first un-acked frame in the  TFD queue
+ * @scd_queue: For debug only - the physical queue the TFD queue is bound to
  */
 struct iwl_mvm_compressed_ba_tfd {
-	u8 q_num;
-	u8 reserved;
+	__le16 q_num;
 	__le16 tfd_index;
+	u8 scd_queue;
+	u8 reserved;
+	__le16 reserved2;
 } __packed; /* COMPRESSED_BA_TFD_API_S_VER_1 */
 
 /**
@@ -635,6 +688,10 @@ enum iwl_mvm_ba_resp_flags {
  * @tx_rate: the rate the aggregation was sent at
  * @tfd_cnt: number of TFD-Q elements
  * @ra_tid_cnt: number of RATID-Q elements
+ * @ba_tfd: array of TFD queue status updates. See &iwl_mvm_compressed_ba_tfd
+ *	for details.
+ * @ra_tid: array of RA-TID queue status updates. For debug purposes only. See
+ *	&iwl_mvm_compressed_ba_ratid for more details.
  */
 struct iwl_mvm_compressed_ba_notif {
 	__le32 flags;
@@ -646,6 +703,7 @@ struct iwl_mvm_compressed_ba_notif {
 	__le16 query_frame_cnt;
 	__le16 txed;
 	__le16 done;
+	__le16 reserved;
 	__le32 wireless_time;
 	__le32 tx_rate;
 	__le16 tfd_cnt;
@@ -753,25 +811,6 @@ struct iwl_tx_path_flush_cmd {
 	__le16 flush_ctl;
 	__le16 reserved;
 } __packed; /* TX_PATH_FLUSH_CMD_API_S_VER_1 */
-
-/**
- * iwl_mvm_get_scd_ssn - returns the SSN of the SCD
- * @tx_resp: the Tx response from the fw (agg or non-agg)
- *
- * When the fw sends an AMPDU, it fetches the MPDUs one after the other. Since
- * it can't know that everything will go well until the end of the AMPDU, it
- * can't know in advance the number of MPDUs that will be sent in the current
- * batch. This is why it writes the agg Tx response while it fetches the MPDUs.
- * Hence, it can't know in advance what the SSN of the SCD will be at the end
- * of the batch. This is why the SSN of the SCD is written at the end of the
- * whole struct at a variable offset. This function knows how to cope with the
- * variable offset and returns the SSN of the SCD.
- */
-static inline u32 iwl_mvm_get_scd_ssn(struct iwl_mvm_tx_resp *tx_resp)
-{
-	return le32_to_cpup((__le32 *)&tx_resp->status +
-			    tx_resp->frame_count) & 0xfff;
-}
 
 /* Available options for the SCD_QUEUE_CFG HCMD */
 enum iwl_scd_cfg_actions {

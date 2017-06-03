@@ -74,26 +74,34 @@ struct s626_buffer_dma {
 	void *logical_base;
 };
 
+/**
+ * struct s626_private - Working data for s626 driver.
+ * @ai_cmd_running: non-zero if ai_cmd is running.
+ * @ai_sample_timer: time between samples in units of the timer.
+ * @ai_convert_count: conversion counter.
+ * @ai_convert_timer: time between conversion in units of the timer.
+ * @counter_int_enabs: counter interrupt enable mask for MISC2 register.
+ * @adc_items: number of items in ADC poll list.
+ * @rps_buf: DMA buffer used to hold ADC (RPS1) program.
+ * @ana_buf:  DMA buffer used to receive ADC data and hold DAC data.
+ * @dac_wbuf: pointer to logical adrs of DMA buffer used to hold DAC data.
+ * @dacpol: image of DAC polarity register.
+ * @trim_setpoint: images of TrimDAC setpoints.
+ * @i2c_adrs: I2C device address for onboard EEPROM (board rev dependent)
+ */
 struct s626_private {
-	u8 ai_cmd_running;		/* ai_cmd is running */
-	unsigned int ai_sample_timer;	/* time between samples in
-					 * units of the timer */
-	int ai_convert_count;		/* conversion counter */
-	unsigned int ai_convert_timer;	/* time between conversion in
-					 * units of the timer */
-	u16 counter_int_enabs;	        /* counter interrupt enable mask
-					 * for MISC2 register */
-	u8 adc_items;		        /* number of items in ADC poll list */
-	struct s626_buffer_dma rps_buf;	/* DMA buffer used to hold ADC (RPS1)
-					 * program */
-	struct s626_buffer_dma ana_buf;	/* DMA buffer used to receive ADC data
-					 * and hold DAC data */
-	u32 *dac_wbuf;		        /* pointer to logical adrs of DMA buffer
-					 * used to hold DAC data */
-	u16 dacpol;		        /* image of DAC polarity register */
-	u8 trim_setpoint[12];	        /* images of TrimDAC setpoints */
-	u32 i2c_adrs;		        /* I2C device address for onboard EEPROM
-					 * (board rev dependent) */
+	u8 ai_cmd_running;
+	unsigned int ai_sample_timer;
+	int ai_convert_count;
+	unsigned int ai_convert_timer;
+	u16 counter_int_enabs;
+	u8 adc_items;
+	struct s626_buffer_dma rps_buf;
+	struct s626_buffer_dma ana_buf;
+	u32 *dac_wbuf;
+	u16 dacpol;
+	u8 trim_setpoint[12];
+	u32 i2c_adrs;
 };
 
 /* Counter overflow/index event flag masks for RDMISC2. */
@@ -591,7 +599,7 @@ static int s626_write_trim_dac(struct comedi_device *dev,
 	 * Save the new setpoint in case the application needs to read it back
 	 * later.
 	 */
-	devpriv->trim_setpoint[logical_chan] = (u8)dac_data;
+	devpriv->trim_setpoint[logical_chan] = dac_data;
 
 	/* Map logical channel number to physical channel number. */
 	chan = s626_trimchan[logical_chan];
@@ -1928,7 +1936,7 @@ static int s626_ao_insn_write(struct comedi_device *dev,
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
-		int16_t dacdata = (int16_t)data[i];
+		s16 dacdata = (s16)data[i];
 		int ret;
 
 		dacdata -= (0x1fff);

@@ -2950,8 +2950,8 @@ struct hci_dev *hci_alloc_dev(void)
 	hdev->le_adv_max_interval = 0x0800;
 	hdev->le_scan_interval = 0x0060;
 	hdev->le_scan_window = 0x0030;
-	hdev->le_conn_min_interval = 0x0028;
-	hdev->le_conn_max_interval = 0x0038;
+	hdev->le_conn_min_interval = 0x0018;
+	hdev->le_conn_max_interval = 0x0028;
 	hdev->le_conn_latency = 0x0000;
 	hdev->le_supv_timeout = 0x002a;
 	hdev->le_def_tx_len = 0x001b;

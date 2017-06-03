@@ -82,24 +82,24 @@ MODULE_PARM_DESC(nopnp, "Do not use PNP to detect controller settings, defaults 
 
 #define DMA_INVAL 255
 static int ircc_dma = DMA_INVAL;
-module_param(ircc_dma, int, 0);
+module_param_hw(ircc_dma, int, dma, 0);
 MODULE_PARM_DESC(ircc_dma, "DMA channel");
 
 #define IRQ_INVAL 255
 static int ircc_irq = IRQ_INVAL;
-module_param(ircc_irq, int, 0);
+module_param_hw(ircc_irq, int, irq, 0);
 MODULE_PARM_DESC(ircc_irq, "IRQ line");
 
 static int ircc_fir;
-module_param(ircc_fir, int, 0);
+module_param_hw(ircc_fir, int, ioport, 0);
 MODULE_PARM_DESC(ircc_fir, "FIR Base Address");
 
 static int ircc_sir;
-module_param(ircc_sir, int, 0);
+module_param_hw(ircc_sir, int, ioport, 0);
 MODULE_PARM_DESC(ircc_sir, "SIR Base Address");
 
 static int ircc_cfg;
-module_param(ircc_cfg, int, 0);
+module_param_hw(ircc_cfg, int, ioport, 0);
 MODULE_PARM_DESC(ircc_cfg, "Configuration register base address");
 
 static int ircc_transceiver;

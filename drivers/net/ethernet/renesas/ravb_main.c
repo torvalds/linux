@@ -1516,11 +1516,12 @@ static netdev_tx_t ravb_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		spin_unlock_irqrestore(&priv->lock, flags);
 		return NETDEV_TX_BUSY;
 	}
-	entry = priv->cur_tx[q] % (priv->num_tx_ring[q] * NUM_TX_DESC);
-	priv->tx_skb[q][entry / NUM_TX_DESC] = skb;
 
 	if (skb_put_padto(skb, ETH_ZLEN))
-		goto drop;
+		goto exit;
+
+	entry = priv->cur_tx[q] % (priv->num_tx_ring[q] * NUM_TX_DESC);
+	priv->tx_skb[q][entry / NUM_TX_DESC] = skb;
 
 	buffer = PTR_ALIGN(priv->tx_align[q], DPTR_ALIGN) +
 		 entry / NUM_TX_DESC * DPTR_ALIGN;

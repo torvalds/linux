@@ -4,6 +4,7 @@
 #include "cpumap.h"
 #include "tests.h"
 
+#include <errno.h>
 #include <signal.h>
 
 static int exited;

@@ -509,6 +509,8 @@ struct class_parms {
 	uint8_t word3Reserved2;	/* Fc Word 3, bit  0: 7 */
 };
 
+#define FAPWWN_KEY_VENDOR	0x42524344 /*valid vendor version fawwpn key*/
+
 struct serv_parm {	/* Structure is in Big Endian format */
 	struct csp cmn;
 	struct lpfc_name portName;
@@ -2885,6 +2887,7 @@ struct lpfc_mbx_read_top {
 #define LPFC_ATT_RESERVED    0x00	/* Reserved - attType */
 #define LPFC_ATT_LINK_UP     0x01	/* Link is up */
 #define LPFC_ATT_LINK_DOWN   0x02	/* Link is down */
+#define LPFC_ATT_UNEXP_WWPN  0x06	/* Link is down Unexpected WWWPN */
 	uint32_t word3;
 #define lpfc_mbx_read_top_alpa_granted_SHIFT	24
 #define lpfc_mbx_read_top_alpa_granted_MASK	0x000000FF

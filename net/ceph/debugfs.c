@@ -62,7 +62,8 @@ static int osdmap_show(struct seq_file *s, void *p)
 		return 0;
 
 	down_read(&osdc->lock);
-	seq_printf(s, "epoch %d flags 0x%x\n", map->epoch, map->flags);
+	seq_printf(s, "epoch %u barrier %u flags 0x%x\n", map->epoch,
+			osdc->epoch_barrier, map->flags);
 
 	for (n = rb_first(&map->pg_pools); n; n = rb_next(n)) {
 		struct ceph_pg_pool_info *pi =
@@ -177,9 +178,7 @@ static void dump_request(struct seq_file *s, struct ceph_osd_request *req)
 	seq_printf(s, "%llu\t", req->r_tid);
 	dump_target(s, &req->r_t);
 
-	seq_printf(s, "\t%d\t%u'%llu", req->r_attempts,
-		   le32_to_cpu(req->r_replay_version.epoch),
-		   le64_to_cpu(req->r_replay_version.version));
+	seq_printf(s, "\t%d", req->r_attempts);
 
 	for (i = 0; i < req->r_num_ops; i++) {
 		struct ceph_osd_req_op *op = &req->r_ops[i];

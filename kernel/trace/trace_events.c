@@ -2460,15 +2460,8 @@ struct event_probe_data {
 	bool				enable;
 };
 
-static void
-event_enable_probe(unsigned long ip, unsigned long parent_ip, void **_data)
+static void update_event_probe(struct event_probe_data *data)
 {
-	struct event_probe_data **pdata = (struct event_probe_data **)_data;
-	struct event_probe_data *data = *pdata;
-
-	if (!data)
-		return;
-
 	if (data->enable)
 		clear_bit(EVENT_FILE_FL_SOFT_DISABLED_BIT, &data->file->flags);
 	else
@@ -2476,77 +2469,141 @@ event_enable_probe(unsigned long ip, unsigned long parent_ip, void **_data)
 }
 
 static void
-event_enable_count_probe(unsigned long ip, unsigned long parent_ip, void **_data)
+event_enable_probe(unsigned long ip, unsigned long parent_ip,
+		   struct trace_array *tr, struct ftrace_probe_ops *ops,
+		   void *data)
 {
-	struct event_probe_data **pdata = (struct event_probe_data **)_data;
-	struct event_probe_data *data = *pdata;
+	struct ftrace_func_mapper *mapper = data;
+	struct event_probe_data *edata;
+	void **pdata;
 
-	if (!data)
+	pdata = ftrace_func_mapper_find_ip(mapper, ip);
+	if (!pdata || !*pdata)
 		return;
 
-	if (!data->count)
+	edata = *pdata;
+	update_event_probe(edata);
+}
+
+static void
+event_enable_count_probe(unsigned long ip, unsigned long parent_ip,
+			 struct trace_array *tr, struct ftrace_probe_ops *ops,
+			 void *data)
+{
+	struct ftrace_func_mapper *mapper = data;
+	struct event_probe_data *edata;
+	void **pdata;
+
+	pdata = ftrace_func_mapper_find_ip(mapper, ip);
+	if (!pdata || !*pdata)
+		return;
+
+	edata = *pdata;
+
+	if (!edata->count)
 		return;
 
 	/* Skip if the event is in a state we want to switch to */
-	if (data->enable == !(data->file->flags & EVENT_FILE_FL_SOFT_DISABLED))
+	if (edata->enable == !(edata->file->flags & EVENT_FILE_FL_SOFT_DISABLED))
 		return;
 
-	if (data->count != -1)
-		(data->count)--;
+	if (edata->count != -1)
+		(edata->count)--;
 
-	event_enable_probe(ip, parent_ip, _data);
+	update_event_probe(edata);
 }
 
 static int
 event_enable_print(struct seq_file *m, unsigned long ip,
-		      struct ftrace_probe_ops *ops, void *_data)
+		   struct ftrace_probe_ops *ops, void *data)
 {
-	struct event_probe_data *data = _data;
+	struct ftrace_func_mapper *mapper = data;
+	struct event_probe_data *edata;
+	void **pdata;
+
+	pdata = ftrace_func_mapper_find_ip(mapper, ip);
+
+	if (WARN_ON_ONCE(!pdata || !*pdata))
+		return 0;
+
+	edata = *pdata;
 
 	seq_printf(m, "%ps:", (void *)ip);
 
 	seq_printf(m, "%s:%s:%s",
-		   data->enable ? ENABLE_EVENT_STR : DISABLE_EVENT_STR,
-		   data->file->event_call->class->system,
-		   trace_event_name(data->file->event_call));
+		   edata->enable ? ENABLE_EVENT_STR : DISABLE_EVENT_STR,
+		   edata->file->event_call->class->system,
+		   trace_event_name(edata->file->event_call));
 
-	if (data->count == -1)
+	if (edata->count == -1)
 		seq_puts(m, ":unlimited\n");
 	else
-		seq_printf(m, ":count=%ld\n", data->count);
+		seq_printf(m, ":count=%ld\n", edata->count);
 
 	return 0;
 }
 
 static int
-event_enable_init(struct ftrace_probe_ops *ops, unsigned long ip,
-		  void **_data)
+event_enable_init(struct ftrace_probe_ops *ops, struct trace_array *tr,
+		  unsigned long ip, void *init_data, void **data)
 {
-	struct event_probe_data **pdata = (struct event_probe_data **)_data;
-	struct event_probe_data *data = *pdata;
+	struct ftrace_func_mapper *mapper = *data;
+	struct event_probe_data *edata = init_data;
+	int ret;
 
-	data->ref++;
+	if (!mapper) {
+		mapper = allocate_ftrace_func_mapper();
+		if (!mapper)
+			return -ENODEV;
+		*data = mapper;
+	}
+
+	ret = ftrace_func_mapper_add_ip(mapper, ip, edata);
+	if (ret < 0)
+		return ret;
+
+	edata->ref++;
+
+	return 0;
+}
+
+static int free_probe_data(void *data)
+{
+	struct event_probe_data *edata = data;
+
+	edata->ref--;
+	if (!edata->ref) {
+		/* Remove the SOFT_MODE flag */
+		__ftrace_event_enable_disable(edata->file, 0, 1);
+		module_put(edata->file->event_call->mod);
+		kfree(edata);
+	}
 	return 0;
 }
 
 static void
-event_enable_free(struct ftrace_probe_ops *ops, unsigned long ip,
-		  void **_data)
+event_enable_free(struct ftrace_probe_ops *ops, struct trace_array *tr,
+		  unsigned long ip, void *data)
 {
-	struct event_probe_data **pdata = (struct event_probe_data **)_data;
-	struct event_probe_data *data = *pdata;
+	struct ftrace_func_mapper *mapper = data;
+	struct event_probe_data *edata;
 
-	if (WARN_ON_ONCE(data->ref <= 0))
+	if (!ip) {
+		if (!mapper)
+			return;
+		free_ftrace_func_mapper(mapper, free_probe_data);
+		return;
+	}
+
+	edata = ftrace_func_mapper_remove_ip(mapper, ip);
+
+	if (WARN_ON_ONCE(!edata))
 		return;
 
-	data->ref--;
-	if (!data->ref) {
-		/* Remove the SOFT_MODE flag */
-		__ftrace_event_enable_disable(data->file, 0, 1);
-		module_put(data->file->event_call->mod);
-		kfree(data);
-	}
-	*pdata = NULL;
+	if (WARN_ON_ONCE(edata->ref <= 0))
+		return;
+
+	free_probe_data(edata);
 }
 
 static struct ftrace_probe_ops event_enable_probe_ops = {
@@ -2578,10 +2635,9 @@ static struct ftrace_probe_ops event_disable_count_probe_ops = {
 };
 
 static int
-event_enable_func(struct ftrace_hash *hash,
+event_enable_func(struct trace_array *tr, struct ftrace_hash *hash,
 		  char *glob, char *cmd, char *param, int enabled)
 {
-	struct trace_array *tr = top_trace_array();
 	struct trace_event_file *file;
 	struct ftrace_probe_ops *ops;
 	struct event_probe_data *data;
@@ -2619,12 +2675,12 @@ event_enable_func(struct ftrace_hash *hash,
 		ops = param ? &event_disable_count_probe_ops : &event_disable_probe_ops;
 
 	if (glob[0] == '!') {
-		unregister_ftrace_function_probe_func(glob+1, ops);
-		ret = 0;
+		ret = unregister_ftrace_function_probe_func(glob+1, tr, ops);
 		goto out;
 	}
 
 	ret = -ENOMEM;
+
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		goto out;
@@ -2661,7 +2717,8 @@ event_enable_func(struct ftrace_hash *hash,
 	ret = __ftrace_event_enable_disable(file, 1, 1);
 	if (ret < 0)
 		goto out_put;
-	ret = register_ftrace_function_probe(glob, ops, data);
+
+	ret = register_ftrace_function_probe(glob, tr, ops, data);
 	/*
 	 * The above returns on success the # of functions enabled,
 	 * but if it didn't find any functions it returns zero.

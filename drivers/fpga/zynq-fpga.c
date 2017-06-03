@@ -72,6 +72,10 @@
 #define CTRL_PCAP_PR_MASK		BIT(27)
 /* Enable PCAP */
 #define CTRL_PCAP_MODE_MASK		BIT(26)
+/* Lower rate to allow decrypt on the fly */
+#define CTRL_PCAP_RATE_EN_MASK		BIT(25)
+/* System booted in secure mode */
+#define CTRL_SEC_EN_MASK		BIT(7)
 
 /* Miscellaneous Control Register bit definitions */
 /* Internal PCAP loopback */
@@ -266,6 +270,17 @@ static int zynq_fpga_ops_write_init(struct fpga_manager *mgr,
 	if (err)
 		return err;
 
+	/* check if bitstream is encrypted & and system's still secure */
+	if (info->flags & FPGA_MGR_ENCRYPTED_BITSTREAM) {
+		ctrl = zynq_fpga_read(priv, CTRL_OFFSET);
+		if (!(ctrl & CTRL_SEC_EN_MASK)) {
+			dev_err(&mgr->dev,
+				"System not secure, can't use crypted bitstreams\n");
+			err = -EINVAL;
+			goto out_err;
+		}
+	}
+
 	/* don't globally reset PL if we're doing partial reconfig */
 	if (!(info->flags & FPGA_MGR_PARTIAL_RECONFIG)) {
 		if (!zynq_fpga_has_sync(buf, count)) {
@@ -337,12 +352,19 @@ static int zynq_fpga_ops_write_init(struct fpga_manager *mgr,
 
 	/* set configuration register with following options:
 	 * - enable PCAP interface
-	 * - set throughput for maximum speed
+	 * - set throughput for maximum speed (if bistream not crypted)
 	 * - set CPU in user mode
 	 */
 	ctrl = zynq_fpga_read(priv, CTRL_OFFSET);
-	zynq_fpga_write(priv, CTRL_OFFSET,
-			(CTRL_PCAP_PR_MASK | CTRL_PCAP_MODE_MASK | ctrl));
+	if (info->flags & FPGA_MGR_ENCRYPTED_BITSTREAM)
+		zynq_fpga_write(priv, CTRL_OFFSET,
+				(CTRL_PCAP_PR_MASK | CTRL_PCAP_MODE_MASK
+				 | CTRL_PCAP_RATE_EN_MASK | ctrl));
+	else
+		zynq_fpga_write(priv, CTRL_OFFSET,
+				(CTRL_PCAP_PR_MASK | CTRL_PCAP_MODE_MASK
+				 | ctrl));
+
 
 	/* We expect that the command queue is empty right now. */
 	status = zynq_fpga_read(priv, STATUS_OFFSET);

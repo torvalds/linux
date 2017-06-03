@@ -179,6 +179,18 @@ LS1046A ARMv8 based RDB Board
 Required root node properties:
     - compatible = "fsl,ls1046a-rdb", "fsl,ls1046a";
 
+LS1088A SoC
+Required root node properties:
+    - compatible = "fsl,ls1088a";
+
+LS1088A ARMv8 based QDS Board
+Required root node properties:
+    - compatible = "fsl,ls1088a-qds", "fsl,ls1088a";
+
+LS1088A ARMv8 based RDB Board
+Required root node properties:
+    - compatible = "fsl,ls1088a-rdb", "fsl,ls1088a";
+
 LS2080A SoC
 Required root node properties:
     - compatible = "fsl,ls2080a";
@@ -195,3 +207,14 @@ LS2080A ARMv8 based RDB Board
 Required root node properties:
     - compatible = "fsl,ls2080a-rdb", "fsl,ls2080a";
 
+LS2088A SoC
+Required root node properties:
+    - compatible = "fsl,ls2088a";
+
+LS2088A ARMv8 based QDS Board
+Required root node properties:
+    - compatible = "fsl,ls2088a-qds", "fsl,ls2088a";
+
+LS2088A ARMv8 based RDB Board
+Required root node properties:
+    - compatible = "fsl,ls2088a-rdb", "fsl,ls2088a";

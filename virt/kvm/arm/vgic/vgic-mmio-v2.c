@@ -229,7 +229,15 @@ static unsigned long vgic_mmio_read_vcpuif(struct kvm_vcpu *vcpu,
 		val = vmcr.ctlr;
 		break;
 	case GIC_CPU_PRIMASK:
-		val = vmcr.pmr;
+		/*
+		 * Our KVM_DEV_TYPE_ARM_VGIC_V2 device ABI exports the
+		 * the PMR field as GICH_VMCR.VMPriMask rather than
+		 * GICC_PMR.Priority, so we expose the upper five bits of
+		 * priority mask to userspace using the lower bits in the
+		 * unsigned long.
+		 */
+		val = (vmcr.pmr & GICV_PMR_PRIORITY_MASK) >>
+			GICV_PMR_PRIORITY_SHIFT;
 		break;
 	case GIC_CPU_BINPOINT:
 		val = vmcr.bpr;
@@ -262,7 +270,15 @@ static void vgic_mmio_write_vcpuif(struct kvm_vcpu *vcpu,
 		vmcr.ctlr = val;
 		break;
 	case GIC_CPU_PRIMASK:
-		vmcr.pmr = val;
+		/*
+		 * Our KVM_DEV_TYPE_ARM_VGIC_V2 device ABI exports the
+		 * the PMR field as GICH_VMCR.VMPriMask rather than
+		 * GICC_PMR.Priority, so we expose the upper five bits of
+		 * priority mask to userspace using the lower bits in the
+		 * unsigned long.
+		 */
+		vmcr.pmr = (val << GICV_PMR_PRIORITY_SHIFT) &
+			GICV_PMR_PRIORITY_MASK;
 		break;
 	case GIC_CPU_BINPOINT:
 		vmcr.bpr = val;

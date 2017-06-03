@@ -369,7 +369,7 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 			/* select left side (sc0)
 			 * set addr
 			 */
-			write_reg(par, 0x00, (1 << 6) | (u8)addr_win.xs);
+			write_reg(par, 0x00, BIT(6) | (u8)addr_win.xs);
 			write_reg(par, 0x00, (0x17 << 3) | (u8)y);
 
 			/* write bitmap */

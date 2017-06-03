@@ -769,18 +769,31 @@ static int ezusb_submit_in_urb(struct ezusb_priv *upriv)
 
 static inline int ezusb_8051_cpucs(struct ezusb_priv *upriv, int reset)
 {
-	u8 res_val = reset;	/* avoid argument promotion */
+	int ret;
+	u8 *res_val = NULL;
 
 	if (!upriv->udev) {
 		err("%s: !upriv->udev", __func__);
 		return -EFAULT;
 	}
-	return usb_control_msg(upriv->udev,
+
+	res_val = kmalloc(sizeof(*res_val), GFP_KERNEL);
+
+	if (!res_val)
+		return -ENOMEM;
+
+	*res_val = reset;	/* avoid argument promotion */
+
+	ret =  usb_control_msg(upriv->udev,
 			       usb_sndctrlpipe(upriv->udev, 0),
 			       EZUSB_REQUEST_FW_TRANS,
 			       USB_TYPE_VENDOR | USB_RECIP_DEVICE |
-			       USB_DIR_OUT, EZUSB_CPUCS_REG, 0, &res_val,
-			       sizeof(res_val), DEF_TIMEOUT);
+			       USB_DIR_OUT, EZUSB_CPUCS_REG, 0, res_val,
+			       sizeof(*res_val), DEF_TIMEOUT);
+
+	kfree(res_val);
+
+	return ret;
 }
 
 static int ezusb_firmware_download(struct ezusb_priv *upriv,
