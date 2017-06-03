@@ -540,14 +540,9 @@ int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list)
 	if (!ct)
 		return 0;
 
-	unilist = kmalloc_array(ct, sizeof(struct unipair), GFP_KERNEL);
-	if (!unilist)
-		return -ENOMEM;
-
-	for (i = ct, plist = unilist; i; i--, plist++, list++) {
-		__get_user(plist->unicode, &list->unicode);
-		__get_user(plist->fontpos, &list->fontpos);
-	}
+	unilist = memdup_user(list, ct * sizeof(struct unipair));
+	if (IS_ERR(unilist))
+		return PTR_ERR(unilist);
 
 	console_lock();
 
