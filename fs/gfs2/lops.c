@@ -209,10 +209,8 @@ static void gfs2_end_log_write(struct bio *bio)
 	struct page *page;
 	int i;
 
-	if (bio->bi_error) {
-		sdp->sd_log_error = bio->bi_error;
+	if (bio->bi_error)
 		fs_err(sdp, "Error %d writing to log\n", bio->bi_error);
-	}
 
 	bio_for_each_segment_all(bvec, bio, i) {
 		page = bvec->bv_page;
