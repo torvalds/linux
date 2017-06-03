@@ -2,6 +2,7 @@
  *  Nintendo 3DS bottom_lcd.h
  *
  *  Copyright (C) 2016 Sergi Granell
+ *  Copyright (C) 2017 Paul LaMendola (paulguy)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -35,8 +36,7 @@ void nintendo3ds_bottom_lcd_draw_pixel(int x, int y, unsigned int color);
 void nintendo3ds_bottom_lcd_draw_fillrect(int x, int y, int w, int h, unsigned int color);
 void nintendo3ds_bottom_lcd_clear_screen(unsigned int color);
 void nintendo3ds_bottom_lcd_draw_char(const struct font_desc *font, int x, int y, unsigned int color, char c);
-int nintendo3ds_bottom_lcd_draw_text(const struct font_desc *font, int x, int y, unsigned int color, const char *text);
-void nintendo3ds_bottom_lcd_draw_textf(const struct font_desc *font, int x, int y, unsigned int color, const char *text, ...);
-
+int nintendo3ds_bottom_lcd_draw_text(const struct font_desc *font, int x, int y, unsigned int fgcolor, unsigned int bgcolor, const char *text);
+void nintendo3ds_bottom_lcd_draw_textf(const struct font_desc *font, int x, int y, unsigned int fgcolor, unsigned int bgcolor, const char *text, ...);
 
 #endif

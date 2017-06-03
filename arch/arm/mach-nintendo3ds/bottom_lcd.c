@@ -2,6 +2,7 @@
  *  Nintendo 3DS bottom_lcd.c
  *
  *  Copyright (C) 2016 Sergi Granell
+ *  Copyright (C) 2017 Paul LaMendola (paulguy)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -99,7 +100,6 @@ void nintendo3ds_bottom_lcd_draw_char(const struct font_desc *font, int x, int y
 
 	for (i = 0; i < 8; i++) {
 		for (j = 0; j < 8; j++) {
-			nintendo3ds_bottom_lcd_draw_pixel(x+j, y+i, COLOR_BLACK);
 			if ((*src & (128 >> j)))
 				nintendo3ds_bottom_lcd_draw_pixel(x+j, y+i, color);
 		}
@@ -107,7 +107,7 @@ void nintendo3ds_bottom_lcd_draw_char(const struct font_desc *font, int x, int y
 	}
 }
 
-int nintendo3ds_bottom_lcd_draw_text(const struct font_desc *font, int x, int y, unsigned int color, const char *text)
+int nintendo3ds_bottom_lcd_draw_text(const struct font_desc *font, int x, int y, unsigned int fgcolor, unsigned int bgcolor, const char *text)
 {
 	char c;
 	int sx = x;
@@ -124,8 +124,8 @@ int nintendo3ds_bottom_lcd_draw_text(const struct font_desc *font, int x, int y,
 		} else if(c == '\t') {
 			x += 4 * font->width;
 		} else {
-			nintendo3ds_bottom_lcd_draw_fillrect(x, y, font->width, font->height, COLOR_BLACK);
-			nintendo3ds_bottom_lcd_draw_char(font, x, y, color, c);
+			nintendo3ds_bottom_lcd_draw_fillrect(x, y, font->width, font->height, bgcolor);
+			nintendo3ds_bottom_lcd_draw_char(font, x, y, fgcolor, c);
 			x += font->width;
 		}
 	}
@@ -133,12 +133,12 @@ int nintendo3ds_bottom_lcd_draw_text(const struct font_desc *font, int x, int y,
 	return x - sx;
 }
 
-void nintendo3ds_bottom_lcd_draw_textf(const struct font_desc *font, int x, int y, unsigned int color, const char *text, ...)
+void nintendo3ds_bottom_lcd_draw_textf(const struct font_desc *font, int x, int y, unsigned int fgcolor, unsigned int bgcolor, const char *text, ...)
 {
 	char buffer[256];
 	va_list args;
 	va_start(args, text);
 	vsnprintf(buffer, 256, text, args);
-	nintendo3ds_bottom_lcd_draw_text(font, x, y, color, buffer);
+	nintendo3ds_bottom_lcd_draw_text(font, x, y, bgcolor, fgcolor, buffer);
 	va_end(args);
 }
