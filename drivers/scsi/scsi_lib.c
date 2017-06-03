@@ -1851,7 +1851,7 @@ static int scsi_mq_prep_fn(struct request *req)
 
 	/* zero out the cmd, except for the embedded scsi_request */
 	memset((char *)cmd + sizeof(cmd->req), 0,
-		sizeof(*cmd) - sizeof(cmd->req));
+		sizeof(*cmd) - sizeof(cmd->req) + shost->hostt->cmd_size);
 
 	req->special = cmd;
 

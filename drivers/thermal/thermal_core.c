@@ -359,7 +359,7 @@ static DECLARE_DELAYED_WORK(thermal_emergency_poweroff_work,
  * This may be called from any critical situation to trigger a system shutdown
  * after a known period of time. By default this is not scheduled.
  */
-void thermal_emergency_poweroff(void)
+static void thermal_emergency_poweroff(void)
 {
 	int poweroff_delay_ms = CONFIG_THERMAL_EMERGENCY_POWEROFF_DELAY_MS;
 	/*

@@ -425,9 +425,14 @@ bool amdgpu_fbdev_robj_is_fb(struct amdgpu_device *adev, struct amdgpu_bo *robj)
 
 void amdgpu_fbdev_restore_mode(struct amdgpu_device *adev)
 {
-	struct amdgpu_fbdev *afbdev = adev->mode_info.rfbdev;
+	struct amdgpu_fbdev *afbdev;
 	struct drm_fb_helper *fb_helper;
 	int ret;
+
+	if (!adev)
+		return;
+
+	afbdev = adev->mode_info.rfbdev;
 
 	if (!afbdev)
 		return;

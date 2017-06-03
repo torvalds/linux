@@ -122,6 +122,18 @@ void serdev_device_write_wakeup(struct serdev_device *serdev)
 }
 EXPORT_SYMBOL_GPL(serdev_device_write_wakeup);
 
+int serdev_device_write_buf(struct serdev_device *serdev,
+			    const unsigned char *buf, size_t count)
+{
+	struct serdev_controller *ctrl = serdev->ctrl;
+
+	if (!ctrl || !ctrl->ops->write_buf)
+		return -EINVAL;
+
+	return ctrl->ops->write_buf(ctrl, buf, count);
+}
+EXPORT_SYMBOL_GPL(serdev_device_write_buf);
+
 int serdev_device_write(struct serdev_device *serdev,
 			const unsigned char *buf, size_t count,
 			unsigned long timeout)

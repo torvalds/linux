@@ -174,12 +174,23 @@ nf_conntrack_helper_try_module_get(const char *name, u16 l3num, u8 protonum)
 #endif
 	if (h != NULL && !try_module_get(h->me))
 		h = NULL;
+	if (h != NULL && !refcount_inc_not_zero(&h->refcnt)) {
+		module_put(h->me);
+		h = NULL;
+	}
 
 	rcu_read_unlock();
 
 	return h;
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_helper_try_module_get);
+
+void nf_conntrack_helper_put(struct nf_conntrack_helper *helper)
+{
+	refcount_dec(&helper->refcnt);
+	module_put(helper->me);
+}
+EXPORT_SYMBOL_GPL(nf_conntrack_helper_put);
 
 struct nf_conn_help *
 nf_ct_helper_ext_add(struct nf_conn *ct,
@@ -417,6 +428,7 @@ int nf_conntrack_helper_register(struct nf_conntrack_helper *me)
 			}
 		}
 	}
+	refcount_set(&me->refcnt, 1);
 	hlist_add_head_rcu(&me->hnode, &nf_ct_helper_hash[h]);
 	nf_ct_helper_count++;
 out:
