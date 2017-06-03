@@ -2820,7 +2820,7 @@ static int cache_map(struct dm_target *ti, struct bio *bio)
 	return r;
 }
 
-static int cache_end_io(struct dm_target *ti, struct bio *bio, int error)
+static int cache_end_io(struct dm_target *ti, struct bio *bio, int *error)
 {
 	struct cache *cache = ti->private;
 	unsigned long flags;
@@ -2838,7 +2838,7 @@ static int cache_end_io(struct dm_target *ti, struct bio *bio, int error)
 	bio_drop_shared_lock(cache, bio);
 	accounted_complete(cache, bio);
 
-	return 0;
+	return DM_ENDIO_DONE;
 }
 
 static int write_dirty_bitset(struct cache *cache)

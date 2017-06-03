@@ -72,7 +72,7 @@ typedef void (*dm_release_clone_request_fn) (struct request *clone);
  * 2   : The target wants to push back the io
  */
 typedef int (*dm_endio_fn) (struct dm_target *ti,
-			    struct bio *bio, int error);
+			    struct bio *bio, int *error);
 typedef int (*dm_request_endio_fn) (struct dm_target *ti,
 				    struct request *clone, int error,
 				    union map_info *map_context);

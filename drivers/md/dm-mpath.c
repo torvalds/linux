@@ -1517,14 +1517,15 @@ static int multipath_end_io(struct dm_target *ti, struct request *clone,
 	return r;
 }
 
-static int multipath_end_io_bio(struct dm_target *ti, struct bio *clone, int error)
+static int multipath_end_io_bio(struct dm_target *ti, struct bio *clone, int *error)
 {
 	struct multipath *m = ti->private;
 	struct dm_mpath_io *mpio = get_mpio_from_bio(clone);
 	struct pgpath *pgpath = mpio->pgpath;
 	unsigned long flags;
+	int r = DM_ENDIO_DONE;
 
-	if (!error || noretry_error(error))
+	if (!*error || noretry_error(*error))
 		goto done;
 
 	if (pgpath)
@@ -1533,7 +1534,7 @@ static int multipath_end_io_bio(struct dm_target *ti, struct bio *clone, int err
 	if (atomic_read(&m->nr_valid_paths) == 0 &&
 	    !test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags)) {
 		dm_report_EIO(m);
-		error = -EIO;
+		*error = -EIO;
 		goto done;
 	}
 
@@ -1546,7 +1547,7 @@ static int multipath_end_io_bio(struct dm_target *ti, struct bio *clone, int err
 	if (!test_bit(MPATHF_QUEUE_IO, &m->flags))
 		queue_work(kmultipathd, &m->process_queued_bios);
 
-	error = DM_ENDIO_INCOMPLETE;
+	r = DM_ENDIO_INCOMPLETE;
 done:
 	if (pgpath) {
 		struct path_selector *ps = &pgpath->pg->ps;
@@ -1555,7 +1556,7 @@ done:
 			ps->type->end_io(ps, &pgpath->path, mpio->nr_bytes);
 	}
 
-	return error;
+	return r;
 }
 
 /*

@@ -845,30 +845,30 @@ static void clone_endio(struct bio *bio)
 	struct mapped_device *md = tio->io->md;
 	dm_endio_fn endio = tio->ti->type->end_io;
 
-	if (endio) {
-		r = endio(tio->ti, bio, error);
-		if (r < 0 || r == DM_ENDIO_REQUEUE)
-			/*
-			 * error and requeue request are handled
-			 * in dec_pending().
-			 */
-			error = r;
-		else if (r == DM_ENDIO_INCOMPLETE)
-			/* The target will handle the io */
-			return;
-		else if (r) {
-			DMWARN("unimplemented target endio return value: %d", r);
-			BUG();
-		}
-	}
-
-	if (unlikely(r == -EREMOTEIO)) {
+	if (unlikely(error == -EREMOTEIO)) {
 		if (bio_op(bio) == REQ_OP_WRITE_SAME &&
 		    !bdev_get_queue(bio->bi_bdev)->limits.max_write_same_sectors)
 			disable_write_same(md);
 		if (bio_op(bio) == REQ_OP_WRITE_ZEROES &&
 		    !bdev_get_queue(bio->bi_bdev)->limits.max_write_zeroes_sectors)
 			disable_write_zeroes(md);
+	}
+
+	if (endio) {
+		r = endio(tio->ti, bio, &error);
+		switch (r) {
+		case DM_ENDIO_REQUEUE:
+			error = DM_ENDIO_REQUEUE;
+			/*FALLTHRU*/
+		case DM_ENDIO_DONE:
+			break;
+		case DM_ENDIO_INCOMPLETE:
+			/* The target will handle the io */
+			return;
+		default:
+			DMWARN("unimplemented target endio return value: %d", r);
+			BUG();
+		}
 	}
 
 	free_tio(tio);

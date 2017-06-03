@@ -4177,7 +4177,7 @@ static int thin_map(struct dm_target *ti, struct bio *bio)
 	return thin_bio_map(ti, bio);
 }
 
-static int thin_endio(struct dm_target *ti, struct bio *bio, int err)
+static int thin_endio(struct dm_target *ti, struct bio *bio, int *err)
 {
 	unsigned long flags;
 	struct dm_thin_endio_hook *h = dm_per_bio_data(bio, sizeof(struct dm_thin_endio_hook));
@@ -4212,7 +4212,7 @@ static int thin_endio(struct dm_target *ti, struct bio *bio, int err)
 	if (h->cell)
 		cell_defer_no_holder(h->tc, h->cell);
 
-	return 0;
+	return DM_ENDIO_DONE;
 }
 
 static void thin_presuspend(struct dm_target *ti)

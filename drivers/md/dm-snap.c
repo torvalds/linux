@@ -1851,14 +1851,14 @@ out_unlock:
 	return r;
 }
 
-static int snapshot_end_io(struct dm_target *ti, struct bio *bio, int error)
+static int snapshot_end_io(struct dm_target *ti, struct bio *bio, int *error)
 {
 	struct dm_snapshot *s = ti->private;
 
 	if (is_bio_tracked(bio))
 		stop_tracking_chunk(s, bio);
 
-	return 0;
+	return DM_ENDIO_DONE;
 }
 
 static void snapshot_merge_presuspend(struct dm_target *ti)

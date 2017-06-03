@@ -1236,7 +1236,7 @@ static int mirror_map(struct dm_target *ti, struct bio *bio)
 	return DM_MAPIO_REMAPPED;
 }
 
-static int mirror_end_io(struct dm_target *ti, struct bio *bio, int error)
+static int mirror_end_io(struct dm_target *ti, struct bio *bio, int *error)
 {
 	int rw = bio_data_dir(bio);
 	struct mirror_set *ms = (struct mirror_set *) ti->private;
@@ -1252,16 +1252,16 @@ static int mirror_end_io(struct dm_target *ti, struct bio *bio, int error)
 		if (!(bio->bi_opf & REQ_PREFLUSH) &&
 		    bio_op(bio) != REQ_OP_DISCARD)
 			dm_rh_dec(ms->rh, bio_record->write_region);
-		return error;
+		return DM_ENDIO_DONE;
 	}
 
-	if (error == -EOPNOTSUPP)
-		return error;
+	if (*error == -EOPNOTSUPP)
+		return DM_ENDIO_DONE;
 
 	if (bio->bi_opf & REQ_RAHEAD)
-		return error;
+		return DM_ENDIO_DONE;
 
-	if (unlikely(error)) {
+	if (unlikely(*error)) {
 		m = bio_record->m;
 
 		DMERR("Mirror read failed from %s. Trying alternative device.",
@@ -1285,7 +1285,7 @@ static int mirror_end_io(struct dm_target *ti, struct bio *bio, int error)
 		DMERR("All replicated volumes dead, failing I/O");
 	}
 
-	return error;
+	return DM_ENDIO_DONE;
 }
 
 static void mirror_presuspend(struct dm_target *ti)

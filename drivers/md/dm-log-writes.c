@@ -664,7 +664,7 @@ map_bio:
 	return DM_MAPIO_REMAPPED;
 }
 
-static int normal_end_io(struct dm_target *ti, struct bio *bio, int error)
+static int normal_end_io(struct dm_target *ti, struct bio *bio, int *error)
 {
 	struct log_writes_c *lc = ti->private;
 	struct per_bio_data *pb = dm_per_bio_data(bio, sizeof(struct per_bio_data));
@@ -686,7 +686,7 @@ static int normal_end_io(struct dm_target *ti, struct bio *bio, int error)
 		spin_unlock_irqrestore(&lc->blocks_lock, flags);
 	}
 
-	return error;
+	return DM_ENDIO_DONE;
 }
 
 /*
