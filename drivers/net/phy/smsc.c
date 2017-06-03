@@ -25,6 +25,16 @@
 #include <linux/netdevice.h>
 #include <linux/smscphy.h>
 
+struct smsc_hw_stat {
+	const char *string;
+	u8 reg;
+	u8 bits;
+};
+
+static struct smsc_hw_stat smsc_hw_stats[] = {
+	{ "phy_symbol_errors", 26, 16},
+};
+
 struct smsc_phy_priv {
 	bool energy_enable;
 };
@@ -143,6 +153,48 @@ static int lan87xx_read_status(struct phy_device *phydev)
 	return err;
 }
 
+static int smsc_get_sset_count(struct phy_device *phydev)
+{
+	return ARRAY_SIZE(smsc_hw_stats);
+}
+
+static void smsc_get_strings(struct phy_device *phydev, u8 *data)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(smsc_hw_stats); i++) {
+		memcpy(data + i * ETH_GSTRING_LEN,
+		       smsc_hw_stats[i].string, ETH_GSTRING_LEN);
+	}
+}
+
+#ifndef UINT64_MAX
+#define UINT64_MAX              (u64)(~((u64)0))
+#endif
+static u64 smsc_get_stat(struct phy_device *phydev, int i)
+{
+	struct smsc_hw_stat stat = smsc_hw_stats[i];
+	int val;
+	u64 ret;
+
+	val = phy_read(phydev, stat.reg);
+	if (val < 0)
+		ret = UINT64_MAX;
+	else
+		ret = val;
+
+	return ret;
+}
+
+static void smsc_get_stats(struct phy_device *phydev,
+			   struct ethtool_stats *stats, u64 *data)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(smsc_hw_stats); i++)
+		data[i] = smsc_get_stat(phydev, i);
+}
+
 static int smsc_phy_probe(struct phy_device *phydev)
 {
 	struct device *dev = &phydev->mdio.dev;
@@ -206,6 +258,11 @@ static struct phy_driver smsc_phy_driver[] = {
 	.ack_interrupt	= smsc_phy_ack_interrupt,
 	.config_intr	= smsc_phy_config_intr,
 
+	/* Statistics */
+	.get_sset_count = smsc_get_sset_count,
+	.get_strings	= smsc_get_strings,
+	.get_stats	= smsc_get_stats,
+
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
 }, {
@@ -227,6 +284,11 @@ static struct phy_driver smsc_phy_driver[] = {
 	/* IRQ related */
 	.ack_interrupt	= smsc_phy_ack_interrupt,
 	.config_intr	= smsc_phy_config_intr,
+
+	/* Statistics */
+	.get_sset_count = smsc_get_sset_count,
+	.get_strings	= smsc_get_strings,
+	.get_stats	= smsc_get_stats,
 
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
@@ -271,6 +333,11 @@ static struct phy_driver smsc_phy_driver[] = {
 	.ack_interrupt	= smsc_phy_ack_interrupt,
 	.config_intr	= smsc_phy_config_intr,
 
+	/* Statistics */
+	.get_sset_count = smsc_get_sset_count,
+	.get_strings	= smsc_get_strings,
+	.get_stats	= smsc_get_stats,
+
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
 }, {
@@ -292,6 +359,11 @@ static struct phy_driver smsc_phy_driver[] = {
 	/* IRQ related */
 	.ack_interrupt	= smsc_phy_ack_interrupt,
 	.config_intr	= smsc_phy_config_intr,
+
+	/* Statistics */
+	.get_sset_count = smsc_get_sset_count,
+	.get_strings	= smsc_get_strings,
+	.get_stats	= smsc_get_stats,
 
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
