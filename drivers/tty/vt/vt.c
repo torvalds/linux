@@ -2709,13 +2709,13 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 	 * related to the kernel should not use this.
 	 */
 			data = vt_get_shift_state();
-			ret = __put_user(data, p);
+			ret = put_user(data, p);
 			break;
 		case TIOCL_GETMOUSEREPORTING:
 			console_lock();	/* May be overkill */
 			data = mouse_reporting();
 			console_unlock();
-			ret = __put_user(data, p);
+			ret = put_user(data, p);
 			break;
 		case TIOCL_SETVESABLANK:
 			console_lock();
@@ -2724,7 +2724,7 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 			break;
 		case TIOCL_GETKMSGREDIRECT:
 			data = vt_get_kmsg_redirect();
-			ret = __put_user(data, p);
+			ret = put_user(data, p);
 			break;
 		case TIOCL_SETKMSGREDIRECT:
 			if (!capable(CAP_SYS_ADMIN)) {
