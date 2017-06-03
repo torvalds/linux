@@ -44,9 +44,7 @@ static void __init sr_set_nvalues(struct omap_volt_data *volt_data,
 	while (volt_data[count].volt_nominal)
 		count++;
 
-	nvalue_table = kzalloc(sizeof(struct omap_sr_nvalue_table)*count,
-			GFP_KERNEL);
-
+	nvalue_table = kcalloc(count, sizeof(*nvalue_table), GFP_KERNEL);
 	if (!nvalue_table) {
 		pr_err("OMAP: SmartReflex: cannot allocate memory for n-value table\n");
 		return;
