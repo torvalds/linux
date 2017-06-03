@@ -17,7 +17,6 @@
 #include <linux/of_gpio.h>
 
 #include <drm/drm_edid.h>
-#include <video/omap-panel-data.h>
 
 #include "../dss/omapdss.h"
 
@@ -195,8 +194,6 @@ static struct omap_dss_driver hdmic_driver = {
 	.set_timings		= hdmic_set_timings,
 	.get_timings		= hdmic_get_timings,
 	.check_timings		= hdmic_check_timings,
-
-	.get_resolution		= omapdss_default_get_resolution,
 
 	.read_edid		= hdmic_read_edid,
 	.detect			= hdmic_detect,
