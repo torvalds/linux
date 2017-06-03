@@ -253,6 +253,9 @@ static int axp20x_pek_probe_input_device(struct axp20x_pek *axp20x_pek,
 		return error;
 	}
 
+	if (axp20x_pek->axp20x->variant == AXP288_ID)
+		enable_irq_wake(axp20x_pek->irq_dbr);
+
 	return 0;
 }
 
@@ -301,10 +304,35 @@ static int axp20x_pek_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused axp20x_pek_resume_noirq(struct device *dev)
+{
+	struct axp20x_pek *axp20x_pek = dev_get_drvdata(dev);
+
+	if (axp20x_pek->axp20x->variant != AXP288_ID)
+		return 0;
+
+	/*
+	 * Clear interrupts from button presses during suspend, to avoid
+	 * a wakeup power-button press getting reported to userspace.
+	 */
+	regmap_write(axp20x_pek->axp20x->regmap,
+		     AXP20X_IRQ1_STATE + AXP288_IRQ_POKN / 8,
+		     BIT(AXP288_IRQ_POKN % 8));
+
+	return 0;
+}
+
+static const struct dev_pm_ops axp20x_pek_pm_ops = {
+#ifdef CONFIG_PM_SLEEP
+	.resume_noirq = axp20x_pek_resume_noirq,
+#endif
+};
+
 static struct platform_driver axp20x_pek_driver = {
 	.probe		= axp20x_pek_probe,
 	.driver		= {
 		.name		= "axp20x-pek",
+		.pm		= &axp20x_pek_pm_ops,
 	},
 };
 module_platform_driver(axp20x_pek_driver);
