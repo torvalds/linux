@@ -566,7 +566,7 @@ struct aa_profile *aa_fqlookupn_profile(struct aa_profile *base,
 
 	name = aa_splitn_fqname(fqname, n, &ns_name, &ns_len);
 	if (ns_name) {
-		ns = aa_findn_ns(base->ns, ns_name, ns_len);
+		ns = aa_lookupn_ns(base->ns, ns_name, ns_len);
 		if (!ns)
 			return NULL;
 	} else
@@ -1108,7 +1108,7 @@ ssize_t aa_remove_profiles(struct aa_ns *view, struct aa_profile *subj,
 	struct aa_ns *root = NULL, *ns = NULL;
 	struct aa_profile *profile = NULL;
 	const char *name = fqname, *info = NULL;
-	char *ns_name = NULL;
+	const char *ns_name = NULL;
 	ssize_t error = 0;
 
 	if (*fqname == 0) {
@@ -1120,9 +1120,11 @@ ssize_t aa_remove_profiles(struct aa_ns *view, struct aa_profile *subj,
 	root = view;
 
 	if (fqname[0] == ':') {
-		name = aa_split_fqname(fqname, &ns_name);
+		size_t ns_len;
+
+		name = aa_splitn_fqname(fqname, size, &ns_name, &ns_len);
 		/* released below */
-		ns = aa_find_ns(root, ns_name);
+		ns = aa_lookupn_ns(root, ns_name, ns_len);
 		if (!ns) {
 			info = "namespace does not exist";
 			error = -ENOENT;

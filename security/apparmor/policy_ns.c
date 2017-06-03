@@ -183,6 +183,60 @@ struct aa_ns *aa_find_ns(struct aa_ns *root, const char *name)
 	return aa_findn_ns(root, name, strlen(name));
 }
 
+/**
+ * __aa_lookupn_ns - lookup the namespace matching @hname
+ * @base: base list to start looking up profile name from  (NOT NULL)
+ * @hname: hierarchical ns name  (NOT NULL)
+ * @n: length of @hname
+ *
+ * Requires: rcu_read_lock be held
+ *
+ * Returns: unrefcounted ns pointer or NULL if not found
+ *
+ * Do a relative name lookup, recursing through profile tree.
+ */
+struct aa_ns *__aa_lookupn_ns(struct aa_ns *view, const char *hname, size_t n)
+{
+	struct aa_ns *ns = view;
+	const char *split;
+
+	for (split = strnstr(hname, "//", n); split;
+	     split = strnstr(hname, "//", n)) {
+		ns = __aa_findn_ns(&ns->sub_ns, hname, split - hname);
+		if (!ns)
+			return NULL;
+
+		n -= split + 2 - hname;
+		hname = split + 2;
+	}
+
+	if (n)
+		return __aa_findn_ns(&ns->sub_ns, hname, n);
+	return NULL;
+}
+
+/**
+ * aa_lookupn_ns  -  look up a policy namespace relative to @view
+ * @view: namespace to search in  (NOT NULL)
+ * @name: name of namespace to find  (NOT NULL)
+ * @n: length of @name
+ *
+ * Returns: a refcounted namespace on the list, or NULL if no namespace
+ *          called @name exists.
+ *
+ * refcount released by caller
+ */
+struct aa_ns *aa_lookupn_ns(struct aa_ns *view, const char *name, size_t n)
+{
+	struct aa_ns *ns = NULL;
+
+	rcu_read_lock();
+	ns = aa_get_ns(__aa_lookupn_ns(view, name, n));
+	rcu_read_unlock();
+
+	return ns;
+}
+
 static struct aa_ns *__aa_create_ns(struct aa_ns *parent, const char *name,
 				    struct dentry *dir)
 {
