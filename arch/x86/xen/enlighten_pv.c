@@ -931,23 +931,27 @@ void xen_setup_shared_info(void)
 	HYPERVISOR_shared_info =
 		(struct shared_info *)fix_to_virt(FIX_PARAVIRT_BOOTMAP);
 
-#ifndef CONFIG_SMP
-	/* In UP this is as good a place as any to set up shared info */
-	xen_setup_vcpu_info_placement();
-#endif
-
 	xen_setup_mfn_list_list();
 
-	/*
-	 * Now that shared info is set up we can start using routines that
-	 * point to pvclock area.
-	 */
-	if (system_state == SYSTEM_BOOTING)
+	if (system_state == SYSTEM_BOOTING) {
+#ifndef CONFIG_SMP
+		/*
+		 * In UP this is as good a place as any to set up shared info.
+		 * Limit this to boot only, at restore vcpu setup is done via
+		 * xen_vcpu_restore().
+		 */
+		xen_setup_vcpu_info_placement();
+#endif
+		/*
+		 * Now that shared info is set up we can start using routines
+		 * that point to pvclock area.
+		 */
 		xen_init_time_ops();
+	}
 }
 
 /* This is called once we have the cpu_possible_mask */
-void xen_setup_vcpu_info_placement(void)
+void __ref xen_setup_vcpu_info_placement(void)
 {
 	int cpu;
 
