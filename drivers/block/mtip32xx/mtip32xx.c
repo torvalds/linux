@@ -3633,8 +3633,8 @@ static bool mtip_check_unal_depth(struct blk_mq_hw_ctx *hctx,
 	return false;
 }
 
-static int mtip_issue_reserved_cmd(struct blk_mq_hw_ctx *hctx,
-				   struct request *rq)
+static blk_status_t mtip_issue_reserved_cmd(struct blk_mq_hw_ctx *hctx,
+		struct request *rq)
 {
 	struct driver_data *dd = hctx->queue->queuedata;
 	struct mtip_int_cmd *icmd = rq->special;
@@ -3642,7 +3642,7 @@ static int mtip_issue_reserved_cmd(struct blk_mq_hw_ctx *hctx,
 	struct mtip_cmd_sg *command_sg;
 
 	if (mtip_commands_active(dd->port))
-		return BLK_MQ_RQ_QUEUE_BUSY;
+		return BLK_STS_RESOURCE;
 
 	/* Populate the SG list */
 	cmd->command_header->opts =
@@ -3666,10 +3666,10 @@ static int mtip_issue_reserved_cmd(struct blk_mq_hw_ctx *hctx,
 
 	blk_mq_start_request(rq);
 	mtip_issue_non_ncq_command(dd->port, rq->tag);
-	return BLK_MQ_RQ_QUEUE_OK;
+	return 0;
 }
 
-static int mtip_queue_rq(struct blk_mq_hw_ctx *hctx,
+static blk_status_t mtip_queue_rq(struct blk_mq_hw_ctx *hctx,
 			 const struct blk_mq_queue_data *bd)
 {
 	struct request *rq = bd->rq;
@@ -3681,15 +3681,14 @@ static int mtip_queue_rq(struct blk_mq_hw_ctx *hctx,
 		return mtip_issue_reserved_cmd(hctx, rq);
 
 	if (unlikely(mtip_check_unal_depth(hctx, rq)))
-		return BLK_MQ_RQ_QUEUE_BUSY;
+		return BLK_STS_RESOURCE;
 
 	blk_mq_start_request(rq);
 
 	ret = mtip_submit_request(hctx, rq);
 	if (likely(!ret))
-		return BLK_MQ_RQ_QUEUE_OK;
-
-	return BLK_MQ_RQ_QUEUE_ERROR;
+		return BLK_STS_OK;
+	return BLK_STS_IOERR;
 }
 
 static void mtip_free_cmd(struct blk_mq_tag_set *set, struct request *rq,

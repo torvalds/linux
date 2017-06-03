@@ -214,7 +214,7 @@ static void virtblk_done(struct virtqueue *vq)
 	spin_unlock_irqrestore(&vblk->vqs[qid].lock, flags);
 }
 
-static int virtio_queue_rq(struct blk_mq_hw_ctx *hctx,
+static blk_status_t virtio_queue_rq(struct blk_mq_hw_ctx *hctx,
 			   const struct blk_mq_queue_data *bd)
 {
 	struct virtio_blk *vblk = hctx->queue->queuedata;
@@ -246,7 +246,7 @@ static int virtio_queue_rq(struct blk_mq_hw_ctx *hctx,
 		break;
 	default:
 		WARN_ON_ONCE(1);
-		return BLK_MQ_RQ_QUEUE_ERROR;
+		return BLK_STS_IOERR;
 	}
 
 	vbr->out_hdr.type = cpu_to_virtio32(vblk->vdev, type);
@@ -276,8 +276,8 @@ static int virtio_queue_rq(struct blk_mq_hw_ctx *hctx,
 		/* Out of mem doesn't actually happen, since we fall back
 		 * to direct descriptors */
 		if (err == -ENOMEM || err == -ENOSPC)
-			return BLK_MQ_RQ_QUEUE_BUSY;
-		return BLK_MQ_RQ_QUEUE_ERROR;
+			return BLK_STS_RESOURCE;
+		return BLK_STS_IOERR;
 	}
 
 	if (bd->last && virtqueue_kick_prepare(vblk->vqs[qid].vq))
@@ -286,7 +286,7 @@ static int virtio_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	if (notify)
 		virtqueue_notify(vblk->vqs[qid].vq);
-	return BLK_MQ_RQ_QUEUE_OK;
+	return BLK_STS_OK;
 }
 
 /* return id (s/n) string for *disk to *id_str

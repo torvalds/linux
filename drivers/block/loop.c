@@ -1674,7 +1674,7 @@ int loop_unregister_transfer(int number)
 EXPORT_SYMBOL(loop_register_transfer);
 EXPORT_SYMBOL(loop_unregister_transfer);
 
-static int loop_queue_rq(struct blk_mq_hw_ctx *hctx,
+static blk_status_t loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 		const struct blk_mq_queue_data *bd)
 {
 	struct loop_cmd *cmd = blk_mq_rq_to_pdu(bd->rq);
@@ -1683,7 +1683,7 @@ static int loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 	blk_mq_start_request(bd->rq);
 
 	if (lo->lo_state != Lo_bound)
-		return BLK_MQ_RQ_QUEUE_ERROR;
+		return BLK_STS_IOERR;
 
 	switch (req_op(cmd->rq)) {
 	case REQ_OP_FLUSH:
@@ -1698,7 +1698,7 @@ static int loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	kthread_queue_work(&lo->worker, &cmd->work);
 
-	return BLK_MQ_RQ_QUEUE_OK;
+	return BLK_STS_OK;
 }
 
 static void loop_handle_cmd(struct loop_cmd *cmd)

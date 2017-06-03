@@ -1448,7 +1448,7 @@ static inline bool nvme_rdma_queue_is_ready(struct nvme_rdma_queue *queue,
 	return true;
 }
 
-static int nvme_rdma_queue_rq(struct blk_mq_hw_ctx *hctx,
+static blk_status_t nvme_rdma_queue_rq(struct blk_mq_hw_ctx *hctx,
 		const struct blk_mq_queue_data *bd)
 {
 	struct nvme_ns *ns = hctx->queue->queuedata;
@@ -1459,27 +1459,28 @@ static int nvme_rdma_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct nvme_command *c = sqe->data;
 	bool flush = false;
 	struct ib_device *dev;
-	int ret;
+	blk_status_t ret;
+	int err;
 
 	WARN_ON_ONCE(rq->tag < 0);
 
 	if (!nvme_rdma_queue_is_ready(queue, rq))
-		return BLK_MQ_RQ_QUEUE_BUSY;
+		return BLK_STS_RESOURCE;
 
 	dev = queue->device->dev;
 	ib_dma_sync_single_for_cpu(dev, sqe->dma,
 			sizeof(struct nvme_command), DMA_TO_DEVICE);
 
 	ret = nvme_setup_cmd(ns, rq, c);
-	if (ret != BLK_MQ_RQ_QUEUE_OK)
+	if (ret)
 		return ret;
 
 	blk_mq_start_request(rq);
 
-	ret = nvme_rdma_map_data(queue, rq, c);
-	if (ret < 0) {
+	err = nvme_rdma_map_data(queue, rq, c);
+	if (err < 0) {
 		dev_err(queue->ctrl->ctrl.device,
-			     "Failed to map data (%d)\n", ret);
+			     "Failed to map data (%d)\n", err);
 		nvme_cleanup_cmd(rq);
 		goto err;
 	}
@@ -1489,17 +1490,18 @@ static int nvme_rdma_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	if (req_op(rq) == REQ_OP_FLUSH)
 		flush = true;
-	ret = nvme_rdma_post_send(queue, sqe, req->sge, req->num_sge,
+	err = nvme_rdma_post_send(queue, sqe, req->sge, req->num_sge,
 			req->mr->need_inval ? &req->reg_wr.wr : NULL, flush);
-	if (ret) {
+	if (err) {
 		nvme_rdma_unmap_data(queue, rq);
 		goto err;
 	}
 
-	return BLK_MQ_RQ_QUEUE_OK;
+	return BLK_STS_OK;
 err:
-	return (ret == -ENOMEM || ret == -EAGAIN) ?
-		BLK_MQ_RQ_QUEUE_BUSY : BLK_MQ_RQ_QUEUE_ERROR;
+	if (err == -ENOMEM || err == -EAGAIN)
+		return BLK_STS_RESOURCE;
+	return BLK_STS_IOERR;
 }
 
 static int nvme_rdma_poll(struct blk_mq_hw_ctx *hctx, unsigned int tag)

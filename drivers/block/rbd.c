@@ -4154,14 +4154,14 @@ err:
 	blk_mq_end_request(rq, errno_to_blk_status(result));
 }
 
-static int rbd_queue_rq(struct blk_mq_hw_ctx *hctx,
+static blk_status_t rbd_queue_rq(struct blk_mq_hw_ctx *hctx,
 		const struct blk_mq_queue_data *bd)
 {
 	struct request *rq = bd->rq;
 	struct work_struct *work = blk_mq_rq_to_pdu(rq);
 
 	queue_work(rbd_wq, work);
-	return BLK_MQ_RQ_QUEUE_OK;
+	return BLK_STS_OK;
 }
 
 static void rbd_free_disk(struct rbd_device *rbd_dev)

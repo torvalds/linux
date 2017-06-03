@@ -159,17 +159,17 @@ nvme_loop_timeout(struct request *rq, bool reserved)
 	return BLK_EH_HANDLED;
 }
 
-static int nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
+static blk_status_t nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 		const struct blk_mq_queue_data *bd)
 {
 	struct nvme_ns *ns = hctx->queue->queuedata;
 	struct nvme_loop_queue *queue = hctx->driver_data;
 	struct request *req = bd->rq;
 	struct nvme_loop_iod *iod = blk_mq_rq_to_pdu(req);
-	int ret;
+	blk_status_t ret;
 
 	ret = nvme_setup_cmd(ns, req, &iod->cmd);
-	if (ret != BLK_MQ_RQ_QUEUE_OK)
+	if (ret)
 		return ret;
 
 	iod->cmd.common.flags |= NVME_CMD_SGL_METABUF;
@@ -179,16 +179,15 @@ static int nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 		nvme_cleanup_cmd(req);
 		blk_mq_start_request(req);
 		nvme_loop_queue_response(&iod->req);
-		return BLK_MQ_RQ_QUEUE_OK;
+		return BLK_STS_OK;
 	}
 
 	if (blk_rq_bytes(req)) {
 		iod->sg_table.sgl = iod->first_sgl;
-		ret = sg_alloc_table_chained(&iod->sg_table,
+		if (sg_alloc_table_chained(&iod->sg_table,
 				blk_rq_nr_phys_segments(req),
-				iod->sg_table.sgl);
-		if (ret)
-			return BLK_MQ_RQ_QUEUE_BUSY;
+				iod->sg_table.sgl))
+			return BLK_STS_RESOURCE;
 
 		iod->req.sg = iod->sg_table.sgl;
 		iod->req.sg_cnt = blk_rq_map_sg(req->q, req, iod->sg_table.sgl);
@@ -197,7 +196,7 @@ static int nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 	blk_mq_start_request(req);
 
 	schedule_work(&iod->work);
-	return BLK_MQ_RQ_QUEUE_OK;
+	return BLK_STS_OK;
 }
 
 static void nvme_loop_submit_async_event(struct nvme_ctrl *arg, int aer_idx)

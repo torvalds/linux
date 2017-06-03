@@ -1812,15 +1812,15 @@ out_delay:
 		blk_delay_queue(q, SCSI_QUEUE_DELAY);
 }
 
-static inline int prep_to_mq(int ret)
+static inline blk_status_t prep_to_mq(int ret)
 {
 	switch (ret) {
 	case BLKPREP_OK:
-		return BLK_MQ_RQ_QUEUE_OK;
+		return BLK_STS_OK;
 	case BLKPREP_DEFER:
-		return BLK_MQ_RQ_QUEUE_BUSY;
+		return BLK_STS_RESOURCE;
 	default:
-		return BLK_MQ_RQ_QUEUE_ERROR;
+		return BLK_STS_IOERR;
 	}
 }
 
@@ -1892,7 +1892,7 @@ static void scsi_mq_done(struct scsi_cmnd *cmd)
 	blk_mq_complete_request(cmd->request);
 }
 
-static int scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
+static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 			 const struct blk_mq_queue_data *bd)
 {
 	struct request *req = bd->rq;
@@ -1900,14 +1900,14 @@ static int scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct scsi_device *sdev = q->queuedata;
 	struct Scsi_Host *shost = sdev->host;
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
-	int ret;
+	blk_status_t ret;
 	int reason;
 
 	ret = prep_to_mq(scsi_prep_state_check(sdev, req));
-	if (ret != BLK_MQ_RQ_QUEUE_OK)
+	if (ret != BLK_STS_OK)
 		goto out;
 
-	ret = BLK_MQ_RQ_QUEUE_BUSY;
+	ret = BLK_STS_RESOURCE;
 	if (!get_device(&sdev->sdev_gendev))
 		goto out;
 
@@ -1920,7 +1920,7 @@ static int scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	if (!(req->rq_flags & RQF_DONTPREP)) {
 		ret = prep_to_mq(scsi_mq_prep_fn(req));
-		if (ret != BLK_MQ_RQ_QUEUE_OK)
+		if (ret != BLK_STS_OK)
 			goto out_dec_host_busy;
 		req->rq_flags |= RQF_DONTPREP;
 	} else {
@@ -1938,11 +1938,11 @@ static int scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	reason = scsi_dispatch_cmd(cmd);
 	if (reason) {
 		scsi_set_blocked(cmd, reason);
-		ret = BLK_MQ_RQ_QUEUE_BUSY;
+		ret = BLK_STS_RESOURCE;
 		goto out_dec_host_busy;
 	}
 
-	return BLK_MQ_RQ_QUEUE_OK;
+	return BLK_STS_OK;
 
 out_dec_host_busy:
 	atomic_dec(&shost->host_busy);
@@ -1955,12 +1955,14 @@ out_put_device:
 	put_device(&sdev->sdev_gendev);
 out:
 	switch (ret) {
-	case BLK_MQ_RQ_QUEUE_BUSY:
+	case BLK_STS_OK:
+		break;
+	case BLK_STS_RESOURCE:
 		if (atomic_read(&sdev->device_busy) == 0 &&
 		    !scsi_device_blocked(sdev))
 			blk_mq_delay_run_hw_queue(hctx, SCSI_QUEUE_DELAY);
 		break;
-	case BLK_MQ_RQ_QUEUE_ERROR:
+	default:
 		/*
 		 * Make sure to release all allocated ressources when
 		 * we hit an error, as we will never see this command
@@ -1968,8 +1970,6 @@ out:
 		 */
 		if (req->rq_flags & RQF_DONTPREP)
 			scsi_mq_uninit_cmd(cmd);
-		break;
-	default:
 		break;
 	}
 	return ret;

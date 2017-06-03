@@ -881,7 +881,7 @@ static inline bool blkif_request_flush_invalid(struct request *req,
 		 !info->feature_fua));
 }
 
-static int blkif_queue_rq(struct blk_mq_hw_ctx *hctx,
+static blk_status_t blkif_queue_rq(struct blk_mq_hw_ctx *hctx,
 			  const struct blk_mq_queue_data *qd)
 {
 	unsigned long flags;
@@ -904,16 +904,16 @@ static int blkif_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	flush_requests(rinfo);
 	spin_unlock_irqrestore(&rinfo->ring_lock, flags);
-	return BLK_MQ_RQ_QUEUE_OK;
+	return BLK_STS_OK;
 
 out_err:
 	spin_unlock_irqrestore(&rinfo->ring_lock, flags);
-	return BLK_MQ_RQ_QUEUE_ERROR;
+	return BLK_STS_IOERR;
 
 out_busy:
 	spin_unlock_irqrestore(&rinfo->ring_lock, flags);
 	blk_mq_stop_hw_queue(hctx);
-	return BLK_MQ_RQ_QUEUE_BUSY;
+	return BLK_STS_RESOURCE;
 }
 
 static void blkif_complete_rq(struct request *rq)

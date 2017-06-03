@@ -727,7 +727,7 @@ static int dm_mq_init_request(struct blk_mq_tag_set *set, struct request *rq,
 	return __dm_rq_init_rq(set->driver_data, rq);
 }
 
-static int dm_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
+static blk_status_t dm_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 			  const struct blk_mq_queue_data *bd)
 {
 	struct request *rq = bd->rq;
@@ -744,7 +744,7 @@ static int dm_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 	}
 
 	if (ti->type->busy && ti->type->busy(ti))
-		return BLK_MQ_RQ_QUEUE_BUSY;
+		return BLK_STS_RESOURCE;
 
 	dm_start_request(md, rq);
 
@@ -762,10 +762,10 @@ static int dm_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 		rq_end_stats(md, rq);
 		rq_completed(md, rq_data_dir(rq), false);
 		blk_mq_delay_run_hw_queue(hctx, 100/*ms*/);
-		return BLK_MQ_RQ_QUEUE_BUSY;
+		return BLK_STS_RESOURCE;
 	}
 
-	return BLK_MQ_RQ_QUEUE_OK;
+	return BLK_STS_OK;
 }
 
 static const struct blk_mq_ops dm_mq_ops = {

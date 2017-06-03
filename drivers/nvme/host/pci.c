@@ -427,7 +427,7 @@ static __le64 **iod_list(struct request *req)
 	return (__le64 **)(iod->sg + blk_rq_nr_phys_segments(req));
 }
 
-static int nvme_init_iod(struct request *rq, struct nvme_dev *dev)
+static blk_status_t nvme_init_iod(struct request *rq, struct nvme_dev *dev)
 {
 	struct nvme_iod *iod = blk_mq_rq_to_pdu(rq);
 	int nseg = blk_rq_nr_phys_segments(rq);
@@ -436,7 +436,7 @@ static int nvme_init_iod(struct request *rq, struct nvme_dev *dev)
 	if (nseg > NVME_INT_PAGES || size > NVME_INT_BYTES(dev)) {
 		iod->sg = kmalloc(nvme_iod_alloc_size(dev, size, nseg), GFP_ATOMIC);
 		if (!iod->sg)
-			return BLK_MQ_RQ_QUEUE_BUSY;
+			return BLK_STS_RESOURCE;
 	} else {
 		iod->sg = iod->inline_sg;
 	}
@@ -446,7 +446,7 @@ static int nvme_init_iod(struct request *rq, struct nvme_dev *dev)
 	iod->nents = 0;
 	iod->length = size;
 
-	return BLK_MQ_RQ_QUEUE_OK;
+	return BLK_STS_OK;
 }
 
 static void nvme_free_iod(struct nvme_dev *dev, struct request *req)
@@ -616,21 +616,21 @@ static bool nvme_setup_prps(struct nvme_dev *dev, struct request *req)
 	return true;
 }
 
-static int nvme_map_data(struct nvme_dev *dev, struct request *req,
+static blk_status_t nvme_map_data(struct nvme_dev *dev, struct request *req,
 		struct nvme_command *cmnd)
 {
 	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
 	struct request_queue *q = req->q;
 	enum dma_data_direction dma_dir = rq_data_dir(req) ?
 			DMA_TO_DEVICE : DMA_FROM_DEVICE;
-	int ret = BLK_MQ_RQ_QUEUE_ERROR;
+	blk_status_t ret = BLK_STS_IOERR;
 
 	sg_init_table(iod->sg, blk_rq_nr_phys_segments(req));
 	iod->nents = blk_rq_map_sg(q, req, iod->sg);
 	if (!iod->nents)
 		goto out;
 
-	ret = BLK_MQ_RQ_QUEUE_BUSY;
+	ret = BLK_STS_RESOURCE;
 	if (!dma_map_sg_attrs(dev->dev, iod->sg, iod->nents, dma_dir,
 				DMA_ATTR_NO_WARN))
 		goto out;
@@ -638,7 +638,7 @@ static int nvme_map_data(struct nvme_dev *dev, struct request *req,
 	if (!nvme_setup_prps(dev, req))
 		goto out_unmap;
 
-	ret = BLK_MQ_RQ_QUEUE_ERROR;
+	ret = BLK_STS_IOERR;
 	if (blk_integrity_rq(req)) {
 		if (blk_rq_count_integrity_sg(q, req->bio) != 1)
 			goto out_unmap;
@@ -658,7 +658,7 @@ static int nvme_map_data(struct nvme_dev *dev, struct request *req,
 	cmnd->rw.dptr.prp2 = cpu_to_le64(iod->first_dma);
 	if (blk_integrity_rq(req))
 		cmnd->rw.metadata = cpu_to_le64(sg_dma_address(&iod->meta_sg));
-	return BLK_MQ_RQ_QUEUE_OK;
+	return BLK_STS_OK;
 
 out_unmap:
 	dma_unmap_sg(dev->dev, iod->sg, iod->nents, dma_dir);
@@ -688,7 +688,7 @@ static void nvme_unmap_data(struct nvme_dev *dev, struct request *req)
 /*
  * NOTE: ns is NULL when called on the admin queue.
  */
-static int nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
+static blk_status_t nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
 			 const struct blk_mq_queue_data *bd)
 {
 	struct nvme_ns *ns = hctx->queue->queuedata;
@@ -696,7 +696,7 @@ static int nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct nvme_dev *dev = nvmeq->dev;
 	struct request *req = bd->rq;
 	struct nvme_command cmnd;
-	int ret = BLK_MQ_RQ_QUEUE_OK;
+	blk_status_t ret = BLK_STS_OK;
 
 	/*
 	 * If formated with metadata, require the block layer provide a buffer
@@ -705,38 +705,36 @@ static int nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
 	 */
 	if (ns && ns->ms && !blk_integrity_rq(req)) {
 		if (!(ns->pi_type && ns->ms == 8) &&
-		    !blk_rq_is_passthrough(req)) {
-			blk_mq_end_request(req, BLK_STS_NOTSUPP);
-			return BLK_MQ_RQ_QUEUE_OK;
-		}
+		    !blk_rq_is_passthrough(req))
+			return BLK_STS_NOTSUPP;
 	}
 
 	ret = nvme_setup_cmd(ns, req, &cmnd);
-	if (ret != BLK_MQ_RQ_QUEUE_OK)
+	if (ret)
 		return ret;
 
 	ret = nvme_init_iod(req, dev);
-	if (ret != BLK_MQ_RQ_QUEUE_OK)
+	if (ret)
 		goto out_free_cmd;
 
-	if (blk_rq_nr_phys_segments(req))
+	if (blk_rq_nr_phys_segments(req)) {
 		ret = nvme_map_data(dev, req, &cmnd);
-
-	if (ret != BLK_MQ_RQ_QUEUE_OK)
-		goto out_cleanup_iod;
+		if (ret)
+			goto out_cleanup_iod;
+	}
 
 	blk_mq_start_request(req);
 
 	spin_lock_irq(&nvmeq->q_lock);
 	if (unlikely(nvmeq->cq_vector < 0)) {
-		ret = BLK_MQ_RQ_QUEUE_ERROR;
+		ret = BLK_STS_IOERR;
 		spin_unlock_irq(&nvmeq->q_lock);
 		goto out_cleanup_iod;
 	}
 	__nvme_submit_cmd(nvmeq, &cmnd);
 	nvme_process_cq(nvmeq);
 	spin_unlock_irq(&nvmeq->q_lock);
-	return BLK_MQ_RQ_QUEUE_OK;
+	return BLK_STS_OK;
 out_cleanup_iod:
 	nvme_free_iod(dev, req);
 out_free_cmd:

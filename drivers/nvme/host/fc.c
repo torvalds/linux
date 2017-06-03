@@ -1873,7 +1873,7 @@ nvme_fc_unmap_data(struct nvme_fc_ctrl *ctrl, struct request *rq,
  * level FC exchange resource that is also outstanding. This must be
  * considered in all cleanup operations.
  */
-static int
+static blk_status_t
 nvme_fc_start_fcp_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 	struct nvme_fc_fcp_op *op, u32 data_len,
 	enum nvmefc_fcp_datadir	io_dir)
@@ -1888,10 +1888,10 @@ nvme_fc_start_fcp_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 	 * the target device is present
 	 */
 	if (ctrl->rport->remoteport.port_state != FC_OBJSTATE_ONLINE)
-		return BLK_MQ_RQ_QUEUE_ERROR;
+		return BLK_STS_IOERR;
 
 	if (!nvme_fc_ctrl_get(ctrl))
-		return BLK_MQ_RQ_QUEUE_ERROR;
+		return BLK_STS_IOERR;
 
 	/* format the FC-NVME CMD IU and fcp_req */
 	cmdiu->connection_id = cpu_to_be64(queue->connection_id);
@@ -1939,8 +1939,9 @@ nvme_fc_start_fcp_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 		if (ret < 0) {
 			nvme_cleanup_cmd(op->rq);
 			nvme_fc_ctrl_put(ctrl);
-			return (ret == -ENOMEM || ret == -EAGAIN) ?
-				BLK_MQ_RQ_QUEUE_BUSY : BLK_MQ_RQ_QUEUE_ERROR;
+			if (ret == -ENOMEM || ret == -EAGAIN)
+				return BLK_STS_RESOURCE;
+			return BLK_STS_IOERR;
 		}
 	}
 
@@ -1966,19 +1967,19 @@ nvme_fc_start_fcp_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 		nvme_fc_ctrl_put(ctrl);
 
 		if (ret != -EBUSY)
-			return BLK_MQ_RQ_QUEUE_ERROR;
+			return BLK_STS_IOERR;
 
 		if (op->rq) {
 			blk_mq_stop_hw_queues(op->rq->q);
 			blk_mq_delay_queue(queue->hctx, NVMEFC_QUEUE_DELAY);
 		}
-		return BLK_MQ_RQ_QUEUE_BUSY;
+		return BLK_STS_RESOURCE;
 	}
 
-	return BLK_MQ_RQ_QUEUE_OK;
+	return BLK_STS_OK;
 }
 
-static int
+static blk_status_t
 nvme_fc_queue_rq(struct blk_mq_hw_ctx *hctx,
 			const struct blk_mq_queue_data *bd)
 {
@@ -1991,7 +1992,7 @@ nvme_fc_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct nvme_command *sqe = &cmdiu->sqe;
 	enum nvmefc_fcp_datadir	io_dir;
 	u32 data_len;
-	int ret;
+	blk_status_t ret;
 
 	ret = nvme_setup_cmd(ns, rq, sqe);
 	if (ret)
@@ -2046,7 +2047,7 @@ nvme_fc_submit_async_event(struct nvme_ctrl *arg, int aer_idx)
 	struct nvme_fc_fcp_op *aen_op;
 	unsigned long flags;
 	bool terminating = false;
-	int ret;
+	blk_status_t ret;
 
 	if (aer_idx > NVME_FC_NR_AEN_COMMANDS)
 		return;

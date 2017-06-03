@@ -469,7 +469,7 @@ static int nbd_send_cmd(struct nbd_device *nbd, struct nbd_cmd *cmd, int index)
 				nsock->pending = req;
 				nsock->sent = sent;
 			}
-			return BLK_MQ_RQ_QUEUE_BUSY;
+			return BLK_STS_RESOURCE;
 		}
 		dev_err_ratelimited(disk_to_dev(nbd->disk),
 			"Send control failed (result %d)\n", result);
@@ -510,7 +510,7 @@ send_pages:
 					 */
 					nsock->pending = req;
 					nsock->sent = sent;
-					return BLK_MQ_RQ_QUEUE_BUSY;
+					return BLK_STS_RESOURCE;
 				}
 				dev_err(disk_to_dev(nbd->disk),
 					"Send data failed (result %d)\n",
@@ -798,7 +798,7 @@ out:
 	return ret;
 }
 
-static int nbd_queue_rq(struct blk_mq_hw_ctx *hctx,
+static blk_status_t nbd_queue_rq(struct blk_mq_hw_ctx *hctx,
 			const struct blk_mq_queue_data *bd)
 {
 	struct nbd_cmd *cmd = blk_mq_rq_to_pdu(bd->rq);
@@ -822,13 +822,9 @@ static int nbd_queue_rq(struct blk_mq_hw_ctx *hctx,
 	 * appropriate.
 	 */
 	ret = nbd_handle_cmd(cmd, hctx->queue_num);
-	if (ret < 0)
-		ret = BLK_MQ_RQ_QUEUE_ERROR;
-	if (!ret)
-		ret = BLK_MQ_RQ_QUEUE_OK;
 	complete(&cmd->send_complete);
 
-	return ret;
+	return ret < 0 ? BLK_STS_IOERR : BLK_STS_OK;
 }
 
 static int nbd_add_socket(struct nbd_device *nbd, unsigned long arg,

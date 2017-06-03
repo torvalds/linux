@@ -283,7 +283,7 @@ static inline void nvme_setup_flush(struct nvme_ns *ns,
 	cmnd->common.nsid = cpu_to_le32(ns->ns_id);
 }
 
-static inline int nvme_setup_discard(struct nvme_ns *ns, struct request *req,
+static blk_status_t nvme_setup_discard(struct nvme_ns *ns, struct request *req,
 		struct nvme_command *cmnd)
 {
 	unsigned short segments = blk_rq_nr_discard_segments(req), n = 0;
@@ -292,7 +292,7 @@ static inline int nvme_setup_discard(struct nvme_ns *ns, struct request *req,
 
 	range = kmalloc_array(segments, sizeof(*range), GFP_ATOMIC);
 	if (!range)
-		return BLK_MQ_RQ_QUEUE_BUSY;
+		return BLK_STS_RESOURCE;
 
 	__rq_for_each_bio(bio, req) {
 		u64 slba = nvme_block_nr(ns, bio->bi_iter.bi_sector);
@@ -306,7 +306,7 @@ static inline int nvme_setup_discard(struct nvme_ns *ns, struct request *req,
 
 	if (WARN_ON_ONCE(n != segments)) {
 		kfree(range);
-		return BLK_MQ_RQ_QUEUE_ERROR;
+		return BLK_STS_IOERR;
 	}
 
 	memset(cmnd, 0, sizeof(*cmnd));
@@ -320,7 +320,7 @@ static inline int nvme_setup_discard(struct nvme_ns *ns, struct request *req,
 	req->special_vec.bv_len = sizeof(*range) * segments;
 	req->rq_flags |= RQF_SPECIAL_PAYLOAD;
 
-	return BLK_MQ_RQ_QUEUE_OK;
+	return BLK_STS_OK;
 }
 
 static inline void nvme_setup_rw(struct nvme_ns *ns, struct request *req,
@@ -364,10 +364,10 @@ static inline void nvme_setup_rw(struct nvme_ns *ns, struct request *req,
 	cmnd->rw.dsmgmt = cpu_to_le32(dsmgmt);
 }
 
-int nvme_setup_cmd(struct nvme_ns *ns, struct request *req,
+blk_status_t nvme_setup_cmd(struct nvme_ns *ns, struct request *req,
 		struct nvme_command *cmd)
 {
-	int ret = BLK_MQ_RQ_QUEUE_OK;
+	blk_status_t ret = BLK_STS_OK;
 
 	if (!(req->rq_flags & RQF_DONTPREP)) {
 		nvme_req(req)->retries = 0;
@@ -394,7 +394,7 @@ int nvme_setup_cmd(struct nvme_ns *ns, struct request *req,
 		break;
 	default:
 		WARN_ON_ONCE(1);
-		return BLK_MQ_RQ_QUEUE_ERROR;
+		return BLK_STS_IOERR;
 	}
 
 	cmd->common.command_id = req->tag;
