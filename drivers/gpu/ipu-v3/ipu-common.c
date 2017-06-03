@@ -725,15 +725,16 @@ void ipu_set_ic_src_mux(struct ipu_soc *ipu, int csi_id, bool vdi)
 	spin_lock_irqsave(&ipu->lock, flags);
 
 	val = ipu_cm_read(ipu, IPU_CONF);
-	if (vdi) {
+	if (vdi)
 		val |= IPU_CONF_IC_INPUT;
-	} else {
+	else
 		val &= ~IPU_CONF_IC_INPUT;
-		if (csi_id == 1)
-			val |= IPU_CONF_CSI_SEL;
-		else
-			val &= ~IPU_CONF_CSI_SEL;
-	}
+
+	if (csi_id == 1)
+		val |= IPU_CONF_CSI_SEL;
+	else
+		val &= ~IPU_CONF_CSI_SEL;
+
 	ipu_cm_write(ipu, val, IPU_CONF);
 
 	spin_unlock_irqrestore(&ipu->lock, flags);
