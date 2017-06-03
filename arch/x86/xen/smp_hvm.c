@@ -28,10 +28,20 @@ static void __init xen_hvm_smp_prepare_boot_cpu(void)
 
 static void __init xen_hvm_smp_prepare_cpus(unsigned int max_cpus)
 {
+	int cpu;
+
 	native_smp_prepare_cpus(max_cpus);
 	WARN_ON(xen_smp_intr_init(0));
 
 	xen_init_lock_cpu(0);
+
+	for_each_possible_cpu(cpu) {
+		if (cpu == 0)
+			continue;
+
+		/* Set default vcpu_id to make sure that we don't use cpu-0's */
+		per_cpu(xen_vcpu_id, cpu) = XEN_VCPU_ID_INVALID;
+	}
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
