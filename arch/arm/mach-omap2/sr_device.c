@@ -45,10 +45,8 @@ static void __init sr_set_nvalues(struct omap_volt_data *volt_data,
 		count++;
 
 	nvalue_table = kcalloc(count, sizeof(*nvalue_table), GFP_KERNEL);
-	if (!nvalue_table) {
-		pr_err("OMAP: SmartReflex: cannot allocate memory for n-value table\n");
+	if (!nvalue_table)
 		return;
-	}
 
 	for (i = 0, j = 0; i < count; i++) {
 		u32 v;
@@ -101,11 +99,8 @@ static int __init sr_dev_init(struct omap_hwmod *oh, void *user)
 	static int i;
 
 	sr_data = kzalloc(sizeof(*sr_data), GFP_KERNEL);
-	if (!sr_data) {
-		pr_err("%s: Unable to allocate memory for %s sr_data\n",
-		       __func__, oh->name);
+	if (!sr_data)
 		return -ENOMEM;
-	}
 
 	sr_dev_attr = (struct omap_smartreflex_dev_attr *)oh->dev_attr;
 	if (!sr_dev_attr || !sr_dev_attr->sensor_voltdm_name) {
