@@ -8244,7 +8244,7 @@ static void btrfs_endio_direct_read(struct bio *bio)
 	kfree(dip);
 
 	dio_bio->bi_error = bio->bi_error;
-	dio_end_io(dio_bio, bio->bi_error);
+	dio_end_io(dio_bio);
 
 	if (io_bio->end_io)
 		io_bio->end_io(io_bio, err);
@@ -8304,7 +8304,7 @@ static void btrfs_endio_direct_write(struct bio *bio)
 	kfree(dip);
 
 	dio_bio->bi_error = bio->bi_error;
-	dio_end_io(dio_bio, bio->bi_error);
+	dio_end_io(dio_bio);
 	bio_put(bio);
 }
 
@@ -8673,7 +8673,7 @@ free_ordered:
 		 * Releases and cleans up our dio_bio, no need to bio_put()
 		 * nor bio_endio()/bio_io_error() against dio_bio.
 		 */
-		dio_end_io(dio_bio, ret);
+		dio_end_io(dio_bio);
 	}
 	if (io_bio)
 		bio_put(io_bio);
