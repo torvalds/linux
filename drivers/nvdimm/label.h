@@ -15,6 +15,7 @@
 
 #include <linux/ndctl.h>
 #include <linux/sizes.h>
+#include <linux/uuid.h>
 #include <linux/io.h>
 
 enum {
@@ -60,7 +61,8 @@ static const char NSINDEX_SIGNATURE[] = "NAMESPACE_INDEX\0";
  */
 struct nd_namespace_index {
 	u8 sig[NSINDEX_SIG_LEN];
-	__le32 flags;
+	u8 flags[3];
+	u8 labelsize;
 	__le32 seq;
 	__le64 myoff;
 	__le64 mysize;
@@ -98,7 +100,16 @@ struct nd_namespace_label {
 	__le64 dpa;
 	__le64 rawsize;
 	__le32 slot;
-	__le32 unused;
+	/*
+	 * Accessing fields past this point should be gated by a
+	 * namespace_label_has() check.
+	 */
+	u8 align;
+	u8 reserved[3];
+	guid_t type_guid;
+	guid_t abstraction_guid;
+	u8 reserved2[88];
+	__le64 checksum;
 };
 
 /**

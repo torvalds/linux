@@ -42,7 +42,7 @@ struct nd_poison {
 
 struct nvdimm_drvdata {
 	struct device *dev;
-	int nsindex_size;
+	int nsindex_size, nslabel_size;
 	struct nd_cmd_get_config_size nsarea;
 	void *data;
 	int ns_current, ns_next;
@@ -95,6 +95,12 @@ static inline struct nd_namespace_index *to_next_namespace_index(
 {
 	return to_namespace_index(ndd, ndd->ns_next);
 }
+
+unsigned sizeof_namespace_label(struct nvdimm_drvdata *ndd);
+
+#define namespace_label_has(ndd, field) \
+	(offsetof(struct nd_namespace_label, field) \
+		< sizeof_namespace_label(ndd))
 
 #define nd_dbg_dpa(r, d, res, fmt, arg...) \
 	dev_dbg((r) ? &(r)->dev : (d)->dev, "%s: %.13s: %#llx @ %#llx " fmt, \
