@@ -740,11 +740,11 @@ EXPORT_SYMBOL(con_copy_unimap);
  */
 int con_get_unimap(struct vc_data *vc, ushort ct, ushort __user *uct, struct unipair __user *list)
 {
-	int i, j, k;
+	int i, j, k, ret = 0;
 	ushort ect;
 	u16 **p1, *p2;
 	struct uni_pagedir *p;
-	struct unipair *unilist, *plist;
+	struct unipair *unilist;
 
 	unilist = kmalloc_array(ct, sizeof(struct unipair), GFP_KERNEL);
 	if (!unilist)
@@ -775,13 +775,11 @@ int con_get_unimap(struct vc_data *vc, ushort ct, ushort __user *uct, struct uni
 		}
 	}
 	console_unlock();
-	for (i = min(ect, ct), plist = unilist; i; i--, list++, plist++) {
-		__put_user(plist->unicode, &list->unicode);
-		__put_user(plist->fontpos, &list->fontpos);
-	}
-	__put_user(ect, uct);
+	if (copy_to_user(list, unilist, min(ect, ct) * sizeof(struct unipair)))
+		ret = -EFAULT;
+	put_user(ect, uct);
 	kfree(unilist);
-	return ((ect <= ct) ? 0 : -ENOMEM);
+	return ret ? ret : (ect <= ct) ? 0 : -ENOMEM;
 }
 
 /*
