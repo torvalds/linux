@@ -481,6 +481,16 @@ static int pty_bsd_ioctl(struct tty_struct *tty,
 	return -ENOIOCTLCMD;
 }
 
+static long pty_bsd_compat_ioctl(struct tty_struct *tty,
+				 unsigned int cmd, unsigned long arg)
+{
+	/*
+	 * PTY ioctls don't require any special translation between 32-bit and
+	 * 64-bit userspace, they are already compatible.
+	 */
+	return pty_bsd_ioctl(tty, cmd, arg);
+}
+
 static int legacy_count = CONFIG_LEGACY_PTY_COUNT;
 /*
  * not really modular, but the easiest way to keep compat with existing
@@ -502,6 +512,7 @@ static const struct tty_operations master_pty_ops_bsd = {
 	.chars_in_buffer = pty_chars_in_buffer,
 	.unthrottle = pty_unthrottle,
 	.ioctl = pty_bsd_ioctl,
+	.compat_ioctl = pty_bsd_compat_ioctl,
 	.cleanup = pty_cleanup,
 	.resize = pty_resize,
 	.remove = pty_remove
@@ -609,6 +620,16 @@ static int pty_unix98_ioctl(struct tty_struct *tty,
 	return -ENOIOCTLCMD;
 }
 
+static long pty_unix98_compat_ioctl(struct tty_struct *tty,
+				 unsigned int cmd, unsigned long arg)
+{
+	/*
+	 * PTY ioctls don't require any special translation between 32-bit and
+	 * 64-bit userspace, they are already compatible.
+	 */
+	return pty_unix98_ioctl(tty, cmd, arg);
+}
+
 /**
  *	ptm_unix98_lookup	-	find a pty master
  *	@driver: ptm driver
@@ -681,6 +702,7 @@ static const struct tty_operations ptm_unix98_ops = {
 	.chars_in_buffer = pty_chars_in_buffer,
 	.unthrottle = pty_unthrottle,
 	.ioctl = pty_unix98_ioctl,
+	.compat_ioctl = pty_unix98_compat_ioctl,
 	.resize = pty_resize,
 	.cleanup = pty_cleanup
 };
