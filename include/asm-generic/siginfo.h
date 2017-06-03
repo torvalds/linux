@@ -14,8 +14,4 @@
 #define __SI_SYS	(7 << 16)
 #define __SI_CODE(T,N)	((T) | ((N) & 0xffff))
 
-struct siginfo;
-
-extern int copy_siginfo_to_user(struct siginfo __user *to, const struct siginfo *from);
-
 #endif
