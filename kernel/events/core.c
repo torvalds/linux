@@ -9878,7 +9878,7 @@ SYSCALL_DEFINE5(perf_event_open,
 	if (task) {
 		err = mutex_lock_interruptible(&task->signal->cred_guard_mutex);
 		if (err)
-			goto err_cred;
+			goto err_task;
 
 		/*
 		 * Reuse ptrace permission checks for now.
