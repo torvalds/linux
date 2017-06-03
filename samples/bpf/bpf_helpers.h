@@ -31,7 +31,8 @@ static unsigned long long (*bpf_get_current_uid_gid)(void) =
 	(void *) BPF_FUNC_get_current_uid_gid;
 static int (*bpf_get_current_comm)(void *buf, int buf_size) =
 	(void *) BPF_FUNC_get_current_comm;
-static int (*bpf_perf_event_read)(void *map, int index) =
+static unsigned long long (*bpf_perf_event_read)(void *map,
+						 unsigned long long flags) =
 	(void *) BPF_FUNC_perf_event_read;
 static int (*bpf_clone_redirect)(void *ctx, int ifindex, int flags) =
 	(void *) BPF_FUNC_clone_redirect;
