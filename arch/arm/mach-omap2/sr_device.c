@@ -102,7 +102,7 @@ static int __init sr_dev_init(struct omap_hwmod *oh, void *user)
 	char *name = "smartreflex";
 	static int i;
 
-	sr_data = kzalloc(sizeof(struct omap_sr_data), GFP_KERNEL);
+	sr_data = kzalloc(sizeof(*sr_data), GFP_KERNEL);
 	if (!sr_data) {
 		pr_err("%s: Unable to allocate memory for %s sr_data\n",
 		       __func__, oh->name);
