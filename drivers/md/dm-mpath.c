@@ -559,7 +559,7 @@ static int __multipath_map_bio(struct multipath *m, struct bio *bio, struct dm_m
 		if (test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags))
 			return DM_MAPIO_REQUEUE;
 		dm_report_EIO(m);
-		return -EIO;
+		return DM_MAPIO_KILL;
 	}
 
 	mpio->pgpath = pgpath;
@@ -621,11 +621,18 @@ static void process_queued_bios(struct work_struct *work)
 	blk_start_plug(&plug);
 	while ((bio = bio_list_pop(&bios))) {
 		r = __multipath_map_bio(m, bio, get_mpio_from_bio(bio));
-		if (r < 0 || r == DM_MAPIO_REQUEUE) {
+		switch (r) {
+		case DM_MAPIO_KILL:
+			r = -EIO;
+			/*FALLTHRU*/
+		case DM_MAPIO_REQUEUE:
 			bio->bi_error = r;
 			bio_endio(bio);
-		} else if (r == DM_MAPIO_REMAPPED)
+			break;
+		case DM_MAPIO_REMAPPED:
 			generic_make_request(bio);
+			break;
+		}
 	}
 	blk_finish_plug(&plug);
 }

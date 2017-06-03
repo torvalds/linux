@@ -1084,18 +1084,24 @@ static void __map_bio(struct dm_target_io *tio)
 	r = ti->type->map(ti, clone);
 	dm_offload_end(&o);
 
-	if (r == DM_MAPIO_REMAPPED) {
+	switch (r) {
+	case DM_MAPIO_SUBMITTED:
+		break;
+	case DM_MAPIO_REMAPPED:
 		/* the bio has been remapped so dispatch it */
-
 		trace_block_bio_remap(bdev_get_queue(clone->bi_bdev), clone,
 				      tio->io->bio->bi_bdev->bd_dev, sector);
-
 		generic_make_request(clone);
-	} else if (r < 0 || r == DM_MAPIO_REQUEUE) {
+		break;
+	case DM_MAPIO_KILL:
+		r = -EIO;
+		/*FALLTHRU*/
+	case DM_MAPIO_REQUEUE:
 		/* error the io and bail out, or requeue it if needed */
 		dec_pending(tio->io, r);
 		free_tio(tio);
-	} else if (r != DM_MAPIO_SUBMITTED) {
+		break;
+	default:
 		DMWARN("unimplemented target map return value: %d", r);
 		BUG();
 	}

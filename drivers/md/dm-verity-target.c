@@ -643,17 +643,17 @@ static int verity_map(struct dm_target *ti, struct bio *bio)
 	if (((unsigned)bio->bi_iter.bi_sector | bio_sectors(bio)) &
 	    ((1 << (v->data_dev_block_bits - SECTOR_SHIFT)) - 1)) {
 		DMERR_LIMIT("unaligned io");
-		return -EIO;
+		return DM_MAPIO_KILL;
 	}
 
 	if (bio_end_sector(bio) >>
 	    (v->data_dev_block_bits - SECTOR_SHIFT) > v->data_blocks) {
 		DMERR_LIMIT("io out of range");
-		return -EIO;
+		return DM_MAPIO_KILL;
 	}
 
 	if (bio_data_dir(bio) == WRITE)
-		return -EIO;
+		return DM_MAPIO_KILL;
 
 	io = dm_per_bio_data(bio, ti->per_io_data_size);
 	io->v = v;

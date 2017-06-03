@@ -1352,13 +1352,13 @@ static int dm_integrity_map(struct dm_target *ti, struct bio *bio)
 		DMERR("Too big sector number: 0x%llx + 0x%x > 0x%llx",
 		      (unsigned long long)dio->range.logical_sector, bio_sectors(bio),
 		      (unsigned long long)ic->provided_data_sectors);
-		return -EIO;
+		return DM_MAPIO_KILL;
 	}
 	if (unlikely((dio->range.logical_sector | bio_sectors(bio)) & (unsigned)(ic->sectors_per_block - 1))) {
 		DMERR("Bio not aligned on %u sectors: 0x%llx, 0x%x",
 		      ic->sectors_per_block,
 		      (unsigned long long)dio->range.logical_sector, bio_sectors(bio));
-		return -EIO;
+		return DM_MAPIO_KILL;
 	}
 
 	if (ic->sectors_per_block > 1) {
@@ -1368,7 +1368,7 @@ static int dm_integrity_map(struct dm_target *ti, struct bio *bio)
 			if (unlikely((bv.bv_offset | bv.bv_len) & ((ic->sectors_per_block << SECTOR_SHIFT) - 1))) {
 				DMERR("Bio vector (%u,%u) is not aligned on %u-sector boundary",
 					bv.bv_offset, bv.bv_len, ic->sectors_per_block);
-				return -EIO;
+				return DM_MAPIO_KILL;
 			}
 		}
 	}
@@ -1383,18 +1383,18 @@ static int dm_integrity_map(struct dm_target *ti, struct bio *bio)
 				wanted_tag_size *= ic->tag_size;
 			if (unlikely(wanted_tag_size != bip->bip_iter.bi_size)) {
 				DMERR("Invalid integrity data size %u, expected %u", bip->bip_iter.bi_size, wanted_tag_size);
-				return -EIO;
+				return DM_MAPIO_KILL;
 			}
 		}
 	} else {
 		if (unlikely(bip != NULL)) {
 			DMERR("Unexpected integrity data when using internal hash");
-			return -EIO;
+			return DM_MAPIO_KILL;
 		}
 	}
 
 	if (unlikely(ic->mode == 'R') && unlikely(dio->write))
-		return -EIO;
+		return DM_MAPIO_KILL;
 
 	get_area_and_offset(ic, dio->range.logical_sector, &area, &offset);
 	dio->metadata_block = get_metadata_sector_and_offset(ic, area, offset, &dio->metadata_offset);

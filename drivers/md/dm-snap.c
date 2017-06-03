@@ -1690,7 +1690,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio)
 	/* Full snapshots are not usable */
 	/* To get here the table must be live so s->active is always set. */
 	if (!s->valid)
-		return -EIO;
+		return DM_MAPIO_KILL;
 
 	/* FIXME: should only take write lock if we need
 	 * to copy an exception */
@@ -1698,7 +1698,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio)
 
 	if (!s->valid || (unlikely(s->snapshot_overflowed) &&
 	    bio_data_dir(bio) == WRITE)) {
-		r = -EIO;
+		r = DM_MAPIO_KILL;
 		goto out_unlock;
 	}
 
@@ -1723,7 +1723,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio)
 
 			if (!s->valid || s->snapshot_overflowed) {
 				free_pending_exception(pe);
-				r = -EIO;
+				r = DM_MAPIO_KILL;
 				goto out_unlock;
 			}
 
@@ -1741,7 +1741,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio)
 					DMERR("Snapshot overflowed: Unable to allocate exception.");
 				} else
 					__invalidate_snapshot(s, -ENOMEM);
-				r = -EIO;
+				r = DM_MAPIO_KILL;
 				goto out_unlock;
 			}
 		}

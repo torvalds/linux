@@ -2795,10 +2795,10 @@ static int crypt_map(struct dm_target *ti, struct bio *bio)
 	 * and is aligned to this size as defined in IO hints.
 	 */
 	if (unlikely((bio->bi_iter.bi_sector & ((cc->sector_size >> SECTOR_SHIFT) - 1)) != 0))
-		return -EIO;
+		return DM_MAPIO_KILL;
 
 	if (unlikely(bio->bi_iter.bi_size & (cc->sector_size - 1)))
-		return -EIO;
+		return DM_MAPIO_KILL;
 
 	io = dm_per_bio_data(bio, cc->per_bio_data_size);
 	crypt_io_init(io, cc, bio, dm_target_offset(ti, bio->bi_iter.bi_sector));

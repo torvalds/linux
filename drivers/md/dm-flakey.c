@@ -321,7 +321,7 @@ static int flakey_map(struct dm_target *ti, struct bio *bio)
 		if (bio_data_dir(bio) == READ) {
 			if (!fc->corrupt_bio_byte && !test_bit(DROP_WRITES, &fc->flags) &&
 			    !test_bit(ERROR_WRITES, &fc->flags))
-				return -EIO;
+				return DM_MAPIO_KILL;
 			goto map_bio;
 		}
 
@@ -349,7 +349,7 @@ static int flakey_map(struct dm_target *ti, struct bio *bio)
 		/*
 		 * By default, error all I/O.
 		 */
-		return -EIO;
+		return DM_MAPIO_KILL;
 	}
 
 map_bio:

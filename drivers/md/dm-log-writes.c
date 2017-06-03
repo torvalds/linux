@@ -586,7 +586,7 @@ static int log_writes_map(struct dm_target *ti, struct bio *bio)
 		spin_lock_irq(&lc->blocks_lock);
 		lc->logging_enabled = false;
 		spin_unlock_irq(&lc->blocks_lock);
-		return -ENOMEM;
+		return DM_MAPIO_KILL;
 	}
 	INIT_LIST_HEAD(&block->list);
 	pb->block = block;
@@ -639,7 +639,7 @@ static int log_writes_map(struct dm_target *ti, struct bio *bio)
 			spin_lock_irq(&lc->blocks_lock);
 			lc->logging_enabled = false;
 			spin_unlock_irq(&lc->blocks_lock);
-			return -ENOMEM;
+			return DM_MAPIO_KILL;
 		}
 
 		src = kmap_atomic(bv.bv_page);

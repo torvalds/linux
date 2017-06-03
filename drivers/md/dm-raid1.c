@@ -1207,14 +1207,14 @@ static int mirror_map(struct dm_target *ti, struct bio *bio)
 
 	r = log->type->in_sync(log, dm_rh_bio_to_region(ms->rh, bio), 0);
 	if (r < 0 && r != -EWOULDBLOCK)
-		return r;
+		return DM_MAPIO_KILL;
 
 	/*
 	 * If region is not in-sync queue the bio.
 	 */
 	if (!r || (r == -EWOULDBLOCK)) {
 		if (bio->bi_opf & REQ_RAHEAD)
-			return -EIO;
+			return DM_MAPIO_KILL;
 
 		queue_bio(ms, bio, rw);
 		return DM_MAPIO_SUBMITTED;
@@ -1226,7 +1226,7 @@ static int mirror_map(struct dm_target *ti, struct bio *bio)
 	 */
 	m = choose_mirror(ms, bio->bi_iter.bi_sector);
 	if (unlikely(!m))
-		return -EIO;
+		return DM_MAPIO_KILL;
 
 	dm_bio_record(&bio_record->details, bio);
 	bio_record->m = m;
