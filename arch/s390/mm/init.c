@@ -102,7 +102,7 @@ void __init paging_init(void)
 	__ctl_load(S390_lowcore.kernel_asce, 7, 7);
 	__ctl_load(S390_lowcore.kernel_asce, 13, 13);
 	psw.mask = __extract_psw();
-	psw_bits(psw).t = 1;
+	psw_bits(psw).dat = 1;
 	psw_bits(psw).as = PSW_BITS_AS_HOME;
 	__load_psw_mask(psw.mask);
 

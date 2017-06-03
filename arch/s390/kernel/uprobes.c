@@ -32,7 +32,7 @@ int arch_uprobe_pre_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	if (!is_compat_task() && psw_bits(regs->psw).eaba == PSW_BITS_AMODE_31BIT)
 		return -EINVAL;
 	clear_pt_regs_flag(regs, PIF_PER_TRAP);
-	auprobe->saved_per = psw_bits(regs->psw).r;
+	auprobe->saved_per = psw_bits(regs->psw).per;
 	auprobe->saved_int_code = regs->int_code;
 	regs->int_code = UPROBE_TRAP_NR;
 	regs->psw.addr = current->utask->xol_vaddr;
@@ -81,7 +81,7 @@ int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 
 	clear_tsk_thread_flag(current, TIF_UPROBE_SINGLESTEP);
 	update_cr_regs(current);
-	psw_bits(regs->psw).r = auprobe->saved_per;
+	psw_bits(regs->psw).per = auprobe->saved_per;
 	regs->int_code = auprobe->saved_int_code;
 
 	if (fixup & FIXUP_PSW_NORMAL)

@@ -24,25 +24,25 @@
 			 PSW_MASK_PSTATE | PSW_ASC_PRIMARY)
 
 struct psw_bits {
-	unsigned long	   :  1;
-	unsigned long r	   :  1; /* PER-Mask */
-	unsigned long	   :  3;
-	unsigned long t	   :  1; /* DAT Mode */
-	unsigned long i	   :  1; /* Input/Output Mask */
-	unsigned long e	   :  1; /* External Mask */
-	unsigned long key  :  4; /* PSW Key */
-	unsigned long	   :  1;
-	unsigned long m	   :  1; /* Machine-Check Mask */
-	unsigned long w	   :  1; /* Wait State */
-	unsigned long p	   :  1; /* Problem State */
-	unsigned long as   :  2; /* Address Space Control */
-	unsigned long cc   :  2; /* Condition Code */
-	unsigned long pm   :  4; /* Program Mask */
-	unsigned long ri   :  1; /* Runtime Instrumentation */
-	unsigned long	   :  6;
-	unsigned long eaba :  2; /* Addressing Mode */
-	unsigned long	   : 31;
-	unsigned long ia   : 64; /* Instruction Address */
+	unsigned long	     :	1;
+	unsigned long per    :	1; /* PER-Mask */
+	unsigned long	     :	3;
+	unsigned long dat    :	1; /* DAT Mode */
+	unsigned long io     :	1; /* Input/Output Mask */
+	unsigned long ext    :	1; /* External Mask */
+	unsigned long key    :	4; /* PSW Key */
+	unsigned long	     :	1;
+	unsigned long mcheck :	1; /* Machine-Check Mask */
+	unsigned long wait   :	1; /* Wait State */
+	unsigned long pstate :	1; /* Problem State */
+	unsigned long as     :	2; /* Address Space Control */
+	unsigned long cc     :	2; /* Condition Code */
+	unsigned long pm     :	4; /* Program Mask */
+	unsigned long ri     :	1; /* Runtime Instrumentation */
+	unsigned long	     :	6;
+	unsigned long eaba   :	2; /* Addressing Mode */
+	unsigned long	     : 31;
+	unsigned long ia     : 64; /* Instruction Address */
 };
 
 enum {

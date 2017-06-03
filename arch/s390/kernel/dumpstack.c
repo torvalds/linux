@@ -128,8 +128,8 @@ void show_registers(struct pt_regs *regs)
 		pr_cont(" (%pSR)", (void *)regs->psw.addr);
 	pr_cont("\n");
 	printk("           R:%x T:%x IO:%x EX:%x Key:%x M:%x W:%x "
-	       "P:%x AS:%x CC:%x PM:%x", psw->r, psw->t, psw->i, psw->e,
-	       psw->key, psw->m, psw->w, psw->p, psw->as, psw->cc, psw->pm);
+	       "P:%x AS:%x CC:%x PM:%x", psw->per, psw->dat, psw->io, psw->ext,
+	       psw->key, psw->mcheck, psw->wait, psw->pstate, psw->as, psw->cc, psw->pm);
 	pr_cont(" RI:%x EA:%x\n", psw->ri, psw->eaba);
 	printk("%s GPRS: %016lx %016lx %016lx %016lx\n", mode,
 	       regs->gprs[0], regs->gprs[1], regs->gprs[2], regs->gprs[3]);

@@ -374,7 +374,7 @@ static int handle_sske(struct kvm_vcpu *vcpu)
 static int handle_ipte_interlock(struct kvm_vcpu *vcpu)
 {
 	vcpu->stat.instruction_ipte_interlock++;
-	if (psw_bits(vcpu->arch.sie_block->gpsw).p)
+	if (psw_bits(vcpu->arch.sie_block->gpsw).pstate)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 	wait_event(vcpu->kvm->arch.ipte_wq, !ipte_lock_held(vcpu));
 	kvm_s390_retry_instr(vcpu);
