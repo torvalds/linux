@@ -82,7 +82,7 @@ static unsigned int ssi_buffer_mgr_get_sgl_nents(
 	unsigned int nents = 0;
 	while (nbytes != 0) {
 		if (sg_is_chain(sg_list)) {
-			SSI_LOG_ERR("Unexpected chanined entry "
+			SSI_LOG_ERR("Unexpected chained entry "
 				   "in sg (entry =0x%X) \n", nents);
 			BUG();
 		}
