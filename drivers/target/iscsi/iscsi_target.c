@@ -4431,8 +4431,11 @@ static void iscsit_logout_post_handler_closesession(
 	 * always sleep waiting for RX/TX thread shutdown to complete
 	 * within iscsit_close_connection().
 	 */
-	if (!conn->conn_transport->rdma_shutdown)
+	if (!conn->conn_transport->rdma_shutdown) {
 		sleep = cmpxchg(&conn->tx_thread_active, true, false);
+		if (!sleep)
+			return;
+	}
 
 	atomic_set(&conn->conn_logout_remove, 0);
 	complete(&conn->conn_logout_comp);
@@ -4448,8 +4451,11 @@ static void iscsit_logout_post_handler_samecid(
 {
 	int sleep = 1;
 
-	if (!conn->conn_transport->rdma_shutdown)
+	if (!conn->conn_transport->rdma_shutdown) {
 		sleep = cmpxchg(&conn->tx_thread_active, true, false);
+		if (!sleep)
+			return;
+	}
 
 	atomic_set(&conn->conn_logout_remove, 0);
 	complete(&conn->conn_logout_comp);
