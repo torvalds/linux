@@ -2,3 +2,4 @@
 include include/uapi/asm-generic/Kbuild.asm
 
 generic-y += types.h
+generic-y += siginfo.h

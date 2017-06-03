@@ -46,7 +46,6 @@ generic-y += sembuf.h
 generic-y += setup.h
 generic-y += shmbuf.h
 generic-y += shmparam.h
-generic-y += siginfo.h
 generic-y += signal.h
 generic-y += socket.h
 generic-y += sockios.h
