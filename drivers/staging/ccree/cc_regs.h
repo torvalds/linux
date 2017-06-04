@@ -26,6 +26,11 @@
 
 #include "cc_bitops.h"
 
+#define AXIM_MON_BASE_OFFSET CC_REG_OFFSET(CRY_KERNEL, AXIM_MON_COMP)
+#define AXIM_MON_COMP_VALUE GENMASK(DX_AXIM_MON_COMP_VALUE_BIT_SIZE + \
+		DX_AXIM_MON_COMP_VALUE_BIT_SHIFT, \
+		DX_AXIM_MON_COMP_VALUE_BIT_SHIFT)
+
 /* Register Offset macro */
 #define CC_REG_OFFSET(unit_name, reg_name)               \
 	(DX_BASE_ ## unit_name + DX_ ## reg_name ## _REG_OFFSET)

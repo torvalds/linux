@@ -35,8 +35,6 @@
 
 #define SSI_MAX_POLL_ITER	10
 
-#define AXIM_MON_BASE_OFFSET CC_REG_OFFSET(CRY_KERNEL, AXIM_MON_COMP)
-
 struct ssi_request_mgr_handle {
 	/* Request manager resources */
 	unsigned int hw_queue_size; /* HW capability */
@@ -502,6 +500,15 @@ static void proc_completions(struct ssi_drvdata *drvdata)
 	}
 }
 
+static inline u32 cc_axi_comp_count(void __iomem *cc_base)
+{
+	/* The CC_HAL_READ_REGISTER macro implictly requires and uses
+	 * a base MMIO register address variable named cc_base.
+	 */
+	return FIELD_GET(AXIM_MON_COMP_VALUE,
+			 CC_HAL_READ_REGISTER(AXIM_MON_BASE_OFFSET));
+}
+
 /* Deferred service handler, run as interrupt-fired tasklet */
 static void comp_handler(unsigned long devarg)
 {
@@ -521,25 +528,25 @@ static void comp_handler(unsigned long devarg)
 		CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_ICR), SSI_COMP_IRQ_MASK);
 
 		/* Avoid race with above clear: Test completion counter once more */
-		request_mgr_handle->axi_completed += CC_REG_FLD_GET(CRY_KERNEL, AXIM_MON_COMP, VALUE,
-			CC_HAL_READ_REGISTER(AXIM_MON_BASE_OFFSET));
+		request_mgr_handle->axi_completed +=
+				cc_axi_comp_count(cc_base);
 
 		while (request_mgr_handle->axi_completed) {
 			do {
 				proc_completions(drvdata);
-				/* At this point (after proc_completions()), request_mgr_handle->axi_completed is always 0.
-				 * The following assignment was changed to = (previously was +=) to conform KW restrictions.
+				/* At this point (after proc_completions()),
+				 * request_mgr_handle->axi_completed is 0.
 				 */
-				request_mgr_handle->axi_completed = CC_REG_FLD_GET(CRY_KERNEL, AXIM_MON_COMP, VALUE,
-					CC_HAL_READ_REGISTER(AXIM_MON_BASE_OFFSET));
+				request_mgr_handle->axi_completed =
+						cc_axi_comp_count(cc_base);
 			} while (request_mgr_handle->axi_completed > 0);
 
 			/* To avoid the interrupt from firing as we unmask it, we clear it now */
 			CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_ICR), SSI_COMP_IRQ_MASK);
 
 			/* Avoid race with above clear: Test completion counter once more */
-			request_mgr_handle->axi_completed += CC_REG_FLD_GET(CRY_KERNEL, AXIM_MON_COMP, VALUE,
-				CC_HAL_READ_REGISTER(AXIM_MON_BASE_OFFSET));
+			request_mgr_handle->axi_completed +=
+					cc_axi_comp_count(cc_base);
 		}
 
 	}
