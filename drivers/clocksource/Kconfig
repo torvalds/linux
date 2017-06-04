@@ -3,6 +3,7 @@ menu "Clock Source drivers"
 
 config TIMER_OF
 	bool
+	depends on GENERIC_CLOCKEVENTS
 	select TIMER_PROBE
 
 config TIMER_ACPI
