@@ -367,6 +367,40 @@ __skb_flow_dissect_tcp(const struct sk_buff *skb,
 	key_tcp->flags = (*(__be16 *) &tcp_flag_word(th) & htons(0x0FFF));
 }
 
+static void
+__skb_flow_dissect_ipv4(const struct sk_buff *skb,
+			struct flow_dissector *flow_dissector,
+			void *target_container, void *data, const struct iphdr *iph)
+{
+	struct flow_dissector_key_ip *key_ip;
+
+	if (!dissector_uses_key(flow_dissector, FLOW_DISSECTOR_KEY_IP))
+		return;
+
+	key_ip = skb_flow_dissector_target(flow_dissector,
+					   FLOW_DISSECTOR_KEY_IP,
+					   target_container);
+	key_ip->tos = iph->tos;
+	key_ip->ttl = iph->ttl;
+}
+
+static void
+__skb_flow_dissect_ipv6(const struct sk_buff *skb,
+			struct flow_dissector *flow_dissector,
+			void *target_container, void *data, const struct ipv6hdr *iph)
+{
+	struct flow_dissector_key_ip *key_ip;
+
+	if (!dissector_uses_key(flow_dissector, FLOW_DISSECTOR_KEY_IP))
+		return;
+
+	key_ip = skb_flow_dissector_target(flow_dissector,
+					   FLOW_DISSECTOR_KEY_IP,
+					   target_container);
+	key_ip->tos = ipv6_get_dsfield(iph);
+	key_ip->ttl = iph->hop_limit;
+}
+
 /**
  * __skb_flow_dissect - extract the flow_keys struct and return it
  * @skb: sk_buff to extract the flow from, can be NULL if the rest are specified
@@ -469,6 +503,9 @@ ip:
 			}
 		}
 
+		__skb_flow_dissect_ipv4(skb, flow_dissector,
+					target_container, data, iph);
+
 		if (flags & FLOW_DISSECTOR_F_STOP_AT_L3)
 			goto out_good;
 
@@ -513,6 +550,9 @@ ipv6:
 			if (flags & FLOW_DISSECTOR_F_STOP_AT_FLOW_LABEL)
 				goto out_good;
 		}
+
+		__skb_flow_dissect_ipv6(skb, flow_dissector,
+					target_container, data, iph);
 
 		if (flags & FLOW_DISSECTOR_F_STOP_AT_L3)
 			goto out_good;
