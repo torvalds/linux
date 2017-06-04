@@ -141,11 +141,9 @@ int mii_ethtool_gset(struct mii_if_info *mii, struct ethtool_cmd *ecmd)
  *
  * The @cmd parameter is expected to have been cleared before calling
  * mii_ethtool_get_link_ksettings().
- *
- * Returns 0 for success, negative on error.
  */
-int mii_ethtool_get_link_ksettings(struct mii_if_info *mii,
-				   struct ethtool_link_ksettings *cmd)
+void mii_ethtool_get_link_ksettings(struct mii_if_info *mii,
+				    struct ethtool_link_ksettings *cmd)
 {
 	struct net_device *dev = mii->dev;
 	u16 bmcr, bmsr, ctrl1000 = 0, stat1000 = 0;
@@ -227,8 +225,6 @@ int mii_ethtool_get_link_ksettings(struct mii_if_info *mii,
 						lp_advertising);
 
 	/* ignore maxtxpkt, maxrxpkt for now */
-
-	return 0;
 }
 
 /**

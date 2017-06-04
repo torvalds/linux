@@ -956,7 +956,9 @@ int usbnet_get_link_ksettings(struct net_device *net,
 	if (!dev->mii.mdio_read)
 		return -EOPNOTSUPP;
 
-	return mii_ethtool_get_link_ksettings(&dev->mii, cmd);
+	mii_ethtool_get_link_ksettings(&dev->mii, cmd);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(usbnet_get_link_ksettings);
 

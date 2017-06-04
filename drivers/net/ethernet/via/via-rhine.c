@@ -2307,13 +2307,12 @@ static int netdev_get_link_ksettings(struct net_device *dev,
 				     struct ethtool_link_ksettings *cmd)
 {
 	struct rhine_private *rp = netdev_priv(dev);
-	int rc;
 
 	mutex_lock(&rp->task_lock);
-	rc = mii_ethtool_get_link_ksettings(&rp->mii_if, cmd);
+	mii_ethtool_get_link_ksettings(&rp->mii_if, cmd);
 	mutex_unlock(&rp->task_lock);
 
-	return rc;
+	return 0;
 }
 
 static int netdev_set_link_ksettings(struct net_device *dev,
