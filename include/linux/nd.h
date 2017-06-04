@@ -75,12 +75,14 @@ struct nd_namespace_io {
 /**
  * struct nd_namespace_pmem - namespace device for dimm-backed interleaved memory
  * @nsio: device and system physical address range to drive
+ * @lbasize: logical sector size for the namespace in block-device-mode
  * @alt_name: namespace name supplied in the dimm label
  * @uuid: namespace name supplied in the dimm label
  * @id: ida allocated id
  */
 struct nd_namespace_pmem {
 	struct nd_namespace_io nsio;
+	unsigned long lbasize;
 	char *alt_name;
 	u8 *uuid;
 	int id;

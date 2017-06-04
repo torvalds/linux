@@ -163,6 +163,29 @@ bool pmem_should_map_pages(struct device *dev)
 }
 EXPORT_SYMBOL(pmem_should_map_pages);
 
+unsigned int pmem_sector_size(struct nd_namespace_common *ndns)
+{
+	if (is_namespace_pmem(&ndns->dev)) {
+		struct nd_namespace_pmem *nspm;
+
+		nspm = to_nd_namespace_pmem(&ndns->dev);
+		if (nspm->lbasize == 0 || nspm->lbasize == 512)
+			/* default */;
+		else if (nspm->lbasize == 4096)
+			return 4096;
+		else
+			dev_WARN(&ndns->dev, "unsupported sector size: %ld\n",
+					nspm->lbasize);
+	}
+
+	/*
+	 * There is no namespace label (is_namespace_io()), or the label
+	 * indicates the default sector size.
+	 */
+	return 512;
+}
+EXPORT_SYMBOL(pmem_sector_size);
+
 const char *nvdimm_namespace_disk_name(struct nd_namespace_common *ndns,
 		char *name)
 {
@@ -1283,28 +1306,49 @@ static ssize_t resource_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(resource);
 
-static const unsigned long ns_lbasize_supported[] = { 512, 520, 528,
+static const unsigned long blk_lbasize_supported[] = { 512, 520, 528,
 	4096, 4104, 4160, 4224, 0 };
+
+static const unsigned long pmem_lbasize_supported[] = { 512, 4096, 0 };
 
 static ssize_t sector_size_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct nd_namespace_blk *nsblk = to_nd_namespace_blk(dev);
+	if (is_namespace_blk(dev)) {
+		struct nd_namespace_blk *nsblk = to_nd_namespace_blk(dev);
 
-	if (!is_namespace_blk(dev))
-		return -ENXIO;
+		return nd_sector_size_show(nsblk->lbasize,
+				blk_lbasize_supported, buf);
+	}
 
-	return nd_sector_size_show(nsblk->lbasize, ns_lbasize_supported, buf);
+	if (is_namespace_pmem(dev)) {
+		struct nd_namespace_pmem *nspm = to_nd_namespace_pmem(dev);
+
+		return nd_sector_size_show(nspm->lbasize,
+				pmem_lbasize_supported, buf);
+	}
+	return -ENXIO;
 }
 
 static ssize_t sector_size_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t len)
 {
-	struct nd_namespace_blk *nsblk = to_nd_namespace_blk(dev);
 	struct nd_region *nd_region = to_nd_region(dev->parent);
+	const unsigned long *supported;
+	unsigned long *lbasize;
 	ssize_t rc = 0;
 
-	if (!is_namespace_blk(dev))
+	if (is_namespace_blk(dev)) {
+		struct nd_namespace_blk *nsblk = to_nd_namespace_blk(dev);
+
+		lbasize = &nsblk->lbasize;
+		supported = blk_lbasize_supported;
+	} else if (is_namespace_pmem(dev)) {
+		struct nd_namespace_pmem *nspm = to_nd_namespace_pmem(dev);
+
+		lbasize = &nspm->lbasize;
+		supported = pmem_lbasize_supported;
+	} else
 		return -ENXIO;
 
 	device_lock(dev);
@@ -1312,8 +1356,7 @@ static ssize_t sector_size_store(struct device *dev,
 	if (to_ndns(dev)->claim)
 		rc = -EBUSY;
 	if (rc >= 0)
-		rc = nd_sector_size_store(dev, buf, &nsblk->lbasize,
-				ns_lbasize_supported);
+		rc = nd_sector_size_store(dev, buf, lbasize, supported);
 	if (rc >= 0)
 		rc = nd_namespace_label_update(nd_region, dev);
 	dev_dbg(dev, "%s: result: %zd %s: %s%s", __func__,
@@ -1457,9 +1500,6 @@ static umode_t namespace_visible(struct kobject *kobj,
 	if (is_namespace_pmem(dev) || is_namespace_blk(dev)) {
 		if (a == &dev_attr_size.attr)
 			return 0644;
-
-		if (is_namespace_pmem(dev) && a == &dev_attr_sector_size.attr)
-			return 0;
 
 		return a->mode;
 	}
@@ -1795,6 +1835,7 @@ struct device *create_namespace_pmem(struct nd_region *nd_region,
 				NSLABEL_NAME_LEN, GFP_KERNEL);
 		nspm->uuid = kmemdup((void __force *) label0->uuid,
 				NSLABEL_UUID_LEN, GFP_KERNEL);
+		nspm->lbasize = __le64_to_cpu(label0->lbasize);
 	}
 
 	if (!nspm->alt_name || !nspm->uuid) {
