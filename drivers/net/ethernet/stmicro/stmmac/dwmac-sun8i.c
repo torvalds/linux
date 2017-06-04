@@ -750,6 +750,11 @@ static int sun8i_dwmac_power_internal_phy(struct stmmac_priv *priv)
 		return ret;
 	}
 
+	/* Make sure the EPHY is properly reseted, as U-Boot may leave
+	 * it at deasserted state, and thus it may fail to reset EMAC.
+	 */
+	reset_control_assert(gmac->rst_ephy);
+
 	ret = reset_control_deassert(gmac->rst_ephy);
 	if (ret) {
 		dev_err(priv->device, "Cannot deassert ephy\n");
