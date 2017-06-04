@@ -1942,10 +1942,6 @@ lpfc_debugfs_nvmestat_write(struct file *file, const char __user *buf,
 	if (nbytes > 64)
 		nbytes = 64;
 
-	/* Protect copy from user */
-	if (!access_ok(VERIFY_READ, buf, nbytes))
-		return -EFAULT;
-
 	memset(mybuf, 0, sizeof(mybuf));
 
 	if (copy_from_user(mybuf, buf, nbytes))
@@ -2025,10 +2021,6 @@ lpfc_debugfs_nvmektime_write(struct file *file, const char __user *buf,
 
 	if (nbytes > 64)
 		nbytes = 64;
-
-	/* Protect copy from user */
-	if (!access_ok(VERIFY_READ, buf, nbytes))
-		return -EFAULT;
 
 	memset(mybuf, 0, sizeof(mybuf));
 
@@ -2158,10 +2150,6 @@ lpfc_debugfs_nvmeio_trc_write(struct file *file, const char __user *buf,
 	if (nbytes > 64)
 		nbytes = 64;
 
-	/* Protect copy from user */
-	if (!access_ok(VERIFY_READ, buf, nbytes))
-		return -EFAULT;
-
 	memset(mybuf, 0, sizeof(mybuf));
 
 	if (copy_from_user(mybuf, buf, nbytes))
@@ -2269,10 +2257,6 @@ lpfc_debugfs_cpucheck_write(struct file *file, const char __user *buf,
 	if (nbytes > 64)
 		nbytes = 64;
 
-	/* Protect copy from user */
-	if (!access_ok(VERIFY_READ, buf, nbytes))
-		return -EFAULT;
-
 	memset(mybuf, 0, sizeof(mybuf));
 
 	if (copy_from_user(mybuf, buf, nbytes))
@@ -2342,10 +2326,6 @@ static int lpfc_idiag_cmd_get(const char __user *buf, size_t nbytes,
 	char *pbuf, *step_str;
 	int i;
 	size_t bsize;
-
-	/* Protect copy from user */
-	if (!access_ok(VERIFY_READ, buf, nbytes))
-		return -EFAULT;
 
 	memset(mybuf, 0, sizeof(mybuf));
 	memset(idiag_cmd, 0, sizeof(*idiag_cmd));
