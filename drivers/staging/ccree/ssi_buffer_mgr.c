@@ -33,13 +33,6 @@
 #include "ssi_hash.h"
 #include "ssi_aead.h"
 
-#define LLI_MAX_NUM_OF_DATA_ENTRIES 128
-#define LLI_MAX_NUM_OF_ASSOC_DATA_ENTRIES 4
-#define MLLI_TABLE_MIN_ALIGNMENT 4 /*Force the MLLI table to be align to uint32 */
-#define MAX_NUM_OF_BUFFERS_IN_MLLI 4
-#define MAX_NUM_OF_TOTAL_MLLI_ENTRIES (2*LLI_MAX_NUM_OF_DATA_ENTRIES + \
-					LLI_MAX_NUM_OF_ASSOC_DATA_ENTRIES )
-
 #ifdef CC_DEBUG
 #define DUMP_SGL(sg) \
 	while (sg) { \
