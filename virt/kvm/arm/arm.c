@@ -371,7 +371,7 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 static void vcpu_power_off(struct kvm_vcpu *vcpu)
 {
 	vcpu->arch.power_off = true;
-	kvm_make_request(KVM_REQ_VCPU_EXIT, vcpu);
+	kvm_make_request(KVM_REQ_SLEEP, vcpu);
 	kvm_vcpu_kick(vcpu);
 }
 
@@ -543,7 +543,7 @@ void kvm_arm_halt_guest(struct kvm *kvm)
 
 	kvm_for_each_vcpu(i, vcpu, kvm)
 		vcpu->arch.pause = true;
-	kvm_make_all_cpus_request(kvm, KVM_REQ_VCPU_EXIT);
+	kvm_make_all_cpus_request(kvm, KVM_REQ_SLEEP);
 }
 
 void kvm_arm_resume_guest(struct kvm *kvm)
@@ -557,7 +557,7 @@ void kvm_arm_resume_guest(struct kvm *kvm)
 	}
 }
 
-static void vcpu_sleep(struct kvm_vcpu *vcpu)
+static void vcpu_req_sleep(struct kvm_vcpu *vcpu)
 {
 	struct swait_queue_head *wq = kvm_arch_vcpu_wq(vcpu);
 
@@ -566,7 +566,7 @@ static void vcpu_sleep(struct kvm_vcpu *vcpu)
 
 	if (vcpu->arch.power_off || vcpu->arch.pause) {
 		/* Awaken to handle a signal, request we sleep again later. */
-		kvm_make_request(KVM_REQ_VCPU_EXIT, vcpu);
+		kvm_make_request(KVM_REQ_SLEEP, vcpu);
 	}
 }
 
@@ -578,8 +578,8 @@ static int kvm_vcpu_initialized(struct kvm_vcpu *vcpu)
 static void check_vcpu_requests(struct kvm_vcpu *vcpu)
 {
 	if (kvm_request_pending(vcpu)) {
-		if (kvm_check_request(KVM_REQ_VCPU_EXIT, vcpu))
-			vcpu_sleep(vcpu);
+		if (kvm_check_request(KVM_REQ_SLEEP, vcpu))
+			vcpu_req_sleep(vcpu);
 	}
 }
 
