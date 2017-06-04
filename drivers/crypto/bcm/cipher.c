@@ -2639,7 +2639,7 @@ static int aead_need_fallback(struct aead_request *req)
 	    (spu->spu_type == SPU_TYPE_SPUM) &&
 	    (ctx->digestsize != 8) && (ctx->digestsize != 12) &&
 	    (ctx->digestsize != 16)) {
-		flow_log("%s() AES CCM needs fallbck for digest size %d\n",
+		flow_log("%s() AES CCM needs fallback for digest size %d\n",
 			 __func__, ctx->digestsize);
 		return 1;
 	}
