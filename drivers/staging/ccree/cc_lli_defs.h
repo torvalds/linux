@@ -19,8 +19,6 @@
 
 #include <linux/types.h>
 
-#include "cc_bitops.h"
-
 /* Max DLLI size
  *  AKA DX_DSCRPTR_QUEUE_WORD1_DIN_SIZE_BIT_SIZE
  */

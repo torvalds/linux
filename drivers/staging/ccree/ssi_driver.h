@@ -40,7 +40,6 @@
 /* Registers definitions from shared/hw/ree_include */
 #include "dx_reg_base_host.h"
 #include "dx_host.h"
-#define DX_CC_HOST_VIRT /* must be defined before including dx_cc_regs.h */
 #include "cc_regs.h"
 #include "dx_reg_common.h"
 #include "cc_hal.h"

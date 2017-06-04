@@ -19,8 +19,8 @@
 
 #include <linux/types.h>
 
-#include "cc_regs.h"
 #include "dx_crys_kernel.h"
+#include <linux/bitfield.h>
 
 /******************************************************************************
 *				DEFINITIONS
