@@ -218,6 +218,7 @@ _qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
 		      u16 opaque_fid,
 		      u32 cid,
 		      struct qed_queue_start_common_params *p_params,
+		      bool b_is_rx,
 		      struct qed_queue_cid_vf_params *p_vf_params)
 {
 	struct qed_queue_cid *p_cid;
@@ -237,6 +238,7 @@ _qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
 	p_cid->rel.queue_id = p_params->queue_id;
 	p_cid->rel.stats_id = p_params->stats_id;
 	p_cid->sb_igu_id = p_params->p_sb->igu_sb_id;
+	p_cid->b_is_rx = b_is_rx;
 	p_cid->sb_idx = p_params->sb_idx;
 
 	/* Fill-in bits related to VFs' queues if information was provided */
@@ -313,6 +315,7 @@ struct qed_queue_cid *
 qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
 		     u16 opaque_fid,
 		     struct qed_queue_start_common_params *p_params,
+		     bool b_is_rx,
 		     struct qed_queue_cid_vf_params *p_vf_params)
 {
 	struct qed_queue_cid *p_cid;
@@ -334,7 +337,7 @@ qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
 	}
 
 	p_cid = _qed_eth_queue_to_cid(p_hwfn, opaque_fid, cid,
-				      p_params, p_vf_params);
+				      p_params, b_is_rx, p_vf_params);
 	if (!p_cid && IS_PF(p_hwfn->cdev) && !b_legacy_vf)
 		qed_cxt_release_cid(p_hwfn, cid);
 
@@ -344,9 +347,10 @@ qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
 static struct qed_queue_cid *
 qed_eth_queue_to_cid_pf(struct qed_hwfn *p_hwfn,
 			u16 opaque_fid,
+			bool b_is_rx,
 			struct qed_queue_start_common_params *p_params)
 {
-	return qed_eth_queue_to_cid(p_hwfn, opaque_fid, p_params,
+	return qed_eth_queue_to_cid(p_hwfn, opaque_fid, p_params, b_is_rx,
 				    NULL);
 }
 
@@ -929,7 +933,7 @@ qed_eth_rx_queue_start(struct qed_hwfn *p_hwfn,
 	int rc;
 
 	/* Allocate a CID for the queue */
-	p_cid = qed_eth_queue_to_cid_pf(p_hwfn, opaque_fid, p_params);
+	p_cid = qed_eth_queue_to_cid_pf(p_hwfn, opaque_fid, true, p_params);
 	if (!p_cid)
 		return -ENOMEM;
 
@@ -1134,7 +1138,7 @@ qed_eth_tx_queue_start(struct qed_hwfn *p_hwfn,
 	struct qed_queue_cid *p_cid;
 	int rc;
 
-	p_cid = qed_eth_queue_to_cid_pf(p_hwfn, opaque_fid, p_params);
+	p_cid = qed_eth_queue_to_cid_pf(p_hwfn, opaque_fid, false, p_params);
 	if (!p_cid)
 		return -EINVAL;
 

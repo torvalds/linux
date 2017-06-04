@@ -322,6 +322,8 @@ struct qed_queue_cid {
 	u32 cid;
 	u16 opaque_fid;
 
+	bool b_is_rx;
+
 	/* VFs queues are mapped differently, so we need to know the
 	 * relative queue associated with them [0-based].
 	 * Notice this is relevant on the *PF* queue-cid of its VF's queues,
@@ -354,6 +356,7 @@ struct qed_queue_cid *
 qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
 		     u16 opaque_fid,
 		     struct qed_queue_start_common_params *p_params,
+		     bool b_is_rx,
 		     struct qed_queue_cid_vf_params *p_vf_params);
 
 int
