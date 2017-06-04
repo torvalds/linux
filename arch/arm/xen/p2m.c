@@ -153,7 +153,8 @@ bool __set_phys_to_machine_multi(unsigned long pfn,
 	p2m_entry->mfn = mfn;
 
 	write_lock_irqsave(&p2m_lock, irqflags);
-	if ((rc = xen_add_phys_to_mach_entry(p2m_entry)) < 0) {
+	rc = xen_add_phys_to_mach_entry(p2m_entry);
+	if (rc < 0) {
 		write_unlock_irqrestore(&p2m_lock, irqflags);
 		return false;
 	}
