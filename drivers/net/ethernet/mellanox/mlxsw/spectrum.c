@@ -81,7 +81,7 @@ static const struct mlxsw_fw_rev mlxsw_sp_supported_fw_rev = {
 };
 
 #define MLXSW_SP_FW_FILENAME \
-	"mlxsw_spectrum-" __stringify(MLXSW_FWREV_MAJOR) \
+	"mellanox/mlxsw_spectrum-" __stringify(MLXSW_FWREV_MAJOR) \
 	"." __stringify(MLXSW_FWREV_MINOR) \
 	"." __stringify(MLXSW_FWREV_SUBMINOR) ".mfa2"
 
