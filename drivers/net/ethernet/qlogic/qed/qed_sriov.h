@@ -151,6 +151,7 @@ struct qed_iov_vf_mbx {
 
 #define QED_IOV_LEGACY_QID_RX (0)
 #define QED_IOV_LEGACY_QID_TX (1)
+#define QED_IOV_QID_INVALID (0xFE)
 
 struct qed_vf_queue_cid {
 	bool b_is_tx;

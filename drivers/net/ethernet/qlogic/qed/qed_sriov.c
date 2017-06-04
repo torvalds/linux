@@ -47,11 +47,15 @@
 
 static u8 qed_vf_calculate_legacy(struct qed_vf_info *p_vf)
 {
-	u8 legacy = QED_QCID_LEGACY_VF_CID;
+	u8 legacy = 0;
 
 	if (p_vf->acquire.vfdev_info.eth_fp_hsi_minor ==
 	    ETH_HSI_VER_NO_PKT_LEN_TUNN)
 		legacy |= QED_QCID_LEGACY_VF_RX_PROD;
+
+	if (!(p_vf->acquire.vfdev_info.capabilities &
+	      VFPF_ACQUIRE_CAP_QUEUE_QIDS))
+		legacy |= QED_QCID_LEGACY_VF_CID;
 
 	return legacy;
 }
@@ -1413,6 +1417,10 @@ static u8 qed_iov_vf_mbx_acquire_resc(struct qed_hwfn *p_hwfn,
 	p_resp->num_vlan_filters = min_t(u8, p_vf->num_vlan_filters,
 					 p_req->num_vlan_filters);
 
+	p_resp->num_cids =
+	    min_t(u8, p_req->num_cids,
+		  p_hwfn->pf_params.eth_pf_params.num_vf_cons);
+
 	/* This isn't really needed/enforced, but some legacy VFs might depend
 	 * on the correct filling of this field.
 	 */
@@ -1424,10 +1432,11 @@ static u8 qed_iov_vf_mbx_acquire_resc(struct qed_hwfn *p_hwfn,
 	    p_resp->num_sbs < p_req->num_sbs ||
 	    p_resp->num_mac_filters < p_req->num_mac_filters ||
 	    p_resp->num_vlan_filters < p_req->num_vlan_filters ||
-	    p_resp->num_mc_filters < p_req->num_mc_filters) {
+	    p_resp->num_mc_filters < p_req->num_mc_filters ||
+	    p_resp->num_cids < p_req->num_cids) {
 		DP_VERBOSE(p_hwfn,
 			   QED_MSG_IOV,
-			   "VF[%d] - Insufficient resources: rxq [%02x/%02x] txq [%02x/%02x] sbs [%02x/%02x] mac [%02x/%02x] vlan [%02x/%02x] mc [%02x/%02x]\n",
+			   "VF[%d] - Insufficient resources: rxq [%02x/%02x] txq [%02x/%02x] sbs [%02x/%02x] mac [%02x/%02x] vlan [%02x/%02x] mc [%02x/%02x] cids [%02x/%02x]\n",
 			   p_vf->abs_vf_id,
 			   p_req->num_rxqs,
 			   p_resp->num_rxqs,
@@ -1439,7 +1448,9 @@ static u8 qed_iov_vf_mbx_acquire_resc(struct qed_hwfn *p_hwfn,
 			   p_resp->num_mac_filters,
 			   p_req->num_vlan_filters,
 			   p_resp->num_vlan_filters,
-			   p_req->num_mc_filters, p_resp->num_mc_filters);
+			   p_req->num_mc_filters,
+			   p_resp->num_mc_filters,
+			   p_req->num_cids, p_resp->num_cids);
 
 		/* Some legacy OSes are incapable of correctly handling this
 		 * failure.
@@ -1554,6 +1565,12 @@ static void qed_iov_vf_mbx_acquire(struct qed_hwfn *p_hwfn,
 				   PFVF_ACQUIRE_CAP_POST_FW_OVERRIDE;
 	if (p_hwfn->cdev->num_hwfns > 1)
 		pfdev_info->capabilities |= PFVF_ACQUIRE_CAP_100G;
+
+	/* Share our ability to use multiple queue-ids only with VFs
+	 * that request it.
+	 */
+	if (req->vfdev_info.capabilities & VFPF_ACQUIRE_CAP_QUEUE_QIDS)
+		pfdev_info->capabilities |= PFVF_ACQUIRE_CAP_QUEUE_QIDS;
 
 	qed_iov_vf_mbx_acquire_stats(p_hwfn, &pfdev_info->stats_info);
 
@@ -1977,10 +1994,37 @@ static void qed_iov_vf_mbx_start_rxq_resp(struct qed_hwfn *p_hwfn,
 static u8 qed_iov_vf_mbx_qid(struct qed_hwfn *p_hwfn,
 			     struct qed_vf_info *p_vf, bool b_is_tx)
 {
-	if (b_is_tx)
-		return QED_IOV_LEGACY_QID_TX;
-	else
-		return QED_IOV_LEGACY_QID_RX;
+	struct qed_iov_vf_mbx *p_mbx = &p_vf->vf_mbx;
+	struct vfpf_qid_tlv *p_qid_tlv;
+
+	/* Search for the qid if the VF published its going to provide it */
+	if (!(p_vf->acquire.vfdev_info.capabilities &
+	      VFPF_ACQUIRE_CAP_QUEUE_QIDS)) {
+		if (b_is_tx)
+			return QED_IOV_LEGACY_QID_TX;
+		else
+			return QED_IOV_LEGACY_QID_RX;
+	}
+
+	p_qid_tlv = (struct vfpf_qid_tlv *)
+		    qed_iov_search_list_tlvs(p_hwfn, p_mbx->req_virt,
+					     CHANNEL_TLV_QID);
+	if (!p_qid_tlv) {
+		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+			   "VF[%2x]: Failed to provide qid\n",
+			   p_vf->relative_vf_id);
+
+		return QED_IOV_QID_INVALID;
+	}
+
+	if (p_qid_tlv->qid >= MAX_QUEUES_PER_QZONE) {
+		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+			   "VF[%02x]: Provided qid out-of-bounds %02x\n",
+			   p_vf->relative_vf_id, p_qid_tlv->qid);
+		return QED_IOV_QID_INVALID;
+	}
+
+	return p_qid_tlv->qid;
 }
 
 static void qed_iov_vf_mbx_start_rxq(struct qed_hwfn *p_hwfn,
@@ -2006,7 +2050,12 @@ static void qed_iov_vf_mbx_start_rxq(struct qed_hwfn *p_hwfn,
 		goto out;
 
 	qid_usage_idx = qed_iov_vf_mbx_qid(p_hwfn, vf, false);
+	if (qid_usage_idx == QED_IOV_QID_INVALID)
+		goto out;
+
 	p_queue = &vf->vf_queues[req->rx_qid];
+	if (p_queue->cids[qid_usage_idx].p_cid)
+		goto out;
 
 	vf_legacy = qed_vf_calculate_legacy(vf);
 
@@ -2332,12 +2381,17 @@ static void qed_iov_vf_mbx_start_txq(struct qed_hwfn *p_hwfn,
 	req = &mbx->req_virt->start_txq;
 
 	if (!qed_iov_validate_txq(p_hwfn, vf, req->tx_qid,
-				  QED_IOV_VALIDATE_Q_DISABLE) ||
+				  QED_IOV_VALIDATE_Q_NA) ||
 	    !qed_iov_validate_sb(p_hwfn, vf, req->hw_sb))
 		goto out;
 
 	qid_usage_idx = qed_iov_vf_mbx_qid(p_hwfn, vf, true);
+	if (qid_usage_idx == QED_IOV_QID_INVALID)
+		goto out;
+
 	p_queue = &vf->vf_queues[req->tx_qid];
+	if (p_queue->cids[qid_usage_idx].p_cid)
+		goto out;
 
 	vf_legacy = qed_vf_calculate_legacy(vf);
 
@@ -2388,17 +2442,33 @@ static int qed_iov_vf_stop_rxqs(struct qed_hwfn *p_hwfn,
 	struct qed_vf_queue *p_queue;
 	int rc = 0;
 
-	if (!qed_iov_validate_rxq(p_hwfn, vf, rxq_id,
-				  QED_IOV_VALIDATE_Q_ENABLE)) {
+	if (!qed_iov_validate_rxq(p_hwfn, vf, rxq_id, QED_IOV_VALIDATE_Q_NA)) {
 		DP_VERBOSE(p_hwfn,
 			   QED_MSG_IOV,
-			   "VF[%d] Tried Closing Rx 0x%04x which is inactive\n",
-			   vf->relative_vf_id, rxq_id);
+			   "VF[%d] Tried Closing Rx 0x%04x.%02x which is inactive\n",
+			   vf->relative_vf_id, rxq_id, qid_usage_idx);
 		return -EINVAL;
 	}
 
 	p_queue = &vf->vf_queues[rxq_id];
 
+	/* We've validated the index and the existence of the active RXQ -
+	 * now we need to make sure that it's using the correct qid.
+	 */
+	if (!p_queue->cids[qid_usage_idx].p_cid ||
+	    p_queue->cids[qid_usage_idx].b_is_tx) {
+		struct qed_queue_cid *p_cid;
+
+		p_cid = qed_iov_get_vf_rx_queue_cid(p_queue);
+		DP_VERBOSE(p_hwfn,
+			   QED_MSG_IOV,
+			   "VF[%d] - Tried Closing Rx 0x%04x.%02x, but Rx is at %04x.%02x\n",
+			   vf->relative_vf_id,
+			   rxq_id, qid_usage_idx, rxq_id, p_cid->qid_usage_idx);
+		return -EINVAL;
+	}
+
+	/* Now that we know we have a valid Rx-queue - close it */
 	rc = qed_eth_rx_queue_stop(p_hwfn,
 				   p_queue->cids[qid_usage_idx].p_cid,
 				   false, cqe_completion);
@@ -2418,11 +2488,13 @@ static int qed_iov_vf_stop_txqs(struct qed_hwfn *p_hwfn,
 	struct qed_vf_queue *p_queue;
 	int rc = 0;
 
-	if (!qed_iov_validate_txq(p_hwfn, vf, txq_id,
-				  QED_IOV_VALIDATE_Q_ENABLE))
+	if (!qed_iov_validate_txq(p_hwfn, vf, txq_id, QED_IOV_VALIDATE_Q_NA))
 		return -EINVAL;
 
 	p_queue = &vf->vf_queues[txq_id];
+	if (!p_queue->cids[qid_usage_idx].p_cid ||
+	    !p_queue->cids[qid_usage_idx].b_is_tx)
+		return -EINVAL;
 
 	rc = qed_eth_tx_queue_stop(p_hwfn, p_queue->cids[qid_usage_idx].p_cid);
 	if (rc)
@@ -2458,6 +2530,8 @@ static void qed_iov_vf_mbx_stop_rxqs(struct qed_hwfn *p_hwfn,
 
 	/* Find which qid-index is associated with the queue */
 	qid_usage_idx = qed_iov_vf_mbx_qid(p_hwfn, vf, false);
+	if (qid_usage_idx == QED_IOV_QID_INVALID)
+		goto out;
 
 	rc = qed_iov_vf_stop_rxqs(p_hwfn, vf, req->rx_qid,
 				  qid_usage_idx, req->cqe_completion);
@@ -2494,6 +2568,8 @@ static void qed_iov_vf_mbx_stop_txqs(struct qed_hwfn *p_hwfn,
 
 	/* Find which qid-index is associated with the queue */
 	qid_usage_idx = qed_iov_vf_mbx_qid(p_hwfn, vf, true);
+	if (qid_usage_idx == QED_IOV_QID_INVALID)
+		goto out;
 
 	rc = qed_iov_vf_stop_txqs(p_hwfn, vf, req->tx_qid, qid_usage_idx);
 	if (!rc)
@@ -2524,15 +2600,35 @@ static void qed_iov_vf_mbx_update_rxqs(struct qed_hwfn *p_hwfn,
 	complete_event_flg = !!(req->flags & VFPF_RXQ_UPD_COMPLETE_EVENT_FLAG);
 
 	qid_usage_idx = qed_iov_vf_mbx_qid(p_hwfn, vf, false);
+	if (qid_usage_idx == QED_IOV_QID_INVALID)
+		goto out;
 
-	/* Validate inputs */
-	for (i = req->rx_qid; i < req->rx_qid + req->num_rxqs; i++)
+	/* There shouldn't exist a VF that uses queue-qids yet uses this
+	 * API with multiple Rx queues. Validate this.
+	 */
+	if ((vf->acquire.vfdev_info.capabilities &
+	     VFPF_ACQUIRE_CAP_QUEUE_QIDS) && req->num_rxqs != 1) {
+		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+			   "VF[%d] supports QIDs but sends multiple queues\n",
+			   vf->relative_vf_id);
+		goto out;
+	}
+
+	/* Validate inputs - for the legacy case this is still true since
+	 * qid_usage_idx for each Rx queue would be LEGACY_QID_RX.
+	 */
+	for (i = req->rx_qid; i < req->rx_qid + req->num_rxqs; i++) {
 		if (!qed_iov_validate_rxq(p_hwfn, vf, i,
-					  QED_IOV_VALIDATE_Q_ENABLE)) {
-			DP_INFO(p_hwfn, "VF[%d]: Incorrect Rxqs [%04x, %02x]\n",
-				vf->relative_vf_id, req->rx_qid, req->num_rxqs);
+					  QED_IOV_VALIDATE_Q_NA) ||
+		    !vf->vf_queues[i].cids[qid_usage_idx].p_cid ||
+		    vf->vf_queues[i].cids[qid_usage_idx].b_is_tx) {
+			DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+				   "VF[%d]: Incorrect Rxqs [%04x, %02x]\n",
+				   vf->relative_vf_id, req->rx_qid,
+				   req->num_rxqs);
 			goto out;
 		}
+	}
 
 	/* Prepare the handlers */
 	for (i = 0; i < req->num_rxqs; i++) {

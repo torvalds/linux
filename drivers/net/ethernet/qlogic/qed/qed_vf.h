@@ -46,7 +46,8 @@ struct vf_pf_resc_request {
 	u8 num_mac_filters;
 	u8 num_vlan_filters;
 	u8 num_mc_filters;
-	u16 padding;
+	u8 num_cids;
+	u8 padding;
 };
 
 struct hw_sb_info {
@@ -113,6 +114,11 @@ struct vfpf_acquire_tlv {
 	struct vf_pf_vfdev_info {
 #define VFPF_ACQUIRE_CAP_PRE_FP_HSI     (1 << 0) /* VF pre-FP hsi version */
 #define VFPF_ACQUIRE_CAP_100G		(1 << 1) /* VF can support 100g */
+	/* A requirement for supporting multi-Tx queues on a single queue-zone,
+	 * VF would pass qids as additional information whenever passing queue
+	 * references.
+	 */
+#define VFPF_ACQUIRE_CAP_QUEUE_QIDS     BIT(2)
 		u64 capabilities;
 		u8 fw_major;
 		u8 fw_minor;
@@ -185,6 +191,9 @@ struct pfvf_acquire_resp_tlv {
  */
 #define PFVF_ACQUIRE_CAP_POST_FW_OVERRIDE	BIT(2)
 
+	/* PF expects queues to be received with additional qids */
+#define PFVF_ACQUIRE_CAP_QUEUE_QIDS             BIT(3)
+
 		u16 db_size;
 		u8 indices_per_sb;
 		u8 os_type;
@@ -221,7 +230,8 @@ struct pfvf_acquire_resp_tlv {
 		u8 num_mac_filters;
 		u8 num_vlan_filters;
 		u8 num_mc_filters;
-		u8 padding[2];
+		u8 num_cids;
+		u8 padding;
 	} resc;
 
 	u32 bulletin_size;
@@ -232,6 +242,16 @@ struct pfvf_start_queue_resp_tlv {
 	struct pfvf_tlv hdr;
 	u32 offset;		/* offset to consumer/producer of queue */
 	u8 padding[4];
+};
+
+/* Extended queue information - additional index for reference inside qzone.
+ * If commmunicated between VF/PF, each TLV relating to queues should be
+ * extended by one such [or have a future base TLV that already contains info].
+ */
+struct vfpf_qid_tlv {
+	struct channel_tlv tl;
+	u8 qid;
+	u8 padding[3];
 };
 
 /* Setup Queue */
@@ -597,6 +617,8 @@ enum {
 	CHANNEL_TLV_VPORT_UPDATE_ACCEPT_ANY_VLAN,
 	CHANNEL_TLV_VPORT_UPDATE_SGE_TPA,
 	CHANNEL_TLV_UPDATE_TUNN_PARAM,
+	CHANNEL_TLV_RESERVED,
+	CHANNEL_TLV_QID,
 	CHANNEL_TLV_MAX,
 
 	/* Required for iterating over vport-update tlvs.
@@ -604,6 +626,12 @@ enum {
 	 */
 	CHANNEL_TLV_VPORT_UPDATE_MAX = CHANNEL_TLV_VPORT_UPDATE_SGE_TPA + 1,
 };
+
+/* Default number of CIDs [total of both Rx and Tx] to be requested
+ * by default, and maximum possible number.
+ */
+#define QED_ETH_VF_DEFAULT_NUM_CIDS (32)
+#define QED_ETH_VF_MAX_NUM_CIDS (250)
 
 /* This data is held in the qed_hwfn structure for VFs only. */
 struct qed_vf_iov {

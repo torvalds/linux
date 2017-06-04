@@ -2116,8 +2116,12 @@ int qed_cxt_set_pf_params(struct qed_hwfn *p_hwfn, u32 rdma_tasks)
 		struct qed_eth_pf_params *p_params =
 		    &p_hwfn->pf_params.eth_pf_params;
 
-		qed_cxt_set_proto_cid_count(p_hwfn, PROTOCOLID_ETH,
-					    p_params->num_cons, 1);
+			if (!p_params->num_vf_cons)
+				p_params->num_vf_cons =
+				    ETH_PF_PARAMS_VF_CONS_DEFAULT;
+			qed_cxt_set_proto_cid_count(p_hwfn, PROTOCOLID_ETH,
+						    p_params->num_cons,
+						    p_params->num_vf_cons);
 		p_hwfn->p_cxt_mngr->arfs_count = p_params->num_arfs_filters;
 		break;
 	}

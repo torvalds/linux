@@ -153,6 +153,22 @@ static int qed_send_msg2pf(struct qed_hwfn *p_hwfn, u8 *done, u32 resp_size)
 	return rc;
 }
 
+static void qed_vf_pf_add_qid(struct qed_hwfn *p_hwfn,
+			      struct qed_queue_cid *p_cid)
+{
+	struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
+	struct vfpf_qid_tlv *p_qid_tlv;
+
+	/* Only add QIDs for the queue if it was negotiated with PF */
+	if (!(p_iov->acquire_resp.pfdev_info.capabilities &
+	      PFVF_ACQUIRE_CAP_QUEUE_QIDS))
+		return;
+
+	p_qid_tlv = qed_add_tlv(p_hwfn, &p_iov->offset,
+				CHANNEL_TLV_QID, sizeof(*p_qid_tlv));
+	p_qid_tlv->qid = p_cid->qid_usage_idx;
+}
+
 #define VF_ACQUIRE_THRESH 3
 static void qed_vf_pf_acquire_reduce_resc(struct qed_hwfn *p_hwfn,
 					  struct vf_pf_resc_request *p_req,
@@ -160,7 +176,7 @@ static void qed_vf_pf_acquire_reduce_resc(struct qed_hwfn *p_hwfn,
 {
 	DP_VERBOSE(p_hwfn,
 		   QED_MSG_IOV,
-		   "PF unwilling to fullill resource request: rxq [%02x/%02x] txq [%02x/%02x] sbs [%02x/%02x] mac [%02x/%02x] vlan [%02x/%02x] mc [%02x/%02x]. Try PF recommended amount\n",
+		   "PF unwilling to fullill resource request: rxq [%02x/%02x] txq [%02x/%02x] sbs [%02x/%02x] mac [%02x/%02x] vlan [%02x/%02x] mc [%02x/%02x] cids [%02x/%02x]. Try PF recommended amount\n",
 		   p_req->num_rxqs,
 		   p_resp->num_rxqs,
 		   p_req->num_rxqs,
@@ -171,7 +187,8 @@ static void qed_vf_pf_acquire_reduce_resc(struct qed_hwfn *p_hwfn,
 		   p_resp->num_mac_filters,
 		   p_req->num_vlan_filters,
 		   p_resp->num_vlan_filters,
-		   p_req->num_mc_filters, p_resp->num_mc_filters);
+		   p_req->num_mc_filters,
+		   p_resp->num_mc_filters, p_req->num_cids, p_resp->num_cids);
 
 	/* humble our request */
 	p_req->num_txqs = p_resp->num_txqs;
@@ -180,6 +197,7 @@ static void qed_vf_pf_acquire_reduce_resc(struct qed_hwfn *p_hwfn,
 	p_req->num_mac_filters = p_resp->num_mac_filters;
 	p_req->num_vlan_filters = p_resp->num_vlan_filters;
 	p_req->num_mc_filters = p_resp->num_mc_filters;
+	p_req->num_cids = p_resp->num_cids;
 }
 
 static int qed_vf_pf_acquire(struct qed_hwfn *p_hwfn)
@@ -204,6 +222,7 @@ static int qed_vf_pf_acquire(struct qed_hwfn *p_hwfn)
 	p_resc->num_sbs = QED_MAX_VF_CHAINS_PER_PF;
 	p_resc->num_mac_filters = QED_ETH_VF_NUM_MAC_FILTERS;
 	p_resc->num_vlan_filters = QED_ETH_VF_NUM_VLAN_FILTERS;
+	p_resc->num_cids = QED_ETH_VF_DEFAULT_NUM_CIDS;
 
 	req->vfdev_info.os_type = VFPF_ACQUIRE_OS_LINUX;
 	req->vfdev_info.fw_major = FW_MAJOR_VERSION;
@@ -306,6 +325,13 @@ static int qed_vf_pf_acquire(struct qed_hwfn *p_hwfn)
 	/* Mark the PF as legacy, if needed */
 	if (req->vfdev_info.capabilities & VFPF_ACQUIRE_CAP_PRE_FP_HSI)
 		p_iov->b_pre_fp_hsi = true;
+
+	/* In case PF doesn't support multi-queue Tx, update the number of
+	 * CIDs to reflect the number of queues [older PFs didn't fill that
+	 * field].
+	 */
+	if (!(resp->pfdev_info.capabilities & PFVF_ACQUIRE_CAP_QUEUE_QIDS))
+		resp->resc.num_cids = resp->resc.num_rxqs + resp->resc.num_txqs;
 
 	/* Update bulletin board size with response from PF */
 	p_iov->bulletin.size = resp->bulletin_size;
@@ -609,6 +635,9 @@ qed_vf_pf_rxq_start(struct qed_hwfn *p_hwfn,
 		__internal_ram_wr(p_hwfn, *pp_prod, sizeof(u32),
 				  (u32 *)(&init_prod_val));
 	}
+
+	qed_vf_pf_add_qid(p_hwfn, p_cid);
+
 	/* add list termination tlv */
 	qed_add_tlv(p_hwfn, &p_iov->offset,
 		    CHANNEL_TLV_LIST_END, sizeof(struct channel_list_end_tlv));
@@ -657,6 +686,8 @@ int qed_vf_pf_rxq_stop(struct qed_hwfn *p_hwfn,
 	req->num_rxqs = 1;
 	req->cqe_completion = cqe_completion;
 
+	qed_vf_pf_add_qid(p_hwfn, p_cid);
+
 	/* add list termination tlv */
 	qed_add_tlv(p_hwfn, &p_iov->offset,
 		    CHANNEL_TLV_LIST_END, sizeof(struct channel_list_end_tlv));
@@ -699,6 +730,8 @@ qed_vf_pf_txq_start(struct qed_hwfn *p_hwfn,
 	req->pbl_size = pbl_size;
 	req->hw_sb = p_cid->sb_igu_id;
 	req->sb_index = p_cid->sb_idx;
+
+	qed_vf_pf_add_qid(p_hwfn, p_cid);
 
 	/* add list termination tlv */
 	qed_add_tlv(p_hwfn, &p_iov->offset,
@@ -748,6 +781,8 @@ int qed_vf_pf_txq_stop(struct qed_hwfn *p_hwfn, struct qed_queue_cid *p_cid)
 
 	req->tx_qid = p_cid->rel.queue_id;
 	req->num_txqs = 1;
+
+	qed_vf_pf_add_qid(p_hwfn, p_cid);
 
 	/* add list termination tlv */
 	qed_add_tlv(p_hwfn, &p_iov->offset,

@@ -198,10 +198,10 @@ static void qed_eth_queue_qid_usage_del(struct qed_hwfn *p_hwfn,
 void qed_eth_queue_cid_release(struct qed_hwfn *p_hwfn,
 			       struct qed_queue_cid *p_cid)
 {
-	/* VFs' CIDs are 0-based in PF-view, and uninitialized on VF */
-	if ((p_cid->vfid == QED_QUEUE_CID_SELF) &&
-	    IS_PF(p_hwfn->cdev))
-		qed_cxt_release_cid(p_hwfn, p_cid->cid);
+	bool b_legacy_vf = !!(p_cid->vf_legacy & QED_QCID_LEGACY_VF_CID);
+
+	if (IS_PF(p_hwfn->cdev) && !b_legacy_vf)
+		_qed_cxt_release_cid(p_hwfn, p_cid->cid, p_cid->vfid);
 
 	/* For PF's VFs we maintain the index inside queue-zone in IOV */
 	if (p_cid->vfid == QED_QUEUE_CID_SELF)
@@ -319,18 +319,30 @@ qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
 		     struct qed_queue_cid_vf_params *p_vf_params)
 {
 	struct qed_queue_cid *p_cid;
+	u8 vfid = QED_CXT_PF_CID;
 	bool b_legacy_vf = false;
 	u32 cid = 0;
 
-	/* Currently, PF doesn't need to allocate CIDs for any VF */
-	if (p_vf_params)
-		b_legacy_vf = true;
+	/* In case of legacy VFs, The CID can be derived from the additional
+	 * VF parameters - the VF assumes queue X uses CID X, so we can simply
+	 * use the vf_qid for this purpose as well.
+	 */
+	if (p_vf_params) {
+		vfid = p_vf_params->vfid;
+
+		if (p_vf_params->vf_legacy & QED_QCID_LEGACY_VF_CID) {
+			b_legacy_vf = true;
+			cid = p_vf_params->vf_qid;
+		}
+	}
+
 	/* Get a unique firmware CID for this queue, in case it's a PF.
 	 * VF's don't need a CID as the queue configuration will be done
 	 * by PF.
 	 */
 	if (IS_PF(p_hwfn->cdev) && !b_legacy_vf) {
-		if (qed_cxt_acquire_cid(p_hwfn, PROTOCOLID_ETH, &cid)) {
+		if (_qed_cxt_acquire_cid(p_hwfn, PROTOCOLID_ETH,
+					 &cid, vfid)) {
 			DP_NOTICE(p_hwfn, "Failed to acquire cid\n");
 			return NULL;
 		}
@@ -339,7 +351,7 @@ qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
 	p_cid = _qed_eth_queue_to_cid(p_hwfn, opaque_fid, cid,
 				      p_params, b_is_rx, p_vf_params);
 	if (!p_cid && IS_PF(p_hwfn->cdev) && !b_legacy_vf)
-		qed_cxt_release_cid(p_hwfn, cid);
+		_qed_cxt_release_cid(p_hwfn, cid, vfid);
 
 	return p_cid;
 }

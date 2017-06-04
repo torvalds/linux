@@ -185,6 +185,10 @@ struct qed_eth_pf_params {
 	 */
 	u16 num_cons;
 
+	/* per-VF number of CIDs */
+	u8 num_vf_cons;
+#define ETH_PF_PARAMS_VF_CONS_DEFAULT	(32)
+
 	/* To enable arfs, previous to HW-init a positive number needs to be
 	 * set [as filters require allocated searcher ILT memory].
 	 * This will set the maximal number of configured steering-filters.
