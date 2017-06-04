@@ -144,7 +144,7 @@ bool __set_phys_to_machine_multi(unsigned long pfn,
 		return true;
 	}
 
-	p2m_entry = kzalloc(sizeof(struct xen_p2m_entry), GFP_NOWAIT);
+	p2m_entry = kzalloc(sizeof(*p2m_entry), GFP_NOWAIT);
 	if (!p2m_entry) {
 		pr_warn("cannot allocate xen_p2m_entry\n");
 		return false;
