@@ -14,7 +14,6 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-
 /*!
  * @file
  * @brief This file contains macro definitions for accessing ARM TrustZone
