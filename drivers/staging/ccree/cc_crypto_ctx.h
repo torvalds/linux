@@ -27,7 +27,7 @@
 #define CC_CTX_SIZE_LOG2 7
 #endif
 #endif
-#define CC_CTX_SIZE (1 << CC_CTX_SIZE_LOG2)
+#define CC_CTX_SIZE BIT(CC_CTX_SIZE_LOG2)
 #define CC_DRV_CTX_SIZE_WORDS (CC_CTX_SIZE >> 2)
 
 #define CC_DRV_DES_IV_SIZE 8
