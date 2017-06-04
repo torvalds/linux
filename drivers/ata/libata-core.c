@@ -2120,6 +2120,37 @@ static bool ata_log_supported(struct ata_device *dev, u8 log)
 	return get_unaligned_le16(&ap->sector_buf[log * 2]) ? true : false;
 }
 
+static bool ata_identify_page_supported(struct ata_device *dev, u8 page)
+{
+	struct ata_port *ap = dev->link->ap;
+	unsigned int err, i;
+
+	if (!ata_log_supported(dev, ATA_LOG_IDENTIFY_DEVICE)) {
+		ata_dev_warn(dev, "ATA Identify Device Log not supported\n");
+		return false;
+	}
+
+	/*
+	 * Read IDENTIFY DEVICE data log, page 0, to figure out if the page is
+	 * supported.
+	 */
+	err = ata_read_log_page(dev, ATA_LOG_IDENTIFY_DEVICE, 0, ap->sector_buf,
+				1);
+	if (err) {
+		ata_dev_info(dev,
+			     "failed to get Device Identify Log Emask 0x%x\n",
+			     err);
+		return false;
+	}
+
+	for (i = 0; i < ap->sector_buf[8]; i++) {
+		if (ap->sector_buf[9 + i] == page)
+			return true;
+	}
+
+	return false;
+}
+
 static int ata_do_link_spd_horkage(struct ata_device *dev)
 {
 	struct ata_link *plink = ata_dev_phys_link(dev);
@@ -2325,8 +2356,6 @@ static void ata_dev_config_zac(struct ata_device *dev)
 	struct ata_port *ap = dev->link->ap;
 	unsigned int err_mask;
 	u8 *identify_buf = ap->sector_buf;
-	int i, found = 0;
-	u16 log_pages;
 
 	dev->zac_zones_optimal_open = U32_MAX;
 	dev->zac_zones_optimal_nonseq = U32_MAX;
@@ -2346,31 +2375,7 @@ static void ata_dev_config_zac(struct ata_device *dev)
 	if (!(dev->flags & ATA_DFLAG_ZAC))
 		return;
 
-	if (!ata_log_supported(dev, ATA_LOG_IDENTIFY_DEVICE)) {
-		ata_dev_warn(dev, "ATA Identify Device Log not supported\n");
-		return;
-	}
-
-	/*
-	 * Read IDENTIFY DEVICE data log, page 0, to figure out
-	 * if page 9 is supported.
-	 */
-	err_mask = ata_read_log_page(dev, ATA_LOG_IDENTIFY_DEVICE, 0,
-				     identify_buf, 1);
-	if (err_mask) {
-		ata_dev_info(dev,
-			     "failed to get Device Identify Log Emask 0x%x\n",
-			     err_mask);
-		return;
-	}
-	log_pages = identify_buf[8];
-	for (i = 0; i < log_pages; i++) {
-		if (identify_buf[9 + i] == ATA_LOG_ZONED_INFORMATION) {
-			found++;
-			break;
-		}
-	}
-	if (!found) {
+	if (!ata_identify_page_supported(dev, ATA_LOG_ZONED_INFORMATION)) {
 		ata_dev_warn(dev,
 			     "ATA Zoned Information Log not supported\n");
 		return;
