@@ -2226,7 +2226,7 @@ static void ata_dev_config_ncq_prio(struct ata_device *dev)
 	}
 
 	err_mask = ata_read_log_page(dev,
-				     ATA_LOG_SATA_ID_DEV_DATA,
+				     ATA_LOG_IDENTIFY_DEVICE,
 				     ATA_LOG_SATA_SETTINGS,
 				     ap->sector_buf,
 				     1);
@@ -2346,7 +2346,7 @@ static void ata_dev_config_zac(struct ata_device *dev)
 	if (!(dev->flags & ATA_DFLAG_ZAC))
 		return;
 
-	if (!ata_log_supported(dev, ATA_LOG_SATA_ID_DEV_DATA)) {
+	if (!ata_log_supported(dev, ATA_LOG_IDENTIFY_DEVICE)) {
 		ata_dev_warn(dev, "ATA Identify Device Log not supported\n");
 		return;
 	}
@@ -2355,7 +2355,7 @@ static void ata_dev_config_zac(struct ata_device *dev)
 	 * Read IDENTIFY DEVICE data log, page 0, to figure out
 	 * if page 9 is supported.
 	 */
-	err_mask = ata_read_log_page(dev, ATA_LOG_SATA_ID_DEV_DATA, 0,
+	err_mask = ata_read_log_page(dev, ATA_LOG_IDENTIFY_DEVICE, 0,
 				     identify_buf, 1);
 	if (err_mask) {
 		ata_dev_info(dev,
@@ -2379,7 +2379,7 @@ static void ata_dev_config_zac(struct ata_device *dev)
 	/*
 	 * Read IDENTIFY DEVICE data log, page 9 (Zoned-device information)
 	 */
-	err_mask = ata_read_log_page(dev, ATA_LOG_SATA_ID_DEV_DATA,
+	err_mask = ata_read_log_page(dev, ATA_LOG_IDENTIFY_DEVICE,
 				     ATA_LOG_ZONED_INFORMATION,
 				     identify_buf, 1);
 	if (!err_mask) {
@@ -2608,7 +2608,7 @@ int ata_dev_configure(struct ata_device *dev)
 
 			dev->flags |= ATA_DFLAG_DEVSLP;
 			err_mask = ata_read_log_page(dev,
-						     ATA_LOG_SATA_ID_DEV_DATA,
+						     ATA_LOG_IDENTIFY_DEVICE,
 						     ATA_LOG_SATA_SETTINGS,
 						     sata_setting,
 						     1);
