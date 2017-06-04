@@ -279,14 +279,24 @@ void qed_reset_vport_stats(struct qed_dev *cdev);
 
 #define MAX_QUEUES_PER_QZONE    (sizeof(unsigned long) * 8)
 
+/* Almost identical to the qed_queue_start_common_params,
+ * but here we maintain the SB index in IGU CAM.
+ */
+struct qed_queue_cid_params {
+	u8 vport_id;
+	u16 queue_id;
+	u8 stats_id;
+};
+
 struct qed_queue_cid {
-	/* 'Relative' is a relative term ;-). Usually the indices [not counting
-	 * SBs] would be PF-relative, but there are some cases where that isn't
-	 * the case - specifically for a PF configuring its VF indices it's
-	 * possible some fields [E.g., stats-id] in 'rel' would already be abs.
-	 */
-	struct qed_queue_start_common_params rel;
-	struct qed_queue_start_common_params abs;
+	/* For stats-id, the `rel' is actually absolute as well */
+	struct qed_queue_cid_params rel;
+	struct qed_queue_cid_params abs;
+
+	/* These have no 'relative' meaning */
+	u16 sb_igu_id;
+	u8 sb_idx;
+
 	u32 cid;
 	u16 opaque_fid;
 

@@ -1770,7 +1770,7 @@ static int qede_start_txq(struct qede_dev *edev,
 	else
 		params.queue_id = txq->index;
 
-	params.sb = fp->sb_info->igu_sb_id;
+	params.p_sb = fp->sb_info;
 	params.sb_idx = sb_idx;
 
 	rc = edev->ops->q_tx_start(edev->cdev, rss_id, &params, phys_table,
@@ -1849,7 +1849,7 @@ static int qede_start_queues(struct qede_dev *edev, bool clear_stats)
 			memset(&q_params, 0, sizeof(q_params));
 			q_params.queue_id = rxq->rxq_id;
 			q_params.vport_id = 0;
-			q_params.sb = fp->sb_info->igu_sb_id;
+			q_params.p_sb = fp->sb_info;
 			q_params.sb_idx = RX_PI;
 
 			p_phys_table =

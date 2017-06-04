@@ -1951,6 +1951,7 @@ static void qed_iov_vf_mbx_start_rxq(struct qed_hwfn *p_hwfn,
 	u8 status = PFVF_STATUS_NO_RESOURCE;
 	struct qed_vf_q_info *p_queue;
 	struct vfpf_start_rxq_tlv *req;
+	struct qed_sb_info sb_dummy;
 	bool b_legacy_vf = false;
 	int rc;
 
@@ -1968,7 +1969,10 @@ static void qed_iov_vf_mbx_start_rxq(struct qed_hwfn *p_hwfn,
 	params.queue_id = p_queue->fw_rx_qid;
 	params.vport_id = vf->vport_id;
 	params.stats_id = vf->abs_vf_id + 0x10;
-	params.sb = req->hw_sb;
+	/* Since IGU index is passed via sb_info, construct a dummy one */
+	memset(&sb_dummy, 0, sizeof(sb_dummy));
+	sb_dummy.igu_sb_id = req->hw_sb;
+	params.p_sb = &sb_dummy;
 	params.sb_idx = req->sb_index;
 
 	p_queue->p_rx_cid = _qed_eth_queue_to_cid(p_hwfn,
@@ -2273,6 +2277,7 @@ static void qed_iov_vf_mbx_start_txq(struct qed_hwfn *p_hwfn,
 	u8 status = PFVF_STATUS_NO_RESOURCE;
 	struct vfpf_start_txq_tlv *req;
 	struct qed_vf_q_info *p_queue;
+	struct qed_sb_info sb_dummy;
 	int rc;
 	u16 pq;
 
@@ -2290,7 +2295,11 @@ static void qed_iov_vf_mbx_start_txq(struct qed_hwfn *p_hwfn,
 	params.queue_id = p_queue->fw_tx_qid;
 	params.vport_id = vf->vport_id;
 	params.stats_id = vf->abs_vf_id + 0x10;
-	params.sb = req->hw_sb;
+
+	/* Since IGU index is passed via sb_info, construct a dummy one */
+	memset(&sb_dummy, 0, sizeof(sb_dummy));
+	sb_dummy.igu_sb_id = req->hw_sb;
+	params.p_sb = &sb_dummy;
 	params.sb_idx = req->sb_index;
 
 	p_queue->p_tx_cid = _qed_eth_queue_to_cid(p_hwfn,

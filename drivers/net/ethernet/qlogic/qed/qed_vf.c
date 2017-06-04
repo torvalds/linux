@@ -588,8 +588,8 @@ qed_vf_pf_rxq_start(struct qed_hwfn *p_hwfn,
 	req->cqe_pbl_addr = cqe_pbl_addr;
 	req->cqe_pbl_size = cqe_pbl_size;
 	req->rxq_addr = bd_chain_phys_addr;
-	req->hw_sb = p_cid->rel.sb;
-	req->sb_index = p_cid->rel.sb_idx;
+	req->hw_sb = p_cid->sb_igu_id;
+	req->sb_index = p_cid->sb_idx;
 	req->bd_max_bytes = bd_max_bytes;
 	req->stat_id = -1;
 
@@ -697,8 +697,8 @@ qed_vf_pf_txq_start(struct qed_hwfn *p_hwfn,
 	/* Tx */
 	req->pbl_addr = pbl_addr;
 	req->pbl_size = pbl_size;
-	req->hw_sb = p_cid->rel.sb;
-	req->sb_index = p_cid->rel.sb_idx;
+	req->hw_sb = p_cid->sb_igu_id;
+	req->sb_index = p_cid->sb_idx;
 
 	/* add list termination tlv */
 	qed_add_tlv(p_hwfn, &p_iov->offset,

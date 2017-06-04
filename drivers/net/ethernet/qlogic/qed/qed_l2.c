@@ -182,8 +182,14 @@ _qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
 	p_cid->opaque_fid = opaque_fid;
 	p_cid->cid = cid;
 	p_cid->vf_qid = vf_qid;
-	p_cid->rel = *p_params;
 	p_cid->p_owner = p_hwfn;
+
+	/* Fill in parameters */
+	p_cid->rel.vport_id = p_params->vport_id;
+	p_cid->rel.queue_id = p_params->queue_id;
+	p_cid->rel.stats_id = p_params->stats_id;
+	p_cid->sb_igu_id = p_params->p_sb->igu_sb_id;
+	p_cid->sb_idx = p_params->sb_idx;
 
 	/* Don't try calculating the absolute indices for VFs */
 	if (IS_VF(p_hwfn->cdev)) {
@@ -215,10 +221,6 @@ _qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
 		p_cid->abs.stats_id = p_cid->rel.stats_id;
 	}
 
-	/* SBs relevant information was already provided as absolute */
-	p_cid->abs.sb = p_cid->rel.sb;
-	p_cid->abs.sb_idx = p_cid->rel.sb_idx;
-
 	/* This is tricky - we're actually interested in whehter this is a PF
 	 * entry meant for the VF.
 	 */
@@ -235,7 +237,7 @@ out:
 		   p_cid->rel.queue_id,
 		   p_cid->abs.queue_id,
 		   p_cid->rel.stats_id,
-		   p_cid->abs.stats_id, p_cid->abs.sb, p_cid->abs.sb_idx);
+		   p_cid->abs.stats_id, p_cid->sb_igu_id, p_cid->sb_idx);
 
 	return p_cid;
 
@@ -767,7 +769,7 @@ int qed_eth_rxq_start_ramrod(struct qed_hwfn *p_hwfn,
 	DP_VERBOSE(p_hwfn, QED_MSG_SP,
 		   "opaque_fid=0x%x, cid=0x%x, rx_qzone=0x%x, vport_id=0x%x, sb_id=0x%x\n",
 		   p_cid->opaque_fid, p_cid->cid,
-		   p_cid->abs.queue_id, p_cid->abs.vport_id, p_cid->abs.sb);
+		   p_cid->abs.queue_id, p_cid->abs.vport_id, p_cid->sb_igu_id);
 
 	/* Get SPQ entry */
 	memset(&init_data, 0, sizeof(init_data));
@@ -783,8 +785,8 @@ int qed_eth_rxq_start_ramrod(struct qed_hwfn *p_hwfn,
 
 	p_ramrod = &p_ent->ramrod.rx_queue_start;
 
-	p_ramrod->sb_id = cpu_to_le16(p_cid->abs.sb);
-	p_ramrod->sb_index = p_cid->abs.sb_idx;
+	p_ramrod->sb_id = cpu_to_le16(p_cid->sb_igu_id);
+	p_ramrod->sb_index = p_cid->sb_idx;
 	p_ramrod->vport_id = p_cid->abs.vport_id;
 	p_ramrod->stats_counter_id = p_cid->abs.stats_id;
 	p_ramrod->rx_queue_id = cpu_to_le16(p_cid->abs.queue_id);
@@ -1001,8 +1003,8 @@ qed_eth_txq_start_ramrod(struct qed_hwfn *p_hwfn,
 	p_ramrod = &p_ent->ramrod.tx_queue_start;
 	p_ramrod->vport_id = p_cid->abs.vport_id;
 
-	p_ramrod->sb_id = cpu_to_le16(p_cid->abs.sb);
-	p_ramrod->sb_index = p_cid->abs.sb_idx;
+	p_ramrod->sb_id = cpu_to_le16(p_cid->sb_igu_id);
+	p_ramrod->sb_index = p_cid->sb_idx;
 	p_ramrod->stats_counter_id = p_cid->abs.stats_id;
 
 	p_ramrod->queue_zone_id = cpu_to_le16(p_cid->abs.queue_id);
@@ -2279,9 +2281,9 @@ static int qed_start_rxq(struct qed_dev *cdev,
 	}
 
 	DP_VERBOSE(cdev, (QED_MSG_SPQ | NETIF_MSG_IFUP),
-		   "Started RX-Q %d [rss_num %d] on V-PORT %d and SB %d\n",
+		   "Started RX-Q %d [rss_num %d] on V-PORT %d and SB igu %d\n",
 		   p_params->queue_id, rss_num, p_params->vport_id,
-		   p_params->sb);
+		   p_params->p_sb->igu_sb_id);
 
 	return 0;
 }
@@ -2329,9 +2331,9 @@ static int qed_start_txq(struct qed_dev *cdev,
 	}
 
 	DP_VERBOSE(cdev, (QED_MSG_SPQ | NETIF_MSG_IFUP),
-		   "Started TX-Q %d [rss_num %d] on V-PORT %d and SB %d\n",
+		   "Started TX-Q %d [rss_num %d] on V-PORT %d and SB igu %d\n",
 		   p_params->queue_id, rss_num, p_params->vport_id,
-		   p_params->sb);
+		   p_params->p_sb->igu_sb_id);
 
 	return 0;
 }
