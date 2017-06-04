@@ -2198,6 +2198,8 @@ static void amdgpu_dm_do_flip(
 	struct amdgpu_bo *abo = gem_to_amdgpu_bo(afb->obj);
 	struct amdgpu_device *adev = crtc->dev->dev_private;
 	bool async_flip = (acrtc->flip_flags & DRM_MODE_PAGE_FLIP_ASYNC) != 0;
+	struct dc_flip_addrs addr = { {0} };
+	struct dc_surface_update surface_updates[1] = { {0} };
 
 	/* Prepare wait for target vblank early - before the fence-waits */
 	target_vblank = target - drm_crtc_vblank_count(crtc) +
@@ -2211,7 +2213,7 @@ static void amdgpu_dm_do_flip(
 	r = amdgpu_bo_reserve(abo, true);
 	if (unlikely(r != 0)) {
 		DRM_ERROR("failed to reserve buffer before flip\n");
-		BUG_ON(0);
+		WARN_ON(1);
 	}
 
 	/* Wait for all fences on this FB */
@@ -2239,8 +2241,37 @@ static void amdgpu_dm_do_flip(
 	/* update crtc fb */
 	crtc->primary->fb = fb;
 
-	/* Do the flip (mmio) */
-	adev->mode_info.funcs->page_flip(adev, acrtc->crtc_id, afb->address, async_flip);
+	WARN_ON(acrtc->pflip_status != AMDGPU_FLIP_NONE);
+	WARN_ON(!acrtc->stream);
+
+	addr.address.grph.addr.low_part = lower_32_bits(afb->address);
+	addr.address.grph.addr.high_part = upper_32_bits(afb->address);
+	addr.flip_immediate = async_flip;
+
+
+	if (acrtc->base.state->event &&
+	    acrtc->base.state->event->event.base.type ==
+			    DRM_EVENT_FLIP_COMPLETE) {
+		acrtc->event = acrtc->base.state->event;
+
+		/* Set the flip status */
+		acrtc->pflip_status = AMDGPU_FLIP_SUBMITTED;
+
+		/* Mark this event as consumed */
+		acrtc->base.state->event = NULL;
+	}
+
+	surface_updates->surface = dc_stream_get_status(acrtc->stream)->surfaces[0];
+	surface_updates->flip_addr = &addr;
+
+
+	dc_update_surfaces_for_stream(adev->dm.dc, surface_updates, 1, acrtc->stream);
+
+	DRM_DEBUG_DRIVER("%s Flipping to hi: 0x%x, low: 0x%x \n",
+			 __func__,
+			 addr.address.grph.addr.high_part,
+			 addr.address.grph.addr.low_part);
+
 
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 	DRM_DEBUG_DRIVER("crtc:%d, pflip_stat:AMDGPU_FLIP_SUBMITTED\n",
