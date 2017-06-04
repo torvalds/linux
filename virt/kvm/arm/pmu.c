@@ -203,6 +203,23 @@ static u64 kvm_pmu_overflow_status(struct kvm_vcpu *vcpu)
 	return reg;
 }
 
+static void kvm_pmu_check_overflow(struct kvm_vcpu *vcpu)
+{
+	struct kvm_pmu *pmu = &vcpu->arch.pmu;
+	bool overflow = !!kvm_pmu_overflow_status(vcpu);
+
+	if (pmu->irq_level == overflow)
+		return;
+
+	pmu->irq_level = overflow;
+
+	if (likely(irqchip_in_kernel(vcpu->kvm))) {
+		int ret = kvm_vgic_inject_irq(vcpu->kvm, vcpu->vcpu_id,
+					      pmu->irq_num, overflow);
+		WARN_ON(ret);
+	}
+}
+
 /**
  * kvm_pmu_overflow_set - set PMU overflow interrupt
  * @vcpu: The vcpu pointer
@@ -210,37 +227,18 @@ static u64 kvm_pmu_overflow_status(struct kvm_vcpu *vcpu)
  */
 void kvm_pmu_overflow_set(struct kvm_vcpu *vcpu, u64 val)
 {
-	u64 reg;
-
 	if (val == 0)
 		return;
 
 	vcpu_sys_reg(vcpu, PMOVSSET_EL0) |= val;
-	reg = kvm_pmu_overflow_status(vcpu);
-	if (reg != 0)
-		kvm_vcpu_kick(vcpu);
+	kvm_pmu_check_overflow(vcpu);
 }
 
 static void kvm_pmu_update_state(struct kvm_vcpu *vcpu)
 {
-	struct kvm_pmu *pmu = &vcpu->arch.pmu;
-	bool overflow;
-
 	if (!kvm_arm_pmu_v3_ready(vcpu))
 		return;
-
-	overflow = !!kvm_pmu_overflow_status(vcpu);
-	if (pmu->irq_level == overflow)
-		return;
-
-	pmu->irq_level = overflow;
-
-	if (likely(irqchip_in_kernel(vcpu->kvm))) {
-		int ret;
-		ret = kvm_vgic_inject_irq(vcpu->kvm, vcpu->vcpu_id,
-					  pmu->irq_num, overflow);
-		WARN_ON(ret);
-	}
+	kvm_pmu_check_overflow(vcpu);
 }
 
 bool kvm_pmu_should_notify_user(struct kvm_vcpu *vcpu)
