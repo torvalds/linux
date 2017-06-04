@@ -1483,8 +1483,8 @@ static void __de_get_regs(struct de_private *de, u8 *buf)
 	de_rx_missed(de, rbuf[8]);
 }
 
-static int __de_get_link_ksettings(struct de_private *de,
-				   struct ethtool_link_ksettings *cmd)
+static void __de_get_link_ksettings(struct de_private *de,
+				    struct ethtool_link_ksettings *cmd)
 {
 	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
 						de->media_supported);
@@ -1517,8 +1517,6 @@ static int __de_get_link_ksettings(struct de_private *de,
 		cmd->base.autoneg = AUTONEG_ENABLE;
 
 	/* ignore maxtxpkt, maxrxpkt for now */
-
-	return 0;
 }
 
 static int __de_set_link_ksettings(struct de_private *de,
@@ -1615,13 +1613,12 @@ static int de_get_link_ksettings(struct net_device *dev,
 				 struct ethtool_link_ksettings *cmd)
 {
 	struct de_private *de = netdev_priv(dev);
-	int rc;
 
 	spin_lock_irq(&de->lock);
-	rc = __de_get_link_ksettings(de, cmd);
+	__de_get_link_ksettings(de, cmd);
 	spin_unlock_irq(&de->lock);
 
-	return rc;
+	return 0;
 }
 
 static int de_set_link_ksettings(struct net_device *dev,
