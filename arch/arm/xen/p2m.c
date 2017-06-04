@@ -145,10 +145,9 @@ bool __set_phys_to_machine_multi(unsigned long pfn,
 	}
 
 	p2m_entry = kzalloc(sizeof(*p2m_entry), GFP_NOWAIT);
-	if (!p2m_entry) {
-		pr_warn("cannot allocate xen_p2m_entry\n");
+	if (!p2m_entry)
 		return false;
-	}
+
 	p2m_entry->pfn = pfn;
 	p2m_entry->nr_pages = nr_pages;
 	p2m_entry->mfn = mfn;
