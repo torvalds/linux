@@ -320,7 +320,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
 	phy-mode = "rgmii";
-	phy-reset-gpios = <&gpio7 18 GPIO_ACTIVE_HIGH>;
+	phy-reset-gpios = <&gpio7 18 GPIO_ACTIVE_LOW>;
 	txd0-skew-ps = <0>;
 	txd1-skew-ps = <0>;
 	txd2-skew-ps = <0>;
