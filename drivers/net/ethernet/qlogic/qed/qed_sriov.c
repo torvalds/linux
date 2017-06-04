@@ -1947,6 +1947,7 @@ static void qed_iov_vf_mbx_start_rxq(struct qed_hwfn *p_hwfn,
 				     struct qed_vf_info *vf)
 {
 	struct qed_queue_start_common_params params;
+	struct qed_queue_cid_vf_params vf_params;
 	struct qed_iov_vf_mbx *mbx = &vf->vf_mbx;
 	u8 status = PFVF_STATUS_NO_RESOURCE;
 	struct qed_vf_q_info *p_queue;
@@ -1965,6 +1966,10 @@ static void qed_iov_vf_mbx_start_rxq(struct qed_hwfn *p_hwfn,
 	/* Acquire a new queue-cid */
 	p_queue = &vf->vf_queues[req->rx_qid];
 
+	if (vf->acquire.vfdev_info.eth_fp_hsi_minor ==
+	    ETH_HSI_VER_NO_PKT_LEN_TUNN)
+		b_legacy_vf = true;
+
 	memset(&params, 0, sizeof(params));
 	params.queue_id = p_queue->fw_rx_qid;
 	params.vport_id = vf->vport_id;
@@ -1975,26 +1980,23 @@ static void qed_iov_vf_mbx_start_rxq(struct qed_hwfn *p_hwfn,
 	params.p_sb = &sb_dummy;
 	params.sb_idx = req->sb_index;
 
-	p_queue->p_rx_cid = _qed_eth_queue_to_cid(p_hwfn,
-						  vf->opaque_fid,
-						  p_queue->fw_cid,
-						  req->rx_qid, &params);
+	memset(&vf_params, 0, sizeof(vf_params));
+	vf_params.vfid = vf->relative_vf_id;
+	vf_params.vf_qid = (u8)req->rx_qid;
+	vf_params.vf_legacy = b_legacy_vf;
+	p_queue->p_rx_cid = qed_eth_queue_to_cid(p_hwfn, vf->opaque_fid,
+						 &params, &vf_params);
 	if (!p_queue->p_rx_cid)
 		goto out;
 
 	/* Legacy VFs have their Producers in a different location, which they
 	 * calculate on their own and clean the producer prior to this.
 	 */
-	if (vf->acquire.vfdev_info.eth_fp_hsi_minor ==
-	    ETH_HSI_VER_NO_PKT_LEN_TUNN) {
-		b_legacy_vf = true;
-	} else {
+	if (!b_legacy_vf)
 		REG_WR(p_hwfn,
 		       GTT_BAR0_MAP_REG_MSDM_RAM +
 		       MSTORM_ETH_VF_PRODS_OFFSET(vf->abs_vf_id, req->rx_qid),
 		       0);
-	}
-	p_queue->p_rx_cid->b_legacy_vf = b_legacy_vf;
 
 	rc = qed_eth_rxq_start_ramrod(p_hwfn,
 				      p_queue->p_rx_cid,
@@ -2273,11 +2275,13 @@ static void qed_iov_vf_mbx_start_txq(struct qed_hwfn *p_hwfn,
 				     struct qed_vf_info *vf)
 {
 	struct qed_queue_start_common_params params;
+	struct qed_queue_cid_vf_params vf_params;
 	struct qed_iov_vf_mbx *mbx = &vf->vf_mbx;
 	u8 status = PFVF_STATUS_NO_RESOURCE;
 	struct vfpf_start_txq_tlv *req;
 	struct qed_vf_q_info *p_queue;
 	struct qed_sb_info sb_dummy;
+	bool b_vf_legacy = false;
 	int rc;
 	u16 pq;
 
@@ -2292,6 +2296,10 @@ static void qed_iov_vf_mbx_start_txq(struct qed_hwfn *p_hwfn,
 	/* Acquire a new queue-cid */
 	p_queue = &vf->vf_queues[req->tx_qid];
 
+	if (vf->acquire.vfdev_info.eth_fp_hsi_minor ==
+	    ETH_HSI_VER_NO_PKT_LEN_TUNN)
+		b_vf_legacy = true;
+
 	params.queue_id = p_queue->fw_tx_qid;
 	params.vport_id = vf->vport_id;
 	params.stats_id = vf->abs_vf_id + 0x10;
@@ -2302,10 +2310,14 @@ static void qed_iov_vf_mbx_start_txq(struct qed_hwfn *p_hwfn,
 	params.p_sb = &sb_dummy;
 	params.sb_idx = req->sb_index;
 
-	p_queue->p_tx_cid = _qed_eth_queue_to_cid(p_hwfn,
-						  vf->opaque_fid,
-						  p_queue->fw_cid,
-						  req->tx_qid, &params);
+	memset(&vf_params, 0, sizeof(vf_params));
+	vf_params.vfid = vf->relative_vf_id;
+	vf_params.vf_qid = (u8)req->tx_qid;
+	vf_params.vf_legacy = b_vf_legacy;
+
+	p_queue->p_tx_cid = qed_eth_queue_to_cid(p_hwfn,
+						 vf->opaque_fid,
+						 &params, &vf_params);
 	if (!p_queue->p_tx_cid)
 		goto out;
 

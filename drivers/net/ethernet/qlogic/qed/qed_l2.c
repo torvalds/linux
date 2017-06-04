@@ -155,7 +155,8 @@ void qed_eth_queue_cid_release(struct qed_hwfn *p_hwfn,
 			       struct qed_queue_cid *p_cid)
 {
 	/* VFs' CIDs are 0-based in PF-view, and uninitialized on VF */
-	if (!p_cid->is_vf && IS_PF(p_hwfn->cdev))
+	if ((p_cid->vfid == QED_QUEUE_CID_SELF) &&
+	    IS_PF(p_hwfn->cdev))
 		qed_cxt_release_cid(p_hwfn, p_cid->cid);
 	vfree(p_cid);
 }
@@ -163,14 +164,13 @@ void qed_eth_queue_cid_release(struct qed_hwfn *p_hwfn,
 /* The internal is only meant to be directly called by PFs initializeing CIDs
  * for their VFs.
  */
-struct qed_queue_cid *
+static struct qed_queue_cid *
 _qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
 		      u16 opaque_fid,
 		      u32 cid,
-		      u8 vf_qid,
-		      struct qed_queue_start_common_params *p_params)
+		      struct qed_queue_start_common_params *p_params,
+		      struct qed_queue_cid_vf_params *p_vf_params)
 {
-	bool b_is_same = (p_hwfn->hw_info.opaque_fid == opaque_fid);
 	struct qed_queue_cid *p_cid;
 	int rc;
 
@@ -181,7 +181,6 @@ _qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
 
 	p_cid->opaque_fid = opaque_fid;
 	p_cid->cid = cid;
-	p_cid->vf_qid = vf_qid;
 	p_cid->p_owner = p_hwfn;
 
 	/* Fill in parameters */
@@ -190,6 +189,15 @@ _qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
 	p_cid->rel.stats_id = p_params->stats_id;
 	p_cid->sb_igu_id = p_params->p_sb->igu_sb_id;
 	p_cid->sb_idx = p_params->sb_idx;
+
+	/* Fill-in bits related to VFs' queues if information was provided */
+	if (p_vf_params) {
+		p_cid->vfid = p_vf_params->vfid;
+		p_cid->vf_qid = p_vf_params->vf_qid;
+		p_cid->b_legacy_vf = p_vf_params->vf_legacy;
+	} else {
+		p_cid->vfid = QED_QUEUE_CID_SELF;
+	}
 
 	/* Don't try calculating the absolute indices for VFs */
 	if (IS_VF(p_hwfn->cdev)) {
@@ -212,7 +220,7 @@ _qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
 	/* In case of a PF configuring its VF's queues, the stats-id is already
 	 * absolute [since there's a single index that's suitable per-VF].
 	 */
-	if (b_is_same) {
+	if (p_cid->vfid == QED_QUEUE_CID_SELF) {
 		rc = qed_fw_vport(p_hwfn, p_cid->rel.stats_id,
 				  &p_cid->abs.stats_id);
 		if (rc)
@@ -221,11 +229,6 @@ _qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
 		p_cid->abs.stats_id = p_cid->rel.stats_id;
 	}
 
-	/* This is tricky - we're actually interested in whehter this is a PF
-	 * entry meant for the VF.
-	 */
-	if (!b_is_same)
-		p_cid->is_vf = true;
 out:
 	DP_VERBOSE(p_hwfn,
 		   QED_MSG_SP,
@@ -246,30 +249,45 @@ fail:
 	return NULL;
 }
 
-static struct qed_queue_cid *qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
-						  u16 opaque_fid, struct
-						  qed_queue_start_common_params
-						  *p_params)
+struct qed_queue_cid *
+qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
+		     u16 opaque_fid,
+		     struct qed_queue_start_common_params *p_params,
+		     struct qed_queue_cid_vf_params *p_vf_params)
 {
 	struct qed_queue_cid *p_cid;
+	bool b_legacy_vf = false;
 	u32 cid = 0;
 
+	/* Currently, PF doesn't need to allocate CIDs for any VF */
+	if (p_vf_params)
+		b_legacy_vf = true;
 	/* Get a unique firmware CID for this queue, in case it's a PF.
 	 * VF's don't need a CID as the queue configuration will be done
 	 * by PF.
 	 */
-	if (IS_PF(p_hwfn->cdev)) {
+	if (IS_PF(p_hwfn->cdev) && !b_legacy_vf) {
 		if (qed_cxt_acquire_cid(p_hwfn, PROTOCOLID_ETH, &cid)) {
 			DP_NOTICE(p_hwfn, "Failed to acquire cid\n");
 			return NULL;
 		}
 	}
 
-	p_cid = _qed_eth_queue_to_cid(p_hwfn, opaque_fid, cid, 0, p_params);
-	if (!p_cid && IS_PF(p_hwfn->cdev))
+	p_cid = _qed_eth_queue_to_cid(p_hwfn, opaque_fid, cid,
+				      p_params, p_vf_params);
+	if (!p_cid && IS_PF(p_hwfn->cdev) && !b_legacy_vf)
 		qed_cxt_release_cid(p_hwfn, cid);
 
 	return p_cid;
+}
+
+static struct qed_queue_cid *
+qed_eth_queue_to_cid_pf(struct qed_hwfn *p_hwfn,
+			u16 opaque_fid,
+			struct qed_queue_start_common_params *p_params)
+{
+	return qed_eth_queue_to_cid(p_hwfn, opaque_fid, p_params,
+				    NULL);
 }
 
 int qed_sp_eth_vport_start(struct qed_hwfn *p_hwfn,
@@ -799,7 +817,7 @@ int qed_eth_rxq_start_ramrod(struct qed_hwfn *p_hwfn,
 	p_ramrod->num_of_pbl_pages = cpu_to_le16(cqe_pbl_size);
 	DMA_REGPAIR_LE(p_ramrod->cqe_pbl_addr, cqe_pbl_addr);
 
-	if (p_cid->is_vf) {
+	if (p_cid->vfid != QED_QUEUE_CID_SELF) {
 		p_ramrod->vf_rx_prod_index = p_cid->vf_qid;
 		DP_VERBOSE(p_hwfn, QED_MSG_SP,
 			   "Queue%s is meant for VF rxq[%02x]\n",
@@ -849,7 +867,7 @@ qed_eth_rx_queue_start(struct qed_hwfn *p_hwfn,
 	int rc;
 
 	/* Allocate a CID for the queue */
-	p_cid = qed_eth_queue_to_cid(p_hwfn, opaque_fid, p_params);
+	p_cid = qed_eth_queue_to_cid_pf(p_hwfn, opaque_fid, p_params);
 	if (!p_cid)
 		return -ENOMEM;
 
@@ -951,10 +969,11 @@ qed_eth_pf_rx_queue_stop(struct qed_hwfn *p_hwfn,
 	/* Cleaning the queue requires the completion to arrive there.
 	 * In addition, VFs require the answer to come as eqe to PF.
 	 */
-	p_ramrod->complete_cqe_flg = (!p_cid->is_vf &&
+	p_ramrod->complete_cqe_flg = ((p_cid->vfid == QED_QUEUE_CID_SELF) &&
 				      !b_eq_completion_only) ||
 				     b_cqe_completion;
-	p_ramrod->complete_event_flg = p_cid->is_vf || b_eq_completion_only;
+	p_ramrod->complete_event_flg = (p_cid->vfid != QED_QUEUE_CID_SELF) ||
+				       b_eq_completion_only;
 
 	return qed_spq_post(p_hwfn, p_ent, NULL);
 }
@@ -1053,7 +1072,7 @@ qed_eth_tx_queue_start(struct qed_hwfn *p_hwfn,
 	struct qed_queue_cid *p_cid;
 	int rc;
 
-	p_cid = qed_eth_queue_to_cid(p_hwfn, opaque_fid, p_params);
+	p_cid = qed_eth_queue_to_cid_pf(p_hwfn, opaque_fid, p_params);
 	if (!p_cid)
 		return -EINVAL;
 

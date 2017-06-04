@@ -278,6 +278,7 @@ void qed_get_vport_stats(struct qed_dev *cdev, struct qed_eth_stats *stats);
 void qed_reset_vport_stats(struct qed_dev *cdev);
 
 #define MAX_QUEUES_PER_QZONE    (sizeof(unsigned long) * 8)
+#define QED_QUEUE_CID_SELF	(0xff)
 
 /* Almost identical to the qed_queue_start_common_params,
  * but here we maintain the SB index in IGU CAM.
@@ -286,6 +287,25 @@ struct qed_queue_cid_params {
 	u8 vport_id;
 	u16 queue_id;
 	u8 stats_id;
+};
+
+/* Additional parameters required for initialization of the queue_cid
+ * and are relevant only for a PF initializing one for its VFs.
+ */
+struct qed_queue_cid_vf_params {
+	/* Should match the VF's relative index */
+	u8 vfid;
+
+	/* 0-based queue index. Should reflect the relative qzone the
+	 * VF thinks is associated with it [in its range].
+	 */
+	u8 vf_qid;
+
+	/* Indicates a VF is legacy, making it differ in:
+	 *  - Producers would be placed in a different place.
+	 */
+	bool vf_legacy;
+
 };
 
 struct qed_queue_cid {
@@ -305,7 +325,7 @@ struct qed_queue_cid {
 	 * Notice this is relevant on the *PF* queue-cid of its VF's queues,
 	 * and not on the VF itself.
 	 */
-	bool is_vf;
+	u8 vfid;
 	u8 vf_qid;
 
 	/* Legacy VFs might have Rx producer located elsewhere */
@@ -321,12 +341,11 @@ void qed_l2_free(struct qed_hwfn *p_hwfn);
 void qed_eth_queue_cid_release(struct qed_hwfn *p_hwfn,
 			       struct qed_queue_cid *p_cid);
 
-struct qed_queue_cid *_qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
-					    u16 opaque_fid,
-					    u32 cid,
-					    u8 vf_qid,
-					    struct qed_queue_start_common_params
-					    *p_params);
+struct qed_queue_cid *
+qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
+		     u16 opaque_fid,
+		     struct qed_queue_start_common_params *p_params,
+		     struct qed_queue_cid_vf_params *p_vf_params);
 
 int
 qed_sp_eth_vport_start(struct qed_hwfn *p_hwfn,
