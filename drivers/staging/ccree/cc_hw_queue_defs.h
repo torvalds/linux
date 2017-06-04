@@ -505,7 +505,7 @@ static inline void set_cipher_config0(struct cc_hw_desc *pdesc,
  * @config: Any one of the modes defined in [CC7x-DESC]
  */
 static inline void set_cipher_config1(struct cc_hw_desc *pdesc,
-				      enum HashConfig1Padding config)
+				      enum cc_hash_conf_pad config)
 {
 	pdesc->word[4] |= FIELD_PREP(WORD4_CIPHER_CONF1, config);
 }
@@ -598,7 +598,7 @@ static inline void set_setup_mode(struct cc_hw_desc *pdesc,
  * @config: Any one of the cipher do defined in [CC7x-DESC]
  */
 static inline void set_cipher_do(struct cc_hw_desc *pdesc,
-				 enum HashCipherDoPadding config)
+				 enum cc_hash_cipher_pad config)
 {
 	pdesc->word[4] |= FIELD_PREP(WORD4_CIPHER_DO,
 				(config & HW_KEY_MASK_CIPHER_DO));
