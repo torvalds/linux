@@ -215,7 +215,6 @@ static int ssi_blkcipher_init(struct crypto_tfm *tfm)
 			max_key_buf_size, ctx_p->user.key);
 		return -ENOMEM;
 	}
-	SSI_UPDATE_DMA_ADDR_TO_48BIT(ctx_p->user.key_dma_addr, max_key_buf_size);
 	SSI_LOG_DEBUG("Mapped key %u B at va=%pK to dma=0x%llX\n",
 		max_key_buf_size, ctx_p->user.key,
 		(unsigned long long)ctx_p->user.key_dma_addr);
@@ -248,7 +247,6 @@ static void ssi_blkcipher_exit(struct crypto_tfm *tfm)
 	}
 
 	/* Unmap key buffer */
-	SSI_RESTORE_DMA_ADDR_TO_48BIT(ctx_p->user.key_dma_addr);
 	dma_unmap_single(dev, ctx_p->user.key_dma_addr, max_key_buf_size,
 								DMA_TO_DEVICE);
 	SSI_LOG_DEBUG("Unmapped key buffer key_dma_addr=0x%llX\n",
@@ -413,7 +411,6 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 
 	/* STAT_PHASE_1: Copy key to ctx */
 	START_CYCLE_COUNT();
-	SSI_RESTORE_DMA_ADDR_TO_48BIT(ctx_p->user.key_dma_addr);
 	dma_sync_single_for_cpu(dev, ctx_p->user.key_dma_addr,
 					max_key_buf_size, DMA_TO_DEVICE);
 #if SSI_CC_HAS_MULTI2
@@ -449,7 +446,6 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 	}
 	dma_sync_single_for_device(dev, ctx_p->user.key_dma_addr,
 					max_key_buf_size, DMA_TO_DEVICE);
-	SSI_UPDATE_DMA_ADDR_TO_48BIT(ctx_p->user.key_dma_addr ,max_key_buf_size);
 	ctx_p->keylen = keylen;
 
 	END_CYCLE_COUNT(STAT_OP_TYPE_SETKEY, STAT_PHASE_1);

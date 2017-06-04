@@ -99,7 +99,6 @@ static void ssi_aead_exit(struct crypto_aead *tfm)
 	dev = &ctx->drvdata->plat_dev->dev;
 	/* Unmap enckey buffer */
 	if (ctx->enckey != NULL) {
-		SSI_RESTORE_DMA_ADDR_TO_48BIT(ctx->enckey_dma_addr);
 		dma_free_coherent(dev, AES_MAX_KEY_SIZE, ctx->enckey, ctx->enckey_dma_addr);
 		SSI_LOG_DEBUG("Freed enckey DMA buffer enckey_dma_addr=0x%llX\n",
 			(unsigned long long)ctx->enckey_dma_addr);
@@ -109,8 +108,6 @@ static void ssi_aead_exit(struct crypto_aead *tfm)
 
 	if (ctx->auth_mode == DRV_HASH_XCBC_MAC) { /* XCBC authetication */
 		if (ctx->auth_state.xcbc.xcbc_keys != NULL) {
-			SSI_RESTORE_DMA_ADDR_TO_48BIT(
-				ctx->auth_state.xcbc.xcbc_keys_dma_addr);
 			dma_free_coherent(dev, CC_AES_128_BIT_KEY_SIZE * 3,
 				ctx->auth_state.xcbc.xcbc_keys,
 				ctx->auth_state.xcbc.xcbc_keys_dma_addr);
@@ -121,8 +118,6 @@ static void ssi_aead_exit(struct crypto_aead *tfm)
 		ctx->auth_state.xcbc.xcbc_keys = NULL;
 	} else if (ctx->auth_mode != DRV_HASH_NULL) { /* HMAC auth. */
 		if (ctx->auth_state.hmac.ipad_opad != NULL) {
-			SSI_RESTORE_DMA_ADDR_TO_48BIT(
-				ctx->auth_state.hmac.ipad_opad_dma_addr);
 			dma_free_coherent(dev, 2 * MAX_HMAC_DIGEST_SIZE,
 				ctx->auth_state.hmac.ipad_opad,
 				ctx->auth_state.hmac.ipad_opad_dma_addr);
@@ -132,8 +127,6 @@ static void ssi_aead_exit(struct crypto_aead *tfm)
 			ctx->auth_state.hmac.ipad_opad = NULL;
 		}
 		if (ctx->auth_state.hmac.padded_authkey != NULL) {
-			SSI_RESTORE_DMA_ADDR_TO_48BIT(
-				ctx->auth_state.hmac.padded_authkey_dma_addr);
 			dma_free_coherent(dev, MAX_HMAC_BLOCK_SIZE,
 				ctx->auth_state.hmac.padded_authkey,
 				ctx->auth_state.hmac.padded_authkey_dma_addr);
@@ -171,7 +164,6 @@ static int ssi_aead_init(struct crypto_aead *tfm)
 		SSI_LOG_ERR("Failed allocating key buffer\n");
 		goto init_failed;
 	}
-	SSI_UPDATE_DMA_ADDR_TO_48BIT(ctx->enckey_dma_addr, AES_MAX_KEY_SIZE);
 	SSI_LOG_DEBUG("Allocated enckey buffer in context ctx->enckey=@%p\n", ctx->enckey);
 
 	/* Set default authlen value */
@@ -186,9 +178,6 @@ static int ssi_aead_init(struct crypto_aead *tfm)
 			SSI_LOG_ERR("Failed allocating buffer for XCBC keys\n");
 			goto init_failed;
 		}
-		SSI_UPDATE_DMA_ADDR_TO_48BIT(
-			ctx->auth_state.xcbc.xcbc_keys_dma_addr,
-			CC_AES_128_BIT_KEY_SIZE * 3);
 	} else if (ctx->auth_mode != DRV_HASH_NULL) { /* HMAC authentication */
 		/* Allocate dma-coherent buffer for IPAD + OPAD */
 		ctx->auth_state.hmac.ipad_opad = dma_alloc_coherent(dev,
@@ -198,9 +187,6 @@ static int ssi_aead_init(struct crypto_aead *tfm)
 			SSI_LOG_ERR("Failed allocating IPAD/OPAD buffer\n");
 			goto init_failed;
 		}
-		SSI_UPDATE_DMA_ADDR_TO_48BIT(
-			ctx->auth_state.hmac.ipad_opad_dma_addr,
-			2 * MAX_HMAC_DIGEST_SIZE);
 		SSI_LOG_DEBUG("Allocated authkey buffer in context ctx->authkey=@%p\n",
 			ctx->auth_state.hmac.ipad_opad);
 
@@ -211,9 +197,6 @@ static int ssi_aead_init(struct crypto_aead *tfm)
 			SSI_LOG_ERR("failed to allocate padded_authkey\n");
 			goto init_failed;
 		}
-		SSI_UPDATE_DMA_ADDR_TO_48BIT(
-			ctx->auth_state.hmac.padded_authkey_dma_addr,
-			MAX_HMAC_BLOCK_SIZE);
 	} else {
 		ctx->auth_state.hmac.ipad_opad = NULL;
 		ctx->auth_state.hmac.padded_authkey = NULL;
@@ -465,7 +448,6 @@ ssi_get_plain_hmac_key(struct crypto_aead *tfm, const u8 *key, unsigned int keyl
 				   " DMA failed\n", key, keylen);
 			return -ENOMEM;
 		}
-		SSI_UPDATE_DMA_ADDR_TO_48BIT(key_dma_addr, keylen);
 		if (keylen > blocksize) {
 			/* Load hash initial state */
 			hw_desc_init(&desc[idx]);
@@ -548,7 +530,6 @@ ssi_get_plain_hmac_key(struct crypto_aead *tfm, const u8 *key, unsigned int keyl
 		SSI_LOG_ERR("send_request() failed (rc=%d)\n", rc);
 
 	if (likely(key_dma_addr != 0)) {
-		SSI_RESTORE_DMA_ADDR_TO_48BIT(key_dma_addr);
 		dma_unmap_single(dev, key_dma_addr, keylen, DMA_TO_DEVICE);
 	}
 

@@ -165,7 +165,6 @@ void ssi_ivgen_fini(struct ssi_drvdata *drvdata)
 
 	if (ivgen_ctx->pool_meta != NULL) {
 		memset(ivgen_ctx->pool_meta, 0, SSI_IVPOOL_META_SIZE);
-		SSI_RESTORE_DMA_ADDR_TO_48BIT(ivgen_ctx->pool_meta_dma);
 		dma_free_coherent(device, SSI_IVPOOL_META_SIZE,
 			ivgen_ctx->pool_meta, ivgen_ctx->pool_meta_dma);
 	}
@@ -209,8 +208,6 @@ int ssi_ivgen_init(struct ssi_drvdata *drvdata)
 		rc = -ENOMEM;
 		goto out;
 	}
-	SSI_UPDATE_DMA_ADDR_TO_48BIT(ivgen_ctx->pool_meta_dma,
-							SSI_IVPOOL_META_SIZE);
 	/* Allocate IV pool in SRAM */
 	ivgen_ctx->pool = ssi_sram_mgr_alloc(drvdata, SSI_IVPOOL_SIZE);
 	if (ivgen_ctx->pool == NULL_SRAM_ADDR) {

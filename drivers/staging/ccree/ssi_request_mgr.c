@@ -145,7 +145,6 @@ void request_mgr_fini(struct ssi_drvdata *drvdata)
 		return; /* Not allocated */
 
 	if (req_mgr_h->dummy_comp_buff_dma != 0) {
-		SSI_RESTORE_DMA_ADDR_TO_48BIT(req_mgr_h->dummy_comp_buff_dma);
 		dma_free_coherent(&drvdata->plat_dev->dev,
 				  sizeof(u32), req_mgr_h->dummy_comp_buff,
 				  req_mgr_h->dummy_comp_buff_dma);
@@ -220,8 +219,6 @@ int request_mgr_init(struct ssi_drvdata *drvdata)
 		rc = -ENOMEM;
 		goto req_mgr_init_err;
 	}
-	SSI_UPDATE_DMA_ADDR_TO_48BIT(req_mgr_h->dummy_comp_buff_dma,
-							     sizeof(u32));
 
 	/* Init. "dummy" completion descriptor */
 	hw_desc_init(&req_mgr_h->compl_desc);
