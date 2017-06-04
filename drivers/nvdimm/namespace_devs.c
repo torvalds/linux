@@ -1698,10 +1698,11 @@ static int select_pmem_id(struct nd_region *nd_region, u8 *pmem_id)
  * @nd_label: target pmem namespace label to evaluate
  */
 struct device *create_namespace_pmem(struct nd_region *nd_region,
+		struct nd_namespace_index *nsindex,
 		struct nd_namespace_label *nd_label)
 {
+	u64 cookie = nd_region_interleave_set_cookie(nd_region, nsindex);
 	u64 altcookie = nd_region_interleave_set_altcookie(nd_region);
-	u64 cookie = nd_region_interleave_set_cookie(nd_region);
 	struct nd_label_ent *label_ent;
 	struct nd_namespace_pmem *nspm;
 	struct nd_mapping *nd_mapping;
@@ -2108,7 +2109,11 @@ static struct device **scan_labels(struct nd_region *nd_region)
 				goto err;
 			devs[count++] = dev;
 		} else {
-			dev = create_namespace_pmem(nd_region, nd_label);
+			struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
+			struct nd_namespace_index *nsindex;
+
+			nsindex = to_namespace_index(ndd, ndd->ns_current);
+			dev = create_namespace_pmem(nd_region, nsindex, nd_label);
 			if (IS_ERR(dev)) {
 				switch (PTR_ERR(dev)) {
 				case -EAGAIN:

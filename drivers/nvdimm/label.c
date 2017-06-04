@@ -553,7 +553,6 @@ static int __pmem_label_update(struct nd_region *nd_region,
 		struct nd_mapping *nd_mapping, struct nd_namespace_pmem *nspm,
 		int pos)
 {
-	u64 cookie = nd_region_interleave_set_cookie(nd_region);
 	struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
 	struct nd_label_ent *label_ent, *victim = NULL;
 	struct nd_namespace_label *nd_label;
@@ -563,11 +562,13 @@ static int __pmem_label_update(struct nd_region *nd_region,
 	unsigned long *free;
 	u32 nslot, slot;
 	size_t offset;
+	u64 cookie;
 	int rc;
 
 	if (!preamble_next(ndd, &nsindex, &free, &nslot))
 		return -ENXIO;
 
+	cookie = nd_region_interleave_set_cookie(nd_region, nsindex);
 	nd_label_gen_id(&label_id, nspm->uuid, 0);
 	for_each_dpa_resource(ndd, res)
 		if (strcmp(res->name, label_id.id) == 0)

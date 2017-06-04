@@ -307,13 +307,41 @@ static ssize_t set_cookie_show(struct device *dev,
 {
 	struct nd_region *nd_region = to_nd_region(dev);
 	struct nd_interleave_set *nd_set = nd_region->nd_set;
+	ssize_t rc = 0;
 
 	if (is_nd_pmem(dev) && nd_set)
 		/* pass, should be precluded by region_visible */;
 	else
 		return -ENXIO;
 
-	return sprintf(buf, "%#llx\n", nd_set->cookie);
+	/*
+	 * The cookie to show depends on which specification of the
+	 * labels we are using. If there are not labels then default to
+	 * the v1.1 namespace label cookie definition. To read all this
+	 * data we need to wait for probing to settle.
+	 */
+	device_lock(dev);
+	nvdimm_bus_lock(dev);
+	wait_nvdimm_bus_probe_idle(dev);
+	if (nd_region->ndr_mappings) {
+		struct nd_mapping *nd_mapping = &nd_region->mapping[0];
+		struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
+
+		if (ndd) {
+			struct nd_namespace_index *nsindex;
+
+			nsindex = to_namespace_index(ndd, ndd->ns_current);
+			rc = sprintf(buf, "%#llx\n",
+					nd_region_interleave_set_cookie(nd_region,
+						nsindex));
+		}
+	}
+	nvdimm_bus_unlock(dev);
+	device_unlock(dev);
+
+	if (rc)
+		return rc;
+	return sprintf(buf, "%#llx\n", nd_set->cookie1);
 }
 static DEVICE_ATTR_RO(set_cookie);
 
@@ -564,13 +592,18 @@ struct attribute_group nd_region_attribute_group = {
 };
 EXPORT_SYMBOL_GPL(nd_region_attribute_group);
 
-u64 nd_region_interleave_set_cookie(struct nd_region *nd_region)
+u64 nd_region_interleave_set_cookie(struct nd_region *nd_region,
+		struct nd_namespace_index *nsindex)
 {
 	struct nd_interleave_set *nd_set = nd_region->nd_set;
 
-	if (nd_set)
-		return nd_set->cookie;
-	return 0;
+	if (!nd_set)
+		return 0;
+
+	if (nsindex && __le16_to_cpu(nsindex->major) == 1
+			&& __le16_to_cpu(nsindex->minor) == 1)
+		return nd_set->cookie1;
+	return nd_set->cookie2;
 }
 
 u64 nd_region_interleave_set_altcookie(struct nd_region *nd_region)

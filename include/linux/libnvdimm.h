@@ -71,7 +71,10 @@ struct nd_cmd_desc {
 };
 
 struct nd_interleave_set {
-	u64 cookie;
+	/* v1.1 definition of the interleave-set-cookie algorithm */
+	u64 cookie1;
+	/* v1.2 definition of the interleave-set-cookie algorithm */
+	u64 cookie2;
 	/* compatibility with initial buggy Linux implementation */
 	u64 altcookie;
 };
