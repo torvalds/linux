@@ -244,6 +244,7 @@ SYSCALL_DEFINE2(ustat, unsigned, dev, struct ustat __user *, ubuf)
 #ifdef CONFIG_COMPAT
 static int put_compat_statfs(struct compat_statfs __user *ubuf, struct kstatfs *kbuf)
 {
+	struct compat_statfs buf;
 	if (sizeof ubuf->f_blocks == 4) {
 		if ((kbuf->f_blocks | kbuf->f_bfree | kbuf->f_bavail |
 		     kbuf->f_bsize | kbuf->f_frsize) & 0xffffffff00000000ULL)
@@ -257,20 +258,20 @@ static int put_compat_statfs(struct compat_statfs __user *ubuf, struct kstatfs *
 		 && (kbuf->f_ffree & 0xffffffff00000000ULL))
 			return -EOVERFLOW;
 	}
-	if (!access_ok(VERIFY_WRITE, ubuf, sizeof(*ubuf)) ||
-	    __put_user(kbuf->f_type, &ubuf->f_type) ||
-	    __put_user(kbuf->f_bsize, &ubuf->f_bsize) ||
-	    __put_user(kbuf->f_blocks, &ubuf->f_blocks) ||
-	    __put_user(kbuf->f_bfree, &ubuf->f_bfree) ||
-	    __put_user(kbuf->f_bavail, &ubuf->f_bavail) ||
-	    __put_user(kbuf->f_files, &ubuf->f_files) ||
-	    __put_user(kbuf->f_ffree, &ubuf->f_ffree) ||
-	    __put_user(kbuf->f_namelen, &ubuf->f_namelen) ||
-	    __put_user(kbuf->f_fsid.val[0], &ubuf->f_fsid.val[0]) ||
-	    __put_user(kbuf->f_fsid.val[1], &ubuf->f_fsid.val[1]) ||
-	    __put_user(kbuf->f_frsize, &ubuf->f_frsize) ||
-	    __put_user(kbuf->f_flags, &ubuf->f_flags) ||
-	    __clear_user(ubuf->f_spare, sizeof(ubuf->f_spare)))
+	memset(&buf, 0, sizeof(struct compat_statfs));
+	buf.f_type = kbuf->f_type;
+	buf.f_bsize = kbuf->f_bsize;
+	buf.f_blocks = kbuf->f_blocks;
+	buf.f_bfree = kbuf->f_bfree;
+	buf.f_bavail = kbuf->f_bavail;
+	buf.f_files = kbuf->f_files;
+	buf.f_ffree = kbuf->f_ffree;
+	buf.f_namelen = kbuf->f_namelen;
+	buf.f_fsid.val[0] = kbuf->f_fsid.val[0];
+	buf.f_fsid.val[1] = kbuf->f_fsid.val[1];
+	buf.f_frsize = kbuf->f_frsize;
+	buf.f_flags = kbuf->f_flags;
+	if (copy_to_user(ubuf, &buf, sizeof(struct compat_statfs)))
 		return -EFAULT;
 	return 0;
 }
@@ -299,6 +300,7 @@ COMPAT_SYSCALL_DEFINE2(fstatfs, unsigned int, fd, struct compat_statfs __user *,
 
 static int put_compat_statfs64(struct compat_statfs64 __user *ubuf, struct kstatfs *kbuf)
 {
+	struct compat_statfs64 buf;
 	if (sizeof(ubuf->f_bsize) == 4) {
 		if ((kbuf->f_type | kbuf->f_bsize | kbuf->f_namelen |
 		     kbuf->f_frsize | kbuf->f_flags) & 0xffffffff00000000ULL)
@@ -312,20 +314,20 @@ static int put_compat_statfs64(struct compat_statfs64 __user *ubuf, struct kstat
 		 && (kbuf->f_ffree & 0xffffffff00000000ULL))
 			return -EOVERFLOW;
 	}
-	if (!access_ok(VERIFY_WRITE, ubuf, sizeof(*ubuf)) ||
-	    __put_user(kbuf->f_type, &ubuf->f_type) ||
-	    __put_user(kbuf->f_bsize, &ubuf->f_bsize) ||
-	    __put_user(kbuf->f_blocks, &ubuf->f_blocks) ||
-	    __put_user(kbuf->f_bfree, &ubuf->f_bfree) ||
-	    __put_user(kbuf->f_bavail, &ubuf->f_bavail) ||
-	    __put_user(kbuf->f_files, &ubuf->f_files) ||
-	    __put_user(kbuf->f_ffree, &ubuf->f_ffree) ||
-	    __put_user(kbuf->f_namelen, &ubuf->f_namelen) ||
-	    __put_user(kbuf->f_fsid.val[0], &ubuf->f_fsid.val[0]) ||
-	    __put_user(kbuf->f_fsid.val[1], &ubuf->f_fsid.val[1]) ||
-	    __put_user(kbuf->f_frsize, &ubuf->f_frsize) ||
-	    __put_user(kbuf->f_flags, &ubuf->f_flags) ||
-	    __clear_user(ubuf->f_spare, sizeof(ubuf->f_spare)))
+	memset(&buf, 0, sizeof(struct compat_statfs64));
+	buf.f_type = kbuf->f_type;
+	buf.f_bsize = kbuf->f_bsize;
+	buf.f_blocks = kbuf->f_blocks;
+	buf.f_bfree = kbuf->f_bfree;
+	buf.f_bavail = kbuf->f_bavail;
+	buf.f_files = kbuf->f_files;
+	buf.f_ffree = kbuf->f_ffree;
+	buf.f_namelen = kbuf->f_namelen;
+	buf.f_fsid.val[0] = kbuf->f_fsid.val[0];
+	buf.f_fsid.val[1] = kbuf->f_fsid.val[1];
+	buf.f_frsize = kbuf->f_frsize;
+	buf.f_flags = kbuf->f_flags;
+	if (copy_to_user(ubuf, &buf, sizeof(struct compat_statfs64)))
 		return -EFAULT;
 	return 0;
 }
