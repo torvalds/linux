@@ -65,6 +65,92 @@
 #define QED_MAX_SGES_NUM 16
 #define CRC32_POLY 0x1edc6f41
 
+struct qed_l2_info {
+	u32 queues;
+	unsigned long **pp_qid_usage;
+
+	/* The lock is meant to synchronize access to the qid usage */
+	struct mutex lock;
+};
+
+int qed_l2_alloc(struct qed_hwfn *p_hwfn)
+{
+	struct qed_l2_info *p_l2_info;
+	unsigned long **pp_qids;
+	u32 i;
+
+	if (p_hwfn->hw_info.personality != QED_PCI_ETH &&
+	    p_hwfn->hw_info.personality != QED_PCI_ETH_ROCE)
+		return 0;
+
+	p_l2_info = kzalloc(sizeof(*p_l2_info), GFP_KERNEL);
+	if (!p_l2_info)
+		return -ENOMEM;
+	p_hwfn->p_l2_info = p_l2_info;
+
+	if (IS_PF(p_hwfn->cdev)) {
+		p_l2_info->queues = RESC_NUM(p_hwfn, QED_L2_QUEUE);
+	} else {
+		u8 rx = 0, tx = 0;
+
+		qed_vf_get_num_rxqs(p_hwfn, &rx);
+		qed_vf_get_num_txqs(p_hwfn, &tx);
+
+		p_l2_info->queues = max_t(u8, rx, tx);
+	}
+
+	pp_qids = kzalloc(sizeof(unsigned long *) * p_l2_info->queues,
+			  GFP_KERNEL);
+	if (!pp_qids)
+		return -ENOMEM;
+	p_l2_info->pp_qid_usage = pp_qids;
+
+	for (i = 0; i < p_l2_info->queues; i++) {
+		pp_qids[i] = kzalloc(MAX_QUEUES_PER_QZONE / 8, GFP_KERNEL);
+		if (!pp_qids[i])
+			return -ENOMEM;
+	}
+
+	return 0;
+}
+
+void qed_l2_setup(struct qed_hwfn *p_hwfn)
+{
+	if (p_hwfn->hw_info.personality != QED_PCI_ETH &&
+	    p_hwfn->hw_info.personality != QED_PCI_ETH_ROCE)
+		return;
+
+	mutex_init(&p_hwfn->p_l2_info->lock);
+}
+
+void qed_l2_free(struct qed_hwfn *p_hwfn)
+{
+	u32 i;
+
+	if (p_hwfn->hw_info.personality != QED_PCI_ETH &&
+	    p_hwfn->hw_info.personality != QED_PCI_ETH_ROCE)
+		return;
+
+	if (!p_hwfn->p_l2_info)
+		return;
+
+	if (!p_hwfn->p_l2_info->pp_qid_usage)
+		goto out_l2_info;
+
+	/* Free until hit first uninitialized entry */
+	for (i = 0; i < p_hwfn->p_l2_info->queues; i++) {
+		if (!p_hwfn->p_l2_info->pp_qid_usage[i])
+			break;
+		kfree(p_hwfn->p_l2_info->pp_qid_usage[i]);
+	}
+
+	kfree(p_hwfn->p_l2_info->pp_qid_usage);
+
+out_l2_info:
+	kfree(p_hwfn->p_l2_info);
+	p_hwfn->p_l2_info = NULL;
+}
+
 void qed_eth_queue_cid_release(struct qed_hwfn *p_hwfn,
 			       struct qed_queue_cid *p_cid)
 {

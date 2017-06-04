@@ -277,6 +277,8 @@ void qed_get_vport_stats(struct qed_dev *cdev, struct qed_eth_stats *stats);
 
 void qed_reset_vport_stats(struct qed_dev *cdev);
 
+#define MAX_QUEUES_PER_QZONE    (sizeof(unsigned long) * 8)
+
 struct qed_queue_cid {
 	/* 'Relative' is a relative term ;-). Usually the indices [not counting
 	 * SBs] would be PF-relative, but there are some cases where that isn't
@@ -301,6 +303,10 @@ struct qed_queue_cid {
 
 	struct qed_hwfn *p_owner;
 };
+
+int qed_l2_alloc(struct qed_hwfn *p_hwfn);
+void qed_l2_setup(struct qed_hwfn *p_hwfn);
+void qed_l2_free(struct qed_hwfn *p_hwfn);
 
 void qed_eth_queue_cid_release(struct qed_hwfn *p_hwfn,
 			       struct qed_queue_cid *p_cid);

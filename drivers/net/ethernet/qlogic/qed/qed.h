@@ -533,6 +533,9 @@ struct qed_hwfn {
 	u8 dcbx_no_edpm;
 	u8 db_bar_no_edpm;
 
+	/* L2-related */
+	struct qed_l2_info *p_l2_info;
+
 	struct qed_ptt *p_arfs_ptt;
 
 	struct qed_simd_fp_handler	simd_proto_handler[64];

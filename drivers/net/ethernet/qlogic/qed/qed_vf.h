@@ -684,6 +684,14 @@ void qed_vf_get_link_caps(struct qed_hwfn *p_hwfn,
 void qed_vf_get_num_rxqs(struct qed_hwfn *p_hwfn, u8 *num_rxqs);
 
 /**
+ * @brief Get number of Rx queues allocated for VF by qed
+ *
+ *  @param p_hwfn
+ *  @param num_txqs - allocated RX queues
+ */
+void qed_vf_get_num_txqs(struct qed_hwfn *p_hwfn, u8 *num_txqs);
+
+/**
  * @brief Get port mac address for VF
  *
  * @param p_hwfn
@@ -953,6 +961,10 @@ qed_vf_get_link_caps(struct qed_hwfn *p_hwfn,
 }
 
 static inline void qed_vf_get_num_rxqs(struct qed_hwfn *p_hwfn, u8 *num_rxqs)
+{
+}
+
+static inline void qed_vf_get_num_txqs(struct qed_hwfn *p_hwfn, u8 *num_txqs)
 {
 }
 
