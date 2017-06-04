@@ -26,24 +26,7 @@
  */
 #define DLLI_SIZE_BIT_SIZE	0x18
 
-#define CC_MAX_MLLI_ENTRY_SIZE 0x10000
-
-#define LLI_SET_ADDR(__lli_p, __addr) do {				\
-		u32 *lli_p = (u32 *)__lli_p;				\
-		typeof(__addr) addr = __addr;				\
-									\
-		BITFIELD_SET(lli_p[LLI_WORD0_OFFSET],			\
-			LLI_LADDR_BIT_OFFSET,				\
-			LLI_LADDR_BIT_SIZE, (addr & U32_MAX));		\
-									\
-		BITFIELD_SET(lli_p[LLI_WORD1_OFFSET],			\
-			LLI_HADDR_BIT_OFFSET,				\
-			LLI_HADDR_BIT_SIZE, MSB64(addr));		\
-	} while (0)
-
-#define LLI_SET_SIZE(lli_p, size)					\
-		BITFIELD_SET(((u32 *)(lli_p))[LLI_WORD1_OFFSET],	\
-		LLI_SIZE_BIT_OFFSET, LLI_SIZE_BIT_SIZE, size)
+#define CC_MAX_MLLI_ENTRY_SIZE 0xFFFF
 
 /* Size of entry */
 #define LLI_ENTRY_WORD_SIZE 2
@@ -59,5 +42,25 @@
 #define LLI_SIZE_BIT_SIZE 16
 #define LLI_HADDR_BIT_OFFSET 16
 #define LLI_HADDR_BIT_SIZE 16
+
+#define LLI_SIZE_MASK GENMASK((LLI_SIZE_BIT_SIZE - 1), LLI_SIZE_BIT_OFFSET)
+#define LLI_HADDR_MASK GENMASK( \
+			       (LLI_HADDR_BIT_OFFSET + LLI_HADDR_BIT_SIZE - 1),\
+				LLI_HADDR_BIT_OFFSET)
+
+static inline void cc_lli_set_addr(u32 *lli_p, dma_addr_t addr)
+{
+	lli_p[LLI_WORD0_OFFSET] = (addr & U32_MAX);
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+	lli_p[LLI_WORD1_OFFSET] &= ~LLI_HADDR_MASK;
+	lli_p[LLI_WORD1_OFFSET] |= FIELD_PREP(LLI_HADDR_MASK, (addr >> 16));
+#endif /* CONFIG_ARCH_DMA_ADDR_T_64BIT */
+}
+
+static inline void cc_lli_set_size(u32 *lli_p, u16 size)
+{
+	lli_p[LLI_WORD1_OFFSET] &= ~LLI_SIZE_MASK;
+	lli_p[LLI_WORD1_OFFSET] |= FIELD_PREP(LLI_SIZE_MASK, size);
+}
 
 #endif /*_CC_LLI_DEFS_H_*/

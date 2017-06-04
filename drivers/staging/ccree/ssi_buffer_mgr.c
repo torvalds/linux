@@ -186,8 +186,8 @@ static inline int ssi_buffer_mgr_render_buff_to_mlli(
 
 	/*handle buffer longer than 64 kbytes */
 	while (buff_size > CC_MAX_MLLI_ENTRY_SIZE ) {
-		LLI_SET_ADDR(mlli_entry_p,buff_dma);
-		LLI_SET_SIZE(mlli_entry_p, CC_MAX_MLLI_ENTRY_SIZE);
+		cc_lli_set_addr(mlli_entry_p, buff_dma);
+		cc_lli_set_size(mlli_entry_p, CC_MAX_MLLI_ENTRY_SIZE);
 		SSI_LOG_DEBUG("entry[%d]: single_buff=0x%08X size=%08X\n",*curr_nents,
 			   mlli_entry_p[LLI_WORD0_OFFSET],
 			   mlli_entry_p[LLI_WORD1_OFFSET]);
@@ -197,8 +197,8 @@ static inline int ssi_buffer_mgr_render_buff_to_mlli(
 		(*curr_nents)++;
 	}
 	/*Last entry */
-	LLI_SET_ADDR(mlli_entry_p,buff_dma);
-	LLI_SET_SIZE(mlli_entry_p, buff_size);
+	cc_lli_set_addr(mlli_entry_p, buff_dma);
+	cc_lli_set_size(mlli_entry_p, buff_size);
 	SSI_LOG_DEBUG("entry[%d]: single_buff=0x%08X size=%08X\n",*curr_nents,
 		   mlli_entry_p[LLI_WORD0_OFFSET],
 		   mlli_entry_p[LLI_WORD1_OFFSET]);
