@@ -160,6 +160,11 @@ config MFD_AXP20X_I2C
 	  components like regulators or the PEK (Power Enable Key) under the
 	  corresponding menus.
 
+	  Note on x86 this provides an ACPI OpRegion, so this must be 'y'
+	  (builtin) and not a module, as the OpRegion must be available as
+	  soon as possible. For the same reason the I2C bus driver options
+	  I2C_DESIGNWARE_PLATFORM and I2C_DESIGNWARE_BAYTRAIL must be 'y' too.
+
 config MFD_AXP20X_RSB
 	tristate "X-Powers AXP series PMICs with RSB"
 	select MFD_AXP20X
