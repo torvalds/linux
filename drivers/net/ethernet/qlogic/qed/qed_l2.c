@@ -151,6 +151,50 @@ out_l2_info:
 	p_hwfn->p_l2_info = NULL;
 }
 
+static bool qed_eth_queue_qid_usage_add(struct qed_hwfn *p_hwfn,
+					struct qed_queue_cid *p_cid)
+{
+	struct qed_l2_info *p_l2_info = p_hwfn->p_l2_info;
+	u16 queue_id = p_cid->rel.queue_id;
+	bool b_rc = true;
+	u8 first;
+
+	mutex_lock(&p_l2_info->lock);
+
+	if (queue_id > p_l2_info->queues) {
+		DP_NOTICE(p_hwfn,
+			  "Requested to increase usage for qzone %04x out of %08x\n",
+			  queue_id, p_l2_info->queues);
+		b_rc = false;
+		goto out;
+	}
+
+	first = (u8)find_first_zero_bit(p_l2_info->pp_qid_usage[queue_id],
+					MAX_QUEUES_PER_QZONE);
+	if (first >= MAX_QUEUES_PER_QZONE) {
+		b_rc = false;
+		goto out;
+	}
+
+	__set_bit(first, p_l2_info->pp_qid_usage[queue_id]);
+	p_cid->qid_usage_idx = first;
+
+out:
+	mutex_unlock(&p_l2_info->lock);
+	return b_rc;
+}
+
+static void qed_eth_queue_qid_usage_del(struct qed_hwfn *p_hwfn,
+					struct qed_queue_cid *p_cid)
+{
+	mutex_lock(&p_hwfn->p_l2_info->lock);
+
+	clear_bit(p_cid->qid_usage_idx,
+		  p_hwfn->p_l2_info->pp_qid_usage[p_cid->rel.queue_id]);
+
+	mutex_unlock(&p_hwfn->p_l2_info->lock);
+}
+
 void qed_eth_queue_cid_release(struct qed_hwfn *p_hwfn,
 			       struct qed_queue_cid *p_cid)
 {
@@ -158,6 +202,11 @@ void qed_eth_queue_cid_release(struct qed_hwfn *p_hwfn,
 	if ((p_cid->vfid == QED_QUEUE_CID_SELF) &&
 	    IS_PF(p_hwfn->cdev))
 		qed_cxt_release_cid(p_hwfn, p_cid->cid);
+
+	/* For PF's VFs we maintain the index inside queue-zone in IOV */
+	if (p_cid->vfid == QED_QUEUE_CID_SELF)
+		qed_eth_queue_qid_usage_del(p_hwfn, p_cid);
+
 	vfree(p_cid);
 }
 
@@ -230,14 +279,25 @@ _qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
 	}
 
 out:
+	/* VF-images have provided the qid_usage_idx on their own.
+	 * Otherwise, we need to allocate a unique one.
+	 */
+	if (!p_vf_params) {
+		if (!qed_eth_queue_qid_usage_add(p_hwfn, p_cid))
+			goto fail;
+	} else {
+		p_cid->qid_usage_idx = p_vf_params->qid_usage_idx;
+	}
+
 	DP_VERBOSE(p_hwfn,
 		   QED_MSG_SP,
-		   "opaque_fid: %04x CID %08x vport %02x [%02x] qzone %04x [%04x] stats %02x [%02x] SB %04x PI %02x\n",
+		   "opaque_fid: %04x CID %08x vport %02x [%02x] qzone %04x.%02x [%04x] stats %02x [%02x] SB %04x PI %02x\n",
 		   p_cid->opaque_fid,
 		   p_cid->cid,
 		   p_cid->rel.vport_id,
 		   p_cid->abs.vport_id,
 		   p_cid->rel.queue_id,
+		   p_cid->qid_usage_idx,
 		   p_cid->abs.queue_id,
 		   p_cid->rel.stats_id,
 		   p_cid->abs.stats_id, p_cid->sb_igu_id, p_cid->sb_idx);

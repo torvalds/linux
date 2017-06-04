@@ -306,6 +306,7 @@ struct qed_queue_cid_vf_params {
 	 */
 	bool vf_legacy;
 
+	u8 qid_usage_idx;
 };
 
 struct qed_queue_cid {
@@ -327,6 +328,12 @@ struct qed_queue_cid {
 	 */
 	u8 vfid;
 	u8 vf_qid;
+
+	/* We need an additional index to differentiate between queues opened
+	 * for same queue-zone, as VFs would have to communicate the info
+	 * to the PF [otherwise PF has no way to differentiate].
+	 */
+	u8 qid_usage_idx;
 
 	/* Legacy VFs might have Rx producer located elsewhere */
 	bool b_legacy_vf;

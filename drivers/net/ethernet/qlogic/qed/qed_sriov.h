@@ -149,6 +149,9 @@ struct qed_iov_vf_mbx {
 	struct vfpf_first_tlv first_tlv;
 };
 
+#define QED_IOV_LEGACY_QID_RX (0)
+#define QED_IOV_LEGACY_QID_TX (1)
+
 struct qed_vf_q_info {
 	u16 fw_rx_qid;
 	struct qed_queue_cid *p_rx_cid;

@@ -1942,6 +1942,15 @@ static void qed_iov_vf_mbx_start_rxq_resp(struct qed_hwfn *p_hwfn,
 	qed_iov_send_response(p_hwfn, p_ptt, vf, length, status);
 }
 
+static u8 qed_iov_vf_mbx_qid(struct qed_hwfn *p_hwfn,
+			     struct qed_vf_info *p_vf, bool b_is_tx)
+{
+	if (b_is_tx)
+		return QED_IOV_LEGACY_QID_TX;
+	else
+		return QED_IOV_LEGACY_QID_RX;
+}
+
 static void qed_iov_vf_mbx_start_rxq(struct qed_hwfn *p_hwfn,
 				     struct qed_ptt *p_ptt,
 				     struct qed_vf_info *vf)
@@ -1954,6 +1963,7 @@ static void qed_iov_vf_mbx_start_rxq(struct qed_hwfn *p_hwfn,
 	struct vfpf_start_rxq_tlv *req;
 	struct qed_sb_info sb_dummy;
 	bool b_legacy_vf = false;
+	u8 qid_usage_idx;
 	int rc;
 
 	req = &mbx->req_virt->start_rxq;
@@ -1963,13 +1973,13 @@ static void qed_iov_vf_mbx_start_rxq(struct qed_hwfn *p_hwfn,
 	    !qed_iov_validate_sb(p_hwfn, vf, req->hw_sb))
 		goto out;
 
-	/* Acquire a new queue-cid */
+	qid_usage_idx = qed_iov_vf_mbx_qid(p_hwfn, vf, false);
 	p_queue = &vf->vf_queues[req->rx_qid];
 
 	if (vf->acquire.vfdev_info.eth_fp_hsi_minor ==
 	    ETH_HSI_VER_NO_PKT_LEN_TUNN)
-		b_legacy_vf = true;
 
+	/* Acquire a new queue-cid */
 	memset(&params, 0, sizeof(params));
 	params.queue_id = p_queue->fw_rx_qid;
 	params.vport_id = vf->vport_id;
@@ -1984,6 +1994,7 @@ static void qed_iov_vf_mbx_start_rxq(struct qed_hwfn *p_hwfn,
 	vf_params.vfid = vf->relative_vf_id;
 	vf_params.vf_qid = (u8)req->rx_qid;
 	vf_params.vf_legacy = b_legacy_vf;
+	vf_params.qid_usage_idx = qid_usage_idx;
 	p_queue->p_rx_cid = qed_eth_queue_to_cid(p_hwfn, vf->opaque_fid,
 						 &params, &vf_params);
 	if (!p_queue->p_rx_cid)
@@ -2282,6 +2293,7 @@ static void qed_iov_vf_mbx_start_txq(struct qed_hwfn *p_hwfn,
 	struct qed_vf_q_info *p_queue;
 	struct qed_sb_info sb_dummy;
 	bool b_vf_legacy = false;
+	u8 qid_usage_idx;
 	int rc;
 	u16 pq;
 
@@ -2293,13 +2305,14 @@ static void qed_iov_vf_mbx_start_txq(struct qed_hwfn *p_hwfn,
 	    !qed_iov_validate_sb(p_hwfn, vf, req->hw_sb))
 		goto out;
 
-	/* Acquire a new queue-cid */
+	qid_usage_idx = qed_iov_vf_mbx_qid(p_hwfn, vf, true);
 	p_queue = &vf->vf_queues[req->tx_qid];
 
 	if (vf->acquire.vfdev_info.eth_fp_hsi_minor ==
 	    ETH_HSI_VER_NO_PKT_LEN_TUNN)
 		b_vf_legacy = true;
 
+	/* Acquire a new queue-cid */
 	params.queue_id = p_queue->fw_tx_qid;
 	params.vport_id = vf->vport_id;
 	params.stats_id = vf->abs_vf_id + 0x10;
@@ -2314,6 +2327,7 @@ static void qed_iov_vf_mbx_start_txq(struct qed_hwfn *p_hwfn,
 	vf_params.vfid = vf->relative_vf_id;
 	vf_params.vf_qid = (u8)req->tx_qid;
 	vf_params.vf_legacy = b_vf_legacy;
+	vf_params.qid_usage_idx = qid_usage_idx;
 
 	p_queue->p_tx_cid = qed_eth_queue_to_cid(p_hwfn,
 						 vf->opaque_fid,
