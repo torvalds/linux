@@ -43,6 +43,7 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <dt-bindings/clock/meson8b-clkc.h>
 #include <dt-bindings/gpio/meson8-gpio.h>
 /include/ "meson.dtsi"
 
@@ -82,13 +83,6 @@
 			reg = <0x203>;
 		};
 	};
-
-	clk81: clk@0 {
-		#clock-cells = <0>;
-		compatible = "fixed-clock";
-		clock-frequency = <141666666>;
-	};
-
 }; /* end of / */
 
 &aobus {
@@ -126,6 +120,12 @@
 };
 
 &cbus {
+	clkc: clock-controller@4000 {
+		#clock-cells = <1>;
+		compatible = "amlogic,meson8-clkc";
+		reg = <0x8000 0x4>, <0x4000 0x460>;
+	};
+
 	pinctrl_cbus: pinctrl@9880 {
 		compatible = "amlogic,meson8-cbus-pinctrl";
 		reg = <0x9880 0x10>;
@@ -172,20 +172,20 @@
 };
 
 &ethmac {
-	clocks = <&clk81>;
+	clocks = <&clkc CLKID_CLK81>;
 	clock-names = "stmmaceth";
 };
 
 &i2c_AO {
-	clocks = <&clk81>;
+	clocks = <&clkc CLKID_CLK81>;
 };
 
 &i2c_A {
-	clocks = <&clk81>;
+	clocks = <&clkc CLKID_CLK81>;
 };
 
 &i2c_B {
-	clocks = <&clk81>;
+	clocks = <&clkc CLKID_CLK81>;
 };
 
 &L2 {
@@ -195,21 +195,21 @@
 };
 
 &spifc {
-	clocks = <&clk81>;
+	clocks = <&clkc CLKID_CLK81>;
 };
 
 &uart_AO {
-	clocks = <&clk81>;
+	clocks = <&clkc CLKID_CLK81>;
 };
 
 &uart_A {
-	clocks = <&clk81>;
+	clocks = <&clkc CLKID_CLK81>;
 };
 
 &uart_B {
-	clocks = <&clk81>;
+	clocks = <&clkc CLKID_CLK81>;
 };
 
 &uart_C {
-	clocks = <&clk81>;
+	clocks = <&clkc CLKID_CLK81>;
 };
