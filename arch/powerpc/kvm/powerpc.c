@@ -55,8 +55,7 @@ EXPORT_SYMBOL_GPL(kvmppc_pr_ops);
 
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *v)
 {
-	return !!(v->arch.pending_exceptions) ||
-	       v->requests;
+	return !!(v->arch.pending_exceptions) || kvm_request_pending(v);
 }
 
 int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu)
@@ -108,7 +107,7 @@ int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 		 */
 		smp_mb();
 
-		if (vcpu->requests) {
+		if (kvm_request_pending(vcpu)) {
 			/* Make sure we process requests preemptable */
 			local_irq_enable();
 			trace_kvm_check_requests(vcpu);

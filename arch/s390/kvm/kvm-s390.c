@@ -2440,7 +2440,7 @@ static int kvm_s390_handle_requests(struct kvm_vcpu *vcpu)
 {
 retry:
 	kvm_s390_vcpu_request_handled(vcpu);
-	if (!vcpu->requests)
+	if (!kvm_request_pending(vcpu))
 		return 0;
 	/*
 	 * We use MMU_RELOAD just to re-arm the ipte notifier for the

@@ -1105,6 +1105,11 @@ static inline void kvm_make_request(int req, struct kvm_vcpu *vcpu)
 	set_bit(req & KVM_REQUEST_MASK, &vcpu->requests);
 }
 
+static inline bool kvm_request_pending(struct kvm_vcpu *vcpu)
+{
+	return READ_ONCE(vcpu->requests);
+}
+
 static inline bool kvm_test_request(int req, struct kvm_vcpu *vcpu)
 {
 	return test_bit(req & KVM_REQUEST_MASK, &vcpu->requests);
