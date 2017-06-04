@@ -122,7 +122,7 @@ static void qed_free_pci(struct qed_dev *cdev)
 {
 	struct pci_dev *pdev = cdev->pdev;
 
-	if (cdev->doorbells)
+	if (cdev->doorbells && cdev->db_size)
 		iounmap(cdev->doorbells);
 	if (cdev->regview)
 		iounmap(cdev->regview);
@@ -206,14 +206,22 @@ static int qed_init_pci(struct qed_dev *cdev, struct pci_dev *pdev)
 		goto err2;
 	}
 
-	if (IS_PF(cdev)) {
-		cdev->db_phys_addr = pci_resource_start(cdev->pdev, 2);
-		cdev->db_size = pci_resource_len(cdev->pdev, 2);
-		cdev->doorbells = ioremap_wc(cdev->db_phys_addr, cdev->db_size);
-		if (!cdev->doorbells) {
-			DP_NOTICE(cdev, "Cannot map doorbell space\n");
-			return -ENOMEM;
+	cdev->db_phys_addr = pci_resource_start(cdev->pdev, 2);
+	cdev->db_size = pci_resource_len(cdev->pdev, 2);
+	if (!cdev->db_size) {
+		if (IS_PF(cdev)) {
+			DP_NOTICE(cdev, "No Doorbell bar available\n");
+			return -EINVAL;
+		} else {
+			return 0;
 		}
+	}
+
+	cdev->doorbells = ioremap_wc(cdev->db_phys_addr, cdev->db_size);
+
+	if (!cdev->doorbells) {
+		DP_NOTICE(cdev, "Cannot map doorbell space\n");
+		return -ENOMEM;
 	}
 
 	return 0;

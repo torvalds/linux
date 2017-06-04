@@ -412,6 +412,11 @@ struct qed_fw_data {
 	u32			init_ops_size;
 };
 
+enum BAR_ID {
+	BAR_ID_0,		/* used for GRC */
+	BAR_ID_1		/* Used for doorbells */
+};
+
 #define DRV_MODULE_VERSION		      \
 	__stringify(QED_MAJOR_VERSION) "."    \
 	__stringify(QED_MINOR_VERSION) "."    \

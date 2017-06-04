@@ -1384,6 +1384,60 @@ static void qed_iov_vf_cleanup(struct qed_hwfn *p_hwfn,
 	qed_iov_clean_vf(p_hwfn, p_vf->relative_vf_id);
 }
 
+/* Returns either 0, or log(size) */
+static u32 qed_iov_vf_db_bar_size(struct qed_hwfn *p_hwfn,
+				  struct qed_ptt *p_ptt)
+{
+	u32 val = qed_rd(p_hwfn, p_ptt, PGLUE_B_REG_VF_BAR1_SIZE);
+
+	if (val)
+		return val + 11;
+	return 0;
+}
+
+static void
+qed_iov_vf_mbx_acquire_resc_cids(struct qed_hwfn *p_hwfn,
+				 struct qed_ptt *p_ptt,
+				 struct qed_vf_info *p_vf,
+				 struct vf_pf_resc_request *p_req,
+				 struct pf_vf_resc *p_resp)
+{
+	u8 num_vf_cons = p_hwfn->pf_params.eth_pf_params.num_vf_cons;
+	u8 db_size = qed_db_addr_vf(1, DQ_DEMS_LEGACY) -
+		     qed_db_addr_vf(0, DQ_DEMS_LEGACY);
+	u32 bar_size;
+
+	p_resp->num_cids = min_t(u8, p_req->num_cids, num_vf_cons);
+
+	/* If VF didn't bother asking for QIDs than don't bother limiting
+	 * number of CIDs. The VF doesn't care about the number, and this
+	 * has the likely result of causing an additional acquisition.
+	 */
+	if (!(p_vf->acquire.vfdev_info.capabilities &
+	      VFPF_ACQUIRE_CAP_QUEUE_QIDS))
+		return;
+
+	/* If doorbell bar was mapped by VF, limit the VF CIDs to an amount
+	 * that would make sure doorbells for all CIDs fall within the bar.
+	 * If it doesn't, make sure regview window is sufficient.
+	 */
+	if (p_vf->acquire.vfdev_info.capabilities &
+	    VFPF_ACQUIRE_CAP_PHYSICAL_BAR) {
+		bar_size = qed_iov_vf_db_bar_size(p_hwfn, p_ptt);
+		if (bar_size)
+			bar_size = 1 << bar_size;
+
+		if (p_hwfn->cdev->num_hwfns > 1)
+			bar_size /= 2;
+	} else {
+		bar_size = PXP_VF_BAR0_DQ_LENGTH;
+	}
+
+	if (bar_size / db_size < 256)
+		p_resp->num_cids = min_t(u8, p_resp->num_cids,
+					 (u8)(bar_size / db_size));
+}
+
 static u8 qed_iov_vf_mbx_acquire_resc(struct qed_hwfn *p_hwfn,
 				      struct qed_ptt *p_ptt,
 				      struct qed_vf_info *p_vf,
@@ -1417,9 +1471,7 @@ static u8 qed_iov_vf_mbx_acquire_resc(struct qed_hwfn *p_hwfn,
 	p_resp->num_vlan_filters = min_t(u8, p_vf->num_vlan_filters,
 					 p_req->num_vlan_filters);
 
-	p_resp->num_cids =
-	    min_t(u8, p_req->num_cids,
-		  p_hwfn->pf_params.eth_pf_params.num_vf_cons);
+	qed_iov_vf_mbx_acquire_resc_cids(p_hwfn, p_ptt, p_vf, p_req, p_resp);
 
 	/* This isn't really needed/enforced, but some legacy VFs might depend
 	 * on the correct filling of this field.
@@ -1571,6 +1623,9 @@ static void qed_iov_vf_mbx_acquire(struct qed_hwfn *p_hwfn,
 	 */
 	if (req->vfdev_info.capabilities & VFPF_ACQUIRE_CAP_QUEUE_QIDS)
 		pfdev_info->capabilities |= PFVF_ACQUIRE_CAP_QUEUE_QIDS;
+
+	/* Share the sizes of the bars with VF */
+	resp->pfdev_info.bar_size = qed_iov_vf_db_bar_size(p_hwfn, p_ptt);
 
 	qed_iov_vf_mbx_acquire_stats(p_hwfn, &pfdev_info->stats_info);
 

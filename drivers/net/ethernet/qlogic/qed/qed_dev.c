@@ -69,12 +69,6 @@ static DEFINE_SPINLOCK(qm_lock);
 #define QED_MIN_DPIS            (4)
 #define QED_MIN_PWM_REGION      (QED_WID_SIZE * QED_MIN_DPIS)
 
-/* API common to all protocols */
-enum BAR_ID {
-	BAR_ID_0,       /* used for GRC */
-	BAR_ID_1        /* Used for doorbells */
-};
-
 static u32 qed_hw_bar_size(struct qed_hwfn *p_hwfn,
 			   struct qed_ptt *p_ptt, enum BAR_ID bar_id)
 {
@@ -83,7 +77,7 @@ static u32 qed_hw_bar_size(struct qed_hwfn *p_hwfn,
 	u32 val;
 
 	if (IS_VF(p_hwfn->cdev))
-		return 1 << 17;
+		return qed_vf_hw_bar_size(p_hwfn, bar_id);
 
 	val = qed_rd(p_hwfn, p_ptt, bar_reg);
 	if (val)
