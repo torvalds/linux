@@ -111,6 +111,14 @@ int nd_dax_probe(struct device *dev, struct nd_namespace_common *ndns)
 	if (ndns->force_raw)
 		return -ENODEV;
 
+	switch (ndns->claim_class) {
+	case NVDIMM_CCLASS_NONE:
+	case NVDIMM_CCLASS_DAX:
+		break;
+	default:
+		return -ENODEV;
+	}
+
 	nvdimm_bus_lock(&ndns->dev);
 	nd_dax = nd_dax_alloc(nd_region);
 	nd_pfn = &nd_dax->nd_pfn;

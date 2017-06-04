@@ -699,6 +699,9 @@ static __init int libnvdimm_init(void)
 	rc = nd_region_init();
 	if (rc)
 		goto err_region;
+
+	nd_label_init();
+
 	return 0;
  err_region:
 	nvdimm_exit();

@@ -1425,6 +1425,69 @@ static ssize_t holder_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(holder);
 
+static ssize_t __holder_class_store(struct device *dev, const char *buf)
+{
+	struct nd_namespace_common *ndns = to_ndns(dev);
+
+	if (dev->driver || ndns->claim)
+		return -EBUSY;
+
+	if (strcmp(buf, "btt") == 0 || strcmp(buf, "btt\n") == 0)
+		ndns->claim_class = NVDIMM_CCLASS_BTT;
+	else if (strcmp(buf, "pfn") == 0 || strcmp(buf, "pfn\n") == 0)
+		ndns->claim_class = NVDIMM_CCLASS_PFN;
+	else if (strcmp(buf, "dax") == 0 || strcmp(buf, "dax\n") == 0)
+		ndns->claim_class = NVDIMM_CCLASS_DAX;
+	else if (strcmp(buf, "") == 0 || strcmp(buf, "\n") == 0)
+		ndns->claim_class = NVDIMM_CCLASS_NONE;
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
+static ssize_t holder_class_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t len)
+{
+	struct nd_region *nd_region = to_nd_region(dev->parent);
+	ssize_t rc;
+
+	device_lock(dev);
+	nvdimm_bus_lock(dev);
+	wait_nvdimm_bus_probe_idle(dev);
+	rc = __holder_class_store(dev, buf);
+	if (rc >= 0)
+		rc = nd_namespace_label_update(nd_region, dev);
+	dev_dbg(dev, "%s: %s(%zd)\n", __func__, rc < 0 ? "fail " : "", rc);
+	nvdimm_bus_unlock(dev);
+	device_unlock(dev);
+
+	return rc < 0 ? rc : len;
+}
+
+static ssize_t holder_class_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nd_namespace_common *ndns = to_ndns(dev);
+	ssize_t rc;
+
+	device_lock(dev);
+	if (ndns->claim_class == NVDIMM_CCLASS_NONE)
+		rc = sprintf(buf, "\n");
+	else if (ndns->claim_class == NVDIMM_CCLASS_BTT)
+		rc = sprintf(buf, "btt\n");
+	else if (ndns->claim_class == NVDIMM_CCLASS_PFN)
+		rc = sprintf(buf, "pfn\n");
+	else if (ndns->claim_class == NVDIMM_CCLASS_DAX)
+		rc = sprintf(buf, "dax\n");
+	else
+		rc = sprintf(buf, "<unknown>\n");
+	device_unlock(dev);
+
+	return rc;
+}
+static DEVICE_ATTR_RW(holder_class);
+
 static ssize_t mode_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -1483,6 +1546,7 @@ static struct attribute *nd_namespace_attributes[] = {
 	&dev_attr_force_raw.attr,
 	&dev_attr_sector_size.attr,
 	&dev_attr_dpa_extents.attr,
+	&dev_attr_holder_class.attr,
 	NULL,
 };
 
@@ -1506,6 +1570,7 @@ static umode_t namespace_visible(struct kobject *kobj,
 
 	if (a == &dev_attr_nstype.attr || a == &dev_attr_size.attr
 			|| a == &dev_attr_holder.attr
+			|| a == &dev_attr_holder_class.attr
 			|| a == &dev_attr_force_raw.attr
 			|| a == &dev_attr_mode.attr)
 		return a->mode;
@@ -1827,6 +1892,7 @@ struct device *create_namespace_pmem(struct nd_region *nd_region,
 	/* Calculate total size and populate namespace properties from label0 */
 	for (i = 0; i < nd_region->ndr_mappings; i++) {
 		struct nd_namespace_label *label0;
+		struct nvdimm_drvdata *ndd;
 
 		nd_mapping = &nd_region->mapping[i];
 		label_ent = list_first_entry_or_null(&nd_mapping->labels,
@@ -1847,6 +1913,11 @@ struct device *create_namespace_pmem(struct nd_region *nd_region,
 		nspm->uuid = kmemdup((void __force *) label0->uuid,
 				NSLABEL_UUID_LEN, GFP_KERNEL);
 		nspm->lbasize = __le64_to_cpu(label0->lbasize);
+		ndd = to_ndd(nd_mapping);
+		if (namespace_label_has(ndd, abstraction_guid))
+			nspm->nsio.common.claim_class
+				= to_nvdimm_cclass(&label0->abstraction_guid);
+
 	}
 
 	if (!nspm->alt_name || !nspm->uuid) {
@@ -2091,6 +2162,9 @@ struct device *create_namespace_blk(struct nd_region *nd_region,
 	nsblk->lbasize = __le64_to_cpu(nd_label->lbasize);
 	nsblk->uuid = kmemdup(nd_label->uuid, NSLABEL_UUID_LEN,
 			GFP_KERNEL);
+	if (namespace_label_has(ndd, abstraction_guid))
+		nsblk->common.claim_class
+			= to_nvdimm_cclass(&nd_label->abstraction_guid);
 	if (!nsblk->uuid)
 		goto blk_err;
 	memcpy(name, nd_label->name, NSLABEL_NAME_LEN);

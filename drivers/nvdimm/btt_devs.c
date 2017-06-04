@@ -295,6 +295,14 @@ int nd_btt_probe(struct device *dev, struct nd_namespace_common *ndns)
 	if (ndns->force_raw)
 		return -ENODEV;
 
+	switch (ndns->claim_class) {
+	case NVDIMM_CCLASS_NONE:
+	case NVDIMM_CCLASS_BTT:
+		break;
+	default:
+		return -ENODEV;
+	}
+
 	nvdimm_bus_lock(&ndns->dev);
 	btt_dev = __nd_btt_create(nd_region, 0, NULL, ndns);
 	nvdimm_bus_unlock(&ndns->dev);

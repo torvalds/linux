@@ -471,6 +471,14 @@ int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns)
 	if (ndns->force_raw)
 		return -ENODEV;
 
+	switch (ndns->claim_class) {
+	case NVDIMM_CCLASS_NONE:
+	case NVDIMM_CCLASS_PFN:
+		break;
+	default:
+		return -ENODEV;
+	}
+
 	nvdimm_bus_lock(&ndns->dev);
 	nd_pfn = nd_pfn_alloc(nd_region);
 	pfn_dev = nd_pfn_devinit(nd_pfn, ndns);

@@ -12,12 +12,17 @@
  */
 #include <linux/device.h>
 #include <linux/ndctl.h>
+#include <linux/uuid.h>
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/nd.h>
 #include "nd-core.h"
 #include "label.h"
 #include "nd.h"
+
+static guid_t nvdimm_btt_guid;
+static guid_t nvdimm_pfn_guid;
+static guid_t nvdimm_dax_guid;
 
 static u32 best_seq(u32 a, u32 b)
 {
@@ -565,10 +570,44 @@ static unsigned long nd_label_offset(struct nvdimm_drvdata *ndd,
 		- (unsigned long) to_namespace_index(ndd, 0);
 }
 
+enum nvdimm_claim_class to_nvdimm_cclass(guid_t *guid)
+{
+	if (guid_equal(guid, &nvdimm_btt_guid))
+		return NVDIMM_CCLASS_BTT;
+	else if (guid_equal(guid, &nvdimm_pfn_guid))
+		return NVDIMM_CCLASS_PFN;
+	else if (guid_equal(guid, &nvdimm_dax_guid))
+		return NVDIMM_CCLASS_DAX;
+	else if (guid_equal(guid, &guid_null))
+		return NVDIMM_CCLASS_NONE;
+
+	return NVDIMM_CCLASS_UNKNOWN;
+}
+
+static const guid_t *to_abstraction_guid(enum nvdimm_claim_class claim_class,
+	guid_t *target)
+{
+	if (claim_class == NVDIMM_CCLASS_BTT)
+		return &nvdimm_btt_guid;
+	else if (claim_class == NVDIMM_CCLASS_PFN)
+		return &nvdimm_pfn_guid;
+	else if (claim_class == NVDIMM_CCLASS_DAX)
+		return &nvdimm_dax_guid;
+	else if (claim_class == NVDIMM_CCLASS_UNKNOWN) {
+		/*
+		 * If we're modifying a namespace for which we don't
+		 * know the claim_class, don't touch the existing guid.
+		 */
+		return target;
+	} else
+		return &guid_null;
+}
+
 static int __pmem_label_update(struct nd_region *nd_region,
 		struct nd_mapping *nd_mapping, struct nd_namespace_pmem *nspm,
 		int pos)
 {
+	struct nd_namespace_common *ndns = &nspm->nsio.common;
 	struct nd_interleave_set *nd_set = nd_region->nd_set;
 	struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
 	struct nd_label_ent *label_ent, *victim = NULL;
@@ -616,6 +655,10 @@ static int __pmem_label_update(struct nd_region *nd_region,
 	nd_label->slot = __cpu_to_le32(slot);
 	if (namespace_label_has(ndd, type_guid))
 		guid_copy(&nd_label->type_guid, &nd_set->type_guid);
+	if (namespace_label_has(ndd, abstraction_guid))
+		guid_copy(&nd_label->abstraction_guid,
+				to_abstraction_guid(ndns->claim_class,
+					&nd_label->abstraction_guid));
 	if (namespace_label_has(ndd, checksum)) {
 		u64 sum;
 
@@ -711,6 +754,7 @@ static int __blk_label_update(struct nd_region *nd_region,
 {
 	int i, alloc, victims, nfree, old_num_resources, nlabel, rc = -ENXIO;
 	struct nd_interleave_set *nd_set = nd_region->nd_set;
+	struct nd_namespace_common *ndns = &nsblk->common;
 	struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
 	struct nd_namespace_label *nd_label;
 	struct nd_label_ent *label_ent, *e;
@@ -848,6 +892,11 @@ static int __blk_label_update(struct nd_region *nd_region,
 		nd_label->slot = __cpu_to_le32(slot);
 		if (namespace_label_has(ndd, type_guid))
 			guid_copy(&nd_label->type_guid, &nd_set->type_guid);
+		if (namespace_label_has(ndd, abstraction_guid))
+			guid_copy(&nd_label->abstraction_guid,
+					to_abstraction_guid(ndns->claim_class,
+						&nd_label->abstraction_guid));
+
 		if (namespace_label_has(ndd, checksum)) {
 			u64 sum;
 
@@ -1100,4 +1149,13 @@ int nd_blk_namespace_label_update(struct nd_region *nd_region,
 		return count;
 
 	return __blk_label_update(nd_region, nd_mapping, nsblk, count);
+}
+
+int __init nd_label_init(void)
+{
+	WARN_ON(guid_parse(NVDIMM_BTT_GUID, &nvdimm_btt_guid));
+	WARN_ON(guid_parse(NVDIMM_PFN_GUID, &nvdimm_pfn_guid));
+	WARN_ON(guid_parse(NVDIMM_DAX_GUID, &nvdimm_dax_guid));
+
+	return 0;
 }

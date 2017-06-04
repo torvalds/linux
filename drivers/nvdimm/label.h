@@ -112,6 +112,10 @@ struct nd_namespace_label {
 	__le64 checksum;
 };
 
+#define NVDIMM_BTT_GUID "8aed63a2-29a2-4c66-8b12-f05d15d3922a"
+#define NVDIMM_PFN_GUID "266400ba-fb9f-4677-bcb0-968f11d0d225"
+#define NVDIMM_DAX_GUID "97a86d9c-3cdd-4eda-986f-5068b4f80088"
+
 /**
  * struct nd_label_id - identifier string for dpa allocation
  * @id: "{blk|pmem}-<namespace uuid>"
@@ -142,6 +146,7 @@ struct nd_namespace_label *nd_label_active(struct nvdimm_drvdata *ndd, int n);
 u32 nd_label_alloc_slot(struct nvdimm_drvdata *ndd);
 bool nd_label_free_slot(struct nvdimm_drvdata *ndd, u32 slot);
 u32 nd_label_nfree(struct nvdimm_drvdata *ndd);
+enum nvdimm_claim_class to_nvdimm_cclass(guid_t *guid);
 struct nd_region;
 struct nd_namespace_pmem;
 struct nd_namespace_blk;

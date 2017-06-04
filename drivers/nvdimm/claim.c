@@ -184,6 +184,34 @@ ssize_t nd_namespace_store(struct device *dev,
 	}
 
 	ndns = to_ndns(found);
+
+	switch (ndns->claim_class) {
+	case NVDIMM_CCLASS_NONE:
+		break;
+	case NVDIMM_CCLASS_BTT:
+		if (!is_nd_btt(dev)) {
+			len = -EBUSY;
+			goto out_attach;
+		}
+		break;
+	case NVDIMM_CCLASS_PFN:
+		if (!is_nd_pfn(dev)) {
+			len = -EBUSY;
+			goto out_attach;
+		}
+		break;
+	case NVDIMM_CCLASS_DAX:
+		if (!is_nd_dax(dev)) {
+			len = -EBUSY;
+			goto out_attach;
+		}
+		break;
+	default:
+		len = -EBUSY;
+		goto out_attach;
+		break;
+	}
+
 	if (__nvdimm_namespace_capacity(ndns) < SZ_16M) {
 		dev_dbg(dev, "%s too small to host\n", name);
 		len = -ENXIO;

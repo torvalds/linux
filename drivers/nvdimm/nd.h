@@ -235,6 +235,7 @@ ssize_t nd_sector_size_store(struct device *dev, const char *buf,
 		unsigned long *current_lbasize, const unsigned long *supported);
 int __init nvdimm_init(void);
 int __init nd_region_init(void);
+int __init nd_label_init(void);
 void nvdimm_exit(void);
 void nd_region_exit(void);
 struct nvdimm;
