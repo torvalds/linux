@@ -69,37 +69,37 @@ static int ssi_ivgen_generate_pool(
 		return -EINVAL;
 	}
 	/* Setup key */
-	HW_DESC_INIT(&iv_seq[idx]);
-	HW_DESC_SET_DIN_SRAM(&iv_seq[idx], ivgen_ctx->ctr_key, AES_KEYSIZE_128);
-	HW_DESC_SET_SETUP_MODE(&iv_seq[idx], SETUP_LOAD_KEY0);
-	HW_DESC_SET_CIPHER_CONFIG0(&iv_seq[idx], DESC_DIRECTION_ENCRYPT_ENCRYPT);
-	HW_DESC_SET_FLOW_MODE(&iv_seq[idx], S_DIN_to_AES);
-	HW_DESC_SET_KEY_SIZE_AES(&iv_seq[idx], CC_AES_128_BIT_KEY_SIZE);
-	HW_DESC_SET_CIPHER_MODE(&iv_seq[idx], DRV_CIPHER_CTR);
+	hw_desc_init(&iv_seq[idx]);
+	set_din_sram(&iv_seq[idx], ivgen_ctx->ctr_key, AES_KEYSIZE_128);
+	set_setup_mode(&iv_seq[idx], SETUP_LOAD_KEY0);
+	set_cipher_config0(&iv_seq[idx], DESC_DIRECTION_ENCRYPT_ENCRYPT);
+	set_flow_mode(&iv_seq[idx], S_DIN_to_AES);
+	set_key_size_aes(&iv_seq[idx], CC_AES_128_BIT_KEY_SIZE);
+	set_cipher_mode(&iv_seq[idx], DRV_CIPHER_CTR);
 	idx++;
 
 	/* Setup cipher state */
-	HW_DESC_INIT(&iv_seq[idx]);
-	HW_DESC_SET_DIN_SRAM(&iv_seq[idx], ivgen_ctx->ctr_iv, CC_AES_IV_SIZE);
-	HW_DESC_SET_CIPHER_CONFIG0(&iv_seq[idx], DESC_DIRECTION_ENCRYPT_ENCRYPT);
-	HW_DESC_SET_FLOW_MODE(&iv_seq[idx], S_DIN_to_AES);
-	HW_DESC_SET_SETUP_MODE(&iv_seq[idx], SETUP_LOAD_STATE1);
-	HW_DESC_SET_KEY_SIZE_AES(&iv_seq[idx], CC_AES_128_BIT_KEY_SIZE);
-	HW_DESC_SET_CIPHER_MODE(&iv_seq[idx], DRV_CIPHER_CTR);
+	hw_desc_init(&iv_seq[idx]);
+	set_din_sram(&iv_seq[idx], ivgen_ctx->ctr_iv, CC_AES_IV_SIZE);
+	set_cipher_config0(&iv_seq[idx], DESC_DIRECTION_ENCRYPT_ENCRYPT);
+	set_flow_mode(&iv_seq[idx], S_DIN_to_AES);
+	set_setup_mode(&iv_seq[idx], SETUP_LOAD_STATE1);
+	set_key_size_aes(&iv_seq[idx], CC_AES_128_BIT_KEY_SIZE);
+	set_cipher_mode(&iv_seq[idx], DRV_CIPHER_CTR);
 	idx++;
 
 	/* Perform dummy encrypt to skip first block */
-	HW_DESC_INIT(&iv_seq[idx]);
-	HW_DESC_SET_DIN_CONST(&iv_seq[idx], 0, CC_AES_IV_SIZE);
-	HW_DESC_SET_DOUT_SRAM(&iv_seq[idx], ivgen_ctx->pool, CC_AES_IV_SIZE);
-	HW_DESC_SET_FLOW_MODE(&iv_seq[idx], DIN_AES_DOUT);
+	hw_desc_init(&iv_seq[idx]);
+	set_din_const(&iv_seq[idx], 0, CC_AES_IV_SIZE);
+	set_dout_sram(&iv_seq[idx], ivgen_ctx->pool, CC_AES_IV_SIZE);
+	set_flow_mode(&iv_seq[idx], DIN_AES_DOUT);
 	idx++;
 
 	/* Generate IV pool */
-	HW_DESC_INIT(&iv_seq[idx]);
-	HW_DESC_SET_DIN_CONST(&iv_seq[idx], 0, SSI_IVPOOL_SIZE);
-	HW_DESC_SET_DOUT_SRAM(&iv_seq[idx], ivgen_ctx->pool, SSI_IVPOOL_SIZE);
-	HW_DESC_SET_FLOW_MODE(&iv_seq[idx], DIN_AES_DOUT);
+	hw_desc_init(&iv_seq[idx]);
+	set_din_const(&iv_seq[idx], 0, SSI_IVPOOL_SIZE);
+	set_dout_sram(&iv_seq[idx], ivgen_ctx->pool, SSI_IVPOOL_SIZE);
+	set_flow_mode(&iv_seq[idx], DIN_AES_DOUT);
 	idx++;
 
 	*iv_seq_len = idx; /* Update sequence length */
@@ -133,13 +133,12 @@ int ssi_ivgen_init_sram_pool(struct ssi_drvdata *drvdata)
 	ivgen_ctx->ctr_iv = ivgen_ctx->pool + AES_KEYSIZE_128;
 
 	/* Copy initial enc. key and IV to SRAM at a single descriptor */
-	HW_DESC_INIT(&iv_seq[iv_seq_len]);
-	HW_DESC_SET_DIN_TYPE(&iv_seq[iv_seq_len], DMA_DLLI,
-		ivgen_ctx->pool_meta_dma, SSI_IVPOOL_META_SIZE,
-		NS_BIT);
-	HW_DESC_SET_DOUT_SRAM(&iv_seq[iv_seq_len], ivgen_ctx->pool,
-		SSI_IVPOOL_META_SIZE);
-	HW_DESC_SET_FLOW_MODE(&iv_seq[iv_seq_len], BYPASS);
+	hw_desc_init(&iv_seq[iv_seq_len]);
+	set_din_type(&iv_seq[iv_seq_len], DMA_DLLI, ivgen_ctx->pool_meta_dma,
+		     SSI_IVPOOL_META_SIZE, NS_BIT);
+	set_dout_sram(&iv_seq[iv_seq_len], ivgen_ctx->pool,
+		      SSI_IVPOOL_META_SIZE);
+	set_flow_mode(&iv_seq[iv_seq_len], BYPASS);
 	iv_seq_len++;
 
 	/* Generate initial pool */
@@ -268,22 +267,22 @@ int ssi_ivgen_getiv(
 
 	for (t = 0; t < iv_out_dma_len; t++) {
 		/* Acquire IV from pool */
-		HW_DESC_INIT(&iv_seq[idx]);
-		HW_DESC_SET_DIN_SRAM(&iv_seq[idx],
-			ivgen_ctx->pool + ivgen_ctx->next_iv_ofs,
-			iv_out_size);
-		HW_DESC_SET_DOUT_DLLI(&iv_seq[idx], iv_out_dma[t],
-			iv_out_size, NS_BIT, 0);
-		HW_DESC_SET_FLOW_MODE(&iv_seq[idx], BYPASS);
+		hw_desc_init(&iv_seq[idx]);
+		set_din_sram(&iv_seq[idx], (ivgen_ctx->pool +
+					    ivgen_ctx->next_iv_ofs),
+			     iv_out_size);
+		set_dout_dlli(&iv_seq[idx], iv_out_dma[t], iv_out_size,
+			      NS_BIT, 0);
+		set_flow_mode(&iv_seq[idx], BYPASS);
 		idx++;
 	}
 
 	/* Bypass operation is proceeded by crypto sequence, hence must
 	 *  assure bypass-write-transaction by a memory barrier
 	 */
-	HW_DESC_INIT(&iv_seq[idx]);
-	HW_DESC_SET_DIN_NO_DMA(&iv_seq[idx], 0, 0xfffff0);
-	HW_DESC_SET_DOUT_NO_DMA(&iv_seq[idx], 0, 0, 1);
+	hw_desc_init(&iv_seq[idx]);
+	set_din_no_dma(&iv_seq[idx], 0, 0xfffff0);
+	set_dout_no_dma(&iv_seq[idx], 0, 0, 1);
 	idx++;
 
 	*iv_seq_len = idx; /* update seq length */

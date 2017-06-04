@@ -21,8 +21,12 @@
 #ifndef _CC_BITOPS_H_
 #define _CC_BITOPS_H_
 
-#define BITMASK(mask_size) (((mask_size) < 32) ?	\
-	((1UL << (mask_size)) - 1) : 0xFFFFFFFFUL)
+#include <linux/bitops.h>
+#include <linux/bitfield.h>
+
+#define BITMASK(mask_size) (((mask_size) < 32) ?       \
+       ((1UL << (mask_size)) - 1) : 0xFFFFFFFFUL)
+
 #define BITMASK_AT(mask_size, mask_offset) (BITMASK(mask_size) << (mask_offset))
 
 #define BITFIELD_GET(word, bit_offset, bit_size) \

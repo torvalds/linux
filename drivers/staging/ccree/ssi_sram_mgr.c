@@ -127,10 +127,10 @@ void ssi_sram_mgr_const2sram_desc(
 	unsigned int idx = *seq_len;
 
 	for (i = 0; i < nelement; i++, idx++) {
-		HW_DESC_INIT(&seq[idx]);
-		HW_DESC_SET_DIN_CONST(&seq[idx], src[i], sizeof(u32));
-		HW_DESC_SET_DOUT_SRAM(&seq[idx], dst + (i * sizeof(u32)), sizeof(u32));
-		HW_DESC_SET_FLOW_MODE(&seq[idx], BYPASS);
+		hw_desc_init(&seq[idx]);
+		set_din_const(&seq[idx], src[i], sizeof(u32));
+		set_dout_sram(&seq[idx], dst + (i * sizeof(u32)), sizeof(u32));
+		set_flow_mode(&seq[idx], BYPASS);
 	}
 
 	*seq_len = idx;

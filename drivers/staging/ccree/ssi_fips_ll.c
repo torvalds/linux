@@ -325,74 +325,73 @@ ssi_cipher_fips_run_test(struct ssi_drvdata *drvdata,
 	case DRV_CIPHER_CTR:
 	case DRV_CIPHER_OFB:
 		/* Load cipher state */
-		HW_DESC_INIT(&desc[idx]);
-		HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI,
-				     iv_dma_addr, iv_len, NS_BIT);
-		HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], direction);
-		HW_DESC_SET_FLOW_MODE(&desc[idx], s_flow_mode);
-		HW_DESC_SET_CIPHER_MODE(&desc[idx], cipher_mode);
+		hw_desc_init(&desc[idx]);
+		set_din_type(&desc[idx], DMA_DLLI,
+			     iv_dma_addr, iv_len, NS_BIT);
+		set_cipher_config0(&desc[idx], direction);
+		set_flow_mode(&desc[idx], s_flow_mode);
+		set_cipher_mode(&desc[idx], cipher_mode);
 		if ((cipher_mode == DRV_CIPHER_CTR) ||
 		    (cipher_mode == DRV_CIPHER_OFB) ) {
-			HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_STATE1);
+			set_setup_mode(&desc[idx], SETUP_LOAD_STATE1);
 		} else {
-			HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_STATE0);
+			set_setup_mode(&desc[idx], SETUP_LOAD_STATE0);
 		}
 		idx++;
 		/*FALLTHROUGH*/
 	case DRV_CIPHER_ECB:
 		/* Load key */
-		HW_DESC_INIT(&desc[idx]);
-		HW_DESC_SET_CIPHER_MODE(&desc[idx], cipher_mode);
-		HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], direction);
+		hw_desc_init(&desc[idx]);
+		set_cipher_mode(&desc[idx], cipher_mode);
+		set_cipher_config0(&desc[idx], direction);
 		if (is_aes) {
-			HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI,
-					     key_dma_addr,
-					     ((key_len == 24) ? AES_MAX_KEY_SIZE : key_len),
-					     NS_BIT);
-			HW_DESC_SET_KEY_SIZE_AES(&desc[idx], key_len);
+			set_din_type(&desc[idx], DMA_DLLI, key_dma_addr,
+				     ((key_len == 24) ? AES_MAX_KEY_SIZE :
+				      key_len), NS_BIT);
+			set_key_size_aes(&desc[idx], key_len);
 		} else {/*des*/
-			HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI,
-					     key_dma_addr, key_len,
-					     NS_BIT);
-			HW_DESC_SET_KEY_SIZE_DES(&desc[idx], key_len);
+			set_din_type(&desc[idx], DMA_DLLI, key_dma_addr,
+				     key_len, NS_BIT);
+			set_key_size_des(&desc[idx], key_len);
 		}
-		HW_DESC_SET_FLOW_MODE(&desc[idx], s_flow_mode);
-		HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_KEY0);
+		set_flow_mode(&desc[idx], s_flow_mode);
+		set_setup_mode(&desc[idx], SETUP_LOAD_KEY0);
 		idx++;
 		break;
 	case DRV_CIPHER_XTS:
 		/* Load AES key */
-		HW_DESC_INIT(&desc[idx]);
-		HW_DESC_SET_CIPHER_MODE(&desc[idx], cipher_mode);
-		HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], direction);
-		HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI,
-				     key_dma_addr, key_len/2, NS_BIT);
-		HW_DESC_SET_KEY_SIZE_AES(&desc[idx], key_len/2);
-		HW_DESC_SET_FLOW_MODE(&desc[idx], s_flow_mode);
-		HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_KEY0);
+		hw_desc_init(&desc[idx]);
+		set_cipher_mode(&desc[idx], cipher_mode);
+		set_cipher_config0(&desc[idx], direction);
+		set_din_type(&desc[idx], DMA_DLLI, key_dma_addr, (key_len / 2),
+			     NS_BIT);
+		set_key_size_aes(&desc[idx], (key_len / 2));
+		set_flow_mode(&desc[idx], s_flow_mode);
+		set_setup_mode(&desc[idx], SETUP_LOAD_KEY0);
 		idx++;
 
 		/* load XEX key */
-		HW_DESC_INIT(&desc[idx]);
-		HW_DESC_SET_CIPHER_MODE(&desc[idx], cipher_mode);
-		HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], direction);
-		HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI,
-				     (key_dma_addr+key_len/2), key_len/2, NS_BIT);
-		HW_DESC_SET_XEX_DATA_UNIT_SIZE(&desc[idx], data_size);
-		HW_DESC_SET_FLOW_MODE(&desc[idx], s_flow_mode);
-		HW_DESC_SET_KEY_SIZE_AES(&desc[idx], key_len/2);
-		HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_XEX_KEY);
+		hw_desc_init(&desc[idx]);
+		set_cipher_mode(&desc[idx], cipher_mode);
+		set_cipher_config0(&desc[idx], direction);
+		set_din_type(&desc[idx], DMA_DLLI,
+			     (key_dma_addr + (key_len / 2)),
+			     (key_len / 2), NS_BIT);
+		set_xex_data_unit_size(&desc[idx], data_size);
+		set_flow_mode(&desc[idx], s_flow_mode);
+		set_key_size_aes(&desc[idx], (key_len / 2));
+		set_setup_mode(&desc[idx], SETUP_LOAD_XEX_KEY);
 		idx++;
 
 		/* Set state */
-		HW_DESC_INIT(&desc[idx]);
-		HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_STATE1);
-		HW_DESC_SET_CIPHER_MODE(&desc[idx], cipher_mode);
-		HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], direction);
-		HW_DESC_SET_KEY_SIZE_AES(&desc[idx], key_len/2);
-		HW_DESC_SET_FLOW_MODE(&desc[idx], s_flow_mode);
-		HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI,
-				     iv_dma_addr, CC_AES_BLOCK_SIZE, NS_BIT);
+		hw_desc_init(&desc[idx]);
+		set_setup_mode(&desc[idx], SETUP_LOAD_STATE1);
+		set_cipher_mode(&desc[idx], cipher_mode);
+		set_cipher_config0(&desc[idx], direction);
+		set_key_size_aes(&desc[idx], (key_len / 2));
+		set_flow_mode(&desc[idx], s_flow_mode);
+		set_din_type(&desc[idx], DMA_DLLI, iv_dma_addr,
+			     CC_AES_BLOCK_SIZE, NS_BIT);
 		idx++;
 		break;
 	default:
@@ -401,10 +400,10 @@ ssi_cipher_fips_run_test(struct ssi_drvdata *drvdata,
 	}
 
 	/* create data descriptor */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI, din_dma_addr, data_size, NS_BIT);
-	HW_DESC_SET_DOUT_DLLI(&desc[idx], dout_dma_addr, data_size, NS_BIT, 0);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], is_aes ? DIN_AES_DOUT : DIN_DES_DOUT);
+	hw_desc_init(&desc[idx]);
+	set_din_type(&desc[idx], DMA_DLLI, din_dma_addr, data_size, NS_BIT);
+	set_dout_dlli(&desc[idx], dout_dma_addr, data_size, NS_BIT, 0);
+	set_flow_mode(&desc[idx], is_aes ? DIN_AES_DOUT : DIN_DES_DOUT);
 	idx++;
 
 	/* perform the operation - Lock HW and push sequence */
@@ -499,42 +498,42 @@ ssi_cmac_fips_run_test(struct ssi_drvdata *drvdata,
 	int idx = 0;
 
 	/* Setup CMAC Key */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI, key_dma_addr,
-			     ((key_len == 24) ? AES_MAX_KEY_SIZE : key_len), NS_BIT);
-	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_KEY0);
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_CIPHER_CMAC);
-	HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], DESC_DIRECTION_ENCRYPT_ENCRYPT);
-	HW_DESC_SET_KEY_SIZE_AES(&desc[idx], key_len);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_AES);
+	hw_desc_init(&desc[idx]);
+	set_din_type(&desc[idx], DMA_DLLI, key_dma_addr,
+		     ((key_len == 24) ? AES_MAX_KEY_SIZE : key_len), NS_BIT);
+	set_setup_mode(&desc[idx], SETUP_LOAD_KEY0);
+	set_cipher_mode(&desc[idx], DRV_CIPHER_CMAC);
+	set_cipher_config0(&desc[idx], DESC_DIRECTION_ENCRYPT_ENCRYPT);
+	set_key_size_aes(&desc[idx], key_len);
+	set_flow_mode(&desc[idx], S_DIN_to_AES);
 	idx++;
 
 	/* Load MAC state */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI, digest_dma_addr, CC_AES_BLOCK_SIZE, NS_BIT);
-	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_STATE0);
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_CIPHER_CMAC);
-	HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], DESC_DIRECTION_ENCRYPT_ENCRYPT);
-	HW_DESC_SET_KEY_SIZE_AES(&desc[idx], key_len);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_AES);
+	hw_desc_init(&desc[idx]);
+	set_din_type(&desc[idx], DMA_DLLI, digest_dma_addr, CC_AES_BLOCK_SIZE,
+		     NS_BIT);
+	set_setup_mode(&desc[idx], SETUP_LOAD_STATE0);
+	set_cipher_mode(&desc[idx], DRV_CIPHER_CMAC);
+	set_cipher_config0(&desc[idx], DESC_DIRECTION_ENCRYPT_ENCRYPT);
+	set_key_size_aes(&desc[idx], key_len);
+	set_flow_mode(&desc[idx], S_DIN_to_AES);
 	idx++;
 
 
 	//ssi_hash_create_data_desc(state, ctx, DIN_AES_DOUT, desc, false, &idx);
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI,
-			     din_dma_addr,
-			     din_len, NS_BIT);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], DIN_AES_DOUT);
+	hw_desc_init(&desc[idx]);
+	set_din_type(&desc[idx], DMA_DLLI, din_dma_addr, din_len, NS_BIT);
+	set_flow_mode(&desc[idx], DIN_AES_DOUT);
 	idx++;
 
 	/* Get final MAC result */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_DOUT_DLLI(&desc[idx], digest_dma_addr, CC_AES_BLOCK_SIZE, NS_BIT, 0);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], S_AES_to_DOUT);
-	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_WRITE_STATE0);
-	HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], DESC_DIRECTION_ENCRYPT_ENCRYPT);
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_CIPHER_CMAC);
+	hw_desc_init(&desc[idx]);
+	set_dout_dlli(&desc[idx], digest_dma_addr, CC_AES_BLOCK_SIZE, NS_BIT,
+		      0);
+	set_flow_mode(&desc[idx], S_AES_to_DOUT);
+	set_setup_mode(&desc[idx], SETUP_WRITE_STATE0);
+	set_cipher_config0(&desc[idx], DESC_DIRECTION_ENCRYPT_ENCRYPT);
+	set_cipher_mode(&desc[idx], DRV_CIPHER_CMAC);
 	idx++;
 
 	/* perform the operation - Lock HW and push sequence */
@@ -644,41 +643,43 @@ ssi_hash_fips_run_test(struct ssi_drvdata *drvdata,
 	int idx = 0;
 
 	/* Load initial digest */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], hw_mode);
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI, initial_digest_dma_addr, inter_digestsize, NS_BIT);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_HASH);
-	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_STATE0);
+	hw_desc_init(&desc[idx]);
+	set_cipher_mode(&desc[idx], hw_mode);
+	set_din_type(&desc[idx], DMA_DLLI, initial_digest_dma_addr,
+		     inter_digestsize, NS_BIT);
+	set_flow_mode(&desc[idx], S_DIN_to_HASH);
+	set_setup_mode(&desc[idx], SETUP_LOAD_STATE0);
 	idx++;
 
 	/* Load the hash current length */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], hw_mode);
-	HW_DESC_SET_DIN_CONST(&desc[idx], 0, HASH_LEN_SIZE);
-	HW_DESC_SET_CIPHER_CONFIG1(&desc[idx], HASH_PADDING_ENABLED);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_HASH);
-	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_KEY0);
+	hw_desc_init(&desc[idx]);
+	set_cipher_mode(&desc[idx], hw_mode);
+	set_din_const(&desc[idx], 0, HASH_LEN_SIZE);
+	set_cipher_config1(&desc[idx], HASH_PADDING_ENABLED);
+	set_flow_mode(&desc[idx], S_DIN_to_HASH);
+	set_setup_mode(&desc[idx], SETUP_LOAD_KEY0);
 	idx++;
 
 	/* data descriptor */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI, din_dma_addr, data_in_size, NS_BIT);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], DIN_HASH);
+	hw_desc_init(&desc[idx]);
+	set_din_type(&desc[idx], DMA_DLLI, din_dma_addr, data_in_size, NS_BIT);
+	set_flow_mode(&desc[idx], DIN_HASH);
 	idx++;
 
 	/* Get final MAC result */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], hw_mode);
-	HW_DESC_SET_DOUT_DLLI(&desc[idx], mac_res_dma_addr, digest_size, NS_BIT, 0);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], S_HASH_to_DOUT);
-	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_WRITE_STATE0);
-	HW_DESC_SET_CIPHER_CONFIG1(&desc[idx], HASH_PADDING_DISABLED);
+	hw_desc_init(&desc[idx]);
+	set_cipher_mode(&desc[idx], hw_mode);
+	set_dout_dlli(&desc[idx], mac_res_dma_addr, digest_size, NS_BIT, 0);
+	set_flow_mode(&desc[idx], S_HASH_to_DOUT);
+	set_setup_mode(&desc[idx], SETUP_WRITE_STATE0);
+	set_cipher_config1(&desc[idx], HASH_PADDING_DISABLED);
 	if (unlikely((hash_mode == DRV_HASH_MD5) ||
 		     (hash_mode == DRV_HASH_SHA384) ||
 		     (hash_mode == DRV_HASH_SHA512))) {
-		HW_DESC_SET_BYTES_SWAP(&desc[idx], 1);
+		set_bytes_swap(&desc[idx], 1);
 	} else {
-		HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], HASH_DIGEST_RESULT_LITTLE_ENDIAN);
+		set_cipher_config0(&desc[idx],
+				   HASH_DIGEST_RESULT_LITTLE_ENDIAN);
 	}
 	idx++;
 
@@ -831,20 +832,19 @@ ssi_hmac_fips_run_test(struct ssi_drvdata *drvdata,
 	unsigned int hmacPadConst[2] = { HMAC_OPAD_CONST, HMAC_IPAD_CONST };
 
 	// assume (key_size <= block_size)
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI, key_dma_addr, key_size, NS_BIT);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], BYPASS);
-	HW_DESC_SET_DOUT_DLLI(&desc[idx], k0_dma_addr, key_size, NS_BIT, 0);
+	hw_desc_init(&desc[idx]);
+	set_din_type(&desc[idx], DMA_DLLI, key_dma_addr, key_size, NS_BIT);
+	set_flow_mode(&desc[idx], BYPASS);
+	set_dout_dlli(&desc[idx], k0_dma_addr, key_size, NS_BIT, 0);
 	idx++;
 
 	// if needed, append Key with zeros to create K0
 	if ((block_size - key_size) != 0) {
-		HW_DESC_INIT(&desc[idx]);
-		HW_DESC_SET_DIN_CONST(&desc[idx], 0, (block_size - key_size));
-		HW_DESC_SET_FLOW_MODE(&desc[idx], BYPASS);
-		HW_DESC_SET_DOUT_DLLI(&desc[idx],
-				      (k0_dma_addr + key_size), (block_size - key_size),
-				      NS_BIT, 0);
+		hw_desc_init(&desc[idx]);
+		set_din_const(&desc[idx], 0, (block_size - key_size));
+		set_flow_mode(&desc[idx], BYPASS);
+		set_dout_dlli(&desc[idx], (k0_dma_addr + key_size),
+			      (block_size - key_size), NS_BIT, 0);
 		idx++;
 	}
 
@@ -859,50 +859,48 @@ ssi_hmac_fips_run_test(struct ssi_drvdata *drvdata,
 	/* calc derived HMAC key */
 	for (i = 0; i < 2; i++) {
 		/* Load hash initial state */
-		HW_DESC_INIT(&desc[idx]);
-		HW_DESC_SET_CIPHER_MODE(&desc[idx], hw_mode);
-		HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI, initial_digest_dma_addr, inter_digestsize, NS_BIT);
-		HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_HASH);
-		HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_STATE0);
+		hw_desc_init(&desc[idx]);
+		set_cipher_mode(&desc[idx], hw_mode);
+		set_din_type(&desc[idx], DMA_DLLI, initial_digest_dma_addr,
+			     inter_digestsize, NS_BIT);
+		set_flow_mode(&desc[idx], S_DIN_to_HASH);
+		set_setup_mode(&desc[idx], SETUP_LOAD_STATE0);
 		idx++;
 
 
 		/* Load the hash current length*/
-		HW_DESC_INIT(&desc[idx]);
-		HW_DESC_SET_CIPHER_MODE(&desc[idx], hw_mode);
-		HW_DESC_SET_DIN_CONST(&desc[idx], 0, HASH_LEN_SIZE);
-		HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_HASH);
-		HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_KEY0);
+		hw_desc_init(&desc[idx]);
+		set_cipher_mode(&desc[idx], hw_mode);
+		set_din_const(&desc[idx], 0, HASH_LEN_SIZE);
+		set_flow_mode(&desc[idx], S_DIN_to_HASH);
+		set_setup_mode(&desc[idx], SETUP_LOAD_KEY0);
 		idx++;
 
 		/* Prepare opad/ipad key */
-		HW_DESC_INIT(&desc[idx]);
-		HW_DESC_SET_XOR_VAL(&desc[idx], hmacPadConst[i]);
-		HW_DESC_SET_CIPHER_MODE(&desc[idx], hw_mode);
-		HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_HASH);
-		HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_STATE1);
+		hw_desc_init(&desc[idx]);
+		set_xor_val(&desc[idx], hmacPadConst[i]);
+		set_cipher_mode(&desc[idx], hw_mode);
+		set_flow_mode(&desc[idx], S_DIN_to_HASH);
+		set_setup_mode(&desc[idx], SETUP_LOAD_STATE1);
 		idx++;
 
 		/* Perform HASH update */
-		HW_DESC_INIT(&desc[idx]);
-		HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI,
-				     k0_dma_addr,
-				     block_size, NS_BIT);
-		HW_DESC_SET_CIPHER_MODE(&desc[idx],hw_mode);
-		HW_DESC_SET_XOR_ACTIVE(&desc[idx]);
-		HW_DESC_SET_FLOW_MODE(&desc[idx], DIN_HASH);
+		hw_desc_init(&desc[idx]);
+		set_din_type(&desc[idx], DMA_DLLI, k0_dma_addr, block_size,
+			     NS_BIT);
+		set_cipher_mode(&desc[idx], hw_mode);
+		set_xor_active(&desc[idx]);
+		set_flow_mode(&desc[idx], DIN_HASH);
 		idx++;
 
 		if (i == 0) {
 			/* First iteration - calc H(K0^opad) into tmp_digest_dma_addr */
-			HW_DESC_INIT(&desc[idx]);
-			HW_DESC_SET_CIPHER_MODE(&desc[idx], hw_mode);
-			HW_DESC_SET_DOUT_DLLI(&desc[idx],
-					      tmp_digest_dma_addr,
-					      inter_digestsize,
-					      NS_BIT, 0);
-			HW_DESC_SET_FLOW_MODE(&desc[idx], S_HASH_to_DOUT);
-			HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_WRITE_STATE0);
+			hw_desc_init(&desc[idx]);
+			set_cipher_mode(&desc[idx], hw_mode);
+			set_dout_dlli(&desc[idx], tmp_digest_dma_addr,
+				      inter_digestsize, NS_BIT, 0);
+			set_flow_mode(&desc[idx], S_HASH_to_DOUT);
+			set_setup_mode(&desc[idx], SETUP_WRITE_STATE0);
 			idx++;
 
 			// is this needed?? or continue with current descriptors??
@@ -917,35 +915,34 @@ ssi_hmac_fips_run_test(struct ssi_drvdata *drvdata,
 	}
 
 	/* data descriptor */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI,
-			     din_dma_addr, data_in_size,
-			     NS_BIT);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], DIN_HASH);
+	hw_desc_init(&desc[idx]);
+	set_din_type(&desc[idx], DMA_DLLI, din_dma_addr, data_in_size, NS_BIT);
+	set_flow_mode(&desc[idx], DIN_HASH);
 	idx++;
 
 	/* HW last hash block padding (aka. "DO_PAD") */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], hw_mode);
-	HW_DESC_SET_DOUT_DLLI(&desc[idx], k0_dma_addr, HASH_LEN_SIZE, NS_BIT, 0);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], S_HASH_to_DOUT);
-	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_WRITE_STATE1);
-	HW_DESC_SET_CIPHER_DO(&desc[idx], DO_PAD);
+	hw_desc_init(&desc[idx]);
+	set_cipher_mode(&desc[idx], hw_mode);
+	set_dout_dlli(&desc[idx], k0_dma_addr, HASH_LEN_SIZE, NS_BIT, 0);
+	set_flow_mode(&desc[idx], S_HASH_to_DOUT);
+	set_setup_mode(&desc[idx], SETUP_WRITE_STATE1);
+	set_cipher_do(&desc[idx], DO_PAD);
 	idx++;
 
 	/* store the hash digest result in the context */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], hw_mode);
-	HW_DESC_SET_DOUT_DLLI(&desc[idx], k0_dma_addr, digest_size, NS_BIT, 0);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], S_HASH_to_DOUT);
+	hw_desc_init(&desc[idx]);
+	set_cipher_mode(&desc[idx], hw_mode);
+	set_dout_dlli(&desc[idx], k0_dma_addr, digest_size, NS_BIT, 0);
+	set_flow_mode(&desc[idx], S_HASH_to_DOUT);
 	if (unlikely((hash_mode == DRV_HASH_MD5) ||
 		     (hash_mode == DRV_HASH_SHA384) ||
 		     (hash_mode == DRV_HASH_SHA512))) {
-		HW_DESC_SET_BYTES_SWAP(&desc[idx], 1);
+		set_bytes_swap(&desc[idx], 1);
 	} else {
-		HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], HASH_DIGEST_RESULT_LITTLE_ENDIAN);
+		set_cipher_config0(&desc[idx],
+				   HASH_DIGEST_RESULT_LITTLE_ENDIAN);
 	}
-	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_WRITE_STATE0);
+	set_setup_mode(&desc[idx], SETUP_WRITE_STATE0);
 	idx++;
 
 	/* at this point:
@@ -954,48 +951,51 @@ ssi_hmac_fips_run_test(struct ssi_drvdata *drvdata,
 	 */
 
 	/* Loading hash opad xor key state */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], hw_mode);
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI, tmp_digest_dma_addr, inter_digestsize, NS_BIT);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_HASH);
-	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_STATE0);
+	hw_desc_init(&desc[idx]);
+	set_cipher_mode(&desc[idx], hw_mode);
+	set_din_type(&desc[idx], DMA_DLLI, tmp_digest_dma_addr,
+		     inter_digestsize, NS_BIT);
+	set_flow_mode(&desc[idx], S_DIN_to_HASH);
+	set_setup_mode(&desc[idx], SETUP_LOAD_STATE0);
 	idx++;
 
 	/* Load the hash current length */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], hw_mode);
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI, digest_bytes_len_dma_addr, HASH_LEN_SIZE, NS_BIT);
-	HW_DESC_SET_CIPHER_CONFIG1(&desc[idx], HASH_PADDING_ENABLED);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_HASH);
-	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_KEY0);
+	hw_desc_init(&desc[idx]);
+	set_cipher_mode(&desc[idx], hw_mode);
+	set_din_type(&desc[idx], DMA_DLLI, digest_bytes_len_dma_addr,
+		     HASH_LEN_SIZE, NS_BIT);
+	set_cipher_config1(&desc[idx], HASH_PADDING_ENABLED);
+	set_flow_mode(&desc[idx], S_DIN_to_HASH);
+	set_setup_mode(&desc[idx], SETUP_LOAD_KEY0);
 	idx++;
 
 	/* Memory Barrier: wait for IPAD/OPAD axi write to complete */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_DIN_NO_DMA(&desc[idx], 0, 0xfffff0);
-	HW_DESC_SET_DOUT_NO_DMA(&desc[idx], 0, 0, 1);
+	hw_desc_init(&desc[idx]);
+	set_din_no_dma(&desc[idx], 0, 0xfffff0);
+	set_dout_no_dma(&desc[idx], 0, 0, 1);
 	idx++;
 
 	/* Perform HASH update */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI, k0_dma_addr, digest_size, NS_BIT);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], DIN_HASH);
+	hw_desc_init(&desc[idx]);
+	set_din_type(&desc[idx], DMA_DLLI, k0_dma_addr, digest_size, NS_BIT);
+	set_flow_mode(&desc[idx], DIN_HASH);
 	idx++;
 
 
 	/* Get final MAC result */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], hw_mode);
-	HW_DESC_SET_DOUT_DLLI(&desc[idx], mac_res_dma_addr, digest_size, NS_BIT, 0);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], S_HASH_to_DOUT);
-	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_WRITE_STATE0);
-	HW_DESC_SET_CIPHER_CONFIG1(&desc[idx], HASH_PADDING_DISABLED);
+	hw_desc_init(&desc[idx]);
+	set_cipher_mode(&desc[idx], hw_mode);
+	set_dout_dlli(&desc[idx], mac_res_dma_addr, digest_size, NS_BIT, 0);
+	set_flow_mode(&desc[idx], S_HASH_to_DOUT);
+	set_setup_mode(&desc[idx], SETUP_WRITE_STATE0);
+	set_cipher_config1(&desc[idx], HASH_PADDING_DISABLED);
 	if (unlikely((hash_mode == DRV_HASH_MD5) ||
 		     (hash_mode == DRV_HASH_SHA384) ||
 		     (hash_mode == DRV_HASH_SHA512))) {
-		HW_DESC_SET_BYTES_SWAP(&desc[idx], 1);
+		set_bytes_swap(&desc[idx], 1);
 	} else {
-		HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], HASH_DIGEST_RESULT_LITTLE_ENDIAN);
+		set_cipher_config0(&desc[idx],
+				   HASH_DIGEST_RESULT_LITTLE_ENDIAN);
 	}
 	idx++;
 
@@ -1143,99 +1143,102 @@ ssi_ccm_fips_run_test(struct ssi_drvdata *drvdata,
 	}
 
 	/* load key */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_CIPHER_CTR);
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI, key_dma_addr,
-			     ((key_size == NIST_AESCCM_192_BIT_KEY_SIZE) ? CC_AES_KEY_SIZE_MAX : key_size),
-			     NS_BIT);
-	HW_DESC_SET_KEY_SIZE_AES(&desc[idx], key_size);
-	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_KEY0);
-	HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], DESC_DIRECTION_ENCRYPT_ENCRYPT);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_AES);
+	hw_desc_init(&desc[idx]);
+	set_cipher_mode(&desc[idx], DRV_CIPHER_CTR);
+	set_din_type(&desc[idx], DMA_DLLI, key_dma_addr,
+		     ((key_size == NIST_AESCCM_192_BIT_KEY_SIZE) ?
+		     CC_AES_KEY_SIZE_MAX : key_size), NS_BIT)
+	set_key_size_aes(&desc[idx], key_size);
+	set_setup_mode(&desc[idx], SETUP_LOAD_KEY0);
+	set_cipher_config0(&desc[idx], DESC_DIRECTION_ENCRYPT_ENCRYPT);
+	set_flow_mode(&desc[idx], S_DIN_to_AES);
 	idx++;
 
 	/* load ctr state */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_CIPHER_CTR);
-	HW_DESC_SET_KEY_SIZE_AES(&desc[idx], key_size);
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI,
-			     iv_dma_addr, AES_BLOCK_SIZE,
-			     NS_BIT);
-	HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], DESC_DIRECTION_ENCRYPT_ENCRYPT);
-	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_STATE1);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_AES);
+	hw_desc_init(&desc[idx]);
+	set_cipher_mode(&desc[idx], DRV_CIPHER_CTR);
+	set_key_size_aes(&desc[idx], key_size);
+	set_din_type(&desc[idx], DMA_DLLI, iv_dma_addr, AES_BLOCK_SIZE,
+		     NS_BIT);
+	set_cipher_config0(&desc[idx], DESC_DIRECTION_ENCRYPT_ENCRYPT);
+	set_setup_mode(&desc[idx], SETUP_LOAD_STATE1);
+	set_flow_mode(&desc[idx], S_DIN_to_AES);
 	idx++;
 
 	/* load MAC key */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_CIPHER_CBC_MAC);
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI, key_dma_addr,
-			     ((key_size == NIST_AESCCM_192_BIT_KEY_SIZE) ? CC_AES_KEY_SIZE_MAX : key_size),
-			     NS_BIT);
-	HW_DESC_SET_KEY_SIZE_AES(&desc[idx], key_size);
-	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_KEY0);
-	HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], DESC_DIRECTION_ENCRYPT_ENCRYPT);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_HASH);
-	HW_DESC_SET_AES_NOT_HASH_MODE(&desc[idx]);
+	hw_desc_init(&desc[idx]);
+	set_cipher_mode(&desc[idx], DRV_CIPHER_CBC_MAC);
+	set_din_type(&desc[idx], DMA_DLLI, key_dma_addr,
+		     ((key_size == NIST_AESCCM_192_BIT_KEY_SIZE) ?
+		     CC_AES_KEY_SIZE_MAX : key_size), NS_BIT);
+	set_key_size_aes(&desc[idx], key_size);
+	set_setup_mode(&desc[idx], SETUP_LOAD_KEY0);
+	set_cipher_config0(&desc[idx], DESC_DIRECTION_ENCRYPT_ENCRYPT);
+	set_flow_mode(&desc[idx], S_DIN_to_HASH);
+	set_aes_not_hash_mode(&desc[idx]);
 	idx++;
 
 	/* load MAC state */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_CIPHER_CBC_MAC);
-	HW_DESC_SET_KEY_SIZE_AES(&desc[idx], key_size);
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI, mac_res_dma_addr, NIST_AESCCM_TAG_SIZE, NS_BIT);
-	HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], DESC_DIRECTION_ENCRYPT_ENCRYPT);
-	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_STATE0);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_HASH);
-	HW_DESC_SET_AES_NOT_HASH_MODE(&desc[idx]);
+	hw_desc_init(&desc[idx]);
+	set_cipher_mode(&desc[idx], DRV_CIPHER_CBC_MAC);
+	set_key_size_aes(&desc[idx], key_size);
+	set_din_type(&desc[idx], DMA_DLLI, mac_res_dma_addr,
+		     NIST_AESCCM_TAG_SIZE, NS_BIT);
+	set_cipher_config0(&desc[idx], DESC_DIRECTION_ENCRYPT_ENCRYPT);
+	set_setup_mode(&desc[idx], SETUP_LOAD_STATE0);
+	set_flow_mode(&desc[idx], S_DIN_to_HASH);
+	set_aes_not_hash_mode(&desc[idx]);
 	idx++;
 
 	/* prcess assoc data */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI, b0_a0_adata_dma_addr, b0_a0_adata_size, NS_BIT);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], DIN_HASH);
+	hw_desc_init(&desc[idx]);
+	set_din_type(&desc[idx], DMA_DLLI, b0_a0_adata_dma_addr,
+		     b0_a0_adata_size, NS_BIT);
+	set_flow_mode(&desc[idx], DIN_HASH);
 	idx++;
 
 	/* process the cipher */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI, din_dma_addr, din_size, NS_BIT);
-	HW_DESC_SET_DOUT_DLLI(&desc[idx], dout_dma_addr, din_size, NS_BIT, 0);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], cipher_flow_mode);
+	hw_desc_init(&desc[idx]);
+	set_din_type(&desc[idx], DMA_DLLI, din_dma_addr, din_size, NS_BIT);
+	set_dout_dlli(&desc[idx], dout_dma_addr, din_size, NS_BIT, 0);
+	set_flow_mode(&desc[idx], cipher_flow_mode);
 	idx++;
 
 	/* Read temporal MAC */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_CIPHER_CBC_MAC);
-	HW_DESC_SET_DOUT_DLLI(&desc[idx], mac_res_dma_addr, NIST_AESCCM_TAG_SIZE, NS_BIT, 0);
-	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_WRITE_STATE0);
-	HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], HASH_DIGEST_RESULT_LITTLE_ENDIAN);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], S_HASH_to_DOUT);
-	HW_DESC_SET_AES_NOT_HASH_MODE(&desc[idx]);
+	hw_desc_init(&desc[idx]);
+	set_cipher_mode(&desc[idx], DRV_CIPHER_CBC_MAC);
+	set_dout_dlli(&desc[idx], mac_res_dma_addr, NIST_AESCCM_TAG_SIZE,
+		      NS_BIT, 0);
+	set_setup_mode(&desc[idx], SETUP_WRITE_STATE0);
+	set_cipher_config0(&desc[idx], HASH_DIGEST_RESULT_LITTLE_ENDIAN);
+	set_flow_mode(&desc[idx], S_HASH_to_DOUT);
+	set_aes_not_hash_mode(&desc[idx]);
 	idx++;
 
 	/* load AES-CTR state (for last MAC calculation)*/
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_CIPHER_CTR);
-	HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], DRV_CRYPTO_DIRECTION_ENCRYPT);
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI,
-			     ctr_cnt_0_dma_addr,
-			     AES_BLOCK_SIZE, NS_BIT);
-	HW_DESC_SET_KEY_SIZE_AES(&desc[idx], key_size);
-	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_STATE1);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_AES);
+	hw_desc_init(&desc[idx]);
+	set_cipher_mode(&desc[idx], DRV_CIPHER_CTR);
+	set_cipher_config0(&desc[idx], DRV_CRYPTO_DIRECTION_ENCRYPT);
+	set_din_type(&desc[idx], DMA_DLLI, ctr_cnt_0_dma_addr, AES_BLOCK_SIZE,
+		     NS_BIT);
+	set_key_size_aes(&desc[idx], key_size);
+	set_setup_mode(&desc[idx], SETUP_LOAD_STATE1);
+	set_flow_mode(&desc[idx], S_DIN_to_AES);
 	idx++;
 
 	/* Memory Barrier */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_DIN_NO_DMA(&desc[idx], 0, 0xfffff0);
-	HW_DESC_SET_DOUT_NO_DMA(&desc[idx], 0, 0, 1);
+	hw_desc_init(&desc[idx]);
+	set_din_no_dma(&desc[idx], 0, 0xfffff0);
+	set_dout_no_dma(&desc[idx], 0, 0, 1);
 	idx++;
 
 	/* encrypt the "T" value and store MAC inplace */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI, mac_res_dma_addr, NIST_AESCCM_TAG_SIZE, NS_BIT);
-	HW_DESC_SET_DOUT_DLLI(&desc[idx], mac_res_dma_addr, NIST_AESCCM_TAG_SIZE, NS_BIT, 0);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], DIN_AES_DOUT);
+	hw_desc_init(&desc[idx]);
+	set_din_type(&desc[idx], DMA_DLLI, mac_res_dma_addr,
+		     NIST_AESCCM_TAG_SIZE, NS_BIT);
+	set_dout_dlli(&desc[idx], mac_res_dma_addr, NIST_AESCCM_TAG_SIZE,
+		      NS_BIT, 0);
+	set_flow_mode(&desc[idx], DIN_AES_DOUT);
 	idx++;
 
 	/* perform the operation - Lock HW and push sequence */
@@ -1373,44 +1376,39 @@ ssi_gcm_fips_run_test(struct ssi_drvdata *drvdata,
 //	ssi_aead_gcm_setup_ghash_desc(req, desc, seq_size);
 /////////////////////////////////   1   ////////////////////////////////////
 
-	/* load key to AES*/
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_CIPHER_ECB);
-	HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], DRV_CRYPTO_DIRECTION_ENCRYPT);
-	HW_DESC_SET_DIN_TYPE(&desc[idx],
-			     DMA_DLLI, key_dma_addr, key_size,
-			     NS_BIT);
-	HW_DESC_SET_KEY_SIZE_AES(&desc[idx], key_size);
-	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_KEY0);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_AES);
+	/* load key to AES */
+	hw_desc_init(&desc[idx]);
+	set_cipher_mode(&desc[idx], DRV_CIPHER_ECB);
+	set_cipher_config0(&desc[idx], DRV_CRYPTO_DIRECTION_ENCRYPT);
+	set_din_type(&desc[idx], DMA_DLLI, key_dma_addr, key_size, NS_BIT);
+	set_key_size_aes(&desc[idx], key_size);
+	set_setup_mode(&desc[idx], SETUP_LOAD_KEY0);
+	set_flow_mode(&desc[idx], S_DIN_to_AES);
 	idx++;
 
 	/* process one zero block to generate hkey */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_DIN_CONST(&desc[idx], 0x0, AES_BLOCK_SIZE);
-	HW_DESC_SET_DOUT_DLLI(&desc[idx],
-			      hkey_dma_addr, AES_BLOCK_SIZE,
-			      NS_BIT, 0);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], DIN_AES_DOUT);
+	hw_desc_init(&desc[idx]);
+	set_din_const(&desc[idx], 0x0, AES_BLOCK_SIZE);
+	set_dout_dlli(&desc[idx], hkey_dma_addr, AES_BLOCK_SIZE, NS_BIT, 0);
+	set_flow_mode(&desc[idx], DIN_AES_DOUT);
 	idx++;
 
 	/* Memory Barrier */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_DIN_NO_DMA(&desc[idx], 0, 0xfffff0);
-	HW_DESC_SET_DOUT_NO_DMA(&desc[idx], 0, 0, 1);
+	hw_desc_init(&desc[idx]);
+	set_din_no_dma(&desc[idx], 0, 0xfffff0);
+	set_dout_no_dma(&desc[idx], 0, 0, 1);
 	idx++;
 
 	/* Load GHASH subkey */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI,
-			     hkey_dma_addr, AES_BLOCK_SIZE,
-			     NS_BIT);
-	HW_DESC_SET_DOUT_NO_DMA(&desc[idx], 0, 0, 1);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_HASH);
-	HW_DESC_SET_AES_NOT_HASH_MODE(&desc[idx]);
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_HASH_HW_GHASH);
-	HW_DESC_SET_CIPHER_CONFIG1(&desc[idx], HASH_PADDING_ENABLED);
-	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_KEY0);
+	hw_desc_init(&desc[idx]);
+	set_din_type(&desc[idx], DMA_DLLI, hkey_dma_addr, AES_BLOCK_SIZE,
+		     NS_BIT);
+	set_dout_no_dma(&desc[idx], 0, 0, 1);
+	set_flow_mode(&desc[idx], S_DIN_to_HASH);
+	set_aes_not_hash_mode(&desc[idx]);
+	set_cipher_mode(&desc[idx], DRV_HASH_HW_GHASH);
+	set_cipher_config1(&desc[idx], HASH_PADDING_ENABLED);
+	set_setup_mode(&desc[idx], SETUP_LOAD_KEY0);
 	idx++;
 
 	/* Configure Hash Engine to work with GHASH.
@@ -1418,27 +1416,27 @@ ssi_gcm_fips_run_test(struct ssi_drvdata *drvdata,
 	 * The following command is necessary in order to
 	 * select GHASH (according to HW designers)
 	 */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_DIN_NO_DMA(&desc[idx], 0, 0xfffff0);
-	HW_DESC_SET_DOUT_NO_DMA(&desc[idx], 0, 0, 1);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_HASH);
-	HW_DESC_SET_AES_NOT_HASH_MODE(&desc[idx]);
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_HASH_HW_GHASH);
-	HW_DESC_SET_CIPHER_DO(&desc[idx], 1); //1=AES_SK RKEK
-	HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], DRV_CRYPTO_DIRECTION_ENCRYPT);
-	HW_DESC_SET_CIPHER_CONFIG1(&desc[idx], HASH_PADDING_ENABLED);
-	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_KEY0);
+	hw_desc_init(&desc[idx]);
+	set_din_no_dma(&desc[idx], 0, 0xfffff0);
+	set_dout_no_dma(&desc[idx], 0, 0, 1);
+	set_flow_mode(&desc[idx], S_DIN_to_HASH);
+	set_aes_not_hash_mode(&desc[idx]);
+	set_cipher_mode(&desc[idx], DRV_HASH_HW_GHASH);
+	set_cipher_do(&desc[idx], 1); //1=AES_SK RKEK
+	set_cipher_config0(&desc[idx], DRV_CRYPTO_DIRECTION_ENCRYPT);
+	set_cipher_config1(&desc[idx], HASH_PADDING_ENABLED);
+	set_setup_mode(&desc[idx], SETUP_LOAD_KEY0);
 	idx++;
 
 	/* Load GHASH initial STATE (which is 0). (for any hash there is an initial state) */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_DIN_CONST(&desc[idx], 0x0, AES_BLOCK_SIZE);
-	HW_DESC_SET_DOUT_NO_DMA(&desc[idx], 0, 0, 1);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_HASH);
-	HW_DESC_SET_AES_NOT_HASH_MODE(&desc[idx]);
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_HASH_HW_GHASH);
-	HW_DESC_SET_CIPHER_CONFIG1(&desc[idx], HASH_PADDING_ENABLED);
-	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_STATE0);
+	hw_desc_init(&desc[idx]);
+	set_din_const(&desc[idx], 0x0, AES_BLOCK_SIZE);
+	set_dout_no_dma(&desc[idx], 0, 0, 1);
+	set_flow_mode(&desc[idx], S_DIN_to_HASH);
+	set_aes_not_hash_mode(&desc[idx]);
+	set_cipher_mode(&desc[idx], DRV_HASH_HW_GHASH);
+	set_cipher_config1(&desc[idx], HASH_PADDING_ENABLED);
+	set_setup_mode(&desc[idx], SETUP_LOAD_STATE0);
 	idx++;
 
 
@@ -1449,11 +1447,9 @@ ssi_gcm_fips_run_test(struct ssi_drvdata *drvdata,
 //		ssi_aead_create_assoc_desc(req, DIN_HASH, desc, seq_size);
 /////////////////////////////////   2   ////////////////////////////////////
 
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI,
-			     adata_dma_addr, adata_size,
-			     NS_BIT);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], DIN_HASH);
+	hw_desc_init(&desc[idx]);
+	set_din_type(&desc[idx], DMA_DLLI, adata_dma_addr, adata_size, NS_BIT);
+	set_flow_mode(&desc[idx], DIN_HASH);
 	idx++;
 
 
@@ -1462,27 +1458,24 @@ ssi_gcm_fips_run_test(struct ssi_drvdata *drvdata,
 /////////////////////////////////   3   ////////////////////////////////////
 
 	/* load key to AES*/
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_CIPHER_GCTR);
-	HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], DRV_CRYPTO_DIRECTION_ENCRYPT);
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI,
-			     key_dma_addr, key_size,
-			     NS_BIT);
-	HW_DESC_SET_KEY_SIZE_AES(&desc[idx], key_size);
-	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_KEY0);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_AES);
+	hw_desc_init(&desc[idx]);
+	set_cipher_mode(&desc[idx], DRV_CIPHER_GCTR);
+	set_cipher_config0(&desc[idx], DRV_CRYPTO_DIRECTION_ENCRYPT);
+	set_din_type(&desc[idx], DMA_DLLI, key_dma_addr, key_size, NS_BIT);
+	set_key_size_aes(&desc[idx], key_size);
+	set_setup_mode(&desc[idx], SETUP_LOAD_KEY0);
+	set_flow_mode(&desc[idx], S_DIN_to_AES);
 	idx++;
 
 	/* load AES/CTR initial CTR value inc by 2*/
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_CIPHER_GCTR);
-	HW_DESC_SET_KEY_SIZE_AES(&desc[idx], key_size);
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI,
-			     iv_inc2_dma_addr, AES_BLOCK_SIZE,
-			     NS_BIT);
-	HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], DRV_CRYPTO_DIRECTION_ENCRYPT);
-	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_STATE1);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_AES);
+	hw_desc_init(&desc[idx]);
+	set_cipher_mode(&desc[idx], DRV_CIPHER_GCTR);
+	set_key_size_aes(&desc[idx], key_size);
+	set_din_type(&desc[idx], DMA_DLLI, iv_inc2_dma_addr, AES_BLOCK_SIZE,
+		     NS_BIT);
+	set_cipher_config0(&desc[idx], DRV_CRYPTO_DIRECTION_ENCRYPT);
+	set_setup_mode(&desc[idx], SETUP_LOAD_STATE1);
+	set_flow_mode(&desc[idx], S_DIN_to_AES);
 	idx++;
 
 
@@ -1492,14 +1485,10 @@ ssi_gcm_fips_run_test(struct ssi_drvdata *drvdata,
 //		ssi_aead_process_cipher_data_desc(req, cipher_flow_mode, desc, seq_size);
 /////////////////////////////////   4   ////////////////////////////////////
 
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI,
-			     din_dma_addr, din_size,
-			     NS_BIT);
-	HW_DESC_SET_DOUT_DLLI(&desc[idx],
-			      dout_dma_addr, din_size,
-			      NS_BIT, 0);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], cipher_flow_mode);
+	hw_desc_init(&desc[idx]);
+	set_din_type(&desc[idx], DMA_DLLI, din_dma_addr, din_size, NS_BIT);
+	set_dout_dlli(&desc[idx], dout_dma_addr, din_size, NS_BIT, 0);
+	set_flow_mode(&desc[idx], cipher_flow_mode);
 	idx++;
 
 
@@ -1508,53 +1497,46 @@ ssi_gcm_fips_run_test(struct ssi_drvdata *drvdata,
 /////////////////////////////////   5   ////////////////////////////////////
 
 	/* prcess(ghash) gcm_block_len */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI,
-			     block_len_dma_addr, AES_BLOCK_SIZE,
-			     NS_BIT);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], DIN_HASH);
+	hw_desc_init(&desc[idx]);
+	set_din_type(&desc[idx], DMA_DLLI, block_len_dma_addr, AES_BLOCK_SIZE,
+		     NS_BIT);
+	set_flow_mode(&desc[idx], DIN_HASH);
 	idx++;
 
 	/* Store GHASH state after GHASH(Associated Data + Cipher +LenBlock) */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_HASH_HW_GHASH);
-	HW_DESC_SET_DIN_NO_DMA(&desc[idx], 0, 0xfffff0);
-	HW_DESC_SET_DOUT_DLLI(&desc[idx],
-			      mac_res_dma_addr, AES_BLOCK_SIZE,
-			      NS_BIT, 0);
-	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_WRITE_STATE0);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], S_HASH_to_DOUT);
-	HW_DESC_SET_AES_NOT_HASH_MODE(&desc[idx]);
+	hw_desc_init(&desc[idx]);
+	set_cipher_mode(&desc[idx], DRV_HASH_HW_GHASH);
+	set_din_no_dma(&desc[idx], 0, 0xfffff0);
+	set_dout_dlli(&desc[idx], mac_res_dma_addr, AES_BLOCK_SIZE, NS_BIT, 0);
+	set_setup_mode(&desc[idx], SETUP_WRITE_STATE0);
+	set_flow_mode(&desc[idx], S_HASH_to_DOUT);
+	set_aes_not_hash_mode(&desc[idx]);
 	idx++;
 
 	/* load AES/CTR initial CTR value inc by 1*/
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_CIPHER_GCTR);
-	HW_DESC_SET_KEY_SIZE_AES(&desc[idx], key_size);
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI,
-			     iv_inc1_dma_addr, AES_BLOCK_SIZE,
-			     NS_BIT);
-	HW_DESC_SET_CIPHER_CONFIG0(&desc[idx], DRV_CRYPTO_DIRECTION_ENCRYPT);
-	HW_DESC_SET_SETUP_MODE(&desc[idx], SETUP_LOAD_STATE1);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], S_DIN_to_AES);
+	hw_desc_init(&desc[idx]);
+	set_cipher_mode(&desc[idx], DRV_CIPHER_GCTR);
+	set_key_size_aes(&desc[idx], key_size);
+	set_din_type(&desc[idx], DMA_DLLI, iv_inc1_dma_addr, AES_BLOCK_SIZE,
+		     NS_BIT);
+	set_cipher_config0(&desc[idx], DRV_CRYPTO_DIRECTION_ENCRYPT);
+	set_setup_mode(&desc[idx], SETUP_LOAD_STATE1);
+	set_flow_mode(&desc[idx], S_DIN_to_AES);
 	idx++;
 
 	/* Memory Barrier */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_DIN_NO_DMA(&desc[idx], 0, 0xfffff0);
-	HW_DESC_SET_DOUT_NO_DMA(&desc[idx], 0, 0, 1);
+	hw_desc_init(&desc[idx]);
+	set_din_no_dma(&desc[idx], 0, 0xfffff0);
+	set_dout_no_dma(&desc[idx], 0, 0, 1);
 	idx++;
 
 	/* process GCTR on stored GHASH and store MAC inplace */
-	HW_DESC_INIT(&desc[idx]);
-	HW_DESC_SET_CIPHER_MODE(&desc[idx], DRV_CIPHER_GCTR);
-	HW_DESC_SET_DIN_TYPE(&desc[idx], DMA_DLLI,
-			     mac_res_dma_addr, AES_BLOCK_SIZE,
-			     NS_BIT);
-	HW_DESC_SET_DOUT_DLLI(&desc[idx],
-			      mac_res_dma_addr, AES_BLOCK_SIZE,
-			      NS_BIT, 0);
-	HW_DESC_SET_FLOW_MODE(&desc[idx], DIN_AES_DOUT);
+	hw_desc_init(&desc[idx]);
+	set_cipher_mode(&desc[idx], DRV_CIPHER_GCTR);
+	set_din_type(&desc[idx], DMA_DLLI, mac_res_dma_addr, AES_BLOCK_SIZE,
+		     NS_BIT);
+	set_dout_dlli(&desc[idx], mac_res_dma_addr, AES_BLOCK_SIZE, NS_BIT, 0);
+	set_flow_mode(&desc[idx], DIN_AES_DOUT);
 	idx++;
 
 	/* perform the operation - Lock HW and push sequence */

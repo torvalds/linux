@@ -489,96 +489,93 @@ ssi_blkcipher_create_setup_desc(
 	case DRV_CIPHER_CTR:
 	case DRV_CIPHER_OFB:
 		/* Load cipher state */
-		HW_DESC_INIT(&desc[*seq_size]);
-		HW_DESC_SET_DIN_TYPE(&desc[*seq_size], DMA_DLLI,
-				     iv_dma_addr, ivsize,
-				     NS_BIT);
-		HW_DESC_SET_CIPHER_CONFIG0(&desc[*seq_size], direction);
-		HW_DESC_SET_FLOW_MODE(&desc[*seq_size], flow_mode);
-		HW_DESC_SET_CIPHER_MODE(&desc[*seq_size], cipher_mode);
+		hw_desc_init(&desc[*seq_size]);
+		set_din_type(&desc[*seq_size], DMA_DLLI, iv_dma_addr, ivsize,
+			     NS_BIT);
+		set_cipher_config0(&desc[*seq_size], direction);
+		set_flow_mode(&desc[*seq_size], flow_mode);
+		set_cipher_mode(&desc[*seq_size], cipher_mode);
 		if ((cipher_mode == DRV_CIPHER_CTR) ||
 		    (cipher_mode == DRV_CIPHER_OFB) ) {
-			HW_DESC_SET_SETUP_MODE(&desc[*seq_size],
-					       SETUP_LOAD_STATE1);
+			set_setup_mode(&desc[*seq_size], SETUP_LOAD_STATE1);
 		} else {
-			HW_DESC_SET_SETUP_MODE(&desc[*seq_size],
-					       SETUP_LOAD_STATE0);
+			set_setup_mode(&desc[*seq_size], SETUP_LOAD_STATE0);
 		}
 		(*seq_size)++;
 		/*FALLTHROUGH*/
 	case DRV_CIPHER_ECB:
 		/* Load key */
-		HW_DESC_INIT(&desc[*seq_size]);
-		HW_DESC_SET_CIPHER_MODE(&desc[*seq_size], cipher_mode);
-		HW_DESC_SET_CIPHER_CONFIG0(&desc[*seq_size], direction);
+		hw_desc_init(&desc[*seq_size]);
+		set_cipher_mode(&desc[*seq_size], cipher_mode);
+		set_cipher_config0(&desc[*seq_size], direction);
 		if (flow_mode == S_DIN_to_AES) {
 
 			if (ssi_is_hw_key(tfm)) {
-				HW_DESC_SET_HW_CRYPTO_KEY(&desc[*seq_size], ctx_p->hw.key1_slot);
+				set_hw_crypto_key(&desc[*seq_size],
+						  ctx_p->hw.key1_slot);
 			} else {
-				HW_DESC_SET_DIN_TYPE(&desc[*seq_size], DMA_DLLI,
-						     key_dma_addr,
-						     ((key_len == 24) ? AES_MAX_KEY_SIZE : key_len),
-						     NS_BIT);
+				set_din_type(&desc[*seq_size], DMA_DLLI,
+					     key_dma_addr, ((key_len == 24) ?
+							    AES_MAX_KEY_SIZE :
+							    key_len), NS_BIT);
 			}
-			HW_DESC_SET_KEY_SIZE_AES(&desc[*seq_size], key_len);
+			set_key_size_aes(&desc[*seq_size], key_len);
 		} else {
 			/*des*/
-			HW_DESC_SET_DIN_TYPE(&desc[*seq_size], DMA_DLLI,
-					     key_dma_addr, key_len,
-					     NS_BIT);
-			HW_DESC_SET_KEY_SIZE_DES(&desc[*seq_size], key_len);
+			set_din_type(&desc[*seq_size], DMA_DLLI, key_dma_addr,
+				     key_len, NS_BIT);
+			set_key_size_des(&desc[*seq_size], key_len);
 		}
-		HW_DESC_SET_FLOW_MODE(&desc[*seq_size], flow_mode);
-		HW_DESC_SET_SETUP_MODE(&desc[*seq_size], SETUP_LOAD_KEY0);
+		set_flow_mode(&desc[*seq_size], flow_mode);
+		set_setup_mode(&desc[*seq_size], SETUP_LOAD_KEY0);
 		(*seq_size)++;
 		break;
 	case DRV_CIPHER_XTS:
 	case DRV_CIPHER_ESSIV:
 	case DRV_CIPHER_BITLOCKER:
 		/* Load AES key */
-		HW_DESC_INIT(&desc[*seq_size]);
-		HW_DESC_SET_CIPHER_MODE(&desc[*seq_size], cipher_mode);
-		HW_DESC_SET_CIPHER_CONFIG0(&desc[*seq_size], direction);
+		hw_desc_init(&desc[*seq_size]);
+		set_cipher_mode(&desc[*seq_size], cipher_mode);
+		set_cipher_config0(&desc[*seq_size], direction);
 		if (ssi_is_hw_key(tfm)) {
-			HW_DESC_SET_HW_CRYPTO_KEY(&desc[*seq_size], ctx_p->hw.key1_slot);
+			set_hw_crypto_key(&desc[*seq_size],
+					  ctx_p->hw.key1_slot);
 		} else {
-			HW_DESC_SET_DIN_TYPE(&desc[*seq_size], DMA_DLLI,
-					     key_dma_addr, key_len/2,
-					     NS_BIT);
+			set_din_type(&desc[*seq_size], DMA_DLLI, key_dma_addr,
+				     (key_len / 2), NS_BIT);
 		}
-		HW_DESC_SET_KEY_SIZE_AES(&desc[*seq_size], key_len/2);
-		HW_DESC_SET_FLOW_MODE(&desc[*seq_size], flow_mode);
-		HW_DESC_SET_SETUP_MODE(&desc[*seq_size], SETUP_LOAD_KEY0);
+		set_key_size_aes(&desc[*seq_size], (key_len / 2));
+		set_flow_mode(&desc[*seq_size], flow_mode);
+		set_setup_mode(&desc[*seq_size], SETUP_LOAD_KEY0);
 		(*seq_size)++;
 
 		/* load XEX key */
-		HW_DESC_INIT(&desc[*seq_size]);
-		HW_DESC_SET_CIPHER_MODE(&desc[*seq_size], cipher_mode);
-		HW_DESC_SET_CIPHER_CONFIG0(&desc[*seq_size], direction);
+		hw_desc_init(&desc[*seq_size]);
+		set_cipher_mode(&desc[*seq_size], cipher_mode);
+		set_cipher_config0(&desc[*seq_size], direction);
 		if (ssi_is_hw_key(tfm)) {
-			HW_DESC_SET_HW_CRYPTO_KEY(&desc[*seq_size], ctx_p->hw.key2_slot);
+			set_hw_crypto_key(&desc[*seq_size],
+					  ctx_p->hw.key2_slot);
 		} else {
-			HW_DESC_SET_DIN_TYPE(&desc[*seq_size], DMA_DLLI,
-					     (key_dma_addr+key_len/2), key_len/2,
-					     NS_BIT);
+			set_din_type(&desc[*seq_size], DMA_DLLI,
+				     (key_dma_addr + (key_len / 2)),
+				     (key_len / 2), NS_BIT);
 		}
-		HW_DESC_SET_XEX_DATA_UNIT_SIZE(&desc[*seq_size], du_size);
-		HW_DESC_SET_FLOW_MODE(&desc[*seq_size], S_DIN_to_AES2);
-		HW_DESC_SET_KEY_SIZE_AES(&desc[*seq_size], key_len/2);
-		HW_DESC_SET_SETUP_MODE(&desc[*seq_size], SETUP_LOAD_XEX_KEY);
+		set_xex_data_unit_size(&desc[*seq_size], du_size);
+		set_flow_mode(&desc[*seq_size], S_DIN_to_AES2);
+		set_key_size_aes(&desc[*seq_size], (key_len / 2));
+		set_setup_mode(&desc[*seq_size], SETUP_LOAD_XEX_KEY);
 		(*seq_size)++;
 
 		/* Set state */
-		HW_DESC_INIT(&desc[*seq_size]);
-		HW_DESC_SET_SETUP_MODE(&desc[*seq_size], SETUP_LOAD_STATE1);
-		HW_DESC_SET_CIPHER_MODE(&desc[*seq_size], cipher_mode);
-		HW_DESC_SET_CIPHER_CONFIG0(&desc[*seq_size], direction);
-		HW_DESC_SET_KEY_SIZE_AES(&desc[*seq_size], key_len/2);
-		HW_DESC_SET_FLOW_MODE(&desc[*seq_size], flow_mode);
-		HW_DESC_SET_DIN_TYPE(&desc[*seq_size], DMA_DLLI,
-				     iv_dma_addr, CC_AES_BLOCK_SIZE,
-				     NS_BIT);
+		hw_desc_init(&desc[*seq_size]);
+		set_setup_mode(&desc[*seq_size], SETUP_LOAD_STATE1);
+		set_cipher_mode(&desc[*seq_size], cipher_mode);
+		set_cipher_config0(&desc[*seq_size], direction);
+		set_key_size_aes(&desc[*seq_size], (key_len / 2));
+		set_flow_mode(&desc[*seq_size], flow_mode);
+		set_din_type(&desc[*seq_size], DMA_DLLI, iv_dma_addr,
+			     CC_AES_BLOCK_SIZE, NS_BIT);
 		(*seq_size)++;
 		break;
 	default:
@@ -599,40 +596,36 @@ static inline void ssi_blkcipher_create_multi2_setup_desc(
 
 	int direction = req_ctx->gen_ctx.op_type;
 	/* Load system key */
-	HW_DESC_INIT(&desc[*seq_size]);
-	HW_DESC_SET_CIPHER_MODE(&desc[*seq_size], ctx_p->cipher_mode);
-	HW_DESC_SET_CIPHER_CONFIG0(&desc[*seq_size], direction);
-	HW_DESC_SET_DIN_TYPE(&desc[*seq_size], DMA_DLLI, ctx_p->user.key_dma_addr,
-						CC_MULTI2_SYSTEM_KEY_SIZE,
-						NS_BIT);
-	HW_DESC_SET_FLOW_MODE(&desc[*seq_size], ctx_p->flow_mode);
-	HW_DESC_SET_SETUP_MODE(&desc[*seq_size], SETUP_LOAD_KEY0);
+	hw_desc_init(&desc[*seq_size]);
+	set_cipher_mode(&desc[*seq_size], ctx_p->cipher_mode);
+	set_cipher_config0(&desc[*seq_size], direction);
+	set_din_type(&desc[*seq_size], DMA_DLLI, ctx_p->user.key_dma_addr,
+		     CC_MULTI2_SYSTEM_KEY_SIZE, NS_BIT);
+	set_flow_mode(&desc[*seq_size], ctx_p->flow_mode);
+	set_setup_mode(&desc[*seq_size], SETUP_LOAD_KEY0);
 	(*seq_size)++;
 
 	/* load data key */
-	HW_DESC_INIT(&desc[*seq_size]);
-	HW_DESC_SET_DIN_TYPE(&desc[*seq_size], DMA_DLLI,
-					(ctx_p->user.key_dma_addr +
-						CC_MULTI2_SYSTEM_KEY_SIZE),
-				CC_MULTI2_DATA_KEY_SIZE, NS_BIT);
-	HW_DESC_SET_MULTI2_NUM_ROUNDS(&desc[*seq_size],
-						ctx_p->key_round_number);
-	HW_DESC_SET_FLOW_MODE(&desc[*seq_size], ctx_p->flow_mode);
-	HW_DESC_SET_CIPHER_MODE(&desc[*seq_size], ctx_p->cipher_mode);
-	HW_DESC_SET_CIPHER_CONFIG0(&desc[*seq_size], direction);
-	HW_DESC_SET_SETUP_MODE(&desc[*seq_size], SETUP_LOAD_STATE0 );
+	hw_desc_init(&desc[*seq_size]);
+	set_din_type(&desc[*seq_size], DMA_DLLI,
+		     (ctx_p->user.key_dma_addr + CC_MULTI2_SYSTEM_KEY_SIZE),
+		     CC_MULTI2_DATA_KEY_SIZE, NS_BIT);
+	set_multi2_num_rounds(&desc[*seq_size], ctx_p->key_round_number);
+	set_flow_mode(&desc[*seq_size], ctx_p->flow_mode);
+	set_cipher_mode(&desc[*seq_size], ctx_p->cipher_mode);
+	set_cipher_config0(&desc[*seq_size], direction);
+	set_setup_mode(&desc[*seq_size], SETUP_LOAD_STATE0);
 	(*seq_size)++;
 
 
 	/* Set state */
-	HW_DESC_INIT(&desc[*seq_size]);
-	HW_DESC_SET_DIN_TYPE(&desc[*seq_size], DMA_DLLI,
-			     req_ctx->gen_ctx.iv_dma_addr,
-			     ivsize, NS_BIT);
-	HW_DESC_SET_CIPHER_CONFIG0(&desc[*seq_size], direction);
-	HW_DESC_SET_FLOW_MODE(&desc[*seq_size], ctx_p->flow_mode);
-	HW_DESC_SET_CIPHER_MODE(&desc[*seq_size], ctx_p->cipher_mode);
-	HW_DESC_SET_SETUP_MODE(&desc[*seq_size], SETUP_LOAD_STATE1);
+	hw_desc_init(&desc[*seq_size]);
+	set_din_type(&desc[*seq_size], DMA_DLLI, req_ctx->gen_ctx.iv_dma_addr,
+		     ivsize, NS_BIT);
+	set_cipher_config0(&desc[*seq_size], direction);
+	set_flow_mode(&desc[*seq_size], ctx_p->flow_mode);
+	set_cipher_mode(&desc[*seq_size], ctx_p->cipher_mode);
+	set_setup_mode(&desc[*seq_size], SETUP_LOAD_STATE1);
 	(*seq_size)++;
 
 }
@@ -675,18 +668,15 @@ ssi_blkcipher_create_data_desc(
 		SSI_LOG_DEBUG(" data params addr 0x%llX length 0x%X \n",
 			     (unsigned long long)sg_dma_address(dst),
 			     nbytes);
-		HW_DESC_INIT(&desc[*seq_size]);
-		HW_DESC_SET_DIN_TYPE(&desc[*seq_size], DMA_DLLI,
-				     sg_dma_address(src),
-				     nbytes, NS_BIT);
-		HW_DESC_SET_DOUT_DLLI(&desc[*seq_size],
-				      sg_dma_address(dst),
-				      nbytes,
-				      NS_BIT, (areq == NULL)? 0:1);
+		hw_desc_init(&desc[*seq_size]);
+		set_din_type(&desc[*seq_size], DMA_DLLI, sg_dma_address(src),
+			     nbytes, NS_BIT);
+		set_dout_dlli(&desc[*seq_size], sg_dma_address(dst),
+			      nbytes, NS_BIT, (!areq ? 0 : 1));
 		if (areq != NULL) {
-			HW_DESC_SET_QUEUE_LAST_IND(&desc[*seq_size]);
+			set_queue_last_ind(&desc[*seq_size]);
 		}
-		HW_DESC_SET_FLOW_MODE(&desc[*seq_size], flow_mode);
+		set_flow_mode(&desc[*seq_size], flow_mode);
 		(*seq_size)++;
 	} else {
 		/* bypass */
@@ -695,30 +685,29 @@ ssi_blkcipher_create_data_desc(
 			(unsigned long long)req_ctx->mlli_params.mlli_dma_addr,
 			req_ctx->mlli_params.mlli_len,
 			(unsigned int)ctx_p->drvdata->mlli_sram_addr);
-		HW_DESC_INIT(&desc[*seq_size]);
-		HW_DESC_SET_DIN_TYPE(&desc[*seq_size], DMA_DLLI,
-				     req_ctx->mlli_params.mlli_dma_addr,
-				     req_ctx->mlli_params.mlli_len,
-				     NS_BIT);
-		HW_DESC_SET_DOUT_SRAM(&desc[*seq_size],
-				      ctx_p->drvdata->mlli_sram_addr,
-				      req_ctx->mlli_params.mlli_len);
-		HW_DESC_SET_FLOW_MODE(&desc[*seq_size], BYPASS);
+		hw_desc_init(&desc[*seq_size]);
+		set_din_type(&desc[*seq_size], DMA_DLLI,
+			     req_ctx->mlli_params.mlli_dma_addr,
+			     req_ctx->mlli_params.mlli_len, NS_BIT);
+		set_dout_sram(&desc[*seq_size],
+			      ctx_p->drvdata->mlli_sram_addr,
+			      req_ctx->mlli_params.mlli_len);
+		set_flow_mode(&desc[*seq_size], BYPASS);
 		(*seq_size)++;
 
-		HW_DESC_INIT(&desc[*seq_size]);
-		HW_DESC_SET_DIN_TYPE(&desc[*seq_size], DMA_MLLI,
-			ctx_p->drvdata->mlli_sram_addr,
-				     req_ctx->in_mlli_nents, NS_BIT);
+		hw_desc_init(&desc[*seq_size]);
+		set_din_type(&desc[*seq_size], DMA_MLLI,
+			     ctx_p->drvdata->mlli_sram_addr,
+			     req_ctx->in_mlli_nents, NS_BIT);
 		if (req_ctx->out_nents == 0) {
 			SSI_LOG_DEBUG(" din/dout params addr 0x%08X "
 				     "addr 0x%08X\n",
 			(unsigned int)ctx_p->drvdata->mlli_sram_addr,
 			(unsigned int)ctx_p->drvdata->mlli_sram_addr);
-			HW_DESC_SET_DOUT_MLLI(&desc[*seq_size],
-			ctx_p->drvdata->mlli_sram_addr,
-					      req_ctx->in_mlli_nents,
-					      NS_BIT,(areq == NULL)? 0:1);
+			set_dout_mlli(&desc[*seq_size],
+				      ctx_p->drvdata->mlli_sram_addr,
+				      req_ctx->in_mlli_nents, NS_BIT,
+				      (!areq ? 0 : 1));
 		} else {
 			SSI_LOG_DEBUG(" din/dout params "
 				     "addr 0x%08X addr 0x%08X\n",
@@ -726,16 +715,17 @@ ssi_blkcipher_create_data_desc(
 				(unsigned int)ctx_p->drvdata->mlli_sram_addr +
 				(u32)LLI_ENTRY_BYTE_SIZE *
 							req_ctx->in_nents);
-			HW_DESC_SET_DOUT_MLLI(&desc[*seq_size],
-				(ctx_p->drvdata->mlli_sram_addr +
-				LLI_ENTRY_BYTE_SIZE *
-						req_ctx->in_mlli_nents),
-				req_ctx->out_mlli_nents, NS_BIT,(areq == NULL)? 0:1);
+			set_dout_mlli(&desc[*seq_size],
+				      (ctx_p->drvdata->mlli_sram_addr +
+				       (LLI_ENTRY_BYTE_SIZE *
+					req_ctx->in_mlli_nents)),
+				      req_ctx->out_mlli_nents, NS_BIT,
+				      (!areq ? 0 : 1));
 		}
 		if (areq != NULL) {
-			HW_DESC_SET_QUEUE_LAST_IND(&desc[*seq_size]);
+			set_queue_last_ind(&desc[*seq_size]);
 		}
-		HW_DESC_SET_FLOW_MODE(&desc[*seq_size], flow_mode);
+		set_flow_mode(&desc[*seq_size], flow_mode);
 		(*seq_size)++;
 	}
 }

@@ -47,7 +47,7 @@
  */
 #define INIT_CC_MONITOR_DESC(desc_p) \
 do { \
-	HW_DESC_INIT(desc_p); \
+	hw_desc_init(desc_p); \
 	HW_DESC_SET_DIN_MONITOR_CNTR(desc_p); \
 } while (0)
 
@@ -73,9 +73,9 @@ do { \
 do { \
 	if ((is_monitored) == true) { \
 		struct cc_hw_desc barrier_desc; \
-		HW_DESC_INIT(&barrier_desc); \
-		HW_DESC_SET_DIN_NO_DMA(&barrier_desc, 0, 0xfffff0); \
-		HW_DESC_SET_DOUT_NO_DMA(&barrier_desc, 0, 0, 1); \
+		hw_desc_init(&barrier_desc); \
+		set_din_no_dma(&barrier_desc, 0, 0xfffff0); \
+		set_dout_no_dma(&barrier_desc, 0, 0, 1); \
 		enqueue_seq((cc_base_addr), &barrier_desc, 1); \
 		enqueue_seq((cc_base_addr), (desc_p), 1); \
 	} \
@@ -224,13 +224,12 @@ int request_mgr_init(struct ssi_drvdata *drvdata)
 							     sizeof(u32));
 
 	/* Init. "dummy" completion descriptor */
-	HW_DESC_INIT(&req_mgr_h->compl_desc);
-	HW_DESC_SET_DIN_CONST(&req_mgr_h->compl_desc, 0, sizeof(u32));
-	HW_DESC_SET_DOUT_DLLI(&req_mgr_h->compl_desc,
-		req_mgr_h->dummy_comp_buff_dma,
-		sizeof(u32), NS_BIT, 1);
-	HW_DESC_SET_FLOW_MODE(&req_mgr_h->compl_desc, BYPASS);
-	HW_DESC_SET_QUEUE_LAST_IND(&req_mgr_h->compl_desc);
+	hw_desc_init(&req_mgr_h->compl_desc);
+	set_din_const(&req_mgr_h->compl_desc, 0, sizeof(u32));
+	set_dout_dlli(&req_mgr_h->compl_desc, req_mgr_h->dummy_comp_buff_dma,
+		      sizeof(u32), NS_BIT, 1);
+	set_flow_mode(&req_mgr_h->compl_desc, BYPASS);
+	set_queue_last_ind(&req_mgr_h->compl_desc);
 
 #ifdef CC_CYCLE_COUNT
 	/* For CC-HW cycle performance trace */
@@ -519,7 +518,7 @@ int send_request_init(
 	if (unlikely(rc != 0 )) {
 		return rc;
 	}
-	HW_DESC_SET_QUEUE_LAST_IND(&desc[len-1]);
+	set_queue_last_ind(&desc[(len - 1)]);
 
 	enqueue_seq(cc_base, desc, len);
 
