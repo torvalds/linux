@@ -135,6 +135,9 @@ static unsigned long mlx5e_query_pfc_combined(struct mlx5e_priv *priv)
 	u8 pfc_en_rx;
 	int err;
 
+	if (MLX5_CAP_GEN(mdev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
+		return 0;
+
 	err = mlx5_query_port_pfc(mdev, &pfc_en_tx, &pfc_en_rx);
 
 	return err ? 0 : pfc_en_tx | pfc_en_rx;
@@ -146,6 +149,9 @@ static bool mlx5e_query_global_pause_combined(struct mlx5e_priv *priv)
 	u32 rx_pause;
 	u32 tx_pause;
 	int err;
+
+	if (MLX5_CAP_GEN(mdev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
+		return false;
 
 	err = mlx5_query_port_pause(mdev, &rx_pause, &tx_pause);
 
