@@ -719,6 +719,7 @@ long drm_ioctl_kernel(struct file *file, drm_ioctl_t *func, void *kdata,
 	}
 	return retcode;
 }
+EXPORT_SYMBOL(drm_ioctl_kernel);
 
 /**
  * drm_ioctl - ioctl callback implementation for DRM drivers
