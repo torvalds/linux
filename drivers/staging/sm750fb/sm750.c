@@ -33,7 +33,7 @@ static int g_hwcursor = 1;
 static int g_noaccel;
 static int g_nomtrr;
 static const char *g_fbmode[] = {NULL, NULL};
-static const char *g_def_fbmode = "800x600-16@60";
+static const char *g_def_fbmode = "1024x768-24@60";
 static char *g_settings;
 static int g_dualview;
 static char *g_option;
