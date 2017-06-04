@@ -176,7 +176,6 @@ struct ssi_alg_template {
 	int cipher_mode;
 	int flow_mode; /* Note: currently, refers to the cipher mode only. */
 	int auth_mode;
-	bool synchronous;
 	struct ssi_drvdata *drvdata;
 };
 
