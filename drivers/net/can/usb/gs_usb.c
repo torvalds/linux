@@ -265,6 +265,8 @@ static int gs_cmd_reset(struct gs_usb *gsusb, struct gs_can *gsdev)
 			     sizeof(*dm),
 			     1000);
 
+	kfree(dm);
+
 	return rc;
 }
 
