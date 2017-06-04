@@ -34,30 +34,11 @@
 #include "ssi_aead.h"
 
 #ifdef CC_DEBUG
-#define DUMP_SGL(sg) \
-	while (sg) { \
-		SSI_LOG_DEBUG("page=%p offset=%u length=%u (dma_len=%u) " \
-			     "dma_addr=%08x\n", sg_page(sg), (sg)->offset, \
-			(sg)->length, sg_dma_len(sg), (sg)->dma_address); \
-		(sg) = sg_next(sg); \
-	}
-#define DUMP_MLLI_TABLE(mlli_p, nents) \
-	do { \
-		SSI_LOG_DEBUG("mlli=%pK nents=%u\n", (mlli_p), (nents)); \
-		while((nents)--) { \
-			SSI_LOG_DEBUG("addr=0x%08X size=0x%08X\n", \
-			     (mlli_p)[LLI_WORD0_OFFSET], \
-			     (mlli_p)[LLI_WORD1_OFFSET]); \
-			(mlli_p) += LLI_ENTRY_WORD_SIZE; \
-		} \
-	} while (0)
 #define GET_DMA_BUFFER_TYPE(buff_type) ( \
 	((buff_type) == SSI_DMA_BUF_NULL) ? "BUF_NULL" : \
 	((buff_type) == SSI_DMA_BUF_DLLI) ? "BUF_DLLI" : \
 	((buff_type) == SSI_DMA_BUF_MLLI) ? "BUF_MLLI" : "BUF_INVALID")
 #else
-#define DX_BUFFER_MGR_DUMP_SGL(sg)
-#define DX_BUFFER_MGR_DUMP_MLLI_TABLE(mlli_p, nents)
 #define GET_DMA_BUFFER_TYPE(buff_type)
 #endif
 
