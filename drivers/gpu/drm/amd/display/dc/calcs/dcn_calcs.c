@@ -36,40 +36,65 @@
 
 /* Defaults from spreadsheet rev#247 */
 const struct dcn_soc_bounding_box dcn10_soc_defaults = {
-		.sr_exit_time = 17, /*us*/ /*update based on HW Request for 118773*/
+		/* latencies */
+		.sr_exit_time = 17, /*us*/
 		.sr_enter_plus_exit_time = 19, /*us*/
 		.urgent_latency = 4, /*us*/
+		.dram_clock_change_latency = 17, /*us*/
 		.write_back_latency = 12, /*us*/
 		.percent_of_ideal_drambw_received_after_urg_latency = 80, /*%*/
-		.max_request_size = 256, /*bytes*/
-		.dcfclkv_max0p9 = 600, /*MHz*/
-		.dcfclkv_nom0p8 = 600, /*MHz*/
-		.dcfclkv_mid0p72 = 300, /*MHz*/
-		.dcfclkv_min0p65 = 300, /*MHz*/
-		.max_dispclk_vmax0p9 = 1086, /*MHz*/
-		.max_dispclk_vnom0p8 = 661, /*MHz*/
-		.max_dispclk_vmid0p72 = 608, /*MHz*/
-		.max_dispclk_vmin0p65 = 608, /*MHz*/
-		.max_dppclk_vmax0p9 = 661, /*MHz*/
-		.max_dppclk_vnom0p8 = 661, /*MHz*/
-		.max_dppclk_vmid0p72 = 435, /*MHz*/
-		.max_dppclk_vmin0p65 = 435, /*MHz*/
-		.socclk = 208, /*MHz*/
+
+		/* below default clocks derived from STA target base on
+		 * slow-slow corner + 10% margin with voltages aligned to FCLK.
+		 *
+		 * Use these value if fused value doesn't make sense as earlier
+		 * part don't have correct value fused */
+		/* default DCF CLK DPM on RV*/
+		.dcfclkv_max0p9 = 655,	/* MHz, = 3600/5.5 */
+		.dcfclkv_nom0p8 = 626,	/* MHz, = 3600/5.75 */
+		.dcfclkv_mid0p72 = 600,	/* MHz, = 3600/6, bypass */
+		.dcfclkv_min0p65 = 300,	/* MHz, = 3600/12, bypass */
+
+		/* default DISP CLK voltage state on RV */
+		.max_dispclk_vmax0p9 = 1108,	/* MHz, = 3600/3.25 */
+		.max_dispclk_vnom0p8 = 1029,	/* MHz, = 3600/3.5 */
+		.max_dispclk_vmid0p72 = 960,	/* MHz, = 3600/3.75 */
+		.max_dispclk_vmin0p65 = 626,	/* MHz, = 3600/5.75 */
+
+		/* default DPP CLK voltage state on RV */
+		.max_dppclk_vmax0p9 = 720,	/* MHz, = 3600/5 */
+		.max_dppclk_vnom0p8 = 686,	/* MHz, = 3600/5.25 */
+		.max_dppclk_vmid0p72 = 626,	/* MHz, = 3600/5.75 */
+		.max_dppclk_vmin0p65 = 400,	/* MHz, = 3600/9 */
+
+		/* default PHY CLK voltage state on RV */
+		.phyclkv_max0p9 = 900, /*MHz*/
+		.phyclkv_nom0p8 = 847, /*MHz*/
+		.phyclkv_mid0p72 = 800, /*MHz*/
+		.phyclkv_min0p65 = 600, /*MHz*/
+
+		/* BW depend on FCLK, MCLK, # of channels */
+		/* dual channel BW */
 		.fabric_and_dram_bandwidth_vmax0p9 = 38.4f, /*GB/s*/
-		.fabric_and_dram_bandwidth_vnom0p8 = 34.1f, /*GB/s*/
-		.fabric_and_dram_bandwidth_vmid0p72 = 29.8f, /*GB/s*/
+		.fabric_and_dram_bandwidth_vnom0p8 = 34.133f, /*GB/s*/
+		.fabric_and_dram_bandwidth_vmid0p72 = 29.866f, /*GB/s*/
 		.fabric_and_dram_bandwidth_vmin0p65 = 12.8f, /*GB/s*/
-		.phyclkv_max0p9 = 810, /*MHz*/
-		.phyclkv_nom0p8 = 810, /*MHz*/
-		.phyclkv_mid0p72 = 540, /*MHz*/
-		.phyclkv_min0p65 = 540, /*MHz*/
+		/* single channel BW
+		.fabric_and_dram_bandwidth_vmax0p9 = 19.2f,
+		.fabric_and_dram_bandwidth_vnom0p8 = 17.066f,
+		.fabric_and_dram_bandwidth_vmid0p72 = 14.933f,
+		.fabric_and_dram_bandwidth_vmin0p65 = 12.8f,
+		*/
+
+		.number_of_channels = 2,
+
+		.socclk = 208, /*MHz*/
 		.downspreading = 0.5f, /*%*/
 		.round_trip_ping_latency_cycles = 128, /*DCFCLK Cycles*/
 		.urgent_out_of_order_return_per_channel = 256, /*bytes*/
-		.number_of_channels = 2,
 		.vmm_page_size = 4096, /*bytes*/
-		.dram_clock_change_latency = 17, /*us*/
 		.return_bus_width = 64, /*bytes*/
+		.max_request_size = 256, /*bytes*/
 };
 
 const struct dcn_ip_params dcn10_ip_defaults = {
