@@ -291,9 +291,11 @@ static int qed_vf_pf_acquire(struct qed_hwfn *p_hwfn)
 	req->vfdev_info.capabilities |= VFPF_ACQUIRE_CAP_100G;
 
 	/* If we've mapped the doorbell bar, try using queue qids */
-	if (p_iov->b_doorbell_bar)
+	if (p_iov->b_doorbell_bar) {
 		req->vfdev_info.capabilities |= VFPF_ACQUIRE_CAP_PHYSICAL_BAR |
 						VFPF_ACQUIRE_CAP_QUEUE_QIDS;
+		p_resc->num_cids = QED_ETH_VF_MAX_NUM_CIDS;
+	}
 
 	/* pf 2 vf bulletin board address */
 	req->bulletin_addr = p_iov->bulletin.phys;
@@ -884,8 +886,8 @@ qed_vf_pf_txq_start(struct qed_hwfn *p_hwfn,
 	}
 
 	DP_VERBOSE(p_hwfn, QED_MSG_IOV,
-		   "Txq[0x%02x]: doorbell at %p [offset 0x%08x]\n",
-		   qid, *pp_doorbell, resp->offset);
+		   "Txq[0x%02x.%02x]: doorbell at %p [offset 0x%08x]\n",
+		   qid, p_cid->qid_usage_idx, *pp_doorbell, resp->offset);
 exit:
 	qed_vf_pf_req_end(p_hwfn, rc);
 
@@ -1476,6 +1478,11 @@ void qed_vf_get_num_rxqs(struct qed_hwfn *p_hwfn, u8 *num_rxqs)
 void qed_vf_get_num_txqs(struct qed_hwfn *p_hwfn, u8 *num_txqs)
 {
 	*num_txqs = p_hwfn->vf_iov_info->acquire_resp.resc.num_txqs;
+}
+
+void qed_vf_get_num_cids(struct qed_hwfn *p_hwfn, u8 *num_cids)
+{
+	*num_cids = p_hwfn->vf_iov_info->acquire_resp.resc.num_cids;
 }
 
 void qed_vf_get_port_mac(struct qed_hwfn *p_hwfn, u8 *port_mac)

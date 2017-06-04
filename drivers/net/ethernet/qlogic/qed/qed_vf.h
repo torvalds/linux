@@ -732,6 +732,14 @@ void qed_vf_get_num_rxqs(struct qed_hwfn *p_hwfn, u8 *num_rxqs);
 void qed_vf_get_num_txqs(struct qed_hwfn *p_hwfn, u8 *num_txqs);
 
 /**
+ * @brief Get number of available connections [both Rx and Tx] for VF
+ *
+ * @param p_hwfn
+ * @param num_cids - allocated number of connections
+ */
+void qed_vf_get_num_cids(struct qed_hwfn *p_hwfn, u8 *num_cids);
+
+/**
  * @brief Get port mac address for VF
  *
  * @param p_hwfn
@@ -1007,6 +1015,10 @@ static inline void qed_vf_get_num_rxqs(struct qed_hwfn *p_hwfn, u8 *num_rxqs)
 }
 
 static inline void qed_vf_get_num_txqs(struct qed_hwfn *p_hwfn, u8 *num_txqs)
+{
+}
+
+static inline void qed_vf_get_num_cids(struct qed_hwfn *p_hwfn, u8 *num_cids)
 {
 }
 

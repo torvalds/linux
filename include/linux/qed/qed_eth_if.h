@@ -73,6 +73,9 @@ struct qed_dev_eth_info {
 
 	/* Legacy VF - this affects the datapath, so qede has to know */
 	bool is_legacy;
+
+	/* Might depend on available resources [in case of VF] */
+	bool xdp_supported;
 };
 
 struct qed_update_vport_rss_params {

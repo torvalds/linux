@@ -2119,14 +2119,25 @@ static int qed_fill_eth_dev_info(struct qed_dev *cdev,
 
 		ether_addr_copy(info->port_mac,
 				cdev->hwfns[0].hw_info.hw_mac_addr);
-	} else {
-		qed_vf_get_num_rxqs(QED_LEADING_HWFN(cdev), &info->num_queues);
-		if (cdev->num_hwfns > 1) {
-			u8 queues = 0;
 
-			qed_vf_get_num_rxqs(&cdev->hwfns[1], &queues);
+		info->xdp_supported = true;
+	} else {
+		u16 total_cids = 0;
+
+		/* Determine queues &  XDP support */
+		for_each_hwfn(cdev, i) {
+			struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
+			u8 queues, cids;
+
+			qed_vf_get_num_cids(p_hwfn, &cids);
+			qed_vf_get_num_rxqs(p_hwfn, &queues);
 			info->num_queues += queues;
+			total_cids += cids;
 		}
+
+		/* Enable VF XDP in case PF guarntees sufficient connections */
+		if (total_cids >= info->num_queues * 3)
+			info->xdp_supported = true;
 
 		qed_vf_get_num_vlan_filters(&cdev->hwfns[0],
 					    (u8 *)&info->num_vlan_filters);
