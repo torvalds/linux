@@ -237,8 +237,6 @@ static inline void set_ack_last(struct cc_hw_desc *pdesc)
 	pdesc->word[4] |= FIELD_PREP(WORD4_ACK_NEEDED, 1);
 }
 
-#define MSB64(_addr) (sizeof(_addr) == 4 ? 0 : ((_addr) >> 32) & U16_MAX)
-
 /*
  * Set the DIN field of a HW descriptors
  *
