@@ -831,7 +831,7 @@ static int __lookup_replace(struct aa_ns *ns, const char *hname,
 
 /**
  * aa_replace_profiles - replace profile(s) on the profile list
- * @view: namespace load is viewed from
+ * @policy_ns: namespace load is occurring on
  * @label: label that is attempting to load/replace policy
  * @mask: permission mask
  * @udata: serialized data stream  (NOT NULL)
@@ -842,7 +842,7 @@ static int __lookup_replace(struct aa_ns *ns, const char *hname,
  *
  * Returns: size of data consumed else error code on failure.
  */
-ssize_t aa_replace_profiles(struct aa_ns *view, struct aa_profile *profile,
+ssize_t aa_replace_profiles(struct aa_ns *policy_ns, struct aa_profile *profile,
 			    u32 mask, struct aa_loaddata *udata)
 {
 	const char *ns_name, *info = NULL;
@@ -885,7 +885,8 @@ ssize_t aa_replace_profiles(struct aa_ns *view, struct aa_profile *profile,
 			count++;
 	}
 	if (ns_name) {
-		ns = aa_prepare_ns(view, ns_name);
+		ns = aa_prepare_ns(policy_ns ? policy_ns : profile->ns,
+				   ns_name);
 		if (IS_ERR(ns)) {
 			op = OP_PROF_LOAD;
 			info = "failed to prepare namespace";
@@ -895,7 +896,7 @@ ssize_t aa_replace_profiles(struct aa_ns *view, struct aa_profile *profile,
 			goto fail;
 		}
 	} else
-		ns = aa_get_ns(view);
+		ns = aa_get_ns(policy_ns ? policy_ns : profile->ns);
 
 	mutex_lock(&ns->lock);
 	/* check for duplicate rawdata blobs: space and file dedup */
@@ -1090,7 +1091,7 @@ fail:
 
 /**
  * aa_remove_profiles - remove profile(s) from the system
- * @view: namespace the remove is being done from
+ * @policy_ns: namespace the remove is being done from
  * @subj: profile attempting to remove policy
  * @fqname: name of the profile or namespace to remove  (NOT NULL)
  * @size: size of the name
@@ -1102,10 +1103,10 @@ fail:
  *
  * Returns: size of data consume else error code if fails
  */
-ssize_t aa_remove_profiles(struct aa_ns *view, struct aa_profile *subj,
+ssize_t aa_remove_profiles(struct aa_ns *policy_ns, struct aa_profile *subj,
 			   char *fqname, size_t size)
 {
-	struct aa_ns *root = NULL, *ns = NULL;
+	struct aa_ns *ns = NULL;
 	struct aa_profile *profile = NULL;
 	const char *name = fqname, *info = NULL;
 	const char *ns_name = NULL;
@@ -1117,14 +1118,13 @@ ssize_t aa_remove_profiles(struct aa_ns *view, struct aa_profile *subj,
 		goto fail;
 	}
 
-	root = view;
-
 	if (fqname[0] == ':') {
 		size_t ns_len;
 
 		name = aa_splitn_fqname(fqname, size, &ns_name, &ns_len);
 		/* released below */
-		ns = aa_lookupn_ns(root, ns_name, ns_len);
+		ns = aa_lookupn_ns(policy_ns ? policy_ns : subj->ns, ns_name,
+				   ns_len);
 		if (!ns) {
 			info = "namespace does not exist";
 			error = -ENOENT;
@@ -1132,7 +1132,7 @@ ssize_t aa_remove_profiles(struct aa_ns *view, struct aa_profile *subj,
 		}
 	} else
 		/* released below */
-		ns = aa_get_ns(root);
+		ns = aa_get_ns(policy_ns ? policy_ns : subj->ns);
 
 	if (!name) {
 		/* remove namespace - can only happen if fqname[0] == ':' */

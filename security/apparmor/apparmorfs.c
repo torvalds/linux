@@ -418,8 +418,7 @@ static ssize_t policy_update(u32 mask, const char __user *buf, size_t size,
 	data = aa_simple_write_to_buffer(buf, size, size, pos);
 	error = PTR_ERR(data);
 	if (!IS_ERR(data)) {
-		error = aa_replace_profiles(ns ? ns : profile->ns, profile,
-					    mask, data);
+		error = aa_replace_profiles(ns, profile, mask, data);
 		aa_put_loaddata(data);
 	}
 
@@ -486,8 +485,7 @@ static ssize_t profile_remove(struct file *f, const char __user *buf,
 	error = PTR_ERR(data);
 	if (!IS_ERR(data)) {
 		data->data[size] = 0;
-		error = aa_remove_profiles(ns ? ns : profile->ns, profile,
-					   data->data, size);
+		error = aa_remove_profiles(ns, profile, data->data, size);
 		aa_put_loaddata(data);
 	}
  out:
