@@ -53,6 +53,7 @@
 #include <net/devlink.h>
 #include "mlx5_core.h"
 #include "fs_core.h"
+#include "lib/mpfs.h"
 #ifdef CONFIG_MLX5_CORE_EN
 #include "eswitch.h"
 #endif
@@ -946,11 +947,17 @@ static int mlx5_init_once(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 		goto err_tables_cleanup;
 	}
 
+	err = mlx5_mpfs_init(dev);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to init l2 table %d\n", err);
+		goto err_rl_cleanup;
+	}
+
 #ifdef CONFIG_MLX5_CORE_EN
 	err = mlx5_eswitch_init(dev);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to init eswitch %d\n", err);
-		goto err_rl_cleanup;
+		goto err_mpfs_cleanup;
 	}
 #endif
 
@@ -973,11 +980,11 @@ err_sriov_cleanup:
 err_eswitch_cleanup:
 #ifdef CONFIG_MLX5_CORE_EN
 	mlx5_eswitch_cleanup(dev->priv.eswitch);
-
-err_rl_cleanup:
+err_mpfs_cleanup:
 #endif
+	mlx5_mpfs_cleanup(dev);
+err_rl_cleanup:
 	mlx5_cleanup_rl_table(dev);
-
 err_tables_cleanup:
 	mlx5_cleanup_mkey_table(dev);
 	mlx5_cleanup_srq_table(dev);
@@ -998,6 +1005,7 @@ static void mlx5_cleanup_once(struct mlx5_core_dev *dev)
 #ifdef CONFIG_MLX5_CORE_EN
 	mlx5_eswitch_cleanup(dev->priv.eswitch);
 #endif
+	mlx5_mpfs_cleanup(dev);
 	mlx5_cleanup_rl_table(dev);
 	mlx5_cleanup_reserved_gids(dev);
 	mlx5_cleanup_mkey_table(dev);
@@ -1155,10 +1163,6 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		goto err_fs;
 	}
 
-#ifdef CONFIG_MLX5_CORE_EN
-	mlx5_eswitch_attach(dev->priv.eswitch);
-#endif
-
 	err = mlx5_sriov_attach(dev);
 	if (err) {
 		dev_err(&pdev->dev, "sriov init failed %d\n", err);
@@ -1202,9 +1206,6 @@ err_fpga_start:
 	mlx5_sriov_detach(dev);
 
 err_sriov:
-#ifdef CONFIG_MLX5_CORE_EN
-	mlx5_eswitch_detach(dev->priv.eswitch);
-#endif
 	mlx5_cleanup_fs(dev);
 
 err_fs:
@@ -1279,9 +1280,6 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	mlx5_fpga_device_stop(dev);
 
 	mlx5_sriov_detach(dev);
-#ifdef CONFIG_MLX5_CORE_EN
-	mlx5_eswitch_detach(dev->priv.eswitch);
-#endif
 	mlx5_cleanup_fs(dev);
 	mlx5_irq_clear_affinity_hints(dev);
 	free_comp_eqs(dev);

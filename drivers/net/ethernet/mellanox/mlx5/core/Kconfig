@@ -34,6 +34,16 @@ config MLX5_CORE_EN
 	---help---
 	  Ethernet support in Mellanox Technologies ConnectX-4 NIC.
 
+config MLX5_MPFS
+        bool "Mellanox Technologies MLX5 MPFS support"
+        depends on MLX5_CORE_EN
+	default y
+        ---help---
+	  Mellanox Technologies Ethernet Multi-Physical Function Switch (MPFS)
+          support in ConnectX NIC. MPFs is required for when multi-PF configuration
+          is enabled to allow passing user configured unicast MAC addresses to the
+          requesting PF.
+
 config MLX5_CORE_EN_DCB
 	bool "Data Center Bridging (DCB) Support"
 	default y

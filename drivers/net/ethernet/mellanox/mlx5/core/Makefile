@@ -16,6 +16,8 @@ mlx5_core-$(CONFIG_MLX5_CORE_EN) += eswitch.o eswitch_offloads.o \
 		en_rx.o en_rx_am.o en_txrx.o en_clock.o vxlan.o \
 		en_tc.o en_arfs.o en_rep.o en_fs_ethtool.o en_selftest.o
 
+mlx5_core-$(CONFIG_MLX5_MPFS) += lib/mpfs.o
+
 mlx5_core-$(CONFIG_MLX5_CORE_EN_DCB) +=  en_dcbnl.o
 
 mlx5_core-$(CONFIG_MLX5_CORE_IPOIB) += ipoib/ipoib.o ipoib/ethtool.o
