@@ -33,9 +33,9 @@ static struct signal_struct init_signals = {
 	},
 #endif
 	INIT_CPU_TIMERS(init_signals)
-	.leader_pid = &init_struct_pid,
 	.pids = {
 		[PIDTYPE_PID]	= &init_struct_pid,
+		[PIDTYPE_TGID]	= &init_struct_pid,
 		[PIDTYPE_PGID]	= &init_struct_pid,
 		[PIDTYPE_SID]	= &init_struct_pid,
 	},

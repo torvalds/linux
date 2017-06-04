@@ -68,10 +68,10 @@ ENTRY(fsys_getpid)
 	add r9=TI_FLAGS+IA64_TASK_SIZE,r16
 	;;
 	ld4 r9=[r9]
-	add r17=IA64_SIGNAL_LEADER_PID_OFFSET,r17
+	add r17=IA64_SIGNAL_PIDS_TGID_OFFSET,r17
 	;;
 	and r9=TIF_ALLWORK_MASK,r9
-	ld8 r17=[r17]				// r17 = current->signal->leader_pid
+	ld8 r17=[r17]				// r17 = current->signal->pids[PIDTYPE_TGID]
 	;;
 	add r8=IA64_PID_LEVEL_OFFSET,r17
 	;;

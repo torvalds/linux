@@ -269,8 +269,6 @@ static struct pid **task_pid_ptr(struct task_struct *task, enum pid_type type)
 {
 	return (type == PIDTYPE_PID) ?
 		&task->thread_pid :
-		(type == __PIDTYPE_TGID) ?
-		&task->signal->leader_pid :
 		&task->signal->pids[type];
 }
 

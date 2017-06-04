@@ -665,7 +665,7 @@ static void cpumsf_output_event_pid(struct perf_event *event,
 		goto out;
 
 	/* Update the process ID (see also kernel/events/core.c) */
-	data->tid_entry.pid = cpumsf_pid_type(event, pid, __PIDTYPE_TGID);
+	data->tid_entry.pid = cpumsf_pid_type(event, pid, PIDTYPE_TGID);
 	data->tid_entry.tid = cpumsf_pid_type(event, pid, PIDTYPE_PID);
 
 	perf_output_sample(&handle, &header, data, event);

@@ -67,7 +67,7 @@ void foo(void)
 	DEFINE(IA64_SIGNAL_GROUP_STOP_COUNT_OFFSET,offsetof (struct signal_struct,
 							     group_stop_count));
 	DEFINE(IA64_SIGNAL_SHARED_PENDING_OFFSET,offsetof (struct signal_struct, shared_pending));
-	DEFINE(IA64_SIGNAL_LEADER_PID_OFFSET, offsetof (struct signal_struct, leader_pid));
+	DEFINE(IA64_SIGNAL_PIDS_TGID_OFFSET, offsetof (struct signal_struct, pids[PIDTYPE_TGID]));
 
 	BLANK();
 
