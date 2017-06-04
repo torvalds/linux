@@ -29,8 +29,6 @@
 #define HW_DESC_SIZE_WORDS		6
 #define HW_QUEUE_SLOTS_MAX              15 /* Max. available slots in HW queue */
 
-#define _HW_DESC_MONITOR_KICK 0x7FFFC00
-
 #define CC_REG_NAME(word, name) DX_DSCRPTR_QUEUE_WORD ## word ## _ ## name
 
 #define CC_REG_LOW(word, name)  \
@@ -605,17 +603,5 @@ static inline void set_cipher_do(struct cc_hw_desc *pdesc,
 	pdesc->word[4] |= FIELD_PREP(WORD4_CIPHER_DO,
 				(config & HW_KEY_MASK_CIPHER_DO));
 }
-
-/*!
- * This macro sets the DIN field of a HW descriptors to star/stop monitor descriptor.
- * Used for performance measurements and debug purposes.
- *
- * \param pDesc pointer HW descriptor struct
- */
-#define HW_DESC_SET_DIN_MONITOR_CNTR(pDesc)										\
-	do {														\
-		CC_REG_FLD_SET(CRY_KERNEL, DSCRPTR_MEASURE_CNTR, VALUE, (pDesc)->word[1], _HW_DESC_MONITOR_KICK);	\
-	} while (0)
-
 
 #endif /*__CC_HW_QUEUE_DEFS_H__*/

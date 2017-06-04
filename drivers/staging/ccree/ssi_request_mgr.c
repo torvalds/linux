@@ -37,74 +37,6 @@
 
 #define AXIM_MON_BASE_OFFSET CC_REG_OFFSET(CRY_KERNEL, AXIM_MON_COMP)
 
-#ifdef CC_CYCLE_COUNT
-
-#define MONITOR_CNTR_BIT 0
-
-/**
- * Monitor descriptor.
- * Used to measure CC performance.
- */
-#define INIT_CC_MONITOR_DESC(desc_p) \
-do { \
-	hw_desc_init(desc_p); \
-	HW_DESC_SET_DIN_MONITOR_CNTR(desc_p); \
-} while (0)
-
-/**
- * Try adding monitor descriptor BEFORE enqueuing sequence.
- */
-#define CC_CYCLE_DESC_HEAD(cc_base_addr, desc_p, lock_p, is_monitored_p) \
-do { \
-	if (!test_and_set_bit(MONITOR_CNTR_BIT, (lock_p))) { \
-		enqueue_seq((cc_base_addr), (desc_p), 1); \
-		*(is_monitored_p) = true; \
-	} else { \
-		*(is_monitored_p) = false; \
-	} \
-} while (0)
-
-/**
- * If CC_CYCLE_DESC_HEAD was successfully added:
- * 1. Add memory barrier descriptor to ensure last AXI transaction.
- * 2. Add monitor descriptor to sequence tail AFTER enqueuing sequence.
- */
-#define CC_CYCLE_DESC_TAIL(cc_base_addr, desc_p, is_monitored) \
-do { \
-	if ((is_monitored) == true) { \
-		struct cc_hw_desc barrier_desc; \
-		hw_desc_init(&barrier_desc); \
-		set_din_no_dma(&barrier_desc, 0, 0xfffff0); \
-		set_dout_no_dma(&barrier_desc, 0, 0, 1); \
-		enqueue_seq((cc_base_addr), &barrier_desc, 1); \
-		enqueue_seq((cc_base_addr), (desc_p), 1); \
-	} \
-} while (0)
-
-/**
- * Try reading CC monitor counter value upon sequence complete.
- * Can only succeed if the lock_p is taken by the owner of the given request.
- */
-#define END_CC_MONITOR_COUNT(cc_base_addr, stat_op_type, stat_phase, monitor_null_cycles, lock_p, is_monitored) \
-do { \
-	u32 elapsed_cycles; \
-	if ((is_monitored) == true) { \
-		elapsed_cycles = READ_REGISTER((cc_base_addr) + CC_REG_OFFSET(CRY_KERNEL, DSCRPTR_MEASURE_CNTR)); \
-		clear_bit(MONITOR_CNTR_BIT, (lock_p)); \
-		if (elapsed_cycles > 0) \
-			update_cc_stat(stat_op_type, stat_phase, (elapsed_cycles - monitor_null_cycles)); \
-	} \
-} while (0)
-
-#else /*CC_CYCLE_COUNT*/
-
-#define INIT_CC_MONITOR_DESC(desc_p) do { } while (0)
-#define CC_CYCLE_DESC_HEAD(cc_base_addr, desc_p, lock_p, is_monitored_p) do { } while (0)
-#define CC_CYCLE_DESC_TAIL(cc_base_addr, desc_p, is_monitored) do { } while (0)
-#define END_CC_MONITOR_COUNT(cc_base_addr, stat_op_type, stat_phase, monitor_null_cycles, lock_p, is_monitored) do { } while (0)
-#endif /*CC_CYCLE_COUNT*/
-
-
 struct ssi_request_mgr_handle {
 	/* Request manager resources */
 	unsigned int hw_queue_size; /* HW capability */
@@ -168,10 +100,6 @@ void request_mgr_fini(struct ssi_drvdata *drvdata)
 
 int request_mgr_init(struct ssi_drvdata *drvdata)
 {
-#ifdef CC_CYCLE_COUNT
-	struct cc_hw_desc monitor_desc[2];
-	struct ssi_crypto_req monitor_req = {0};
-#endif
 	struct ssi_request_mgr_handle *req_mgr_h;
 	int rc = 0;
 
@@ -227,24 +155,6 @@ int request_mgr_init(struct ssi_drvdata *drvdata)
 		      sizeof(u32), NS_BIT, 1);
 	set_flow_mode(&req_mgr_h->compl_desc, BYPASS);
 	set_queue_last_ind(&req_mgr_h->compl_desc);
-
-#ifdef CC_CYCLE_COUNT
-	/* For CC-HW cycle performance trace */
-	INIT_CC_MONITOR_DESC(&req_mgr_h->monitor_desc);
-	set_bit(MONITOR_CNTR_BIT, &req_mgr_h->monitor_lock);
-	monitor_desc[0] = req_mgr_h->monitor_desc;
-	monitor_desc[1] = req_mgr_h->monitor_desc;
-
-	rc = send_request(drvdata, &monitor_req, monitor_desc, 2, 0);
-	if (unlikely(rc != 0))
-		goto req_mgr_init_err;
-
-	drvdata->monitor_null_cycles = READ_REGISTER(drvdata->cc_base +
-		CC_REG_OFFSET(CRY_KERNEL, DSCRPTR_MEASURE_CNTR));
-	SSI_LOG_ERR("Calibration time=0x%08x\n", drvdata->monitor_null_cycles);
-
-	clear_bit(MONITOR_CNTR_BIT, &req_mgr_h->monitor_lock);
-#endif
 
 	return 0;
 
@@ -367,7 +277,6 @@ int send_request(
 					((ssi_req->ivgen_dma_addr_len == 0) ? 0 :
 					SSI_IVPOOL_SEQ_LEN ) +
 					((is_dout == 0 )? 1 : 0));
-	DECL_CYCLE_COUNT_RESOURCES;
 
 #if defined (CONFIG_PM_RUNTIME) || defined (CONFIG_PM_SLEEP)
 	rc = ssi_power_mgr_runtime_get(&drvdata->plat_dev->dev);
@@ -446,12 +355,8 @@ int send_request(
 		req_mgr_h->max_used_sw_slots = used_sw_slots;
 	}
 
-	CC_CYCLE_DESC_HEAD(cc_base, &req_mgr_h->monitor_desc,
-			&req_mgr_h->monitor_lock, &ssi_req->is_monitored_p);
-
 	/* Enqueue request - must be locked with HW lock*/
 	req_mgr_h->req_queue[req_mgr_h->req_queue_head] = *ssi_req;
-	START_CYCLE_COUNT_AT(req_mgr_h->req_queue[req_mgr_h->req_queue_head].submit_cycle);
 	req_mgr_h->req_queue_head = (req_mgr_h->req_queue_head + 1) & (MAX_REQUEST_QUEUE_SIZE - 1);
 	/* TODO: Use circ_buf.h ? */
 
@@ -462,13 +367,9 @@ int send_request(
 #endif
 
 	/* STAT_PHASE_4: Push sequence */
-	START_CYCLE_COUNT();
 	enqueue_seq(cc_base, iv_seq, iv_seq_len);
 	enqueue_seq(cc_base, desc, len);
 	enqueue_seq(cc_base, &req_mgr_h->compl_desc, (is_dout ? 0 : 1));
-	END_CYCLE_COUNT(ssi_req->op_type, STAT_PHASE_4);
-
-	CC_CYCLE_DESC_TAIL(cc_base, &req_mgr_h->monitor_desc, ssi_req->is_monitored_p);
 
 	if (unlikely(req_mgr_h->q_free_slots < total_seq_len)) {
 		/*This means that there was a problem with the resume*/
@@ -558,7 +459,6 @@ static void proc_completions(struct ssi_drvdata *drvdata)
 #if defined (CONFIG_PM_RUNTIME) || defined (CONFIG_PM_SLEEP)
 	int rc = 0;
 #endif
-	DECL_CYCLE_COUNT_RESOURCES;
 
 	while(request_mgr_handle->axi_completed) {
 		request_mgr_handle->axi_completed--;
@@ -570,9 +470,6 @@ static void proc_completions(struct ssi_drvdata *drvdata)
 		}
 
 		ssi_req = &request_mgr_handle->req_queue[request_mgr_handle->req_queue_tail];
-		END_CYCLE_COUNT_AT(ssi_req->submit_cycle, ssi_req->op_type, STAT_PHASE_5); /* Seq. Comp. */
-		END_CC_MONITOR_COUNT(drvdata->cc_base, ssi_req->op_type, STAT_PHASE_6,
-			drvdata->monitor_null_cycles, &request_mgr_handle->monitor_lock, ssi_req->is_monitored_p);
 
 #ifdef FLUSH_CACHE_ALL
 		flush_cache_all();
@@ -591,9 +488,7 @@ static void proc_completions(struct ssi_drvdata *drvdata)
 #endif /* COMPLETION_DELAY */
 
 		if (likely(ssi_req->user_cb != NULL)) {
-			START_CYCLE_COUNT();
 			ssi_req->user_cb(&plat_dev->dev, ssi_req->user_arg, drvdata->cc_base);
-			END_CYCLE_COUNT(STAT_OP_TYPE_GENERIC, STAT_PHASE_3);
 		}
 		request_mgr_handle->req_queue_tail = (request_mgr_handle->req_queue_tail + 1) & (MAX_REQUEST_QUEUE_SIZE - 1);
 		SSI_LOG_DEBUG("Dequeue request tail=%u\n", request_mgr_handle->req_queue_tail);
@@ -617,9 +512,7 @@ static void comp_handler(unsigned long devarg)
 
 	u32 irq;
 
-	DECL_CYCLE_COUNT_RESOURCES;
 
-	START_CYCLE_COUNT();
 
 	irq = (drvdata->irq & SSI_COMP_IRQ_MASK);
 
@@ -630,14 +523,6 @@ static void comp_handler(unsigned long devarg)
 		/* Avoid race with above clear: Test completion counter once more */
 		request_mgr_handle->axi_completed += CC_REG_FLD_GET(CRY_KERNEL, AXIM_MON_COMP, VALUE,
 			CC_HAL_READ_REGISTER(AXIM_MON_BASE_OFFSET));
-
-		/* ISR-to-Tasklet latency */
-		if (request_mgr_handle->axi_completed) {
-			/* Only if actually reflects ISR-to-completion-handling latency, i.e.,
-			 * not duplicate as a result of interrupt after AXIM_MON_ERR clear, before end of loop
-			 */
-			END_CYCLE_COUNT_AT(drvdata->isr_exit_cycles, STAT_OP_TYPE_GENERIC, STAT_PHASE_1);
-		}
 
 		while (request_mgr_handle->axi_completed) {
 			do {
@@ -662,7 +547,6 @@ static void comp_handler(unsigned long devarg)
 	CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_IMR),
 		CC_HAL_READ_REGISTER(
 		CC_REG_OFFSET(HOST_RGF, HOST_IMR)) & ~irq);
-	END_CYCLE_COUNT(STAT_OP_TYPE_GENERIC, STAT_PHASE_2);
 }
 
 /*

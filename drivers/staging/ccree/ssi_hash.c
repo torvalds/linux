@@ -460,9 +460,6 @@ static int ssi_hash_digest(struct ahash_req_ctx *state,
 		/* Setup DX request structure */
 		ssi_req.user_cb = (void *)ssi_hash_digest_complete;
 		ssi_req.user_arg = (void *)async_req;
-#ifdef ENABLE_CYCLE_COUNT
-		ssi_req.op_type = STAT_OP_TYPE_ENCODE; /* Use "Encode" stats */
-#endif
 	}
 
 	/* If HMAC then load hash IPAD xor key, if HASH then load initial digest */
@@ -630,9 +627,6 @@ static int ssi_hash_update(struct ahash_req_ctx *state,
 		/* Setup DX request structure */
 		ssi_req.user_cb = (void *)ssi_hash_update_complete;
 		ssi_req.user_arg = async_req;
-#ifdef ENABLE_CYCLE_COUNT
-		ssi_req.op_type = STAT_OP_TYPE_ENCODE; /* Use "Encode" stats */
-#endif
 	}
 
 	/* Restore hash digest */
@@ -725,9 +719,6 @@ static int ssi_hash_finup(struct ahash_req_ctx *state,
 		/* Setup DX request structure */
 		ssi_req.user_cb = (void *)ssi_hash_complete;
 		ssi_req.user_arg = async_req;
-#ifdef ENABLE_CYCLE_COUNT
-		ssi_req.op_type = STAT_OP_TYPE_ENCODE; /* Use "Encode" stats */
-#endif
 	}
 
 	/* Restore hash digest */
@@ -866,9 +857,6 @@ static int ssi_hash_final(struct ahash_req_ctx *state,
 		/* Setup DX request structure */
 		ssi_req.user_cb = (void *)ssi_hash_complete;
 		ssi_req.user_arg = async_req;
-#ifdef ENABLE_CYCLE_COUNT
-		ssi_req.op_type = STAT_OP_TYPE_ENCODE; /* Use "Encode" stats */
-#endif
 	}
 
 	/* Restore hash digest */
@@ -1308,7 +1296,6 @@ static int ssi_cmac_setkey(struct crypto_ahash *ahash,
 			const u8 *key, unsigned int keylen)
 {
 	struct ssi_hash_ctx *ctx = crypto_ahash_ctx(ahash);
-	DECL_CYCLE_COUNT_RESOURCES;
 	SSI_LOG_DEBUG("===== setkey (%d) ====\n", keylen);
 	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 
@@ -1326,7 +1313,6 @@ static int ssi_cmac_setkey(struct crypto_ahash *ahash,
 	ctx->key_params.keylen = keylen;
 
 	/* STAT_PHASE_1: Copy key to ctx */
-	START_CYCLE_COUNT();
 
 	dma_sync_single_for_cpu(&ctx->drvdata->plat_dev->dev,
 				ctx->opad_tmp_keys_dma_addr,
@@ -1342,7 +1328,6 @@ static int ssi_cmac_setkey(struct crypto_ahash *ahash,
 
 	ctx->key_params.keylen = keylen;
 
-	END_CYCLE_COUNT(STAT_OP_TYPE_SETKEY, STAT_PHASE_1);
 
 	return 0;
 }
@@ -1510,9 +1495,6 @@ static int ssi_mac_update(struct ahash_request *req)
 	/* Setup DX request structure */
 	ssi_req.user_cb = (void *)ssi_hash_update_complete;
 	ssi_req.user_arg = (void *)req;
-#ifdef ENABLE_CYCLE_COUNT
-	ssi_req.op_type = STAT_OP_TYPE_ENCODE; /* Use "Encode" stats */
-#endif
 
 	rc = send_request(ctx->drvdata, &ssi_req, desc, idx, 1);
 	if (unlikely(rc != -EINPROGRESS)) {
@@ -1563,9 +1545,6 @@ static int ssi_mac_final(struct ahash_request *req)
 	/* Setup DX request structure */
 	ssi_req.user_cb = (void *)ssi_hash_complete;
 	ssi_req.user_arg = (void *)req;
-#ifdef ENABLE_CYCLE_COUNT
-	ssi_req.op_type = STAT_OP_TYPE_ENCODE; /* Use "Encode" stats */
-#endif
 
 	if (state->xcbc_count && (rem_cnt == 0)) {
 		/* Load key for ECB decryption */
@@ -1671,9 +1650,6 @@ static int ssi_mac_finup(struct ahash_request *req)
 	/* Setup DX request structure */
 	ssi_req.user_cb = (void *)ssi_hash_complete;
 	ssi_req.user_arg = (void *)req;
-#ifdef ENABLE_CYCLE_COUNT
-	ssi_req.op_type = STAT_OP_TYPE_ENCODE; /* Use "Encode" stats */
-#endif
 
 	if (ctx->hw_mode == DRV_CIPHER_XCBC_MAC) {
 		key_len = CC_AES_128_BIT_KEY_SIZE;
@@ -1747,10 +1723,6 @@ static int ssi_mac_digest(struct ahash_request *req)
 	/* Setup DX request structure */
 	ssi_req.user_cb = (void *)ssi_hash_digest_complete;
 	ssi_req.user_arg = (void *)req;
-#ifdef ENABLE_CYCLE_COUNT
-	ssi_req.op_type = STAT_OP_TYPE_ENCODE; /* Use "Encode" stats */
-#endif
-
 
 	if (ctx->hw_mode == DRV_CIPHER_XCBC_MAC) {
 		keyLen = CC_AES_128_BIT_KEY_SIZE;

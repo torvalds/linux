@@ -30,14 +30,8 @@
 // #define DX_DUMP_BYTES
 // #define CC_DEBUG
 #define ENABLE_CC_SYSFS		/* Enable sysfs interface for debugging REE driver */
-//#define ENABLE_CC_CYCLE_COUNT
 //#define DX_IRQ_DELAY 100000
 #define DMA_BIT_MASK_LEN	48	/* was 32 bit, but for juno's sake it was enlarged to 48 bit */
-
-#if defined ENABLE_CC_CYCLE_COUNT && defined ENABLE_CC_SYSFS
-#define CC_CYCLE_COUNT
-#endif
-
 
 #if defined (CONFIG_ARM64)	// TODO currently only this mode was test on Juno (which is ARM64), need to enable coherent also.
 #define DISABLE_COHERENT_DMA_OPS

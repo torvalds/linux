@@ -323,7 +323,6 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 	struct device *dev = &ctx_p->drvdata->plat_dev->dev;
 	u32 tmp[DES_EXPKEY_WORDS];
 	unsigned int max_key_buf_size = get_max_keysize(tfm);
-	DECL_CYCLE_COUNT_RESOURCES;
 
 	SSI_LOG_DEBUG("Setting key in context @%p for %s. keylen=%u\n",
 		ctx_p, crypto_tfm_alg_name(tfm), keylen);
@@ -334,7 +333,6 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 	SSI_LOG_DEBUG("ssi_blkcipher_setkey: after FIPS check");
 
 	/* STAT_PHASE_0: Init and sanity checks */
-	START_CYCLE_COUNT();
 
 #if SSI_CC_HAS_MULTI2
 	/*last byte of key buffer is round number and should not be a part of key size*/
@@ -379,7 +377,6 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 		}
 
 		ctx_p->keylen = keylen;
-		END_CYCLE_COUNT(STAT_OP_TYPE_SETKEY, STAT_PHASE_0);
 		SSI_LOG_DEBUG("ssi_blkcipher_setkey: ssi_is_hw_key ret 0");
 
 		return 0;
@@ -407,10 +404,8 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 	}
 
 
-	END_CYCLE_COUNT(STAT_OP_TYPE_SETKEY, STAT_PHASE_0);
 
 	/* STAT_PHASE_1: Copy key to ctx */
-	START_CYCLE_COUNT();
 	dma_sync_single_for_cpu(dev, ctx_p->user.key_dma_addr,
 					max_key_buf_size, DMA_TO_DEVICE);
 #if SSI_CC_HAS_MULTI2
@@ -448,7 +443,6 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 					max_key_buf_size, DMA_TO_DEVICE);
 	ctx_p->keylen = keylen;
 
-	END_CYCLE_COUNT(STAT_OP_TYPE_SETKEY, STAT_PHASE_1);
 
 	 SSI_LOG_DEBUG("ssi_blkcipher_setkey: return safely");
 	return 0;
@@ -736,11 +730,8 @@ static int ssi_blkcipher_complete(struct device *dev,
 {
 	int completion_error = 0;
 	u32 inflight_counter;
-	DECL_CYCLE_COUNT_RESOURCES;
 
-	START_CYCLE_COUNT();
 	ssi_buffer_mgr_unmap_blkcipher_request(dev, req_ctx, ivsize, src, dst);
-	END_CYCLE_COUNT(STAT_OP_TYPE_GENERIC, STAT_PHASE_4);
 
 
 	/*Set the inflight couter value to local variable*/
@@ -771,7 +762,6 @@ static int ssi_blkcipher_process(
 	struct cc_hw_desc desc[MAX_ABLKCIPHER_SEQ_LEN];
 	struct ssi_crypto_req ssi_req = {};
 	int rc, seq_len = 0,cts_restore_flag = 0;
-	DECL_CYCLE_COUNT_RESOURCES;
 
 	SSI_LOG_DEBUG("%s areq=%p info=%p nbytes=%d\n",
 		((direction==DRV_CRYPTO_DIRECTION_ENCRYPT)?"Encrypt":"Decrypt"),
@@ -779,7 +769,6 @@ static int ssi_blkcipher_process(
 
 	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 	/* STAT_PHASE_0: Init and sanity checks */
-	START_CYCLE_COUNT();
 
 	/* TODO: check data length according to mode */
 	if (unlikely(validate_data_size(ctx_p, nbytes))) {
@@ -811,10 +800,8 @@ static int ssi_blkcipher_process(
 	/* Setup request context */
 	req_ctx->gen_ctx.op_type = direction;
 
-	END_CYCLE_COUNT(ssi_req.op_type, STAT_PHASE_0);
 
 	/* STAT_PHASE_1: Map buffers */
-	START_CYCLE_COUNT();
 
 	rc = ssi_buffer_mgr_map_blkcipher_request(ctx_p->drvdata, req_ctx, ivsize, nbytes, info, src, dst);
 	if (unlikely(rc != 0)) {
@@ -822,10 +809,8 @@ static int ssi_blkcipher_process(
 		goto exit_process;
 	}
 
-	END_CYCLE_COUNT(ssi_req.op_type, STAT_PHASE_1);
 
 	/* STAT_PHASE_2: Create sequence */
-	START_CYCLE_COUNT();
 
 	/* Setup processing */
 #if SSI_CC_HAS_MULTI2
@@ -860,10 +845,8 @@ static int ssi_blkcipher_process(
 		/* set the IV size (8/16 B long)*/
 		ssi_req.ivgen_size = ivsize;
 	}
-	END_CYCLE_COUNT(ssi_req.op_type, STAT_PHASE_2);
 
 	/* STAT_PHASE_3: Lock HW and push sequence */
-	START_CYCLE_COUNT();
 
 	rc = send_request(ctx_p->drvdata, &ssi_req, desc, seq_len, (areq == NULL)? 0:1);
 	if(areq != NULL) {
@@ -872,13 +855,10 @@ static int ssi_blkcipher_process(
 			ssi_buffer_mgr_unmap_blkcipher_request(dev, req_ctx, ivsize, src, dst);
 		}
 
-		END_CYCLE_COUNT(ssi_req.op_type, STAT_PHASE_3);
 	} else {
 		if (rc != 0) {
 			ssi_buffer_mgr_unmap_blkcipher_request(dev, req_ctx, ivsize, src, dst);
-			END_CYCLE_COUNT(ssi_req.op_type, STAT_PHASE_3);
 		} else {
-			END_CYCLE_COUNT(ssi_req.op_type, STAT_PHASE_3);
 			rc = ssi_blkcipher_complete(dev, ctx_p, req_ctx, dst,
 						    src, ivsize, NULL,
 						    ctx_p->drvdata->cc_base);

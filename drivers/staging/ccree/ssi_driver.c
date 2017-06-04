@@ -118,10 +118,8 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 	void __iomem *cc_base = drvdata->cc_base;
 	u32 irr;
 	u32 imr;
-	DECL_CYCLE_COUNT_RESOURCES;
 
 	/* STAT_OP_TYPE_GENERIC STAT_PHASE_0: Interrupt */
-	START_CYCLE_COUNT();
 
 	/* read the interrupt status */
 	irr = CC_HAL_READ_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_IRR));
@@ -167,9 +165,6 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 		SSI_LOG_DEBUG("IRR includes unknown cause bits (0x%08X)\n", irr);
 		/* Just warning */
 	}
-
-	END_CYCLE_COUNT(STAT_OP_TYPE_GENERIC, STAT_PHASE_0);
-	START_CYCLE_COUNT_AT(drvdata->isr_exit_cycles);
 
 	return IRQ_HANDLED;
 }
@@ -509,9 +504,6 @@ static int cc7x_remove(struct platform_device *plat_dev)
 	cleanup_cc_resources(plat_dev);
 
 	SSI_LOG(KERN_INFO, "ARM cc7x_ree device terminated\n");
-#ifdef ENABLE_CYCLE_COUNT
-	display_all_stat_db();
-#endif
 
 	return 0;
 }

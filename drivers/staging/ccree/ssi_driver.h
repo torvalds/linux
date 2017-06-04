@@ -117,11 +117,6 @@ struct ssi_crypto_req {
 	unsigned int ivgen_dma_addr_len; /* Amount of 'ivgen_dma_addr' elements to be filled. */
 	unsigned int ivgen_size; /* The generated IV size required, 8/16 B allowed. */
 	struct completion seq_compl; /* request completion */
-#ifdef ENABLE_CYCLE_COUNT
-	enum stat_op op_type;
-	cycles_t submit_cycle;
-	bool is_monitored_p;
-#endif
 };
 
 /**
@@ -153,10 +148,6 @@ struct ssi_drvdata {
 	void *fips_handle;
 	void *ivgen_handle;
 	void *sram_mgr_handle;
-
-#ifdef ENABLE_CYCLE_COUNT
-	cycles_t isr_exit_cycles; /* Save for isr-to-tasklet latency */
-#endif
 	u32 inflight_counter;
 
 };
@@ -201,22 +192,6 @@ void dump_byte_array(const char *name, const u8 *the_array, unsigned long size);
 #define dump_byte_array(name, array, size) do {	\
 } while (0);
 #endif
-
-#ifdef ENABLE_CYCLE_COUNT
-#define DECL_CYCLE_COUNT_RESOURCES cycles_t _last_cycles_read
-#define START_CYCLE_COUNT() do { _last_cycles_read = get_cycles(); } while (0)
-#define END_CYCLE_COUNT(_stat_op_type, _stat_phase) update_host_stat(_stat_op_type, _stat_phase, get_cycles() - _last_cycles_read)
-#define GET_START_CYCLE_COUNT() _last_cycles_read
-#define START_CYCLE_COUNT_AT(_var) do { _var = get_cycles(); } while(0)
-#define END_CYCLE_COUNT_AT(_var, _stat_op_type, _stat_phase) update_host_stat(_stat_op_type, _stat_phase, get_cycles() - _var)
-#else
-#define DECL_CYCLE_COUNT_RESOURCES
-#define START_CYCLE_COUNT() do { } while (0)
-#define END_CYCLE_COUNT(_stat_op_type, _stat_phase) do { } while (0)
-#define GET_START_CYCLE_COUNT() 0
-#define START_CYCLE_COUNT_AT(_var) do { } while (0)
-#define END_CYCLE_COUNT_AT(_var, _stat_op_type, _stat_phase) do { } while (0)
-#endif /*ENABLE_CYCLE_COUNT*/
 
 int init_cc_regs(struct ssi_drvdata *drvdata, bool is_probe);
 void fini_cc_regs(struct ssi_drvdata *drvdata);

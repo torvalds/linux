@@ -217,9 +217,6 @@ static void ssi_aead_complete(struct device *dev, void *ssi_req, void __iomem *c
 	struct crypto_aead *tfm = crypto_aead_reqtfm(ssi_req);
 	struct ssi_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	int err = 0;
-	DECL_CYCLE_COUNT_RESOURCES;
-
-	START_CYCLE_COUNT();
 
 	ssi_buffer_mgr_unmap_aead_request(dev, areq);
 
@@ -254,7 +251,6 @@ static void ssi_aead_complete(struct device *dev, void *ssi_req, void __iomem *c
 		}
 	}
 
-	END_CYCLE_COUNT(STAT_OP_TYPE_GENERIC, STAT_PHASE_4);
 	aead_request_complete(areq, err);
 }
 
@@ -521,10 +517,6 @@ ssi_get_plain_hmac_key(struct crypto_aead *tfm, const u8 *key, unsigned int keyl
 		idx++;
 	}
 
-#ifdef ENABLE_CYCLE_COUNT
-	ssi_req.op_type = STAT_OP_TYPE_SETKEY;
-#endif
-
 	rc = send_request(ctx->drvdata, &ssi_req, desc, idx, 0);
 	if (unlikely(rc != 0))
 		SSI_LOG_ERR("send_request() failed (rc=%d)\n", rc);
@@ -546,14 +538,12 @@ ssi_aead_setkey(struct crypto_aead *tfm, const u8 *key, unsigned int keylen)
 	struct crypto_authenc_key_param *param;
 	struct cc_hw_desc desc[MAX_AEAD_SETKEY_SEQ];
 	int seq_len = 0, rc = -EINVAL;
-	DECL_CYCLE_COUNT_RESOURCES;
 
 	SSI_LOG_DEBUG("Setting key in context @%p for %s. key=%p keylen=%u\n",
 		ctx, crypto_tfm_alg_name(crypto_aead_tfm(tfm)), key, keylen);
 
 	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 	/* STAT_PHASE_0: Init and sanity checks */
-	START_CYCLE_COUNT();
 
 	if (ctx->auth_mode != DRV_HASH_NULL) { /* authenc() alg. */
 		if (!RTA_OK(rta, keylen))
@@ -592,9 +582,7 @@ ssi_aead_setkey(struct crypto_aead *tfm, const u8 *key, unsigned int keylen)
 	if (unlikely(rc != 0))
 		goto badkey;
 
-	END_CYCLE_COUNT(STAT_OP_TYPE_SETKEY, STAT_PHASE_0);
 	/* STAT_PHASE_1: Copy key to ctx */
-	START_CYCLE_COUNT();
 
 	/* Get key material */
 	memcpy(ctx->enckey, key + ctx->auth_keylen, ctx->enc_keylen);
@@ -608,10 +596,8 @@ ssi_aead_setkey(struct crypto_aead *tfm, const u8 *key, unsigned int keylen)
 			goto badkey;
 	}
 
-	END_CYCLE_COUNT(STAT_OP_TYPE_SETKEY, STAT_PHASE_1);
 
 	/* STAT_PHASE_2: Create sequence */
-	START_CYCLE_COUNT();
 
 	switch (ctx->auth_mode) {
 	case DRV_HASH_SHA1:
@@ -629,15 +615,10 @@ ssi_aead_setkey(struct crypto_aead *tfm, const u8 *key, unsigned int keylen)
 		goto badkey;
 	}
 
-	END_CYCLE_COUNT(STAT_OP_TYPE_SETKEY, STAT_PHASE_2);
 
 	/* STAT_PHASE_3: Submit sequence to HW */
-	START_CYCLE_COUNT();
 
 	if (seq_len > 0) { /* For CCM there is no sequence to setup the key */
-#ifdef ENABLE_CYCLE_COUNT
-		ssi_req.op_type = STAT_OP_TYPE_SETKEY;
-#endif
 		rc = send_request(ctx->drvdata, &ssi_req, desc, seq_len, 0);
 		if (unlikely(rc != 0)) {
 			SSI_LOG_ERR("send_request() failed (rc=%d)\n", rc);
@@ -646,7 +627,6 @@ ssi_aead_setkey(struct crypto_aead *tfm, const u8 *key, unsigned int keylen)
 	}
 
 	/* Update STAT_PHASE_3 */
-	END_CYCLE_COUNT(STAT_OP_TYPE_SETKEY, STAT_PHASE_3);
 	return rc;
 
 badkey:
@@ -1977,7 +1957,6 @@ static int ssi_aead_process(struct aead_request *req, enum drv_crypto_direction 
 	struct device *dev = &ctx->drvdata->plat_dev->dev;
 	struct ssi_crypto_req ssi_req = {};
 
-	DECL_CYCLE_COUNT_RESOURCES;
 
 	SSI_LOG_DEBUG("%s context=%p req=%p iv=%p src=%p src_ofs=%d dst=%p dst_ofs=%d cryptolen=%d\n",
 		((direct==DRV_CRYPTO_DIRECTION_ENCRYPT)?"Encrypt":"Decrypt"), ctx, req, req->iv,
@@ -1985,7 +1964,6 @@ static int ssi_aead_process(struct aead_request *req, enum drv_crypto_direction 
 	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 
 	/* STAT_PHASE_0: Init and sanity checks */
-	START_CYCLE_COUNT();
 
 	/* Check data length according to mode */
 	if (unlikely(validate_data_size(ctx, direct, req) != 0)) {
@@ -1999,19 +1977,13 @@ static int ssi_aead_process(struct aead_request *req, enum drv_crypto_direction 
 	ssi_req.user_cb = (void *)ssi_aead_complete;
 	ssi_req.user_arg = (void *)req;
 
-#ifdef ENABLE_CYCLE_COUNT
-	ssi_req.op_type = (direct == DRV_CRYPTO_DIRECTION_DECRYPT) ?
-		STAT_OP_TYPE_DECODE : STAT_OP_TYPE_ENCODE;
-#endif
 	/* Setup request context */
 	areq_ctx->gen_ctx.op_type = direct;
 	areq_ctx->req_authsize = ctx->authsize;
 	areq_ctx->cipher_mode = ctx->cipher_mode;
 
-	END_CYCLE_COUNT(ssi_req.op_type, STAT_PHASE_0);
 
 	/* STAT_PHASE_1: Map buffers */
-	START_CYCLE_COUNT();
 
 	if (ctx->cipher_mode == DRV_CIPHER_CTR) {
 		/* Build CTR IV - Copy nonce from last 4 bytes in
@@ -2095,10 +2067,8 @@ static int ssi_aead_process(struct aead_request *req, enum drv_crypto_direction 
 		ssi_req.ivgen_size = crypto_aead_ivsize(tfm);
 	}
 
-	END_CYCLE_COUNT(ssi_req.op_type, STAT_PHASE_1);
 
 	/* STAT_PHASE_2: Create sequence */
-	START_CYCLE_COUNT();
 
 	/* Load MLLI tables to SRAM if necessary */
 	ssi_aead_load_mlli_to_sram(req, desc, &seq_len);
@@ -2133,10 +2103,8 @@ static int ssi_aead_process(struct aead_request *req, enum drv_crypto_direction 
 		goto exit;
 	}
 
-	END_CYCLE_COUNT(ssi_req.op_type, STAT_PHASE_2);
 
 	/* STAT_PHASE_3: Lock HW and push sequence */
-	START_CYCLE_COUNT();
 
 	rc = send_request(ctx->drvdata, &ssi_req, desc, seq_len, 1);
 
@@ -2146,7 +2114,6 @@ static int ssi_aead_process(struct aead_request *req, enum drv_crypto_direction 
 	}
 
 
-	END_CYCLE_COUNT(ssi_req.op_type, STAT_PHASE_3);
 exit:
 	return rc;
 }
