@@ -546,7 +546,6 @@ void kvm_arm_resume_guest(struct kvm *kvm)
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		vcpu->arch.pause = false;
-		kvm_clear_request(KVM_REQ_VCPU_EXIT, vcpu);
 		swake_up(kvm_arch_vcpu_wq(vcpu));
 	}
 }
@@ -557,11 +556,24 @@ static void vcpu_sleep(struct kvm_vcpu *vcpu)
 
 	swait_event_interruptible(*wq, ((!vcpu->arch.power_off) &&
 				       (!vcpu->arch.pause)));
+
+	if (vcpu->arch.pause) {
+		/* Awaken to handle a signal, request we sleep again later. */
+		kvm_make_request(KVM_REQ_VCPU_EXIT, vcpu);
+	}
 }
 
 static int kvm_vcpu_initialized(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.target >= 0;
+}
+
+static void check_vcpu_requests(struct kvm_vcpu *vcpu)
+{
+	if (kvm_request_pending(vcpu)) {
+		if (kvm_check_request(KVM_REQ_VCPU_EXIT, vcpu))
+			vcpu_sleep(vcpu);
+	}
 }
 
 /**
@@ -609,7 +621,9 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 
 		update_vttbr(vcpu->kvm);
 
-		if (vcpu->arch.power_off || vcpu->arch.pause)
+		check_vcpu_requests(vcpu);
+
+		if (vcpu->arch.power_off)
 			vcpu_sleep(vcpu);
 
 		/*
@@ -649,7 +663,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 
 		if (ret <= 0 || need_new_vmid_gen(vcpu->kvm) ||
 		    kvm_request_pending(vcpu) ||
-		    vcpu->arch.power_off || vcpu->arch.pause) {
+		    vcpu->arch.power_off) {
 			vcpu->mode = OUTSIDE_GUEST_MODE;
 			local_irq_enable();
 			kvm_pmu_sync_hwstate(vcpu);
