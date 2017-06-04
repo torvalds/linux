@@ -956,7 +956,7 @@ void hostif_associate_indication(struct ks_wlan_private *priv)
 	wrqu.data.length += sizeof(associnfo_leader1) - 1;
 	pbuf += sizeof(associnfo_leader1) - 1;
 
-	pb += assoc_req->req_ies_size;
+	pb += le16_to_cpu(assoc_req->req_ies_size);
 	for (i = 0; i < le16_to_cpu(assoc_resp->resp_ies_size); i++)
 		pbuf += sprintf(pbuf, "%02x", *(pb + i));
 	wrqu.data.length += (le16_to_cpu(assoc_resp->resp_ies_size)) * 2;
