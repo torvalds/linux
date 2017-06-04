@@ -220,9 +220,9 @@ static void amdgpu_vram_mgr_debug(struct ttm_mem_type_manager *man,
 }
 
 const struct ttm_mem_type_manager_func amdgpu_vram_mgr_func = {
-	amdgpu_vram_mgr_init,
-	amdgpu_vram_mgr_fini,
-	amdgpu_vram_mgr_new,
-	amdgpu_vram_mgr_del,
-	amdgpu_vram_mgr_debug
+	.init		= amdgpu_vram_mgr_init,
+	.takedown	= amdgpu_vram_mgr_fini,
+	.get_node	= amdgpu_vram_mgr_new,
+	.put_node	= amdgpu_vram_mgr_del,
+	.debug		= amdgpu_vram_mgr_debug
 };

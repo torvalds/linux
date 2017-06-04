@@ -906,14 +906,6 @@ enum link_m_n_set {
 	M2_N2
 };
 
-struct intel_dp_desc {
-	u8 oui[3];
-	u8 device_id[6];
-	u8 hw_rev;
-	u8 sw_major_rev;
-	u8 sw_minor_rev;
-} __packed;
-
 struct intel_dp_compliance_data {
 	unsigned long edid;
 	uint8_t video_pattern;
@@ -957,7 +949,7 @@ struct intel_dp {
 	/* Max link BW for the sink as per DPCD registers */
 	int max_sink_link_bw;
 	/* sink or branch descriptor */
-	struct intel_dp_desc desc;
+	struct drm_dp_desc desc;
 	struct drm_dp_aux aux;
 	enum intel_display_power_domain aux_power_domain;
 	uint8_t train_set[4];
@@ -1532,9 +1524,6 @@ static inline unsigned int intel_dp_unused_lane_mask(int lane_count)
 }
 
 bool intel_dp_read_dpcd(struct intel_dp *intel_dp);
-bool __intel_dp_read_desc(struct intel_dp *intel_dp,
-			  struct intel_dp_desc *desc);
-bool intel_dp_read_desc(struct intel_dp *intel_dp);
 int intel_dp_link_required(int pixel_clock, int bpp);
 int intel_dp_max_data_rate(int max_link_clock, int max_lanes);
 bool intel_digital_port_connected(struct drm_i915_private *dev_priv,

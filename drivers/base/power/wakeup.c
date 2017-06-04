@@ -512,22 +512,18 @@ static bool wakeup_source_not_registered(struct wakeup_source *ws)
 /**
  * wakup_source_activate - Mark given wakeup source as active.
  * @ws: Wakeup source to handle.
- * @hard: If set, abort suspends in progress and wake up from suspend-to-idle.
  *
  * Update the @ws' statistics and, if @ws has just been activated, notify the PM
  * core of the event by incrementing the counter of of wakeup events being
  * processed.
  */
-static void wakeup_source_activate(struct wakeup_source *ws, bool hard)
+static void wakeup_source_activate(struct wakeup_source *ws)
 {
 	unsigned int cec;
 
 	if (WARN_ONCE(wakeup_source_not_registered(ws),
 			"unregistered wakeup source\n"))
 		return;
-
-	if (hard)
-		pm_system_wakeup();
 
 	ws->active = true;
 	ws->active_count++;
@@ -554,7 +550,10 @@ static void wakeup_source_report_event(struct wakeup_source *ws, bool hard)
 		ws->wakeup_count++;
 
 	if (!ws->active)
-		wakeup_source_activate(ws, hard);
+		wakeup_source_activate(ws);
+
+	if (hard)
+		pm_system_wakeup();
 }
 
 /**

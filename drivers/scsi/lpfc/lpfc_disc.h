@@ -90,6 +90,7 @@ struct lpfc_nodelist {
 #define NLP_FCP_INITIATOR  0x10			/* entry is an FCP Initiator */
 #define NLP_NVME_TARGET    0x20			/* entry is a NVME Target */
 #define NLP_NVME_INITIATOR 0x40			/* entry is a NVME Initiator */
+#define NLP_NVME_DISCOVERY 0x80                 /* entry has NVME disc srvc */
 
 	uint16_t	nlp_fc4_type;		/* FC types node supports. */
 						/* Assigned from GID_FF, only

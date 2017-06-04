@@ -179,6 +179,7 @@ static void br_stp_start(struct net_bridge *br)
 		br_debug(br, "using kernel STP\n");
 
 		/* To start timers on any ports left in blocking */
+		mod_timer(&br->hello_timer, jiffies + br->hello_time);
 		br_port_state_selection(br);
 	}
 
