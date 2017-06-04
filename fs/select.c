@@ -1161,59 +1161,25 @@ static
 int compat_get_fd_set(unsigned long nr, compat_ulong_t __user *ufdset,
 			unsigned long *fdset)
 {
-	nr = DIV_ROUND_UP(nr, __COMPAT_NFDBITS);
 	if (ufdset) {
-		unsigned long odd;
-
-		if (!access_ok(VERIFY_WRITE, ufdset, nr*sizeof(compat_ulong_t)))
-			return -EFAULT;
-
-		odd = nr & 1UL;
-		nr &= ~1UL;
-		while (nr) {
-			unsigned long h, l;
-			if (__get_user(l, ufdset) || __get_user(h, ufdset+1))
-				return -EFAULT;
-			ufdset += 2;
-			*fdset++ = h << 32 | l;
-			nr -= 2;
-		}
-		if (odd && __get_user(*fdset, ufdset))
-			return -EFAULT;
+		return compat_get_bitmap(fdset, ufdset, nr);
 	} else {
 		/* Tricky, must clear full unsigned long in the
-		 * kernel fdset at the end, this makes sure that
+		 * kernel fdset at the end, ALIGN makes sure that
 		 * actually happens.
 		 */
-		memset(fdset, 0, ((nr + 1) & ~1)*sizeof(compat_ulong_t));
+		memset(fdset, 0, ALIGN(nr, BITS_PER_LONG));
+		return 0;
 	}
-	return 0;
 }
 
 static
 int compat_set_fd_set(unsigned long nr, compat_ulong_t __user *ufdset,
 		      unsigned long *fdset)
 {
-	unsigned long odd;
-	nr = DIV_ROUND_UP(nr, __COMPAT_NFDBITS);
-
 	if (!ufdset)
 		return 0;
-
-	odd = nr & 1UL;
-	nr &= ~1UL;
-	while (nr) {
-		unsigned long h, l;
-		l = *fdset++;
-		h = l >> 32;
-		if (__put_user(l, ufdset) || __put_user(h, ufdset+1))
-			return -EFAULT;
-		ufdset += 2;
-		nr -= 2;
-	}
-	if (odd && __put_user(*fdset, ufdset))
-		return -EFAULT;
-	return 0;
+	return compat_put_bitmap(ufdset, fdset, nr);
 }
 
 
