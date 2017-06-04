@@ -45,6 +45,17 @@
 #include "qed_sriov.h"
 #include "qed_vf.h"
 
+static u8 qed_vf_calculate_legacy(struct qed_vf_info *p_vf)
+{
+	u8 legacy = QED_QCID_LEGACY_VF_CID;
+
+	if (p_vf->acquire.vfdev_info.eth_fp_hsi_minor ==
+	    ETH_HSI_VER_NO_PKT_LEN_TUNN)
+		legacy |= QED_QCID_LEGACY_VF_RX_PROD;
+
+	return legacy;
+}
+
 /* IOV ramrods */
 static int qed_sp_vf_start(struct qed_hwfn *p_hwfn, struct qed_vf_info *p_vf)
 {
@@ -1959,11 +1970,10 @@ static void qed_iov_vf_mbx_start_rxq(struct qed_hwfn *p_hwfn,
 	struct qed_queue_cid_vf_params vf_params;
 	struct qed_iov_vf_mbx *mbx = &vf->vf_mbx;
 	u8 status = PFVF_STATUS_NO_RESOURCE;
+	u8 qid_usage_idx, vf_legacy = 0;
 	struct qed_vf_q_info *p_queue;
 	struct vfpf_start_rxq_tlv *req;
 	struct qed_sb_info sb_dummy;
-	bool b_legacy_vf = false;
-	u8 qid_usage_idx;
 	int rc;
 
 	req = &mbx->req_virt->start_rxq;
@@ -1976,8 +1986,7 @@ static void qed_iov_vf_mbx_start_rxq(struct qed_hwfn *p_hwfn,
 	qid_usage_idx = qed_iov_vf_mbx_qid(p_hwfn, vf, false);
 	p_queue = &vf->vf_queues[req->rx_qid];
 
-	if (vf->acquire.vfdev_info.eth_fp_hsi_minor ==
-	    ETH_HSI_VER_NO_PKT_LEN_TUNN)
+	vf_legacy = qed_vf_calculate_legacy(vf);
 
 	/* Acquire a new queue-cid */
 	memset(&params, 0, sizeof(params));
@@ -1993,7 +2002,7 @@ static void qed_iov_vf_mbx_start_rxq(struct qed_hwfn *p_hwfn,
 	memset(&vf_params, 0, sizeof(vf_params));
 	vf_params.vfid = vf->relative_vf_id;
 	vf_params.vf_qid = (u8)req->rx_qid;
-	vf_params.vf_legacy = b_legacy_vf;
+	vf_params.vf_legacy = vf_legacy;
 	vf_params.qid_usage_idx = qid_usage_idx;
 	p_queue->p_rx_cid = qed_eth_queue_to_cid(p_hwfn, vf->opaque_fid,
 						 &params, &vf_params);
@@ -2003,7 +2012,7 @@ static void qed_iov_vf_mbx_start_rxq(struct qed_hwfn *p_hwfn,
 	/* Legacy VFs have their Producers in a different location, which they
 	 * calculate on their own and clean the producer prior to this.
 	 */
-	if (!b_legacy_vf)
+	if (!(vf_legacy & QED_QCID_LEGACY_VF_RX_PROD))
 		REG_WR(p_hwfn,
 		       GTT_BAR0_MAP_REG_MSDM_RAM +
 		       MSTORM_ETH_VF_PRODS_OFFSET(vf->abs_vf_id, req->rx_qid),
@@ -2024,7 +2033,9 @@ static void qed_iov_vf_mbx_start_rxq(struct qed_hwfn *p_hwfn,
 	}
 
 out:
-	qed_iov_vf_mbx_start_rxq_resp(p_hwfn, p_ptt, vf, status, b_legacy_vf);
+	qed_iov_vf_mbx_start_rxq_resp(p_hwfn, p_ptt, vf, status,
+				      !!(vf_legacy &
+					 QED_QCID_LEGACY_VF_RX_PROD));
 }
 
 static void
@@ -2292,8 +2303,7 @@ static void qed_iov_vf_mbx_start_txq(struct qed_hwfn *p_hwfn,
 	struct vfpf_start_txq_tlv *req;
 	struct qed_vf_q_info *p_queue;
 	struct qed_sb_info sb_dummy;
-	bool b_vf_legacy = false;
-	u8 qid_usage_idx;
+	u8 qid_usage_idx, vf_legacy;
 	int rc;
 	u16 pq;
 
@@ -2308,9 +2318,7 @@ static void qed_iov_vf_mbx_start_txq(struct qed_hwfn *p_hwfn,
 	qid_usage_idx = qed_iov_vf_mbx_qid(p_hwfn, vf, true);
 	p_queue = &vf->vf_queues[req->tx_qid];
 
-	if (vf->acquire.vfdev_info.eth_fp_hsi_minor ==
-	    ETH_HSI_VER_NO_PKT_LEN_TUNN)
-		b_vf_legacy = true;
+	vf_legacy = qed_vf_calculate_legacy(vf);
 
 	/* Acquire a new queue-cid */
 	params.queue_id = p_queue->fw_tx_qid;
@@ -2326,7 +2334,7 @@ static void qed_iov_vf_mbx_start_txq(struct qed_hwfn *p_hwfn,
 	memset(&vf_params, 0, sizeof(vf_params));
 	vf_params.vfid = vf->relative_vf_id;
 	vf_params.vf_qid = (u8)req->tx_qid;
-	vf_params.vf_legacy = b_vf_legacy;
+	vf_params.vf_legacy = vf_legacy;
 	vf_params.qid_usage_idx = qid_usage_idx;
 
 	p_queue->p_tx_cid = qed_eth_queue_to_cid(p_hwfn,

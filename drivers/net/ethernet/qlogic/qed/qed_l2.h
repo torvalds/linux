@@ -301,10 +301,11 @@ struct qed_queue_cid_vf_params {
 	 */
 	u8 vf_qid;
 
-	/* Indicates a VF is legacy, making it differ in:
+	/* Indicates a VF is legacy, making it differ in several things:
 	 *  - Producers would be placed in a different place.
+	 *  - Makes assumptions regarding the CIDs.
 	 */
-	bool vf_legacy;
+	u8 vf_legacy;
 
 	u8 qid_usage_idx;
 };
@@ -335,8 +336,9 @@ struct qed_queue_cid {
 	 */
 	u8 qid_usage_idx;
 
-	/* Legacy VFs might have Rx producer located elsewhere */
-	bool b_legacy_vf;
+	u8 vf_legacy;
+#define QED_QCID_LEGACY_VF_RX_PROD	(BIT(0))
+#define QED_QCID_LEGACY_VF_CID		(BIT(1))
 
 	struct qed_hwfn *p_owner;
 };

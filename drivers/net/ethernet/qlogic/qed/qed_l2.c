@@ -243,7 +243,7 @@ _qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
 	if (p_vf_params) {
 		p_cid->vfid = p_vf_params->vfid;
 		p_cid->vf_qid = p_vf_params->vf_qid;
-		p_cid->b_legacy_vf = p_vf_params->vf_legacy;
+		p_cid->vf_legacy = p_vf_params->vf_legacy;
 	} else {
 		p_cid->vfid = QED_QUEUE_CID_SELF;
 	}
@@ -878,12 +878,14 @@ int qed_eth_rxq_start_ramrod(struct qed_hwfn *p_hwfn,
 	DMA_REGPAIR_LE(p_ramrod->cqe_pbl_addr, cqe_pbl_addr);
 
 	if (p_cid->vfid != QED_QUEUE_CID_SELF) {
+		bool b_legacy_vf = !!(p_cid->vf_legacy &
+				      QED_QCID_LEGACY_VF_RX_PROD);
+
 		p_ramrod->vf_rx_prod_index = p_cid->vf_qid;
 		DP_VERBOSE(p_hwfn, QED_MSG_SP,
 			   "Queue%s is meant for VF rxq[%02x]\n",
-			   !!p_cid->b_legacy_vf ? " [legacy]" : "",
-			   p_cid->vf_qid);
-		p_ramrod->vf_rx_prod_use_zone_a = !!p_cid->b_legacy_vf;
+			   b_legacy_vf ? " [legacy]" : "", p_cid->vf_qid);
+		p_ramrod->vf_rx_prod_use_zone_a = b_legacy_vf;
 	}
 
 	return qed_spq_post(p_hwfn, p_ent, NULL);
