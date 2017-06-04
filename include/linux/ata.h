@@ -341,6 +341,7 @@ enum {
 	ATA_LOG_IDENTIFY_DEVICE	= 0x30,
 
 	/* Identify device log pages: */
+	ATA_LOG_SECURITY	  = 0x06,
 	ATA_LOG_SATA_SETTINGS	  = 0x08,
 	ATA_LOG_ZONED_INFORMATION = 0x09,
 
