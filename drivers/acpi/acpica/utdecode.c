@@ -460,8 +460,8 @@ static const char *acpi_gbl_generic_notify[ACPI_GENERIC_NOTIFY_MAX + 1] = {
 	/* 09 */ "Device PLD Check",
 	/* 0A */ "Reserved",
 	/* 0B */ "System Locality Update",
-					/* 0C */ "Shutdown Request",
-					/* Reserved in ACPI 6.0 */
+								/* 0C */ "Reserved (was previously Shutdown Request)",
+								/* Reserved in ACPI 6.0 */
 	/* 0D */ "System Resource Affinity Update",
 								/* 0E */ "Heterogeneous Memory Attributes Update"
 								/* ACPI 6.2 */
