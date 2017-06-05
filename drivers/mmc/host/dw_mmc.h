@@ -20,8 +20,6 @@
 #include <linux/reset.h>
 #include <linux/interrupt.h>
 
-#define MAX_MCI_SLOTS	2
-
 enum dw_mci_state {
 	STATE_IDLE = 0,
 	STATE_SENDING_CMD,
@@ -215,7 +213,7 @@ struct dw_mci {
 	void			*priv;
 	struct clk		*biu_clk;
 	struct clk		*ciu_clk;
-	struct dw_mci_slot	*slot[MAX_MCI_SLOTS];
+	struct dw_mci_slot	*slot;
 
 	/* FIFO push and pull */
 	int			fifo_depth;
