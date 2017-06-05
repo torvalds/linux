@@ -703,15 +703,23 @@ static int bpf_prog_alloc_id(struct bpf_prog *prog)
 	return id > 0 ? 0 : id;
 }
 
-static void bpf_prog_free_id(struct bpf_prog *prog)
+static void bpf_prog_free_id(struct bpf_prog *prog, bool do_idr_lock)
 {
 	/* cBPF to eBPF migrations are currently not in the idr store. */
 	if (!prog->aux->id)
 		return;
 
-	spin_lock_bh(&prog_idr_lock);
+	if (do_idr_lock)
+		spin_lock_bh(&prog_idr_lock);
+	else
+		__acquire(&prog_idr_lock);
+
 	idr_remove(&prog_idr, prog->aux->id);
-	spin_unlock_bh(&prog_idr_lock);
+
+	if (do_idr_lock)
+		spin_unlock_bh(&prog_idr_lock);
+	else
+		__release(&prog_idr_lock);
 }
 
 static void __bpf_prog_put_rcu(struct rcu_head *rcu)
@@ -723,15 +731,20 @@ static void __bpf_prog_put_rcu(struct rcu_head *rcu)
 	bpf_prog_free(aux->prog);
 }
 
-void bpf_prog_put(struct bpf_prog *prog)
+static void __bpf_prog_put(struct bpf_prog *prog, bool do_idr_lock)
 {
 	if (atomic_dec_and_test(&prog->aux->refcnt)) {
 		trace_bpf_prog_put_rcu(prog);
 		/* bpf_prog_free_id() must be called first */
-		bpf_prog_free_id(prog);
+		bpf_prog_free_id(prog, do_idr_lock);
 		bpf_prog_kallsyms_del(prog);
 		call_rcu(&prog->aux->rcu, __bpf_prog_put_rcu);
 	}
+}
+
+void bpf_prog_put(struct bpf_prog *prog)
+{
+	__bpf_prog_put(prog, true);
 }
 EXPORT_SYMBOL_GPL(bpf_prog_put);
 
@@ -813,6 +826,24 @@ struct bpf_prog *bpf_prog_inc(struct bpf_prog *prog)
 	return bpf_prog_add(prog, 1);
 }
 EXPORT_SYMBOL_GPL(bpf_prog_inc);
+
+/* prog_idr_lock should have been held */
+static struct bpf_prog *bpf_prog_inc_not_zero(struct bpf_prog *prog)
+{
+	int refold;
+
+	refold = __atomic_add_unless(&prog->aux->refcnt, 1, 0);
+
+	if (refold >= BPF_MAX_REFCNT) {
+		__bpf_prog_put(prog, false);
+		return ERR_PTR(-EBUSY);
+	}
+
+	if (!refold)
+		return ERR_PTR(-ENOENT);
+
+	return prog;
+}
 
 static struct bpf_prog *__bpf_prog_get(u32 ufd, enum bpf_prog_type *type)
 {
@@ -928,16 +959,21 @@ static int bpf_prog_load(union bpf_attr *attr)
 		goto free_used_maps;
 
 	err = bpf_prog_new_fd(prog);
-	if (err < 0)
-		/* failed to allocate fd */
-		goto free_id;
+	if (err < 0) {
+		/* failed to allocate fd.
+		 * bpf_prog_put() is needed because the above
+		 * bpf_prog_alloc_id() has published the prog
+		 * to the userspace and the userspace may
+		 * have refcnt-ed it through BPF_PROG_GET_FD_BY_ID.
+		 */
+		bpf_prog_put(prog);
+		return err;
+	}
 
 	bpf_prog_kallsyms_add(prog);
 	trace_bpf_prog_load(prog, err);
 	return err;
 
-free_id:
-	bpf_prog_free_id(prog);
 free_used_maps:
 	free_used_maps(prog->aux);
 free_prog:
@@ -1099,6 +1135,38 @@ static int bpf_obj_get_next_id(const union bpf_attr *attr,
 	return err;
 }
 
+#define BPF_PROG_GET_FD_BY_ID_LAST_FIELD prog_id
+
+static int bpf_prog_get_fd_by_id(const union bpf_attr *attr)
+{
+	struct bpf_prog *prog;
+	u32 id = attr->prog_id;
+	int fd;
+
+	if (CHECK_ATTR(BPF_PROG_GET_FD_BY_ID))
+		return -EINVAL;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	spin_lock_bh(&prog_idr_lock);
+	prog = idr_find(&prog_idr, id);
+	if (prog)
+		prog = bpf_prog_inc_not_zero(prog);
+	else
+		prog = ERR_PTR(-ENOENT);
+	spin_unlock_bh(&prog_idr_lock);
+
+	if (IS_ERR(prog))
+		return PTR_ERR(prog);
+
+	fd = bpf_prog_new_fd(prog);
+	if (fd < 0)
+		bpf_prog_put(prog);
+
+	return fd;
+}
+
 SYSCALL_DEFINE3(bpf, int, cmd, union bpf_attr __user *, uattr, unsigned int, size)
 {
 	union bpf_attr attr = {};
@@ -1183,6 +1251,9 @@ SYSCALL_DEFINE3(bpf, int, cmd, union bpf_attr __user *, uattr, unsigned int, siz
 	case BPF_MAP_GET_NEXT_ID:
 		err = bpf_obj_get_next_id(&attr, uattr,
 					  &map_idr, &map_idr_lock);
+		break;
+	case BPF_PROG_GET_FD_BY_ID:
+		err = bpf_prog_get_fd_by_id(&attr);
 		break;
 	default:
 		err = -EINVAL;
