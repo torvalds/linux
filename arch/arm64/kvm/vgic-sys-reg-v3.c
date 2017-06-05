@@ -296,7 +296,7 @@ static const struct sys_reg_desc gic_v3_icc_reg_descs[] = {
 	{ Op0(3), Op1(0), CRn(12), CRm(12), Op2(5), access_gic_sre },
 	/* ICC_IGRPEN0_EL1 */
 	{ Op0(3), Op1(0), CRn(12), CRm(12), Op2(6), access_gic_grpen0 },
-	/* ICC_GRPEN1_EL1 */
+	/* ICC_IGRPEN1_EL1 */
 	{ Op0(3), Op1(0), CRn(12), CRm(12), Op2(7), access_gic_grpen1 },
 };
 
