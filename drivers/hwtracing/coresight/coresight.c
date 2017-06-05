@@ -253,14 +253,22 @@ static int coresight_enable_source(struct coresight_device *csdev, u32 mode)
 	return 0;
 }
 
-static void coresight_disable_source(struct coresight_device *csdev)
+/**
+ *  coresight_disable_source - Drop the reference count by 1 and disable
+ *  the device if there are no users left.
+ *
+ *  @csdev - The coresight device to disable
+ *
+ *  Returns true if the device has been disabled.
+ */
+static bool coresight_disable_source(struct coresight_device *csdev)
 {
 	if (atomic_dec_return(csdev->refcnt) == 0) {
-		if (source_ops(csdev)->disable) {
+		if (source_ops(csdev)->disable)
 			source_ops(csdev)->disable(csdev, NULL);
-			csdev->enable = false;
-		}
+		csdev->enable = false;
 	}
+	return !csdev->enable;
 }
 
 void coresight_disable_path(struct list_head *path)
@@ -629,7 +637,7 @@ void coresight_disable(struct coresight_device *csdev)
 	if (ret)
 		goto out;
 
-	if (!csdev->enable)
+	if (!csdev->enable || !coresight_disable_source(csdev))
 		goto out;
 
 	switch (csdev->subtype.source_subtype) {
@@ -647,7 +655,6 @@ void coresight_disable(struct coresight_device *csdev)
 		break;
 	}
 
-	coresight_disable_source(csdev);
 	coresight_disable_path(path);
 	coresight_release_path(path);
 
