@@ -451,7 +451,7 @@ int mv88e6085_port_set_frame_mode(struct mv88e6xxx_chip *chip, int port,
 	if (err)
 		return err;
 
-	reg &= ~PORT_CONTROL_FRAME_MODE_DSA;
+	reg &= ~PORT_CONTROL_FRAME_MASK;
 
 	switch (mode) {
 	case MV88E6XXX_FRAME_MODE_NORMAL:
