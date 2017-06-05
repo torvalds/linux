@@ -581,6 +581,9 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	{{"_HID", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER | ACPI_RTYPE_STRING)}},
 
+	{{"_HMA", METHOD_0ARGS,
+	  METHOD_RETURNS(ACPI_RTYPE_BUFFER)}},
+
 	{{"_HOT", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
 
