@@ -1547,12 +1547,13 @@ bad:
 void ceph_oloc_copy(struct ceph_object_locator *dest,
 		    const struct ceph_object_locator *src)
 {
-	WARN_ON(!ceph_oloc_empty(dest));
-	WARN_ON(dest->pool_ns); /* empty() only covers ->pool */
+	ceph_oloc_destroy(dest);
 
 	dest->pool = src->pool;
 	if (src->pool_ns)
 		dest->pool_ns = ceph_get_string(src->pool_ns);
+	else
+		dest->pool_ns = NULL;
 }
 EXPORT_SYMBOL(ceph_oloc_copy);
 
@@ -1565,14 +1566,15 @@ EXPORT_SYMBOL(ceph_oloc_destroy);
 void ceph_oid_copy(struct ceph_object_id *dest,
 		   const struct ceph_object_id *src)
 {
-	WARN_ON(!ceph_oid_empty(dest));
+	ceph_oid_destroy(dest);
 
 	if (src->name != src->inline_name) {
 		/* very rare, see ceph_object_id definition */
 		dest->name = kmalloc(src->name_len + 1,
 				     GFP_NOIO | __GFP_NOFAIL);
+	} else {
+		dest->name = dest->inline_name;
 	}
-
 	memcpy(dest->name, src->name, src->name_len + 1);
 	dest->name_len = src->name_len;
 }
