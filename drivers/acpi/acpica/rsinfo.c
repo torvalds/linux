@@ -80,6 +80,7 @@ struct acpi_rsconvert_info *acpi_gbl_set_resource_dispatch[] = {
 	acpi_rs_convert_gpio,	/* 0x11, ACPI_RESOURCE_TYPE_GPIO */
 	acpi_rs_convert_fixed_dma,	/* 0x12, ACPI_RESOURCE_TYPE_FIXED_DMA */
 	NULL,			/* 0x13, ACPI_RESOURCE_TYPE_SERIAL_BUS - Use subtype table below */
+	acpi_rs_convert_pin_function,	/* 0x14, ACPI_RESOURCE_TYPE_PIN_FUNCTION */
 };
 
 /* Dispatch tables for AML-to-resource (Get Resource) conversion functions */
@@ -119,7 +120,7 @@ struct acpi_rsconvert_info *acpi_gbl_get_resource_dispatch[] = {
 	acpi_rs_convert_address64,	/* 0x0A, ACPI_RESOURCE_NAME_ADDRESS64 */
 	acpi_rs_convert_ext_address64,	/* 0x0B, ACPI_RESOURCE_NAME_EXTENDED_ADDRESS64 */
 	acpi_rs_convert_gpio,	/* 0x0C, ACPI_RESOURCE_NAME_GPIO */
-	NULL,			/* 0x0D, Reserved */
+	acpi_rs_convert_pin_function,	/* 0x0D, ACPI_RESOURCE_NAME_PIN_FUNCTION */
 	NULL,			/* 0x0E, ACPI_RESOURCE_NAME_SERIAL_BUS - Use subtype table below */
 };
 
@@ -157,6 +158,7 @@ struct acpi_rsdump_info *acpi_gbl_dump_resource_dispatch[] = {
 	acpi_rs_dump_gpio,	/* ACPI_RESOURCE_TYPE_GPIO */
 	acpi_rs_dump_fixed_dma,	/* ACPI_RESOURCE_TYPE_FIXED_DMA */
 	NULL,			/* ACPI_RESOURCE_TYPE_SERIAL_BUS */
+	acpi_rs_dump_pin_function,	/* ACPI_RESOURCE_TYPE_PIN_FUNCTION */
 };
 
 struct acpi_rsdump_info *acpi_gbl_dump_serial_bus_dispatch[] = {
@@ -193,6 +195,7 @@ const u8 acpi_gbl_aml_resource_sizes[] = {
 	sizeof(struct aml_resource_gpio),	/* ACPI_RESOURCE_TYPE_GPIO */
 	sizeof(struct aml_resource_fixed_dma),	/* ACPI_RESOURCE_TYPE_FIXED_DMA */
 	sizeof(struct aml_resource_common_serialbus),	/* ACPI_RESOURCE_TYPE_SERIAL_BUS */
+	sizeof(struct aml_resource_pin_function),	/* ACPI_RESOURCE_TYPE_PIN_FUNCTION */
 };
 
 const u8 acpi_gbl_resource_struct_sizes[] = {
@@ -230,6 +233,7 @@ const u8 acpi_gbl_resource_struct_sizes[] = {
 	ACPI_RS_SIZE(struct acpi_resource_address64),
 	ACPI_RS_SIZE(struct acpi_resource_extended_address64),
 	ACPI_RS_SIZE(struct acpi_resource_gpio),
+	ACPI_RS_SIZE(struct acpi_resource_pin_function),
 	ACPI_RS_SIZE(struct acpi_resource_common_serialbus)
 };
 

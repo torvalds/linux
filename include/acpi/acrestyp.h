@@ -534,6 +534,18 @@ struct acpi_resource_uart_serialbus {
 #define ACPI_UART_CLEAR_TO_SEND                 (1<<6)
 #define ACPI_UART_REQUEST_TO_SEND               (1<<7)
 
+struct acpi_resource_pin_function {
+	u8 revision_id;
+	u8 pin_config;
+	u8 sharable;		/* For values, see Interrupt Attributes above */
+	u16 function_number;
+	u16 pin_table_length;
+	u16 vendor_length;
+	struct acpi_resource_source resource_source;
+	u16 *pin_table;
+	u8 *vendor_data;
+};
+
 /* ACPI_RESOURCE_TYPEs */
 
 #define ACPI_RESOURCE_TYPE_IRQ                  0
@@ -556,7 +568,8 @@ struct acpi_resource_uart_serialbus {
 #define ACPI_RESOURCE_TYPE_GPIO                 17	/* ACPI 5.0 */
 #define ACPI_RESOURCE_TYPE_FIXED_DMA            18	/* ACPI 5.0 */
 #define ACPI_RESOURCE_TYPE_SERIAL_BUS           19	/* ACPI 5.0 */
-#define ACPI_RESOURCE_TYPE_MAX                  19
+#define ACPI_RESOURCE_TYPE_PIN_FUNCTION         20	/* ACPI 6.2 */
+#define ACPI_RESOURCE_TYPE_MAX                  20
 
 /* Master union for resource descriptors */
 
@@ -584,6 +597,7 @@ union acpi_resource_data {
 	struct acpi_resource_spi_serialbus spi_serial_bus;
 	struct acpi_resource_uart_serialbus uart_serial_bus;
 	struct acpi_resource_common_serialbus common_serial_bus;
+	struct acpi_resource_pin_function pin_function;
 
 	/* Common fields */
 

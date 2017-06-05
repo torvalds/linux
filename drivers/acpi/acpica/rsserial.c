@@ -147,6 +147,82 @@ struct acpi_rsconvert_info acpi_rs_convert_gpio[18] = {
 
 /*******************************************************************************
  *
+ * acpi_rs_convert_pinfunction
+ *
+ ******************************************************************************/
+
+struct acpi_rsconvert_info acpi_rs_convert_pin_function[13] = {
+	{ACPI_RSC_INITGET, ACPI_RESOURCE_TYPE_PIN_FUNCTION,
+	 ACPI_RS_SIZE(struct acpi_resource_pin_function),
+	 ACPI_RSC_TABLE_SIZE(acpi_rs_convert_pin_function)},
+
+	{ACPI_RSC_INITSET, ACPI_RESOURCE_NAME_PIN_FUNCTION,
+	 sizeof(struct aml_resource_pin_function),
+	 0},
+
+	{ACPI_RSC_MOVE8, ACPI_RS_OFFSET(data.pin_function.revision_id),
+	 AML_OFFSET(pin_function.revision_id),
+	 1},
+
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.pin_function.sharable),
+	 AML_OFFSET(pin_function.flags),
+	 0},
+
+	{ACPI_RSC_MOVE8, ACPI_RS_OFFSET(data.pin_function.pin_config),
+	 AML_OFFSET(pin_function.pin_config),
+	 1},
+
+	{ACPI_RSC_MOVE16, ACPI_RS_OFFSET(data.pin_function.function_number),
+	 AML_OFFSET(pin_function.function_number),
+	 2},
+
+	/* Pin Table */
+
+	/*
+	 * It is OK to use GPIO operations here because none of them refer GPIO
+	 * structures directly but instead use offsets given here.
+	 */
+
+	{ACPI_RSC_COUNT_GPIO_PIN,
+	 ACPI_RS_OFFSET(data.pin_function.pin_table_length),
+	 AML_OFFSET(pin_function.pin_table_offset),
+	 AML_OFFSET(pin_function.res_source_offset)},
+
+	{ACPI_RSC_MOVE_GPIO_PIN, ACPI_RS_OFFSET(data.pin_function.pin_table),
+	 AML_OFFSET(pin_function.pin_table_offset),
+	 0},
+
+	/* Resource Source */
+
+	{ACPI_RSC_MOVE8,
+	 ACPI_RS_OFFSET(data.pin_function.resource_source.index),
+	 AML_OFFSET(pin_function.res_source_index),
+	 1},
+
+	{ACPI_RSC_COUNT_GPIO_RES,
+	 ACPI_RS_OFFSET(data.pin_function.resource_source.string_length),
+	 AML_OFFSET(pin_function.res_source_offset),
+	 AML_OFFSET(pin_function.vendor_offset)},
+
+	{ACPI_RSC_MOVE_GPIO_RES,
+	 ACPI_RS_OFFSET(data.pin_function.resource_source.string_ptr),
+	 AML_OFFSET(pin_function.res_source_offset),
+	 0},
+
+	/* Vendor Data */
+
+	{ACPI_RSC_COUNT_GPIO_VEN,
+	 ACPI_RS_OFFSET(data.pin_function.vendor_length),
+	 AML_OFFSET(pin_function.vendor_length),
+	 1},
+
+	{ACPI_RSC_MOVE_GPIO_RES, ACPI_RS_OFFSET(data.pin_function.vendor_data),
+	 AML_OFFSET(pin_function.vendor_offset),
+	 0},
+};
+
+/*******************************************************************************
+ *
  * acpi_rs_convert_i2c_serial_bus
  *
  ******************************************************************************/

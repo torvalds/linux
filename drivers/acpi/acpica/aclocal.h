@@ -1142,6 +1142,7 @@ struct acpi_port_info {
 #define ACPI_RESOURCE_NAME_ADDRESS64            0x8A
 #define ACPI_RESOURCE_NAME_EXTENDED_ADDRESS64   0x8B
 #define ACPI_RESOURCE_NAME_GPIO                 0x8C
+#define ACPI_RESOURCE_NAME_PIN_FUNCTION         0x8D
 #define ACPI_RESOURCE_NAME_SERIAL_BUS           0x8E
 #define ACPI_RESOURCE_NAME_LARGE_MAX            0x8E
 

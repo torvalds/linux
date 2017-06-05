@@ -332,7 +332,7 @@ const u8 acpi_gbl_resource_aml_sizes[] = {
 	ACPI_AML_SIZE_LARGE(struct aml_resource_address64),
 	ACPI_AML_SIZE_LARGE(struct aml_resource_extended_address64),
 	ACPI_AML_SIZE_LARGE(struct aml_resource_gpio),
-	0,
+	ACPI_AML_SIZE_LARGE(struct aml_resource_pin_function),
 	ACPI_AML_SIZE_LARGE(struct aml_resource_common_serialbus),
 };
 
@@ -384,7 +384,7 @@ static const u8 acpi_gbl_resource_types[] = {
 	ACPI_VARIABLE_LENGTH,	/* 0A Qword* address */
 	ACPI_FIXED_LENGTH,	/* 0B Extended* address */
 	ACPI_VARIABLE_LENGTH,	/* 0C Gpio* */
-	0,
+	ACPI_VARIABLE_LENGTH,	/* 0D pin_function */
 	ACPI_VARIABLE_LENGTH	/* 0E *serial_bus */
 };
 

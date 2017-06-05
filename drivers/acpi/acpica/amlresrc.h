@@ -65,6 +65,7 @@
 #define ACPI_RESTAG_DRIVESTRENGTH               "_DRS"
 #define ACPI_RESTAG_ENDIANNESS                  "_END"
 #define ACPI_RESTAG_FLOWCONTROL                 "_FLC"
+#define ACPI_RESTAG_FUNCTION                    "_FUN"
 #define ACPI_RESTAG_GRANULARITY                 "_GRA"
 #define ACPI_RESTAG_INTERRUPT                   "_INT"
 #define ACPI_RESTAG_INTERRUPTLEVEL              "_LL_"	/* active_lo(1), active_hi(0) */
@@ -404,6 +405,26 @@ struct aml_resource_uart_serialbus {
 #define AML_RESOURCE_UART_TYPE_REVISION         1	/* ACPI 5.0 */
 #define AML_RESOURCE_UART_MIN_DATA_LEN          10
 
+struct aml_resource_pin_function {
+	AML_RESOURCE_LARGE_HEADER_COMMON u8 revision_id;
+	u16 flags;
+	u8 pin_config;
+	u16 function_number;
+	u16 pin_table_offset;
+	u8 res_source_index;
+	u16 res_source_offset;
+	u16 vendor_offset;
+	u16 vendor_length;
+	/*
+	 * Optional fields follow immediately:
+	 * 1) PIN list (Words)
+	 * 2) Resource Source String
+	 * 3) Vendor Data bytes
+	 */
+};
+
+#define AML_RESOURCE_PIN_FUNCTION_REVISION      1	/* ACPI 6.2 */
+
 /* restore default alignment */
 
 #pragma pack()
@@ -446,6 +467,7 @@ union aml_resource {
 	struct aml_resource_spi_serialbus spi_serial_bus;
 	struct aml_resource_uart_serialbus uart_serial_bus;
 	struct aml_resource_common_serialbus common_serial_bus;
+	struct aml_resource_pin_function pin_function;
 
 	/* Utility overlays */
 

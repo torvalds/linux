@@ -329,6 +329,7 @@ extern struct acpi_rsconvert_info acpi_rs_convert_fixed_dma[];
 extern struct acpi_rsconvert_info acpi_rs_convert_i2c_serial_bus[];
 extern struct acpi_rsconvert_info acpi_rs_convert_spi_serial_bus[];
 extern struct acpi_rsconvert_info acpi_rs_convert_uart_serial_bus[];
+extern struct acpi_rsconvert_info acpi_rs_convert_pin_function[];
 
 /* These resources require separate get/set tables */
 
@@ -372,6 +373,7 @@ extern struct acpi_rsdump_info acpi_rs_dump_ext_address64[];
 extern struct acpi_rsdump_info acpi_rs_dump_ext_irq[];
 extern struct acpi_rsdump_info acpi_rs_dump_generic_reg[];
 extern struct acpi_rsdump_info acpi_rs_dump_gpio[];
+extern struct acpi_rsdump_info acpi_rs_dump_pin_function[];
 extern struct acpi_rsdump_info acpi_rs_dump_fixed_dma[];
 extern struct acpi_rsdump_info acpi_rs_dump_common_serial_bus[];
 extern struct acpi_rsdump_info acpi_rs_dump_i2c_serial_bus[];

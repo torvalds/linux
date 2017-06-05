@@ -340,6 +340,22 @@ acpi_rs_get_aml_length(struct acpi_resource *resource,
 
 			break;
 
+		case ACPI_RESOURCE_TYPE_PIN_FUNCTION:
+
+			total_size = (acpi_rs_length)(total_size +
+						      (resource->data.
+						       pin_function.
+						       pin_table_length * 2) +
+						      resource->data.
+						      pin_function.
+						      resource_source.
+						      string_length +
+						      resource->data.
+						      pin_function.
+						      vendor_length);
+
+			break;
+
 		case ACPI_RESOURCE_TYPE_SERIAL_BUS:
 
 			total_size =
@@ -534,6 +550,24 @@ acpi_rs_get_list_length(u8 *aml_buffer,
 				    aml_resource->large_header.resource_length +
 				    sizeof(struct aml_resource_large_header) -
 				    aml_resource->gpio.pin_table_offset;
+			}
+			break;
+
+		case ACPI_RESOURCE_NAME_PIN_FUNCTION:
+
+			/* Vendor data is optional */
+
+			if (aml_resource->pin_function.vendor_length) {
+				extra_struct_bytes +=
+				    aml_resource->pin_function.vendor_offset -
+				    aml_resource->pin_function.
+				    pin_table_offset +
+				    aml_resource->pin_function.vendor_length;
+			} else {
+				extra_struct_bytes +=
+				    aml_resource->large_header.resource_length +
+				    sizeof(struct aml_resource_large_header) -
+				    aml_resource->pin_function.pin_table_offset;
 			}
 			break;
 
