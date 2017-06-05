@@ -412,6 +412,11 @@ struct qed_fw_data {
 	u32			init_ops_size;
 };
 
+enum BAR_ID {
+	BAR_ID_0,		/* used for GRC */
+	BAR_ID_1		/* Used for doorbells */
+};
+
 #define DRV_MODULE_VERSION		      \
 	__stringify(QED_MAJOR_VERSION) "."    \
 	__stringify(QED_MINOR_VERSION) "."    \
@@ -532,6 +537,9 @@ struct qed_hwfn {
 	/* If one of the following is set then EDPM shouldn't be used */
 	u8 dcbx_no_edpm;
 	u8 db_bar_no_edpm;
+
+	/* L2-related */
+	struct qed_l2_info *p_l2_info;
 
 	struct qed_ptt *p_arfs_ptt;
 

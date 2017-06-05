@@ -69,12 +69,6 @@ static DEFINE_SPINLOCK(qm_lock);
 #define QED_MIN_DPIS            (4)
 #define QED_MIN_PWM_REGION      (QED_WID_SIZE * QED_MIN_DPIS)
 
-/* API common to all protocols */
-enum BAR_ID {
-	BAR_ID_0,       /* used for GRC */
-	BAR_ID_1        /* Used for doorbells */
-};
-
 static u32 qed_hw_bar_size(struct qed_hwfn *p_hwfn,
 			   struct qed_ptt *p_ptt, enum BAR_ID bar_id)
 {
@@ -83,7 +77,7 @@ static u32 qed_hw_bar_size(struct qed_hwfn *p_hwfn,
 	u32 val;
 
 	if (IS_VF(p_hwfn->cdev))
-		return 1 << 17;
+		return qed_vf_hw_bar_size(p_hwfn, bar_id);
 
 	val = qed_rd(p_hwfn, p_ptt, bar_reg);
 	if (val)
@@ -154,8 +148,11 @@ void qed_resc_free(struct qed_dev *cdev)
 {
 	int i;
 
-	if (IS_VF(cdev))
+	if (IS_VF(cdev)) {
+		for_each_hwfn(cdev, i)
+			qed_l2_free(&cdev->hwfns[i]);
 		return;
+	}
 
 	kfree(cdev->fw_data);
 	cdev->fw_data = NULL;
@@ -183,6 +180,7 @@ void qed_resc_free(struct qed_dev *cdev)
 			qed_ooo_free(p_hwfn);
 		}
 		qed_iov_free(p_hwfn);
+		qed_l2_free(p_hwfn);
 		qed_dmae_info_free(p_hwfn);
 		qed_dcbx_info_free(p_hwfn);
 	}
@@ -848,8 +846,14 @@ int qed_resc_alloc(struct qed_dev *cdev)
 	u32 line_count;
 	int i, rc = 0;
 
-	if (IS_VF(cdev))
+	if (IS_VF(cdev)) {
+		for_each_hwfn(cdev, i) {
+			rc = qed_l2_alloc(&cdev->hwfns[i]);
+			if (rc)
+				return rc;
+		}
 		return rc;
+	}
 
 	cdev->fw_data = kzalloc(sizeof(*cdev->fw_data), GFP_KERNEL);
 	if (!cdev->fw_data)
@@ -960,6 +964,10 @@ int qed_resc_alloc(struct qed_dev *cdev)
 		if (rc)
 			goto alloc_err;
 
+		rc = qed_l2_alloc(p_hwfn);
+		if (rc)
+			goto alloc_err;
+
 #ifdef CONFIG_QED_LL2
 		if (p_hwfn->using_ll2) {
 			rc = qed_ll2_alloc(p_hwfn);
@@ -1011,8 +1019,11 @@ void qed_resc_setup(struct qed_dev *cdev)
 {
 	int i;
 
-	if (IS_VF(cdev))
+	if (IS_VF(cdev)) {
+		for_each_hwfn(cdev, i)
+			qed_l2_setup(&cdev->hwfns[i]);
 		return;
+	}
 
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
@@ -1030,6 +1041,7 @@ void qed_resc_setup(struct qed_dev *cdev)
 
 		qed_int_setup(p_hwfn, p_hwfn->p_main_ptt);
 
+		qed_l2_setup(p_hwfn);
 		qed_iov_setup(p_hwfn);
 #ifdef CONFIG_QED_LL2
 		if (p_hwfn->using_ll2)

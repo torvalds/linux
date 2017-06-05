@@ -580,6 +580,24 @@ static const struct net_device_ops qede_netdev_vf_ops = {
 	.ndo_features_check = qede_features_check,
 };
 
+static const struct net_device_ops qede_netdev_vf_xdp_ops = {
+	.ndo_open = qede_open,
+	.ndo_stop = qede_close,
+	.ndo_start_xmit = qede_start_xmit,
+	.ndo_set_rx_mode = qede_set_rx_mode,
+	.ndo_set_mac_address = qede_set_mac_addr,
+	.ndo_validate_addr = eth_validate_addr,
+	.ndo_change_mtu = qede_change_mtu,
+	.ndo_vlan_rx_add_vid = qede_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid = qede_vlan_rx_kill_vid,
+	.ndo_set_features = qede_set_features,
+	.ndo_get_stats64 = qede_get_stats64,
+	.ndo_udp_tunnel_add = qede_udp_tunnel_add,
+	.ndo_udp_tunnel_del = qede_udp_tunnel_del,
+	.ndo_features_check = qede_features_check,
+	.ndo_xdp = qede_xdp,
+};
+
 /* -------------------------------------------------------------------------
  * START OF PROBE / REMOVE
  * -------------------------------------------------------------------------
@@ -645,10 +663,14 @@ static void qede_init_ndev(struct qede_dev *edev)
 
 	ndev->watchdog_timeo = TX_TIMEOUT;
 
-	if (IS_VF(edev))
-		ndev->netdev_ops = &qede_netdev_vf_ops;
-	else
+	if (IS_VF(edev)) {
+		if (edev->dev_info.xdp_supported)
+			ndev->netdev_ops = &qede_netdev_vf_xdp_ops;
+		else
+			ndev->netdev_ops = &qede_netdev_vf_ops;
+	} else {
 		ndev->netdev_ops = &qede_netdev_ops;
+	}
 
 	qede_set_ethtool_ops(ndev);
 
@@ -846,6 +868,12 @@ static void qede_update_pf_params(struct qed_dev *cdev)
 	/* 64 rx + 64 tx + 64 XDP */
 	memset(&pf_params, 0, sizeof(struct qed_pf_params));
 	pf_params.eth_pf_params.num_cons = (MAX_SB_PER_PF_MIMD - 1) * 3;
+
+	/* Same for VFs - make sure they'll have sufficient connections
+	 * to support XDP Tx queues.
+	 */
+	pf_params.eth_pf_params.num_vf_cons = 48;
+
 #ifdef CONFIG_RFS_ACCEL
 	pf_params.eth_pf_params.num_arfs_filters = QEDE_RFS_MAX_FLTR;
 #endif
@@ -1770,7 +1798,7 @@ static int qede_start_txq(struct qede_dev *edev,
 	else
 		params.queue_id = txq->index;
 
-	params.sb = fp->sb_info->igu_sb_id;
+	params.p_sb = fp->sb_info;
 	params.sb_idx = sb_idx;
 
 	rc = edev->ops->q_tx_start(edev->cdev, rss_id, &params, phys_table,
@@ -1849,7 +1877,7 @@ static int qede_start_queues(struct qede_dev *edev, bool clear_stats)
 			memset(&q_params, 0, sizeof(q_params));
 			q_params.queue_id = rxq->rxq_id;
 			q_params.vport_id = 0;
-			q_params.sb = fp->sb_info->igu_sb_id;
+			q_params.p_sb = fp->sb_info;
 			q_params.sb_idx = RX_PI;
 
 			p_phys_table =

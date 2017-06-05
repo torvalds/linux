@@ -65,26 +65,162 @@
 #define QED_MAX_SGES_NUM 16
 #define CRC32_POLY 0x1edc6f41
 
+struct qed_l2_info {
+	u32 queues;
+	unsigned long **pp_qid_usage;
+
+	/* The lock is meant to synchronize access to the qid usage */
+	struct mutex lock;
+};
+
+int qed_l2_alloc(struct qed_hwfn *p_hwfn)
+{
+	struct qed_l2_info *p_l2_info;
+	unsigned long **pp_qids;
+	u32 i;
+
+	if (p_hwfn->hw_info.personality != QED_PCI_ETH &&
+	    p_hwfn->hw_info.personality != QED_PCI_ETH_ROCE)
+		return 0;
+
+	p_l2_info = kzalloc(sizeof(*p_l2_info), GFP_KERNEL);
+	if (!p_l2_info)
+		return -ENOMEM;
+	p_hwfn->p_l2_info = p_l2_info;
+
+	if (IS_PF(p_hwfn->cdev)) {
+		p_l2_info->queues = RESC_NUM(p_hwfn, QED_L2_QUEUE);
+	} else {
+		u8 rx = 0, tx = 0;
+
+		qed_vf_get_num_rxqs(p_hwfn, &rx);
+		qed_vf_get_num_txqs(p_hwfn, &tx);
+
+		p_l2_info->queues = max_t(u8, rx, tx);
+	}
+
+	pp_qids = kzalloc(sizeof(unsigned long *) * p_l2_info->queues,
+			  GFP_KERNEL);
+	if (!pp_qids)
+		return -ENOMEM;
+	p_l2_info->pp_qid_usage = pp_qids;
+
+	for (i = 0; i < p_l2_info->queues; i++) {
+		pp_qids[i] = kzalloc(MAX_QUEUES_PER_QZONE / 8, GFP_KERNEL);
+		if (!pp_qids[i])
+			return -ENOMEM;
+	}
+
+	return 0;
+}
+
+void qed_l2_setup(struct qed_hwfn *p_hwfn)
+{
+	if (p_hwfn->hw_info.personality != QED_PCI_ETH &&
+	    p_hwfn->hw_info.personality != QED_PCI_ETH_ROCE)
+		return;
+
+	mutex_init(&p_hwfn->p_l2_info->lock);
+}
+
+void qed_l2_free(struct qed_hwfn *p_hwfn)
+{
+	u32 i;
+
+	if (p_hwfn->hw_info.personality != QED_PCI_ETH &&
+	    p_hwfn->hw_info.personality != QED_PCI_ETH_ROCE)
+		return;
+
+	if (!p_hwfn->p_l2_info)
+		return;
+
+	if (!p_hwfn->p_l2_info->pp_qid_usage)
+		goto out_l2_info;
+
+	/* Free until hit first uninitialized entry */
+	for (i = 0; i < p_hwfn->p_l2_info->queues; i++) {
+		if (!p_hwfn->p_l2_info->pp_qid_usage[i])
+			break;
+		kfree(p_hwfn->p_l2_info->pp_qid_usage[i]);
+	}
+
+	kfree(p_hwfn->p_l2_info->pp_qid_usage);
+
+out_l2_info:
+	kfree(p_hwfn->p_l2_info);
+	p_hwfn->p_l2_info = NULL;
+}
+
+static bool qed_eth_queue_qid_usage_add(struct qed_hwfn *p_hwfn,
+					struct qed_queue_cid *p_cid)
+{
+	struct qed_l2_info *p_l2_info = p_hwfn->p_l2_info;
+	u16 queue_id = p_cid->rel.queue_id;
+	bool b_rc = true;
+	u8 first;
+
+	mutex_lock(&p_l2_info->lock);
+
+	if (queue_id > p_l2_info->queues) {
+		DP_NOTICE(p_hwfn,
+			  "Requested to increase usage for qzone %04x out of %08x\n",
+			  queue_id, p_l2_info->queues);
+		b_rc = false;
+		goto out;
+	}
+
+	first = (u8)find_first_zero_bit(p_l2_info->pp_qid_usage[queue_id],
+					MAX_QUEUES_PER_QZONE);
+	if (first >= MAX_QUEUES_PER_QZONE) {
+		b_rc = false;
+		goto out;
+	}
+
+	__set_bit(first, p_l2_info->pp_qid_usage[queue_id]);
+	p_cid->qid_usage_idx = first;
+
+out:
+	mutex_unlock(&p_l2_info->lock);
+	return b_rc;
+}
+
+static void qed_eth_queue_qid_usage_del(struct qed_hwfn *p_hwfn,
+					struct qed_queue_cid *p_cid)
+{
+	mutex_lock(&p_hwfn->p_l2_info->lock);
+
+	clear_bit(p_cid->qid_usage_idx,
+		  p_hwfn->p_l2_info->pp_qid_usage[p_cid->rel.queue_id]);
+
+	mutex_unlock(&p_hwfn->p_l2_info->lock);
+}
+
 void qed_eth_queue_cid_release(struct qed_hwfn *p_hwfn,
 			       struct qed_queue_cid *p_cid)
 {
-	/* VFs' CIDs are 0-based in PF-view, and uninitialized on VF */
-	if (!p_cid->is_vf && IS_PF(p_hwfn->cdev))
-		qed_cxt_release_cid(p_hwfn, p_cid->cid);
+	bool b_legacy_vf = !!(p_cid->vf_legacy & QED_QCID_LEGACY_VF_CID);
+
+	if (IS_PF(p_hwfn->cdev) && !b_legacy_vf)
+		_qed_cxt_release_cid(p_hwfn, p_cid->cid, p_cid->vfid);
+
+	/* For PF's VFs we maintain the index inside queue-zone in IOV */
+	if (p_cid->vfid == QED_QUEUE_CID_SELF)
+		qed_eth_queue_qid_usage_del(p_hwfn, p_cid);
+
 	vfree(p_cid);
 }
 
 /* The internal is only meant to be directly called by PFs initializeing CIDs
  * for their VFs.
  */
-struct qed_queue_cid *
+static struct qed_queue_cid *
 _qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
 		      u16 opaque_fid,
 		      u32 cid,
-		      u8 vf_qid,
-		      struct qed_queue_start_common_params *p_params)
+		      struct qed_queue_start_common_params *p_params,
+		      bool b_is_rx,
+		      struct qed_queue_cid_vf_params *p_vf_params)
 {
-	bool b_is_same = (p_hwfn->hw_info.opaque_fid == opaque_fid);
 	struct qed_queue_cid *p_cid;
 	int rc;
 
@@ -95,9 +231,24 @@ _qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
 
 	p_cid->opaque_fid = opaque_fid;
 	p_cid->cid = cid;
-	p_cid->vf_qid = vf_qid;
-	p_cid->rel = *p_params;
 	p_cid->p_owner = p_hwfn;
+
+	/* Fill in parameters */
+	p_cid->rel.vport_id = p_params->vport_id;
+	p_cid->rel.queue_id = p_params->queue_id;
+	p_cid->rel.stats_id = p_params->stats_id;
+	p_cid->sb_igu_id = p_params->p_sb->igu_sb_id;
+	p_cid->b_is_rx = b_is_rx;
+	p_cid->sb_idx = p_params->sb_idx;
+
+	/* Fill-in bits related to VFs' queues if information was provided */
+	if (p_vf_params) {
+		p_cid->vfid = p_vf_params->vfid;
+		p_cid->vf_qid = p_vf_params->vf_qid;
+		p_cid->vf_legacy = p_vf_params->vf_legacy;
+	} else {
+		p_cid->vfid = QED_QUEUE_CID_SELF;
+	}
 
 	/* Don't try calculating the absolute indices for VFs */
 	if (IS_VF(p_hwfn->cdev)) {
@@ -120,7 +271,7 @@ _qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
 	/* In case of a PF configuring its VF's queues, the stats-id is already
 	 * absolute [since there's a single index that's suitable per-VF].
 	 */
-	if (b_is_same) {
+	if (p_cid->vfid == QED_QUEUE_CID_SELF) {
 		rc = qed_fw_vport(p_hwfn, p_cid->rel.stats_id,
 				  &p_cid->abs.stats_id);
 		if (rc)
@@ -129,27 +280,29 @@ _qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
 		p_cid->abs.stats_id = p_cid->rel.stats_id;
 	}
 
-	/* SBs relevant information was already provided as absolute */
-	p_cid->abs.sb = p_cid->rel.sb;
-	p_cid->abs.sb_idx = p_cid->rel.sb_idx;
-
-	/* This is tricky - we're actually interested in whehter this is a PF
-	 * entry meant for the VF.
-	 */
-	if (!b_is_same)
-		p_cid->is_vf = true;
 out:
+	/* VF-images have provided the qid_usage_idx on their own.
+	 * Otherwise, we need to allocate a unique one.
+	 */
+	if (!p_vf_params) {
+		if (!qed_eth_queue_qid_usage_add(p_hwfn, p_cid))
+			goto fail;
+	} else {
+		p_cid->qid_usage_idx = p_vf_params->qid_usage_idx;
+	}
+
 	DP_VERBOSE(p_hwfn,
 		   QED_MSG_SP,
-		   "opaque_fid: %04x CID %08x vport %02x [%02x] qzone %04x [%04x] stats %02x [%02x] SB %04x PI %02x\n",
+		   "opaque_fid: %04x CID %08x vport %02x [%02x] qzone %04x.%02x [%04x] stats %02x [%02x] SB %04x PI %02x\n",
 		   p_cid->opaque_fid,
 		   p_cid->cid,
 		   p_cid->rel.vport_id,
 		   p_cid->abs.vport_id,
 		   p_cid->rel.queue_id,
+		   p_cid->qid_usage_idx,
 		   p_cid->abs.queue_id,
 		   p_cid->rel.stats_id,
-		   p_cid->abs.stats_id, p_cid->abs.sb, p_cid->abs.sb_idx);
+		   p_cid->abs.stats_id, p_cid->sb_igu_id, p_cid->sb_idx);
 
 	return p_cid;
 
@@ -158,30 +311,59 @@ fail:
 	return NULL;
 }
 
-static struct qed_queue_cid *qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
-						  u16 opaque_fid, struct
-						  qed_queue_start_common_params
-						  *p_params)
+struct qed_queue_cid *
+qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
+		     u16 opaque_fid,
+		     struct qed_queue_start_common_params *p_params,
+		     bool b_is_rx,
+		     struct qed_queue_cid_vf_params *p_vf_params)
 {
 	struct qed_queue_cid *p_cid;
+	u8 vfid = QED_CXT_PF_CID;
+	bool b_legacy_vf = false;
 	u32 cid = 0;
+
+	/* In case of legacy VFs, The CID can be derived from the additional
+	 * VF parameters - the VF assumes queue X uses CID X, so we can simply
+	 * use the vf_qid for this purpose as well.
+	 */
+	if (p_vf_params) {
+		vfid = p_vf_params->vfid;
+
+		if (p_vf_params->vf_legacy & QED_QCID_LEGACY_VF_CID) {
+			b_legacy_vf = true;
+			cid = p_vf_params->vf_qid;
+		}
+	}
 
 	/* Get a unique firmware CID for this queue, in case it's a PF.
 	 * VF's don't need a CID as the queue configuration will be done
 	 * by PF.
 	 */
-	if (IS_PF(p_hwfn->cdev)) {
-		if (qed_cxt_acquire_cid(p_hwfn, PROTOCOLID_ETH, &cid)) {
+	if (IS_PF(p_hwfn->cdev) && !b_legacy_vf) {
+		if (_qed_cxt_acquire_cid(p_hwfn, PROTOCOLID_ETH,
+					 &cid, vfid)) {
 			DP_NOTICE(p_hwfn, "Failed to acquire cid\n");
 			return NULL;
 		}
 	}
 
-	p_cid = _qed_eth_queue_to_cid(p_hwfn, opaque_fid, cid, 0, p_params);
-	if (!p_cid && IS_PF(p_hwfn->cdev))
-		qed_cxt_release_cid(p_hwfn, cid);
+	p_cid = _qed_eth_queue_to_cid(p_hwfn, opaque_fid, cid,
+				      p_params, b_is_rx, p_vf_params);
+	if (!p_cid && IS_PF(p_hwfn->cdev) && !b_legacy_vf)
+		_qed_cxt_release_cid(p_hwfn, cid, vfid);
 
 	return p_cid;
+}
+
+static struct qed_queue_cid *
+qed_eth_queue_to_cid_pf(struct qed_hwfn *p_hwfn,
+			u16 opaque_fid,
+			bool b_is_rx,
+			struct qed_queue_start_common_params *p_params)
+{
+	return qed_eth_queue_to_cid(p_hwfn, opaque_fid, p_params, b_is_rx,
+				    NULL);
 }
 
 int qed_sp_eth_vport_start(struct qed_hwfn *p_hwfn,
@@ -681,7 +863,7 @@ int qed_eth_rxq_start_ramrod(struct qed_hwfn *p_hwfn,
 	DP_VERBOSE(p_hwfn, QED_MSG_SP,
 		   "opaque_fid=0x%x, cid=0x%x, rx_qzone=0x%x, vport_id=0x%x, sb_id=0x%x\n",
 		   p_cid->opaque_fid, p_cid->cid,
-		   p_cid->abs.queue_id, p_cid->abs.vport_id, p_cid->abs.sb);
+		   p_cid->abs.queue_id, p_cid->abs.vport_id, p_cid->sb_igu_id);
 
 	/* Get SPQ entry */
 	memset(&init_data, 0, sizeof(init_data));
@@ -697,8 +879,8 @@ int qed_eth_rxq_start_ramrod(struct qed_hwfn *p_hwfn,
 
 	p_ramrod = &p_ent->ramrod.rx_queue_start;
 
-	p_ramrod->sb_id = cpu_to_le16(p_cid->abs.sb);
-	p_ramrod->sb_index = p_cid->abs.sb_idx;
+	p_ramrod->sb_id = cpu_to_le16(p_cid->sb_igu_id);
+	p_ramrod->sb_index = p_cid->sb_idx;
 	p_ramrod->vport_id = p_cid->abs.vport_id;
 	p_ramrod->stats_counter_id = p_cid->abs.stats_id;
 	p_ramrod->rx_queue_id = cpu_to_le16(p_cid->abs.queue_id);
@@ -711,13 +893,15 @@ int qed_eth_rxq_start_ramrod(struct qed_hwfn *p_hwfn,
 	p_ramrod->num_of_pbl_pages = cpu_to_le16(cqe_pbl_size);
 	DMA_REGPAIR_LE(p_ramrod->cqe_pbl_addr, cqe_pbl_addr);
 
-	if (p_cid->is_vf) {
+	if (p_cid->vfid != QED_QUEUE_CID_SELF) {
+		bool b_legacy_vf = !!(p_cid->vf_legacy &
+				      QED_QCID_LEGACY_VF_RX_PROD);
+
 		p_ramrod->vf_rx_prod_index = p_cid->vf_qid;
 		DP_VERBOSE(p_hwfn, QED_MSG_SP,
 			   "Queue%s is meant for VF rxq[%02x]\n",
-			   !!p_cid->b_legacy_vf ? " [legacy]" : "",
-			   p_cid->vf_qid);
-		p_ramrod->vf_rx_prod_use_zone_a = !!p_cid->b_legacy_vf;
+			   b_legacy_vf ? " [legacy]" : "", p_cid->vf_qid);
+		p_ramrod->vf_rx_prod_use_zone_a = b_legacy_vf;
 	}
 
 	return qed_spq_post(p_hwfn, p_ent, NULL);
@@ -761,7 +945,7 @@ qed_eth_rx_queue_start(struct qed_hwfn *p_hwfn,
 	int rc;
 
 	/* Allocate a CID for the queue */
-	p_cid = qed_eth_queue_to_cid(p_hwfn, opaque_fid, p_params);
+	p_cid = qed_eth_queue_to_cid_pf(p_hwfn, opaque_fid, true, p_params);
 	if (!p_cid)
 		return -ENOMEM;
 
@@ -863,10 +1047,11 @@ qed_eth_pf_rx_queue_stop(struct qed_hwfn *p_hwfn,
 	/* Cleaning the queue requires the completion to arrive there.
 	 * In addition, VFs require the answer to come as eqe to PF.
 	 */
-	p_ramrod->complete_cqe_flg = (!p_cid->is_vf &&
+	p_ramrod->complete_cqe_flg = ((p_cid->vfid == QED_QUEUE_CID_SELF) &&
 				      !b_eq_completion_only) ||
 				     b_cqe_completion;
-	p_ramrod->complete_event_flg = p_cid->is_vf || b_eq_completion_only;
+	p_ramrod->complete_event_flg = (p_cid->vfid != QED_QUEUE_CID_SELF) ||
+				       b_eq_completion_only;
 
 	return qed_spq_post(p_hwfn, p_ent, NULL);
 }
@@ -915,8 +1100,8 @@ qed_eth_txq_start_ramrod(struct qed_hwfn *p_hwfn,
 	p_ramrod = &p_ent->ramrod.tx_queue_start;
 	p_ramrod->vport_id = p_cid->abs.vport_id;
 
-	p_ramrod->sb_id = cpu_to_le16(p_cid->abs.sb);
-	p_ramrod->sb_index = p_cid->abs.sb_idx;
+	p_ramrod->sb_id = cpu_to_le16(p_cid->sb_igu_id);
+	p_ramrod->sb_index = p_cid->sb_idx;
 	p_ramrod->stats_counter_id = p_cid->abs.stats_id;
 
 	p_ramrod->queue_zone_id = cpu_to_le16(p_cid->abs.queue_id);
@@ -965,7 +1150,7 @@ qed_eth_tx_queue_start(struct qed_hwfn *p_hwfn,
 	struct qed_queue_cid *p_cid;
 	int rc;
 
-	p_cid = qed_eth_queue_to_cid(p_hwfn, opaque_fid, p_params);
+	p_cid = qed_eth_queue_to_cid_pf(p_hwfn, opaque_fid, false, p_params);
 	if (!p_cid)
 		return -EINVAL;
 
@@ -1934,14 +2119,25 @@ static int qed_fill_eth_dev_info(struct qed_dev *cdev,
 
 		ether_addr_copy(info->port_mac,
 				cdev->hwfns[0].hw_info.hw_mac_addr);
-	} else {
-		qed_vf_get_num_rxqs(QED_LEADING_HWFN(cdev), &info->num_queues);
-		if (cdev->num_hwfns > 1) {
-			u8 queues = 0;
 
-			qed_vf_get_num_rxqs(&cdev->hwfns[1], &queues);
+		info->xdp_supported = true;
+	} else {
+		u16 total_cids = 0;
+
+		/* Determine queues &  XDP support */
+		for_each_hwfn(cdev, i) {
+			struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
+			u8 queues, cids;
+
+			qed_vf_get_num_cids(p_hwfn, &cids);
+			qed_vf_get_num_rxqs(p_hwfn, &queues);
 			info->num_queues += queues;
+			total_cids += cids;
 		}
+
+		/* Enable VF XDP in case PF guarntees sufficient connections */
+		if (total_cids >= info->num_queues * 3)
+			info->xdp_supported = true;
 
 		qed_vf_get_num_vlan_filters(&cdev->hwfns[0],
 					    (u8 *)&info->num_vlan_filters);
@@ -2193,9 +2389,9 @@ static int qed_start_rxq(struct qed_dev *cdev,
 	}
 
 	DP_VERBOSE(cdev, (QED_MSG_SPQ | NETIF_MSG_IFUP),
-		   "Started RX-Q %d [rss_num %d] on V-PORT %d and SB %d\n",
+		   "Started RX-Q %d [rss_num %d] on V-PORT %d and SB igu %d\n",
 		   p_params->queue_id, rss_num, p_params->vport_id,
-		   p_params->sb);
+		   p_params->p_sb->igu_sb_id);
 
 	return 0;
 }
@@ -2243,9 +2439,9 @@ static int qed_start_txq(struct qed_dev *cdev,
 	}
 
 	DP_VERBOSE(cdev, (QED_MSG_SPQ | NETIF_MSG_IFUP),
-		   "Started TX-Q %d [rss_num %d] on V-PORT %d and SB %d\n",
+		   "Started TX-Q %d [rss_num %d] on V-PORT %d and SB igu %d\n",
 		   p_params->queue_id, rss_num, p_params->vport_id,
-		   p_params->sb);
+		   p_params->p_sb->igu_sb_id);
 
 	return 0;
 }
