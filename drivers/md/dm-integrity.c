@@ -3040,6 +3040,11 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		ti->error = "The device is too small";
 		goto bad;
 	}
+	if (ti->len > ic->provided_data_sectors) {
+		r = -EINVAL;
+		ti->error = "Not enough provided sectors for requested mapping size";
+		goto bad;
+	}
 
 	if (!buffer_sectors)
 		buffer_sectors = 1;
