@@ -225,13 +225,13 @@ acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context)
 	struct acpi_object_list input;
 	union acpi_object in_params[4];
 	union acpi_object *out_obj;
-	u8 uuid[16];
+	guid_t guid;
 	u32 errors;
 	struct acpi_buffer output = {ACPI_ALLOCATE_BUFFER, NULL};
 
 	if (!context)
 		return AE_ERROR;
-	if (ACPI_FAILURE(acpi_str_to_uuid(context->uuid_str, uuid)))
+	if (guid_parse(context->uuid_str, &guid))
 		return AE_ERROR;
 	context->ret.length = ACPI_ALLOCATE_BUFFER;
 	context->ret.pointer = NULL;
@@ -241,7 +241,7 @@ acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context)
 	input.pointer = in_params;
 	in_params[0].type 		= ACPI_TYPE_BUFFER;
 	in_params[0].buffer.length 	= 16;
-	in_params[0].buffer.pointer	= uuid;
+	in_params[0].buffer.pointer	= (u8 *)&guid;
 	in_params[1].type 		= ACPI_TYPE_INTEGER;
 	in_params[1].integer.value 	= context->rev;
 	in_params[2].type 		= ACPI_TYPE_INTEGER;
