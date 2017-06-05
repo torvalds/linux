@@ -690,6 +690,21 @@ bool exhalbtc_initlize_variables(struct rtl_priv *adapter)
 	return true;
 }
 
+void exhalbtc_power_on_setting(struct btc_coexist *btcoexist)
+{
+	if (!halbtc_is_bt_coexist_available(btcoexist))
+		return;
+
+	btcoexist->statistics.cnt_power_on++;
+
+	if (IS_HARDWARE_TYPE_8723B(btcoexist->adapter)) {
+		if (btcoexist->board_info.btdm_ant_num == 2)
+			ex_btc8723b2ant_power_on_setting(btcoexist);
+		else if (btcoexist->board_info.btdm_ant_num == 1)
+			ex_btc8723b1ant_power_on_setting(btcoexist);
+	}
+}
+
 void exhalbtc_pre_load_firmware(struct btc_coexist *btcoexist)
 {
 	if (!halbtc_is_bt_coexist_available(btcoexist))
