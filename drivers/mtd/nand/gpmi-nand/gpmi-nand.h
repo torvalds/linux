@@ -234,7 +234,7 @@ struct gpmi_nfc_hardware_timing {
 };
 
 /**
- * struct timing_threshod - Timing threshold
+ * struct timing_threshold - Timing threshold
  * @max_data_setup_cycles:       The maximum number of data setup cycles that
  *                               can be expressed in the hardware.
  * @internal_data_setup_in_ns:   The time, in ns, that the NFC hardware requires
@@ -256,7 +256,7 @@ struct gpmi_nfc_hardware_timing {
  *                               progress, this is the clock frequency during
  *                               the most recent I/O transaction.
  */
-struct timing_threshod {
+struct timing_threshold {
 	const unsigned int      max_chip_count;
 	const unsigned int      max_data_setup_cycles;
 	const unsigned int      internal_data_setup_in_ns;
