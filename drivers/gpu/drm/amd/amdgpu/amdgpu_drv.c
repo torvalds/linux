@@ -242,6 +242,12 @@ module_param_named(job_hang_limit, amdgpu_job_hang_limit, int ,0444);
 MODULE_PARM_DESC(lbpw, "Load Balancing Per Watt (LBPW) support (1 = enable, 0 = disable, -1 = auto)");
 module_param_named(lbpw, amdgpu_lbpw, int, 0444);
 
+#ifdef CONFIG_DRM_AMDGPU_SI
+int amdgpu_si_support = 0;
+MODULE_PARM_DESC(si_support, "SI support (1 = enabled, 0 = disabled (default))");
+module_param_named(si_support, amdgpu_si_support, int, 0444);
+#endif
+
 #ifdef CONFIG_DRM_AMDGPU_CIK
 int amdgpu_cik_support = 1;
 MODULE_PARM_DESC(cik_support, "CIK support (1 = enabled (default), 0 = disabled)");
