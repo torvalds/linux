@@ -133,6 +133,7 @@ struct vop_plane_state {
 	struct drm_plane_state base;
 	int format;
 	int zpos;
+	unsigned int logo_ymirror;
 	struct drm_rect src;
 	struct drm_rect dest;
 	dma_addr_t yrgb_mst;
@@ -1108,7 +1109,8 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	}
 
 	offset = (src->x1 >> 16) * drm_format_plane_bpp(fb->pixel_format, 0) / 8;
-	if (state->rotation & BIT(DRM_REFLECT_Y))
+	if (state->rotation & BIT(DRM_REFLECT_Y) ||
+	    (rockchip_fb_is_logo(fb) && vop_plane_state->logo_ymirror))
 		offset += ((src->y2 >> 16) - 1) * fb->pitches[0];
 	else
 		offset += (src->y1 >> 16) * fb->pitches[0];
@@ -1210,7 +1212,8 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	dsp_sty = dest->y1 + crtc->mode.vtotal - crtc->mode.vsync_start;
 	dsp_st = dsp_sty << 16 | (dsp_stx & 0xffff);
 
-	ymirror = !!(state->rotation & BIT(DRM_REFLECT_Y));
+	ymirror = state->rotation & BIT(DRM_REFLECT_Y) ||
+		  (rockchip_fb_is_logo(fb) && vop_plane_state->logo_ymirror);
 	xmirror = !!(state->rotation & BIT(DRM_REFLECT_X));
 
 	vop = to_vop(state->crtc);
@@ -1333,6 +1336,7 @@ static int vop_atomic_plane_set_property(struct drm_plane *plane,
 					 struct drm_property *property,
 					 uint64_t val)
 {
+	struct rockchip_drm_private *private = plane->dev->dev_private;
 	struct vop_win *win = to_vop_win(plane);
 	struct vop_plane_state *plane_state = to_vop_plane_state(state);
 
@@ -1343,6 +1347,12 @@ static int vop_atomic_plane_set_property(struct drm_plane *plane,
 
 	if (property == win->rotation_prop) {
 		state->rotation = val;
+		return 0;
+	}
+
+	if (property == private->logo_ymirror_prop) {
+		WARN_ON(!rockchip_fb_is_logo(state->fb));
+		plane_state->logo_ymirror = val;
 		return 0;
 	}
 
@@ -2285,6 +2295,7 @@ static irqreturn_t vop_isr(int irq, void *data)
 static int vop_plane_init(struct vop *vop, struct vop_win *win,
 			  unsigned long possible_crtcs)
 {
+	struct rockchip_drm_private *private = vop->drm_dev->dev_private;
 	struct drm_plane *share = NULL;
 	unsigned int rotations = 0;
 	struct drm_property *prop;
@@ -2308,8 +2319,16 @@ static int vop_plane_init(struct vop *vop, struct vop_win *win,
 	if (VOP_WIN_SUPPORT(vop, win, xmirror))
 		rotations |= BIT(DRM_REFLECT_X);
 
-	if (VOP_WIN_SUPPORT(vop, win, ymirror))
+	if (VOP_WIN_SUPPORT(vop, win, ymirror)) {
 		rotations |= BIT(DRM_REFLECT_Y);
+
+		prop = drm_property_create_bool(vop->drm_dev,
+						DRM_MODE_PROP_ATOMIC,
+						"LOGO_YMIRROR");
+		if (!prop)
+			return -ENOMEM;
+		private->logo_ymirror_prop = prop;
+	}
 
 	if (rotations) {
 		rotations |= BIT(DRM_ROTATE_0);

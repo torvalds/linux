@@ -33,6 +33,13 @@ struct rockchip_drm_fb {
 	struct rockchip_logo *logo;
 };
 
+bool rockchip_fb_is_logo(struct drm_framebuffer *fb)
+{
+	struct rockchip_drm_fb *rk_fb = to_rockchip_fb(fb);
+
+	return rk_fb && rk_fb->logo;
+}
+
 dma_addr_t rockchip_fb_get_dma_addr(struct drm_framebuffer *fb,
 				    unsigned int plane)
 {

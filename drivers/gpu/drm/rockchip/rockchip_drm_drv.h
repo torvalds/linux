@@ -120,6 +120,7 @@ struct rockchip_logo {
  */
 struct rockchip_drm_private {
 	struct rockchip_logo *logo;
+	struct drm_property *logo_ymirror_prop;
 	struct drm_fb_helper *fbdev_helper;
 	struct drm_gem_object *fbdev_bo;
 	const struct rockchip_crtc_funcs *crtc_funcs[ROCKCHIP_MAX_CRTC];

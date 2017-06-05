@@ -15,6 +15,7 @@
 #ifndef _ROCKCHIP_DRM_FB_H
 #define _ROCKCHIP_DRM_FB_H
 
+bool rockchip_fb_is_logo(struct drm_framebuffer *fb);
 struct drm_framebuffer *
 rockchip_drm_framebuffer_init(struct drm_device *dev,
 			      struct drm_mode_fb_cmd2 *mode_cmd,
