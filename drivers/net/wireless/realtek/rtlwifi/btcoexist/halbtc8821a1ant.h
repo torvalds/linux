@@ -170,21 +170,23 @@ struct coex_sta_8821a_1ant {
  * The following is interface which will notify coex module.
  *===========================================
  */
-void ex_halbtc8821a1ant_init_hwconfig(struct btc_coexist *btcoexist);
-void ex_halbtc8821a1ant_init_coex_dm(struct btc_coexist *btcoexist);
-void ex_halbtc8821a1ant_ips_notify(struct btc_coexist *btcoexist, u8 type);
-void ex_halbtc8821a1ant_lps_notify(struct btc_coexist *btcoexist, u8 type);
-void ex_halbtc8821a1ant_scan_notify(struct btc_coexist *btcoexist, u8 type);
-void ex_halbtc8821a1ant_connect_notify(struct btc_coexist *btcoexist, u8 type);
-void ex_halbtc8821a1ant_media_status_notify(struct btc_coexist *btcoexist,
-					    u8 type);
-void ex_halbtc8821a1ant_special_packet_notify(struct btc_coexist *btcoexist,
-					      u8 type);
-void ex_halbtc8821a1ant_bt_info_notify(struct btc_coexist *btcoexist,
-				       u8 *tmpbuf, u8 length);
-void ex_halbtc8821a1ant_halt_notify(struct btc_coexist *btcoexist);
-void ex_halbtc8821a1ant_pnp_notify(struct btc_coexist *btcoexist, u8 pnpstate);
-void ex_halbtc8821a1ant_periodical(struct btc_coexist *btcoexist);
-void ex_halbtc8821a1ant_display_coex_info(struct btc_coexist *btcoexist);
-void ex_halbtc8821a1ant_dbg_control(struct btc_coexist *btcoexist, u8 op_code,
-				    u8 op_len, u8 *data);
+void ex_btc8821a1ant_init_hwconfig(struct btc_coexist *btcoexist,
+				   bool wifi_only);
+void ex_btc8821a1ant_init_coex_dm(struct btc_coexist *btcoexist);
+void ex_btc8821a1ant_ips_notify(struct btc_coexist *btcoexist, u8 type);
+void ex_btc8821a1ant_lps_notify(struct btc_coexist *btcoexist, u8 type);
+void ex_btc8821a1ant_scan_notify(struct btc_coexist *btcoexist, u8 type);
+void ex_btc8821a1ant_connect_notify(struct btc_coexist *btcoexist, u8 type);
+void ex_btc8821a1ant_media_status_notify(struct btc_coexist *btcoexist,
+					 u8 type);
+void ex_btc8821a1ant_special_packet_notify(struct btc_coexist *btcoexist,
+					   u8 type);
+void ex_btc8821a1ant_bt_info_notify(struct btc_coexist *btcoexist,
+				    u8 *tmpbuf, u8 length);
+void ex_btc8821a1ant_halt_notify(struct btc_coexist *btcoexist);
+void ex_btc8821a1ant_pnp_notify(struct btc_coexist *btcoexist, u8 pnpstate);
+void ex_btc8821a1ant_periodical(struct btc_coexist *btcoexist);
+void ex_btc8821a1ant_display_coex_info(struct btc_coexist *btcoexist);
+void ex_btc8821a1ant_dbg_control(struct btc_coexist *btcoexist, u8 op_code,
+				 u8 op_len, u8 *data);
+void ex_btc8821a1ant_pnp_notify(struct btc_coexist *btcoexist, u8 pnp_state);

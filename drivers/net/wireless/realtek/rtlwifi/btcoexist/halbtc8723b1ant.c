@@ -2390,9 +2390,9 @@ static void halbtc8723b1ant_init_hw_config(struct btc_coexist *btcoexist,
 }
 
 /**************************************************************
- * extern function start with ex_halbtc8723b1ant_
+ * extern function start with ex_btc8723b1ant_
  **************************************************************/
-void ex_halbtc8723b1ant_power_on_setting(struct btc_coexist *btcoexist)
+void ex_btc8723b1ant_power_on_setting(struct btc_coexist *btcoexist)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
 	struct btc_board_info *board_info = &btcoexist->board_info;
@@ -2462,14 +2462,14 @@ void ex_halbtc8723b1ant_power_on_setting(struct btc_coexist *btcoexist)
 }
 
 
-void ex_halbtc8723b1ant_init_hwconfig(struct btc_coexist *btcoexist,
-				      bool wifi_only)
+void ex_btc8723b1ant_init_hwconfig(struct btc_coexist *btcoexist,
+				   bool wifi_only)
 {
 	halbtc8723b1ant_init_hw_config(btcoexist, true, wifi_only);
 	btcoexist->stop_coex_dm = false;
 }
 
-void ex_halbtc8723b1ant_init_coex_dm(struct btc_coexist *btcoexist)
+void ex_btc8723b1ant_init_coex_dm(struct btc_coexist *btcoexist)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
 
@@ -2483,7 +2483,7 @@ void ex_halbtc8723b1ant_init_coex_dm(struct btc_coexist *btcoexist)
 	halbtc8723b1ant_query_bt_info(btcoexist);
 }
 
-void ex_halbtc8723b1ant_display_coex_info(struct btc_coexist *btcoexist)
+void ex_btc8723b1ant_display_coex_info(struct btc_coexist *btcoexist)
 {
 	struct btc_board_info *board_info = &btcoexist->board_info;
 	struct btc_stack_info *stack_info = &btcoexist->stack_info;
@@ -2758,7 +2758,7 @@ void ex_halbtc8723b1ant_display_coex_info(struct btc_coexist *btcoexist)
 	btcoexist->btc_disp_dbg_msg(btcoexist, BTC_DBG_DISP_COEX_STATISTICS);
 }
 
-void ex_halbtc8723b1ant_ips_notify(struct btc_coexist *btcoexist, u8 type)
+void ex_btc8723b1ant_ips_notify(struct btc_coexist *btcoexist, u8 type)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
 
@@ -2787,7 +2787,7 @@ void ex_halbtc8723b1ant_ips_notify(struct btc_coexist *btcoexist, u8 type)
 	}
 }
 
-void ex_halbtc8723b1ant_lps_notify(struct btc_coexist *btcoexist, u8 type)
+void ex_btc8723b1ant_lps_notify(struct btc_coexist *btcoexist, u8 type)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
 
@@ -2805,7 +2805,7 @@ void ex_halbtc8723b1ant_lps_notify(struct btc_coexist *btcoexist, u8 type)
 	}
 }
 
-void ex_halbtc8723b1ant_scan_notify(struct btc_coexist *btcoexist, u8 type)
+void ex_btc8723b1ant_scan_notify(struct btc_coexist *btcoexist, u8 type)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
 	bool wifi_connected = false, bt_hs_on = false;
@@ -2891,7 +2891,7 @@ void ex_halbtc8723b1ant_scan_notify(struct btc_coexist *btcoexist, u8 type)
 	}
 }
 
-void ex_halbtc8723b1ant_connect_notify(struct btc_coexist *btcoexist, u8 type)
+void ex_btc8723b1ant_connect_notify(struct btc_coexist *btcoexist, u8 type)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
 	bool wifi_connected = false, bt_hs_on = false;
@@ -2961,8 +2961,8 @@ void ex_halbtc8723b1ant_connect_notify(struct btc_coexist *btcoexist, u8 type)
 	}
 }
 
-void ex_halbtc8723b1ant_media_status_notify(struct btc_coexist *btcoexist,
-					    u8 type)
+void ex_btc8723b1ant_media_status_notify(struct btc_coexist *btcoexist,
+					 u8 type)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
 	u8 h2c_parameter[3] = {0};
@@ -3042,8 +3042,8 @@ void ex_halbtc8723b1ant_media_status_notify(struct btc_coexist *btcoexist,
 	btcoexist->btc_fill_h2c(btcoexist, 0x66, 3, h2c_parameter);
 }
 
-void ex_halbtc8723b1ant_special_packet_notify(struct btc_coexist *btcoexist,
-					      u8 type)
+void ex_btc8723b1ant_special_packet_notify(struct btc_coexist *btcoexist,
+					   u8 type)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
 	bool bt_hs_on = false;
@@ -3119,8 +3119,8 @@ void ex_halbtc8723b1ant_special_packet_notify(struct btc_coexist *btcoexist,
 	}
 }
 
-void ex_halbtc8723b1ant_bt_info_notify(struct btc_coexist *btcoexist,
-				       u8 *tmp_buf, u8 length)
+void ex_btc8723b1ant_bt_info_notify(struct btc_coexist *btcoexist,
+				    u8 *tmp_buf, u8 length)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
 	u8 bt_info = 0;
@@ -3211,11 +3211,11 @@ void ex_halbtc8723b1ant_bt_info_notify(struct btc_coexist *btcoexist,
 			btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_CONNECTED,
 					   &wifi_connected);
 			if (wifi_connected)
-				ex_halbtc8723b1ant_media_status_notify(btcoexist,
-							     BTC_MEDIA_CONNECT);
+				ex_btc8723b1ant_media_status_notify(btcoexist,
+						BTC_MEDIA_CONNECT);
 			else
-				ex_halbtc8723b1ant_media_status_notify(btcoexist,
-							  BTC_MEDIA_DISCONNECT);
+				ex_btc8723b1ant_media_status_notify(btcoexist,
+						BTC_MEDIA_DISCONNECT);
 		}
 
 		if (coex_sta->bt_info_ext & BIT3) {
@@ -3364,7 +3364,7 @@ void ex_halbtc8723b1ant_bt_info_notify(struct btc_coexist *btcoexist,
 	halbtc8723b1ant_run_coexist_mechanism(btcoexist);
 }
 
-void ex_halbtc8723b1ant_rf_status_notify(struct btc_coexist *btcoexist, u8 type)
+void ex_btc8723b1ant_rf_status_notify(struct btc_coexist *btcoexist, u8 type)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
 	u32 u32tmp;
@@ -3401,7 +3401,7 @@ void ex_halbtc8723b1ant_rf_status_notify(struct btc_coexist *btcoexist, u8 type)
 	}
 }
 
-void ex_halbtc8723b1ant_halt_notify(struct btc_coexist *btcoexist)
+void ex_btc8723b1ant_halt_notify(struct btc_coexist *btcoexist)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
 
@@ -3418,12 +3418,12 @@ void ex_halbtc8723b1ant_halt_notify(struct btc_coexist *btcoexist)
 					 0x0, 0x0);
 	halbtc8723b1ant_ps_tdma(btcoexist, FORCE_EXEC, false, 0);
 
-	ex_halbtc8723b1ant_media_status_notify(btcoexist, BTC_MEDIA_DISCONNECT);
+	ex_btc8723b1ant_media_status_notify(btcoexist, BTC_MEDIA_DISCONNECT);
 
 	btcoexist->stop_coex_dm = true;
 }
 
-void ex_halbtc8723b1ant_pnp_notify(struct btc_coexist *btcoexist, u8 pnp_state)
+void ex_btc8723b1ant_pnp_notify(struct btc_coexist *btcoexist, u8 pnp_state)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
 
@@ -3458,7 +3458,7 @@ void ex_halbtc8723b1ant_pnp_notify(struct btc_coexist *btcoexist, u8 pnp_state)
 	}
 }
 
-void ex_halbtc8723b1ant_coex_dm_reset(struct btc_coexist *btcoexist)
+void ex_btc8723b1ant_coex_dm_reset(struct btc_coexist *btcoexist)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
 
@@ -3469,7 +3469,7 @@ void ex_halbtc8723b1ant_coex_dm_reset(struct btc_coexist *btcoexist)
 	halbtc8723b1ant_init_coex_dm(btcoexist);
 }
 
-void ex_halbtc8723b1ant_periodical(struct btc_coexist *btcoexist)
+void ex_btc8723b1ant_periodical(struct btc_coexist *btcoexist)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
 	struct btc_bt_link_info *bt_link_info = &btcoexist->bt_link_info;
