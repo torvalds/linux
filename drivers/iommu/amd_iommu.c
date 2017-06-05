@@ -1045,7 +1045,7 @@ static int __iommu_queue_command_sync(struct amd_iommu *iommu,
 				      struct iommu_cmd *cmd,
 				      bool sync)
 {
-	bool read_head = true;
+	unsigned int count = 0;
 	u32 left, next_tail;
 
 	next_tail = (iommu->cmd_buf_tail + sizeof(*cmd)) % CMD_BUFFER_SIZE;
@@ -1053,33 +1053,26 @@ again:
 	left      = (iommu->cmd_buf_head - next_tail) % CMD_BUFFER_SIZE;
 
 	if (left <= 0x20) {
-		struct iommu_cmd sync_cmd;
-		int ret;
+		/* Skip udelay() the first time around */
+		if (count++) {
+			if (count == LOOP_TIMEOUT) {
+				pr_err("AMD-Vi: Command buffer timeout\n");
+				return -EIO;
+			}
 
-		if (read_head) {
-			/* Update head and recheck remaining space */
-			iommu->cmd_buf_head = readl(iommu->mmio_base +
-						    MMIO_CMD_HEAD_OFFSET);
-			read_head = false;
-			goto again;
+			udelay(1);
 		}
 
-		read_head = true;
-
-		iommu->cmd_sem = 0;
-
-		build_completion_wait(&sync_cmd, (u64)&iommu->cmd_sem);
-		copy_cmd_to_buffer(iommu, &sync_cmd);
-
-		if ((ret = wait_on_sem(&iommu->cmd_sem)) != 0)
-			return ret;
+		/* Update head and recheck remaining space */
+		iommu->cmd_buf_head = readl(iommu->mmio_base +
+					    MMIO_CMD_HEAD_OFFSET);
 
 		goto again;
 	}
 
 	copy_cmd_to_buffer(iommu, cmd);
 
-	/* We need to sync now to make sure all commands are processed */
+	/* Do we need to make sure all commands are processed? */
 	iommu->need_sync = sync;
 
 	return 0;
