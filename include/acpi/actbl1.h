@@ -514,7 +514,8 @@ enum acpi_hest_notify_types {
 	ACPI_HEST_NOTIFY_SEA = 8,	/* ACPI 6.1 */
 	ACPI_HEST_NOTIFY_SEI = 9,	/* ACPI 6.1 */
 	ACPI_HEST_NOTIFY_GSIV = 10,	/* ACPI 6.1 */
-	ACPI_HEST_NOTIFY_RESERVED = 11	/* 11 and greater are reserved */
+	ACPI_HEST_NOTIFY_SOFTWARE_DELEGATED = 11,	/* ACPI 6.2 */
+	ACPI_HEST_NOTIFY_RESERVED = 12	/* 12 and greater are reserved */
 };
 
 /* Values for config_write_enable bitfield above */
