@@ -369,6 +369,8 @@ ACPI_GLOBAL(const char, *acpi_gbl_pld_vertical_position_list[]);
 ACPI_GLOBAL(const char, *acpi_gbl_pld_horizontal_position_list[]);
 ACPI_GLOBAL(const char, *acpi_gbl_pld_shape_list[]);
 
+ACPI_INIT_GLOBAL(u8, acpi_gbl_disasm_flag, FALSE);
+
 #endif
 
 /*
