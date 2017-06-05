@@ -255,7 +255,7 @@ get_framebuffer_by_node(struct drm_device *drm_dev, struct device_node *node)
 	}
 	bpp = val;
 
-	mode_cmd.pitches[0] = mode_cmd.width * bpp / 8;
+	mode_cmd.pitches[0] = ALIGN(mode_cmd.width * bpp, 32) / 8;
 
 	switch (bpp) {
 	case 16:
