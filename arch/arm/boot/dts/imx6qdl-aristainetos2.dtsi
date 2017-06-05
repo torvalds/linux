@@ -335,7 +335,7 @@
 };
 
 &pcie {
-	reset-gpio = <&gpio2 16 GPIO_ACTIVE_HIGH>;
+	reset-gpio = <&gpio2 16 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 
