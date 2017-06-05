@@ -85,6 +85,7 @@ enum bpf_cmd {
 	BPF_PROG_GET_NEXT_ID,
 	BPF_MAP_GET_NEXT_ID,
 	BPF_PROG_GET_FD_BY_ID,
+	BPF_MAP_GET_FD_BY_ID,
 };
 
 enum bpf_map_type {
@@ -217,6 +218,7 @@ union bpf_attr {
 		union {
 			__u32		start_id;
 			__u32		prog_id;
+			__u32		map_id;
 		};
 		__u32		next_id;
 	};
