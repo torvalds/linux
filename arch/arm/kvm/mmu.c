@@ -872,6 +872,9 @@ static pmd_t *stage2_get_pmd(struct kvm *kvm, struct kvm_mmu_memory_cache *cache
 	pmd_t *pmd;
 
 	pud = stage2_get_pud(kvm, cache, addr);
+	if (!pud)
+		return NULL;
+
 	if (stage2_pud_none(*pud)) {
 		if (!cache)
 			return NULL;
