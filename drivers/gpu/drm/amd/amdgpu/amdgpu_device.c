@@ -1403,11 +1403,12 @@ static void amdgpu_device_enable_virtual_display(struct amdgpu_device *adev)
 
 static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 {
-	const struct firmware *fw;
 	const char *chip_name;
 	char fw_name[30];
 	int err;
 	const struct gpu_info_firmware_header_v1_0 *hdr;
+
+	adev->firmware.gpu_info_fw = NULL;
 
 	switch (adev->asic_type) {
 	case CHIP_TOPAZ:
@@ -1443,14 +1444,14 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_gpu_info.bin", chip_name);
-	err = request_firmware(&fw, fw_name, adev->dev);
+	err = request_firmware(&adev->firmware.gpu_info_fw, fw_name, adev->dev);
 	if (err) {
 		dev_err(adev->dev,
 			"Failed to load gpu_info firmware \"%s\"\n",
 			fw_name);
 		goto out;
 	}
-	err = amdgpu_ucode_validate(fw);
+	err = amdgpu_ucode_validate(adev->firmware.gpu_info_fw);
 	if (err) {
 		dev_err(adev->dev,
 			"Failed to validate gpu_info firmware \"%s\"\n",
@@ -1458,14 +1459,14 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 		goto out;
 	}
 
-	hdr = (const struct gpu_info_firmware_header_v1_0 *)fw->data;
+	hdr = (const struct gpu_info_firmware_header_v1_0 *)adev->firmware.gpu_info_fw->data;
 	amdgpu_ucode_print_gpu_info_hdr(&hdr->header);
 
 	switch (hdr->version_major) {
 	case 1:
 	{
 		const struct gpu_info_firmware_v1_0 *gpu_info_fw =
-			(const struct gpu_info_firmware_v1_0 *)(fw->data +
+			(const struct gpu_info_firmware_v1_0 *)(adev->firmware.gpu_info_fw->data +
 								le32_to_cpu(hdr->header.ucode_array_offset_bytes));
 
 		adev->gfx.config.max_shader_engines = le32_to_cpu(gpu_info_fw->gc_num_se);
@@ -1495,9 +1496,6 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 		goto out;
 	}
 out:
-	release_firmware(fw);
-	fw = NULL;
-
 	return err;
 }
 
@@ -2288,6 +2286,10 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	amdgpu_fence_driver_fini(adev);
 	amdgpu_fbdev_fini(adev);
 	r = amdgpu_fini(adev);
+	if (adev->firmware.gpu_info_fw) {
+		release_firmware(adev->firmware.gpu_info_fw);
+		adev->firmware.gpu_info_fw = NULL;
+	}
 	adev->accel_working = false;
 	cancel_delayed_work_sync(&adev->late_init_work);
 	/* free i2c buses */

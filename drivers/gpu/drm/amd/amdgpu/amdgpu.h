@@ -1271,6 +1271,9 @@ struct amdgpu_firmware {
 	const struct amdgpu_psp_funcs *funcs;
 	struct amdgpu_bo *rbuf;
 	struct mutex mutex;
+
+	/* gpu info firmware data pointer */
+	const struct firmware *gpu_info_fw;
 };
 
 /*
