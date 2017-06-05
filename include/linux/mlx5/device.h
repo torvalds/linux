@@ -787,8 +787,14 @@ enum {
 };
 
 enum {
-	CQE_RSS_HTYPE_IP	= 0x3 << 6,
-	CQE_RSS_HTYPE_L4	= 0x3 << 2,
+	CQE_RSS_HTYPE_IP	= 0x3 << 2,
+	/* cqe->rss_hash_type[3:2] - IP destination selected for hash
+	 * (00 = none,  01 = IPv4, 10 = IPv6, 11 = Reserved)
+	 */
+	CQE_RSS_HTYPE_L4	= 0x3 << 6,
+	/* cqe->rss_hash_type[7:6] - L4 destination selected for hash
+	 * (00 = none, 01 = TCP. 10 = UDP, 11 = IPSEC.SPI
+	 */
 };
 
 enum {

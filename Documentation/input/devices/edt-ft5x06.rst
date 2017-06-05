@@ -15,7 +15,7 @@ It has been tested with the following devices:
 The driver allows configuration of the touch screen via a set of sysfs files:
 
 /sys/class/input/eventX/device/device/threshold:
-    allows setting the "click"-threshold in the range from 20 to 80.
+    allows setting the "click"-threshold in the range from 0 to 80.
 
 /sys/class/input/eventX/device/device/gain:
     allows setting the sensitivity in the range from 0 to 31. Note that

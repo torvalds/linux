@@ -628,25 +628,6 @@ void blk_mq_delay_kick_requeue_list(struct request_queue *q,
 }
 EXPORT_SYMBOL(blk_mq_delay_kick_requeue_list);
 
-void blk_mq_abort_requeue_list(struct request_queue *q)
-{
-	unsigned long flags;
-	LIST_HEAD(rq_list);
-
-	spin_lock_irqsave(&q->requeue_lock, flags);
-	list_splice_init(&q->requeue_list, &rq_list);
-	spin_unlock_irqrestore(&q->requeue_lock, flags);
-
-	while (!list_empty(&rq_list)) {
-		struct request *rq;
-
-		rq = list_first_entry(&rq_list, struct request, queuelist);
-		list_del_init(&rq->queuelist);
-		blk_mq_end_request(rq, -EIO);
-	}
-}
-EXPORT_SYMBOL(blk_mq_abort_requeue_list);
-
 struct request *blk_mq_tag_to_rq(struct blk_mq_tags *tags, unsigned int tag)
 {
 	if (tag < tags->nr_tags) {
@@ -2660,7 +2641,8 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
 	return ret;
 }
 
-void blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set, int nr_hw_queues)
+static void __blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set,
+							int nr_hw_queues)
 {
 	struct request_queue *q;
 
@@ -2683,6 +2665,13 @@ void blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set, int nr_hw_queues)
 
 	list_for_each_entry(q, &set->tag_list, tag_set_list)
 		blk_mq_unfreeze_queue(q);
+}
+
+void blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set, int nr_hw_queues)
+{
+	mutex_lock(&set->tag_list_lock);
+	__blk_mq_update_nr_hw_queues(set, nr_hw_queues);
+	mutex_unlock(&set->tag_list_lock);
 }
 EXPORT_SYMBOL_GPL(blk_mq_update_nr_hw_queues);
 
