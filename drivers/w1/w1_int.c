@@ -21,9 +21,8 @@
 #include <linux/export.h>
 #include <linux/moduleparam.h>
 
-#include "w1.h"
+#include "w1_internal.h"
 #include "w1_netlink.h"
-#include "w1_int.h"
 
 static int w1_search_count = -1; /* Default is continual scan */
 module_param_named(search_count, w1_search_count, int, 0);

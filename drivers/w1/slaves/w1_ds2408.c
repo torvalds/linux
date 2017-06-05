@@ -15,9 +15,9 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 
-#include "../w1.h"
-#include "../w1_int.h"
-#include "../w1_family.h"
+#include <linux/w1.h>
+
+#define W1_FAMILY_DS2408	0x29
 
 #define W1_F29_RETRIES		3
 

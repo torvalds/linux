@@ -25,8 +25,7 @@
 #include <linux/usb.h>
 #include <linux/slab.h>
 
-#include "../w1_int.h"
-#include "../w1.h"
+#include <linux/w1.h>
 
 /* USB Standard */
 /* USB Control request vendor type */

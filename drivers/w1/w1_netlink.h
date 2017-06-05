@@ -18,7 +18,7 @@
 #include <asm/types.h>
 #include <linux/connector.h>
 
-#include "w1.h"
+#include "w1_internal.h"
 
 /**
  * enum w1_cn_msg_flags - bitfield flags for struct cn_msg.flags

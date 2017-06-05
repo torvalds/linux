@@ -18,10 +18,11 @@
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
 
-#include "../w1.h"
-#include "../w1_int.h"
-#include "../w1_family.h"
+#include <linux/w1.h>
+
 #include "w1_ds2781.h"
+
+#define W1_FAMILY_DS2781	0x3D
 
 static int w1_ds2781_do_io(struct device *dev, char *buf, int addr,
 			size_t count, int io)

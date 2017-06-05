@@ -17,9 +17,9 @@
 #include <linux/slab.h>
 #include <linux/crc16.h>
 
-#include "../w1.h"
-#include "../w1_int.h"
-#include "../w1_family.h"
+#include <linux/w1.h>
+
+#define W1_FAMILY_DS2406	0x12
 
 #define W1_F12_FUNC_READ_STATUS		   0xAA
 #define W1_F12_FUNC_WRITE_STATUS	   0x55

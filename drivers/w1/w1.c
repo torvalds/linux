@@ -28,10 +28,10 @@
 
 #include <linux/atomic.h>
 
-#include "w1.h"
-#include "w1_int.h"
-#include "w1_family.h"
+#include "w1_internal.h"
 #include "w1_netlink.h"
+
+#define W1_FAMILY_DEFAULT	0
 
 static int w1_timeout = 10;
 module_param_named(timeout, w1_timeout, int, 0);

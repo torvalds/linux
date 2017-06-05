@@ -22,9 +22,9 @@
 
 #endif
 
-#include "../w1.h"
-#include "../w1_int.h"
-#include "../w1_family.h"
+#include <linux/w1.h>
+
+#define W1_EEPROM_DS2433	0x23
 
 #define W1_EEPROM_SIZE		512
 #define W1_PAGE_COUNT		16

@@ -18,8 +18,7 @@
 #include <linux/delay.h>
 #include <linux/export.h>
 
-#include "w1_family.h"
-#include "w1.h"
+#include "w1_internal.h"
 
 DEFINE_SPINLOCK(w1_flock);
 static LIST_HEAD(w1_families);

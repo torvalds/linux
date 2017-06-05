@@ -30,9 +30,9 @@
 #include <linux/delay.h>
 #include <linux/crc16.h>
 
-#include "../w1.h"
-#include "../w1_int.h"
-#include "../w1_family.h"
+#include <linux/w1.h>
+
+#define W1_COUNTER_DS2423	0x1D
 
 #define CRC16_VALID	0xb001
 #define CRC16_INIT	0

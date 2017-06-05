@@ -21,10 +21,11 @@
 #include <linux/mutex.h>
 #include <linux/idr.h>
 
-#include "../w1.h"
-#include "../w1_int.h"
-#include "../w1_family.h"
+#include <linux/w1.h>
+
 #include "w1_ds2780.h"
+
+#define W1_FAMILY_DS2780	0x32
 
 static int w1_ds2780_do_io(struct device *dev, char *buf, int addr,
 			size_t count, int io)

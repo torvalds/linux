@@ -17,9 +17,9 @@
 #include <linux/mutex.h>
 #include <linux/power/bq27xxx_battery.h>
 
-#include "../w1.h"
-#include "../w1_int.h"
-#include "../w1_family.h"
+#include <linux/w1.h>
+
+#define W1_FAMILY_BQ27000	0x01
 
 #define HDQ_CMD_READ	(0)
 #define HDQ_CMD_WRITE	(1<<7)

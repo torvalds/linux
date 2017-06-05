@@ -20,9 +20,9 @@
 #define CRC16_INIT		0
 #define CRC16_VALID		0xb001
 
-#include "../w1.h"
-#include "../w1_int.h"
-#include "../w1_family.h"
+#include <linux/w1.h>
+
+#define W1_FAMILY_DS28E04	0x1C
 
 /* Allow the strong pullup to be disabled, but default to enabled.
  * If it was disabled a parasite powered device might not get the required
