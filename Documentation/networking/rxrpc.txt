@@ -325,6 +325,8 @@ calls, to invoke certain actions and to report certain conditions.  These are:
 	RXRPC_LOCAL_ERROR	-rt error num	Local error encountered
 	RXRPC_NEW_CALL		-r- n/a		New call received
 	RXRPC_ACCEPT		s-- n/a		Accept new call
+	RXRPC_EXCLUSIVE_CALL	s-- n/a		Make an exclusive client call
+	RXRPC_UPGRADE_SERVICE	s-- n/a		Client call can be upgraded
 
 	(SRT = usable in Sendmsg / delivered by Recvmsg / Terminal message)
 
@@ -386,6 +388,23 @@ calls, to invoke certain actions and to report certain conditions.  These are:
      accepted (it may have timed out, been aborted, etc.), then sendmsg will
      return error ENODATA.  If the user ID is already in use by another call,
      then error EBADSLT will be returned.
+
+ (*) RXRPC_EXCLUSIVE_CALL
+
+     This is used to indicate that a client call should be made on a one-off
+     connection.  The connection is discarded once the call has terminated.
+
+ (*) RXRPC_UPGRADE_SERVICE
+
+     This is used to make a client call to probe if the specified service ID
+     may be upgraded by the server.  The caller must check msg_name returned to
+     recvmsg() for the service ID actually in use.  The operation probed must
+     be one that takes the same arguments in both services.
+
+     Once this has been used to establish the upgrade capability (or lack
+     thereof) of the server, the service ID returned should be used for all
+     future communication to that server and RXRPC_UPGRADE_SERVICE should no
+     longer be set.
 
 
 ==============
@@ -565,6 +584,17 @@ A client would issue an operation by:
      If an abort or error occurred, this will be returned in the control data
      buffer instead, and MSG_EOR will be flagged to indicate the end of that
      call.
+
+A client may ask for a service ID it knows and ask that this be upgraded to a
+better service if one is available by supplying RXRPC_UPGRADE_SERVICE on the
+first sendmsg() of a call.  The client should then check srx_service in the
+msg_name filled in by recvmsg() when collecting the result.  srx_service will
+hold the same value as given to sendmsg() if the upgrade request was ignored by
+the service - otherwise it will be altered to indicate the service ID the
+server upgraded to.  Note that the upgraded service ID is chosen by the server.
+The caller has to wait until it sees the service ID in the reply before sending
+any more calls (further calls to the same destination will be blocked until the
+probe is concluded).
 
 
 ====================

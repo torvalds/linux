@@ -320,6 +320,7 @@ struct rxrpc_conn_parameters {
 	struct rxrpc_peer	*peer;		/* Remote endpoint */
 	struct key		*key;		/* Security details */
 	bool			exclusive;	/* T if conn is exclusive */
+	bool			upgrade;	/* T if service ID can be upgraded */
 	u16			service_id;	/* Service ID for this connection */
 	u32			security_level;	/* Security level selected */
 };
@@ -334,6 +335,7 @@ enum rxrpc_conn_flag {
 	RXRPC_CONN_EXPOSED,		/* Conn has extra ref for exposure */
 	RXRPC_CONN_DONT_REUSE,		/* Don't reuse this connection */
 	RXRPC_CONN_COUNTED,		/* Counted by rxrpc_nr_client_conns */
+	RXRPC_CONN_PROBING_FOR_UPGRADE,	/* Probing for service upgrade */
 };
 
 /*
@@ -350,6 +352,7 @@ enum rxrpc_conn_cache_state {
 	RXRPC_CONN_CLIENT_INACTIVE,	/* Conn is not yet listed */
 	RXRPC_CONN_CLIENT_WAITING,	/* Conn is on wait list, waiting for capacity */
 	RXRPC_CONN_CLIENT_ACTIVE,	/* Conn is on active list, doing calls */
+	RXRPC_CONN_CLIENT_UPGRADE,	/* Conn is on active list, probing for upgrade */
 	RXRPC_CONN_CLIENT_CULLED,	/* Conn is culled and delisted, doing calls */
 	RXRPC_CONN_CLIENT_IDLE,		/* Conn is on idle list, doing mostly nothing */
 	RXRPC_CONN__NR_CACHE_STATES

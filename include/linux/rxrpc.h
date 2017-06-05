@@ -54,6 +54,7 @@ struct sockaddr_rxrpc {
 #define RXRPC_NEW_CALL		8	/* -r: [Service] new incoming call notification */
 #define RXRPC_ACCEPT		9	/* s-: [Service] accept request */
 #define RXRPC_EXCLUSIVE_CALL	10	/* s-: Call should be on exclusive connection */
+#define RXRPC_UPGRADE_SERVICE	11	/* s-: Request service upgrade for client call */
 
 /*
  * RxRPC security levels
