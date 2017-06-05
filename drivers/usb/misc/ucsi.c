@@ -55,13 +55,13 @@ struct ucsi {
 
 static int ucsi_acpi_cmd(struct ucsi *ucsi, struct ucsi_control *ctrl)
 {
-	uuid_le uuid = UUID_LE(0x6f8398c2, 0x7ca4, 0x11e4,
-			       0xad, 0x36, 0x63, 0x10, 0x42, 0xb5, 0x00, 0x8f);
+	guid_t guid = GUID_INIT(0x6f8398c2, 0x7ca4, 0x11e4,
+				0xad, 0x36, 0x63, 0x10, 0x42, 0xb5, 0x00, 0x8f);
 	union acpi_object *obj;
 
 	ucsi->data->ctrl.raw_cmd = ctrl->raw_cmd;
 
-	obj = acpi_evaluate_dsm(ACPI_HANDLE(ucsi->dev), uuid.b, 1, 1, NULL);
+	obj = acpi_evaluate_dsm(ACPI_HANDLE(ucsi->dev), &guid, 1, 1, NULL);
 	if (!obj) {
 		dev_err(ucsi->dev, "%s: failed to evaluate _DSM\n", __func__);
 		return -EIO;

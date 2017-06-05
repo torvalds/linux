@@ -190,9 +190,9 @@ static bool __init extlog_get_l1addr(void)
 		return false;
 	if (ACPI_FAILURE(acpi_get_handle(NULL, "\\_SB", &handle)))
 		return false;
-	if (!acpi_check_dsm(handle, guid.b, EXTLOG_DSM_REV, 1 << EXTLOG_FN_ADDR))
+	if (!acpi_check_dsm(handle, &guid, EXTLOG_DSM_REV, 1 << EXTLOG_FN_ADDR))
 		return false;
-	obj = acpi_evaluate_dsm_typed(handle, guid.b, EXTLOG_DSM_REV,
+	obj = acpi_evaluate_dsm_typed(handle, &guid, EXTLOG_DSM_REV,
 				      EXTLOG_FN_ADDR, NULL, ACPI_TYPE_INTEGER);
 	if (!obj) {
 		return false;
