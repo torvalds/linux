@@ -169,13 +169,6 @@ static int asoc_graph_card_dai_link_of(struct device_node *cpu_port,
 	dai_link->ops = &asoc_graph_card_ops;
 	dai_link->init = asoc_graph_card_dai_init;
 
-	dev_dbg(dev, "\tcpu : %s / %d\n",
-		dai_link->cpu_dai_name,
-		cpu_dai->sysclk);
-	dev_dbg(dev, "\tcodec : %s / %d\n",
-		dai_link->codec_dai_name,
-		codec_dai->sysclk);
-
 	asoc_simple_card_canonicalize_cpu(dai_link,
 					  card->num_links == 1);
 

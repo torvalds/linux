@@ -185,11 +185,6 @@ static int asoc_graph_card_dai_link_of(struct device_node *ep,
 	dai_link->ops			= &asoc_graph_card_ops;
 	dai_link->init			= asoc_graph_card_dai_init;
 
-	dev_dbg(dev, "\t%s / %04x / %d\n",
-		dai_link->name,
-		dai_link->dai_fmt,
-		dai_props->sysclk);
-
 	return 0;
 }
 

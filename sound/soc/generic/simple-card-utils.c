@@ -113,7 +113,8 @@ EXPORT_SYMBOL_GPL(asoc_simple_card_parse_card_name);
 int asoc_simple_card_parse_clk(struct device *dev,
 			       struct device_node *node,
 			       struct device_node *dai_of_node,
-			       struct asoc_simple_dai *simple_dai)
+			       struct asoc_simple_dai *simple_dai,
+			       const char *name)
 {
 	struct clk *clk;
 	u32 val;
@@ -135,6 +136,8 @@ int asoc_simple_card_parse_clk(struct device *dev,
 		if (!IS_ERR(clk))
 			simple_dai->sysclk = clk_get_rate(clk);
 	}
+
+	dev_dbg(dev, "%s : sysclk = %d\n", name, simple_dai->sysclk);
 
 	return 0;
 }

@@ -301,13 +301,6 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 	dai_link->ops = &asoc_simple_card_ops;
 	dai_link->init = asoc_simple_card_dai_init;
 
-	dev_dbg(dev, "\tcpu : %s / %d\n",
-		dai_link->cpu_dai_name,
-		dai_props->cpu_dai.sysclk);
-	dev_dbg(dev, "\tcodec : %s / %d\n",
-		dai_link->codec_dai_name,
-		dai_props->codec_dai.sysclk);
-
 	asoc_simple_card_canonicalize_cpu(dai_link, single_cpu);
 
 dai_link_of_err:
