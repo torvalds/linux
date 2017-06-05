@@ -486,6 +486,7 @@ struct btc_statistics {
 	u32 cnt_coex_dm_switch;
 	u32 cnt_stack_operation_notify;
 	u32 cnt_dbg_ctrl;
+	u32 cnt_pre_load_firmware;
 };
 
 struct btc_bt_link_info {

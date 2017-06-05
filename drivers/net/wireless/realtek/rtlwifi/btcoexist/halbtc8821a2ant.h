@@ -228,3 +228,5 @@ void
 ex_btc8821a2ant_display_coex_info(
 	struct btc_coexist *btcoexist
 	);
+void ex_btc8821a2ant_pnp_notify(struct btc_coexist *btcoexist, u8 pnp_state);
+void ex_btc8821a2ant_pre_load_firmware(struct btc_coexist *btcoexist);
