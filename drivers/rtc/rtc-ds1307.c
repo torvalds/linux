@@ -136,6 +136,9 @@ struct chip_desc {
 	unsigned		alarm:1;
 	u16			nvram_offset;
 	u16			nvram_size;
+	u8			century_reg;
+	u8			century_enable_bit;
+	u8			century_bit;
 	u16			trickle_charger_reg;
 	u8			trickle_charger_setup;
 	u8			(*do_trickle_setup)(struct ds1307 *, uint32_t,
@@ -151,6 +154,8 @@ static struct chip_desc chips[last_ds_type] = {
 	},
 	[ds_1337] = {
 		.alarm		= 1,
+		.century_reg	= DS1307_REG_MONTH,
+		.century_bit	= DS1337_BIT_CENTURY,
 	},
 	[ds_1338] = {
 		.nvram_offset	= 8,
@@ -158,10 +163,15 @@ static struct chip_desc chips[last_ds_type] = {
 	},
 	[ds_1339] = {
 		.alarm		= 1,
+		.century_reg	= DS1307_REG_MONTH,
+		.century_bit	= DS1337_BIT_CENTURY,
 		.trickle_charger_reg = 0x10,
 		.do_trickle_setup = &do_trickle_setup_ds1339,
 	},
 	[ds_1340] = {
+		.century_reg	= DS1307_REG_HOUR,
+		.century_enable_bit = DS1340_BIT_CENTURY_EN,
+		.century_bit	= DS1340_BIT_CENTURY,
 		.trickle_charger_reg = 0x08,
 	},
 	[ds_1388] = {
@@ -169,6 +179,8 @@ static struct chip_desc chips[last_ds_type] = {
 	},
 	[ds_3231] = {
 		.alarm		= 1,
+		.century_reg	= DS1307_REG_MONTH,
+		.century_bit	= DS1337_BIT_CENTURY,
 	},
 	[rx_8130] = {
 		.alarm		= 1,
@@ -328,6 +340,7 @@ static int ds1307_get_time(struct device *dev, struct rtc_time *t)
 {
 	struct ds1307	*ds1307 = dev_get_drvdata(dev);
 	int		tmp, ret;
+	const struct chip_desc *chip = &chips[ds1307->type];
 
 	/* read the RTC date and time registers all at once */
 	ret = regmap_bulk_read(ds1307->regmap, ds1307->offset, ds1307->regs, 7);
@@ -355,22 +368,9 @@ static int ds1307_get_time(struct device *dev, struct rtc_time *t)
 	t->tm_mon = bcd2bin(tmp) - 1;
 	t->tm_year = bcd2bin(ds1307->regs[DS1307_REG_YEAR]) + 100;
 
-#ifdef CONFIG_RTC_DRV_DS1307_CENTURY
-	switch (ds1307->type) {
-	case ds_1337:
-	case ds_1339:
-	case ds_3231:
-		if (ds1307->regs[DS1307_REG_MONTH] & DS1337_BIT_CENTURY)
-			t->tm_year += 100;
-		break;
-	case ds_1340:
-		if (ds1307->regs[DS1307_REG_HOUR] & DS1340_BIT_CENTURY)
-			t->tm_year += 100;
-		break;
-	default:
-		break;
-	}
-#endif
+	if (ds1307->regs[chip->century_reg] & chip->century_bit &&
+	    IS_ENABLED(CONFIG_RTC_DRV_DS1307_CENTURY))
+		t->tm_year += 100;
 
 	dev_dbg(dev, "%s secs=%d, mins=%d, "
 		"hours=%d, mday=%d, mon=%d, year=%d, wday=%d\n",
@@ -385,6 +385,7 @@ static int ds1307_get_time(struct device *dev, struct rtc_time *t)
 static int ds1307_set_time(struct device *dev, struct rtc_time *t)
 {
 	struct ds1307	*ds1307 = dev_get_drvdata(dev);
+	const struct chip_desc *chip = &chips[ds1307->type];
 	int		result;
 	int		tmp;
 	u8		*buf = ds1307->regs;
@@ -395,24 +396,14 @@ static int ds1307_set_time(struct device *dev, struct rtc_time *t)
 		t->tm_hour, t->tm_mday,
 		t->tm_mon, t->tm_year, t->tm_wday);
 
-#ifdef CONFIG_RTC_DRV_DS1307_CENTURY
 	if (t->tm_year < 100)
 		return -EINVAL;
 
-	switch (ds1307->type) {
-	case ds_1337:
-	case ds_1339:
-	case ds_3231:
-	case ds_1340:
-		if (t->tm_year > 299)
-			return -EINVAL;
-	default:
-		if (t->tm_year > 199)
-			return -EINVAL;
-		break;
-	}
+#ifdef CONFIG_RTC_DRV_DS1307_CENTURY
+	if (t->tm_year > (chip->century_bit ? 299 : 199))
+		return -EINVAL;
 #else
-	if (t->tm_year < 100 || t->tm_year > 199)
+	if (t->tm_year > 199)
 		return -EINVAL;
 #endif
 
@@ -427,19 +418,12 @@ static int ds1307_set_time(struct device *dev, struct rtc_time *t)
 	tmp = t->tm_year - 100;
 	buf[DS1307_REG_YEAR] = bin2bcd(tmp);
 
-	switch (ds1307->type) {
-	case ds_1337:
-	case ds_1339:
-	case ds_3231:
-		if (t->tm_year > 199)
-			buf[DS1307_REG_MONTH] |= DS1337_BIT_CENTURY;
-		break;
-	case ds_1340:
-		buf[DS1307_REG_HOUR] |= DS1340_BIT_CENTURY_EN;
-		if (t->tm_year > 199)
-			buf[DS1307_REG_HOUR] |= DS1340_BIT_CENTURY;
-		break;
-	case mcp794xx:
+	if (chip->century_enable_bit)
+		buf[chip->century_reg] |= chip->century_enable_bit;
+	if (t->tm_year > 199 && chip->century_bit)
+		buf[chip->century_reg] |= chip->century_bit;
+
+	if (ds1307->type == mcp794xx) {
 		/*
 		 * these bits were cleared when preparing the date/time
 		 * values and need to be set again before writing the
@@ -447,9 +431,6 @@ static int ds1307_set_time(struct device *dev, struct rtc_time *t)
 		 */
 		buf[DS1307_REG_SECS] |= MCP794XX_BIT_ST;
 		buf[DS1307_REG_WDAY] |= MCP794XX_BIT_VBATEN;
-		break;
-	default:
-		break;
 	}
 
 	dev_dbg(dev, "%s: %7ph\n", "write", buf);
