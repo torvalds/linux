@@ -2973,7 +2973,8 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 	}
 
 	/* find out number of slots supported */
-	device_property_read_u32(dev, "num-slots", &pdata->num_slots);
+	if (device_property_read_u32(dev, "num-slots", &pdata->num_slots))
+		dev_info(dev, "'num-slots' was deprecated.\n");
 
 	if (device_property_read_u32(dev, "fifo-depth", &pdata->fifo_depth))
 		dev_info(dev,
@@ -3203,18 +3204,12 @@ int dw_mci_probe(struct dw_mci *host)
 	if (ret)
 		goto err_dmaunmap;
 
-	if (host->pdata->num_slots)
-		host->num_slots = host->pdata->num_slots;
-	else
-		host->num_slots = 1;
-
-	if (host->num_slots < 1 ||
-	    host->num_slots > SDMMC_GET_SLOT_NUM(mci_readl(host, HCON))) {
-		dev_err(host->dev,
-			"Platform data must supply correct num_slots.\n");
-		ret = -ENODEV;
-		goto err_clk_ciu;
-	}
+	/*
+	 * Even though dwmmc IP is provided the multiple slots,
+	 * there is no use case in mmc subsystem.
+	 * dwmmc host controller needs to initialize the one slot per an IP.
+	 */
+	host->num_slots = 1;
 
 	/*
 	 * Enable interrupts for command done, data over, data empty,
