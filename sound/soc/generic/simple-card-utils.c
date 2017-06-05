@@ -74,6 +74,8 @@ int asoc_simple_card_set_dailink_name(struct device *dev,
 
 		dai_link->name		= name;
 		dai_link->stream_name	= name;
+
+		dev_dbg(dev, "name : %s\n", name);
 	}
 
 	return ret;
