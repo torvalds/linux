@@ -496,55 +496,50 @@ static void mlx5e_lro_update_hdr(struct sk_buff *skb, struct mlx5_cqe64 *cqe,
 				 u32 cqe_bcnt)
 {
 	struct ethhdr	*eth = (struct ethhdr *)(skb->data);
-	struct iphdr	*ipv4;
-	struct ipv6hdr	*ipv6;
 	struct tcphdr	*tcp;
 	int network_depth = 0;
 	__be16 proto;
 	u16 tot_len;
+	void *ip_p;
 
 	u8 l4_hdr_type = get_cqe_l4_hdr_type(cqe);
-	int tcp_ack = ((l4_hdr_type == CQE_L4_HDR_TYPE_TCP_ACK_NO_DATA) ||
-		       (l4_hdr_type == CQE_L4_HDR_TYPE_TCP_ACK_AND_DATA));
+	u8 tcp_ack = (l4_hdr_type == CQE_L4_HDR_TYPE_TCP_ACK_NO_DATA) ||
+		(l4_hdr_type == CQE_L4_HDR_TYPE_TCP_ACK_AND_DATA);
 
 	skb->mac_len = ETH_HLEN;
 	proto = __vlan_get_protocol(skb, eth->h_proto, &network_depth);
 
-	ipv4 = (struct iphdr *)(skb->data + network_depth);
-	ipv6 = (struct ipv6hdr *)(skb->data + network_depth);
 	tot_len = cqe_bcnt - network_depth;
+	ip_p = skb->data + network_depth;
 
 	if (proto == htons(ETH_P_IP)) {
-		tcp = (struct tcphdr *)(skb->data + network_depth +
-					sizeof(struct iphdr));
-		ipv6 = NULL;
+		struct iphdr *ipv4 = ip_p;
+
+		tcp = ip_p + sizeof(struct iphdr);
 		skb_shinfo(skb)->gso_type = SKB_GSO_TCPV4;
-	} else {
-		tcp = (struct tcphdr *)(skb->data + network_depth +
-					sizeof(struct ipv6hdr));
-		ipv4 = NULL;
-		skb_shinfo(skb)->gso_type = SKB_GSO_TCPV6;
-	}
 
-	if (get_cqe_lro_tcppsh(cqe))
-		tcp->psh                = 1;
-
-	if (tcp_ack) {
-		tcp->ack                = 1;
-		tcp->ack_seq            = cqe->lro_ack_seq_num;
-		tcp->window             = cqe->lro_tcp_win;
-	}
-
-	if (ipv4) {
 		ipv4->ttl               = cqe->lro_min_ttl;
 		ipv4->tot_len           = cpu_to_be16(tot_len);
 		ipv4->check             = 0;
 		ipv4->check             = ip_fast_csum((unsigned char *)ipv4,
 						       ipv4->ihl);
 	} else {
+		struct ipv6hdr *ipv6 = ip_p;
+
+		tcp = ip_p + sizeof(struct ipv6hdr);
+		skb_shinfo(skb)->gso_type = SKB_GSO_TCPV6;
+
 		ipv6->hop_limit         = cqe->lro_min_ttl;
 		ipv6->payload_len       = cpu_to_be16(tot_len -
 						      sizeof(struct ipv6hdr));
+	}
+
+	tcp->psh = get_cqe_lro_tcppsh(cqe);
+
+	if (tcp_ack) {
+		tcp->ack                = 1;
+		tcp->ack_seq            = cqe->lro_ack_seq_num;
+		tcp->window             = cqe->lro_tcp_win;
 	}
 }
 
