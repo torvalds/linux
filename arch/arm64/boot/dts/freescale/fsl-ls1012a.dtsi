@@ -76,8 +76,15 @@
 	sysclk: sysclk {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
-		clock-frequency = <100000000>;
+		clock-frequency = <125000000>;
 		clock-output-names = "sysclk";
+	};
+
+	coreclk: coreclk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <100000000>;
+		clock-output-names = "coreclk";
 	};
 
 	timer {
@@ -248,7 +255,8 @@
 			compatible = "fsl,ls1012a-clockgen";
 			reg = <0x0 0x1ee1000 0x0 0x1000>;
 			#clock-cells = <2>;
-			clocks = <&sysclk>;
+			clocks = <&sysclk &coreclk>;
+			clock-names = "sysclk", "coreclk";
 		};
 
 		tmu: tmu@1f00000 {
