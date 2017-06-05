@@ -484,30 +484,6 @@ int phy_ethtool_ksettings_set(struct phy_device *phydev,
 }
 EXPORT_SYMBOL(phy_ethtool_ksettings_set);
 
-int phy_ethtool_gset(struct phy_device *phydev, struct ethtool_cmd *cmd)
-{
-	cmd->supported = phydev->supported;
-
-	cmd->advertising = phydev->advertising;
-	cmd->lp_advertising = phydev->lp_advertising;
-
-	ethtool_cmd_speed_set(cmd, phydev->speed);
-	cmd->duplex = phydev->duplex;
-	if (phydev->interface == PHY_INTERFACE_MODE_MOCA)
-		cmd->port = PORT_BNC;
-	else
-		cmd->port = PORT_MII;
-	cmd->phy_address = phydev->mdio.addr;
-	cmd->transceiver = phy_is_internal(phydev) ?
-		XCVR_INTERNAL : XCVR_EXTERNAL;
-	cmd->autoneg = phydev->autoneg;
-	cmd->eth_tp_mdix_ctrl = phydev->mdix_ctrl;
-	cmd->eth_tp_mdix = phydev->mdix;
-
-	return 0;
-}
-EXPORT_SYMBOL(phy_ethtool_gset);
-
 int phy_ethtool_ksettings_get(struct phy_device *phydev,
 			      struct ethtool_link_ksettings *cmd)
 {
