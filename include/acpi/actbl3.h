@@ -116,6 +116,11 @@ struct acpi_table_bgrt {
 	u32 image_offset_y;
 };
 
+/* Flags for Status field above */
+
+#define ACPI_BGRT_DISPLAYED                 (1)
+#define ACPI_BGRT_ORIENTATION_OFFSET        (3 << 1)
+
 /*******************************************************************************
  *
  * DRTM - Dynamic Root of Trust for Measurement table
