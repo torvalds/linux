@@ -296,7 +296,7 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
 		conn->params.local = local;
 		conn->params.peer = peer;
 		rxrpc_see_connection(conn);
-		rxrpc_new_incoming_connection(conn, skb);
+		rxrpc_new_incoming_connection(rx, conn, skb);
 	} else {
 		rxrpc_get_connection(conn);
 	}

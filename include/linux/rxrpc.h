@@ -37,6 +37,7 @@ struct sockaddr_rxrpc {
 #define RXRPC_SECURITY_KEYRING		2	/* [srvr] set ring of server security keys */
 #define RXRPC_EXCLUSIVE_CONNECTION	3	/* Deprecated; use RXRPC_EXCLUSIVE_CALL instead */
 #define RXRPC_MIN_SECURITY_LEVEL	4	/* minimum security level */
+#define RXRPC_UPGRADEABLE_SERVICE	5	/* Upgrade service[0] -> service[1] */
 
 /*
  * RxRPC control messages

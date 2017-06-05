@@ -490,6 +490,7 @@ static int rxrpc_setsockopt(struct socket *sock, int level, int optname,
 {
 	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
 	unsigned int min_sec_level;
+	u16 service_upgrade[2];
 	int ret;
 
 	_enter(",%d,%d,,%d", level, optname, optlen);
@@ -544,6 +545,28 @@ static int rxrpc_setsockopt(struct socket *sock, int level, int optname,
 			if (min_sec_level > RXRPC_SECURITY_MAX)
 				goto error;
 			rx->min_sec_level = min_sec_level;
+			goto success;
+
+		case RXRPC_UPGRADEABLE_SERVICE:
+			ret = -EINVAL;
+			if (optlen != sizeof(service_upgrade) ||
+			    rx->service_upgrade.from != 0)
+				goto error;
+			ret = -EISCONN;
+			if (rx->sk.sk_state != RXRPC_SERVER_BOUND2)
+				goto error;
+			ret = -EFAULT;
+			if (copy_from_user(service_upgrade, optval,
+					   sizeof(service_upgrade)) != 0)
+				goto error;
+			ret = -EINVAL;
+			if ((service_upgrade[0] != rx->srx.srx_service ||
+			     service_upgrade[1] != rx->second_service) &&
+			    (service_upgrade[0] != rx->second_service ||
+			     service_upgrade[1] != rx->srx.srx_service))
+				goto error;
+			rx->service_upgrade.from = service_upgrade[0];
+			rx->service_upgrade.to = service_upgrade[1];
 			goto success;
 
 		default:
