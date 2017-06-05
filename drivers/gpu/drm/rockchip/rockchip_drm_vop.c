@@ -1224,10 +1224,10 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	VOP_WIN_SET(vop, win, xmirror, xmirror);
 	VOP_WIN_SET(vop, win, ymirror, ymirror);
 	VOP_WIN_SET(vop, win, format, vop_plane_state->format);
-	VOP_WIN_SET(vop, win, yrgb_vir, DIV_ROUND_UP(fb->pitches[0], 4));
+	VOP_WIN_SET(vop, win, yrgb_vir, fb->pitches[0] >> 2);
 	VOP_WIN_SET(vop, win, yrgb_mst, vop_plane_state->yrgb_mst);
 	if (is_yuv_support(fb->pixel_format)) {
-		VOP_WIN_SET(vop, win, uv_vir, DIV_ROUND_UP(fb->pitches[1], 4));
+		VOP_WIN_SET(vop, win, uv_vir, fb->pitches[1] >> 2);
 		VOP_WIN_SET(vop, win, uv_mst, vop_plane_state->uv_mst);
 	}
 	VOP_WIN_SET(vop, win, fmt_10, is_yuv_10bit(fb->pixel_format));
