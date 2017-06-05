@@ -15,7 +15,7 @@
 #include <linux/module.h>
 #include <net/dsa.h>
 
-#include "mv88e6xxx.h"
+#include "chip.h"
 #include "phy.h"
 
 int mv88e6165_phy_read(struct mv88e6xxx_chip *chip, struct mii_bus *bus,

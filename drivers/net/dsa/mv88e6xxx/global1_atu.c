@@ -10,7 +10,7 @@
  * (at your option) any later version.
  */
 
-#include "mv88e6xxx.h"
+#include "chip.h"
 #include "global1.h"
 
 /* Offset 0x01: ATU FID Register */
