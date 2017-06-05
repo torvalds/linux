@@ -12,14 +12,11 @@
  * option) any later version.
  */
 
-#include <linux/delay.h>
-#include <linux/io.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/pm_domain.h>
+#include <linux/soc/actions/owl-sps.h>
 #include <dt-bindings/power/owl-s500-powergate.h>
-
-#define OWL_SPS_PG_CTL	0x0
 
 struct owl_sps_domain_info {
 	const char *name;
@@ -51,37 +48,12 @@ struct owl_sps_domain {
 
 static int owl_sps_set_power(struct owl_sps_domain *pd, bool enable)
 {
-	u32 val, pwr_mask, ack_mask;
-	int timeout;
-	bool ack;
+	u32 pwr_mask, ack_mask;
 
 	ack_mask = BIT(pd->info->ack_bit);
 	pwr_mask = BIT(pd->info->pwr_bit);
-	val = readl(pd->sps->base + OWL_SPS_PG_CTL);
-	ack = val & ack_mask;
 
-	if (ack == enable)
-		return 0;
-
-	if (enable)
-		val |= pwr_mask;
-	else
-		val &= ~pwr_mask;
-
-	writel(val, pd->sps->base + OWL_SPS_PG_CTL);
-
-	for (timeout = 5000; timeout > 0; timeout -= 50) {
-		val = readl(pd->sps->base + OWL_SPS_PG_CTL);
-		if ((val & ack_mask) == (enable ? ack_mask : 0))
-			break;
-		udelay(50);
-	}
-	if (timeout <= 0)
-		return -ETIMEDOUT;
-
-	udelay(10);
-
-	return 0;
+	return owl_sps_set_pg(pd->sps->base, pwr_mask, ack_mask, enable);
 }
 
 static int owl_sps_power_on(struct generic_pm_domain *domain)
