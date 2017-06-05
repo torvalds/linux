@@ -966,6 +966,8 @@ static int analogix_dp_loader_protect(struct drm_connector *connector, bool on)
 {
 	struct analogix_dp_device *dp = to_dp(connector);
 
+	if (dp->plat_data->panel)
+		drm_panel_loader_protect(dp->plat_data->panel, on);
 	if (on)
 		pm_runtime_get_sync(dp->dev);
 	else

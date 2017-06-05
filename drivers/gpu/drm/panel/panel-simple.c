@@ -330,6 +330,25 @@ static int panel_simple_of_get_native_mode(struct panel_simple *panel)
 	return 1;
 }
 
+static int panel_simple_loader_protect(struct drm_panel *panel, bool on)
+{
+	struct panel_simple *p = to_panel_simple(panel);
+	int err;
+
+	if (on) {
+		err = regulator_enable(p->supply);
+		if (err < 0) {
+			dev_err(panel->dev, "failed to enable supply: %d\n",
+				err);
+			return err;
+		}
+	} else {
+		regulator_disable(p->supply);
+	}
+
+	return 0;
+}
+
 static int panel_simple_disable(struct drm_panel *panel)
 {
 	struct panel_simple *p = to_panel_simple(panel);
@@ -486,6 +505,7 @@ static int panel_simple_get_timings(struct drm_panel *panel,
 }
 
 static const struct drm_panel_funcs panel_simple_funcs = {
+	.loader_protect = panel_simple_loader_protect,
 	.disable = panel_simple_disable,
 	.unprepare = panel_simple_unprepare,
 	.prepare = panel_simple_prepare,

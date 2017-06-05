@@ -1057,6 +1057,8 @@ static int dw_mipi_loader_protect(struct drm_connector *connector, bool on)
 {
 	struct dw_mipi_dsi *dsi = con_to_dsi(connector);
 
+	if (dsi->panel)
+		drm_panel_loader_protect(dsi->panel, on);
 	if (on)
 		pm_runtime_get_sync(dsi->dev);
 	else
