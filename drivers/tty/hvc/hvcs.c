@@ -1242,8 +1242,7 @@ static void hvcs_close(struct tty_struct *tty, struct file *filp)
 		free_irq(irq, hvcsd);
 		return;
 	} else if (hvcsd->port.count < 0) {
-		printk(KERN_ERR "HVCS: vty-server@%X open_count: %d"
-				" is missmanaged.\n",
+		printk(KERN_ERR "HVCS: vty-server@%X open_count: %d is mismanaged.\n",
 		hvcsd->vdev->unit_address, hvcsd->port.count);
 	}
 

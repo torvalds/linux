@@ -554,7 +554,7 @@ static ssize_t dlpar_cpu_remove(struct device_node *dn, u32 drc_index)
 {
 	int rc;
 
-	pr_debug("Attemping to remove CPU %s, drc index: %x\n",
+	pr_debug("Attempting to remove CPU %s, drc index: %x\n",
 		 dn->name, drc_index);
 
 	rc = dlpar_offline_cpu(dn);
