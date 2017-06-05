@@ -10450,7 +10450,7 @@ S:	Orphan
 
 PXA RTC DRIVER
 M:	Robert Jarzmik <robert.jarzmik@free.fr>
-L:	rtc-linux@googlegroups.com
+L:	linux-rtc@vger.kernel.org
 S:	Maintained
 
 QAT DRIVER
@@ -10757,7 +10757,7 @@ X:	kernel/torture.c
 REAL TIME CLOCK (RTC) SUBSYSTEM
 M:	Alessandro Zummo <a.zummo@towertech.it>
 M:	Alexandre Belloni <alexandre.belloni@free-electrons.com>
-L:	rtc-linux@googlegroups.com
+L:	linux-rtc@vger.kernel.org
 Q:	http://patchwork.ozlabs.org/project/rtc-linux/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/abelloni/linux.git
 S:	Maintained
