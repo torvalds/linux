@@ -310,6 +310,16 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 				flags |= ACPI_NS_TEMPORARY;
 			}
 		}
+#ifdef ACPI_ASL_COMPILER
+
+		/*
+		 * Do not open a scope. This could be an external method
+		 * and open a scope.
+		 */
+		if (walk_state->opcode == AML_EXTERNAL_OP) {
+			flags |= ACPI_NS_DONT_OPEN_SCOPE;
+		}
+#endif
 
 		/* Add new entry or lookup existing entry */
 
