@@ -74,11 +74,11 @@ struct nfit_table_prev {
 	struct list_head flushes;
 };
 
-static u8 nfit_uuid[NFIT_UUID_MAX][16];
+static guid_t nfit_uuid[NFIT_UUID_MAX];
 
-const u8 *to_nfit_uuid(enum nfit_uuids id)
+const guid_t *to_nfit_uuid(enum nfit_uuids id)
 {
-	return nfit_uuid[id];
+	return &nfit_uuid[id];
 }
 EXPORT_SYMBOL(to_nfit_uuid);
 
@@ -222,7 +222,7 @@ int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc, struct nvdimm *nvdimm,
 	u32 offset, fw_status = 0;
 	acpi_handle handle;
 	unsigned int func;
-	const u8 *uuid;
+	const guid_t *guid;
 	int rc, i;
 
 	func = cmd;
@@ -245,7 +245,7 @@ int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc, struct nvdimm *nvdimm,
 		cmd_mask = nvdimm_cmd_mask(nvdimm);
 		dsm_mask = nfit_mem->dsm_mask;
 		desc = nd_cmd_dimm_desc(cmd);
-		uuid = to_nfit_uuid(nfit_mem->family);
+		guid = to_nfit_uuid(nfit_mem->family);
 		handle = adev->handle;
 	} else {
 		struct acpi_device *adev = to_acpi_dev(acpi_desc);
@@ -254,7 +254,7 @@ int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc, struct nvdimm *nvdimm,
 		cmd_mask = nd_desc->cmd_mask;
 		dsm_mask = cmd_mask;
 		desc = nd_cmd_bus_desc(cmd);
-		uuid = to_nfit_uuid(NFIT_DEV_BUS);
+		guid = to_nfit_uuid(NFIT_DEV_BUS);
 		handle = adev->handle;
 		dimm_name = "bus";
 	}
@@ -289,7 +289,7 @@ int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc, struct nvdimm *nvdimm,
 			in_buf.buffer.pointer,
 			min_t(u32, 256, in_buf.buffer.length), true);
 
-	out_obj = acpi_evaluate_dsm(handle, uuid, 1, func, &in_obj);
+	out_obj = acpi_evaluate_dsm(handle, guid.b, 1, func, &in_obj);
 	if (!out_obj) {
 		dev_dbg(dev, "%s:%s _DSM failed cmd: %s\n", __func__, dimm_name,
 				cmd_name);
@@ -409,7 +409,7 @@ int nfit_spa_type(struct acpi_nfit_system_address *spa)
 	int i;
 
 	for (i = 0; i < NFIT_UUID_MAX; i++)
-		if (memcmp(to_nfit_uuid(i), spa->range_guid, 16) == 0)
+		if (guid_equal(to_nfit_uuid(i), (guid_t *)&spa->range_guid))
 			return i;
 	return -1;
 }
@@ -1415,7 +1415,7 @@ static int acpi_nfit_add_dimm(struct acpi_nfit_desc *acpi_desc,
 	struct acpi_device *adev, *adev_dimm;
 	struct device *dev = acpi_desc->dev;
 	unsigned long dsm_mask;
-	const u8 *uuid;
+	const guid_t *guid;
 	int i;
 	int family = -1;
 
@@ -1444,7 +1444,7 @@ static int acpi_nfit_add_dimm(struct acpi_nfit_desc *acpi_desc,
 	/*
 	 * Until standardization materializes we need to consider 4
 	 * different command sets.  Note, that checking for function0 (bit0)
-	 * tells us if any commands are reachable through this uuid.
+	 * tells us if any commands are reachable through this GUID.
 	 */
 	for (i = NVDIMM_FAMILY_INTEL; i <= NVDIMM_FAMILY_MSFT; i++)
 		if (acpi_check_dsm(adev_dimm->handle, to_nfit_uuid(i), 1, 1))
@@ -1474,9 +1474,9 @@ static int acpi_nfit_add_dimm(struct acpi_nfit_desc *acpi_desc,
 		return 0;
 	}
 
-	uuid = to_nfit_uuid(nfit_mem->family);
+	guid = to_nfit_uuid(nfit_mem->family);
 	for_each_set_bit(i, &dsm_mask, BITS_PER_LONG)
-		if (acpi_check_dsm(adev_dimm->handle, uuid, 1, 1ULL << i))
+		if (acpi_check_dsm(adev_dimm->handle, guid.b, 1, 1ULL << i))
 			set_bit(i, &nfit_mem->dsm_mask);
 
 	return 0;
@@ -1611,7 +1611,7 @@ static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
 static void acpi_nfit_init_dsms(struct acpi_nfit_desc *acpi_desc)
 {
 	struct nvdimm_bus_descriptor *nd_desc = &acpi_desc->nd_desc;
-	const u8 *uuid = to_nfit_uuid(NFIT_DEV_BUS);
+	const guid_t *guid = to_nfit_uuid(NFIT_DEV_BUS);
 	struct acpi_device *adev;
 	int i;
 
@@ -1621,7 +1621,7 @@ static void acpi_nfit_init_dsms(struct acpi_nfit_desc *acpi_desc)
 		return;
 
 	for (i = ND_CMD_ARS_CAP; i <= ND_CMD_CLEAR_ERROR; i++)
-		if (acpi_check_dsm(adev->handle, uuid, 1, 1ULL << i))
+		if (acpi_check_dsm(adev->handle, guid.b, 1, 1ULL << i))
 			set_bit(i, &nd_desc->cmd_mask);
 }
 
@@ -3051,19 +3051,19 @@ static __init int nfit_init(void)
 	BUILD_BUG_ON(sizeof(struct acpi_nfit_control_region) != 80);
 	BUILD_BUG_ON(sizeof(struct acpi_nfit_data_region) != 40);
 
-	acpi_str_to_uuid(UUID_VOLATILE_MEMORY, nfit_uuid[NFIT_SPA_VOLATILE]);
-	acpi_str_to_uuid(UUID_PERSISTENT_MEMORY, nfit_uuid[NFIT_SPA_PM]);
-	acpi_str_to_uuid(UUID_CONTROL_REGION, nfit_uuid[NFIT_SPA_DCR]);
-	acpi_str_to_uuid(UUID_DATA_REGION, nfit_uuid[NFIT_SPA_BDW]);
-	acpi_str_to_uuid(UUID_VOLATILE_VIRTUAL_DISK, nfit_uuid[NFIT_SPA_VDISK]);
-	acpi_str_to_uuid(UUID_VOLATILE_VIRTUAL_CD, nfit_uuid[NFIT_SPA_VCD]);
-	acpi_str_to_uuid(UUID_PERSISTENT_VIRTUAL_DISK, nfit_uuid[NFIT_SPA_PDISK]);
-	acpi_str_to_uuid(UUID_PERSISTENT_VIRTUAL_CD, nfit_uuid[NFIT_SPA_PCD]);
-	acpi_str_to_uuid(UUID_NFIT_BUS, nfit_uuid[NFIT_DEV_BUS]);
-	acpi_str_to_uuid(UUID_NFIT_DIMM, nfit_uuid[NFIT_DEV_DIMM]);
-	acpi_str_to_uuid(UUID_NFIT_DIMM_N_HPE1, nfit_uuid[NFIT_DEV_DIMM_N_HPE1]);
-	acpi_str_to_uuid(UUID_NFIT_DIMM_N_HPE2, nfit_uuid[NFIT_DEV_DIMM_N_HPE2]);
-	acpi_str_to_uuid(UUID_NFIT_DIMM_N_MSFT, nfit_uuid[NFIT_DEV_DIMM_N_MSFT]);
+	guid_parse(UUID_VOLATILE_MEMORY, &nfit_uuid[NFIT_SPA_VOLATILE]);
+	guid_parse(UUID_PERSISTENT_MEMORY, &nfit_uuid[NFIT_SPA_PM]);
+	guid_parse(UUID_CONTROL_REGION, &nfit_uuid[NFIT_SPA_DCR]);
+	guid_parse(UUID_DATA_REGION, &nfit_uuid[NFIT_SPA_BDW]);
+	guid_parse(UUID_VOLATILE_VIRTUAL_DISK, &nfit_uuid[NFIT_SPA_VDISK]);
+	guid_parse(UUID_VOLATILE_VIRTUAL_CD, &nfit_uuid[NFIT_SPA_VCD]);
+	guid_parse(UUID_PERSISTENT_VIRTUAL_DISK, &nfit_uuid[NFIT_SPA_PDISK]);
+	guid_parse(UUID_PERSISTENT_VIRTUAL_CD, &nfit_uuid[NFIT_SPA_PCD]);
+	guid_parse(UUID_NFIT_BUS, &nfit_uuid[NFIT_DEV_BUS]);
+	guid_parse(UUID_NFIT_DIMM, &nfit_uuid[NFIT_DEV_DIMM]);
+	guid_parse(UUID_NFIT_DIMM_N_HPE1, &nfit_uuid[NFIT_DEV_DIMM_N_HPE1]);
+	guid_parse(UUID_NFIT_DIMM_N_HPE2, &nfit_uuid[NFIT_DEV_DIMM_N_HPE2]);
+	guid_parse(UUID_NFIT_DIMM_N_MSFT, &nfit_uuid[NFIT_DEV_DIMM_N_MSFT]);
 
 	nfit_wq = create_singlethread_workqueue("nfit");
 	if (!nfit_wq)

@@ -39,6 +39,7 @@
 #include <linux/dynamic_debug.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/uuid.h>
 
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
