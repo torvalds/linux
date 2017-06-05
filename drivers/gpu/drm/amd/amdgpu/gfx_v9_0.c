@@ -873,8 +873,8 @@ static void gfx_v9_0_compute_queue_acquire(struct amdgpu_device *adev)
 		if (mec >= adev->gfx.mec.num_mec)
 			break;
 
-		/* policy: amdgpu owns all queues in the first pipe */
-		if (mec == 0 && pipe == 0)
+		/* policy: amdgpu owns the first two queues of the first MEC */
+		if (mec == 0 && queue < 2)
 			set_bit(i, adev->gfx.mec.queue_bitmap);
 	}
 
