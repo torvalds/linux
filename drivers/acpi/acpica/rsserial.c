@@ -751,3 +751,83 @@ struct acpi_rsconvert_info acpi_rs_convert_pin_group_function[13] = {
 	 AML_OFFSET(pin_group_function.vendor_offset),
 	 0},
 };
+
+/*******************************************************************************
+ *
+ * acpi_rs_convert_pin_group_config
+ *
+ ******************************************************************************/
+
+struct acpi_rsconvert_info acpi_rs_convert_pin_group_config[14] = {
+	{ACPI_RSC_INITGET, ACPI_RESOURCE_TYPE_PIN_GROUP_CONFIG,
+	 ACPI_RS_SIZE(struct acpi_resource_pin_group_config),
+	 ACPI_RSC_TABLE_SIZE(acpi_rs_convert_pin_group_config)},
+
+	{ACPI_RSC_INITSET, ACPI_RESOURCE_NAME_PIN_GROUP_CONFIG,
+	 sizeof(struct aml_resource_pin_group_config),
+	 0},
+
+	{ACPI_RSC_MOVE8, ACPI_RS_OFFSET(data.pin_group_config.revision_id),
+	 AML_OFFSET(pin_group_config.revision_id),
+	 1},
+
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.pin_group_config.sharable),
+	 AML_OFFSET(pin_group_config.flags),
+	 0},
+
+	{ACPI_RSC_1BITFLAG,
+	 ACPI_RS_OFFSET(data.pin_group_config.producer_consumer),
+	 AML_OFFSET(pin_group_config.flags),
+	 1},
+
+	{ACPI_RSC_MOVE8, ACPI_RS_OFFSET(data.pin_group_config.pin_config_type),
+	 AML_OFFSET(pin_group_config.pin_config_type),
+	 1},
+
+	{ACPI_RSC_MOVE32,
+	 ACPI_RS_OFFSET(data.pin_group_config.pin_config_value),
+	 AML_OFFSET(pin_group_config.pin_config_value),
+	 1},
+
+	/* Resource Source */
+
+	{ACPI_RSC_MOVE8,
+	 ACPI_RS_OFFSET(data.pin_group_config.resource_source.index),
+	 AML_OFFSET(pin_group_config.res_source_index),
+	 1},
+
+	{ACPI_RSC_COUNT_GPIO_RES,
+	 ACPI_RS_OFFSET(data.pin_group_config.resource_source.string_length),
+	 AML_OFFSET(pin_group_config.res_source_offset),
+	 AML_OFFSET(pin_group_config.res_source_label_offset)},
+
+	{ACPI_RSC_MOVE_GPIO_RES,
+	 ACPI_RS_OFFSET(data.pin_group_config.resource_source.string_ptr),
+	 AML_OFFSET(pin_group_config.res_source_offset),
+	 0},
+
+	/* Resource Source Label */
+
+	{ACPI_RSC_COUNT_GPIO_RES,
+	 ACPI_RS_OFFSET(data.pin_group_config.resource_source_label.
+			string_length),
+	 AML_OFFSET(pin_group_config.res_source_label_offset),
+	 AML_OFFSET(pin_group_config.vendor_offset)},
+
+	{ACPI_RSC_MOVE_GPIO_RES,
+	 ACPI_RS_OFFSET(data.pin_group_config.resource_source_label.string_ptr),
+	 AML_OFFSET(pin_group_config.res_source_label_offset),
+	 0},
+
+	/* Vendor Data */
+
+	{ACPI_RSC_COUNT_GPIO_VEN,
+	 ACPI_RS_OFFSET(data.pin_group_config.vendor_length),
+	 AML_OFFSET(pin_group_config.vendor_length),
+	 1},
+
+	{ACPI_RSC_MOVE_GPIO_RES,
+	 ACPI_RS_OFFSET(data.pin_group_config.vendor_data),
+	 AML_OFFSET(pin_group_config.vendor_offset),
+	 0},
+};

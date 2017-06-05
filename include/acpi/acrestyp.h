@@ -602,6 +602,18 @@ struct acpi_resource_pin_group_function {
 	u8 *vendor_data;
 };
 
+struct acpi_resource_pin_group_config {
+	u8 revision_id;
+	u8 producer_consumer;	/* For values, see Producer/Consumer above */
+	u8 sharable;		/* For values, see Interrupt Attributes above */
+	u8 pin_config_type;	/* For values, see pin_config_type above */
+	u32 pin_config_value;
+	u16 vendor_length;
+	struct acpi_resource_source resource_source;
+	struct acpi_resource_label resource_source_label;
+	u8 *vendor_data;
+};
+
 /* ACPI_RESOURCE_TYPEs */
 
 #define ACPI_RESOURCE_TYPE_IRQ                  0
@@ -628,7 +640,8 @@ struct acpi_resource_pin_group_function {
 #define ACPI_RESOURCE_TYPE_PIN_CONFIG           21	/* ACPI 6.2 */
 #define ACPI_RESOURCE_TYPE_PIN_GROUP            22	/* ACPI 6.2 */
 #define ACPI_RESOURCE_TYPE_PIN_GROUP_FUNCTION   23	/* ACPI 6.2 */
-#define ACPI_RESOURCE_TYPE_MAX                  23
+#define ACPI_RESOURCE_TYPE_PIN_GROUP_CONFIG     24	/* ACPI 6.2 */
+#define ACPI_RESOURCE_TYPE_MAX                  24
 
 /* Master union for resource descriptors */
 
@@ -660,6 +673,7 @@ union acpi_resource_data {
 	struct acpi_resource_pin_config pin_config;
 	struct acpi_resource_pin_group pin_group;
 	struct acpi_resource_pin_group_function pin_group_function;
+	struct acpi_resource_pin_group_config pin_group_config;
 
 	/* Common fields */
 
