@@ -208,7 +208,7 @@ static void dra7xx_pcie_host_init(struct pcie_port *pp)
 	dra7xx_pcie_enable_interrupts(dra7xx);
 }
 
-static struct dw_pcie_host_ops dra7xx_pcie_host_ops = {
+static const struct dw_pcie_host_ops dra7xx_pcie_host_ops = {
 	.host_init = dra7xx_pcie_host_init,
 };
 

@@ -602,7 +602,7 @@ static int imx6_pcie_link_up(struct dw_pcie *pci)
 			PCIE_PHY_DEBUG_R1_XMLH_LINK_UP;
 }
 
-static struct dw_pcie_host_ops imx6_pcie_host_ops = {
+static const struct dw_pcie_host_ops imx6_pcie_host_ops = {
 	.host_init = imx6_pcie_host_init,
 };
 

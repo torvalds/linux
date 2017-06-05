@@ -634,7 +634,7 @@ static int qcom_pcie_rd_own_conf(struct pcie_port *pp, int where, int size,
 	return dw_pcie_read(pci->dbi_base + where, size, val);
 }
 
-static struct dw_pcie_host_ops qcom_pcie_dw_ops = {
+static const struct dw_pcie_host_ops qcom_pcie_dw_ops = {
 	.host_init = qcom_pcie_host_init,
 	.rd_own_conf = qcom_pcie_rd_own_conf,
 };
