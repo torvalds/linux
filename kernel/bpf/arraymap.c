@@ -452,38 +452,24 @@ static void bpf_event_entry_free_rcu(struct bpf_event_entry *ee)
 static void *perf_event_fd_array_get_ptr(struct bpf_map *map,
 					 struct file *map_file, int fd)
 {
-	const struct perf_event_attr *attr;
 	struct bpf_event_entry *ee;
 	struct perf_event *event;
 	struct file *perf_file;
+	u64 value;
 
 	perf_file = perf_event_get(fd);
 	if (IS_ERR(perf_file))
 		return perf_file;
 
+	ee = ERR_PTR(-EOPNOTSUPP);
 	event = perf_file->private_data;
-	ee = ERR_PTR(-EINVAL);
-
-	attr = perf_event_attrs(event);
-	if (IS_ERR(attr) || attr->inherit)
+	if (perf_event_read_local(event, &value) == -EOPNOTSUPP)
 		goto err_out;
 
-	switch (attr->type) {
-	case PERF_TYPE_SOFTWARE:
-		if (attr->config != PERF_COUNT_SW_BPF_OUTPUT)
-			goto err_out;
-		/* fall-through */
-	case PERF_TYPE_RAW:
-	case PERF_TYPE_HARDWARE:
-		ee = bpf_event_entry_gen(perf_file, map_file);
-		if (ee)
-			return ee;
-		ee = ERR_PTR(-ENOMEM);
-		/* fall-through */
-	default:
-		break;
-	}
-
+	ee = bpf_event_entry_gen(perf_file, map_file);
+	if (ee)
+		return ee;
+	ee = ERR_PTR(-ENOMEM);
 err_out:
 	fput(perf_file);
 	return ee;
