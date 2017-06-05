@@ -292,6 +292,11 @@ config MARVELL_PHY
 	---help---
 	  Currently has a driver for the 88E1011S
 
+config MARVELL_10G_PHY
+	tristate "Marvell Alaska 10Gbit PHYs"
+	---help---
+	  Support for the Marvell Alaska MV88X3310 and compatible PHYs.
+
 config MESON_GXL_PHY
 	tristate "Amlogic Meson GXL Internal PHY"
 	depends on ARCH_MESON || COMPILE_TEST
