@@ -822,8 +822,8 @@ struct acpi_table_madt {
 
 /* Values for PCATCompat flag */
 
-#define ACPI_MADT_DUAL_PIC          0
-#define ACPI_MADT_MULTIPLE_APIC     1
+#define ACPI_MADT_DUAL_PIC          1
+#define ACPI_MADT_MULTIPLE_APIC     0
 
 /* Values for MADT subtable type in struct acpi_subtable_header */
 
