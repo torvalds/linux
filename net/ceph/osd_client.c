@@ -384,6 +384,8 @@ static void target_copy(struct ceph_osd_request_target *dest,
 	dest->flags = src->flags;
 	dest->paused = src->paused;
 
+	dest->last_force_resend = src->last_force_resend;
+
 	dest->osd = src->osd;
 }
 
@@ -1311,7 +1313,6 @@ enum calc_target_result {
 
 static enum calc_target_result calc_target(struct ceph_osd_client *osdc,
 					   struct ceph_osd_request_target *t,
-					   u32 *last_force_resend,
 					   bool any_change)
 {
 	struct ceph_pg_pool_info *pi;
@@ -1332,11 +1333,10 @@ static enum calc_target_result calc_target(struct ceph_osd_client *osdc,
 	}
 
 	if (osdc->osdmap->epoch == pi->last_force_request_resend) {
-		if (last_force_resend &&
-		    *last_force_resend < pi->last_force_request_resend) {
-			*last_force_resend = pi->last_force_request_resend;
+		if (t->last_force_resend < pi->last_force_request_resend) {
+			t->last_force_resend = pi->last_force_request_resend;
 			force_resend = true;
-		} else if (!last_force_resend) {
+		} else if (t->last_force_resend == 0) {
 			force_resend = true;
 		}
 	}
@@ -1645,7 +1645,7 @@ static void __submit_request(struct ceph_osd_request *req, bool wrlocked)
 	dout("%s req %p wrlocked %d\n", __func__, req, wrlocked);
 
 again:
-	ct_res = calc_target(osdc, &req->r_t, &req->r_last_force_resend, false);
+	ct_res = calc_target(osdc, &req->r_t, false);
 	if (ct_res == CALC_TARGET_POOL_DNE && !wrlocked)
 		goto promote;
 
@@ -2441,7 +2441,7 @@ static void linger_submit(struct ceph_osd_linger_request *lreq)
 	struct ceph_osd_client *osdc = lreq->osdc;
 	struct ceph_osd *osd;
 
-	calc_target(osdc, &lreq->t, &lreq->last_force_resend, false);
+	calc_target(osdc, &lreq->t, false);
 	osd = lookup_create_osd(osdc, lreq->t.osd, true);
 	link_linger(osd, lreq);
 
@@ -3059,7 +3059,7 @@ recalc_linger_target(struct ceph_osd_linger_request *lreq)
 	struct ceph_osd_client *osdc = lreq->osdc;
 	enum calc_target_result ct_res;
 
-	ct_res = calc_target(osdc, &lreq->t, &lreq->last_force_resend, true);
+	ct_res = calc_target(osdc, &lreq->t, true);
 	if (ct_res == CALC_TARGET_NEED_RESEND) {
 		struct ceph_osd *osd;
 
@@ -3130,8 +3130,7 @@ static void scan_requests(struct ceph_osd *osd,
 		n = rb_next(n); /* unlink_request(), check_pool_dne() */
 
 		dout("%s req %p tid %llu\n", __func__, req, req->r_tid);
-		ct_res = calc_target(osdc, &req->r_t,
-				     &req->r_last_force_resend, false);
+		ct_res = calc_target(osdc, &req->r_t, false);
 		switch (ct_res) {
 		case CALC_TARGET_NO_ACTION:
 			force_resend_writes = cleared_full ||
@@ -3240,7 +3239,7 @@ static void kick_requests(struct ceph_osd_client *osdc,
 		erase_request(need_resend, req); /* before link_request() */
 
 		WARN_ON(req->r_osd);
-		calc_target(osdc, &req->r_t, NULL, false);
+		calc_target(osdc, &req->r_t, false);
 		osd = lookup_create_osd(osdc, req->r_t.osd, true);
 		link_request(osd, req);
 		if (!req->r_linger) {
