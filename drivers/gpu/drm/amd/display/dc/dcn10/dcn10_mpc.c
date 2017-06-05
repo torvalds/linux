@@ -98,7 +98,7 @@ static void dcn10_mpcc_set(struct mpcc *mpcc, struct mpcc_cfg *cfg)
 	REG_SET_4(MPCC_CONTROL, 0xffffffff,
 		MPCC_MODE, mpcc_mode,
 		MPCC_ALPHA_BLND_MODE, alpha_blnd_mode,
-		MPCC_ALPHA_MULTIPLIED_MODE, 0/*TODO: cfg->per_pixel_alpha*/,
+		MPCC_ALPHA_MULTIPLIED_MODE, cfg->pre_multiplied_alpha,
 		MPCC_BLND_ACTIVE_OVERLAP_ONLY, cfg->top_of_tree);
 
 	if (cfg->top_of_tree) {

@@ -32,6 +32,7 @@ struct mpcc_cfg {
 	int bot_mpcc_id;
 	int opp_id;
 	bool per_pixel_alpha;
+	bool pre_multiplied_alpha;
 	bool top_of_tree;
 };
 

@@ -1658,6 +1658,28 @@ static bool is_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
 	return false;
 }
 
+static bool is_rgb_cspace(enum dc_color_space output_color_space)
+{
+	switch (output_color_space) {
+	case COLOR_SPACE_SRGB:
+	case COLOR_SPACE_SRGB_LIMITED:
+	case COLOR_SPACE_2020_RGB_FULLRANGE:
+	case COLOR_SPACE_2020_RGB_LIMITEDRANGE:
+	case COLOR_SPACE_ADOBERGB:
+		return true;
+	case COLOR_SPACE_YCBCR601:
+	case COLOR_SPACE_YCBCR709:
+	case COLOR_SPACE_YCBCR601_LIMITED:
+	case COLOR_SPACE_YCBCR709_LIMITED:
+	case COLOR_SPACE_2020_YCBCR:
+		return false;
+	default:
+		/* Add a case to switch */
+		BREAK_TO_DEBUGGER();
+		return false;
+	}
+}
+
 static void update_dchubp_dpp(
 	struct core_dc *dc,
 	struct pipe_ctx *pipe_ctx,
@@ -1719,6 +1741,12 @@ static void update_dchubp_dpp(
 		mpcc_cfg.bot_mpcc_id = 0xf;
 	mpcc_cfg.top_of_tree = !pipe_ctx->top_pipe;
 	mpcc_cfg.per_pixel_alpha = per_pixel_alpha;
+	/* DCN1.0 has output CM before MPC which seems to screw with
+	 * pre-multiplied alpha.
+	 */
+	mpcc_cfg.pre_multiplied_alpha = is_rgb_cspace(
+			pipe_ctx->stream->public.output_color_space)
+					&& per_pixel_alpha;
 	if (!dc->current_context->res_ctx.pipe_ctx[pipe_ctx->pipe_idx].surface)
 		pipe_ctx->mpcc->funcs->wait_for_idle(pipe_ctx->mpcc);
 	pipe_ctx->mpcc->funcs->set(pipe_ctx->mpcc, &mpcc_cfg);
