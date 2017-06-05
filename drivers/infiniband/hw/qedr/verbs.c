@@ -3209,6 +3209,10 @@ static int process_req(struct qedr_dev *dev, struct qedr_qp *qp,
 		case IB_WC_REG_MR:
 			qp->wqe_wr_id[qp->sq.cons].mr->info.completed++;
 			break;
+		case IB_WC_RDMA_READ:
+		case IB_WC_SEND:
+			wc->byte_len = qp->wqe_wr_id[qp->sq.cons].bytes_len;
+			break;
 		default:
 			break;
 		}
