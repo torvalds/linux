@@ -51,6 +51,8 @@ int asoc_simple_card_parse_daifmt(struct device *dev,
 
 	*retfmt = daifmt;
 
+	dev_dbg(dev, "format : %04x\n", daifmt);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_card_parse_daifmt);

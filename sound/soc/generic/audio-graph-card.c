@@ -170,7 +170,6 @@ static int asoc_graph_card_dai_link_of(struct device_node *cpu_port,
 	dai_link->init = asoc_graph_card_dai_init;
 
 	dev_dbg(dev, "\tname : %s\n", dai_link->stream_name);
-	dev_dbg(dev, "\tformat : %04x\n", dai_link->dai_fmt);
 	dev_dbg(dev, "\tcpu : %s / %d\n",
 		dai_link->cpu_dai_name,
 		cpu_dai->sysclk);
