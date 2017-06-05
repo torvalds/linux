@@ -433,15 +433,18 @@ err_guc:
 		DRM_NOTE("Falling back from GuC submission to execlist mode\n");
 	}
 
+	i915.enable_guc_loading = 0;
+	DRM_NOTE("GuC firmware loading disabled\n");
+
 	return ret;
 }
 
 void intel_uc_fini_hw(struct drm_i915_private *dev_priv)
 {
+	guc_free_load_err_log(&dev_priv->guc);
+
 	if (!i915.enable_guc_loading)
 		return;
-
-	guc_free_load_err_log(&dev_priv->guc);
 
 	if (i915.enable_guc_submission)
 		i915_guc_submission_disable(dev_priv);
