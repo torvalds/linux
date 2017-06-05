@@ -84,10 +84,7 @@ enum bxtwc_irqs {
 
 enum bxtwc_irqs_level2 {
 	/* Level 2 */
-	BXTWC_THRM0_IRQ = 0,
-	BXTWC_THRM1_IRQ,
-	BXTWC_THRM2_IRQ,
-	BXTWC_BCU_IRQ,
+	BXTWC_BCU_IRQ = 0,
 	BXTWC_ADC_IRQ,
 	BXTWC_USBC_IRQ,
 	BXTWC_CHGR0_IRQ,
@@ -114,17 +111,14 @@ static const struct regmap_irq bxtwc_regmap_irqs[] = {
 };
 
 static const struct regmap_irq bxtwc_regmap_irqs_level2[] = {
-	REGMAP_IRQ_REG(BXTWC_THRM0_IRQ, 0, 0xff),
-	REGMAP_IRQ_REG(BXTWC_THRM1_IRQ, 1, 0xbf),
-	REGMAP_IRQ_REG(BXTWC_THRM2_IRQ, 2, 0xff),
-	REGMAP_IRQ_REG(BXTWC_BCU_IRQ, 3, 0x1f),
-	REGMAP_IRQ_REG(BXTWC_ADC_IRQ, 4, 0xff),
-	REGMAP_IRQ_REG(BXTWC_USBC_IRQ, 5, BIT(5)),
-	REGMAP_IRQ_REG(BXTWC_CHGR0_IRQ, 5, 0x1f),
-	REGMAP_IRQ_REG(BXTWC_CHGR1_IRQ, 6, 0x1f),
-	REGMAP_IRQ_REG(BXTWC_GPIO0_IRQ, 7, 0xff),
-	REGMAP_IRQ_REG(BXTWC_GPIO1_IRQ, 8, 0x3f),
-	REGMAP_IRQ_REG(BXTWC_CRIT_IRQ, 9, 0x03),
+	REGMAP_IRQ_REG(BXTWC_BCU_IRQ, 0, 0x1f),
+	REGMAP_IRQ_REG(BXTWC_ADC_IRQ, 1, 0xff),
+	REGMAP_IRQ_REG(BXTWC_USBC_IRQ, 2, BIT(5)),
+	REGMAP_IRQ_REG(BXTWC_CHGR0_IRQ, 2, 0x1f),
+	REGMAP_IRQ_REG(BXTWC_CHGR1_IRQ, 3, 0x1f),
+	REGMAP_IRQ_REG(BXTWC_GPIO0_IRQ, 4, 0xff),
+	REGMAP_IRQ_REG(BXTWC_GPIO1_IRQ, 5, 0x3f),
+	REGMAP_IRQ_REG(BXTWC_CRIT_IRQ, 6, 0x03),
 };
 
 static const struct regmap_irq bxtwc_regmap_irqs_tmu[] = {
@@ -142,8 +136,8 @@ static struct regmap_irq_chip bxtwc_regmap_irq_chip = {
 
 static struct regmap_irq_chip bxtwc_regmap_irq_chip_level2 = {
 	.name = "bxtwc_irq_chip_level2",
-	.status_base = BXTWC_THRM0IRQ,
-	.mask_base = BXTWC_MTHRM0IRQ,
+	.status_base = BXTWC_BCUIRQ,
+	.mask_base = BXTWC_MBCUIRQ,
 	.irqs = bxtwc_regmap_irqs_level2,
 	.num_irqs = ARRAY_SIZE(bxtwc_regmap_irqs_level2),
 	.num_regs = 10,
@@ -177,9 +171,7 @@ static struct resource charger_resources[] = {
 };
 
 static struct resource thermal_resources[] = {
-	DEFINE_RES_IRQ(BXTWC_THRM0_IRQ),
-	DEFINE_RES_IRQ(BXTWC_THRM1_IRQ),
-	DEFINE_RES_IRQ(BXTWC_THRM2_IRQ),
+	DEFINE_RES_IRQ(BXTWC_THRM_LVL1_IRQ),
 };
 
 static struct resource bcu_resources[] = {
