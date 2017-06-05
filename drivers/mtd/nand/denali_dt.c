@@ -49,7 +49,7 @@ MODULE_DEVICE_TABLE(of, denali_nand_dt_ids);
 
 static int denali_dt_probe(struct platform_device *pdev)
 {
-	struct resource *denali_reg, *nand_data;
+	struct resource *res;
 	struct denali_dt *dt;
 	const struct denali_dt_data *data;
 	struct denali_nand_info *denali;
@@ -74,15 +74,13 @@ static int denali_dt_probe(struct platform_device *pdev)
 		return denali->irq;
 	}
 
-	denali_reg = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						  "denali_reg");
-	denali->flash_reg = devm_ioremap_resource(&pdev->dev, denali_reg);
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "denali_reg");
+	denali->flash_reg = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(denali->flash_reg))
 		return PTR_ERR(denali->flash_reg);
 
-	nand_data = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						 "nand_data");
-	denali->flash_mem = devm_ioremap_resource(&pdev->dev, nand_data);
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "nand_data");
+	denali->flash_mem = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(denali->flash_mem))
 		return PTR_ERR(denali->flash_mem);
 
