@@ -1204,6 +1204,7 @@ bool resource_validate_attach_surfaces(
 
 /* Maximum TMDS single link pixel clock 165MHz */
 #define TMDS_MAX_PIXEL_CLOCK_IN_KHZ 165000
+#define TMDS_MAX_PIXEL_CLOCK_IN_KHZ_UPMOST 297000
 
 static void set_stream_engine_in_use(
 		struct resource_context *res_ctx,
@@ -1331,7 +1332,8 @@ static void update_stream_signal(struct core_stream *stream)
 	}
 
 	if (dc_is_dvi_signal(stream->signal)) {
-		if (stream->public.timing.pix_clk_khz > TMDS_MAX_PIXEL_CLOCK_IN_KHZ)
+		if (stream->public.timing.pix_clk_khz > TMDS_MAX_PIXEL_CLOCK_IN_KHZ_UPMOST &&
+			stream->public.sink->sink_signal != SIGNAL_TYPE_DVI_SINGLE_LINK)
 			stream->signal = SIGNAL_TYPE_DVI_DUAL_LINK;
 		else
 			stream->signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
