@@ -1508,27 +1508,19 @@ EXPORT_SYMBOL(genphy_read_status);
 
 static int gen10g_read_status(struct phy_device *phydev)
 {
-	int devad, reg;
 	u32 mmd_mask = phydev->c45_ids.devices_in_package;
-
-	phydev->link = 1;
+	int ret;
 
 	/* For now just lie and say it's 10G all the time */
 	phydev->speed = SPEED_10000;
 	phydev->duplex = DUPLEX_FULL;
 
-	for (devad = 0; mmd_mask; devad++, mmd_mask = mmd_mask >> 1) {
-		if (!(mmd_mask & 1))
-			continue;
+	/* Avoid reading the vendor MMDs */
+	mmd_mask &= ~(BIT(MDIO_MMD_VEND1) | BIT(MDIO_MMD_VEND2));
 
-		/* Read twice because link state is latched and a
-		 * read moves the current state into the register
-		 */
-		phy_read_mmd(phydev, devad, MDIO_STAT1);
-		reg = phy_read_mmd(phydev, devad, MDIO_STAT1);
-		if (reg < 0 || !(reg & MDIO_STAT1_LSTATUS))
-			phydev->link = 0;
-	}
+	ret = genphy_c45_read_link(phydev, mmd_mask);
+
+	phydev->link = ret > 0 ? 1 : 0;
 
 	return 0;
 }
