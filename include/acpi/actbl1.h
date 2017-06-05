@@ -478,6 +478,7 @@ struct acpi_hest_aer_common {
 
 #define ACPI_HEST_FIRMWARE_FIRST        (1)
 #define ACPI_HEST_GLOBAL                (1<<1)
+#define ACPI_HEST_GHES_ASSIST           (1<<2)
 
 /*
  * Macros to access the bus/segment numbers in Bus field above:
