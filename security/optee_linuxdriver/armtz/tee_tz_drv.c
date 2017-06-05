@@ -43,7 +43,7 @@
 #undef CONFIG_OUTER_CACHE
 #endif
 
-#define SWITCH_CPU0_DEBUG
+/* #define SWITCH_CPU0_DEBUG */
 
 #define _TEE_TZ_NAME "armtz"
 #define DEV (ptee->tee->dev)
