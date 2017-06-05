@@ -133,7 +133,7 @@ int mdio_mux_init(struct device *dev,
 
 	ret_val = -ENODEV;
 	for_each_available_child_of_node(dev->of_node, child_bus_node) {
-		u32 v;
+		int v;
 
 		v = of_mdio_parse_addr(dev, child_bus_node);
 		if (v < 0) {
