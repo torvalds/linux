@@ -381,6 +381,29 @@ struct acpi_rsdump_info acpi_rs_dump_pin_group[8] = {
 	 "VendorData", NULL},
 };
 
+struct acpi_rsdump_info acpi_rs_dump_pin_group_function[9] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_pin_group_function),
+	 "PinGroupFunction", NULL},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(pin_group_function.revision_id),
+	 "RevisionId", NULL},
+	{ACPI_RSD_1BITFLAG,
+	 ACPI_RSD_OFFSET(pin_group_function.producer_consumer),
+	 "ProducerConsumer", acpi_gbl_consume_decode},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(pin_group_function.sharable),
+	 "Sharing", acpi_gbl_shr_decode},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(pin_group_function.function_number),
+	 "FunctionNumber", NULL},
+	{ACPI_RSD_SOURCE_LABEL,
+	 ACPI_RSD_OFFSET(pin_group_function.resource_source_label),
+	 "ResourceSourceLabel", NULL},
+	{ACPI_RSD_SOURCE, ACPI_RSD_OFFSET(pin_group_function.resource_source),
+	 "ResourceSource", NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(pin_group_function.vendor_length),
+	 "VendorLength", NULL},
+	{ACPI_RSD_SHORTLISTX, ACPI_RSD_OFFSET(pin_group_function.vendor_data),
+	 "VendorData", NULL},
+};
+
 struct acpi_rsdump_info acpi_rs_dump_fixed_dma[4] = {
 	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_fixed_dma),
 	 "FixedDma", NULL},

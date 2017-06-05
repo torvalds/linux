@@ -385,6 +385,16 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 								  target));
 			break;
 
+		case ACPI_RSD_SOURCE_LABEL:
+			/*
+			 * resource_source_label
+			 */
+			acpi_rs_dump_resource_label("Resource Source Label",
+						    ACPI_CAST_PTR(struct
+								  acpi_resource_label,
+								  target));
+			break;
+
 		default:
 
 			acpi_os_printf("**** Invalid table opcode [%X] ****\n",

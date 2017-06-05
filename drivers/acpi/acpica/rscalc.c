@@ -402,6 +402,23 @@ acpi_rs_get_aml_length(struct acpi_resource *resource,
 
 			break;
 
+		case ACPI_RESOURCE_TYPE_PIN_GROUP_FUNCTION:
+
+			total_size = (acpi_rs_length)(total_size +
+						      resource->data.
+						      pin_group_function.
+						      resource_source.
+						      string_length +
+						      resource->data.
+						      pin_group_function.
+						      resource_source_label.
+						      string_length +
+						      resource->data.
+						      pin_group_function.
+						      vendor_length);
+
+			break;
+
 		default:
 
 			break;
@@ -631,6 +648,15 @@ acpi_rs_get_list_length(u8 *aml_buffer,
 			    aml_resource->pin_group.vendor_offset -
 			    aml_resource->pin_group.pin_table_offset +
 			    aml_resource->pin_group.vendor_length;
+
+			break;
+
+		case ACPI_RESOURCE_NAME_PIN_GROUP_FUNCTION:
+
+			extra_struct_bytes +=
+			    aml_resource->pin_group_function.vendor_offset -
+			    aml_resource->pin_group_function.res_source_offset +
+			    aml_resource->pin_group_function.vendor_length;
 
 			break;
 
