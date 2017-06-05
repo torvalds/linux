@@ -516,6 +516,8 @@ struct amd_iommu {
 
 	/* command buffer virtual address */
 	u8 *cmd_buf;
+	u32 cmd_buf_head;
+	u32 cmd_buf_tail;
 
 	/* event buffer virtual address */
 	u8 *evt_buf;
