@@ -1000,6 +1000,7 @@
 				//interrupts = <16 17 18 35 36 37 38 39>;
 				interrupts = <16>;
 				clocks = <&clk_apb>;
+				clock-names = "PCLK";
 			};
 
 
