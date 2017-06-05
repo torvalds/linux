@@ -52,7 +52,7 @@ of_coresight_get_endpoint_device(struct device_node *endpoint)
 			       endpoint, of_dev_node_match);
 }
 
-static void of_coresight_get_ports(struct device_node *node,
+static void of_coresight_get_ports(const struct device_node *node,
 				   int *nr_inport, int *nr_outport)
 {
 	struct device_node *ep = NULL;
@@ -101,8 +101,9 @@ static int of_coresight_alloc_memory(struct device *dev,
 	return 0;
 }
 
-struct coresight_platform_data *of_get_coresight_platform_data(
-				struct device *dev, struct device_node *node)
+struct coresight_platform_data *
+of_get_coresight_platform_data(struct device *dev,
+			       const struct device_node *node)
 {
 	int i = 0, ret = 0, cpu;
 	struct coresight_platform_data *pdata;
