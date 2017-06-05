@@ -916,6 +916,24 @@ void exhalbtc_pnp_notify(struct btc_coexist *btcoexist, u8 pnp_state)
 {
 	if (!halbtc_is_bt_coexist_available(btcoexist))
 		return;
+
+	/* currently only 1ant we have to do the notification,
+	 * once pnp is notified to sleep state, we have to leave LPS that
+	 * we can sleep normally.
+	 */
+
+	if (IS_HARDWARE_TYPE_8723B(btcoexist->adapter)) {
+		if (btcoexist->board_info.btdm_ant_num == 1)
+			ex_btc8723b1ant_pnp_notify(btcoexist, pnp_state);
+		else if (btcoexist->board_info.btdm_ant_num == 2)
+			ex_btc8723b2ant_pnp_notify(btcoexist, pnp_state);
+	} else if (IS_HARDWARE_TYPE_8821(btcoexist->adapter)) {
+		if (btcoexist->board_info.btdm_ant_num == 1)
+			ex_btc8821a1ant_pnp_notify(btcoexist, pnp_state);
+		else if (btcoexist->board_info.btdm_ant_num == 2)
+			ex_btc8821a2ant_pnp_notify(btcoexist, pnp_state);
+	} else if (IS_HARDWARE_TYPE_8192E(btcoexist->adapter)) {
+	}
 }
 
 void exhalbtc_periodical(struct btc_coexist *btcoexist)
