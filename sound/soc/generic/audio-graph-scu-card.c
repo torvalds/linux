@@ -295,8 +295,6 @@ static int asoc_graph_card_parse_of(struct graph_card_data *priv)
 	if (ret)
 		goto parse_of_err;
 
-	dev_dbg(dev, "New card: %s\n",
-		card->name ? card->name : "");
 	dev_dbg(dev, "convert_rate     %d\n", priv->convert_rate);
 	dev_dbg(dev, "convert_channels %d\n", priv->convert_channels);
 

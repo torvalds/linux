@@ -100,6 +100,8 @@ int asoc_simple_card_parse_card_name(struct snd_soc_card *card,
 	if (!card->name && card->dai_link)
 		card->name = card->dai_link->name;
 
+	dev_dbg(card->dev, "Card Name: %s\n", card->name ? card->name : "");
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_card_parse_card_name);

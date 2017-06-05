@@ -246,8 +246,6 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 	if (ret < 0)
 		return ret;
 
-	dev_dbg(dev, "New card: %s\n",
-		card->name ? card->name : "");
 	dev_dbg(dev, "convert_rate     %d\n", priv->convert_rate);
 	dev_dbg(dev, "convert_channels %d\n", priv->convert_channels);
 
