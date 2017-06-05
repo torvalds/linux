@@ -1239,6 +1239,145 @@ static int bpf_map_get_fd_by_id(const union bpf_attr *attr)
 	return fd;
 }
 
+static int check_uarg_tail_zero(void __user *uaddr,
+				size_t expected_size,
+				size_t actual_size)
+{
+	unsigned char __user *addr;
+	unsigned char __user *end;
+	unsigned char val;
+	int err;
+
+	if (actual_size <= expected_size)
+		return 0;
+
+	addr = uaddr + expected_size;
+	end  = uaddr + actual_size;
+
+	for (; addr < end; addr++) {
+		err = get_user(val, addr);
+		if (err)
+			return err;
+		if (val)
+			return -E2BIG;
+	}
+
+	return 0;
+}
+
+static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
+				   const union bpf_attr *attr,
+				   union bpf_attr __user *uattr)
+{
+	struct bpf_prog_info __user *uinfo = u64_to_user_ptr(attr->info.info);
+	struct bpf_prog_info info = {};
+	u32 info_len = attr->info.info_len;
+	char __user *uinsns;
+	u32 ulen;
+	int err;
+
+	err = check_uarg_tail_zero(uinfo, sizeof(info), info_len);
+	if (err)
+		return err;
+	info_len = min_t(u32, sizeof(info), info_len);
+
+	if (copy_from_user(&info, uinfo, info_len))
+		return err;
+
+	info.type = prog->type;
+	info.id = prog->aux->id;
+
+	memcpy(info.tag, prog->tag, sizeof(prog->tag));
+
+	if (!capable(CAP_SYS_ADMIN)) {
+		info.jited_prog_len = 0;
+		info.xlated_prog_len = 0;
+		goto done;
+	}
+
+	ulen = info.jited_prog_len;
+	info.jited_prog_len = prog->jited_len;
+	if (info.jited_prog_len && ulen) {
+		uinsns = u64_to_user_ptr(info.jited_prog_insns);
+		ulen = min_t(u32, info.jited_prog_len, ulen);
+		if (copy_to_user(uinsns, prog->bpf_func, ulen))
+			return -EFAULT;
+	}
+
+	ulen = info.xlated_prog_len;
+	info.xlated_prog_len = bpf_prog_size(prog->len);
+	if (info.xlated_prog_len && ulen) {
+		uinsns = u64_to_user_ptr(info.xlated_prog_insns);
+		ulen = min_t(u32, info.xlated_prog_len, ulen);
+		if (copy_to_user(uinsns, prog->insnsi, ulen))
+			return -EFAULT;
+	}
+
+done:
+	if (copy_to_user(uinfo, &info, info_len) ||
+	    put_user(info_len, &uattr->info.info_len))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int bpf_map_get_info_by_fd(struct bpf_map *map,
+				  const union bpf_attr *attr,
+				  union bpf_attr __user *uattr)
+{
+	struct bpf_map_info __user *uinfo = u64_to_user_ptr(attr->info.info);
+	struct bpf_map_info info = {};
+	u32 info_len = attr->info.info_len;
+	int err;
+
+	err = check_uarg_tail_zero(uinfo, sizeof(info), info_len);
+	if (err)
+		return err;
+	info_len = min_t(u32, sizeof(info), info_len);
+
+	info.type = map->map_type;
+	info.id = map->id;
+	info.key_size = map->key_size;
+	info.value_size = map->value_size;
+	info.max_entries = map->max_entries;
+	info.map_flags = map->map_flags;
+
+	if (copy_to_user(uinfo, &info, info_len) ||
+	    put_user(info_len, &uattr->info.info_len))
+		return -EFAULT;
+
+	return 0;
+}
+
+#define BPF_OBJ_GET_INFO_BY_FD_LAST_FIELD info.info
+
+static int bpf_obj_get_info_by_fd(const union bpf_attr *attr,
+				  union bpf_attr __user *uattr)
+{
+	int ufd = attr->info.bpf_fd;
+	struct fd f;
+	int err;
+
+	if (CHECK_ATTR(BPF_OBJ_GET_INFO_BY_FD))
+		return -EINVAL;
+
+	f = fdget(ufd);
+	if (!f.file)
+		return -EBADFD;
+
+	if (f.file->f_op == &bpf_prog_fops)
+		err = bpf_prog_get_info_by_fd(f.file->private_data, attr,
+					      uattr);
+	else if (f.file->f_op == &bpf_map_fops)
+		err = bpf_map_get_info_by_fd(f.file->private_data, attr,
+					     uattr);
+	else
+		err = -EINVAL;
+
+	fdput(f);
+	return err;
+}
+
 SYSCALL_DEFINE3(bpf, int, cmd, union bpf_attr __user *, uattr, unsigned int, size)
 {
 	union bpf_attr attr = {};
@@ -1258,23 +1397,10 @@ SYSCALL_DEFINE3(bpf, int, cmd, union bpf_attr __user *, uattr, unsigned int, siz
 	 * user-space does not rely on any kernel feature
 	 * extensions we dont know about yet.
 	 */
-	if (size > sizeof(attr)) {
-		unsigned char __user *addr;
-		unsigned char __user *end;
-		unsigned char val;
-
-		addr = (void __user *)uattr + sizeof(attr);
-		end  = (void __user *)uattr + size;
-
-		for (; addr < end; addr++) {
-			err = get_user(val, addr);
-			if (err)
-				return err;
-			if (val)
-				return -E2BIG;
-		}
-		size = sizeof(attr);
-	}
+	err = check_uarg_tail_zero(uattr, sizeof(attr), size);
+	if (err)
+		return err;
+	size = min_t(u32, size, sizeof(attr));
 
 	/* copy attributes from user space, may be less than sizeof(bpf_attr) */
 	if (copy_from_user(&attr, uattr, size) != 0)
@@ -1329,6 +1455,9 @@ SYSCALL_DEFINE3(bpf, int, cmd, union bpf_attr __user *, uattr, unsigned int, siz
 		break;
 	case BPF_MAP_GET_FD_BY_ID:
 		err = bpf_map_get_fd_by_id(&attr);
+		break;
+	case BPF_OBJ_GET_INFO_BY_FD:
+		err = bpf_obj_get_info_by_fd(&attr, uattr);
 		break;
 	default:
 		err = -EINVAL;

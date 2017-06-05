@@ -86,6 +86,7 @@ enum bpf_cmd {
 	BPF_MAP_GET_NEXT_ID,
 	BPF_PROG_GET_FD_BY_ID,
 	BPF_MAP_GET_FD_BY_ID,
+	BPF_OBJ_GET_INFO_BY_FD,
 };
 
 enum bpf_map_type {
@@ -222,6 +223,12 @@ union bpf_attr {
 		};
 		__u32		next_id;
 	};
+
+	struct { /* anonymous struct used by BPF_OBJ_GET_INFO_BY_FD */
+		__u32		bpf_fd;
+		__u32		info_len;
+		__aligned_u64	info;
+	} info;
 } __attribute__((aligned(8)));
 
 /* BPF helper function descriptions:
@@ -685,5 +692,26 @@ struct xdp_md {
 	__u32 data;
 	__u32 data_end;
 };
+
+#define BPF_TAG_SIZE	8
+
+struct bpf_prog_info {
+	__u32 type;
+	__u32 id;
+	__u8  tag[BPF_TAG_SIZE];
+	__u32 jited_prog_len;
+	__u32 xlated_prog_len;
+	__aligned_u64 jited_prog_insns;
+	__aligned_u64 xlated_prog_insns;
+} __attribute__((aligned(8)));
+
+struct bpf_map_info {
+	__u32 type;
+	__u32 id;
+	__u32 key_size;
+	__u32 value_size;
+	__u32 max_entries;
+	__u32 map_flags;
+} __attribute__((aligned(8)));
 
 #endif /* _UAPI__LINUX_BPF_H__ */
