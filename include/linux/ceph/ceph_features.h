@@ -77,28 +77,7 @@
 #define CEPH_FEATURE_NEW_OSDOPREPLY_ENCODING   (1ULL<<58) /* New, v7 encoding */
 #define CEPH_FEATURE_FS_FILE_LAYOUT_V2       (1ULL<<58) /* file_layout_t */
 
-/*
- * The introduction of CEPH_FEATURE_OSD_SNAPMAPPER caused the feature
- * vector to evaluate to 64 bit ~0.  To cope, we designate 1ULL << 63
- * to mean 33 bit ~0, and introduce a helper below to do the
- * translation.
- *
- * This was introduced by ceph.git commit
- *   9ea02b84104045c2ffd7e7f4e7af512953855ecd v0.58-657-g9ea02b8
- * and fixed by ceph.git commit
- *   4255b5c2fb54ae40c53284b3ab700fdfc7e61748 v0.65-263-g4255b5c
- */
 #define CEPH_FEATURE_RESERVED (1ULL<<63)
-
-static inline u64 ceph_sanitize_features(u64 features)
-{
-	if (features & CEPH_FEATURE_RESERVED) {
-		/* everything through OSD_SNAPMAPPER */
-		return 0x1ffffffffull;
-	} else {
-		return features;
-	}
-}
 
 /*
  * Features supported.
