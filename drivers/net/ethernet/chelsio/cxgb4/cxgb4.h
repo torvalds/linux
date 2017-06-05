@@ -777,6 +777,7 @@ struct uld_msix_info {
 
 struct vf_info {
 	unsigned char vf_mac_addr[ETH_ALEN];
+	unsigned int tx_rate;
 	bool pf_set_mac;
 };
 
