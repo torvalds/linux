@@ -1182,6 +1182,11 @@ struct acpi_external_file {
 	struct acpi_external_file *next;
 };
 
+struct acpi_parse_object_list {
+	union acpi_parse_object *op;
+	struct acpi_parse_object_list *next;
+};
+
 /*****************************************************************************
  *
  * Debugger
