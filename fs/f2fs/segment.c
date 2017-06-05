@@ -739,6 +739,8 @@ static void __remove_discard_cmd(struct f2fs_sb_info *sbi,
 {
 	struct discard_cmd_control *dcc = SM_I(sbi)->dcc_info;
 
+	f2fs_bug_on(sbi, dc->ref);
+
 	if (dc->error == -EOPNOTSUPP)
 		dc->error = 0;
 
