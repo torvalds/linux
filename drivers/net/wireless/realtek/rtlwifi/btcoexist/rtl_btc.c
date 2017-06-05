@@ -49,7 +49,7 @@ static struct rtl_btc_ops rtl_btc_operation = {
 
 void rtl_btc_init_variables(struct rtl_priv *rtlpriv)
 {
-	exhalbtc_initlize_variables(rtlpriv);
+	exhalbtc_initlize_variables();
 }
 
 void rtl_btc_init_hal_vars(struct rtl_priv *rtlpriv)
@@ -105,7 +105,9 @@ void rtl_btc_periodical(struct rtl_priv *rtlpriv)
 
 void rtl_btc_halt_notify(void)
 {
-	exhalbtc_halt_notify(&gl_bt_coexist);
+	struct btc_coexist *btcoexist = &gl_bt_coexist;
+
+	exhalbtc_halt_notify(btcoexist);
 }
 
 void rtl_btc_btinfo_notify(struct rtl_priv *rtlpriv, u8 *tmp_buf, u8 length)

@@ -218,6 +218,26 @@ enum btc_iot_peer {
 	BTC_IOT_PEER_MAX,
 };
 
+/* for 8723b-d cut large current issue */
+enum bt_wifi_coex_state {
+	BTC_WIFI_STAT_INIT,
+	BTC_WIFI_STAT_IQK,
+	BTC_WIFI_STAT_NORMAL_OFF,
+	BTC_WIFI_STAT_MP_OFF,
+	BTC_WIFI_STAT_NORMAL,
+	BTC_WIFI_STAT_ANT_DIV,
+	BTC_WIFI_STAT_MAX
+};
+
+enum bt_ant_type {
+	BTC_ANT_TYPE_0,
+	BTC_ANT_TYPE_1,
+	BTC_ANT_TYPE_2,
+	BTC_ANT_TYPE_3,
+	BTC_ANT_TYPE_4,
+	BTC_ANT_TYPE_MAX
+};
+
 enum btc_get_type {
 	/* type bool */
 	BTC_GET_BL_HS_OPERATION,
@@ -238,6 +258,9 @@ enum btc_get_type {
 	BTC_GET_BL_WIFI_UNDER_B_MODE,
 	BTC_GET_BL_EXT_SWITCH,
 	BTC_GET_BL_WIFI_IS_IN_MP_MODE,
+	BTC_GET_BL_IS_ASUS_8723B,
+	BTC_GET_BL_FW_READY,
+	BTC_GET_BL_RF4CE_CONNECTED,
 
 	/* type s4Byte */
 	BTC_GET_S4_WIFI_RSSI,
@@ -250,6 +273,11 @@ enum btc_get_type {
 	BTC_GET_U4_WIFI_LINK_STATUS,
 	BTC_GET_U4_BT_PATCH_VER,
 	BTC_GET_U4_VENDOR,
+	BTC_GET_U4_SUPPORTED_VERSION,
+	BTC_GET_U4_SUPPORTED_FEATURE,
+	BTC_GET_U4_WIFI_IQK_TOTAL,
+	BTC_GET_U4_WIFI_IQK_OK,
+	BTC_GET_U4_WIFI_IQK_FAIL,
 
 	/* type u1Byte */
 	BTC_GET_U1_WIFI_DOT11_CHNL,
@@ -257,6 +285,7 @@ enum btc_get_type {
 	BTC_GET_U1_WIFI_HS_CHNL,
 	BTC_GET_U1_MAC_PHY_MODE,
 	BTC_GET_U1_AP_NUM,
+	BTC_GET_U1_ANT_TYPE,
 	BTC_GET_U1_IOT_PEER,
 
 	/* for 1Ant */
@@ -316,6 +345,7 @@ enum btc_set_type {
 	/* BT Coex related */
 	BTC_SET_ACT_CTRL_BT_INFO,
 	BTC_SET_ACT_CTRL_BT_COEX,
+	BTC_SET_ACT_CTRL_8723B_ANT,
 	/***************************/
 	BTC_SET_MAX
 };
@@ -569,7 +599,7 @@ bool halbtc_is_wifi_uplink(struct rtl_priv *adapter);
 
 extern struct btc_coexist gl_bt_coexist;
 
-bool exhalbtc_initlize_variables(struct rtl_priv *adapter);
+bool exhalbtc_initlize_variables(void);
 void exhalbtc_init_hw_config(struct btc_coexist *btcoexist);
 void exhalbtc_init_coex_dm(struct btc_coexist *btcoexist);
 void exhalbtc_ips_notify(struct btc_coexist *btcoexist, u8 type);
