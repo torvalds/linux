@@ -3194,7 +3194,7 @@ void ex_btc8192e2ant_bt_info_notify(struct btc_coexist *btcoexist,
 	btc8192e2ant_run_coexist_mechanism(btcoexist);
 }
 
-void ex_halbtc8192e2ant_halt_notify(struct btc_coexist *btcoexist)
+void ex_btc8192e2ant_halt_notify(struct btc_coexist *btcoexist)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
 
