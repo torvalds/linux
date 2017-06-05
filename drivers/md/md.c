@@ -5174,6 +5174,18 @@ static void mddev_delayed_delete(struct work_struct *ws)
 
 static void no_op(struct percpu_ref *r) {}
 
+int mddev_init_writes_pending(struct mddev *mddev)
+{
+	if (mddev->writes_pending.percpu_count_ptr)
+		return 0;
+	if (percpu_ref_init(&mddev->writes_pending, no_op, 0, GFP_KERNEL) < 0)
+		return -ENOMEM;
+	/* We want to start with the refcount at zero */
+	percpu_ref_put(&mddev->writes_pending);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mddev_init_writes_pending);
+
 static int md_alloc(dev_t dev, char *name)
 {
 	/*
@@ -5239,10 +5251,6 @@ static int md_alloc(dev_t dev, char *name)
 	blk_queue_make_request(mddev->queue, md_make_request);
 	blk_set_stacking_limits(&mddev->queue->limits);
 
-	if (percpu_ref_init(&mddev->writes_pending, no_op, 0, GFP_KERNEL) < 0)
-		goto abort;
-	/* We want to start with the refcount at zero */
-	percpu_ref_put(&mddev->writes_pending);
 	disk = alloc_disk(1 << shift);
 	if (!disk) {
 		blk_cleanup_queue(mddev->queue);
