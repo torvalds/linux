@@ -447,6 +447,23 @@ struct aml_resource_pin_config {
 
 #define AML_RESOURCE_PIN_CONFIG_REVISION      1	/* ACPI 6.2 */
 
+struct aml_resource_pin_group {
+	AML_RESOURCE_LARGE_HEADER_COMMON u8 revision_id;
+	u16 flags;
+	u16 pin_table_offset;
+	u16 label_offset;
+	u16 vendor_offset;
+	u16 vendor_length;
+	/*
+	 * Optional fields follow immediately:
+	 * 1) PIN list (Words)
+	 * 2) Resource Label String
+	 * 3) Vendor Data bytes
+	 */
+};
+
+#define AML_RESOURCE_PIN_GROUP_REVISION      1	/* ACPI 6.2 */
+
 /* restore default alignment */
 
 #pragma pack()
@@ -491,6 +508,7 @@ union aml_resource {
 	struct aml_resource_common_serialbus common_serial_bus;
 	struct aml_resource_pin_function pin_function;
 	struct aml_resource_pin_config pin_config;
+	struct aml_resource_pin_group pin_group;
 
 	/* Utility overlays */
 

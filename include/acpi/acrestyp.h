@@ -289,6 +289,11 @@ union acpi_resource_attribute {
 	u8 type_specific;
 };
 
+struct acpi_resource_label {
+	u16 string_length;
+	char *string_ptr;
+};
+
 struct acpi_resource_source {
 	u8 index;
 	u16 string_length;
@@ -576,6 +581,16 @@ struct acpi_resource_pin_config {
 #define ACPI_PIN_CONFIG_INPUT_DEBOUNCE          12
 #define ACPI_PIN_CONFIG_INPUT_SCHMITT_TRIGGER   13
 
+struct acpi_resource_pin_group {
+	u8 revision_id;
+	u8 producer_consumer;	/* For values, see Producer/Consumer above */
+	u16 pin_table_length;
+	u16 vendor_length;
+	u16 *pin_table;
+	struct acpi_resource_label resource_label;
+	u8 *vendor_data;
+};
+
 /* ACPI_RESOURCE_TYPEs */
 
 #define ACPI_RESOURCE_TYPE_IRQ                  0
@@ -600,7 +615,8 @@ struct acpi_resource_pin_config {
 #define ACPI_RESOURCE_TYPE_SERIAL_BUS           19	/* ACPI 5.0 */
 #define ACPI_RESOURCE_TYPE_PIN_FUNCTION         20	/* ACPI 6.2 */
 #define ACPI_RESOURCE_TYPE_PIN_CONFIG           21	/* ACPI 6.2 */
-#define ACPI_RESOURCE_TYPE_MAX                  21
+#define ACPI_RESOURCE_TYPE_PIN_GROUP            22	/* ACPI 6.2 */
+#define ACPI_RESOURCE_TYPE_MAX                  22
 
 /* Master union for resource descriptors */
 
@@ -630,6 +646,7 @@ union acpi_resource_data {
 	struct acpi_resource_common_serialbus common_serial_bus;
 	struct acpi_resource_pin_function pin_function;
 	struct acpi_resource_pin_config pin_config;
+	struct acpi_resource_pin_group pin_group;
 
 	/* Common fields */
 

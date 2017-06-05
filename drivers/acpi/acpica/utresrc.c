@@ -354,6 +354,7 @@ const u8 acpi_gbl_resource_aml_sizes[] = {
 	ACPI_AML_SIZE_LARGE(struct aml_resource_pin_function),
 	ACPI_AML_SIZE_LARGE(struct aml_resource_common_serialbus),
 	ACPI_AML_SIZE_LARGE(struct aml_resource_pin_config),
+	ACPI_AML_SIZE_LARGE(struct aml_resource_pin_group),
 };
 
 const u8 acpi_gbl_resource_aml_serial_bus_sizes[] = {
@@ -407,6 +408,7 @@ static const u8 acpi_gbl_resource_types[] = {
 	ACPI_VARIABLE_LENGTH,	/* 0D pin_function */
 	ACPI_VARIABLE_LENGTH,	/* 0E *serial_bus */
 	ACPI_VARIABLE_LENGTH,	/* 0F pin_config */
+	ACPI_VARIABLE_LENGTH,	/* 10 pin_group */
 };
 
 /*******************************************************************************
