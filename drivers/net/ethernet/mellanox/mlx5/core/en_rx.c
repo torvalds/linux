@@ -857,6 +857,7 @@ wq_ll_pop:
 		       &wqe->next.next_wqe_index);
 }
 
+#ifdef CONFIG_MLX5_ESWITCH
 void mlx5e_handle_rx_cqe_rep(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 {
 	struct net_device *netdev = rq->netdev;
@@ -901,6 +902,7 @@ wq_ll_pop:
 	mlx5_wq_ll_pop(&rq->wq, wqe_counter_be,
 		       &wqe->next.next_wqe_index);
 }
+#endif
 
 static inline void mlx5e_mpwqe_fill_rx_skb(struct mlx5e_rq *rq,
 					   struct mlx5_cqe64 *cqe,

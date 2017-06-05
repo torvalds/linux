@@ -36,9 +36,7 @@
 #include <linux/mlx5/cmd.h>
 #include "mlx5_core.h"
 #include "fpga/core.h"
-#ifdef CONFIG_MLX5_CORE_EN
 #include "eswitch.h"
-#endif
 
 enum {
 	MLX5_EQE_SIZE		= sizeof(struct mlx5_eqe),
@@ -467,11 +465,9 @@ static irqreturn_t mlx5_eq_int(int irq, void *eq_ptr)
 			}
 			break;
 
-#ifdef CONFIG_MLX5_CORE_EN
 		case MLX5_EVENT_TYPE_NIC_VPORT_CHANGE:
 			mlx5_eswitch_vport_event(dev->priv.eswitch, eqe);
 			break;
-#endif
 
 		case MLX5_EVENT_TYPE_PORT_MODULE_EVENT:
 			mlx5_port_module_event(dev, eqe);

@@ -39,6 +39,14 @@
 #include <linux/mlx5/device.h>
 #include "lib/mpfs.h"
 
+enum {
+	SRIOV_NONE,
+	SRIOV_LEGACY,
+	SRIOV_OFFLOADS
+};
+
+#ifdef CONFIG_MLX5_ESWITCH
+
 #define MLX5_MAX_UC_PER_VPORT(dev) \
 	(1 << MLX5_CAP_GEN(dev, log_max_current_uc_list))
 
@@ -123,12 +131,6 @@ struct mlx5_eswitch_fdb {
 			int vlan_push_pop_refcount;
 		} offloads;
 	};
-};
-
-enum {
-	SRIOV_NONE,
-	SRIOV_LEGACY,
-	SRIOV_OFFLOADS
 };
 
 struct mlx5_esw_sq {
@@ -292,4 +294,13 @@ int __mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
 
 #define esw_debug(dev, format, ...)				\
 	mlx5_core_dbg_mask(dev, MLX5_DEBUG_ESWITCH_MASK, format, ##__VA_ARGS__)
+#else  /* CONFIG_MLX5_ESWITCH */
+/* eswitch API stubs */
+static inline int  mlx5_eswitch_init(struct mlx5_core_dev *dev) { return 0; }
+static inline void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw) {}
+static inline void mlx5_eswitch_vport_event(struct mlx5_eswitch *esw, struct mlx5_eqe *eqe) {}
+static inline int  mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode) { return 0; }
+static inline void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw) {}
+#endif /* CONFIG_MLX5_ESWITCH */
+
 #endif /* __MLX5_ESWITCH_H__ */
