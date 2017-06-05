@@ -116,6 +116,9 @@ extern int radeon_mst;
 extern int radeon_uvd;
 extern int radeon_vce;
 
+#ifdef CONFIG_DRM_AMDGPU_SI
+extern int radeon_si_support;
+#endif
 #ifdef CONFIG_DRM_AMDGPU_CIK
 extern int radeon_cik_support;
 #endif

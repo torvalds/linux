@@ -295,6 +295,12 @@ module_param_named(uvd, radeon_uvd, int, 0444);
 MODULE_PARM_DESC(vce, "vce enable/disable vce support (1 = enable, 0 = disable)");
 module_param_named(vce, radeon_vce, int, 0444);
 
+#ifdef CONFIG_DRM_AMDGPU_SI
+int radeon_si_support = 1;
+MODULE_PARM_DESC(si_support, "SI support (1 = enabled (default), 0 = disabled)");
+module_param_named(si_support, radeon_si_support, int, 0444);
+#endif
+
 #ifdef CONFIG_DRM_AMDGPU_CIK
 int radeon_cik_support = 0;
 MODULE_PARM_DESC(cik_support, "CIK support (1 = enabled, 0 = disabled (default))");
