@@ -1046,6 +1046,13 @@ static int ovl_rename(struct inode *olddir, struct dentry *old,
 	if (cleanup_whiteout)
 		ovl_cleanup(old_upperdir->d_inode, newdentry);
 
+	if (overwrite && d_inode(new)) {
+		if (new_is_dir)
+			clear_nlink(d_inode(new));
+		else
+			drop_nlink(d_inode(new));
+	}
+
 	ovl_dentry_version_inc(old->d_parent);
 	ovl_dentry_version_inc(new->d_parent);
 
