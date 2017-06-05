@@ -121,7 +121,7 @@ int rxrpc_init_server_conn_security(struct rxrpc_connection *conn)
 
 	_enter("");
 
-	sprintf(kdesc, "%u:%u", conn->params.service_id, conn->security_ix);
+	sprintf(kdesc, "%u:%u", conn->service_id, conn->security_ix);
 
 	sec = rxrpc_security_lookup(conn->security_ix);
 	if (!sec) {
@@ -133,7 +133,7 @@ int rxrpc_init_server_conn_security(struct rxrpc_connection *conn)
 	read_lock(&local->services_lock);
 	rx = rcu_dereference_protected(local->service,
 				       lockdep_is_held(&local->services_lock));
-	if (rx && rx->srx.srx_service == conn->params.service_id)
+	if (rx && rx->srx.srx_service == conn->service_id)
 		goto found_service;
 
 	/* the service appears to have died */

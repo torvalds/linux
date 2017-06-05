@@ -131,9 +131,8 @@ static int rxrpc_validate_address(struct rxrpc_sock *rx,
 static int rxrpc_bind(struct socket *sock, struct sockaddr *saddr, int len)
 {
 	struct sockaddr_rxrpc *srx = (struct sockaddr_rxrpc *)saddr;
-	struct sock *sk = sock->sk;
 	struct rxrpc_local *local;
-	struct rxrpc_sock *rx = rxrpc_sk(sk);
+	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
 	u16 service_id = srx->srx_service;
 	int ret;
 
@@ -152,7 +151,7 @@ static int rxrpc_bind(struct socket *sock, struct sockaddr *saddr, int len)
 
 	memcpy(&rx->srx, srx, sizeof(rx->srx));
 
-	local = rxrpc_lookup_local(sock_net(sock->sk), &rx->srx);
+	local = rxrpc_lookup_local(sock_net(&rx->sk), &rx->srx);
 	if (IS_ERR(local)) {
 		ret = PTR_ERR(local);
 		goto error_unlock;

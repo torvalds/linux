@@ -649,7 +649,7 @@ static int rxkad_issue_challenge(struct rxrpc_connection *conn)
 	whdr.userStatus	= 0;
 	whdr.securityIndex = conn->security_ix;
 	whdr._rsvd	= 0;
-	whdr.serviceId	= htons(conn->params.service_id);
+	whdr.serviceId	= htons(conn->service_id);
 
 	iov[0].iov_base	= &whdr;
 	iov[0].iov_len	= sizeof(whdr);

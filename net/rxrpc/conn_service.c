@@ -160,6 +160,7 @@ void rxrpc_new_incoming_connection(struct rxrpc_connection *conn,
 	conn->proto.epoch	= sp->hdr.epoch;
 	conn->proto.cid		= sp->hdr.cid & RXRPC_CIDMASK;
 	conn->params.service_id	= sp->hdr.serviceId;
+	conn->service_id	= sp->hdr.serviceId;
 	conn->security_ix	= sp->hdr.securityIndex;
 	conn->out_clientflag	= 0;
 	if (conn->security_ix)

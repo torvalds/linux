@@ -190,7 +190,7 @@ print:
 		   " %s %08x %08x %08x\n",
 		   lbuff,
 		   rbuff,
-		   conn->params.service_id,
+		   conn->service_id,
 		   conn->proto.cid,
 		   rxrpc_conn_is_service(conn) ? "Svc" : "Clt",
 		   atomic_read(&conn->usage),

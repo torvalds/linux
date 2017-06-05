@@ -386,7 +386,6 @@ struct rxrpc_connection {
 		u32			call_counter;	/* Call ID counter */
 		u32			last_call;	/* ID of last call */
 		u8			last_type;	/* Type of last packet */
-		u16			last_service_id;
 		union {
 			u32		last_seq;
 			u32		last_abort;
@@ -417,6 +416,7 @@ struct rxrpc_connection {
 	atomic_t		serial;		/* packet serial number counter */
 	unsigned int		hi_serial;	/* highest serial number received */
 	u32			security_nonce;	/* response re-use preventer */
+	u16			service_id;	/* Service ID, possibly upgraded */
 	u8			size_align;	/* data size alignment (for security) */
 	u8			security_size;	/* security header size */
 	u8			security_ix;	/* security type */
