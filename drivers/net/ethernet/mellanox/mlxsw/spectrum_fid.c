@@ -373,19 +373,19 @@ static const struct mlxsw_sp_flood_table mlxsw_sp_fid_8021q_flood_tables[] = {
 	{
 		.packet_type	= MLXSW_SP_FLOOD_TYPE_UC,
 		.bridge_type	= MLXSW_REG_SFGC_BRIDGE_TYPE_1Q_FID,
-		.table_type	= MLXSW_REG_SFGC_TABLE_TYPE_FID_OFFEST,
+		.table_type	= MLXSW_REG_SFGC_TABLE_TYPE_FID_OFFSET,
 		.table_index	= 0,
 	},
 	{
 		.packet_type	= MLXSW_SP_FLOOD_TYPE_MC,
 		.bridge_type	= MLXSW_REG_SFGC_BRIDGE_TYPE_1Q_FID,
-		.table_type	= MLXSW_REG_SFGC_TABLE_TYPE_FID_OFFEST,
+		.table_type	= MLXSW_REG_SFGC_TABLE_TYPE_FID_OFFSET,
 		.table_index	= 1,
 	},
 	{
 		.packet_type	= MLXSW_SP_FLOOD_TYPE_BC,
 		.bridge_type	= MLXSW_REG_SFGC_BRIDGE_TYPE_1Q_FID,
-		.table_type	= MLXSW_REG_SFGC_TABLE_TYPE_FID_OFFEST,
+		.table_type	= MLXSW_REG_SFGC_TABLE_TYPE_FID_OFFSET,
 		.table_index	= 2,
 	},
 };

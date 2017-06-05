@@ -2979,16 +2979,18 @@ mlxsw_sp_dev_rif_type(const struct mlxsw_sp *mlxsw_sp,
 	return mlxsw_sp_fid_type_rif_type(mlxsw_sp, type);
 }
 
-#define MLXSW_SP_INVALID_INDEX_RIF 0xffff
-static int mlxsw_sp_avail_rif_get(struct mlxsw_sp *mlxsw_sp)
+static int mlxsw_sp_rif_index_alloc(struct mlxsw_sp *mlxsw_sp, u16 *p_rif_index)
 {
 	int i;
 
-	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_RIFS); i++)
-		if (!mlxsw_sp->router->rifs[i])
-			return i;
+	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_RIFS); i++) {
+		if (!mlxsw_sp->router->rifs[i]) {
+			*p_rif_index = i;
+			return 0;
+		}
+	}
 
-	return MLXSW_SP_INVALID_INDEX_RIF;
+	return -ENOBUFS;
 }
 
 static struct mlxsw_sp_rif *mlxsw_sp_rif_alloc(size_t rif_size, u16 rif_index,
@@ -3048,11 +3050,9 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 	if (IS_ERR(vr))
 		return ERR_CAST(vr);
 
-	rif_index = mlxsw_sp_avail_rif_get(mlxsw_sp);
-	if (rif_index == MLXSW_SP_INVALID_INDEX_RIF) {
-		err = -ERANGE;
-		goto err_avail_rif_get;
-	}
+	err = mlxsw_sp_rif_index_alloc(mlxsw_sp, &rif_index);
+	if (err)
+		goto err_rif_index_alloc;
 
 	rif = mlxsw_sp_rif_alloc(ops->rif_size, rif_index, vr->id, params->dev);
 	if (!rif) {
@@ -3095,7 +3095,7 @@ err_configure:
 err_fid_get:
 	kfree(rif);
 err_rif_alloc:
-err_avail_rif_get:
+err_rif_index_alloc:
 	mlxsw_sp_vr_put(vr);
 	return ERR_PTR(err);
 }
