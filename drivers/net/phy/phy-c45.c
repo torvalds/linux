@@ -232,3 +232,67 @@ int genphy_c45_read_pma(struct phy_device *phydev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(genphy_c45_read_pma);
+
+/* The gen10g_* functions are the old Clause 45 stub */
+
+static int gen10g_config_aneg(struct phy_device *phydev)
+{
+	return 0;
+}
+
+static int gen10g_read_status(struct phy_device *phydev)
+{
+	u32 mmd_mask = phydev->c45_ids.devices_in_package;
+	int ret;
+
+	/* For now just lie and say it's 10G all the time */
+	phydev->speed = SPEED_10000;
+	phydev->duplex = DUPLEX_FULL;
+
+	/* Avoid reading the vendor MMDs */
+	mmd_mask &= ~(BIT(MDIO_MMD_VEND1) | BIT(MDIO_MMD_VEND2));
+
+	ret = genphy_c45_read_link(phydev, mmd_mask);
+
+	phydev->link = ret > 0 ? 1 : 0;
+
+	return 0;
+}
+
+static int gen10g_soft_reset(struct phy_device *phydev)
+{
+	/* Do nothing for now */
+	return 0;
+}
+
+static int gen10g_config_init(struct phy_device *phydev)
+{
+	/* Temporarily just say we support everything */
+	phydev->supported = SUPPORTED_10000baseT_Full;
+	phydev->advertising = SUPPORTED_10000baseT_Full;
+
+	return 0;
+}
+
+static int gen10g_suspend(struct phy_device *phydev)
+{
+	return 0;
+}
+
+static int gen10g_resume(struct phy_device *phydev)
+{
+	return 0;
+}
+
+struct phy_driver genphy_10g_driver = {
+	.phy_id         = 0xffffffff,
+	.phy_id_mask    = 0xffffffff,
+	.name           = "Generic 10G PHY",
+	.soft_reset	= gen10g_soft_reset,
+	.config_init    = gen10g_config_init,
+	.features       = 0,
+	.config_aneg    = gen10g_config_aneg,
+	.read_status    = gen10g_read_status,
+	.suspend        = gen10g_suspend,
+	.resume         = gen10g_resume,
+};
