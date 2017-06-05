@@ -1086,28 +1086,14 @@ struct net_device *ib_get_net_dev_by_params(struct ib_device *dev,
 }
 EXPORT_SYMBOL(ib_get_net_dev_by_params);
 
-static struct ibnl_client_cbs ibnl_ls_cb_table[] = {
+static const struct ibnl_client_cbs ibnl_ls_cb_table[] = {
 	[RDMA_NL_LS_OP_RESOLVE] = {
-		.dump = ib_nl_handle_resolve_resp,
-		.module = THIS_MODULE },
+		.dump = ib_nl_handle_resolve_resp},
 	[RDMA_NL_LS_OP_SET_TIMEOUT] = {
-		.dump = ib_nl_handle_set_timeout,
-		.module = THIS_MODULE },
+		.dump = ib_nl_handle_set_timeout},
 	[RDMA_NL_LS_OP_IP_RESOLVE] = {
-		.dump = ib_nl_handle_ip_res_resp,
-		.module = THIS_MODULE },
+		.dump = ib_nl_handle_ip_res_resp},
 };
-
-static int ib_add_ibnl_clients(void)
-{
-	return ibnl_add_client(RDMA_NL_LS, ARRAY_SIZE(ibnl_ls_cb_table),
-			       ibnl_ls_cb_table);
-}
-
-static void ib_remove_ibnl_clients(void)
-{
-	ibnl_remove_client(RDMA_NL_LS);
-}
 
 static int __init ib_core_init(void)
 {
@@ -1130,9 +1116,9 @@ static int __init ib_core_init(void)
 		goto err_comp;
 	}
 
-	ret = ibnl_init();
+	ret = rdma_nl_init();
 	if (ret) {
-		pr_warn("Couldn't init IB netlink interface\n");
+		pr_warn("Couldn't init IB netlink interface: err %d\n", ret);
 		goto err_sysfs;
 	}
 
@@ -1154,24 +1140,17 @@ static int __init ib_core_init(void)
 		goto err_mad;
 	}
 
-	ret = ib_add_ibnl_clients();
-	if (ret) {
-		pr_warn("Couldn't register ibnl clients\n");
-		goto err_sa;
-	}
-
 	ret = register_lsm_notifier(&ibdev_lsm_nb);
 	if (ret) {
 		pr_warn("Couldn't register LSM notifier. ret %d\n", ret);
-		goto err_ibnl_clients;
+		goto err_sa;
 	}
 
+	rdma_nl_register(RDMA_NL_LS, ibnl_ls_cb_table);
 	ib_cache_setup();
 
 	return 0;
 
-err_ibnl_clients:
-	ib_remove_ibnl_clients();
 err_sa:
 	ib_sa_cleanup();
 err_mad:
@@ -1179,7 +1158,7 @@ err_mad:
 err_addr:
 	addr_cleanup();
 err_ibnl:
-	ibnl_cleanup();
+	rdma_nl_exit();
 err_sysfs:
 	class_unregister(&ib_class);
 err_comp:
@@ -1191,13 +1170,13 @@ err:
 
 static void __exit ib_core_cleanup(void)
 {
-	unregister_lsm_notifier(&ibdev_lsm_nb);
 	ib_cache_cleanup();
-	ib_remove_ibnl_clients();
+	rdma_nl_unregister(RDMA_NL_LS);
+	unregister_lsm_notifier(&ibdev_lsm_nb);
 	ib_sa_cleanup();
 	ib_mad_cleanup();
 	addr_cleanup();
-	ibnl_cleanup();
+	rdma_nl_exit();
 	class_unregister(&ib_class);
 	destroy_workqueue(ib_comp_wq);
 	/* Make sure that any pending umem accounting work is done. */

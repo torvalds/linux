@@ -39,16 +39,13 @@
 #include <rdma/rdma_netlink.h>
 #include "core_priv.h"
 
-struct ibnl_client {
-	struct list_head		list;
-	int				index;
-	int				nops;
-	const struct ibnl_client_cbs   *cb_table;
-};
+#include "core_priv.h"
 
-static DEFINE_MUTEX(ibnl_mutex);
+static DEFINE_MUTEX(rdma_nl_mutex);
 static struct sock *nls;
-static LIST_HEAD(client_list);
+static struct {
+	const struct ibnl_client_cbs   *cb_table;
+} rdma_nl_types[RDMA_NL_NUM_CLIENTS];
 
 int ibnl_chk_listeners(unsigned int group)
 {
@@ -57,58 +54,74 @@ int ibnl_chk_listeners(unsigned int group)
 	return 0;
 }
 
-int ibnl_add_client(int index, int nops,
-		    const struct ibnl_client_cbs cb_table[])
+static bool is_nl_msg_valid(unsigned int type, unsigned int op)
 {
-	struct ibnl_client *cur;
-	struct ibnl_client *nl_client;
+	static const unsigned int max_num_ops[RDMA_NL_NUM_CLIENTS - 1] = {
+				  RDMA_NL_RDMA_CM_NUM_OPS,
+				  RDMA_NL_IWPM_NUM_OPS,
+				  0,
+				  RDMA_NL_LS_NUM_OPS,
+				  0 };
 
-	nl_client = kmalloc(sizeof *nl_client, GFP_KERNEL);
-	if (!nl_client)
-		return -ENOMEM;
+	/*
+	 * This BUILD_BUG_ON is intended to catch addition of new
+	 * RDMA netlink protocol without updating the array above.
+	 */
+	BUILD_BUG_ON(RDMA_NL_NUM_CLIENTS != 6);
 
-	nl_client->index	= index;
-	nl_client->nops		= nops;
-	nl_client->cb_table	= cb_table;
+	if (type > RDMA_NL_NUM_CLIENTS - 1)
+		return false;
 
-	mutex_lock(&ibnl_mutex);
+	return (op < max_num_ops[type - 1]) ? true : false;
+}
 
-	list_for_each_entry(cur, &client_list, list) {
-		if (cur->index == index) {
-			pr_warn("Client for %d already exists\n", index);
-			mutex_unlock(&ibnl_mutex);
-			kfree(nl_client);
-			return -EINVAL;
-		}
+static bool is_nl_valid(unsigned int type, unsigned int op)
+{
+	if (!is_nl_msg_valid(type, op) ||
+	    !rdma_nl_types[type].cb_table ||
+	    !rdma_nl_types[type].cb_table[op].dump)
+		return false;
+	return true;
+}
+
+void rdma_nl_register(unsigned int index,
+		      const struct ibnl_client_cbs cb_table[])
+{
+	mutex_lock(&rdma_nl_mutex);
+	if (!is_nl_msg_valid(index, 0)) {
+		/*
+		 * All clients are not interesting in success/failure of
+		 * this call. They want to see the print to error log and
+		 * continue their initialization. Print warning for them,
+		 * because it is programmer's error to be here.
+		 */
+		mutex_unlock(&rdma_nl_mutex);
+		WARN(true,
+		     "The not-valid %u index was supplied to RDMA netlink\n",
+		     index);
+		return;
 	}
 
-	list_add_tail(&nl_client->list, &client_list);
-
-	mutex_unlock(&ibnl_mutex);
-
-	return 0;
-}
-EXPORT_SYMBOL(ibnl_add_client);
-
-int ibnl_remove_client(int index)
-{
-	struct ibnl_client *cur, *next;
-
-	mutex_lock(&ibnl_mutex);
-	list_for_each_entry_safe(cur, next, &client_list, list) {
-		if (cur->index == index) {
-			list_del(&(cur->list));
-			mutex_unlock(&ibnl_mutex);
-			kfree(cur);
-			return 0;
-		}
+	if (rdma_nl_types[index].cb_table) {
+		mutex_unlock(&rdma_nl_mutex);
+		WARN(true,
+		     "The %u index is already registered in RDMA netlink\n",
+		     index);
+		return;
 	}
-	pr_warn("Can't remove callback for client idx %d. Not found\n", index);
-	mutex_unlock(&ibnl_mutex);
 
-	return -EINVAL;
+	rdma_nl_types[index].cb_table = cb_table;
+	mutex_unlock(&rdma_nl_mutex);
 }
-EXPORT_SYMBOL(ibnl_remove_client);
+EXPORT_SYMBOL(rdma_nl_register);
+
+void rdma_nl_unregister(unsigned int index)
+{
+	mutex_lock(&rdma_nl_mutex);
+	rdma_nl_types[index].cb_table = NULL;
+	mutex_unlock(&rdma_nl_mutex);
+}
+EXPORT_SYMBOL(rdma_nl_unregister);
 
 void *ibnl_put_msg(struct sk_buff *skb, struct nlmsghdr **nlh, int seq,
 		   int len, int client, int op, int flags)
@@ -149,45 +162,31 @@ EXPORT_SYMBOL(ibnl_put_attr);
 static int ibnl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 			struct netlink_ext_ack *extack)
 {
-	struct ibnl_client *client;
 	int type = nlh->nlmsg_type;
-	int index = RDMA_NL_GET_CLIENT(type);
+	unsigned int index = RDMA_NL_GET_CLIENT(type);
 	unsigned int op = RDMA_NL_GET_OP(type);
+	struct netlink_callback cb = {};
+	struct netlink_dump_control c = {};
 
-	list_for_each_entry(client, &client_list, list) {
-		if (client->index == index) {
-			if (op >= client->nops || !client->cb_table[op].dump)
-				return -EINVAL;
+	if (!is_nl_valid(index, op))
+		return -EINVAL;
 
-			/*
-			 * For response or local service set_timeout request,
-			 * there is no need to use netlink_dump_start.
-			 */
-			if (!(nlh->nlmsg_flags & NLM_F_REQUEST) ||
-			    (index == RDMA_NL_LS &&
-			     op == RDMA_NL_LS_OP_SET_TIMEOUT)) {
-				struct netlink_callback cb = {
-					.skb = skb,
-					.nlh = nlh,
-					.dump = client->cb_table[op].dump,
-					.module = client->cb_table[op].module,
-				};
-
-				return cb.dump(skb, &cb);
-			}
-
-			{
-				struct netlink_dump_control c = {
-					.dump = client->cb_table[op].dump,
-					.module = client->cb_table[op].module,
-				};
-				return netlink_dump_start(nls, skb, nlh, &c);
-			}
-		}
+	/*
+	 * For response or local service set_timeout request,
+	 * there is no need to use netlink_dump_start.
+	 */
+	if (!(nlh->nlmsg_flags & NLM_F_REQUEST) ||
+	    (index == RDMA_NL_LS && op == RDMA_NL_LS_OP_SET_TIMEOUT)) {
+		cb.skb = skb;
+		cb.nlh = nlh;
+		cb.dump = rdma_nl_types[index].cb_table[op].dump;
+		cb.module = rdma_nl_types[index].cb_table[op].module;
+		return cb.dump(skb, &cb);
 	}
 
-	pr_info("Index %d wasn't found in client list\n", index);
-	return -EINVAL;
+	c.dump = rdma_nl_types[index].cb_table[op].dump;
+	c.module = rdma_nl_types[index].cb_table[op].module;
+	return netlink_dump_start(nls, skb, nlh, &c);
 }
 
 static void ibnl_rcv_reply_skb(struct sk_buff *skb)
@@ -221,10 +220,10 @@ static void ibnl_rcv_reply_skb(struct sk_buff *skb)
 
 static void ibnl_rcv(struct sk_buff *skb)
 {
-	mutex_lock(&ibnl_mutex);
+	mutex_lock(&rdma_nl_mutex);
 	ibnl_rcv_reply_skb(skb);
 	netlink_rcv_skb(skb, &ibnl_rcv_msg);
-	mutex_unlock(&ibnl_mutex);
+	mutex_unlock(&rdma_nl_mutex);
 }
 
 int ibnl_unicast(struct sk_buff *skb, struct nlmsghdr *nlh,
@@ -254,32 +253,26 @@ int ibnl_multicast(struct sk_buff *skb, struct nlmsghdr *nlh,
 }
 EXPORT_SYMBOL(ibnl_multicast);
 
-int __init ibnl_init(void)
+int __init rdma_nl_init(void)
 {
 	struct netlink_kernel_cfg cfg = {
 		.input	= ibnl_rcv,
 	};
 
 	nls = netlink_kernel_create(&init_net, NETLINK_RDMA, &cfg);
-	if (!nls) {
-		pr_warn("Failed to create netlink socket\n");
+	if (!nls)
 		return -ENOMEM;
-	}
 
 	nls->sk_sndtimeo = 10 * HZ;
 	return 0;
 }
 
-void ibnl_cleanup(void)
+void rdma_nl_exit(void)
 {
-	struct ibnl_client *cur, *next;
+	int idx;
 
-	mutex_lock(&ibnl_mutex);
-	list_for_each_entry_safe(cur, next, &client_list, list) {
-		list_del(&(cur->list));
-		kfree(cur);
-	}
-	mutex_unlock(&ibnl_mutex);
+	for (idx = 0; idx < RDMA_NL_NUM_CLIENTS; idx++)
+		rdma_nl_unregister(idx);
 
 	netlink_kernel_release(nls);
 }

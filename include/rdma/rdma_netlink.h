@@ -11,23 +11,18 @@ struct ibnl_client_cbs {
 };
 
 /**
- * Add a a client to the list of IB netlink exporters.
+ * Register client in RDMA netlink.
  * @index: Index of the added client
- * @nops: Number of supported ops by the added client.
  * @cb_table: A table for op->callback
- *
- * Returns 0 on success or a negative error code.
  */
-int ibnl_add_client(int index, int nops,
-		    const struct ibnl_client_cbs cb_table[]);
+void rdma_nl_register(unsigned int index,
+		      const struct ibnl_client_cbs cb_table[]);
 
 /**
  * Remove a client from IB netlink.
  * @index: Index of the removed IB client.
- *
- * Returns 0 on success or a negative error code.
  */
-int ibnl_remove_client(int index);
+void rdma_nl_unregister(unsigned int index);
 
 /**
  * Put a new message in a supplied skb.

@@ -179,8 +179,8 @@ void ib_mad_cleanup(void);
 int ib_sa_init(void);
 void ib_sa_cleanup(void);
 
-int ibnl_init(void);
-void ibnl_cleanup(void);
+int rdma_nl_init(void);
+void rdma_nl_exit(void);
 
 /**
  * Check if there are any listeners to the netlink group

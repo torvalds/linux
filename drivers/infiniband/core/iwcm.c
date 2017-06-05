@@ -1175,12 +1175,8 @@ static int __init iw_cm_init(void)
 	ret = iwpm_init(RDMA_NL_IWCM);
 	if (ret)
 		pr_err("iw_cm: couldn't init iwpm\n");
-
-	ret = ibnl_add_client(RDMA_NL_IWCM, ARRAY_SIZE(iwcm_nl_cb_table),
-			      iwcm_nl_cb_table);
-	if (ret)
-		pr_err("iw_cm: couldn't register netlink callbacks\n");
-
+	else
+		rdma_nl_register(RDMA_NL_IWCM, iwcm_nl_cb_table);
 	iwcm_wq = alloc_ordered_workqueue("iw_cm_wq", WQ_MEM_RECLAIM);
 	if (!iwcm_wq)
 		return -ENOMEM;
@@ -1200,7 +1196,7 @@ static void __exit iw_cm_cleanup(void)
 {
 	unregister_net_sysctl_table(iwcm_ctl_table_hdr);
 	destroy_workqueue(iwcm_wq);
-	ibnl_remove_client(RDMA_NL_IWCM);
+	rdma_nl_unregister(RDMA_NL_IWCM);
 	iwpm_exit(RDMA_NL_IWCM);
 }
 
