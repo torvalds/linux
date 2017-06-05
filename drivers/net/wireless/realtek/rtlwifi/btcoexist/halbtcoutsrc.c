@@ -708,6 +708,56 @@ bool exhalbtc_initlize_variables(struct rtl_priv *adapter)
 	return true;
 }
 
+bool exhalbtc_bind_bt_coex_withadapter(void *adapter)
+{
+	struct btc_coexist *btcoexist = &gl_bt_coexist;
+	struct rtl_priv *rtlpriv = adapter;
+	u8 ant_num = 2, chip_type, single_ant_path = 0;
+
+	if (btcoexist->binded)
+		return false;
+
+	btcoexist->binded = true;
+	btcoexist->statistics.cnt_bind++;
+
+	btcoexist->adapter = adapter;
+
+	btcoexist->stack_info.profile_notified = false;
+
+	btcoexist->bt_info.bt_ctrl_agg_buf_size = false;
+	btcoexist->bt_info.agg_buf_size = 5;
+
+	btcoexist->bt_info.increase_scan_dev_num = false;
+	btcoexist->bt_info.miracast_plus_bt = false;
+
+	chip_type = rtl_get_hwpg_bt_type(rtlpriv);
+	exhalbtc_set_chip_type(chip_type);
+	ant_num = rtl_get_hwpg_ant_num(rtlpriv);
+	exhalbtc_set_ant_num(rtlpriv, BT_COEX_ANT_TYPE_PG, ant_num);
+
+	/* set default antenna position to main  port */
+	btcoexist->board_info.btdm_ant_pos = BTC_ANTENNA_AT_MAIN_PORT;
+
+	single_ant_path = rtl_get_hwpg_single_ant_path(rtlpriv);
+	exhalbtc_set_single_ant_path(single_ant_path);
+
+	if (rtl_get_hwpg_package_type(rtlpriv) == 0)
+		btcoexist->board_info.tfbga_package = false;
+	else if (rtl_get_hwpg_package_type(rtlpriv) == 1)
+		btcoexist->board_info.tfbga_package = false;
+	else
+		btcoexist->board_info.tfbga_package = true;
+
+	if (btcoexist->board_info.tfbga_package)
+		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+			 "[BTCoex], Package Type = TFBGA\n");
+	else
+		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+			 "[BTCoex], Package Type = Non-TFBGA\n");
+
+	return true;
+}
+
 void exhalbtc_power_on_setting(struct btc_coexist *btcoexist)
 {
 	if (!halbtc_is_bt_coexist_available(btcoexist))
@@ -1294,6 +1344,12 @@ void exhalbtc_set_ant_num(struct rtl_priv *rtlpriv, u8 type, u8 ant_num)
 			gl_bt_coexist.board_info.btdm_ant_pos =
 				BTC_ANTENNA_AT_MAIN_PORT;
 	}
+}
+
+/* Currently used by 8723b only, S0 or S1 */
+void exhalbtc_set_single_ant_path(u8 single_ant_path)
+{
+	gl_bt_coexist.board_info.single_ant_path = single_ant_path;
 }
 
 void exhalbtc_display_bt_coex_info(struct btc_coexist *btcoexist)

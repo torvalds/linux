@@ -153,6 +153,7 @@ struct btc_board_info {
 	u8 btdm_ant_pos;
 	u8 single_ant_path; /* current used for 8723b only, 1=>s0,  0=>s1 */
 	bool bt_exist;
+	bool tfbga_package;
 };
 
 enum btc_dbg_opcode {
@@ -433,12 +434,18 @@ struct btc_bt_info {
 	bool bt_disabled;
 	u8 rssi_adjust_for_agc_table_on;
 	u8 rssi_adjust_for_1ant_coex_type;
+	bool pre_bt_ctrl_agg_buf_size;
 	bool bt_busy;
+	u8 pre_agg_buf_size;
 	u8 agg_buf_size;
 	bool limited_dig;
+	bool pre_reject_agg_pkt;
 	bool reject_agg_pkt;
 	bool bt_ctrl_buf_size;
 	bool increase_scan_dev_num;
+	bool miracast_plus_bt;
+	bool bt_ctrl_agg_buf_size;
+	bool bt_tx_rx_mask;
 	u16 bt_hci_ver;
 	u16 bt_real_fw_ver;
 	u8 bt_fw_ver;
@@ -593,5 +600,6 @@ void exhalbtc_signal_compensation(struct btc_coexist *btcoexist,
 				  u8 *rssi_wifi, u8 *rssi_bt);
 void exhalbtc_lps_leave(struct btc_coexist *btcoexist);
 void exhalbtc_low_wifi_traffic_notify(struct btc_coexist *btcoexist);
+void exhalbtc_set_single_ant_path(u8 single_ant_path);
 
 #endif

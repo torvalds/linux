@@ -54,32 +54,19 @@ void rtl_btc_init_variables(struct rtl_priv *rtlpriv)
 
 void rtl_btc_init_hal_vars(struct rtl_priv *rtlpriv)
 {
-	u8 ant_num;
-	u8 bt_exist;
-	u8 bt_type;
-
-	ant_num = rtl_get_hwpg_ant_num(rtlpriv);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-		 "%s, antNum is %d\n", __func__, ant_num);
-
-	bt_exist = rtl_get_hwpg_bt_exist(rtlpriv);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-		 "%s, bt_exist is %d\n", __func__, bt_exist);
-	exhalbtc_set_bt_exist(bt_exist);
-
-	bt_type = rtl_get_hwpg_bt_type(rtlpriv);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "%s, bt_type is %d\n",
-		 __func__, bt_type);
-	exhalbtc_set_chip_type(bt_type);
-
-	if (rtlpriv->cfg->mod_params->ant_sel == 1)
-		exhalbtc_set_ant_num(rtlpriv, BT_COEX_ANT_TYPE_DETECTED, 1);
-	else
-		exhalbtc_set_ant_num(rtlpriv, BT_COEX_ANT_TYPE_PG, ant_num);
+	/* move ant_num, bt_type and single_ant_path to
+	 * exhalbtc_bind_bt_coex_withadapter()
+	 */
 }
 
 void rtl_btc_init_hw_config(struct rtl_priv *rtlpriv)
 {
+	u8 bt_exist;
+
+	bt_exist = rtl_get_hwpg_bt_exist(rtlpriv);
+	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
+		"%s, bt_exist is %d\n", __func__, bt_exist);
+
 	exhalbtc_init_hw_config(&gl_bt_coexist);
 	exhalbtc_init_coex_dm(&gl_bt_coexist);
 }
