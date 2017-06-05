@@ -682,10 +682,47 @@ static int decode_pool(void **p, void *end, struct ceph_pg_pool_info *pi)
 		*p += len;
 	}
 
+	/*
+	 * last_force_op_resend_preluminous, will be overridden if the
+	 * map was encoded with RESEND_ON_SPLIT
+	 */
 	if (ev >= 15)
 		pi->last_force_request_resend = ceph_decode_32(p);
 	else
 		pi->last_force_request_resend = 0;
+
+	if (ev >= 16)
+		*p += 4; /* skip min_read_recency_for_promote */
+
+	if (ev >= 17)
+		*p += 8; /* skip expected_num_objects */
+
+	if (ev >= 19)
+		*p += 4; /* skip cache_target_dirty_high_ratio_micro */
+
+	if (ev >= 20)
+		*p += 4; /* skip min_write_recency_for_promote */
+
+	if (ev >= 21)
+		*p += 1; /* skip use_gmt_hitset */
+
+	if (ev >= 22)
+		*p += 1; /* skip fast_read */
+
+	if (ev >= 23) {
+		*p += 4; /* skip hit_set_grade_decay_rate */
+		*p += 4; /* skip hit_set_search_last_n */
+	}
+
+	if (ev >= 24) {
+		/* skip opts */
+		*p += 1 + 1; /* versions */
+		len = ceph_decode_32(p);
+		*p += len;
+	}
+
+	if (ev >= 25)
+		pi->last_force_request_resend = ceph_decode_32(p);
 
 	/* ignore the rest */
 
