@@ -132,7 +132,6 @@ struct dw_mci_dma_slave {
  * =======
  *
  * @lock is a softirq-safe spinlock protecting @queue as well as
- * @cur_slot, @mrq and @state. These must always be updated
  * at the same time while holding @lock.
  *
  * @irq_lock is an irq-safe spinlock protecting the INTMASK register
@@ -168,7 +167,6 @@ struct dw_mci {
 	struct scatterlist	*sg;
 	struct sg_mapping_iter	sg_miter;
 
-	struct dw_mci_slot	*cur_slot;
 	struct mmc_request	*mrq;
 	struct mmc_command	*cmd;
 	struct mmc_data		*data;
@@ -204,7 +202,6 @@ struct dw_mci {
 
 	u32			bus_hz;
 	u32			current_speed;
-	u32			num_slots;
 	u32			fifoth_val;
 	u16			verid;
 	struct device		*dev;

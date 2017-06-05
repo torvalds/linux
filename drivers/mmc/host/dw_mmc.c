@@ -392,7 +392,7 @@ static u32 dw_mci_prep_stop_abort(struct dw_mci *host, struct mmc_command *cmd)
 	cmdr = stop->opcode | SDMMC_CMD_STOP |
 		SDMMC_CMD_RESP_CRC | SDMMC_CMD_RESP_EXP;
 
-	if (!test_bit(DW_MMC_CARD_NO_USE_HOLD, &host->cur_slot->flags))
+	if (!test_bit(DW_MMC_CARD_NO_USE_HOLD, &host->slot->flags))
 		cmdr |= SDMMC_CMD_USE_HOLD_REG;
 
 	return cmdr;
@@ -480,7 +480,7 @@ static void dw_mci_dmac_complete_dma(void *arg)
 	if ((host->use_dma == TRANS_MODE_EDMAC) &&
 	    data && (data->flags & MMC_DATA_READ))
 		/* Invalidate cache after read */
-		dma_sync_sg_for_cpu(mmc_dev(host->cur_slot->mmc),
+		dma_sync_sg_for_cpu(mmc_dev(host->slot->mmc),
 				    data->sg,
 				    data->sg_len,
 				    DMA_FROM_DEVICE);
@@ -820,7 +820,7 @@ static int dw_mci_edmac_start_dma(struct dw_mci *host,
 
 	/* Flush cache before write */
 	if (host->data->flags & MMC_DATA_WRITE)
-		dma_sync_sg_for_device(mmc_dev(host->cur_slot->mmc), sgl,
+		dma_sync_sg_for_device(mmc_dev(host->slot->mmc), sgl,
 				       sg_elems, DMA_TO_DEVICE);
 
 	dma_async_issue_pending(host->dms->ch);
@@ -1282,7 +1282,6 @@ static void __dw_mci_start_request(struct dw_mci *host,
 
 	mrq = slot->mrq;
 
-	host->cur_slot = slot;
 	host->mrq = mrq;
 
 	host->pending_events = 0;
@@ -1763,7 +1762,7 @@ static bool dw_mci_reset(struct dw_mci *host)
 
 ciu_out:
 	/* After a CTRL reset we need to have CIU set clock registers  */
-	mci_send_cmd(host->cur_slot, SDMMC_CMD_UPD_CLK, 0);
+	mci_send_cmd(host->slot, SDMMC_CMD_UPD_CLK, 0);
 
 	return ret;
 }
@@ -1790,11 +1789,11 @@ static void dw_mci_request_end(struct dw_mci *host, struct mmc_request *mrq)
 	__acquires(&host->lock)
 {
 	struct dw_mci_slot *slot;
-	struct mmc_host	*prev_mmc = host->cur_slot->mmc;
+	struct mmc_host	*prev_mmc = host->slot->mmc;
 
 	WARN_ON(host->cmd || host->data);
 
-	host->cur_slot->mrq = NULL;
+	host->slot->mrq = NULL;
 	host->mrq = NULL;
 	if (!list_empty(&host->queue)) {
 		slot = list_entry(host->queue.next,
@@ -1944,7 +1943,7 @@ static void dw_mci_tasklet_func(unsigned long priv)
 			err = dw_mci_command_complete(host, cmd);
 			if (cmd == mrq->sbc && !err) {
 				prev_state = state = STATE_SENDING_CMD;
-				__dw_mci_start_request(host, host->cur_slot,
+				__dw_mci_start_request(host, host->slot,
 						       mrq->cmd);
 				goto unlock;
 			}
@@ -3261,9 +3260,9 @@ int dw_mci_runtime_suspend(struct device *dev)
 
 	clk_disable_unprepare(host->ciu_clk);
 
-	if (host->cur_slot &&
-	    (mmc_can_gpio_cd(host->cur_slot->mmc) ||
-	     !mmc_card_is_removable(host->cur_slot->mmc)))
+	if (host->slot &&
+	    (mmc_can_gpio_cd(host->slot->mmc) ||
+	     !mmc_card_is_removable(host->slot->mmc)))
 		clk_disable_unprepare(host->biu_clk);
 
 	return 0;
@@ -3276,9 +3275,9 @@ int dw_mci_runtime_resume(struct device *dev)
 	struct dw_mci *host = dev_get_drvdata(dev);
 	struct dw_mci_slot *slot = host->slot;
 
-	if (host->cur_slot &&
-	    (mmc_can_gpio_cd(host->cur_slot->mmc) ||
-	     !mmc_card_is_removable(host->cur_slot->mmc))) {
+	if (host->slot &&
+	    (mmc_can_gpio_cd(host->slot->mmc) ||
+	     !mmc_card_is_removable(host->slot->mmc))) {
 		ret = clk_prepare_enable(host->biu_clk);
 		if (ret)
 			return ret;
@@ -3326,9 +3325,9 @@ int dw_mci_runtime_resume(struct device *dev)
 	return 0;
 
 err:
-	if (host->cur_slot &&
-	    (mmc_can_gpio_cd(host->cur_slot->mmc) ||
-	     !mmc_card_is_removable(host->cur_slot->mmc)))
+	if (host->slot &&
+	    (mmc_can_gpio_cd(host->slot->mmc) ||
+	     !mmc_card_is_removable(host->slot->mmc)))
 		clk_disable_unprepare(host->biu_clk);
 
 	return ret;
