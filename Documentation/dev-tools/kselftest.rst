@@ -120,3 +120,36 @@ Contributing new tests (details)
    executable which is not tested by default.
    TEST_FILES, TEST_GEN_FILES mean it is the file which is used by
    test.
+
+Test Harness
+============
+
+The kselftest_harness.h file contains useful helpers to build tests.  The tests
+from tools/testing/selftests/seccomp/seccomp_bpf.c can be used as example.
+
+Example
+-------
+
+.. kernel-doc:: tools/testing/selftests/kselftest_harness.h
+    :doc: example
+
+
+Helpers
+-------
+
+.. kernel-doc:: tools/testing/selftests/kselftest_harness.h
+    :functions: TH_LOG TEST TEST_SIGNAL FIXTURE FIXTURE_DATA FIXTURE_SETUP
+                FIXTURE_TEARDOWN TEST_F TEST_HARNESS_MAIN
+
+Operators
+---------
+
+.. kernel-doc:: tools/testing/selftests/kselftest_harness.h
+    :doc: operators
+
+.. kernel-doc:: tools/testing/selftests/kselftest_harness.h
+    :functions: ASSERT_EQ ASSERT_NE ASSERT_LT ASSERT_LE ASSERT_GT ASSERT_GE
+                ASSERT_NULL ASSERT_TRUE ASSERT_NULL ASSERT_TRUE ASSERT_FALSE
+                ASSERT_STREQ ASSERT_STRNE EXPECT_EQ EXPECT_NE EXPECT_LT
+                EXPECT_LE EXPECT_GT EXPECT_GE EXPECT_NULL EXPECT_TRUE
+                EXPECT_FALSE EXPECT_STREQ EXPECT_STRNE

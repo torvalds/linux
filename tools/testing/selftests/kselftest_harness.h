@@ -4,39 +4,47 @@
  *
  * kselftest_harness.h: simple C unit test helper.
  *
- * Usage:
- *   #include "../kselftest_harness.h"
- *   TEST(standalone_test) {
- *     do_some_stuff;
- *     EXPECT_GT(10, stuff) {
- *        stuff_state_t state;
- *        enumerate_stuff_state(&state);
- *        TH_LOG("expectation failed with state: %s", state.msg);
- *     }
- *     more_stuff;
- *     ASSERT_NE(some_stuff, NULL) TH_LOG("how did it happen?!");
- *     last_stuff;
- *     EXPECT_EQ(0, last_stuff);
- *   }
- *
- *   FIXTURE(my_fixture) {
- *     mytype_t *data;
- *     int awesomeness_level;
- *   };
- *   FIXTURE_SETUP(my_fixture) {
- *     self->data = mytype_new();
- *     ASSERT_NE(NULL, self->data);
- *   }
- *   FIXTURE_TEARDOWN(my_fixture) {
- *     mytype_free(self->data);
- *   }
- *   TEST_F(my_fixture, data_is_good) {
- *     EXPECT_EQ(1, is_my_data_good(self->data));
- *   }
- *
- *   TEST_HARNESS_MAIN
+ * See documentation in Documentation/dev-tools/kselftest.rst
  *
  * API inspired by code.google.com/p/googletest
+ */
+
+/**
+ * DOC: example
+ *
+ * .. code-block:: c
+ *
+ *    #include "../kselftest_harness.h"
+ *
+ *    TEST(standalone_test) {
+ *      do_some_stuff;
+ *      EXPECT_GT(10, stuff) {
+ *         stuff_state_t state;
+ *         enumerate_stuff_state(&state);
+ *         TH_LOG("expectation failed with state: %s", state.msg);
+ *      }
+ *      more_stuff;
+ *      ASSERT_NE(some_stuff, NULL) TH_LOG("how did it happen?!");
+ *      last_stuff;
+ *      EXPECT_EQ(0, last_stuff);
+ *    }
+ *
+ *    FIXTURE(my_fixture) {
+ *      mytype_t *data;
+ *      int awesomeness_level;
+ *    };
+ *    FIXTURE_SETUP(my_fixture) {
+ *      self->data = mytype_new();
+ *      ASSERT_NE(NULL, self->data);
+ *    }
+ *    FIXTURE_TEARDOWN(my_fixture) {
+ *      mytype_free(self->data);
+ *    }
+ *    TEST_F(my_fixture, data_is_good) {
+ *      EXPECT_EQ(1, is_my_data_good(self->data));
+ *    }
+ *
+ *    TEST_HARNESS_MAIN
  */
 
 #ifndef __KSELFTEST_HARNESS_H
@@ -61,10 +69,20 @@
 #  define TH_LOG_ENABLED 1
 #endif
 
-/* TH_LOG(format, ...)
+/**
+ * TH_LOG(fmt, ...)
+ *
+ * @fmt: format string
+ * @...: optional arguments
+ *
+ * .. code-block:: c
+ *
+ *     TH_LOG(format, ...)
+ *
  * Optional debug logging function available for use in tests.
  * Logging may be enabled or disabled by defining TH_LOG_ENABLED.
  * E.g., #define TH_LOG_ENABLED 1
+ *
  * If no definition is provided, logging is enabled by default.
  */
 #define TH_LOG(fmt, ...) do { \
@@ -77,7 +95,16 @@
 		fprintf(TH_LOG_STREAM, "%s:%d:%s:" fmt "\n", \
 			__FILE__, __LINE__, _metadata->name, ##__VA_ARGS__)
 
-/* TEST(name) { implementation }
+/**
+ * TEST(test_name) - Defines the test function and creates the registration
+ * stub
+ *
+ * @test_name: test name
+ *
+ * .. code-block:: c
+ *
+ *     TEST(name) { implementation }
+ *
  * Defines a test by name.
  * Names must be unique and tests must not be run in parallel.  The
  * implementation containing block is a function and scoping should be treated
@@ -85,10 +112,18 @@
  *
  * EXPECT_* and ASSERT_* are valid in a TEST() { } context.
  */
-/* Defines the test function and creates the registration stub. */
 #define TEST(test_name) __TEST_IMPL(test_name, -1)
 
-/* TEST_SIGNAL(name, signal) { implementation }
+/**
+ * TEST_SIGNAL(test_name, signal)
+ *
+ * @test_name: test name
+ * @signal: signal number
+ *
+ * .. code-block:: c
+ *
+ *     TEST_SIGNAL(name, signal) { implementation }
+ *
  * Defines a test by name and the expected term signal.
  * Names must be unique and tests must not be run in parallel.  The
  * implementation containing block is a function and scoping should be treated
@@ -110,22 +145,38 @@
 	static void test_name( \
 		struct __test_metadata __attribute__((unused)) *_metadata)
 
-/* FIXTURE_DATA(datatype name)
+/**
+ * FIXTURE_DATA(datatype_name) - Wraps the struct name so we have one less
+ * argument to pass around
+ *
+ * @datatype_name: datatype name
+ *
+ * .. code-block:: c
+ *
+ *     FIXTURE_DATA(datatype name)
+ *
  * This call may be used when the type of the fixture data
  * is needed.  In general, this should not be needed unless
- * the |self| is being passed to a helper directly.
+ * the *self* is being passed to a helper directly.
  */
-/* Wraps the struct name so we have one less argument to pass around. */
 #define FIXTURE_DATA(datatype_name) struct _test_data_##datatype_name
 
-/* FIXTURE(datatype name) {
- *   type property1;
- *   ...
- * };
- * Defines the data provided to TEST_F()-defined tests as |self|.  It should be
- * populated and cleaned up using FIXTURE_SETUP and FIXTURE_TEARDOWN.
+/**
+ * FIXTURE(fixture_name) - Called once per fixture to setup the data and
+ * register
+ *
+ * @fixture_name: fixture name
+ *
+ * .. code-block:: c
+ *
+ *     FIXTURE(datatype name) {
+ *       type property1;
+ *       ...
+ *     };
+ *
+ * Defines the data provided to TEST_F()-defined tests as *self*.  It should be
+ * populated and cleaned up using FIXTURE_SETUP() and FIXTURE_TEARDOWN().
  */
-/* Called once per fixture to setup the data and register. */
 #define FIXTURE(fixture_name) \
 	static void __attribute__((constructor)) \
 	_register_##fixture_name##_data(void) \
@@ -134,9 +185,18 @@
 	} \
 	FIXTURE_DATA(fixture_name)
 
-/* FIXTURE_SETUP(fixture name) { implementation }
+/**
+ * FIXTURE_SETUP(fixture_name) - Prepares the setup function for the fixture.
+ * *_metadata* is included so that ASSERT_* work as a convenience
+ *
+ * @fixture_name: fixture name
+ *
+ * .. code-block:: c
+ *
+ *     FIXTURE_SETUP(fixture name) { implementation }
+ *
  * Populates the required "setup" function for a fixture.  An instance of the
- * datatype defined with _FIXTURE_DATA will be exposed as |self| for the
+ * datatype defined with FIXTURE_DATA() will be exposed as *self* for the
  * implementation.
  *
  * ASSERT_* are valid for use in this context and will prempt the execution
@@ -144,16 +204,21 @@
  *
  * A bare "return;" statement may be used to return early.
  */
-/* Prepares the setup function for the fixture.  |_metadata| is included
- * so that ASSERT_* work as a convenience.
- */
 #define FIXTURE_SETUP(fixture_name) \
 	void fixture_name##_setup( \
 		struct __test_metadata __attribute__((unused)) *_metadata, \
 		FIXTURE_DATA(fixture_name) __attribute__((unused)) *self)
-/* FIXTURE_TEARDOWN(fixture name) { implementation }
+/**
+ * FIXTURE_TEARDOWN(fixture_name)
+ *
+ * @fixture_name: fixture name
+ *
+ * .. code-block:: c
+ *
+ *     FIXTURE_TEARDOWN(fixture name) { implementation }
+ *
  * Populates the required "teardown" function for a fixture.  An instance of the
- * datatype defined with _FIXTURE_DATA will be exposed as |self| for the
+ * datatype defined with FIXTURE_DATA() will be exposed as *self* for the
  * implementation to clean up.
  *
  * A bare "return;" statement may be used to return early.
@@ -163,15 +228,22 @@
 		struct __test_metadata __attribute__((unused)) *_metadata, \
 		FIXTURE_DATA(fixture_name) __attribute__((unused)) *self)
 
-/* TEST_F(fixture, name) { implementation }
+/**
+ * TEST_F(fixture_name, test_name) - Emits test registration and helpers for
+ * fixture-based test cases
+ *
+ * @fixture_name: fixture name
+ * @test_name: test name
+ *
+ * .. code-block:: c
+ *
+ *     TEST_F(fixture, name) { implementation }
+ *
  * Defines a test that depends on a fixture (e.g., is part of a test case).
- * Very similar to TEST() except that |self| is the setup instance of fixture's
+ * Very similar to TEST() except that *self* is the setup instance of fixture's
  * datatype exposed for use by the implementation.
  */
-/* Emits test registration and helpers for fixture-based test
- * cases.
- * TODO(wad) register fixtures on dedicated test lists.
- */
+/* TODO(wad) register fixtures on dedicated test lists. */
 #define TEST_F(fixture_name, test_name) \
 	__TEST_F_IMPL(fixture_name, test_name, -1)
 
@@ -210,10 +282,15 @@
 		struct __test_metadata __attribute__((unused)) *_metadata, \
 		FIXTURE_DATA(fixture_name) __attribute__((unused)) *self)
 
-/* Use once to append a main() to the test file. E.g.,
- *   TEST_HARNESS_MAIN
+/**
+ * TEST_HARNESS_MAIN - Simple wrapper to run the test harness
+ *
+ * .. code-block:: c
+ *
+ *     TEST_HARNESS_MAIN
+ *
+ * Use once to append a main() to the test file.
  */
-/* Exports a simple wrapper to run the test harness. */
 #define TEST_HARNESS_MAIN \
 	static void __attribute__((constructor)) \
 	__constructor_order_last(void) \
@@ -225,79 +302,247 @@
 		return test_harness_run(argc, argv); \
 	}
 
-/*
- * Operators for use in TEST and TEST_F.
+/**
+ * DOC: operators
+ *
+ * Operators for use in TEST() and TEST_F().
  * ASSERT_* calls will stop test execution immediately.
  * EXPECT_* calls will emit a failure warning, note it, and continue.
  */
-/* ASSERT_EQ(expected, measured): expected == measured */
+
+/**
+ * ASSERT_EQ(expected, seen)
+ *
+ * @expected: expected value
+ * @seen: measured value
+ *
+ * ASSERT_EQ(expected, measured): expected == measured
+ */
 #define ASSERT_EQ(expected, seen) \
 	__EXPECT(expected, seen, ==, 1)
-/* ASSERT_NE(expected, measured): expected != measured */
+
+/**
+ * ASSERT_NE(expected, seen)
+ *
+ * @expected: expected value
+ * @seen: measured value
+ *
+ * ASSERT_NE(expected, measured): expected != measured
+ */
 #define ASSERT_NE(expected, seen) \
 	__EXPECT(expected, seen, !=, 1)
-/* ASSERT_LT(expected, measured): expected < measured */
+
+/**
+ * ASSERT_LT(expected, seen)
+ *
+ * @expected: expected value
+ * @seen: measured value
+ *
+ * ASSERT_LT(expected, measured): expected < measured
+ */
 #define ASSERT_LT(expected, seen) \
 	__EXPECT(expected, seen, <, 1)
-/* ASSERT_LE(expected, measured): expected <= measured */
+
+/**
+ * ASSERT_LE(expected, seen)
+ *
+ * @expected: expected value
+ * @seen: measured value
+ *
+ * ASSERT_LE(expected, measured): expected <= measured
+ */
 #define ASSERT_LE(expected, seen) \
 	__EXPECT(expected, seen, <=, 1)
-/* ASSERT_GT(expected, measured): expected > measured */
+
+/**
+ * ASSERT_GT(expected, seen)
+ *
+ * @expected: expected value
+ * @seen: measured value
+ *
+ * ASSERT_GT(expected, measured): expected > measured
+ */
 #define ASSERT_GT(expected, seen) \
 	__EXPECT(expected, seen, >, 1)
-/* ASSERT_GE(expected, measured): expected >= measured */
+
+/**
+ * ASSERT_GE(expected, seen)
+ *
+ * @expected: expected value
+ * @seen: measured value
+ *
+ * ASSERT_GE(expected, measured): expected >= measured
+ */
 #define ASSERT_GE(expected, seen) \
 	__EXPECT(expected, seen, >=, 1)
-/* ASSERT_NULL(measured): NULL == measured */
+
+/**
+ * ASSERT_NULL(seen)
+ *
+ * @seen: measured value
+ *
+ * ASSERT_NULL(measured): NULL == measured
+ */
 #define ASSERT_NULL(seen) \
 	__EXPECT(NULL, seen, ==, 1)
 
-/* ASSERT_TRUE(measured): measured != 0 */
+/**
+ * ASSERT_TRUE(seen)
+ *
+ * @seen: measured value
+ *
+ * ASSERT_TRUE(measured): measured != 0
+ */
 #define ASSERT_TRUE(seen) \
 	ASSERT_NE(0, seen)
-/* ASSERT_FALSE(measured): measured == 0 */
+
+/**
+ * ASSERT_FALSE(seen)
+ *
+ * @seen: measured value
+ *
+ * ASSERT_FALSE(measured): measured == 0
+ */
 #define ASSERT_FALSE(seen) \
 	ASSERT_EQ(0, seen)
-/* ASSERT_STREQ(expected, measured): !strcmp(expected, measured) */
+
+/**
+ * ASSERT_STREQ(expected, seen)
+ *
+ * @expected: expected value
+ * @seen: measured value
+ *
+ * ASSERT_STREQ(expected, measured): !strcmp(expected, measured)
+ */
 #define ASSERT_STREQ(expected, seen) \
 	__EXPECT_STR(expected, seen, ==, 1)
-/* ASSERT_STRNE(expected, measured): strcmp(expected, measured) */
+
+/**
+ * ASSERT_STRNE(expected, seen)
+ *
+ * @expected: expected value
+ * @seen: measured value
+ *
+ * ASSERT_STRNE(expected, measured): strcmp(expected, measured)
+ */
 #define ASSERT_STRNE(expected, seen) \
 	__EXPECT_STR(expected, seen, !=, 1)
 
-/* EXPECT_EQ(expected, measured): expected == measured */
+/**
+ * EXPECT_EQ(expected, seen)
+ *
+ * @expected: expected value
+ * @seen: measured value
+ *
+ * EXPECT_EQ(expected, measured): expected == measured
+ */
 #define EXPECT_EQ(expected, seen) \
 	__EXPECT(expected, seen, ==, 0)
-/* EXPECT_NE(expected, measured): expected != measured */
+
+/**
+ * EXPECT_NE(expected, seen)
+ *
+ * @expected: expected value
+ * @seen: measured value
+ *
+ * EXPECT_NE(expected, measured): expected != measured
+ */
 #define EXPECT_NE(expected, seen) \
 	__EXPECT(expected, seen, !=, 0)
-/* EXPECT_LT(expected, measured): expected < measured */
+
+/**
+ * EXPECT_LT(expected, seen)
+ *
+ * @expected: expected value
+ * @seen: measured value
+ *
+ * EXPECT_LT(expected, measured): expected < measured
+ */
 #define EXPECT_LT(expected, seen) \
 	__EXPECT(expected, seen, <, 0)
-/* EXPECT_LE(expected, measured): expected <= measured */
+
+/**
+ * EXPECT_LE(expected, seen)
+ *
+ * @expected: expected value
+ * @seen: measured value
+ *
+ * EXPECT_LE(expected, measured): expected <= measured
+ */
 #define EXPECT_LE(expected, seen) \
 	__EXPECT(expected, seen, <=, 0)
-/* EXPECT_GT(expected, measured): expected > measured */
+
+/**
+ * EXPECT_GT(expected, seen)
+ *
+ * @expected: expected value
+ * @seen: measured value
+ *
+ * EXPECT_GT(expected, measured): expected > measured
+ */
 #define EXPECT_GT(expected, seen) \
 	__EXPECT(expected, seen, >, 0)
-/* EXPECT_GE(expected, measured): expected >= measured */
+
+/**
+ * EXPECT_GE(expected, seen)
+ *
+ * @expected: expected value
+ * @seen: measured value
+ *
+ * EXPECT_GE(expected, measured): expected >= measured
+ */
 #define EXPECT_GE(expected, seen) \
 	__EXPECT(expected, seen, >=, 0)
 
-/* EXPECT_NULL(measured): NULL == measured */
+/**
+ * EXPECT_NULL(seen)
+ *
+ * @seen: measured value
+ *
+ * EXPECT_NULL(measured): NULL == measured
+ */
 #define EXPECT_NULL(seen) \
 	__EXPECT(NULL, seen, ==, 0)
-/* EXPECT_TRUE(measured): 0 != measured */
+
+/**
+ * EXPECT_TRUE(seen)
+ *
+ * @seen: measured value
+ *
+ * EXPECT_TRUE(measured): 0 != measured
+ */
 #define EXPECT_TRUE(seen) \
 	EXPECT_NE(0, seen)
-/* EXPECT_FALSE(measured): 0 == measured */
+
+/**
+ * EXPECT_FALSE(seen)
+ *
+ * @seen: measured value
+ *
+ * EXPECT_FALSE(measured): 0 == measured
+ */
 #define EXPECT_FALSE(seen) \
 	EXPECT_EQ(0, seen)
 
-/* EXPECT_STREQ(expected, measured): !strcmp(expected, measured) */
+/**
+ * EXPECT_STREQ(expected, seen)
+ *
+ * @expected: expected value
+ * @seen: measured value
+ *
+ * EXPECT_STREQ(expected, measured): !strcmp(expected, measured)
+ */
 #define EXPECT_STREQ(expected, seen) \
 	__EXPECT_STR(expected, seen, ==, 0)
-/* EXPECT_STRNE(expected, measured): strcmp(expected, measured) */
+
+/**
+ * EXPECT_STRNE(expected, seen)
+ *
+ * @expected: expected value
+ * @seen: measured value
+ *
+ * EXPECT_STRNE(expected, measured): strcmp(expected, measured)
+ */
 #define EXPECT_STRNE(expected, seen) \
 	__EXPECT_STR(expected, seen, !=, 0)
 
