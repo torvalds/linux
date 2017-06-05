@@ -151,7 +151,6 @@ cflags-y += -fno-stack-check
 #
 cflags-$(CONFIG_CPU_R3000)	+= -march=r3000
 cflags-$(CONFIG_CPU_TX39XX)	+= -march=r3900
-cflags-$(CONFIG_CPU_R6000)	+= -march=r6000 -Wa,--trap
 cflags-$(CONFIG_CPU_R4300)	+= -march=r4300 -Wa,--trap
 cflags-$(CONFIG_CPU_VR41XX)	+= -march=r4100 -Wa,--trap
 cflags-$(CONFIG_CPU_R4X00)	+= -march=r4600 -Wa,--trap
