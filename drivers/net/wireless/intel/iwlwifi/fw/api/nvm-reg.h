@@ -164,8 +164,16 @@ struct iwl_nvm_get_info {
 } __packed; /* GRP_REGULATORY_NVM_GET_INFO_CMD_S_VER_1 */
 
 /**
+ * enum iwl_nvm_info_general_flags - flags in NVM_GET_INFO resp
+ * @NVM_GENERAL_FLAGS_EMPTY_OTP: 1 if OTP is empty
+ */
+enum iwl_nvm_info_general_flags {
+	NVM_GENERAL_FLAGS_EMPTY_OTP	= BIT(0),
+};
+
+/**
  * struct iwl_nvm_get_info_general - general NVM data
- * @flags: 1 - empty, 0 - valid
+ * @flags: bit 0: 1 - empty, 0 - non-empty
  * @nvm_version: nvm version
  * @board_type: board type
  * @reserved: reserved

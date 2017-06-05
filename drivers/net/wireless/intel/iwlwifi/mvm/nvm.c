@@ -576,11 +576,8 @@ int iwl_mvm_nvm_get_from_fw(struct iwl_mvm *mvm)
 	}
 
 	rsp = (void *)hcmd.resp_pkt->data;
-	if (le32_to_cpu(rsp->general.flags)) {
-		IWL_ERR(mvm, "Invalid NVM data from FW\n");
-		ret = -EINVAL;
-		goto out;
-	}
+	if (le32_to_cpu(rsp->general.flags) & NVM_GENERAL_FLAGS_EMPTY_OTP)
+		IWL_INFO(mvm, "OTP is empty\n");
 
 	mvm->nvm_data = kzalloc(sizeof(*mvm->nvm_data) +
 				sizeof(struct ieee80211_channel) *
