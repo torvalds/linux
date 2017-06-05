@@ -485,22 +485,6 @@ static bool halbtc_set(void *void_btcoexist, u8 set_type, void *in_buf)
 	return true;
 }
 
-static void halbtc_display_coex_statistics(struct btc_coexist *btcoexist)
-{
-}
-
-static void halbtc_display_bt_link_info(struct btc_coexist *btcoexist)
-{
-}
-
-static void halbtc_display_bt_fw_info(struct btc_coexist *btcoexist)
-{
-}
-
-static void halbtc_display_fw_pwr_mode_cmd(struct btc_coexist *btcoexist)
-{
-}
-
 /************************************************************
  *		IO related function
  ************************************************************/
@@ -619,27 +603,6 @@ static void halbtc_fill_h2c_cmd(void *bt_context, u8 element_id,
 					cmd_len, cmd_buf);
 }
 
-static void halbtc_display_dbg_msg(void *bt_context, u8 disp_type)
-{
-	struct btc_coexist *btcoexist =	(struct btc_coexist *)bt_context;
-	switch (disp_type) {
-	case BTC_DBG_DISP_COEX_STATISTICS:
-		halbtc_display_coex_statistics(btcoexist);
-		break;
-	case BTC_DBG_DISP_BT_LINK_INFO:
-		halbtc_display_bt_link_info(btcoexist);
-		break;
-	case BTC_DBG_DISP_BT_FW_VER:
-		halbtc_display_bt_fw_info(btcoexist);
-		break;
-	case BTC_DBG_DISP_FW_PWR_MODE_CMD:
-		halbtc_display_fw_pwr_mode_cmd(btcoexist);
-		break;
-	default:
-		break;
-	}
-}
-
 bool halbtc_under_ips(struct btc_coexist *btcoexist)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
@@ -696,7 +659,6 @@ bool exhalbtc_initlize_variables(struct rtl_priv *adapter)
 	btcoexist->btc_get_rf_reg = halbtc_get_rfreg;
 
 	btcoexist->btc_fill_h2c = halbtc_fill_h2c_cmd;
-	btcoexist->btc_disp_dbg_msg = halbtc_display_dbg_msg;
 
 	btcoexist->btc_get = halbtc_get;
 	btcoexist->btc_set = halbtc_set;
