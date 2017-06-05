@@ -675,11 +675,8 @@ static int etb_probe(struct amba_device *adev, const struct amba_id *id)
 
 	drvdata->buf = devm_kzalloc(dev,
 				    drvdata->buffer_depth * 4, GFP_KERNEL);
-	if (!drvdata->buf) {
-		dev_err(dev, "Failed to allocate %u bytes for buffer data\n",
-			drvdata->buffer_depth * 4);
+	if (!drvdata->buf)
 		return -ENOMEM;
-	}
 
 	desc.type = CORESIGHT_DEV_TYPE_SINK;
 	desc.subtype.sink_subtype = CORESIGHT_DEV_SUBTYPE_SINK_BUFFER;
