@@ -82,18 +82,26 @@ enum bxtwc_irqs {
 	BXTWC_PWRBTN_IRQ,
 };
 
-enum bxtwc_irqs_level2 {
-	/* Level 2 */
+enum bxtwc_irqs_bcu {
 	BXTWC_BCU_IRQ = 0,
-	BXTWC_ADC_IRQ,
-	BXTWC_USBC_IRQ,
+};
+
+enum bxtwc_irqs_adc {
+	BXTWC_ADC_IRQ = 0,
+};
+
+enum bxtwc_irqs_chgr {
+	BXTWC_USBC_IRQ = 0,
 	BXTWC_CHGR0_IRQ,
 	BXTWC_CHGR1_IRQ,
-	BXTWC_CRIT_IRQ,
 };
 
 enum bxtwc_irqs_tmu {
 	BXTWC_TMU_IRQ = 0,
+};
+
+enum bxtwc_irqs_crit {
+	BXTWC_CRIT_IRQ = 0,
 };
 
 static const struct regmap_irq bxtwc_regmap_irqs[] = {
@@ -108,17 +116,26 @@ static const struct regmap_irq bxtwc_regmap_irqs[] = {
 	REGMAP_IRQ_REG(BXTWC_PWRBTN_IRQ, 1, 0x03),
 };
 
-static const struct regmap_irq bxtwc_regmap_irqs_level2[] = {
+static const struct regmap_irq bxtwc_regmap_irqs_bcu[] = {
 	REGMAP_IRQ_REG(BXTWC_BCU_IRQ, 0, 0x1f),
-	REGMAP_IRQ_REG(BXTWC_ADC_IRQ, 1, 0xff),
-	REGMAP_IRQ_REG(BXTWC_USBC_IRQ, 2, BIT(5)),
-	REGMAP_IRQ_REG(BXTWC_CHGR0_IRQ, 2, 0x1f),
-	REGMAP_IRQ_REG(BXTWC_CHGR1_IRQ, 3, 0x1f),
-	REGMAP_IRQ_REG(BXTWC_CRIT_IRQ, 6, 0x03),
+};
+
+static const struct regmap_irq bxtwc_regmap_irqs_adc[] = {
+	REGMAP_IRQ_REG(BXTWC_ADC_IRQ, 0, 0xff),
+};
+
+static const struct regmap_irq bxtwc_regmap_irqs_chgr[] = {
+	REGMAP_IRQ_REG(BXTWC_USBC_IRQ, 0, BIT(5)),
+	REGMAP_IRQ_REG(BXTWC_CHGR0_IRQ, 0, 0x1f),
+	REGMAP_IRQ_REG(BXTWC_CHGR1_IRQ, 1, 0x1f),
 };
 
 static const struct regmap_irq bxtwc_regmap_irqs_tmu[] = {
 	REGMAP_IRQ_REG(BXTWC_TMU_IRQ, 0, 0x06),
+};
+
+static const struct regmap_irq bxtwc_regmap_irqs_crit[] = {
+	REGMAP_IRQ_REG(BXTWC_CRIT_IRQ, 0, 0x03),
 };
 
 static struct regmap_irq_chip bxtwc_regmap_irq_chip = {
@@ -130,21 +147,48 @@ static struct regmap_irq_chip bxtwc_regmap_irq_chip = {
 	.num_regs = 2,
 };
 
-static struct regmap_irq_chip bxtwc_regmap_irq_chip_level2 = {
-	.name = "bxtwc_irq_chip_level2",
-	.status_base = BXTWC_BCUIRQ,
-	.mask_base = BXTWC_MBCUIRQ,
-	.irqs = bxtwc_regmap_irqs_level2,
-	.num_irqs = ARRAY_SIZE(bxtwc_regmap_irqs_level2),
-	.num_regs = 10,
-};
-
 static struct regmap_irq_chip bxtwc_regmap_irq_chip_tmu = {
 	.name = "bxtwc_irq_chip_tmu",
 	.status_base = BXTWC_TMUIRQ,
 	.mask_base = BXTWC_MTMUIRQ,
 	.irqs = bxtwc_regmap_irqs_tmu,
 	.num_irqs = ARRAY_SIZE(bxtwc_regmap_irqs_tmu),
+	.num_regs = 1,
+};
+
+static struct regmap_irq_chip bxtwc_regmap_irq_chip_bcu = {
+	.name = "bxtwc_irq_chip_bcu",
+	.status_base = BXTWC_BCUIRQ,
+	.mask_base = BXTWC_MBCUIRQ,
+	.irqs = bxtwc_regmap_irqs_bcu,
+	.num_irqs = ARRAY_SIZE(bxtwc_regmap_irqs_bcu),
+	.num_regs = 1,
+};
+
+static struct regmap_irq_chip bxtwc_regmap_irq_chip_adc = {
+	.name = "bxtwc_irq_chip_adc",
+	.status_base = BXTWC_ADCIRQ,
+	.mask_base = BXTWC_MADCIRQ,
+	.irqs = bxtwc_regmap_irqs_adc,
+	.num_irqs = ARRAY_SIZE(bxtwc_regmap_irqs_adc),
+	.num_regs = 1,
+};
+
+static struct regmap_irq_chip bxtwc_regmap_irq_chip_chgr = {
+	.name = "bxtwc_irq_chip_chgr",
+	.status_base = BXTWC_CHGR0IRQ,
+	.mask_base = BXTWC_MCHGR0IRQ,
+	.irqs = bxtwc_regmap_irqs_chgr,
+	.num_irqs = ARRAY_SIZE(bxtwc_regmap_irqs_chgr),
+	.num_regs = 2,
+};
+
+static struct regmap_irq_chip bxtwc_regmap_irq_chip_crit = {
+	.name = "bxtwc_irq_chip_crit",
+	.status_base = BXTWC_CRITIRQ,
+	.mask_base = BXTWC_MCRITIRQ,
+	.irqs = bxtwc_regmap_irqs_crit,
+	.num_irqs = ARRAY_SIZE(bxtwc_regmap_irqs_crit),
 	.num_regs = 1,
 };
 
@@ -357,6 +401,26 @@ static const struct regmap_config bxtwc_regmap_config = {
 	.reg_read = regmap_ipc_byte_reg_read,
 };
 
+static int bxtwc_add_chained_irq_chip(struct intel_soc_pmic *pmic,
+				struct regmap_irq_chip_data *pdata,
+				int pirq, int irq_flags,
+				const struct regmap_irq_chip *chip,
+				struct regmap_irq_chip_data **data)
+{
+	int irq;
+
+	irq = regmap_irq_get_virq(pdata, pirq);
+	if (irq < 0) {
+		dev_err(pmic->dev,
+			"Failed to get parent vIRQ(%d) for chip %s, ret:%d\n",
+			pirq, chip->name, irq);
+		return irq;
+	}
+
+	return devm_regmap_add_irq_chip(pmic->dev, pmic->regmap, irq, irq_flags,
+					0, chip, data);
+}
+
 static int bxtwc_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -408,21 +472,65 @@ static int bxtwc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = devm_regmap_add_irq_chip(&pdev->dev, pmic->regmap, pmic->irq,
-				       IRQF_ONESHOT | IRQF_SHARED,
-				       0, &bxtwc_regmap_irq_chip_level2,
-				       &pmic->irq_chip_data_level2);
+	ret = bxtwc_add_chained_irq_chip(pmic, pmic->irq_chip_data,
+					 BXTWC_TMU_LVL1_IRQ,
+					 IRQF_ONESHOT,
+					 &bxtwc_regmap_irq_chip_tmu,
+					 &pmic->irq_chip_data_tmu);
 	if (ret) {
-		dev_err(&pdev->dev, "Failed to add secondary IRQ chip\n");
+		dev_err(&pdev->dev, "Failed to add TMU IRQ chip\n");
 		return ret;
 	}
 
-	ret = devm_regmap_add_irq_chip(&pdev->dev, pmic->regmap, pmic->irq,
-				       IRQF_ONESHOT | IRQF_SHARED,
-				       0, &bxtwc_regmap_irq_chip_tmu,
-				       &pmic->irq_chip_data_tmu);
+	/* Add chained IRQ handler for BCU IRQs */
+	ret = bxtwc_add_chained_irq_chip(pmic, pmic->irq_chip_data,
+					 BXTWC_BCU_LVL1_IRQ,
+					 IRQF_ONESHOT,
+					 &bxtwc_regmap_irq_chip_bcu,
+					 &pmic->irq_chip_data_bcu);
+
+
 	if (ret) {
-		dev_err(&pdev->dev, "Failed to add TMU IRQ chip\n");
+		dev_err(&pdev->dev, "Failed to add BUC IRQ chip\n");
+		return ret;
+	}
+
+	/* Add chained IRQ handler for ADC IRQs */
+	ret = bxtwc_add_chained_irq_chip(pmic, pmic->irq_chip_data,
+					 BXTWC_ADC_LVL1_IRQ,
+					 IRQF_ONESHOT,
+					 &bxtwc_regmap_irq_chip_adc,
+					 &pmic->irq_chip_data_adc);
+
+
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to add ADC IRQ chip\n");
+		return ret;
+	}
+
+	/* Add chained IRQ handler for CHGR IRQs */
+	ret = bxtwc_add_chained_irq_chip(pmic, pmic->irq_chip_data,
+					 BXTWC_CHGR_LVL1_IRQ,
+					 IRQF_ONESHOT,
+					 &bxtwc_regmap_irq_chip_chgr,
+					 &pmic->irq_chip_data_chgr);
+
+
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to add CHGR IRQ chip\n");
+		return ret;
+	}
+
+	/* Add chained IRQ handler for CRIT IRQs */
+	ret = bxtwc_add_chained_irq_chip(pmic, pmic->irq_chip_data,
+					 BXTWC_CRIT_LVL1_IRQ,
+					 IRQF_ONESHOT,
+					 &bxtwc_regmap_irq_chip_crit,
+					 &pmic->irq_chip_data_crit);
+
+
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to add CRIT IRQ chip\n");
 		return ret;
 	}
 
