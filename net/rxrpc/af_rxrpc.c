@@ -144,31 +144,48 @@ static int rxrpc_bind(struct socket *sock, struct sockaddr *saddr, int len)
 
 	lock_sock(&rx->sk);
 
-	if (rx->sk.sk_state != RXRPC_UNBOUND) {
+	switch (rx->sk.sk_state) {
+	case RXRPC_UNBOUND:
+		rx->srx = *srx;
+		local = rxrpc_lookup_local(sock_net(&rx->sk), &rx->srx);
+		if (IS_ERR(local)) {
+			ret = PTR_ERR(local);
+			goto error_unlock;
+		}
+
+		if (service_id) {
+			write_lock(&local->services_lock);
+			if (rcu_access_pointer(local->service))
+				goto service_in_use;
+			rx->local = local;
+			rcu_assign_pointer(local->service, rx);
+			write_unlock(&local->services_lock);
+
+			rx->sk.sk_state = RXRPC_SERVER_BOUND;
+		} else {
+			rx->local = local;
+			rx->sk.sk_state = RXRPC_CLIENT_BOUND;
+		}
+		break;
+
+	case RXRPC_SERVER_BOUND:
+		ret = -EINVAL;
+		if (service_id == 0)
+			goto error_unlock;
+		ret = -EADDRINUSE;
+		if (service_id == rx->srx.srx_service)
+			goto error_unlock;
+		ret = -EINVAL;
+		srx->srx_service = rx->srx.srx_service;
+		if (memcmp(srx, &rx->srx, sizeof(*srx)) != 0)
+			goto error_unlock;
+		rx->second_service = service_id;
+		rx->sk.sk_state = RXRPC_SERVER_BOUND2;
+		break;
+
+	default:
 		ret = -EINVAL;
 		goto error_unlock;
-	}
-
-	memcpy(&rx->srx, srx, sizeof(rx->srx));
-
-	local = rxrpc_lookup_local(sock_net(&rx->sk), &rx->srx);
-	if (IS_ERR(local)) {
-		ret = PTR_ERR(local);
-		goto error_unlock;
-	}
-
-	if (service_id) {
-		write_lock(&local->services_lock);
-		if (rcu_access_pointer(local->service))
-			goto service_in_use;
-		rx->local = local;
-		rcu_assign_pointer(local->service, rx);
-		write_unlock(&local->services_lock);
-
-		rx->sk.sk_state = RXRPC_SERVER_BOUND;
-	} else {
-		rx->local = local;
-		rx->sk.sk_state = RXRPC_CLIENT_BOUND;
 	}
 
 	release_sock(&rx->sk);
@@ -205,6 +222,7 @@ static int rxrpc_listen(struct socket *sock, int backlog)
 		ret = -EADDRNOTAVAIL;
 		break;
 	case RXRPC_SERVER_BOUND:
+	case RXRPC_SERVER_BOUND2:
 		ASSERT(rx->local != NULL);
 		max = READ_ONCE(rxrpc_max_backlog);
 		ret = -EINVAL;

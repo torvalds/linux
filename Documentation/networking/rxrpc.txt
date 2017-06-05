@@ -600,6 +600,10 @@ A server would be set up to accept operations in the following manner:
 	};
 	bind(server, &srx, sizeof(srx));
 
+     More than one service ID may be bound to a socket, provided the transport
+     parameters are the same.  The limit is currently two.  To do this, bind()
+     should be called twice.
+
  (3) The server is then set to listen out for incoming calls:
 
 	listen(server, 100);
