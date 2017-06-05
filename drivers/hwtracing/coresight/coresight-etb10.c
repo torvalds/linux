@@ -375,7 +375,7 @@ static void etb_update_buffer(struct coresight_device *csdev,
 
 	/*
 	 * Entries should be aligned to the frame size.  If they are not
-	 * go back to the last alignement point to give decoding tools a
+	 * go back to the last alignment point to give decoding tools a
 	 * chance to fix things.
 	 */
 	if (write_ptr % ETB_FRAME_SIZE_WORDS) {
