@@ -322,6 +322,12 @@ bool dm_helpers_dp_mst_send_payload_allocation(
 	return true;
 }
 
+bool dm_helpers_dc_conn_log(struct dc_context*ctx, const char *msg)
+{
+	return true;
+}
+
+
 bool dm_helpers_dp_mst_start_top_mgr(
 		struct dc_context *ctx,
 		const struct dc_link *link,
