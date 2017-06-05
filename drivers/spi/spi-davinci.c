@@ -964,7 +964,9 @@ static int davinci_spi_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		goto free_master;
 	}
-	clk_prepare_enable(dspi->clk);
+	ret = clk_prepare_enable(dspi->clk);
+	if (ret)
+		goto free_master;
 
 	master->dev.of_node = pdev->dev.of_node;
 	master->bus_num = pdev->id;
