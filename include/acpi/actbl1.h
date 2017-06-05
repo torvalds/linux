@@ -432,7 +432,8 @@ enum acpi_hest_types {
 	ACPI_HEST_TYPE_AER_BRIDGE = 8,
 	ACPI_HEST_TYPE_GENERIC_ERROR = 9,
 	ACPI_HEST_TYPE_GENERIC_ERROR_V2 = 10,
-	ACPI_HEST_TYPE_RESERVED = 11	/* 11 and greater are reserved */
+	ACPI_HEST_TYPE_IA32_DEFERRED_CHECK = 11,
+	ACPI_HEST_TYPE_RESERVED = 12	/* 12 and greater are reserved */
 };
 
 /*
@@ -538,7 +539,7 @@ enum acpi_hest_notify_types {
 struct acpi_hest_ia_machine_check {
 	struct acpi_hest_header header;
 	u16 reserved1;
-	u8 flags;
+	u8 flags;		/* See flags ACPI_HEST_GLOBAL, etc. above */
 	u8 enabled;
 	u32 records_to_preallocate;
 	u32 max_sections_per_record;
@@ -553,7 +554,7 @@ struct acpi_hest_ia_machine_check {
 struct acpi_hest_ia_corrected {
 	struct acpi_hest_header header;
 	u16 reserved1;
-	u8 flags;
+	u8 flags;		/* See flags ACPI_HEST_GLOBAL, etc. above */
 	u8 enabled;
 	u32 records_to_preallocate;
 	u32 max_sections_per_record;
@@ -689,6 +690,20 @@ struct acpi_hest_generic_data_v300 {
 #define ACPI_HEST_GEN_VALID_FRU_ID          (1)
 #define ACPI_HEST_GEN_VALID_FRU_STRING      (1<<1)
 #define ACPI_HEST_GEN_VALID_TIMESTAMP       (1<<2)
+
+/* 11: IA32 Deferred Machine Check Exception (ACPI 6.2) */
+
+struct acpi_hest_ia_deferred_check {
+	struct acpi_hest_header header;
+	u16 reserved1;
+	u8 flags;		/* See flags ACPI_HEST_GLOBAL, etc. above */
+	u8 enabled;
+	u32 records_to_preallocate;
+	u32 max_sections_per_record;
+	struct acpi_hest_notify notify;
+	u8 num_hardware_banks;
+	u8 reserved2[3];
+};
 
 /*******************************************************************************
  *
