@@ -291,6 +291,25 @@ const char *acpi_gbl_pt_decode[] = {
 	"/* UNKNOWN parity keyword */"
 };
 
+/* pin_config type */
+
+const char *acpi_gbl_ptyp_decode[] = {
+	"Default",
+	"Bias Pull-up",
+	"Bias Pull-down",
+	"Bias Default",
+	"Bias Disable",
+	"Bias High Impedance",
+	"Bias Bus Hold",
+	"Drive Open Drain",
+	"Drive Open Source",
+	"Drive Push Pull",
+	"Drive Strength",
+	"Slew Rate",
+	"Input Debounce",
+	"Input Schmitt Trigger",
+};
+
 #endif
 
 /*
@@ -334,6 +353,7 @@ const u8 acpi_gbl_resource_aml_sizes[] = {
 	ACPI_AML_SIZE_LARGE(struct aml_resource_gpio),
 	ACPI_AML_SIZE_LARGE(struct aml_resource_pin_function),
 	ACPI_AML_SIZE_LARGE(struct aml_resource_common_serialbus),
+	ACPI_AML_SIZE_LARGE(struct aml_resource_pin_config),
 };
 
 const u8 acpi_gbl_resource_aml_serial_bus_sizes[] = {
@@ -385,7 +405,8 @@ static const u8 acpi_gbl_resource_types[] = {
 	ACPI_FIXED_LENGTH,	/* 0B Extended* address */
 	ACPI_VARIABLE_LENGTH,	/* 0C Gpio* */
 	ACPI_VARIABLE_LENGTH,	/* 0D pin_function */
-	ACPI_VARIABLE_LENGTH	/* 0E *serial_bus */
+	ACPI_VARIABLE_LENGTH,	/* 0E *serial_bus */
+	ACPI_VARIABLE_LENGTH,	/* 0F pin_config */
 };
 
 /*******************************************************************************

@@ -85,6 +85,8 @@
 #define ACPI_RESTAG_PHASE                       "_PHA"
 #define ACPI_RESTAG_PIN                         "_PIN"
 #define ACPI_RESTAG_PINCONFIG                   "_PPI"
+#define ACPI_RESTAG_PINCONFIG_TYPE              "_TYP"
+#define ACPI_RESTAG_PINCONFIG_VALUE             "_VAL"
 #define ACPI_RESTAG_POLARITY                    "_POL"
 #define ACPI_RESTAG_REGISTERBITOFFSET           "_RBO"
 #define ACPI_RESTAG_REGISTERBITWIDTH            "_RBW"
@@ -425,6 +427,26 @@ struct aml_resource_pin_function {
 
 #define AML_RESOURCE_PIN_FUNCTION_REVISION      1	/* ACPI 6.2 */
 
+struct aml_resource_pin_config {
+	AML_RESOURCE_LARGE_HEADER_COMMON u8 revision_id;
+	u16 flags;
+	u8 pin_config_type;
+	u32 pin_config_value;
+	u16 pin_table_offset;
+	u8 res_source_index;
+	u16 res_source_offset;
+	u16 vendor_offset;
+	u16 vendor_length;
+	/*
+	 * Optional fields follow immediately:
+	 * 1) PIN list (Words)
+	 * 2) Resource Source String
+	 * 3) Vendor Data bytes
+	 */
+};
+
+#define AML_RESOURCE_PIN_CONFIG_REVISION      1	/* ACPI 6.2 */
+
 /* restore default alignment */
 
 #pragma pack()
@@ -468,6 +490,7 @@ union aml_resource {
 	struct aml_resource_uart_serialbus uart_serial_bus;
 	struct aml_resource_common_serialbus common_serial_bus;
 	struct aml_resource_pin_function pin_function;
+	struct aml_resource_pin_config pin_config;
 
 	/* Utility overlays */
 

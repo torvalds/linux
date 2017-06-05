@@ -337,6 +337,31 @@ struct acpi_rsdump_info acpi_rs_dump_pin_function[10] = {
 	 "VendorData", NULL},
 };
 
+struct acpi_rsdump_info acpi_rs_dump_pin_config[11] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_pin_config),
+	 "PinConfig", NULL},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(pin_config.revision_id), "RevisionId",
+	 NULL},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(pin_config.producer_consumer),
+	 "ProducerConsumer", acpi_gbl_consume_decode},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(pin_config.sharable), "Sharing",
+	 acpi_gbl_shr_decode},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(pin_config.pin_config_type),
+	 "PinConfigType", NULL},
+	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(pin_config.pin_config_value),
+	 "PinConfigValue", NULL},
+	{ACPI_RSD_SOURCE, ACPI_RSD_OFFSET(pin_config.resource_source),
+	 "ResourceSource", NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(pin_config.pin_table_length),
+	 "PinTableLength", NULL},
+	{ACPI_RSD_WORDLIST, ACPI_RSD_OFFSET(pin_config.pin_table), "PinTable",
+	 NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(pin_config.vendor_length),
+	 "VendorLength", NULL},
+	{ACPI_RSD_SHORTLISTX, ACPI_RSD_OFFSET(pin_config.vendor_data),
+	 "VendorData", NULL},
+};
+
 struct acpi_rsdump_info acpi_rs_dump_fixed_dma[4] = {
 	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_fixed_dma),
 	 "FixedDma", NULL},

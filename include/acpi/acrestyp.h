@@ -546,6 +546,36 @@ struct acpi_resource_pin_function {
 	u8 *vendor_data;
 };
 
+struct acpi_resource_pin_config {
+	u8 revision_id;
+	u8 producer_consumer;	/* For values, see Producer/Consumer above */
+	u8 sharable;		/* For values, see Interrupt Attributes above */
+	u8 pin_config_type;
+	u32 pin_config_value;
+	u16 pin_table_length;
+	u16 vendor_length;
+	struct acpi_resource_source resource_source;
+	u16 *pin_table;
+	u8 *vendor_data;
+};
+
+/* Values for pin_config_type field above */
+
+#define ACPI_PIN_CONFIG_DEFAULT                 0
+#define ACPI_PIN_CONFIG_BIAS_PULL_UP            1
+#define ACPI_PIN_CONFIG_BIAS_PULL_DOWN          2
+#define ACPI_PIN_CONFIG_BIAS_DEFAULT            3
+#define ACPI_PIN_CONFIG_BIAS_DISABLE            4
+#define ACPI_PIN_CONFIG_BIAS_HIGH_IMPEDANCE     5
+#define ACPI_PIN_CONFIG_BIAS_BUS_HOLD           6
+#define ACPI_PIN_CONFIG_DRIVE_OPEN_DRAIN        7
+#define ACPI_PIN_CONFIG_DRIVE_OPEN_SOURCE       8
+#define ACPI_PIN_CONFIG_DRIVE_PUSH_PULL         9
+#define ACPI_PIN_CONFIG_DRIVE_STRENGTH          10
+#define ACPI_PIN_CONFIG_SLEW_RATE               11
+#define ACPI_PIN_CONFIG_INPUT_DEBOUNCE          12
+#define ACPI_PIN_CONFIG_INPUT_SCHMITT_TRIGGER   13
+
 /* ACPI_RESOURCE_TYPEs */
 
 #define ACPI_RESOURCE_TYPE_IRQ                  0
@@ -569,7 +599,8 @@ struct acpi_resource_pin_function {
 #define ACPI_RESOURCE_TYPE_FIXED_DMA            18	/* ACPI 5.0 */
 #define ACPI_RESOURCE_TYPE_SERIAL_BUS           19	/* ACPI 5.0 */
 #define ACPI_RESOURCE_TYPE_PIN_FUNCTION         20	/* ACPI 6.2 */
-#define ACPI_RESOURCE_TYPE_MAX                  20
+#define ACPI_RESOURCE_TYPE_PIN_CONFIG           21	/* ACPI 6.2 */
+#define ACPI_RESOURCE_TYPE_MAX                  21
 
 /* Master union for resource descriptors */
 
@@ -598,6 +629,7 @@ union acpi_resource_data {
 	struct acpi_resource_uart_serialbus uart_serial_bus;
 	struct acpi_resource_common_serialbus common_serial_bus;
 	struct acpi_resource_pin_function pin_function;
+	struct acpi_resource_pin_config pin_config;
 
 	/* Common fields */
 
