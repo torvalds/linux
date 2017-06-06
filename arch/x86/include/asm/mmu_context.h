@@ -47,7 +47,7 @@ struct ldt_struct {
 	 * allocations, but it's not worth trying to optimize.
 	 */
 	struct desc_struct *entries;
-	unsigned int size;
+	unsigned int nr_entries;
 };
 
 /*
@@ -87,7 +87,7 @@ static inline void load_mm_ldt(struct mm_struct *mm)
 	 */
 
 	if (unlikely(ldt))
-		set_ldt(ldt->entries, ldt->size);
+		set_ldt(ldt->entries, ldt->nr_entries);
 	else
 		clear_LDT();
 #else

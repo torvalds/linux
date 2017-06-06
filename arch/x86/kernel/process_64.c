@@ -142,7 +142,7 @@ void release_thread(struct task_struct *dead_task)
 			pr_warn("WARNING: dead process %s still has LDT? <%p/%d>\n",
 				dead_task->comm,
 				dead_task->mm->context.ldt->entries,
-				dead_task->mm->context.ldt->size);
+				dead_task->mm->context.ldt->nr_entries);
 			BUG();
 		}
 #endif
