@@ -7,6 +7,7 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
+#include <linux/dmi.h>
 
 #include "tb.h"
 #include "tb_regs.h"
@@ -70,6 +71,8 @@ static void tb_scan_port(struct tb_port *port)
 		tb_switch_put(sw);
 		return;
 	}
+
+	sw->authorized = true;
 
 	if (tb_switch_add(sw)) {
 		tb_switch_put(sw);
@@ -443,10 +446,14 @@ struct tb *tb_probe(struct tb_nhi *nhi)
 	struct tb_cm *tcm;
 	struct tb *tb;
 
+	if (!dmi_match(DMI_BOARD_VENDOR, "Apple Inc."))
+		return NULL;
+
 	tb = tb_domain_alloc(nhi, sizeof(*tcm));
 	if (!tb)
 		return NULL;
 
+	tb->security_level = TB_SECURITY_NONE;
 	tb->cm_ops = &tb_cm_ops;
 
 	tcm = tb_priv(tb);

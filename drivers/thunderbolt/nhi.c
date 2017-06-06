@@ -13,7 +13,6 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
-#include <linux/dmi.h>
 #include <linux/delay.h>
 
 #include "nhi.h"
@@ -668,6 +667,22 @@ static int nhi_resume_noirq(struct device *dev)
 	return tb_domain_resume_noirq(tb);
 }
 
+static int nhi_suspend(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct tb *tb = pci_get_drvdata(pdev);
+
+	return tb_domain_suspend(tb);
+}
+
+static void nhi_complete(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct tb *tb = pci_get_drvdata(pdev);
+
+	tb_domain_complete(tb);
+}
+
 static void nhi_shutdown(struct tb_nhi *nhi)
 {
 	int i;
@@ -784,10 +799,16 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* magic value - clock related? */
 	iowrite32(3906250 / 10000, nhi->iobase + 0x38c00);
 
-	dev_info(&nhi->pdev->dev, "NHI initialized, starting thunderbolt\n");
-	tb = tb_probe(nhi);
+	tb = icm_probe(nhi);
 	if (!tb)
+		tb = tb_probe(nhi);
+	if (!tb) {
+		dev_err(&nhi->pdev->dev,
+			"failed to determine connection manager, aborting\n");
 		return -ENODEV;
+	}
+
+	dev_info(&nhi->pdev->dev, "NHI initialized, starting thunderbolt\n");
 
 	res = tb_domain_add(tb);
 	if (res) {
@@ -826,6 +847,10 @@ static const struct dev_pm_ops nhi_pm_ops = {
 					    * pci-tunnels stay alive.
 					    */
 	.restore_noirq = nhi_resume_noirq,
+	.suspend = nhi_suspend,
+	.freeze = nhi_suspend,
+	.poweroff = nhi_suspend,
+	.complete = nhi_complete,
 };
 
 static struct pci_device_id nhi_ids[] = {
@@ -886,8 +911,6 @@ static int __init nhi_init(void)
 {
 	int ret;
 
-	if (!dmi_match(DMI_BOARD_VENDOR, "Apple Inc."))
-		return -ENOSYS;
 	ret = tb_domain_init();
 	if (ret)
 		return ret;

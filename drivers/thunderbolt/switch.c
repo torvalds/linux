@@ -9,6 +9,9 @@
 
 #include "tb.h"
 
+/* Switch authorization from userspace is serialized by this lock */
+static DEFINE_MUTEX(switch_lock);
+
 /* port utility functions */
 
 static const char *tb_port_type(struct tb_regs_port_header *port)
@@ -310,6 +313,75 @@ static int tb_plug_events_active(struct tb_switch *sw, bool active)
 			   sw->cap_plug_events + 1, 1);
 }
 
+static ssize_t authorized_show(struct device *dev,
+			       struct device_attribute *attr,
+			       char *buf)
+{
+	struct tb_switch *sw = tb_to_switch(dev);
+
+	return sprintf(buf, "%u\n", sw->authorized);
+}
+
+static int tb_switch_set_authorized(struct tb_switch *sw, unsigned int val)
+{
+	int ret = -EINVAL;
+
+	if (mutex_lock_interruptible(&switch_lock))
+		return -ERESTARTSYS;
+
+	if (sw->authorized)
+		goto unlock;
+
+	switch (val) {
+	/* Approve switch */
+	case 1:
+		if (sw->key)
+			ret = tb_domain_approve_switch_key(sw->tb, sw);
+		else
+			ret = tb_domain_approve_switch(sw->tb, sw);
+		break;
+
+	/* Challenge switch */
+	case 2:
+		if (sw->key)
+			ret = tb_domain_challenge_switch_key(sw->tb, sw);
+		break;
+
+	default:
+		break;
+	}
+
+	if (!ret) {
+		sw->authorized = val;
+		/* Notify status change to the userspace */
+		kobject_uevent(&sw->dev.kobj, KOBJ_CHANGE);
+	}
+
+unlock:
+	mutex_unlock(&switch_lock);
+	return ret;
+}
+
+static ssize_t authorized_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct tb_switch *sw = tb_to_switch(dev);
+	unsigned int val;
+	ssize_t ret;
+
+	ret = kstrtouint(buf, 0, &val);
+	if (ret)
+		return ret;
+	if (val > 2)
+		return -EINVAL;
+
+	ret = tb_switch_set_authorized(sw, val);
+
+	return ret ? ret : count;
+}
+static DEVICE_ATTR_RW(authorized);
+
 static ssize_t device_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
@@ -327,6 +399,54 @@ device_name_show(struct device *dev, struct device_attribute *attr, char *buf)
 	return sprintf(buf, "%s\n", sw->device_name ? sw->device_name : "");
 }
 static DEVICE_ATTR_RO(device_name);
+
+static ssize_t key_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	struct tb_switch *sw = tb_to_switch(dev);
+	ssize_t ret;
+
+	if (mutex_lock_interruptible(&switch_lock))
+		return -ERESTARTSYS;
+
+	if (sw->key)
+		ret = sprintf(buf, "%*phN\n", TB_SWITCH_KEY_SIZE, sw->key);
+	else
+		ret = sprintf(buf, "\n");
+
+	mutex_unlock(&switch_lock);
+	return ret;
+}
+
+static ssize_t key_store(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count)
+{
+	struct tb_switch *sw = tb_to_switch(dev);
+	u8 key[TB_SWITCH_KEY_SIZE];
+	ssize_t ret = count;
+
+	if (count < 64)
+		return -EINVAL;
+
+	if (hex2bin(key, buf, sizeof(key)))
+		return -EINVAL;
+
+	if (mutex_lock_interruptible(&switch_lock))
+		return -ERESTARTSYS;
+
+	if (sw->authorized) {
+		ret = -EBUSY;
+	} else {
+		kfree(sw->key);
+		sw->key = kmemdup(key, sizeof(key), GFP_KERNEL);
+		if (!sw->key)
+			ret = -ENOMEM;
+	}
+
+	mutex_unlock(&switch_lock);
+	return ret;
+}
+static DEVICE_ATTR_RW(key);
 
 static ssize_t vendor_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
@@ -356,15 +476,35 @@ static ssize_t unique_id_show(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR_RO(unique_id);
 
 static struct attribute *switch_attrs[] = {
+	&dev_attr_authorized.attr,
 	&dev_attr_device.attr,
 	&dev_attr_device_name.attr,
+	&dev_attr_key.attr,
 	&dev_attr_vendor.attr,
 	&dev_attr_vendor_name.attr,
 	&dev_attr_unique_id.attr,
 	NULL,
 };
 
+static umode_t switch_attr_is_visible(struct kobject *kobj,
+				      struct attribute *attr, int n)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct tb_switch *sw = tb_to_switch(dev);
+
+	if (attr == &dev_attr_key.attr) {
+		if (tb_route(sw) &&
+		    sw->tb->security_level == TB_SECURITY_SECURE &&
+		    sw->security_level == TB_SECURITY_SECURE)
+			return attr->mode;
+		return 0;
+	}
+
+	return attr->mode;
+}
+
 static struct attribute_group switch_group = {
+	.is_visible = switch_attr_is_visible,
 	.attrs = switch_attrs,
 };
 
@@ -384,6 +524,7 @@ static void tb_switch_release(struct device *dev)
 	kfree(sw->vendor_name);
 	kfree(sw->ports);
 	kfree(sw->drom);
+	kfree(sw->key);
 	kfree(sw);
 }
 
@@ -489,6 +630,10 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, struct device *parent,
 		goto err_free_sw_ports;
 	}
 	sw->cap_plug_events = cap;
+
+	/* Root switch is always authorized */
+	if (!route)
+		sw->authorized = true;
 
 	device_initialize(&sw->dev);
 	sw->dev.parent = parent;
@@ -753,4 +898,81 @@ void tb_switch_suspend(struct tb_switch *sw)
 	 * TODO: invoke tb_cfg_prepare_to_sleep here? does not seem to have any
 	 * effect?
 	 */
+}
+
+struct tb_sw_lookup {
+	struct tb *tb;
+	u8 link;
+	u8 depth;
+	const uuid_be *uuid;
+};
+
+static int tb_switch_match(struct device *dev, void *data)
+{
+	struct tb_switch *sw = tb_to_switch(dev);
+	struct tb_sw_lookup *lookup = data;
+
+	if (!sw)
+		return 0;
+	if (sw->tb != lookup->tb)
+		return 0;
+
+	if (lookup->uuid)
+		return !memcmp(sw->uuid, lookup->uuid, sizeof(*lookup->uuid));
+
+	/* Root switch is matched only by depth */
+	if (!lookup->depth)
+		return !sw->depth;
+
+	return sw->link == lookup->link && sw->depth == lookup->depth;
+}
+
+/**
+ * tb_switch_find_by_link_depth() - Find switch by link and depth
+ * @tb: Domain the switch belongs
+ * @link: Link number the switch is connected
+ * @depth: Depth of the switch in link
+ *
+ * Returned switch has reference count increased so the caller needs to
+ * call tb_switch_put() when done with the switch.
+ */
+struct tb_switch *tb_switch_find_by_link_depth(struct tb *tb, u8 link, u8 depth)
+{
+	struct tb_sw_lookup lookup;
+	struct device *dev;
+
+	memset(&lookup, 0, sizeof(lookup));
+	lookup.tb = tb;
+	lookup.link = link;
+	lookup.depth = depth;
+
+	dev = bus_find_device(&tb_bus_type, NULL, &lookup, tb_switch_match);
+	if (dev)
+		return tb_to_switch(dev);
+
+	return NULL;
+}
+
+/**
+ * tb_switch_find_by_link_depth() - Find switch by UUID
+ * @tb: Domain the switch belongs
+ * @uuid: UUID to look for
+ *
+ * Returned switch has reference count increased so the caller needs to
+ * call tb_switch_put() when done with the switch.
+ */
+struct tb_switch *tb_switch_find_by_uuid(struct tb *tb, const uuid_be *uuid)
+{
+	struct tb_sw_lookup lookup;
+	struct device *dev;
+
+	memset(&lookup, 0, sizeof(lookup));
+	lookup.tb = tb;
+	lookup.uuid = uuid;
+
+	dev = bus_find_device(&tb_bus_type, NULL, &lookup, tb_switch_match);
+	if (dev)
+		return tb_to_switch(dev);
+
+	return NULL;
 }

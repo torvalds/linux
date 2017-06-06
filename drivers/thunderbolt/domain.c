@@ -13,10 +13,42 @@
 #include <linux/idr.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/random.h>
+#include <crypto/hash.h>
 
 #include "tb.h"
 
 static DEFINE_IDA(tb_domain_ida);
+
+static const char * const tb_security_names[] = {
+	[TB_SECURITY_NONE] = "none",
+	[TB_SECURITY_USER] = "user",
+	[TB_SECURITY_SECURE] = "secure",
+	[TB_SECURITY_DPONLY] = "dponly",
+};
+
+static ssize_t security_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct tb *tb = container_of(dev, struct tb, dev);
+
+	return sprintf(buf, "%s\n", tb_security_names[tb->security_level]);
+}
+static DEVICE_ATTR_RO(security);
+
+static struct attribute *domain_attrs[] = {
+	&dev_attr_security.attr,
+	NULL,
+};
+
+static struct attribute_group domain_attr_group = {
+	.attrs = domain_attrs,
+};
+
+static const struct attribute_group *domain_attr_groups[] = {
+	&domain_attr_group,
+	NULL,
+};
 
 struct bus_type tb_bus_type = {
 	.name = "thunderbolt",
@@ -82,6 +114,7 @@ struct tb *tb_domain_alloc(struct tb_nhi *nhi, size_t privsize)
 	tb->dev.parent = &nhi->pdev->dev;
 	tb->dev.bus = &tb_bus_type;
 	tb->dev.type = &tb_domain_type;
+	tb->dev.groups = domain_attr_groups;
 	dev_set_name(&tb->dev, "domain%d", tb->index);
 	device_initialize(&tb->dev);
 
@@ -139,6 +172,12 @@ int tb_domain_add(struct tb *tb)
 	 * channel is started. Thats why we have to hold the lock here.
 	 */
 	tb_ctl_start(tb->ctl);
+
+	if (tb->cm_ops->driver_ready) {
+		ret = tb->cm_ops->driver_ready(tb);
+		if (ret)
+			goto err_ctl_stop;
+	}
 
 	ret = device_add(&tb->dev);
 	if (ret)
@@ -227,6 +266,162 @@ int tb_domain_resume_noirq(struct tb *tb)
 	if (tb->cm_ops->resume_noirq)
 		ret = tb->cm_ops->resume_noirq(tb);
 	mutex_unlock(&tb->lock);
+
+	return ret;
+}
+
+int tb_domain_suspend(struct tb *tb)
+{
+	int ret;
+
+	mutex_lock(&tb->lock);
+	if (tb->cm_ops->suspend) {
+		ret = tb->cm_ops->suspend(tb);
+		if (ret) {
+			mutex_unlock(&tb->lock);
+			return ret;
+		}
+	}
+	mutex_unlock(&tb->lock);
+	return 0;
+}
+
+void tb_domain_complete(struct tb *tb)
+{
+	mutex_lock(&tb->lock);
+	if (tb->cm_ops->complete)
+		tb->cm_ops->complete(tb);
+	mutex_unlock(&tb->lock);
+}
+
+/**
+ * tb_domain_approve_switch() - Approve switch
+ * @tb: Domain the switch belongs to
+ * @sw: Switch to approve
+ *
+ * This will approve switch by connection manager specific means. In
+ * case of success the connection manager will create tunnels for all
+ * supported protocols.
+ */
+int tb_domain_approve_switch(struct tb *tb, struct tb_switch *sw)
+{
+	struct tb_switch *parent_sw;
+
+	if (!tb->cm_ops->approve_switch)
+		return -EPERM;
+
+	/* The parent switch must be authorized before this one */
+	parent_sw = tb_to_switch(sw->dev.parent);
+	if (!parent_sw || !parent_sw->authorized)
+		return -EINVAL;
+
+	return tb->cm_ops->approve_switch(tb, sw);
+}
+
+/**
+ * tb_domain_approve_switch_key() - Approve switch and add key
+ * @tb: Domain the switch belongs to
+ * @sw: Switch to approve
+ *
+ * For switches that support secure connect, this function first adds
+ * key to the switch NVM using connection manager specific means. If
+ * adding the key is successful, the switch is approved and connected.
+ *
+ * Return: %0 on success and negative errno in case of failure.
+ */
+int tb_domain_approve_switch_key(struct tb *tb, struct tb_switch *sw)
+{
+	struct tb_switch *parent_sw;
+	int ret;
+
+	if (!tb->cm_ops->approve_switch || !tb->cm_ops->add_switch_key)
+		return -EPERM;
+
+	/* The parent switch must be authorized before this one */
+	parent_sw = tb_to_switch(sw->dev.parent);
+	if (!parent_sw || !parent_sw->authorized)
+		return -EINVAL;
+
+	ret = tb->cm_ops->add_switch_key(tb, sw);
+	if (ret)
+		return ret;
+
+	return tb->cm_ops->approve_switch(tb, sw);
+}
+
+/**
+ * tb_domain_challenge_switch_key() - Challenge and approve switch
+ * @tb: Domain the switch belongs to
+ * @sw: Switch to approve
+ *
+ * For switches that support secure connect, this function generates
+ * random challenge and sends it to the switch. The switch responds to
+ * this and if the response matches our random challenge, the switch is
+ * approved and connected.
+ *
+ * Return: %0 on success and negative errno in case of failure.
+ */
+int tb_domain_challenge_switch_key(struct tb *tb, struct tb_switch *sw)
+{
+	u8 challenge[TB_SWITCH_KEY_SIZE];
+	u8 response[TB_SWITCH_KEY_SIZE];
+	u8 hmac[TB_SWITCH_KEY_SIZE];
+	struct tb_switch *parent_sw;
+	struct crypto_shash *tfm;
+	struct shash_desc *shash;
+	int ret;
+
+	if (!tb->cm_ops->approve_switch || !tb->cm_ops->challenge_switch_key)
+		return -EPERM;
+
+	/* The parent switch must be authorized before this one */
+	parent_sw = tb_to_switch(sw->dev.parent);
+	if (!parent_sw || !parent_sw->authorized)
+		return -EINVAL;
+
+	get_random_bytes(challenge, sizeof(challenge));
+	ret = tb->cm_ops->challenge_switch_key(tb, sw, challenge, response);
+	if (ret)
+		return ret;
+
+	tfm = crypto_alloc_shash("hmac(sha256)", 0, 0);
+	if (IS_ERR(tfm))
+		return PTR_ERR(tfm);
+
+	ret = crypto_shash_setkey(tfm, sw->key, TB_SWITCH_KEY_SIZE);
+	if (ret)
+		goto err_free_tfm;
+
+	shash = kzalloc(sizeof(*shash) + crypto_shash_descsize(tfm),
+			GFP_KERNEL);
+	if (!shash) {
+		ret = -ENOMEM;
+		goto err_free_tfm;
+	}
+
+	shash->tfm = tfm;
+	shash->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
+
+	memset(hmac, 0, sizeof(hmac));
+	ret = crypto_shash_digest(shash, challenge, sizeof(hmac), hmac);
+	if (ret)
+		goto err_free_shash;
+
+	/* The returned HMAC must match the one we calculated */
+	if (memcmp(response, hmac, sizeof(hmac))) {
+		ret = -EKEYREJECTED;
+		goto err_free_shash;
+	}
+
+	crypto_free_shash(tfm);
+	kfree(shash);
+
+	return tb->cm_ops->approve_switch(tb, sw);
+
+err_free_shash:
+	kfree(shash);
+err_free_tfm:
+	crypto_free_shash(tfm);
 
 	return ret;
 }

@@ -15,6 +15,24 @@
 #include "dma_port.h"
 
 /**
+ * enum tb_security_level - Thunderbolt security level
+ * @TB_SECURITY_NONE: No security, legacy mode
+ * @TB_SECURITY_USER: User approval required at minimum
+ * @TB_SECURITY_SECURE: One time saved key required at minimum
+ * @TB_SECURITY_DPONLY: Only tunnel Display port (and USB)
+ */
+enum tb_security_level {
+	TB_SECURITY_NONE,
+	TB_SECURITY_USER,
+	TB_SECURITY_SECURE,
+	TB_SECURITY_DPONLY,
+};
+
+#define TB_SWITCH_KEY_SIZE		32
+/* Each physical port contains 2 links on modern controllers */
+#define TB_SWITCH_LINKS_PER_PHY_PORT	2
+
+/**
  * struct tb_switch - a thunderbolt switch
  * @dev: Device for the switch
  * @config: Switch configuration
@@ -33,6 +51,19 @@
  * @cap_plug_events: Offset to the plug events capability (%0 if not found)
  * @is_unplugged: The switch is going away
  * @drom: DROM of the switch (%NULL if not found)
+ * @authorized: Whether the switch is authorized by user or policy
+ * @work: Work used to automatically authorize a switch
+ * @security_level: Switch supported security level
+ * @key: Contains the key used to challenge the device or %NULL if not
+ *	 supported. Size of the key is %TB_SWITCH_KEY_SIZE.
+ * @connection_id: Connection ID used with ICM messaging
+ * @connection_key: Connection key used with ICM messaging
+ * @link: Root switch link this switch is connected (ICM only)
+ * @depth: Depth in the chain this switch is connected (ICM only)
+ *
+ * When the switch is being added or removed to the domain (other
+ * switches) you need to have domain lock held. For switch authorization
+ * internal switch_lock is enough.
  */
 struct tb_switch {
 	struct device dev;
@@ -50,6 +81,14 @@ struct tb_switch {
 	int cap_plug_events;
 	bool is_unplugged;
 	u8 *drom;
+	unsigned int authorized;
+	struct work_struct work;
+	enum tb_security_level security_level;
+	u8 *key;
+	u8 connection_id;
+	u8 connection_key;
+	u8 link;
+	u8 depth;
 };
 
 /**
@@ -121,19 +160,33 @@ struct tb_path {
 
 /**
  * struct tb_cm_ops - Connection manager specific operations vector
+ * @driver_ready: Called right after control channel is started. Used by
+ *		  ICM to send driver ready message to the firmware.
  * @start: Starts the domain
  * @stop: Stops the domain
  * @suspend_noirq: Connection manager specific suspend_noirq
  * @resume_noirq: Connection manager specific resume_noirq
+ * @suspend: Connection manager specific suspend
+ * @complete: Connection manager specific complete
  * @handle_event: Handle thunderbolt event
+ * @approve_switch: Approve switch
+ * @add_switch_key: Add key to switch
+ * @challenge_switch_key: Challenge switch using key
  */
 struct tb_cm_ops {
+	int (*driver_ready)(struct tb *tb);
 	int (*start)(struct tb *tb);
 	void (*stop)(struct tb *tb);
 	int (*suspend_noirq)(struct tb *tb);
 	int (*resume_noirq)(struct tb *tb);
+	int (*suspend)(struct tb *tb);
+	void (*complete)(struct tb *tb);
 	void (*handle_event)(struct tb *tb, enum tb_cfg_pkg_type,
 			     const void *buf, size_t size);
+	int (*approve_switch)(struct tb *tb, struct tb_switch *sw);
+	int (*add_switch_key)(struct tb *tb, struct tb_switch *sw);
+	int (*challenge_switch_key)(struct tb *tb, struct tb_switch *sw,
+				    const u8 *challenge, u8 *response);
 };
 
 /**
@@ -147,6 +200,7 @@ struct tb_cm_ops {
  * @root_switch: Root switch of this domain
  * @cm_ops: Connection manager specific operations vector
  * @index: Linux assigned domain number
+ * @security_level: Current security level
  * @privdata: Private connection manager specific data
  */
 struct tb {
@@ -158,6 +212,7 @@ struct tb {
 	struct tb_switch *root_switch;
 	const struct tb_cm_ops *cm_ops;
 	int index;
+	enum tb_security_level security_level;
 	unsigned long privdata[0];
 };
 
@@ -186,6 +241,16 @@ static inline struct tb_port *tb_upstream_port(struct tb_switch *sw)
 static inline u64 tb_route(struct tb_switch *sw)
 {
 	return ((u64) sw->config.route_hi) << 32 | sw->config.route_lo;
+}
+
+static inline struct tb_port *tb_port_at(u64 route, struct tb_switch *sw)
+{
+	u8 port;
+
+	port = route >> (sw->config.depth * 8);
+	if (WARN_ON(port > sw->config.max_port_number))
+		return NULL;
+	return &sw->ports[port];
 }
 
 static inline int tb_sw_read(struct tb_switch *sw, void *buffer,
@@ -266,6 +331,7 @@ static inline int tb_port_write(struct tb_port *port, const void *buffer,
 #define tb_port_info(port, fmt, arg...) \
 	__TB_PORT_PRINT(tb_info, port, fmt, ##arg)
 
+struct tb *icm_probe(struct tb_nhi *nhi);
 struct tb *tb_probe(struct tb_nhi *nhi);
 
 extern struct bus_type tb_bus_type;
@@ -280,6 +346,11 @@ int tb_domain_add(struct tb *tb);
 void tb_domain_remove(struct tb *tb);
 int tb_domain_suspend_noirq(struct tb *tb);
 int tb_domain_resume_noirq(struct tb *tb);
+int tb_domain_suspend(struct tb *tb);
+void tb_domain_complete(struct tb *tb);
+int tb_domain_approve_switch(struct tb *tb, struct tb_switch *sw);
+int tb_domain_approve_switch_key(struct tb *tb, struct tb_switch *sw);
+int tb_domain_challenge_switch_key(struct tb *tb, struct tb_switch *sw);
 
 static inline void tb_domain_put(struct tb *tb)
 {
@@ -296,6 +367,14 @@ int tb_switch_resume(struct tb_switch *sw);
 int tb_switch_reset(struct tb *tb, u64 route);
 void tb_sw_set_unplugged(struct tb_switch *sw);
 struct tb_switch *get_switch_at_route(struct tb_switch *sw, u64 route);
+struct tb_switch *tb_switch_find_by_link_depth(struct tb *tb, u8 link,
+					       u8 depth);
+struct tb_switch *tb_switch_find_by_uuid(struct tb *tb, const uuid_be *uuid);
+
+static inline unsigned int tb_switch_phy_port_from_link(unsigned int link)
+{
+	return (link - 1) / TB_SWITCH_LINKS_PER_PHY_PORT;
+}
 
 static inline void tb_switch_put(struct tb_switch *sw)
 {
