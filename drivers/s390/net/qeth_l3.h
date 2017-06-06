@@ -65,6 +65,7 @@ struct qeth_ipato_entry {
 	int mask_bits;
 };
 
+extern const struct attribute_group *qeth_l3_attr_groups[];
 
 void qeth_l3_ipaddr_to_string(enum qeth_prot_versions, const __u8 *, char *);
 int qeth_l3_string_to_ipaddr(const char *, enum qeth_prot_versions, __u8 *);

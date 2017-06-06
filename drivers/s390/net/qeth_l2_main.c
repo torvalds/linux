@@ -1017,6 +1017,13 @@ static int qeth_l2_start_ipassists(struct qeth_card *card)
 	return 0;
 }
 
+static void qeth_l2_trace_features(struct qeth_card *card)
+{
+	QETH_CARD_TEXT(card, 2, "l2featur");
+	QETH_CARD_HEX(card, 2, &card->options.sbp.supported_funcs,
+		      sizeof(card->options.sbp.supported_funcs));
+}
+
 static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 {
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
@@ -1040,6 +1047,7 @@ static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 		dev_info(&card->gdev->dev,
 		"The device represents a Bridge Capable Port\n");
 	qeth_trace_features(card);
+	qeth_l2_trace_features(card);
 
 	if (!card->dev && qeth_l2_setup_netdev(card)) {
 		rc = -ENODEV;
