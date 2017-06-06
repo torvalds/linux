@@ -1171,6 +1171,26 @@ fwnode_graph_get_next_endpoint(struct fwnode_handle *fwnode,
 EXPORT_SYMBOL_GPL(fwnode_graph_get_next_endpoint);
 
 /**
+ * fwnode_graph_get_port_parent - Return the device fwnode of a port endpoint
+ * @endpoint: Endpoint firmware node of the port
+ *
+ * Return: the firmware node of the device the @endpoint belongs to.
+ */
+struct fwnode_handle *
+fwnode_graph_get_port_parent(struct fwnode_handle *endpoint)
+{
+	struct fwnode_handle *port, *parent;
+
+	port = fwnode_get_parent(endpoint);
+	parent = fwnode_call_ptr_op(port, graph_get_port_parent);
+
+	fwnode_handle_put(port);
+
+	return parent;
+}
+EXPORT_SYMBOL_GPL(fwnode_graph_get_port_parent);
+
+/**
  * fwnode_graph_get_remote_port_parent - Return fwnode of a remote device
  * @fwnode: Endpoint firmware node pointing to the remote endpoint
  *
@@ -1179,12 +1199,12 @@ EXPORT_SYMBOL_GPL(fwnode_graph_get_next_endpoint);
 struct fwnode_handle *
 fwnode_graph_get_remote_port_parent(struct fwnode_handle *fwnode)
 {
-	struct fwnode_handle *port, *parent;
+	struct fwnode_handle *endpoint, *parent;
 
-	port = fwnode_graph_get_remote_port(fwnode);
-	parent = fwnode_call_ptr_op(port, graph_get_port_parent);
+	endpoint = fwnode_graph_get_remote_endpoint(fwnode);
+	parent = fwnode_graph_get_port_parent(endpoint);
 
-	fwnode_handle_put(port);
+	fwnode_handle_put(endpoint);
 
 	return parent;
 }
