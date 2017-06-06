@@ -194,19 +194,13 @@ err:
  */
 int tb_pci_activate(struct tb_pci_tunnel *tunnel)
 {
-	int res;
 	if (tunnel->path_to_up->activated || tunnel->path_to_down->activated) {
 		tb_tunnel_WARN(tunnel,
 			       "trying to activate an already activated tunnel\n");
 		return -EINVAL;
 	}
 
-	res = tb_pci_restart(tunnel);
-	if (res)
-		return res;
-
-	list_add(&tunnel->list, &tunnel->tb->tunnel_list);
-	return 0;
+	return tb_pci_restart(tunnel);
 }
 
 
@@ -227,6 +221,5 @@ void tb_pci_deactivate(struct tb_pci_tunnel *tunnel)
 		tb_path_deactivate(tunnel->path_to_down);
 	if (tunnel->path_to_up->activated)
 		tb_path_deactivate(tunnel->path_to_up);
-	list_del_init(&tunnel->list);
 }
 

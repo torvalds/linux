@@ -12,6 +12,18 @@
 #include "tb_regs.h"
 #include "tunnel_pci.h"
 
+/**
+ * struct tb_cm - Simple Thunderbolt connection manager
+ * @tunnel_list: List of active tunnels
+ * @hotplug_active: tb_handle_hotplug will stop progressing plug
+ *		    events and exit if this is not set (it needs to
+ *		    acquire the lock one more time). Used to drain wq
+ *		    after cfg has been paused.
+ */
+struct tb_cm {
+	struct list_head tunnel_list;
+	bool hotplug_active;
+};
 
 /* enumeration & hot plug handling */
 
@@ -62,12 +74,14 @@ static void tb_scan_port(struct tb_port *port)
  */
 static void tb_free_invalid_tunnels(struct tb *tb)
 {
+	struct tb_cm *tcm = tb_priv(tb);
 	struct tb_pci_tunnel *tunnel;
 	struct tb_pci_tunnel *n;
-	list_for_each_entry_safe(tunnel, n, &tb->tunnel_list, list)
-	{
+
+	list_for_each_entry_safe(tunnel, n, &tcm->tunnel_list, list) {
 		if (tb_pci_is_invalid(tunnel)) {
 			tb_pci_deactivate(tunnel);
+			list_del(&tunnel->list);
 			tb_pci_free(tunnel);
 		}
 	}
@@ -149,6 +163,8 @@ static void tb_activate_pcie_devices(struct tb *tb)
 	struct tb_port *up_port;
 	struct tb_port *down_port;
 	struct tb_pci_tunnel *tunnel;
+	struct tb_cm *tcm = tb_priv(tb);
+
 	/* scan for pcie devices at depth 1*/
 	for (i = 1; i <= tb->root_switch->config.max_port_number; i++) {
 		if (tb_is_upstream_port(&tb->root_switch->ports[i]))
@@ -195,6 +211,7 @@ static void tb_activate_pcie_devices(struct tb *tb)
 			tb_pci_free(tunnel);
 		}
 
+		list_add(&tunnel->list, &tcm->tunnel_list);
 	}
 }
 
@@ -217,10 +234,11 @@ static void tb_handle_hotplug(struct work_struct *work)
 {
 	struct tb_hotplug_event *ev = container_of(work, typeof(*ev), work);
 	struct tb *tb = ev->tb;
+	struct tb_cm *tcm = tb_priv(tb);
 	struct tb_switch *sw;
 	struct tb_port *port;
 	mutex_lock(&tb->lock);
-	if (!tb->hotplug_active)
+	if (!tcm->hotplug_active)
 		goto out; /* during init, suspend or shutdown */
 
 	sw = get_switch_at_route(tb->root_switch, ev->route);
@@ -296,22 +314,14 @@ static void tb_schedule_hotplug_handler(void *data, u64 route, u8 port,
 	queue_work(tb->wq, &ev->work);
 }
 
-/**
- * thunderbolt_shutdown_and_free() - shutdown everything
- *
- * Free all switches and the config channel.
- *
- * Used in the error path of thunderbolt_alloc_and_start.
- */
-void thunderbolt_shutdown_and_free(struct tb *tb)
+static void tb_stop(struct tb *tb)
 {
+	struct tb_cm *tcm = tb_priv(tb);
 	struct tb_pci_tunnel *tunnel;
 	struct tb_pci_tunnel *n;
 
-	mutex_lock(&tb->lock);
-
 	/* tunnels are only present after everything has been initialized */
-	list_for_each_entry_safe(tunnel, n, &tb->tunnel_list, list) {
+	list_for_each_entry_safe(tunnel, n, &tcm->tunnel_list, list) {
 		tb_pci_deactivate(tunnel);
 		tb_pci_free(tunnel);
 	}
@@ -320,98 +330,44 @@ void thunderbolt_shutdown_and_free(struct tb *tb)
 		tb_switch_free(tb->root_switch);
 	tb->root_switch = NULL;
 
-	if (tb->ctl) {
-		tb_ctl_stop(tb->ctl);
-		tb_ctl_free(tb->ctl);
-	}
-	tb->ctl = NULL;
-	tb->hotplug_active = false; /* signal tb_handle_hotplug to quit */
-
-	/* allow tb_handle_hotplug to acquire the lock */
-	mutex_unlock(&tb->lock);
-	if (tb->wq) {
-		flush_workqueue(tb->wq);
-		destroy_workqueue(tb->wq);
-		tb->wq = NULL;
-	}
-	mutex_destroy(&tb->lock);
-	kfree(tb);
+	tcm->hotplug_active = false; /* signal tb_handle_hotplug to quit */
 }
 
-/**
- * thunderbolt_alloc_and_start() - setup the thunderbolt bus
- *
- * Allocates a tb_cfg control channel, initializes the root switch, enables
- * plug events and activates pci devices.
- *
- * Return: Returns NULL on error.
- */
-struct tb *thunderbolt_alloc_and_start(struct tb_nhi *nhi)
+static int tb_start(struct tb *tb)
 {
-	struct tb *tb;
-
-	BUILD_BUG_ON(sizeof(struct tb_regs_switch_header) != 5 * 4);
-	BUILD_BUG_ON(sizeof(struct tb_regs_port_header) != 8 * 4);
-	BUILD_BUG_ON(sizeof(struct tb_regs_hop) != 2 * 4);
-
-	tb = kzalloc(sizeof(*tb), GFP_KERNEL);
-	if (!tb)
-		return NULL;
-
-	tb->nhi = nhi;
-	mutex_init(&tb->lock);
-	mutex_lock(&tb->lock);
-	INIT_LIST_HEAD(&tb->tunnel_list);
-
-	tb->wq = alloc_ordered_workqueue("thunderbolt", 0);
-	if (!tb->wq)
-		goto err_locked;
-
-	tb->ctl = tb_ctl_alloc(tb->nhi, tb_schedule_hotplug_handler, tb);
-	if (!tb->ctl)
-		goto err_locked;
-	/*
-	 * tb_schedule_hotplug_handler may be called as soon as the config
-	 * channel is started. Thats why we have to hold the lock here.
-	 */
-	tb_ctl_start(tb->ctl);
+	struct tb_cm *tcm = tb_priv(tb);
 
 	tb->root_switch = tb_switch_alloc(tb, 0);
 	if (!tb->root_switch)
-		goto err_locked;
+		return -ENOMEM;
 
 	/* Full scan to discover devices added before the driver was loaded. */
 	tb_scan_switch(tb->root_switch);
 	tb_activate_pcie_devices(tb);
 
 	/* Allow tb_handle_hotplug to progress events */
-	tb->hotplug_active = true;
-	mutex_unlock(&tb->lock);
-	return tb;
-
-err_locked:
-	mutex_unlock(&tb->lock);
-	thunderbolt_shutdown_and_free(tb);
-	return NULL;
+	tcm->hotplug_active = true;
+	return 0;
 }
 
-void thunderbolt_suspend(struct tb *tb)
+static int tb_suspend_noirq(struct tb *tb)
 {
+	struct tb_cm *tcm = tb_priv(tb);
+
 	tb_info(tb, "suspending...\n");
-	mutex_lock(&tb->lock);
 	tb_switch_suspend(tb->root_switch);
-	tb_ctl_stop(tb->ctl);
-	tb->hotplug_active = false; /* signal tb_handle_hotplug to quit */
-	mutex_unlock(&tb->lock);
+	tcm->hotplug_active = false; /* signal tb_handle_hotplug to quit */
 	tb_info(tb, "suspend finished\n");
+
+	return 0;
 }
 
-void thunderbolt_resume(struct tb *tb)
+static int tb_resume_noirq(struct tb *tb)
 {
+	struct tb_cm *tcm = tb_priv(tb);
 	struct tb_pci_tunnel *tunnel, *n;
+
 	tb_info(tb, "resuming...\n");
-	mutex_lock(&tb->lock);
-	tb_ctl_start(tb->ctl);
 
 	/* remove any pci devices the firmware might have setup */
 	tb_switch_reset(tb, 0);
@@ -419,9 +375,9 @@ void thunderbolt_resume(struct tb *tb)
 	tb_switch_resume(tb->root_switch);
 	tb_free_invalid_tunnels(tb);
 	tb_free_unplugged_children(tb->root_switch);
-	list_for_each_entry_safe(tunnel, n, &tb->tunnel_list, list)
+	list_for_each_entry_safe(tunnel, n, &tcm->tunnel_list, list)
 		tb_pci_restart(tunnel);
-	if (!list_empty(&tb->tunnel_list)) {
+	if (!list_empty(&tcm->tunnel_list)) {
 		/*
 		 * the pcie links need some time to get going.
 		 * 100ms works for me...
@@ -430,7 +386,33 @@ void thunderbolt_resume(struct tb *tb)
 		msleep(100);
 	}
 	 /* Allow tb_handle_hotplug to progress events */
-	tb->hotplug_active = true;
-	mutex_unlock(&tb->lock);
+	tcm->hotplug_active = true;
 	tb_info(tb, "resume finished\n");
+
+	return 0;
+}
+
+static const struct tb_cm_ops tb_cm_ops = {
+	.start = tb_start,
+	.stop = tb_stop,
+	.suspend_noirq = tb_suspend_noirq,
+	.resume_noirq = tb_resume_noirq,
+	.hotplug = tb_schedule_hotplug_handler,
+};
+
+struct tb *tb_probe(struct tb_nhi *nhi)
+{
+	struct tb_cm *tcm;
+	struct tb *tb;
+
+	tb = tb_domain_alloc(nhi, sizeof(*tcm));
+	if (!tb)
+		return NULL;
+
+	tb->cm_ops = &tb_cm_ops;
+
+	tcm = tb_priv(tb);
+	INIT_LIST_HEAD(&tcm->tunnel_list);
+
+	return tb;
 }

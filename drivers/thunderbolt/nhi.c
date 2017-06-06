@@ -586,16 +586,16 @@ static int nhi_suspend_noirq(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct tb *tb = pci_get_drvdata(pdev);
-	thunderbolt_suspend(tb);
-	return 0;
+
+	return tb_domain_suspend_noirq(tb);
 }
 
 static int nhi_resume_noirq(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct tb *tb = pci_get_drvdata(pdev);
-	thunderbolt_resume(tb);
-	return 0;
+
+	return tb_domain_resume_noirq(tb);
 }
 
 static void nhi_shutdown(struct tb_nhi *nhi)
@@ -715,12 +715,17 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	iowrite32(3906250 / 10000, nhi->iobase + 0x38c00);
 
 	dev_info(&nhi->pdev->dev, "NHI initialized, starting thunderbolt\n");
-	tb = thunderbolt_alloc_and_start(nhi);
-	if (!tb) {
+	tb = tb_probe(nhi);
+	if (!tb)
+		return -ENODEV;
+
+	res = tb_domain_add(tb);
+	if (res) {
 		/*
 		 * At this point the RX/TX rings might already have been
 		 * activated. Do a proper shutdown.
 		 */
+		tb_domain_put(tb);
 		nhi_shutdown(nhi);
 		return -EIO;
 	}
@@ -733,7 +738,8 @@ static void nhi_remove(struct pci_dev *pdev)
 {
 	struct tb *tb = pci_get_drvdata(pdev);
 	struct tb_nhi *nhi = tb->nhi;
-	thunderbolt_shutdown_and_free(tb);
+
+	tb_domain_remove(tb);
 	nhi_shutdown(nhi);
 }
 
@@ -797,14 +803,23 @@ static struct pci_driver nhi_driver = {
 
 static int __init nhi_init(void)
 {
+	int ret;
+
 	if (!dmi_match(DMI_BOARD_VENDOR, "Apple Inc."))
 		return -ENOSYS;
-	return pci_register_driver(&nhi_driver);
+	ret = tb_domain_init();
+	if (ret)
+		return ret;
+	ret = pci_register_driver(&nhi_driver);
+	if (ret)
+		tb_domain_exit();
+	return ret;
 }
 
 static void __exit nhi_unload(void)
 {
 	pci_unregister_driver(&nhi_driver);
+	tb_domain_exit();
 }
 
 module_init(nhi_init);

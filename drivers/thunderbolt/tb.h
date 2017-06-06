@@ -92,28 +92,51 @@ struct tb_path {
 	int path_length; /* number of hops */
 };
 
+/**
+ * struct tb_cm_ops - Connection manager specific operations vector
+ * @start: Starts the domain
+ * @stop: Stops the domain
+ * @suspend_noirq: Connection manager specific suspend_noirq
+ * @resume_noirq: Connection manager specific resume_noirq
+ * @hotplug: Handle hotplug event
+ */
+struct tb_cm_ops {
+	int (*start)(struct tb *tb);
+	void (*stop)(struct tb *tb);
+	int (*suspend_noirq)(struct tb *tb);
+	int (*resume_noirq)(struct tb *tb);
+	hotplug_cb hotplug;
+};
 
 /**
  * struct tb - main thunderbolt bus structure
+ * @dev: Domain device
+ * @lock: Big lock. Must be held when accessing cfg or any struct
+ *	  tb_switch / struct tb_port.
+ * @nhi: Pointer to the NHI structure
+ * @ctl: Control channel for this domain
+ * @wq: Ordered workqueue for all domain specific work
+ * @root_switch: Root switch of this domain
+ * @cm_ops: Connection manager specific operations vector
+ * @index: Linux assigned domain number
+ * @privdata: Private connection manager specific data
  */
 struct tb {
-	struct mutex lock;	/*
-				 * Big lock. Must be held when accessing cfg or
-				 * any struct tb_switch / struct tb_port.
-				 */
+	struct device dev;
+	struct mutex lock;
 	struct tb_nhi *nhi;
 	struct tb_ctl *ctl;
-	struct workqueue_struct *wq; /* ordered workqueue for plug events */
+	struct workqueue_struct *wq;
 	struct tb_switch *root_switch;
-	struct list_head tunnel_list; /* list of active PCIe tunnels */
-	bool hotplug_active; /*
-			      * tb_handle_hotplug will stop progressing plug
-			      * events and exit if this is not set (it needs to
-			      * acquire the lock one more time). Used to drain
-			      * wq after cfg has been paused.
-			      */
-
+	const struct tb_cm_ops *cm_ops;
+	int index;
+	unsigned long privdata[0];
 };
+
+static inline void *tb_priv(struct tb *tb)
+{
+	return (void *)tb->privdata;
+}
 
 /* helper functions & macros */
 
@@ -215,11 +238,24 @@ static inline int tb_port_write(struct tb_port *port, const void *buffer,
 #define tb_port_info(port, fmt, arg...) \
 	__TB_PORT_PRINT(tb_info, port, fmt, ##arg)
 
+struct tb *tb_probe(struct tb_nhi *nhi);
 
-struct tb *thunderbolt_alloc_and_start(struct tb_nhi *nhi);
-void thunderbolt_shutdown_and_free(struct tb *tb);
-void thunderbolt_suspend(struct tb *tb);
-void thunderbolt_resume(struct tb *tb);
+extern struct bus_type tb_bus_type;
+extern struct device_type tb_domain_type;
+
+int tb_domain_init(void);
+void tb_domain_exit(void);
+
+struct tb *tb_domain_alloc(struct tb_nhi *nhi, size_t privsize);
+int tb_domain_add(struct tb *tb);
+void tb_domain_remove(struct tb *tb);
+int tb_domain_suspend_noirq(struct tb *tb);
+int tb_domain_resume_noirq(struct tb *tb);
+
+static inline void tb_domain_put(struct tb *tb)
+{
+	put_device(&tb->dev);
+}
 
 struct tb_switch *tb_switch_alloc(struct tb *tb, u64 route);
 void tb_switch_free(struct tb_switch *sw);
