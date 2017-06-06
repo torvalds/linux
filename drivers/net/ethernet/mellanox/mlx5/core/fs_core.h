@@ -118,7 +118,6 @@ struct mlx5_flow_table {
 	/* FWD rules that point on this flow table */
 	struct list_head		fwd_rules;
 	u32				flags;
-	u32				underlay_qpn;
 };
 
 struct mlx5_fc_cache {
@@ -195,6 +194,7 @@ struct mlx5_flow_root_namespace {
 	struct mlx5_flow_table		*root_ft;
 	/* Should be held when chaining flow tables */
 	struct mutex			chain_lock;
+	u32				underlay_qpn;
 };
 
 int mlx5_init_fc_stats(struct mlx5_core_dev *dev);

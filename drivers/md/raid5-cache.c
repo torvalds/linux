@@ -24,6 +24,7 @@
 #include "md.h"
 #include "raid5.h"
 #include "bitmap.h"
+#include "raid5-log.h"
 
 /*
  * metadata/data stored in disk with 4k size unit (a block) regardless
@@ -622,20 +623,30 @@ static void r5l_do_submit_io(struct r5l_log *log, struct r5l_io_unit *io)
 	__r5l_set_io_unit_state(io, IO_UNIT_IO_START);
 	spin_unlock_irqrestore(&log->io_list_lock, flags);
 
+	/*
+	 * In case of journal device failures, submit_bio will get error
+	 * and calls endio, then active stripes will continue write
+	 * process. Therefore, it is not necessary to check Faulty bit
+	 * of journal device here.
+	 *
+	 * We can't check split_bio after current_bio is submitted. If
+	 * io->split_bio is null, after current_bio is submitted, current_bio
+	 * might already be completed and the io_unit is freed. We submit
+	 * split_bio first to avoid the issue.
+	 */
+	if (io->split_bio) {
+		if (io->has_flush)
+			io->split_bio->bi_opf |= REQ_PREFLUSH;
+		if (io->has_fua)
+			io->split_bio->bi_opf |= REQ_FUA;
+		submit_bio(io->split_bio);
+	}
+
 	if (io->has_flush)
 		io->current_bio->bi_opf |= REQ_PREFLUSH;
 	if (io->has_fua)
 		io->current_bio->bi_opf |= REQ_FUA;
 	submit_bio(io->current_bio);
-
-	if (!io->split_bio)
-		return;
-
-	if (io->has_flush)
-		io->split_bio->bi_opf |= REQ_PREFLUSH;
-	if (io->has_fua)
-		io->split_bio->bi_opf |= REQ_FUA;
-	submit_bio(io->split_bio);
 }
 
 /* deferred io_unit will be dispatched here */
@@ -670,6 +681,11 @@ static void r5c_disable_writeback_async(struct work_struct *work)
 		return;
 	pr_info("md/raid:%s: Disabling writeback cache for degraded array.\n",
 		mdname(mddev));
+
+	/* wait superblock change before suspend */
+	wait_event(mddev->sb_wait,
+		   !test_bit(MD_SB_CHANGE_PENDING, &mddev->sb_flags));
+
 	mddev_suspend(mddev);
 	log->r5c_journal_mode = R5C_JOURNAL_MODE_WRITE_THROUGH;
 	mddev_resume(mddev);
@@ -2621,8 +2637,11 @@ int r5c_try_caching_write(struct r5conf *conf,
 	 * When run in degraded mode, array is set to write-through mode.
 	 * This check helps drain pending write safely in the transition to
 	 * write-through mode.
+	 *
+	 * When a stripe is syncing, the write is also handled in write
+	 * through mode.
 	 */
-	if (s->failed) {
+	if (s->failed || test_bit(STRIPE_SYNCING, &sh->state)) {
 		r5c_make_stripe_write_out(sh);
 		return -EAGAIN;
 	}
@@ -2825,6 +2844,9 @@ void r5c_finish_stripe_write_out(struct r5conf *conf,
 	}
 
 	r5l_append_flush_payload(log, sh->sector);
+	/* stripe is flused to raid disks, we can do resync now */
+	if (test_bit(STRIPE_SYNC_REQUESTED, &sh->state))
+		set_bit(STRIPE_HANDLE, &sh->state);
 }
 
 int r5c_cache_data(struct r5l_log *log, struct stripe_head *sh)
@@ -2973,7 +2995,7 @@ ioerr:
 	return ret;
 }
 
-void r5c_update_on_rdev_error(struct mddev *mddev)
+void r5c_update_on_rdev_error(struct mddev *mddev, struct md_rdev *rdev)
 {
 	struct r5conf *conf = mddev->private;
 	struct r5l_log *log = conf->log;
@@ -2981,7 +3003,8 @@ void r5c_update_on_rdev_error(struct mddev *mddev)
 	if (!log)
 		return;
 
-	if (raid5_calc_degraded(conf) > 0 &&
+	if ((raid5_calc_degraded(conf) > 0 ||
+	     test_bit(Journal, &rdev->flags)) &&
 	    conf->log->r5c_journal_mode == R5C_JOURNAL_MODE_WRITE_BACK)
 		schedule_work(&log->disable_writeback_work);
 }

@@ -94,7 +94,7 @@ DeleteMidQEntry(struct mid_q_entry *midEntry)
 	now = jiffies;
 	/* commands taking longer than one second are indications that
 	   something is wrong, unless it is quite a slow link or server */
-	if ((now - midEntry->when_alloc) > HZ) {
+	if (time_after(now, midEntry->when_alloc + HZ)) {
 		if ((cifsFYI & CIFS_TIMER) && (midEntry->command != command)) {
 			pr_debug(" CIFS slow rsp: cmd %d mid %llu",
 			       midEntry->command, midEntry->mid);
@@ -613,9 +613,7 @@ cifs_sync_mid_result(struct mid_q_entry *mid, struct TCP_Server_Info *server)
 	}
 	spin_unlock(&GlobalMid_Lock);
 
-	mutex_lock(&server->srv_mutex);
 	DeleteMidQEntry(mid);
-	mutex_unlock(&server->srv_mutex);
 	return rc;
 }
 

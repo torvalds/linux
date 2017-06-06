@@ -14,6 +14,10 @@
 #include <asm-generic/module.h>
 
 
+#ifdef CC_USING_MPROFILE_KERNEL
+#define MODULE_ARCH_VERMAGIC	"mprofile-kernel"
+#endif
+
 #ifndef __powerpc64__
 /*
  * Thanks to Paul M for explaining this.

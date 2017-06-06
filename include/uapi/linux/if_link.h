@@ -888,9 +888,18 @@ enum {
 /* XDP section */
 
 #define XDP_FLAGS_UPDATE_IF_NOEXIST	(1U << 0)
-#define XDP_FLAGS_SKB_MODE		(2U << 0)
+#define XDP_FLAGS_SKB_MODE		(1U << 1)
+#define XDP_FLAGS_DRV_MODE		(1U << 2)
 #define XDP_FLAGS_MASK			(XDP_FLAGS_UPDATE_IF_NOEXIST | \
-					 XDP_FLAGS_SKB_MODE)
+					 XDP_FLAGS_SKB_MODE | \
+					 XDP_FLAGS_DRV_MODE)
+
+/* These are stored into IFLA_XDP_ATTACHED on dump. */
+enum {
+	XDP_ATTACHED_NONE = 0,
+	XDP_ATTACHED_DRV,
+	XDP_ATTACHED_SKB,
+};
 
 enum {
 	IFLA_XDP_UNSPEC,

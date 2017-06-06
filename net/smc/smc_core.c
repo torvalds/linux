@@ -613,19 +613,8 @@ int smc_rmb_create(struct smc_sock *smc)
 			rmb_desc = NULL;
 			continue; /* if mapping failed, try smaller one */
 		}
-		rc = smc_ib_get_memory_region(lgr->lnk[SMC_SINGLE_LINK].roce_pd,
-					      IB_ACCESS_REMOTE_WRITE |
-					      IB_ACCESS_LOCAL_WRITE,
-					     &rmb_desc->mr_rx[SMC_SINGLE_LINK]);
-		if (rc) {
-			smc_ib_buf_unmap(lgr->lnk[SMC_SINGLE_LINK].smcibdev,
-					 tmp_bufsize, rmb_desc,
-					 DMA_FROM_DEVICE);
-			kfree(rmb_desc->cpu_addr);
-			kfree(rmb_desc);
-			rmb_desc = NULL;
-			continue;
-		}
+		rmb_desc->rkey[SMC_SINGLE_LINK] =
+			lgr->lnk[SMC_SINGLE_LINK].roce_pd->unsafe_global_rkey;
 		rmb_desc->used = 1;
 		write_lock_bh(&lgr->rmbs_lock);
 		list_add(&rmb_desc->list,
@@ -668,6 +657,7 @@ int smc_rmb_rtoken_handling(struct smc_connection *conn,
 
 	for (i = 0; i < SMC_RMBS_PER_LGR_MAX; i++) {
 		if ((lgr->rtokens[i][SMC_SINGLE_LINK].rkey == rkey) &&
+		    (lgr->rtokens[i][SMC_SINGLE_LINK].dma_addr == dma_addr) &&
 		    test_bit(i, lgr->rtokens_used_mask)) {
 			conn->rtoken_idx = i;
 			return 0;
