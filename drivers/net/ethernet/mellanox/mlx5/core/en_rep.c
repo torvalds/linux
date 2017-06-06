@@ -652,7 +652,8 @@ static int mlx5e_rep_get_phys_port_name(struct net_device *dev,
 }
 
 static int mlx5e_rep_ndo_setup_tc(struct net_device *dev, u32 handle,
-				  __be16 proto, struct tc_to_netdev *tc)
+				  u32 chain_index, __be16 proto,
+				  struct tc_to_netdev *tc)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
@@ -664,8 +665,12 @@ static int mlx5e_rep_ndo_setup_tc(struct net_device *dev, u32 handle,
 		struct net_device *uplink_dev = mlx5_eswitch_get_uplink_netdev(esw);
 
 		return uplink_dev->netdev_ops->ndo_setup_tc(uplink_dev, handle,
+							    chain_index,
 							    proto, tc);
 	}
+
+	if (chain_index)
+		return -EOPNOTSUPP;
 
 	switch (tc->type) {
 	case TC_SETUP_CLSFLOWER:

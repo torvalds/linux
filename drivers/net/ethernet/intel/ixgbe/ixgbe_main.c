@@ -9200,10 +9200,13 @@ free_jump:
 	return err;
 }
 
-static int __ixgbe_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
-			    struct tc_to_netdev *tc)
+static int __ixgbe_setup_tc(struct net_device *dev, u32 handle, u32 chain_index,
+			    __be16 proto, struct tc_to_netdev *tc)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
+
+	if (chain_index)
+		return -EOPNOTSUPP;
 
 	if (TC_H_MAJ(handle) == TC_H_MAJ(TC_H_INGRESS) &&
 	    tc->type == TC_SETUP_CLSU32) {

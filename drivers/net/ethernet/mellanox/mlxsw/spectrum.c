@@ -1699,10 +1699,14 @@ static void mlxsw_sp_port_del_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
 }
 
 static int mlxsw_sp_setup_tc(struct net_device *dev, u32 handle,
-			     __be16 proto, struct tc_to_netdev *tc)
+			     u32 chain_index, __be16 proto,
+			     struct tc_to_netdev *tc)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	bool ingress = TC_H_MAJ(handle) == TC_H_MAJ(TC_H_INGRESS);
+
+	if (chain_index)
+		return -EOPNOTSUPP;
 
 	switch (tc->type) {
 	case TC_SETUP_MATCHALL:

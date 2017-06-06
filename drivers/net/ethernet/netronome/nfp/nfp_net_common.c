@@ -2994,10 +2994,13 @@ static void nfp_net_stat64(struct net_device *netdev,
 }
 
 static int
-nfp_net_setup_tc(struct net_device *netdev, u32 handle, __be16 proto,
-		 struct tc_to_netdev *tc)
+nfp_net_setup_tc(struct net_device *netdev, u32 handle, u32 chain_index,
+		 __be16 proto, struct tc_to_netdev *tc)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
+
+	if (chain_index)
+		return -EOPNOTSUPP;
 
 	return nfp_app_setup_tc(nn->app, netdev, handle, proto, tc);
 }

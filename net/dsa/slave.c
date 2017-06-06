@@ -836,10 +836,13 @@ static void dsa_slave_del_cls_matchall(struct net_device *dev,
 }
 
 static int dsa_slave_setup_tc(struct net_device *dev, u32 handle,
-			      __be16 protocol, struct tc_to_netdev *tc)
+			      u32 chain_index, __be16 protocol,
+			      struct tc_to_netdev *tc)
 {
 	bool ingress = TC_H_MAJ(handle) == TC_H_MAJ(TC_H_INGRESS);
-	int ret = -EOPNOTSUPP;
+
+	if (chain_index)
+		return -EOPNOTSUPP;
 
 	switch (tc->type) {
 	case TC_SETUP_MATCHALL:
@@ -853,10 +856,8 @@ static int dsa_slave_setup_tc(struct net_device *dev, u32 handle,
 			return 0;
 		}
 	default:
-		break;
+		return -EOPNOTSUPP;
 	}
-
-	return ret;
 }
 
 void dsa_cpu_port_ethtool_init(struct ethtool_ops *ops)
