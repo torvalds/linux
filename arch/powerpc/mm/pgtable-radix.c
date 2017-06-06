@@ -19,6 +19,7 @@
 #include <asm/mmu.h>
 #include <asm/firmware.h>
 #include <asm/powernv.h>
+#include <asm/sections.h>
 
 #include <trace/events/thp.h>
 
@@ -121,7 +122,8 @@ static inline void __meminit print_mapping(unsigned long start,
 static int __meminit create_physical_mapping(unsigned long start,
 					     unsigned long end)
 {
-	unsigned long addr, mapping_size = 0;
+	unsigned long vaddr, addr, mapping_size = 0;
+	pgprot_t prot;
 
 	start = _ALIGN_UP(start, PAGE_SIZE);
 	for (addr = start; addr < end; addr += mapping_size) {
@@ -145,8 +147,14 @@ static int __meminit create_physical_mapping(unsigned long start,
 			start = addr;
 		}
 
-		rc = radix__map_kernel_page((unsigned long)__va(addr), addr,
-					    PAGE_KERNEL_X, mapping_size);
+		vaddr = (unsigned long)__va(addr);
+
+		if (overlaps_kernel_text(vaddr, vaddr + mapping_size))
+			prot = PAGE_KERNEL_X;
+		else
+			prot = PAGE_KERNEL;
+
+		rc = radix__map_kernel_page(vaddr, addr, prot, mapping_size);
 		if (rc)
 			return rc;
 	}
