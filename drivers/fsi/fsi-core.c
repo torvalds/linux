@@ -78,10 +78,6 @@ static int fsi_master_read(struct fsi_master *master, int link,
 		uint8_t slave_id, uint32_t addr, void *val, size_t size);
 static int fsi_master_write(struct fsi_master *master, int link,
 		uint8_t slave_id, uint32_t addr, const void *val, size_t size);
-static int fsi_slave_read(struct fsi_slave *slave, uint32_t addr,
-		void *val, size_t size);
-static int fsi_slave_write(struct fsi_slave *slave, uint32_t addr,
-		const void *val, size_t size);
 
 /*
  * fsi_device_read() / fsi_device_write() / fsi_device_peek()
@@ -174,7 +170,7 @@ static int fsi_slave_calc_addr(struct fsi_slave *slave, uint32_t *addrp,
 	return 0;
 }
 
-static int fsi_slave_read(struct fsi_slave *slave, uint32_t addr,
+int fsi_slave_read(struct fsi_slave *slave, uint32_t addr,
 			void *val, size_t size)
 {
 	uint8_t id = slave->id;
@@ -187,8 +183,9 @@ static int fsi_slave_read(struct fsi_slave *slave, uint32_t addr,
 	return fsi_master_read(slave->master, slave->link, id,
 			addr, val, size);
 }
+EXPORT_SYMBOL_GPL(fsi_slave_read);
 
-static int fsi_slave_write(struct fsi_slave *slave, uint32_t addr,
+int fsi_slave_write(struct fsi_slave *slave, uint32_t addr,
 			const void *val, size_t size)
 {
 	uint8_t id = slave->id;
@@ -201,6 +198,27 @@ static int fsi_slave_write(struct fsi_slave *slave, uint32_t addr,
 	return fsi_master_write(slave->master, slave->link, id,
 			addr, val, size);
 }
+EXPORT_SYMBOL_GPL(fsi_slave_write);
+
+extern int fsi_slave_claim_range(struct fsi_slave *slave,
+		uint32_t addr, uint32_t size)
+{
+	if (addr + size < addr)
+		return -EINVAL;
+
+	if (addr + size > slave->size)
+		return -EINVAL;
+
+	/* todo: check for overlapping claims */
+	return 0;
+}
+EXPORT_SYMBOL_GPL(fsi_slave_claim_range);
+
+extern void fsi_slave_release_range(struct fsi_slave *slave,
+		uint32_t addr, uint32_t size)
+{
+}
+EXPORT_SYMBOL_GPL(fsi_slave_release_range);
 
 static int fsi_slave_scan(struct fsi_slave *slave)
 {

@@ -66,6 +66,18 @@ extern void fsi_driver_unregister(struct fsi_driver *fsi_drv);
 		module_driver(__fsi_driver, fsi_driver_register, \
 				fsi_driver_unregister)
 
+/* direct slave API */
+extern int fsi_slave_claim_range(struct fsi_slave *slave,
+		uint32_t addr, uint32_t size);
+extern void fsi_slave_release_range(struct fsi_slave *slave,
+		uint32_t addr, uint32_t size);
+extern int fsi_slave_read(struct fsi_slave *slave, uint32_t addr,
+		void *val, size_t size);
+extern int fsi_slave_write(struct fsi_slave *slave, uint32_t addr,
+		const void *val, size_t size);
+
+
+
 extern struct bus_type fsi_bus_type;
 
 #endif /* LINUX_FSI_H */
