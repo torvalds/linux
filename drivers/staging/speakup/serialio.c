@@ -228,7 +228,8 @@ int spk_wait_for_xmitr(struct spk_synth *in_synth)
 	}
 	while (spk_serial_tx_busy()) {
 		if (--tmout == 0) {
-			pr_warn("%s: timed out (tx busy)\n", in_synth->long_name);
+			pr_warn("%s: timed out (tx busy)\n",
+				in_synth->long_name);
 			timeouts++;
 			return 0;
 		}
@@ -285,7 +286,8 @@ static int spk_serial_out(struct spk_synth *in_synth, const char ch)
 	return 0;
 }
 
-const char *spk_serial_synth_immediate(struct spk_synth *synth, const char *buff)
+const char *spk_serial_synth_immediate(struct spk_synth *synth,
+				       const char *buff)
 {
 	u_char ch;
 
