@@ -662,7 +662,8 @@ static struct drm_gem_object *__etnaviv_gem_new(struct drm_device *dev,
 		 * going to pin these pages.
 		 */
 		mapping = obj->filp->f_mapping;
-		mapping_set_gfp_mask(mapping, GFP_HIGHUSER);
+		mapping_set_gfp_mask(mapping, GFP_HIGHUSER |
+				     __GFP_NORETRY | __GFP_NOWARN);
 	}
 
 	if (ret)
