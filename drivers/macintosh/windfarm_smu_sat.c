@@ -248,7 +248,7 @@ static int wf_sat_probe(struct i2c_client *client,
 		core = loc[5] - '0';
 		if (chip > 1 || core > 1) {
 			printk(KERN_ERR "wf_sat_create: don't understand "
-			       "location %s for %s\n", loc, child->full_name);
+			       "location %s for %pOF\n", loc, child);
 			continue;
 		}
 		cpu = 2 * chip + core;

@@ -126,8 +126,8 @@ static int wf_lm87_probe(struct i2c_client *client,
 		}
 	}
 	if (!name) {
-		pr_warning("wf_lm87: Unsupported sensor %s\n",
-			   client->dev.of_node->full_name);
+		pr_warning("wf_lm87: Unsupported sensor %pOF\n",
+			   client->dev.of_node);
 		return -ENODEV;
 	}
 
