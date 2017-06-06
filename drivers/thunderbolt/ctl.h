@@ -38,6 +38,10 @@ struct tb_cfg_result {
 	enum tb_cfg_error tb_error; /* valid if err == 1 */
 };
 
+static inline u64 tb_cfg_get_route(const struct tb_cfg_header *header)
+{
+	return (u64) header->route_hi << 32 | header->route_lo;
+}
 
 int tb_cfg_error(struct tb_ctl *ctl, u64 route, u32 port,
 		 enum tb_cfg_error error);

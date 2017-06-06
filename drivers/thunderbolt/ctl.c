@@ -54,11 +54,6 @@ struct tb_ctl {
 
 /* utility functions */
 
-static u64 get_route(struct tb_cfg_header header)
-{
-	return (u64) header.route_hi << 32 | header.route_lo;
-}
-
 static struct tb_cfg_header make_header(u64 route)
 {
 	struct tb_cfg_header header = {
@@ -66,7 +61,7 @@ static struct tb_cfg_header make_header(u64 route)
 		.route_lo = route,
 	};
 	/* check for overflow, route_hi is not 32 bits! */
-	WARN_ON(get_route(header) != route);
+	WARN_ON(tb_cfg_get_route(&header) != route);
 	return header;
 }
 
@@ -91,9 +86,9 @@ static int check_header(struct ctl_pkg *pkg, u32 len, enum tb_cfg_pkg_type type,
 	if (WARN(header->unknown != 1 << 9,
 			"header->unknown is %#x\n", header->unknown))
 		return -EIO;
-	if (WARN(route != get_route(*header),
+	if (WARN(route != tb_cfg_get_route(header),
 			"wrong route (expected %llx, got %llx)",
-			route, get_route(*header)))
+			route, tb_cfg_get_route(header)))
 		return -EIO;
 	return 0;
 }
@@ -126,10 +121,10 @@ static struct tb_cfg_result decode_error(struct ctl_pkg *response)
 {
 	struct cfg_error_pkg *pkg = response->buffer;
 	struct tb_cfg_result res = { 0 };
-	res.response_route = get_route(pkg->header);
+	res.response_route = tb_cfg_get_route(&pkg->header);
 	res.response_port = 0;
 	res.err = check_header(response, sizeof(*pkg), TB_CFG_PKG_ERROR,
-			       get_route(pkg->header));
+			       tb_cfg_get_route(&pkg->header));
 	if (res.err)
 		return res;
 
@@ -153,7 +148,7 @@ static struct tb_cfg_result parse_header(struct ctl_pkg *pkg, u32 len,
 		return decode_error(pkg);
 
 	res.response_port = 0; /* will be updated later for cfg_read/write */
-	res.response_route = get_route(*header);
+	res.response_route = tb_cfg_get_route(header);
 	res.err = check_header(pkg, len, type, route);
 	return res;
 }
@@ -294,7 +289,7 @@ static void tb_ctl_handle_plug_event(struct tb_ctl *ctl,
 				     struct ctl_pkg *response)
 {
 	struct cfg_event_pkg *pkg = response->buffer;
-	u64 route = get_route(pkg->header);
+	u64 route = tb_cfg_get_route(&pkg->header);
 
 	if (check_header(response, sizeof(*pkg), TB_CFG_PKG_EVENT, route)) {
 		tb_ctl_warn(ctl, "malformed TB_CFG_PKG_EVENT\n");
