@@ -241,7 +241,7 @@ static const struct phy_setting settings[] = {
  * phy_lookup_setting - lookup a PHY setting
  * @speed: speed to match
  * @duplex: duplex to match
- * @feature: allowed link modes
+ * @features: allowed link modes
  * @exact: an exact match is required
  *
  * Search the settings array for a setting that matches the speed and

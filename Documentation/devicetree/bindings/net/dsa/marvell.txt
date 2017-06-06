@@ -26,6 +26,10 @@ Optional properties:
 - interrupt-controller	: Indicates the switch is itself an interrupt
 			  controller. This is used for the PHY interrupts.
 #interrupt-cells = <2>	: Controller uses two cells, number and flag
+- eeprom-length		: Set to the length of an EEPROM connected to the
+			  switch. Must be set if the switch can not detect
+			  the presence and/or size of a connected EEPROM,
+			  otherwise optional.
 - mdio			: Container of PHY and devices on the switches MDIO
 			  bus.
 - mdio?		: Container of PHYs and devices on the external MDIO
