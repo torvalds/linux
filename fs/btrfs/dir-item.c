@@ -484,3 +484,75 @@ int verify_dir_item(struct btrfs_fs_info *fs_info,
 
 	return 0;
 }
+
+bool btrfs_is_name_len_valid(struct extent_buffer *leaf, int slot,
+			     unsigned long start, u16 name_len)
+{
+	struct btrfs_fs_info *fs_info = leaf->fs_info;
+	struct btrfs_key key;
+	u32 read_start;
+	u32 read_end;
+	u32 item_start;
+	u32 item_end;
+	u32 size;
+	bool ret = true;
+
+	ASSERT(start > BTRFS_LEAF_DATA_OFFSET);
+
+	read_start = start - BTRFS_LEAF_DATA_OFFSET;
+	read_end = read_start + name_len;
+	item_start = btrfs_item_offset_nr(leaf, slot);
+	item_end = btrfs_item_end_nr(leaf, slot);
+
+	btrfs_item_key_to_cpu(leaf, &key, slot);
+
+	switch (key.type) {
+	case BTRFS_DIR_ITEM_KEY:
+	case BTRFS_XATTR_ITEM_KEY:
+	case BTRFS_DIR_INDEX_KEY:
+		size = sizeof(struct btrfs_dir_item);
+		break;
+	case BTRFS_INODE_REF_KEY:
+		size = sizeof(struct btrfs_inode_ref);
+		break;
+	case BTRFS_INODE_EXTREF_KEY:
+		size = sizeof(struct btrfs_inode_extref);
+		break;
+	case BTRFS_ROOT_REF_KEY:
+	case BTRFS_ROOT_BACKREF_KEY:
+		size = sizeof(struct btrfs_root_ref);
+		break;
+	default:
+		ret = false;
+		goto out;
+	}
+
+	if (read_start < item_start) {
+		ret = false;
+		goto out;
+	}
+	if (read_end > item_end) {
+		ret = false;
+		goto out;
+	}
+
+	/* there shall be item(s) before name */
+	if (read_start - item_start < size) {
+		ret = false;
+		goto out;
+	}
+
+	/*
+	 * This may be the last item in the slot
+	 * Or same type item(s) is left between read_end and item_end
+	 */
+	if (item_end != read_end && item_end - read_end < size) {
+		ret = false;
+		goto out;
+	}
+out:
+	if (!ret)
+		btrfs_crit(fs_info, "invalid dir item name len: %u",
+			   (unsigned int)name_len);
+	return ret;
+}
