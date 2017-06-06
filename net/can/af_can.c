@@ -872,8 +872,7 @@ static int can_notifier(struct notifier_block *nb, unsigned long msg,
 
 static int can_pernet_init(struct net *net)
 {
-	net->can.can_rcvlists_lock =
-		__SPIN_LOCK_UNLOCKED(net->can.can_rcvlists_lock);
+	spin_lock_init(&net->can.can_rcvlists_lock);
 	net->can.can_rx_alldev_list =
 		kzalloc(sizeof(struct dev_rcv_lists), GFP_KERNEL);
 
