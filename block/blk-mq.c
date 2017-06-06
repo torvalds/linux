@@ -42,7 +42,6 @@ static LIST_HEAD(all_q_list);
 
 static void blk_mq_poll_stats_start(struct request_queue *q);
 static void blk_mq_poll_stats_fn(struct blk_stat_callback *cb);
-static void __blk_mq_stop_hw_queues(struct request_queue *q, bool sync);
 
 static int blk_mq_poll_stats_bkt(const struct request *rq)
 {
@@ -1194,16 +1193,6 @@ bool blk_mq_queue_stopped(struct request_queue *q)
 }
 EXPORT_SYMBOL(blk_mq_queue_stopped);
 
-static void __blk_mq_stop_hw_queue(struct blk_mq_hw_ctx *hctx, bool sync)
-{
-	if (sync)
-		cancel_delayed_work_sync(&hctx->run_work);
-	else
-		cancel_delayed_work(&hctx->run_work);
-
-	set_bit(BLK_MQ_S_STOPPED, &hctx->state);
-}
-
 /*
  * This function is often used for pausing .queue_rq() by driver when
  * there isn't enough resource or some conditions aren't satisfied, and
@@ -1215,18 +1204,11 @@ static void __blk_mq_stop_hw_queue(struct blk_mq_hw_ctx *hctx, bool sync)
  */
 void blk_mq_stop_hw_queue(struct blk_mq_hw_ctx *hctx)
 {
-	__blk_mq_stop_hw_queue(hctx, false);
+	cancel_delayed_work(&hctx->run_work);
+
+	set_bit(BLK_MQ_S_STOPPED, &hctx->state);
 }
 EXPORT_SYMBOL(blk_mq_stop_hw_queue);
-
-static void __blk_mq_stop_hw_queues(struct request_queue *q, bool sync)
-{
-	struct blk_mq_hw_ctx *hctx;
-	int i;
-
-	queue_for_each_hw_ctx(q, hctx, i)
-		__blk_mq_stop_hw_queue(hctx, sync);
-}
 
 /*
  * This function is often used for pausing .queue_rq() by driver when
@@ -1239,7 +1221,11 @@ static void __blk_mq_stop_hw_queues(struct request_queue *q, bool sync)
  */
 void blk_mq_stop_hw_queues(struct request_queue *q)
 {
-	__blk_mq_stop_hw_queues(q, false);
+	struct blk_mq_hw_ctx *hctx;
+	int i;
+
+	queue_for_each_hw_ctx(q, hctx, i)
+		blk_mq_stop_hw_queue(hctx);
 }
 EXPORT_SYMBOL(blk_mq_stop_hw_queues);
 
