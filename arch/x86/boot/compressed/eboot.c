@@ -1046,8 +1046,29 @@ struct boot_params *efi_main(struct efi_config *c,
 	memset((char *)gdt->address, 0x0, gdt->size);
 	desc = (struct desc_struct *)gdt->address;
 
-	/* The first GDT is a dummy and the second is unused. */
-	desc += 2;
+	/* The first GDT is a dummy. */
+	desc++;
+
+	if (IS_ENABLED(CONFIG_X86_64)) {
+		/* __KERNEL32_CS */
+		desc->limit0 = 0xffff;
+		desc->base0 = 0x0000;
+		desc->base1 = 0x0000;
+		desc->type = SEG_TYPE_CODE | SEG_TYPE_EXEC_READ;
+		desc->s = DESC_TYPE_CODE_DATA;
+		desc->dpl = 0;
+		desc->p = 1;
+		desc->limit = 0xf;
+		desc->avl = 0;
+		desc->l = 0;
+		desc->d = SEG_OP_SIZE_32BIT;
+		desc->g = SEG_GRANULARITY_4KB;
+		desc->base2 = 0x00;
+		desc++;
+	} else {
+		/* Second entry is unused on 32-bit */
+		desc++;
+	}
 
 	/* __KERNEL_CS */
 	desc->limit0 = 0xffff;
