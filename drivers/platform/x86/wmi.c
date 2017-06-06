@@ -796,7 +796,7 @@ static struct device_type wmi_type_data = {
 	.release = wmi_dev_release,
 };
 
-static int wmi_create_device(struct device *wmi_bus_dev,
+static void wmi_create_device(struct device *wmi_bus_dev,
 			     const struct guid_block *gblock,
 			     struct wmi_block *wblock,
 			     struct acpi_device *device)
@@ -852,7 +852,7 @@ static int wmi_create_device(struct device *wmi_bus_dev,
 
 	}
 
-	return device_register(&wblock->dev.dev);
+	device_initialize(&wblock->dev.dev);
 }
 
 static void wmi_free_devices(struct acpi_device *device)
@@ -863,10 +863,7 @@ static void wmi_free_devices(struct acpi_device *device)
 	list_for_each_entry_safe(wblock, next, &wmi_block_list, list) {
 		if (wblock->acpi_device == device) {
 			list_del(&wblock->list);
-			if (wblock->dev.dev.bus)
-				device_unregister(&wblock->dev.dev);
-			else
-				kfree(wblock);
+			device_unregister(&wblock->dev.dev);
 		}
 	}
 }
@@ -899,11 +896,11 @@ static bool guid_already_parsed(struct acpi_device *device,
 static int parse_wdg(struct device *wmi_bus_dev, struct acpi_device *device)
 {
 	struct acpi_buffer out = {ACPI_ALLOCATE_BUFFER, NULL};
-	union acpi_object *obj;
 	const struct guid_block *gblock;
-	struct wmi_block *wblock;
+	struct wmi_block *wblock, *next;
+	union acpi_object *obj;
 	acpi_status status;
-	int retval;
+	int retval = 0;
 	u32 i, total;
 
 	status = acpi_evaluate_object(device->handle, "_WDG", NULL, &out);
@@ -936,19 +933,15 @@ static int parse_wdg(struct device *wmi_bus_dev, struct acpi_device *device)
 			continue;
 
 		wblock = kzalloc(sizeof(struct wmi_block), GFP_KERNEL);
-		if (!wblock)
-			return -ENOMEM;
+		if (!wblock) {
+			retval = -ENOMEM;
+			break;
+		}
 
 		wblock->acpi_device = device;
 		wblock->gblock = gblock[i];
 
-		retval = wmi_create_device(wmi_bus_dev, &gblock[i],
-					   wblock, device);
-		if (retval) {
-			put_device(&wblock->dev.dev);
-			wmi_free_devices(device);
-			goto out_free_pointer;
-		}
+		wmi_create_device(wmi_bus_dev, &gblock[i], wblock, device);
 
 		list_add_tail(&wblock->list, &wmi_block_list);
 
@@ -958,11 +951,27 @@ static int parse_wdg(struct device *wmi_bus_dev, struct acpi_device *device)
 		}
 	}
 
-	retval = 0;
+	/*
+	 * Now that all of the devices are created, add them to the
+	 * device tree and probe subdrivers.
+	 */
+	list_for_each_entry_safe(wblock, next, &wmi_block_list, list) {
+		if (wblock->acpi_device != device)
+			continue;
+
+		retval = device_add(&wblock->dev.dev);
+		if (retval) {
+			dev_err(wmi_bus_dev, "failed to register %pULL\n",
+				wblock->gblock.guid);
+			if (debug_event)
+				wmi_method_enable(wblock, 0);
+			list_del(&wblock->list);
+			put_device(&wblock->dev.dev);
+		}
+	}
 
 out_free_pointer:
 	kfree(out.pointer);
-
 	return retval;
 }
 
