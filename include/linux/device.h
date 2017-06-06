@@ -465,8 +465,6 @@ struct class_attribute {
 			const char *buf, size_t count);
 };
 
-#define CLASS_ATTR(_name, _mode, _show, _store) \
-	struct class_attribute class_attr_##_name = __ATTR(_name, _mode, _show, _store)
 #define CLASS_ATTR_RW(_name) \
 	struct class_attribute class_attr_##_name = __ATTR_RW(_name)
 #define CLASS_ATTR_RO(_name) \
