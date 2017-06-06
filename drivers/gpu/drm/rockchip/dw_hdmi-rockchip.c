@@ -24,6 +24,11 @@
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_vop.h"
 
+#define RK3228_GRF_SOC_CON2		0x0408
+#define RK3228_DDC_MASK_EN		((3 << 13) | (3 << (13 + 16)))
+#define RK3228_GRF_SOC_CON6		0x0418
+#define RK3228_IO_3V_DOMAIN		((7 << 4) | (7 << (4 + 16)))
+
 #define RK3288_GRF_SOC_CON6		0x025C
 #define RK3288_HDMI_LCDC_SEL		BIT(4)
 #define RK3328_GRF_SOC_CON2		0x0408
@@ -69,6 +74,7 @@ struct rockchip_hdmi {
 	struct clk *vpll_clk;
 	struct clk *grf_clk;
 	struct dw_hdmi *hdmi;
+
 	struct phy *phy;
 };
 
@@ -482,6 +488,26 @@ static void dw_hdmi_rk3328_setup_hpd(struct dw_hdmi *dw_hdmi, void *data)
 			      RK3328_HDMI_HPD_IOE));
 }
 
+static const struct dw_hdmi_phy_ops rk3228_hdmi_phy_ops = {
+	.init		= dw_hdmi_rockchip_genphy_init,
+	.disable	= dw_hdmi_rockchip_genphy_disable,
+	.read_hpd	= dw_hdmi_phy_read_hpd,
+	.update_hpd	= dw_hdmi_phy_update_hpd,
+};
+
+static struct rockchip_hdmi_chip_data rk3228_chip_data = {
+	.lcdsel_grf_reg = -1,
+};
+
+static const struct dw_hdmi_plat_data rk3228_hdmi_drv_data = {
+	.mode_valid = dw_hdmi_rockchip_mode_valid,
+	.phy_config = rockchip_phy_config,
+	.phy_data   = &rk3228_chip_data,
+	.phy_ops    = &rk3228_hdmi_phy_ops,
+	.phy_name   = "inno_dw_hdmi_phy",
+	.phy_force_vendor = true,
+};
+
 static struct rockchip_hdmi_chip_data rk3288_chip_data = {
 	.lcdsel_grf_reg = RK3288_GRF_SOC_CON6,
 	.lcdsel_big = HIWORD_UPDATE(0, RK3288_HDMI_LCDC_SEL),
@@ -549,6 +575,9 @@ static const struct dw_hdmi_plat_data rk3399_hdmi_drv_data = {
 };
 
 static const struct of_device_id dw_hdmi_rockchip_dt_ids[] = {
+	{ .compatible = "rockchip,rk3228-dw-hdmi",
+	  .data = &rk3228_hdmi_drv_data
+	},
 	{ .compatible = "rockchip,rk3288-dw-hdmi",
 	  .data = &rk3288_hdmi_drv_data
 	},
