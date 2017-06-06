@@ -485,9 +485,8 @@ parse:
 	crc = tb_crc32(sw->drom + TB_DROM_DATA_START, header->data_len);
 	if (crc != header->data_crc32) {
 		tb_sw_warn(sw,
-			"drom data crc32 mismatch (expected: %#x, got: %#x), aborting\n",
+			"drom data crc32 mismatch (expected: %#x, got: %#x), continuing\n",
 			header->data_crc32, crc);
-		goto err;
 	}
 
 	if (header->device_rom_revision > 2)
