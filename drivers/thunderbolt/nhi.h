@@ -20,6 +20,8 @@
  * @tx_rings: All Tx rings available on this host controller
  * @rx_rings: All Rx rings available on this host controller
  * @msix_ida: Used to allocate MSI-X vectors for rings
+ * @going_away: The host controller device is about to disappear so when
+ *		this flag is set, avoid touching the hardware anymore.
  * @interrupt_work: Work scheduled to handle ring interrupt when no
  *		    MSI-X is used.
  * @hop_count: Number of rings (end point hops) supported by NHI.
@@ -31,6 +33,7 @@ struct tb_nhi {
 	struct tb_ring **tx_rings;
 	struct tb_ring **rx_rings;
 	struct ida msix_ida;
+	bool going_away;
 	struct work_struct interrupt_work;
 	u32 hop_count;
 };
