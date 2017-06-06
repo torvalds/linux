@@ -6,6 +6,7 @@ menuconfig THUNDERBOLT
 	select CRC32
 	select CRYPTO
 	select CRYPTO_HASH
+	select NVMEM
 	help
 	  Thunderbolt Controller driver. This driver is required if you
 	  want to hotplug Thunderbolt devices on Apple hardware or on PCs

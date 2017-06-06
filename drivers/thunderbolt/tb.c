@@ -369,6 +369,13 @@ static int tb_start(struct tb *tb)
 	if (!tb->root_switch)
 		return -ENOMEM;
 
+	/*
+	 * ICM firmware upgrade needs running firmware and in native
+	 * mode that is not available so disable firmware upgrade of the
+	 * root switch.
+	 */
+	tb->root_switch->no_nvm_upgrade = true;
+
 	ret = tb_switch_configure(tb->root_switch);
 	if (ret) {
 		tb_switch_put(tb->root_switch);

@@ -7,12 +7,37 @@
 #ifndef TB_H_
 #define TB_H_
 
+#include <linux/nvmem-provider.h>
 #include <linux/pci.h>
 #include <linux/uuid.h>
 
 #include "tb_regs.h"
 #include "ctl.h"
 #include "dma_port.h"
+
+/**
+ * struct tb_switch_nvm - Structure holding switch NVM information
+ * @major: Major version number of the active NVM portion
+ * @minor: Minor version number of the active NVM portion
+ * @id: Identifier used with both NVM portions
+ * @active: Active portion NVMem device
+ * @non_active: Non-active portion NVMem device
+ * @buf: Buffer where the NVM image is stored before it is written to
+ *	 the actual NVM flash device
+ * @buf_data_size: Number of bytes actually consumed by the new NVM
+ *		   image
+ * @authenticating: The switch is authenticating the new NVM
+ */
+struct tb_switch_nvm {
+	u8 major;
+	u8 minor;
+	int id;
+	struct nvmem_device *active;
+	struct nvmem_device *non_active;
+	void *buf;
+	size_t buf_data_size;
+	bool authenticating;
+};
 
 /**
  * enum tb_security_level - Thunderbolt security level
@@ -39,7 +64,8 @@ enum tb_security_level {
  * @ports: Ports in this switch
  * @dma_port: If the switch has port supporting DMA configuration based
  *	      mailbox this will hold the pointer to that (%NULL
- *	      otherwise).
+ *	      otherwise). If set it also means the switch has
+ *	      upgradeable NVM.
  * @tb: Pointer to the domain the switch belongs to
  * @uid: Unique ID of the switch
  * @uuid: UUID of the switch (or %NULL if not supported)
@@ -51,6 +77,9 @@ enum tb_security_level {
  * @cap_plug_events: Offset to the plug events capability (%0 if not found)
  * @is_unplugged: The switch is going away
  * @drom: DROM of the switch (%NULL if not found)
+ * @nvm: Pointer to the NVM if the switch has one (%NULL otherwise)
+ * @no_nvm_upgrade: Prevent NVM upgrade of this switch
+ * @safe_mode: The switch is in safe-mode
  * @authorized: Whether the switch is authorized by user or policy
  * @work: Work used to automatically authorize a switch
  * @security_level: Switch supported security level
@@ -81,6 +110,9 @@ struct tb_switch {
 	int cap_plug_events;
 	bool is_unplugged;
 	u8 *drom;
+	struct tb_switch_nvm *nvm;
+	bool no_nvm_upgrade;
+	bool safe_mode;
 	unsigned int authorized;
 	struct work_struct work;
 	enum tb_security_level security_level;
@@ -172,6 +204,7 @@ struct tb_path {
  * @approve_switch: Approve switch
  * @add_switch_key: Add key to switch
  * @challenge_switch_key: Challenge switch using key
+ * @disconnect_pcie_paths: Disconnects PCIe paths before NVM update
  */
 struct tb_cm_ops {
 	int (*driver_ready)(struct tb *tb);
@@ -187,6 +220,7 @@ struct tb_cm_ops {
 	int (*add_switch_key)(struct tb *tb, struct tb_switch *sw);
 	int (*challenge_switch_key)(struct tb *tb, struct tb_switch *sw,
 				    const u8 *challenge, u8 *response);
+	int (*disconnect_pcie_paths)(struct tb *tb);
 };
 
 /**
@@ -340,6 +374,7 @@ extern struct device_type tb_switch_type;
 
 int tb_domain_init(void);
 void tb_domain_exit(void);
+void tb_switch_exit(void);
 
 struct tb *tb_domain_alloc(struct tb_nhi *nhi, size_t privsize);
 int tb_domain_add(struct tb *tb);
@@ -351,6 +386,7 @@ void tb_domain_complete(struct tb *tb);
 int tb_domain_approve_switch(struct tb *tb, struct tb_switch *sw);
 int tb_domain_approve_switch_key(struct tb *tb, struct tb_switch *sw);
 int tb_domain_challenge_switch_key(struct tb *tb, struct tb_switch *sw);
+int tb_domain_disconnect_pcie_paths(struct tb *tb);
 
 static inline void tb_domain_put(struct tb *tb)
 {
@@ -359,6 +395,8 @@ static inline void tb_domain_put(struct tb *tb)
 
 struct tb_switch *tb_switch_alloc(struct tb *tb, struct device *parent,
 				  u64 route);
+struct tb_switch *tb_switch_alloc_safe_mode(struct tb *tb,
+			struct device *parent, u64 route);
 int tb_switch_configure(struct tb_switch *sw);
 int tb_switch_add(struct tb_switch *sw);
 void tb_switch_remove(struct tb_switch *sw);

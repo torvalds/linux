@@ -426,6 +426,23 @@ err_free_tfm:
 	return ret;
 }
 
+/**
+ * tb_domain_disconnect_pcie_paths() - Disconnect all PCIe paths
+ * @tb: Domain whose PCIe paths to disconnect
+ *
+ * This needs to be called in preparation for NVM upgrade of the host
+ * controller. Makes sure all PCIe paths are disconnected.
+ *
+ * Return %0 on success and negative errno in case of error.
+ */
+int tb_domain_disconnect_pcie_paths(struct tb *tb)
+{
+	if (!tb->cm_ops->disconnect_pcie_paths)
+		return -EPERM;
+
+	return tb->cm_ops->disconnect_pcie_paths(tb);
+}
+
 int tb_domain_init(void)
 {
 	return bus_register(&tb_bus_type);
@@ -435,4 +452,5 @@ void tb_domain_exit(void)
 {
 	bus_unregister(&tb_bus_type);
 	ida_destroy(&tb_domain_ida);
+	tb_switch_exit();
 }

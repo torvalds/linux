@@ -54,6 +54,7 @@
  *		   where ICM needs to be started manually
  * @vnd_cap: Vendor defined capability where PCIe2CIO mailbox resides
  *	     (only set when @upstream_port is not %NULL)
+ * @safe_mode: ICM is in safe mode
  * @is_supported: Checks if we can support ICM on this controller
  * @get_mode: Read and return the ICM firmware mode (optional)
  * @get_route: Find a route string for given switch
@@ -65,6 +66,7 @@ struct icm {
 	struct delayed_work rescan_work;
 	struct pci_dev *upstream_port;
 	int vnd_cap;
+	bool safe_mode;
 	bool (*is_supported)(struct tb *tb);
 	int (*get_mode)(struct tb *tb);
 	int (*get_route)(struct tb *tb, u8 link, u8 depth, u64 *route);
@@ -852,6 +854,10 @@ static int icm_firmware_init(struct tb *tb)
 		ret = icm->get_mode(tb);
 
 		switch (ret) {
+		case NHI_FW_SAFE_MODE:
+			icm->safe_mode = true;
+			break;
+
 		case NHI_FW_CM_MODE:
 			/* Ask ICM to accept all Thunderbolt devices */
 			nhi_mailbox_cmd(nhi, NHI_MAILBOX_ALLOW_ALL_DEVS, 0);
@@ -879,11 +885,19 @@ static int icm_firmware_init(struct tb *tb)
 
 static int icm_driver_ready(struct tb *tb)
 {
+	struct icm *icm = tb_priv(tb);
 	int ret;
 
 	ret = icm_firmware_init(tb);
 	if (ret)
 		return ret;
+
+	if (icm->safe_mode) {
+		tb_info(tb, "Thunderbolt host controller is in safe mode.\n");
+		tb_info(tb, "You need to update NVM firmware of the controller before it can be used.\n");
+		tb_info(tb, "For latest updates check https://thunderbolttechnology.net/updates.\n");
+		return 0;
+	}
 
 	return __icm_driver_ready(tb, &tb->security_level);
 }
@@ -975,11 +989,22 @@ static void icm_complete(struct tb *tb)
 
 static int icm_start(struct tb *tb)
 {
+	struct icm *icm = tb_priv(tb);
 	int ret;
 
-	tb->root_switch = tb_switch_alloc(tb, &tb->dev, 0);
+	if (icm->safe_mode)
+		tb->root_switch = tb_switch_alloc_safe_mode(tb, &tb->dev, 0);
+	else
+		tb->root_switch = tb_switch_alloc(tb, &tb->dev, 0);
 	if (!tb->root_switch)
 		return -ENODEV;
+
+	/*
+	 * NVM upgrade has not been tested on Apple systems and they
+	 * don't provide images publicly either. To be on the safe side
+	 * prevent root switch NVM upgrade on Macs for now.
+	 */
+	tb->root_switch->no_nvm_upgrade = is_apple();
 
 	ret = tb_switch_add(tb->root_switch);
 	if (ret)
@@ -998,6 +1023,11 @@ static void icm_stop(struct tb *tb)
 	nhi_mailbox_cmd(tb->nhi, NHI_MAILBOX_DRV_UNLOADS, 0);
 }
 
+static int icm_disconnect_pcie_paths(struct tb *tb)
+{
+	return nhi_mailbox_cmd(tb->nhi, NHI_MAILBOX_DISCONNECT_PCIE_PATHS, 0);
+}
+
 /* Falcon Ridge and Alpine Ridge */
 static const struct tb_cm_ops icm_fr_ops = {
 	.driver_ready = icm_driver_ready,
@@ -1009,6 +1039,7 @@ static const struct tb_cm_ops icm_fr_ops = {
 	.approve_switch = icm_fr_approve_switch,
 	.add_switch_key = icm_fr_add_switch_key,
 	.challenge_switch_key = icm_fr_challenge_switch_key,
+	.disconnect_pcie_paths = icm_disconnect_pcie_paths,
 };
 
 struct tb *icm_probe(struct tb_nhi *nhi)

@@ -82,3 +82,29 @@ Description:	This attribute contains unique_id string of this device.
 		This is either read from hardware registers (UUID on
 		newer hardware) or based on UID from the device DROM.
 		Can be used to uniquely identify particular device.
+
+What:		/sys/bus/thunderbolt/devices/.../nvm_version
+Date:		Sep 2017
+KernelVersion:	4.13
+Contact:	thunderbolt-software@lists.01.org
+Description:	If the device has upgradeable firmware the version
+		number is available here. Format: %x.%x, major.minor.
+		If the device is in safe mode reading the file returns
+		-ENODATA instead as the NVM version is not available.
+
+What:		/sys/bus/thunderbolt/devices/.../nvm_authenticate
+Date:		Sep 2017
+KernelVersion:	4.13
+Contact:	thunderbolt-software@lists.01.org
+Description:	When new NVM image is written to the non-active NVM
+		area (through non_activeX NVMem device), the
+		authentication procedure is started by writing 1 to
+		this file. If everything goes well, the device is
+		restarted with the new NVM firmware. If the image
+		verification fails an error code is returned instead.
+
+		When read holds status of the last authentication
+		operation if an error occurred during the process. This
+		is directly the status value from the DMA configuration
+		based mailbox before the device is power cycled. Writing
+		0 here clears the status.
