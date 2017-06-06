@@ -1687,6 +1687,12 @@ static int setup_dpbp(struct dpaa2_eth_priv *priv)
 		goto err_open;
 	}
 
+	err = dpbp_reset(priv->mc_io, 0, dpbp_dev->mc_handle);
+	if (err) {
+		dev_err(dev, "dpbp_reset() failed\n");
+		goto err_reset;
+	}
+
 	err = dpbp_enable(priv->mc_io, 0, dpbp_dev->mc_handle);
 	if (err) {
 		dev_err(dev, "dpbp_enable() failed\n");
@@ -1705,6 +1711,7 @@ static int setup_dpbp(struct dpaa2_eth_priv *priv)
 err_get_attr:
 	dpbp_disable(priv->mc_io, 0, dpbp_dev->mc_handle);
 err_enable:
+err_reset:
 	dpbp_close(priv->mc_io, 0, dpbp_dev->mc_handle);
 err_open:
 	fsl_mc_object_free(dpbp_dev);
