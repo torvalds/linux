@@ -7,6 +7,8 @@
 #ifndef _TB_CFG
 #define _TB_CFG
 
+#include <linux/kref.h>
+
 #include "nhi.h"
 #include "tb_msgs.h"
 
@@ -38,6 +40,69 @@ struct tb_cfg_result {
 	int err; /* negative errors, 0 for success, 1 for tb errors */
 	enum tb_cfg_error tb_error; /* valid if err == 1 */
 };
+
+struct ctl_pkg {
+	struct tb_ctl *ctl;
+	void *buffer;
+	struct ring_frame frame;
+};
+
+/**
+ * struct tb_cfg_request - Control channel request
+ * @kref: Reference count
+ * @ctl: Pointer to the control channel structure. Only set when the
+ *	 request is queued.
+ * @request_size: Size of the request packet (in bytes)
+ * @request_type: Type of the request packet
+ * @response: Response is stored here
+ * @response_size: Maximum size of one response packet
+ * @response_type: Expected type of the response packet
+ * @npackets: Number of packets expected to be returned with this request
+ * @match: Function used to match the incoming packet
+ * @copy: Function used to copy the incoming packet to @response
+ * @callback: Callback called when the request is finished successfully
+ * @callback_data: Data to be passed to @callback
+ * @flags: Flags for the request
+ * @work: Work item used to complete the request
+ * @result: Result after the request has been completed
+ * @list: Requests are queued using this field
+ *
+ * An arbitrary request over Thunderbolt control channel. For standard
+ * control channel message, one should use tb_cfg_read/write() and
+ * friends if possible.
+ */
+struct tb_cfg_request {
+	struct kref kref;
+	struct tb_ctl *ctl;
+	const void *request;
+	size_t request_size;
+	enum tb_cfg_pkg_type request_type;
+	void *response;
+	size_t response_size;
+	enum tb_cfg_pkg_type response_type;
+	size_t npackets;
+	bool (*match)(const struct tb_cfg_request *req,
+		      const struct ctl_pkg *pkg);
+	bool (*copy)(struct tb_cfg_request *req, const struct ctl_pkg *pkg);
+	void (*callback)(void *callback_data);
+	void *callback_data;
+	unsigned long flags;
+	struct work_struct work;
+	struct tb_cfg_result result;
+	struct list_head list;
+};
+
+#define TB_CFG_REQUEST_ACTIVE		0
+#define TB_CFG_REQUEST_CANCELED		1
+
+struct tb_cfg_request *tb_cfg_request_alloc(void);
+void tb_cfg_request_get(struct tb_cfg_request *req);
+void tb_cfg_request_put(struct tb_cfg_request *req);
+int tb_cfg_request(struct tb_ctl *ctl, struct tb_cfg_request *req,
+		   void (*callback)(void *), void *callback_data);
+void tb_cfg_request_cancel(struct tb_cfg_request *req, int err);
+struct tb_cfg_result tb_cfg_request_sync(struct tb_ctl *ctl,
+			struct tb_cfg_request *req, int timeout_msec);
 
 static inline u64 tb_cfg_get_route(const struct tb_cfg_header *header)
 {

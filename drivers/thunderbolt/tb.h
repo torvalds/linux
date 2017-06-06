@@ -132,7 +132,7 @@ struct tb_cm_ops {
 /**
  * struct tb - main thunderbolt bus structure
  * @dev: Domain device
- * @lock: Big lock. Must be held when accessing cfg or any struct
+ * @lock: Big lock. Must be held when accessing any struct
  *	  tb_switch / struct tb_port.
  * @nhi: Pointer to the NHI structure
  * @ctl: Control channel for this domain
