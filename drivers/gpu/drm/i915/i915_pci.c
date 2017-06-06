@@ -312,16 +312,17 @@ static const struct intel_device_info intel_haswell_info = {
 	.has_full_48bit_ppgtt = 1, \
 	.has_64bit_reloc = 1
 
+#define BDW_PLATFORM \
+	BDW_FEATURES, \
+	.gen = 8, \
+	.platform = INTEL_BROADWELL
+
 static const struct intel_device_info intel_broadwell_info = {
-	BDW_FEATURES,
-	.gen = 8,
-	.platform = INTEL_BROADWELL,
+	BDW_PLATFORM,
 };
 
 static const struct intel_device_info intel_broadwell_gt3_info = {
-	BDW_FEATURES,
-	.gen = 8,
-	.platform = INTEL_BROADWELL,
+	BDW_PLATFORM,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
 };
 
@@ -347,22 +348,20 @@ static const struct intel_device_info intel_cherryview_info = {
 	CHV_COLORS,
 };
 
+#define SKL_PLATFORM \
+	BDW_FEATURES, \
+	.gen = 9, \
+	.platform = INTEL_SKYLAKE, \
+	.has_csr = 1, \
+	.has_guc = 1, \
+	.ddb_size = 896
+
 static const struct intel_device_info intel_skylake_info = {
-	BDW_FEATURES,
-	.platform = INTEL_SKYLAKE,
-	.gen = 9,
-	.has_csr = 1,
-	.has_guc = 1,
-	.ddb_size = 896,
+	SKL_PLATFORM,
 };
 
 static const struct intel_device_info intel_skylake_gt3_info = {
-	BDW_FEATURES,
-	.platform = INTEL_SKYLAKE,
-	.gen = 9,
-	.has_csr = 1,
-	.has_guc = 1,
-	.ddb_size = 896,
+	SKL_PLATFORM,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
 };
 
@@ -406,22 +405,20 @@ static const struct intel_device_info intel_geminilake_info = {
 	.color = { .degamma_lut_size = 0, .gamma_lut_size = 1024 }
 };
 
+#define KBL_PLATFORM \
+	BDW_FEATURES, \
+	.gen = 9, \
+	.platform = INTEL_KABYLAKE, \
+	.has_csr = 1, \
+	.has_guc = 1, \
+	.ddb_size = 896
+
 static const struct intel_device_info intel_kabylake_info = {
-	BDW_FEATURES,
-	.platform = INTEL_KABYLAKE,
-	.gen = 9,
-	.has_csr = 1,
-	.has_guc = 1,
-	.ddb_size = 896,
+	KBL_PLATFORM,
 };
 
 static const struct intel_device_info intel_kabylake_gt3_info = {
-	BDW_FEATURES,
-	.platform = INTEL_KABYLAKE,
-	.gen = 9,
-	.has_csr = 1,
-	.has_guc = 1,
-	.ddb_size = 896,
+	KBL_PLATFORM,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
 };
 
