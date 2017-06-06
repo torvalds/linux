@@ -2303,19 +2303,11 @@ static void nfp_net_close_free_all(struct nfp_net *nn)
 {
 	unsigned int r;
 
-	for (r = 0; r < nn->dp.num_rx_rings; r++) {
-		nfp_net_rx_ring_bufs_free(&nn->dp, &nn->dp.rx_rings[r]);
-		nfp_net_rx_ring_free(&nn->dp.rx_rings[r]);
-	}
-	for (r = 0; r < nn->dp.num_tx_rings; r++) {
-		nfp_net_tx_ring_bufs_free(&nn->dp, &nn->dp.tx_rings[r]);
-		nfp_net_tx_ring_free(&nn->dp.tx_rings[r]);
-	}
+	nfp_net_tx_rings_free(&nn->dp);
+	nfp_net_rx_rings_free(&nn->dp);
+
 	for (r = 0; r < nn->dp.num_r_vecs; r++)
 		nfp_net_cleanup_vector(nn, &nn->r_vecs[r]);
-
-	kfree(nn->dp.rx_rings);
-	kfree(nn->dp.tx_rings);
 
 	nfp_net_aux_irq_free(nn, NFP_NET_CFG_LSC, NFP_NET_IRQ_LSC_IDX);
 	nfp_net_aux_irq_free(nn, NFP_NET_CFG_EXN, NFP_NET_IRQ_EXN_IDX);
