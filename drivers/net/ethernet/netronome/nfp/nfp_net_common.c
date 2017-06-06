@@ -2236,9 +2236,10 @@ static int nfp_net_set_config_and_enable(struct nfp_net *nn)
 	nn_writeq(nn, NFP_NET_CFG_RXRS_ENABLE, nn->dp.num_rx_rings == 64 ?
 		  0xffffffffffffffffULL : ((u64)1 << nn->dp.num_rx_rings) - 1);
 
-	nfp_net_write_mac_addr(nn, nn->dp.netdev->dev_addr);
+	if (nn->dp.netdev)
+		nfp_net_write_mac_addr(nn, nn->dp.netdev->dev_addr);
 
-	nn_writel(nn, NFP_NET_CFG_MTU, nn->dp.netdev->mtu);
+	nn_writel(nn, NFP_NET_CFG_MTU, nn->dp.mtu);
 
 	bufsz = nn->dp.fl_bufsz - nn->dp.rx_dma_off - NFP_NET_RX_BUF_NON_DATA;
 	nn_writel(nn, NFP_NET_CFG_FLBUFSZ, bufsz);
