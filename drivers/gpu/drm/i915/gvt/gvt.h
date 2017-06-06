@@ -195,7 +195,7 @@ struct intel_gvt_fence {
 	unsigned long vgpu_allocated_fence_num;
 };
 
-#define INTEL_GVT_MMIO_HASH_BITS 9
+#define INTEL_GVT_MMIO_HASH_BITS 11
 
 struct intel_gvt_mmio {
 	u8 *mmio_attribute;
