@@ -35,40 +35,40 @@
 
 /* To be kept in sync with DPNI statistics */
 static char dpaa2_ethtool_stats[][ETH_GSTRING_LEN] = {
-	"rx frames",
-	"rx bytes",
-	"rx mcast frames",
-	"rx mcast bytes",
-	"rx bcast frames",
-	"rx bcast bytes",
-	"tx frames",
-	"tx bytes",
-	"tx mcast frames",
-	"tx mcast bytes",
-	"tx bcast frames",
-	"tx bcast bytes",
-	"rx filtered frames",
-	"rx discarded frames",
-	"rx nobuffer discards",
-	"tx discarded frames",
-	"tx confirmed frames",
+	"[hw] rx frames",
+	"[hw] rx bytes",
+	"[hw] rx mcast frames",
+	"[hw] rx mcast bytes",
+	"[hw] rx bcast frames",
+	"[hw] rx bcast bytes",
+	"[hw] tx frames",
+	"[hw] tx bytes",
+	"[hw] tx mcast frames",
+	"[hw] tx mcast bytes",
+	"[hw] tx bcast frames",
+	"[hw] tx bcast bytes",
+	"[hw] rx filtered frames",
+	"[hw] rx discarded frames",
+	"[hw] rx nobuffer discards",
+	"[hw] tx discarded frames",
+	"[hw] tx confirmed frames",
 };
 
 #define DPAA2_ETH_NUM_STATS	ARRAY_SIZE(dpaa2_ethtool_stats)
 
 static char dpaa2_ethtool_extras[][ETH_GSTRING_LEN] = {
 	/* per-cpu stats */
-	"tx conf frames",
-	"tx conf bytes",
-	"tx sg frames",
-	"tx sg bytes",
-	"rx sg frames",
-	"rx sg bytes",
-	"enqueue portal busy",
+	"[drv] tx conf frames",
+	"[drv] tx conf bytes",
+	"[drv] tx sg frames",
+	"[drv] tx sg bytes",
+	"[drv] rx sg frames",
+	"[drv] rx sg bytes",
+	"[drv] enqueue portal busy",
 	/* Channel stats */
-	"dequeue portal busy",
-	"channel pull errors",
-	"cdan",
+	"[drv] dequeue portal busy",
+	"[drv] channel pull errors",
+	"[drv] cdan",
 };
 
 #define DPAA2_ETH_NUM_EXTRA_STATS	ARRAY_SIZE(dpaa2_ethtool_extras)
