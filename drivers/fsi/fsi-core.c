@@ -15,7 +15,42 @@
 
 #include <linux/device.h>
 #include <linux/fsi.h>
+#include <linux/idr.h>
 #include <linux/module.h>
+
+#include "fsi-master.h"
+
+static DEFINE_IDA(master_ida);
+
+/* FSI master support */
+int fsi_master_register(struct fsi_master *master)
+{
+	int rc;
+
+	if (!master)
+		return -EINVAL;
+
+	master->idx = ida_simple_get(&master_ida, 0, INT_MAX, GFP_KERNEL);
+	dev_set_name(&master->dev, "fsi%d", master->idx);
+
+	rc = device_register(&master->dev);
+	if (rc)
+		ida_simple_remove(&master_ida, master->idx);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(fsi_master_register);
+
+void fsi_master_unregister(struct fsi_master *master)
+{
+	if (master->idx >= 0) {
+		ida_simple_remove(&master_ida, master->idx);
+		master->idx = -1;
+	}
+
+	device_unregister(&master->dev);
+}
+EXPORT_SYMBOL_GPL(fsi_master_unregister);
 
 /* FSI core & Linux bus type definitions */
 
