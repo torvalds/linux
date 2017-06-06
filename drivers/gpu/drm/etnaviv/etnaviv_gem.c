@@ -413,6 +413,16 @@ int etnaviv_gem_cpu_prep(struct drm_gem_object *obj, u32 op,
 	bool write = !!(op & ETNA_PREP_WRITE);
 	int ret;
 
+	if (!etnaviv_obj->sgt) {
+		void *ret;
+
+		mutex_lock(&etnaviv_obj->lock);
+		ret = etnaviv_gem_get_pages(etnaviv_obj);
+		mutex_unlock(&etnaviv_obj->lock);
+		if (IS_ERR(ret))
+			return PTR_ERR(ret);
+	}
+
 	if (op & ETNA_PREP_NOSYNC) {
 		if (!reservation_object_test_signaled_rcu(etnaviv_obj->resv,
 							  write))
@@ -427,16 +437,6 @@ int etnaviv_gem_cpu_prep(struct drm_gem_object *obj, u32 op,
 	}
 
 	if (etnaviv_obj->flags & ETNA_BO_CACHED) {
-		if (!etnaviv_obj->sgt) {
-			void *ret;
-
-			mutex_lock(&etnaviv_obj->lock);
-			ret = etnaviv_gem_get_pages(etnaviv_obj);
-			mutex_unlock(&etnaviv_obj->lock);
-			if (IS_ERR(ret))
-				return PTR_ERR(ret);
-		}
-
 		dma_sync_sg_for_cpu(dev->dev, etnaviv_obj->sgt->sgl,
 				    etnaviv_obj->sgt->nents,
 				    etnaviv_op_to_dma_dir(op));
