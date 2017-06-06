@@ -2162,15 +2162,12 @@ static void free_rings(struct dpaa2_eth_priv *priv)
 		dpaa2_io_store_destroy(priv->channel[i]->store);
 }
 
-static int netdev_init(struct net_device *net_dev)
+static int set_mac_addr(struct dpaa2_eth_priv *priv)
 {
-	int err;
+	struct net_device *net_dev = priv->net_dev;
 	struct device *dev = net_dev->dev.parent;
-	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
 	u8 mac_addr[ETH_ALEN], dpni_mac_addr[ETH_ALEN];
-	u8 bcast_addr[ETH_ALEN];
-
-	net_dev->netdev_ops = &dpaa2_eth_ops;
+	int err;
 
 	/* Get firmware address, if any */
 	err = dpni_get_port_mac_addr(priv->mc_io, 0, priv->mc_token, mac_addr);
@@ -2183,7 +2180,7 @@ static int netdev_init(struct net_device *net_dev)
 	err = dpni_get_primary_mac_addr(priv->mc_io, 0, priv->mc_token,
 					dpni_mac_addr);
 	if (err) {
-		dev_err(dev, "dpni_get_primary_mac_addr() failed (%d)\n", err);
+		dev_err(dev, "dpni_get_primary_mac_addr() failed\n");
 		return err;
 	}
 
@@ -2201,18 +2198,19 @@ static int netdev_init(struct net_device *net_dev)
 		}
 		memcpy(net_dev->dev_addr, mac_addr, net_dev->addr_len);
 	} else if (is_zero_ether_addr(dpni_mac_addr)) {
-		/* Fills in net_dev->dev_addr, as required by
-		 * register_netdevice()
+		/* No MAC address configured, fill in net_dev->dev_addr
+		 * with a random one
 		 */
 		eth_hw_addr_random(net_dev);
-		/* Make the user aware, without cluttering the boot log */
-		dev_dbg_once(dev, " device(s) have all-zero hwaddr, replaced with random\n");
+		dev_dbg_once(dev, "device(s) have all-zero hwaddr, replaced with random\n");
+
 		err = dpni_set_primary_mac_addr(priv->mc_io, 0, priv->mc_token,
 						net_dev->dev_addr);
 		if (err) {
-			dev_err(dev, "dpni_set_primary_mac_addr(): %d\n", err);
+			dev_err(dev, "dpni_set_primary_mac_addr() failed\n");
 			return err;
 		}
+
 		/* Override NET_ADDR_RANDOM set by eth_hw_addr_random(); for all
 		 * practical purposes, this will be our "permanent" mac address,
 		 * at least until the next reboot. This move will also permit
@@ -2226,14 +2224,28 @@ static int netdev_init(struct net_device *net_dev)
 		memcpy(net_dev->dev_addr, dpni_mac_addr, net_dev->addr_len);
 	}
 
-	/* Explicitly add the broadcast address to the MAC filtering table;
-	 * the MC won't do that for us.
-	 */
+	return 0;
+}
+
+static int netdev_init(struct net_device *net_dev)
+{
+	struct device *dev = net_dev->dev.parent;
+	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
+	u8 bcast_addr[ETH_ALEN];
+	int err;
+
+	net_dev->netdev_ops = &dpaa2_eth_ops;
+
+	err = set_mac_addr(priv);
+	if (err)
+		return err;
+
+	/* Explicitly add the broadcast address to the MAC filtering table */
 	eth_broadcast_addr(bcast_addr);
 	err = dpni_add_mac_addr(priv->mc_io, 0, priv->mc_token, bcast_addr);
 	if (err) {
-		dev_warn(dev, "dpni_add_mac_addr() failed (%d)\n", err);
-		/* Won't return an error; at least, we'd have egress traffic */
+		dev_err(dev, "dpni_add_mac_addr() failed\n");
+		return err;
 	}
 
 	/* Reserve enough space to align buffer as per hardware requirement;
