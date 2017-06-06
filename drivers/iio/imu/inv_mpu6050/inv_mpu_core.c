@@ -777,9 +777,34 @@ static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
 {
 	int result;
 	unsigned int regval;
+	int i;
 
 	st->hw  = &hw_info[st->chip_type];
 	st->reg = hw_info[st->chip_type].reg;
+
+	/* check chip self-identification */
+	result = regmap_read(st->map, INV_MPU6050_REG_WHOAMI, &regval);
+	if (result)
+		return result;
+	if (regval != st->hw->whoami) {
+		/* check whoami against all possible values */
+		for (i = 0; i < INV_NUM_PARTS; ++i) {
+			if (regval == hw_info[i].whoami) {
+				dev_warn(regmap_get_device(st->map),
+					"whoami mismatch got %#02x (%s)"
+					"expected %#02hhx (%s)\n",
+					regval, hw_info[i].name,
+					st->hw->whoami, st->hw->name);
+				break;
+			}
+		}
+		if (i >= INV_NUM_PARTS) {
+			dev_err(regmap_get_device(st->map),
+				"invalid whoami %#02x expected %#02hhx (%s)\n",
+				regval, st->hw->whoami, st->hw->name);
+			return -ENODEV;
+		}
+	}
 
 	/* reset to make sure previous state are not there */
 	result = regmap_write(st->map, st->reg->pwr_mgmt_1,
@@ -787,16 +812,6 @@ static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
 	if (result)
 		return result;
 	msleep(INV_MPU6050_POWER_UP_TIME);
-
-	/* check chip self-identification */
-	result = regmap_read(st->map, INV_MPU6050_REG_WHOAMI, &regval);
-	if (result)
-		return result;
-	if (regval != st->hw->whoami) {
-		dev_warn(regmap_get_device(st->map),
-				"whoami mismatch got %#02x expected %#02hhx for %s\n",
-				regval, st->hw->whoami, st->hw->name);
-	}
 
 	/*
 	 * toggle power state. After reset, the sleep bit could be on
