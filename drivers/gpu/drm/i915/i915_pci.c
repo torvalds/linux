@@ -425,6 +425,14 @@ static const struct intel_device_info intel_kabylake_gt3_info = {
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
 };
 
+static const struct intel_device_info intel_cannonlake_info = {
+	BDW_FEATURES,
+	.is_alpha_support = 1,
+	.platform = INTEL_CANNONLAKE,
+	.gen = 10,
+	.ddb_size = 1024,
+};
+
 /*
  * Make sure any device matches here are from most specific to most
  * general.  For example, since the Quanta match is based on the subsystem
