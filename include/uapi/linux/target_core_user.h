@@ -139,8 +139,16 @@ enum tcmu_genl_attr {
 	TCMU_ATTR_UNSPEC,
 	TCMU_ATTR_DEVICE,
 	TCMU_ATTR_MINOR,
+	TCMU_ATTR_TYPE,
 	__TCMU_ATTR_MAX,
 };
 #define TCMU_ATTR_MAX (__TCMU_ATTR_MAX - 1)
+
+enum tcmu_reconfig_types {
+	NO_RECONFIG,
+	CONFIG_PATH,
+	CONFIG_SIZE,
+	CONFIG_WRITECACHE,
+};
 
 #endif

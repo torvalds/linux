@@ -1176,7 +1176,8 @@ static int tcmu_release(struct uio_info *info, struct inode *inode)
 	return 0;
 }
 
-static int tcmu_netlink_event(enum tcmu_genl_cmd cmd, const char *name, int minor)
+static int tcmu_netlink_event(enum tcmu_genl_cmd cmd, const char *name,
+			      int minor, int type)
 {
 	struct sk_buff *skb;
 	void *msg_header;
@@ -1195,6 +1196,10 @@ static int tcmu_netlink_event(enum tcmu_genl_cmd cmd, const char *name, int mino
 		goto free_skb;
 
 	ret = nla_put_u32(skb, TCMU_ATTR_MINOR, minor);
+	if (ret < 0)
+		goto free_skb;
+
+	ret = nla_put_u32(skb, TCMU_ATTR_TYPE, type);
 	if (ret < 0)
 		goto free_skb;
 
@@ -1301,7 +1306,7 @@ static int tcmu_configure_device(struct se_device *dev)
 	kref_get(&udev->kref);
 
 	ret = tcmu_netlink_event(TCMU_CMD_ADDED_DEVICE, udev->uio_info.name,
-				 udev->uio_info.uio_dev->minor);
+				 udev->uio_info.uio_dev->minor, NO_RECONFIG);
 	if (ret)
 		goto err_netlink;
 
@@ -1383,7 +1388,7 @@ static void tcmu_free_device(struct se_device *dev)
 
 	if (tcmu_dev_configured(udev)) {
 		tcmu_netlink_event(TCMU_CMD_REMOVED_DEVICE, udev->uio_info.name,
-				   udev->uio_info.uio_dev->minor);
+				   udev->uio_info.uio_dev->minor, NO_RECONFIG);
 
 		uio_unregister_device(&udev->uio_info);
 	}
@@ -1577,7 +1582,8 @@ static ssize_t tcmu_dev_path_store(struct config_item *item, const char *page,
 	if (tcmu_dev_configured(udev)) {
 		ret = tcmu_netlink_event(TCMU_CMD_RECONFIG_DEVICE,
 					 udev->uio_info.name,
-					 udev->uio_info.uio_dev->minor);
+					 udev->uio_info.uio_dev->minor,
+					 CONFIG_PATH);
 		if (ret) {
 			pr_err("Unable to reconfigure device\n");
 			return ret;
@@ -1615,7 +1621,8 @@ static ssize_t tcmu_dev_size_store(struct config_item *item, const char *page,
 	if (tcmu_dev_configured(udev)) {
 		ret = tcmu_netlink_event(TCMU_CMD_RECONFIG_DEVICE,
 					 udev->uio_info.name,
-					 udev->uio_info.uio_dev->minor);
+					 udev->uio_info.uio_dev->minor,
+					 CONFIG_SIZE);
 		if (ret) {
 			pr_err("Unable to reconfigure device\n");
 			return ret;
@@ -1654,7 +1661,8 @@ static ssize_t tcmu_emulate_write_cache_store(struct config_item *item,
 	if (tcmu_dev_configured(udev)) {
 		ret = tcmu_netlink_event(TCMU_CMD_RECONFIG_DEVICE,
 					 udev->uio_info.name,
-					 udev->uio_info.uio_dev->minor);
+					 udev->uio_info.uio_dev->minor,
+					 CONFIG_WRITECACHE);
 		if (ret) {
 			pr_err("Unable to reconfigure device\n");
 			return ret;
