@@ -1247,12 +1247,18 @@ static int coda_prepare_encode(struct coda_ctx *ctx)
 	dst_buf->sequence = ctx->osequence;
 	ctx->osequence++;
 
+	force_ipicture = ctx->params.force_ipicture;
+	if (force_ipicture)
+		ctx->params.force_ipicture = false;
+	else if ((src_buf->sequence % ctx->params.gop_size) == 0)
+		force_ipicture = 1;
+
 	/*
 	 * Workaround coda firmware BUG that only marks the first
 	 * frame as IDR. This is a problem for some decoders that can't
 	 * recover when a frame is lost.
 	 */
-	if (src_buf->sequence % ctx->params.gop_size) {
+	if (!force_ipicture) {
 		src_buf->flags |= V4L2_BUF_FLAG_PFRAME;
 		src_buf->flags &= ~V4L2_BUF_FLAG_KEYFRAME;
 	} else {
@@ -1291,8 +1297,7 @@ static int coda_prepare_encode(struct coda_ctx *ctx)
 		pic_stream_buffer_size = q_data_dst->sizeimage;
 	}
 
-	if (src_buf->flags & V4L2_BUF_FLAG_KEYFRAME) {
-		force_ipicture = 1;
+	if (force_ipicture) {
 		switch (dst_fourcc) {
 		case V4L2_PIX_FMT_H264:
 			quant_param = ctx->params.h264_intra_qp;
@@ -1309,7 +1314,6 @@ static int coda_prepare_encode(struct coda_ctx *ctx)
 			break;
 		}
 	} else {
-		force_ipicture = 0;
 		switch (dst_fourcc) {
 		case V4L2_PIX_FMT_H264:
 			quant_param = ctx->params.h264_inter_qp;

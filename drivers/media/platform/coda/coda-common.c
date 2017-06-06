@@ -1700,6 +1700,9 @@ static int coda_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_MPEG_VIDEO_CYCLIC_INTRA_REFRESH_MB:
 		ctx->params.intra_refresh = ctrl->val;
 		break;
+	case V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME:
+		ctx->params.force_ipicture = true;
+		break;
 	case V4L2_CID_JPEG_COMPRESSION_QUALITY:
 		coda_set_jpeg_compression_quality(ctx, ctrl->val);
 		break;

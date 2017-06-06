@@ -135,6 +135,7 @@ struct coda_params {
 	u32			vbv_size;
 	u32			slice_max_bits;
 	u32			slice_max_mb;
+	bool			force_ipicture;
 };
 
 struct coda_buffer_meta {
