@@ -173,7 +173,11 @@ static int davinci_wdt_probe(struct platform_device *pdev)
 		return PTR_ERR(davinci_wdt->clk);
 	}
 
-	clk_prepare_enable(davinci_wdt->clk);
+	ret = clk_prepare_enable(davinci_wdt->clk);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to prepare clock\n");
+		return ret;
+	}
 
 	platform_set_drvdata(pdev, davinci_wdt);
 
