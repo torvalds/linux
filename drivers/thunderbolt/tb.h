@@ -12,12 +12,16 @@
 
 #include "tb_regs.h"
 #include "ctl.h"
+#include "dma_port.h"
 
 /**
  * struct tb_switch - a thunderbolt switch
  * @dev: Device for the switch
  * @config: Switch configuration
  * @ports: Ports in this switch
+ * @dma_port: If the switch has port supporting DMA configuration based
+ *	      mailbox this will hold the pointer to that (%NULL
+ *	      otherwise).
  * @tb: Pointer to the domain the switch belongs to
  * @uid: Unique ID of the switch
  * @uuid: UUID of the switch (or %NULL if not supported)
@@ -34,6 +38,7 @@ struct tb_switch {
 	struct device dev;
 	struct tb_regs_switch_header config;
 	struct tb_port *ports;
+	struct tb_dma_port *dma_port;
 	struct tb *tb;
 	u64 uid;
 	uuid_be *uuid;

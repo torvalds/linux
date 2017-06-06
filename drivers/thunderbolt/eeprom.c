@@ -429,6 +429,50 @@ err:
 	return -EINVAL;
 }
 
+static int tb_drom_copy_nvm(struct tb_switch *sw, u16 *size)
+{
+	u32 drom_offset;
+	int ret;
+
+	if (!sw->dma_port)
+		return -ENODEV;
+
+	ret = tb_sw_read(sw, &drom_offset, TB_CFG_SWITCH,
+			 sw->cap_plug_events + 12, 1);
+	if (ret)
+		return ret;
+
+	if (!drom_offset)
+		return -ENODEV;
+
+	ret = dma_port_flash_read(sw->dma_port, drom_offset + 14, size,
+				  sizeof(*size));
+	if (ret)
+		return ret;
+
+	/* Size includes CRC8 + UID + CRC32 */
+	*size += 1 + 8 + 4;
+	sw->drom = kzalloc(*size, GFP_KERNEL);
+	if (!sw->drom)
+		return -ENOMEM;
+
+	ret = dma_port_flash_read(sw->dma_port, drom_offset, sw->drom, *size);
+	if (ret)
+		goto err_free;
+
+	/*
+	 * Read UID from the minimal DROM because the one in NVM is just
+	 * a placeholder.
+	 */
+	tb_drom_read_uid_only(sw, &sw->uid);
+	return 0;
+
+err_free:
+	kfree(sw->drom);
+	sw->drom = NULL;
+	return ret;
+}
+
 /**
  * tb_drom_read - copy drom to sw->drom and parse it
  */
@@ -448,6 +492,10 @@ int tb_drom_read(struct tb_switch *sw)
 		 * in a device property. Use it if available.
 		 */
 		if (tb_drom_copy_efi(sw, &size) == 0)
+			goto parse;
+
+		/* Non-Apple hardware has the DROM as part of NVM */
+		if (tb_drom_copy_nvm(sw, &size) == 0)
 			goto parse;
 
 		/*
@@ -510,7 +558,8 @@ parse:
 			header->uid_crc8, crc);
 		goto err;
 	}
-	sw->uid = header->uid;
+	if (!sw->uid)
+		sw->uid = header->uid;
 	sw->vendor = header->vendor_id;
 	sw->device = header->model_id;
 

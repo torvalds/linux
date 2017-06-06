@@ -377,6 +377,8 @@ static void tb_switch_release(struct device *dev)
 {
 	struct tb_switch *sw = tb_to_switch(dev);
 
+	dma_port_free(sw->dma_port);
+
 	kfree(sw->uuid);
 	kfree(sw->device_name);
 	kfree(sw->vendor_name);
@@ -570,6 +572,25 @@ static void tb_switch_set_uuid(struct tb_switch *sw)
 	sw->uuid = kmemdup(uuid, sizeof(uuid), GFP_KERNEL);
 }
 
+static void tb_switch_add_dma_port(struct tb_switch *sw)
+{
+	switch (sw->generation) {
+	case 3:
+		break;
+
+	case 2:
+		/* Only root switch can be upgraded */
+		if (tb_route(sw))
+			return;
+		break;
+
+	default:
+		return;
+	}
+
+	sw->dma_port = dma_port_alloc(sw);
+}
+
 /**
  * tb_switch_add() - Add a switch to the domain
  * @sw: Switch to add
@@ -585,6 +606,15 @@ static void tb_switch_set_uuid(struct tb_switch *sw)
 int tb_switch_add(struct tb_switch *sw)
 {
 	int i, ret;
+
+	/*
+	 * Initialize DMA control port now before we read DROM. Recent
+	 * host controllers have more complete DROM on NVM that includes
+	 * vendor and model identification strings which we then expose
+	 * to the userspace. NVM can be accessed through DMA
+	 * configuration based mailbox.
+	 */
+	tb_switch_add_dma_port(sw);
 
 	/* read drom */
 	ret = tb_drom_read(sw);
