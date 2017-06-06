@@ -138,7 +138,6 @@ finish_poll:
 	sun4i_framebuffer_free(drm);
 cleanup_mode_config:
 	drm_mode_config_cleanup(drm);
-	drm_vblank_cleanup(drm);
 free_mem_region:
 	of_reserved_mem_device_release(dev);
 free_drm:
@@ -154,7 +153,6 @@ static void sun4i_drv_unbind(struct device *dev)
 	drm_kms_helper_poll_fini(drm);
 	sun4i_framebuffer_free(drm);
 	drm_mode_config_cleanup(drm);
-	drm_vblank_cleanup(drm);
 	of_reserved_mem_device_release(dev);
 	drm_dev_unref(drm);
 }

@@ -328,7 +328,7 @@ static s32 __user *get_out_fence_for_crtc(struct drm_atomic_state *state,
  * Zero on success, error code on failure. Cannot return -EDEADLK.
  */
 int drm_atomic_set_mode_for_crtc(struct drm_crtc_state *state,
-				 struct drm_display_mode *mode)
+				 const struct drm_display_mode *mode)
 {
 	struct drm_mode_modeinfo umode;
 

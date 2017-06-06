@@ -2836,16 +2836,15 @@ static void drm_dp_mst_dump_mstb(struct seq_file *m,
 static bool dump_dp_payload_table(struct drm_dp_mst_topology_mgr *mgr,
 				  char *buf)
 {
-	int ret;
 	int i;
-	for (i = 0; i < 4; i++) {
-		ret = drm_dp_dpcd_read(mgr->aux, DP_PAYLOAD_TABLE_UPDATE_STATUS + (i * 16), &buf[i * 16], 16);
-		if (ret != 16)
-			break;
+
+	for (i = 0; i < 64; i += 16) {
+		if (drm_dp_dpcd_read(mgr->aux,
+				     DP_PAYLOAD_TABLE_UPDATE_STATUS + i,
+				     &buf[i], 16) != 16)
+			return false;
 	}
-	if (i == 4)
-		return true;
-	return false;
+	return true;
 }
 
 static void fetch_monitor_name(struct drm_dp_mst_topology_mgr *mgr,
@@ -2909,42 +2908,24 @@ void drm_dp_mst_dump_topology(struct seq_file *m,
 	mutex_lock(&mgr->lock);
 	if (mgr->mst_primary) {
 		u8 buf[64];
-		bool bret;
 		int ret;
+
 		ret = drm_dp_dpcd_read(mgr->aux, DP_DPCD_REV, buf, DP_RECEIVER_CAP_SIZE);
-		seq_printf(m, "dpcd: ");
-		for (i = 0; i < DP_RECEIVER_CAP_SIZE; i++)
-			seq_printf(m, "%02x ", buf[i]);
-		seq_printf(m, "\n");
+		seq_printf(m, "dpcd: %*ph\n", DP_RECEIVER_CAP_SIZE, buf);
 		ret = drm_dp_dpcd_read(mgr->aux, DP_FAUX_CAP, buf, 2);
-		seq_printf(m, "faux/mst: ");
-		for (i = 0; i < 2; i++)
-			seq_printf(m, "%02x ", buf[i]);
-		seq_printf(m, "\n");
+		seq_printf(m, "faux/mst: %*ph\n", 2, buf);
 		ret = drm_dp_dpcd_read(mgr->aux, DP_MSTM_CTRL, buf, 1);
-		seq_printf(m, "mst ctrl: ");
-		for (i = 0; i < 1; i++)
-			seq_printf(m, "%02x ", buf[i]);
-		seq_printf(m, "\n");
+		seq_printf(m, "mst ctrl: %*ph\n", 1, buf);
 
 		/* dump the standard OUI branch header */
 		ret = drm_dp_dpcd_read(mgr->aux, DP_BRANCH_OUI, buf, DP_BRANCH_OUI_HEADER_SIZE);
-		seq_printf(m, "branch oui: ");
-		for (i = 0; i < 0x3; i++)
-			seq_printf(m, "%02x", buf[i]);
-		seq_printf(m, " devid: ");
+		seq_printf(m, "branch oui: %*phN devid: ", 3, buf);
 		for (i = 0x3; i < 0x8 && buf[i]; i++)
 			seq_printf(m, "%c", buf[i]);
-
-		seq_printf(m, " revision: hw: %x.%x sw: %x.%x", buf[0x9] >> 4, buf[0x9] & 0xf, buf[0xa], buf[0xb]);
-		seq_printf(m, "\n");
-		bret = dump_dp_payload_table(mgr, buf);
-		if (bret == true) {
-			seq_printf(m, "payload table: ");
-			for (i = 0; i < 63; i++)
-				seq_printf(m, "%02x ", buf[i]);
-			seq_printf(m, "\n");
-		}
+		seq_printf(m, " revision: hw: %x.%x sw: %x.%x\n",
+			   buf[0x9] >> 4, buf[0x9] & 0xf, buf[0xa], buf[0xb]);
+		if (dump_dp_payload_table(mgr, buf))
+			seq_printf(m, "payload table: %*ph\n", 63, buf);
 
 	}
 

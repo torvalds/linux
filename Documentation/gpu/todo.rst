@@ -177,19 +177,6 @@ following drivers still use ``struct_mutex``: ``msm``, ``omapdrm`` and
 
 Contact: Daniel Vetter, respective driver maintainers
 
-Switch to drm_connector_list_iter for any connector_list walking
-----------------------------------------------------------------
-
-Connectors can be hotplugged, and we now have a special list of helpers to walk
-the connector_list in a race-free fashion, without incurring deadlocks on
-mutexes and other fun stuff.
-
-Unfortunately most drivers are not converted yet. At least all those supporting
-DP MST hotplug should be converted, since for those drivers the difference
-matters. See drm_for_each_connector_iter() vs. drm_for_each_connector().
-
-Contact: Daniel Vetter
-
 Core refactorings
 =================
 

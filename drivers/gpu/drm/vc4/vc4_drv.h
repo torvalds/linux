@@ -532,7 +532,7 @@ int vc4_queue_seqno_cb(struct drm_device *dev,
 extern struct platform_driver vc4_hdmi_driver;
 int vc4_hdmi_debugfs_regs(struct seq_file *m, void *unused);
 
-/* vc4_hdmi.c */
+/* vc4_vec.c */
 extern struct platform_driver vc4_vec_driver;
 int vc4_vec_debugfs_regs(struct seq_file *m, void *unused);
 

@@ -80,6 +80,9 @@
 #include <drm/drm_debugfs.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_sysfs.h>
+#include <drm/drm_vblank.h>
+#include <drm/drm_irq.h>
+
 
 struct module;
 
@@ -292,23 +295,6 @@ struct pci_controller;
 /* Format strings and argument splitters to simplify printing
  * various "complex" objects
  */
-#define DRM_MODE_FMT    "%d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x"
-#define DRM_MODE_ARG(m) \
-	(m)->base.id, (m)->name, (m)->vrefresh, (m)->clock, \
-	(m)->hdisplay, (m)->hsync_start, (m)->hsync_end, (m)->htotal, \
-	(m)->vdisplay, (m)->vsync_start, (m)->vsync_end, (m)->vtotal, \
-	(m)->type, (m)->flags
-
-#define DRM_RECT_FMT    "%dx%d%+d%+d"
-#define DRM_RECT_ARG(r) drm_rect_width(r), drm_rect_height(r), (r)->x1, (r)->y1
-
-/* for rect's in fixed-point format: */
-#define DRM_RECT_FP_FMT "%d.%06ux%d.%06u%+d.%06u%+d.%06u"
-#define DRM_RECT_FP_ARG(r) \
-		drm_rect_width(r) >> 16, ((drm_rect_width(r) & 0xffff) * 15625) >> 10, \
-		drm_rect_height(r) >> 16, ((drm_rect_height(r) & 0xffff) * 15625) >> 10, \
-		(r)->x1 >> 16, (((r)->x1 & 0xffff) * 15625) >> 10, \
-		(r)->y1 >> 16, (((r)->y1 & 0xffff) * 15625) >> 10
 
 /*@}*/
 
@@ -391,8 +377,13 @@ struct drm_device {
 	int last_context;		/**< Last current context */
 	/*@} */
 
-	/** \name VBLANK IRQ support */
-	/*@{ */
+	/**
+	 * @irq_enabled:
+	 *
+	 * Indicates that interrupt handling is enabled, specifically vblank
+	 * handling. Drivers which don't use drm_irq_install() need to set this
+	 * to true manually.
+	 */
 	bool irq_enabled;
 	int irq;
 
@@ -429,8 +420,6 @@ struct drm_device {
 	struct pci_controller *hose;
 #endif
 
-	struct virtio_device *virtdev;
-
 	struct drm_sg_mem *sg;	/**< Scatter gather memory */
 	unsigned int num_crtcs;                  /**< Number of CRTCs on this device */
 
@@ -465,8 +454,6 @@ static inline bool drm_drv_uses_atomic_modeset(struct drm_device *dev)
 {
 	return dev->mode_config.funcs->atomic_commit != NULL;
 }
-
-#include <drm/drm_irq.h>
 
 #define DRM_SWITCH_POWER_ON 0
 #define DRM_SWITCH_POWER_OFF 1
