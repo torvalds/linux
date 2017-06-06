@@ -8,20 +8,36 @@
 #define TB_H_
 
 #include <linux/pci.h>
+#include <linux/uuid.h>
 
 #include "tb_regs.h"
 #include "ctl.h"
 
 /**
  * struct tb_switch - a thunderbolt switch
+ * @dev: Device for the switch
+ * @config: Switch configuration
+ * @ports: Ports in this switch
+ * @tb: Pointer to the domain the switch belongs to
+ * @uid: Unique ID of the switch
+ * @uuid: UUID of the switch (or %NULL if not supported)
+ * @vendor: Vendor ID of the switch
+ * @device: Device ID of the switch
+ * @cap_plug_events: Offset to the plug events capability (%0 if not found)
+ * @is_unplugged: The switch is going away
+ * @drom: DROM of the switch (%NULL if not found)
  */
 struct tb_switch {
+	struct device dev;
 	struct tb_regs_switch_header config;
 	struct tb_port *ports;
 	struct tb *tb;
 	u64 uid;
-	int cap_plug_events; /* offset, zero if not found */
-	bool is_unplugged; /* unplugged, will go away */
+	uuid_be *uuid;
+	u16 vendor;
+	u16 device;
+	int cap_plug_events;
+	bool is_unplugged;
 	u8 *drom;
 };
 
@@ -242,6 +258,7 @@ struct tb *tb_probe(struct tb_nhi *nhi);
 
 extern struct bus_type tb_bus_type;
 extern struct device_type tb_domain_type;
+extern struct device_type tb_switch_type;
 
 int tb_domain_init(void);
 void tb_domain_exit(void);
@@ -257,13 +274,33 @@ static inline void tb_domain_put(struct tb *tb)
 	put_device(&tb->dev);
 }
 
-struct tb_switch *tb_switch_alloc(struct tb *tb, u64 route);
-void tb_switch_free(struct tb_switch *sw);
+struct tb_switch *tb_switch_alloc(struct tb *tb, struct device *parent,
+				  u64 route);
+int tb_switch_configure(struct tb_switch *sw);
+int tb_switch_add(struct tb_switch *sw);
+void tb_switch_remove(struct tb_switch *sw);
 void tb_switch_suspend(struct tb_switch *sw);
 int tb_switch_resume(struct tb_switch *sw);
 int tb_switch_reset(struct tb *tb, u64 route);
 void tb_sw_set_unplugged(struct tb_switch *sw);
 struct tb_switch *get_switch_at_route(struct tb_switch *sw, u64 route);
+
+static inline void tb_switch_put(struct tb_switch *sw)
+{
+	put_device(&sw->dev);
+}
+
+static inline bool tb_is_switch(const struct device *dev)
+{
+	return dev->type == &tb_switch_type;
+}
+
+static inline struct tb_switch *tb_to_switch(struct device *dev)
+{
+	if (tb_is_switch(dev))
+		return container_of(dev, struct tb_switch, dev);
+	return NULL;
+}
 
 int tb_wait_for_port(struct tb_port *port, bool wait_if_unplugged);
 int tb_port_add_nfc_credits(struct tb_port *port, int credits);

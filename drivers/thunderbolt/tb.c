@@ -61,9 +61,21 @@ static void tb_scan_port(struct tb_port *port)
 		tb_port_WARN(port, "port already has a remote!\n");
 		return;
 	}
-	sw = tb_switch_alloc(port->sw->tb, tb_downstream_route(port));
+	sw = tb_switch_alloc(port->sw->tb, &port->sw->dev,
+			     tb_downstream_route(port));
 	if (!sw)
 		return;
+
+	if (tb_switch_configure(sw)) {
+		tb_switch_put(sw);
+		return;
+	}
+
+	if (tb_switch_add(sw)) {
+		tb_switch_put(sw);
+		return;
+	}
+
 	port->remote = tb_upstream_port(sw);
 	tb_upstream_port(sw)->remote = port;
 	tb_scan_switch(sw);
@@ -100,7 +112,7 @@ static void tb_free_unplugged_children(struct tb_switch *sw)
 		if (!port->remote)
 			continue;
 		if (port->remote->sw->is_unplugged) {
-			tb_switch_free(port->remote->sw);
+			tb_switch_remove(port->remote->sw);
 			port->remote = NULL;
 		} else {
 			tb_free_unplugged_children(port->remote->sw);
@@ -266,7 +278,7 @@ static void tb_handle_hotplug(struct work_struct *work)
 			tb_port_info(port, "unplugged\n");
 			tb_sw_set_unplugged(port->remote->sw);
 			tb_free_invalid_tunnels(tb);
-			tb_switch_free(port->remote->sw);
+			tb_switch_remove(port->remote->sw);
 			port->remote = NULL;
 		} else {
 			tb_port_info(port,
@@ -325,21 +337,31 @@ static void tb_stop(struct tb *tb)
 		tb_pci_deactivate(tunnel);
 		tb_pci_free(tunnel);
 	}
-
-	if (tb->root_switch)
-		tb_switch_free(tb->root_switch);
-	tb->root_switch = NULL;
-
+	tb_switch_remove(tb->root_switch);
 	tcm->hotplug_active = false; /* signal tb_handle_hotplug to quit */
 }
 
 static int tb_start(struct tb *tb)
 {
 	struct tb_cm *tcm = tb_priv(tb);
+	int ret;
 
-	tb->root_switch = tb_switch_alloc(tb, 0);
+	tb->root_switch = tb_switch_alloc(tb, &tb->dev, 0);
 	if (!tb->root_switch)
 		return -ENOMEM;
+
+	ret = tb_switch_configure(tb->root_switch);
+	if (ret) {
+		tb_switch_put(tb->root_switch);
+		return ret;
+	}
+
+	/* Announce the switch to the world */
+	ret = tb_switch_add(tb->root_switch);
+	if (ret) {
+		tb_switch_put(tb->root_switch);
+		return ret;
+	}
 
 	/* Full scan to discover devices added before the driver was loaded. */
 	tb_scan_switch(tb->root_switch);

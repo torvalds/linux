@@ -479,6 +479,8 @@ parse:
 		goto err;
 	}
 	sw->uid = header->uid;
+	sw->vendor = header->vendor_id;
+	sw->device = header->model_id;
 
 	crc = tb_crc32(sw->drom + TB_DROM_DATA_START, header->data_len);
 	if (crc != header->data_crc32) {
