@@ -798,7 +798,7 @@ static void drain_bufs(struct dpaa2_eth_priv *priv, int count)
 	int ret, i;
 
 	do {
-		ret = dpaa2_io_service_acquire(NULL, priv->dpbp_attrs.bpid,
+		ret = dpaa2_io_service_acquire(NULL, priv->bpid,
 					       buf_array, count);
 		if (ret < 0) {
 			netdev_err(priv->net_dev, "dpaa2_io_service_acquire() failed\n");
@@ -895,7 +895,7 @@ static int dpaa2_eth_poll(struct napi_struct *napi, int budget)
 			break;
 
 		/* Refill pool if appropriate */
-		refill_pool(priv, ch, priv->dpbp_attrs.bpid);
+		refill_pool(priv, ch, priv->bpid);
 
 		store_cleaned = consume_frames(ch);
 		cleaned += store_cleaned;
@@ -980,14 +980,14 @@ static int dpaa2_eth_open(struct net_device *net_dev)
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
 	int err;
 
-	err = seed_pool(priv, priv->dpbp_attrs.bpid);
+	err = seed_pool(priv, priv->bpid);
 	if (err) {
 		/* Not much to do; the buffer pool, though not filled up,
 		 * may still contain some buffers which would enable us
 		 * to limp on.
 		 */
 		netdev_err(net_dev, "Buffer seeding failed for DPBP %d (bpid=%d)\n",
-			   priv->dpbp_dev->obj_desc.id, priv->dpbp_attrs.bpid);
+			   priv->dpbp_dev->obj_desc.id, priv->bpid);
 	}
 
 	/* We'll only start the txqs when the link is actually ready; make sure
@@ -1671,6 +1671,7 @@ static int setup_dpbp(struct dpaa2_eth_priv *priv)
 	int err;
 	struct fsl_mc_device *dpbp_dev;
 	struct device *dev = priv->net_dev->dev.parent;
+	struct dpbp_attr dpbp_attrs;
 
 	err = fsl_mc_object_allocate(to_fsl_mc_device(dev), FSL_MC_POOL_DPBP,
 				     &dpbp_dev);
@@ -1701,11 +1702,12 @@ static int setup_dpbp(struct dpaa2_eth_priv *priv)
 	}
 
 	err = dpbp_get_attributes(priv->mc_io, 0, dpbp_dev->mc_handle,
-				  &priv->dpbp_attrs);
+				  &dpbp_attrs);
 	if (err) {
 		dev_err(dev, "dpbp_get_attributes() failed\n");
 		goto err_get_attr;
 	}
+	priv->bpid = dpbp_attrs.bpid;
 
 	return 0;
 

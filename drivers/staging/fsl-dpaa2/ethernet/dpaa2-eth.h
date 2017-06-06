@@ -301,7 +301,7 @@ struct dpaa2_eth_priv {
 	u16 tx_data_offset;
 
 	struct fsl_mc_device *dpbp_dev;
-	struct dpbp_attr dpbp_attrs;
+	u16 bpid;
 	struct iommu_domain *iommu_domain;
 
 	u16 tx_qdid;
