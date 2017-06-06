@@ -61,6 +61,7 @@ enum {
 	RXRPC_CLIENT_UNBOUND,		/* Unbound socket used as client */
 	RXRPC_CLIENT_BOUND,		/* client local address bound */
 	RXRPC_SERVER_BOUND,		/* server local address bound */
+	RXRPC_SERVER_BOUND2,		/* second server local address bound */
 	RXRPC_SERVER_LISTENING,		/* server listening for connections */
 	RXRPC_SERVER_LISTEN_DISABLED,	/* server listening disabled */
 	RXRPC_CLOSE,			/* socket is being closed */
@@ -142,8 +143,14 @@ struct rxrpc_sock {
 	u32			min_sec_level;	/* minimum security level */
 #define RXRPC_SECURITY_MAX	RXRPC_SECURITY_ENCRYPT
 	bool			exclusive;	/* Exclusive connection for a client socket */
+	u16			second_service;	/* Additional service bound to the endpoint */
+	struct {
+		/* Service upgrade information */
+		u16		from;		/* Service ID to upgrade (if not 0) */
+		u16		to;		/* service ID to upgrade to */
+	} service_upgrade;
 	sa_family_t		family;		/* Protocol family created with */
-	struct sockaddr_rxrpc	srx;		/* local address */
+	struct sockaddr_rxrpc	srx;		/* Primary Service/local addresses */
 	struct sockaddr_rxrpc	connect_srx;	/* Default client address from connect() */
 };
 
@@ -313,6 +320,7 @@ struct rxrpc_conn_parameters {
 	struct rxrpc_peer	*peer;		/* Remote endpoint */
 	struct key		*key;		/* Security details */
 	bool			exclusive;	/* T if conn is exclusive */
+	bool			upgrade;	/* T if service ID can be upgraded */
 	u16			service_id;	/* Service ID for this connection */
 	u32			security_level;	/* Security level selected */
 };
@@ -327,6 +335,7 @@ enum rxrpc_conn_flag {
 	RXRPC_CONN_EXPOSED,		/* Conn has extra ref for exposure */
 	RXRPC_CONN_DONT_REUSE,		/* Don't reuse this connection */
 	RXRPC_CONN_COUNTED,		/* Counted by rxrpc_nr_client_conns */
+	RXRPC_CONN_PROBING_FOR_UPGRADE,	/* Probing for service upgrade */
 };
 
 /*
@@ -343,6 +352,7 @@ enum rxrpc_conn_cache_state {
 	RXRPC_CONN_CLIENT_INACTIVE,	/* Conn is not yet listed */
 	RXRPC_CONN_CLIENT_WAITING,	/* Conn is on wait list, waiting for capacity */
 	RXRPC_CONN_CLIENT_ACTIVE,	/* Conn is on active list, doing calls */
+	RXRPC_CONN_CLIENT_UPGRADE,	/* Conn is on active list, probing for upgrade */
 	RXRPC_CONN_CLIENT_CULLED,	/* Conn is culled and delisted, doing calls */
 	RXRPC_CONN_CLIENT_IDLE,		/* Conn is on idle list, doing mostly nothing */
 	RXRPC_CONN__NR_CACHE_STATES
@@ -386,7 +396,6 @@ struct rxrpc_connection {
 		u32			call_counter;	/* Call ID counter */
 		u32			last_call;	/* ID of last call */
 		u8			last_type;	/* Type of last packet */
-		u16			last_service_id;
 		union {
 			u32		last_seq;
 			u32		last_abort;
@@ -417,6 +426,7 @@ struct rxrpc_connection {
 	atomic_t		serial;		/* packet serial number counter */
 	unsigned int		hi_serial;	/* highest serial number received */
 	u32			security_nonce;	/* response re-use preventer */
+	u16			service_id;	/* Service ID, possibly upgraded */
 	u8			size_align;	/* data size alignment (for security) */
 	u8			security_size;	/* security header size */
 	u8			security_ix;	/* security type */
@@ -859,7 +869,8 @@ static inline void rxrpc_put_connection(struct rxrpc_connection *conn)
 struct rxrpc_connection *rxrpc_find_service_conn_rcu(struct rxrpc_peer *,
 						     struct sk_buff *);
 struct rxrpc_connection *rxrpc_prealloc_service_connection(struct rxrpc_net *, gfp_t);
-void rxrpc_new_incoming_connection(struct rxrpc_connection *, struct sk_buff *);
+void rxrpc_new_incoming_connection(struct rxrpc_sock *,
+				   struct rxrpc_connection *, struct sk_buff *);
 void rxrpc_unpublish_service_conn(struct rxrpc_connection *);
 
 /*

@@ -366,7 +366,8 @@ static int rxrpc_sendmsg_cmsg(struct msghdr *msg,
 			      unsigned long *user_call_ID,
 			      enum rxrpc_command *command,
 			      u32 *abort_code,
-			      bool *_exclusive)
+			      bool *_exclusive,
+			      bool *_upgrade)
 {
 	struct cmsghdr *cmsg;
 	bool got_user_ID = false;
@@ -429,6 +430,13 @@ static int rxrpc_sendmsg_cmsg(struct msghdr *msg,
 			if (len != 0)
 				return -EINVAL;
 			break;
+
+		case RXRPC_UPGRADE_SERVICE:
+			*_upgrade = true;
+			if (len != 0)
+				return -EINVAL;
+			break;
+
 		default:
 			return -EINVAL;
 		}
@@ -447,7 +455,8 @@ static int rxrpc_sendmsg_cmsg(struct msghdr *msg,
  */
 static struct rxrpc_call *
 rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
-				  unsigned long user_call_ID, bool exclusive)
+				  unsigned long user_call_ID, bool exclusive,
+				  bool upgrade)
 	__releases(&rx->sk.sk_lock.slock)
 {
 	struct rxrpc_conn_parameters cp;
@@ -472,6 +481,7 @@ rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
 	cp.key			= rx->key;
 	cp.security_level	= rx->min_sec_level;
 	cp.exclusive		= rx->exclusive | exclusive;
+	cp.upgrade		= upgrade;
 	cp.service_id		= srx->srx_service;
 	call = rxrpc_new_client_call(rx, &cp, srx, user_call_ID, GFP_KERNEL);
 	/* The socket is now unlocked */
@@ -493,13 +503,14 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 	struct rxrpc_call *call;
 	unsigned long user_call_ID = 0;
 	bool exclusive = false;
+	bool upgrade = true;
 	u32 abort_code = 0;
 	int ret;
 
 	_enter("");
 
 	ret = rxrpc_sendmsg_cmsg(msg, &user_call_ID, &cmd, &abort_code,
-				 &exclusive);
+				 &exclusive, &upgrade);
 	if (ret < 0)
 		goto error_release_sock;
 
@@ -521,7 +532,7 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 		if (cmd != RXRPC_CMD_SEND_DATA)
 			goto error_release_sock;
 		call = rxrpc_new_client_call_for_sendmsg(rx, msg, user_call_ID,
-							 exclusive);
+							 exclusive, upgrade);
 		/* The socket is now unlocked... */
 		if (IS_ERR(call))
 			return PTR_ERR(call);

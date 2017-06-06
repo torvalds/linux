@@ -36,12 +36,15 @@
  *
  *	rxrpc_nr_active_client_conns is held incremented also.
  *
- *  (4) CULLED - The connection got summarily culled to try and free up
+ *  (4) UPGRADE - As for ACTIVE, but only one call may be in progress and is
+ *      being used to probe for service upgrade.
+ *
+ *  (5) CULLED - The connection got summarily culled to try and free up
  *      capacity.  Calls currently in progress on the connection are allowed to
  *      continue, but new calls will have to wait.  There can be no waiters in
  *      this state - the conn would have to go to the WAITING state instead.
  *
- *  (5) IDLE - The connection has no calls in progress upon it and must have
+ *  (6) IDLE - The connection has no calls in progress upon it and must have
  *      been exposed to the world (ie. the EXPOSED flag must be set).  When it
  *      expires, the EXPOSED flag is cleared and the connection transitions to
  *      the INACTIVE state.
@@ -184,10 +187,13 @@ rxrpc_alloc_client_connection(struct rxrpc_conn_parameters *cp, gfp_t gfp)
 	atomic_set(&conn->usage, 1);
 	if (cp->exclusive)
 		__set_bit(RXRPC_CONN_DONT_REUSE, &conn->flags);
+	if (cp->upgrade)
+		__set_bit(RXRPC_CONN_PROBING_FOR_UPGRADE, &conn->flags);
 
 	conn->params		= *cp;
 	conn->out_clientflag	= RXRPC_CLIENT_INITIATED;
 	conn->state		= RXRPC_CONN_CLIENT;
+	conn->service_id	= cp->service_id;
 
 	ret = rxrpc_get_client_connection_id(conn, gfp);
 	if (ret < 0)
@@ -299,7 +305,8 @@ static int rxrpc_get_client_conn(struct rxrpc_call *call,
 #define cmp(X) ((long)conn->params.X - (long)cp->X)
 			diff = (cmp(peer) ?:
 				cmp(key) ?:
-				cmp(security_level));
+				cmp(security_level) ?:
+				cmp(upgrade));
 #undef cmp
 			if (diff < 0) {
 				p = p->rb_left;
@@ -343,6 +350,7 @@ static int rxrpc_get_client_conn(struct rxrpc_call *call,
 	if (cp->exclusive) {
 		call->conn = candidate;
 		call->security_ix = candidate->security_ix;
+		call->service_id = candidate->service_id;
 		_leave(" = 0 [exclusive %d]", candidate->debug_id);
 		return 0;
 	}
@@ -363,7 +371,8 @@ static int rxrpc_get_client_conn(struct rxrpc_call *call,
 #define cmp(X) ((long)conn->params.X - (long)candidate->params.X)
 		diff = (cmp(peer) ?:
 			cmp(key) ?:
-			cmp(security_level));
+			cmp(security_level) ?:
+			cmp(upgrade));
 #undef cmp
 		if (diff < 0) {
 			pp = &(*pp)->rb_left;
@@ -392,6 +401,7 @@ candidate_published:
 	set_bit(RXRPC_CONN_IN_CLIENT_CONNS, &candidate->flags);
 	call->conn = candidate;
 	call->security_ix = candidate->security_ix;
+	call->service_id = candidate->service_id;
 	spin_unlock(&local->client_conns_lock);
 	_leave(" = 0 [new %d]", candidate->debug_id);
 	return 0;
@@ -413,6 +423,7 @@ found_extant_conn:
 	spin_lock(&conn->channel_lock);
 	call->conn = conn;
 	call->security_ix = conn->security_ix;
+	call->service_id = conn->service_id;
 	list_add(&call->chan_wait_link, &conn->waiting_calls);
 	spin_unlock(&conn->channel_lock);
 	_leave(" = 0 [extant %d]", conn->debug_id);
@@ -432,8 +443,13 @@ error:
 static void rxrpc_activate_conn(struct rxrpc_net *rxnet,
 				struct rxrpc_connection *conn)
 {
-	trace_rxrpc_client(conn, -1, rxrpc_client_to_active);
-	conn->cache_state = RXRPC_CONN_CLIENT_ACTIVE;
+	if (test_bit(RXRPC_CONN_PROBING_FOR_UPGRADE, &conn->flags)) {
+		trace_rxrpc_client(conn, -1, rxrpc_client_to_upgrade);
+		conn->cache_state = RXRPC_CONN_CLIENT_UPGRADE;
+	} else {
+		trace_rxrpc_client(conn, -1, rxrpc_client_to_active);
+		conn->cache_state = RXRPC_CONN_CLIENT_ACTIVE;
+	}
 	rxnet->nr_active_client_conns++;
 	list_move_tail(&conn->cache_link, &rxnet->active_client_conns);
 }
@@ -457,7 +473,8 @@ static void rxrpc_animate_client_conn(struct rxrpc_net *rxnet,
 
 	_enter("%d,%d", conn->debug_id, conn->cache_state);
 
-	if (conn->cache_state == RXRPC_CONN_CLIENT_ACTIVE)
+	if (conn->cache_state == RXRPC_CONN_CLIENT_ACTIVE ||
+	    conn->cache_state == RXRPC_CONN_CLIENT_UPGRADE)
 		goto out;
 
 	spin_lock(&rxnet->client_conn_cache_lock);
@@ -470,6 +487,7 @@ static void rxrpc_animate_client_conn(struct rxrpc_net *rxnet,
 
 	switch (conn->cache_state) {
 	case RXRPC_CONN_CLIENT_ACTIVE:
+	case RXRPC_CONN_CLIENT_UPGRADE:
 	case RXRPC_CONN_CLIENT_WAITING:
 		break;
 
@@ -572,6 +590,9 @@ static void rxrpc_activate_channels_locked(struct rxrpc_connection *conn)
 	switch (conn->cache_state) {
 	case RXRPC_CONN_CLIENT_ACTIVE:
 		mask = RXRPC_ACTIVE_CHANS_MASK;
+		break;
+	case RXRPC_CONN_CLIENT_UPGRADE:
+		mask = 0x01;
 		break;
 	default:
 		return;
@@ -783,6 +804,15 @@ void rxrpc_disconnect_client_call(struct rxrpc_call *call)
 	spin_lock(&rxnet->client_conn_cache_lock);
 
 	switch (conn->cache_state) {
+	case RXRPC_CONN_CLIENT_UPGRADE:
+		/* Deal with termination of a service upgrade probe. */
+		if (test_bit(RXRPC_CONN_EXPOSED, &conn->flags)) {
+			clear_bit(RXRPC_CONN_PROBING_FOR_UPGRADE, &conn->flags);
+			trace_rxrpc_client(conn, channel, rxrpc_client_to_active);
+			conn->cache_state = RXRPC_CONN_CLIENT_ACTIVE;
+			rxrpc_activate_channels_locked(conn);
+		}
+		/* fall through */
 	case RXRPC_CONN_CLIENT_ACTIVE:
 		if (list_empty(&conn->waiting_calls)) {
 			rxrpc_deactivate_one_channel(conn, channel);
@@ -937,7 +967,8 @@ static void rxrpc_cull_active_client_conns(struct rxrpc_net *rxnet)
 		ASSERT(!list_empty(&rxnet->active_client_conns));
 		conn = list_entry(rxnet->active_client_conns.next,
 				  struct rxrpc_connection, cache_link);
-		ASSERTCMP(conn->cache_state, ==, RXRPC_CONN_CLIENT_ACTIVE);
+		ASSERTIFCMP(conn->cache_state != RXRPC_CONN_CLIENT_ACTIVE,
+			    conn->cache_state, ==, RXRPC_CONN_CLIENT_UPGRADE);
 
 		if (list_empty(&conn->waiting_calls)) {
 			trace_rxrpc_client(conn, -1, rxrpc_client_to_culled);

@@ -150,7 +150,8 @@ struct rxrpc_connection *rxrpc_prealloc_service_connection(struct rxrpc_net *rxn
  * Set up an incoming connection.  This is called in BH context with the RCU
  * read lock held.
  */
-void rxrpc_new_incoming_connection(struct rxrpc_connection *conn,
+void rxrpc_new_incoming_connection(struct rxrpc_sock *rx,
+				   struct rxrpc_connection *conn,
 				   struct sk_buff *skb)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
@@ -160,12 +161,21 @@ void rxrpc_new_incoming_connection(struct rxrpc_connection *conn,
 	conn->proto.epoch	= sp->hdr.epoch;
 	conn->proto.cid		= sp->hdr.cid & RXRPC_CIDMASK;
 	conn->params.service_id	= sp->hdr.serviceId;
+	conn->service_id	= sp->hdr.serviceId;
 	conn->security_ix	= sp->hdr.securityIndex;
 	conn->out_clientflag	= 0;
 	if (conn->security_ix)
 		conn->state	= RXRPC_CONN_SERVICE_UNSECURED;
 	else
 		conn->state	= RXRPC_CONN_SERVICE;
+
+	/* See if we should upgrade the service.  This can only happen on the
+	 * first packet on a new connection.  Once done, it applies to all
+	 * subsequent calls on that connection.
+	 */
+	if (sp->hdr.userStatus == RXRPC_USERSTATUS_SERVICE_UPGRADE &&
+	    conn->service_id == rx->service_upgrade.from)
+		conn->service_id = rx->service_upgrade.to;
 
 	/* Make the connection a target for incoming packets. */
 	rxrpc_publish_service_conn(conn->params.peer, conn);
