@@ -173,7 +173,7 @@ static inline int tb_port_read(struct tb_port *port, void *buffer,
 			   length);
 }
 
-static inline int tb_port_write(struct tb_port *port, void *buffer,
+static inline int tb_port_write(struct tb_port *port, const void *buffer,
 				enum tb_cfg_space space, u32 offset, u32 length)
 {
 	return tb_cfg_write(port->sw->tb->ctl,

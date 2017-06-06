@@ -273,7 +273,7 @@ static void tb_cfg_print_error(struct tb_ctl *ctl,
 	}
 }
 
-static void cpu_to_be32_array(__be32 *dst, u32 *src, size_t len)
+static void cpu_to_be32_array(__be32 *dst, const u32 *src, size_t len)
 {
 	int i;
 	for (i = 0; i < len; i++)
@@ -333,7 +333,7 @@ static void tb_ctl_tx_callback(struct tb_ring *ring, struct ring_frame *frame,
  *
  * Return: Returns 0 on success or an error code on failure.
  */
-static int tb_ctl_tx(struct tb_ctl *ctl, void *data, size_t len,
+static int tb_ctl_tx(struct tb_ctl *ctl, const void *data, size_t len,
 		     enum tb_cfg_pkg_type type)
 {
 	int res;
@@ -650,7 +650,7 @@ struct tb_cfg_result tb_cfg_read_raw(struct tb_ctl *ctl, void *buffer,
  *
  * Offset and length are in dwords.
  */
-struct tb_cfg_result tb_cfg_write_raw(struct tb_ctl *ctl, void *buffer,
+struct tb_cfg_result tb_cfg_write_raw(struct tb_ctl *ctl, const void *buffer,
 		u64 route, u32 port, enum tb_cfg_space space,
 		u32 offset, u32 length, int timeout_msec)
 {
@@ -695,7 +695,7 @@ int tb_cfg_read(struct tb_ctl *ctl, void *buffer, u64 route, u32 port,
 	return res.err;
 }
 
-int tb_cfg_write(struct tb_ctl *ctl, void *buffer, u64 route, u32 port,
+int tb_cfg_write(struct tb_ctl *ctl, const void *buffer, u64 route, u32 port,
 		 enum tb_cfg_space space, u32 offset, u32 length)
 {
 	struct tb_cfg_result res = tb_cfg_write_raw(ctl, buffer, route, port,
