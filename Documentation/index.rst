@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to The Linux Kernel's documentation
-===========================================
+The Linux Kernel documentation
+==============================
 
 This is the top level of the kernel's documentation tree.  Kernel
 documentation, like the kernel itself, is very much a work in progress;
