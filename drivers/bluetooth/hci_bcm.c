@@ -762,8 +762,7 @@ static int bcm_acpi_probe(struct bcm_device *dev)
 	if (id)
 		gpio_mapping = (const struct acpi_gpio_mapping *) id->driver_data;
 
-	ret = acpi_dev_add_driver_gpios(ACPI_COMPANION(&pdev->dev),
-					gpio_mapping);
+	ret = devm_acpi_dev_add_driver_gpios(&pdev->dev, gpio_mapping);
 	if (ret)
 		return ret;
 
@@ -833,8 +832,6 @@ static int bcm_remove(struct platform_device *pdev)
 	mutex_lock(&bcm_device_lock);
 	list_del(&dev->list);
 	mutex_unlock(&bcm_device_lock);
-
-	acpi_dev_remove_driver_gpios(ACPI_COMPANION(&pdev->dev));
 
 	dev_info(&pdev->dev, "%s device unregistered.\n", dev->name);
 
