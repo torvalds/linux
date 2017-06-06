@@ -22,6 +22,7 @@ snd-pcm-$(CONFIG_SND_PCM_IEC958) += pcm_iec958.o
 
 # for trace-points
 CFLAGS_pcm_lib.o := -I$(src)
+CFLAGS_pcm_native.o := -I$(src)
 
 snd-pcm-dmaengine-objs := pcm_dmaengine.o
 
