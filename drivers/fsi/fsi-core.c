@@ -133,12 +133,45 @@ static int fsi_master_write(struct fsi_master *master, int link,
 	return master->write(master, link, slave_id, addr, val, size);
 }
 
+static int fsi_master_link_enable(struct fsi_master *master, int link)
+{
+	if (master->link_enable)
+		return master->link_enable(master, link);
+
+	return 0;
+}
+
+/*
+ * Issue a break command on this link
+ */
+static int fsi_master_break(struct fsi_master *master, int link)
+{
+	if (master->send_break)
+		return master->send_break(master, link);
+
+	return 0;
+}
+
 static int fsi_master_scan(struct fsi_master *master)
 {
-	int link;
+	int link, rc;
 
-	for (link = 0; link < master->n_links; link++)
+	for (link = 0; link < master->n_links; link++) {
+		rc = fsi_master_link_enable(master, link);
+		if (rc) {
+			dev_dbg(&master->dev,
+				"enable link %d failed: %d\n", link, rc);
+			continue;
+		}
+		rc = fsi_master_break(master, link);
+		if (rc) {
+			dev_dbg(&master->dev,
+				"break to link %d failed: %d\n", link, rc);
+			continue;
+		}
+
 		fsi_slave_init(master, link, 0);
+	}
 
 	return 0;
 }
