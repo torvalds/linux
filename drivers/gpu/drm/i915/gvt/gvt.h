@@ -198,7 +198,7 @@ struct intel_gvt_fence {
 #define INTEL_GVT_MMIO_HASH_BITS 9
 
 struct intel_gvt_mmio {
-	u32 *mmio_attribute;
+	u8 *mmio_attribute;
 	DECLARE_HASHTABLE(mmio_info_table, INTEL_GVT_MMIO_HASH_BITS);
 };
 
