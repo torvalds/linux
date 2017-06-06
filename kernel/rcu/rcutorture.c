@@ -496,7 +496,7 @@ static struct rcu_torture_ops rcu_busted_ops = {
 	.fqs		= NULL,
 	.stats		= NULL,
 	.irq_capable	= 1,
-	.name		= "rcu_busted"
+	.name		= "busted"
 };
 
 /*
