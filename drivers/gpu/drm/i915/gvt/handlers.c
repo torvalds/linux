@@ -124,6 +124,7 @@ static int new_mmio_info(struct intel_gvt *gvt,
 		gvt->mmio.mmio_attribute[info->offset / 4] = flags;
 		INIT_HLIST_NODE(&info->node);
 		hash_add(gvt->mmio.mmio_info_table, &info->node, info->offset);
+		gvt->mmio.num_tracked_mmio++;
 	}
 	return 0;
 }
@@ -2931,6 +2932,9 @@ int intel_gvt_setup_mmio_info(struct intel_gvt *gvt)
 		if (ret)
 			goto err;
 	}
+
+	gvt_dbg_mmio("traced %u virtual mmio registers\n",
+		     gvt->mmio.num_tracked_mmio);
 	return 0;
 err:
 	intel_gvt_clean_mmio_info(gvt);

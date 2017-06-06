@@ -215,6 +215,7 @@ struct intel_gvt_mmio {
 #define F_UNALIGN	(1 << 6)
 
 	DECLARE_HASHTABLE(mmio_info_table, INTEL_GVT_MMIO_HASH_BITS);
+	unsigned int num_tracked_mmio;
 };
 
 struct intel_gvt_firmware {
