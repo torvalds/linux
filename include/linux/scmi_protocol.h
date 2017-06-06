@@ -8,6 +8,7 @@
 #include <linux/types.h>
 
 #define SCMI_MAX_STR_SIZE	16
+#define SCMI_MAX_NUM_RATES	16
 
 /**
  * struct scmi_revision_info - version information structure
@@ -33,7 +34,47 @@ struct scmi_revision_info {
 	char sub_vendor_id[SCMI_MAX_STR_SIZE];
 };
 
+struct scmi_clock_info {
+	char name[SCMI_MAX_STR_SIZE];
+	bool rate_discrete;
+	union {
+		struct {
+			int num_rates;
+			u64 rates[SCMI_MAX_NUM_RATES];
+		} list;
+		struct {
+			u64 min_rate;
+			u64 max_rate;
+			u64 step_size;
+		} range;
+	};
+};
+
 struct scmi_handle;
+
+/**
+ * struct scmi_clk_ops - represents the various operations provided
+ *	by SCMI Clock Protocol
+ *
+ * @count_get: get the count of clocks provided by SCMI
+ * @info_get: get the information of the specified clock
+ * @rate_get: request the current clock rate of a clock
+ * @rate_set: set the clock rate of a clock
+ * @enable: enables the specified clock
+ * @disable: disables the specified clock
+ */
+struct scmi_clk_ops {
+	int (*count_get)(const struct scmi_handle *handle);
+
+	const struct scmi_clock_info *(*info_get)
+		(const struct scmi_handle *handle, u32 clk_id);
+	int (*rate_get)(const struct scmi_handle *handle, u32 clk_id,
+			u64 *rate);
+	int (*rate_set)(const struct scmi_handle *handle, u32 clk_id,
+			u32 config, u64 rate);
+	int (*enable)(const struct scmi_handle *handle, u32 clk_id);
+	int (*disable)(const struct scmi_handle *handle, u32 clk_id);
+};
 
 /**
  * struct scmi_perf_ops - represents the various operations provided
@@ -77,13 +118,16 @@ struct scmi_perf_ops {
  * @dev: pointer to the SCMI device
  * @version: pointer to the structure containing SCMI version information
  * @perf_ops: pointer to set of performance protocol operations
+ * @clk_ops: pointer to set of clock protocol operations
  */
 struct scmi_handle {
 	struct device *dev;
 	struct scmi_revision_info *version;
 	struct scmi_perf_ops *perf_ops;
+	struct scmi_clk_ops *clk_ops;
 	/* for protocol internal use */
 	void *perf_priv;
+	void *clk_priv;
 };
 
 enum scmi_std_protocol {
