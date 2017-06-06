@@ -2364,16 +2364,10 @@ static void nfp_net_open_stack(struct nfp_net *nn)
 	nfp_net_read_link_status(nn);
 }
 
-static int nfp_net_netdev_open(struct net_device *netdev)
+static int nfp_net_open_alloc_all(struct nfp_net *nn)
 {
-	struct nfp_net *nn = netdev_priv(netdev);
 	int err, r;
 
-	/* Step 1: Allocate resources for rings and the like
-	 * - Request interrupts
-	 * - Allocate RX and TX ring resources
-	 * - Setup initial RSS table
-	 */
 	err = nfp_net_aux_irq_request(nn, NFP_NET_CFG_EXN, "%s-exn",
 				      nn->exn_name, sizeof(nn->exn_name),
 				      NFP_NET_IRQ_EXN_IDX, nn->exn_handler);
@@ -2403,13 +2397,42 @@ static int nfp_net_netdev_open(struct net_device *netdev)
 	for (r = 0; r < nn->max_r_vecs; r++)
 		nfp_net_vector_assign_rings(&nn->dp, &nn->r_vecs[r], r);
 
+	return 0;
+
+err_free_rx_rings:
+	nfp_net_rx_rings_free(&nn->dp);
+err_cleanup_vec:
+	r = nn->dp.num_r_vecs;
+err_cleanup_vec_p:
+	while (r--)
+		nfp_net_cleanup_vector(nn, &nn->r_vecs[r]);
+	nfp_net_aux_irq_free(nn, NFP_NET_CFG_LSC, NFP_NET_IRQ_LSC_IDX);
+err_free_exn:
+	nfp_net_aux_irq_free(nn, NFP_NET_CFG_EXN, NFP_NET_IRQ_EXN_IDX);
+	return err;
+}
+
+static int nfp_net_netdev_open(struct net_device *netdev)
+{
+	struct nfp_net *nn = netdev_priv(netdev);
+	int err;
+
+	/* Step 1: Allocate resources for rings and the like
+	 * - Request interrupts
+	 * - Allocate RX and TX ring resources
+	 * - Setup initial RSS table
+	 */
+	err = nfp_net_open_alloc_all(nn);
+	if (err)
+		return err;
+
 	err = netif_set_real_num_tx_queues(netdev, nn->dp.num_stack_tx_rings);
 	if (err)
-		goto err_free_rings;
+		goto err_free_all;
 
 	err = netif_set_real_num_rx_queues(netdev, nn->dp.num_rx_rings);
 	if (err)
-		goto err_free_rings;
+		goto err_free_all;
 
 	/* Step 2: Configure the NFP
 	 * - Enable rings from 0 to tx_rings/rx_rings - 1.
@@ -2420,7 +2443,7 @@ static int nfp_net_netdev_open(struct net_device *netdev)
 	 */
 	err = nfp_net_set_config_and_enable(nn);
 	if (err)
-		goto err_free_rings;
+		goto err_free_all;
 
 	/* Step 3: Enable for kernel
 	 * - put some freelist descriptors on each RX ring
@@ -2432,18 +2455,8 @@ static int nfp_net_netdev_open(struct net_device *netdev)
 
 	return 0;
 
-err_free_rings:
-	nfp_net_tx_rings_free(&nn->dp);
-err_free_rx_rings:
-	nfp_net_rx_rings_free(&nn->dp);
-err_cleanup_vec:
-	r = nn->dp.num_r_vecs;
-err_cleanup_vec_p:
-	while (r--)
-		nfp_net_cleanup_vector(nn, &nn->r_vecs[r]);
-	nfp_net_aux_irq_free(nn, NFP_NET_CFG_LSC, NFP_NET_IRQ_LSC_IDX);
-err_free_exn:
-	nfp_net_aux_irq_free(nn, NFP_NET_CFG_EXN, NFP_NET_IRQ_EXN_IDX);
+err_free_all:
+	nfp_net_close_free_all(nn);
 	return err;
 }
 
