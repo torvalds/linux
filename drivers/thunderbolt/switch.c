@@ -390,6 +390,42 @@ struct device_type tb_switch_type = {
 	.release = tb_switch_release,
 };
 
+static int tb_switch_get_generation(struct tb_switch *sw)
+{
+	switch (sw->config.device_id) {
+	case PCI_DEVICE_ID_INTEL_LIGHT_RIDGE:
+	case PCI_DEVICE_ID_INTEL_EAGLE_RIDGE:
+	case PCI_DEVICE_ID_INTEL_LIGHT_PEAK:
+	case PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_2C:
+	case PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_4C:
+	case PCI_DEVICE_ID_INTEL_PORT_RIDGE:
+	case PCI_DEVICE_ID_INTEL_REDWOOD_RIDGE_2C_BRIDGE:
+	case PCI_DEVICE_ID_INTEL_REDWOOD_RIDGE_4C_BRIDGE:
+		return 1;
+
+	case PCI_DEVICE_ID_INTEL_WIN_RIDGE_2C_BRIDGE:
+	case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_2C_BRIDGE:
+	case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_4C_BRIDGE:
+		return 2;
+
+	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_LP_BRIDGE:
+	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_2C_BRIDGE:
+	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_4C_BRIDGE:
+	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_2C_BRIDGE:
+	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_4C_BRIDGE:
+		return 3;
+
+	default:
+		/*
+		 * For unknown switches assume generation to be 1 to be
+		 * on the safe side.
+		 */
+		tb_sw_warn(sw, "unsupported switch device id %#x\n",
+			   sw->config.device_id);
+		return 1;
+	}
+}
+
 /**
  * tb_switch_alloc() - allocate a switch
  * @tb: Pointer to the owning domain
@@ -443,6 +479,8 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, struct device *parent,
 		sw->ports[i].port = i;
 	}
 
+	sw->generation = tb_switch_get_generation(sw);
+
 	cap = tb_switch_find_vse_cap(sw, TB_VSE_CAP_PLUG_EVENTS);
 	if (cap < 0) {
 		tb_sw_warn(sw, "cannot find TB_VSE_CAP_PLUG_EVENTS aborting\n");
@@ -490,23 +528,6 @@ int tb_switch_configure(struct tb_switch *sw)
 	if (sw->config.vendor_id != PCI_VENDOR_ID_INTEL)
 		tb_sw_warn(sw, "unknown switch vendor id %#x\n",
 			   sw->config.vendor_id);
-
-	switch (sw->config.device_id) {
-	case PCI_DEVICE_ID_INTEL_LIGHT_RIDGE:
-	case PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_4C:
-	case PCI_DEVICE_ID_INTEL_PORT_RIDGE:
-	case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_2C_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_4C_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_2C_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_4C_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_2C_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_4C_BRIDGE:
-		break;
-
-	default:
-		tb_sw_warn(sw, "unsupported switch device id %#x\n",
-			   sw->config.device_id);
-	}
 
 	sw->config.enabled = 1;
 

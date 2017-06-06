@@ -25,6 +25,7 @@
  * @device: Device ID of the switch
  * @vendor_name: Name of the vendor (or %NULL if not known)
  * @device_name: Name of the device (or %NULL if not known)
+ * @generation: Switch Thunderbolt generation
  * @cap_plug_events: Offset to the plug events capability (%0 if not found)
  * @is_unplugged: The switch is going away
  * @drom: DROM of the switch (%NULL if not found)
@@ -40,6 +41,7 @@ struct tb_switch {
 	u16 device;
 	const char *vendor_name;
 	const char *device_name;
+	unsigned int generation;
 	int cap_plug_events;
 	bool is_unplugged;
 	u8 *drom;
