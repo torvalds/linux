@@ -35,8 +35,91 @@
  */
 extern pgd_t early_level4_pgt[PTRS_PER_PGD];
 extern pmd_t early_dynamic_pgts[EARLY_DYNAMIC_PAGE_TABLES][PTRS_PER_PMD];
-static unsigned int __initdata next_early_pgt = 2;
+static unsigned int __initdata next_early_pgt;
 pmdval_t early_pmd_flags = __PAGE_KERNEL_LARGE & ~(_PAGE_GLOBAL | _PAGE_NX);
+
+static void __init *fixup_pointer(void *ptr, unsigned long physaddr)
+{
+	return ptr - (void *)_text + (void *)physaddr;
+}
+
+void __init __startup_64(unsigned long physaddr)
+{
+	unsigned long load_delta, *p;
+	pgdval_t *pgd;
+	pudval_t *pud;
+	pmdval_t *pmd, pmd_entry;
+	int i;
+
+	/* Is the address too large? */
+	if (physaddr >> MAX_PHYSMEM_BITS)
+		for (;;);
+
+	/*
+	 * Compute the delta between the address I am compiled to run at
+	 * and the address I am actually running at.
+	 */
+	load_delta = physaddr - (unsigned long)(_text - __START_KERNEL_map);
+
+	/* Is the address not 2M aligned? */
+	if (load_delta & ~PMD_PAGE_MASK)
+		for (;;);
+
+	/* Fixup the physical addresses in the page table */
+
+	pgd = fixup_pointer(&early_level4_pgt, physaddr);
+	pgd[pgd_index(__START_KERNEL_map)] += load_delta;
+
+	pud = fixup_pointer(&level3_kernel_pgt, physaddr);
+	pud[510] += load_delta;
+	pud[511] += load_delta;
+
+	pmd = fixup_pointer(level2_fixmap_pgt, physaddr);
+	pmd[506] += load_delta;
+
+	/*
+	 * Set up the identity mapping for the switchover.  These
+	 * entries should *NOT* have the global bit set!  This also
+	 * creates a bunch of nonsense entries but that is fine --
+	 * it avoids problems around wraparound.
+	 */
+
+	pud = fixup_pointer(early_dynamic_pgts[next_early_pgt++], physaddr);
+	pmd = fixup_pointer(early_dynamic_pgts[next_early_pgt++], physaddr);
+
+	i = (physaddr >> PGDIR_SHIFT) % PTRS_PER_PGD;
+	pgd[i + 0] = (pgdval_t)pud + _KERNPG_TABLE;
+	pgd[i + 1] = (pgdval_t)pud + _KERNPG_TABLE;
+
+	i = (physaddr >> PUD_SHIFT) % PTRS_PER_PUD;
+	pud[i + 0] = (pudval_t)pmd + _KERNPG_TABLE;
+	pud[i + 1] = (pudval_t)pmd + _KERNPG_TABLE;
+
+	pmd_entry = __PAGE_KERNEL_LARGE_EXEC & ~_PAGE_GLOBAL;
+	pmd_entry +=  physaddr;
+
+	for (i = 0; i < DIV_ROUND_UP(_end - _text, PMD_SIZE); i++) {
+		int idx = i + (physaddr >> PMD_SHIFT) % PTRS_PER_PMD;
+		pmd[idx] = pmd_entry + i * PMD_SIZE;
+	}
+
+	/*
+	 * Fixup the kernel text+data virtual addresses. Note that
+	 * we might write invalid pmds, when the kernel is relocated
+	 * cleanup_highmap() fixes this up along with the mappings
+	 * beyond _end.
+	 */
+
+	pmd = fixup_pointer(level2_kernel_pgt, physaddr);
+	for (i = 0; i < PTRS_PER_PMD; i++) {
+		if (pmd[i] & _PAGE_PRESENT)
+			pmd[i] += load_delta;
+	}
+
+	/* Fixup phys_base */
+	p = fixup_pointer(&phys_base, physaddr);
+	*p += load_delta;
+}
 
 /* Wipe all early page tables except for the kernel symbol map */
 static void __init reset_early_page_tables(void)
