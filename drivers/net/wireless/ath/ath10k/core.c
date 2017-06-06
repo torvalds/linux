@@ -2459,24 +2459,29 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 	case ATH10K_HW_QCA988X:
 	case ATH10K_HW_QCA9887:
 		ar->regs = &qca988x_regs;
+		ar->hw_ce_regs = &qcax_ce_regs;
 		ar->hw_values = &qca988x_values;
 		break;
 	case ATH10K_HW_QCA6174:
 	case ATH10K_HW_QCA9377:
 		ar->regs = &qca6174_regs;
+		ar->hw_ce_regs = &qcax_ce_regs;
 		ar->hw_values = &qca6174_values;
 		break;
 	case ATH10K_HW_QCA99X0:
 	case ATH10K_HW_QCA9984:
 		ar->regs = &qca99x0_regs;
+		ar->hw_ce_regs = &qcax_ce_regs;
 		ar->hw_values = &qca99x0_values;
 		break;
 	case ATH10K_HW_QCA9888:
 		ar->regs = &qca99x0_regs;
+		ar->hw_ce_regs = &qcax_ce_regs;
 		ar->hw_values = &qca9888_values;
 		break;
 	case ATH10K_HW_QCA4019:
 		ar->regs = &qca4019_regs;
+		ar->hw_ce_regs = &qcax_ce_regs;
 		ar->hw_values = &qca4019_values;
 		break;
 	default:

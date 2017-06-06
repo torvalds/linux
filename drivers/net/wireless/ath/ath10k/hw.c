@@ -15,6 +15,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/bitops.h>
 #include "core.h"
 #include "hw.h"
 #include "hif.h"
@@ -189,6 +190,142 @@ const struct ath10k_hw_values qca4019_values = {
 	.num_target_ce_config_wlan      = 10,
 	.ce_desc_meta_data_mask         = 0xFFF0,
 	.ce_desc_meta_data_lsb          = 4,
+};
+
+static struct ath10k_hw_ce_regs_addr_map qcax_src_ring = {
+	.msb	= 0x00000010,
+	.lsb	= 0x00000010,
+	.mask	= GENMASK(16, 16),
+};
+
+static struct ath10k_hw_ce_regs_addr_map qcax_dst_ring = {
+	.msb	= 0x00000011,
+	.lsb	= 0x00000011,
+	.mask	= GENMASK(17, 17),
+};
+
+static struct ath10k_hw_ce_regs_addr_map qcax_dmax = {
+	.msb	= 0x0000000f,
+	.lsb	= 0x00000000,
+	.mask	= GENMASK(15, 0),
+};
+
+static struct ath10k_hw_ce_ctrl1 qcax_ctrl1 = {
+	.addr		= 0x00000010,
+	.hw_mask	= 0x0007ffff,
+	.sw_mask	= 0x0007ffff,
+	.hw_wr_mask	= 0x00000000,
+	.sw_wr_mask	= 0x0007ffff,
+	.reset_mask	= 0xffffffff,
+	.reset		= 0x00000080,
+	.src_ring	= &qcax_src_ring,
+	.dst_ring	= &qcax_dst_ring,
+	.dmax		= &qcax_dmax,
+};
+
+static struct ath10k_hw_ce_regs_addr_map qcax_cmd_halt_status = {
+	.msb	= 0x00000003,
+	.lsb	= 0x00000003,
+	.mask	= GENMASK(3, 3),
+};
+
+static struct ath10k_hw_ce_cmd_halt qcax_cmd_halt = {
+	.msb		= 0x00000000,
+	.mask		= GENMASK(0, 0),
+	.status_reset	= 0x00000000,
+	.status		= &qcax_cmd_halt_status,
+};
+
+static struct ath10k_hw_ce_regs_addr_map qcax_host_ie_cc = {
+	.msb	= 0x00000000,
+	.lsb	= 0x00000000,
+	.mask	= GENMASK(0, 0),
+};
+
+static struct ath10k_hw_ce_host_ie qcax_host_ie = {
+	.copy_complete_reset	= 0x00000000,
+	.copy_complete		= &qcax_host_ie_cc,
+};
+
+static struct ath10k_hw_ce_host_wm_regs qcax_wm_reg = {
+	.dstr_lmask	= 0x00000010,
+	.dstr_hmask	= 0x00000008,
+	.srcr_lmask	= 0x00000004,
+	.srcr_hmask	= 0x00000002,
+	.cc_mask	= 0x00000001,
+	.wm_mask	= 0x0000001E,
+	.addr		= 0x00000030,
+};
+
+static struct ath10k_hw_ce_misc_regs qcax_misc_reg = {
+	.axi_err	= 0x00000400,
+	.dstr_add_err	= 0x00000200,
+	.srcr_len_err	= 0x00000100,
+	.dstr_mlen_vio	= 0x00000080,
+	.dstr_overflow	= 0x00000040,
+	.srcr_overflow	= 0x00000020,
+	.err_mask	= 0x000007E0,
+	.addr		= 0x00000038,
+};
+
+static struct ath10k_hw_ce_regs_addr_map qcax_src_wm_low = {
+	.msb    = 0x0000001f,
+	.lsb	= 0x00000010,
+	.mask	= GENMASK(31, 16),
+};
+
+static struct ath10k_hw_ce_regs_addr_map qcax_src_wm_high = {
+	.msb	= 0x0000000f,
+	.lsb	= 0x00000000,
+	.mask	= GENMASK(15, 0),
+};
+
+static struct ath10k_hw_ce_dst_src_wm_regs qcax_wm_src_ring = {
+	.addr		= 0x0000004c,
+	.low_rst	= 0x00000000,
+	.high_rst	= 0x00000000,
+	.wm_low		= &qcax_src_wm_low,
+	.wm_high        = &qcax_src_wm_high,
+};
+
+static struct ath10k_hw_ce_regs_addr_map qcax_dst_wm_low = {
+	.lsb	= 0x00000010,
+	.mask	= GENMASK(31, 16),
+};
+
+static struct ath10k_hw_ce_regs_addr_map qcax_dst_wm_high = {
+	.msb	= 0x0000000f,
+	.lsb	= 0x00000000,
+	.mask	= GENMASK(15, 0),
+};
+
+static struct ath10k_hw_ce_dst_src_wm_regs qcax_wm_dst_ring = {
+	.addr		= 0x00000050,
+	.low_rst	= 0x00000000,
+	.high_rst	= 0x00000000,
+	.wm_low		= &qcax_dst_wm_low,
+	.wm_high	= &qcax_dst_wm_high,
+};
+
+struct ath10k_hw_ce_regs qcax_ce_regs = {
+	.sr_base_addr		= 0x00000000,
+	.sr_size_addr		= 0x00000004,
+	.dr_base_addr		= 0x00000008,
+	.dr_size_addr		= 0x0000000c,
+	.ce_cmd_addr		= 0x00000018,
+	.misc_ie_addr		= 0x00000034,
+	.sr_wr_index_addr	= 0x0000003c,
+	.dst_wr_index_addr	= 0x00000040,
+	.current_srri_addr	= 0x00000044,
+	.current_drri_addr	= 0x00000048,
+	.host_ie_addr		= 0x0000002c,
+	.ctrl1_regs		= &qcax_ctrl1,
+	.cmd_halt		= &qcax_cmd_halt,
+	.host_ie		= &qcax_host_ie,
+	.wm_regs		= &qcax_wm_reg,
+	.misc_regs		= &qcax_misc_reg,
+	.wm_srcr		= &qcax_wm_src_ring,
+	.wm_dstr                = &qcax_wm_dst_ring,
 };
 
 const struct ath10k_hw_clk_params qca6174_clk[ATH10K_HW_REFCLK_COUNT] = {
