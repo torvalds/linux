@@ -266,12 +266,11 @@ static void nfp_net_pf_free_vnic(struct nfp_pf *pf, struct nfp_net *nn)
 
 static void nfp_net_pf_free_vnics(struct nfp_pf *pf)
 {
-	struct nfp_net *nn;
+	struct nfp_net *nn, *next;
 
-	while (!list_empty(&pf->vnics)) {
-		nn = list_first_entry(&pf->vnics, struct nfp_net, vnic_list);
-		nfp_net_pf_free_vnic(pf, nn);
-	}
+	list_for_each_entry_safe(nn, next, &pf->vnics, vnic_list)
+		if (nfp_net_is_data_vnic(nn))
+			nfp_net_pf_free_vnic(pf, nn);
 }
 
 static struct nfp_net *
@@ -302,10 +301,12 @@ nfp_net_pf_alloc_vnic(struct nfp_pf *pf, bool needs_netdev,
 	nn->stride_rx = stride;
 	nn->stride_tx = stride;
 
-	err = nfp_app_vnic_init(pf->app, nn, eth_id);
-	if (err) {
-		nfp_net_free(nn);
-		return ERR_PTR(err);
+	if (needs_netdev) {
+		err = nfp_app_vnic_init(pf->app, nn, eth_id);
+		if (err) {
+			nfp_net_free(nn);
+			return ERR_PTR(err);
+		}
 	}
 
 	pf->num_vnics++;
@@ -446,6 +447,8 @@ static int nfp_net_pf_init_vnics(struct nfp_pf *pf)
 	/* Finish vNIC init and register */
 	id = 0;
 	list_for_each_entry(nn, &pf->vnics, vnic_list) {
+		if (!nfp_net_is_data_vnic(nn))
+			continue;
 		err = nfp_net_pf_init_vnic(pf, nn, id);
 		if (err)
 			goto err_prev_deinit;
@@ -457,12 +460,15 @@ static int nfp_net_pf_init_vnics(struct nfp_pf *pf)
 
 err_prev_deinit:
 	list_for_each_entry_continue_reverse(nn, &pf->vnics, vnic_list)
-		nfp_net_pf_clean_vnic(pf, nn);
+		if (nfp_net_is_data_vnic(nn))
+			nfp_net_pf_clean_vnic(pf, nn);
 	return err;
 }
 
-static int nfp_net_pf_app_init(struct nfp_pf *pf)
+static int
+nfp_net_pf_app_init(struct nfp_pf *pf, u8 __iomem *qc_bar, unsigned int stride)
 {
+	u8 __iomem *ctrl_bar;
 	int err;
 
 	pf->app = nfp_app_alloc(pf, nfp_net_pf_get_app_id(pf));
@@ -473,8 +479,28 @@ static int nfp_net_pf_app_init(struct nfp_pf *pf)
 	if (err)
 		goto err_free;
 
+	if (!nfp_app_needs_ctrl_vnic(pf->app))
+		return 0;
+
+	ctrl_bar = nfp_net_pf_map_rtsym(pf, "net.ctrl", "_pf%u_net_ctrl_bar",
+					NFP_PF_CSR_SLICE_SIZE,
+					&pf->ctrl_vnic_bar);
+	if (IS_ERR(ctrl_bar)) {
+		err = PTR_ERR(ctrl_bar);
+		goto err_free;
+	}
+
+	pf->ctrl_vnic =	nfp_net_pf_alloc_vnic(pf, false, ctrl_bar, qc_bar,
+					      stride, 0);
+	if (IS_ERR(pf->ctrl_vnic)) {
+		err = PTR_ERR(pf->ctrl_vnic);
+		goto err_unmap;
+	}
+
 	return 0;
 
+err_unmap:
+	nfp_cpp_area_release_free(pf->ctrl_vnic_bar);
 err_free:
 	nfp_app_free(pf->app);
 	return err;
@@ -482,12 +508,72 @@ err_free:
 
 static void nfp_net_pf_app_clean(struct nfp_pf *pf)
 {
+	if (pf->ctrl_vnic) {
+		nfp_net_pf_free_vnic(pf, pf->ctrl_vnic);
+		nfp_cpp_area_release_free(pf->ctrl_vnic_bar);
+	}
 	nfp_app_free(pf->app);
 	pf->app = NULL;
 }
 
+static int nfp_net_pf_app_start_ctrl(struct nfp_pf *pf)
+{
+	int err;
+
+	if (!pf->ctrl_vnic)
+		return 0;
+	err = nfp_net_pf_init_vnic(pf, pf->ctrl_vnic, 0);
+	if (err)
+		return err;
+
+	err = nfp_ctrl_open(pf->ctrl_vnic);
+	if (err)
+		goto err_clean_ctrl;
+
+	return 0;
+
+err_clean_ctrl:
+	nfp_net_pf_clean_vnic(pf, pf->ctrl_vnic);
+	return err;
+}
+
+static void nfp_net_pf_app_stop_ctrl(struct nfp_pf *pf)
+{
+	if (!pf->ctrl_vnic)
+		return;
+	nfp_ctrl_close(pf->ctrl_vnic);
+	nfp_net_pf_clean_vnic(pf, pf->ctrl_vnic);
+}
+
+static int nfp_net_pf_app_start(struct nfp_pf *pf)
+{
+	int err;
+
+	err = nfp_net_pf_app_start_ctrl(pf);
+	if (err)
+		return err;
+
+	err = nfp_app_start(pf->app, pf->ctrl_vnic);
+	if (err)
+		goto err_ctrl_stop;
+
+	return 0;
+
+err_ctrl_stop:
+	nfp_net_pf_app_stop_ctrl(pf);
+	return err;
+}
+
+static void nfp_net_pf_app_stop(struct nfp_pf *pf)
+{
+	nfp_app_stop(pf->app);
+	nfp_net_pf_app_stop_ctrl(pf);
+}
+
 static void nfp_net_pci_remove_finish(struct nfp_pf *pf)
 {
+	nfp_net_pf_app_stop(pf);
+	/* stop app first, to avoid double free of ctrl vNIC's ddir */
 	nfp_net_debugfs_dir_clean(&pf->ddir);
 
 	nfp_net_pf_free_irqs(pf);
@@ -685,7 +771,7 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 		goto err_ctrl_unmap;
 	}
 
-	err = nfp_net_pf_app_init(pf);
+	err = nfp_net_pf_app_init(pf, qc_bar, stride);
 	if (err)
 		goto err_unmap_qc;
 
@@ -700,14 +786,20 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 	if (err)
 		goto err_free_vnics;
 
-	err = nfp_net_pf_init_vnics(pf);
+	err = nfp_net_pf_app_start(pf);
 	if (err)
 		goto err_free_irqs;
+
+	err = nfp_net_pf_init_vnics(pf);
+	if (err)
+		goto err_stop_app;
 
 	mutex_unlock(&pf->lock);
 
 	return 0;
 
+err_stop_app:
+	nfp_net_pf_app_stop(pf);
 err_free_irqs:
 	nfp_net_pf_free_irqs(pf);
 err_free_vnics:
@@ -733,7 +825,8 @@ void nfp_net_pci_remove(struct nfp_pf *pf)
 		goto out;
 
 	list_for_each_entry(nn, &pf->vnics, vnic_list)
-		nfp_net_pf_clean_vnic(pf, nn);
+		if (nfp_net_is_data_vnic(nn))
+			nfp_net_pf_clean_vnic(pf, nn);
 
 	nfp_net_pf_free_vnics(pf);
 

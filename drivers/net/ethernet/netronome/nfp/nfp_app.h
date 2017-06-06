@@ -37,6 +37,7 @@
 struct bpf_prog;
 struct net_device;
 struct pci_dev;
+struct sk_buff;
 struct tc_to_netdev;
 struct sk_buff;
 struct nfp_app;
@@ -63,6 +64,9 @@ extern const struct nfp_app_type app_bpf;
  * @extra_cap:	extra capabilities string
  * @vnic_init:	init vNICs (assign port types, etc.)
  * @vnic_clean:	clean up app's vNIC state
+ * @start:	start application logic
+ * @stop:	stop application logic
+ * @ctrl_msg_rx:    control message handler
  * @setup_tc:	setup TC ndo
  * @tc_busy:	TC HW offload busy (rules loaded)
  * @xdp_offload:    offload an XDP program
@@ -81,6 +85,11 @@ struct nfp_app_type {
 			 unsigned int id);
 	void (*vnic_clean)(struct nfp_app *app, struct nfp_net *nn);
 
+	int (*start)(struct nfp_app *app);
+	void (*stop)(struct nfp_app *app);
+
+	void (*ctrl_msg_rx)(struct nfp_app *app, struct sk_buff *skb);
+
 	int (*setup_tc)(struct nfp_app *app, struct net_device *netdev,
 			u32 handle, __be16 proto, struct tc_to_netdev *tc);
 	bool (*tc_busy)(struct nfp_app *app, struct nfp_net *nn);
@@ -93,12 +102,15 @@ struct nfp_app_type {
  * @pdev:	backpointer to PCI device
  * @pf:		backpointer to NFP PF structure
  * @cpp:	pointer to the CPP handle
+ * @ctrl:	pointer to ctrl vNIC struct
  * @type:	pointer to const application ops and info
  */
 struct nfp_app {
 	struct pci_dev *pdev;
 	struct nfp_pf *pf;
 	struct nfp_cpp *cpp;
+
+	struct nfp_net *ctrl;
 
 	const struct nfp_app_type *type;
 };
@@ -124,11 +136,31 @@ static inline void nfp_app_vnic_clean(struct nfp_app *app, struct nfp_net *nn)
 		app->type->vnic_clean(app, nn);
 }
 
+static inline int nfp_app_start(struct nfp_app *app, struct nfp_net *ctrl)
+{
+	app->ctrl = ctrl;
+	if (!app->type->start)
+		return 0;
+	return app->type->start(app);
+}
+
+static inline void nfp_app_stop(struct nfp_app *app)
+{
+	if (!app->type->stop)
+		return;
+	app->type->stop(app);
+}
+
 static inline const char *nfp_app_name(struct nfp_app *app)
 {
 	if (!app)
 		return "";
 	return app->type->name;
+}
+
+static inline bool nfp_app_needs_ctrl_vnic(struct nfp_app *app)
+{
+	return app && app->type->ctrl_msg_rx;
 }
 
 static inline bool nfp_app_ctrl_has_meta(struct nfp_app *app)
@@ -173,6 +205,18 @@ static inline int nfp_app_xdp_offload(struct nfp_app *app, struct nfp_net *nn,
 		return -EOPNOTSUPP;
 	return app->type->xdp_offload(app, nn, prog);
 }
+
+static inline bool nfp_app_ctrl_tx(struct nfp_app *app, struct sk_buff *skb)
+{
+	return nfp_ctrl_tx(app->ctrl, skb);
+}
+
+static inline void nfp_app_ctrl_rx(struct nfp_app *app, struct sk_buff *skb)
+{
+	app->type->ctrl_msg_rx(app, skb);
+}
+
+struct sk_buff *nfp_app_ctrl_msg_alloc(struct nfp_app *app, unsigned int size);
 
 struct nfp_app *nfp_app_alloc(struct nfp_pf *pf, enum nfp_app_id id);
 void nfp_app_free(struct nfp_app *app);

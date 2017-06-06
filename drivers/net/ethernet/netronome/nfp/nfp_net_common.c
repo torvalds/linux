@@ -1950,7 +1950,7 @@ nfp_ctrl_rx_one(struct nfp_net *nn, struct nfp_net_dp *dp,
 	skb_reserve(skb, pkt_off);
 	skb_put(skb, pkt_len);
 
-	dev_kfree_skb_any(skb);
+	nfp_app_ctrl_rx(nn->app, skb);
 
 	return true;
 }

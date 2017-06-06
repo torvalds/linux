@@ -63,11 +63,13 @@ struct nfp_nsp_identify;
  * @cpp:		Pointer to the CPP handle
  * @app:		Pointer to the APP handle
  * @data_vnic_bar:	Pointer to the CPP area for the data vNICs' BARs
+ * @ctrl_vnic_bar:	Pointer to the CPP area for the ctrl vNIC's BAR
  * @qc_area:		Pointer to the CPP area for the queues
  * @irq_entries:	Array of MSI-X entries for all vNICs
  * @limit_vfs:		Number of VFs supported by firmware (~0 for PCI limit)
  * @num_vfs:		Number of SR-IOV VFs enabled
  * @fw_loaded:		Is the firmware loaded?
+ * @ctrl_vnic:		Pointer to the control vNIC if available
  * @eth_tbl:		NSP ETH table
  * @nspi:		NSP identification info
  * @hwmon_dev:		pointer to hwmon device
@@ -87,6 +89,7 @@ struct nfp_pf {
 	struct nfp_app *app;
 
 	struct nfp_cpp_area *data_vnic_bar;
+	struct nfp_cpp_area *ctrl_vnic_bar;
 	struct nfp_cpp_area *qc_area;
 
 	struct msix_entry *irq_entries;
@@ -95,6 +98,8 @@ struct nfp_pf {
 	unsigned int num_vfs;
 
 	bool fw_loaded;
+
+	struct nfp_net *ctrl_vnic;
 
 	struct nfp_eth_table *eth_tbl;
 	struct nfp_nsp_identify *nspi;
@@ -126,5 +131,7 @@ struct nfp_eth_table_port *
 nfp_net_find_port(struct nfp_eth_table *eth_tbl, unsigned int id);
 void
 nfp_net_get_mac_addr(struct nfp_net *nn, struct nfp_cpp *cpp, unsigned int id);
+
+bool nfp_ctrl_tx(struct nfp_net *nn, struct sk_buff *skb);
 
 #endif /* NFP_MAIN_H */
