@@ -2807,6 +2807,7 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 {
 	int r;
 	int srcu_idx;
+	unsigned long ebb_regs[3] = {};	/* shut up GCC */
 
 	if (!vcpu->arch.sane) {
 		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
@@ -2855,6 +2856,13 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 
 	flush_all_to_thread(current);
 
+	/* Save userspace EBB register values */
+	if (cpu_has_feature(CPU_FTR_ARCH_207S)) {
+		ebb_regs[0] = mfspr(SPRN_EBBHR);
+		ebb_regs[1] = mfspr(SPRN_EBBRR);
+		ebb_regs[2] = mfspr(SPRN_BESCR);
+	}
+
 	vcpu->arch.wqp = &vcpu->arch.vcore->wq;
 	vcpu->arch.pgdir = current->mm->pgd;
 	vcpu->arch.state = KVMPPC_VCPU_BUSY_IN_HOST;
@@ -2876,6 +2884,13 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		} else if (r == RESUME_PASSTHROUGH)
 			r = kvmppc_xics_rm_complete(vcpu, 0);
 	} while (is_kvmppc_resume_guest(r));
+
+	/* Restore userspace EBB register values */
+	if (cpu_has_feature(CPU_FTR_ARCH_207S)) {
+		mtspr(SPRN_EBBHR, ebb_regs[0]);
+		mtspr(SPRN_EBBRR, ebb_regs[1]);
+		mtspr(SPRN_BESCR, ebb_regs[2]);
+	}
 
  out:
 	vcpu->arch.state = KVMPPC_VCPU_NOTREADY;
