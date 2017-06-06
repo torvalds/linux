@@ -1969,8 +1969,8 @@ static int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags)
 	int err = 0;
 
 	if (!dpaa2_eth_hash_enabled(priv)) {
-		dev_err(dev, "Hashing support is not enabled\n");
-		return -EOPNOTSUPP;
+		dev_dbg(dev, "Hashing support is not enabled\n");
+		return 0;
 	}
 
 	memset(&cls_cfg, 0, sizeof(cls_cfg));
