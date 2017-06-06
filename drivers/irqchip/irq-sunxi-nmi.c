@@ -201,7 +201,10 @@ static int __init sunxi_sc_nmi_irq_init(struct device_node *node,
 	gc->chip_types[1].regs.type		= reg_offs->ctrl;
 	gc->chip_types[1].handler		= handle_edge_irq;
 
+	/* Disable any active interrupts */
 	sunxi_sc_nmi_write(gc, reg_offs->enable, 0);
+
+	/* Clear any pending NMI interrupts */
 	sunxi_sc_nmi_write(gc, reg_offs->pend, SUNXI_NMI_IRQ_BIT);
 
 	irq_set_chained_handler_and_data(irq, sunxi_sc_nmi_handle_irq, domain);
