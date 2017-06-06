@@ -2276,6 +2276,76 @@ static int nfp_net_set_config_and_enable(struct nfp_net *nn)
 }
 
 /**
+ * nfp_net_close_stack() - Quiesce the stack (part of close)
+ * @nn:	     NFP Net device to reconfigure
+ */
+static void nfp_net_close_stack(struct nfp_net *nn)
+{
+	unsigned int r;
+
+	disable_irq(nn->irq_entries[NFP_NET_IRQ_LSC_IDX].vector);
+	netif_carrier_off(nn->dp.netdev);
+	nn->link_up = false;
+
+	for (r = 0; r < nn->dp.num_r_vecs; r++) {
+		disable_irq(nn->r_vecs[r].irq_vector);
+		napi_disable(&nn->r_vecs[r].napi);
+	}
+
+	netif_tx_disable(nn->dp.netdev);
+}
+
+/**
+ * nfp_net_close_free_all() - Free all runtime resources
+ * @nn:      NFP Net device to reconfigure
+ */
+static void nfp_net_close_free_all(struct nfp_net *nn)
+{
+	unsigned int r;
+
+	for (r = 0; r < nn->dp.num_rx_rings; r++) {
+		nfp_net_rx_ring_bufs_free(&nn->dp, &nn->dp.rx_rings[r]);
+		nfp_net_rx_ring_free(&nn->dp.rx_rings[r]);
+	}
+	for (r = 0; r < nn->dp.num_tx_rings; r++) {
+		nfp_net_tx_ring_bufs_free(&nn->dp, &nn->dp.tx_rings[r]);
+		nfp_net_tx_ring_free(&nn->dp.tx_rings[r]);
+	}
+	for (r = 0; r < nn->dp.num_r_vecs; r++)
+		nfp_net_cleanup_vector(nn, &nn->r_vecs[r]);
+
+	kfree(nn->dp.rx_rings);
+	kfree(nn->dp.tx_rings);
+
+	nfp_net_aux_irq_free(nn, NFP_NET_CFG_LSC, NFP_NET_IRQ_LSC_IDX);
+	nfp_net_aux_irq_free(nn, NFP_NET_CFG_EXN, NFP_NET_IRQ_EXN_IDX);
+}
+
+/**
+ * nfp_net_netdev_close() - Called when the device is downed
+ * @netdev:      netdev structure
+ */
+static int nfp_net_netdev_close(struct net_device *netdev)
+{
+	struct nfp_net *nn = netdev_priv(netdev);
+
+	/* Step 1: Disable RX and TX rings from the Linux kernel perspective
+	 */
+	nfp_net_close_stack(nn);
+
+	/* Step 2: Tell NFP
+	 */
+	nfp_net_clear_config_and_disable(nn);
+
+	/* Step 3: Free resources
+	 */
+	nfp_net_close_free_all(nn);
+
+	nn_dbg(nn, "%s down", netdev->name);
+	return 0;
+}
+
+/**
  * nfp_net_open_stack() - Start the device from stack's perspective
  * @nn:      NFP Net device to reconfigure
  */
@@ -2375,76 +2445,6 @@ err_cleanup_vec_p:
 err_free_exn:
 	nfp_net_aux_irq_free(nn, NFP_NET_CFG_EXN, NFP_NET_IRQ_EXN_IDX);
 	return err;
-}
-
-/**
- * nfp_net_close_stack() - Quiescent the stack (part of close)
- * @nn:	     NFP Net device to reconfigure
- */
-static void nfp_net_close_stack(struct nfp_net *nn)
-{
-	unsigned int r;
-
-	disable_irq(nn->irq_entries[NFP_NET_IRQ_LSC_IDX].vector);
-	netif_carrier_off(nn->dp.netdev);
-	nn->link_up = false;
-
-	for (r = 0; r < nn->dp.num_r_vecs; r++) {
-		disable_irq(nn->r_vecs[r].irq_vector);
-		napi_disable(&nn->r_vecs[r].napi);
-	}
-
-	netif_tx_disable(nn->dp.netdev);
-}
-
-/**
- * nfp_net_close_free_all() - Free all runtime resources
- * @nn:      NFP Net device to reconfigure
- */
-static void nfp_net_close_free_all(struct nfp_net *nn)
-{
-	unsigned int r;
-
-	for (r = 0; r < nn->dp.num_rx_rings; r++) {
-		nfp_net_rx_ring_bufs_free(&nn->dp, &nn->dp.rx_rings[r]);
-		nfp_net_rx_ring_free(&nn->dp.rx_rings[r]);
-	}
-	for (r = 0; r < nn->dp.num_tx_rings; r++) {
-		nfp_net_tx_ring_bufs_free(&nn->dp, &nn->dp.tx_rings[r]);
-		nfp_net_tx_ring_free(&nn->dp.tx_rings[r]);
-	}
-	for (r = 0; r < nn->dp.num_r_vecs; r++)
-		nfp_net_cleanup_vector(nn, &nn->r_vecs[r]);
-
-	kfree(nn->dp.rx_rings);
-	kfree(nn->dp.tx_rings);
-
-	nfp_net_aux_irq_free(nn, NFP_NET_CFG_LSC, NFP_NET_IRQ_LSC_IDX);
-	nfp_net_aux_irq_free(nn, NFP_NET_CFG_EXN, NFP_NET_IRQ_EXN_IDX);
-}
-
-/**
- * nfp_net_netdev_close() - Called when the device is downed
- * @netdev:      netdev structure
- */
-static int nfp_net_netdev_close(struct net_device *netdev)
-{
-	struct nfp_net *nn = netdev_priv(netdev);
-
-	/* Step 1: Disable RX and TX rings from the Linux kernel perspective
-	 */
-	nfp_net_close_stack(nn);
-
-	/* Step 2: Tell NFP
-	 */
-	nfp_net_clear_config_and_disable(nn);
-
-	/* Step 3: Free resources
-	 */
-	nfp_net_close_free_all(nn);
-
-	nn_dbg(nn, "%s down", netdev->name);
-	return 0;
 }
 
 static void nfp_net_set_rx_mode(struct net_device *netdev)
