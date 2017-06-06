@@ -696,6 +696,7 @@ static int __blk_label_update(struct nd_region *nd_region,
 	struct resource *res, **old_res_list;
 	struct nd_label_id label_id;
 	u8 uuid[NSLABEL_UUID_LEN];
+	int min_dpa_idx = 0;
 	LIST_HEAD(list);
 	u32 nslot, slot;
 
@@ -767,6 +768,18 @@ static int __blk_label_update(struct nd_region *nd_region,
 		}
 	}
 
+	/*
+	 * Find the resource associated with the first label in the set
+	 * per the v1.2 namespace specification.
+	 */
+	for (i = 0; i < nsblk->num_resources; i++) {
+		struct resource *min = nsblk->res[min_dpa_idx];
+
+		res = nsblk->res[i];
+		if (res->start < min->start)
+			min_dpa_idx = i;
+	}
+
 	for (i = 0; i < nsblk->num_resources; i++) {
 		size_t offset;
 
@@ -785,18 +798,26 @@ static int __blk_label_update(struct nd_region *nd_region,
 			memcpy(nd_label->name, nsblk->alt_name,
 					NSLABEL_NAME_LEN);
 		nd_label->flags = __cpu_to_le32(NSLABEL_FLAG_LOCAL);
-		nd_label->nlabel = __cpu_to_le16(0); /* N/A */
-		nd_label->position = __cpu_to_le16(0); /* N/A */
 
 		/*
 		 * Use the presence of the type_guid as a flag to
-		 * determine isetcookie usage for blk-aperture
-		 * namespaces.
+		 * determine isetcookie usage and nlabel + position
+		 * policy for blk-aperture namespaces.
 		 */
-		if (namespace_label_has(ndd, type_guid))
+		if (namespace_label_has(ndd, type_guid)) {
+			if (i == min_dpa_idx) {
+				nd_label->nlabel = __cpu_to_le16(nsblk->num_resources);
+				nd_label->position = __cpu_to_le16(0);
+			} else {
+				nd_label->nlabel = __cpu_to_le16(0xffff);
+				nd_label->position = __cpu_to_le16(0xffff);
+			}
 			nd_label->isetcookie = __cpu_to_le64(nd_set->cookie2);
-		else
+		} else {
+			nd_label->nlabel = __cpu_to_le16(0); /* N/A */
+			nd_label->position = __cpu_to_le16(0); /* N/A */
 			nd_label->isetcookie = __cpu_to_le64(0); /* N/A */
+		}
 
 		nd_label->dpa = __cpu_to_le64(res->start);
 		nd_label->rawsize = __cpu_to_le64(resource_size(res));
