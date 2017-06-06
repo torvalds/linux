@@ -2252,7 +2252,7 @@ static irqreturn_t dpni_irq0_handler(int irq_num, void *arg)
 
 static irqreturn_t dpni_irq0_handler_thread(int irq_num, void *arg)
 {
-	u32 status, clear = 0;
+	u32 status = 0, clear = 0;
 	struct device *dev = (struct device *)arg;
 	struct fsl_mc_device *dpni_dev = to_fsl_mc_device(dev);
 	struct net_device *net_dev = dev_get_drvdata(dev);
